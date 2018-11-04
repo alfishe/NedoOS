@@ -1,0 +1,31 @@
+	MODULE LD_CLUST
+	PUBLIC LD_CLUST
+	RSEG RCODE
+LD_CLUST:
+	ld a,(bc)
+	ld bc,0
+	cp 3
+	jr nz,not_fat32
+	LD HL,20
+	ADD HL,DE
+	LD C,(HL)
+	INC HL
+	LD B,(HL)
+not_fat32:
+	LD HL,26
+	ADD HL,DE
+	LD A,(HL)
+	INC HL
+	LD H,(HL)
+	LD L,A
+	ret	
+	ENDMOD
+	
+	MODULE FS_PEREMS
+	PUBLIC Fsid,CurrVol
+	RSEG CONST
+Fsid:
+	DEFW	0
+CurrVol:
+	DEFB	0
+	END

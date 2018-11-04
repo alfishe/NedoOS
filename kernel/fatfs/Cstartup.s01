@@ -1,0 +1,156 @@
+	NAME	CSTARTUP
+
+	EXTERN	fs_test			; where to begin execution
+	EXTERN	?C_EXIT			; where to go when program is done
+	
+	RSEG	CSTACK
+	DEFS	0			; a bare minimum !
+
+	RSEG	UDATA0
+	RSEG	IDATA0
+	RSEG	ECSTR
+	RSEG	TEMP
+	RSEG	DATA0
+	RSEG	WCSTR
+
+	RSEG	CDATA0
+	RSEG	CCSTR
+	RSEG	CONST
+	RSEG	CSTR
+
+	ASEG
+	ORG	0x6000
+init_A
+	JP	init_C
+
+	RSEG	RCODE
+init_C
+    di
+	LD	SP,.SFE.(CSTACK-1)	; from high to low address
+    ld a,1
+    out (0xbf),a
+	ld a,0x6e
+	LD BC,0x3FF7
+	ld hl,0x6000
+	
+	out (c),a
+	ld de,0x2000
+	ld b,d
+	ld c,e
+	ldir
+	ld bc,0x7ff7
+	out (c),a
+	
+	dec a
+	ld b,0x3f
+	out (c),a
+	ld b,d
+	ld c,e
+	ld d,e
+	ldir
+	ld bc,0xbff7
+	out (c),a
+	
+	dec a
+	ld b,0x3f
+	out (c),a
+	ld b,d
+	ld c,e
+	ld d,e
+	ldir
+	ld bc,0xfff7
+	out (c),a
+	
+	ld a,0x6f
+	ld b,0x3f
+	out (c),a
+	
+
+	CALL	seg_init
+
+	CALL	fs_test			; non-banked call to main()
+
+	JP	?C_EXIT	
+
+;---------------------------------------------------------------;
+; Copy initialized PROMmed code to shadow RAM and clear		;
+; uninitialized variables.					;
+;---------------------------------------------------------------;
+
+seg_init
+
+;---------------------------------------;
+; Zero out UDATA0			;
+;---------------------------------------;
+        
+	LD	HL,.SFE.(UDATA0)
+	LD	DE,.SFB.(UDATA0)
+	CALL	zero_mem
+
+;---------------------------------------;
+; Copy CDATA0 into IDATA0		;
+;---------------------------------------;
+	LD	DE,.SFB.(IDATA0)		;destination address
+	LD	HL,.SFE.(CDATA0)
+	LD	BC,.SFB.(CDATA0)
+	CALL	copy_mem
+
+;---------------------------------------;
+; Copy CCSTR into ECSTR			;
+;---------------------------------------;
+	LD	DE,.SFB.(ECSTR)			;destination address
+	LD	HL,.SFE.(CCSTR)
+	LD	BC,.SFB.(CCSTR)
+
+	; Just fall in to the copy_mem function
+
+;---------------------------------------;
+; Copy memory				;
+;---------------------------------------;
+copy_mem
+	XOR	A
+	SBC	HL,BC
+	PUSH	BC
+	LD	C,L
+	LD	B,H				; BC - that many bytes
+	POP	HL				; source address
+	RET	Z				; If block size = 0 return now
+	LDIR
+	RET
+
+;---------------------------------------;
+; Clear memory				;
+;---------------------------------------;
+zero_mem
+	XOR	A
+again	PUSH	HL
+	SBC	HL,DE
+	POP	HL
+	RET	Z
+	LD	(DE),A
+	INC	DE
+	JR	again
+
+;---------------------------------------------------------------;
+; Interrupt vectors must be inserted here by the user.		;
+;---------------------------------------------------------------;
+
+	ENDMOD	init_A
+
+	MODULE	exit
+
+	PUBLIC	exit
+	PUBLIC	?C_EXIT
+
+	RSEG	RCODE
+
+?C_EXIT
+exit	EQU	?C_EXIT
+
+;--------------------------------------------------------------;
+; The next line can be replaced by user defined code.          ;
+;--------------------------------------------------------------;
+        NOP
+	JR	$			; loop forever
+
+	END

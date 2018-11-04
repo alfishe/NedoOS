@@ -1,0 +1,42 @@
+	NAME TABLRST
+	PUBLIC fsmount,fsopen
+#include "ffs.def"
+	RSEG KRST
+	
+fsmount:
+	ld hl,fs_mount
+	jp sys_call
+fsopen:
+	ld hl,fs_open
+	jp sys_call	
+	
+	
+sys_call:
+	ex (sp),hl
+	ld (sys_store_ret),hl
+	ld hl,sys_return
+	ex (sp),hl
+	ld a,0x6f
+	ld (sys_cur_pages),a
+	push bc
+	ld bc,0x37f7
+	out (c),a
+	dec a
+	ld (sys_cur_pages+1),a
+	ld b,0x77
+	out (c),a
+	pop bc
+	jp (hl)
+	
+sys_return:
+	
+	ret
+	
+sys_cur_pages
+	defb 0x6f,0x6e,0x6d,0x6c
+sys_nproc
+	defb 0x6f
+sys_store_ret
+	defw 0x0000
+
+	END

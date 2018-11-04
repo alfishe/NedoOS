@@ -1,0 +1,20 @@
+// 
+#define fs_chdir 0x3CAA 
+#define fs_chdrive 0x3C8E 
+#define fs_close 0x3C64 
+#define fs_closedir 0x4255 
+#define fs_getfree 0x434E 
+#define fs_lseek 0x3D47 
+#define fs_mkdir 0x48A4 
+#define fs_mount 0x2F6F 
+#define fs_open 0x2FC9 
+#define fs_opendir 0x4197 
+#define fs_read 0x33E5 
+#define fs_readdir 0x427B 
+#define fs_rename 0x4AE5 
+#define fs_stat 0x42F0 
+#define fs_sync 0x3B86 
+#define fs_truncate 0x45D6 
+#define fs_unlink 0x472A 
+#define fs_write 0x3757 
+#define fs_init 0x4F71 
