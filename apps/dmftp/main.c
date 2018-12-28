@@ -19,26 +19,19 @@ static unsigned char ch_hash[16]={0};
 
 unsigned long int_count;   
 static unsigned char dns_serv[]={8,8,8,8};
-static unsigned char irc_dom[64]="irc.forestnet.org";
+static unsigned char irc_dom[64];
 static unsigned char ftp_ip[4];
 unsigned int ftp_port;
 static unsigned char data_ip[4];
 unsigned int data_port;
 unsigned int iinchip_source_port=25;
 unsigned int dns_makequery(void);
-#define FLS_LGN 0x08
-unsigned char fls=0;
-static struct {
-	unsigned char * nxt;
-	unsigned char * src;
-	unsigned char * com;
-	unsigned char * dst;
-	unsigned char * msg;
-}pars;
 
-void socClose(void){
+void socClose(unsigned char soc){
+	output(0x81ab,soc);
 	WR_S_CR(Sn_CR_CLOSE);
 	WR_S_MR(Sn_MR_CLOSE);
+	output(0x81ab,0x0a);
 }
 
 unsigned int receive(void){
@@ -47,7 +40,7 @@ unsigned int receive(void){
 	while(len!=RD_S_RX_RSR())
 		len=RD_S_RX_RSR();
 	PACK_SIZE(0,len);
-	WIZ_READ_BUF(0, RX_BUF, len);
+	WIZ_READ_BUF(RX_BUF, len);
 	//conv1251to866(rptr);
 	return len;
 }
@@ -179,7 +172,7 @@ unsigned int waitRequestCMD(unsigned char i){
 		i--;
 		if(RD_S_SSR()!=SOCK_ESTABLISHED){
 			puts("ftp: connect: Connection timed out");
-			socClose();
+			socClose(0x0a);
 			return 0;
 		}
 		if(i==0){
@@ -201,33 +194,28 @@ void msg_send(unsigned char * tbuf){
 }
 
 unsigned int msg_send_const(const unsigned char * tbuf){
-	sprintf(TX_BUF,"%s\r\n",tbuf);
-    WIZ_WRITE_BUF(TX_BUF,strlen(TX_BUF));
+	strcpy(TX_BUF,tbuf);
+	msg_send(TX_BUF);
 	return waitRequestCMD(150);
 }
 
 #include <icclbutl.h> 
-void put_c_in_string(char c, void *ptr)  /* Low-level output */
-{
+void put_c_in_string(char c, void *ptr){
   *(*(char **) ptr)++ = c;
 }
 
-unsigned int wiz_printf_cmd(const char *format, ...)   
-{                     
+unsigned int wiz_printf_cmd(const char *format, ...){                     
     va_list ap;   
     int i;
-    char *buf_pft=RX_BUF;   
+    char *buf_pft=TX_BUF;   
                     
     va_start(ap, format);      /* Variable argument begin */
     i = _formatted_write(format, put_c_in_string, (void *) &buf_pft, ap);
     va_end(ap);                /* Variable argument end */
 	if(i<0) return 0;
 	
-    *(buf_pft++) = '\r'; 
-    *(buf_pft++) = '\n'; 
     *buf_pft = '\0';                 /* String should be terminated with NUL */
-    
-    WIZ_WRITE_BUF(TX_BUF,i+2); 
+    msg_send(TX_BUF);
        
     return waitRequestCMD(150);   
 }  
@@ -243,8 +231,9 @@ const unsigned char t866to1251[128] = {
 	0xA8, 0xB8, 0xAA, 0xBA, 0xAF, 0xBF, 0xA1, 0xA2, 0xB0, 0x95, 0xB7, 0x76, 0xB9, 0xA4, 0xA6, 0xA0
 };
 
-unsigned char reconnect(unsigned int port){
+unsigned char reconnect(unsigned char soc, unsigned int port){
 	unsigned char i=3;
+	output(0x81ab,soc);
 	while(i--){
 		iinchip_source_port++; 
 		WIZ_SOCKET(0, Sn_MR_TCP, iinchip_source_port);
@@ -254,7 +243,7 @@ unsigned char reconnect(unsigned int port){
 				break; 
 		return 0;
 	}
-	socClose();
+	socClose(soc);
 	return 1;
 }
 
@@ -283,26 +272,20 @@ void cmdOpen(void){
 		}
 		ftp_port=21;
 	}
-	output(0x81ab,0x0a);		//socket 2
-	if(reconnect(ftp_port)){
+	if(reconnect(0x0a, ftp_port)){
 		puts("ftp: connect: Connection timed out");
 		return;
 	}
-	while(1){
-		req=waitRequestCMD(150);
-		if(req==0){
-			return;
-		}
+	req=waitRequestCMD(150);
+	while(req!=0){
 		if(req==220){
 			printf("Name: ");
 			gets(kbd_buf);
-			sprintf(TX_BUF,"USER %s",kbd_buf);
-			msg_send(TX_BUF);		
+			req=wiz_printf_cmd("USER %s",kbd_buf);
 		}else if(req==331){
 			printf("Password: ");
 			gets(kbd_buf);
-			sprintf(TX_BUF,"PASS %s",kbd_buf);
-			msg_send(TX_BUF);		
+			req=wiz_printf_cmd("PASS %s",kbd_buf);
 		}else if(req==230){
 			return;		
 		}
@@ -320,8 +303,7 @@ unsigned char getDataSoc(void){
 		data_ip,data_ip+1,data_ip+2,data_ip+3,&req,&data_port);
 	if(i!=6) return 1;
 	data_port+=req<<8;
-	output(0x81ab,0x0b);
-	i = reconnect(data_port);
+	i = reconnect(0x0b, data_port);
 	output(0x81ab,0x0a);
 	return i;
 }
@@ -331,15 +313,11 @@ void cmdDir(void){
 	if(msg_send_const("PWD")!=257) return;
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE A")!=200){
-		output(0x81ab,0x0b);
-		socClose();
-		output(0x81ab,0x0a);
+		socClose(0x0b);
 		return;
 	}
 	if(msg_send_const("LIST")!=125){
-		output(0x81ab,0x0b);
-		socClose();
-		output(0x81ab,0x0a);
+		socClose(0x0b);
 		return;
 	}
 	output(0x81ab,0x0b);
@@ -351,40 +329,82 @@ void cmdDir(void){
 		conv1251to866(RX_BUF);
 		puts(RX_BUF);
 	}
-	socClose();
-	output(0x81ab,0x0a);
+	socClose(0x0b);
 	waitRequestCMD(100);
 }
 
 void cmdRetr(void){
-	unsigned int len;
-	//unsigned int file;
+	unsigned int len,pr=0;
+	unsigned int file;
 	if(msg_send_const("PWD")!=257) return;
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE I")!=200){
-		output(0x81ab,0x0b);
-		socClose();
-		output(0x81ab,0x0a);
+		socClose(0x0b);
 		return;
 	}
-	if(msg_send_const("RETR")!=125){
-		output(0x81ab,0x0b);
-		socClose();
-		output(0x81ab,0x0a);
+	if(wiz_printf_cmd("RETR %s",kbd_buf+4)!=125){
+		socClose(0x0b);
 		return;
 	}
-	//file=OS_CREATEHANDLE();
+	file=OS_CREATEHANDLE(kbd_buf+4,0x80);
+	if(file&0xff){
+		socClose(0x0b);
+		puts("Open local file error");
+		return;
+	}
 	output(0x81ab,0x0b);
 	while(1){
 		if((len=receive())==0){
 			if(RD_S_SSR()!=SOCK_ESTABLISHED) break;
+		}else{
+			pr++;
+			OS_WRITEHANDLE(RX_BUF,file,len);
+			printf("\r%d packets",pr);
 		}
-		*(RX_BUF+len)=0;
-		conv1251to866(RX_BUF);
-		puts(RX_BUF);
 	}
-	socClose();
-	output(0x81ab,0x0a);
+	socClose(0x0b);
+	OS_CLOSEHANDLE(file);
+	waitRequestCMD(100);
+}
+
+void cmdStor(void){
+	unsigned int len,pr=0;
+	unsigned int file;
+	if(msg_send_const("PWD")!=257) return;
+	file=OS_OPENHANDLE(kbd_buf+4,0x00);
+	if(file&0xff){
+		puts("Open local file error");
+		return;
+	}
+	if(msg_send_const("TYPE I")!=200){
+		goto endstor;
+	}
+	if(getDataSoc()==1)return;
+	if(wiz_printf_cmd("STOR %s",kbd_buf+4)!=125){
+		goto endstor;
+	}
+	output(0x81ab,0x0b);
+	while(1){
+		if((len=OS_READHANDLE(TX_BUF,file,2048))==0){
+			break;
+		}else{
+			pr++;
+			WIZ_WRITE_BUF(TX_BUF,len);
+			printf("\r%d packets",pr);
+			while (RD_S_FSR()!=8*1024){ 
+				if(RD_S_SSR()!=SOCK_ESTABLISHED)
+				{
+					goto endstor;
+				}
+			}
+		}
+	}
+	WR_S_CR(Sn_CR_DISCON);
+	while(RD_S_CR());
+	while(RD_S_SSR()!=SOCK_CLOSED);
+endstor:
+	socClose(0x0b);
+	OS_CLOSEHANDLE(file);
 	waitRequestCMD(100);
 }
 
@@ -394,8 +414,7 @@ void main(void)
     initMCU(); 
 	printf("dmftp v.%s %s\r\n",__DATE__,__TIME__);
 	output(0x82ab,0x50);
-	output(0x81ab,0x0a);		//socket 2
-	socClose();
+	socClose(0x0a);
 	while(1){
 		output(0x81ab,0x0a);
 		if(waitRequestCMD(1))continue;
@@ -407,26 +426,30 @@ void main(void)
 				if(!strcmp(kbd_buf,"dir")){
 					cmdDir();
 				}else if(!strncmp(kbd_buf,"del ",4)){
-					sprintf(TX_BUF,"DELE %s",kbd_buf+4);
-					msg_send(TX_BUF);
-					waitRequestCMD(150);
+					wiz_printf_cmd("DELE %s",kbd_buf+4);
 				}
 				break;
 			case 'c':
 				if(!strncmp(kbd_buf,"cd ",3)){
-					sprintf(TX_BUF,"CWD %s",kbd_buf+3);
-					msg_send(TX_BUF);
-					waitRequestCMD(150);
+					wiz_printf_cmd("CWD %s",kbd_buf+3);
 				}else if(!strcmp(kbd_buf,"close")){
 					msg_send_const("QUIT");
 					waitRequestCMD(1);
 				}
 				break;
+			case 'g':
+				if(!strncmp(kbd_buf,"get ",4)){
+					cmdRetr();
+				}
+				break;
 			case 'm':
 				if(!strncmp(kbd_buf,"mkd ",4)){
-					sprintf(TX_BUF,"MKD %s",kbd_buf+4);
-					msg_send(TX_BUF);
-					waitRequestCMD(150);
+					wiz_printf_cmd("MKD %s",kbd_buf+4);
+				}
+				break;
+			case 'p':
+				if(!strncmp(kbd_buf,"put ",4)){
+					cmdStor();
 				}
 				break;
 			case 'q':
@@ -437,9 +460,7 @@ void main(void)
 				break;
 			case 'r':
 				if(!strncmp(kbd_buf,"rmd ",4)){
-					sprintf(TX_BUF,"RMD %s",kbd_buf+4);
-					msg_send(TX_BUF);
-					waitRequestCMD(150);
+					wiz_printf_cmd("RMD %s",kbd_buf+4);
 				}
 				break;
 			case 'o':

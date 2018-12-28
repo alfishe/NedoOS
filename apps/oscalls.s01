@@ -1,4 +1,66 @@
 
+	MODULE OSOPENHANDLE
+	PUBLIC OS_OPENHANDLE
+	RSEG CODE
+OS_OPENHANDLE:
+	push ix
+	push iy
+	ld a,c
+	ld c,0x43	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSCLOSEHANDLE
+	PUBLIC OS_CLOSEHANDLE
+	RSEG CODE
+OS_CLOSEHANDLE:
+	push ix
+	push iy
+	ld b,d
+	ld c,0x45	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSWRITEHANDLE
+	PUBLIC OS_WRITEHANDLE
+	RSEG CODE
+OS_WRITEHANDLE:
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	ld c,0x49	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSREADHANDLE
+	PUBLIC OS_READHANDLE
+	RSEG CODE
+OS_READHANDLE:
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	ld c,0x48	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
 	MODULE OSCREATEHANDLE
 	PUBLIC OS_CREATEHANDLE
 	RSEG CODE
@@ -12,8 +74,8 @@ OS_CREATEHANDLE:
 	and 0x7f
 	ld c,0x44	
 	call 0x0005
-	ld h,a
-	ld l,b
+	ld h,b
+	ld l,a
 	pop iy
 	pop ix
 	ret

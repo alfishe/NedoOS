@@ -10,4 +10,8 @@ unsigned int OS_GETXY(void);
 void conv1251to866(unsigned char * bufer);
 extern unsigned char t1251to866[128];
 unsigned int OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
+unsigned int OS_WRITEHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
+unsigned int OS_READHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
+unsigned int OS_OPENHANDLE(unsigned char * path, unsigned char flags);
+unsigned char OS_CLOSEHANDLE(unsigned int hnd);
 #endif

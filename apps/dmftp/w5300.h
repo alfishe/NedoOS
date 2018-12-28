@@ -18,6 +18,7 @@
 #define RD_S_PORTR() ((input(0x0aab)<<8)|input(0x0bab))
 #define WR_S_WRSR(_v) output(0x22ab,(_v)>>8);output(0x23ab,_v)
 #define RD_S_WRSR() ((input(0x22ab)<<8)|input(0x23ab))
+#define RD_S_FSR() ((input(0x26ab)<<8)|input(0x27ab))
 #define RD_S_RX_RSR() ((input(0x2aab)<<8)|input(0x2bab))
 #define WR_S_TX0(_v) output(0x2eab,_v)
 #define WR_S_TX1(_v) output(0x2fab,_v)
@@ -125,7 +126,7 @@
 
 extern unsigned int rx_rd;
 	
-#define WIZ_RD_BUF(soc_,buf_,len_) {\
+#define WIZ_RD_BUF(buf_,len_) {\
 	unsigned int i=(len_+1)>>1;\
 	unsigned char* buf__=buf_;	\
 	while (i){					\
@@ -133,7 +134,7 @@ extern unsigned int rx_rd;
 		*(buf__++)=RD_S_RX0();	\
 		*(buf__++)=RD_S_RX1();}}	
 
-#define WIZ_READ_BUF(soc_,buf_,len_) WIZ_RD_BUF(soc_,buf_,len_);	\
+#define WIZ_READ_BUF(buf_,len_) WIZ_RD_BUF(buf_,len_);	\
 	WR_S_CR(Sn_CR_RECV);\
 	while(RD_S_CR());
 			
