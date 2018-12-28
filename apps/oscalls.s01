@@ -1,4 +1,24 @@
 
+	MODULE OSCREATEHANDLE
+	PUBLIC OS_CREATEHANDLE
+	RSEG CODE
+OS_CREATEHANDLE:
+	push ix
+	push iy
+	ld a,c
+	and 0x80
+	ld b,a
+	ld a,c
+	and 0x7f
+	ld c,0x44	
+	call 0x0005
+	ld h,a
+	ld l,b
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
 	MODULE OSSETXY
 	PUBLIC OS_SETXY
 	RSEG CODE
@@ -11,6 +31,20 @@ OS_SETXY:
 	pop iy
 	pop ix
 	ret
+	ENDMOD
+	
+	MODULE OSGETXY
+	PUBLIC OS_GETXY
+	RSEG CODE
+OS_GETXY:
+	push ix
+	push iy
+	ld c,0xe1	;de=yx ;GET CURSOR POSITION
+	call 0x0005
+	ex de,hl
+	pop iy
+	pop ix
+	ret			;h-y l-x
 	ENDMOD
 	
 	MODULE OSCLS
