@@ -1,1 +1,0 @@
-C:\Users\cash\Desktop\txt\os\tools\sjasmplus main.asm --dos866
