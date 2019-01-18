@@ -1,0 +1,316 @@
+
+	MODULE OSOPENHANDLE
+	PUBLIC OS_OPENHANDLE
+	RSEG CODE
+OS_OPENHANDLE:
+	push ix
+	push iy
+	ld a,c
+	ld c,0x43	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSCLOSEHANDLE
+	PUBLIC OS_CLOSEHANDLE
+	RSEG CODE
+OS_CLOSEHANDLE:
+	push ix
+	push iy
+	ld b,d
+	ld c,0x45	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSWRITEHANDLE
+	PUBLIC OS_WRITEHANDLE
+	RSEG CODE
+OS_WRITEHANDLE:
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	ld c,0x49	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSREADHANDLE
+	PUBLIC OS_READHANDLE
+	RSEG CODE
+OS_READHANDLE:
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	ld c,0x48	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSCREATEHANDLE
+	PUBLIC OS_CREATEHANDLE
+	RSEG CODE
+OS_CREATEHANDLE:
+	push ix
+	push iy
+	ld a,c
+	and 0x80
+	ld b,a
+	ld a,c
+	and 0x7f
+	ld c,0x44	
+	call 0x0005
+	ld h,b
+	ld l,a
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSSETXY
+	PUBLIC OS_SETXY
+	RSEG CODE
+OS_SETXY:
+	push ix
+	push iy
+	ld d,c
+	ld c,0xf8	;de=yx ;SET CURSOR POSITION
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSGETXY
+	PUBLIC OS_GETXY
+	RSEG CODE
+OS_GETXY:
+	push ix
+	push iy
+	ld c,0xe1	;de=yx ;GET CURSOR POSITION
+	call 0x0005
+	ex de,hl
+	pop iy
+	pop ix
+	ret			;h-y l-x
+	ENDMOD
+	
+	MODULE OSCLS
+	PUBLIC OS_CLS
+	RSEG CODE
+	;e-color
+OS_CLS:
+	push ix
+	push iy
+	ld c,0xf6
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSSETGFX
+	PUBLIC OS_SETGFX
+	RSEG CODE
+	;e-mode
+OS_SETGFX:
+	push ix
+	push iy
+	ld c,0xf9
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE PUTS
+	PUBLIC puts
+	RSEG CODE
+puts:
+	push ix
+	push iy
+	push de
+ploop:
+	pop hl
+	ld a,(hl)
+	or a
+	jr z,pexit
+	inc hl
+	push hl
+	rst 0x10
+	jr ploop
+pexit:
+	ld a,'\r'
+	rst 0x10
+	ld a,'\n'
+	rst 0x10
+	ld hl,0x0000
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE MYGETCHAR
+	PUBLIC getchar
+	RSEG CODE
+getchar:
+	push ix
+	push iy
+getchloop:
+	rst 0x08
+	or a
+	jr z,getchloop
+	ld l,a
+	ld h,0
+	pop iy
+	pop ix
+	ret	
+	ENDMOD
+	
+	MODULE OSSCROLLUP
+	PUBLIC OS_SCROLLUP
+	RSEG CODE
+	;de=topyx, bc=hgt,wid ;x, wid even
+OS_SCROLLUP:
+	push ix
+	push iy
+	ld h,b
+	ld l,c
+	ld c,0xe6
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OSLOWGET
+	PUBLIC _low_level_get
+	RSEG CODE
+_low_level_get:
+	push ix
+	push iy
+	rst 0x08
+	ld l,a
+	ld h,0
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+
+	MODULE conv1251to866
+	PUBLIC conv1251to866, t1251to866
+	RSEG CODE
+conv1251to866:	;DE-string
+	push de
+ploop:
+	ld a,(de)
+	or a
+	jr z,pexit
+	cp 128
+	jr c,asci
+	add a,low(t1251to866-128)
+	ld l,a
+	ld a,0
+	adc a,high(t1251to866-128)
+	ld h,a
+	ld a,(hl)
+	ld (de),a
+asci:
+	inc de
+	jr ploop
+pexit:
+	pop de
+	ret
+	RSEG	CONST
+t1251to866:
+	DEFB 0x3F, 0x3F, 0x27, 0x3F, 0x22, 0x3A, 0xC5, 0xD8, 0x3F, 0x25, 0x3F, 0x3C, 0x3F, 0x3F, 0x3F, 0x3F 
+	DEFB 0x30, 0x3F, 0x27, 0x27, 0x22, 0x22, 0x07, 0x2D, 0x2D, 0x54, 0x3F, 0x3E, 0x3F, 0x3F, 0x3F, 0x3F 
+	DEFB 0xFF, 0xF6, 0xF7, 0x3F, 0xFD, 0x3F, 0xB3, 0x15, 0xF0, 0x63, 0xF2, 0x3C, 0xBF, 0x2D, 0x52, 0xF4 
+	DEFB 0xF8, 0x2B, 0x3F, 0x3F, 0x3F, 0xE7, 0x14, 0xFA, 0xF1, 0xFC, 0xF3, 0x3E, 0x3F, 0x3F, 0x3F, 0xF5 
+	DEFB 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F 
+	DEFB 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F 
+	DEFB 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF 
+	DEFB 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF
+	ENDMOD
+	
+	MODULE OSPRCHAR
+	PUBLIC putchar
+	RSEG CODE
+putchar:
+	push de
+	push ix
+	push iy
+	ld a,e
+	rst 0x10
+	pop iy
+	pop ix
+	pop hl
+	ret
+	ENDMOD
+
+	MODULE YIELD
+	PUBLIC YIELD
+	RSEG CODE
+YIELD:
+	push bc
+	push de
+	push ix
+	push iy
+yield_loop:
+	ld c,0xf2
+	call 0x0005
+	ld c,0xf1
+	call 0x0005
+    ld hl,(oldtimer)
+    ld (oldtimer),de
+    or a
+    sbc hl,de
+    jr z,yield_loop
+	pop iy
+	pop ix
+	pop de
+	pop bc
+	ret
+oldtimer:
+	defw 0 
+	ENDMOD
+	
+	MODULE	my_im2
+	PUBLIC	my_im2_init
+	RSEG	INTJP
+	DEFS 3
+	RSEG	INTTABLE
+	DEFS 257
+	RSEG	CODE
+my_im2_init
+	di
+	ld a,0xc3
+	ld (SFB(INTJP)),a
+	ld (SFB(INTJP)+1),de
+	ld a,HIGH(SFB(INTTABLE))
+	ld i,a
+	inc a
+	ld hl,SFB(INTTABLE)-1
+tloop
+	inc hl
+	ld (hl),HIGH(SFB(INTJP))
+	cp h
+	jr nz,tloop
+	im 2
+	ret
+	END
+	
