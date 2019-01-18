@@ -1,0 +1,312 @@
+//---------------------------------------------------------------------------
+
+#include <vcl.h>
+#include <math.h>
+#pragma hdrstop
+
+//#include "nedodefs.h"
+
+#include "Unit1.h"
+//---------------------------------------------------------------------------
+#pragma package(smart_init)
+#pragma resource "*.dfm"
+
+int chunkpixelnumber[16] = {
+/*  0x0, 0xc, 0x2, 0xe,
+  0x8, 0x4, 0xa, 0x6,
+  0x3, 0xf, 0x1, 0xd,
+  0xb, 0x7, 0x9, 0x5*/
+  0x0, 0xc, 0x6, 0xa,
+  0x9, 0x4, 0x1, 0xd,
+  0xe, 0x7, 0xb, 0x3,
+  0x5, 0x2, 0x8, 0xf
+};
+
+int tsin[256];
+
+
+TForm1 *Form1;
+//---------------------------------------------------------------------------
+__fastcall TForm1::TForm1(TComponent* Owner)
+        : TForm(Owner)
+{
+}
+//---------------------------------------------------------------------------
+
+void TForm1::setColorChunkyR(int x, int y, int n)
+{
+  curColorChunky->Canvas->Pixels[x][y] = (curColorChunky->Canvas->Pixels[x][y] & 0xffff00) + n;
+}
+
+void TForm1::setColorChunkyG(int x, int y, int n)
+{
+  curColorChunky->Canvas->Pixels[x][y] = (curColorChunky->Canvas->Pixels[x][y] & 0xff00ff) + (n<<8);
+}
+
+void TForm1::setColorChunkyB(int x, int y, int n)
+{
+  curColorChunky->Canvas->Pixels[x][y] = (curColorChunky->Canvas->Pixels[x][y] & 0x00ffff) + (n<<16);
+}
+
+void TForm1::setHSpaletteR(int x, int y, int n)
+{
+  Image1->Canvas->Pixels[x][y] = (Image1->Canvas->Pixels[x][y] & 0xffff00) + n;
+}
+
+void TForm1::setHSpaletteG(int x, int y, int n)
+{
+  Image1->Canvas->Pixels[x][y] = (Image1->Canvas->Pixels[x][y] & 0xff00ff) + (n<<8);
+}
+
+void TForm1::setHSpaletteB(int x, int y, int n)
+{
+  Image1->Canvas->Pixels[x][y] = (Image1->Canvas->Pixels[x][y] & 0x00ffff) + (n<<16);
+}
+
+void TForm1::showHSpalette()
+{
+//#define BYTE int
+#define REPEAT do
+#define UNTIL(x) while(!(x))
+  int x;
+  int xsize = Image1->Width; //128;
+  int y;
+  int ysize = Image1->Height; //192;
+
+  float h,s;
+
+  y = 0x00;
+  REPEAT {
+    h = (float)y/ysize;
+    x = 0x00;
+    REPEAT {
+      s = (float)(x&0xfffffffc)/xsize;
+
+      TColor color = calcHSVtoRGB(h,s,curV);
+      //Image1->Canvas->Pixels[x][y] = color;
+
+      int chunkpixel = (x&3) + ((y&3)<<2);
+      int ir = (color&0xff)/15;
+      int ig = ((color>>8)&0xff)/15;
+      int ib = ((color>>16)&0xff)/15;
+
+      setHSpaletteR(x, y, (ir > chunkpixelnumber[chunkpixel])*255&0xff );
+      setHSpaletteG(x, y, (ig > chunkpixelnumber[chunkpixel])*255&0xff );
+      setHSpaletteB(x, y, (ib > chunkpixelnumber[chunkpixel])*255&0xff );
+
+      x++;
+    }UNTIL (x == xsize);
+    y++;
+  }UNTIL (y == ysize);
+}
+
+void __fastcall TForm1::FormCreate(TObject *Sender)
+{
+
+  curH = .2;
+  curS = .2;
+  curV = .4;
+
+#define PI 3.14159
+  for (int i=0; i<256; i++) {
+    float a = (float)i/128*PI;
+    tsin[i] = 127*sin(a);
+  }
+
+  showHSpalette();
+  showVpalette();
+  showcolor();
+
+}
+
+float fabs(float a)
+{
+  if (a>0) return a; else return -a;
+}
+
+int TForm1::calcHSVtoRGB(float h,float s,float v){
+#define minC 64
+#define maxC 96
+#define kC 8
+//#define BYTE unsigned char
+  unsigned char ir,ig,ib;
+
+  int ih,is,iv;
+  ih = h*256;
+  is = s*256;
+  //v = 1;
+  iv = v*256/kC;
+
+  int scoeff = (1 - fabs((v-.5)*2) )*256;
+
+  is = is*scoeff/256;
+
+  int isi = 2*is*tsin[ih]/kC/256;
+  int ic = 2*is*tsin[(64-ih)&0xff]/kC/256;
+
+  //h=0..32
+  //si,c=+-0..32
+
+  ir = iv + 2*isi + ic + minC;
+  ig = iv +       - ic + minC;
+  ib = iv - 2*isi + ic + minC;
+
+//  if (ig >= 256) {ir = ir + (ig-256); ib = ib + (ig-256); }
+
+  if (ir<minC) ir=minC; if (ir>=maxC) ir=maxC-1;
+  if (ig<minC) ig=minC; if (ig>=maxC) ig=maxC-1;
+  if (ib<minC) ib=minC; if (ib>=maxC) ib=maxC-1;
+
+  ir = (ir-minC)*kC;
+  ig = (ig-minC)*kC;
+  ib = (ib-minC)*kC;
+
+  return (ib<<16) + (ig<<8) + (ir);
+}
+
+void TForm1::showcolor()
+{
+  int x,y;
+
+  TColor color = calcHSVtoRGB(curH,curS,curV);
+  lbR->Caption = IntToStr(color & 0xff);
+  lbG->Caption = IntToStr((color>>8) & 0xff);
+  lbB->Caption = IntToStr((color>>16) & 0xff);
+
+  int hgt = curColor->Height-1;
+  int wid = curColor->Width-1;
+
+  for (y=0; y<=hgt; y++)
+       for (x=0; x<=wid; x++)
+          curColor->Canvas->Pixels[x][y] = color;
+
+  hgt = curColorChunky->Height-1;
+  wid = curColorChunky->Width-1;
+
+  for (y=0; y<=hgt; y++)
+       for (x=0; x<=wid; x++)
+       {
+          int chunkpixel = (x&3) + ((y&3)<<2);
+          int ir = (color&0xff)/15;
+          int ig = ((color>>8)&0xff)/15;
+          int ib = ((color>>16)&0xff)/15;
+
+          setColorChunkyR(x, y, (ir > chunkpixelnumber[chunkpixel])*255&0xff );
+          setColorChunkyG(x, y, (ig > chunkpixelnumber[chunkpixel])*255&0xff );
+          setColorChunkyB(x, y, (ib > chunkpixelnumber[chunkpixel])*255&0xff );
+//          setColorChunkyR(x, y, (ir >= chunkpixelnumber[(x&3) + ((y&3)<<2)])*255&0xff );
+//          setColorChunkyG(x, y, (ig >= chunkpixelnumber[((x+1)&3) + ((y&3)<<2)])*255&0xff );
+//          setColorChunkyB(x, y, (ib >= chunkpixelnumber[(x&3) + (((y+1)&3)<<2)])*255&0xff );
+       }
+}
+
+void TForm1::showVpalette()
+{
+  int hgt = changV->Height-1;
+  int wid = changV->Width-1;
+  for (int y=0;y<=hgt;y++)
+  {
+       for (int x=0;x<=wid;x++)
+       {
+          changV->Canvas->Pixels[x][y] = calcHSVtoRGB(curH,curS,(float)(hgt-1-y)/hgt);
+       }
+  }
+}
+
+//---------------------------------------------------------------------------
+void __fastcall TForm1::Image1MouseMove(TObject *Sender, TShiftState Shift,
+      int X, int Y)
+{
+
+  curmouseH = (float)Y/(Image1->Height);
+  curmouseS = (float)X/(Image1->Width);
+
+  TColor color = calcHSVtoRGB(curmouseH,curmouseS,curV); //Image1->Canvas->Pixels[X][Y];
+
+  lbR->Caption = IntToStr(color & 0xff);
+  lbG->Caption = IntToStr((color>>8) & 0xff);
+  lbB->Caption = IntToStr((color>>16) & 0xff);
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::Image1Click(TObject *Sender)
+{
+  curH = curmouseH;
+  curS = curmouseS;
+
+  showcolor();
+  showVpalette();
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::changVMouseMove(TObject *Sender, TShiftState Shift,
+      int X, int Y)
+{
+  curmouseV = 1-(float)(Y)/(changV->Height-1);
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::changVClick(TObject *Sender)
+{
+  curV = curmouseV;
+  //showHSpalette();
+  showcolor();
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm1::curColorClick(TObject *Sender)
+{
+  TColor color = calcHSVtoRGB(curH,curS,curV); //Image1->Canvas->Pixels[X][Y];
+//#define PI 3.14159
+  float si,c;
+  float h,s,v;
+  float r,g,b;
+  r = (float)(color & 0xff)/256;
+  g = (float)((color>>8) & 0xff)/256;
+  b = (float)((color>>16) & 0xff)/256;
+  si = r/2-b/2;
+  c = r/2+b/2-g;
+  float rad = sqrt(si*si + c*c);
+  Memo1->Lines->Add("r="+FloatToStr(r));
+  Memo1->Lines->Add("g="+FloatToStr(g));
+  Memo1->Lines->Add("b="+FloatToStr(b));
+  Memo1->Lines->Add("si="+FloatToStr(si));
+  Memo1->Lines->Add("c="+FloatToStr(c));
+  Memo1->Lines->Add("rad="+FloatToStr(rad));
+
+  //TODO if (rad==0) ...
+
+  //float a=atan2(si,c);
+  float a = asin(si/rad);
+  if (c<0) a = PI - a;
+  Memo1->Lines->Add("a="+FloatToStr(a));
+  h=a/(2*PI);
+  if (h<0)
+     {h=h+1;}
+  Memo1->Lines->Add("oldH="+FloatToStr(curH));
+  Memo1->Lines->Add("H="+FloatToStr(h));
+  curH=h;
+
+  v = g/2 + r/4 + b/4;
+
+  Memo1->Lines->Add("oldV="+FloatToStr(curV));
+  Memo1->Lines->Add("V="+FloatToStr(v));
+  curV=v;
+
+  float scoeff = (1 - fabs((v-.5)*2) );
+  Memo1->Lines->Add("scoeff="+FloatToStr(scoeff));
+  s = rad/scoeff/1.7;
+  if (s>1) s = 1;
+  Memo1->Lines->Add("oldS="+FloatToStr(curS));
+  Memo1->Lines->Add("S="+FloatToStr(s));
+  curS=s;
+
+  showVpalette();
+  showcolor();
+}
+//---------------------------------------------------------------------------
+

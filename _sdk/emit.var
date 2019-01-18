@@ -1,0 +1,74 @@
+_STRLEN=80
+_STRMAX=(_STRLEN-1)
+_cmts
+	DB 0
+_curlnbeg
+	DW 0
+_ferr
+	DW 0
+_fvar
+	DW 0
+_hints
+	DB 0
+_errs
+	DB 0
+_curfile
+	DW 0
+_m_fn
+	DS 1*_STRLEN
+_fn
+	DW 0
+_lenfn
+	DW 0
+_wasdig
+	DB 0
+_nbuf
+	DS 1*6
+_lennbuf
+	DW 0
+_num
+	DW 0
+emitdig.d
+emitdig.A.
+	DW 0
+emitdig.dig
+	DB 0
+emitn.i
+emitn.A.
+	DW 0
+emituint.i
+emituint.A.
+	DW 0
+emituint.f
+emituint.B.
+	DW 0
+asmc.c
+asmc.A.
+	DB 0
+asmstr.s
+asmstr.A.
+	DW 0
+asmuint.i
+asmuint.A.
+	DW 0
+err.c
+err.A.
+	DB 0
+errstr.s
+errstr.A.
+	DW 0
+erruint.i
+erruint.A.
+	DW 0
+enderr.C.
+	DB " line="
+	DB 0
+varc.c
+varc.A.
+	DB 0
+varstr.s
+varstr.A.
+	DW 0
+varuint.i
+varuint.A.
+	DW 0

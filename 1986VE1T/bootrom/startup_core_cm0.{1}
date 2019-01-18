@@ -1,0 +1,9 @@
+-C M1
+-t
+-D__VECTORS_ADDR=00H
+-d
+-l
+-E10
+-W50
+-I"C:\Program Files\Phyton CodeMaster-ARM\2_40_00\CMC-ARM\Inc"
+startup_core_cm0.mca

@@ -1,0 +1,18 @@
+-A (code)CODE(00H-01FFFFH)
+-A (data)DATA(020000000H-020007FFFH,020100000H-020103FFFH)
+-m
+-Z CSTACK(1024)
+-M 10
+-M 20
+-M 21
+-M 60
+-M 80
+-O"C:\Program Files\Phyton CodeMaster-ARM\2_40_00\CMC-ARM\Lib"
+-E"TEST_ETH"
+-F MIE
+startup_core_cm0.MCO
+EthFunc.MCO
+Eth_Config.MCO
+Eth_Main.MCO
+RamFunctions.MCO
+carmM1.mcl

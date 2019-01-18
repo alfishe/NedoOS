@@ -1,0 +1,255 @@
+# ARM MACRO ASSEMBLER 1.01.130812
+# Copyright (C) 2009 Phyton, Inc.
+#
+# Target: Cortex-M1
+# 2017/09/18 09:52:48
+
+startup_core_cm0.mca     1                    ;/*****************************************************************************
+startup_core_cm0.mca     2                    ; * @file:    startup_core_cm0.mca
+startup_core_cm0.mca     3                    ; * @author   Phyton Application Team
+startup_core_cm0.mca     4                    ; * @version: V1.1
+startup_core_cm0.mca     5                    ; * @date:    01/09/2011
+startup_core_cm0.mca     6                    ; * @brief:   Generic Cortex Device CMSIS Startup File for the devices:
+startup_core_cm0.mca     7                    ; *           Cortex-M0, Cortex-M1
+startup_core_cm0.mca     8                    ; *****************************************************************************
+startup_core_cm0.mca     9                    ; * <br><br>
+startup_core_cm0.mca    10                    ; *
+startup_core_cm0.mca    11                    ; * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+startup_core_cm0.mca    12                    ; * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
+startup_core_cm0.mca    13                    ; * TIME. AS A RESULT, PHYTON SHALL NOT BE HELD LIABLE FOR ANY DIRECT, INDIRECT
+startup_core_cm0.mca    14                    ; * OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
+startup_core_cm0.mca    15                    ; * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
+startup_core_cm0.mca    16                    ; * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+startup_core_cm0.mca    17                    ; *
+startup_core_cm0.mca    18                    ; * <h2><center>&copy; COPYRIGHT 2010 Phyton</center></h2>
+startup_core_cm0.mca    19                    ; *****************************************************************************
+startup_core_cm0.mca    20                    ; * FILE startup_core_cm0.mca
+startup_core_cm0.mca    21                    ; */
+startup_core_cm0.mca    22                    
+startup_core_cm0.mca    23                    .PMODULE  ?startup_device
+startup_core_cm0.mca    24                    
+startup_core_cm0.mca    25                        .IF .NOT .DEFINED __VECTORS_ADDR
+startup_core_cm0.mca    27                        .ENDIF
+startup_core_cm0.mca    28                    
+startup_core_cm0.mca    29                        .PUBLIC  __Vectors
+startup_core_cm0.mca    30                        .PUBLIC  __Vectors_End
+startup_core_cm0.mca    31                    
+startup_core_cm0.mca    32                        .EXTRN(code) ?start
+startup_core_cm0.mca    33                    
+startup_core_cm0.mca    34                        .RSEG CSTACK,data
+startup_core_cm0.mca    35                        .ALIGN  3
+startup_core_cm0.mca    36                    
+startup_core_cm0.mca    37                        .ASEG INTVEC,code
+startup_core_cm0.mca    38                        .ALIGN  6
+startup_core_cm0.mca    39 00000000               .ORG  __VECTORS_ADDR             ; if vector table is located in RAM,
+startup_core_cm0.mca    40                                                         ; change this value
+startup_core_cm0.mca    41                    
+startup_core_cm0.mca    42                    SET_HANDLER .MACRO Name
+startup_core_cm0.mca    46                    
+startup_core_cm0.mca    47 00000000           __Vectors .LABELD
+startup_core_cm0.mca    48 00000000 01000000      .DCD            (.SFE CSTACK) + 1       ; Top of Stack
+startup_core_cm0.mca    49 00000004               SET_HANDLER     Reset_Handler           ; Reset Handler
+startup_core_cm0.mca    50 00000008               SET_HANDLER     NMI_Handler             ; NMI Handler
+startup_core_cm0.mca    51 0000000C               SET_HANDLER     HardFault_Handler       ; Hard Fault Handler
+startup_core_cm0.mca    52 00000010 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    53 00000014 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    54 00000018 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    55 0000001C 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    56 00000020 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    57 00000024 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    58 00000028 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    59 0000002C               SET_HANDLER     SVC_Handler             ; SVCall Handler
+startup_core_cm0.mca    60 00000030 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    61 00000034 00000000      .DCD     0                              ; Reserved
+startup_core_cm0.mca    62 00000038               SET_HANDLER     PendSV_Handler          ; PendSV Handler
+startup_core_cm0.mca    63 0000003C               SET_HANDLER     SysTick_Handler         ; SysTick Handler
+startup_core_cm0.mca    64                    
+startup_core_cm0.mca    65 00000040 00000000      .DCD     0; MIL_STD_1553B2_Handler         ;IRQ0
+startup_core_cm0.mca    66 00000044 00000000      .DCD     0; MIL_STD_1553B1_Handler         ;IRQ1
+startup_core_cm0.mca    67 00000048 00000000      .DCD     0; USB_Handler                    ;IRQ2
+startup_core_cm0.mca    68 0000004C 00000000      .DCD     0; CAN1_Handler                   ;IRQ3
+startup_core_cm0.mca    69 00000050 00000000      .DCD     0; CAN2_Handler                   ;IRQ4
+startup_core_cm0.mca    70 00000054 00000000      .DCD     0; DMA_Handler                    ;IRQ5
+startup_core_cm0.mca    71 00000058 00000000      .DCD     0; UART1_Handler                  ;IRQ6
+startup_core_cm0.mca    72 0000005C 00000000      .DCD     0; UART2_Handler                  ;IRQ7
+startup_core_cm0.mca    73 00000060 00000000      .DCD     0; SSP1_Handler                   ;IRQ8
+startup_core_cm0.mca    74 00000064 00000000      .DCD     0; BUSY_Handler                   ;IRQ9
+startup_core_cm0.mca    75 00000068 00000000      .DCD     0; ARINC429R_Handler              ;IRQ10
+startup_core_cm0.mca    76 0000006C 00000000      .DCD     0; POWER_Handler                  ;IRQ11
+startup_core_cm0.mca    77 00000070 00000000      .DCD     0; WWDG_Handler                   ;IRQ12
+startup_core_cm0.mca    78 00000074 00000000      .DCD     0; TIMER4_Handler                 ;IRQ13
+startup_core_cm0.mca    79 00000078 00000000      .DCD     0; TIMER1_Handler                 ;IRQ14
+startup_core_cm0.mca    80 0000007C 00000000      .DCD     0; TIMER2_Handler                 ;IRQ15
+startup_core_cm0.mca    81 00000080 00000000      .DCD     0; TIMER3_Handler                 ;IRQ16
+startup_core_cm0.mca    82 00000084 00000000      .DCD     0; ADC_Handler                    ;IRQ17
+startup_core_cm0.mca    83 00000088               SET_HANDLER ETHERNET_Handler               ;IRQ18
+startup_core_cm0.mca    84 0000008C 00000000      .DCD     0; SSP3_Handler                   ;IRQ19
+startup_core_cm0.mca    85 00000090 00000000      .DCD     0; SSP2_Handler                   ;IRQ20
+startup_core_cm0.mca    86 00000094 00000000      .DCD     0; ARINC429T1_Handler             ;IRQ21
+startup_core_cm0.mca    87 00000098 00000000      .DCD     0; ARINC429T2_Handler             ;IRQ22
+startup_core_cm0.mca    88 0000009C 00000000      .DCD     0; ARINC429T3_Handler             ;IRQ23
+startup_core_cm0.mca    89 000000A0 00000000      .DCD     0; ARINC429T4_Handler             ;IRQ24
+startup_core_cm0.mca    90 000000A4 00000000      .DCD     0                              ;IRQ25
+startup_core_cm0.mca    91 000000A8 00000000      .DCD     0                              ;IRQ26
+startup_core_cm0.mca    92 000000AC 00000000      .DCD     0; BKP_Handler                    ;IRQ27
+startup_core_cm0.mca    93 000000B0 00000000      .DCD     0; EXT_INT1_Handler               ;IRQ28
+startup_core_cm0.mca    94 000000B4 00000000      .DCD     0; EXT_INT2_Handler               ;IRQ29
+startup_core_cm0.mca    95 000000B8 00000000      .DCD     0; EXT_INT3_Handler               ;IRQ30
+startup_core_cm0.mca    96 000000BC 00000000      .DCD     0; EXT_INT4_Handler               ;IRQ31
+startup_core_cm0.mca    97                    
+startup_core_cm0.mca    98                    ;
+startup_core_cm0.mca    99                    ;    SET_HANDLER     IRQ0_IRQHandler         ; External Interrupt(0) Handler
+startup_core_cm0.mca   100                    ;    ....
+startup_core_cm0.mca   101                    ;    SET_HANDLER     IRQn_IRQHandler         ; External Interrupt(n) Handler
+startup_core_cm0.mca   102                    
+startup_core_cm0.mca   103 000000C0           __Vectors_End .LABELD
+startup_core_cm0.mca   104                    
+startup_core_cm0.mca   105                    .ENDMOD
+Module ?startup_device: 192 byte(s), 82 line(s)
+startup_core_cm0.mca   130          
+startup_core_cm0.mca   106                    
+startup_core_cm0.mca   107                    
+startup_core_cm0.mca   108                    ;=====================================================================;
+startup_core_cm0.mca   109                    ;                                                                     ;
+startup_core_cm0.mca   110                    ;                     Default Reset handler                           ;
+startup_core_cm0.mca   111                    ;                                                                     ;
+startup_core_cm0.mca   112                    ;=====================================================================;
+startup_core_cm0.mca   113                    .LMODULE2 ?Reset_Handler
+startup_core_cm0.mca   114                    .PUBLIC Reset_Handler
+startup_core_cm0.mca   115                    .EXTRN(code) ?start
+startup_core_cm0.mca   116                    .EXTRNF16 SystemInit .VOID(.VOID)
+startup_core_cm0.mca   117                    
+startup_core_cm0.mca   118                    .RSEG CSTACK,data
+startup_core_cm0.mca   119                    .RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   120                        .THUMB
+startup_core_cm0.mca   121 00000000           Reset_Handler?T:
+startup_core_cm0.mca   122 00000001           Reset_Handler   .EQU    Reset_Handler?T+1
+startup_core_cm0.mca   123                    .FUNCTYPE .VOID Reset_Handler(.VOID)
+startup_core_cm0.mca   124 00000000 4803          LDR     R0, =(.SFE CSTACK) + 1
+startup_core_cm0.mca   125 00000002 8808F380      MSR     MSP, R0
+startup_core_cm0.mca   126 00000006 4803          LDR     R0, =SystemInit
+startup_core_cm0.mca   127 00000008 4780          BLX     R0
+startup_core_cm0.mca   128 0000000A 4803          LDR     R0, =?start
+startup_core_cm0.mca   129 0000000C 4700          BX      R0
+startup_core_cm0.mca   130 00000010 00000001
+                   00000014 00000000
+                   00000018 00000000
+startup_core_cm0.mca   130                    .ENDMOD
+Module ?Reset_Handler: 26 byte(s), 17 line(s)
+startup_core_cm0.mca   131                    
+startup_core_cm0.mca   132                    
+startup_core_cm0.mca   133                    ;=====================================================================;
+startup_core_cm0.mca   134                    ;                                                                     ;
+startup_core_cm0.mca   135                    ;                     Default interrupt handlers                      ;
+startup_core_cm0.mca   136                    ;                                                                     ;
+startup_core_cm0.mca   137                    ;=====================================================================;
+startup_core_cm0.mca   138                    .LMODULE2 ?NMI_Handler
+startup_core_cm0.mca   139                    .PUBLIC NMI_Handler
+startup_core_cm0.mca   140                    .RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   141                        .THUMB
+startup_core_cm0.mca   142 00000000           NMI_Handler?T:
+startup_core_cm0.mca   143 00000001           NMI_Handler .EQU  NMI_Handler?T+1
+startup_core_cm0.mca   144                    .FUNCTYPE .VOID NMI_Handler(.VOID)
+startup_core_cm0.mca   145 00000000 E7FE          B       $
+startup_core_cm0.mca   146                    .ENDMOD
+Module ?NMI_Handler: 2 byte(s), 8 line(s)
+startup_core_cm0.mca   147                    
+startup_core_cm0.mca   148                    
+startup_core_cm0.mca   149                    .LMODULE2 ?HardFault_Handler
+startup_core_cm0.mca   150                    .PUBLIC HardFault_Handler
+startup_core_cm0.mca   151                    .RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   152                        .THUMB
+startup_core_cm0.mca   153 00000000           HardFault_Handler?T:
+startup_core_cm0.mca   154 00000001           HardFault_Handler .EQU  HardFault_Handler?T+1
+startup_core_cm0.mca   155                    .FUNCTYPE .VOID HardFault_Handler(.VOID)
+startup_core_cm0.mca   156 00000000 E7FE          B       $
+startup_core_cm0.mca   157                    .ENDMOD
+Module ?HardFault_Handler: 2 byte(s), 8 line(s)
+startup_core_cm0.mca   158                    
+startup_core_cm0.mca   159                    
+startup_core_cm0.mca   160                    .LMODULE2 ?SVC_Handler
+startup_core_cm0.mca   161                    .PUBLIC SVC_Handler
+startup_core_cm0.mca   162                    .RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   163                        .THUMB
+startup_core_cm0.mca   164 00000000           SVC_Handler?T:
+startup_core_cm0.mca   165 00000001           SVC_Handler .EQU  SVC_Handler?T+1
+startup_core_cm0.mca   166                    .FUNCTYPE .VOID SVC_Handler(.VOID)
+startup_core_cm0.mca   167 00000000 E7FE          B       $
+startup_core_cm0.mca   168                    .ENDMOD
+Module ?SVC_Handler: 2 byte(s), 8 line(s)
+startup_core_cm0.mca   169                    
+startup_core_cm0.mca   170                    
+startup_core_cm0.mca   171                    .LMODULE2 ?PendSV_Handler
+startup_core_cm0.mca   172                    .PUBLIC PendSV_Handler
+startup_core_cm0.mca   173                    .RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   174                        .THUMB
+startup_core_cm0.mca   175 00000000           PendSV_Handler?T:
+startup_core_cm0.mca   176 00000001           PendSV_Handler .EQU  PendSV_Handler?T+1
+startup_core_cm0.mca   177                    .FUNCTYPE .VOID PendSV_Handler(.VOID)
+startup_core_cm0.mca   178 00000000 E7FE          B       $
+startup_core_cm0.mca   179                    .ENDMOD
+Module ?PendSV_Handler: 2 byte(s), 8 line(s)
+startup_core_cm0.mca   180                    
+startup_core_cm0.mca   181                    
+startup_core_cm0.mca   182                    .LMODULE2 ?SysTick_Handler
+startup_core_cm0.mca   183                    .PUBLIC SysTick_Handler
+startup_core_cm0.mca   184                    .RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   185                        .THUMB
+startup_core_cm0.mca   186 00000000           SysTick_Handler?T:
+startup_core_cm0.mca   187 00000001           SysTick_Handler .EQU  SysTick_Handler?T+1
+startup_core_cm0.mca   188                    .FUNCTYPE .VOID SysTick_Handler(.VOID)
+startup_core_cm0.mca   189 00000000 E7FE          B       $
+startup_core_cm0.mca   190                    .ENDMOD
+Module ?SysTick_Handler: 2 byte(s), 8 line(s)
+startup_core_cm0.mca   191                    
+startup_core_cm0.mca   192                    
+startup_core_cm0.mca   193                    ;=====================================================================;
+startup_core_cm0.mca   194                    ;                                                                     ;
+startup_core_cm0.mca   195                    ;       User-defined Interrupt handlers                               ;
+startup_core_cm0.mca   196                    ;                                                                     ;
+startup_core_cm0.mca   197                    ;=====================================================================;
+startup_core_cm0.mca   198                    ;.LMODULE2 ?IRQ0_IRQHandler
+startup_core_cm0.mca   199                    ;.PUBLIC IRQ0_IRQHandler
+startup_core_cm0.mca   200                    ;.RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   201                    ;    .THUMB
+startup_core_cm0.mca   202                    ;IRQ0_IRQHandler?T:
+startup_core_cm0.mca   203                    ;IRQ0_IRQHandler .EQU  IRQ0_IRQHandler?T+1
+startup_core_cm0.mca   204                    ;.FUNCTYPE .VOID IRQ0_IRQHandler(.VOID)
+startup_core_cm0.mca   205                    ;    B       $
+startup_core_cm0.mca   206                    ;.ENDMOD
+startup_core_cm0.mca   207                    
+startup_core_cm0.mca   208                    
+startup_core_cm0.mca   209                    ;.LMODULE2 ?IRQn_IRQHandler
+startup_core_cm0.mca   210                    ;.PUBLIC IRQn_IRQHandler
+startup_core_cm0.mca   211                    ;.RSEG ??DEFAULT_HANDLERS,code
+startup_core_cm0.mca   212                    ;    .THUMB
+startup_core_cm0.mca   213                    ;IRQn_IRQHandler?T:
+startup_core_cm0.mca   214                    ;IRQn_IRQHandler .EQU  IRQn_IRQHandler?T+1
+startup_core_cm0.mca   215                    ;.FUNCTYPE .VOID IRQn_IRQHandler(.VOID)
+startup_core_cm0.mca   216                    ;    B       $
+startup_core_cm0.mca   217                    ;.ENDMOD
+startup_core_cm0.mca   218                    
+startup_core_cm0.mca   219                    
+startup_core_cm0.mca   220                    ;=====================================================================;
+startup_core_cm0.mca   221                    ;                                                                     ;
+startup_core_cm0.mca   222                    ;       User-defined low-level initialization that is made            ;
+startup_core_cm0.mca   223                    ;                     before cstartup                                 ;
+startup_core_cm0.mca   224                    ;                                                                     ;
+startup_core_cm0.mca   225                    ;=====================================================================;
+startup_core_cm0.mca   226                    .LMODULE2 ??SystemInit
+startup_core_cm0.mca   227                    .PUBLIC SystemInit
+startup_core_cm0.mca   228                    .RSEG   ??CODE_CLIB,code
+startup_core_cm0.mca   229                    .THUMB
+startup_core_cm0.mca   230 00000000           SystemInit?T:
+startup_core_cm0.mca   231 00000001           SystemInit .EQU SystemInit?T+1
+startup_core_cm0.mca   232                    .FUNCTYPE .VOID SystemInit(.VOID)
+startup_core_cm0.mca   233 00000000 4770          BX      LR
+startup_core_cm0.mca   234                    
+startup_core_cm0.mca   235                    .END
+Module ??SystemInit: 2 byte(s), 9 line(s)
+startup_core_cm0.mca   236                    
+startup_core_cm0.mca   237                    ;/******************* (C) COPYRIGHT 2010 Phyton *******************************
+startup_core_cm0.mca   238                    ;*
+startup_core_cm0.mca   239                    ;* END OF FILE startup_core_cm0.mca */
+startup_core_cm0.mca   240                    
+startup_core_cm0.mca: 240 line(s), 0.0 second(s), 0 error(s), 0 warning(s)

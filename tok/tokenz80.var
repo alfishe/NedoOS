@@ -1,0 +1,290 @@
+matchnzzncc.ok
+	DB 0
+matchcc.ok
+	DB 0
+matcha.ok
+	DB 0
+matchc.ok
+	DB 0
+matchde.ok
+	DB 0
+matchhl.ok
+	DB 0
+matchsp.ok
+	DB 0
+matchaf.ok
+	DB 0
+matchixiy.ok
+	DB 0
+matchhlixiy.ok
+	DB 0
+matchir.ok
+	DB 0
+matchrp.ok
+	DB 0
+matchrb.ok
+	DB 0
+asm_hlix_close_token.hltoken
+asm_hlix_close_token.A.
+	DB 0
+asm_hlix_close_token.ixtoken
+asm_hlix_close_token.B.
+	DB 0
+asm_directhlixrp_close_token.directtoken
+asm_directhlixrp_close_token.A.
+	DB 0
+asm_directhlixrp_close_token.hltoken
+asm_directhlixrp_close_token.B.
+	DB 0
+asm_directhlixrp_close_token.ixtoken
+asm_directhlixrp_close_token.C.
+	DB 0
+asm_directhlixrp_close_token.rptoken
+asm_directhlixrp_close_token.D.
+	DB 0
+asm_directrb_token.directtoken
+asm_directrb_token.A.
+	DB 0
+asm_directrb_token.rbtoken
+asm_directrb_token.B.
+	DB 0
+tokalucmd.token
+tokalucmd.A.
+	DB 0
+tokcbxx.token
+tokcbxx.A.
+	DB 0
+tokbit.token
+tokbit.A.
+	DB 0
+tokxx.token
+tokxx.A.
+	DB 0
+tokpre.A.
+	DB "LD"
+	DB 0
+tokpre.B.
+	DB "CALL"
+	DB 0
+tokpre.C.
+	DB "JP"
+	DB 0
+tokpre.D.
+	DB "RET"
+	DB 0
+tokpre.E.
+	DB "JR"
+	DB 0
+tokpre.F.
+	DB "DB"
+	DB 0
+tokpre.G.
+	DB "DW"
+	DB 0
+tokpre.H.
+	DB "DL"
+	DB 0
+tokpre.I.
+	DB "DS"
+	DB 0
+tokpre.J.
+	DB "POP"
+	DB 0
+tokpre.K.
+	DB "PUSH"
+	DB 0
+tokpre.L.
+	DB "ADD"
+	DB 0
+tokpre.M.
+	DB "ADC"
+	DB 0
+tokpre.N.
+	DB "SUB"
+	DB 0
+tokpre.O.
+	DB "SBC"
+	DB 0
+tokpre.P.
+	DB "AND"
+	DB 0
+tokpre.Q.
+	DB "OR"
+	DB 0
+tokpre.R.
+	DB "XOR"
+	DB 0
+tokpre.S.
+	DB "CP"
+	DB 0
+tokpre.T.
+	DB "INC"
+	DB 0
+tokpre.U.
+	DB "DEC"
+	DB 0
+tokpre.V.
+	DB "EX"
+	DB 0
+tokpre.W.
+	DB "RLC"
+	DB 0
+tokpre.X.
+	DB "RRC"
+	DB 0
+tokpre.Y.
+	DB "RL"
+	DB 0
+tokpre.Z.
+	DB "RR"
+	DB 0
+tokpre.BA.
+	DB "SLA"
+	DB 0
+tokpre.BB.
+	DB "SRA"
+	DB 0
+tokpre.BC.
+	DB "SLI"
+	DB 0
+tokpre.BD.
+	DB "SRL"
+	DB 0
+tokpre.BE.
+	DB "DJNZ"
+	DB 0
+tokpre.BF.
+	DB "RST"
+	DB 0
+tokpre.BG.
+	DB "OUT"
+	DB 0
+tokpre.BH.
+	DB "IN"
+	DB 0
+tokpre.BI.
+	DB "BIT"
+	DB 0
+tokpre.BJ.
+	DB "RES"
+	DB 0
+tokpre.BK.
+	DB "SET"
+	DB 0
+tokpre.BL.
+	DB "IM"
+	DB 0
+tokpre.BM.
+	DB "RLCA"
+	DB 0
+tokpre.BN.
+	DB "RRCA"
+	DB 0
+tokpre.BO.
+	DB "RLA"
+	DB 0
+tokpre.BP.
+	DB "RRA"
+	DB 0
+tokpre.BQ.
+	DB "DAA"
+	DB 0
+tokpre.BR.
+	DB "CPL"
+	DB 0
+tokpre.BS.
+	DB "SCF"
+	DB 0
+tokpre.BT.
+	DB "CCF"
+	DB 0
+tokpre.BU.
+	DB "NOP"
+	DB 0
+tokpre.BV.
+	DB "HALT"
+	DB 0
+tokpre.BW.
+	DB "DI"
+	DB 0
+tokpre.BX.
+	DB "EI"
+	DB 0
+tokpre.BY.
+	DB "EXX"
+	DB 0
+tokpre.BZ.
+	DB "RETN"
+	DB 0
+tokpre.CA.
+	DB "RETI"
+	DB 0
+tokpre.CB.
+	DB "LDI"
+	DB 0
+tokpre.CC.
+	DB "LDD"
+	DB 0
+tokpre.CD.
+	DB "LDIR"
+	DB 0
+tokpre.CE.
+	DB "LDDR"
+	DB 0
+tokpre.CF.
+	DB "CPI"
+	DB 0
+tokpre.CG.
+	DB "CPD"
+	DB 0
+tokpre.CH.
+	DB "CPIR"
+	DB 0
+tokpre.CI.
+	DB "CPDR"
+	DB 0
+tokpre.CJ.
+	DB "INI"
+	DB 0
+tokpre.CK.
+	DB "IND"
+	DB 0
+tokpre.CL.
+	DB "INIR"
+	DB 0
+tokpre.CM.
+	DB "INDR"
+	DB 0
+tokpre.CN.
+	DB "OUTI"
+	DB 0
+tokpre.CO.
+	DB "OUTD"
+	DB 0
+tokpre.CP.
+	DB "OTIR"
+	DB 0
+tokpre.CQ.
+	DB "OTDR"
+	DB 0
+tokpre.CR.
+	DB "INF"
+	DB 0
+tokpre.CS.
+	DB "NEG"
+	DB 0
+tokpre.CT.
+	DB "ORG"
+	DB 0
+tokpre.CU.
+	DB "EXPORT"
+	DB 0
+tokpre.CV.
+	DB "INCLUDE"
+	DB 0
+tokpre.CW.
+	DB "INCBIN"
+	DB 0
+tokpre.CX.
+	DB ":"
+	DB 0

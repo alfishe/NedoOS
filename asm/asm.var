@@ -1,0 +1,200 @@
+_STRLEN=80
+_STRMAX=(_STRLEN-1)
+_token
+	DB 0
+_curdir
+	DB 0
+_reg
+	DB 0
+_oldreg
+	DB 0
+_base
+	DB 0
+_base2
+	DB 0
+_nvalues
+	DB 0
+_curaddr
+	DW 0
+_curshift
+	DW 0
+_curbegin
+	DW 0
+_plabel_index
+	DW 0
+_curplabel_index
+	DW 0
+_hash
+	DW 0
+_curhash
+	DW 0
+_isaddr
+	DB 0
+_labelN
+	DW 0
+_labelchanged
+	DB 0
+_passindex
+	DW 0
+_prefixedtoken
+	DB 0
+_ninclfiles
+	DB 0
+_forg
+	DW 0
+_fpost
+	DW 0
+_fincb
+	DW 0
+_fdecl
+	DW 0
+_asms
+	DB 0
+_MAXVALS=0x10
+_value
+	DS 4*_MAXVALS
+_MAXINCLUDES=0x08
+_inclfile
+	DS 2*_MAXINCLUDES
+_nlabels
+	DW 0
+_lenlabels
+	DW 0
+_LABELPAGEMASK=0x00
+_LABELPAGESIZE=0x6500
+_LABELPAGEMAXSHIFT=(_LABELPAGESIZE-_STRLEN-10)
+_labelpagefreestart
+	DW 0
+_LABELPAGEEOF=0xffff
+_labels0
+	DS 1*_LABELPAGESIZE
+_labelshift
+	DS 2*0x400
+_labelpage
+	DS 2*1
+_m_curlabeltext
+	DS 1*_STRLEN
+_m_evallabeltext
+	DS 1*_STRLEN
+_curlabeltext
+	DW 0
+_evallabeltext
+	DW 0
+_labellen
+	DW 0
+_ASMLABEL_DEFINED=0x01
+_ASMLABEL_ACCESSED=0x02
+_ASMLABEL_MACRO=0x04
+_ASMLABEL_ISADDR=0x08
+decltoken.bb
+decltoken.A.
+	DB 0
+asmpushvalue.value
+asmpushvalue.A.
+	DL 0
+asmpushvalue.D.
+	DB "maxvals"
+	DB 0
+asmpushbool.b
+asmpushbool.A.
+	DB 0
+clearlabels.labelblock
+clearlabels.A.
+	DW 0
+clearlabels.labelpointer
+clearlabels.B.
+	DW 0
+readlabel.pevalstr
+	DW 0
+readlabel.cstr
+	DB 0
+readlabel.labellen
+	DW 0
+findlabel.labeltext
+findlabel.A.
+	DW 0
+findlabel.plabel
+	DW 0
+addlabel.labelvalue
+addlabel.A.
+	DL 0
+addlabel.plabel
+	DW 0
+addlabel.freestart_index
+	DW 0
+addlabel.labelflag
+	DB 0
+addlabel.F.
+	DB "redefmacro"
+	DB 0
+addlabel.M.
+	DB "mem"
+	DB 0
+changelabel.labelvalue
+changelabel.A.
+	DL 0
+changelabel.plabel
+	DW 0
+getlabel.plabel
+	DW 0
+getlabel.labelflag
+	DB 0
+getlabel.labelvalue
+	DL 0
+getlabel.C.
+	DB "nolbl "
+	DB 0
+errwrongreg.A.
+	DB "badreg"
+	DB 0
+errwrongpar.A.
+	DB "badpar"
+	DB 0
+asmbyte.token
+asmbyte.A.
+	DB 0
+asmpass.fn
+asmpass.A.
+	DW 0
+asmpass.B.
+	DB "rb"
+	DB 0
+asmpass.E.
+	DB "no "
+	DB 0
+findlast.s
+findlast.A.
+	DW 0
+findlast.eol
+findlast.B.
+	DB 0
+findlast.len
+	DW 0
+findlast.last
+	DW 0
+findlast.c
+	DB 0
+openext.ext
+openext.A.
+	DW 0
+asmcompile.fn
+asmcompile.A.
+	DW 0
+asmcompile.B.
+	DB ".bin"
+	DB 0
+asmcompile.C.
+	DB ".org"
+	DB 0
+asmcompile.D.
+	DB ".pst"
+	DB 0
+asmcompile.E.
+	DB ".D_"
+	DB 0
+asmcompile.F.
+	DB "lbls "
+	DB 0
+asmcompile.G.
+	DB " buf "
+	DB 0

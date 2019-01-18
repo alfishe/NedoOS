@@ -1,0 +1,14 @@
+-C M1
+-t
+-l
+-d
+-Op
+-E10
+-W50
+-Z1
+-Q146, -Q145
+-I"C:\Program Files\Phyton CodeMaster-ARM\2_40_00\CMC-ARM\Inc"
+EthFunc.c
+Eth_Config.c
+Eth_Main.c
+RamFunctions.c

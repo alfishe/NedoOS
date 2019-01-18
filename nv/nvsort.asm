@@ -1,0 +1,242 @@
+compareattrib
+	push hl
+	push de
+	ld bc,FCB.FATTRIB
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	ld a,(hl)
+	and #10
+	ld c,a
+	ld a,(de)	
+	and #10
+	cp c
+findmin_ccf=$
+	ccf
+	pop de  
+	pop hl
+	ret
+
+comparedate
+	call compareattrib
+	ret nz
+	ld bc,FCB.FDATE+1
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	ld a,(de)
+	cp (hl)
+	ret nz
+	dec hl
+	dec de
+	ld a,(de)
+	cp (hl)
+	ret nz
+
+	ld bc,FCB.FTIME+1-FCB.FDATE
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	ld a,(de)
+	cp (hl)
+	ret nz
+	dec hl
+	dec de
+	ld a,(de)
+	cp (hl)
+	ret nz
+
+	ld bc,-FCB.FTIME
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	jr compareext_go
+
+comparesize
+	call compareattrib
+	ret nz
+	ld bc,FCB.FSIZE+3
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	ld a,(de)
+	cp (hl)
+	ret nz
+	dec hl
+	dec de
+	ld a,(de)
+	cp (hl)
+	ret nz
+        dec hl
+        dec de
+	ld a,(de)
+	cp (hl)
+	ret nz
+	dec hl
+	dec de
+	ld a,(de)
+	cp (hl)
+	ret nz
+        ld bc,-FCB.FSIZE
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	jr compareext_go
+
+compareext
+	call compareattrib
+	ret nz
+compareext_go
+	ld bc,8
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	ld b,3
+compareext0
+	inc hl
+	inc de
+	ld a,(de)
+	cp (hl)
+	ret nz
+	djnz compareext0
+	ld bc,-11
+	ex de,hl
+	add hl,bc
+	ex de,hl
+	add hl,bc
+	;jr $
+	ld b,8
+	jp comparefilename0
+
+comparefilename
+;hl=fcb1
+;de=fcb2	
+;out: NC = *de>=*hl 
+	call compareattrib
+	ret nz	
+	ld b,11
+comparefilename0
+	inc hl
+	inc de
+	ld a,(de)
+	cp (hl)
+	ret nz
+	djnz comparefilename0
+	ret
+        
+compareempty
+        scf
+        ret
+
+findmin
+;hl=start (in pointers)
+;bc=files!=0
+;out: de=min (pointer)
+	ld e,l
+	ld d,h ;de=current min (pointer)
+findmin0
+;de=current min (pointer)
+	dec bc
+	ld a,b
+	or c
+	ret z
+	inc hl
+	inc hl
+	push hl
+	ld a,(hl)
+	inc hl
+	ld h,(hl)
+	ld l,a ;hl=FCB
+	push de
+;de=current min (pointer)
+	ex de,hl
+	ld a,(hl)
+	inc hl
+	ld h,(hl)
+	ld l,a
+	ex de,hl
+;de=current min (FCB)
+	push bc
+findmin_proc=$+1
+	call compareext
+	pop bc
+	pop de
+	pop hl
+;NC = *de>=*hl
+findmin_jrc=$
+	jr c,findmin0;findmin_nomin
+	ld e,l
+	ld d,h ;de=current min (pointer)
+findmin_nomin
+	jr findmin0
+
+
+sortfiles
+;ix=panel
+        ld l,(ix+PANEL.dirsortproc)
+        ld h,(ix+PANEL.dirsortproc+1)
+        ld (findmin_proc),hl
+        
+        ld a,(ix+PANEL.dirsortmode)
+        or a
+        ld bc,#3f38
+        jr z,$+5
+        ld bc,#0030
+        ld a,c
+        ld (findmin_jrc),a
+        ld a,b
+        ld (findmin_ccf),a
+        
+	ld a,(ix+PANEL.pg)
+	SETPG32KHIGH
+	
+	ld c,(ix+PANEL.files)
+	ld b,(ix+PANEL.files+1)
+        ld a,b
+        or c
+        ret z
+	ld l,(ix+PANEL.pointers)
+	ld h,(ix+PANEL.pointers+1)
+;при обратной сортировке в режиме "без сортировки" на каждом проходе в конец списка попадёт первый файл, а на следующем он попадёт в очередное начало, т.е. перестановка в обратном порядке не выйдет
+sortfiles_pass0
+	push bc
+	push hl
+;hl=start (in pointers)
+;bc=files!=0
+	call findmin
+;de=min (pointer)
+         ld hl,(findmin_proc)
+         ld bc,compareempty
+         or a
+         sbc hl,bc
+	pop hl
+;copy pointer into hl, move to next pointer
+	ld a,(de)
+	ldi
+	dec hl
+	ld (hl),a
+	inc hl	
+	ld a,(de)
+	ldi
+	dec hl
+	ld (hl),a
+	inc hl	
+	pop bc
+         jr nz,$+6 ;not compareempty
+	 dec bc
+	 ld a,b
+	 or c
+         ret z
+	dec bc
+	ld a,b
+	or c
+	jr nz,sortfiles_pass0
+	ret
+

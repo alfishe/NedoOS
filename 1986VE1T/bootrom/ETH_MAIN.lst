@@ -1,0 +1,941 @@
+*******************************************************************************
+*                                                                             *
+*                 ARM C CROSS COMPILER Version 1.03.130923                    *
+*                      Copyright (C) 2009 Phyton, Inc.                        *
+*                                                                             *
+*******************************************************************************
+
+                     main??T:
+;FILE: Eth_Main.c
+;000033    void /*int*/ main()
+00000000    B500                       	PUSH            {R14} 
+;000035            ClkConfig();
+00000002    FFFDF7FF                   	BLF             ClkConfig
+;000036            EthernetConfig();
+00000006    FFFBF7FF                   	BLF             EthernetConfig
+;000037            PortConfig();
+0000000A    FFF9F7FF                   	BLF             PortConfig
+;000482            SysTick->CTRL = 0x00000001;     //Enabel SysTick
+0000000E    491A                       	LDR             R1,?lr0000	; 0FFFFFFh
+00000010    481A                       	LDR             R0,?lr0001	; 0E000E010h
+00000012    6041                       	STR             R1,[R0,#4]
+00000014    2101                       	MOVS            R1,#1
+00000016    6001                       	STR             R1,[R0,#0]
+;000040            WriteDataToRAM(0x60000000,0);
+00000018    4819                       	LDR             R0,?lr0002	; 60000000h
+0000001A    2100                       	MOVS            R1,#0
+0000001C    FFF0F7FF                   	BLF             WriteDataToRAM
+;000042            if (TestData(0x60000000,0)) {
+00000020    4817                       	LDR             R0,?lr0002	; 60000000h
+00000022    2100                       	MOVS            R1,#0
+00000024    FFECF7FF                   	BLF             TestData
+00000028    2800                       	CMP             R0,#0
+;000044            }else {
+0000002A    D102                       	BNE             ??_1_END
+;000045                    MyIPAddress[1]=0x5601; //PORTD->SETTX=1<<8;      //тест завершился с ошибкой!
+0000002C    4915                       	LDR             R1,?lr0003	; 5601h
+0000002E    4816                       	LDR             R0,?lr0004	; MyIPAddress
+00000030    8041                       	STRH            R1,[R0,#2]
+;000046            }
+                    ??_1_END:
+;000048            WriteDataToRAM(0x60000000,1);
+00000032    4813                       	LDR             R0,?lr0002	; 60000000h
+00000034    2101                       	MOVS            R1,#1
+00000036    FFE3F7FF                   	BLF             WriteDataToRAM
+;000050            if(TestData(0x60000000,1)) {
+0000003A    4811                       	LDR             R0,?lr0002	; 60000000h
+0000003C    2101                       	MOVS            R1,#1
+0000003E    FFDFF7FF                   	BLF             TestData
+00000042    2800                       	CMP             R0,#0
+;000052            }else {
+00000044    D102                       	BNE             ??_2_END
+;000053                    MyIPAddress[1]=0x5501; //PORTD->SETTX=1<<10;     //тест завершился с ошибкой!
+00000046    4911                       	LDR             R1,?lr0005	; 5501h
+00000048    480F                       	LDR             R0,?lr0004	; MyIPAddress
+0000004A    8041                       	STRH            R1,[R0,#2]
+;000054            }
+                    ??_2_END:
+;FILE: core_cm1.h
+;001524      NVIC->ISER[((uint32_t)(IRQn) >> 5)] = (1 << ((uint32_t)(IRQn) & 0x1F)); /* enable interrupt */
+0000004C    4910                       	LDR             R1,?lr0006	; 40000h
+0000004E    4811                       	LDR             R0,?lr0007	; 0E000E100h
+                ??_28_COMMON:
+00000050    6001                       	STR             R1,[R0,#0]
+;FILE: Eth_Main.c
+;000057            while(1)
+                     ??_3_DO:
+;000058            {
+;000059                    if((ETHERNET->PHY_STATUS&0x02)==0x00)   PORTB->SETTX=1<<15;             //отображение сигнала LINK
+00000052    4911                       	LDR             R1,?lr0008	; 30000034h
+00000054    8848                       	LDRH            R0,[R1,#2]
+00000056    2202                       	MOVS            R2,#2
+00000058    4010                       	ANDS            R0,R2
+0000005A    4A10                       	LDR             R2,?lr0009	; 8000h
+0000005C    4810                       	LDR             R0,?lr0010	; 400B0020h
+0000005E    D101                       	BNE             ??_4_ELSE
+00000060    6002                       	STR             R2,[R0,#0]
+00000062    E000                       	B               ??_4_END
+                   ??_4_ELSE:
+;000060                    else                                                                    PORTB->CLRTX=1<<15;
+00000064    6042                       	STR             R2,[R0,#4]
+                    ??_4_END:
+;000062                    if((ETHERNET->PHY_STATUS&0x08)==0x00)   PORTB->SETTX=1<<14;             //Full Duplex Mode
+00000066    8848                       	LDRH            R0,[R1,#2]
+00000068    2108                       	MOVS            R1,#8
+0000006A    4008                       	ANDS            R0,R1
+0000006C    490D                       	LDR             R1,?lr0011	; 4000h
+0000006E    480C                       	LDR             R0,?lr0010	; 400B0020h
+00000070    D0EE                       	BEQ             ??_28_COMMON
+;000063                    else                                                                    PORTB->CLRTX=1<<14;
+00000072    6041                       	STR             R1,[R0,#4]
+;000064            }
+00000074    E7ED                       	B               ??_3_DO
+;000066    }
+
+.ALIGN	2
+00000078    00FFFFFF	?lr0000	.DCD	0FFFFFFh	; used 1 time(s)
+0000007C    E000E010	?lr0001	.DCD	0E000E010h	; used 1 time(s)
+00000080    60000000	?lr0002	.DCD	60000000h	; used 4 time(s)
+00000084    00005601	?lr0003	.DCD	5601h	; used 1 time(s)
+00000088    00000000	?lr0004	.DCD	MyIPAddress	; used 2 time(s)
+0000008C    00005501	?lr0005	.DCD	5501h	; used 1 time(s)
+00000090    00040000	?lr0006	.DCD	40000h	; used 1 time(s)
+00000094    E000E100	?lr0007	.DCD	0E000E100h	; used 1 time(s)
+00000098    30000034	?lr0008	.DCD	30000034h	; used 1 time(s)
+0000009C    00008000	?lr0009	.DCD	8000h	; used 1 time(s)
+000000A0    400B0020	?lr0010	.DCD	400B0020h	; used 2 time(s)
+000000A4    00004000	?lr0011	.DCD	4000h	; used 1 time(s)
+
+.ENDF
+         ETHERNET_Handler??T:
+;000068    void ETHERNET_Handler()
+000000A8    B530                       	PUSH            {R4,R5,R14} 
+;000072            Status=ETHERNET->IFR;
+000000AA    490C                       	LDR             R1,?lr0012	; 30000020h
+000000AC    8848                       	LDRH            Status?ETHERNET_Handler,[R1,#2]
+;000073            ETHERNET->IFR=Status;
+000000AE    8048                       	STRH            Status?ETHERNET_Handler,[R1,#2]
+;000074            Status&=0x101;
+000000B0    490B                       	LDR             R1,?lr0013	; 101h
+000000B2    4008                       	ANDS            Status?ETHERNET_Handler,R1
+;000075            PORTD->RXTX^=(1<<9);
+000000B4    4C0B                       	LDR             R4,?lr0014	; 400C0000h
+000000B6    6821                       	LDR             R1,[R4,#0]
+000000B8    4A0B                       	LDR             R2,?lr0015	; 200h
+000000BA    4051                       	EORS            R1,R2
+000000BC    6021                       	STR             R1,[R4,#0]
+;000076            if((Status&0x01)==0x01)
+000000BE    2101                       	MOVS            R1,#1
+000000C0    4008                       	ANDS            Status?ETHERNET_Handler,R1
+000000C2    2801                       	CMP             Status?ETHERNET_Handler,#1
+000000C4    D109                       	BNE             ??_6_ELSE
+;000077            {
+;000078                    PORTD->SETTX=1<<7;
+000000C6    2580                       	MOVS            R5,#80h
+000000C8    6225                       	STR             R5,[R4,#32]
+;000079                    Counter=ReadPacket(&Frame);
+000000CA    4808                       	LDR             R0,?lr0016	; Frame
+000000CC    FF98F7FF                   	BLF             ReadPacket
+000000D0    4907                       	LDR             R1,?lr0017	; Counter
+000000D2    8008                       	STRH            R0,[R1,#0]
+;000080                    PacketAnaliser();
+000000D4    F80EF000                   	BLF             PacketAnaliser??T
+;000081                    PORTD->CLRTX=1<<7;
+000000D8    6265                       	STR             R5,[R4,#36]
+;000082            }
+                   ??_6_ELSE:
+;000083    }
+000000DA    BD30                       	POP             {R4,R5,R15} 
+
+000000DC    30000020	?lr0012	.DCD	30000020h	; used 1 time(s)
+000000E0    00000101	?lr0013	.DCD	101h	; used 1 time(s)
+000000E4    400C0000	?lr0014	.DCD	400C0000h	; used 1 time(s)
+000000E8    00000200	?lr0015	.DCD	200h	; used 1 time(s)
+000000EC    00000000	?lr0016	.DCD	Frame	; used 1 time(s)
+000000F0    00000C8C	?lr0017	.DCD	Counter	; used 1 time(s)
+
+.ENDF
+           PacketAnaliser??T:
+;000086    void PacketAnaliser(void)
+000000F4    B5F0                       	PUSH            {R4-R7,R14} 
+;000088            switch(Frame.Data[6])  //определяем тип следующего протокола
+000000F6    481E                       	LDR             R0,?lr0018	; Frame
+000000F8    8980                       	LDRH            R0,[R0,#12]
+000000FA    491E                       	LDR             R1,?lr0019	; 608h
+000000FC    4288                       	CMP             R0,R1
+000000FE    D02A                       	BEQ             ??_7_CASE_608
+00000100    2808                       	CMP             R0,#8
+00000102    D134                       	BNE             ??_7_BREAK
+;000089        {
+;000091                    if((Frame.Data[15]==MyIPAddress[0])&&(Frame.Data[16]==MyIPAddress[1]))  //сравниваем IP адреса в пакете с нашим
+00000104    4C1C                       	LDR             R4,?lr0020	; Frame+12
+00000106    8A62                       	LDRH            R2,[R4,#18]
+00000108    481C                       	LDR             R0,?lr0021	; MyIPAddress
+0000010A    8801                       	LDRH            R1,[R0,#0]
+0000010C    428A                       	CMP             R2,R1
+0000010E    D12E                       	BNE             ??_7_BREAK
+00000110    8AA2                       	LDRH            R2,[R4,#20]
+00000112    8841                       	LDRH            R1,[R0,#2]
+00000114    428A                       	CMP             R2,R1
+00000116    D12A                       	BNE             ??_7_BREAK
+;000092                {                                                                                 //если они совпадают, то занимаемся разбором пакета дальше,
+;000093                    if(CheckSum_IP()==Frame.Data[12])   //если контрольные суммы пакета и вычисленная совпадают, продолжаем
+00000118    F890F000                   	BLF             CheckSum_IP??T
+0000011C    89A1                       	LDRH            R1,[R4,#12]
+0000011E    4288                       	CMP             R0,R1
+00000120    D125                       	BNE             ??_7_BREAK
+;000094                    {                                                           //иначе - отбрасываем пакет
+;000096                            if((Frame.Data[11]&0xFF00)==0x1100)     //определили следующий протокол: UDP
+00000122    8960                       	LDRH            R0,[R4,#10]
+00000124    4F16                       	LDR             R7,?lr0022	; 0FF00h
+00000126    4038                       	ANDS            R0,R7
+00000128    4916                       	LDR             R1,?lr0023	; 1100h
+0000012A    4288                       	CMP             R0,R1
+0000012C    D105                       	BNE             ??_11_ELSE
+;000097                        {
+;000098                                                            PORTD->SETTX=1<<8;
+0000012E    4E16                       	LDR             R6,?lr0024	; 100h
+00000130    4D16                       	LDR             R5,?lr0025	; 400C0020h
+00000132    602E                       	STR             R6,[R5,#0]
+;000099                                    Answear_UDP();       //отправили ответ на запрос Echo (ping) request
+00000134    F91CF000                   	BLF             Answear_UDP??T
+;000100                                                            PORTD->CLRTX=1<<8;
+00000138    606E                       	STR             R6,[R5,#4]
+;000101                        }
+                  ??_11_ELSE:
+;000103                            if((Frame.Data[11]&0xFF00)==0x0100)     //определили следующий протокол: ICMP
+0000013A    8960                       	LDRH            R0,[R4,#10]
+0000013C    4038                       	ANDS            R0,R7
+0000013E    4D12                       	LDR             R5,?lr0024	; 100h
+00000140    42A8                       	CMP             R0,R5
+00000142    D114                       	BNE             ??_7_BREAK
+;000104                        {
+;000105                            if(Frame.Data[17]==0x0008)        //определили тип - Echo (ping) request
+00000144    8AE0                       	LDRH            R0,[R4,#22]
+00000146    2808                       	CMP             R0,#8
+00000148    D111                       	BNE             ??_7_BREAK
+;000106                                                    {
+;000107                                                            PORTD->SETTX=1<<8;
+0000014A    4C10                       	LDR             R4,?lr0025	; 400C0020h
+0000014C    6025                       	STR             R5,[R4,#0]
+;000108                                    Answear_ICMP();       //отправили ответ на запрос Echo (ping) request
+0000014E    F8A5F000                   	BLF             Answear_ICMP??T
+;000109                                                            PORTD->CLRTX=1<<8;
+00000152    6065                       	STR             R5,[R4,#4]
+;000110                                                    }
+;000111                        }
+;000112                    }
+;000114                }
+;000115                break;
+00000154    BDF0                       	POP             {R4-R7,R15} 
+               ??_7_CASE_608:
+;000117                    if((Frame.Data[19]==MyIPAddress[0])&&(Frame.Data[20]==MyIPAddress[1]))  //сравниваем IP адреса в пакете с нашим
+00000156    4808                       	LDR             R0,?lr0020	; Frame+12
+00000158    8B43                       	LDRH            R3,[R0,#26]
+0000015A    4908                       	LDR             R1,?lr0021	; MyIPAddress
+0000015C    880A                       	LDRH            R2,[R1,#0]
+0000015E    4293                       	CMP             R3,R2
+00000160    D105                       	BNE             ??_14_ELSE
+00000162    8B82                       	LDRH            R2,[R0,#28]
+00000164    8848                       	LDRH            R0,[R1,#2]
+00000166    4282                       	CMP             R2,R0
+00000168    D101                       	BNE             ??_14_ELSE
+;000118                {                                                                                 //если они совпадают, то занимаемся разбором пакета дальше,
+;000119                    Answear_ARP();  //отправили ответ на ARP-запрос
+0000016A    F811F000                   	BLF             Answear_ARP??T
+;000120                }
+                  ??_14_ELSE:
+;000121                break;
+;000122            }
+                  ??_7_BREAK:
+;000123    }
+0000016E    BDF0                       	POP             {R4-R7,R15} 
+
+00000170    00000000	?lr0018	.DCD	Frame	; used 1 time(s)
+00000174    00000608	?lr0019	.DCD	608h	; used 1 time(s)
+00000178    0000000C	?lr0020	.DCD	Frame+12	; used 2 time(s)
+0000017C    00000000	?lr0021	.DCD	MyIPAddress	; used 2 time(s)
+00000180    0000FF00	?lr0022	.DCD	0FF00h	; used 1 time(s)
+00000184    00001100	?lr0023	.DCD	1100h	; used 1 time(s)
+00000188    00000100	?lr0024	.DCD	100h	; used 2 time(s)
+0000018C    400C0020	?lr0025	.DCD	400C0020h	; used 2 time(s)
+
+.ENDF
+              Answear_ARP??T:
+;000126    void Answear_ARP(void)
+00000190    B500                       	PUSH            {R14} 
+00000192    B08B                       	SUB             R13,#44
+;000129            Buf[0]=Frame.Data[3];           //MAC-адрес источника
+00000194    4825                       	LDR             R0,?lr0026	; Frame+4
+00000196    8841                       	LDRH            R1,[R0,#2]
+00000198    466A                       	MOV             R2,R13
+0000019A    8011                       	STRH            R1,[R2,#Buf?Answear_ARP]
+;000130            Buf[1]=Frame.Data[4];           //MAC-адрес источника
+0000019C    8881                       	LDRH            R1,[R0,#4]
+0000019E    466A                       	MOV             R2,R13
+000001A0    8051                       	STRH            R1,[R2,#(Buf?Answear_ARP+2)]
+;000131            Buf[2]=Frame.Data[5];           //MAC-адрес источника
+000001A2    88C1                       	LDRH            R1,[R0,#6]
+000001A4    466A                       	MOV             R2,R13
+000001A6    8091                       	STRH            R1,[R2,#(Buf?Answear_ARP+4)]
+;000132            Buf[3]=ETHERNET->MAC_T;         //наш MAC-адрес
+000001A8    4921                       	LDR             R1,?lr0027	; 30000000h
+000001AA    884A                       	LDRH            R2,[R1,#2]
+000001AC    466B                       	MOV             R3,R13
+000001AE    80DA                       	STRH            R2,[R3,#(Buf?Answear_ARP+6)]
+;000133            Buf[4]=ETHERNET->MAC_M;         //наш MAC-адрес
+000001B0    888A                       	LDRH            R2,[R1,#4]
+000001B2    466B                       	MOV             R3,R13
+000001B4    811A                       	STRH            R2,[R3,#(Buf?Answear_ARP+8)]
+;000134            Buf[5]=ETHERNET->MAC_H;         //наш MAC-адрес
+000001B6    88CA                       	LDRH            R2,[R1,#6]
+000001B8    466B                       	MOV             R3,R13
+000001BA    815A                       	STRH            R2,[R3,#(Buf?Answear_ARP+10)]
+;000135            Buf[6]=Frame.Data[6];           //type - ARP
+000001BC    8902                       	LDRH            R2,[R0,#8]
+000001BE    466B                       	MOV             R3,R13
+000001C0    819A                       	STRH            R2,[R3,#(Buf?Answear_ARP+12)]
+;000136            Buf[7]=Frame.Data[7];           //Hardware type - Ethernet
+000001C2    8942                       	LDRH            R2,[R0,#10]
+000001C4    466B                       	MOV             R3,R13
+000001C6    81DA                       	STRH            R2,[R3,#(Buf?Answear_ARP+14)]
+;000137            Buf[8]=Frame.Data[8];           //Protocol type - IP
+000001C8    8982                       	LDRH            R2,[R0,#12]
+000001CA    466B                       	MOV             R3,R13
+000001CC    821A                       	STRH            R2,[R3,#(Buf?Answear_ARP+16)]
+;000138            Buf[9]=Frame.Data[9];           //Hardware size - 6; Protocol size - 4
+000001CE    89C2                       	LDRH            R2,[R0,#14]
+000001D0    466B                       	MOV             R3,R13
+000001D2    825A                       	STRH            R2,[R3,#(Buf?Answear_ARP+18)]
+;000139            Buf[10]=0x0200;                 //код ответа на запрос Who has...
+000001D4    4A17                       	LDR             R2,?lr0028	; 200h
+000001D6    466B                       	MOV             R3,R13
+000001D8    829A                       	STRH            R2,[R3,#(Buf?Answear_ARP+20)]
+;000140            Buf[11]=ETHERNET->MAC_T;        //Sender MAC-address: 0A.1B.2C.3D.4E.5F
+000001DA    884A                       	LDRH            R2,[R1,#2]
+000001DC    466B                       	MOV             R3,R13
+000001DE    82DA                       	STRH            R2,[R3,#(Buf?Answear_ARP+22)]
+;000141            Buf[12]=ETHERNET->MAC_M;        //Sender MAC-address: 0A.1B.2C.3D.4E.5F
+000001E0    888A                       	LDRH            R2,[R1,#4]
+000001E2    466B                       	MOV             R3,R13
+000001E4    831A                       	STRH            R2,[R3,#(Buf?Answear_ARP+24)]
+;000142            Buf[13]=ETHERNET->MAC_H;        //Sender MAC-address: 0A.1B.2C.3D.4E.5F
+000001E6    88CA                       	LDRH            R2,[R1,#6]
+000001E8    4669                       	MOV             R1,R13
+000001EA    834A                       	STRH            R2,[R1,#(Buf?Answear_ARP+26)]
+;000143            Buf[14]=MyIPAddress[0];                 //My_IP_Address[0];    //Sender IP-address: 192.168.1.87
+000001EC    4912                       	LDR             R1,?lr0029	; MyIPAddress
+000001EE    880A                       	LDRH            R2,[R1,#0]
+000001F0    466B                       	MOV             R3,R13
+000001F2    839A                       	STRH            R2,[R3,#(Buf?Answear_ARP+28)]
+;000144            Buf[15]=MyIPAddress[1];                 //My_IP_Address[1];    //Sender IP-address: 192.168.1.87
+000001F4    884A                       	LDRH            R2,[R1,#2]
+000001F6    4669                       	MOV             R1,R13
+000001F8    83CA                       	STRH            R2,[R1,#(Buf?Answear_ARP+30)]
+;000145            Buf[16]=Frame.Data[3];          //Target MAC-address
+000001FA    8841                       	LDRH            R1,[R0,#2]
+000001FC    466A                       	MOV             R2,R13
+000001FE    8411                       	STRH            R1,[R2,#(Buf?Answear_ARP+32)]
+;000146            Buf[17]=Frame.Data[4];          //Target MAC-address
+00000200    8881                       	LDRH            R1,[R0,#4]
+00000202    466A                       	MOV             R2,R13
+00000204    8451                       	STRH            R1,[R2,#(Buf?Answear_ARP+34)]
+;000147            Buf[18]=Frame.Data[5];          //Target MAC-address
+00000206    88C1                       	LDRH            R1,[R0,#6]
+00000208    466A                       	MOV             R2,R13
+0000020A    8491                       	STRH            R1,[R2,#(Buf?Answear_ARP+36)]
+;000148            Buf[19]=Frame.Data[14];         //Target IP-address
+0000020C    8B01                       	LDRH            R1,[R0,#24]
+0000020E    466A                       	MOV             R2,R13
+00000210    84D1                       	STRH            R1,[R2,#(Buf?Answear_ARP+38)]
+;000149            Buf[20]=Frame.Data[15];         //Target IP-address
+00000212    8B41                       	LDRH            R1,[R0,#26]
+00000214    4668                       	MOV             R0,R13
+00000216    8501                       	STRH            R1,[R0,#(Buf?Answear_ARP+40)]
+;000150            Buf[21]=0;
+00000218    2000                       	MOVS            R0,#0
+0000021A    4669                       	MOV             R1,R13
+0000021C    8548                       	STRH            R0,[R1,#(Buf?Answear_ARP+42)]
+;000152            SendPacket(Buf,42);
+0000021E    A800                       	ADD             R0,R13,#Buf?Answear_ARP
+00000220    212A                       	MOVS            R1,#42
+00000222    FEEDF7FF                   	BLF             SendPacket
+;000153    }
+00000226    B00B                       	ADD             R13,#44
+00000228    BD00                       	POP             {R15} 
+
+.ALIGN	2
+0000022C    00000004	?lr0026	.DCD	Frame+4	; used 1 time(s)
+00000230    30000000	?lr0027	.DCD	30000000h	; used 1 time(s)
+00000234    00000200	?lr0028	.DCD	200h	; used 1 time(s)
+00000238    00000000	?lr0029	.DCD	MyIPAddress	; used 1 time(s)
+
+.ENDF
+              CheckSum_IP??T:
+;000156    uint16_t CheckSum_IP(void)
+;000158            unsigned long cs=0;
+;000159            cs = cs + Frame.Data[7];
+0000023C    490B                       	LDR             R1,?lr0030	; Frame+12
+0000023E    8848                       	LDRH            cs?CheckSum_IP,[R1,#2]
+;000160            cs = cs + Frame.Data[8];
+00000240    888A                       	LDRH            R2,[R1,#4]
+00000242    4410                       	ADD             cs?CheckSum_IP,R2
+;000161            cs = cs + Frame.Data[9];
+00000244    88CA                       	LDRH            R2,[R1,#6]
+00000246    4410                       	ADD             cs?CheckSum_IP,R2
+;000162            cs = cs + Frame.Data[10];
+00000248    890A                       	LDRH            R2,[R1,#8]
+0000024A    4410                       	ADD             cs?CheckSum_IP,R2
+;000163            cs = cs + Frame.Data[11];
+0000024C    894A                       	LDRH            R2,[R1,#10]
+0000024E    4410                       	ADD             cs?CheckSum_IP,R2
+;000164            cs = cs + Frame.Data[13];
+00000250    89CA                       	LDRH            R2,[R1,#14]
+00000252    4410                       	ADD             cs?CheckSum_IP,R2
+;000165            cs = cs + Frame.Data[14];
+00000254    8A0A                       	LDRH            R2,[R1,#16]
+00000256    4410                       	ADD             cs?CheckSum_IP,R2
+;000166            cs = cs + Frame.Data[15];
+00000258    8A4A                       	LDRH            R2,[R1,#18]
+0000025A    4410                       	ADD             cs?CheckSum_IP,R2
+;000167            cs = cs + Frame.Data[16];
+0000025C    8A8A                       	LDRH            R2,[R1,#20]
+0000025E    4410                       	ADD             cs?CheckSum_IP,R2
+;000168            cs = (cs >> 16) + (cs & 0xFFFF);
+00000260    0C02                       	LSRS            R2,cs?CheckSum_IP,#16
+00000262    B281                       	UXTH            R1,cs?CheckSum_IP
+00000264    1850                       	ADDS            cs?CheckSum_IP,R2,R1
+;000169            return (uint16_t)(~cs);
+00000266    43C0                       	MVNS            cs?CheckSum_IP,cs?CheckSum_IP
+00000268    B280                       	UXTH            cs?CheckSum_IP,cs?CheckSum_IP
+;000170    }
+0000026A    4770                       	BX              R14
+
+0000026C    0000000C	?lr0030	.DCD	Frame+12	; used 1 time(s)
+
+.ENDF
+            CheckSum_ICMP??T:
+;000174    uint16_t CheckSum_ICMP(uint16_t size)
+00000270    B510                       	PUSH            {R4,R14} 
+;000176            unsigned long a, cs=0;
+00000272    2100                       	MOVS            cs?CheckSum_ICMP,#0
+;000177            for(a=0;a<size;a++)
+00000274    2200                       	MOVS            a?CheckSum_ICMP,#0
+00000276    E006                       	B               ??_16_CHECK
+                  ??_16_LOOP:
+;000178            {
+;000179                    if(a==1) continue;
+00000278    2A01                       	CMP             a?CheckSum_ICMP,#1
+0000027A    D003                       	BEQ             ??_16_CONTINUE
+;000180                    else cs+=Frame.Data[a+17];
+0000027C    0053                       	LSLS            R3,a?CheckSum_ICMP,#1
+0000027E    4C06                       	LDR             R4,?lr0031	; Frame+34
+00000280    5B1B                       	LDRH            R3,[R3,R4]
+00000282    4419                       	ADD             cs?CheckSum_ICMP,R3
+;000181            }
+              ??_16_CONTINUE:
+00000284    1C52                       	ADDS            a?CheckSum_ICMP,a?CheckSum_ICMP,#1
+                 ??_16_CHECK:
+00000286    4282                       	CMP             a?CheckSum_ICMP,size?CheckSum_ICMP
+00000288    D3F6                       	BCC             ??_16_LOOP
+;000182            cs=(cs>>16)+(cs&0xFFFF);
+0000028A    0C0B                       	LSRS            R3,cs?CheckSum_ICMP,#16
+0000028C    B28A                       	UXTH            R2,cs?CheckSum_ICMP
+0000028E    1899                       	ADDS            cs?CheckSum_ICMP,R3,R2
+;000183            return (uint16_t)(~cs);
+00000290    43C9                       	MVNS            cs?CheckSum_ICMP,cs?CheckSum_ICMP
+00000292    B288                       	UXTH            R0,cs?CheckSum_ICMP
+;000184    }
+00000294    BD10                       	POP             {R4,R15} 
+
+.ALIGN	2
+00000298    00000022	?lr0031	.DCD	Frame+34	; used 1 time(s)
+
+.ENDF
+             Answear_ICMP??T:
+;000187    void Answear_ICMP(void)
+0000029C    B570                       	PUSH            {R4-R6,R14} 
+0000029E    B0FF                       	SUB             R13,#1FCh
+000002A0    B091                       	SUB             R13,#68
+;000194            tmp=Counter-34-4; //34 байта - заголовок Eth2 и IP пакетов, 4 байта - контрольная сумма Eth2 пакета.
+000002A2    482F                       	LDR             R0,?lr0032	; Counter
+000002A4    8805                       	LDRH            tmp?Answear_ICMP,[R0,#0]
+000002A6    3D26                       	SUBS            tmp?Answear_ICMP,#38
+;000195            if((tmp&0x01)==1)
+000002A8    4628                       	MOV             R0,tmp?Answear_ICMP
+000002AA    2101                       	MOVS            R1,#1
+000002AC    4008                       	ANDS            R0,R1
+000002AE    2801                       	CMP             R0,#1
+000002B0    B2A8                       	UXTH            R0,tmp?Answear_ICMP
+000002B2    D108                       	BNE             ??_18_ELSE
+;000196            {
+;000197                    tmp=(tmp+1)>>1; //из кол-ва байт получили кол-во слов
+000002B4    1C40                       	ADDS            R0,R0,#1
+000002B6    1045                       	ASRS            tmp?Answear_ICMP,R0,#1
+;000198                    Frame.Data[tmp+16]=Frame.Data[tmp+16]&0x00FF;
+000002B8    B2A8                       	UXTH            R0,tmp?Answear_ICMP
+000002BA    0040                       	LSLS            R0,R0,#1
+000002BC    4929                       	LDR             R1,?lr0033	; Frame+32
+000002BE    5A42                       	LDRH            R2,[R0,R1]
+000002C0    B2D2                       	UXTB            R2,R2
+000002C2    5242                       	STRH            R2,[R0,R1]
+;000199            }
+000002C4    E000                       	B               ??_18_END
+                  ??_18_ELSE:
+;000200            else                            tmp=tmp>>1;             //из кол-ва байт получили кол-во слов
+000002C6    1045                       	ASRS            tmp?Answear_ICMP,R0,#1
+                   ??_18_END:
+;000203        buffer[0]=Frame.Data[3];
+000002C8    4C27                       	LDR             R4,?lr0034	; Frame
+000002CA    88E0                       	LDRH            R0,[R4,#6]
+000002CC    4669                       	MOV             R1,R13
+000002CE    8008                       	STRH            R0,[R1,#buffer?Answear_ICMP]
+;000204        buffer[1]=Frame.Data[4];
+000002D0    8920                       	LDRH            R0,[R4,#8]
+000002D2    4669                       	MOV             R1,R13
+000002D4    8048                       	STRH            R0,[R1,#(buffer?Answear_ICMP+2)]
+;000205        buffer[2]=Frame.Data[5];
+000002D6    8960                       	LDRH            R0,[R4,#10]
+000002D8    4669                       	MOV             R1,R13
+000002DA    8088                       	STRH            R0,[R1,#(buffer?Answear_ICMP+4)]
+;000207            buffer[3]=ETHERNET->MAC_T;
+000002DC    4823                       	LDR             R0,?lr0035	; 30000000h
+000002DE    8841                       	LDRH            R1,[R0,#2]
+000002E0    466A                       	MOV             R2,R13
+000002E2    80D1                       	STRH            R1,[R2,#(buffer?Answear_ICMP+6)]
+;000208            buffer[4]=ETHERNET->MAC_M;
+000002E4    8881                       	LDRH            R1,[R0,#4]
+000002E6    466A                       	MOV             R2,R13
+000002E8    8111                       	STRH            R1,[R2,#(buffer?Answear_ICMP+8)]
+;000209            buffer[5]=ETHERNET->MAC_H;
+000002EA    88C1                       	LDRH            R1,[R0,#6]
+000002EC    4668                       	MOV             R0,R13
+000002EE    8141                       	STRH            R1,[R0,#(buffer?Answear_ICMP+10)]
+;000211            buffer[6]=Frame.Data[6];
+000002F0    89A0                       	LDRH            R0,[R4,#12]
+000002F2    4669                       	MOV             R1,R13
+000002F4    8188                       	STRH            R0,[R1,#(buffer?Answear_ICMP+12)]
+;000213        for(a=7;a<12;a++)
+000002F6    2007                       	MOVS            a?Answear_ICMP,#7
+                  ??_19_LOOP:
+;000214            {
+;000215                buffer[a]= Frame.Data[a];
+000002F8    0041                       	LSLS            R1,a?Answear_ICMP,#1
+000002FA    5B0A                       	LDRH            R2,[R1,R4]
+000002FC    AE00                       	ADD             R6,R13,#buffer?Answear_ICMP
+000002FE    538A                       	STRH            R2,[R1,R6]
+;000216        }
+00000300    1C40                       	ADDS            a?Answear_ICMP,a?Answear_ICMP,#1
+00000302    280C                       	CMP             a?Answear_ICMP,#12
+00000304    D3F8                       	BCC             ??_19_LOOP
+;000218        buffer[12]=CheckSum_IP();
+00000306    FF99F7FF                   	BLF             CheckSum_IP??T
+0000030A    4669                       	MOV             R1,R13
+0000030C    8308                       	STRH            R0,[R1,#(buffer?Answear_ICMP+24)]
+;000219            buffer[13]=Frame.Data[15];//IP->DestinAddr[0];
+0000030E    8BE0                       	LDRH            R0,[R4,#30]
+00000310    4669                       	MOV             R1,R13
+00000312    8348                       	STRH            R0,[R1,#(buffer?Answear_ICMP+26)]
+;000220            buffer[14]=Frame.Data[16];//IP->DestinAddr[1];
+00000314    8C20                       	LDRH            R0,[R4,#32]
+00000316    4669                       	MOV             R1,R13
+00000318    8388                       	STRH            R0,[R1,#(buffer?Answear_ICMP+28)]
+;000221            buffer[15]=Frame.Data[13];//IP->SourceAddr[0];
+0000031A    8B60                       	LDRH            R0,[R4,#26]
+0000031C    4669                       	MOV             R1,R13
+0000031E    83C8                       	STRH            R0,[R1,#(buffer?Answear_ICMP+30)]
+;000222            buffer[16]=Frame.Data[14];//IP->SourceAddr[1];
+00000320    8BA0                       	LDRH            R0,[R4,#28]
+00000322    4669                       	MOV             R1,R13
+00000324    8408                       	STRH            R0,[R1,#(buffer?Answear_ICMP+32)]
+;000224            buffer[17]=0x0000; //ответ
+00000326    2000                       	MOVS            R0,#0
+00000328    4669                       	MOV             R1,R13
+0000032A    8448                       	STRH            R0,[R1,#(buffer?Answear_ICMP+34)]
+;000225        Frame.Data[17]=0x0000;
+0000032C    8460                       	STRH            R0,[R4,#34]
+;000227            buffer[18]=CheckSum_ICMP(tmp);
+0000032E    B2AD                       	UXTH            tmp?Answear_ICMP,tmp?Answear_ICMP
+00000330    4628                       	MOV             R0,tmp?Answear_ICMP
+00000332    FF9DF7FF                   	BLF             CheckSum_ICMP??T
+00000336    4669                       	MOV             R1,R13
+00000338    8488                       	STRH            R0,[R1,#(buffer?Answear_ICMP+36)]
+;000228        for(a=19;a<((tmp-2)+19);a++)
+0000033A    2013                       	MOVS            a?Answear_ICMP,#19
+0000033C    E003                       	B               ??_20_CHECK
+                  ??_20_LOOP:
+;000229            {
+;000230            buffer[a]=Frame.Data[a];
+0000033E    0041                       	LSLS            R1,a?Answear_ICMP,#1
+00000340    5B0A                       	LDRH            R2,[R1,R4]
+00000342    538A                       	STRH            R2,[R1,R6]
+;000231            }
+00000344    1C40                       	ADDS            a?Answear_ICMP,a?Answear_ICMP,#1
+                 ??_20_CHECK:
+00000346    4629                       	MOV             R1,R5
+00000348    3111                       	ADDS            R1,#17
+0000034A    4288                       	CMP             a?Answear_ICMP,R1
+0000034C    D3F7                       	BCC             ??_20_LOOP
+;000232            SendPacket(buffer,(tmp*2+34));
+0000034E    0069                       	LSLS            R1,R5,#1
+00000350    3122                       	ADDS            R1,#34
+00000352    A800                       	ADD             R0,R13,#buffer?Answear_ICMP
+00000354    FE54F7FF                   	BLF             SendPacket
+;000233    }
+00000358    B07F                       	ADD             R13,#1FCh
+0000035A    B011                       	ADD             R13,#68
+0000035C    BD70                       	POP             {R4-R6,R15} 
+
+.ALIGN	2
+00000360    00000C8C	?lr0032	.DCD	Counter	; used 1 time(s)
+00000364    00000020	?lr0033	.DCD	Frame+32	; used 1 time(s)
+00000368    00000000	?lr0034	.DCD	Frame	; used 1 time(s)
+0000036C    30000000	?lr0035	.DCD	30000000h	; used 1 time(s)
+
+.ENDF
+              Answear_UDP??T:
+;000344    void Answear_UDP(void)
+00000370    B5F0                       	PUSH            {R4-R7,R14} 
+;000346    unsigned long a,b, cs=0;
+;000349    unsigned char * framebytes = (unsigned char *)Frame.Data;
+00000372    4D6D                       	LDR             framebytes?Answear_UDP,?lr0036	; Frame
+;000352            if (framebytes[45]==0x04) {
+00000374    202D                       	MOVS            R0,#45
+00000376    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+00000378    2804                       	CMP             R0,#4
+0000037A    D11E                       	BNE             ??_21_ELSE
+;000353                    n = (framebytes[46]<<8) + framebytes[47];
+0000037C    202E                       	MOVS            R0,#46
+0000037E    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+00000380    0207                       	LSLS            n?Answear_UDP,R0,#8
+00000382    202F                       	MOVS            R0,#47
+00000384    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+00000386    4407                       	ADD             n?Answear_UDP,R0
+;000354                    addr = (framebytes[48]<<24) + (framebytes[49]<<16) + (framebytes[50]<<8) + framebytes[51];
+00000388    2030                       	MOVS            R0,#48
+0000038A    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+0000038C    0604                       	LSLS            addr?Answear_UDP,R0,#24
+0000038E    2031                       	MOVS            R0,#49
+00000390    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+00000392    0400                       	LSLS            R0,R0,#16
+00000394    4404                       	ADD             addr?Answear_UDP,R0
+00000396    2032                       	MOVS            R0,#50
+00000398    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+0000039A    0200                       	LSLS            R0,R0,#8
+0000039C    4404                       	ADD             addr?Answear_UDP,R0
+0000039E    2033                       	MOVS            R0,#51
+000003A0    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+000003A2    4404                       	ADD             addr?Answear_UDP,R0
+;000355                    for(i=0; i<n; i++) {
+000003A4    2600                       	MOVS            i?Answear_UDP,#0
+000003A6    E006                       	B               ??_22_CHECK
+                  ??_22_LOOP:
+;000356                            WriteByteToRAM(addr+i, framebytes[52+i]);
+000003A8    1970                       	ADDS            R0,i?Answear_UDP,framebytes?Answear_UDP
+000003AA    2134                       	MOVS            R1,#52
+000003AC    5C41                       	LDRB            R1,[R0,R1]
+000003AE    19A0                       	ADDS            R0,addr?Answear_UDP,i?Answear_UDP
+000003B0    FE26F7FF                   	BLF             WriteByteToRAM
+;000357                    };
+000003B4    1C76                       	ADDS            i?Answear_UDP,i?Answear_UDP,#1
+                 ??_22_CHECK:
+000003B6    42BE                       	CMP             i?Answear_UDP,n?Answear_UDP
+000003B8    DBF6                       	BLT             ??_22_LOOP
+;000358            };
+                  ??_21_ELSE:
+;000359            if (framebytes[45]==0xf0) {
+000003BA    202D                       	MOVS            R0,#45
+000003BC    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+000003BE    28F0                       	CMP             R0,#0F0h
+000003C0    D110                       	BNE             ??_23_ELSE
+;000362                    addr = (framebytes[46]<<24) + (framebytes[47]<<16) + (framebytes[48]<<8) + framebytes[49];
+000003C2    202E                       	MOVS            R0,#46
+000003C4    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+000003C6    0604                       	LSLS            addr?Answear_UDP,R0,#24
+000003C8    202F                       	MOVS            R0,#47
+000003CA    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+000003CC    0400                       	LSLS            R0,R0,#16
+000003CE    4404                       	ADD             addr?Answear_UDP,R0
+000003D0    2030                       	MOVS            R0,#48
+000003D2    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+000003D4    0200                       	LSLS            R0,R0,#8
+000003D6    4404                       	ADD             addr?Answear_UDP,R0
+000003D8    2031                       	MOVS            R0,#49
+000003DA    5C28                       	LDRB            R0,[framebytes?Answear_UDP,R0]
+000003DC    4404                       	ADD             addr?Answear_UDP,R0
+;000363                    CallRAM(addr);
+000003DE    4620                       	MOV             R0,addr?Answear_UDP
+000003E0    FE0EF7FF                   	BLF             CallRAM
+;000364            };
+                  ??_23_ELSE:
+;000367                    Time_new=SysTick->VAL&0x00FFFFFF; // чтение текущего системного времени
+000003E4    4F51                       	LDR             R7,?lr0037	; 0E000E010h
+000003E6    68B8                       	LDR             R0,[R7,#8]
+000003E8    0200                       	LSLS            R0,R0,#8
+000003EA    0A00                       	LSRS            R0,R0,#8
+000003EC    4C50                       	LDR             R4,?lr0038	; Time_delta
+000003EE    6060                       	STR             R0,[R4,#4]
+;000368                    if((SysTick->CTRL&0x10000)==0x10000)
+000003F0    6838                       	LDR             R0,[R7,#0]
+000003F2    68A1                       	LDR             R1,[R4,#8]
+000003F4    6860                       	LDR             R0,[R4,#4]
+000003F6    D303                       	BCC             ??_24_ELSE
+;000369                    {
+;000370                            Time_delta=(0x00FFFFFF+Time_old-Time_new);
+000003F8    1A08                       	SUBS            R0,R1,R0
+000003FA    494E                       	LDR             R1,?lr0039	; 0FFFFFFh
+000003FC    4408                       	ADD             R0,R1
+;000371                    }
+000003FE    E000                       	B               ??_29_COMMON
+                  ??_24_ELSE:
+;000373                    {
+;000374                            Time_delta=(Time_old-Time_new);
+00000400    1A08                       	SUBS            R0,R1,R0
+                ??_29_COMMON:
+00000402    6020                       	STR             R0,[R4,#0]
+;000375                    };
+;000376                    outbuf.buffer[21]=(uint16_t)((Time_delta&0xFFFF0000)>>16); // период обмена в тактах - старшие байты
+00000404    8860                       	LDRH            R0,[R4,#2]
+00000406    86E0                       	STRH            R0,[R4,#54]
+;000377                    outbuf.buffer[22]=(uint16_t)(Time_delta&0x0000FFFF); // период обмена в тактах - младшие байты
+00000408    8820                       	LDRH            R0,[R4,#0]
+0000040A    8720                       	STRH            R0,[R4,#56]
+;000378                    Time_old=Time_new;
+0000040C    6860                       	LDR             R0,[R4,#4]
+0000040E    60A0                       	STR             R0,[R4,#8]
+;000380            tmp=Counter-34-4; //34 байта - заголовок Eth2 и IP пакетов, 4 байта - контрольная сумма Eth2 пакета.
+00000410    4849                       	LDR             R0,?lr0040	; Counter
+00000412    8801                       	LDRH            tmp?Answear_UDP,[R0,#0]
+00000414    3926                       	SUBS            tmp?Answear_UDP,#38
+;000381            if((tmp&0x01)==1) // если нечётное кол-во байт
+00000416    4608                       	MOV             R0,tmp?Answear_UDP
+00000418    2201                       	MOVS            R2,#1
+0000041A    4010                       	ANDS            R0,R2
+0000041C    2801                       	CMP             R0,#1
+0000041E    B288                       	UXTH            R0,tmp?Answear_UDP
+00000420    D108                       	BNE             ??_25_ELSE
+;000382            {
+;000383                    tmp=(tmp+1)>>1; //из кол-ва байт получили кол-во слов в UDP-пакете
+00000422    1C40                       	ADDS            R0,R0,#1
+00000424    1041                       	ASRS            tmp?Answear_UDP,R0,#1
+;000384                    Frame.Data[tmp+16]=Frame.Data[tmp+16]&0x00FF; // обрезаем наполовину слово содержащее последний байт
+00000426    B288                       	UXTH            R0,tmp?Answear_UDP
+00000428    0040                       	LSLS            R0,R0,#1
+0000042A    4A44                       	LDR             R2,?lr0041	; Frame+32
+0000042C    5A83                       	LDRH            R3,[R0,R2]
+0000042E    B2DB                       	UXTB            R3,R3
+00000430    5283                       	STRH            R3,[R0,R2]
+;000385            }
+00000432    E000                       	B               ??_25_END
+                  ??_25_ELSE:
+;000386            else                            tmp=tmp>>1;             //из кол-ва байт получили кол-во слов в UDP-пакете
+00000434    1041                       	ASRS            tmp?Answear_UDP,R0,#1
+                   ??_25_END:
+;000389            outbuf.buffer[0]=Frame.Data[3];
+00000436    4D3C                       	LDR             R5,?lr0036	; Frame
+00000438    88E8                       	LDRH            R0,[R5,#6]
+0000043A    81A0                       	STRH            R0,[R4,#12]
+;000390            outbuf.buffer[1]=Frame.Data[4];
+0000043C    8928                       	LDRH            R0,[R5,#8]
+0000043E    81E0                       	STRH            R0,[R4,#14]
+;000391            outbuf.buffer[2]=Frame.Data[5];
+00000440    8968                       	LDRH            R0,[R5,#10]
+00000442    8220                       	STRH            R0,[R4,#16]
+;000393            outbuf.buffer[3]=ETHERNET->MAC_T;
+00000444    483E                       	LDR             R0,?lr0042	; 30000000h
+00000446    8842                       	LDRH            R2,[R0,#2]
+00000448    8262                       	STRH            R2,[R4,#18]
+;000394            outbuf.buffer[4]=ETHERNET->MAC_M;
+0000044A    8882                       	LDRH            R2,[R0,#4]
+0000044C    82A2                       	STRH            R2,[R4,#20]
+;000395            outbuf.buffer[5]=ETHERNET->MAC_H;
+0000044E    88C2                       	LDRH            R2,[R0,#6]
+00000450    82E2                       	STRH            R2,[R4,#22]
+;000397            outbuf.buffer[6]=Frame.Data[6];
+00000452    89A8                       	LDRH            R0,[R5,#12]
+00000454    8320                       	STRH            R0,[R4,#24]
+;000399            outbuf.buffer[7]=Frame.Data[7];
+00000456    89E8                       	LDRH            R0,[R5,#14]
+00000458    8360                       	STRH            R0,[R4,#26]
+;000400            outbuf.buffer[8]=Frame.Data[8];
+0000045A    8A28                       	LDRH            R0,[R5,#16]
+0000045C    83A0                       	STRH            R0,[R4,#28]
+;000401            outbuf.buffer[9]=Frame.Data[9];
+0000045E    8A68                       	LDRH            R0,[R5,#18]
+00000460    83E0                       	STRH            R0,[R4,#30]
+;000402            outbuf.buffer[10]=Frame.Data[10];
+00000462    8AA8                       	LDRH            R0,[R5,#20]
+00000464    8420                       	STRH            R0,[R4,#32]
+;000403            outbuf.buffer[11]=Frame.Data[11];
+00000466    8AE8                       	LDRH            R0,[R5,#22]
+00000468    8460                       	STRH            R0,[R4,#34]
+;000404            outbuf.buffer[13]=Frame.Data[15];//IP->DestinAddr[0];
+0000046A    8BE8                       	LDRH            R0,[R5,#30]
+0000046C    84E0                       	STRH            R0,[R4,#38]
+;000405            outbuf.buffer[14]=Frame.Data[16];//IP->DestinAddr[1];
+0000046E    8C28                       	LDRH            R0,[R5,#32]
+00000470    8520                       	STRH            R0,[R4,#40]
+;000406            outbuf.buffer[15]=Frame.Data[13];//IP->SourceAddr[0];
+00000472    8B68                       	LDRH            R0,[R5,#26]
+00000474    8560                       	STRH            R0,[R4,#42]
+;000407            outbuf.buffer[16]=Frame.Data[14];//IP->SourceAddr[1];
+00000476    8BA8                       	LDRH            R0,[R5,#28]
+00000478    85A0                       	STRH            R0,[R4,#44]
+;000409                    cs = cs + outbuf.buffer[7];
+0000047A    8B60                       	LDRH            cs?Answear_UDP,[R4,#26]
+;000410                    cs = cs + outbuf.buffer[8];
+0000047C    8BA2                       	LDRH            R2,[R4,#28]
+0000047E    4410                       	ADD             cs?Answear_UDP,R2
+;000411                    cs = cs + outbuf.buffer[9];
+00000480    8BE2                       	LDRH            R2,[R4,#30]
+00000482    4410                       	ADD             cs?Answear_UDP,R2
+;000412                    cs = cs + outbuf.buffer[10];
+00000484    8C22                       	LDRH            R2,[R4,#32]
+00000486    4410                       	ADD             cs?Answear_UDP,R2
+;000413                    cs = cs + outbuf.buffer[11];
+00000488    8C62                       	LDRH            R2,[R4,#34]
+0000048A    4410                       	ADD             cs?Answear_UDP,R2
+;000414                    cs = cs + outbuf.buffer[13];
+0000048C    8CE2                       	LDRH            R2,[R4,#38]
+0000048E    4410                       	ADD             cs?Answear_UDP,R2
+;000415                    cs = cs + outbuf.buffer[14];
+00000490    8D22                       	LDRH            R2,[R4,#40]
+00000492    4410                       	ADD             cs?Answear_UDP,R2
+;000416                    cs = cs + outbuf.buffer[15];
+00000494    8D62                       	LDRH            R2,[R4,#42]
+00000496    4410                       	ADD             cs?Answear_UDP,R2
+;000417                    cs = cs + outbuf.buffer[16];
+00000498    8DA2                       	LDRH            R2,[R4,#44]
+0000049A    4410                       	ADD             cs?Answear_UDP,R2
+;000418            cs = (cs >> 16) + (cs & 0xFFFF);
+0000049C    0C03                       	LSRS            R3,cs?Answear_UDP,#16
+0000049E    B282                       	UXTH            R2,cs?Answear_UDP
+000004A0    1898                       	ADDS            cs?Answear_UDP,R3,R2
+;000419            outbuf.buffer[12]=(uint16_t)(~cs);
+000004A2    43C0                       	MVNS            cs?Answear_UDP,cs?Answear_UDP
+000004A4    84A0                       	STRH            cs?Answear_UDP,[R4,#36]
+;000422            outbuf.buffer[17]=Frame.Data[18];//Порт отправителя
+000004A6    8CA8                       	LDRH            R0,[R5,#36]
+000004A8    85E0                       	STRH            R0,[R4,#46]
+;000423            outbuf.buffer[18]=Frame.Data[17];//Порт получателя
+000004AA    8C68                       	LDRH            R0,[R5,#34]
+000004AC    8620                       	STRH            R0,[R4,#48]
+;000424            outbuf.buffer[19]=Frame.Data[19];//Длинна UDP
+000004AE    8CE8                       	LDRH            R0,[R5,#38]
+000004B0    8660                       	STRH            R0,[R4,#50]
+;000425            outbuf.buffer[20]=0x0000; // контрольная сумма
+000004B2    2000                       	MOVS            R0,#0
+000004B4    86A0                       	STRH            R0,[R4,#52]
+;000428                    tmp=tmp+17; // суммарная длина в словах
+000004B6    3111                       	ADDS            tmp?Answear_UDP,#17
+;000431            outbuf.buffer[25]=Frame.Data[25];
+000004B8    8E68                       	LDRH            R0,[R5,#50]
+000004BA    87E0                       	STRH            R0,[R4,#62]
+;000432                    b=tmp/2;
+000004BC    B28E                       	UXTH            R6,tmp?Answear_UDP
+000004BE    4630                       	MOV             b?Answear_UDP,R6
+000004C0    2102                       	MOVS            tmp?Answear_UDP,#2
+000004C2    FD9DF7FF                   	BLF             ??DIV32
+;000433        for(a=13;a<b;a++) // переписать все данные
+000004C6    210D                       	MOVS            a?Answear_UDP,#13
+000004C8    E013                       	B               ??_26_CHECK
+                  ??_26_LOOP:
+;000434            {
+;000435            outbuf.buffer32[a]=Frame.Data32[a];
+000004CA    008A                       	LSLS            R2,a?Answear_UDP,#2
+000004CC    1913                       	ADDS            R3,R2,R4
+000004CE    5952                       	LDR             R2,[R2,R5]
+000004D0    60DA                       	STR             R2,[R3,#12]
+;000436            a++;
+000004D2    1C49                       	ADDS            a?Answear_UDP,a?Answear_UDP,#1
+;000437            outbuf.buffer32[a]=Frame.Data32[a];
+000004D4    008A                       	LSLS            R2,a?Answear_UDP,#2
+000004D6    1913                       	ADDS            R3,R2,R4
+000004D8    5952                       	LDR             R2,[R2,R5]
+000004DA    60DA                       	STR             R2,[R3,#12]
+;000438            a++;
+000004DC    1C49                       	ADDS            a?Answear_UDP,a?Answear_UDP,#1
+;000439            outbuf.buffer32[a]=Frame.Data32[a];
+000004DE    008A                       	LSLS            R2,a?Answear_UDP,#2
+000004E0    1913                       	ADDS            R3,R2,R4
+000004E2    5952                       	LDR             R2,[R2,R5]
+000004E4    60DA                       	STR             R2,[R3,#12]
+;000440            a++;
+000004E6    1C49                       	ADDS            a?Answear_UDP,a?Answear_UDP,#1
+;000441            outbuf.buffer32[a]=Frame.Data32[a];
+000004E8    008A                       	LSLS            R2,a?Answear_UDP,#2
+000004EA    1913                       	ADDS            R3,R2,R4
+000004EC    5952                       	LDR             R2,[R2,R5]
+000004EE    60DA                       	STR             R2,[R3,#12]
+;000442            };
+000004F0    1C49                       	ADDS            a?Answear_UDP,a?Answear_UDP,#1
+                 ??_26_CHECK:
+000004F2    4281                       	CMP             a?Answear_UDP,b?Answear_UDP
+000004F4    D3E9                       	BCC             ??_26_LOOP
+;000464                    Time_new=SysTick->VAL&0x00FFFFFF; // чтение текущего системного времени
+000004F6    68B8                       	LDR             R0,[R7,#8]
+000004F8    0200                       	LSLS            R0,R0,#8
+000004FA    0A00                       	LSRS            R0,R0,#8
+000004FC    6060                       	STR             R0,[R4,#4]
+;000465                    if((SysTick->CTRL&0x10000)==0x10000)
+000004FE    6838                       	LDR             R0,[R7,#0]
+00000500    68A1                       	LDR             R1,[R4,#8]
+00000502    6860                       	LDR             R0,[R4,#4]
+00000504    D303                       	BCC             ??_27_ELSE
+;000466                    {
+;000467                            Time_delta=(0x00FFFFFF+Time_old-Time_new);
+00000506    1A08                       	SUBS            R0,R1,R0
+00000508    490A                       	LDR             R1,?lr0039	; 0FFFFFFh
+0000050A    4408                       	ADD             R0,R1
+;000468                    }
+0000050C    E000                       	B               ??_30_COMMON
+                  ??_27_ELSE:
+;000470                    {
+;000471                            Time_delta=(Time_old-Time_new);
+0000050E    1A08                       	SUBS            R0,R1,R0
+                ??_30_COMMON:
+00000510    6020                       	STR             R0,[R4,#0]
+;000472                    };
+;000473                    outbuf.buffer[23]=(uint16_t)((Time_delta&0xFFFF0000)>>16); // кол-во тактов, затраченных на вычисления - старшие байты
+00000512    8860                       	LDRH            R0,[R4,#2]
+00000514    8760                       	STRH            R0,[R4,#58]
+;000474                    outbuf.buffer[24]=(uint16_t)(Time_delta&0x0000FFFF); // кол-во тактов, затраченных на вычисления - младшие байты
+00000516    8820                       	LDRH            R0,[R4,#0]
+00000518    87A0                       	STRH            R0,[R4,#60]
+;000475            SendPacket(outbuf.buffer,(tmp*2));
+0000051A    0071                       	LSLS            R1,R6,#1
+0000051C    4804                       	LDR             R0,?lr0038	; Time_delta
+0000051E    300C                       	ADDS            R0,#12
+00000520    FD6EF7FF                   	BLF             SendPacket
+;000476    }
+00000524    BDF0                       	POP             {R4-R7,R15} 
+
+.ALIGN	2
+00000528    00000000	?lr0036	.DCD	Frame	; used 2 time(s)
+0000052C    E000E010	?lr0037	.DCD	0E000E010h	; used 1 time(s)
+00000530    00000640	?lr0038	.DCD	Time_delta	; used 2 time(s)
+00000534    00FFFFFF	?lr0039	.DCD	0FFFFFFh	; used 2 time(s)
+00000538    00000C8C	?lr0040	.DCD	Counter	; used 1 time(s)
+0000053C    00000020	?lr0041	.DCD	Frame+32	; used 1 time(s)
+00000540    30000000	?lr0042	.DCD	30000000h	; used 1 time(s)
+
+.ENDF
+              SysTickInit??T:
+;000479    void SysTickInit() // инициализация системного таймера
+;000481            SysTick->LOAD = 0x00FFFFFF;     //Pause 177 ms (HCLK = 96MHz)
+00000544    4902                       	LDR             R1,?lr0043	; 0FFFFFFh
+00000546    4803                       	LDR             R0,?lr0044	; 0E000E010h
+00000548    6041                       	STR             R1,[R0,#4]
+;000482            SysTick->CTRL = 0x00000001;     //Enabel SysTick
+0000054A    2101                       	MOVS            R1,#1
+0000054C    6001                       	STR             R1,[R0,#0]
+;000483    }
+0000054E    4770                       	BX              R14
+
+00000550    00FFFFFF	?lr0043	.DCD	0FFFFFFh	; used 1 time(s)
+00000554    E000E010	?lr0044	.DCD	0E000E010h	; used 1 time(s)
+
+.ENDF
+
+Eth_Main.c: 1368 byte(s), 4227 line(s), 0 error(s), 0 warning(s)
+

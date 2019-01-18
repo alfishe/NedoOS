@@ -1,0 +1,118 @@
+_STRLEN=80
+_STRMAX=(_STRLEN-1)
+_curlnbeg
+	DW 0
+_cmts
+	DB 0
+_c1small
+	DB 0
+_c2small
+	DB 0
+_asmwaseof
+	DB 0
+_asmwaseols
+	DW 0
+_asmspcsize
+	DW 0
+_stokfn
+	DS 1*_STRLEN
+_tokfn
+	DW 0
+_lentokfn
+	DW 0
+_temppar
+	DB 0
+_TOKLBLBUFSIZE=0x1200
+_toklblbuffreestart
+	DW 0
+_TOKLBLBUFEOF=0xffff
+_TOKLBLBUFMAXSHIFT=(_TOKLBLBUFSIZE-_STRLEN-10)
+_toklblshift
+	DS 2*0x100
+_toklbls
+	DS 1*_TOKLBLBUFSIZE
+_toklblhash
+	DB 0
+asmtoken.token
+asmtoken.A.
+	DB 0
+tokerr.token
+tokerr.A.
+	DB 0
+tokcalllbl.plbl
+	DW 0
+tokcalllbl.plbl_idx
+	DW 0
+tokcalllbl.calladdr
+	DW 0
+tokaddlbl1.txt
+tokaddlbl1.A.
+	DW 0
+tokaddlbl1.proc
+tokaddlbl1.B.
+	DW 0
+tokaddlbl1.data
+tokaddlbl1.C.
+	DB 0
+tokaddlbl1.plbl
+	DW 0
+stringdecapitalize.s
+stringdecapitalize.A.
+	DW 0
+stringdecapitalize.c
+	DB 0
+tokaddlbl.txt
+tokaddlbl.A.
+	DW 0
+tokaddlbl.proc
+tokaddlbl.B.
+	DW 0
+tokaddlbl.data
+tokaddlbl.C.
+	DB 0
+matchdirect.ok
+	DB 0
+matchcomma.ok
+	DB 0
+matchprime.ok
+	DB 0
+matchquote.ok
+	DB 0
+matchreequ.ok
+	DB 0
+matchopen.ok
+	DB 0
+matchclose.ok
+	DB 0
+eatlabel.token
+eatlabel.A.
+	DB 0
+eatval.opsym
+	DB 0
+eatmulval.opsym
+	DB 0
+eatmulval.dbl
+	DB 0
+eatsumval.opsym
+	DB 0
+eatsumval.dbl
+	DB 0
+tokexpr.opsym
+	DB 0
+tokexpr.modified
+	DB 0
+tokexpr.dbl
+	DB 0
+tokexpr_close.ok
+	DB 0
+asm_direct_expr_close_token.token
+asm_direct_expr_close_token.A.
+	DB 0
+tokenize.fn
+tokenize.A.
+	DW 0
+tokenize.i
+	DW 0
+tokenize.B.
+	DB "rb"
+	DB 0

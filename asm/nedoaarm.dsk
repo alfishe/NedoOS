@@ -1,0 +1,348 @@
+[Closed Files]
+File_0=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\tok\tokmain.c',0,1,1,1,1,0,0
+File_1=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\commands.c',0,1,19,23,54,0,0
+File_2=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\compmain.c',0,1,4,15,16,0,0
+File_3=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\compile.c',0,1,742,1,795,0,0
+File_4=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\z80main.c',0,1,1,15,3,0,0
+File_5=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\codetg.c',0,1,1127,12,1180,0,0
+File_6=SourceModule,'C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\sizestg.h',0,1,1,1,1,0,0
+
+[Modules]
+Module0=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmf_arm.c
+Module1=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmj.c
+Module2=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmj_arm.c
+Module3=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asm.c
+Module4=C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\fmtarm.h
+Module5=C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\fmttg.h
+Module6=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmloop.c
+Module7=C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\nedodefs.h
+Module8=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\armmain.c
+Module9=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmmain.c
+Count=10
+EditWindowCount=1
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmf_arm.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmj.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmj_arm.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asm.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\fmtarm.h]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\fmttg.h]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmloop.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\nedodefs.h]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\armmain.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmmain.c]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\comp\ProjectGroup1.bpg]
+FormState=0
+FormOnTop=0
+
+[C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\nedoaarm.bpr]
+FormState=0
+FormOnTop=0
+
+[EditWindow0]
+ViewCount=10
+CurrentView=9
+View0=0
+View1=1
+View2=2
+View3=3
+View4=4
+View5=5
+View6=6
+View7=7
+View8=8
+View9=9
+CodeExplorer=CodeExplorer@EditWindow0
+MessageView=MessageView@EditWindow0
+ClassHierarchy=ClassHierarchy@EditWindow0
+Create=1
+Visible=1
+State=2
+Left=200
+Top=127
+Width=1400
+Height=752
+MaxLeft=-4
+MaxTop=101
+MaxWidth=1608
+MaxHeight=1073
+ClientWidth=1600
+ClientHeight=1046
+LeftPanelSize=0
+LeftPanelClients=CodeExplorer@EditWindow0
+LeftPanelData=00000400010000000C000000436F64654578706C6F7265720000000000000000000000000000000000FFFFFFFF
+RightPanelSize=0
+BottomPanelSize=52
+BottomPanelClients=MessageView@EditWindow0
+BottomPanelData=000004000000000000000000000000000000000000000000000100000000000000000B0000004D65737361676556696577FFFFFFFF
+
+[View0]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\armmain.c
+CursorX=21
+CursorY=1
+TopLine=1
+LeftCol=1
+
+[View1]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmmain.c
+CursorX=12
+CursorY=9
+TopLine=1
+LeftCol=1
+
+[View2]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asm.c
+CursorX=1
+CursorY=157
+TopLine=119
+LeftCol=1
+
+[View3]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\nedodefs.h
+CursorX=27
+CursorY=19
+TopLine=1
+LeftCol=1
+
+[View4]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\fmttg.h
+CursorX=22
+CursorY=50
+TopLine=25
+LeftCol=1
+
+[View5]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\_sdk\fmtarm.h
+CursorX=11
+CursorY=324
+TopLine=303
+LeftCol=1
+
+[View6]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmloop.c
+CursorX=12
+CursorY=81
+TopLine=37
+LeftCol=1
+
+[View7]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmj.c
+CursorX=80
+CursorY=122
+TopLine=90
+LeftCol=1
+
+[View8]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmj_arm.c
+CursorX=119
+CursorY=138
+TopLine=109
+LeftCol=1
+
+[View9]
+Module=C:\Program Files\Borland\CBuilder5\Projects\nedolang\asm\asmf_arm.c
+CursorX=21
+CursorY=7
+TopLine=1
+LeftCol=1
+
+[Watches]
+Count=0
+
+[Breakpoints]
+Count=0
+
+[AddressBreakpoints]
+Count=0
+
+[Main Window]
+Create=1
+Visible=1
+State=0
+Left=0
+Top=0
+Width=1600
+Height=105
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=1592
+ClientHeight=78
+
+[ProjectManager]
+Create=1
+Visible=0
+State=0
+Left=369
+Top=372
+Width=438
+Height=303
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=430
+ClientHeight=279
+TBDockHeight=303
+LRDockWidth=438
+Dockable=1
+
+[CallStackWindow]
+Create=1
+Visible=0
+State=0
+Left=653
+Top=519
+Width=294
+Height=161
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=286
+ClientHeight=137
+TBDockHeight=161
+LRDockWidth=294
+Dockable=1
+
+[AlignmentPalette]
+Create=1
+Visible=0
+State=0
+Left=200
+Top=107
+Width=156
+Height=82
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=150
+ClientHeight=60
+
+[PropertyInspector]
+Create=1
+Visible=1
+State=0
+Left=0
+Top=107
+Width=190
+Height=773
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=180
+ClientHeight=747
+TBDockHeight=773
+LRDockWidth=190
+Dockable=1
+SplitPos=85
+ArrangeBy=Name
+SelectedItem=
+ExpandedItems=
+HiddenCategories=Legacy
+ShowStatusBar=1
+
+[CodeguardLog]
+Create=1
+Visible=0
+State=0
+Left=191
+Top=108
+Width=448
+Height=190
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=440
+ClientHeight=166
+TBDockHeight=190
+LRDockWidth=448
+Dockable=1
+
+[ClassHierarchy@EditWindow0]
+Create=1
+Visible=0
+State=0
+Left=218
+Top=113
+Width=403
+Height=284
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=395
+ClientHeight=260
+TBDockHeight=284
+LRDockWidth=403
+Dockable=1
+TreeWidth=121
+Col1Width=120
+Col2Width=120
+
+[CodeExplorer@EditWindow0]
+Create=1
+Visible=0
+State=0
+Left=0
+Top=12
+Width=170
+Height=961
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=170
+ClientHeight=961
+TBDockHeight=388
+LRDockWidth=170
+Dockable=1
+ClassViewDisplayMode=0
+
+[MessageView@EditWindow0]
+Create=1
+Visible=1
+State=0
+Left=12
+Top=0
+Width=1588
+Height=52
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=1588
+ClientHeight=52
+TBDockHeight=52
+LRDockWidth=443
+Dockable=1
+
+[DockHosts]
+DockHostCount=0
+

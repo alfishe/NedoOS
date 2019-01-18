@@ -1,0 +1,344 @@
+_STRLEN=80
+_STRMAX=(_STRLEN-1)
+_ASMRBIXADD=0x40
+_ASMRBCODE_B=0x00
+_ASMRBCODE_C=0x08
+_ASMRBCODE_D=0x10
+_ASMRBCODE_E=0x18
+_ASMRBCODE_H=0x20
+_ASMRBCODE_L=0x28
+_ASMRBCODE_A=0x38
+_ASMRBCODE_HX=0x60
+_ASMRBCODE_LX=0x68
+_ASMRBCODE_HY=0xa0
+_ASMRBCODE_LY=0xa8
+_ASMRBCODE_I=0x00
+_ASMRBCODE_R=0x08
+_ASMRPIXADD=0x40
+_ASMRPCODE_BC=0x00
+_ASMRPCODE_DE=0x10
+_ASMRPCODE_HL=0x20
+_ASMRPCODE_SP=0x30
+_ASMRPCODE_AF=0x30
+_ASMRPCODE_IX=0x60
+_ASMRPCODE_IY=0xa0
+asmwordpopvalue.uinttempvalue
+	DW 0
+asmlong.value
+asmlong.A.
+	DL 0
+asmorgword.addr
+asmorgword.A.
+	DL 0
+asmdisp.ivalue
+asmdisp.A.
+	DW 0
+asmdisp.D.
+	DB "far +d"
+	DB 0
+asmrbrb_ixiyprefix.prefix1
+	DB 0
+asmrprp_ixiyprefix.prefix1
+	DB 0
+asmloop.scale
+	DW 0
+asmloop.tempvalue
+	DL 0
+asmloop.i
+	DW 0
+asmloop.J
+	DW asmloop.0
+	DW asmloop.1
+	DW asmloop.2
+	DW asmloop.3
+	DW asmloop.4
+	DW asmloop.5
+	DW asmloop.6
+	DW asmloop.7
+	DW asmloop.8
+	DW asmloop.9
+	DW asmloop.10
+	DW asmloop.11
+	DW asmloop.12
+	DW asmloop.13
+	DW asmloop.14
+	DW asmloop.15
+	DW asmloop.16
+	DW asmloop.17
+	DW asmloop.18
+	DW asmloop.19
+	DW asmloop.20
+	DW asmloop.21
+	DW asmloop.22
+	DW asmloop.23
+	DW asmloop.24
+	DW asmloop.25
+	DW asmloop.26
+	DW asmloop.27
+	DW asmloop.28
+	DW asmloop.29
+	DW asmloop.30
+	DW asmloop.31
+	DW asmloop.32
+	DW asmloop.33
+	DW asmloop.34
+	DW asmloop.35
+	DW asmloop.36
+	DW asmloop.37
+	DW asmloop.38
+	DW asmloop.39
+	DW asmloop.40
+	DW asmloop.41
+	DW asmloop.42
+	DW asmloop.43
+	DW asmloop.44
+	DW asmloop.45
+	DW asmloop.46
+	DW asmloop.47
+	DW asmloop.48
+	DW asmloop.49
+	DW asmloop.50
+	DW asmloop.51
+	DW asmloop.52
+	DW asmloop.53
+	DW asmloop.54
+	DW asmloop.55
+	DW asmloop.56
+	DW asmloop.57
+	DW asmloop.58
+	DW asmloop.59
+	DW asmloop.60
+	DW asmloop.61
+	DW asmloop.62
+	DW asmloop.63
+	DW asmloop.64
+	DW asmloop.65
+	DW asmloop.66
+	DW asmloop.67
+	DW asmloop.68
+	DW asmloop.69
+	DW asmloop.70
+	DW asmloop.71
+	DW asmloop.72
+	DW asmloop.73
+	DW asmloop.74
+	DW asmloop.75
+	DW asmloop.76
+	DW asmloop.77
+	DW asmloop.78
+	DW asmloop.79
+	DW asmloop.80
+	DW asmloop.81
+	DW asmloop.82
+	DW asmloop.83
+	DW asmloop.84
+	DW asmloop.85
+	DW asmloop.86
+	DW asmloop.87
+	DW asmloop.88
+	DW asmloop.89
+	DW asmloop.90
+	DW asmloop.91
+	DW asmloop.92
+	DW asmloop.93
+	DW asmloop.94
+	DW asmloop.95
+	DW asmloop.96
+	DW asmloop.97
+	DW asmloop.98
+	DW asmloop.99
+	DW asmloop.100
+	DW asmloop.101
+	DW asmloop.102
+	DW asmloop.103
+	DW asmloop.104
+	DW asmloop.105
+	DW asmloop.106
+	DW asmloop.107
+	DW asmloop.108
+	DW asmloop.109
+	DW asmloop.110
+	DW asmloop.111
+	DW asmloop.112
+	DW asmloop.113
+	DW asmloop.114
+	DW asmloop.115
+	DW asmloop.116
+	DW asmloop.117
+	DW asmloop.118
+	DW asmloop.119
+	DW asmloop.120
+	DW asmloop.121
+	DW asmloop.122
+	DW asmloop.123
+	DW asmloop.124
+	DW asmloop.125
+	DW asmloop.126
+	DW asmloop.127
+	DW asmloop.128
+	DW asmloop.129
+	DW asmloop.130
+	DW asmloop.131
+	DW asmloop.132
+	DW asmloop.133
+	DW asmloop.134
+	DW asmloop.135
+	DW asmloop.136
+	DW asmloop.137
+	DW asmloop.138
+	DW asmloop.139
+	DW asmloop.140
+	DW asmloop.141
+	DW asmloop.142
+	DW asmloop.143
+	DW asmloop.144
+	DW asmloop.145
+	DW asmloop.146
+	DW asmloop.147
+	DW asmloop.148
+	DW asmloop.149
+	DW asmloop.150
+	DW asmloop.151
+	DW asmloop.152
+	DW asmloop.153
+	DW asmloop.154
+	DW asmloop.155
+	DW asmloop.156
+	DW asmloop.157
+	DW asmloop.158
+	DW asmloop.159
+	DW asmloop.160
+	DW asmloop.161
+	DW asmloop.162
+	DW asmloop.163
+	DW asmloop.164
+	DW asmloop.165
+	DW asmloop.166
+	DW asmloop.167
+	DW asmloop.168
+	DW asmloop.169
+	DW asmloop.170
+	DW asmloop.171
+	DW asmloop.172
+	DW asmloop.173
+	DW asmloop.174
+	DW asmloop.175
+	DW asmloop.176
+	DW asmloop.177
+	DW asmloop.178
+	DW asmloop.179
+	DW asmloop.180
+	DW asmloop.181
+	DW asmloop.182
+	DW asmloop.183
+	DW asmloop.184
+	DW asmloop.185
+	DW asmloop.186
+	DW asmloop.187
+	DW asmloop.188
+	DW asmloop.189
+	DW asmloop.190
+	DW asmloop.191
+	DW asmloop.192
+	DW asmloop.193
+	DW asmloop.194
+	DW asmloop.195
+	DW asmloop.196
+	DW asmloop.197
+	DW asmloop.198
+	DW asmloop.199
+	DW asmloop.200
+	DW asmloop.201
+	DW asmloop.202
+	DW asmloop.203
+	DW asmloop.204
+	DW asmloop.205
+	DW asmloop.206
+	DW asmloop.207
+	DW asmloop.208
+	DW asmloop.209
+	DW asmloop.210
+	DW asmloop.211
+	DW asmloop.212
+	DW asmloop.213
+	DW asmloop.214
+	DW asmloop.215
+	DW asmloop.216
+	DW asmloop.217
+	DW asmloop.218
+	DW asmloop.219
+	DW asmloop.220
+	DW asmloop.221
+	DW asmloop.222
+	DW asmloop.223
+	DW asmloop.224
+	DW asmloop.225
+	DW asmloop.226
+	DW asmloop.227
+	DW asmloop.228
+	DW asmloop.229
+	DW asmloop.230
+	DW asmloop.231
+	DW asmloop.232
+	DW asmloop.233
+	DW asmloop.234
+	DW asmloop.235
+	DW asmloop.236
+	DW asmloop.237
+	DW asmloop.238
+	DW asmloop.239
+	DW asmloop.240
+	DW asmloop.241
+	DW asmloop.242
+	DW asmloop.243
+	DW asmloop.244
+	DW asmloop.245
+	DW asmloop.246
+	DW asmloop.247
+	DW asmloop.248
+	DW asmloop.249
+	DW asmloop.250
+	DW asmloop.251
+	DW asmloop.252
+	DW asmloop.253
+	DW asmloop.254
+	DW asmloop.255
+asmloop.F.
+	DB "rb"
+	DB 0
+asmloop.I.
+	DB "no "
+	DB 0
+asmloop.L.
+	DB "rb"
+	DB 0
+asmloop.Q.
+	DB "no "
+	DB 0
+asmloop.V.
+	DB "redef "
+	DB 0
+asmloop.CK.
+	DB "Use 0o oct"
+	DB 0
+asmloop.CX.
+	DB "badcmd \""
+	DB 0
+asmloop.DA.
+	DB "badexpr \""
+	DB 0
+asmloop.DD.
+	DB "need \',\' \""
+	DB 0
+asmloop.DG.
+	DB "badpar \""
+	DB 0
+asmloop.DJ.
+	DB "need \'(\'/\'[\' \""
+	DB 0
+asmloop.DM.
+	DB "need \')\'/\']\' \""
+	DB 0
+asmloop.DP.
+	DB "badreg \""
+	DB 0

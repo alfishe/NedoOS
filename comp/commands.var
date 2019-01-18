@@ -1,0 +1,663 @@
+_T_BYTE=(0x00)
+_T_UINT=(0x01)
+_T_INT=(0x02)
+_T_BOOL=(0x03)
+_T_LONG=(0x04)
+_T_CHAR=(0x05)
+_T_POI=(0x10)
+_T_ARRAY=(0x20)
+_T_RECURSIVE=(0x40)
+_T_CONST=(0x40)
+_T_STRUCT=(0x0f)
+_T_STRUCTWORD=(0x0e)
+_T_UNKNOWN=(0x2f)
+_T_PROC=(0x3f)
+_T_TYPE=(0x80)
+_TYPEMASK=(0x1f)
+_STRLEN=80
+_STRMAX=(_STRLEN-1)
+_SZ_BYTE=0x01
+_RL_BYTE=0x00
+_SZ_REG=0x02
+_RL_REG=0x01
+_SZ_LONG=0x04
+_RL_LONG=0x02
+_SZ_BOOL=0x01
+_RL_BOOL=0x00
+_NRGS=0x04
+_t
+	DB 0
+_isloc
+	DB 0
+_name
+	DW 0
+_lenname
+	DW 0
+_joined
+	DW 0
+_lenjoined
+	DW 0
+_SZ_BYTE=0x01
+_RL_BYTE=0x00
+_SZ_REG=0x02
+_RL_REG=0x01
+_SZ_LONG=0x04
+_RL_LONG=0x02
+_SZ_BOOL=0x01
+_RL_BOOL=0x00
+_NRGS=0x04
+_callee
+	DW 0
+_lencallee
+	DW 0
+_exprlvl
+	DB 0
+_RGBUFSZ=(_NRGS+0x01)
+_RMAIN=0x01
+_RMAIN2=0x02
+_RMAIN3=0x03
+_RMAIN4=0x04
+_RNAME
+	DW _RNAME.A.
+	DW _RNAME.B.
+	DW _RNAME.C.
+	DW _RNAME.D.
+	DW _RNAME.E.
+_RHIGH
+	DW _RHIGH.F.
+	DW _RHIGH.G.
+	DW _RHIGH.H.
+	DW _RHIGH.I.
+	DW _RHIGH.J.
+_RLOW
+	DW _RLOW.K.
+	DW _RLOW.L.
+	DW _RLOW.M.
+	DW _RLOW.N.
+	DW _RLOW.O.
+_rproxy
+	DB 0
+_fused
+	DB 0
+_azused
+	DB 0
+_funcstkdepth
+	DW 0
+_jpflag
+	DB 0
+_typesz
+	DB _SZ_BYTE
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_BOOL
+	DB _SZ_LONG
+	DB _SZ_BYTE
+	DB _SZ_LONG
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+	DB _SZ_REG
+_typeshift
+	DB _RL_BYTE
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_BOOL
+	DB _RL_LONG
+	DB _RL_BYTE
+	DB _RL_LONG
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB 0x00
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+	DB _RL_REG
+asm_rname.r
+asm_rname.A.
+	DB 0
+asm_mrgname.r
+asm_mrgname.A.
+	DB 0
+asm_rlow.r
+asm_rlow.A.
+	DB 0
+asm_rhigh.r
+asm_rhigh.A.
+	DB 0
+var_db.A.
+	DB "\tDB "
+	DB 0
+asm_db.A.
+	DB "\tDB "
+	DB 0
+var_dw.A.
+	DB "\tDW "
+	DB 0
+var_dl.A.
+	DB "\tDL "
+	DB 0
+var_ds.A.
+	DB "\tDS "
+	DB 0
+asm_and.A.
+	DB "\tAND "
+	DB 0
+asm_or.A.
+	DB "\tOR "
+	DB 0
+asm_xor.A.
+	DB "\tXOR "
+	DB 0
+asm_sub.A.
+	DB "\tSUB "
+	DB 0
+asm_sbc.A.
+	DB "\tSBC "
+	DB 0
+asm_add.A.
+	DB "\tADD "
+	DB 0
+asm_adc.A.
+	DB "\tADC "
+	DB 0
+asm_inc.A.
+	DB "\tINC "
+	DB 0
+asm_dec.A.
+	DB "\tDEC "
+	DB 0
+asm_ld.A.
+	DB "\tLD "
+	DB 0
+asm_jp.A.
+	DB "\tJP "
+	DB 0
+emitjrnz.c
+emitjrnz.A.
+	DB 0
+emitjrnz.B.
+	DB "\tJR NZ,$+0x"
+	DB 0
+asm_ex.A.
+	DB "\tEX "
+	DB 0
+asm_push.A.
+	DB "\tPUSH "
+	DB 0
+asm_pop.A.
+	DB "\tPOP "
+	DB 0
+emitexa.A.
+	DB "AF,AF\'"
+	DB 0
+emitexd.A.
+	DB "DE,HL"
+	DB 0
+emitccf.A.
+	DB "\tCCF"
+	DB 0
+emitcall.s
+emitcall.A.
+	DW 0
+emitcall.B.
+	DB "\tCALL "
+	DB 0
+proxy.r
+proxy.A.
+	DB 0
+emitpushrg.rnew
+emitpushrg.A.
+	DB 0
+emitpoprg.rnew
+emitpoprg.A.
+	DB 0
+emitmovrg.rsrc
+emitmovrg.A.
+	DB 0
+emitmovrg.rdest
+emitmovrg.B.
+	DB 0
+emitasmlabel.s
+emitasmlabel.A.
+	DW 0
+emitfunclabel.s
+emitfunclabel.A.
+	DW 0
+emitvarlabel.s
+emitvarlabel.A.
+	DW 0
+emitexport.s
+emitexport.A.
+	DW 0
+emitexport.B.
+	DB "\tEXPORT "
+	DB 0
+emitvarpreequ.s
+emitvarpreequ.A.
+	DW 0
+varequ.s
+varequ.A.
+	DW 0
+varshift.shift
+varshift.A.
+	DW 0
+varshift.sz
+varshift.B.
+	DW 0
+emitcallmainrg.A.
+	DB "_JPHL."
+	DB 0
+emitjpiffalse.C.
+	DB "NZ"
+	DB 0
+emitjpiffalse.F.
+	DB "NC"
+	DB 0
+emitret.A.
+	DB "\tRET"
+	DB 0
+emitcall2rgs.s
+emitcall2rgs.A.
+	DW 0
+emitcall4rgs.s
+emitcall4rgs.A.
+	DW 0
+emitloadrg.high
+emitloadrg.A.
+	DB 0
+emitloadrg.D.
+	DB ">>16"
+	DB 0
+emitgetrg.high
+emitgetrg.A.
+	DB 0
+emitputrg.high
+emitputrg.A.
+	DB 0
+emitshl1rg.C.
+	DB "\tSLA "
+	DB 0
+emitshl1rg.D.
+	DB "\tRL "
+	DB 0
+emitinvb.A.
+	DB "\tCPL"
+	DB 0
+emitinvrg.A.
+	DB "\tCPL"
+	DB 0
+emitinvztob.E.
+	DB "\tJR Z,$+4"
+	DB 0
+emitinvztob.F.
+	DB "-1"
+	DB 0
+emitinvztob.I.
+	DB "\tJR Z,$+3"
+	DB 0
+emitinvztob.J.
+	DB "\tJR Z,$+4"
+	DB 0
+emitSxorVtob.A.
+	DB "\tRLA"
+	DB 0
+emitSxorVtob.B.
+	DB "PO,$+4"
+	DB 0
+emitinvSxorVtob.A.
+	DB "\tRLA"
+	DB 0
+emitinvSxorVtob.B.
+	DB "PE,$+4"
+	DB 0
+emitsubflags.rnew
+emitsubflags.A.
+	DB 0
+emitsubflags.rold
+emitsubflags.B.
+	DB 0
+emitsubbflags.anew
+emitsubbflags.A.
+	DB 0
+emitsubbflags.aold
+emitsubbflags.B.
+	DB 0
+asm_lda_mrgname_eol.r
+asm_lda_mrgname_eol.A.
+	DB 0
+_SZ_BYTE=0x01
+_RL_BYTE=0x00
+_SZ_REG=0x02
+_RL_REG=0x01
+_SZ_LONG=0x04
+_RL_LONG=0x02
+_SZ_BOOL=0x01
+_RL_BOOL=0x00
+_NRGS=0x04
+_usedrg
+	DS 1*16
+_usedrgs
+	DB 0
+_usedr1
+	DB 0
+_usedr2
+	DB 0
+_usedr3
+	DB 0
+_usedr4
+	DB 0
+_rnew
+	DB 0
+_rold
+	DB 0
+_rold2
+	DB 0
+_rold3
+	DB 0
+moverg.rsrcindex
+moverg.A.
+	DB 0
+moverg.rdest
+moverg.B.
+	DB 0
+moverg.rsrc
+	DB 0
+pushtailrg.rnew
+	DB 0
+pushtailrg.i
+	DB 0
+findrfree.result
+	DB 0
+nouserg.rnew
+nouserg.A.
+	DB 0
+userg.rnew
+userg.A.
+	DB 0
+getrg.rnew
+getrg.A.
+	DB 0
+popgetrg.rnew
+popgetrg.A.
+	DB 0
+popgetrg.i
+	DB 0
+swaptop.rtmp
+	DB 0
+_const
+	DW 0
+_lenconst
+	DW 0
+_wasconst
+	DB 0
+_sc
+	DS 1*_STRLEN
+_wast
+	DB 0
+_sz
+	DB 0
+_STRSTKMAX=256
+_strstk
+	DS 1*_STRSTKMAX
+_lenstrstk
+	DW 0
+_LBLBUFSZ=0x2300
+_lblbuffreeidx
+	DW 0
+_oldlblbuffreeidx
+	DW 0
+_LBLBUFEOF=0xffff
+_LBLBUFMAXSHIFT=(_LBLBUFSZ-_STRLEN-20)
+_lblshift
+	DS 2*0x100
+_oldlblshift
+	DS 2*0x100
+_lbls
+	DS 1*_LBLBUFSZ
+_lblhash
+	DB 0
+_typeaddr
+	DW 0
+_varszaddr
+	DW 0
+_varsz
+	DW 0
+errtype.msg
+errtype.A.
+	DW 0
+errtype.t
+errtype.B.
+	DB 0
+errtype.C.
+	DB "operation "
+	DB 0
+errtype.D.
+	DB " bad type="
+	DB 0
+strpush.s
+strpush.A.
+	DW 0
+strpush.len
+strpush.B.
+	DW 0
+strpush.E.
+	DB "STRING STACK OVERFLOW"
+	DB 0
+strpop.s
+strpop.A.
+	DW 0
+strpop.len
+	DW 0
+gettypename.s
+gettypename.A.
+	DW 0
+setvarsz.addr
+setvarsz.A.
+	DW 0
+setvarsz.shift
+setvarsz.B.
+	DW 0
+lbltype.plbl
+	DW 0
+lbltype.t
+	DB 0
+lbltype.plbl_idx
+	DW 0
+dellbl.plbl
+	DW 0
+dellbl.plbl_idx
+	DW 0
+addlbl.t
+addlbl.A.
+	DB 0
+addlbl.isloc
+addlbl.B.
+	DB 0
+addlbl.varsz
+addlbl.C.
+	DW 0
+addlbl.plbl
+	DW 0
+addlbl.freeidx
+	DW 0
+addlbl.oldt
+	DB 0
+addlbl.H.
+	DB "nomem"
+	DB 0
+addlbl.K.
+	DB "addvar type doesn't match previous declaration:"
+	DB 0
+var_alignwsz_label.t
+var_alignwsz_label.A.
+	DB 0
+var_def.t
+var_def.A.
+	DB 0
+var_def.s
+var_def.B.
+	DW 0
+var_def.sz
+	DB 0
+var_def.I.
+	DB "const bad type "
+	DB 0
+pushconst.G.
+	DB "pushconst"
+	DB 0
+cmdpushvar.I.
+	DB "pushvar"
+	DB 0
+cmdpopvar.I.
+	DB "popvar"
+	DB 0
+cmdcastto.t2
+cmdcastto.A.
+	DB 0
+cmdcastto.tsz
+	DB 0
+cmdcastto.t2sz
+	DB 0
+cmdadd.K.
+	DB "+"
+	DB 0
+cmdsub.K.
+	DB "-"
+	DB 0
+cmdaddpoi.i
+	DB 0
+cmdmul.E.
+	DB "_MULB."
+	DB 0
+cmdmul.H.
+	DB "_MUL."
+	DB 0
+cmdmul.K.
+	DB "_MULSIGNED."
+	DB 0
+cmdmul.N.
+	DB "_MULLONG."
+	DB 0
+cmdmul.O.
+	DB "*"
+	DB 0
+cmddiv.E.
+	DB "_DIVB."
+	DB 0
+cmddiv.H.
+	DB "_DIV."
+	DB 0
+cmddiv.K.
+	DB "_DIVSIGNED."
+	DB 0
+cmddiv.N.
+	DB "_DIVLONG."
+	DB 0
+cmddiv.O.
+	DB "/"
+	DB 0
+cmdshl.E.
+	DB "_SHLB."
+	DB 0
+cmdshl.H.
+	DB "_SHL."
+	DB 0
+cmdshl.K.
+	DB "_SHLLONG."
+	DB 0
+cmdshl.L.
+	DB "<<"
+	DB 0
+cmdshr.E.
+	DB "_SHRB."
+	DB 0
+cmdshr.H.
+	DB "_SHR."
+	DB 0
+cmdshr.K.
+	DB "_SHRSIGNED."
+	DB 0
+cmdshr.N.
+	DB "_SHRLONG."
+	DB 0
+cmdshr.O.
+	DB ">>"
+	DB 0
+cmdshl1.G.
+	DB "shl1"
+	DB 0
+cmdneg.E.
+	DB "neg"
+	DB 0
+cmdinc.I.
+	DB "inc"
+	DB 0
+cmddec.I.
+	DB "dec"
+	DB 0
+cmdincbyaddr.G.
+	DB "incbypoi"
+	DB 0
+cmddecbyaddr.G.
+	DB "decbypoi"
+	DB 0
+cmdless.I.
+	DB "<"
+	DB 0
+cmdmore.I.
+	DB ">"
+	DB 0
+cmdlesseq.I.
+	DB "<="
+	DB 0
+cmdmoreeq.I.
+	DB ">="
+	DB 0
+cmdcall.I.
+	DB "call"
+	DB 0
+cmdret.isfunc
+cmdret.A.
+	DB 0
+cmdret.J.
+	DB "funcstkdepth="
+	DB 0

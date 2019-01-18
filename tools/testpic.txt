@@ -1,0 +1,11 @@
+;x,y,wid,hgt,defaultcolor
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+doska=B,112,0,32,8,7
+beton=B,80,0,32,8,7
+cherry=s,176,0,16,13,7
+tilepic=T,0,0,224,64,7

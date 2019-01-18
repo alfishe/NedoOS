@@ -1,0 +1,512 @@
+*******************************************************************************
+*                                                                             *
+*                 UNIVERSAL CROSS LINKER Version 1.13.130827                  *
+*                    Copyright (C) 2004-2012 Phyton, Inc.                     *
+*                                                                             *
+*******************************************************************************
+
+                 * * *  O P T I O N S   A T   S T A R T  * * *
+
+    -O C:\Program Files\Phyton CodeMaster-ARM\2_40_00\CMC-ARM\Lib
+    -E TEST_ETH
+    -M 10
+    -M 20
+    -M 21
+    -M 60
+    -M 80
+    -F MIE
+    -m
+    -t
+    -A (code)CODE(00H-01FFFFH)
+    -A (data)DATA(020000000H-020007FFFH,020100000H-020103FFFH)
+    -Z CSTACK(1024)
+
+            * * *  A D D I N G   P R O G R A M   M O D U L E S  * * *
+
+  Module:                ?STARTUP_DEVICE                         
+
+  Module:                ETHFUNC                                 
+
+  Module:                ETH_CONFIG                              
+
+  Module:                ETH_MAIN                                
+
+  Module:                RAMFUNCTIONS                            
+
+            * * *  A D D I N G   L I B R A R Y   M O D U L E S  * * *
+
+  Module:                ?RESET_HANDLER           low-priority   
+
+  Module:                ?NMI_HANDLER             low-priority   
+
+  Module:                ?HARDFAULT_HANDLER       low-priority   
+
+  Module:                ?SVC_HANDLER             low-priority   
+
+  Module:                ?PENDSV_HANDLER          low-priority   
+
+  Module:                ?SYSTICK_HANDLER         low-priority   
+
+  Module:                ??SYSTEMINIT             low-priority   
+
+  Module:                ??CSTARTUP               low-priority   
+
+  Module:                ??CEXIT                  low-priority   
+
+  Module:                ?DIV32                   low-priority   
+
+  Module:                ?DIV32R                  low-priority   
+
+  Module:                _CMSIS_CM3_COREDEBUGINTERFACElow-priority   
+
+              * * *  F U L L   S E T   O F   O P T I O N S  * * *
+
+    -O C:\Program Files\Phyton CodeMaster-ARM\2_40_00\CMC-ARM\Lib
+    -E TEST_ETH
+    -M 10
+    -M 20
+    -M 21
+    -M 60
+    -M 80
+    -F MIE
+    -m
+    -t
+    -A (code)CODE(00H-01FFFFH)
+    -A (data)DATA(020000000H-020007FFFH,020100000H-020103FFFH)
+    -Z CSTACK(1024)
+    -K code(0000H-00BFH)
+
+               * * *  B U I L D I N G   S E G M E N T S  * * *
+
+  Segment: ??CODE_CLIB                             code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ??SYSTEMINIT              00000002        01        00000000
+  ??CSTARTUP                00000070        02        00000004
+  ??CEXIT                   00000002        01        00000074
+  ?DIV32                    00000022        01        00000076
+  ?DIV32R                   00000040        01        00000098
+  ============================================================
+  Total:                    000000D8        02
+
+
+  Segment: ??DATA_SEGMENT_ADDRESSES                code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  00000008        02        00000000
+  ============================================================
+  Total:                    00000008        02
+
+
+  Segment: ??DEFAULT_HANDLERS                      code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ?RESET_HANDLER            0000001C        02        00000000
+  ?NMI_HANDLER              00000002        01        0000001C
+  ?HARDFAULT_HANDLER        00000002        01        0000001E
+  ?SVC_HANDLER              00000002        01        00000020
+  ?PENDSV_HANDLER           00000002        01        00000022
+  ?SYSTICK_HANDLER          00000002        01        00000024
+  ============================================================
+  Total:                    00000026        02
+
+
+  Segment: ??INIT_DATA_SEGMENT_ADDRESSES           code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  0000000C        02        00000000
+  _CMSIS_CM3_COREDEBUGINTERFACE 0000000C        02        0000000C
+  ============================================================
+  Total:                    00000018        02
+
+
+  Segment: CDATA__ETH_MAIN                         code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  00000006        01        00000000
+  ============================================================
+  Total:                    00000006        01
+
+
+  Segment: CSTACK                                  data    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ============================================================
+  Total:        (increased) 00000400        03
+
+
+  Segment: FUN_CODE__ETHFUNC                       code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETHFUNC                   0000031C        02        00000000
+  ============================================================
+  Total:                    0000031C        02
+
+
+  Segment: FUN_CODE__ETH_CONFIG                    code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_CONFIG                00000180        02        00000000
+  ============================================================
+  Total:                    00000180        02
+
+
+  Segment: FUN_CODE__ETH_MAIN                      code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  00000558        02        00000000
+  ============================================================
+  Total:                    00000558        02
+
+
+  Segment: FUN_CODE__RAMFUNCTIONS                  code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  RAMFUNCTIONS              000000A4        02        00000000
+  ============================================================
+  Total:                    000000A4        02
+
+
+  Segment: IDATA_INI__ETH_MAIN                     code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  00000004        00        00000000
+  ============================================================
+  Total:                    00000004        00
+
+
+  Segment: IDATA_INI___CMSIS_CM3_COREDEBUGINTERFACE code    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  _CMSIS_CM3_COREDEBUGINTERFACE 00000004        00        00000000
+  ============================================================
+  Total:                    00000004        00
+
+
+  Segment: IDATA__ETH_MAIN                         data    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  00000004        01        00000000
+  ============================================================
+  Total:                    00000004        01
+
+
+  Segment: IDATA___CMSIS_CM3_COREDEBUGINTERFACE    data    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  _CMSIS_CM3_COREDEBUGINTERFACE 00000004        02        00000000
+  ============================================================
+  Total:                    00000004        02
+
+
+  Segment: INTVEC                                  code    ABS
+  ------------------------------------------------------------
+  Module                     Start         End          Size  
+  ============================================================
+  ?STARTUP_DEVICE           00000000     000000BF     000000C0
+  ============================================================
+  Total:                min:00000000 max:000000BF     000000C0
+
+
+  Segment: UDATA__ETH_MAIN                         data    REL
+  ------------------------------------------------------------
+  Module                      Size        Align        Offset 
+  ============================================================
+  ETH_MAIN                  00000C8E        02        00000000
+  ============================================================
+  Total:                    00000C8E        02
+
+         * * *  A D D R E S S   A R E A S   D E F I N I T I O N  * * *
+
+  Name:                          CODE
+  Allocation:                    code
+  Ranges:                        000000C0 0001FFFF
+  Reserved for abs segments:     00000000 000000BF
+
+  Name:                          DATA
+  Allocation:                    data
+  Ranges:                        20000000 20007FFF
+                                 20100000 20103FFF
+
+     * * *  P L A C I N G   R E L O C A T A B L E   S E G M E N T S  * * *
+
+  Segment:                       ??CODE_CLIB
+  Allocation:                    code
+  Size:                          000000D8
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000000C0
+  Ends at:                       00000197
+
+
+  Segment:                       ??DEFAULT_HANDLERS
+  Allocation:                    code
+  Size:                          00000026
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     00000198
+  Ends at:                       000001BD
+
+
+  Segment:                       IDATA_INI___CMSIS_CM3_COREDEBUGINTERFACE
+  Allocation:                    code
+  Size:                          00000004
+  Align:                         00
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000001BE
+  Ends at:                       000001C1
+
+
+  Segment:                       ??DATA_SEGMENT_ADDRESSES
+  Allocation:                    code
+  Size:                          00000008
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000001C4
+  Ends at:                       000001CB
+
+
+  Segment:                       ??INIT_DATA_SEGMENT_ADDRESSES
+  Allocation:                    code
+  Size:                          00000018
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000001CC
+  Ends at:                       000001E3
+
+
+  Segment:                       CDATA__ETH_MAIN
+  Allocation:                    code
+  Size:                          00000006
+  Align:                         01
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000001E4
+  Ends at:                       000001E9
+
+
+  Segment:                       FUN_CODE__ETHFUNC
+  Allocation:                    code
+  Size:                          000002C4
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000001EC
+  Ends at:                       000004AF
+
+
+  Segment:                       FUN_CODE__ETH_CONFIG
+  Allocation:                    code
+  Size:                          00000180
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     000004B0
+  Ends at:                       0000062F
+
+
+  Segment:                       FUN_CODE__ETH_MAIN
+  Allocation:                    code
+  Size:                          00000544
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     00000630
+  Ends at:                       00000B73
+
+
+  Segment:                       FUN_CODE__RAMFUNCTIONS
+  Allocation:                    code
+  Size:                          000000A4
+  Align:                         02
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     00000B74
+  Ends at:                       00000C17
+
+
+  Segment:                       IDATA_INI__ETH_MAIN
+  Allocation:                    code
+  Size:                          00000004
+  Align:                         00
+  Address area:                  CODE
+  Border:                        >00000000
+  Placed at:                     00000C18
+  Ends at:                       00000C1B
+
+
+  Segment:                       IDATA___CMSIS_CM3_COREDEBUGINTERFACE
+  Allocation:                    data
+  Size:                          00000004
+  Align:                         02
+  Address area:                  DATA
+  Border:                        >00000000
+  Placed at:                     20000000
+  Ends at:                       20000003
+
+
+  Segment:                       CSTACK
+  Allocation:                    data
+  Size:                          00000400
+  Align:                         03
+  Address area:                  DATA
+  Border:                        >00000000
+  Placed at:                     20000008
+  Ends at:                       20000407
+
+
+  Segment:                       IDATA__ETH_MAIN
+  Allocation:                    data
+  Size:                          00000004
+  Align:                         01
+  Address area:                  DATA
+  Border:                        >00000000
+  Placed at:                     20000004
+  Ends at:                       20000007
+
+
+  Segment:                       UDATA__ETH_MAIN
+  Allocation:                    data
+  Size:                          00000C8E
+  Align:                         02
+  Address area:                  DATA
+  Border:                        >00000000
+  Placed at:                     20000408
+  Ends at:                       20001095
+
+                * * *  A D D R E S S   A R E A S   M A P  * * *
+
+  Address area: CODE
+  ----------------------------------------------------------------------------
+  Segment                       Align  Starts at   Ends at   Size(hex)   (dec)
+  ----------------------------------------------------------------------------
+  *** RESERVED ***               -     00000000    000000BF  000000C0    192
+  ??CODE_CLIB                    2     000000C0    00000197  000000D8    216
+  ??DEFAULT_HANDLERS             2     00000198    000001BD  00000026    38
+  IDATA_INI___CMSIS_CM3_COREDEB  0     000001BE    000001C1  00000004    4
+  *** GAP ***                    -     000001C2    000001C3  00000002    2
+  ??DATA_SEGMENT_ADDRESSES       2     000001C4    000001CB  00000008    8
+  ??INIT_DATA_SEGMENT_ADDRESSES  2     000001CC    000001E3  00000018    24
+  CDATA__ETH_MAIN                1     000001E4    000001E9  00000006    6
+  *** GAP ***                    -     000001EA    000001EB  00000002    2
+  FUN_CODE__ETHFUNC              2     000001EC    000004AF  000002C4    708
+  FUN_CODE__ETH_CONFIG           2     000004B0    0000062F  00000180    384
+  FUN_CODE__ETH_MAIN             2     00000630    00000B73  00000544    1348
+  FUN_CODE__RAMFUNCTIONS         2     00000B74    00000C17  000000A4    164
+  IDATA_INI__ETH_MAIN            0     00000C18    00000C1B  00000004    4
+  *** GAP ***                    -     00000C1C    0001FFFF  0001F3E4    127972
+
+
+  Address area: DATA
+  ----------------------------------------------------------------------------
+  Segment                       Align  Starts at   Ends at   Size(hex)   (dec)
+  ----------------------------------------------------------------------------
+  IDATA___CMSIS_CM3_COREDEBUGIN  2     20000000    20000003  00000004    4
+  IDATA__ETH_MAIN                1     20000004    20000007  00000004    4
+  CSTACK                         3     20000008    20000407  00000400    1024
+  UDATA__ETH_MAIN                2     20000408    20001095  00000C8E    3214
+  *** GAP ***                    -     20001096    20007FFF  00006F6A    28522
+  *** GAP ***                    -     20100000    20103FFF  00004000    16384
+
+                     * * *  S Y M B O L   T A B L E  * * *
+
+  Name                           Segment          Value       Type info
+
+  ?cstart                        ??CODE_CLIB     000000C4 *** <function>
+  ?start                         ??CODE_CLIB     000000C5     n/a
+  Answear_ARP                    FUN_CODE__ETH_M 000007C1 *** <function>
+  Answear_ARP??T                 FUN_CODE__ETH_M 000007C0 *** <function>
+  Answear_ICMP                   FUN_CODE__ETH_M 000008CD *** <function>
+  Answear_ICMP??T                FUN_CODE__ETH_M 000008CC *** <function>
+  Answear_UDP                    FUN_CODE__ETH_M 000009A1 *** <function>
+  Answear_UDP??T                 FUN_CODE__ETH_M 000009A0 *** <function>
+  CallRAM                        FUN_CODE__RAMFU 00000B75     <function>
+  CallRAM??T                     FUN_CODE__RAMFU 00000B74 *** <function>
+  CheckSum_ICMP                  FUN_CODE__ETH_M 000008A1 *** <function>
+  CheckSum_ICMP??T               FUN_CODE__ETH_M 000008A0 *** <function>
+  CheckSum_IP                    FUN_CODE__ETH_M 0000086D *** <function>
+  CheckSum_IP??T                 FUN_CODE__ETH_M 0000086C *** <function>
+  ClearMemory                    FUN_CODE__ETHFU 000002C1 *** <function>
+  ClearMemory??T                 FUN_CODE__ETHFU 000002C0 *** <function>
+  ClkConfig                      FUN_CODE__ETH_C 000004B1     <function>
+  ClkConfig??T                   FUN_CODE__ETH_C 000004B0 *** <function>
+  Counter                        UDATA__ETH_MAIN 20001094 *** unsigned short
+  ETHERNET_Handler               FUN_CODE__ETH_M 000006D9     <function>
+  ETHERNET_Handler??T            FUN_CODE__ETH_M 000006D8 *** <function>
+  EthernetConfig                 FUN_CODE__ETHFU 00000219     <function>
+  EthernetConfig??T              FUN_CODE__ETHFU 00000218 *** <function>
+  Frame                          UDATA__ETH_MAIN 20000408 *** <union>
+  HardFault_Handler              ??DEFAULT_HANDL 000001B7     <function>
+  ITM_RxBuffer                   IDATA___CMSIS_C 20000000     int
+  MACReset                       FUN_CODE__ETHFU 00000249 *** <function>
+  MACReset??T                    FUN_CODE__ETHFU 00000248 *** <function>
+  MyIPAddress                    IDATA__ETH_MAIN 20000004 *** <array>
+  MyMAC                          CDATA__ETH_MAIN 000001E4     <array>
+  NMI_Handler                    ??DEFAULT_HANDL 000001B5     <function>
+  PHYInit                        FUN_CODE__ETHFU 000001ED *** <function>
+  PHYInit??T                     FUN_CODE__ETHFU 000001EC *** <function>
+  PacketAnaliser                 FUN_CODE__ETH_M 00000725 *** <function>
+  PacketAnaliser??T              FUN_CODE__ETH_M 00000724 *** <function>
+  PendSV_Handler                 ??DEFAULT_HANDL 000001BB     <function>
+  PortConfig                     FUN_CODE__ETH_C 00000531     <function>
+  PortConfig??T                  FUN_CODE__ETH_C 00000530 *** <function>
+  ReadPacket                     FUN_CODE__ETHFU 000002DD     <function>
+  ReadPacket??T                  FUN_CODE__ETHFU 000002DC *** <function>
+  Reset_Handler                  ??DEFAULT_HANDL 00000199     <function>
+  SVC_Handler                    ??DEFAULT_HANDL 000001B9     <function>
+  SendPacket                     FUN_CODE__ETHFU 000003A1     <function>
+  SendPacket??T                  FUN_CODE__ETHFU 000003A0 *** <function>
+  SysTick_Handler                ??DEFAULT_HANDL 000001BD     <function>
+  SystemInit                     ??CODE_CLIB     000000C1     <function>
+  TestData                       FUN_CODE__RAMFU 00000BD1     <function>
+  TestData??T                    FUN_CODE__RAMFU 00000BD0 *** <function>
+  Time_delta                     UDATA__ETH_MAIN 20000A48 *** unsigned int
+  Time_new                       UDATA__ETH_MAIN 20000A4C *** unsigned int
+  Time_old                       UDATA__ETH_MAIN 20000A50 *** unsigned int
+  WriteByteToRAM                 FUN_CODE__RAMFU 00000B89     <function>
+  WriteByteToRAM??T              FUN_CODE__RAMFU 00000B88 *** <function>
+  WriteDataToRAM                 FUN_CODE__RAMFU 00000B99     <function>
+  WriteDataToRAM??T              FUN_CODE__RAMFU 00000B98 *** <function>
+  exit                           ??CODE_CLIB     00000135 *** <function>
+  exit??T                        ??CODE_CLIB     00000134 *** n/a
+  main                           FUN_CODE__ETH_M 00000631     <function>
+  main??T                        FUN_CODE__ETH_M 00000630 *** <function>
+  outbuf                         UDATA__ETH_MAIN 20000A54 *** <union>
+
+  ***  These symbols do not resolve any external reference
+
+
+                     * * *  O U T P U T   F I L E S  * * *
+
+  Phyton/MicroCOSM format:
+    TEST_ETH.mce
+
+  Intel Extended HEX format:
+    TEST_ETH.HEX                    for Address Area CODE
+
+  ELF format:
+    TEST_ETH.elf
+
+  Generated code is suitable for:  Cortex-M1
+
+  2904 bytes of CODE memory (+192 absolute)
+  4246 bytes of DATA memory

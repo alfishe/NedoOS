@@ -1,0 +1,263 @@
+(перед чтением expression в while надо проверить скобку, а блок команд закрывать и по ')', но так нельзя ((a&&b)||(c&&d)) !!! поэтому PREWHILE вместо WHILE):
+    IF(c==ASM_TEXT) THEN{ //anytext
+      PREWHILE((LET c=*pin,LET pin=pin+1),c!=ASM_TEXTEND) DO{
+        *pout=c;
+        LET pout=pout+1;
+      }
+    }ELSE{          //token
+      LET pintoken=texttoken[c];
+      PREWHILE((LET c=*pintoken),c!=ASM_TEXTEND) DO{
+        LET pintoken=pintoken+1;
+        *pout=c;
+        LET pout=pout+1;
+      }
+    }
+
+или:
+PREWHILE((
+  LET c=*pin,
+  LET pin=pin+1
+)CHECK(c!=ASM_TEXTEND)) DO{
+  *pout=c;
+  LET pout=pout+1;
+}
+иначе неправильно прочитает Си!!!
+
+или (фигурные скобки и if внутри выражения нельзя!):
+for(;(c=*pin,pin=pin+1),c!=ASM_TEXTEND;){...}
+
+или:
+#define WHILE while(
+#define PREWHILE while(
+#define LET
+#define CHECK ,
+#define DO )
+...
+WHILE(1) DO{...}
+...
+PREWHILE(
+  LET c=*pin,
+  LET pin=pin+1
+)CHECK(c!=ASM_TEXTEND) DO{
+  *pout=c;
+  LET pout=pout+1;
+}
+
+
+этот формат команды не помогает убрать break в labeltype(),
+потому что там два сравнения с выходом в разных местах (второе сравнение можно делать только при годном первом):
+  t =(byte)0;
+  index=0;
+  i_end = labelcount/*labellist->Count*/ ;
+  i=0;
+  while(i<i_end) {
+    curt=(byte)labelbuf[index];
+    index=index+1;
+    len=(byte)labelbuf[index];
+    index=index+1;
+    if( stringcompare(joinwordsresult,lenjoinwordsresult,&(labelbuf[index]) ) ) {
+      t=curt;
+      break; //todo kill break
+    }
+    index=index+len+1;/*включая терминатор*/
+    len=(byte)labelbuf[index];
+    index=index+1;
+    index=index+len+1;/*включая терминатор*/
+    i=i+1;
+  }
+
+docond1; //так можно только выставление флага!
+while(precond1,cond1) {
+  precond2;
+  if(not cond2) {docond2; break;}
+  body;
+}
+=>
+while(1) {
+  precond1;
+  if(not cond1) {docond1; break;}
+  precond2;
+  if(not cond2) {docond2; break;}
+  body;
+}
+=>
+while(1) {
+  precond1;
+  if(not cond1) {docond1; break;}
+  else {precond2;
+    if(not cond2) {docond2; break;}
+    body;
+  }
+}
+=>
+while(1) {
+  precond1;
+  if(not cond1) {docond1; break;}
+  else {
+    precond2;
+    if(not cond2) {docond2; break;}
+    else {
+      body;
+    }
+  }
+}
+=>
+WHILE(1) {
+IF(
+  (precond1,cond1)?
+  (
+    (precond2,cond2)?
+      TRUE:(docond2,FALSE)
+  ):(docond1,FALSE)
+)THEN{
+  body;
+}ELSE{
+  break;
+}
+}
+=>
+WHILE(
+  (precond1,cond1)?(
+    (precond2,cond2)?(
+      TRUE
+    ):(docond2,FALSE)
+  ):(docond1,FALSE)
+)DO{
+  body;
+}
+
+пример реализации такого синтаксиса:
+
+#define PRECOND /**/
+#define COND /**/
+#define LUCK ?
+#define FAIL :
+
+//(1),(2)[?(3):((4),FALSE)]
+PRECOND(
+  1
+),COND(2)[LUCK(
+  3
+)FAIL(4)NODO]
+;
+
+WHILE(
+  COND(i<i_end)LUCK( //cond1==TRUE
+    PRECOND( //precond2
+      LET curt=(byte)labelbuf[index],
+      LET index=index+1,
+      LET len=(byte)labelbuf[index],
+      LET index=index+1
+    ),COND( !stringcompare(joinwordsresult,lenjoinwordsresult,&(labelbuf[index])) )LUCK( //cond2==TRUE
+      TRUE
+    )FAIL (LET t=curt, FALSE) //cond2==FALSE
+  )FAIL (LET t=0, FALSE) //cond1==FALSE
+)DO{
+  LET index=index+len+1; //включая терминатор
+  LET len=(byte)labelbuf[index];
+  LET index=index+1;
+  LET index=index+len+1; //включая терминатор
+  LET i=i+1;
+}
+
+или даже:
+WHILE(
+  COND(i<i_end) LUCK( //cond1==TRUE
+    PRECOND( //precond2
+      LET t=(byte)labelbuf[index],
+      LET index=index+1,
+      LET len=(byte)labelbuf[index],
+      LET index=index+1
+    ),COND( !stringcompare(joinwordsresult,lenjoinwordsresult,&(labelbuf[index])) )
+  )FAIL(LET t=0, FALSE) //cond1==FALSE
+)DO{
+  LET index=index+len+1; //включая терминатор
+  LET len=(byte)labelbuf[index];
+  LET index=index+1;
+  LET index=index+len+1; //включая терминатор
+  LET i=i+1;
+}
+
+тогда не нужно PREWHILE..CHECK:
+WHILE(
+  PRECOND(
+    LET c=*pin,
+    LET pin=pin+1
+  ),COND(c!=ASM_TEXTEND)
+)DO{
+  *pout=c;
+  LET pout=pout+1;
+}
+
+для этого надо while анализировать так (COND обязателен!!!):
+<cond>::=
+[<PRECOND><command><,>] <COND><(><expr><)> [<LUCK><(><cond><)><FAIL>[command><,>]<NODO>] - выход по <)>
+<while>::=
+<WHILE><(><cond><)><DO><command>
+
+но надо убрать FALSE из FAIL (но Си не позволяет пустые LUCK() или FAIL()!!! так что FAIL NODO):
+
+#define PRECOND /**/
+#define COND /**/
+#define LUCK ?
+#define FAIL :(
+#define NODO FALSE)
+
+WHILE(
+  COND(i<i_end) LUCK( //cond1==TRUE
+    PRECOND( //precond2
+      LET t=(byte)labelbuf[index],
+      LET index=index+1,
+      LET len=(byte)labelbuf[index],
+      LET index=index+1
+    ),COND( !stringcompare(joinwordsresult,lenjoinwordsresult,&(labelbuf[index])) ) //as if "while(cond2)do..."
+  )FAIL(LET t=0),NOLOOP //cond1==FALSE
+)LOOP{
+  LET index=index+len+1; //включая терминатор
+  LET len=(byte)labelbuf[index];
+  LET index=index+1;
+  LET index=index+len+1; //включая терминатор
+  LET i=i+1;
+}
+
+
+
+/*
+  result=true;
+  while ((s2[i]!='\0') && (i<s1len) && (result)) {
+    if (s1[i+FIRST]!=s2[i]) result=false;
+    i=i+1;
+  }
+  if (i!=s1len) result=false; //разная длина строк
+*/
+  //варианты:
+  //а) обе строки кончились (годно)
+  //б) только одна кончилась (не годно)
+  //в) ни одна не кончилась, продолжаем
+  WHILE(
+    PRECOND( //precond1
+      LET c2=s2[i]
+    ),COND(i<s1len) LUCK( //cond1==TRUE (not end of s1)
+      COND(c2!='\0') LUCK( //cond2==TRUE (not end of s2)
+        COND(s1[i+FIRST]==c2) LUCK( //cond3==TRUE (одинаковые символы)
+          LET i=i+1
+        )FAIL(LET result=FALSE)NOLOOP //cond3==FALSE (неодинаковые символы)
+      )FAIL(LET result=FALSE)NOLOOP //cond2==FALSE (end of s2 (при not end of s1))
+    )FAIL(LET result=(c2=='\0'))NOLOOP //cond1==FALSE (end of s1) - годно при end of s2
+  )LOOP{
+  }
+
+  //если обе строки сишные:
+  //а) символы не совпали (не годно)
+  //б) символы совпали (продолжаем, если ненулевые, иначе годно)
+  WHILE(
+    PRECOND( //precond1
+      LET c1=s1[i+FIRST],
+      LET c2=s2[i]
+    ),COND(c1==c2) LUCK( //cond1==TRUE (одинаковые символы)
+      COND(c1!='\0') LUCK( //cond2==TRUE (not end)
+        LET i=i+1
+      )FAIL(LET result=TRUE)NOLOOP //cond2==FALSE (end)
+    )FAIL(LET result=FALSE)NOLOOP //cond1==FALSE (неодинаковые символы)
+  )LOOP{
+  }

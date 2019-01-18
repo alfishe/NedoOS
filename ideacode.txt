@@ -1,0 +1,414 @@
+оптимизации размера бинарника:
+
+#   plbl = &plbl[+sizeof(UINT)+1]; //skip string size
+	LD HL,[dellbl.plbl]
+	LD DE,2
+	LD BC,1
+	EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	ADD HL,DE
+	LD [dellbl.plbl],HL 
+как сделать константное выражение с раскрытием sizeof?
+
+#
+оптимизировать while(+TRUE) - спецкоманду LOOP?
+сделать continue?
+СДЕЛАНО переписал бесконечные циклы через goto
+
+# добавить операцию POKEINC на размер типа
+
+#
+	LD HL,[asmloop.tempvalue.+2]
+	LD DE,[asmloop.tempvalue.]
+	LD A,0x07
+	AND E
+	LD L,0x03
+	LD E,A
+	PUSH DE
+	LD D,H ;<= из-за того, что regs не знает про ширину, а вообще ex de,hl помог бы
+	LD E,L
+	POP HL
+	CALL _SHLB 
+
+#
+	LD A,[_waseof.]
+	OR A
+	JP Z,asmloop.agq
+	JP asmloop.agn
+asmloop.agq:
+	JP asmloop.agm
+asmloop.agn: 
+
+#
+	LD BC,1
+	EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	LD BC,_SIZEOF_LONG.
+	EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	LD BC,[addlabel.freestart_index.]
+	LD A,E
+	SUB C
+	LD E,A
+	LD A,D
+	SBC A,B
+	LD D,A
+	ADD HL,DE
+	LD [_lenlabels.],HL 
+(это была скобка в выражении со сложениями - раскрыл)
+
+#
+POKE *(PUINT)(&_labelN[_LABELPAGEFREESTART]) = _plabel_index + 1/**flag*/ + _SIZEOF_LONG/**value*/;
+	LD HL,[_labelN.]
+	LD DE,_LABELPAGEFREESTART.
+	ADD HL,DE
+	LD DE,[_plabel_index.]
+	LD BC,1
+	EX DE,HL
+	ADD HL,BC
+	  EX DE,HL
+	LD BC,_SIZEOF_LONG.
+	  EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	LD [HL],E
+	INC HL
+	LD [HL],D 
+(убрал вычисление справа)
+
+# при тайпкасте (long)uint
+	LD HL,[asmloop.scale]
+	LD DE,0
+	LD BC,[asmloop.tempvalue+2]
+	LD IX,[asmloop.tempvalue]
+	PUSH DE
+	PUSH HL
+	PUSH BC
+	PUSH IX
+	POP IX
+	POP BC
+	POP DE
+	POP HL
+	CALL _MULLONG.
+	LD A,[_token]
+	SUB '0'
+	LD C,A
+	LD B,0
+	LD IX,0
+	EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	LD A,L
+	ADC A,LX
+	LD L,A
+	LD A,H
+	ADC A,HX
+	LD H,A
+	LD [asmloop.tempvalue],DE
+	LD [asmloop.tempvalue+2],HL 
+в regs делать ex de,hl нехорошо
+
+#
+	LD HL,[asmloop.tempvalue+2]
+	LD DE,[asmloop.tempvalue]
+	LD A,0x07
+	AND E
+	LD L,0x03
+	LD E,A
+	PUSH DE
+	LD D,H
+	LD E,L
+	POP HL
+	CALL _SHLB.
+	LD A,[_base]
+	ADD A,L
+	LD [_base],A 
+
+#
+	LD [_t.],A
+	LD A,[_t.]
+	LD L,A
+	LD A,[_curfunct.]
+	LD C,_T_RECURSIVE.
+	LD E,A
+	LD A,C
+	CPL
+	AND E
+	SUB L
+	JP NZ,eat_return.avg 
+
+# было:
+	LD A,[eat_let.t.]
+	LD L,A
+	LD A,[_t.]
+	SUB L
+	LD L,0
+	JR Z,$+2+1
+	DEC L
+	LD A,[eat_let.t.]
+	LD C,_T_POINTER.
+	AND C
+	LD C,0x00
+	SUB C
+	LD E,0
+	JR Z,$+2+1
+	DEC E
+	LD A,[_t.]
+	LD LX,_T_POINTER.
+	AND LX
+	LD LX,0x00
+	SUB LX
+	LD C,0
+	JR Z,$+2+1
+	DEC C
+	LD A,E
+	AND C
+	CPL
+	AND L
+	JP Z,eat_let.ash 
+УБРАНО, а так вообще это всё бы оптимизировалось
+
+# можно на верхнем уровне давать подсказку для pushnum - проксить или не проксить, чтобы избежать такого:
+	LD A,0x0b
+	LD L,A
+	LD A,[_reg.]
+	ADD A,L
+	LD [asmbyte.aaa],A 
+но при этом всё равно не получится add a,0x0b.
+для каждого регистра флаг, что он хранит константу?
+проще переставить _reg+0x0b - СДЕЛАНО
+
+# чтобы оптимизировать call-ret, надо перед каждой(!) операцией вызывать gencall, а для ret проверить флаг и вызывать либо genjp, либо genret
+
+# убрать второй jp (от if) в таких случаях:
+asmcompileloop.j#_ASMFMT_DIR=$
+	LD A,[_curdir.]
+	LD E,_ASMDIR_LABEL.
+	SUB E
+	JP Z,asmcompileloop.adb
+	CALL asmfmt_dir_label.
+	JP asmcompileloop.loop.
+	JP asmcompileloop.adc 
+
+# если второй аргумент операции константа, но не надо его пихать предварительно в регистр, а вызывать константную версию соответствующего cemit
+или делать отложенные ld reg,NNN: генерить только временную метку, а ld делать при использовании или не делать
+СДЕЛАНО для +, -
+
+# очень много места занимают обороты типа
+IF ( (partype==_T_INT)||(partype==_T_UINT)||((partype&_T_POINTER)!=0x00) )
+если делать маски типов, то 8 бит не хватит
+надо именно помнить partype в регистре
+как???
+СДЕЛАНО через длину типа
+
+# как ещё сделать передачу через регистры? для этого процедура должна уметь скидывать регистры в переменные, если регистров не хватает
+
+# jr вместо jp, а асм будет расширять jr до jp, если не лезет???
+
+# добавить ifnot, whilenot, untilnot, чтобы исключить такое:
+	LD A,[_inprime.]
+	LD L,A
+	LD A,[_indblquote.]
+	OR L
+	CPL
+	OR A
+	JP Z,rdch.h 
+
+# ??? в строках вместо длины использовать указатель на конец и указатель на предел (число параметров не уменьшается: _endtextword = strjoin(_endtextword, _limittextword, _newword); ), убрать stringclear (_endtextword = _textword), stringclose - инлайном (POKE *(PCHAR)(_endtextword) = '\0';).
+
+# POKE *(PUINT)(plbl) = _lblshift[_lblhash];
+	LD HL,[addlbl.plbl]
+	LD DE,_lblshift
+	LD A,[_lblhash]
+	LD C,A
+	LD B,0
+	EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	EX DE,HL
+	ADD HL,BC
+	EX DE,HL
+	LD A,[DE]
+	INC DE
+	EX AF,AF'
+	LD A,[DE]
+	LD D,A
+	EX AF,AF'
+	LD E,A
+	LD [HL],E
+	INC HL
+	LD [HL],D 
+это из-за вычисления правого выражения после вычисления левого, понадобился лишний регистр
+как переставить???
+но если plbl будет в регистре, то не сэкономить
+
+
+
+связки на соседних строчках:
+- СДЕЛАНО ld rb,N:sub rb (надо предсказывать вперёд? или вызывать константные примитивы?)
+можно запомнить в pushnum, что была константа (вместо того, чтобы её генерить) и её текст
+тогда надо во всех примитивах (включая put и return) уметь использовать константу, если возможно
+асмопримитивы не могут заказывать регистр - как же они сделают обычный сценарий использования константы (например, в add)?
+значит, надо проверять константу в примитивах высокого уровня, а асмопримитивы делать в двух вариантах
+на практике нужно в основном sub N с флагом Z (==, !=)
+перехват не срабатывает на cstr == +(BYTE)'#' и т.п. Надо писать +(CHAR)cstr=='#'. Но нельзя сравнивать CHAR через > <
+- jp:jp (второй можно проверить по номеру строки последнего jp)
+- jp nz:jp - пустая ветка if или if()break или if()goto
+- ld (),reg:ld reg,() (номер строки последнего popvar (или put) и joined==wasjoined, надо ещё обратимо уничтожать регистр)
+- ld (),a:ld a,() (номер строки последнего popvar (или put) и joined==wasjoined, надо ещё обратимо уничтожать регистр и proxy) (или откладывать освобождение регистра и помнить wasput)
+- call:ret (тут надо предсказывать вперёд или вызывать генератор call на каждой команде)
+- УБРАНО ld l,(hl):ld a,l - таких меньше половины всех ld l,(hl), но если посчитать которые оптимизируются при ld a,(hl), то (по всему compile):
+оптимизируются: iiiiiiiiiiiiiiiiiiiiiiiiiiiii
+ухудшатся:      iiiiii
+останутся:      iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii (некоторые оптимизируются при cp N, что сейчас невозможно)
+- ld a,N:ld rb,a (надо предсказывать вперёд?) (ничего не даст - такие случаи не находятся)
+- label:ret (надо предсказывать СИЛЬНО вперёд или смотреть дерево разбора или разрешить return без параметра (как ret, полный return не содержит ret) из середины)
+
+
+
+
+
+
+
+
+
+
+
+
+64-битные числа не использовались в FatFS, но в exFAT могли появиться (DimkaM)
+в биллиарде тоже нет и не было 64-битных
+
+
+
+
+# SDCC 2.9.0 инициализирует константные массивы вручную. SDCC 3.4.0 нет - всё через ".area _INITIALIZER" (даже нет LDIR и полностью отсутствует код инициализации)
+
+# SDCC 2.9.0 генерирует код stack frame для пустых процедур. SDCC 3.4.0 уже нет. мой кодогенератор тоже нет.
+IAR генерирует push-pop регистров в полупустых процедурах непонятно зачем.
+SDCC 3.6.0 при opt-size вместо push ix:ld ix,0:add ix,sp пишет call ___sdcc_enter_ix (поэтому надо opt-speed).
+ещё при opt-size появляется лишний inc sp:pop af в конце emitinvreg, emitnegreg.
+ещё при opt-size (а SDCC 3.4.0 всегда) считает REGNAME[rnew] по одному разу (умеет даже push-pop иногда, при --all-callee-saves чаще). я так не смогу.
+никаких других различий в SDCC 3.6.0 между opt-size и opt-speed не замечено (даже остаются inc sp..dec sp для 8-битных параметров).
+
+# в IAR все выражения с && || считаются арифметически (в IAR нет). самому будет сложно преобразовать
+либо надо делать and if, or else, либо кучу веток в условии, либо islalpha... делать на массиве (инициализировать его вручную?)
+если разбить на части типа a&&b (это не даёт проигрыша в IAR), то SDCC переводит && в джампы (3.6.0 даже в return a&&b) - как такое повторить?
+если разбить || на части типа if (a) else if (b) else if (c) с одинаковой командой, то SDCC её не объединяет (IAR объединяет), но работать должно быстрее (в IAR код вообще не изменился)
+если сделать вместо этого if (!a) if (!b) if (!c), то в SDCC код лучше, в IAR почти идеальный (только со странным выбором регистров)
+выражения типа (c<='z') в IAR компилируются невыгодно (не как c<('z'+1)). переписать через +1? мой текущий кодогенератор не получит выигрыша, т.к. не умеет CP
+
+# у большинства процедур есть параметр /уже не у большинства?/. IAR передаёт один параметр в регистре (SDCC нет). особенно заметно на печати числа (впрочем, это отладочная процедура).
+сделать так же один параметр в регистре? (но для этого надо уметь хранить переменную в регистре!)
+иногда можно убрать один параметр, если isfunc объединить с functype
+SDCC 3.4.0 достаёт первый параметр через pop:pop:push:push, это выгодно при отсутствии стекфрейма в ix. но лучше через регистр.
+
+# при работе со строками надо одновременно контексты 8 бит и слов
+написать весь модуль syscalls на ассемблере?
+
+# при работе со строками (они как массивы) генерируется ужас. ввести указатели? и хранить указатели в регистрах? как определить, где что хранить? слово register?
+написать весь модуль syscalls на ассемблере? но строки ещё используются в compiler (обкусывание title, запись/чтение меток)
+
+# SDCC и IAR оптимизируют CALL:RET до JP. как сделать так же?
+ленивый CALL? (не получится при CALL в локале - а без локала надо вернуть запись строк в стек!)
+SDCC 3.4.0 генерирует jr:ret (getnothingword), раньше был просто jr. В SDCC 3.6.0 исправлено.
+
+# SDCC 3.4.0 (3.6.0 при opt-size) считает REGNAME[rnew] по одному разу (умеет даже push-pop иногда, при --all-callee-saves чаще, других различий не видел). я так не смогу.
+todo переписать исходник через переменную (тут надо две, т.к. две буквы, а указателей нет)
+
+# stringappend (бывает только для command и joinwordsresult) надо inline, но #define для инлайнов у меня нет
+
+# read, write надо inline (только syscalls инлайном? или emits инлайном? или оба? в перспективе останется только системный макрос), но #define для инлайнов у меня нет
+
+# SDCC 3.6.0 вместо ld a,()...ld (),a генерирует ld iy:ld a,(iy)...ld (iy),a (readchar_skipdieresis_concat)
+--reserve-regs-iy делает через hl, но возвращает стекфреймы, где не надо, и перестаёт уметь такое:
+	ld	hl,(_fin)
+	push	hl
+	call	_eof
+вместо него генерит:
+	ld	hl,#_fin
+	ld	c, (hl)
+	inc	hl
+	ld	b, (hl)
+	push	bc
+	call	_eof
+
+
+
+
+
+
+IAR неоптимальности:
+   \   0E49  3A1600            LD      A,(_T_BYTE)
+   \   0E4C  47                LD      B,A
+   \   0E4D  DD7D              LD      A,IXL
+   \   0E4F  B8                CP      B
+   \   0E50  2812              JR      Z,?0285
+   \   0E52  3A1900            LD      A,(_T_CHAR)
+   \   0E55  47                LD      B,A
+   \   0E56  DD7D              LD      A,IXL
+   \   0E58  B8                CP      B
+   \   0E59  2809              JR      Z,?0285
+   \   0E5B  3A1700            LD      A,(_T_BOOL)
+   \   0E5E  47                LD      B,A
+   \   0E5F  DD7D              LD      A,IXL
+   \   0E61  B8                CP      B
+   \   0E62  2012              JR      NZ,?0284
+   \   0E64            ?0285:
+и т.п.
+   
+   \   1100  CDDE0E            CALL    emitasm_regname
+   \   1103  C9                RET
+и т.п.
+
+   \   438B  3A1E00            LD      A,(_T_RECURSIVE)
+   \   438E  2F                CPL
+   \   438F  DD45              LD      B,IXL
+   \   4391  A0                AND     B
+и т.п.
+
+   \   4167  DD45              LD      B,IXL
+   \   4169  04                INC     B
+   \   416A  05                DEC     B
+   \   416B  2004              JR      NZ,?1409
+и т.п.
+
+   \   1173  3ACF00            LD      A,(_jumpflag)
+   \   1176  3D                DEC     A
+   \   1177  3D                DEC     A
+   \   1178  2005              JR      NZ,?0333
+   \   117A            ?0332:
+   \   117A  116801            LD      DE,?0334
+   \   117D  1818              JR      ?1697
+   \   117F            ?0333:
+   \   117F  3ACF00            LD      A,(_jumpflag)
+   \   1182  FE03              CP      3
+   \   1184  2005              JR      NZ,?0337
+   \   1186            ?0336:
+   \   1186  116C01            LD      DE,?0338
+   \   1189  180C              JR      ?1697
+   \   118B            ?0337:
+   \   118B  FE04              CP      4
+   \   118D  2005              JR      NZ,?0341
+
+   
+   \   4455  56                LD      D,(HL)
+   \   4456  CBEA              SET     5,D
+   \   4458  7A                LD      A,D
+   \   4459  321D2F            LD      (_c1small),A
+
+
+
+IAR выделил интересную процедуру:
+   \   1354            ?2032:
+   \   1354  CD2F0F            CALL    emitasm_hl
+   \   1357  CDC60E            CALL    emitasm_comma
+   \   135A  3AA200            LD      A,(_FASTREG)
+   \   135D  47                LD      B,A
+   \   135E  7B                LD      A,E
+   \   135F  B8                CP      B
+   \   1360  C9                RET
+
+
