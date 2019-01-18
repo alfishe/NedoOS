@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <Intrz80.h>
 #include <string.h>
-#include "w5300.h" 
+#include "..\w5300.h" 
 #include "..\oscalls.h" 
 //#include "irc.h"   
 
@@ -35,7 +35,7 @@ const unsigned char strip[]="%d.%d.%d.%d";
 static unsigned char ch_hash[16]={0};
 
 unsigned long int_count;   
-   
+
 static unsigned char dns_serv[]={8,8,8,8};
 static unsigned char irc_dom[64]="irc.forestnet.org";
 static unsigned char irc_ip[4]={185,117,153,103};
@@ -212,7 +212,7 @@ unsigned int dns_makequery(void)
 
 void msg_send(unsigned char * tbuf){
 	strcat(tbuf,"\r\n");
-    WIZ_WRITE_BUF(0,tbuf,strlen(tbuf));
+    WIZ_WRITE_BUF(tbuf,strlen(tbuf));
 }
 
 unsigned char receive(void){
@@ -224,7 +224,7 @@ unsigned char receive(void){
 		len=RD_S_RX_RSR();
 	//printf("rsr %d ",len);
 	PACK_SIZE(0,len);
-	WIZ_READ_BUF(0, rptr, len);
+	WIZ_READ_BUF(rptr, len);
 	*(rptr+len)=0;
 	conv1251to866(rptr);
 	pars.nxt=RX_BUF;
@@ -315,7 +315,6 @@ void kbd_pars(void){
 		msg_send(TX_BUF);
 	}
 }
-
 
 void kbd_read(void){
 	unsigned char data=_low_level_get();
