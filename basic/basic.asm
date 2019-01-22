@@ -30,6 +30,9 @@ cmd_begin
         ld (setpgs_scr_low),a
         ld a,d
         ld (setpgs_scr_high),a
+
+        ld e,6 ;textmode
+        OS_SETGFX
         
         ld sp,STACK
         

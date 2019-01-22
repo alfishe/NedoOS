@@ -5,7 +5,7 @@ COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 
 ;do define oldtimer (2 bytes)
-        macro YIELD
+        macro YIELD ;use instead of HALT
 _1=$;1
         OS_YIELD
         OS_GETTIMER ;hlde=timer
@@ -19,7 +19,9 @@ _1=$;1
 _1=$;1;prwindow_waitkey_nokey
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY
-        cp NOKEY
+        or a ;cp NOKEY ;keylang==0?
+        jr nz,$+2+1+2
+        cp c ;keynolang==0?
         jr z,_1;1b;prwindow_waitkey_nokey
         endm
         
@@ -168,10 +170,10 @@ _1=$;1;prwindow_waitkey_nokey
         ld c,CMD_FWRITE_NBYTES
         CALLBDOS
         endm
-        macro OS_GETKEYNOLANG
-        ld c,CMD_GETKEYNOLANG
-        CALLBDOS
-        endm
+        ;macro OS_GETKEYNOLANG
+        ;ld c,CMD_GETKEYNOLANG
+        ;CALLBDOS
+        ;endm
         macro OS_SETSYSDRV
         ld c,CMD_SETSYSDRV
         CALLBDOS
@@ -275,7 +277,7 @@ _1=$;1;prwindow_waitkey_nokey
         endm
 
         macro GET_KEY
-        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse delta (dy,dx), l=mouse buttons (bits 0,1,2: 0=pressed), TODO h=high bits of key
+        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse delta (dy,dx), l=mouse buttons (bits 0,1,2: 0=pressed), h=high bits of key|register, bc=keynolang
         endm
 
         macro PRCHAR
@@ -345,7 +347,7 @@ CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset
 CMD_SCROLLUP=0xe6 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB
-CMD_GETKEYNOLANG=0xe9 ;
+;CMD_GETKEYNOLANG=0xe9 ;out: a=код клавиши без языка, TODO возвращать и код с языком
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
 CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK
@@ -392,99 +394,91 @@ FATTRIB_DIR=0x10
 factive=0 ;0=zombie, 1=scheduled ;TODO есть сообщения: SET при добавлении сообщения, RES при взятии последнего сообщения
 ;fcritical=4 (чтобы не портить hl)
 fgfx=5 ;app can take focus
+;ffocus=6 ;app has focus (only one can)
 
-;TODO 9-битные коды клавиш, чтобы поддержать русские буквы
 NOKEY=0
-extbase=0xd0
-cs0=8
-        IF 1==0
-cs1='1'-32 ;...
-cs2='2'-32
-cs3='3'-32
-cs4='4'-32
-cs5='5'-32
-cs6='6'-32
-cs7='7'-32
-cs8='8'-32
-cs9='9'-32
-        ELSE
-cs1=0xf7 ;код не выдаётся при чтении через GET_KEY
-cs2=0xf8 ;код не выдаётся при чтении через GET_KEY
-cs3=0xf9
-cs4=0xfa
-cs5=0xfb
-cs6=0xfc
-cs7=0xfd
-cs8=0xfe
-cs9=0xff
-        ENDIF
-Enter=13;31
-ext0=extbase+0;"0"
-ext1=extbase+1;"1"
-ext2=extbase+2;"2"
-ext3=extbase+3;"3"
-ext4=extbase+4;"4"
-ext5=extbase+5;"5"
-ext6=extbase+6;"6"
-ext7=extbase+7;"7"
-ext8=extbase+8;"8"
-ext9=extbase+9;"9"
-ssQ=extbase+10;"{"
-Home=ssQ
-ssW=extbase+11;"|"
-Ins=ssW
-ssE=extbase+12;"}"
-End=ssE
-extEnter=extbase+13;Enter
-csss=extbase+14;ssnoshifts
-;sscs=extbase+16;csnoshifts
-extSpace=extbase+15 ;из-за матрицы выдается вместе с extZ
-extA=1;"a"+extbase
-extB=2;"b"+extbase
-extC=3;"c"+extbase
-extD=4;"d"+extbase
-extE=5;"e"+extbase
-extF=6;"f"+extbase
-extG=7;"g"+extbase
-extH=8;"h"+extbase
-extI=9;"i"+extbase
-extJ=10;"j"+extbase
-extK=11;"k"+extbase
-extL=12;"l"+extbase
-extM=13;"m"+extbase
-extN=14;"n"+extbase
-extO=15;"o"+extbase
-extP=16;"p"+extbase
-extQ=17;"q"+extbase
-extR=18;"r"+extbase
-extS=19;"s"+extbase
-extT=20;"t"+extbase
-extU=21;"u"+extbase
-extV=22;"v"+extbase
-extW=23;"w"+extbase
-extX=24;"x"+extbase
-extY=25;"y"+extbase
-extZ=26;"z"+extbase
-ssnoshifts=1;29
-csnoshifts=2;30
-ss=28 ;???
-cs=(csnoshifts-32)&0xff ;???
-csSpace=27;" "-32
-ssSpace=28
-csEnter=29;(Enter-32)&0xff
-ssEnter=30;27
-ssI=31;26
+key_redraw=31 ;если сделать равным ssEnter, то при шедулинге через idle ssEnter словится второй раз
+Enter=13
+ssI=127;extbase+12
+extSpace=NOKEY ;extbase+14 ;неюзабельно, т.к. из-за матрицы выдается вместе с extZ
 
-key_redraw=ssEnter ;TODO with H=1 (если сделать равным ssEnter, то при шедулинге через idle ssEnter словится второй раз)
+extbase=0xb0 ;with H=1 ;но нельзя пересекаться с 32..127
+ext0=extbase+0
+ext1=extbase+1  ;код выдаётся только при чтении через keynolang (в keylang переключает режим псевдографики)
+ext2=extbase+2
+ext3=extbase+3
+ext4=extbase+4
+ext5=extbase+5
+ext6=extbase+6
+ext7=extbase+7
+ext8=extbase+8
+ext9=extbase+9
+
+csbase=0xf3
+cs0=8 ;=extH (CP/M)
+;csbase+0 reserved
+cs1=csbase+1 ;код выдаётся только при чтении через keynolang (в keylang переключает язык)
+cs2=csbase+2 ;код выдаётся только при чтении через keynolang (в keylang переключает Caps Lock)
+cs3=csbase+3
+cs4=csbase+4
+cs5=csbase+5
+cs6=csbase+6
+cs7=csbase+7
+cs8=csbase+8
+cs9=csbase+9
+csEnter=csbase+10
+ssSpace=csbase+11
+extEnter=csbase+12
+
+extA=1
+extB=2
+extC=3
+extD=4
+extE=5
+extF=6
+extG=7
+extH=8 ;=cs0 (BackSpace)
+extI=9 ;=csss (Tab)
+extJ=10
+extK=11
+extL=12
+extM=13
+extN=14
+extO=15
+extP=16
+extQ=17
+extR=18
+extS=19
+extT=20
+extU=21
+extV=22
+extW=23
+extX=24
+extY=25
+extZ=26
+csnoshifts=NOKEY ;cs release result for AltGr
+csSpace=27
+ssQ=extbase+28
+Home=ssQ
+ssW=extbase+29
+Ins=ssW
+ssE=extbase+30
+End=ssE
+
+csss=9 ;Tab
+
+cssspress=csss ;temporary internal code (impossible to type without AltGr before language recoding)
+ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr before language recoding)
 
 ;всего управляющих комбинаций:
 ;1: nokey
+;1: redraw
 ;1: Enter
 ;12: цифры с CS, cs+Space, cs+Enter
 ;3: ss, cs, sscs
-;6: ss+Q,+W,+E,+I,+Enter,+Space
-;38 ext+кнопка
-;=23+38=61, можно уместить в два набора 0..31, но так не поместятся символы 0..31 как символы
+;6[5]: ss+Q,+W,+E,+I,[+Enter],+Space
+;38[37] ext+кнопка[кроме extSpace, который выдаётся вместе с extZ]
+;=62[60], можно уместить в два набора 0..31, но так не поместятся символы 0..31 как символы!
 
 ;SO, SI занимать нельзя
 ;упр. коды, необходимые для CP/M, передавать непосредственно (чем их меньше, тем больше отдельных ext+keys можно предусмотреть)
@@ -492,7 +486,7 @@ key_redraw=ssEnter ;TODO with H=1 (если сделать равным ssEnter, то при шедулинге
 ;символы 0..31 передавать как SO, код+0xb0, SI
 ;остальные упр. коды (cs+digit, ext+digit, extSpace, extEnt, ssQWE) передавать как SO, код+0xd0, SI
 ;отдельный ext (Tab) передавать по отжатию
-;нажатия отдельных ss, cs не передавать, иначе CP/M приложения не смогут их отфильтровать (отжатия клавиш тоже передать невозможно)
+;нажатия отдельных ss, cs не передавать, иначе CP/M приложения не смогут их отфильтровать (отжатия клавиш тоже передать невозможно, разве что через GETKEYNOLANG)
 
 ;00*nokey ^@ NUL - TODO убрать (GET_KEY будет сам делать YIELD до прихода события клавиатуры/мыши, а чьё событие - как-то кодировать в H)
 ;01       ^A SOH All (WordLeft в TP) -- home
@@ -503,7 +497,7 @@ key_redraw=ssEnter ;TODO with H=1 (если сделать равным ssEnter, то при шедулинге
 ;06       ^F ACK Find (WordRight в TP) -- right
 ;07       ^G BEL Replace (Del в TP)
 ;08 cs0   ^H BS  BS! (BS в MS-DOS) (Up в TPlib) -- bs
-;09       ^I HT  Tab! (Tab в MS-DOS) -- tab
+;09 csss  ^I HT  Tab! (Tab в MS-DOS) -- tab
 ;0A       ^J LF (Enter в ATM CP/M)
 ;0B       ^K VT (Left в TPlib) -- kill line
 ;0C       ^L FF  (FindNext в TP) -- update screen
@@ -521,9 +515,8 @@ key_redraw=ssEnter ;TODO with H=1 (если сделать равным ssEnter, то при шедулинге
 ;18       ^X CAN Cut (Down в TP) (delete command в ATM CP/M)
 ;19       ^Y EM  DelLn
 ;1A       ^Z SUB Undo (EOF)
-;1B csSpc ^[ SUB (Esc key, Esc symbol)
-;1C ssSpc ^\ FS
-;1D csEnt ^] GS
-;1E ssEnt ^^ RS
-;1F ssI   ^_ US
-
+;1B csSpc ^[ SUB Esc! (Esc key, Esc symbol)
+;1C Home  ^\ FS
+;1D Ins   ^] GS
+;1E End   ^^ RS
+;1F redraw^_ US

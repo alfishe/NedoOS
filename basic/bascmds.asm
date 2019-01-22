@@ -1309,6 +1309,7 @@ cmd_print
 ;hl'=курсор
         call eatcolon
         jp z,prcrlf
+cmd_print0
         exx
         ld a,(hl)
         exx
@@ -1320,10 +1321,11 @@ cmd_print
 cmd_print_semicolon
         call eat
         call eatcolon
-        jr nz,cmd_print
+        jr nz,cmd_print ;TODO cmd_print0?
         ret
         
 getexpr
+;out: hlde=value, c=type
         call getaddexpr
 getexpr0        
         exx
@@ -1743,7 +1745,7 @@ getval_
         exx
         ld a,(hl)
         exx
-        ld c,a
+        ld c,a ;name
         exx
         inc hl ;call eat
         ld a,(hl)

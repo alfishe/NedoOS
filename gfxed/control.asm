@@ -7,7 +7,8 @@ mousebuttons=$+1
         ld a,0
         ld (oldmousebuttons),a
 
-        OS_GETKEYNOLANG ;GET_KEY
+        GET_KEY ;OS_GETKEYNOLANG
+        ld a,c ;keynolang
         ld (key),a
         ld (control_imer_mousecoordsdelta),de
         ld a,l ;hl=(sysmousebuttons)

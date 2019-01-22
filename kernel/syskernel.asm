@@ -364,19 +364,35 @@ on_int_timerq
         
         call KEYSCAN
 
-        call PEEKKEY ;ld a,(curkey)
-        cp ssEnter
-        jr nz,sys_int_noselectapp
-         ;call GETKEY
-	 ;ld bc,key_redraw
-	 ;ld (keyqueueput_codenolang),bc
-	 ;call KEYQUEUEPUT ;если переключились на неактивную задачу, то некому прочитать код!!
-
+        ;call PEEKKEY ;ld a,(curkey)
+        ;cp ssEnter
+        
+        ld a,#7f
+        in a,(#fe)
+        rra
+        ld c,a ;c0=ss
+        ld a,#bf
+        in a,(#fe)
+        or c
+        cpl
+        ld c,a
+        cpl
+        ;a0=c0=0: ssEnter pressed
+on_int_oldssEnter=$+1
+        or 0 ;=0: ssEnter was released
+        rra
+        ld a,c
+        ld (on_int_oldssEnter),a
+        jr c,sys_int_noselectapp
+;кладём кнопку перерисовки, если её нет в очереди
          ;ld a,key_redraw
          ;ld (curkey),a
-	;ld hl,ssentercount
-	;inc (hl)
-	;jr $
+         call PEEKKEY ;ld a,(curkey) ;TODO смотреть голову очереди, а не хвост
+         cp key_redraw
+	 ld bc,key_redraw
+	 ld (keyqueueput_codenolang),bc
+	 call nz,KEYQUEUEPUT ;если переключились на неактивную задачу, то некому прочитать код!!
+
         ld hl,(focusappaddr)
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
@@ -405,19 +421,21 @@ muzcall=$+1
 
         ret
 
-;ssentercount
-;	db 0
-
         
 sys_getchar
+;out: de=mouse dydx, l=buttons, A=key, H=high bits of key
         call checkfocus_getmouse
-        call z,GETKEY ;todo H=high bits of key
+        call z,GETKEY ;A=key, H=high bits of key, BC=keynolang
         jp endsys_result_a
 sys_getchar_fail
 ;nz
-        ld de,0 ;no mouse movement
-        ld l,#ff ;no buttons
         ld a,NOKEY ;no key
+         ;ld h,a
+         ;ld b,a
+         ld c,a ;no keynolang
+        ld d,a;0
+        ld e,a;0 ;no mouse movement
+        ld l,#ff ;no buttons
         ret ;nz ;jp endsys_result_a
 
 checkfocus_getmouse

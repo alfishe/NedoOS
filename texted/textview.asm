@@ -24,30 +24,42 @@ textview
 texted_redrawloop
         call setredrawflag
 texted_mainloop
+texted_lineredrawflag=$
+        scf ;/or a
+        call c,texted_prcurline ;might set redrawflag
 texted_redrawflag=$
         scf ;/or a
         call c,texted_prcurpage
-texted_lineredrawflag=$
-        scf ;/or a
-        call c,texted_prcurline
         ld de,(curxy)
 	call nv_setxy
 	OS_GETATTR ;a
         push af ;color
-	ld e,#38 ;todo зависит от регистра клавиатуры
+	ld e,#38 ;TODO зависит от регистра клавиатуры (передать его в старших битах H в GET_KEY)
 	OS_PRATTR
 
-        ;YIELDGETKEYLOOP
+        if 1==0
+        YIELDGETKEYLOOP
+texted_panelredrawflag=$
+        scf ;/or a
+        else
 1;prwindow_waitkey_nokey
 	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        OS_GETKEYNOLANG
-        cp NOKEY ;как отличить от отсутствия фокуса? TODO
+        GET_KEY ;OS_GETKEYNOLANG
+        or a ;cp NOKEY ;keylang==0?
+        jr nz,texted_mainloop_keyq
+        cp c ;keynolang==0?
+        ;ld a,c ;keynolang
+        ;cp NOKEY ;как отличить от отсутствия фокуса? (не в фокусе клавиши не отдаются) TODO
         jr nz,texted_mainloop_keyq
 texted_panelredrawflag=$
         scf ;/or a
         call c,texted_panel
         jr 1b;prwindow_waitkey_nokey
 texted_mainloop_keyq
+        endif
+         ;push af
+         ;OS_CLS
+         ;pop af
         
         pop bc ;b=color
         push af
@@ -96,17 +108,20 @@ texted_mainloop_keyq
         jp z,texted_enter
         cp csEnter
         jp z,texted_save
+         ;cp csss
+         ;jr z,typein
         ;cp csss;'4'
         ;jp z,texted_hexeditor
         cp ' '
         ret c
+typein
         ld c,a
         call linesize_minus_x ;sz<x = error
         call c,insert_minushl_spaces
         call calccursoraddr
         call insertbyte
         
-        call setredrawflag;texted_prcurpage
+        call setlineredrawflag;texted_prcurpage
         jp texted_right
 
 linesize_minus_x
@@ -272,7 +287,7 @@ texted_backspace
         call isbof
         ret z
         call deletebyte        
-        call setredrawflag
+        call setlineredrawflag
         jp texted_left
 texted_backspace_startline
         call calccursoraddr
@@ -490,8 +505,16 @@ texted_prcurline
         ld a,55+#80 ;or a
         ld (texted_lineredrawflag),a
         ;TODO
+        ld de,(curxy)
+        ld e,0
+	call nv_setxy
+        ld hl,(curlineaddr)
+        ld a,(curlineaddrHSB)
+        jp texted_prline
 
 texted_prcurpage
+         ;ld e,0
+         ;OS_CLS
         ld a,55+#80 ;or a
         ld (texted_redrawflag),a
         ld hl,(curtoptextaddr)
@@ -502,11 +525,14 @@ texted_gotobof
         xor a
         ld h,a
         ld l,a
+;texted_gotobof_ok
         call texted_settop
         ld (curlineaddr),hl
         ld (curlineaddrHSB),a
-        ld hl,1
-        ld (texted_ncurline),hl
+        ;ld hl,1
+        ;ld (texted_ncurline),hl
+;ahl=curtextline (kept)
+        call texted_calccurline
         ld hl,0
         ld (curxy),hl
         jp setredrawflag;texted_prcurpage
@@ -524,8 +550,15 @@ texted_end0
         call texted_prevline
         pop bc
         djnz texted_end0
+;ahl=curtextline (kept)
         call texted_calccurline
-        jp setredrawflag;texted_prcurpage
+        ;push hl
+        ;ld hl,(texted_ncurline)
+        ;jr $
+        ;pop hl
+
+        jp texted_pgdown_bottom
+
 
 deccurline
         push hl
@@ -707,12 +740,32 @@ texted_calccurline
         push hl
         ld (texted_calccurline_old),hl
         ld (texted_calccurline_oldHSB),a
-        ld ix,0
+        ld ix,1;0
+         or h
+         or l
+         jr z,texted_calccurline_countq
         xor a
         ld h,a
         ld l,a
 texted_calccurline_count0
-        call texted_pseudoprline
+        call texted_nextline ;texted_pseudoprline
+
+        if 1==0
+        jr c,texted_calccurline_countq ;не помогает
+        ex de,hl
+texted_calccurline_old=$+1
+        ld hl,0
+        or a
+        sbc hl,de ;nc: hl<=old
+        ld l,a
+texted_calccurline_oldHSB=$+1
+        ld a,0
+        sbc a,l
+        ld a,l
+        inc ix
+        jr nc,texted_calccurline_count0 ;nc: ahl<=old
+        else
+        
         push hl
 texted_calccurline_old=$+1
         ld bc,0
@@ -724,10 +777,12 @@ texted_calccurline_oldHSB=$+1
         ld a,l
         pop hl
         inc ix
-        jr c,texted_calccurline_count0
-        push ix
-        pop hl
-        ld (texted_ncurline),hl
+        jr c,texted_calccurline_count0 ;cy: ahl<old
+        endif
+texted_calccurline_countq
+        ;push ix
+        ;pop hl
+        ld (texted_ncurline),ix;hl
         pop hl
         pop af
         ret
@@ -876,7 +931,7 @@ texted_prpage0
         pop bc
         inc d
         djnz texted_prpage0
-        call clear_keyboardbuffer
+        ;call clear_keyboardbuffer
         ret
         
 texted_prevline

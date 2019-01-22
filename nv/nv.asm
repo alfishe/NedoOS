@@ -30,7 +30,7 @@ cmd_begin
         ld e,6 ;textmode
         OS_SETGFX
 
-        YIELD ;чтобы cmd мог доделать свои дела на экране
+        ;YIELD ;чтобы cmd мог доделать свои дела на экране
         
         ld e,COLOR
         OS_CLS

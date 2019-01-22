@@ -56,7 +56,7 @@ nvview_load0
         ;call nvview_panel        
         
         call nvview_calclines
-        ld hl,0
+        ld hl,1;0
         ld (nvview_ncurline),hl
 
 nvview_redrawloop
@@ -67,7 +67,8 @@ nvview_mainloop
         ;YIELDGETKEYLOOP
 1;prwindow_waitkey_nokey
 	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        OS_GETKEYNOLANG
+        GET_KEY ;OS_GETKEYNOLANG
+        ld a,c ;keynolang
         cp NOKEY
         jr nz,nvview_mainloop_keyq
         call nvview_panel
@@ -77,6 +78,8 @@ nvview_mainloop_keyq
         jr z,nvview_redrawloop
         cp csSpace
         ret z
+        cp csss;'4'
+        jp z,nvview_hexeditor
         ld hl,nvview_mainloop
         push hl
         cp cs7
@@ -91,7 +94,11 @@ nvview_mainloop_keyq
         jp z,nvview_changeencoding
         cp Home;ssQ
         jp z,nvview_home
+        cp ext3
+        jp z,nvview_home
         cp End;ssE
+        jp z,nvview_end
+        cp ext4
         jp z,nvview_end
         cp cs5
         jp z,nvview_left
@@ -99,12 +106,10 @@ nvview_mainloop_keyq
         jp z,nvview_right
         cp 'w'
         jp z,nvview_wrap
-        cp csss;'4'
-        jp z,nvview_hexeditor
         ret
 
 nvview_hexeditor
-        pop af ;снимаем адрес возврата
+        ;pop af ;снимаем адрес возврата
         ld de,#0000
         call nv_setxy
         ld hl,(curtoptextaddr)
@@ -167,10 +172,11 @@ nvview_prcurpage
         jp nvview_prpage
         
 nvview_home
+        ld hl,1;0
+        ld (nvview_ncurline),hl
         xor a
         ld h,a
         ld l,a
-        ld (nvview_ncurline),hl
         call nvview_settop
         jp nvview_prpage
         
@@ -304,12 +310,15 @@ nvview_calccurline
         push hl
         ld (nvview_calccurline_old),hl
         ld (nvview_calccurline_oldHSB),a
-        ld ix,0
+        ld ix,1;0
+         or h
+         or l
+         jr z,nvview_calccurline_countq
         xor a
         ld h,a
         ld l,a
 nvview_calccurline_count0
-        call nvview_pseudoprline
+        call nvview_nextline;nvview_pseudoprline
         push hl
 nvview_calccurline_old=$+1
         ld bc,0
@@ -321,10 +330,11 @@ nvview_calccurline_oldHSB=$+1
         ld a,l
         pop hl
         inc ix
-        jr c,nvview_calccurline_count0
-        push ix
-        pop hl
-        ld (nvview_ncurline),hl
+        jr c,nvview_calccurline_count0 ;cy: ahl<old
+nvview_calccurline_countq
+        ;push ix
+        ;pop hl
+        ld (nvview_ncurline),ix;hl
         pop hl
         pop af
         ret

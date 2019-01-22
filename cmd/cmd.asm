@@ -46,7 +46,7 @@ cmd_begin
         call execcmd ;can show errors ;a!=0: no such internal command
         or a
         call nz,strcpexec_tryrun ;запускает по фону
-        YIELD ;чтобы запущенная задача успела захватить фокус
+        YIELD ;чтобы запущенная задача успела захватить фокус ;???
 ;если командная строка была со словом autoexec.bat вместо слова cmd, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
         ld a,(COMMANDLINE)
         cp 'a'
@@ -107,6 +107,13 @@ prNcmd
         pop af
         ret
         
+editcmd_up
+        ld de,cmdbuf
+        ld hl,oldcmd
+        ld bc,MAXCMDSZ+1
+        ldir
+        ;jp editcmd
+
 editcmd
         ld hl,cmdbuf
         call strlen
@@ -119,72 +126,69 @@ editcmd0
         ld e,CURSORCOLOR;#38
         OS_PRATTR ;нарисовать курсор
         YIELDGETKEYLOOP
+         ;ld a,c ;keynolang
         push af
         call cmdcalccurxy
         OS_SETXY
         ld e,COLOR;7
         OS_PRATTR ;стереть курсор
         pop af
-        ld hl,cmdbuf
         cp Enter
         ret z
+        cp cs7 ;up
+        jr z,editcmd_up
+         ld hl,editcmd0
+         push hl
+        ;ld hl,cmdbuf
         cp cs0 ;backspace
         jr z,editcmd_backspace
         cp cs5 ;left
         jr z,editcmd_left
         cp cs8 ;right
         jr z,editcmd_right
-        cp cs7 ;up
-        jr z,editcmd_up
         cp ' '
-        jr c,editcmdok ;прочие системные кнопки не нужны
+        ret c ;jr c,editcmdok ;прочие системные кнопки не нужны
 ;type in
+editcmdtypein
         ld e,a
         ld hl,cmdbuf
         call strlen ;hl=length
         ld bc,MAXCMDSZ
         or a
         sbc hl,bc
-        jr nc,editcmdok ;некуда вводить
+        ret nc ;jr nc,editcmdok ;некуда вводить
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc a
         ld (curcmdx),a
-        call strinsch ;e=ch
-editcmdok
-        jp editcmd0
+        jp strinsch ;e=ch
+;editcmdok
+        ;ret ;jp editcmd0
         
 editcmd_backspace
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         or a
-        jr z,editcmdok ;нечего удалять
+        ret z ;jr z,editcmdok ;нечего удалять
         dec a
         ld (curcmdx),a
-        call strdelch ;удаляет предыдущий символ
-        jr editcmdok
+        jp strdelch ;удаляет предыдущий символ
+        ;jr editcmdok
       
 editcmd_left
         ld a,(curcmdx)
         or a
-        jr z,editcmdok ;некуда влево
+        ret z ;jr z,editcmdok ;некуда влево
         dec a
         ld (curcmdx),a
-        jr editcmdok
+        ret ;jr editcmdok
       
 editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
-        jr z,editcmdok ;некуда право, стоим на терминаторе
+        ret z ;jr z,editcmdok ;некуда право, стоим на терминаторе
         inc a
         ld (curcmdx),a
-        jr editcmdok
-
-editcmd_up
-        ld de,cmdbuf
-        ld hl,oldcmd
-        ld bc,MAXCMDSZ+1
-        ldir
-        jp editcmd
+        ret ;jr editcmdok
 
 prtext
 prtext0

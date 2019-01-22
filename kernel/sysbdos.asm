@@ -92,10 +92,10 @@ BDOS_wiznetwrite
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         
-BDOS_getkeynolang
-        call checkfocus_getmouse
-        call z,GETKEYNOLANG ;todo H=high bits of key
-        ret
+;BDOS_getkeynolang
+;        call checkfocus_getmouse
+;        call z,GETKEY;NOLANG ;C=key, B=high bits of key (HA contains keylang)
+;        ret
         
 BDOS_setscreen
         ;ld iy,(appaddr)
@@ -669,7 +669,7 @@ tbdoscmds
         db CMD_MKDIR
         db CMD_RENAME
         db CMD_SETSYSDRV
-        db CMD_GETKEYNOLANG
+        ;db CMD_GETKEYNOLANG
         db CMD_FWRITE_NBYTES
         db CMD_SCROLLUP
         db CMD_SCROLLDOWN
@@ -711,7 +711,7 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_scrolldown
         dw BDOS_scrollup
         dw BDOS_fwrite_nbytes
-        dw BDOS_getkeynolang
+        ;dw BDOS_getkeynolang
         dw BDOS_setsysdrv
         dw BDOS_rename
         dw BDOS_mkdir
@@ -1000,6 +1000,7 @@ BDOS_gfxoff_givefocus
         sbc hl,de
         ret nz ;jr nz,sys_quit_findgfxapp_fail ;фокус не у этой задачи
         
+        ;jr $
 oldfocusappaddr=$+1
         ld hl,app1
         bit fgfx,(hl)

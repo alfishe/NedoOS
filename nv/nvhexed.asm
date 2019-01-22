@@ -18,7 +18,8 @@ nvview_hexeditor_prfile_mainloop
         call drawfilecursor_sizeb
 	
         YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        OS_GETKEYNOLANG
+        GET_KEY ;OS_GETKEYNOLANG
+        ld a,c ;keynolang
         push hl
         push bc
         push de
@@ -41,6 +42,8 @@ nvview_hexeditor_prfileq
         jr z,nvview_hexeditor_redrawloop
         cp csSpace
         ret z
+        cp csss
+        jp z,nvview_hexeditorq
         ld hl,nvview_hexeditor_prfile_mainloop
         push hl
          cp cs7
@@ -51,12 +54,14 @@ nvview_hexeditor_prfileq
          jp z,nvview_hexeditor_pgup
          cp cs4
          jp z,nvview_hexeditor_pgdown
-        cp csss
-        jp z,nvview_hexeditorq
         ;cp Home;ssQ
-        ;jp z,nvview_home
+        ;jp z,nvview_hexeditor_home
+        ;cp ext3
+        ;jp z,nvview_hexeditor_home
         ;cp End;ssE
-        ;jp z,nvview_end
+        ;jp z,nvview_hexeditor_end
+        ;cp ext4
+        ;jp z,nvview_hexeditor_end
         cp cs5
         jp z,nvview_hexeditor_left
         cp cs8
