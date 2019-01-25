@@ -306,12 +306,15 @@ BDOS_prchar
 ;e=char
         ld a,e
 BDOS_prchar_a
+	display "BDOS_prchar_a=",BDOS_prchar_a
 ;портит только #c000+, но сама восстанавливает там pgkillable
+	IFNDEF iszxevo
 	ld h,trecode/256
 	ld l,a
 	ld a,(hl)
 ;pr_textmode_curaddr=$+1
         ;ld hl,#c1c0
+	ENDIF
         ld l,(iy+app.textcuraddr)
         ld h,(iy+app.textcuraddr+1)
         cp #0e
@@ -2272,8 +2275,10 @@ tsys_pages
         db 0,0,0,0,0,0,0,0 ;#10..#17
         db 0,0,0,#ff,#ff,#ff,#ff,#ff ;#18..#1f
         ds sys_npages-32 ;0=empty, or else process number
-
+	IFNDEF iszxevo
 ;TODO хранить прямо в текстовом экране
 	align 256
 trecode
 	incbin "866toatm"
+	ENDIF
+	

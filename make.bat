@@ -50,6 +50,7 @@ nedotrd test.trd -a bin/nv.com
 nedotrd test.trd -a bin/nv.ext
 nedotrd test.trd -a bin/basic.com
 nedotrd test.trd -a bin/diff.com
+nedotrd test.trd -a bin/setfont.com
 nedotrd test.trd -a gfxed/lanscape.bmp
 nedotrd test.trd -a autoexec.bat
 
