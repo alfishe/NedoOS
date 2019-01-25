@@ -4,6 +4,7 @@
 
 VAR PBYTE _fin2;
 
+#define _MAXERRORS 8;
 ////
 
 PROC diff(PCHAR fn1, PCHAR fn2)
@@ -26,16 +27,16 @@ VAR BOOL waswaseof;
         waswaseof = _waseof;
         fread((PBYTE)&b2, +sizeof(BYTE), 1, _fin2);
         IF (waswaseof != _waseof) {
-          nprintf("invalid file size!\n");
+          nprintf("invalid file size!\r\n");
           goto quit;
         }ELSE IF (b != b2) {
-          nprintf("addr=%x f1=%x f2=%x\n", addr, (UINT)b, (UINT)b2);
+          nprintf("addr=%x f1=%x f2=%x\r\n", addr, (UINT)b, (UINT)b2);
           INC errors;
-          IF (errors == 8) goto quit;
+          IF (errors == _MAXERRORS) goto quit;
         };
         INC addr;
       };
-      IF (errors == 0) nprintf("files %s, %s are equal", (UINT)fn1, (UINT)fn2);
+      IF (errors == 0) nprintf("files %s, %s are equal\r\n", (UINT)fn1, (UINT)fn2);
       quit:
       fclose(_fin2);
     };

@@ -27,6 +27,8 @@ prchar.A.=$+1
 prcharA.
 setxy.addr.=$+1
 	ld de,0
+	cp '\r'
+	ret z ;jr z,prchar.cr.
 	cp '\n'
 	jr z,prchar.lf.
 	ld l,a

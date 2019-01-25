@@ -346,9 +346,10 @@ sortfiles_0
 	ret
 
 controlloop
+        call fixscroll_prcmd
+controlloop_noprline
         ld hl,controlloop
         push hl
-        call fixscroll_prcmd
         ld ix,(curpanel)
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
@@ -369,6 +370,8 @@ controlloop
         call nv_setxy
         ld e,COLOR;7
         OS_PRATTR ;remove cursor
+         ld e,COLOR
+         call nv_setcolor ;even if we didn't reprint command line, draw windows with its color
         pop af
         ld hl,tnvcmds
         ld bc,nnvcmds
@@ -512,6 +515,8 @@ editcmd_Home
 
         
 editcmd_up
+         ld hl,controlloop_noprline
+         ex (sp),hl
         call nv_getdirpos_hl
 	ld a,h
 	or l
@@ -538,6 +543,8 @@ editcmd_up
 	jp prdirfile
 
 editcmd_down
+         ld hl,controlloop_noprline
+         ex (sp),hl
         call nv_getdirpos_hl
         call nv_getpanelfiles_bc
 	inc hl
@@ -645,15 +652,7 @@ editcmd_enter_runcmd
         ;YIELD ;дать время задаче cmd захватить фокус
         ;ld e,-1
         ;OS_SETGFX ;disable gfx, give focus
-execcmd_waitpid0
-        push de
-        YIELD
-        pop de
-        push de
-        OS_WAITPID
-        pop de
-        or a
-        jr nz,execcmd_waitpid0
+        WAITPID
 execcmd_runfocusq
         ;YIELD ;дать время системе передать фокус рандомной задаче
         ;ld b,25
@@ -920,11 +919,15 @@ loadandrun
         ld hl,fcb_filename
         ld de,#c000+COMMANDLINE
         call cpmname_to_dotname ;de указывает на терминатор
+loadandrun_restcmd=$+1
+        ld hl,0
+         ld a,(hl)
+         or a
+         jr z,loadandrun_noparams
         ld a,' '
         ld (de),a
         inc de
-loadandrun_restcmd=$+1
-        ld hl,0
+loadandrun_noparams
         ld bc,COMMANDLINE_sz;-tcmd_sz
         ldir ;copy command line ;можем залезть за #0100!
         xor a

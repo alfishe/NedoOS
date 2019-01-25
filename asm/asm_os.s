@@ -5,6 +5,21 @@ COMMANDLINE=0x0080
 COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 	org PROGSTART
+	ld de,fnbuf.
+	ld (asmcompile.fn),de
+	ld hl,COMMANDLINE
+skipword0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,cmdquit ;если параметров вообще нет
+        cp ' '
+        jr nz,skipword0
+skipwordq
+       
+        push hl
+        push de
+        
 	LD HL,fnerr.
 	LD [openwrite.A.],HL
 	CALL openwrite
@@ -12,13 +27,9 @@ PROGSTART=0x0100
 	LD A,TRUE
 	LD [_errs],A
 
-	ld de,fnbuf.
-	ld (asmcompile.fn),de
-	ld hl,COMMANDLINE
-        ld a,' '
-        ld bc,COMMANDLINE_sz
-        cpir
-        jr nz,cmdquit ;если параметров вообще нет
+        pop de
+        pop hl
+        
 l0.
 	ld a,(hl)
 	inc hl
@@ -31,10 +42,11 @@ l0.
 	ld (de),a ;'\0'
 
 	call asmcompile
-cmdquit
+;cmdquit
 	LD HL,[_ferr]
 	LD [fclose.A.],HL
 	call fclose
+cmdquit
         rst 0x00 ;QUIT
 
 	include "../_sdk/emit.asm"

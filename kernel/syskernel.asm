@@ -208,8 +208,9 @@ findnextapp0
         bit factive,(hl)
         jr nz,findnextappq
         dec a
-        jr nz,findnextapp_idle
-findnextapp_idle
+        jr nz,findnextapp0
+;no active apps
+;findnextapp_idle (TODO ещё если в текущем фрейме уже пройдены все активные задачи?)
         ld hl,app1
 findnextappq
         ld (appaddr),hl
@@ -384,14 +385,7 @@ on_int_oldssEnter=$+1
         ld a,c
         ld (on_int_oldssEnter),a
         jr c,sys_int_noselectapp
-;кладём кнопку перерисовки, если её нет в очереди
-         ;ld a,key_redraw
-         ;ld (curkey),a
-         call PEEKKEY ;ld a,(curkey) ;TODO смотреть голову очереди, а не хвост
-         cp key_redraw
-	 ld bc,key_redraw
-	 ld (keyqueueput_codenolang),bc
-	 call nz,KEYQUEUEPUT ;если переключились на неактивную задачу, то некому прочитать код!!
+         call KEY_PUTREDRAW
 
         ld hl,(focusappaddr)
         ld bc,-app_last;app_afterlast
@@ -408,7 +402,10 @@ findnextgfxapp0
         ld hl,app1 -(app_last+app_sz)
         add hl,de
         bit fgfx,(hl)
-        jr nz,findnextgfxappq
+        jr z,findnextgfxappskip
+         bit fwaiting,(hl)
+         jr z,findnextgfxappq
+findnextgfxappskip
         dec a
         jr nz,findnextgfxapp0
         ld hl,app1

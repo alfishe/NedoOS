@@ -51,6 +51,7 @@ cmd_begin
         ld a,(COMMANDLINE)
         cp 'a'
         jr z,cmd_interactive
+        ;jr $
         QUIT
         
 cmd_interactive
@@ -302,16 +303,7 @@ callcmd
         push de
         OS_RUNAPP
         pop de
-         ;TODO disable gfx?
-execcmd_waitpid0
-        push de
-        YIELD
-        pop de
-        push de
-        OS_WAITPID
-        pop de
-        or a
-        jr nz,execcmd_waitpid0
+        WAITPID
         ret
 
 loadapp_setoldpath
@@ -983,11 +975,18 @@ cmd_proc0
          ld a,'+'
          PRCHAR
          pop bc
+         push bc
          bit fgfx,c
          ld a,' '
          jr z,$+4
          ld a,'g'
          PRCHAR
+         pop bc
+          bit fwaiting,c
+          ld a,' '
+          jr z,$+4
+          ld a,'w'
+          PRCHAR
          ld a,' '
          PRCHAR
         ld hl,0xc000+COMMANDLINE

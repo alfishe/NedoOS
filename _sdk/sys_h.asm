@@ -6,14 +6,17 @@ PROGSTART=0x0100
 
 ;do define oldtimer (2 bytes)
         macro YIELD ;use instead of HALT
-_1=$;1
+         ;OS_GETTIMER ;hlde=timer
+         ;push de
         OS_YIELD
+_0=$;1
         OS_GETTIMER ;hlde=timer
         ld hl,(oldtimer)
-        ld (oldtimer),de
+        ;ld (oldtimer),de
         or a
         sbc hl,de
-        jr z,_1;1b
+        jr z,_0;1b ;TODO OS_YIELDIDLE (иначе не сработает 'c'+'m'+'d')
+         ld (oldtimer),de
         endm
         macro YIELDGETKEYLOOP
 _1=$;1;prwindow_waitkey_nokey
@@ -23,6 +26,33 @@ _1=$;1;prwindow_waitkey_nokey
         jr nz,$+2+1+2
         cp c ;keynolang==0?
         jr z,_1;1b;prwindow_waitkey_nokey
+        endm
+
+        macro WAITPID
+        ;push de
+        ;YIELD ;чтобы запускаемая задача успела захватить фокус
+        ;ld e,-1
+        ;OS_SETGFX ;disable gfx, give focus (если не сделать YIELD, фокус отдаётся не тому приложению, какое мы ждём!)
+        ;ld a,e
+        ;pop de
+        ;ld d,a
+        ;push de
+        ;OS_SETWAITING
+        ;pop de
+_1=$;execcmd_waitpid0
+        push de
+        YIELD
+        pop de
+        push de
+        OS_WAITPID
+        pop de
+        or a
+        jr nz,_1;execcmd_waitpid0
+        ;push de
+        ;OS_RESETWAITING
+        ;pop de
+        ;ld e,d ;ld e,6 ;textmode
+        ;OS_SETGFX ;take focus (can be random after closing cmd)
         endm
         
 ;from CP/M        
@@ -114,6 +144,14 @@ _1=$;1;prwindow_waitkey_nokey
         endm
 
 ;invented  
+        ;macro OS_SETWAITING
+        ;ld c,CMD_SETWAITING
+	;CALLBDOS
+        ;endm
+        ;macro OS_RESETWAITING
+        ;ld c,CMD_RESETWAITING
+	;CALLBDOS
+        ;endm
         macro OS_WIZNETOPEN
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
@@ -333,6 +371,8 @@ CMD_PARSEFNAME=0x5c ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination 
 CMD_GETPATH=0x5e ;DE = Pointer to 64 byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE!), HL = Pointer to start of last item
 
 ;invented:
+;CMD_SETWAITING=0xd9
+;CMD_RESETWAITING=0xda
 CMD_WIZNETOPEN=0xdb
 CMD_WIZNETCLOSE=0xdc
 CMD_WIZNETREAD=0xdd ;de=pointer, hl=buffer size ;out: hl=size
@@ -347,7 +387,7 @@ CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset
 CMD_SCROLLUP=0xe6 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB
-;CMD_GETKEYNOLANG=0xe9 ;out: a=код клавиши без языка, TODO возвращать и код с языком
+;CMD_GETKEYNOLANG=0xe9
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
 CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK
@@ -363,7 +403,7 @@ CMD_PRATTR=0xf5 ;e=color byte ;DRAW ATTR AT CURSOR POSITION
 CMD_CLS=0xf6 ;e=color byte
 CMD_SETCOLOR=0xf7 ;e=color byte
 CMD_SETXY=0xf8 ;de=yx ;SET CURSOR POSITION
-CMD_SETGFX=0xf9 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx
+CMD_SETGFX=0xf9 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 CMD_SETPAL=0xfa ;de=palette
 CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
 CMD_NEWPAGE=0xfc ;out: a=0 (OK), e=page
@@ -395,6 +435,7 @@ factive=0 ;0=zombie, 1=scheduled ;TODO есть сообщения: SET при добавлении сообще
 ;fcritical=4 (чтобы не портить hl)
 fgfx=5 ;app can take focus
 ;ffocus=6 ;app has focus (only one can)
+fwaiting=7 ;app is waiting for another app, can't take focus by hand
 
 NOKEY=0
 key_redraw=31 ;если сделать равным ssEnter, то при шедулинге через idle ssEnter словится второй раз

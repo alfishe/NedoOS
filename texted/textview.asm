@@ -284,8 +284,8 @@ texted_backspace
 
         call calccursoraddr
         call prevbyte
-        call isbof
-        ret z
+        ;call isbof
+        ;ret z
         call deletebyte        
         call setlineredrawflag
         jp texted_left

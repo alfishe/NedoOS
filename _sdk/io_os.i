@@ -193,11 +193,13 @@ fread1.
         ex de,hl
         pop hl
         pop bc
-        or a
-        jr z,fread1ok.
+        ;or a
+        ;jr z,fread1ok.
         ld a,d
         or e
         jr z,fread1EOF.
+          dec d
+          jr z,fread1ok.
          ld a,e ;1..256
 ;a=len
 ;last sector in block: shift data to the end of buf

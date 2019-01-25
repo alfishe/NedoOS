@@ -554,18 +554,7 @@ cmd_system_handle=$+1
         push de
         OS_RUNAPP
         pop de
-         ;TODO disable gfx?
-execcmd_waitpid0
-        push de
-        YIELD
-        pop de
-        push de
-        OS_WAITPID
-        pop de
-        or a
-        jr nz,execcmd_waitpid0
-        ;ld e,6 ;textmode
-        ;OS_SETGFX ;take focus (can be random after closing cmd)
+        WAITPID
         pop hl
         exx
         ret

@@ -632,6 +632,11 @@ BDOS
         ret
 
 tbdoscmds
+         db CMD_PRATTR
+         db CMD_SETXY
+         db CMD_SETCOLOR
+         db CMD_GETATTR
+         db CMD_PRCHAR
 	db CMD_SETDTA;0x1a
 	db CMD_FOPEN;0x0f
 	db CMD_FREAD;0x14
@@ -650,11 +655,7 @@ tbdoscmds
         db CMD_YIELD
         db CMD_RUNAPP
         db CMD_NEWAPP
-        db CMD_PRATTR
         db CMD_CLS
-        db CMD_SETCOLOR
-        db CMD_PRCHAR
-        db CMD_SETXY
         db CMD_SETGFX
         db CMD_SETPAL
         db CMD_GETMAINPAGES
@@ -663,7 +664,6 @@ tbdoscmds
         db CMD_SETSCREEN
         db CMD_GETSCREENPAGES
         db CMD_MOUNT
-        db CMD_GETATTR
         db CMD_FREEZEAPP
         db CMD_WAITPID
         db CMD_MKDIR
@@ -717,7 +717,6 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_mkdir
         dw BDOS_waitpid
         dw BDOS_freezeapp
-        dw BDOS_getattr
         dw BDOS_mount
         dw BDOS_getscreenpages
         dw BDOS_setscreen
@@ -726,11 +725,7 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_getmainpages
         dw BDOS_setpal
         dw BDOS_setgfx
-        dw BDOS_setxy
-        dw BDOS_prchar
-        dw BDOS_setcolor
         dw BDOS_cls
-        dw BDOS_prattr
         dw BDOS_newapp
         dw BDOS_runapp
         dw BDOS_yield
@@ -749,6 +744,11 @@ nbdoscmds=$-tbdoscmds
 	dw BDOS_fread
 	dw BDOS_fopen
         dw BDOS_setdta
+         dw BDOS_prchar
+         dw BDOS_getattr
+         dw BDOS_setcolor
+         dw BDOS_setxy
+         dw BDOS_prattr
         
 BDOS_getkeymatrix
 ;out: bcdehlix = полуряды cs...space
@@ -950,38 +950,61 @@ BDOS_runapp
 BDOS_waitpid
 ;e=id
 ;wait for app close
-        ;push iy
-        ld c,(iy+app.id) ;caller is the parent
+         push iy
+         set fwaiting,(iy+app.flags)
+        ld c,(iy+app.id) ;my (parent's) id ;caller is the parent
+         ;jr $
         push bc
         call BDOS_findapp ;iy=found app
         pop bc
         ld a,(iy+app.parentid)
-        ;pop iy
+         pop iy
         jr nz,BDOS_waitpid_OK ;app doesn't exist = OK
         cp c ;parent id
         jp z,BDOS_fail ;existing app = fail
 BDOS_waitpid_OK
+         res fwaiting,(iy+app.flags)
         xor a
         ret
+
+;BDOS_setwaiting
+;        ret
         
 BDOS_setgfx
         ;ld iy,(appaddr)
 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text
-;e=-1: disable gfx
+;e=-1: disable gfx (out: e=old gfxmode)
         ld a,e
         cp -1
-        jr z,BDOS_gfxoff_givefocus
+        jr z,BDOS_gfxoff;BDOS_gfxoff_givefocus
         or %10101000
         ld (iy+app.gfxmode),a
         
+;кладём фокус в стек, только если не два раза setgfx в одной задаче:
+        ld hl,(focusappaddr)
+        push iy
+        pop de
+        or a
+        sbc hl,de
+        jr z,BDOS_setgfx_nopushfocus
+         ld hl,(oldfocusappaddr)
+         ld (oldoldfocusappaddr),hl ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         ld hl,(focusappaddr)
         ld (oldfocusappaddr),hl ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
-        
         ld (focusappaddr),iy
+BDOS_setgfx_nopushfocus        
         set fgfx,(iy+app.flags)
+        ld e,(iy+app.gfxmode)
         xor a ;success
         ret
+BDOS_gfxoff
+        ld e,(iy+app.gfxmode)
+        push de
+        call BDOS_gfxoff_givefocus
+        pop de
+        ret
 
+        
 BDOS_freezeapp
 ;e=id
         ;push iy
@@ -1000,9 +1023,12 @@ BDOS_gfxoff_givefocus
         sbc hl,de
         ret nz ;jr nz,sys_quit_findgfxapp_fail ;фокус не у этой задачи
         
-        ;jr $
+         ;jr $
 oldfocusappaddr=$+1
         ld hl,app1
+oldoldfocusappaddr=$+1
+         ld de,app1
+         ld (oldfocusappaddr),de
         bit fgfx,(hl)
         jr nz,sys_quit_findgfxappq ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         
@@ -1019,9 +1045,10 @@ sys_quit_findgfxappq
         ld (focusappaddr),hl
          ;ld a,key_redraw
          ;ld (curkey),a
-         ld bc,key_redraw
-          ld (keyqueueput_codenolang),bc
-         call KEYQUEUEPUT
+         ;ld bc,key_redraw
+         ; ld (keyqueueput_codenolang),bc
+         ;call KEYQUEUEPUT
+         call KEY_PUTREDRAW
 sys_quit_findgfxapp_fail
         ;pop iy
         xor a
