@@ -894,8 +894,6 @@ TASK_REGS_SIZE  EQU     $-TASK_REGS
 ;  speed of NoICE memory load and dump commands)
 COMBUF_SIZE     EQU     67              ;DATA SIZE FOR COMM BUFFER
 COMBUF:         DS      2+COMBUF_SIZE+1 ;BUFFER ALSO HAS FN, LEN, AND CHECK
-	display COMBUF
-	display $
 ;
 RAM_END         EQU     $               ;ADDRESS OF TOP+1 OF RAM
 	

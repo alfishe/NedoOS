@@ -16,4 +16,4 @@ startcode:
 font866:
 	incbin "866_code.fnt"
 endcode:
-	savebin "..\..\bin\setfont.com",startcode,endcode-startcode
+	savebin "setfont.com",startcode,endcode-startcode
