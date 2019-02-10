@@ -28,6 +28,12 @@ cd ..
 cd diff
 call build.bat
 cd ..
+cd setfont
+call build.bat
+cd ..
+cd browser
+call build.bat
+cd ..
 copy cmd\cmd.com bin\cmd.com
 copy nv\nv.com bin\nv.com
 copy nv\nv.ext bin\nv.ext
@@ -38,6 +44,8 @@ copy tok\tok.com bin\tok.com
 copy asm\asm.com bin\asm.com
 copy basic\basic.com bin\basic.com
 copy diff\diff.com bin\diff.com
+copy setfont\setfont.com bin\setfont.com
+copy browser\browser.com bin\browser.com
 @echo off
 path=_sdk\
 nedotrd test.trd -n
@@ -51,6 +59,8 @@ nedotrd test.trd -a bin/nv.ext
 nedotrd test.trd -a bin/basic.com
 nedotrd test.trd -a bin/diff.com
 nedotrd test.trd -a bin/setfont.com
+nedotrd test.trd -a bin/browser.com
+nedotrd test.trd -a setfont/866_code.fnt
 nedotrd test.trd -a gfxed/lanscape.bmp
 nedotrd test.trd -a autoexec.bat
 

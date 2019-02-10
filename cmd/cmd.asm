@@ -336,8 +336,8 @@ loadapp
         pop hl ;hl=after last slash
         jr nz,loadapp_nopath
 
-        ld bc,loadapp_setoldpath
-        push bc
+        ;ld bc,loadapp_setoldpath
+        ;push bc
 
         push hl ;hl=after last slash
         OS_CHDIR
@@ -367,9 +367,12 @@ loadapp_nopath
 strcpexec_tryrun_noemptyext
         ld de,fcb
         OS_FOPEN
+         push af
+         call loadapp_setoldpath
+         pop af
         or a
         ret nz ;jr nz,execcmd_error
-        OS_NEWAPP
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         ret nz ;error
 ;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error

@@ -21,7 +21,6 @@ __published:	// IDE-managed Components
         TImage *changV;
         TImage *curColorChunky;
         TImage *Image2;
-        TImage *ImageOut;
         void __fastcall FormCreate(TObject *Sender);
         void __fastcall Image1MouseMove(TObject *Sender, TShiftState Shift,
           int X, int Y);

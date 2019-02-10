@@ -159,3 +159,20 @@ LargeTable
                                            ; clears a 4200 byte area of memory
                                            ; to zero
         END                                ; Literal Pool 2 is empty
+
+        
+        
+        
+Procedure Call Standard for the ARM Architecture (AAPCS).
+4 Using Assembly and Intrinsics in C or C++ Code 4.3 Calling assembly functions from C and C++
+The AAPCS describes a contract between caller functions and callee functions. For example, for integer or pointer types, it specifies that:
+Х Registers R0-R3 pass argument values to the callee function, with subsequent arguments passed on the stack.
+Х Register R0 passes the result value back to the caller function.
+Х Caller functions must preserve R0-R3 and R12, because these registers are allowed to be corrupted by the callee function.
+Х Callee functions must preserve R4-R11 and LR, because these registers are not allowed to be corrupted by the callee function. 
+
+у нас сейчас не так: r0=rtemp, r1..r4 - регистры данных (r1=результат), параметры не передаютс€ в регистрах
+r7=0xff
+r8=0x00
+r5,r6 свободны
+

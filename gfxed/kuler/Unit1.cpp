@@ -2,6 +2,7 @@
 
 #include <vcl.h>
 #include <math.h>
+#include <stdio.h>
 #pragma hdrstop
 
 //#include "nedodefs.h"
@@ -20,6 +21,165 @@ int chunkpixelnumber[16] = {
   0x9, 0x4, 0x1, 0xd,
   0xe, 0x7, 0xb, 0x3,
   0x5, 0x2, 0x8, 0xf
+};
+
+int chunkpixelnumberdiamond[16] = {
+  0x1, 0xd, 0x3, 0xf,
+  0x9, 0x5, 0xb, 0x7,
+  0x4, 0x10, 0x2, 0xe,
+  0xc, 0x8, 0xa, 0x6
+};
+
+#define PALCOEFF 85/3
+unsigned char pal[768];
+
+unsigned char zxpal[16*2];
+
+unsigned char maxdistdiv_fromattr[256];
+unsigned char min_fromattr[256];
+unsigned char maxaxis_fromattr[256];
+
+unsigned char tdiv[16384];
+
+#define PALEXTRA 5
+char palextra[3*PALEXTRA] = {
+  //18*PALCOEFF/2, 15*PALCOEFF/2, 13*PALCOEFF/2,
+  17*PALCOEFF/2, 13*PALCOEFF/2, 10*PALCOEFF/2,
+  16*PALCOEFF/2, 11*PALCOEFF/2,  9*PALCOEFF/2,
+  15*PALCOEFF/2,  9*PALCOEFF/2,  8*PALCOEFF/2,
+  17*PALCOEFF/2, 11*PALCOEFF/2,  6*PALCOEFF/2,
+  11*PALCOEFF/2,  7*PALCOEFF/2,  5*PALCOEFF/2,
+};
+
+unsigned char pal16[16*3]; //act(r,g,b)
+
+unsigned char t64to16[64];
+
+unsigned char t64to16ink[64];
+
+unsigned char t64to16paper[64];
+
+char colorexist[1000] = {
+//x=g(0..9), y=b(9..0)
+//R=9:
+1,0,0,1,0,0,1,0,0,1, //W
+0,0,0,0,0,0,0,0,1,1,
+0,0,0,0,0,0,0,1,1,1,
+1,0,0,1,0,0,1,1,1,1, //YW
+0,0,0,0,0,0,1,1,1,1,
+0,0,0,0,0,0,1,1,0,0,
+1,0,0,1,0,0,1,1,0,1, //Y
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+1,0,0,1,0,0,1,0,0,1,
+
+//R=8:
+0,0,0,0,0,0,0,0,0,1,
+0,0,0,0,0,0,0,0,1,1,
+0,0,0,0,0,0,0,1,1,1,
+0,0,0,0,0,0,1,1,1,1,
+0,0,0,0,0,1,1,1,1,1,
+0,0,0,0,0,1,1,1,1,0,
+0,0,0,0,0,1,1,1,1,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+
+//R=7:
+0,0,0,0,0,0,0,0,0,1,
+0,0,0,0,0,0,0,1,1,1,
+0,0,0,0,0,0,1,1,1,1,
+0,0,0,0,0,1,1,1,1,0,
+0,0,0,0,0,1,1,1,1,0,
+0,0,0,0,1,1,1,1,0,0,
+0,0,0,0,1,1,1,1,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+
+//R=6:
+1,0,0,1,0,0,1,0,0,1, //CW
+0,0,0,0,0,0,0,1,1,0,
+0,0,0,0,0,0,1,1,1,0,
+1,0,0,1,0,1,1,1,0,1,
+0,0,0,0,0,1,1,1,0,0,
+0,0,0,0,1,1,1,0,0,0,
+1,0,0,1,1,1,1,0,0,1,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+1,0,0,1,0,0,1,0,0,1,
+
+//R=5:
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,1,1,0,0,
+0,0,0,0,0,1,1,1,0,0,
+0,0,0,0,1,1,1,1,1,0,
+0,0,0,0,1,1,1,1,0,0,
+0,0,0,1,1,1,1,1,0,0,
+0,0,0,1,1,1,1,0,0,0,
+0,0,1,1,1,1,1,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+
+//R=4:
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,1,0,0,0,0,
+0,0,0,0,1,1,0,0,0,0,
+0,0,0,1,1,1,1,0,0,0,
+0,0,0,1,1,1,1,0,0,0,
+0,0,1,1,1,1,1,1,0,0,
+0,0,1,1,1,1,1,0,0,0,
+0,1,1,1,1,1,1,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+
+//R=3:
+1,0,0,1,0,0,1,0,0,1,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+1,0,0,1,0,0,1,0,0,1,
+0,0,0,1,0,0,0,0,0,0,
+0,0,1,1,1,0,0,0,0,0,
+1,0,1,1,1,0,1,0,0,1,
+0,1,1,1,1,1,0,0,0,0,
+0,1,0,0,0,1,0,0,0,0,
+1,1,0,1,0,1,1,0,0,1,
+
+//R=2:
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,1,0,0,0,0,0,0,0,
+0,0,1,1,0,0,0,0,0,0,
+0,1,1,1,0,0,0,0,0,0,
+0,1,1,1,1,0,0,0,0,0,
+1,1,1,0,1,0,0,0,0,0,
+1,1,0,0,0,1,0,0,0,0,
+
+//R=1:
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,1,0,0,0,0,0,0,0,0,
+0,1,1,0,0,0,0,0,0,0,
+1,1,1,1,0,0,0,0,0,0,
+1,1,1,1,0,0,0,0,0,0,
+1,1,1,1,1,0,0,0,0,0,
+
+//R=0:
+1,0,0,1,0,0,1,0,0,1,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+1,0,0,1,0,0,1,0,0,1,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+1,0,0,1,0,0,1,0,0,1,
+1,1,0,0,0,0,0,0,0,0,
+1,1,1,0,0,0,0,0,0,0,
+1,1,1,1,0,0,1,0,0,1
 };
 
 int tsin[256];
@@ -100,8 +260,313 @@ void TForm1::showHSpalette()
   }UNTIL (y == ysize);
 }
 
+int getR(TColor rgb)
+{
+  return (rgb)&0xff;
+}
+
+int getG(TColor rgb)
+{
+  return (rgb>>8)&0xff;
+}
+
+int getB(TColor rgb)
+{
+  return (rgb>>16)&0xff;
+}
+
 void __fastcall TForm1::FormCreate(TObject *Sender)
 {
+  int colindex;
+
+  //Image2->Picture->LoadFromFile("seversta.bmp");
+  //Image2->Picture->LoadFromFile("melnchud.bmp");
+  Image2->Picture->LoadFromFile("hippiman.bmp");
+
+  FILE* fin;
+  fin = fopen("softe16.act", "rb");
+  fread(pal16, 16*3, 1, fin);
+  fclose(fin);
+
+  for (int i = 0; i<64; i++) {
+    int r = (i>>0)&0x03;
+    int g = (i>>2)&0x03;
+    int b = (i>>4)&0x03; //BBGGRR
+    int mindist = 10000;
+    for (int j = 0; j<16; j++) {
+      int r16 = (pal16[j*3+0]>>6)&0x03;
+      int g16 = (pal16[j*3+1]>>6)&0x03;
+      int b16 = (pal16[j*3+2]>>6)&0x03;
+      int dist = 3*abs(r-r16) +4*abs(g-g16) + 2*abs(b-b16);
+      //избегать замены серых цветов окрашенными:
+      if ((r==g)&&(g==b)&&!((r16==g16)&&(g16==b16))) dist = 10000;
+      if (dist < mindist) {
+        mindist = dist;
+        t64to16[i] = j;
+      };
+
+    };
+  };
+
+  for (int i = 0; i<64; i++) {
+    //Memo1->Lines->Add(IntToStr(t64to16[i]));
+    t64to16ink[i] = ((t64to16[i]&8)<<3) | (t64to16[i]&7);
+    t64to16paper[i] = ((t64to16[i]&8)<<4) | ((t64to16[i]&7)<<3);
+  };
+
+  FILE* foutink;
+  foutink = fopen("t64to16i", "wb");
+  fwrite(t64to16ink, 64, 1, foutink);
+  fclose(foutink);
+
+  FILE* foutpaper;
+  foutpaper = fopen("t64to16p", "wb");
+  fwrite(t64to16paper, 64, 1, foutpaper);
+  fclose(foutpaper);
+
+  for (int i = 0; i<16; i++) {
+    unsigned char b;
+    int r16 = (pal16[i*3+0]>>6)&0x03;
+    int g16 = (pal16[i*3+1]>>6)&0x03;
+    int b16 = (pal16[i*3+2]>>6)&0x03;
+    //DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+    b = ((g16&1)<<7) | ((g16&2)<<3);
+    b |= ((r16&1)<<6) | ((r16&2)<<0);
+    b |= ((b16&1)<<5) | ((b16&2)>>1);
+    zxpal[i*2] = 255-b;
+    zxpal[i*2+1] = 255-b;
+  };
+
+  FILE* foutzxpal;
+  foutzxpal = fopen("zxpal", "wb");
+  fwrite(zxpal, 16*2, 1, foutzxpal);
+  fclose(foutzxpal);
+
+//unsigned char maxdistdiv_fromattr[256];
+//unsigned char min_fromattr[256];
+//unsigned char maxaxis_fromattr[256];
+//TODO
+  for (int attr = 0; attr<256; attr++) {
+    int paper = ((attr&0x80)>>4) + ((attr&0x38)>>3);
+    int ink = ((attr&0x40)>>3) + (attr&0x07);
+    int Rmin = pal16[ink*3+0];
+    int Gmin = pal16[ink*3+1];
+    int Bmin = pal16[ink*3+2];
+    int Rmax = pal16[paper*3+0];
+    int Gmax = pal16[paper*3+1];
+    int Bmax = pal16[paper*3+2];
+
+    int dist,maxdist;
+    int maxaxis;
+      //ищем ось с максимальным (max-min) и берём оттуда maxcolor и mincolor
+      dist = Rmax-Rmin;
+      maxdist = dist; maxaxis = 0;
+      dist = Gmax-Gmin;
+      if (dist > maxdist) {maxdist = dist; maxaxis = 1;}
+      dist = Bmax-Bmin;
+      if (dist > maxdist) {maxdist = dist; maxaxis = 2;}
+
+    if (maxaxis == 0) {min_fromattr[attr] = Rmin;};
+    if (maxaxis == 1) {min_fromattr[attr] = Gmin;};
+    if (maxaxis == 2) {min_fromattr[attr] = Bmin;};
+
+    maxdistdiv_fromattr[attr] = maxdist/4 + 0x40; //tdiv addr = 0x4000
+
+    maxaxis_fromattr[attr] = maxaxis*8 + 64;
+  };
+
+  FILE* foutmaxaxis;
+  foutmaxaxis = fopen("tmaxaxis", "wb");
+  fwrite(maxdistdiv_fromattr, 256, 1, foutmaxaxis);
+  fwrite(min_fromattr, 256, 1, foutmaxaxis);
+  fwrite(maxaxis_fromattr, 256, 1, foutmaxaxis);
+  fclose(foutmaxaxis);
+
+  for (int dist = 0; dist<64; dist++) {
+    for (int delta = 0; delta<256; delta++) {
+      float dist_f = dist/64.;
+      float delta_f = delta/128.;
+      float result = 0;
+      if (dist != 0) result = delta_f/dist_f;
+      if (result > 1) result = 1;
+      if (delta >= 128) result = 0; //negative
+      tdiv[dist*256 + delta] = (unsigned char)(int)(result*16+.5);
+    };
+  };
+
+  FILE* fdiv;
+  fdiv = fopen("tdiv", "wb");
+  fwrite(tdiv, 16384, 1, fdiv);
+  fclose(fdiv);
+
+
+
+#define PICHGT 200
+#define PICWID8 80
+
+  TColor rgb,rgb1,rgb2,rgb1attr,rgb2attr; //BBGGRR
+  //int color64;
+  //int color1;
+  //int color2;
+  int lowx;
+  int paper;
+  int ink;
+  int dist,maxdist;
+  int maxaxis; //0..2
+  int Rmin,Rmax;
+  int Gmin,Gmax;
+  int Bmin,Bmax;
+  int Rmincolor,Rmaxcolor;
+  int Gmincolor,Gmaxcolor;
+  int Bmincolor,Bmaxcolor;
+
+  for (int y = 0; y < PICHGT; y++) {
+    for (int x8 = 0; x8 < PICWID8; x8++) {
+      paper = -1;
+      ink = -1;
+         //найти два color64, самые дальние друг от друга
+         //для этого ищем по всем осям min,max,mincolor,maxcolor
+         //потом ищем ось с максимальным (max-min) и берём оттуда maxcolor и mincolor
+      Rmin = 0xff; Rmax = 0x00;
+      Gmin = 0xff; Gmax = 0x00;
+      Bmin = 0xff; Bmax = 0x00;
+      for (lowx = 0; lowx < 8; lowx++) {
+         rgb = Image2->Canvas->Pixels[x8*8+lowx][y*2];
+         //color64 = ((rgb>>(16+6-4))&0x30) | ((rgb>>(8+6-2))&0x0c) | ((rgb>>(0+6-0))&0x03);
+         if (getR(rgb) < Rmin) {Rmin = getR(rgb); Rmincolor = rgb;};
+         if (getR(rgb) > Rmax) {Rmax = getR(rgb); Rmaxcolor = rgb;};
+         if (getG(rgb) < Gmin) {Gmin = getG(rgb); Gmincolor = rgb;};
+         if (getG(rgb) > Gmax) {Gmax = getG(rgb); Gmaxcolor = rgb;};
+         if (getB(rgb) < Bmin) {Bmin = getB(rgb); Bmincolor = rgb;};
+         if (getB(rgb) > Bmax) {Bmax = getB(rgb); Bmaxcolor = rgb;};
+      };
+      //ищем ось с максимальным (max-min) и берём оттуда maxcolor и mincolor
+      dist = Rmax-Rmin;
+      maxdist = dist; maxaxis = 0;
+      dist = Gmax-Gmin;
+      if (dist > maxdist) {maxdist = dist; maxaxis = 1;}
+      dist = Bmax-Bmin;
+      if (dist > maxdist) {maxdist = dist; maxaxis = 2;}
+      if (maxaxis == 0) {rgb1 = Rmincolor; rgb2 = Rmaxcolor;};
+      if (maxaxis == 1) {rgb1 = Gmincolor; rgb2 = Gmaxcolor;};
+      if (maxaxis == 2) {rgb1 = Bmincolor; rgb2 = Bmaxcolor;};
+
+      int r,g,b;
+      int i;
+#define ROUNDDOWN 64
+      r = (((int)getR(rgb2)-ROUNDDOWN)>>6);
+      g = (((int)getG(rgb2)-ROUNDDOWN)>>6);
+      b = (((int)getB(rgb2)-ROUNDDOWN)>>6);
+      if (r<0) r = 0;
+      if (g<0) g = 0;
+      if (b<0) b = 0;
+      i = t64to16[(b<<4) | (g<<2) | (r<<0)];
+      r = pal16[i*3+0];
+      g = pal16[i*3+1];
+      b = pal16[i*3+2];
+      rgb1attr = (b<<16) | (g<<8) | r;
+
+#define ROUNDUP 32
+      r = (((int)getR(rgb2)+ROUNDUP)>>6);
+      g = (((int)getG(rgb2)+ROUNDUP)>>6);
+      b = (((int)getB(rgb2)+ROUNDUP)>>6);
+      if (r>=4) r = 3;
+      if (g>=4) g = 3;
+      if (b>=4) b = 3;
+      i = t64to16[(b<<4) | (g<<2) | (r<<0)];
+      r = pal16[i*3+0];
+      g = pal16[i*3+1];
+      b = pal16[i*3+2];
+      rgb2attr = (b<<16) | (g<<8) | r;
+
+      rgb1 = rgb1attr;
+      rgb2 = rgb2attr;
+
+    dist = abs(getR(rgb2)-getR(rgb1));
+    maxdist = dist; maxaxis = 0;
+    dist = abs(getG(rgb2)-getG(rgb1));
+    if (dist > maxdist) {maxdist = dist; maxaxis = 1;}
+    dist = abs(getB(rgb2)-getB(rgb1));
+    if (dist > maxdist) {maxdist = dist; maxaxis = 2;}
+    /**/
+    /*
+    if (maxaxis == 0) maxdist = getR(rgb2)-getR(rgb1);
+    if (maxaxis == 1) maxdist = getG(rgb2)-getG(rgb1);
+    if (maxaxis == 2) maxdist = getB(rgb2)-getB(rgb1);
+    /**/
+
+      for (lowx = 0; lowx < 8; lowx++) {
+         rgb = Image2->Canvas->Pixels[x8*8+lowx][y*2];
+
+         float intlevel = 0;
+         if (maxdist > 10)
+         {
+           if (maxaxis == 0) intlevel = (getR(rgb)-getR(rgb1))/(float)(maxdist);
+           if (maxaxis == 1) intlevel = (getG(rgb)-getG(rgb1))/(float)(maxdist);
+           if (maxaxis == 2) intlevel = (getB(rgb)-getB(rgb1))/(float)(maxdist);
+         };
+         //if (intlevel < 0) intlevel = 0;
+         //if (intlevel > 1) intlevel = 1;
+
+      int delta;
+      if (maxaxis == 0) delta = (getR(rgb)-getR(rgb1));
+      if (maxaxis == 1) delta = (getG(rgb)-getG(rgb1));
+      if (maxaxis == 2) delta = (getB(rgb)-getB(rgb1));
+      delta = delta / 2;
+      if (delta < 0) delta = 0;
+      delta = delta&0xff;
+
+      float dist_f = maxdist/256.;
+      float delta_f = delta/128.;
+      float result = 0;
+      if (dist > 10) result = delta_f/dist_f;
+      if (result > 1) result = 1;
+      if (delta >= 128) result = 0; //negative
+      //int intintlevel = (unsigned char)(int)(result*16+.5);
+      int intintlevel = tdiv[256*(maxdist/4) + delta];
+
+      int chunkpixel = (lowx&3) + ((y&3)<<2);
+      //if ((int)(intlevel*16+.5) >= chunkpixelnumberdiamond[chunkpixel]) {
+      if (intintlevel >= chunkpixelnumberdiamond[chunkpixel]) {
+        rgb = rgb2attr;
+      }else {
+        rgb = rgb1attr;
+      };
+          //rgb =            (unsigned char)((1-intlevel)*getB(rgb1attr) + (intlevel)*getB(rgb2attr));
+          //rgb = (rgb<<8) + (unsigned char)((1-intlevel)*getG(rgb1attr) + (intlevel)*getG(rgb2attr));
+          //rgb = (rgb<<8) + (unsigned char)((1-intlevel)*getR(rgb1attr) + (intlevel)*getR(rgb2attr));
+         ImageOut->Canvas->Pixels[x8*8+lowx][y*2] = rgb;
+         ImageOut->Canvas->Pixels[x8*8+lowx][y*2+1] = rgb;
+      };
+    };
+  };
+
+
+
+  for (int i = 0; i<3*PALEXTRA ;i++) {
+    pal[i] = palextra[i];
+  };
+
+  colindex = 3*PALEXTRA;
+
+  for (int r = 0; r<10 ;r++) {
+  for (int g = 0; g<10 ;g++) {
+  for (int b = 0; b<10 ;b++) {
+    if (colorexist[(9-r)*100 + (9-b)*10 + g]) {
+      pal[colindex++] = r*PALCOEFF;
+      pal[colindex++] = g*PALCOEFF;
+      pal[colindex++] = b*PALCOEFF;
+    };
+  };
+  };
+  };
+
+  Memo1->Lines->Add(IntToStr(colindex));
+
+  FILE* fout;
+  fout = fopen("pal256.act", "wb");
+  fwrite(pal, 768, 1, fout);
+  fclose(fout);
 
   curH = .2;
   curS = .2;

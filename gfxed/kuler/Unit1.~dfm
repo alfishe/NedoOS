@@ -1,8 +1,8 @@
 object Form1: TForm1
-  Left = 192
-  Top = 107
-  Width = 1088
-  Height = 750
+  Left = 145
+  Top = 113
+  Width = 1406
+  Height = 1022
   Caption = 'Form1'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -23,28 +23,28 @@ object Form1: TForm1
     OnMouseMove = Image1MouseMove
   end
   object lbR: TLabel
-    Left = 584
+    Left = 648
     Top = 72
     Width = 8
     Height = 13
     Caption = 'R'
   end
   object lbG: TLabel
-    Left = 584
+    Left = 648
     Top = 96
     Width = 8
     Height = 13
     Caption = 'G'
   end
   object lbB: TLabel
-    Left = 584
+    Left = 648
     Top = 120
     Width = 7
     Height = 13
     Caption = 'B'
   end
   object curColor: TImage
-    Left = 560
+    Left = 624
     Top = 160
     Width = 105
     Height = 105
@@ -59,16 +59,28 @@ object Form1: TForm1
     OnMouseMove = changVMouseMove
   end
   object curColorChunky: TImage
-    Left = 560
+    Left = 624
     Top = 280
     Width = 105
     Height = 105
   end
+  object Image2: TImage
+    Left = 24
+    Top = 536
+    Width = 640
+    Height = 400
+  end
+  object ImageOut: TImage
+    Left = 672
+    Top = 536
+    Width = 640
+    Height = 400
+  end
   object Memo1: TMemo
-    Left = 440
-    Top = 416
+    Left = 416
+    Top = 16
     Width = 209
-    Height = 241
+    Height = 513
     Lines.Strings = (
       'Memo1')
     TabOrder = 0
