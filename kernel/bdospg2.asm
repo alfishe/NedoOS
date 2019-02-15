@@ -79,31 +79,13 @@ standardpal
         STANDARDPAL
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+		IF INETDRV==0
 wiznet_open
-        ret
-
 wiznet_close
-        ret
-
 wiznet_read
-;de=pointer, hl=buffer size
-;out: hl=size
-        ret
-
 wiznet_write
-;de=pointer, hl=buffer size
-wiznet_write0
-        push de
-        push hl
-        ld a,(de)
-        call BDOS_prchar_a
-        pop hl
-        pop de
-        inc de
-        dec hl
-        ld a,h
-        or l
-        jr nz,wiznet_write0
         ret
-
+		ENDIF
+		IF INETDRV==1
+        include "w5300.asm"
+		ENDIF
