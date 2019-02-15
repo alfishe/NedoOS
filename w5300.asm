@@ -1,65 +1,3 @@
-
-	NAME	CSTARTUP
-
-	PUBLIC	main			; where to begin execution
-	EXTERN	?C_EXIT			; where to go when program is done
-
-	RSEG	CSTACK
-	DEFS	0			
-	RSEG	UDATA0
-	RSEG	IDATA0
-	RSEG	ECSTR
-	RSEG	TEMP
-	RSEG	DATA0
-	RSEG	WCSTR
-
-	RSEG	CDATA0
-	RSEG	CCSTR
-	RSEG	CONST
-	RSEG	CSTR
-
-	ASEG
-	ORG	0x0100
-init_A
-	DI
-	LD	SP,.SFE.(CSTACK-1)	; from high to low address
-	JP	main
-
-	RSEG	RCODE
-CMD_WIZNETOPEN=0xdb
-CALLBDOS        macro  ;don't use CALLBDOS or call 0x0005 directly!!!
-        ex af,af'
-        call 0x0005 ;c=CMD
-        endm
-OS_NETSOCKET        macro 
-		ld l,0x01
-        ld c,CMD_WIZNETOPEN
-		CALLBDOS
-        endm
-OS_NETCONNECT        macro 
-		ld l,0x03
-        ld c,CMD_WIZNETOPEN
-		CALLBDOS
-        endm
-OS_NETSHUTDOWN         macro 
-		ld l,0x02
-        ld c,CMD_WIZNETOPEN
-		CALLBDOS
-        endm
-OS_WIZNETCLOSE        macro 
-        ld c,CMD_WIZNETCLOSE
-		CALLBDOS
-        endm
-OS_WIZNETREAD        macro 
-        ld c,CMD_WIZNETREAD
-		CALLBDOS
-        endm
-OS_WIZNETWRITE        macro 
-        ld c,CMD_WIZNETWRITE
-		CALLBDOS
-        endm
-;********************************************************************************		
-
 WIZ_BASE_ADDR=0x00ab
 WIZ_SOCK0_HNDL=8
 WIZ_REGAD_PORT=0x8100+WIZ_BASE_ADDR
@@ -95,19 +33,18 @@ AF_INET6=23
 
 SOCK_STREAM=0x01	;tcp/ip
 SOCK_DGRAM=0x03		;udp/ip
+INVALID_SOCKET=0xff
 
 SHUT_RDWR=2
-ERR_INTR=4
-ERR_NFILE=23
-ERR_ALREADY=37
-ERR_NOTSOCK=38
-ERR_PROTOTYPE=41
-ERR_AFNOSUPPORT=47
-ERR_HOSTUNREACH=65
-ERR_CONNRESET=54
-ERR_NOTCONN=57
+ERR_INTR=-4
+ERR_NFILE=-23
+ERR_NOTSOCK=-38
+ERR_PROTOTYPE=-41
+ERR_AFNOSUPPORT=-47
 ;struct sockaddr_in {short sin_family;unsigned short sin_port;
 ;	struct in_addr sin_addr;char sin_zero[8];};
+
+
 
 ;/***************************************/ 
 ;/* The bit of Sn_MR regsiter defintion */ 
@@ -165,26 +102,18 @@ SOCK_PPPoE         =0x5F                 ;< SOCKET0 is open as PPPoE mode. */
 		
 wizlocalport:
 		defw 0xc000
-
-w53_errexit:
-		ld h,-1
-		ret
-		
 wiznet_open
 ;L-subfunction
+		ex af,af'
 		dec l
 		jp z,w53_socket
 		dec l
 		jp z,w53_close
-		dec l
-		jp z,w53_connect
 		ld a,ERR_INTR	;функция не существует
-		ld hl,-1
 		ret
 w53_socket:
 ;E-socket type, D-address family
 ;ищем свободный сокет
-		ld l,-1
 		ld a,AF_INET
 		cp d
 		ld a,ERR_AFNOSUPPORT
@@ -197,7 +126,6 @@ w53_socket0:
 		cp WIZ_SOCK0_HNDL+8
 		jr nz,w53_socket1
 		;ld b,INVALID_SOCKET
-		ld l,-1
 		ld a,ERR_NFILE ;все сокеты заняты
 		ret
 w53_socket1:
@@ -214,7 +142,6 @@ w53_socket1:
 		cp SOCK_DGRAM
 		jr z,w53_socket2
 		ld a,ERR_PROTOTYPE
-		ld l,-1
 		ret
 w53_socket2:
 		ld b,WIZ_S_MR
@@ -228,96 +155,28 @@ w53_socket2:
 		out (c),d
 		inc b
 		out (c),e
-		;add a,l:ld l,a:adc a,h:sub l:ld h,a
 		ld a,l
-		add a,a
-		add a,a
-		add a,w53_socflags&0xff
-		ld e,a
-		adc a,w53_socflags>>8
-		sub e
-		ld d,a
-		xor a
-		ld (de),a
-		ld h,a
         ret
 
 w53_valid_cocket:
-		ex af,af'
 		cp WIZ_SOCK0_HNDL
 		jr c,w53_invalid_socked
 		cp WIZ_SOCK0_HNDL+8
 		jr nc,w53_invalid_socked
-		add a,a
-		add a,a
-		ld c,a
-		ld b,0
-		ld ix,w53_socflags
-		add ix,bc
 		ld bc,WIZ_REGAD_PORT
 		out (c),a
-		ld b,WIZ_S_MR
-		in a,(c)
-		or a	
 		ret
 w53_invalid_socked:
 		pop af
-w53_invalid_socked0:
-		ld hl,-1
 		ld a,ERR_NOTSOCK 
-		ret
-
-w53_connect:
-;DE-sockaddr_in
-		ld l,-1
-		call w53_valid_cocket
-		jp z,w53_invalid_socked0
-		dec a
-		ld a,ERR_PROTOTYPE
-		ret nz
-		ld b,WIZ_S_SSR
-		in a,(c)
-		or a
-		ld a,ERR_ALREADY
-		ret nz
-		ld a,Sn_CR_OPEN
-		call w53_cmd
-		ld b,WIZ_S_SSR
-w53_connect0:
-		in a,(c)
-		or a
-		jr z,w53_connect0
-		call BDOS_preparedepage
-		ex de,hl
-		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
-		ld a,6
-w53_connect1:
-		outi
-		inc b
-		inc b
-		dec a
-		jr nz,w53_connect1
-		ld a,Sn_CR_CONNECT
-		call w53_cmd
-		ld b,WIZ_S_SSR
-w53_connect2:
-		in a,(c)
-		cp SOCK_ESTABLISHED
-		jr z,w53_connect3
-		or a
-		jr nz,w53_connect2
-		ld a,ERR_HOSTUNREACH
-		ret
-w53_connect3:
-		xor a
-		ld l,a
 		ret
 		
 w53_close:
 		call w53_valid_cocket
-		ld l,0
-		ret z	;сокет уже убит
-		dec l
+		ld b,WIZ_S_MR
+		in a,(c)
+		or a	;сокет убит
+		ret z
 		cp Sn_MR_TCP
 		jr nz,w53_close0
 w53_close1:
@@ -325,8 +184,8 @@ w53_close1:
 		in a,(c)
 		or a	;уже закрыт
 		jr z,w53_close3
-		;cp SOCK_CLOSE_WAIT	;вторая сторона ждёт закрытия
-		;jr z,w53_close0
+		cp SOCK_CLOSE_WAIT	;вторая сторона ждёт закрытия
+		jr z,w53_close0
 		cp SOCK_INIT
 		jr z,w53_close0
 		cp SOCK_LISTEN
@@ -352,7 +211,6 @@ w53_close3:
 		xor a
 		ld b,WIZ_S_MR
 		out (c),a
-		ld h,a
 		ret
 		
 w53_cmd:
@@ -364,176 +222,9 @@ w53_cmd0:
 		ret z
 		jr w53_cmd0
 		
-w53_minimum:	;bc=min(hl,bc), hl-=min(hl,bc)
-		or a
-		sbc hl,bc		
-		jr nc,w53_minimum0
-		add hl,bc
-		ld b,h
-		ld c,l
-		ld h,0
-		ld l,0
-w53_minimum0:
-		ld a,(ix+2)
-		sub c
-		ld (ix+2),a
-		ld a,(ix+3)
-		sbc a,b
-		ld (ix+3),a
-		ret
-		
-wiznet_read:
-		call w53_valid_cocket
-		jp z,w53_invalid_socked0
-		ld a,h
-		or l
-		ret z
-		call BDOS_preparedepage
-		push de	;сохраним, чтобы потом вычислить сколько прочитали
-		ld a,(ix+0)
-		or a
-		jr z,w53_read_new
-		;дочитываем
-		jp p,w53_read_min
-		ld a,(ix+1)	;читаем из буфера
-		ld (de),a
-		inc de
-		dec hl
-		ld (ix+0),0	;сбросим флаг
-w53_read_min:			;hl-сколько хотим байт
-		ld a,h
-		or l
-		jr nz,w53_read0
-w53_read_exit:
-		ex de,hl	;читать ненадо больше, выходим
-w53_read_exit0:
-		pop de
-		sbc hl,de
-		ret
-w53_read0:		
-		ld c,(ix+2)		;сколько дочитывать, без учета байта в буфере
-		ld b,(ix+3)
-		call w53_minimum
-		ld a,b
-		or c
-		jr z,w53_read_new
-		push hl	;сколько ещё потом надо
-		ex de,hl
-		ld d,b
-		inc d	;для dec чтобы по z выйти
-		ld e,c		
-		ld bc,WIZ_BASE_ADDR+(WIZ_S_RX_H<<8)
-		ld a,WIZ_S_RX_L
-w53_read_loop:	;что-то надо дочитать de-count, hl-ptr
-		ini
-		dec e
-		ld b,a
-		jr z,w53_read_looph
-w53_read_loopl:
-		ini
-		dec e
-		jr nz,w53_read_loop
-		dec d
-		jr nz,w53_read_loop
-		jr w53_read_loope
-w53_read_looph:
-		dec d
-		jr nz,w53_read_loopl
-		in a,(WIZ_BASE_ADDR)
-		ld (ix+1),a
-		ld (ix+0),0xff ;флаг
-w53_read_loope:		;конец цикла
-		pop de
-		ld a,(ix+2)
-		or (ix+3)
-		jr nz,w53_read_exit0
-		ld (ix+0),a
-		ex de,hl
-		ld a,Sn_CR_RECV
-		call w53_cmd
-w53_read_new:		;новый пакет
-		ld b,WIZ_S_SSR
-		in a,(c)
-		or a
-		cp SOCK_ESTABLISHED
-		jr z,w53_read_new1
-		cp SOCK_UDP
-		jr nc,w53_read_new1
-		ld a,(ix+2)
-		or (ix+3)
-		jr nz,w53_read_exit ;осталось в буферах
-		ld a,ERR_NOTCONN
-		ld h,-1
-		ret
-w53_read_new1:
-		ld b,WIZ_S_RX_RSR_H
-		in a,(c)
-		inc b
-		in b,(c)
-		or b
-		jr z,w53_read_exit
-		ld b,WIZ_S_RX_H
-		in a,(c)
-		ld (ix+3),a
-		inc b
-		in a,(c)
-		ld (ix+2),a
-		jr w53_read_min
-w53_socflags: ;M-остался мл.байт. P/V-чётность размера пакета. NZ-надо дочитать
-;flag, one byte buffer, count
-		defw 0,0,0,0,0,0,0,0
-		defw 0,0,0,0,0,0,0,0
-		
 wiznet_close:
-wiznet_write:
-		ld a,-1
-		ld h,a
         ret
-
-;********************************************************************************	
-
-main:
-	ld de,SOCK_STREAM+(AF_INET<<8)
-	ld l,1
-	call wiznet_open
-	;OS_NETSOCKET
-	or a
-	jp m,?C_EXIT
-	ld (soc1),a
-	
-	ld a,(soc1)
-	ld de,inetad
-	ld l,3
-	ex af,af'
-	call wiznet_open
-	
-main0:
-	ld a,(soc1)
-	ld l,2
-	ex af,af'
-	call wiznet_open
-	cp SHUT_RDWR
-	jr z,main0
-	;OS_NETCLOSESOCKET
-	
-	jp 0xfc00
-soc1: defw 0
-inetad:
-	defb 0,80
-	defb 188,35,5,239
-	
-BDOS_preparedepage:
-	ld a,55
-	ld bc,5555
-	ret
-	ENDMOD	init_A
-
-	MODULE	exit
-	PUBLIC	exit
-	PUBLIC	?C_EXIT
-	RSEG	RCODE
-?C_EXIT
-exit	EQU	?C_EXIT
-    NOP
-	jp 0xfc00
-	END
+wiznet_read:
+        ret
+wiznet_write:
+        ret

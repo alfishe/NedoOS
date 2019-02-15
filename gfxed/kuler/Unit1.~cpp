@@ -308,10 +308,15 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
     };
   };
 
-  for (int i = 0; i<64; i++) {
+  for (int i = 0; i<64; i++) { //BBGGRR
     //Memo1->Lines->Add(IntToStr(t64to16[i]));
-    t64to16ink[i] = ((t64to16[i]&8)<<3) | (t64to16[i]&7);
     t64to16paper[i] = ((t64to16[i]&8)<<4) | ((t64to16[i]&7)<<3);
+    int rdown = (i&3) - 1; if (rdown<0) rdown = 0;
+    int gdown = ((i>>2)&3) - 1; if (gdown<0) gdown = 0;
+    int bdown = ((i>>4)&3) - 1; if (bdown<0) bdown = 0;
+    int j = (bdown<<4) + (gdown<<2) + rdown;
+    //t64to16ink[i] = ((t64to16[j]&8)<<3) | (t64to16[j]&7);
+    t64to16ink[i] = ((t64to16[i]&8)<<3) | (t64to16[i]&7);
   };
 
   FILE* foutink;
@@ -342,19 +347,15 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
   fwrite(zxpal, 16*2, 1, foutzxpal);
   fclose(foutzxpal);
 
-//unsigned char maxdistdiv_fromattr[256];
-//unsigned char min_fromattr[256];
-//unsigned char maxaxis_fromattr[256];
-//TODO
   for (int attr = 0; attr<256; attr++) {
     int paper = ((attr&0x80)>>4) + ((attr&0x38)>>3);
     int ink = ((attr&0x40)>>3) + (attr&0x07);
-    int Rmax = pal16[ink*3+0];
-    int Gmax = pal16[ink*3+1];
-    int Bmax = pal16[ink*3+2];
-    int Rmin = pal16[paper*3+0];
-    int Gmin = pal16[paper*3+1];
-    int Bmin = pal16[paper*3+2];
+    int Rmin = pal16[ink*3+0];
+    int Gmin = pal16[ink*3+1];
+    int Bmin = pal16[ink*3+2];
+    int Rmax = pal16[paper*3+0];
+    int Gmax = pal16[paper*3+1];
+    int Bmax = pal16[paper*3+2];
 
     int dist,maxdist;
     int maxaxis;
@@ -419,6 +420,9 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
   int Rmincolor,Rmaxcolor;
   int Gmincolor,Gmaxcolor;
   int Bmincolor,Bmaxcolor;
+  int nRmincolor,nRmaxcolor;
+  int nGmincolor,nGmaxcolor;
+  int nBmincolor,nBmaxcolor;
 
   for (int y = 0; y < PICHGT; y++) {
     for (int x8 = 0; x8 < PICWID8; x8++) {
@@ -432,62 +436,88 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
       Bmin = 0xff; Bmax = 0x00;
       for (lowx = 0; lowx < 8; lowx++) {
          rgb = Image2->Canvas->Pixels[x8*8+lowx][y*2];
+          //rgb = (rgb&0xff)*0x010101;
          //color64 = ((rgb>>(16+6-4))&0x30) | ((rgb>>(8+6-2))&0x0c) | ((rgb>>(0+6-0))&0x03);
-         if (getR(rgb) < Rmin) {Rmin = getR(rgb); Rmincolor = rgb;};
-         if (getR(rgb) > Rmax) {Rmax = getR(rgb); Rmaxcolor = rgb;};
-         if (getG(rgb) < Gmin) {Gmin = getG(rgb); Gmincolor = rgb;};
-         if (getG(rgb) > Gmax) {Gmax = getG(rgb); Gmaxcolor = rgb;};
-         if (getB(rgb) < Bmin) {Bmin = getB(rgb); Bmincolor = rgb;};
-         if (getB(rgb) > Bmax) {Bmax = getB(rgb); Bmaxcolor = rgb;};
+         if (getR(rgb) < Rmin) {Rmin = getR(rgb); Rmincolor = rgb; nRmincolor = lowx;};
+         if (getR(rgb) >= Rmax) {Rmax = getR(rgb); Rmaxcolor = rgb; nRmaxcolor = lowx;};
+         if (getG(rgb) < Gmin) {Gmin = getG(rgb); Gmincolor = rgb; nGmincolor = lowx;};
+         if (getG(rgb) >= Gmax) {Gmax = getG(rgb); Gmaxcolor = rgb; nGmaxcolor = lowx;};
+         if (getB(rgb) < Bmin) {Bmin = getB(rgb); Bmincolor = rgb; nBmincolor = lowx;};
+         if (getB(rgb) >= Bmax) {Bmax = getB(rgb); Bmaxcolor = rgb; nBmaxcolor = lowx;};
       };
       //ищем ось с максимальным (max-min) и берём оттуда maxcolor и mincolor
-      dist = Rmax-Rmin;
-      maxdist = dist; maxaxis = 0;
-      dist = Gmax-Gmin;
-      if (dist > maxdist) {maxdist = dist; maxaxis = 1;}
       dist = Bmax-Bmin;
-      if (dist > maxdist) {maxdist = dist; maxaxis = 2;}
+      maxdist = dist; maxaxis = 2;
+      dist = Gmax-Gmin;
+      if (dist >= maxdist) {maxdist = dist; maxaxis = 1;}
+      dist = Rmax-Rmin;
+      if (dist >= maxdist) {maxdist = dist; maxaxis = 0;}
       if (maxaxis == 0) {rgb1 = Rmincolor; rgb2 = Rmaxcolor;};
       if (maxaxis == 1) {rgb1 = Gmincolor; rgb2 = Gmaxcolor;};
       if (maxaxis == 2) {rgb1 = Bmincolor; rgb2 = Bmaxcolor;};
+    if (y==1) {
+      Memo1->Lines->Add(IntToStr(y)+':'+IntToStr(x8)+":Bmax="+IntToStr(Bmax)+",Bmin="+IntToStr(Bmin)+",Gmax="+IntToStr(Gmax)+",Gmin="+IntToStr(Gmin)+",Rmax="+IntToStr(Rmax)+",Rmin="+IntToStr(Rmin));
+      Memo1->Lines->Add(IntToStr(y)+':'+IntToStr(x8)+":nBmax="+IntToStr(nBmaxcolor)+",nBmin="+IntToStr(nBmincolor)+",nGmax="+IntToStr(nGmaxcolor)+",nGmin="+IntToStr(nGmincolor)+",nRmax="+IntToStr(nRmaxcolor)+",nRmin="+IntToStr(nRmincolor));
+      Memo1->Lines->Add(IntToStr(y)+':'+IntToStr(x8)+":maxaxis="+IntToStr(maxaxis));
+    };
 
       int r,g,b;
-      int i;
-#define ROUNDDOWN 64
-      r = (((int)getR(rgb2)-ROUNDDOWN)>>6);
-      g = (((int)getG(rgb2)-ROUNDDOWN)>>6);
-      b = (((int)getB(rgb2)-ROUNDDOWN)>>6);
+      int i,p;
+//#define ROUNDDOWN 64
+#define ROUNDDOWN 32
+      r = (((int)getR(rgb1)-16/*-ROUNDDOWN*/)>>6);
+      g = (((int)getG(rgb1)-ROUNDDOWN)>>6);
+      b = (((int)getB(rgb1)-ROUNDDOWN)>>6);
       if (r<0) r = 0;
       if (g<0) g = 0;
       if (b<0) b = 0;
-      i = t64to16[(b<<4) | (g<<2) | (r<<0)];
+      //i = t64to16[(b<<4) | (g<<2) | (r<<0)];
+    if (y==1) {
+      Memo1->Lines->Add(IntToStr(y)+':'+IntToStr(x8)+":r2="+IntToStr(getR(rgb2))+",g2="+IntToStr(getG(rgb2))+",b2="+IntToStr(getB(rgb2)));
+      Memo1->Lines->Add(IntToStr(y)+':'+IntToStr(x8)+":inkindex64="+IntToStr((b<<4) | (g<<2) | (r<<0)));
+    };
+      int reali = t64to16ink[(b<<4) | (g<<2) | (r<<0)];
+      i = ((reali&0x40)>>3) | (reali&7);
       r = pal16[i*3+0];
       g = pal16[i*3+1];
       b = pal16[i*3+2];
       rgb1attr = (b<<16) | (g<<8) | r;
 
 #define ROUNDUP 32
-      r = (((int)getR(rgb2)+ROUNDUP)>>6);
+      r = (((int)getR(rgb2)+16/*ROUNDUP*/)>>6);
       g = (((int)getG(rgb2)+ROUNDUP)>>6);
       b = (((int)getB(rgb2)+ROUNDUP)>>6);
       if (r>=4) r = 3;
       if (g>=4) g = 3;
       if (b>=4) b = 3;
-      i = t64to16[(b<<4) | (g<<2) | (r<<0)];
-      r = pal16[i*3+0];
-      g = pal16[i*3+1];
-      b = pal16[i*3+2];
+      p = t64to16[(b<<4) | (g<<2) | (r<<0)];
+      int realp = t64to16paper[(b<<4) | (g<<2) | (r<<0)];
+      r = pal16[p*3+0];
+      g = pal16[p*3+1];
+      b = pal16[p*3+2];
       rgb2attr = (b<<16) | (g<<8) | r;
+
+    //int realattr = ((p&8)<<4) | ((i&8)<<3) | ((p&7)<<3) | (i&7);
+    int realattr = reali | realp;
+    if (y==1) {
+      Memo1->Lines->Add(IntToStr(y)+':'+IntToStr(x8)+':'+IntToStr(p)+','+IntToStr(i)+'='+IntToStr(realattr));
+    };
 
       rgb1 = rgb1attr;
       rgb2 = rgb2attr;
-
+/*
     dist = abs(getR(rgb2)-getR(rgb1));
     maxdist = dist; maxaxis = 0;
     dist = abs(getG(rgb2)-getG(rgb1));
     if (dist > maxdist) {maxdist = dist; maxaxis = 1;}
     dist = abs(getB(rgb2)-getB(rgb1));
     if (dist > maxdist) {maxdist = dist; maxaxis = 2;}
+*/
+    maxdist = (maxdistdiv_fromattr[realattr]&0x3f)*4;
+    maxaxis = (maxaxis_fromattr[realattr]&0x3f) /8;
+    int min = min_fromattr[realattr];
+    //maxaxis = 2-maxaxis;
+
     /**/
     /*
     if (maxaxis == 0) maxdist = getR(rgb2)-getR(rgb1);
@@ -497,6 +527,7 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
 
       for (lowx = 0; lowx < 8; lowx++) {
          rgb = Image2->Canvas->Pixels[x8*8+lowx][y*2];
+          //rgb = (rgb&0xff)*0x010101;
 
          float intlevel = 0;
          if (maxdist > 10)
@@ -509,20 +540,22 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
          //if (intlevel > 1) intlevel = 1;
 
       int delta;
-      if (maxaxis == 0) delta = (getR(rgb)-getR(rgb1));
-      if (maxaxis == 1) delta = (getG(rgb)-getG(rgb1));
-      if (maxaxis == 2) delta = (getB(rgb)-getB(rgb1));
+      if (maxaxis == 0) delta = (getR(rgb)-min/*getR(rgb1)*/);
+      if (maxaxis == 1) delta = (getG(rgb)-min/*getG(rgb1)*/);
+      if (maxaxis == 2) delta = (getB(rgb)-min/*getB(rgb1)*/);
+
       delta = delta / 2;
-      if (delta < 0) delta = 0;
+      //if (delta < 0) delta = 0;
       delta = delta&0xff;
 
-      float dist_f = maxdist/256.;
+      /*float dist_f = maxdist/256.;
       float delta_f = delta/128.;
       float result = 0;
       if (dist > 10) result = delta_f/dist_f;
       if (result > 1) result = 1;
       if (delta >= 128) result = 0; //negative
-      //int intintlevel = (unsigned char)(int)(result*16+.5);
+      int intintlevel = (unsigned char)(int)(result*16+.5);
+      */
       int intintlevel = tdiv[256*(maxdist/4) + delta];
 
       int chunkpixel = (lowx&3) + ((y&3)<<2);
@@ -537,6 +570,10 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
           //rgb = (rgb<<8) + (unsigned char)((1-intlevel)*getR(rgb1attr) + (intlevel)*getR(rgb2attr));
          ImageOut->Canvas->Pixels[x8*8+lowx][y*2] = rgb;
          ImageOut->Canvas->Pixels[x8*8+lowx][y*2+1] = rgb;
+
+         if (realattr == 0xf1) {
+           Memo1->Lines->Add(IntToStr(intintlevel));
+         };
       };
     };
   };

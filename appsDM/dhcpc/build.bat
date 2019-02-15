@@ -1,5 +1,4 @@
 @ECHO OFF
-CLS
 setlocal enabledelayedexpansion
 
 set C_FILES=main.c
@@ -19,31 +18,20 @@ set LINK_OPTIONS=-FRAW-BINARY -o dhcpc.com -C %IARLIB%\clz80 -f Lnk.xcl
 
 if not exist list mkdir list
 
-echo ---------------Compiling C_FILES---------------
+echo Compiling dhcpc.com ...
 FOR %%a IN (!C_FILES!) do (
-	echo %%a
+	rem echo %%a
 	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~na.r01
-	%ICCZ80% %C_OPTIONS% %%a > err.log & if errorlevel 1 goto errexit
-	FINDSTR "Warning[" err.log >nul & if NOT errorlevel 1 TYPE err.log
+	%ICCZ80% -S %C_OPTIONS% %%a
 )
 
-echo --------------Compiling ASM_FILES--------------
+rem echo --------------Compiling ASM_FILES--------------
 FOR %%a IN (!ASM_FILES!) do (
-	echo %%a
+	rem echo %%a
 	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~na.r01
-	%AZ80% -Olist\ %%a > err.log & if errorlevel 1 goto errexit
-	FINDSTR "Warning[" err.log >nul & if NOT errorlevel 1 TYPE err.log
+	%AZ80% -S -Olist\ %%a 
 )
 
-echo ------------------Linking files----------------
-echo !ADD_LINK_FILES!
-@ECHO ON
-%XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
-
-
-exit /b
-
-:errexit
-TYPE err.log
-
-exit /b
+rem echo ------------------Linking files----------------
+rem echo !ADD_LINK_FILES!
+%XLINK% -S !ADD_LINK_FILES! !LINK_OPTIONS!

@@ -210,6 +210,7 @@ void parseOffer(void){
 void main(void){ 
 	unsigned char st=0;
 	YIELD();
+	OS_SETGFX(6);
 	printf("dhcpc v.%s %s",__DATE__,__TIME__);
 	my_im2_init(myint);
 	enable_interrupt();
@@ -248,7 +249,7 @@ void main(void){
 	memcpy(SUBR,mask,4);
 	memcpy(SIPR,ip,4);
 	disable_interrupt();
-	output(0x82ab,0x40);
+	output(0x82ab,0x50);
 	output(0xb7f7,save_pg);
 	interrupt_mode_1();
 	enable_interrupt();

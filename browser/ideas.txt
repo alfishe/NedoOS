@@ -747,7 +747,7 @@ _=_+1
         ld d,(hl) ;d=maxcolor16=ink
         ld l,e ;mincolor
         ;ld h,chrbuf/256
-;округлять вниз! -64 (найдено подбором)
+;округлять вниз! -32 (найдено подбором)
         ld a,(hl) ;G
          sub 64
          jr nc,$+3
@@ -802,6 +802,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch0 ;chunklevel[x%4][y%4]
@@ -809,6 +810,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch1 ;chunklevel[x%4][y%4]
@@ -816,6 +818,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch2 ;chunklevel[x%4][y%4]
@@ -823,6 +826,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch3 ;chunklevel[x%4][y%4]
@@ -831,6 +835,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch0 ;chunklevel[x%4][y%4]
@@ -838,6 +843,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch1 ;chunklevel[x%4][y%4]
@@ -845,6 +851,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch2 ;chunklevel[x%4][y%4]
@@ -852,6 +859,7 @@ _=_+1
         ld a,(hl) ;R(pixel)
         inc l
         sub b ;Rmin
+         rra ;на случай отрицательных
         ld e,a ;d=maxdistdiv
         ld a,(de) ;inklevel
         cp ch3 ;chunklevel[x%4][y%4]
@@ -862,7 +870,7 @@ _=_+1
         inc de
         exx
         endm
-;таких 4 шт (для разных фаз y) - как в них входить? сделать 4 версии всей простыни? (всё равно в ней нет меток)
+;таких 4 шт (для разных фаз y)
 
  ;0 бессмысленно (всегда NC), поэтому все значения увеличены на 1:
 dithermcy0
@@ -924,3 +932,7 @@ _3=$&8
 _210=$&7
         nop ;db (_3*0x10) + (_210*0x08) ;надо генерировать из заданной палитры
         edup
+
+        
+RTAB,GTAB,BTAB не используются?
+

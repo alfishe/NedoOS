@@ -525,6 +525,8 @@ BDOS_cls
         ld a,(iy+app.gfxmode)
         and 7
         jr z,BDOS_cls_EGA
+         cp 2 ;MC hires
+         jr z,BDOS_cls_EGA ;TODO отдельную очистку для MC hires
 ;textmode
         ld a,e ;attr byte
         ld hl,#81c0
