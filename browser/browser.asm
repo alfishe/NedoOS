@@ -1,12 +1,18 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 
+;откатываем указатель файла после заголовка bmp - TODO поддержать в trdosfs
+        
+FREE=0x8000 ;для динамической памяти
+
 DISKBUF=0xb000
 DISKBUFsz=0x1000
 
 COLOR=7
 
 GIF_PIXELSIZE=0
+
+       MACRO rdbyte        INC LY        LD A,(IY)        CALL Z,RDBYH       ENDM 
 
 ;b=R/G/Bmin
 ;de на начале буфера R/G/B
@@ -102,12 +108,11 @@ cmd_begin
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
-        ;ld (curpg4000),a
+        ld (codepg4000),a
         ld a,h
-        ;ld (curpgpal),a
+        ld (codepg8000),a
         ld a,l
         ld (curpgLZW),a
-        ;ld (curpgtemp),a
 
 ;for JPEG:
         OS_NEWPAGE
@@ -129,10 +134,37 @@ cmd_begin
         ld a,e
         ld (tpgs+5),a
 
+        OS_NEWPAGE
+        ld a,e
+        ld (temppg8000),a
+
         
         ld e,0;COLOR
         OS_CLS
 
+        
+        call setpgs_scr
+
+codepg4000=$+1
+        ld a,0
+        SETPG16K
+
+        ld de,0xc000;0x0801
+        call setxymc
+        ld de,COMMANDLINE
+        call prtextmc
+        
+        ;ld de,0x1002
+        ;call setxymc
+        ;ld de,COMMANDLINE
+        ;call prtextmc
+
+temppg8000=$+1
+        ld a,0
+        SETPG32KLOW
+
+        
+        
         ld hl,COMMANDLINE ;command line
         call skipword
         call skipspaces
@@ -150,7 +182,7 @@ cmd_begin
 
         ;ld hl,0
         ;ld de,0
-
+       LD IY,DISKBUF+DISKBUFsz-1
         call GETBYTE_slow
         cp 'G'
         jp z,loadgif
@@ -200,25 +232,31 @@ loadbmp_skipheader0
         call GETDWORD_slow
         ld (curpichgt),de
         
-        ld b,54-26
-loadbmp_skipheader1
-        call GETBYTE_slow
-        djnz loadbmp_skipheader1
+;        ld b,54-26
+;loadbmp_skipheader1
+;        call GETBYTE_slow
+;        djnz loadbmp_skipheader1
+        
+        ld de,0
+        ld hl,0 ;dehl=shift in file
+        ld a,(filehandle)
+        ld b,a
+        OS_SEEKHANDLE
         
 nvview_load0
         ;push bc
-        push de
-        push hl
+        ;push de
+        ;push hl
         call reservepage
-        pop hl
-        pop de
+        ;pop hl
+        ;pop de
         ;pop bc
         ret nz ;no memory
 
         ;push bc
         
-        push de
-        push hl
+        ;push de
+        ;push hl
         ld de,0xc000
         ld hl,0x4000
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
@@ -231,16 +269,16 @@ nvview_load0
         ld hl,0x4000
         or a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
-        pop hl
-        pop de
+        ;pop hl
+        ;pop de
 
-        push af ;NZ = bytes to read != bytes actually read
-        ex de,hl
-        add hl,bc
-        ex de,hl
-        jr nc,$+3
-        inc hl
-        pop af ;NZ = bytes to read != bytes actually read
+        ;push af ;NZ = bytes to read != bytes actually read
+        ;ex de,hl
+        ;add hl,bc
+        ;ex de,hl
+        ;jr nc,$+3
+        ;inc hl
+        ;pop af ;NZ = bytes to read != bytes actually read
 
         ;pop bc
 
@@ -251,45 +289,52 @@ nvview_load0
         ld (scrstartaddr),hl
         ld hl,-40
         ld (scrlinestep),hl
+        ld hl,54
+        xor a
+        ld (bmpstart),hl
+        ld (bmpstartHSB),a
         
         jr loadq
         
 loadjpeg
+        ld hl,(putchar_hl)
+        ld a,(putchar_a)
+        ld (bmpstart),hl
+        ld (bmpstartHSB),a
+        
         call readjpeg
 
-        ld hl,0x8000
-        ld (scrstartaddr),hl
-        ld hl,40
-        ld (scrlinestep),hl
-        jr loadq
+        jr loadq_fromtop
         
 loadgif
-;hlde=0
+        ld hl,(putchar_hl)
+        ld a,(putchar_a)
+        ld (bmpstart),hl
+        ld (bmpstartHSB),a
+        
         call readgif
 
+loadq_fromtop
         ld hl,0x8000
         ld (scrstartaddr),hl
         ld hl,40
         ld (scrlinestep),hl
+        ld hl,0
+        ld (bmpstart),hl
         
-;hlde=true file size (for TRDOSFS)
 loadq
-        
-;hlde=true file size (for TRDOSFS)
-        ;ld (fcb+FCB.FSIZE),de
-        ;ld (fcb+FCB.FSIZE+2),hl
-        
-        ;ld a,(filehandle)
-        ;ld b,a
-        ;OS_CLOSEHANDLE
+
         call closefile
         
-noautoload
+;noautoload
 
         ld de,zxpal
         ld c,CMD_SETPAL
         CALLBDOS
 
+codepg8000=$+1
+        ld a,0 ;tdiv
+        SETPG16K ;0x4000
 
         ld hl,(curpicwid)
         dec hl ;для округления вверх
@@ -306,8 +351,10 @@ noautoload
         ld a,80
         ld (fillwid8),a
         
+bmpstartHSB=$+1
         ld a,0
-        ld hl,0;+(640*3)
+bmpstart=$+1
+        ld hl,0;54
         exx
 
         ld hl,(curpichgt)
@@ -317,12 +364,13 @@ noautoload
         ld bc,200
         call minhl_bc_tobc
         ld b,c
-        ;ld b,200
+       
+        ld iy,colorlace0 ;1 хуже
+        ld ix,dithermcy0
        
 scrstartaddr=$+1
         ld hl,0x8000
 fill0
-        ;ld hy,b
 ;ahl' = readaddr
 ;hl = attraddr
         push bc
@@ -333,38 +381,32 @@ fill0
         push hl
         exx
         
-        push af
-        push hl
-        ;ld a,b
-         ld a,200
-         sub b
-        and 3
-        add a,a
-        ld l,a
-        ld h,0
-        ld bc,tdithermcpatch
-        add hl,bc
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-        ld (dithermc1b_patch),de
-        pop hl
-        pop af
+        ld e,(iy-2)
+        ld d,(iy-1)
+        ld hy,d
+        ld ly,e
+        
+        ld e,(ix-2)
+        ld d,(ix-1)
+        ld hx,d
+        ld lx,e
 
 fillwid8=$+1        
-        ld b,80 ;TODO patch, TODO x not multiple of 8
+        ld b,80
+        ;jr $
 fill1
 ;цикл = 3130t/8pix
-        ld d,h
+        ld d,h ;hl=адрес атрибутов
         ld e,l
-        set 6,d
+        set 6,d ;de=адрес пикселей
         push bc
         exx
         call readchr ;859t
         ex af,af' ;push af
         push hl
         call setpgs_scr ;177t
-        call convertchr ;1990t
+        jp convertchr ;1980t
+convertchrq
         pop hl
         exx
         ld a,h
@@ -423,7 +465,28 @@ skipline
         inc a
         ret
 
-;TODO читать быстро, а потом откатывать IY
+RDWORD
+        CALL RDBYTE        LD H,A        CALL RDBYTE        LD L,A        RET  
+RDBYTE        INC LY        LD A,(IY)        RET NZRDBYH        INC HY        LD A,HY;RDBYHend=$+1        CP DISKBUF/256+(DISKBUFsz/256)        ;JR Z,rDDSK        LD A,(IY)
+         ccf ;CY=0: OK        RET nz;rDDSK       PUSH HL       PUSH DE        PUSH BC
+        push IX       CALL rdCS       EXA        PUSH AF        exx
+        push bc
+        push de
+        push hl
+        ld de,DISKBUF
+        ld hl,DISKBUFsz
+filehandle=$+1
+        ld b,0
+        OS_READHANDLE
+        pop hl
+        pop de
+        pop bc
+        exx
+       POP AF       EXA         POP IX
+        pop BC       POP DE
+         pop hl       ld iy,DISKBUF       LD A,(IY)
+       or a ;CY=0: OK        RET 
+;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
 ;hlde
         call GETBYTE_slow
@@ -436,25 +499,8 @@ GETDWORD_slow
         ld h,a
         ret
         
-GETBYTE_slow
-        push bc
-        push de
-        push hl
-;B = file handle, DE = Buffer address, HL = Number of bytes to read
-        ld de,GETBYTE_slow_buf
-        ld hl,1
-        ld a,(filehandle)
-        ld b,a
-        OS_READHANDLE
-;HL = Number of bytes actually read, A=error
-GETBYTE_slow_buf=$+1
-        ld a,0
-        pop hl
-        pop de
-        pop bc
-        ret
-
-readchr
+GETBYTE_slow=RDBYTE
+ readchr
 ;b,g,r
 ;TODO с масштабированием и с учётом правого края картинки, не делящегося на 8
         ;push bc
@@ -610,24 +656,118 @@ _=_+1
 ;e=mincolor
 ;берём рекордные цвета (в виде color16):
 ;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
+;colorlace_patch=$+1
+        jp (iy) ;colorlace0 ;/1
+
+ROUNDUP=32
+ROUNDDOWN=32
+
+        dw colorlace1
+colorlace0
+;d=maxcolor
+;e=mincolor
+;берём рекордные цвета (в виде color16):
+;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
         ld h,chrbuf/256
         ld l,d ;maxcolor
-;округлять вверх! +32 (найдено подбором)
+        ld c,(hl) ;G
+        res 3,l
+        ld b,(hl) ;R
+        set 4,l
+        ld a,(hl) ;B
+        rlca
+        rlca
+        rl c
+        rla
+        rl c ;g
+        rla
+        rl b
+        rla
+        rl b ;r
+        rla ;BBGGRR
+        or 0xc0
+        ld l,a
+        ;ld h,t64to16paper/256
+       ; ld d,(hl) ;d=maxcolor16=paper
+       ; ld l,e ;mincolor
+       ld d,h
+        ;ld h,chrbuf/256
+         ;ld e,ROUNDDOWN
+        ld a,(de);(hl) ;G
+         sub ROUNDDOWN
+         jr nc,$+3
+         xor a
+        ld c,a
+        res 3,l
+        ld a,(de);(hl) ;R
+         sub ROUNDDOWN
+         jr nc,$+3
+         xor a
+        ld b,a
+        set 4,l
+        ld a,(de);(hl) ;B
+         sub ROUNDDOWN
+         jr nc,$+3
+         xor a
+        rlca
+        rlca
+        rl c
+        rla
+        rl c ;g
+        rla
+        rl b
+        rla
+        rl b ;r
+        rla ;BBGGRR
+        and 0x3f
+        ld e,a;l,a
+        ;ld h,t64to16ink/256
+        ;ld a,(hl) ;a=mincolor16=ink
+        ;or d
+       ld a,(de)
+       or (hl)       
+;a=attr
+        exx
+        ld (hl),a ;записать attr
+        exx
+;по реальным атрибутам заново пересчитать maxaxis, min, maxdist! (проверено, что без этого получается пятнистость):
+        ld d,h
+        dec h ;ld h,tmaxaxis/256+2
+        ld l,a
+        ld e,(hl) ;maxaxis*8
+        dec h
+        ld b,(hl) ;min
+        dec h
+        ld h,(hl) ;maxdistdiv
+;b=R/G/Bmin
+;de на начале буфера R/G/B
+;h=maxdistdiv
+;в диферинге ходим только по одной составляющей, остальные не читаем:
+        jp (ix) ;dithermcy0/1/2/3
+
+        dw colorlace0
+colorlace1
+;d=maxcolor
+;e=mincolor
+;берём рекордные цвета (в виде color16):
+;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
+        ld h,chrbuf/256
+        ld l,d ;maxcolor
+         ld d,ROUNDUP
         ld a,(hl) ;G
-ROUNDUP=32
-         add a,ROUNDUP
+         add a,d;ROUNDUP
          jr nc,$+3
          sbc a,a
         ld c,a
         res 3,l
         ld a,(hl) ;R
-         add a,8;16;ROUNDUP;16 ;подгонка на лицах, но тогда greyscale становится розовым
+         add a,d;ROUNDUP
          jr nc,$+3
          sbc a,a
         ld b,a
         set 4,l
         ld a,(hl) ;B
-         add a,ROUNDUP
+         add a,d;ROUNDUP
          jr nc,$+3
          sbc a,a
         rlca
@@ -646,32 +786,12 @@ ROUNDUP=32
         ld d,(hl) ;d=maxcolor16=paper
         ld l,e ;mincolor
         ;ld h,chrbuf/256
-;округлять вниз! -32 (найдено подбором)
-        if 1==0
+
         ld c,(hl) ;G
         res 3,l
         ld b,(hl) ;R
         set 4,l
         ld a,(hl) ;B
-        else
-        ld a,(hl) ;G
-ROUNDDOWN=32
-         sub ROUNDDOWN
-         jr nc,$+3
-         xor a
-        ld c,a
-        res 3,l
-        ld a,(hl) ;R
-         sub 8;0;ROUNDDOWN;16 ;подгонка на лицах, но тогда greyscale становится розовым
-         jr nc,$+3
-         xor a
-        ld b,a
-        set 4,l
-        ld a,(hl) ;B
-         sub ROUNDDOWN
-         jr nc,$+3
-         xor a
-        endif
         rlca
         rlca
         rl c
@@ -688,20 +808,9 @@ ROUNDDOWN=32
         ld a,(hl) ;a=mincolor16=ink
         or d
 ;a=attr
-        ;cp %11110110 ;p=0e,i=0e
-        ;cp %01111110 ;p=07,i=0e
-        ;dec hy
-        ;dec hy
-        ;jr nz,$+2+2+2
-        ;cp #f1
-        ;jr z,$
-        ;inc hy
-        ;inc hy
-         ;ld a,0x38 ;%00111000
         exx
         ld (hl),a ;записать attr
         exx
-        
 ;по реальным атрибутам заново пересчитать maxaxis, min, maxdist! (проверено, что без этого получается пятнистость):
         ld d,h
         dec h ;ld h,tmaxaxis/256+2
@@ -711,38 +820,33 @@ ROUNDDOWN=32
         ld b,(hl) ;min
         dec h
         ld h,(hl) ;maxdistdiv
-        
 ;b=R/G/Bmin
 ;de на начале буфера R/G/B
 ;h=maxdistdiv
 ;в диферинге ходим только по одной составляющей, остальные не читаем:
-dithermc1b_patch=$+1
-        jp dithermcy0
-
-
+        jp (ix) ;dithermcy0/1/2/3
+        
  ;0 бессмысленно (всегда NC), поэтому все значения увеличены на 1:
+        dw dithermcy2
 dithermcy3
         DITHERMC1B 0x1, 0xd, 0x3, 0xf
-        ;DITHERMC1B 0x0, 0xc, 0x2, 0xe
-        ret
+        jp convertchrq
+        
+        dw dithermcy1
 dithermcy2
         DITHERMC1B 0x9, 0x5, 0xb, 0x7
-        ;DITHERMC1B 0x8, 0x4, 0xa, 0x6
-        ret
+        jp convertchrq
+        
+        dw dithermcy0
 dithermcy1
         DITHERMC1B 0x4, 0x10, 0x2, 0xe
-        ;DITHERMC1B 0x3, 0x0f, 0x1, 0xd
-        ret
+        jp convertchrq
+        
+        dw dithermcy3
 dithermcy0
         DITHERMC1B 0xc, 0x8, 0xa, 0x6
-        ;DITHERMC1B 0xb, 0x7, 0x9, 0x5
-        ret
-
-tdithermcpatch
-        dw dithermcy0
-        dw dithermcy1
-        dw dithermcy2
-        dw dithermcy3
+        jp convertchrq
+        
         
         
 skipword
@@ -816,12 +920,17 @@ unreservepage_fail
         ret ;nz
         
 reserve_bmp_pages
+;TODO резервировать блок памяти, а не страницы!
         ld de,(curpichgt)
         ld bc,(curpicwidx3)
         CALL MULWORD
         ld d,b
         ld e,c
         ;hlde=bmp size
+        
+        if 1==0
+        
+        push iy
 ;ищем адрес последнего байта картинки
         ex de,hl
         ld bc,0
@@ -847,7 +956,143 @@ reserve_bmp_pages_fail
         pop hl
         pop bc
         djnz reserve_bmp_pages0
+        pop iy
         ret
+        
+        endif
+        
+reserve_mem
+;hlde=size
+freemem_hl=$+1
+        ld bc,0
+freemem_a=$+1
+        ld a,0
+
+;freemem может указывать на начало пока не заказанной страницы
+;1.если (freememaddr&0x3fff) == 0, то заказать страницу
+;2.если остаток страницы >= hlde, то сдвигаем freememaddr и выходим
+;3.уменьшить hlde на длину остатка страницы
+;4.сдвинуть freememaddr на начало следующей страницы
+;5.goto 1
+;TODO уметь откатывать заказанные страницы, если не хватает памяти
+reserve_mem0
+;если (freememaddr&0x3fff) == 0, то заказать страницу:
+         ;inc b
+         ;djnz reserve_mem_noreservepage
+         ;push bc
+         ;sla b
+         ;sla b
+         ;pop bc
+         ;jr nz,reserve_mem_noreservepage
+        push af
+        ld a,b
+        and 0x3f
+        or c
+        jr nz,reserve_mem_noreservepage
+        push bc
+        push de
+        push hl
+        push iy
+reserve_mem_pages_fail
+        call reservepage
+        or a
+        jr nz,reserve_mem_pages_fail ;repeat until success
+        pop iy
+        pop hl
+        pop de
+        pop bc
+reserve_mem_noreservepage
+        pop af
+;если остаток страницы >= hlde (при прибавлении freememaddr+hlde-1 не меняется номер страницы), то сдвигаем freememaddr и выходим:
+        inc h
+        dec h
+        jr nz,reserve_mem_nolast
+        inc l
+        dec l
+        jr nz,reserve_mem_nolast
+   ;hldeHSW=0
+        push bc
+        push hl
+   ;bc=freememaddr&0xffff
+        res 7,b
+        res 6,b
+   ;bc=0..0x3fff
+        ld hl,0x4000
+        or a
+        sbc hl,bc ;NC
+   ;hl = остаток страницы = 0x4000..1
+        ;or a
+        sbc hl,de ;остаток страницы-hlde
+        pop hl
+        pop bc
+        jr c,reserve_mem_nolast
+ ;сдвигаем freememaddr и выходим:        
+        ex de,hl
+        add hl,bc
+        adc a,0 ;т.к. могли попасть ровно на конец страницы
+        ld (freemem_hl),hl
+        ld (freemem_a),a
+        ret
+reserve_mem_nolast
+;уменьшить hlde на длину остатка страницы:
+        push bc
+        push hl
+   ;bc=freememaddr&0xffff
+        res 7,b
+        res 6,b
+   ;bc=0..0x3fff
+        ld hl,0x4000
+        or a
+        sbc hl,bc
+        ld b,h
+        ld c,l
+   ;bc = остаток страницы = 0x4000..1
+        pop hl
+        ex de,hl
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr nc,$+3
+        dec hl ;hlde = hlde - остаток страницы
+        pop bc
+;сдвинуть freememaddr на начало следующей страницы:
+        sla c
+        rl b
+        rla
+        sla c
+        rl b
+        rla
+        ;dec abc:
+        dec c
+        jr nz,reserve_mem_nolast_decabcq
+        dec b
+        djnz reserve_mem_nolast_decabcq
+        dec a
+reserve_mem_nolast_decabcq
+        inc a   ;next pg
+        ld bc,0 ;
+        srl a
+        rr b
+        rr c
+        srl a
+        rr b
+        rr c
+        jr reserve_mem0
+        
+
+MULWORD
+;out: HLBC=DE*BC
+        LD HL,0
+        LD A,17
+MULWOR0 RR B
+        RR C
+        DEC A
+        RET Z
+        JR NC,$+3
+        ADD HL,DE
+        RR H
+        RR L
+        JR MULWOR0
 
 readbyte
 ;out: c
@@ -902,25 +1147,10 @@ setpgs_scr_high=$+1
         SETPG32KHIGH
         ret
 
-readdiskbuf
-        exx
-        push bc
-        push de
-        push hl
-        ld de,DISKBUF
-        ld hl,DISKBUFsz
-filehandle=$+1
-        ld b,0
-        OS_READHANDLE
-        pop hl
-        pop de
-        pop bc
-        exx
-        ret
-
 putline
 ;hl=откуда копируем строку
 ;bc=сколько байт копируем
+;на выходе сдвигает указатель, куда копируем (putchar_hl, putchar_a)
         ld (putchar_ldir_hl),hl
         push bc
         
@@ -1001,23 +1231,24 @@ curpichgt
 zxpal
         incbin "zxpal"
         
+
+filename
+        db "0:/hippiman.bmp",0
+        ;db "0:/melnchud.bmp",0
+        ;db "0:/melnchud.gif",0
+        ;db "0:/girl.jpg",0
+        ;db "index.htm",0
+
+        include "gif.asm"
+        include "jpeg.asm"
+        
+oldtimer
+        dw 0
         
         align 256
 textpages
         ds 256
 
-oldtimer
-        dw 0
-
-filename
-        ;db "0:/hippiman.bmp",0
-        ;db "0:/melnchud.bmp",0
-        ;db "0:/melnchud.gif",0
-        db "0:/girl.jpg",0
-
-        include "gif.asm"
-        include "jpeg.asm"
-        
         align 256
 tmaxaxis ;maxdistdiv_fromattr[256], min_fromattr[256], maxaxis_fromattr[256]
         incbin "tmaxaxis"
@@ -1043,6 +1274,79 @@ endcode=$
         ;ds 0x1000
 
         ds 0x4000-$ ;stack
+
+fnt
+        incbin "1125vert.fnt"
+
+prtextmc
+prtextmc0
+        ld a,(de)
+        or a
+        ret z
+        push de
+        call prcharmc
+        pop de
+        inc de
+        jp prtextmc0
+        
+prcharmc
+;a=code
+;hl=scraddr
+        ld e,a
+        ld d,fnt/256
+        ld bc,40
+        ;push hl
+        dup 7
+        ld a,(de)
+        ld (hl),a
+        inc d
+        add hl,bc
+        edup
+        ld a,(de)
+        ld (hl),a
+        
+        res 6,h
+prcharmc_attr=$+1
+        ld a,7
+        ld bc,-40
+        dup 7
+        ld (hl),a
+        add hl,bc
+        edup
+        ld (hl),a
+        
+        ;set 6,h
+        ;pop hl
+        ld a,h
+        xor 0x60
+        cp 0xe0;h
+        ld h,a
+        ret nc
+        inc l
+        ret
+        
+setxymc
+;de=yx (kept)
+;out: hl=0xc000+
+        ld b,0
+        ld c,d
+        ld h,b
+        ld l,c
+        add hl,hl
+        add hl,hl
+        add hl,bc ;*5
+        add hl,hl
+        add hl,hl
+        add hl,hl ;*40
+        ld c,e
+         srl c
+        ld b,0xc0
+         jr nc,$+4
+         ld b,0xe0
+        add hl,bc
+        ret
+
+        ds 0x8000-$
         
         incbin "tdiv"
         

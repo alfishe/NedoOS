@@ -60,7 +60,8 @@ nedotrd test.trd -a bin/basic.com
 nedotrd test.trd -a bin/diff.com
 nedotrd test.trd -a bin/setfont.com
 nedotrd test.trd -a bin/browser.com
-nedotrd test.trd -a setfont/866_code.fnt
+nedotrd test.trd -a browser/index.html
+rem nedotrd test.trd -a setfont/1125code.fnt
 nedotrd test.trd -a gfxed/lanscape.bmp
 nedotrd test.trd -a autoexec.bat
 

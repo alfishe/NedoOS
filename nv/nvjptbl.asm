@@ -60,6 +60,6 @@ nnvcmds=$-tnvcmds
         dw editcmd_left
         dw editcmd_backspace
         dw editcmd_enter
-        dw editcmd_reprintall
+        dw editcmd_reprintall_keepcursor
      
         

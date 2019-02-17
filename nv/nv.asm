@@ -91,6 +91,17 @@ readsortdrawpanel
 	call sortfiles
 	jp drawpanel_with_files
 
+readpanels_reprint_keepcursor
+	ld e,COLOR
+	OS_CLS
+	ld ix,leftpanel
+	call readsortdrawpanel_keepcursor
+	ld ix,rightpanel
+readsortdrawpanel_keepcursor
+	call readdir_keepcursor
+	call sortfiles
+	jp drawpanel_with_files
+
 	
 drawpanel_with_files
 ;ix=panel
@@ -246,6 +257,14 @@ prdirfile
 
 readdir
 ;ix=panel
+        call readdir_keepcursor
+nv_setcursor_zero
+        ld bc,0
+        call nv_setdirscroll_bc
+        jp nv_setdirpos_zero
+
+readdir_keepcursor
+;ix=panel
         xor a
         ld (ix+PANEL.totalsize),a
         ld (ix+PANEL.totalsize+1),a
@@ -337,13 +356,16 @@ sortfiles_0
 	or c
 	jr nz,sortfiles_0
 
-        ;ld bc,0
-        call nv_setdirscroll_bc
-        call nv_setdirpos_zero
         call countfiles
         ld (ix+PANEL.filesdirs),l
         ld (ix+PANEL.filesdirs+1),h
-	ret
+        
+        ex de,hl
+        call nv_getdirpos_hl
+        or a
+        sbc hl,de ;dirpos<files?
+        ret c ;OK
+	jp nv_setcursor_zero
 
 controlloop
         call fixscroll_prcmd
@@ -1057,6 +1079,10 @@ editcmd_0
 editcmd_9
         call ifcmdnonempty_typedigit
         ret
+
+editcmd_reprintall_keepcursor
+	call readpanels_reprint_keepcursor
+        jp editcmd_readprompt_setendcmdx
 
 editcmd_reprintcurdir
         ld hl,leftpanel+PANEL.dir

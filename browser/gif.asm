@@ -1,10 +1,29 @@
 
-FREE=0x8000 ;адрес для сборки строк
+;FREE=0x8000 ;адрес для сборки строк
 ROL_TAB=0xa000 ;,0x1000 ;L0>>n (16 bit)
 PAL_GLOB=0x9a00 ;,0x300 ;глобальная таблица цветов
 PAL_LOCAL=0x9d00 ;,0x300 ;локальная таблица цветов
 
+        macro GIFINITCY
+        ;or a
+        endm
+
+        macro GIFGETBYTE
+        rdbyte
+        ;ret c
+        endm
+
+        macro GIFGETBYTE_noret
+        rdbyte
+        endm
+
+        macro GIFGETWORD
+        call GIF_GETWORD
+        ;ret c
+        endm
+
 readgif
+        ;jr $
         CALL ROL_INSTALL
         CALL GIFSEARCH
         RET C
@@ -13,44 +32,41 @@ readgif
 ;""""""""""""""""""""""P
 GIF_LP0
 ;Начало цикла обработки кадра? GIF-изображения
-        CALL GETBYTE
-        RET C
+        GIFINITCY
+        GIFGETBYTE
         CP #2C
         JP Z,GIF_IMG
         CP #21
-        JR Z,GIF_SPEC
-        CP #3B
-        ret z
-        ret ;неопознаный блок,выход по ошибке.
+        ;JR Z,GIF_SPEC
+        ;CP #3B ;???
+        ;ret z
+        ret nz ;неопознанный блок, выход по ошибке
 
-;GIF_QT  XOR A
-;        SCF 
-;        RET 
 ;"""""""""""""""""""""""
 GIF_SPEC;Специальный фрейм.
-        CALL GETBYTE
-        RET C
+        GIFINITCY
+        GIFGETBYTE
 ;       CP #FF
-;       JR NZ,GIF_QT;Неопознаное приложение
-        ;HELP
-GIF_HELP CALL GETBYTE
-        RET C
+;       JR NZ,GIF_fail ;Неопознаное приложение
+GIF_HELP
+        GIFGETBYTE
         OR A
         JP Z,GIF_LP0
         LD B,A
-GIF_HP0 CALL GETBYTE    ;Пропустить HELP...
-        RET C
+GIF_HP0 
+        GIFGETBYTE    ;Пропустить HELP...
         DJNZ GIF_HP0
         JR GIF_HELP
 
 ;"""""""""""""""""""""""
 GIF_IMG ;Обработка блока изображения.
-        CALL GETWORD
+        GIFINITCY
+        GIFGETWORD
         LD (X_IMG),HL
-        CALL NC,GETWORD
+        GIFGETWORD
         LD (Y_IMG),HL
          ;LD (Y_WORK),HL
-        CALL NC,GETWORD
+        GIFGETWORD
         LD (DX_IMG),HL ;локальная ширина
          LD (pixelcounter_back),HL
          ret c
@@ -59,10 +75,9 @@ GIF_IMG ;Обработка блока изображения.
          add hl,hl
          add hl,bc
          ld (DX_IMGx3),hl
-        CALL GETWORD
+        GIFGETWORD
         LD (DY_IMG),HL ;локальная высота
-        CALL NC,GETBYTE
-        RET C
+        GIFGETBYTE
 
         LD HL,FREE
         ld de,(X_IMG) ;локальное начало строки
@@ -95,14 +110,13 @@ pixelcounter_back=$+1
 
 ;========================
 ;НаЧало разборки отдельного блока графики.
-        CALL SETPAG0
+        CALL gifsetpgLZW
         XOR A
         LD (GETCOD0+1),A ;количество бит в наличии
         LD (GETCHR0+1),A
         LD (GIF_IMG_ENDcode),A
         ;___________
-        CALL GETBYTE
-        RET C
+        GIFGETBYTE
         LD (LZW_SIZE),A
 ;"""""""""""""""""""""""
 GIF_IMG0 CALL LZW_INSTALL
@@ -210,7 +224,7 @@ DX_IMGx3=$+1
 ;bc=сколько байт копируем
         call putline
         
-        CALL SETPAG0
+        CALL gifsetpgLZW
 
         exx
         ld bc,(DX_IMG) ;локальная ширина
@@ -221,21 +235,6 @@ linebufstart_local=$+1
         exx
         ret
 
-;__________________________________
-MULWORD ;Умножение слова на слово.
-        ;Вход: DE=Множимое,BC=множитель.
-        ;Выход:HLBC=DE*BC
-        LD HL,0
-        LD A,17
-MULWOR0 RR B
-        RR C
-        DEC A
-        RET Z
-        JR NC,$+3
-        ADD HL,DE
-        RR H
-        RR L
-        JR MULWOR0
 ;__________________________________________
 NEW_CODE;добавить в таблицу цепоЧек Элемент, состояЩий
         ;из ссылки на OLD, и символа из А.
@@ -460,7 +459,7 @@ GETCHR0 LD A,0  ;КолиЧество байт,оставШееся в текуЩем блоке.
         JR Z,GETCHR5
 GETCHR2 DEC A
         LD (GETCHR0+1),A
-        CALL GETBYTE
+        GIFGETBYTE_noret
         ret nc ;нормальный выход, А=данное
 GETCHR_fail
         PUSH HL
@@ -469,8 +468,8 @@ GETCHR_fail
         POP HL
         SCF     ;ОШибка Чтения байта...
         RET 
-
-GETCHR5 CALL GETBYTE
+GETCHR5
+        GIFGETBYTE_noret
         JR C,GETCHR_fail
 GETCHR1 OR A
         JP NZ,GETCHR2
@@ -577,26 +576,25 @@ GETCOD_fail ;ОШибка в выборке байтов.
 GIF_LOGSCR      ;Обработка дескриптора логиЧеского Экрана.
          ld a,PAL_GLOB/256
          ld (putchar_palH),a
-        CALL GETWORD
-         ret c
+        GIFINITCY
+        GIFGETWORD
         LD (curpicwid),HL
         ld b,h
         ld c,l
         add hl,hl
         add hl,bc
         ld (curpicwidx3),hl
-        CALL GETWORD
+        GIFGETWORD
         LD (curpichgt),HL
-         ret c
         
         call reserve_bmp_pages
         
-        CALL GETBYTE
+        GIFINITCY
+        GIFGETBYTE
         LD C,A
-        CALL NC,GETBYTE
+        GIFGETBYTE
         ;LD (FON_COLOR),A ;TODO прозрачность???
-        CALL NC,GETBYTE
-        RET C
+        GIFGETBYTE
         LD (X_Y_GIF),A
         LD A,C
         LD HL,PAL_GLOB
@@ -620,40 +618,42 @@ GIF_PAL0
         DJNZ GIF_PAL0
         ld b,a
         ;B=длина палитры в триплетах RGB (min=2, max=256)
+        GIFINITCY
 GIF_PAL1
         inc h
         inc h
-        CALL GETBYTE
-        RET C
+        GIFGETBYTE
         ld (hl),a
         dec h
-        CALL GETBYTE
-        RET C
+        GIFGETBYTE
         ld (hl),a
         dec h
-        CALL GETBYTE
-        RET C
+        GIFGETBYTE
         ld (hl),a
         inc l
         djnz GIF_PAL1
         XOR A
         RET 
 
-GETWORD CALL GETBYTE
+GIF_GETWORD
+        GIFINITCY
+        GIFGETBYTE
         LD L,A
-        CALL NC,GETBYTE
+        GIFGETBYTE_noret
         LD H,A
         RET 
 ;_______ _______________________
 GIF_HEAD0 DEFB "IF87a"
 GIF_HEAD1 DEFB "IF89a"
-GIFSEARCH;Поиск GIF-a в потоке данных.
+
+GIFSEARCH
+;Поиск GIF-a в потоке данных.
+        GIFINITCY
         LD HL,GIF_HEAD0
         LD DE,GIF_HEAD1
         LD B,6-1
 GIFSEARCH0
-        CALL GETBYTE
-        RET C
+        GIFGETBYTE
         CP (HL)
         JR Z,GIFSEARCH1
         EX DE,HL
@@ -669,45 +669,8 @@ GIFSEARCH1
 GIFSEARCH_fail
         scf
         ret
-;_______________________
-GETBYTE
-;out: a, z=(a==0)
-        ;jr $
-        PUSH HL
-GETBYT1 LD HL,-1;0 ;Адрес в буфере.
-        ;BIT 6,H
-        ;JR NZ,GETBYT2
-         ld a,h
-         cp +(DISKBUF+DISKBUFsz)/256
-         jr nc,GETBYT2
-GETBYT3 LD A,(HL)
-        INC HL
-        LD (GETBYT1+1),HL
-        POP HL
-        OR A
-        RET 
-GETBYT2 PUSH DE
-        PUSH BC
-         call readdiskbuf
-        POP BC
-        POP DE
-        LD HL,DISKBUF
-        JR GETBYT3
-;_______________________________
-SETPAGE
-;a=page number in table (0..)
-        push af
-        push bc
-        ld c,a
-        ld b,textpages/256
-        ld a,(bc)
-        SETPG32KHIGH
-        pop bc
-        pop af
-        ret
 ;_______
-;TODO убрать
-SETPAG0
+gifsetpgLZW
         push af
         push bc
 curpgLZW=$+1
