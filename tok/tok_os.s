@@ -1,11 +1,10 @@
 ;startup
 FCB1=0xe800 ;aligned ;len=0x0200*files
 DOSBUF=0xfe00 ;aligned
-COMMANDLINE=0x0080
-COMMANDLINE_sz=0x0080
-PROGSTART=0x0100
-
-        ;include "../_sdk/sys_h.asm"
+	include "../_sdk/sysdefs.asm"
+;COMMANDLINE=0x0080
+;COMMANDLINE_sz=0x0080
+;PROGSTART=0x0100
 
 	org PROGSTART
 cmd_begin
@@ -44,9 +43,9 @@ l0.
 cmdquit
 	rst 0 ;QUIT
 
-	include "../_sdk/read.asm"
-	include "token.asm"
-	include "tokenz80.asm"
+	include "../_sdk/read.ast"
+	include "token.ast"
+	include "tokenz80.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/io_os.i"
 	include "../_sdk/str.i"

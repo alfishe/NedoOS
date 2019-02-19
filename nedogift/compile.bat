@@ -13,7 +13,7 @@ nedolang demo.c
 type err.f
 
 echo ...tokenizing...
-nedotok demo.s demoproc.s demo.asm demo.var ../_sdk/pt3play.i ../_sdk/lib.i
+nedotok demo.s demoproc.s demo.ast demo.var ../_sdk/pt3play.i ../_sdk/lib.i
 
 echo ...assembling...
 nedoasm demo.S_

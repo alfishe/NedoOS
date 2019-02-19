@@ -74,7 +74,7 @@ int main(int argc,char* argv[])
     };
   }; //for
 
-  closewrite(_ferr);
+  fclose(_ferr);//closewrite(_ferr);
 
   return 0;
 }

@@ -140,7 +140,12 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
   //fclose(fin);
   //fmemo=fopen("fout","rt");
   //memoOut->Hide();
-    memoOut->Lines->LoadFromFile("_test.asm");
+
+  try {
+    memoOut->Lines->LoadFromFile("_test.ast");
+  } catch (Exception &e){
+  };
+
 /*  while (fgets(line,sizeof(line),fmemo)!=NULL) {
     line[StrLen(line)-1]='\0';
     memoOut->Lines->Add(line);

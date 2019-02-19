@@ -13,6 +13,11 @@ savey=0
 savewid8=4
 savehgt=8
 
+quitx8=36-3
+quity=100
+quitwid8=4+3
+quithgt=8
+
 exitx8=36
 exity=192
 exitwid8=4
@@ -540,7 +545,7 @@ filemenu
         ld bc,12+1
         ldir
         
-        ld (filemenu_quitsp),sp
+        ld (filemenu_exitsp),sp
         ld hl,RSTPAL
         call copytemp_setpal
 filemenu_restart
@@ -578,12 +583,16 @@ filemenuloop
         call nz,filemenu_fire
         call file_control_keys
         jr filemenuloop
-filemenu_quit
-filemenu_quitsp=$+1
+filemenu_exit
+filemenu_exitsp=$+1
         ld sp,0
         ;ld hl,workpalend
         ;call setpalhl
         jp showworkscreen
+        
+filemenu_quit
+;TODO проверить, сохранены ли картинки
+        QUIT
         
 file_control_keys
         ld a,(key)
@@ -674,12 +683,14 @@ filemenu_fire
         call ahl_coords
         call filemenu_isitsave
         jp c,savefile
-        call filemenu_isitexit
+        call filemenu_isitquit
         jp c,filemenu_quit
+        call filemenu_isitexit
+        jp c,filemenu_exit
         call filemenu_isitfilename
         jp c,editfilename
         call filemenu_findvisiblefilenumber
-        ret nc;jp nc,filemenu_quit ;не попали в список файлов
+        ret nc;jp nc,filemenu_exit ;не попали в список файлов
         ;a = номер видимого файла
         call file_findvisiblefile_a
         call setpgtemp
@@ -731,7 +742,7 @@ filemenu_fire_finish
         ld l,a
         ld (curbitmapxscroll),hl
         ld (curbitmapyscroll),hl
-        jp filemenu_quit
+        jp filemenu_exit
         
 cpmname_to_dotname
         push hl
@@ -766,18 +777,23 @@ filemenu_invarrzone
 ;hl=x на экране
 ;a=y на экране
         call filemenu_isitsave
-        ld bc,savey*256 + savex8 ;y, x/8
-        ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid
+        ;ld bc,savey*256 + savex8 ;y, x/8
+        ;ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
         
+        call filemenu_isitquit
+        ;ld bc,quity*256 + quitx8 ;y, x/8
+        ;ld de,quithgt*256 + quitwid8 ;d=hgt ;e=wid
+        jr c,filemenu_invarrzone_invert
+                
         call filemenu_isitexit
-        ld bc,exity*256 + exitx8 ;y, x/8
-        ld de,exithgt*256 + exitwid8 ;d=hgt ;e=wid
+        ;ld bc,exity*256 + exitx8 ;y, x/8
+        ;ld de,exithgt*256 + exitwid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
                 
         call filemenu_isitfilename
-        ld bc,filenamey*256 + filenamex8 ;y, x/8
-        ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid
+        ;ld bc,filenamey*256 + filenamex8 ;y, x/8
+        ;ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
         call filemenu_findvisiblefilenumber
         ret nc ;не попали в список файлов
@@ -796,7 +812,12 @@ filemenu_invarrzone_invert
 filemenu_isitfilename
 ;hl=x на экране (не портится)
 ;a=y на экране (не портится)
-;out: CY=1 - попали в редактируемое имя файла
+;out: CY=1 - попали в редактируемое имя файла, bcde=размеры для invarrzone
+        if 1==1
+        ld bc,filenamey*256 + filenamex8 ;y, x/8
+        ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid
+        jr filemenu_isitbox
+        else
         cp filenamey
         ccf
         ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
@@ -813,11 +834,17 @@ filemenu_isitfilename
         sbc hl,bc
         add hl,bc
         ret ;nc=мимо
+        endif
 
 filemenu_isitsave
 ;hl=x на экране (не портится)
 ;a=y на экране (не портится)
-;out: CY=1 - попали в Save
+;out: CY=1 - попали в Save, bcde=размеры для invarrzone
+        if 1==1
+        ld bc,savey*256 + savex8 ;y, x/8
+        ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid
+        jr filemenu_isitbox
+        else
         cp savey
         ccf
         ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
@@ -834,27 +861,73 @@ filemenu_isitsave
         sbc hl,bc
         add hl,bc
         ret ;nc=мимо
+        endif
+
+filemenu_isitquit
+;hl=x на экране (не портится)
+;a=y на экране (не портится)
+;out: CY=1 - попали в Quit, bcde=размеры для invarrzone
+        ld bc,quity*256 + quitx8 ;y, x/8
+        ld de,quithgt*256 + quitwid8 ;d=hgt ;e=wid
+        jr filemenu_isitbox
         
 filemenu_isitexit
 ;hl=x на экране (не портится)
 ;a=y на экране (не портится)
-;out: CY=1 - попали в Save
-        cp exity
+;out: CY=1 - попали в Exit, bcde=размеры для invarrzone
+        ld bc,exity*256 + exitx8 ;y, x/8
+        ld de,exithgt*256 + exitwid8 ;d=hgt ;e=wid
+        ;jr filemenu_isitbox
+filemenu_isitbox
+;hl=x на экране (не портится)
+;a=y на экране (не портится)
+;b=y ;c=x/8 (не портятся)
+;d=hgt ;e=wid/8 (не портятся)
+;out: CY=1 - попали в бокс
+        cp b ;y
         ccf
         ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        cp exity+exithgt
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        ld bc,exitx8*8
+        sub b ;y
+        cp d ;hgt
+        jr nc,filemenu_isitbox_addbret ;nc=мимо
+        add a,b
+        push bc
+        ;ld bc,x8*8
+         ld b,0
+         sla c
+         rl b
+         sla c
+         rl b
+         sla c
+         rl b
         or a
         sbc hl,bc
         add hl,bc
+        pop bc
         ccf
         ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        ld bc,+(exitx8*8)+(exitwid8*8)
+        push bc
+        ;ld bc,+(x8*8)+(wid8*8)
+         push af
+         ld a,c ;x8
+         add a,e ;wid8
+         ld b,0
+         add a,a
+         rl b
+         add a,a
+         rl b
+         add a,a
+         rl b
+         ld c,a
+         pop af
         or a
         sbc hl,bc
         add hl,bc
+        pop bc
         ret ;nc=мимо
+filemenu_isitbox_addbret
+        add a,b
+        ret
         
 filemenu_findvisiblefilenumber
 ;hl=x на экране
@@ -883,6 +956,9 @@ prfilemenu
         call prfilename
         ld de,tsave
         ld hl,savey*40 + savex8 + scrbase
+        call shapes_prtext48ega_oncolor
+        ld de,tquit
+        ld hl,quity*40 + quitx8 + scrbase
         call shapes_prtext48ega_oncolor
         ld de,texit
         ld hl,exity*40 + exitx8 + scrbase
@@ -1322,7 +1398,7 @@ savefile_close_quit
         OS_FCLOSE
         ; pop af ;снимаем адрес возврата (т.к. вызывали call filemenu_fire)
         ;jp filemenu
-        jp filemenu_quit
+        jp filemenu_exit
 
 savefile_pal
         ld ix,workpal
@@ -1358,7 +1434,9 @@ fcbmask
 fcbmask_filename=fcbmask+FCB.FNAME        
 
 texit
-        db "  Exit",0
+        db "  Back",0
+tquit
+        db "  Quit to OS",0
 tsave
         db "  Save",0
 

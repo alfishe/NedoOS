@@ -498,7 +498,7 @@ callbdos_lock
         endif
         
         ld iy,(appaddr)
-        call BDOS
+        call BDOShandler
          push af
          push bc
          call setpgs_killable

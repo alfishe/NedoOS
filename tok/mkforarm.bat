@@ -5,14 +5,15 @@ nedolarm ../_sdk/read.c ../_sdk/fmttg.h token.c tokenz80.c ../_sdk/io.c ../_sdk/
 type err.f
 
 echo ...assembling...
-nedotarm _tokarm.s ../_sdk/read.asm ../_sdk/read.var ../_sdk/fmttg.var token.asm token.var tokenz80.asm tokenz80.var ../_sdk/lib.i ../_sdk/io.i ../_sdk/io.asm ../_sdk/io.var ../_sdk/str.asm ../_sdk/str.var
+rem not tested after change *.asm -> *.ast
+nedotarm _tokarm.s ../_sdk/read.ast ../_sdk/read.var ../_sdk/fmttg.var token.ast token.var tokenz80.ast tokenz80.var ../_sdk/lib.i ../_sdk/io.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.ast ../_sdk/str.var
 nedoaarm _tokarm.S_
 
 nedopad _tokarm.bin _out.bin 0 65536
 
 pause
 
-copy *.asm tmp
+copy *.ast tmp
 copy *.var tmp
 
 nedotrd testtrd.bin -n

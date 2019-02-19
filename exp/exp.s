@@ -21,12 +21,12 @@ start.
         ld c,l
         ret
 
-	include "export.asm"
-	include "exporttg.asm"
+	include "export.ast"
+	include "exporttg.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i" ;for io
 	include "../_sdk/io.i"
-	include "../_sdk/io.asm"
+	include "../_sdk/io.ast"
 	;include "../_sdk/print.i"
 
 fntok.

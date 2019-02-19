@@ -1007,7 +1007,7 @@ VAR UINT i;
     };
 
     asmtoken(+_TOKEOF);
-    closewrite(_fout); //closefout();
+    fclose(_fout); //closewrite(_fout); //closefout();
 
     fclose(_fin); //closefin();
   };

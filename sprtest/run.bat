@@ -1,8 +1,8 @@
 call compile.bat
 
-copy *.asm tmp
+copy *.ast tmp
 copy *.var tmp
-del *.asm
+del *.ast
 del *.var
 
 copy *.A_ tmp
@@ -20,4 +20,4 @@ nedotrd test.trd -ah boot.$b
 nedotrd test.trd -s 24576 -ac main.bin
 
 rem ..\..\emul\emul.exe test.trd
-..\us\emullvd.exe test.trd
+..\us\emul.exe test.trd

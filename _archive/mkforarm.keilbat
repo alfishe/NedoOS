@@ -1,0 +1,27 @@
+@echo off
+
+path=..\_sdk\;..\_sdk\nedotrd\;..\_sdk\nedopad\;c:\Keil\ARM\ARMCC\bin\
+
+echo ...compiling...
+nedolarm ../_sdk/read.c ../_sdk/fmttg.h token.c tokenz80.c ../_sdk/io.c ../_sdk/str.c
+type err.f
+
+echo ...assembling...
+armasm.exe --li --thumb tokarm.s
+rem armlink.exe --map --symbols tokarm.o
+armlink.exe --callgraph --rw-base 0x0000 --ro-base 0x0000 --entry 0x0001 tokarm.o
+fromelf --bin --base 0 __image.axf --output tokarm.bin
+rem fromelf --i32 --base 0 __image.axf --output tokarm.hex
+nedopad tokarm.bin out.bin 0 65536
+
+pause
+
+copy *.asm tmp
+copy *.var tmp
+rem del *.asm
+rem del *.var
+
+nedotrd testtrd.bin -n
+nedotrd testtrd.bin -a ..\_sdk\str.i
+
+copy /b out.bin + testtrd.bin all.bin

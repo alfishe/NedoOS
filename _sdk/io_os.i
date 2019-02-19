@@ -99,13 +99,13 @@ nfopen.A.=$+1
         cp 'w'
         jr nz,nfopen_noopenwrite
         ;OS_CREATEHANDLE
-        ld c,0x44
-        call 0x0005
+        ld c,CMD_CREATEHANDLE;0x44
+        call BDOS;0x0005
         jr nfopen_openwriteq
 nfopen_noopenwrite
         ;OS_OPENHANDLE
-        ld c,0x43
-        call 0x0005
+        ld c,CMD_OPENHANDLE;0x43
+        call BDOS;0x0005
 nfopen_openwriteq
         pop hl
         or a
@@ -153,8 +153,8 @@ fclose.A.=$+1
         ld l,0x80
         ld b,[hl]
         ;OS_CLOSEHANDLE
-        ld c,0x45
-        call 0x0005
+        ld c,CMD_CLOSEHANDLE;0x45
+        call BDOS;0x0005
         ret
 
 readf
@@ -188,8 +188,8 @@ fread1.
         ld b,[hl]
         ld hl,256 ;TODO 512
         ;OS_READHANDLE
-        ld c,0x48
-        call 0x0005
+        ld c,CMD_READHANDLE;0x48
+        call BDOS;0x0005
         ex de,hl
         pop hl
         pop bc
@@ -306,8 +306,8 @@ fwrite1.
         ld hl,256
 fwrite1q
         ;OS_WRITEHANDLE
-        ld c,0x49
-        call 0x0005
+        ld c,CMD_WRITEHANDLE;0x49
+        call BDOS;0x0005
         pop hl
         pop bc
         ret

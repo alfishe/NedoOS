@@ -255,7 +255,7 @@ nfopen_nofindfile.
 */
   IF (*(PCHAR)pmode != 'w') {
     IF (!findfile(pfcb, 0x09)) {
-      pfcb = (PBYTE)0;
+      pfcb = (FCB*)0;
       goto nfopenfail;
     };
     memcopy(pdesc, 11, (PBYTE)&(pfcb->fn)); //from, len, to
@@ -714,19 +714,19 @@ fread1qEOF.
         xor a
         ret
 */
-FUNC BOOL fread1blkq(FCB* pfcb, PBYTE pdesc)
+FUNC BOOL fread1blkq(FCB* pfcb, PBYTE pdesc1)
 {
 VAR BOOL res = +FALSE; //EOF
-  //memcopy(pdesc, 16, (PBYTE)&(pfcb->fn)); //from, len, to //содержимое структуры зависит от порядка байтов в слове и размера UINT!!!
-  memcopy(pdesc, 11, (PBYTE)&(pfcb->fn)); //from, len, to
-  pdesc = &pdesc[11];
-  pfcb->lastlenLSB = *(PBYTE)(pdesc);
-  pfcb->lastlenHSB = *(PBYTE)((UINT)pdesc+1);
-  pdesc = &pdesc[2];
-  pfcb->secinblk = *(PBYTE)(pdesc);
-  INC pdesc;
-  pfcb->firstsectorLSB = *(PBYTE)(pdesc);
-  pfcb->firstsectorHSB = *(PBYTE)((UINT)pdesc+1);
+  //memcopy(pdesc1, 16, (PBYTE)&(pfcb->fn)); //from, len, to //содержимое структуры зависит от порядка байтов в слове и размера UINT!!!
+  memcopy(pdesc1, 11, (PBYTE)&(pfcb->fn)); //from, len, to
+  pdesc1 = &pdesc1[11];
+  pfcb->lastlenLSB = *(PBYTE)(pdesc1);
+  pfcb->lastlenHSB = *(PBYTE)((UINT)pdesc1+1);
+  pdesc1 = &pdesc1[2];
+  pfcb->secinblk = *(PBYTE)(pdesc1);
+  INC pdesc1;
+  pfcb->firstsectorLSB = *(PBYTE)(pdesc1);
+  pfcb->firstsectorHSB = *(PBYTE)((UINT)pdesc1+1);
   pfcb->cursectorLSB = pfcb->firstsectorLSB;
   pfcb->cursectorHSB = pfcb->firstsectorHSB;
   //secinblk = (lastlen+255)/256 = (lastlen-1)/256 + 1

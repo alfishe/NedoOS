@@ -5,14 +5,14 @@ DOSBUF=0xff00 ;aligned
 ;code generator for compiler
 	org 0x6003
 	;EXPORT emitdig
-	include "../_sdk/emit.asm"
-	;include "regs.asm"
-	;include "codez80.asm"
-	include "commands.asm"
+	include "../_sdk/emit.ast"
+	;include "regs.ast"
+	;include "codez80.ast"
+	include "commands.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i"
 	include "../_sdk/iofast.i"
-	;include "../_sdk/io.asm"
+	;include "../_sdk/io.ast"
 
 	;include "../_sdk/io.var"
 	include "../_sdk/emit.var"

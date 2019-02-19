@@ -605,7 +605,7 @@ clslayer
         add hl,de
         ret
 
-BDOS
+BDOShandler
 ;TODO сразу 
         ;BDOSSETPGFATFS
         ;push de (иначе не сделать parsefilename)
@@ -1854,6 +1854,11 @@ BDOS_mount_noFATFS
 
 BDOS_setsysdrv
         ld e,SYSDRV
+         call BDOS_setdrv
+         ld de,syspath
+         call setpath
+        ret
+        
 BDOS_setdrv
 ;e=volume
 ;out: a!=0 => not mounted (TODO), l=number of volumes
@@ -1926,6 +1931,8 @@ BDOS_chdir
         call BDOS_preparedepage
 ;DE = Pointer to ASCIIZ string
 
+setpath
+;DE = Pointer to ASCIIZ string
         ld a,(de)
         or a
         jp z,BDOS_fail
@@ -2258,7 +2265,7 @@ mfil    byte "12345678.123",0 ;нужно только на время опер�
 
 mfilinfo FILINFO ;нужно только на время findnext
 
-fcb2    FCB ;нужно только на время findnext
+fcb2    ds FCB_sz ;нужно только на время findnext
 
 fres	word 0 ;структура для возврата результата FatFS (число прочитанных/записанных байт)
         word 0 ;для возврата даты
@@ -2266,6 +2273,9 @@ fres	word 0 ;структура для возврата результата Fat
 BDOS_parse_filename_cpmnamebuf
         ds 11
 
+syspath
+        db "bin",0
+        
 ;для TASiS: не используются страницы ОЗУ ＃00, ＃1B, #1C, #1D, #1E, #1F
 ;для избежания гибернации: не используются страницы ОЗУ 128K
 tsys_pages

@@ -1,16 +1,17 @@
 ;startup
 FCB1=0xe800 ;aligned ;len=0x0200*files
 DOSBUF=0xfe00 ;aligned
-COMMANDLINE=0x0080
-COMMANDLINE_sz=0x0080
-PROGSTART=0x0100
+	include "../_sdk/sysdefs.asm"
+;COMMANDLINE=0x0080
+;COMMANDLINE_sz=0x0080
+;PROGSTART=0x0100
 _STRLEN=80
 _STRMAX=(_STRLEN-1)
 	org PROGSTART
         ld e,6 ;textmode
         ;OS_SETGFX
-        ld c,0xf9
-        call 0x0005
+        ld c,CMD_SETGFX;0xf9
+        call BDOS;0x0005
 	ld hl,COMMANDLINE
 skipword0
         ld a,(hl)
@@ -45,7 +46,7 @@ l0.
 	ld (de),a ;'\0'
 	ret
 
-	include "diff.asm"
+	include "diff.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/print_os.i"
 	include "../_sdk/str.i"

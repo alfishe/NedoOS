@@ -43,12 +43,12 @@ l0.
 	ld (de),a ;'\0'
 	ret
 
-	include "diff.asm"
+	include "diff.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/print.i"
 	include "../_sdk/str.i" ;for io
 	include "../_sdk/io.i"
-	include "../_sdk/io.asm"
+	include "../_sdk/io.ast"
 
 fn1.
 	db "nedoasm"

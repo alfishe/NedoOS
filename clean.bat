@@ -3,9 +3,13 @@ del /s *.tds
 del /s *.~c
 del /s *.~h
 del /s *.~dsk
+del /s *.~bpr
+del /s *.~cpp
+del /s *.~dfm
 del /s *.org
 del /s *.pst
 rem del /s *.asm
+del /s *.ast
 del /s *.var
 del /s *.A_
 del /s *.V_
@@ -16,3 +20,8 @@ del /s label.f
 del /s label0.f
 del /s err.f
 del /s asmerr.f
+del /s test.trd
+del /s nedogift.trd
+del *.$c
+del /s out.bin
+del /s tokarm.bin

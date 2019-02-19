@@ -50,13 +50,13 @@ l0.
 	;exx
 	ret
 
-	include "../_sdk/read.asm"
-	include "token.asm"
-	include "tokenz80.asm"
+	include "../_sdk/read.ast"
+	include "token.ast"
+	include "tokenz80.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/io.i"
 	include "../_sdk/str.i"
-	include "../_sdk/io.asm"
+	include "../_sdk/io.ast"
 
 fnbuf.
 	db "12345678.123 "

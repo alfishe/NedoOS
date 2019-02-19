@@ -1,9 +1,10 @@
 ;startup
 TRUE=0xff
 FALSE=0x00
-COMMANDLINE=0x0080
-COMMANDLINE_sz=0x0080
-PROGSTART=0x0100
+	include "../_sdk/sysdefs.asm"
+;COMMANDLINE=0x0080
+;COMMANDLINE_sz=0x0080
+;PROGSTART=0x0100
 	org PROGSTART
 	jp startup.
 _=$
@@ -54,8 +55,8 @@ cmdquit
 	;QUIT
 	rst 0x00
 
-	include "../_sdk/read.asm"
-	include "compile.asm"
+	include "../_sdk/read.ast"
+	include "compile.ast"
 
 fnbuf.
 	ds COMMANDLINE_sz;db "12345678.123"

@@ -1,8 +1,8 @@
 call compile.bat
 
-copy *.asm tmp
+copy *.ast tmp
 copy *.var tmp
-del *.asm
+del *.ast
 del *.var
 
 copy *.A_ tmp
@@ -21,4 +21,4 @@ call ..\asm\mktrd.bat
 nedotrd test.trd -a ..\movedisk\movedisk
 nedotrd test.trd -a ..\nedodel\nedodel
 
-..\..\emul\emul.exe test.trd
+..\us\emul.exe test.trd

@@ -1894,7 +1894,7 @@ PROC compile(PCHAR fn)
   _wasreturn = +FALSE; //сбросить проверку "оператор после return"
 
    _lenjoined = strjoineollast(_joined, 0, fn, '.');
-   _lenjoined = strjoin(_joined, _lenjoined, ".asm");
+   _lenjoined = strjoin(_joined, _lenjoined, ".ast");
    _joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
   _fout = openwrite(_joined);
 

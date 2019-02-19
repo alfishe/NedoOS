@@ -1,9 +1,10 @@
 ;startup
 FCB1=0xe800 ;aligned ;len=0x0200*files
 DOSBUF=0xfe00 ;aligned
-COMMANDLINE=0x0080
-COMMANDLINE_sz=0x0080
-PROGSTART=0x0100
+	include "../_sdk/sysdefs.asm"
+;COMMANDLINE=0x0080
+;COMMANDLINE_sz=0x0080
+;PROGSTART=0x0100
 	org PROGSTART
 	ld de,fnbuf.
 	ld (asmcompile.fn),de
@@ -49,9 +50,9 @@ l0.
 cmdquit
         rst 0x00 ;QUIT
 
-	include "../_sdk/emit.asm"
-	include "asm.asm"
-	include "asmloop.asm"
+	include "../_sdk/emit.ast"
+	include "asm.ast"
+	include "asmloop.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i"
 	include "../_sdk/io_os.i"

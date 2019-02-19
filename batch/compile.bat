@@ -6,7 +6,7 @@ nedolang batch.c
 type err.f
 
 echo ...tokenizing...
-nedotok batch.s batch.asm batch.var ../_sdk/lib.i ../_sdk/iofast.i
+nedotok batch.s batch.ast batch.var ../_sdk/lib.i ../_sdk/iofast.i
 
 echo ...assembling...
 nedoasm batch.S_

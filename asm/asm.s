@@ -34,12 +34,12 @@ l0.
 	LD [fclose.A.],HL
 	jp fclose
 
-	include "../_sdk/emit.asm"
-	include "asm.asm"
-	include "asmloop.asm"
+	include "../_sdk/emit.ast"
+	include "asm.ast"
+	include "asmloop.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i"
-	;include "../_sdk/io.asm"
+	;include "../_sdk/io.ast"
 	include "../_sdk/iofast.i"
 
 fnbuf.

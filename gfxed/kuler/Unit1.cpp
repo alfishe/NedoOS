@@ -279,7 +279,8 @@ void __fastcall TForm1::FormCreate(TObject *Sender)
 {
   int colindex;
 
-  Image2->Picture->LoadFromFile("seversta.bmp");
+  Image2->Picture->LoadFromFile("../lanscape.bmp");
+  //Image2->Picture->LoadFromFile("seversta.bmp");
   //Image2->Picture->LoadFromFile("melnchud.bmp");
   //Image2->Picture->LoadFromFile("hippiman.bmp");
 

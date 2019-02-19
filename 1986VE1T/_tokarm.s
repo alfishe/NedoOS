@@ -62,10 +62,10 @@ __STKBUF__
 	;AREA    LIB, CODE, READWRITE
 
 	include "../_sdk/ioarm.i"
-	include "../_sdk/read.asm"
-	include "migalka.asm"
-	include "../_sdk/str.asm"
-	include "../_sdk/io.asm"
+	include "../_sdk/read.ast"
+	include "migalka.ast"
+	include "../_sdk/str.ast"
+	include "../_sdk/io.ast"
 
 	;AREA    HEAP, DATA, READWRITE
 

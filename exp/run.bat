@@ -1,8 +1,8 @@
 call compile.bat
 
-copy *.asm tmp
+copy *.ast tmp
 copy *.var tmp
-del *.asm
+del *.ast
 del *.var
 
 del tok.f
@@ -20,11 +20,11 @@ del *.I_
 del exp
 ren exp.bin exp
 
-nedotrd basics.trd -eh exp.$b
+nedotrd ../batch/basics.trd -eh exp.$b
 
-nedotrd testexp.trd -n
-nedotrd testexp.trd -ah exp.$b
-nedotrd testexp.trd -ac exp
-nedotrd testexp.trd -a tok.f
+nedotrd test.trd -n
+nedotrd test.trd -ah exp.$b
+nedotrd test.trd -ac exp
+nedotrd test.trd -a tok.f
 
-..\..\emul\emul.exe testexp.trd
+..\us\emul.exe test.trd

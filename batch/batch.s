@@ -29,7 +29,7 @@ start.
         ld c,l ;centiseconds
         ret
 
-	include "batch.asm"
+	include "batch.ast"
 	;include "../_sdk/lib.i"
 TRUE=0xff
 FALSE=0x00

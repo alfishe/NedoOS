@@ -6,13 +6,13 @@ nedolang ../_sdk/emit.c ../_sdk/io.c commands.c
 type err.f
 
 echo ...tokenizing...
-nedotok compcode.s ../_sdk/emit.asm ../_sdk/emit.var commands.asm commands.var ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/io.asm ../_sdk/io.var ../_sdk/str.i
+nedotok compcode.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.i
 
-nedodel emit.asm
+nedodel emit.ast
 nedodel emit.var
-nedodel commands.asm
+nedodel commands.ast
 nedodel commands.var
-nedodel io.asm
+nedodel io.ast
 nedodel io.var
 movedisk
 
@@ -40,7 +40,7 @@ nedolang ../_sdk/read.c compile.c
 type err.f
 
 echo ...tokenizing...
-nedotok comp.s ../_sdk/read.asm ../_sdk/read.var compile.asm compile.var
+nedotok comp.s ../_sdk/read.ast ../_sdk/read.var compile.ast compile.var
 
 echo ...assembling...
 nedoasm comp.S_

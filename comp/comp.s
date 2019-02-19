@@ -62,8 +62,8 @@ l0.
 	;exx
 	ret
 
-	include "../_sdk/read.asm"
-	include "compile.asm"
+	include "../_sdk/read.ast"
+	include "compile.ast"
 
 fnbuf.
 	db "12345678.123"

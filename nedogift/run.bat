@@ -7,9 +7,9 @@ nedotrd basics.trd -eh NedoGift.$b
 
 call compile.bat
 
-copy *.asm tmp
+copy *.ast tmp
 copy *.var tmp
-del *.asm
+del *.ast
 del *.var
 
 copy *.A_ tmp
@@ -28,4 +28,4 @@ nedotrd nedogift.trd -n
 nedotrd nedogift.trd -ah NedoGift.$b
 nedotrd nedogift.trd -ac code
 
-..\..\emul\emul.exe nedogift.trd
+..\us\emul.exe nedogift.trd

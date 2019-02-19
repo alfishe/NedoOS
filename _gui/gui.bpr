@@ -30,7 +30,7 @@
   </MACROS>
   <OPTIONS>
     <IDLCFLAGS value="-I$(BCB)\include -I$(BCB)\include\vcl -src_suffix cpp -D_DEBUG -boa"/>
-    <CFLAG1 value="-Od -Vx -Ve -X- -r- -a8 -b- -k -y -v -vi- -c -tW -tWM"/>
+    <CFLAG1 value="-O2 -Vx -Ve -X- -r- -a8 -b- -k -vi -c -tW -tWM"/>
     <PFLAGS value="-$YD -$W -$O- -v -JPHNE -M"/>
     <RFLAGS value=""/>
     <AFLAGS value="/mx /w2 /zd"/>
@@ -73,7 +73,7 @@ Comments=
 $(BCB)\Bin\dcl31w50.bpl=Delphi 1.0 Compatibility Components
 $(BCB)\Bin\bcbsmp50.bpl=Borland C++ Sample Components
 $(BCB)\Bin\dclado50.bpl=Borland ADO DB Components
-C:\WINDOWS\system32\ibsmp50.bpl=Borland C++ InterBase Alerter Component
+C:\Windows\system32\ibsmp50.bpl=Borland C++ InterBase Alerter Component
 $(BCB)\Bin\dclbde50.bpl=Borland BDE DB Components
 $(BCB)\Bin\dclqrt50.bpl=QuickReport Components
 $(BCB)\Bin\dcltee50.bpl=TeeChart 5.0 Components

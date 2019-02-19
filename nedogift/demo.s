@@ -88,14 +88,14 @@ waitstart1
 
 	include "../_sdk/pt3play.i"
 song
-	incbin "testmusic.pt3"
+	incbin "testmusi.pt3"
 font
 	incbin "font.bin"
 _net35
 	incbin "net35.bin"
 _nettort
 	incbin "nettort.bin"
-	include "demo.asm"
+	include "demo.ast"
 	include "demo.var"
 	include "demoproc.s"
 	include "../_sdk/lib.i"

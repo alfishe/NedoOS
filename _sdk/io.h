@@ -18,7 +18,7 @@ FUNC UINT readfinuint FORWARD();
 FUNC LONG readfinlong FORWARD();
 PROC writearray FORWARD(PBYTE parray, UINT size, PCHAR filename);
 FUNC PBYTE openwrite FORWARD(PCHAR s);
-PROC closewrite FORWARD(PBYTE file);
+//PROC closewrite FORWARD(PBYTE file);
 
 FUNC PBYTE loadfile FORWARD(PCHAR filename, PBYTE addr);
 

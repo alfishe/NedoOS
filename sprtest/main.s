@@ -227,9 +227,9 @@ emptytile
 	db 0,0,0,0,0,0,0,0
 	db 7 ;attr
 
-	include "testpic.asm"
+	include "testpic.ast"
 
-	include "spr.asm"
+	include "spr.ast"
 	include "spr.var"
 	include "../_sdk/sprite.i"
 	include "../_sdk/lib.i"

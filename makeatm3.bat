@@ -7,5 +7,4 @@ call make.bat
 
 rem del ..\us035\user.l
 rem copy us\user.l ..\us035\user.l
-rem ..\us035\emullvd test.trd
-us\emullvd test.trd
+us\emul.exe nedoos.trd

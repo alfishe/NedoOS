@@ -10,4 +10,4 @@ doska=B,112,0,32,8,7
 beton=B,80,0,32,8,7
 colorblock=B,0,72,32,16,7
 cherry=s,176,0,16,13,7
-tilepic=T,0,0,224,96,7
+tilepic=T,0,0,224,96,11

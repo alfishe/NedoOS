@@ -39,7 +39,7 @@ int main(int argc,char* argv[])
     //writearray((PBYTE)_labels7, _LABELPAGESIZE, "label7.f");
   }; //for
 
-  closewrite(_ferr);
+  fclose(_ferr);//closewrite(_ferr);
 
   return 0;
 }

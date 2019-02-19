@@ -34,6 +34,9 @@ cd ..
 cd browser
 call build.bat
 cd ..
+cd player
+call build.bat
+cd ..
 copy cmd\cmd.com bin\cmd.com
 copy nv\nv.com bin\nv.com
 copy nv\nv.ext bin\nv.ext
@@ -46,6 +49,7 @@ copy basic\basic.com bin\basic.com
 copy diff\diff.com bin\diff.com
 copy setfont\setfont.com bin\setfont.com
 copy browser\browser.com bin\browser.com
+copy player\player.com bin\player.com
 @echo off
 path=_sdk\
 nedotrd test.trd -n
@@ -59,11 +63,12 @@ nedotrd test.trd -a bin/nv.ext
 nedotrd test.trd -a bin/basic.com
 nedotrd test.trd -a bin/diff.com
 nedotrd test.trd -a bin/setfont.com
+nedotrd test.trd -a bin/player.com
 nedotrd test.trd -a bin/browser.com
 nedotrd test.trd -a browser/index.html
 rem nedotrd test.trd -a setfont/1125code.fnt
 nedotrd test.trd -a gfxed/lanscape.bmp
-nedotrd test.trd -a autoexec.bat
+nedotrd test.trd -a bin/autoexec.bat
 
 nedotrd test.trd -a bin/comp.com
 nedotrd test.trd -a bin/tok.com
@@ -86,5 +91,12 @@ nedotrd test.trd -a _sdk/typecode.h
 nedotrd test.trd -a _sdk/lib.i
 nedotrd test.trd -a _sdk/str.i
 nedotrd test.trd -a _sdk/io_os.i
+nedotrd test.trd -a _sdk/sysdefs.asm
+
+nedotrd test.trd -a nedogift/testmusi.pt3
+nedotrd test.trd -a player/COCO.pt2
 
 nedotrd test.trd -a license.txt
+
+del nedoos.trd
+ren test.trd nedoos.trd

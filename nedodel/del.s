@@ -40,11 +40,11 @@ l0.
 	ld (de),a ;'\0'
 	ret
 
-	include "del.asm"
+	include "del.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i"
 	include "../_sdk/io.i"
-	include "../_sdk/io.asm"
+	include "../_sdk/io.ast"
 
 fn.
 	db "nedoasm"

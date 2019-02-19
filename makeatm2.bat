@@ -7,6 +7,5 @@ call make.bat
 
 rem del ..\us035\user.l
 rem copy us\user.l ..\us035\user.l
-rem ..\us035\emul791atm.exe test.trd
-rem us\emul791atm.exe test.trd
-us\unreal0380atm.exe test.trd
+rem us\emul791atm.exe nedoos.trd
+us\emul.exe -i atm2.ini nedoos.trd
