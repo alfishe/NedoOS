@@ -13,8 +13,8 @@ set XLINK=%Z80_IDE_PATH%\xlink
 set IARINC=%Z80_IDE_PATH%\
 set IARLIB=%Z80_IDE_PATH%
 set C_OPTIONS=-v0 -ml -r -uua -q -e -K -gA -t4 -T -Llist\ -Olist\ -Alist\ -I%IARINC%
-set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yv
-rem set LINK_OPTIONS=-FRAW-BINARY -o ktest.com -C %IARLIB%\clz80 -f Lnk.xcl
+rem set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yv
+set LINK_OPTIONS=-FRAW-BINARY -o ktest.com -C %IARLIB%\clz80 -f Lnk.xcl
 
 if not exist list mkdir list
 

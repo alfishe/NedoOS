@@ -73,6 +73,7 @@ nedotrd test.trd -a bin/autoexec.bat
 nedotrd test.trd -a bin/comp.com
 nedotrd test.trd -a bin/tok.com
 nedotrd test.trd -a bin/asm.com
+nedotrd test.trd -a bin/nim.com
 nedotrd test.trd -a comp/sizesz80.h
 nedotrd test.trd -a comp/comp_os.s
 nedotrd test.trd -a comp/compc_os.s

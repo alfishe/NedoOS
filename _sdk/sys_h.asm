@@ -150,21 +150,32 @@ _1=$;execcmd_waitpid0
         ;ld c,CMD_RESETWAITING
 	;CALLBDOS
         ;endm
-        macro OS_WIZNETOPEN
+        macro	OS_NETSOCKET;D=address family, E=socket type ; out: L=SOCKET(if L < 0 then A=error)
+		ld l,0x01
         ld c,CMD_WIZNETOPEN
-	CALLBDOS
+		CALLBDOS
+        endm
+        macro 	OS_NETCONNECT;A=SOCKET, DE=sockaddr ptr ; out: if HL < 0 then A=error
+		ld l,0x03
+        ld c,CMD_WIZNETOPEN
+		CALLBDOS
+        endm
+         macro OS_NETSHUTDOWN;A=SOCKET ; out: if HL < 0 then A=error
+		ld l,0x02
+        ld c,CMD_WIZNETOPEN
+		CALLBDOS
         endm
         macro OS_WIZNETCLOSE
         ld c,CMD_WIZNETCLOSE
-	CALLBDOS
+		CALLBDOS
         endm
-        macro OS_WIZNETREAD
+        macro OS_WIZNETREAD;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
         ld c,CMD_WIZNETREAD
-	CALLBDOS
+		CALLBDOS
         endm
-        macro OS_WIZNETWRITE
+        macro OS_WIZNETWRITE;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
         ld c,CMD_WIZNETWRITE
-	CALLBDOS
+		CALLBDOS
         endm
         macro OS_DROPAPP
         ld c,CMD_DROPAPP

@@ -15,7 +15,7 @@ set IARINC=%Z80_IDE_PATH%\
 set IARLIB=%Z80_IDE_PATH%
 set C_OPTIONS=-v0 -ml -r -s3 -uua -q -e -K -gA -t4 -T -Llist\ -Olist\ -Alist\ -I%IARINC%
 rem set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yv
-set LINK_OPTIONS=-FRAW-BINARY -o dmirc.com -C %IARLIB%\clz80 -f Lnk.xcl
+set LINK_OPTIONS=-FRAW-BINARY -o ..\..\bin\dmirc.com -C %IARLIB%\clz80 -f Lnk.xcl
 
 if not exist list mkdir list
 
