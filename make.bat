@@ -1,55 +1,30 @@
-cd kernel
-call build.bat
-cd ..
-cd cmd
-call build.bat
-cd ..
-cd nv
-call build.bat
-cd ..
-cd gfxed
-call build.bat
-cd ..
-cd tok
-call build.bat
-cd ..
-cd asm
-call build.bat
-cd ..
-cd comp
-call build.bat
-cd ..
-cd texted
-call build.bat
-cd ..
-cd basic
-call build.bat
-cd ..
-cd diff
-call build.bat
-cd ..
-cd setfont
-call build.bat
-cd ..
-cd browser
-call build.bat
-cd ..
-cd player
-call build.bat
-cd ..
-copy cmd\cmd.com bin\cmd.com
-copy nv\nv.com bin\nv.com
+SET currentdir=%CD%
+FOR /R . %%i IN (build.bat) DO (
+	if exist %%i (
+		cd "%%~pi"
+		call build.bat
+		copy *.com ..\bin\
+		rem copy *.ini ..\bin\
+		rem copy *.ext ..\bin\
+	)
+)
+cd %currentdir%
+
 copy nv\nv.ext bin\nv.ext
-copy gfxed\gfxed.com bin\gfxed.com
-copy texted\texted.com bin\texted.com
-copy comp\comp.com bin\comp.com
-copy tok\tok.com bin\tok.com
-copy asm\asm.com bin\asm.com
-copy basic\basic.com bin\basic.com
-copy diff\diff.com bin\diff.com
-copy setfont\setfont.com bin\setfont.com
-copy browser\browser.com bin\browser.com
-copy player\player.com bin\player.com
+
+rem copy cmd\cmd.com bin\cmd.com
+rem copy nv\nv.com bin\nv.com
+rem copy gfxed\gfxed.com bin\gfxed.com
+rem copy texted\texted.com bin\texted.com
+rem copy comp\comp.com bin\comp.com
+rem copy tok\tok.com bin\tok.com
+rem copy asm\asm.com bin\asm.com
+rem copy basic\basic.com bin\basic.com
+rem copy diff\diff.com bin\diff.com
+rem copy setfont\setfont.com bin\setfont.com
+rem copy browser\browser.com bin\browser.com
+rem copy player\player.com bin\player.com
+
 @echo off
 path=_sdk\
 nedotrd test.trd -n
@@ -73,7 +48,6 @@ nedotrd test.trd -a bin/autoexec.bat
 nedotrd test.trd -a bin/comp.com
 nedotrd test.trd -a bin/tok.com
 nedotrd test.trd -a bin/asm.com
-nedotrd test.trd -a bin/nim.com
 nedotrd test.trd -a comp/sizesz80.h
 nedotrd test.trd -a comp/comp_os.s
 nedotrd test.trd -a comp/compc_os.s

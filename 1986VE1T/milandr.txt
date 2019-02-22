@@ -170,6 +170,9 @@ The AAPCS describes a contract between caller functions and callee functions. Fo
 Х Register R0 passes the result value back to the caller function.
 Х Caller functions must preserve R0-R3 and R12, because these registers are allowed to be corrupted by the callee function.
 Х Callee functions must preserve R4-R11 and LR, because these registers are not allowed to be corrupted by the callee function. 
+R13=SP
+R14=LR (link register, адрес возврата)
+R15=PC
 
 у нас сейчас не так: r0=rtemp, r1..r4 - регистры данных (r1=результат), параметры не передаютс€ в регистрах
 r7=0xff

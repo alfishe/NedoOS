@@ -14,4 +14,5 @@ unsigned int OS_WRITEHANDLE(unsigned char * buffer, unsigned int hnd, unsigned i
 unsigned int OS_READHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
 unsigned int OS_OPENHANDLE(unsigned char * path, unsigned char flags);
 unsigned char OS_CLOSEHANDLE(unsigned int hnd);
+int     socket(int domain, int type, int protocol);
 #endif

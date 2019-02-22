@@ -103,8 +103,8 @@ nvview_load0
         ;or a
         jr z,nvview_load0
 ;hlde=true file size (for TRDOSFS)
-        ld (fcb+FCB.FSIZE),de
-        ld (fcb+FCB.FSIZE+2),hl
+        ld (fcb+FCB_FSIZE),de
+        ld (fcb+FCB_FSIZE+2),hl
         
         OS_CLOSEHANDLE
         
@@ -179,7 +179,7 @@ oldtimer
         
 fcb
         ds FCB_sz
-fcb_filename=fcb+FCB.FNAME        ;по умолчанию там длина 0
+fcb_filename=fcb+FCB_FNAME        ;по умолчанию там длина 0
         
 cmd_end
 

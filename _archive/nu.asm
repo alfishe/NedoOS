@@ -831,3 +831,44 @@ BDOS_setdta
 ;1D csEnt?^] GS <--------- extEnt
 ;1E ext1? ^^ RS <--------- ss
 ;1F ext0? ^_ US
+
+
+cd kernel
+call build.bat
+cd ..
+cd cmd
+call build.bat
+cd ..
+cd nv
+call build.bat
+cd ..
+cd gfxed
+call build.bat
+cd ..
+cd tok
+call build.bat
+cd ..
+cd asm
+call build.bat
+cd ..
+cd comp
+call build.bat
+cd ..
+cd texted
+call build.bat
+cd ..
+cd basic
+call build.bat
+cd ..
+cd diff
+call build.bat
+cd ..
+cd setfont
+call build.bat
+cd ..
+cd browser
+call build.bat
+cd ..
+cd player
+call build.bat
+cd ..

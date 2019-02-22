@@ -186,7 +186,7 @@ prdirfile
         call cmdprNchars
 	pop ix
 	push ix
-        ld a,(ix+FCB.FATTRIB)
+        ld a,(ix+FCB_FATTRIB)
         and FATTRIB_DIR
         xor '.'
         call cmdprchar
@@ -195,18 +195,18 @@ prdirfile
 	ld a,'і'
         PRCHAR
         pop ix
-        ld l,(ix+FCB.FSIZE+2)
-        ld h,(ix+FCB.FSIZE+3)
+        ld l,(ix+FCB_FSIZE+2)
+        ld h,(ix+FCB_FSIZE+3)
 	exx
-        ld l,(ix+FCB.FSIZE)
-	ld h,(ix+FCB.FSIZE+1)
+        ld l,(ix+FCB_FSIZE)
+	ld h,(ix+FCB_FSIZE+1)
         push ix
         call prdword
         ld a,'і'
         PRCHAR
         pop ix
-	ld l,(ix+FCB.FDATE)
-        ld h,(ix+FCB.FDATE+1)
+	ld l,(ix+FCB_FDATE)
+        ld h,(ix+FCB_FDATE+1)
 	push ix 
         push hl
         ld a,h
@@ -234,8 +234,8 @@ prdirfile
         ld a,' '
         PRCHAR
 	pop ix
-        ld l,(ix+FCB.FTIME)
-        ld h,(ix+FCB.FTIME+1)
+        ld l,(ix+FCB_FTIME)
+        ld h,(ix+FCB_FTIME+1)
         push hl
         ld a,h
         rra
@@ -304,13 +304,13 @@ loaddir0
         ;TODO через процедуру
         ld l,(ix+PANEL.totalsize)
         ld h,(ix+PANEL.totalsize+1)
-        ld bc,(fcb+FCB.FSIZE)
+        ld bc,(fcb+FCB_FSIZE)
         add hl,bc
         ld (ix+PANEL.totalsize),l
         ld (ix+PANEL.totalsize+1),h
         ld l,(ix+PANEL.totalsize+2)
         ld h,(ix+PANEL.totalsize+3)
-        ld bc,(fcb+FCB.FSIZE+2)
+        ld bc,(fcb+FCB_FSIZE+2)
         adc hl,bc
         ld (ix+PANEL.totalsize+2),l
         ld (ix+PANEL.totalsize+3),h
@@ -639,7 +639,7 @@ editcmd_enter
 	or a
         jr nz,editcmd_enter_runcmd
         call getfcbundercursor ;->fcb
-	ld a,(fcb+FCB.FATTRIB)
+	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10
 	jp z,editcmd_enter_run
         call changedir_fromfcb
@@ -1048,7 +1048,7 @@ seldrv_up
 editcmd_4
         call ifcmdnonempty_typedigit
         call getfcbundercursor ;->fcb
-	ld a,(fcb+FCB.FATTRIB)
+	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10
         ret nz
 
@@ -1199,7 +1199,7 @@ proc_del_file
 	ret z
 	call getfcbfromhl
 	call setcurpaneldir
-        ld a,(fcb+FCB.FATTRIB)
+        ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR;#10 ;dir?
         jr nz,editcmd_deldir
         ld de,fcb
@@ -1572,17 +1572,17 @@ oldtimer
 ;<#4000 for hobeta
 fcb
         ds FCB_sz
-fcb_filename=fcb+FCB.FNAME        
+fcb_filename=fcb+FCB_FNAME        
 
 fcbmask
         db 0
         db "???????????"
         ds FCB_sz-11-1
-fcbmask_filename=fcbmask+FCB.FNAME        
+fcbmask_filename=fcbmask+FCB_FNAME        
 
 fcb2
         ds FCB_sz
-fcb2_filename=fcb2+FCB.FNAME        
+fcb2_filename=fcb2+FCB_FNAME        
 
 cmd_filename
         db "cmd     com"

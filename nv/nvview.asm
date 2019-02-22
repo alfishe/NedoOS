@@ -7,7 +7,7 @@ NVVIEW_PANELCOLOR=#38
 editcmd_3
         call ifcmdnonempty_typedigit
         call getfcbundercursor ;->fcb
-	ld a,(fcb+FCB.FATTRIB)
+	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10
         ret nz
 
@@ -45,8 +45,8 @@ nvview_load0
         or a
         jr z,nvview_load0
 ;hlde=true file size (for TRDOSFS)
-        ld (fcb+FCB.FSIZE),de
-        ld (fcb+FCB.FSIZE+2),hl
+        ld (fcb+FCB_FSIZE),de
+        ld (fcb+FCB_FSIZE+2),hl
 
         xor a
         ld h,a
@@ -181,8 +181,8 @@ nvview_home
         jp nvview_prpage
         
 nvview_end
-        ld hl,(fcb+FCB.FSIZE)
-        ld a,(fcb+FCB.FSIZE+2)
+        ld hl,(fcb+FCB_FSIZE)
+        ld a,(fcb+FCB_FSIZE+2)
         ld b,NVVIEW_HGT
 nvview_end0
         push bc 
@@ -402,9 +402,9 @@ nvview_ncurline=$+1
         call prdword
         ld a,' '
         PRCHAR
-        ld hl,(fcb+FCB.FSIZE+2)
+        ld hl,(fcb+FCB_FSIZE+2)
         exx
-        ld hl,(fcb+FCB.FSIZE)
+        ld hl,(fcb+FCB_FSIZE)
         call prdword
         ld b,43
 nvview_panel0
@@ -438,8 +438,8 @@ iseof
         push bc
         push de
         push hl
-        ld de,(fcb+FCB.FSIZE)
-        ld bc,(fcb+FCB.FSIZE+2)
+        ld de,(fcb+FCB_FSIZE)
+        ld bc,(fcb+FCB_FSIZE+2)
         ld b,a
         or a
         sbc hl,de
@@ -584,9 +584,9 @@ getmaxlinesize
         push af
         push hl
         ex de,hl
-        ld hl,(fcb+FCB.FSIZE)
+        ld hl,(fcb+FCB_FSIZE)
         ld c,a
-        ld a,(fcb+FCB.FSIZE+2)
+        ld a,(fcb+FCB_FSIZE+2)
         or a
         sbc hl,de
         sbc a,c

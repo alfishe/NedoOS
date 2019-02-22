@@ -1,7 +1,7 @@
 compareattrib
 	push hl
 	push de
-	ld bc,FCB.FATTRIB
+	ld bc,FCB_FATTRIB
 	ex de,hl
 	add hl,bc
 	ex de,hl
@@ -21,7 +21,7 @@ findmin_ccf=$
 comparedate
 	call compareattrib
 	ret nz
-	ld bc,FCB.FDATE+1
+	ld bc,FCB_FDATE+1
 	ex de,hl
 	add hl,bc
 	ex de,hl
@@ -35,7 +35,7 @@ comparedate
 	cp (hl)
 	ret nz
 
-	ld bc,FCB.FTIME+1-FCB.FDATE
+	ld bc,FCB_FTIME+1-FCB_FDATE
 	ex de,hl
 	add hl,bc
 	ex de,hl
@@ -49,7 +49,7 @@ comparedate
 	cp (hl)
 	ret nz
 
-	ld bc,-FCB.FTIME
+	ld bc,-FCB_FTIME
 	ex de,hl
 	add hl,bc
 	ex de,hl
@@ -59,7 +59,7 @@ comparedate
 comparesize
 	call compareattrib
 	ret nz
-	ld bc,FCB.FSIZE+3
+	ld bc,FCB_FSIZE+3
 	ex de,hl
 	add hl,bc
 	ex de,hl
@@ -82,7 +82,7 @@ comparesize
 	ld a,(de)
 	cp (hl)
 	ret nz
-        ld bc,-FCB.FSIZE
+        ld bc,-FCB_FSIZE
 	ex de,hl
 	add hl,bc
 	ex de,hl

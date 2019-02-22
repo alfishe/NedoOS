@@ -25,3 +25,4 @@ del /s nedogift.trd
 del *.$c
 del /s out.bin
 del /s tokarm.bin
+del /s *.mlz

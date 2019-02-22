@@ -101,7 +101,7 @@ deletebyte_ldirbc
 
 ;reserves page
 incfilesize
-        ;ld hl,(fcb+FCB.FSIZE)
+        ;ld hl,(fcb+FCB_FSIZE)
         call getsize
         
         push af
@@ -116,20 +116,20 @@ incfilesize
         ld bc,1
         add hl,bc
         adc a,b;0
-        ld (fcb+FCB.FSIZE),hl
-        ld (fcb+FCB.FSIZE+2),a
+        ld (fcb+FCB_FSIZE),hl
+        ld (fcb+FCB_FSIZE+2),a
         ret
 
 ;unreserves page
 decfilesize
-        ;ld hl,(fcb+FCB.FSIZE)
+        ;ld hl,(fcb+FCB_FSIZE)
         call getsize
         or a
         ld bc,1
         sbc hl,bc
         sbc a,b;0
-        ld (fcb+FCB.FSIZE),hl
-        ld (fcb+FCB.FSIZE+2),a
+        ld (fcb+FCB_FSIZE),hl
+        ld (fcb+FCB_FSIZE+2),a
 
         ld a,h
         and 0x3f

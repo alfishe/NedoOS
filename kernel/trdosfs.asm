@@ -13,7 +13,7 @@ dos3d13.
         ret
 
 trdos_fread
-        ld hl,FCB.FFSFCB
+        ld hl,FCB_FFSFCB
         add hl,de
         ld a,(hl)
         inc hl
@@ -58,7 +58,7 @@ trdos_fread_b
 trdos_fwrite
         ld bc,128 ;bc=size
 trdos_fwrite_nbytes
-        ld hl,FCB.FFSFCB
+        ld hl,FCB_FFSFCB
         add hl,de
         ld a,(hl)
         inc hl
@@ -103,22 +103,22 @@ trdos_searchnext
         ret z ;jr z,BDOS_fsearch_loadloop_noFATFS_empty
         ld bc,11
         ldir
-        ld de,fcb2+FCB.FSIZE
+        ld de,fcb2+FCB_FSIZE
         ldi
         ldi
         xor a
         ld (de),a
         inc de
         ld (de),a
-        ld de,fcb2+FCB.FDATE
+        ld de,fcb2+FCB_FDATE
         ld (de),a
         inc de
         ld (de),a
-        ld de,fcb2+FCB.FTIME
+        ld de,fcb2+FCB_FTIME
         ld (de),a
         inc de
         ld (de),a
-        ld de,fcb2+FCB.FATTRIB
+        ld de,fcb2+FCB_FATTRIB
         ld (de),a
         ld bc,16-11-2
         add hl,bc
@@ -135,7 +135,7 @@ trdos_fopen_go
         or a
         ret nz ;error
         ex de,hl ;de=TRDOSFCB
-        ld hl,FCB.FFSFCB
+        ld hl,FCB_FFSFCB
         add hl,bc
         ld (hl),e
         inc hl
@@ -154,7 +154,7 @@ trdos_fcreate
 
 trdos_fclose
         ;ld hl,TRDOSFCB1
-        ld hl,FCB.FFSFCB
+        ld hl,FCB_FFSFCB
         add hl,de
         ld a,(hl)
         inc hl

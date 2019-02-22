@@ -184,8 +184,8 @@ texted_filenameaddr=$+1
         ld a,b
         ld (cmd_savepage_handle),a
 
-        ;ld de,(fcb+FCB.FSIZE)
-        ;ld hl,(fcb+FCB.FSIZE+2)
+        ;ld de,(fcb+FCB_FSIZE)
+        ;ld hl,(fcb+FCB_FSIZE+2)
         call getsize
         ex de,hl
         ld l,a
@@ -538,8 +538,8 @@ texted_gotobof
         jp setredrawflag;texted_prcurpage
 
 getsize
-        ld hl,(fcb+FCB.FSIZE)
-        ld a,(fcb+FCB.FSIZE+2)
+        ld hl,(fcb+FCB_FSIZE)
+        ld a,(fcb+FCB_FSIZE+2)
         ret
         
 texted_gotoeof
@@ -852,11 +852,11 @@ texted_ncurline=$+1
         PRCHAR
         call getsize
         exx
-        ;ld hl,(fcb+FCB.FSIZE+2)
+        ;ld hl,(fcb+FCB_FSIZE+2)
         ld l,a
         ld h,0
         exx
-        ;ld hl,(fcb+FCB.FSIZE)
+        ;ld hl,(fcb+FCB_FSIZE)
         call prdword
         ld b,43
 texted_panel0
@@ -892,8 +892,8 @@ iseof
         push bc
         push de
         push hl
-        ;ld de,(fcb+FCB.FSIZE)
-        ;ld bc,(fcb+FCB.FSIZE+2)
+        ;ld de,(fcb+FCB_FSIZE)
+        ;ld bc,(fcb+FCB_FSIZE+2)
         ;ld b,a
         ;or a
         ;sbc hl,de

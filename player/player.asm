@@ -36,6 +36,13 @@ cmd_begin
 ;B = file handle
         OS_CLOSEHANDLE
         
+	ld a,(module)
+	cp 'P' ;'P'/'V' for PT3
+	ld a,%00100000 ;PT3
+	jr z,$+4
+	ld a,%00000010 ;PT2
+	ld (SETUP),a
+	
         ld hl,module
         call INIT
         
@@ -50,7 +57,9 @@ filenameaddr=$+1
         
 mainloop
         YIELD
+	di ;TODO fix player
         call PLAY
+	ei
         GET_KEY
         cp key_redraw
         jr z,mainloopredraw

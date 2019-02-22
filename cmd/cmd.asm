@@ -1,3 +1,10 @@
+;TODO в батнике %0 (параметры запуска), %1 ...
+;TODO %~dp0 (драйв и путь запуска)
+;TODO %~t1 (дата-время 1-го параметра)
+;TODO goto и метки :label
+;TODO if ???==??? goto
+;TODO PATH (где хранить? должна подгружаться при старте новой копии cmd)
+
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
@@ -560,14 +567,14 @@ cmd_dir
         ld bc,0 ;nfiles
         jp nz,loaddir_error
 loaddir0
-        ld hl,fcb+FCB.FNAME
+        ld hl,fcb+FCB_FNAME
         ;ld a,(hl)
         ;cp ' ' 
         ;jp z,loaddirq
         push bc
         ld b,8
         call cmdprNchars
-        ld a,(fcb+FCB.FATTRIB)
+        ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
         xor '.'
         push hl
@@ -577,17 +584,17 @@ loaddir0
         call cmdprNchars
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         exx
-        ld hl,(fcb+FCB.FSIZE+2)
+        ld hl,(fcb+FCB_FSIZE+2)
         exx
-        ld hl,(fcb+FCB.FSIZE)
+        ld hl,(fcb+FCB_FSIZE)
         call prdword
         ld a,' '
         PRCHAR
-        ld hl,(fcb+FCB.FDATE)
+        ld hl,(fcb+FCB_FDATE)
         call prdate
         ld a,' '
         PRCHAR
-        ld hl,(fcb+FCB.FTIME)
+        ld hl,(fcb+FCB_FTIME)
         call prtime
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         call prcrlf
@@ -1135,7 +1142,7 @@ cmd_copydir0
         ld a,(fcb_filename)
         cp '.'
         jr z,cmd_copydir0_skip
-        ld a,(fcb+FCB.FATTRIB)
+        ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
         jr nz,cmd_copydir0_recursive
         
@@ -1411,21 +1418,21 @@ filenamebuf2
 
 fcb
         ds FCB_sz
-fcb_filename=fcb+FCB.FNAME        
+fcb_filename=fcb+FCB_FNAME        
 
 fcbmask
         db 0
         db "???????????"
         ds FCB_sz-11-1
-fcbmask_filename=fcbmask+FCB.FNAME
+fcbmask_filename=fcbmask+FCB_FNAME
 
 fcb2
         ds FCB_sz
-fcb2_filename=fcb2+FCB.FNAME        
+fcb2_filename=fcb2+FCB_FNAME        
 
 fcb_bat
         ds FCB_sz
-fcb_bat_filename=fcb_bat+FCB.FNAME        
+fcb_bat_filename=fcb_bat+FCB_FNAME        
 
 oldpath
         ds MAXCMDSZ+1

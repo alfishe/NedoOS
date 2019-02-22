@@ -699,7 +699,7 @@ filemenu_fire
         ld bc,32;FCB_sz
         ldir
         pop de ;FCB
-	ld a,(fcb+FCB.FATTRIB)
+	ld a,(fcb+FCB_FATTRIB)
 	cp FATTRIB_DIR;0x10
 	jr nz,filemenu_fire_not_dir
 	pop af ;снимаем адрес возврата
@@ -979,7 +979,7 @@ prfilemenu
         ;ld (de),a
         jr nz,loaddir_error
 loaddir0
-        ;ld a,(fcb+FCB.FNAME)
+        ;ld a,(fcb+FCB_FNAME)
         ;cp ' ' 
         ;jr z,loaddirq
         push bc
@@ -1063,18 +1063,18 @@ prdirfile
         ;ld de,filinfo
         ;ld bc,FILINFO_sz
         ld de,fcb_print
-        ld bc,FCB.FATTRIB
+        ld bc,FCB_FATTRIB
         ldir
 	ld a,(hl)
         and FATTRIB_DIR
 	ld (prdirfile_dot_or_dir),a
-        ld  c,32-FCB.FATTRIB ;FCB_sz-FCB.FATTRIB
+        ld  c,32-FCB_FATTRIB ;FCB_sz-FCB_FATTRIB
         ldir
         ld lx,0
         call setpgshapes
         call setpgs_scr
         ;ld de,filinfo+FILINFO.FNAME
-        ld de,fcb_print+FCB.FNAME
+        ld de,fcb_print+FCB_FNAME
         ;ex de,hl
         ;push hl ;text
         ;xor a
@@ -1101,10 +1101,10 @@ prdirfile_dot_or_dir=$+1
         ex hl,de
         exx
         ;ld hl,(filinfo+FILINFO.FSIZE+2)
-        ld hl,(fcb_print+FCB.FSIZE+2)
+        ld hl,(fcb_print+FCB_FSIZE+2)
         exx
         ;ld hl,(filinfo+FILINFO.FSIZE)
-        ld hl,(fcb_print+FCB.FSIZE)
+        ld hl,(fcb_print+FCB_FSIZE)
         call shapes_prnumdword
         
 ;       shapes_prchar48ega
@@ -1113,7 +1113,7 @@ prdirfile_dot_or_dir=$+1
 ;       shapes_prnum
 ;de=scr
 ;hl=num       
-;ld hl,(fcb_print+FCB.FTIME)
+;ld hl,(fcb_print+FCB_FTIME)
 ;       shapes_prNchars
 ;hl=scr
 ;de=text
@@ -1123,7 +1123,7 @@ prdirfile_dot_or_dir=$+1
         call shapes_prchar48ega
         ex de,hl
         
-        ld hl,(fcb_print+FCB.FDATE)
+        ld hl,(fcb_print+FCB_FDATE)
         push hl
         ld a,h
         srl a
@@ -1157,7 +1157,7 @@ prdirfile_dot_or_dir=$+1
         call shapes_prchar48ega
         ex de,hl
         
-        ld hl,(fcb_print+FCB.FTIME)
+        ld hl,(fcb_print+FCB_FTIME)
         push hl
         ld a,h
         rra
@@ -1426,12 +1426,12 @@ savefile_pal0
 
 fcb;=(-FCB_sz)&0xffff     ;ds FCB_sz
         ds FCB_sz
-fcb_filename=fcb+FCB.FNAME        
+fcb_filename=fcb+FCB_FNAME        
 
 fcb_print
 fcbmask
         ds FCB_sz
-fcbmask_filename=fcbmask+FCB.FNAME        
+fcbmask_filename=fcbmask+FCB_FNAME        
 
 texit
         db "  Back",0

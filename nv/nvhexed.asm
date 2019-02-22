@@ -126,7 +126,7 @@ nvhexed_symbol_rightq
         call nvview_hexeditor_prline
         ret
 ;--------
-        ;ld a,(fcb+FCB.FSIZE)
+        ;ld a,(fcb+FCB_FSIZE)
         ;dec a   ;a=????xxxx  l=XXXXzzzz
         ;;xor l   ;a=????xzxz  l=XXXXzzzz
         ;and #0f ;a=0000xzxz  l=XXXXzzzz
@@ -145,8 +145,8 @@ nvview_hexeditor_save
 	;call setcurpaneldir
         call nv_createfcb2 ;autopush nv_closefcb2
         ret nz ;error
-        ld de,(fcb+FCB.FSIZE)
-        ld hl,(fcb+FCB.FSIZE+2)
+        ld de,(fcb+FCB_FSIZE)
+        ld hl,(fcb+FCB_FSIZE+2)
         ld a,0 ;page number
 nvview_hexeditor_save0
 ;a=page number in table (0..)
@@ -588,7 +588,7 @@ nvhex_calcnextcorrectxy
         pop hl
         ret c
         push af
-        ld a,(fcb+FCB.FSIZE)
+        ld a,(fcb+FCB_FSIZE)
         dec a   ;a=????xxxx  l=XXXXzzzz
         ;xor l   ;a=????xzxz  l=XXXXzzzz
         and #0f ;a=0000xzxz  l=XXXXzzzz

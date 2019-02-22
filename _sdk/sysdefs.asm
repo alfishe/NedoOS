@@ -77,24 +77,24 @@ CMD_SETSCREEN=0xfe ;e=screen=0..1
 CMD_GETSCREENPAGES=0xff ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
 
 ;        STRUCT FCB
-FCB.drv=0 ;drv             BYTE; /* drive number */
-FCB.FNAME=1 ;FNAME           BLOCK 11;
-FCB.EXTENTNUMBERLO=12 ;EXTENTNUMBERLO  BYTE; ;NU
-FCB.FATTRIB=13 ;FATTRIB         BYTE;
-FCB.EXTENTNUMBERHI=14 ;EXTENTNUMBERHI  BYTE; ;NU
-FCB.RECORDCOUNT=15 ;RECORDCOUNT     BYTE; ;NU
-FCB.FSIZE=16 ;FSIZE           DWORD;
-FCB.FTIME=20 ;FTIME           WORD;
-FCB.FFSFCB=22 ;FFSFCB          WORD; /* TRDOSFCB или FIL */
-FCB.DIRPOS=24 ;DIRPOS          WORD; /* привязка к точке поиска */
+FCB_drv=0 ;drv             BYTE; /* drive number */
+FCB_FNAME=1 ;FNAME           BLOCK 11;
+FCB_EXTENTNUMBERLO=12 ;EXTENTNUMBERLO  BYTE; ;NU
+FCB_FATTRIB=13 ;FATTRIB         BYTE;
+FCB_EXTENTNUMBERHI=14 ;EXTENTNUMBERHI  BYTE; ;NU
+FCB_RECORDCOUNT=15 ;RECORDCOUNT     BYTE; ;NU
+FCB_FSIZE=16 ;FSIZE           DWORD;
+FCB_FTIME=20 ;FTIME           WORD;
+FCB_FFSFCB=22 ;FFSFCB          WORD; /* TRDOSFCB или FIL */
+FCB_DIRPOS=24 ;DIRPOS          WORD; /* привязка к точке поиска */
 ;RESERVED        BLOCK 2 ;reserved (14 in MS-DOS???)
-FCB.RECORDSIZE=28 ;RECORDSIZE      WORD; /* must be 128 */
-FCB.FDATE=30 ;FDATE           WORD
-FCB.FRECORD=32 ;FRECORD         BYTE; /*номер записи внутри экстента*/
+FCB_RECORDSIZE=28 ;RECORDSIZE      WORD; /* must be 128 */
+FCB_FDATE=30 ;FDATE           WORD
+FCB_FRECORD=32 ;FRECORD         BYTE; /*номер записи внутри экстента*/
 ;	ENDS
 FCB_sz=33
 
-FATTRIB_DIR=0x10 ;mask for FCB.FATTRIB
+FATTRIB_DIR=0x10 ;mask for FCB_FATTRIB
 
 ;Application flags:
 

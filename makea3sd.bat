@@ -1,8 +1,10 @@
 @echo off
-del _sdk\atm.asm
-copy _sdk\atm3.asm _sdk\atm.asm
-del _sdk\syssets.asm
-copy _sdk\syssets0.asm _sdk\syssets.asm
+rem del _sdk\atm.asm
+rem copy _sdk\atm3.asm _sdk\atm.asm
+rem del _sdk\syssets.asm
+rem copy _sdk\syssets0.asm _sdk\syssets.asm
+echo atm=3 > _sdk\syssets.asm
+echo SYSDRV=0 >> _sdk\syssets.asm
 call make.bat
 
 path=_sdk\

@@ -31,6 +31,7 @@ readgif
         RET C           ;вместе с палитрой (PAL_GLOB)
 ;""""""""""""""""""""""P
 GIF_LP0
+         call initframe
 ;Ќачало цикла обработки кадра? GIF-изображени€
         GIFINITCY
         GIFGETBYTE
@@ -79,7 +80,7 @@ GIF_IMG ;ќбработка блока изображени€.
         LD (DY_IMG),HL ;локальна€ высота
         GIFGETBYTE
 
-        LD HL,FREE
+        LD HL,LINE1;FREE
         ld de,(X_IMG) ;локальное начало строки
         add hl,de
         add hl,de
@@ -181,6 +182,7 @@ GIF_IMG_ENDcode=$+1
 GIF_LPR
         ;CALL CONVERT
         ;CALL VIEW
+        
         JP GIF_LP0 ;следующий кадр?
 ;====================================================
 LZW_OLD DEFW 0  ;ѕредыдуўий адрес цепо„ки символов :)
@@ -216,16 +218,26 @@ putchar_palH=$+1
         exx
         ret pe
 
+cury=$+1 ;инициализируетс€ в initframe
+        ld de,0
+        inc de
+        ld (cury),de
+        bit 0,e
+        jr nz,PUTCHARskipline
+        
 DX_IMGx3=$+1
         ld bc,0 ;локальна€ ширина*3
         ld hl,(linebufstart_local) ;локальное начало строки
 
 ;hl=откуда копируем строку
 ;bc=сколько байт копируем
-        call putline
+        ;push hl
+        ;call putline
+        ;pop hl
+        call drawscreenline_frombuf
         
         CALL gifsetpgLZW
-
+PUTCHARskipline
         exx
         ld bc,(DX_IMG) ;локальна€ ширина
         ;ld (pixelcounter_back),bc
@@ -578,12 +590,13 @@ GIF_LOGSCR      ;ќбработка дескриптора логи„еского Ёкрана.
          ld (putchar_palH),a
         GIFINITCY
         GIFGETWORD
-        LD (curpicwid),HL
-        ld b,h
-        ld c,l
-        add hl,hl
-        add hl,bc
-        ld (curpicwidx3),hl
+        ;LD (curpicwid),HL
+        ;ld b,h
+        ;ld c,l
+        ;add hl,hl
+        ;add hl,bc
+        ;ld (curpicwidx3),hl
+        call setpicwid
         GIFGETWORD
         LD (curpichgt),HL
         

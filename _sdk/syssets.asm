@@ -1,1 +1,3 @@
-SYSDRV=4
+atm=3 
+SYSDRV=4 
+INETDRV 

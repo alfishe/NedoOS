@@ -109,7 +109,7 @@ changemark_hl
 	ld a,(hl)
 	xor 1
 	ld (hl),a
-        ld bc,FCB.FSIZE
+        ld bc,FCB_FSIZE
         add hl,bc
         ld e,(hl)
         inc hl

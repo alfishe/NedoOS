@@ -1,4 +1,26 @@
 
+	MODULE ERRNO_MODULE
+	PUBLIC errno
+	RSEG	UDATA0
+errno:
+	defb 0
+	ENDMOD
+	
+	MODULE OS_NETSOCKET
+	PUBLIC OS_NETSOCKET
+	EXTERN errno
+	RSEG	CODE
+OS_NETSOCKET:
+	push ix
+	push iy
+	ld a,c
+	ld c,0x43	
+	call 0x0005
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
 	MODULE OSOPENHANDLE
 	PUBLIC OS_OPENHANDLE
 	RSEG CODE

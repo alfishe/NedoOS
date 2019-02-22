@@ -1,7 +1,7 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
 
         include "../_sdk/syssets.asm"
-        include "../_sdk/atm.asm"
+        ;include "../_sdk/atm.asm"
 
         if atm==3
 ;схема Nemo:

@@ -1,5 +1,5 @@
 
-        include "atm.asm"
+        ;include "atm.asm"
         include "sysdefs.asm"
         
 ;do define oldtimer (2 bytes)

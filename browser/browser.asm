@@ -12,7 +12,11 @@ COLOR=7
 
 GIF_PIXELSIZE=0
 
-       MACRO rdbyte        INC LY        LD A,(IY)        CALL Z,RDBYH       ENDM 
+       MACRO rdbyte
+        INC LY
+        LD A,(IY)
+        CALL Z,RDBYH
+       ENDM 
 
 ;b=R/G/Bmin
 ;de на начале буфера R/G/B
@@ -142,12 +146,13 @@ cmd_begin
         ld e,0;COLOR
         OS_CLS
 
+        ld de,zxpal
+        ld c,CMD_SETPAL
+        CALLBDOS
         
         call setpgs_scr
 
-codepg4000=$+1
-        ld a,0
-        SETPG16K
+        call setpgcode4000
 
         ld de,0xc000;0x0801
         call setxymc
@@ -159,10 +164,11 @@ codepg4000=$+1
         ;ld de,COMMANDLINE
         ;call prtextmc
 
-temppg8000=$+1
-        ld a,0
-        SETPG32KLOW
+        call setpgtemp8000
 
+         OS_GETTIMER ;hlde=timer
+         ld (timebegin),de
+       
         
         
         ld hl,COMMANDLINE ;command line
@@ -182,8 +188,11 @@ temppg8000=$+1
 
         ;ld hl,0
         ;ld de,0
-       LD IY,DISKBUF+DISKBUFsz-1
+       LD IY,DISKBUF+DISKBUFsz-1
+
         call GETBYTE_slow
+        cp '<'
+        jp z,loadhtml
         cp 'G'
         jp z,loadgif
         cp 0xff
@@ -216,19 +225,13 @@ temppg8000=$+1
 
 ;дальше идёт картинка (длины строк в байтах кратны 4)
 
-
-        
         ld b,18-2
 loadbmp_skipheader0
         call GETBYTE_slow
         djnz loadbmp_skipheader0
         call GETDWORD_slow
-        ld (curpicwid),de
-        ld h,d
-        ld l,e
-        add hl,hl
-        add hl,de
-        ld (curpicwidx3),hl
+        ex de,hl ;hl=wid
+        call setpicwid
         call GETDWORD_slow
         ld (curpichgt),de
         
@@ -294,17 +297,17 @@ nvview_load0
         ld (bmpstart),hl
         ld (bmpstartHSB),a
         
-        jr loadq
+        jp loadq
         
 loadjpeg
         ld hl,(putchar_hl)
         ld a,(putchar_a)
         ld (bmpstart),hl
         ld (bmpstartHSB),a
-        
+
         call readjpeg
 
-        jr loadq_fromtop
+         jp closequit
         
 loadgif
         ld hl,(putchar_hl)
@@ -314,6 +317,8 @@ loadgif
         
         call readgif
 
+         jp closequit
+        
 loadq_fromtop
         ld hl,0x8000
         ld (scrstartaddr),hl
@@ -324,33 +329,9 @@ loadq_fromtop
         
 loadq
 
-        call closefile
         
-;noautoload
+        call setpgdiv4000
 
-        ld de,zxpal
-        ld c,CMD_SETPAL
-        CALLBDOS
-
-codepg8000=$+1
-        ld a,0 ;tdiv
-        SETPG16K ;0x4000
-
-        ld hl,(curpicwid)
-        dec hl ;для округления вверх
-        ld a,l
-        srl h
-        rra
-        srl h
-        rra
-        srl h
-        rra
-        inc a ;округление вверх
-        cp 80
-        jr c,$+4
-        ld a,80
-        ld (fillwid8),a
-        
 bmpstartHSB=$+1
         ld a,0
 bmpstart=$+1
@@ -391,33 +372,7 @@ fill0
         ld hx,d
         ld lx,e
 
-fillwid8=$+1        
-        ld b,80
-        ;jr $
-fill1
-;цикл = 3130t/8pix
-        ld d,h ;hl=адрес атрибутов
-        ld e,l
-        set 6,d ;de=адрес пикселей
-        push bc
-        exx
-        call readchr ;859t
-        ex af,af' ;push af
-        push hl
-        call setpgs_scr ;177t
-        jp convertchr ;1980t
-convertchrq
-        pop hl
-        exx
-        ld a,h
-        xor 0x20
-        cp h
-        ld h,a
-        jr nc,$+3
-        inc hl
-        ex af,af' ;pop af
-        pop bc
-        djnz fill1
+        call drawscreenline
         
         exx
         pop hl
@@ -431,8 +386,41 @@ scrlinestep=$+1
         add hl,bc ;next line on screen
         pop bc
         djnz fill0
-
+closequit
+        call closefile
+        
 quit
+         call setpgcode4000
+
+         OS_GETTIMER ;hlde=timer
+         ex de,hl
+timebegin=$+1
+         ld de,0
+         or a
+         sbc hl,de
+         ex de,hl ;de=time (frames)
+         
+         call setpgs_scr
+         push de
+         ld de,0xc040
+         call setxymc
+         pop de
+         ld bc,5000
+         call prdigmc
+         ld bc,500
+         call prdigmc
+         ld bc,50
+         call prdigmc
+         push de
+         ld a,'.'
+         call prcharmc
+         pop de
+         ld bc,5
+         call prdigmc
+         sla e
+         ld bc,1
+         call prdigmc
+
         YIELDGETKEYLOOP
         QUIT
         
@@ -453,6 +441,103 @@ closefile
         ld b,a
         OS_CLOSEHANDLE
         ret
+
+drawscreenline_frombuf
+;hl=from
+;bc=size (*3?)
+        push iy
+        
+drawscreenline_frombuf_ixaddr=$+2
+        ld ix,(dithermcy0-2)
+drawscreenline_frombuf_iyaddr=$+2
+        ld iy,(colorlace0-2)
+        
+         call setpgdiv4000
+        call setpgs_scr ;177t
+        exx
+drawscreenline_frombuf_scr=$+1
+        ld de,0xc000
+        exx
+        ;jr $
+        
+        ld a,(fillwid8)
+        ld b,a
+         ;ld b,80
+drawscreenline_frombuf0
+        push bc
+        call readchrlomem
+        ;if GIF_PIXELSIZE
+        ;ld bc,8
+        ;else
+        ;ld bc,24
+        ;endif
+        ;add hl,bc
+        push hl
+        exx
+        ld h,d
+        ld l,e
+        res 6,h ;de=адрес пикселей ;hl=адрес атрибутов
+        exx
+        ;jr $
+        call convertchr ;jp=1980t
+        exx
+        ld a,d
+        xor 0x20
+        cp d
+        ld d,a
+        jr nc,$+3
+        inc de
+        exx
+        pop hl
+        pop bc
+        djnz drawscreenline_frombuf0
+        
+        dec ix
+        dec ix
+        ld (drawscreenline_frombuf_ixaddr),ix
+        dec iy
+        dec iy
+        ld (drawscreenline_frombuf_iyaddr),iy
+        
+        ld hl,(drawscreenline_frombuf_scr)
+        ld bc,40
+        add hl,bc ;next line on screen
+        bit 5,h
+        jr nz,$+5
+        ld (drawscreenline_frombuf_scr),hl
+
+        pop iy
+        jp setpgtemp8000
+        
+drawscreenline
+fillwid8=$+1        
+        ld b,80
+fill1
+;цикл = 3130t/8pix
+        ld d,h ;hl=адрес атрибутов
+        ld e,l
+        set 6,d ;de=адрес пикселей
+        push bc
+        exx
+        call readchr ;859t
+        ex af,af' ;push af
+        push hl
+        call setpgs_scr ;177t
+        call convertchr ;jp=1980t
+;convertchrq
+        pop hl
+        exx
+        ld a,h
+        xor 0x20
+        cp h
+        ld h,a
+        jr nc,$+3
+        inc hl
+        ex af,af' ;pop af
+        pop bc
+        djnz fill1
+        ret
+        
         
 skipline
         if GIF_PIXELSIZE
@@ -466,10 +551,34 @@ skipline
         ret
 
 RDWORD
-        CALL RDBYTE        LD H,A        CALL RDBYTE        LD L,A        RET  
-RDBYTE        INC LY        LD A,(IY)        RET NZRDBYH        INC HY        LD A,HY;RDBYHend=$+1        CP DISKBUF/256+(DISKBUFsz/256)        ;JR Z,rDDSK        LD A,(IY)
-         ccf ;CY=0: OK        RET nz;rDDSK       PUSH HL       PUSH DE        PUSH BC
-        push IX       CALL rdCS       EXA        PUSH AF        exx
+        CALL RDBYTE
+        LD H,A
+        CALL RDBYTE
+        LD L,A
+        RET  
+
+RDBYTE
+        INC LY
+        LD A,(IY)
+        RET NZ
+RDBYH
+        INC HY
+        LD A,HY
+;RDBYHend=$+1
+        CP DISKBUF/256+(DISKBUFsz/256)
+        ;JR Z,rDDSK
+        LD A,(IY)
+         ccf ;CY=0: OK
+        RET nz
+;rDDSK
+       PUSH HL
+       PUSH DE
+        PUSH BC
+        push IX
+       CALL rdCS
+       EXA 
+       PUSH AF
+        exx
         push bc
         push de
         push hl
@@ -482,10 +591,17 @@ filehandle=$+1
         pop de
         pop bc
         exx
-       POP AF       EXA         POP IX
-        pop BC       POP DE
-         pop hl       ld iy,DISKBUF       LD A,(IY)
-       or a ;CY=0: OK        RET 
+       POP AF
+       EXA 
+        POP IX
+        pop BC
+       POP DE
+         pop hl
+       ld iy,DISKBUF
+       LD A,(IY)
+       or a ;CY=0: OK
+        RET 
+
 ;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
 ;hlde
@@ -500,7 +616,8 @@ GETDWORD_slow
         ret
         
 GETBYTE_slow=RDBYTE
- readchr
+ 
+readchr
 ;b,g,r
 ;TODO с масштабированием и с учётом правого края картинки, не делящегося на 8
         ;push bc
@@ -522,6 +639,23 @@ GETBYTE_slow=RDBYTE
         inc e
         ld a,(de)
         SETPG32KHIGH
+         call readchrlomem
+        
+        pop hl
+        pop af
+        if GIF_PIXELSIZE
+        ld bc,8
+        else
+        ld bc,24
+        endif
+        add hl,bc
+        ;pop bc
+        ret nc
+        inc a
+        ret
+
+readchrlomem
+;hl=from (BRG)
         ld d,chrbuf/256
 _=0
         if GIF_PIXELSIZE
@@ -547,20 +681,9 @@ _=_+1
          ;ld hl,chrbuf
          ;ld de,chrbuf+8
          ;ld bc,16
-         ;ldir
+         ;ldir ;BW from R
         
         endif
-        pop hl
-        pop af
-        if GIF_PIXELSIZE
-        ld bc,8
-        else
-        ld bc,24
-        endif
-        add hl,bc
-        ;pop bc
-        ret nc
-        inc a
         ret
         
 convertchr
@@ -830,23 +953,56 @@ colorlace1
         dw dithermcy2
 dithermcy3
         DITHERMC1B 0x1, 0xd, 0x3, 0xf
-        jp convertchrq
+        ret;jp convertchrq
         
         dw dithermcy1
 dithermcy2
         DITHERMC1B 0x9, 0x5, 0xb, 0x7
-        jp convertchrq
+        ret;jp convertchrq
         
         dw dithermcy0
 dithermcy1
         DITHERMC1B 0x4, 0x10, 0x2, 0xe
-        jp convertchrq
+        ret;jp convertchrq
         
         dw dithermcy3
 dithermcy0
         DITHERMC1B 0xc, 0x8, 0xa, 0x6
-        jp convertchrq
+        ret;jp convertchrq
         
+initframe
+        ld hl,dithermcy0-2
+        ld (drawscreenline_frombuf_ixaddr),hl
+        ld hl,colorlace0-2
+        ld (drawscreenline_frombuf_iyaddr),hl
+        ld hl,0xc000
+        ld (drawscreenline_frombuf_scr),hl
+        ld hl,0
+        ld (cury),hl
+        ret
+        
+        
+setpicwid
+        LD (curpicwid),HL ;XRES
+         ld b,h
+         ld c,l
+         add hl,hl
+         add hl,bc
+         ld (curpicwidx3),hl
+        dec bc ;для округления вверх
+        ld a,c
+        srl b
+        rra
+        srl b
+        rra
+        srl b
+        rra
+        inc a ;округление вверх
+        cp 80
+        jr c,$+4
+        ld a,80
+        ld (fillwid8),a
+        ret
         
         
 skipword
@@ -1138,6 +1294,24 @@ setpg32k
         pop hl
         ret
 
+setpgdiv4000
+codepg8000=$+1
+        ld a,0 ;tdiv
+        SETPG16K ;0x4000
+        ret
+        
+setpgcode4000
+codepg4000=$+1
+        ld a,0
+        SETPG16K
+        ret
+
+setpgtemp8000
+temppg8000=$+1
+        ld a,0
+        SETPG32KLOW
+        ret
+
 setpgs_scr
 setpgs_scr_low=$+1
         ld a,0;pgscr0_0 ;scr0_0
@@ -1233,14 +1407,15 @@ zxpal
         
 
 filename
-        db "0:/hippiman.bmp",0
+        ;db "0:/hippiman.bmp",0
         ;db "0:/melnchud.bmp",0
         ;db "0:/melnchud.gif",0
         ;db "0:/girl.jpg",0
-        ;db "index.htm",0
+        db "index.htm",0
 
         include "gif.asm"
         include "jpeg.asm"
+        include "html.asm"
         
 oldtimer
         dw 0
@@ -1278,6 +1453,24 @@ endcode=$
 fnt
         incbin "1125vert.fnt"
 
+prdigmc
+;hl=scraddr
+;de=number
+;bc=divisor
+        ex de,hl
+        ld a,'0'-1
+        or a
+prdigmc0
+        inc a
+        sbc hl,bc
+        jr nc,prdigmc0
+        add hl,bc
+        ex de,hl
+        push de
+        call prcharmc
+        pop de
+        ret
+        
 prtextmc
 prtextmc0
         ld a,(de)
@@ -1324,7 +1517,83 @@ prcharmc_attr=$+1
         ret nc
         inc l
         ret
+
+prcharmc_tab_stateful
+        ld de,(prcharmc_stateful_xy)
+        ld a,e
+        add a,8
+        and 0xf8
+        ld e,a
+        call setxymc_stateful
+        jr prcharmc_tab_statefulq
         
+prcharmc_stateful
+;a=code
+        ;halt
+        push af
+        call setpgs_scr
+        pop af
+prcharmc_stateful_scr=$+1
+        ld hl,0
+        call prcharmc
+        ld (prcharmc_stateful_scr),hl
+        call setpgtemp8000
+prcharmc_stateful_xy=$+1
+        ld de,0
+        inc e
+        ld a,e
+prcharmc_tab_statefulq
+        ld (prcharmc_stateful_xy),de
+        cp 80
+        ret c
+        
+prcharmc_crlf_stateful
+        ld de,(prcharmc_stateful_xy)
+        ld e,0
+        ld a,d
+        add a,8
+        ld d,a
+        cp 25*8
+        jr c,setxymc_stateful
+        sub 8
+        ld d,a
+        push de
+        call scrollmcup
+        pop de
+setxymc_stateful
+;de=yx
+        ld (prcharmc_stateful_xy),de
+        call setxymc
+        ld (prcharmc_stateful_scr),hl
+        ret
+        
+scrollmcup
+         jp closequit
+        call setpgs_scr
+        ld hl,0x8000+(40*8)
+        ld de,0x8000
+        ld bc,0x6000+(40*200)-(40*8)
+        ldir
+        ld hl,0x8000+(40*200)-(40*8)
+        call scrollmcup_clblock
+        ld hl,0xa000+(40*200)-(40*8)
+        call scrollmcup_clblock
+        ld hl,0xc000+(40*200)-(40*8)
+        call scrollmcup_clblock
+        ld hl,0xe000+(40*200)-(40*8)
+        call scrollmcup_clblock
+        call setpgtemp8000
+        ret
+
+scrollmcup_clblock
+        ld d,h
+        ld e,l
+        inc de
+        ld bc,40*8-1
+        ld (hl),0
+        ldir
+        ret
+
 setxymc
 ;de=yx (kept)
 ;out: hl=0xc000+

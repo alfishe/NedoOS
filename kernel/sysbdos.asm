@@ -1256,7 +1256,7 @@ BDOS_fsearchfirst_noFATFS
 ;TR-DOS
         BDOSSETPGTRDOSFS
         ld hl,trdos_catbuf
-        ;ld (BDOS_fsearch_loadloop_trdosaddr),hl ;TODO где хранить для многозадачности? возвращать в FCB.DIRPOS?
+        ;ld (BDOS_fsearch_loadloop_trdosaddr),hl ;TODO где хранить для многозадачности? возвращать в FCB_DIRPOS?
         ld (iy+app.dircluster),l
         ld (iy+app.dircluster+1),h
         
@@ -1293,24 +1293,24 @@ BDOS_fsearch_loadloop
         ld a,(de)
         or a
         jp z,BDOS_fail ;fsearchnext_nofile
-        ld hl,fcb2+FCB.FNAME
+        ld hl,fcb2+FCB_FNAME
         call dotname_to_cpmname ;de -> hl
         ld hl,mfilinfo+FILINFO.FSIZE
-        ld de,fcb2+FCB.FSIZE
+        ld de,fcb2+FCB_FSIZE
         ld bc,4
         ldir
         ld hl,mfilinfo+FILINFO.FDATE
-        ld de,fcb2+FCB.FDATE
+        ld de,fcb2+FCB_FDATE
         ld  c,2
         ldir
         ld hl,mfilinfo+FILINFO.FTIME
-        ld de,fcb2+FCB.FTIME
+        ld de,fcb2+FCB_FTIME
         ld  c,2
         ldir
         
      	ld a,(mfilinfo+FILINFO.FATTRIB)
 	;and 0x10
-	ld (fcb2+FCB.FATTRIB),a
+	ld (fcb2+FCB_FATTRIB),a
         jr BDOS_fsearch_loadloop_FATFSq
 BDOS_fsearch_loadloop_noFATFS
 ;TR-DOS
@@ -1319,7 +1319,7 @@ BDOS_fsearch_loadloop_noFATFS
         ;ld hl,0
         ld l,(iy+app.dircluster)
         ld h,(iy+app.dircluster+1)
-        ld de,fcb2+FCB.FNAME
+        ld de,fcb2+FCB_FNAME
         call trdos_searchnext
         jp z,BDOS_fail ;fsearchnext_nofile;BDOS_fsearch_loadloop_noFATFS_empty
         ;ld (BDOS_fsearch_loadloop_trdosaddr),hl
@@ -1327,7 +1327,7 @@ BDOS_fsearch_loadloop_noFATFS
         ld (iy+app.dircluster+1),h
         jr BDOS_fsearch_loadloop_FATFSq
 BDOS_fsearch_loadloop_FATFSq
-        ld hl,fcb2+FCB.FNAME ;прочитанное имя
+        ld hl,fcb2+FCB_FNAME ;прочитанное имя
 fsearchnext_filename=$+1
         ld de,0 ;образец
         
@@ -1748,7 +1748,7 @@ BDOS_fopen_go
         ;ld iy,(appaddr)
         ;GETVOLUME
         ;ld (bc),a ;volume
-        ld hl,FCB.FFSFCB
+        ld hl,FCB_FFSFCB
         add hl,bc
         ld (hl),e
         inc hl
@@ -1761,7 +1761,7 @@ BDOS_fcreate_noFATFS
 getFILfromFCB
 ;de=FCB
 ;out: hl=FIL
-        ld hl,FCB.FFSFCB
+        ld hl,FCB_FFSFCB
         add hl,de
         ld a,(hl)
         inc hl

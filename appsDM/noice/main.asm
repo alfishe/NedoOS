@@ -22,7 +22,7 @@ st_dbg
 
 ENDPROG
 	;display ENDPROG
-	SAVEBIN "..\..\bin\nim.com",START,ENDPROG-START
+	SAVEBIN "nim.com",START,ENDPROG-START
 	;org start_hobeta
 	;INCBIN "../utils/us/aa"
 	;SAVEHOB  "noice.$c","noice.C",start_hobeta,ENDPROG-START
