@@ -36,6 +36,8 @@ SOCK_STREAM EQU 0x01	;tcp/ip
 SOCK_DGRAM 	EQU 0x03		;udp/ip
 
 SHUT_RDWR 		EQU 2
+ERR_EAGAIN		EQU 35		;/* Try again */
+ERR_EWOULDBLOCK	EQU ERR_EAGAIN	;/* Operation would block */
 ERR_INTR 		EQU 4
 ERR_NFILE 		EQU 23
 ERR_ALREADY 	EQU 37
@@ -106,10 +108,6 @@ SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. *
 wizlocalport:
 		defw 0xc000
 
-w53_errexit:
-		ld h,-1
-		ret
-		
 wiznet_open
 ;L-subfunction
 		dec l
@@ -231,6 +229,7 @@ w53_connect0:
 		jr z,w53_connect0
 		call BDOS_preparedepage
 		ex de,hl
+		inc hl	;пропустим семейство
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
 		ld a,6
 w53_connect1:
@@ -248,6 +247,7 @@ w53_connect2:
 		jr z,w53_connect3
 		or a
 		jr nz,w53_connect2
+		ld l,-1
 		ld a,ERR_HOSTUNREACH
 		ret
 w53_connect3:
@@ -260,6 +260,20 @@ w53_close:
 		ld l,0
 		ret z	;сокет уже убит
 		dec l
+		ex af,af'
+		ld a,e
+		or a
+		jr z,w53_close_nochk
+		ld b,WIZ_S_FSR_L	;проверим пуст ли буфер отправки
+		in e,(c)
+		jr nz,w53_close_nochk
+		dec b
+		in a,(c)
+		cp 0x20
+		jr z,w53_close_nochk
+		inc e 
+w53_close_nochk:
+		ex af,af'
 		cp Sn_MR_TCP
 		jr nz,w53_close0
 w53_close1:
@@ -268,21 +282,26 @@ w53_close1:
 		or a	;уже закрыт
 		jr z,w53_close3
 		cp SOCK_CLOSE_WAIT	;вторая сторона ждёт закрытия
-		jr z,w53_close0
+		jr z,w53_close_wait
 		cp SOCK_INIT
 		jr z,w53_close0
 		cp SOCK_LISTEN
 		jr z,w53_close0
 		cp SOCK_ESTABLISHED
-		jr nz,w53_closewait
-w53_sendFIN:
+		jr nz,w53_close0	;w53_closewait
+		ld a,e
+		or a
+		ld a,ERR_EAGAIN
+		ret nz
 		ld a,Sn_CR_DISCON
 		call w53_cmd
 		jr w53_close1
-w53_closewait:	;нужно подождать
-		ld a,SHUT_RDWR
-		ret
 w53_close0:
+		ld a,e
+		or a
+		ld a,ERR_EAGAIN
+		ret nz
+w53_close_wait:
 		ld a,Sn_CR_CLOSE
 		call w53_cmd
 		ld b,WIZ_S_SSR
@@ -294,7 +313,7 @@ w53_close3:
 		xor a
 		ld b,WIZ_S_MR
 		out (c),a
-		ld h,a
+		ld l,a
 		ret
 		
 w53_cmd:
@@ -392,6 +411,7 @@ w53_read_new:		;читать новый пакет
 		ret z
 		cp SOCK_UDP
 		ret nc
+		ld h,-1
 		ld a,ERR_NOTCONN
 		ret
 w53_read_new1:
@@ -426,8 +446,8 @@ w53_write1:
 		sub l
 		in a,(c)
 		sbc a,h
-		jr nz,w53_wr_count_valid
-		pop de
+		jr nc,w53_wr_count_valid
+		;pop de
 		ld h,-1
 		ld a,ERR_EMSGSIZE
 		ret

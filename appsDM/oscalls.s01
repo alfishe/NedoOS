@@ -3,19 +3,128 @@
 	PUBLIC errno
 	RSEG	UDATA0
 errno:
-	defb 0
+	defs 1
 	ENDMOD
 	
 	MODULE OS_NETSOCKET
-	PUBLIC OS_NETSOCKET
+	PUBLIC OS_NETSOCKET,OS_NETCONNECT,OS_NETCLOSE
 	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
 	RSEG	CODE
+OS_NETCONNECT:
+	ld l,0x03
+	jr OS_NETSOCKET1
+OS_NETCLOSE:
+	ld l,0x02
+	jr OS_NETSOCKET1
 OS_NETSOCKET:
+	ld l,0x01
+OS_NETSOCKET1:
 	push ix
 	push iy
 	ld a,c
-	ld c,0x43	
-	call 0x0005
+	ld c,CMD_WIZNETOPEN	
+	call BDOS
+	ld (errno),a
+	ld a,l
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OS_NETCLOSE
+	PUBLIC OS_NETCLOSE1
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
+	RSEG	CODE
+OS_NETCLOSE1:
+	push ix
+	push iy
+	ld a,c
+	ld c,CMD_WIZNETOPEN	
+	ld l,0x02
+	ex af,af'
+	call BDOS
+	ld (errno),a
+	ld a,l
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OS_NETCONNECT
+	PUBLIC OS_NETCONNECT1
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
+	RSEG	CODE
+OS_NETCONNECT1:
+	push ix
+	push iy
+	ld a,c
+	ld c,CMD_WIZNETOPEN	
+	ld l,0x03
+	ex af,af'
+	call BDOS
+	ld (errno),a
+	ld a,l
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE HTONS
+	PUBLIC htons
+	RSEG	CODE
+htons:
+	ld h,e
+	ld l,d
+	ret
+	ENDMOD
+	
+	MODULE OS_NETRECV
+	PUBLIC OS_NETRECV,OS_NETSEND
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
+	RSEG	CODE
+OS_NETSEND:
+	ld a,c
+	ld c,CMD_WIZNETWRITE
+	jr OS_NET_RW
+OS_NETRECV:
+	ld a,c
+	ld c,CMD_WIZNETREAD	
+OS_NET_RW:
+	ex af,af'
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	call BDOS
+	ld (errno),a
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	MODULE OS_NETSEND
+	PUBLIC OS_NETSEND1
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
+	RSEG	CODE
+OS_NETSEND1:
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	ld a,c
+	ld c,CMD_WIZNETWRITE	
+	ex af,af'
+	call BDOS
+	ld (errno),a
 	pop iy
 	pop ix
 	ret
@@ -30,6 +139,8 @@ OS_OPENHANDLE:
 	ld a,c
 	ld c,0x43	
 	call 0x0005
+	ld h,b
+	ld l,a
 	pop iy
 	pop ix
 	ret
@@ -44,6 +155,8 @@ OS_CLOSEHANDLE:
 	ld b,d
 	ld c,0x45	
 	call 0x0005
+	ld h,b
+	ld l,a
 	pop iy
 	pop ix
 	ret

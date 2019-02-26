@@ -274,7 +274,7 @@ w53_invalid_socked0:
 
 w53_connect:
 ;DE-sockaddr_in
-		ld h,-1
+		ld l,-1
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
 		dec a
@@ -357,7 +357,7 @@ w53_close3:
 		xor a
 		ld b,WIZ_S_MR
 		out (c),a
-		ld h,a
+		ld l,a
 		ret
 		
 w53_cmd:

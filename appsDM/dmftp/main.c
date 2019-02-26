@@ -1,8 +1,6 @@
 
 #include <stdio.h>
-#include <Intrz80.h>
 #include <string.h>
-#include "w5300.h" 
 #include "..\oscalls.h" 
 
 unsigned char kbd_buf[128];
@@ -15,35 +13,17 @@ unsigned char TX_BUF[4*1024];
 unsigned char *rptr=RX_BUF;
 const unsigned char strip[]="%d.%d.%d.%d:%d";
 
-static unsigned char ch_hash[16]={0};
 
 unsigned long int_count;   
-static unsigned char dns_serv[]={8,8,8,8};
 static unsigned char irc_dom[64];
-static unsigned char ftp_ip[4];
+struct sockaddr_in ftp_ia;
 unsigned int ftp_port;
-static unsigned char data_ip[4];
 unsigned int data_port;
-unsigned int iinchip_source_port=25;
 unsigned int dns_makequery(void);
 
-void socClose(unsigned char soc){
-	output(0x81ab,soc);
-	WR_S_CR(Sn_CR_CLOSE);
-	WR_S_MR(Sn_MR_CLOSE);
-	output(0x81ab,0x0a);
-}
+SOCKET cmds=0;
+SOCKET datasoc=0;
 
-unsigned int receive(void){
-	unsigned int len;
-	if(!(len=RD_S_RX_RSR())) return len;
-	while(len!=RD_S_RX_RSR())
-		len=RD_S_RX_RSR();
-	PACK_SIZE(0,len);
-	WIZ_READ_BUF(RX_BUF, len);
-	//conv1251to866(rptr);
-	return len;
-}
 
 char * gets(char *str)  {
 	char *tstr=str;
@@ -75,10 +55,6 @@ char * gets(char *str)  {
 	*tstr=0;
 	return str;
 }
- 
-void int_proc(void){  
-	int_count++; 
-} 
   
 unsigned int dns_makequery(void){
 	/*
@@ -166,31 +142,34 @@ unsigned int dns_makequery(void){
 	return 1;		// return the size of generated query
 }
 
-unsigned int waitRequestCMD(unsigned char i){
-	unsigned int len;
-	while(1){
-		i--;
-		if(RD_S_SSR()!=SOCK_ESTABLISHED){
-			puts("ftp: connect: Connection timed out");
-			socClose(0x0a);
-			return 0;
+int waitRequestCMD(unsigned char i){
+	int len;
+	while(i){
+		len=recv(cmds,RX_BUF,sizeof(RX_BUF),0);
+		if(len!=0){
+			if(len<0){
+				puts("ftp: connect: Connection timed out");
+				closesocket(cmds,0);
+				cmds=0;
+				return 0;
+			}else{
+				*(RX_BUF+len)=0;
+				sscanf(RX_BUF,"%d",&len);
+				conv1251to866(RX_BUF);
+				puts(RX_BUF);
+				return len;
+			}
+		}else{
+			YIELD();
+			i--;
 		}
-		if(i==0){
-			return 0;
-		}
-		if(len=receive()) break;
-		YIELD();
 	}
-	*(RX_BUF+len)=0;
-	sscanf(RX_BUF,"%d",&len);
-	conv1251to866(RX_BUF);
-	puts(RX_BUF);
-	return len;
+	return 0;
 }
 
 void msg_send(unsigned char * tbuf){
 	strcat(tbuf,"\r\n");
-    WIZ_WRITE_BUF(tbuf,strlen(tbuf));
+    send(cmds,tbuf,strlen(tbuf),0);
 }
 
 unsigned int msg_send_const(const unsigned char * tbuf){
@@ -231,19 +210,19 @@ const unsigned char t866to1251[128] = {
 	0xA8, 0xB8, 0xAA, 0xBA, 0xAF, 0xBF, 0xA1, 0xA2, 0xB0, 0x95, 0xB7, 0x76, 0xB9, 0xA4, 0xA6, 0xA0
 };
 
-unsigned char reconnect(unsigned char soc, unsigned int port){
+unsigned char reconnect(SOCKET * soc, unsigned int port){
 	unsigned char i=3;
-	output(0x81ab,soc);
+	//output(0x81ab,soc);
+	ftp_ia.sin_port=htons(port);
 	while(i--){
-		iinchip_source_port++; 
-		WIZ_SOCKET(0, Sn_MR_TCP, iinchip_source_port);
-		WIZ_CONNECT(0,ftp_ip,port);
-		while (RD_S_SSR()!=SOCK_ESTABLISHED) 
-			if(RD_S_SSR()==SOCK_CLOSED) 
-				break; 
-		return 0;
+		*soc=socket(AF_INET,SOCK_STREAM,0);
+		if(*soc<0)continue;
+		if(connect(*soc, &ftp_ia, sizeof(ftp_ia))<0){
+			closesocket(*soc,0);
+		}else{
+			return 0;
+		}
 	}
-	socClose(soc);
 	return 1;
 }
 
@@ -253,6 +232,7 @@ void initMCU(void){
 	//OS_CLS(7);
 	OS_SETXY(0,24);
 	*kbd_buf=0x00;
+	memcpy(kbd_buf,TX_BUF,25);
 }
 
 void delayms(unsigned char ms){
@@ -264,7 +244,8 @@ void cmdOpen(void){
 	unsigned int req;
 	printf("(to) ");
 	gets(kbd_buf);
-	i=sscanf(kbd_buf,strip,ftp_ip,ftp_ip+1,ftp_ip+2,ftp_ip+3,&ftp_port);
+	i=sscanf(kbd_buf,strip,&ftp_ia.sin_addr.S_un.S_un_b.s_b1,&ftp_ia.sin_addr.S_un.S_un_b.s_b2
+	,&ftp_ia.sin_addr.S_un.S_un_b.s_b3,&ftp_ia.sin_addr.S_un.S_un_b.s_b4,&ftp_port);
 	if(i!=5){
 		if(i!=4){
 			puts("ftp: connect: Connection timed out");
@@ -272,7 +253,7 @@ void cmdOpen(void){
 		}
 		ftp_port=21;
 	}
-	if(reconnect(0x0a, ftp_port)){
+	if(reconnect(&cmds, ftp_port)){
 		puts("ftp: connect: Connection timed out");
 		return;
 	}
@@ -300,74 +281,77 @@ unsigned char getDataSoc(void){
 	req=waitRequestCMD(150);
 	if(req!=227) return 1;
 	i=sscanf(RX_BUF,"227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).",
-		data_ip,data_ip+1,data_ip+2,data_ip+3,&req,&data_port);
+		&ftp_ia.sin_addr.S_un.S_un_b.s_b1,&ftp_ia.sin_addr.S_un.S_un_b.s_b2,
+		&ftp_ia.sin_addr.S_un.S_un_b.s_b3,&ftp_ia.sin_addr.S_un.S_un_b.s_b4,
+		&req,&data_port);
 	if(i!=6) return 1;
 	data_port+=req<<8;
-	i = reconnect(0x0b, data_port);
-	output(0x81ab,0x0a);
+	i = reconnect(&datasoc, data_port);
 	return i;
 }
 
 void cmdDir(void){
-	unsigned int len;
+	int len;
 	if(msg_send_const("PWD")!=257) return;
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE A")!=200){
-		socClose(0x0b);
+		closesocket(datasoc,0);
 		return;
 	}
 	if(msg_send_const("LIST")!=125){
-		socClose(0x0b);
+		closesocket(datasoc,0);
 		return;
 	}
-	output(0x81ab,0x0b);
 	while(1){
-		if((len=receive())==0){
-			if(RD_S_SSR()!=SOCK_ESTABLISHED) break;
-		}
-		*(RX_BUF+len)=0;
-		conv1251to866(RX_BUF);
-		puts(RX_BUF);
+		len=recv(datasoc,RX_BUF,sizeof(RX_BUF),0);
+		if(len<0){
+			closesocket(datasoc, 0);
+			break;
+		}else if(len!=0){
+			*(RX_BUF+len)=0;
+			conv1251to866(RX_BUF);
+			puts(RX_BUF);
+		} 
 	}
-	socClose(0x0b);
 	waitRequestCMD(100);
 }
 
 void cmdRetr(void){
-	unsigned int len,pr=0;
+	int len;
+	unsigned int pr=0;
 	unsigned int file;
 	if(msg_send_const("PWD")!=257) return;
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE I")!=200){
-		socClose(0x0b);
+		closesocket(datasoc, 0);
 		return;
 	}
 	if(wiz_printf_cmd("RETR %s",kbd_buf+4)!=125){
-		socClose(0x0b);
+		closesocket(datasoc, 0);
 		return;
 	}
 	file=OS_CREATEHANDLE(kbd_buf+4,0x80);
 	if(file&0xff){
-		socClose(0x0b);
+		closesocket(datasoc, 0);
 		puts("Open local file error");
 		return;
 	}
-	output(0x81ab,0x0b);
 	while(1){
-		if((len=receive())==0){
-			if(RD_S_SSR()!=SOCK_ESTABLISHED) break;
-		}else{
+		len=recv(datasoc,RX_BUF,sizeof(RX_BUF),0);
+		if(len!=0){
+			if(len<0) break;
 			pr++;
 			OS_WRITEHANDLE(RX_BUF,file,len);
 			printf("\r%d packets",pr);
 		}
 	}
-	socClose(0x0b);
+	closesocket(datasoc, 0);
 	OS_CLOSEHANDLE(file);
 	waitRequestCMD(100);
 }
 
 void cmdStor(void){
+	int res;
 	unsigned int len,pr=0;
 	unsigned int file;
 	if(msg_send_const("PWD")!=257) return;
@@ -383,40 +367,36 @@ void cmdStor(void){
 	if(wiz_printf_cmd("STOR %s",kbd_buf+4)!=125){
 		goto endstor;
 	}
-	output(0x81ab,0x0b);
 	while(1){
 		if((len=OS_READHANDLE(TX_BUF,file,2048))==0){
 			break;
 		}else{
 			pr++;
-			WIZ_WRITE_BUF(TX_BUF,len);
-			printf("\r%d packets",pr);
-			while (RD_S_FSR()!=8*1024){ 
-				if(RD_S_SSR()!=SOCK_ESTABLISHED)
-				{
+			while(1){
+				res=send(datasoc,TX_BUF,len,0);
+				if(res<0){
+					if(errno==ERR_EMSGSIZE){
+						YIELD();
+						continue;
+					}
 					goto endstor;
 				}
+				break;
 			}
+			printf("\r%d packets",pr);
 		}
 	}
-	WR_S_CR(Sn_CR_DISCON);
-	while(RD_S_CR());
-	while(RD_S_SSR()!=SOCK_CLOSED);
 endstor:
-	socClose(0x0b);
+	while(closesocket(datasoc,pr?1:0));
 	OS_CLOSEHANDLE(file);
 	waitRequestCMD(100);
 }
 
-//extern unsigned char cmdlist[256];
 void main(void)
 {
     initMCU(); 
 	printf("dmftp v.%s %s\r\n",__DATE__,__TIME__);
-	output(0x82ab,0x50);
-	socClose(0x0a);
 	while(1){
-		output(0x81ab,0x0a);
 		if(waitRequestCMD(1))continue;
 		printf("ftp> ");
 		gets(kbd_buf);
@@ -435,6 +415,7 @@ void main(void)
 				}else if(!strcmp(kbd_buf,"close")){
 					msg_send_const("QUIT");
 					waitRequestCMD(1);
+					closesocket(cmds,0);
 				}
 				break;
 			case 'g':
@@ -455,6 +436,7 @@ void main(void)
 			case 'q':
 				if(!strcmp(kbd_buf,"quit")){
 					msg_send_const("QUIT");
+					closesocket(cmds,0);
 					return;
 				}
 				break;

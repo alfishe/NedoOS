@@ -36,7 +36,7 @@ typedef enum {
 	INVALID_SOCKET=0, 
 	WIZ_SOCKET_0=8, WIZ_SOCKET_1=9, WIZ_SOCKET_2=10, WIZ_SOCKET_3=11,
 	WIZ_SOCKET_4=12, WIZ_SOCKET_5=13, WIZ_SOCKET_6=14, WIZ_SOCKET_7=15
-}SOCKET;
+}SOCKET1;
 
 //#define S_MR(soc_) ((unsigned char*)(WIZ_BASE_ADDR+soc_*0x40+0x0201))
 //#define S_CR(soc_) ((unsigned char*)(WIZ_BASE_ADDR+soc_*0x40+0x0203))
