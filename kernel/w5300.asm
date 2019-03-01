@@ -212,9 +212,9 @@ w53_connect:
 		ld l,-1
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
-		dec a
-		ld a,ERR_PROTOTYPE
-		ret nz
+		;dec a
+		;ld a,ERR_PROTOTYPE
+		;ret nz
 		ld b,WIZ_S_SSR
 		in a,(c)
 		or a
@@ -238,6 +238,10 @@ w53_connect1:
 		inc b
 		dec a
 		jr nz,w53_connect1
+		ld b,WIZ_S_MR
+		in a,(c)
+		cp Sn_MR_TCP
+		jr nz,w53_connect3
 		ld a,Sn_CR_CONNECT
 		call w53_cmd
 		ld b,WIZ_S_SSR
@@ -415,7 +419,24 @@ w53_read_new:		;читать новый пакет
 		ld a,ERR_NOTCONN
 		ret
 w53_read_new1:
+		ld b,WIZ_S_SSR
+		in a,(c)
 		ld b,WIZ_S_RX_H
+		cp SOCK_UDP
+		jr nz,w53_read_new2
+		in a,(c)
+		inc b
+		in a,(c)
+		dec b
+		in a,(c)
+		inc b
+		in a,(c)
+		dec b
+		in a,(c)
+		inc b
+		in a,(c)
+		dec b	
+w53_read_new2:
 		ld (ix+0),b
 		in a,(c)
 		ld (ix+3),a

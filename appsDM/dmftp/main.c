@@ -12,7 +12,8 @@ unsigned char RX_BUF[4*1024];
 unsigned char TX_BUF[4*1024];
 unsigned char *rptr=RX_BUF;
 const unsigned char strip[]="%d.%d.%d.%d:%d";
-
+const unsigned char dns_ia[]={0,0,53,8,8,8,8};
+const unsigned char DNS_HEAD[]={0x11,0x22,0x01,0x00,0x00,0x01};
 
 unsigned long int_count;   
 static unsigned char irc_dom[64];
@@ -57,29 +58,20 @@ char * gets(char *str)  {
 }
   
 unsigned int dns_makequery(void){
-	/*
+	int len;
+	SOCKET dnssoc;
 	unsigned char* query;
-    unsigned int len;
-    unsigned char qname[64];
+	dnssoc=socket(AF_INET,SOCK_DGRAM,0);
+	memcpy(&ftp_ia,dns_ia,7);
+	connect(dnssoc, &ftp_ia, sizeof(ftp_ia));
     puts("domain name (NOT IP):"); 
-    scanf("%s",qname);
-	iinchip_source_port++; 
-    //WIZ_SOCKET(0, Sn_MR_UDP, iinchip_source_port);  
-    do{
-    	*S_CR(0) =Sn_CR_CLOSE;
-    	while(*S_CR(0));
-		*S_MR(0) = Sn_MR_UDP; // sets TCP mode
-		*S_PORTR(0) = iinchip_source_port; // sets source port number
-		*S_CR(0) = Sn_CR_OPEN; // sets OPEN command
-		while(*S_CR(0));
-	}while(*S_SSR(0) != SOCK_UDP);
-	// Make Qurey Header 
+	gets(kbd_buf);
 	memcpy(TX_BUF,DNS_HEAD,6);
-	memset(TX_BUF+6,0,512);
-	strcpy(TX_BUF + 13,qname);
+	strcpy(TX_BUF + 13,kbd_buf);
 	query = TX_BUF + 13;
-
-	// Make Question Section 
+	
+	//https://habr.com/ru/post/346098/ 
+	
 	while(1)	// fill in QNAME filed with domain_name 
 	{
 		unsigned char* domain_tok;
@@ -107,39 +99,14 @@ unsigned int dns_makequery(void){
 	*query++ = 0;
 	*query++ = 1;
 	
-	WIZ_SOC_IPSET(0,dns_serv,53);
-    puts("Connected to DNS");
-    WIZ_WRITE_BUF(0,TX_BUF,(int)(query - TX_BUF));
+    send(dnssoc,TX_BUF,query - TX_BUF,0);
       
     while (1)   
     {   
-    	len=*S_RX_RSR(0);
-    	if(!len) continue;
-    	if(len==*S_RX_RSR(0))
-    		break; 
+		len=recv(dnssoc,RX_BUF,sizeof(RX_BUF),0);
+		if (len!=0) break;
     }
-    WIZ_RD_BUF(0,RX_BUF,6);
-    PACK_SIZE(0,len);  
-    WIZ_READ_BUF(0, RX_BUF, len);
-    WIZ_CLOSE(0);
-    
-    //dns_parse_reponse();
-    query=RX_BUF+(query-TX_BUF);
-    while(1){
-    	if(*query==0)break;
-    	if((*query&0xc0)==0xc0){
-    		query++;
-    		break;
-    	}
-    	query++;
-    }
-    query+=11;
-    memcpy(irc_ip,query,4);
-    puts("\r\nDNS response OK");   
-    //printf(strip,query[0],query[1],query[2],query[3]); 
-    //puts(""); 
-	*/
-	return 1;		// return the size of generated query
+    return 1;	
 }
 
 int waitRequestCMD(unsigned char i){
@@ -407,6 +374,8 @@ void main(void)
 					cmdDir();
 				}else if(!strncmp(kbd_buf,"del ",4)){
 					wiz_printf_cmd("DELE %s",kbd_buf+4);
+				}else if(!strcmp(kbd_buf,"dns")){
+					dns_makequery();
 				}
 				break;
 			case 'c':

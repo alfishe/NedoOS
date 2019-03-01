@@ -21,9 +21,10 @@ OS_NETSOCKET:
 	ld l,0x01
 OS_NETSOCKET1:
 	push ix
-	push iy
+	push iy	
+	ex af,af'
 	ld a,c
-	ld c,CMD_WIZNETOPEN	
+	ld c,CMD_WIZNETOPEN
 	call BDOS
 	ld (errno),a
 	ld a,l

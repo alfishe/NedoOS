@@ -245,6 +245,8 @@ void main(void){
 	}
 	*S_CR(0)=Sn_CR_CLOSE;
 	while(*S_CR(0)!=0);
+	*S_MR(0) = Sn_MR_CLOSE;
+	
 	memcpy(GAR,gw,4);
 	memcpy(SUBR,mask,4);
 	memcpy(SIPR,ip,4);
