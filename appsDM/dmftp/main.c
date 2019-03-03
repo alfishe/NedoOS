@@ -359,10 +359,13 @@ endstor:
 	waitRequestCMD(100);
 }
 
+extern void dns_resolve(void);
+
 void main(void)
 {
     initMCU(); 
 	printf("dmftp v.%s %s\r\n",__DATE__,__TIME__);
+	dns_resolve();
 	while(1){
 		if(waitRequestCMD(1))continue;
 		printf("ftp> ");

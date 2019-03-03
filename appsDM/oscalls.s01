@@ -22,8 +22,8 @@ OS_NETSOCKET:
 OS_NETSOCKET1:
 	push ix
 	push iy	
-	ex af,af'
 	ld a,c
+	ex af,af'
 	ld c,CMD_WIZNETOPEN
 	call BDOS
 	ld (errno),a
@@ -32,47 +32,7 @@ OS_NETSOCKET1:
 	pop ix
 	ret
 	ENDMOD
-	
-	MODULE OS_NETCLOSE
-	PUBLIC OS_NETCLOSE1
-	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
-	RSEG	CODE
-OS_NETCLOSE1:
-	push ix
-	push iy
-	ld a,c
-	ld c,CMD_WIZNETOPEN	
-	ld l,0x02
-	ex af,af'
-	call BDOS
-	ld (errno),a
-	ld a,l
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
-	MODULE OS_NETCONNECT
-	PUBLIC OS_NETCONNECT1
-	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
-	RSEG	CODE
-OS_NETCONNECT1:
-	push ix
-	push iy
-	ld a,c
-	ld c,CMD_WIZNETOPEN	
-	ld l,0x03
-	ex af,af'
-	call BDOS
-	ld (errno),a
-	ld a,l
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
+		
 	MODULE HTONS
 	PUBLIC htons
 	RSEG	CODE
@@ -102,28 +62,6 @@ OS_NET_RW:
 	push af
 	push ix
 	push iy
-	call BDOS
-	ld (errno),a
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
-	MODULE OS_NETSEND
-	PUBLIC OS_NETSEND1
-	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
-	RSEG	CODE
-OS_NETSEND1:
-	pop af
-	pop hl
-	push hl
-	push af
-	push ix
-	push iy
-	ld a,c
-	ld c,CMD_WIZNETWRITE	
-	ex af,af'
 	call BDOS
 	ld (errno),a
 	pop iy

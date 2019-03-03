@@ -168,10 +168,6 @@ SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. *
 		
 wizlocalport:
 		defw 0xc000
-
-w53_errexit:
-		ld h,-1
-		ret
 		
 wiznet_open
 ;L-subfunction
@@ -182,6 +178,8 @@ wiznet_open
 		dec l
 		jp z,w53_connect
 		ld a,ERR_INTR	;функци€ не существует
+		dec l
+		jp z,w53_dns_start
 		ld hl,-1
 		ret
 w53_socket:
@@ -368,154 +366,8 @@ w53_cmd0:
 		or a
 		ret z
 		jr w53_cmd0
-		
-		
-wiznet_read:	;a'-сокет, de-Ѕуфер, hl-количество
-		call w53_valid_socket
-		jp z,w53_invalid_socked0
-		call BDOS_preparedepage
-w53_read_min:			;hl-сколько хотим байт
-		ld a,h
-		or l
-		ret z
-w53_read55:
-		ld c,(ix+2)
-		ld b,(ix+3)
-		ld a,b
-		or c
-		jr z,w53_read_new	;старых данных нету, читать новый пакет
-		
-		;читаем старый пакет
-		;bc=min(hl,bc), hl-=min(hl,bc)
-		sbc hl,bc		
-		jr nc,w53_minimum0
-		add hl,bc
-		ld b,h
-		ld c,l
-		ld h,0
-		ld l,0
-w53_minimum0:
-		ld a,(ix+2)
-		sub c
-		ld (ix+2),a
-		ld a,(ix+3)
-		sbc a,b
-		ld (ix+3),a
-		
-		push bc				;сколько реально прочтем сохраним
-		ex de,hl
-		ld d,b
-		ld e,c		
-		ld c,WIZ_BASE_ADDR
-		ld b,(ix+0)
-		ld a,WIZ_S_RX_L
-		bit 0,b
-		jr nz,w53_read_loopl
-w53_read_loop:	;что-то надо дочитать de-count, hl-ptr
-		ini
-		ld b,a
-		dec e
-		jp z,w53_read_looph
-w53_read_loopl:
-		ini
-		dec e
-		jp nz,w53_read_loop
-		dec d
-		jp p,w53_read_loop
-		jp w53_read_loope
-w53_read_looph:
-		dec d
-		jp p,w53_read_loopl
-w53_read_loope:		;конец цикла
-		ld (ix+0),b	;сохраним следующий регистр RX	
-		pop hl					;сколько прочитали
-		ld a,(ix+2)				;если в буфере чтото есть,
-		or (ix+3)				;то выходим
-		ret nz					
-		bit 0,b					;иначе команда - пакет забрали
-		jr z,w53_read_noblanc
-		in a,(c)				;дочитаем холостой байт
-w53_read_noblanc:
-		ld a,Sn_CR_RECV
-		jp w53_cmd	;выходим
-		
-w53_read_new:		;читать новый пакет
-		ld bc,WIZ_BASE_ADDR+(WIZ_S_RX_RSR_L<<8)
-		in a,(c)
-		jr nz,w53_read_new1
-		dec b
-		in a,(c)
-		jr nz,w53_read_new1
-		;в буфере ничего. проверим жив ли сокет
-		ld h,a			;ничего не прочитали
-		ld l,a
-		ld b,WIZ_S_SSR		
-		in a,(c)
-		cp SOCK_ESTABLISHED
-		ret z
-		cp SOCK_UDP
-		ret nc
-		ld a,ERR_NOTCONN
-		ret
-w53_read_new1:
-		ld b,WIZ_S_RX_H
-		ld (ix+0),b
-		in a,(c)
-		ld (ix+3),a
-		inc b
-		in a,(c)
-		ld (ix+2),a
-		jp w53_read_min
 
-wiznet_close:
-wiznet_write:	;a'-сокет, de-Ѕуфер, hl-количество
-		call w53_valid_socket
-		jp z,w53_invalid_socked0
-		call BDOS_preparedepage
-		ld c,WIZ_BASE_ADDR
-		ld b,WIZ_S_SSR		;жив ли сокет
-		in a,(c)
-		cp SOCK_ESTABLISHED
-		jr z,w53_write1
-		cp SOCK_UDP
-		jr nc,w53_write1
-		ld a,ERR_NOTCONN	;издох
-		ld h,-1
-		ret
-w53_write1:
-		ld b,WIZ_S_FSR_L	;проверим место в буфере
-		in a,(c)
-		dec b
-		sub l
-		in a,(c)
-		sbc a,h
-		jr nz,w53_wr_count_valid
-		pop de
-		ld h,-1
-		ld a,ERR_EMSGSIZE
-		ret
-w53_wr_count_valid:	
-		ex de,hl
-		push de		;чтобы потом сколько отправили вернуть
-		dec de
-		push de
-		pop ix
-		ld de,-2
-		ld b,WIZ_S_TX_L
-		ld a,WIZ_S_TX_L+1
-w53_wr_loop:
-		outi
-		ld b,a
-		outi
-		add ix,de
-		jr c,w53_wr_loop		
-		pop hl
-		ld b,WIZ_S_WRSR_H
-		out (c),h
-		inc b
-		out (c),l
-		ld a,Sn_CR_SEND
-		jp w53_cmd
+w53_dns_start:		
 		
 		
 w53_socflags: ;+0 - RXreg, +1 - TXreg, +2..3 - RXcount
@@ -525,40 +377,53 @@ w53_socflags: ;+0 - RXreg, +1 - TXreg, +2..3 - RXcount
 ;********************************************************************************	
 
 main:
-	ld de,SOCK_STREAM+(AF_INET<<8)
-	OS_NETSOCKET
-	ld a,l
-	or a
-	jp m,?C_EXIT
-	ld (soc1),a
-	
-	ld a,(soc1)
-	ld de,inetad
-	OS_NETCONNECT
-	ld hl,get_str_end-get_str
-	ld de,get_str
-	ld a,(soc1)
-	OS_WIZNETWRITE
-mainrdloop	
-	ld hl,1024
-	ld de,rxbuf
-	ld a,(soc1)
-	OS_WIZNETREAD
-main0:
-	ld a,(soc1)
-	OS_NETSHUTDOWN
-	cp SHUT_RDWR
-	jr z,main0
+		ld a,WIZ_SOCK0_HNDL
+		ld bc,WIZ_REGAD_PORT
+		out (c),a
+		ld a,Sn_CR_CLOSE
+		call w53_cmd
+		ld b,WIZ_S_MR
+		ld a,Sn_MR_UDP
+		out (c),a
+		ld de,(wizlocalport)
+		inc de
+		set 6,d
+		set 7,d
+		ld (wizlocalport),de
+		ld b,WIZ_S_PORTR_H
+		out (c),d
+		inc b
+		out (c),e
+		ld a,Sn_CR_OPEN
+		call w53_cmd
+		ld b,WIZ_S_SSR
+w53_dns_open:
+		in a,(c)
+		cp SOCK_UDP
+		jr nz,w53_dns_open
+		ld hl,dnsserv
+		ld b,WIZ_S_DPORTR_L
+		ld a,6
+w53_dns_setip:
+		outi
+		inc b
+		inc b
+		dec a
+		jr nz,w53_dns_setip
+		
+		
+		
+		
 	jp 0x0000
 get_str
-	defb 'GET /cspr/index.htm HTTP/1.1',13,10
-	defb 'Host: dimkam.ru',13,10
-	defb 13,10
+	defb "irclog.dimkam.ru"
 get_str_end
 inetad:
 	defb 0,80
 	defb 188,35,5,239
-	
+dnsserv:
+	defb 0,53
+	defb 8,8,8,8
 soc1: defw 0
 rxbuf:
 	REPT 1024
