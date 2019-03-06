@@ -3,6 +3,7 @@
 ;TODO %~t1 (дата-время 1-го параметра)
 ;TODO goto и метки :label
 ;TODO if ???==??? goto
+;TODO for
 ;TODO PATH (где хранить? должна подгружаться при старте новой копии cmd)
 
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
@@ -10,6 +11,7 @@
 MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
 txtscrhgt=25
 txtscrwid=80
+CMDLINEY=24
 
 COLOR=7
 CURSORCOLOR=#38

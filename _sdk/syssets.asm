@@ -1,3 +1,3 @@
 atm=3 
 SYSDRV=4 
-INETDRV 
+INETDRV EQU 0x01 

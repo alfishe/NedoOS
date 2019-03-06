@@ -173,7 +173,7 @@ Home=ssQ
 ssW=extbase+29
 Ins=ssW
 ssE=extbase+30
-End=ssE
+Endkey=ssE
 
 csss=9 ;Tab
 

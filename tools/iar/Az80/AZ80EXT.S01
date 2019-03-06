@@ -1,0 +1,109 @@
+/********************************************
+*                                           *
+* This file contains all Z80 extended       *
+* instructions which is handled by the      *
+* IAR AZ80 assembler.                       *
+*                                           *
+* IMPORTANT: The assembler must be invoked  *
+* with the commandline option -uu in order  *
+* to interpret these instructions correctly.*
+*                                           *
+********************************************/
+
+ .IF (__TID__ & 0x80)	; with -uu only!
+	ADC	A,IXH
+	ADC	A,IXL
+	ADC	A,IYH
+	ADC	A,IYL
+	ADD	A,IXH
+	ADD	A,IXL
+	ADD	A,IYH
+	ADD	A,IYL
+	AND	IXH
+	AND	IXL
+	AND	IYH
+	AND	IYL
+	CP	IXH
+	CP	IXL
+	CP	IYH
+	CP	IYL
+	DEC	IXH
+	DEC	IXL
+	DEC	IYH
+	DEC	IYL
+	INC	IXH
+	INC	IXL
+	INC	IYH
+	INC	IYL
+	LD	A,IXH
+	LD	A,IXL
+	LD	A,IYH
+	LD	A,IYL
+	LD	B,IXH
+	LD	B,IXL
+	LD	B,IYH
+	LD	B,IYL
+	LD	C,IXH
+	LD	C,IXL
+	LD	C,IYH
+	LD	C,IYL
+	LD	D,IXH
+	LD	D,IXL
+	LD	D,IYH
+	LD	D,IYL
+	LD	E,IXH
+	LD	E,IXL
+	LD	E,IYH
+	LD	E,IYL
+	LD	IXH,A
+	LD	IYH,A
+	LD	IXH,B
+	LD	IYH,B
+	LD	IXH,C
+	LD	IYH,C
+	LD	IXH,D
+	LD	IYH,D
+	LD	IXH,E
+	LD	IYH,E
+	LD	IXH,IXH
+	LD	IYH,IYH
+	LD	IXH,IXL
+	LD	IYH,IYL
+	LD	IXH,30H
+	LD	IYH,05H
+	LD	IXL,A
+	LD	IYL,A
+	LD	IXL,B
+	LD	IYL,B
+	LD	IXL,C
+	LD	IYL,C
+	LD	IXL,D
+	LD	IYL,D
+	LD	IXL,E
+	LD	IYL,E
+	LD	IXL,IXH
+	LD	IYL,IYH
+	LD	IXL,IXL
+	LD	IYL,IYL
+	LD	IXL,20H
+	LD	IYL,10H
+	OR	IXH
+	OR	IXL
+	OR	IYH
+	OR	IYL
+	SBC	A,IXH
+	SBC	A,IXL
+	SBC	A,IYH
+	SBC	A,IYL
+	SUB	IXH
+	SUB	IXL
+	SUB	IYH
+	SUB	IYL
+	XOR	IXH
+	XOR	IXL
+	XOR	IYH
+	XOR	IYL
+
+ .ENDIF
+; Make a correct ending
+	END

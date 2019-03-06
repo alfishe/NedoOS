@@ -14,3 +14,5 @@ type asmerr.f
 
 del diff.com
 ren diff_os.bin diff.com
+
+if "%currentdir%"=="" (pause)

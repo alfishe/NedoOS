@@ -1,9 +1,8 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 
-;откатываем указатель файла после заголовка bmp - TODO поддержать в trdosfs
-        
-FREE=0x8000 ;для динамической памяти
+FREE=0x8000 ;динамическая память jpeg, буфер строки gif
+LINE1=0x9400 ;буфер строки 0x400*3? jpeg
 
 DISKBUF=0xb000
 DISKBUFsz=0x1000
@@ -11,6 +10,9 @@ DISKBUFsz=0x1000
 COLOR=7
 
 GIF_PIXELSIZE=0
+
+HTMLTOPY=0
+HTMLHGT=25
 
        MACRO rdbyte
         INC LY
@@ -97,58 +99,35 @@ GIF_PIXELSIZE=0
         org PROGSTART
 cmd_begin
         ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
-        ld e,2 ;MC hires mode
-        OS_SETGFX
+        call init
         
-        ;YIELD ;чтобы cmd мог доделать свои дела на экране
+browser_go
+;в linkbuf лежит ссылка
+;в COMMANDLINE лежит текущее имя файла
+;для backspace: запомнить полный путь с протоколом и именем
+        ld de,pathbuf
+        push de
+getpath_patch=$+1
+        call getpath_file
+        pop de
+        ;DE = Filled in with whole path string (DRIVE:/PATH/ !!!)
+        ld h,d
+        ld l,e
+        call strcopy
+        dec de ;terminator
+browser_oldfilename=$+1
+        ld hl,emptyfilename
+        call strcopy
+        jr browser_backspaceq
 
-        OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        ld (setpgs_scr_low),a
-        ld a,d
-        ld (setpgs_scr_high),a
-        
-        OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000,8000,c000
-        ld a,e
-        ld (codepg4000),a
-        ld a,h
-        ld (codepg8000),a
-        ld a,l
-        ld (curpgLZW),a
+browser_backspace
+;вспомнить старый путь с протоколом и именем, положить его в COMMANDLINE
+        ld de,linkbuf
+        ld hl,pathbuf
+        call strcopy
 
-;for JPEG:
-        OS_NEWPAGE
-        ld a,e
-        ld (tpgs+0),a
-        OS_NEWPAGE
-        ld a,e
-        ld (tpgs+1),a
-        OS_NEWPAGE
-        ld a,e
-        ld (tpgs+2),a
-        ;OS_NEWPAGE
-        ;ld a,e
-        ;ld (tpgs+3),a
-        ;OS_NEWPAGE
-        ;ld a,e
-        ;ld (tpgs+4),a
-        OS_NEWPAGE
-        ld a,e
-        ld (tpgs+5),a
-
-        OS_NEWPAGE
-        ld a,e
-        ld (temppg8000),a
-
-        
-        ld e,0;COLOR
-        OS_CLS
-
-        ld de,zxpal
-        ld c,CMD_SETPAL
-        CALLBDOS
+browser_backspaceq
+        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         
         call setpgs_scr
 
@@ -156,7 +135,7 @@ cmd_begin
 
         ld de,0xc000;0x0801
         call setxymc
-        ld de,COMMANDLINE
+        ld de,linkbuf;COMMANDLINE
         call prtextmc
         
         ;ld de,0x1002
@@ -168,29 +147,96 @@ cmd_begin
 
          OS_GETTIMER ;hlde=timer
          ld (timebegin),de
-       
-        
-        
-        ld hl,COMMANDLINE ;command line
-        call skipword
-        call skipspaces
-        ld a,(hl)
+
+        ld hl,linkbuf
+        ld de,COMMANDLINE
+        push de
+        call strcopy
+        pop hl        
+;command line = "<file to load>"
+
+;если в имени файла стоит file://, то включить работу с файлами, если http://, то включить работу с http
+        push hl
+        ld de,tfileprotocol
+        call strcp_tillde0 ;if found, hl=after "//"
+        ld a,0
+        jr z,browser_go_changeprotocol
+        pop hl
+        push hl
+        ld de,thttpprotocol
+        call strcp_tillde0 ;if found, hl=after "//"
+        ld a,1
+        jr z,browser_go_changeprotocol
+        pop hl
+        jr browser_go_nochangeprotocol
+browser_go_changeprotocol
+        ld (browserprotocol),a
+        ;pop af ;skip old hl
+        ex (sp),hl ;push hl
+;включить колбэки под нужный протокол (или грузить http в файл, а потом открывать файл?)
+        ld bc,readstream_file
+        ld de,closestream_file
+        ld hl,getpath_file
+        exx
+        ld bc,rootdir_file
+        ld de,chdir_file
+        ld hl,openstream_file
+         or a
+         jr z,browser_go_changeprotocol_nohttp
+        ld bc,readstream_http
+        ld de,closestream_http
+        ld hl,getpath_http
+        exx
+        ld bc,rootdir_http
+        ld de,chdir_http
+        ld hl,openstream_http
+browser_go_changeprotocol_nohttp
+        ld (rootdir_patch),bc
+        ld (chdir_patch),de
+        ld (openstream_patch),hl
+        exx
+        ld (readstream_patch),bc
+        ld (closestream_patch),de
+        ld (getpath_patch),hl
+;сменить текущий каталог на корневой
+rootdir_patch=$+1
+        call rootdir_file
+        pop hl
+browser_go_nochangeprotocol
+
+browserprotocol=$+1
+        ld a,0 ;0=file, 1=http
+
+;hl=начало path без протокола
+
+;сменить текущий каталог (или http-каталог) в соответствии с каталогом в ссылке
+        push hl ;hl=начало path без протокола
+        call findlastslash.
+        ex de,hl ;hl=after last slash (filename)
+        pop de ;начало path без протокола
         or a
-        jr nz,$+5
-        ld hl,filename
-;command line = "texted <file to load>"
-        ;ld (texted_filenameaddr),hl
-        ex de,hl ;de=drive/path/file
-        OS_OPENHANDLE
-;b=new file handle
-        ld a,b
-        ld (filehandle),a
+        sbc hl,de
+        add hl,de ;hl=filename, de=начало path без протокола, Z=(path len==0)
+        jr z,browsernopath
+        push hl ;filename
+        dec hl
+        ld (hl),0
+;de=path
+chdir_patch=$+1
+        call chdir_file
+        pop hl ;hl=filename
+browsernopath
+;hl=filename
+         ld (browser_oldfilename),hl
+        ex de,hl ;de=filename
+openstream_patch=$+1
+        call openstream_file
 
         ;ld hl,0
         ;ld de,0
        LD IY,DISKBUF+DISKBUFsz-1
 
-        call GETBYTE_slow
+        call RDBYTE
         cp '<'
         jp z,loadhtml
         cp 'G'
@@ -199,7 +245,7 @@ cmd_begin
         jp z,loadjpeg
         cp 'B'
         jp nz,loadbmp_fail
-        call GETBYTE_slow
+        call RDBYTE
         cp 'M'
         jp nz,loadbmp_fail
 
@@ -227,7 +273,7 @@ cmd_begin
 
         ld b,18-2
 loadbmp_skipheader0
-        call GETBYTE_slow
+        call RDBYTE
         djnz loadbmp_skipheader0
         call GETDWORD_slow
         ex de,hl ;hl=wid
@@ -235,57 +281,46 @@ loadbmp_skipheader0
         call GETDWORD_slow
         ld (curpichgt),de
         
-;        ld b,54-26
-;loadbmp_skipheader1
-;        call GETBYTE_slow
-;        djnz loadbmp_skipheader1
+        ld b,54-26
+loadbmp_skipheader1
+        call RDBYTE
+        djnz loadbmp_skipheader1
         
-        ld de,0
-        ld hl,0 ;dehl=shift in file
-        ld a,(filehandle)
-        ld b,a
-        OS_SEEKHANDLE
+        ;ld de,0
+        ;ld hl,0 ;dehl=shift in file
+        ;ld a,(filehandle)
+        ;ld b,a
+        ;OS_SEEKHANDLE
+        
+        call reservepage
+        ret nz ;no memory
+        ld hl,DISKBUF
+        ld de,0xc000
+        ld bc,DISKBUFsz
+        ldir ;beginning of file is already read
+        ld hl,0x4000-DISKBUFsz
+        jr nvview_load0go
         
 nvview_load0
-        ;push bc
-        ;push de
-        ;push hl
         call reservepage
-        ;pop hl
-        ;pop de
-        ;pop bc
         ret nz ;no memory
 
-        ;push bc
-        
-        ;push de
-        ;push hl
         ld de,0xc000
         ld hl,0x4000
+nvview_load0go
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
-        ld a,(filehandle)
-        ld b,a
-        OS_READHANDLE
+         push hl
+        ;ld a,(filehandle)
+        ;ld b,a
+        ;OS_READHANDLE
+        call readstream
 ;HL = Number of bytes actually read, A=error
         ld b,h
         ld c,l
-        ld hl,0x4000
+         pop hl
+        ;ld hl,0x4000
         or a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
-        ;pop hl
-        ;pop de
-
-        ;push af ;NZ = bytes to read != bytes actually read
-        ;ex de,hl
-        ;add hl,bc
-        ;ex de,hl
-        ;jr nc,$+3
-        ;inc hl
-        ;pop af ;NZ = bytes to read != bytes actually read
-
-        ;pop bc
-
-        ;or a
         jr z,nvview_load0
         
         ld hl,0x8000+(40*199)
@@ -386,10 +421,15 @@ scrlinestep=$+1
         add hl,bc ;next line on screen
         pop bc
         djnz fill0
+        
+loadbmp_fail
 closequit
-        call closefile
+
+closestream_patch=$+1
+        call closestream_file
         
 quit
+        ;jr $
          call setpgcode4000
 
          OS_GETTIMER ;hlde=timer
@@ -398,53 +438,74 @@ timebegin=$+1
          ld de,0
          or a
          sbc hl,de
-         ex de,hl ;de=time (frames)
-         
-         call setpgs_scr
-         push de
          ld de,0xc040
-         call setxymc
-         pop de
-         ld bc,5000
-         call prdigmc
-         ld bc,500
-         call prdigmc
-         ld bc,50
-         call prdigmc
-         push de
-         ld a,'.'
-         call prcharmc
-         pop de
-         ld bc,5
-         call prdigmc
-         sla e
-         ld bc,1
-         call prdigmc
+;d=y, e=x8
+;hl=time (frames)
+         call prnumfrac
 
         YIELDGETKEYLOOP
-        QUIT
-        
+        cp cs0
+        jp z,browser_backspace
+        ;QUIT
+CONNECTIONERROR
 ERROR ;for jpeg
-        jr $
+        ;jr $
 ERROR2
-        jr $
+        ;jr $
 ERROR4
-        jr $
+        ;jr $
         QUIT
         
-loadbmp_fail
-        call closefile
-        jr quit
+;hl = poi to filename in string
+;out: de = after last slash
+findlastslash.
+nfopenfnslash.
+	ld d,h
+	ld e,l ;de = after last slash
+;find last slash
+nfopenfnslash0.
+	ld a,[hl]
+	inc hl
+	or a
+	ret z ;jr z,nfopenfnslashq.
+	cp '/'
+	jr nz,nfopenfnslash0.
+	jr nfopenfnslash.
+;nfopenfnslashq.
+;de = after last slash
+	;ret
 
-closefile
-        ld a,(filehandle)
-        ld b,a
-        OS_CLOSEHANDLE
+strcopy
+;hl->de
+strcopy0
+        ld a,(hl)
+        ldi
+        or a
+        jr nz,strcopy0
         ret
 
+        
 drawscreenline_frombuf
 ;hl=from
 ;bc=size (*3?)
+        exx
+drawscreenline_frombuf_scr=$+1
+        ld de,0xc000
+        
+        ld hl,40
+        add hl,de ;next line on screen
+        bit 5,h
+        exx
+        ret nz ;jr nz,drawscreenline_frombufq ;end of screen, current line doesn't fit
+        exx
+        ld (drawscreenline_frombuf_scr),hl
+
+        exx
+
+         call setpgdiv4000
+        ;call setpgs_scr ;177t
+        call setpgscrc000
+        
         push iy
         
 drawscreenline_frombuf_ixaddr=$+2
@@ -452,19 +513,12 @@ drawscreenline_frombuf_ixaddr=$+2
 drawscreenline_frombuf_iyaddr=$+2
         ld iy,(colorlace0-2)
         
-         call setpgdiv4000
-        call setpgs_scr ;177t
-        exx
-drawscreenline_frombuf_scr=$+1
-        ld de,0xc000
-        exx
-        ;jr $
-        
         ld a,(fillwid8)
         ld b,a
          ;ld b,80
 drawscreenline_frombuf0
         push bc
+        
         call readchrlomem
         ;if GIF_PIXELSIZE
         ;ld bc,8
@@ -479,7 +533,9 @@ drawscreenline_frombuf0
         res 6,h ;de=адрес пикселей ;hl=адрес атрибутов
         exx
         ;jr $
+         call setpgscr8000
         call convertchr ;jp=1980t
+         call setpgtemp8000
         exx
         ld a,d
         xor 0x20
@@ -499,15 +555,15 @@ drawscreenline_frombuf0
         dec iy
         ld (drawscreenline_frombuf_iyaddr),iy
         
-        ld hl,(drawscreenline_frombuf_scr)
-        ld bc,40
-        add hl,bc ;next line on screen
-        bit 5,h
-        jr nz,$+5
-        ld (drawscreenline_frombuf_scr),hl
+        ;ld hl,(drawscreenline_frombuf_scr)
+        ;ld bc,40
+        ;add hl,bc ;next line on screen
+        ;bit 5,h
+        ;jr nz,$+5
+        ;ld (drawscreenline_frombuf_scr),hl
 
         pop iy
-        jp setpgtemp8000
+        ret;jp setpgtemp8000
         
 drawscreenline
 fillwid8=$+1        
@@ -522,7 +578,7 @@ fill1
         call readchr ;859t
         ex af,af' ;push af
         push hl
-        call setpgs_scr ;177t
+        call setpgs_scr ;177t+
         call convertchr ;jp=1980t
 ;convertchrq
         pop hl
@@ -550,13 +606,6 @@ skipline
         inc a
         ret
 
-RDWORD
-        CALL RDBYTE
-        LD H,A
-        CALL RDBYTE
-        LD L,A
-        RET  
-
 RDBYTE
         INC LY
         LD A,(IY)
@@ -576,7 +625,7 @@ RDBYH
         PUSH BC
         push IX
        CALL rdCS
-       EXA 
+       ex af,af'
        PUSH AF
         exx
         push bc
@@ -584,15 +633,34 @@ RDBYH
         push hl
         ld de,DISKBUF
         ld hl,DISKBUFsz
-filehandle=$+1
-        ld b,0
-        OS_READHANDLE
+        call readstream
+;hl=actual size
+;fill the rest of buffer with zeros
+        ld de,DISKBUF
+        add hl,de
+        ex de,hl ;de=start of zeros
+        ld hl,DISKBUF+DISKBUFsz
+        xor a
+        sbc hl,de
+        ld b,h
+        ld c,l ;bc=length of zeros (Z=no zeros)
+        jr z,readdiskbuf_nozeros
+        ld h,d
+        ld l,e ;start of zeros
+        ld (hl),a;0
+        inc de
+        dec bc
+        ld a,b
+        or c
+        jr z,readdiskbuf_nozeros
+        ldir
+readdiskbuf_nozeros
         pop hl
         pop de
         pop bc
         exx
        POP AF
-       EXA 
+       ex af,af'
         POP IX
         pop BC
        POP DE
@@ -602,21 +670,30 @@ filehandle=$+1
        or a ;CY=0: OK
         RET 
 
+readstream
+readstream_patch=$+1
+        jp readstream_file
+
 ;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
 ;hlde
-        call GETBYTE_slow
+        call RDBYTE
         ld e,a
-        call GETBYTE_slow
+        call RDBYTE
         ld d,a
-        call GETBYTE_slow
+        call RDBYTE
         ld l,a
-        call GETBYTE_slow
+        call RDBYTE
         ld h,a
         ret
         
-GETBYTE_slow=RDBYTE
- 
+RDWORDHSBLSBtohl
+        CALL RDBYTE
+        LD H,A
+        CALL RDBYTE
+        LD L,A
+        RET  
+
 readchr
 ;b,g,r
 ;TODO с масштабированием и с учётом правого края картинки, не делящегося на 8
@@ -1035,206 +1112,6 @@ minhl_bc_tobc
         ld c,l
         ret
 
-reservepage
-;new page, set page in textpages, npages++, set page in #c000
-;nz=error
-        OS_NEWPAGE
-        or a
-        ret nz
-npages=$+1
-        ld hl,textpages
-        ld (hl),e
-        inc l
-        ld (npages),hl
-        ld a,e
-        SETPG32KHIGH
-        xor a
-        ret ;z
-
-unreservepages
-unreservepages0
-        call unreservepage
-        jr z,unreservepages0
-        ret
-        
-unreservepage
-;del page, npages--
-;nz=error
-        ld hl,(npages)
-        ld a,l
-        or a
-        jr z,unreservepage_fail
-        dec l
-        ld (npages),hl
-        ld e,(hl)
-        OS_DELPAGE
-        xor a
-        ret ;z
-unreservepage_fail
-        xor a
-        dec a
-        ret ;nz
-        
-reserve_bmp_pages
-;TODO резервировать блок памяти, а не страницы!
-        ld de,(curpichgt)
-        ld bc,(curpicwidx3)
-        CALL MULWORD
-        ld d,b
-        ld e,c
-        ;hlde=bmp size
-        
-        if 1==0
-        
-        push iy
-;ищем адрес последнего байта картинки
-        ex de,hl
-        ld bc,0
-        scf
-        sbc hl,bc
-        ex de,hl
-        sbc hl,bc
-;ищем номер страницы последнего байта картинки
-        ld a,l
-        rl d
-        rla
-        rl d
-        rla ;a=lastpg
-        inc a ;a=npages
-        ld b,a
-reserve_bmp_pages0
-        push bc
-        push hl
-reserve_bmp_pages_fail        
-        call reservepage
-        or a
-        jr nz,reserve_bmp_pages_fail ;repeat until success
-        pop hl
-        pop bc
-        djnz reserve_bmp_pages0
-        pop iy
-        ret
-        
-        endif
-        
-reserve_mem
-;hlde=size
-freemem_hl=$+1
-        ld bc,0
-freemem_a=$+1
-        ld a,0
-
-;freemem может указывать на начало пока не заказанной страницы
-;1.если (freememaddr&0x3fff) == 0, то заказать страницу
-;2.если остаток страницы >= hlde, то сдвигаем freememaddr и выходим
-;3.уменьшить hlde на длину остатка страницы
-;4.сдвинуть freememaddr на начало следующей страницы
-;5.goto 1
-;TODO уметь откатывать заказанные страницы, если не хватает памяти
-reserve_mem0
-;если (freememaddr&0x3fff) == 0, то заказать страницу:
-         ;inc b
-         ;djnz reserve_mem_noreservepage
-         ;push bc
-         ;sla b
-         ;sla b
-         ;pop bc
-         ;jr nz,reserve_mem_noreservepage
-        push af
-        ld a,b
-        and 0x3f
-        or c
-        jr nz,reserve_mem_noreservepage
-        push bc
-        push de
-        push hl
-        push iy
-reserve_mem_pages_fail
-        call reservepage
-        or a
-        jr nz,reserve_mem_pages_fail ;repeat until success
-        pop iy
-        pop hl
-        pop de
-        pop bc
-reserve_mem_noreservepage
-        pop af
-;если остаток страницы >= hlde (при прибавлении freememaddr+hlde-1 не меняется номер страницы), то сдвигаем freememaddr и выходим:
-        inc h
-        dec h
-        jr nz,reserve_mem_nolast
-        inc l
-        dec l
-        jr nz,reserve_mem_nolast
-   ;hldeHSW=0
-        push bc
-        push hl
-   ;bc=freememaddr&0xffff
-        res 7,b
-        res 6,b
-   ;bc=0..0x3fff
-        ld hl,0x4000
-        or a
-        sbc hl,bc ;NC
-   ;hl = остаток страницы = 0x4000..1
-        ;or a
-        sbc hl,de ;остаток страницы-hlde
-        pop hl
-        pop bc
-        jr c,reserve_mem_nolast
- ;сдвигаем freememaddr и выходим:        
-        ex de,hl
-        add hl,bc
-        adc a,0 ;т.к. могли попасть ровно на конец страницы
-        ld (freemem_hl),hl
-        ld (freemem_a),a
-        ret
-reserve_mem_nolast
-;уменьшить hlde на длину остатка страницы:
-        push bc
-        push hl
-   ;bc=freememaddr&0xffff
-        res 7,b
-        res 6,b
-   ;bc=0..0x3fff
-        ld hl,0x4000
-        or a
-        sbc hl,bc
-        ld b,h
-        ld c,l
-   ;bc = остаток страницы = 0x4000..1
-        pop hl
-        ex de,hl
-        or a
-        sbc hl,bc
-        ex de,hl
-        jr nc,$+3
-        dec hl ;hlde = hlde - остаток страницы
-        pop bc
-;сдвинуть freememaddr на начало следующей страницы:
-        sla c
-        rl b
-        rla
-        sla c
-        rl b
-        rla
-        ;dec abc:
-        dec c
-        jr nz,reserve_mem_nolast_decabcq
-        dec b
-        djnz reserve_mem_nolast_decabcq
-        dec a
-reserve_mem_nolast_decabcq
-        inc a   ;next pg
-        ld bc,0 ;
-        srl a
-        rr b
-        rr c
-        srl a
-        rr b
-        rr c
-        jr reserve_mem0
-        
 
 MULWORD
 ;out: HLBC=DE*BC
@@ -1249,50 +1126,6 @@ MULWOR0 RR B
         RR H
         RR L
         JR MULWOR0
-
-readbyte
-;out: c
-        push af
-        push hl
-        call ahl_to_pgaddr
-        ld c,(hl)
-        pop hl
-        pop af
-skipbyte
-        inc l
-        ret nz
-        inc h
-        ret nz
-        inc a
-        ret
-        
-ahl_to_pgaddr
-;keeps bc,de
-;counts physical hl
-        rl h
-        rla
-        rl h
-        rla
-        srl h
-        scf
-        rr h
-        push bc
-        call setpg32k
-        pop bc
-        ret
-
-setpg32k
-;a=page number in table (0..)
-        push hl
-        ld l,a
-        ld h,textpages/256
-        ld a,(hl)
-        SETPG32KLOW
-        inc l
-        ld a,(hl)
-        SETPG32KHIGH
-        pop hl
-        ret
 
 setpgdiv4000
 codepg8000=$+1
@@ -1313,91 +1146,43 @@ temppg8000=$+1
         ret
 
 setpgs_scr
-setpgs_scr_low=$+1
-        ld a,0;pgscr0_0 ;scr0_0
-        SETPG32KLOW
+        call setpgscr8000
+setpgscrc000
 setpgs_scr_high=$+1
         ld a,0;pgscr0_1 ;scr0_1
         SETPG32KHIGH
+        ret
+setpgscr8000
+setpgs_scr_low=$+1
+        ld a,0;pgscr0_0 ;scr0_0
+        SETPG32KLOW
         ret
 
 putline
 ;hl=откуда копируем строку
 ;bc=сколько байт копируем
 ;на выходе сдвигает указатель, куда копируем (putchar_hl, putchar_a)
-        ld (putchar_ldir_hl),hl
-        push bc
         
 putchar_hl=$+1
         ld hl,0
 putchar_a=$+1
         ld a,0
-        rl h
-        rla
-        rl h
-        rla
-        scf
-        rr h
-        scf
-        rr h
-;a=page number in table (0..)
-        ld c,a
-        ld b,textpages/256
-        ld a,(bc)
-        inc c
-         ld (purchar_nextpgtabaddr),bc
-        SETPG32KHIGH
-        ex de,hl
-
-        pop bc ;сколько байт копируем
-        
-;если строка не помещается в страничке, то копируем сколько помещается, включаем следующую страницу и копируем остаток
-        ld hl,0
-        or a
-        sbc hl,de ;hl=сколько места осталось в страничке
-        or a
-        sbc hl,bc ;hl>=0: места хватает
-        jr nc,putchar_ldir
-;места не хватает -hl байт
-         push hl ;-остаток ширины
-        add hl,bc ;hl=сколько места осталось в страничке
-        ld b,h
-        ld c,l
-        ld hl,(putchar_ldir_hl) ;локальное начало строки
-        ldir
-purchar_nextpgtabaddr=$+1
-        ld a,(0)
-        SETPG32KHIGH
-        ld de,0xc000
-;hl=остаток строки
-         pop bc ;-остаток ширины
-        xor a
-        sub c
-        ld c,a
-        sbc a,b
-        sub c
-        ld b,a ;bc=остаток ширины
-        ldir
-        jr putchar_ldirq
-putchar_ldir
-putchar_ldir_hl=$+1
-        ld hl,0 ;локальное начало строки
-        ldir
-putchar_ldirq
+;de=from       
+;ahl=to
+;bc=size
+        call puttomem
         
         ld a,(putchar_a)
         ld hl,(putchar_hl)
-        ld bc,(curpicwidx3)
+curpicwidx3=$+1
+        ld bc,0
         add hl,bc
         adc a,0
         ld (putchar_hl),hl
         ld (putchar_a),a
-
         ret
 
 curpicwid
-        dw 0
-curpicwidx3
         dw 0
 curpichgt
         dw 0
@@ -1412,10 +1197,24 @@ filename
         ;db "0:/melnchud.gif",0
         ;db "0:/girl.jpg",0
         db "index.htm",0
+emptyfilename=$-1
+        ;db 0
+tfileprotocol
+        db "file://",0
+thttpprotocol
+        db "http://",0
 
+linkbuf
+        ds 128
+pathbuf
+        ds 128
+        
         include "gif.asm"
         include "jpeg.asm"
         include "html.asm"
+        include "dynmem.asm"
+        include "file.asm"
+        include "http.asm"
         
 oldtimer
         dw 0
@@ -1427,6 +1226,7 @@ textpages
         align 256
 tmaxaxis ;maxdistdiv_fromattr[256], min_fromattr[256], maxaxis_fromattr[256]
         incbin "tmaxaxis"
+        
         ;align 256 ;непосредственно после tmaxaxis
 t64to16ink
         incbin "t64to16i"
@@ -1438,7 +1238,12 @@ chrbufG=$&0xff
         ds 256-64-24-64
 t64to16paper
         incbin "t64to16p"
-
+        
+twinto866
+        incbin "winto866"
+        
+;LINE1
+;        ds 0x400*3 ;TODO перенести в страницу и копировать в putline/drawscreenline_frombuf
 endcode=$
         
         ds 0x4000-$-256 ;for stack
@@ -1453,6 +1258,28 @@ endcode=$
 fnt
         incbin "1125vert.fnt"
 
+prnumfrac
+;d=y, e=x8
+;hl=time (frames)
+         call setpgs_scr
+         push hl
+         call setxymc
+         pop de
+         ld bc,5000
+         call prdigmc
+         ld bc,500
+         call prdigmc
+         ld bc,50
+         call prdigmc
+         push de
+         ld a,'.'
+         call prcharmc
+         pop de
+         ld bc,5
+         call prdigmc
+         sla e
+         ld bc,1
+         ;call prdigmc
 prdigmc
 ;hl=scraddr
 ;de=number
@@ -1489,13 +1316,37 @@ prcharmc
         ld d,fnt/256
         ld bc,40
         ;push hl
-        dup 7
+        dup 4
         ld a,(de)
         ld (hl),a
         inc d
         add hl,bc
         edup
         ld a,(de)
+prcharmc_italic1=$
+        nop ;/add a,a
+prcharmc_stroke=$+1
+        or 0
+        ld (hl),a
+        inc d
+        add hl,bc
+        ld a,(de)
+prcharmc_italic2=$
+        nop ;/add a,a
+        ld (hl),a
+        inc d
+        add hl,bc
+        ld a,(de)
+prcharmc_italic3=$
+        nop ;/add a,a
+        ld (hl),a
+        inc d
+        add hl,bc
+        ld a,(de)
+prcharmc_italic4=$
+        nop ;/add a,a
+prcharmc_underline=$
+        nop ;/cpl
         ld (hl),a
         
         res 6,h
@@ -1518,6 +1369,47 @@ prcharmc_attr=$+1
         inc l
         ret
 
+prcharvirtual_tab_stateful
+        ld a,(prcharvirtual_stateful_x)
+        and 7 ;0..7
+        cpl ;-1..-8
+        add a,9
+        ld b,a ;8..1
+prcharvirtual_tab_stateful0
+        push bc
+        ld a,' '
+        call prcharvirtual_stateful
+        pop bc
+        djnz prcharvirtual_tab_stateful0
+        ret
+        
+prcharvirtual_stateful
+;a=code
+        push af
+        ld h,twinto866/256
+        ld l,a
+        ld a,(hl)
+        call printtostringbuf1
+        pop af
+        cp 32
+        ret c
+prcharvirtual_stateful_x=$+1
+        ld a,0
+        inc a
+        ld (prcharvirtual_stateful_x),a
+        cp 80
+        ret c
+prcharvirtual_crlf_stateful
+        call savestringbuf1
+        xor a
+        ld (prcharvirtual_stateful_x),a
+        ld (laststringx),a
+        ld hl,(curprintvirtualy)
+        inc hl
+        ld (laststringy),hl
+        ld (curprintvirtualy),hl
+        ret
+        
 prcharmc_tab_stateful
         ld de,(prcharmc_stateful_xy)
         ld a,e
@@ -1527,8 +1419,78 @@ prcharmc_tab_stateful
         call setxymc_stateful
         jr prcharmc_tab_statefulq
         
+prcharmc_stateful_setattr
+        ld hl,prcharmc_stateful_setattr_handler
+        ld (prcharmc_stateful_patch),hl
+        ret
+prcharmc_stateful_setattr_handler
+        dec a
+        ld hl,tfontweight
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(hl)
+        ld (prcharmc_attr),a
+        jr prcharmc_stateful_resethandler
+        
+prcharmc_stateful_setitalic
+        ld hl,prcharmc_stateful_setitalic_handler
+        ld (prcharmc_stateful_patch),hl
+        ret
+prcharmc_stateful_setitalic_handler
+        dec a
+        rra
+        sbc a,a
+        and 0x87;add a,a
+        ld (prcharmc_italic1),a
+        ld (prcharmc_italic2),a
+        ld (prcharmc_italic3),a
+        ld (prcharmc_italic4),a
+        jr prcharmc_stateful_resethandler
+        
+prcharmc_stateful_setstroke
+        ld hl,prcharmc_stateful_setstroke_handler
+        ld (prcharmc_stateful_patch),hl
+        ret
+prcharmc_stateful_setstroke_handler
+        dec a
+        rra
+        sbc a,a
+        ld (prcharmc_stroke),a
+        jr prcharmc_stateful_resethandler
+        
+prcharmc_stateful_setunderline
+        ld hl,prcharmc_stateful_setunderline_handler
+        ld (prcharmc_stateful_patch),hl
+        ret
+prcharmc_stateful_setunderline_handler
+        dec a
+        rra
+        sbc a,a
+        and 0x2f;cpl
+        ld (prcharmc_underline),a
+prcharmc_stateful_resethandler
+        ld hl,prcharmc_stateful_normal
+        ld (prcharmc_stateful_patch),hl
+        ret
+
+        
 prcharmc_stateful
 ;a=code
+prcharmc_stateful_patch=$+1
+        jp prcharmc_stateful_normal
+prcharmc_stateful_normal
+        cp 1
+        jr z,prcharmc_stateful_setattr
+        cp 2
+        jr z,prcharmc_stateful_setitalic
+        cp 3
+        jr z,prcharmc_stateful_setstroke
+        cp 4
+        jr z,prcharmc_stateful_setunderline
+
         ;halt
         push af
         call setpgs_scr
@@ -1539,21 +1501,25 @@ prcharmc_stateful_scr=$+1
         ld (prcharmc_stateful_scr),hl
         call setpgtemp8000
 prcharmc_stateful_xy=$+1
+prcharmc_stateful_x=prcharmc_stateful_xy
         ld de,0
         inc e
         ld a,e
 prcharmc_tab_statefulq
         ld (prcharmc_stateful_xy),de
         cp 80
-        ret c
+        ret ;c
         
 prcharmc_crlf_stateful
+        ;ld hl,(curprintvirtualy)
+        ;inc hl
+        ;ld (curprintvirtualy),hl
         ld de,(prcharmc_stateful_xy)
         ld e,0
         ld a,d
         add a,8
         ld d,a
-        cp 25*8
+        cp 8*(HTMLTOPY+HTMLHGT)
         jr c,setxymc_stateful
         sub 8
         ld d,a
@@ -1567,31 +1533,109 @@ setxymc_stateful
         ld (prcharmc_stateful_scr),hl
         ret
         
-scrollmcup
-         jp closequit
+curprintvirtualy
+        dw 0
+        
+scrollmcdown
         call setpgs_scr
-        ld hl,0x8000+(40*8)
-        ld de,0x8000
-        ld bc,0x6000+(40*200)-(40*8)
-        ldir
-        ld hl,0x8000+(40*200)-(40*8)
-        call scrollmcup_clblock
-        ld hl,0xa000+(40*200)-(40*8)
-        call scrollmcup_clblock
-        ld hl,0xc000+(40*200)-(40*8)
-        call scrollmcup_clblock
-        ld hl,0xe000+(40*200)-(40*8)
-        call scrollmcup_clblock
-        call setpgtemp8000
-        ret
+        
+        ld hl,0x8000+(40*8*(HTMLTOPY+HTMLHGT-1))
+        ld b,HTMLHGT-1
+scrollmcdown_rows0
+        push bc
+        ld d,h
+        ld e,l
+        ld bc,-40*8
+        add hl,bc
+        push hl
+        call scrollmc_row
+        pop hl
+        pop bc
+        djnz scrollmcdown_rows0
+        ld hl,0xc000+(40*8*(HTMLTOPY))
+        jr scrollmc_clearq
+        
+scrollmcup
+         ;jp closequit
+        call setpgs_scr
+        
+        ld hl,0x8000+(40*8*(HTMLTOPY))
+        ld b,HTMLHGT-1
+scrollmcup_rows0
+        push bc
+        ld d,h
+        ld e,l
+        ld bc,40*8
+        add hl,bc
+        push hl
+        call scrollmc_row
+        pop hl
+        pop bc
+        djnz scrollmcup_rows0
+        ld hl,0xc000+(40*8*(HTMLTOPY+HTMLHGT-1))
+scrollmc_clearq
+        call cleanlinemc
+        jp setpgtemp8000
 
+cleanlinemc
+;hl=0xc000+
+        call scrollmcup_clblock
+        set 5,h;ld hl,0xe000+(40*200)-(40*8)
+        call scrollmcup_clblock
+        res 6,h;ld hl,0xa000+(40*200)-(40*8)
+        call scrollmcup_clblock
+        res 5,h;ld hl,0x8000+(40*200)-(40*8)
+        ;call scrollmcup_clblock
+        ;ret        
 scrollmcup_clblock
+        push hl
         ld d,h
         ld e,l
         inc de
         ld bc,40*8-1
         ld (hl),0
         ldir
+        pop hl
+        ret
+
+scrollmc_row
+        ld b,8
+scrollmc_row0        
+        push bc
+        push hl
+        push de
+        call scrollmc_line
+        pop hl
+        ld bc,40
+        add hl,bc
+        ex de,hl
+        pop hl
+        add hl,bc
+        pop bc
+        djnz scrollmc_row0
+        ret
+        
+scrollmc_line
+        ld bc,39
+        ldir
+        ld a,(hl)
+        ld (de),a
+        set 5,h
+        set 5,d
+        ld c,39
+        lddr
+        ld a,(hl)
+        ld (de),a
+        set 6,h
+        set 6,d
+        ld c,39
+        ldir
+        ld a,(hl)
+        ld (de),a
+        res 5,h
+        res 5,d
+        ld c,40
+        lddr
         ret
 
 setxymc
@@ -1613,6 +1657,69 @@ setxymc
          jr nc,$+4
          ld b,0xe0
         add hl,bc
+        ret
+
+init
+        ld e,2 ;MC hires mode
+        OS_SETGFX
+        
+        ;YIELD ;чтобы cmd мог доделать свои дела на экране
+
+        OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ld a,e
+        ld (setpgs_scr_low),a
+        ld a,d
+        ld (setpgs_scr_high),a
+        
+        OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000,8000,c000
+        ld a,e
+        ld (codepg4000),a
+        ld a,h
+        ld (codepg8000),a
+        ld a,l
+        ld (curpgLZW),a
+
+;for JPEG:
+        OS_NEWPAGE
+        ld a,e
+        ld (tpgs+0),a
+        OS_NEWPAGE
+        ld a,e
+        ld (tpgs+1),a
+        OS_NEWPAGE
+        ld a,e
+        ld (tpgs+2),a
+        OS_NEWPAGE
+        ld a,e
+        ld (tpgs+5),a
+
+        OS_NEWPAGE
+        ld a,e
+        ld (temppg8000),a
+
+        
+        ld e,0;COLOR
+        OS_CLS
+
+        ld de,zxpal
+        ld c,CMD_SETPAL
+        CALLBDOS
+
+        ;call setpgcode4000
+        ;call setpgtemp8000
+        
+;command line = "browser <file to load>"
+        ld hl,COMMANDLINE ;command line
+        call skipword
+        call skipspaces
+        ld a,(hl)
+        or a
+        jr nz,$+5
+        ld hl,filename
+        ld de,linkbuf
+        call strcopy
         ret
 
         ds 0x8000-$

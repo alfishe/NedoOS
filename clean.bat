@@ -8,7 +8,6 @@ del /s *.~cpp
 del /s *.~dfm
 del /s *.org
 del /s *.pst
-rem del /s *.asm
 del /s *.ast
 del /s *.var
 del /s *.A_
@@ -26,3 +25,6 @@ del *.$c
 del /s out.bin
 del /s tokarm.bin
 del /s *.mlz
+del /s *.r01
+del /s *.lst
+del /s cout.html

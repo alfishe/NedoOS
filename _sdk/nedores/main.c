@@ -189,32 +189,36 @@ BYTE t;
     paper = 0x08;
     ink = 0x0f;
   }; //дл€ спрайтов фон чЄрный (а маска 0x00)
+//27.02.2019:
+//фон дл€ залитых знакомест начина€ с зелЄного теперь чЄрный[или надо предыдущий?]
+//фон дл€ чЄрных знакомест берЄт €ркость от defaultcolor, а дл€ залитых знакомест менее зелЄного не берЄт
+#define MINCOLORWITHBLACKBG 0x04
 //fix 27.12.2018:
   if (((ink&0x07)==(*pcurink&0x07)) && (ink!=MASKCOLOR)) { //ink соответствует предыдущему
     *pcurink = ink;
     if (paper==MASKCOLOR) {
-      *pcurpaper = defaultcolor;
+      *pcurpaper = ((ink&0x07)<MINCOLORWITHBLACKBG) ? ((ink&0x07)?((defaultcolor&0x07)|(ink&0x08)):defaultcolor) : 0x00;
     }else {
       *pcurpaper = paper;
     };
   }else if (((paper&0x07)==(*pcurpaper&0x07)) && (paper!=MASKCOLOR)) { //paper соответствует предыдущему
     *pcurpaper = paper;
     if (ink==MASKCOLOR) {
-      *pcurink = defaultcolor;
+      *pcurink = ((paper&0x07)<MINCOLORWITHBLACKBG) ? ((paper&0x07)?((defaultcolor&0x07)|(paper&0x08)):defaultcolor) : 0x00;
     }else {
       *pcurink = ink;
     };
   }else if (((paper&0x07)==(*pcurink&0x07)) && (paper!=MASKCOLOR)) { //paper соответствует предыдущему ink
     *pcurink = paper;
     if (ink==MASKCOLOR) {
-      *pcurpaper = defaultcolor;
+      *pcurpaper = ((paper&0x07)<MINCOLORWITHBLACKBG) ? ((paper&0x07)?((defaultcolor&0x07)|(paper&0x08)):defaultcolor) : 0x00;
     }else {
       *pcurpaper = ink;
     };
   }else if (((ink&0x07)==(*pcurpaper&0x07)) && (ink!=MASKCOLOR)) { //ink соответствует предыдущему paper
     *pcurpaper = ink;
     if (paper==MASKCOLOR) {
-      *pcurink = defaultcolor;
+      *pcurink = ((ink&0x07)<MINCOLORWITHBLACKBG) ? ((ink&0x07)?((defaultcolor&0x07)|(ink&0x08)):defaultcolor) : 0x00;
     }else {
       *pcurink = paper;
     };
@@ -222,8 +226,8 @@ BYTE t;
     ink = defaultcolor;
     paper = 0x08;
   }else { //оба цвета не соответствуют предыдущему знакоместу, но не оба MASKCOLOR
-    if (ink == MASKCOLOR) ink = (BYTE)((paper&0x08) | (defaultcolor&0x07));
-    if (paper == MASKCOLOR) paper = (BYTE)((ink&0x08) | (defaultcolor&0x07));
+    if (ink == MASKCOLOR) ink = ((paper&0x07)<MINCOLORWITHBLACKBG) ? ((paper&0x07)?((defaultcolor&0x07)|(paper&0x08)):defaultcolor) : 0x00;
+    if (paper == MASKCOLOR) paper = ((ink&0x07)<MINCOLORWITHBLACKBG) ? ((ink&0x07)?((defaultcolor&0x07)|(ink&0x08)):defaultcolor) : 0x00;
     if (ink > paper) {
       *pcurink = ink;
       *pcurpaper = paper;

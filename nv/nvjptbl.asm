@@ -29,7 +29,7 @@ tnvcmds
         db '%'
         db '*'
         db Home
-        db End
+        db Endkey
 nnvcmds=$-tnvcmds       
         dw editcmd_End
         dw editcmd_Home

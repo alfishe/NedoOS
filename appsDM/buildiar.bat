@@ -1,12 +1,12 @@
+if "%currentdir%"=="" set currentdir=..\..
+set Z80_IDE_PATH=%currentdir%\tools\iar
+set ICCZ80=%Z80_IDE_PATH%\bin\iccz80
+set AZ80=%Z80_IDE_PATH%\bin\az80
+set XLINK=%Z80_IDE_PATH%\bin\xlink
+set IARINC=%Z80_IDE_PATH%\inc\
+set IARLIB=%Z80_IDE_PATH%\lib\
 
-set Z80_IDE_PATH=..\..\..\utils\iar
-set ICCZ80=%Z80_IDE_PATH%\iccz80
-set AZ80=%Z80_IDE_PATH%\az80
-set XLINK=%Z80_IDE_PATH%\xlink
-set IARINC=%Z80_IDE_PATH%\
-set IARLIB=%Z80_IDE_PATH%
-
-IF NOT EXIST %Z80_IDE_PATH%\iccz80.exe (
+IF NOT EXIST %ICCZ80%.exe (
 	ECHO IAR not found. Skipping build "%PRJNAME%"
 	EXIT /b
 )
@@ -33,4 +33,3 @@ FOR %%f IN (!ASM_FILES!) do (
 )
 
 %XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
-rem @ECHO ON

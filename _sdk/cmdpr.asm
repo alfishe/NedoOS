@@ -75,7 +75,8 @@ cmdcalccurxy
         ld hl,curcmdscroll ;сдвиг команды относительно экрана
         sub (hl)
         ld e,a
-        ld d,txtscrhgt-1
+        ;ld d,txtscrhgt-1
+        ld d,CMDLINEY
         ret
 
 strlen
@@ -112,7 +113,8 @@ editcmd_noscrollright
 ;prcmd
         ld e,7
         OS_SETCOLOR
-        ld de,+(txtscrhgt-1)*256+0
+        ;ld de,+(txtscrhgt-1)*256+0
+        ld de,CMDLINEY*256+0
         OS_SETXY
         ld hl,cmdprompt
         ld c,0

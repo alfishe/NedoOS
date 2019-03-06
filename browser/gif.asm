@@ -1,9 +1,9 @@
-
-;FREE=0x8000 ;адрес для сборки строк
+LINEGIF=0x8000 ;адрес для сборки строк
 ROL_TAB=0xa000 ;,0x1000 ;L0>>n (16 bit)
 PAL_GLOB=0x9a00 ;,0x300 ;глобальная таблица цветов
 PAL_LOCAL=0x9d00 ;,0x300 ;локальная таблица цветов
 
+;процедуры чтения на входе хотят NC, иначе могут насквозь вернуть C даже без ошибки
         macro GIFINITCY
         ;or a
         endm
@@ -22,6 +22,41 @@ PAL_LOCAL=0x9d00 ;,0x300 ;локальная таблица цветов
         ;ret c
         endm
 
+newgifgetchar=1;0
+        
+        if newgifgetchar
+        
+        macro GIFGETCHAR
+        ex af,af'
+        dec a
+        call z,GETCHRnewblock
+        ex af,af'
+        GIFGETBYTE_noret
+         ret c
+        endm
+        
+        else
+        
+        macro GIFGETCHAR
+        call GETCHAR_
+        ret c
+        endm
+        
+        endif
+        
+
+        macro GIFGETCODE
+        push bc
+        push de
+        ;push af
+        call GETCODE_
+        ;pop bc
+        ;ld a,b ;???
+        pop de
+        pop bc
+        ret c
+        endm
+
 readgif
         ;jr $
         CALL ROL_INSTALL
@@ -32,6 +67,45 @@ readgif
 ;""""""""""""""""""""""P
 GIF_LP0
          call initframe
+         jp GIF_PARSEFRAME
+         
+GIF_IMG_END 
+        ;jr $
+;найден код конца LZW-данных
+        if 1==1
+
+;необходимо считать след. блок, и если его длина=0, то конец кадра
+         or a
+        ;GIFGETCHAR ;установит следующую переменную, если пойдёт блок с длиной 0, а пока дочитываем текущий блок
+        call GETCHAR_ ;чтобы была правильная глубина стека при нахождении блока с длиной 0 (он пропускает чтение следующего байта через снятие адреса со стека)
+        ret c
+        
+GIF_IMG_ENDcode=$+1
+        LD A,0 ;/0xff, если встретился блок с длиной 0
+        OR A
+        jp nz,GIF_LPR ;встретился блок с длиной 0
+        ;GIFGETCHAR
+        ;CALL GETCHAR
+        ;RET C
+        JR GIF_IMG_END ;т.е. еЩе не конец блока.
+        else
+;так не работает, потому что надо дочитать текущий блок до конца (почему он кончается не сразу?)
+GIF_IMG_ENDcode=$+1
+        ld a,0
+        GIFGETBYTE
+        or a
+        ;ret nz ;не блок с длиной 0 - ошибка
+        jr nz,GIF_IMG_END ;ждём конца данных - блока с длиной 0 (почему он приходит не сразу?)
+        
+        endif
+        
+GIF_LPR
+        ;CALL CONVERT
+        ;CALL VIEW
+        
+        JP GIF_LP0 ;следующий кадр?
+
+GIF_PARSEFRAME
 ;Начало цикла обработки кадра? GIF-изображения
         GIFINITCY
         GIFGETBYTE
@@ -80,7 +154,7 @@ GIF_IMG ;Обработка блока изображения.
         LD (DY_IMG),HL ;локальная высота
         GIFGETBYTE
 
-        LD HL,LINE1;FREE
+        LD HL,LINEGIF;FREE
         ld de,(X_IMG) ;локальное начало строки
         add hl,de
         add hl,de
@@ -88,19 +162,22 @@ GIF_IMG ;Обработка блока изображения.
         ld (linebufstart_local),hl
         LD (linebufpointer),HL
 
+        if 1==0
         BIT 6,A ;необходимо проверить бит 6 на предмет наличия чередования строк
         JR Z,GIF_IMG_NORM
-;здесь - Чередование строк -> не подходит. TODO поддержать чередование строк
+;здесь - Чередование строк -> не подходит. TODO поддержать чередование строк (0,2,1,3?)
          LD A,7
          OUT (#FE),A
          SCF 
          RET 
 
 GIF_IMG_NORM
+        endif
 
 ;for PUTCHAR:
+;TODO для анимированных: если не первый кадр, прочитать строку из памяти в LINEGIF (чтобы рисовать поверх неё)
 linebufpointer=$+1
-        ld de,0 ;Адрес для вывода байта в FREE
+        ld de,0 ;Адрес для вывода байта в LINEGIF
 pixelcounter_back=$+1
         ld bc,0
         exx
@@ -114,15 +191,24 @@ pixelcounter_back=$+1
         CALL gifsetpgLZW
         XOR A
         LD (GETCOD0+1),A ;количество бит в наличии
-        LD (GETCHR0+1),A
         LD (GIF_IMG_ENDcode),A
+
+        ld a,1;0 ;TODO 1
+        if newgifgetchar
+        ex af,af'
+         or a ;т.к. далее GIFGETBYTE
+        else
+        LD (GETCHRblocksizecount),A
+        endif
+
         ;___________
         GIFGETBYTE
         LD (LZW_SIZE),A
 ;"""""""""""""""""""""""
 GIF_IMG0 CALL LZW_INSTALL
-        CALL GETCODE
-        RET C
+        GIFGETCODE
+        ;CALL GETCODE
+        ;RET C
         CALL RE_CODE
         JR NC,GIF_IMG1
         CP 1
@@ -138,8 +224,9 @@ GIF_IMG1
 ;""""""""""""""""""""""""
 GIF_IMG2
 ;Главный цикл распаковки.
-        CALL GETCODE
-        RET C
+        GIFGETCODE
+        ;CALL GETCODE
+        ;RET C
         CALL RE_CODE
         JR NC,GIF_IMG4 ;putstring без putchar
         CP 1
@@ -167,23 +254,7 @@ GIF_IMG4
         CALL NEW_CODE
         JR GIF_IMG3
 ;<><<><><><><><>>>><><><><>><>><><><><><><>
-GIF_IMG_END     ;Найден код конца LZW-данных,
-                ;необходимо сЧитать след.блок,
-                ;и если он=0,то все ок!.
-GIF_IMG_ENDcode=$+1
-        LD A,0 ;/0xff
-        OR A
-        ;То Шо надо!.
-        JP NZ,GIF_LPR
-        CALL GETCHAR
-        RET C
-        JR GIF_IMG_END ;т.е. еЩе не конец блока.
 
-GIF_LPR
-        ;CALL CONVERT
-        ;CALL VIEW
-        
-        JP GIF_LP0 ;следующий кадр?
 ;====================================================
 LZW_OLD DEFW 0  ;ПредыдуЩий адрес цепоЧки символов :)
 LZW_SIZE DEFB 0 ;Минимальный размер кода LZW для инициализации.
@@ -193,7 +264,7 @@ Y_IMG   DEFW 0  ;Начальная позиция в экране
 DX_IMG  DEFW 0  ;и размер этого изображения.
 DY_IMG  DEFW 0
 ;__________________________________________
-X_Y_GIF DEFB 0  ;СоотноШение X/Y из заголовка GIF.
+;X_Y_GIF DEFB 0  ;СоотноШение X/Y из заголовка GIF.
 ;FON_COLOR DEFB 0;Цвет фона (TODO прозрачность)
 ;===========================
 PUTCHAR
@@ -201,7 +272,7 @@ PUTCHAR
 ;портит a,bc,de,hl
         exx
 ;linebufpointer=$+1
-;        ld de,0 ;Адрес для вывода байта в FREE
+;        ld de,0 ;Адрес для вывода байта в LINEGIF
 putchar_palH=$+1
         LD H,PAL_GLOB/256
         LD L,A
@@ -232,13 +303,15 @@ DX_IMGx3=$+1
 ;hl=откуда копируем строку
 ;bc=сколько байт копируем
         ;push hl
-        ;call putline
+        ;call putline ;TODO для анимированных
         ;pop hl
         call drawscreenline_frombuf
         
         CALL gifsetpgLZW
 PUTCHARskipline
         exx
+;TODO для анимированных: если не первый кадр, прочитать строку из памяти в LINEGIF (чтобы рисовать поверх неё)
+
         ld bc,(DX_IMG) ;локальная ширина
         ;ld (pixelcounter_back),bc
 linebufstart_local=$+1
@@ -268,43 +341,30 @@ NEW_COD1 LD HL,0        ;Проверка,нужно ли увелиЧивать LZW_SIZW
         DEC HL
 
 NEW_COD2
-        LD DE,0 ;
+        LD DE,0 ;patch
         OR A
         SBC HL,DE
-        LD A,H
-        OR L
-        JR NZ,NEW_COD5  ;СнаЧала одни 111,затем 000...
+        ;LD A,H
+        ;OR L
+        JR NZ,NEW_CODq  ;СнаЧала одни 111,затем 000...
 
         LD A,(LZW_SIZW) ;и тогда увелиЧивать!
         CP #0C
-        JR NC,$+6
-        INC A
-        LD (LZW_SIZW),A
-        DEC A
-        ADD A,A
-        ADD A,NEW_COD3&0xff
-        LD L,A
-        ADC A,NEW_COD3/256
-        SUB L
-        LD H,A
-        LD E,(HL)
-        INC HL
-        LD D,(HL)
-        LD (NEW_COD2+1),DE
-        LD A,E
-        LD (GETCOD20+1),A
-        LD A,D
-        LD (GETCOD21+1),A
-NEW_COD5
+        JR NC,$+3
+         INC A
+;a=codesize=1..12
+        call gif_setcodemask
+NEW_CODq
         OR A
         POP BC
         POP DE
         POP HL
         RET 
-NEW_COD3
-        DEFW #0001,#0003,#0007,#000F
-        DEFW #001F,#003F,#007F,#00FF
-        DEFW #01FF,#03FF,#07FF,#0FFF
+
+;NEW_COD3
+;        DEFW #0001,#0003,#0007,#000F
+;        DEFW #001F,#003F,#007F,#00FF
+;        DEFW #01FF,#03FF,#07FF,#0FFF
 ;__________________________________
 PUTSTRING;выводит цепоЧку с наЧ. адресом в HL, в поток
         ;символов. ВозвраЩает в А первый символ
@@ -328,7 +388,7 @@ PUTSTR0 ;
         JP NZ,PUTSTR0
 ;CY=0
         LD A,(bc)
-        ex af,af' ;LD (PUTSTR3+1),A ;Первый символ цепоЧки.
+        push af ;ex af,af' ;LD (PUTSTR3+1),A ;Первый символ цепоЧки.
 PUTSTR2 LD A,(bc)
          push bc
         CALL PUTCHAR
@@ -337,8 +397,8 @@ PUTSTR2 LD A,(bc)
         INC bc
         BIT 7,b
         JP NZ,PUTSTR2
-        ex af,af'
-PUTSTR4
+        pop af ;ex af,af'
+;PUTSTR4
         RET 
 
 ;ошибка!!!
@@ -365,9 +425,9 @@ RE_CODE ;Производит поиск Элемента с кодом в HL
         OR H
         LD H,A
         LD A,(HL)
-        CP #FF
+        inc a ;CP #FF
         JR Z,RE_COD0
-        OR A
+        dec a ;OR A
         RET     ;нормальный выход.
 RE_COD0 INC HL
         LD A,(HL)
@@ -375,8 +435,8 @@ RE_COD0 INC HL
         CP #FF
         JR Z,RE_COD1
         CP 3
-        JR C,RE_COD1
-        OR A
+        ;ret c ;JR C,RE_COD1
+        ;OR A
         RET 
 RE_COD1 SCF 
         RET 
@@ -441,68 +501,132 @@ LZW_INS1
                            ;в таблице цепоЧек.
         LD A,(LZW_SIZE)
         INC A
-        LD (LZW_SIZW),A
 
-        DEC A
-        ADD A,A
-        ADD A,NEW_COD3&0xff
-        LD L,A
-        ADC A,NEW_COD3/256
-        SUB L
-        LD H,A
-        LD E,(HL)
-        INC HL
-        LD D,(HL)
-        LD (NEW_COD2+1),DE
-        LD A,E
-        LD (GETCOD20+1),A
-        LD A,D
-        LD (GETCOD21+1),A
-
-        RET 
+        ;LD (LZW_SIZW),A ;1..12
+        ;DEC A
+        ;ADD A,A
+        ;ADD A,NEW_COD3&0xff
+        ;LD L,A
+        ;ADC A,NEW_COD3/256
+        ;SUB L
+        ;LD H,A
+        ;LD E,(HL)
+        ;INC HL
+        ;LD D,(HL)
+        ;LD (NEW_COD2+1),DE
+        ;LD A,E
+        ;LD (GETCOD20+1),A
+        ;LD A,D
+        ;LD (GETCOD21+1),A
+        ;RET 
+        ;jp gif_setcodemask
+gif_setcodemask
+;a=codesize=1..12
+        LD (LZW_SIZW),A ;1..12
+        ld b,a
+        ld hl,0
+        add hl,hl
+        inc hl
+        djnz $-2
+        ;DEC A
+        ;ADD A,A
+        ;ADD A,NEW_COD3&0xff
+        ;LD L,A
+        ;ADC A,NEW_COD3/256
+        ;SUB L
+        ;LD H,A
+        ;LD E,(HL)
+        ;INC HL
+        ;LD D,(HL)
+        ;LD (NEW_COD2+1),DE ;маска
+        ;LD A,E
+        ;LD (GETCOD20+1),A
+        ;LD A,D
+        ;LD (GETCOD21+1),A
+        ld (NEW_COD2+1),hl ;маска
+        ld a,l
+        ld (GETCOD20+1),a
+        ld a,h
+        ld (GETCOD21+1),a
+        ret
 ;__________________________
-GETCHAR ;выбрать символ из потока данных для GETCODE
+        if newgifgetchar
+GETCHAR_
+;для GIF_IMG_END
+        GIFGETCHAR ;может вывалиться с C (ошибка) или NC (найден блок с длиной 0)
+        ret
+        
+        else
+        
+GETCHAR_
+;выбрать символ из потока данных для GETCODE
         ;с уЧетом подблоков,их длин и подблока 0-й длины
-        ;Если оШибка-то возврат CF=1,ZF=0 (NZ)
-        ;Если подблок нулевой длины то возврат CF=1,ZF=1
+        ;Если оШибка-то возврат CF=1,[ZF=0 (NZ)]
+        ;Если подблок нулевой длины то возврат CF=0,[ZF=1] [не CF=1,ZF=1]
         ;инаЧе возврат А=данное,CF=0
-GETCHR0 LD A,0  ;КолиЧество байт,оставШееся в текуЩем блоке.
-        OR A
-        JR Z,GETCHR5
-GETCHR2 DEC A
-        LD (GETCHR0+1),A
+        ;jr $
+GETCHRblocksizecount=$+1
+        LD A,1;0  ;КолиЧество байт,оставШееся в текуЩем блоке.
+        ;OR A
+         dec a
+        call Z,GETCHRnewblock ;текущий блок закончился
+;GETCHR2
+        ;DEC A
+        LD (GETCHRblocksizecount),A
         GIFGETBYTE_noret
+        ret ;c/nc
+        
+        endif
+        
+        if 1==0
         ret nc ;нормальный выход, А=данное
 GETCHR_fail
-        PUSH HL
-        LD L,0
-        INC L   ;Установка флага ZF=0
-        POP HL
+        ;PUSH HL
+        ;LD L,0
+        ;INC L   ;Установка флага ZF=0
+        ; dec l
+        ;POP HL
         SCF     ;ОШибка Чтения байта...
         RET 
-GETCHR5
+        endif
+        
+GETCHRnewblock
+;текущий блок закончился
         GIFGETBYTE_noret
-        JR C,GETCHR_fail
-GETCHR1 OR A
-        JP NZ,GETCHR2
+        JR C,GETCHRnewblock_fail;GETCHR_fail
+        or a
+        ;jr z,GETCHRendofdata
+        ret nz ;JP NZ,GETCHR2 ;установить длину блока и читать байт
                 ;Блок нулевой длины-определить конец данных...
-GETCHR4 LD A,#FF
+;GETCHRendofdata
+;нужно только в GIF_IMG_END - может, там просто читать байт из файла? TODO
+         ex af,af'
+         pop af ;выход на уровень выше, чтобы не читать данное (ret будет эквивалентно ret nc из GIFGETCHAR)
+        LD A,#FF
         LD (GIF_IMG_ENDcode),A
-        INC A
+        ;INC A
         OR A
         RET 
+GETCHRnewblock_fail
+         ex af,af'
+        pop af ;выход на уровень выше (ret будет эквивалентно ret c в GIFGETCHAR)
+        ;jr GETCHR_fail
+        scf
+        ret
+
 
 ;__________________________
-GETCODE ;ВозвраЩает код в HL с колиЧеством бит,равным LZW_SIZW
-        PUSH AF
-        PUSH DE
-        PUSH BC
+GETCODE_ ;ВозвраЩает код в HL с колиЧеством бит,равным LZW_SIZW
+        ;PUSH AF
+        ;PUSH DE
+        ;PUSH BC
 GETCOD00 LD L,0 ;оставШиеся данные.
 GETCOD0 LD A,0  ;количество бит в наличии
         OR A
         JP NZ,GETCOD1
-        CALL GETCHAR
-        JR C,GETCOD_fail
+        GIFGETCHAR
+        ;CALL GETCHAR
+        ;ret c ;JR C,GETCOD_fail
         LD L,A
         LD (GETCOD00+1),A
         LD A,8
@@ -527,8 +651,10 @@ LZW_SIZW EQU $-1;Т%куЩий размер ко$а LZW (Уже модифицированный
         ADD A,8
         LD (GETCOD0+1),A ;количество бит в наличии
 
-        CALL GETCHAR
-        JR C,GETCOD_fail
+         or a
+        GIFGETCHAR
+        ;CALL GETCHAR
+        ;ret c ;JR C,GETCOD_fail
         LD L,A
         LD A,(HL) ;HSB (L>>n)
         OR E
@@ -536,8 +662,9 @@ LZW_SIZW EQU $-1;Т%куЩий размер ко$а LZW (Уже модифицированный
         DEC H
         LD D,(HL) ;LSB (L>>n)
         INC H
-        CALL GETCHAR
-        JR C,GETCOD_fail
+        GIFGETCHAR
+        ;CALL GETCHAR
+        ;ret c ;JR C,GETCOD_fail
         LD (GETCOD00+1),A
         LD L,A
         LD A,(HL) ;HSB (L>>n)
@@ -547,8 +674,10 @@ LZW_SIZW EQU $-1;Т%куЩий размер ко$а LZW (Уже модифицированный
 ;===========================
 GETCOD10
         LD (GETCOD0+1),A ;количество бит в наличии
-        CALL GETCHAR
-        JR C,GETCOD_fail
+         or a
+        GIFGETCHAR
+        ;CALL GETCHAR
+        ;ret c ;JR C,GETCOD_fail
         LD (GETCOD00+1),A
         LD L,A
         LD A,(HL) ;HSB (L>>n)
@@ -563,25 +692,25 @@ GETCOD11
         LD D,0
 
 GETCOD2
-        EX DE,HL
+        ;EX DE,HL
 GETCOD20
         LD A,0
-        AND L
+        AND e;L
         LD L,A
 GETCOD21
         LD A,0
-        AND H
+        AND d;H
         LD H,A
-        POP BC
-        POP DE
-        POP AF
-        OR A    ;нормальныЙ выход,HL=код.
+        ;POP BC
+        ;POP DE
+        ;POP AF
+        ;OR A    ;нормальныЙ выход,HL=код.
         RET 
 
 GETCOD_fail ;ОШибка в выборке байтов.
-        POP BC
-        POP DE
-        POP HL
+        ;POP BC
+        ;POP DE
+        ;POP HL
         SCF     ;A=код оШибки...
         RET 
 ;________________________________________
@@ -608,7 +737,7 @@ GIF_LOGSCR      ;Обработка дескриптора логиЧеского Экрана.
         GIFGETBYTE
         ;LD (FON_COLOR),A ;TODO прозрачность???
         GIFGETBYTE
-        LD (X_Y_GIF),A
+        ;LD (X_Y_GIF),A
         LD A,C
         LD HL,PAL_GLOB
         ;JP GIF_PAL

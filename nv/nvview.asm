@@ -96,7 +96,7 @@ nvview_mainloop_keyq
         jp z,nvview_home
         cp ext3
         jp z,nvview_home
-        cp End;ssE
+        cp Endkey;ssE
         jp z,nvview_end
         cp ext4
         jp z,nvview_end

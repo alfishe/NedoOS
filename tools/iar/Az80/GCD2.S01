@@ -1,0 +1,20 @@
+/* Euclid's Algorithm */
+/* Numbers in A and B */
+/* Result in B        */
+
+        NAME    gcd
+        ORG     1000H
+
+begin   REPEAT
+        IF      A < B
+        LD      C,A
+        LD      A,B
+        LD      B,C
+        ENDIF
+        SUB     B
+        UNTIL   A = 0
+        RET
+
+        END     begin
+
+

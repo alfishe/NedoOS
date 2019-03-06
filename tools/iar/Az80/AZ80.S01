@@ -1,0 +1,9 @@
+        name    VERIFY
+
+
+$az80opr.s01
+$az80ins.s01
+        endmod
+        module IAR_Systems___Software_that_works
+        nop
+        end

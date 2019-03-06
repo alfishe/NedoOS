@@ -4,6 +4,7 @@
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
 txtscrhgt=25
 txtscrwid=80
+CMDLINEY=23;24
 
 COLOR=7
 PANELCOLOR=#f
@@ -20,8 +21,8 @@ CONST_HGT_TABLE=21
 catbuf=#C000
 FILES_POINTERS_left=#3700
 FILES_POINTERS_right=#3b00
-left_panel_xy=#0100
-right_panel_xy=#0128
+left_panel_xy=#0000;#0100
+right_panel_xy=#0028;#0128
 firstfiley=left_panel_xy/256 + 1
 
         org PROGSTART
@@ -80,9 +81,38 @@ mainloop
         call controlloop
         jp mainloop
 
+printhint
+        ld de,24*256
+        call nv_setxy
+        ld hl,thint
+prhint0
+        ld a,(hl)
+        inc hl
+        or a
+        ret z
+        cp '{'
+        jr z,prhint_color0
+        cp '}'
+        jr z,prhint_color1
+        push hl
+        PRCHAR ;testing (351/352t) (was 986/987t)
+        pop hl
+        jr prhint0
+prhint_color0
+        ld e,7
+        jr prhint_color
+prhint_color1
+        ld e,5*8
+prhint_color
+        call nv_setcolor
+        jr prhint0
+thint
+        db "{1}LeftDrv { 2}RightDrv { 3}View { 4}Edit { 5}Copy { 6}Rename { 7}MkDir { 8}Del  { 9}     { 0}     ",0
+        
 readpanels_reprint
 	ld e,COLOR
 	OS_CLS
+        call printhint
 	ld ix,leftpanel
 	call readsortdrawpanel
 	ld ix,rightpanel
@@ -94,6 +124,7 @@ readsortdrawpanel
 readpanels_reprint_keepcursor
 	ld e,COLOR
 	OS_CLS
+        call printhint
 	ld ix,leftpanel
 	call readsortdrawpanel_keepcursor
 	ld ix,rightpanel
@@ -546,8 +577,8 @@ editcmd_up
         dec hl
         call nv_setdirpos_hl
 	call count_filecursor_y
-	or a
-        ret nz ;not first visible file
+	cp firstfiley-2;or a
+        ret nz ;not above first visible file
         call nv_getdirscroll_bc
 	dec bc
         call nv_setdirscroll_bc
@@ -1101,6 +1132,7 @@ editcmd_reprintcurpanel
 editcmd_reprintall_noreaddir
 	ld e,COLOR
 	OS_CLS
+        call printhint
 	ld ix,leftpanel
 	call drawpanel_with_files
 	ld ix,rightpanel
@@ -1108,6 +1140,7 @@ editcmd_reprintall_noreaddir
 ;editcmd_reprintall_onlyreadcurdir
 ;	ld e,COLOR
 ;	OS_CLS
+;       call printhint
 ;       call getanotherpanel_ix
 ;	call drawpanel_with_files
 ;       jp editcmd_reprintcurpanel

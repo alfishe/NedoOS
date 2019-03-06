@@ -3,9 +3,9 @@ FOR /R . %%i IN (build.bat) DO (
 	if exist %%i (
 		cd "%%~pi"
 		call build.bat
-		copy *.com ..\bin\
-		rem copy *.ini ..\bin\
-		rem copy *.ext ..\bin\
+		copy *.com %currentdir%\bin\
+		rem copy *.ini %currentdir%\bin\
+		rem copy *.ext %currentdir%\bin\
 	)
 )
 cd %currentdir%
@@ -30,24 +30,28 @@ path=_sdk\
 nedotrd test.trd -n
 nedotrd test.trd -ah boot6000.$b
 nedotrd test.trd -s 24576 -ac kernel/code.c
-nedotrd test.trd -a bin/cmd.com
-nedotrd test.trd -a bin/gfxed.com
-nedotrd test.trd -a bin/texted.com
-nedotrd test.trd -a bin/nv.com
-nedotrd test.trd -a bin/nv.ext
-nedotrd test.trd -a bin/basic.com
-nedotrd test.trd -a bin/diff.com
-nedotrd test.trd -a bin/setfont.com
-nedotrd test.trd -a bin/player.com
-nedotrd test.trd -a bin/browser.com
-nedotrd test.trd -a browser/index.html
+
+for %%i in (bin\*.*) do (
+    nedotrd test.trd -a %%i
+)
+rem nedotrd test.trd -a bin/cmd.com
+rem nedotrd test.trd -a bin/gfxed.com
+rem nedotrd test.trd -a bin/texted.com
+rem nedotrd test.trd -a bin/nv.com
+rem nedotrd test.trd -a bin/nv.ext
+rem nedotrd test.trd -a bin/basic.com
+rem nedotrd test.trd -a bin/diff.com
+rem nedotrd test.trd -a bin/setfont.com
+rem nedotrd test.trd -a bin/player.com
+rem nedotrd test.trd -a bin/browser.com
+rem nedotrd test.trd -a bin/autoexec.bat
+rem nedotrd test.trd -a bin/comp.com
+rem nedotrd test.trd -a bin/tok.com
+rem nedotrd test.trd -a bin/asm.com
+
 rem nedotrd test.trd -a setfont/1125code.fnt
 nedotrd test.trd -a gfxed/lanscape.bmp
-nedotrd test.trd -a bin/autoexec.bat
 
-nedotrd test.trd -a bin/comp.com
-nedotrd test.trd -a bin/tok.com
-nedotrd test.trd -a bin/asm.com
 nedotrd test.trd -a comp/sizesz80.h
 nedotrd test.trd -a comp/comp_os.s
 nedotrd test.trd -a comp/compc_os.s
@@ -70,6 +74,9 @@ nedotrd test.trd -a _sdk/sysdefs.asm
 
 nedotrd test.trd -a nedogift/testmusi.pt3
 nedotrd test.trd -a player/COCO.pt2
+nedotrd test.trd -a browser/index.html
+nedotrd test.trd -a browser/page.html
+nedotrd test.trd -a browser/gobutton.gif
 
 nedotrd test.trd -a license.txt
 

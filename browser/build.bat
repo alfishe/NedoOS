@@ -1,2 +1,4 @@
 path=..\sjasm\;..\us\;..\tools\
-sjasmplus browser.asm
+sjasmplus --nologo browser.asm
+
+if "%currentdir%"=="" (pause)

@@ -1,0 +1,20 @@
+        NAME    first
+
+        ORG     0
+main    LD      BC,0
+loop    LD      A,C      
+        INC     A
+        DAA
+        LD      C,A
+        LD      A,B
+        ADC     A,0     
+        DAA     
+        LD      B,A
+        JR      NC,loop
+        RET
+
+        END
+
+
+
+

@@ -1,0 +1,50 @@
+INTERRUPTS:                         order number in interrupt controll dialog.
+
+-v0 (Z80)                           ordernumber[value on bus]
+==============
+RESET                          =    0
+NMI                            =    1
+INT0[0]                        =    2[opcode]     /* up to 4 byte */
+INT0[1]                        =    3
+INT0[2]                        =    4[address]    /* one byte */
+==============
+
+-v1 (64180)
+==============
+RESET                          =    0
+NMI                            =    1
+INT0[0]                        =    2[opcode]     /* up to 4 byte */
+INT0[1]                        =    3
+INT0[2]                        =    4[address]    /* one byte */
+INT1                /* 0x00 */ =    5
+INT2                /* 0x02 */ =    6
+TIMER0              /* 0x04 */ =    7
+TIMER1              /* 0x06 */ =    8
+DMA0                /* 0x08 */ =    9
+DMA1                /* 0x0A */ =    10
+CLOCKED SERIAL I/O  /* 0x0C */ =    11
+ASCI0               /* 0x0E */ =    12
+ASCI1               /* 0x10 */ =    13
+==============
+
+Command line options:
+=====================
+
+The command line switch "v" selects which CPU to be simulated:
+
+-v0   Debugger simulates Z80 processor (default mode)
+
+-v1   Debugger simulates 64180 processor 
+
+-nommu		ignore the ubrof-symbols defining CBAR_value and CBR_value
+
+-setmmu		if CBAR_value and CBR_value undefined or defined to 0, set 
+		CBAR_value and CBR_value like this: -setmmu 0x84 0x08
+		this means CBAR_value=0x84 and CBR_value=0x08
+
+-umask		Mask the I\O space with this mask
+		E.G. -umask 0xFF
+		This means that you use only the lowest
+		256 bytes in the I\O-address space.
+
+-uu   Enables simulation of undocumented Z80 instructions.

@@ -143,7 +143,7 @@ VAR BYTE xshift;
   //pretile(0x03, 0x04, 0x04, 0x01, (PBYTE)beton);
   //pretile(0x03, 0x04, 0x04, 0x01, (PBYTE)((UINT)tilepic+((/**x_in_tilemap*/80/8)*9)+((/**y_in_tilemap*/0/8)*0x100)));
 
-  pretile(0x03, 0x10, 0x05, 0x02, (PBYTE)((UINT)tilepic+((/**x_in_tilemap*/0/8)*9)+((/**y_in_tilemap*/0/8)*0x100)));
+  pretile(0x03, 0x10, 0x05, 0x02, (PBYTE)((UINT)tilepic+((/**x_in_tilemap*/0/8)*9)+((/**y_in_tilemap*/72/8)*0x100)));
   
   prtilebox(scrx, scry, scrwid, scrhgt); //update scrbuf from tilemap
 

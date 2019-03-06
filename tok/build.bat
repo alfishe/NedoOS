@@ -16,3 +16,5 @@ type asmerr.f
 
 del tok.com
 ren tok_os.bin tok.com
+
+if "%currentdir%"=="" (pause)

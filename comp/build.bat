@@ -25,3 +25,5 @@ type asmerr.f
 
 del comp.com
 ren comp_os.bin comp.com
+
+if "%currentdir%"=="" (pause)

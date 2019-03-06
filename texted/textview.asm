@@ -88,7 +88,7 @@ texted_mainloop_keyq
         ;jp z,texted_changeencoding
         cp Home;ssQ
         jp z,texted_home
-        cp End;ssE
+        cp Endkey;ssE
         jp z,texted_end
         cp cs5
         jp z,texted_left

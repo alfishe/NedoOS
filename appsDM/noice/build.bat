@@ -1,1 +1,1 @@
-C:\Users\cash\Desktop\txt\os\tools\sjasmplus main.asm --nologo --dos866
+..\..\sjasm\sjasmplus main.asm --nologo --dos866

@@ -1997,7 +1997,8 @@ strlen
 ;     Results:       A = Error
 ;                   DE = Filled in with whole path string
 ;                   HL = Pointer to start of last item 
-;This function simply copies an ASCIIZ path string from an internal buffer into the user's buffer. The string represents the whole path and filename, from the root ;directory, of a file or sub-directory located by a previous "find first entry" or "find new entry" function. The returned string will not include a drive, or an; ;initial "\" character. Register HL will point at the first character of the last item on the string, exactly as for the "parse path" function (function 5Bh).
+;This function simply copies an ASCIIZ path string from an internal buffer into the user's buffer. The string represents the whole path and filename, from the root ;directory, of a file or sub-directory located by a previous "find first entry" or "find new entry" function. [MSXDOS: The returned string will not include a drive, or an; ;initial "\" character.] Register HL will point at the first character of the last item on the string, exactly as for the "parse path" function (function 5Bh).
+;in NedoOS: DRIVE:/PATH/ !!!
 BDOS_getpath
         BDOSSETPGFATFS
         push de ;нельзя после BDOS_preparedepage

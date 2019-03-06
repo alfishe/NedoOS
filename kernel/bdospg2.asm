@@ -79,13 +79,4 @@ standardpal
         STANDARDPAL
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-		ifndef INETDRV
-wiznet_open
-wiznet_close
-wiznet_read
-wiznet_write
-        ret
-		ENDIF
-		ifdef INETDRV
         include "w5300.asm"
-		ENDIF

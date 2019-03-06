@@ -1,0 +1,11 @@
+	NAME    main
+
+	EXTERN  rightshift
+
+	RSEG    PROM
+main    LD      BC,H'ABCD
+	LD      A,4
+	CALL    rightshift
+	RET
+
+	END     main
