@@ -11,7 +11,6 @@ void delayms(unsigned char ms);
 unsigned char RX_BUF[4*1024];  
 unsigned char TX_BUF[4*1024];
 unsigned char *rptr=RX_BUF;
-const unsigned char strip[]="%d.%d.%d.%d:%d";
 const unsigned char dns_ia[]={0,0,53,8,8,8,8};
 const unsigned char DNS_HEAD[]={0x11,0x22,0x01,0x00,0x00,0x01};
 
@@ -57,58 +56,6 @@ char * gets(char *str)  {
 	return str;
 }
   
-unsigned int dns_makequery(void){
-	int len;
-	SOCKET dnssoc;
-	unsigned char* query;
-	dnssoc=socket(AF_INET,SOCK_DGRAM,0);
-	memcpy(&ftp_ia,dns_ia,7);
-	connect(dnssoc, &ftp_ia, sizeof(ftp_ia));
-    puts("domain name (NOT IP):"); 
-	gets(kbd_buf);
-	memcpy(TX_BUF,DNS_HEAD,6);
-	strcpy(TX_BUF + 13,kbd_buf);
-	query = TX_BUF + 13;
-	
-	//https://habr.com/ru/post/346098/ 
-	
-	while(1)	// fill in QNAME filed with domain_name 
-	{
-		unsigned char* domain_tok;
-		unsigned char domain_len;
-		domain_tok = (unsigned char*)strchr((char*)query,'.');
-		if(domain_tok)	domain_len = ((unsigned int)domain_tok - (unsigned int)query) & 0xFF;   
-		else domain_len = strlen(query);
-		if(domain_len > 63)
-		{
-			return 0;		// since the label must begin with two zero bits because labels are restricted to 63 octets or less.
-		}
-		*(query-1) = domain_len;
-		//memcpy(query,qname,domain_len);
-		//qname += domain_len+1;
-		query += domain_len+1;
-		if(!domain_tok) break;
-	}
-	// *query++;// = '\0';			// terminate QNAME field with 'NULL'
-	
-	// fill in QTYPE field, for host address
-	*query++ = 0;
-	*query++ = 1;
-	
-	// fill in QCLASS field, for internet
-	*query++ = 0;
-	*query++ = 1;
-	
-    send(dnssoc,TX_BUF,query - TX_BUF,0);
-      
-    while (1)   
-    {   
-		len=recv(dnssoc,RX_BUF,sizeof(RX_BUF),0);
-		if (len!=0) break;
-    }
-    return 1;	
-}
-
 int waitRequestCMD(unsigned char i){
 	int len;
 	while(i){
@@ -211,14 +158,18 @@ void cmdOpen(void){
 	unsigned int req;
 	printf("(to) ");
 	gets(kbd_buf);
-	i=sscanf(kbd_buf,strip,&ftp_ia.sin_addr.S_un.S_un_b.s_b1,&ftp_ia.sin_addr.S_un.S_un_b.s_b2
-	,&ftp_ia.sin_addr.S_un.S_un_b.s_b3,&ftp_ia.sin_addr.S_un.S_un_b.s_b4,&ftp_port);
-	if(i!=5){
-		if(i!=4){
-			puts("ftp: connect: Connection timed out");
-			return;
-		}
+	i=sscanf(kbd_buf,"%[^:]:%d",TX_BUF,&ftp_port);
+	if(i==1){
 		ftp_port=21;
+	}
+	i=sscanf(TX_BUF,"%d.%d.%d.%d",&ftp_ia.sin_addr.S_un.S_un_b.s_b1,&ftp_ia.sin_addr.S_un.S_un_b.s_b2
+		,&ftp_ia.sin_addr.S_un.S_un_b.s_b3,&ftp_ia.sin_addr.S_un.S_un_b.s_b4);
+	if(i!=4){
+		ftp_ia.sin_addr=*dns_resolver(TX_BUF);
+		if(!ftp_ia.sin_addr.S_un.S_addr){
+			puts("ftp: connect: Connection timed out");
+			return;			
+		}
 	}
 	if(reconnect(&cmds, ftp_port)){
 		puts("ftp: connect: Connection timed out");
@@ -361,11 +312,10 @@ endstor:
 
 extern void dns_resolve(void);
 
-void main(void)
+C_task void main(void)
 {
     initMCU(); 
 	printf("dmftp v.%s %s\r\n",__DATE__,__TIME__);
-	dns_resolve();
 	while(1){
 		if(waitRequestCMD(1))continue;
 		printf("ftp> ");
@@ -377,8 +327,6 @@ void main(void)
 					cmdDir();
 				}else if(!strncmp(kbd_buf,"del ",4)){
 					wiz_printf_cmd("DELE %s",kbd_buf+4);
-				}else if(!strcmp(kbd_buf,"dns")){
-					dns_makequery();
 				}
 				break;
 			case 'c':

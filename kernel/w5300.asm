@@ -413,6 +413,8 @@ w53_read_new:		;читать новый пакет
 		in a,(c)
 		cp SOCK_ESTABLISHED
 		ret z
+		cp SOCK_ARP
+		ret z
 		cp SOCK_UDP
 		ret nc
 		ld h,-1

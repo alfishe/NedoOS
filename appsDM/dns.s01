@@ -1,13 +1,12 @@
 
-	MODULE LIB_DNS_RESOLVE
-	PUBLIC dns_resolve
+	MODULE LIB_DNS_RESOLVER
+	PUBLIC dns_resolver
 	EXTERN errno, OS_NETSOCKET, OS_NETCLOSE, YIELD
 	EXTERN OS_NETCONNECT, OS_NETRECV, OS_NETSEND
 	
 		
 	RSEG	CODE
-dns_resolve:		;DE-domain name
-	ld de,dom_name
+dns_resolver:		;DE-domain name
 	push de
 	ld hl,dns_head
 	ld de,dnsbuf
@@ -122,8 +121,6 @@ exiterr:
 	ld hl,0
 	ret
 	RSEG	CONST
-dom_name:
-	defb "123exampl.com"
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
 dns_ia:

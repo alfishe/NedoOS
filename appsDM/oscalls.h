@@ -46,6 +46,7 @@ signed char OS_NETCONNECT(const struct sockaddr_in * addr, SOCKET socket);
 #define connect(socket, addr, address_len) OS_NETCONNECT(addr,socket)
 unsigned short htons(unsigned short hostshort);
 
+struct in_addr * dns_resolver(char *);
 
 #define IPPROTO_TCP 6
 #define IPPROTO_UDP 17

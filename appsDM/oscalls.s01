@@ -363,6 +363,41 @@ oldtimer:
 	defw 0 
 	ENDMOD
 	
+	MODULE OSPRCHAR
+	PUBLIC main_args
+	EXTERN main
+	RSEG CODE
+main_args
+	ld hl,args
+	ld de,0x0080
+get_cmd_args_l2
+	ld (hl),e
+	inc hl
+	ld (hl),d
+	inc hl
+	dec de
+get_cmd_args_l
+	inc de
+	ld a,(de)
+	or a
+	jr z,get_cmd_args_end
+	cp ' '
+	jr nz,get_cmd_args_l
+	xor a
+	ld (de),a
+	inc de
+	jr get_cmd_args_l2
+get_cmd_args_end:
+	ld bc,args
+	sbc hl,bc
+	ex de,hl
+	srl e
+	jp main
+	RSEG	UDATA0
+args:
+	defs 32
+	ENDMOD
+	
 	MODULE	my_im2
 	PUBLIC	my_im2_init
 	RSEG	INTJP
