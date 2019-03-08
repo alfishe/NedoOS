@@ -131,10 +131,11 @@ chdir_http
 
 
 openstream_http
+	display $
 ;de=filename
          push de ;filename
 ;httphostname=server name (httpcurdir before slash), curdir=httpcurdir after slash:
-        ld hl,httpcurdir ;server/path (without / in the end)
+        ld hl,httpcurdir+1 ;server/path (without / in the end)
         ld de,httphostname
         push de
         call strcopy
@@ -145,44 +146,63 @@ openstream_http
         ld (openstream_http_curdir),hl
         dec hl
         ld (hl),0 ;end of httphostname
-        
+		call dns_resolver
+		ld a,l
+		or h
+		jp z,CONNECTIONERROR
+		ld de,host_ia+3
+		ld bc,4
+		ldir
 ;create socket:
-	ld de,SOCK_STREAM+(AF_INET<<8)
-	OS_NETSOCKET
-	ld a,l
-	or a
-	jp m,CONNECTIONERROR;?C_EXIT
-	ld (soc1),a
-
+		ld de,SOCK_STREAM+(AF_INET<<8)
+		OS_NETSOCKET
+		ld a,l
+		or a
+		jp m,CONNECTIONERROR;?C_EXIT
+		ld (soc1),a
+		LD	DE,host_ia
+		OS_NETCONNECT
+		or a
+		jp p,connect_ok
+createsoc_err
+		ld a,(soc1)
+		ld e,0
+		OS_NETSHUTDOWN
+		jp CONNECTIONERROR
+connect_ok
         ld hl,httphostname
         call findlastdot ;de = after last dot or start
-;TODO DNS resolve (de)
-        
-
-;TODO connect to server
-
 ;form GET message in DISKBUF (will be deleted in readstream)
         ld hl,tGET
         ld de,DISKBUF
         call strcopy
-        
+        dec de
 openstream_http_curdir=$+1
         ld hl,0 ;httpcurdir+N
         call strcopy
+        dec de
         ld a,'/'
         ld (de),a
         inc de
          pop hl ;filename
         call strcopy
+        dec de
         ld hl,tHTTP_host
         call strcopy
+        dec de
         ld hl,httphostname
         call strcopy
+        dec de
         ld hl,tGETend
         call strcopy
-        ld de,DISKBUF;0xffff&(-DISKBUF)
-        or a
-        sbc hl,de
+		ex de,hl
+        ld de,0xffff&(-DISKBUF)
+        add hl,de
+		LD	a,(soc1)
+		LD	DE,DISKBUF
+		OS_WIZNETWRITE
+		bit 7,h
+		jr nz,createsoc_err
 ;de=message
 ;hl=message size       
 ;TODO send message to server
@@ -205,28 +225,42 @@ findlastdot0
 
 
 readstream_http
-;de=buf
-;hl=size
-;TODO skip header
-
-;TODO read to buf
-
-;TODO count actual size
-
-;hl=actual size
-        ret
-
+	display $
+	add hl,de
+	push de	;начало буфера
+readstream_loop
+	push hl	;До куда читать
+	push de	;текущий ptr
+	sbc hl,de
+	ld a,h
+	or l
+	jr z,readstream_err
+	LD	a,(soc1)
+	OS_WIZNETREAD
+	bit 7,h
+	jr nz,readstream_err
+	pop de
+	add hl,de
+	ex de,hl
+	pop hl
+	jr readstream_loop
+readstream_err:	
+	pop hl
+	pop de
+	pop de
+	or a
+	sbc hl,de
+	ret
+	
+		
 closestream_http
-;TODO close current connection 
-
-;free current socket (это точно оно???):
-closestream_http_free0
-	ld a,(soc1)
-	OS_NETSHUTDOWN
-	cp SHUT_RDWR
-	jr z,closestream_http_free0
+		ld e,0
+		ld a,(soc1)
+		OS_NETSHUTDOWN
         ret
 
+host_ia:
+	defb 0,0,80,8,8,8,8
 ;httpslashcurdir
         db '/'
 httpcurdir
@@ -239,12 +273,127 @@ soc1
 tGET
         db "GET /",0
 tHTTP_host
-        db " HTTP/1.1",13,10
+        db " HTTP/1.1\r\nConnection: close\r\n"	;\r\nConnection: close
 	db "Host: ",0
 tGETend
-        db 13,10,13,10,0
+        db "\r\n\r\n",0
 
 ;httpgetstr
 	;defb 'GET /cspr/index.htm HTTP/1.1',13,10
 	;defb 'Host: dimkam.ru',13,10
 	;defb 13,10
+dnsbuf EQU DISKBUF+0x0400
+dns_resolver:		;DE-domain name
+	;push de
+	ld hl,dns_head
+	ld de,dnsbuf
+	ld bc,6
+	ldir
+	ex de,hl
+	ld de,dnsbuf+7
+	ld (hl),0
+	ld bc,256-7
+	ldir
+	ld de,dnsbuf+12
+	ld h,d
+	ld l,e
+	ld bc, httphostname ;pop bc
+name_loop:
+	inc hl
+	ld a,(bc)
+	ld (hl),a
+	inc bc
+	cp '.'
+	jr z,is_dot
+	or a
+	jr nz,name_loop
+is_dot:
+	sbc hl,de
+	ex de,hl
+	dec e
+	ld (hl),e
+	inc e
+	add hl,de
+	ld d,h
+	ld e,l
+	or a
+	jr nz,name_loop
+	inc a
+	inc hl
+	inc hl
+	ld (hl),a
+	inc hl
+	inc hl
+	ld (hl),a
+	inc hl
+	push hl
+	
+	ld de,0x0203
+	OS_NETSOCKET
+	ld a,l
+	ld (soc1),a
+	or a
+	jp m,dns_exiterr
+	LD	DE,dns_ia
+	OS_NETCONNECT
+	or a
+	jp m,dns_exiterr
+	
+	pop hl
+	push hl
+	ld de,0xffff&(-dnsbuf)
+	add hl,de
+	LD	a,(soc1)
+	LD	DE,dnsbuf
+	OS_WIZNETWRITE
+	bit 7,h
+	jr nz,dns_exitcode
+	ld b,25
+	jr recv_wait1
+recv_wait:
+	YIELD
+recv_wait1:
+	push bc
+	ld hl,256
+	LD	a,(soc1)
+	LD	DE,dnsbuf
+	OS_WIZNETREAD
+	pop bc
+	ld a,h
+	or l
+	jr nz,recv_wait_end
+	djnz recv_wait
+	ld a,54	;ERR_CONNRESET
+	;ld (errno),a
+	jr dns_exiterr
+recv_wait_end:
+	bit 7,h
+	jr nz,dns_exitcode
+	ld a,65		;ERR_HOSTUNREACH
+	;ld (errno),a
+	ld a,(dnsbuf+3)
+	and 0x0f	
+	jr nz,dns_exiterr
+dns_exitcode:
+	LD	a,(soc1)
+	LD	E,0
+	OS_NETSHUTDOWN
+	pop hl
+	ld de,12
+	add hl,de
+	ret
+dns_exiterr:
+	pop af
+	;ld a,(errno)
+	push af
+	LD	a,(soc1)
+	LD	E,0
+	OS_NETSHUTDOWN
+	pop af
+	;ld (errno),a
+	ld hl,0
+	ret
+dns_head
+	defb 0x11,0x22,0x01,0x00,0x00,0x01
+dns_ia:
+	defb 0,0,53,8,8,8,8
