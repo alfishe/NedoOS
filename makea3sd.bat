@@ -5,12 +5,16 @@ rem del _sdk\syssets.asm
 rem copy _sdk\syssets0.asm _sdk\syssets.asm
 echo atm=3 > _sdk\syssets.asm
 echo SYSDRV=0 >> _sdk\syssets.asm
+echo INETDRV EQU 0x01 >> _sdk\syssets.asm
 call make.bat
 
 path=_sdk\
 nedotrd nedoos.trd -eh code.$C
 nedotrd nedoos.trd -a code.$C
 
+del nedoos_sd.trd
+copy nedoos.trd nedoos_sd.trd
+
 rem del ..\us035\user.l
 rem copy us\user.l ..\us035\user.l
-us\emul.exe nedoos.trd
+us\emul.exe nedoos_sd.trd

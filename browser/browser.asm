@@ -12,7 +12,7 @@ COLOR=7
 GIF_PIXELSIZE=0
 
 HTMLTOPY=0
-HTMLHGT=25
+HTMLHGT=24
 
        MACRO rdbyte
         INC LY
@@ -99,12 +99,16 @@ HTMLHGT=25
         org PROGSTART
 cmd_begin
         ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
-        call init
-        
+        call init        
+;TODO recode url in linkbuf to full path
+	jr browser_go
+
+browser_godownload
+	ld a,1
+	ld (downloadflag),a
 browser_go
 ;в linkbuf лежит ссылка
 ;в COMMANDLINE лежит текущее имя файла
-;для backspace: запомнить полный путь с протоколом и именем
         ld de,pathbuf
         push de
 getpath_patch=$+1
@@ -118,17 +122,69 @@ getpath_patch=$+1
 browser_oldfilename=$+1
         ld hl,emptyfilename
         call strcopy
+	
+	;ld de,emptyfilename+1
+	;or a
+	;sbc hl,de
+        ;jr z,browser_backspaceq ;no history for start
+	;jr $
+;для backspace: запомнить полный путь с протоколом и именем
+;histaddr указывает на последний элемент истории
+	call setpghist
+histaddr=$+1
+	ld de,0xbf00;c000
+	inc d
+	jr nz,keeptohist_nooverflow
+	ld hl,0xc100
+	ld de,0xc000
+	ld bc,0x3f00
+	ldir ;forget oldest link
+keeptohist_nooverflow
+	ld (histaddr),de
+	ld hl,linkbuf
+	ld bc,256
+	ldir
+	
         jr browser_backspaceq
+
+browser_downloadthis
+	;jr $
+	ld a,1
+	ld (downloadflag),a
+browser_reload
+;histaddr указывает на последний элемент истории
+	ld hl,(histaddr)
+	call setpghist
+        ;ld hl,pathbuf
+        ld de,linkbuf
+        call strcopy
+	jr browser_backspaceq
 
 browser_backspace
 ;вспомнить старый путь с протоколом и именем, положить его в COMMANDLINE
+;сейчас histaddr указывает на последний элемент истории. идём назад и запомним новый указатель
+	ld hl,(histaddr)
+	ld a,h
+	cp 0xc0
+	ret z;jp z,getkeyquit ;jr z,$+3 ;no history
+	dec h
+	ld (histaddr),hl
+	call setpghist
+        ;ld hl,pathbuf
         ld de,linkbuf
-        ld hl,pathbuf
         call strcopy
 
 browser_backspaceq
+        
         ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         
+        call unreservepages
+        xor a
+        ld h,a
+        ld l,a
+        ld (freemem_hl),hl
+        ld (freemem_a),a
+
         call setpgs_scr
 
         call setpgcode4000
@@ -136,12 +192,7 @@ browser_backspaceq
         ld de,0xc000;0x0801
         call setxymc
         ld de,linkbuf;COMMANDLINE
-        call prtextmc
-        
-        ;ld de,0x1002
-        ;call setxymc
-        ;ld de,COMMANDLINE
-        ;call prtextmc
+        call prtextmc ;TODO сформировать и напечатать полный путь с протоколом
 
         call setpgtemp8000
 
@@ -155,6 +206,8 @@ browser_backspaceq
         pop hl        
 ;command line = "<file to load>"
 
+         xor a
+         ld (washttpword),a
 ;если в имени файла стоит file://, то включить работу с файлами, если http://, то включить работу с http
         push hl
         ld de,tfileprotocol
@@ -166,9 +219,12 @@ browser_backspaceq
         ld de,thttpprotocol
         call strcp_tillde0 ;if found, hl=after "//"
         ld a,1
-        jr z,browser_go_changeprotocol
+        jr z,browser_go_changeprotocolhttp
         pop hl
         jr browser_go_nochangeprotocol
+browser_go_changeprotocolhttp
+         ld a,1
+         ld (washttpword),a        
 browser_go_changeprotocol
         ld (browserprotocol),a
         ;pop af ;skip old hl
@@ -198,20 +254,45 @@ browser_go_changeprotocol_nohttp
         ld (readstream_patch),bc
         ld (closestream_patch),de
         ld (getpath_patch),hl
+         ;jr $
 ;сменить текущий каталог на корневой
 rootdir_patch=$+1
         call rootdir_file
         pop hl
 browser_go_nochangeprotocol
 
-browserprotocol=$+1
-        ld a,0 ;0=file, 1=http
-
 ;hl=начало path без протокола
 
 ;сменить текущий каталог (или http-каталог) в соответствии с каталогом в ссылке
         push hl ;hl=начало path без протокола
+browser_go_findslash
+	 push hl
         call findlastslash.
+	 pop hl
+;de=after last slash or start
+	 or a
+	 sbc hl,de
+	 add hl,de ;hl=начало path без протокола
+	 jr nz,browser_go_slashfound
+	 ;no slash in end
+browserprotocol=$+1
+        ld a,0 ;0=file, 1=http
+washttpword=$+1
+        ld a,0 ;1=was "http://"
+	or a
+	jr z,browser_go_slashfound
+	 ;http => add slash after (as in http://nedopc.com)
+	 push hl
+	 xor a
+	 ld b,-1
+	 cpir
+	 dec hl ;at terminator
+	 ld (hl),'/'
+	 inc hl
+	 ld (hl),0
+	 pop hl
+	 jr browser_go_findslash
+browser_go_slashfound
         ex de,hl ;hl=after last slash (filename)
         pop de ;начало path без протокола
         or a
@@ -231,14 +312,26 @@ browsernopath
         ex de,hl ;de=filename
 openstream_patch=$+1
         call openstream_file
+	or a
+	jp nz,getkeyquit
 
+downloadflag=$+1
+	ld a,0
+	or a
+	ld a,0
+	ld (downloadflag),a
+	jp nz,downloadfile
+	
         ;ld hl,0
         ;ld de,0
        LD IY,DISKBUF+DISKBUFsz-1
 
         call RDBYTE
+         ;jr $
         cp '<'
         jp z,loadhtml
+         cp 0x0a ;speccy.info
+         jp z,loadhtml
         cp 'G'
         jp z,loadgif
         cp 0xff
@@ -308,17 +401,13 @@ nvview_load0
         ld de,0xc000
         ld hl,0x4000
 nvview_load0go
-;B = file handle, DE = Buffer address, HL = Number of bytes to read
+;DE = Buffer address, HL = Number of bytes to read
          push hl
-        ;ld a,(filehandle)
-        ;ld b,a
-        ;OS_READHANDLE
         call readstream
 ;HL = Number of bytes actually read, A=error
         ld b,h
         ld c,l
          pop hl
-        ;ld hl,0x4000
         or a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
         jr z,nvview_load0
@@ -334,6 +423,49 @@ nvview_load0go
         
         jp loadq
         
+downloadfile
+        call reservepage
+        ret nz ;no memory
+	
+	ld de,downloadfilename ;TODO сгенерировать из урла + запросить редактирование
+;de=filename
+        OS_CREATEHANDLE
+;b=new file handle
+        ld a,b
+        ld (downloadfilehandle),a
+	
+downloadfile0
+        ld de,0xc000
+        ld hl,0x4000
+;DE = Buffer address, HL = Number of bytes to read
+         push hl
+        call readstream
+;HL = Number of bytes actually read, A=error
+
+	push hl
+        ld de,0xc000
+downloadfilehandle=$+1
+	ld b,0
+	OS_WRITEHANDLE
+	pop hl
+
+        ld b,h
+        ld c,l
+         pop hl
+        or a
+        sbc hl,bc ;NZ = bytes to read != bytes actually read
+        jr z,downloadfile0
+	
+	ld a,(downloadfilehandle)
+	ld b,a
+	OS_CLOSEHANDLE
+	
+	ld hl,downloadfilename
+	inc (hl)
+
+	jp closequit
+
+	
 loadjpeg
         ld hl,(putchar_hl)
         ld a,(putchar_a)
@@ -424,11 +556,9 @@ scrlinestep=$+1
         
 loadbmp_fail
 closequit
-
-closestream_patch=$+1
-        call closestream_file
+        call closestream
         
-quit
+showtimequit
         ;jr $
          call setpgcode4000
 
@@ -442,11 +572,6 @@ timebegin=$+1
 ;d=y, e=x8
 ;hl=time (frames)
          call prnumfrac
-
-        YIELDGETKEYLOOP
-        cp cs0
-        jp z,browser_backspace
-        ;QUIT
 CONNECTIONERROR
 ERROR ;for jpeg
         ;jr $
@@ -454,7 +579,30 @@ ERROR2
         ;jr $
 ERROR4
         ;jr $
+getkeyquit
+1;prwindow_waitkey_nokey
+	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        GET_KEY ;OS_GETKEYNOLANG
+        ld a,c ;keynolang
+        ;cp NOKEY
+        ;jr nz,html_mainloop_keyq
+        ;call nvview_panel
+        ;YIELDGETKEYLOOP
+        cp cs0
+        jp z,browser_backspace
+        cp '5'
+        jp z,browser_reload
+	cp 's'
+	jp z,browser_downloadthis
+        cp csSpace
+        ;jr z,browser_quit
+        jr nz,1b;prwindow_waitkey_nokey
+browser_quit
         QUIT
+
+closestream
+closestream_patch=$+1
+        jp closestream_file
         
 ;hl = poi to filename in string
 ;out: de = after last slash
@@ -506,6 +654,7 @@ drawscreenline_frombuf_scr=$+1
         ;call setpgs_scr ;177t
         call setpgscrc000
         
+        push ix
         push iy
         
 drawscreenline_frombuf_ixaddr=$+2
@@ -563,6 +712,7 @@ drawscreenline_frombuf0
         ;ld (drawscreenline_frombuf_scr),hl
 
         pop iy
+        pop ix
         ret;jp setpgtemp8000
         
 drawscreenline
@@ -861,6 +1011,17 @@ _=_+1
 
 ROUNDUP=32
 ROUNDDOWN=32
+        macro DOROUNDDOWN
+         sub ROUNDDOWN
+         jr nc,$+3
+         xor a
+        endm
+
+        macro DOROUNDUP
+         add a,d;ROUNDUP;d
+         jr nc,$+3
+         sbc a,a
+        endm
 
         dw colorlace1
 colorlace0
@@ -887,28 +1048,17 @@ colorlace0
         rla ;BBGGRR
         or 0xc0
         ld l,a
-        ;ld h,t64to16paper/256
-       ; ld d,(hl) ;d=maxcolor16=paper
-       ; ld l,e ;mincolor
-       ld d,h
-        ;ld h,chrbuf/256
-         ;ld e,ROUNDDOWN
+       ld d,h ;e=mincolor
         ld a,(de);(hl) ;G
-         sub ROUNDDOWN
-         jr nc,$+3
-         xor a
+        DOROUNDDOWN
         ld c,a
         res 3,l
         ld a,(de);(hl) ;R
-         sub ROUNDDOWN
-         jr nc,$+3
-         xor a
+        DOROUNDDOWN
         ld b,a
         set 4,l
         ld a,(de);(hl) ;B
-         sub ROUNDDOWN
-         jr nc,$+3
-         xor a
+        DOROUNDDOWN
         rlca
         rlca
         rl c
@@ -921,11 +1071,8 @@ colorlace0
         rla ;BBGGRR
         and 0x3f
         ld e,a;l,a
-        ;ld h,t64to16ink/256
-        ;ld a,(hl) ;a=mincolor16=ink
-        ;or d
-       ld a,(de)
-       or (hl)       
+       ld a,(de) ;paper(maxcolor)
+       or (hl) ;ink(mincolor)     
 ;a=attr
         exx
         ld (hl),a ;записать attr
@@ -955,21 +1102,15 @@ colorlace1
         ld l,d ;maxcolor
          ld d,ROUNDUP
         ld a,(hl) ;G
-         add a,d;ROUNDUP
-         jr nc,$+3
-         sbc a,a
+        DOROUNDUP
         ld c,a
         res 3,l
         ld a,(hl) ;R
-         add a,d;ROUNDUP
-         jr nc,$+3
-         sbc a,a
+        DOROUNDUP
         ld b,a
         set 4,l
         ld a,(hl) ;B
-         add a,d;ROUNDUP
-         jr nc,$+3
-         sbc a,a
+        DOROUNDUP
         rlca
         rlca
         rl c
@@ -982,11 +1123,8 @@ colorlace1
         rla ;BBGGRR
         or 0xc0
         ld l,a
-        ;ld h,t64to16paper/256
-        ld d,(hl) ;d=maxcolor16=paper
+        ld d,(hl) ;paper(maxcolor)
         ld l,e ;mincolor
-        ;ld h,chrbuf/256
-
         ld c,(hl) ;G
         res 3,l
         ld b,(hl) ;R
@@ -1004,10 +1142,8 @@ colorlace1
         rla ;BBGGRR
         and 0x3f
         ld l,a
-        ;ld h,t64to16ink/256
-        ld a,(hl) ;a=mincolor16=ink
-        or d
-;a=attr
+        ld a,(hl) ;ink(mincolor)
+        or d ;paper(maxcolor)
         exx
         ld (hl),a ;записать attr
         exx
@@ -1127,37 +1263,6 @@ MULWOR0 RR B
         RR L
         JR MULWOR0
 
-setpgdiv4000
-codepg8000=$+1
-        ld a,0 ;tdiv
-        SETPG16K ;0x4000
-        ret
-        
-setpgcode4000
-codepg4000=$+1
-        ld a,0
-        SETPG16K
-        ret
-
-setpgtemp8000
-temppg8000=$+1
-        ld a,0
-        SETPG32KLOW
-        ret
-
-setpgs_scr
-        call setpgscr8000
-setpgscrc000
-setpgs_scr_high=$+1
-        ld a,0;pgscr0_1 ;scr0_1
-        SETPG32KHIGH
-        ret
-setpgscr8000
-setpgs_scr_low=$+1
-        ld a,0;pgscr0_0 ;scr0_0
-        SETPG32KLOW
-        ret
-
 putline
 ;hl=откуда копируем строку
 ;bc=сколько байт копируем
@@ -1199,6 +1304,10 @@ filename
         db "index.htm",0
 emptyfilename=$-1
         ;db 0
+	
+downloadfilename
+	db "download.fil",0
+
 tfileprotocol
         db "file://",0
 thttpprotocol
@@ -1209,9 +1318,12 @@ linkbuf
 pathbuf
         ds 128
         
+        include "htmlview.asm"
         include "gif.asm"
         include "jpeg.asm"
         include "html.asm"
+        include "prvirt.asm"
+	include "mempgs.asm"
         include "dynmem.asm"
         include "file.asm"
         include "http.asm"
@@ -1242,422 +1354,13 @@ t64to16paper
 twinto866
         incbin "winto866"
         
-;LINE1
-;        ds 0x400*3 ;TODO перенести в страницу и копировать в putline/drawscreenline_frombuf
 endcode=$
         
         ds 0x4000-$-256 ;for stack
         display "free for code=",$-endcode
-;DISKBUF
-;        ds DISKBUFsz
-;ROL_TAB
-        ;ds 0x1000
 
         ds 0x4000-$ ;stack
-
-fnt
-        incbin "1125vert.fnt"
-
-prnumfrac
-;d=y, e=x8
-;hl=time (frames)
-         call setpgs_scr
-         push hl
-         call setxymc
-         pop de
-         ld bc,5000
-         call prdigmc
-         ld bc,500
-         call prdigmc
-         ld bc,50
-         call prdigmc
-         push de
-         ld a,'.'
-         call prcharmc
-         pop de
-         ld bc,5
-         call prdigmc
-         sla e
-         ld bc,1
-         ;call prdigmc
-prdigmc
-;hl=scraddr
-;de=number
-;bc=divisor
-        ex de,hl
-        ld a,'0'-1
-        or a
-prdigmc0
-        inc a
-        sbc hl,bc
-        jr nc,prdigmc0
-        add hl,bc
-        ex de,hl
-        push de
-        call prcharmc
-        pop de
-        ret
-        
-prtextmc
-prtextmc0
-        ld a,(de)
-        or a
-        ret z
-        push de
-        call prcharmc
-        pop de
-        inc de
-        jp prtextmc0
-        
-prcharmc
-;a=code
-;hl=scraddr
-        ld e,a
-        ld d,fnt/256
-        ld bc,40
-        ;push hl
-        dup 4
-        ld a,(de)
-        ld (hl),a
-        inc d
-        add hl,bc
-        edup
-        ld a,(de)
-prcharmc_italic1=$
-        nop ;/add a,a
-prcharmc_stroke=$+1
-        or 0
-        ld (hl),a
-        inc d
-        add hl,bc
-        ld a,(de)
-prcharmc_italic2=$
-        nop ;/add a,a
-        ld (hl),a
-        inc d
-        add hl,bc
-        ld a,(de)
-prcharmc_italic3=$
-        nop ;/add a,a
-        ld (hl),a
-        inc d
-        add hl,bc
-        ld a,(de)
-prcharmc_italic4=$
-        nop ;/add a,a
-prcharmc_underline=$
-        nop ;/cpl
-        ld (hl),a
-        
-        res 6,h
-prcharmc_attr=$+1
-        ld a,7
-        ld bc,-40
-        dup 7
-        ld (hl),a
-        add hl,bc
-        edup
-        ld (hl),a
-        
-        ;set 6,h
-        ;pop hl
-        ld a,h
-        xor 0x60
-        cp 0xe0;h
-        ld h,a
-        ret nc
-        inc l
-        ret
-
-prcharvirtual_tab_stateful
-        ld a,(prcharvirtual_stateful_x)
-        and 7 ;0..7
-        cpl ;-1..-8
-        add a,9
-        ld b,a ;8..1
-prcharvirtual_tab_stateful0
-        push bc
-        ld a,' '
-        call prcharvirtual_stateful
-        pop bc
-        djnz prcharvirtual_tab_stateful0
-        ret
-        
-prcharvirtual_stateful
-;a=code
-        push af
-        ld h,twinto866/256
-        ld l,a
-        ld a,(hl)
-        call printtostringbuf1
-        pop af
-        cp 32
-        ret c
-prcharvirtual_stateful_x=$+1
-        ld a,0
-        inc a
-        ld (prcharvirtual_stateful_x),a
-        cp 80
-        ret c
-prcharvirtual_crlf_stateful
-        call savestringbuf1
-        xor a
-        ld (prcharvirtual_stateful_x),a
-        ld (laststringx),a
-        ld hl,(curprintvirtualy)
-        inc hl
-        ld (laststringy),hl
-        ld (curprintvirtualy),hl
-        ret
-        
-prcharmc_tab_stateful
-        ld de,(prcharmc_stateful_xy)
-        ld a,e
-        add a,8
-        and 0xf8
-        ld e,a
-        call setxymc_stateful
-        jr prcharmc_tab_statefulq
-        
-prcharmc_stateful_setattr
-        ld hl,prcharmc_stateful_setattr_handler
-        ld (prcharmc_stateful_patch),hl
-        ret
-prcharmc_stateful_setattr_handler
-        dec a
-        ld hl,tfontweight
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
-        ld a,(hl)
-        ld (prcharmc_attr),a
-        jr prcharmc_stateful_resethandler
-        
-prcharmc_stateful_setitalic
-        ld hl,prcharmc_stateful_setitalic_handler
-        ld (prcharmc_stateful_patch),hl
-        ret
-prcharmc_stateful_setitalic_handler
-        dec a
-        rra
-        sbc a,a
-        and 0x87;add a,a
-        ld (prcharmc_italic1),a
-        ld (prcharmc_italic2),a
-        ld (prcharmc_italic3),a
-        ld (prcharmc_italic4),a
-        jr prcharmc_stateful_resethandler
-        
-prcharmc_stateful_setstroke
-        ld hl,prcharmc_stateful_setstroke_handler
-        ld (prcharmc_stateful_patch),hl
-        ret
-prcharmc_stateful_setstroke_handler
-        dec a
-        rra
-        sbc a,a
-        ld (prcharmc_stroke),a
-        jr prcharmc_stateful_resethandler
-        
-prcharmc_stateful_setunderline
-        ld hl,prcharmc_stateful_setunderline_handler
-        ld (prcharmc_stateful_patch),hl
-        ret
-prcharmc_stateful_setunderline_handler
-        dec a
-        rra
-        sbc a,a
-        and 0x2f;cpl
-        ld (prcharmc_underline),a
-prcharmc_stateful_resethandler
-        ld hl,prcharmc_stateful_normal
-        ld (prcharmc_stateful_patch),hl
-        ret
-
-        
-prcharmc_stateful
-;a=code
-prcharmc_stateful_patch=$+1
-        jp prcharmc_stateful_normal
-prcharmc_stateful_normal
-        cp 1
-        jr z,prcharmc_stateful_setattr
-        cp 2
-        jr z,prcharmc_stateful_setitalic
-        cp 3
-        jr z,prcharmc_stateful_setstroke
-        cp 4
-        jr z,prcharmc_stateful_setunderline
-
-        ;halt
-        push af
-        call setpgs_scr
-        pop af
-prcharmc_stateful_scr=$+1
-        ld hl,0
-        call prcharmc
-        ld (prcharmc_stateful_scr),hl
-        call setpgtemp8000
-prcharmc_stateful_xy=$+1
-prcharmc_stateful_x=prcharmc_stateful_xy
-        ld de,0
-        inc e
-        ld a,e
-prcharmc_tab_statefulq
-        ld (prcharmc_stateful_xy),de
-        cp 80
-        ret ;c
-        
-prcharmc_crlf_stateful
-        ;ld hl,(curprintvirtualy)
-        ;inc hl
-        ;ld (curprintvirtualy),hl
-        ld de,(prcharmc_stateful_xy)
-        ld e,0
-        ld a,d
-        add a,8
-        ld d,a
-        cp 8*(HTMLTOPY+HTMLHGT)
-        jr c,setxymc_stateful
-        sub 8
-        ld d,a
-        push de
-        call scrollmcup
-        pop de
-setxymc_stateful
-;de=yx
-        ld (prcharmc_stateful_xy),de
-        call setxymc
-        ld (prcharmc_stateful_scr),hl
-        ret
-        
-curprintvirtualy
-        dw 0
-        
-scrollmcdown
-        call setpgs_scr
-        
-        ld hl,0x8000+(40*8*(HTMLTOPY+HTMLHGT-1))
-        ld b,HTMLHGT-1
-scrollmcdown_rows0
-        push bc
-        ld d,h
-        ld e,l
-        ld bc,-40*8
-        add hl,bc
-        push hl
-        call scrollmc_row
-        pop hl
-        pop bc
-        djnz scrollmcdown_rows0
-        ld hl,0xc000+(40*8*(HTMLTOPY))
-        jr scrollmc_clearq
-        
-scrollmcup
-         ;jp closequit
-        call setpgs_scr
-        
-        ld hl,0x8000+(40*8*(HTMLTOPY))
-        ld b,HTMLHGT-1
-scrollmcup_rows0
-        push bc
-        ld d,h
-        ld e,l
-        ld bc,40*8
-        add hl,bc
-        push hl
-        call scrollmc_row
-        pop hl
-        pop bc
-        djnz scrollmcup_rows0
-        ld hl,0xc000+(40*8*(HTMLTOPY+HTMLHGT-1))
-scrollmc_clearq
-        call cleanlinemc
-        jp setpgtemp8000
-
-cleanlinemc
-;hl=0xc000+
-        call scrollmcup_clblock
-        set 5,h;ld hl,0xe000+(40*200)-(40*8)
-        call scrollmcup_clblock
-        res 6,h;ld hl,0xa000+(40*200)-(40*8)
-        call scrollmcup_clblock
-        res 5,h;ld hl,0x8000+(40*200)-(40*8)
-        ;call scrollmcup_clblock
-        ;ret        
-scrollmcup_clblock
-        push hl
-        ld d,h
-        ld e,l
-        inc de
-        ld bc,40*8-1
-        ld (hl),0
-        ldir
-        pop hl
-        ret
-
-scrollmc_row
-        ld b,8
-scrollmc_row0        
-        push bc
-        push hl
-        push de
-        call scrollmc_line
-        pop hl
-        ld bc,40
-        add hl,bc
-        ex de,hl
-        pop hl
-        add hl,bc
-        pop bc
-        djnz scrollmc_row0
-        ret
-        
-scrollmc_line
-        ld bc,39
-        ldir
-        ld a,(hl)
-        ld (de),a
-        set 5,h
-        set 5,d
-        ld c,39
-        lddr
-        ld a,(hl)
-        ld (de),a
-        set 6,h
-        set 6,d
-        ld c,39
-        ldir
-        ld a,(hl)
-        ld (de),a
-        res 5,h
-        res 5,d
-        ld c,40
-        lddr
-        ret
-
-setxymc
-;de=yx (kept)
-;out: hl=0xc000+
-        ld b,0
-        ld c,d
-        ld h,b
-        ld l,c
-        add hl,hl
-        add hl,hl
-        add hl,bc ;*5
-        add hl,hl
-        add hl,hl
-        add hl,hl ;*40
-        ld c,e
-         srl c
-        ld b,0xc0
-         jr nc,$+4
-         ld b,0xe0
-        add hl,bc
-        ret
+	include "prmc.asm"
 
 init
         ld e,2 ;MC hires mode
@@ -1684,20 +1387,24 @@ init
 ;for JPEG:
         OS_NEWPAGE
         ld a,e
-        ld (tpgs+0),a
+        ld (tpgs+0),a ;mul
         OS_NEWPAGE
         ld a,e
-        ld (tpgs+1),a
+        ld (tpgs+1),a ;y
         OS_NEWPAGE
         ld a,e
-        ld (tpgs+2),a
+        ld (tpgs+2),a ;cb?
         OS_NEWPAGE
         ld a,e
-        ld (tpgs+5),a
+        ld (tpgs+5),a ;cr?
 
         OS_NEWPAGE
         ld a,e
-        ld (temppg8000),a
+        ld (temppg8000),a ;depack data, diskbuf
+
+        OS_NEWPAGE
+        ld a,e
+        ld (histpg),a
 
         
         ld e,0;COLOR
@@ -1717,7 +1424,7 @@ init
         ld a,(hl)
         or a
         jr nz,$+5
-        ld hl,filename
+         ld hl,filename
         ld de,linkbuf
         call strcopy
         ret

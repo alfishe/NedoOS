@@ -365,7 +365,12 @@ w53_minimum0:
 		push bc				;сколько реально прочтем сохраним
 		ex de,hl
 		ld d,b
-		ld e,c		
+		ld e,c
+                 ;0x00ff => 0x00ff
+                 ;0x0100 => 0x0000
+                 dec de
+                 inc e
+                
 		ld c,WIZ_BASE_ADDR
 		ld b,(ix+0)
 		ld a,WIZ_S_RX_L

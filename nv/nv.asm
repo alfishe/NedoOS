@@ -536,7 +536,10 @@ editcmd_pageUp
         cp firstfiley
         jr nc,editcmd_pageDown_nofirstvisible ;not first visible file
         call nv_getdirpos_hl
-	xor a
+	ld bc,CONST_HGT_TABLE-1
+        xor a
+        sbc hl,bc
+        jr nc,$+4
         ld h,a
         ld l,a;0
         call nv_setdirpos_hl

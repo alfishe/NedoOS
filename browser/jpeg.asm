@@ -260,6 +260,7 @@ jpgconvBWlineskip
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 readjpeg
+         call initframe
         ;jr $
 
         xor a

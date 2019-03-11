@@ -46,6 +46,7 @@
 ;  includes with the evaluation boards mentioned above.
 ;
 ;  I/O EQUATES for Z80, Z180, or Z84C15 (set at most one true)
+	module noicemon
 Z80     equ     1
 
 ;  If your taget differs from these options, you may need to make other
@@ -153,6 +154,10 @@ USER_CODE=0x8000
 ;===========================================================================
 ;  Power on reset or trap
 RESET:
+	ld a,0xc3
+	ld (0x0030),a	
+	ld hl,noicemon.BRK_POINT
+	ld (0x0031),hl
 
 
 ;===========================================================================
@@ -162,26 +167,23 @@ RESET:
         LD      A,10000011B
         ld bc,0xfbef
         out (c),a
-        ;LD      (S16450+LCR),A
 ;
 ;  fixed baud rate of 19200:  crystal is 3.686400 Mhz.
 ;  Divisor is 3,686400/(16*baud)
-        LD      A,2                    ;fix at 19.2 kbaud
-        ;LD      (S16450+RXR),A          ;lsb
-        ld bc,0xf8ef
+        LD      A,2                   
+        ld b,0xf8
         out (c),a
         XOR     A
-        ld bc,0xf9ef
+        inc b	;ld b,0xf9
         out (c),a
-        ;LD      (S16450+RXR+1),A        ;msb=0
 ;
 ;  access data registers, no parity, 1 stop bits, 8 data bits
         LD      A,00000011B
-        ld bc,0xfbef
+        ld b,0xfb
         out (c),a
         ;LD      (S16450+LCR),A
         
-   ld bc,0xfaef   ;reset fifo
+   dec b	;ld b,0xfa   ;reset fifo
    ld a,3
    out (c),a
 
@@ -263,7 +265,7 @@ GC90:   SCF                             ;cy=1
 ;
 ;  Uses 6 bytes of stack including return address
 ;
-PUTCHAR:
+NIMPUTCHAR:
         PUSH    BC                      ;save:  used for I/O address
         PUSH    AF                      ;save byte to output
         LD      BC,SERIAL_STATUS        ;status reg. for loop
@@ -815,7 +817,7 @@ SEND:   CALL    CHECKSUM                ;GET A=CHECKSUM, HL->checksum location
         ADD     3                       ;PLUS FUNCTION, LENGTH, CHECKSUM
         LD      B,A                     ;save count for loop
 SND10:  LD      A,(HL)
-        CALL    PUTCHAR                 ;SEND A BYTE (uses 6 bytes of stack)
+        CALL    NIMPUTCHAR                 ;SEND A BYTE (uses 6 bytes of stack)
         INC     HL
         DJNZ    SND10
         JP      MAIN                    ;BACK TO MAIN LOOP
@@ -896,4 +898,5 @@ COMBUF_SIZE     EQU     67              ;DATA SIZE FOR COMM BUFFER
 COMBUF:         DS      2+COMBUF_SIZE+1 ;BUFFER ALSO HAS FN, LEN, AND CHECK
 ;
 RAM_END         EQU     $               ;ADDRESS OF TOP+1 OF RAM
+	endmodule
 	

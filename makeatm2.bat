@@ -5,6 +5,7 @@ rem del _sdk\syssets.asm
 rem copy _sdk\syssets4.asm _sdk\syssets.asm
 echo atm=2 > _sdk\syssets.asm
 echo SYSDRV=4 >> _sdk\syssets.asm
+echo INETDRV EQU 0x00 >> _sdk\syssets.asm
 call make.bat
 
 rem del ..\us035\user.l

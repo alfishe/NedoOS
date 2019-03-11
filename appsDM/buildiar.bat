@@ -29,7 +29,7 @@ FOR %%f IN (!C_FILES!) do (
 
 FOR %%f IN (!ASM_FILES!) do (
 	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~nf.r01
-	%AZ80% -S -Olist\ %%f 
+	%AZ80% -S -Olist\ %%f -I%currentdir%\_sdk\
 )
 
 %XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!

@@ -3,6 +3,16 @@
 
         org PROGSTART
 cmd_begin
+
+        ;test emul for DimkaM
+        ld bc,0x83ab
+        ld a,0x10
+        out (c),a
+        ld bc,0x82ab
+        ld a,0x50
+        out (c),a
+        ;
+        
         QUIT
 
 cmd_end

@@ -1,0 +1,437 @@
+htmlview
+        call prcharmc_stateful_resethandler
+        ld hl,0
+        ld (html_curtopy),hl
+        
+html_redrawloop
+;TODO redraw interface
+        call htmlshowpage
+        ;call setpgs_scr
+        
+html_mainloop
+
+htmlcursorxy=$+1
+        ld de,HTMLTOPY*256
+	call html_setxy
+        call setpgs_scr
+        ld e,(hl)
+	push de ;e=oldcolor
+	ld a,0x38
+        call html_prattr
+
+        ;YIELDGETKEYLOOP
+1;prwindow_waitkey_nokey
+	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        GET_KEY ;OS_GETKEYNOLANG
+        ld a,c ;keynolang
+        cp NOKEY
+        jr nz,html_mainloop_keyq
+        ;call nvview_panel
+        jr 1b;prwindow_waitkey_nokey
+html_mainloop_keyq
+
+        pop de ;e=oldcolor
+        push af
+        push de
+        ld de,(htmlcursorxy)
+	call html_setxy
+        pop de
+	ld a,e
+        call html_prattr
+        pop af
+        
+        cp key_redraw
+        jr z,html_redrawloop
+        cp csSpace
+        jp z,browser_quit
+        ld hl,html_mainloop
+        push hl
+        cp cs7
+        jp z,html_up
+        cp cs6
+        jp z,html_down
+        cp cs8
+        jp z,html_right
+        cp cs5
+        jp z,html_left
+        cp Enter
+        jp z,html_enter
+	cp 'l'
+	jp z,html_download
+	cp 's'
+	jp z,browser_downloadthis
+        cp '5'
+        jp z,browser_reload
+        cp cs0
+        jp z,browser_backspace
+        cp cs3
+        jp z,html_pgup
+        cp cs4
+        jp z,html_pgdown
+        ret
+        
+html_download
+        call html_enter_find
+	jp browser_godownload
+	
+html_enter
+;click on href
+	;jr $
+        call html_enter_find
+        jp browser_go
+
+html_enter_find
+        ld a,(htmlcursorxy+1)
+        sub HTMLTOPY
+        ld c,a
+        ld b,0
+        ld hl,(html_curtopy)
+        add hl,bc
+        ld (html_enter_virtualy),hl
+
+        ld hl,(first2pointer)
+        ld a,(first2pointerHSB)
+html_enter_find0
+        call isnull
+        jr z,html_enter_findq
+        push af
+        push hl
+        ld bc,HREF_Y
+        add hl,bc
+        adc a,0
+        call readword ;de=beginy
+        ex de,hl
+html_enter_virtualy=$+1
+        ld bc,0
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr z,html_enter_findlineok
+;TODO for long linktexts: beginy<=y<=endy
+html_enter_findnext
+        pop hl
+        pop af
+        call getnextelement
+        jr html_enter_find0
+        
+html_enter_findlineok
+	 pop bc
+	 pop bc
+        call readbyte ;c=beginx
+        ld b,a
+        ld a,(htmlcursorxy)
+        cp c
+        ld a,b
+;x<beginx => fail
+        jr c,html_enter_findnext
+        
+        call readword ;de=endy
+        push hl
+        ld hl,(html_enter_virtualy)
+        or a
+        sbc hl,de
+        pop hl
+;y!=endy => ok (long linktext)
+        push af
+        call readbyte ;c=endx
+        pop af
+        jr z,html_enter_findok
+
+        ld b,a
+        ld a,(htmlcursorxy)
+        cp c
+        ld a,b
+;x>=endx =>fail
+        jr c,html_enter_findok
+        
+html_enter_findok
+        call readbyte ;skip VISITED
+        ld de,linkbuf
+html_enter_findok_copyname0
+        call readbyte
+        ex de,hl
+        ld (hl),c
+        inc hl
+        ex de,hl
+        inc c
+        dec c
+        jr nz,html_enter_findok_copyname0
+	ret
+        
+html_enter_findq
+	pop af
+        ret
+
+html_prattr
+        ld de,40
+        ld b,8
+html_prattr0
+	ld (hl),a
+        add hl,de
+        djnz html_prattr0
+        ret
+
+html_setxy
+;de=yx (kept)
+        push de
+        sla d
+        sla d
+        sla d
+        call setxymc
+        res 6,h
+        pop de
+        ret
+
+html_left
+        ld a,(htmlcursorxy)
+        sub 1
+        ret c
+        ld (htmlcursorxy),a
+        ret
+        
+html_right
+        ld a,(htmlcursorxy)
+        inc a
+        cp 80
+        ret nc
+        ld (htmlcursorxy),a
+        ret
+        
+html_up
+        ld a,(htmlcursorxy+1)
+        cp HTMLTOPY
+        jr z,html_up_scroll
+        dec a
+        ld (htmlcursorxy+1),a
+        ret
+html_up_scroll
+        ld hl,(html_curtopy)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld (html_curtopy),hl
+        push hl
+        call scrollmcdown
+        pop hl
+        ld d,HTMLTOPY
+;hl=virtual Y
+;d=scry
+        call htmlcleanshowline
+        
+        ret
+        
+html_down
+        ld a,(htmlcursorxy+1)
+        cp HTMLTOPY+HTMLHGT-1
+        jr z,html_down_scroll
+        inc a
+        ld (htmlcursorxy+1),a
+        ret
+html_down_scroll
+        ld hl,(html_curtopy)
+        inc hl
+        ld (html_curtopy),hl
+        push hl
+        call scrollmcup
+        pop hl
+        ld bc,HTMLHGT-1
+        add hl,bc
+        ld d,HTMLTOPY+HTMLHGT-1
+;hl=virtual Y
+;d=scry
+        call htmlcleanshowline
+        
+        ret
+
+html_pgup
+        ld hl,(html_curtopy)
+        ld bc,HTMLHGT-1
+        xor a
+        sbc hl,bc
+        jr nc,$+4
+        ld h,a
+        ld l,a
+        ld (html_curtopy),hl
+        call htmlshowpage
+        ret
+        
+html_pgdown
+        ld hl,(html_curtopy)
+        ld bc,HTMLHGT-1
+        add hl,bc
+        ld (html_curtopy),hl
+        call htmlshowpage
+        ret
+        
+        
+htmlshowpage
+        ld d,HTMLTOPY
+html_curtopy=$+1
+        ld hl,0
+htmlshowpage0
+;hl=virtual Y
+;d=scry
+        call htmlcleanshowline
+        inc hl
+        inc d
+        ld a,d
+        cp HTMLTOPY+HTMLHGT
+        jr nz,htmlshowpage0
+        ret
+
+htmlcleanshowline
+;hl=virtual Y
+;d=scry
+        push de
+        push hl
+        ld e,0
+        sla d
+        sla d
+        sla d
+        call setxymc ;hl=0xc000+        
+        call setpgs_scr
+        call cleanlinemc
+        call setpgtemp8000
+        pop hl
+        pop de
+        
+        ;jr $
+        push de
+        push hl
+        call htmlshowline
+        pop hl
+        pop de
+        ret
+        
+htmlshowline
+;hl=virtual Y
+;d=scry
+        ;jr $
+        ld a,d
+        add a,a
+        add a,a
+        add a,a
+        ld (htmlshowline_scry),a
+        ld (htmlshowline_virtualy),hl
+
+        ld hl,(firstpointer)
+        ld a,(firstpointerHSB)
+htmlshowline_find0
+        call isnull
+        jr z,htmlshowline_findq
+        push af
+        push hl
+        ld bc,HREF_Y
+        add hl,bc
+        adc a,0
+        call readword ;de
+        ex de,hl
+htmlshowline_virtualy=$+1
+        ld bc,0
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr z,htmlshowline_findok
+        pop hl
+        pop af
+        call getnextelement
+        jr htmlshowline_find0
+        
+htmlshowline_findok
+        call readbyte ;x
+        ld e,c
+htmlshowline_scry=$+1
+        ld d,0
+        push af
+        push hl
+        call setxymc_stateful
+        pop hl
+        pop af
+htmlshowline_showtext0
+        call readbyte ;c
+        inc c
+        dec c
+        jr z,htmlshowline_showtextq
+        push af
+        push hl
+        ld a,c
+        call prcharmc_stateful
+        pop hl
+        pop af
+        jr htmlshowline_showtext0
+htmlshowline_showtextq
+        
+        pop hl
+        pop af
+        
+htmlshowline_findq
+
+        ret
+        
+        if 1==0
+        ld hl,(firstpointer)
+        ld a,(firstpointerHSB)
+loadhtml_showtexts0
+        call isnull
+        jr z,loadhtml_showtextsq
+        push af
+        push hl
+        ld bc,stringbuf1-stringbuf1header
+        add hl,bc
+        adc a,0
+        ;jr $
+loadhtml_showtext0
+        call readbyte ;c
+        inc c
+        dec c
+        jr z,loadhtml_showtextq
+        push af
+        push hl
+        ld a,c
+        call prcharmc_stateful
+        pop hl
+        pop af
+        jr loadhtml_showtext0
+loadhtml_showtextq
+        call prcharmc_crlf_stateful
+        pop hl
+        pop af
+        call getnextelement
+        jr loadhtml_showtexts0
+loadhtml_showtextsq
+        
+        
+        ld hl,(first2pointer)
+        ld a,(first2pointerHSB)
+loadhtml_showhrefs0
+        call isnull
+        jr z,loadhtml_showhrefsq
+        push af
+        push hl
+        ld bc,stringbuf2-stringbuf2header
+        add hl,bc
+        adc a,0
+        ;jr $
+loadhtml_showhref0
+        call readbyte ;c
+        inc c
+        dec c
+        jr z,loadhtml_showhrefq
+        push af
+        push hl
+        ld a,c
+        call prcharmc_stateful
+        pop hl
+        pop af
+        jr loadhtml_showhref0
+loadhtml_showhrefq
+        call prcharmc_crlf_stateful
+        pop hl
+        pop af
+        call getnextelement
+        jr loadhtml_showhrefs0
+loadhtml_showhrefsq
+
+        jp closequit
+        endif

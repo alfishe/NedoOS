@@ -11,11 +11,14 @@ chdir_file
         ret
 
 openstream_file
-;de=filename (without / in the end)
+;de=filename
+;out: A!=0 => error
         OS_OPENHANDLE
 ;b=new file handle
+	push af
         ld a,b
         ld (filehandle),a
+	pop af;
         ret
 
 readstream_file
