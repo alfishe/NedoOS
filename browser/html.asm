@@ -23,6 +23,7 @@ loadhtml_html
          ld (ispre),a
          ;xor a
          ld (printableflag),a ;header is invisible for html
+defaultunicodeflag=$+1
          xor 1 ;ld a,1 ;utf-8 by default for html, windows-1251 for text
          ld (utf8flag),a
         call setdefaultfontweight
@@ -399,6 +400,7 @@ tag_u_b_i
         
 tag_ul ;list
         jp nz,skiprestoftag ;opening (li does newline)
+tag_dd ;на lib.ru это перевод строки
 tag_div
 tag_table
 tag_br
@@ -562,6 +564,19 @@ tag_a_opening_read_go
         jr z,tag_a_opening_readq
         cp 34
         jr z,tag_a_opening_readq
+        cp 0x0d
+        jr z,tag_a_opening_read0 ;lib.ru
+        cp 0x0a
+        jr z,tag_a_opening_read0 ;lib.ru
+         cp '&'
+         jr nz,tag_a_opening_read0ok
+;TODO проверить &amp; (forum.nedopc.com)
+        call RDBYTE;rdbyte
+        call RDBYTE;rdbyte
+        call RDBYTE;rdbyte
+        call RDBYTE;rdbyte         
+         ld a,'&'
+tag_a_opening_read0ok
         call printtostringbuf2
         jr tag_a_opening_read0
 tag_a_opening_hreffail
@@ -610,6 +625,7 @@ eatgivenword0
         call RDBYTE;rdbyte
         ;ld (executetag_endchar),a
 eatgivenword_go
+         or 0x20
         cp (hl)
         inc hl
         jr z,eatgivenword0
@@ -656,6 +672,8 @@ getword_param_go
         jr z,getword_mangledcharq
         cp ';'
         jr z,getword_mangledcharq
+        cp '#'
+        jr z,getword_mangledcharq ;lib.ru &#97&#102&#114&#97&#110&#105&#117&#115&#64&#110&#101&#119&#109&#97&#105&#108&#46&#114&#117
         cp '>'
         jr z,getword_mangledcharq ;for param
 	 or 0x20
@@ -793,7 +811,6 @@ tag_link
 ;TODO find href
 
 tag_dl
-tag_dd
 tag_dt
 tag_style
 tag_COMMENT

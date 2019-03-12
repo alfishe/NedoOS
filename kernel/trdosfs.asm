@@ -165,6 +165,52 @@ trdos_fclose_hl
         xor a ;success
         ret
 
+trdos_getfilesize
+;b=handle
+;out: dehl=filesize
+        xor a
+        ld h,a
+        ld l,a
+        ld (trdos_getfilesizeLSW),hl
+        ld (trdos_getfilesizeHSB),a
+        
+        ld h,b
+        ld l,1 ;TRDOSFCB filename
+        
+        ld c,9 ;c=FILENAMESZ
+        call findfile
+        jr nz,trdos_getfilesize_q
+;hl,de=after filename
+trdos_getfilesize_0
+        ;push bc
+        push de
+        push hl
+;de=after filename on disk
+        ex de,hl
+        inc hl
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;length
+trdos_getfilesizeLSW=$+1
+        ld hl,0
+        add hl,de
+        ld (trdos_getfilesizeLSW),hl
+        ld hl,trdos_getfilesizeHSB
+        jr nc,$+3
+        inc (hl)
+        pop hl
+        pop de
+        ;pop bc
+        call findfile_continue
+        jr z,trdos_getfilesize_0
+trdos_getfilesize_q
+        ld hl,(trdos_getfilesizeLSW)
+trdos_getfilesizeHSB=$+1
+        ld de,0
+        xor a
+        ret
+        
 trdos_rename
 ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string
         push de

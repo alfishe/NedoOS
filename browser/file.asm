@@ -1,17 +1,3 @@
-        if 1==0
-getpath_file
-;de=buffer to get path
-        OS_GETPATH
-        ret
-
-rootdir_file
-        ld de,tdot
-chdir_file
-;de=path
-        OS_CHDIR
-        ret
-        endif
-
 openstream_file
 ;de=filename
 ;out: A!=0 => error
@@ -38,6 +24,3 @@ closestream_file
         ld b,a
         OS_CLOSEHANDLE
         ret
-
-tdot
-        db ".",0

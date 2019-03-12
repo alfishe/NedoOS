@@ -142,6 +142,10 @@ _1=$
         endm
 
 ;invented  
+        macro OS_GETFILESIZE
+        ld c,CMD_GETFILESIZE
+	CALLBDOS
+        endm
         ;macro OS_SETWAITING
         ;ld c,CMD_SETWAITING
 	;CALLBDOS

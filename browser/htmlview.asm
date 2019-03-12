@@ -61,13 +61,15 @@ html_mainloop_keyq
         cp cs5
         jp z,html_left
         cp Enter
-        jp z,html_enter
+        jr z,html_enter
 	cp 'l'
-	jp z,html_download
+	jr z,html_download
 	cp 's'
 	jp z,browser_downloadthis
         cp '5'
         jp z,browser_reload
+        cp 'u'
+        jr z,html_changeencoding
         cp cs0
         jp z,browser_backspace
         cp cs3
@@ -79,6 +81,13 @@ html_mainloop_keyq
         cp Endkey
         jp z,html_endkey
         ret
+
+html_changeencoding
+        ld hl,defaultunicodeflag
+        ld a,(hl)
+        xor 1
+        ld (hl),a
+        jp browser_reload
         
 html_download
         call html_enter_find

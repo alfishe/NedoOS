@@ -361,7 +361,7 @@ v?.?, 11.03.2019
 v?.?, 12.03.2019
 
 + html определ€етс€, даже если в его начале были пробелы и переводы строки (forum.nedopc.com) или ef bb bf (UTF-8 BOM) (hippiman.16mb.com/in_progs.html)
-+ добавлено ещЄ несколько игнорируемых тэгов дл€ forum.nedopc.com
++ добавлено ещЄ несколько игнорируемых тэгов дл€ forum.nedopc.com, тэг dd переводит строку
 - в gif исправлены смещени€ кадров по сайту gifki.ru
 + в gif поддержана задержка кадра 0 s (=0.1 s)
 - иногда не отображались подписи картинок (Maksagor)
@@ -370,5 +370,10 @@ v?.?, 12.03.2019
 + добавлен системный макрос YIELDGETKEY
 + в TRDOSFS при создании файла удал€етс€ одноимЄнный текущий
 + парсер html ускорен
-+ поддержаны тэги вида <a rel="nofollow" class="external text" href="http://myspeccy.com/ru"> (speccy.info)
++ поддержаны тэги вида <a rel="nofollow" class="external text" href="http://myspeccy.com/ru"> (speccy.info) и вида <A HREF="../archivenote.html"> (www.worldofspectrum.org)
 + в html убраны лишние пробелы в начале строк
++ добавлен вызов OS_GETFILESIZE
++ поставлен User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT) - теперь можно скачивать игрушки с www.worldofspectrum.org
++ в browser добавлена гор€ча€ кнопка U - переключить кодировку UTF-8/windows-1251, теперь можно читать lib.ru/win/
+- числовые коды вида &#97&#102&#114&#97&#110&#105&#117&#115&#64&#110&#101&#119&#109&#97&#105&#108&#46&#114&#117 ломали разметку
++ в DNS запросе автоматически делаетс€ несколько попыток с удвоением времени

@@ -1,3 +1,6 @@
+httphostname=DISKBUF+0x400
+dnsbuf=DISKBUF+0x0600
+
 IPPROTO_TCP EQU 6
 IPPROTO_UDP EQU 17
 
@@ -76,59 +79,6 @@ SOCK_IPRAW          EQU 0x32                 ;< SOCKETn is open as IPRAW mode. *
 SOCK_MACRAW         EQU 0x42                 ;< SOCKET0 is open as MACRAW mode. */
 SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. */
 		
-httphostname=DISKBUF+0x200
-
-        if 1==0
-getpath_http
-;de=buffer to get path
-        ld hl,httpcurdir ;server/path (without / in the end)
-        jp strcopy
-
-rootdir_http
-        xor a
-        ld (httpcurdir),a ;server/path (without / in the end)
-        ret
-        
-chdir_http_dot
-        inc de ;skip dot
-        inc de ;skip another dot supposed
-        ld a,(de)
-        or a
-        jr z,$+3
-        inc de ;skip / supposed
-;hl=end of curdir (slash or terminator)
-;remove last element of curdir = move hl to previous slash or =httpcurdir:
-        ld a,'/'
-        dec hl
-        ld b,-1
-        cpdr
-        inc hl ;at slash (might be httpcurdir-1)
-        ld bc,httpcurdir
-        or a
-        sbc hl,bc
-        ;add hl,bc
-        ;jr nc,$+3 ;< httpcurdir?
-        ;inc hl ;if so, hl=httpcurdir
-         adc hl,bc ;if (hl<httpcurdir) hl=httpcurdir
-        ;jr chdir_http
-
-chdir_http
-;de=server/path (without / in the end)
-        ld hl,httpcurdir
-        xor a
-        ld b,-1
-        cpir
-        dec hl
-;hl=end of curdir
-        ld a,(de)
-        cp '.'
-        jr z,chdir_http_dot
-        ld (hl),'/'
-        inc hl
-        ex de,hl
-        call strcopy ;TODO check overflow
-        ret
-        endif
 
 openstream_http
 	display $
@@ -149,42 +99,7 @@ openstream_http
         ld (hl),0 ;end of httphostname
         
 ;httphostname=server name (filename before slash, not including slash)
-;top of stack=filename (after ser.ver/)
-        ;jr $
-        
-        if 1==0
-         push de ;filename
-;httphostname=server name (httpcurdir before slash), curdir=httpcurdir after slash:
-        ld hl,httpcurdir+1 ;server/path (without / in the end)
-        ld de,httphostname
-        push de
-	 push hl
-        call strcopy
-	 pop bc
-	 or a
-	 sbc hl,bc
-	 ld b,h
-	 ld c,l
-        pop hl ;httphostname
-        ld a,'/'
-        ;ld bc,128
-        cpir ;TODO ser.ver:port
-	 jr z,openstream_http_slashfound
-;if no slash
-	 ld hl,httphostname
-	 xor a
-	 cpir
-	 dec hl ;at terminator
-	 dec a ;NZ
-openstream_http_slashfound
-        ld (openstream_http_curdir),hl
-	jr nz,$+2+1+2
-        dec hl
-        ld (hl),0 ;end of httphostname
-        endif
-        
-;httphostname=server name (filename before slash)
-;top of stack=filename after slash
+;top of stack=filename after slash (after ser.ver/)
         
 		call dns_resolver
 		ld a,l
@@ -211,30 +126,12 @@ createsoc_err
 		OS_NETSHUTDOWN
 		jp CONNECTIONERROR
 connect_ok
-        ;ld hl,httphostname
-        ;call findlastdot ;de = after last dot or start
 ;form GET message in DISKBUF (will be deleted in readstream)
-	;jr $
         ld hl,tGET
         ld de,DISKBUF
         call strcopy
         dec de
         
-        if 1==0
-openstream_http_curdir=$+1
-        ld hl,0 ;httpcurdir+N
-;if empty path, don't add second slash
-	 ld a,(hl)
-	 or a
-	 jr z,openstream_http_emptypath
-        call strcopy
-        dec de
-        ld a,'/'
-        ld (de),a
-        inc de
-openstream_http_emptypath
-        endif
-
          pop hl ;filename
         call strcopy
         dec de
@@ -250,25 +147,19 @@ openstream_http_emptypath
 		ex de,hl
         ld de,0xffff&(-DISKBUF)
         add hl,de
-	;jr $
+
 ;send message to server:
 		LD	a,(soc1)
 		LD	DE,DISKBUF
 ;de=message
 ;hl=message size       
+        ;jr $
 		OS_WIZNETWRITE
 		bit 7,h
 		jr nz,createsoc_err
         
 	ld a,1
 	ld (http_firstreadflag),a
-        
-;         ld b,50 ;10 OK for nedopc.com
-;httpconnectwait0
-;        push bc
-;        YIELD
-;        pop bc
-;        djnz httpconnectwait0
         
 	xor a ;OK
         ret
@@ -406,6 +297,7 @@ tGET
         db "GET /",0
 tHTTP_host
         db " HTTP/1.0\r\n" ;1.0 DimkaM for nedopc.com
+        db "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n"
 	db "Connection: close\r\n"	;\r\nConnection: close
 	db "Host: ",0
 tGETend
@@ -415,8 +307,10 @@ tGETend
 	;defb 'GET /cspr/index.htm HTTP/1.1',13,10
 	;defb 'Host: dimkam.ru',13,10
 	;defb 13,10
-dnsbuf EQU DISKBUF+0x0400
 dns_resolver:		;DE-domain name
+    ld a,25;3
+    ld (dns_err_count),a
+dns_err_loop
 	;push de
 	ld hl,dns_head
 	ld de,dnsbuf
@@ -424,8 +318,8 @@ dns_resolver:		;DE-domain name
 	ldir
 	ex de,hl
 	ld de,dnsbuf+7
-	ld (hl),0
-	ld bc,256-7
+	ld (hl),b;0
+	ld  c,256-7
 	ldir
 	ld de,dnsbuf+12
 	ld h,d
@@ -482,6 +376,7 @@ is_dot:
 	OS_WIZNETWRITE
 	bit 7,h
 	jr nz,dns_exitcode
+dns_err_count=$+1
 	ld b,25
 	jr recv_wait1
 recv_wait:
@@ -528,7 +423,11 @@ dns_exiterr:
 	OS_NETSHUTDOWN
 	;pop af
 	;ld (errno),a
-	ld hl,0
+    ld a,(dns_err_count)
+    add a,a;dec a ;увеличиваем каждый раз время ожидания
+    ld (dns_err_count),a
+    jp nc,dns_err_loop
+        ld hl,0
 	ret
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01

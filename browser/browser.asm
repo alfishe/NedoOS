@@ -160,6 +160,7 @@ browser_go_chdir
 ;hl=linkbuf+... (path/file without ../)
 ;de=curfulllink+...=end of curdir (after slash)
 ;remove last element of curdir = move de to previous slash
+         ;jr $
         dec de ;at slash
         dec de
         ld a,(de)
@@ -169,6 +170,7 @@ browser_go_chdir
         jr z,browser_go_chdir_error
         dec de ;at slash
         ex de,hl ;hl=at slash
+        dec hl
         ld a,'/'
         ld b,-1
         cpdr

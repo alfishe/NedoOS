@@ -186,3 +186,112 @@ browsernopath
          
         endif
          
+        if 1==0
+getpath_http
+;de=buffer to get path
+        ld hl,httpcurdir ;server/path (without / in the end)
+        jp strcopy
+
+rootdir_http
+        xor a
+        ld (httpcurdir),a ;server/path (without / in the end)
+        ret
+        
+chdir_http_dot
+        inc de ;skip dot
+        inc de ;skip another dot supposed
+        ld a,(de)
+        or a
+        jr z,$+3
+        inc de ;skip / supposed
+;hl=end of curdir (slash or terminator)
+;remove last element of curdir = move hl to previous slash or =httpcurdir:
+        ld a,'/'
+        dec hl
+        ld b,-1
+        cpdr
+        inc hl ;at slash (might be httpcurdir-1)
+        ld bc,httpcurdir
+        or a
+        sbc hl,bc
+        ;add hl,bc
+        ;jr nc,$+3 ;< httpcurdir?
+        ;inc hl ;if so, hl=httpcurdir
+         adc hl,bc ;if (hl<httpcurdir) hl=httpcurdir
+        ;jr chdir_http
+
+chdir_http
+;de=server/path (without / in the end)
+        ld hl,httpcurdir
+        xor a
+        ld b,-1
+        cpir
+        dec hl
+;hl=end of curdir
+        ld a,(de)
+        cp '.'
+        jr z,chdir_http_dot
+        ld (hl),'/'
+        inc hl
+        ex de,hl
+        call strcopy ;TODO check overflow
+        ret
+        endif
+
+;httphostname=server name (filename before slash, not including slash)
+;top of stack=filename (after ser.ver/)
+        ;jr $
+        
+        if 1==0
+         push de ;filename
+;httphostname=server name (httpcurdir before slash), curdir=httpcurdir after slash:
+        ld hl,httpcurdir+1 ;server/path (without / in the end)
+        ld de,httphostname
+        push de
+	 push hl
+        call strcopy
+	 pop bc
+	 or a
+	 sbc hl,bc
+	 ld b,h
+	 ld c,l
+        pop hl ;httphostname
+        ld a,'/'
+        ;ld bc,128
+        cpir ;TODO ser.ver:port
+	 jr z,openstream_http_slashfound
+;if no slash
+	 ld hl,httphostname
+	 xor a
+	 cpir
+	 dec hl ;at terminator
+	 dec a ;NZ
+openstream_http_slashfound
+        ld (openstream_http_curdir),hl
+	jr nz,$+2+1+2
+        dec hl
+        ld (hl),0 ;end of httphostname
+        endif
+        
+        if 1==0
+openstream_http_curdir=$+1
+        ld hl,0 ;httpcurdir+N
+;if empty path, don't add second slash
+	 ld a,(hl)
+	 or a
+	 jr z,openstream_http_emptypath
+        call strcopy
+        dec de
+        ld a,'/'
+        ld (de),a
+        inc de
+openstream_http_emptypath
+        endif
+
+;         ld b,50 ;10 OK for nedopc.com
+;httpconnectwait0
+;        push bc
+;        YIELD
+;        pop bc
+;        djnz httpconnectwait0
+        

@@ -37,6 +37,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte buffer ;out: DE = Filled in with whole
 ;invented:
 ;CMD_SETWAITING=0xd9
 ;CMD_RESETWAITING=0xda
+CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb
 CMD_WIZNETCLOSE=0xdc
 CMD_WIZNETREAD=0xdd ;de=pointer, hl=buffer size ;out: hl=size

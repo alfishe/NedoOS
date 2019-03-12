@@ -692,7 +692,9 @@ tbdoscmds
         db CMD_WIZNETCLOSE
         db CMD_WIZNETREAD
         db CMD_WIZNETWRITE
+        db CMD_GETFILESIZE
 nbdoscmds=$-tbdoscmds
+        dw BDOS_getfilesize
         dw BDOS_wiznetwrite
         dw BDOS_wiznetread
         dw BDOS_wiznetclose
@@ -1421,11 +1423,38 @@ BDOS_seekhandle
         pop bc
         ret
 
+BDOS_getfilesize
+;b=handle
+;out: dehl=filesize
+        bit 6,b
+        jr nz,BDOS_getfilesize_noFATFS
+        call BDOS_number_to_fil ;de=fil
+        ld hl,FIL.FSIZE
+        jr BDOS_tellhandleq
+        ;add hl,de
+        ;ld e,(hl)
+        ;inc hl
+        ;ld d,(hl)
+        ;inc hl
+        ;ld a,(hl)
+        ;inc hl
+        ;ld h,(hl)
+        ;ld l,a
+        ;ex de,hl
+        ;xor a
+        ;ret
+BDOS_getfilesize_noFATFS
+        push bc
+        BDOSSETPGTRDOSFS
+        pop bc
+        jp trdos_getfilesize ;dehl=filesize
+
 BDOS_tellhandle
 ;b=file handle, out: dehl=offset
 ;TODO TR-DOS
         call BDOS_number_to_fil ;de=fil
         ld hl,FIL.FPTR
+BDOS_tellhandleq
         add hl,de
         ld c,(hl)
         inc hl
