@@ -51,6 +51,18 @@ prtextmc0
         pop de
         inc de
         jp prtextmc0
+
+initprcharmc
+;a=attr
+        ld (prcharmc_attr),a
+        xor a
+        ld (prcharmc_italic1),a
+        ld (prcharmc_italic2),a
+        ld (prcharmc_italic3),a
+        ld (prcharmc_italic4),a
+        ld (prcharmc_stroke),a
+        ld (prcharmc_underline),a
+        ret
         
 prcharmc
 ;a=code
@@ -277,14 +289,18 @@ scrollmcup_rows0
         djnz scrollmcup_rows0
         ld hl,0xc000+(40*8*(HTMLTOPY+HTMLHGT-1))
 scrollmc_clearq
+        xor a
         call cleanlinemc
         jp setpgtemp8000
 
 cleanlinemc
 ;hl=0xc000+
+        push af
+        xor a
         call scrollmcup_clblock
         set 5,h;ld hl,0xe000+(40*200)-(40*8)
         call scrollmcup_clblock
+        pop af
         res 6,h;ld hl,0xa000+(40*200)-(40*8)
         call scrollmcup_clblock
         res 5,h;ld hl,0x8000+(40*200)-(40*8)
@@ -296,7 +312,7 @@ scrollmcup_clblock
         ld e,l
         inc de
         ld bc,40*8-1
-        ld (hl),0
+        ld (hl),a;0
         ldir
         pop hl
         ret

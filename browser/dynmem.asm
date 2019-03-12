@@ -333,13 +333,11 @@ puttomem
 ;a=page number in table (0..)
         ld c,a
         ld b,textpages/256
-         ;jr $
         ld a,(bc)
         inc c
          ld (purchar_nextpgtabaddr),bc
         SETPG32KHIGH
         ex de,hl
-
         pop bc ;сколько байт копируем
         
 ;если строка не помещается в страничке, то копируем сколько помещается, включаем следующую страницу и копируем остаток
@@ -369,13 +367,78 @@ purchar_nextpgtabaddr=$+1
         sub c
         ld b,a ;bc=остаток ширины
         ldir
-        ret;jr putchar_ldirq
+        ret
 putchar_ldir
 putchar_ldir_hl=$+1
         ld hl,0 ;локальное начало строки
         ldir
-;putchar_ldirq
         ret
+        
+        
+getfrommem
+;de=to
+;ahl=from
+;bc=size
+        ld (getfrommem_ldir_hl),de
+        push bc
+        rl h
+        rla
+        rl h
+        rla
+        scf
+        rr h
+        scf
+        rr h
+;a=page number in table (0..)
+        ld c,a
+        ld b,textpages/256
+        ld a,(bc)
+        inc c
+         ld (getfrommem_nextpgtabaddr),bc
+        SETPG32KHIGH
+        ex de,hl
+        pop bc ;сколько байт копируем
+        
+;если строка не помещается в страничке, то копируем сколько помещается, включаем следующую страницу и копируем остаток
+        ld hl,0
+        or a
+        sbc hl,de ;hl=сколько места осталось в страничке
+        or a
+        sbc hl,bc ;hl>=0: места хватает
+        jr nc,getfrommem_ldir
+;места не хватает -hl байт
+         push hl ;-остаток ширины
+        add hl,bc ;hl=сколько места осталось в страничке
+        ld b,h
+        ld c,l
+        ld hl,(getfrommem_ldir_hl) ;локальное начало строки
+        ex de,hl
+        ldir
+        ex de,hl
+getfrommem_nextpgtabaddr=$+1
+        ld a,(0)
+        SETPG32KHIGH
+        ld de,0xc000
+;hl=остаток строки
+         pop bc ;-остаток ширины
+        xor a
+        sub c
+        ld c,a
+        sbc a,b
+        sub c
+        ld b,a ;bc=остаток ширины
+        ex de,hl
+        ldir
+        ex de,hl
+        ret
+getfrommem_ldir
+getfrommem_ldir_hl=$+1
+        ld hl,0 ;локальное начало строки
+        ex de,hl
+        ldir
+        ex de,hl
+        ret
+
 ;;;;;;;;;;;;;;;;;;;;;;;
 
 ;структура списков:

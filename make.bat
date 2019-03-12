@@ -49,11 +49,15 @@ nedotrd test.trd -a nedogift/testmusi.pt3
 nedotrd test.trd -a player/COCO.pt2
 nedotrd test.trd -a browser/index.html
 nedotrd test.trd -a browser/page.html
-nedotrd test.trd -a browser/gobutton.gif
+rem nedotrd test.trd -a browser/zajchik.gif
 rem nedotrd test.trd -a browser/GIRL.JPG
 rem nedotrd test.trd -a browser/csprmain.htm
 nedotrd test.trd -a browser/spwiki.html
 nedotrd test.trd -a browser/atmmain.htm
+nedotrd test.trd -a browser/atmpg.htm
+nedotrd test.trd -a browser/atmpg2.htm
+nedotrd test.trd -a browser/6914fast.gif
+nedotrd test.trd -a browser/6908fast.gif
 
 nedotrd test.trd -a license.txt
 

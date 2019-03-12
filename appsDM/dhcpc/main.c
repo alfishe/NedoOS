@@ -35,12 +35,16 @@ void wiz_reset(void){
 	save_pg=(input(0x0abe)&0x10)?input(0x02be):input(0x06be);
 	output(0xbff7,0);
 	output(0x83ab,0);
-	DelayMs(10);
+	halt();
+	halt();
+	//DelayMs(10);
 	output(0x83ab,0x10);
-	DelayMs(50);
+	halt();
+	halt();
+	//DelayMs(50);
 	output(0x82ab,0x46);
-	*(WMR+1)=0x80;
-	while(*(WMR+1)&0x80);
+	//*(WMR+1)=0x80;
+	//while(*(WMR+1)&0x80);
 	//DelayMs(500);
 	//*WMR=0x00;
 }
@@ -126,7 +130,12 @@ void sendp(void){
 unsigned int recvp(void){
 	unsigned int i=32;
 	unsigned char *rx=buf_rx;
-	
+	while((*S_SSR(0)==SOCK_ARP) && i){
+		halt();
+		i--;
+	}
+	if(i==0)return 0;
+	i=32;
 	while(1){
 		if((--i)==0)return 0;
 		if(*S_RX_RSR(0))break;

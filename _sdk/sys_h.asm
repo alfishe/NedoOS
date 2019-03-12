@@ -4,26 +4,26 @@
         
 ;do define oldtimer (2 bytes)
         macro YIELD ;use instead of HALT
-         ;OS_GETTIMER ;hlde=timer
-         ;push de
         OS_YIELD
-_0=$;1
+_0=$
         OS_GETTIMER ;hlde=timer
         ld hl,(oldtimer)
-        ;ld (oldtimer),de
         or a
         sbc hl,de
-        jr z,_0;1b ;TODO OS_YIELDIDLE (иначе не сработает 'c'+'m'+'d')
+        jr z,_0 ;TODO OS_YIELDIDLE (иначе не сработает 'c'+'m'+'d')
          ld (oldtimer),de
         endm
-        macro YIELDGETKEYLOOP
-_1=$;1;prwindow_waitkey_nokey
+        macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY
         or a ;cp NOKEY ;keylang==0?
-        jr nz,$+2+1+2
+        jr nz,$+3
         cp c ;keynolang==0?
-        jr z,_1;1b;prwindow_waitkey_nokey
+        endm
+        macro YIELDGETKEYLOOP
+_1=$
+        YIELDGETKEY
+        jr z,_1
         endm
 
         macro WAITPID
@@ -37,7 +37,7 @@ _1=$;1;prwindow_waitkey_nokey
         ;push de
         ;OS_SETWAITING
         ;pop de
-_1=$;execcmd_waitpid0
+_1=$
         push de
         YIELD
         pop de
@@ -45,7 +45,7 @@ _1=$;execcmd_waitpid0
         OS_WAITPID
         pop de
         or a
-        jr nz,_1;execcmd_waitpid0
+        jr nz,_1
         ;push de
         ;OS_RESETWAITING
         ;pop de

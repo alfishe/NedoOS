@@ -8,6 +8,7 @@ DISKBUF=0xb000
 DISKBUFsz=0x1000
 
 COLOR=7
+STATUSCOLOR=0x38
 
 GIF_PIXELSIZE=0
 
@@ -100,34 +101,129 @@ HTMLHGT=24
 cmd_begin
         ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         call init        
-;TODO recode url in linkbuf to full path
-	jr browser_go
+        
+;curfulllink нужен для сохранения в истории и использования пути для относительных ссылок
+;linkbuf содержит ссылку (может быть относительная)
+        if 1==0
+        call setpgs_scr
+        call setpgcode4000
+        ld de,0xc000;0x0801
+        call setxymc
+        ld de,curfulllink;COMMANDLINE
+        call prtextmc ;TODO сформировать и напечатать полный путь с протоколом
+        call setpgtemp8000
+        ;jr $
+        endif
 
+	jr browser_go_curfulllink
+        
 browser_godownload
 	ld a,1
 	ld (downloadflag),a
 browser_go
-;в linkbuf лежит ссылка
-;в COMMANDLINE лежит текущее имя файла
-        ld de,pathbuf
-        push de
-getpath_patch=$+1
-        call getpath_file
-        pop de
-        ;DE = Filled in with whole path string (DRIVE:/PATH/ !!!)
-        ld h,d
-        ld l,e
+;curfulllink содержит текущую ссылку (из неё брать путь), слеш в конце http://ser.ver уже есть
+;в linkbuf лежит ссылка (может быть локальная)
+;TODO перекодировать русские буквы в ссылке в %
+
+        ld hl,linkbuf
+;если ссылка начинается со слеша, то надо отрезать весь путь, кроме сервера
+        ld a,(hl)
+        cp '/'
+        jr z,browser_go_rootlink ;"/Timex"
+        
+        call isprotocolpresent
+;nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
+        jr z,browser_go_protocolpresent ;протокол есть - linkbuf содержит полную ссылку (к ней только добавить / в случае http://ser.ver)
+        ld a,(linkbuf+1)
+        sub ':'
+        jr z,browser_go_defaultprotocolpresent ;1:/file... => file://1:/file...
+;нет протокола - взять текущий путь из curfulllink (т.е. отрезать всё после последнего слеша) и приклеить к нему эту ссылку (с учётом ../)
+;слеш в конце http://ser.ver уже есть
+        ld hl,curfulllink
+        call isprotocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        call findlastslash. ;out: de = after last slash
+        ld hl,linkbuf
+browser_go_chdir
+        ld a,'.'
+        cp (hl)
+        jr nz,browser_go_chdirq
+        inc hl ;skip dot
+         ld a,(hl)
+         cp '/'
+         jr z,browser_go_dotslash
+        inc hl ;skip another dot supposed
+        ld a,(hl)
+        or a
+        jr z,$+3
+        inc hl ;skip / supposed
+;hl=linkbuf+... (path/file without ../)
+;de=curfulllink+...=end of curdir (after slash)
+;remove last element of curdir = move de to previous slash
+        dec de ;at slash
+        dec de
+        ld a,(de)
+        inc de
+        inc de ;after slash
+        cp '/' ;is it "//"?
+        jr z,browser_go_chdir_error
+        dec de ;at slash
+        ex de,hl ;hl=at slash
+        ld a,'/'
+        ld b,-1
+        cpdr
+        inc hl ;at previous slash (might be last slash of "//")
+        inc hl ;after slash
+        ex de,hl ;de=curfulllink+...=end of curdir (after slash)
+         jr browser_go_chdir
+browser_go_chdir_error
+browser_go_chdirq
+;hl=linkbuf+... (path/file without ../)
+;de=curfulllink+...=end of curdir (after slash)
         call strcopy
-        dec de ;terminator
-browser_oldfilename=$+1
-        ld hl,emptyfilename
+        jr browser_go_protocolpresentq
+browser_go_defaultprotocolpresent
+;1:/file... => file://1:/file...
+;a=0
+        call adddefaultprotocol
+        jr browser_go_protocolpresentq
+browser_go_dotslash
+;"./Timex"
+browser_go_rootlink
+;"/Timex"
+;hl=linkbuf+... at slash
+         push hl
+        ld hl,curfulllink
+        call isprotocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        call findslash
+        dec hl ;at slash
+        ex de,hl ;de=curfulllink+ after server (at slash)
+         pop hl
+        jr browser_go_copyto;linkbuf
+browser_go_protocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        call addslashafterserver ;add / after http://ser.ver
+        ld de,curfulllink
+;browser_go_copytolinkbuf
+        ld hl,linkbuf
+browser_go_copyto
         call strcopy
+browser_go_protocolpresentq
+;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
+
+        if 1==0
+        call setpgs_scr
+        call setpgcode4000
+        ld de,0x0000
+        call setxymc
+        ld de,curfulllink;COMMANDLINE
+        call prtextmc
+        call setpgtemp8000
+        jr $
+        endif
 	
-	;ld de,emptyfilename+1
-	;or a
-	;sbc hl,de
-        ;jr z,browser_backspaceq ;no history for start
-	;jr $
+browser_go_curfulllink
 ;для backspace: запомнить полный путь с протоколом и именем
 ;histaddr указывает на последний элемент истории
 	call setpghist
@@ -141,23 +237,21 @@ histaddr=$+1
 	ldir ;forget oldest link
 keeptohist_nooverflow
 	ld (histaddr),de
-	ld hl,linkbuf
+	ld hl,curfulllink;linkbuf
 	ld bc,256
 	ldir
 	
         jr browser_backspaceq
 
 browser_downloadthis
-	;jr $
 	ld a,1
 	ld (downloadflag),a
 browser_reload
 ;histaddr указывает на последний элемент истории
-	ld hl,(histaddr)
-	call setpghist
-        ;ld hl,pathbuf
-        ld de,linkbuf
-        call strcopy
+	;ld hl,(histaddr)
+	;call setpghist
+        ;ld de,curfulllink;linkbuf
+        ;call strcopy
 	jr browser_backspaceq
 
 browser_backspace
@@ -170,12 +264,11 @@ browser_backspace
 	dec h
 	ld (histaddr),hl
 	call setpghist
-        ;ld hl,pathbuf
-        ld de,linkbuf
+        ld de,curfulllink;linkbuf
         call strcopy
 
 browser_backspaceq
-        
+;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf        
         ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         
         call unreservepages
@@ -186,161 +279,89 @@ browser_backspaceq
         ld (freemem_a),a
 
         call setpgs_scr
-
         call setpgcode4000
-
+        ld hl,0xc000+(40*192)
+        ld a,STATUSCOLOR
+        call cleanlinemc
+        ;ld a,STATUSCOLOR
+        call initprcharmc
         ld de,0xc000;0x0801
         call setxymc
-        ld de,linkbuf;COMMANDLINE
+        ld de,curfulllink;linkbuf
         call prtextmc ;TODO сформировать и напечатать полный путь с протоколом
-
         call setpgtemp8000
 
          OS_GETTIMER ;hlde=timer
          ld (timebegin),de
 
-        ld hl,linkbuf
-        ld de,COMMANDLINE
-        push de
-        call strcopy
-        pop hl        
-;command line = "<file to load>"
+        ld hl,curfulllink
+        call isprotocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        push hl ;hl=after "//"
 
-         xor a
-         ld (washttpword),a
-;если в имени файла стоит file://, то включить работу с файлами, если http://, то включить работу с http
-        push hl
-        ld de,tfileprotocol
-        call strcp_tillde0 ;if found, hl=after "//"
-        ld a,0
-        jr z,browser_go_changeprotocol
-        pop hl
-        push hl
-        ld de,thttpprotocol
-        call strcp_tillde0 ;if found, hl=after "//"
-        ld a,1
-        jr z,browser_go_changeprotocolhttp
-        pop hl
-        jr browser_go_nochangeprotocol
-browser_go_changeprotocolhttp
-         ld a,1
-         ld (washttpword),a        
-browser_go_changeprotocol
-        ld (browserprotocol),a
-        ;pop af ;skip old hl
-        ex (sp),hl ;push hl
-;включить колбэки под нужный протокол (или грузить http в файл, а потом открывать файл?)
+;включить колбэки под нужный протокол
         ld bc,readstream_file
         ld de,closestream_file
-        ld hl,getpath_file
-        exx
-        ld bc,rootdir_file
-        ld de,chdir_file
+        ;ld hl,getpath_file
+        ;exx
+        ;ld bc,rootdir_file
+        ;ld de,chdir_file
         ld hl,openstream_file
          or a
          jr z,browser_go_changeprotocol_nohttp
         ld bc,readstream_http
         ld de,closestream_http
-        ld hl,getpath_http
-        exx
-        ld bc,rootdir_http
-        ld de,chdir_http
+        ;ld hl,getpath_http
+        ;exx
+        ;ld bc,rootdir_http
+        ;ld de,chdir_http
         ld hl,openstream_http
 browser_go_changeprotocol_nohttp
-        ld (rootdir_patch),bc
-        ld (chdir_patch),de
+        ;ld (rootdir_patch),bc
+        ;ld (chdir_patch),de
         ld (openstream_patch),hl
-        exx
+        ;exx
         ld (readstream_patch),bc
         ld (closestream_patch),de
-        ld (getpath_patch),hl
-         ;jr $
+        ;ld (getpath_patch),hl
+        
 ;сменить текущий каталог на корневой
-rootdir_patch=$+1
-        call rootdir_file
+;rootdir_patch=$+1
+;        call rootdir_file
+        
         pop hl
-browser_go_nochangeprotocol
+;browser_go_nochangeprotocol
 
 ;hl=начало path без протокола
 
-;сменить текущий каталог (или http-каталог) в соответствии с каталогом в ссылке
-        push hl ;hl=начало path без протокола
-browser_go_findslash
-	 push hl
-        call findlastslash.
-	 pop hl
-;de=after last slash or start
-	 or a
-	 sbc hl,de
-	 add hl,de ;hl=начало path без протокола
-	 jr nz,browser_go_slashfound
-	 ;no slash in end
-browserprotocol=$+1
-        ld a,0 ;0=file, 1=http
-washttpword=$+1
-        ld a,0 ;1=was "http://"
-	or a
-	jr z,browser_go_slashfound
-	 ;http => add slash after (as in http://nedopc.com)
-	 push hl
-	 xor a
-	 ld b,-1
-	 cpir
-	 dec hl ;at terminator
-	 ld (hl),'/'
-	 inc hl
-	 ld (hl),0
-	 pop hl
-	 jr browser_go_findslash
-browser_go_slashfound
-        ex de,hl ;hl=after last slash (filename)
-        pop de ;начало path без протокола
-        or a
-        sbc hl,de
-        add hl,de ;hl=filename, de=начало path без протокола, Z=(path len==0)
-        jr z,browsernopath
-        push hl ;filename
-        dec hl
-        ld (hl),0
-;de=path
-chdir_patch=$+1
-        call chdir_file
-        pop hl ;hl=filename
-browsernopath
-;hl=filename
-         ld (browser_oldfilename),hl
         ex de,hl ;de=filename
 openstream_patch=$+1
         call openstream_file
 	or a
-	jp nz,getkeyquit
+	jp nz,LOADERROR
 
+	xor a
 downloadflag=$+1
-	ld a,0
-	or a
-	ld a,0
+	cp 0
 	ld (downloadflag),a
 	jp nz,downloadfile
 	
-        ;ld hl,0
-        ;ld de,0
        LD IY,DISKBUF+DISKBUFsz-1
 
         call RDBYTE
-         ;jr $
-        cp '<'
-        jp z,loadhtml
-         cp 0x0a ;speccy.info
-         jp z,loadhtml
+        ;cp '<'
+        ;jp z,loadhtml
+         ;cp 0x0a ;speccy.info
+         ;jp z,loadhtml
         cp 'G'
         jp z,loadgif
         cp 0xff
         jp z,loadjpeg
         cp 'B'
-        jp nz,loadbmp_fail
+        jp nz,loadhtml;loadbmp_fail
         call RDBYTE
         cp 'M'
-        jp nz,loadbmp_fail
+        jp nz,loadhtml;loadbmp_fail
 
 ; I    1    0      2    Признак ВМР-файла - символы 'BM'       (+)
 ;      2    2      4    Размер ВМР-файла (байт)                (НАДО СФОРМИРОВАТЬ, ЧИТАТЬ НЕ НУЖНО)
@@ -484,7 +505,137 @@ loadgif
         
         call readgif
 
-         jp closequit
+showgif
+firstframeaddr=$+1
+        ld hl,0
+firstframeaddrHSB=$+1
+        ld a,0
+nframes=$+1
+        ld bc,0
+        ;ld bc,2
+showgif_frames0
+        push bc
+         ;jr $
+	push hl
+	push af
+        OS_GETTIMER ;hlde=timer
+	pop af
+	ex de,hl
+	ex (sp),hl
+	
+        call showframe
+	
+	pop de ;timer
+	
+	push af
+	push hl
+	
+showframetime=$+1
+	ld hl,0 ;in 1/100 s
+	inc hl
+	srl h
+	rr l
+	add hl,de ;max timer for this frame
+	ld (showframemaxtimer),hl
+
+showframedelay0
+        call yieldgetkeynolang ;nz=nokey
+        jp nz,closequit
+        OS_GETTIMER ;hlde=timer
+showframemaxtimer=$+1
+	ld bc,0 ;max timer for this frame
+	ex de,hl
+	or a
+	sbc hl,bc
+	jp m,showframedelay0 ;timer<maxtimer
+        
+	pop hl
+	pop af
+	
+        pop bc
+        dec hl
+        cpi
+        jp pe,showgif_frames0
+        
+         jp showgif;closequit
+        
+;TODO быстрый вывод (см. два варианта в gfxideas.txt)
+
+showframe
+;ahl=addr
+        call readword ;de
+        push de ;ld (showframe_nextaddr),de
+        call readbyte ;c
+        ld b,c
+        push bc ;ld (showframe_nextaddrHSB),bc
+        call readword
+	ld (showframetime),de
+        ld (keepframeaddr),hl
+        ld (keepframeaddrHSB),a        
+
+        call setpgtemp4000
+
+        ld hl,0xc000
+        ld bc,(curpichgt)
+        inc bc
+        srl b
+        rr c ;TODO с учётом зума
+showframelines0
+        push bc
+        push hl
+
+         push hl
+        ld hl,(keepframe_linesize)
+        add hl,hl
+        ld b,h
+        ld c,l ;size
+        push bc
+        ld de,KEEPFRAMELINE
+        ld hl,(keepframeaddr)
+        ld a,(keepframeaddrHSB)
+        call getfrommem
+        pop bc ;size
+        ld hl,(keepframeaddr)
+        ld a,(keepframeaddrHSB)
+        add hl,bc
+        adc a,0
+        ld (keepframeaddr),hl
+        ld (keepframeaddrHSB),a
+         pop hl
+        
+        call setpgs_scr
+        ld de,KEEPFRAMELINE
+;pixels?
+        push hl
+        xor a
+        call copylinetoscr
+        set 5,h
+        ld a,1
+        call copylinetoscr
+        pop hl
+;attr?
+        res 6,h
+        xor a
+        call copylinetoscr
+        set 5,h
+        ld a,1
+        call copylinetoscr
+        
+        pop hl
+        ld bc,40
+        add hl,bc
+        pop bc
+        dec bc
+        ld a,b
+        or c
+        jr nz,showframelines0
+        
+        pop af
+        pop hl ;next
+        ld hl,(keepframeaddr)
+        ld a,(keepframeaddrHSB)
+        ret
+        
         
 loadq_fromtop
         ld hl,0x8000
@@ -559,8 +710,9 @@ closequit
         call closestream
         
 showtimequit
-        ;jr $
          call setpgcode4000
+        ld a,STATUSCOLOR
+        call initprcharmc
 
          OS_GETTIMER ;hlde=timer
          ex de,hl
@@ -572,7 +724,25 @@ timebegin=$+1
 ;d=y, e=x8
 ;hl=time (frames)
          call prnumfrac
+         jr getkeyquit
+         
+LOADERROR
+        call closestream
+        ld de,tloaderr
+        jr TYPE_ERROR
 CONNECTIONERROR
+        ld de,tconnerr
+TYPE_ERROR
+        push de
+        call setpgs_scr
+        call setpgcode4000
+        ld a,STATUSCOLOR
+        call initprcharmc
+        ld de,0xc040;0x0801
+        call setxymc
+        pop de
+        call prtextmc
+
 ERROR ;for jpeg
         ;jr $
 ERROR2
@@ -580,14 +750,11 @@ ERROR2
 ERROR4
         ;jr $
 getkeyquit
-1;prwindow_waitkey_nokey
-	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        GET_KEY ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
-        ;cp NOKEY
-        ;jr nz,html_mainloop_keyq
-        ;call nvview_panel
-        ;YIELDGETKEYLOOP
+getkeyquit0
+	;YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        ;GET_KEY ;OS_GETKEYNOLANG
+        ;ld a,c ;keynolang
+        call yieldgetkeynolang
         cp cs0
         jp z,browser_backspace
         cp '5'
@@ -595,14 +762,23 @@ getkeyquit
 	cp 's'
 	jp z,browser_downloadthis
         cp csSpace
-        ;jr z,browser_quit
-        jr nz,1b;prwindow_waitkey_nokey
+        jr nz,getkeyquit0
 browser_quit
         QUIT
+
+yieldgetkeynolang
+	YIELDGETKEY
+        ld a,c
+        ret
 
 closestream
 closestream_patch=$+1
         jp closestream_file
+        
+tconnerr
+        db "conn.err",0
+tloaderr
+        db "load err",0
         
 ;hl = poi to filename in string
 ;out: de = after last slash
@@ -610,18 +786,14 @@ findlastslash.
 nfopenfnslash.
 	ld d,h
 	ld e,l ;de = after last slash
-;find last slash
 nfopenfnslash0.
 	ld a,[hl]
 	inc hl
 	or a
-	ret z ;jr z,nfopenfnslashq.
+	ret z
 	cp '/'
 	jr nz,nfopenfnslash0.
 	jr nfopenfnslash.
-;nfopenfnslashq.
-;de = after last slash
-	;ret
 
 strcopy
 ;hl->de
@@ -632,23 +804,93 @@ strcopy0
         jr nz,strcopy0
         ret
 
-        
+adddefaultprotocol
+;1:/file... => file://1:/file...
+;ser.ver... => http://ser.ver...
+;a=protocol (0=file, 1=http)
+        push af ;a=protocol (0=file, 1=http)
+        or a
+        ld hl,tfileprotocol
+        jr z,$+5
+        ld hl,thttpprotocol        
+        ld de,curfulllink
+        call strcopy
+        dec de
+        push de
+        ld hl,linkbuf
+        call strcopy        
+        pop hl
+        pop af ;a=protocol (0=file, 1=http)
+        ret
+
+addslashafterserver
+;add / after http://ser.ver
+;hl=after "//"
+        call findslash
+        ;call strlen_tobc_keephl
+        ;ld a,'/'
+        ;cpir
+        ret z ;слеш уже есть
+         ld (hl),c;0
+         dec hl
+         ld (hl),a ;add / after http://ser.ver
+        ret
+
+findslash
+        call strlen_tobc_keephl
+        ld a,'/'
+        cpir
+        ret
+
+strlen_tobc_keephl
+;hl=string
+        push hl
+        xor a
+        ld b,-1
+        cpir
+        pop de
+        sbc hl,de
+        ld b,h
+        ld c,l ;bc=strlen
+        ex de,hl ;hl=string
+        ret
+
+isprotocolpresent
+;hl=link string
+;out: nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
+        ld de,tfileprotocol
+        push hl
+        call strcp_tillde0 ;if found, hl=after "//"
+        pop de
+        ld a,0
+        ret z
+        ex de,hl
+        ld de,thttpprotocol
+        push hl
+        call strcp_tillde0 ;if found, hl=after "//"
+        pop de
+        ld a,1
+        ret z
+        ex de,hl
+        ret ;nz=protocol absent (hl=start)
+
+nextscreenline
+drawscreenline_frombuf_scr=$+1
+        ld de,0xc000
+        ld hl,40
+        add hl,de ;next line on screen
+        bit 5,h
+        ret nz ;jr nz,drawscreenline_frombufq ;end of screen, current line doesn't fit
+        ld (drawscreenline_frombuf_scr),hl
+        ret
+       
 drawscreenline_frombuf
 ;hl=from
 ;bc=size (*3?)
         exx
-drawscreenline_frombuf_scr=$+1
-        ld de,0xc000
-        
-        ld hl,40
-        add hl,de ;next line on screen
-        bit 5,h
+        call nextscreenline
         exx
-        ret nz ;jr nz,drawscreenline_frombufq ;end of screen, current line doesn't fit
-        exx
-        ld (drawscreenline_frombuf_scr),hl
-
-        exx
+        ret nz ;end of screen, current line doesn't fit
 
          call setpgdiv4000
         ;call setpgs_scr ;177t
@@ -827,10 +1069,13 @@ readstream_patch=$+1
 ;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
 ;hlde
-        call RDBYTE
-        ld e,a
-        call RDBYTE
-        ld d,a
+        ;call RDBYTE
+        ;ld e,a
+        ;call RDBYTE
+        ;ld d,a
+        call GETWORD_slowhl
+        ex de,hl
+GETWORD_slowhl
         call RDBYTE
         ld l,a
         call RDBYTE
@@ -1192,6 +1437,12 @@ initframe
         ld (drawscreenline_frombuf_scr),hl
         ld hl,0
         ld (cury),hl
+
+        xor a
+        ld h,a
+        ld l,a
+        ld (putchar_a),a
+        ld (putchar_hl),hl
         ret
         
         
@@ -1267,7 +1518,7 @@ putline
 ;hl=откуда копируем строку
 ;bc=сколько байт копируем
 ;на выходе сдвигает указатель, куда копируем (putchar_hl, putchar_a)
-        
+        ex de,hl
 putchar_hl=$+1
         ld hl,0
 putchar_a=$+1
@@ -1276,7 +1527,6 @@ putchar_a=$+1
 ;ahl=to
 ;bc=size
         call puttomem
-        
         ld a,(putchar_a)
         ld hl,(putchar_hl)
 curpicwidx3=$+1
@@ -1287,24 +1537,19 @@ curpicwidx3=$+1
         ld (putchar_a),a
         ret
 
+getline
+;de=откуда достаём строку
+;bc=сколько байт достаём
+        ld hl,(putchar_hl)
+        ld a,(putchar_a)
+        jp getfrommem
+        
 curpicwid
         dw 0
 curpichgt
         dw 0
 
-zxpal
-        incbin "zxpal"
-        
 
-filename
-        ;db "0:/hippiman.bmp",0
-        ;db "0:/melnchud.bmp",0
-        ;db "0:/melnchud.gif",0
-        ;db "0:/girl.jpg",0
-        db "index.htm",0
-emptyfilename=$-1
-        ;db 0
-	
 downloadfilename
 	db "download.fil",0
 
@@ -1314,10 +1559,11 @@ thttpprotocol
         db "http://",0
 
 linkbuf
-        ds 128
-pathbuf
-        ds 128
+        ds 256
         
+curfulllink
+        ds 256
+
         include "htmlview.asm"
         include "gif.asm"
         include "jpeg.asm"
@@ -1334,6 +1580,7 @@ oldtimer
         align 256
 textpages
         ds 256
+;TODO ещё отдельно gfxpages (чтобы можно было удалять RGB после конверсии)
 
         align 256
 tmaxaxis ;maxdistdiv_fromattr[256], min_fromattr[256], maxaxis_fromattr[256]
@@ -1405,7 +1652,6 @@ init
         OS_NEWPAGE
         ld a,e
         ld (histpg),a
-
         
         ld e,0;COLOR
         OS_CLS
@@ -1424,10 +1670,41 @@ init
         ld a,(hl)
         or a
         jr nz,$+5
-         ld hl,filename
+         ld hl,defaultfilename
         ld de,linkbuf
         call strcopy
+
+;recode url in linkbuf to full path:
+        ld hl,linkbuf
+        ld de,curfulllink
+        push de
+        call strcopy
+        pop hl ;curfulllink
+        call isprotocolpresent
+        jr z,browser_recodefull_protocolpresent
+;protocol absent
+;1:/file... => file://1:/file...
+;ser.ver... => http://ser.ver...
+        ld a,(linkbuf+1)
+        cp ':'
+        ld a,1
+        jr nz,$+3
+        xor a
+        call adddefaultprotocol
+browser_recodefull_protocolpresent
+;curfulllink OK
+;hl=after "//"
+;a=protocol
+        call addslashafterserver ;add / after http://ser.ver
+
         ret
+
+defaultfilename
+        ;db "0:/hippiman.bmp",0
+        db "http://zxevo.ru/nos/",0
+
+zxpal
+        incbin "zxpal"
 
         ds 0x8000-$
         

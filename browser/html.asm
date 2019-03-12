@@ -11,13 +11,31 @@ CMARK=4
 
 loadhtml
         push af ;first char
-        
-         ld a,1 ;utf-8 by default
+;skip spaces and line breaks
+        cp 0xef ;hippiman.16mb.com начинается с ef bb bf (UTF-8 BOM)
+        jr z,loadhtml_html
+        call htmlskipspaces_go
+         cp '<'
+loadhtml_html
+         ld a,1
+         jr nz,$+3 ;not html
+         xor a ;html
+         ld (ispre),a
+         ;xor a
+         ld (printableflag),a ;header is invisible for html
+         xor 1 ;ld a,1 ;utf-8 by default for html, windows-1251 for text
          ld (utf8flag),a
         call setdefaultfontweight
 
-        ld hl,-1
-        ld a,-1
+        xor a
+        ld (laststringx),a
+        ld h,a
+        ld l,a ;0
+        ld (laststringy),hl
+        ld (curprintvirtualy),hl
+
+        dec a
+        dec hl
         ld (lastpointer),hl
         ld (lastpointerHSB),a
         ld (last2pointer),hl
@@ -27,15 +45,7 @@ loadhtml
         ld (first2pointer),hl
         ld (first2pointerHSB),a
 
-        xor a
-        ld (laststringx),a
-        ld h,a
-        ld l,a ;0
-        ld (laststringy),hl
-        ld (curprintvirtualy),hl
-
-        ;call setfontweight
-        call initstringbuf1 ;buf2 инициализируетс€ в тэге a/img
+        call initstringbuf1 ;buf2 инициализируетс€ в тэге a/img ;содержит setfontweight
         
         ;ld de,0
         ;call setxymc_stateful
@@ -51,12 +61,15 @@ loadhtml
         call closestream
         jp htmlview ;can exit to browser_go via Enter
         
-        
+loadhtml_mainloop_mangledcharq
+        call prcharvirtual_stateful
 loadhtml_mainloop
         rdbyte
+loadhtml_mainloop_go
+         cp '<'+1
+         jp nc,loadhtml_mainloop_mangledcharq ;speedup
         or a
         ret z
-loadhtml_mainloop_go
         cp '<'
         jr z,loadhtml_mainloop_tag
         cp '&'
@@ -65,19 +78,25 @@ loadhtml_mainloop_go
         jr z,loadhtml_checkpremainloop
         cp 0x0a
         jr z,loadhtml_checkpremainloop
-loadhtml_mainloop_mangledcharq
-        call prcharvirtual_stateful
-        jr loadhtml_mainloop
+        cp ' '
+        jr z,loadhtml_checkpremainloop
+        cp 0x09
+        jr z,loadhtml_checkpremainloop
+        jp loadhtml_mainloop_mangledcharq
 loadhtml_checkpremainloop
 ispre=$+1
         ld b,0        
         djnz loadhtml_spacemainloop
+         ;jr $
         jr loadhtml_mainloop_mangledcharq
 
 loadhtml_spacemainloop
-        call countlinewidth
-        ld a,h
-        or l
+         ;jr $
+        ;call countlinewidth
+        ;ld a,h
+        ;or l ;а там уже управл€ющие коды
+        ld a,(prcharvirtual_stateful_x)
+        or a
         jr z,loadhtml_mainloop
         ld a,' '
         jr loadhtml_mainloop_mangledcharq
@@ -109,11 +128,11 @@ mangledcharstrcp_fail
 mangledchar_error=loadhtml_mainloop
         
 loadhtml_mainloop_tag
-        rdbyte
+        call RDBYTE;rdbyte
         ld (loadhtml_tagcloser),a
         cp '/'
         jr nz,executetag
-        rdbyte
+        call RDBYTE;rdbyte
 executetag
         ld de,wordbuf
         call getword_tag_go ;hl=terminator/space addr,a=char ;first char already read
@@ -173,89 +192,6 @@ executetag_error
          ;call skiprestoftag ;TODO
         jp loadhtml_mainloop
         
-getword_tag
-;hl=string
-;de=wordbuf
-;out: hl=terminator/space/> addr, a=terminator/space/> char
-;TODO провер€ть переполнение WORDBUFSIZE
-getword_tag0
-        rdbyte
-getword_tag_go
-        or a
-        jr z,getword_tagq
-        cp ' '
-        jr z,getword_tagq
-        cp '>'
-        jr z,getword_tagq
-	 or 0x20
-        ld (de),a
-        inc de
-        jp getword_tag0
-getword_tagq
-        push af
-        xor a
-        ld (de),a
-        pop af
-        ret
-
-
-getword_mangledchar
-;hl=string
-;de=wordbuf
-;out: hl=terminator/space/; addr, a=terminator/space/; char
-;TODO провер€ть переполнение WORDBUFSIZE
-getword_mangledchar0
-        rdbyte
-getword_param_go
-        or a
-        jr z,getword_mangledcharq
-        cp ' '
-        jr z,getword_mangledcharq
-        cp ';'
-        jr z,getword_mangledcharq
-        cp '>'
-        jr z,getword_mangledcharq ;for param
-	 or 0x20
-        ld (de),a
-        inc de
-        jp getword_mangledchar0
-getword_mangledcharq
-        push af
-        xor a
-        ld (de),a
-        pop af
-        ret
-
-
-        
-strcp
-;hl=s1
-;de=s2
-;out: Z (equal, hl=terminator of s1+1, de=terminator of s2+1), NZ (not equal, hl=erroraddr in s1, de=erroraddr in s2)
-strcp0.
-	ld a,[de] ;s2
-	cp [hl] ;s1
-	ret nz
-	inc hl
-	inc de
-	or a
-	jp nz,strcp0.
-	ret ;z
-
-strcp_tillde0
-;hl=s1
-;de=s2
-;out: Z (equal, hl=terminator of s1+1, de=terminator of s2+1), NZ (not equal, hl=erroraddr in s1, de=erroraddr in s2)
-strcp_tillde0_0.
-	ld a,[de] ;s2
-        or a
-        ret z
-	cp [hl] ;s1
-	ret nz
-	inc hl
-	inc de
-	jr strcp_tillde0_0.
-
         
 mangledcharslist
         db "&"
@@ -366,10 +302,38 @@ tagslist
         db "frameset",0
         dw tag_frame
         db "frame",0
+        dw tag_label
+        db "label",0
+        dw tag_form
+        db "form",0
+        dw tag_input
+        db "input",0
+        dw tag_dl ;forum.nedopc.com
+        db "dl",0
+        dw tag_dd ;forum.nedopc.com
+        db "dd",0
+        dw tag_dt ;forum.nedopc.com
+        db "dt",0
         
         dw -1 ;end of tags list
         
 ;Z=closing tag
+
+tag_label
+;<label for="searchInput">ѕоиск</label>
+;TODO
+        jp skiprestoftag
+
+tag_form
+tag_input
+;<form action="http://speccy.info/w/index.php" id="searchform">
+;<input type="hidden" name="title" value="—лужебна€:ѕоиск">
+;<input type="search" name="search" placeholder="ѕоиск" title="»скать в SpeccyWiki [shift-esc-f]" accesskey="f" id="searchInput" autocomplete="off">
+;<input type="submit" name="go" value="ѕерейти" title="ѕерейти к странице, имеющей в точности такое название" id="searchGoButton" class="searchButton">&nbsp;
+;<input type="submit" name="fulltext" value="Ќайти" title="Ќайти страницы, содержащие указанный текст" id="mw-searchButton" class="searchButton">
+;</form>
+;TODO
+        jp skiprestoftag
 
 tag_p
         call prcharvirtual_crlf_stateful ;opening&closing
@@ -377,10 +341,12 @@ tag_p
 
 tag_code
 tag_pre
+        push af ;z/nz
         call prcharvirtual_crlf_stateful ;opening&closing
+        pop af ;z/nz
         ld hl,ispre
         ld a,1
-        jp skiprestoftag
+        jr tag_u_b_i
 
 tag_center
         ld hl,iscentered
@@ -451,206 +417,16 @@ tag_head
 ;TODO read all tags inside (meta, title)
         jp skiprestoftag
 
-tag_img
-        jp z,skiprestoftag ;Z=closing tag (does nothing)
-        ld a,CLINK
-        ld (curlink),a
-        call setfontweight
-         call rememberhrefyxposition
-;TODO skip spaces before read src
-        ld hl,tsrc
-        call eatgivenword
-        jr nz,tag_img_opening_fail
-;read link to stringbuf2 until doublequote
-        call initstringbuf2
-tag_img_opening_read0
-        rdbyte
-        or a
-        ret z
-        cp 34
-        jr z,tag_img_opening_readq
-        call printtostringbuf2
-        jr tag_img_opening_read0
-tag_img_opening_readq
-tag_img_opening_fail
-;TODO skip spaces before read alt
-        ld a,'['
-        call prcharvirtual_stateful
-        ld hl,talt
-        call eatgivenword
-        jr nz,tag_img_opening_altfail
-tag_img_opening_readalt0
-        rdbyte
-        or a
-        ret z
-        cp 34
-        jr z,tag_img_opening_readaltq
-        call prcharvirtual_stateful
-        jr tag_img_opening_readalt0
-tag_img_opening_readaltq
-tag_img_opening_altfail
-        ld a,']'
-        call prcharvirtual_stateful
-        
-        call savestringbuf2 ;after printing ']' to count full size
-        
-        xor a
-        ld (curlink),a
-        call setfontweight
-        jp skiprestoftag
-
-tag_a
-        jr nz,tag_a_opening
-        ld a,'}'
-        call prcharvirtual_stateful
-        
-        call savestringbuf2 ;after printing '}' to count full size
-        
-        xor a
-        ld (curlink),a
-        call setfontweight
-        jp skiprestoftag
-tag_a_opening
-        ld a,CLINK
-        ld (curlink),a
-        call setfontweight
-         call rememberhrefyxposition
-;TODO skip spaces before read href
-        ld hl,thref
-        call eatgivenword
-        jr nz,tag_a_opening_fail
-        
-        call initstringbuf2
-        
-        ;zxdn: no quotes in href
-        rdbyte
-        cp 34
-        jr nz,tag_a_opening_read_go
-        
-;read link to stringbuf2 until doublequote
-tag_a_opening_read0
-        rdbyte
-tag_a_opening_read_go
-        or a
-        ret z
-        cp '>'
-        jr z,tag_a_opening_readq
-        cp 34
-        jr z,tag_a_opening_readq
-        call printtostringbuf2
-        jr tag_a_opening_read0
-tag_a_opening_readq
-         ld (executetag_endchar),a
-tag_a_opening_fail
-        ld a,'{'
-        call prcharvirtual_stateful
-        jp skiprestoftag
-
-eatgivenword
-        ;jr $
-;hl=word (asciiz)
-;out: Z=OK (or else a=last char read)
-eatgivenword0
-        ld a,(hl)
-        or a
-        ret z
-        rdbyte
-        ld (executetag_endchar),a
-        cp (hl)
-        inc hl
-        jr z,eatgivenword0
-        ret ;fail
-        
-thref
-        db "href=",0
-tsrc
-        db "src=",34,0
-talt
-        db " alt=",34,0
-        
-rememberhrefyxposition
-        ld a,(prcharvirtual_stateful_x)
-        ld (hrefxposition),a
-        ld hl,(curprintvirtualy)
-        ld (hrefyposition),hl
-        ;jr $
-        ret
-
-tag_title
-        ;jp z,tag_titleclose
-        jp nz,tag_h1 ;open
-;tag_titleclose
-         ;ld a,1
-         ;ld (utf8flag),a ;нельзя, т.к. title после charset
-        call prcharvirtual_crlf_stateful ;</title> forces newline
-        xor a ;z
-        jp tag_h1
-
-tag_li ;list line (no closing tag)
-        jp z,skiprestoftag ;closing
-        call prcharvirtual_crlf_stateful
-        ld a,'*';'Х';'*' ;TODO с учётом UTF8
-        call prcharvirtual_stateful
-        ld a,' '
-        call prcharvirtual_stateful
-        jp skiprestoftag
-
-tag_meta
-;TODO find "charset=UTF-8" or "charset=windows-1251"
-        ;jp skiprestoftag
-tag_meta0
-        ld b,a
-        push bc
-        rdbyte
-        pop bc
-        or a
-        ret z
-        cp '>'
-        jp z,skiprestoftag0
-        or 0x20
-        cp 'w'
-        jr nz,tag_meta0
-        ld a,b
-        cp '='
-         ld a,'w'
-         jr nz,tag_meta0
-         ld a,0
-         ld (utf8flag),a
-        jp skiprestoftag
-
-tag_script
-;TODO skip until </script>
-tag_scriptb0
-        ld b,a
-;tag_script0
-        push bc
-        rdbyte
-        pop bc
-        or a
-        ret z
-        cp '/'
-        jr nz,tag_scriptb0
-        ld a,b
-        cp '<'
-         ld a,'/'
-        jr nz,tag_scriptb0
-        jp skiprestoftag
-
-htmlskipspaces0
-        rdbyte
-htmlskipspaces
-        cp ' '
-        jr z,htmlskipspaces0
-        ld (executetag_endchar),a
-        ret
-        
 tag_frame
 ;TODO find src="..." (now we find last param)
         ;jr $
 tag_frame0
-        ld a,(executetag_endchar)
-        call htmlskipspaces
+        ;ld a,(prcharvirtual_stateful_x)
+        ;jr $
         
+        ld a,(executetag_endchar)
+        call htmlskipspaces_go
+
         ld de,wordbuf
         call getword_param_go
         ld (executetag_endchar),a
@@ -684,9 +460,331 @@ tag_frame_typetag0
         call printtostringbuf2
          pop hl
          jr tag_frame_typetag0
-tag_frame_typetagq
-        jp tag_img_opening_readaltq
+
+inithref
+         ld a,(curlink)
+         or a
+         call nz,savestringbuf2 ;если img внутри a
+        call initstringbuf2
+        ld a,CLINK
+        ld (curlink),a
+        call setfontweight
+         jp rememberhrefyxposition
+         
+tag_img
+        jp z,skiprestoftag ;Z=closing tag (does nothing)
+        ;jr $
+        call htmlskipspaces
+        ld hl,tsrc
+        call eatgivenword_go
+        jr nz,tag_img_opening_fail
+;read link to stringbuf2 until doublequote
+        call inithref         
+tag_img_opening_read0
+        call RDBYTE;rdbyte
+        or a
+        ret z
+        cp 34
+        jr z,tag_img_opening_readq
+        call printtostringbuf2
+        jr tag_img_opening_read0
+tag_img_opening_readq
+tag_img_opening_fail
+;a=last char read=quote
+        call htmlskipspaces
+        push af
+        ld a,'['
+        call prcharvirtual_stateful
+        pop af
+tag_img_opening_readalt
+;a=last char read
+        call htmlskipspaces_go
+        ld hl,talt
+        call eatgivenword_go
+        jr nz,tag_img_opening_altfail
+tag_img_opening_readalt0
+        call RDBYTE;rdbyte
+        or a
+        ret z
+        cp 34
+        jr z,tag_img_opening_readaltq
+        call prcharvirtual_stateful
+        jr tag_img_opening_readalt0
+tag_img_opening_altfail
+;find alt in next parameters
+        call htmlskipparam
+         cp '>'
+        jr nz,tag_img_opening_readalt
+tag_img_opening_readaltq
+tag_frame_typetagq=tag_img_opening_readaltq
+        ld a,']'
+        jr closehrefq
+        ;call prcharvirtual_stateful
+        ;call savestringbuf2 ;after printing ']' to count full size
+        ;xor a
+        ;ld (curlink),a
+        ;call setfontweight
         ;jp skiprestoftag
+
+tag_a
+        jr nz,tag_a_opening
+        ld a,'}'
+closehrefq
+        call prcharvirtual_stateful
+        call savestringbuf2 ;after printing '}' to count full size
+        xor a
+        ld (curlink),a
+        call setfontweight
+        jp skiprestoftag
+tag_a_opening
+         ;jr $
+        call htmlskipspaces
+tag_a_opening_readhref
+        call htmlskipspaces_go
+        ld hl,thref
+        call eatgivenword_go
+        jr nz,tag_a_opening_hreffail
+  
+        call inithref         
+        
+        ;zxdn: no quotes in href
+        call RDBYTE;rdbyte
+        cp 34
+        jr nz,tag_a_opening_read_go
+
+;read link to stringbuf2 until doublequote
+tag_a_opening_read0
+        call RDBYTE;rdbyte
+tag_a_opening_read_go
+        or a
+        ret z
+        cp '>'
+        jr z,tag_a_opening_readq
+        cp 34
+        jr z,tag_a_opening_readq
+        call printtostringbuf2
+        jr tag_a_opening_read0
+tag_a_opening_hreffail
+;find href in next parameters
+        call htmlskipparam
+         cp '>'
+        jr nz,tag_a_opening_readhref
+tag_a_opening_readq
+         ld (executetag_endchar),a
+tag_a_opening_fail
+        ld a,'{'
+        call prcharvirtual_stateful
+        jp skiprestoftag
+
+
+;skip until space/>/"/EOF
+;if ", skip until another ", then skip space/>
+;a=last char read
+;out: a=last char (space/>/")
+htmlskipparam0
+        call RDBYTE;rdbyte
+htmlskipparam
+        or a
+        ret z
+        cp ' '
+        ret z
+        cp '>'
+        ret z
+        cp 34
+        jr nz,htmlskipparam0
+htmlskipparamquote0
+        call RDBYTE;rdbyte
+        or a
+        ret z
+        cp 34
+        jr nz,htmlskipparamquote0
+        jp RDBYTE;rdbyte ;skip space/>        
+
+eatgivenword
+;hl=word (asciiz)
+;out: Z=OK (or else a=last char read)
+eatgivenword0
+        ld a,(hl)
+        or a
+        ret z
+        call RDBYTE;rdbyte
+        ;ld (executetag_endchar),a
+eatgivenword_go
+        cp (hl)
+        inc hl
+        jr z,eatgivenword0
+        ld (executetag_endchar),a
+        ret ;fail
+
+getword_tag
+;hl=string
+;de=wordbuf
+;out: hl=terminator/space/> addr, a=terminator/space/> char
+;TODO провер€ть переполнение WORDBUFSIZE
+getword_tag0
+        call RDBYTE;rdbyte
+getword_tag_go
+        or a
+        jr z,getword_tagq
+        cp ' '
+        jr z,getword_tagq
+        cp '>'
+        jr z,getword_tagq
+	 or 0x20
+        ld (de),a
+        inc de
+        jr getword_tag0
+getword_tagq
+        push af
+        xor a
+        ld (de),a
+        pop af
+        ret
+
+
+getword_mangledchar
+;hl=string
+;de=wordbuf
+;out: hl=terminator/space/; addr, a=terminator/space/; char
+;TODO провер€ть переполнение WORDBUFSIZE
+getword_mangledchar0
+        call RDBYTE;rdbyte
+getword_param_go
+        or a
+        jr z,getword_mangledcharq
+        cp ' '
+        jr z,getword_mangledcharq
+        cp ';'
+        jr z,getword_mangledcharq
+        cp '>'
+        jr z,getword_mangledcharq ;for param
+	 or 0x20
+        ld (de),a
+        inc de
+        jr getword_mangledchar0
+getword_mangledcharq
+        push af
+        xor a
+        ld (de),a
+        pop af
+        ret
+
+
+        
+strcp
+;hl=s1
+;de=s2
+;out: Z (equal, hl=terminator of s1+1, de=terminator of s2+1), NZ (not equal, hl=erroraddr in s1, de=erroraddr in s2)
+strcp0.
+	ld a,[de] ;s2
+	cp [hl] ;s1
+	ret nz
+	inc hl
+	inc de
+	or a
+	jr nz,strcp0.
+	ret ;z
+
+strcp_tillde0
+;hl=s1
+;de=s2
+;out: Z (equal, hl=terminator of s1+1, de=terminator of s2+1), NZ (not equal, hl=erroraddr in s1, de=erroraddr in s2)
+strcp_tillde0_0.
+	ld a,[de] ;s2
+        or a
+        ret z
+	cp [hl] ;s1
+	ret nz
+	inc hl
+	inc de
+	jr strcp_tillde0_0.
+
+        
+thref
+        db "href=",0
+tsrc
+        db "src=",34,0
+talt
+        db "alt=",34,0
+        
+rememberhrefyxposition
+        ld a,(prcharvirtual_stateful_x)
+        ld (hrefxposition),a
+        ld hl,(curprintvirtualy)
+        ld (hrefyposition),hl
+        ret
+
+tag_title
+;not used, because header is skipped (TODO)
+        ;jp z,tag_titleclose
+        jp nz,tag_h1 ;open
+;tag_titleclose
+         ;ld a,1
+         ;ld (utf8flag),a ;нельзя, т.к. title после charset
+        call prcharvirtual_crlf_stateful ;</title> forces newline
+        xor a ;z
+        jp tag_h1
+
+tag_li ;list line (no closing tag)
+        jp z,skiprestoftag ;closing
+        call prcharvirtual_crlf_stateful
+        ld a,'*';'Х';'*' ;TODO с учётом UTF8
+        call prcharvirtual_stateful
+        ld a,' '
+        call prcharvirtual_stateful
+        jp skiprestoftag
+
+tag_meta
+;TODO find "charset=UTF-8" or "charset=windows-1251"
+tag_meta0
+        ld b,a
+        push bc
+        call RDBYTE;rdbyte
+        pop bc
+        or a
+        ret z
+        cp '>'
+        jp z,skiprestoftag0
+        or 0x20
+        cp 'w'
+        jr nz,tag_meta0
+        ld a,b
+        cp '='
+         ld a,'w'
+         jr nz,tag_meta0
+         xor a;ld a,0
+         ld (utf8flag),a
+        jp skiprestoftag_go
+
+tag_script
+;TODO skip until </script>
+tag_script0
+        ld b,a
+        push bc
+        call RDBYTE;rdbyte
+        pop bc
+        or a
+        ret z
+        cp '/'
+        jr nz,tag_script0
+        ld a,b
+        cp '<'
+         ld a,'/'
+        jr nz,tag_script0
+        jp skiprestoftag_go
+
+htmlskipspaces
+htmlskipspaces0
+        call RDBYTE;rdbyte
+htmlskipspaces_go
+        cp ' '
+        jr z,htmlskipspaces0
+        cp 0x0d
+        jr z,htmlskipspaces0
+        cp 0x0a
+        jr z,htmlskipspaces0
+        ld (executetag_endchar),a
+        ret
         
 tag_font
 ;TODO push old font/pop old font
@@ -694,16 +792,27 @@ tag_font
 tag_link
 ;TODO find href
 
-
-tag_frameset
+tag_dl
+tag_dd
+tag_dt
 tag_style
 tag_COMMENT
 tag_doctype
 tag_span
 tag_html
 tag_tbody
-tag_body
+        jp skiprestoftag
 
+tag_frameset ;before body
+tag_body
+         ld a,1
+         ld (printableflag),a
+;эти манипул€ции затрут уже напечатанные фреймы:
+         ;call prcharvirtual_x0
+         call setdefaultfontweight
+          call setfontweight;call initstringbuf1 ;без этого не пишет коды установки цвета
+         xor a
+         ld (iscentered),a
         jp skiprestoftag
         
 skiprestoftag
@@ -713,82 +822,11 @@ executetag_endchar=$+1
 skiprestoftag0
         cp '>'
         ret z
-        rdbyte
+skiprestoftag_go
+        call RDBYTE;rdbyte
         or a
         ret z
         jr skiprestoftag0
-
-setdefaultfontweight
-        xor a
-        ld (curbold),a
-        ld (curlink),a
-        ld (curitalic),a
-        ld (curunderline),a
-        ld (curstroke),a
-        ret
-
-setfontweight
-        ;jr $
-
-        if 1==1
-         ld a,1
-         call prcharvirtual_stateful
-curbold=$+1
-        ld a,0
-curlink=$+1
-        or 0
-curmark=$+1
-        or 0
-        inc a
-        call prcharvirtual_stateful
-         ld a,2
-         call prcharvirtual_stateful
-curitalic=$+1
-        ld a,0
-        inc a
-        call prcharvirtual_stateful
-         ld a,3
-         call prcharvirtual_stateful
-curstroke=$+1
-        ld a,0
-        inc a
-        call prcharvirtual_stateful
-         ld a,4
-         call prcharvirtual_stateful
-curunderline=$+1
-        ld a,0
-        inc a
-        call prcharvirtual_stateful
-        
-        else
-        
-curbold=$+1
-        ld a,0
-curlink=$+1
-        or 0
-        ld hl,tfontweight
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
-        ld a,(hl)
-        ld (prcharmc_attr),a
-curitalic=$+1
-        ld a,0
-        ld (prcharmc_italic1),a
-        ld (prcharmc_italic2),a
-        ld (prcharmc_italic3),a
-        ld (prcharmc_italic4),a
-curstroke=$+1
-        ld a,0
-        ld (prcharmc_stroke),a
-curunderline=$+1
-        ld a,0
-        ld (prcharmc_underline),a
-        endif
-        
-        ret
 
         
 wordbuf

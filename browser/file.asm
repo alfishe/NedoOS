@@ -1,3 +1,4 @@
+        if 1==0
 getpath_file
 ;de=buffer to get path
         OS_GETPATH
@@ -9,6 +10,7 @@ chdir_file
 ;de=path
         OS_CHDIR
         ret
+        endif
 
 openstream_file
 ;de=filename

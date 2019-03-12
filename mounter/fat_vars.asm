@@ -1,0 +1,35 @@
+
+;LAST UPDATE: 20.04.2014 savelij
+
+ERORDRV		EQU BUF_TEKVOL			;2 ‚Ž‡‚€’ ‘ Ž˜ˆŠŽ‰ ‚ A
+CAL_FAT		EQU ERORDRV+2			;1 Š€‹ˆ FAT
+MANYFAT		EQU CAL_FAT+1			;1 ŠŽ‹ˆ—…‘’‚Ž FAT-’€‹ˆ–
+BYTSSEC		EQU MANYFAT+1			;1 ŠŽ‹ˆ—…‘’‚Ž ‘…Š’ŽŽ‚ ‚ Š‹€‘’……
+ROOTCLS		EQU BYTSSEC+1			;4 ‘…Š’Ž €—€‹€ ROOT „ˆ…Š’Žˆˆ
+ROOTZAP		EQU ROOTCLS+4			;2 ŠŽ‹-‚Ž ‡€ˆ‘…‰ ‚ ROOT „ˆ…Š’Žˆˆ
+SEC_FAT		EQU ROOTZAP+2			;4 ŠŽ‹ˆ—…‘’‚Ž ‘…Š’ŽŽ‚ Ž„Ž‰ ”€’
+RSVDSEC		EQU SEC_FAT+4			;2 €‡Œ… …‡…‚Ž‰ Ž‹€‘’ˆ
+STARTRZ		EQU RSVDSEC+2			;4 €—€‹Ž „ˆ‘Š€/€‡„…‹€
+FRSTDAT		EQU STARTRZ+4			;4 €„…‘ …‚ŽƒŽ ‘…Š’Ž€ „€›• Ž’ BPB
+SEC_DSC		EQU FRSTDAT+4			;4 ŠŽ‹ˆ—…‘’‚Ž ‘…Š’ŽŽ‚ € „ˆ‘Š…/€‡„…‹…
+CLS_DSC		EQU SEC_DSC+4			;4 ŠŽ‹ˆ—…‘’‚Ž Š‹€‘’…Ž‚ € „ˆ‘Š…/€‡„…‹…
+FATSTR		EQU CLS_DSC+4			;4 €—€‹Ž …‚Ž‰ FAT ’€‹ˆ–›
+FILE_SZ		EQU FATSTR+4			;4 €‡Œ… ”€‰‹€ ‚ €‰’€•
+KOLWCLS		EQU FILE_SZ+4			;4 ŠŽ‹ˆ—…‘’‚Ž ‘‚ŽŽ„›• Š‹€‘’…Ž‚
+LST0ZAP		EQU KOLWCLS+4			;4 …‚›‰ ‘‚ŽŽ„›‰ Š‹€‘’…
+LSTLOAD		EQU LST0ZAP+4			;4 ŽŒ… ‘…Š’Ž€ ‡€ƒ“†…ŽƒŽ ‚ “”…
+TEK_DIR		EQU LSTLOAD+4			;4 Š‹€‘’… ’…Š“™…‰ DIR
+TEK_ZAP		EQU TEK_DIR+4			;2 ’…Š“™€Ÿ ‡€ˆ‘œ ‚ DIR
+SAVEZAP		EQU TEK_ZAP+2			;2 ‘Ž•€…€Ÿ ’…Š“™€Ÿ Ž‡ˆ–ˆŸ
+TEK_LVL		EQU SAVEZAP+2			;1 ’…Š“™ˆ‰ “Ž‚…œ Š€’€‹Žƒ€
+TEK_LEV		EQU TEK_LVL+1			;1 ƒ‹“ˆ€ €•Ž†„…ˆŸ ‚ „ˆ…Š’ŽˆŸ•
+FREECLS		EQU TEK_LEV+1			;8 ‘Ž•€…›… ……Œ…›… „‹Ÿ Ž’Š€’€
+KOLFIND		EQU FREECLS+8			;2 ŠŽ‹ˆ—…‘’‚Ž €‰„…›• Ž Œ€‘Š… ”€‰‹Ž‚
+AFILCLS		EQU KOLFIND+2			;4 ŽŒ… ’…Š“™…ƒŽ Š‹€‘’…€
+
+NUM_FILE_SRC	EQU AFILCLS+4			;2 ŽŒ… Žˆ‘€’…‹Ÿ ”€‰‹€ (Ž’Š“„€)
+FILE_SRC	EQU NUM_FILE_SRC+2		;20 Žˆ‘€’…‹œ Ž’Š›’ŽƒŽ ”€‰‹€ (Ž’Š“„€)
+
+CRC_VOL		EQU ERORDRV+0XFE		;2 CRC ……Œ…›• €‡„…‹€
+
+TEK_LEV_DIR	EQU CRC_VOL-0X50		;50 “”… •€…ˆŸ Ž‡ˆ–ˆˆ ˆ •Ž†„…ˆˆ Ž „ˆ€Œ

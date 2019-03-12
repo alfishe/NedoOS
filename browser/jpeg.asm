@@ -261,13 +261,6 @@ jpgconvBWlineskip
 
 readjpeg
          call initframe
-        ;jr $
-
-        xor a
-        ld h,a
-        ld l,a
-        ld (putchar_a),a
-        ld (putchar_hl),hl
 
         ld hl,VARS
         ld de,VARS+1

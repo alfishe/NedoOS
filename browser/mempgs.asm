@@ -22,6 +22,11 @@ temppg8000=$+1
         SETPG32KLOW
         ret
 
+setpgtemp4000
+        ld a,(temppg8000)
+        SETPG16K
+        ret
+
 setpgs_scr
         call setpgscr8000
 setpgscrc000

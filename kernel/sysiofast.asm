@@ -88,6 +88,7 @@ nfdel
 ;de=FCB
 ;TODO mask
         inc de ;filename
+nfdel_filename
         ld lx,0 ;number of files just deleted
 	ld b,8 ;sectors
 nfdelsectors0.
@@ -176,6 +177,13 @@ nfopen
 ;de=filename
 ;c=mode
 	;EXPORT nfopen
+         push bc
+         push de
+         ld a,c
+         cp 'w'
+         call z,nfdel_filename
+         pop de
+         pop bc
 	xor a
 	ld hl,TRDOSFCB1-0x0200
 

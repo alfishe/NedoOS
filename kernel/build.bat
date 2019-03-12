@@ -1,3 +1,4 @@
+@echo off
 path=..\sjasm\;..\us\;..\tools\
 sjasmplus main.asm
 del code.c
@@ -6,3 +7,5 @@ copy /b initcode.c + syscode.c.mlz code.c
 del initcode.c
 del syscode.c
 del syscode.c.mlz
+
+if "%currentdir%"=="" (pause)

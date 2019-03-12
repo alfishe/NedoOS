@@ -78,6 +78,7 @@ SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. *
 		
 httphostname=DISKBUF+0x200
 
+        if 1==0
 getpath_http
 ;de=buffer to get path
         ld hl,httpcurdir ;server/path (without / in the end)
@@ -122,19 +123,36 @@ chdir_http
         ld a,(de)
         cp '.'
         jr z,chdir_http_dot
-
         ld (hl),'/'
         inc hl
         ex de,hl
         call strcopy ;TODO check overflow
         ret
-
+        endif
 
 openstream_http
 	display $
-        ;jr $
-;de=filename
+;de=filename (without "http://"), slash always presents
 ;out: A!=0 => error
+        ex de,hl
+        ld de,httphostname
+        push de
+        call strcopy
+        pop hl
+        call findslash
+        ;call strlen_tobc_keephl
+        ;ld a,'/'
+        ;cpir ;TODO ser.ver:port
+         ;jr nz,$
+        push hl ;filename after ser.ver/
+        dec hl ;at slash
+        ld (hl),0 ;end of httphostname
+        
+;httphostname=server name (filename before slash, not including slash)
+;top of stack=filename (after ser.ver/)
+        ;jr $
+        
+        if 1==0
          push de ;filename
 ;httphostname=server name (httpcurdir before slash), curdir=httpcurdir after slash:
         ld hl,httpcurdir+1 ;server/path (without / in the end)
@@ -150,7 +168,7 @@ openstream_http
         pop hl ;httphostname
         ld a,'/'
         ;ld bc,128
-        cpir
+        cpir ;TODO ser.ver:port
 	 jr z,openstream_http_slashfound
 ;if no slash
 	 ld hl,httphostname
@@ -163,6 +181,11 @@ openstream_http_slashfound
 	jr nz,$+2+1+2
         dec hl
         ld (hl),0 ;end of httphostname
+        endif
+        
+;httphostname=server name (filename before slash)
+;top of stack=filename after slash
+        
 		call dns_resolver
 		ld a,l
 		or h
@@ -177,8 +200,9 @@ openstream_http_slashfound
 		or a
 		jp m,CONNECTIONERROR;?C_EXIT
 		ld (soc1),a
-		LD	DE,host_ia
+		LD DE,host_ia
 		OS_NETCONNECT
+                 ld a,l ;DimkaM 12.03.2019
 		or a
 		jp p,connect_ok
 createsoc_err
@@ -195,6 +219,8 @@ connect_ok
         ld de,DISKBUF
         call strcopy
         dec de
+        
+        if 1==0
 openstream_http_curdir=$+1
         ld hl,0 ;httpcurdir+N
 ;if empty path, don't add second slash
@@ -207,6 +233,8 @@ openstream_http_curdir=$+1
         ld (de),a
         inc de
 openstream_http_emptypath
+        endif
+
          pop hl ;filename
         call strcopy
         dec de
@@ -217,7 +245,8 @@ openstream_http_emptypath
         call strcopy
         dec de
         ld hl,tGETend
-        call strcopy
+        call strcopy ;with terminator
+         dec de ;no terminator?
 		ex de,hl
         ld de,0xffff&(-DISKBUF)
         add hl,de
@@ -275,6 +304,17 @@ http_firstreadflag=$+1
 	push de
 	or a
 	sbc hl,de ;размер
+        jr readstream_http_head0
+readstream_http_headretry
+        push de
+        push hl
+        ;YIELD
+        ;GET_KEY
+        call yieldgetkeynolang
+        pop hl
+        pop de
+        cp csSpace
+        jr z,readstream_err
 readstream_http_head0
 	push de
 	push hl ;размер
@@ -429,6 +469,7 @@ is_dot:
 	jp m,dns_exiterr
 	LD	DE,dns_ia
 	OS_NETCONNECT
+                 ld a,l ;DimkaM 12.03.2019
 	or a
 	jp m,dns_exiterr
 	
@@ -444,7 +485,10 @@ is_dot:
 	ld b,25
 	jr recv_wait1
 recv_wait:
-	YIELD
+	;YIELD
+        push bc
+        call yieldgetkeynolang
+        pop bc
 recv_wait1:
 	push bc
 	ld hl,256
@@ -456,13 +500,13 @@ recv_wait1:
 	or l
 	jr nz,recv_wait_end
 	djnz recv_wait
-	ld a,54	;ERR_CONNRESET
+	;ld a,54	;ERR_CONNRESET
 	;ld (errno),a
 	jr dns_exiterr
 recv_wait_end:
 	bit 7,h
 	jr nz,dns_exitcode
-	ld a,65		;ERR_HOSTUNREACH
+	;ld a,65		;ERR_HOSTUNREACH
 	;ld (errno),a
 	ld a,(dnsbuf+3)
 	and 0x0f	
@@ -478,11 +522,11 @@ dns_exitcode:
 dns_exiterr:
 	pop af
 	;ld a,(errno)
-	push af
+	;push af
 	LD	a,(soc1)
 	LD	E,0
 	OS_NETSHUTDOWN
-	pop af
+	;pop af
 	;ld (errno),a
 	ld hl,0
 	ret

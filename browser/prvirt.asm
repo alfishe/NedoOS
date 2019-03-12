@@ -11,6 +11,7 @@ TEXT_Y=$-TEXT_BASE
         ds 2 ;y
 TEXT_X=$-TEXT_BASE
         ds 1 ;x
+TEXT_TEXT=$-TEXT_BASE
 stringbuf1
         ds STRINGBUFSZ
 
@@ -36,6 +37,7 @@ HREF_ENDX=$-HREF_BASE
         ds 1 ;endx (TODO сложную геометрию ссылок разбивать на части с общим полем ссылок, но разными полями геометрии)
 HREF_VISITED=$-HREF_BASE
         ds 1 ;visited
+HREF_TEXT=$-HREF_BASE
 stringbuf2
         ds STRINGBUFSZ
 
@@ -216,8 +218,7 @@ initstringbuf1
         ;ld (ncharsinline),a
         ld hl,stringbuf1
         ld (curstringbuf1addr),hl
-        call setfontweight
-        ret
+        jp setfontweight
 
 savestringbuf2
 ;add terminator
@@ -237,13 +238,13 @@ savestringbuf2
         push hl ;size
         
 ;form header:
-        ld a,(prcharmc_stateful_x)
+        ld a,(prcharvirtual_stateful_x)
         ld (stringbuf2header+HREF_ENDX),a
         ld hl,(curprintvirtualy)
         ld (stringbuf2header+HREF_ENDY),hl
-         ;jr $
-        ld hl,-1
         ld a,-1
+        ld h,a
+        ld l,a
         ld (stringbuf2header+HREF_NEXT),hl
         ld (stringbuf2header+HREF_NEXT+2),a
 last2pointer=$+1
@@ -301,6 +302,50 @@ initstringbuf2
         ld (curstringbuf2addr),hl
         ret
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
+
+setdefaultfontweight
+        xor a
+        ld (curbold),a
+        ld (curlink),a
+        ld (curitalic),a
+        ld (curunderline),a
+        ld (curstroke),a
+        ret
+
+setfontweight
+        ld a,(printableflag)
+        or a
+        ret z
+         ld a,1
+         call prcharvirtual_stateful
+curbold=$+1
+        ld a,0
+curlink=$+1
+        or 0
+curmark=$+1
+        or 0
+        inc a
+        call prcharvirtual_stateful
+         ld a,2
+         call prcharvirtual_stateful
+curitalic=$+1
+        ld a,0
+        inc a
+        call prcharvirtual_stateful
+         ld a,3
+         call prcharvirtual_stateful
+curstroke=$+1
+        ld a,0
+        inc a
+        call prcharvirtual_stateful
+         ld a,4
+         call prcharvirtual_stateful
+curunderline=$+1
+        ld a,0
+        inc a
+        jp prcharvirtual_stateful
+
 prcharvirtual_tab_stateful
         ld a,(prcharvirtual_stateful_x)
         and 7 ;0..7
@@ -315,8 +360,24 @@ prcharvirtual_tab_stateful0
         djnz prcharvirtual_tab_stateful0
         ret
         
+prcharvirtual_controlcode
+        cp 0x09 ;tab
+        jr z,prcharvirtual_tab_stateful
+        cp 0x0a ;LF
+        jr z,prcharvirtual_crlf_stateful
+        cp 0x0d ;CR
+        ret z
+        jr prcharvirtual_stateful_nocontrolcode
+        
 prcharvirtual_stateful
 ;a=code
+printableflag=$+1
+        ld l,0
+        dec l
+        ret nz
+        cp 32
+        jr c,prcharvirtual_controlcode
+prcharvirtual_stateful_nocontrolcode
         push af
          cp 0x80
          jr c,prcharvirtual_noutf8
@@ -328,11 +389,33 @@ utf8flag=$+1
          jr z,prcharvirtual_utf8_d0
          cp 1
          jr z,prcharvirtual_utf8_d0
-         sub 0x80
+         cp 0xe2-0xd0 ;dash = e2 80 94 (но 80 используется в "а" = d1 80)
+         jr z,prcharvirtual_utf8_e2
+         cp 0xc2-0xd0 ;bullet = c2 b7
+         jr z,prcharvirtual_utf8_c2
+         ;sub 0x80
 prcharvirtual_utf8_add=$+1
         add a,0x00
-        add a,0x80;0xc0;'А'
+        ;add a,0x80
+         cp 0x01
+         jr z,prcharvirtual_utf8_yo
+         cp 0x20
+         jr nc,prcharvirtual_noutf8
+         pop af
+         ret
+prcharvirtual_utf8_yo
+         ld a,0xb8;'ё'
         jr prcharvirtual_noutf8
+prcharvirtual_utf8_c2
+        ld a,0xb7-0xb7+0xd0
+        ld (prcharvirtual_utf8_add),a
+        pop af
+        ret
+prcharvirtual_utf8_e2
+        ld a,'-'-0x94+0xd0
+        ld (prcharvirtual_utf8_add),a
+        pop af
+        ret
 prcharvirtual_utf8_d0
         add a,a
         add a,a
@@ -358,15 +441,19 @@ prcharvirtual_stateful_x=$+1
         cp 80
         ret c
 prcharvirtual_crlf_stateful
+        ld a,(printableflag)
+        or a
+        jr z,prcharvirtual_x0
         call savestringbuf1
-        xor a
-        ld (prcharvirtual_stateful_x),a
-        ld (laststringx),a
 curprintvirtualy=$+1
         ld hl,0
         inc hl
         ld (laststringy),hl
         ld (curprintvirtualy),hl
+prcharvirtual_x0
+        xor a
+        ld (prcharvirtual_stateful_x),a
+        ld (laststringx),a
         ret
 
 countlinewidth

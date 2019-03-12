@@ -1,7 +1,14 @@
 htmlview
+        ld hl,(curprintvirtualy)
+        ld (html_endy),hl
         call prcharmc_stateful_resethandler
         ld hl,0
         ld (html_curtopy),hl
+        
+        ld hl,(firstpointer)
+        ld (htmlshowline_accessedpointer),hl
+        ld a,(firstpointerHSB)
+        ld (htmlshowline_accessedpointerHSB),a
         
 html_redrawloop
 ;TODO redraw interface
@@ -19,15 +26,15 @@ htmlcursorxy=$+1
 	ld a,0x38
         call html_prattr
 
-        ;YIELDGETKEYLOOP
-1;prwindow_waitkey_nokey
-	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        GET_KEY ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
-        cp NOKEY
+1
+	;YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        ;GET_KEY ;OS_GETKEYNOLANG
+        ;ld a,c ;keynolang        
+        ;cp NOKEY
+        call yieldgetkeynolang
         jr nz,html_mainloop_keyq
         ;call nvview_panel
-        jr 1b;prwindow_waitkey_nokey
+        jr 1b
 html_mainloop_keyq
 
         pop de ;e=oldcolor
@@ -39,7 +46,6 @@ html_mainloop_keyq
 	ld a,e
         call html_prattr
         pop af
-        
         cp key_redraw
         jr z,html_redrawloop
         cp csSpace
@@ -68,6 +74,10 @@ html_mainloop_keyq
         jp z,html_pgup
         cp cs4
         jp z,html_pgdown
+        cp Home
+        jp z,html_home
+        cp Endkey
+        jp z,html_endkey
         ret
         
 html_download
@@ -76,7 +86,6 @@ html_download
 	
 html_enter
 ;click on href
-	;jr $
         call html_enter_find
         jp browser_go
 
@@ -89,6 +98,7 @@ html_enter_find
         add hl,bc
         ld (html_enter_virtualy),hl
 
+         ;jr $
         ld hl,(first2pointer)
         ld a,(first2pointerHSB)
 html_enter_find0
@@ -96,6 +106,9 @@ html_enter_find0
         jr z,html_enter_findq
         push af
         push hl
+        
+        if 1==0
+        
         ld bc,HREF_Y
         add hl,bc
         adc a,0
@@ -104,19 +117,60 @@ html_enter_find0
 html_enter_virtualy=$+1
         ld bc,0
         or a
-        sbc hl,bc
+        sbc hl,bc ;HREF_Y - y
         ex de,hl
-        jr z,html_enter_findlineok
-;TODO for long linktexts: beginy<=y<=endy
+        jr z,html_enter_findlineok ;для правильной ссылки HREF_Y<=y
+         ;jr c,html_enter_findlineok_hrefy_lessthan_y
+        
+        endif
+         
+;for long linktexts: beginyx<=yx<endyx
+;можно первичную фильтрацию (beginy<=y<=endy), но неудобно
+
+        ld bc,HREF_Y
+        add hl,bc
+        adc a,b;0
+        call readword ;de=beginy
+        call readbyte ;c=beginx
+html_enter_virtualy=$+1
+        ld hl,0
+        ld a,(htmlcursorxy)
+        ;hla=Yyx
+        ;dec=beginYyx
+        cp c
+        sbc hl,de
+        jr c,html_enter_findnext
+        pop hl
+        pop af
+        push af
+        push hl
+        ld bc,HREF_ENDY
+        add hl,bc
+        adc a,b;0
+        call readword ;de=endy
+        call readbyte ;c=endx
+        ld hl,(html_enter_virtualy)
+        ld a,(htmlcursorxy)
+        ;hla=Yyx
+        ;dec=endYyx
+        cp c
+        sbc hl,de
+        ;jr nc,html_enter_findnext
+        jr c,html_enter_findok
+
 html_enter_findnext
         pop hl
         pop af
         call getnextelement
         jr html_enter_find0
         
+        
+        if 1==0
+        
+html_enter_findlineok_hrefy_lessthan_y
+
+        
 html_enter_findlineok
-	 pop bc
-	 pop bc
         call readbyte ;c=beginx
         ld b,a
         ld a,(htmlcursorxy)
@@ -124,28 +178,41 @@ html_enter_findlineok
         ld a,b
 ;x<beginx => fail
         jr c,html_enter_findnext
-        
+         ;jr $
         call readword ;de=endy
         push hl
         ld hl,(html_enter_virtualy)
         or a
         sbc hl,de
         pop hl
-;y!=endy => ok (long linktext)
+;y==endy => ok (long linktext)
         push af
         call readbyte ;c=endx
         pop af
-        jr z,html_enter_findok
+        ;jr z,html_enter_findok_endy
 
         ld b,a
         ld a,(htmlcursorxy)
         cp c
         ld a,b
 ;x>=endx =>fail
-        jr c,html_enter_findok
-        
+        jr nc,html_enter_findnext
+        ;jr html_enter_findok
+                
+html_enter_findok_endy
+        endif
+
 html_enter_findok
-        call readbyte ;skip VISITED
+	 ;pop bc
+	 ;pop bc
+        ;call readbyte ;skip VISITED
+         
+         pop hl
+         pop af
+        ld bc,HREF_TEXT
+        add hl,bc
+        adc a,b;0
+         
         ld de,linkbuf
 html_enter_findok_copyname0
         call readbyte
@@ -156,6 +223,7 @@ html_enter_findok_copyname0
         inc c
         dec c
         jr nz,html_enter_findok_copyname0
+         ;jr $
 	ret
         
 html_enter_findq
@@ -217,9 +285,7 @@ html_up_scroll
         ld d,HTMLTOPY
 ;hl=virtual Y
 ;d=scry
-        call htmlcleanshowline
-        
-        ret
+        jp htmlcleanshowline
         
 html_down
         ld a,(htmlcursorxy+1)
@@ -240,9 +306,7 @@ html_down_scroll
         ld d,HTMLTOPY+HTMLHGT-1
 ;hl=virtual Y
 ;d=scry
-        call htmlcleanshowline
-        
-        ret
+        jp htmlcleanshowline
 
 html_pgup
         ld hl,(html_curtopy)
@@ -252,18 +316,37 @@ html_pgup
         jr nc,$+4
         ld h,a
         ld l,a
+topy_showpage_slearkeyboardbuffer
         ld (html_curtopy),hl
         call htmlshowpage
+clear_keyboardbuffer
+        push bc
+        ld b,5
+clear_keyboardbuffer0
+        push bc
+        GET_KEY
+        pop bc
+        djnz clear_keyboardbuffer0
+        pop bc
         ret
         
 html_pgdown
         ld hl,(html_curtopy)
         ld bc,HTMLHGT-1
         add hl,bc
-        ld (html_curtopy),hl
-        call htmlshowpage
-        ret
+        jr topy_showpage_slearkeyboardbuffer
+        ;ld (html_curtopy),hl
+        ;call htmlshowpage
+        ;ret
         
+html_home
+        ld hl,0
+        jr topy_showpage_slearkeyboardbuffer
+
+html_endkey
+html_endy=$+1
+        ld hl,0
+        jr topy_showpage_slearkeyboardbuffer
         
 htmlshowpage
         ld d,HTMLTOPY
@@ -291,6 +374,7 @@ htmlcleanshowline
         sla d
         call setxymc ;hl=0xc000+        
         call setpgs_scr
+        xor a
         call cleanlinemc
         call setpgtemp8000
         pop hl
@@ -315,16 +399,61 @@ htmlshowline
         ld (htmlshowline_scry),a
         ld (htmlshowline_virtualy),hl
 
-        ld hl,(firstpointer)
-        ld a,(firstpointerHSB)
-htmlshowline_find0
+htmlshowline_accessedpointer=$+1
+        ld hl,0
+htmlshowline_accessedpointerHSB=$+1
+        ld a,0
+        
+;ищем вниз, если (accessedpointer.HREF_Y < y), иначе ищем вверх
+        push af
+        push hl
+        call getandcompareHREF_Y ;CY = (HREF_Y < y)
+        jr c,htmlshowline_finddown
+
+;htmlshowline_findup
+        pop hl
+        pop af
+htmlshowline_findup0
         call isnull
         jr z,htmlshowline_findq
         push af
         push hl
+        call getandcompareHREF_Y
+        jr z,htmlshowline_findok
+        pop hl
+        pop af
+        call getprevelement
+        jr htmlshowline_findup0
+
+htmlshowline_finddown
+        pop hl
+        pop af
+htmlshowline_finddown0
+        call isnull
+        jr z,htmlshowline_findq
+        push af
+        push hl
+;        ld bc,HREF_Y
+;        add hl,bc
+;        adc a,b;0
+;        call readword ;de
+;        ex de,hl
+;htmlshowline_virtualy=$+1
+;        ld bc,0
+;        or a
+;        sbc hl,bc
+;        ex de,hl
+        call getandcompareHREF_Y
+        jr z,htmlshowline_findok
+        pop hl
+        pop af
+        call getnextelement
+        jr htmlshowline_finddown0
+        
+getandcompareHREF_Y
         ld bc,HREF_Y
         add hl,bc
-        adc a,0
+        adc a,b;0
         call readword ;de
         ex de,hl
 htmlshowline_virtualy=$+1
@@ -332,13 +461,20 @@ htmlshowline_virtualy=$+1
         or a
         sbc hl,bc
         ex de,hl
-        jr z,htmlshowline_findok
+        ret ;CY = (HREF_Y < y), Z = equal
+
+htmlshowline_findok
+        push af
+        push hl
+        ld bc,HREF_Y+2
+        or a
+        sbc hl,bc
+        sbc a,b;0
+        ld (htmlshowline_accessedpointer),hl
+        ld (htmlshowline_accessedpointerHSB),a
         pop hl
         pop af
-        call getnextelement
-        jr htmlshowline_find0
-        
-htmlshowline_findok
+
         call readbyte ;x
         ld e,c
 htmlshowline_scry=$+1
