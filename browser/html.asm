@@ -344,6 +344,7 @@ tag_code
 tag_pre
         push af ;z/nz
         call prcharvirtual_crlf_stateful ;opening&closing
+        call htmlinitbody ;zxdn реклама в plain text
         pop af ;z/nz
         ld hl,ispre
         ld a,1
@@ -822,15 +823,18 @@ tag_tbody
 
 tag_frameset ;before body
 tag_body
-         ld a,1
+        call htmlinitbody
+        jp skiprestoftag
+
+htmlinitbody
+         xor a
+         ld (iscentered),a
+         inc a ;ld a,1
          ld (printableflag),a
 ;эти манипул€ции затрут уже напечатанные фреймы:
          ;call prcharvirtual_x0
          call setdefaultfontweight
-          call setfontweight;call initstringbuf1 ;без этого не пишет коды установки цвета
-         xor a
-         ld (iscentered),a
-        jp skiprestoftag
+         jp setfontweight;call initstringbuf1 ;без этого не пишет коды установки цвета
         
 skiprestoftag
 ;we can be at >/space/EOF (in executetag_endchar)

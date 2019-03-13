@@ -291,7 +291,8 @@ render
 
         ld hl,(YRES)
         ld (jpglinecount),hl
-                CALL YCCTAB ;103518        CALL GENMTAB ;430734       ;CALL MAKCTB      PUSH IY       CALL setsamplescalers ;1253       CALL maketrees;M18E08 ;110466      POP IY        
+                CALL YCCTAB ;103518        CALL GENMTAB ;430734       ;CALL MAKCTB
+        ;jr $      PUSH IY       CALL setsamplescalers ;1253       CALL maketrees;M18E08 ;110466      POP IY        
 ;заполняем после maketrees, поверх её буфера        LD l,0cNTBLP  LD H,PLTAB/256 ;таблица отсечения переполнения        ld (hl),0
         inc h        LD (HL),L
         inc h        LD (HL),-1        INC L        JR NZ,cNTBLP        LD A,(MAXV)        ADD A,A        ADD A,A        ADD A,A        LD (MAXV8),A        LD A,(MAXH)        ADD A,A        ADD A,A        ADD A,A        LD (MAXH8),A        LD HL,(XRES)        CALL ROUND ;HL=k*A (>=HL)        LD (LSZX),HL        LD DE,7       OR A        SBC HL,DE        LD (LSZXm7),HL        ADD HL,DE        LD DE,(MAXH8)       OR A        SBC HL,DE        LD (pLSMH+1),HL        LD (pLSMH2+1),HL        ADD HL,DE        ADD HL,HL        ADD HL,HL        ADD HL,HL        LD (BLSZ),HL       CALL MAKTS

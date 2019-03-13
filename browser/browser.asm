@@ -115,6 +115,8 @@ cmd_begin
         ;jr $
         endif
 
+        ;call keepcurlink
+
 	jr browser_go_curfulllink
         
 browser_godownload
@@ -124,6 +126,8 @@ browser_go
 ;curfulllink содержит текущую ссылку (из неё брать путь), слеш в конце http://ser.ver уже есть
 ;в linkbuf лежит ссылка (может быть локальная)
 ;TODO перекодировать русские буквы в ссылке в %
+
+        call keepcurlink
 
         ld hl,linkbuf
 ;если ссылка начинается со слеша, то надо отрезать весь путь, кроме сервера
@@ -226,24 +230,32 @@ browser_go_protocolpresentq
         endif
 	
 browser_go_curfulllink
+	
+        jr browser_backspaceq
+keepcurlink
 ;для backspace: запомнить полный путь с протоколом и именем
 ;histaddr указывает на последний элемент истории
 	call setpghist
 histaddr=$+1
-	ld de,0xbf00;c000
-	inc d
+	ld de,0xc000
+        ld a,d
+	inc a
 	jr nz,keeptohist_nooverflow
 	ld hl,0xc100
 	ld de,0xc000
 	ld bc,0x3f00
 	ldir ;forget oldest link
 keeptohist_nooverflow
-	ld (histaddr),de
 	ld hl,curfulllink;linkbuf
-	ld bc,256
+	ld bc,254
 	ldir
-	
-        jr browser_backspaceq
+        ld hl,html_curtopy
+        ldi
+        ldi
+	ld (histaddr),de
+        ld hl,0
+        ld (html_curtopy),hl
+        ret
 
 browser_downloadthis
 	ld a,1
@@ -262,12 +274,18 @@ browser_backspace
 	ld hl,(histaddr)
 	ld a,h
 	cp 0xc0
-	ret z;jp z,getkeyquit ;jr z,$+3 ;no history
+	jr z,browser_reload;jp z,getkeyquit ;jr z,$+3 ;no history
 	dec h
 	ld (histaddr),hl
 	call setpghist
+         ;jr $
         ld de,curfulllink;linkbuf
-        call strcopy
+        ;call strcopy
+	ld bc,254
+	ldir
+        ld de,html_curtopy
+        ldi
+        ldi
 
 browser_backspaceq
 ;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf        
@@ -304,35 +322,18 @@ browser_backspaceq
 ;включить колбэки под нужный протокол
         ld bc,readstream_file
         ld de,closestream_file
-        ;ld hl,getpath_file
-        ;exx
-        ;ld bc,rootdir_file
-        ;ld de,chdir_file
         ld hl,openstream_file
          or a
          jr z,browser_go_changeprotocol_nohttp
         ld bc,readstream_http
         ld de,closestream_http
-        ;ld hl,getpath_http
-        ;exx
-        ;ld bc,rootdir_http
-        ;ld de,chdir_http
         ld hl,openstream_http
 browser_go_changeprotocol_nohttp
-        ;ld (rootdir_patch),bc
-        ;ld (chdir_patch),de
         ld (openstream_patch),hl
-        ;exx
         ld (readstream_patch),bc
         ld (closestream_patch),de
-        ;ld (getpath_patch),hl
-        
-;сменить текущий каталог на корневой
-;rootdir_patch=$+1
-;        call rootdir_file
         
         pop hl
-;browser_go_nochangeprotocol
 
 ;hl=начало path без протокола
 
@@ -495,6 +496,7 @@ loadjpeg
         ld (bmpstart),hl
         ld (bmpstartHSB),a
 
+        ;jr $
         call readjpeg
 
          jp closequit
@@ -508,16 +510,21 @@ loadgif
         call readgif
 
 showgif
+        ;jr $
+nframes=$+1
+        ld bc,0
+        ld a,c
+        dec a
+        or b
+        jp z,closequit;showgifq
 firstframeaddr=$+1
         ld hl,0
 firstframeaddrHSB=$+1
         ld a,0
-nframes=$+1
-        ld bc,0
-        ;ld bc,2
+        
 showgif_frames0
         push bc
-         ;jr $
+        
 	push hl
 	push af
         OS_GETTIMER ;hlde=timer
@@ -542,7 +549,7 @@ showframetime=$+1
 
 showframedelay0
         call yieldgetkeynolang ;nz=nokey
-        jp nz,closequit
+        jp nz,closequit ;TODO restore stack
         OS_GETTIMER ;hlde=timer
 showframemaxtimer=$+1
 	ld bc,0 ;max timer for this frame
@@ -948,6 +955,7 @@ drawscreenline_frombuf0
         dec iy
         ld (drawscreenline_frombuf_iyaddr),iy
         
+         call setpgcode4000
         ;ld hl,(drawscreenline_frombuf_scr)
         ;ld bc,40
         ;add hl,bc ;next line on screen
@@ -1540,8 +1548,41 @@ curpicwidx3=$+1
         ret
 
 getline
-;de=откуда достаём строку
+;de=куда достаём строку
 ;bc=сколько байт достаём
+gifdisposalmethod=$+1
+        ld a,0 ;bit0 = transparent color present, bit4..2 = disposal method (0=not specified(?), 1=do not dispose(?), 2=overwrite with bg color, 3=overwrite with prev frame(?))
+        and 0x1c
+        cp 8
+        jr z,getline_fill
+        ld hl,(nframes)
+        ld a,h
+        or l
+        jr nz,getline_frommem
+getline_fill
+;фон первой строки - заливка
+        push de
+gifbgcolor=$+1
+         ld hl,PAL_GLOB
+         ldi
+         dec hl
+         inc h
+         ldi
+         dec hl
+         inc h
+         ldi ;TODO проверить порядок компонент!
+        pop hl
+         ret po ;bc=0
+        ;ld h,d
+        ;ld l,e
+        ;cpi
+        ;ret po ;bc=0
+        ;ex de,hl
+        ;ld (hl),a;0
+        ldir
+        ret
+
+getline_frommem
         ld hl,(putchar_hl)
         ld a,(putchar_a)
         jp getfrommem
@@ -1567,14 +1608,13 @@ curfulllink
         ds 256
 
         include "htmlview.asm"
-        include "gif.asm"
-        include "jpeg.asm"
         include "html.asm"
         include "prvirt.asm"
 	include "mempgs.asm"
         include "dynmem.asm"
         include "file.asm"
         include "http.asm"
+        include "gif.asm"
         
 oldtimer
         dw 0
@@ -1610,6 +1650,7 @@ endcode=$
 
         ds 0x4000-$ ;stack
 	include "prmc.asm"
+        include "jpeg.asm"
 
 init
         ld e,2 ;MC hires mode

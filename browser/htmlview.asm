@@ -2,8 +2,8 @@ htmlview
         ld hl,(curprintvirtualy)
         ld (html_endy),hl
         call prcharmc_stateful_resethandler
-        ld hl,0
-        ld (html_curtopy),hl
+        ;ld hl,0
+        ;ld (html_curtopy),hl
         
         ld hl,(firstpointer)
         ld (htmlshowline_accessedpointer),hl

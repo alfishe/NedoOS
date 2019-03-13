@@ -109,14 +109,16 @@ GIF_HP0
 GIF_GFXCTRLEXT
         GIFGETBYTE ;=4
         GIFGETBYTE ;bit0 = transparent color present, bit4..2 = disposal method (0=not specified(?), 1=do not dispose(?), 2=overwrite with bg color, 3=overwrite with prev frame(?))
+;6908fast.gif, 6914fast.gif: a=5 (transparent color present, do not dispose), 5, 5...
+;sprites.gif: a=1 (transparent color present, disposal not specified)
+;animatie.gif: a=9 (transparent color present, overwrite with bg color), 9, 9...
+        ld (gifdisposalmethod),a
          bit 0,a
          ld a,GIFTRANSP_on
          jr nz,$+4
          ld a,GIFTRANSP_off
          ld (giftransparencyflag),a
          ;TODO fill with bg color
-gifbgcolor=$+1
-         ld a,0
         GIFGETBYTE ;delayLSB
 	ld l,a
         GIFGETBYTE ;delayHSB
@@ -128,7 +130,7 @@ gifbgcolor=$+1
         GIFGETBYTE ;transparent color index
          ld (giftransparentcolor),a
         GIFGETBYTE ;=0
-        jr GIF_PARSEFRAME
+        jp GIF_PARSEFRAME
 
 ;"""""""""""""""""""""""
 GIF_IMG ;Обработка блока изображения.
@@ -343,7 +345,7 @@ GIF_IMG_ENDcode=$+1
 
         ;CALL CONVERT
         ;CALL VIEW
-;TODO store converted frame with timings
+;store converted frame with timings:
 ;+0 (3) next
 ;+3 (2) time
 ;+5 converted frame
