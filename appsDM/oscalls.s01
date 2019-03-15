@@ -9,7 +9,7 @@ errno:
 	MODULE OS_NETSOCKET
 	PUBLIC OS_NETSOCKET,OS_NETCONNECT,OS_NETCLOSE
 	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
+	#include "sysdefs.asm"
 	RSEG	CODE
 OS_NETCONNECT:
 	ld l,0x03
@@ -240,18 +240,22 @@ pexit:
 	
 	MODULE MYGETCHAR
 	PUBLIC getchar
+	EXTERN _low_level_get
 	RSEG CODE
 getchar:
-	push ix
-	push iy
-getchloop:
-	rst 0x08
+	call _low_level_get
 	or a
-	jr z,getchloop
+	jr z,getchar
 	ld l,a
 	ld h,0
-	pop iy
-	pop ix
+	ret	
+	ENDMOD
+	
+	MODULE SCRREDRAW
+	PUBLIC scrredraw
+	RSEG CODE
+scrredraw:
+	xor a
 	ret	
 	ENDMOD
 	
@@ -273,11 +277,15 @@ OS_SCROLLUP:
 	
 	MODULE OSLOWGET
 	PUBLIC _low_level_get
+	EXTERN scrredraw
+	#include "sysdefs.asm"
 	RSEG CODE
 _low_level_get:
 	push ix
 	push iy
 	rst 0x08
+	cp key_redraw
+	call z,scrredraw
 	ld l,a
 	ld h,0
 	pop iy
@@ -363,7 +371,7 @@ oldtimer:
 	defw 0 
 	ENDMOD
 	
-	MODULE OSPRCHAR
+	MODULE MAIN_ARGS
 	PUBLIC main_args
 	EXTERN main
 	RSEG CODE

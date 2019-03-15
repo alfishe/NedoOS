@@ -2,23 +2,8 @@
 #include <stdio.h>
 #include <Intrz80.h>
 #include <string.h>
-//#include "..\w5300.h" 
 #include "..\oscalls.h" 
-//#include "irc.h"   
-
-/*  
-********************************************************************************  
-Define Part  
-********************************************************************************  
-*/   
-//#define TX_RX_MAX_BUF_SIZE    (2048+16)        /* maximum size of Rx buffer. */   
    
-/*  
-********************************************************************************  
-Local Variable Declaration Section  
-********************************************************************************  
-*/   
-//const u_char * rx_buf= (u_char *)(0x2000);   /* Rx buffer for Application */   
 struct keybuffer{
 	unsigned char * ptr;
 	unsigned char buf[256];
@@ -28,8 +13,12 @@ void delayms(unsigned char ms);
 #define DELAYMS(tick_) delayms((tick_+20)/20)
 
 unsigned char RX_BUF[3*1024];  
-unsigned char TX_BUF[1*1024];
+unsigned char TX_BUF[1*1024]; 
+unsigned char SCR_BUF[2*1024];
+
 unsigned char *rptr=RX_BUF;
+unsigned char *txtptr=SCR_BUF;
+
 const unsigned char strip[]="%d.%d.%d.%d";
 
 static unsigned char irc_dom[64]="irc.forestnet.org:7000";
@@ -50,9 +39,34 @@ static struct {
 	unsigned char * msg;
 }pars;
 
+void puts_with_buf(char *str){
+	char * ptr=str;
+	while(*ptr){
+		putchar(*txtptr=*ptr);
+		ptr++;
+		txtptr++;
+		if(txtptr>=(SCR_BUF+sizeof(SCR_BUF))){
+			txtptr=SCR_BUF;
+		}
+	}
+	*txtptr=0x00;
+}	
 
-char * gets(char *str)  
-{
+void scrredraw(void){
+	char * ptr=txtptr+1;
+	while(1){
+		if(ptr>=(SCR_BUF+sizeof(SCR_BUF))){
+			ptr=SCR_BUF;
+		}
+		if(*ptr==0x00) break;
+		putchar(*ptr);
+		ptr++;
+	}
+	OS_SETXY(0,24);
+	printf("%s",kbd_buf.buf);
+}
+
+char * gets(char *str)  {
 	char *tstr=str;
 	OS_SETXY(0,24);
 	while(1)
@@ -81,18 +95,19 @@ char * gets(char *str)
 	*tstr=0;
 	return str;
 }
- 
- 
+
 void config(void){
 	unsigned char i=1;
 	while(i)
 	{
-		putchar(' ');
-		puts("\r\nConfig:"); 
-		printf("\r\n1->IRC server: %s",irc_dom);
-		printf("\r\n2->Channel: %s",irc_ch);
-		printf("\r\n3->Nick : %s",irc_nick);
-		puts("\r\n0->Start IRC");
+		//putchar(' ');
+		puts_with_buf("\r\nConfig:\r\n1->IRC server: "); 
+		puts_with_buf(irc_dom);
+		puts_with_buf("\r\n2->Channel: ");
+		puts_with_buf(irc_ch);
+		puts_with_buf("\r\n3->Nick : ");
+		puts_with_buf(irc_nick);
+		puts_with_buf("\r\n0->Start IRC\r\n");
 		
 		switch((char)getchar())
 		{
@@ -127,6 +142,7 @@ unsigned char receive(void){
 	len=recv(ircsoc,rptr,rptr-(RX_BUF+sizeof(RX_BUF)),0);
 	if(len==0) return 1;
 	if(len<0){
+		closesocket(ircsoc,0);
 		errconn=0;
 		return 1;
 	}
@@ -181,11 +197,11 @@ unsigned char receive(void){
 		msg_send(TX_BUF);
 		continue;
 	}
-	if(!strcmp(pars.com,"JOIN")){
-		printf("%s %s %s\r\n",pars.src,pars.com,pars.msg);
-		continue;
-	}
-	printf("%s> %s\r\n",pars.src,pars.msg);
+	puts_with_buf(pars.src);
+	puts_with_buf(strcmp(pars.com,"JOIN")?"> ":pars.com);
+	puts_with_buf(pars.msg);
+	puts_with_buf("\r\n");
+	//printf("%s> %s\r\n",pars.src,pars.msg);
 	}
 	OS_SETXY(0,24);
 	printf("%s",kbd_buf.buf);
@@ -206,7 +222,11 @@ const unsigned char t866to1251[128] = {
 void kbd_pars(void){
 	unsigned char * p=kbd_buf.buf;
 	OS_SETXY(0,24);
-	printf("%s> %s\r\n",irc_nick,kbd_buf.buf);
+	puts_with_buf(irc_nick);
+	puts_with_buf("> ");
+	puts_with_buf(kbd_buf.buf);
+	puts_with_buf("\r\n");
+	//printf("%s> %s\r\n",irc_nick,kbd_buf.buf);
 	while(*p){
 		if(*p>=128) 
 			*p=*(t866to1251-128+*p);
@@ -214,6 +234,10 @@ void kbd_pars(void){
 	};
 	if(*kbd_buf.buf=='/'){
 		msg_send(kbd_buf.buf+1);
+		if((kbd_buf.buf[1]&~('A'^'a'))=='Q'){
+			closesocket(ircsoc,0);
+			exit();
+		}
 	}
 	else {
 		sprintf(TX_BUF,"PRIVMSG %s :%s",irc_ch,kbd_buf.buf);
@@ -342,6 +366,8 @@ void initMCU(void){
 	OS_SETXY(0,24);
 	kbd_buf.ptr=kbd_buf.buf;
 	*kbd_buf.buf=0x00;
+	memset(SCR_BUF,' ',sizeof(SCR_BUF));
+	*txtptr=0x00;
 }
 
 void delayms(unsigned char ms)

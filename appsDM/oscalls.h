@@ -14,6 +14,7 @@ unsigned int OS_WRITEHANDLE(unsigned char * buffer, unsigned int hnd, unsigned i
 unsigned int OS_READHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
 unsigned int OS_OPENHANDLE(unsigned char * path, unsigned char flags);
 unsigned int OS_CLOSEHANDLE(unsigned int hnd);
+void exit(void);
 
 typedef signed char SOCKET;
 struct in_addr {

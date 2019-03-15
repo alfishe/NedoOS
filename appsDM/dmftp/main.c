@@ -400,7 +400,7 @@ C_task main (int argc, char *argv[])
 				}
 				break;
 			default:
-				puts("cmd parameters: dmftp.com domain.name.ru loginname password");
+				puts("cmd parameters: dmftp.com domain.name.ru [loginname [password]]");
 				puts("open - connect to server, close - close connection, quit - quit to OS");
 				puts("dir  - view directory,    cd    - change directory, mkd  - create directory");
 				puts("rmd  - remove directory,  del   - delete file");
