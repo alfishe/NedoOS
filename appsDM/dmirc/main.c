@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <Intrz80.h>
 #include <string.h>
-#include "..\w5300.h" 
+//#include "..\w5300.h" 
 #include "..\oscalls.h" 
 //#include "irc.h"   
 
@@ -27,22 +27,19 @@ struct keybuffer{
 void delayms(unsigned char ms);
 #define DELAYMS(tick_) delayms((tick_+20)/20)
 
-unsigned char RX_BUF[4*1024];  
-unsigned char TX_BUF[4*1024];
+unsigned char RX_BUF[3*1024];  
+unsigned char TX_BUF[1*1024];
 unsigned char *rptr=RX_BUF;
 const unsigned char strip[]="%d.%d.%d.%d";
 
-static unsigned char ch_hash[16]={0};
-
-unsigned long int_count;   
-
-static unsigned char dns_serv[]={8,8,8,8};
-static unsigned char irc_dom[64]="irc.forestnet.org";
-static unsigned char irc_ip[4]={185,117,153,103};
+static unsigned char irc_dom[64]="irc.forestnet.org:7000";
 static unsigned char irc_nick[64]="ircNedoOS";
 static unsigned char irc_ch[64]="#mhm";
-unsigned int iinchip_source_port=25;
-unsigned int dns_makequery(void);
+
+SOCKET ircsoc=0;
+struct sockaddr_in irc_ia;
+unsigned char errconn=1;
+
 #define FLS_LGN 0x08
 unsigned char fls=0;
 static struct {
@@ -87,13 +84,12 @@ char * gets(char *str)
  
  
 void config(void){
-	unsigned char i;
+	unsigned char i=1;
 	while(i)
 	{
 		putchar(' ');
 		puts("\r\nConfig:"); 
-		printf("\r\n1->IRC server: ");
-		printf(strip,irc_ip[0],irc_ip[1],irc_ip[2],irc_ip[3]); 
+		printf("\r\n1->IRC server: %s",irc_dom);
 		printf("\r\n2->Channel: %s",irc_ch);
 		printf("\r\n3->Nick : %s",irc_nick);
 		puts("\r\n0->Start IRC");
@@ -101,7 +97,8 @@ void config(void){
 		switch((char)getchar())
 		{
 			case '1':
-				dns_makequery();
+				printf("Server: ");
+				gets(irc_dom);
 				break;
 			case '2':
 				printf("Channel: ");
@@ -117,114 +114,22 @@ void config(void){
 		}
 	}
 }
-                
-void int_proc(void)
-{  
-	int_count++; 
-} 
-  
-unsigned int dns_makequery(void)
-{
-	/*
-	unsigned char* query;
-    unsigned int len;
-    unsigned char qname[64];
-    puts("domain name (NOT IP):"); 
-    scanf("%s",qname);
-	iinchip_source_port++; 
-    //WIZ_SOCKET(0, Sn_MR_UDP, iinchip_source_port);  
-    do{
-    	*S_CR(0) =Sn_CR_CLOSE;
-    	while(*S_CR(0));
-		*S_MR(0) = Sn_MR_UDP; // sets TCP mode
-		*S_PORTR(0) = iinchip_source_port; // sets source port number
-		*S_CR(0) = Sn_CR_OPEN; // sets OPEN command
-		while(*S_CR(0));
-	}while(*S_SSR(0) != SOCK_UDP);
-	// Make Qurey Header 
-	memcpy(TX_BUF,DNS_HEAD,6);
-	memset(TX_BUF+6,0,512);
-	strcpy(TX_BUF + 13,qname);
-	query = TX_BUF + 13;
-
-	// Make Question Section 
-	while(1)	// fill in QNAME filed with domain_name 
-	{
-		unsigned char* domain_tok;
-		unsigned char domain_len;
-		domain_tok = (unsigned char*)strchr((char*)query,'.');
-		if(domain_tok)	domain_len = ((unsigned int)domain_tok - (unsigned int)query) & 0xFF;   
-		else domain_len = strlen(query);
-		if(domain_len > 63)
-		{
-			return 0;		// since the label must begin with two zero bits because labels are restricted to 63 octets or less.
-		}
-		*(query-1) = domain_len;
-		//memcpy(query,qname,domain_len);
-		//qname += domain_len+1;
-		query += domain_len+1;
-		if(!domain_tok) break;
-	}
-	// *query++;// = '\0';			// terminate QNAME field with 'NULL'
-	
-	// fill in QTYPE field, for host address
-	*query++ = 0;
-	*query++ = 1;
-	
-	// fill in QCLASS field, for internet
-	*query++ = 0;
-	*query++ = 1;
-	
-	WIZ_SOC_IPSET(0,dns_serv,53);
-    puts("Connected to DNS");
-    WIZ_WRITE_BUF(0,TX_BUF,(int)(query - TX_BUF));
-      
-    while (1)   
-    {   
-    	len=*S_RX_RSR(0);
-    	if(!len) continue;
-    	if(len==*S_RX_RSR(0))
-    		break; 
-    }
-    WIZ_RD_BUF(0,RX_BUF,6);
-    PACK_SIZE(0,len);  
-    WIZ_READ_BUF(0, RX_BUF, len);
-    WIZ_CLOSE(0);
-    
-    //dns_parse_reponse();
-    query=RX_BUF+(query-TX_BUF);
-    while(1){
-    	if(*query==0)break;
-    	if((*query&0xc0)==0xc0){
-    		query++;
-    		break;
-    	}
-    	query++;
-    }
-    query+=11;
-    memcpy(irc_ip,query,4);
-    puts("\r\nDNS response OK");   
-    //printf(strip,query[0],query[1],query[2],query[3]); 
-    //puts(""); 
-	*/
-	return 1;		// return the size of generated query
-}
-
+                  
 void msg_send(unsigned char * tbuf){
 	strcat(tbuf,"\r\n");
-    WIZ_WRITE_BUF(tbuf,strlen(tbuf));
+    send(ircsoc,tbuf,strlen(tbuf),0);
+    //WIZ_WRITE_BUF(tbuf,strlen(tbuf));
 }
 
 unsigned char receive(void){
-	unsigned int len;
+	int len;
 	unsigned char pred=79;
-	if(!(len=RD_S_RX_RSR())) return 1;
-	//printf("rsr %d ",len);
-	while(len!=RD_S_RX_RSR())
-		len=RD_S_RX_RSR();
-	//printf("rsr %d ",len);
-	PACK_SIZE(0,len);
-	WIZ_READ_BUF(rptr, len);
+	len=recv(ircsoc,rptr,rptr-(RX_BUF+sizeof(RX_BUF)),0);
+	if(len==0) return 1;
+	if(len<0){
+		errconn=0;
+		return 1;
+	}
 	*(rptr+len)=0;
 	conv1251to866(rptr);
 	pars.nxt=RX_BUF;
@@ -379,14 +284,52 @@ void login(unsigned char start){
 }
 
 void reconnect(void){
+	unsigned char i;
+	unsigned int irc_port;
 	printf("Connect to server..");
-	iinchip_source_port++; 
-    WIZ_SOCKET(0, Sn_MR_TCP, iinchip_source_port);
-    WIZ_CONNECT(0,irc_ip,7000);
-    while (RD_S_SSR()!=SOCK_ESTABLISHED); 
+	i=sscanf(irc_dom,"%[^:]:%d",TX_BUF,&irc_port);
+	
+	
+	if(i==1){
+		irc_port=7000;
+	}else if(i==2){
+		irc_ia.sin_port=htons(irc_port);
+	}else{
+		puts("Wrong servername!");
+		exit();
+	}
+	i=sscanf(TX_BUF,"%d.%d.%d.%d",&irc_ia.sin_addr.S_un.S_un_b.s_b1,&irc_ia.sin_addr.S_un.S_un_b.s_b2
+		,&irc_ia.sin_addr.S_un.S_un_b.s_b3,&irc_ia.sin_addr.S_un.S_un_b.s_b4);
+	if(i!=4){
+		irc_ia.sin_addr=*dns_resolver(TX_BUF);
+		if(!irc_ia.sin_addr.S_un.S_addr){
+			puts("ftp: connect: Connection timed out");
+			return;			
+		}
+	}
+	i=3;
+	while(i--){
+		ircsoc=socket(AF_INET,SOCK_STREAM,0);
+		if(ircsoc<0){
+			puts("Net error!");
+			exit();
+		}
+		if(connect(ircsoc, &irc_ia, sizeof(irc_ia))<0){
+			closesocket(ircsoc,0);
+			YIELD();
+		}else{
+			break;
+		}
+		if(1==0){
+			i=255;
+			while(i--) YIELD();
+			return;
+		}
+	}
     puts("OK");
     *RX_BUF=0;
     rptr=RX_BUF;
+	errconn=0;
 	login(1);
     //sprintf(TX_BUF,"JOIN #%s\r\n",irc_ch);
     //puts
@@ -408,14 +351,12 @@ void delayms(unsigned char ms)
 
 void main(void)
 {
-    initMCU(); 
-    puts("ZX-Evo W5300 test.");
-	output(0x82ab,0x50);
-	output(0x81ab,0x08);		//socket 0
-    config();
+	initMCU(); 
+	printf("dmirc ver.%s %s\r\n",__DATE__,__TIME__);
+	config();
 	while(1){
 	
-		if(RD_S_SSR()!=SOCK_ESTABLISHED) {
+		if(errconn) {
 			reconnect();
 			DELAYMS(2000);
 			continue;
@@ -436,7 +377,7 @@ void main(void)
 		//if(fls&FLS_CURS) flash_cursor();
 		YIELD();
 		//if(fls&FLS_KBD) 
-			kbd_read();
+		kbd_read();
 	}
    
 }   

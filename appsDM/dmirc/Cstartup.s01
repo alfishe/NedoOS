@@ -16,7 +16,7 @@
 
 	NAME	CSTARTUP
 
-	EXTERN	main			; where to begin execution
+	EXTERN	main,exit			; where to begin execution
 	EXTERN	?C_EXIT			; where to go when program is done
 
 #ifdef banking
@@ -120,7 +120,7 @@ init_C
 ; YOUR SOFTWARE WITH THE HELP OF THE C-SPY HLL DEBUGGER.        ;
 ;---------------------------------------------------------------;
 
-	JP	0x0000	
+	JP	exit	
 
 ;---------------------------------------------------------------;
 ; Copy initialized PROMmed code to shadow RAM and clear		;
@@ -208,6 +208,6 @@ exit	EQU	?C_EXIT
 ; The next line can be replaced by user defined code.          ;
 ;--------------------------------------------------------------;
         NOP
-	JR	$			; loop forever
+	jp 0x0000			; loop forever
 
 	END
