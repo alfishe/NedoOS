@@ -16,7 +16,7 @@
 
 	NAME	CSTARTUP
 
-	EXTERN	main			; where to begin execution
+	EXTERN	main,main_args			; where to begin execution
 	EXTERN	?C_EXIT			; where to go when program is done
 
 #ifdef banking
@@ -109,7 +109,7 @@ init_C
 	LD	A,BYTE3(main)
 	CALL	?BANK_CALL_DIRECT_L08
 #else
-	CALL	main			; non-banked call to main()
+	CALL	main_args			; non-banked call to main()
 #endif
 
 ;---------------------------------------------------------------;

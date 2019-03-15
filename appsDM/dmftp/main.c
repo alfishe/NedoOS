@@ -24,6 +24,9 @@ unsigned int dns_makequery(void);
 SOCKET cmds=0;
 SOCKET datasoc=0;
 
+unsigned char glargc;
+char * * glargv;
+
 
 char * gets(char *str)  {
 	char *tstr=str;
@@ -157,7 +160,12 @@ void cmdOpen(void){
 	unsigned char i;
 	unsigned int req;
 	printf("(to) ");
-	gets(kbd_buf);
+	if(glargc>1){
+		strcpy(kbd_buf,glargv[1]);
+		puts(kbd_buf);
+	}else{
+		gets(kbd_buf);
+	}
 	i=sscanf(kbd_buf,"%[^:]:%d",TX_BUF,&ftp_port);
 	if(i==1){
 		ftp_port=21;
@@ -179,11 +187,21 @@ void cmdOpen(void){
 	while(req!=0){
 		if(req==220){
 			printf("Name: ");
-			gets(kbd_buf);
+			if(glargc>2){
+				strcpy(kbd_buf,glargv[2]);
+				puts(kbd_buf);
+			}else{
+				gets(kbd_buf);
+			}
 			req=wiz_printf_cmd("USER %s",kbd_buf);
 		}else if(req==331){
 			printf("Password: ");
-			gets(kbd_buf);
+			if(glargc>3){
+				strcpy(kbd_buf,glargv[3]);
+				puts(kbd_buf);
+			}else{
+				gets(kbd_buf);
+			}
 			req=wiz_printf_cmd("PASS %s",kbd_buf);
 		}else if(req==230){
 			return;		
@@ -210,13 +228,15 @@ unsigned char getDataSoc(void){
 
 void cmdDir(void){
 	int len;
+	unsigned char req;
 	if(msg_send_const("PWD")!=257) return;
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE A")!=200){
 		closesocket(datasoc,0);
 		return;
 	}
-	if(msg_send_const("LIST")!=125){
+	req=msg_send_const("LIST");
+	if((req!=125)&&(req!=150)){
 		closesocket(datasoc,0);
 		return;
 	}
@@ -238,13 +258,15 @@ void cmdRetr(void){
 	int len;
 	unsigned int pr=0;
 	unsigned int file;
+	unsigned char req;
 	if(msg_send_const("PWD")!=257) return;
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE I")!=200){
 		closesocket(datasoc, 0);
 		return;
 	}
-	if(wiz_printf_cmd("RETR %s",kbd_buf+4)!=125){
+	req=wiz_printf_cmd("RETR %s",kbd_buf+4);
+	if((req!=125)&&(req!=150)){
 		closesocket(datasoc, 0);
 		return;
 	}
@@ -270,6 +292,7 @@ void cmdRetr(void){
 
 void cmdStor(void){
 	int res;
+	unsigned char req;
 	unsigned int len,pr=0;
 	unsigned int file;
 	if(msg_send_const("PWD")!=257) return;
@@ -282,7 +305,8 @@ void cmdStor(void){
 		goto endstor;
 	}
 	if(getDataSoc()==1)return;
-	if(wiz_printf_cmd("STOR %s",kbd_buf+4)!=125){
+	req=wiz_printf_cmd("STOR %s",kbd_buf+4);
+	if((req!=125)&&(req!=150)){
 		goto endstor;
 	}
 	while(1){
@@ -312,10 +336,15 @@ endstor:
 
 extern void dns_resolve(void);
 
-C_task void main(void)
+C_task main (int argc, char *argv[]) 
 {
     initMCU(); 
 	printf("dmftp v.%s %s\r\n",__DATE__,__TIME__);
+	glargc=argc;
+	glargv=argv;
+	if(glargc>1){
+		cmdOpen();
+	}
 	while(1){
 		if(waitRequestCMD(1))continue;
 		printf("ftp> ");
@@ -357,7 +386,7 @@ C_task void main(void)
 				if(!strcmp(kbd_buf,"quit")){
 					msg_send_const("QUIT");
 					closesocket(cmds,0);
-					return;
+					return 0;
 				}
 				break;
 			case 'r':
@@ -371,6 +400,7 @@ C_task void main(void)
 				}
 				break;
 			default:
+				puts("cmd parameters: dmftp.com domain.name.ru loginname password");
 				puts("open - connect to server, close - close connection, quit - quit to OS");
 				puts("dir  - view directory,    cd    - change directory, mkd  - create directory");
 				puts("rmd  - remove directory,  del   - delete file");
