@@ -220,14 +220,25 @@ void main(void){
 	unsigned char st=0;
 	YIELD();
 	OS_SETGFX(6);
-	printf("dhcpc v.%s %s",__DATE__,__TIME__);
+	printf("dhcpc v.%s %s\r\n",__DATE__,__TIME__);
+	output(0x81ab,0x0a);
+	if((input(0x81ab)&0x0f)!=0x0a){
+		puts("ZXNetUsb not found");
+		exit();
+	}
 	my_im2_init(myint);
 	enable_interrupt();
 	wiz_reset();
 	memcpy(SHAR,mac,6); 
 	lenp=*WID;
 	memset(GAR,0x00,12);
-	DelayMs(1000);
+	if(*SUBR){
+		memcpy(gw,GAR,4);
+		memcpy(mask,SUBR,4);
+		memcpy(ip,SIPR,4);	
+		goto isemul;
+	}
+	//DelayMs(1000);
 	//socinit();
 	//lenp=2;
 	//lenp=fillstruct();
@@ -259,6 +270,8 @@ void main(void){
 	memcpy(GAR,gw,4);
 	memcpy(SUBR,mask,4);
 	memcpy(SIPR,ip,4);
+	
+isemul:	
 	disable_interrupt();
 	output(0x82ab,0x50);
 	output(0xb7f7,save_pg);

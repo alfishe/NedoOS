@@ -129,6 +129,10 @@ const unsigned char t866to1251[128] = {
 
 unsigned char reconnect(SOCKET * soc, unsigned int port){
 	unsigned char i=3;
+	if(*soc){
+		closesocket(*soc,0);
+		*soc=0;
+	}
 	//output(0x81ab,soc);
 	ftp_ia.sin_port=htons(port);
 	while(i--){
@@ -136,6 +140,7 @@ unsigned char reconnect(SOCKET * soc, unsigned int port){
 		if(*soc<0)continue;
 		if(connect(*soc, &ftp_ia, sizeof(ftp_ia))<0){
 			closesocket(*soc,0);
+			*soc=0;
 		}else{
 			return 0;
 		}
@@ -175,7 +180,7 @@ void cmdOpen(void){
 	if(i!=4){
 		ftp_ia.sin_addr=*dns_resolver(TX_BUF);
 		if(!ftp_ia.sin_addr.S_un.S_addr){
-			puts("ftp: connect: Connection timed out");
+			puts("error: domain name not resolved");
 			return;			
 		}
 	}
@@ -205,6 +210,10 @@ void cmdOpen(void){
 			req=wiz_printf_cmd("PASS %s",kbd_buf);
 		}else if(req==230){
 			return;		
+		}else if(req>=500){
+			closesocket(cmds,0);
+			cmds=0;
+			return;
 		}
 	}
 }
@@ -233,17 +242,20 @@ void cmdDir(void){
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE A")!=200){
 		closesocket(datasoc,0);
+		datasoc=0;
 		return;
 	}
 	req=msg_send_const("LIST");
 	if((req!=125)&&(req!=150)){
 		closesocket(datasoc,0);
+		datasoc=0;
 		return;
 	}
 	while(1){
 		len=recv(datasoc,RX_BUF,sizeof(RX_BUF),0);
 		if(len<0){
 			closesocket(datasoc, 0);
+			datasoc=0;
 			break;
 		}else if(len!=0){
 			*(RX_BUF+len)=0;
@@ -263,16 +275,19 @@ void cmdRetr(void){
 	if(getDataSoc()==1)return;
 	if(msg_send_const("TYPE I")!=200){
 		closesocket(datasoc, 0);
+		datasoc=0;
 		return;
 	}
 	req=wiz_printf_cmd("RETR %s",kbd_buf+4);
 	if((req!=125)&&(req!=150)){
 		closesocket(datasoc, 0);
+		datasoc=0;
 		return;
 	}
 	file=OS_CREATEHANDLE(kbd_buf+4,0x80);
 	if(file&0xff){
 		closesocket(datasoc, 0);
+		datasoc=0;
 		puts("Open local file error");
 		return;
 	}
@@ -286,6 +301,7 @@ void cmdRetr(void){
 		}
 	}
 	closesocket(datasoc, 0);
+	datasoc=0;
 	OS_CLOSEHANDLE(file);
 	waitRequestCMD(100);
 }
@@ -330,6 +346,7 @@ void cmdStor(void){
 	}
 endstor:
 	while(closesocket(datasoc,pr?1:0));
+	datasoc=0;
 	OS_CLOSEHANDLE(file);
 	waitRequestCMD(100);
 }
@@ -344,6 +361,7 @@ C_task main (int argc, char *argv[])
 	glargv=argv;
 	if(glargc>1){
 		cmdOpen();
+		glargc=1;
 	}
 	while(1){
 		if(waitRequestCMD(1))continue;
@@ -365,6 +383,9 @@ C_task main (int argc, char *argv[])
 					msg_send_const("QUIT");
 					waitRequestCMD(1);
 					closesocket(cmds,0);
+					closesocket(datasoc,0);
+					cmds=0;
+					datasoc=0;
 				}
 				break;
 			case 'g':
@@ -386,6 +407,8 @@ C_task main (int argc, char *argv[])
 				if(!strcmp(kbd_buf,"quit")){
 					msg_send_const("QUIT");
 					closesocket(cmds,0);
+					closesocket(datasoc,0);
+					cmds=0;
 					return 0;
 				}
 				break;
@@ -404,6 +427,7 @@ C_task main (int argc, char *argv[])
 				puts("open - connect to server, close - close connection, quit - quit to OS");
 				puts("dir  - view directory,    cd    - change directory, mkd  - create directory");
 				puts("rmd  - remove directory,  del   - delete file");
+				puts("get  - get file,          put   - put file");
 			break;
 		} 
 	}

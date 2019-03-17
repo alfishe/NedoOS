@@ -206,7 +206,6 @@ exit	EQU	?C_EXIT
 ;--------------------------------------------------------------;
 ; The next line can be replaced by user defined code.          ;
 ;--------------------------------------------------------------;
-        NOP
-	JR	$			; loop forever
+        jp 0x0000
 
 	END
