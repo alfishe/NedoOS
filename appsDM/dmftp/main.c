@@ -27,6 +27,11 @@ SOCKET datasoc=0;
 unsigned char glargc;
 char * * glargv;
 
+void exit(void){
+	if(cmds)closesocket(cmds,0);
+	if(datasoc)closesocket(datasoc,0);
+	((void(*)(void))0x0000)();
+}
 
 char * gets(char *str)  {
 	char *tstr=str;
@@ -253,11 +258,13 @@ void cmdDir(void){
 	}
 	while(1){
 		len=recv(datasoc,RX_BUF,sizeof(RX_BUF),0);
-		if(len<0){
+		if(len==0){
+			YIELD();
+		}else if(len<0){
 			closesocket(datasoc, 0);
 			datasoc=0;
 			break;
-		}else if(len!=0){
+		}else{
 			*(RX_BUF+len)=0;
 			conv1251to866(RX_BUF);
 			puts(RX_BUF);
@@ -298,6 +305,8 @@ void cmdRetr(void){
 			pr++;
 			OS_WRITEHANDLE(RX_BUF,file,len);
 			printf("\r%d packets",pr);
+		}else{
+			YIELD();
 		}
 	}
 	closesocket(datasoc, 0);

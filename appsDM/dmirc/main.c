@@ -39,6 +39,11 @@ static struct {
 	unsigned char * msg;
 }pars;
 
+void exit(void){
+	if(ircsoc)closesocket(ircsoc,0);
+	((void(*)(void))0x0000)();
+}
+
 void puts_with_buf(char *str){
 	char * ptr=str;
 	while(*ptr){
@@ -143,6 +148,7 @@ unsigned char receive(void){
 	if(len==0) return 1;
 	if(len<0){
 		closesocket(ircsoc,0);
+		ircsoc=0;
 		errconn=0;
 		return 1;
 	}
