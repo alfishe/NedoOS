@@ -125,7 +125,7 @@ dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
 dns_ia:
 	defb 0,0,53,8,8,8,8
-	RSEG	UDATA0
+	RSEG	NO_INIT
 dnssoc:
 	DEFS 1	
 dnsbuf:

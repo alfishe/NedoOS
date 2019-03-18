@@ -4,7 +4,7 @@
 #include <string.h>
 #include "..\oscalls.h" 
    
-struct keybuffer{
+no_init struct keybuffer{
 	unsigned char * ptr;
 	unsigned char buf[256];
 }kbd_buf;
@@ -12,9 +12,9 @@ struct keybuffer{
 void delayms(unsigned char ms);
 #define DELAYMS(tick_) delayms((tick_+20)/20)
 
-unsigned char RX_BUF[3*1024];  
-unsigned char TX_BUF[1*1024]; 
-unsigned char SCR_BUF[2*1024];
+no_init unsigned char RX_BUF[3*1024];  
+no_init unsigned char TX_BUF[1*1024]; 
+no_init unsigned char SCR_BUF[2*1024];
 
 unsigned char *rptr=RX_BUF;
 unsigned char *txtptr=SCR_BUF;
@@ -27,7 +27,6 @@ static unsigned char irc_ch[64]="#mhm";
 
 SOCKET ircsoc=0;
 struct sockaddr_in irc_ia;
-unsigned char errconn=1;
 
 #define FLS_LGN 0x08
 unsigned char fls=0;
@@ -57,7 +56,7 @@ void puts_with_buf(char *str){
 	*txtptr=0x00;
 }	
 
-void scrredraw(void){
+unsigned char scrredraw(void){
 	char * ptr=txtptr+1;
 	while(1){
 		if(ptr>=(SCR_BUF+sizeof(SCR_BUF))){
@@ -69,6 +68,7 @@ void scrredraw(void){
 	}
 	OS_SETXY(0,24);
 	printf("%s",kbd_buf.buf);
+	return 0;
 }
 
 char * gets(char *str)  {
@@ -149,7 +149,6 @@ unsigned char receive(void){
 	if(len<0){
 		closesocket(ircsoc,0);
 		ircsoc=0;
-		errconn=0;
 		return 1;
 	}
 	*(rptr+len)=0;
@@ -346,6 +345,7 @@ void reconnect(void){
 		}
 		if(connect(ircsoc, &irc_ia, sizeof(irc_ia))<0){
 			closesocket(ircsoc,0);
+			ircsoc=0;
 			YIELD();
 		}else{
 			break;
@@ -359,7 +359,6 @@ void reconnect(void){
     puts("OK");
     *RX_BUF=0;
     rptr=RX_BUF;
-	errconn=0;
 	login(1);
     //sprintf(TX_BUF,"JOIN #%s\r\n",irc_ch);
     //puts
@@ -387,8 +386,7 @@ void main(void)
 	printf("dmirc ver.%s %s\r\n",__DATE__,__TIME__);
 	config();
 	while(1){
-	
-		if(errconn) {
+		if(ircsoc==0) {
 			reconnect();
 			DELAYMS(2000);
 			continue;

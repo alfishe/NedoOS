@@ -1,7 +1,7 @@
 
 	MODULE ERRNO_MODULE
 	PUBLIC errno
-	RSEG	UDATA0
+	RSEG	NO_INIT
 errno:
 	defs 1
 	ENDMOD
@@ -277,17 +277,18 @@ OS_SCROLLUP:
 	
 	MODULE OSLOWGET
 	PUBLIC _low_level_get
-	EXTERN scrredraw,exit
+	EXTERN scrredraw,exit,YIELD
 	#include "sysdefs.asm"
 	RSEG CODE
 _low_level_get:
+	call YIELD
 	push ix
 	push iy
 	rst 0x08
 	cp key_redraw
 	call z,scrredraw
 	cp csSpace
-	jp exit
+	jp z,exit
 	ld l,a
 	ld h,0
 	pop iy
@@ -348,12 +349,18 @@ putchar:
 
 	MODULE YIELD
 	PUBLIC YIELD
+	#include "sysdefs.asm"
 	RSEG CODE
 YIELD:
 	push bc
 	push de
 	push ix
 	push iy
+	exx 
+	push bc
+	push de
+	push hl
+	exx
 yield_loop:
 	ld c,0xf2
 	call 0x0005
@@ -364,13 +371,19 @@ yield_loop:
     or a
     sbc hl,de
     jr z,yield_loop
+	exx 
+	pop hl
+	pop de
+	pop bc
+	exx
 	pop iy
 	pop ix
 	pop de
 	pop bc
 	ret
+	RSEG	UDATA0
 oldtimer:
-	defw 0 
+	defs 2 
 	ENDMOD
 	
 	MODULE MAIN_ARGS
@@ -403,7 +416,7 @@ get_cmd_args_end:
 	ex de,hl
 	srl e
 	jp main
-	RSEG	UDATA0
+	RSEG	NO_INIT
 args:
 	defs 32
 	ENDMOD

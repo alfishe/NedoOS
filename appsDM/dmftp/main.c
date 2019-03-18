@@ -3,29 +3,23 @@
 #include <string.h>
 #include "..\oscalls.h" 
 
-unsigned char kbd_buf[128];
+no_init unsigned char kbd_buf[128];
 
-void delayms(unsigned char ms);
-#define DELAYMS(tick_) delayms((tick_+20)/20)
-
-unsigned char RX_BUF[4*1024];  
-unsigned char TX_BUF[4*1024];
+no_init unsigned char RX_BUF[4*1024];  
+no_init unsigned char TX_BUF[4*1024];
 unsigned char *rptr=RX_BUF;
-const unsigned char dns_ia[]={0,0,53,8,8,8,8};
-const unsigned char DNS_HEAD[]={0x11,0x22,0x01,0x00,0x00,0x01};
-
-unsigned long int_count;   
-static unsigned char irc_dom[64];
+  
+no_init unsigned char irc_dom[64];
 struct sockaddr_in ftp_ia;
-unsigned int ftp_port;
-unsigned int data_port;
+no_init unsigned int ftp_port;
+no_init unsigned int data_port;
 unsigned int dns_makequery(void);
 
 SOCKET cmds=0;
 SOCKET datasoc=0;
 
-unsigned char glargc;
-char * * glargv;
+no_init unsigned char glargc;
+no_init char * * glargv;
 
 void exit(void){
 	if(cmds)closesocket(cmds,0);
@@ -40,7 +34,6 @@ char * gets(char *str)  {
 	{
 		char ch=getchar();
 		unsigned char x=OS_GETXY();
-		YIELD();
 		if(ch==0x08){
 			if(tstr==str) continue;
 			OS_SETXY(x-1,24);
@@ -100,11 +93,11 @@ unsigned int msg_send_const(const unsigned char * tbuf){
 	return waitRequestCMD(150);
 }
 
-#include <icclbutl.h> 
 void put_c_in_string(char c, void *ptr){
   *(*(char **) ptr)++ = c;
 }
 
+#include <icclbutl.h> 
 unsigned int wiz_printf_cmd(const char *format, ...){                     
     va_list ap;   
     int i;
@@ -160,10 +153,6 @@ void initMCU(void){
 	OS_SETXY(0,24);
 	*kbd_buf=0x00;
 	memcpy(kbd_buf,TX_BUF,25);
-}
-
-void delayms(unsigned char ms){
-	while(ms--) YIELD();
 }
 
 void cmdOpen(void){
