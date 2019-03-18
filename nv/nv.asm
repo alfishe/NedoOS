@@ -7,27 +7,27 @@ txtscrwid=80
 CMDLINEY=23;24
 
 COLOR=7
-PANELCOLOR=#f
-PANELSELECTCOLOR=#17
-CURSORCOLOR=#38
-FILECURSORCOLOR=#38
-COLOR_RED=#17
+PANELCOLOR=0xf
+PANELSELECTCOLOR=0x17
+CURSORCOLOR=0x38
+FILECURSORCOLOR=0x38
+COLOR_RED=0x17
 
-PROGRESBARWINXY=#0e16	;# 0919 + 051f ;de=yx
-PROGRESBARWINHGTWID=#0324        ;#051f ;bc=hgt,wid
+PROGRESBARWINXY=0x0e16 ;0x0919 + 051f ;de=yx
+PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
 
 
 CONST_HGT_TABLE=21
-catbuf=#C000
-FILES_POINTERS_left=#3700
-FILES_POINTERS_right=#3b00
-left_panel_xy=#0000;#0100
-right_panel_xy=#0028;#0128
+catbuf=0xc000
+FILES_POINTERS_left=0x3700
+FILES_POINTERS_right=0x3b00
+left_panel_xy=0x0000
+right_panel_xy=0x0028
 firstfiley=left_panel_xy/256 + 1
 
         org PROGSTART
 cmd_begin
-        ld sp,#4000
+        ld sp,0x4000
         ld e,6 ;textmode
         OS_SETGFX
 
@@ -704,7 +704,7 @@ editcmd_enter_runcmd
         ld hl,cmdbuf
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
-;команда gfxed - реально cmd gfxed, запускает gfxed по фону и выходит
+;команда scratch - реально cmd scratch, запускает scratch по фону и выходит
         ;YIELD ;дать время задаче cmd захватить фокус
         ;ld e,-1
         ;OS_SETGFX ;disable gfx, give focus
@@ -714,7 +714,7 @@ execcmd_runfocusq
         ;ld b,25
 ;execcmd_waitchildredraw0
         ;push bc
-        ;YIELD ;дать время задаче gfxed захватить фокус и перерисовать (но загрузить картинку и перерисовать не успеет - TODO fix)
+        ;YIELD ;дать время задаче scratch захватить фокус и перерисовать (но загрузить картинку и перерисовать не успеет)
         ;pop bc
         ;djnz execcmd_waitchildredraw0
         ;ld e,6 ;textmode
@@ -1518,8 +1518,8 @@ ifcmdnonempty_typedigit
         jp editcmd_typein
 
 windrv
-        dw #0803 ;de=yx
-        dw #0809 ;bc=hgt,wid
+        dw 0x0803 ;de=yx
+        dw 0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
         db "  0:",0,3
@@ -1530,8 +1530,8 @@ windrv
         db 0 ;end of window
         
 winmkdir
-        dw #0a0f ;de=yx
-        dw #0520 ;bc=hgt,wid
+        dw 0x0a0f ;de=yx
+        dw 0x0520 ;bc=hgt,wid
         db "Create new directory:",0
         db 3 ;next line
         db 2 ;print outer text
@@ -1539,8 +1539,8 @@ winmkdir
         db 0 ;end of window
 
 winrename
-        dw #0a0f ;de=yx
-        dw #0520 ;bc=hgt,wid
+        dw 0x0a0f ;de=yx
+        dw 0x0520 ;bc=hgt,wid
         db "Rename file:",0
         db 3 ;next line
         db 2 ;print outer text
@@ -1552,15 +1552,15 @@ tnewfilename
 tnewfilename_sz=12
 
 winquit
-        dw #0a1f ;de=yx
-        dw #0515 ;bc=hgt,wid
+        dw 0x0a1f ;de=yx
+        dw 0x0515 ;bc=hgt,wid
         db 3 ;next line
         db "Quit Nedovigator?",0
         db 0 ;end of window
 
 windel
-	dw #0919 ;de=yx
-        dw #051f ;bc=hgt,wid
+	dw 0x0919 ;de=yx
+        dw 0x051f ;bc=hgt,wid
         db 3 ;next line
 	db "Delete ",0 
         db 1 ;nfiles
@@ -1568,8 +1568,8 @@ windel
         db 0 ;end of window
 
 wincopy
-	dw #0919 ;de=yx
-        dw #051f ;bc=hgt,wid
+	dw 0x0919 ;de=yx
+        dw 0x051f ;bc=hgt,wid
         db 3 ;next line
 	db "Copy ",0 
         db 1 ;nfiles
@@ -1605,7 +1605,7 @@ rightpanel PANEL
 oldtimer
         dw 0
         
-;<#4000 for hobeta
+;<0x4000 for hobeta
 fcb
         ds FCB_sz
 fcb_filename=fcb+FCB_FNAME        
@@ -1624,8 +1624,6 @@ cmd_filename
         db "cmd     com"
 ext_filename
         db "nv      ext"
-;gfxed_filename
-;        db "gfxed   com"
 texted_filename
         db "texted  com"
 

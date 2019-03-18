@@ -146,7 +146,7 @@ LSZXm7=$+1
         ld (jpglinecount),de
         push af
          bit 0,e
-         jp z,jpgconvRGBlineskip
+         jp z,jpgconvRGBlineskip ;TODO с учётом зума
         push hl
         ;1.читать в LINE каждую составляющую отдельно, 2.перекодировать каждую составляющую отдельно, 3. записывать сразу в bmp (BGR)
         ld e,1
@@ -211,8 +211,9 @@ jpgconvRGBpixels0
         ;push hl
         ;call putline ;30644
         ;pop hl
-        call drawscreenline_frombuf
-        
+        call drawscreenline_frombuf ;конвертируем LINEGIF в LINEPIXELS и выводим её на экран ;меняет, потом восстанавливает 0x4000, 0x8000
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
+
         pop hl
 jpgconvRGBlineskip
         LD DE,(LSZX) ;ширина строки, округлённая вверх до полноценного блока        ADD HL,DE ;следующая строка блока        pop af        dec a        JP NZ,jpgconvRGBlines0 ;на всю высоту полноценного блока ;одна строка = 258150        RET ;4 130 590
@@ -225,7 +226,7 @@ jpgconvBWlines0        ld de,(jpglinecount)
         ret nz ;строки сверх высоты картинки не выводить
         ld (jpglinecount),de
         push af         bit 0,e
-         jp z,jpgconvBWlineskip
+         jp z,jpgconvBWlineskip ;TODO с учётом зума
         push hl
          ld e,1
          call SETPG
@@ -249,8 +250,9 @@ jpgconvBWcopylineY0
         ;push hl
         ;call putline ;30644
         ;pop hl
-        call drawscreenline_frombuf
-        
+        call drawscreenline_frombuf ;конвертируем LINEGIF в LINEPIXELS и выводим её на экран ;меняет, потом восстанавливает 0x4000, 0x8000
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
+
         pop hl
 jpgconvBWlineskip
         LD DE,(LSZX) ;ширина строки, округлённая вверх до полноценного блока        ADD HL,DE ;следующая строка блока        pop af        dec a        JP NZ,jpgconvBWlines0 ;на всю высоту полноценного блока        ret
@@ -260,8 +262,12 @@ jpgconvBWlineskip
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 readjpeg
-         call initframe
-
+        ld hl,LINE1
+        ld de,LINE1+1
+        ld (hl),BACKGROUNDCOLORLEVEL
+        ld bc,LINE1_sz-1
+        ldir ;чтобы справа в остатке знакоместа была чернота (потом можно убрать, когда readchr будет это делать)
+        
         ld hl,VARS
         ld de,VARS+1
         ld bc,VARSsz-1
@@ -273,13 +279,12 @@ readjpeg
 
         CALL FBMARK        CALL LBMARK        ;CALL pSCAL ;установка масштабов        ;CALL SETPG7       ;CALL PRSIZES;onceGMAXC        LD A,(CNUM)        LD B,A        LD IX,(VAR+#56)        PUSH IX
         push BC        LD HL,#101       LD DE,18gMAXS   LD A,(IX+2)        CP H        JR C,$+3        LD H,A        LD A,(IX+3)        CP L        JR C,$+3        LD L,A        ADD IX,DE        DJNZ gMAXS       ;LD A,H       ;LD (MAXH),A       ;LD A,L        LD (MAXV),HL;A        POP BC
-        pop IXrESCLP  PUSH BC        LD DE,(XRES)        LD A,(IX+2)        CALL MULDE_A        LD DE,(MAXH)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+7),C       LD (IX+8),B        LD DE,(YRES)        LD A,(IX+3)        CALL MULDE_A        LD DE,(MAXV)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+9),C       LD (IX+#0A),B       LD DE,18       ADD IX,DE        POP BC        DJNZ rESCLP;SELECT OUTPUT        ;CALL 8026        ;LD A,(PIXPOI)        ;JR C,$+4        ;LD A,3        ;LD (pIXPOI),A        ;LD BC,0        ;JR NC,bC_JR        ;LD A,(BRIGP)        ;LD HL,CONTP        ;OR (HL)        ;LD B,A        ;INC B        ;DEC C;bC_JR       ;IFN fCS       ;LD A,C,(rdCS+1),A       CALL rdCSU ;первоначальное чтение CS       ;ENDIF 
+        pop IXrESCLP  PUSH BC        LD DE,(curpicwid)        LD A,(IX+2)        CALL MULDE_A        LD DE,(MAXH)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+7),C       LD (IX+8),B        LD DE,(curpichgt)        LD A,(IX+3)        CALL MULDE_A        LD DE,(MAXV)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+9),C       LD (IX+#0A),B       LD DE,18       ADD IX,DE        POP BC        DJNZ rESCLP;SELECT OUTPUT        ;CALL 8026        ;LD A,(PIXPOI)        ;JR C,$+4        ;LD A,3        ;LD (pIXPOI),A        ;LD BC,0        ;JR NC,bC_JR        ;LD A,(BRIGP)        ;LD HL,CONTP        ;OR (HL)        ;LD B,A        ;INC B        ;DEC C;bC_JR       ;IFN fCS       ;LD A,C,(rdCS+1),A       CALL rdCSU ;первоначальное чтение CS       ;ENDIF 
        
         LD A,(CNUM)        ;LD (VAR+#C8),A        ;LD (VAR+#CA),A        DEC A
          ld hl,jpgconvBW
         JR Z,YEGRSC ;greyscale image        CP 2        CALL NZ,ERROR ;not YUV        LD HL,jpgconvRGB
         ;JR sTCFYEGRSC        ;LD HL,CNVTOGR        ;DJNZ $+5        ;LD HL,EMPTYsTCF      ;LD (cOLPOI),A        LD (jpgconv_patch),HL ;процедура конверсии YUV -> RGB        ;DEC A        ;ADD A,A        ;LD HL,CLADR        ;CALL HLA   ;HL+=A        ;CALL DEGRB ;DE=(HL)        ;EX DE,HL        ;LD (pCLRS+1),HL         
-        
 
         ;push iy
         ;call reserve_bmp_pages
@@ -287,24 +292,22 @@ readjpeg
         
 ;всё до render=203762
 render
-        ;jr $
-
-        ld hl,(YRES)
+        ld hl,(curpichgt)
         ld (jpglinecount),hl
                 CALL YCCTAB ;103518        CALL GENMTAB ;430734       ;CALL MAKCTB
-        ;jr $      PUSH IY       CALL setsamplescalers ;1253       CALL maketrees;M18E08 ;110466      POP IY        
+      PUSH IY       CALL setsamplescalers ;1253       CALL maketrees;M18E08 ;110466      POP IY        
 ;заполняем после maketrees, поверх её буфера        LD l,0cNTBLP  LD H,PLTAB/256 ;таблица отсечения переполнения        ld (hl),0
         inc h        LD (HL),L
-        inc h        LD (HL),-1        INC L        JR NZ,cNTBLP        LD A,(MAXV)        ADD A,A        ADD A,A        ADD A,A        LD (MAXV8),A        LD A,(MAXH)        ADD A,A        ADD A,A        ADD A,A        LD (MAXH8),A        LD HL,(XRES)        CALL ROUND ;HL=k*A (>=HL)        LD (LSZX),HL        LD DE,7       OR A        SBC HL,DE        LD (LSZXm7),HL        ADD HL,DE        LD DE,(MAXH8)       OR A        SBC HL,DE        LD (pLSMH+1),HL        LD (pLSMH2+1),HL        ADD HL,DE        ADD HL,HL        ADD HL,HL        ADD HL,HL        LD (BLSZ),HL       CALL MAKTS
+        inc h        LD (HL),-1        INC L        JR NZ,cNTBLP        LD A,(MAXV)        ADD A,A        ADD A,A        ADD A,A        LD (MAXV8),A        LD A,(MAXH)        ADD A,A        ADD A,A        ADD A,A        LD (MAXH8),A        LD HL,(curpicwid)        CALL ROUND ;HL=k*A (>=HL)        LD (LSZX),HL        LD DE,7       OR A        SBC HL,DE        LD (LSZXm7),HL        ADD HL,DE        LD DE,(MAXH8)       OR A        SBC HL,DE        LD (pLSMH+1),HL        LD (pLSMH2+1),HL        ADD HL,DE        ADD HL,HL        ADD HL,HL        ADD HL,HL        LD (BLSZ),HL       CALL MAKTS
 ;этот блок=27612
        
-;рендер        LD A,(RYRES) ;высота картинки в полноценных блоках        LD B,A ;0x16YLOOP   PUSH BC
-;рендерим строку из полноценных блоков        LD HL,JPGPAGESTART        LD (LPNT),HL        LD A,(RXRES) ;ширина картинки в полноценных блоках        LD B,A ;0x1eXLOP    PUSH BC        CALL rENDLIN ;147235 один вызов        LD HL,(LPNT)        LD DE,(MAXH8)        ADD HL,DE        LD (LPNT),HL        POP BC        DJNZ XLOP
+;рендер        LD A,(pichgt_inblocks) ;высота картинки в полноценных блоках        LD B,A ;0x16YLOOP   PUSH BC
+;рендерим строку из полноценных блоков        LD HL,JPGPAGESTART        LD (LPNT),HL        LD A,(picwid_inblocks) ;ширина картинки в полноценных блоках        LD B,A ;0x1eXLOP    PUSH BC        CALL rENDLIN ;147235 один вызов        LD HL,(LPNT)        LD DE,(MAXH8)        ADD HL,DE        LD (LPNT),HL        POP BC        DJNZ XLOP
 ;6 007 979 цикл по горизонтали
                 LD HL,JPGPAGESTART        LD A,(MAXV8) ;высота полноценного блокаjpgconv_patch=$+1
         CALL jpgconvRGB ;перекодируем в bmp ;4 130 590 один вызов
 ;следующая строка из полноценных блоков        POP BC        DJNZ YLOOP
-        pNFX   LD DE,0 ;какая получилась высота с округлением вверх на полноценный блок ;0x160       LD HL,(YRES) ;0x15c       OR A       SBC HL,DE       RET Z       RET C ;в girl.jpg выход по CY
+        pNFX   LD DE,0 ;какая получилась высота с округлением вверх на полноценный блок ;0x160       LD HL,(curpichgt) ;0x15c       OR A       SBC HL,DE       RET Z       RET C ;в girl.jpg выход по CY
 ;высота с округлением вверх получилась меньше реальной??? это как??? TODO
        
 ;что происходит после рендера??? TODO
@@ -334,8 +337,8 @@ pSMPPG  LD A,0 ;1/2/5 номер слоя
         ;inc HL        LD (pHCNT2+1),HL        LD HL,(pSFUNC+1)       INC HL
        inc HL
        inc HL        LD (pSFUNC+1),HL        EX DE,HL        POP IX       JP NXRS
-ROUNDm8        ADD A,A        ADD A,A        ADD A,A;3 timesROUND        LD E,A        LD D,0       ADD HL,DE       DEC HL       PUSH HL       CALL QUAHL_DE ;DE=HLmodDE       POP HL       OR A       SBC HL,DE ;HL=k*A (>=HL)        RET ;onceMAKTS        LD HL,(XRES)        LD A,(MAXH8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;для округления вверх       CALL DIVHL_DE       LD (RXRES),BC        LD HL,(YRES)        LD A,(MAXV8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;для округления вверх       CALL DIVHL_DE       LD D,B
-       ld E,C        LD (RYRES),DE        LD A,(MAXV8)        CALL MULDE_A        LD (pNFX+1),HL ;какая получилась высота с округлением на полноценный блок        LD HL,VAR+#E2        LD A,(CNUM)        LD B,ARCLP1   PUSH BC
+ROUNDm8        ADD A,A        ADD A,A        ADD A,A;3 timesROUND        LD E,A        LD D,0       ADD HL,DE       DEC HL       PUSH HL       CALL QUAHL_DE ;DE=HLmodDE       POP HL       OR A       SBC HL,DE ;HL=k*A (>=HL)        RET ;onceMAKTS        LD HL,(curpicwid)        LD A,(MAXH8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;для округления вверх       CALL DIVHL_DE       LD (picwid_inblocks),BC        LD HL,(curpichgt)        LD A,(MAXV8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;для округления вверх       CALL DIVHL_DE       LD D,B
+       ld E,C        LD (pichgt_inblocks),DE        LD A,(MAXV8)        CALL MULDE_A        LD (pNFX+1),HL ;какая получилась высота с округлением на полноценный блок        LD HL,VAR+#E2        LD A,(CNUM)        LD B,ARCLP1   PUSH BC
         push HL        CALL GETIXHL       LD B,(IX+2)
        ld C,(IX+3)       LD (IX+#B),B
        ld (IX+#C),C       LD L,(IX+7)
@@ -384,8 +387,12 @@ ALLDN        LD (pCLR_),DE
         endif
                LD HL,(MEMDN)       EX DE,HL        ADD HL,DE        LD (MEMDN),HL       EX DE,HL        RET  
 
-;oncejpgreadsizes        CALL RDWORDHSBLSBtohl       PUSH HL ;pFSML        CALL RDBYTE        CP 8        CALL NZ,ERROR        LD (VARS+#48),A        CALL RDWORDHSBLSBtohl        LD (YRES),HL        CALL RDWORDHSBLSBtohl
-        call setpicwid        CALL RDBYTE        LD (CNUM),A        LD B,A        ADD A,A        ADD A,B        ADD A,8       POP HL        CP L        CALL NZ,ERROR        LD HL,(CNUM) ;16bit!!!        ADD HL,HL        LD E,L
+;oncejpgreadsizes        CALL RDWORDHSBLSBtohl       PUSH HL ;pFSML        CALL RDBYTE        CP 8        CALL NZ,ERROR        LD (VARS+#48),A        CALL RDWORDHSBLSBtohl        call setpichgt        CALL RDWORDHSBLSBtohl
+        call setpicwid
+        call reservefirstframeaddr
+        call initframe ;один раз на картинку после setpicwid, setpichgt ;заказывает память под конверченный кадр
+
+        CALL RDBYTE        LD (CNUM),A        LD B,A        ADD A,A        ADD A,B        ADD A,8       POP HL        CP L        CALL NZ,ERROR        LD HL,(CNUM) ;16bit!!!        ADD HL,HL        LD E,L
         ld D,H        ADD HL,HL        ADD HL,HL        ADD HL,HL        ADD HL,DE        EX DE,HL        CALL ALLDNP ;hl=указатель на выделенную память        LD (VARS+#56),HL       PUSH HL       POP IX       LD D,0        LD A,(CNUM)        LD B,AsFLP    LD (IX+1),D        CALL RDBYTE        LD (IX),A        CALL RDBYTE       LD C,A       RRCA        RRCA        RRCA        RRCA        AND #0F       LD (IX+2),A       LD A,C       AND #0F       LD (IX+3),A        CALL RDBYTE        LD (IX+4),A        INC D       PUSH BC       LD BC,18       ADD IX,BC       POP BC        DJNZ sFLP        RET ;onceLBMARK        CALL PRCMARK1       SUB #D9       ;OR A       RET Z       DEC A        CALL NZ,ERROR        CALL STSCAN        SCF         RET 
 ;onceSTSCAN        LD IX,VARS+#E2        CALL RDWORDHSBLSBtohl        CALL RDBYTE        LD (VARS+#E0),A        LD B,A       ADD A,A       ADD A,3       LD E,A       XOR A       LD D,A       SBC HL,DE       PUSH HL; pSKPSCNsCCLP   PUSH BC        LD HL,(VAR+#56)        LD A,(CNUM)        LD B,A        CALL RDBYTE        LD DE,18sCCLP1  CP (HL)        JR Z,sCCF1        DEC B        CALL Z,ERROR        ADD HL,DE        JR sCCLP1sCCF1  LD (IX),L       LD (IX+1),H       LD E,5        ADD HL,DE        CALL RDBYTE       LD B,A       RRCA        RRCA        RRCA        RRCA        AND #0F       LD (HL),A       LD A,B       INC HL       AND #0F       LD (HL),A        INC IX
         inc IX        POP BC        DJNZ sCCLP       POP BCrdmany LD A,B       OR C       RET Z       DEC BC       rdbyte       JR rdmany ;APPSL 
@@ -400,11 +407,6 @@ GETIXHL       LD A,(HL)       LD LX,A       INC HL       LD A,(HL)       LD
 ;twice;/12 CALLSDIV8        LD C,-1       INC C       SUB B       JR NC,$-2        LD A,C
 EMPTY        RET  
         
-rdCS    
-        LD A,0        OR A        RET ZrdCSU   
-        LD A,0xfe        IN A,(0xfe)        LD (getCS+1),AgetCS
-        LD A,0xff        RRA         RET
-        
 SETPG
 ;e=0/1 задают вручную, 1/2/5 по таблице (цветовые составляющие)
 ;сохраняет af,bc,de,hl
@@ -412,7 +414,6 @@ SETPG
         push bc
         push hl
         ld a,e
-        ;ld (CURPG),a
         
         ld hl,tpgs
         add a,l
@@ -431,8 +432,6 @@ SETPG
 tpgs
         ds 6
         
-;CURPG
-;        db 0
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; INIT ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;onceYCCTAB        ;LD A,0xce;100;(SATURP)        ;ADD A,100        ;LD DE,327        ;CALL MULDE_A;HL=0..FFFF      LD HL,#3fde;#8000        LD (YCCHL),HL;CR tab (add to Y->R)       LD IX,G716C+128       LD HL,-#B3       LD DE,1        EXX         LD DE,#66EA       CALL XtBLP;CB tab (add to Y->G)       LD IX,G7170+128       LD HL,-#E2      LD DE,1        EXX         LD DE,#C5A2       CALL XtBLP;CR tab (add to Y->G)       LD IX,G7174+128       LD HL,#5B       LD DE,-1        EXX         LD DE,0xffff&(-#B6D2)       CALL XtBLP;CB tab (add to Y->B)       LD IX,G7178+128       LD HL,#2C      LD DE,-1        EXX         LD DE,-#581AXtBLP;HL'<HL>=a[0];DE'DE=da=(a[255]-a[0])/255;*(SATURP+100)       EXX        LD A,E       EXX         LD E,D
@@ -457,7 +456,7 @@ JF44
 
 CNUM    DW 0 ;число слоёв? HSB=0!!!
 
-XRES=curpicwid ;DW 0YRES=curpichgt ;DW 0RXRES   DW 0 ;ширина картинки в полноценных блокахRYRES   DW 0 ;высота картинки в полноценных блокахMAXV    DB 0MAXH    DB 0BLSZ    DW 0MAXH8   DW 0 ;ширина полноценного блока картинки ;по идее 8 или 16MAXV8   DW 0 ;высота полноценного блока картинки ;по идее 8 или 16LPNT    DW 0 ;указатель на графику полноценного блока (растёт от JPGPAGESTART(0xc000) в строке блоков LSZX*MAXV8, по окончании строки блоков опять начинается с JPGPAGESTART)LSZX    DW 0 ;ширина картинки с округлением вверх до полноценного блока;LSZXM8  DW 0 
+picwid_inblocks   DW 0 ;ширина картинки в полноценных блокахpichgt_inblocks   DW 0 ;высота картинки в полноценных блокахMAXV    DB 0MAXH    DB 0BLSZ    DW 0MAXH8   DW 0 ;ширина полноценного блока картинки ;по идее 8 или 16MAXV8   DW 0 ;высота полноценного блока картинки ;по идее 8 или 16LPNT    DW 0 ;указатель на графику полноценного блока (растёт от JPGPAGESTART(0xc000) в строке блоков LSZX*MAXV8, по окончании строки блоков опять начинается с JPGPAGESTART)LSZX    DW 0 ;ширина картинки с округлением вверх до полноценного блока
 
         align 256
 R4A0F        DS 16,2        DS 16,4        DS 16,6        DS 16,8        DS 16,10        DS 16,12        DS 16,14        DS 16,16        DS 16,18        DS 16,20        DS 16,22        DS 16,24        DS 16,26        DS 16,28        DS 16,30        DS 16,32       DW 2

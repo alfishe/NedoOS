@@ -1,21 +1,21 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 
-MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
+MAXCMDSZ=COMMANDLINE_sz-1 ;не считая терминатора
 
 scrwid=320
 scrwid8=scrwid/8
 scrhgt=200
 
-scrbase=#8000
-scrbase16k=#4000
+scrbase=0x8000
+scrbase16k=0x4000
 
-tempc000=#4000 ;круглое!
-tempe000=#6000
+tempc000=0x4000 ;круглое!
+tempe000=0x6000
 
-editpal_c0=#80 ;#c0
-editpal_e0=editpal_c0+#20
-tabclippal=#c000;#0000
+editpal_c0=0x80
+editpal_e0=editpal_c0+0x20
+tabclippal=0xc000
 
 titlehgt=8
 
@@ -91,7 +91,7 @@ name
         org PROGSTART
 gfxeditor_begin
 main_go
-        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,0 ;EGA
         OS_SETGFX
         OS_GETSCREENPAGES
@@ -121,7 +121,7 @@ main_go
         ld a,(hl)
         or a
         jr z,noautoload
-;command line = "gfxed <file to load>"
+;command line = "scratch <file to load>"
         push hl
         call findlastslash. ;de=after last slash or beginning of path
         pop hl
@@ -1426,6 +1426,6 @@ gfxeditor_end
 	display "Size ",/d,gfxeditor_end-gfxeditor_begin," bytes"
 	display "Free (incl. stack) ",/d,#4000-activeend," bytes"
 
-	savebin "gfxed.com",gfxeditor_begin,gfxeditor_end-gfxeditor_begin
+	savebin "scratch.com",gfxeditor_begin,gfxeditor_end-gfxeditor_begin
 	
 	;LABELSLIST "..\us\user.l"

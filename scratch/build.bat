@@ -1,4 +1,4 @@
 path=..\sjasm\;..\us\;..\tools\
-sjasmplus gfxed.asm
+sjasmplus scratch.asm
 
 if "%currentdir%"=="" (pause)

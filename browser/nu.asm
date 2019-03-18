@@ -295,3 +295,186 @@ openstream_http_emptypath
 ;        pop bc
 ;        djnz httpconnectwait0
         
+
+        
+;store converted frame with timings:
+;+0 (3) pnext
+;+3 (2) time
+;+5 converted frame
+
+        if 1==0
+;берём с экрана
+        ;call setpgtemp4000
+        ld hl,0xc000
+        ld bc,(curpichgt_visible)
+keepframelines0
+        push bc
+        push hl
+
+        call setpgs_scr
+        ld de,LINEPIXELS;KEEPFRAMELINE
+        
+;pixels
+        push hl
+        push de
+        xor a
+        call copylinefromscr
+        inc de
+        set 5,h
+        ld a,1
+        call copylinefromscr
+        pop de
+        ld hl,(keepframe_linesize)
+        add hl,de
+        ex de,hl
+        pop hl
+;attr
+        res 6,h
+        xor a
+        call copylinefromscr
+        inc de
+        set 5,h
+        ld a,1
+        call copylinefromscr
+ 
+        ld bc,(keepframe_linesize_bytes) ;size (pixels+attr)
+        push bc
+        ld de,LINEPIXELS;KEEPFRAMELINE
+keepframeaddr=$+1
+        ld hl,0
+keepframeaddrHSB=$+1
+        ld a,0
+        ;ld hl,(keepframeaddr)
+        ;ld a,(keepframeaddrHSB)
+        call puttomem
+        pop bc ;size
+        ld hl,(keepframeaddr)
+        ld a,(keepframeaddrHSB)
+        add hl,bc
+        adc a,0
+        ld (keepframeaddr),hl
+        ld (keepframeaddrHSB),a
+        
+        pop hl
+        ld bc,40
+        add hl,bc
+        pop bc
+        dec bc
+        ld a,b
+        or c
+        jr nz,keepframelines0
+        call setpgtemp8000
+        endif
+
+        ld de,KEEPFRAMELINE
+;pixels
+        push hl
+        push de
+        xor a
+        call copylinetoscr
+        inc de
+        set 5,h
+        ld a,1
+        call copylinetoscr
+        pop de
+        ld hl,(keepframe_linesize)
+        add hl,de
+        ex de,hl
+        pop hl
+;attr
+        res 6,h
+        xor a
+        call copylinetoscr
+        inc de
+        set 5,h
+        ld a,1
+        call copylinetoscr
+
+        if 1==0
+copylinetoscr
+;hl=line (kept)
+;de=buf
+;a=нечётность (0=чётные, 1=нечётные столбцы)
+        push de
+        push hl
+        ex de,hl
+        call copyline_countsize
+        call copyline_countsize_ldirtoscr
+        ex de,hl
+        pop hl
+        pop de
+        ret
+
+copylinefromscr
+;hl=line (kept)
+;de=buf
+;a=нечётность (0=чётные, 1=нечётные столбцы)
+        push de
+        push hl
+        call copyline_countsize
+        call copyline_countsize_ldir
+        pop hl
+        pop de
+        ret
+
+copyline_countsize
+keepframe_linesize=$+1
+        ld bc,0
+        or a
+        jr nz,$+3 ;нечётных столбцов меньше
+        inc bc
+        srl b
+        rr c
+        ret
+copyline_countsize_ldir
+        ld a,b
+        or c
+        ret z;jr z,$+4 ;for width=1
+copyline_countsize_ldir0
+        ldi
+        inc de
+        jp pe,copyline_countsize_ldir0
+        ret
+copyline_countsize_ldirtoscr
+        ld a,b
+        or c
+        ret z;jr z,$+4 ;for width=1
+copyline_countsize_ldirtoscr0
+        ldi
+        inc hl
+        jp pe,copyline_countsize_ldirtoscr0
+        ret
+        endif
+        
+        if 1==0
+        
+        push iy
+;ищем адрес последнего байта картинки
+        ex de,hl
+        ld bc,0
+        scf
+        sbc hl,bc
+        ex de,hl
+        sbc hl,bc
+;ищем номер страницы последнего байта картинки
+        ld a,l
+        rl d
+        rla
+        rl d
+        rla ;a=lastpg
+        inc a ;a=npages
+        ld b,a
+reserve_bmp_pages0
+        push bc
+        push hl
+reserve_bmp_pages_fail        
+        call reservepage
+        or a
+        jr nz,reserve_bmp_pages_fail ;repeat until success
+        pop hl
+        pop bc
+        djnz reserve_bmp_pages0
+        pop iy
+        ret
+        
+        endif

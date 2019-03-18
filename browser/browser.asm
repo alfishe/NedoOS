@@ -1,11 +1,17 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 
+STACK=0x3ffc
+SPOIL4B=0x4000 ;микростек на 4 байта, нельзя ниже 0x3b00 ;раньше было в невидимой части страницы экрана, но сейчас мы переключаем экран с этим стеком
+
 FREE=0x8000 ;динамическая память jpeg, буфер строки gif
 LINE1=0x9400 ;буфер строки 0x400*3? jpeg
+LINE1_sz=0x0c00
 
 DISKBUF=0xb000
 DISKBUFsz=0x1000
+
+LINEPIXELS=0x3d00 ;,wid8*2 (макс. размер = 512 для wid=2048) ;TODO раньше и поверх LINEGIF (чтобы pixels шли раньше, а attr затирал её в процессе конверсии)
 
 COLOR=7
 STATUSCOLOR=0x38
@@ -14,6 +20,10 @@ GIF_PIXELSIZE=0
 
 HTMLTOPY=0
 HTMLHGT=24
+
+SCROLLHGT=200
+
+BACKGROUNDCOLORLEVEL=0 ;при очистке буфера строки (для правильного правого края в остатке знакоместа)
 
        MACRO rdbyte
         INC LY
@@ -94,12 +104,12 @@ HTMLHGT=24
         rla ;bits
         exx
         ld (de),a ;записать bits
-        exx
+        ;exx
         endm
         
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        ld sp,STACK ;не должен опускаться ниже #3b00! иначе возможна порча OS
         call init        
         
 ;curfulllink нужен для сохранения в истории и использования пути для относительных ссылок
@@ -125,7 +135,7 @@ browser_godownload
 browser_go
 ;curfulllink содержит текущую ссылку (из неё брать путь), слеш в конце http://ser.ver уже есть
 ;в linkbuf лежит ссылка (может быть локальная)
-;TODO перекодировать русские буквы в ссылке в %
+;TODO перекодировать русские буквы в ссылке в %? только в набранной вручную?
 
         call keepcurlink
 
@@ -250,11 +260,10 @@ keeptohist_nooverflow
 	ld bc,254
 	ldir
         ld hl,html_curtopy
-        ldi
-        ldi
+        ld c,2
+        ldir
 	ld (histaddr),de
-        ld hl,0
-        ld (html_curtopy),hl
+        ld (html_curtopy),bc ;0
         ret
 
 browser_downloadthis
@@ -289,7 +298,7 @@ browser_backspace
 
 browser_backspaceq
 ;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf        
-        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        ld sp,STACK ;не должен опускаться ниже #3b00! иначе возможна порча OS
         
         call unreservepages
         xor a
@@ -308,7 +317,7 @@ browser_backspaceq
         ld de,0xc000;0x0801
         call setxymc
         ld de,curfulllink;linkbuf
-        call prtextmc ;TODO сформировать и напечатать полный путь с протоколом
+        call prtextmc
         call setpgtemp8000
 
          OS_GETTIMER ;hlde=timer
@@ -396,7 +405,9 @@ loadbmp_skipheader0
         ex de,hl ;hl=wid
         call setpicwid
         call GETDWORD_slow
-        ld (curpichgt),de
+        ;ld (curpichgt),de
+        ex de,hl
+        call setpichgt
         
         ld b,54-26
 loadbmp_skipheader1
@@ -408,6 +419,8 @@ loadbmp_skipheader1
         ;ld a,(filehandle)
         ;ld b,a
         ;OS_SEEKHANDLE
+
+;TODO заказать блок памяти и грузить в него (можно грузить по одному байту, строчки конвертить по одной, тогда буфер bmp не нужен)
         
         call reservepage
         ret nz ;no memory
@@ -435,15 +448,6 @@ nvview_load0go
         or a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
         jr z,nvview_load0
-        
-        ld hl,0x8000+(40*199)
-        ld (scrstartaddr),hl
-        ld hl,-40
-        ld (scrlinestep),hl
-        ld hl,54
-        xor a
-        ld (bmpstart),hl
-        ld (bmpstartHSB),a
         
         jp loadq
         
@@ -485,43 +489,50 @@ downloadfilehandle=$+1
 	OS_CLOSEHANDLE
 	
 	ld hl,downloadfilename
-	inc (hl)
+	inc (hl) ;TODO ввод имени
 
 	jp closequit
 
 	
 loadjpeg
-        ld hl,(putchar_hl)
-        ld a,(putchar_a)
-        ld (bmpstart),hl
-        ld (bmpstartHSB),a
-
-        ;jr $
+        call initframes_time_scroll
         call readjpeg
 
-         jp closequit
+        jr showgif ;jp closequit
         
 loadgif
-        ld hl,(putchar_hl)
-        ld a,(putchar_a)
-        ld (bmpstart),hl
-        ld (bmpstartHSB),a
-        
+        call initframes_time_scroll
         call readgif
 
 showgif
+        
+showgif_firstframe
         ;jr $
 nframes=$+1
-        ld bc,0
-        ld a,c
-        dec a
-        or b
-        jp z,closequit;showgifq
+        ld bc,0 ;0 или 1 выключают управление
+        dec bc
+        
+        ld hl,(curpichgt_visible)
+        ld de,SCROLLHGT+1
+        or a
+        sbc hl,de
+        jr nc,showgif_drawevenifoneframe
+        ld hl,(keepframe_linesize)
+        ld de,80+1
+        or a
+        sbc hl,de
+        jr nc,showgif_drawevenifoneframe
+        dec bc
+        bit 7,b
+        inc bc
+        jp nz,closequit;showgifq ;если 0 или 1 кадр
+showgif_drawevenifoneframe
+
 firstframeaddr=$+1
         ld hl,0
 firstframeaddrHSB=$+1
         ld a,0
-        
+;bc=число кадров-1
 showgif_frames0
         push bc
         
@@ -531,8 +542,7 @@ showgif_frames0
 	pop af
 	ex de,hl
 	ex (sp),hl
-	
-        call showframe
+        call showframe ;читает showframetime из кадра
 	
 	pop de ;timer
 	
@@ -547,172 +557,162 @@ showframetime=$+1
 	add hl,de ;max timer for this frame
 	ld (showframemaxtimer),hl
 
-showframedelay0
+showframe_delay0
         call yieldgetkeynolang ;nz=nokey
-        jp nz,closequit ;TODO restore stack
+        cp Enter
+        jp z,closequit ;TODO restore stack
+        ld hl,(xscroll)
+        cp cs5
+        jr z,showframe_left
+        cp cs8
+        jr z,showframe_right
+        ld hl,(yscroll)
+        cp cs6
+        jr z,showframe_down
+        cp cs7
+        jr z,showframe_up
+showframe_nokey
         OS_GETTIMER ;hlde=timer
 showframemaxtimer=$+1
 	ld bc,0 ;max timer for this frame
 	ex de,hl
 	or a
 	sbc hl,bc
-	jp m,showframedelay0 ;timer<maxtimer
-        
+	jp m,showframe_delay0 ;timer<maxtimer
+
 	pop hl
 	pop af
 	
         pop bc
+        dec bc
+        bit 7,b
+        jr z,showgif_frames0
+        
+        jp showgif_firstframe;closequit
+
+;TODO проблема, если задержка кадра слишком маленькая, успеем только один раз прочитать клавиши
+
+showframe_left
+;hl=xscroll
+        dec hl
+        bit 7,h
+        jr nz,showframe_nokey
+        jr showframe_leftrightq
+
+showframe_right
+;hl=xscroll
+;не двигаем xscroll, если правая граница (=keepframe_linesize-xscroll) получается <80
+        inc hl
+        ex de,hl
+        ld hl,(keepframe_linesize)
+        or a
+        sbc hl,de
+        ld bc,80
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr c,showframe_nokey
+showframe_leftrightq
+        ld (xscroll),hl
+        jr showframe_nokey
+
+showframe_up
+;hl=yscroll
+        dec hl
+        bit 7,h
+        jr nz,showframe_nokey
+        jr showframe_updownq
+
+showframe_down
+;hl=yscroll
+;не двигаем yscroll, если нижняя граница (=curpichgt_visible-yscroll) получается <SCROLLHGT(200)
+        inc hl
+        ex de,hl
+        ld hl,(curpichgt_visible)
+        or a
+        sbc hl,de
+        ld bc,SCROLLHGT;200
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr c,showframe_nokey
+showframe_updownq
+        ld (yscroll),hl
+        jr showframe_nokey
+
+loadq
+        call initframes_time_scroll
+        
+        ld a,(npages)
+        ld hl,0
+        srl a
+        rr h
+        srl a
+        rr h
+        ld (freemem_hl),hl
+        ld (freemem_a),a ;костыль (TODO заказывать память под bmp нормально)
+        
+        call reservefirstframeaddr
+        call initframe ;один раз на картинку после setpicwid, setpichgt и после установки gifframetime ;заказывает память под конверченный кадр
+;ahl=адрес памяти под конверченный кадр
+
+        ld hl,54 ;TODO относительно начала bmp
+        xor a
+;перейти на последнюю строчку (чтобы рисовать снизу вверх, нужно менять drawscreenline_frombuf):
+        if GIF_PIXELSIZE
+        ld de,(curpicwid)
+        else
+        ld de,(curpicwidx3)
+        endif
+        dec de
+        set 1,e
+        set 0,e
+        inc de ;округлили размер строки вверх до 4 байт: 0=>0, 1..3=>4, 4=>4...
+        ld (bmplinestep),de
+        ld bc,(curpichgt)
+bmpfindlastline0
+        add hl,de
+        adc a,0
         dec hl
         cpi
-        jp pe,showgif_frames0
-        
-         jp showgif;closequit
-        
-;TODO быстрый вывод (см. два варианта в gfxideas.txt)
+        jp pe,bmpfindlastline0
+        ld (putchar_hl),hl
+        ld (putchar_a),a
 
-showframe
-;ahl=addr
-        call readword ;de
-        push de ;ld (showframe_nextaddr),de
-        call readbyte ;c
-        ld b,c
-        push bc ;ld (showframe_nextaddrHSB),bc
-        call readword
-	ld (showframetime),de
-        ld (keepframeaddr),hl
-        ld (keepframeaddrHSB),a        
+        call setpgtemp8000
 
-        call setpgtemp4000
-
-        ld hl,0xc000
         ld bc,(curpichgt)
-        inc bc
-        srl b
-        rr c ;TODO с учётом зума
-showframelines0
-        push bc
-        push hl
-
-         push hl
-        ld hl,(keepframe_linesize)
-        add hl,hl
-        ld b,h
-        ld c,l ;size
-        push bc
-        ld de,KEEPFRAMELINE
-        ld hl,(keepframeaddr)
-        ld a,(keepframeaddrHSB)
-        call getfrommem
-        pop bc ;size
-        ld hl,(keepframeaddr)
-        ld a,(keepframeaddrHSB)
-        add hl,bc
-        adc a,0
-        ld (keepframeaddr),hl
-        ld (keepframeaddrHSB),a
-         pop hl
-        
-        call setpgs_scr
-        ld de,KEEPFRAMELINE
-;pixels?
-        push hl
-        xor a
-        call copylinetoscr
-        set 5,h
-        ld a,1
-        call copylinetoscr
-        pop hl
-;attr?
-        res 6,h
-        xor a
-        call copylinetoscr
-        set 5,h
-        ld a,1
-        call copylinetoscr
-        
-        pop hl
-        ld bc,40
-        add hl,bc
-        pop bc
-        dec bc
-        ld a,b
-        or c
-        jr nz,showframelines0
-        
-        pop af
-        pop hl ;next
-        ld hl,(keepframeaddr)
-        ld a,(keepframeaddrHSB)
-        ret
-        
-        
-loadq_fromtop
-        ld hl,0x8000
-        ld (scrstartaddr),hl
-        ld hl,40
-        ld (scrlinestep),hl
-        ld hl,0
-        ld (bmpstart),hl
-        
-loadq
-
-        
-        call setpgdiv4000
-
-bmpstartHSB=$+1
-        ld a,0
-bmpstart=$+1
-        ld hl,0;54
-        exx
-
-        ld hl,(curpichgt)
-        inc hl
-        srl h
-        rr l
-        ld bc,200
-        call minhl_bc_tobc
-        ld b,c
-       
-        ld iy,colorlace0 ;1 хуже
-        ld ix,dithermcy0
-       
-scrstartaddr=$+1
-        ld hl,0x8000
 fill0
-;ahl' = readaddr
-;hl = attraddr
         push bc
-        push hl
-        
-        exx
-        push af
-        push hl
-        exx
-        
-        ld e,(iy-2)
-        ld d,(iy-1)
-        ld hy,d
-        ld ly,e
-        
-        ld e,(ix-2)
-        ld d,(ix-1)
-        ld hx,d
-        ld lx,e
 
-        call drawscreenline
-        
-        exx
-        pop hl
-        pop af ;логический адрес начала строки
-        call skipline
-        call skipline
-        exx
-        pop hl
-scrlinestep=$+1
-        ld bc,40
-        add hl,bc ;next line on screen
+        ld hl,(putchar_hl)
+        ld a,(putchar_a)
+bmplinestep=$+1
+        ld bc,0
+        or a
+        sbc hl,bc
+        sbc a,0
+        ld (putchar_hl),hl
+        ld (putchar_a),a        
+
+        call islinevisible ;CY=invisible
+        jr c,bmpgetline_ifvisibleq
+        ld hl,(putchar_hl)
+        ld a,(putchar_a)
+        ld bc,(bmplinestep)
+        ld de,LINEGIF
+        call getfrommem
+        ld hl,LINEGIF
+        call drawscreenline_frombuf
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
+bmpgetline_ifvisibleq
+        call inccury
+
         pop bc
-        djnz fill0
+        cpi
+        jp pe,fill0
+        jp showgif ;jp closequit
+
         
 loadbmp_fail
 closequit
@@ -885,7 +885,7 @@ isprotocolpresent
 
 nextscreenline
 drawscreenline_frombuf_scr=$+1
-        ld de,0xc000
+        ld de,0
         ld hl,40
         add hl,de ;next line on screen
         bit 5,h
@@ -895,16 +895,11 @@ drawscreenline_frombuf_scr=$+1
        
 drawscreenline_frombuf
 ;hl=from
-;bc=size (*3?)
         exx
         call nextscreenline
-        exx
-        ret nz ;end of screen, current line doesn't fit
+        ;exx
+        ;ret nz ;end of screen, current line doesn't fit
 
-         call setpgdiv4000
-        ;call setpgs_scr ;177t
-        call setpgscrc000
-        
         push ix
         push iy
         
@@ -912,41 +907,30 @@ drawscreenline_frombuf_ixaddr=$+2
         ld ix,(dithermcy0-2)
 drawscreenline_frombuf_iyaddr=$+2
         ld iy,(colorlace0-2)
-        
-        ld a,(fillwid8)
-        ld b,a
-         ;ld b,80
+
+        ;exx
+        push af ;nz=out of screen
+        push de ;screen
+        ld de,LINEPIXELS;-0x4000
+        ld hl,(keepframe_linesize)
+        ld b,h
+        ld c,l
+        add hl,de
+        exx
+         call setpgdiv4000
+         call setpgtemp8000 ;такой нам дали адрес        
+        jr drawscreenline_frombuf0go
 drawscreenline_frombuf0
-        push bc
-        
-        call readchrlomem
-        ;if GIF_PIXELSIZE
-        ;ld bc,8
-        ;else
-        ;ld bc,24
-        ;endif
-        ;add hl,bc
-        push hl
-        exx
-        ld h,d
-        ld l,e
-        res 6,h ;de=адрес пикселей ;hl=адрес атрибутов
-        exx
-        ;jr $
-         call setpgscr8000
-        call convertchr ;jp=1980t
-         call setpgtemp8000
-        exx
-        ld a,d
-        xor 0x20
-        cp d
-        ld d,a
-        jr nc,$+3
-        inc de
         exx
         pop hl
-        pop bc
-        djnz drawscreenline_frombuf0
+drawscreenline_frombuf0go
+        call readchrlomem
+        push hl
+        call convertchr ;jp=1980t (не делает exx в конце, для удобства)
+        inc de
+        cpi
+        jp pe,drawscreenline_frombuf0
+        pop af
         
         dec ix
         dec ix
@@ -955,59 +939,22 @@ drawscreenline_frombuf0
         dec iy
         ld (drawscreenline_frombuf_iyaddr),iy
         
+         ;call setpgs_scr
+        exx
+        pop bc ;screen
+        pop af ;nz=out of screen
+        ld hl,LINEPIXELS;-0x4000
+;hl=data
+;bc=screen=0xc000+
+        call z,prlinefast
+
+         call setpgtemp8000
          call setpgcode4000
-        ;ld hl,(drawscreenline_frombuf_scr)
-        ;ld bc,40
-        ;add hl,bc ;next line on screen
-        ;bit 5,h
-        ;jr nz,$+5
-        ;ld (drawscreenline_frombuf_scr),hl
 
         pop iy
         pop ix
         ret;jp setpgtemp8000
         
-drawscreenline
-fillwid8=$+1        
-        ld b,80
-fill1
-;цикл = 3130t/8pix
-        ld d,h ;hl=адрес атрибутов
-        ld e,l
-        set 6,d ;de=адрес пикселей
-        push bc
-        exx
-        call readchr ;859t
-        ex af,af' ;push af
-        push hl
-        call setpgs_scr ;177t+
-        call convertchr ;jp=1980t
-;convertchrq
-        pop hl
-        exx
-        ld a,h
-        xor 0x20
-        cp h
-        ld h,a
-        jr nc,$+3
-        inc hl
-        ex af,af' ;pop af
-        pop bc
-        djnz fill1
-        ret
-        
-        
-skipline
-        if GIF_PIXELSIZE
-        ld bc,(curpicwid)
-        else
-        ld bc,(curpicwidx3)
-        endif
-        add hl,bc
-        ret nc
-        inc a
-        ret
-
 RDBYTE
         INC LY
         LD A,(IY)
@@ -1015,13 +962,10 @@ RDBYTE
 RDBYH
         INC HY
         LD A,HY
-;RDBYHend=$+1
         CP DISKBUF/256+(DISKBUFsz/256)
-        ;JR Z,rDDSK
         LD A,(IY)
          ccf ;CY=0: OK
         RET nz
-;rDDSK
        PUSH HL
        PUSH DE
         PUSH BC
@@ -1075,6 +1019,19 @@ readdiskbuf_nozeros
 readstream
 readstream_patch=$+1
         jp readstream_file
+
+rdCS    
+        LD A,0
+        OR A
+        RET Z
+rdCSU   
+        LD A,0xfe
+        IN A,(0xfe)
+        LD (getCS+1),A
+getCS
+        LD A,0xff
+        RRA 
+        RET        
 
 ;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
@@ -1160,11 +1117,18 @@ _=_+1
 _=_+1
         edup
         
-         ;ld hl,chrbuf
-         ;ld de,chrbuf+8
-         ;ld bc,16
-         ;ldir ;BW from R
-        
+        endif
+        if 1==0
+        push bc
+        push de
+        push hl
+        ld hl,chrbuf
+        ld de,chrbuf+8
+        ld bc,16
+        ldir
+        pop hl
+        pop de
+        pop bc
         endif
         ret
         
@@ -1239,7 +1203,6 @@ _=_+1
          ld d,_ ;Bmaxcolor = положение текущего цвета
 _=_+1
         edup
-        ;ld (Bminmaxcolor),de
         ld a,b
         sub c ;Bmax-Bmin
 
@@ -1261,7 +1224,6 @@ _=_+1
 ;e=mincolor
 ;берём рекордные цвета (в виде color16):
 ;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
-;colorlace_patch=$+1
         jp (iy) ;colorlace0 ;/1
 
 ROUNDUP=32
@@ -1307,11 +1269,11 @@ colorlace0
         ld a,(de);(hl) ;G
         DOROUNDDOWN
         ld c,a
-        res 3,l
+        res 3,e
         ld a,(de);(hl) ;R
         DOROUNDDOWN
         ld b,a
-        set 4,l
+        set 4,e
         ld a,(de);(hl) ;B
         DOROUNDDOWN
         rlca
@@ -1335,7 +1297,7 @@ colorlace0
 ;по реальным атрибутам заново пересчитать maxaxis, min, maxdist! (проверено, что без этого получается пятнистость):
         ld d,h
         dec h ;ld h,tmaxaxis/256+2
-        ld l,a
+        ld l,a ;будем ходить по этой цветовой составляющей
         ld e,(hl) ;maxaxis*8
         dec h
         ld b,(hl) ;min
@@ -1405,7 +1367,7 @@ colorlace1
 ;по реальным атрибутам заново пересчитать maxaxis, min, maxdist! (проверено, что без этого получается пятнистость):
         ld d,h
         dec h ;ld h,tmaxaxis/256+2
-        ld l,a
+        ld l,a ;будем ходить по этой цветовой составляющей
         ld e,(hl) ;maxaxis*8
         dec h
         ld b,(hl) ;min
@@ -1437,46 +1399,6 @@ dithermcy1
 dithermcy0
         DITHERMC1B 0xc, 0x8, 0xa, 0x6
         ret;jp convertchrq
-        
-initframe
-        ld hl,dithermcy0-2
-        ld (drawscreenline_frombuf_ixaddr),hl
-        ld hl,colorlace0-2
-        ld (drawscreenline_frombuf_iyaddr),hl
-        ld hl,0xc000
-        ld (drawscreenline_frombuf_scr),hl
-        ld hl,0
-        ld (cury),hl
-
-        xor a
-        ld h,a
-        ld l,a
-        ld (putchar_a),a
-        ld (putchar_hl),hl
-        ret
-        
-        
-setpicwid
-        LD (curpicwid),HL ;XRES
-         ld b,h
-         ld c,l
-         add hl,hl
-         add hl,bc
-         ld (curpicwidx3),hl
-        dec bc ;для округления вверх
-        ld a,c
-        srl b
-        rra
-        srl b
-        rra
-        srl b
-        rra
-        inc a ;округление вверх
-        cp 80
-        jr c,$+4
-        ld a,80
-        ld (fillwid8),a
-        ret
         
         
 skipword
@@ -1550,7 +1472,7 @@ curpicwidx3=$+1
 getline
 ;de=куда достаём строку
 ;bc=сколько байт достаём
-gifdisposalmethod=$+1
+gifwasdisposalmethod=$+1
         ld a,0 ;bit0 = transparent color present, bit4..2 = disposal method (0=not specified(?), 1=do not dispose(?), 2=overwrite with bg color, 3=overwrite with prev frame(?))
         and 0x1c
         cp 8
@@ -1560,7 +1482,7 @@ gifdisposalmethod=$+1
         or l
         jr nz,getline_frommem
 getline_fill
-;фон первой строки - заливка
+;фон первого кадра - заливка
         push de
 gifbgcolor=$+1
          ld hl,PAL_GLOB
@@ -1573,12 +1495,6 @@ gifbgcolor=$+1
          ldi ;TODO проверить порядок компонент!
         pop hl
          ret po ;bc=0
-        ;ld h,d
-        ;ld l,e
-        ;cpi
-        ;ret po ;bc=0
-        ;ex de,hl
-        ;ld (hl),a;0
         ldir
         ret
 
@@ -1590,6 +1506,8 @@ getline_frommem
 curpicwid
         dw 0
 curpichgt
+        dw 0
+curpichgt_visible
         dw 0
 
 
@@ -1615,6 +1533,7 @@ curfulllink
         include "file.asm"
         include "http.asm"
         include "gif.asm"
+        include "drawmc.asm"
         
 oldtimer
         dw 0
@@ -1646,7 +1565,7 @@ twinto866
 endcode=$
         
         ds 0x4000-$-256 ;for stack
-        display "free for code=",$-endcode
+        display "free for code=",$-endcode-0x0200 ;TODO убрать LINEPIXELS (0x200)
 
         ds 0x4000-$ ;stack
 	include "prmc.asm"
@@ -1662,15 +1581,17 @@ init
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,e
         ld (setpgs_scr_low),a
+        ld (setpgs_scr_attr),a
         ld a,d
         ld (setpgs_scr_high),a
+        ld (setpgs_scr_pixels),a
         
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         ld (codepg4000),a
         ld a,h
-        ld (codepg8000),a
+        ld (codepg8000),a ;pgdiv
         ld a,l
         ld (curpgLZW),a
 
@@ -1749,6 +1670,7 @@ defaultfilename
 zxpal
         incbin "zxpal"
 
+        display "free for code in 0x4000=",0x8000-$
         ds 0x8000-$
         
         incbin "tdiv"

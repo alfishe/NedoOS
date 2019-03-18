@@ -22,7 +22,7 @@ for %%i in (bin\*.*) do (
     nedotrd test.trd -a %%i
 )
 
-rem nedotrd test.trd -a gfxed/lanscape.bmp
+rem nedotrd test.trd -a scratch/lanscape.bmp
 
 nedotrd test.trd -a comp/sizesz80.h
 nedotrd test.trd -a comp/comp_os.s
@@ -50,16 +50,17 @@ nedotrd test.trd -a player/COCO.pt2
 nedotrd test.trd -a browser/index.html
 nedotrd test.trd -a browser/page.html
 rem nedotrd test.trd -a browser/zajchik.gif
-nedotrd test.trd -a browser/GIRL.JPG
+rem nedotrd test.trd -a browser/GIRL.JPG
 rem nedotrd test.trd -a browser/csprmain.htm
 rem nedotrd test.trd -a browser/spwiki.html
-nedotrd test.trd -a browser/atmmain.htm
-nedotrd test.trd -a browser/atmpg.htm
-nedotrd test.trd -a browser/atmpg2.htm
+rem nedotrd test.trd -a browser/atmmain.htm
+rem nedotrd test.trd -a browser/atmpg.htm
+rem nedotrd test.trd -a browser/atmpg2.htm
 nedotrd test.trd -a browser/6914fast.gif
 nedotrd test.trd -a browser/6908fast.gif
-nedotrd test.trd -a browser/sprites.gif
 nedotrd test.trd -a browser/animatie.gif
+nedotrd test.trd -a browser/sprites.gif
+nedotrd test.trd -a pkunzip/pkunzip.zip
 
 nedotrd test.trd -a license.txt
 

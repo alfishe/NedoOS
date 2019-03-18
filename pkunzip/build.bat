@@ -1,4 +1,4 @@
 path=..\sjasm\;..\us\;..\tools\
-sjasmplus mounter.asm
+sjasmplus pkunzip.asm
 
 if "%currentdir%"=="" (pause)

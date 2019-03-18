@@ -39,46 +39,20 @@ unreservepage_fail
         ret ;nz
         
 reserve_bmp_pages
-;TODO резервировать блок памяти, а не страницы!
+        ld hl,(freemem_hl)
+        ld a,(freemem_a)
+        ld (putchar_hl),hl
+        ld (putchar_a),a
+
         ld de,(curpichgt)
+         inc de
+         srl d
+         rr e
         ld bc,(curpicwidx3)
         CALL MULWORD
         ld d,b
         ld e,c
         ;hlde=bmp size
-        
-        if 1==0
-        
-        push iy
-;ищем адрес последнего байта картинки
-        ex de,hl
-        ld bc,0
-        scf
-        sbc hl,bc
-        ex de,hl
-        sbc hl,bc
-;ищем номер страницы последнего байта картинки
-        ld a,l
-        rl d
-        rla
-        rl d
-        rla ;a=lastpg
-        inc a ;a=npages
-        ld b,a
-reserve_bmp_pages0
-        push bc
-        push hl
-reserve_bmp_pages_fail        
-        call reservepage
-        or a
-        jr nz,reserve_bmp_pages_fail ;repeat until success
-        pop hl
-        pop bc
-        djnz reserve_bmp_pages0
-        pop iy
-        ret
-        
-        endif
         
 reserve_mem
 ;hlde=size
