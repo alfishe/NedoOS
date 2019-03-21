@@ -13,11 +13,11 @@ IF NOT EXIST %ICCZ80%.exe (
 echo Build "%PRJNAME%"
 
 IF "%PRJDEBUG%"=="1" (
-	set LINK_OPTIONS=-FIEEE695 -S -C %IARLIB%\clz80 -f Lnk.xcl -yv
-	set C_OPTIONS=-v0 -ml -r -S -uua -q -e -K -gA -t4 -T -Llist\ -Olist\ -Alist\ -I%IARINC%
+	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
+	set C_OPTIONS=-v0 -ml -r -uu -q -e -K -gA -t4 -Llist\ -Olist\ -Alist\ -I%IARINC%
 )ELSE (
 	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com -C %IARLIB%\clz80 -f Lnk.xcl
-	set C_OPTIONS=-v0 -ml -r -s7 -S -uua -q -e -K -gA -t4 -T -Llist\ -Olist\ -Alist\ -I%IARINC%
+	set C_OPTIONS=-v0 -ml -s7 -S -uu -e -K -gA -Olist\ -Alist\ -I%IARINC%
 )
 
 if not exist list mkdir list

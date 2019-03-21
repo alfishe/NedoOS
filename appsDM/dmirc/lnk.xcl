@@ -4,5 +4,3 @@
 -Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+200,FREESEG=C000-FBFF //сегменты стека, переменных и т.п.
 -e_medium_write=_formatted_write //конфигурация printf/sprintf  
 -e_medium_read=_formatted_read //конфигурация scanf/sscanf 
--l list/cout.html
--xehinms //включим всё для полноты картины

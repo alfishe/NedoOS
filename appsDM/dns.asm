@@ -73,12 +73,12 @@ is_dot:
 	pop af
 	bit 7,h
 	jr nz,exitcode
-	ld b,25
-	jr recv_wait1
+	ld b,50
+	;jr recv_wait1
 recv_wait:
+	push bc
 	call YIELD
 recv_wait1:
-	push bc
 	ld hl,256
 	PUSH	HL
 	LD	bc,(dnssoc)

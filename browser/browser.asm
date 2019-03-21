@@ -21,7 +21,7 @@ GIF_PIXELSIZE=0
 HTMLTOPY=0
 HTMLHGT=24
 
-SCROLLHGT=200
+SCROLLHGT=192;200
 
 BACKGROUNDCOLORLEVEL=0 ;при очистке буфера строки (для правильного правого края в остатке знакоместа)
 
@@ -358,6 +358,8 @@ downloadflag=$+1
 	ld (downloadflag),a
 	jp nz,downloadfile
 	
+        call initframes_time_scroll
+        
        LD IY,DISKBUF+DISKBUFsz-1
 
         call RDBYTE
@@ -429,15 +431,15 @@ loadbmp_skipheader1
         ld bc,DISKBUFsz
         ldir ;beginning of file is already read
         ld hl,0x4000-DISKBUFsz
-        jr nvview_load0go
+        jr nvview_loadbmp0go
         
-nvview_load0
+nvview_loadbmp0
         call reservepage
         ret nz ;no memory
 
         ld de,0xc000
         ld hl,0x4000
-nvview_load0go
+nvview_loadbmp0go
 ;DE = Buffer address, HL = Number of bytes to read
          push hl
         call readstream
@@ -447,201 +449,7 @@ nvview_load0go
          pop hl
         or a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
-        jr z,nvview_load0
-        
-        jp loadq
-        
-downloadfile
-        call reservepage
-        ret nz ;no memory
-	
-	ld de,downloadfilename ;TODO сгенерировать из урла + запросить редактирование
-;de=filename
-        OS_CREATEHANDLE
-;b=new file handle
-        ld a,b
-        ld (downloadfilehandle),a
-	
-downloadfile0
-        ld de,0xc000
-        ld hl,0x4000
-;DE = Buffer address, HL = Number of bytes to read
-         push hl
-        call readstream
-;HL = Number of bytes actually read, A=error
-
-	push hl
-        ld de,0xc000
-downloadfilehandle=$+1
-	ld b,0
-	OS_WRITEHANDLE
-	pop hl
-
-        ld b,h
-        ld c,l
-         pop hl
-        or a
-        sbc hl,bc ;NZ = bytes to read != bytes actually read
-        jr z,downloadfile0
-	
-	ld a,(downloadfilehandle)
-	ld b,a
-	OS_CLOSEHANDLE
-	
-	ld hl,downloadfilename
-	inc (hl) ;TODO ввод имени
-
-	jp closequit
-
-	
-loadjpeg
-        call initframes_time_scroll
-        call readjpeg
-
-        jr showgif ;jp closequit
-        
-loadgif
-        call initframes_time_scroll
-        call readgif
-
-showgif
-        
-showgif_firstframe
-        ;jr $
-nframes=$+1
-        ld bc,0 ;0 или 1 выключают управление
-        dec bc
-        
-        ld hl,(curpichgt_visible)
-        ld de,SCROLLHGT+1
-        or a
-        sbc hl,de
-        jr nc,showgif_drawevenifoneframe
-        ld hl,(keepframe_linesize)
-        ld de,80+1
-        or a
-        sbc hl,de
-        jr nc,showgif_drawevenifoneframe
-        dec bc
-        bit 7,b
-        inc bc
-        jp nz,closequit;showgifq ;если 0 или 1 кадр
-showgif_drawevenifoneframe
-
-firstframeaddr=$+1
-        ld hl,0
-firstframeaddrHSB=$+1
-        ld a,0
-;bc=число кадров-1
-showgif_frames0
-        push bc
-        
-	push hl
-	push af
-        OS_GETTIMER ;hlde=timer
-	pop af
-	ex de,hl
-	ex (sp),hl
-        call showframe ;читает showframetime из кадра
-	
-	pop de ;timer
-	
-	push af
-	push hl
-	
-showframetime=$+1
-	ld hl,0 ;in 1/100 s
-	inc hl
-	srl h
-	rr l
-	add hl,de ;max timer for this frame
-	ld (showframemaxtimer),hl
-
-showframe_delay0
-        call yieldgetkeynolang ;nz=nokey
-        cp Enter
-        jp z,closequit ;TODO restore stack
-        ld hl,(xscroll)
-        cp cs5
-        jr z,showframe_left
-        cp cs8
-        jr z,showframe_right
-        ld hl,(yscroll)
-        cp cs6
-        jr z,showframe_down
-        cp cs7
-        jr z,showframe_up
-showframe_nokey
-        OS_GETTIMER ;hlde=timer
-showframemaxtimer=$+1
-	ld bc,0 ;max timer for this frame
-	ex de,hl
-	or a
-	sbc hl,bc
-	jp m,showframe_delay0 ;timer<maxtimer
-
-	pop hl
-	pop af
-	
-        pop bc
-        dec bc
-        bit 7,b
-        jr z,showgif_frames0
-        
-        jp showgif_firstframe;closequit
-
-;TODO проблема, если задержка кадра слишком маленькая, успеем только один раз прочитать клавиши
-
-showframe_left
-;hl=xscroll
-        dec hl
-        bit 7,h
-        jr nz,showframe_nokey
-        jr showframe_leftrightq
-
-showframe_right
-;hl=xscroll
-;не двигаем xscroll, если правая граница (=keepframe_linesize-xscroll) получается <80
-        inc hl
-        ex de,hl
-        ld hl,(keepframe_linesize)
-        or a
-        sbc hl,de
-        ld bc,80
-        or a
-        sbc hl,bc
-        ex de,hl
-        jr c,showframe_nokey
-showframe_leftrightq
-        ld (xscroll),hl
-        jr showframe_nokey
-
-showframe_up
-;hl=yscroll
-        dec hl
-        bit 7,h
-        jr nz,showframe_nokey
-        jr showframe_updownq
-
-showframe_down
-;hl=yscroll
-;не двигаем yscroll, если нижняя граница (=curpichgt_visible-yscroll) получается <SCROLLHGT(200)
-        inc hl
-        ex de,hl
-        ld hl,(curpichgt_visible)
-        or a
-        sbc hl,de
-        ld bc,SCROLLHGT;200
-        or a
-        sbc hl,bc
-        ex de,hl
-        jr c,showframe_nokey
-showframe_updownq
-        ld (yscroll),hl
-        jr showframe_nokey
-
-loadq
-        call initframes_time_scroll
+        jr z,nvview_loadbmp0
         
         ld a,(npages)
         ld hl,0
@@ -712,29 +520,234 @@ bmpgetline_ifvisibleq
         cpi
         jp pe,fill0
         jp showgif ;jp closequit
+        
+downloadfile
+        call reservepage
+        ret nz ;no memory
+	
+	ld de,downloadfilename ;TODO сгенерировать из урла + запросить редактирование
+;de=filename
+        OS_CREATEHANDLE
+;b=new file handle
+        ld a,b
+        ld (downloadfilehandle),a
+	
+downloadfile0
+        ld de,0xc000
+        ld hl,0x4000
+;DE = Buffer address, HL = Number of bytes to read
+         push hl
+        call readstream
+;HL = Number of bytes actually read, A=error
+
+	push hl
+        ld de,0xc000
+downloadfilehandle=$+1
+	ld b,0
+	OS_WRITEHANDLE
+	pop hl
+
+        ld b,h
+        ld c,l
+         pop hl
+        or a
+        sbc hl,bc ;NZ = bytes to read != bytes actually read
+        jr z,downloadfile0
+	
+	ld a,(downloadfilehandle)
+	ld b,a
+	OS_CLOSEHANDLE
+	
+	ld hl,downloadfilename
+	inc (hl) ;TODO ввод имени
+
+	jp closequit
+
+	
+loadjpeg
+        ;call initframes_time_scroll
+        call readjpeg
+
+        jr showgif ;jp closequit
+        
+loadgif
+        ;call initframes_time_scroll
+        call readgif
+
+showgif
+        call showtime
+
+showgif_firstframe
+        ;jr $
+nframes=$+1
+        ld bc,0 ;0 или 1 выключают управление
+        dec bc
+        
+        ld hl,(curpichgt_visible)
+        ld de,SCROLLHGT+1
+        or a
+        sbc hl,de
+        jr nc,showgif_drawevenifoneframe
+        ld hl,(keepframe_linesize)
+        ld de,80+1
+        or a
+        sbc hl,de
+        jr nc,showgif_drawevenifoneframe
+        dec bc
+        bit 7,b
+        inc bc
+        jp nz,closequit;showgifq ;если 0 или 1 кадр
+showgif_drawevenifoneframe
+
+firstframeaddr=$+1
+        ld hl,0
+firstframeaddrHSB=$+1
+        ld a,0
+;bc=число кадров-1
+showgif_frames0
+        push bc
+        
+	push hl
+	push af
+        OS_GETTIMER ;hlde=timer
+	pop af
+	ex de,hl
+	ex (sp),hl
+        call showframe ;читает showframetime из кадра
+	
+	pop de ;timer
+	
+	push af
+	push hl
+	
+showframetime=$+1
+	ld hl,0 ;in 1/100 s
+	inc hl
+	srl h
+	rr l
+	add hl,de ;max timer for this frame
+	ld (showframemaxtimer),hl
+
+showframe_delay0
+        call yieldgetkeynolang ;nz=nokey
+        ;cp Enter
+        ;jp z,closequit ;TODO restore stack
+        ;cp 'z'
+        ;jr z,showframe_setzoom
+        call globalbuttons
+        ld hl,(xscroll)
+        cp cs5
+        jr z,showframe_left
+        cp cs8
+        jr z,showframe_right
+        ld hl,(yscroll)
+        cp cs6
+        jr z,showframe_down
+        cp cs7
+        jr z,showframe_up
+showframe_nokey
+        OS_GETTIMER ;hlde=timer
+showframemaxtimer=$+1
+	ld bc,0 ;max timer for this frame
+	ex de,hl
+	or a
+	sbc hl,bc
+	jp m,showframe_delay0 ;timer<maxtimer
+
+	pop hl
+	pop af
+	;jr $
+        pop bc
+        dec bc
+        bit 7,b
+        jr z,showgif_frames0
+        
+        jp showgif_firstframe
+
+showframe_setzoom
+        ld hl,setzoom_patch
+        ld a,(hl)
+        xor 0x80
+        ld (hl),a
+        jp browser_reload
+
+;TODO проблема, если задержка кадра слишком маленькая, успеем только один раз прочитать клавиши
+
+showframe_left
+;hl=xscroll
+        dec hl
+        res 0,l
+        bit 7,h
+        jr nz,showframe_nokey
+        jr showframe_leftrightq
+
+showframe_right
+;hl=xscroll
+;не двигаем xscroll, если правая граница (=keepframe_linesize-xscroll) получается <80
+        inc hl
+        inc hl
+        ex de,hl
+        ld hl,(keepframe_linesize)
+        or a
+        sbc hl,de
+        ld bc,80
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr nc,showframe_leftrightq
+;предел скролла: xscroll=keepframe_linesize-80 >=0
+         ld hl,(keepframe_linesize)
+         or a
+         sbc hl,bc
+        jr c,showframe_nokey
+showframe_leftrightq
+        ld (xscroll),hl
+        jr showframe_nokey
+
+showframe_up
+;hl=yscroll
+        ld bc,8
+        xor a
+        sbc hl,bc
+        jr nc,showframe_updownq
+        ld h,a
+        ld l,a
+        jr showframe_updownq
+
+showframe_down
+;hl=yscroll
+;не двигаем yscroll, если нижняя граница (=curpichgt_visible-yscroll) получается <SCROLLHGT(200)
+        ld bc,8
+        add hl,bc
+        ex de,hl
+        ld hl,(curpichgt_visible)
+        or a
+        sbc hl,de
+        ld bc,SCROLLHGT;200
+        or a
+        sbc hl,bc
+        ex de,hl
+        jr nc,showframe_updownq
+;предел скролла: yscroll=curpichgt_visible-SCROLLHGT >=0
+         ld hl,(curpichgt_visible)
+         or a
+         sbc hl,bc
+        jr c,showframe_nokey
+showframe_updownq
+        ld (yscroll),hl
+        jr showframe_nokey
+
 
         
 loadbmp_fail
 closequit
         call closestream
-        
-showtimequit
-         call setpgcode4000
-        ld a,STATUSCOLOR
-        call initprcharmc
-
-         OS_GETTIMER ;hlde=timer
-         ex de,hl
-timebegin=$+1
-         ld de,0
-         or a
-         sbc hl,de
-         ld de,0xc040
-;d=y, e=x8
-;hl=time (frames)
-         call prnumfrac
          jr getkeyquit
-         
+        
+;showtimequit
+;        call showtime
+;         jr getkeyquit
+
 LOADERROR
         call closestream
         ld de,tloaderr
@@ -764,14 +777,20 @@ getkeyquit0
         ;GET_KEY ;OS_GETKEYNOLANG
         ;ld a,c ;keynolang
         call yieldgetkeynolang
+        call globalbuttons
+        jr getkeyquit0
+        
+globalbuttons
         cp cs0
         jp z,browser_backspace
         cp '5'
         jp z,browser_reload
+        cp 'z'
+        jp z,showframe_setzoom
 	cp 's'
 	jp z,browser_downloadthis
         cp csSpace
-        jr nz,getkeyquit0
+        ret nz
 browser_quit
         QUIT
 
@@ -789,6 +808,39 @@ tconnerr
 tloaderr
         db "load err",0
         
+showtime
+         call setpgcode4000
+        ld a,STATUSCOLOR
+        call initprcharmc
+
+         OS_GETTIMER ;hlde=timer
+         ex de,hl
+timebegin=$+1
+         ld de,0
+         or a
+         sbc hl,de
+         ld de,0xc04a
+;d=y, e=x8
+;hl=time (frames)
+         jp prnumfrac
+         
+showmem
+        ld a,(npages)
+npages_old=$+1
+        cp -1
+        ret z
+        ld (npages_old),a
+        ld l,a
+        ld h,0
+        push hl
+         call setpgcode4000
+        ld a,STATUSCOLOR
+        call initprcharmc
+        pop hl
+         ld de,0xc046
+        jp prnum123
+        
+         
 ;hl = poi to filename in string
 ;out: de = after last slash
 findlastslash.
@@ -884,12 +936,20 @@ isprotocolpresent
         ret ;nz=protocol absent (hl=start)
 
 nextscreenline
+;out: de=старая строка, nc=out of screen
 drawscreenline_frombuf_scr=$+1
         ld de,0
         ld hl,40
         add hl,de ;next line on screen
-        bit 5,h
-        ret nz ;jr nz,drawscreenline_frombufq ;end of screen, current line doesn't fit
+         ;push bc
+         ld bc,SCROLLHGT*40+0x4000
+         or a
+         sbc hl,bc
+         add hl,bc
+         ;pop bc
+         ret nc
+        ;bit 5,h
+        ;ret nz ;jr nz,drawscreenline_frombufq ;end of screen, current line doesn't fit
         ld (drawscreenline_frombuf_scr),hl
         ret
        
@@ -898,7 +958,7 @@ drawscreenline_frombuf
         exx
         call nextscreenline
         ;exx
-        ;ret nz ;end of screen, current line doesn't fit
+        ;ret nc ;end of screen, current line doesn't fit
 
         push ix
         push iy
@@ -909,7 +969,7 @@ drawscreenline_frombuf_iyaddr=$+2
         ld iy,(colorlace0-2)
 
         ;exx
-        push af ;nz=out of screen
+        push af ;nc=out of screen
         push de ;screen
         ld de,LINEPIXELS;-0x4000
         ld hl,(keepframe_linesize)
@@ -924,11 +984,12 @@ drawscreenline_frombuf0
         exx
         pop hl
 drawscreenline_frombuf0go
+readchr_patch=$+1
         call readchrlomem
         push hl
         call convertchr ;jp=1980t (не делает exx в конце, для удобства)
         inc de
-        cpi
+        cpi ;делает inc hl
         jp pe,drawscreenline_frombuf0
         pop af
         
@@ -942,11 +1003,11 @@ drawscreenline_frombuf0go
          ;call setpgs_scr
         exx
         pop bc ;screen
-        pop af ;nz=out of screen
+        pop af ;nc=out of screen
         ld hl,LINEPIXELS;-0x4000
 ;hl=data
 ;bc=screen=0xc000+
-        call z,prlinefast
+        call c,prlinefast
 
          call setpgtemp8000
          call setpgcode4000
@@ -1056,43 +1117,6 @@ RDWORDHSBLSBtohl
         LD L,A
         RET  
 
-readchr
-;b,g,r
-;TODO с масштабированием и с учётом правого края картинки, не делящегося на 8
-        ;push bc
-        push af
-        push hl
-        ;call ahl_to_pgaddr ;set pages in 32K
-        rl h
-        rla
-        rl h
-        rla
-        srl h
-        scf
-        rr h
-;a=page number in table (0..)
-        ld e,a
-        ld d,textpages/256
-        ld a,(de)
-        SETPG32KLOW
-        inc e
-        ld a,(de)
-        SETPG32KHIGH
-         call readchrlomem
-        
-        pop hl
-        pop af
-        if GIF_PIXELSIZE
-        ld bc,8
-        else
-        ld bc,24
-        endif
-        add hl,bc
-        ;pop bc
-        ret nc
-        inc a
-        ret
-
 readchrlomem
 ;hl=from (BRG)
         ld d,chrbuf/256
@@ -1118,17 +1142,44 @@ _=_+1
         edup
         
         endif
-        if 1==0
-        push bc
-        push de
-        push hl
-        ld hl,chrbuf
-        ld de,chrbuf+8
-        ld bc,16
-        ldir
-        pop hl
-        pop de
-        pop bc
+        ret
+
+readchrlomemx2
+        ld d,chrbuf/256
+_=0
+        if GIF_PIXELSIZE
+        dup 4
+        ld a,(hl)
+        inc hl
+        ld (chrbuf+16+_),a
+        ld (chrbuf+8+_),a
+        ld (chrbuf+0+_),a
+_=_+1
+        ld (chrbuf+16+_),a
+        ld (chrbuf+8+_),a
+        ld (chrbuf+0+_),a
+_=_+1
+        edup
+        else
+        dup 4
+        ld e,0xff&(chrbuf+16+_)
+        ld a,(hl)
+        ld (de),a
+        inc e
+        ldi ;b
+        ld e,0xff&(chrbuf+8+_)
+        ld a,(hl)
+        ld (de),a
+        inc e
+        ldi ;g
+        ld e,0xff&(chrbuf+0+_)
+        ld a,(hl)
+        ld (de),a
+        inc e
+        ldi ;r
+_=_+2
+        edup
+        
         endif
         ret
         
@@ -1459,12 +1510,15 @@ putchar_a=$+1
 ;ahl=to
 ;bc=size
         call puttomem
+nextputlineaddr
+;keeps bc
         ld a,(putchar_a)
         ld hl,(putchar_hl)
 curpicwidx3=$+1
-        ld bc,0
-        add hl,bc
+        ld de,0
+        add hl,de
         adc a,0
+setputlineaddr
         ld (putchar_hl),hl
         ld (putchar_a),a
         ret

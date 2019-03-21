@@ -15,6 +15,8 @@ npages=$+1
         ret ;z
 
 unreservepages
+         ld a,-1
+         ld (npages_old),a
 unreservepages0
         call unreservepage
         jr z,unreservepages0
@@ -44,10 +46,10 @@ reserve_bmp_pages
         ld (putchar_hl),hl
         ld (putchar_a),a
 
-        ld de,(curpichgt)
-         inc de
-         srl d
-         rr e
+        ld de,(curpichgt_visible)
+         ;inc de
+         ;srl d
+         ;rr e
         ld bc,(curpicwidx3)
         CALL MULWORD
         ld d,b
@@ -56,6 +58,10 @@ reserve_bmp_pages
         
 reserve_mem
 ;hlde=size
+;out: ahl=freemem pointer
+;меняет страницу в 0xc000
+;ставит pgtemp в 0x8000
+;ставит pgcode в 0x4000
 freemem_hl=$+1
         ld bc,0
 freemem_a=$+1
@@ -125,6 +131,12 @@ reserve_mem_noreservepage
         adc a,0 ;т.к. могли попасть ровно на конец страницы
         ld (freemem_hl),hl
         ld (freemem_a),a
+         push af
+         push hl
+         call showmem ;ставит pgcode в 0x4000
+         call setpgtemp8000
+         pop hl
+         pop af
         ret
 reserve_mem_nolast
 ;уменьшить hlde на длину остатка страницы:
@@ -170,7 +182,7 @@ reserve_mem_nolast_decabcq
         srl a
         rr b
         rr c
-        jr reserve_mem0
+        jp reserve_mem0
         
 writebyte
 ;c=byte

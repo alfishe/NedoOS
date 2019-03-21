@@ -145,8 +145,10 @@ LSZXm7=$+1
         ret nz ;строки сверх высоты картинки не выводить
         ld (jpglinecount),de
         push af
-         bit 0,e
-         jp z,jpgconvRGBlineskip ;TODO с учЄтом зума
+         ;bit 0,e
+         ;jp z,jpgconvRGBlineskip ;TODO с учЄтом зума
+         call islinevisible
+         jp nz,jpgconvRGBlineskip
         push hl
         ;1.читать в LINE каждую составл€ющую отдельно, 2.перекодировать каждую составл€ющую отдельно, 3. записывать сразу в bmp (BGR)
         ld e,1
@@ -216,6 +218,7 @@ jpgconvRGBpixels0
 
         pop hl
 jpgconvRGBlineskip
+         call inccury
         LD DE,(LSZX) ;ширина строки, округлЄнна€ вверх до полноценного блока        ADD HL,DE ;следующа€ строка блока        pop af        dec a        JP NZ,jpgconvRGBlines0 ;на всю высоту полноценного блока ;одна строка = 258150        RET ;4 130 590
 jpgconvBW
 ;HL=JPGPAGESTART;A=(MAXV8) ;высота полноценного блока        ;ld e,1
@@ -225,8 +228,10 @@ jpgconvBWlines0        ld de,(jpglinecount)
         bit 7,d
         ret nz ;строки сверх высоты картинки не выводить
         ld (jpglinecount),de
-        push af         bit 0,e
-         jp z,jpgconvBWlineskip ;TODO с учЄтом зума
+        push af         ;bit 0,e
+         ;jp z,jpgconvBWlineskip ;TODO с учЄтом зума
+         call islinevisible
+         jp nz,jpgconvBWlineskip
         push hl
          ld e,1
          call SETPG
@@ -255,6 +260,7 @@ jpgconvBWcopylineY0
 
         pop hl
 jpgconvBWlineskip
+         call inccury
         LD DE,(LSZX) ;ширина строки, округлЄнна€ вверх до полноценного блока        ADD HL,DE ;следующа€ строка блока        pop af        dec a        JP NZ,jpgconvBWlines0 ;на всю высоту полноценного блока        ret
         
 

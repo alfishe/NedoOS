@@ -58,8 +58,15 @@ getpgs0
         ;jr $
         
         call depack
-       
+        
         if 1==0
+        ld de,0
+        ld hl,1
+        ;dehl=shift
+        ld a,(filehandle)
+        ld b,a
+        OS_SEEKHANDLE
+       
        LD IY,DISKBUF+DISKBUFsz-1
        
 loop0
@@ -314,7 +321,7 @@ ML_FLEN DW 0ST_FLEN DB 0
         include "depk.asm"
         
 defaultfilename
-        db "0:/pkunzip.zip",0
+        db "pkunzip.zip",0
 filename
         db "depkfile.fil"
         ds 128

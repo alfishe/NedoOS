@@ -48,7 +48,7 @@ TRDOSFCB.descpos=TRDOSFCB
 	;db 0 ;position of descriptor (for write) 0..127
 TRDOSFCB=TRDOSFCB+1
 TRDOSFCB.waseof=TRDOSFCB
-	;db 0 ;position of descriptor (for write) 0..127
+	;db 0 ;-1 = waseof
 TRDOSFCB=TRDOSFCB+1
 TRDOSFCB.buf=256;$-TRDOSFCB
 	;ds 256 ;buffer for last sector
@@ -238,6 +238,8 @@ nfopenfndot.
 nfopenfnq.
         endif
 
+nfopen_reopen
+;h-TRDOSFCB/256
 	;xor a
 	;ld l,TRDOSFCB.block
 	;ld [hl],a;0 ;cur block for write, next block for read ;TODO брать из имени (тупо закомментировать)
@@ -707,14 +709,7 @@ flush.
 	;inc [hl] ;add 16 sectors = add 1 track
         push bc
         ld lx,SECINBLK
-flush_addsectors0
-        inc c
-        bit 4,c
-        jr z,$+2+3
-        ld c,0
-        inc b
-        dec lx
-        jr nz,flush_addsectors0
+        call addsectors
         ld (hl),b
         dec hl
         ld (hl),c
@@ -778,6 +773,23 @@ flushnblk.
 
 	pop bc
 	ret
+
+addsectors
+;bc=trsec
+;lx=number of sectors
+;keeps a
+        inc lx
+        jr flush_addsectors_go
+flush_addsectors0
+        inc c
+        bit 4,c
+        jr z,$+2+3
+        ld c,0
+        inc b
+flush_addsectors_go
+        dec lx
+        jr nz,flush_addsectors0
+        ret
 
 fwrite
 ;hl=poi to data

@@ -58,6 +58,7 @@ rem nedotrd test.trd -a browser/atmpg.htm
 rem nedotrd test.trd -a browser/atmpg2.htm
 nedotrd test.trd -a browser/6914fast.gif
 nedotrd test.trd -a browser/6908fast.gif
+nedotrd test.trd -a browser/6909wrbg.gif
 nedotrd test.trd -a browser/animatie.gif
 nedotrd test.trd -a browser/sprites.gif
 nedotrd test.trd -a pkunzip/pkunzip.zip

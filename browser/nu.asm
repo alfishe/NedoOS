@@ -478,3 +478,55 @@ reserve_bmp_pages_fail
         ret
         
         endif
+
+        if 1==0
+readchr
+;b,g,r
+;TODO с масштабированием и с учётом правого края картинки, не делящегося на 8
+        ;push bc
+        push af
+        push hl
+        ;call ahl_to_pgaddr ;set pages in 32K
+        rl h
+        rla
+        rl h
+        rla
+        srl h
+        scf
+        rr h
+;a=page number in table (0..)
+        ld e,a
+        ld d,textpages/256
+        ld a,(de)
+        SETPG32KLOW
+        inc e
+        ld a,(de)
+        SETPG32KHIGH
+         call readchrlomem
+        
+        pop hl
+        pop af
+        if GIF_PIXELSIZE
+        ld bc,8
+        else
+        ld bc,24
+        endif
+        add hl,bc
+        ;pop bc
+        ret nc
+        inc a
+        ret
+        endif
+
+        if 1==0
+        push bc
+        push de
+        push hl
+        ld hl,chrbuf
+        ld de,chrbuf+8
+        ld bc,16
+        ldir
+        pop hl
+        pop de
+        pop bc
+        endif

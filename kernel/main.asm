@@ -391,6 +391,7 @@ sys_SHADON=$-wasresident+resident
         LD BC,#BD77 ;shadow ports and palette remain on
         JP #3D2F
 
+;TODO убрать в pgtrdos
 dos3d13_resident=$-wasresident+resident
 ;сейчас включена pg5
 ;iy=23610

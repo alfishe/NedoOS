@@ -478,9 +478,23 @@ tag_img
         jp z,skiprestoftag ;Z=closing tag (does nothing)
         ;jr $
         call htmlskipspaces
+tag_img_readsrc
+        call htmlskipspaces_go
         ld hl,tsrc
         call eatgivenword_go
-        jr nz,tag_img_opening_fail
+        ;jr nz,tag_img_srcfail
+        
+        jr z,tag_img_srcq
+tag_img_srcfail
+        call htmlskipparam
+         cp '>'
+        jr nz,tag_img_readsrc
+        jr tag_img_opening_readaltq
+tag_img_srcq
+        
+        ;ld hl,tsrc
+        ;call eatgivenword_go
+        ;jr nz,tag_img_opening_fail
 ;read link to stringbuf2 until doublequote
         call inithref         
 tag_img_opening_read0

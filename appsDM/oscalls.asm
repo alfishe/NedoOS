@@ -1,4 +1,4 @@
-
+	
 	MODULE ERRNO_MODULE
 	PUBLIC errno
 	RSEG	NO_INIT
@@ -356,14 +356,9 @@ YIELD:
 	push de
 	push ix
 	push iy
-	exx 
-	push bc
-	push de
-	push hl
-	exx
-yield_loop:
 	ld c,0xf2
 	call 0x0005
+yield_loop:
 	ld c,0xf1
 	call 0x0005
     ld hl,(oldtimer)
@@ -371,11 +366,6 @@ yield_loop:
     or a
     sbc hl,de
     jr z,yield_loop
-	exx 
-	pop hl
-	pop de
-	pop bc
-	exx
 	pop iy
 	pop ix
 	pop de

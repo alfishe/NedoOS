@@ -1413,7 +1413,8 @@ BDOS_seekhandle
 ;                DE:HL = Signed offset
 ;     Results:       A = Error
 ;                DE:HL = New file pointer
-;TODO TR-DOS
+        bit 6,b
+        jr nz,BDOS_seekhandle_noFATFS
         push de ;HSW
         push hl ;LSW
         call BDOS_number_to_fil ;de=fil
@@ -1422,6 +1423,11 @@ BDOS_seekhandle
         pop bc
         pop bc
         ret
+BDOS_seekhandle_noFATFS
+        push bc
+        BDOSSETPGTRDOSFS
+        pop bc
+        jp trdos_seekhandle
 
 BDOS_getfilesize
 ;b=handle

@@ -1,6 +1,20 @@
 fnt
         incbin "1125vert.fnt"
 
+prnum123
+;d=y, e=x8
+;hl=num
+         call setpgs_scr
+         push hl
+         call setxymc
+         pop de
+         ld bc,100
+         call prdigmc
+         ld bc,10
+         call prdigmc
+         ld bc,1
+         jr prdigmc
+         
 prnumfrac
 ;d=y, e=x8
 ;hl=time (frames)

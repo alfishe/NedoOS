@@ -49,22 +49,20 @@ void puts_with_buf(char *str){
 		putchar(*txtptr=*ptr);
 		ptr++;
 		txtptr++;
-		if(txtptr>=(SCR_BUF+sizeof(SCR_BUF))){
+		if(txtptr==(SCR_BUF+sizeof(SCR_BUF))){
 			txtptr=SCR_BUF;
 		}
 	}
-	*txtptr=0x00;
 }	
 
 unsigned char scrredraw(void){
-	char * ptr=txtptr+1;
+	char * ptr=txtptr;
 	while(1){
-		if(ptr>=(SCR_BUF+sizeof(SCR_BUF))){
+		putchar(*ptr);
+		if((++ptr)==(SCR_BUF+sizeof(SCR_BUF))){
 			ptr=SCR_BUF;
 		}
-		if(*ptr==0x00) break;
-		putchar(*ptr);
-		ptr++;
+		if(ptr==txtptr) break;
 	}
 	OS_SETXY(0,24);
 	printf("%s",kbd_buf.buf);

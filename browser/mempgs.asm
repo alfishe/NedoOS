@@ -40,3 +40,9 @@ setpgs_scr_low=$+1
         SETPG32KLOW
         ret
 
+gifsetpgLZW
+curpgLZW=$+1
+        ld a,0
+        SETPG32KHIGH
+        ret
+

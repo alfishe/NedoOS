@@ -130,6 +130,8 @@ gifdisposalmethod=$+1
 ;optic_15.gif: a=0
 ;multipal.gif, melnchud.gif, melnchil.gif (все из Photoshop) - нет graphic control extension - TODO не заказывать память под bmp и не делать putline?
         ld (gifdisposalmethod),a
+         ;cp 9 
+         ;ret z
         ;jr $
          rra;bit 0,a
          ld a,GIFTRANSP_on
@@ -178,40 +180,32 @@ GIF_IMG ;Обработка блока изображения.
         ld (linebufstart_local),hl
         ld (linebufpointer),hl
 
+gifrasteraddr=$+1
+        ld hl,0;(putchar_hl)
+gifrasteraddrHSB=$+1
+        ld a,0;(putchar_a)
+        call setputlineaddr
+
 ;пропустить строки до starty (скопировать из предыдущего кадра) TODO что если это первый кадр, а строк нет? так не бывает?
 ;starty=$+1
 ;        ld bc,0
 ;bc=локальная первая строка
         call gifpreparepic_skiplines
-        
+
+        if 1==0
 ;ищем, в какое место bmp класть начальную строчку кадра:
-;gifrasteraddr + curpicwidx3*cury:
-        ld de,(curpicwidx3)
         ld bc,(cury);(Y_IMG)
          srl b
          rr c ;TODO с учётом зума
-gifrasteraddr=$+1
-        ld hl,0;(putchar_hl)
-gifrasteraddrHSB=$+1
-        ld a,0;(putchar_a)
         inc bc
         jr gifrasterstart0loop
 gifrasterstart0
-        push af
-        push de
-        push hl
         call nextscreenline
-        pop hl
-        pop de
-        pop af
-        add hl,de
-        adc a,0
+        call nextputlineaddr
 gifrasterstart0loop
-        dec hl
         cpi
         jp pe,gifrasterstart0
-        ld (putchar_a),a
-        ld (putchar_hl),hl
+        endif
         
         GIFINITCY
         GIFGETBYTE
@@ -333,9 +327,10 @@ GIF_IMG_ENDcode=$+1
         LD A,0 ;/0xff, если встретился блок с длиной 0
         OR A
         jr z,GIF_IMG_END0 ;т.е. ещё не конец блока.
-;встретился блок с длиной 0
+;встретился блок с длиной 0 - конец изображения
 
         ld bc,(curpichgt)
+        ;jr $
         call gifpreparepic_skiplines
         
         ld hl,(nframes)
@@ -348,15 +343,17 @@ gifconvertedframeaddrHSB=$+1
         ld a,0
         ld (gifoldconvertedframeaddr),hl
         ld (gifoldconvertedframeaddrHSB),a
-
+         ;ld a,(nframes)
+         ;cp 2
+         ;ret z
         JP GIF_newframe ;следующий кадр
         
 ;bc=номер строки выхода
 gifpreparepic_skiplines0
 ;TODO копировать прямо из памяти (окна 1,2) в память (окно 3)
          push bc
-        call islinevisible ;CY=invisible
-        jr c,gifpreparepic_skiplines_invisible
+        call islinevisible ;nz=invisible
+        jr nz,gifpreparepic_skiplines_invisible
         ld hl,(gifoldconvertedframeaddr)
         ld a,(gifoldconvertedframeaddrHSB)
         ld de,LINEPIXELS
@@ -364,10 +361,11 @@ gifpreparepic_skiplines0
         call getfrommem ;берём сконверченную строку из предыдущего кадра
         call nextoldconvertedframeaddr ;смещаем адрес, откуда брать сконверченную строку из предыдущего кадра (gifoldconvertedframeaddr)
         call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS, смещаем адрес, куда класть (keepframeaddr)
+         call nextscreenline
+         call nextputlineaddr
 gifpreparepic_skiplines_invisible
         call inccury
          pop bc
-gifpreparepic_skiplinesgo
 gifpreparepic_skiplines
 ;вход тут
         ld hl,(cury)
@@ -425,11 +423,11 @@ putchar_palH=$+1
         ld h,PAL_GLOB/256
         ld l,a
         ld a,(hl)
-        ld (de),A
+        ld (de),a
         inc de
         inc h
         ld a,(hl)
-        ld (de),A
+        ld (de),a
         inc de
         inc h
         ldi
@@ -455,6 +453,7 @@ PUTCHARputline
         call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
          ;call setpgtemp8000 ;drawscreenline_frombuf сама восстанавливает
          ;call setpgcode4000 ;drawscreenline_frombuf сама восстанавливает
+        call nextoldconvertedframeaddr ;смещаем адрес, откуда брать сконверченную строку из предыдущего кадра (gifoldconvertedframeaddr)
 PUTCHARskipline
         call PUTCHARgetline_ifvisible ;берём строку из bmp, если она видимая и если надо рисовать поверх ;устанавливает PUTCHARaddr
         call gifsetpgLZW
@@ -472,8 +471,8 @@ PUTCHARgetline_ifvisible
 ;устанавливает PUTCHARaddr, PUTCHARputaddr
          ld hl,PUTCHAR_DUMMY
          ld de,PUTCHARskipline
-        call islinevisible ;CY=invisible
-        jr c,PUTCHARgetline_ifvisibleq
+        call islinevisible ;nz=invisible
+        jr nz,PUTCHARgetline_ifvisibleq
 ;getline, если DX_IMG!=curpicwid или если есть прозрачность ;TODO делать эту проверку один раз за кадр
          ld hl,(DX_IMG)
          ld de,(curpicwid)
@@ -488,7 +487,6 @@ PUTCHARgetline_ifvisible
         cp GIFTRANSP_off
 PUTCHARgetline
         call nz,getline ;TODO для анимированных: если не первый кадр, прочитать строку из памяти в LINEGIF (чтобы рисовать поверх неё)
-        call nextoldconvertedframeaddr ;смещаем адрес, откуда брать сконверченную строку из предыдущего кадра (gifoldconvertedframeaddr)
          ld hl,PUTCHAR
          ld de,PUTCHARputline
 PUTCHARgetline_ifvisibleq
@@ -499,14 +497,11 @@ PUTCHARgetline_ifvisibleq
 
 ;__________________________________
 PUTSTRING
-;выводит цепочку с нач. адресом в HL в поток символов.
-;Возвращает в А первый символ этой цепочки.  [Либо CF=1 в случае ошибки]
+;выводит цепочку с нач. адресом в HL в поток символов
+;out: А=первый символ этой цепочки
 ;портит bc,de,hl
 ;использует буфер по адресу -1..-4096
         ld bc,0
-        ;xor a
-        ;ld b,a
-        ;ld c,a
 PUTSTR0 ;
         dec bc
         ld d,(hl);e
@@ -520,11 +515,10 @@ PUTSTR0 ;
          ;JR Z,PUTSTR_fail ;ошибка (длина 4096 элементов, больше нет места) ;но реально такого не может быть в составленной нами таблице
          ;nop ;4t = 0.1 s
          dec h
-        JP NZ,PUTSTR0 ;пока не перейдём к корневой цепочке
-;[CY=0]
-PUTSTR2 LD A,(bc)
+        jp nz,PUTSTR0 ;пока не перейдём к корневой цепочке
+PUTSTR2 ld a,(bc)
 PUTCHARaddr=$+1
-        CALL PUTCHAR
+        call PUTCHAR
         inc c
         jp nz,PUTSTR2
         inc b
@@ -801,12 +795,6 @@ GIFSEARCH1
         DJNZ GIFSEARCH0
         XOR A ;OK
         RET 
-
-gifsetpgLZW
-curpgLZW=$+1
-        ld a,0
-        SETPG32KHIGH
-        ret
 
 ;=============================
 ROL_INSTALL

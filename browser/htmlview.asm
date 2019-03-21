@@ -1,4 +1,6 @@
 htmlview
+        call showtime
+
         ld hl,(curprintvirtualy)
         ld (html_endy),hl
         call prcharmc_stateful_resethandler
@@ -48,8 +50,9 @@ html_mainloop_keyq
         pop af
         cp key_redraw
         jr z,html_redrawloop
-        cp csSpace
-        jp z,browser_quit
+        ;cp csSpace
+        ;jp z,browser_quit
+        call globalbuttons
         ld hl,html_mainloop
         push hl
         cp cs7
@@ -64,14 +67,14 @@ html_mainloop_keyq
         jr z,html_enter
 	cp 'l'
 	jr z,html_download
-	cp 's'
-	jp z,browser_downloadthis
-        cp '5'
-        jp z,browser_reload
+	;cp 's'
+	;jp z,browser_downloadthis
+        ;cp '5'
+        ;jp z,browser_reload
         cp 'u'
         jr z,html_changeencoding
-        cp cs0
-        jp z,browser_backspace
+        ;cp cs0
+        ;jp z,browser_backspace
         cp cs3
         jp z,html_pgup
         cp cs4

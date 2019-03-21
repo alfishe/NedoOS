@@ -91,6 +91,9 @@ name
         org PROGSTART
 gfxeditor_begin
 main_go
+        jp main_go2
+        ds 256
+main_go2
         ld sp,0x4000 ;не должен опускатьс€ ниже 0x3b00! иначе возможна порча OS
         ld e,0 ;EGA
         OS_SETGFX
