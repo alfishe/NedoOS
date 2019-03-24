@@ -74,7 +74,8 @@ is_dot:
 	bit 7,h
 	jr nz,exitcode
 	ld b,50
-	;jr recv_wait1
+	push bc
+	jr recv_wait1
 recv_wait:
 	push bc
 	call YIELD

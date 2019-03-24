@@ -142,7 +142,7 @@ void msg_send(unsigned char * tbuf){
 unsigned char receive(void){
 	int len;
 	unsigned char pred=79;
-	len=recv(ircsoc,rptr,rptr-(RX_BUF+sizeof(RX_BUF)),0);
+	len=recv(ircsoc,rptr,(RX_BUF+sizeof(RX_BUF))-rptr,0);
 	if(len==0) return 1;
 	if(len<0){
 		closesocket(ircsoc,0);
@@ -163,7 +163,8 @@ unsigned char receive(void){
 		break;
 	}
 	rptr=pars.nxt;
-	*(pars.nxt=strstr(rptr,"\r\n"))=0;
+	if(pars.nxt=strstr(rptr,"\r\n"))
+                *(pars.nxt)=0;
 	
 	if(!pars.nxt){
 		strcpy(RX_BUF,rptr);
@@ -175,9 +176,10 @@ unsigned char receive(void){
 	pars.nxt+=2;
 	if(*rptr==':') {
 		pars.src=rptr+1;
-		pars.com=strchr(pars.src,' ');
-		*(pars.com++)=0;
-		*(strchr(pars.src,'!'))=0;
+		if(pars.com=strchr(pars.src,' '))
+                        *(pars.com++)=0;
+		if(pars.dst=strchr(pars.src,'!'))
+                        *(pars.dst)=0;
 	}
 	else {
 		pars.com=rptr;
