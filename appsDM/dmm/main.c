@@ -64,13 +64,13 @@ C_task main (int argc, char *argv[])
 		puts("Need more parameters");
 		exit();
 	}
-	RST8_DEVFIND();
+	//RST8_DEVFIND();
 	GET_FNDVOLUME(buf.v);
 	vols=GET_KOL_VOL() & 0xff;
 	ptr=OS_GETPATH(cpath);
 	if(argv[1][1]==':'){
 		tchar=argv[1][0]-'0';
-		argv[1]+=3;
+		argv[1]+=2;
 	}else{
 		tchar=cpath[0]-'0';
 	}
