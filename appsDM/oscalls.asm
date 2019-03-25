@@ -70,30 +70,23 @@ OS_NET_RW:
 	ENDMOD
 	
 	MODULE OSOPENHANDLE
-	PUBLIC OS_OPENHANDLE
+	PUBLIC OS_CLOSEHANDLE,CMD_OPENHANDLE
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
 	RSEG CODE
 OS_OPENHANDLE:
-	push ix
-	push iy
 	ld a,c
-	ld c,0x43	
-	call 0x0005
-	ld h,b
-	ld l,a
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
-	MODULE OSCLOSEHANDLE
-	PUBLIC OS_CLOSEHANDLE
-	RSEG CODE
+    ex af,af'
+	ld c,CMD_OPENHANDLE	
+	jr label1
 OS_CLOSEHANDLE:
-	push ix
-	push iy
 	ld b,d
-	ld c,0x45	
-	call 0x0005
+	ld c,CMD_CLOSEHANDLE
+label1:
+	push ix
+	push iy	
+	call BDOS
+	ld (errno),a
 	ld h,b
 	ld l,a
 	pop iy
@@ -102,34 +95,27 @@ OS_CLOSEHANDLE:
 	ENDMOD
 	
 	MODULE OSWRITEHANDLE
-	PUBLIC OS_WRITEHANDLE
+	PUBLIC OS_WRITEHANDLE,OS_READHANDLE,OS_GETPATH
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
 	RSEG CODE
-OS_WRITEHANDLE:
-	pop af
-	pop hl
-	push hl
-	push af
-	push ix
-	push iy
-	ld c,0x49	
-	call 0x0005
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
-	MODULE OSREADHANDLE
-	PUBLIC OS_READHANDLE
-	RSEG CODE
+OS_GETPATH:
+	ld c,CMD_GETPATH	
+	jr label1
 OS_READHANDLE:
+	ld c,CMD_READHANDLE	
+	jr label1
+OS_WRITEHANDLE:
+	ld c,CMD_WRITEHANDLE
+label1:
 	pop af
 	pop hl
 	push hl
 	push af
 	push ix
-	push iy
-	ld c,0x48	
-	call 0x0005
+	push iy	
+	call BDOS
+	ld (errno),a
 	pop iy
 	pop ix
 	ret
@@ -137,6 +123,8 @@ OS_READHANDLE:
 	
 	MODULE OSCREATEHANDLE
 	PUBLIC OS_CREATEHANDLE
+	EXTERN errno
+	#include "../../_sdk/sysdefs.asm"
 	RSEG CODE
 OS_CREATEHANDLE:
 	push ix
@@ -146,8 +134,9 @@ OS_CREATEHANDLE:
 	ld b,a
 	ld a,c
 	and 0x7f
-	ld c,0x44	
-	call 0x0005
+	ld c,CMD_CREATEHANDLE	
+	call BDOS
+	ld (errno),a
 	ld h,b
 	ld l,a
 	pop iy
@@ -156,59 +145,33 @@ OS_CREATEHANDLE:
 	ENDMOD
 	
 	MODULE OSSETXY
-	PUBLIC OS_SETXY
+	PUBLIC OS_SETXY,OS_GETXY,OS_CLS,OS_SETGFX,OS_SCROLLUP
+	#include "../../_sdk/sysdefs.asm"
 	RSEG CODE
-OS_SETXY:
-	push ix
-	push iy
-	ld d,c
-	ld c,0xf8	;de=yx ;SET CURSOR POSITION
-	call 0x0005
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
-	MODULE OSGETXY
-	PUBLIC OS_GETXY
-	RSEG CODE
+OS_SCROLLUP:
+	ld h,b
+	ld l,c
+	ld c,CMD_SCROLLUP
+	jr label1
+OS_SETGFX:
+	ld c,CMD_SETGFX
+	jr label1
+OS_CLS:
+	ld c,CMD_CLS
+	jr label1
 OS_GETXY:
+	ld c,CMD_GETXY	;de=yx ;GET CURSOR POSITION
+	jr label1
+OS_SETXY:
+	ld d,c
+	ld c,CMD_SETXY	;de=yx ;SET CURSOR POSITION
+label1:
 	push ix
 	push iy
-	ld c,0xe1	;de=yx ;GET CURSOR POSITION
-	call 0x0005
-	ex de,hl
+	call BDOS
 	pop iy
 	pop ix
 	ret			;h-y l-x
-	ENDMOD
-	
-	MODULE OSCLS
-	PUBLIC OS_CLS
-	RSEG CODE
-	;e-color
-OS_CLS:
-	push ix
-	push iy
-	ld c,0xf6
-	call 0x0005
-	pop iy
-	pop ix
-	ret
-	ENDMOD
-	
-	MODULE OSSETGFX
-	PUBLIC OS_SETGFX
-	RSEG CODE
-	;e-mode
-OS_SETGFX:
-	push ix
-	push iy
-	ld c,0xf9
-	call 0x0005
-	pop iy
-	pop ix
-	ret
 	ENDMOD
 	
 	MODULE PUTS
@@ -257,22 +220,6 @@ getchar:
 scrredraw:
 	xor a
 	ret	
-	ENDMOD
-	
-	MODULE OSSCROLLUP
-	PUBLIC OS_SCROLLUP
-	RSEG CODE
-	;de=topyx, bc=hgt,wid ;x, wid even
-OS_SCROLLUP:
-	push ix
-	push iy
-	ld h,b
-	ld l,c
-	ld c,0xe6
-	call 0x0005
-	pop iy
-	pop ix
-	ret
 	ENDMOD
 	
 	MODULE OSLOWGET
@@ -435,7 +382,8 @@ tloop
 	im 2
 	ret
 	ENDMOD
-		NAME	CSTARTUP
+	
+	NAME	CSTARTUP
 	EXTERN	main_args,exit			; where to begin execution
 	EXTERN	?C_EXIT			; where to go when program is done
 	RSEG	CSTACK

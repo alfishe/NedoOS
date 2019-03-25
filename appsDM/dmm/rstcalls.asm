@@ -2,6 +2,7 @@
 	MODULE RST8CALL
 	PUBLIC rst8call
 	EXTERN save_pg
+	EXTERN errno
 	RSEG CODE
 rst8call:
 	di
@@ -17,9 +18,13 @@ rst8call:
 	ld bc,0x3ff7
 	out (c),a
 	pop bc
+	ld a,c
 	rst 8
 funcn:
 	defb 0x50,0x03
+	ld a,0
+	adc a,a
+	ld (errno),a
 	ld a,0x7f
 	ld bc,0x3ff7
 	out (c),a
