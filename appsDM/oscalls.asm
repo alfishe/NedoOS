@@ -134,6 +134,7 @@ OS_CREATEHANDLE:
 	ld b,a
 	ld a,c
 	and 0x7f
+    ex af,af'
 	ld c,CMD_CREATEHANDLE	
 	call BDOS
 	ld (errno),a
