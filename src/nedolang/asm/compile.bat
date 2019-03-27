@@ -1,5 +1,5 @@
 @echo off
-path=..\_sdk\
+path =..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolang ../_sdk/emit.c ../_sdk/fmttg.h asm.c asmloop.c ../_sdk/io.c

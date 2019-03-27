@@ -1100,6 +1100,8 @@ cmd_echo
         
 cmd_pause
         YIELDGETKEYLOOP
+         cp key_redraw
+         jr z,cmd_pause
         ret
 
 cmd_copydir

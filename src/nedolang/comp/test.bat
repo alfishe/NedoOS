@@ -7,7 +7,7 @@ type err.f
 
 echo ...tokenizing...
 tok compc_os.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var
-tok ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../_sdk/sysdefs.asm
+tok ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../../_sdk/sysdefs.asm
 
 echo ...assembling...
 asm compc_os.S_

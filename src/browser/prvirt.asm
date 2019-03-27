@@ -78,12 +78,15 @@ linklastpointer_next_ahl_setlastpointer
         jr z,linklastpointer_lastnull
         call writeword ;bc
         ex af,af'
+         ;cp 0xff
+         ;jr z,$
         ld c,a
+        ex af,af'
         call writebyte ;c
         jr linklastpointer_lastnullq
 linklastpointer_lastnull
-        ld (firstpointer),bc
         ex af,af'
+        ld (firstpointer),bc
         ld (firstpointerHSB),a
 linklastpointer_lastnullq
         pop hl
@@ -107,11 +110,12 @@ linklast2pointer_next_ahl_setlast2pointer
         call writeword ;bc
         ex af,af'
         ld c,a
+        ex af,af'
         call writebyte ;c
         jr linklast2pointer_lastnullq
 linklast2pointer_lastnull
-        ld (first2pointer),bc
         ex af,af'
+        ld (first2pointer),bc
         ld (first2pointerHSB),a
 linklast2pointer_lastnullq
         pop hl

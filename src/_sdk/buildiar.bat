@@ -1,5 +1,7 @@
+set wascurrentdir=%currentdir%
 if "%currentdir%"=="" set currentdir=..\..
-set Z80_IDE_PATH=%currentdir%\tools\iar
+
+set Z80_IDE_PATH=%currentdir%\..\iar
 set ICCZ80=%Z80_IDE_PATH%\bin\iccz80
 set AZ80=%Z80_IDE_PATH%\bin\az80
 set XLINK=%Z80_IDE_PATH%\bin\xlink
@@ -10,7 +12,7 @@ IF NOT EXIST %ICCZ80%.exe (
 	ECHO IAR not found. Skipping build "%PRJNAME%"
 	EXIT /b
 )
-echo Build "%PRJNAME%"
+rem echo Build "%PRJNAME%"
 
 IF "%PRJDEBUG%"=="1" (
 	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
@@ -33,3 +35,5 @@ FOR %%f IN (!ASM_FILES!) do (
 )
 
 %XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
+
+if "%wascurrentdir%"=="" (pause)

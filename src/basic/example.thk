@@ -1,0 +1,19 @@
+10 gfx 0
+20 cls
+30 plot 10,50,4
+40 line 200,100,3
+50 line 50,150,2
+60 line 250,0,9
+9999 pause
+
+10 gfx 0
+20 cls
+30 let x=10000
+40 let y=0
+100 plot 160+x/256,100+y/256,4
+250 let u=x
+260 let v=y
+270 let x=-(u+v/3)
+280 let y=-(v-u/5)
+290 line 160+x/256,100+y/256,4
+300 goto 200

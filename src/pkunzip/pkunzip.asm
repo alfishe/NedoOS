@@ -7,11 +7,14 @@
         CALL Z,RDBYH
        ENDM 
 
-DISKBUF=0x7000
-DISKBUFsz=0x1000
 STACK=0x4000
+TD61A=0x4000;0x8000;0x4000 ;чтобы было bit 6 ;size = 0xa60 + 2*число кодов?
+TCRC=0x6800 ;size 0x400, divisible by 0x400
+DISKBUF=0x6c00
+DISKBUFsz=0x1000
 
-TCRC=0x6c00 ;size 0x400, divisible by 0x400
+depkbuf=0x7c00;0 for pages
+buf64k=0;0 for nopages
 
         org PROGSTART
 cmd_begin
@@ -22,9 +25,9 @@ cmd_begin
         
         ;OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
-
+        if depkbuf==0
         ld hl,PTABL
-        ld b,6
+        ld b,4;6
 getpgs0
         push bc
         push hl
@@ -34,6 +37,7 @@ getpgs0
         inc hl
         pop bc
         djnz getpgs0
+        endif
         
         ld hl,COMMANDLINE
         call skipword
@@ -44,6 +48,7 @@ getpgs0
          ld hl,defaultfilename
         ex de,hl
         
+         ;jr $
         ;ld de,filename
         call openstream_file
         or a
@@ -118,26 +123,24 @@ strcopy0
         jr nz,strcopy0
         ret
 
-        
+        if depkbuf==0
 PTABL
         ;DB #11,#13,#14,#17,#10,#16
-        ds 6 ;patchedT61F7   DS 14T6221   DS 4 ;time(2), date(2) of depacked fileCRC_ISH DS 4ML_LEN_ISH DB 0T622A   DB 0ST_LEN_ISH DB 0T622C   DB 0;T622D   DB 0;T622E   DB 0;T622F   DB 0ML_CRC32 DW 0ST_CRC32 DW 0
+        ds 4;6 ;patched
+        endif;T61F7   DS 14 ;???T6221   DS 4 ;time(2), date(2) of depacked fileCRC_ISH DS 4ML_LEN_ISH DB 0T622A   DB 0ST_LEN_ISH DB 0T622C   DB 0;T622D   DB 0;T622E   DB 0;T622F   DB 0ML_CRC32 DW 0ST_CRC32 DW 0
 ;текущий размер файла для процентомера;B1      DB 0;B2      DB 0;B3      DB 0
+        if depkbuf==0
 ;a=4: for Z631F
 ;a=5: default
 ;a=0..3: for keep byte
 ;не должна портить hl,de, a' (а что насчёт bc?)
-ON_BANK        CP 0        RET Z        LD (TPAGE),A
+ON_BANK        ;CP 0        ;RET Z ;для такого поведения надо перед каждой распаковкой делать паразитное переключение, чтобы потом сработало фактическое?        ;LD (TPAGE),A
         push bc
        LD b,PTABL/256       ADD A,PTABL&0xff        LD c,A        LD A,(bc)        SETPG32KHIGH
         pop bc
-        
-        if 1==0        EXX         LD BC,#7FFD       LD H,PTABL/256       ADD A,PTABL        LD L,A        LD A,(HL)        OUT (C),A        EXX 
-        endif        RET TPAGE=ON_BANK+1
-        if 1==0
-;3AГPУ3KA ЧACTИ ЗИПALBLOKZIP PUSH HL        PUSH DE,BC,IX        LD HL,BUFER        LD (ZD11F),HL        LD A,4        CALL ON_BANK        LD BC,B_LEN        CALL Z631F        LD A,5        CALL ON_BANK        POP IX,BC,DE,HL        RET 
-        endif
-;ЧTEHИE ЧACTИ ФAЙЛА
+        RET 
+        endif;TPAGE=ON_BANK+1
+;ЧTEHИE ЧACTИ ФAЙЛА
 ;de=len
 ;ix=buffer
 ;ahl=position in fileREAD    
@@ -175,13 +178,27 @@ minhl_bc_tobc
 ; HL = ДЛИНА ФАЙЛА
 ;de=0
 ;где имя файла? TODO в filename
-;out: hl=0SAVE        LD A,4        CALL ON_BANK        LD A,3        LD (NOPR),A ;форсировать процентомер?        CALL COUNT ;процентомер?        ;LD (#5CE8),HL ;length
+;out: hl=0SAVE        ;LD A,4        ;CALL ON_BANK        ;LD A,3        ;LD (NOPR),A ;форсировать процентомер?        ;CALL COUNT ;процентомер?        ;LD (#5CE8),HL ;length
         ld de,0        LD (IST),DE
         
         ld a,h
         or l
         ret z
-        ;RE_READ
+        
+        if depkbuf
+        ex de,hl
+IST=$+1
+        LD HL,0;(IST)
+        ld bc,depkbuf
+        add hl,bc
+        ex de,hl
+        ld a,(savefilehandle)
+        ld b,a
+        push iy
+        OS_WRITEHANDLE
+        pop iy
+        
+        else;RE_READ
         ;push hl
         ;call SAVECREATE
         ;pop hl ;size
@@ -208,7 +225,9 @@ IST=$+1
         or l        jr nz,SAVE_pg
         ;call SAVECLOSE
         
-        LD A,5        call ON_BANK 
+        endif
+        
+        ;LD A,5        ;call ON_BANK 
         ld hl,0 ;OK
         ret
 
@@ -230,8 +249,6 @@ savefilehandle=$+1
         pop iy
         ret
         
-        if 1==0LP5     LD A,E        SUB #40        JR C,ONE_BANK        LD E,A        PUSH DE        LD HL,0IST=$-2        LD A,H        RLCA         RLCA         AND 3        CALL ON_BANK        LD BC,#4006        LD DE,(#5CF4)        LD HL,#C000        CALL TRDOS        LD DE,#4000        LD HL,(IST)        ADD HL,DE        LD (IST),HL        POP DE        JR LP5
-        endif         
         
 RDBYTE
         INC LY
@@ -261,11 +278,16 @@ RDBYH
         ld de,DISKBUF
         ld hl,DISKBUFsz
         call readstream_file
+           ;ld bc,(U6546)
+           ;ld a,b
+           ;or c
+           ;jr nz,$+2+2+2+3
+           ;ds 2;jr $ ;ds 2
+           ;LD A,5           ;ds 3;call ON_BANK 
 ;hl=actual size
          ld a,h
          or l
          jp z,readerror
-;fill the rest of buffer with zeros
 ;move block to end of buf:
         ld b,h
         ld c,l
@@ -277,28 +299,6 @@ RDBYH
         push de
         pop iy ;DISKBUF+
         
-        if 1==0
-        ld de,DISKBUF
-        add hl,de
-        ex de,hl ;de=start of zeros
-        ld hl,DISKBUF+DISKBUFsz
-        xor a
-        sbc hl,de
-        ld b,h
-        ld c,l ;bc=length of zeros (Z=no zeros)
-        jr z,readdiskbuf_nozeros
-        ld h,d
-        ld l,e ;start of zeros
-        ld (hl),a;0
-        inc de
-        dec bc
-        ld a,b
-        or c
-        jr z,readdiskbuf_nozeros
-        ldir
-readdiskbuf_nozeros
-        endif
-
         pop hl
         pop de
         pop bc
@@ -317,14 +317,34 @@ readdiskbuf_nozeros
 Z61B7   LD A,#2E        LD (DE),A        INC DEZ61BB   LDI         RET PO        JR Z61BB
 ML_FLEN DW 0ST_FLEN DB 0 
 
+prcrlf
+        ld hl,tcrlf
+prtext
+        ld a,(hl)
+        or a
+        ret z
+        push hl
+        push iy
+        PRCHAR
+        pop iy
+        pop hl
+        inc hl
+        jr prtext
+        
+tcrcerror
+        db "CRC error"
+tcrlf
+        db 13,10,0
+
         include "file.asm"
+        include "zipfile.asm"
         include "depk.asm"
         
 defaultfilename
-        db "pkunzip.zip",0
+        db "0:/12345/DOWNLOAD.ZIP",0
 filename
         db "depkfile.fil"
-        ds 128
+        ds filename+256-$ ;для длинных имён
 
 CAT
 ;каждый файл по 16 байт:

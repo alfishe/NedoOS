@@ -81,7 +81,7 @@ SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. *
 		
 
 openstream_http
-	display $
+	;display $
 ;de=filename (without "http://"), slash always presents
 ;out: A!=0 => error
         ex de,hl
@@ -180,7 +180,7 @@ findlastdot0
 
 
 readstream_http
-	display $
+	;display $
 
 	add hl,de
 	push de	;начало буфера

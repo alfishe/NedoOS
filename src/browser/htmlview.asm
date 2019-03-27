@@ -432,6 +432,7 @@ htmlshowline_findup0
         push hl
         call getandcompareHREF_Y
         jr z,htmlshowline_findok
+         jr c,htmlshowline_pop2findq
         pop hl
         pop af
         call getprevelement
@@ -457,6 +458,7 @@ htmlshowline_finddown0
 ;        ex de,hl
         call getandcompareHREF_Y
         jr z,htmlshowline_findok
+         jr nc,htmlshowline_pop2findq
         pop hl
         pop af
         call getnextelement
@@ -510,6 +512,7 @@ htmlshowline_showtext0
         jr htmlshowline_showtext0
 htmlshowline_showtextq
         
+htmlshowline_pop2findq
         pop hl
         pop af
         

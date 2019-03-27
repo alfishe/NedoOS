@@ -1,4 +1,7 @@
-path=..\sjasm\;..\us\;..\tools\
-sjasmplus pkunzip.asm
+set wascurrentdir=%currentdir%
+if "%currentdir%"=="" set currentdir=..
+path=%currentdir%\..\sjasm\;%currentdir%\..\us\;%currentdir%\..\tools\
 
-if "%currentdir%"=="" (pause)
+sjasmplus --nologo pkunzip.asm
+
+if "%wascurrentdir%"=="" (pause)

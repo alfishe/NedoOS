@@ -1,3 +1,7 @@
-..\sjasm\sjasmplus setfont.asm
+set wascurrentdir=%currentdir%
+if "%currentdir%"=="" set currentdir=..
+path=%currentdir%\..\sjasm\;%currentdir%\..\us\;%currentdir%\..\tools\
 
-if "%currentdir%"=="" (pause)
+sjasmplus --nologo setfont.asm
+
+if "%wascurrentdir%"=="" (pause)

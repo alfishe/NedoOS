@@ -1,7 +1,7 @@
 ;startup
 TRUE=0xff
 FALSE=0x00
-	include "../_sdk/sysdefs.asm"
+	include "../../_sdk/sysdefs.asm"
 ;COMMANDLINE=0x0080
 ;COMMANDLINE_sz=0x0080
 ;PROGSTART=0x0100

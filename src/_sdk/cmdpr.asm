@@ -44,7 +44,7 @@ cpmname_to_dotnameq
 makeprompt
 ;keeps ix
         push ix
-        ld de,cmdprompt ;de=pointer to 64 byte buf
+        ld de,cmdprompt ;de=pointer to 64 byte (MAXPATH_sz!) buf
         OS_GETPATH
         pop ix
         ret
@@ -190,7 +190,7 @@ curcmdscroll ;сдвиг команды относительно экрана
 curcmdx ;не на экране, а внутри команды
         db 0
 cmdprompt
-        ds MAXCMDSZ+1
+        ds MAXPATH_sz;MAXCMDSZ+1
 tcmd
         db "cmd "
 tcmd_sz=$-tcmd

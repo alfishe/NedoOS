@@ -1,0 +1,13 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;color 0 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+doska=B,112,0,32,8,7
+beton=B,80,0,32,8,7
+colorblock=B,0,72,32,16,7
+cherry=s,176,0,16,13,7
+tilepic=T,0,0,224,96,13

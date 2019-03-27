@@ -165,9 +165,8 @@ autoloadq
         ;ld c,CMD_REMOUNT;#ff ;remount
         ;CALLBDOS
         
-        ld de,pathbuf_forBDOS ;de=pointer to 64 byte buf
+        ld de,pathbuf_forBDOS ;de=pointer to 64 byte (MAXPATH_sz!) buf
         OS_GETPATH
-        ;de=pointer to 64 byte buf
         ld a,(de)
         sub '0'
         ld (curdrive),a
@@ -1356,7 +1355,7 @@ wordbuf
         ds MAXCMDSZ+1
         
 pathbuf_forBDOS
-        ds 64 ;сейчас используется только при инициализации (прочитать текущий драйв)
+        ds MAXPATH_sz ;сейчас используется только при инициализации (прочитать текущий драйв)
 
         display "$ before align=",/h,$
         
@@ -1420,7 +1419,7 @@ SHAPES_begin
         include "prtext.asm"
         .align 256
 font48
-        incbin "64QUA-.$f!"
+        incbin "64qua.fnt"
 SHAPES_sz=$-SHAPES_begin
 	display "Shapes size ",/d,SHAPES_sz," bytes"
         

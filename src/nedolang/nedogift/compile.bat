@@ -1,5 +1,5 @@
 @echo off
-path=..\_sdk\
+path =..\_sdk\;..\..\_sdk\
 
 rem nedodefb lvnt_1 font.asm font 0 2048
 nedopad lvnt_1 font.bin 0 2048

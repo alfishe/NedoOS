@@ -1,5 +1,7 @@
+path=..\_sdk\;..\..\_sdk\
 call compile.bat
 
+md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast
@@ -21,4 +23,4 @@ call ..\asm\mktrd.bat
 nedotrd test.trd -a ..\movedisk\movedisk
 nedotrd test.trd -a ..\nedodel\nedodel
 
-..\us\emul.exe test.trd
+..\..\..\us\emul.exe test.trd

@@ -1,4 +1,7 @@
-path=..\sjasm\;..\us\;..\tools\
+set wascurrentdir=%currentdir%
+if "%currentdir%"=="" set currentdir=..
+path=%currentdir%\..\sjasm\;%currentdir%\..\us\;%currentdir%\..\tools\
+
 sjasmplus --nologo browser.asm
 
-if "%currentdir%"=="" (pause)
+if "%wascurrentdir%"=="" (pause)

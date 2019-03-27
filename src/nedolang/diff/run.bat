@@ -1,5 +1,6 @@
 call compile.bat
 
+md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast
@@ -19,4 +20,4 @@ ren diff.bin diff
 
 call ..\asm\mktrd.bat
 
-..\us\emul.exe test.trd
+..\..\..\us\emul.exe test.trd

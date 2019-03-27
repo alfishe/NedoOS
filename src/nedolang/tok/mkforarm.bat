@@ -1,4 +1,4 @@
-path=..\_sdk\
+path=..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolarm ../_sdk/read.c ../_sdk/fmttg.h token.c tokenz80.c ../_sdk/io.c ../_sdk/str.c

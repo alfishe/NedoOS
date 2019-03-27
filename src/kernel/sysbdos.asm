@@ -2028,7 +2028,7 @@ strlen
 
 ;GET WHOLE PATH STRING (5EH)
 ;     Parameters:    C = 5EH (_WPATH) 
-;                   DE = Pointer to 64 byte buffer 
+;                   DE = Pointer to 64 byte (MAXPATH_sz!) buffer
 ;     Results:       A = Error
 ;                   DE = Filled in with whole path string
 ;                   HL = Pointer to start of last item 
@@ -2038,9 +2038,9 @@ BDOS_getpath
         BDOSSETPGFATFS
         push de ;нельзя после BDOS_preparedepage
         call BDOS_preparedepage
-        push de ;DE = Pointer to 64 byte buffer (#8000+/c000+!)
+        push de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
 
-        push de ;Pointer to 64 byte buffer (#8000+/c000+!)
+        push de ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
         
         GETVOLUME
         cp vol_trdos
@@ -2057,17 +2057,17 @@ BDOS_getpath
         jr BDOS_getpath_FATq
 BDOS_getpath_FAT
         ;DE=TCHAR *path,	/* Pointer to the directory path */ буфер
-        ld bc,64 ;BC=UINT sz_path	/* Size of path */) размер буфера 
+        ld bc,MAXPATH_sz;64 ;BC=UINT sz_path	/* Size of path */) размер буфера 
         F_GETCWD
 BDOS_getpath_FATq
-        pop hl ;Pointer to 64 byte buffer (#8000+/c000+!)
+        pop hl ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
         call findlastslash.
         ex de,hl ;HL = Pointer to start of last item (#8000+/#c000+!)
         
-        pop de ;DE = Pointer to 64 byte buffer (#8000+/#c000+!)
+        pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/#c000+!)
         or a
         sbc hl,de ;hl=расстояние до последнего слэша
-        pop de ;DE = Pointer to 64 byte buffer
+        pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
         add hl,de ;HL = Pointer to start of last item
         ret
 

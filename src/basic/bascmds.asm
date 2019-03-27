@@ -516,7 +516,7 @@ cmd_system
         exx
 ;hl = wordbuf = string
 
-        ld de,curdir ;DE = Pointer to 64 byte buffer
+        ld de,curdir ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
         OS_GETPATH
         OS_SETSYSDRV ;TODO каталог cmd
         

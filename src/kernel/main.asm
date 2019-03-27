@@ -546,4 +546,4 @@ sysend
         page COMPILEPG_SYS1
 	savebin "syscode.c",sysbegin,sysend-sysbegin
 	
-	LABELSLIST "..\us\user.l"
+	;LABELSLIST "..\us\user.l"

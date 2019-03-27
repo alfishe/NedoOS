@@ -70,7 +70,7 @@ OS_NET_RW:
 	ENDMOD
 	
 	MODULE OSOPENHANDLE
-	PUBLIC OS_CLOSEHANDLE,OS_OPENHANDLE
+	PUBLIC OS_OPENHANDLE,OS_CLOSEHANDLE,CMD_OPENHANDLE
 	EXTERN errno
 	#include "../../_sdk/sysdefs.asm"
 	RSEG CODE
@@ -134,7 +134,6 @@ OS_CREATEHANDLE:
 	ld b,a
 	ld a,c
 	and 0x7f
-    ex af,af'
 	ld c,CMD_CREATEHANDLE	
 	call BDOS
 	ld (errno),a

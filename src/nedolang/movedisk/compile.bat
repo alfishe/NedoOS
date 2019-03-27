@@ -1,5 +1,5 @@
 @echo off
-path=..\_sdk\
+path =..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolang movedisk.c ../_sdk/io.c

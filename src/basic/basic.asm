@@ -956,7 +956,7 @@ wordbuf
         ds MAXCMDSZ+1
 
 curdir
-        ds MAXCMDSZ+1
+        ds MAXPATH_sz;MAXCMDSZ+1
         
 oldtimer
         dw 0

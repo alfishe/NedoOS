@@ -67,6 +67,9 @@ loadhtml_mainloop_mangledcharq
 loadhtml_mainloop
         rdbyte
 loadhtml_mainloop_go
+         ;push af
+         ;call prcharvirtual_stateful
+         ;pop af
          cp '<'+1
          jp nc,loadhtml_mainloop_mangledcharq ;speedup
         or a
@@ -303,6 +306,8 @@ tagslist
         db "frameset",0
         dw tag_frame
         db "frame",0
+        dw tag_iframe
+        db "iframe",0
         dw tag_label
         db "label",0
         dw tag_form
@@ -420,9 +425,11 @@ tag_head
 ;TODO read all tags inside (meta, title)
         jp skiprestoftag
 
+tag_iframe
 tag_frame
 ;TODO find src="..." (now we find last param)
         ;jr $
+        call htmlskipspaces
 tag_frame0
         ;ld a,(prcharvirtual_stateful_x)
         ;jr $
@@ -431,7 +438,7 @@ tag_frame0
         call htmlskipspaces_go
 
         ld de,wordbuf
-        call getword_param_go
+        call getword_param_go ;в параметре могут быть закавыченные пробелы!
         ld (executetag_endchar),a
         or a
         ret z
@@ -452,9 +459,11 @@ tag_frame0
 tag_frame_typetag0
          ld a,(hl)
          or a
-         jr z,tag_frame_typetagq
+         jp z,tag_frame_typetagq
          cp 34
-         jr z,tag_frame_typetagq
+         jp z,tag_frame_typetagq
+          cp "'"
+          jp z,tag_frame_typetagq
          inc hl
          push hl
          push af
@@ -496,13 +505,26 @@ tag_img_srcq
         ;call eatgivenword_go
         ;jr nz,tag_img_opening_fail
 ;read link to stringbuf2 until doublequote
-        call inithref         
+        call inithref
+        
+        call RDBYTE;rdbyte
+         cp "'"
+         jr z,tag_img_opening_read0
+        cp 34
+        jr nz,tag_img_opening_read_go
+
 tag_img_opening_read0
         call RDBYTE;rdbyte
+tag_img_opening_read_go
         or a
         ret z
         cp 34
         jr z,tag_img_opening_readq
+         cp "'"
+         jr z,tag_img_opening_readq
+         ;push af
+         ;call prcharvirtual_stateful
+         ;pop af
         call printtostringbuf2
         jr tag_img_opening_read0
 tag_img_opening_readq
@@ -519,12 +541,22 @@ tag_img_opening_readalt
         ld hl,talt
         call eatgivenword_go
         jr nz,tag_img_opening_altfail
+        
+        call RDBYTE;rdbyte
+         cp "'"
+         jr z,tag_img_opening_readalt0
+        cp 34
+        jr nz,tag_img_opening_readalt_go
+
 tag_img_opening_readalt0
         call RDBYTE;rdbyte
+tag_img_opening_readalt_go
         or a
         ret z
         cp 34
         jr z,tag_img_opening_readaltq
+         cp "'"
+         jr z,tag_img_opening_readaltq
         call prcharvirtual_stateful
         jr tag_img_opening_readalt0
 tag_img_opening_altfail
@@ -533,7 +565,8 @@ tag_img_opening_altfail
          cp '>'
         jr nz,tag_img_opening_readalt
 tag_img_opening_readaltq
-tag_frame_typetagq=tag_img_opening_readaltq
+         ld (executetag_endchar),a
+tag_frame_typetagq ;TODO почему выше съедает первый фрейм atmturbo?
         ld a,']'
         jr closehrefq
         ;call prcharvirtual_stateful
@@ -566,6 +599,8 @@ tag_a_opening_readhref
         
         ;zxdn: no quotes in href
         call RDBYTE;rdbyte
+         cp "'"
+         jr z,tag_a_opening_read0
         cp 34
         jr nz,tag_a_opening_read_go
 
@@ -579,19 +614,29 @@ tag_a_opening_read_go
         jr z,tag_a_opening_readq
         cp 34
         jr z,tag_a_opening_readq
+         cp "'"
+         jr z,tag_a_opening_readq
         cp 0x0d
         jr z,tag_a_opening_read0 ;lib.ru
         cp 0x0a
         jr z,tag_a_opening_read0 ;lib.ru
+         if 1==0
          cp '&'
          jr nz,tag_a_opening_read0ok
+        call printtostringbuf2
 ;TODO проверить &amp; (forum.nedopc.com)
         call RDBYTE;rdbyte
+         cp 'a'
+         jr nz,tag_a_opening_read0ok
         call RDBYTE;rdbyte
         call RDBYTE;rdbyte
         call RDBYTE;rdbyte         
-         ld a,'&'
+        jr tag_a_opening_read0
 tag_a_opening_read0ok
+         endif
+         ;push af
+         ;call prcharvirtual_stateful
+         ;pop af
         call printtostringbuf2
         jr tag_a_opening_read0
 tag_a_opening_hreffail
@@ -680,21 +725,37 @@ getword_mangledchar
 ;TODO провер€ть переполнение WORDBUFSIZE
 getword_mangledchar0
         call RDBYTE;rdbyte
-getword_param_go
+getword_param_go ;в параметре могут быть закавыченные пробелы!
         or a
         jr z,getword_mangledcharq
+         cp "'"
+         jr z,getword_mangledcharquote
+         cp 34
+         jr z,getword_mangledcharquote
         cp ' '
-        jr z,getword_mangledcharq
+        jr z,getword_mangledcharspaceq
         cp ';'
         jr z,getword_mangledcharq
         cp '#'
         jr z,getword_mangledcharq ;lib.ru &#97&#102&#114&#97&#110&#105&#117&#115&#64&#110&#101&#119&#109&#97&#105&#108&#46&#114&#117
         cp '>'
         jr z,getword_mangledcharq ;for param
+getword_mangledchar0ok
 	 or 0x20
         ld (de),a
         inc de
         jr getword_mangledchar0
+getword_mangledcharquote
+        ld c,a
+getword_mangledcharquote0
+        ld (de),a
+        inc de
+        call RDBYTE;rdbyte
+        cp c
+        jr nz,getword_mangledcharquote0
+        jr getword_mangledchar0ok
+getword_mangledcharspaceq
+;или тут проверять, в кавычках ли мы?
 getword_mangledcharq
         push af
         xor a
@@ -736,9 +797,9 @@ strcp_tillde0_0.
 thref
         db "href=",0
 tsrc
-        db "src=",34,0
+        db "src=",0
 talt
-        db "alt=",34,0
+        db "alt=",0
         
 rememberhrefyxposition
         ld a,(prcharvirtual_stateful_x)

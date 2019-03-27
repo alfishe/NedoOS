@@ -1,5 +1,6 @@
 call compile.bat
 
+md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast
@@ -21,4 +22,4 @@ nedotrd basics.trd -eh batch.$b
 
 call ..\asm\mktrd.bat
 
-..\us\emul.exe test.trd
+..\..\..\us\emul.exe test.trd

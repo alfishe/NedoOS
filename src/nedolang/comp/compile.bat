@@ -1,5 +1,5 @@
 @echo off
-path=..\_sdk\
+path =..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolang ../_sdk/emit.c ../_sdk/io.c commands.c
@@ -47,5 +47,6 @@ nedoasm comp.S_
 type asmerr.f
 
 diff nedolang comp.bin
+del compcode.bin
 
 pause

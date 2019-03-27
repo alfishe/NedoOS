@@ -1,4 +1,4 @@
-path=..\_sdk\
+path=..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolarm ../_sdk/read.c ../_sdk/fmttg.h migalka.c ../_sdk/io.c ../_sdk/str.c
@@ -12,6 +12,7 @@ rem nedopad _tokarm.bin _out.bin 0 65536
 
 pause
 
+md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast

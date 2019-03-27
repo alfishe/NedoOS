@@ -1,7 +1,7 @@
 @echo off
-path=..\_sdk\
+path =..\_sdk\;..\..\_sdk\
 
-nedores testpic.bmp testpic.txt testpic.ast
+nedores testpic.bmp testpic.dat testpic.ast
 
 echo ...compiling...
 nedolang spr.c

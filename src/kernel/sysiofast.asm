@@ -808,6 +808,7 @@ fwrite
 ;fwrite.B.=$+1
 	;EXPORT fwrite.B.
 	;ld bc,0 ;size
+        ld (fread00size),bc
 fwrite00.
 	ld a,[hl]
         push de
@@ -829,7 +830,7 @@ fwrite00.
 	;db 0xed,0xa1
 	;jp pe,fwrite0.
 	 ;ex de,hl ;hl = total processed bytes
-	ret
+	jp fread00q ;ret
 
         if 1==0
 fputs

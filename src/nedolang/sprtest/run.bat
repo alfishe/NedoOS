@@ -1,5 +1,7 @@
+path=..\_sdk\;..\..\_sdk\
 call compile.bat
 
+md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast
@@ -19,5 +21,4 @@ nedotrd ..\batch\basics.trd -eh boot.$b
 nedotrd test.trd -ah boot.$b
 nedotrd test.trd -s 24576 -ac main.bin
 
-rem ..\..\emul\emul.exe test.trd
-..\us\emul.exe test.trd
+..\..\..\us\emul.exe test.trd

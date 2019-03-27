@@ -28,10 +28,18 @@ firstfiley=left_panel_xy/256 + 1
         org PROGSTART
 cmd_begin
         ld sp,0x4000
+
+;        ld b,100
+;cmd_beginwait0
+;        push bc
+;        YIELD ;чтобы cmd мог доделать свои дела на экране
+;        pop bc
+;        djnz cmd_beginwait0
+
         ld e,6 ;textmode
         OS_SETGFX
-
-        ;YIELD ;чтобы cmd мог доделать свои дела на экране
+        
+        GET_KEY ;съедаем key_redraw
         
         ld e,COLOR
         OS_CLS
@@ -684,7 +692,7 @@ editcmd_setpaneldirfromcurdir
 editcmd_setpaneldirfromcurdir_panelhl
 	ld de,PANEL.dir
 	add hl,de
-        ex de,hl ;de=pointer to 64 byte buf
+        ex de,hl ;de=pointer to 64 byte (MAXPATH_sz!) buf
         OS_GETPATH
         ret
 
@@ -1585,7 +1593,6 @@ tdotdot
 xy		WORD
 pg		BYTE
 pointers	WORD
-dir		BLOCK 64
 totalsize	DWORD
 files		WORD ;visible files
 filesdirs       WORD ;files+dirs (no ".", "..")
@@ -1596,8 +1603,9 @@ dirscroll	WORD
 dirviewmode	BYTE
 dirsortproc	WORD
 dirsortmode	BYTE
+dir		BLOCK MAXPATH_sz
 	ENDS
-PANEL_sz=13+64
+PANEL_sz=13+MAXPATH_sz
 
 leftpanel PANEL
 rightpanel PANEL

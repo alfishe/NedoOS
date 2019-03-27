@@ -1,37 +1,58 @@
 SET currentdir=%CD%
+SET releasedir=%CD%\..\release\
+@echo off
+
 FOR /R . %%i IN (build.bat) DO (
+        rem echo "%%i"
 	if exist %%i (
+                echo "%%~pi"
 		cd "%%~pi"
 		call build.bat
-		copy *.com %currentdir%\bin\
-		rem copy *.ini %currentdir%\bin\
-		rem copy *.ext %currentdir%\bin\
+		if exist *.com ( move *.com %releasedir%\bin\ > nul )
+		if exist *.ext ( copy *.ext %releasedir%\bin\ > nul )
 	)
 )
 cd %currentdir%
 
-copy nv\nv.ext bin\nv.ext
+FOR /R . %%i IN (*.txt) DO (
+	if exist %%i (
+		copy %%i %releasedir%\doc\ > nul
+	)
+)
+cd %currentdir%
 
-@echo off
+FOR /R . %%i IN (*.new) DO (
+	if exist %%i (
+		copy %%i %releasedir%\doc\ > nul
+	)
+)
+cd %currentdir%
+
+copy autoexec.bat %releasedir%\bin\ > nul
+
 path=_sdk\
 nedotrd test.trd -n
 nedotrd test.trd -ah boot6000.$b
 nedotrd test.trd -s 24576 -ac kernel/code.c
 
-for %%i in (bin\*.*) do (
+for %%i in (%releasedir%\bin\*.*) do (
     nedotrd test.trd -a %%i
 )
 
-rem nedotrd test.trd -a scratch/lanscape.bmp
+for %%i in (%releasedir%\doc\*.*) do (
+    nedotrd test.trd -a %%i
+)
 
-nedotrd test.trd -a comp/sizesz80.h
-nedotrd test.trd -a comp/comp_os.s
-nedotrd test.trd -a comp/compc_os.s
-nedotrd test.trd -a comp/compile.c
-nedotrd test.trd -a comp/codez80.c
-nedotrd test.trd -a comp/commands.c
-nedotrd test.trd -a comp/regs.c
-nedotrd test.trd -a comp/test.bat
+nedotrd test.trd -a scratch/lanscape.bmp
+
+nedotrd test.trd -a nedolang/comp/sizesz80.h
+nedotrd test.trd -a nedolang/comp/comp_os.s
+nedotrd test.trd -a nedolang/comp/compc_os.s
+nedotrd test.trd -a nedolang/comp/compile.c
+nedotrd test.trd -a nedolang/comp/codez80.c
+nedotrd test.trd -a nedolang/comp/commands.c
+nedotrd test.trd -a nedolang/comp/regs.c
+nedotrd test.trd -a nedolang/comp/test.bat
 
 nedotrd test.trd -a _sdk/str.h
 nedotrd test.trd -a _sdk/io.h
@@ -45,25 +66,21 @@ nedotrd test.trd -a _sdk/io_os.i
 nedotrd test.trd -a _sdk/sysdefs.asm
 
 nedotrd test.trd -a basic/example.bas
-nedotrd test.trd -a nedogift/testmusi.pt3
-nedotrd test.trd -a player/COCO.pt2
-nedotrd test.trd -a browser/index.html
-nedotrd test.trd -a browser/page.html
-rem nedotrd test.trd -a browser/zajchik.gif
-rem nedotrd test.trd -a browser/GIRL.JPG
-rem nedotrd test.trd -a browser/csprmain.htm
-rem nedotrd test.trd -a browser/spwiki.html
-rem nedotrd test.trd -a browser/atmmain.htm
-rem nedotrd test.trd -a browser/atmpg.htm
-rem nedotrd test.trd -a browser/atmpg2.htm
-nedotrd test.trd -a browser/6914fast.gif
-nedotrd test.trd -a browser/6908fast.gif
-nedotrd test.trd -a browser/6909wrbg.gif
-nedotrd test.trd -a browser/animatie.gif
-nedotrd test.trd -a browser/sprites.gif
+nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
+nedotrd test.trd -a player/coco.pt2
+nedotrd test.trd -a browser/test/index.htm
+rem nedotrd test.trd -a browser/test/page.htm
+rem nedotrd test.trd -a browser/test/zajchik.gif
+rem nedotrd test.trd -a browser/test/girl.jpg
+rem nedotrd test.trd -a browser/test/csprmain.htm
+rem nedotrd test.trd -a browser/test/spwiki.htm
+nedotrd test.trd -a browser/test/atmmain.htm
+rem nedotrd test.trd -a browser/test/atmpg.htm
+rem nedotrd test.trd -a browser/test/atmpg2.htm
+rem nedotrd test.trd -a browser/test/6914fast.gif
+rem nedotrd test.trd -a browser/test/6908fast.gif
+nedotrd test.trd -a browser/test/6909wrbg.gif
+rem nedotrd test.trd -a browser/test/animatie.gif
+rem nedotrd test.trd -a browser/test/sprites.gif
+rem nedotrd test.trd -a browser/test/listh.htm
 nedotrd test.trd -a pkunzip/pkunzip.zip
-
-nedotrd test.trd -a license.txt
-
-del nedoos.trd
-ren test.trd nedoos.trd

@@ -1,7 +1,7 @@
 ;startup
 FCB1=0xe800 ;aligned ;len=0x0200*files
 DOSBUF=0xfe00 ;aligned
-	include "../_sdk/sysdefs.asm"
+	include "../../_sdk/sysdefs.asm"
 ;COMMANDLINE=0x0080
 ;COMMANDLINE_sz=0x0080
 ;PROGSTART=0x0100

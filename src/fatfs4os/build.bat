@@ -1,12 +1,17 @@
 @ECHO OFF
 setlocal enabledelayedexpansion
+set wascurrentdir=%currentdir%
 
 set C_FILES=ff
-set ASM_FILES=mylib
+set ASM_FILES=mylib.asm
 SET ADD_LINK_FILES=
 
-if "%currentdir%"=="" set currentdir=..
-set Z80_IDE_PATH=%currentdir%\tools\iar
+set Z80_IDE_PATH=..\..\iar
+IF NOT EXIST %Z80_IDE_PATH%\bin\iccz80.exe (
+	ECHO IAR not found. Skipping build FatFS
+	EXIT /b
+)
+
 set ICCZ80=%Z80_IDE_PATH%\bin\iccz80
 set AZ80=%Z80_IDE_PATH%\bin\az80
 set XLINK=%Z80_IDE_PATH%\bin\xlink
@@ -24,13 +29,15 @@ set LINK_OPTIONS=!LINK_OPTIONS! -Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,
 if not exist list mkdir list
 
 FOR %%f IN (!C_FILES!) do (
-	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%f.r01
+	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~nf.r01
 	%ICCZ80% %C_OPTIONS% %%f 
 )
 
 FOR %%f IN (!ASM_FILES!) do (
-	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%f.r01
+	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~nf.r01
 	%AZ80% -S -Olist\ -uu %%f 
 )
 
 %XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
+
+if "%wascurrentdir%"=="" (pause)

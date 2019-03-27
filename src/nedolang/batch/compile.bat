@@ -1,5 +1,5 @@
 @echo off
-path=..\_sdk\;..\_sdk\nedotrd\
+path =..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolang batch.c

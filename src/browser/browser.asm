@@ -136,7 +136,7 @@ browser_go
 ;curfulllink содержит текущую ссылку (из неё брать путь), слеш в конце http://ser.ver уже есть
 ;в linkbuf лежит ссылка (может быть локальная)
 ;TODO перекодировать русские буквы в ссылке в %? только в набранной вручную?
-
+         ;jr $
         call keepcurlink
 
         ld hl,linkbuf
@@ -363,6 +363,7 @@ downloadflag=$+1
        LD IY,DISKBUF+DISKBUFsz-1
 
         call RDBYTE
+         ;jr $
         ;cp '<'
         ;jp z,loadhtml
          ;cp 0x0a ;speccy.info
@@ -1731,7 +1732,7 @@ zxpal
         
 cmd_end
 
-	display "Size ",/d,cmd_end-cmd_begin," bytes"
+	;display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "browser.com",cmd_begin,cmd_end-cmd_begin
 	

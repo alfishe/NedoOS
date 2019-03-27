@@ -2943,8 +2943,8 @@ FRESULT f_opendir (
 {
 	FRESULT res;
 	static TCHAR *path;
-	DEF_NAMEBUF;
 	path = (TCHAR *)nullstring;
+	DEF_NAMEBUF;
 
 	res = chk_mounted(&path, &dj->fs, 0);	//(&path, &dj->fs, 0);
 	if (res == FR_OK) {

@@ -1,5 +1,6 @@
 call compile.bat
 
+md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast
@@ -46,4 +47,4 @@ nedotrd test.trd -a ..\_sdk\str.i
 nedotrd test.trd -a ..\_sdk\iofast.i
 nedotrd test.trd -a ..\_sdk\io.c
 
-..\us\emul.exe test.trd
+..\..\..\us\emul.exe test.trd

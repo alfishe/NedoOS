@@ -3,6 +3,8 @@ COMMANDLINE=0x0080
 COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 
+MAXPATH_sz=256;64
+
 ;------------------------ÑÒÐÓÊÒÓÐÛ CP/M --------------------------------------
 ;from CP/M:
 CMD_PRCHAR=0x05 ;e=char
@@ -32,7 +34,7 @@ CMD_WRITEHANDLE=0x49 ;B = file handle, DE = Buffer address, HL = Number of bytes
 CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS! with Drive/path!) ;RENAME OR MOVE FILE
 CMD_CHDIR=0x5a ;DE = Pointer to ASCIIZ string
 CMD_PARSEFNAME=0x5c ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
-CMD_GETPATH=0x5e ;DE = Pointer to 64 byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE!), HL = Pointer to start of last item
+CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled in with whole path string (WITH DRIVE!), HL = Pointer to start of last item
 
 ;invented:
 ;CMD_SETWAITING=0xd9

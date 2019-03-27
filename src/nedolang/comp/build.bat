@@ -1,12 +1,12 @@
 @echo off
-path=..\_sdk\
+path=..\_sdk\;..\..\_sdk\
 
 echo ...compiling...
 nedolang ../_sdk/emit.c commands.c
 type err.f
 
 echo ...tokenizing...
-nedotok compc_os.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../_sdk/sysdefs.asm
+nedotok compc_os.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../../_sdk/sysdefs.asm
 
 echo ...assembling...
 nedoasm compc_os.S_
@@ -23,7 +23,7 @@ echo ...assembling...
 nedoasm comp_os.S_
 type asmerr.f
 
-del comp.com
-ren comp_os.bin comp.com
+del compc_os.bin
+move comp_os.bin comp.com > nul
 
 if "%currentdir%"=="" (pause)
