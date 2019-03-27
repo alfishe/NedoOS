@@ -1,4 +1,3 @@
-set wascurrentdir=%currentdir%
 if "%currentdir%"=="" set currentdir=..\..
 
 set Z80_IDE_PATH=%currentdir%\..\iar
@@ -16,10 +15,10 @@ rem echo Build "%PRJNAME%"
 
 IF "%PRJDEBUG%"=="1" (
 	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
-	set C_OPTIONS=-v0 -ml -r -uu -q -e -K -gA -t4 -Llist\ -Olist\ -Alist\ -I%IARINC%
+	set C_OPTIONS=-v0 -ml -r -uu -q -e -K -gA -t4 -Llist\ -Olist\ -Alist\ -I%IARINC% -I%currentdir%\_sdk\
 )ELSE (
 	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com -C %IARLIB%\clz80 -f Lnk.xcl
-	set C_OPTIONS=-v0 -ml -s7 -S -uu -e -K -gA -Olist\ -Alist\ -I%IARINC%
+	set C_OPTIONS=-v0 -ml -s7 -S -uu -e -K -gA -Olist\ -Alist\ -I%IARINC% -I%currentdir%\_sdk\
 )
 
 if not exist list mkdir list
@@ -35,5 +34,3 @@ FOR %%f IN (!ASM_FILES!) do (
 )
 
 %XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
-
-if "%wascurrentdir%"=="" (pause)

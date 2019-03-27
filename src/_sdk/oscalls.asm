@@ -45,7 +45,7 @@ htons:
 	MODULE OS_NETRECV
 	PUBLIC OS_NETRECV,OS_NETSEND
 	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
+	#include "sysdefs.asm"
 	RSEG	CODE
 OS_NETSEND:
 	ld a,c
@@ -70,9 +70,9 @@ OS_NET_RW:
 	ENDMOD
 	
 	MODULE OSOPENHANDLE
-	PUBLIC OS_OPENHANDLE,OS_CLOSEHANDLE,CMD_OPENHANDLE
+	PUBLIC OS_CLOSEHANDLE,OS_OPENHANDLE
 	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
+	#include "sysdefs.asm"
 	RSEG CODE
 OS_OPENHANDLE:
 	ld a,c
@@ -97,7 +97,7 @@ label1:
 	MODULE OSWRITEHANDLE
 	PUBLIC OS_WRITEHANDLE,OS_READHANDLE,OS_GETPATH
 	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
+	#include "sysdefs.asm"
 	RSEG CODE
 OS_GETPATH:
 	ld c,CMD_GETPATH	
@@ -124,7 +124,7 @@ label1:
 	MODULE OSCREATEHANDLE
 	PUBLIC OS_CREATEHANDLE
 	EXTERN errno
-	#include "../../_sdk/sysdefs.asm"
+	#include "sysdefs.asm"
 	RSEG CODE
 OS_CREATEHANDLE:
 	push ix
@@ -134,6 +134,7 @@ OS_CREATEHANDLE:
 	ld b,a
 	ld a,c
 	and 0x7f
+    ex af,af'
 	ld c,CMD_CREATEHANDLE	
 	call BDOS
 	ld (errno),a
@@ -146,7 +147,7 @@ OS_CREATEHANDLE:
 	
 	MODULE OSSETXY
 	PUBLIC OS_SETXY,OS_GETXY,OS_CLS,OS_SETGFX,OS_SCROLLUP
-	#include "../../_sdk/sysdefs.asm"
+	#include "sysdefs.asm"
 	RSEG CODE
 OS_SCROLLUP:
 	ld h,b
