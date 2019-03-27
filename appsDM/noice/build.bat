@@ -1,1 +1,0 @@
-..\..\sjasm\sjasmplus main.asm --nologo --dos866

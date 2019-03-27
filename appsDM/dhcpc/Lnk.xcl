@@ -1,7 +1,0 @@
--cZ80 //процессор, под который собираем
--Ilist
--Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,TABL8|8=0100-605F //сегменты памяти с константами и кодом
--Z(DATA)INTJP=6060-6062 //сегмент с JP для прерываний im2
--Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,INTTABLE|8,CSTACK+200,FREESEG=C000-FBFF //сегменты стека, переменных и т.п.
--e_medium_write=_formatted_write //конфигурация printf/sprintf  
--e_medium_read=_formatted_read //конфигурация scanf/sscanf 
