@@ -642,6 +642,7 @@ tag_a_opening_read0ok
 tag_a_opening_hreffail
 ;find href in next parameters
         call htmlskipparam
+         ;call htmlskipspaces_go ;не помогает в логе за 25.03.19
          cp '>'
         jr nz,tag_a_opening_readhref
 tag_a_opening_readq
@@ -725,38 +726,63 @@ getword_mangledchar
 ;TODO проверять переполнение WORDBUFSIZE
 getword_mangledchar0
         call RDBYTE;rdbyte
-getword_param_go ;в параметре могут быть закавыченные пробелы!
-        or a
-        jr z,getword_mangledcharq
-         cp "'"
-         jr z,getword_mangledcharquote
-         cp 34
-         jr z,getword_mangledcharquote
-        cp ' '
-        jr z,getword_mangledcharspaceq
-        cp ';'
-        jr z,getword_mangledcharq
-        cp '#'
-        jr z,getword_mangledcharq ;lib.ru &#97&#102&#114&#97&#110&#105&#117&#115&#64&#110&#101&#119&#109&#97&#105&#108&#46&#114&#117
-        cp '>'
-        jr z,getword_mangledcharq ;for param
-getword_mangledchar0ok
-	 or 0x20
+        ;or a
+        ;jr z,getword_mangledcharq
+         cp "A"
+         jr c,getword_mangledcharq
+        ;cp ';'
+        ;jr z,getword_mangledcharq
+        ;cp '#'
+        ;jr z,getword_mangledcharq ;lib.ru &#97&#102&#114&#97&#110&#105&#117&#115&#64&#110&#101&#119&#109&#97&#105&#108&#46&#114&#117
         ld (de),a
         inc de
         jr getword_mangledchar0
-getword_mangledcharquote
+getword_mangledcharq
+        push af
+        xor a
+        ld (de),a
+        pop af
+        ret
+
+;getword_param
+;hl=string
+;de=wordbuf
+;out: hl=terminator/space/; addr, a=terminator/space/; char
+;TODO проверять переполнение WORDBUFSIZE
+getword_param0
+        call RDBYTE;rdbyte
+getword_param_go ;в параметре могут быть закавыченные пробелы!
+        or a
+        jr z,getword_paramq
+         cp "'"
+         jr z,getword_paramquote
+         cp 34
+         jr z,getword_paramquote
+        cp ' '
+        jr z,getword_paramspaceq
+        ;cp ';'
+        ;jr z,getword_paramcharq
+        ;cp '#'
+        ;jr z,getword_paramcharq ;lib.ru &#97&#102&#114&#97&#110&#105&#117&#115&#64&#110&#101&#119&#109&#97&#105&#108&#46&#114&#117
+        cp '>'
+        jr z,getword_paramq
+getword_param0ok
+	 or 0x20
+        ld (de),a
+        inc de
+        jr getword_param0
+getword_paramquote
         ld c,a
-getword_mangledcharquote0
+getword_paramquote0
         ld (de),a
         inc de
         call RDBYTE;rdbyte
         cp c
-        jr nz,getword_mangledcharquote0
-        jr getword_mangledchar0ok
-getword_mangledcharspaceq
+        jr nz,getword_paramquote0 ;TODO а если она никогда не закроетсЯ???
+        jr getword_param0ok
+getword_paramspaceq
 ;или тут проверЯть, в кавычках ли мы?
-getword_mangledcharq
+getword_paramq
         push af
         xor a
         ld (de),a

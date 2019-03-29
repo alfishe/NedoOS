@@ -39,10 +39,6 @@ for %%i in (%releasedir%\bin\*.*) do (
     nedotrd test.trd -a %%i
 )
 
-for %%i in (%releasedir%\doc\*.*) do (
-    nedotrd test.trd -a %%i
-)
-
 nedotrd test.trd -a scratch/lanscape.bmp
 
 nedotrd test.trd -a nedolang/comp/sizesz80.h
@@ -68,19 +64,33 @@ nedotrd test.trd -a _sdk/sysdefs.asm
 nedotrd test.trd -a basic/example.bas
 nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
 nedotrd test.trd -a player/coco.pt2
-nedotrd test.trd -a browser/test/index.htm
+rem nedotrd test.trd -a browser/test/index.htm
 rem nedotrd test.trd -a browser/test/page.htm
+rem nedotrd test.trd -a browser/test/atmmain.htm
 rem nedotrd test.trd -a browser/test/zajchik.gif
 rem nedotrd test.trd -a browser/test/girl.jpg
 rem nedotrd test.trd -a browser/test/csprmain.htm
 rem nedotrd test.trd -a browser/test/spwiki.htm
-nedotrd test.trd -a browser/test/atmmain.htm
 rem nedotrd test.trd -a browser/test/atmpg.htm
 rem nedotrd test.trd -a browser/test/atmpg2.htm
 rem nedotrd test.trd -a browser/test/6914fast.gif
 rem nedotrd test.trd -a browser/test/6908fast.gif
-nedotrd test.trd -a browser/test/6909wrbg.gif
+rem nedotrd test.trd -a browser/test/6909wrbg.gif
 rem nedotrd test.trd -a browser/test/animatie.gif
 rem nedotrd test.trd -a browser/test/sprites.gif
 rem nedotrd test.trd -a browser/test/listh.htm
-nedotrd test.trd -a pkunzip/pkunzip.zip
+rem nedotrd test.trd -a browser/test/alphaba3.png
+rem nedotrd test.trd -a browser/test/clown.png
+rem nedotrd test.trd -a browser/test/basn3p01.png
+rem nedotrd test.trd -a browser/test/basn3p02.png
+rem nedotrd test.trd -a browser/test/basn3p04.png
+rem nedotrd test.trd -a browser/test/s40n3p04.png
+nedotrd test.trd -a browser/test/basn0g01.png
+nedotrd test.trd -a browser/test/basn0g02.png
+nedotrd test.trd -a browser/test/basn0g04.png
+rem nedotrd test.trd -a browser/test/basi0g16.png
+rem nedotrd test.trd -a pkunzip/pkunzip.zip
+
+for %%i in (%releasedir%\doc\*.*) do (
+    nedotrd test.trd -a %%i
+)

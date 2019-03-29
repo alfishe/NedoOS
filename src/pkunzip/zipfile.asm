@@ -48,7 +48,7 @@ FLAGS=$+1        LD A,0;(FLAGS) ;2:UNKNOWN, 3:CRYPTED, other=OK (формируется вы
         LD HL,(Z6646) ;Relative offset of local file header. This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.        LD A,(Z6648)
         ;jr $;A,HL= CMEЩEHИE ДO ЛOKAЛЬНOГO 3AГОЛОBKA        LD IX,BUFER        LD DE,#1E        LD C,#29        LD B,A        CALL READ        XOR A        ADD HL,DE        ADC A,B        LD DE,(Z6636);DE= ДЛИНA ИMEHИ ФAЙЛA        ADD HL,DE        ADC A,0        LD DE,(Z6638);DE= ДOПOЛHИTEЛЬНOE ПOЛE ДЛИНЫ        ADD HL,DE        ADC A,0        ;LD (Z634C),HL ;текущая позиция чтения в файле        ;LD (Z634F),A;теперь физически установим указатель файла туда        ld d,0        ld e,a        ;ld hl,1        ;dehl=shift        ld a,(filehandle)        ld b,a        OS_SEEKHANDLE                call SAVECREATE               LD IY,DISKBUF+DISKBUFsz-1                ;LD HL,0        ;LD (T622D),HL        ;LD (T622E),HL        
 ;DEPACK       LD HL,0
-       LD (U6546),HL ;сколько байт сохранить в ZD1C4 = текущий адрес в буфере
+       LD (U6546),HL ;сколько байт сохранить = текущий адрес в буфере
         POP BC ;0:STORED, 8:DEFLATE, others unknown        BIT 3,B        ;LD (inflateq_sp),SP ;??? TODO        CALL Z635E ;nz=INFLATING       ;LD A,(YESSCL)       ;CP "S       ;CALL Z,DESCLPP       ; XOR A       ;LD (YESSCL),A        ;LD (NO_HOB),A        ;LD (HOB),A        LD A,(CRC32_)        CP #C9        JR Z,SKIP        LD HL,ML_CRC32        LD DE,CRC_ISH        LD B,4Z6159   LD A,(DE)        XOR (HL)        INC HL,DE,AC1      JR NZ,crcerror;Z6164        DJNZ Z6159        JR SKIPcrcerror;Z6164;CRC ERROR        ;CALL E_CRC ;!!!!!!!!!!
         ld hl,tcrcerror
         call prtextSKIP         call SAVECLOSE        ld bc,(KOL_F)        cpi        ld (KOL_F),bc        jp pe,nextfileE_ZIP
@@ -78,17 +78,24 @@ Z631F  PUSH BC       POP DE        PUSH HL        POP IX        LD A,0ST_PA
         ;or h
         ;or l
         ;ld a,c        ;jr z,storedq
-        jr stored0gostored0        push af        ;push hl        rdbyte        CALL SBYTE        ;pop hl        pop afstored0go        ld bc,1        or a        sbc hl,bc        sbc a,b;0        jr nc,stored0           ;LD A,5           ;call ON_BANK 
+        jr stored0gostored0        push af        ;push hl        ziprdbyte        CALL SBYTE        ;pop hl        pop afstored0go        ld bc,1        or a        sbc hl,bc        sbc a,b;0        jr nc,stored0           ;LD A,5           ;call ON_BANK 
 ;storedq
-        jp _ZD1C4 ;save whole buffer (end of file)tstored
+        ;jp savelastblock;_ZD1C4 ;save whole buffer (end of file)
+        
+savelastblock;_ZD1C4;save whole buffer;сюда попадаем в конце файла         ld hl,tsavelast         call prtext        LD HL,(U6546)        ;ld a,h        ;cp 0x50        ;jr z,$savehlbytes;ZD1C7        LD DE,0        JP SAVEsaveblock;Z65B8;save whole buffer;сюда не попадаем на коротких файлах        PUSH HL,DE,BC,AF         ;push ix         ;exx         ;exa         ;push af         ;push bc         ;push de         ;push hl         ld hl,tsaveblock         call prtext        ;LD A,5        ;CALL ON_BANK        LD HL,(Z6546) ;сколько байт сохранить        LD (TD198),HL ;сколько байт сохраняли        CALL savehlbytes;ZD1C7 ;SAVE hl bytes;hl=0        LD (Z6546),HL ;сколько байт сохранить (=0)        if 1==0 ;обновление размера для процентомера        EX DE,HL        LD HL,(TD198) ;сколько байт сохраняли       AND A        SBC HL,DE        JR C,CON1 ;???        LD DE,(B2)        ADD HL,DE        LD (B2),HL       LD A,(B1)       ADC A,0       LD (B1),ACON1        endif         ;pop hl         ;pop de         ;pop bc         ;pop af         ;exa         ;exx         ;pop ix        POP AF,BC,DE,HL        RET 
+tsaveblock        db "save block",13,10,0tsavelast        db "save last block",13,10,0tstored
         db "stored",13,10,0ST_LEN  DW 0
         if 1==0INFLATING        ;ld (inflateq_sp),sp
         ;LD HL,PROCES        ;CALL PRINTS_        ;LD A,5        ;CALL ON_BANK        CALL ZD140 ;init read buffer, inflate file        ;LD A,4        ;JP ON_BANK
         ret
-        endifB_TABL
+        endifdepkqerror;B_TABL
 ;ошибка в файле
         ;jr $
          ld hl,terror
-         call prtext;save whole buffer (Z6546) байт и выйти;Z63B4;inflateq_sp=$+1;Z63B5=$+1;        LD SP,0        ;LD HL,(Z6546) ;сколько байт сохранить в ZD1C4 = текущий адрес в буфере        ;LD DE,0        ;CALL SAVE
-        call _ZD1C4        ;LD A,4        ;CALL ON_BANK        ;CALL E_TABL        JP SKIP ;восстанавливает spterror
+         call prtext;save whole buffer (Z6546) байт и выйти;Z63B4;inflateq_sp=$+1;Z63B5=$+1;        LD SP,0        ;LD HL,(Z6546) ;сколько байт сохранить = текущий адрес в буфере        ;LD DE,0        ;CALL SAVE
+        call savelastblock        ;LD A,4        ;CALL ON_BANK        ;CALL E_TABL        JP SKIP ;восстанавливает spterror
         db "error",13,10,0
+
+;PAСЧET CRC-32;тут может быть патч RET (TODO);a=byteCRC32_  EXX         LD DE,(ST_CRC32)        LD HL,(ML_CRC32)CRCPR_  XOR L        LD B,H        LD L,A         LD H,TCRC/1024 ;#18        ADD HL,HL        ADD HL,HL        LD A,B        XOR (HL)        LD C,A        INC L        LD A,E        XOR (HL)        LD B,A        INC L        LD A,D        XOR (HL)        LD E,A        INC L        LD D,(HL)        LD (ST_CRC32),DE        LD (ML_CRC32),BC        EXX         RET ;ГEHEPAЦИЯ TAБЛИЦЫ ДЛЯ PAСЧETA CRC-32initCRC        LD IX,TCRC+#3FC        LD C,0Z669B   LD B,8        LD DE,0        LD H,D        LD L,C        DEC LZ66A3   SRL D        RR E        RR H        RR L        JR NC,Z66BD        LD A,#ED        XOR D        LD D,A        LD A,#B8        XOR E        LD E,A        LD A,#83        XOR H        LD H,A        LD A,#20        XOR L        LD L,AZ66BD   DJNZ Z66A3        LD (IX),L        LD (IX+1),H        LD (IX+2),E        LD (IX+3),D        LD DE,-4        ADD IX,DE        DEC C        JR NZ,Z669B
+        ;LD A,4        ;JP ON_BANK
+        ret

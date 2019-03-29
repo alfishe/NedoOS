@@ -1,17 +1,25 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 
+end1=0x3500
+
+DISKBUF=0x3500;0xb000
+DISKBUFsz=0x800;0x1000
+
+LINEPIXELS=0x3d00 ;,wid8*2 (макс. размер = 512 дл€ wid=2048) ;TODO раньше и поверх LINEGIF (чтобы pixels шли раньше, а attr затирал еЄ в процессе конверсии)
+
 STACK=0x3ffc
 SPOIL4B=0x4000 ;микростек на 4 байта, нельз€ ниже 0x3b00 ;раньше было в невидимой части страницы экрана, но сейчас мы переключаем экран с этим стеком
+
+end2=0x7e00
+
+depkbuf=0x7e00 ;32K+ for zip (match length of 3Ц258 bytes)
+buf64k=0
 
 FREE=0x8000 ;динамическа€ пам€ть jpeg, буфер строки gif
 LINE1=0x9400 ;буфер строки 0x400*3? jpeg
 LINE1_sz=0x0c00
 
-DISKBUF=0xb000
-DISKBUFsz=0x1000
-
-LINEPIXELS=0x3d00 ;,wid8*2 (макс. размер = 512 дл€ wid=2048) ;TODO раньше и поверх LINEGIF (чтобы pixels шли раньше, а attr затирал еЄ в процессе конверсии)
 
 COLOR=7
 STATUSCOLOR=0x38
@@ -20,15 +28,26 @@ GIF_PIXELSIZE=0
 
 HTMLTOPY=0
 HTMLHGT=24
-
-SCROLLHGT=192;200
+SCROLLHGT=HTMLHGT*8;192;200
 
 BACKGROUNDCOLORLEVEL=0 ;при очистке буфера строки (дл€ правильного правого кра€ в остатке знакоместа)
+
+MAXLINKSZ=256-1
+
+EDITLINEY=192
+EDITLINEMAXVISIBLEX=72
+
 
        MACRO rdbyte
         INC LY
         LD A,(IY)
         CALL Z,RDBYH
+       ENDM 
+
+       MACRO ziprdbyte
+        INC LY
+        LD A,(IY)
+        CALL Z,ZIPRDBYH
        ENDM 
 
 ;b=R/G/Bmin
@@ -120,7 +139,7 @@ cmd_begin
         ld de,0xc000;0x0801
         call setxymc
         ld de,curfulllink;COMMANDLINE
-        call prtextmc ;TODO сформировать и напечатать полный путь с протоколом
+        call prtextmc
         call setpgtemp8000
         ;jr $
         endif
@@ -307,17 +326,8 @@ browser_backspaceq
         ld (freemem_hl),hl
         ld (freemem_a),a
 
-        call setpgs_scr
-        call setpgcode4000
-        ld hl,0xc000+(40*192)
-        ld a,STATUSCOLOR
-        call cleanlinemc
-        ;ld a,STATUSCOLOR
-        call initprcharmc
-        ld de,0xc000;0x0801
-        call setxymc
-        ld de,curfulllink;linkbuf
-        call prtextmc
+        call cleanstatusline
+        call browser_editline_print
         call setpgtemp8000
 
          OS_GETTIMER ;hlde=timer
@@ -370,6 +380,8 @@ downloadflag=$+1
          ;jp z,loadhtml
         cp 'G'
         jp z,loadgif
+        cp 0x89
+        jp z,loadpng
         cp 0xff
         jp z,loadjpeg
         cp 'B'
@@ -413,9 +425,7 @@ loadbmp_skipheader0
         call setpichgt
         
         ld b,54-26
-loadbmp_skipheader1
-        call RDBYTE
-        djnz loadbmp_skipheader1
+        call read_b_bytes
         
         ;ld de,0
         ;ld hl,0 ;dehl=shift in file
@@ -526,7 +536,7 @@ downloadfile
         call reservepage
         ret nz ;no memory
 	
-	ld de,downloadfilename ;TODO сгенерировать из урла + запросить редактирование
+	ld de,downloadfilename ;TODO сгенерировать из урла или HTTP ответа + запросить редактирование
 ;de=filename
         OS_CREATEHANDLE
 ;b=new file handle
@@ -564,12 +574,15 @@ downloadfilehandle=$+1
 
 	jp closequit
 
-	
+loadpng
+         call setpgtemp8000
+        call readpng
+        jr showgif
+
 loadjpeg
         ;call initframes_time_scroll
         call readjpeg
-
-        jr showgif ;jp closequit
+        jr showgif
         
 loadgif
         ;call initframes_time_scroll
@@ -630,7 +643,7 @@ showframetime=$+1
 	ld (showframemaxtimer),hl
 
 showframe_delay0
-        call yieldgetkeynolang ;nz=nokey
+        call yieldgetkeynolang ;z=nokey
         ;cp Enter
         ;jp z,closequit ;TODO restore stack
         ;cp 'z'
@@ -761,7 +774,7 @@ TYPE_ERROR
         call setpgcode4000
         ld a,STATUSCOLOR
         call initprcharmc
-        ld de,0xc040;0x0801
+        ld de,0xc048
         call setxymc
         pop de
         call prtextmc
@@ -790,6 +803,8 @@ globalbuttons
         jp z,showframe_setzoom
 	cp 's'
 	jp z,browser_downloadthis
+	cp 'e'
+	jp z,browser_editline
         cp csSpace
         ret nz
 browser_quit
@@ -841,6 +856,16 @@ npages_old=$+1
          ld de,0xc046
         jp prnum123
         
+cleanstatusline
+        call setpgs_scr
+        call setpgcode4000
+        xor a
+        ld (browser_editline_scroll),a
+        ld hl,EDITLINEY*256+(40*192)
+        ld a,STATUSCOLOR
+        call cleanlinemc
+        ;ld a,STATUSCOLOR
+        jp initprcharmc
          
 ;hl = poi to filename in string
 ;out: de = after last slash
@@ -943,7 +968,7 @@ drawscreenline_frombuf_scr=$+1
         ld hl,40
         add hl,de ;next line on screen
          ;push bc
-         ld bc,SCROLLHGT*40+0x4000
+         ld bc,40*(SCROLLHGT+1)+0x4000
          or a
          sbc hl,bc
          add hl,bc
@@ -1017,6 +1042,12 @@ readchr_patch=$+1
         pop ix
         ret;jp setpgtemp8000
         
+read_b_bytes
+read_b_bytes0
+        call RDBYTE
+        djnz read_b_bytes0
+        ret
+
 RDBYTE
         INC LY
         LD A,(IY)
@@ -1078,6 +1109,115 @@ readdiskbuf_nozeros
        or a ;CY=0: OK
         RET 
 
+ZIPRDBYH
+;TODO читать столько, сколько осталось в IDAT (если это не больше DISKBUFsz), потом искать следующий IDAT
+        INC HY
+        LD A,HY
+        CP DISKBUF/256+(DISKBUFsz/256)
+        LD A,(IY)
+         ccf ;CY=0: OK
+        RET nz
+
+       PUSH HL
+       PUSH DE
+        PUSH BC
+        push IX
+       ;CALL rdCS
+       ex af,af'
+       PUSH AF
+        exx
+        push bc
+        push de
+        push hl
+        
+pngIDATremainedHSW=$+1
+        ld de,0
+pngIDATremained=$+1
+        ld hl,0
+ZIPRDBYH0read
+        ld a,d
+        or e
+        ld bc,DISKBUFsz
+        call z,minhl_bc_tobc ;keeps hl
+;bc=size
+        ;jr $
+        ld a,b
+        or c
+        jr nz,ZIPRDBYHn0
+;прочитать CRC
+;прочитать chunksize
+;прочитать "IDAT"
+        ld de,DISKBUF
+        ld hl,12
+        call readstream
+;вместо remained:
+        ld hl,DISKBUF+4
+        ld d,(hl)
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld a,(hl)
+        inc hl
+        ld l,(hl)
+        ld h,a
+;снова посчитать размер текущего блока
+        jr ZIPRDBYH0read
+ZIPRDBYHn0
+;bc=size
+        or a
+        sbc hl,bc
+        ld (pngIDATremained),hl
+        jr nc,$+3
+        dec de
+        ld (pngIDATremainedHSW),de
+        ld d,b
+        ld e,c
+;de=size
+        ld hl,DISKBUF+DISKBUFsz
+        or a
+        sbc hl,de ;size
+        ex de,hl ;de=addr = DISKBUF+; hl=size
+         push de
+        call readstream
+         pop de
+         push de ;addr
+;hl=actual size
+         ld a,h
+         or l
+         jr z,ZIPRDBYHq;readerror
+;move block to end of buf:
+        ld b,h
+        ld c,l
+        dec de ;ld de,DISKBUF-1
+        add hl,de ;end of data
+        ld de,DISKBUF+DISKBUFsz-1
+        sbc hl,de
+        add hl,de
+        jr z,ZIPRDBYHq
+         pop af
+        lddr
+        inc de ;begin of data
+         push de
+ZIPRDBYHq
+         pop iy ;addr = DISKBUF+
+        
+        pop hl
+        pop de
+        pop bc
+        exx
+       POP AF
+       ex af,af'
+        POP IX
+        pop BC
+       POP DE
+         pop hl
+       LD A,(IY)
+       or a ;CY=0: OK
+        ret
+        
+        
+        
+        
 readstream
 readstream_patch=$+1
         jp readstream_file
@@ -1585,10 +1725,11 @@ curfulllink
         include "prvirt.asm"
 	include "mempgs.asm"
         include "dynmem.asm"
-        include "file.asm"
+        include "../_sdk/file.asm"
         include "http.asm"
         include "gif.asm"
         include "drawmc.asm"
+        include "editline.asm"
         
 oldtimer
         dw 0
@@ -1619,12 +1760,68 @@ twinto866
         
 endcode=$
         
-        ds 0x4000-$-256 ;for stack
-        display "free for code=",$-endcode-0x0200 ;TODO убрать LINEPIXELS (0x200)
+        ds end1-$
+        display "free for code=",$-endcode
 
         ds 0x4000-$ ;stack
 	include "prmc.asm"
         include "jpeg.asm"
+        include "png.asm"
+depkbeg=$
+initCRC
+CRC32_
+        ret
+saveblock
+savelastblock
+        push af
+        push bc
+        push de
+        push hl
+;TODO ускорить
+        ld de,depkbuf        
+pngdepktoaddr=$+1
+        ld hl,0
+pngdepktoaddrHSB=$+1
+        ld a,0
+        ld bc,(Z6546) ;сколько байт сохранить
+        ld (TD198),bc ;сколько байт сохран€ли 
+
+
+        inc bc
+        jr saveblock0_go
+;адрес 0x7e00..0xffff
+saveblock0
+        push bc
+         push af
+         call gifsetpgLZW
+         pop af
+        ex de,hl
+        ld c,(hl)
+        inc hl
+        ex de,hl
+        call writebyte
+        pop bc
+saveblock0_go
+        dec hl
+        cpi
+        jp pe,saveblock0
+        ld (pngdepktoaddr),hl
+        ld (pngdepktoaddrHSB),a
+         call gifsetpgLZW
+        
+        ld hl,0
+        ld (Z6546),hl
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+depkqerror=ERROR        
+ziptrees
+        ds 0xa60 + 2*288
+        include "../pkunzip/depk.asm"
+        
+        display "depk size=",$-depkbeg
 
 init
         ld e,2 ;MC hires mode
@@ -1714,9 +1911,7 @@ browser_recodefull_protocolpresent
 ;curfulllink OK
 ;hl=after "//"
 ;a=protocol
-        call addslashafterserver ;add / after http://ser.ver
-
-        ret
+        jp addslashafterserver ;add / after http://ser.ver
 
 defaultfilename
         ;db "0:/hippiman.bmp",0
@@ -1725,7 +1920,8 @@ defaultfilename
 zxpal
         incbin "zxpal"
 
-        display "free for code in 0x4000=",0x8000-$
+free2=end2-$;0x8000-$
+        display "free for code in 0x4000=",free2
         ds 0x8000-$
         
         incbin "tdiv"

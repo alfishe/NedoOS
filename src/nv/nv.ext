@@ -1,8 +1,9 @@
-bmp,scr:scratch.com
+bmp:scratch.com
 bat:cmd.com
 txt:texted.com
-gif,jpg,htm:browser.com
+gif,jpg,png,htm:browser.com
 pt2,pt3:player.com
 bas:basic.com
 zip:pkunzip.com
 trd,scl,fdi:dmm.com
+scr,fnt,img,3:view.com

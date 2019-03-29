@@ -530,3 +530,35 @@ readchr
         pop de
         pop bc
         endif
+
+renderpng_pixels0
+        push bc
+        call readbyte
+        ex de,hl
+        ld (hl),c
+        inc hl
+        ex de,hl
+        call readbyte
+        ex de,hl
+        ld (hl),c
+        inc hl
+        ex de,hl
+        call readbyte
+        ex de,hl
+        ld (hl),c
+        inc hl
+        ex de,hl
+        call readbyte ;alpha
+        pop bc
+        dec hl
+        cpi
+        jp pe,renderpng_pixels0
+
+        
+        ld a,(hl) ;R
+        inc hl
+        inc hl ;skip G
+        ldi ;B
+        inc de
+        ld (de),a ;R
+        inc de ;skip G

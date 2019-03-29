@@ -459,18 +459,18 @@ readstr
 ;skips empty lines!
         READBYTE_A ;z=EOF
         jr z,readstrEOF
-        cp #0d
+        cp 0x0d
         jr z,readstr ;empty string - retry
-        cp #0a
+        cp 0x0a
         jr z,readstr ;empty string - retry
         ld b,MAXCMDSZ
         jr readstr0go
 readstr0
         READBYTE_A ;z=EOF
         jr z,readstrEOF
-        cp #0d
+        cp 0x0d
         jr z,readstrq
-        cp #0a
+        cp 0x0a
         jr z,readstrq
 readstr0go
         ld (hl),a
@@ -635,12 +635,12 @@ prdate
         add hl,hl
         add hl,hl
         ld a,h
-        and #0f
+        and 0x0f
         call prNNcmd ;month
         ld a,'-'
         PRCHAR
         pop af
-        and #1f
+        and 0x1f
         jp prNNcmd ;day
 
 prtime
@@ -649,7 +649,7 @@ prtime
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         call prNNcmd ;hour
         ld a,':'
         PRCHAR
@@ -660,13 +660,13 @@ prtime
         add hl,hl
         add hl,hl
         ld a,h
-        and #3f
+        and 0x3f
         call prNNcmd ;minute
         ld a,':'
         PRCHAR
         pop af
         add a,a
-        and #3f
+        and 0x3f
         jp prNNcmd ;second
 
 ;makeemptymask

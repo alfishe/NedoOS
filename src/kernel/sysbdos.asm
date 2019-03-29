@@ -107,15 +107,15 @@ BDOS_setscreen
         ld d,a
         or fd_user
         ld (iy+app.screen),a
-        call setmainpg_c000
-        ld a,d
-        or fd_system
-        ld (user_fdvalue1+#c000),a
-        ld (user_fdvalue2+#c000),a
-        ld (user_fdvalue3+#c000),a
-        ld (user_fdvalue4+#c000),a
-        ld (user_fdvalue5+#c000),a
-        ld (user_fdvalue6+#c000),a
+        ;call setmainpg_c000
+        ;ld a,d
+        ;or fd_system
+        ;ld (user_fdvalue1+#c000),a
+        ;ld (user_fdvalue2+#c000),a
+        ;ld (user_fdvalue3+#c000),a
+        ;ld (user_fdvalue4+#c000),a
+        ;ld (user_fdvalue5+#c000),a
+        ;ld (user_fdvalue6+#c000),a
         xor a ;success
         ret;jr rest_exit
 

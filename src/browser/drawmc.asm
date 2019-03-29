@@ -86,7 +86,7 @@ setpichgt
         ret
 
 setpicwid
-        LD (curpicwid),HL ;XRES
+        LD (curpicwid),HL
          ld d,h
          ld e,l
          add hl,hl

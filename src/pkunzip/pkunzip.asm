@@ -1,14 +1,14 @@
 	device pentagon1024 ;don't trust this line, it's for ATM2 :)
         include "../_sdk/sys_h.asm"
 
-       MACRO rdbyte
+       MACRO ziprdbyte
         INC LY
         LD A,(IY)
         CALL Z,RDBYH
        ENDM 
 
 STACK=0x4000
-TD61A=0x4000;0x8000;0x4000 ;чтобы было bit 6 ;size = 0xa60 + 2*число кодов?
+ziptrees=0x4000;0x8000;0x4000 ;чтобы было bit 6 ;size = 0xa60 + 2*288?
 TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
@@ -75,7 +75,7 @@ getpgs0
        LD IY,DISKBUF+DISKBUFsz-1
        
 loop0
-        rdbyte
+        ziprdbyte
         push iy
         PRCHAR
         pop iy
@@ -277,13 +277,10 @@ RDBYH
         push hl
         ld de,DISKBUF
         ld hl,DISKBUFsz
+         push de
         call readstream_file
-           ;ld bc,(U6546)
-           ;ld a,b
-           ;or c
-           ;jr nz,$+2+2+2+3
-           ;ds 2;jr $ ;ds 2
-           ;LD A,5           ;ds 3;call ON_BANK 
+         pop de
+         push de ;addr
 ;hl=actual size
          ld a,h
          or l
@@ -291,13 +288,18 @@ RDBYH
 ;move block to end of buf:
         ld b,h
         ld c,l
-        ld de,DISKBUF-1
+        dec de ;ld de,DISKBUF-1
         add hl,de ;end of data
         ld de,DISKBUF+DISKBUFsz-1
+        sbc hl,de
+        add hl,de
+        jr z,ZIPRDBYHq
+         pop af
         lddr
         inc de ;begin of data
-        push de
-        pop iy ;DISKBUF+
+         push de
+ZIPRDBYHq
+         pop iy ;addr = DISKBUF+
         
         pop hl
         pop de
@@ -336,7 +338,7 @@ tcrcerror
 tcrlf
         db 13,10,0
 
-        include "file.asm"
+        include "../_sdk/file.asm"
         include "zipfile.asm"
         include "depk.asm"
         

@@ -22,23 +22,23 @@ bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTST
         endm
 
 
-fatfs.tabl=#4000
+fatfs.tabl=0x4000
         include "fatfs_h.asm"
         
 wassyscode
-        disp #0000
+        disp 0x0000
 syscode
-        ds #0000+4-$
+        ds 0x0000+4-$
         jp sys_quit
-        ds #0005+4-$
+        ds 0x0005+4-$
         jp callbdos
 
-        ds #0009+4-$
+        ds 0x0009+4-$
         jp sys_getchar
 
-        ds #0015-2-$
+        ds 0x0015-2-$
 endsys_result_aq
-        out (#fd),a
+        out (0xfd),a
         display "kernel_result_a=",$
         ds #0010+5-$
 ;e=char
@@ -76,13 +76,13 @@ sys_prchar_sp=$+1
 sys_timer
         ds 4
 
-        ds #0030+4-$
+        ds 0x0030+4-$
         jp sys_farcall
 
-        ds #0038-$
+        ds 0x0038-$
         jp sys_sysint
 
-        ds #0038+9-$ -4
+        ds 0x0038+9-$ -4
 sys_intq
 ;bc=memport0000
 ;d=pgmain
@@ -90,18 +90,18 @@ sys_intq
 ;a=screenpg
 ;iy="iy"
         ld sp,INTMICROSTACK
-        out (#fd),a ;дальше попадаем в init_resident
+        out (0xfd),a ;дальше попадаем в init_resident
 ;sp=INTMICROSTACK
 ;bc=memport0000
 ;d=pgmain
 ;e=значение для аккумулятора
 ;di
 
-        ds #0038+14-$ -4
+        ds 0x0038+14-$ -4
         ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
         jp sys_intgo
         
-        ds #0101-$ ;чтобы можно было ставить точку останова на #0100
+        ds 0x0101-$ ;чтобы можно было ставить точку останова на #0100
 sys_intgo
         ld (sys_int_iy),iy
 appaddr=$+2
@@ -152,6 +152,7 @@ sys_intsp=$+1
 
         call on_int
 
+;sys_int_popregs
         ld a,pgkillable
         ld bc,memport4000
         ld (sys_curpg4000),a
@@ -183,11 +184,14 @@ sys_int_popregs
 
         ;ds #0050-$
 endsys_result_a
-        ld iy,(appaddr)
+         ld iy,(focusappaddr)
         ex af,af'
         ld a,(iy+app.screen)
+        ld iy,(appaddr)
         jp endsys_result_aq
 
+;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи
+        
 schedule
 ;find next app, set iy
 ;out: hl=iy=app
@@ -214,6 +218,24 @@ findnextapp0
         ld hl,app1
 findnextappq
         ld (appaddr),hl
+          if 1==1
+          ld iy,(appaddr)
+          ld a,(iy+app.mainpg)
+          ld bc,memport4000
+          ;ld (sys_curpg4000),a ;TODO или не нужно?
+          out (c),a
+          ld iy,(focusappaddr)
+          ld a,(iy+app.screen)
+          or fd_system
+          ld (user_fdvalue1+#4000),a
+          ld (user_fdvalue2+#4000),a
+          ld (user_fdvalue3+#4000),a
+          ld (user_fdvalue4+#4000),a
+          ld (user_fdvalue5+#4000),a
+          ld (user_fdvalue6+#4000),a
+          ld a,pgtrdosfs
+          out (c),a ;там INTSTACK
+          endif
         ld iy,(appaddr)
         ret
 
@@ -497,6 +519,10 @@ callbdos_lock
         
         endif
         
+            ;ld iy,(focusappaddr)
+            ;ld a,(iy+app.screen)
+            ;xor 0x10 ;fd_user^fd_system
+            ;out (0xfd),a
         ld iy,(appaddr)
         call BDOShandler
          push af
