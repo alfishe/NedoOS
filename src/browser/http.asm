@@ -411,23 +411,34 @@ dns_exitcode:
 	LD	E,0
 	OS_NETSHUTDOWN
 	pop hl
-	ld de,12
+reqpars_l
+	inc hl
+	inc hl
+	inc hl
+	ld a,(hl)
+	ld de,7
 	add hl,de
-	ret
+	ld b,(hl)
+	inc hl
+	ld c,(hl)
+	inc hl
+	dec a
+	ret z
+	cp 4
+	jr nz,exiterr1
+	add hl,bc
+	jr reqpars_l
 dns_exiterr:
 	pop af
-	;ld a,(errno)
-	;push af
 	LD	a,(soc1)
 	LD	E,0
 	OS_NETSHUTDOWN
-	;pop af
-	;ld (errno),a
     ld a,(dns_err_count)
-    add a,a;dec a ;увеличиваем каждый раз время ожидания
+    add a,a
     ld (dns_err_count),a
     jp nc,dns_err_loop
-        ld hl,0
+exiterr1:
+    ld hl,0
 	ret
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
