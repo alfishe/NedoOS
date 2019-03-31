@@ -240,8 +240,7 @@ copytemp_setpal
         ld bc,32
         ldir
         pop de
-        ld c,CMD_SETPAL
-        CALLBDOS
+        OS_SETPAL
         ret
 paleditorpal
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные

@@ -161,9 +161,6 @@ noautoload
         xor a ;color
         call newbitmap
 autoloadq
-        ;ld e,0 ;SD card (Z-controller)
-        ;ld c,CMD_REMOUNT;#ff ;remount
-        ;CALLBDOS
         
         ld de,pathbuf_forBDOS ;de=pointer to 64 byte (MAXPATH_sz!) buf
         OS_GETPATH

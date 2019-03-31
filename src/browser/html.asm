@@ -193,7 +193,7 @@ strcpexec_fail
 
 executetag_error
 ;no such tag
-         ;call skiprestoftag ;TODO
+         call skiprestoftag
         jp loadhtml_mainloop
         
         
@@ -496,6 +496,8 @@ tag_img_readsrc
         jr z,tag_img_srcq
 tag_img_srcfail
         call htmlskipparam
+          or a
+          ret z
          cp '>'
         jr nz,tag_img_readsrc
         jr tag_img_opening_readaltq
@@ -522,6 +524,8 @@ tag_img_opening_read_go
         jr z,tag_img_opening_readq
          cp "'"
          jr z,tag_img_opening_readq
+          cp " "
+          jr z,tag_img_opening_readq
          ;push af
          ;call prcharvirtual_stateful
          ;pop af
@@ -530,6 +534,7 @@ tag_img_opening_read_go
 tag_img_opening_readq
 tag_img_opening_fail
 ;a=last char read=quote
+         ;jr $
         call htmlskipspaces
         push af
         ld a,'['
@@ -557,11 +562,14 @@ tag_img_opening_readalt_go
         jr z,tag_img_opening_readaltq
          cp "'"
          jr z,tag_img_opening_readaltq
+;TODO mangled symbols
         call prcharvirtual_stateful
         jr tag_img_opening_readalt0
 tag_img_opening_altfail
 ;find alt in next parameters
         call htmlskipparam
+          or a
+          ret z
          cp '>'
         jr nz,tag_img_opening_readalt
 tag_img_opening_readaltq
@@ -642,7 +650,8 @@ tag_a_opening_read0ok
 tag_a_opening_hreffail
 ;find href in next parameters
         call htmlskipparam
-         ;call htmlskipspaces_go ;не помогает в логе за 25.03.19
+          or a
+          ret z
          cp '>'
         jr nz,tag_a_opening_readhref
 tag_a_opening_readq
@@ -876,6 +885,7 @@ tag_meta0
          ld (utf8flag),a
         jp skiprestoftag_go
 
+tag_style
 tag_script
 ;TODO skip until </script>
 tag_script0
@@ -914,7 +924,6 @@ tag_link
 
 tag_dl
 tag_dt
-tag_style
 tag_COMMENT
 tag_doctype
 tag_span

@@ -600,8 +600,7 @@ reserve_bmp_pages0
         push bc
         push hl
 reserve_bmp_pages_fail        
-        ld c,CMD_NEWPAGE
-        CALLBDOS
+        OS_NEWPAGE
         or a
         jr nz,reserve_bmp_pages_fail ;repeat until success
         pop hl
@@ -623,8 +622,7 @@ unreserve_bmp_pages0
         push bc
         push hl
         ld e,(hl)
-        ld c,CMD_DELPAGE
-        CALLBDOS
+        OS_DELPAGE
         pop hl
         pop bc
         inc hl

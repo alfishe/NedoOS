@@ -111,7 +111,7 @@ wizlocalport:
 wiznet_open
 ;L-subfunction
 		dec l
-		jp z,w53_socket
+		jr z,w53_socket
 		dec l
 		jp z,w53_close
 		dec l
@@ -343,19 +343,20 @@ w53_read55:
 		ld b,(ix+3)
 		ld a,b
 		or c
-		jr z,w53_read_new	;старых данных нету, читать новый пакет
+		jp z,w53_read_new	;старых данных нету, читать новый пакет
 		
 		;читаем старый пакет
-		;bc=min(hl,bc), hl-=min(hl,bc)
-		sbc hl,bc		
+		;bc=min(hl,bc), datasize-=bc
+		sbc hl,bc
+                ld a,c
 		jr nc,w53_minimum0
 		add hl,bc
 		ld b,h
 		ld c,l
-		ld h,0
-		ld l,0
+		;ld h,0
+		;ld l,0
 w53_minimum0:
-		ld a,(ix+2)
+		;ld a,(ix+2)
 		sub c
 		ld (ix+2),a
 		ld a,(ix+3)
@@ -374,23 +375,56 @@ w53_minimum0:
 		ld c,WIZ_BASE_ADDR
 		ld b,(ix+0)
 		ld a,WIZ_S_RX_L
-		bit 0,b
-		jr nz,w53_read_loopl
+                ;bit 0,b
+                ;jr nz,w53_read_loopl
+		cp b 
+		jr z,w53_read_loopl
 w53_read_loop:	;что-то надо дочитать de-count, hl-ptr
 		ini
 		ld b,a
 		dec e
-		jp z,w53_read_looph
+		jr z,w53_read_looph
 w53_read_loopl:
 		ini
 		dec e
 		jp nz,w53_read_loop
 		dec d
-		jp p,w53_read_loop
+		;jp p,w53_read_loop
+		jp m,w53_read_loope
+                if 1==1
+w53_read_fastloopd:
+                ld e,256/8/2
+w53_read_fastloop:
+                dup 8
+                ini
+                ld b,a
+                ini
+                edup
+                dec e
+                jp nz,w53_read_fastloop
+                dec d
+                jp p,w53_read_fastloopd
 		jp w53_read_loope
+                endif
 w53_read_looph:
 		dec d
-		jp p,w53_read_loopl
+		;jp p,w53_read_loopl
+		jp m,w53_read_loope
+                if 1==1
+w53_read_fastloophd:
+                ld e,256/8/2
+w53_read_fastlooph:
+                dup 8
+                ini
+                ini
+                ld b,a
+                edup
+                dec e
+                jp nz,w53_read_fastlooph
+                dec d
+                jp p,w53_read_fastloophd
+		;jp w53_read_loope
+                endif
 w53_read_loope:		;конец цикла
 		ld (ix+0),b	;сохраним следующий регистр RX	
 		pop hl					;сколько прочитали
@@ -422,9 +456,9 @@ w53_read_new:		;читать новый пакет
 		ret z
 		cp SOCK_UDP
 		ret nc
-		ld h,-1
+		;ld h,-1
 		ld a,ERR_NOTCONN
-		ret
+		jr wiznet_fail ;ret
 w53_read_new1:
 		ld b,WIZ_S_SSR
 		in a,(c)
@@ -465,6 +499,7 @@ wiznet_write:	;a'-сокет, de-Буфер, hl-количество
 		cp SOCK_UDP
 		jr nc,w53_write1
 		ld a,ERR_NOTCONN	;издох
+wiznet_fail:
 		ld h,-1
 		ret
 w53_write1:
@@ -476,9 +511,9 @@ w53_write1:
 		sbc a,h
 		jr nc,w53_wr_count_valid
 		;pop de
-		ld h,-1
+		;ld h,-1
 		ld a,ERR_EMSGSIZE
-		ret
+		jr wiznet_fail ;ret
 w53_wr_count_valid:	
 		ex de,hl
 		push de		;чтобы потом сколько отправили вернуть
@@ -504,5 +539,8 @@ w53_wr_loop:
 		
 		
 w53_socflags: ;+0 - RXreg, +1 - TXreg, +2..3 - RXcount
-		defw 0,0,0,0,0,0,0,0
-		defw 0,0,0,0,0,0,0,0
+        dup 8
+        db WIZ_S_RX_H,0,0,0
+        edup
+		;defw 0,0,0,0,0,0,0,0
+		;defw 0,0,0,0,0,0,0,0

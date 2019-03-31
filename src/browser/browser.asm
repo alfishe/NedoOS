@@ -454,7 +454,7 @@ nvview_loadbmp0go
 ;DE = Buffer address, HL = Number of bytes to read
          push hl
         call readstream
-;HL = Number of bytes actually read, A=error
+;HL = Number of bytes actually read
         ld b,h
         ld c,l
          pop hl
@@ -1873,8 +1873,7 @@ init
         OS_CLS
 
         ld de,zxpal
-        ld c,CMD_SETPAL
-        CALLBDOS
+        OS_SETPAL
 
         ;call setpgcode4000
         ;call setpgtemp8000

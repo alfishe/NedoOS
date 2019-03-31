@@ -231,7 +231,7 @@ findnextappq
           ld (user_fdvalue2+#4000),a
           ld (user_fdvalue3+#4000),a
           ld (user_fdvalue4+#4000),a
-          ;ld (user_fdvalue5+#4000),a
+          ;ld (user_fdvalue5+#4000),a ;not supported yet
           ld (user_fdvalue6+#4000),a
           ld a,pgtrdosfs
           out (c),a ;там INTSTACK

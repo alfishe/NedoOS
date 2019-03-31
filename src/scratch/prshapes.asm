@@ -2,8 +2,7 @@
 
         SHAPESPROC shapes_cls
         ld e,a
-        ld c,CMD_CLS
-        CALLBDOS
+        OS_CLS
         ret
 
         SHAPESPROC shapes_copybox

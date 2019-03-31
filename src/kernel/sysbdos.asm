@@ -639,6 +639,7 @@ tbdoscmds
          db CMD_SETCOLOR
          db CMD_GETATTR
          db CMD_PRCHAR
+         db CMD_WIZNETREAD
 	db CMD_SETDTA;0x1a
 	db CMD_FOPEN;0x0f
 	db CMD_FREAD;0x14
@@ -690,13 +691,11 @@ tbdoscmds
         db CMD_DROPAPP
         db CMD_WIZNETOPEN
         db CMD_WIZNETCLOSE
-        db CMD_WIZNETREAD
         db CMD_WIZNETWRITE
         db CMD_GETFILESIZE
 nbdoscmds=$-tbdoscmds
         dw BDOS_getfilesize
         dw BDOS_wiznetwrite
-        dw BDOS_wiznetread
         dw BDOS_wiznetclose
         dw BDOS_wiznetopen
         dw BDOS_dropapp
@@ -748,6 +747,7 @@ nbdoscmds=$-tbdoscmds
 	dw BDOS_fread
 	dw BDOS_fopen
         dw BDOS_setdta
+         dw BDOS_wiznetread
          dw BDOS_prchar
          dw BDOS_getattr
          dw BDOS_setcolor
