@@ -152,6 +152,13 @@ autoload_nopath
         or a
         jr nz,noautoload;error
         call readbmp ;nz=ошибка (тогда не менять имя файла)
+        jr nz,autoloaderror
+        
+        ld hl,fcb_filename ;Pointer to 11 byte buffer
+        ld de,curpicname
+        call cpmname_to_dotname
+
+autoloaderror
         ld de,fcb
         OS_FCLOSE
         jr autoloadq

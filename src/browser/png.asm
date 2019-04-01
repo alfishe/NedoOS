@@ -167,7 +167,7 @@ png_bytesperpix=$+1
 
         ld a,(readpng_bitdepth)
         cp 8
-        jr nc,readpng_chunk_IDATlinesizeok
+        jr nc,readpng_chunk_IDATlinesizeok ;нельз€ генерить палитру, т.к. бывает YA?
         cp 4
          ld e,17
         jr z,readpng_chunk_IDATlinesizediv2
@@ -186,7 +186,10 @@ readpng_chunk_IDATlinesizediv2
         inc bc
         srl b
         rr c
-;TODO сгенерировать нужную серую палитру (насто€щую палитру пока не прочитали)
+;сгенерировать нужную серую палитру:
+         ld a,(readpng_palflag_bit0)
+         rra
+         jr c,readpng_chunk_IDATlinesizeok ;насто€щую палитру уже прочитали
 
         push hl
         xor a
@@ -385,6 +388,7 @@ pngrecolor16q
 ;hl=from
 ;de=to
 ;a=число цветовых составл€ющих(1..4)
+         ;jr $
         ld bc,(curpicwid)
         dec a
         jr z,pngrecolor1

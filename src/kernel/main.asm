@@ -59,15 +59,18 @@ pagexor=#7f
 memport8000_hi=memport8000/256
 memportc000_hi=memportc000/256
         
-SYSMINSTACK=#3b00        
+SYSMINSTACK=0x3b00
 
-resident=#6000;#6000+8000 (где не затрут при очистке экрана) ;pgtrdosfs
-trdos_catbuf=#6100;#3200 ;,#900 ;pgtrdosfs (#4000)
-INTSTACK1=#3f00 ;kernelspace (для входа в обработчик без порчи стека)
-INTSTACK2=#5f00;#6000 ;pgkillable и pgtrdosfs (рабочий стек обработчика прерываний) (>=#4000, иначе нельзя выключить теневые порты)
-TRDOSSTACK=#5f00-96;#6000-96 ;чтобы не пересекалось с INTSTACK (в промежутке между преключениями страниц может произойти системное прерывание), но и на экран не попало
-BDOSSTACK=#4000 ;kernelspace
-STACK=#4000 ;userspace
+resident=0x6000;#6000+8000 (где не затрут при очистке экрана) ;pgtrdosfs
+trdos_catbuf=0x6100;#3200 ;,#900 ;pgtrdosfs (#4000)
+trdos_sectorbuf=0x6a00
+trdos_fcbbuf=0x6b00 ;size=0x200*trdos_MAXFILES
+trdos_MAXFILES=8
+INTSTACK1=0x3f00 ;kernelspace (для входа в обработчик без порчи стека)
+INTSTACK2=0x5f00;#6000 ;pgkillable и pgtrdosfs (рабочий стек обработчика прерываний) (>=#4000, иначе нельзя выключить теневые порты)
+TRDOSSTACK=0x5f00-96;#6000-96 ;чтобы не пересекалось с INTSTACK (в промежутке между преключениями страниц может произойти системное прерывание), но и на экран не попало
+BDOSSTACK=0x4000 ;kernelspace
+STACK=0x4000 ;userspace
 ;при вызове BDOS стек некоторое время такой же, как в юзерспейсе
 ;поэтому на входе в BDOS надо иметь в #4000...#ffff страницы, которые не жалко
 ;предполагается, что юзер не имеет стек ниже #3b00, иначе он затрёт систему
@@ -353,7 +356,7 @@ INIT_setpal0 LD A,E
         ds 32,#f3
 blackpalend=$-1
 
-        include "megaLZunpack.asm" ;DEC40
+        include "unmegalz.asm" ;DEC40
 
 wasresident
         ;disp resident
@@ -502,7 +505,7 @@ idle_sz=$-idle
         ent
         disp #4000+idle+idle_sz
         include "trdosfs.asm"
-        include "sysiofast.asm"
+        include "trdosio.asm"
         include "bdospg2.asm"
         ent
 trdosfs_sz=$-wastrdosfs
@@ -517,10 +520,10 @@ wassys
         page COMPILEPG_SYS1
         org #0000
 sysbegin
-        include "syskernel.asm"
+        include "syskrnl.asm"
 wasuserkernel
         disp #0000
-        include "userkernel.asm"
+        include "userkrnl.asm"
         ent
 userkernel_sz=$-wasuserkernel
 	;display "wasuserkernel=",/d,wasuserkernel

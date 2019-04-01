@@ -158,7 +158,7 @@ sys_int_popregs
         ld (sys_curpg4000),a
         out (c),a
 
-sys_int_popregs
+;sys_int_popregs
         ld de,-safestack_sz
         add iy,de
         ld sp,iy
@@ -673,7 +673,7 @@ app_last=app_afterlast-app_sz
         
         include "syskey2.asm"
         
-        include "fatfs_drivers.asm"
+        include "fatfsdrv.asm"
         include "sysbdos.asm"
         ent
 syscodesz=$-wassyscode

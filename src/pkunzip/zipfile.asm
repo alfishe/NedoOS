@@ -18,7 +18,65 @@ PR700
         if 1==0        LD BC,(KOL_F)        LD A,C        LD (F_KOL),AZ6013   PUSH BC        LD A,0F_KOL=$-1        SUB C        INC A        LD (NUM_F),A ;номер файла        endif
                 if 1==0        PUSH HL        LD HL,#71A ;координаты        LD (COR),HL        LD B,13CLS1    PUSH BC        LD A,#20        CALL PR        POP BC        DJNZ CLS1        POP HL        endif        ;EXA         LD B,A ;SME_ST        LD IX,BUFER        LD DE,#2E        LD C,41        CALL READ ;читаем описатель одного файла
         if 1==0        EXX         LD A,(BUFER+#24)        LD HL,CODE       BIT 0,A       JR Z,LL20        LD HL,TEXTLL20    LD DE,T_TYPE        LD BC,4        LDIR         EXX 
-        endif        LD A,B ;SME_ST        ADD HL,DE        ADC A,D ;перемещаем указатель на имя        LD DE,(Z6638) ;file name length        LD B,A        LD IX,Z664A        CALL READ ;читаем имя файла;Z664A=ИMЯ TEKУЩEГO ФAЙЛА B APXИBE        ADD IX,DE        LD (IX),0 ;кладём 0 в конец имени (получится ASCIIZ)        LD A,B        ADD HL,DE        ADC A,0 ;перемещаем указатель после имени        LD B,E       DEC D       INC D        JR Z,Z604D ;длина имени <256       LD B,0 ;длина имени >=256, считаем, что 256Z604D   LD DE,(Z663A) ;extra field length        ADD HL,DE       ADC A,0 ;пропускаем extra field        LD DE,(Z663C) ;file comment length        ADD HL,DE        ADC A,0 ;пропускаем file comment length       ld (SME_ML),hl       ld (SME_ST),a        ;сформировать filename        ld hl,Z664A        ld de,filename        call strcopy ;TODO create directory        ld hl,filename
+        endif        LD A,B ;SME_ST        ADD HL,DE        ADC A,D ;перемещаем указатель на имя        LD DE,(Z6638) ;file name length        LD B,A        LD IX,Z664A        CALL READ ;читаем имя файла;Z664A=ИMЯ TEKУЩEГO ФAЙЛА B APXИBE        ADD IX,DE        LD (IX),0 ;кладём 0 в конец имени (получится ASCIIZ)        LD A,B        ADD HL,DE        ADC A,0 ;перемещаем указатель после имени        LD B,E       DEC D       INC D        JR Z,Z604D ;длина имени <256       LD B,0 ;длина имени >=256, считаем, что 256Z604D   LD DE,(Z663A) ;extra field length        ADD HL,DE       ADC A,0 ;пропускаем extra field        LD DE,(Z663C) ;file comment length        ADD HL,DE        ADC A,0 ;пропускаем file comment length       ld (SME_ML),hl       ld (SME_ST),a        
+;TODO сформировать filename 8.3 (во всех элементах)
+        ld hl,Z664A
+        ld de,filename        ;call strcopy
+copyname83_element
+        ld b,8
+copyname83_0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr z,copyname83_endelement
+        cp '.'
+        jr z,copyname83_ext
+        ld (de),a
+        inc de
+        djnz copyname83_0
+;8 chars of name copied, wait for dot or slash or terminator
+copyname83_skipname0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr z,copyname83_endelement
+        cp '.'
+        jr nz,copyname83_skipname0
+copyname83_ext
+        ld (de),a ;'.'
+        inc de
+        ld b,3
+copyname83_ext0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr z,copyname83_endelement
+        cp '.'
+        jr z,copyname83_skipext0
+        ld (de),a
+        inc de
+        djnz copyname83_ext0
+copyname83_skipext0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr nz,copyname83_skipext0
+copyname83_endelement
+        ld (de),a ;'/'
+        inc de
+        jr copyname83_element
+copyname83_q
+        ld (de),a ;0
+;TODO если это директория, то create directory (например, "md scr/1" без слеша в конце)
+                ld hl,Z664A;filename
         call prtext
         call prcrlf
         
@@ -31,7 +89,7 @@ PR700
         endif
         if 1==0
         LD IX,T_TEK        LD HL,0NUM_F=$-2        CALL DS100        LD HL,T_FILE        CALL PRINTS_
-        endif        ;LD HL,#71A ;координаты        ;LD (COR),HL        ;LD HL,T61F7        ;CALL PRINTS        ;LD A,#4F        ;LD (TEKATR+1),A        XOR A        LD HL,-1        LD (ML_CRC32),HL        LD (ST_CRC32),HL        LD HL,(Z6634)        OR H        OR L        LD (ML_LEN_ISH),HL;HL= МЛАДШИE БAЙTЫ ДЛИHЫ ИCXOДHOГO ФAЙЛA        LD HL,(Z6636)        OR H        OR L        LD (ST_LEN_ISH),HL;HL= CTAPШИE БAЙТЫ ДЛИНЫ ИCXOДHOГO ФAЙЛA        JP Z,SKIP; HУЛЕВАЯ ДЛИHA        ;LD A,L        ;LD HL,(ML_LEN_ISH)        ;LD IX,T_ORIG        ;CALL DES_        LD HL,T6628 ;file last modification time        LD DE,T6221        LD BC,8        LDIR ;??? TODO установить дату после распаковки        LD A,(T6624) ;flags        RRA         JR NC,Z60E3;ФAЙЛ 3AKOДИPOBAH        LD A,3        LD (FLAGS),A ;CRYPTEDZ60E3   LD HL,(T6626);T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, others unknown        LD A,H        OR A        JR NZ,Z60F1        OR L        JR Z,Z60FC        CP 8        JR Z,Z60FCZ60F1   ;LD HL,UNKNOWN        ;LD DE,T_METOD        ;LD BC,7        ;LDIR         LD A,2        LD (FLAGS),A ;UNKNOWN (число в A не должно совпадать с 0 или 8!)        ;JR UNK_Z60FC   
+        endif        ;LD HL,#71A ;координаты        ;LD (COR),HL        ;LD HL,T61F7        ;CALL PRINTS        ;LD A,#4F        ;LD (TEKATR+1),A        XOR A        LD HL,-1        LD (ML_CRC32),HL        LD (ST_CRC32),HL        LD HL,(Z6634)        OR H        OR L        LD (ML_LEN_ISH),HL;HL= МЛАДШИE БAЙTЫ ДЛИHЫ ИCXOДHOГO ФAЙЛA        LD HL,(Z6636)        OR H        OR L        LD (ST_LEN_ISH),HL;HL= CTAPШИE БAЙТЫ ДЛИНЫ ИCXOДHOГO ФAЙЛA        JP Z,SKIP; HУЛЕВАЯ ДЛИHA (TODO создать и закрыть файл, если это не директория)        ;LD A,L        ;LD HL,(ML_LEN_ISH)        ;LD IX,T_ORIG        ;CALL DES_        LD HL,T6628 ;file last modification time        LD DE,T6221        LD BC,8        LDIR ;??? TODO установить дату после распаковки        LD A,(T6624) ;flags        RRA         JR NC,Z60E3;ФAЙЛ 3AKOДИPOBAH        LD A,3        LD (FLAGS),A ;CRYPTEDZ60E3   LD HL,(T6626);T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, others unknown        LD A,H        OR A        JR NZ,Z60F1        OR L        JR Z,Z60FC        CP 8        JR Z,Z60FCZ60F1   ;LD HL,UNKNOWN        ;LD DE,T_METOD        ;LD BC,7        ;LDIR         LD A,2        LD (FLAGS),A ;UNKNOWN (число в A не должно совпадать с 0 или 8!)        ;JR UNK_Z60FC   
         if 1==0
         BIT 3,A        LD HL,STORED        JR Z,ST_        LD HL,DEFLATEST_     LD DE,T_METOD        LD BC,7        LDIR 
         endifUNK_    PUSH AF ;0:STORED, 8:DEFLATE, others unknown        ;LD HL,(Z6630)        ;LD A,(Z6632);A,HL= ДЛИHA CЖATOГO ФAЙЛА        ;LD (ML_PAC_LEN),HL        ;LD (ST_PAC_LEN),A
