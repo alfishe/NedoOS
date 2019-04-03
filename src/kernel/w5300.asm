@@ -1,4 +1,4 @@
-
+;я драйвер визнета
 WIZ_BASE_ADDR EQU 0x00ab
 WIZ_SOCK0_HNDL EQU 8
 WIZ_REGAD_PORT EQU 0x8100+WIZ_BASE_ADDR
@@ -46,6 +46,7 @@ ERR_EMSGSIZE 	EQU 40    ;/* Message too long */
 ERR_PROTOTYPE 	EQU 41
 ERR_AFNOSUPPORT EQU 47
 ERR_HOSTUNREACH EQU 65
+ERR_ECONNABORTED EQU	53	/* Software caused connection abort */
 ERR_CONNRESET 	EQU 54
 ERR_NOTCONN 	EQU 57
 ;struct sockaddr_in {short sin_family;unsigned short sin_port;
@@ -100,6 +101,7 @@ SOCK_CLOSING        EQU 0x1A                 ;< SOCKETn is closing. */
 SOCK_TIME_WAIT      EQU 0x1B                 ;< SOCKETn is closing. */
 SOCK_CLOSE_WAIT     EQU 0x1C                 ;< Disconnect-request(FIN packet) is received from the peer. */
 SOCK_LAST_ACK       EQU 0x1D                 ;< SOCKETn is closing. */
+;драйвер визнета
 SOCK_UDP            EQU 0x22                 ;< SOCKETn is open as UDP mode. */
 SOCK_IPRAW          EQU 0x32                 ;< SOCKETn is open as IPRAW mode. */
 SOCK_MACRAW         EQU 0x42                 ;< SOCKET0 is open as MACRAW mode. */
@@ -107,7 +109,23 @@ SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. *
 		
 wizlocalport:
 		defw 0xc000
-
+		
+W53SOCTABLE=0
+		MACRO W53FLAGSMACRO
+		if W53SOCTABLE==0
+		if ((($-1)&0xff)<=95)
+W53SOCTABLE=1
+w53_socflags: ;+0 - RXreg, +1 - Nsoc, +2..3 - RXcount
+        defb 0,WIZ_SOCK0_HNDL+0,0,0,0,WIZ_SOCK0_HNDL+1,0,0,0,WIZ_SOCK0_HNDL+2,0,0
+		defb 0,WIZ_SOCK0_HNDL+3,0,0,0,WIZ_SOCK0_HNDL+4,0,0,0,WIZ_SOCK0_HNDL+5,0,0
+        defb 0,WIZ_SOCK0_HNDL+6,0,0,0,WIZ_SOCK0_HNDL+7,0,0
+w53_endsocflags:
+		endif
+		endif
+		ENDM
+		
+		W53FLAGSMACRO
+		
 wiznet_open
 ;L-subfunction
 		dec l
@@ -116,9 +134,16 @@ wiznet_open
 		jp z,w53_close
 		dec l
 		jp z,w53_connect
+		dec l
+		jp z,w53_accept
+		dec l
+		jp z,w53_bind
+		dec l
+		jp z,w53_listen
 		ld a,ERR_INTR	;функция не существует
 		ld hl,-1
 		ret
+		W53FLAGSMACRO
 w53_socket:
 ;E-socket type, D-address family
 ;ищем свободный сокет
@@ -127,22 +152,21 @@ w53_socket:
 		cp d
 		ld a,ERR_AFNOSUPPORT
 		ret nz
-		ld l,WIZ_SOCK0_HNDL-1
-		ld bc,WIZ_REGAD_PORT
+w53_socket3:
+		ld ix,w53_socflags-4
 w53_socket0:
-		inc l
-		ld a,l
-		cp WIZ_SOCK0_HNDL+8
+		inc ix
+		inc ix
+		inc ix
+		inc ix
+		ld a,ixl
+		cp w53_endsocflags&0xff
 		jr nz,w53_socket1
-		;ld b,INVALID_SOCKET
 		ld l,-1
 		ld a,ERR_NFILE ;все сокеты заняты
 		ret
 w53_socket1:
-		out (c),a
-		ld a,WIZ_S_MR
-		in a,(WIZ_BASE_ADDR&0xFF)
-		or a
+		call w53_valid_socket1
 		jr nz,w53_socket0
 		ld a,e
 		ld d,Sn_MR_TCP
@@ -157,46 +181,107 @@ w53_socket1:
 w53_socket2:
 		ld b,WIZ_S_MR
 		out (c),d
-		ld de,(wizlocalport)
-		inc de
-		set 6,d
-		set 7,d
-		ld (wizlocalport),de
-		ld b,WIZ_S_PORTR_H
-		out (c),d
-		inc b
-		out (c),e
-		;add a,l:ld l,a:adc a,h:sub l:ld h,a
-		ld a,l
-		add a,a
-		add a,a
-		add a,0xff&(w53_socflags+2-32)
-		ld e,a
-		adc a,0xff&((w53_socflags+2-32)>>8)
-		sub e
-		ld d,a
+		ld a,ixl
+		ld l,a
 		xor a
-		ld (de),a
-		inc de
-		ld (de),a
-		ld h,a
+		ld (ix+2),a
+		ld (ix+3),a
         ret
+
+		W53FLAGSMACRO
+w53_bind:
+		call w53_valid_socket
+		jp z,w53_invalid_socked0
+		call BDOS_preparedepage
+		ld bc,WIZ_BASE_ADDR+(WIZ_S_PORTR_H<<8)
+		inc de
+		ld a,(de)
+		out (c),a
+		inc b
+		inc de
+		ld a,(de)
+		out (c),a
+		xor a
+		ld l,a
+		ret
+		
+w53_accept:
+		call w53_valid_socket
+		jp z,w53_invalid_socked0
+		ld l,-1
+		ld b,WIZ_S_SSR		
+		in a,(c)
+		jr nz,w53_accept_live
+		ld a,ERR_ECONNABORTED	;сокет сдох
+		ret
+w53_accept_live:
+		cp SOCK_ESTABLISHED
+		jr z,w53_accept_est
+		ld a,ERR_EAGAIN			;пока никого нет
+		ret
+w53_accept_est:
+		ld b,WIZ_S_PORTR_H		;запомним порт
+		in e,(c)
+		inc b
+		in d,(c)
+		push ix
+		push de
+		ld e,SOCK_STREAM
+		call w53_socket3
+		pop de
+		ld a,l
+		or a
+		jp p,w53_accept_nsoc
+		pop hl	;сокет недали. вернем текущий
+		ret
+w53_accept_nsoc:
+		ld b,WIZ_S_PORTR_H
+		out (c),e
+		inc b
+		out (c),d
+		call w53_listen_acc
+		pop hl
+		inc hl
+		ld a,(hl)	;поменяем сокеты местами
+		ld e,(ix+1)
+		ld (hl),e
+		ld (ix+1),a
+		push ix
+		pop hl
+		xor a
+		ret
+		
+		W53FLAGSMACRO
+w53_listen:
+		call w53_valid_socket
+		jp z,w53_invalid_socked0
+w53_listen_acc:
+		ld a,Sn_CR_OPEN
+		call w53_cmd
+		ld b,WIZ_S_SSR
+w53_listen0:
+		in a,(c)
+		or a
+		jr z,w53_listen0
+		ld a,Sn_CR_LISTEN
+		call w53_cmd
+		xor a
+		ld l,a
+		ret
 
 w53_valid_socket:
 		ex af,af'
-		cp WIZ_SOCK0_HNDL
+		cp w53_socflags&0xff
 		jr c,w53_invalid_socked
-		cp WIZ_SOCK0_HNDL+8
+		cp w53_endsocflags&0xff
 		jr nc,w53_invalid_socked
+		ld ixl,a
+		ld ixh,w53_socflags>>8
+w53_valid_socket1:
 		ld bc,WIZ_REGAD_PORT
+		ld a,(ix+1)
 		out (c),a
-		add a,a
-		add a,a
-		ld c,a
-		ld b,0
-		ld ix,w53_socflags-32
-		add ix,bc
-		ld bc,WIZ_BASE_ADDR+(WIZ_S_MR<<8)
+		ld b,WIZ_S_MR
 		in a,(c)
 		or a	
 		ret
@@ -206,7 +291,8 @@ w53_invalid_socked0:
 		ld hl,-1
 		ld a,ERR_NOTSOCK 
 		ret
-
+		
+		W53FLAGSMACRO
 w53_connect:
 ;DE-sockaddr_in
 		ld l,-1
@@ -220,6 +306,17 @@ w53_connect:
 		or a
 		ld a,ERR_ALREADY
 		ret nz
+		push de
+		ld de,(wizlocalport)
+		inc de
+		set 6,d
+		set 7,d
+		ld (wizlocalport),de
+		ld b,WIZ_S_PORTR_H
+		out (c),d
+		inc b
+		out (c),e
+		pop de
 		ld a,Sn_CR_OPEN
 		call w53_cmd
 		ld b,WIZ_S_SSR
@@ -259,6 +356,7 @@ w53_connect3:
 		ld l,a
 		ret
 		
+		W53FLAGSMACRO
 w53_close:
 		call w53_valid_socket
 		ld l,0
@@ -268,39 +366,34 @@ w53_close:
 		ld a,e
 		or a
 		jr z,w53_close_nochk
-		ld b,WIZ_S_FSR_L	;проверим пуст ли буфер отправки
-		in e,(c)
-		jr nz,w53_close_nochk
-		dec b
+		ld b,WIZ_S_FSR_H	;проверим пуст ли буфер отправки
 		in a,(c)
 		cp 0x20
-		jr z,w53_close_nochk
-		inc e 
+		jr nz,w53_close_nochk
+		inc b
+		in e,(c)
 w53_close_nochk:
 		ex af,af'
 		cp Sn_MR_TCP
-		jr nz,w53_close0
-w53_close1:
+		jr nz,w53_close_udp
+w53_close_tcp:
 		ld b,WIZ_S_SSR
 		in a,(c)
-		or a	;уже закрыт
-		jr z,w53_close3
-		cp SOCK_CLOSE_WAIT	;вторая сторона ждёт закрытия
-		jr z,w53_close_wait
-		cp SOCK_INIT
-		jr z,w53_close0
-		cp SOCK_LISTEN
-		jr z,w53_close0
+		jr z,w53_close3		;уже закрыт??? возможно ненужно
 		cp SOCK_ESTABLISHED
-		jr nz,w53_close0	;w53_closewait
+		jr nz,w53_close_wait	;w53_closewait
 		ld a,e
 		or a
 		ld a,ERR_EAGAIN
 		ret nz
 		ld a,Sn_CR_DISCON
 		call w53_cmd
-		jr w53_close1
-w53_close0:
+		jr w53_close_tcp
+w53_close_udp:
+		ld b,WIZ_S_SSR
+		in a,(c)
+		cp SOCK_UDP
+		jr nz,w53_close_wait
 		ld a,e
 		or a
 		ld a,ERR_EAGAIN
@@ -319,7 +412,7 @@ w53_close3:
 		out (c),a
 		ld l,a
 		ret
-		
+		W53FLAGSMACRO
 w53_cmd:
 		ld b,WIZ_S_CR
 		out (c),a
@@ -538,9 +631,3 @@ w53_wr_loop:
 		jp w53_cmd
 		
 		
-w53_socflags: ;+0 - RXreg, +1 - TXreg, +2..3 - RXcount
-        dup 8
-        db WIZ_S_RX_H,0,0,0
-        edup
-		;defw 0,0,0,0,0,0,0,0
-		;defw 0,0,0,0,0,0,0,0

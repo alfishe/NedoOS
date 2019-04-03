@@ -1,5 +1,4 @@
-	
-	MODULE ERRNO_MODULE
+	MODULE ERRNOMOD
 	PUBLIC errno
 	RSEG	NO_INIT
 errno:
@@ -8,9 +7,19 @@ errno:
 	
 	MODULE OS_NETSOCKET
 	PUBLIC OS_NETSOCKET,OS_NETCONNECT,OS_NETCLOSE
+	PUBLIC OS_ACCEPT,OS_BIND,OS_LISTEN
 	EXTERN errno
 	#include "sysdefs.asm"
 	RSEG	CODE
+OS_LISTEN:
+	ld l,0x06
+	jr OS_NETSOCKET1
+OS_BIND:
+	ld l,0x05
+	jr OS_NETSOCKET1
+OS_ACCEPT:
+	ld l,0x04
+	jr OS_NETSOCKET1
 OS_NETCONNECT:
 	ld l,0x03
 	jr OS_NETSOCKET1
@@ -94,11 +103,50 @@ label1:
 	ret
 	ENDMOD
 	
-	MODULE OSWRITEHANDLE
-	PUBLIC OS_WRITEHANDLE,OS_READHANDLE,OS_GETPATH
+	MODULE OSDIRCALLS
+	PUBLIC OS_SETDTA,OS_FSEARCHFIRST,OS_FSEARCHNEXT,OS_CHDIR
+	PUBLIC OS_MKDIR,OS_FDEL
 	EXTERN errno
 	#include "sysdefs.asm"
 	RSEG CODE
+OS_FDEL:
+	ld c,CMD_FDEL	
+	jr label1
+OS_MKDIR:
+	ld c,CMD_MKDIR	
+	jr label1
+OS_CHDIR:
+	ld c,CMD_CHDIR	
+	jr label1
+OS_FSEARCHNEXT:
+	ld c,CMD_FSEARCHNEXT	
+	jr label1
+OS_FSEARCHFIRST:
+	ld c,CMD_FSEARCHFIRST	
+	jr label1
+OS_SETDTA:
+	ld c,CMD_SETDTA
+label1:
+	push ix
+	push iy	
+	call BDOS
+	ld (errno),a
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+	
+	
+	MODULE OSWRITEHANDLE
+	PUBLIC OS_WRITEHANDLE,OS_READHANDLE,OS_GETPATH
+	PUBLIC OS_GETFILESIZE
+	EXTERN errno
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_GETFILESIZE:
+	ld c,CMD_GETFILESIZE
+	ld b,d
+	jr label1
 OS_GETPATH:
 	ld c,CMD_GETPATH	
 	jr label1
@@ -116,6 +164,8 @@ label1:
 	push iy	
 	call BDOS
 	ld (errno),a
+	ld b,d
+	ld c,e
 	pop iy
 	pop ix
 	ret
@@ -326,7 +376,6 @@ oldtimer:
 	
 	MODULE MAIN_ARGS
 	PUBLIC main_args
-	EXTERN main
 	RSEG CODE
 main_args
 	ld hl,args
@@ -353,7 +402,7 @@ get_cmd_args_end:
 	sbc hl,bc
 	ex de,hl
 	srl e
-	jp main
+	ret
 	RSEG	NO_INIT
 args:
 	defs 32
@@ -386,7 +435,7 @@ tloop
 	
 	NAME	CSTARTUP
 	EXTERN	main_args,exit			; where to begin execution
-	EXTERN	?C_EXIT			; where to go when program is done
+	EXTERN	?C_EXIT,main			; where to go when program is done
 	RSEG	CSTACK
 	DEFS	0			; a bare minimum !
 	RSEG	UDATA0
@@ -407,7 +456,8 @@ init_A
 init_C
 	LD	SP,.SFE.(CSTACK-1)	; from high to low address
 	CALL	seg_init
-	CALL	main_args			; non-banked call to main()
+	call 	main_args
+	CALL	main			; non-banked call to main()
 	JP	exit
 	
 seg_init

@@ -9,12 +9,37 @@ unsigned int _low_level_get(void);
 unsigned int OS_GETXY(void);
 void conv1251to866(unsigned char * bufer);
 extern unsigned char t1251to866[128];
-unsigned int OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
-unsigned int OS_WRITEHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
-unsigned int OS_READHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
-unsigned int OS_OPENHANDLE(unsigned char * path, unsigned char flags);
-unsigned int OS_CLOSEHANDLE(unsigned int hnd);
+
+typedef struct {
+	unsigned char drv; 				/* drive number */
+	unsigned char fname[11];
+	unsigned char extentnumberlo;
+	unsigned char fattrib;
+	unsigned char extentnumberhi;
+	unsigned char recordcount;
+	unsigned long fsize;	
+	unsigned int  ftime;	
+	unsigned int  ffsfcb;			/* trdosfcb или fil */
+	unsigned int  dirpos;			/* прив¤зка к точке поиска */
+	unsigned int  reserv;
+	unsigned int  recordsize;		/* must be 128 */
+	unsigned int  fdate;
+	unsigned char frecord;			/*номер записи внутри экстента*/
+} FCB;
+
+unsigned int 	OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
+unsigned int 	OS_WRITEHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
+unsigned int 	OS_READHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
+unsigned int 	OS_OPENHANDLE(unsigned char * path, unsigned char flags);
+unsigned int 	OS_CLOSEHANDLE(unsigned int hnd);
+unsigned long	OS_GETFILESIZE(unsigned int hnd);
 unsigned char * OS_GETPATH(unsigned char * path);
+unsigned char	OS_SETDTA(FCB * fcb);
+unsigned char	OS_FSEARCHFIRST(FCB * fcb);
+unsigned char	OS_FSEARCHNEXT(FCB * fcb);
+unsigned char	OS_CHDIR(unsigned char * path);
+unsigned char	OS_MKDIR(unsigned char * path);
+unsigned char	OS_FDEL(FCB * fcb);
 void exit(void);
 
 typedef signed char SOCKET;
@@ -35,7 +60,7 @@ struct sockaddr_in {
 };
 
 
-signed char  OS_NETSOCKET(unsigned int);
+SOCKET  OS_NETSOCKET(unsigned int);
 #define socket(domain, type, protocol) OS_NETSOCKET((domain<<8)+type)
 int OS_NETRECV(unsigned char * buffer, SOCKET socket, unsigned int buf_size);
 #define recv(socket, buffer, buf_size, flags) OS_NETRECV(buffer, socket, buf_size)
@@ -46,9 +71,16 @@ signed char  OS_NETCLOSE(unsigned char,SOCKET);
 extern unsigned char errno;
 signed char OS_NETCONNECT(const struct sockaddr_in * addr, SOCKET socket);
 #define connect(socket, addr, address_len) OS_NETCONNECT(addr,socket)
+signed char OS_LISTEN(int, SOCKET socket);
+#define listen(socket, backlog) OS_LISTEN(backlog,socket)
+signed char OS_BIND(const struct sockaddr_in * addr, SOCKET socket);
+#define bind(socket, addr, address_len) OS_BIND(addr,socket)
+SOCKET OS_ACCEPT(const struct sockaddr_in * addr, SOCKET socket);
+#define accept(socket, addr, address_len) OS_ACCEPT(addr,socket)
 unsigned short htons(unsigned short hostshort);
 
 struct in_addr * dns_resolver(char *);
+
 
 #define IPPROTO_TCP 6
 #define IPPROTO_UDP 17
@@ -70,6 +102,7 @@ struct in_addr * dns_resolver(char *);
 #define ERR_PROTOTYPE 	 41
 #define ERR_AFNOSUPPORT  47
 #define ERR_HOSTUNREACH  65
+#define	ECONNABORTED	53	/* Software caused connection abort */
 #define ERR_CONNRESET 	 54
 #define ERR_NOTCONN 	 57
 
