@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML>
+	<HEAD>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta http-equiv="Cache-Control" content="no-cache">
+		<title>ZX-filemanager</title>
+		<link rel="icon" type="image/ico" href="favicon.ico">
+		<style>
+	a.nubex {color:#fff;border-radius: 2px;user-select: none;text-decoration: none;
+		outline: none;background-color: #fa8e47;padding: 3px;}
+	a.nubex:active {background-color: #ee6206;}
+	a.nubex:hover {background-color: #f97f2e;}
+   </style>
+
+	</HEAD>
+	<BODY>
+		<DIV id="log"></DIV>
+		<DIV>
+			<input type="text" id="dirName">
+			<a class="nubex" href="javascript:mkdir()">MakeDir</a><br><br>
+		</DIV>
+		<DIV id="divlog"></DIV>
+		<DIV>
+			<input type="file" id="fileToUp" style="display:none" multiple>
+			<a href="javascript:if(window.fcnt<=0)document.getElementById('fileToUp').click()" class="nubex" id="btnUpload">upload</a>
+		</DIV>
+		<script src="my.js" type="text/javascript"></script>
+  </BODY>
+</HTML>

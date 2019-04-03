@@ -1,3 +1,12 @@
+
+	MODULE OSSYSDRV
+	PUBLIC syspath
+	#include "syssets.asm"
+	RSEG	CONST
+syspath:
+	defb SYSDRV+'0',":/bin"
+	ENDMOD
+
 	MODULE ERRNOMOD
 	PUBLIC errno
 	RSEG	NO_INIT
@@ -105,12 +114,12 @@ label1:
 	
 	MODULE OSDIRCALLS
 	PUBLIC OS_SETDTA,OS_FSEARCHFIRST,OS_FSEARCHNEXT,OS_CHDIR
-	PUBLIC OS_MKDIR,OS_FDEL
+	PUBLIC OS_MKDIR,OS_DELETE
 	EXTERN errno
 	#include "sysdefs.asm"
 	RSEG CODE
-OS_FDEL:
-	ld c,CMD_FDEL	
+OS_DELETE:
+	ld c,CMD_DELETE	
 	jr label1
 OS_MKDIR:
 	ld c,CMD_MKDIR	

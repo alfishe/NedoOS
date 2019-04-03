@@ -9,6 +9,7 @@ unsigned int _low_level_get(void);
 unsigned int OS_GETXY(void);
 void conv1251to866(unsigned char * bufer);
 extern unsigned char t1251to866[128];
+extern unsigned char syspath[8];
 
 typedef struct {
 	unsigned char drv; 				/* drive number */
@@ -39,7 +40,7 @@ unsigned char	OS_FSEARCHFIRST(FCB * fcb);
 unsigned char	OS_FSEARCHNEXT(FCB * fcb);
 unsigned char	OS_CHDIR(unsigned char * path);
 unsigned char	OS_MKDIR(unsigned char * path);
-unsigned char	OS_FDEL(FCB * fcb);
+unsigned char	OS_DELETE(unsigned char * path);
 void exit(void);
 
 typedef signed char SOCKET;

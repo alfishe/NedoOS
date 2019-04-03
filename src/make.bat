@@ -28,6 +28,9 @@ FOR /R . %%i IN (*.new) DO (
 )
 cd %currentdir%
 
+if not exist %releasedir%\bin\www mkdir %releasedir%\bin\www
+copy appsdm\3ws\www\*.* %releasedir%\bin\www\
+
 copy autoexec.bat %releasedir%\bin\ > nul
 
 path=_sdk\
