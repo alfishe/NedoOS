@@ -371,6 +371,18 @@ trdos_seekhandle_blocknumber=$+1
         pop bc
         jr trdos_seekhandle_q
 
+trdos_delete
+;DE = Drive/path/file ASCIIZ string
+        ex de,hl
+        call findlastslash. ;de=last slash
+        ld hl,trdos_tempfilename
+        push hl
+        call dotname_to_cpmname ;de -> hl
+        pop de
+        jp nfdel_filename
+        ;xor a
+        ;ret
+        
 trdos_rename
 ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string
         push de
@@ -431,6 +443,88 @@ trdos_rename_ext1diff=$+1
 trdos_rename_q
         xor a
         ret
+
+dotname_to_cpmname
+;de -> hl
+;out: de=pointer to termination character, hl=buffer filled in
+        ;push hl ;buffer
+        
+        push de ;ASCIIZ string for parsing
+        push hl ;Pointer to 11 byte buffer
+	ld d,h
+	ld e,l
+	inc de
+	ld [hl],' '
+	ld bc,11-1
+	ldir ;empty filename
+        pop hl ;Pointer to 11 byte buffer
+        pop de ;ASCIIZ string for parsing
+
+        ld b,9
+	
+	ld a,(de)
+	cp '.'
+	jr nz,parse_filename0.
+	ld (hl),a
+	inc de
+	ld a,(de)
+	cp '.'
+	jr nz,parse_filenameq_findterminator.
+	inc hl
+	ld (hl),a
+	jr parse_filenameq_findterminator.
+parse_filename0.
+	ld a,[de]
+	or a
+	ret z ;jr z,parse_filenameq. ;no extension in string
+	inc de
+	cp '.'
+	jr z,parse_filenamedot. ;можем уже быть на терминаторе
+	ld [hl],a
+	inc hl
+	djnz parse_filename0.
+;9 bytes in filename, no dot (9th byte goes to extension)
+;возможно, длинное имя, надо найти, что раньше - точка или терминатор
+;можем уже быть на терминаторе или на точке
+        dec hl
+        ld [hl],' '
+parse_filenamelongname0.
+        ld a,[de]
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+        inc de
+        cp '.'
+        jr z,parse_filenameLONGnamedot. ;можем уже быть на терминаторе
+        jr parse_filenamelongname0.
+parse_filenamedot.
+	inc hl
+	djnz $-1 ;hl points to extension in FCB
+	dec hl
+parse_filenameLONGnamedot.
+	ld a,[de] ;extension in string
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+	ld [hl],a ;extension in FCB
+        inc hl
+        inc de
+	ld a,[de] ;extension in string
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+	ld [hl],a ;extension in FCB
+        inc hl
+        inc de
+	ld a,[de] ;extension in string
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+	ld [hl],a ;extension in FCB
+parse_filenameq_findterminator.
+        inc de
+        ld a,[de]
+        or a
+        jr nz,parse_filenameq_findterminator.
+;parse_filenameq. ;de на терминаторе
+        ;pop hl ;buffer
+        ret ;a=0
         
 trdos_tempfilename
         ds 11

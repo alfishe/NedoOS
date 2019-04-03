@@ -735,11 +735,16 @@ cmd_del
         ld a,(hl)
         or a
         jr z,cmd_error_nopars
+        if 1==1
+        ex de,hl
+        OS_DELETE
+        else ;CP/M-like
         ex de,hl
         ld hl,fcb_filename
         OS_PARSEFNAME
         ld de,fcb
         OS_FDEL
+        endif
         or a
         ret z
 cmd_error_wrongfile

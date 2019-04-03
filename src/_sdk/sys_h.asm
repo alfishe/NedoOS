@@ -140,6 +140,10 @@ _1=$
         ld c,CMD_GETPATH
         CALLBDOS
         endm
+        macro OS_DELETE
+        ld c,CMD_DELETE
+        CALLBDOS
+        endm
 
 ;invented  
         macro OS_GETFILESIZE
@@ -154,32 +158,47 @@ _1=$
         ;ld c,CMD_RESETWAITING
 	;CALLBDOS
         ;endm
-        macro	OS_NETSOCKET;D=address family, E=socket type ; out: L=SOCKET(if L < 0 then A=error)
-		ld l,0x01
+        macro OS_NETSOCKET;D=address family, E=socket type ; out: L=SOCKET(if L < 0 then A=error)
+	ld l,0x01
         ld c,CMD_WIZNETOPEN
-		CALLBDOS
+	CALLBDOS
         endm
-        macro 	OS_NETCONNECT;A=SOCKET, DE=sockaddr ptr ; out: if HL < 0 then A=error
-		ld l,0x03
+        macro OS_NETSHUTDOWN;A=SOCKET ; out: if HL < 0 then A=error
+	ld l,0x02
         ld c,CMD_WIZNETOPEN
-		CALLBDOS
+	CALLBDOS
         endm
-         macro OS_NETSHUTDOWN;A=SOCKET ; out: if HL < 0 then A=error
-		ld l,0x02
+        macro OS_NETCONNECT;A=SOCKET, DE=sockaddr ptr ; out: if HL < 0 then A=error
+	ld l,0x03
         ld c,CMD_WIZNETOPEN
-		CALLBDOS
+	CALLBDOS
+        endm
+        macro OS_ACCEPT;A=SOCKET; out: HL
+	ld l,0x04
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_BIND;A=SOCKET, DE=
+	ld l,0x05
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_LISTEN;A=SOCKET
+	ld l,0x06
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
         endm
         macro OS_WIZNETCLOSE
         ld c,CMD_WIZNETCLOSE
-		CALLBDOS
+	CALLBDOS
         endm
         macro OS_WIZNETREAD;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
         ld c,CMD_WIZNETREAD
-		CALLBDOS
+	CALLBDOS
         endm
         macro OS_WIZNETWRITE;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
         ld c,CMD_WIZNETWRITE
-		CALLBDOS
+	CALLBDOS
         endm
         macro OS_DROPAPP
         ld c,CMD_DROPAPP

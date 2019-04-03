@@ -53,8 +53,15 @@ sys_newapp
         ld bc,32
         ldir
 
-        ld a,4 ;TODO брать драйв от текущего app
-        call BDOS_setvol_rootdir
+        ;ld a,SYSDRV ;TODO брать драйв от текущего app
+        ;call BDOS_setvol_rootdir ;требует PGFATFS
+         ld (iy+app.vol),SYSDRV ;TODO брать драйв от текущего app
+         ;jr $
+         xor a
+         ld (iy+app.dircluster),a
+         ld (iy+app.dircluster+1),a
+         ld (iy+app.dircluster+2),a
+         ld (iy+app.dircluster+3),a
 
         ld a,(iy+app.mainpg)
         ld (iy-safestack_sz+1),a

@@ -35,6 +35,7 @@ CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ st
 CMD_CHDIR=0x5a ;DE = Pointer to ASCIIZ string
 CMD_PARSEFNAME=0x5c ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
 CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled in with whole path string (WITH DRIVE!), HL = Pointer to start of last item
+CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
 ;CMD_SETWAITING=0xd9

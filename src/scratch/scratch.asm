@@ -1410,7 +1410,7 @@ _=_-1
 tsqrt
 ;аргумент 0..255 (соответствует 0..2)
 ;результат 0..127 (соответствует 0..1) и выше
-        incbin "tsqrt_max2"
+        incbin "sqrtmax2"
 tbitmappages
         display "tbitmappages=",tbitmappages
         ds bmpmaxpages,#7f
