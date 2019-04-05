@@ -88,11 +88,12 @@ rem nedotrd test.trd -a browser/test/basn3p01.png
 rem nedotrd test.trd -a browser/test/basn3p02.png
 rem nedotrd test.trd -a browser/test/basn3p04.png
 rem nedotrd test.trd -a browser/test/s40n3p04.png
-nedotrd test.trd -a browser/test/basn0g01.png
-nedotrd test.trd -a browser/test/basn0g02.png
-nedotrd test.trd -a browser/test/basn0g04.png
+rem nedotrd test.trd -a browser/test/basn0g01.png
+rem nedotrd test.trd -a browser/test/basn0g02.png
+rem nedotrd test.trd -a browser/test/basn0g04.png
 rem nedotrd test.trd -a browser/test/basi0g16.png
 rem nedotrd test.trd -a pkunzip/pkunzip.zip
+nedotrd test.trd -a modplay/scalsfjy.mod
 
 for %%i in (%releasedir%\doc\*.*) do (
     nedotrd test.trd -a %%i

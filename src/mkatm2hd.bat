@@ -10,4 +10,4 @@ nedotrd test.trd -a code.$C
 copy code.$C ..\release\osatm2hd.$C > nul
 
 move test.trd ..\release\osatm2hd.trd > nul
-if "%makeall%"=="" ..\us\emul.exe ..\release\osatm2hd.trd
+if "%makeall%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2hd.trd

@@ -2063,9 +2063,11 @@ BDOS_chdir_nodrive
 BDOS_chdir_nodriveq
         CHECKVOLUMETRDOS
         endif
-        
-        jr z,BDOS_chdir_trdos
+
+        push af
         call keepvoldir_setvolifneeded
+        pop af
+        jr z,BDOS_chdir_trdos
         push de
         ; dec c ;was c=1: drive in path
         ; call z,BDOS_setvol_rootdir ;drive specified in path

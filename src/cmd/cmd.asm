@@ -292,15 +292,60 @@ cmd_start
 strcpexec_tryrun
 ;выполнить файл с именем cmdbuf и параметрами там
         call loadapp ;загрузить файл с именем cmdbuf, e=id, cy=end of .bat
-        jr nz,execcmd_error
+        jr nz,execcmd_tryrunerror
+execcmd_tryrunok
         ret c ;cy=end of .bat
         OS_RUNAPP
         ret
 
+execcmd_tryrunerror
+;выполнить файл с именем SYSDIR/cmdbuf и параметрами там
+        call loadapp_keeppath
+        OS_SETSYSDRV
+        ld de,sysdir
+        push de
+        OS_GETPATH
+        call loadapp_setoldpath
+        pop hl
+        push hl
+;если в конце нет слеша, то добавим:
+        ld bc,0 ;чтобы точно найти терминатор
+        xor a
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        dec hl ;на терминаторе
+        dec hl ;перед терминатором
+        ld a,'/'
+        cp (hl)
+        jr z,$+2+5
+         inc hl
+         ld (hl),a
+         inc hl
+         ld (hl),0
+        pop hl ;sysdir
+        call strlen
+        ld b,h
+        ld c,l ;bc=SYSDIR_size
+         push bc ;SYSDIR_size
+        ld hl,MAXCMDSZ+1
+        or a
+        sbc hl,bc
+        push hl ;MAXCMDSZ+1-SYSDIR_size
+;bc=SYSDIR_size
+        ld hl,cmdbuf+MAXCMDSZ;+1
+        or a
+        sbc hl,bc
+        ld de,cmdbuf+MAXCMDSZ;+1
+        pop bc ;MAXCMDSZ+1-SYSDIR_size
+        lddr
+        ld hl,sysdir
+        ld de,cmdbuf
+         pop bc ;SYSDIR_size
+        ldir ;нельзя strcopy, т.к. не нужен терминатор
+        call loadapp ;загрузить файл с именем cmdbuf, e=id, cy=end of .bat
+        jr z,execcmd_tryrunok
 execcmd_error
         ld hl,tunknowncommand
         jp cmderror
-
         
 callcmd
 ;call command (cmdbuf) with waiting
@@ -313,6 +358,13 @@ callcmd
         OS_RUNAPP
         pop de
         WAITPID
+        ret
+
+loadapp_keeppath
+        ld hl,cmdprompt
+        ld de,oldpath
+        ld bc,MAXPATH_sz;MAXCMDSZ+1
+        ldir ;TODO рекурсивно (для .bat)
         ret
 
 loadapp_setoldpath
@@ -350,10 +402,6 @@ loadapp
 
         push hl ;hl=after last slash
         OS_CHDIR
-        ld hl,cmdprompt
-        ld de,oldpath
-        ld bc,MAXCMDSZ+1
-        ldir ;TODO рекурсивно (для .bat)
         pop hl ;hl=after last slash
 loadapp_nopath
         ex de,hl ;de=after last slash
@@ -1443,9 +1491,12 @@ fcb_bat
         ds FCB_sz
 fcb_bat_filename=fcb_bat+FCB_FNAME        
 
-oldpath
-        ds MAXCMDSZ+1
+oldpath ;TODO убрать (когда будет loadapp через OPENHANDLE)
+        ds MAXPATH_sz;MAXCMDSZ+1
 
+sysdir
+        ds MAXPATH_sz
+        
 oldcmd
         ds MAXCMDSZ+1
         
