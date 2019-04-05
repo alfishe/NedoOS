@@ -41,7 +41,7 @@ unsigned char	OS_FSEARCHNEXT(FCB * fcb);
 unsigned char	OS_CHDIR(unsigned char * path);
 unsigned char	OS_MKDIR(unsigned char * path);
 unsigned char	OS_DELETE(unsigned char * path);
-void exit(void);
+void exit(int e);
 
 typedef signed char SOCKET;
 struct in_addr {
