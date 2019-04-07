@@ -1,4 +1,4 @@
-	device pentagon1024 ;don't trust this line, it's for ATM2 :)
+        DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
 end1=0x3500
@@ -146,7 +146,7 @@ cmd_begin
 
         ;call keepcurlink
 
-	jr browser_go_curfulllink
+	jp browser_go_curfulllink
         
 browser_godownload
 	ld a,1
@@ -155,7 +155,56 @@ browser_go
 ;curfulllink содержит текущую ссылку (из неё брать путь), слеш в конце http://ser.ver уже есть
 ;в linkbuf лежит ссылка (может быть локальная)
 ;TODO перекодировать русские буквы в ссылке в %? только в набранной вручную?
-         ;jr $
+        ld hl,linkbuf
+        push hl
+        push hl
+        call strlen
+        inc hl
+        ;move block to end of buf:
+        pop de;ld de,linkbuf
+        ld b,h
+        ld c,l ;size
+        dec de ;linkbuf-1
+        add hl,de ;end of data
+        ld de,linkbuf+(MAXLINKSZ+1)-1
+        lddr
+        inc de ;begin of data
+        ex de,hl
+        pop de;ld de,linkbuf
+recodelinkamp0
+        ld a,(hl)
+        inc hl
+        ld (de),a
+        inc de
+        or a
+        jr z,recodelinkamp0q
+        cp '&'
+        jr nz,recodelinkamp0
+        ld a,(hl)
+        cp 'a'
+        jr nz,recodelinkamp0
+        inc hl
+        ld a,(hl)
+        cp 'm'
+        jr nz,recodelinkamp0dec1
+        inc hl
+        ld a,(hl)
+        cp 'p'
+        jr nz,recodelinkamp0dec2
+        inc hl
+        ld a,(hl)
+        cp ';'
+        inc hl
+        jr z,recodelinkamp0
+        dec hl
+        dec hl
+recodelinkamp0dec2
+        dec hl
+recodelinkamp0dec1
+        dec hl
+        jr recodelinkamp0
+recodelinkamp0q
+
         call keepcurlink
 
         ld hl,linkbuf
@@ -549,6 +598,7 @@ downloadfile0
 ;DE = Buffer address, HL = Number of bytes to read
          push hl
         call readstream
+        ;jr $
 ;HL = Number of bytes actually read, A=error
 
 	push hl
@@ -1715,10 +1765,10 @@ thttpprotocol
         db "http://",0
 
 linkbuf
-        ds 256
+        ds MAXLINKSZ+1
         
 curfulllink
-        ds 256
+        ds MAXLINKSZ+1
 
         include "htmlview.asm"
         include "html.asm"

@@ -312,6 +312,8 @@ setdefaultfontweight
         xor a
         ld (curbold),a
         ld (curlink),a
+        ld (curlinkimg),a
+        ld (curmark),a
         ld (curitalic),a
         ld (curunderline),a
         ld (curstroke),a
@@ -326,6 +328,8 @@ setfontweight
 curbold=$+1
         ld a,0
 curlink=$+1
+        or 0
+curlinkimg=$+1
         or 0
 curmark=$+1
         or 0

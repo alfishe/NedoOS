@@ -25,6 +25,7 @@ del *.$c
 del /s out.bin
 del /s tokarm.bin
 del /s *.mlz
+del /s user.l
 del /s *.r01
 del /s *.s01
 del /s *.lst

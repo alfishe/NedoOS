@@ -1,4 +1,4 @@
-	device pentagon1024 ;don't trust this line, it's for ATM2 :)
+        DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
@@ -710,6 +710,8 @@ editcmd_enter_runcmd
         PRCHAR
         ;---
         ld hl,cmdbuf
+         ;jr $
+	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch, запускает scratch по фону и выходит
@@ -1192,7 +1194,7 @@ editcmd_ren_checkname0
         ret z ;error
         cp '/'
         ret z ;error
-        cp '\\'
+        cp 0x5c;'\\'
         ret z ;error
         jr editcmd_ren_checkname0
 editcmd_ren_checknameq

@@ -1,4 +1,4 @@
-	device pentagon1024 ;don't trust this line, it's for ATM2 :)
+        DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 MAXCMDSZ=255
 txtscrhgt=25

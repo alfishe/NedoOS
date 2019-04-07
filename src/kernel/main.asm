@@ -1,7 +1,6 @@
-	device pentagon1024 ;don't trust this line, it's for ATM2 :)
+        DEVICE ZXSPECTRUM128
 
         include "../_sdk/syssets.asm"
-        ;include "../_sdk/atm.asm"
 
         if atm==3
 ;схема Nemo:
@@ -90,8 +89,8 @@ pgscr1_0=pagexor-3
 pgscr1_1=pagexor-7
 
 COMPILEPG_INIT=0
-COMPILEPG_SYS0=10
-COMPILEPG_SYS1=11
+COMPILEPG_SYS0=4;10
+COMPILEPG_SYS1=6;11
 
 fd_system=%01010111 ;%0x01sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в #7ffd не будет влиять, если адресация по memportc000
 fd_system_getchar=%01010110 ;%0x01sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в #7ffd не будет влиять, если адресация по memportc000
@@ -549,4 +548,4 @@ sysend
         page COMPILEPG_SYS1
 	savebin "syscode.c",sysbegin,sysend-sysbegin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "user.l"

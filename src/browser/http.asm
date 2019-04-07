@@ -85,6 +85,7 @@ openstream_http
 ;de=filename (without "http://"), slash always presents
 ;out: A!=0 => error
         ex de,hl
+openstream_http_hl
         ld de,httphostname
         push de
         call strcopy
@@ -135,6 +136,13 @@ connect_ok
          pop hl ;filename
         call strcopy
         dec de
+;amp.dascene.net: убрать пробел в конце url:
+        dec de
+        ld a,(de)
+        sub ' '
+        jr z,$+3
+        inc de
+        
         ld hl,tHTTP_host
         call strcopy
         dec de
@@ -178,10 +186,12 @@ findlastdot0
 	jr nz,findlastdot0
 	jr findlastdot
 
+tlocation
+        db "Location: ",0
 
 readstream_http
 	;display $
-
+         ld (readstream_http_requestedsize),hl
 	add hl,de
 	push de	;начало буфера
 	
@@ -189,23 +199,23 @@ http_firstreadflag=$+1
 	ld a,1
 	dec a
 	jr nz,readstream_http_nofirstread
-	ld (http_firstreadflag),a
 ;read until cr,lf,cr,lf or EOF or endofbuf
 	push hl
 	push de
 	or a
 	sbc hl,de ;размер
-        jr readstream_http_head0
+        jr readstream_http_headlines0
 readstream_http_headretry
         push de
         push hl
-        ;YIELD
-        ;GET_KEY
         call yieldgetkeynolang
         pop hl
         pop de
         cp csSpace
         jr z,readstream_err
+
+readstream_http_headlines0
+         ld (readstream_http_headlineaddr),de
 readstream_http_head0
 	push de
 	push hl ;размер
@@ -233,17 +243,61 @@ readstream_http_head0
 	ld a,(bc)
 	cp 0x0d
 	jr nz,readstream_http_head0
-	dec bc
-	ld a,(bc)
-	cp 0x0a
-	jr nz,readstream_http_head0
-	dec bc
-	ld a,(bc)
-	cp 0x0d
-	jr nz,readstream_http_head0
+	;dec bc
+	;ld a,(bc)
+	;cp 0x0a
+	;jr nz,readstream_http_head0
+	;dec bc
+	;ld a,(bc)
+	;cp 0x0d
+	;jr nz,readstream_http_head0
+        
+;если строка пустая, то readstream_http_headq
+readstream_http_headlineaddr=$+1
+        ld a,(0)
+        cp 0x0d
+        jr z,readstream_http_headq
+        
+        push de
+        push hl
+        
+        ;jr $
+        ld hl,(readstream_http_headlineaddr)
+        ld de,tlocation
+;найти строку Location: <url> (если moved temporarily)
+        call strcp_tillde0
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        jr nz,readstream_http_headlines0
+;bc=url
+        push bc
+        call closestream_http
+        pop hl
+        ld bc,7 ;"http://"
+        add hl,bc
+        call openstream_http_hl
+        
+	pop de
+	pop hl
+        
+	pop de ;начало буфера
+readstream_http_requestedsize=$+1
+        ld hl,0
+        ;jr $
+        xor a
+	ld (http_firstreadflag),a ;почему-то страничка, куда переадресует amp.dascene.net, отдаёт файл без http заголовка!
+        jp readstream_http
+        
+        
+readstream_http_headq
 	pop de
 	pop hl
 ;TODO переделать: читать как обычно, потом искать заголовок, отрезать его, сдвинуть остаток в начало буфера и прочитать ещё столько же
+
+        xor a
+	ld (http_firstreadflag),a
 	
 readstream_http_nofirstread
 
@@ -297,11 +351,12 @@ tGET
         db "GET /",0
 tHTTP_host
         db " HTTP/1.0\r\n" ;1.0 DimkaM for nedopc.com
-        db "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n"
-	db "Connection: close\r\n"	;\r\nConnection: close
+	db "Connection: close\r\n"
 	db "Host: ",0
 tGETend
-        db "\r\n\r\n",0
+        db "\r\n"
+        db "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n"
+        db "\r\n",0
 
 ;httpgetstr
 	;defb 'GET /cspr/index.htm HTTP/1.1',13,10

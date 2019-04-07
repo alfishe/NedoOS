@@ -6,7 +6,7 @@
 ;TODO for
 ;TODO PATH (где хранить? должна подгружаться при старте новой копии cmd)
 
-	device pentagon1024 ;don't trust this line, it's for ATM2 :)
+        DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
 txtscrhgt=25
@@ -51,6 +51,8 @@ cmd_begin
         ;ld hl,cmdbuf
         ;call prtext
         ;call prcrlf
+        call makeprompt ;иначе запустится из неправильной директории
+         ;jr cmd_interactive
         
         call execcmd ;can show errors ;a!=0: no such internal command
         or a
@@ -300,17 +302,25 @@ execcmd_tryrunok
 
 execcmd_tryrunerror
 ;выполнить файл с именем SYSDIR/cmdbuf и параметрами там
-        call loadapp_keeppath
+        ;call loadapp_keeppath
         OS_SETSYSDRV
         ld de,sysdir
         push de
         OS_GETPATH
-        call loadapp_setoldpath
+        ;call loadapp_setoldpath ;TODO из prompt
+        ;ld de,cmdprompt
+        ;OS_CHDIR
+        ;call makeprompt
+        ;ld de,cmdprompt
+        ;jr $
+        ;OS_CHDIR
         pop hl
         push hl
 ;если в конце нет слеша, то добавим:
-        ld bc,0 ;чтобы точно найти терминатор
+        ;ld bc,0 ;чтобы точно найти терминатор
         xor a
+        ld b,a
+        ld c,a;0
         cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         dec hl ;на терминаторе
         dec hl ;перед терминатором
@@ -402,6 +412,7 @@ loadapp
 
         push hl ;hl=after last slash
         OS_CHDIR
+        call loadapp_keeppath
         pop hl ;hl=after last slash
 loadapp_nopath
         ex de,hl ;de=after last slash

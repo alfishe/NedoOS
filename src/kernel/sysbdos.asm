@@ -897,6 +897,7 @@ BDOS_newapp
          add hl,bc
          ex de,hl
          ld bc,5;DIR_sz
+         ;jr $
          ldir ;копировать текущий vol и dircluster
         call BDOS_getmainpages_iy
         pop bc ;b=id

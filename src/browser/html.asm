@@ -4,8 +4,10 @@ CBOLD=1
 CITALIC=1;0x87;add a,a
 CUNDERLINE=1;0x2f;cpl
 CSTROKE=1;0xff
-CLINK=2 ;TODO visited link
-CMARK=4
+CLINK=2
+CLINKIMG=4
+CMARK=8
+;TODO visited link
 
 
 
@@ -445,8 +447,8 @@ tag_frame0
         cp '>'
         jr nz,tag_frame0
 
-        ld a,CLINK
-        ld (curlink),a
+        ld a,CLINKIMG
+        ld (curlinkimg),a
         call setfontweight
          call rememberhrefyxposition
         call initstringbuf2
@@ -478,8 +480,8 @@ inithref
          or a
          call nz,savestringbuf2 ;если img внутри a
         call initstringbuf2
-        ld a,CLINK
-        ld (curlink),a
+        ;ld a,CLINK
+        ;ld (curlink),a
         call setfontweight
          jp rememberhrefyxposition
          
@@ -507,6 +509,8 @@ tag_img_srcq
         ;call eatgivenword_go
         ;jr nz,tag_img_opening_fail
 ;read link to stringbuf2 until doublequote
+        ld a,CLINKIMG
+        ld (curlinkimg),a
         call inithref
         
         call RDBYTE;rdbyte
@@ -576,6 +580,9 @@ tag_img_opening_readaltq
          ld (executetag_endchar),a
 tag_frame_typetagq ;TODO почему выше съедает первый фрейм atmturbo?
         ld a,']'
+        call prcharvirtual_stateful
+        xor a
+        ld (curlinkimg),a
         jr closehrefq
         ;call prcharvirtual_stateful
         ;call savestringbuf2 ;after printing ']' to count full size
@@ -587,11 +594,13 @@ tag_frame_typetagq ;TODO почему выше съедает первый фрейм atmturbo?
 tag_a
         jr nz,tag_a_opening
         ld a,'}'
-closehrefq
         call prcharvirtual_stateful
-        call savestringbuf2 ;after printing '}' to count full size
         xor a
         ld (curlink),a
+closehrefq
+        call savestringbuf2 ;after printing '}' to count full size
+        ;xor a
+        ;ld (curlink),a
         call setfontweight
         jp skiprestoftag
 tag_a_opening
@@ -603,6 +612,8 @@ tag_a_opening_readhref
         call eatgivenword_go
         jr nz,tag_a_opening_hreffail
   
+        ld a,CLINK
+        ld (curlink),a
         call inithref         
         
         ;zxdn: no quotes in href

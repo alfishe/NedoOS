@@ -9,7 +9,6 @@ PNGPAL
 readpng
         ld b,7
         call read_b_bytes ;TODO test header
-        ;jr $
 
 readpng_chunk
         call RDWORDHSBLSBtohl
@@ -17,7 +16,7 @@ readpng_chunk
         call RDWORDHSBLSBtohl ;dehl=chunk size
         exx
         call GETDWORD_slow ;e,d,l,h
-        ;jr $
+
         ld a,e
         cp 'I'
         jr z,readpng_chunk_IHDR_IDAT
@@ -38,7 +37,7 @@ readpng_chunk_IHDR
         call RDWORDHSBLSBtohl
         call RDWORDHSBLSBtohl ;hl=hgt
         call setpichgt
-        call RDBYTE ;bit depth (глубина цвета 1, 2, 4, 8, 16) ;TODO 16bit
+        call RDBYTE ;bit depth (глубина цвета 1, 2, 4, 8, 16)
          ld (readpng_bitdepth),a
         add a,7 ;8,9,11,15,23
         rra
@@ -63,7 +62,7 @@ readpng_countbppok
          jr z,$+3
          add a,a
         ld (png_bytesperpix),a
-         ;jr $
+
         call RDBYTE ;compression method (0 = deflate)
         call RDBYTE ;filter method (=0)
         call RDBYTE ;interlace method (0 (нет чередования) / 1 (Adam7 interlace)) ;TODO
@@ -74,7 +73,6 @@ readpng_countbppok
         jr readpng_chunk
 
 readpng_chunk_PLTE
-        ;jr $
         exx
         ;hl=chunk size
         dec hl
@@ -134,7 +132,6 @@ readpng_chunk_IDAT
 ;[chunksize += iy + (1 - (DISKBUF+DISKBUFsz)) ;может быть 0]
         exx
 ;dehl=chunk size
-        ;jr $
         push iy
         pop bc
         push hl
@@ -150,8 +147,6 @@ readpng_chunk_IDAT
         dec de
         ld (pngIDATremained),hl
         ld (pngIDATremainedHSW),de
-        
-        ;jr $
 
         ld hl,(freemem_hl)
         ld a,(freemem_a)

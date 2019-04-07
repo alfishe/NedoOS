@@ -1,4 +1,4 @@
-	device pentagon1024 ;don't trust this line, it's for ATM2 :)
+        DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
        MACRO ziprdbyte
@@ -48,8 +48,6 @@ getpgs0
          ld hl,defaultfilename
         ex de,hl
         
-         ;jr $
-        ;ld de,filename
         call openstream_file
         or a
         jr nz,openerror
@@ -60,8 +58,16 @@ getpgs0
         ld (ML_FLEN),hl
         ld a,e
         ld (ST_FLEN),a
-        ;jr $
-        
+
+        CALL initdepk;Z6629 ;ИНИЦИАЛИЗАЦИЯ ДЕПAKEPA
+       LD IY,DISKBUF+DISKBUFsz-1
+
+;0x1f,0x8b = *.gz
+;"PK" = *.zip
+        call RDBYTE
+        cp 'P'
+        jr nz,depack_gz
+
         call depack
         
         if 1==0
@@ -82,15 +88,106 @@ loop0
         jp loop0
         endif
        
+depack_gz_q
         call closestream_file
 openerror
 error
         QUIT
 
-readerror
+;readerror
 ;TODO restore stack
-        call closestream_file
-        jr error
+        ;call closestream_file
+        ;jr error
+
+depack_gz
+        call RDBYTE ;rest of magic header 0x8b
+        call RDBYTE ;method (TODO 0=store)
+        call RDBYTE ;flags (bit 3 set: original file name present)
+        push af
+
+        ld b,6 ;4time+1extraflags+1os
+        call RDBYTE
+        djnz $-3
+
+        pop af
+        bit 3,a
+        jr z,depack_gz_skipname ;TODO делать из имени архива
+;сформировать filename:
+        ld hl,filename
+depack_gz_getfn0
+        call RDBYTE
+        ld (hl),a
+        inc hl
+        or a
+        jr nz,depack_gz_getfn0
+        ld hl,filename
+        ld de,filename
+        call copyname83
+depack_gz_skipname
+        call SAVECREATE
+        ld hl,1
+        ld (KOL_F),hl        call depack_gz_pp
+        jr depack_gz_q
+depack_gz_pp
+        LD (exit_sp),SP        call INFLATING
+        jp SKIP ;call SAVECLOSE
+        
+copyname83
+;hl->de
+copyname83_element
+        ld b,8
+copyname83_0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr z,copyname83_endelement
+        cp '.'
+        jr z,copyname83_ext
+        ld (de),a
+        inc de
+        djnz copyname83_0
+;8 chars of name copied, wait for dot or slash or terminator
+copyname83_skipname0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr z,copyname83_endelement
+        cp '.'
+        jr nz,copyname83_skipname0
+copyname83_ext
+        ld (de),a ;'.'
+        inc de
+        ld b,3
+copyname83_ext0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr z,copyname83_endelement
+        cp '.'
+        jr z,copyname83_skipext0
+        ld (de),a
+        inc de
+        djnz copyname83_ext0
+copyname83_skipext0
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,copyname83_q
+        cp '/'
+        jr nz,copyname83_skipext0
+copyname83_endelement
+        ld (de),a ;'/'
+        inc de
+        jr copyname83_element
+copyname83_q
+        ld (de),a ;0
+        ret
 
 skipword
 ;hl=string
@@ -177,7 +274,7 @@ minhl_bc_tobc
 
 ; HL = ДЛИНА ФАЙЛА
 ;de=0
-;где имя файла? TODO в filename
+;имя файла лежит в filename
 ;out: hl=0SAVE        ;LD A,4        ;CALL ON_BANK        ;LD A,3        ;LD (NOPR),A ;форсировать процентомер?        ;CALL COUNT ;процентомер?        ;LD (#5CE8),HL ;length
         ld de,0        LD (IST),DE
         
@@ -357,7 +454,7 @@ cmd_end
 
 ;BUFER используется при парсинге архива и при печати комментария, не используется при распаковке
 BUFER=0x8000;$;B_LEN=0x3f00-BUFERB_LEN=0xbfff-BUFER
-T6624=BUFER+8 ;flagsT6626=BUFER+#0AT6628=BUFER+#0C ;file last modification timeZ6630=BUFER+#14Z6632=BUFER+#16Z6634=BUFER+#18Z6636=BUFER+#1AZ6638=BUFER+#1C ;file name lengthZ663A=BUFER+#1E ;extra field lengthZ663C=BUFER+#20 ;file comment lengthZ6646=BUFER+#2A ;(4)Relative offset of local file header. This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.Z6648=BUFER+#2CZ664A=BUFER+#2E ;сюда кладётся имя файла
+T6624=BUFER+8 ;flagsT6626=BUFER+#0A ;T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, others unknownT6628=BUFER+#0C ;file last modification timeZ6630=BUFER+#14Z6632=BUFER+#16Z6634=BUFER+#18Z6636=BUFER+#1AZ6638=BUFER+#1C ;file name lengthZ663A=BUFER+#1E ;extra field lengthZ663C=BUFER+#20 ;file comment lengthZ6646=BUFER+#2A ;(4)Relative offset of local file header. This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.Z6648=BUFER+#2CZ664A=BUFER+#2E ;сюда кладётся имя файла
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "pkunzip.com",cmd_begin,cmd_end-cmd_begin

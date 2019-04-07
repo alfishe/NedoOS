@@ -158,9 +158,12 @@ tfontweight
         db 7 ;W
         db 1 ;B
         db 15 ;C
-        ;db 4+64 ;g
+        db 4+64 ;g
+        db 4+64 ;g
+        db 4+64 ;g
+        db 4+64 ;g
         ;db 4 ;G
-        ds 4,6*8 ;marked
+        ds 8,6*8 ;marked
 
 prcharmc_stateful_setitalic
         ld hl,prcharmc_stateful_setitalic_handler

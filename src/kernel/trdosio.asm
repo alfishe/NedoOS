@@ -495,7 +495,7 @@ fread1EOF.
        ;ld [_waseof],a
        ld l,TRDOSFCB.waseof
        ld [hl],TRUE
-       ld a,'\n' ;EOF returns '\n'
+       ld a,0x0a;'\n' ;EOF returns '\n'
 ;set vars as they were (next time EOF again)
 	ld l,TRDOSFCB.remain
 	dec [hl] ;remain = 0xff

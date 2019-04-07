@@ -1,6 +1,5 @@
 
 depack        
-        CALL initdepk;Z6629 ;ИНИЦИАЛИЗАЦИЯ ДЕПAKEPA
 ;       JR NOSTART_;START_;YESAUTOEX=$+1;       LD A,0;       CP "U;       JP Z,QUIT_;NOSTART_        LD (exit_sp),SPSTART_1        ;LD SP,#5FE6
         if 1==0        LD HL,ANYKEY_P        LD (MOD1+1),HL        LD A,#C3        LD HL,START_        LD (MOD2),A        LD (MOD2+1),HL        LD HL,SPISOK+1        LD (UKAZ1),HL        ;XOR A        ;LD (NO_HOB),A        ;LD (HOB),A        LD HL,T_KEY        LD (MODECAT+1),HL        CALL PRCAT        LD A,#4F        LD (TEKATR+1),A        LD HL,0        LD DE,#440        CALL RAMKA        LD HL,T6935        CALL PRINTS_        LD HL,T6935_        CALL PRINTS_        endif
         ;MANYF   LD HL,0;        LD (ML_FLEN),HL;        LD (ML_FLEN+1),HL        ;CALL CLS_LINE
@@ -19,63 +18,30 @@ PR700
                 if 1==0        PUSH HL        LD HL,#71A ;координаты        LD (COR),HL        LD B,13CLS1    PUSH BC        LD A,#20        CALL PR        POP BC        DJNZ CLS1        POP HL        endif        ;EXA         LD B,A ;SME_ST        LD IX,BUFER        LD DE,#2E        LD C,41        CALL READ ;читаем описатель одного файла
         if 1==0        EXX         LD A,(BUFER+#24)        LD HL,CODE       BIT 0,A       JR Z,LL20        LD HL,TEXTLL20    LD DE,T_TYPE        LD BC,4        LDIR         EXX 
         endif        LD A,B ;SME_ST        ADD HL,DE        ADC A,D ;перемещаем указатель на имя        LD DE,(Z6638) ;file name length        LD B,A        LD IX,Z664A        CALL READ ;читаем имя файла;Z664A=ИMЯ TEKУЩEГO ФAЙЛА B APXИBE        ADD IX,DE        LD (IX),0 ;кладём 0 в конец имени (получится ASCIIZ)        LD A,B        ADD HL,DE        ADC A,0 ;перемещаем указатель после имени        LD B,E       DEC D       INC D        JR Z,Z604D ;длина имени <256       LD B,0 ;длина имени >=256, считаем, что 256Z604D   LD DE,(Z663A) ;extra field length        ADD HL,DE       ADC A,0 ;пропускаем extra field        LD DE,(Z663C) ;file comment length        ADD HL,DE        ADC A,0 ;пропускаем file comment length       ld (SME_ML),hl       ld (SME_ST),a        
-;TODO сформировать filename 8.3 (во всех элементах)
+;сформировать filename 8.3 (во всех элементах):
         ld hl,Z664A
         ld de,filename        ;call strcopy
-copyname83_element
-        ld b,8
-copyname83_0
-        ld a,(hl)
-        inc hl
-        or a
-        jr z,copyname83_q
-        cp '/'
-        jr z,copyname83_endelement
-        cp '.'
-        jr z,copyname83_ext
-        ld (de),a
-        inc de
-        djnz copyname83_0
-;8 chars of name copied, wait for dot or slash or terminator
-copyname83_skipname0
-        ld a,(hl)
-        inc hl
-        or a
-        jr z,copyname83_q
-        cp '/'
-        jr z,copyname83_endelement
-        cp '.'
-        jr nz,copyname83_skipname0
-copyname83_ext
-        ld (de),a ;'.'
-        inc de
-        ld b,3
-copyname83_ext0
-        ld a,(hl)
-        inc hl
-        or a
-        jr z,copyname83_q
-        cp '/'
-        jr z,copyname83_endelement
-        cp '.'
-        jr z,copyname83_skipext0
-        ld (de),a
-        inc de
-        djnz copyname83_ext0
-copyname83_skipext0
-        ld a,(hl)
-        inc hl
-        or a
-        jr z,copyname83_q
-        cp '/'
-        jr nz,copyname83_skipext0
-copyname83_endelement
-        ld (de),a ;'/'
-        inc de
-        jr copyname83_element
-copyname83_q
-        ld (de),a ;0
-;TODO если это директория, то create directory (например, "md scr/1" без слеша в конце)
+        call copyname83
+; если это директория, то create directory (например, "md scr/1" без слеша в конце):
+
+        ;LD A,(T6624) ;flags
+        ;and 8 ;TODO где этот флаг?        ;jr nz,readzip_nodir
+;убираем слеш в конце
+        ld hl,filename
+        push hl
+        pop de ;ld de,filename
+        xor a
+        ld b,-1
+        cpir
+        ld a,'/'
+        dec hl ;на терминаторе
+        dec hl ;перед терминатором
+        sub (hl)
+        jr nz,readzip_nodir;$+3
+        ld (hl),a ;0
+        OS_MKDIR
+        jp SKIP_noclose
+readzip_nodir
                 ld hl,Z664A;filename
         call prtext
         call prcrlf
@@ -85,18 +51,19 @@ copyname83_q
         endif
         
         if 1==0
-        LD A,(SKIPING)       OR A        JR Z,NOSKIP       LD A,(NUM_F)       LD L,A        LD H,'MARKBUF       LD A,(HL)       AND A        JP Z,SKIPNOSKIP  
+        LD A,(SKIPING)       OR A        JR Z,NOSKIP       LD A,(NUM_F)       LD L,A        LD H,'MARKBUF       LD A,(HL)       AND A        JP Z,SKIP_nocloseNOSKIP  
         endif
         if 1==0
         LD IX,T_TEK        LD HL,0NUM_F=$-2        CALL DS100        LD HL,T_FILE        CALL PRINTS_
-        endif        ;LD HL,#71A ;координаты        ;LD (COR),HL        ;LD HL,T61F7        ;CALL PRINTS        ;LD A,#4F        ;LD (TEKATR+1),A        XOR A        LD HL,-1        LD (ML_CRC32),HL        LD (ST_CRC32),HL        LD HL,(Z6634)        OR H        OR L        LD (ML_LEN_ISH),HL;HL= МЛАДШИE БAЙTЫ ДЛИHЫ ИCXOДHOГO ФAЙЛA        LD HL,(Z6636)        OR H        OR L        LD (ST_LEN_ISH),HL;HL= CTAPШИE БAЙТЫ ДЛИНЫ ИCXOДHOГO ФAЙЛA        JP Z,SKIP; HУЛЕВАЯ ДЛИHA (TODO создать и закрыть файл, если это не директория)        ;LD A,L        ;LD HL,(ML_LEN_ISH)        ;LD IX,T_ORIG        ;CALL DES_        LD HL,T6628 ;file last modification time        LD DE,T6221        LD BC,8        LDIR ;??? TODO установить дату после распаковки        LD A,(T6624) ;flags        RRA         JR NC,Z60E3;ФAЙЛ 3AKOДИPOBAH        LD A,3        LD (FLAGS),A ;CRYPTEDZ60E3   LD HL,(T6626);T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, others unknown        LD A,H        OR A        JR NZ,Z60F1        OR L        JR Z,Z60FC        CP 8        JR Z,Z60FCZ60F1   ;LD HL,UNKNOWN        ;LD DE,T_METOD        ;LD BC,7        ;LDIR         LD A,2        LD (FLAGS),A ;UNKNOWN (число в A не должно совпадать с 0 или 8!)        ;JR UNK_Z60FC   
+        endif        ;LD HL,#71A ;координаты        ;LD (COR),HL        ;LD HL,T61F7        ;CALL PRINTS        ;LD A,#4F        ;LD (TEKATR+1),A
+                ;XOR A        LD HL,-1        LD (ML_CRC32),HL        LD (ST_CRC32),HL        LD HL,(Z6634)        ;OR H        ;OR L        LD (ML_LEN_ISH),HL;HL= МЛАДШИE БAЙTЫ ДЛИHЫ ИCXOДHOГO ФAЙЛA        LD HL,(Z6636)        ;OR H        ;OR L        LD (ST_LEN_ISH),HL;HL= CTAPШИE БAЙТЫ ДЛИНЫ ИCXOДHOГO ФAЙЛA        ;JP Z,SKIP_noclose; HУЛЕВАЯ ДЛИHA (теперь проверяется ниже, чтобы создать файл)        ;LD A,L        ;LD HL,(ML_LEN_ISH)        ;LD IX,T_ORIG        ;CALL DES_        LD HL,T6628 ;file last modification time        LD DE,T6221        LD BC,8        LDIR ;??? TODO установить дату после распаковки        LD A,(T6624) ;flags        RRA         JR NC,Z60E3;ФAЙЛ 3AKOДИPOBAH        LD A,3        LD (FLAGS),A ;CRYPTEDZ60E3   LD HL,(T6626);T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, others unknown        LD A,H        OR A        JR NZ,Z60F1        OR L        JR Z,Z60FC        CP 8        JR Z,Z60FCZ60F1   ;LD HL,UNKNOWN        ;LD DE,T_METOD        ;LD BC,7        ;LDIR         LD A,2        LD (FLAGS),A ;UNKNOWN (число в A не должно совпадать с 0 или 8!)        ;JR UNK_Z60FC   
         if 1==0
         BIT 3,A        LD HL,STORED        JR Z,ST_        LD HL,DEFLATEST_     LD DE,T_METOD        LD BC,7        LDIR 
-        endifUNK_    PUSH AF ;0:STORED, 8:DEFLATE, others unknown        ;LD HL,(Z6630)        ;LD A,(Z6632);A,HL= ДЛИHA CЖATOГO ФAЙЛА        ;LD (ML_PAC_LEN),HL        ;LD (ST_PAC_LEN),A
+        endifUNK_    PUSH AF ;0:STORED, 8:DEFLATE, others unknown ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        ;LD HL,(Z6630)        ;LD A,(Z6632);A,HL= ДЛИHA CЖATOГO ФAЙЛА        ;LD (ML_PAC_LEN),HL        ;LD (ST_PAC_LEN),A
         
         if 1==0        LD IX,T_PACK        CALL DES_        LD B,4        LD HL,CRC_ISH+3        LD DE,T_CRCL100    LD A,(HL)        CALL HEX        DEC HL        DJNZ L100        CALL T_IND ;инициализация процентомера?
         LD HL,0 ;текущий размер файла для процентомера        LD (B1),HL        LD (B2),HL        endif        ;CALL DATA_COR ;печать даты?        ;LD HL,T_PACK_L        ;CALL PRINTS_
-FLAGS=$+1        LD A,0;(FLAGS) ;2:UNKNOWN, 3:CRYPTED, other=OK (формируется выше)        ;LD HL,T_UNK        CP 2        JR Z,SK__        ;LD HL,T_CRYPT        CP 3;:JR Z,SK__;LD A,(SKIPING):OR A;JR Z,PROD10        JR NZ,PROD10SK__    ;CALL PRINTS_        ;CALL KEY10_        POP AF        JP SKIPPROD10  
+FLAGS=$+1        LD A,0;(FLAGS) ;2:UNKNOWN, 3:CRYPTED, other=OK (формируется выше)        ;LD HL,T_UNK        CP 2        JR Z,SK__        ;LD HL,T_CRYPT        CP 3;:JR Z,SK__;LD A,(SKIPING):OR A;JR Z,PROD10        JR NZ,PROD10SK__    ;CALL PRINTS_        ;CALL KEY10_        POP AF ;TODO убрать        JP SKIP_noclosePROD10  
         if 1==0
         LD HL,#5CE5        LD DE,T_TRD        LD B,3        CALL PROVERK        JR C,NXSCL        LD HL,TRDOBR        CALL PRINTS_KEY11   XOR A       LD (#5C08),A        EI         HALT        LD A,(#5C08)       OR A        JR Z,KEY11        CP "Y"        JR Z,nX601_        CP 13       JR NZ,NX601nX601_        XOR A        LD (MEN),A        LD A,(DESTIN)        CP "*"        JR Z,MEN100       LD A,(DESTIN)       LD L,A        LD A,(SOURCE)       CP L        JR NZ,MEN100       LD A,1        LD (MEN),AMEN100        LD A,#C3        LD (SAVE),A        LD HL,SAVETRD        LD (SAVE+1),HL        LD HL,0        LD (TRK_SECT),HL        JR NX602NXSCL        LD HL,#5CE5        LD DE,T_SCL        LD B,3        CALL PROVERK        JR C,NX601;EXTRACTING FROM SCL       IFN 1        LD HL,SCLOBR        CALL PRINTS_KEY11S  XOR A       LD (#5C08),A        EI         HALT        LD A,(#5C08)       OR A        JR Z,KEY11S        CP "Y"        JR Z,nX601_S        CP 13       JR NZ,NX601nX601_S        LD A,"S        LD (YESSCL),A       ELSE        LD A,#C3       LD (SAVE),A       LD HL,SAVESCL       LD (SAVE+1),HL       LD HL,0       LD (TRK_SECT),HL       JR NX602       ENDIF        ;NORMAL FILE (NOT TRD OR SCL)NX601   LD A,#3E        LD (SAVE),A        LD HL,#CD04        LD (SAVE+1),HL
        endif        
@@ -104,12 +71,24 @@ FLAGS=$+1        LD A,0;(FLAGS) ;2:UNKNOWN, 3:CRYPTED, other=OK (формируется вы
         endif
 
         LD HL,(Z6646) ;Relative offset of local file header. This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.        LD A,(Z6648)
-        ;jr $;A,HL= CMEЩEHИE ДO ЛOKAЛЬНOГO 3AГОЛОBKA        LD IX,BUFER        LD DE,#1E        LD C,#29        LD B,A        CALL READ        XOR A        ADD HL,DE        ADC A,B        LD DE,(Z6636);DE= ДЛИНA ИMEHИ ФAЙЛA        ADD HL,DE        ADC A,0        LD DE,(Z6638);DE= ДOПOЛHИTEЛЬНOE ПOЛE ДЛИНЫ        ADD HL,DE        ADC A,0        ;LD (Z634C),HL ;текущая позиция чтения в файле        ;LD (Z634F),A;теперь физически установим указатель файла туда        ld d,0        ld e,a        ;ld hl,1        ;dehl=shift        ld a,(filehandle)        ld b,a        OS_SEEKHANDLE                call SAVECREATE               LD IY,DISKBUF+DISKBUFsz-1                ;LD HL,0        ;LD (T622D),HL        ;LD (T622E),HL        
+        ;jr $;A,HL= CMEЩEHИE ДO ЛOKAЛЬНOГO 3AГОЛОBKA        LD IX,BUFER        LD DE,#1E        LD C,#29        LD B,A        CALL READ        XOR A        ADD HL,DE        ADC A,B        LD DE,(Z6636);DE= ДЛИНA ИMEHИ ФAЙЛA        ADD HL,DE        ADC A,0        LD DE,(Z6638);DE= ДOПOЛHИTEЛЬНOE ПOЛE ДЛИНЫ        ADD HL,DE        ADC A,0        ;LD (Z634C),HL ;текущая позиция чтения в файле        ;LD (Z634F),A;теперь физически установим указатель файла туда        ld d,0        ld e,a        ;ld hl,1        ;dehl=shift        ld a,(filehandle)        ld b,a        OS_SEEKHANDLE                call SAVECREATE
+        LD hl,(ML_LEN_ISH)
+        ld a,h
+        or l        LD hl,(ST_LEN_ISH)
+        or h
+        or l
+        jr z,SKIP ;файл нулевой длины               LD IY,DISKBUF+DISKBUFsz-1                ;LD HL,0        ;LD (T622D),HL        ;LD (T622E),HL        
 ;DEPACK       LD HL,0
        LD (U6546),HL ;сколько байт сохранить = текущий адрес в буфере
-        POP BC ;0:STORED, 8:DEFLATE, others unknown        BIT 3,B        ;LD (inflateq_sp),SP ;??? TODO        CALL Z635E ;nz=INFLATING       ;LD A,(YESSCL)       ;CP "S       ;CALL Z,DESCLPP       ; XOR A       ;LD (YESSCL),A        ;LD (NO_HOB),A        ;LD (HOB),A        LD A,(CRC32_)        CP #C9        JR Z,SKIP        LD HL,ML_CRC32        LD DE,CRC_ISH        LD B,4Z6159   LD A,(DE)        XOR (HL)        INC HL,DE,AC1      JR NZ,crcerror;Z6164        DJNZ Z6159        JR SKIPcrcerror;Z6164;CRC ERROR        ;CALL E_CRC ;!!!!!!!!!!
+       
+        POP BC ;0:STORED, 8:DEFLATE, others unknown ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                BIT 3,B        ;LD (inflateq_sp),SP ;??? TODO        CALL Z635E ;nz=INFLATING       ;LD A,(YESSCL)       ;CP "S       ;CALL Z,DESCLPP       ; XOR A       ;LD (YESSCL),A        ;LD (NO_HOB),A        ;LD (HOB),A        LD A,(CRC32_)        CP #C9        JR Z,SKIP        LD HL,ML_CRC32        LD DE,CRC_ISH        LD B,4Z6159   LD A,(DE)        XOR (HL)        INC HL
+        inc DE
+        inc AC1      JR NZ,crcerror;Z6164        DJNZ Z6159        JR SKIPcrcerror;Z6164;CRC ERROR        ;CALL E_CRC ;!!!!!!!!!!
         ld hl,tcrcerror
-        call prtextSKIP         call SAVECLOSE        ld bc,(KOL_F)        cpi        ld (KOL_F),bc        jp pe,nextfileE_ZIP
+        call prtextSKIPreaderror
+        call SAVECLOSESKIP_noclose        ld bc,(KOL_F)        cpi        ld (KOL_F),bc
+        ld sp,(exit_sp)        jp pe,nextfileE_ZIP
 EXITexit_sp=$+1        LD SP,#3131         ret
 
 BUFCAT
@@ -140,7 +119,8 @@ Z631F  PUSH BC       POP DE        PUSH HL        POP IX        LD A,0ST_PA
 ;storedq
         ;jp savelastblock;_ZD1C4 ;save whole buffer (end of file)
         
-savelastblock;_ZD1C4;save whole buffer;сюда попадаем в конце файла         ld hl,tsavelast         call prtext        LD HL,(U6546)        ;ld a,h        ;cp 0x50        ;jr z,$savehlbytes;ZD1C7        LD DE,0        JP SAVEsaveblock;Z65B8;save whole buffer;сюда не попадаем на коротких файлах        PUSH HL,DE,BC,AF         ;push ix         ;exx         ;exa         ;push af         ;push bc         ;push de         ;push hl         ld hl,tsaveblock         call prtext        ;LD A,5        ;CALL ON_BANK        LD HL,(Z6546) ;сколько байт сохранить        LD (TD198),HL ;сколько байт сохраняли        CALL savehlbytes;ZD1C7 ;SAVE hl bytes;hl=0        LD (Z6546),HL ;сколько байт сохранить (=0)        if 1==0 ;обновление размера для процентомера        EX DE,HL        LD HL,(TD198) ;сколько байт сохраняли       AND A        SBC HL,DE        JR C,CON1 ;???        LD DE,(B2)        ADD HL,DE        LD (B2),HL       LD A,(B1)       ADC A,0       LD (B1),ACON1        endif         ;pop hl         ;pop de         ;pop bc         ;pop af         ;exa         ;exx         ;pop ix        POP AF,BC,DE,HL        RET 
+savelastblock;_ZD1C4
+        ;jr $;save whole buffer;сюда попадаем в конце файла         ld hl,tsavelast         call prtext        LD HL,(U6546)        ;ld a,h        ;cp 0x50        ;jr z,$savehlbytes;ZD1C7        LD DE,0        JP SAVEsaveblock;Z65B8;save whole buffer;сюда не попадаем на коротких файлах        PUSH HL,DE,BC,AF         ;push ix         ;exx         ;exa         ;push af         ;push bc         ;push de         ;push hl         ld hl,tsaveblock         call prtext        ;LD A,5        ;CALL ON_BANK        LD HL,(Z6546) ;сколько байт сохранить        LD (TD198),HL ;сколько байт сохраняли        CALL savehlbytes;ZD1C7 ;SAVE hl bytes;hl=0        LD (Z6546),HL ;сколько байт сохранить (=0)        if 1==0 ;обновление размера для процентомера        EX DE,HL        LD HL,(TD198) ;сколько байт сохраняли       AND A        SBC HL,DE        JR C,CON1 ;???        LD DE,(B2)        ADD HL,DE        LD (B2),HL       LD A,(B1)       ADC A,0       LD (B1),ACON1        endif         ;pop hl         ;pop de         ;pop bc         ;pop af         ;exa         ;exx         ;pop ix        POP AF,BC,DE,HL        RET 
 tsaveblock        db "save block",13,10,0tsavelast        db "save last block",13,10,0tstored
         db "stored",13,10,0ST_LEN  DW 0
         if 1==0INFLATING        ;ld (inflateq_sp),sp
