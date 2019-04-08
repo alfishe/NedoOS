@@ -1,2 +1,2 @@
-dhcpc.com
+wizcfg.com
 nv.com
