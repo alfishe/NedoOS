@@ -32,6 +32,7 @@ if not exist %releasedir%\bin\www mkdir %releasedir%\bin\www
 copy appsdm\3ws\www\*.* %releasedir%\bin\www\
 
 copy autoexec.bat %releasedir%\bin\ > nul
+copy net.ini %releasedir%\bin\ > nul
 
 path=_sdk\
 nedotrd test.trd -n

@@ -11,6 +11,8 @@ void conv1251to866(unsigned char * bufer);
 extern unsigned char t1251to866[128];
 extern unsigned char syspath[8];
 
+typedef unsigned int FILE;
+
 typedef struct {
 	unsigned char drv; 				/* drive number */
 	unsigned char fname[11];
@@ -28,12 +30,12 @@ typedef struct {
 	unsigned char frecord;			/*номер записи внутри экстента*/
 } FCB;
 
-unsigned int 	OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
-unsigned int 	OS_WRITEHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
-unsigned int 	OS_READHANDLE(unsigned char * buffer, unsigned int hnd, unsigned int count);
-unsigned int 	OS_OPENHANDLE(unsigned char * path, unsigned char flags);
-unsigned int 	OS_CLOSEHANDLE(unsigned int hnd);
-unsigned long	OS_GETFILESIZE(unsigned int hnd);
+FILE		 	OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
+unsigned int 	OS_WRITEHANDLE(unsigned char * buffer, FILE hnd, unsigned int count);
+unsigned int 	OS_READHANDLE(unsigned char * buffer, FILE hnd, unsigned int count);
+FILE		 	OS_OPENHANDLE(unsigned char * path, unsigned char flags);
+unsigned int 	OS_CLOSEHANDLE(FILE hnd);
+unsigned long	OS_GETFILESIZE(FILE hnd);
 unsigned char * OS_GETPATH(unsigned char * path);
 unsigned char	OS_SETDTA(FCB * fcb);
 unsigned char	OS_FSEARCHFIRST(FCB * fcb);
@@ -41,6 +43,7 @@ unsigned char	OS_FSEARCHNEXT(FCB * fcb);
 unsigned char	OS_CHDIR(unsigned char * path);
 unsigned char	OS_MKDIR(unsigned char * path);
 unsigned char	OS_DELETE(unsigned char * path);
+void			OS_SETSYSDRV(void);
 void exit(int e);
 
 typedef signed char SOCKET;
