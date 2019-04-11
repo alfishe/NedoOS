@@ -29,13 +29,6 @@ firstfiley=left_panel_xy/256 + 1
 cmd_begin
         ld sp,0x4000
 
-;        ld b,100
-;cmd_beginwait0
-;        push bc
-;        YIELD ;чтобы cmd мог доделать свои дела на экране
-;        pop bc
-;        djnz cmd_beginwait0
-
         ld e,6 ;textmode
         OS_SETGFX
         
@@ -57,6 +50,25 @@ cmd_begin
         ld e,l
         OS_DELPAGE
 
+	OS_NEWPAGE
+	ld a,e
+        ld (HS_elpg),a
+	OS_NEWPAGE
+	ld a,e
+        ld (HS_elpg+1),a
+
+        ld hl,HS_strpg
+        ld b,4
+initstrpgs0
+        push bc
+        push hl
+	OS_NEWPAGE
+        pop hl
+        ld (hl),e
+        inc hl
+        pop bc
+        djnz initstrpgs0
+        
 	ld hl,left_panel_xy
 	ld (leftpanel+PANEL.xy),hl
 	OS_NEWPAGE
@@ -165,8 +177,8 @@ drawpanel_with_files
         
 drawpanel_files
 ;ix=panel
-	ld a,(ix+PANEL.pg)
-	SETPG32KHIGH
+	;ld a,(ix+PANEL.pg)
+	;SETPG32KHIGH
 
 	call setpanelcolor
 	ld l,(ix+PANEL.files)
@@ -177,11 +189,12 @@ drawpanel_files
 	sbc hl,bc ;hl=number of files in panel - scroll in panel
 	ld bc,CONST_HGT_TABLE
 	call minhl_bc_tobc ;bc = min(CONST_HGT_TABLE, number of files in panel - scroll in panel)
-	ld l,(ix+PANEL.pointers)
-	ld h,(ix+PANEL.pointers+1)
 	pop de ;dirscroll
-	add hl,de
-	add hl,de
+	;ld l,(ix+PANEL.pointers)
+	;ld h,(ix+PANEL.pointers+1)
+	;add hl,de
+	;add hl,de
+        call gotofilepointer_numberde
 
         call nv_getpanelxy_de
 	inc d 
@@ -195,13 +208,16 @@ prNfiles
 	push bc	
 	push de
         call nv_setxy ;keeps de,hl
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	inc hl
+	;ld e,(hl)
+	;inc hl
+	;ld d,(hl)
+	;inc hl
+        call getfilepointer_de_fromhl
 	push hl
 	ex de,hl
+        push ix
 	call prdirfile
+        pop ix
 	pop hl
 	pop de	
 	pop bc
@@ -316,8 +332,8 @@ readdir_keepcursor
         ld (ix+PANEL.markedfiles),a
         ld (ix+PANEL.markedfiles+1),a
 
-	ld a,(ix+PANEL.pg)
-	SETPG32KHIGH
+	;ld a,(ix+PANEL.pg)
+	;SETPG32KHIGH
 	
 	push ix
 	call setpaneldir
@@ -328,15 +344,17 @@ readdir_keepcursor
         OS_FSEARCHFIRST
 	pop ix
         or a
-        
+
         ld de,catbuf
         ld bc,0 ;nfiles
         jr nz,loaddir_error
 loaddir0
+        push bc
+	ld a,(ix+PANEL.pg) ;TODO мен€ть
+	SETPG32KHIGH
 	xor a
 	ld (de),a ;mark
 	inc de
-        push bc
         ld hl,fcb+1
         ld bc,31;FCB_sz
         ldir
@@ -380,16 +398,17 @@ loaddirq
 	ld h,(ix+PANEL.pointers+1)
         ld de,catbuf
 sortfiles_0
-	ld (hl),e	
-	inc hl
-	ld (hl),d
 	push bc
+	;ld (hl),e	
+	;inc hl
+	;ld (hl),d
+	;inc hl
+        call putfilepointer_de_tohl
 	ld bc,32
 	ex hl,de
 	add hl,bc
 	ex hl,de
 	pop bc
-	inc hl
 	dec bc	
 	ld a,b
 	or c
@@ -1293,8 +1312,10 @@ editcmd_5_0
         ld hl,wincopy
         call prwindow_waitkey ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
+
         ld hl,editcmd_reprintall
         push hl;Ќ≈ “–ќ√ј“№ !!
+
         ld hl,0
         ld (filescopied),hl
         
@@ -1337,10 +1358,6 @@ proceditcmd_copy
      	call setanotherpaneldir
         
         ld de,filenametext;swordbuf2 ;de=drive/path/file
-         ;push de
-         ;ld hl,fcb_filename
-         ;call cpmname_to_dotname
-         ;pop de
         OS_CREATEHANDLE
         or a
         ret nz ;jp nz,cmd_error_cant_copy
@@ -1734,7 +1751,33 @@ wordfiles
 wordbytes
         db " bytes",0
 
+HS_elpg ;2 pages
+        ds 2
+        align 256
+HS_strpg ;4 pages
+        ds 4
+        
+        macro PGW2elpg0
+        LD A,(HS_elpg)        SETPG32KLOW
+        endm
+        
+        macro PGW2elpg
+        LD A,(HS_elpg)        jr z,$+5        LD A,(HS_elpg+1)        SETPG32KLOW
+        endm
+
+        macro PGW2strpg
+        ld ($+4),a        LD A,(HS_strpg)        SETPG32KLOW
+        endm
+        macro PGW3elpg
+        LD A,(HS_elpg)        jr z,$+5        LD A,(HS_elpg+1)        SETPG32KHIGH
+        endm
+
+        macro PGW3strpg
+        ld ($+4),a        LD A,(HS_strpg)        SETPG32KHIGH
+        endm
         include "nvsort.asm"
+        include "heapsort.asm"
+
         include "nvjptbl.asm"
         include "nvunit.asm"
         include "nveditln.asm"

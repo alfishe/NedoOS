@@ -103,8 +103,9 @@ getmarkedfiles
         ld l,(ix+PANEL.markedfiles)
         ld h,(ix+PANEL.markedfiles+1)
         ret
-        
+
 changemark_hl
+        ;jr $
         push hl
 	ld a,(hl)
 	xor 1
@@ -191,14 +192,14 @@ getfilessize
         ld l,(ix+PANEL.totalsize)
         ld h,(ix+PANEL.totalsize+1)
         ret ;hl'hl=size
-        
+
 processfiles
 ;ix = panel address (kept)
 ;hl = procedure address (uses hl=fcb, hl'iy = accumulator)
 ;out: hl'hl = result
 	ld (processfiles_proc),hl
-	ld a,(ix+PANEL.pg)
-	SETPG32KHIGH
+	;ld a,(ix+PANEL.pg)
+	;SETPG32KHIGH
         call nv_getpanelfiles_bc
 	ld l,(ix+PANEL.pointers)
 	ld h,(ix+PANEL.pointers+1)
@@ -210,16 +211,13 @@ processfiles0
 	ld a,b
 	or c
 	jr z,processfilesq
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	inc hl
 	push bc
+        call getfilepointer_de_fromhl
 	push hl	
 	ex de,hl
         call isthisdotdir_hl
 processfiles_proc=$+1
-	call nz,0
+	call nz,0 ;copy может переключать страницы (сейчас не переключает)
 	pop hl
 	pop bc
 	dec bc
@@ -227,6 +225,52 @@ processfiles_proc=$+1
 processfilesq
         push iy
         pop hl
+        ret
+
+gotofilepointer_numberde
+        ld l,(ix+PANEL.pointers)
+        ld h,(ix+PANEL.pointers+1)
+	add hl,de
+	add hl,de
+        ret
+
+getfilepointer_de_fromhl
+;out: hl=next pointer
+        ;TODO setpgpointers
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+         ;push bc
+	ld a,(ix+PANEL.pg) ;TODO from de
+	SETPG32KHIGH
+         ;pop bc
+        ret
+
+putfilepointer_de_tohl
+;out: hl=next pointer
+         ;push bc
+	ld a,(ix+PANEL.pg) ;TODO from de
+	SETPG32KHIGH
+         ;pop bc
+	ld (hl),e	
+	inc hl
+	ld (hl),d
+	inc hl
+        ret
+
+swapfilepointers_hl_de
+;out: hl=next pointer
+	ld a,(de)
+	ldi
+	dec hl
+	ld (hl),a
+	inc hl	
+	ld a,(de)
+	ldi
+	dec hl
+	ld (hl),a
+	inc hl
         ret
 
 isthisdotdir_hl
@@ -297,18 +341,20 @@ getfcbaddrundercursor
         call nv_getdirpos_hl
 getfcbaddrunderhl
 	ld ix,(curpanel)
-	ld a,(ix+PANEL.pg)
-        push hl
-	SETPG32KHIGH
-        pop bc
-        ld l,(ix+PANEL.pointers)
-        ld h,(ix+PANEL.pointers+1)
-	add hl,bc
-	add hl,bc
-	ld a,(hl)
-	inc hl
-	ld h,(hl)
-	ld l,a ;hl=FCB
+	;ld a,(ix+PANEL.pg)
+	;SETPG32KHIGH
+        ex de,hl
+        ;ld l,(ix+PANEL.pointers)
+        ;ld h,(ix+PANEL.pointers+1)
+	;add hl,de
+	;add hl,de
+        call gotofilepointer_numberde
+	;ld a,(hl)
+	;inc hl
+	;ld h,(hl)
+	;ld l,a ;hl=FCB
+        call getfilepointer_de_fromhl
+        ex de,hl ;hl=FCB
 	ret
         
 getfcbundercursor

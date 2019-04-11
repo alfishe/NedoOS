@@ -93,11 +93,13 @@ OS_NET_RW:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_OPENHANDLE:
+	push bc
 	ld a,c
     ex af,af'
 	ld c,CMD_OPENHANDLE	
 	jr label1
 OS_CLOSEHANDLE:
+	push bc
 	ld b,d
 	ld c,CMD_CLOSEHANDLE
 label1:
@@ -109,6 +111,7 @@ label1:
 	ld l,a
 	pop iy
 	pop ix
+	pop bc
 	ret
 	ENDMOD
 	
@@ -119,21 +122,27 @@ label1:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_DELETE:
+	push bc
 	ld c,CMD_DELETE	
 	jr label1
 OS_MKDIR:
+	push bc
 	ld c,CMD_MKDIR	
 	jr label1
 OS_CHDIR:
+	push bc
 	ld c,CMD_CHDIR	
 	jr label1
 OS_FSEARCHNEXT:
+	push bc
 	ld c,CMD_FSEARCHNEXT	
 	jr label1
 OS_FSEARCHFIRST:
+	push bc
 	ld c,CMD_FSEARCHFIRST	
 	jr label1
 OS_SETDTA:
+	push bc
 	ld c,CMD_SETDTA
 label1:
 	push ix
@@ -142,6 +151,7 @@ label1:
 	ld (errno),a
 	pop iy
 	pop ix
+	pop bc
 	ret
 	ENDMOD
 	
@@ -212,20 +222,25 @@ OS_CREATEHANDLE:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SCROLLUP:
+	push bc
 	ld h,b
 	ld l,c
 	ld c,CMD_SCROLLUP
 	jr label1
 OS_SETGFX:
+	push bc
 	ld c,CMD_SETGFX
 	jr label1
 OS_CLS:
+	push bc
 	ld c,CMD_CLS
 	jr label1
 OS_GETXY:
+	push bc
 	ld c,CMD_GETXY	;de=yx ;GET CURSOR POSITION
 	jr label1
 OS_SETXY:
+	push bc
 	ld d,c
 	ld c,CMD_SETXY	;de=yx ;SET CURSOR POSITION
 label1:
@@ -234,6 +249,7 @@ label1:
 	call BDOS
 	pop iy
 	pop ix
+	pop bc
 	ret			;h-y l-x
 	ENDMOD
 	
@@ -291,6 +307,8 @@ scrredraw:
 	#include "sysdefs.asm"
 	RSEG CODE
 _low_level_get:
+	push de
+	push bc
 	call YIELD
 	push ix
 	push iy
@@ -303,6 +321,8 @@ _low_level_get:
 	ld h,0
 	pop iy
 	pop ix
+	pop bc
+	pop de
 	ret
 	ENDMOD
 

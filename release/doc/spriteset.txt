@@ -1,0 +1,39 @@
+;x,y,wid,hgt,defaultcolor
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+tank_u_go1=s,0,0,16,16,7
+tank_u_go2=s,16,0,16,16,7
+tank_r_go1=s,0,16,16,16,7
+tank_r_go2=s,16,16,16,16,7
+tank_d_go1=s,0,32,16,16,7
+tank_d_go2=s,16,32,16,16,7
+tank_l_go1=s,0,48,16,16,7
+tank_l_go2=s,16,48,16,16,7
+tank_u_shoot1=s,32,0,16,16,7
+tank_u_shoot2=s,48,0,16,16,7
+tank_r_shoot1=s,32,16,16,16,7
+tank_r_shoot2=s,48,16,16,16,7
+tank_d_shoot1=s,32,32,16,16,7
+tank_d_shoot2=s,48,32,16,16,7
+tank_l_shoot1=s,32,48,16,16,7
+tank_l_shoot2=s,48,48,16,16,7
+tanke_u_go1=s,0,64,16,16,7
+tanke_u_go2=s,16,64,16,16,7
+tanke_r_go1=s,0,80,16,16,7
+tanke_r_go2=s,16,80,16,16,7
+tanke_d_go1=s,0,96,16,16,7
+tanke_d_go2=s,16,96,16,16,7
+tanke_l_go1=s,0,112,16,16,7
+tanke_l_go2=s,16,112,16,16,7
+tanke_u_shoot1=s,32,64,16,16,7
+tanke_u_shoot2=s,48,64,16,16,7
+tanke_r_shoot1=s,32,80,16,16,7
+tanke_r_shoot2=s,48,80,16,16,7
+tanke_d_shoot1=s,32,96,16,16,7
+tanke_d_shoot2=s,48,96,16,16,7
+tanke_l_shoot1=s,32,112,16,16,7
+tanke_l_shoot2=s,48,112,16,16,7

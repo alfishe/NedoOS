@@ -3,11 +3,14 @@
 
 STACK=0x4000
 
-FILE888TO=0x4000 ;,0x4800FILE888FROM=0xb800T888FOUND=0x8800 ;temp
+FILE888TO=0x4000 ;,0x4800
+FILE888FROM=0xb800
+T888FOUND=0x8800 ;temp
 
 deblcscradr=0xc000
 
-grfadr=#4000grfatr=grfadr+#84
+grfadr=#4000
+grfatr=grfadr+#84
         
         org PROGSTART
 cmd_begin
@@ -188,8 +191,7 @@ loadfnt1
         jr waitkeyquit
         
 loadmc
-        ld de,0x4000
-        call readstream_file
+        call read4000
         call closestream_file
         call cleanafter8000
         ld e,2
@@ -199,13 +201,128 @@ loadmc
 
 convmcscr
         ld hl,0x4000
-        ld de,0xc000+4
+        ld de,0xc000+4 ;pixels
         ld b,192
 loadmclines0
         push bc
+        call convmcline
+        ex de,hl
+        ld c,40
+        add hl,bc
+        ex de,hl
+        pop bc
+        djnz loadmclines0
+        ;ld bc,0xc001
+        ;jr convmgattrs
+;convmcattrs
+        ld de,0x8000+4 ;attrs
+        ld bc,0xc020
+convmcattrlines
+convmcattrlines0
+        push bc
+        ld b,0
+        call convmcattrline
+        ex de,hl
+        ld c,40
+        add hl,bc
+        ex de,hl
+        pop bc
+        djnz convmcattrlines0
+        ret
+        
+readconvmg1attrs
+        ld hl,0x0c00
+        call read4000
+        ld de,0x8000+4+8 ;attrs
+        ld bc,0xc010
+        jr convmcattrlines
+
+readconvmg1attrs8
+        ld hl,0x0c00
+        call read4000
+        ld de,0x8000+4 ;attrs
+        ld b,24
+convmg1attr8lines0
+        push bc
+        ld b,8
+convmg1attr8lines1
+        push hl
+        push bc
+        ld bc,8
+        call convmcattrline
+        ex de,hl
+        ld c,24
+        add hl,bc
+        ex de,hl
+        ld c,8
+        call convmcattrline
+        ex de,hl
+        ld c,40-24
+        add hl,bc
+        ex de,hl
+        pop bc
+        pop hl
+        djnz convmg1attr8lines1
+        ld c,16
+        add hl,bc
+        pop bc
+        djnz convmg1attr8lines0
+        ret
+        
+readconvmgattrs
+        push bc
+        call read4000
+        pop bc
+convmgattrs
+;hl=from
+;de=attrs addr
+;b=hgt in chrs
+;c=hgt of chr
+        ld de,0x8000+4 ;attrs
+        ld lx,40
+convmgattrlines
+;hl=from
+;de=attrs addr
+;b=hgt in chrs
+;c=hgt of chr
+;lx=40/80 step
+convmg2attrlines0
+        push bc
+        ld b,c;2
+convmg2attrlines1
+        push hl
+        push bc
+        ld bc,32
+        call convmcattrline
+        ex de,hl
+        ld c,lx;40
+        add hl,bc
+        ex de,hl
+        pop bc
+        pop hl
+        djnz convmg2attrlines1
+        ld c,32
+        add hl,bc
+        pop bc
+        djnz convmg2attrlines0
+        ret
+        
+convmcattrline
+        push de
+convmcattrline0
+        ld a,(hl)
+        ld (de),a
+        set 5,d
+        ldi
+        res 5,d
+        jp pe,convmcattrline0
+        pop de
+        ret
+
+convmcline
         push de
         ld b,32
-loadmcline0
+convmcline0
         dup 4
         rl (hl)
         rla
@@ -228,67 +345,129 @@ loadmcline0
         res 5,d
         inc de
         inc hl
-        djnz loadmcline0
+        djnz convmcline0
         pop de
-        ex de,hl
-        ld bc,40
-        add hl,bc
-        ex de,hl
-        pop bc
-        djnz loadmclines0
-        ld de,0x8000+4
-        ld b,192
-loadmcattrlines0
-        push bc
-        push de
-        ld bc,32
-loadmcattrline0
-        ld a,(hl)
-        ld (de),a
-        set 5,d
-        ldi
-        res 5,d
-        jp pe,loadmcattrline0
-        pop de
-        ex de,hl
-        ld bc,40
-        add hl,bc
-        ex de,hl
-        pop bc
-        djnz loadmcattrlines0
         ret
 
+readconvmgpixelscr
+        call cleanafter8000
+        call read40001800
+        ;ld hl,0x4000
+        ld de,0xc000+4 ;pixels
+        ld b,192
+convmglines0
+        push bc
+        push hl
+        call convmcline
+        pop hl
+        call downhl
+        ex de,hl
+        ld c,40
+        add hl,bc
+        ex de,hl
+        pop bc
+        djnz convmglines0
+        ret
+        
 loadmcx
         call cleanafter8000
         ld e,2
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        ld de,0x4000
         ld hl,0x1800*2
-        call readstream_file
+        call read4000
         call convmcscr
         call setpgs_scr2
         call cleanafter8000
-        ld de,0x4000
         ld hl,0x1800*2
-        call readstream_file
+        call read4000
         call convmcscr
+loadmcxq
         call closestream_file
         jp waitkeyblink
 
+loadmg2
+        ld bc,0x6002
+        ld hl,0x0c00
+        jr loadmg_go
+loadmg4
+        ld bc,0x3004
+        ld hl,0x0600
+        jr loadmg_go
+loadmg8
+        ld bc,0x1808
+        ld hl,0x0300
+loadmg_go
+        push bc
+        push hl
+        call cleanafter8000
+        ld e,2
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld hl,0x100 ;header
+        call read4000
+        call readconvmgpixelscr
+        call setpgs_scr2
+        call readconvmgpixelscr
+        call setpgs_scr
+        pop hl
+        pop bc
+        push bc
+        push hl
+        call readconvmgattrs
+        call setpgs_scr2
+        pop hl
+        pop bc
+        call readconvmgattrs
+        jr loadmcxq
+
+loadmg1
+        call cleanafter8000
+        ld e,2
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld hl,0x100 ;header
+        call read4000
+        call readconvmgpixelscr
+        call setpgs_scr2
+        call readconvmgpixelscr
+        call setpgs_scr
+        call readconvmg1attrs
+        call setpgs_scr2
+        call readconvmg1attrs
+        call setpgs_scr
+        call readconvmg1attrs8
+        call setpgs_scr2
+        call readconvmg1attrs8
+        jr loadmcxq
+
+read40001800
+        ld hl,0x1800
+read4000
+        ld de,0x4000
+        push de
+        call readstream_file
+        pop hl
+        ret
+        
 
 loadgrf
 ;hl=size
         push hl
         call cleanafter8000
+        ld e,2
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         pop hl
         call setpgtemp8000
         ld de,grfadr
+        push de
         call readstream_file
         call closestream_file
-        ld e,2
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        
-        LD HL,grfadr        LD DE,TPAL        CALL GRFPAL        LD de,TPAL        OS_SETPAL        CALL GRF2ATM        jp waitkeyquit
+        pop hl;LD HL,grfadr
+        LD DE,TPAL
+        push de
+        CALL GRFPAL
+        pop de;LD de,TPAL
+        OS_SETPAL
+        CALL GRF2ATM
+        jp waitkeyquit
 TPAL
         ds 32
 
@@ -297,6 +476,96 @@ cleanafter8000
         ld bc,0xffff-0x8000
         jp fillzero
 
+loadrmode
+;scr1 (6144 спрайтом) (первый фрейм)
+;scr2 (6144 спрайтом) (второй фрейм)
+;attr1 (768) ;G/M/C - низ(нечет) первого фрейма
+;attr2 (768) ;R/C/M - низ(нечет) второго фрейма
+;attr3 (768) ;B/Y - верх(чёт) второго фрейма - переставим на 1-й из-за интерлейса
+;attr4 (768) ;W - верх(чёт) первого фрейма - переставим на 2-й из-за интерлейса
+        call cleanafter8000
+        ld e,2
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        call read40001800
+        call convmcscr
+        call setpgs_scr2
+        call cleanafter8000
+        call read40001800
+        call convmcscr
+;attr1 (768) ;G/M/C - низ(нечет) первого фрейма
+        call setpgs_scr
+        ld de,0x8000+4+40 ;attrs
+        call readrmodeattrs
+;attr2 (768) ;R/C/M - низ(нечет) второго фрейма
+        call setpgs_scr2
+        ld de,0x8000+4+40 ;attrs
+        call readrmodeattrs
+;attr3 (768) ;B/Y - верх(чёт) второго фрейма - переставим на 1-й из-за интерлейса
+        call setpgs_scr
+        call readrmodeattrs_top
+;attr4 (768) ;W - верх(чёт) первого фрейма - переставим на 2-й из-за интерлейса
+        call setpgs_scr2
+        call readrmodeattrs_top
+        jp loadmcxq
+
+readrmodeattrs_top
+        ld de,0x8000+4 ;attrs
+readrmodeattrs
+;de=attrs
+        push de
+        ld hl,0x300
+        call read4000
+        pop de
+        ld bc,0x1804
+        ld lx,80
+        jp convmgattrlines
+        
+        if 1==0
+;TODO
+        call setEGA ;keeps hl
+        ld de,0x4000
+        call readstream_file
+        call closestream_file
+;0. найти все цвета attr1,attr2,attr3,attr4
+;1. сгенерировать палитру (все комбинации attr4+attr3 2*3 шт, все комбинации attr1+attr2 4*4 шт) со ссылками на спецпалитру
+;2. включить спецпалитру
+;3. сконвертировать пиксели с учётом атрибутов
+
+        LD de,TRMODEPAL
+        OS_SETPAL
+        
+        jp waitkeyquit
+        
+TRMODEPAL
+;0, r, c, m, g, y, gc, w, mr, mc, [M], [C], bw, yw, [rw], [cw]
+;используем уровни 8 (2 на ATM), 15 (3 на ATM)
+_0=5*0
+_1=5*1;8
+_2=5*2;15
+;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;high B, high b, low B, low b
+        macro palcol r,g,b ;0..15
+        db 0xff - (((g&1)<<7) + ((r&1)<<6) + ((b&1)<<5) + ((g&2)<<3) + (r&2) + ((b&2)>>1))
+        db 0xff - (((g&4)<<5) + ((r&4)<<4) + ((b&4)<<3) + ((g&8)<<1) + ((r&8)>>2) + ((b&8)>>3))
+        endm
+        palcol _0,_0,_0 ;0
+        palcol _1,_0,_0 ;r
+        palcol _0,_1,_1 ;c
+        palcol _1,_0,_1 ;m
+        palcol _0,_1,_0 ;g
+        palcol _1,_1,_0 ;y
+        palcol _0,_2,_1 ;gc
+        palcol _1,_1,_1 ;w
+        palcol _2,_0,_1 ;mr
+        palcol _1,_1,_2 ;mc
+        palcol _2,_0,_2 ;[M]
+        palcol _0,_2,_2 ;[C]
+        palcol _1,_1,_2 ;bw
+        palcol _2,_2,_1 ;yw
+        palcol _2,_1,_1 ;[rw]
+        palcol _1,_2,_2 ;[cw]
+        endif
+        
 load3
 ;B,R,G
 ;hl=size
@@ -467,7 +736,7 @@ load3line
         add hl,bc
         ex de,hl
         ret
-        
+
 load3subline
         push de
         push hl
@@ -525,7 +794,7 @@ load3_h0a=$+1
         pop hl
         pop de
         ret
-        
+
 downhl
         inc h
         ld a,h
@@ -715,6 +984,16 @@ extlist
         db "mcx",0
         dw loadchr
         db "ch$",0
+        dw loadmg1
+        db "mg1",0
+        dw loadmg2
+        db "mg2",0
+        dw loadmg4
+        db "mg4",0
+        dw loadmg8
+        db "mg8",0
+        dw loadrmode
+        db "rm",0
         
         dw -1 ;end of list
         

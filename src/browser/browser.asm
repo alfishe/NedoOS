@@ -1,6 +1,11 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+WGETBUF=0x0800
+;WGETBUFSZ=0x0400
+;WGETBEGINADDR=WGETBUF+WGETBUFSZ
+;WGETENDADDR=WGETBEGINADDR+2
+
 end1=0x3500
 
 DISKBUF=0x3500;0xb000
@@ -206,94 +211,8 @@ recodelinkamp0dec1
 recodelinkamp0q
 
         call keepcurlink
-
-        ld hl,linkbuf
-;если ссылка начинается со слеша, то надо отрезать весь путь, кроме сервера
-        ld a,(hl)
-        cp '/'
-        jr z,browser_go_rootlink ;"/Timex"
         
-        call isprotocolpresent
-;nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
-        jr z,browser_go_protocolpresent ;протокол есть - linkbuf содержит полную ссылку (к ней только добавить / в случае http://ser.ver)
-        ld a,(linkbuf+1)
-        sub ':'
-        jr z,browser_go_defaultprotocolpresent ;1:/file... => file://1:/file...
-;нет протокола - взять текущий путь из curfulllink (т.е. отрезать всё после последнего слеша) и приклеить к нему эту ссылку (с учётом ../)
-;слеш в конце http://ser.ver уже есть
-        ld hl,curfulllink
-        call isprotocolpresent
-;a=protocol (0=file, 1=http), hl=after "//"
-        call findlastslash. ;out: de = after last slash
-        ld hl,linkbuf
-browser_go_chdir
-        ld a,'.'
-        cp (hl)
-        jr nz,browser_go_chdirq
-        inc hl ;skip dot
-         ld a,(hl)
-         cp '/'
-         jr z,browser_go_dotslash
-        inc hl ;skip another dot supposed
-        ld a,(hl)
-        or a
-        jr z,$+3
-        inc hl ;skip / supposed
-;hl=linkbuf+... (path/file without ../)
-;de=curfulllink+...=end of curdir (after slash)
-;remove last element of curdir = move de to previous slash
-         ;jr $
-        dec de ;at slash
-        dec de
-        ld a,(de)
-        inc de
-        inc de ;after slash
-        cp '/' ;is it "//"?
-        jr z,browser_go_chdir_error
-        dec de ;at slash
-        ex de,hl ;hl=at slash
-        dec hl
-        ld a,'/'
-        ld b,-1
-        cpdr
-        inc hl ;at previous slash (might be last slash of "//")
-        inc hl ;after slash
-        ex de,hl ;de=curfulllink+...=end of curdir (after slash)
-         jr browser_go_chdir
-browser_go_chdir_error
-browser_go_chdirq
-;hl=linkbuf+... (path/file without ../)
-;de=curfulllink+...=end of curdir (after slash)
-        call strcopy
-        jr browser_go_protocolpresentq
-browser_go_defaultprotocolpresent
-;1:/file... => file://1:/file...
-;a=0
-        call adddefaultprotocol
-        jr browser_go_protocolpresentq
-browser_go_dotslash
-;"./Timex"
-browser_go_rootlink
-;"/Timex"
-;hl=linkbuf+... at slash
-         push hl
-        ld hl,curfulllink
-        call isprotocolpresent
-;a=protocol (0=file, 1=http), hl=after "//"
-        call findslash
-        dec hl ;at slash
-        ex de,hl ;de=curfulllink+ after server (at slash)
-         pop hl
-        jr browser_go_copyto;linkbuf
-browser_go_protocolpresent
-;a=protocol (0=file, 1=http), hl=after "//"
-        call addslashafterserver ;add / after http://ser.ver
-        ld de,curfulllink
-;browser_go_copytolinkbuf
-        ld hl,linkbuf
-browser_go_copyto
-        call strcopy
-browser_go_protocolpresentq
+        call makefulllink
 ;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
 
         if 1==0
@@ -334,6 +253,24 @@ keeptohist_nooverflow
         ld (html_curtopy),bc ;0
         ret
 
+remembercurlink
+	ld hl,(histaddr)
+	ld a,h
+	cp 0xc0
+	ret z ;jr z,browser_reload ;no history
+	dec h
+	ld (histaddr),hl
+	call setpghist
+         ;jr $
+        ld de,curfulllink;linkbuf
+        ;call strcopy
+	ld bc,254
+	ldir
+        ld de,html_curtopy
+        ldi
+        ldi
+        ret
+
 browser_downloadthis
 	ld a,1
 	ld (downloadflag),a
@@ -346,23 +283,9 @@ browser_reload
 	jr browser_backspaceq
 
 browser_backspace
-;вспомнить старый путь с протоколом и именем, положить его в COMMANDLINE
+;вспомнить старый путь с протоколом и именем, положить его в curfulllink
 ;сейчас histaddr указывает на последний элемент истории. идём назад и запомним новый указатель
-	ld hl,(histaddr)
-	ld a,h
-	cp 0xc0
-	jr z,browser_reload;jp z,getkeyquit ;jr z,$+3 ;no history
-	dec h
-	ld (histaddr),hl
-	call setpghist
-         ;jr $
-        ld de,curfulllink;linkbuf
-        ;call strcopy
-	ld bc,254
-	ldir
-        ld de,html_curtopy
-        ldi
-        ldi
+        call remembercurlink
 
 browser_backspaceq
 ;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf        
@@ -807,10 +730,6 @@ loadbmp_fail
 closequit
         call closestream
          jr getkeyquit
-        
-;showtimequit
-;        call showtime
-;         jr getkeyquit
 
 LOADERROR
         call closestream
@@ -939,6 +858,98 @@ strcopy0
         ldi
         or a
         jr nz,strcopy0
+        ret
+
+makefulllink
+;curfulllink = curfulllink+linkbuf
+        ld hl,linkbuf
+;если ссылка начинается со слеша, то надо отрезать весь путь, кроме сервера
+        ld a,(hl)
+        cp '/'
+        jr z,browser_go_rootlink ;"/Timex"
+        
+        call isprotocolpresent
+;nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
+        jr z,browser_go_protocolpresent ;протокол есть - linkbuf содержит полную ссылку (к ней только добавить / в случае http://ser.ver)
+        ld a,(linkbuf+1)
+        sub ':'
+        jr z,browser_go_defaultprotocolpresent ;1:/file... => file://1:/file...
+;нет протокола - взять текущий путь из curfulllink (т.е. отрезать всё после последнего слеша) и приклеить к нему эту ссылку (с учётом ../)
+;слеш в конце http://ser.ver уже есть
+        ld hl,curfulllink
+        call isprotocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        call findlastslash. ;out: de = after last slash
+        ld hl,linkbuf
+browser_go_chdir
+        ld a,'.'
+        cp (hl)
+        jr nz,browser_go_chdirq
+        inc hl ;skip dot
+         ld a,(hl)
+         cp '/'
+        inc hl ;if nz,skip another dot supposed
+         jr z,browser_go_dotslash
+        ld a,(hl)
+        or a
+        jr z,$+3
+        inc hl ;skip / supposed
+;hl=linkbuf+... (path/file without ../)
+;de=curfulllink+...=end of curdir (after slash)
+;remove last element of curdir = move de to previous slash
+         ;jr $
+        dec de ;at slash
+        dec de
+        ld a,(de)
+        inc de
+        inc de ;after slash
+        cp '/' ;is it "//"?
+        jr z,browser_go_chdir_error
+        dec de ;at slash
+        ex de,hl ;hl=at slash
+        dec hl
+        ld a,'/'
+        ld b,-1
+        cpdr
+        inc hl ;at previous slash (might be last slash of "//")
+        inc hl ;after slash
+        ex de,hl ;de=curfulllink+...=end of curdir (after slash)
+         jr browser_go_chdir
+browser_go_chdir_error
+browser_go_chdirq
+;hl=linkbuf+... (path/file without ../)
+;de=curfulllink+...=end of curdir (after slash)
+        call strcopy
+        jr browser_go_protocolpresentq
+browser_go_defaultprotocolpresent
+;1:/file... => file://1:/file...
+;a=0
+        call adddefaultprotocol
+        jr browser_go_protocolpresentq
+browser_go_dotslash=browser_go_chdir ;"./Timex"
+
+browser_go_rootlink
+;"/Timex"
+;hl=linkbuf+... at slash
+         push hl
+        ld hl,curfulllink
+        call isprotocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        call findslash
+        dec hl ;at slash
+        ex de,hl ;de=curfulllink+ after server (at slash)
+         pop hl
+        jr browser_go_copyto;linkbuf
+browser_go_protocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        call addslashafterserver ;add / after http://ser.ver
+        ld de,curfulllink
+;browser_go_copytolinkbuf
+        ld hl,linkbuf
+browser_go_copyto
+        call strcopy
+browser_go_protocolpresentq
+;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
         ret
 
 adddefaultprotocol
@@ -1965,6 +1976,10 @@ browser_recodefull_protocolpresent
 defaultfilename
         ;db "0:/hippiman.bmp",0
         db "http://zxevo.ru/nos/",0
+
+wgetfilename
+        db "wget.com",0
+        ;db "basic.com",0
 
 zxpal
         incbin "zxpal"

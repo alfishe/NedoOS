@@ -49,17 +49,17 @@ washobetarunner
 ;only ATM2 ports here!
 	di
 	ld a,#7f-5
-    ld bc,#bff7
+        ld bc,#bff7
 	out (c),a
 	ld a,#7f-4
-    ld bc,#fff7
+        ld bc,#fff7
 	out (c),a
-    ld hl,#c000
-    ld de,#8000
-    ld bc,#4000
-    ldir ;pg4 -> pg5
+        ld hl,#c000
+        ld de,#8000
+        ld bc,#4000
+        ldir ;pg4 -> pg5
 	ld a,#7f-8;pgtrdosfs
-    ld bc,#fff7
+        ld bc,#fff7
 	out (c),a
         ld hl,#1c00+#c000
         ld de,#1c00+#8000

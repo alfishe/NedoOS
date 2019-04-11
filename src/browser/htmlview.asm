@@ -64,7 +64,7 @@ html_mainloop_keyq
         cp cs5
         jp z,html_left
         cp Enter
-        jr z,html_enter
+        jp z,html_enter
 	cp 'l'
 	jr z,html_download
 	;cp 's'
@@ -94,8 +94,71 @@ html_changeencoding
         
 html_download
         call html_enter_find
-	jp browser_godownload
-	
+        call keepcurlink
+;linkbuf=relative link
+        call makefulllink
+;curfulllink=url
+
+wgetloaded_pid=$+1
+        ld a,0
+        or a
+        call z,reloadwget
+
+;TODO проверить, что wget жив:
+        ;ld a,(wgetloaded_pid)
+        ;OS_WAITPID
+        ;or a
+        ;call z,reloadwget
+
+;ждём готовности wget
+waitwgetinit0
+        YIELD
+wgetmainpg=$+1
+        ld a,0
+        SETPG32KHIGH
+        ld a,(0xc000+COMMANDLINE)
+        inc a
+        jr z,waitwgetinit0
+        
+        ld hl,curfulllink
+        ld de,0xc000+WGETBUF
+        call strcopy
+        
+        jp remembercurlink
+	;jp browser_godownload
+
+reloadwget
+        OS_SETSYSDRV
+        ld de,wgetfilename
+        call openstream_file
+        or a
+        ret nz
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
+        or a
+        jr nz,html_download_closeq ;error
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+        push bc ;b=id
+        ld a,d
+        ld (wgetmainpg),a
+        SETPG32KHIGH
+        ;push de
+        ;push hl
+        ld hl,0xc000+COMMANDLINE
+        ld (hl),0xff ;daemon mode
+        inc hl
+        ld (hl),0
+        ;pop hl
+        ;pop de
+        ld de,0xc100
+        ld hl,0x3f00
+        call readstream_file
+        pop af
+        ld (wgetloaded_pid),a
+        ld e,a ;e=id
+        OS_RUNAPP
+html_download_closeq
+        jp closestream_file
+
 html_enter
 ;click on href
         call html_enter_find

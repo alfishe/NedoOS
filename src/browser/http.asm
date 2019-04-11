@@ -212,7 +212,7 @@ readstream_http_headretry
         pop hl
         pop de
         cp csSpace
-        jr z,readstream_err
+        jp z,readstream_err
 
 readstream_http_headlines0
          ld (readstream_http_headlineaddr),de

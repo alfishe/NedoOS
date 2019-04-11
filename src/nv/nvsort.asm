@@ -149,26 +149,27 @@ findmin0
 	ret z
 	inc hl
 	inc hl
-	push hl
-	ld a,(hl)
-	inc hl
-	ld h,(hl)
-	ld l,a ;hl=FCB
-	push de
-;de=current min (pointer)
-	ex de,hl
-	ld a,(hl)
-	inc hl
-	ld h,(hl)
-	ld l,a
-	ex de,hl
-;de=current min (FCB)
+        
 	push bc
+	push de ;de=current min (pointer)
+	push hl
+        
+	push de ;de=current min (pointer)
+        call getfilepointer_de_fromhl
+	;SETPG32KLOW ;TODO!!! а то сейчас по current min включается PG32KHIGH
+        ex de,hl ;hl=FCB
+        ex (sp),hl ;hl=current min (pointer)
+        call getfilepointer_de_fromhl
+
+;de=current min (FCB)
+        pop hl ;hl=FCB
+        
 findmin_proc=$+1
 	call compareext
-	pop bc
-	pop de
+        
 	pop hl
+	pop de ;de=current min (pointer)
+	pop bc
 ;NC = *de>=*hl
 findmin_jrc=$
 	jr c,findmin0;findmin_nomin
@@ -194,8 +195,8 @@ sortfiles
         ld a,b
         ld (findmin_ccf),a
         
-	ld a,(ix+PANEL.pg)
-	SETPG32KHIGH
+	;ld a,(ix+PANEL.pg)
+	;SETPG32KHIGH
 	
 	ld c,(ix+PANEL.files)
 	ld b,(ix+PANEL.files+1)
@@ -207,8 +208,7 @@ sortfiles
 ;при обратной сортировке в режиме "без сортировки" на каждом проходе в конец списка попадёт первый файл, а на следующем он попадёт в очередное начало, т.е. перестановка в обратном порядке не выйдет
 sortfiles_pass0
 	push bc
-	push hl
-;hl=start (in pointers)
+	push hl ;hl=start (in pointers)
 ;bc=files!=0
 	call findmin
 ;de=min (pointer)
@@ -216,18 +216,11 @@ sortfiles_pass0
          ld bc,compareempty
          or a
          sbc hl,bc
-	pop hl
+	pop hl ;hl=start (in pointers)
 ;copy pointer into hl, move to next pointer
-	ld a,(de)
-	ldi
-	dec hl
-	ld (hl),a
-	inc hl	
-	ld a,(de)
-	ldi
-	dec hl
-	ld (hl),a
-	inc hl	
+        push af
+        call swapfilepointers_hl_de ;out: hl=next pointer
+        pop af
 	pop bc
          jr nz,$+6 ;not compareempty
 	 dec bc
@@ -239,4 +232,3 @@ sortfiles_pass0
 	or c
 	jr nz,sortfiles_pass0
 	ret
-
