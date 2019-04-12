@@ -692,7 +692,7 @@ prcharin
         add hl,hl
         add hl,hl
         add hl,hl
-        ld bc,#3c00
+        ld bc,font-256;#3c00
         add hl,bc
         ld b,8
 prchar0

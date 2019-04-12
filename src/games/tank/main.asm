@@ -113,14 +113,14 @@ begin
 loop
         call restoreobjects
         call restorebullets
-        ld a,2
-        out (#fe),a
+        ;ld a,2
+        ;out (#fe),a
         call probjlist
-        ld a,4
-        out (#fe),a
+        ;ld a,4
+        ;out (#fe),a
         call prbulletlist
-        ld a,0
-        out (#fe),a
+        ;ld a,0
+        ;out (#fe),a
         
 loopdelay
         OS_GETTIMER ;hlde=timer
@@ -133,24 +133,24 @@ oldtimer=$+1
         sub c
         jr z,loopdelay
         ld b,a
-        ld a,5
-        out (#fe),a
+        ;ld a,5
+        ;out (#fe),a
 logicloop0
         push bc
         call control
         call animate
         call logic
         call bulletlogic
-        ld a,1
-        out (#fe),a
+        ;ld a,1
+        ;out (#fe),a
         call fillcollisionmap
-        ld a,5
-        out (#fe),a
+        ;ld a,5
+        ;out (#fe),a
         call bulletcollision
         pop bc
         djnz logicloop0
-        ld a,6
-        out (#fe),a
+        ;ld a,6
+        ;out (#fe),a
         call prvalid
         ;call displaycollisionmap
         jp loop
@@ -896,6 +896,9 @@ quit
 
 endtext
         db "Game over!",0
+
+font
+        incbin "zx.fnt"
         
         include "collision.asm"
         include "tankgfx.asm"

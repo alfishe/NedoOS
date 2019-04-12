@@ -694,7 +694,9 @@ tbdoscmds
         db CMD_WIZNETWRITE
         db CMD_GETFILESIZE
         db CMD_DELETE
+        db CMD_SETWAITING
 nbdoscmds=$-tbdoscmds
+        dw BDOS_setwaiting
         dw BDOS_delete
         dw BDOS_getfilesize
         dw BDOS_wiznetwrite
@@ -954,11 +956,15 @@ BDOS_runapp
         xor a
         ret
 
+BDOS_setwaiting
+         set fwaiting,(iy+app.flags)
+        ret
+
 BDOS_waitpid
 ;e=id
-;wait for app close
+;check for app close (a=0 and reset waiting, or else a!=0)
          push iy
-         set fwaiting,(iy+app.flags)
+         ;set fwaiting,(iy+app.flags)
         ld c,(iy+app.id) ;my (parent's) id ;caller is the parent
          ;jr $
         push bc

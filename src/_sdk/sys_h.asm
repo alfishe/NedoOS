@@ -34,9 +34,9 @@ _1=$
         ;ld a,e
         ;pop de
         ;ld d,a
-        ;push de
-        ;OS_SETWAITING
-        ;pop de
+        push de
+        OS_SETWAITING
+        pop de
 _1=$
         push de
         YIELD
@@ -150,10 +150,10 @@ _1=$
         ld c,CMD_GETFILESIZE
 	CALLBDOS
         endm
-        ;macro OS_SETWAITING
-        ;ld c,CMD_SETWAITING
-	;CALLBDOS
-        ;endm
+        macro OS_SETWAITING
+        ld c,CMD_SETWAITING
+	CALLBDOS
+        endm
         ;macro OS_RESETWAITING
         ;ld c,CMD_RESETWAITING
 	;CALLBDOS

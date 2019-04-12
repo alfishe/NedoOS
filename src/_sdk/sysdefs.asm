@@ -38,8 +38,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
-;CMD_SETWAITING=0xd9
-;CMD_RESETWAITING=0xda
+CMD_SETWAITING=0xd9
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb
 CMD_WIZNETCLOSE=0xdc
@@ -58,7 +57,7 @@ CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB
 ;CMD_GETKEYNOLANG=0xe9
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
-CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK
+CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
 CMD_FREEZEAPP=0xed ;e=id ;disable app and make non-graphic
 CMD_GETATTR=0xee ;out: a ;READ ATTR AT CURSOR POSITION
 CMD_MOUNT=0xef ;e=drive, out: a

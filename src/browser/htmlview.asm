@@ -105,10 +105,11 @@ wgetloaded_pid=$+1
         call z,reloadwget
 
 ;TODO проверить, что wget жив:
-        ;ld a,(wgetloaded_pid)
-        ;OS_WAITPID
-        ;or a
-        ;call z,reloadwget
+        ld a,(wgetloaded_pid)
+        ld e,a
+        OS_WAITPID
+        or a
+        call z,reloadwget
 
 ;ждём готовности wget
 waitwgetinit0
@@ -123,6 +124,8 @@ wgetmainpg=$+1
         ld hl,curfulllink
         ld de,0xc000+WGETBUF
         call strcopy
+        ld a,0xff
+        ld (0xc000+COMMANDLINE),a ;строка задания готова
         
         jp remembercurlink
 	;jp browser_godownload

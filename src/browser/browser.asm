@@ -777,6 +777,21 @@ globalbuttons
         cp csSpace
         ret nz
 browser_quit
+        ld a,(wgetloaded_pid)
+        or a
+        jr z,browser_quitq
+
+;TODO проверить, что wget жив:
+        ld e,a
+        OS_WAITPID
+        or a
+        jr z,browser_quitq
+
+        ld a,(wgetmainpg)
+        SETPG32KHIGH
+        ld a,0xff
+        ld (0xc000+COMMANDLINE+2),a
+browser_quitq
         QUIT
 
 yieldgetkeynolang

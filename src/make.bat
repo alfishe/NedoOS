@@ -43,7 +43,7 @@ for %%i in (%releasedir%\bin\*.*) do (
     nedotrd test.trd -a %%i
 )
 
-nedotrd test.trd -a scratch/lanscape.bmp
+rem nedotrd test.trd -a scratch/lanscape.bmp
 
 nedotrd test.trd -a nedolang/comp/sizesz80.h
 nedotrd test.trd -a nedolang/comp/comp_os.s
