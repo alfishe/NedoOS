@@ -4,6 +4,8 @@
 MAXAPPS=16
 bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTSTACK2), 140 мало для чтения каталога (даже с INTSTACK2) ;0=отключить мьютекс BDOS
 
+QUITSTACK=0x4000 ;<=0x4000
+
         macro BDOSSETPGSSCR
         ld a,pgscr0_0
         ld bc,memport8000
@@ -565,6 +567,7 @@ setpgs_killable
 
 sys_quit
 ;снять текущую задачу
+        ld sp,QUITSTACK ;если не сделать, то всё ещё стек задачи, и мы не вернёмся из schedule
         ld iy,(appaddr)
         ld e,(iy+app.id)
         call BDOS_freezeapp
