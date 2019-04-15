@@ -123,7 +123,7 @@ prtext48ega0
         ld e,a
         ld d,font48/256
         push hl
-        ld b,+((40-#4000)/256)&#ff
+        ld b,+((40-0x4000)&0xff00)/256
         ld hx,8
 prchar48ega_colorproc=$+1
         call prchar48ega_white

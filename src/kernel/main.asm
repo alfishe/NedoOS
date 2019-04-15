@@ -1,4 +1,5 @@
         DEVICE ZXSPECTRUM128
+        ;device pentagon1024
 
         include "../_sdk/syssets.asm"
 

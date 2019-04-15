@@ -54,15 +54,15 @@ nedotrd test.trd -a nedolang/comp/commands.c
 nedotrd test.trd -a nedolang/comp/regs.c
 nedotrd test.trd -a nedolang/comp/test.bat
 
-nedotrd test.trd -a _sdk/str.h
-nedotrd test.trd -a _sdk/io.h
-nedotrd test.trd -a _sdk/emit.h
-nedotrd test.trd -a _sdk/emit.c
-nedotrd test.trd -a _sdk/read.c
-nedotrd test.trd -a _sdk/typecode.h
-nedotrd test.trd -a _sdk/lib.i
-nedotrd test.trd -a _sdk/str.i
-nedotrd test.trd -a _sdk/io_os.i
+nedotrd test.trd -a nedolang/_sdk/str.h
+nedotrd test.trd -a nedolang/_sdk/io.h
+nedotrd test.trd -a nedolang/_sdk/emit.h
+nedotrd test.trd -a nedolang/_sdk/emit.c
+nedotrd test.trd -a nedolang/_sdk/read.c
+nedotrd test.trd -a nedolang/_sdk/typecode.h
+nedotrd test.trd -a nedolang/_sdk/lib.i
+nedotrd test.trd -a nedolang/_sdk/str.i
+nedotrd test.trd -a nedolang/_sdk/io_os.i
 nedotrd test.trd -a _sdk/sysdefs.asm
 
 nedotrd test.trd -a basic/example.bas

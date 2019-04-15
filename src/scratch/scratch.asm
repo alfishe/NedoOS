@@ -1,4 +1,6 @@
         DEVICE ZXSPECTRUM128
+        ;device pentagon1024
+
         include "../_sdk/sys_h.asm"
 
 MAXCMDSZ=COMMANDLINE_sz-1 ;не считая терминатора
@@ -1416,6 +1418,7 @@ tbitmappages
         ds bmpmaxpages,#7f
         
 activeend
+        display "activeend=",activeend
         ds #4000-$
 SHAPES_begin
         include "prshapes.asm"
