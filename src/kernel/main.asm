@@ -160,6 +160,14 @@ begin
         ld de,resident+#c000-#4000
         ld bc,resident_sz
         ldir
+        
+        ld hl,#c000+trdos_fcbbuf-#4000
+        ld d,h
+        ld e,l
+        inc de
+        ld bc,0x200*trdos_MAXFILES-1
+        ld (hl),l;0
+        ldir
 
         ;ld a,pgidle
         ;call INIT_setpg_c000

@@ -39,6 +39,7 @@ idle_runcmd
         OS_SETSYSDRV
 
         ld de,fcb
+         ;jr $
         OS_FOPEN
         or a
         jr nz,execcmd_error
@@ -169,6 +170,7 @@ cmd_loadpage
 cmd_loadpage0      
         push bc
         ld de,fcb
+         ;jr $
         OS_FREAD
         pop bc
         or a

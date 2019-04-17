@@ -795,6 +795,6 @@ curattr=$+1
         ret
         
         include "sprite.asm"
-        include "spriteset.ast"
+        include "sprset.ast"
         align 256
         include "tileset.ast"

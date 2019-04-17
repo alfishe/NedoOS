@@ -571,6 +571,11 @@ figs
         db %1100
         db %0110
         db %0000
+;T
+        db %0000
+        db %1110
+        db %0100
+        db %0000
 nfigs=($-figs)/4
 curfig
         ds 4
