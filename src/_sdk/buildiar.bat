@@ -13,24 +13,25 @@ IF NOT EXIST %ICCZ80%.exe (
 )
 rem echo Build "%PRJNAME%"
 
+if not exist list mkdir list
+if exist list\lfiles.txt del list\lfiles.txt
 IF "%PRJDEBUG%"=="1" (
 	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
 	set C_OPTIONS=-v0 -ml -r -uu -q -e -K -gA -t4 -Llist\ -Olist\ -Alist\ -I%IARINC% -I%currentdir%\_sdk\
 )ELSE (
-	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com -C %IARLIB%\clz80 -f Lnk.xcl
+	set LINK_OPTIONS=-FRAW-BINARY -o %PRJNAME%.com -C %IARLIB%\clz80 -f Lnk.xcl
 	set C_OPTIONS=-v0 -ml -s7 -S -uu -e -K -gA -Olist\ -Alist\ -I%IARINC% -I%currentdir%\_sdk\
 )
 
-if not exist list mkdir list
 
-FOR %%f IN (!C_FILES!) do (
-	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~nf.r01
+FOR %%f IN (%C_FILES%) do (
+	echo %%~nf.r01 >> list\lfiles.txt
 	%ICCZ80% %C_OPTIONS% %%f 
 )
 
-FOR %%f IN (!ASM_FILES!) do (
-	SET ADD_LINK_FILES=!ADD_LINK_FILES! %%~nf.r01
+FOR %%f IN (%ASM_FILES%) do (
+	echo %%~nf.r01 >> list\lfiles.txt
 	%AZ80% -S -Olist\ %%f -I%currentdir%\_sdk\
 )
 
-%XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
+%XLINK% -f list\lfiles.txt %LINK_OPTIONS%
