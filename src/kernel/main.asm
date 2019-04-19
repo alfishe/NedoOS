@@ -3,7 +3,7 @@
 
         include "../_sdk/syssets.asm"
 
-        if atm==3
+        if NEMOIDE==1
 ;схема Nemo:
 hddstat=#F0
 hddcmd=#F0

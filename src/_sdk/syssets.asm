@@ -1,3 +1,5 @@
 atm=3 
-SYSDRV=0 
+sys_npages=64 
+NEMOIDE=1 
+SYSDRV=4 
 INETDRV EQU 0x01 

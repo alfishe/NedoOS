@@ -53,11 +53,6 @@ BDOS_set_attr
 	ret
         endif
 
-        if atm==3
-sys_npages=256
-        else
-sys_npages=64
-        endif
 blocksize=128 ;сколько байтов читать
 
 setmainpg_c000
@@ -1071,20 +1066,20 @@ BDOS_newpage
         ;ld iy,(appaddr)
 BDOS_newpage_iy
 ;out: a=0 (OK)/#ff (fail), e=page
-        ld hl,tsys_pages
-        push hl
+        ld hl,tsys_pages +sys_npages-1
+        ;push hl
         ld bc,sys_npages
         xor a
-        cpir
-        pop de
+        cpdr;cpir
+        ;pop de
         jr nz,BDOS_fail
-        dec hl
+        inc hl;dec hl
         ld a,(iy+app.id)
         ld (hl),a
         ;or a
-        sbc hl,de ;hl=0..sys_npages-1
+        ;sbc hl,de ;hl=-(0..sys_npages-1)
         ld a,pagexor;#7f
-        sub l
+        sub c;l ;c=0..sys_npages-1
         ld e,a ;page
 BDOS_OK
         xor a

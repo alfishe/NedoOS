@@ -7,7 +7,7 @@ txtscrwid=80
 CMDLINEY=23;24
 
 COLOR=7
-PANELCOLOR=0xf
+PANELCOLOR=0x4f;0xf
 PANELSELECTCOLOR=0x17
 CURSORCOLOR=0x38
 FILECURSORCOLOR=0x38
@@ -36,6 +36,10 @@ cmd_begin
         
         ld e,COLOR
         OS_CLS
+        
+        ld de,nvpal
+        OS_SETPAL
+        
         OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
         ld a,e
@@ -101,6 +105,10 @@ mainloop
         call controlloop
         jp mainloop
 
+nvpal
+        dw 0xf3f3,0x1313,0xf1f1,0xf0f0,0xe3e3,0xe2e2,0xe1e1,0xe0e0 ;NB color 1
+        dw 0xf3f3,0xd2d2,0xb1b1,0x9090,0x6363,0x4242,0x2121,0x0000
+        
 printhint
         ld de,24*256
         call nv_setxy
