@@ -1,12 +1,12 @@
-п»ї
+
 NVOLUMES=5
 MAXFILES=8
 vol_trdos=4
 
-;РїСЂРµРґРїРѕР»Р°РіР°РµС‚СЃСЏ, С‡С‚Рѕ СЋР·РµСЂ РЅРµ РёРјРµРµС‚ СЃС‚РµРє РЅРёР¶Рµ #3b00, РёРЅР°С‡Рµ РѕРЅ Р·Р°С‚СЂС‘С‚ СЃРёСЃС‚РµРјСѓ
+;предполагается, что юзер не имеет стек ниже #3b00, иначе он затрёт систему
 
-;FCB Рё РёРјСЏ РјРѕР¶РЅРѕ РїРµСЂРµРґР°РІР°С‚СЊ РІ Р»СЋР±РѕР№ РѕР±Р»Р°СЃС‚Рё userspace
-;DTA РјРѕР¶РµС‚ Р±С‹С‚СЊ РІ Р»СЋР±РѕР№ РѕР±Р»Р°СЃС‚Рё userspace
+;FCB и имя можно передавать в любой области userspace
+;DTA может быть в любой области userspace
 
 CurrVol=#4010
 CurrDir=#4011
@@ -53,7 +53,7 @@ BDOS_set_attr
 	ret
         endif
 
-blocksize=128 ;СЃРєРѕР»СЊРєРѕ Р±Р°Р№С‚РѕРІ С‡РёС‚Р°С‚СЊ
+blocksize=128 ;сколько байтов читать
 
 setmainpg_c000
         ld a,(iy+app.mainpg)
@@ -63,11 +63,11 @@ setmainpg_c000
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 BDOS_wiznetopen
-        BDOSSETPGTRDOSFS ;РїРѕСЂС‚РёС‚ bc
+        BDOSSETPGTRDOSFS ;портит bc
         jp wiznet_open
 
 BDOS_wiznetclose
-        BDOSSETPGTRDOSFS ;РїРѕСЂС‚РёС‚ bc
+        BDOSSETPGTRDOSFS ;портит bc
         jp wiznet_close
 
 BDOS_wiznetread
@@ -115,7 +115,7 @@ BDOS_setscreen
         ret;jr rest_exit
 
 BDOS_getscreenpages
-;out: de=СЃС‚СЂР°РЅРёС†С‹ 0-РіРѕ СЌРєСЂР°РЅР° (d=СЃС‚Р°СЂС€Р°СЏ), hl=СЃС‚СЂР°РЅРёС†С‹ 1-РіРѕ СЌРєСЂР°РЅР° (h=СЃС‚Р°СЂС€Р°СЏ)
+;out: de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld de,pgscr0_1*256+pgscr0_0
         ld hl,pgscr1_1*256+pgscr1_0
         xor a
@@ -128,7 +128,7 @@ BDOS_getappmainpages
         jp nz,BDOS_fail
 BDOS_getmainpages
         ;ld iy,(appaddr)
-;out: dehl=РЅРѕРјРµСЂР° СЃС‚СЂР°РЅРёС† РІ 0000,4000,8000,c000, c=flags
+;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags
 BDOS_getmainpages_iy
         call setmainpg_c000
         ld d,a
@@ -143,7 +143,7 @@ BDOS_getmainpages_iy
 
 BDOS_preparedepage
 ;de=userspace addr
-;out: de>=#8000, РІРєР»СЋС‡РµРЅС‹ РЅСѓР¶РЅС‹Рµ СЃС‚СЂР°РЅРёС†С‹ РІ 8000,c000
+;out: de>=#8000, включены нужные страницы в 8000,c000
         ;ld iy,(appaddr)
         ld a,(iy+app.mainpg)
         ld bc,memport8000
@@ -179,7 +179,7 @@ BDOS_preparedepage8000_c000
 
 BDOS_setpal
         call BDOS_preparedepage
-;de=РїР°Р»РёС‚СЂР° (РІС‹С€Рµ #c000)
+;de=палитра (выше #c000)
         push iy
         pop hl
         ld bc,app.pal
@@ -301,7 +301,7 @@ BDOS_prchar
 ;e=char
         ld a,e
 BDOS_prchar_a
-;РїРѕСЂС‚РёС‚ С‚РѕР»СЊРєРѕ #c000+, РЅРѕ СЃР°РјР° РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ С‚Р°Рј pgkillable
+;портит только #c000+, но сама восстанавливает там pgkillable
 	ld h,trecode/256
 	ld l,a
 	ld a,(hl)
@@ -356,7 +356,7 @@ BDOS_prchar_skipattr
         ;ld (pr_textmode_curaddr),hl
         ld (iy+app.textcuraddr),l
         ld (iy+app.textcuraddr+1),h
-        ret nz ;jr nz,BDOS_prchar_q ;ret nz ;РЅРµС‚ РїРµСЂРµРЅРѕСЃР° СЃС‚СЂРѕРєРё
+        ret nz ;jr nz,BDOS_prchar_q ;ret nz ;нет переноса строки
         ld a,l
         and #c0
         add a,#40
@@ -365,7 +365,7 @@ BDOS_prchar_skipattr
 BDOS_prchar_lf_q
         inc h
         bit 3,h
-        jr z,BDOS_settextcuraddr ;BDOS_prchar_q ;РЅРµС‚ РІС‹С…РѕРґР° Р·Р° РїРѕСЃР»РµРґРЅСЋСЋ СЃС‚СЂРѕРєСѓ
+        jr z,BDOS_settextcuraddr ;BDOS_prchar_q ;нет выхода за последнюю строку
 BDOS_scrolllock0
         ld a,#fe
         in a,(#fe)
@@ -521,7 +521,7 @@ BDOS_cls
         and 7
         jr z,BDOS_cls_EGA
          cp 2 ;MC hires
-         jr z,BDOS_cls_EGA ;TODO РѕС‚РґРµР»СЊРЅСѓСЋ РѕС‡РёСЃС‚РєСѓ РґР»СЏ MC hires
+         jr z,BDOS_cls_EGA ;TODO отдельную очистку для MC hires
 ;textmode
         ld a,e ;attr byte
         ld hl,#81c0
@@ -549,9 +549,9 @@ BDOS_cls_textmode_ldir
 BDOS_cls_EGA
         ld a,e
 scrbase=#8000
-;С‡РёСЃС‚РёРј С‡РµСЂРµР· СЃС‚РµРє, РєСЂРѕРјРµ РїРµСЂРІС‹С… Р±Р°Р№С‚РѕРІ (РёРЅР°С‡Рµ РїСЂРµСЂС‹РІР°РЅРёРµ РјРѕР¶РµС‚ Р·Р°РїРѕСЂС‚РёС‚СЊ РґРІР° Р±Р°Р№С‚Р° РїРµСЂРµРґ СЌРєСЂР°РЅРѕРј)
+;чистим через стек, кроме первых байтов (иначе прерывание может запортить два байта перед экраном)
         ld (clssp),sp
-        ld hl,scrbase+(200*40) ;С‡РёСЃС‚РёРј СЃ РєРѕРЅС†Р°, РїРѕС‚РѕРјСѓ С‡С‚Рѕ РїСЂРµСЂС‹РІР°РЅРёРµ РїРѕСЂС‚РёС‚ СЃС‚РµРє
+        ld hl,scrbase+(200*40) ;чистим с конца, потому что прерывание портит стек
         ld b,200-1
 clsline0
         ld d,a
@@ -601,9 +601,9 @@ clslayer
         ret
 
 BDOShandler
-;TODO СЃСЂР°Р·Сѓ 
+;TODO сразу 
         ;BDOSSETPGFATFS
-        ;push de (РёРЅР°С‡Рµ РЅРµ СЃРґРµР»Р°С‚СЊ parsefilename)
+        ;push de (иначе не сделать parsefilename)
         ;call BDOS_preparedepage
 
         push hl
@@ -613,12 +613,12 @@ BDOShandler
         ld bc,nbdoscmds
         cpir
         jp nz,BDOS_pop2fail
-;bc=nbdoscmds-(#РєРѕРјР°РЅРґС‹+1) = 0..(nbdoscmds-1)
+;bc=nbdoscmds-(#команды+1) = 0..(nbdoscmds-1)
         add hl,bc
 ;hl=tbdoscmds+nbdoscmds
         add hl,bc
         add hl,bc
-;hl=tbdoscmds+nbdoscmds+ 2*(nbdoscmds-(#РєРѕРјР°РЅРґС‹+1))
+;hl=tbdoscmds+nbdoscmds+ 2*(nbdoscmds-(#команды+1))
         pop bc
         ld a,(hl)
         inc hl
@@ -754,7 +754,7 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_prattr
         
 BDOS_getkeymatrix
-;out: bcdehlix = РїРѕР»СѓСЂСЏРґС‹ cs...space
+;out: bcdehlix = полуряды cs...space
         ld hl,(appaddr)
         ld de,(focusappaddr)
         or a
@@ -796,14 +796,14 @@ BDOS_gettimer
         ld de,(sys_timer)
          ld a,(sys_timer+2)
          sub l
-         jr nz,BDOS_gettimerX ;РґР»СЏ Р°С‚РѕРјР°СЂРЅРѕСЃС‚Рё
+         jr nz,BDOS_gettimerX ;для атомарности
         ret ;a=0
         
 BDOS_yield
-;СЂРµРіРёСЃС‚СЂС‹ РЅРµ СЃРѕС…СЂР°РЅСЏРµРј, С‚.Рє. РЅР°Рј РЅРµ РІР°Р¶РЅРѕ, С‡С‚Рѕ РЅР° РІС‹С…РѕРґРµ РёР· yield
-;РЅРѕ РЅР°РґРѕ:
-;РІР·СЏС‚СЊ Р°РґСЂРµСЃ СЃС‚РµРєР° РґР»СЏ РІС‹С…РѕРґР° РёР· CALLBDOS Рё Р·Р°РїРёСЃР°С‚СЊ РµРіРѕ РІ ld sp РЅР° РІС‹С…РѕРґРµ РёР· РѕР±СЂР°Р±РѕС‚С‡РёРєР° РїСЂРµСЂС‹РІР°РЅРёР№
-;РІР·СЏС‚СЊ Р°РґСЂРµСЃ РІРѕР·РІСЂР°С‚Р° РёР· CALLBDOS Рё Р·Р°РїРёСЃР°С‚СЊ РµРіРѕ РІ jp РЅР° РІС‹С…РѕРґРµ РёР· РѕР±СЂР°Р±РѕС‚С‡РёРєР° РїСЂРµСЂС‹РІР°РЅРёР№
+;регистры не сохраняем, т.к. нам не важно, что на выходе из yield
+;но надо:
+;взять адрес стека для выхода из CALLBDOS и записать его в ld sp на выходе из обработчика прерываний
+;взять адрес возврата из CALLBDOS и записать его в jp на выходе из обработчика прерываний
         ;ld iy,(appaddr)
         
         if bdosstack_sz==0
@@ -834,49 +834,49 @@ BDOS_yield
         out (c),a
         
         ld a,#c0
-        ld (callbdos_mutex),a ;С‚Рѕ Р¶Рµ СЃР°РјРѕРµ РґРµР»Р°СЋС‚ С‚Рµ С„СѓРЅРєС†РёРё BDOS, РєРѕС‚РѕСЂС‹Рµ РЅРµ СЃРѕР±РёСЂР°СЋС‚СЃСЏ РІРѕР·РІСЂР°С‰Р°С‚СЊСЃСЏ
+        ld (callbdos_mutex),a ;то же самое делают те функции BDOS, которые не собираются возвращаться
 
-;РЅРµ РІС‹С…РѕРґРёРј РёР· CALLBDOS, РІР·Р°РјРµРЅ С€РµРґСѓР»РёРј Рё РІС‹С…РѕРґРёРј С‡РµСЂРµР· РєРѕРЅРµС† РѕР±СЂР°Р±РѕС‚С‡РёРєР° РїСЂРµСЂС‹РІР°РЅРёР№
+;не выходим из CALLBDOS, взамен шедулим и выходим через конец обработчика прерываний
 
 BDOS_yield_q
         ;di ;TODO critical section
 
         push iy
-        call schedule ;out: hl=iy=app ;РјРѕР¶РЅРѕ СЃ РІРєР»СЋС‡РµРЅРЅС‹РјРё РїСЂРµСЂС‹РІР°РЅРёСЏРјРё, РїРѕРєР° СЃРёСЃС‚РµРјРЅС‹Р№ РѕР±СЂР°Р±РѕС‚С‡РёРє РЅРµ СѓРјРµРµС‚ С€РµРґСѓР»РёС‚СЊ
+        call schedule ;out: hl=iy=app ;можно с включенными прерываниями, пока системный обработчик не умеет шедулить
         pop de
         or a
         sbc hl,de
         jr nz,BDOS_yield_nosame
-        ld iy,app1 ;idle (TODO РІРјРµСЃС‚Рѕ СЌС‚РѕРіРѕ СЃРґРµР»Р°С‚СЊ РїРѕР»РЅРѕС†РµРЅРЅС‹Рµ РїСЂРёРѕСЂРёС‚РµС‚С‹)
+        ld iy,app1 ;idle (TODO вместо этого сделать полноценные приоритеты)
         ld (appaddr),iy
 BDOS_yield_nosame
         
         di ;TODO critical section
 
-;РµСЃР»Рё СЃРµР№С‡Р°СЃ РЅРµ РїРѕСЃС‚Р°РІРёС‚СЊ РїР°Р»РёС‚СЂСѓ РІС‚РѕСЂРѕР№ Р·Р°РґР°С‡Рµ, С‚Рѕ РѕРЅР° РЅРёРєРѕРіРґР° РЅРµ РїРѕСЃС‚Р°РІРёС‚СЃСЏ, РµСЃР»Рё РїРµСЂРІР°СЏ Р·Р°РґР°С‡Р° РІ С†РёРєР»Рµ РґРµР»Р°РµС‚ yield
-;РїРѕС‚РѕРјСѓ С‡С‚Рѕ РІСЃРµ РїСЂРµСЂС‹РІР°РЅРёСЏ Р±СѓРґСѓС‚ СЃС‚Р°РІРёС‚СЊ РїРµСЂРІСѓСЋ Р·Р°РґР°С‡Сѓ
+;если сейчас не поставить палитру второй задаче, то она никогда не поставится, если первая задача в цикле делает yield
+;потому что все прерывания будут ставить первую задачу
         ;ld hl,(appaddr)
         ;ld iy,(appaddr)
-        ;call iffocus_setgfx ;РјРѕРіСѓС‚ Р±С‹С‚СЊ РїСЂРѕР±Р»РµРјС‹ СЃ РІС‹СЃС‚Р°РІР»РµРЅРёРµРј РїР°Р»РёС‚СЂС‹, РµСЃР»Рё yield РІС‹Р·С‹РІР°С‚СЊ РІ СЃР»СѓС‡Р°Р№РЅС‹С… РјРµСЃС‚Р°С… РёР»Рё РµСЃР»Рё РІСЃРµ Р·Р°РґР°С‡Рё РЅРµР°РєС‚РёРІРЅС‹
-;РїРѕСЌС‚РѕРјСѓ РѕР±СЂР°Р±РѕС‚С‡РёРє РїСЂРµСЂС‹РІР°РЅРёР№ РґРѕР»Р¶РµРЅ РІС‹СЃС‚Р°РІР»СЏС‚СЊ РїР°Р»РёС‚СЂСѓ Р·Р°РґР°С‡Рё, РєРѕС‚РѕСЂР°СЏ РІ С„РѕРєСѓСЃРµ, РЅРµР·Р°РІРёСЃРёРјРѕ РѕС‚ РµС‘ Р°РєС‚РёРІРЅРѕСЃС‚Рё
+        ;call iffocus_setgfx ;могут быть проблемы с выставлением палитры, если yield вызывать в случайных местах или если все задачи неактивны
+;поэтому обработчик прерываний должен выставлять палитру задачи, которая в фокусе, независимо от её активности
         
-        jp sys_int_popregs ;С‚Р°Рј ei
+        jp sys_int_popregs ;там ei
         
 BDOS_newapp
-;РїРѕРєР° СЃС‚СЂСѓРєС‚СѓСЂР° РЅРµ Р·Р°РїРѕР»РЅРµРЅР° РґРѕ РєРѕРЅС†Р°, РЅРµР»СЊР·СЏ РґРµР»Р°С‚СЊ runapp
-;out: b=id, dehl=РЅРѕРјРµСЂР° СЃС‚СЂР°РЅРёС† РІ 0000,4000,8000,c000 РЅРѕРІРѕРіРѕ РїСЂРёР»РѕР¶РµРЅРёСЏ, a=error
+;пока структура не заполнена до конца, нельзя делать runapp
+;out: b=id, dehl=номера страниц в 0000,4000,8000,c000 нового приложения, a=error
         BDOSSETPGTRDOSFS
         ld a,(iy+app.id)
         push af ;parent id
          ld l,(iy+app.textcuraddr)
          ld h,(iy+app.textcuraddr+1)
          push hl
-          di ;РјРµР¶РґСѓ findfreeid+findfreeappstruct Рё Р·Р°РїРѕР»РЅРµРЅРёРµРј iy+app.id РЅРµР»СЊР·СЏ РїРµСЂРµРєР»СЋС‡Р°С‚СЊ Р·Р°РґР°С‡Рё!!! ;TODO critical section
-        call sys_findfreeid ;РїРѕСЂС‚РёС‚ iy
+          di ;между findfreeid+findfreeappstruct и заполнением iy+app.id нельзя переключать задачи!!! ;TODO critical section
+        call sys_findfreeid ;портит iy
          pop hl
         push af ;id
          push hl
-        call sys_findfreeappstruct ;РІРѕР·РІСЂР°С‰Р°РµС‚ iy = Р°РґСЂРµСЃ РїРµСЂРІРѕР№ СЃРІРѕР±РѕРґРЅРѕР№ СЃС‚СЂСѓРєС‚СѓСЂС‹ app ;TODO error
+        call sys_findfreeappstruct ;возвращает iy = адрес первой свободной структуры app ;TODO error
          pop hl
          jr nz,BDOS_newapp_fail
         pop af ;id
@@ -895,7 +895,7 @@ BDOS_newapp
          ex de,hl
          ld bc,5;DIR_sz
          ;jr $
-         ldir ;РєРѕРїРёСЂРѕРІР°С‚СЊ С‚РµРєСѓС‰РёР№ vol Рё dircluster
+         ldir ;копировать текущий vol и dircluster
         call BDOS_getmainpages_iy
         pop bc ;b=id
         pop af ;parent id
@@ -932,12 +932,12 @@ BDOS_delapppages
         ld a,(iy+app.id)
         ld b,sys_npages&0xff
 sys_quit_delpages0
-        cp (hl) ;СЃС‚СЂР°РЅРёС†Р° СЃРЅРёРјР°РµРјРѕР№ Р·Р°РґР°С‡Рё
+        cp (hl) ;страница снимаемой задачи
         jr nz,$+4
-        ld (hl),0 ;РѕСЃРІРѕР±РѕРґРёР»Рё СЃС‚СЂР°РЅРёС†Сѓ
+        ld (hl),0 ;освободили страницу
         inc hl
         djnz sys_quit_delpages0
-        ld (iy+app.id),b;0 ;РѕСЃРІРѕР±РѕРґРёР»Рё РјРµСЃС‚Рѕ
+        ld (iy+app.id),b;0 ;освободили место
         xor a ;ok
         ret
         
@@ -988,7 +988,7 @@ BDOS_setgfx
         or %10101000
         ld (iy+app.gfxmode),a
         
-;РєР»Р°РґС‘Рј С„РѕРєСѓСЃ РІ СЃС‚РµРє, С‚РѕР»СЊРєРѕ РµСЃР»Рё РЅРµ РґРІР° СЂР°Р·Р° setgfx РІ РѕРґРЅРѕР№ Р·Р°РґР°С‡Рµ:
+;кладём фокус в стек, только если не два раза setgfx в одной задаче:
         ld hl,(focusappaddr)
         push iy
         pop de
@@ -996,9 +996,9 @@ BDOS_setgfx
         sbc hl,de
         jr z,BDOS_setgfx_nopushfocus
          ld hl,(oldfocusappaddr)
-         ld (oldoldfocusappaddr),hl ;TODO СЃС‚РµРє С„РѕРєСѓСЃРѕРІ (С‡С‚РѕР±С‹ РїРѕСЃР»Рµ Р·Р°РєСЂС‹С‚РёСЏ Р·Р°РґР°С‡Рё РІРµСЂРЅСѓС‚СЊ С„РѕРєСѓСЃ РІС‹Р·РІР°РІС€РµР№)
+         ld (oldoldfocusappaddr),hl ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         ld hl,(focusappaddr)
-        ld (oldfocusappaddr),hl ;TODO СЃС‚РµРє С„РѕРєСѓСЃРѕРІ (С‡С‚РѕР±С‹ РїРѕСЃР»Рµ Р·Р°РєСЂС‹С‚РёСЏ Р·Р°РґР°С‡Рё РІРµСЂРЅСѓС‚СЊ С„РѕРєСѓСЃ РІС‹Р·РІР°РІС€РµР№)
+        ld (oldfocusappaddr),hl ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         ld (focusappaddr),iy
 BDOS_setgfx_nopushfocus        
         set fgfx,(iy+app.flags)
@@ -1019,17 +1019,17 @@ BDOS_freezeapp
         call BDOS_findapp
         jp nz,BDOS_fail ;BDOS_popfail
 BDOS_freezeapp_go
-        ;ld (iy+app.flags),0 ;РїРѕРєР° С‚СѓС‚ 0, Р·Р°РґР°С‡Сѓ РЅРёРєС‚Рѕ РЅРµ Р±СѓРґРµС‚ С‚СЂРѕРіР°С‚СЊ
+        ;ld (iy+app.flags),0 ;пока тут 0, задачу никто не будет трогать
         res factive,(iy+app.flags)
 BDOS_gfxoff_givefocus
-        res fgfx,(iy+app.flags) ;РµСЃР»Рё РІ РєРѕРЅС†Рµ, С‚Рѕ РїРѕ РґРѕСЂРѕРіРµ РјРѕРіСѓС‚ РІСЂСѓС‡РЅСѓСЋ РїРµСЂРµРєР»СЋС‡РёС‚СЊ С„РѕРєСѓСЃ, Р° РµСЃР»Рё РІ РЅР°С‡Р°Р»Рµ, С‚Рѕ ...
-;РµСЃР»Рё С„РѕРєСѓСЃ Сѓ СЌС‚РѕР№ Р·Р°РґР°С‡Рё, С‚Рѕ РґР°С‚СЊ С„РѕРєСѓСЃ РєР°РєРѕР№-РЅРёР±СѓРґСЊ РіСЂР°С„РёС‡РµСЃРєРѕР№ Р·Р°РґР°С‡Рµ
+        res fgfx,(iy+app.flags) ;если в конце, то по дороге могут вручную переключить фокус, а если в начале, то ...
+;если фокус у этой задачи, то дать фокус какой-нибудь графической задаче
         push iy
         pop hl
         ld de,(focusappaddr)
         xor a
         sbc hl,de
-        ret nz ;jr nz,sys_quit_findgfxapp_fail ;С„РѕРєСѓСЃ РЅРµ Сѓ СЌС‚РѕР№ Р·Р°РґР°С‡Рё
+        ret nz ;jr nz,sys_quit_findgfxapp_fail ;фокус не у этой задачи
         
          ;jr $
 oldfocusappaddr=$+1
@@ -1038,14 +1038,14 @@ oldoldfocusappaddr=$+1
          ld de,app1
          ld (oldfocusappaddr),de
         bit fgfx,(hl)
-        jr nz,sys_quit_findgfxappq ;TODO СЃС‚РµРє С„РѕРєСѓСЃРѕРІ (С‡С‚РѕР±С‹ РїРѕСЃР»Рµ Р·Р°РєСЂС‹С‚РёСЏ Р·Р°РґР°С‡Рё РІРµСЂРЅСѓС‚СЊ С„РѕРєСѓСЃ РІС‹Р·РІР°РІС€РµР№)
+        jr nz,sys_quit_findgfxappq ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         
         ld hl,app1
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
 sys_quit_findgfxapp0
         add hl,bc
-        jr c,sys_quit_findgfxapp_fail ;СѓР¶Рµ РїСЂРѕРІРµСЂРёР»Рё app_last, Сѓ РЅРµРіРѕ РЅРµС‚ С„РѕРєСѓСЃР° - РЅРµРєРѕРјСѓ РґР°РІР°С‚СЊ С„РѕРєСѓСЃ
+        jr c,sys_quit_findgfxapp_fail ;уже проверили app_last, у него нет фокуса - некому давать фокус
         add hl,de
         bit fgfx,(hl)
         jr z,sys_quit_findgfxapp0
@@ -1095,7 +1095,7 @@ BDOS_fail
 
 BDOS_delpage
 ;e=page
-;РЅРµ РїРѕСЂС‚РёС‚ de
+;не портит de
         ld a,pagexor;#7f
         sub e
         ld c,a
@@ -1132,7 +1132,7 @@ BDOS_fread
         ld a,(de)
         cp vol_trdos
         jr z,BDOS_fread_noFATFS
-;РґРѕСЃС‚Р°С‚СЊ РёР· РЅРµРіРѕ Р°РґСЂРµСЃ ffile
+;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
 
         call BDOS_getdta ;de = disk transfer address
@@ -1152,10 +1152,10 @@ BDOS_fread_fatfsq
 	ld a,(bc)
          pop bc ;blocksize
         call movedma_addr ;+bc
-	xor 0x80 ;!=, РµСЃР»Рё РїСЂРѕС‡РёС‚Р°Р»Рё РЅРµ 128 Р±Р°Р№С‚
-;a=0: OK (РїСЂРѕС‡РёС‚Р°Р»Рё 128 Р±Р°Р№С‚)
-;a=128: fail (РїСЂРѕС‡РёС‚Р°Р»Рё 0 Р±Р°Р№С‚)
-;a=???: OK (РїРѕСЃР»РµРґРЅРёР№ Р±Р»РѕРє С„Р°Р№Р»Р° РјРµРЅСЊС€Рµ 128 Р±Р°Р№С‚)
+	xor 0x80 ;!=, если прочитали не 128 байт
+;a=0: OK (прочитали 128 байт)
+;a=128: fail (прочитали 0 байт)
+;a=???: OK (последний блок файла меньше 128 байт)
 	ret;jp fexit
 BDOS_fread_noFATFS
         BDOSSETPGTRDOSFS
@@ -1170,7 +1170,7 @@ BDOS_fwrite
         ld a,(de)
         cp vol_trdos
         jr z,BDOS_fwrite_noFATFS
-;РґРѕСЃС‚Р°С‚СЊ РёР· РЅРµРіРѕ Р°РґСЂРµСЃ ffile
+;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
 
         call BDOS_getdta ;de = disk transfer address
@@ -1199,7 +1199,7 @@ BDOS_fwrite_nbytes
         ld a,(de)
         cp vol_trdos
         jr z,BDOS_fwrite_nbytes_noFATFS
-;РґРѕСЃС‚Р°С‚СЊ РёР· РЅРµРіРѕ Р°РґСЂРµСЃ ffile
+;достать из него адрес ffile
          push hl ;bytes
         call getFILfromFCB ;hl=FIL
 
@@ -1261,7 +1261,7 @@ BDOS_fsearchfirst_noFATFS
 ;TR-DOS
         BDOSSETPGTRDOSFS
         ld hl,trdos_catbuf
-        ;ld (BDOS_fsearch_loadloop_trdosaddr),hl ;TODO РіРґРµ С…СЂР°РЅРёС‚СЊ РґР»СЏ РјРЅРѕРіРѕР·Р°РґР°С‡РЅРѕСЃС‚Рё? РІРѕР·РІСЂР°С‰Р°С‚СЊ РІ FCB_DIRPOS?
+        ;ld (BDOS_fsearch_loadloop_trdosaddr),hl ;TODO где хранить для многозадачности? возвращать в FCB_DIRPOS?
         ld (iy+app.dircluster),l
         ld (iy+app.dircluster+1),h
         
@@ -1276,13 +1276,13 @@ BDOS_fsearchfirst_noFATFS
 ;     Results:     L=A = 0FFH if file not found
 ;                      =   0  if file found.
 BDOS_fsearchnext
-;(not CP/M!!!) РґР»СЏ РјРЅРѕРіРѕР·Р°РґР°С‡РЅРѕСЃС‚Рё РїСЂРёРЅРёРјР°С‚СЊ С‚СѓС‚ de = Pointer to unopened FCB
+;(not CP/M!!!) для многозадачности принимать тут de = Pointer to unopened FCB
         call BDOS_preparedepage
 BDOS_fsearch_goloadloop
         inc de
         ld (fsearchnext_filename),de
 BDOS_fsearch_loadloop
-        ld iy,(appaddr) ;С‚.Рє. ffs РїРѕСЂС‚РёС‚ iy
+        ld iy,(appaddr) ;т.к. ffs портит iy
         BDOSSETPGFATFS
         CHECKVOLUMETRDOS
         jr z,BDOS_fsearch_loadloop_noFATFS
@@ -1293,7 +1293,7 @@ BDOS_fsearch_loadloop
         ;or a
         ;ret nz;jp nz,fexit
 
-;РїРµСЂРµРґРµР»Р°С‚СЊ СЃС‚СЂСѓРєС‚СѓСЂСѓ FILINFO (РєРѕС‚РѕСЂСѓСЋ РјС‹ СЃРµР№С‡Р°СЃ СЃС‡РёС‚Р°Р»Рё) РІ СЃС‚СЂСѓРєС‚СѓСЂСѓ FCB
+;переделать структуру FILINFO (которую мы сейчас считали) в структуру FCB
         ld de,mfilinfo+FILINFO.FNAME
         ld a,(de)
         or a
@@ -1328,11 +1328,11 @@ BDOS_fsearch_loadloop_noFATFS
         ld (iy+app.dircluster+1),h
         jr BDOS_fsearch_loadloop_FATFSq
 BDOS_fsearch_loadloop_FATFSq
-        ld hl,fcb2+FCB_FNAME ;РїСЂРѕС‡РёС‚Р°РЅРЅРѕРµ РёРјСЏ
+        ld hl,fcb2+FCB_FNAME ;прочитанное имя
 fsearchnext_filename=$+1
-        ld de,0 ;РѕР±СЂР°Р·РµС†
+        ld de,0 ;образец
         
-;РїСЂРѕРІРµСЂРёС‚СЊ РёРјСЏ С„Р°Р№Р»Р° hl == de (РёРіРЅРѕСЂРёСЂРѕРІР°С‚СЊ (de)=='?')
+;проверить имя файла hl == de (игнорировать (de)=='?')
 	ld bc,11*256;0x0a00 ;b=bytes to compare, c=errors
 fsearchnext_cp00
 	ld a,[de]
@@ -1346,12 +1346,12 @@ fsearchnext_cpskip
 	inc de
 	djnz fsearchnext_cp00
         
-;РµСЃР»Рё РЅРµ СЃРѕРІРїР°Р»Рѕ, Р·Р°С†РёРєР»РёС‚СЊ
+;если не совпало, зациклить
         ld a,c
         or a
         jp nz,BDOS_fsearch_loadloop
 fsearchnext_nofileq
-;РёРЅР°С‡Рµ Р·Р°РїРёСЃР°С‚СЊ РІ dma
+;иначе записать в dma
         ld iy,(appaddr)
         ld hl,fcb2
         call BDOS_getdta ;de = disk transfer address
@@ -1628,7 +1628,7 @@ BDOS_readwritehandle0
         ;call BDOS_readwritehandlego ;hl=processed bytes
 BDOS_readwritehandle_proc=$+1
         call BDOS_readhandlego
-;TODO С‡С‚Рѕ РґРµР»Р°С‚СЊ, РµСЃР»Рё РІРѕР·РІСЂР°С‚РёР»РѕСЃСЊ hl=0?
+;TODO что делать, если возвратилось hl=0?
         ;ex af,af' ;error
         ;jr $
          pop bc ;bytes to process
@@ -1722,7 +1722,7 @@ BDOS_fopen_getname_fil
          jr nz,$ ;TODO error
         ex de,hl ;de=poi to FIL
 	LD bc,mfil
-        jp nz,BDOS_pop2fail ;СЃРЅРёРјР°РµРј Р°РґСЂРµСЃ РІРѕР·РІСЂР°С‚Р° Рё FCB
+        jp nz,BDOS_pop2fail ;снимаем адрес возврата и FCB
         ret
         
 BDOS_fopen
@@ -1792,16 +1792,16 @@ getFILfromFCB
 BDOS_fclose
         BDOSSETPGFATFS
         call BDOS_preparedepage
-;DE = Pointer to opened FCB (РґР»СЏ FATFS РїСЂРёРґС‘С‚СЃСЏ РёРіРЅРѕСЂРёСЂРѕРІР°С‚СЊ, Р±СЂР°С‚СЊ С‚РµРєСѓС‰РёР№ ffile - TODO РёСЃРєР°С‚СЊ РїРѕРґС…РѕРґСЏС‰РёР№ ffile)
+;DE = Pointer to opened FCB (для FATFS придётся игнорировать, брать текущий ffile - TODO искать подходящий ffile)
         ;CHECKVOLUMETRDOS
         ld a,(de)
         cp vol_trdos
         jr z,BDOS_fclose_noFATFS
-	;F_CLOSE ffile ;СЃР°Рј РѕСЃРІРѕР±РѕР¶РґР°РµС‚ FIL
+	;F_CLOSE ffile ;сам освобождает FIL
         call getFILfromFCB
         ex de,hl
         F_CLOS
-;TODO СѓР±СЂР°С‚СЊ poi to FIL РёР· FCB?
+;TODO убрать poi to FIL из FCB?
 	;or a:jp z,fexit
 	;ld a,0xff
 	ret;jp fexit
@@ -1810,7 +1810,7 @@ BDOS_fclose_noFATFS
         jp trdos_fclose
 
 ffs
-;РїРѕСЂС‚РёС‚ iy! РїРѕ РЅРµР»СЊР·СЏ РґРІРёРіР°С‚СЊ СЃС‚РµРє! РІ РЅС‘Рј РїР°СЂР°РјРµС‚СЂС‹!
+;портит iy! по нельзя двигать стек! в нём параметры!
         ;ld l,(iy+app.dir+DIR.ID)
          ld l,(iy+app.vol)
         ld (CurrVol),hl ;l
@@ -1856,7 +1856,7 @@ BDOS_mount
         jr z,BDOS_mount_noFATFS
         call calcfatfs_e
         inc hl
-        ld (hl),e ;РјРѕРЅС‚РёСЂСѓРµРј volume E (СѓРєР°Р·Р°РЅРЅС‹Р№ РІ HL) РЅР° С„РёР·РёС‡РµСЃРєРёР№ РґСЂР°Р№РІ E (TODO fix), СЂР°Р·РґРµР» 0 (TODO fix)
+        ld (hl),e ;монтируем volume E (указанный в HL) на физический драйв E (TODO fix), раздел 0 (TODO fix)
         dec hl
          push de ;e=volume
         ld b,h
@@ -1865,7 +1865,7 @@ BDOS_mount
          pop de ;e=volume
          ld a,e
          call BDOS_setvol_rootdir
-        ;call BDOS_opencurdir ;СЌС‚Р° РѕРїРµСЂР°С†РёСЏ РЅСѓР¶РЅР° РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ СЃРјРѕРЅС‚РёСЂРѕРІР°РЅРЅРѕСЃС‚Рё (F_MNT РІСЃРµРіРґР° РІРѕР·РІСЂР°С‰Р°РµС‚ 0)
+        ;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
         ;or a
         jp nz,BDOS_fail
 BDOS_mount_noFATFS
@@ -1881,29 +1881,29 @@ BDOS_setsysdrv
 BDOS_setdrv
 ;e=volume
 ;out: a!=0 => not mounted (TODO), l=number of volumes
-;РјС‹ РЅРµ РґРѕР»Р¶РЅС‹ РјРѕРЅС‚РёСЂРѕРІР°С‚СЊ, РїСЂРѕСЃС‚Рѕ РґРѕР»Р¶РЅС‹ СѓРєР°Р·Р°С‚СЊ volume, С‚РµРєСѓС‰РёР№ РґР»СЏ РґР°РЅРЅРѕР№ Р·Р°РґР°С‡Рё, Рё СЃР±СЂРѕСЃРёС‚СЊ path, С‚РµРєСѓС‰РёР№ РґР»СЏ РґР°РЅРЅРѕР№ Р·Р°РґР°С‡Рё
+;мы не должны монтировать, просто должны указать volume, текущий для данной задачи, и сбросить path, текущий для данной задачи
         BDOSSETPGFATFS
          ;ld d,(iy+app.vol)
         
         ld a,e
          call BDOS_setvol_rootdir
-         ;jr $ ;СЃСЋРґР° РЅРµ РїРѕРїР°РґР°РµРј РїСЂРё СЃРјРµРЅРµ РґСЂР°Р№РІР° РІ nv
-        ;call BDOS_opencurdir ;СЌС‚Р° РѕРїРµСЂР°С†РёСЏ РЅСѓР¶РЅР° РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ СЃРјРѕРЅС‚РёСЂРѕРІР°РЅРЅРѕСЃС‚Рё (F_MNT РІСЃРµРіРґР° РІРѕР·РІСЂР°С‰Р°РµС‚ 0)
+         ;jr $ ;сюда не попадаем при смене драйва в nv
+        ;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
         ;or a
         ;jr z,BDOS_setdrvnfail
         ; ld (iy+app.vol),d
 ;BDOS_setdrvnfail
          
-        ld l,NVOLUMES ;РґРѕСЃС‚СѓРїРЅРѕ 5 РґСЂР°Р№РІРѕРІ
+        ld l,NVOLUMES ;доступно 5 драйвов
         xor a ;success
         ret;jr rest_exit
         
 BDOS_setvol_rootdir
-;СѓСЃС‚Р°РЅРѕРІР»РµРЅР° СЃС‚СЂР°РЅРёС†Р° PGFATFS
+;установлена страница PGFATFS
           ld d,(iy+app.vol)
          ld (iy+app.vol),a
 BDOS_setrootdir
-;СѓСЃС‚Р°РЅРѕРІР»РµРЅР° СЃС‚СЂР°РЅРёС†Р° PGFATFS
+;установлена страница PGFATFS
          xor a
          ld (iy+app.dircluster),a
          ld (iy+app.dircluster+1),a
@@ -1913,7 +1913,7 @@ BDOS_setrootdir
         ret z ;Z=no error
         ;jr $
         push de
-        call BDOS_opencurdir ;СЌС‚Р° РѕРїРµСЂР°С†РёСЏ РЅСѓР¶РЅР° РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ СЃРјРѕРЅС‚РёСЂРѕРІР°РЅРЅРѕСЃС‚Рё (F_MNT РІСЃРµРіРґР° РІРѕР·РІСЂР°С‰Р°РµС‚ 0)
+        call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
         pop de
         or a
         ret z ;Z=no error
@@ -1944,7 +1944,7 @@ BDOS_delete
         ; pop de
         call keepvoldir_setvolifneeded
 	F_UNLINK
-;TODO С‡С‚Рѕ РґРµР»Р°С‚СЊ, РµСЃР»Рё СѓРґР°Р»РёР»Рё РґРёСЂРµРєС‚РѕСЂРёСЋ, РІ РєРѕС‚РѕСЂРѕР№ СЃРёРґРёРј?
+;TODO что делать, если удалили директорию, в которой сидим?
 	;or a:jp z,fexit
 	;ld a,0xff
 	jp restorevoldir ;ret        
@@ -1956,7 +1956,7 @@ BDOS_rename
 ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (can contain drive/path! NOT MSXDOS)
         BDOSSETPGFATFS
         ex de,hl
-        call BDOS_preparedepage ;TODO СЂР°Р·РЅС‹Рµ СЃС‚СЂР°РЅРёС†С‹ hl,de (С‚.Рµ. РЅР°РґРѕ РєРѕРїРёСЂРѕРІР°С‚СЊ РѕС‚СЃСЋРґР° РІ Р±СѓС„РµСЂ)
+        call BDOS_preparedepage ;TODO разные страницы hl,de (т.е. надо копировать отсюда в буфер)
         ex de,hl
         call BDOS_preparedepage
         CHECKVOLUMETRDOS
@@ -2040,7 +2040,7 @@ BDOS_chdir
 ;DE = Pointer to ASCIIZ string
 
 setpath
-;СѓСЃС‚Р°РЅРѕРІР»РµРЅР° СЃС‚СЂР°РЅРёС†Р° PGFATFS
+;установлена страница PGFATFS
 ;DE = Pointer to ASCIIZ string
         if 1==1
         call countfiledrive ;call eatdrive
@@ -2086,27 +2086,27 @@ BDOS_chdir_nodriveq
 ;DE = Pointer to ASCIIZ string
         ld a,(de)
         cp '.'
-        jp nz,BDOS_OK ;РЅРµ '.' Рё РЅРµ '..'
+        jp nz,BDOS_OK ;не '.' и не '..'
         inc de
         ld a,(de)
         cp '.'
         jp z,BDOS_OK ;'..'
-;'.' РІС‹С…РѕРґРёС‚ РЅР° РєРѕСЂРµРЅСЊ
+;'.' выходит на корень
 BDOS_chdir_root
          jp BDOS_setrootdir ;a=0
         
 BDOS_chdir_trdos
-        ld a,(de) ;РїСѓС‚СЊ РїСѓСЃС‚РѕР№?
+        ld a,(de) ;путь пустой?
         ;or a
-        ;jp nz,BDOS_fail ;РЅРµРїСѓСЃС‚РѕР№
+        ;jp nz,BDOS_fail ;непустой
         ret
 
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;С‡С‚РѕР±С‹ С‚РѕС‡РЅРѕ РЅР°Р№С‚Рё С‚РµСЂРјРёРЅР°С‚РѕСЂ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;РЅР°Р№РґС‘Рј РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ, РµСЃР»Рё РґР»РёРЅР°=0, С‚Рѕ bc=-1 Рё С‚.Рґ.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
@@ -2122,7 +2122,7 @@ strlen
 ;in NedoOS: DRIVE:/PATH/ !!!
 BDOS_getpath
         BDOSSETPGFATFS
-        push de ;РЅРµР»СЊР·СЏ РїРѕСЃР»Рµ BDOS_preparedepage
+        push de ;нельзя после BDOS_preparedepage
         call BDOS_preparedepage
         push de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
 
@@ -2142,8 +2142,8 @@ BDOS_getpath
         ld (hl),0
         jr BDOS_getpath_FATq
 BDOS_getpath_FAT
-        ;DE=TCHAR *path,	/* Pointer to the directory path */ Р±СѓС„РµСЂ
-        ld bc,MAXPATH_sz;64 ;BC=UINT sz_path	/* Size of path */) СЂР°Р·РјРµСЂ Р±СѓС„РµСЂР° 
+        ;DE=TCHAR *path,	/* Pointer to the directory path */ буфер
+        ld bc,MAXPATH_sz;64 ;BC=UINT sz_path	/* Size of path */) размер буфера 
         F_GETCWD
 BDOS_getpath_FATq
         pop hl ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
@@ -2152,7 +2152,7 @@ BDOS_getpath_FATq
         
         pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/#c000+!)
         or a
-        sbc hl,de ;hl=СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ РїРѕСЃР»РµРґРЅРµРіРѕ СЃР»СЌС€Р°
+        sbc hl,de ;hl=расстояние до последнего слэша
         pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
         add hl,de ;HL = Pointer to start of last item
         ret
@@ -2192,7 +2192,7 @@ nfopenfnslash0.
 ;b7 - set if last item is ".."
 BDOS_parse_filename
         BDOSSETPGTRDOSFS
-;РґРµР»Р°РµС‚ РёР· РёРјРµРЅРё СЃ С‚РѕС‡РєРѕР№ РёРјСЏ Р±РµР· С‚РѕС‡РєРё (РґР»СЏ CP/M)
+;делает из имени с точкой имя без точки (для CP/M)
         push hl ;Pointer to 11 byte buffer
 
         push de ;ASCIIZ string for parsing
@@ -2203,7 +2203,7 @@ BDOS_parse_filename
         ex de,hl ;de=Pointer to termination character (#8000+/#c000+)
         pop bc ;ASCIIZ string for parsing (#8000+/#c000+)
         or a
-        sbc hl,bc ;hl=СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ С‚РµСЂРјРёРЅР°С‚РѕСЂР°
+        sbc hl,bc ;hl=расстояние до терминатора
         pop bc ;ASCIIZ string for parsing
         add hl,bc ;Pointer to termination character
 
@@ -2222,7 +2222,7 @@ BDOS_parse_filename
         ret
 
 get_name
-;РґРµР»Р°РµС‚ РёР· РёРјРµРЅРё Р±РµР· С‚РѕС‡РєРё РёРјСЏ СЃ С‚РѕС‡РєРѕР№ (РґР»СЏ FATFS Рё РґР»СЏ РїРµС‡Р°С‚Рё)
+;делает из имени без точки имя с точкой (для FATFS и для печати)
 ;hl->de
 	inc de
 	ex hl,de
@@ -2234,13 +2234,13 @@ get_name
         jr z,get_name_skipspaces
 	djnz 1b
         ldi
-        jr get_name_findext ;СЃРєРѕРїРёСЂРѕРІР°Р»Рё 8 СЃРёРјРІРѕР»РѕРІ, РїСЂРѕР±РµР» РЅРµ РЅР°С€Р»Рё
+        jr get_name_findext ;скопировали 8 символов, пробел не нашли
 get_name_skipspaces
 1	inc hl
-	djnz 1b ;РїСЂРѕРїСѓСЃРєР°РµРј РѕСЃС‚Р°РІС€РёРµСЃСЏ РїСЂРѕР±РµР»С‹
+	djnz 1b ;пропускаем оставшиеся пробелы
 get_name_findext
 	cp (hl)
-	jr z,1f ;РЅР° РјРµСЃС‚Рµ СЂР°СЃС€РёСЂРµРЅРёСЏ РїСЂРѕР±РµР» - РЅРµ СЃС‚Р°РІРёРј С‚РѕС‡РєСѓ
+	jr z,1f ;на месте расширения пробел - не ставим точку
 	ex hl,de
 	ld (hl),'.'
 	inc hl
@@ -2282,7 +2282,7 @@ BDOS_getdta
         
 movedma_addr
         ld iy,(appaddr)
-        ;ld hl,(dma_addr) ;РѕСЂРёРіРёРЅР°Р»СЊРЅС‹Р№, РЅРµ РїРµСЂРµСЃС‡РёС‚Р°РЅРЅС‹Р№ Р°РґСЂРµСЃ
+        ;ld hl,(dma_addr) ;оригинальный, не пересчитанный адрес
         call BDOS_getdta
         ex de,hl
         add hl,bc
@@ -2294,39 +2294,39 @@ BDOS_setdta
         ld (iy+app.dta+1),d
         ret
 
-;РїРѕ С‡РёСЃР»Сѓ РґСЂР°Р№РІРѕРІ FatFS (РґР»СЏ TR-DOS РЅРµ РЅР°РґРѕ)
+;по числу драйвов FatFS (для TR-DOS не надо)
 fatfsarray
         ds 4*FATFS_sz
 
 ffilearray
         ds MAXFILES*FIL_sz
-        ;dw #100 ;РїСЂРёР·РЅР°Рє РєРѕРЅС†Р° ffilearray
+        ;dw #100 ;признак конца ffilearray
         
-mfil    db "12345678.123",0 ;РЅСѓР¶РЅРѕ С‚РѕР»СЊРєРѕ РЅР° РІСЂРµРјСЏ РѕРїРµСЂР°С†РёРё, РєРѕС‚РѕСЂР°СЏ РїСЂРёРЅРёРјР°РµС‚ РёРјСЏ С„Р°Р№Р»Р° (РјРѕР¶РµС‚ Р±С‹С‚СЊ СЃ РїСѓС‚С‘Рј?)
+mfil    db "12345678.123",0 ;нужно только на время операции, которая принимает имя файла (может быть с путём?)
 
-mfilinfo FILINFO ;РЅСѓР¶РЅРѕ С‚РѕР»СЊРєРѕ РЅР° РІСЂРµРјСЏ findnext
+mfilinfo FILINFO ;нужно только на время findnext
 
-fcb2    ds FCB_sz ;РЅСѓР¶РЅРѕ С‚РѕР»СЊРєРѕ РЅР° РІСЂРµРјСЏ findnext
+fcb2    ds FCB_sz ;нужно только на время findnext
 
-fres	dw 0 ;СЃС‚СЂСѓРєС‚СѓСЂР° РґР»СЏ РІРѕР·РІСЂР°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р° FatFS (С‡РёСЃР»Рѕ РїСЂРѕС‡РёС‚Р°РЅРЅС‹С…/Р·Р°РїРёСЃР°РЅРЅС‹С… Р±Р°Р№С‚)
-        dw 0 ;РґР»СЏ РІРѕР·РІСЂР°С‚Р° РґР°С‚С‹
+fres	dw 0 ;структура для возврата результата FatFS (число прочитанных/записанных байт)
+        dw 0 ;для возврата даты
 
 BDOS_parse_filename_cpmnamebuf
-        ds 11 ;TODO РїРµСЂРµРЅРµСЃС‚Рё РІ pgtrdosfs
+        ds 11 ;TODO перенести в pgtrdosfs
 
 syspath
         db "bin",0
         
-;РґР»СЏ TASiS: РЅРµ РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ СЃС‚СЂР°РЅРёС†С‹ РћР—РЈ пјѓ00, пјѓ1B, #1C, #1D, #1E, #1F
-;РґР»СЏ РёР·Р±РµР¶Р°РЅРёСЏ РіРёР±РµСЂРЅР°С†РёРё: РЅРµ РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ СЃС‚СЂР°РЅРёС†С‹ РћР—РЈ 128K
+;для TASiS: не используются страницы ОЗУ #00, #1B, #1C, #1D, #1E, #1F
+;для избежания гибернации: не используются страницы ОЗУ 128K
 tsys_pages
-        ds 8,#ff ;СЃРёСЃС‚РµРјРЅС‹Рµ СЃС‚СЂР°РЅРёС†С‹
+        ds 8,#ff ;системные страницы
         db #ff,#ff,#ff,0,0,0,0,0 ;#08..#0f
         db 0,0,0,0,0,0,0,0 ;#10..#17
         db 0,0,0,#ff,#ff,#ff,#ff,#ff ;#18..#1f
         ds sys_npages-32 ;0=empty, or else process number
 
-;TODO С…СЂР°РЅРёС‚СЊ РїСЂСЏРјРѕ РІ С‚РµРєСЃС‚РѕРІРѕРј СЌРєСЂР°РЅРµ
+;TODO хранить прямо в текстовом экране
 	align 256
 trecode
 	incbin "866toatm"
