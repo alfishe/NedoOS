@@ -413,7 +413,7 @@ ZIPRDBYHq
        or a ;CY=0: OK
         RET 
 
-Z61B7   LD A,#2E        LD (DE),A        INC DEZ61BB   LDI         RET PO        JR Z61BB
+;Z61B7   LD A,#2E;        LD (DE),A;        INC DE;Z61BB   LDI ;        RET PO;        JR Z61BB
 ML_FLEN DW 0ST_FLEN DB 0 
 
 prcrlf
