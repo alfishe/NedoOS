@@ -104,6 +104,12 @@ begin
         xor a
         out (#fe),a
 
+        LD (IY+1),#CC
+        if 1==0
+       IFN em3d13        LD HL,ONERR        LD (23747),HL       ENDIF        LD A,(23833)       ADD A,"A       LD (src),A       LD (dst),A       XOR A       LD (23658),A ;#5c6a      ;LD L,A,H,L      ;LD (23802),HL 
+        endif
+       XOR A	ld (#5d10),a
+        
         ld hl,#c9f1 ;pop af:ret
         ld (#5cc2),hl
         
@@ -137,6 +143,7 @@ begin
         endif
 
         call findpgdos
+         ld lx,a
         ld (sys_pgdos),a ;до установки резидента
 
         ld a,pgsys
@@ -254,6 +261,24 @@ fatfspatchaddr=#c000
 ;поставить резидент в 7fxx
 ;переходим в sys_intq, а оттуда в init_resident
 
+        if 1==0
+        ld a,lx;(sys_pgdos)
+        ld bc,memportrom0000
+        out (c),a
+        LD A,%10101000 ;320x200 mode
+	ld bc,#ff77 ;shadow ports off, palette off
+        out (c),a
+        ld a,1
+        ld c,1
+        call #3d13
+        ld c,#18
+        call #3d13
+        ld hl,#c000
+        ld de,#0000
+        ld bc,#0805
+        call #3d13
+        jr $
+        endif
 
         ld sp,BDOSSTACK
         ;ei

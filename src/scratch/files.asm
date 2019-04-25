@@ -609,7 +609,7 @@ file_control_keys
         cp '3'
         jr z,file_control_keys_drive3
         cp '4'
-        jr z,file_control_keys_drive4
+        jr z,file_control_keys_drive4 ;TODO more drives
         sub '5'
         jr z,file_control_keys_drive0 ;a=0
         ret

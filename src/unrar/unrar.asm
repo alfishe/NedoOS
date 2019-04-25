@@ -7,21 +7,18 @@
         CALL Z,RDBYH
        ENDM 
 
-INITIALMEMPAGES=6
+INITIALMEMPAGES=32;6
        
 STACK=0x4000
-;TCRC=0x6800 ;size 0x400, divisible by 0x400
+TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
 
-depkbuf=0x7c00;0 for pages
-;buf64k=0;0 for nopages
-
-frmcnt=0mmc=0crc=1tcrc=0kb=0;1kINopt=1border=0hgt=24wdt=32;em3d13=1;при 1 что-то с пам€тью в big fileunexp=0masks=1v1="0"v2="6"v3="1"
+frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1kb=0;1kINopt=1border=0;hgt=24;wdt=32;em3d13=1;при 1 что-то с пам€тью в big fileunexp=1;0masks=1;v1="0";v2="6";v3="1"
 COLOR=7
 CURSORCOLOR=0x38
 
-namln=100 ;#FACATBUF=#F800THEEND=#c000;#8000;#C000CODETOP=#7D00 ;константа-максимум,используетс€ только в DISPLAYs8=#7D00;#5B00 ;sysTAB44=#5B00;#7A3D ;#7F00 нельз€ (bufstor)stBUF=#7E00;#5800sec=stBUF      ;dirbufstor=THEEND-256
+namln=MAXPATH_sz;100 ;#FATHEEND=#c000;#8000;#C000CODETOP=#7D00 ;константа-максимум,используетс€ только в DISPLAYs8=#7D00;#5B00 ;sysTAB44=#5B00;#7A3D ;#7F00 нельз€ (bufstor)stBUF=#7E00;#5800 ;TODO;sec=stBUF      ;dirbufstor=THEEND-256
         org PROGSTART
 cmd_begin
         ld sp,STACK
@@ -50,70 +47,29 @@ getpgs0
         or a
         jr nz,$+5
          ld hl,defaultfilename
-        ex de,hl
+        ld (curfilenameaddr),hl
         
-        call openstream_file
-        or a
-        jr nz,openerror
+;curfilenameaddr=$+1
+;        ld de,0
+;        call openstream_file
+;        or a
+;        jp nz,openerror
         
-        ;ld a,(filehandle)
-        ;ld b,a
-        ;OS_GETFILESIZE ;dehl=filesize
-        ;ld (ML_FLEN),hl
-        ;ld a,e
-        ;ld (ST_FLEN),a
-
         ;CALL initdepk;Z6629 ;»Ќ»÷»јЋ»«ј÷»я ƒ≈ѕAKEPA
-       LD IY,DISKBUF+DISKBUFsz-1
 
        call GO
         ;call depack
         QUIT
         
-        if 1==0
-        ld de,0
-        ld hl,1
-        ;dehl=shift
-        ld a,(filehandle)
-        ld b,a
-        OS_SEEKHANDLE
-       
-       LD IY,DISKBUF+DISKBUFsz-1
-       
-loop0
-        ziprdbyte
-        push iy
-        PRCHAR
-        pop iy
-        jp loop0
-        endif
-       
-depack_gz_q
-        call closestream_file
 openerror
 error
-;nextfile ;TODO
 quit
         QUIT
 
-;readerror
-;TODO restore stack
-        ;call closestream_file
-        ;jr error
-        
-readerror
-        call SAVECLOSE
-        jp GO
-
-        if 1==0
-SKIP        call SAVECLOSESKIP_noclose
-KOL_F=$+1        ld bc,1;(KOL_F)        cpi        ld (KOL_F),bc
-        ld sp,(exit_sp)        jp pe,nextfileE_ZIP
-EXITexit_sp=$+1        LD SP,#3131         ret
-        endif
-
 copyname83
 ;hl->de
+;длина имени не увеличиваетс€ - можно поверх?
+;перекодирует слэш в пр€мой
 copyname83_element
         ld b,8
 copyname83_0
@@ -121,6 +77,8 @@ copyname83_0
         inc hl
         or a
         jr z,copyname83_q
+        cp '\'
+        jr z,copyname83_endelement
         cp '/'
         jr z,copyname83_endelement
         cp '.'
@@ -134,6 +92,8 @@ copyname83_skipname0
         inc hl
         or a
         jr z,copyname83_q
+        cp '\'
+        jr z,copyname83_endelement
         cp '/'
         jr z,copyname83_endelement
         cp '.'
@@ -147,6 +107,8 @@ copyname83_ext0
         inc hl
         or a
         jr z,copyname83_q
+        cp '\'
+        jr z,copyname83_endelement
         cp '/'
         jr z,copyname83_endelement
         cp '.'
@@ -159,9 +121,12 @@ copyname83_skipext0
         inc hl
         or a
         jr z,copyname83_q
+        cp '\'
+        jr z,copyname83_endelement
         cp '/'
         jr nz,copyname83_skipext0
 copyname83_endelement
+        ld a,'/'
         ld (de),a ;'/'
         inc de
         jr copyname83_element
@@ -189,7 +154,6 @@ skipspaces
         ret nz
         inc hl
         jr skipspaces
-        
 
 strcopy
 ;hl->de
@@ -201,36 +165,13 @@ strcopy0
         ret
 
 PTABL
-        ds 64 ;patched
+        ds 64 ;page numbers, patched
 OUTMEcu LD (curPG),A
         LD (curPG2),A
 OUTcur  LD A,(curPG)
-;depend of computer type
-;TODO
 OUTME
         PUSH BC
-        
-        if 1==1
        LD b,PTABL/256       ADD A,PTABL&0xff        LD c,A        LD A,(bc)        SETPG32KHIGH
-        else
-        
-        CP 2
-        SBC A,-1
-        CP 5
-        SBC A,-1
-;000YYXXX->YY010XXX
-        LD C,A
-        RLA 
-       RLA 
-        RLA 
-        AND #C0
-        OR C
-        AND #C7
-        OR 16
-        LD BC,32765
-        OUT (C),A
-        endif
-        
         POP BC
         RET 
 
@@ -247,7 +188,6 @@ minhl_bc_tobc
 SAVEBLOCK
 ;de=bytes to save
 ;hl=addr
-        ;jr $
         exx
         push de
         exx
@@ -256,8 +196,6 @@ SAVEBLOCK
         ld a,(savefilehandle)
         ld b,a
         ex de,hl
-        ;ld h,l ;h=l=number of sectors to save
-        ;ld l,0
          push ix
         push iy
         OS_WRITEHANDLE
@@ -270,8 +208,63 @@ SAVEBLOCK
         exx
         ret
 
+strlen
+;hl=str
+;out: hl=length
+        ld bc,0 ;чтобы точно найти терминатор
+        xor a
+        cpir ;найдЄм об€зательно, если длина=0, то bc=-1 и т.д.
+        ld hl,-1
+        or a
+        sbc hl,bc
+        ret
+
 SAVECREATE
         push iy
+
+;сформировать filename 8.3 (во всех элементах):
+        ld hl,OUTNAM;Z664A
+        ld de,OUTNAM;filename        ;call strcopy
+        call copyname83 ;заодно перекодирует слэш в /
+;TODO если нет такой директории, то create directory (например, "md scr/1" без слеша в конце):
+
+        ld hl,OUTNAM
+SAVECREATE_dir0
+;hl=текущий элемент пути
+;1.проверить, что путь не кончилс€ (т.е. дальше есть /)
+        push hl
+        call strlen
+        ld b,h
+        ld c,l
+        pop hl
+        ld a,'/'
+        cpir
+        jr nz,SAVECREATE_dirq
+        dec hl
+;hl=at slash
+;2.проверить, что есть i-й элемент пути (до слэша) - через CHDIR?
+        ld (hl),0
+        push hl
+        ld de,pathbuf
+        OS_GETPATH
+        ld de,OUTNAM
+        OS_CHDIR
+        push af
+        ld de,pathbuf
+        OS_CHDIR
+        pop af
+        or a
+        jr z,SAVECREATE_dirnomk ;така€ директори€ уже есть
+;3.если нет, то создать 0..i-й (текущий путь не мен€ем)
+        ld de,OUTNAM
+        OS_MKDIR
+SAVECREATE_dirnomk
+        pop hl
+        ld (hl),'/'
+        inc hl
+        jr SAVECREATE_dir0
+SAVECREATE_dirq
+
         ld de,OUTNAM;filename
         OS_CREATEHANDLE
 ;b=new file handle
@@ -304,7 +297,7 @@ stPG=$+1
         RET 
 
 SAVE
-;size = SAVErmn*256 (TODO учесть (uNPremn) как мл.байт)
+;size = SAVErmn*256 (чуть меньше, т.к. учитываем (uNPremn) как мл.байт)
 doSAVEk=$+1
         LD A,0
         CP "N"
@@ -317,7 +310,6 @@ doSAVEk=$+1
         RET 
 NLISTERLAST
        CALL SAVbeg
-       ;jr $
 savePG0
         LD A,H
         INC A
@@ -400,196 +392,6 @@ SAVE_notlastblock
        LD (stAD),HL
        LD A,(curPG)
        LD (stPG),A
-        ;LD A,(doSAVEk)
-       ;CP "y"
-       ;RET Z ;depack as trd
-;создание файловых записей
-       if 1==0
-SAVE0
-        if 1==0
-        LD HL,s8
-        LD DE,8
-        LD BC,#105
-        CALL DOD
-      LD A,(s8+#E4)
-      RLA 
-      RET C
-        endif
-SAVEsz=$+1
-       LD HL,0
-      ;INC HL
-      LD A,H
-      LD (SAVEcp),A
-      ADD A,-1
-      SBC A,A
-      OR L
-       LD E,A
-        LD (SAVEa),A
-       XOR A
-       LD D,A
-       SBC HL,DE
-       LD (SAVEsz),HL
-       
-       if 1==0
-       
-        LD HL,(s8+#E5)
-       LD A,(doSAVEk)
-       XOR "$"
-       JR NZ,$+3
-       INC HL
-        SBC HL,DE
-        LD (s8+#E5),HL
-      RET C ;NE TAK
-       LD HL,(s8+#E4)
-       LD H,D
-       ADD HL,HL
-       add HL,HL
-       add HL,HL
-       add HL,HL
-       LD E,H
-       ld H,sec/256
-       PUSH DE,HL
-       LD L,D
-        LD BC,#105
-        CALL DOD
-        LD DE,OUTNAM
-fndbsl  LD H,D,L,E
-fndbsl0 LD A,(DE)
-        INC DE
-        CP "\\"
-        JR Z,fndbsl
-        OR A
-        JR NZ,fndbsl0
-;найти посл.точку и заменить на #1
-        LD D,H
-        ld E,L
-        CALL fnddot
-        JR NZ,$+5
-        LD A,1
-        LD (BC),A
-       POP DE
-
-       LD A,(doSAVEk)
-       XOR "$"
-       JR NZ,nohobhea
-;no 48K! (min 64k buf)
-gegPG=$+1
-        LD A,0
-gegAD=$+1
-        LD HL,0
-        LD BC,15
-SAVhext BIT 7,H
-        JR NZ,$+5
-        LD H,#C0
-        INC A
-_6      CP 6
-        JR NZ,$+5
-        XOR A
-        LD H,THEEND/256
-       PUSH AF
-        CALL OUTME
-       POP AF
-        LDI 
-        JP PE,SAVhext
-       LD (SAVEsz),BC;0 ;for #FF11
-        DEC DE
-        LD A,(DE)
-        DEC DE
-        JR SAVextQ
-nohobhea
-        LD B,8
-rrrrr   LD A,(HL)
-        OR A
-        JR Z,rrrEXT
-        INC HL
-        CP 1;"."
-        JR Z,rrrEXT
-        LD (DE),A
-        INC DE
-        DJNZ rrrrr
-        JR rrrrrQ
-rrrEXT  LD A," "
-        LD (DE),A
-        INC DE
-        DJNZ $-2
-rrrrrQ  LD A,(HL)
-        DEC A;"."
-        JR NZ,$+3
-        INC HL
-rrrE=$+1
-       LD A,0
-       INC A
-       LD (rrrE),A
-       CP 47
-       JR NZ,rrrEE
-        LD A,(HL)
-        OR A
-        JR NZ,$+4
-        LD A," " ;no ext
-rrrEE   LD (DE),A
-        INC DE,HL
-       LD A,(HL)
-        LDI 
-       OR A
-       JR NZ,$+3
-       DEC HL ;еще один #0
-        LDI 
-       EX DE,HL
-SAVEcp=$+1
-       LD A,0
-       OR A ;0=LAST
-;SAVElenLS1=$+1
-       LD A,(uNPremn)
-      JR Z,$+3
-      XOR A ;NOT LAST
-       LD (HL),A
-       INC HL
-       OR A
-SAVEa=$+1
-       LD A,0
-       LD (HL),A
-       JR Z,$+3
-       DEC (HL)
-       INC HL
-       EX DE,HL
-SAVextQ
-        LD (DE),A
-        INC DE
-        LD HL,s8+#E1
-        LDI 
-        LDI 
-       POP DE
-       PUSH AF
-        LD BC,#106
-        LD HL,sec
-        CALL DOD
-        endif
-        
-        if 1==0
-        LD HL,s8+#E4
-        INC (HL)
-    LD DE,(s8+#E1)
-       POP AF ;secs in file
-       LD L,A
-       LD H,0
-      ADD HL,HL,HL,HL,HL,HL,HL,HL
-      SLA E,E,E,E
-      ADD HL,DE
-      SRL L,L,L,L
-    LD (s8+#E1),HL
-        LD HL,s8
-        LD DE,8
-        LD BC,#106
-       CALL DOD
-       endif
-       
-       LD HL,(SAVEsz)
-       LD A,H
-       OR L
-       JP NZ,SAVE0
-       
-       endif ;создание файловых записей
-       
         RET 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         
@@ -602,11 +404,9 @@ RDBYH
         LD A,HY
 ;RDBYHend=$+1
         CP DISKBUF/256+(DISKBUFsz/256)
-        ;JR Z,rDDSK
         LD A,(IY)
          ccf ;CY=0: OK ;TODO переделать на CY=1 для скорости
         RET nz
-;rDDSK
        PUSH HL
        PUSH DE
         PUSH BC
@@ -689,15 +489,18 @@ defaultfilename
 ;        ds filename+256-$ ;дл€ длинных имЄн
 
 CURFILE DS namln;DESCRIP DS 16 ;TODO убратьCURPOS  DS 4NXTPOS  DS 4
-;;;;;32 bytes rar file headerCRCF    DW 0TYPEF   DB 0FLAGF   DW 0SIZEF   DW 0ADDSZF  DS 4UNPSIZE DS 4HOSTOS DB 0;NUFILECRC DS 4FTIME   DS 4UNPVER  DB 0METHOD  DB 0NAMSIZE DW 0ATTR    DS 4
+;;;;;32 bytes rar file headerCRCF    DW 0TYPEF   DB 0FLAGF   DW 0SIZEF   DW 0 ;head size
+;;^^^7 bytes also form archive footerADDSZF  DS 4 ;packed sizeUNPSIZE DS 4HOSTOS DB 0;NUFILECRC DS 4FTIME   DS 4UNPVER  DB 0METHOD  DB 0NAMSIZE DW 0ATTR    DS 4
 ;;;;;;;;;;;;;;;;;;;EXPTYP  DW 0 ;expected type&FLAGH;CRCLO   DW 0;YEFLAGH DB 0 ;TWICE;1=depk,0=view;FREXPT  DB 0 ;TWICE;FILEZ   DW 0;usable.FileCountERRORS  DW 0;ErrCount;unknown DW 0;NU=0.ExtrFileknown   DB 0 ;NOT unknown.MDCode;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed;CANTCR  DW 0;NU=0!can't create.UserReject;PASWFLG DW 0 ;(password?).TmpPassword;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile;GDEIX   DW 0 ;ArcPtrVOLFLG  DB 0;ArcType,2=volSOLFLG  DB 0;SolidType(1)TSTARES DB 0;ArcFormatvolPKSZ DS 4volUNSZ DS 4pieces  DW 0 ;FileCount;zagol   DW 0;1=загол уже напечuNPremn DS 4;DestUnpSize IF crcCRCArea DS 4 ENDIF CRCA    DW 0 ;TWICE=BUF32TYPEA  DB 0;NUFLAGA   DW 0SIZEA   DW 0_62ae  DW 0;NU_62b0  DW 0;NU_62b2  DW 0;NU ;UnpCRC  DS 4 ;UnpFileCRC;YCOMM   DB 0;UnpVolume.4timesCOMSYM  DB 0
-        align 256       IFN kbSECBUF  DS kb*1024       ELSE SECBUF  DS 256       ENDIF 
+;        align 256;       IFN kb;SECBUF  DS kb*1024;       ELSE ;SECBUF  DS 256;       ENDIF 
         ds 0x2000-$ ;DS -$&3
 bd
 ld      DS 298*4 ;должно быть выше 0x4000! TODO
 dd      DS 48*4
 rd      DS 28*4
-OUTNAM  DS namln ;DestFileName
+OUTNAM  DS namln ;DestFileNamepathbuf
+        ds MAXPATH_sz
+
 oldtimer
         dw 0        
 cmd_end

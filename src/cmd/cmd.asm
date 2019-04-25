@@ -1093,6 +1093,9 @@ cmd_t1
 cmd_t2
 cmd_t3
 cmd_t4
+cmd_t5
+cmd_t6
+cmd_t7
         ld a,(wordbuf)
         sub '0'
         call cmdsetdrive
@@ -1410,6 +1413,12 @@ commandslist
         db "3:",0
         dw cmd_t4
         db "4:",0
+        dw cmd_t5
+        db "5:",0
+        dw cmd_t6
+        db "6:",0
+        dw cmd_t7
+        db "7:",0
         dw cmd_del
         db "del",0
         dw cmd_exit

@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+NVOLUMES=8;5
+        
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
 txtscrhgt=25
 txtscrwid=80
@@ -98,6 +100,10 @@ initstrpgs0
         ld hl,leftpanel
         call editcmd_setpaneldirfromcurdir_panelhl
 
+        ;ld e,0
+        ;OS_SETDRV
+;l=NVOLUMES
+        
 	call readpanels_reprint
 	
 mainloop
@@ -1105,7 +1111,7 @@ seldrv_ok
 seldrv_down
         ld a,(hl)
         inc a
-        cp 5 ;drives
+        cp NVOLUMES;5 ;drives
         ret z
         ld (hl),a
         ret
@@ -1554,7 +1560,7 @@ ifcmdnonempty_typedigit
 
 windrv
         dw 0x0803 ;de=yx
-        dw 0x0809 ;bc=hgt,wid
+        dw 256*(3+NVOLUMES)+9;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
         db "  0:",0,3
@@ -1562,6 +1568,9 @@ windrv
         db "  2:",0,3
         db "  3:",0,3
         db "  4:",0,3
+        db "  5:",0,3
+        db "  6:",0,3
+        db "  7:",0,3
         db 0 ;end of window
         
 winmkdir

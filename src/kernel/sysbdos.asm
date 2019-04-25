@@ -1,5 +1,5 @@
 
-NVOLUMES=5
+NVOLUMES=8;5
 MAXFILES=8
 vol_trdos=4
 
@@ -1111,7 +1111,7 @@ BDOS_fdel
         call BDOS_preparedepage
 ;DE = Pointer to unopened FCB
         CHECKVOLUMETRDOS
-        jr z,BDOS_fdel_noFATFS
+        jr nc,BDOS_fdel_noFATFS
 
 	call get_name
 	ld de,mfil
@@ -1131,7 +1131,7 @@ BDOS_fread
         ;CHECKVOLUMETRDOS
         ld a,(de)
         cp vol_trdos
-        jr z,BDOS_fread_noFATFS
+        jr nc,BDOS_fread_noFATFS
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
 
@@ -1169,7 +1169,7 @@ BDOS_fwrite
         ;CHECKVOLUMETRDOS
         ld a,(de)
         cp vol_trdos
-        jr z,BDOS_fwrite_noFATFS
+        jr nc,BDOS_fwrite_noFATFS
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
 
@@ -1198,7 +1198,7 @@ BDOS_fwrite_nbytes
         ;CHECKVOLUMETRDOS
         ld a,(de)
         cp vol_trdos
-        jr z,BDOS_fwrite_nbytes_noFATFS
+        jr nc,BDOS_fwrite_nbytes_noFATFS
 ;достать из него адрес ffile
          push hl ;bytes
         call getFILfromFCB ;hl=FIL
@@ -1250,7 +1250,7 @@ BDOS_fsearchfirst
         call BDOS_preparedepage
          push de ;DE = Pointer to unopened FCB (#8000+/#c000+)
         CHECKVOLUMETRDOS
-        jr z,BDOS_fsearchfirst_noFATFS
+        jr nc,BDOS_fsearchfirst_noFATFS
         call BDOS_opencurdir
 
          pop de ;DE = Pointer to unopened FCB (#8000+/#c000+)
@@ -1259,7 +1259,11 @@ BDOS_fsearchfirst
         jr BDOS_fsearch_goloadloop
 BDOS_fsearchfirst_noFATFS
 ;TR-DOS
+       push af
         BDOSSETPGTRDOSFS
+       pop af
+       sub vol_trdos
+       ld (trdoscurdrive),a
         ld hl,trdos_catbuf
         ;ld (BDOS_fsearch_loadloop_trdosaddr),hl ;TODO где хранить для многозадачности? возвращать в FCB_DIRPOS?
         ld (iy+app.dircluster),l
@@ -1267,6 +1271,8 @@ BDOS_fsearchfirst_noFATFS
         
         ld de,#0000 ;track,sector
         ld bc,#0905 ;read 9 sectors
+        ;cp 1
+        ;jr $
         call iodos.
          pop de ;DE = Pointer to unopened FCB (#8000+/#c000+)
         jr BDOS_fsearch_goloadloop
@@ -1285,7 +1291,7 @@ BDOS_fsearch_loadloop
         ld iy,(appaddr) ;т.к. ffs портит iy
         BDOSSETPGFATFS
         CHECKVOLUMETRDOS
-        jr z,BDOS_fsearch_loadloop_noFATFS
+        jr nc,BDOS_fsearch_loadloop_noFATFS
 
         call count_fdir ;LD de,fdir
 	LD bc,mfilinfo
@@ -1368,8 +1374,8 @@ BDOS_getfiletime
 ;de=Drive/path/file ASCIIZ string
 ;out: ix=date, hl=time
         call BDOS_preparedepage
-        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, z=TR-DOS
-        jr z,BDOS_getfiletime_zero
+        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
+        jr nc,BDOS_getfiletime_zero
         BDOSSETPGFATFS
         ld bc,fres
 ;de=name
@@ -1507,8 +1513,8 @@ BDOS_openorcreatehandle
         BDOSSETPGFATFS
         call BDOS_preparedepage
 ;DE = Drive/path/file ASCIIZ string
-        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, z=TR-DOS
-        jr z,BDOS_openhandle_noFATFS
+        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
+        jr nc,BDOS_openhandle_noFATFS
         call keepvoldir_setvolifneeded
          ;call keepvoldir
         push de
@@ -1542,8 +1548,10 @@ oldvol=$+1
          ret
 
 BDOS_openhandle_noFATFS
+;a=drive
 ;recode file name
         ;pop af ;z=drive in path
+       push af ;drive
         BDOSSETPGTRDOSFS
         ex de,hl ;hl=path
         call findlastslash. ;de=after last slash or beginning of path
@@ -1554,6 +1562,8 @@ BDOS_openhandle_noFATFS
         pop de
 BDOS_openorcreatehandle_trdosmode=$+1
         ld c,'r'
+       pop af ;drive
+       sub vol_trdos
         call nfopen ;hl=trdosfcb
         ld b,h ;new file handle
         ret
@@ -1733,13 +1743,17 @@ BDOS_fopen
         GETVOLUME
         ld (de),a ;volume
         cp vol_trdos ;CHECKVOLUMETRDOS
-        jr z,BDOS_fopen_noFATFS
+        jr nc,BDOS_fopen_noFATFS
         push de ;FCB
         call BDOS_fopen_getname_fil ;de=poi to FIL, bc=mfil
 	LD HL,FA_READ|FA_WRITE
         jr BDOS_fopen_go
 BDOS_fopen_noFATFS
+;a=drive
+       push af
         BDOSSETPGTRDOSFS
+       pop af
+       sub vol_trdos
         jp trdos_fopen
 
 BDOS_fcreate
@@ -1749,7 +1763,7 @@ BDOS_fcreate
         GETVOLUME
         ld (de),a ;volume
         cp vol_trdos ;CHECKVOLUMETRDOS
-        jr z,BDOS_fcreate_noFATFS
+        jr nc,BDOS_fcreate_noFATFS
         push de ;FCB
         call BDOS_fopen_getname_fil ;de=poi to FIL, bc=mfil
 	LD HL,FA_READ|FA_WRITE|FA_CREATE_ALWAYS
@@ -1775,7 +1789,10 @@ BDOS_fopen_go
         ld (hl),d
 	ret
 BDOS_fcreate_noFATFS
+       push af
         BDOSSETPGTRDOSFS
+       pop af
+       sub vol_trdos
         jp trdos_fcreate
 
 getFILfromFCB
@@ -1796,7 +1813,7 @@ BDOS_fclose
         ;CHECKVOLUMETRDOS
         ld a,(de)
         cp vol_trdos
-        jr z,BDOS_fclose_noFATFS
+        jr nc,BDOS_fclose_noFATFS
 	;F_CLOSE ffile ;сам освобождает FIL
         call getFILfromFCB
         ex de,hl
@@ -1853,7 +1870,7 @@ BDOS_mount
         BDOSSETPGFATFS
         ld a,e
         cp vol_trdos
-        jr z,BDOS_mount_noFATFS
+        jr nc,BDOS_mount_noFATFS
         call calcfatfs_e
         inc hl
         ld (hl),e ;монтируем volume E (указанный в HL) на физический драйв E (TODO fix), раздел 0 (TODO fix)
@@ -1867,7 +1884,7 @@ BDOS_mount
          call BDOS_setvol_rootdir
         ;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
         ;or a
-        jp nz,BDOS_fail
+        jp c,BDOS_fail
 BDOS_mount_noFATFS
         xor a ;success
         ret;jr rest_exit
@@ -1887,10 +1904,9 @@ BDOS_setdrv
         
         ld a,e
          call BDOS_setvol_rootdir
-         ;jr $ ;сюда не попадаем при смене драйва в nv
         ;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
         ;or a
-        ;jr z,BDOS_setdrvnfail
+        ;jr nc,BDOS_setdrvnfail
         ; ld (iy+app.vol),d
 ;BDOS_setdrvnfail
          
@@ -1904,22 +1920,25 @@ BDOS_setvol_rootdir
          ld (iy+app.vol),a
 BDOS_setrootdir
 ;установлена страница PGFATFS
+;CY=error (при NC a=0)
          xor a
          ld (iy+app.dircluster),a
          ld (iy+app.dircluster+1),a
          ld (iy+app.dircluster+2),a
          ld (iy+app.dircluster+3),a
         CHECKVOLUMETRDOS
-        ret z ;Z=no error
+        ld a,0
+        ret nc ;NC=no error, A=0
         ;jr $
         push de
         call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
         pop de
         or a
-        ret z ;Z=no error
+        ret z ;NC=no error, A=0
          ld a,d
          ld (iy+app.vol),a
-        ret ;NZ=error
+         scf
+        ret ;CY=error
 
 keepvoldir_setvolifneeded
         call keepvoldir
@@ -1934,9 +1953,9 @@ BDOS_delete
         BDOSSETPGFATFS
         call BDOS_preparedepage
 ;DE = Pointer to ASCIIZ string
-        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, z=TR-DOS
+        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
         ;call eatdrive ;TODO keep and restore curdrv,curdir!!!
-        jr z,BDOS_delete_nofatfs
+        jr nc,BDOS_delete_nofatfs
         ;call keepvoldir
         ; dec c ;was c=1: drive in path
         ; push de
@@ -1960,7 +1979,7 @@ BDOS_rename
         ex de,hl
         call BDOS_preparedepage
         CHECKVOLUMETRDOS
-        jr z,BDOS_rename_nofatfs
+        jr nc,BDOS_rename_nofatfs
         ld b,h
         ld c,l
 ;DE = Drive/path/file ASCIIZ string, BC = New filename ASCIIZ string
@@ -1972,7 +1991,7 @@ BDOS_rename_nofatfs
 
 countfiledrive
 ;DE = Drive/path/file ASCIIZ string
-;out: a=volume, de=path without drive, c=1: drive in path, z=TR-DOS
+;out: a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
         inc de
         ld a,(de)
         cp ':'
@@ -1991,32 +2010,6 @@ BDOS_openhandle_nodriveinpath
 ;a=volume, de=path without drive, c=1: drive in path
         cp vol_trdos
         ret
-        
-        if 1==0
-eatdrive
-;DE = Pointer to ASCIIZ string (drive/path/filename)
-;out: de=path/filename, Z=TRDOS
-        ld a,(de)
-        or a
-        jp z,BDOS_popfail
-        ld c,a
-        inc de
-        ld a,(de)
-        cp ':'
-        jr nz,BDOS_mkdir_nodrive
-        inc de
-        ld a,c ;drive
-        sub '0'
-         push de
-         call BDOS_setvol_rootdir
-         pop de
-        jr BDOS_mkdir_nodriveq
-BDOS_mkdir_nodrive
-        dec de
-BDOS_mkdir_nodriveq
-        CHECKVOLUMETRDOS
-        ret
-        endif
         
 BDOS_mkdir
         BDOSSETPGFATFS
@@ -2069,7 +2062,7 @@ BDOS_chdir_nodriveq
         push af
         call keepvoldir_setvolifneeded
         pop af
-        jr z,BDOS_chdir_trdos
+        jr nc,BDOS_chdir_trdos
         push de
         ; dec c ;was c=1: drive in path
         ; call z,BDOS_setvol_rootdir ;drive specified in path
@@ -2130,7 +2123,7 @@ BDOS_getpath
         
         GETVOLUME
         cp vol_trdos
-        jr nz,BDOS_getpath_FAT
+        jr c,BDOS_getpath_FAT
         add a,'0'
         ex de,hl
         ld (hl),a

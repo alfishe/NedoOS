@@ -101,8 +101,30 @@ trdos_searchnext
         ld a,(hl)
         or a
         ret z ;jr z,BDOS_fsearch_loadloop_noFATFS_empty
-        ld bc,11
+        ld bc,8
         ldir
+        ld a,(hl)
+        ldi
+        cp 'B'
+        jr nz,trdos_searchnext_nobas
+;basic, если start < 0x4100 (чтобы можно было .BAT)
+         inc hl
+         ld a,(hl)
+         cp 0x41
+         jr nc,trdos_searchnext_decnobas
+         inc hl
+        ld a,' '
+        ld (de),a
+        inc de
+        ld (de),a
+        inc de
+        jr trdos_searchnext_basq
+trdos_searchnext_decnobas
+         dec hl
+trdos_searchnext_nobas
+        ldi
+        ldi
+trdos_searchnext_basq
         ld de,fcb2+FCB_FSIZE
         ldi
         ldi
@@ -126,10 +148,12 @@ trdos_searchnext
         ret
 
 trdos_fopen
+;a=drive 0..3
         push de ;FCB
         inc de ;filename
         ld c,'r'
 trdos_fopen_go
+;a=drive 0..3
         call nfopen ;out: a (0=success, 0xff=fail), hl=TRDOSFCB
         pop bc ;bc = pointer to opened FCB (TODO чем отличается от unopened?)
         or a
@@ -143,6 +167,7 @@ trdos_fopen_go
         ret
 
 trdos_fcreate
+;a=drive 0..3
         push de ;FCB
         inc de ;filename
         ld c,'w'

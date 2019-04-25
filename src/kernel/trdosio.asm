@@ -50,6 +50,8 @@ TRDOSFCB=TRDOSFCB+1
 TRDOSFCB.waseof=TRDOSFCB
 	;db 0 ;-1 = waseof
 TRDOSFCB=TRDOSFCB+1
+TRDOSFCB.drive=TRDOSFCB
+	;db 0 ;-1 = waseof
 TRDOSFCB.buf=256;$-TRDOSFCB
 	;ds 256 ;buffer for last sector
 
@@ -176,7 +178,9 @@ openwrite
 nfopen
 ;de=filename
 ;c=mode
+;a=drive 0..3
 	;EXPORT nfopen
+        push af
          push bc
          push de
          ld a,c
@@ -194,7 +198,13 @@ nfopen
 ;TODO check trdos_MAXFILES
 
 	ld [hl],c ;mode in TRDOSFCB
-	inc hl ;poi to fn in TRDOSFCB
+        
+        pop af
+        ld l,TRDOSFCB.drive
+        ld (hl),a
+        call trdossetdrvfromtrdosfcb ;l=0
+	
+        inc hl;ld l,TRDOSFCB.fn ;poi to fn in TRDOSFCB
         
         if 1==1
 ;de=filename
@@ -293,6 +303,13 @@ nfopen_fail
         ;ld a,0xff
         ret
         
+trdossetdrvfromtrdosfcb
+       ld l,TRDOSFCB.drive
+       ld a,(hl)
+       ld (trdoscurdrive),a
+       ld l,0
+       ret
+
 ;closewrite
 	;EXPORT closewrite
 fclose
@@ -303,6 +320,7 @@ fclose
 ;fclose.A.=$+1
 	;EXPORT fclose.A.
 	;ld hl,0 ;poi to TRDOSFCB
+       call trdossetdrvfromtrdosfcb
 	ld a,[hl]
 	ld [hl],l;0
 	cp 'w'
@@ -600,6 +618,9 @@ fread
 ;fread.B.=$+1
 	;EXPORT fread.B.
 	;ld bc,0 ;size
+       ex de,hl
+       call trdossetdrvfromtrdosfcb
+       ex de,hl
         ld (fread00size),bc
 fread00.
         push de
@@ -809,6 +830,9 @@ fwrite
 ;fwrite.B.=$+1
 	;EXPORT fwrite.B.
 	;ld bc,0 ;size
+       ex de,hl
+       call trdossetdrvfromtrdosfcb
+       ex de,hl
         ld (fread00size),bc
 fwrite00.
 	ld a,[hl]
@@ -832,26 +856,6 @@ fwrite00.
 	;jp pe,fwrite0.
 	 ;ex de,hl ;hl = total processed bytes
 	jp fread00q ;ret
-
-        if 1==0
-fputs
-	;EXPORT fputs
-fputs.A.=$+1
-	;EXPORT fputs.A.
-	ld bc,0 ;poi to string
-	jp fputsgo.
-fputs0.
-fputs.B.=$+1
-	;EXPORT fputs.B.
-	ld hl,0 ;poi to TRDOSFCB
-	call fwrite1. ;a=data
-	inc bc
-fputsgo.
-	ld a,[bc]
-	or a
-	jp nz,fputs0.
-	ret ;end of string ;(TODO hl = non-negative value)
-        endif
 
 ;FUNC UINT readsectors FORWARD(PBYTE buf, UINT trsec, BYTE count);
 readsectors
@@ -906,6 +910,34 @@ wrsectors.
         ;pop bc
 	ld c,0x06
 iodos.
+trdoscurdrive=$+1
+        ld a,0
+trdosolddrive=$+1
+        cp 0
+        jr z,iodos_nochdrive
+        ld (trdosolddrive),a
+         ;jr $
+        push bc
+        push de
+        push hl
+        if 1==0
+        ld c,1
+	call dos3d13. ;bug in Evo DOS!
+        ld c,#18
+	call dos3d13.
+        else
+        ;ld (23798),a
+        ; ld (23799),a
+        ;ld (23800),a
+        ;ld (23801),a
+        ld (23833),a
+        or #3c
+        ld (23830),a
+        endif
+        pop hl
+        pop de
+        pop bc
+iodos_nochdrive
         ;ld iy,23610
 	call dos3d13.
         ld hl,(#5cf4);(sysvars+#00f4) ;next sector

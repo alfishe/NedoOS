@@ -32,7 +32,7 @@ mountdrives_fail
         pop de
         inc e
         ld a,e
-        cp 5
+        cp 8;5
         jr nz,mountdrives0
 
 idle_runcmd

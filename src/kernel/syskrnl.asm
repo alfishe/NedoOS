@@ -589,6 +589,25 @@ setkernelpages_go
         ;ld bc,resident_sz
         ;ldir
 
+        if 1==0
+        jr $
+        BDOSSETPGTRDOSFS
+        ld iy,23610
+        ld a,1
+        ld c,1
+        exx
+        ;call dos3d13_resident ;bug in Evo DOS!!!
+        ld c,#18
+        exx
+        call dos3d13_resident
+        ld hl,#c000
+        ld de,#0000
+        ld bc,#0805
+        exx
+        call dos3d13_resident
+        jr $
+        endif
+
         BDOSSETPGTRDOSFS
         call makeidle
 setkernelpages_go_iy
