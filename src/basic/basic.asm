@@ -17,6 +17,7 @@ RUNMODE_PROG=1
 RUNMODE_INTERACTIVE=0
 
         org PROGSTART
+
 cmd_begin
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -41,10 +42,24 @@ cmd_begin
         call skipspaces
         ld a,(hl)
         or a
-        jr z,noautoload
-;command line = "basic <file to load>"
-        call cmd_load_hl
-        jp cmd_run
+        jr z,noautoload ;Нет ключей и имени файла
+;command line = "basic [-t] [-n] [-h] [-v] [file to load]" t - load text file, n - no autorun, h - help, v - version
+        call cmd_line_parse
+        ld a,(cmd_line_h)
+        or a
+        jr nz,show_usage_info
+        ld a,(cmd_line_v)
+        or a
+        jr nz,show_version
+        ld a,(cmd_line_t)
+        or a
+        call z,cmd_load_hl
+        ld a,(cmd_line_t)
+        cp 1
+        call z,cmd_load_text
+        ld a,(cmd_line_n)
+        or a
+        jp z,cmd_run
 noautoload
         
 mainloop
@@ -62,8 +77,21 @@ mainloop
         call add_or_run_line
         
         ld hl,cmdbuf
-        ld (hl),0       
+        ld (hl),0
         jp mainloop
+
+
+show_usage_info
+        ld hl,usage_info
+        call prtext
+        call prcrlf
+        jr cmd_quit
+
+show_version
+        ld hl,VERSION
+        call prtext
+        call prcrlf
+        jr cmd_quit
 
 restorebasicpages
 pg32khigh=$+1
@@ -87,7 +115,7 @@ skipword0
         jr skipword0
 
         
-cmd_quit        
+cmd_quit
         QUIT
 
 endofedit
@@ -113,9 +141,38 @@ fail_or_ok
         call prcrlf
         jr mainloop
 
-terror
-        db "Error!",0
+fail_syntax
+    ld hl,fsyntax
+    call prtext
+    ld hl,wordbuf
+    call prtext
+    call prcrlf
+    jp mainloop
+
+fail_fo
+    ld hl,fopenerror
+    call prtext
+    call prcrlf
+    jp mainloop
+
+
+
+
+VERSION db "Basic interpreter v0.1",0x0d,0x0a,"Nedopc group 2019",0
+
+usage_info
+        db "Use basic.com [-option] [inputfile]",0x0d,0x0a,"Options:",0x0d,0x0a,"-t : Input file in text format",0x0d,0x0a
+        db "-n : Do not autostart inputfile",0x0d,0x0a,"-v : Show version info and quit",0x0d,0x0a
+        db "-h : Show this help",0
         
+
+terror
+        db "Unknown error",0
+        
+fopenerror
+        db "File input/output error",0
+fsyntax
+        db "Syntax error near ",0
 tendofprog
         db "O.K.",0
         
@@ -941,6 +998,49 @@ findvar_str
         or h
         ret
 
+
+
+cmd_line_parse
+;hl= cmd line after basic.com and spaces
+cmd_line_parse_loop
+        ld a,(hl)
+        cp a,"-"
+        ret nz; не ключ, значит возврат
+        inc hl
+        ld a,(hl)
+        cp a,"t"
+        call z, case_key_t
+        cp a,"n"
+        call z, case_key_n
+        cp a,"h"
+        call z, case_key_h
+        cp a,"v"
+        call z, case_key_v
+        inc hl
+        call skipspaces
+        jp cmd_line_parse_loop
+
+case_key_t
+        ld a,1
+        ld (cmd_line_t),a
+        ret
+case_key_n
+        ld a,1
+        ld (cmd_line_n),a
+        ret
+case_key_h
+        ld a,1
+        ld (cmd_line_h),a
+        ret
+case_key_v
+        ld a,1
+        ld (cmd_line_v),a
+        ret
+
+cmd_line_t db 0
+cmd_line_n db 0
+cmd_line_h db 0
+cmd_line_v db 0
 
         ;include "../_sdk/prdword.asm"
         

@@ -15,7 +15,7 @@ getval_function0
         inc hl
         ld a,b
         cp -1
-        jp z,fail ;ret z ;jr z,strcpexec_tryrun ;a!=0: no such internal command
+        jp z,fail_syntax ;ret z ;jr z,strcpexec_tryrun ;a!=0: no such internal command
         ld de,wordbuf
         push hl
         call strcp
@@ -94,7 +94,6 @@ docmd
         exx
         cp csSpace
         jp z,endbreak
-
         call eatword
         ld hl,commandslist ;list of internal commands
 strcpexec0
@@ -104,7 +103,7 @@ strcpexec0
         inc hl
         ld a,b
         cp -1
-        jp z,fail ;ret z ;jr z,strcpexec_tryrun ;a!=0: no such internal command
+        jp z,fail_syntax ;ret z ;jr z,strcpexec_tryrun ;a!=0: no such internal command
         ld de,wordbuf
         push hl
         call strcp
@@ -130,8 +129,8 @@ eat
 eatword
         exx
         ld de,wordbuf
-        call getword
-        call skipspaces
+        call getword ;Ѕерем слово из (HL)-> wordbuf
+        call skipspaces ; в (HL) пропускаем пробелы
         exx
         ret
 
@@ -140,7 +139,7 @@ eatclosebracket
         ld a,(hl)
         exx
         cp ')'
-        jp nz,fail
+        jp nz,fail_syntax
         jp eat
         
 eateq
@@ -148,7 +147,7 @@ eateq
         ld a,(hl)
         exx
         cp '='
-        jp nz,fail
+        jp nz,fail_syntax
         jp eat
         
 eatcomma
@@ -156,7 +155,7 @@ eatcomma
         ld a,(hl)
         exx
         cp ','
-        jp nz,fail
+        jp nz,fail_syntax
         jp eat
         
 cmd_pause
@@ -510,7 +509,7 @@ cmd_system
 ;system "command params"
         call getexpr
         bit 7,c
-        jp z,fail
+        jp z,fail_syntax
         exx
         push hl
         exx
@@ -523,7 +522,7 @@ cmd_system
         ld de,tcmd
         OS_OPENHANDLE
         or a
-        jp nz,fail
+        jp nz,fail_fo
         ld a,b
         ld (cmd_system_handle),a
         OS_NEWAPP
@@ -569,7 +568,7 @@ cmd_system_close_restoredir
         
 close_restoredir_fail
         call cmd_system_close_restoredir
-        jp fail
+        jp fail_fo
 
 popret
         pop af
@@ -630,7 +629,7 @@ cmd_load
 ;load "name.bas"
         call getexpr
         bit 7,c
-        jp z,fail
+        jp z,fail_syntax
         call cmd_load_hl
 ;нельз€ выходить по ret, потому что стара€ программа уничтожена
         jp endofprog
@@ -650,7 +649,7 @@ cmd_load_hl
         OS_OPENHANDLE
 ;b=new file handle
         or a
-        jp nz,fail
+        jp nz,fail_fo
         ld de,progmem
         ld hl,szprogmem
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
@@ -665,12 +664,60 @@ cmd_load_hl
         call cmd_clear
         ret
 
+cmd_load_text
+;hl = wordbuf = filename
+        ;ld de,wordbuf ;de=drive/path/file
+        ex de,hl
+        OS_OPENHANDLE
+;b=new file handle
+        or a
+        jp nz,fail_fo
+
+read_next_str
+        ld de,cmdbuf
+        ld hl,1
+read_fsmb
+;B = file handle, DE = Buffer address, HL = Number of bytes to read
+        push bc
+        push de
+        OS_READHANDLE
+        pop de
+        pop bc
+        ld a,l
+        jp z,endfile ;≈сли не прочитали = конец файла - выходим
+        ld a, (de)
+        cp 0x0A
+        jp z,end_read ; Ќова€ строка определ€етс€ по 0x0A
+        ld a,(de)
+        cp 0x0D 
+        jp z,read_fsmb ; ѕросто проглатываем символ возврата каретки
+        inc de
+        jp read_fsmb
+
+end_read
+        xor a
+        ld (de),a ;ставим терминатор в строку
+        ld hl,cmdbuf 
+        ex hl,de
+        sub hl,de ;вычисл€ем длину строки
+        jp z, read_next_str ; если пуста€ строка читаем следующую
+        ex hl,de ;возвращаем на место hl=cmdbuf
+        push bc ; Ќа вс€кий случай сохран€ем file handle, мало ли чего...
+        call add_or_run_line
+        pop bc
+        jp read_next_str
+
+endfile
+        OS_CLOSEHANDLE
+        call cmd_clear
+        ret
+
 cmd_save
 ;hl'=курсор
 ;save "name.bas"
         call getexpr
         bit 7,c
-        jp z,fail
+        jp z,fail_syntax
         ;exx
         ;ld a,(hl)
         ;exx
@@ -684,16 +731,22 @@ cmd_save
         OS_CREATEHANDLE
 ;b=new file handle
         or a
-        jp nz,fail
+        jp nz,fail_fo
         ld hl,(progend)
         ld de,progmem
         ;or a
         sbc hl,de
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         push bc
+        exx  ; —охран€ем hl' в нем содержитс€ ссылка на продолжение строки команды
+        push hl
+        exx
         OS_WRITEHANDLE
+        exx
+        pop hl
+        exx
         pop bc
-        OS_CLOSEHANDLE        
+        OS_CLOSEHANDLE
         ret
         
 cmd_new
@@ -780,7 +833,7 @@ cmd_for_nocreate
         or l
         or d
         or e
-        jp z,fail
+        jp z,fail_syntax
                
         push hl ;HSW
         push de ;LSW
@@ -830,7 +883,7 @@ cmd_next
         
         ld a,c
         call findvar_index
-        jp z,fail
+        jp z,fail_syntax
         
         push hl
         ld e,(hl)
@@ -914,13 +967,13 @@ cmd_dim
         
         ld a,c
         call findvar_array
-        jp nz,fail ;уже есть така€ переменна€
+        jp nz,fail_syntax ;уже есть така€ переменна€
 
         exx
         ld a,(hl)
         exx
         cp '('
-        jp nz,fail
+        jp nz,fail_syntax
         call eat
         push bc
         call getexpr
@@ -956,11 +1009,11 @@ cmd_edit
         call findline
         ld a,(hl)
         cp d
-        jp nz,fail
+        jp nz,fail_syntax
         inc hl
         ld a,(hl)
         cp e
-        jp nz,fail
+        jp nz,fail_syntax
         ;hl=адрес строки, которую надо вз€ть + 1
         inc hl
         inc hl
@@ -1122,7 +1175,7 @@ cmd_let_array
         call eatclosebracket
         ld a,c
         call findvar_int
-        jp z,fail
+        jp z,fail_syntax
         call indexarray
         push hl ;адрес элемента
         call eateq
@@ -1158,10 +1211,10 @@ cmd_let_str_createq
         ld a,(hl)
         exx
         cp '"'
-        jp nz,fail
+        jp nz,fail_syntax
         
         call readstr ;hl=str, hl'=after num and spaces, CY=error
-        jp c,fail
+        jp c,fail_syntax
         
         ;ld hl,wordbuf
         ;STRPUSH
@@ -1184,10 +1237,10 @@ cmd_let_strarray
         call eateq
         ld a,c
         call findvar_str
-        jp z,fail
+        jp z,fail_syntax
         ld a,d
         or a
-        jp nz,fail ;range check
+        jp nz,fail_syntax ;range check
         add hl,de
         push hl ;addr in str
         call getexpr ;hlde=char
@@ -1316,7 +1369,7 @@ cmd_print_semicolon
 getexpr
 ;out: hlde=value, c=type
         call getaddexpr
-getexpr0        
+getexpr0
         exx
         ld a,(hl)
         exx
@@ -1458,7 +1511,7 @@ getexpr_eq_subr
         
 getaddexpr
         call getmulexpr
-getaddexpr0        
+getaddexpr0
         exx
         ld a,(hl)
         exx
@@ -1510,7 +1563,7 @@ getaddexpr_minus
 
 getmulexpr
         call getval_
-getmulexpr0        
+getmulexpr0
         exx
         ld a,(hl)
         exx
@@ -1746,7 +1799,7 @@ getval_
         call eatspaces
         ld a,c
         call findvar_int
-        jp z,fail
+        jp z,fail_syntax
         ;ld a,c
         ;call getvar_int
         call getint
@@ -1761,7 +1814,7 @@ getval_varstr
         jr z,getval_varchararray        
         ld a,c
         call findvar_str
-        jp z,fail
+        jp z,fail_syntax
         ;ld a,c
         ;call getvar_str
         set 7,c ;ld c,128 ;str
@@ -1774,10 +1827,10 @@ getval_varchararray
         call eatclosebracket
         ld a,c
         call findvar_str
-        jp z,fail
+        jp z,fail_syntax
         ld a,d
         or a
-        jp nz,fail ;range check
+        jp nz,fail_syntax ;range check
         add hl,de
         ld e,(hl)
         ld hl,0
@@ -1792,19 +1845,19 @@ getval_vararray
         call eatclosebracket
         ld a,c
         call findvar_array
-        jp z,fail
+        jp z,fail_syntax
         call indexarray
         call getint
         res 7,c ;ld c,0 ;int
         ret
 getval_num
         call readnum ;hlde=num, hl'=after num and spaces, CY=error
-        jp c,fail
+        jp c,fail_syntax
         res 7,c ;ld c,0 ;int
         ret
 getval_str
         call readstr ;hl=str, hl'=after str and spaces, CY=error
-        jp c,fail
+        jp c,fail_syntax
         set 7,c ;ld c,0 ;str
         ret
 
@@ -1868,7 +1921,7 @@ indexarray
         add hl,bc
         ex de,hl
         pop bc
-        jp nc,fail ;range check
+        jp nc,fail_syntax ;range check
         add hl,de
         add hl,de
         add hl,de
