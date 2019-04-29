@@ -4,7 +4,7 @@
 	#include "syssets.asm"
 	RSEG	CONST
 syspath:
-	defb SYSDRV+'0',":/bin"
+	defb "0:/bin"
 	ENDMOD
 
 	MODULE ERRNOMOD
