@@ -57,7 +57,8 @@ curfilenameaddr=$+1
         
         ;CALL initdepk;Z6629 ;»Ќ»÷»јЋ»«ј÷»я ƒ≈ѕAKEPA
 
-       call GO
+        ld a,'n';'c' ;"create" (not "new") ;new проверено - работает
+       call SELCREA
         ;call depack
         QUIT
 
@@ -188,8 +189,11 @@ minhl_bc_tobc
 SAVEBLOCK
 ;de=bytes to save
 ;hl=addr
+         push bc
         exx
+        push bc
         push de
+        push hl
         exx
         ex af,af'
         push af
@@ -198,14 +202,19 @@ SAVEBLOCK
         ex de,hl
          push ix
         push iy
-        OS_WRITEHANDLE
+tosave=$+1       LD A,0       OR A
+       jr z,SAVEBLOCK_skip        OS_WRITEHANDLE
+SAVEBLOCK_skip
         pop iy
          pop ix
         pop af
         ex af,af'
         exx
+        pop hl
         pop de
+        pop bc
         exx
+         pop bc
         ret
 
 strlen
@@ -281,114 +290,92 @@ savefilehandle=$+1
         pop iy
         ret
         
-;;;
-SAVbeg
-stAD=$+1
-        LD HL,0
-stPG=$+1
-        LD A,0
-        ;BIT 7,H
-        ;JR NZ,$+3
-        ;INC A
-       PUSH AF
-        CALL OUTME
-       POP AF
-        EXA 
-        RET 
-
-SAVE
-;size = SAVErmn*256 (чуть меньше, т.к. учитываем (uNPremn) как мл.байт)
-       CALL SAVbeg
-savePG0
-        LD A,H
-        INC A
-        JR NZ,nRASLOM
-        LD DE,bufstor
-        PUSH DE
-        LD B,A
-        SUB L
-        LD C,A
-       DEC C
-       INC BC
-        LDIR 
-        LD H,#C0
-        EXA 
-        INC A
-       PUSH AF
-        CALL OUTME
-       POP AF
-        EXA 
-        XOR A
-        SUB E
-        JR Z,$+5
-        LD C,A
-        LDIR 
-       DEC H
-        LD A,1
-        JR yRASLOM
-nRASLOM
-        PUSH HL
-        NEG 
-yRASLOM LD E,A
-SAVErmn=$+1
-        LD BC,0;(SAVErmn) ;TODO заполнить
-        LD A,C
-        SUB E
-        LD C,A
-        JR NC,nKON
-        DEC B
-        JP P,nKON
-        ADD A,E
-        LD E,A
-        LD BC,0
-nKON
-        LD (SAVErmn),BC
-        LD A,E
-        ADD A,H
-        LD H,A
-       EX (SP),HL
-       PUSH BC
-;e=number of sectors to save
-;hl=addr
-        if 1==1
-        ld d,e
-        ld e,0
-        ld a,b
-        or c
-        jr nz,SAVE_notlastblock
-        ld a,(uNPremn)
-        or a
-        jr z,SAVE_notlastblock
-        ld e,a
-        dec d
-SAVE_notlastblock
+        
+LBYTE  LD A,LBYTE
+        if 1==0
+                 push de
+        push hl
+        ld hl,bytebuf
+        ld (hl),a
+        ld de,1
+;de=bytes to save
+;hl=addr      
         call SAVEBLOCK
+        pop hl
+         pop de
+        ret
+bytebuf
+        db 0
+
         else
-       
-        LD C,6
-        LD B,E
-        LD DE,(stsec)
-        CALL DOD
-        LD HL,(#5CF4)
-        LD (stsec),HL
+                EXX XBYTE   LD (HL),A       LD A,H        INC L        EXX         RET NZ        EXX         INC H       LD A,HBYTEend=$+1       CP fout/256+2+(svbfsz/256)        EXX         RET CBYTEsv        EXX         PUSH BC        CALL BYTEsPP        POP BC        EXX        IF 0;ramdiskBYTEPG=$+1        LD A,0        JP OUTME       ELSE         RET        ENDIF 
         endif
-        
-       POP BC
-       POP HL
-        LD A,B
-        OR C
-       JR NZ,savePG0
-       ;LD HL,(DEPADR)
-       ;LD (stAD),HL
-       ;LD A,(curPG)
-       ;LD (stPG),A
-        RET 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        
-LBYTE  LD A,LBYTE        EXX XBYTE   LD (HL),A       LD A,H        INC L        EXX         RET NZ        EXX         INC H       LD A,HBYTEend=$+1       CP fout/256+2+(svbfsz/256)        EXX         RET CBYTEsv        EXX         PUSH BC        CALL BYTEsPP        POP BC        EXX        IF 0;ramdiskBYTEPG=$+1        LD A,0        JP OUTME       ELSE         RET        ENDIF BYTEsPP        LD HL,fout+512BYTsPPP       CP H        RET C        RET Z       SUB H        LD B,A        ADD A,E        LD E,A        jr NC,$+3        INC D       PUSH HL        PUSH DE;BYTEsvTS=$+1;        LD DE,0        ;LD C,6tosave=$+1       LD A,0       OR A         jr Z,notosav       ;CALL NZ,DOD
+
+SAVEREWIND
+        push af
+        ;push de
+        ld hl,0
+        ld d,h
+        ld e,l
+        ld a,(savefilehandle)
+        ld b,a
+        OS_SEEKHANDLE
+        ;pop de
+        pop af
+        ret
+
+BYTEsPP_endfile        if 1==1
+;если hl<fout+512, то первые 2 сектора ещЄ не сохранены, надо сохранить сколько есть с адреса fout
+;иначе сохранить hl-(fout+512) с адреса fout+512 (может быть 0)
+        ld de,fout+512
+        ld a,h
+        cp d;+(fout+512)/256
+        jr nc,BYTEsPP_endfile_headsaved
+        ld de,fout
+BYTEsPP_endfile_headsaved
+        or a
+        sbc hl,de
+        ex de,hl
+        ret z
+;de=bytes to save
+;hl=addr
+        jp SAVEBLOCK
+                else
+        DEC HL        INC H        LD A,H        jp BYTEsPP
+        endif
+
+BYTEsPP_startfile
+;сохранить или пропустить первые 2 сектора файла
+;TODO
+        if 1==0
+        LD HL,(SAVE1st)        INC L,L        BIT 4,L        RES 4,L        JR Z,$+3        INC H        LD (BYTEsvTS),HL        endif
+        ret
+
+BYTsPPPfout
+;вызываетс€ перед закрытием outfile
+;de не важно
+;если hl<fout+512, то выход (только что сохранили сколько есть, не надо сохран€ть два раза)
+;иначе сохранить 512 байт с адреса fout
+        ld a,h
+        cp +(fout+512)/256
+        ret c
+        LD HL,fout        jr _BYTsPPP
+        BYTEsPP
+;a=H;первые 2сек.сохран€ютс€ в посл.очередь;чтобы успеть изменить paklen,CRC        LD HL,fout+512 ;begin of fout after sec2_BYTsPPP
+;hl=fout+512 (обычно)/fout (в конце сохранени€)
+;de=(SAVEsz)?       CP H        RET C        RET Z ;первые 2сек.сохран€ютс€ в посл.очередь ;в NedoOS их надо сохран€ть только первый раз! TODO       SUB h;fout/256 ;H ;в NedoOS не можем пропускать первые 2 сектора, всЄ равно сохран€ем        LD B,A ;b=sectors to save        ADD A,E        LD E,A        jr NC,$+3        INC D       PUSH HL        PUSH DE;BYTEsvTS=$+1;        LD DE,0        ;LD C,6;tosave=$+1;       LD A,0;       OR A;         jr Z,notosav       ;CALL NZ,DOD
        
-       ;TODO save 512? bytes (addr=hl)
-               ;LD HL,(#5CF4)        ;LD (BYTEsvTS),HL        POP HL        PUSH HL;+255*#       ;LD A,(ARCNAME+8)      ;CP "r      ;JZ BYsvN0ar       ;SUB 47       ; CP "r"-47       ; jr NC,BYsvN0ar       ;LD C,A       ;ADD A,H       ;LD H,A       ;LD A,L       ;SUB C       ;LD L,A       ;jr NC,$+3       ;DEC H;BYsvN0ar        ;LD DE,#5A41        ;CALL PR88DECnotosav        POP DE       POP HL       LD A,H        RET BLOCK        LD A,(IX)        INC IX        CALL BYTE        DJNZ BLOCK        RET bit0        OR Abit        EXX         RL C        EXX         RET NC       PUSH AF        EXX         LD A,C        LD C,1        CALL XBYTE       POP AF        RET PKNNpp        LD B,(HL)        INC H        LD C,(HL)        INC HPKLHPP        LD L,(HL)        LD H,CPKHLPP        ADD HL,HL        CALL bit        DJNZ $-4        RET PKBDpp        RLA         CALL bit        DJNZ $-4        RET  
+         ;ld hl,fout ;в NedoOS не можем пропускать первые 2 сектора, всЄ равно сохран€ем
+        ld d,b
+        ld e,0
+;de=bytes to save
+;hl=addr
+        call SAVEBLOCK
+               ;LD HL,(#5CF4)        ;LD (BYTEsvTS),HL        ;POP HL        ;PUSH HL;+255*#       ;LD A,(ARCNAME+8)      ;CP "r      ;JZ BYsvN0ar       ;SUB 47       ; CP "r"-47       ; jr NC,BYsvN0ar       ;LD C,A       ;ADD A,H       ;LD H,A       ;LD A,L       ;SUB C       ;LD L,A       ;jr NC,$+3       ;DEC H;BYsvN0ar        ;LD DE,#5A41        ;CALL PR88DEC;notosav        POP DE       POP HL       LD A,H        RET 
+        
+;save b bytes from ix
+;TODO через SAVEBLOCKBLOCK        LD A,(IX)        INC IX        CALL BYTE        DJNZ BLOCK        RET bit0        OR Abit        EXX         RL C        EXX         RET NC       PUSH AF        EXX         LD A,C        LD C,1
+        CALL XBYTE       POP AF        RET PKNNpp        LD B,(HL)        INC H        LD C,(HL)        INC HPKLHPP        LD L,(HL)        LD H,CPKHLPP        ADD HL,HL        CALL bit        DJNZ $-4        RET PKBDpp        RLA         CALL bit        DJNZ $-4        RET  
         
 RDBYTE
         INC LY
@@ -499,7 +486,7 @@ tcrlf
         include "rarhuff.asm"
         
 defaultfilename
-        db "0:/rar/acnews47.rar",0
+        db "4:/nv.ext",0
 
 CURFILE DS namln
 ;;;;;32 bytes rar file headerCRCF    DW 0TYPEF   DB 0FLAGF   DW 0SIZEF   DW 0 ;head size

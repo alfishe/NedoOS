@@ -584,3 +584,17 @@ v0.212.1, 27.04.2019
 * системные страницы тоже расположены с конца памяти
 + добавлен запуск бейсиков с TR-DOS (DimkaM) с дискеты А (пресет 3.5MHz 128K)
 - в TRDOSFS исправлен выбор дисковода через #1, #18 (Savelij13)
+
+v0.r92.1, 29.04.2019
+
++ wget - get name from url, if no name in header (DimkaM)
+- dmm.com - исправил перемаунт trd на scl. добавил проверку размера trd (DimkaM)
++ basic - add cmdline keys (demige):
+ -t input file in text format
+ -n do not autostart input file
+ -v show version info
+ -h show usage info
++ basic - add support fot text input files (demige)
+- basic - cure bug in cmd_save (demige)
+- 3ws исправлен баг с системным драйвом (DimkaM)
++ zxrar теперь умеет создавать пустой архив (больше пока ничего не умеет)

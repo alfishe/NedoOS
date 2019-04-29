@@ -30,6 +30,7 @@ del /s *.r01
 del /s *.s01
 del /s *.lst
 del /s cout.html
+del /s lfiles.txt
 FOR /R . %%i IN (list) DO (
 	if exist %%i (
 		rd %%i

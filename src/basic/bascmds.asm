@@ -684,12 +684,13 @@ read_fsmb
         pop de
         pop bc
         ld a,l
+        or a
         jp z,endfile ;≈сли не прочитали = конец файла - выходим
-        ld a, (de)
+        ld a,(de)
         cp 0x0A
         jp z,end_read ; Ќова€ строка определ€етс€ по 0x0A
         ld a,(de)
-        cp 0x0D 
+        cp 0x0D
         jp z,read_fsmb ; ѕросто проглатываем символ возврата каретки
         inc de
         jp read_fsmb
@@ -698,10 +699,11 @@ end_read
         xor a
         ld (de),a ;ставим терминатор в строку
         ld hl,cmdbuf 
-        ex hl,de
-        sub hl,de ;вычисл€ем длину строки
-        jp z, read_next_str ; если пуста€ строка читаем следующую
-        ex hl,de ;возвращаем на место hl=cmdbuf
+        ex de,hl
+        ;or a
+        sbc hl,de ;вычисл€ем длину строки
+        jp z, read_next_str ; если пуста€ строка, читаем следующую
+        ex de,hl ;возвращаем на место hl=cmdbuf
         push bc ; Ќа вс€кий случай сохран€ем file handle, мало ли чего...
         call add_or_run_line
         pop bc
@@ -709,8 +711,7 @@ end_read
 
 endfile
         OS_CLOSEHANDLE
-        call cmd_clear
-        ret
+        jp cmd_clear
 
 cmd_save
 ;hl'=курсор
@@ -829,7 +830,7 @@ cmd_for_nocreate
         call getexpr ;hlde=step
         pop bc
         
-        ld a, h
+        ld a,h
         or l
         or d
         or e

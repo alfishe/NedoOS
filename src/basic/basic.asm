@@ -1004,17 +1004,17 @@ cmd_line_parse
 ;hl= cmd line after basic.com and spaces
 cmd_line_parse_loop
         ld a,(hl)
-        cp a,"-"
+        cp "-"
         ret nz; не ключ, значит возврат
         inc hl
         ld a,(hl)
-        cp a,"t"
+        cp "t"
         call z, case_key_t
-        cp a,"n"
+        cp "n"
         call z, case_key_n
-        cp a,"h"
+        cp "h"
         call z, case_key_h
-        cp a,"v"
+        cp "v"
         call z, case_key_v
         inc hl
         call skipspaces
