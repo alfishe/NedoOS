@@ -581,7 +581,7 @@ userkernel_sz=$-wasuserkernel
 	;display "wasuserkernel_end=",/d,$
 	;display "userkernel_sz=",/d,userkernel_sz
         ds #4000-$
-        incbin "..\fatfs4os\fatfs.raw"
+        incbin "../fatfs4os/fatfs.raw"
 sysend
 
 	;display "begin=",/d,begin
