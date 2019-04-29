@@ -2,7 +2,30 @@
         ;device pentagon1024
 
         include "../_sdk/syssets.asm"
+TOPDOWNMEM=1
 
+        if atm==3
+memport0000=#37f7
+memport4000=#77f7
+memport8000=#b7f7
+memportc000=#f7f7
+memportrom0000=#3ff7
+memportrom4000=#7ff7
+memportrom8000=#bff7
+memportromc000=#fff7
+pagexor=#ff
+        else
+memport0000=#3ff7
+memport4000=#7ff7
+memport8000=#bff7
+memportc000=#fff7
+memportrom0000=#3ff7
+memportrom4000=#7ff7
+memportrom8000=#bff7
+memportromc000=#fff7
+pagexor=#7f
+        endif
+        
         if NEMOIDE==1
 ;схема Nemo:
 hddstat=#F0
@@ -17,17 +40,6 @@ hdddatlo=#10
 hdddathi=#11
 hddupr=#C8
 hdduprON=0
-
-memport0000=#37f7
-memport4000=#77f7
-memport8000=#b7f7
-memportc000=#f7f7
-memportrom0000=#3ff7
-memportrom4000=#7ff7
-memportrom8000=#bff7
-memportromc000=#fff7
-
-pagexor=#ff
         else
 ;схема ATM:
 hddstat=#FEEF
@@ -44,21 +56,10 @@ hddupr=#FEBE ;при установленном b7 FFBA
 hdduprON=#FFBA
 hddupr1=#F7
 hddupr0=#77
-
-memport0000=#3ff7
-memport4000=#7ff7
-memport8000=#bff7
-memportc000=#fff7
-memportrom0000=#3ff7
-memportrom4000=#7ff7
-memportrom8000=#bff7
-memportromc000=#fff7
-           
-pagexor=#7f
         endif
 memport8000_hi=memport8000/256
 memportc000_hi=memportc000/256
-        
+
 SYSMINSTACK=0x3b00
 
 resident=0x6000;#6000+8000 (где не затрут при очистке экрана) ;pgtrdosfs
@@ -77,25 +78,32 @@ STACK=0x4000 ;userspace
 
         include "../_sdk/sys_h.asm"
 
-pgsys=pagexor-10
-pgfatfs=pagexor-9
+        if TOPDOWNMEM
+pgtrdosfs=pagexor-(sys_npages-1)
+pgfatfs=pagexor-(sys_npages-2)
+pgsys=pagexor-(sys_npages-3)
+        else
 pgtrdosfs=pagexor-8
-pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
+pgfatfs=pagexor-9
+pgsys=pagexor-10
+        endif
 
-pgfirstfree=pagexor-11
+pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
+;pgfirstfree=pagexor-11
 
 pgscr0_0=pagexor-1
 pgscr0_1=pagexor-5
 pgscr1_0=pagexor-3
 pgscr1_1=pagexor-7
 
-COMPILEPG_INIT=0
-COMPILEPG_SYS0=4;10
-COMPILEPG_SYS1=6;11
-
 fd_system=%01010111 ;%0x01sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в #7ffd не будет влиять, если адресация по memportc000
 fd_system_getchar=%01010110 ;%0x01sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в #7ffd не будет влиять, если адресация по memportc000
 fd_user=%01000111 ;%0x00sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в #7ffd не будет влиять, если адресация по memportc000
+
+;условные страницы для sjasm
+COMPILEPG_INIT=0
+COMPILEPG_SYS0=4;10
+COMPILEPG_SYS1=6;11
 
         SLOT 1
         page COMPILEPG_INIT
@@ -284,7 +292,7 @@ fatfspatchaddr=#c000
         ;ei
         ;halt ;чтобы прерывание не произошло когда не надо
         ;di
-
+        ;jr $
 init_oldmousecoords=$+1
         ld hl,0
         ld (sys_oldmousecoords),hl
@@ -408,7 +416,15 @@ shadon_pgsys=$-wasresident+resident
         LD A,e;%10101000 ;320x200 mode
 shadon_pgsys_a=$-wasresident+resident
         CALL sys_SHADON
+         if atm==3
+        ld a,#7f
+        call sys_setpg_low
+        ld a,pgsys
+	ld bc,memport0000
+        jr sys_outca_jr
+         else
         ld a,#7f-(pagexor-pgsys)
+         endif
 sys_setpg_low=$-wasresident+resident
 	ld bc,memportrom0000
         jr sys_outca_jr
@@ -434,7 +450,9 @@ dos3d13_resident=$-wasresident+resident
         ld (dos_sp),sp
         ld sp,TRDOSSTACK ;надо стек в #4000+ (не пересекающийся с INTSTACK, т.к. сейчас может произойти системное прерывание), по умолчанию стек был в #3fxx
         ;call swap_sysvars
+        ex af,af'
         call sys_SHADOFF ;включили ПЗУ
+        ex af,af'
          push de ;e=gfxmode
         exx
 	call 0x3d13

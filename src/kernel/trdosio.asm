@@ -920,9 +920,9 @@ trdosolddrive=$+1
         push bc
         push de
         push hl
-        if 1==0
+        if 1==1
         ld c,1
-	call dos3d13. ;bug in Evo DOS!
+	call dos3d13.
         ld c,#18
 	call dos3d13.
         else

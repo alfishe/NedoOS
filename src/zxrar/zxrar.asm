@@ -14,7 +14,7 @@ TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
 
-frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;TODO почему не работает?kb=0;1kINopt=1border=0unexp=1;0masks=1;v1="0";v2="6";v3="1"
+frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1kb=0;1kINopt=1border=0;hgt=24;wdt=32;em3d13=1;при 1 что-то с памятью в big fileunexp=1;0masks=1;v1="0";v2="6";v3="1"
 COLOR=7
 CURSORCOLOR=0x38
 
@@ -49,8 +49,8 @@ getpgs0
          ld hl,defaultfilename
         ld (curfilenameaddr),hl
         
-;curfilenameaddr=$+1
-;        ld de,0
+curfilenameaddr=$+1
+        ld de,0
 ;        call openstream_file
 ;        or a
 ;        jp nz,openerror
@@ -60,6 +60,8 @@ getpgs0
        call GO
         ;call depack
         QUIT
+
+readerror ;TODO
         
 openerror
 error
@@ -166,11 +168,9 @@ strcopy0
 
 PTABL
         ds 64 ;page numbers, patched
-OUTMEcu LD (curPG),A
-        LD (curPG2),A
-OUTcur  LD A,(curPG)
-OUTME
-        PUSH BC
+OUT0        LD A,16 ;TODOOUTME
+       ;IF ramdisk       ; LD (BYTEPG),A       ;ENDIF 
+OUTNO        PUSH BC
        LD b,PTABL/256       ADD A,PTABL&0xff        LD c,A        LD A,(bc)        SETPG32KHIGH
         POP BC
         RET 
@@ -298,17 +298,6 @@ stPG=$+1
 
 SAVE
 ;size = SAVErmn*256 (чуть меньше, т.к. учитываем (uNPremn) как мл.байт)
-doSAVEk=$+1
-        LD A,0
-        CP "N"
-        JR NZ,NLISTERLAST ;??? TODO
-;LISTERLAST
-       LD HL,(DEPADR)
-       LD (stAD),HL
-       LD A,(curPG)
-       LD (stPG),A
-        RET 
-NLISTERLAST
        CALL SAVbeg
 savePG0
         LD A,H
@@ -341,7 +330,8 @@ nRASLOM
         PUSH HL
         NEG 
 yRASLOM LD E,A
-        LD BC,(SAVErmn)
+SAVErmn=$+1
+        LD BC,0;(SAVErmn) ;TODO заполнить
         LD A,C
         SUB E
         LD C,A
@@ -388,12 +378,17 @@ SAVE_notlastblock
         LD A,B
         OR C
        JR NZ,savePG0
-       LD HL,(DEPADR)
-       LD (stAD),HL
-       LD A,(curPG)
-       LD (stPG),A
+       ;LD HL,(DEPADR)
+       ;LD (stAD),HL
+       ;LD A,(curPG)
+       ;LD (stPG),A
         RET 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        
+LBYTE  LD A,LBYTE        EXX XBYTE   LD (HL),A       LD A,H        INC L        EXX         RET NZ        EXX         INC H       LD A,HBYTEend=$+1       CP fout/256+2+(svbfsz/256)        EXX         RET CBYTEsv        EXX         PUSH BC        CALL BYTEsPP        POP BC        EXX        IF 0;ramdiskBYTEPG=$+1        LD A,0        JP OUTME       ELSE         RET        ENDIF BYTEsPP        LD HL,fout+512BYTsPPP       CP H        RET C        RET Z       SUB H        LD B,A        ADD A,E        LD E,A        jr NC,$+3        INC D       PUSH HL        PUSH DE;BYTEsvTS=$+1;        LD DE,0        ;LD C,6tosave=$+1       LD A,0       OR A         jr Z,notosav       ;CALL NZ,DOD
+       
+       ;TODO save 512? bytes (addr=hl)
+               ;LD HL,(#5CF4)        ;LD (BYTEsvTS),HL        POP HL        PUSH HL;+255*#       ;LD A,(ARCNAME+8)      ;CP "r      ;JZ BYsvN0ar       ;SUB 47       ; CP "r"-47       ; jr NC,BYsvN0ar       ;LD C,A       ;ADD A,H       ;LD H,A       ;LD A,L       ;SUB C       ;LD L,A       ;jr NC,$+3       ;DEC H;BYsvN0ar        ;LD DE,#5A41        ;CALL PR88DECnotosav        POP DE       POP HL       LD A,H        RET BLOCK        LD A,(IX)        INC IX        CALL BYTE        DJNZ BLOCK        RET bit0        OR Abit        EXX         RL C        EXX         RET NC       PUSH AF        EXX         LD A,C        LD C,1        CALL XBYTE       POP AF        RET PKNNpp        LD B,(HL)        INC H        LD C,(HL)        INC HPKLHPP        LD L,(HL)        LD H,CPKHLPP        ADD HL,HL        CALL bit        DJNZ $-4        RET PKBDpp        RLA         CALL bit        DJNZ $-4        RET  
         
 RDBYTE
         INC LY
@@ -472,33 +467,45 @@ prtext
         pop hl
         inc hl
         jr prtext
-        
+
+PRCUR
+PRFN
+PR_B
+PRTEXT
+PRGFX
+PRGFXHL
+NXTLIN
+PRTHI32
+VIEGFX
+CAT2GFX
+PRHEADP
+BEFOPR
+CLS
+        ret
+
+fillmem
+        LD D,H
+        ld E,L        INC DE        LDIR        INC B        RET  
+
 tcrcerror
         db "CRC error"
 tcrlf
         db 13,10,0
 
         include "../_sdk/file.asm"
-        include "rarfile.asm"
-        include "rardepk.asm"
+        include "zxrfile.asm"
+        include "rarpack.asm"
+        include "rarlz.asm"
+        include "rarhuff.asm"
         
 defaultfilename
         db "0:/rar/acnews47.rar",0
-;filename
-;        db "depkfile.fil"
-;        ds filename+256-$ ;для длинных имён
 
-CURFILE DS namln;DESCRIP DS 16 ;TODO убратьCURPOS  DS 4NXTPOS  DS 4
+CURFILE DS namln
 ;;;;;32 bytes rar file headerCRCF    DW 0TYPEF   DB 0FLAGF   DW 0SIZEF   DW 0 ;head size
 ;;^^^7 bytes also form archive footerADDSZF  DS 4 ;packed sizeUNPSIZE DS 4HOSTOS DB 0;NUFILECRC DS 4FTIME   DS 4UNPVER  DB 0METHOD  DB 0NAMSIZE DW 0ATTR    DS 4
 ;;;;;;;;;;;;;;;;;;;EXPTYP  DW 0 ;expected type&FLAGH;CRCLO   DW 0;YEFLAGH DB 0 ;TWICE;1=depk,0=view;FREXPT  DB 0 ;TWICE;FILEZ   DW 0;usable.FileCountERRORS  DW 0;ErrCount;unknown DW 0;NU=0.ExtrFileknown   DB 0 ;NOT unknown.MDCode;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed;CANTCR  DW 0;NU=0!can't create.UserReject;PASWFLG DW 0 ;(password?).TmpPassword;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile;GDEIX   DW 0 ;ArcPtrVOLFLG  DB 0;ArcType,2=volSOLFLG  DB 0;SolidType(1)TSTARES DB 0;ArcFormatvolPKSZ DS 4volUNSZ DS 4pieces  DW 0 ;FileCount;zagol   DW 0;1=загол уже напечuNPremn DS 4;DestUnpSize IF crcCRCArea DS 4 ENDIF CRCA    DW 0 ;TWICE=BUF32TYPEA  DB 0;NUFLAGA   DW 0SIZEA   DW 0_62ae  DW 0;NU_62b0  DW 0;NU_62b2  DW 0;NU ;UnpCRC  DS 4 ;UnpFileCRC;YCOMM   DB 0;UnpVolume.4timesCOMSYM  DB 0
-;        align 256;       IFN kb;SECBUF  DS kb*1024;       ELSE ;SECBUF  DS 256;       ENDIF 
-        ds 0x2000-$ ;DS -$&3
-bd
-ld      DS 298*4 ;должно быть выше 0x4000! TODO
-dd      DS 48*4
-rd      DS 28*4
-OUTNAM  DS namln ;DestFileNamepathbuf
+pathbuf
         ds MAXPATH_sz
 
 oldtimer
@@ -507,6 +514,6 @@ cmd_end
 
         display "Size ",/d,cmd_end-cmd_begin," bytes"
 
-	savebin "unrar.com",cmd_begin,cmd_end-cmd_begin
+	savebin "zxrar.com",cmd_begin,cmd_end-cmd_begin
 	
 	;LABELSLIST "../us/user.l"

@@ -1066,20 +1066,35 @@ BDOS_newpage
         ;ld iy,(appaddr)
 BDOS_newpage_iy
 ;out: a=0 (OK)/#ff (fail), e=page
+       if TOPDOWNMEM
         ld hl,tsys_pages +sys_npages-1
+        ld bc,sys_npages
+        xor a
+        cpdr
+        jr nz,BDOS_fail
+        inc hl
+        ld a,(iy+app.id)
+        ld (hl),a
+        ld a,pagexor;#7f
+        sub c ;c=0..sys_npages-1
+       else
+        ld hl,tsys_pages
         ;push hl
         ld bc,sys_npages
         xor a
-        cpdr;cpir
+        cpir
         ;pop de
         jr nz,BDOS_fail
-        inc hl;dec hl
+        dec hl
         ld a,(iy+app.id)
         ld (hl),a
-        ;or a
-        ;sbc hl,de ;hl=-(0..sys_npages-1)
-        ld a,pagexor;#7f
-        sub c;l ;c=0..sys_npages-1
+         ;or a
+         ;sbc hl,de ;hl=(0..sys_npages-1)
+        ;ld a,pagexor;#7f
+        ;sub l ;l=0..sys_npages-1
+        ld a,0xff&(pagexor-(sys_npages-1))
+        add a,c
+       endif
         ld e,a ;page
 BDOS_OK
         xor a
@@ -2314,10 +2329,20 @@ syspath
 ;для избежания гибернации: не используются страницы ОЗУ 128K
 tsys_pages
         ds 8,#ff ;системные страницы
-        db #ff,#ff,#ff,0,0,0,0,0 ;#08..#0f
+        if TOPDOWNMEM
+        db 0,0,0
+        else
+        db #ff,#ff,#ff
+        endif
+        db 0,0,0,0,0 ;#08..#0f
         db 0,0,0,0,0,0,0,0 ;#10..#17
         db 0,0,0,#ff,#ff,#ff,#ff,#ff ;#18..#1f
-        ds sys_npages-32 ;0=empty, or else process number
+        ds sys_npages-32-3 ;0=empty, or else process number
+        if TOPDOWNMEM
+        db #ff,#ff,#ff
+        else
+        db 0,0,0
+        endif
 
 ;TODO хранить прямо в текстовом экране
 	align 256

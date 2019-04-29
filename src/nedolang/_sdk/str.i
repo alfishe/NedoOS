@@ -1,6 +1,20 @@
 ;_STRLEN=80
 ;_STRMAX=79
 
+strlen
+	EXPORT strlen
+strlen.A.=$+1
+	EXPORT strlen.A.
+	ld hl,0
+        xor a
+        ld b,a
+        ld c,a
+        cpir ;terminator will be found certainly; len=0 gives bc=-1 etc down
+        ld hl,-1
+        ;or a
+        sbc hl,bc
+        ret
+
 strcopy
 	EXPORT strcopy
 strcopy.A.=$+1

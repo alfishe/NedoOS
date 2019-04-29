@@ -66,8 +66,8 @@ nedotrd test.trd -a nedolang/_sdk/io_os.i
 nedotrd test.trd -a _sdk/sysdefs.asm
 
 nedotrd test.trd -a basic/example.bas
-nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
-nedotrd test.trd -a player/coco.pt2
+rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
+rem nedotrd test.trd -a player/coco.pt2
 rem nedotrd test.trd -a browser/test/index.htm
 rem nedotrd test.trd -a browser/test/page.htm
 rem nedotrd test.trd -a browser/test/atmmain.htm
@@ -94,7 +94,7 @@ rem nedotrd test.trd -a browser/test/basn0g02.png
 rem nedotrd test.trd -a browser/test/basn0g04.png
 rem nedotrd test.trd -a browser/test/basi0g16.png
 rem nedotrd test.trd -a pkunzip/pkunzip.zip
-nedotrd test.trd -a modplay/scalsfjy.mod
+rem nedotrd test.trd -a modplay/scalsfjy.mod
 
 for %%i in (%releasedir%\doc\*.*) do (
     nedotrd test.trd -a %%i

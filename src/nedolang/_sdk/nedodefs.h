@@ -33,6 +33,7 @@
 //#define PFLOAT FLOAT*
 //#define POINTER intptr_t
 //#define PPROC void*
+//#define PPOI void**
 #define EXTERN extern
 #define FORWARD /**/
 #define FUNC /**/
@@ -102,7 +103,7 @@ PROC writefout(BYTE c)
 
 FUNC PBYTE nfopen(PCHAR s, PCHAR mode)
 {
-UINT i;
+/**UINT i;
 CHAR __fn[256];
   i = 0;
   WHILE (s[i] != '\0') {
@@ -113,8 +114,8 @@ CHAR __fn[256];
     };
     INC i;
   };
-  __fn[i] = '\0';
-  RETURN (PBYTE)fopen(__fn, mode);
+  __fn[i] = '\0';*/
+  RETURN (PBYTE)fopen(s/**__fn*/, mode);
 }
 
 FUNC PBYTE openwrite(PCHAR s)

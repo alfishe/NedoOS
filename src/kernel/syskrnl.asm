@@ -596,7 +596,7 @@ setkernelpages_go
         ld a,1
         ld c,1
         exx
-        ;call dos3d13_resident ;bug in Evo DOS!!!
+        call dos3d13_resident
         ld c,#18
         exx
         call dos3d13_resident

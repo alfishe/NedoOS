@@ -1,11 +1,20 @@
 #include "../_sdk/str.h"
 
-FUNC UINT strjoin(PCHAR to, UINT tolen, PCHAR s2/**, UINT s2len*/) //длина без терминатора!
+FUNC UINT strlen(PCHAR s)
+{ 
+VAR UINT len = 0;
+  WHILE (s[len] != 0x00) {
+    INC len;
+  };
+  RETURN len;
+} 
+
+FUNC UINT strjoin(PCHAR to, UINT tolen, PCHAR s2) //len without terminator!
 { //to = to + s2;
 VAR UINT len;
 VAR CHAR c;
   to = &to[tolen/**+_FIRST*/];
-  len = tolen; //длина без терминатора!
+  len = tolen; //len without terminator!
   loop: //REPEAT {
     c = *(PCHAR)s2;
     IF ((c == '\0') || (len>=_STRMAX)) goto endloop; //BREAK; //терминатор не копируется
@@ -15,15 +24,15 @@ VAR CHAR c;
     INC len;
   goto loop; //}UNTIL ( (c=='\0') || (len>=_STRMAX) ); //терминатор не копируется
   endloop:
-  RETURN len; //длина без терминатора!
+  RETURN len; //len without terminator!
 }
 
-FUNC UINT strjoineol(PCHAR to, UINT tolen, PCHAR s2/**, UINT s2len*/, CHAR eol) //длина без терминатора!
+FUNC UINT strjoineol(PCHAR to, UINT tolen, PCHAR s2, CHAR eol) //len without terminator!
 { //to = to + s2;
 VAR UINT len;
 VAR CHAR c;
   to = &to[tolen/**+_FIRST*/];
-  len = tolen; //длина без терминатора!
+  len = tolen; //len without terminator!
   loop: //REPEAT {
     c = *(PCHAR)s2;
     IF ((c == eol) || (len>=_STRMAX)) goto endloop; //BREAK; //терминатор не копируется
@@ -33,7 +42,7 @@ VAR CHAR c;
     INC len;
   goto loop; //}UNTIL ( (c==eol) || (len>=_STRMAX) ); //терминатор не копируется
   endloop:
-  RETURN len; //длина без терминатора!
+  RETURN len; //len without terminator!
 }
 
 FUNC UINT strcopy(PCHAR from, UINT len, PCHAR to) //длина без терминатора!
@@ -102,7 +111,7 @@ FUNC UINT strclear(PCHAR s)
   RETURN 0; //длина без терминатора!
 }
 */
-FUNC UINT stradd(PCHAR s, UINT len, CHAR c) //длина без терминатора!
+FUNC UINT stradd(PCHAR s, UINT len, CHAR c) //len without terminator!
 { //s = s + c;
   IF (len < _STRMAX) {
     //POKE *(PCHAR)(+(POINTER)(s) + +(POINTER)(len) + +(POINTER)(_FIRST)) = c;
@@ -118,7 +127,7 @@ FUNC UINT stradd(PCHAR s, UINT len, CHAR c) //длина без терминатора!
 //  s[len/**+_FIRST*/] = '\0'; //терминатор
 //}
 
-//FUNC UINT strcopy(PCHAR from, UINT len, PCHAR to) //длина без терминатора!
+//FUNC UINT strcopy(PCHAR from, UINT len, PCHAR to) //len without terminator!
 //{
 //  RETURN strjoin(to, 0/**strclear(to)*/, from); //tolen;
 //}
@@ -141,7 +150,7 @@ VAR CHAR c;
 }
 */
 
-FUNC BOOL strcplow(PCHAR s1/**, UINT s1len*/, PCHAR s2)
+FUNC BOOL strcplow(PCHAR s1, PCHAR s2)
 {
 VAR UINT i;
 VAR CHAR c1;

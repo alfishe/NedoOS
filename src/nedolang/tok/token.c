@@ -10,6 +10,7 @@ VAR UINT _curlnbeg; //номер строки на момент начала токена //для read, emit
 VAR BOOL _cmts; //для read, emit
 
 CONST BOOL _isalphanum[256];
+VAR CHAR txt_low[10];
 
 EXTERN PCHAR _tword; //текущее слово
 EXTERN UINT _lentword;
@@ -214,7 +215,7 @@ VAR PBYTE calladdr;
     };
   };
   tokerrcmd(); //not found
-  e: //RETURN res;
+  e: ; //RETURN res;
 //asmtoken(0xfd);
 }
 
@@ -248,25 +249,25 @@ VAR PBYTE plbl;
   //INC _toklblcount;
 }
 
-PROC stringdecapitalize(PCHAR s)
+PROC stringdecapitalize(PCHAR s1, PCHAR s2)
 {
 VAR CHAR c;
   loop:
-    c = *(PCHAR)s;
-    IF (c == (CHAR)0x00) goto quit;
+    c = *(PCHAR)s1;
     IF (((BYTE)c>=(BYTE)'A') && ((BYTE)c<=(BYTE)'Z')) {
-      POKE *(PCHAR)(s) = (CHAR)((BYTE)c | 0x20);
+      c = (CHAR)((BYTE)c | 0x20);
     };
-    INC s;
-  goto loop;
-  quit:
+    POKE *(PCHAR)(s2) = c;
+    INC s1;
+    INC s2;
+    IF (c != (CHAR)0x00) goto loop;
 }
 
 PROC tokaddlbl(PCHAR txt, PBYTE proc, BYTE data)
 {
   tokaddlbl1(txt, proc, data);
-  stringdecapitalize(txt);
-  tokaddlbl1(txt, proc, data);
+  stringdecapitalize(txt, txt_low);
+  tokaddlbl1(txt_low, proc, data);
 }
 
 //////////////////////////////////////
