@@ -14,7 +14,7 @@ IF NOT EXIST %ICCZ80%.exe (
 rem echo Build "%PRJNAME%"
 
 if not exist list mkdir list
-if exist list\lfiles.txt del list\lfiles.txt
+if exist list\lfiles.lnk del list\lfiles.lnk
 IF "%PRJDEBUG%"=="1" (
 	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%\clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
 	set C_OPTIONS=-v0 -ml -r -uu -q -e -K -gA -t4 -Llist\ -Olist\ -Alist\ -I%IARINC% -I%currentdir%\_sdk\
@@ -25,13 +25,13 @@ IF "%PRJDEBUG%"=="1" (
 
 
 FOR %%f IN (%C_FILES%) do (
-	echo %%~nf.r01 >> list\lfiles.txt
+	echo %%~nf.r01 >> list\lfiles.lnk
 	%ICCZ80% %C_OPTIONS% %%f 
 )
 
 FOR %%f IN (%ASM_FILES%) do (
-	echo %%~nf.r01 >> list\lfiles.txt
+	echo %%~nf.r01 >> list\lfiles.lnk
 	%AZ80% -S -Olist\ %%f -I%currentdir%\_sdk\
 )
 
-%XLINK% -f list\lfiles.txt %LINK_OPTIONS%
+%XLINK% -f list\lfiles.lnk %LINK_OPTIONS%
