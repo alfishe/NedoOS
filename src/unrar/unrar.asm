@@ -77,7 +77,7 @@ copyname83_0
         inc hl
         or a
         jr z,copyname83_q
-        cp '\'
+        cp 0x5c;'\'
         jr z,copyname83_endelement
         cp '/'
         jr z,copyname83_endelement
@@ -92,7 +92,7 @@ copyname83_skipname0
         inc hl
         or a
         jr z,copyname83_q
-        cp '\'
+        cp 0x5c;'\'
         jr z,copyname83_endelement
         cp '/'
         jr z,copyname83_endelement
@@ -107,7 +107,7 @@ copyname83_ext0
         inc hl
         or a
         jr z,copyname83_q
-        cp '\'
+        cp 0x5c;'\'
         jr z,copyname83_endelement
         cp '/'
         jr z,copyname83_endelement
@@ -121,7 +121,7 @@ copyname83_skipext0
         inc hl
         or a
         jr z,copyname83_q
-        cp '\'
+        cp 0x5c;'\'
         jr z,copyname83_endelement
         cp '/'
         jr nz,copyname83_skipext0

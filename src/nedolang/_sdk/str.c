@@ -1,13 +1,13 @@
 #include "../_sdk/str.h"
 
-FUNC UINT strlen(PCHAR s)
+/*FUNC UINT strlen(PCHAR s)
 { 
 VAR UINT len = 0;
   WHILE (s[len] != 0x00) {
     INC len;
   };
   RETURN len;
-} 
+} */
 
 FUNC UINT strjoin(PCHAR to, UINT tolen, PCHAR s2) //len without terminator!
 { //to = to + s2;

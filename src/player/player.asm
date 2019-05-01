@@ -37,6 +37,8 @@ cmd_begin
         OS_CLOSEHANDLE
         
 	ld a,(module)
+        cp 'V'
+        jr z,$+4
 	cp 'P' ;'P'/'V' for PT3
 	ld a,%00100000 ;PT3
 	jr z,$+4
