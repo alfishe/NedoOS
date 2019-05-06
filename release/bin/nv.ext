@@ -5,7 +5,7 @@ gif,jpg,png,htm:browser.com
 pt2,pt3,m  :player.com
 bas:basic.com
 zip,gz :pkunzip.com
-trd,scl,fdi:dmm.com
+trd,scl,fdi,tap:dmm.com
 scr,fnt,img,3  ,888,y  ,+  ,-  ,plc,mc ,mcx,grf,ch$,mg1,mg2,mg4,mg8,rm :view.com
 mod:modplay.com
 tar:tar.com
