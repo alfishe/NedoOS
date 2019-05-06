@@ -22,12 +22,12 @@ typedef struct {
 	unsigned char recordcount;
 	unsigned long fsize;	
 	unsigned int  ftime;	
-	unsigned int  ffsfcb;			/* trdosfcb РёР»Рё fil */
-	unsigned int  dirpos;			/* РїСЂРёРІВ¤Р·РєР° Рє С‚РѕС‡РєРµ РїРѕРёСЃРєР° */
+	unsigned int  ffsfcb;			/* trdosfcb или fil */
+	unsigned int  dirpos;			/* прив¤зка к точке поиска */
 	unsigned int  reserv;
 	unsigned int  recordsize;		/* must be 128 */
 	unsigned int  fdate;
-	unsigned char frecord;			/*РЅРѕРјРµСЂ Р·Р°РїРёСЃРё РІРЅСѓС‚СЂРё СЌРєСЃС‚РµРЅС‚Р°*/
+	unsigned char frecord;			/*номер записи внутри экстента*/
 } FCB;
 
 FILE		 	OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
@@ -45,6 +45,9 @@ unsigned char	OS_MKDIR(unsigned char * path);
 unsigned char	OS_DELETE(unsigned char * path);
 void			OS_SETSYSDRV(void);
 void exit(int e);
+unsigned char scrredraw(void);	//если приложение реагирует на событие redraw, 
+								//то необходимо определить свою функцию scrredraw
+								//возвращает подмененную кнопку, обычно 0x00
 
 typedef signed char SOCKET;
 struct in_addr {

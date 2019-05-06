@@ -427,8 +427,14 @@ get_cmd_args_l
 	jr nz,get_cmd_args_l
 	xor a
 	ld (de),a
+skipspaces
 	inc de
-	jr get_cmd_args_l2
+	ld a,(de)
+	or a
+	jr z,get_cmd_args_end
+	cp ' '
+	jr nz,get_cmd_args_l2
+	jr skipspaces
 get_cmd_args_end:
 	ld bc,args
 	sbc hl,bc
