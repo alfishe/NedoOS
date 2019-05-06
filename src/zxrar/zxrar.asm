@@ -7,18 +7,19 @@
         CALL Z,RDBYH
        ENDM 
 
-INITIALMEMPAGES=32;6
-       
+INITIALMEMPAGES=24;32;6
+
 STACK=0x4000
-TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
 
-frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1kb=0;1kINopt=1border=0;hgt=24;wdt=32;em3d13=1;при 1 что-то с памятью в big fileunexp=1;0masks=1;v1="0";v2="6";v3="1"
+crc=1;0
+
 COLOR=7
 CURSORCOLOR=0x38
 
-namln=MAXPATH_sz;100 ;#FATHEEND=#c000;#8000;#C000CODETOP=#7D00 ;константа-максимум,используется только в DISPLAYs8=#7D00;#5B00 ;sysTAB44=#5B00;#7A3D ;#7F00 нельзя (bufstor)stBUF=#7E00;#5800 ;TODO;sec=stBUF      ;dirbufstor=THEEND-256
+namln=MAXPATH_sz;100 ;#FA
+
         org PROGSTART
 cmd_begin
         ld sp,STACK
@@ -29,7 +30,7 @@ cmd_begin
         ;OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld hl,PTABL
-        ld b,64 ;TODO меньше для ATM2
+        ld b,INITIALMEMPAGES;64 ;TODO меньше для ATM2
 getpgs0
         push bc
         push hl
@@ -170,12 +171,96 @@ strcopy0
 
 PTABL
         ds 64 ;page numbers, patched
-OUT0        LD A,16 ;TODOOUTME
-       ;IF ramdisk       ; LD (BYTEPG),A       ;ENDIF 
-OUTNO        PUSH BC
-       LD b,PTABL/256       ADD A,PTABL&0xff        LD c,A        LD A,(bc)        SETPG32KHIGH
+
+OUT0
+        LD A,16 ;TODO
+OUTME
+       ;IF ramdisk
+       ; LD (BYTEPG),A
+       ;ENDIF 
+OUTNO
+        PUSH BC
+       LD b,PTABL/256
+       ADD A,PTABL&0xff
+        LD c,A
+        LD A,(bc)
+        SETPG32KHIGH
         POP BC
         RET 
+
+mktcrc
+        XOR A
+        LD L,A
+MKTCRC0 EXX 
+        LD C,0
+        LD H,C
+        ld L,C
+        ld D,C
+        ld E,A
+        EXA 
+        CALL crcpp
+        EXA 
+         PUSH HL
+	 push DE
+        EXX 
+        LD H,TCRC/256
+         POP DE
+        LD (HL),E
+        INC H
+        LD (HL),D
+        INC H
+         POP DE
+        LD (HL),E
+        INC H
+        LD (HL),D
+        INC L
+        INC A
+        JR NZ,MKTCRC0
+	ret
+
+gencrc
+       LD A,(THEADON)
+CPn=$+1
+       CP "n"
+       JR NZ,NCRC
+        PUSH HL
+        POP IX
+CURCRC=$+1
+        LD DE,0
+CURCRC2=$+1
+        LD HL,0
+         CALL INVCRC
+FCRC0    PUSH BC
+        LD B,H
+        ld C,L
+         LD A,E
+         XOR (IX)
+         LD L,A
+        LD H,TCRC/256
+         LD A,(HL)
+         XOR D
+         LD E,A
+         INC H
+         LD A,(HL)
+        XOR C
+         LD D,A
+         INC H
+         LD A,(HL)
+        XOR B
+         INC H
+         LD H,(HL)
+         ld L,A
+         POP BC
+         INC IX
+         DEC BC
+         LD A,B
+         OR C
+         JR NZ,FCRC0
+         CALL INVCRC
+        LD (CURCRC),DE
+        LD (CURCRC2),HL
+NCRC
+	ret
 
 minhl_bc_tobc
         or a
@@ -203,8 +288,11 @@ SAVEBLOCK
         ex de,hl
          push ix
         push iy
-tosave=$+1       LD A,1;0       OR A
-       jr z,SAVEBLOCK_skip        OS_WRITEHANDLE
+tosave=$+1
+       LD A,1;0
+       OR A
+       jr z,SAVEBLOCK_skip
+        OS_WRITEHANDLE
 SAVEBLOCK_skip
         pop iy
          pop ix
@@ -234,7 +322,8 @@ SAVECREATE
 
 ;сформировать filename 8.3 (во всех элементах):
         ld hl,OUTNAM;Z664A
-        ld de,OUTNAM;filename        ;call strcopy
+        ld de,OUTNAM;filename
+        ;call strcopy
         call copyname83 ;заодно перекодирует слэш в /
 ;TODO если нет такой директории, то create directory (например, "md scr/1" без слеша в конце):
 
@@ -292,9 +381,11 @@ savefilehandle=$+1
         ret
         
         
-LBYTE  LD A,LBYTE
+LBYTE  LD A,L
+BYTE
         if 1==0
-         ;push af         push de
+         ;push af
+         push de
         push hl
         ld hl,bytebuf
         ld (hl),a
@@ -310,7 +401,41 @@ bytebuf
         db 0
 
         else
-                EXX XBYTE   LD (HL),A       LD A,H        INC L        EXX         RET NZ        EXX         INC H       LD A,HBYTEend=$+1       CP fout/256+2+(svbfsz/256)        EXX         RET CBYTEsv        EXX         PUSH BC        CALL BYTEsPP        POP BC        EXX        IF 0;ramdiskBYTEPG=$+1        LD A,0        JP OUTME       ELSE         RET        ENDIF 
+        
+        EXX 
+XBYTE   LD (HL),A
+
+	 push hl
+	 ld hl,paksz
+	 inc (hl)
+	 inc hl
+	 jr z,$-2
+	 pop hl ;TODO обновлять только при сохранении блока, в конце и в начале сохранять неполный блок?
+
+       LD A,H
+        INC L
+        EXX 
+        RET NZ
+        EXX 
+        INC H
+       LD A,H
+BYTEend=$+1
+       CP fout/256+2+(svbfsz/256)
+        EXX 
+        RET C
+BYTEsv
+        EXX 
+        PUSH BC
+        CALL BYTEsPP
+        POP BC
+        EXX 
+       IF 0;ramdisk
+BYTEPG=$+1
+        LD A,0
+        JP OUTME
+       ELSE 
+        RET 
+       ENDIF 
         endif
 
 SAVEREWIND
@@ -326,7 +451,8 @@ SAVEREWIND
         pop af
         ret
 
-BYTEsPP_endfile        if 1==1
+BYTEsPP_endfile
+        if 1==1
 ;;если hl<fout+512, то первые 2 сектора ещё не сохранены, надо сохранить сколько есть с адреса fout
 ;;иначе сохранить hl-(fout+512) с адреса fout+512 (может быть 0)
 ;        ld de,fout+512
@@ -343,16 +469,28 @@ BYTEsPP_endfile        if 1==1
 ;de=bytes to save
 ;hl=addr
         jp SAVEBLOCK
-                else
-        DEC HL        INC H        LD A,H        jp BYTEsPP
+        
+        else
+        DEC HL
+        INC H
+        LD A,H
+        jp BYTEsPP
         endif
 
 BYTEsPP_startfile
 ;сохранить или пропустить первые 2 сектора файла
         if 1==1
         LD HL,fout ;begin of fout after sec2
-        ld (BYTEsPP_hl),hl        else
-        LD HL,(SAVE1st)        INC L,L        BIT 4,L        RES 4,L        JR Z,$+3        INC H        LD (BYTEsvTS),HL        endif
+        ld (BYTEsPP_hl),hl
+        else
+        LD HL,(SAVE1st)
+        INC L,L
+        BIT 4,L
+        RES 4,L
+        JR Z,$+3
+        INC H
+        LD (BYTEsvTS),HL
+        endif
         ret
 
 BYTsPPPfout
@@ -363,13 +501,37 @@ BYTsPPPfout
         ld a,h
         cp +(fout+512)/256
         ret c
-        LD HL,fout        jr _BYTsPPP
-        BYTEsPP
-;a=H;первые 2сек.сохраняются в посл.очередь;чтобы успеть изменить paklen,CRC
-BYTEsPP_hl=$+1 ;TODO init        LD HL,fout ;begin of fout (initially) / begin of fount after sec2 (after first save)
+        LD HL,fout
+        jr _BYTsPPP
+        
+BYTEsPP
+;a=H
+;первые 2сек.сохраняются в посл.очередь
+;чтобы успеть изменить paklen,CRC
+BYTEsPP_hl=$+1 ;TODO init
+        LD HL,fout ;begin of fout (initially) / begin of fount after sec2 (after first save)
 _BYTsPPP
 ;hl=fout+512 (обычно)/fout (в начале и в конце сохранения)
-;de=(SAVEsz) in sectors       CP H        RET C        RET Z ;первые 2сек.сохраняются в посл.очередь ;в NedoOS их надо сохранять только первый раз!       SUB h;fout/256 ;H ;в NedoOS не можем пропускать первые 2 сектора, всё равно сохраняем        LD B,A ;b=sectors to save        ADD A,E        LD E,A        jr NC,$+3        INC D       PUSH HL        PUSH DE;BYTEsvTS=$+1;        LD DE,0        ;LD C,6;tosave=$+1;       LD A,0;       OR A;         jr Z,notosav       ;CALL NZ,DOD
+;de=(SAVEsz) in sectors
+       CP H
+        RET C
+        RET Z ;первые 2сек.сохраняются в посл.очередь ;в NedoOS их надо сохранять только первый раз!
+       SUB h;fout/256 ;H ;в NedoOS не можем пропускать первые 2 сектора, всё равно сохраняем
+        LD B,A ;b=sectors to save
+        ADD A,E
+        LD E,A
+        jr NC,$+3
+        INC D
+       PUSH HL
+        PUSH DE
+;BYTEsvTS=$+1
+;        LD DE,0
+        ;LD C,6
+;tosave=$+1
+;       LD A,0
+;       OR A
+;         jr Z,notosav
+       ;CALL NZ,DOD
          ;ld hl,fout ;в NedoOS не можем пропускать первые 2 сектора, всё равно сохраняем
         ld d,b
         ld e,0
@@ -378,13 +540,80 @@ _BYTsPPP
         call SAVEBLOCK
         ;call SAVECLOSE
         ;QUIT
-               LD HL,fout+512 ;begin of fout after sec2
-        ld (BYTEsPP_hl),hl        ;LD HL,(#5CF4)        ;LD (BYTEsvTS),HL        ;POP HL        ;PUSH HL;+255*#       ;LD A,(ARCNAME+8)      ;CP "r      ;JZ BYsvN0ar       ;SUB 47       ; CP "r"-47       ; jr NC,BYsvN0ar       ;LD C,A       ;ADD A,H       ;LD H,A       ;LD A,L       ;SUB C       ;LD L,A       ;jr NC,$+3       ;DEC H;BYsvN0ar        ;LD DE,#5A41        ;CALL PR88DEC;notosav        POP DE       POP HL       LD A,H        RET 
+       
+        LD HL,fout+512 ;begin of fout after sec2
+        ld (BYTEsPP_hl),hl
+        ;LD HL,(#5CF4)
+        ;LD (BYTEsvTS),HL
+        ;POP HL
+        ;PUSH HL
+;+255*#
+       ;LD A,(ARCNAME+8)
+      ;CP "r
+      ;JZ BYsvN0ar
+       ;SUB 47
+       ; CP "r"-47
+       ; jr NC,BYsvN0ar
+       ;LD C,A
+       ;ADD A,H
+       ;LD H,A
+       ;LD A,L
+       ;SUB C
+       ;LD L,A
+       ;jr NC,$+3
+       ;DEC H
+;BYsvN0ar
+        ;LD DE,#5A41
+        ;CALL PR88DEC
+;notosav
+        POP DE
+       POP HL
+       LD A,H
+        RET 
+
         
 ;save b bytes from ix
-;TODO через SAVEBLOCKBLOCK        LD A,(IX)        INC IX        CALL BYTE        DJNZ BLOCK        RET bit0        OR Abit        EXX         RL C        EXX         RET NC       PUSH AF        EXX         LD A,C        LD C,1
-        CALL XBYTE       POP AF        RET PKNNpp
-;пишем код Хаффмана (в hl через 256: длина, HSB, LSB) - пишем старшие биты        LD B,(HL)        INC H        LD C,(HL)        INC HPKLHPP        LD L,(HL)        LD H,CPKHLPP        ADD HL,HL        CALL bit        DJNZ $-4        RET PKBDpp        RLA         CALL bit        DJNZ $-4        RET  
+;TODO через SAVEBLOCK
+BLOCK
+        LD A,(IX)
+        INC IX
+        CALL BYTE
+        DJNZ BLOCK
+        RET 
+bit0
+        OR A
+bit
+        EXX 
+        RL C
+        EXX 
+        RET NC
+       PUSH AF
+        EXX 
+        LD A,C
+        LD C,1
+        CALL XBYTE
+       POP AF
+        RET 
+
+PKNNpp
+;пишем код Хаффмана (в hl через 256: длина, HSB, LSB) - пишем старшие биты
+        LD B,(HL)
+        INC H
+        LD C,(HL)
+        INC H
+PKLHPP
+        LD L,(HL)
+        LD H,C
+PKHLPP
+        ADD HL,HL
+        CALL bit
+        DJNZ $-4
+        RET 
+PKBDpp
+        RLA 
+        CALL bit
+        DJNZ $-4
+        RET  
         
 RDBYTE
         INC LY
@@ -464,6 +693,35 @@ prtext
         inc hl
         jr prtext
 
+PR1234
+	ld a,'.'
+prchar
+	push bc
+	push de
+	push hl
+	exx
+	ex af,af'
+	push af
+	push bc
+	push de
+	push hl
+	push ix
+	push iy
+	ex af,af'
+	PRCHAR
+	pop iy
+	pop ix
+	pop hl
+	pop de
+	pop bc
+	pop af
+	exx
+	ex af,af'
+	pop hl
+	pop de
+	pop bc
+	ret
+
 PRCUR
 PRFN
 PR_B
@@ -481,10 +739,14 @@ CLS
 
 fillmem
         LD D,H
-        ld E,L        INC DE        LDIR        INC B        RET  
+        ld E,L
+        INC DE
+        LDIR 
+       INC B
+        RET  
 
-tcrcerror
-        db "CRC error"
+tadded
+	db " added"
 tcrlf
         db 13,10,0
 
@@ -498,15 +760,71 @@ defaultfilename
         db "4:/emit.c",0
         ;db "4:/nv.ext",0
 
-CURFILE DS namln
-;;;;;32 bytes rar file headerCRCF    DW 0TYPEF   DB 0FLAGF   DW 0SIZEF   DW 0 ;head size
-;;^^^7 bytes also form archive footerADDSZF  DS 4 ;packed sizeUNPSIZE DS 4HOSTOS DB 0;NUFILECRC DS 4FTIME   DS 4UNPVER  DB 0METHOD  DB 0NAMSIZE DW 0ATTR    DS 4
-;;;;;;;;;;;;;;;;;;;EXPTYP  DW 0 ;expected type&FLAGH;CRCLO   DW 0;YEFLAGH DB 0 ;TWICE;1=depk,0=view;FREXPT  DB 0 ;TWICE;FILEZ   DW 0;usable.FileCountERRORS  DW 0;ErrCount;unknown DW 0;NU=0.ExtrFileknown   DB 0 ;NOT unknown.MDCode;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed;CANTCR  DW 0;NU=0!can't create.UserReject;PASWFLG DW 0 ;(password?).TmpPassword;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile;GDEIX   DW 0 ;ArcPtrVOLFLG  DB 0;ArcType,2=volSOLFLG  DB 0;SolidType(1)TSTARES DB 0;ArcFormatvolPKSZ DS 4volUNSZ DS 4pieces  DW 0 ;FileCount;zagol   DW 0;1=загол уже напечuNPremn DS 4;DestUnpSize IF crcCRCArea DS 4 ENDIF CRCA    DW 0 ;TWICE=BUF32TYPEA  DB 0;NUFLAGA   DW 0SIZEA   DW 0_62ae  DW 0;NU_62b0  DW 0;NU_62b2  DW 0;NU ;UnpCRC  DS 4 ;UnpFileCRC;YCOMM   DB 0;UnpVolume.4timesCOMSYM  DB 0
+CURFILE DS namln
+
+
+;;;;;32 bytes rar file header
+CRCF    DW 0
+TYPEF   DB 0
+FLAGF   DW 0
+SIZEF   DW 0 ;head size
+;;^^^7 bytes also form archive footer
+ADDSZF  DS 4 ;packed size
+
+UNPSIZE DS 4
+HOSTOS DB 0;NU
+FILECRC DS 4
+FTIME   DS 4
+UNPVER  DB 0
+METHOD  DB 0
+NAMSIZE DW 0
+ATTR    DS 4
+;;;;;;;;;;;;;;;;;;;
+
+EXPTYP  DW 0 ;expected type&FLAGH
+;CRCLO   DW 0
+;YEFLAGH DB 0 ;TWICE;1=depk,0=view
+;FREXPT  DB 0 ;TWICE
+;FILEZ   DW 0;usable.FileCount
+ERRORS  DW 0;ErrCount
+;unknown DW 0;NU=0.ExtrFile
+known   DB 0 ;NOT unknown.MDCode
+;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed
+;CANTCR  DW 0;NU=0!can't create.UserReject
+;PASWFLG DW 0 ;(password?).TmpPassword
+;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile
+;GDEIX   DW 0 ;ArcPtr
+VOLFLG  DB 0;ArcType,2=vol
+SOLFLG  DB 0;SolidType(1)
+TSTARES DB 0;ArcFormat
+
+volPKSZ DS 4
+volUNSZ DS 4
+pieces  DW 0 ;FileCount
+;zagol   DW 0;1=загол уже напеч
+uNPremn DS 4;DestUnpSize
+
+ IF crc
+CRCArea DS 4
+ ENDIF 
+CRCA    DW 0 ;TWICE=BUF32
+TYPEA  DB 0;NU
+FLAGA   DW 0
+SIZEA   DW 0
+_62ae  DW 0;NU
+_62b0  DW 0;NU
+_62b2  DW 0;NU
+
+ ;UnpCRC  DS 4 ;UnpFileCRC
+;YCOMM   DB 0;UnpVolume.4times
+COMSYM  DB 0
+
 pathbuf
         ds MAXPATH_sz
 
 oldtimer
-        dw 0        
+        dw 0
+        
 cmd_end
 
         display "Size ",/d,cmd_end-cmd_begin," bytes"

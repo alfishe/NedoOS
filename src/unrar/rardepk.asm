@@ -141,11 +141,13 @@ nohobski
       if frmcnt
         ex af,af'
         push af
+	 push bc
         push ix
         push iy
         OS_GETTIMER ;hlde=timer
         pop iy
         pop ix
+	 pop bc
         pop af
         ex af,af'
         LD (wastimer),de

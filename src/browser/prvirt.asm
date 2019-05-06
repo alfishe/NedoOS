@@ -46,19 +46,33 @@ first2pointer
 first2pointerHSB
         db 0
 
-;TODO следить за переполнением STRINGBUFSZ!
+;следить за переполнением STRINGBUFSZ!
 printtostringbuf1
 curstringbuf1addr=$+1
         ld hl,stringbuf1
+	 push de
+	 ld de,stringbuf1+STRINGBUFSZ
+	 or a
+	 sbc hl,de
+	 add hl,de
+	 pop de
+	 ret nc
         ld (hl),a
         inc hl
         ld (curstringbuf1addr),hl
         ret
         
-;TODO следить за переполнением STRINGBUFSZ!
+;следить за переполнением STRINGBUFSZ!
 printtostringbuf2
 curstringbuf2addr=$+1
         ld hl,stringbuf2
+	 push de
+	 ld de,stringbuf2+STRINGBUFSZ
+	 or a
+	 sbc hl,de
+	 add hl,de
+	 pop de
+	 ret nc
         ld (hl),a
         inc hl
         ld (curstringbuf2addr),hl

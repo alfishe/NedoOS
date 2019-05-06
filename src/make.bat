@@ -45,25 +45,25 @@ for %%i in (%releasedir%\bin\*.*) do (
 
 rem nedotrd test.trd -a scratch/lanscape.bmp
 
-nedotrd test.trd -a nedolang/comp/sizesz80.h
-nedotrd test.trd -a nedolang/comp/comp_os.s
-nedotrd test.trd -a nedolang/comp/compc_os.s
-nedotrd test.trd -a nedolang/comp/compile.c
-nedotrd test.trd -a nedolang/comp/codez80.c
-nedotrd test.trd -a nedolang/comp/commands.c
-nedotrd test.trd -a nedolang/comp/regs.c
-nedotrd test.trd -a nedolang/comp/test.bat
+rem nedotrd test.trd -a nedolang/comp/sizesz80.h
+rem nedotrd test.trd -a nedolang/comp/comp_os.s
+rem nedotrd test.trd -a nedolang/comp/compc_os.s
+rem nedotrd test.trd -a nedolang/comp/compile.c
+rem nedotrd test.trd -a nedolang/comp/codez80.c
+rem nedotrd test.trd -a nedolang/comp/commands.c
+rem nedotrd test.trd -a nedolang/comp/regs.c
+rem nedotrd test.trd -a nedolang/comp/test.bat
 
-nedotrd test.trd -a nedolang/_sdk/str.h
-nedotrd test.trd -a nedolang/_sdk/io.h
-nedotrd test.trd -a nedolang/_sdk/emit.h
+rem nedotrd test.trd -a nedolang/_sdk/str.h
+rem nedotrd test.trd -a nedolang/_sdk/io.h
+rem nedotrd test.trd -a nedolang/_sdk/emit.h
 nedotrd test.trd -a nedolang/_sdk/emit.c
-nedotrd test.trd -a nedolang/_sdk/read.c
-nedotrd test.trd -a nedolang/_sdk/typecode.h
-nedotrd test.trd -a nedolang/_sdk/lib.i
-nedotrd test.trd -a nedolang/_sdk/str.i
-nedotrd test.trd -a nedolang/_sdk/io_os.i
-nedotrd test.trd -a _sdk/sysdefs.asm
+rem nedotrd test.trd -a nedolang/_sdk/read.c
+rem nedotrd test.trd -a nedolang/_sdk/typecode.h
+rem nedotrd test.trd -a nedolang/_sdk/lib.i
+rem nedotrd test.trd -a nedolang/_sdk/str.i
+rem nedotrd test.trd -a nedolang/_sdk/io_os.i
+rem nedotrd test.trd -a _sdk/sysdefs.asm
 
 nedotrd test.trd -a basic/example.bas
 rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
@@ -95,6 +95,8 @@ rem nedotrd test.trd -a browser/test/basn0g04.png
 rem nedotrd test.trd -a browser/test/basi0g16.png
 rem nedotrd test.trd -a pkunzip/pkunzip.zip
 rem nedotrd test.trd -a modplay/scalsfjy.mod
+
+nedotrd test.trd -a browser/test/newview.png
 
 for %%i in (%releasedir%\doc\*.*) do (
     nedotrd test.trd -a %%i
