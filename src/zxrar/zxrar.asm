@@ -172,8 +172,8 @@ strcopy0
 PTABL
         ds 64 ;page numbers, patched
 
-OUT0
-        LD A,16 ;TODO
+OUTpgTEXT
+        LD A,pgTEXT;16 ;TODO
 OUTME
        ;IF ramdisk
        ; LD (BYTEPG),A
@@ -219,6 +219,7 @@ MKTCRC0 EXX
 	ret
 
 gencrc
+;hl=addr, bc=length
        LD A,(THEADON)
 CPn=$+1
        CP "n"
@@ -318,6 +319,7 @@ strlen
         ret
 
 SAVECREATE
+;out: a=1: file exists, add to end
         push iy
 
 ;сформировать filename 8.3 (во всех элементах):
@@ -365,10 +367,22 @@ SAVECREATE_dirnomk
 SAVECREATE_dirq
 
         ld de,OUTNAM;filename
+        OS_OPENHANDLE
+        or a
+        ld a,1
+        jr z,SAVECREATE_opened
+        ld de,OUTNAM;filename
         OS_CREATEHANDLE
+        xor a
+SAVECREATE_opened
+        push af ;a=1: file exists, add to end
 ;b=new file handle
         ld a,b
         ld (savefilehandle),a
+        
+        ld a,(savefilehandle)        ld b,a	OS_GETFILESIZE ;dehl=filesize;dehl=offset
+         call SAVEREWIND        
+        pop af ;a=1: file exists, add to end
         pop iy
         ret
 
@@ -405,12 +419,12 @@ bytebuf
         EXX 
 XBYTE   LD (HL),A
 
-	 push hl
-	 ld hl,paksz
-	 inc (hl)
-	 inc hl
-	 jr z,$-2
-	 pop hl ;TODO обновлять только при сохранении блока, в конце и в начале сохранять неполный блок?
+	 ;push hl
+	 ;ld hl,paksz
+	 ;inc (hl)
+	 ;inc hl
+	 ;jr z,$-2
+	 ;pop hl ;TODO обновлять только при сохранении блока, в конце и в начале сохранять неполный блок?
 
        LD A,H
         INC L
@@ -441,11 +455,12 @@ BYTEPG=$+1
 SAVEREWIND
         push af
         ;push de
-        ld hl,0
-        ld d,h
-        ld e,l
+        ;ld hl,0
+        ;ld d,h
+        ;ld e,l
         ld a,(savefilehandle)
         ld b,a
+;dehl=offset
         OS_SEEKHANDLE
         ;pop de
         pop af
@@ -522,7 +537,7 @@ _BYTsPPP
         LD E,A
         jr NC,$+3
         INC D
-       PUSH HL
+       ;PUSH HL
         PUSH DE
 ;BYTEsvTS=$+1
 ;        LD DE,0
@@ -567,7 +582,8 @@ _BYTsPPP
         ;CALL PR88DEC
 ;notosav
         POP DE
-       POP HL
+       ;POP HL
+       ld h,+(fout+512)/256
        LD A,H
         RET 
 

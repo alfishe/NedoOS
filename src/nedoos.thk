@@ -1,6 +1,7 @@
 nvview надо стримить из файла (сделать виртуальное резервирование страниц, реально занимать не больше 64 K)
 
-картинка new vew?
+todo no keyroll after '.' (interpret as noshift)
+todo no keyroll "s." (сейчас выдаёт "s./")
 
 copydir 0:/demo 1:/demo
 

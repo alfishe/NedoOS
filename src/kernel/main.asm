@@ -63,9 +63,9 @@ memportc000_hi=memportc000/256
 SYSMINSTACK=0x3b00
 
 resident=0x6000;#6000+8000 (где не затрут при очистке экрана) ;pgtrdosfs
-trdos_catbuf=0x6100;#3200 ;,#900 ;pgtrdosfs (#4000)
-trdos_sectorbuf=0x6a00
-trdos_fcbbuf=0x6b00 ;size=0x200*trdos_MAXFILES
+trdos_catbuf=0x6300;#3200 ;,#900 ;pgtrdosfs (#4000)
+trdos_sectorbuf=0x6c00
+trdos_fcbbuf=0x6d00 ;size=0x200*trdos_MAXFILES
 trdos_MAXFILES=8
 INTSTACK1=0x3f00 ;kernelspace (для входа в обработчик без порчи стека)
 INTSTACK2=0x5f00;#6000 ;pgkillable и pgtrdosfs (рабочий стек обработчика прерываний) (>=#4000, иначе нельзя выключить теневые порты)
@@ -112,14 +112,27 @@ begin
         xor a
         out (#fe),a
 
-        LD (IY+1),#CC
+        LD (IY+1),#CC
+
         if 1==0
-       IFN em3d13        LD HL,ONERR        LD (23747),HL       ENDIF        LD A,(23833)       ADD A,"A       LD (src),A       LD (dst),A       XOR A       LD (23658),A ;#5c6a      ;LD L,A,H,L      ;LD (23802),HL 
+       ;IFN em3d13
+       ; LD HL,ONERR
+       ; LD (23747),HL
+       ;ENDIF 
+       LD A,(23833)
+       ADD A,"A
+       LD (src),A
+       LD (dst),A
+       XOR A
+       LD (23658),A ;#5c6a
+      ;LD L,A,H,L
+      ;LD (23802),HL 
         endif
-       XOR A	ld (#5d10),a
+       XOR A
+	ld (#5d10),a
         
-        ld hl,#c9f1 ;pop af:ret
-        ld (#5cc2),hl
+        ;ld hl,#c9f1 ;pop af:ret
+        ;ld (#5cc2),hl
         
         ld bc,#fbdf ;x
         in l,(c)
@@ -455,7 +468,7 @@ dos3d13_resident=$-wasresident+resident
         ex af,af'
          push de ;e=gfxmode
         exx
-	call 0x3d13
+	call EM3D13PP;0x3d13
          pop de ;e=gfxmode
         call shadon_pgsys ;выключили ПЗУ
         ;call swap_sysvars
@@ -542,9 +555,134 @@ readtime=$-wasresident+resident
         pop af
         jp shadon_pgsys_a
 
-        ;ent
+	disp $-wasresident+resident
+;собственно дpайвеp, аналогичный #3д13 (и с его использованием)
+;на выходе - A pавно 0 - все окей, не 0 - ошибка
+;вместо  пpоцедyp DRAW_WINDOWS, PRINT_WINDOWS и REST_WINDOW
+;использyй свои.
+;Kurleson
+EM3D13PP
+        PUSH    HL
+        LD      HL,(23613)
+        LD      (eRR),HL
+       LD      HL,ONERR;DDRV
+       LD      (#5CC3),HL
+        LD      HL,ERR
+        EX      (SP),HL
+        LD      (23613),SP
+        EX      AF,AF'
+;AC3=$+1
+        LD      A,#C3
+        LD      (#5CC2),A
+        XOR     A
+        LD      (23823),A
+        LD      (23824),A
+        LD      (eRR2),A
+        EX      AF,AF'
+        PUSH BC,DE,HL
+        LD HL,0x5e00;5f00
+        LD DE,SYSBUF
+        LD BC,256
+        LDIR 
+        POP HL,DE,BC
+EMCALL  JP      #3D13
+ERR
+eRR=$+1
+        LD      HL,#0000
+        LD      (23613),HL ;??? eRR же не меняется ???
+        LD      A,#C9
+        LD      (#5CC2),A
+        LD DE,0x5e00;5f00
+        LD HL,SYSBUF
+        LD BC,256
+        LDIR 
+eRR2=$+1
+        LD      A,#00
+        OR      A
+        RET     NZ
+        LD      A,(23823)
+        AND     A
+        RET     Z
+        PUSH    AF
+       LD A,2
+       OUT (-2),A
+       ;PUSH    IX
+
+       ;LD      IX,DISKERROR_TBL ;здесь y меня pисyется окно
+       ;CALL    DRAW_WINDOWS     ;с надписью DISK ERROR
+       ;CALL    PRINT_WINDOWS
+        XOR     A
+        IN      A,(#FE)
+        CPL 
+        AND     #1F
+        JR      Z,$-6             ;нажата ли кнопка
+       ;CALL    REST_WINDOW       ;востановили то, что было под
+       ;POP     IX                ;окном
+       XOR A
+       OUT (-2),A
+       ;CALL OLDRV
+        POP     AF
+        RET 
+ONERR
+        EX      (SP),HL
+        PUSH    AF
+        LD      A,H
+        CP      #0D
+        JR      Z,ERROR
+        POP     AF
+        EX      (SP),HL
+        RET 
+ERROR   POP     HL
+        POP     HL     ;ЕСЛИ L=#D8, ТО        READ ONLY
+                       ;ИHАЧЕ DISK ERROR
+        POP     HL
+        POP     HL
+        POP     HL
+       LD A,2
+       OUT (-2),A
+       ;PUSH    IX
+       ;LD      IX,SAVELOADERROR_TBL ;здесь окно
+       ;CALL    DRAW_WINDOWS      ;LOAD/SAVE ERROR
+       ;CALL    PRINT_WINDOWS     ;ABORT/RETRY/IGNORE
+                                  ;инфy о тpеке/сектоpе можно
+                                  ;взять из (#5CF4)
+
+ERROR0  LD      A,#FB        ;пpовеpяем нажатие клавиш R,A,I
+        IN      A,(#FE)
+        LD      C,"R"
+        BIT     3,A
+        JR      Z,ERROR1
+        LD      C,"A"
+        LD      A,#FD
+        IN      A,(#FE)
+        RRA 
+        JR      NC,ERROR1
+        LD      C,"I"
+        LD      A,#DF
+        IN      A,(#FE)
+        BIT     2,A
+        JR      NZ,ERROR0
+ERROR1  LD      A,C
+        CP      "A"
+        JR      NZ,$+7
+        LD      A,#FF
+        LD      (eRR2),A
+       ;PUSH    AF
+       ;CALL    REST_WINDOW     ;востанавливаем то, что было
+                                ;под LOAD/SAVE ERROR окном
+       XOR A
+       OUT (-2),A
+       ;POP     AF
+       ;POP     IX
+        LD      HL,#3F7E
+        EX      (SP),HL
+        JP       #3D2F
+SYSBUF
+	ds 256
+
+        ent
 resident_sz=$-wasresident
-        display "residentend=",resident+resident_sz,"<=#8000"
+        display "residentend=",resident+resident_sz,"<=",trdos_catbuf
 
 wastrdosfs
         disp COMMANDLINE;PROGSTART
