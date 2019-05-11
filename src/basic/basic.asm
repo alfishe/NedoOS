@@ -43,7 +43,7 @@ cmd_begin
         ld a,(hl)
         or a
         jr z,noautoload ;Нет ключей и имени файла
-;command line = "basic [-t] [-n] [-h] [-v] [file to load]" t - load text file, n - no autorun, h - help, v - version
+;command line = "basic [-c] [-n] [-h] [-v] [file to load]" c - fast load as code file, n - no autorun, h - help, v - version
         call cmd_line_parse
         ld a,(cmd_line_h)
         or a
@@ -51,12 +51,12 @@ cmd_begin
         ld a,(cmd_line_v)
         or a
         jr nz,show_version
-        ld a,(cmd_line_t)
+        ld a,(cmd_line_c)
         or a
-        call z,cmd_load_hl
-        ld a,(cmd_line_t)
-        cp 1
         call z,cmd_load_text
+        ld a,(cmd_line_c)
+        cp 1
+        call z,cmd_load_hl
         ld a,(cmd_line_n)
         or a
         jp z,cmd_run
@@ -158,10 +158,10 @@ fail_fo
 
 
 
-VERSION db "Basic interpreter v0.1",0x0d,0x0a,"Nedopc group 2019",0
+VERSION db "Basic interpreter v0.11",0x0d,0x0a,"Nedopc group 2019",0
 
 usage_info
-        db "Use basic.com [-option] [inputfile]",0x0d,0x0a,"Options:",0x0d,0x0a,"-t : Input file in text format",0x0d,0x0a
+        db "Use basic.com [-option] [inputfile]",0x0d,0x0a,"Options:",0x0d,0x0a,"-c : Input file in code format",0x0d,0x0a
         db "-n : Do not autostart inputfile",0x0d,0x0a,"-v : Show version info and quit",0x0d,0x0a
         db "-h : Show this help",0
         
@@ -1008,8 +1008,8 @@ cmd_line_parse_loop
         ret nz; не ключ, значит возврат
         inc hl
         ld a,(hl)
-        cp "t"
-        call z, case_key_t
+        cp "c"
+        call z, case_key_c
         cp "n"
         call z, case_key_n
         cp "h"
@@ -1020,9 +1020,9 @@ cmd_line_parse_loop
         call skipspaces
         jp cmd_line_parse_loop
 
-case_key_t
+case_key_c
         ld a,1
-        ld (cmd_line_t),a
+        ld (cmd_line_c),a
         ret
 case_key_n
         ld a,1
@@ -1037,7 +1037,7 @@ case_key_v
         ld (cmd_line_v),a
         ret
 
-cmd_line_t db 0
+cmd_line_c db 0
 cmd_line_n db 0
 cmd_line_h db 0
 cmd_line_v db 0

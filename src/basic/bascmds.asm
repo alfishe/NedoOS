@@ -52,8 +52,12 @@ commandslist
         db "list",0
         dw cmd_save
         db "save",0
+        dw cmd_savecode
+        db "savecode",0
         dw cmd_load
         db "load",0
+        dw cmd_loadcode
+        db "loadcode",0
         dw cmd_system
         db "system",0
         dw cmd_pause
@@ -129,8 +133,10 @@ eat
 eatword
         exx
         ld de,wordbuf
-        call getword ;Берем слово из (HL)-> wordbuf
-        call skipspaces ; в (HL) пропускаем пробелы
+        call getword
+ ;Берем слово из (HL)-> wordbuf
+        call skipspaces
+ ; в (HL) пропускаем пробелы
         exx
         ret
 
@@ -157,7 +163,7 @@ eatcomma
         cp ','
         jp nz,fail_syntax
         jp eat
-        
+
 cmd_pause
         exx
         push hl
@@ -624,7 +630,7 @@ tcmd
         db "cmd.com",0
         
         
-cmd_load
+cmd_loadcode
 ;hl'=курсор
 ;load "name.bas"
         call getexpr
@@ -664,6 +670,16 @@ cmd_load_hl
         call cmd_clear
         ret
 
+cmd_load
+;hl'=курсор
+;load "name.bas"
+        call getexpr
+        bit 7,c
+        jp z,fail_syntax
+        call cmd_load_text
+;нельзя выходить по ret, потому что старая программа уничтожена
+        jp endofprog
+
 cmd_load_text
 ;hl = wordbuf = filename
         ;ld de,wordbuf ;de=drive/path/file
@@ -698,7 +714,8 @@ read_fsmb
 end_read
         xor a
         ld (de),a ;ставим терминатор в строку
-        ld hl,cmdbuf 
+        ld hl,cmdbuf
+ 
         ex de,hl
         ;or a
         sbc hl,de ;вычисляем длину строки
@@ -711,9 +728,11 @@ end_read
 
 endfile
         OS_CLOSEHANDLE
+        ld hl,cmdbuf; иначе в командной строке последняя загруженная из файла команда
+        ld (hl),0
         jp cmd_clear
 
-cmd_save
+cmd_savecode ; оригинальная процедура быстрой выгрузки программы в файл
 ;hl'=курсор
 ;save "name.bas"
         call getexpr
@@ -739,15 +758,94 @@ cmd_save
         sbc hl,de
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         push bc
-        exx  ; Сохраняем hl' в нем содержится ссылка на продолжение строки команды
-        push hl
-        exx
         OS_WRITEHANDLE
-        exx
-        pop hl
-        exx
         pop bc
         OS_CLOSEHANDLE
+        ld hl,cmdbuf ; курсор на начало буфера
+        ld (hl),0
+        exx
+        ret
+
+cmd_save
+;hl'=курсор
+;save "name.bas"
+        call getexpr
+        bit 7,c
+        jp z,fail_syntax
+        ex de,hl
+;de=drive/path/file
+        OS_CREATEHANDLE
+        push bc ;filehandle
+        display cmd_save, " cmd_save"
+        display cmdbuf, " cmdbuf"
+        
+;b=new file handle
+        or a
+        jp nz,fail_fo
+;формат строк: номер строки(ст,мл), длина строки(мл,ст), строка(asciiz)
+        ld hl,progmem
+save_lines0
+        ld de,(progend) 
+        or a
+        sbc hl,de
+        add hl,de
+        jr z,save_end
+        
+        push hl ;Проверка на нажатие брик
+        GET_KEY
+        pop hl
+        cp csSpace
+        jp z,endbreak
+
+        ld d, (hl) ; загружаем в DE номер строки 
+        inc hl
+        ld e, (hl)
+        inc hl
+
+        push hl ; продолжение строки
+        push de ; номер в hex
+        ld hl,cmdbuf ; надо загрузить в hl' буфер куда положить уже текстовый номер строки
+        exx ; в hl' теперь номер
+        pop de ; номер в hex
+        call prlinenum_tomem ; hl' куда, de номер в hex
+        exx
+        ex hl,de ; de на продолжение cmdbuf
+        pop hl; продолжание строки
+
+        ld a,' ' ; пробел
+        ld (de),a
+        inc de
+        ld c,(hl) ;длина строки
+        inc hl
+        ld b,(hl) ;длина строки
+        inc hl
+        ldir      ;копируем всю строку в de
+        ld a,0x0D
+        ld (de),a
+        inc de
+        ld a,0x0A
+        ld (de),a
+        inc de
+        inc hl; пропускаем терминатор
+
+        pop bc ; достаем filehandle
+        push bc ;filehandle нам ещё пригодится
+        push hl ;там следующая строка
+        ld hl,cmdbuf
+        ex hl,de
+        sbc hl,de ; в hl длина получившейся текстовой строки
+        ld de,cmdbuf ; в de адрес самой строки
+
+;B = file handle, DE = Buffer address, HL = Number of bytes to write
+        OS_WRITEHANDLE
+        pop hl ; следующая строка
+        jr save_lines0
+save_end
+        pop bc
+        OS_CLOSEHANDLE
+        ld hl,cmdbuf
+        ld (hl),0 ; очищаем командную строку
+        exx ; hl' курсор на начало буфера
         ret
         
 cmd_new
@@ -1051,20 +1149,16 @@ cmd_colon
         
 cmd_list
 ;номер строки(ст,мл), длина строки(мл,ст), строка(asciiz)
-        ld hl,progmem
+        ld hl,progmem ; progmem константа задающая начало памяти программы
 list_lines0
-        ld de,(progend)
+        ld de,(progend) ; по адресу progend находится переменная указывающая на конец памяти программы
         or a
         sbc hl,de
         add hl,de
         ret z
         
-        push hl
-        ;exx
-        ;push hl
+        push hl ;Проверка на нажатие брик
         GET_KEY
-        ;pop hl
-        ;exx
         pop hl
         cp csSpace
         jp z,endbreak
@@ -1077,15 +1171,15 @@ list_lines0
         call prword_de ;номер строки
         ld a,' '
         PRCHAR
-        
         pop hl
+
         ;ld e,(hl)
         inc hl
         ;ld d,(hl) ;длина строки
         inc hl
         call prtext ;hl after terminator
-        
         call prcrlf
+
         jr list_lines0
         
         
