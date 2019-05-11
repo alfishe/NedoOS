@@ -15,18 +15,37 @@ prwindow_edit
 prwindow_waitkey
 ;hl=window
 ;out: CY=OK
-        ld (prwindow_waitkey_addr),hl
+;        ld (prwindow_waitkey_addr),hl; commented by demige 190511
+        call prwindow_text; insert by demige 190511
+; comment by demige 190511: for why reprinting window after each keypress? On second print getmarkedfiles returns wrong value.
 prwindow_waitkey0
-prwindow_waitkey_addr=$+1
-        ld hl,0
-        call prwindow_text
+;prwindow_waitkey_addr=$+1 ; comment by demige 190511
+;        ld hl,0 ; comment by demige 190511
+;        call prwindow_text ; comment by demige 190511
         YIELDGETKEYLOOP
         cp csSpace
         ret z
+        cp 'n'
+        ret z
+        cp 'N'
+        ret z
+        cp '≠' ; russian n cp866
+        ret z
+        cp 'ç' ; russian N cp866
+        ret z
         cp key_redraw
         ret z
+        cp 'y'
+        jr z, prwindow_waitkey_keyyes
+        cp 'Y'
+        jr z, prwindow_waitkey_keyyes
+        cp 'Î' ; russian y cp866
+        jr z, prwindow_waitkey_keyyes
+        cp 'õ' ; russian Y cp866
+        jr z, prwindow_waitkey_keyyes
         cp Enter
         jr nz,prwindow_waitkey0
+prwindow_waitkey_keyyes
 	scf
         ret
 
