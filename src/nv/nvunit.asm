@@ -12,6 +12,7 @@ prwindow_edit
         scf
         ret
 
+
 prwindow_waitkey
 ;hl=window
 ;out: CY=OK
@@ -23,15 +24,12 @@ prwindow_waitkey0
 ;        ld hl,0 ; comment by demige 190511
 ;        call prwindow_text ; comment by demige 190511
         YIELDGETKEYLOOP
+        ld a,c
         cp csSpace
         ret z
         cp 'n'
         ret z
         cp 'N'
-        ret z
-        cp '≠' ; russian n cp866
-        ret z
-        cp 'ç' ; russian N cp866
         ret z
         cp key_redraw
         ret z
@@ -39,14 +37,10 @@ prwindow_waitkey0
         jr z, prwindow_waitkey_keyyes
         cp 'Y'
         jr z, prwindow_waitkey_keyyes
-        cp 'Î' ; russian y cp866
-        jr z, prwindow_waitkey_keyyes
-        cp 'õ' ; russian Y cp866
-        jr z, prwindow_waitkey_keyyes
         cp Enter
         jr nz,prwindow_waitkey0
 prwindow_waitkey_keyyes
-	scf
+        scf
         ret
 
 prwindow_text
@@ -255,21 +249,31 @@ gotofilepointer_numberde
 
 getfilepointer_de_fromhl
 ;out: hl=next pointer
-        ;TODO setpgpointers
+	ld a,(ix+PANEL.poipg)
+	SETPG32KHIGH
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
 	inc hl
          ;push bc
-	ld a,(ix+PANEL.pg) ;TODO from de
-	SETPG32KHIGH
+	;ld a,(ix+PANEL.pg) ;TODO from de
+	;SETPG32KHIGH
+	ld a,e
+	and 31
+	add a,(ix+PANEL.pgadd)
+	PGW3strpg
+	push af
+	ld a,e
+	and 0xe0
+	ld e,a
+	pop af
          ;pop bc
         ret
 
 putfilepointer_de_tohl
 ;out: hl=next pointer
          ;push bc
-	ld a,(ix+PANEL.pg) ;TODO from de
+	ld a,(ix+PANEL.poipg)
 	SETPG32KHIGH
          ;pop bc
 	ld (hl),e	
@@ -280,11 +284,13 @@ putfilepointer_de_tohl
 
 swapfilepointers_hl_de
 ;out: hl=next pointer
+	ld a,(ix+PANEL.poipg)
+	SETPG32KHIGH
 	ld a,(de)
 	ldi
 	dec hl
 	ld (hl),a
-	inc hl	
+	inc hl
 	ld a,(de)
 	ldi
 	dec hl

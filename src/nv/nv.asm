@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+HEAPSORT_LH=1 ;byte order in poiters: LSB,HSB
+	
 NVOLUMES=8;5
         
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
@@ -20,12 +22,59 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
 
 
 CONST_HGT_TABLE=21
-catbuf=0xc000
-FILES_POINTERS_left=0x3700
-FILES_POINTERS_right=0x3b00
+
+;8192fcbs*32bytes*2panels = 32 pages
+DIRPAGES=16
+
+catbuf_left=0xc000
+catbuf_right=0xc000
+FILES_POINTERS_left=0xc000;0x3700
+FILES_POINTERS_right=0xc000;0x3b00
 left_panel_xy=0x0000
 right_panel_xy=0x0028
 firstfiley=left_panel_xy/256 + 1
+
+        macro PGW2elpg0
+        ;LD A,(HS_elpg)
+	ld a,(ix+PANEL.poipg)
+        SETPG32KLOW
+        endm
+        
+        macro PGW2elpg
+                ;LD      A,H
+                ;RLCA 
+                ;RLCA 
+                ;AND     1
+        ;LD A,(HS_elpg)
+        ;jr z,$+5
+        ;LD A,(HS_elpg+1)
+	ld a,(ix+PANEL.poipg)
+        SETPG32KLOW
+        endm
+
+        macro PGW2strpg
+        ld ($+4),a
+        LD A,(HS_strpg)
+        SETPG32KLOW
+        endm
+
+        macro PGW3elpg
+                ;LD      A,H
+                ;RLCA 
+                ;RLCA 
+                ;AND     1
+        ;LD A,(HS_elpg)
+        ;jr z,$+5
+        ;LD A,(HS_elpg+1)
+	ld a,(ix+PANEL.poipg)
+        SETPG32KHIGH
+        endm
+
+        macro PGW3strpg
+        ld ($+4),a
+        LD A,(HS_strpg)
+        SETPG32KHIGH
+        endm
 
         org PROGSTART
 cmd_begin
@@ -56,15 +105,15 @@ cmd_begin
         ld e,l
         OS_DELPAGE
 
-	OS_NEWPAGE
-	ld a,e
-        ld (HS_elpg),a
-	OS_NEWPAGE
-	ld a,e
-        ld (HS_elpg+1),a
+	;OS_NEWPAGE
+	;ld a,e
+        ;ld (HS_elpg),a
+	;OS_NEWPAGE
+	;ld a,e
+        ;ld (HS_elpg+1),a
 
         ld hl,HS_strpg
-        ld b,4
+        ld b,DIRPAGES*2 ;TODO заказывать при чтении директории
 initstrpgs0
         push bc
         push hl
@@ -77,24 +126,46 @@ initstrpgs0
         
 	ld hl,left_panel_xy
 	ld (leftpanel+PANEL.xy),hl
+	;OS_NEWPAGE
+	;ld a,e
+	;ld (leftpanel+PANEL.pg),a ;TODO remove
 	OS_NEWPAGE
 	ld a,e
-	ld (leftpanel+PANEL.pg),a
+	ld (leftpanel+PANEL.poipg),a
 	ld hl,FILES_POINTERS_left
 	ld (leftpanel+PANEL.pointers),hl
+        ld hl,catbuf_left
+	ld (leftpanel+PANEL.catbuf),hl
+	xor a
+	ld (leftpanel+PANEL.pgadd),a
 
 	ld hl,right_panel_xy
 	ld (rightpanel+PANEL.xy),hl
+	;OS_NEWPAGE
+	;ld a,e
+	;ld (rightpanel+PANEL.pg),a ;TODO remove
 	OS_NEWPAGE
 	ld a,e
-	ld (rightpanel+PANEL.pg),a
+	ld (rightpanel+PANEL.poipg),a
 	ld hl,FILES_POINTERS_right
 	ld (rightpanel+PANEL.pointers),hl
+        ld hl,catbuf_right
+	ld (rightpanel+PANEL.catbuf),hl
+	ld a,DIRPAGES
+	ld (leftpanel+PANEL.pgadd),a
 
 	ld hl,compareext
 	ld (leftpanel+PANEL.dirsortproc),hl
 	ld (rightpanel+PANEL.dirsortproc),hl
 
+	;ld a,0xc3
+	;ld (leftpanel+PANEL.sorterjp),a
+	;ld (rightpanel+PANEL.sorterjp),a
+	;ld hl,sorter1
+	;ld (leftpanel+PANEL.sorter),hl
+	;ld hl,sorter2
+	;ld (rightpanel+PANEL.sorter),hl
+	
         ld hl,rightpanel
         call editcmd_setpaneldirfromcurdir_panelhl
         ld hl,leftpanel
@@ -359,20 +430,46 @@ readdir_keepcursor
 	pop ix
         or a
 
-        ld de,catbuf
+	ld e,(ix+PANEL.catbuf)
+	ld d,(ix+PANEL.catbuf+1)
+	ld l,(ix+PANEL.pointers)
+	ld h,(ix+PANEL.pointers+1)
         ld bc,0 ;nfiles
         jr nz,loaddir_error
 loaddir0
         push bc
-	ld a,(ix+PANEL.pg) ;TODO менять
-	SETPG32KHIGH
+
+	push de
+	push hl
+	;ld a,(ix+PANEL.pg) ;TODO менять
+	;SETPG32KHIGH
+	ld a,e
+	and 31
+	add a,(ix+PANEL.pgadd)
+	PGW3strpg
+	ld a,e
+	and 0xe0
+	ld e,a
 	xor a
 	ld (de),a ;mark
 	inc de
         ld hl,fcb+1
         ld bc,31;FCB_sz
         ldir
+	pop hl
+	pop de
+        call putfilepointer_de_tohl
+	ex de,hl
+	ld bc,32
+	add hl,bc
+	ex hl,de
+	 jr nc,$+3
+	 inc de ;next page
+	 set 7,d
+	 set 6,d
+
         ;TODO через процедуру
+	push hl
         ld l,(ix+PANEL.totalsize)
         ld h,(ix+PANEL.totalsize+1)
         ld bc,(fcb+FCB_FSIZE)
@@ -385,19 +482,22 @@ loaddir0
         adc hl,bc
         ld (ix+PANEL.totalsize+2),l
         ld (ix+PANEL.totalsize+3),h
+	pop hl
         
         pop bc
         inc bc ;nfiles
-        bit 1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
+        bit 5,b;1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
         jr nz,loaddirq
         push bc
         push de ;catbuf
+	push hl
         push ix
         ld de,fcb
         OS_SETDTA ;set disk transfer address = de
          ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
         OS_FSEARCHNEXT
         pop ix
+	pop hl
         pop de ;catbuf
         pop bc ;nfiles
         or a
@@ -408,9 +508,11 @@ loaddirq
 	ld (ix+PANEL.files),c
 	ld (ix+PANEL.files+1),b
 
+	if 1==0
 	ld l,(ix+PANEL.pointers)
 	ld h,(ix+PANEL.pointers+1)
-        ld de,catbuf
+	ld e,(ix+PANEL.catbuf)
+	ld d,(ix+PANEL.catbuf+1)
 sortfiles_0
 	push bc
 	;ld (hl),e	
@@ -418,15 +520,18 @@ sortfiles_0
 	;ld (hl),d
 	;inc hl
         call putfilepointer_de_tohl
-	ld bc,32
 	ex hl,de
+	ld bc,32
 	add hl,bc
 	ex hl,de
+	 jr nc,$+3
+	 inc de ;next page
 	pop bc
 	dec bc	
 	ld a,b
 	or c
 	jr nz,sortfiles_0
+	endif
 
         call countfiles
         ld (ix+PANEL.filesdirs),l
@@ -1626,9 +1731,14 @@ tdotdot
 
 
         STRUCT PANEL
+;sorterjp	BYTE ;TODO remove
+;sorter		WORD ;TODO remove
 xy		WORD
-pg		BYTE
-pointers	WORD
+;pg		BYTE ;TODO remove
+pgadd		BYTE ;0/DIRPAGES
+catbuf		WORD ;TODO remove
+poipg		BYTE
+pointers	WORD ;TODO remove
 totalsize	DWORD
 files		WORD ;visible files
 filesdirs       WORD ;files+dirs (no ".", "..")
@@ -1641,7 +1751,7 @@ dirsortproc	WORD
 dirsortmode	BYTE
 dir		BLOCK MAXPATH_sz
 	ENDS
-PANEL_sz=13+MAXPATH_sz
+;PANEL_sz=13+MAXPATH_sz
 
 leftpanel PANEL
 rightpanel PANEL
@@ -1677,7 +1787,7 @@ filenametext ;for change dir, rename
 ext
         ds 3 ;TODO объединить с filenametext
         
-copybuf=0x4000 ;нельзя 0xc000 - поверх какой-нибудь директории (а она используется при копировании)
+copybuf=0x4000 ;нельзя 0xc000 - поверх какой-нибудь директории (а она используется при копировании) ;0x8000 можно только после выставления страницы там
         ;ds 4096;128
 copybuf_sz=0x4000;$-copybuf
 
@@ -1768,30 +1878,12 @@ wordfiles
 wordbytes
         db " bytes",0
 
-HS_elpg ;2 pages
-        ds 2
+;HS_elpg ;2 pages
+;        ds 2
         align 256
-HS_strpg ;4 pages
-        ds 4
+HS_strpg
+        ds DIRPAGES*2
         
-        macro PGW2elpg0
-        LD A,(HS_elpg)        SETPG32KLOW
-        endm
-        
-        macro PGW2elpg
-        LD A,(HS_elpg)        jr z,$+5        LD A,(HS_elpg+1)        SETPG32KLOW
-        endm
-
-        macro PGW2strpg
-        ld ($+4),a        LD A,(HS_strpg)        SETPG32KLOW
-        endm
-        macro PGW3elpg
-        LD A,(HS_elpg)        jr z,$+5        LD A,(HS_elpg+1)        SETPG32KHIGH
-        endm
-
-        macro PGW3strpg
-        ld ($+4),a        LD A,(HS_strpg)        SETPG32KHIGH
-        endm
         include "nvsort.asm"
         include "heapsort.asm"
 
