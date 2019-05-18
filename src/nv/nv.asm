@@ -212,7 +212,7 @@ prhint_color
         call nv_setcolor
         jr prhint0
 thint
-        db "{1}LeftDrv { 2}RightDrv { 3}View { 4}Edit { 5}Copy { 6}Rename { 7}MkDir { 8}Del  { 9}     { 0}     ",0
+        db "{1}LeftDrv { 2}RightDrv { 3}View { 4}Edit { 5}Copy { 6}Rename { 7}MkDir { 8}Del  { 9}     { 0}Quit ",0
         
 readpanels_reprint
 	ld e,COLOR
@@ -957,11 +957,14 @@ runfile_nocom_recodeext0
         ld iy,file_buf_end
 runfile_nocom_extloop
         call checkoneext ;c=ошибки, z=нет ошибок
+	jr c,runfile_nocom_readerror
         jr z,runfile_nocom_extok
         call checkcomma
+	jr c,runfile_nocom_readerror
         jr z,runfile_nocom_extloop
         call skiptonextline
         jr nz,runfile_nocom_extloop ;no EOF
+runfile_nocom_readerror
         xor a
         dec a
         ret ;nz
@@ -1257,7 +1260,6 @@ editcmd_4
 ;load file in fcb from system current dir with parameters in tcmd, then set curpaneldir and run
         jp loadandrun ;nz=error, e=id
         
-editcmd_0
 editcmd_9
         call ifcmdnonempty_typedigit
         ret
@@ -1645,6 +1647,7 @@ _DIV0.
 	ld h,a
         ret
         
+editcmd_0
 editcmd_quit
         ld e,COLOR_RED
         call nv_setcolor
