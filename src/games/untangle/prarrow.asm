@@ -1,0 +1,564 @@
+;вывод стрелки на экран (тут же запоминание и стирание)
+;и буфер стрелки
+
+        SHAPESPROC shapes_memorizearr
+;hl=x
+;a=y
+        call prarr_calccur
+        ld hl,arrbuf
+memorizearrcolumn0
+        ld hy,ly
+        push de
+        push hl
+        dup 12
+        ld a,(de) ;scr
+        ld (hl),a ;buf
+        dec hy
+        jp z,memorizearrcolumnq
+        inc hl
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        edup
+        ld a,(de) ;scr
+        ld (hl),a ;buf
+memorizearrcolumnq
+        pop hl
+        ld de,13
+        add hl,de
+        pop de
+        bit 6,d
+        jr z,memorizearrcolumn_set6d
+        bit 5,d
+        jr z,memorizearrcolumn_to2
+        ld a,d
+        sub #60
+        ld d,a
+        inc de
+        dec lx
+        jp nz,memorizearrcolumn0
+        ret
+memorizearrcolumn_set6d
+        set 6,d
+        dec lx
+        jp nz,memorizearrcolumn0
+        ret
+memorizearrcolumn_to2
+        ld a,d
+        sub #20
+        ld d,a
+        dec lx
+        jp nz,memorizearrcolumn0
+        ret
+
+        SHAPESPROC shapes_rearr
+;hl=x
+;a=y
+        call prarr_calccur
+        ld hl,arrbuf
+rearrcolumn0
+        ld hy,ly
+        push de
+        push hl
+        dup 12
+        ld a,(hl) ;buf
+        ld (de),a ;scr
+        dec hy
+        jp z,rearrcolumnq
+        inc hl
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        edup
+        ld a,(hl) ;buf
+        ld (de),a ;scr
+rearrcolumnq
+        pop hl
+        ld de,13
+        add hl,de
+        pop de
+        bit 6,d
+        jr z,rearrcolumn_set6d
+        bit 5,d
+        jr z,rearrcolumn_to2
+        ld a,d
+        sub #60
+        ld d,a
+        inc de
+        dec lx
+        jp nz,rearrcolumn0
+        ret
+rearrcolumn_set6d
+        set 6,d
+        dec lx
+        jp nz,rearrcolumn0
+        ret
+rearrcolumn_to2
+        ld a,d
+        sub #20
+        ld d,a
+        dec lx
+        jp nz,rearrcolumn0
+        ret
+
+        SHAPESPROC shapes_prarr_ring8c
+;hl=x
+;a=y
+        bit 0,l
+        ld de,sprring8c_l+1
+        jr nz,$+5+2
+         ld de,sprring8c_r+1
+         dec hl
+         dec hl
+        jr prarr_cross8c_go
+
+        SHAPESPROC shapes_prarr_cross8c
+;hl=x
+;a=y
+        bit 0,l
+        ld de,sprcross8c_l+1
+        jr nz,$+5+2
+         ld de,sprcross8c_r+1
+         dec hl
+         dec hl
+prarr_cross8c_go
+        ld b,h
+        ld c,l
+        ld l,a ;y
+        sub 3
+        ld (prarr_crosscolumny),a
+        
+        ld lx,4 ;wid
+        
+        push hl ;y
+        ex de,hl
+        ld de,13*2
+
+        bit 7,b
+        jr z,$+2+2+1+2
+         inc bc
+         inc bc
+         add hl,de
+         dec lx
+        dec bc ;x
+        dec bc ;x
+        bit 7,b
+        jr z,$+2+2+1+2
+         inc bc
+         inc bc
+         add hl,de
+         dec lx
+        
+        ex de,hl
+        pop hl ;y
+;l=y
+;bc=x
+;de=spr
+;lx=wid
+        call prarr_calcscr
+;bc=40
+;de=scr
+;lx=ширина
+;ly=200-y
+        
+        ld a,(prarr_crosscolumny)
+        add a,3
+        ex de,hl
+        dup 3
+        or a
+        jr z,prarr_cross_preskip
+        sbc hl,bc
+        dec a
+        edup
+prarr_cross_preskip
+        ex de,hl
+        
+prarr_crosscolumn0
+        ld hy,ly
+        push de
+        push hl
+prarr_crosscolumny=$+2
+        ld hx,0
+         dup 12
+        ld a,hx
+        inc hx
+        cp scrhgt
+        jr nc,1f;prarr_crosscolumnskipbyte
+        ld a,(de) ;scr
+        and (hl) ;mask
+        inc hl
+        xor (hl) ;pixels
+        dec hl
+        ld (de),a ;scr
+        ex de,hl
+        add hl,bc
+        ex de,hl
+1;prarr_crosscolumnskipbyte
+         inc hl
+        ;dec hy
+        ;jp z,prarr_crosscolumnq
+         inc hl
+         edup
+        ld a,(de) ;scr
+        and (hl) ;mask
+        inc hl
+        xor (hl) ;pixels
+        ld (de),a ;scr
+;prarr_crosscolumnq
+        pop hl
+        ld de,13*2
+        add hl,de
+        pop de
+        bit 6,d
+        jr z,prarr_crosscolumn_set6d
+        bit 5,d
+        jr z,prarr_crosscolumn_to2
+        ld a,d
+        sub #60
+        ld d,a
+        inc de
+        dec lx
+        jp nz,prarr_crosscolumn0
+        ret
+prarr_crosscolumn_set6d
+        set 6,d
+        dec lx
+        jp nz,prarr_crosscolumn0
+        ret
+prarr_crosscolumn_to2
+        ld a,d
+        sub #20
+        ld d,a
+        dec lx
+        jp nz,prarr_crosscolumn0
+        ret
+        
+        SHAPESPROC shapes_prarr8c
+;hl=x
+;a=y
+        ld b,h
+        ld c,l
+        ld l,a
+        bit 0,c
+        ld de,sprarr8c_l
+        jr z,$+5 ;de=спрайт для чётного x
+        ld de,sprarr8c_r ;de=спрайт для нечётного x
+        ld a,(de)
+        ld lx,a
+        inc de
+;l=y
+;bc=x
+;de=spr
+;lx=wid
+        call prarr_calcscr
+;bc=40
+;de=scr
+;lx=ширина
+;ly=200-y
+        jr prarrcolumn0
+        
+        SHAPESPROC shapes_prarr
+;hl=x
+;a=y
+        call prarr_calccur
+prarrcolumn0
+        ld hy,ly
+        push de
+        push hl
+        dup 12
+        ld a,(de) ;scr
+        and (hl) ;mask
+        inc hl
+        xor (hl) ;pixels
+        ld (de),a ;scr
+        dec hy
+        jp z,prarrcolumnq
+        inc hl
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        edup
+        ld a,(de) ;scr
+        and (hl) ;mask
+        inc hl
+        xor (hl) ;pixels
+        ld (de),a ;scr
+prarrcolumnq
+        pop hl
+        ld de,13*2
+        add hl,de
+        pop de
+        bit 6,d
+        jr z,prarrcolumn_set6d
+        bit 5,d
+        jr z,prarrcolumn_to2
+        ld a,d
+        sub #60
+        ld d,a
+        inc de
+        dec lx
+        jp nz,prarrcolumn0
+        ret
+prarrcolumn_set6d
+        set 6,d
+        dec lx
+        jp nz,prarrcolumn0
+        ret
+prarrcolumn_to2
+        ld a,d
+        sub #20
+        ld d,a
+        dec lx
+        jp nz,prarrcolumn0
+        ret
+
+prarr_calccur
+;hl=x
+;a=y
+;out: hl=scr+, de=gfx, lx=wid, bc=40
+        ld e,a
+        push hl ;x
+        ld c,l
+        rr c
+         push af ;CY=x0
+        push de ;y
+        ld a,(prarr_zone)
+        cp ZONE_WORK
+        ld de,sprarr_l
+        ld bc,sprarr_r
+        jr nz,prarr_calcscr_nocross
+        pop de ;y
+         pop af ;CY=x0
+        pop hl
+         ccf
+        dec hl
+        dec hl
+        dec hl
+        dec e
+        dec e
+        dec e
+        push hl
+         push af ;CY=x0
+        push de ;y
+        ld de,sprcross_l
+        ld bc,sprcross_r
+        ld a,(curtool1)
+        cp TOOL_WINDOW
+        jr nz,$+2+3+3
+        ld de,sprwindow_l
+        ld bc,sprwindow_r
+        cp TOOL_FILL
+        jr nz,$+2+3+3
+        ld de,sprfill_l
+        ld bc,sprfill_r
+        cp TOOL_TEXT
+        jr nz,$+2+3+3
+        ld de,sprtext_l
+        ld bc,sprtext_r
+prarr_calcscr_nocross
+        pop hl ;y
+;l=y
+;de=spr_l
+;bc=spr_r
+        pop af ;CY=x0
+        jr nc,prarr_nor ;de=спрайт для чётного x
+        ld d,b
+        ld e,c ;de=спрайт для нечётного x
+prarr_nor
+        pop bc ;x
+        ld a,(de)
+        ld lx,a
+        inc de
+;l=y
+;bc=x
+;de=spr
+;lx=wid
+        ;ret
+        
+prarr_calcscr
+;l=y
+;bc=x
+;de=spr
+;lx=wid
+        push de ;spr
+        ld h,0 ;y HSB
+        ld a,scrhgt
+        sub l ;y
+        ld ly,a ;200-y
+        ld d,scrbase/256/8
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;y*5
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40 + scrbase
+        pop de ;spr
+        srl b ;теперь b=0
+        rr c ;c=x/2
+        ld a,scrwid/2
+        sub c ;scrwid/2-(x/2)
+        cp lx
+        jr nc,$+2+2 ;scrwid/2-(x/2) >= ширина
+        ld lx,a ;scrwid/2-(x/2) < ширина
+        srl c
+        jr nc,$+4
+        set 6,h
+        srl c
+        jr nc,$+4
+        set 5,h
+        add hl,bc
+        ex de,hl
+        ld bc,40
+;bc=40
+;de=scr
+;lx=ширина
+;ly=200-y
+        ret
+
+sprarr_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #0000,#b800,#b800,#b800,#b800,#b800,#b800,#b800,#b800,#0047,#00ff,#00ff,#00ff
+        dw #00ff,#00b8,#4700,#ff00,#ff00,#ff00,#ff00,#ff00,#0000,#0047,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#00b8,#4700,#ff00,#ff00,#4700,#4700,#4700,#b800,#b800,#0047
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00b8,#4700,#00b8,#00ff,#00ff,#00b8,#00b8,#00ff
+sprarr_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 5
+        dw #0047,#0047,#0047,#0047,#0047,#0047,#0047,#0047,#0047,#00ff,#00ff,#00ff,#00ff
+        dw #00b8,#4700,#ff00,#ff00,#ff00,#ff00,#ff00,#ff00,#4700,#00b8,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00b8,#4700,#ff00,#ff00,#ff00,#ff00,#b800,#b800,#0047,#0047,#00ff
+        dw #00ff,#00ff,#00ff,#00ff,#00b8,#4700,#ff00,#0000,#00b8,#00b8,#4700,#4700,#00b8
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+
+sprarr8c_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #0000,#3800,#3800,#3800,#3800,#3800,#3800,#3800,#3800,#0047,#00ff,#00ff,#00ff
+        dw #00ff,#00b8,#0700,#3f00,#3f00,#3f00,#3f00,#3f00,#0000,#0047,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#00b8,#0700,#3f00,#3f00,#0700,#0700,#0700,#3800,#3800,#0047
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00b8,#0700,#00b8,#00ff,#00ff,#00b8,#00b8,#00ff
+sprarr8c_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 5
+        dw #0047,#0047,#0047,#0047,#0047,#0047,#0047,#0047,#0047,#00ff,#00ff,#00ff,#00ff
+        dw #00b8,#0700,#3f00,#3f00,#3f00,#3f00,#3f00,#3f00,#0700,#00b8,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00b8,#0700,#3f00,#3f00,#3f00,#3f00,#3800,#3800,#0047,#0047,#00ff
+        dw #00ff,#00ff,#00ff,#00ff,#00b8,#0700,#3f00,#0000,#00b8,#00b8,#0700,#0700,#00b8
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+
+sprcross_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #b8ff,#b8ff,#b8ff,#ffff,#b8ff,#b8ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#47ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+sprcross_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #47ff,#47ff,#47ff,#ffff,#47ff,#47ff,#47ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        
+sprwindow_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #b8ff,#b8ff,#b8ff,#ffff,#b8ff,#b8ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#b8ff,#b8ff,#b8ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#47ff,#00ff,#00ff,#ffff,#b8ff,#ffff,#00ff,#00ff,#00ff,#00ff
+sprwindow_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 5
+        dw #00ff,#00ff,#00ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #47ff,#47ff,#47ff,#ffff,#47ff,#47ff,#47ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#ffff,#47ff,#ffff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#47ff,#47ff,#47ff,#00ff,#00ff,#00ff,#00ff
+        
+sprfill_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #b8ff,#b8ff,#b8ff,#ffff,#b8ff,#b8ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#b8ff,#b8ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#47ff,#00ff,#47ff,#47ff,#b8ff,#ffff,#47ff,#00ff,#00ff,#00ff
+sprfill_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 5
+        dw #00ff,#00ff,#00ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #47ff,#47ff,#47ff,#ffff,#47ff,#47ff,#47ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#b8ff,#b8ff,#47ff,#ffff,#b8ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#47ff,#47ff,#00ff,#00ff,#00ff,#00ff
+        
+sprtext_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #b8ff,#b8ff,#b8ff,#ffff,#b8ff,#b8ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#b8ff,#00ff,#00ff,#b8ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#47ff,#00ff,#00ff,#ffff,#47ff,#47ff,#ffff,#00ff,#00ff,#00ff
+sprtext_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 5
+        dw #00ff,#00ff,#00ff,#b8ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #47ff,#47ff,#47ff,#ffff,#47ff,#47ff,#47ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#ffff,#00ff,#00ff,#ffff,#b8ff,#b8ff,#ffff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#47ff,#00ff,#00ff,#47ff,#00ff,#00ff,#00ff
+
+;;;;;;; для палитры (инвертируют внутри первых 8 цветов)
+        
+sprcross8c_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #38ff,#38ff,#38ff,#3fff,#38ff,#38ff,#38ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#07ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+sprcross8c_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#00ff,#38ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #07ff,#07ff,#07ff,#3fff,#07ff,#07ff,#07ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00ff,#3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+
+sprring8c_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#38ff,#07ff,#07ff,#07ff,#38ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #07ff,#38ff,#00ff,#00ff,#00ff,#38ff,#07ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#07ff,#07ff,#07ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+sprring8c_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#38ff,#38ff,#38ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #38ff,#07ff,#00ff,#00ff,#00ff,#07ff,#38ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#3fff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#07ff,#38ff,#38ff,#38ff,#07ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+
+        
+arrbuf
+        ds 13*5

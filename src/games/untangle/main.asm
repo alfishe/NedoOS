@@ -1,0 +1,2047 @@
+        DEVICE ZXSPECTRUM128
+        include "../../_sdk/sys_h.asm"
+
+STACK=0x4000
+MAXVERTICES=256
+MAXEDGES=256
+scrbase=0x8000
+
+        org PROGSTART
+begin
+        ld sp,STACK
+
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+
+        OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ld a,e
+        SETPG32KLOW
+        ld a,d
+        SETPG32KHIGH
+
+        ld a,r
+        ld (rndseed1),a
+        OS_GETTIMER ;hlde=timer
+        ld (rndseed2),de
+        
+        xor a
+        ld (level),a
+        ld a,6
+        ld (verticesneeded),a
+        
+        call genmesh
+        
+        call redraw
+        
+        jr mouseloop_go
+mouseloop
+;1. всё выводим
+;2. ждём событие
+;[3. всё стираем]
+;4. обрабатываем событие (без перерисовки)
+;5. всё стираем
+
+        ld a,(clickstate)
+        or a
+        jr z,mouseloop_nomove
+        call   drawcurvertex
+        call   drawconnectedvertices
+        call   drawcuredges
+
+        ;call ahl_coords
+        call movecurvertex
+
+        call drawcuredges
+        call drawconnectedvertices
+        call drawcurvertex
+mouseloop_nomove
+
+         call redrawifneeded ;TODO убрать
+
+mouseloop_go
+;сейчас всё выведено, кроме стрелки
+        call ahl_coords
+        call shapes_memorizearr
+        call ahl_coords
+        call shapes_prarr8c
+
+        call waitsomething ;в это время стрелка видна
+;что-то изменилось
+        
+        call ahl_oldcoords
+        call shapes_rearr
+;сейчас всё выведено, кроме стрелки
+
+        ld a,(key)
+        cp key_redraw
+        call z,redraw
+
+        ;call control_keys
+clickstate=$+1
+        ld a,0
+        or a
+        jr nz,mouseloop_wasclicked
+        ld a,(mousebuttons)
+        cpl
+        and 7
+        call nz,mouse_fire
+        jr mouseloop
+mouseloop_wasclicked
+        ld a,(mousebuttons)
+        cpl
+        and 7
+        call z,mouse_unfire
+        jr mouseloop
+
+
+mouse_unfire
+        ld a,1
+        ld (doredraw),a
+        xor a
+        ld (clickstate),a
+        
+;TODO обновить счётчик crossededges конкретно по рёбрам, которые пересекались в начале и в конце движения
+;а пока просто посчитаем
+        call countcrossededges
+        
+;check if untangled
+        ld a,(ncrossededges)
+        or a
+        jr z,levelcomplete
+        
+        ret
+levelcomplete
+        call nextlevel
+        call genmesh
+        
+        ;call redraw ;есть doredraw
+        
+        ret
+        
+        
+mouse_fire
+        call ahl_coords
+        call findvertex
+        ret c ;not found
+        ld (curvertex),a
+        ld a,1
+        ld (clickstate),a
+;стираем текущую вершину, текущие рёбра и перерисовываем их инверсией
+        call undrawcurvertex
+        call undrawconnectedvertices
+        call undrawcuredges
+
+        call drawcuredges
+        call drawconnectedvertices
+        call drawcurvertex
+        
+        ret
+
+movecurvertex
+        ld a,(clickstate)
+        or a
+        ret z ;unclicked
+        call getcurvertexaddr
+        push hl
+        call ahl_coords
+        ex de,hl
+        pop hl
+        ld (hl),e
+        inc hl
+        ld (hl),d ;x
+        inc hl
+        ld (hl),a ;y
+        inc hl
+        ld (hl),0
+        ret
+
+drawcurvertex
+        ;ld a,(clickstate)
+        ;or a
+        ;ret z ;unclicked
+        call getcurvertexxy_ahl
+        jp shapes_prarr_ring8c
+drawringon
+        bit 0,l
+        ld de,sprringon_l+1
+        jr nz,$+5+2
+         ld de,sprringon_r+1
+         dec hl
+         dec hl
+        jp prarr_cross8c_go
+
+undrawcurvertex
+        ;ld a,(clickstate)
+        ;or a
+        ;ret z ;unclicked
+        call getcurvertexxy_ahl
+        ;jp shapes_prarr_ring8c
+drawringoff
+        bit 0,l
+        ld de,sprringoff_l+1
+        jr nz,$+5+2
+         ld de,sprringoff_r+1
+         dec hl
+         dec hl
+        jp prarr_cross8c_go
+
+getcurvertexxy_ahl
+        call getcurvertexaddr
+        ld c,(hl)
+        inc hl
+        ld b,(hl) ;x
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;y
+        ld a,e ;y
+        ld h,b
+        ld l,c ;x
+        ret
+
+getcurvertexaddr
+curvertex=$+1
+        ld de,0
+        ld hl,vertices
+        add hl,de
+        add hl,de
+        add hl,de
+        add hl,de
+        ret
+
+undrawcuredges
+        ld hl,prpixel
+        ld (pixelproc),hl
+        ld a,0
+        jr drawcuredges_go
+drawcuredges
+        ld hl,invpixel
+        ld (pixelproc),hl
+        ld a,0xff
+drawcuredges_go
+        ld (drawcuredges_color),a
+        ld a,(clickstate)
+        or a
+        ret z ;unclicked
+;find all edges with current vertex (1st or 2nd), draw them
+;vertex1,vertex2,crossed
+        ld hl,edges
+        ld a,(nedges)
+        ld b,a
+drawcuredges0
+        push bc
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld a,(curvertex)
+        cp d
+        jr z,$+3
+        cp e
+        jr nz,drawcuredgesno
+        ld a,(hl)
+        push hl
+;e=vertex1
+;d=vertex2
+;a=crossed
+        or a
+        ld a,%11001001
+        jr z,$+4
+        ld a,%11010010
+drawcuredges_color=$+1
+        and 0
+        call drawedge
+        pop hl
+drawcuredgesno
+        inc hl
+        pop bc
+        djnz drawcuredges0
+        ld hl,prpixel
+        ld (pixelproc),hl
+        ret
+
+drawconnectedvertices
+        ld hl,shapes_prarr_ring8c;drawringon
+        jr drawconnectedvertices_go
+undrawconnectedvertices
+        ld hl,drawringoff
+drawconnectedvertices_go
+        ld (drawconnectedvertices_drawproc),hl
+        ld hl,edges
+        ld a,(nedges)
+        ld b,a
+drawconnectedvertices0
+        push bc
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+;e=vertex1
+;d=vertex2
+        ld a,(curvertex)
+        cp d
+        jr z,drawconnectedvertices_e
+        cp e
+        jr nz,drawconnectedverticesno
+        ld e,d
+drawconnectedvertices_e
+        push hl
+        ld d,0 ;e=connected vertex
+        ld hl,vertices
+        add hl,de
+        add hl,de
+        add hl,de
+        add hl,de
+        ld c,(hl)
+        inc hl
+        ld b,(hl) ;x
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;y
+        ld a,e ;y
+        ld h,b
+        ld l,c ;x
+drawconnectedvertices_drawproc=$+1
+        call drawringon
+        pop hl
+drawconnectedverticesno
+        inc hl
+        pop bc
+        djnz drawconnectedvertices0
+        ret
+
+nextlevel
+        ld hl,level
+        inc (hl)
+        ld a,(hl)
+        add a,3 ;a=4..
+        ld hl,verticesneeded
+        add a,(hl)
+        ld (hl),a
+        ret
+
+ahl_coords
+        ld a,(arry)
+        ld hl,(arrx)
+        ret
+ahl_oldcoords
+        ld a,(oldarry)
+        ld hl,(oldarrx)
+        ret
+
+control_keys
+key=$+1
+        ld a,0
+        ;cp cs5
+        ;jp z,control_keys_left
+        ;cp cs6
+        ;jp z,control_keys_down
+        ;cp cs7
+        ;jp z,control_keys_up
+        ;cp cs8
+        ;jp z,control_keys_right
+        ret
+
+gameloop
+        ld bc,0*256+18
+        call calcscraddr
+        ld hl,0;(curlength)
+        call prnum
+        YIELD
+        GET_KEY
+         cp csSpace
+         jr z,quit
+	jp gameloop
+
+gameover
+        ld hl,endtext
+        ld bc,0x0b0f
+        call prtext
+gameoverloop
+        YIELD
+        GET_KEY
+        cp csSpace
+        jr nz,gameoverloop
+quit
+        QUIT
+
+redrawifneeded
+doredraw=$+1
+        ld a,0
+        or a
+        ret z
+redraw
+        xor a
+        ld (doredraw),a
+        call cls
+        
+        ld a,(level)
+        inc a
+        ld b,'0'-1
+        inc b
+        sub 10
+        jr nc,$-3
+        add a,'0'+10
+        ld (tleveldig2),a
+        ld a,b
+        ld (tleveldig1),a
+        
+        ld bc,0
+        ld hl,tlevel
+        call prtext
+        
+        call drawedges
+        call drawvertices
+        ret
+
+tlevel
+        db "LEVEL 00"
+tleveldig1=$-2
+tleveldig2=$-1
+        db 0
+        
+genvertices
+;x,X,y,Y
+        ld hl,vertices
+        ld a,(nvertices)
+        ld b,a
+genvertices0
+        ld c,160
+        call rnd
+        add a,a
+        ld (hl),a
+        inc hl
+        ld (hl),0
+        rl (hl)
+        inc hl
+        ld c,200
+        call rnd
+        ld (hl),a
+        inc hl
+        ld (hl),0
+        inc hl
+        djnz genvertices0
+        ret
+
+genedges
+;vertex1,vertex2,crossed
+        ld hl,edges
+        ld a,(nedges)
+        ld b,a
+genedges0
+        ld a,(nvertices)
+        ld c,a
+        call rnd
+        ld (hl),a
+        inc hl
+        ld a,(nvertices)
+        ld c,a
+        call rnd
+        ld (hl),a
+        inc hl
+        ld (hl),0 ;uncrossed
+        inc hl
+        djnz genedges0
+        ret
+
+drawedges
+;vertex1,vertex2,crossed
+        ld hl,edges
+        ld a,(nedges)
+        ld b,a
+drawedges0
+        push bc
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld a,(hl)
+        push hl
+;e=vertex1
+;d=vertex2
+;a=crossed
+        or a
+        ld a,%11001001
+        jr z,$+4
+        ld a,%11010010
+        call drawedge
+        pop hl
+        inc hl
+        pop bc
+        djnz drawedges0
+        ret
+
+drawedge
+;e=vertex1
+;d=vertex2
+;a=color
+        ex af,af'
+        ld a,d ;vertex2
+        ld d,0
+        ld hl,vertices
+        add hl,de
+        add hl,de
+        add hl,de
+        add hl,de
+        ld c,(hl)
+        inc hl
+        ld b,(hl) ;x
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;y
+        push de
+
+        ld d,0
+        ld e,a ;vertex2
+        ld hl,vertices
+        add hl,de
+        add hl,de
+        add hl,de
+        add hl,de
+
+        pop de
+        ld a,(hl)
+        ld lx,a
+        inc hl
+        ld a,(hl) ;x2
+        ld hx,a
+        inc hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl) ;y2
+        ld l,a
+
+        ex af,af' ;color
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;de=y (в плоскости экрана, но может быть отрицательным)
+;ix=x2
+;hl=y2
+;a=color = %332103210
+        call shapes_line
+        ret
+
+drawvertices
+;x,X,y,Y
+        ld hl,vertices
+        ld a,(nvertices)
+        ld b,a
+drawvertices0
+        push bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl) ;x
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;y
+        inc hl
+        push hl
+        ld a,e ;y
+        ld h,b
+        ld l,c ;x
+        call drawringon;shapes_prarr_ring8c
+        pop hl
+        pop bc
+        djnz drawvertices0
+        ret
+
+findvertex
+;in: hl=arrx, a=arry
+;out: CY=not found, or else a=vertex #
+        ex de,hl
+        ld c,a
+;x,X,y,Y
+        ld hl,vertices
+        ld a,(nvertices)
+        ld b,a
+findvertex0
+        ld a,(hl)
+        inc hl
+        push hl
+        ld h,(hl)
+        ld l,a ;x
+        or a
+        sbc hl,de ;x-arrx
+        inc hl
+        inc hl
+        push de
+        ld de,5
+        or a
+        sbc hl,de ;CY = -2..+2
+        pop de
+        pop hl
+        inc hl
+        jr nc,findvertexno
+        push hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a ;y
+        push bc
+        xor a
+        ld b,a
+        sbc hl,bc ;y=arry
+        inc hl
+        inc hl
+        ld bc,5
+        or a
+        sbc hl,bc ;CY = -2..+2
+        pop bc
+        pop hl
+        jr c,findvertexok
+findvertexno
+        inc hl
+        inc hl
+        djnz findvertex0
+        scf
+        ret
+findvertexok
+        ld a,(nvertices)
+        sub b
+        or a
+        ret
+
+rnd
+;0..c-1
+        ;ld a,r
+        push de
+        push hl
+        call func_rnd
+        pop hl
+        pop de
+rnd0
+        sub c
+        jr nc,rnd0
+        add a,c
+        ret
+
+func_rnd
+;Patrik Rak
+rndseed1=$+1
+        ld  hl,0xA280   ; xz -> yw
+rndseed2=$+1
+        ld  de,0xC0DE   ; yw -> zt
+        ld  (rndseed1),de  ; x = y, z = w
+        ld  a,e         ; w = w ^ ( w << 3 )
+        add a,a
+        add a,a
+        add a,a
+        xor e
+        ld  e,a
+        ld  a,h         ; t = x ^ (x << 1)
+        add a,a
+        xor h
+        ld  d,a
+        rra             ; t = t ^ (t >> 1) ^ w
+        xor d
+        xor e
+        ld  h,l         ; y = z
+        ld  l,a         ; w = t
+        ld  (rndseed2),hl
+        ;ex de,hl
+        ;ld hl,0
+        ;res 7,c ;int
+        ret
+
+
+div4signedup
+        or a
+        jp m,$+5
+        add a,3
+        sra a
+        sra a
+        ret
+
+cls
+        ld e,0
+        OS_CLS
+        ret
+
+prtext
+;bc=координаты
+;hl=text
+        ld a,(hl)
+        or a
+        ret z
+        call prcharxy
+        inc hl
+        inc c
+        jr prtext
+
+prnum
+        ld bc,1000
+        call prdig
+        ld bc,100
+        call prdig
+        ld bc,10
+        call prdig
+        ld bc,1
+prdig
+        ld a,'0'-1
+prdig0
+        inc a
+        or a
+        sbc hl,bc
+        jr nc,prdig0
+        add hl,bc
+        ;push hl
+        ;call prchar
+        ;pop hl
+        ;ret
+prchar;a=code;de=screen        push de        push hl
+        call prcharin
+        pop hl        pop de        inc e        ret        
+calcscraddr
+;bc=yx
+;можно портить bc
+        ex de,hl
+        ld a,c ;x
+        ld l,b ;y
+        ld h,0
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+         add hl,hl
+         add hl,hl
+         add hl,hl
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x80
+        ld h,a
+        ex de,hl
+        ret
+
+prtilexy
+;hl=tile
+;bc=yx
+        push de
+        push bc
+        call calcscraddr
+        call prcharin_go
+        pop bc
+        pop de
+        ret
+        
+prcharxy
+;a=code
+;bc=yx
+        push de
+        push hl
+        push bc
+        push af
+        call calcscraddr
+        pop af
+        call prcharin
+        pop bc
+        pop hl
+        pop de
+        ret
+        
+prcharin
+        sub 32
+        ld l,a        ld h,0         add hl,hl         add hl,hl         add hl,hl         add hl,hl         add hl,hl        ;ld bc,font-(32*32)
+        ;add hl,bc
+        ld a,h
+        add a,font/256
+        ld h,a
+prcharin_go
+        ex de,hl
+        
+        ld bc,40
+        push hl
+        push hl
+        dup 8
+        ld a,(de) ;font        ld (hl),a ;scr
+        inc de        add hl,bc
+        edup
+        pop hl
+        set 6,h
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font        ld (hl),a ;scr
+        inc de        add hl,bc
+        edup
+        pop hl
+        set 5,h
+        push hl
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font        ld (hl),a ;scr
+        inc de        add hl,bc
+        edup
+        pop hl
+        set 6,h
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font        ld (hl),a ;scr
+        inc de        add hl,bc
+        edup        
+        ret
+
+invpixel
+;de=x (не портится)
+;c=y (bc не портится)
+;lx=color = %33210210
+       ld a,b
+        ld l,c
+        ld h,0
+        ld b,scrbase/256/8 ;h
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40 + scrbase
+       ld b,a
+;de=x (не портится)
+;hl=addr(y)
+;lx=color = %33210210
+        ld a,d
+        rra
+        ld a,e
+        rra
+        jr c,invpixel_r
+        rra
+        jr nc,$+4
+        set 6,h
+        rra
+        jr nc,$+4
+        set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,lx
+        ;xor (hl)
+        and %01000111 ;keep left pixel 
+        xor (hl) ;right pixel from screen
+        ld (hl),a
+        ret
+invpixel_r
+        rra
+        jr nc,$+4
+        set 6,h
+        rra
+        jr nc,$+4
+        set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,lx
+        ;xor (hl)
+        and %10111000 ;keep right pixel 
+        xor (hl) ;left pixel from screen
+        ld (hl),a
+        ret
+
+prpixel
+;de=x (не портится)
+;c=y (bc не портится)
+;lx=color = %33210210
+       ld a,b
+        ld l,c
+        ld h,0
+        ld b,scrbase/256/8 ;h
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40 + scrbase
+       ld b,a
+;prpixel_cury
+;de=x (не портится)
+;hl=addr(y)
+;lx=color = %33210210
+        ld a,d
+        rra
+        ld a,e
+        rra
+        jr c,prpixel_r
+        rra
+        jr nc,$+4
+        set 6,h
+        rra
+        jr nc,$+4
+        set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,lx
+        xor (hl)
+        and %01000111 ;keep left pixel 
+        xor (hl) ;right pixel from screen
+        ld (hl),a
+        ret
+prpixel_r
+        rra
+        jr nc,$+4
+        set 6,h
+        rra
+        jr nc,$+4
+        set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,lx
+        xor (hl)
+        and %10111000 ;keep right pixel 
+        xor (hl) ;left pixel from screen
+        ld (hl),a
+        ret
+
+shapes_line
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;de=y (в плоскости экрана, но может быть отрицательным)
+;ix=x2
+;hl=y2
+;a=color = %332103210
+        ld (line_pixel_color),a
+        or a
+        sbc hl,de
+        add hl,de
+        jp p,shapes_line_noswap
+        ex de,hl ;y <-> y2
+        push ix
+        push bc
+        pop ix
+        pop bc ;x <-> x2
+shapes_line_noswap
+        or a
+        sbc hl,de ;dy >= 0
+        push hl ;dy
+        push ix
+        pop hl
+        sbc hl,bc
+        push hl ;dx
+        exx
+        pop bc ;dx
+        ld a,#03 ;inc bc
+        jp p,shapes_line_nodec
+        xor a
+        sub c
+        ld c,a
+        sbc a,b
+        sub c
+        ld b,a ;dx >= 0
+        ld a,#0b ;dec bc
+shapes_line_nodec
+        pop de ;dy
+;a=код inc/dec bc
+;bc'=x (в плоскости экрана, но может быть отрицательным)
+;de'=y (в плоскости экрана, но может быть отрицательным)
+;bc=dx
+;de=dy
+        ex de,hl
+        or a
+        sbc hl,bc
+        add hl,bc
+        ex de,hl
+        jr nc,shapes_linever ;dy>=dx
+        ld hy,b
+        ld ly,c ;counter=dx
+        inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
+        ld h,b
+        ld l,c
+        sra h
+        rr l ;ym=dx div 2 ;TODO а если dx<0?
+         ;xor a
+         ;sub l
+         ;ld l,a
+         ;sbc a,h
+         ;sub l
+         ;ld h,a ;mym=256-(dx div 2)
+        exx
+        ld (shapes_lineincx),a
+;bc=x
+;de=y
+;hl'=xm
+;bc'=dx
+;de'=dy
+shapes_linehor0
+        call line_pixel
+shapes_lineincx=$
+        inc bc ;x+1        
+        exx
+        ;add hl,de ;mym+dy
+        or a
+        sbc hl,de ;ym-dy
+        exx
+        jr nc,shapes_linehor1
+        inc de ;y+1
+        exx
+        ;or a
+        ;sbc hl,bc ;mym-dx
+        add hl,bc ;ym+dx
+        exx
+shapes_linehor1
+        dec iy
+        ld a,hy
+        rla
+        jp nc,shapes_linehor0
+        ret
+shapes_linever
+        ld hy,d
+        ld ly,e ;counter=dy
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
+        ld h,d
+        ld l,e
+        sra h
+        rr l
+         ;xor a
+         ;sub l
+         ;ld l,a
+         ;sbc a,h
+         ;sub l
+         ;ld h,a ;mxm=256-(dy div 2)
+        exx
+        ld (shapes_lineincx2),a
+;bc=x
+;de=y
+;hl'=xm
+;bc'=dx
+;de'=dy
+shapes_linever0
+        call line_pixel
+        inc de ;y+1
+        exx
+        ;add hl,bc ;mxm+dx
+        or a
+        sbc hl,bc ;xm-dx ;TODO а если dx<0?
+        exx
+        jr nc,shapes_linever1
+shapes_lineincx2=$
+        inc bc ;x+1
+        exx
+        ;or a
+        ;sbc hl,de ;mxm-dy
+        add hl,de ;xm+dy
+        exx
+shapes_linever1
+        dec iy
+        ld a,hy
+        rla
+        jp nc,shapes_linever0
+        ret
+
+line_pixel
+;bc=x (может быть отрицательным)
+;de=y (может быть отрицательным)
+        ld hl,199
+        or a
+        sbc hl,de ;y
+        ret c ;y>199
+        ld hl,319
+        or a
+        sbc hl,bc ;x
+        ret c ;x>319
+        push bc
+        push de
+        push ix
+        ld a,e
+        ld d,b
+        ld e,c ;de=x
+        ld c,a ;c=y
+line_pixel_color=$+2
+        ld lx,0
+;de=x (не портится)
+;c=y (bc не портится)
+;lx=color = %33210210
+pixelproc=$+1
+        call prpixel
+        pop ix
+        pop de
+        pop bc
+        ret
+
+
+        macro cols data
+_l=data/16
+_r=data&15
+        db ((_r&8)<<4) + ((_r&7)<<3) + ((_l&8)<<3) + (_l&7)
+        endm
+        
+        macro cols8 d0,d1,d2,d3,d4,d5,d6,d7
+        cols d0
+        cols d1
+        cols d2
+        cols d3
+        cols d4
+        cols d5
+        cols d6
+        cols d7
+        endm
+endtext
+        db "GAME OVER!",0
+
+;oldtimer
+;        dw 0
+
+        align 256
+font
+        incbin "fontgfx"
+
+genmesh
+        xor a
+        ld (ncrossededges),a
+        ld (nvertices),a
+        ld (nedges),a
+        ld (nvertices2),a
+        ld (curmeshvertex),a
+        ld hl,0
+        ld (genmeshedge_old),hl ;невозможное ребро
+;создать ряд из 2 точек (или лучше из sqrt(verticesneeded)) с рёбрами между ними:
+        ld (genmeshx),hl
+        ld (genmeshy),hl
+        call genmeshvertex ;in verlist2
+        ld hl,(verticesneeded)
+        ld h,0
+        call sqrt
+        ld b,d ;будет одна лишняя сверх sqrt
+genmeshfirstrow0
+        push bc
+        call newedgeinlist2 ;цепляем новое ребро в vertlist2
+        pop bc
+        djnz genmeshfirstrow0
+
+        call copyvertlist2to1
+        
+genmeshrows0
+;начинаем следующий ряд
+        ld hl,(genmeshy)
+        ld bc,25
+        add hl,bc
+        ld (genmeshy),hl
+        ld hl,0
+        ld (genmeshx),hl
+        xor a
+        ld (curopenvertinlist1),a
+        ld (nvertices2),a
+;сначала цепляем к первой открытой точке ребро
+;.    .    .    .
+;|    ^текущая открытая точка
+;* текущая цепляемая точка
+        ld a,(nvertices)
+        push af
+        call genmeshvertex ;in verlist2
+        pop af ;новая точка
+        ld (curmeshvertex),a
+        call linktoopenvertex
+        
+genmeshrow00
+        call func_rnd
+        cp 128
+;если rnd>0.?, то создаём ребро и циклимся здесь, иначе цепляем последнее ребро за следующую открытую точку
+;TODO вероятность поставить в соответствие с числом nvertices2 - если сильно меньше, чем надо, то надо генерить рёбра
+;.   .    .    .
+;|_\/
+
+;.    .    .    .
+;|_\__|
+
+;.    .    .    .
+;|_\_.__\
+;        * текущая цепляемая точка
+;и так пока не кончатся открытые точки
+        jr c,genmesh_nextopenvert
+        call newedgeinlist2 ;цепляем новое ребро в vertlist2        
+        ld a,(nvertices)
+        ld hl,verticesneeded
+        cp (hl)
+        jr nc,genmesh_finishlastvertex;jp nc,linktoopenvertex ;сгенерили точек столько, сколько просили
+;с некоторой вероятностью цепляем к текущей открытой точке
+        call func_rnd
+        cp 128
+        call c,linktoopenvertex
+        jr genmeshrow00
+genmesh_finishlastvertex
+;цепляем ребро к текущей открытой точке (даже ко всем открытым до конца! иначе при 2 рядах может остаться хвост в верхнем ряду) и выходим
+genmesh_finishlastvertex0
+        call linktoopenvertex ;цепляем ребро к текущей открытой точке
+        ld de,curopenvertinlist1
+        ld a,(de)
+        inc a
+        ld hl,nvertices1
+        cp (hl)
+        ret nc ;больше нет открытых точек - заканчиваем
+        ld (de),a
+        jr genmesh_finishlastvertex0
+
+genmesh_nextopenvert
+;переходим к следующей открытой точке, если она есть, и цепляем к ней ребро
+        ld de,curopenvertinlist1
+        ld a,(de)
+        inc a
+        ld hl,nvertices1
+        cp (hl)
+        jr nc,genmesh_rowend ;больше нет открытых точек - заканчиваем ряд
+        ld (de),a
+        call linktoopenvertex ;цепляем ребро к текущей открытой точке
+        jr genmeshrow00
+genmesh_rowend
+        call linktoopenvertex ;цепляем ребро к текущей (последней) открытой точке
+;ряд открытых точек заменить новым
+        call copyvertlist2to1
+        jr genmeshrows0
+
+newedgeinlist2
+;цепляем новое ребро в vertlist2
+        ld a,(nvertices)
+        push af
+        call genmeshvertex ;in verlist2
+        ld a,(curmeshvertex)
+        ld e,a ;текущая цепляемая точка
+        pop af ;новая точка
+        ld (curmeshvertex),a
+        ld d,a
+        jp genmeshedge
+
+linktoopenvertex
+curmeshvertex=$+1
+        ld d,0 ;номер точки, которую надо прицепить
+curopenvertinlist1=$+1
+        ld a,0
+        ld hl,vertlist1
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld e,(hl) ;текущая открытая точка
+        jp genmeshedge
+
+genmeshvertex
+;in verlist2
+genmeshx=$+1
+        ld bc,0
+genmeshy=$+1
+        ld de,0
+        
+        if 1==0
+        push bc
+        ld c,160
+        call rnd
+        add a,a
+        ld a,a
+        ld a,0
+        rl a
+        ld c,200
+        call rnd
+        ld a,a
+        ld a,0
+        pop bc
+        else
+        ld c,160
+        call rnd
+        add a,a
+        ld c,a
+        ld b,0
+        rl b
+        push bc
+        ld c,200
+        call rnd
+        ld e,a
+        ld d,0
+        pop bc
+        endif
+;bc=x
+;de=y
+        ld a,(nvertices2)
+        ld hl,vertlist2
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(nvertices)
+        ld (hl),a
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        push bc
+        ld bc,vertices
+        add hl,bc
+        pop bc
+        ld (hl),c
+        inc hl
+        ld (hl),b ;x
+        inc hl
+        ld (hl),e
+        inc hl
+        ld (hl),d ;y
+        ld hl,nvertices
+        inc (hl)
+        ld hl,nvertices2
+        inc (hl)
+        ld hl,(genmeshx)
+        ld bc,24
+        add hl,bc
+        ld (genmeshx),hl
+        ret
+        
+copyvertlist2to1
+        ld hl,vertlist2
+        ld de,vertlist1
+        ld bc,MAXVERTICES
+        ldir
+        ld a,(nvertices2)
+        ld (nvertices1),a
+        ret
+        
+genmeshedge
+;d=vertex1
+;e=vertex2
+;проверим, что мы уже не прицепили это ребро
+genmeshedge_old=$+1
+        ld hl,0
+        or a
+        sbc hl,de
+        ld (genmeshedge_old),de
+        ret z
+        ld a,(nedges)
+        ld c,a
+        ld b,0
+        ld hl,edges
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        ld (hl),d
+        inc hl
+        ld (hl),e
+        dec hl
+;check if this edge crossed with something, mark crossing here and there
+        ld a,(nedges)
+        call checkcrossedwith_oldedges
+        ld hl,nedges
+        inc (hl)
+        ret
+
+countcrossededges
+;проверяем пересечение всех со всеми
+        xor a
+        ld (ncrossededges),a
+        ld hl,edges
+        ld a,(nedges)
+        ld b,a
+countcrossededges0
+        push bc
+        push hl
+        ld a,(nedges)
+        sub b
+        call checkcrossedwith_oldedges
+        pop hl
+        inc hl
+        inc hl
+        inc hl
+        pop bc
+        djnz countcrossededges0
+        ret
+
+checkcrossedwith_oldedges
+;hl=edge to check
+;a=nedges before current edge
+        inc hl
+        inc hl
+        ld (hl),0
+        dec hl
+        dec hl
+        ld de,edges
+        or a
+        jr z,genmeshedge_nocheckcrossed
+        ld b,a ;was nedges
+genmeshedge_checkcrossed0
+        push bc
+        push de
+        push hl
+        call checkcrossed_edge
+        pop hl
+        pop de
+        pop bc
+        ;jr c,$
+        inc de
+        inc de
+        jr nc,genmeshedge_nocrossed
+         ;ld a,3
+         ;dec a
+         ;ld ($-2),a
+         ;jr z,$;genmeshedge_nocrossed
+        inc hl
+        inc hl
+        ld a,(de)
+        cp 1
+        call nz,inccrossededges
+        ld a,1
+        ld (hl),a
+        ld (de),a
+        call inccrossededges
+        dec hl
+        dec hl
+genmeshedge_nocrossed
+        inc de
+        djnz genmeshedge_checkcrossed0
+genmeshedge_nocheckcrossed
+        ret
+        
+inccrossededges
+        push hl
+        ld hl,ncrossededges
+        inc (hl)
+        pop hl
+        ret
+
+checkcrossed_edge
+;hl=edge1addr
+;de=edge2addr
+;out: CY=crossed
+        ld c,(hl) ;edge1vertex1
+        inc hl
+        ld a,(hl) ;edge1vertex2
+        ld b,0
+        ld hl,vertices
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkxA),bc
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkyA),bc
+        ld c,a ;edge1vertex2
+        ld b,0
+        ld hl,vertices
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkxB),bc
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkyB),bc
+        
+        ex de,hl
+
+        ld c,(hl) ;edge2vertex1
+        inc hl
+        ld a,(hl) ;edge2vertex2
+        ld b,0
+        ld hl,vertices
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkxC),bc
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkyC),bc
+        ld c,a ;edge2vertex2
+        ld b,0
+        ld hl,vertices
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkxD),bc
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (checkyD),bc
+        
+;проверка пересечения AB и CD
+;проверить одинаковую левость (знак векторного произведения двух сторон) треугольников ABC и BCD. Если одинаковая, то пересечение.
+;Ложное срабатывание! Поэтому если левость одинаковая, надо проверить ещё левость DBA - если такая же, то пересечение.
+;ложное срабатывание при палке B,A над CD ;проверяем DCA
+;Как при этом гарантировать [0..1]?
+;Если (A=C и B=D) или (B=C и A=D), то пересечение (чтобы не выигрывали методом наложения отрезков)
+;далее если A=C или A=D или B=C или B=D, то непересечение (примыкание)
+;иначе считаем математику
+        if 1==1
+        ld hl,(checkxA)
+        ld de,(checkxC)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noAC
+        ld hl,(checkyA)
+        ld de,(checkyC)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noAC
+        ld hl,(checkxB)
+        ld de,(checkxD)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noAC
+        ld hl,(checkyB)
+        ld de,(checkyD)
+        or a
+        sbc hl,de
+        scf
+        ret z ;пересечение
+checkcrossed_noAC
+        ld hl,(checkxB)
+        ld de,(checkxC)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noBC
+        ld hl,(checkyB)
+        ld de,(checkyC)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noBC
+        ld hl,(checkxA)
+        ld de,(checkxD)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noBC
+        ld hl,(checkyA)
+        ld de,(checkyD)
+        or a
+        sbc hl,de
+        scf
+        ret z ;пересечение
+checkcrossed_noBC
+        endif
+        
+        if 1==1
+        ld hl,(checkxA)
+        ld de,(checkxC)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noACcommon
+        ld hl,(checkyA)
+        ld de,(checkyC)
+        or a
+        sbc hl,de
+        ret z ;примыкание
+checkcrossed_noACcommon
+        ld hl,(checkxA)
+        ld de,(checkxD)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noADcommon
+        ld hl,(checkyA)
+        ld de,(checkyD)
+        or a
+        sbc hl,de
+        ret z ;примыкание
+checkcrossed_noADcommon
+        ld hl,(checkxB)
+        ld de,(checkxC)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noBCcommon
+        ld hl,(checkyB)
+        ld de,(checkyC)
+        or a
+        sbc hl,de
+        ret z ;примыкание
+checkcrossed_noBCcommon
+        ld hl,(checkxB)
+        ld de,(checkxD)
+        or a
+        sbc hl,de
+        jr nz,checkcrossed_noBDcommon
+        ld hl,(checkyB)
+        ld de,(checkyD)
+        or a
+        sbc hl,de
+        ret z ;примыкание
+checkcrossed_noBDcommon
+        endif
+        ;or a
+        ;ret
+        
+        ld hl,(checkxA)
+        ld (trix1),hl
+        ld hl,(checkxB)
+        ld (trix2),hl
+        ld hl,(checkxC)
+        ld (trix3),hl
+        ld hl,(checkyA)
+        ld (triy1),hl
+        ld hl,(checkyB)
+        ld (triy2),hl
+        ld hl,(checkyC)
+        ld (triy3),hl
+        call checktriangle ;ABC
+        push hl
+        ld hl,(checkxD)
+        ld (trix1),hl
+        ld hl,(checkyD)
+        ld (triy1),hl
+        call checktriangle ;DBC
+        pop de
+        ld a,h
+        xor d
+        rla
+        ccf
+        ret nc ;разная левость - нет пересечения
+        push hl
+        ld hl,(checkxA)
+        ld (trix3),hl
+        ld hl,(checkyA)
+        ld (triy3),hl
+        call checktriangle ;DBA
+        pop bc
+        ld a,h
+        xor b
+        rla
+        ccf
+        ret nc ;разная левость - нет пересечения
+        ld a,h
+        or l
+        or d
+        or e
+        jr z,checkcrossed_collinear ;площадь DBC = 0 - отдельная проверка
+;ложное срабатывание при палке B,A над CD
+;проверяем DCA
+        push hl
+        ld hl,(checkxC)
+        ld (trix2),hl
+        ld hl,(checkyC)
+        ld (triy2),hl
+        call checktriangle ;DCA
+        pop de
+        ld a,h
+        xor d
+        rla
+        ccf
+        ret ;одинаковая левость - есть пересечение
+checkcrossed_collinear
+;отрезки на одной прямой
+;отдельно проверить, что отрезки лежат друг на друге (раньше площади 0 считались как непересечение)
+;найти самую большую ось (max-min)
+        ld hl,(checkxA)
+        ld bc,(checkxB)
+        call minhl_bc_tobc
+        ld (checkxminAB),bc
+        push bc
+        ld hl,(checkxC)
+        ld bc,(checkxD)
+        call minhl_bc_tobc
+        ld (checkxminCD),bc
+        pop hl
+        call minhl_bc_tobc
+;bc=minx
+        ld hl,(checkxA)
+        ld de,(checkxB)
+        call maxhl_de_tode
+        ld (checkxmaxAB),de
+        push de
+        ld hl,(checkxC)
+        ld de,(checkxD)
+        call maxhl_de_tode
+        ld (checkxmaxCD),de
+        pop hl
+        call maxhl_de_tode
+;de=maxx
+        ex de,hl
+        or a
+        sbc hl,bc
+        push hl ;maxx-minx
+
+        ld hl,(checkyA)
+        ld bc,(checkyB)
+        call minhl_bc_tobc
+        ld (checkyminAB),bc
+        push bc
+        ld hl,(checkyC)
+        ld bc,(checkyD)
+        call minhl_bc_tobc
+        ld (checkyminCD),bc
+        pop hl
+        call minhl_bc_tobc
+;bc=miny
+        ld hl,(checkyA)
+        ld de,(checkyB)
+        call maxhl_de_tode
+        ld (checkymaxAB),de
+        push de
+        ld hl,(checkyC)
+        ld de,(checkyD)
+        call maxhl_de_tode
+        ld (checkymaxCD),de
+        pop hl
+        call maxhl_de_tode
+;de=maxy
+        ex de,hl
+        or a
+        sbc hl,bc ;maxy-miny
+        
+        pop de ;maxx-minx
+        
+;если нет пересечения, то должно быть max(A,B)<min(C,D) или max(C,D)<min(A,B)
+        or a
+        sbc hl,de ;NC: разброс по y >= разброс по x, берём y
+        jr nc,checkcrossed_collinear_y
+;разброс по y < разброс по x, берём x
+checkxmaxAB=$+1
+        ld hl,0
+checkxminCD=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        ccf
+        ret nc ;нет пересечения
+checkxmaxCD=$+1
+        ld hl,0
+checkxminAB=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        ccf
+        ret
+checkcrossed_collinear_y
+;разброс по y >= разброс по x, берём y
+checkymaxAB=$+1
+        ld hl,0
+checkyminCD=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        ccf
+        ret nc ;нет пересечения
+checkymaxCD=$+1
+        ld hl,0
+checkyminAB=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        ccf
+        ret
+
+minhl_bc_tobc
+        or a
+        sbc hl,bc
+        add hl,bc
+        ret nc ;bc<=hl
+        ld b,h
+        ld c,l
+        ret
+
+maxhl_de_tode
+        or a
+        sbc hl,de
+        add hl,de
+        ret c ;de>hl
+        ex de,hl
+        ret
+
+checkxA
+        dw 0
+checkyA
+        dw 0
+checkxB
+        dw 0
+checkyB
+        dw 0
+checkxC
+        dw 0
+checkyC
+        dw 0
+checkxD
+        dw 0
+checkyD
+        dw 0
+
+checktriangle
+;out: h7=левость
+;    x21:=vert[poly[i].v2].xscr-vert[poly[i].v1].xscr;
+;    x31:=vert[poly[i].v3].xscr-vert[poly[i].v1].xscr;
+;    y21:=vert[poly[i].v2].yscr-vert[poly[i].v1].yscr;
+;    y31:=vert[poly[i].v3].yscr-vert[poly[i].v1].yscr;
+triy2=$+1
+        ld hl,0
+triy1=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        ld (y21),hl
+triy3=$+1
+        ld hl,0
+        or a
+        sbc hl,de
+        ld (y31),hl
+trix2=$+1
+        ld hl,0
+trix1=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        ld (x21),hl
+trix3=$+1
+        ld hl,0
+        or a
+        sbc hl,de
+        ld (x31),hl
+;    poly[i].visible := ((x21*y31 - x31*y21) > 0);
+x31=$+1
+        ld de,0
+y21=$+2
+        ld ix,0
+        ld a,d
+        rla
+        sbc a,a
+        ld h,a
+        ld l,a
+        ld a,hx
+        rla
+        sbc a,a
+        ld b,a
+        ld c,a
+;hl, de * bc, ix
+        call _MULLONG. ;out: hl(high), de(low)
+        push hl ;HSW
+        push de ;LSW
+x21=$+1
+        ld de,0
+y31=$+2
+        ld ix,0
+        ld a,d
+        rla
+        sbc a,a
+        ld h,a
+        ld l,a
+        ld a,hx
+        rla
+        sbc a,a
+        ld b,a
+        ld c,a
+;hl, de * bc, ix
+        call _MULLONG. ;out: hl(high), de(low)
+        pop bc ;LSW
+        ex de,hl
+        or a
+        sbc hl,bc
+        ex de,hl
+        pop bc ;HSW
+        sbc hl,bc
+        ret
+
+sqrt
+;in: hl
+;out: d
+        or a
+        ld a,l
+        ld l,h
+        ld de,64
+        ld h,d
+        ld b,8
+sqrt0
+        sbc hl,de
+        jr nc,$+3
+        add hl,de
+        ccf
+        rl d
+        add a,a
+        adc hl,hl
+        add a,a
+        adc hl,hl
+        djnz sqrt0
+        ret
+
+        if 1==0
+;hl * de (signed = unsigned)
+;out: hl
+_MUL.
+	ld a,h
+	ld c,l
+	ld hl,0
+	ld b,16
+_MUL0.
+	add hl,hl
+	rl c
+	rla
+	jr nc,$+3
+	add hl,de
+	djnz _MUL0.
+	ret
+        endif
+
+;hl, de * bc, ix
+;out: hl(high), de(low)
+_MULLONG.
+	;EXPORT _MULLONG.
+;signed mul is equal to unsigned mul
+;hlde*bcix = hlde*b000 + hlde*c00 + hlde*i0 + hlde*x
+	ld a,lx
+	push af ;lx
+	push ix ;hx
+	ld a,c
+	push af ;c
+	ld a,b
+;bcde <= hlde:
+	ld b,h
+	ld c,l
+;hlix <= 0
+	ld hl,0
+	;ld ix,0
+	push hl
+	pop ix
+	call _MULLONGP. ;hlix = (hlix<<8) + "b*hlde"
+	pop af ;c
+	call _MULLONGP. ;hlix = (hlix<<8) + "c*hlde"
+	pop af ;hx
+	call _MULLONGP. ;hlix = (hlix<<8) + "hx*hlde"
+	pop af ;lx
+	call _MULLONGP. ;hlix = (hlix<<8) + "lx*hlde"
+	push ix
+	pop de
+	ret
+;hlix = (hlix<<8) + a*bcde
+_MULLONGP.
+	exx
+	ld b,8
+_MULLONG0.
+	exx
+	add ix,ix
+	adc hl,hl
+	rla
+	jr nc,$+2+2+2
+	add ix,de
+	adc hl,bc
+	exx
+	djnz _MULLONG0. ;можно по a==0 (первый вход с scf:rla, далее add a,a)
+	exx
+	ret
+
+
+vertlist1
+        ds MAXVERTICES
+vertlist2
+        ds MAXVERTICES
+nvertices1
+        db 0
+nvertices2
+        db 0
+
+vertices
+;x,X,y,Y
+        ds MAXVERTICES*4
+nvertices
+        db 0
+verticesneeded
+        db 10
+level
+        db 0
+edges
+;vertex1,vertex2,crossed        ds MAXEDGES*3
+nedges
+        db 0
+ncrossededges
+        db 0
+
+        macro SHAPESPROC name
+name
+        endm
+
+scrwid=320
+scrhgt=200
+
+ZONE_NO=0
+ZONE_TOP=1
+ZONE_LEFT=2
+ZONE_RIGHT=3
+ZONE_WORK=4
+ZONE_PAL=5
+ZONE_NAVIGATOR=6
+
+TOOL_WINDOW=0
+TOOL_PENCIL=1
+TOOL_BRUSH=2
+TOOL_LINE=3
+TOOL_FILL=4
+TOOL_TEXT=5
+NTOOLS=6
+
+prarr_zone
+        db 0
+curtool1
+        db 0
+
+sprringon_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#3847,#07b8,#07b8,#07b8,#3847,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #07b8,#3847,#00ff,#00ff,#00ff,#3847,#07b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#07b8,#07b8,#07b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+sprringon_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#3847,#3847,#3847,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #3847,#07b8,#00ff,#00ff,#00ff,#07b8,#3847,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#07b8,#3847,#3847,#3847,#07b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+
+sprringoff_l
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#0047,#00b8,#00b8,#00b8,#0047,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #0000,#00ff,#00ff,#00ff,#00ff,#00ff,#0000,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00b8,#0047,#00ff,#00ff,#00ff,#0047,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00ff,#00b8,#00b8,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+sprringoff_r
+;mask,pixels = #ppmm
+;%rlrrrlll
+        db 4
+        dw #00ff,#00ff,#0047,#0047,#0047,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #0047,#00b8,#00ff,#00ff,#00ff,#00b8,#0047,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #0000,#00ff,#00ff,#00ff,#00ff,#00ff,#0000,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+        dw #00ff,#00b8,#0047,#0047,#0047,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
+
+
+        include "prarrow.asm"
+        include "control.asm"
+
+end
+
+	display "End=",end
+	;display "Free after end=",/d,#c000-end
+	display "Size ",/d,end-begin," bytes"
+	
+	savebin "untangle.com",begin,end-begin
+	
+	;LABELSLIST "..\us\user.l"

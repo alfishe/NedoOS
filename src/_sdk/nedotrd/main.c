@@ -8,7 +8,7 @@
 #define FALSE 0x00
 #define TRUE 0xff
 #define TRDSIZE 655360
-#define BLOCKSIZE 32768
+#define BLOCKSIZE 65280/*32768*/
 #define DESCSIZE 16
 
 BYTE trd[TRDSIZE];

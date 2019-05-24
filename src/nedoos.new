@@ -636,3 +636,25 @@ v0.r106.1, 10.05.2019
 
 + nv поддерживает до 8192 файлов на панели (Lord Vader), пока страницы заказаны статически
 - wget подмена пробелов в url на %20 (DimkaM)
+
+v0.r111.1, 23.05.2019
+
++ начал драйвер ps/2 клавиатуры (DimkaM)
++ Basic version 0.11 (demige):
+Start from now basic.com by default load in text format
+Added cmdline parameter "-c" for old fast load in "code" format
+New commands loadcode, savecode for old "code" format
++ nv in prwindow_waitkey (demige):
+Dialog window redraw disabled by now (commented)
+Added reaction for n,N,y,Y
+- nv ran the file even if the extension was not found in nv.ext (demige)
+* nv exit on "0" key (demige)
+* в nedotrd по умолчанию размер сегмента файла равен 65280 байт
++ добавлена альфа-версия игры untangle
+
+v0.r111.2, 24.05.2019
+
++ untangle: добавлена проверка коллинеарных отрезков
+- untangle: первый отрезок меша генерировался неправильно
+- untangle: при движении не затираются линии
++ untangle: показывается номер уровня
