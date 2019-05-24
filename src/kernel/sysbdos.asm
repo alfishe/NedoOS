@@ -8,8 +8,8 @@ vol_trdos=4
 ;FCB и им€ можно передавать в любой области userspace
 ;DTA может быть в любой области userspace
 
-CurrVol=#4010
-CurrDir=#4011
+CurrVol=0X4000+26
+CurrDir=CurrVol+1
 
         MACRO GETVOLUME
         ;ld a,(CurrVol)
@@ -1841,6 +1841,39 @@ BDOS_fclose_noFATFS
         BDOSSETPGTRDOSFS
         jp trdos_fclose
 
+;***********************«ј√Ћ”Ў »**************************	
+;копирование строки из\в юзерспейса в\из либу фатфс	
+strcpy_uspace	;DE - dst, BC - src
+	ld a,(bc)
+	ld (de),a
+	inc de
+	inc bc
+	or a
+	jr nz,strcpy_uspace
+	ret 	
+;копирование в\из юзерспейса в\из либу фатфс	
+memcpy_uspace	;DE - dst, BC - src, на стеке count
+	ld h,b
+	ld l,c
+	pop af
+	pop bc
+	push bc
+	push af
+	ldir
+	ret 
+;копирование в\из юзерспейса в\из структуру	
+memcpy_uspace_struct	;DE - dst, BC - src, на стеке count
+	ld h,b
+	ld l,c
+	pop af
+	pop bc
+	push bc
+	push af
+	ldir
+	ret 
+	
+;*********************************************************	
+	display "ffs ",$
 ffs
 ;портит iy! по нельз€ двигать стек! в нЄм параметры!
         ;ld l,(iy+app.dir+DIR.ID)
@@ -1857,7 +1890,7 @@ ffs
          ld h,(iy+app.dircluster+3)
         ld (CurrDir+2),hl
 
-	ld hl,fatfs.tabl+21
+	ld hl,fatfs.tabl+31
 	ADD A,A
 	ADD A,L
 	LD L,A

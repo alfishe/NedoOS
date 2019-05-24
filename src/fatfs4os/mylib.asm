@@ -1,7 +1,7 @@
 MODULE mylib
   PUBLIC tablcall
   PUBLIC LD_CLUST
-  PUBLIC drv_calls_struct,dio_par,CurrDir
+  PUBLIC drv_calls,dio_par,CurrDir
   PUBLIC CurrVol
   PUBLIC FatFs
   PUBLIC Fsid
@@ -30,12 +30,17 @@ MODULE mylib
 
   RSEG TRST
   
-drv_calls_struct:
+drv_calls:
 		defw 0	;init
-		defw 0	;read
-		defw 0	;write
 		defw 0	;status
+		defw 0	;read to userspace
+		defw 0	;read to buffer
+		defw 0	;write from userspace
+		defw 0	;write from buffer
 		defw 0	;RTC
+		defw 0	;strcpy_uspace to\from fatfs lib
+		defw 0	;memcpy_uspace to\from fatfs lib
+		defw 0	;memcpy_structs to\from uspace
 dio_par:
         DEFB 1        ;DRV
         DEFW 0x4000   ;*BUF

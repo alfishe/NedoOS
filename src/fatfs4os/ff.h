@@ -249,7 +249,7 @@ TCHAR* f_gets (TCHAR*, int, FIL*);					/* Get a string from the file */
 /* RTC function */
 #if !_FS_READONLY
 //extern void get_fattime (DWORD*);
-#define get_fattime drv_calls_struct.RTC
+#define get_fattime drv_calls.RTC
 #endif
 
 /* Unicode support functions */

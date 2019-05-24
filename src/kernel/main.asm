@@ -228,14 +228,24 @@ fatfspatchaddr=#c000
         
         ld hl,devices_init
         ld (0xc000+0),hl
-        ld hl,devices_read
-        ld (0xc000+2),hl
-        ld hl,devices_write
-        ld (0xc000+4),hl
         ld hl,disk_status
+        ld (0xc000+2),hl
+        ld hl,devices_read	;read to userspace
+        ld (0xc000+4),hl
+        ld hl,devices_read	;read to buffer
         ld (0xc000+6),hl
-        ld hl,get_fattime
+        ld hl,devices_write	;write from userspace
         ld (0xc000+8),hl
+        ld hl,devices_write	;write from buffer
+        ld (0xc000+10),hl
+        ld hl,get_fattime
+        ld (0xc000+12),hl
+        ld hl,strcpy_uspace	;strcpy_uspace to\from fatfs lib
+        ld (0xc000+14),hl
+        ld hl,memcpy_uspace	;memcpy_uspace to\from fatfs lib
+        ld (0xc000+16),hl
+        ld hl,memcpy_uspace_struct	;memcpy_structs to\from uspace
+        ld (0xc000+18),hl
 
 ;инициализация менеджера памяти и вход в юзерспейс:
 ;HALT (чтобы прерывание не произошло когда не надо)

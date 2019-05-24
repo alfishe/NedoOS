@@ -24,7 +24,7 @@ IF NOT EXIST %ICCZ80%.exe (
 echo Build fatfs
 set C_OPTIONS=-S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -Llist\ -Olist\ -Alist\ -I%IARINC%
 set LINK_OPTIONS=-S -cZ80 -Ilist -FRAW-BINARY -C %IARLIB%\clz80 -o fatfs.raw -l list/cout.html -xehinms
-set LINK_OPTIONS=!LINK_OPTIONS! -Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,TEMP=4000-7FFF
+set LINK_OPTIONS=!LINK_OPTIONS! -Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF
 
 if not exist list mkdir list
 
@@ -40,4 +40,4 @@ FOR %%f IN (!ASM_FILES!) do (
 
 %XLINK% !ADD_LINK_FILES! !LINK_OPTIONS!
 
-if "%wascurrentdir%"=="" (pause)
+rem if "%wascurrentdir%"=="" (pause)

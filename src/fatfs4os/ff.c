@@ -502,8 +502,8 @@ static WCHAR LfnBuf[_MAX_LFN+1];
 #error Wrong LFN configuration.
 #endif
 
-
-
+no_init unsigned char pathbuf[256];
+no_init unsigned char * pathbuf_ptr;
 
 /*--------------------------------------------------------------------------
 
@@ -681,7 +681,7 @@ FRESULT move_window (
 #if !_FS_READONLY
 		if (fs->wflag) {	/* Write back dirty window if needed */
 			SET_DIO_PAR(fs->drv, fs->win, wsect,1);
-			if (disk_write() != RES_OK)
+			if (drv_calls.write_from_buf() != RES_OK)
 				return FR_DISK_ERR;
 			fs->wflag = 0;
 			if (wsect < (fs->fatbase + fs->fsize)) {	/* In FAT area */
@@ -689,14 +689,14 @@ FRESULT move_window (
 				for (nf = fs->n_fats; nf > 1; nf--) {	/* Reflect the change to all FAT copies */
 					wsect += fs->fsize;
 					SET_DIO_PAR(fs->drv, fs->win, wsect,1);
-					disk_write();
+					drv_calls.write_from_buf();
 				}
 			}
 		}
 #endif
 		if (sector) {
 		        SET_DIO_PAR(fs->drv, fs->win, sector,1);
-			if (disk_read() != RES_OK)
+			if (drv_calls.read_to_buf() != RES_OK)
 				return FR_DISK_ERR;
 			fs->winsect = sector;
 		}
@@ -734,7 +734,7 @@ FRESULT sync (	/* FR_OK: successful, FR_DISK_ERR: failed */
 			ST_DWORD(fs->win+FSI_Nxt_Free, fs->last_clust);
 			/* Write it into the FSInfo sector */
 			SET_DIO_PAR(fs->drv, fs->win, fs->fsi_sector,1);
-			disk_write();
+			drv_calls.write_from_buf();
 			fs->fsi_flag = 0;
 		}
 		/* Make sure that no pending write process in the physical drive */
@@ -1939,7 +1939,7 @@ BYTE check_fs (	/* 0:The FAT BR, 1:Valid BR but not an FAT, 2:Not a BR, 3:Disk e
 	DWORD sect	/* Sector# (lba) to check if it is an FAT boot record or not */
 )
 {       SET_DIO_PAR(fs->drv, fs->win, sect,1);
-	if (disk_read() != RES_OK)	/* Load boot record */
+	if (drv_calls.read_to_buf() != RES_OK)	/* Load boot record */
 		return 3;
 	if (LD_WORD(&fs->win[BS_55AA]) != 0xAA55)		/* Check record signature (always placed at offset 510 even if the sector size is >512) */
 		return 2;
@@ -2096,7 +2096,7 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 	 	fs->fsi_flag = 0;
 		fs->fsi_sector = bsect + LD_WORD(fs->win+BPB_FSInfo);
 		SET_DIO_PAR(fs->drv, fs->win, fs->fsi_sector,1);
-		if (disk_read() == RES_OK &&
+		if (drv_calls.read_to_buf() == RES_OK &&
 			LD_WORD(fs->win+BS_55AA) == 0xAA55 &&
 			LD_DWORD(fs->win+FSI_LeadSig) == 0x41615252 &&
 			LD_DWORD(fs->win+FSI_StrucSig) == 0x61417272) {
@@ -2209,19 +2209,20 @@ FRESULT f_open (
 	BYTE *dir;
 	DEF_NAMEBUF;
 
-
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
 	fp->fs = 0;			/* Clear file object */
 
 #if !_FS_READONLY
 	mode &= FA_READ | FA_WRITE | FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_CREATE_NEW;
-	res = chk_mounted(&path, &djo.fs, (BYTE)(mode & ~FA_READ));
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, (BYTE)(mode & ~FA_READ));
 #else
 	mode &= FA_READ;
-	res = chk_mounted(&path, &djo.fs, 0);
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
 #endif
 	INIT_BUF(djo);
 	if (res == FR_OK)
-		res = follow_path(&djo, path);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
 	dir = djo.dir;
 
 #if !_FS_READONLY	/* R/W configuration */
@@ -2384,15 +2385,15 @@ FRESULT f_read (
 				if (csect + cc > fp->fs->csize)	/* Clip at cluster boundary */
 					cc = fp->fs->csize - csect;
 				SET_DIO_PAR(fp->fs->drv, rbuff, sect, (BYTE)cc);
-				if (disk_read() != RES_OK)
+				if (drv_calls.read_to_uspace() != RES_OK)
 					ABORT(fp->fs, FR_DISK_ERR);
 #if !_FS_READONLY && _FS_MINIMIZE <= 2			/* Replace one of the read sectors with cached data if it contains a dirty sector */
 #if _FS_TINY
 				if (fp->fs->wflag && fp->fs->winsect - sect < cc)
-					memcpy(rbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), fp->fs->win, SS(fp->fs));
+					drv_calls.memcpy_uspace_struct(rbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), fp->fs->win, SS(fp->fs));
 #else
 				if ((fp->flag & FA__DIRTY) && fp->dsect - sect < cc)
-					memcpy(rbuff + ((fp->dsect - sect) * SS(fp->fs)), fp->buf, SS(fp->fs));
+					drv_calls.memcpy_uspace_struct(rbuff + ((fp->dsect - sect) * SS(fp->fs)), fp->buf, SS(fp->fs));
 #endif
 #endif
 				rcnt = SS(fp->fs) * cc;			/* Number of bytes transferred */
@@ -2403,13 +2404,13 @@ FRESULT f_read (
 #if !_FS_READONLY
 				if (fp->flag & FA__DIRTY) {		/* Write-back dirty sector cache */
 					SET_DIO_PAR(fp->fs->drv, fp->buf, fp->dsect, 1);
-					if (disk_write() != RES_OK)
+					if (drv_calls.write_from_buf() != RES_OK)
 						ABORT(fp->fs, FR_DISK_ERR);
 					fp->flag &= ~FA__DIRTY;
 				}
 				
 				SET_DIO_PAR(fp->fs->drv, fp->buf, sect, 1);
-				if (disk_read() != RES_OK)	/* Fill sector cache */
+				if (drv_calls.read_to_buf() != RES_OK)	/* Fill sector cache */
 					ABORT(fp->fs, FR_DISK_ERR);
 			}
 #endif
@@ -2420,9 +2421,9 @@ FRESULT f_read (
 #if _FS_TINY
 		if (move_window(fp->fs, fp->dsect))		/* Move sector window */
 			ABORT(fp->fs, FR_DISK_ERR);
-		memcpy(rbuff, &fp->fs->win[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
+		drv_calls.memcpy_uspace_struct(rbuff, &fp->fs->win[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
 #else
-		memcpy(rbuff, &fp->buf[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
+		drv_calls.memcpy_uspace_struct(rbuff, &fp->buf[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
 #endif
 	}
 
@@ -2490,7 +2491,7 @@ FRESULT f_write (
 #else
 			if (fp->flag & FA__DIRTY) {		/* Write-back sector cache */
 				SET_DIO_PAR(fp->fs->drv, fp->buf, fp->dsect, 1);
-				if (disk_write() != RES_OK)
+				if (drv_calls.write_from_buf() != RES_OK)
 					ABORT(fp->fs, FR_DISK_ERR);
 				fp->flag &= ~FA__DIRTY;
 			}
@@ -2503,16 +2504,16 @@ FRESULT f_write (
 				if (csect + cc > fp->fs->csize)	/* Clip at cluster boundary */
 					cc = fp->fs->csize - csect;
 				SET_DIO_PAR(fp->fs->drv, wbuff, sect, (BYTE)cc);
-				if (disk_write() != RES_OK)
+				if (drv_calls.write_from_uspace() != RES_OK)
 					ABORT(fp->fs, FR_DISK_ERR);
 #if _FS_TINY
 				if (fp->fs->winsect - sect < cc) {	/* Refill sector cache if it gets invalidated by the direct write */
-					memcpy(fp->fs->win, wbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), SS(fp->fs));
+					drv_calls.memcpy_uspace_struct(fp->fs->win, wbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), SS(fp->fs));
 					fp->fs->wflag = 0;
 				}
 #else
 				if (fp->dsect - sect < cc) { /* Refill sector cache if it gets invalidated by the direct write */
-					memcpy(fp->buf, wbuff + ((fp->dsect - sect) * SS(fp->fs)), SS(fp->fs));
+					drv_calls.memcpy_uspace_struct(fp->buf, wbuff + ((fp->dsect - sect) * SS(fp->fs)), SS(fp->fs));
 					fp->flag &= ~FA__DIRTY;
 				}
 #endif
@@ -2529,7 +2530,7 @@ FRESULT f_write (
 				
 				SET_DIO_PAR(fp->fs->drv, fp->buf, sect, 1);
 				if (fp->fptr < fp->fsize &&
-					disk_read() != RES_OK)
+					drv_calls.read_to_buf() != RES_OK)
 						ABORT(fp->fs, FR_DISK_ERR);
 			}
 #endif
@@ -2540,10 +2541,10 @@ FRESULT f_write (
 #if _FS_TINY
 		if (move_window(fp->fs, fp->dsect))	/* Move sector window */
 			ABORT(fp->fs, FR_DISK_ERR);
-		memcpy(&fp->fs->win[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
+		drv_calls.memcpy_uspace_struct(&fp->fs->win[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
 		fp->fs->wflag = 1;
 #else
-		memcpy(&fp->buf[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
+		drv_calls.memcpy_uspace_struct(&fp->buf[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
 		fp->flag |= FA__DIRTY;
 #endif
 	}
@@ -2576,7 +2577,7 @@ FRESULT f_sync (
 #if !_FS_TINY	/* Write-back dirty buffer */
 			if (fp->flag & FA__DIRTY) {
 				SET_DIO_PAR(fp->fs->drv, fp->buf, fp->dsect, 1);
-				if (disk_write() != RES_OK)
+				if (drv_calls.write_from_buf() != RES_OK)
 					LEAVE_FF(fp->fs, FR_DISK_ERR);
 				fp->flag &= ~FA__DIRTY;
 			}
@@ -2671,11 +2672,13 @@ FRESULT f_chdir (
 	//DIR dj;
 	DEF_NAMEBUF;
 
-
-	res = chk_mounted(&path, &djo.fs, 0);
+	
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);		/* Follow the path */
+		res = follow_path(&djo, pathbuf_ptr);		/* Follow the path */
 		FREE_BUF();
 		if (res == FR_OK) {					/* Follow completed */
 			if (!djo.dir) {
@@ -2709,8 +2712,9 @@ FRESULT f_getcwd (
 	DEF_NAMEBUF;
 
 
-	*path = 0;
-	res = chk_mounted((const TCHAR**)&path, &djo.fs, 0);	/* Get current volume */
+	*pathbuf = 0;
+	pathbuf_ptr=pathbuf;
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);	/* Get current volume */
 	if (res == FR_OK) {
 		INIT_BUF(djo);
 		i = sz_path;		/* Bottom of buffer (dir stack base) */
@@ -2732,20 +2736,20 @@ FRESULT f_getcwd (
 			if (res == FR_NO_FILE) res = FR_INT_ERR;/* It cannot be 'not found'. */
 			if (res != FR_OK) break;
 #if _USE_LFN
-			fno.lfname = path;
+			fno.lfname = pathbuf;
 			fno.lfsize = i;
 #endif
 			get_fileinfo(&djo, &fno);		/* Get the dir name and push it to the buffer */
 			tp = fno.fname;
-			if (_USE_LFN && *path) tp = path;
+			if (_USE_LFN && *pathbuf) tp = pathbuf;
 			for (n = 0; tp[n]; n++) ;
 			if (i < n + 3) {
 				res = FR_NOT_ENOUGH_CORE; break;
 			}
-			while (n) path[--i] = tp[--n];
-			path[--i] = '/';
+			while (n) pathbuf[--i] = tp[--n];
+			pathbuf[--i] = '/';
 		}
-		tp = path;
+		tp = pathbuf;
 		if (res == FR_OK) {
 			*tp++ = '0' + CurrVol;			/* Put drive number */
 			*tp++ = ':';
@@ -2753,14 +2757,14 @@ FRESULT f_getcwd (
 				*tp++ = '/';
 			} else {						/* Sub-dir */
 				do		/* Add stacked path str */
-					*tp++ = path[i++];
+					*tp++ = pathbuf[i++];
 				while (i < sz_path);
 			}
 		}
 		*tp = 0;
 		FREE_BUF();
 	}
-
+	drv_calls.strcpy_uspace(path, pathbuf);
 	LEAVE_FF(djo.fs, res);
 }
 #endif /* _FS_RPATH >= 2 */
@@ -2907,13 +2911,13 @@ FRESULT f_lseek (
 #if !_FS_READONLY
 			if (fp->flag & FA__DIRTY) {			/* Write-back dirty sector cache */
 				SET_DIO_PAR(fp->fs->drv, fp->buf, fp->dsect, 1);
-				if (disk_write() != RES_OK)
+				if (drv_calls.write_from_buf() != RES_OK)
 					ABORT(fp->fs, FR_DISK_ERR);
 				fp->flag &= ~FA__DIRTY;
 			}
 #endif
 			SET_DIO_PAR(fp->fs->drv, fp->buf, nsect, 1);
-			if (disk_read() != RES_OK)	/* Fill sector cache */
+			if (drv_calls.read_to_buf() != RES_OK)	/* Fill sector cache */
 				ABORT(fp->fs, FR_DISK_ERR);
 #endif
 			fp->dsect = nsect;
@@ -2977,6 +2981,7 @@ FRESULT f_opendir (
 /* Read Directory Entry in Sequense                                      */
 /*-----------------------------------------------------------------------*/
 
+FILINFO fno_rddir;
 FRESULT f_readdir (
 	DIR *dj,			/* Pointer to the open directory object */
 	FILINFO *fno		/* Pointer to file information to return */
@@ -2998,7 +3003,7 @@ FRESULT f_readdir (
 				res = FR_OK;
 			}
 			if (res == FR_OK) {				/* A valid entry is found */
-				get_fileinfo(dj, fno);		/* Get the object information */
+				get_fileinfo(dj, &fno_rddir);		/* Get the object information */
 				res = dir_next(dj, 0);		/* Increment index for next */
 				if (res == FR_NO_FILE) {
 					dj->sect = 0;
@@ -3008,7 +3013,7 @@ FRESULT f_readdir (
 			FREE_BUF();
 		}
 	}
-
+	drv_calls.memcpy_uspace(fno,&fno_rddir,sizeof(FILINFO));
 	LEAVE_FF(dj->fs, res);
 }
 
@@ -3029,19 +3034,22 @@ FRESULT f_stat (
 	DEF_NAMEBUF;
 
 
-	res = chk_mounted(&path, &djo.fs, 0);
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
 		if (res == FR_OK) {				/* Follow completed */
 			if (djo.dir)		/* Found an object */
-				get_fileinfo(&djo, fno);
+				get_fileinfo(&djo, &fno_rddir);
 			else			/* It is root dir */
 				res = FR_INVALID_NAME;
 		}
 		FREE_BUF();
 	}
 
+	drv_calls.memcpy_uspace(fno,&fno_rddir,sizeof(fno));
 	LEAVE_FF(djo.fs, res);
 }
 
@@ -3179,11 +3187,13 @@ FRESULT f_unlink (
 	static DWORD dclst;
 	DEF_NAMEBUF;
 
-
-	res = chk_mounted(&path, &djo.fs, 1);
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
+	
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);		/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);		/* Follow the file path */
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;			/* Cannot remove dot entry */
 #if _FS_SHARE
@@ -3252,11 +3262,13 @@ FRESULT f_mkdir (
 	DEF_NAMEBUF;
 	get_fattime(&tim);
 
-
-	res = chk_mounted(&path, &djo.fs, 1);
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
+	
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);			/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);			/* Follow the file path */
 		if (res == FR_OK) res = FR_EXIST;		/* Any object with same name is already existing */
 		if (_FS_RPATH && res == FR_NO_FILE && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3326,11 +3338,13 @@ FRESULT f_chmod (
 	BYTE *dir;
 	DEF_NAMEBUF;
 
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&path, &djo.fs, 1);
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);		/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);		/* Follow the file path */
 		FREE_BUF();
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3369,11 +3383,13 @@ FRESULT f_utime (
 	static BYTE *dir;
 	DEF_NAMEBUF;
 
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&path, &djo.fs, 1);
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
 		FREE_BUF();
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3405,11 +3421,13 @@ FRESULT f_getutime (
 	static BYTE *dir;
 	DEF_NAMEBUF;
 
+	drv_calls.strcpy_uspace(pathbuf,path);
+	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&path, &djo.fs, 1);
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, path);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
 		FREE_BUF();
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3418,8 +3436,9 @@ FRESULT f_getutime (
 			if (!dir) {					/* Root directory */
 				res = FR_INVALID_NAME;
 			} else {					/* File or sub-directory */
-				*ftimedate = LD_WORD(dir+DIR_WrtTime);
-				*(ftimedate+1) = LD_WORD(dir+DIR_WrtDate);
+				drv_calls.memcpy_uspace(ftimedate,dir+DIR_WrtTime,4);
+				//*ftimedate = LD_WORD(dir+DIR_WrtTime);
+				//*(ftimedate+1) = LD_WORD(dir+DIR_WrtDate);
 				djo.fs->wflag = 1;
 				res = sync(djo.fs);
 			}
@@ -3447,12 +3466,14 @@ FRESULT f_rename (
 	DWORD dw;
 	DEF_NAMEBUF;
 
+	drv_calls.strcpy_uspace(pathbuf,path_old);
+	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&path_old, &djo.fs, 1);
+	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
 	if (res == FR_OK) {
 		djn.fs = djo.fs;
 		INIT_BUF(djo);
-		res = follow_path(&djo, path_old);		/* Check old object */
+		res = follow_path(&djo, pathbuf_ptr);		/* Check old object */
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
 #if _FS_SHARE
@@ -3464,7 +3485,9 @@ FRESULT f_rename (
 			} else {
 				memcpy(buf, djo.dir+DIR_Attr, 21);		/* Save the object information except for name */
 				memcpy(&djn, &djo, sizeof(DIR));		/* Check new object */
-				res = follow_path(&djn, path_new);
+				drv_calls.strcpy_uspace(pathbuf,path_new);
+				pathbuf_ptr=pathbuf;
+				res = follow_path(&djn, pathbuf_ptr);
 				if (res == FR_OK) res = FR_EXIST;		/* The new object name is already existing */
 				if (res == FR_NO_FILE) { 				/* Is it a valid path and no name collision? */
 /* Start critical section that any interruption or error can cause cross-link */

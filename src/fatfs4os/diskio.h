@@ -26,21 +26,26 @@ typedef enum {
 //Parameters for disk_read and disk_write
 typedef struct {
 	DRESULT (*init)(BYTE,BYTE*);
-	DRESULT (*read)(void);
-	DRESULT (*write)(void);
 	unsigned char (*status)(BYTE);
+	DRESULT (*read_to_uspace)(void);
+	DRESULT (*read_to_buf)(void);
+	DRESULT (*write_from_uspace)(void);
+	DRESULT (*write_from_buf)(void);
 	void (*RTC)(DWORD*);
+	void (*strcpy_uspace)(void *, const void *);
+	void (*memcpy_uspace)(void *, const void *, unsigned int);
+	void (*memcpy_uspace_struct)(void *, const void *, unsigned int);
 	BYTE  drv;
 	const BYTE* buf;
 	DWORD* sec;
 	BYTE  num;
 } DIO_PAR;
-extern DIO_PAR drv_calls_struct;
+extern DIO_PAR drv_calls;
 #define SET_DIO_PAR(dr_drv,dr_buf,dr_sec,dr_num) {\
-  drv_calls_struct.drv=dr_drv; \
-  drv_calls_struct.buf=dr_buf; \
-  drv_calls_struct.sec=&dr_sec; \
-  drv_calls_struct.num=dr_num;}
+  drv_calls.drv=dr_drv; \
+  drv_calls.buf=dr_buf; \
+  drv_calls.sec=&dr_sec; \
+  drv_calls.num=dr_num;}
 
 
 /*---------------------------------------*/
@@ -48,14 +53,14 @@ extern DIO_PAR drv_calls_struct;
 
 int assign_drives (int, int);
 
-#define disk_initialize drv_calls_struct.init
+#define disk_initialize drv_calls.init
 //DSTATUS disk_initialize (BYTE,BYTE*);
 
-#define disk_read drv_calls_struct.read
+//#define disk_read drv_calls.read
 //DRESULT disk_read (void);
 
 #if	_READONLY == 0
-#define disk_write drv_calls_struct.write
+//#define disk_write drv_calls.write
 //DRESULT disk_write (void);
 #endif
 #define disk_ioctl(_ab,_ac,_ad) ((DRESULT)0)
@@ -65,7 +70,7 @@ int assign_drives (int, int);
 #define STA_NOINIT		0x01	/* Drive not initialized */
 #define STA_NODISK		0x02	/* No medium in the drive */
 #define STA_PROTECT		0x04	/* Write protected */
-#define disk_status drv_calls_struct.status
+#define disk_status drv_calls.status
 
 /* Command code for disk_ioctrl fucntion */
 

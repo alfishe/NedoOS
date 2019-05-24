@@ -1,7 +1,7 @@
         ;org #7a46
         
         if 1==1
-driver_curdrive=fatfs.tabl+10
+driver_curdrive=fatfs.tabl+20
 driver_curdmaaddr=driver_curdrive+1
 driver_curpblockpars=driver_curdmaaddr+2
 driver_curnsectors=driver_curpblockpars+2
