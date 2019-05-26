@@ -29,6 +29,31 @@
 ; Стек должен быть в текущем адресном пространстве (юзается очень сильно байт 100-200
 ; свободно может заюзать). И переменные(если на них есть указатель в
 ; аргументах, а также глобальные переменные типа FATFS), тоже должны быть доступны.
+	STRUCT	FFS_DRV
+init			defw
+status			defw
+rd_to_usp 		defw
+rd_to_buf		defw
+wr_fr_usp		defw
+wr_fr_buf		defw
+RTC				defw
+strcpy_lib2usp	defw
+strcpy_usp2lib	defw
+memcpy_lib2usp	defw
+memcpy_usp2lib	defw
+memcpy_buf2usp	defw
+memcpy_usp2buf	defw
+
+dio_drv			defb
+dma_addr		defw
+lba_ptr			defw
+count			defb
+
+curr_vol		defb
+curr_dir0		defw
+curr_dir2		defw
+tabl_calls		defs 42
+	ENDS
 
 ;------------------------СТРУКТУРЫ FATFS --------------------------------------
 

@@ -32,9 +32,12 @@ typedef struct {
 	DRESULT (*write_from_uspace)(void);
 	DRESULT (*write_from_buf)(void);
 	void (*RTC)(DWORD*);
-	void (*strcpy_uspace)(void *, const void *);
-	void (*memcpy_uspace)(void *, const void *, unsigned int);
-	void (*memcpy_uspace_struct)(void *, const void *, unsigned int);
+	void (*strcpy_lib2usp)(void *, const void *);
+	void (*strcpy_usp2lib)(void *, const void *);
+	void (*memcpy_lib2usp)(void *, const void *, unsigned int);
+	void (*memcpy_usp2lib)(void *, const void *, unsigned int);
+	void (*memcpy_buf2usp)(void *, const void *, unsigned int);
+	void (*memcpy_usp2buf)(void *, const void *, unsigned int);
 	BYTE  drv;
 	const BYTE* buf;
 	DWORD* sec;

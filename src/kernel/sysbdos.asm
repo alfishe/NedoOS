@@ -7,9 +7,9 @@ vol_trdos=4
 
 ;FCB и им€ можно передавать в любой области userspace
 ;DTA может быть в любой области userspace
-
-CurrVol=0X4000+26
-CurrDir=CurrVol+1
+fatfs_org=0x4000
+;CurrVol=0X4000+26
+;CurrDir=CurrVol+1
 
         MACRO GETVOLUME
         ;ld a,(CurrVol)
@@ -1843,26 +1843,21 @@ BDOS_fclose_noFATFS
 
 ;***********************«ј√Ћ”Ў »**************************	
 ;копирование строки из\в юзерспейса в\из либу фатфс	
-strcpy_uspace	;DE - dst, BC - src
+strcpy_lib2usp	;DE - dst, BC - src
+strcpy_usp2lib
 	ld a,(bc)
 	ld (de),a
 	inc de
 	inc bc
 	or a
-	jr nz,strcpy_uspace
+	jr nz,strcpy_lib2usp
 	ret 	
 ;копирование в\из юзерспейса в\из либу фатфс	
-memcpy_uspace	;DE - dst, BC - src, на стеке count
-	ld h,b
-	ld l,c
-	pop af
-	pop bc
-	push bc
-	push af
-	ldir
-	ret 
+memcpy_lib2usp	;DE - dst, BC - src, на стеке count
+memcpy_usp2lib
 ;копирование в\из юзерспейса в\из структуру	
-memcpy_uspace_struct	;DE - dst, BC - src, на стеке count
+memcpy_buf2usp	;DE - dst, BC - src, на стеке count
+memcpy_usp2buf
 	ld h,b
 	ld l,c
 	pop af
@@ -1878,19 +1873,19 @@ ffs
 ;портит iy! по нельз€ двигать стек! в нЄм параметры!
         ;ld l,(iy+app.dir+DIR.ID)
          ld l,(iy+app.vol)
-        ld (CurrVol),hl ;l
+        ld (fatfs_org+FFS_DRV.curr_vol),hl ;l
         ;ld l,(iy+app.dir+DIR.CLUST)
         ;ld h,(iy+app.dir+DIR.CLUST+1)
          ld l,(iy+app.dircluster)
          ld h,(iy+app.dircluster+1)
-        ld (CurrDir),hl
+        ld (fatfs_org+FFS_DRV.curr_dir0),hl
         ;ld l,(iy+app.dir+DIR.CLUST+2)
         ;ld h,(iy+app.dir+DIR.CLUST+3)
          ld l,(iy+app.dircluster+2)
          ld h,(iy+app.dircluster+3)
-        ld (CurrDir+2),hl
+        ld (fatfs_org+FFS_DRV.curr_dir2),hl
 
-	ld hl,fatfs.tabl+31
+	ld hl,fatfs_org+FFS_DRV.tabl_calls
 	ADD A,A
 	ADD A,L
 	LD L,A
@@ -2118,10 +2113,10 @@ BDOS_chdir_nodriveq
         pop de
         or a
         jp nz,BDOS_fail
-         ld hl,(CurrDir)
+         ld hl,(fatfs_org+FFS_DRV.curr_dir0)
          ld (iy+app.dircluster),l
          ld (iy+app.dircluster+1),h
-         ld hl,(CurrDir+2)
+         ld hl,(fatfs_org+FFS_DRV.curr_dir2)
          ld (iy+app.dircluster+2),l
          ld (iy+app.dircluster+3),h
 ;DE = Pointer to ASCIIZ string

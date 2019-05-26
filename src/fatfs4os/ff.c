@@ -2209,7 +2209,7 @@ FRESULT f_open (
 	BYTE *dir;
 	DEF_NAMEBUF;
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 	fp->fs = 0;			/* Clear file object */
 
@@ -2390,10 +2390,10 @@ FRESULT f_read (
 #if !_FS_READONLY && _FS_MINIMIZE <= 2			/* Replace one of the read sectors with cached data if it contains a dirty sector */
 #if _FS_TINY
 				if (fp->fs->wflag && fp->fs->winsect - sect < cc)
-					drv_calls.memcpy_uspace_struct(rbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), fp->fs->win, SS(fp->fs));
+					drv_calls.memcpy_buf2usp(rbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), fp->fs->win, SS(fp->fs));
 #else
 				if ((fp->flag & FA__DIRTY) && fp->dsect - sect < cc)
-					drv_calls.memcpy_uspace_struct(rbuff + ((fp->dsect - sect) * SS(fp->fs)), fp->buf, SS(fp->fs));
+					drv_calls.memcpy_buf2usp(rbuff + ((fp->dsect - sect) * SS(fp->fs)), fp->buf, SS(fp->fs));
 #endif
 #endif
 				rcnt = SS(fp->fs) * cc;			/* Number of bytes transferred */
@@ -2421,9 +2421,9 @@ FRESULT f_read (
 #if _FS_TINY
 		if (move_window(fp->fs, fp->dsect))		/* Move sector window */
 			ABORT(fp->fs, FR_DISK_ERR);
-		drv_calls.memcpy_uspace_struct(rbuff, &fp->fs->win[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
+		drv_calls.memcpy_buf2usp(rbuff, &fp->fs->win[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
 #else
-		drv_calls.memcpy_uspace_struct(rbuff, &fp->buf[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
+		drv_calls.memcpy_buf2usp(rbuff, &fp->buf[fp->fptr % SS(fp->fs)], rcnt);	/* Pick partial sector */
 #endif
 	}
 
@@ -2508,12 +2508,12 @@ FRESULT f_write (
 					ABORT(fp->fs, FR_DISK_ERR);
 #if _FS_TINY
 				if (fp->fs->winsect - sect < cc) {	/* Refill sector cache if it gets invalidated by the direct write */
-					drv_calls.memcpy_uspace_struct(fp->fs->win, wbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), SS(fp->fs));
+					drv_calls.memcpy_usp2buf(fp->fs->win, wbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), SS(fp->fs));
 					fp->fs->wflag = 0;
 				}
 #else
 				if (fp->dsect - sect < cc) { /* Refill sector cache if it gets invalidated by the direct write */
-					drv_calls.memcpy_uspace_struct(fp->buf, wbuff + ((fp->dsect - sect) * SS(fp->fs)), SS(fp->fs));
+					drv_calls.memcpy_usp2buf(fp->buf, wbuff + ((fp->dsect - sect) * SS(fp->fs)), SS(fp->fs));
 					fp->flag &= ~FA__DIRTY;
 				}
 #endif
@@ -2541,10 +2541,10 @@ FRESULT f_write (
 #if _FS_TINY
 		if (move_window(fp->fs, fp->dsect))	/* Move sector window */
 			ABORT(fp->fs, FR_DISK_ERR);
-		drv_calls.memcpy_uspace_struct(&fp->fs->win[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
+		drv_calls.memcpy_usp2buf(&fp->fs->win[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
 		fp->fs->wflag = 1;
 #else
-		drv_calls.memcpy_uspace_struct(&fp->buf[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
+		drv_calls.memcpy_usp2buf(&fp->buf[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
 		fp->flag |= FA__DIRTY;
 #endif
 	}
@@ -2673,7 +2673,7 @@ FRESULT f_chdir (
 	DEF_NAMEBUF;
 
 	
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
 	if (res == FR_OK) {
@@ -2764,7 +2764,7 @@ FRESULT f_getcwd (
 		*tp = 0;
 		FREE_BUF();
 	}
-	drv_calls.strcpy_uspace(path, pathbuf);
+	drv_calls.strcpy_lib2usp(path, pathbuf);
 	LEAVE_FF(djo.fs, res);
 }
 #endif /* _FS_RPATH >= 2 */
@@ -3013,7 +3013,7 @@ FRESULT f_readdir (
 			FREE_BUF();
 		}
 	}
-	drv_calls.memcpy_uspace(fno,&fno_rddir,sizeof(FILINFO));
+	drv_calls.memcpy_lib2usp(fno,&fno_rddir,sizeof(FILINFO));
 	LEAVE_FF(dj->fs, res);
 }
 
@@ -3034,7 +3034,7 @@ FRESULT f_stat (
 	DEF_NAMEBUF;
 
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
 	if (res == FR_OK) {
@@ -3049,7 +3049,7 @@ FRESULT f_stat (
 		FREE_BUF();
 	}
 
-	drv_calls.memcpy_uspace(fno,&fno_rddir,sizeof(fno));
+	drv_calls.memcpy_lib2usp(fno,&fno_rddir,sizeof(fno));
 	LEAVE_FF(djo.fs, res);
 }
 
@@ -3187,7 +3187,7 @@ FRESULT f_unlink (
 	static DWORD dclst;
 	DEF_NAMEBUF;
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 	
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
@@ -3262,7 +3262,7 @@ FRESULT f_mkdir (
 	DEF_NAMEBUF;
 	get_fattime(&tim);
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 	
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
@@ -3338,7 +3338,7 @@ FRESULT f_chmod (
 	BYTE *dir;
 	DEF_NAMEBUF;
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
@@ -3383,7 +3383,7 @@ FRESULT f_utime (
 	static BYTE *dir;
 	DEF_NAMEBUF;
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
@@ -3421,7 +3421,7 @@ FRESULT f_getutime (
 	static BYTE *dir;
 	DEF_NAMEBUF;
 
-	drv_calls.strcpy_uspace(pathbuf,path);
+	drv_calls.strcpy_usp2lib(pathbuf,path);
 	pathbuf_ptr=pathbuf;
 
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
@@ -3436,7 +3436,7 @@ FRESULT f_getutime (
 			if (!dir) {					/* Root directory */
 				res = FR_INVALID_NAME;
 			} else {					/* File or sub-directory */
-				drv_calls.memcpy_uspace(ftimedate,dir+DIR_WrtTime,4);
+				drv_calls.memcpy_lib2usp(ftimedate,dir+DIR_WrtTime,4);
 				//*ftimedate = LD_WORD(dir+DIR_WrtTime);
 				//*(ftimedate+1) = LD_WORD(dir+DIR_WrtDate);
 				djo.fs->wflag = 1;
@@ -3466,7 +3466,7 @@ FRESULT f_rename (
 	DWORD dw;
 	DEF_NAMEBUF;
 
-	drv_calls.strcpy_uspace(pathbuf,path_old);
+	drv_calls.strcpy_usp2lib(pathbuf,path_old);
 	pathbuf_ptr=pathbuf;
 
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
@@ -3485,7 +3485,7 @@ FRESULT f_rename (
 			} else {
 				memcpy(buf, djo.dir+DIR_Attr, 21);		/* Save the object information except for name */
 				memcpy(&djn, &djo, sizeof(DIR));		/* Check new object */
-				drv_calls.strcpy_uspace(pathbuf,path_new);
+				drv_calls.strcpy_usp2lib(pathbuf,path_new);
 				pathbuf_ptr=pathbuf;
 				res = follow_path(&djn, pathbuf_ptr);
 				if (res == FR_OK) res = FR_EXIST;		/* The new object name is already existing */

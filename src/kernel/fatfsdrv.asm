@@ -1,10 +1,10 @@
         ;org #7a46
         
         if 1==1
-driver_curdrive=fatfs.tabl+20
-driver_curdmaaddr=driver_curdrive+1
-driver_curpblockpars=driver_curdmaaddr+2
-driver_curnsectors=driver_curpblockpars+2
+;driver_curdrive=fatfs.tabl+20
+;driver_curdmaaddr=driver_curdrive+1
+;driver_curpblockpars=driver_curdmaaddr+2
+;driver_curnsectors=driver_curpblockpars+2
 ;driver_tempword=#7a4c ;..7a4d
 ;driver_buf8=#7a4d
 ;driver_counter=#7a51
@@ -84,7 +84,7 @@ devices_init_noGS
 	ret  
 
 diskgetpars
-	ld hl,(driver_curpblockpars)
+	ld hl,(fatfs_org+FFS_DRV.lba_ptr)
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
@@ -92,10 +92,10 @@ diskgetpars
 	ld c,(hl)
 	inc hl
 	ld b,(hl)
-	ld hl,(driver_curdmaaddr)
-	ld a,(driver_curnsectors)
+	ld hl,(fatfs_org+FFS_DRV.dma_addr)
+	ld a,(fatfs_org+FFS_DRV.count)
 	exa  
-	ld a,(driver_curdrive)
+	ld a,(fatfs_org+FFS_DRV.dio_drv)
 	or a
 	ret
         

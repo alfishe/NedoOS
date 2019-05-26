@@ -227,25 +227,31 @@ begin
 fatfspatchaddr=#c000
         
         ld hl,devices_init
-        ld (0xc000+0),hl
+        ld (0xc000+FFS_DRV.init),hl
         ld hl,disk_status
-        ld (0xc000+2),hl
+        ld (0xc000+FFS_DRV.status),hl
         ld hl,devices_read	;read to userspace
-        ld (0xc000+4),hl
+        ld (0xc000+FFS_DRV.rd_to_usp),hl
         ld hl,devices_read	;read to buffer
-        ld (0xc000+6),hl
+        ld (0xc000+FFS_DRV.rd_to_buf),hl
         ld hl,devices_write	;write from userspace
-        ld (0xc000+8),hl
+        ld (0xc000+FFS_DRV.wr_fr_usp),hl
         ld hl,devices_write	;write from buffer
-        ld (0xc000+10),hl
+        ld (0xc000+FFS_DRV.wr_fr_buf),hl
         ld hl,get_fattime
-        ld (0xc000+12),hl
-        ld hl,strcpy_uspace	;strcpy_uspace to\from fatfs lib
-        ld (0xc000+14),hl
-        ld hl,memcpy_uspace	;memcpy_uspace to\from fatfs lib
-        ld (0xc000+16),hl
-        ld hl,memcpy_uspace_struct	;memcpy_structs to\from uspace
-        ld (0xc000+18),hl
+        ld (0xc000+FFS_DRV.RTC),hl
+        ld hl,strcpy_lib2usp	
+        ld (0xc000+FFS_DRV.strcpy_lib2usp),hl
+        ld hl,strcpy_usp2lib
+        ld (0xc000+FFS_DRV.strcpy_usp2lib),hl
+        ld hl,memcpy_lib2usp
+        ld (0xc000+FFS_DRV.memcpy_lib2usp),hl
+        ld hl,memcpy_usp2lib
+        ld (0xc000+FFS_DRV.memcpy_usp2lib),hl
+        ld hl,memcpy_buf2usp
+        ld (0xc000+FFS_DRV.memcpy_buf2usp),hl
+        ld hl,memcpy_usp2buf
+        ld (0xc000+FFS_DRV.memcpy_usp2buf),hl
 
 ;инициализация менеджера памяти и вход в юзерспейс:
 ;HALT (чтобы прерывание не произошло когда не надо)

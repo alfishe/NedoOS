@@ -248,7 +248,9 @@ cmd_plot
         ld (cmd_plot_y),de
         call eatcomma
         call getexprcolor
-        ld lx,a ;lx=color = %33210210
+        ;ld lx,a ;lx=color = %33210210
+        ld (prpixel_color_l),a
+        ld (prpixel_color_r),a
 cmd_plot_x=$+1
         ld hl,0
         ld bc,320
@@ -267,10 +269,13 @@ cmd_plot_y=$+1
         ret nc
 ;l=y
         call setpgs_scr
-        ld c,l
-;de=x
-;c=y
-;lx=color = %33210210
+         ld b,d
+         ld c,e
+        ld e,l
+        ld d,0
+;bc=x ;de
+;e=y ;c
+;[lx=color = %33210210]
         call prpixel
         jp restorebasicpages
 
@@ -285,75 +290,15 @@ setpgs_scr_high=$+1
 
         
 scrbase=0x8000
-prpixel
-;de=x (не портится)
-;c=y (bc не портится)
-;lx=color = %33210210
-       ld a,b
-        ld l,c
-        ld h,0
-        ld b,scrbase/256/8 ;h
-        add hl,hl
-        add hl,hl
-        add hl,bc
-        add hl,hl
-        add hl,hl
-        add hl,hl ;y*40 + scrbase
-       ld b,a
-prpixel_cury
-;de=x (не портится)
-;hl=addr(y)
-;lx=color = %33210210
-        ld a,d
-        rra
-        ld a,e
-        rra
-        jr c,prpixel_r
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
-        ld a,lx
-        xor (hl)
-        and %01000111 ;keep left pixel 
-        xor (hl) ;right pixel from screen
-        ld (hl),a
-        ret
-prpixel_r
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
-        ld a,lx
-        xor (hl)
-        and %10111000 ;keep right pixel 
-        xor (hl) ;left pixel from screen
-        ld (hl),a
-        ret
-
 shapes_line
 ;bc=x (в плоскости экрана, но может быть отрицательным)
 ;de=y (в плоскости экрана, но может быть отрицательным)
 ;ix=x2
 ;hl=y2
 ;a=color = %332103210
-        ld (line_pixel_color),a
+        ;ld (line_pixel_color),a
+        ld (prpixel_color_l),a
+        ld (prpixel_color_r),a
         or a
         sbc hl,de
         add hl,de
@@ -397,7 +342,7 @@ shapes_line_nodec
         jr nc,shapes_linever ;dy>=dx
         ld hy,b
         ld ly,c ;counter=dx
-        inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,b
         ld l,c
         sra h
@@ -492,24 +437,88 @@ line_pixel
         or a
         sbc hl,bc ;x
         ret c ;x>319
-        push bc
-        push de
-        push ix
-        ld a,e
-        ld d,b
-        ld e,c ;de=x
-        ld c,a ;c=y
-line_pixel_color=$+2
-        ld lx,0
+        ;push bc
+        ;push de
+;        push ix
+        ;ld a,e
+        ;ld d,b
+        ;ld e,c ;de=x
+        ;ld c,a ;c=y
+;line_pixel_color=$+2
+;        ld lx,0
 ;de=x (не портится)
 ;c=y (bc не портится)
 ;lx=color = %33210210
-        call prpixel
-        pop ix
-        pop de
-        pop bc
+        ;call prpixel
+;        pop ix
+        ;pop de
+        ;pop bc
+        ;ret
+prpixel
+;bc=x (не портится)
+;e=y (de не портится)
+;[lx=color = %33210210]
+       ;ld a,d
+        ld l,e
+        ;ld h,0
+        ;ld d,scrbase/256/8 ;h
+        ld h,scrbase/256/32
+        add hl,hl
+        add hl,hl
+        add hl,de
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40 + scrbase
+       ;ld d,a
+prpixel_cury
+;bc=x (не портится)
+;hl=addr(y)
+;lx=color = %33210210
+        ld a,b
+        rra
+        ld a,c
+        rra
+        jr c,prpixel_r
+        rra
+        jr nc,$+4
+        set 6,h
+        rra
+        jr nc,$+4
+        set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+prpixel_color_l=$+1
+        ld a,0;lx
+        xor (hl)
+        and %01000111 ;keep left pixel 
+        xor (hl) ;right pixel from screen
+        ld (hl),a
         ret
-        
+prpixel_r
+        rra
+        jr nc,$+4
+        set 6,h
+        rra
+        jr nc,$+4
+        set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+prpixel_color_r=$+1
+        ld a,0;lx
+        xor (hl)
+        and %10111000 ;keep right pixel 
+        xor (hl) ;left pixel from screen
+        ld (hl),a
+        ret
+
 cmd_system
 ;hl'=курсор
 ;system "command params"

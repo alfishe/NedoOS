@@ -3,8 +3,14 @@
 
 STACK=0x4000
 MAXVERTICES=256
-MAXEDGES=256
+MAXEDGES=512;256
 scrbase=0x8000
+
+scrwid=320
+scrhgt=200
+
+COLORS_UNCROSSED=%11100100;%11001001
+COLORS_CROSSED=%11010010
 
         org PROGSTART
 begin
@@ -24,11 +30,13 @@ begin
         ld (rndseed1),a
         OS_GETTIMER ;hlde=timer
         ld (rndseed2),de
+         ld (oldupdtimer),de
         
         xor a
         ld (level),a
-        ld a,6
-        ld (verticesneeded),a
+        ;ld a,6
+        ;ld (verticesneeded),a
+        call countverticesneeded
         
         call genmesh
         
@@ -46,18 +54,29 @@ mouseloop
         or a
         jr z,mouseloop_nomove
         call   drawcurvertex
-        call   drawconnectedvertices
+        ;call   drawconnectedvertices
         call   drawcuredges
 
         ;call ahl_coords
         call movecurvertex
 
         call drawcuredges
-        call drawconnectedvertices
+        ;call drawconnectedvertices
         call drawcurvertex
+        
+        call ahl_coords
+        cp 8
+        jr nc,$+2+2+3
+         ld a,1
+         ld (invalidatetime),a
+        
 mouseloop_nomove
 
-         call redrawifneeded ;TODO убрать
+         call redrawifneeded ;TODO убрать?
+         
+;TODO проверить, есть ли фокус! если нету, то не вызывать prlevelifneeded
+         
+        call prlevelifneeded
 
 mouseloop_go
 ;сейчас всё выведено, кроме стрелки
@@ -66,14 +85,27 @@ mouseloop_go
         call ahl_coords
         call shapes_prarr8c
 
-        call waitsomething ;в это время стрелка видна
+        ;call waitsomething ;в это время стрелка видна
+mainloop_nothing0
+        call updatetime
+;в это время стрелка видна
+        YIELD ;halt
+        call control
+        jr nz,mainloop_something
+         ld a,(invalidatetime)
+         or a
+        jr z,mainloop_nothing0
+mainloop_something
 ;что-то изменилось
         
         call ahl_oldcoords
         call shapes_rearr
 ;сейчас всё выведено, кроме стрелки
 
-        ld a,(key)
+key=$+1
+        ld a,0
+        cp csSpace
+        jp z,quit
         cp key_redraw
         call z,redraw
 
@@ -92,7 +124,7 @@ mouseloop_wasclicked
         cpl
         and 7
         call z,mouse_unfire
-        jr mouseloop
+        jp mouseloop
 
 
 mouse_unfire
@@ -100,38 +132,107 @@ mouse_unfire
         ld (doredraw),a
         xor a
         ld (clickstate),a
+
+;обновить счётчик crossededges конкретно по рёбрам, которые пересекались в начале и в конце движения
+;для этого для старой позиции вершины для каждого из связанных рёбер декрементируем все пересечения (у него и у пересечённого)
+;а для новой позиции вершины для каждого из связанных рёбер инкрементируем все пересечения (у него и у пересечённого)
+
+;для новой позиции вершины для каждого из связанных рёбер инкрементируем все пересечения (у него и у пересечённого)
+        ld hl,inccrossedandself
+        call inccrossededges
+;или просто посчитаем каждый с каждым
+        ;call countcrossededges
         
-;TODO обновить счётчик crossededges конкретно по рёбрам, которые пересекались в начале и в конце движения
-;а пока просто посчитаем
-        call countcrossededges
-        
-;check if untangled
-        ld a,(ncrossededges)
+;после победы уже не проверяем победу
+        ld a,(nextlevelon)
         or a
+        ret nz
+
+;check if untangled
+        ;ld hl,(ncrossededges)
+        ld hl,edges
+        ld de,0 ;count*2
+        ld bc,(nedges)
+sumcrossededges0
+        inc hl
+        inc hl
+        ld a,(hl) ;crossed
+        inc hl
+        add a,e
+        ld e,a
+        adc a,d
+        sub e
+        ld d,a
+        dec bc
+        ld a,b
+        or c
+        jr nz,sumcrossededges0
+;de=2*ncrossededges
+        ld a,d
+        or e
         jr z,levelcomplete
         
         ret
+
 levelcomplete
-        call nextlevel
+        ld a,' '
+        ld (nextlevelon),a
+        ;ld a,1
+        ld (invalidatetime),a
+        ret
+        
+mouse_fire_nextlevel
+        call ahl_coords
+        cp 8
+        jr nc,mouse_fire_nonextlevel
+        ld bc,8*(nextlevelon+1-tlevel)
+        or a
+        sbc hl,bc
+        ld bc,8*10 ;"NEXT LEVEL"
+        or a
+        sbc hl,bc
+        jr nc,mouse_fire_nonextlevel
+;levelcomplete_go
+        xor a
+        ld (nextlevelon),a
+        inc a;ld a,1
+        ld (invalidatetime),a
+        ld hl,level
+        inc (hl)
+        call countverticesneeded
+
         call genmesh
         
+        ld a,1
+        ld (doredraw),a
         ;call redraw ;есть doredraw
         
         ret
-        
-        
+
 mouse_fire
+        ld a,(nextlevelon)
+        or a
+        jr nz,mouse_fire_nextlevel
+mouse_fire_nonextlevel
         call ahl_coords
         call findvertex
         ret c ;not found
         ld (curvertex),a
         ld a,1
         ld (clickstate),a
+;для старой позиции вершины для каждого из связанных рёбер декрементируем все пересечения (у него и у пересечённого)
+        ld hl,deccrossedandself
+        call inccrossededges
 ;стираем текущую вершину, текущие рёбра и перерисовываем их инверсией
         call undrawcurvertex
         call undrawconnectedvertices
         call undrawcuredges
+        ;call cls
+        call drawunconnectededges
+        call drawunconnectedvertices
 
+        call prlevel
+        
         call drawcuredges
         call drawconnectedvertices
         call drawcurvertex
@@ -227,8 +328,7 @@ drawcuredges_go
 ;find all edges with current vertex (1st or 2nd), draw them
 ;vertex1,vertex2,crossed
         ld hl,edges
-        ld a,(nedges)
-        ld b,a
+        ld bc,(nedges)
 drawcuredges0
         push bc
         ld e,(hl)
@@ -246,9 +346,9 @@ drawcuredges0
 ;d=vertex2
 ;a=crossed
         or a
-        ld a,%11001001
+        ld a,COLORS_UNCROSSED;%11001001
         jr z,$+4
-        ld a,%11010010
+        ld a,COLORS_CROSSED;%11010010
 drawcuredges_color=$+1
         and 0
         call drawedge
@@ -256,7 +356,10 @@ drawcuredges_color=$+1
 drawcuredgesno
         inc hl
         pop bc
-        djnz drawcuredges0
+        dec bc
+        ld a,b
+        or c
+        jr nz,drawcuredges0
         ld hl,prpixel
         ld (pixelproc),hl
         ret
@@ -269,8 +372,7 @@ undrawconnectedvertices
 drawconnectedvertices_go
         ld (drawconnectedvertices_drawproc),hl
         ld hl,edges
-        ld a,(nedges)
-        ld b,a
+        ld bc,(nedges)
 drawconnectedvertices0
         push bc
         ld e,(hl)
@@ -309,17 +411,144 @@ drawconnectedvertices_drawproc=$+1
 drawconnectedverticesno
         inc hl
         pop bc
-        djnz drawconnectedvertices0
+        dec bc
+        ld a,b
+        or c
+        jr nz,drawconnectedvertices0
         ret
 
-nextlevel
-        ld hl,level
-        inc (hl)
+drawunconnectededges
+;рисуем все рёбра, кроме связанных с текущей вершиной
+;find all edges with current vertex (1st or 2nd), draw others
+;vertex1,vertex2,crossed
+        ld hl,edges
+        ld bc,(nedges)
+drawunconnectededges0
+        push bc
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld a,(curvertex)
+        cp d
+        jr z,$+3
+        cp e
+        jr  z,drawunconnectededgesno
         ld a,(hl)
+        push hl
+;e=vertex1
+;d=vertex2
+;a=crossed
+        or a
+        ld a,COLORS_UNCROSSED;%11001001
+        jr z,$+4
+        ld a,COLORS_CROSSED;%11010010
+        call drawedge
+        pop hl
+drawunconnectededgesno
+        inc hl
+        pop bc
+        dec bc
+        ld a,b
+        or c
+        jr nz,drawunconnectededges0
+        ret
+        
+drawunconnectedvertices
+;рисуем все вершины, кроме текущей и связанных с ней
+;для этого:
+;чистим таблицу связанных вершин
+        ld hl,vertlinkflags
+        ld de,vertlinkflags+1
+        ld bc,MAXVERTICES-1
+        ld (hl),0
+        ldir
+;помечаем там текущую вершину
+        ld de,vertlinkflags
+        ld hl,(curvertex)
+        ld h,0
+        add hl,de
+        inc (hl)
+;перебираем все рёбра, ищем там связанные вершины и помечаем в таблице связанных вершин
+        ld hl,edges
+        ld bc,(nedges)
+drawunconnectedvertices0
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+;e=vertex1
+;d=vertex2
+        ld a,(curvertex)
+        cp d
+        jr z,drawunconnectedvertices_e
+        cp e
+        jr nz,drawunconnectedverticesno
+        ld e,d
+drawunconnectedvertices_e
+        push hl
+        ld d,0 ;e=connected vertex
+        ld hl,vertlinkflags
+        add hl,de
+        inc (hl)
+        pop hl
+drawunconnectedverticesno
+        inc hl
+        dec bc
+        ld a,b
+        or c
+        jr nz,drawunconnectedvertices0
+;перебираем все вершины, выводим только не попавшие в таблицу
+        ld hl,vertlinkflags
+        ld a,(nvertices)
+        ld b,a
+drawunconnectedvertices1
+        push bc
+        push hl
+        ld a,(nvertices)
+        sub b
+        ld e,a
+         ld a,(hl) ;linkflag
+        ld d,0 ;e=connected vertex
+        ld hl,vertices
+        add hl,de
+        add hl,de
+        add hl,de
+        add hl,de
+        ld c,(hl)
+        inc hl
+        ld b,(hl) ;x
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;y
+         or a
+        ld a,e ;y
+        ld h,b
+        ld l,c ;x
+        call z,drawringon
+        pop hl
+        inc hl
+        pop bc
+        djnz drawunconnectedvertices1
+        ret
+        
+countverticesneeded
+        ld a,6
+        ld (verticesneeded),a
+        ld a,(level)
+        or a
+        ret z
+        ld b,a
+countverticesneeded0
+        ld a,b
         add a,3 ;a=4..
         ld hl,verticesneeded
         add a,(hl)
+        jr nc,$+3
+        sbc a,a
         ld (hl),a
+        djnz countverticesneeded0
         ret
 
 ahl_coords
@@ -331,29 +560,7 @@ ahl_oldcoords
         ld hl,(oldarrx)
         ret
 
-control_keys
-key=$+1
-        ld a,0
-        ;cp cs5
-        ;jp z,control_keys_left
-        ;cp cs6
-        ;jp z,control_keys_down
-        ;cp cs7
-        ;jp z,control_keys_up
-        ;cp cs8
-        ;jp z,control_keys_right
-        ret
 
-gameloop
-        ld bc,0*256+18
-        call calcscraddr
-        ld hl,0;(curlength)
-        call prnum
-        YIELD
-        GET_KEY
-         cp csSpace
-         jr z,quit
-	jp gameloop
 
 gameover
         ld hl,endtext
@@ -377,37 +584,125 @@ redraw
         ld (doredraw),a
         call cls
         
+        call drawedges
+        call drawvertices
+        jp prlevel
+
+prlevelifneeded
+invalidatetime=$+1
+        ld a,0
+        or a
+        ret z
+prlevel
         ld a,(level)
         inc a
+        ld hl,tleveldig1
+        call dectotxt12
+        ;ld (tleveldig2),a
+        ;ld a,b
+        ;ld (tleveldig1),a
+        ld a,(cur_h)
+        ld hl,ttimeh1
+        call dectotxt12
+        ld a,(cur_m)
+        ld hl,ttimem1
+        call dectotxt12
+        ld a,(cur_s)
+        ld hl,ttimes1
+        call dectotxt12
+        
+        ld bc,0
+        ld hl,tlevel
+        call prtext
+         xor a
+         ld (invalidatetime),a
+        ret
+
+dectotxt12
         ld b,'0'-1
         inc b
         sub 10
         jr nc,$-3
         add a,'0'+10
-        ld (tleveldig2),a
-        ld a,b
-        ld (tleveldig1),a
-        
-        ld bc,0
-        ld hl,tlevel
-        call prtext
-        
-        call drawedges
-        call drawvertices
+         ld (hl),b
+         inc hl
+         ld (hl),a
         ret
+
+updatetime
+        OS_GETTIMER ;hlde=timer
+        ld hl,(oldupdtimer)
+        ex de,hl
+        ld (oldupdtimer),hl
+        or a
+        sbc hl,de ;hl=frames
+        ret z
+        ld b,h
+        ld c,l
+updatetime0
+        call inctime
+        dec bc
+        ld a,b
+        or c
+        jr nz,updatetime0
+        ret
+inctime
+        ld hl,cur_f
+        inc (hl)
+        ld a,(hl)
+        sub 50
+        ret c
+        ld (hl),a
+         ld a,1
+         ld (invalidatetime),a
+        ld hl,cur_s
+        inc (hl)
+        ld a,(hl)
+        sub 60
+        ret c
+        ld (hl),a
+        ld hl,cur_m
+        inc (hl)
+        ld a,(hl)
+        sub 60
+        ret c
+        ld (hl),a
+        ld hl,cur_h
+        inc (hl)
+        ret
+cur_h
+        db 0
+cur_m
+        db 0
+cur_s
+        db 0
+cur_f
+        db 0
 
 tlevel
         db "LEVEL 00"
 tleveldig1=$-2
 tleveldig2=$-1
+        db " TIME 00:00:00"
+ttimeh1=$-8
+ttimeh2=$-7
+ttimem1=$-5
+ttimem2=$-4
+ttimes1=$-2
+ttimes2=$-1
+nextlevelon=$
         db 0
-        
+        db "NEXT LEVEL"
+        db 0
+
+        if 1==0
 genvertices
 ;x,X,y,Y
         ld hl,vertices
         ld a,(nvertices)
         ld b,a
 genvertices0
+        push bc
         ld c,160
         call rnd
         add a,a
@@ -422,15 +717,18 @@ genvertices0
         inc hl
         ld (hl),0
         inc hl
+        pop bc
         djnz genvertices0
         ret
+        endif
 
+        if 1==0
 genedges
 ;vertex1,vertex2,crossed
         ld hl,edges
-        ld a,(nedges)
-        ld b,a
+        ld bc,(nedges)
 genedges0
+        push bc
         ld a,(nvertices)
         ld c,a
         call rnd
@@ -443,14 +741,18 @@ genedges0
         inc hl
         ld (hl),0 ;uncrossed
         inc hl
-        djnz genedges0
+        pop bc
+        dec bc
+        ld a,b
+        or c
+        jr nz,genedges0
         ret
+        endif
 
 drawedges
 ;vertex1,vertex2,crossed
         ld hl,edges
-        ld a,(nedges)
-        ld b,a
+        ld bc,(nedges)
 drawedges0
         push bc
         ld e,(hl)
@@ -463,14 +765,17 @@ drawedges0
 ;d=vertex2
 ;a=crossed
         or a
-        ld a,%11001001
+        ld a,COLORS_UNCROSSED;%11001001
         jr z,$+4
-        ld a,%11010010
+        ld a,COLORS_CROSSED;%11010010
         call drawedge
         pop hl
         inc hl
         pop bc
-        djnz drawedges0
+        dec bc
+        ld a,b
+        or c
+        jr nz,drawedges0
         ret
 
 drawedge
@@ -788,26 +1093,28 @@ prcharin_go
         ret
 
 invpixel
-;de=x (не портится)
-;c=y (bc не портится)
+;bc=x (не портится) ;de
+;e=y (de не портится) ;c
 ;lx=color = %33210210
-       ld a,b
-        ld l,c
-        ld h,0
-        ld b,scrbase/256/8 ;h
+       ;ld a,d;b
+        ld l,e;c
+        ;ld h,0
+        ;ld d,scrbase/256/8 ;b
+        ld h,scrbase/256/32
         add hl,hl
         add hl,hl
-        add hl,bc
+        add hl,de;bc
         add hl,hl
         add hl,hl
         add hl,hl ;y*40 + scrbase
-       ld b,a
-;de=x (не портится)
+       ;ld d,a;b,a
+;invpixel_cury
+;bc=x (не портится);de
 ;hl=addr(y)
 ;lx=color = %33210210
-        ld a,d
+        ld a,b;d
         rra
-        ld a,e
+        ld a,c;e
         rra
         jr c,invpixel_r
         rra
@@ -822,9 +1129,10 @@ invpixel
         adc a,h
         sub l
         ld h,a
-        ld a,lx
+invpixel_color_l=$+1
+        ld a,0;lx
         ;xor (hl)
-        and %01000111 ;keep left pixel 
+        ;and %01000111 ;keep left pixel 
         xor (hl) ;right pixel from screen
         ld (hl),a
         ret
@@ -841,9 +1149,10 @@ invpixel_r
         adc a,h
         sub l
         ld h,a
-        ld a,lx
+invpixel_color_r=$+1
+        ld a,0;lx
         ;xor (hl)
-        and %10111000 ;keep right pixel 
+        ;and %10111000 ;keep right pixel 
         xor (hl) ;left pixel from screen
         ld (hl),a
         ret
@@ -851,25 +1160,26 @@ invpixel_r
 prpixel
 ;de=x (не портится)
 ;c=y (bc не портится)
-;lx=color = %33210210
-       ld a,b
-        ld l,c
-        ld h,0
-        ld b,scrbase/256/8 ;h
+;[lx=color = %33210210]
+       ;ld a,d;b
+        ld l,e;c
+        ;ld h,0
+        ;ld d,scrbase/256/8 ;b
+        ld h,scrbase/256/32
         add hl,hl
         add hl,hl
-        add hl,bc
+        add hl,de;bc
         add hl,hl
         add hl,hl
         add hl,hl ;y*40 + scrbase
-       ld b,a
+       ;ld d,a;b,a
 ;prpixel_cury
-;de=x (не портится)
+;bc=x (не портится);de
 ;hl=addr(y)
 ;lx=color = %33210210
-        ld a,d
+        ld a,b;d
         rra
-        ld a,e
+        ld a,c;e
         rra
         jr c,prpixel_r
         rra
@@ -884,7 +1194,8 @@ prpixel
         adc a,h
         sub l
         ld h,a
-        ld a,lx
+prpixel_color_l=$+1
+        ld a,0;lx
         xor (hl)
         and %01000111 ;keep left pixel 
         xor (hl) ;right pixel from screen
@@ -903,7 +1214,8 @@ prpixel_r
         adc a,h
         sub l
         ld h,a
-        ld a,lx
+prpixel_color_r=$+1
+        ld a,0;lx
         xor (hl)
         and %10111000 ;keep right pixel 
         xor (hl) ;left pixel from screen
@@ -916,7 +1228,13 @@ shapes_line
 ;ix=x2
 ;hl=y2
 ;a=color = %332103210
-        ld (line_pixel_color),a
+        ld (prpixel_color_l),a
+        ld (prpixel_color_r),a
+        ld ly,a
+        and %01000111 ;keep left pixel 
+        ld (invpixel_color_l),a
+        xor ly ;keep right pixel 
+        ld (invpixel_color_r),a
         or a
         sbc hl,de
         add hl,de
@@ -960,7 +1278,7 @@ shapes_line_nodec
         jr nc,shapes_linever ;dy>=dx
         ld hy,b
         ld ly,c ;counter=dx
-        inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,b
         ld l,c
         sra h
@@ -1047,6 +1365,7 @@ shapes_linever1
 line_pixel
 ;bc=x (может быть отрицательным)
 ;de=y (может быть отрицательным)
+        if 1==0
         ld hl,199
         or a
         sbc hl,de ;y
@@ -1055,24 +1374,25 @@ line_pixel
         or a
         sbc hl,bc ;x
         ret c ;x>319
-        push bc
-        push de
-        push ix
-        ld a,e
-        ld d,b
-        ld e,c ;de=x
-        ld c,a ;c=y
-line_pixel_color=$+2
-        ld lx,0
-;de=x (не портится)
-;c=y (bc не портится)
+        endif
+        ;push bc
+        ;push de
+        ;push ix
+        ;ld a,e
+        ;ld d,b
+        ;ld e,c ;de=x
+        ;ld c,a ;c=y
+;line_pixel_color=$+2
+;        ld lx,0
+;bc=x (не портится) ;de
+;e=y (de не портится) ;c
 ;lx=color = %33210210
 pixelproc=$+1
-        call prpixel
-        pop ix
-        pop de
-        pop bc
-        ret
+        jp prpixel
+        ;pop ix
+        ;pop de
+        ;pop bc
+        ;ret
 
 
         macro cols data
@@ -1094,8 +1414,8 @@ _r=data&15
 endtext
         db "GAME OVER!",0
 
-;oldtimer
-;        dw 0
+oldupdtimer
+        dw 0
 
         align 256
 font
@@ -1103,12 +1423,12 @@ font
 
 genmesh
         xor a
-        ld (ncrossededges),a
         ld (nvertices),a
-        ld (nedges),a
         ld (nvertices2),a
         ld (curmeshvertex),a
         ld hl,0
+        ld (nedges),hl
+        ;ld (ncrossededges),hl
         ld (genmeshedge_old),hl ;невозможное ребро
 ;создать ряд из 2 точек (или лучше из sqrt(verticesneeded)) с рёбрами между ними:
         ld (genmeshx),hl
@@ -1258,8 +1578,9 @@ genmeshy=$+1
         ld b,0
         rl b
         push bc
-        ld c,200
+        ld c,200-8
         call rnd
+        add a,8
         ld e,a
         ld d,0
         pop bc
@@ -1319,9 +1640,7 @@ genmeshedge_old=$+1
         sbc hl,de
         ld (genmeshedge_old),de
         ret z
-        ld a,(nedges)
-        ld c,a
-        ld b,0
+        ld bc,(nedges)
         ld hl,edges
         add hl,bc
         add hl,bc
@@ -1331,45 +1650,151 @@ genmeshedge_old=$+1
         ld (hl),e
         dec hl
 ;check if this edge crossed with something, mark crossing here and there
-        ld a,(nedges)
+        ld bc,(nedges)
         call checkcrossedwith_oldedges
-        ld hl,nedges
-        inc (hl)
+        ld hl,(nedges)
+        inc hl
+        ld (nedges),hl
         ret
 
+        if 1==0
 countcrossededges
 ;проверяем пересечение всех со всеми
-        xor a
-        ld (ncrossededges),a
+        ;ld hl,0
+        ;ld (ncrossededges),hl
         ld hl,edges
-        ld a,(nedges)
-        ld b,a
+        ld bc,(nedges)
+initcrossededges0
+        inc hl
+        inc hl
+        ld (hl),0 ;uncrossed
+        inc hl
+        dec bc
+        ld a,b
+        or c
+        jr nz,initcrossededges0
+        
+        ld hl,edges
+        ld bc,(nedges)
+        ld de,0 ;counter (+1)
 countcrossededges0
         push bc
+        push de
         push hl
-        ld a,(nedges)
-        sub b
+        ld b,d
+        ld c,e
         call checkcrossedwith_oldedges
         pop hl
         inc hl
         inc hl
         inc hl
+        pop de
         pop bc
-        djnz countcrossededges0
+        inc de
+        dec bc
+        ld a,b
+        or c
+        jr nz,countcrossededges0
+        ret
+        endif
+
+inccrossededges
+        ld (inccrossededges_proc),hl
+;для каждого из связанных рёбер инкрементируем/декрементируем все пересечения (у него и у пересечённого)
+        ld hl,edges
+        ld bc,(nedges)
+inccrossededges0
+;ищем связанные рёбра
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        dec hl
+;e=vertex1
+;d=vertex2
+        ld a,(curvertex)
+        cp d
+        jr z,inccrossededgesok
+        cp e
+        jr nz,inccrossededgesno
+inccrossededgesok
+;нашли связанное ребро, ищем все его пересечения (по всем рёбрам, кроме самого себя) и их инкрементируем (и у себя тоже)
+        push bc
+        push hl
+        ld (inccrossededges_selfaddr),hl
+        ld hl,edges
+        ld bc,(nedges)
+inccrossededges00
+inccrossededges_selfaddr=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        add hl,de
+        jr z,inccrossededges00_skipself
+        push bc
+;hl=edge1addr
+;de=edge2addr
+        push hl
+        call checkcrossed_edge ;out: CY=crossed
+        pop hl
+inccrossededges_proc=$+1
+        call c,inccrossedandself
+        pop bc
+inccrossededges00_skipself
+        inc hl
+        inc hl
+        inc hl
+        dec bc
+        ld a,b
+        or c
+        jr nz,inccrossededges00
+;конец обработки связанного ребра
+        pop hl
+        pop bc
+inccrossededgesno
+        inc hl
+        inc hl
+        inc hl
+        dec bc
+        ld a,b
+        or c
+        jr nz,inccrossededges0
+        ret
+inccrossedandself
+        push hl
+        inc hl
+        inc hl
+        inc (hl)
+        ld hl,(inccrossededges_selfaddr)
+        inc hl
+        inc hl
+        inc (hl)
+        pop hl
+        ret
+deccrossedandself
+        push hl
+        inc hl
+        inc hl
+        dec (hl)
+        ld hl,(inccrossededges_selfaddr)
+        inc hl
+        inc hl
+        dec (hl)
+        pop hl
         ret
 
 checkcrossedwith_oldedges
 ;hl=edge to check
-;a=nedges before current edge
-        inc hl
-        inc hl
-        ld (hl),0
-        dec hl
-        dec hl
+;bc=nedges before current edge
+        ;inc hl
+        ;inc hl
+        ;ld (hl),0
+        ;dec hl
+        ;dec hl
         ld de,edges
-        or a
-        jr z,genmeshedge_nocheckcrossed
-        ld b,a ;was nedges
+        ld a,b
+        or c
+        ret z;jr z,genmeshedge_nocheckcrossed
+;bc=was nedges
 genmeshedge_checkcrossed0
         push bc
         push de
@@ -1378,42 +1803,37 @@ genmeshedge_checkcrossed0
         pop hl
         pop de
         pop bc
-        ;jr c,$
         inc de
         inc de
         jr nc,genmeshedge_nocrossed
-         ;ld a,3
-         ;dec a
-         ;ld ($-2),a
-         ;jr z,$;genmeshedge_nocrossed
-        inc hl
-        inc hl
         ld a,(de)
-        cp 1
-        call nz,inccrossededges
-        ld a,1
-        ld (hl),a
+        inc a
         ld (de),a
-        call inccrossededges
+        inc hl
+        inc hl
+        inc (hl)
         dec hl
         dec hl
 genmeshedge_nocrossed
         inc de
-        djnz genmeshedge_checkcrossed0
-genmeshedge_nocheckcrossed
-        ret
-        
-inccrossededges
-        push hl
-        ld hl,ncrossededges
-        inc (hl)
-        pop hl
+        dec bc
+        ld a,b
+        or c
+        jr nz,genmeshedge_checkcrossed0
+;genmeshedge_nocheckcrossed
         ret
 
 checkcrossed_edge
 ;hl=edge1addr
 ;de=edge2addr
 ;out: CY=crossed
+;для надёжности сделаем hl>=de всегда (похоже, тест некоммутативный в редких случаях)
+        or a
+        sbc hl,de
+        add hl,de
+        jr nc,$+3
+        ex de,hl
+
         ld c,(hl) ;edge1vertex1
         inc hl
         ld a,(hl) ;edge1vertex2
@@ -1944,38 +2364,37 @@ _MULLONG0.
 	exx
 	ret
 
-
-vertlist1
-        ds MAXVERTICES
-vertlist2
-        ds MAXVERTICES
-nvertices1
-        db 0
-nvertices2
-        db 0
-
-vertices
-;x,X,y,Y
-        ds MAXVERTICES*4
 nvertices
         db 0
 verticesneeded
         db 10
 level
         db 0
+
+nvertices1
+        db 0
+nvertices2
+        db 0
+        
+vertlinkflags
+vertlist1
+        ds MAXVERTICES
+vertlist2
+        ds MAXVERTICES
+
+vertices
+;x,X,y,Y
+        ds MAXVERTICES*4
 edges
 ;vertex1,vertex2,crossed        ds MAXEDGES*3
 nedges
-        db 0
-ncrossededges
-        db 0
+        dw 0
+;ncrossededges
+;        dw 0
 
         macro SHAPESPROC name
 name
         endm
-
-scrwid=320
-scrhgt=200
 
 ZONE_NO=0
 ZONE_TOP=1

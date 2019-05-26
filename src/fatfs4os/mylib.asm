@@ -38,9 +38,12 @@ drv_calls:
 		defw 0	;write from userspace
 		defw 0	;write from buffer
 		defw 0	;RTC
-		defw 0	;strcpy_uspace to\from fatfs lib
-		defw 0	;memcpy_uspace to\from fatfs lib
-		defw 0	;memcpy_structs to\from uspace
+		defw 0	;strcpy_lib2usp
+		defw 0	;strcpy_usp2lib
+		defw 0	;memcpy_lib2usp
+		defw 0	;memcpy_usp2lib
+		defw 0	;memcpy_buf2usp
+		defw 0	;memcpy_usp2buf
 dio_par:
         DEFB 1        ;DRV
         DEFW 0x4000   ;*BUF
