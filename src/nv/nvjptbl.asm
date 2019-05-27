@@ -1,18 +1,18 @@
 
 tnvcmds
         db key_redraw
-        db Enter
-        db cs0 ;backspace
-        db cs5 ;left
-        db cs8 ;right
-        db cs6 ;down
-        db cs7 ;up
-        db csSpace
-        db csss
-	db '!'
-	db '@'
-	db '#'
-	db '$'
+        db key_enter
+        db key_backspace
+        db key_left
+        db key_right
+        db key_down
+        db key_up
+        db key_esc
+        db key_tab
+	db ss1;'!'
+	db ss2;'@'
+	db ss3;'#'
+	db ss4;'$'
         db '0'
         db '1'
         db '2'
@@ -24,12 +24,12 @@ tnvcmds
         db '8'
         db '9'
         db ' '
-        db cs3
-        db cs4
-        db '%'
+        db key_pgup
+        db key_pgdown
+        db ss5;'%'
         db '*'
-        db Home
-        db Endkey
+        db key_home
+        db key_end
 nnvcmds=$-tnvcmds       
         dw editcmd_End
         dw editcmd_Home
@@ -61,5 +61,3 @@ nnvcmds=$-tnvcmds
         dw editcmd_backspace
         dw editcmd_enter
         dw editcmd_reprintall_keepcursor
-     
-        

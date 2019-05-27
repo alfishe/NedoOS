@@ -1,47 +1,31 @@
-        ;org #7a46
+;на входе ожидается pgstructs в c000. на выходе всегда ставить pgstructs
+
+;/* Results of Disk Functions */
+;typedef enum {
+;	RES_OK = 0,		/* 0: Successful */
+;	RES_ERROR,		/* 1: R/W Error */
+;	RES_WRPRT,		/* 2: Write Protected */
+;	RES_NOTRDY,		/* 3: Not Ready */
+;	RES_PARERR		/* 4: Invalid Parameter */
+;} DRESULT;
         
-        if 1==1
-;driver_curdrive=fatfs.tabl+20
-;driver_curdmaaddr=driver_curdrive+1
-;driver_curpblockpars=driver_curdmaaddr+2
-;driver_curnsectors=driver_curpblockpars+2
-;driver_tempword=#7a4c ;..7a4d
-;driver_buf8=#7a4d
-;driver_counter=#7a51
-;device_states=#7a53
-        
-        else
-        
-driver_curdrive ;#7a46
-        db #01
-driver_curdmaaddr ;#7a47
-        dw #4000
-driver_curpblockpars ;#7a49
-        dw 0
-driver_curnsectors ;#7a4b
-        db 0
-driver_tempword ;??? #7a4c..7a4d
-        db 0
-driver_buf8 ;??? #7a4d
-        ds 4
-driver_counter ;??? #7a51
-        dw 0
-        
-        endif
-        
-device_states ;#7a53
+device_states
         db 1
         db 1
         db 1
         db 1
+
 disk_status:
         ld d,0
         ld hl,device_states
         add hl,de
         ld a,(hl)
-		ret
-;???????????????????????? вызывается в #58cb
+	ret
+
 devices_init
+;bc=?
+;e=device number
+;out: a=?
         xor a
         ld d,a
 	ld hl,device_states
@@ -99,9 +83,22 @@ diskgetpars
 	or a
 	ret
         
-;?????????????????????????????? чтение секторов, вызывается из #443e
+;?????????????????????????????? чтение секторов
 devices_read
+	call BDOS_setdepage
+	call devices_read_go
+	push af
+	call BDOS_setpgstructs
+	pop af
+	ret
+devices_readnopg
+	;call BDOS_setpgstructs
+	call devices_read_go
+	;jr $
+	ret
+devices_read_go
 	call diskgetpars
+	 ;jr $
 	jp z,readsectorsSD
 	dec a
 	jr nz,readsectors_noIDEmaster
@@ -128,8 +125,16 @@ readsectors_noIDEslave
 	ld a,#01
 	ret  
 
-;?????????????????????????????? запись секторов, вызывается из #4433
+;?????????????????????????????? запись секторов
 devices_write
+	call BDOS_setdepage
+	call devices_write_go
+	call BDOS_setpgstructs
+	xor a
+	ret
+devices_writenopg
+	;call BDOS_setpgstructs
+devices_write_go
 	call diskgetpars
 	jp z,writesectorsSD
 	dec a
@@ -170,8 +175,9 @@ IDE_INIT
 checkidentIDE
 ;зачем сохранять hl? TODO убрать
 	push hl
-	ld d,h
-	ld e,l
+	;ld d,h
+	;ld e,l
+	ex de,hl
 	ld hl,#0063
 	add hl,de
 	ld a,(hl)
@@ -202,25 +208,25 @@ nobsywithtimeout0
 	and #80
 	jr nz,nobsywithtimeout0
 	pop hl
-	ret  
-ldaff_pophl	
+	ret
+ldaff_pophl
         ld a,#ff
 	pop hl
 	ret
 
-readsectorsIDE	
+readsectorsIDE
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
 ;e=sec
-;a'=count	
+;a'=count
         add a,b
 	ld b,a
 ;b=head
 ;c=cylHI
 ;d=cylLO
 ;e=sec
-;a'=count	
+;a'=count
 	call setblockparsIDE
 	exa  
 	ld bc,hddcmd
@@ -246,19 +252,19 @@ nobsy0
 	jr nz,readsectorsIDE0
 	jr lda0
 
-writesectorsIDE	
+writesectorsIDE
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
 ;e=sec
-;a'=count	
+;a'=count
         add a,b
 	ld b,a
 ;b=head
 ;c=cylHI
 ;d=cylLO
 ;e=sec
-;a'=count	
+;a'=count
 	call setblockparsIDE
 	exa  
 	ld bc,hddcmd
@@ -270,7 +276,7 @@ waitDRQ01
 	and #88
 	cp #08
 	jr nz,waitDRQ01 ;ожидание готовности передачи данных
-	exa  
+	exa
 writesectorsIDE0
 	exa  
 	call writesecIDE
@@ -305,7 +311,6 @@ readsecIDE0
 	ret
         
 writesecIDE
-        ;jr $
         if (hdddatlo != #10)
         xor a
 writesecIDE0
@@ -372,7 +377,6 @@ nobsy02
 	ret
         
 readidentIDE
-        ;jr $
 	;ld bc,#ff00+hddhead ;зачем ff???
         ld bc,hddhead
 	out (C),a
@@ -502,12 +506,12 @@ cs_highSD
 	xor a;ld a,#00
 	ret  
 
-errexitSD	
+errexitSD
         call SD_OFF
 	ld a,#03
 	ret  
 
-SD_OFF	
+SD_OFF
         xor a
 	ld bc,#8057
 	out (C),a ;выключение питания карты
@@ -516,7 +520,7 @@ SD_OFF
 	ret  
 
 ;выбираем карту сигналом 0
-cs_lowSD	
+cs_lowSD
         push af
 	ld a,#01
 	ld bc,#8057
@@ -691,34 +695,43 @@ LL7dbe	call read32byteswaitnoffSD
 	jr nz,LL7dbd
 	ld a,#4c
 	call outcom_zeroparsSD
-LL7dd1	call read32byteswaitnoffSD
-	inc a
-	jr nz,LL7dd1
+readsectorsSD_q
+	call read32byteswaitnoffSD_loopnoff
 	jp cs_highSD
 
-writesectorsSD	
+read32byteswaitnoffSD_loopnoff
+	call read32byteswaitnoffSD
+	inc a
+	jr nz,read32byteswaitnoffSD_loopnoff
+	ret
+
+writesectorsSD
         ld a,#59
 	call setcmdparsSD
-LL7ddf	call read32byteswaitnoffSD
-	inc a
-	jr nz,LL7ddf
+;LL7ddf	call read32byteswaitnoffSD
+;	inc a
+;	jr nz,LL7ddf
+	call read32byteswaitnoffSD_loopnoff
 	exa  
 LL7de6	exa  
 	ld a,#fc
 	call writesecSDcard
-LL7dec	call read32byteswaitnoffSD
-	inc a
-	jr nz,LL7dec
+;LL7dec	call read32byteswaitnoffSD
+;	inc a
+;	jr nz,LL7dec
+	call read32byteswaitnoffSD_loopnoff
 	exa  
 	dec a
 	jr nz,LL7de6
 	ld c,#57
 	ld a,#fd
 	out (C),a
-LL7dfc	call read32byteswaitnoffSD
-	inc a
-	jr nz,LL7dfc
-	jp cs_highSD
+;LL7dfc	call read32byteswaitnoffSD
+;	inc a
+;	jr nz,LL7dfc
+	;call read32byteswaitnoffSD_loopnoff
+	;jp cs_highSD
+	jr readsectorsSD_q
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;NeoGS
 writesectorsGS
@@ -727,12 +740,12 @@ writesectorsGS
 ;c=cylHI
 ;d=cylLO
 ;e=sec
-;a'=count	
+;a'=count
 	call setblockparsGS
 	exa  
 	push de
 	push bc
-	ld bc,#00b3
+	ld bc,#00b3 ;TODO c
 writesectorsGS0
 	exa  
 	out (#bb),a
@@ -748,15 +761,16 @@ writesecGS200
 	exa  
 	dec a
 	jr nz,writesectorsGS0
-	call wait_bsyGS
-writesecGS_waitready0
-	in a,(C)
-	cp #77
-	jr nz,writesecGS_waitready0 ;??? ожидаем непонятно чего
-	pop bc
-	pop de
-	xor a
-	ret
+;	call wait_bsyGS
+;writesecGS_waitready0
+;	in a,(C)
+;	cp #77
+;	jr nz,writesecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
+;	pop bc
+;	pop de
+;	xor a
+;	ret
+	jr readsectorsGSwait77
         
 readsectorsGS
         ld a,#03
@@ -769,9 +783,9 @@ readsectorsGS
 	exa  
 	push de
 	push bc
-	ld bc,#00b3
+	ld bc,#00b3 ;TODO c
 readsectorsGS0
-	exa  
+	exa
 	out (#bb),a
 	call loop_errGS
 	ld de,#0200
@@ -782,44 +796,24 @@ readsecGS0
 	ld a,d
 	or e
 	jr nz,readsecGS0
-	exa  
+	exa
 	dec a
 	jr nz,readsectorsGS0
+readsectorsGSwait77
 	call wait_bsyGS
 readsecGS_waitready0
 	in a,(C)
 	cp #77
-	jr nz,readsecGS_waitready0 ;??? ожидаем непонятно чего
+	jr nz,readsecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
 	pop bc
 	pop de
 	xor a
 	ret  
 
 ;??????? not used        
-	db #3e,#01 ;ld a,#01
-	db #18,#01 ;jr LL7e68
+	;db #3e,#01 ;ld a,#01
+	;db #18,#01 ;jr LL7e68
         
-GS_INIT
-        call writesecGS
-	or a
-	ret nz
-	xor a
-;b=head
-;c=cylHI
-;d=cylLO
-;e=sec
-;a'=count	
-	call setblockparsGS
-	call wait_bsyGS
-	in a,(#b3)
-	cp #77 ;какое-то состояние GS???
-	jr nz,lda1
-	xor a
-	ret  
-lda1	
-        ld a,#01
-	ret  
-
 setblockparsGS	
 ;a=? 0/3/5
 ;b=head
@@ -846,35 +840,38 @@ setblockparsGS
 	exa  
 	out (#b3),a
 	exa  
-	nop  
-	nop  
-	nop  
-	nop  
-	nop  
-	nop  
-	nop  
-	nop  
-	nop  
+	;nop  
+	;nop  
+	;nop  
+	jr $+2
+	;nop  
+	;nop  
+	;nop  
+	jr $+2
+	;nop  
+	;nop  
+	;nop  
+	jr $+2
 	ret
 
 ;ожидание освобождения устройства
-no_bsyGS	
+no_bsyGS
         in a,(#bb)
 	rla  
 	jr c,no_bsyGS
 	ret  
-wait_bsyGS	
+wait_bsyGS
         in a,(#bb)
 	rla  
 	jr nc,wait_bsyGS
 	ret  
-loop_errGS	
+loop_errGS
         in a,(#bb)
 	rra  
 	jr c,loop_errGS ;c=error???
 	ret
 
-writesecGS	
+writesecGS
         ld a,#80
 	out (#33),a
 	;ei  
@@ -893,7 +890,7 @@ waitGS0
 	in a,(#bb)
 	rra  
 	jr c,waitGS0
-	ld bc,#00b3
+	ld bc,#00b3 ;TODO c
 	in a,(C)
 	ld de,#0300
 	ld hl,#5b00
@@ -925,39 +922,36 @@ writesecGS300
 	halt  
 	halt  
 	;di  
+GScp77
 	in a,(#b3)
-	cp #77
-	jp nz,lda1
-	xor a
+	sub #77
+	ret z
+lda1
+	ld a,1
 	ret  
+
+GS_INIT
+        call writesecGS
+	or a
+	ret nz
+	xor a
+;b=head
+;c=cylHI
+;d=cylLO
+;e=sec
+;a'=count	
+	call setblockparsGS
+	call wait_bsyGS
+	;in a,(#b3)
+	;sub #77 ;какое-то состояние GS???
+	;ret z
+        ;ld a,1
+	;ret 
+	jr GScp77
 
 get_fattime:
 ;de=buf
         ld hl,sys_time_date
-        ldi
-        ldi
-        ldi
-        ldi
+	ld bc,4
+        ldir
         ret
-sys_time_date
-        ds 4
-
-        if 1==0
-;????????????????????????? адресуется в #549d
-;список неподдерживаемых символов в имени файла, 0 конец
-        db #22
-        db #2a
-        db #2b
-        db #2c
-        db #3a
-        db #3b
-        db #3c
-        db #3d
-        db #3e
-        db #3f
-        db #5b
-        db #5d
-        db #7c
-        db #7f
-        db 0
-        endif

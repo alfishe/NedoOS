@@ -15,29 +15,6 @@ cmd_begin
         ld e,COLOR
         OS_CLS
 
-        if 1==0
-        ld de,0x0709
-        OS_SETXY
-        ld hl,thello
-        call prtext
-        OS_GETXY
-        push de
-        
-        ld de,0x0a00
-        OS_SETXY
-        
-        pop de
-        OS_SETXY
-        ld hl,tzello
-        call prtext
-        jr $
-        
-thello
-        db "hello",0
-tzello
-        db "zello",0
-        endif
-        
         ld hl,COMMANDLINE ;command line
         call skipword
         call skipspaces
@@ -49,15 +26,6 @@ tzello
         ex de,hl ;de=drive/path/file
         OS_OPENHANDLE
 ;b=new file handle
-
-        if 1==0
-        push bc
-        ld de,0
-        ld hl,1
-        ;dehl=shift
-        OS_SEEKHANDLE
-        pop bc
-        endif
 
         ld hl,0
         ld de,0

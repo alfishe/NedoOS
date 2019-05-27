@@ -50,20 +50,20 @@ html_mainloop_keyq
         pop af
         cp key_redraw
         jr z,html_redrawloop
-        ;cp csSpace
+        ;cp key_esc
         ;jp z,browser_quit
         call globalbuttons
         ld hl,html_mainloop
         push hl
-        cp cs7
+        cp key_up
         jp z,html_up
-        cp cs6
+        cp key_down
         jp z,html_down
-        cp cs8
+        cp key_right
         jp z,html_right
-        cp cs5
+        cp key_left
         jp z,html_left
-        cp Enter
+        cp key_enter
         jp z,html_enter
 	cp 'l'
 	jr z,html_download
@@ -73,15 +73,15 @@ html_mainloop_keyq
         ;jp z,browser_reload
         cp 'u'
         jr z,html_changeencoding
-        ;cp cs0
+        ;cp key_backspace
         ;jp z,browser_backspace
-        cp cs3
+        cp key_pgup
         jp z,html_pgup
-        cp cs4
+        cp key_pgdown
         jp z,html_pgdown
-        cp Home
+        cp key_home
         jp z,html_home
-        cp Endkey
+        cp key_end
         jp z,html_endkey
         ret
 

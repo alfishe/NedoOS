@@ -591,7 +591,7 @@ controlloop_noprline
         ld ix,(curpanel)
         ret
 editcmd_keyfail
-        cp ' '
+        cp 0x20
         ret c ;прочие системные кнопки не нужны
 editcmd_typein
 ;keeps ix
@@ -1196,15 +1196,15 @@ seldrv_cury=$+1
         cp key_redraw
         jr z,seldrv_redraw_mainloop
         ld hl,seldrv_cury
-        cp Enter
+        cp key_enter
         jr z,seldrv_ok
-        cp csSpace
+        cp key_esc
         ret z
         ld bc,seldrv_mainloop
         push bc
-        cp cs6
+        cp key_down
         jr z,seldrv_down
-        cp cs7
+        cp key_up
         jr z,seldrv_up
         ret
 seldrv_ok

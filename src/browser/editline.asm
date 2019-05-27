@@ -44,17 +44,17 @@ browser_editlinenokey
         
         cp key_redraw
         jr z,browser_editline0
-        cp Enter
+        cp key_enter
         jp z,browser_reload ;curfulllink содержит полный url
         ld hl,browser_editline0
         push hl
-        cp cs5
+        cp key_left
         jr z,browser_editline_left
-        cp cs8
+        cp key_right
         jr z,browser_editline_right
-        cp cs0
+        cp key_backspace
         jr z,browser_editline_backspace
-        cp ' '
+        cp 0x20
         ret c ;прочие системные кнопки не нужны
         ld e,a
         ld hl,curfulllink

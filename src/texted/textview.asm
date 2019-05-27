@@ -71,49 +71,45 @@ texted_mainloop_keyq
 
         cp key_redraw
         jr z,texted_redrawloop
-        cp csSpace
+        cp key_esc
         ret z
         
         ld hl,texted_mainloop
         push hl
-        cp cs7
+        cp key_up
         jp z,texted_up
-        cp cs6
+        cp key_down
         jp z,texted_down
-        cp cs3
+        cp key_pgup
         jp z,texted_pgup
-        cp cs4
+        cp key_pgdown
         jp z,texted_pgdown
-        ;cp 's';csss
+        ;cp 's'
         ;jp z,texted_changeencoding
-        cp Home;ssQ
+        cp key_home
         jp z,texted_home
-        cp Endkey;ssE
+        cp key_end
         jp z,texted_end
-        cp cs5
+        cp key_left
         jp z,texted_left
-        cp cs8
+        cp key_right
         jp z,texted_right
-        cp ext3
+        cp key_sspgup;ext3
         jp z,texted_gotobof;home
-        cp ext4
+        cp key_sspgdown;ext4
         jp z,texted_gotoeof;end
-        cp extW;'w'
+        cp extW
         jp z,texted_wrap
-        cp cs0 ;backspace
+        cp key_backspace
         jp z,texted_backspace
-        cp cs9 ;del
+        cp key_del
         jp z,texted_del
-        cp Enter
+        cp key_enter
         jp z,texted_enter
-        cp csEnter
+        cp key_csenter
         jp z,texted_save
-         ;cp csss
-         ;jr z,typein
-        ;cp csss;'4'
-        ;jp z,texted_hexeditor
-        cp ' '
-        ret c
+        cp 0x20
+        ret c ;прочие системные кнопки не нужны
 typein
         ld c,a
         call linesize_minus_x ;sz<x = error

@@ -315,7 +315,7 @@ _low_level_get:
 	rst 0x08
 	cp key_redraw
 	call z,scrredraw
-	cp csSpace
+	cp key_esc
 	jp z,exit
 	ld l,a
 	ld h,0

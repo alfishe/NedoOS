@@ -1215,11 +1215,11 @@ editfilename_nokey
         ;jr z,editfilename_nokey
         YIELDGETKEYLOOP
         ld hl,savepicname
-        cp Enter
+        cp key_enter
         ret z
-        cp cs0 ;backspace
+        cp key_backspace
         jr z,editfilename_backspace
-        cp ' '
+        cp 0x20
         jr c,editfilename_nokey ;прочие системные кнопки не нужны
         ld e,a
         ld bc,12

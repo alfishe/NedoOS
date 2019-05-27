@@ -69,7 +69,7 @@ mainloop
         ;jr nz,$+2+1+2
         ;cp c ;keynolang==0?
         ;jr z,_1;1b;prwindow_waitkey_nokey
-        cp csSpace
+        cp key_esc
         jr nz,mainloop
         call MUTE
 noautoload

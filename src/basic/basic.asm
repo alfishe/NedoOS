@@ -511,17 +511,17 @@ editcmd0
         OS_PRATTR ;стереть курсор
         pop af
         ld hl,cmdbuf
-        cp Enter
+        cp key_enter
         ret z
-        cp cs0 ;backspace
+        cp key_backspace
         jr z,editcmd_backspace
-        cp cs5 ;left
+        cp key_left
         jr z,editcmd_left
-        cp cs8 ;right
+        cp key_right
         jr z,editcmd_right
-        ;cp cs7 ;up
+        ;cp key_up
         ;jr z,editcmd_up
-        cp ' '
+        cp 0x20
         jr c,editcmdok ;прочие системные кнопки не нужны
 ;type in
         ld e,a

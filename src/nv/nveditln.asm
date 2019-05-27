@@ -2,7 +2,7 @@ editline
 ;de=yx
 ;hl=textaddr
 ;a=maxsz
-;out: a=Enter/csSpace
+;out: a=key_enter/key_esc
         ld (editline_maxsz),a
         ld (editline_xy),de
         ld (editline_text),hl
@@ -30,23 +30,23 @@ editline_curx=$+1
         pop af
         cp key_redraw
         jr z,editline_mainloop
-        cp Enter
+        cp key_enter
         ret z
-        cp csSpace
+        cp key_esc
         ret z
         ld hl,editline_mainloop
         push hl
         ld hl,(editline_text)
-        cp cs5
+        cp key_left
         jr z,editline_left
-        cp cs8
+        cp key_right
         jr z,editline_right
-        cp cs0
+        cp key_backspace
         jr z,editline_backspace
-        cp cs9
+        cp key_del
         jr z,editline_del
-        cp 32
-        ret c
+        cp 0x20
+        ret c ;прочие системные кнопки не нужны
         ld e,a
         push hl
         call strlen ;hl=len

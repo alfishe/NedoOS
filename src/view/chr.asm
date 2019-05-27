@@ -89,21 +89,21 @@ chrscontrol0
         OS_SETSCREEN ;e=screen=0..1
         call yieldgetkeynolang
         jr z,chrscontrol0
-        cp csSpace
+        cp key_esc
         ret z
-        cp Enter
+        cp key_enter
         ret z
         ld hl,chrscontroldraw0
         push hl
         ld hl,(chrs_xscroll)
-        cp cs5
+        cp key_left
         jr z,chrs_left
-        cp cs8
+        cp key_right
         jr z,chrs_right
         ld hl,(chrs_yscroll)
-        cp cs7
+        cp key_up
         jr z,chrs_up
-        cp cs6
+        cp key_down
         jr z,chrs_down
         ret
         

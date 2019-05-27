@@ -53,7 +53,7 @@ CMD_SETFILETIME=0xe4 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
 CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset
 CMD_SCROLLUP=0xe6 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even
-CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB
+CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB ;TODO выбросить
 ;CMD_GETKEYNOLANG=0xe9
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
@@ -111,9 +111,6 @@ fwaiting=7 ;app is waiting for another app, can't take focus by hand
 
 NOKEY=0
 key_redraw=31 ;если сделать равным ssEnter, то при шедулинге через idle ssEnter словитс€ второй раз
-Enter=13
-ssI=127;extbase+12
-extSpace=NOKEY ;extbase+14 ;неюзабельно, т.к. из-за матрицы выдаетс€ вместе с extZ
 
 extbase=0xb0 ;with H=1 ;но нельз€ пересекатьс€ с 32..127
 ext0=extbase+0
@@ -139,9 +136,9 @@ cs6=csbase+6
 cs7=csbase+7
 cs8=csbase+8
 cs9=csbase+9
-csEnter=csbase+10
-ssSpace=csbase+11
-extEnter=csbase+12
+key_csenter=csbase+10
+key_ssspace=csbase+11
+key_extenter=csbase+12
 
 extA=1
 extB=2
@@ -155,7 +152,7 @@ extI=9 ;as csss (Tab)
 extJ=10
 extK=11
 extL=12
-extM=13
+extM=13 ;as Enter
 extN=14
 extO=15
 extP=16
@@ -170,18 +167,74 @@ extX=24
 extY=25
 extZ=26
 csnoshifts=NOKEY ;cs release result for AltGr
-csSpace=27
-ssQ=extbase+28
-Home=ssQ
-ssW=extbase+29
-Ins=ssW
-ssE=extbase+30
-Endkey=ssE
+csspace=27
+
+ss1='!'
+ss2='@'
+ss3='#'
+ss4='$'
+ss5='%'
+ss6='&'
+ss7=0x27;'\''
+ss8='('
+ss9=')'
+ssA='~'
+ssB='*'
+ssC='?'
+ssD=0x5c;'\\'
+ssE=30;extbase+30
+ssF='{'
+ssG='}'
+ssH='^'
+ssI=127;extbase+12
+ssJ='-'
+ssK='+'
+ssL='='
+ssM='.'
+ssN=','
+ssO=';'
+ssP=0x22;'"'
+ssQ=28;extbase+28
+ssR='<'
+ssS='|'
+ssT='>'
+ssU=']'
+ssV='/'
+ssW=29;extbase+29
+ssX='`'
+ssY='['
+ssZ=':'
 
 csss=9 ;Tab
+key_extspace=NOKEY ;extbase+14 ;неюзабельно, т.к. из-за матрицы выдаетс€ вместе с extZ
 
 cssspress=csss ;temporary internal code (impossible to type without AltGr before language recoding)
 ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr before language recoding)
+
+key_home=ssQ
+key_end=ssE
+key_ins=ssW
+key_enter=13
+key_left=cs5
+key_right=cs8
+key_up=cs7
+key_down=cs6
+key_pgup=cs3
+key_pgdown=cs4
+key_backspace=cs0
+key_del=cs9
+key_ssleft=ext5
+key_ssright=ext8
+key_ssup=ext7
+key_ssdown=ext6
+key_sspgup=ext3
+key_sspgdown=ext4
+key_ssbackspace=ext0
+key_ssdel=ext9
+key_tab=csss
+key_esc=csspace
+;отдельный ext (Tab) передаЄтс€ по отжатию (TODO в GETKEYNOLANG по нажатию)
+;нажати€ отдельных ss, cs не передаютс€, иначе CP/M приложени€ не смогут их отфильтровать (TODO через GETKEYNOLANG, и отжати€ всех клавиш тоже)
 
 ;всего управл€ющих комбинаций:
 ;1: nokey
@@ -196,12 +249,10 @@ ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr befor
 ;SO, SI занимать нельз€
 ;упр. коды, необходимые дл€ CP/M, передавать непосредственно (чем их меньше, тем больше отдельных ext+keys можно предусмотреть)
 ;ext+keys передавать как 0..31 (чтобы можно было ввести любой упр.код CP/M, надо ещЄ несколько клавиш дл€ остальных кодов)
-;символы 0..31 передавать как SO, код+0xb0, SI
-;остальные упр. коды (cs+digit, ext+digit, extSpace, extEnt, ssQWE) передавать как SO, код+0xd0, SI
-;отдельный ext (Tab) передавать по отжатию
-;нажати€ отдельных ss, cs не передавать, иначе CP/M приложени€ не смогут их отфильтровать (отжати€ клавиш тоже передать невозможно, разве что через GETKEYNOLANG)
+;TODO символы 0..31 передавать как SO, код+0xb0, SI?
+;TODO остальные упр. коды (cs+digit, ext+digit, extSpace, extEnt, ssQWE) передавать как SO, код+0xd0, SI?
 
-;00*nokey ^@ NUL - TODO убрать (GET_KEY будет сам делать YIELD до прихода событи€ клавиатуры/мыши, а чьЄ событие - как-то кодировать в H)
+;00*nokey ^@ NUL - (если GET_KEY будет сам делать YIELD до прихода событи€ клавиатуры/мыши, а чьЄ событие - как-то кодировать в H - тогда нельз€ передавать отжатие, т.к. событие есть, а код HA=nokey)
 ;01       ^A SOH All (WordLeft в TP) -- home
 ;02       ^B STX -- left
 ;03       ^C ETX Copy (PgDn в TP) (close app в MS-DOS) -- close app
@@ -233,4 +284,3 @@ ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr befor
 ;1D Ins   ^] GS
 ;1E End   ^^ RS
 ;1F redraw^_ US
-

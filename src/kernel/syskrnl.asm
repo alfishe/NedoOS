@@ -30,19 +30,31 @@ fatfs.tabl=0x4000
 wassyscode
         disp 0x0000
 syscode
+sys_time_date
+        ds 4
+
         ds 0x0000+4-$
         jp sys_quit
+
+sys_reter
+	ret
+
+callbdos_mutex
+        db 0xc0
         ds 0x0005+4-$
         jp callbdos
 
         ds 0x0009+4-$
         jp sys_getchar
 
+sys_farcall
+        jp endsys_result_a
+
         ds 0x0015-2-$
 endsys_result_aq
         out (0xfd),a
         display "kernel_result_a=",$
-        ds #0010+5-$
+        ds 0x0010+5-$
 ;e=char
         if bdosstack_sz==0
         ld (sys_prchar_sp),sp
@@ -101,9 +113,48 @@ sys_intq
 
         ds 0x0038+14-$ -4
         ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
-        jp sys_intgo
-        
-        ds 0x0101-$ ;чтобы можно было ставить точку останова на #0100
+        jp sys_intgo ;нужно, чтобы можно было ставить точку останова на #0100
+        ;ds 0x0101-$ ;нужно, чтобы можно было ставить точку останова на #0100
+
+safestack_sz=18
+        STRUCT app
+flags           BYTE ;флаги (всегда в начале структуры)
+;priority        BYTE ;TODO приоритет (0=конец списка)
+id              BYTE ;номер задачи (0=свободно)
+parentid        BYTE ;номер родительской задачи
+mainpg          BYTE ;главная страница задачи (там userkernel)
+;callbdos_sp     WORD ;сюда сохраняется стек при вызове BDOS
+;curmsg          WORD ;TODO адрес текущего сообщения этой задаче
+;endmsg          WORD ;TODO адрес конца очереди сообщений этой задаче
+;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
+;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
+screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
+gfxmode         BYTE ;текущий видеорежим ;значение для #bd77
+textcuraddr     WORD ;адрес курсора на экране
+curcolor        BYTE ;текущий атрибут при печати
+dta             WORD ;data transfer address
+vol             BYTE ;текущий драйв (volume)
+dircluster      DWORD ;текущая директория
+dir             BLOCK DIR_sz ;временный буфер для чтения каталога
+bdosstack       BLOCK bdosstack_sz ;стек при вызове BDOS
+pal             BLOCK 32
+;safestack       BLOCK safestack_sz ;de,hl,af',af,ix,hl',de',bc',iy
+        ENDS
+
+        display "apps start=",/h,$
+safestack
+        ds safestack_sz
+app1    app
+app_sz=$-safestack
+
+        ds (MAXAPPS-1)*app_sz
+        display "MAXAPPS=",/h,MAXAPPS
+
+app_afterlast=$+safestack_sz
+app_last=app_afterlast-app_sz
+        display "app1=",/h,app1
+        display "app_last=",/h,app_last
+
 sys_intgo
         ld (sys_int_iy),iy
 appaddr=$+2
@@ -184,16 +235,6 @@ sys_int_popregs
         ;TODO освободить мьютекс, можно включить прерывания
         jp sys_intq
 
-        ;ds #0050-$
-endsys_result_a
-         ld iy,(focusappaddr)
-        ex af,af'
-        ld a,(iy+app.screen)
-        ld iy,(appaddr)
-        jp endsys_result_aq
-
-;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи
-        
 schedule
 ;find next app, set iy
 ;out: hl=iy=app
@@ -438,32 +479,40 @@ findnextgfxappq
 sys_int_noselectapp
 
 muzcall=$+1
-	call sys_reter;pt3player.PLAY ;TODO call drivers
-
-        ret
+	jp sys_reter;pt3player.PLAY ;TODO call drivers
 
         
 sys_getchar
 ;out: de=mouse dydx, l=buttons, A=key, H=high bits of key
         call checkfocus_getmouse
         call z,GETKEY ;A=key, H=high bits of key, BC=keynolang
-        jp endsys_result_a
+        ;jp endsys_result_a
+        ;ds #0050-$
+endsys_result_a
+         ld iy,(focusappaddr)
+        ex af,af'
+        ld a,(iy+app.screen)
+        ld iy,(appaddr)
+        jp endsys_result_aq
+
+;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи
+        
 sys_getchar_fail
-;nz
-        ld a,NOKEY ;no key
+;a=0, nz
+        ;ld a,NOKEY ;no key
          ;ld h,a
          ;ld b,a
          ld c,a ;no keynolang
         ld d,a;0
         ld e,a;0 ;no mouse movement
-        ld l,#ff ;no buttons
+        ld l,0xff ;no buttons
         ret ;nz ;jp endsys_result_a
 
 checkfocus_getmouse
 ;out: nz=fail
         ld de,(focusappaddr)
         ld hl,(appaddr)
-        or a
+        xor a
         sbc hl,de
         jr nz,sys_getchar_fail ;nz
 sys_mousecoords=$+1
@@ -478,13 +527,9 @@ sys_oldmousecoords=$+1
         sub h ;a=dy
         ld d,a ;d=dy
 sys_mousebuttons=$+1
-        ld l,#ff
+        ld l,0xff
         xor a
         ret ;z
-        
-sys_farcall
-        jp endsys_result_a
-
 
 callbdos
 ;при вызове bdos надо включить:
@@ -551,9 +596,6 @@ callbdos_sp=$+1
         endif
         jp endsys_result_a
 
-callbdos_mutex
-        db #c0
-
 setpgs_killable
         ld a,pgkillable
         ld bc,memport4000
@@ -574,40 +616,9 @@ sys_quit
         call BDOS_delapppages
         jp BDOS_yield_q ;переходим на какую-нибудь задачу
         
-sys_reter
-        ret
-
 setkernelpages_go
 ;sp=#3ffx
 ;сейчас включена 5-я страница
-        ;ld a,pgtrdosfs
-        ;ld bc,memport4000
-        ;ld (sys_curpg4000),a
-        ;out (c),a
-        ;ld hl,wasresident
-        ;ld de,resident
-        ;ld bc,resident_sz
-        ;ldir
-
-        if 1==0
-        jr $
-        BDOSSETPGTRDOSFS
-        ld iy,23610
-        ld a,1
-        ld c,1
-        exx
-        call dos3d13_resident
-        ld c,#18
-        exx
-        call dos3d13_resident
-        ld hl,#c000
-        ld de,#0000
-        ld bc,#0805
-        exx
-        call dos3d13_resident
-        jr $
-        endif
-
         BDOSSETPGTRDOSFS
         call makeidle
 setkernelpages_go_iy
@@ -651,52 +662,11 @@ sys_findfreeid0
         djnz sys_findfreeid0
 ;a=free id
         ret
-        
-        
-        
-safestack_sz=18
-        STRUCT app
-flags           BYTE ;флаги (всегда в начале структуры)
-;priority        BYTE ;TODO приоритет (0=конец списка)
-id              BYTE ;номер задачи (0=свободно)
-parentid        BYTE ;номер родительской задачи
-mainpg          BYTE ;главная страница задачи (там userkernel)
-;callbdos_sp     WORD ;сюда сохраняется стек при вызове BDOS
-;curmsg          WORD ;TODO адрес текущего сообщения этой задаче
-;endmsg          WORD ;TODO адрес конца очереди сообщений этой задаче
-;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
-;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
-screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
-gfxmode         BYTE ;текущий видеорежим ;значение для #bd77
-textcuraddr     WORD ;адрес курсора на экране
-curcolor        BYTE ;текущий атрибут при печати
-dta             WORD ;data transfer address
-vol             BYTE ;текущий драйв (volume)
-dircluster      DWORD ;текущая директория
-dir             BLOCK DIR_sz ;временный буфер для чтения каталога
-bdosstack       BLOCK bdosstack_sz ;стек при вызове BDOS
-pal             BLOCK 32
-;safestack       BLOCK safestack_sz ;de,hl,af',af,ix,hl',de',bc',iy
-        ENDS
 
-        display "apps start=",/h,$
-safestack
-        ds safestack_sz
-app1    app
-app_sz=$-safestack
-
-        ds (MAXAPPS-1)*app_sz
-        display "MAXAPPS=",/h,MAXAPPS
-
-app_afterlast=$+safestack_sz
-app_last=app_afterlast-app_sz
-        display "app1=",/h,app1
-        display "app_last=",/h,app_last
-        
         include "syskey2.asm"
         
         include "fatfsdrv.asm"
-        include "sysbdos.asm"
+        include "sysbdos.asm" ;в конце есть align 256
         ent
 syscodesz=$-wassyscode
         display "syscodesz=",/h,syscodesz," < minstack=",/h,SYSMINSTACK

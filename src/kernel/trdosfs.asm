@@ -1,4 +1,16 @@
 dos3d13.
+;hl=addr
+;de=track,sector
+;b=size/256
+;c=5 (read), 6 (write)
+	;push bc
+	;ex de,hl
+        ;call BDOS_preparedepage
+        ;call BDOS_setdepage ;TODO убрать в драйвер
+	;ex de,hl
+	;pop bc
+dos3d13nopg.
+;bc,de,hl,a (for c=1)
         push iy
         exx
         ld e,(iy+app.gfxmode)
@@ -23,6 +35,7 @@ trdos_fread
         ;ld de,(dma_addr) ;de=poi to data
         call BDOS_getdta
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 
         ex de,hl ;hl=poi to data, de=poi to TRDOSFCB
         ld bc,128 ;bc=size
@@ -47,6 +60,7 @@ trdos_fread_b
         ld h,b
         ld l,0
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         pop bc ;Number of bytes to read
         ex de,hl
 ;hl=poi to data
@@ -69,6 +83,7 @@ trdos_fwrite_nbytes
         ;ld de,(dma_addr) ;de=poi to data
         call BDOS_getdta
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         pop bc
         ex de,hl ;hl=poi to data, de=poi to TRDOSFCB
          push bc ;blocksize
@@ -85,6 +100,7 @@ trdos_fwrite_b
         ld h,b
         ld l,0
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         pop bc ;Number of bytes to write
         ex de,hl
 ;hl=poi to data
@@ -555,3 +571,5 @@ trdos_tempfilename
         ds 11
 trdos_tempfilename2
         ds 11
+BDOS_parse_filename_cpmnamebuf
+        ds 11 ;TODO объединить с одним из tempfilename

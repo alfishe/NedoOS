@@ -617,20 +617,20 @@ showframetime=$+1
 
 showframe_delay0
         call yieldgetkeynolang ;z=nokey
-        ;cp Enter
+        ;cp key_enter
         ;jp z,closequit ;TODO restore stack
         ;cp 'z'
         ;jr z,showframe_setzoom
         call globalbuttons
         ld hl,(xscroll)
-        cp cs5
+        cp key_left
         jr z,showframe_left
-        cp cs8
+        cp key_right
         jr z,showframe_right
         ld hl,(yscroll)
-        cp cs6
+        cp key_down
         jr z,showframe_down
-        cp cs7
+        cp key_up
         jr z,showframe_up
 showframe_nokey
         OS_GETTIMER ;hlde=timer
@@ -643,7 +643,7 @@ showframemaxtimer=$+1
 
 	pop hl
 	pop af
-	;jr $
+
         pop bc
         dec bc
         bit 7,b
@@ -764,7 +764,7 @@ getkeyquit0
         jr getkeyquit0
         
 globalbuttons
-        cp cs0
+        cp key_backspace
         jp z,browser_backspace
         cp '5'
         jp z,browser_reload
@@ -774,7 +774,7 @@ globalbuttons
 	jp z,browser_downloadthis
 	cp 'e'
 	jp z,browser_editline
-        cp csSpace
+        cp key_esc
         ret nz
 browser_quit
         ld a,(wgetloaded_pid)

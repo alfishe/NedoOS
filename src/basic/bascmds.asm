@@ -96,7 +96,7 @@ docmd
         GET_KEY
         pop hl
         exx
-        cp csSpace
+        cp key_esc
         jp z,endbreak
         call eatword
         ld hl,commandslist ;list of internal commands
@@ -803,7 +803,7 @@ save_lines0
         push hl ;ѕроверка на нажатие брик
         GET_KEY
         pop hl
-        cp csSpace
+        cp key_esc
         jp z,endbreak
 
         ld d, (hl) ; загружаем в DE номер строки 
@@ -1169,7 +1169,7 @@ list_lines0
         push hl ;ѕроверка на нажатие брик
         GET_KEY
         pop hl
-        cp csSpace
+        cp key_esc
         jp z,endbreak
 
         ld d,(hl)

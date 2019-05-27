@@ -21,10 +21,10 @@ emptyattr=#38
 ;fieldEy=24
 centr=0x0b0b;(fieldEx/2)+(256*fieldEy/2)
 
-dir_r=cs8;#09
-dir_l=cs5;#08
-dir_u=cs7;#0b
-dir_d=cs6;#0a
+dir_r=key_right;;#09
+dir_l=key_left;#08
+dir_u=key_up;#0b
+dir_d=key_down;#0a
         
         org PROGSTART
 begin
@@ -58,7 +58,7 @@ gameloop
         
         call storeposition
         GET_KEY
-         cp csSpace
+         cp key_esc
          jr z,quit
         call controlkey
         call collide
@@ -78,7 +78,7 @@ gameloop
 gameoverloop
         YIELD
         GET_KEY
-        cp csSpace
+        cp key_esc
         jr nz,gameoverloop
 quit
         QUIT

@@ -211,7 +211,7 @@ readstream_http_headretry
         call yieldgetkeynolang
         pop hl
         pop de
-        cp csSpace
+        cp key_esc
         jp z,readstream_err
 
 readstream_http_headlines0

@@ -922,9 +922,9 @@ trdosolddrive=$+1
         push hl
         if 1==1
         ld c,1
-	call dos3d13.
+	call dos3d13nopg.
         ld c,#18
-	call dos3d13.
+	call dos3d13nopg.
         else
         ;ld (23798),a
         ; ld (23799),a

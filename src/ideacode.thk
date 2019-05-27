@@ -5,6 +5,7 @@ cs0=8 ;=extH (CP/M)
 cs0=8 ;as extH (CP/M)
 
 
+
 FUNC BOOL fread1blkq(FCB* pfcb, PBYTE pdesc)
 убивает глобальную переменную pdesc (ниже она становится не видна)
 

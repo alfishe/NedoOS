@@ -29,10 +29,10 @@ emptyattr=#38
 
 snakecoordssize=fieldwid*fieldhgt*2;768*2
 
-dir_r=cs8;#09
-dir_l=cs5;#08
-dir_u=cs7;#0b
-dir_d=cs6;#0a
+dir_r=key_right;cs8;#09
+dir_l=key_left;cs5;#08
+dir_u=key_up;cs7;#0b
+dir_d=key_down;cs6;#0a
         
         org PROGSTART
 begin
@@ -83,7 +83,7 @@ gameloop
         call prnum
         call delay
         GET_KEY
-         cp csSpace
+         cp key_esc
          jr z,quit
         call getkey
         call shrink
@@ -108,7 +108,7 @@ gameover
 gameoverloop
         YIELD
         GET_KEY
-        cp csSpace
+        cp key_esc
         jr nz,gameoverloop
 quit
         QUIT

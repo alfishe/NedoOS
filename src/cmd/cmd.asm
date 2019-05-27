@@ -145,20 +145,20 @@ editcmd0
         ld e,COLOR;7
         OS_PRATTR ;стереть курсор
         pop af
-        cp Enter
+        cp key_enter
         ret z
-        cp cs7 ;up
+        cp key_up
         jr z,editcmd_up
          ld hl,editcmd0
          push hl
         ;ld hl,cmdbuf
-        cp cs0 ;backspace
+        cp key_backspace
         jr z,editcmd_backspace
-        cp cs5 ;left
+        cp key_left
         jr z,editcmd_left
-        cp cs8 ;right
+        cp key_right
         jr z,editcmd_right
-        cp ' '
+        cp 0x20
         ret c ;jr c,editcmdok ;прочие системные кнопки не нужны
 ;type in
 editcmdtypein

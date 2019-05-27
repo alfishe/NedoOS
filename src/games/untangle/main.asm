@@ -104,7 +104,7 @@ mainloop_something
 
 key=$+1
         ld a,0
-        cp csSpace
+        cp key_esc
         jp z,quit
         cp key_redraw
         call z,redraw
@@ -561,7 +561,7 @@ ahl_oldcoords
         ret
 
 
-
+	if 1==0
 gameover
         ld hl,endtext
         ld bc,0x0b0f
@@ -569,8 +569,10 @@ gameover
 gameoverloop
         YIELD
         GET_KEY
-        cp csSpace
+        cp key_esc
         jr nz,gameoverloop
+	endif
+
 quit
         QUIT
 

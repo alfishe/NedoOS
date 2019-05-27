@@ -40,33 +40,33 @@ nvview_hexeditor_prfile_mainloop
 nvview_hexeditor_prfileq
         cp key_redraw
         jr z,nvview_hexeditor_redrawloop
-        cp csSpace
+        cp key_esc
         ret z
-        cp csss
+        cp key_tab
         jp z,nvview_hexeditorq
         ld hl,nvview_hexeditor_prfile_mainloop
         push hl
-         cp cs7
+         cp key_up
          jp z,nvview_hexeditor_up
-         cp cs6
+         cp key_down
          jp z,nvview_hexeditor_down
-         cp cs3
+         cp key_pgup
          jp z,nvview_hexeditor_pgup
-         cp cs4
+         cp key_pgdown
          jp z,nvview_hexeditor_pgdown
-        ;cp Home;ssQ
+        ;cp key_home
         ;jp z,nvview_hexeditor_home
-        ;cp ext3
+        ;cp key_sspgup;ext3
         ;jp z,nvview_hexeditor_home
-        ;cp End;ssE
+        ;cp key_end
         ;jp z,nvview_hexeditor_end
-        ;cp ext4
+        ;cp key_sspgdown;ext4
         ;jp z,nvview_hexeditor_end
-        cp cs5
+        cp key_left
         jp z,nvview_hexeditor_left
-        cp cs8
+        cp key_right
         jp z,nvview_hexeditor_right
-         cp csEnter
+         cp key_csenter
          jp z,nvview_hexeditor_save
         ;cp 'w'
         ;jp z,nvview_wrap

@@ -275,7 +275,7 @@ genmapline
 
 control
         GET_KEY
-        cp csSpace
+        cp key_esc
         jp z,quit
         call getkey ;c=%???lrduf (0=нажато)
         ld a,c
@@ -889,7 +889,7 @@ centr=(fieldEx/2)-(10/2)+(256*fieldEy/2)
 gameoverloop
         YIELD
         GET_KEY
-        cp csSpace
+        cp key_esc
         jr nz,gameoverloop
 quit
         QUIT

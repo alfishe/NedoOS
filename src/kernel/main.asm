@@ -82,10 +82,12 @@ STACK=0x4000 ;userspace
 pgtrdosfs=pagexor-(sys_npages-1)
 pgfatfs=pagexor-(sys_npages-2)
 pgsys=pagexor-(sys_npages-3)
+pgfatfs2=pagexor-(sys_npages-4) ;structs
         else
 pgtrdosfs=pagexor-8
 pgfatfs=pagexor-9
 pgsys=pagexor-10
+pgfatfs2=pagexor-11 ;structs
         endif
 
 pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
@@ -102,8 +104,8 @@ fd_user=%01000111 ;%0x00sx1x ;для неисправленного АТМ2 надо A9=1, а номер страни
 
 ;условные страницы для sjasm
 COMPILEPG_INIT=0
-COMPILEPG_SYS0=4;10
-COMPILEPG_SYS1=6;11
+COMPILEPG_SYS0=4
+COMPILEPG_SYS1=6
 
         SLOT 1
         page COMPILEPG_INIT
@@ -232,11 +234,11 @@ fatfspatchaddr=#c000
         ld (0xc000+FFS_DRV.status),hl
         ld hl,devices_read	;read to userspace
         ld (0xc000+FFS_DRV.rd_to_usp),hl
-        ld hl,devices_read	;read to buffer
+        ld hl,devices_readnopg	;read to buffer
         ld (0xc000+FFS_DRV.rd_to_buf),hl
         ld hl,devices_write	;write from userspace
         ld (0xc000+FFS_DRV.wr_fr_usp),hl
-        ld hl,devices_write	;write from buffer
+        ld hl,devices_writenopg	;write from buffer
         ld (0xc000+FFS_DRV.wr_fr_buf),hl
         ld hl,get_fattime
         ld (0xc000+FFS_DRV.RTC),hl
@@ -325,6 +327,12 @@ fatfspatchaddr=#c000
 init_oldmousecoords=$+1
         ld hl,0
         ld (sys_oldmousecoords),hl
+	 call BDOS_setpgstructs
+	 ld hl,0xc000
+	 ld de,0xc001
+	 ld bc,0x3fff
+	 ld (hl),l;0
+	 ldir ;не помогло
         jp setkernelpages_go
 
         
@@ -486,7 +494,9 @@ dos3d13_resident=$-wasresident+resident
         exx
 	call EM3D13PP;0x3d13
          pop de ;e=gfxmode
-        call shadon_pgsys ;выключили ПЗУ
+	di
+        call shadon_pgsys ;выключили ПЗУ (неатомарно - две записи в порт!!!)
+	ei
         ;call swap_sysvars
 dos_sp=$+1-wasresident+resident
         ld sp,0

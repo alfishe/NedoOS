@@ -76,33 +76,33 @@ nvview_mainloop
 nvview_mainloop_keyq
         cp key_redraw
         jr z,nvview_redrawloop
-        cp csSpace
+        cp key_esc
         ret z
-        cp csss;'4'
+        cp key_tab
         jp z,nvview_hexeditor
         ld hl,nvview_mainloop
         push hl
-        cp cs7
+        cp key_up
         jp z,nvview_up
-        cp cs6
+        cp key_down
         jp z,nvview_down
-        cp cs3
+        cp key_pgup
         jp z,nvview_pgup
-        cp cs4
+        cp key_pgdown
         jp z,nvview_pgdown
         cp 's';csss
         jp z,nvview_changeencoding
-        cp Home;ssQ
+        cp key_home
         jp z,nvview_home
-        cp ext3
+        cp key_sspgup;ext3
         jp z,nvview_home
-        cp Endkey;ssE
+        cp key_end
         jp z,nvview_end
-        cp ext4
+        cp key_sspgdown;ext4
         jp z,nvview_end
-        cp cs5
+        cp key_left
         jp z,nvview_left
-        cp cs8
+        cp key_right
         jp z,nvview_right
         cp 'w'
         jp z,nvview_wrap
@@ -134,9 +134,6 @@ nvview_hexeditorq
         
         jp nvview_redrawloop
 
-        
-        
-        
 nvview_wrap
         ld a,(wrapflag)
         xor 128 

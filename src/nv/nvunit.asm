@@ -7,7 +7,7 @@ prwindow_edit
         push hl
         call editline
         pop de ;de=filename
-        cp csSpace
+        cp key_esc
         ret z ;cancel
         scf
         ret
@@ -25,19 +25,19 @@ prwindow_waitkey0
 ;        call prwindow_text ; comment by demige 190511
         YIELDGETKEYLOOP
         ld a,c
-        cp csSpace
+        cp key_esc
         ret z
         cp 'n'
         ret z
-        cp 'N'
-        ret z
+        ;cp 'N'
+        ;ret z
         cp key_redraw
         ret z
         cp 'y'
         jr z, prwindow_waitkey_keyyes
-        cp 'Y'
-        jr z, prwindow_waitkey_keyyes
-        cp Enter
+        ;cp 'Y'
+        ;jr z, prwindow_waitkey_keyyes
+        cp key_enter
         jr nz,prwindow_waitkey0
 prwindow_waitkey_keyyes
         scf

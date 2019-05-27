@@ -62,7 +62,7 @@ mainloop
         GET_KEY
         cp key_redraw
         jr z,mainloopredraw
-        cp csSpace
+        cp key_esc
         jr nz,mainloop
         endif
         QUIT

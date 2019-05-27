@@ -1,4 +1,5 @@
 getkey
+;TODO через OS_GETKEYMATRIX
 ;out: c=%???lrduf (0=нажато)
         ld c,#ff
         ld a,#ef

@@ -738,13 +738,13 @@ checkminmaxxy_noy
 control_keys
 key=$+1
         ld a,0
-        cp cs5
+        cp key_left
         jp z,control_keys_left
-        cp cs6
+        cp key_down
         jp z,control_keys_down
-        cp cs7
+        cp key_up
         jp z,control_keys_up
-        cp cs8
+        cp key_right
         jp z,control_keys_right
         cp '+'
         jp z,control_keys_plus

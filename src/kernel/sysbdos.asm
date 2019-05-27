@@ -1,5 +1,5 @@
 
-NVOLUMES=8;5
+NVOLUMES=8
 MAXFILES=8
 vol_trdos=4
 
@@ -24,36 +24,21 @@ fatfs_org=0x4000
 
 BDOS_setpgtrdosfs
         ld a,pgtrdosfs
-        ld bc,memport4000
-        ld (sys_curpg4000),a
-        out (c),a
-        ret
+	jr BDOS_setpg4000
+        ;ld bc,memport4000
+        ;ld (sys_curpg4000),a
+        ;out (c),a
+        ;ret
 
 BDOS_setpgfatfs
         ld a,pgfatfs
+BDOS_setpg4000
         ld bc,memport4000
-        ld (sys_curpg4000),a
+        ld (sys_curpg4000),a ;для sys_sysint
         out (c),a
         ret
 
-        if 1==0
-BDOS_cur_user
-	ld a,e
-	cp 0xff
-	jr z,.user
-	ld (.user+1),a
-	xor a
-	ret
-.user
-	ld a,0
-	ret
-
-BDOS_set_attr
-	xor a
-	ret
-        endif
-
-blocksize=128 ;сколько байтов читать
+blocksize=128 ;сколько байтов читать в CP/M операциях
 
 setmainpg_c000
         ld a,(iy+app.mainpg)
@@ -74,6 +59,7 @@ BDOS_wiznetread
 ;de=pointer, hl=buffer size
 ;out: hl=size
         call BDOS_preparedepage
+        call BDOS_setdepage
 ;DE = Pointer to physical data
         BDOSSETPGTRDOSFS
         jp wiznet_read
@@ -81,16 +67,12 @@ BDOS_wiznetread
 BDOS_wiznetwrite
 ;de=pointer, hl=size
         call BDOS_preparedepage
+        call BDOS_setdepage
 ;DE = Pointer to physical data
         BDOSSETPGTRDOSFS
         jp wiznet_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        
-;BDOS_getkeynolang
-;        call checkfocus_getmouse
-;        call z,GETKEY;NOLANG ;C=key, B=high bits of key (HA contains keylang)
-;        ret
         
 BDOS_setscreen
         ;ld iy,(appaddr)
@@ -153,32 +135,57 @@ BDOS_preparedepage
         bit 6,d
         jr nz,BDOS_preparedepage4000_8000
         set 7,d
+	ld (depage8000),a
         ld a,(curpg16k+#8000)
-        ld bc,memportc000
-        out (c),a
+        ;ld bc,memportc000
+        ;out (c),a
+	ld (depagec000),a
         ret
 BDOS_preparedepage4000_8000
         ld a,d
         add a,#40
         ld d,a
         ld a,(curpg32klow+#8000)
-        ld bc,memportc000
-        out (c),a
+        ;ld bc,memportc000
+        ;out (c),a
+	ld (depagec000),a
         ld a,(curpg16k+#8000)
-        ld bc,memport8000
-        out (c),a
+        ;ld bc,memport8000
+        ;out (c),a
+	ld (depage8000),a
         ret
 BDOS_preparedepage8000_c000
         ld a,(curpg32khigh+#8000)
+        ;ld bc,memportc000
+        ;out (c),a
+	ld (depagec000),a
+        ld a,(curpg32klow+#8000)
+        ;ld bc,memport8000
+        ;out (c),a
+	ld (depage8000),a
+        ret
+
+BDOS_setdepage
+;keep de,hl
+depagec000=$+1
+        ld a,0
         ld bc,memportc000
         out (c),a
-        ld a,(curpg32klow+#8000)
-        ld bc,memport8000
+depage8000=$+1
+        ld a,0
+        ld b,memport8000_hi
         out (c),a
-        ret
+	ret
+
+BDOS_setpgstructs
+	ld a,pgfatfs2
+        ld bc,memportc000
+        out (c),a
+	ret
 
 BDOS_setpal
         call BDOS_preparedepage
+        call BDOS_setdepage
 ;de=палитра (выше #c000)
         push iy
         pop hl
@@ -601,11 +608,6 @@ clslayer
         ret
 
 BDOShandler
-;TODO сразу 
-        ;BDOSSETPGFATFS
-        ;push de (иначе не сделать parsefilename)
-        ;call BDOS_preparedepage
-
         push hl
         ld a,c
         ld hl,tbdoscmds
@@ -819,6 +821,7 @@ BDOS_yield
 
         ex de,hl
         call BDOS_preparedepage
+        call BDOS_setdepage
         ex de,hl
         
         ld e,(hl)
@@ -830,10 +833,10 @@ BDOS_yield
 
         ld a,pgkillable
         out (c),a
-        ld b,memport8000/256
+        ld b,memport8000_hi
         out (c),a
         
-        ld a,#c0
+        ld a,0xc0
         ld (callbdos_mutex),a ;то же самое делают те функции BDOS, которые не собираются возвращаться
 
 ;не выходим из CALLBDOS, взамен шедулим и выходим через конец обработчика прерываний
@@ -1124,6 +1127,7 @@ BDOS_delpage
 BDOS_fdel
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to unopened FCB
         CHECKVOLUMETRDOS
         jr nc,BDOS_fdel_noFATFS
@@ -1142,6 +1146,7 @@ BDOS_fdel_noFATFS
 BDOS_fread
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to opened FCB
         ;CHECKVOLUMETRDOS
         ld a,(de)
@@ -1149,9 +1154,10 @@ BDOS_fread
         jr nc,BDOS_fread_noFATFS
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
-
+	 ;jr $
         call BDOS_getdta ;de = disk transfer address
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         ld b,d
         ld c,e
 	ld de,blocksize
@@ -1180,6 +1186,7 @@ BDOS_fread_noFATFS
 BDOS_fwrite
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to opened FCB
         ;CHECKVOLUMETRDOS
         ld a,(de)
@@ -1190,6 +1197,7 @@ BDOS_fwrite
 
         call BDOS_getdta ;de = disk transfer address
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         ld b,d
         ld c,e
 	ld de,blocksize
@@ -1208,6 +1216,7 @@ BDOS_fwrite_noFATFS
 BDOS_fwrite_nbytes
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to opened FCB
 ;hl = bytes
         ;CHECKVOLUMETRDOS
@@ -1220,6 +1229,7 @@ BDOS_fwrite_nbytes
 
         call BDOS_getdta ;de = disk transfer address
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         ld b,d
         ld c,e
 	;ld de,blocksize
@@ -1263,6 +1273,7 @@ BDOS_opencurdir
 BDOS_fsearchfirst
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
          push de ;DE = Pointer to unopened FCB (#8000+/#c000+)
         CHECKVOLUMETRDOS
         jr nc,BDOS_fsearchfirst_noFATFS
@@ -1299,6 +1310,7 @@ BDOS_fsearchfirst_noFATFS
 BDOS_fsearchnext
 ;(not CP/M!!!) для многозадачности принимать тут de = Pointer to unopened FCB
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 BDOS_fsearch_goloadloop
         inc de
         ld (fsearchnext_filename),de
@@ -1309,6 +1321,7 @@ BDOS_fsearch_loadloop
         jr nc,BDOS_fsearch_loadloop_noFATFS
 
         call count_fdir ;LD de,fdir
+	 ;jr $
 	LD bc,mfilinfo
 	F_RDIR
         ;or a
@@ -1377,6 +1390,7 @@ fsearchnext_nofileq
         ld hl,fcb2
         call BDOS_getdta ;de = disk transfer address
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         ld bc,FCB_sz;32;16
          push bc
         ldir
@@ -1389,6 +1403,7 @@ BDOS_getfiletime
 ;de=Drive/path/file ASCIIZ string
 ;out: ix=date, hl=time
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
         jr nc,BDOS_getfiletime_zero
         BDOSSETPGFATFS
@@ -1416,6 +1431,7 @@ BDOS_gettime
 BDOS_setfiletime
 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         BDOSSETPGFATFS
         push hl ;time
         push ix ;date
@@ -1527,6 +1543,7 @@ BDOS_openorcreatehandle
         ld (BDOS_openorcreatehandle_mode),hl
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Drive/path/file ASCIIZ string
         call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
         jr nc,BDOS_openhandle_noFATFS
@@ -1541,6 +1558,7 @@ BDOS_openorcreatehandle
         ex de,hl ;a=fil number, de=poi to FIL
         pop bc
         push af
+	 ;jr $
 BDOS_openorcreatehandle_mode=$+1
 	LD HL,FA_READ|FA_WRITE
         F_OP
@@ -1598,7 +1616,6 @@ BDOS_number_to_fil0
 BDOS_closehandle
 ;B = file handle
 ;out: A=error
-        ;jr $
         bit 6,b
         jr nz,BDOS_closehandle_noFATFS
         call BDOS_number_to_fil
@@ -1623,6 +1640,7 @@ BDOS_readwritehandleprepare
         pop de ;Buffer address
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         ld b,d
         ld c,e
         pop de ;Number of bytes to read
@@ -1694,6 +1712,7 @@ BDOS_readhandlego
 ;b=handle
         bit 6,b
         jr nz,BDOS_readhandle_noFATFS
+	 ;jr $
         call BDOS_readwritehandleprepare
 	ld ix,fres
         push ix ;fres
@@ -1753,6 +1772,7 @@ BDOS_fopen_getname_fil
 BDOS_fopen
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;de = pointer to unopened FCB
          ;jr $
         GETVOLUME
@@ -1774,6 +1794,7 @@ BDOS_fopen_noFATFS
 BDOS_fcreate
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to unopened FCB
         GETVOLUME
         ld (de),a ;volume
@@ -1783,6 +1804,7 @@ BDOS_fcreate
         call BDOS_fopen_getname_fil ;de=poi to FIL, bc=mfil
 	LD HL,FA_READ|FA_WRITE|FA_CREATE_ALWAYS
 BDOS_fopen_go
+	 ;jr $
 	;F_OPEN ffile,mfil,FA_READ|FA_WRITE|FA_CREATE_ALWAYS
        	;LD de,ffile
         push de ;FIL
@@ -1799,6 +1821,9 @@ BDOS_fopen_go
         ;ld (bc),a ;volume
         ld hl,FCB_FFSFCB
         add hl,bc
+	push af
+        call BDOS_setdepage
+	pop af
         ld (hl),e
         inc hl
         ld (hl),d
@@ -1811,7 +1836,7 @@ BDOS_fcreate_noFATFS
         jp trdos_fcreate
 
 getFILfromFCB
-;de=FCB
+;de=FCB (страницы уже включены)
 ;out: hl=FIL
         ld hl,FCB_FFSFCB
         add hl,de
@@ -1822,8 +1847,10 @@ getFILfromFCB
         ret
         
 BDOS_fclose
+	 ;jr $
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to opened FCB (для FATFS придётся игнорировать, брать текущий ffile - TODO искать подходящий ffile)
         ;CHECKVOLUMETRDOS
         ld a,(de)
@@ -1841,32 +1868,6 @@ BDOS_fclose_noFATFS
         BDOSSETPGTRDOSFS
         jp trdos_fclose
 
-;***********************ЗАГЛУШКИ**************************	
-;копирование строки из\в юзерспейса в\из либу фатфс	
-strcpy_lib2usp	;DE - dst, BC - src
-strcpy_usp2lib
-	ld a,(bc)
-	ld (de),a
-	inc de
-	inc bc
-	or a
-	jr nz,strcpy_lib2usp
-	ret 	
-;копирование в\из юзерспейса в\из либу фатфс	
-memcpy_lib2usp	;DE - dst, BC - src, на стеке count
-memcpy_usp2lib
-;копирование в\из юзерспейса в\из структуру	
-memcpy_buf2usp	;DE - dst, BC - src, на стеке count
-memcpy_usp2buf
-	ld h,b
-	ld l,c
-	pop af
-	pop bc
-	push bc
-	push af
-	ldir
-	ret 
-	
 ;*********************************************************	
 	display "ffs ",$
 ffs
@@ -1889,6 +1890,9 @@ ffs
 	ADD A,A
 	ADD A,L
 	LD L,A
+	push bc
+	call BDOS_setpgstructs
+	pop bc
 	LD A,(HL)
 	INC L
 	LD H,(HL)
@@ -1914,6 +1918,7 @@ BDOS_mount
         ld a,e
         cp vol_trdos
         jr nc,BDOS_mount_noFATFS
+	call BDOS_setpgstructs
         call calcfatfs_e
         inc hl
         ld (hl),e ;монтируем volume E (указанный в HL) на физический драйв E (TODO fix), раздел 0 (TODO fix)
@@ -1924,12 +1929,12 @@ BDOS_mount
 	F_MNT
          pop de ;e=volume
          ld a,e
-         call BDOS_setvol_rootdir
-        ;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
-        ;or a
-        jp c,BDOS_fail
+         call BDOS_setvol_rootdir ;CY=error (при NC a=0)
+        ;;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
+        ;;or a
+        ;jp c,BDOS_fail
 BDOS_mount_noFATFS
-        xor a ;success
+        sbc a,a ;xor a ;NC:success, CY:fail
         ret;jr rest_exit
 
 BDOS_setsysdrv
@@ -1970,11 +1975,12 @@ BDOS_setrootdir
          ld (iy+app.dircluster+2),a
          ld (iy+app.dircluster+3),a
         CHECKVOLUMETRDOS
-        ld a,0
+        sbc a,a; ld a,0
         ret nc ;NC=no error, A=0
         ;jr $
         push de
         call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
+	;jr $
         pop de
         or a
         ret z ;NC=no error, A=0
@@ -1995,6 +2001,7 @@ BDOS_delete
 ;DE = Drive/path/file ASCIIZ string
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to ASCIIZ string
         call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
         ;call eatdrive ;TODO keep and restore curdrv,curdir!!!
@@ -2019,8 +2026,10 @@ BDOS_rename
         BDOSSETPGFATFS
         ex de,hl
         call BDOS_preparedepage ;TODO разные страницы hl,de (т.е. надо копировать отсюда в буфер)
+        call BDOS_setdepage ;TODO убрать в драйвер
         ex de,hl
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         CHECKVOLUMETRDOS
         jr nc,BDOS_rename_nofatfs
         ld b,h
@@ -2057,6 +2066,7 @@ BDOS_openhandle_nodriveinpath
 BDOS_mkdir
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to ASCIIZ string
         call countfiledrive ;call eatdrive
         jp z,BDOS_fail
@@ -2073,6 +2083,7 @@ BDOS_mkdir
 BDOS_chdir
         BDOSSETPGFATFS
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to ASCIIZ string
 
 setpath
@@ -2137,16 +2148,19 @@ BDOS_chdir_trdos
         ;jp nz,BDOS_fail ;непустой
         ret
 
+	if 1==0
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;чтобы точно найти терминатор
         xor a
+	ld b,a
+	ld c,a ;bc=0 ;чтобы точно найти терминатор
         cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
-        or a
+        ;or a
         sbc hl,bc
         ret
+	endif
 
 ;GET WHOLE PATH STRING (5EH)
 ;     Parameters:    C = 5EH (_WPATH) 
@@ -2160,6 +2174,7 @@ BDOS_getpath
         BDOSSETPGFATFS
         push de ;нельзя после BDOS_preparedepage
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         push de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
 
         push de ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
@@ -2233,6 +2248,7 @@ BDOS_parse_filename
 
         push de ;ASCIIZ string for parsing
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         push de ;ASCIIZ string for parsing (#8000+/#c000+)
         ld hl,BDOS_parse_filename_cpmnamebuf
         call dotname_to_cpmname ;de -> hl
@@ -2248,6 +2264,7 @@ BDOS_parse_filename
 
         push de ;Pointer to 11 byte buffer
         call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
         ld hl,BDOS_parse_filename_cpmnamebuf
         ld bc,11
         ldir
@@ -2330,9 +2347,57 @@ BDOS_setdta
         ld (iy+app.dta+1),d
         ret
 
+;***********************ЗАГЛУШКИ**************************	
+
+;копирование строки из\в юзерспейса в\из либу фатфс
+strcpy_lib2usp	;DE - dst, BC - src
+strcpy_usp2lib
+	push bc
+	call BDOS_setdepage
+	pop bc
+strcpy_lib2usp0
+	ld a,(bc)
+	ld (de),a
+	inc de
+	inc bc
+	or a
+	jr nz,strcpy_lib2usp0
+        ;BDOSSETPGFATFS
+	jp BDOS_setpgstructs
+
+;копирование в\из юзерспейса в\из структуру
+memcpy_buf2usp	;DE - dst, BC - src, на стеке count
+	res 7,b ;src=buf
+	jr memcpy_buf_go
+memcpy_usp2buf
+	res 7,d ;dst=buf
+memcpy_buf_go
+	push bc
+        ld a,pgfatfs2;=pgstructs
+	call BDOS_setpg4000
+	pop bc
+	jr memcpy_loop
+;копирование в\из юзерспейса в\из либу фатфс
+memcpy_lib2usp	;DE - dst, BC - src, на стеке count
+memcpy_usp2lib
+memcpy_loop
+	push bc
+	call BDOS_setdepage
+	pop hl;bc
+	;ld h,b
+	;ld l,c
+	pop af
+	pop bc
+	push bc
+	push af
+	ldir
+        BDOSSETPGFATFS ;4000
+	jp BDOS_setpgstructs
+
 ;по числу драйвов FatFS (для TR-DOS не надо)
-fatfsarray
-        ds 4*FATFS_sz
+fatfsarray=0xc000
+	;display "fatfsarray=",fatfsarray
+        ;ds 4*FATFS_sz
 
 ffilearray
         ds MAXFILES*FIL_sz
@@ -2347,32 +2412,30 @@ fcb2    ds FCB_sz ;нужно только на время findnext
 fres	dw 0 ;структура для возврата результата FatFS (число прочитанных/записанных байт)
         dw 0 ;для возврата даты
 
-BDOS_parse_filename_cpmnamebuf
-        ds 11 ;TODO перенести в pgtrdosfs
-
 syspath
         db "bin",0
         
 ;для TASiS: не используются страницы ОЗУ #00, #1B, #1C, #1D, #1E, #1F
 ;для избежания гибернации: не используются страницы ОЗУ 128K
 tsys_pages
-        ds 8,#ff ;системные страницы
+        ds 8,0xff ;системные страницы
         if TOPDOWNMEM
-        db 0,0,0
+        db 0,0,0,0
         else
-        db #ff,#ff,#ff
+        db 0xff,0xff,0xff,0xff
         endif
-        db 0,0,0,0,0 ;#08..#0f
+        db 0,0,0,0 ;#08..#0f
         db 0,0,0,0,0,0,0,0 ;#10..#17
         db 0,0,0,#ff,#ff,#ff,#ff,#ff ;#18..#1f
-        ds sys_npages-32-3 ;0=empty, or else process number
+        ds sys_npages-32-4 ;0=empty, or else process number
         if TOPDOWNMEM
-        db #ff,#ff,#ff
+        db 0xff,0xff,0xff,0xff
         else
-        db 0,0,0
+        db 0,0,0,0
         endif
 
-;TODO хранить прямо в текстовом экране
+	display "$ before align=",$
+;TODO хранить прямо в текстовом экране? а если затрут, то восстанавливать? по какому событию?
 	align 256
 trecode
 	incbin "866toatm"
