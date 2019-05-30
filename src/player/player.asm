@@ -114,7 +114,7 @@ oldtimer
         dw 0
 
         ;include "../_sdk/pt3play.i"
-        include "PTSPLAY.ASM"
+        include "ptsplay.asm"
         
 cmd_end
 
