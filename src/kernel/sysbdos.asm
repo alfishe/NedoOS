@@ -1868,13 +1868,19 @@ BDOS_fclose_noFATFS
         BDOSSETPGTRDOSFS
         jp trdos_fclose
 
-;*********************************************************	
 	display "ffs ",$
+;*********************************************************
 ffs
 ;портит iy! по нельзя двигать стек! в нём параметры!
         ;ld l,(iy+app.dir+DIR.ID)
-         ld l,(iy+app.vol)
-        ld (fatfs_org+FFS_DRV.curr_vol),hl ;l
+		push de
+         ld e,(iy+app.vol)
+		 ld (.stor_a),a
+		 call calcfatfs_e
+.stor_a=$+1
+		ld a,0
+		pop de
+        ld (fatfs_org+FFS_DRV.curr_fatfs),hl ;l
         ;ld l,(iy+app.dir+DIR.CLUST)
         ;ld h,(iy+app.dir+DIR.CLUST+1)
          ld l,(iy+app.dircluster)
@@ -1885,7 +1891,7 @@ ffs
          ld l,(iy+app.dircluster+2)
          ld h,(iy+app.dircluster+3)
         ld (fatfs_org+FFS_DRV.curr_dir2),hl
-
+.withoutfix
 	ld hl,fatfs_org+FFS_DRV.tabl_calls
 	ADD A,A
 	ADD A,L
@@ -1910,29 +1916,30 @@ calcfatfs_e0
         dec a
         jr nz,calcfatfs_e0
         ret
-
+	
+	display "BDOS_mount ",$
 BDOS_mount
-;e=volume
+;TODO e=volume, d=partition, h=drive
 ;out: a!=0 => not mounted
+		ld h,e
+		ld d,0
+		ld a,h
+		ld (.stor_a),a
         BDOSSETPGFATFS
         ld a,e
         cp vol_trdos
         jr nc,BDOS_mount_noFATFS
 	call BDOS_setpgstructs
         call calcfatfs_e
+        ld (fatfs_org+FFS_DRV.curr_fatfs),hl ;l
+.stor_a=$+1
+		ld a,0
         inc hl
-        ld (hl),e ;монтируем volume E (указанный в HL) на физический драйв E (TODO fix), раздел 0 (TODO fix)
-        dec hl
-         push de ;e=volume
-        ld b,h
-        ld c,l ;FATFS
+        ld (hl),a ;монтируем volume E (указанный в HL) на физический драйв E (TODO fix), раздел 0 (TODO fix)
+        inc hl
+        ld (hl),d
 	F_MNT
-         pop de ;e=volume
-         ld a,e
-         call BDOS_setvol_rootdir ;CY=error (при NC a=0)
-        ;;call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
-        ;;or a
-        ;jp c,BDOS_fail
+		ret
 BDOS_mount_noFATFS
         sbc a,a ;xor a ;NC:success, CY:fail
         ret;jr rest_exit
@@ -2180,8 +2187,6 @@ BDOS_getpath
         push de ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
         
         GETVOLUME
-        cp vol_trdos
-        jr c,BDOS_getpath_FAT
         add a,'0'
         ex de,hl
         ld (hl),a
@@ -2191,7 +2196,9 @@ BDOS_getpath
         ld (hl),'/'
         inc hl
         ld (hl),0
-        jr BDOS_getpath_FATq
+        cp vol_trdos+'0'
+        jr nc,BDOS_getpath_FATq
+        ex de,hl
 BDOS_getpath_FAT
         ;DE=TCHAR *path,	/* Pointer to the directory path */ буфер
         ld bc,MAXPATH_sz;64 ;BC=UINT sz_path	/* Size of path */) размер буфера 

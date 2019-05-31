@@ -77,7 +77,7 @@ typedef char TCHAR;
 typedef struct {
 	BYTE	fs_type;		/* FAT sub-type (0:Not mounted) */
 	BYTE	drv;			/* Physical drive number */
-	BYTE    part;                   /* Partition # (0-3) */
+	BYTE    part;           /* Partition # (0-3) */
 	BYTE	csize;			/* Sectors per cluster (1,2,4...128) */
 	BYTE	n_fats;			/* Number of FAT copies (1,2) */
 	BYTE	wflag;			/* win[] dirty flag (1:must be written back) */
@@ -202,7 +202,7 @@ typedef enum {
 /*--------------------------------------------------------------*/
 /* FatFs module application interface                           */
 
-FRESULT f_mount (BYTE, FATFS*);						/* Mount/Unmount a logical drive */
+FRESULT f_mount (void);	//BYTE, FATFS*);			/* Mount/Unmount a logical drive */
 FRESULT f_open (FIL*, const TCHAR*, BYTE);			/* Open or create a file */
 FRESULT f_read (FIL*, void*, UINT, UINT*);			/* Read data from a file */
 FRESULT f_lseek (FIL*, DWORD);						/* Move file pointer of a file object */
@@ -211,7 +211,7 @@ FRESULT f_opendir (DIR*);				/* Open an existing directory */
 FRESULT f_readdir (DIR*, FILINFO*);					/* Read a directory item */
 FRESULT f_stat (const TCHAR*, FILINFO*);			/* Get file status */
 FRESULT f_write (FIL*, const void*, UINT, UINT*);	/* Write data to a file */
-FRESULT f_getfree (const TCHAR*, DWORD*, FATFS**);	/* Get number of free clusters on the drive */
+FRESULT f_getfree (/*const TCHAR*,*/ DWORD*, FATFS**);	/* Get number of free clusters on the drive */
 FRESULT f_truncate (FIL*);							/* Truncate file */
 FRESULT f_sync (FIL*);								/* Flush cached data of a writing file */
 FRESULT f_unlink (const TCHAR*);					/* Delete an existing file or directory */

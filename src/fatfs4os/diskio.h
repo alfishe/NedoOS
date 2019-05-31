@@ -39,9 +39,11 @@ typedef struct {
 	void (*memcpy_buf2usp)(void *, const void *, unsigned int);
 	void (*memcpy_usp2buf)(void *, const void *, unsigned int);
 	BYTE  drv;
-	const BYTE* buf;
-	DWORD* sec;
-	BYTE  num;
+	const 	BYTE* 	buf;
+	DWORD* 			sec;
+	BYTE  			num;
+	FATFS * 		curr_fatfs;
+	DWORD 			curr_dir;
 } DIO_PAR;
 extern DIO_PAR drv_calls;
 #define SET_DIO_PAR(dr_drv,dr_buf,dr_sec,dr_num) {\

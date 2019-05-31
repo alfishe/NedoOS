@@ -84,7 +84,7 @@ int main (int argc, char *argv[]){
 		}
 		while(1){
 			int len=0,len2=0;
-			len=fread(buf, sizeof(buf), 1, f1);
+			len=fread(buf, 1, sizeof(buf), f1);
 			if(len<=0)break;
 			f_write (&f2, buf, len, &len2);
 		}

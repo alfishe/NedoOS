@@ -11,4 +11,4 @@ del initcode.c
 del syscode.c
 del syscode.c.mlz
 
-if "%wascurrentdir%"=="" (pause)
+rem if "%wascurrentdir%"=="" (pause)

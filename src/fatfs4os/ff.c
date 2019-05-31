@@ -456,8 +456,8 @@ typedef struct {
 /* Work area                                                  */
 
 #if _VOLUMES
-extern
-FATFS *FatFs[_VOLUMES];	/* Pointer to the file system objects (logical drives) */
+//extern
+//FATFS *FatFs[_VOLUMES];	/* Pointer to the file system objects (logical drives) */
 #else
 #error Number of drives must not be 0.
 #endif
@@ -465,8 +465,8 @@ FATFS *FatFs[_VOLUMES];	/* Pointer to the file system objects (logical drives) *
 extern WORD Fsid;				/* File system mount ID */
 
 #if _FS_RPATH
-extern BYTE CurrVol;			/* Current drive */
-extern DWORD CurrDir;			/* Current dir start claster */
+//extern BYTE CurrVol;			/* Current drive */
+//extern DWORD CurrDir;			/* Current dir start claster */
 #endif
 
 #if _FS_SHARE
@@ -503,7 +503,6 @@ static WCHAR LfnBuf[_MAX_LFN+1];
 #endif
 
 no_init unsigned char pathbuf[256];
-no_init unsigned char * pathbuf_ptr;
 
 /*--------------------------------------------------------------------------
 
@@ -1884,7 +1883,7 @@ FRESULT follow_path (	/* FR_OK(0): successful, !=0: error code */
 	if (*path == '/' || *path == '\\') { /* There is a heading separator */
 		path++;	dj->sclust = 0;		/* Strip it and start from the root dir */
 	} else {							/* No heading separator */
-		dj->sclust = CurrDir; //dj->fs->cdir;	/* Start from the current dir */
+		dj->sclust = drv_calls.curr_dir; //dj->fs->cdir;	/* Start from the current dir */
 	}
 #else
 	if (*path == '/' || *path == '\\')	/* Strip heading separator if exist */
@@ -1961,35 +1960,20 @@ BYTE check_fs (	/* 0:The FAT BR, 1:Valid BR but not an FAT, 2:Not a BR, 3:Disk e
 
 static
 FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
-	const TCHAR **path,	/* Pointer to pointer to the path name (drive number) */
+	//const TCHAR **path,	/* Pointer to pointer to the path name (drive number) */
 	FATFS **rfs,		/* Pointer to pointer to the found file system object */
 	BYTE chk_wp			/* !=0: Check media write protection for write access */
 )
 {
 	BYTE fmt, b, *tbl;
-	UINT vol;
+	//UINT vol;
 	DSTATUS stat;
 	DWORD bsect, fasize, tsect, sysect, nclst, szbfat;
 	WORD nrsv;
-	const TCHAR *p = *path;
+	//const TCHAR *p = *path;
 	FATFS *fs;
-
-	/* Get logical drive number from the path name */
-	vol = p[0] - '0';					/* Is there a drive number? */
-	if (vol <= 9 && p[1] == ':') {		/* Found a drive number, get and strip it */
-		p += 2; *path = p;				/* Return pointer to the path name */
-	} else {							/* No drive number is given */
-#if _FS_RPATH
-		vol = CurrVol;					/* Use current drive */
-#else
-		vol = 0;						/* Use drive 0 */
-#endif
-	}
-
-	/* Check if the logical drive is valid or not */
-	if (vol >= _VOLUMES) 				/* Is the drive number valid? */
-		return FR_INVALID_DRIVE;
-	*rfs = fs = FatFs[vol];				/* Return pointer to the corresponding file system object */
+		
+	*rfs = fs = drv_calls.curr_fatfs;				/* Return pointer to the corresponding file system object */
 	if (!fs) return FR_NOT_ENABLED;		/* Is the file system object available? */
 
 	ENTER_FF(fs);						/* Lock file system */
@@ -2008,7 +1992,7 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 	/* The logical drive must be mounted. */
 	/* Following code attempts to mount a volume. (analyze BPB and initialize the fs object) */
 
-	fs->fs_type = 0;					/* Clear the file system object */
+	//fs->fs_type = 0;					/* Clear the file system object */
 	//Dimkam fs->drv = (BYTE)LD2PD(vol);			/* Bind the logical drive and a physical drive */
 	stat = disk_initialize(fs->drv,fs->win);	/* Initialize low level disk I/O layer */
 	if (stat & STA_NOINIT)				/* Check if the initialization succeeded */
@@ -2026,7 +2010,8 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (fmt == 1) {						/* Not an FAT-VBR, the disk may be partitioned */
 		/* Check the partition listed in top of the partition table */
 		//DimkaM tbl = &fs->win[MBR_Table + LD2PT(vol) * SZ_PTE];/* Partition table */
-		tbl = &fs->win[MBR_Table + fs->part * SZ_PTE];/* Partition table */
+		
+		tbl = &fs->win[MBR_Table + (fs->part) * SZ_PTE];/* Partition table */
 		if (tbl[4]) {									/* Is the partition existing? */
 			bsect = LD_DWORD(&tbl[8]);					/* Partition offset in LBA */
 			fmt = check_fs(fs, bsect);					/* Check the partition */
@@ -2110,7 +2095,7 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 	fs->winsect = 0;		/* Invalidate sector cache */
 	fs->wflag = 0;
 #if _FS_RPATH
-	CurrDir = 0;	//fs->cdir = 0;			/* Current directory (root dir) */
+	drv_calls.curr_dir = 0;	//fs->cdir = 0;			/* Current directory (root dir) */
 #endif
 #if _FS_SHARE				/* Clear file lock semaphores */
 	clear_lock(fs);
@@ -2153,16 +2138,20 @@ FRESULT validate (	/* FR_OK(0): The object is valid, !=0: Invalid */
 --------------------------------------------------------------------------*/
 
 
+const TCHAR nullstring[]="";
+static DIR djo, djn;
 
 /*-----------------------------------------------------------------------*/
 /* Mount/Unmount a Logical Drive                                         */
 /*-----------------------------------------------------------------------*/
 
 FRESULT f_mount (
-	BYTE vol,		/* Logical drive number to be mounted/unmounted */
-	FATFS *fs		/* Pointer to new file system object (NULL for unmount)*/
+	void
+	//BYTE vol,		/* Logical drive number to be mounted/unmounted */
+	//FATFS *fs		/* Pointer to new file system object (NULL for unmount)*/
 )
 {
+#if 1==0
 	static FATFS *rfs;
 
 
@@ -2187,13 +2176,15 @@ FRESULT f_mount (
 #endif
 	}
 	FatFs[vol] = fs;				/* Register new fs object */
-
 	return FR_OK;
+#else
+	//static TCHAR *path;
+	//path = (TCHAR *)nullstring;
+	drv_calls.curr_fatfs->fs_type = 0;
+	return chk_mounted(&djo.fs, 0);
+#endif
 }
 
-
-
-static DIR djo, djn;
 /*-----------------------------------------------------------------------*/
 /* Open or Create a File                                                 */
 /*-----------------------------------------------------------------------*/
@@ -2210,19 +2201,19 @@ FRESULT f_open (
 	DEF_NAMEBUF;
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
+	
 	fp->fs = 0;			/* Clear file object */
 
 #if !_FS_READONLY
 	mode &= FA_READ | FA_WRITE | FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_CREATE_NEW;
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, (BYTE)(mode & ~FA_READ));
+	res = chk_mounted(&djo.fs, (BYTE)(mode & ~FA_READ));
 #else
 	mode &= FA_READ;
 	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
 #endif
 	INIT_BUF(djo);
 	if (res == FR_OK)
-		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf);	/* Follow the file path */
 	dir = djo.dir;
 
 #if !_FS_READONLY	/* R/W configuration */
@@ -2655,11 +2646,11 @@ FRESULT f_chdrive (
 	BYTE drv		/* Drive number */
 )
 {
-	if (drv >= _VOLUMES) return FR_INVALID_DRIVE;
+	//if (drv >= _VOLUMES) return FR_INVALID_DRIVE;
 
-	CurrVol = drv;
+	//CurrVol = drv;
 
-	return FR_OK;
+	return drv;
 }
 
 
@@ -2674,18 +2665,18 @@ FRESULT f_chdir (
 
 	
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
+	
+	res = chk_mounted(&djo.fs, 0);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);		/* Follow the path */
+		res = follow_path(&djo, pathbuf);		/* Follow the path */
 		FREE_BUF();
 		if (res == FR_OK) {					/* Follow completed */
 			if (!djo.dir) {
-				CurrDir = djo.sclust;	//dj.fs->cdir = dj.sclust;	/* Start directory itself */
+				drv_calls.curr_dir = djo.sclust;	//dj.fs->cdir = dj.sclust;	/* Start directory itself */
 			} else {
 				if (djo.dir[DIR_Attr] & AM_DIR)	/* Reached to the directory */
-					CurrDir = LD_CLUST(djo.dir);	//dj.fs->cdir = LD_CLUST(dj.dir);
+					drv_calls.curr_dir = LD_CLUST(djo.dir);	//dj.fs->cdir = LD_CLUST(dj.dir);
 				else
 					res = FR_NO_PATH;		/* Reached but a file */
 			}
@@ -2713,12 +2704,11 @@ FRESULT f_getcwd (
 
 
 	*pathbuf = 0;
-	pathbuf_ptr=pathbuf;
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);	/* Get current volume */
+	res = chk_mounted(&djo.fs, 0);	/* Get current volume */
 	if (res == FR_OK) {
 		INIT_BUF(djo);
 		i = sz_path;		/* Bottom of buffer (dir stack base) */
-		djo.sclust = CurrDir;	//dj.fs->cdir;			/* Start to follow upper dir from current dir */
+		djo.sclust = drv_calls.curr_dir;	//dj.fs->cdir;			/* Start to follow upper dir from current dir */
 		while ((ccl = djo.sclust) != 0) {	/* Repeat while current dir is a sub-dir */
 			res = dir_sdi(&djo, 1);			/* Get parent dir */
 			if (res != FR_OK) break;
@@ -2751,8 +2741,8 @@ FRESULT f_getcwd (
 		}
 		tp = pathbuf;
 		if (res == FR_OK) {
-			*tp++ = '0' + CurrVol;			/* Put drive number */
-			*tp++ = ':';
+			//*tp++ = '0' + CurrVol;			/* Put drive number */
+			//*tp++ = ':';
 			if (i == sz_path) {				/* Root-dir */
 				*tp++ = '/';
 			} else {						/* Sub-dir */
@@ -2939,7 +2929,6 @@ FRESULT f_lseek (
 /*-----------------------------------------------------------------------*/
 /* Create a Directroy Object                                             */
 /*-----------------------------------------------------------------------*/
-const TCHAR nullstring[]="";
 FRESULT f_opendir (
 	DIR *dj			/* Pointer to directory object to create */
 	//,const TCHAR *path	/* Pointer to the directory path */
@@ -2947,10 +2936,10 @@ FRESULT f_opendir (
 {
 	FRESULT res;
 	static TCHAR *path;
-	path = (TCHAR *)nullstring;
 	DEF_NAMEBUF;
+	path = (TCHAR *)nullstring;
 
-	res = chk_mounted(&path, &dj->fs, 0);	//(&path, &dj->fs, 0);
+	res = chk_mounted(&dj->fs, 0);	//(&path, &dj->fs, 0);
 	if (res == FR_OK) {
 		INIT_BUF(*dj);
 		res = follow_path(dj, path);			/* Follow the path to the directory */
@@ -3035,11 +3024,11 @@ FRESULT f_stat (
 
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 0);
+	
+	res = chk_mounted(&djo.fs, 0);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf);	/* Follow the file path */
 		if (res == FR_OK) {				/* Follow completed */
 			if (djo.dir)		/* Found an object */
 				get_fileinfo(&djo, &fno_rddir);
@@ -3061,7 +3050,7 @@ FRESULT f_stat (
 /*-----------------------------------------------------------------------*/
 
 FRESULT f_getfree (
-	const TCHAR *path,	/* Pointer to the logical drive number (root dir) */
+	//const TCHAR *path,	/* Pointer to the logical drive number (root dir) */
 	DWORD *nclst,		/* Pointer to the variable to return number of free clusters */
 	FATFS **fatfs		/* Pointer to pointer to corresponding file system object to return */
 )
@@ -3077,7 +3066,7 @@ FRESULT f_getfree (
 
 
 	/* Get drive number */
-	res = chk_mounted(&path, fatfs, 0);
+	res = chk_mounted(fatfs, 0);
 	if (res == FR_OK) {
 		/* If free_clust is valid, return it without full cluster scan */
 		if ((*fatfs)->free_clust <= (*fatfs)->n_fatent - 2) {
@@ -3188,12 +3177,11 @@ FRESULT f_unlink (
 	DEF_NAMEBUF;
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
 	
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
+	res = chk_mounted(&djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);		/* Follow the file path */
+		res = follow_path(&djo, pathbuf);		/* Follow the file path */
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;			/* Cannot remove dot entry */
 #if _FS_SHARE
@@ -3219,7 +3207,7 @@ FRESULT f_unlink (
 						res = dir_read(&djn);
 						if (res == FR_OK			/* Not empty dir */
 #if _FS_RPATH
-						|| dclst == CurrDir 		/*sdj.fs->cdir	 Current dir */
+						|| dclst == drv_calls.curr_dir 		/*sdj.fs->cdir	 Current dir */
 #endif
 						) res = FR_DENIED;
 						if (res == FR_NO_FILE) res = FR_OK;	/* Empty */
@@ -3263,12 +3251,11 @@ FRESULT f_mkdir (
 	get_fattime(&tim);
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
 	
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
+	res = chk_mounted(&djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);			/* Follow the file path */
+		res = follow_path(&djo, pathbuf);			/* Follow the file path */
 		if (res == FR_OK) res = FR_EXIST;		/* Any object with same name is already existing */
 		if (_FS_RPATH && res == FR_NO_FILE && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3339,12 +3326,11 @@ FRESULT f_chmod (
 	DEF_NAMEBUF;
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
+	res = chk_mounted(&djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);		/* Follow the file path */
+		res = follow_path(&djo, pathbuf);		/* Follow the file path */
 		FREE_BUF();
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3384,12 +3370,11 @@ FRESULT f_utime (
 	DEF_NAMEBUF;
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
+	res = chk_mounted(&djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf);	/* Follow the file path */
 		FREE_BUF();
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3422,12 +3407,11 @@ FRESULT f_getutime (
 	DEF_NAMEBUF;
 
 	drv_calls.strcpy_usp2lib(pathbuf,path);
-	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
+	res = chk_mounted(&djo.fs, 1);
 	if (res == FR_OK) {
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);	/* Follow the file path */
+		res = follow_path(&djo, pathbuf);	/* Follow the file path */
 		FREE_BUF();
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
@@ -3467,13 +3451,12 @@ FRESULT f_rename (
 	DEF_NAMEBUF;
 
 	drv_calls.strcpy_usp2lib(pathbuf,path_old);
-	pathbuf_ptr=pathbuf;
 
-	res = chk_mounted(&pathbuf_ptr, &djo.fs, 1);
+	res = chk_mounted(&djo.fs, 1);
 	if (res == FR_OK) {
 		djn.fs = djo.fs;
 		INIT_BUF(djo);
-		res = follow_path(&djo, pathbuf_ptr);		/* Check old object */
+		res = follow_path(&djo, pathbuf);		/* Check old object */
 		if (_FS_RPATH && res == FR_OK && (djo.fn[NS] & NS_DOT))
 			res = FR_INVALID_NAME;
 #if _FS_SHARE
@@ -3486,8 +3469,7 @@ FRESULT f_rename (
 				memcpy(buf, djo.dir+DIR_Attr, 21);		/* Save the object information except for name */
 				memcpy(&djn, &djo, sizeof(DIR));		/* Check new object */
 				drv_calls.strcpy_usp2lib(pathbuf,path_new);
-				pathbuf_ptr=pathbuf;
-				res = follow_path(&djn, pathbuf_ptr);
+				res = follow_path(&djn, pathbuf);
 				if (res == FR_OK) res = FR_EXIST;		/* The new object name is already existing */
 				if (res == FR_NO_FILE) { 				/* Is it a valid path and no name collision? */
 /* Start critical section that any interruption or error can cause cross-link */

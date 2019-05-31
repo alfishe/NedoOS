@@ -1,8 +1,8 @@
 MODULE mylib
   PUBLIC tablcall
   PUBLIC LD_CLUST
-  PUBLIC drv_calls,dio_par,CurrDir
-  PUBLIC CurrVol
+  PUBLIC drv_calls,dio_par	;,CurrDir
+  ;PUBLIC CurrVol
   PUBLIC FatFs
   PUBLIC Fsid
   EXTERN f_mount
@@ -49,9 +49,9 @@ dio_par:
         DEFW 0x4000   ;*BUF
         DEFW 0        ;*sec
         DEFB 32       ;NUM
-CurrVol:
-        DEFB 0
-CurrDir:
+curr_fatfs:
+        DEFW 0
+curr_dir:
 		DEFW 0,0
 tablcall:  
   DEFW f_mount

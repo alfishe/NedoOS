@@ -17,6 +17,7 @@
         ld e,l
         OS_DELPAGE
 
+	display "idle ",$
         ld e,0
 mountdrives0
         push de

@@ -49,7 +49,7 @@ dma_addr		defw
 lba_ptr			defw
 count			defb
 
-curr_vol		defb
+curr_fatfs		defw
 curr_dir0		defw
 curr_dir2		defw
 tabl_calls		defs 42
@@ -173,7 +173,7 @@ FIL_sz=32+512
 	ENDM
 	MACRO F_MNT
 	LD A,0
-	call ffs
+	call ffs.withoutfix
 	ENDM
 
 
@@ -322,14 +322,14 @@ FIL_sz=32+512
 ;/*-----------------------------------------------------------------------*/
 ;FRESULT f_chdrive
 ;	BYTE drv		/* Drive number */
-	MACRO F_CHDR
-	LD A,17
-	call ffs
-	ENDM
-	MACRO F_CHDRIVE _DRV
-	LD e,_DRV
-	F_CHDR
-	ENDM
+;	MACRO F_CHDR
+;	LD A,17
+;	call ffs
+;	ENDM
+;	MACRO F_CHDRIVE _DRV
+;	LD e,_DRV
+;	F_CHDR
+;	ENDM
 
 ; FRESULT f_chdir (
 	; TCHAR *path	/* Pointer to the directory path */
