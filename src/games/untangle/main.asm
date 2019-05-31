@@ -31,15 +31,28 @@ begin
         OS_GETTIMER ;hlde=timer
         ld (rndseed2),de
          ld (oldupdtimer),de
-        
-        xor a
+
+	ld de,filename
+	OS_OPENHANDLE
+	;jr $
+	;ld a,-1
+	or a
+	jr nz,noloadini
+	push bc
+	ld de,SAVEDATA
+	ld hl,SAVEDATAsz
+	OS_READHANDLE
+	pop bc
+	OS_CLOSEHANDLE
+	jr loadiniq
+noloadini
+        ;ld a,12
+	xor a
         ld (level),a
-        ;ld a,6
-        ;ld (verticesneeded),a
         call countverticesneeded
-        
+        ;jr $
         call genmesh
-        
+loadiniq
         call redraw
         
         jr mouseloop_go
@@ -105,7 +118,7 @@ mainloop_something
 key=$+1
         ld a,0
         cp key_esc
-        jp z,quit
+        call z,quitifnoclickstate
         cp key_redraw
         call z,redraw
 
@@ -246,6 +259,9 @@ movecurvertex
         call getcurvertexaddr
         push hl
         call ahl_coords
+	 cp 7
+	 jr nc,$+4
+	 ld a,7 ;max dy = 192 (for fast mul)
         ex de,hl
         pop hl
         ld (hl),e
@@ -313,14 +329,14 @@ curvertex=$+1
 
 undrawcuredges
         ld hl,prpixel
-        ld (pixelproc),hl
         ld a,0
         jr drawcuredges_go
 drawcuredges
         ld hl,invpixel
-        ld (pixelproc),hl
         ld a,0xff
 drawcuredges_go
+        ld (pixelprocver),hl
+        ld (pixelprochor),hl
         ld (drawcuredges_color),a
         ld a,(clickstate)
         or a
@@ -361,7 +377,8 @@ drawcuredgesno
         or c
         jr nz,drawcuredges0
         ld hl,prpixel
-        ld (pixelproc),hl
+        ld (pixelprocver),hl
+        ld (pixelprochor),hl
         ret
 
 drawconnectedvertices
@@ -573,8 +590,23 @@ gameoverloop
         jr nz,gameoverloop
 	endif
 
+quitifnoclickstate
+	ld a,(clickstate)
+	or a
+	ret nz
 quit
+	ld de,filename
+	OS_CREATEHANDLE
+	push bc
+	ld de,SAVEDATA
+	ld hl,SAVEDATAsz
+	OS_WRITEHANDLE
+	pop bc
+	OS_CLOSEHANDLE
         QUIT
+	
+filename
+	db "untangle.ini",0
 
 redrawifneeded
 doredraw=$+1
@@ -672,30 +704,6 @@ inctime
         ld hl,cur_h
         inc (hl)
         ret
-cur_h
-        db 0
-cur_m
-        db 0
-cur_s
-        db 0
-cur_f
-        db 0
-
-tlevel
-        db "LEVEL 00"
-tleveldig1=$-2
-tleveldig2=$-1
-        db " TIME 00:00:00"
-ttimeh1=$-8
-ttimeh2=$-7
-ttimem1=$-5
-ttimem2=$-4
-ttimes1=$-2
-ttimes2=$-1
-nextlevelon=$
-        db 0
-        db "NEXT LEVEL"
-        db 0
 
         if 1==0
 genvertices
@@ -998,9 +1006,17 @@ prdig0
         ;call prchar
         ;pop hl
         ;ret
-prchar;a=code;de=screen        push de        push hl
+prchar
+;a=code
+;de=screen
+        push de
+        push hl
         call prcharin
-        pop hl        pop de        inc e        ret        
+        pop hl
+        pop de
+        inc e
+        ret
+        
 calcscraddr
 ;bc=yx
 ;можно портить bc
@@ -1055,7 +1071,14 @@ prcharxy
         
 prcharin
         sub 32
-        ld l,a        ld h,0         add hl,hl         add hl,hl         add hl,hl         add hl,hl         add hl,hl        ;ld bc,font-(32*32)
+        ld l,a
+        ld h,0
+         add hl,hl
+         add hl,hl
+         add hl,hl
+         add hl,hl
+         add hl,hl
+        ;ld bc,font-(32*32)
         ;add hl,bc
         ld a,h
         add a,font/256
@@ -1067,30 +1090,38 @@ prcharin_go
         push hl
         push hl
         dup 8
-        ld a,(de) ;font        ld (hl),a ;scr
-        inc de        add hl,bc
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
         edup
         pop hl
         set 6,h
         ;ld d,font/256
         dup 8
-        ld a,(de) ;font        ld (hl),a ;scr
-        inc de        add hl,bc
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
         edup
         pop hl
         set 5,h
         push hl
         ;ld d,font/256
         dup 8
-        ld a,(de) ;font        ld (hl),a ;scr
-        inc de        add hl,bc
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
         edup
         pop hl
         set 6,h
         ;ld d,font/256
         dup 8
-        ld a,(de) ;font        ld (hl),a ;scr
-        inc de        add hl,bc
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
         edup        
         ret
 
@@ -1280,6 +1311,14 @@ shapes_line_nodec
         jr nc,shapes_linever ;dy>=dx
         ld hy,b
         ld ly,c ;counter=dx
+	
+;0x0000 -> 0x0101
+;0x0001 -> 0x0102
+;0x00ff -> 0x0100
+;0x0100 -> 0x0201
+	inc ly
+	inc hy
+	
         ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,b
         ld l,c
@@ -1299,7 +1338,8 @@ shapes_line_nodec
 ;bc'=dx
 ;de'=dy
 shapes_linehor0
-        call line_pixel
+pixelprochor=$+1
+        call prpixel
 shapes_lineincx=$
         inc bc ;x+1        
         exx
@@ -1315,14 +1355,22 @@ shapes_lineincx=$
         add hl,bc ;ym+dx
         exx
 shapes_linehor1
-        dec iy
-        ld a,hy
-        rla
-        jp nc,shapes_linehor0
+        dec ly
+        jp nz,shapes_linehor0
+        dec hy
+        jp nz,shapes_linehor0
         ret
 shapes_linever
         ld hy,d
         ld ly,e ;counter=dy
+	
+;0x0000 -> 0x0101
+;0x0001 -> 0x0102
+;0x00ff -> 0x0100
+;0x0100 -> 0x0201
+	inc ly
+	inc hy
+	
         ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,d
         ld l,e
@@ -1342,7 +1390,8 @@ shapes_linever
 ;bc'=dx
 ;de'=dy
 shapes_linever0
-        call line_pixel
+pixelprocver=$+1
+        call prpixel
         inc de ;y+1
         exx
         ;add hl,bc ;mxm+dx
@@ -1358,43 +1407,11 @@ shapes_lineincx2=$
         add hl,de ;xm+dy
         exx
 shapes_linever1
-        dec iy
-        ld a,hy
-        rla
-        jp nc,shapes_linever0
+        dec ly
+        jp nz,shapes_linever0
+        dec hy
+        jp nz,shapes_linever0
         ret
-
-line_pixel
-;bc=x (может быть отрицательным)
-;de=y (может быть отрицательным)
-        if 1==0
-        ld hl,199
-        or a
-        sbc hl,de ;y
-        ret c ;y>199
-        ld hl,319
-        or a
-        sbc hl,bc ;x
-        ret c ;x>319
-        endif
-        ;push bc
-        ;push de
-        ;push ix
-        ;ld a,e
-        ;ld d,b
-        ;ld e,c ;de=x
-        ;ld c,a ;c=y
-;line_pixel_color=$+2
-;        ld lx,0
-;bc=x (не портится) ;de
-;e=y (de не портится) ;c
-;lx=color = %33210210
-pixelproc=$+1
-        jp prpixel
-        ;pop ix
-        ;pop de
-        ;pop bc
-        ;ret
 
 
         macro cols data
@@ -1413,7 +1430,8 @@ _r=data&15
         cols d6
         cols d7
         endm
-endtext
+
+endtext
         db "GAME OVER!",0
 
 oldupdtimer
@@ -1836,6 +1854,21 @@ checkcrossed_edge
         jr nc,$+3
         ex de,hl
 
+;если A=C или A=D или B=C или B=D, то непересечение (примыкание) - надо проверять не координаты, а номера вершин!!!
+	ld a,(de)
+	cp (hl)
+	ret z ;примыкание
+	inc hl
+	cp (hl)
+	ret z ;примыкание
+	inc de
+	ld a,(de)
+	cp (hl)
+	ret z ;примыкание
+	dec hl
+	cp (hl)
+	ret z ;примыкание
+
         ld c,(hl) ;edge1vertex1
         inc hl
         ld a,(hl) ;edge1vertex2
@@ -1873,9 +1906,9 @@ checkcrossed_edge
         
         ex de,hl
 
-        ld c,(hl) ;edge2vertex1
-        inc hl
         ld a,(hl) ;edge2vertex2
+	dec hl
+        ld c,(hl) ;edge2vertex1
         ld b,0
         ld hl,vertices
         add hl,bc
@@ -1914,8 +1947,6 @@ checkcrossed_edge
 ;ложное срабатывание при палке B,A над CD ;проверяем DCA
 ;Как при этом гарантировать [0..1]?
 ;Если (A=C и B=D) или (B=C и A=D), то пересечение (чтобы не выигрывали методом наложения отрезков)
-;далее если A=C или A=D или B=C или B=D, то непересечение (примыкание)
-;иначе считаем математику
         if 1==1
         ld hl,(checkxA)
         ld de,(checkxC)
@@ -1963,7 +1994,8 @@ checkcrossed_noAC
 checkcrossed_noBC
         endif
         
-        if 1==1
+;если A=C или A=D или B=C или B=D, то непересечение (примыкание) - надо проверять не координаты, а номера вершин!!! поэтому убрано тут, см. выше
+        if 1==0
         ld hl,(checkxA)
         ld de,(checkxC)
         or a
@@ -2012,6 +2044,7 @@ checkcrossed_noBDcommon
         ;or a
         ;ret
         
+;иначе считаем математику
         ld hl,(checkxA)
         ld (trix1),hl
         ld hl,(checkxB)
@@ -2025,6 +2058,53 @@ checkcrossed_noBDcommon
         ld hl,(checkyC)
         ld (triy3),hl
         call checktriangle ;ABC
+	
+	if 1==1
+	sbc a,a
+        push hl
+	push af
+        ld hl,(checkxD)
+        ld (trix1),hl
+        ld hl,(checkyD)
+        ld (triy1),hl
+        call checktriangle ;DBC
+	sbc a,a
+	pop bc
+        pop de
+        xor b
+        ret nz ;разная левость - нет пересечения
+        ld a,h
+        or l
+        or d
+        or e
+        jr z,checkcrossed_collinear ;все 4 на одной линии - отдельная проверка
+        push bc
+        ld hl,(checkxA)
+        ld (trix3),hl
+        ld hl,(checkyA)
+        ld (triy3),hl
+        call checktriangle ;DBA
+	sbc a,a
+        pop bc
+        xor b
+        ret nz ;разная левость - нет пересечения
+;ложное срабатывание при палке B,A над CD
+;проверяем DCA
+        push bc
+        ld hl,(checkxC)
+        ld (trix2),hl
+        ld hl,(checkyC)
+        ld (triy2),hl
+        call checktriangle ;DCA
+	sbc a,a
+        pop bc
+        xor b
+	rla
+        ccf
+        ret ;одинаковая левость - есть пересечение
+
+	else
+	
         push hl
         ld hl,(checkxD)
         ld (trix1),hl
@@ -2068,6 +2148,8 @@ checkcrossed_noBDcommon
         rla
         ccf
         ret ;одинаковая левость - есть пересечение
+	endif
+	
 checkcrossed_collinear
 ;отрезки на одной прямой
 ;отдельно проверить, что отрезки лежат друг на друге (раньше площади 0 считались как непересечение)
@@ -2206,11 +2288,12 @@ checkyD
         dw 0
 
 checktriangle
-;out: h7=левость
+;out: CY=левость, hl==0 вырожденность
 ;    x21:=vert[poly[i].v2].xscr-vert[poly[i].v1].xscr;
 ;    x31:=vert[poly[i].v3].xscr-vert[poly[i].v1].xscr;
 ;    y21:=vert[poly[i].v2].yscr-vert[poly[i].v1].yscr;
 ;    y31:=vert[poly[i].v3].yscr-vert[poly[i].v1].yscr;
+	ld bc,tsqr/2
 triy2=$+1
         ld hl,0
 triy1=$+1
@@ -2229,55 +2312,74 @@ trix1=$+1
         ld de,0
         or a
         sbc hl,de
+	add hl,bc
         ld (x21),hl
 trix3=$+1
         ld hl,0
         or a
         sbc hl,de
-        ld (x31),hl
+	add hl,bc
+        ;ld (x31),hl
 ;    poly[i].visible := ((x21*y31 - x31*y21) > 0);
-x31=$+1
-        ld de,0
-y21=$+2
-        ld ix,0
-        ld a,d
-        rla
-        sbc a,a
-        ld h,a
-        ld l,a
-        ld a,hx
-        rla
-        sbc a,a
-        ld b,a
-        ld c,a
-;hl, de * bc, ix
-        call _MULLONG. ;out: hl(high), de(low)
-        push hl ;HSW
-        push de ;LSW
+;x31=$+1
+        ;ld hl,0
+        ld bc,0
+y21=$-2
+        call mul9 ;out: CYhl ;_MULLONG. ;out: hl(high), de(low)
+	 sbc a,a
+	ld lx,a ;hsb
+	ex de,hl
 x21=$+1
-        ld de,0
-y31=$+2
-        ld ix,0
-        ld a,d
-        rla
-        sbc a,a
-        ld h,a
-        ld l,a
-        ld a,hx
-        rla
-        sbc a,a
-        ld b,a
-        ld c,a
-;hl, de * bc, ix
-        call _MULLONG. ;out: hl(high), de(low)
-        pop bc ;LSW
-        ex de,hl
+        ld hl,0
+        ld bc,0
+y31=$-2
+        call mul9 ;out: CYhl ;_MULLONG. ;out: hl(high), de(low)
+	 sbc a,a
         or a
-        sbc hl,bc
-        ex de,hl
-        pop bc ;HSW
-        sbc hl,bc
+        sbc hl,de ;lsw
+	sbc a,lx ;hsb
+	rla ;CY=результат сравнения знаковых (LVD)
         ret
+
+mul9
+;9*9 -> 18
+;можно использовать для +-319*+-192, тогда результат со знаком в CY
+;hl=A+(tsqr/2) (A=+-319)
+;bc=B = +-192
+;A*B = ((A+B)^2)/4 - ((A-B)^2)/4 ;младшие 2 бита перед делением одинаковые слева и справа, определяются чётностью
+	push hl
+	add hl,bc
+;hl=A+B
+	add hl,hl
+;CY=0
+	ld (mulpatchadd),hl
+	pop hl
+	sbc hl,bc
+;hl=A-B
+	add hl,hl
+;CY=0
+	ld (mulpatchsub),hl
+mulpatchadd=$+1
+	ld hl,(0)
+mulpatchsub=$+2
+	ld bc,(0)
+	sbc hl,bc
+;HL = %rrrrrrrr rrrrrrrr
+	ret
+
+	align 2
+tsqrsize=(320+200)
+_=tsqrsize
+	dup tsqrsize
+_=_-1
+	dw ((_*_)/4)&0xffff
+	edup
+tsqr
+_=0
+	dup tsqrsize
+	dw ((_*_)/4)&0xffff
+_=_+1
+	edup
 
 sqrt
 ;in: hl
@@ -2301,6 +2403,7 @@ sqrt0
         djnz sqrt0
         ret
 
+
         if 1==0
 ;hl * de (signed = unsigned)
 ;out: hl
@@ -2319,6 +2422,7 @@ _MUL0.
 	ret
         endif
 
+	if 1==0
 ;hl, de * bc, ix
 ;out: hl(high), de(low)
 _MULLONG.
@@ -2365,12 +2469,14 @@ _MULLONG0.
 	djnz _MULLONG0. ;можно по a==0 (первый вход с scf:rla, далее add a,a)
 	exx
 	ret
+	endif
 
-nvertices
+SAVEDATA
+level
         db 0
 verticesneeded
         db 10
-level
+nvertices
         db 0
 
 nvertices1
@@ -2388,11 +2494,38 @@ vertices
 ;x,X,y,Y
         ds MAXVERTICES*4
 edges
-;vertex1,vertex2,crossed        ds MAXEDGES*3
+;vertex1,vertex2,crossed
+        ds MAXEDGES*3
 nedges
         dw 0
 ;ncrossededges
 ;        dw 0
+cur_h
+        db 0
+cur_m
+        db 0
+cur_s
+        db 0
+cur_f
+        db 0
+
+tlevel
+        db "LEVEL 00"
+tleveldig1=$-2
+tleveldig2=$-1
+        db " TIME 00:00:00"
+ttimeh1=$-8
+ttimeh2=$-7
+ttimem1=$-5
+ttimem2=$-4
+ttimes1=$-2
+ttimes2=$-1
+nextlevelon=$ ;этот флаг надо сохранять
+        db 0
+        db "NEXT LEVEL"
+        db 0
+
+SAVEDATAsz=$-SAVEDATA
 
         macro SHAPESPROC name
 name

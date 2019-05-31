@@ -15,11 +15,11 @@ dos3d13nopg.
         exx
         ld e,(iy+app.gfxmode)
         ld iy,23610
-;dos3d13_waitnospace0
-        ;ld a,#7f
-        ;in a,(#fe)
-        ;rra
-        ;jr nc,dos3d13_waitnospace0
+dos3d13_waitnospace0
+        ld a,#7f
+        in a,(#fe)
+        rra
+        jr nc,dos3d13_waitnospace0
         call dos3d13_resident
         pop iy
         ret
@@ -96,6 +96,7 @@ trdos_fwrite_b
 ;b=trdosfcb high
 ;de=poi to data
 ;hl=size
+	;jr $
         push hl ;Number of bytes to write
         ld h,b
         ld l,0
