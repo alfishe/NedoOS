@@ -105,30 +105,22 @@ cmd_begin
         ld e,l
         OS_DELPAGE
 
-	;OS_NEWPAGE
-	;ld a,e
-        ;ld (HS_elpg),a
-	;OS_NEWPAGE
-	;ld a,e
-        ;ld (HS_elpg+1),a
-
+	OS_NEWPAGE ; ¬ыдел€ем по одной страничке дл€ каталогов
         ld hl,HS_strpg
-        ld b,DIRPAGES*2 ;TODO заказывать при чтении директории
-initstrpgs0
-        push bc
-        push hl
-	OS_NEWPAGE
-        pop hl
         ld (hl),e
-        inc hl
-        pop bc
-        djnz initstrpgs0
+	inc hl
+	xor a
+	ld (hl),a ;ћаркер конца списка страниц
+
+	OS_NEWPAGE
+	ld hl, HS_strpg+DIRPAGES+1
+        ld (hl),e
+	inc hl
+	xor a
+	ld (hl),a ;ћаркер конца списка страниц
         
 	ld hl,left_panel_xy
 	ld (leftpanel+PANEL.xy),hl
-	;OS_NEWPAGE
-	;ld a,e
-	;ld (leftpanel+PANEL.pg),a ;TODO remove
 	OS_NEWPAGE
 	ld a,e
 	ld (leftpanel+PANEL.poipg),a
@@ -141,9 +133,6 @@ initstrpgs0
 
 	ld hl,right_panel_xy
 	ld (rightpanel+PANEL.xy),hl
-	;OS_NEWPAGE
-	;ld a,e
-	;ld (rightpanel+PANEL.pg),a ;TODO remove
 	OS_NEWPAGE
 	ld a,e
 	ld (rightpanel+PANEL.poipg),a
@@ -151,7 +140,7 @@ initstrpgs0
 	ld (rightpanel+PANEL.pointers),hl
         ld hl,catbuf_right
 	ld (rightpanel+PANEL.catbuf),hl
-	ld a,DIRPAGES
+	ld a,DIRPAGES+1
 	ld (leftpanel+PANEL.pgadd),a
 
 	ld hl,compareext
@@ -181,6 +170,44 @@ mainloop
         call editcmd_readprompt_setendcmdx
         call controlloop
         jp mainloop
+
+strdelpages ;удал€ем str страницы. IX - панель. ѕервую страничку не удал€ем
+	ld hl, HS_strpg
+	ld de, (ix+PANEL.pgadd)
+	adc hl, de
+strdelpages_next
+        inc hl
+        ld a, (hl)
+        or a
+        ret z
+        ld e, a
+        push hl
+	OS_DELPAGE
+	pop hl
+        xor a
+        ld (hl), a
+        jr strdelpages_next
+
+strnewpage ;выдел€ем новую страничку IX - панель, E номер странички в HS_strpg
+	push hl
+	push de
+
+	push de
+	OS_NEWPAGE
+	ld a, e
+	ld hl, HS_strpg
+	pop de
+	adc hl, de
+	ld de, (ix+PANEL.pgadd)
+	adc hl, de
+	ld (hl), a
+	xor a
+	inc hl
+	ld (hl),a ; маркер конца списка
+
+	pop de
+	pop hl
+	ret
 
 nvpal
         dw 0xf3f3,0x1313,0xf1f1,0xf0f0,0xe3e3,0xe2e2,0xe1e1,0xe0e0 ;NB color 1
@@ -417,11 +444,9 @@ readdir_keepcursor
         ld (ix+PANEL.markedfiles),a
         ld (ix+PANEL.markedfiles+1),a
 
-	;ld a,(ix+PANEL.pg)
-	;SETPG32KHIGH
-	
 	push ix
 	call setpaneldir
+	call strdelpages
 	ld de,fcb
         OS_SETDTA ;set disk transfer address = de
         ;call makeemptymask
@@ -430,10 +455,10 @@ readdir_keepcursor
 	pop ix
         or a
 
-	ld e,(ix+PANEL.catbuf)
-	ld d,(ix+PANEL.catbuf+1)
-	ld l,(ix+PANEL.pointers)
-	ld h,(ix+PANEL.pointers+1)
+	ld e,(ix+PANEL.catbuf)     ;00
+	ld d,(ix+PANEL.catbuf+1)   ;c0
+	ld l,(ix+PANEL.pointers)   ;00  номер страницы
+	ld h,(ix+PANEL.pointers+1) ;c0  номер файла
         ld bc,0 ;nfiles
         jr nz,loaddir_error
 loaddir0
@@ -441,33 +466,32 @@ loaddir0
 
 	push de
 	push hl
-	;ld a,(ix+PANEL.pg) ;TODO мен€ть
-	;SETPG32KHIGH
 	ld a,e
 	and 31
 	add a,(ix+PANEL.pgadd)
 	PGW3strpg
 	ld a,e
-	and 0xe0
+	and 0xe0 ;отбрасываем младшую часть (<32) с номером страницы, остаетс€ только номер файла
 	ld e,a
 	xor a
 	ld (de),a ;mark
 	inc de
         ld hl,fcb+1
-        ld bc,31;FCB_sz
-        ldir
+        ld bc,31;FCB_sz 
+        ldir ; копируем fcb в catbuf
 	pop hl
 	pop de
-        call putfilepointer_de_tohl
+        call putfilepointer_de_tohl ; возвращает в верхнее окно страницу poipg и в pointers заносит de
 	ex de,hl
 	ld bc,32
 	add hl,bc
-	ex hl,de
-	 jr nc,$+3
-	 inc de ;next page
-	 set 7,d
-	 set 6,d
-
+	ex hl,de ; увеличили на 32 catbuf
+	jr nc,nonewpg ; всЄ ещЄ убираемс€ в страницу
+	inc de ;next page de
+	call strnewpage
+	set 7,d 
+	set 6,d ;de=c0pg
+nonewpg:
         ;TODO через процедуру
 	push hl
         ld l,(ix+PANEL.totalsize)
@@ -1885,7 +1909,7 @@ wordbytes
 ;        ds 2
         align 256
 HS_strpg
-        ds DIRPAGES*2
+        ds DIRPAGES*2+2 ; по 1 байту на маркеры "0"
         
         include "nvsort.asm"
         include "heapsort.asm"
