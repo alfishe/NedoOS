@@ -194,7 +194,8 @@ typedef enum {
 	FR_TIMEOUT,				/* (15) Could not get a grant to access the volume within defined period */
 	FR_LOCKED,				/* (16) The operation is rejected according to the file shareing policy */
 	FR_NOT_ENOUGH_CORE,		/* (17) LFN working buffer could not be allocated */
-	FR_TOO_MANY_OPEN_FILES	/* (18) Number of open files > _FS_SHARE */
+	FR_TOO_MANY_OPEN_FILES,	/* (18) Number of open files > _FS_SHARE */
+	FR_NO_MBR				/* (19) Without MBR */
 } FRESULT;
 
 

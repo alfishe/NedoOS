@@ -2,7 +2,7 @@
 echo atm=2 > _sdk\syssets.asm
 echo sys_npages=64 >> _sdk\syssets.asm
 echo NEMOIDE=0 >> _sdk\syssets.asm
-echo SYSDRV=1 >> _sdk\syssets.asm
+echo SYSDRV=8 >> _sdk\syssets.asm
 echo INETDRV EQU 0x00 >> _sdk\syssets.asm
 call make.bat
 

@@ -29,6 +29,7 @@
 ; Стек должен быть в текущем адресном пространстве (юзается очень сильно байт 100-200
 ; свободно может заюзать). И переменные(если на них есть указатель в
 ; аргументах, а также глобальные переменные типа FATFS), тоже должны быть доступны.
+	include "ffsfunc.asm"
 	STRUCT	FFS_DRV
 init			defw
 status			defw
@@ -52,9 +53,8 @@ count			defb
 curr_fatfs		defw
 curr_dir0		defw
 curr_dir2		defw
-tabl_calls		defs 42
 	ENDS
-
+;(((OUT&03fff)==037f7)&&(VAL==0))
 ;------------------------СТРУКТУРЫ FATFS --------------------------------------
 
 FA_READ=0x01			;Specifies read access to the object. Data can be read from the file.
@@ -144,20 +144,6 @@ FIL_sz=32+512
 
 ;---------------------------------МАКРОСЫ--------------------------------------
 
-	MACRO F_VOLTOPART _VOL,_DRIVE,_PART	; Это типа виртуального предмонтирования, что ли.
-	; BYTE VOL - под каким номером монтировать (0-3).
-	; BYTE DRIVE - физическое устройство(0-ZSD,1-NEMO master,2-NEMO slave).
-	; BYTE PART - номер раздела(0-3).
-	LD HL,_VOL		;Кидаем на стек аргументы
-	PUSH HL
-	LD L,_DRIVE
-	PUSH HL
-	LD L,_PART
-	PUSH HL
-	LD A,4			; номер функции, кстати она исключение из правил, на стеке
-	call ffs			; остаётся только VOL, а он как раз пригодится нам в F_MOUNT
-	ENDM
-
 ;/*-----------------------------------------------------------------------*/
 ;/* Mount/Unmount a Logical Drive                                         */
 ;/*-----------------------------------------------------------------------*/
@@ -172,8 +158,7 @@ FIL_sz=32+512
 	F_MNT
 	ENDM
 	MACRO F_MNT
-	LD A,0
-	call ffs.withoutfix
+		call ffsfunc.f_mount
 	ENDM
 
 
@@ -182,16 +167,17 @@ FIL_sz=32+512
 	; TCHAR *path,	/* Pointer to the file name */
 	; BYTE mode			/* Access mode and file open mode flags */
 ; )
-	MACRO F_OPEN _FP,_PATH,_MODE
-	LD de,_FP
-	LD bc,_PATH
-	LD HL,_MODE
-        F_OP
-        ENDM
         MACRO F_OP
 	PUSH HL
-	LD A,1
-	call ffs
+	LD hl,ffsfunc.f_open
+	call call_ffs
+	POP BC
+	ENDM
+	
+    MACRO F_OPEN_CURDRV
+	PUSH HL
+	LD hl,ffsfunc.f_open
+	call call_ffs_curvol
 	POP BC
 	ENDM
 
@@ -203,9 +189,9 @@ FIL_sz=32+512
 ;)
 ;fp = de
 ;ofs in stack
-	MACRO F_LSEEK
-	LD A,3
-	call ffs
+	MACRO F_LSEEK_CURDRV
+	ld hl,ffsfunc.f_lseek
+	call call_ffs_curvol
 	ENDM
 
         
@@ -217,9 +203,9 @@ FIL_sz=32+512
 ;	void *buff,		/* Pointer to data buffer */
 ;	UINT btr,		/* Number of bytes to read */
 ;	UINT *br		/* Pointer to number of bytes read */
-	MACRO F_READ
-	LD A,2
-	call ffs
+	MACRO F_READ_CURDRV
+	ld hl,ffsfunc.f_read
+	call call_ffs_curvol
 	ENDM
         
         
@@ -231,9 +217,9 @@ FIL_sz=32+512
 ;	const void *buff,	/* Pointer to the data to be written */
 ;	UINT btw,			/* Number of bytes to write */
 ;	UINT *bw			/* Pointer to number of bytes written */
-	MACRO F_WRITE
-	LD A,8
-	call ffs
+	MACRO F_WRITE_CURDRV
+	ld hl,ffsfunc.f_write
+	call call_ffs_curvol
 	ENDM
 
 ; /*-----------------------------------------------------------------------*/
@@ -241,13 +227,9 @@ FIL_sz=32+512
 ; /*-----------------------------------------------------------------------*/
 ; FRESULT f_close (
 	; FIL *fp		/* Pointer to the file object to be closed */)
-	MACRO F_CLOSE _FP
-	ld de,_FP
-        F_CLOS
-        ENDM
-        MACRO F_CLOS
-	LD A,4
-	call ffs
+    MACRO F_CLOS_CURDRV
+	ld hl,ffsfunc.f_close
+	call call_ffs_curvol
 	ENDM
 
 
@@ -258,14 +240,10 @@ FIL_sz=32+512
 ; FRESULT f_opendir
 	; DIR *dj,			/* Pointer to directory object to create */
 	; TCHAR *path	/* Pointer to the directory path */
-	MACRO F_OPENDIR _DJ;,_PATH
-		LD de,_DJ
-		;LD bc,_PATH
-		F_OPDIR
-	ENDM
-	MACRO F_OPDIR
-	LD A,5
-	call ffs
+
+	MACRO F_OPDIR_CURDRV
+	ld hl,ffsfunc.f_opendir
+	call call_ffs_curvol
 	ENDM
 
 ; /*-----------------------------------------------------------------------*/
@@ -276,14 +254,9 @@ FIL_sz=32+512
 	; DIR *dj,			/* Pointer to the open directory object */
 	; FILINFO *fno		/* Pointer to file information to return */
 ; )
-	MACRO F_READDIR _DJ,_FNO
-		LD de,_DJ
-		LD bc,_FNO
-		F_RDIR
-	ENDM
-	MACRO F_RDIR
-	LD A,6
-	call ffs
+	MACRO F_RDIR_CURDRV
+	ld hl,ffsfunc.f_readdir
+	call call_ffs_curvol
 	ENDM
 
 
@@ -292,9 +265,13 @@ FIL_sz=32+512
 ;/*-----------------------------------------------------------------------*/
 ;FRESULT f_unlink
 ;	const TCHAR *path		/* Pointer to the file or directory path */
+	MACRO F_UNLINK_CURDRV
+	ld hl,ffsfunc.f_unlink
+	call call_ffs_curvol
+	ENDM
 	MACRO F_UNLINK
-	LD A,12
-	call ffs
+	ld hl,ffsfunc.f_unlink
+	call call_ffs
 	ENDM
 ;/*-----------------------------------------------------------------------*/
 ;/* Create a Directory                                                    */
@@ -302,8 +279,8 @@ FIL_sz=32+512
 ;FRESULT f_mkdir
 ;	const TCHAR *path		/* Pointer to the directory path */
 	MACRO F_MKDIR
-	LD A,13
-	call ffs
+	ld hl,ffsfunc.f_mkdir
+	call call_ffs
 	ENDM
 ;/*-----------------------------------------------------------------------*/
 ;/* Rename File/Directory                                                 */
@@ -313,8 +290,8 @@ FIL_sz=32+512
 ;	const TCHAR *path_new	/* Pointer to the new name */
 
 	MACRO F_RENAME
-	LD A,16
-	call ffs
+	ld hl,ffsfunc.f_rename
+	call call_ffs
 	ENDM
 
 ;/*-----------------------------------------------------------------------*/
@@ -335,17 +312,17 @@ FIL_sz=32+512
 	; TCHAR *path	/* Pointer to the directory path */
 ; )
 	MACRO F_CHDIR
-	LD A,18
-	call ffs
+	ld hl,ffsfunc.f_chdir
+	call call_ffs
 	ENDM
 
 ;FRESULT f_getcwd (
 ;	DE=TCHAR *path,	/* Pointer to the directory path */ буфер
 ;	BC=UINT sz_path	/* Size of path */) размер буфера 
 
-	MACRO F_GETCWD
-	LD A,19
-	call ffs
+	MACRO F_GETCWD_CURDRV
+	ld hl,ffsfunc.f_getcwd
+	call call_ffs_curvol
 	ENDM
 
 	;MACRO F_MUL _ARG
@@ -362,17 +339,17 @@ FIL_sz=32+512
 ;de=name
 ;bc=date
 ;stack=time
-	MACRO F_UTIME
-	LD A,15
-	call ffs
+	MACRO F_UTIME_CURDRV
+	ld hl,ffsfunc.f_utime
+	call call_ffs_curvol
 	ENDM
 
 ;FRESULT f_getutime (const TCHAR*, WORD *ftimedate); /* Get timestamp of the file/dir */
 ;de=name
 ;bc=pointer to time,date
 	MACRO F_GETUTIME
-	LD A,20
-	call ffs
+	ld hl,ffsfunc.f_getutime
+	call call_ffs_curvol
 	ENDM
 
 

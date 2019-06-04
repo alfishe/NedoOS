@@ -248,11 +248,15 @@ execcmd
         ld a,(hl)
         or a
         ret z
-        
+		display $
         ld de,wordbuf
         call getword ;hl=terminator/space addr
         call skipspaces
         ld (execcmd_pars),hl
+		inc hl
+		ld a,(wordbuf+1)
+		cp ':'
+		jp z,cmd_t0
         ld hl,commandslist ;list of internal commands
 strcpexec0
         ld c,(hl)
@@ -1089,15 +1093,9 @@ cmd_date
         jp prcrlf
         
 cmd_t0
-cmd_t1
-cmd_t2
-cmd_t3
-cmd_t4
-cmd_t5
-cmd_t6
-cmd_t7
         ld a,(wordbuf)
-        sub '0'
+		and 0xdf
+        sub 'A'
         call cmdsetdrive
         or a
         ret z
@@ -1403,22 +1401,6 @@ nfopenfnslashq.
 commandslist
         dw cmd_dir
         db "dir",0
-        dw cmd_t0
-        db "0:",0
-        dw cmd_t1
-        db "1:",0
-        dw cmd_t2
-        db "2:",0
-        dw cmd_t3
-        db "3:",0
-        dw cmd_t4
-        db "4:",0
-        dw cmd_t5
-        db "5:",0
-        dw cmd_t6
-        db "6:",0
-        dw cmd_t7
-        db "7:",0
         dw cmd_del
         db "del",0
         dw cmd_exit

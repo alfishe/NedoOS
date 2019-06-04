@@ -1233,7 +1233,7 @@ seldrv_cury=$+1
         ret
 seldrv_ok
         ld a,(hl);(seldrv_cury)
-        add a,'0'
+        add a,'A'
         ld ix,(curpanel)
         ld (ix+PANEL.dir),a
         ld (ix+PANEL.dir+1),':'
@@ -1243,7 +1243,7 @@ seldrv_ok
 seldrv_down
         ld a,(hl)
         inc a
-        cp NVOLUMES;5 ;drives
+        cp 20;5 ;drives
         ret z
         ld (hl),a
         ret
@@ -1691,18 +1691,30 @@ ifcmdnonempty_typedigit
         jp editcmd_typein
 
 windrv
-        dw 0x0803 ;de=yx
-        dw 256*(3+NVOLUMES)+9;0x0809 ;bc=hgt,wid
+        dw 0x0103 ;de=yx
+        dw 256*(3+20)+9;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
-        db "  0:",0,3
-        db "  1:",0,3
-        db "  2:",0,3
-        db "  3:",0,3
-        db "  4:",0,3
-        db "  5:",0,3
-        db "  6:",0,3
-        db "  7:",0,3
+        db "  A:",0,3
+        db "  B:",0,3
+        db "  C:",0,3
+        db "  D:",0,3
+        db "  E:",0,3
+        db "  F:",0,3
+        db "  G:",0,3
+        db "  H:",0,3
+        db "  I:",0,3
+        db "  J:",0,3
+        db "  K:",0,3
+        db "  L:",0,3
+        db "  M:",0,3
+        db "  N:",0,3
+        db "  O:",0,3
+        db "  P:",0,3
+        db "  Q:",0,3
+        db "  R:",0,3
+        db "  S:",0,3
+        db "  T:",0,3
         db 0 ;end of window
         
 winmkdir

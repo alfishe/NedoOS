@@ -17,23 +17,33 @@
         ld e,l
         OS_DELPAGE
 
-	display "idle ",$
-        ld e,0
+        ld e,'A'
 mountdrives0
         push de
         ld a,e
-        add a,'0'
         ld (tdrivemounted_drive),a
         OS_MOUNT
         or a
-        jr nz,mountdrives_fail
+        jr nz,.mnt_fail
         ld hl,tdrivemounted
         call prtext
-mountdrives_fail
         pop de
+		jr .mnt_next
+.mnt_fail
+        pop de
+		cp 13 		;There is no valid FAT volume on the physical drive
+		jr z,.mnt_next
+		cp 10 		;The physical drive is write protected
+		jr z,.mnt_next
+		ld a,e
+		dec a
+		or %00000011	;Next drive
+		inc a
+		ld e,a
+.mnt_next
         inc e
         ld a,e
-        cp 8;5
+        cp 'U'
         jr nz,mountdrives0
 
 idle_runcmd

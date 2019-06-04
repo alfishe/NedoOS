@@ -40,7 +40,7 @@ unsigned char * OS_GETPATH(unsigned char * path);
 unsigned char	OS_SETDTA(FCB * fcb);
 unsigned char	OS_FSEARCHFIRST(FCB * fcb);
 unsigned char	OS_FSEARCHNEXT(FCB * fcb);
-unsigned char	OS_CHDIR(unsigned char * path);
+unsigned char	OS_CHDIR(const unsigned char * path);
 unsigned char	OS_MKDIR(unsigned char * path);
 unsigned char	OS_DELETE(unsigned char * path);
 void			OS_SETSYSDRV(void);

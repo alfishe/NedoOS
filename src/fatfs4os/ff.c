@@ -723,6 +723,7 @@ FRESULT sync (	/* FR_OK: successful, FR_DISK_ERR: failed */
 	if (res == FR_OK) {
 		/* Update FSInfo sector if needed */
 		if (fs->fs_type == FS_FAT32 && fs->fsi_flag) {
+			fs->fsi_flag = 0;
 			fs->winsect = 0;
 			/* Create FSInfo structure */
 			memset(fs->win, 0, 512);
@@ -734,7 +735,6 @@ FRESULT sync (	/* FR_OK: successful, FR_DISK_ERR: failed */
 			/* Write it into the FSInfo sector */
 			SET_DIO_PAR(fs->drv, fs->win, fs->fsi_sector,1);
 			drv_calls.write_from_buf();
-			fs->fsi_flag = 0;
 		}
 		/* Make sure that no pending write process in the physical drive */
 		if (disk_ioctl(fs->drv, CTRL_SYNC, (void*)0) != RES_OK)
@@ -2016,6 +2016,8 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 			bsect = LD_DWORD(&tbl[8]);					/* Partition offset in LBA */
 			fmt = check_fs(fs, bsect);					/* Check the partition */
 		}
+	}else if((!fmt) && fs->part){
+		return FR_NO_MBR;
 	}
 	if (fmt == 3) return FR_DISK_ERR;
 	if (fmt) return FR_NO_FILESYSTEM;					/* No FAT volume is found */
@@ -2736,19 +2738,18 @@ FRESULT f_getcwd (
 			if (i < n + 3) {
 				res = FR_NOT_ENOUGH_CORE; break;
 			}
-			while (n) pathbuf[--i] = tp[--n];
 			pathbuf[--i] = '/';
+			while (n) pathbuf[--i] = tp[--n];
 		}
 		tp = pathbuf;
 		if (res == FR_OK) {
 			//*tp++ = '0' + CurrVol;			/* Put drive number */
 			//*tp++ = ':';
-			if (i == sz_path) {				/* Root-dir */
-				*tp++ = '/';
-			} else {						/* Sub-dir */
+			if (i != sz_path) {				/* non Root-dir */
 				do		/* Add stacked path str */
 					*tp++ = pathbuf[i++];
 				while (i < sz_path);
+				tp--;
 			}
 		}
 		*tp = 0;

@@ -125,7 +125,7 @@ w53_endsocflags:
 		ENDM
 		
 		W53FLAGSMACRO
-		
+		display "wiznet_open ",$
 wiznet_open
 ;L-subfunction
 		dec l
@@ -193,6 +193,7 @@ w53_bind:
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
 		call BDOS_preparedepage
+        call BDOS_setdepage 
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_PORTR_H<<8)
 		inc de
 		ld a,(de)
@@ -325,6 +326,7 @@ w53_connect0:
 		or a
 		jr z,w53_connect0
 		call BDOS_preparedepage
+        call BDOS_setdepage 
 		ex de,hl
 		inc hl	;пропустим семейство
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
