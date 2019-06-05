@@ -2,37 +2,51 @@ SET currentdir=%CD%
 SET releasedir=%CD%\..\release\
 @echo off
 
-FOR /R . %%i IN (build.bat) DO (
-        rem echo "%%i"
-	if exist %%i (
-                echo "%%~pi"
-		cd "%%~pi"
-		call build.bat
-		if exist *.com ( move *.com %releasedir%\bin\ > nul )
-		if exist *.ext ( copy *.ext %releasedir%\bin\ > nul )
-	)
+if not exist ..\release mkdir ..\release 
+if not exist %releasedir%\bin mkdir %releasedir%\bin 
+if not exist %releasedir%\doc mkdir %releasedir%\doc 
+
+for %%i in (%currentdir%\fatfs4os,%currentdir%\kernel) do IF EXIST %%i\build.bat (
+	echo %%i
+	cd %%i
+	call build.bat
 )
 cd %currentdir%
-
-FOR /R . %%i IN (*.txt) DO (
-	if exist %%i (
-		copy %%i %releasedir%\doc\ > nul
+IF "%softbuilded%"=="" (
+	set softbuilded=1
+	FOR /R . %%i IN (build.bat) DO (
+		if exist %%i (
+			cd "%%~pi"
+			IF NOT EXIST ffconf.h IF NOT EXIST ffsfunc.asm (
+				echo "%%~pi"
+				call build.bat
+				if exist *.com ( move *.com %releasedir%\bin\ > nul )
+				if exist *.ext ( copy *.ext %releasedir%\bin\ > nul )
+			)
+		)
 	)
-)
-cd %currentdir%
+	cd %currentdir%
 
-FOR /R . %%i IN (*.new) DO (
-	if exist %%i (
-		copy %%i %releasedir%\doc\ > nul
+	FOR /R . %%i IN (*.txt) DO (
+		if exist %%i (
+			copy %%i %releasedir%\doc\ > nul
+		)
 	)
+	cd %currentdir%
+
+	FOR /R . %%i IN (*.new) DO (
+		if exist %%i (
+			copy %%i %releasedir%\doc\ > nul
+		)
+	)
+	cd %currentdir%
+
+	if not exist %releasedir%\bin\www mkdir %releasedir%\bin\www
+	copy appsdm\3ws\www\*.* %releasedir%\bin\www\
+
+	copy autoexec.bat %releasedir%\bin\ > nul
+	copy net.ini %releasedir%\bin\ > nul
 )
-cd %currentdir%
-
-if not exist %releasedir%\bin\www mkdir %releasedir%\bin\www
-copy appsdm\3ws\www\*.* %releasedir%\bin\www\
-
-copy autoexec.bat %releasedir%\bin\ > nul
-copy net.ini %releasedir%\bin\ > nul
 
 if not "%1"=="noneedtrd" (
 	path=_sdk\

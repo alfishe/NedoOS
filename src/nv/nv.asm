@@ -1346,7 +1346,6 @@ editcmd_6 ;ren
         ld hl,winrename
         call prwindow_edit ;CY=OK
         ret nc ;cancel
-        
 ;если в имени есть символы :,/,\, то выйти с ошибкой
         ld hl,tnewfilename
 editcmd_ren_checkname0

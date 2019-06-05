@@ -2015,7 +2015,7 @@ BDOS_mkdir
         ; pop de
         F_MKDIR
         ret
-        
+        display "BDOS_chdir",$
 BDOS_chdir
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
@@ -2044,6 +2044,7 @@ setpath
          ret
         
 BDOS_chdir_trdos
+		ld (iy+app.vol),a
         ld a,(de) ;путь пустой?
         ;or a
         ;jp nz,BDOS_fail ;непустой
