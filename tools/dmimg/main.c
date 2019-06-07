@@ -36,8 +36,10 @@ int main (int argc, char *argv[]){
 	DIR dr;
 	FILINFO fi;
 	int res;
+#ifdef WIN32
     SetConsoleCP(866);// установка кодовой страницы win-cp 1251 в поток ввода
     SetConsoleOutputCP(866); // установка кодовой страницы win-cp 1251 в поток вывода
+#endif
 
 	if(argc<3){
 		puts("Error: Need more parameters.");
