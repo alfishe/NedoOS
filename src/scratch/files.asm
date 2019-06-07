@@ -28,6 +28,11 @@ filenamey=0
 filenamewid8=6 ;12 символов
 filenamehgt=8
 
+drivesx8=22
+drivesy=16
+driveswid8=1
+driveshgt=20*8
+
 catbuf=#c000
 scrbuf=#c000 ;for .scr
 file_buf=#ff00
@@ -43,7 +48,7 @@ file_buf_end=file_buf+127
 ;      6   18      4    Ширина изображения (в пикселах)        (+)
 ;      7   22      4    Высота изображения (в пикселах)        (+)
 ;      8   26      2    Количество цветовых плоскостей (=1)    (НАМ НЕ НУЖНО, всегда 1)
-;      9   28      2    Количество бит на пиксел               (+ 4, 8, 24 БИТ, ПОТОМ МОЖНО 1БИТ)
+;      9   28      2    Количество бит на пиксел               (+ 1, 4, 8, 24 БИТ)
 ;     10   30      4    Вид сжатия информации (0,1 или 2)      (ПОКА ЧТО БЕЗ СЖАТИЯ)
 ;     11   34      4    Размер образа растрового изображения   (НАДО СФОРМИРОВАТЬ, ЧИТАТЬ НЕ НУЖНО)
 ;     12   38      4    Рекомендуемое горизон-ое разрешение    (НАМ НЕ НУЖНО)
@@ -621,6 +626,7 @@ file_control_keys_drive4
         sub '0'
 file_control_keys_drive0
 file_control_keys_drive_fail0
+filemenu_setdrive
         ld e,a
         push de
         OS_SETDRV
@@ -689,6 +695,8 @@ filemenu_fire
         jp c,filemenu_exit
         call filemenu_isitfilename
         jp c,editfilename
+        call filemenu_findvisibledrivenumber
+        jp c,filemenu_setdrive
         call filemenu_findvisiblefilenumber
         ret nc;jp nc,filemenu_exit ;не попали в список файлов
         ;a = номер видимого файла
@@ -777,24 +785,20 @@ filemenu_invarrzone
 ;hl=x на экране
 ;a=y на экране
         call filemenu_isitsave
-        ;ld bc,savey*256 + savex8 ;y, x/8
-        ;ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
         
         call filemenu_isitquit
-        ;ld bc,quity*256 + quitx8 ;y, x/8
-        ;ld de,quithgt*256 + quitwid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
                 
         call filemenu_isitexit
-        ;ld bc,exity*256 + exitx8 ;y, x/8
-        ;ld de,exithgt*256 + exitwid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
                 
         call filemenu_isitfilename
-        ;ld bc,filenamey*256 + filenamex8 ;y, x/8
-        ;ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid
         jr c,filemenu_invarrzone_invert
+
+        call filemenu_findvisibledrivenumber
+        jr c,filemenu_invarrzone_invert
+
         call filemenu_findvisiblefilenumber
         ret nc ;не попали в список файлов
         ;a = номер видимого файла
@@ -804,7 +808,7 @@ filemenu_invarrzone
         add a,filelisty
         ld b,a ;y
         ld c,filelistx8 ;x/8
-        ld de,8*256 + filelistwid8 ;d=hgt ;e=wid
+        ld de,8*256 + filelistwid8 ;d=hgt ;e=wid/8
 filemenu_invarrzone_invert
         call setpgshapes
         jp shapes_invbox
@@ -815,7 +819,7 @@ filemenu_isitfilename
 ;out: CY=1 - попали в редактируемое имя файла, bcde=размеры для invarrzone
         if 1==1
         ld bc,filenamey*256 + filenamex8 ;y, x/8
-        ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid
+        ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid/8
         jr filemenu_isitbox
         else
         cp filenamey
@@ -842,7 +846,7 @@ filemenu_isitsave
 ;out: CY=1 - попали в Save, bcde=размеры для invarrzone
         if 1==1
         ld bc,savey*256 + savex8 ;y, x/8
-        ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid
+        ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid/8
         jr filemenu_isitbox
         else
         cp savey
@@ -868,7 +872,7 @@ filemenu_isitquit
 ;a=y на экране (не портится)
 ;out: CY=1 - попали в Quit, bcde=размеры для invarrzone
         ld bc,quity*256 + quitx8 ;y, x/8
-        ld de,quithgt*256 + quitwid8 ;d=hgt ;e=wid
+        ld de,quithgt*256 + quitwid8 ;d=hgt ;e=wid/8
         jr filemenu_isitbox
         
 filemenu_isitexit
@@ -876,7 +880,7 @@ filemenu_isitexit
 ;a=y на экране (не портится)
 ;out: CY=1 - попали в Exit, bcde=размеры для invarrzone
         ld bc,exity*256 + exitx8 ;y, x/8
-        ld de,exithgt*256 + exitwid8 ;d=hgt ;e=wid
+        ld de,exithgt*256 + exitwid8 ;d=hgt ;e=wid/8
         ;jr filemenu_isitbox
 filemenu_isitbox
 ;hl=x на экране (не портится)
@@ -949,6 +953,45 @@ filelist_filesvisible=$+1
         sbc hl,bc
         ret ;nc = не попали по x в список файлов
 
+filemenu_findvisibledrivenumber
+;hl=x на экране
+;a=y на экране
+;out: nc = не попали в список драйвов, a = номер видимого драйва ;bc = y, x/8 ;de = hgt, wid/8
+        ld c,a
+        sub drivesy
+        rra
+        rra
+        rra
+        and 31
+;filelist_drivesvisible=$+1        
+        cp 20
+        ld d,a ;a = номер видимого файла
+        ld a,c ;y
+        ret nc ;не попали по y в список драйвов
+        push hl
+        ld bc,drivesx8*8
+        or a
+        sbc hl,bc
+        ld bc,driveswid8*8
+        or a
+        sbc hl,bc
+        pop hl
+        ret nc ;nc = не попали по x в список драйвов
+        ld a,d ;a = номер видимого файла
+        add a,a
+        add a,a
+        add a,a
+        add a,drivesy
+        ld b,a ;y
+        ld a,d ;a = номер видимого файла
+        ld c,drivesx8 ;x/8
+        ld de,8*256 + driveswid8 ;d=hgt ;e=wid/8
+        scf
+        ret
+
+prfilemenu_drive
+        db "A:",0
+        
 prfilemenu
 ;FILINFO_sz=32
         call cls
@@ -964,6 +1007,22 @@ prfilemenu
         ld hl,exity*40 + exitx8 + scrbase
         call shapes_prtext48ega_oncolor
 
+        ld hl,drivesy*40 + drivesx8 + scrbase
+        ld bc,256*(driveshgt/8) + 'A'
+prfilemenu_drives0
+        push bc
+        push hl
+        ld de,prfilemenu_drive
+        ld a,c
+        ld (de),a
+        call shapes_prtext48ega_oncolor
+        pop hl
+        ld bc,40*8
+        add hl,bc
+        pop bc
+        inc c
+        djnz prfilemenu_drives0
+        
         call setpgtemp
 
         ld de,fcb

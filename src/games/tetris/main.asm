@@ -1,6 +1,9 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
+nextfigx=4
+nextfigy=8
+        
 fieldwid=10
 fieldhgt=23
 fieldx=16-fieldwid/2
@@ -10,12 +13,12 @@ coordsEndPlayField=(fieldx*2-1)+(256*fieldy)
 coordsBeginPlayField=(fieldx-1)+(256*fieldy)
 coordsDropFig=(coordsBeginPlayField+coordsEndPlayField)/2
 fieldmarginsymbol='x'
-dangerattr1=#38+2 ;red
-dangerattr2=#38+4 ;green
-dangerattr3=#38+1 ;blue
+dangerattr1=0x38+2 ;red
+dangerattr2=0x38+4 ;green
+dangerattr3=0x38+1 ;blue
 scoreattr=dangerattr3
 wallattr=dangerattr1
-emptyattr=#38
+emptyattr=0x38
 
 ;fieldEx=32
 ;fieldEy=24
@@ -40,9 +43,21 @@ begin
         call cls
         call prfield
         call newfig
-        
+
         ld a,(curfalldelay) 
         ld (falldelaycount),a
+
+gameloop_newfig        
+        call newfig
+    
+        ld bc,nextfigy*256 + nextfigx
+        ld de,prfig_pixel_cleanout ;de=адрес процедуры
+        ld hl,nextfig
+        ld a,(nextfigcolor)
+        call prfig_hl_a
+        
+        call collide ;nz=collision
+	jr nz,gameover
         
 gameloop
         ld bc,(curxy) ;bc=yx 
@@ -69,9 +84,8 @@ gameloop
         call collide
         jr z,gameloop
         call stopfig
-        call collide ;nz=collision
-	jr z,gameloop
-;gameover
+	jr gameloop_newfig
+gameover
         ld hl,endtext
         ld bc,centr
         call prtext
@@ -170,7 +184,16 @@ firelines1
         pop hl
         jr firelines0
 firelinesq
+        ret
+
 newfig  
+        ld hl,nextfig
+        ld de,curfig
+        ld bc,4
+        ldir
+        ld a,(nextfigcolor)
+        ld (curfigcolor),a
+        
         ld c,nfigs
         call rnd
         add a,a
@@ -179,7 +202,7 @@ newfig
         ld b,0
         ld hl,figs
         add hl,bc
-        ld de,curfig
+        ld de,nextfig
         ld  c,4
         ldir
         ld c,4
@@ -188,7 +211,8 @@ newfig
         add a,a
         add a,a
         add a,a
-        ld (curfigcolor),a
+        ld (nextfigcolor),a
+        
         ld hl,coordsDropFig
         ld (curxy),hl
         ret
@@ -469,10 +493,13 @@ oldcurxy
 prfig
 ;bc=yx 
         ld hl,curfig ;hl=указатель на фигуру
+curfigcolor=$+1
+        ld a,6
+prfig_hl_a
 ;hl=указатель на фигуру
 ;de=адрес процедуры
-curfigcolor=$+2
-        ld ix,6 ;lx=атрибут, hx=0
+        ld lx,a
+        ld hx,0 ;lx=атрибут, hx=0
         ld (prfig_calladdr),de
         ld e,4
 prfig_lines
@@ -488,7 +515,7 @@ prfig_lines
 prfig_pixels
         rl d
 prfig_calladdr=$+1
-        call c,prfig_pixel
+        call prfig_pixel
         inc c ;x
         dec e
         jr nz,prfig_pixels
@@ -499,8 +526,9 @@ prfig_calladdr=$+1
         jr nz,prfig_lines
         ret
         
-prfig_pixel
 ;bc=yx
+prfig_pixel
+        ret nc
         push bc
         push de
         push hl
@@ -512,7 +540,25 @@ prfig_pixel
         pop de
         pop bc
         ret
+prfig_pixel_cleanout
+        push bc
+        push de
+        push hl
+        ld a,emptyattr
+        ld (curattr),a
+        ld a,' '
+        jr nc,prfig_pixel_cleanout_ok
+        ld a,lx
+        ld (curattr),a
+        ld a,'X'
+prfig_pixel_cleanout_ok
+        call prcharxy
+        pop hl
+        pop de
+        pop bc
+        ret
 prfig_checkpixel
+        ret nc
         push bc
         push de
         push hl
@@ -528,6 +574,7 @@ checkpixelempty
         ret
 prfig_clearpixel
 ;bc=yx
+        ret nc
         push bc
         push de
         push hl
@@ -581,6 +628,8 @@ curfig
         ds 4
 oldcurfig
         ds 4        
+nextfig
+        ds 4
 
 scoreadds
         dw 0
@@ -595,6 +644,9 @@ curfalldelay
         db 16
 curscore
         dw 0
+nextfigcolor
+        db 0
+
 
 dellineslist
         ds 4+1 ;max 4 линии + #ff
