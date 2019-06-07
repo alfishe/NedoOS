@@ -1,0 +1,99 @@
+# Makefile for MinGW by mborik & z00m
+# Change `PREFIX` according your needs
+# Run it with `make -f Makefile.win`
+
+GCC=gcc.exe
+CC=$(GCC)
+GPP=g++.exe
+C++=$(GPP)
+
+PREFIX=c:/mingw/usr/local/bin/
+CREATEDIR=mkdir -p
+INSTALL=cp
+UNINSTALL=rm -f
+WINDRES=windres.exe --preprocessor "cpp.exe"
+COMPRESS=upx.exe --best -vk --overlay=skip --compress-icons=0 
+
+EXE=sjasmplus.exe
+
+SUBDIR_BASE=sjasm
+SUBDIR_LUA=lua5.1
+SUBDIR_TOLUA=tolua++
+
+CFLAGS=-DNDEBUG -O2 -Wall -pedantic -static -DUSE_LUA -DLUA_USE_WINDOWS -DMAX_PATH=PATH_MAX -I$(SUBDIR_LUA) -I$(SUBDIR_TOLUA)
+CXXFLAGS=-std=gnu++14 $(CFLAGS)
+
+LDFLAGS= -s
+
+#sjasmplus object files
+OBJS=\
+	$(SUBDIR_BASE)/devices.o \
+	$(SUBDIR_BASE)/directives.o \
+	$(SUBDIR_BASE)/io_nex.o \
+	$(SUBDIR_BASE)/io_snapshots.o \
+	$(SUBDIR_BASE)/io_trd.o \
+	$(SUBDIR_BASE)/io_tape.o \
+	$(SUBDIR_BASE)/lua_lpack.o \
+	$(SUBDIR_BASE)/lua_sjasm.o \
+	$(SUBDIR_BASE)/parser.o \
+	$(SUBDIR_BASE)/reader.o \
+	$(SUBDIR_BASE)/sjasm.o \
+	$(SUBDIR_BASE)/sjio.o \
+	$(SUBDIR_BASE)/support.o \
+	$(SUBDIR_BASE)/tables.o \
+	$(SUBDIR_BASE)/z80.o
+
+#liblua objects
+LUAOBJS= \
+	$(SUBDIR_LUA)/lapi.o $(SUBDIR_LUA)/lauxlib.o $(SUBDIR_LUA)/lbaselib.o \
+	$(SUBDIR_LUA)/lcode.o $(SUBDIR_LUA)/ldblib.o $(SUBDIR_LUA)/ldebug.o \
+	$(SUBDIR_LUA)/ldo.o $(SUBDIR_LUA)/ldump.o $(SUBDIR_LUA)/lfunc.o \
+	$(SUBDIR_LUA)/lgc.o $(SUBDIR_LUA)/linit.o $(SUBDIR_LUA)/liolib.o \
+	$(SUBDIR_LUA)/llex.o $(SUBDIR_LUA)/lmathlib.o $(SUBDIR_LUA)/lmem.o \
+	$(SUBDIR_LUA)/loadlib.o $(SUBDIR_LUA)/lobject.o $(SUBDIR_LUA)/lopcodes.o \
+	$(SUBDIR_LUA)/loslib.o $(SUBDIR_LUA)/lparser.o $(SUBDIR_LUA)/lstate.o \
+	$(SUBDIR_LUA)/lstring.o $(SUBDIR_LUA)/lstrlib.o $(SUBDIR_LUA)/ltable.o \
+	$(SUBDIR_LUA)/ltablib.o $(SUBDIR_LUA)/ltm.o $(SUBDIR_LUA)/lundump.o \
+	$(SUBDIR_LUA)/lvm.o $(SUBDIR_LUA)/lzio.o
+
+# tolua objects
+TOLUAOBJS=\
+	$(SUBDIR_TOLUA)/tolua_event.o \
+	$(SUBDIR_TOLUA)/tolua_is.o \
+	$(SUBDIR_TOLUA)/tolua_map.o \
+	$(SUBDIR_TOLUA)/tolua_push.o \
+	$(SUBDIR_TOLUA)/tolua_to.o
+
+RES=sjasmwin32/sjasmplus.res
+
+
+.PHONY: all clean
+
+all: $(LUAOBJS) $(TOLUAOBJS) $(OBJS) $(RES)
+	$(GPP) -o $(EXE) $(CXXFLAGS) $(OBJS) $(LUAOBJS) $(TOLUAOBJS) $(LDFLAGS) $(RES)
+
+install:
+	$(CREATEDIR) $(PREFIX)
+	$(INSTALL) $(EXE) $(PREFIX)
+
+uninstall:
+	$(UNINSTALL) $(PREFIX)/$(EXE)
+	
+compress:
+	$(COMPRESS) $(EXE)	
+
+.c.o:
+	$(GCC) $(CFLAGS) -o $@ -c $<
+
+.cpp.o:
+	$(GPP) $(CXXFLAGS) -o $@ -c $<
+
+$(RES): sjasmwin32/sjasmplus.mingw.rc
+	$(WINDRES) -i $< -O coff -o $@
+
+clean:
+	$(UNINSTALL) \
+		$(SUBDIR_BASE)/*.o \
+		$(SUBDIR_LUA)/*.o \
+		$(SUBDIR_TOLUA)/*.o \
+		$(RES) $(EXE) *~
