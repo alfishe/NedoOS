@@ -10,15 +10,26 @@
 		outline: none;background-color: #fa8e47;padding: 3px;}
 	a.nubex:active {background-color: #ee6206;}
 	a.nubex:hover {background-color: #f97f2e;}
+	#divlog {border: 2px dashed #ccc;border-radius: 20px;width: 480px;
+	font-family: sans-serif;padding: 20px;text-align:left}
+	#drop-area.highlight {border-color: purple;}
    </style>
 
 	</HEAD>
 	<BODY>
 		<DIV id="log"></DIV>
-		<DIV>
-			<input type="text" id="dirName">
-			<a class="nubex" href="javascript:mkdir()">MakeDir</a><br><br>
-		</DIV>
+		<TABLE width="100%">
+			<col width="50%">
+			<col width="50%">
+			<tr>
+				<td>
+					<input type="text" id="dirName">
+					<a class="nubex" href="javascript:mkdir()">MakeDir</a>
+				</td>
+				<td style="text-align:right"><a class="nubex" href="?x=1">stop daemon</a></td>
+			</tr>
+		</TABLE>
+		<br><br>
 		<DIV id="divlog"></DIV>
 		<DIV>
 			<input type="file" id="fileToUp" style="display:none" multiple>

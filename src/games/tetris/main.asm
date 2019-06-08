@@ -58,33 +58,55 @@ gameloop_newfig
         
         call collide ;nz=collision
 	jr nz,gameover
+        ld a,1
+        ld (figmoved),a
         
 gameloop
         ld bc,(curxy) ;bc=yx 
         ld de,prfig_pixel ;de=адрес процедуры
-        call prfig
+figmoved=$+1
+        ld a,0
+        or a
+        call nz,prfig
+        xor a
+        ld (figmoved),a
+        ld (figcleared),a
+        
         call prscore
 
         YIELD ;call delay
 
-        ld bc,(curxy) ;bc=yx 
-        ld de,prfig_clearpixel ;de=адрес процедуры
-        call prfig
-        
+	xor a
+	ld (downneeded),a
+	
         call storeposition
         GET_KEY
          cp key_esc
          jr z,quit
-        call controlkey
+        call controlkey ;двигаем координаты фигуры (устанавливает downneeded по down)
+
+        ld a,(figmoved)
+        or a
+        jr z,nokey
+
+        call undraw_oldfig_ifneeded
         call collide
-        call nz,restoreposition
-        
-        call storeposition
-        call movedown
+        call nz,restoreposition ;отменяем движение координат, если нельзя поставить фигуру
+nokey
+
+        call movedownifneeded
+        ld a,(figmoved)
+        or a
+        jr z,nocollidedown
+
+        call undraw_oldfig_ifneeded
         call collide
-        jr z,gameloop
+        jr nz,figureonground
+nocollidedown
+        jr gameloop
+figureonground
         call stopfig
-	jr gameloop_newfig
+	jp gameloop_newfig
 gameover
         ld hl,endtext
         ld bc,centr
@@ -113,6 +135,18 @@ restoreposition
         ld de, curfig
         ld hl, oldcurfig
         ldir
+        ret
+
+undraw_oldfig_ifneeded
+        ld bc,(oldcurxy) ;bc=yx 
+        ld de,prfig_clearpixel ;de=адрес процедуры
+        ld hl,oldcurfig
+figcleared=$+1
+        ld a,0
+        or a
+        call z,prfig_hl
+        ld a,1
+        ld (figcleared),a
         ret
 
 collide
@@ -264,10 +298,17 @@ checkfilledline0
         djnz checkfilledline0
         ret ;nz
 
-movedown
+movedownifneeded
+downneeded=$+1
+	ld a,0
+	or a
+	jr nz,movedownok
         ld a,(falldelaycount)
         dec a
-        jr nz, falldelaycount_q ;если не 0 то обходим
+        jr nz, falldelaycount_q ;если не 0, то обходим
+movedownok
+        ld a,1
+        ld (figmoved),a
         ld a,(curfalldelay)
         ld bc,(curxy)
         inc b
@@ -282,18 +323,21 @@ controlkey
         ld bc,(curxy)
         dec c
         cp dir_l
-        jr z,moveq
+        jr z,moveok
         inc c
         inc c
         cp dir_r
-        jr z,moveq
+        jr z,moveok
         dec c
-        inc b
         cp dir_d
-        jr z,moveq
-        dec b       
-moveq
+	ret nz
+	ld a,1
+	ld (downneeded),a
+        ret
+moveok
         ld (curxy),bc       
+        ld a,1
+        ld (figmoved),a
         ret    
         
 rotfig
@@ -315,6 +359,8 @@ rotfig_lines
         inc hl
         dec lx  
         jr nz, rotfig_lines
+        ld a,1
+        ld (figmoved),a
         ret
 
 rnd
@@ -493,6 +539,7 @@ oldcurxy
 prfig
 ;bc=yx 
         ld hl,curfig ;hl=указатель на фигуру
+prfig_hl
 curfigcolor=$+1
         ld a,6
 prfig_hl_a

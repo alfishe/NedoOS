@@ -18,7 +18,7 @@ IF EXIST b.bat del b.bat
 ..\tools\dmimg ..\us\%1_nedo.vhd mkdir bin > nul
 ..\tools\dmimg ..\us\%1_nedo.vhd mkdir bin/www > nul
 ..\tools\dmimg ..\us\%1_nedo.vhd mkdir bin/doc > nul
-..\tools\dmimg ..\us\%1_nedo.vhd put nedoos.$c nedoos.$c
+..\tools\dmimg ..\us\%1_nedo.vhd put nedoos.$C nedoos.$C
 FOR %%i IN (..\release\bin\*.*) DO (
         ..\tools\dmimg ..\us\%1_nedo.vhd put %%i bin/%%~nxi
 )
