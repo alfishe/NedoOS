@@ -460,7 +460,10 @@ readdir_keepcursor
 	ld l,(ix+PANEL.pointers)   ;00  номер страницы
 	ld h,(ix+PANEL.pointers+1) ;c0  номер файла
         ld bc,0 ;nfiles
-        jr nz,loaddir_error
+        jp nz,loaddir_error
+		ld a,(fcb+1)
+		cp '.'
+		jp z,loaddir_onedot
 loaddir0
         push bc
 
@@ -512,6 +515,7 @@ nonewpg:
         inc bc ;nfiles
         bit 5,b;1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
         jr nz,loaddirq
+loaddir_onedot
         push bc
         push de ;catbuf
 	push hl
