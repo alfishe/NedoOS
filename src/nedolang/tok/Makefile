@@ -48,7 +48,7 @@ clean-tools:
 	rm -f ${TOOL}
 
 clean: 
-	rm -f ${NAME} ${OBJECTS}
+	rm -f ${NAME} ${OBJECTS} ${NAMEOS}
 	rm -f *.f *.D_ *.V_ *.bin *.var *.org *.pst *.S_
 
 install: ${NAMEOS}

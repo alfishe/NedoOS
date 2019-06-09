@@ -51,7 +51,7 @@ ${TOOL}: ${TOOL_SOURCES}
 	${GCC} ${CFLAGS} z80main.c -o ${TOOL}
 
 clean: 
-	rm -f ${NAME} ${OBJECTS}
+	rm -f ${NAME} ${OBJECTS} ${NAMEOS}
 	rm -f *.f *.D_ *.V_ *.A_ *.S_ *.bin *.var *.org *.pst
 
 clean-tools: 

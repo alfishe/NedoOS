@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ff.h"
+#include <string.h>
 
 FILE * img=NULL;
 FILE * f1=NULL;
