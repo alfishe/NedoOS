@@ -233,6 +233,16 @@ key_ssbackspace=ext0
 key_ssdel=ext9
 key_tab=csss
 key_esc=csspace
+key_F1=ext1
+key_F2=ext2
+key_F3=ext3
+key_F4=ext4
+key_F5=ext5
+key_F6=ext6
+key_F7=ext7
+key_F8=ext8
+key_F9=ext9
+key_F10=ext0
 ;отдельный ext (Tab) передаётся по отжатию (TODO в GETKEYNOLANG по нажатию)
 ;нажатия отдельных ss, cs не передаются, иначе CP/M приложения не смогут их отфильтровать (TODO через GETKEYNOLANG, и отжатия всех клавиш тоже)
 

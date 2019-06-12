@@ -125,7 +125,7 @@ w53_endsocflags:
 		ENDM
 		
 		W53FLAGSMACRO
-		display "wiznet_open ",$
+		
 wiznet_open
 ;L-subfunction
 		dec l

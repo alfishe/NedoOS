@@ -1822,7 +1822,6 @@ BDOS_fclose_noFATFS
         BDOSSETPGTRDOSFS
         jp trdos_fclose
 
-	display "ffs ",$
 
 call_ffs_curvol
 		GETVOLUME
@@ -2015,7 +2014,7 @@ BDOS_mkdir
         ; pop de
         F_MKDIR
         ret
-        display "BDOS_chdir",$
+		
 BDOS_chdir
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер

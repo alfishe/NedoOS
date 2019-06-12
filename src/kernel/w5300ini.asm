@@ -335,7 +335,6 @@ w53_cmd0:
 		jr w53_cmd0
 		
 		
-		display "w53_read ",$
 wiznet_read:	;a'-сокет, de-Буфер, hl-количество
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
@@ -369,7 +368,6 @@ w53_minimum0:
 		sbc a,b
 		ld (ix+3),a
 		
-		display "w53_read ",$
 		push bc				;сколько реально прочтем сохраним
 		push de
 		ld h,b
