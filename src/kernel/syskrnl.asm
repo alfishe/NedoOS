@@ -662,8 +662,12 @@ sys_findfreeid0
         djnz sys_findfreeid0
 ;a=free id
         ret
-
-        include "syskey2.asm"
+		
+		if PS2KBD
+			include "ps2drv.asm"
+		else
+			include "syskey2.asm"
+		endif
         
         include "fatfsdrv.asm"
         include "sysbdos.asm" ;в конце есть align 256

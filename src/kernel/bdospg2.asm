@@ -88,7 +88,7 @@ standardpal
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 		if INETDRV
         include "w5300.asm"
-                else
+        else
 wiznet_open
 wiznet_close
 wiznet_read

@@ -154,21 +154,23 @@ begin
         di
 
         if atm==3
-		ld bc,0xdef7	
-		out (c),c		
-		ld b,0xbe		
-		ld a,2			
-		out (c),a		
-         ld a,#7f-5
-         ld bc,memportrom4000
-         out (c),a ;отключаем 7ffd
-         ld a,#7f-2
-         ld bc,memportrom8000
-         out (c),a ;отключаем 7ffd
-         ;ld a,#7f-2
-         ld bc,memportromc000
-         out (c),a ;отключаем 7ffd
-        endif
+			if PS2KBD
+				ld bc,0xdef7	
+				out (c),c		
+				ld b,0xbe		
+				ld a,2			
+				out (c),a
+			endif
+			ld a,#7f-5
+			ld bc,memportrom4000
+			out (c),a ;отключаем 7ffd
+			ld a,#7f-2
+			ld bc,memportrom8000
+			out (c),a ;отключаем 7ffd
+			;ld a,#7f-2
+			ld bc,memportromc000
+			out (c),a ;отключаем 7ffd
+		endif
 
         call findpgdos
          ld lx,a

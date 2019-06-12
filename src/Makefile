@@ -84,6 +84,7 @@ atm2:
 	echo NEMOIDE=0 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x00 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
 	mv -f test.trd ${INSTALLDIR}/osatm2.trd
 
@@ -92,7 +93,8 @@ atm2hd:
 	echo sys_npages=64 >> _sdk\syssets.asm
 	echo NEMOIDE=0 >> _sdk\syssets.asm
 	echo SYSDRV=8 >> _sdk\syssets.asm
-	echo INETDRV EQU 0x00 >> _sdk\syssets.asm
+	echo INETDRV EQU 0x00 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
 	${NEDOTRD} test.trd -eh code.c
 	${NEDOTRD} test.trd -a code.c
@@ -105,6 +107,7 @@ atm3:
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
 	mv -f test.trd ${INSTALLDIR}/osatm3.trd
 atm3hd:
@@ -113,6 +116,7 @@ atm3hd:
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=8 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
 	${SJASMPLUS} kernel/hobeta.asm
 	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
@@ -124,6 +128,7 @@ atm3sd: system install install-doc
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=4 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
 	${SJASMPLUS} kernel/hobeta.asm
 	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
@@ -134,4 +139,5 @@ pe26:
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	mv -f test.trd ${INSTALLDIR}/osatm3.trd
