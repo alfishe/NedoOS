@@ -1,11 +1,9 @@
 @echo off
 path =..\_sdk\;..\..\_sdk\
 
-echo ...compiling...
 nedolang ../_sdk/emit.c ../_sdk/io.c commands.c
 type err.f
 
-echo ...tokenizing...
 nedotok compcode.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.i
 
 nedodel emit.ast
@@ -16,7 +14,6 @@ nedodel io.ast
 nedodel io.var
 movedisk
 
-echo ...assembling...
 nedoasm compcode.S_
 type asmerr.f
 
@@ -35,14 +32,11 @@ movedisk
 
 pause
 
-echo ...compiling...
 nedolang ../_sdk/read.c compile.c
 type err.f
 
-echo ...tokenizing...
 nedotok comp.s ../_sdk/read.ast ../_sdk/read.var compile.ast compile.var
 
-echo ...assembling...
 nedoasm comp.S_
 type asmerr.f
 

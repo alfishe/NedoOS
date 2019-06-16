@@ -25,60 +25,8 @@ ERR_NOTCONN 	EQU 57
 ;struct sockaddr_in {short sin_family;unsigned short sin_port;
 ;	struct in_addr sin_addr;char sin_zero[8];};
 
-;/***************************************/ 
-;/* The bit of Sn_MR regsiter defintion */ 
-;/***************************************/ 
-Sn_MR_ALIGN         EQU (1 << 8)             ;< Alignment bit of Sn_MR. */
-Sn_MR_MULTI         EQU (1 << 7)             ;< Multicasting bit of Sn_MR. */
-Sn_MR_MF            EQU (1 << 6)             ;< MAC filter bit of Sn_MR. */
-Sn_MR_IGMPv         EQU (1 << 5)             ;< IGMP version bit of Sn_MR. */
-Sn_MR_ND            EQU (1 << 5)             ;< No delayed ack bit of Sn_MR. */
-Sn_MR_CLOSE         EQU 0x00                 ;< Protocol bits of Sn_MR. */
-Sn_MR_TCP           EQU 0x01                 ;< Protocol bits of Sn_MR. */
-Sn_MR_UDP           EQU 0x02                 ;< Protocol bits of Sn_MR. */
-Sn_MR_IPRAW         EQU 0x03                 ;< Protocol bits of Sn_MR. */
-Sn_MR_MACRAW        EQU 0x04                 ;< Protocol bits of Sn_MR. */
-Sn_MR_PPPoE         EQU 0x05                 ;< Protocol bits of Sn_MR. */
 
-;/******************************/ 
-;/* The values of CR defintion */ 
-;/******************************/
 
-Sn_CR_OPEN          EQU 0x01                 ;< OPEN command value of Sn_CR. */
-Sn_CR_LISTEN        EQU 0x02                 ;< LISTEN command value of Sn_CR. */
-Sn_CR_CONNECT       EQU 0x04                 ;< CONNECT command value of Sn_CR. */
-Sn_CR_DISCON        EQU 0x08                 ;< DISCONNECT command value of Sn_CR. */
-Sn_CR_CLOSE         EQU 0x10                 ;< CLOSE command value of Sn_CR. */
-Sn_CR_SEND          EQU 0x20                 ;< SEND command value of Sn_CR. */
-Sn_CR_SEND_MAC      EQU 0x21                 ;< SEND_MAC command value of Sn_CR. */ 
-Sn_CR_SEND_KEEP     EQU 0x22                 ;< SEND_KEEP command value of Sn_CR */
-Sn_CR_RECV          EQU 0x40                 ;< RECV command value of Sn_CR */
-Sn_CR_PCON          EQU 0x23                 ;< PCON command value of Sn_CR */
-Sn_CR_PDISCON       EQU 0x24                 ;< PDISCON command value of Sn_CR */ 
-Sn_CR_PCR           EQU 0x25                 ;< PCR command value of Sn_CR */
-Sn_CR_PCN           EQU 0x26                 ;< PCN command value of Sn_CR */
-Sn_CR_PCJ           EQU 0x27                 ;< PCJ command value of Sn_CR */
-
-;/**********************************/ 
-;/* The values of Sn_SSR defintion */ 
-;/**********************************/
-SOCK_CLOSED         EQU 0x00                 ;< SOCKETn is released */
-SOCK_ARP            EQU 0x01                 ;< ARP-request is transmitted in order to acquire destination hardware address. */
-SOCK_INIT           EQU 0x13                 ;< SOCKETn is open as TCP mode. */
-SOCK_LISTEN         EQU 0x14                 ;< SOCKETn operates as "TCP SERVER" and waits for connection-request (SYN packet) from "TCP CLIENT". */
-SOCK_SYNSENT        EQU 0x15                 ;< Connect-request(SYN packet) is transmitted to "TCP SERVER". */
-SOCK_SYNRECV        EQU 0x16                 ;< Connect-request(SYN packet) is received from "TCP CLIENT". */
-SOCK_ESTABLISHED    EQU 0x17                 ;< TCP connection is established. */
-SOCK_FIN_WAIT       EQU 0x18                 ;< SOCKETn is closing. */
-SOCK_CLOSING        EQU 0x1A                 ;< SOCKETn is closing. */
-SOCK_TIME_WAIT      EQU 0x1B                 ;< SOCKETn is closing. */
-SOCK_CLOSE_WAIT     EQU 0x1C                 ;< Disconnect-request(FIN packet) is received from the peer. */
-SOCK_LAST_ACK       EQU 0x1D                 ;< SOCKETn is closing. */
-SOCK_UDP            EQU 0x22                 ;< SOCKETn is open as UDP mode. */
-SOCK_IPRAW          EQU 0x32                 ;< SOCKETn is open as IPRAW mode. */
-SOCK_MACRAW         EQU 0x42                 ;< SOCKET0 is open as MACRAW mode. */
-SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. */
-		
 
 openstream_http
 	;display $

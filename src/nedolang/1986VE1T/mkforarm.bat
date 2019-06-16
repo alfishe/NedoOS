@@ -1,10 +1,8 @@
 path=..\_sdk\;..\..\_sdk\
 
-echo ...compiling...
 nedolarm ../_sdk/read.c ../_sdk/fmttg.h migalka.c ../_sdk/io.c ../_sdk/str.c
 type err.f
 
-echo ...assembling...
 nedotarm _tokarm.s ../_sdk/read.ast ../_sdk/read.var ../_sdk/fmttg.var migalka.ast migalka.var ../_sdk/libarm.i ../_sdk/ioarm.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.ast ../_sdk/str.var
 nedoaarm _tokarm.S_
 
