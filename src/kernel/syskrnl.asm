@@ -23,6 +23,10 @@ QUITSTACK=0x4000 ;<=0x4000
         call BDOS_setpgtrdosfs
         endm
 
+        macro BDOSSETPGW5300
+        call BDOS_setpgtrdosfs
+        endm
+
 
 fatfs.tabl=0x4000
         include "fatfs_h.asm"

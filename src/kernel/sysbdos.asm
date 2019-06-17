@@ -53,11 +53,11 @@ setmainpg_c000
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 BDOS_wiznetopen
-        BDOSSETPGTRDOSFS ;портит bc
+        BDOSSETPGW5300 ;портит bc
         jp wiznet_open
 
 BDOS_wiznetclose
-        BDOSSETPGTRDOSFS ;портит bc
+        BDOSSETPGW5300 ;портит bc
         jp wiznet_close
 
 BDOS_wiznetread
@@ -66,7 +66,7 @@ BDOS_wiznetread
         call BDOS_preparedepage
         call BDOS_setdepage
 ;DE = Pointer to physical data
-        BDOSSETPGTRDOSFS
+        BDOSSETPGW5300
         jp wiznet_read
 
 BDOS_wiznetwrite
@@ -74,7 +74,7 @@ BDOS_wiznetwrite
         call BDOS_preparedepage
         call BDOS_setdepage
 ;DE = Pointer to physical data
-        BDOSSETPGTRDOSFS
+        BDOSSETPGW5300
         jp wiznet_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -936,8 +936,10 @@ sys_quit_delpages0
         ld (hl),0 ;освободили страницу
         inc hl
         djnz sys_quit_delpages0
-        ld (iy+app.id),b;0 ;освободили место
+		BDOSSETPGW5300
+		call w53_drop_socs
         xor a ;ok
+        ld (iy+app.id),a ;b;0 ;освободили место
         ret
         
 BDOS_runapp

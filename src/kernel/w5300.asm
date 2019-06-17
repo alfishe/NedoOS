@@ -110,21 +110,27 @@ SOCK_PPPoE          EQU 0x5F                 ;< SOCKET0 is open as PPPoE mode. *
 wizlocalport:
 		defw 0xc000
 		
-W53SOCTABLE=0
-		MACRO W53FLAGSMACRO
-		if W53SOCTABLE==0
-		if ((($-1)&0xff)<=95)
-W53SOCTABLE=1
-w53_socflags: ;+0 - RXreg, +1 - Nsoc, +2..3 - RXcount
-        defb 0,WIZ_SOCK0_HNDL+0,0,0,0,WIZ_SOCK0_HNDL+1,0,0,0,WIZ_SOCK0_HNDL+2,0,0
-		defb 0,WIZ_SOCK0_HNDL+3,0,0,0,WIZ_SOCK0_HNDL+4,0,0,0,WIZ_SOCK0_HNDL+5,0,0
-        defb 0,WIZ_SOCK0_HNDL+6,0,0,0,WIZ_SOCK0_HNDL+7,0,0
+w53_socflags=$-1: ;+0 - RXreg, +1 - Nsoc, +2..3 - RXcount, +4 procID
+        defb 0,WIZ_SOCK0_HNDL+0,0,0,0,0,WIZ_SOCK0_HNDL+1,0,0,0,0,WIZ_SOCK0_HNDL+2,0,0,0
+		defb 0,WIZ_SOCK0_HNDL+3,0,0,0,0,WIZ_SOCK0_HNDL+4,0,0,0,0,WIZ_SOCK0_HNDL+5,0,0,0
+        defb 0,WIZ_SOCK0_HNDL+6,0,0,0,0,WIZ_SOCK0_HNDL+7,0,0,0
 w53_endsocflags:
-		endif
-		endif
-		ENDM
 		
-		W53FLAGSMACRO
+w53_drop_socs
+		ld ix,w53_socflags+1-5
+w53_drop_socs_loop
+		ld bc,5
+		add ix,bc
+		ld a,ixl
+		cp 0xff&w53_endsocflags
+		ret z
+		ld a,(ix+4)
+		cp (iy+app.id)
+		jr nz,w53_drop_socs_loop
+		call w53_valid_free
+		ld e,0
+		call w53_close_valid
+		jr w53_drop_socs_loop
 		
 wiznet_open
 ;L-subfunction
@@ -143,7 +149,6 @@ wiznet_open
 		ld a,ERR_INTR	;функция не существует
 		ld hl,-1
 		ret
-		W53FLAGSMACRO
 w53_socket:
 ;E-socket type, D-address family
 ;ищем свободный сокет
@@ -153,20 +158,18 @@ w53_socket:
 		ld a,ERR_AFNOSUPPORT
 		ret nz
 w53_socket3:
-		ld ix,w53_socflags-4
+		ld a,1-5
 w53_socket0:
-		inc ix
-		inc ix
-		inc ix
-		inc ix
-		ld a,ixl
-		cp w53_endsocflags&0xff
-		jr nz,w53_socket1
+		add 5
+		cp 37
+		jr c,w53_socket1
 		ld l,-1
 		ld a,ERR_NFILE ;все сокеты заняты
 		ret
 w53_socket1:
+		ld l,a
 		call w53_valid_socket1
+		ld a,l
 		jr nz,w53_socket0
 		ld a,e
 		ld d,Sn_MR_TCP
@@ -181,14 +184,14 @@ w53_socket1:
 w53_socket2:
 		ld b,WIZ_S_MR
 		out (c),d
-		ld a,ixl
-		ld l,a
+		ld a,(iy+app.id)
+		ld (ix+4),a
 		xor a
 		ld (ix+2),a
 		ld (ix+3),a
         ret
 
-		W53FLAGSMACRO
+		
 w53_bind:
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
@@ -219,7 +222,7 @@ w53_accept_live:
 		cp SOCK_ESTABLISHED
 		jr z,w53_accept_est
 		ld a,ERR_EAGAIN			;пока никого нет
-		ret
+		ret		
 w53_accept_est:
 		ld b,WIZ_S_PORTR_H		;запомним порт
 		in e,(c)
@@ -247,12 +250,13 @@ w53_accept_nsoc:
 		ld e,(ix+1)
 		ld (hl),e
 		ld (ix+1),a
-		push ix
-		pop hl
+		ld a,ixl
+		sub 0xff&w53_socflags
+		ld l,a
 		xor a
 		ret
 		
-		W53FLAGSMACRO
+		
 w53_listen:
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
@@ -272,13 +276,22 @@ w53_listen0:
 
 w53_valid_socket:
 		ex af,af'
-		cp w53_socflags&0xff
-		jr c,w53_invalid_socked
-		cp w53_endsocflags&0xff
+		or a
+		jr z,w53_invalid_socked
+		cp 37
 		jr nc,w53_invalid_socked
-		ld ixl,a
-		ld ixh,w53_socflags>>8
 w53_valid_socket1:
+		add a,0xff&w53_socflags
+		ld ixl,a
+		ld a,0
+		adc a,0xff&(w53_socflags>>8)
+		ld ixh,a
+		ld a,(ix+4)
+		or a
+		jr z,w53_valid_free
+		cp (iy+app.id)
+		jr nz,w53_invalid_socked
+w53_valid_free:
 		ld bc,WIZ_REGAD_PORT
 		ld a,(ix+1)
 		out (c),a
@@ -293,7 +306,7 @@ w53_invalid_socked0:
 		ld a,ERR_NOTSOCK 
 		ret
 		
-		W53FLAGSMACRO
+		
 w53_connect:
 ;DE-sockaddr_in
 		ld l,-1
@@ -358,10 +371,12 @@ w53_connect3:
 		ld l,a
 		ret
 		
-		W53FLAGSMACRO
+		
 w53_close:
 		call w53_valid_socket
+w53_close_valid:
 		ld l,0
+		ld (ix+4),l
 		ret z	;сокет уже убит
 		dec l
 		ex af,af'
@@ -373,7 +388,8 @@ w53_close:
 		cp 0x20
 		jr nz,w53_close_nochk
 		inc b
-		in e,(c)
+		in e,(c)	;????что то не так????
+					;восстановить ID
 w53_close_nochk:
 		ex af,af'
 		cp Sn_MR_TCP
@@ -414,7 +430,7 @@ w53_close3:
 		out (c),a
 		ld l,a
 		ret
-		W53FLAGSMACRO
+		
 w53_cmd:
 		ld b,WIZ_S_CR
 		out (c),a
