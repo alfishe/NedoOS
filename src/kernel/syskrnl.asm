@@ -411,14 +411,24 @@ focusappaddr=$+1
         ld e,(hl)
 ;sys_curgfxmode=$+1
         ;ld e,%10101000 ;320x200 mode
-        call readmouse ;resident >=#4000
+		if atm==1
+			ld bc,#fadf ;buttons
+			in d,(c)
+			inc b ;ld bc,#fbdf ;x
+			in l,(c)
+			ld b,#ff ;y
+			in h,(c)
+		else
+			call readmouse ;resident >=#4000
+		endif
         ld (sys_mousecoords),hl
         ld a,d
-	ld (sys_mousebuttons),a
-        call readtime ;hl=date, de=time
-        ld (sys_time_date),de
-        ld (sys_time_date+2),hl
-
+		ld (sys_mousebuttons),a
+		ifn atm==1
+			call readtime ;hl=date, de=time
+			ld (sys_time_date),de
+			ld (sys_time_date+2),hl
+		endif
         ld hl,sys_timer
         inc (hl)
         inc hl
@@ -488,8 +498,7 @@ muzcall=$+1
         
 sys_getchar
 ;out: de=mouse dydx, l=buttons, A=key, H=high bits of key
-        call checkfocus_getmouse
-        call z,GETKEY ;A=key, H=high bits of key, BC=keynolang
+        call checkfocus_getkbdmouse
         ;jp endsys_result_a
         ;ds #0050-$
 endsys_result_a
@@ -512,7 +521,7 @@ sys_getchar_fail
         ld l,0xff ;no buttons
         ret ;nz ;jp endsys_result_a
 
-checkfocus_getmouse
+checkfocus_getkbdmouse
 ;out: nz=fail
         ld de,(focusappaddr)
         ld hl,(appaddr)
@@ -530,9 +539,15 @@ sys_oldmousecoords=$+1
         ld a,d
         sub h ;a=dy
         ld d,a ;d=dy
+		if atm==1
+		push de
+        call GETKEY ;A=key, H=high bits of key, BC=keynolang
+		pop de
+		else
+        call GETKEY ;A=key, H=high bits of key, BC=keynolang
+		endif
 sys_mousebuttons=$+1
         ld l,0xff
-        xor a
         ret ;z
 
 callbdos
@@ -667,6 +682,79 @@ sys_findfreeid0
 ;a=free id
         ret
 		
+		if atm==1
+NVRAM_REG=0xde
+NVRAM_VAL=0xbe
+readtime
+;sp=#7fxx
+;e=gfxmode
+;out: hl=date, de=time
+;TODO атомарно
+		ld bc,0xf7 + (NVRAM_REG<<8)
+		ld a,0x0b
+		out (c),a
+		ld b,NVRAM_VAL
+		in a,(c)
+		or 0x04
+		out (c),a
+		xor a		;sec
+		call bcd2bin
+		srl a
+		ld l,a
+		
+		ld a,2		;min
+		call bcd2bin
+		call minmes
+		add a,l
+		ld (sys_time_date),a	;ld e,a
+		ld l,h
+		
+		ld a,4		;h
+		call bcd2bin
+		add a,a
+		add a,a
+		add a,a
+		add a,l
+		ld (sys_time_date+1),a	;ld d,a
+		
+		ld a,7		;day
+		call bcd2bin
+		ld l,a
+		
+		ld a,8		;mes
+		call bcd2bin
+		call minmes
+		add a,l
+		ld (sys_time_date+2),a	;ld l,a
+		
+		ld a,9		;god
+		call bcd2bin
+		add a,20
+		add a,a
+		add a,h
+		ld (sys_time_date+3),a	;ld h,a
+		ret
+minmes
+		ld h,a
+		xor a
+		srl h
+		rra
+		srl h
+		rra
+		srl h
+		rra
+		ret
+
+bcd2bin
+		ld b,NVRAM_REG
+		out (c),a
+		ld b,NVRAM_VAL
+		in a,(c)
+		ret
+    
+		endif
+
+
 		if PS2KBD
 			include "ps2drv.asm"
 		else

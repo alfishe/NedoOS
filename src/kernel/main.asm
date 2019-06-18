@@ -4,7 +4,7 @@
         include "../_sdk/syssets.asm"
 TOPDOWNMEM=1
 
-        if atm==3
+		if atm==3 or atm==1
 memport0000=#37f7
 memport4000=#77f7
 memport8000=#b7f7
@@ -147,20 +147,28 @@ begin
         LD A,%10101000 ;320x200 mode
         ;LD A,%10101010 ;640x200 mode
         ;LD A,%10101110 ;textmode
-        CALL INIT_OUTSHADON
-        
+		if atm==1
+			ld bc,0x01bf
+			out (c),b
+			ld bc,0xbd77	;shadow ports and palette remain on
+			out (c),a
+			xor a
+			out (0xbf),a
+		else
+			CALL INIT_OUTSHADON
+        endif
         call INIT_blackpal
 
         di
-
-        if atm==3
-			if PS2KBD
-				ld bc,0xdef7	
-				out (c),c		
-				ld b,0xbe		
-				ld a,2			
-				out (c),a
-			endif
+		if atm==1 and PS2KBD
+			ld bc,0xdef7	
+			out (c),c		
+			ld b,0xbe		
+			ld a,2			
+			out (c),a
+		endif
+		
+		if atm==3 or atm==1
 			ld a,#7f-5
 			ld bc,memportrom4000
 			out (c),a ;отключаем 7ffd
@@ -171,8 +179,14 @@ begin
 			ld bc,memportromc000
 			out (c),a ;отключаем 7ffd
 		endif
-
-        call findpgdos
+		
+		ifn atm==1
+			call findpgdos
+		else
+			ld a,0x04
+			in a,(0xbe)
+			and %10111111
+		endif
          ld lx,a
         ld (sys_pgdos),a ;до установки резидента
 
@@ -268,7 +282,7 @@ fatfspatchaddr=#c000
 ;в юзерспейсе назначаем нижнюю страницу с керналем (вместо ПЗУ)
         ld a,fd_user
         out (#fd),a
-        if atm==3
+		if atm==3 or atm==1
          ld a,#7f
          ld bc,memportrom0000
          out (c),a ;отключаем ПЗУ
@@ -293,7 +307,7 @@ fatfspatchaddr=#c000
         
         ld a,fd_system
         out (#fd),a
-        if atm==3
+		if atm==3 or atm==1
          ld a,#7f
          ld bc,memportrom0000
          out (c),a ;отключаем ПЗУ
@@ -343,12 +357,14 @@ init_oldmousecoords=$+1
         jp setkernelpages_go
 
         
+		ifn atm==1
 INIT_OUTSHADON
         ;LD BC,#FF77 ;shadow ports remain off
-        LD BC,#BD77 ;shadow ports and palette remain on
-        LD IX,10835
-        PUSH IX
-        JP #3D2F
+			LD BC,#BD77 ;shadow ports and palette remain on
+			LD IX,10835
+			PUSH IX
+			JP #3D2F
+		endif
 
 INIT_setpg_low
         LD BC,memportrom0000 ;page for #0000..#3fff
@@ -364,7 +380,8 @@ INIT_setpg_c000
         LD BC,memportc000 ;page for #c000..#ffff
         OUT (C),A
         ret
-
+		
+		ifn atm==1
 findpgdos
 ;если не найти страницу текущего доса, то на старых версиях ПЗУ ZX Evo не будет работать (в странице #83 почему-то не дос по умолчанию)
         call crcdos
@@ -415,6 +432,7 @@ crcdos0
         bit 6,h
         jr z,crcdos0
         ret
+		endif
 
 INIT_blackpal
         LD HL,blackpalend
@@ -445,6 +463,7 @@ blackpalend=$-1
 
 wasresident
         ;disp resident
+		ifn atm==1
 readmouse=$-wasresident+resident
 ;sp=#7fxx
 ;e=gfxmode
@@ -456,36 +475,49 @@ readmouse=$-wasresident+resident
         in l,(c)
         ld b,#ff ;y
         in h,(c)
+		endif
 shadon_pgsys=$-wasresident+resident
         LD A,e;%10101000 ;320x200 mode
 shadon_pgsys_a=$-wasresident+resident
-        CALL sys_SHADON
-         if atm==3
-        ld a,#7f
-        call sys_setpg_low
-        ld a,pgsys
-	ld bc,memport0000
-        jr sys_outca_jr
+		ifn atm==1
+			CALL sys_SHADON
+		else
+			ld bc,0x01bf
+			out (c),b
+			ld bc,0xbd77	;shadow ports and palette remain on
+			out (c),a
+			xor a
+			out (0xbf),a
+		endif
+		
+		if atm==3 or atm==1
+			ld a,#7f
+			call sys_setpg_low
+			ld a,pgsys
+			ld bc,memport0000
+			jr sys_outca_jr
          else
-        ld a,#7f-(pagexor-pgsys)
+			ld a,#7f-(pagexor-pgsys)
          endif
 sys_setpg_low=$-wasresident+resident
-	ld bc,memportrom0000
-        jr sys_outca_jr
+		ld bc,memportrom0000
+		jr sys_outca_jr
 sys_SHADOFF=$-wasresident+resident
 sys_pgdos=$+1 ;для патча
-	ld a,#83 ;48 basic switchable to DOS
-	call sys_setpg_low
+		ld a,#83 ;48 basic switchable to DOS
+		call sys_setpg_low
         LD A,e;%10101000 ;320x200 mode
-	ld bc,#ff77 ;shadow ports off, palette off
+		ld bc,#ff77 ;shadow ports off, palette off
 sys_outca_jr
         out (c),a
-	ret
+		ret
+		ifn atm==1
 sys_SHADON=$-wasresident+resident
-        LD bc,10835
-        PUSH bc
-        LD BC,#BD77 ;shadow ports and palette remain on
-        JP #3D2F
+			LD bc,10835
+			PUSH bc
+			LD BC,#BD77 ;shadow ports and palette remain on
+			JP #3D2F
+		endif
 
 ;TODO убрать в pgtrdos
 dos3d13_resident=$-wasresident+resident
@@ -508,7 +540,10 @@ dos3d13_resident=$-wasresident+resident
 dos_sp=$+1-wasresident+resident
         ld sp,0
         ret
-
+		
+	ifn atm==1
+NVRAM_REG=0xdf
+NVRAM_VAL=0xbf
 minmes=$-wasresident+resident
     ld h,a
     xor a
@@ -521,9 +556,9 @@ minmes=$-wasresident+resident
     ret
 
 bcd2bin=$-wasresident+resident
-    ld b,0xdf
+    ld b,NVRAM_REG
     out (c),a
-    ld b,0xbf
+    ld b,NVRAM_VAL
     in a,(c)
     ret
     
@@ -532,16 +567,16 @@ readtime=$-wasresident+resident
 ;e=gfxmode
 ;out: hl=date, de=time
 ;TODO атомарно
-        call sys_SHADOFF
-        LD A,e;%10101000 ;320x200 mode
-        push af
-      ld bc,0xeff7
-      ld a,0x80
-      out (c),a
+	call sys_SHADOFF
+	LD A,e;%10101000 ;320x200 mode
+	push af
+	ld bc,0xeff7
+	ld a,0x80
+	out (c),a
+	ld bc,0xf7 + (NVRAM_REG<<8)
     ld a,0x0b
-    ld bc,0xdff7
     out (c),a
-    ld b,0xbf
+    ld b,NVRAM_VAL
     in a,(c)
     or 0x04
     out (c),a
@@ -581,12 +616,12 @@ readtime=$-wasresident+resident
     add a,a
     add a,h
     ld h,a
-      ld bc,0xeff7
-      xor a
-      out (c),a
-
-        pop af
-        jp shadon_pgsys_a
+	ld bc,0xeff7
+	xor a
+	out (c),a
+	pop af
+	jp shadon_pgsys_a
+		endif
 
 	disp $-wasresident+resident
 ;собственно дpайвеp, аналогичный #3д13 (и с его использованием)

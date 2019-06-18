@@ -1415,6 +1415,9 @@ BDOS_getfiletime_zero
         ;pop ix
 BDOS_gettime
 ;out: ix=date, hl=time
+		if atm==1
+			call readtime
+		endif
         ld hl,(sys_time_date)
         ld ix,(sys_time_date+2)
         ret

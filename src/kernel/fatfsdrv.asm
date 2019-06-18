@@ -36,11 +36,11 @@ devices_init
 	ld l,c
 	or e ;a=e
 	jr nz,devices_init_noSD
-        if atm==3
-	call SD_INIT
-        else
+    if atm==3 or atm==1
+		call SD_INIT
+    else
         ld a,1
-        endif
+    endif
 	ld (device_states),a
 	ret  
 devices_init_noSD
@@ -951,7 +951,10 @@ GS_INIT
 
 get_fattime:
 ;de=buf
+		if atm==1
+			call readtime
+		endif
         ld hl,sys_time_date
-	ld bc,4
+		ld bc,4
         ldir
         ret
