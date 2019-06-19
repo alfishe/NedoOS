@@ -1,6 +1,31 @@
 getkey
-;TODO через OS_GETKEYMATRIX
 ;out: c=%???lrduf (0=нажато)
+;fire = A
+        if 1==1
+        OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
+        xor a
+	bit 4,e ;5
+	jr z,$+3
+	inc a ;Left
+	add a,a
+	bit 2,h ;8
+	jr z,$+3
+	inc a ;Right
+	add a,a
+	bit 4,h ;6
+	jr z,$+3
+	inc a ;Down
+	add a,a
+	bit 3,h ;7
+	jr z,$+3
+	inc a ;Up
+	rr c ;'a'
+	rla ;fire
+        ld c,a
+        ret
+        
+        else
+        
         ld c,#ff
         ld a,#ef
         in a,(#fe) ;'0'..'6'
@@ -28,4 +53,4 @@ getkey
         ret c
         res 0,c ;f
         ret
-      
+        endif

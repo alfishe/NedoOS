@@ -20,6 +20,10 @@ CONST STRUCT zzz zuzu={
 VAR STRUCT zzz* pzz1
 VAR tpzzz pzzz
 
+CONST UINT zzz_nnn = 0;
+VAR LONG l0 = &zuzu->lb;
+VAR LONG l1 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb
+
 #define X 1
 
 #ifdef DOUBLES

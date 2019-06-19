@@ -3,6 +3,79 @@
 
 add(mul(px,px),add(mul(py,py),mul(pz,pz))) - ГЛЮК (первый add получает первый параметр уже затёртым), и при глубинных вызовах тоже
 
+глюк в выражениях с тайпкастом:
+struct zzz{
+  BYTE ba;
+  LONG lb;
+  STRUCT zzz* pcc;
+}
+
+TYPEDEF STRUCT zzz* tpzzz
+
+CONST STRUCT zzz zuzu={
+  0x03,
+  5L,
+  &zuzu
+}
+VAR STRUCT zzz* pzz1
+VAR tpzzz pzzz
+
+CONST UINT zzz_nnn = 0;
+VAR LONG l0 = &zuzu->lb;
+VAR LONG l1 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb
+выдаёт
+;PUSHNUM zuzu ;Line=24
+;PUSHNUM zzz.lb ;Line=24
+;PUSHCONST zuzu ;Line=24
+	LD HL,zuzu
+;OPERATION + ;Line=24
+;PUSHCONST zzz.lb ;Line=24
+	LD DE,zzz.lb
+	ADD HL,DE
+;PEEK ;Line=24
+	LD E,[HL]
+	INC HL
+	LD D,[HL]
+	INC HL
+	LD A,[HL]
+	INC HL
+	LD H,[HL]
+	LD L,A
+;POPVAR l0 ;Line=24
+	LD [l0],DE
+	LD [l0+2],HL
+;PUSHNUM zuzu ;Line=25
+;OPERATION cast 31>1 ;Line=25
+;PUSHNUM zzz_nnn ;Line=25
+;PUSHCONST zuzu ;Line=25
+	LD HL,zuzu
+;OPERATION + ;Line=25
+;PUSHCONST zzz_nnn ;Line=25
+	LD DE,zzz_nnn
+	ADD HL,DE
+;OPERATION cast 1>31 ;Line=25
+;PUSHNUM UINT.lb ;Line=25
+;OPERATION + ;Line=25
+;PUSHCONST UINT.lb ;Line=25
+	LD DE,UINT.lb ;<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	ADD HL,DE
+;PEEK ;Line=25
+	LD E,[HL]
+	INC HL
+	LD D,[HL]
+	INC HL
+	LD A,[HL]
+	INC HL
+	LD H,[HL]
+	LD L,A
+;POPVAR l1 ;Line=27
+
+let variable=l1 type=4, but expr type=47;_test.c line=27
+operation popvar bad type=47;_test.c line=27
+
+TODO ещё поддержать VAR LONG l1 = (&zuzu+zzz_nnn)->lb (но в Си так нельзя, он домножит zzz_nnn на размер)
+
+
 сделать вложенные скобки в дефайнах, иначе нельзя типизированные -(a/b)
 
 #include "name.h"
@@ -35,11 +108,10 @@ extern!=export (в си нет export)
 
 
 
-не следует объединять .asm и .var в один файл (т.к. их надо компилировать в разные пространства)
+не следует объединять .ast и .var в один файл (т.к. их надо компилировать в разные пространства)
 а инициализированные переменные - ещё одно пространство? сейчас явных нет, но есть константные массивы и структуры
 
 
-можно сделать утилиту очистки временных файлов - для всех трёх осей разную
 
 
 
@@ -122,7 +194,7 @@ EXPORT PROC fclosewrite(PBYTE file)
 
 в асме добавить LIMIT addr, при достижении этого адреса выводить ошибку limit
 
-todo проверить знаковое сравнение
+todo проверить знаковое сравнение (вроде в рейтрейсе работало?)
 
 todo проверить в токенизаторе, ставится ли LF перед ошибкой в начале строки (при отладке Thumb вылезло)
 
@@ -340,7 +412,7 @@ RETURN ([STRUCT] VisualObject*)getmem_copy(+sizeof(Button), _this);
 //TODO нужны ли ...able? они сами по себе ничего не делают и не защищают
 //viewable и clickable явно относятся к visualobject
 //listable можно выделить, если там будут смещения до prev,next, а функции GetPrev, GetNext, GetHead, GetSize, IsEmpty, Add, Remove всегда одинаковые
-//copyable опасно, потому что семантика неясна (копировать ли вложенные объекты?). чтобы класть в контейнер, достаточно наследовать интерфейс listable и т.п. можно даже неколько раз, если данные прошиты многими ссылками
+//copyable опасно, потому что семантика неясна (копировать ли вложенные объекты? по идее не попировать, и интерфейсы хранить как подструктуры, а не по ссылке!). чтобы класть в контейнер, достаточно наследовать интерфейс listable и т.п. можно даже неколько раз, если данные прошиты многими ссылками
 CONST [STRUCT] IViewable buttoniviewable{
   &Button_View
 };

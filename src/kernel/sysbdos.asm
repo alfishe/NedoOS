@@ -936,8 +936,10 @@ sys_quit_delpages0
         ld (hl),0 ;освободили страницу
         inc hl
         djnz sys_quit_delpages0
+		if INETDRV
 		BDOSSETPGW5300
 		call w53_drop_socs
+		endif
         xor a ;ok
         ld (iy+app.id),a ;b;0 ;освободили место
         ret

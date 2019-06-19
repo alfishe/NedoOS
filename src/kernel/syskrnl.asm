@@ -7,10 +7,14 @@ bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTST
 QUITSTACK=0x4000 ;<=0x4000
 
         macro BDOSSETPGSSCR
+        ld a,(iy+app.screen)
+	bit 3,a
         ld a,pgscr0_0
+	jr z,$+4
+        ld a,pgscr1_0
         ld bc,memport8000
         out (c),a
-        ld a,pgscr0_1
+        xor pgscr0_1^pgscr0_0 ;ld a,pgscr0_1
         ld b,memportc000_hi;#ff
         out (c),a
         endm
@@ -424,10 +428,14 @@ focusappaddr=$+1
         ld (sys_mousecoords),hl
         ld a,d
 		ld (sys_mousebuttons),a
-		ifn atm==1
+		if atm != 1
+			ld a,(sys_timer)
+			and 7
+			jr nz,on_int_noreadtime
 			call readtime ;hl=date, de=time
 			ld (sys_time_date),de
 			ld (sys_time_date+2),hl
+on_int_noreadtime
 		endif
         ld hl,sys_timer
         inc (hl)
