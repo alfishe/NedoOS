@@ -14,6 +14,7 @@ WIZ_S_DIPR0 EQU 0x14
 WIZ_S_DIPR1 EQU 0x15
 WIZ_S_DIPR2 EQU 0x16
 WIZ_S_DIPR3 EQU 0x17
+WIZ_S_PROTOR EQU 0x1b
 WIZ_S_WRSR_H EQU 0x22
 WIZ_S_WRSR_L EQU 0x23
 WIZ_S_FSR_H EQU 0x26
@@ -25,14 +26,19 @@ WIZ_S_TX_L EQU 0x2f
 WIZ_S_RX_H EQU 0x30
 WIZ_S_RX_L EQU 0x31
 
+
+IPPROTO_ICMP EQU 1
+IPPROTO_IGMP EQU 2
 IPPROTO_TCP EQU 6
 IPPROTO_UDP EQU 17
+
 
 AF_UNSPEC EQU 0
 AF_INET EQU 2
 AF_INET6 EQU 23
 
 SOCK_STREAM EQU 0x01	;tcp/ip
+SOCK_ICMP 	EQU 0x02		;icmp
 SOCK_DGRAM 	EQU 0x03		;udp/ip
 
 SHUT_RDWR 		EQU 2
@@ -178,6 +184,9 @@ w53_socket1:
 		ld d,Sn_MR_UDP
 		cp SOCK_DGRAM
 		jr z,w53_socket2
+		ld d,Sn_MR_IPRAW
+		cp SOCK_ICMP
+		jr z,w53_socket2_icmp
 		ld a,ERR_PROTOTYPE
 		ld l,-1
 		ret
@@ -189,14 +198,19 @@ w53_socket2:
 		xor a
 		ld (ix+2),a
 		ld (ix+3),a
-        ret
+		ret
+w53_socket2_icmp:
+		ld b,WIZ_S_PROTOR
+		ld a,IPPROTO_ICMP
+		out (c),a
+		jr w53_socket2:
 
 		
 w53_bind:
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
 		call BDOS_preparedepage
-        call BDOS_setdepage 
+		call BDOS_setdepage 
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_PORTR_H<<8)
 		inc de
 		ld a,(de)
@@ -339,7 +353,7 @@ w53_connect0:
 		or a
 		jr z,w53_connect0
 		call BDOS_preparedepage
-        call BDOS_setdepage 
+		call BDOS_setdepage 
 		ex de,hl
 		inc hl	;пропустим семейство
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
@@ -411,7 +425,7 @@ w53_close_udp:
 		ld b,WIZ_S_SSR
 		in a,(c)
 		cp SOCK_UDP
-		jr nz,w53_close_wait
+		jr c,w53_close_wait
 		ld a,e
 		or a
 		ld a,ERR_EAGAIN
@@ -445,7 +459,7 @@ wiznet_read:	;a'-сокет, de-Буфер, hl-количество
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
 		;call BDOS_preparedepage
-w53_read_min:			;hl-сколько хотим байт
+w53_read_min:	;hl-сколько хотим байт
 		ld a,h
 		or l
 		ret z
@@ -574,12 +588,15 @@ w53_read_new1:
 		ld b,WIZ_S_SSR
 		in a,(c)
 		ld b,WIZ_S_RX_H
+		cp SOCK_IPRAW
+		jr z,w53_read_skip4
 		cp SOCK_UDP
-		jr nz,w53_read_new2
+		jr c,w53_read_new2
 		in a,(c)
 		inc b
 		in a,(c)
 		dec b
+w53_read_skip4:
 		in a,(c)
 		inc b
 		in a,(c)
@@ -639,7 +656,7 @@ w53_wr_loop:
 		ld b,a
 		outi
 		add ix,de
-		jr c,w53_wr_loop		
+		jr c,w53_wr_loop
 		pop hl
 		ld b,WIZ_S_WRSR_H
 		out (c),h
