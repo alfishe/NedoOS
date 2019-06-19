@@ -5,7 +5,7 @@ COLOR=7
         
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         
@@ -206,11 +206,14 @@ countdays_month
         ld a,e
         cp 2
         jr z,countdays_feb
+        push de
         push hl
+        ld d,0
         ld hl,tdays_month-1
         add hl,de
         ld a,(hl)
         pop hl
+        pop de
         ret
 countdays_feb
         ld a,d
@@ -239,6 +242,7 @@ dos2unixtime
 ;ix=date, hl=time
 ;out: dehl=UNIX time
 ;DOS date, time to UNIX time (seconds since beginning of 1970)
+        ;jr $
         push hl ;time
         ld a,lx
         push af
@@ -359,8 +363,8 @@ dos2unixtime_nomonth
         ld b,0
         add hl,bc
         
-        pop hl
-        pop de ;dehl = days*86400/2
+        pop bc
+        pop de ;debc = days*86400/2
 
         add hl,bc
         jr nc,$+3
@@ -372,6 +376,294 @@ dos2unixtime_nomonth
         rl d ;dehl=UNIX time
         ret
 
+unix2dostime
+;TODO доделать!!! сейчас не работает
+
+;dehl=UNIX time
+;out: ix=date, hl=time
+;UNIX time (seconds since beginning of 1970) to DOS date, time
+        ;jr $
+;поделить на 2 (т.к. в DOS только двойные секунды)
+        srl d
+        rr e
+        rr h
+        rr l
+;поделить на 86400/2 - в остатке время
+        push de
+        ld de,86400/2
+        exx
+        pop hl
+        ld de,0
+        exx
+        call ldiv ; hl'hl = hl'hl / de'de ; de'de = hl'hl % de'de
+;hl=дни
+;de=двойные секунды
+        
+
+        push hl ;time
+        ld a,lx
+        push af
+        ld hl,0 ;число дней
+        ld a,hx
+        srl a
+        add a,10
+        ld d,a ;d=year since 1970 (0 for 1970)
+;в цикле по годам прибавлять число дней, соответствующее годам
+        ;jr z,dos2unixtime_noyear
+        push de
+        ld b,d
+        ld d,0 ;year 1970
+unix2dostime_years0
+        ld a,d
+        sub 2
+        and 3
+        ld a,365&0xff
+        jr nz,$+3
+        inc a
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        inc h
+        inc d ;year 1971 etc... don't add current year
+        djnz unix2dostime_years0
+        pop de
+;dos2unixtime_noyear
+;в цикле по месяцам прибавлять число дней, соответствующее месяцам
+        add ix,ix
+        add ix,ix
+        add ix,ix
+        ld a,hx
+        and 0x0f
+        ld b,a ;e=month (1..12)
+        dec b
+        jr z,unix2dostime_nomonth
+        ld e,1
+unix2dostime_months0
+;e=month (1..12)
+        call countdays_month ;out: a=days
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        inc e
+        djnz unix2dostime_months0
+unix2dostime_nomonth
+        pop af
+        and 0x1f ;day (1..31)
+        dec a
+;потом прибавить (day-1) (т.к. дни у нас с единицы)
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a ;hl=число дней с начала 1970
+;потом умножить на 86400 (0x15180) / 2
+        ex de,hl
+        ld bc,86400/2
+        call MULWORD ;out: HLBC=DE*BC
+        ld d,b
+        ld e,c
+        ex de,hl ;dehl = days*86400/2
+        pop bc ;time
+;потом прибавить (3600/2*hour) + (60/2*minute) + (second/2) = 30*(60*hour + minute) + (second/2)
+        push de
+        push hl ;dehl = days*86400/2
+
+        ld a,b
+        rra
+        rra
+        rra
+        and 0x1f ;hour
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        ld d,h
+        ld e,l ;hour*4
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl ;hour*64
+        sbc hl,de ;hl = hour*60
+        
+        ld a,c
+        rla
+        rl b
+        rla
+        rl b
+        rla
+        rl b
+        ld a,b
+        and 0x3f ;minute
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a ;hl = (60*hour + minute)
+
+        add hl,hl
+        ld d,h
+        ld e,l ;*2
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl ;*32
+        sbc hl,de ;*30
+;hl = 30*(60*hour + minute)
+
+        ld a,c
+        and 0x1f ;second/2
+        ld c,a
+        ld b,0
+        add hl,bc
+        
+        pop bc
+        pop de ;debc = days*86400/2
+
+        add hl,bc
+        jr nc,$+3
+        inc de
+        
+;потом умножить на 2
+        add hl,hl
+        rl e
+        rl d ;dehl=UNIX time
+        ret
+
+; версия от 2006-12-18T15:11:28+0300
+; Беззнаковое 32-разрядное деление
+; функция состоит из двух частей:
+; 1. 32-разрядное делимое и 16-разрядный
+;    делитель.
+; 2. 32-раздядное делимое и 32-разрядный
+;    делитель.
+; hl'hl = hl'hl / de'de
+; de'de = hl'hl % de'de
+ldiv
+        push hl 
+        xor a 
+        ld l, a
+        ld h, a 
+        sub e 
+        ld e, a
+ ld a, h
+        sbc a, d
+        ld d, a
+        exx 
+        pop bc 
+        ld a, 0
+        sbc a, e
+        ld e, a
+        sbc a, d  ; de'de=0-divisor
+        sub e
+        ld d, a 
+        and e
+        inc a     ; Z=short divisor
+        push hl 
+        ld hl, 0  ; hl'hl=reminder
+        exx 
+        pop bc 
+        ld a, b   ; a,c,bc'=divident
+
+        jr nz, ldiv_long
+
+
+    ; divisor = -00de
+        ld b, 8
+        rla 
+ldivs0
+        rl l 
+        add hl, de 
+        jr c, ldivs1
+        sbc hl, de 
+ldivs1  rla 
+        djnz ldivs0
+
+           ld b, c
+           ld c, a
+           ld a, b 
+           ld b, 8
+        rla
+ldivs2
+        adc hl, hl
+        add hl, de
+        jr c, ldivs3
+        sbc hl, de
+ldivs3  rla
+        djnz ldivs2
+        jr ldiv_long1
+
+
+   ; divisor=-de'de
+ldiv_long
+        call ldiv_8
+           ld b, c
+           ld c, a
+           ld a, b
+        call ldiv_8
+ldiv_long1
+           exx 
+           exa 
+           ld a, b
+           exa
+           ld b, a
+           exa
+           exx 
+        call ldiv_8
+           exx
+           exa
+           ld a, c
+           exa
+           ld c, a
+           exa
+           exx 
+        call ldiv_8
+
+  ; result=c,bc',a -> hl'hl 
+  ; reminder=hl'hl -> de'de 
+
+        ex de, hl 
+        ld l, a 
+        ld a, c 
+        exx
+        ex de, hl 
+        ld h, a
+        ld l, b
+        ld a, c 
+        exx 
+        ld h, a
+        ret 
+
+
+; hl'hl=reminder
+; de'de=divisor
+; a=divident
+ldiv_8
+        ld b, 8
+        rla 
+ldiv_8_0
+        adc hl, hl
+        exx
+        adc hl, hl 
+        exx
+        add hl, de 
+        exx 
+        adc hl, de 
+        exx 
+        jr c, ldiv_8_1
+        sbc hl, de 
+        exx
+        sbc hl, de
+        exx 
+ldiv_8_1
+        rla 
+        djnz ldiv_8_0
+        ret 
+         
+        
 untar
         ;ld (filenameaddr),hl
 ;command line = "texted <file to load>"

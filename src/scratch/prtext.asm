@@ -23,27 +23,27 @@
         exx
         ld bc,1000000000/65536
         exx
-        ld bc,1000000000&#ffff
+        ld bc,1000000000&0xffff
         call prnumdword0
         exx
         ld bc,100000000/65536
         exx
-        ld bc,100000000&#ffff
+        ld bc,100000000&0xffff
         call prnumdword0
         exx
         ld bc,10000000/65536
         exx
-        ld bc,10000000&#ffff
+        ld bc,10000000&0xffff
         call prnumdword0
         exx
         ld bc,1000000/65536
         exx
-        ld bc,1000000&#ffff
+        ld bc,1000000&0xffff
         call prnumdword0
         exx
         ld bc,100000/65536
         exx
-        ld bc,100000&#ffff
+        ld bc,100000&0xffff
         call prnumdword0
         exx
         ld bc,0
@@ -130,9 +130,9 @@ prchar48ega_colorproc=$+1
         pop hl
         pop de
         ld a,h
-        xor #20
+        xor 0x20
         ld h,a
-        and #20
+        and 0x20
         ret nz
         inc hl
         ret
@@ -207,7 +207,7 @@ prNchars0
         ret
         
         SHAPESPROC shapes_prhexbyte
-;ld a,#30;a=#30 - 0,1,2..9 #41 - A,B,C,D,E,F #61 - a,b,c..
+;ld a,0x30;a=0x30 - 0,1,2..9 0x41 - A,B,C,D,E,F 0x61 - a,b,c..
 ;a=XX 
 ;lx=color %33210210
 ;hl=scr
@@ -234,7 +234,7 @@ pronehexdigit
 ;a=?X
         push bc
         push af
-        and #f
+        and 0xf
         cp 10
         jr c,prcharbit_noletter
         add a,'a'-('0'+10)
@@ -253,22 +253,22 @@ prchar48ega_black0
         ld a,(hl)
         rl c
         jr nc,$+4
-        and %10111000
+        and 0xb8;%10111000
         rl c
         jr nc,$+4
-        and %01000111
+        and 0x47;%01000111
         ld (hl),a
         set 6,h
         ld a,(hl)
         rl c
         jr nc,$+4
-        and %10111000
+        and 0xb8;%10111000
         rl c
         jr nc,$+4
-        and %01000111
+        and 0x47;%01000111
         ld (hl),a
         inc d
-        ld c,+(40-#4000)&#ff
+        ld c,+(40-0x4000)&0xff
         add hl,bc
         dec hx
         jp nz,prchar48ega_black0
@@ -281,22 +281,22 @@ prchar48ega_white0
         ld a,(hl)
         rl c
         jr nc,$+4
-        or %01000111
+        or 0x47;%01000111
         rl c
         jr nc,$+4
-        or %10111000
+        or 0xb8;%10111000
         ld (hl),a
         set 6,h
         ld a,(hl)
         rl c
         jr nc,$+4
-        or %01000111
+        or 0x47;%01000111
         rl c
         jr nc,$+4
-        or %10111000
+        or 0xb8;%10111000
         ld (hl),a
         inc d
-        ld c,+(40-#4000)&#ff
+        ld c,+(40-0x4000)&0xff
         add hl,bc
         dec hx
         jp nz,prchar48ega_white0
@@ -310,22 +310,22 @@ prchar48ega_whiteoncolor0
         ld a,lx
         rl c
         jr nc,$+4
-        or %01000111
+        or 0x47;%01000111
         rl c
         jr nc,$+4
-        or %10111000
+        or 0xb8;%10111000
         ld (hl),a
         set 6,h
         ld a,lx
         rl c
         jr nc,$+4
-        or %01000111
+        or 0x47;%01000111
         rl c
         jr nc,$+4
-        or %10111000
+        or 0xb8;%10111000
         ld (hl),a
         inc d
-        ld c,+(40-#4000)&#ff
+        ld c,+(40-0x4000)&0xff
         add hl,bc
         dec hx
         jp nz,prchar48ega_whiteoncolor0
@@ -339,22 +339,22 @@ prchar48ega_white7oncolor0
         ld a,lx
         rl c
         jr nc,$+4
-        or %00000111
+        or 0x07;%00000111
         rl c
         jr nc,$+4
-        or %00111000
+        or 0x38;%00111000
         ld (hl),a
         set 6,h
         ld a,lx
         rl c
         jr nc,$+4
-        or %00000111
+        or 0x07;%00000111
         rl c
         jr nc,$+4
-        or %00111000
+        or 0x38;%00111000
         ld (hl),a
         inc d
-        ld c,+(40-#4000)&#ff
+        ld c,+(40-0x4000)&0xff
         add hl,bc
         dec hx
         jp nz,prchar48ega_white7oncolor0

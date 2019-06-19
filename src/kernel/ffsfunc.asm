@@ -14,8 +14,8 @@ ffsfunc
 .f_opendir EQU 0x6D27 
 .f_read EQU 0x6027 
 .f_readdir EQU 0x6DB5 
-.f_rename EQU 0x764F 
-.f_stat EQU 0x6E4A 
+.f_rename EQU 0x7664 
+.f_stat EQU 0x6E47 
 .f_sync EQU 0x66CC 
 .f_truncate EQU 0x70AB 
 .f_unlink EQU 0x7200 

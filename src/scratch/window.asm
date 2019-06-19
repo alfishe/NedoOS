@@ -90,7 +90,7 @@ fire_or_rmb_window
 clearwindowcoords
         ld bc,coordswindowy*256 + (coordswindowx/8) ;b=y ;c=x/8
         ld de,coordswindowhgt*256 + (coordswindowwid/8) ;d=hgt ;e=wid8
-        ld a,%00111111 ;a=%33210210
+        ld a,0x3f;%00111111 ;a=%33210210
         call shapes_fillbox
 clearwindowstate
         xor a
@@ -112,8 +112,9 @@ setwindowstate
         ret
 
 window_allpicture
-        ld a,#fb
-        in a,(#fe)
+;TODO через OS_KEYMATRIX
+        ld a,0xfb
+        in a,(0xfe)
         rra ;Q
         ret nc ;было паразитное нажатие W при движении стрелки через OPQA
         ld a,(curwindowstate)

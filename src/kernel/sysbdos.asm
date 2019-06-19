@@ -3,7 +3,7 @@ NVOLUMES=8
 MAXFILES=8
 vol_trdos=4
 
-;предполагается, что юзер не имеет стек ниже #3b00, иначе он затрёт систему
+;предполагается, что юзер не имеет стек ниже 0x3b00, иначе он затрёт систему
 
 ;FCB и имя можно передавать в любой области userspace
 ;DTA может быть в любой области userspace
@@ -110,10 +110,10 @@ BDOS_getmainpages
 BDOS_getmainpages_iy
         call setmainpg_c000
         ld d,a
-        ld a,(curpg16k+#c000)
+        ld a,(curpg16k+0xc000)
         ld e,a
-        ld a,(curpg32klow+#c000)
-        ld hl,(curpg32khigh+#c000)
+        ld a,(curpg32klow+0xc000)
+        ld hl,(curpg32khigh+0xc000)
         ld h,a
         ld c,(iy+app.flags)
         xor a
@@ -121,7 +121,7 @@ BDOS_getmainpages_iy
 
 BDOS_preparedepage
 ;de=userspace addr
-;out: de>=#8000, включены нужные страницы в 8000,c000
+;out: de>=0x8000, включены нужные страницы в 8000,c000
         ;ld iy,(appaddr)
         ld a,(iy+app.mainpg)
         ld bc,memport8000
@@ -132,30 +132,30 @@ BDOS_preparedepage
         jr nz,BDOS_preparedepage4000_8000
         set 7,d
 	ld (depage8000),a
-        ld a,(curpg16k+#8000)
+        ld a,(curpg16k+0x8000)
         ;ld bc,memportc000
         ;out (c),a
 	ld (depagec000),a
         ret
 BDOS_preparedepage4000_8000
         ld a,d
-        add a,#40
+        add a,0x40
         ld d,a
-        ld a,(curpg32klow+#8000)
+        ld a,(curpg32klow+0x8000)
         ;ld bc,memportc000
         ;out (c),a
 	ld (depagec000),a
-        ld a,(curpg16k+#8000)
+        ld a,(curpg16k+0x8000)
         ;ld bc,memport8000
         ;out (c),a
 	ld (depage8000),a
         ret
 BDOS_preparedepage8000_c000
-        ld a,(curpg32khigh+#8000)
+        ld a,(curpg32khigh+0x8000)
         ;ld bc,memportc000
         ;out (c),a
 	ld (depagec000),a
-        ld a,(curpg32klow+#8000)
+        ld a,(curpg32klow+0x8000)
         ;ld bc,memport8000
         ;out (c),a
 	ld (depage8000),a
@@ -182,7 +182,7 @@ BDOS_setpgstructs
 BDOS_setpal
         call BDOS_preparedepage
         call BDOS_setdepage
-;de=палитра (выше #c000)
+;de=палитра (выше 0xc000)
         push iy
         pop hl
         ld bc,app.pal
@@ -202,7 +202,7 @@ BDOS_scroll_prepare
 BDOS_countxy
 ;keeps bc
         ld a,d ;y
-        sub -#87&#ff ;#e1c0*4=#8700
+        sub -0x87&0xff ;0xe1c0*4=0x8700
         rra
         ld h,a
          ld a,0;16
@@ -231,9 +231,9 @@ BDOS_getxy
         and 0x7f
         ld e,a ;x
         add hl,hl
-        add hl,hl ;h=y*4 + const + n*#80
+        add hl,hl ;h=y*4 + const + n*0x80
         ld a,h
-        sub 0x87 ;#e1c0*4=#8700
+        sub 0x87 ;0xe1c0*4=0x8700
         and 0x1f
         ld d,a ;y
         xor a ;success
@@ -245,9 +245,9 @@ BDOS_countattraddr
         ld l,(iy+app.textcuraddr)
         ld h,(iy+app.textcuraddr+1)
         ld a,h
-        xor #60 ;attr + #20
+        xor 0x60 ;attr + 0x20
         ld h,a
-         and #20
+         and 0x20
         jr nz,$+3
         inc l
         ret
@@ -280,14 +280,14 @@ BDOS_settextcuraddr
         ret
         
 BDOS_prchar_controlcode
-        cp #0a
+        cp 0x0a
         jr z,BDOS_prchar_lf
-        cp #0d
+        cp 0x0d
         jp nz,BDOS_prchar_nocontrolcode
         ;jr z,BDOS_prchar_cr
 BDOS_prchar_cr
         ld a,l
-        and #c0
+        and 0xc0
         ld l,a
         res 5,h
         jr BDOS_settextcuraddr
@@ -295,7 +295,7 @@ BDOS_prchar_cr
         
 BDOS_prchar_lf
         ld a,l
-        add a,#40
+        add a,0x40
         ld l,a
         jr nc,BDOS_settextcuraddr ;BDOS_prchar_q ;ret nc
         jr BDOS_prchar_lf_q
@@ -304,15 +304,15 @@ BDOS_prchar
 ;e=char
         ld a,e
 BDOS_prchar_a
-;портит только #c000+, но сама восстанавливает там pgkillable
+;портит только 0xc000+, но сама восстанавливает там pgkillable
 	ld h,trecode/256
 	ld l,a
 	ld a,(hl)
 ;pr_textmode_curaddr=$+1
-        ;ld hl,#c1c0
+        ;ld hl,0xc1c0
         ld l,(iy+app.textcuraddr)
         ld h,(iy+app.textcuraddr+1)
-        cp #0e
+        cp 0x0e
         jr c,BDOS_prchar_controlcode
 BDOS_prchar_nocontrolcode
          push hl
@@ -329,14 +329,14 @@ BDOS_prchar_nocontrolcode
         out (c),e ;attr
 BDOS_prchar_skip        
 
-        ld de,#2000 + pgkillable
+        ld de,0x2000 + pgkillable
         
          push af
 
         ld a,h
-        xor d;#20 ;attr + #20
+        xor d;0x20 ;attr + 0x20
         ld h,a
-        and d;#20
+        and d;0x20
         jr nz,$+3
         inc l
 
@@ -354,15 +354,15 @@ BDOS_prchar_skip
 BDOS_prchar_skipattr
 
         ld a,l
-        and #3f
+        and 0x3f
         cp 80/2
         ;ld (pr_textmode_curaddr),hl
         ld (iy+app.textcuraddr),l
         ld (iy+app.textcuraddr+1),h
         ret nz ;jr nz,BDOS_prchar_q ;ret nz ;нет переноса строки
         ld a,l
-        and #c0
-        add a,#40
+        and 0xc0
+        add a,0x40
         ld l,a
         jr nc,BDOS_settextcuraddr ;BDOS_prchar_q ;ret nc
 BDOS_prchar_lf_q
@@ -370,8 +370,8 @@ BDOS_prchar_lf_q
         bit 3,h
         jr z,BDOS_settextcuraddr ;BDOS_prchar_q ;нет выхода за последнюю строку
 BDOS_scrolllock0
-        ld a,#fe
-        in a,(#fe)
+        ld a,0xfe
+        in a,(0xfe)
         rra ;Caps Shift
         jr nc,BDOS_scrolllock0
         ld hl,(appaddr)
@@ -393,7 +393,7 @@ BDOS_scrolllock0
         ld bc,memportc000
         out (c),a
 BDOS_prchar_skipscroll
-        ld hl,#c7c0
+        ld hl,0xc7c0
 BDOS_prchar_q
         jp BDOS_settextcuraddr
         ;;ld (pr_textmode_curaddr),hl
@@ -404,7 +404,7 @@ BDOS_prchar_q
 BDOS_scrollpage
         ld a,40
         ld (BDOS_scrollpagelinelayer_wid),a
-        ld hl,#c1c0
+        ld hl,0xc1c0
         ld b,24
 BDOS_scrollpage0
         push bc
@@ -488,13 +488,13 @@ BDOS_scrollup
         jp BDOS_scrollpage0
         
 BDOS_cllastline
-        ld hl,#c7c0
+        ld hl,0xc7c0
         call BDOS_scrollpage_clline
-        ;ld de,#c7c1
+        ;ld de,0xc7c1
         ;ld bc,64-1
         ;ld (hl),b
         ;ldir
-        ld hl,#e7c0
+        ld hl,0xe7c0
 BDOS_scrollpage_clline        
         ld d,h
         ld e,l
@@ -527,9 +527,9 @@ BDOS_cls
          jr z,BDOS_cls_EGA ;TODO отдельную очистку для MC hires
 ;textmode
         ld a,e ;attr byte
-        ld hl,#81c0
+        ld hl,0x81c0
         call BDOS_cls_textmode_ldir
-        ld hl,#a1c0
+        ld hl,0xa1c0
         call BDOS_cls_textmode_ldir
         
         ;ld de,0
@@ -538,9 +538,9 @@ BDOS_cls
         call BDOS_setxy
         
         xor a
-        ld hl,#c1c0
+        ld hl,0xc1c0
         call BDOS_cls_textmode_ldir
-        ld hl,#e1c0
+        ld hl,0xe1c0
 BDOS_cls_textmode_ldir
         ld d,h
         ld e,l
@@ -551,7 +551,7 @@ BDOS_cls_textmode_ldir
         ret
 BDOS_cls_EGA
         ld a,e
-scrbase=#8000
+scrbase=0x8000
 ;чистим через стек, кроме первых байтов (иначе прерывание может запортить два байта перед экраном)
         ld (clssp),sp
         ld hl,scrbase+(200*40) ;чистим с конца, потому что прерывание портит стек
@@ -579,19 +579,19 @@ clsline0
         push de
         edup
         ;res 6,h
-        ld de,-40-#4000
+        ld de,-40-0x4000
         add hl,de
         djnz clsline0
 clssp=$+1
         ld sp,0
-        ld hl,#0000 + scrbase
+        ld hl,0x0000 + scrbase
         call clslayer2
-        ;ld hl,#2000 + scrbase
+        ;ld hl,0x2000 + scrbase
         ;call clslayer
 clslayer2
-        ;ld hl,#4000 + scrbase
+        ;ld hl,0x4000 + scrbase
         call clslayer
-        ;ld hl,#6000 + scrbase
+        ;ld hl,0x6000 + scrbase
 clslayer
         ld d,h
         ld e,l
@@ -599,7 +599,7 @@ clslayer
         ld  c,40-1;8000-1
         ld (hl),a
         ldir
-        ld de,#2000-(40-1)
+        ld de,0x2000-(40-1)
         add hl,de
         ret
 
@@ -611,12 +611,12 @@ BDOShandler
         ld bc,nbdoscmds
         cpir
         jp nz,BDOS_pop2fail
-;bc=nbdoscmds-(#команды+1) = 0..(nbdoscmds-1)
+;bc=nbdoscmds-(cmdnumber+1) = 0..(nbdoscmds-1)
         add hl,bc
 ;hl=tbdoscmds+nbdoscmds
         add hl,bc
         add hl,bc
-;hl=tbdoscmds+nbdoscmds+ 2*(nbdoscmds-(#команды+1))
+;hl=tbdoscmds+nbdoscmds+ 2*(nbdoscmds-(cmdnumber+1))
         pop bc
         ld a,(hl)
         inc hl
@@ -758,28 +758,28 @@ BDOS_getkeymatrix
         or a
         sbc hl,de
         jr nz,BDOS_getkeymatrix_fail
-        ld bc,#7ffe
+        ld bc,0x7ffe
         in a,(c)
         ld lx,a  ;lx=%???bnmS_
-        ld b,#bf
+        ld b,0xbf
         in a,(c)
         ld hx,a  ;hx=%???hjklE
-        ld b,#df
+        ld b,0xdf
         in l,(c)  ;l=%???yuiop
-        ld b,#ef
+        ld b,0xef
         in h,(c)  ;h=%???67890
-        ld b,#f7
+        ld b,0xf7
         in e,(c)  ;e=%???54321
-        ld b,#fb
+        ld b,0xfb
         in d,(c)  ;d=%???trewq
-        ld a,#fd
-        in a,(#fe);c=%???gfdsa
-        ld b,c;#fe
+        ld a,0xfd
+        in a,(0xfe);c=%???gfdsa
+        ld b,c;0xfe
         in b,(c)  ;b=%???vcxzC
         ld c,a
         ret
 BDOS_getkeymatrix_fail
-        ld bc,#ffff
+        ld bc,0xffff
         ld d,c
         ld e,c
         ld h,c
@@ -813,7 +813,7 @@ BDOS_yield
         endif
 
         call setmainpg_c000
-        ld (intsp+#c000),hl
+        ld (intsp+0xc000),hl
 
         ex de,hl
         call BDOS_preparedepage
@@ -825,7 +825,7 @@ BDOS_yield
         ld d,(hl)
 
         call setmainpg_c000
-        ld (intjp+#c000),de
+        ld (intjp+0xc000),de
 
         ld a,pgkillable
         out (c),a
@@ -880,7 +880,7 @@ BDOS_newapp
          jr nz,BDOS_newapp_fail
         pop af ;id
         push af ;id
-        ld e,#ff ;auto page
+        ld e,0xff ;auto page
         ;hl=textcuraddr
         call sys_newapp
           ei
@@ -904,7 +904,7 @@ BDOS_newapp
 BDOS_newapp_fail
         pop af
         pop af
-        ld a,#ff
+        ld a,0xff
           ei
         ret
 
@@ -1068,7 +1068,7 @@ sys_quit_findgfxapp_fail
 BDOS_newpage
         ;ld iy,(appaddr)
 BDOS_newpage_iy
-;out: a=0 (OK)/#ff (fail), e=page
+;out: a=0 (OK)/0xff (fail), e=page
        if TOPDOWNMEM
         ld hl,tsys_pages +sys_npages-1
         ld bc,sys_npages
@@ -1078,7 +1078,7 @@ BDOS_newpage_iy
         inc hl
         ld a,(iy+app.id)
         ld (hl),a
-        ld a,pagexor;#7f
+        ld a,pagexor;0x7f
         sub c ;c=0..sys_npages-1
        else
         ld hl,tsys_pages
@@ -1093,7 +1093,7 @@ BDOS_newpage_iy
         ld (hl),a
          ;or a
          ;sbc hl,de ;hl=(0..sys_npages-1)
-        ;ld a,pagexor;#7f
+        ;ld a,pagexor;0x7f
         ;sub l ;l=0..sys_npages-1
         ld a,0xff&(pagexor-(sys_npages-1))
         add a,c
@@ -1114,7 +1114,7 @@ BDOS_fail
 BDOS_delpage
 ;e=page
 ;не портит de
-        ld a,pagexor;#7f
+        ld a,pagexor;0x7f
         sub e
         ld c,a
         ld hl,tsys_pages
@@ -1178,7 +1178,7 @@ BDOS_fread_fatfsq
 	ret;jp fexit
 BDOS_fread_noFATFS
         BDOSSETPGTRDOSFS
-;DE = Pointer to opened FCB (#8000+/#c000+)
+;DE = Pointer to opened FCB (0x8000+/0xc000+)
         jp trdos_fread
 
 BDOS_fwrite
@@ -1269,12 +1269,12 @@ BDOS_opencurdir
 BDOS_fsearchfirst
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
-         push de ;DE = Pointer to unopened FCB (#8000+/#c000+)
+         push de ;DE = Pointer to unopened FCB (0x8000+/0xc000+)
         CHECKVOLUMETRDOS
         jr c,BDOS_fsearchfirst_noFATFS
         call BDOS_opencurdir
 
-         pop de ;DE = Pointer to unopened FCB (#8000+/#c000+)
+         pop de ;DE = Pointer to unopened FCB (0x8000+/0xc000+)
         or a
         ret nz;jp nz,fexit
         jr BDOS_fsearch_goloadloop
@@ -1289,12 +1289,10 @@ BDOS_fsearchfirst_noFATFS
         ld (iy+app.dircluster),l
         ld (iy+app.dircluster+1),h
         
-        ld de,#0000 ;track,sector
-        ld bc,#0905 ;read 9 sectors
-        ;cp 1
-        ;jr $
+        ld de,0x0000 ;track,sector
+        ld bc,0x0905 ;read 9 sectors
         call iodos.
-         pop de ;DE = Pointer to unopened FCB (#8000+/#c000+)
+         pop de ;DE = Pointer to unopened FCB (0x8000+/0xc000+)
         jr BDOS_fsearch_goloadloop
         
 ;SEARCH FOR NEXT [FCB] (12H)
@@ -1314,7 +1312,6 @@ BDOS_fsearch_loadloop
         jr c,BDOS_fsearch_loadloop_noFATFS
 
         call count_fdir ;LD de,fdir
-	 ;jr $
 	LD bc,mfilinfo
 	F_RDIR_CURDRV
         ;or a
@@ -1397,10 +1394,10 @@ BDOS_getfiletime
 ;out: ix=date, hl=time
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
-        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
+        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
         jr c,BDOS_getfiletime_zero
-		push af
-		pop af
+		;push af
+		;pop af
         ld bc,fres
 ;de=name
 ;bc=pointer to time,date
@@ -1528,7 +1525,7 @@ BDOS_openorcreatehandle
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Drive/path/file ASCIIZ string
-        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
+        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
         jr c,BDOS_openhandle_noFATFS
 		ld (.store_a),a
         push de
@@ -1599,7 +1596,7 @@ BDOS_closehandle_noFATFS
         
 BDOS_readwritehandleprepare
 ;b=handle, hl=number of bytes, de=addr
-;out: hl=fil, de=number of bytes, bc=addr(#8000+)
+;out: hl=fil, de=number of bytes, bc=addr(0x8000+)
         push hl ;Number of bytes to read
         push de ;Buffer address
         call BDOS_number_to_fil ;de=fil
@@ -1833,7 +1830,7 @@ BDOS_fclose_noFATFS
 call_ffs_curvol
 		GETVOLUME
 call_ffs	;A=логический раздел, HL=функция 
-;портит iy! по нельзя двигать стек! в нём параметры!
+;портит iy! но нельзя двигать стек! в нём параметры!
 		push hl
 		push bc
         ld hl,fatfsarray ;вычисляем указатель на структуру fatfs
@@ -1951,7 +1948,7 @@ BDOS_delete
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to ASCIIZ string
-        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
+        call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
         ;call eatdrive ;TODO keep and restore curdrv,curdir!!!
         jr c,BDOS_delete_nofatfs
         ;call keepvoldir
@@ -1986,7 +1983,7 @@ BDOS_rename_nofatfs
 
 countfiledrive
 ;DE = Drive/path/file ASCIIZ string
-;out: a=volume, de=path without drive, c=1: drive in path, NC=TR-DOS
+;out: a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
         inc de
         ld a,(de)
         cp ':'
@@ -2082,9 +2079,9 @@ BDOS_getpath
         push de ;нельзя после BDOS_preparedepage
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
-        push de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
+        push de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (0x8000+/0xc000+!)
 
-        push de ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
+        push de ;Pointer to 64 byte (MAXPATH_sz!) buffer (0x8000+/0xc000+!)
         
         GETVOLUME
         add a,'A'
@@ -2104,11 +2101,11 @@ BDOS_getpath_FAT
         ld bc,MAXPATH_sz;64 ;BC=UINT sz_path	/* Size of path */) размер буфера 
         F_GETCWD_CURDRV
 BDOS_getpath_FATq
-        pop hl ;Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/c000+!)
+        pop hl ;Pointer to 64 byte (MAXPATH_sz!) buffer (0x8000+/0xc000+!)
         call findlastslash.
-        ex de,hl ;HL = Pointer to start of last item (#8000+/#c000+!)
+        ex de,hl ;HL = Pointer to start of last item (0x8000+/0xc000+!)
         
-        pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (#8000+/#c000+!)
+        pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (0x8000+/0xc000+!)
         or a
         sbc hl,de ;hl=расстояние до последнего слэша
         pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
@@ -2156,11 +2153,11 @@ BDOS_parse_filename
         push de ;ASCIIZ string for parsing
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
-        push de ;ASCIIZ string for parsing (#8000+/#c000+)
+        push de ;ASCIIZ string for parsing (0x8000+/0xc000+)
         ld hl,BDOS_parse_filename_cpmnamebuf
         call dotname_to_cpmname ;de -> hl
-        ex de,hl ;de=Pointer to termination character (#8000+/#c000+)
-        pop bc ;ASCIIZ string for parsing (#8000+/#c000+)
+        ex de,hl ;de=Pointer to termination character (0x8000+/0xc000+)
+        pop bc ;ASCIIZ string for parsing (0x8000+/0xc000+)
         or a
         sbc hl,bc ;hl=расстояние до терминатора
         pop bc ;ASCIIZ string for parsing
@@ -2308,7 +2305,7 @@ fatfsarray=0xc000
 
 ffilearray
         ds MAXFILES*FIL_sz
-        ;dw #100 ;признак конца ffilearray
+        ;dw 0x100 ;признак конца ffilearray
         
 mfil    db "12345678.123",0 ;нужно только на время операции, которая принимает имя файла (может быть с путём?)
 
@@ -2322,7 +2319,7 @@ fres	dw 0 ;структура для возврата результата FatFS (число прочитанных/записанных
 syspath
         db "bin",0
         
-;для TASiS: не используются страницы ОЗУ #00, #1B, #1C, #1D, #1E, #1F
+;для TASiS: не используются страницы ОЗУ 0x00, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
 ;для избежания гибернации: не используются страницы ОЗУ 128K
 tsys_pages
         ds 8,0xff ;системные страницы
@@ -2331,9 +2328,9 @@ tsys_pages
         else
         db 0xff,0xff,0xff,0xff
         endif
-        db 0,0,0,0 ;#08..#0f
-        db 0,0,0,0,0,0,0,0 ;#10..#17
-        db 0,0,0,#ff,#ff,#ff,#ff,#ff ;#18..#1f
+        db 0,0,0,0 ;0x08..0x0f
+        db 0,0,0,0,0,0,0,0 ;0x10..0x17
+        db 0,0,0,0xff,0xff,0xff,0xff,0xff ;0x18..0x1f
         ds sys_npages-32-4 ;0=empty, or else process number
         if TOPDOWNMEM
         db 0xff,0xff,0xff,0xff

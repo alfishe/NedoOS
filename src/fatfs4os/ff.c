@@ -3421,9 +3421,9 @@ FRESULT f_getutime (
 			if (!dir) {					/* Root directory */
 				res = FR_INVALID_NAME;
 			} else {					/* File or sub-directory */
-				drv_calls.memcpy_lib2usp(ftimedate,dir+DIR_WrtTime,4);
-				//*ftimedate = LD_WORD(dir+DIR_WrtTime);
-				//*(ftimedate+1) = LD_WORD(dir+DIR_WrtDate);
+				//drv_calls.memcpy_lib2usp(ftimedate,dir+DIR_WrtTime,4); //not userspace!!!
+				*ftimedate = LD_WORD(dir+DIR_WrtTime);
+				*(ftimedate+1) = LD_WORD(dir+DIR_WrtDate);
 				djo.fs->wflag = 1;
 				res = sync(djo.fs);
 			}

@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; KERNEL (system side) ;;;;;;;;;;;;;;;;;;;;;;;        
-;при вызове #0005 в системе включены страницы: pgsystem, pgkillable, pgkillable, pgkillable (на случай порчи стеком)
+;при вызове 0x0005 в системе включены страницы: pgsystem, pgkillable, pgkillable, pgkillable (на случай порчи стеком)
 
 MAXAPPS=16
 bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTSTACK2), 140 мало для чтения каталога (даже с INTSTACK2) ;0=отключить мьютекс BDOS
@@ -15,7 +15,7 @@ QUITSTACK=0x4000 ;<=0x4000
         ld bc,memport8000
         out (c),a
         xor pgscr0_1^pgscr0_0 ;ld a,pgscr0_1
-        ld b,memportc000_hi;#ff
+        ld b,memportc000_hi;0xff
         out (c),a
         endm
 
@@ -66,7 +66,7 @@ endsys_result_aq
 ;e=char
         if bdosstack_sz==0
         ld (sys_prchar_sp),sp
-        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=#3b00)
+        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
         else
         exx
         ld hl,0
@@ -76,12 +76,12 @@ endsys_result_aq
         ;ld (iy+app.callbdos_sp+1),h
         ld bc,app.bdosstack+bdosstack_sz
         add iy,bc
-        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=#3b00)
+        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
         exx
         endif
         
         ld iy,(appaddr)
-        call BDOS_prchar ;портит только #c000+, но сама восстанавливает pgkillable
+        call BDOS_prchar ;портит только 0xc000+, но сама восстанавливает pgkillable
         if bdosstack_sz==0
 sys_prchar_sp=$+1
         ld sp,0
@@ -121,8 +121,8 @@ sys_intq
 
         ds 0x0038+14-$ -4
         ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
-        jp sys_intgo ;нужно, чтобы можно было ставить точку останова на #0100
-        ;ds 0x0101-$ ;нужно, чтобы можно было ставить точку останова на #0100
+        jp sys_intgo ;нужно, чтобы можно было ставить точку останова на 0x0100
+        ;ds 0x0101-$ ;нужно, чтобы можно было ставить точку останова на 0x0100
 
 safestack_sz=18
         STRUCT app
@@ -137,7 +137,7 @@ mainpg          BYTE ;главная страница задачи (там userkernel)
 ;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
 ;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
 screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
-gfxmode         BYTE ;текущий видеорежим ;значение для #bd77
+gfxmode         BYTE ;текущий видеорежим ;значение для 0xbd77
 textcuraddr     WORD ;адрес курсора на экране
 curcolor        BYTE ;текущий атрибут при печати
 dta             WORD ;data transfer address
@@ -193,10 +193,10 @@ sys_int_iy=$+1
          ld e,c
         ld bc,memport4000
          out (c),h
-         ld (INTMICROSTACK+#4000),de ;"bc"
+         ld (INTMICROSTACK+0x4000),de ;"bc"
 sys_intsp=$+1
          ld hl,0
-         ld (intsp+#4000),hl ;"sp"
+         ld (intsp+0x4000),hl ;"sp"
         ld a,pgtrdosfs;pagexor-5
         out (c),a ;там INTSTACK
 
@@ -278,12 +278,12 @@ findnextappq
           ld iy,(focusappaddr)
           ld a,(iy+app.screen)
           or fd_system
-          ld (user_fdvalue1+#4000),a
-          ld (user_fdvalue2+#4000),a
-          ld (user_fdvalue3+#4000),a
-          ld (user_fdvalue4+#4000),a
-          ;ld (user_fdvalue5+#4000),a ;not supported yet
-          ld (user_fdvalue6+#4000),a
+          ld (user_fdvalue1+0x4000),a
+          ld (user_fdvalue2+0x4000),a
+          ld (user_fdvalue3+0x4000),a
+          ld (user_fdvalue4+0x4000),a
+          ;ld (user_fdvalue5+0x4000),a ;not supported yet
+          ld (user_fdvalue6+0x4000),a
           ld a,pgtrdosfs
           out (c),a ;там INTSTACK
           endif
@@ -315,39 +315,39 @@ setgfxpal_focus
         ld bc,app.gfxmode
         add hl,bc
         ld a,(hl)
-        ld bc,#bd77
+        ld bc,0xbd77
         out (c),a ;set gfx mode
         
         ;ld hl,(focusappaddr)
         ld bc,app.pal+31 -app.gfxmode
         add hl,bc
         
-        ld c,#ff
+        ld c,0xff
         ld a,7
         dup 8
-        OUT (#F6),A
+        OUT (0xF6),A
         ld d,(hl)
         dec hl
         ld b,(hl) ;DDp palette low bits
-        OUT (c),d;(#FF),A
+        OUT (c),d;(0xFF),A
         dec hl
         dec a
         edup
         ld a,7
         dup 7
-        OUT (#FE),A
+        OUT (0xFE),A
         ld d,(hl)
         dec hl
         ld b,(hl) ;DDp palette low bits
-        OUT (c),d;(#FF),A
+        OUT (c),d;(0xFF),A
         dec hl
         dec a
         edup
-        OUT (#FE),A ;0
+        OUT (0xFE),A ;0
         ld d,(hl)
         dec hl
         ld b,(hl) ;DDp palette low bits
-        OUT (c),d;(#FF),A
+        OUT (c),d;(0xFF),A
         ret
 
 sys_sysint
@@ -407,7 +407,7 @@ sys_sysint_jp=$+1
         jp 0
         
 on_int
-;в #4000 сейчас pg5, там стек
+;в 0x4000 сейчас pg5, там стек
 focusappaddr=$+1
         ld hl,app1
         ld bc,app.gfxmode
@@ -416,14 +416,14 @@ focusappaddr=$+1
 ;sys_curgfxmode=$+1
         ;ld e,%10101000 ;320x200 mode
 		if atm==1
-			ld bc,#fadf ;buttons
+			ld bc,0xfadf ;buttons
 			in d,(c)
-			inc b ;ld bc,#fbdf ;x
+			inc b ;ld bc,0xfbdf ;x
 			in l,(c)
-			ld b,#ff ;y
+			ld b,0xff ;y
 			in h,(c)
 		else
-			call readmouse ;resident >=#4000
+			call readmouse ;resident >=0x4000
 		endif
         ld (sys_mousecoords),hl
         ld a,d
@@ -455,12 +455,12 @@ on_int_timerq
         ;call PEEKKEY ;ld a,(curkey)
         ;cp ssEnter
         
-        ld a,#7f
-        in a,(#fe)
+        ld a,0x7f
+        in a,(0xfe)
         rra
         ld c,a ;c0=ss
-        ld a,#bf
-        in a,(#fe)
+        ld a,0xbf
+        in a,(0xfe)
         or c
         cpl
         ld c,a
@@ -508,7 +508,7 @@ sys_getchar
 ;out: de=mouse dydx, l=buttons, A=key, H=high bits of key
         call checkfocus_getkbdmouse
         ;jp endsys_result_a
-        ;ds #0050-$
+        ;ds 0x0050-$
 endsys_result_a
          ld iy,(focusappaddr)
         ex af,af'
@@ -560,23 +560,23 @@ sys_mousebuttons=$+1
 
 callbdos
 ;при вызове bdos надо включить:
-;#0000 - syscode (уже включено)
-;#4000 - fatfs
-;[#8000 - curpg32klow]
-;#c000 - curpg32khigh
+;0x0000 - syscode (уже включено)
+;0x4000 - fatfs
+;[0x8000 - curpg32klow]
+;0xc000 - curpg32khigh
 ;защита от одновременного доступа двум задачам
 ;занято a,bc,de,hl
 ;свободно iy
         if bdosstack_sz==0
 
         ld (callbdos_sp),sp
-        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=#3b00)
+        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
 
         else
         
         exx
 callbdos_lock        
-        ld hl,callbdos_mutex ;изначально #c0
+        ld hl,callbdos_mutex ;изначально 0xc0
         sla (hl)
         jr z,callbdos_lock ;был занят
         
@@ -587,7 +587,7 @@ callbdos_lock
         ;ld (iy+app.callbdos_sp+1),h
         ld bc,app.bdosstack+bdosstack_sz
         add iy,bc
-        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=#3b00)
+        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
         push hl
         exx
         
@@ -603,7 +603,7 @@ callbdos_lock
          push bc
          call setpgs_killable
         if bdosstack_sz !=0
-        ld a,#c0
+        ld a,0xc0
         ld (callbdos_mutex),a ;то же самое делают те функции BDOS, которые не собираются возвращаться
         endif
          pop bc
@@ -628,9 +628,9 @@ setpgs_killable
         ld bc,memport4000
         ld (sys_curpg4000),a
         out (c),a
-        ld b,memport8000_hi;#bf
+        ld b,memport8000_hi;0xbf
         out (c),a
-        ld b,memportc000_hi;#ff
+        ld b,memportc000_hi;0xff
         out (c),a
         ret
 
@@ -644,7 +644,7 @@ sys_quit
         jp BDOS_yield_q ;переходим на какую-нибудь задачу
         
 setkernelpages_go
-;sp=#3ffx
+;sp=0x3ffx
 ;сейчас включена 5-я страница
         BDOSSETPGTRDOSFS
         call makeidle
@@ -678,7 +678,7 @@ sys_findfreeappstruct0
 sys_findfreeid
         xor a
 sys_findfreeid_next
-        inc a ;a!=0 (0 и #ff нельзя - см. BDOS_newpage)
+        inc a ;a!=0 (0 и 0xff нельзя - см. BDOS_newpage)
         ld iy,app1
         ld de,app_sz
         ld b,MAXAPPS
@@ -694,7 +694,7 @@ sys_findfreeid0
 NVRAM_REG=0xde
 NVRAM_VAL=0xbe
 readtime
-;sp=#7fxx
+;sp=0x7fxx
 ;e=gfxmode
 ;out: hl=date, de=time
 ;TODO атомарно

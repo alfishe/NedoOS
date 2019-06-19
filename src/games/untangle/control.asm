@@ -20,8 +20,8 @@ mousebuttons=$+1
         ld a,b ;
         ld (cur_cs_halfrow),a
         
-        ;ld a,#ef
-        ;in a,(#fe)
+        ;ld a,0xef
+        ;in a,(0xfe)
          ld a,h;l
         rrca
         rla
@@ -29,18 +29,18 @@ mousebuttons=$+1
         rrca
         rla
         rla
-        or %10000110
+        or 0x86;%10000110
 
-        ;ld a,#fd
-        ;in a,(#fe)
+        ;ld a,0xfd
+        ;in a,(0xfe)
          bit 0,c;d ;A
         ld c,a
         jr nz,$+4
         res 4,c ;down
 
 ;c=%1lrdu11L
-        ;ld a,#df
-        ;in a,(#fe)
+        ;ld a,0xdf
+        ;in a,(0xfe)
          ld a,l;hx
         rra ;P
         jr c,$+4
@@ -49,15 +49,15 @@ mousebuttons=$+1
         jr c,$+4
         res 6,c ;left
 
-        ;ld a,#fb
-        ;in a,(#fe)
+        ;ld a,0xfb
+        ;in a,(0xfe)
          ld a,d;e
         rra ;Q
         jr c,$+4
         res 3,c ;up
         
-        ;ld a,#7f
-        ;in a,(#fe)
+        ;ld a,0x7f
+        ;in a,(0xfe)
          ld a,lx;b
         rra ;Space
         jr c,control_nospace
@@ -75,7 +75,7 @@ control_nospace
 ;control_imer_buttons=$+1
 	;ld a,0
         pop af ;mouse buttons
-        or %11111000
+        or 0xf8;%11111000
         and c
 ;a=%1lrduMRL
         ld (mousebuttons),a
@@ -86,14 +86,14 @@ control_curspeedtime=$+1
         ld c,0
         
         call isfirechanged
-        ;and %00000111 ;кнопки огня
+        ;and 7;%00000111 ;кнопки огня
         ld a,(mousebuttons)
         cpl
         rra
         rra
         rra
         jr nz,control_slower ;клик или анклик тормозит стрелку
-        and %00001111 ;кнопки движения
+        and 0x0f;%00001111 ;кнопки движения
         jr nz,control_noslower ;движемся, не тормозим
         ld d,a ;0
         ld e,a ;0

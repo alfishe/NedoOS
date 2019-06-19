@@ -7,7 +7,7 @@ COLOR=7
         
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;не должен опускатьс€ ниже #3b00! иначе возможна порча OS
+        ld sp,0x4000 ;не должен опускатьс€ ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         
@@ -37,15 +37,15 @@ readmod0
 ;hl=actual size
         ex (sp),hl ;hl=buffer address, (sp)=actual size
         
-       ;SC #38 ;Load FX        SC #30 ;Load module        WC        SC #D1 ;Open Stream        WC        pop bc ;actual size
+       ;SC 0x38 ;Load FX        SC 0x30 ;Load module        WC        SC 0xD1 ;Open Stream        WC        pop bc ;actual size
         ld a,b
         or c
         jr z,readmodqLDSMP0        LD A,(HL)        INC HL        OUT (GSDAT),A        WD        DEC BC        LD A,B        OR C        JR NZ,LDSMP0
         jr readmod0
 readmodq
-                SC #D2 ;Close Stream        WC
+                SC 0xD2 ;Close Stream        WC
         call closestream_file
-        LD A,1 ;mod        OUT (GSDAT),A        SC #31 ;play module        WC        
+        LD A,1 ;mod        OUT (GSDAT),A        SC 0x31 ;play module        WC        
         
 mainloopredraw
 filenameaddr=$+1
@@ -69,7 +69,7 @@ mainloop
 
 openerror        
 noautoload
-        SC #32 ;stop module        WC        
+        SC 0x32 ;stop module        WC        
         QUIT
 
         

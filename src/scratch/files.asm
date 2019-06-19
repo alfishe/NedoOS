@@ -1,6 +1,6 @@
-;доступ к файловой системе только через буфер в #c000
-;там подключена pgtemp, там лежит директория (а во время чтения/записи там file_buf, она же подключена с #4000, там буфер текущей строки картинки - TODO грузить туда)
-;во время переброски строки в #4000 подключена pgtemp (там буфер текущей строки картинки), а в #8000,#c000 подключен bitmap
+;доступ к файловой системе только через буфер в 0xc000
+;там подключена pgtemp, там лежит директория (а во время чтения/записи там file_buf, она же подключена с 0x4000, там буфер текущей строки картинки - TODO грузить туда)
+;во время переброски строки в 0x4000 подключена pgtemp (там буфер текущей строки картинки), а в 0x8000,0xc000 подключен bitmap
 filelist_maxfiles=25
 
 filelistx8=0
@@ -33,9 +33,9 @@ drivesy=16
 driveswid8=1
 driveshgt=20*8
 
-catbuf=#c000
-scrbuf=#c000 ;for .scr
-file_buf=#ff00
+catbuf=0xc000
+scrbuf=0xc000 ;for .scr
+file_buf=0xff00
 file_buf_end=file_buf+127
 
 ; I    1    0      2    Признак ВМР-файла - символы 'BM'       (+)
@@ -84,15 +84,15 @@ file_buf_end=file_buf+127
 
 isfilename_act
         ld a,(fcb_filename+8)
-        or #20
+        or 0x20
         cp 'a'
         ret
 
 readfile_scr
-;#c000=pgtemp
+;0xc000=pgtemp
         ld de,scrbuf
         OS_SETDTA ;set disk transfer address = de
-        ld b,#1b00/128
+        ld b,0x1b00/128
 readfile_scr0
         push bc
         ld de,fcb
@@ -122,7 +122,7 @@ readfile_scrline0
         ld a,e
         rla
         rla
-        and %11100000
+        and 0xe0;%11100000
         add a,c ;x(chr)
         ld l,a
         ld a,e
@@ -130,16 +130,16 @@ readfile_scrline0
         rra
         rra
         xor e
-        and %00011000
+        and 0x18;%00011000
         xor e
-        and %00011111
+        and 0x1f;%00011111
         add a,scrbuf/256
         ld b,a ;bl=pixel addr
         rra
         rra
         rra
         and 3
-        add a,scrbuf/256+#18
+        add a,scrbuf/256+0x18
         ld h,a ;hl=attr addr
         ld a,(hl) ;attr
         and 7
@@ -243,7 +243,7 @@ readbmp
         ;ld a,e;(curbitmapwid_view)
         ;ld (readbmp_checkendline_LSB),a
         call readlong ;высота
-        ld a,#3e ;ld a,N
+        ld a,0x3e ;ld a,N
         ld h,d
         ld l,e
         dec hl ;starty
@@ -251,7 +251,7 @@ readbmp
         jr z,readbmp_noneghgt
         ld hl,0 ;starty
         call negde
-        ld a,#18 ;jr
+        ld a,0x18 ;jr
 readbmp_noneghgt
         ld (readbmp_nextlinejrneghgt),a
         ld (curbitmaphgt),de
@@ -315,7 +315,7 @@ readbmp8_pic0
 ;hl=addr
 readbmp8_pic00
         READBYTE_A
-        and #0f
+        and 0x0f
         call readbmp_putbyte_checkendline
         jr z,readbmp8_pic00
         call readbmp_nextline
@@ -336,7 +336,7 @@ readbmp24_pic00
         READBYTE_A ;r
         rl d ;g
         ld d,a ;r
-        ld a,%1
+        ld a,1
         rla ;g
         rl d 
         rla ;r
@@ -409,7 +409,7 @@ readbmp_starty=$+1
 readbmp_linestart
         ld a,(curpgtemp)
         SETPG16K ;для буфера текущей строки
-        ;call setpgtemp ;для file_buf (должен быть выше #c000) ;уже подключен
+        ;call setpgtemp ;для file_buf (должен быть выше 0xc000) ;уже подключен
         ld bc,(curbitmapwid_edit)
         dec bc
         ld hl,tempc000
@@ -436,7 +436,7 @@ readbmp_nextline
         ld bc,(curbitmapwid_edit)
         ldir
         pop de
-        call setpgtemp ;для file_buf (должен быть выше #c000), иначе readbyte обломится
+        call setpgtemp ;для file_buf (должен быть выше 0xc000), иначе readbyte обломится
         xor a ;z
 readbmp_wait4bytes0
         call nz,readbyte
@@ -1201,14 +1201,14 @@ prdirfile_dot_or_dir=$+1
         add hl,hl
         add hl,hl
         ld a,h
-        and #0f
+        and 0x0f
         call shapes_prNN ;month
         ld a,'-'
         ex de,hl
         call shapes_prchar48ega
         ex de,hl
         pop af
-        and #1f
+        and 0x1f
         call shapes_prNN ;day
         
         ld a,' '
@@ -1222,7 +1222,7 @@ prdirfile_dot_or_dir=$+1
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         call shapes_prNN ;hour
         ld a,':'
         ex de,hl
@@ -1235,7 +1235,7 @@ prdirfile_dot_or_dir=$+1
         add hl,hl
         add hl,hl
         ld a,h
-        and #3f
+        and 0x3f
         call shapes_prNN ;minute
         ld a,':'
         ex de,hl
@@ -1243,7 +1243,7 @@ prdirfile_dot_or_dir=$+1
         ex de,hl
         pop af
         add a,a
-        and #3f
+        and 0x3f
         jp shapes_prNN ;second
         
 file_findvisiblefile_a
@@ -1316,7 +1316,7 @@ savefile
         ld bc,16
         push de
         ldir
-        pop de ;ASCIIZ string for parsing (в #c000...)
+        pop de ;ASCIIZ string for parsing (в 0xc000...)
         ld hl,fcb_filename ;Pointer to 11 byte buffer
         OS_PARSEFNAME
         ld de,fcb
@@ -1404,9 +1404,9 @@ savebmp_pal0
 ;hl=color (DDp palette)
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
         call calchexcolor
-;b=#BB
-;d=#RR
-;e=#GG
+;b=0xBB
+;d=0xRR
+;e=0xGG
         ld l,d
         ld h,0
         ld d,e
@@ -1470,9 +1470,9 @@ savefile_pal0
 ;hl=color (DDp palette)
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
         call calchexcolor
-;b=#BB
-;d=#RR
-;e=#GG
+;b=0xBB
+;d=0xRR
+;e=0xGG
         ld a,d ;r
         call writebyte
         ld a,e ;g
@@ -1499,6 +1499,6 @@ tquit
 tsave
         db "  Save",0
 
-temppicname=#fe00 ;выше #c000
+temppicname=0xfe00 ;выше 0xc000
 savepicname
         db "12345678.123",0

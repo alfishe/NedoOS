@@ -63,25 +63,25 @@ genmuldewid_ahl_0
         rl d
         jr nc,genmuldewid_ahl_z
         inc a
-        ld (hl),#19 ;add hl,de
+        ld (hl),0x19 ;add hl,de
         inc hl
-        ld (hl),#ce ;adc a,0
+        ld (hl),0xce ;adc a,0
         inc hl
         ld (hl),0
         inc hl
 genmuldewid_ahl_z
         or a
         jr z,genmuldewid_ahl_noadd
-        ld (hl),#29 ;add hl,hl
+        ld (hl),0x29 ;add hl,hl
         inc hl
-        ld (hl),#17 ;rla
+        ld (hl),0x17 ;rla
         inc hl
 genmuldewid_ahl_noadd
         djnz genmuldewid_ahl_0
         dec hl
         dec hl
 genmuldewid_ahlq
-        ld (hl),#c9 ;ret
+        ld (hl),0xc9 ;ret
         ret
 
 ;нельзя в pgshapes, т.к. нужно для bitmap        

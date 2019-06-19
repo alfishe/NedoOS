@@ -151,7 +151,7 @@ prpixel_cury
         rra
         jr nc,$+4
         set 5,h
-        and %00111111
+        and 0x3f;%00111111
         add a,l
         ld l,a
         adc a,h
@@ -159,7 +159,7 @@ prpixel_cury
         ld h,a
         ld a,lx
         xor (hl)
-        and %01000111 ;keep left pixel 
+        and 0x47;%01000111 ;keep left pixel 
         xor (hl) ;right pixel from screen
         ld (hl),a
         ret
@@ -170,7 +170,7 @@ prpixel_r
         rra
         jr nc,$+4
         set 5,h
-        and %00111111
+        and 0x3f;%00111111
         add a,l
         ld l,a
         adc a,h
@@ -178,7 +178,7 @@ prpixel_r
         ld h,a
         ld a,lx
         xor (hl)
-        and %10111000 ;keep right pixel 
+        and 0xb8;%10111000 ;keep right pixel 
         xor (hl) ;left pixel from screen
         ld (hl),a
         ret
@@ -241,14 +241,14 @@ invpixel_cury
         rra
         jr nc,$+4
         set 5,h
-        and %00111111
+        and 0x3f;%00111111
         add a,l
         ld l,a
         adc a,h
         sub l
         ld h,a
         ld a,(hl)
-        xor %01000111 ;left pixel from screen
+        xor 0x47;%01000111 ;left pixel from screen
         ld (hl),a
         ret
 invpixel_r
@@ -258,14 +258,14 @@ invpixel_r
         rra
         jr nc,$+4
         set 5,h
-        and %00111111
+        and 0x3f;%00111111
         add a,l
         ld l,a
         adc a,h
         sub l
         ld h,a
         ld a,(hl)
-        xor %10111000 ;right pixel from screen
+        xor 0xb8;%10111000 ;right pixel from screen
         ld (hl),a
         ret
 
@@ -433,7 +433,7 @@ prpixelhorline
         dec bc
         ld c,b
         inc c ;c=(bc-1)/256+1
-        ld b,a ;b=bc&#ff
+        ld b,a ;b=bc&0xff
 prpixelhorline0
         push hl ;addr(cury)
 prpixelhorline_patch=$+1
@@ -600,7 +600,7 @@ prverline_l
 ;d=hgt
         push bc
         call calcscr_from_xchr_y
-        ld a,%10111000
+        ld a,0xb8;%10111000
         and (hl)
         ld b,d
         ld de,40
@@ -618,9 +618,9 @@ prverline_r
         push bc
         call calcscr_from_xchr_y
         ld a,h
-        add a,#60
+        add a,0x60
         ld h,a
-        ld a,%01000111
+        ld a,0x47;%01000111
         and (hl)
         ld b,d
         ld de,40
@@ -667,7 +667,7 @@ shapes_line_noswap
         push hl ;dx
         exx
         pop bc ;dx
-        ld a,#03 ;inc bc
+        ld a,0x03 ;inc bc
         jp p,shapes_line_nodec
         xor a
         sub c
@@ -675,7 +675,7 @@ shapes_line_noswap
         sbc a,b
         sub c
         ld b,a ;dx >= 0
-        ld a,#0b ;dec bc
+        ld a,0x0b ;dec bc
 shapes_line_nodec
         pop de ;dy
 ;a=код inc/dec bc

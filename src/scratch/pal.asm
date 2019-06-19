@@ -129,7 +129,7 @@ calcRGBtoHSV_nonegarcsin
         ld (calcRGBtoHSV_findG),a
 ;подбираем s,v, пишем их в curS, curV
         ld hx,255 ;min
-;l=iv=0..32 ;h=is=#e0+0..31
+;l=iv=0..32 ;h=is=0xe0+0..31
         ld h,editpal_e0 ;S
 calcRGBtoHSV_findS0
         ld l,32 ;V
@@ -170,7 +170,7 @@ calcRGBtoHSV_findB=$+1
         ld a,h
         ld (curS),a
 calcRGBtoHSV_findnomin
-;l=iv=0..32 ;h=is=#e0+0..31
+;l=iv=0..32 ;h=is=0xe0+0..31
         dec l
         jp p,calcRGBtoHSV_findV0
         inc h
@@ -186,7 +186,7 @@ calcRGBtoHSV_findnomin
 ;  ir = iv + isi + ic + minC;
 ;  ig = iv +     - ic + minC;
 ;  ib = iv - isi + ic + minC;
-;h=is=#c0+0..31 (уже пересчитано для заданного iv)
+;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
 ;a=ih=0..199
 ;b=iv=0..32
 ;d=tabclippal/256 + (y&3)*2
@@ -235,7 +235,7 @@ calcRGBtoHSV_findnomin
 
 copytemp_setpal
         call setpgtemp
-        ld de,#ffe0
+        ld de,0xffe0
         push de
         ld bc,32
         ldir
@@ -248,12 +248,12 @@ paleditorpal
 paleditorpal_color=$+(8*2) ;видимый цвет
 paleditorpal_curcolor=$+(9*2) ;текущий цвет
 paleditorpal_oldcolors=$+(10*2) ;старые цвета
-        dw #f3f3,#b1b1,#6363,#2121,#d2d2,#9090,#4242,#0000
-        dw #f3f3,#d2d2,#b1b1,#9090,#6363,#4242,#2121,#0000 ;8=видимый цвет, 9=текущий цвет, остальные старые
+        dw 0xf3f3,0xb1b1,0x6363,0x2121,0xd2d2,0x9090,0x4242,0x0000
+        dw 0xf3f3,0xd2d2,0xb1b1,0x9090,0x6363,0x4242,0x2121,0x0000 ;8=видимый цвет, 9=текущий цвет, остальные старые
 paleditorpalend=$-1
 RSTPAL
-        ;dw #f3f3,#f2f2,#f1f1,#f0f0,#e3e3,#e2e2,#e1e1,#e0e0
-        ;dw #f3f3,#d2d2,#b1b1,#9090,#6363,#4242,#2121,#0000
+        ;dw 0xf3f3,0xf2f2,0xf1f1,0xf0f0,0xe3e3,0xe2e2,0xe1e1,0xe0e0
+        ;dw 0xf3f3,0xd2d2,0xb1b1,0x9090,0x6363,0x4242,0x2121,0x0000
         STANDARDPAL
 RSTPALend=$-1
 
@@ -273,7 +273,7 @@ drawpal
 
         ld bc,editpal_oldcolory*256 + editpal_oldcolorx8 ;b=y ;c=x/8
         ld hl,paleditorpal_oldcolors
-        ld a,%11010010 ;a=%33210210
+        ld a,0xd2;%11010010 ;a=%33210210
 drawpaloldcolors0
         push af
         push bc
@@ -299,8 +299,8 @@ drawpaloldcolors0
         add a,editpal_oldcolorystep
         ld b,a
         pop af
-        add a,%1001
-        cp #ff&(%11111111+%1001)
+        add a,9;%1001
+        cp 0xff&(0xff+9);(%11111111+%1001)
         jr nz,drawpaloldcolors0
        
 drawpal_cursors
@@ -330,19 +330,19 @@ drawpalcurcolor
         call setpgshapes
 
         ld de,(paleditorpal_curcolor)
-        ld hl,#2000+(editpal_curcolory+editpal_curcolorhgt)*40+editpal_curcolorx8 + scrbase
+        ld hl,0x2000+(editpal_curcolory+editpal_curcolorhgt)*40+editpal_curcolorx8 + scrbase
         call prhexcolor
         ld bc,editpal_curcolory*256 + editpal_curcolorx8 ;b=y ;c=x/8
         ld de,editpal_curcolorhgt*256+editpal_curcolorwid8 ;d=hgt ;e=wid8
-        ld a,%11001001 ;a=%33210210
+        ld a,0xc9;%11001001 ;a=%33210210
         jp shapes_fillbox
 
 calchexcolor
 ;hl=color (DDp palette)
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
 ;high B, high b, low B, low b
-        ld b,#ff
-        ld de,#ffff
+        ld b,0xff
+        ld de,0xffff
         ld a,h
         rra
         rl b ;B high
@@ -403,9 +403,9 @@ calchexcolor
         rlca
         or b
         ld b,a
-;b=#BB
-;d=#RR
-;e=#GG
+;b=0xBB
+;d=0xRR
+;e=0xGG
         ret
         
 prhexcolor
@@ -433,10 +433,10 @@ drawpalHS
 drawpalcolumns0
         xor a
         sub c
-         add a,editpal_e0-#e0
+         add a,editpal_e0-0xe0
         ld (drawpalHS_S),a
         push hl
-        ld de,40-#4000
+        ld de,40-0x4000
         ld b,200 ;H
 drawpalcolumn0
         call setpgpal
@@ -448,8 +448,8 @@ drawpalcolumn0
 ;drawpalHS_V=$+1
 ;curV=$+1
 drawpalHS_S=$+2
-        ld hl,16 ;l=iv=0..32 ;h=is=#e0+0..31
-        ld h,(hl) ;h=is=#c0+0..31 (уже пересчитано для заданного iv)
+        ld hl,16 ;l=iv=0..32 ;h=is=0xe0+0..31
+        ld h,(hl) ;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
         ld b,l ;b=iv=0..32
         calcHSVtogfx_1
         ;a=ih (немного искажённое), соответствует y
@@ -472,9 +472,9 @@ drawpalHS_S=$+2
         djnz drawpalcolumn0
         pop hl
         ld a,h
-        xor #20
+        xor 0x20
         ld h,a
-         and #20
+         and 0x20
         jr nz,$+3
         inc l
         dec c
@@ -483,7 +483,7 @@ drawpalHS_S=$+2
         
 drawpalV
         ld hl,editpal_Vx8+40 + scrbase
-        ld de,40-#4000
+        ld de,40-0x4000
         ld c,200/6-1 ;V
 drawpalVcolumn0
         ld b,6
@@ -495,8 +495,8 @@ drawpalVcolumn00
         exx
         ld l,a ;l=iv=0..32
 curS=$+1
-        ld h,editpal_e0+16 ;h=is=#e0+0..31
-        ld h,(hl) ;h=is=#c0+0..31 (уже пересчитано для заданного iv)
+        ld h,editpal_e0+16 ;h=is=0xe0+0..31
+        ld h,(hl) ;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
         ld b,l ;b=iv=0..32
 curH=$+1
         ld a,0
@@ -606,7 +606,7 @@ calcHSVtoRGB
         ld d,b
         ld e,b ;d=r, e=g
         exx
-        ld h,(hl) ;h=is=#c0+0..31 (уже пересчитано для заданного iv)
+        ld h,(hl) ;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
         ld b,l ;b=iv=0..32
         calcHSVtogfx_1
         ld h,tabclippal/256 ;d=tabclippal/256 + (y&3)*2
@@ -637,7 +637,7 @@ drawpal_HSVtocolor
         call setpgpal
         call setpgtemp
         
-        ld hl,(curS-1) ;h=is=#e0+0..31
+        ld hl,(curS-1) ;h=is=0xe0+0..31
 curV=$+1
         ld l,0 ;l=iv=0..32
         ld a,(curH)
@@ -701,7 +701,7 @@ drawpalcolor
         call setpgshapes
 
         ld de,(paleditorpal_color)
-        ld hl,#2000+(editpal_colory+editpal_colorhgt)*40+editpal_colorx8 + scrbase
+        ld hl,0x2000+(editpal_colory+editpal_colorhgt)*40+editpal_colorx8 + scrbase
         call prhexcolor
 
         ;ld hl,paleditorpalend
@@ -709,7 +709,7 @@ drawpalcolor
 
         ld bc,editpal_colory*256 + editpal_colorx8 ;b=y ;c=x/8
         ld de,editpal_colorhgt*256+editpal_colorwid8 ;d=hgt ;e=wid8
-        ld a,%11000000 ;a=%33210210
+        ld a,0xc0;%11000000 ;a=%33210210
         jp shapes_fillbox
         
        
@@ -917,9 +917,9 @@ initpalmul0
 
 ;mktabfixsaturation
 ;  int scoeff = (1 - ((v-.5)*2)*((v-.5)*2) )*256;
-;h=is=#e0+0..31
+;h=is=0xe0+0..31
 ;l=iv=0..32
-;(hl) = is*scoeff/256 + #c0
+;(hl) = is*scoeff/256 + 0xc0
 
         ld h,l ;hl=0
 initpalfixsat_volumes0
@@ -1021,8 +1021,8 @@ tscoeff
 ;iv = 0..32
 ;scoeff = (1 - ((v-.5)*2)*((v-.5)*2) )*256*8
 ;        dup 256
-;_=($&#ff-16)*2
-;        db #ff&((1024-(_*_))/32)
+;_=($&0xff-16)*2
+;        db 0xff&((1024-(_*_))/32)
 ;        edup
 _=0
         dup 8
@@ -1033,7 +1033,7 @@ _=_+18
         db _
 _=_+10
         edup
-        db #ff
+        db 0xff
         dup 8
 _=_-10
         db _

@@ -107,14 +107,20 @@ fgfx=5 ;app can take focus
 ;ffocus=6 ;app has focus (only one can)
 fwaiting=7 ;app is waiting for another app, can't take focus by hand
 
-;Keyboard values:
+;Internal keyboard values:
 
-NOKEY=0
-key_redraw=31 ;если сделать равным ssEnter, то при шедулинге через idle ssEnter словится второй раз
-
-extbase=0xb0 ;with H=1 ;но нельзя пересекаться с 32..127
+extbase=0xb0 ;with H=1 ;can't mix with 32..127 ;temporary internal code
+csbase=0xf3 ;temporary internal code
+extenter=csbase+12 ;temporary internal code
+graphlock=extenter ;temporary internal code
+csnoshifts=0;NOKEY ;cs release result for AltGr ;temporary internal code
+csspace=27 ;temporary internal code
+csss=9 ;Tab ;temporary internal code
+key_extspace=0;NOKEY ;extbase+14 ;unusable because happens simultaneously with extZ because of keyboard matrix
+cssspress=csss ;temporary internal code (impossible to type without AltGr before language recoding)
+ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr before language recoding)
 ext0=extbase+0
-ext1=extbase+1  ;код выдаётся только при чтении через keynolang (в keylang переключает режим псевдографики)
+ext1=extbase+1
 ext2=extbase+2
 ext3=extbase+3
 ext4=extbase+4
@@ -123,12 +129,9 @@ ext6=extbase+6
 ext7=extbase+7
 ext8=extbase+8
 ext9=extbase+9
-
-csbase=0xf3
-cs0=8 ;as extH (CP/M)
-;csbase+0 reserved
-cs1=csbase+1 ;код выдаётся только при чтении через keynolang (в keylang переключает язык)
-cs2=csbase+2 ;код выдаётся только при чтении через keynolang (в keylang переключает Caps Lock)
+cs0=8 ;as extH (CP/M) ;csbase+0 reserved
+cs1=csbase+1 ;readable only in keynolang (switches language)
+cs2=csbase+2 ;readable only in keynolang (switches Caps Lock)
 cs3=csbase+3
 cs4=csbase+4
 cs5=csbase+5
@@ -136,9 +139,8 @@ cs6=csbase+6
 cs7=csbase+7
 cs8=csbase+8
 cs9=csbase+9
-key_csenter=csbase+10
-key_ssspace=csbase+11
-key_extenter=csbase+12
+
+;Usable key codes:
 
 extA=1
 extB=2
@@ -166,8 +168,6 @@ extW=23
 extX=24
 extY=25
 extZ=26
-csnoshifts=NOKEY ;cs release result for AltGr
-csspace=27
 
 ss1='!'
 ss2='@'
@@ -205,12 +205,6 @@ ssX='`'
 ssY='['
 ssZ=':'
 
-csss=9 ;Tab
-key_extspace=NOKEY ;extbase+14 ;неюзабельно, т.к. из-за матрицы выдается вместе с extZ
-
-cssspress=csss ;temporary internal code (impossible to type without AltGr before language recoding)
-ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr before language recoding)
-
 key_home=ssQ
 key_end=ssE
 key_ins=ssW
@@ -233,6 +227,8 @@ key_ssbackspace=ext0
 key_ssdel=ext9
 key_tab=csss
 key_esc=csspace
+key_csenter=csbase+10
+key_ssspace=csbase+11
 key_F1=ext1
 key_F2=ext2
 key_F3=ext3
@@ -243,54 +239,8 @@ key_F7=ext7
 key_F8=ext8
 key_F9=ext9
 key_F10=ext0
-;отдельный ext (Tab) передаётся по отжатию (TODO в GETKEYNOLANG по нажатию)
-;нажатия отдельных ss, cs не передаются, иначе CP/M приложения не смогут их отфильтровать (TODO через GETKEYNOLANG, и отжатия всех клавиш тоже)
 
-;всего управляющих комбинаций:
-;1: nokey
-;1: redraw
-;1: Enter
-;12: цифры с CS, cs+Space, cs+Enter
-;3: ss, cs, sscs
-;6[5]: ss+Q,+W,+E,+I,[+Enter],+Space
-;38[37] ext+кнопка[кроме extSpace, который выдаётся вместе с extZ]
-;=62[60], можно уместить в два набора 0..31, но так не поместятся символы 0..31 как символы!
-
-;SO, SI занимать нельзя
-;упр. коды, необходимые для CP/M, передавать непосредственно (чем их меньше, тем больше отдельных ext+keys можно предусмотреть)
-;ext+keys передавать как 0..31 (чтобы можно было ввести любой упр.код CP/M, надо ещё несколько клавиш для остальных кодов)
-;TODO символы 0..31 передавать как SO, код+0xb0, SI?
-;TODO остальные упр. коды (cs+digit, ext+digit, extSpace, extEnt, ssQWE) передавать как SO, код+0xd0, SI?
-
-;00*nokey ^@ NUL - (если GET_KEY будет сам делать YIELD до прихода события клавиатуры/мыши, а чьё событие - как-то кодировать в H - тогда нельзя передавать отжатие, т.к. событие есть, а код HA=nokey)
-;01       ^A SOH All (WordLeft в TP) -- home
-;02       ^B STX -- left
-;03       ^C ETX Copy (PgDn в TP) (close app в MS-DOS) -- close app
-;04       ^D EOT (Right в TP и ATM CP/M) -- del
-;05       ^E ENQ (Up в TP) -- end
-;06       ^F ACK Find (WordRight в TP) -- right
-;07       ^G BEL Replace (Del в TP)
-;08 cs0   ^H BS  BS! (BS в MS-DOS) (Up в TPlib) -- bs
-;09 csss  ^I HT  Tab! (Tab в MS-DOS) -- tab
-;0A       ^J LF (Enter в ATM CP/M)
-;0B       ^K VT (Left в TPlib) -- kill line
-;0C       ^L FF  (FindNext в TP) -- update screen
-;0D Enter ^M CR  Enter! (Enter в ATM CP/M и Notepad++) (Right в TPlib) (режим выделения в Win) -- enter
-;0E       ^N SO  New -- next
-;0F       ^O SI  Open -- flush
-;10       ^P DEL Del (Down в TPlib) -- previous
-;11       ^Q DC1 -- verbatim?
-;12       ^R DC2 (PgUp? в TP) -- search back
-;13       ^S DC3 Save (Left в TP и ATM CP/M) -- search forward
-;14       ^T DC4 (DelWordRight в TP)
-;15       ^U NAK -- numeric?
-;16       ^V SYN Paste (Ins в TP) -- verbatim? pgup?
-;17       ^W ETB
-;18       ^X CAN Cut (Down в TP) (delete command в ATM CP/M)
-;19       ^Y EM  DelLn
-;1A       ^Z SUB Undo (EOF)
-;1B csSpc ^[ SUB Esc! (Esc key, Esc symbol)
-;1C Home  ^\ FS
-;1D Ins   ^] GS
-;1E End   ^^ RS
-;1F redraw^_ US
+NOKEY=0
+key_redraw=31 ;if equal to ssEnter, then scheduling through idle will catch ssEnter twice
+;single ext (Tab) is returned at key release (TODO keypress in keynolang)
+;single ss, cs keypresses are not returned, or else CP/M-like apps can't filter them out (TODO in keynolang, and all other key releases too)

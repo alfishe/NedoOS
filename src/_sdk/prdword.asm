@@ -10,27 +10,27 @@ prdword
         exx
         ld bc,1000000000/65536
         exx
-        ld bc,1000000000&#ffff
+        ld bc,1000000000&0xffff
         call prnumdwordcmd0
         exx
         ld bc,100000000/65536
         exx
-        ld bc,100000000&#ffff
+        ld bc,100000000&0xffff
         call prnumdwordcmd0
         exx
         ld bc,10000000/65536
         exx
-        ld bc,10000000&#ffff
+        ld bc,10000000&0xffff
         call prnumdwordcmd0
         exx
         ld bc,1000000/65536
         exx
-        ld bc,1000000&#ffff
+        ld bc,1000000&0xffff
         call prnumdwordcmd0
         exx
         ld bc,100000/65536
         exx
-        ld bc,100000&#ffff
+        ld bc,100000&0xffff
         call prnumdwordcmd0
         exx
         ld bc,0

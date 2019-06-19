@@ -46,14 +46,14 @@ devices_init
 devices_init_noSD
 	dec a
 	jr nz,devices_init_noIDEmaster
-	ld a,#e0
+	ld a,0xe0
 	call IDE_INIT
 	ld (device_states+1),a
 	ret  
 devices_init_noIDEmaster
 	dec a
 	jr nz,devices_init_noIDEslave
-	ld a,#f0
+	ld a,0xf0
 	call IDE_INIT
 	ld (device_states+2),a
 	ret  
@@ -64,7 +64,7 @@ devices_init_noIDEslave
 	ld (device_states+3),a
 	ret  
 devices_init_noGS
-	ld a,#01 ;нет такого устройства
+	ld a,0x01 ;нет такого устройства
 	ret  
 
 diskgetpars
@@ -102,7 +102,7 @@ devices_read_go
 	jp z,readsectorsSD
 	dec a
 	jr nz,readsectors_noIDEmaster
-	ld a,#e0 ;master ;почему bit6=1???
+	ld a,0xe0 ;master ;почему bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -112,7 +112,7 @@ devices_read_go
 readsectors_noIDEmaster
 	dec a
 	jr nz,readsectors_noIDEslave
-	ld a,#f0 ;slave ;почему bit6=1???
+	ld a,0xf0 ;slave ;почему bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -122,7 +122,7 @@ readsectors_noIDEmaster
 readsectors_noIDEslave
 	dec a
 	jp z,readsectorsGS
-	ld a,#01
+	ld a,0x01
 	ret  
 
 ;?????????????????????????????? запись секторов
@@ -139,7 +139,7 @@ devices_write_go
 	jp z,writesectorsSD
 	dec a
 	jr nz,writesectors_noIDEmaster
-	ld a,#e0 ;master ;почему bit6=1???
+	ld a,0xe0 ;master ;почему bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -149,7 +149,7 @@ devices_write_go
 writesectors_noIDEmaster
 	dec a
 	jr nz,writesectors_noIDEslave
-	ld a,#f0 ;slave ;почему bit6=1???
+	ld a,0xf0 ;slave ;почему bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -159,13 +159,13 @@ writesectors_noIDEmaster
 writesectors_noIDEslave
 	dec a
 	jp z,writesectorsGS
-	ld a,#01
+	ld a,0x01
 	ret  
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; IDE
         
 IDE_INIT
-;a=device (#e0/f0)
+;a=device (0xe0/f0)
 	push hl
 	call readidentIDE
 	pop hl
@@ -178,39 +178,39 @@ checkidentIDE
 	;ld d,h
 	;ld e,l
 	ex de,hl
-	ld hl,#0063
+	ld hl,0x0063
 	add hl,de
 	ld a,(hl)
-	and #02
+	and 0x02
 	jr z,ldaff_pophl
-	;ld bc,#ff00+hddcount;????
+	;ld bc,0xff00+hddcount;????
 	ld bc,hddcount
-	ld hl,#000c
+	ld hl,0x000c
 	add hl,de
-	ld a,(hl) ;#3f???
+	ld a,(hl) ;0x3f???
 	out (C),a
-	ld hl,#0006
+	ld hl,0x0006
 	ld bc,hddhead
 	add hl,de
 	ld a,(hl)
-	dec a ;#0f???
+	dec a ;0x0f???
 	out (C),a
 	ld bc,hddcmd
-	ld a,#91
+	ld a,0x91
 	out (C),a
-	ld de,#1000
+	ld de,0x1000
 nobsywithtimeout0
 	dec de
 	ld a,d
 	or e
 	jr z,ldaff_pophl
 	in a,(C)
-	and #80
+	and 0x80
 	jr nz,nobsywithtimeout0
 	pop hl
 	ret
 ldaff_pophl
-        ld a,#ff
+        ld a,0xff
 	pop hl
 	ret
 
@@ -230,13 +230,13 @@ readsectorsIDE
 	call setblockparsIDE
 	exa  
 	ld bc,hddcmd
-	ld a,#20
+	ld a,0x20
 	out (C),a
 	ld bc,hddstat
 waitDRQ0
 	in a,(C)
-	and #88
-	cp #08
+	and 0x88
+	cp 0x08
 	jr nz,waitDRQ0 ;ожидание готовности передачи данных
 	exa  
 readsectorsIDE0
@@ -245,7 +245,7 @@ readsectorsIDE0
 	ld bc,hddstat
 nobsy0
 	in a,(C)
-	and #80
+	and 0x80
 	jr nz,nobsy0
 	exa  
 	dec a
@@ -268,13 +268,13 @@ writesectorsIDE
 	call setblockparsIDE
 	exa  
 	ld bc,hddcmd
-	ld a,#30
+	ld a,0x30
 	out (C),a
 	ld bc,hddstat
 waitDRQ01
 	in a,(C)
-	and #88
-	cp #08
+	and 0x88
+	cp 0x08
 	jr nz,waitDRQ01 ;ожидание готовности передачи данных
 	exa
 writesectorsIDE0
@@ -285,13 +285,13 @@ writesectorsIDE0
 	ld bc,hddstat
 nobsy01
 	in a,(C)
-	and #80
+	and 0x80
 	jr nz,nobsy01
 	exa  
 	dec a
 	jr nz,writesectorsIDE0
 lda0	
-        xor a;ld a,#00
+        xor a;ld a,0x00
 	ret
 
 readsecIDE
@@ -311,7 +311,7 @@ readsecIDE0
 	ret
         
 writesecIDE
-        if (hdddatlo != #10)
+        if (hdddatlo != 0x10)
         xor a
 writesecIDE0
         ld e,(hl)
@@ -325,7 +325,7 @@ writesecIDE0
         dec a
 	jr nz,writesecIDE0
         else
-        ld bc,#0000 + hdddathi
+        ld bc,0x0000 + hdddathi
 writesecIDE0
         ld a,(hl)
         inc hl
@@ -356,13 +356,13 @@ setblockparsIDE
         push de
 	ld d,b
 	ld e,c
-	;ld bc,#ff00+hddhead ;зачем ff???
+	;ld bc,0xff00+hddhead ;зачем ff???
         ld bc,hddhead
 	out (C),d ;head
 	ld bc,hddstat
 nobsy02
 	in a,(C)
-	and #80
+	and 0x80
 	jr nz,nobsy02
 	ld bc,hddcylhi
 	out (C),e ;cylHI
@@ -377,11 +377,11 @@ nobsy02
 	ret
         
 readidentIDE
-	;ld bc,#ff00+hddhead ;зачем ff???
+	;ld bc,0xff00+hddhead ;зачем ff???
         ld bc,hddhead
 	out (C),a
 	ld bc,hddstat
-	ld d,#1a
+	ld d,0x1a
 LL7c06	;ei  
 	halt  
 	;di  
@@ -399,7 +399,7 @@ LL7c06	;ei
 	out (C),a
 	ld bc,hddcyllo
 	out (C),a
-	ld a,#ec
+	ld a,0xec
 	ld bc,hddcmd
 	out (C),a
 	ld bc,hddstat
@@ -412,8 +412,8 @@ LL7c29	in a,(C)
 	rrca  
 	jr c,LL7c3c
 	rlca  
-	and #88
-	cp #08
+	and 0x88
+	cp 0x08
 	jr nz,LL7c29
 LL7c3c	ld bc,hddcyllo
 	in e,(C)
@@ -422,20 +422,20 @@ LL7c3c	ld bc,hddcyllo
 	ld a,d
 	or e
 	jp z,readsecIDE
-	ld hl,#eb14 ;???
+	ld hl,0xeb14 ;???
 	sbc hl,de
-	ld a,#01
+	ld a,0x01
 	ret z
 ldaff	
-        ld a,#ff
+        ld a,0xff
 	ret  
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Z-Controller (SD-card) ;;;;;;;;;;;;;;;;
 
 SD_INIT
         call cs_highSD ;включаем питание карты при снятом выборе
-	ld bc,#0057
-	ld de,#20ff
+	ld bc,0x0057
+	ld de,0x20ff
 LL7c5d	out (C),e
 	dec d
 	jr nz,LL7c5d ;записываем в порт много единичек
@@ -463,11 +463,11 @@ LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим
 	ld hl,0
 	bit 2,a
 	jr nz,LL7c92
-	ld h,#40
-LL7c92	ld a,#77 ;запускаем процесс внутренней инициализации
+	ld h,0x40
+LL7c92	ld a,0x77 ;запускаем процесс внутренней инициализации
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
-	ld a,#69
+	ld a,0x69
 	out (C),a ;бит 6 установлен для инициализации SDHC карты
 	nop  
 	out (C),h
@@ -477,12 +477,12 @@ LL7c92	ld a,#77 ;запускаем процесс внутренней инициализации
 	out (C),l
 	nop  
 	out (C),l
-	ld a,#ff
+	ld a,0xff
 	out (C),a
 	call read32byteswaitnoffSD ;ждем перевода карты в режим готовности
 	and a ;время ожидания примерно 1 секунда
 	jr nz,LL7c92
-LL7cb4	ld a,#7b ;принудительно отключаем CRC16
+LL7cb4	ld a,0x7b ;принудительно отключаем CRC16
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
 	and a
@@ -495,25 +495,25 @@ LL7cbf	ld hl,cmd16SD ;SET_BLOCKEN ;команда изменения размера блока
 ;включение питания карты при снятом сигнале выбора карты 
 cs_highSD
         push af
-	ld a,#03
-	ld bc,#8057
+	ld a,0x03
+	ld bc,0x8057
 	out (C),a ;включаем питание, снимаем выбор карты
 	xor a
 	dec b
 	out (C),a ;обнуляем порт данных
 ;обнуление порта можно не делать, просто последний записанный бит всегда 1, а при сбросе через вывод данных карты напряжение попадает на вывод питания карты и светодиод на питании подсвечивается 
 	pop af
-	xor a;ld a,#00
+	xor a;ld a,0x00
 	ret  
 
 errexitSD
         call SD_OFF
-	ld a,#03
+	ld a,0x03
 	ret  
 
 SD_OFF
         xor a
-	ld bc,#8057
+	ld bc,0x8057
 	out (C),a ;выключение питания карты
 	dec b
 	out (C),a ;обнуление порта данных
@@ -522,8 +522,8 @@ SD_OFF
 ;выбираем карту сигналом 0
 cs_lowSD
         push af
-	ld a,#01
-	ld bc,#8057
+	ld a,0x01
+	ld bc,0x8057
 	out (C),a
 	pop af
 	ret  
@@ -532,7 +532,7 @@ cs_lowSD
 ;адрес команды в HL
 outcom_hlSD
         call cs_lowSD
-	ld bc,#0657
+	ld bc,0x0657
 	otir  
 	ret  
 
@@ -540,7 +540,7 @@ outcom_hlSD
 ;А=код команды, аргумент команды равен 0 
 outcom_zeroparsSD
         call cs_lowSD
-	ld bc,#0057
+	ld bc,0x0057
 	out (C),a
 	xor a
 	out (C),a
@@ -563,8 +563,8 @@ setcmdparsSD
 	push bc
 	push af
 	push bc
-	ld a,#7a ;READ_OCR
-	ld bc,#0057
+	ld a,0x7a ;READ_OCR
+	ld bc,0x0057
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
 	in a,(C)
@@ -578,13 +578,13 @@ setcmdparsSD
 	pop hl       ;при установленном бите умножение номера сектора
 	jr nz,LL7d40 ;не требуется
 	exd       ;при сброшенном бите соответственно
-	add hl,hl ;умножаем номер сектора на 512 (#200)
+	add hl,hl ;умножаем номер сектора на 512 (0x200)
 	exd  
 	adc hl,hl
 	ld h,l
 	ld l,d
 	ld d,e
-	ld e,#00
+	ld e,0x00
 LL7d40	pop af ;заготовленный номер сектора находится в HLDE
 	out (C),a ;команда
 	nop  
@@ -595,18 +595,18 @@ LL7d40	pop af ;заготовленный номер сектора находится в HLDE
 	out (C),d
 	nop  
 	out (C),e ;до младшего байта
-	ld a,#ff
+	ld a,0xff
 	out (C),a ;пишем пустой CRC7 и стоповый бит
 	pop bc
 	pop de
 	pop hl
 	ret
         
-;чтение ответа карты до 32 раз, если ответ не #FF - немедленный выход 
+;чтение ответа карты до 32 раз, если ответ не 0xFF - немедленный выход 
 read32byteswaitnoffSD
         push de
-	ld de,#20ff
-	ld bc,#0057
+	ld de,0x20ff
+	ld bc,0x0057
 LL7d5e	in a,(C)
 	cp e
 	jr nz,LL7d66
@@ -618,42 +618,42 @@ LL7d66	pop de
 cmd00SD
 ;GO_IDLE_STATE
 ;команда сброса и перевода карты в SPI режим после включения питания
-        db #40
-        db #00
-        db #00
-        db #00
-        db #00
-        db #95
+        db 0x40
+        db 0x00
+        db 0x00
+        db 0x00
+        db 0x00
+        db 0x95
 cmd08SD
 ;SEND_IF_COND
 ;запрос поддерживаемых напряжений 
-        db #48
-        db #00
-        db #00
-        db #01
-        db #aa
-        db #87
+        db 0x48
+        db 0x00
+        db 0x00
+        db 0x01
+        db 0xaa
+        db 0x87
 cmd16SD
 ;SET_BLOCKEN
 ;команда изменения размера блока 
-        db #50
-        db #00
-        db #00
-        db #02
-        db #00
-        db #ff
+        db 0x50
+        db 0x00
+        db 0x00
+        db 0x02
+        db 0x00
+        db 0xff
 
 readsecSDcard	
         push bc
-	ld bc,#7f57
+	ld bc,0x7f57
 	inir  
-	ld b,#7f
+	ld b,0x7f
 	inir  
-	ld b,#7f
+	ld b,0x7f
 	inir  
-	ld b,#7f
+	ld b,0x7f
 	inir  
-	ld b,#04
+	ld b,0x04
 	inir  
 	nop  
 	in a,(C)
@@ -664,17 +664,17 @@ readsecSDcard
 
 writesecSDcard	
         push bc
-	ld bc,#0057
+	ld bc,0x0057
 	out (C),a
-	ld b,#80
+	ld b,0x80
 	otir  
-	ld b,#80
+	ld b,0x80
 	otir  
-	ld b,#80
+	ld b,0x80
 	otir  
-	ld b,#80
+	ld b,0x80
 	otir  
-	ld a,#ff
+	ld a,0xff
 	out (C),a
 	nop  
 	out (C),a
@@ -682,18 +682,18 @@ writesecSDcard
 	ret
 
 readsectorsSD
-        ld a,#52
+        ld a,0x52
 	call setcmdparsSD
 	exa  
 LL7dbd	exa  
 LL7dbe	call read32byteswaitnoffSD
-	cp #fe
+	cp 0xfe
 	jr nz,LL7dbe
 	call readsecSDcard
 	exa  
 	dec a
 	jr nz,LL7dbd
-	ld a,#4c
+	ld a,0x4c
 	call outcom_zeroparsSD
 readsectorsSD_q
 	call read32byteswaitnoffSD_loopnoff
@@ -706,7 +706,7 @@ read32byteswaitnoffSD_loopnoff
 	ret
 
 writesectorsSD
-        ld a,#59
+        ld a,0x59
 	call setcmdparsSD
 ;LL7ddf	call read32byteswaitnoffSD
 ;	inc a
@@ -714,7 +714,7 @@ writesectorsSD
 	call read32byteswaitnoffSD_loopnoff
 	exa  
 LL7de6	exa  
-	ld a,#fc
+	ld a,0xfc
 	call writesecSDcard
 ;LL7dec	call read32byteswaitnoffSD
 ;	inc a
@@ -723,8 +723,8 @@ LL7de6	exa
 	exa  
 	dec a
 	jr nz,LL7de6
-	ld c,#57
-	ld a,#fd
+	ld c,0x57
+	ld a,0xfd
 	out (C),a
 ;LL7dfc	call read32byteswaitnoffSD
 ;	inc a
@@ -735,7 +735,7 @@ LL7de6	exa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;NeoGS
 writesectorsGS
-        ld a,#05
+        ld a,0x05
 ;b=head
 ;c=cylHI
 ;d=cylLO
@@ -745,12 +745,12 @@ writesectorsGS
 	exa  
 	push de
 	push bc
-	ld bc,#00b3 ;TODO c
+	ld bc,0x00b3 ;TODO c
 writesectorsGS0
 	exa  
-	out (#bb),a
+	out (0xbb),a
 	call loop_errGS
-	ld de,#0200
+	ld de,0x0200
 writesecGS200
 	outi  
 	call no_bsyGS
@@ -764,7 +764,7 @@ writesecGS200
 ;	call wait_bsyGS
 ;writesecGS_waitready0
 ;	in a,(C)
-;	cp #77
+;	cp 0x77
 ;	jr nz,writesecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
 ;	pop bc
 ;	pop de
@@ -773,7 +773,7 @@ writesecGS200
 	jr readsectorsGSwait77
         
 readsectorsGS
-        ld a,#03
+        ld a,0x03
 ;b=head
 ;c=cylHI
 ;d=cylLO
@@ -783,12 +783,12 @@ readsectorsGS
 	exa  
 	push de
 	push bc
-	ld bc,#00b3 ;TODO c
+	ld bc,0x00b3 ;TODO c
 readsectorsGS0
 	exa
-	out (#bb),a
+	out (0xbb),a
 	call loop_errGS
-	ld de,#0200
+	ld de,0x0200
 readsecGS0
 	call wait_bsyGS
 	ini  
@@ -803,7 +803,7 @@ readsectorsGSwait77
 	call wait_bsyGS
 readsecGS_waitready0
 	in a,(C)
-	cp #77
+	cp 0x77
 	jr nz,readsecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
 	pop bc
 	pop de
@@ -811,8 +811,8 @@ readsecGS_waitready0
 	ret  
 
 ;??????? not used        
-	;db #3e,#01 ;ld a,#01
-	;db #18,#01 ;jr LL7e68
+	;db 0x3e,0x01 ;ld a,0x01
+	;db 0x18,0x01 ;jr LL7e68
         
 setblockparsGS	
 ;a=? 0/3/5
@@ -821,24 +821,24 @@ setblockparsGS
 ;d=cylLO
 ;e=sec
 ;a'=count	
-        out (#b3),a
-	ld a,#1e
-	out (#bb),a
+        out (0xb3),a
+	ld a,0x1e
+	out (0xbb),a
 	call loop_errGS
 	ld a,b
-	out (#b3),a
+	out (0xb3),a
 	call no_bsyGS
 	ld a,c
-	out (#b3),a
+	out (0xb3),a
 	call no_bsyGS
 	ld a,d
-	out (#b3),a
+	out (0xb3),a
 	call no_bsyGS
 	ld a,e
-	out (#b3),a
+	out (0xb3),a
 	call no_bsyGS
 	exa  
-	out (#b3),a
+	out (0xb3),a
 	exa  
 	;nop  
 	;nop  
@@ -856,47 +856,47 @@ setblockparsGS
 
 ;ожидание освобождения устройства
 no_bsyGS
-        in a,(#bb)
+        in a,(0xbb)
 	rla  
 	jr c,no_bsyGS
 	ret  
 wait_bsyGS
-        in a,(#bb)
+        in a,(0xbb)
 	rla  
 	jr nc,wait_bsyGS
 	ret  
 loop_errGS
-        in a,(#bb)
+        in a,(0xbb)
 	rra  
 	jr c,loop_errGS ;c=error???
 	ret
 
 writesecGS
-        ld a,#80
-	out (#33),a
+        ld a,0x80
+	out (0x33),a
 	;ei  
 	halt  
 	halt  
 	;di  
-	ld a,#f3
-	ld b,#30 ;количество повторов (*1/50 с)
-	out (#bb),a
+	ld a,0xf3
+	ld b,0x30 ;количество повторов (*1/50 с)
+	out (0xbb),a
 waitGS0
         ;ei  
 	halt  
 	;di  
 	dec b
 	jr z,lda1
-	in a,(#bb)
+	in a,(0xbb)
 	rra  
 	jr c,waitGS0
-	ld bc,#00b3 ;TODO c
+	ld bc,0x00b3 ;TODO c
 	in a,(C)
-	ld de,#0300
-	ld hl,#5b00
+	ld de,0x0300
+	ld hl,0x5b00
 	out (C),e
-	ld a,#14
-	out (#bb),a
+	ld a,0x14
+	out (0xbb),a
 	call loop_errGS
 	out (C),d
 	call no_bsyGS
@@ -904,7 +904,7 @@ waitGS0
 	call no_bsyGS
 	out (C),h
 	call no_bsyGS
-	ld hl,(#0006)
+	ld hl,(0x0006)
 writesecGS300	
         outi  
 	call no_bsyGS
@@ -912,10 +912,10 @@ writesecGS300
 	ld a,d
 	or e
 	jr nz,writesecGS300
-	ld hl,#5b00
+	ld hl,0x5b00
 	out (C),l
-	ld a,#13
-	out (#bb),a
+	ld a,0x13
+	out (0xbb),a
 	call loop_errGS
 	out (C),h
 	;ei  
@@ -923,8 +923,8 @@ writesecGS300
 	halt  
 	;di  
 GScp77
-	in a,(#b3)
-	sub #77
+	in a,(0xb3)
+	sub 0x77
 	ret z
 lda1
 	ld a,1
@@ -942,8 +942,8 @@ GS_INIT
 ;a'=count	
 	call setblockparsGS
 	call wait_bsyGS
-	;in a,(#b3)
-	;sub #77 ;какое-то состояние GS???
+	;in a,(0xb3)
+	;sub 0x77 ;какое-то состояние GS???
 	;ret z
         ;ld a,1
 	;ret 

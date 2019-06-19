@@ -1,0 +1,48 @@
+;всего управл€ющих комбинаций:
+;1: nokey
+;1: redraw
+;1: Enter
+;12: цифры с CS, cs+Space, cs+Enter
+;3: ss, cs, sscs
+;6[5]: ss+Q,+W,+E,+I,[+Enter],+Space
+;38[37] ext+кнопка[кроме extSpace, который выдаЄтс€ вместе с extZ]
+;=62[60], можно уместить в два набора 0..31, но так не помест€тс€ символы 0..31 как символы!
+
+;SO, SI занимать нельз€
+;упр. коды, необходимые дл€ CP/M, передавать непосредственно (чем их меньше, тем больше отдельных ext+keys можно предусмотреть)
+;ext+keys передавать как 0..31 (чтобы можно было ввести любой упр.код CP/M, надо ещЄ несколько клавиш дл€ остальных кодов)
+;TODO символы 0..31 передавать как SO, код+0xb0, SI?
+;TODO остальные упр. коды (cs+digit, ext+digit, extSpace, extEnt, ssQWE) передавать как SO, код+0xd0, SI?
+
+;00*nokey ^@ NUL - (если GET_KEY будет сам делать YIELD до прихода событи€ клавиатуры/мыши, а чьЄ событие - как-то кодировать в H - тогда нельз€ передавать отжатие, т.к. событие есть, а код HA=nokey)
+;01       ^A SOH All (WordLeft в TP) -- home
+;02       ^B STX -- left
+;03       ^C ETX Copy (PgDn в TP) (close app в MS-DOS) -- close app
+;04       ^D EOT (Right в TP и ATM CP/M) -- del
+;05       ^E ENQ (Up в TP) -- end
+;06       ^F ACK Find (WordRight в TP) -- right
+;07       ^G BEL Replace (Del в TP)
+;08 cs0   ^H BS  BS! (BS в MS-DOS) (Up в TPlib) -- bs
+;09 csss  ^I HT  Tab! (Tab в MS-DOS) -- tab
+;0A       ^J LF (Enter в ATM CP/M)
+;0B       ^K VT (Left в TPlib) -- kill line
+;0C       ^L FF  (FindNext в TP) -- update screen
+;0D Enter ^M CR  Enter! (Enter в ATM CP/M и Notepad++) (Right в TPlib) (режим выделени€ в Win) -- enter
+;0E       ^N SO  New -- next
+;0F       ^O SI  Open -- flush
+;10       ^P DEL Del (Down в TPlib) -- previous
+;11       ^Q DC1 -- verbatim?
+;12       ^R DC2 (PgUp? в TP) -- search back
+;13       ^S DC3 Save (Left в TP и ATM CP/M) -- search forward
+;14       ^T DC4 (DelWordRight в TP)
+;15       ^U NAK -- numeric?
+;16       ^V SYN Paste (Ins в TP) -- verbatim? pgup?
+;17       ^W ETB
+;18       ^X CAN Cut (Down в TP) (delete command в ATM CP/M)
+;19       ^Y EM  DelLn
+;1A       ^Z SUB Undo (EOF)
+;1B csSpc ^[ SUB Esc! (Esc key, Esc symbol)
+;1C Home  ^\ FS
+;1D Ins   ^] GS
+;1E End   ^^ RS
+;1F redraw^_ US

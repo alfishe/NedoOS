@@ -61,7 +61,7 @@ calcnavigatorsize
         add hl,hl
         add hl,hl ;при wid>=2048 будет переполнение!
         jr nc,$+5
-        ld hl,#ffff ;wid==2048
+        ld hl,0xffff ;wid==2048
         ld de,(curbitmaphgt)
         call divhlde ;hl=hl/de
         ld bc,navigatorwid*32/navigatorhgt
@@ -254,7 +254,7 @@ shownavigator_ybottom=$+1
         ;ld de,navigatorx8*8 ;de=x
         ;ld b,navigatorhgt-1 ;b=hgt
         ;ld hl,navigatorwid-1 ;hl=wid
-        ld lx,%11100100 ;lx=color
+        ld lx,0xe4;%11100100 ;lx=color
         jp shapes_prpixelframe
 
 showbitmapcoords
@@ -265,7 +265,7 @@ showbitmapcoords
         ret nz ;вне рабочей зоны
 ;bc=x в bitmap, de=y в bitmap
         call setpgshapes
-        ld lx,%00111111 ;фоновый цвет
+        ld lx,0x3f;%00111111 ;фоновый цвет
 
         push de ;y
         ;push bc ;x
@@ -281,7 +281,7 @@ showwindowcoords
 ;bc=x
 ;de=y
         call setpgshapes
-        ld lx,%00111111 ;фоновый цвет
+        ld lx,0x3f;%00111111 ;фоновый цвет
 
         push de ;y
         ;push bc ;x

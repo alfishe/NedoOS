@@ -57,9 +57,9 @@ TRDOSFCB.buf=256;$-TRDOSFCB
 
         ;align 256
 TRDOSFCB1=trdos_fcbbuf
-        ;ds #200*trdos_MAXFILES ;max 8 files
+        ;ds 0x200*trdos_MAXFILES ;max 8 files
 DOSBUF=trdos_sectorbuf
-        ;ds #100
+        ;ds 0x100
 ;TRDOSFCB2.=0x4a00 ;aligned
 ;TRDOSFCB3.=0x4c00 ;aligned
 ;TRDOSFCB4.=0x4e00 ;aligned
@@ -113,7 +113,7 @@ nfdelcp0.
 	push bc
         push de ;filename
         push hl ;DOSBUF+
-	ld bc,#900 ;b=bytes to compare, c=errors
+	ld bc,0x900 ;b=bytes to compare, c=errors
 nfdelcp00.
 	ld a,[de]
 	sub [hl]
@@ -873,7 +873,7 @@ rdsec.
 rdsectors.
 	ld c,0x05
         ;push hl ;read address
-        ;ld hl,#8000 ;pgkillable
+        ;ld hl,0x8000 ;pgkillable
         ;push bc
         ;push hl
         jp iodos. ;hl=next sector
@@ -882,7 +882,7 @@ rdsectors.
         ;ld c,0
         ;pop de ;read address
         ;ldir
-        ;ld hl,(#5cf4);(sysvars+#00f4) ;next sector
+        ;ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ;ret
 
 ;FUNC UINT writesectors FORWARD(PBYTE buf, UINT trsec, BYTE count);
@@ -902,7 +902,7 @@ wrsectors.
         ;push bc
         ;push de ;track,sector
         ;ld c,0
-        ;ld de,#8000 ;pgkillable
+        ;ld de,0x8000 ;pgkillable
         ;push de
         ;ldir
         ;pop hl
@@ -923,7 +923,7 @@ trdosolddrive=$+1
         if 1==1
         ld c,1
 	call dos3d13nopg.
-        ld c,#18
+        ld c,0x18
 	call dos3d13nopg.
         else
         ;ld (23798),a
@@ -931,7 +931,7 @@ trdosolddrive=$+1
         ;ld (23800),a
         ;ld (23801),a
         ld (23833),a
-        or #3c
+        or 0x3c
         ld (23830),a
         endif
         pop hl
@@ -940,5 +940,5 @@ trdosolddrive=$+1
 iodos_nochdrive
         ;ld iy,23610
 	call dos3d13.
-        ld hl,(#5cf4);(sysvars+#00f4) ;next sector
+        ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret

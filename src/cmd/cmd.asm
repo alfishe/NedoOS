@@ -14,11 +14,11 @@ txtscrwid=80
 CMDLINEY=24
 
 COLOR=7
-CURSORCOLOR=#38
+CURSORCOLOR=0x38
 
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         ;ld e,COLOR
@@ -135,7 +135,7 @@ editcmd0
         call fixscroll_prcmd
         call cmdcalccurxy
         OS_SETXY
-        ld e,CURSORCOLOR;#38
+        ld e,CURSORCOLOR;0x38
         OS_PRATTR ;нарисовать курсор
         YIELDGETKEYLOOP
          ;ld a,c ;keynolang
@@ -407,7 +407,7 @@ loadapp
          xor a
          ld (de),a ;отрезать имя файла
         inc de
-        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в #c000...)
+        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         pop hl ;hl=after last slash
         jr nz,loadapp_nopath
 
@@ -420,7 +420,7 @@ loadapp
         pop hl ;hl=after last slash
 loadapp_nopath
         ex de,hl ;de=after last slash
-        ;ld de,wordbuf ;ASCIIZ string for parsing (в #c000...)
+        ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         ld hl,fcb_filename ;Pointer to 11 byte buffer
         OS_PARSEFNAME
         
@@ -454,7 +454,7 @@ strcpexec_tryrun_noemptyext
         push de
         push hl
         ld hl,cmdbuf
-        ld de,#c000+COMMANDLINE
+        ld de,0xc000+COMMANDLINE
         ld bc,COMMANDLINE_sz
         ldir ;command line
         pop hl
@@ -598,28 +598,28 @@ readbyte_readbufq
 readfile_pages_dehl
         ld a,d
         SETPG32KHIGH
-        ld a,+(#c000+PROGSTART)/256
+        ld a,+(0xc000+PROGSTART)/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,e
         SETPG32KHIGH
-        ld a,#c000/256
+        ld a,0xc000/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,h
         SETPG32KHIGH
-        ld a,#c000/256
+        ld a,0xc000/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,l
         SETPG32KHIGH
-        ld a,#c000/256
+        ld a,0xc000/256
         jp cmd_loadpage
 
 cmd_dir
@@ -1076,7 +1076,7 @@ cmd_proc_skip
         pop de
         inc e
         ld a,e
-        inc a ;no id #ff
+        inc a ;no id 0xff
         jr nz,cmd_proc0
         ret
 
@@ -1104,16 +1104,16 @@ cmd_t0
         
 cmderror
         push hl
-        ld e,#42
+        ld e,0x42
         OS_SETCOLOR
         pop hl
         call prtext
         ld e,COLOR
         OS_SETCOLOR
 prcrlf
-        ld a,#0d
+        ld a,0x0d
         PRCHAR
-        ld a,#0a
+        ld a,0x0a
         PRCHAR
         ret
         
@@ -1457,7 +1457,7 @@ tcantmakedir
 tcantrename
         db "Can't rename",0
 t_files_crlf
-        db " files",#0d,#0a,0
+        db " files",0x0d,0x0a,0
 tfree
         db "free pages=",0
 twrongid

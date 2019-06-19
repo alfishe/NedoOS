@@ -63,7 +63,7 @@ TOOL_FILL=4
 TOOL_TEXT=5
 NTOOLS=6
 
-backcolor=%00111111
+backcolor=0x3f;%00111111
 
 bmpmaxpages=251
 maxbitmaps=4
@@ -138,7 +138,7 @@ main_go2
         xor a
         ld (de),a ;отрезать имя файла
         inc de
-        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в #c000...)
+        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         ;push de
         jr nz,autoload_nopath
         OS_CHDIR
@@ -302,7 +302,7 @@ invarrzone
         add a,workzoney
         ld b,a ;y
         ld c,0 ;x/8
-        ld de,#1004 ;d=hgt ;e=wid
+        ld de,0x1004 ;d=hgt ;e=wid
         call setpgshapes
         jp shapes_invbox
         
@@ -336,7 +336,7 @@ mmb
         cp 4*8
         ret nc ;не палитра
         rra
-        and #0c
+        and 0x0c
         ld c,a
         ld a,l
         srl h
@@ -554,15 +554,15 @@ fire_or_rmb_pencil
         ;cp ZONE_WORK
         ;jr nz,firepixel ;старое положение было вне рабочей зоны - линию нельзя
 fireline
-        ;ld a,#fe
-        ;in a,(#fe)
+        ;ld a,0xfe
+        ;in a,(0xfe)
          ld a,(cur_cs_halfrow)
         rra ;Caps Shift
         jr c,fireline_noshift
         ld bc,(curlinex)
         ld a,b
         inc a
-        ret z ;#ffxx - нет предыдущей точки
+        ret z ;0xffxx - нет предыдущей точки
         ld de,(curliney)
         jr fireline_noshiftq
 fireline_noshift
@@ -674,7 +674,7 @@ setcurcolor
         call ahl_coords
         sub palettey
         rra
-        and #0c
+        and 0x0c
         ld bc,-palettex8*8
         add hl,bc
         srl l
@@ -889,7 +889,7 @@ control_scale_checksize
 
         ld bc,workzoney*256 + workzonex8 ;b=y ;c=x/8
         ld de,workzonehgt*256 + workzonewid8 ;d=hgt ;e=wid8
-        ld a,%00111111 ;a=%33210210
+        ld a,0x3f;%00111111 ;a=%33210210
         call shapes_fillbox
         jp control_scroll_checksize;showworkscreen
 control_keys_plus
@@ -998,7 +998,7 @@ calccurtool
         rra
         rra
         rra
-        and #0f
+        and 0x0f
         cp NTOOLS
         ret
 
@@ -1051,7 +1051,7 @@ showtools
 showtools0
         push bc
         push de
-        ld de,#1004
+        ld de,0x1004
         ld a,backcolor
         call shapes_prbox
         pop de
@@ -1065,7 +1065,7 @@ showtools0
         call shapes_prtext48ega_black
         pop bc
         ld a,b
-        add a,#10
+        add a,0x10
         ld b,a
         inc de
         ld a,(de)
@@ -1085,7 +1085,7 @@ prpal0
 prpal1
         push af
         push de
-        ld de,#0801 ;hgt, wid(chr)
+        ld de,0x0801 ;hgt, wid(chr)
         push bc
         call shapes_colortocolormask
         call shapes_prbox
@@ -1372,7 +1372,7 @@ tpixelrecode
         dup 256
 _3=$&8
 _210=$&7
-        db (_3*#18) + (_210*#09)
+        db (_3*0x18) + (_210*0x09)
         edup
         
 tpixelrecodeLEFT
@@ -1380,7 +1380,7 @@ tpixelrecodeLEFT
         dup 256
 _3=$&8
 _210=$&7
-        db (_3*#08) + (_210*#01)
+        db (_3*0x08) + (_210*0x01)
         edup
         
 tpixelrecodeRIGHT
@@ -1388,7 +1388,7 @@ tpixelrecodeRIGHT
         dup 256
 _3=$&8
 _210=$&7
-        db (_3*#10) + (_210*#08)
+        db (_3*0x10) + (_210*0x08)
         edup
         
 ;;;;;;;;;;;;;;;;;;; таблицы для палитры
@@ -1415,11 +1415,11 @@ tsqrt
         incbin "sqrtmax2"
 tbitmappages
         display "tbitmappages=",tbitmappages
-        ds bmpmaxpages,#7f
+        ds bmpmaxpages,0x7f
         
 activeend
         display "activeend=",activeend
-        ds #4000-$
+        ds 0x4000-$
 SHAPES_begin
         include "prshapes.asm"
         include "prarrow.asm"
@@ -1433,7 +1433,7 @@ SHAPES_sz=$-SHAPES_begin
 gfxeditor_end
 
 	display "Size ",/d,gfxeditor_end-gfxeditor_begin," bytes"
-	display "Free (incl. stack) ",/d,#4000-activeend," bytes"
+	display "Free (incl. stack) ",/d,0x4000-activeend," bytes"
 
 	savebin "scratch.com",gfxeditor_begin,gfxeditor_end-gfxeditor_begin
 	

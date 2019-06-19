@@ -30,7 +30,7 @@ fillarea0
         pop bc
         ld (fillareastartx),bc
         ld (fillareastarty),de
-        ld iy,#ffff ;hy: верх был занят (будет новая последовательность), ly: низ был занят (будет новая последовательность)
+        ld iy,0xffff ;hy: верх был занят (будет новая последовательность), ly: низ был занят (будет новая последовательность)
 fillarea00
         call setpixel_fast
 ;проверяем снизу
@@ -53,7 +53,7 @@ fillarea00
          inc lx
         jr fillareanodown
 fillareanodown_blocked
-        ld ly,#ff
+        ld ly,0xff
 fillareanodown
         dec de
 ;проверяем сверху
@@ -75,7 +75,7 @@ fillareanodown
          inc lx ;stack size
         jr fillareanoup
 fillareanoup_blocked
-        ld hy,#ff
+        ld hy,0xff
 fillareanoup
          inc de ;y
 ;движемся влево (если возможно), иначе вправо
@@ -98,7 +98,7 @@ filrarea0
         ret z ;jp z,setpgs_scr
         pop de
         pop bc
-        ld iy,#ffff ;hy: верх был занят (будет новая последовательность), ly: низ был занят (будет новая последовательность)
+        ld iy,0xffff ;hy: верх был занят (будет новая последовательность), ly: низ был занят (будет новая последовательность)
 filrarea00
         call setpixel_fast
 ;проверяем снизу
@@ -121,7 +121,7 @@ filrarea00
          inc lx ;stack size
         jr filrareanodown
 filrareanodown_blocked
-        ld ly,#ff
+        ld ly,0xff
 filrareanodown
         dec de
 ;проверяем сверху
@@ -143,7 +143,7 @@ filrareanodown
          inc lx ;stack size
         jr filrareanoup
 filrareanoup_blocked
-        ld hy,#ff
+        ld hy,0xff
 filrareanoup
          inc de ;y
 ;движемся вправо
@@ -209,7 +209,7 @@ prlinebitmap_noswap
         push hl ;dx
         exx
         pop bc ;dx
-        ld a,#03 ;inc bc
+        ld a,0x03 ;inc bc
         jp p,prlinebitmap_nodec
         xor a
         sub c
@@ -217,7 +217,7 @@ prlinebitmap_noswap
         sbc a,b
         sub c
         ld b,a ;dx >= 0
-        ld a,#0b ;dec bc
+        ld a,0x0b ;dec bc
 prlinebitmap_nodec
         pop de ;dy
 ;a=код inc/dec bc
@@ -418,7 +418,7 @@ calcbitmap_from_xy
         rl h
         rla
         srl h
-        if (scrbase != #0000)
+        if (scrbase != 0x0000)
         scf
         rr h
         else
@@ -679,5 +679,5 @@ bitmaps
         ds curbitmapstruct_sz-32-1 ;нули в описателях bmp
         db 3 ;scale
         STANDARDPAL
-        ds bmpmaxpages,#7f ;имеющая смысл страничка
+        ds bmpmaxpages,0x7f ;имеющая смысл страничка
         edup

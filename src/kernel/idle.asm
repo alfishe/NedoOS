@@ -1,6 +1,6 @@
 ;не включаем gfxmode, чтобы idle никогда не получал фокус
 ;по умолчанию стоит текстмод
-        ld sp,#4000 ;нельзя ниже #3b00 и нельзя пересечься с resident (если мы в pgtrdosfs)
+        ld sp,0x4000 ;нельзя ниже 0x3b00 и нельзя пересечься с resident (если мы в pgtrdosfs)
         ld e,7
         OS_CLS
         ;если сделать SETGFX, то после введения терминалов появится лишний терминал под idle
@@ -67,7 +67,7 @@ idle_runcmd
         push de
         push hl
         ld hl,cmdbuf
-        ld de,#c080
+        ld de,0xc080
         ld bc,128  
         ldir ;command line
         pop hl
@@ -88,18 +88,18 @@ idle_runcmd
         
 idleloop
         ;ld a,1
-        ;out (#fe),a
+        ;out (0xfe),a
         
-        ld a,#fe
-        in a,(#fe)
+        ld a,0xfe
+        in a,(0xfe)
         bit 3,a ;'c'
         jr nz,idleloop
-        ld a,#7f
-        in a,(#fe)
+        ld a,0x7f
+        in a,(0xfe)
         bit 2,a ;'m'
         jr nz,idleloop
-        ld a,#fd
-        in a,(#fe)
+        ld a,0xfd
+        in a,(0xfe)
         bit 2,a ;'d'
         jr nz,idleloop
         ld e,7
@@ -113,13 +113,13 @@ execcmd_error
         jr idleloop
 
 tcmdnotfound
-        db "cmd.com not found",#0d,#0a,0
+        db "cmd.com not found",0x0d,0x0a,0
 tcmdloading
-        db "loading cmd.com",#0d,#0a,0
+        db "loading cmd.com",0x0d,0x0a,0
 tdrivemounted
         db "Drive "
 tdrivemounted_drive
-        db "N mounted",#0d,#0a,0
+        db "N mounted",0x0d,0x0a,0
 
 cmdbuf
         ;db "cmd autoexec.bat",0
@@ -141,32 +141,32 @@ prtext0
 readfile_pages_dehl
         ld a,d
         SETPG32KHIGH
-        ld a,#c100/256
-        ld b,#3f00/128
+        ld a,0xc100/256
+        ld b,0x3f00/128
         call cmd_loadpage
         or a
         ret nz
         
         ld a,e
         SETPG32KHIGH
-        ld a,#c000/256
-        ld b,#4000/128
+        ld a,0xc000/256
+        ld b,0x4000/128
         call cmd_loadpage
         or a
         ret nz
         
         ld a,h
         SETPG32KHIGH
-        ld a,#c000/256
-        ld b,#4000/128
+        ld a,0xc000/256
+        ld b,0x4000/128
         call cmd_loadpage
         or a
         ret nz
         
         ld a,l
         SETPG32KHIGH
-        ld a,#c000/256
-        ld b,#4000/128
+        ld a,0xc000/256
+        ld b,0x4000/128
 
 cmd_loadpage
 ;out: a=error

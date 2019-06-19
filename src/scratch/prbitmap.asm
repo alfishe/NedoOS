@@ -118,11 +118,11 @@ prbitmapbox
         call calcscr_from_xchr_y
         pop bc ;x â bitmap
         ld a,h
-        add a,+((scrbase16k-scrbase)/256)&#ff ;or scrbase16k/256 ;#c0
+        add a,+((scrbase16k-scrbase)/256)&0xff ;or scrbase16k/256 ;0xc0
         ld h,a
-        push hl ;scr (#c000+)
+        push hl ;scr (0xc000+)
         call calcbitmap_from_xy ;out: a=pg, hl=addr
-        pop de ;scr (#c000+)
+        pop de ;scr (0xc000+)
         ld bc,(curbitmapscale) ;1=25%, 2=50%, 3=100%, 4=200%, 5=400%
         dec c
         jp z,showbitmapbox_25_lines
@@ -147,11 +147,11 @@ showbitmapbox_400_lines
 showbitmapbox_400_lines0
         ld ly,4
 showbitmapbox_400_lines1
-        push de ;scr (#c000+)
+        push de ;scr (0xc000+)
         push af ;pg
         call setpg32k
         push hl ;bitmap addr
-         push de ;scr (#c000+)
+         push de ;scr (0xc000+)
          push hl ;bitmap addr
         ld a,(setpgs_scr_low)
         SETPG16K
@@ -162,11 +162,11 @@ showbitmapbox_400_lines1
          pop hl ;bitmap addr
         ld a,(setpgs_scr_high)
         SETPG16K
-         pop bc ;scr (#c000+)
+         pop bc ;scr (0xc000+)
         SHOWBITMAPLINELAYER02_400 ;lx=wid(chr)
         pop hl ;bitmap addr
         pop af ;pg
-        pop de ;scr (#c000+)
+        pop de ;scr (0xc000+)
         call showbitmapbox_scrlinedown
         dec ly
         jp nz,showbitmapbox_400_lines1
@@ -195,11 +195,11 @@ showbitmapbox_200_lines
 showbitmapbox_200_lines0
         ld ly,2
 showbitmapbox_200_lines1
-        push de ;scr (#c000+)
+        push de ;scr (0xc000+)
         push af ;pg
         call setpg32k
         push hl ;bitmap addr
-         push de ;scr (#c000+)
+         push de ;scr (0xc000+)
          push hl ;bitmap addr
         ld a,(setpgs_scr_low)
         SETPG16K
@@ -210,12 +210,12 @@ showbitmapbox_200_lines1
          pop hl ;bitmap addr
         ld a,(setpgs_scr_high)
         SETPG16K
-         pop bc ;scr (#c000+)
+         pop bc ;scr (0xc000+)
         inc hl
         SHOWBITMAPLINELAYER02_200 ;lx=wid(chr)
         pop hl ;bitmap addr
         pop af ;pg
-        pop de ;scr (#c000+)
+        pop de ;scr (0xc000+)
         call showbitmapbox_scrlinedown
         dec ly
         jp nz,showbitmapbox_200_lines1
@@ -242,11 +242,11 @@ showbitmapbox_25_lines
          ld l,b
 showbitmapbox_25_lines0
         exx
-        push de ;scr (#c000+)
+        push de ;scr (0xc000+)
         push af ;pg
         call setpg32k
         push hl ;bitmap addr
-         push de ;scr (#c000+)
+         push de ;scr (0xc000+)
           push hl ;bitmap addr
           pop iy
          ld bc,8
@@ -260,7 +260,7 @@ showbitmapbox_25_lines0
         SHOWBITMAPLINELAYER02_25 ;lx=wid(chr)
          pop iy ;bitmap addr+2
         exx
-         pop de ;scr (#c000+)
+         pop de ;scr (0xc000+)
         exx
         ld a,(setpgs_scr_high)
         SETPG16K
@@ -268,7 +268,7 @@ showbitmapbox_25_lines0
         exx
         pop hl ;bitmap addr
         pop af ;pg
-        pop de ;scr (#c000+)
+        pop de ;scr (0xc000+)
         call showbitmapbox_scrlinedown
         call showbitmapbox_linedown2
         call showbitmapbox_linedown2
@@ -292,11 +292,11 @@ showbitmapbox_50_lines
          ld l,b
 showbitmapbox_50_lines0
         exx
-        push de ;scr (#c000+)
+        push de ;scr (0xc000+)
         push af ;pg
         call setpg32k
         push hl ;bitmap addr
-         push de ;scr (#c000+)
+         push de ;scr (0xc000+)
           push hl ;bitmap addr
           pop iy
          ld bc,4
@@ -310,7 +310,7 @@ showbitmapbox_50_lines0
         SHOWBITMAPLINELAYER02_50 ;lx=wid(chr)
          pop iy ;bitmap addr+2
         exx
-         pop de ;scr (#c000+)
+         pop de ;scr (0xc000+)
         exx
         ld a,(setpgs_scr_high)
         SETPG16K
@@ -318,7 +318,7 @@ showbitmapbox_50_lines0
         exx
         pop hl ;bitmap addr
         pop af ;pg
-        pop de ;scr (#c000+)
+        pop de ;scr (0xc000+)
         call showbitmapbox_scrlinedown
         call showbitmapbox_linedown2
         exx
@@ -345,11 +345,11 @@ showbitmapbox_100_lines
          ld l,b
 showbitmapbox_100_lines0
          exx
-        push de ;scr (#c000+)
+        push de ;scr (0xc000+)
         push af ;pg
         call setpg32k
         push hl ;bitmap addr
-         push de ;scr (#c000+)
+         push de ;scr (0xc000+)
           push hl ;bitmap addr
           pop iy
          inc hl
@@ -363,7 +363,7 @@ showbitmapbox_100_lines0
         SHOWBITMAPLINELAYER02_100 ;lx=wid(chr)
          pop iy ;bitmap addr+2
         exx
-         pop de ;scr (#c000+)
+         pop de ;scr (0xc000+)
         exx
         ld a,(setpgs_scr_high)
         SETPG16K
@@ -371,7 +371,7 @@ showbitmapbox_100_lines0
         exx
         pop hl ;bitmap addr
         pop af ;pg
-        pop de ;scr (#c000+)
+        pop de ;scr (0xc000+)
         call showbitmapbox_scrlinedown
         call showbitmapbox_linedown
          exx
@@ -458,7 +458,7 @@ showbitmapbox_scrlinedown
         ex de,hl
         ld bc,40
         add hl,bc
-        ex de,hl ;scr (#c000+)
+        ex de,hl ;scr (0xc000+)
         ret
 
 showbitmapbox_linedown2
