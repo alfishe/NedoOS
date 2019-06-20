@@ -13,10 +13,9 @@ cmd_begin
 	
 ;check cmdline
 	call print_nl
-
 	ld hl,COMMANDLINE
 
-ping_checkkeys
+ping_checkkeys ;Check cmdline keys
 	call skipword_hl ;skip arg0
 	call skipspaces_hl
 	ld a,(hl)
@@ -34,16 +33,14 @@ ping_keysok
 
 	ld a,(arg_hostname)
 	or a
-	jp z, show_usage ;if empty arg1 show usage
+	jp z, show_usage ;if no hostname show usage
 
-label1
-
-	ld hl,arg_hostname-1
+	ld hl,arg_hostname-1 ;для удобства в цикле
 	ld de,ip
 
 ping_nextdig
-	inc hl
-	call strtobyte_hltode
+	inc hl         ;check for ip-address in arg
+	call strtobyte_hltode 
 	ld a,(hl)
 	cp '.'
 	jr z,ping_nextdig
@@ -53,38 +50,32 @@ ping_nextdig
 	ex hl,de
 	ld de,ip
 	sbc hl,de
-	ld de,4
+	ld de,4 
 	sbc hl,de
 	ld a,h
 	or l
-	jp z,ping_noresolve
+	jp z,ping_noresolve ; We have ip in arg
 
 ping_resolve
 
-;	ld hl,txt_resolve
-;	call print_hl
-;	QUIT
 	ld de,arg_hostname
 	call dns_resolver ; resolving ip
 	ld a,h
-	or l
-	jp z,resolveerror
-	ld de,ip; save ip
+	or l   ;in HL ip address or zero
+	jp z,ping_resolveerror
+	ld de,ip; copy ip
 	ld bc,4
 	ldir
 
-ping_noresolve
-;	ld hl,txt_notresolve
-;	call print_hl
-;	QUIT
+ping_noresolve 
 
 	ld hl,ip
 	ld de,txtip ; convert to text
-	call iptostr_hltode
+	call ping_iptostr_hltode
 
 	ld hl,txt_head1 ; showing message ping to blablabla
 	call print_hl
-	ld hl,arg_hostname
+	ld hl,arg_hostname 
 	call print_hl
 	ld hl,txt_head2
 	call print_hl
@@ -92,73 +83,70 @@ ping_noresolve
 	call print_hl
 	ld hl,txt_head3
 	call print_hl
-	ld hl,icmpdatasize
-	ld de,buf
-	call bytetostr_hltode
-	ld hl,buf
-	call print_hl
+	ld a,(icmpdatasize)
+	call printbyte_a
 	ld a,'('
 	PRCHAR
 	ld a,(icmpdatasize)
-	add 8+6
-	ld de,buf
-	call bytetostr_atode
-	ld hl,buf
-	call print_hl
+	add 8+6 ; header icmp + header ip
+	call printbyte_a
 	ld a,')'
 	PRCHAR
 	ld hl,txt_head4
 	call print_hl
 
-label2
-	xor a
+	xor a ; Preparing connect params
 	ld hl,ip
 	ld de,conparam+2
-	ld (de),a ; порт обнуляем
+	ld (de),a ; No port set for ipraw mode
 	inc de
 	ld bc,4
-	ldir ; запихиваем ип адрес
+	ldir ; copy ip address
 
-label3
-	ld de,0x0202
+	ld de,0x0202 ; AF_INET,SOCK_ICMP
 	OS_NETSOCKET
-	ld a,l
+	ld a,l 
 	ld c,l
-	ld (soc1),a
+	ld (soc1),a ; save socket to soc1
 	or a
-	ld hl,txt_socketerror
+	ld hl,txt_socketerror ; In c error code
 	jp m, ping_error_hl
 
-	LD de,conparam
-	OS_NETCONNECT
+	ld de,conparam
+	OS_NETCONNECT ; open socket
 	ld c,a
 	ld a,l
 	or a
-	ld hl,txt_socketopenerror
+	ld hl,txt_socketopenerror ; In c error code
 	jp m, ping_error_hl
 
-	YIELD
+	YIELD 
 
-	ld bc,(icmpcnt)
+	ld bc,(icmpcnt) ; num of packets
 ping_loop
 	push bc
-	call buildicmppacket
-	ld hl,16
-	LD a,(soc1)
-	LD de,icmpreq1
+	call ping_buildicmppacket
+
+	ld hl,(icmpdatasize)
+	ld de,8 ; header 8 bytes
+	add hl,de
+	ld a,(soc1)
+	ld de,icmppacket ; send icmp packet
+
 	OS_WIZNETWRITE
 	ld a,h
+	or a
 	jp p,ping_nowriteerr
 	ld hl,txt_writeerror
 	call print_hl
 
 ping_nowriteerr
-	ld b,250
+	ld b,250 ; 250 tries*20ms= about 5s+code execution
 ping_loopwait
 	push bc
-	ld hl,256
+	ld hl,256 ; try to read all buff with trash bytes.
 	ld a,(soc1)
-	ld de,icmprep1
+	ld de,icmppacket; Don't worry after icmppacket - buf 256bytes
 	OS_WIZNETREAD
 	pop bc
 	ld a,h
@@ -167,50 +155,47 @@ ping_loopwait
 	push bc
 	YIELD
 	pop bc
-	djnz ping_loopwait
+	djnz ping_loopwait ; if read zero bytes
 	ld hl,(icmperr); timeout
 	inc hl
-	ld (icmperr),hl
+	ld (icmperr),hl ; inc packet loss count
 	ld hl,txt_timeout
-	call print_hl
+	call print_hl 
 	pop bc
 	djnz ping_loop
-	jr ping_end
+	jr ping_end ; if tries more than icmpcnt
 
 ping_loopreceived
 
-	ld ix,icmprep1
+	ld ix,icmppacket
 	call icmpchecksum_ixtohl
-	inc hl
+	inc hl ; checksum of cheksummed packet always 0xFFFF
 	ld a,h
 	or l
 	ld (crc),a
 	jr z, ping_nocrc
-	ld hl,(icmperr)
+	ld hl,(icmperr) ; inc packet loss count
 	inc hl
 	ld (icmperr),hl
 ping_nocrc
 
-	call ping_printwork
-	call ping_wait
-	pop bc
+	call ping_printwork 
+	call ping_wait ; wait for some time
+	pop bc 
 	ld a,b
 	dec a
 	ld b,a
 	or a
-	jp nz, ping_loop
+	jp nz, ping_loop 
 
 ping_end
-;	bit 7,h
-	LD a,(soc1)
-	LD E,0
-	OS_NETSHUTDOWN
+	ld a,(soc1)
+	ld E,0
+	OS_NETSHUTDOWN 
 
 	call ping_printstat
 
 	QUIT
-
-
 
 
 ;------------------functions-----------
@@ -230,14 +215,14 @@ ping_printstat
 	ld hl,txt_tail2
 	call print_hl
 	ld a,(icmpnum)
-	call print_a
+	call printbyte_a
 	ld hl,txt_tail3
 	call print_hl
 	ld hl,(icmpnum)
 	ld de,(icmperr)
 	sbc hl,de
 	ld a,l
-	call print_a
+	call printbyte_a
 	ld hl,txt_tail4
 	call print_hl
 ;% lost
@@ -252,9 +237,10 @@ ping_printstat
 	ret
 
 ping_printpacket_ix
-	ld a,(icmpdatasize)
-	add 8
-	ld b,a
+;	ld a,(icmpdatasize)
+;	add 8 ;header
+;	ld b,a
+	ld b,16
 ping_printpacket_ix0
 	push bc
 	ld a,(ix)
@@ -262,7 +248,7 @@ ping_printpacket_ix0
 	call bytetohexstr_atode
 	ld hl,buf
 	call print_hl
-	ld a,' '
+	ld a,' ' ;TODO only every 4 bytes
 	PRCHAR
 	inc ix
 	pop bc
@@ -288,7 +274,7 @@ ping_printwork
 	ld a,(crc)
 	or a
 	jr nz,ping_printwork_crc
-	ld a,(icmprep1.num)
+	ld a,(icmppacket.num); if no crc print packet num
 	ld de,buf
 	call bytetostr_atode
 	ld hl,buf
@@ -296,37 +282,34 @@ ping_printwork_crc
 	call print_hl
 	ld hl,txt_work3
 	call print_hl
-	YIELD
-	ld de,(icmpreq1.data+6)
+	YIELD ; update current time in "oldtimer"
+	ld de,(icmppacket.data+6)
 	ld hl,(oldtimer)
 	sbc hl,de
 	ex hl,de
-	ld hl,(icmptime)
+	ld hl,(icmptime) ; add to total elapsed time
 	add hl,de
 	ld (icmptime),hl
 	ex hl,de
 	
-	ld a,l
+	ld a,l ; only low byte, sorry :(
 	sll a
 	sll a
 	sll a
 	add l
-	sll a ; умножили на 20
-	ld de,buf
-	call bytetostr_atode
-	ld hl,buf
-	call print_hl
+	sll a ; moultiple by 20ms
+	call printbyte_a
 	ld hl,txt_work4
 	call print_hl
-	ld a,(icmpshowpacket)
+	ld a,(icmpshowpacket) ; want to show packet content?
 	or a
 	ret z
-	ld ix,icmprep1
+	ld ix,icmppacket
 	call ping_printpacket_ix
 	ret
 
 
-resolveerror
+ping_resolveerror
 	ld hl,txt_resolveerror
 	call print_hl
 	ld hl,arg_hostname
@@ -343,16 +326,8 @@ ping_error_hl
 	call print_nl
 	QUIT
 
-ping_textsum_hltobuf
-	ld (buf),hl
-	ld de,buf+2
-	ld hl,buf
-	call bytetostr_hltode
-	call bytetostr_hltode
-	ret
-
 ping_wait
-	ld b,50
+	ld bc,(icmpdelay)
 ping_wait0
 	push bc
 	YIELD
@@ -360,8 +335,8 @@ ping_wait0
 	djnz ping_wait0
 	ret
 
-buildicmppacket
-	ld ix,icmpreq1
+ping_buildicmppacket
+	ld ix,icmppacket
 	ld (ix + STicmpreq.type),8
 	ld (ix + STicmpreq.code),0
 	ld (ix + STicmpreq.checksum),0
@@ -375,12 +350,9 @@ buildicmppacket
 	ld (ix + STicmpreq.num),l
 	ld hl, (oldtimer)
 	ld (ix + STicmpreq.data+6),hl
-	ld (ix + STicmpreq.data+5),0
-	ld (ix + STicmpreq.data+4),0
-	ld (ix + STicmpreq.data+3),0
-	ld (ix + STicmpreq.data+2),0
-	ld (ix + STicmpreq.data+1),0
-	ld (ix + STicmpreq.data),0
+	ld (ix + STicmpreq.data+4),hl
+	ld (ix + STicmpreq.data+2),hl
+	ld (ix + STicmpreq.data),hl
 	call icmpchecksum_ixtohl
 	ld (icmpnextid),hl
 	ld (ix + STicmpreq.checksum),h
@@ -389,8 +361,13 @@ buildicmppacket
 
 icmpchecksum_ixtohl
 	push ix
+	ld hl,(icmpdatasize)
+	ld de,8 ; header
+	add hl,de
+	srl h
+	rr l ; divide by 2
+	ld b,l; words
 	ld hl,0
-	ld b,8
 	or a
 icmpchecksum_loop
 	ld d, (ix)
@@ -410,7 +387,7 @@ icmpchecksum_loop
 	ld hl,0xffff
 	ret
 
-iptostr_hltode
+ping_iptostr_hltode
 	call bytetostr_hltode
 	ld a, '.'
 	ld (de), a
@@ -440,7 +417,7 @@ dns_err_loop
 	ldir
 	ex de,hl
 	ld de,buf+7
-	ld (hl),b;0
+	ld (hl),b
 	ld  c,256-7
 	ldir
 	ld de,buf+12
@@ -558,6 +535,13 @@ exiterr1
 	ld hl,0
 	ret
 
+ping_printcrc
+	ld hl,txt_crc
+	call print_hl
+	call print_nl
+	ret
+
+
 	STRUCT STicmpreq
 type		BYTE
 code		BYTE
@@ -567,27 +551,28 @@ num		WORD
 data		ds 8
 	ENDS
 
+soc1		db 0
 dns_head 	db 0x11,0x22,0x01,0x00,0x00,0x01
 conparam	db 0,0,53,8,8,8,8
-icmpreq1 STicmpreq
-icmprep1 STicmpreq
+icmppacket 	STicmpreq
 buf 		ds 255
-soc1		db 0
 ip		ds 4
 txtip		db 0,0,0,'.',0,0,0,'.',0,0,0,'.',0,0,0,0
 
-icmpdatasize db 8
+icmpdatasize db 56,0
 icmpnum db 0,0
 icmpcnt db 0,10
 icmpnextid db 0x53,0x53
 icmperr db 0,0
 icmptime db 0,0
 icmpshowpacket db 0
+icmpdelay db 0,50 ;*20ms
 crc db 0
 
 oldtimer ds 2
+arg_hostname ds 255
 
-txt_usage db "Use ping <host_name|ip>",0x0D,0x0A,0
+txt_usage db "Use ping [-p] <host_name|ip>",0x0D,0x0A,0
 txt_head1 db "PING ",0
 txt_head2 db " (",0
 txt_head3 db ") ",0
@@ -596,35 +581,20 @@ txt_resolveerror db "Can not resolve ",0
 txt_socketerror db "IP socket creation error",0
 txt_socketopenerror db "IP socket opening error",0
 txt_writeerror db "Something wrong with write",0x0D,0x0A,0
-txt_sumerror db " checksum wrong",0x0D,0x0A,0
-txt_sumok db " checksum ok",0x0D,0x0A,0
+txt_crc db "CRC",0
 txt_timeout db " timeout",0x0D,0x0A,0
 txt_work1 db "Echo from ",0
 txt_work2 db "): icmp_seq=",0
 txt_work3 db " time=",0
 txt_work4 db " ms",0x0D,0x0A,0
-txt_crc db "CRC error",0
 txt_tail1 db "--- ",0
 txt_tail2 db " ping statistics ---",0x0D,0x0A,0
 txt_tail3 db " packets transmitted, ",0
 txt_tail4 db " received, ",0
 txt_tail5 db " packet loss, time ",0
 txt_tail6 db " ms",0x0D,0x0A,"rtt min/avg/max = ",0
-txt_resolve db "Resolve",0x0D,0x0A,0
-txt_notresolve db "Not resolve",0x0D,0x0A,0
-
-
-arg_hostname ds 255
 
 cmd_end
-	display "printhl: ", print_hl
-	display "begin: ", cmd_begin
-	display "buf: ", buf
-	display "label1: ", label1
-	display "label2: ", label2
-	display "label3: ", label3
-	display "txtip: ", txtip
-	display "dns_exiterr: ", dns_exiterr
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "ping.com",cmd_begin,cmd_end-cmd_begin

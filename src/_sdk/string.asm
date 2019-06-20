@@ -15,7 +15,7 @@ print_nl
 	PRCHAR
 	ret 
 
-print_a
+printbyte_a
 	ld de,strprintbuf
 	call bytetostr_atode
 	ld hl,strprintbuf
