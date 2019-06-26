@@ -6,6 +6,10 @@ dns_err_count=25
 cmd_begin
 
 ;init
+	YIELD
+	ld hl,(oldtimer)
+	ld (icmpstarttime),hl
+
 	ld sp,0x8000
 	ld e,6
 	OS_SETGFX ;text mode set
@@ -123,10 +127,6 @@ ping_noresolve
 	or a
 	ld hl,txt_socketopenerror ; In c error code
 	jp m, ping_error_hl
-
-	YIELD 
-	ld hl,(oldtimer)
-	ld (icmpstarttime),hl
 
 	ld bc,(icmpcnt) ; num of packets
 ping_loop
@@ -324,16 +324,17 @@ ping_printstat0
 
 ;print overal time
 	YIELD 
+	or a
 	ld hl,(oldtimer)
 	ld de,(icmpstarttime)
 	sbc hl,de
 	ld d,h
 	ld e,l
-	add hl,hl
+	add hl,hl ;multiply by 20ms
 	add hl,hl
 	add hl,de
 	add hl,hl
-	
+	add hl,hl
 	call printushort_hl
 
 ;print rtt
@@ -468,8 +469,10 @@ ping_wait
 	ld bc,(icmpdelay)
 ping_wait0
 	push bc
-	YIELD
-;	OS_GETKEYMATRIX
+	YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
+	ld a,c
+	cp key_esc
+	jp z,ping_end
 	pop hl
 	ld de,19
 	or a
