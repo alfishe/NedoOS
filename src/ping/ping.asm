@@ -10,7 +10,6 @@ cmd_begin
 	ld e,6
 	OS_SETGFX ;text mode set
 ;main
-	
 ;check cmdline
 	call print_nl
 	ld hl,COMMANDLINE
@@ -23,8 +22,14 @@ ping_checkkeys ;Check cmdline keys
 	jr nz,ping_keysok
 	inc hl
 	ld a,(hl)
-	cp 'p'
-	call z,ping_setkey_p
+	cp 'd'
+	call z,ping_setkey_d
+	cp 's'
+	call z,ping_setkey_s
+	cp 'i'
+	call z,ping_setkey_i
+	cp 'c'
+	call z,ping_setkey_c
 	jr ping_checkkeys
 
 ping_keysok
@@ -33,7 +38,7 @@ ping_keysok
 
 	ld a,(arg_hostname)
 	or a
-	jp z, show_usage ;if no hostname show usage
+	jp z, ping_showusage ;if no hostname show usage
 
 	ld hl,arg_hostname-1 ;для удобства в цикле
 	ld de,ip
@@ -94,7 +99,6 @@ ping_noresolve
 	PRCHAR
 	ld hl,txt_head4
 	call print_hl
-
 	xor a ; Preparing connect params
 	ld hl,ip
 	ld de,conparam+2
@@ -121,6 +125,8 @@ ping_noresolve
 	jp m, ping_error_hl
 
 	YIELD 
+	ld hl,(oldtimer)
+	ld (icmpstarttime),hl
 
 	ld bc,(icmpcnt) ; num of packets
 ping_loop
@@ -162,7 +168,10 @@ ping_loopwait
 	ld hl,txt_timeout
 	call print_hl 
 	pop bc
-	djnz ping_loop
+	dec bc
+	ld a,b
+	or c
+	jp nz, ping_loop 
 	jr ping_end ; if tries more than icmpcnt
 
 ping_loopreceived
@@ -182,10 +191,9 @@ ping_nocrc
 	call ping_printwork 
 	call ping_wait ; wait for some time
 	pop bc 
+	dec bc
 	ld a,b
-	dec a
-	ld b,a
-	or a
+	or c
 	jp nz, ping_loop 
 
 ping_end
@@ -201,7 +209,71 @@ ping_end
 ;------------------functions-----------
 	include "../_sdk/string.asm"
 
-ping_setkey_p
+ping_updateminmaxhl
+	push hl
+	or a
+	ld de,(icmpmin)
+	sbc hl,de
+	pop hl
+	jr nc,ping_updateminmaxhl_next
+	ld (icmpmin),hl
+ping_updateminmaxhl_next
+	push hl
+	ld de,(icmpmax)
+	sbc hl,de
+	pop hl
+	ret c
+	ld (icmpmax),hl
+	ret
+
+ping_setkey_c
+	inc hl
+	call skipspaces_hl
+	call strtoushort_hltode
+	or a
+	ret nz
+	ld (icmpcnt),de
+	ret
+
+ping_setkey_i
+	inc hl
+	call skipspaces_hl
+	call strtoushort_hltode
+	or a
+	ret nz
+	;check
+	push hl
+	ex hl,de
+;	call printushort_hl
+;	call print_nl
+	ld de,20
+	sbc hl,de ;<20
+	jp c,ping_showusage
+	add hl,de
+	ld (icmpdelay),hl
+	pop hl
+	ret
+
+ping_setkey_s
+	inc hl
+	call skipspaces_hl
+	ld de,buf
+	call strtobyte_hltode
+	or a
+	ret nz
+	ld de,buf
+	ld a,(de)
+	ld d,a
+	;check
+	sub 56 ;<56
+	jp c,ping_showusage
+	add 70 ;>241
+	jp c,ping_showusage
+	ld a,d
+	ld (icmpdatasize),a
+	ret
+
+ping_setkey_d
 	ld a,1
 	ld (icmpshowpacket),a
 	ret
@@ -214,33 +286,92 @@ ping_printstat
 	call print_hl
 	ld hl,txt_tail2
 	call print_hl
-	ld a,(icmpnum)
-	call printbyte_a
+	ld hl,(icmpnum)
+	call printushort_hl
 	ld hl,txt_tail3
 	call print_hl
 	ld hl,(icmpnum)
 	ld de,(icmperr)
 	sbc hl,de
-	ld a,l
-	call printbyte_a
+	push de
+	call printushort_hl
 	ld hl,txt_tail4
 	call print_hl
-;% lost
+
+;print % lost
+	pop hl 
+	ex hl,de ;err packets in DE
+	ld h,d
+	ld l,e
+	add hl,hl
+	add hl,de
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,de
+	add hl,hl
+	add hl,hl ; multiply by 100
+	ld a,0xFF
+	or a
+	ld de,(icmpnum)
+ping_printstat0
+	inc a
+	sbc hl,de
+	jr nc,ping_printstat0
+	call printbyte_a
 	ld hl,txt_tail5
 	call print_hl
-;time
+
+;print overal time
+	YIELD 
+	ld hl,(oldtimer)
+	ld de,(icmpstarttime)
+	sbc hl,de
+	ld d,h
+	ld e,l
+	add hl,hl
+	add hl,hl
+	add hl,de
+	add hl,hl
+	
+	call printushort_hl
+
+;print rtt
 	ld hl,txt_tail6
 	call print_hl
 ;rtt
-	call print_nl
-
+;min
+	ld hl,(icmpmin)
+	call printushort_hl
+	ld a,'/'
+	PRCHAR
+;avg icmppacketstime/(icmpnum-icmperr)
+	or a
+	ld hl,(icmpnum)
+	ld de,(icmperr)
+	sbc hl,de
+	ex hl,de
+	ld hl,(icmppacketstime)
+	ld bc,0xFFFF
+ping_printstat1
+	inc bc
+	or a
+	sbc hl,de
+	jr nc,ping_printstat1
+	ld h,b
+	ld l,c
+	call printushort_hl
+	ld a,'/'
+	PRCHAR
+;max
+	ld hl,(icmpmax)
+	call printushort_hl
+	ld hl,txt_tail7
+	call print_hl
 	ret
 
 ping_printpacket_ix
-;	ld a,(icmpdatasize)
-;	add 8 ;header
-;	ld b,a
-	ld b,16
+	ld b,16 ; only first 16 bytes
 ping_printpacket_ix0
 	push bc
 	ld a,(ix)
@@ -248,7 +379,7 @@ ping_printpacket_ix0
 	call bytetohexstr_atode
 	ld hl,buf
 	call print_hl
-	ld a,' ' ;TODO only every 4 bytes
+	ld a,' '
 	PRCHAR
 	inc ix
 	pop bc
@@ -275,30 +406,37 @@ ping_printwork
 	or a
 	jr nz,ping_printwork_crc
 	ld a,(icmppacket.num); if no crc print packet num
+	ld h,a
+	ld a,(icmppacket.num+1)
+	ld l,a
 	ld de,buf
-	call bytetostr_atode
+	call ushorttostr_hltode
 	ld hl,buf
 ping_printwork_crc
 	call print_hl
 	ld hl,txt_work3
 	call print_hl
 	YIELD ; update current time in "oldtimer"
-	ld de,(icmppacket.data+6)
+	ld a,(icmppacket.data+6)
+	ld d,a
+	ld a,(icmppacket.data+7)
+	ld e,a
 	ld hl,(oldtimer)
 	sbc hl,de
-	ex hl,de
-	ld hl,(icmptime) ; add to total elapsed time
+	ld d,h
+	ld e,l
+	add hl,hl
+	add hl,hl
 	add hl,de
-	ld (icmptime),hl
+	add hl,hl
+	add hl,hl; moultiple by 20ms
 	ex hl,de
-	
-	ld a,l ; only low byte, sorry :(
-	sll a
-	sll a
-	sll a
-	add l
-	sll a ; moultiple by 20ms
-	call printbyte_a
+	ld hl,(icmppacketstime) ; add to total packet time
+	add hl,de
+	ld (icmppacketstime),hl
+	ex hl,de
+	call ping_updateminmaxhl
+	call printushort_hl
 	ld hl,txt_work4
 	call print_hl
 	ld a,(icmpshowpacket) ; want to show packet content?
@@ -331,8 +469,14 @@ ping_wait
 ping_wait0
 	push bc
 	YIELD
+;	OS_GETKEYMATRIX
+	pop hl
+	ld de,19
+	or a
+	sbc hl,de
+	push hl
 	pop bc
-	djnz ping_wait0
+	jr nc,ping_wait0
 	ret
 
 ping_buildicmppacket
@@ -342,17 +486,22 @@ ping_buildicmppacket
 	ld (ix + STicmpreq.checksum),0
 	ld (ix + STicmpreq.checksum+1),0
 	ld hl,(icmpnextid)
-	ld (ix + STicmpreq.id),hl
+	ld (ix + STicmpreq.id),h
+	ld (ix + STicmpreq.id+1),l
 	ld hl,(icmpnum)
 	inc hl
 	ld (icmpnum),hl
 	ld (ix + STicmpreq.num),h
-	ld (ix + STicmpreq.num),l
+	ld (ix + STicmpreq.num+1),l
 	ld hl, (oldtimer)
-	ld (ix + STicmpreq.data+6),hl
-	ld (ix + STicmpreq.data+4),hl
-	ld (ix + STicmpreq.data+2),hl
-	ld (ix + STicmpreq.data),hl
+	ld (ix + STicmpreq.data),h
+	ld (ix + STicmpreq.data+1),l
+	ld (ix + STicmpreq.data+2),h
+	ld (ix + STicmpreq.data+3),l
+	ld (ix + STicmpreq.data+4),h
+	ld (ix + STicmpreq.data+5),l
+	ld (ix + STicmpreq.data+6),h
+	ld (ix + STicmpreq.data+7),l
 	call icmpchecksum_ixtohl
 	ld (icmpnextid),hl
 	ld (ix + STicmpreq.checksum),h
@@ -403,7 +552,7 @@ ping_iptostr_hltode
 	call bytetostr_hltode
 	ret
 
-show_usage
+ping_showusage
 	ld hl,txt_usage
 	call print_hl
 	QUIT
@@ -561,18 +710,22 @@ txtip		db 0,0,0,'.',0,0,0,'.',0,0,0,'.',0,0,0,0
 
 icmpdatasize db 56,0
 icmpnum db 0,0
-icmpcnt db 0,10
+icmpcnt db 10,0
 icmpnextid db 0x53,0x53
 icmperr db 0,0
-icmptime db 0,0
+icmpstarttime db 0,0
+icmppacketstime db 0,0
 icmpshowpacket db 0
-icmpdelay db 0,50 ;*20ms
+icmpdelay db 0xE8,0x03 ;1000ms
+icmpmin db 0xFF,0xFF
+icmpmax db 0,0
 crc db 0
 
 oldtimer ds 2
 arg_hostname ds 255
 
-txt_usage db "Use ping [-p] <host_name|ip>",0x0D,0x0A,0
+txt_usage db "Use ping [-d debug] [-s size (56-241)] [-i interval (20-65535ms)]",0x0D,0x0A
+	  db "         [-c count (1-65535)] <host_name|ip>",0x0D,0x0A,0
 txt_head1 db "PING ",0
 txt_head2 db " (",0
 txt_head3 db ") ",0
@@ -591,11 +744,11 @@ txt_tail1 db "--- ",0
 txt_tail2 db " ping statistics ---",0x0D,0x0A,0
 txt_tail3 db " packets transmitted, ",0
 txt_tail4 db " received, ",0
-txt_tail5 db " packet loss, time ",0
+txt_tail5 db "% packet loss, time ",0
 txt_tail6 db " ms",0x0D,0x0A,"rtt min/avg/max = ",0
+txt_tail7 db " ms",0x0D,0x0A,0
 
 cmd_end
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
-
 	savebin "ping.com",cmd_begin,cmd_end-cmd_begin
 

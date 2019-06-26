@@ -22,6 +22,13 @@ printbyte_a
 	call print_hl
 	ret
 
+printushort_hl
+	ld de,strprintbuf
+	call ushorttostr_hltode
+	ld hl,strprintbuf
+	call print_hl
+	ret
+
 skipword_hl
 	ld a,(hl)
 	or a
@@ -74,8 +81,9 @@ bytetostr_ed
 	inc de
 bytetostr_nohun
 	ld a,c
-	or a
+	or b
 	jr z,bytetostr_nodec
+	ld a,c
 	add 0x30
 	ld (de),a
 	inc de
@@ -87,6 +95,91 @@ bytetostr_nodec
 	xor a
 	ld (de),a
 	inc hl
+	ret
+
+ushorttostr_hltode
+	push de
+	ld ix,strbuf
+	ld d,0x27 ;10000
+	ld e,0x10
+	xor a
+ushorttostr_decth
+	sbc hl,de
+	jr c, ushorttostr_th
+	inc a
+	jr ushorttostr_decth
+ushorttostr_th
+	add hl,de
+	ld (ix),a
+	inc ix
+	ld d,0x03 ;1000
+	ld e,0xe8
+	xor a
+ushorttostr_th0
+	sbc hl,de
+	jr c, ushorttostr_hun
+	inc a
+	jr ushorttostr_th0
+ushorttostr_hun
+	add hl,de
+	ld (ix),a
+	inc ix
+	ld d,0 ;100
+	ld e,0x64 
+	xor a
+ushorttostr_hun0
+	sbc hl,de
+	jr c, ushorttostr_dec
+	inc a
+	jr ushorttostr_hun0
+ushorttostr_dec
+	add hl,de
+	ld (ix),a
+	inc ix
+	ld e,0x0A ;10
+	xor a
+ushorttostr_dec0
+	sbc hl,de
+	jr c, ushorttostr_ed
+	inc a
+	jr ushorttostr_dec0
+ushorttostr_ed
+	add hl,de
+	ld (ix),a
+	inc ix
+	ld a,l
+	ld (ix),a
+	inc ix
+	ld a,0xFF
+	ld (ix),a
+
+	ld ix,strbuf-1
+ushorttostr_res0
+	inc ix
+	ld a,(ix)
+	or a
+	jr z,ushorttostr_res0
+
+	pop de
+	ld a,(ix)
+	cp 0xFF
+	jr nz,ushorttostr_res1
+	ld a,0x30
+	ld (de),a
+	inc de
+	jr ushorttostr_ret
+ushorttostr_res1
+	ld a,(ix)
+	cp 0xFF
+	jr z,ushorttostr_ret
+	add a,0x30
+	ld (de),a
+	inc de
+	inc ix
+	jr ushorttostr_res1
+ushorttostr_ret
+	xor a
+	ld (de),a
 	ret
 
 bytetohexstr_hltode
@@ -117,12 +210,12 @@ bytetohexstr_men16
 
 strtodigit_a ;a=FF - err
 	sub 0x30
-	jr c,str_digit_hltoa_err
+	jr c,str_digit_a_err
 	sub 10
-	jr nc,str_digit_hltoa_err
+	jr nc,str_digit_a_err
 	add 10
 	ret
-str_digit_hltoa_err
+str_digit_a_err
 	ld a,0xFF
 	ret
 
@@ -193,5 +286,55 @@ strtobyte_err
 	ld a,0xFF
 	ret
 
+strtoushort_hltode; return a=0 ok a=ff - error
+	ld bc,0
+	ld de,strbuf
+strtoushort_hltode0
+	ld a,(hl)
+	call strtodigit_a
+	inc a
+	jr z,strtoushort_hltode1
+	dec a
+	ld (de),a
+	inc hl
+	inc de
+	inc b
+	jr strtoushort_hltode0
+strtoushort_hltode1
+;в зависимости от b выбрать варианты
+	ld a,b
+	or a
+	jr z,strtoushort_hltode_err
+
+	push hl
+	ld ix,strbuf
+	ld de,0
+	ld hl,0
+
+strtoushort_hltode2
+	ld d,h ; multiply by 10
+	ld e,l
+	add hl,hl
+	add hl,hl
+	add hl,de
+	add hl,hl
+	push af
+	ld a,(ix)
+	ld d,0
+	ld e,a
+	add hl,de
+	pop af
+	inc ix
+	dec a
+	jr nz,strtoushort_hltode2
+
+	ex hl,de
+	pop hl
+	ret
+strtoushort_hltode_err
+	ld a,0xFF
+	ret
+
 
 strprintbuf ds 6
+strbuf ds 6
