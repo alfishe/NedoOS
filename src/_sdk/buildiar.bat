@@ -31,7 +31,7 @@ FOR %%f IN (%C_FILES%) do (
 
 FOR %%f IN (%ASM_FILES%) do (
 	echo %%~nf.r01 >> list\lfiles.lnk
-	%AZ80% -S -Olist\ %%f -I%currentdir%\_sdk\
+	%AZ80% -S -uu -Olist\ %%f -I%currentdir%\_sdk\
 )
 
 %XLINK% -f list\lfiles.lnk %LINK_OPTIONS%

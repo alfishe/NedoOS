@@ -195,16 +195,18 @@ DEPK0i
        JR NZ,DEPK0
        JP GPqI
 
+       if retree==0
 NEWDEMN
 ;?/frame
         ;LD A,(IX)
         ;INC LX
         ;CALL Z,LDAsec
         rarrdbyte
-        SCF 
+        ;SCF 
         RLA 
         JR C,DEMNC
         JP DEMNNC
+       endif
 yBs
         CALL store
         JP yBse
@@ -218,6 +220,30 @@ yBse   INC lx;LY
 DEPK0
         EXX 
 DEPK0X
+       if retree
+        if 1==0
+        exx
+        jr $
+        ld a,d
+        sub 0xc2
+        ld d,a
+        ld a,e
+        sub 0x5e
+        or d
+        jr z,$
+        ld a,d
+        add a,0xc2
+        ld d,a
+        exx
+        endif
+       
+        ex af,af'
+        call reld
+        ex af,af'
+        ld a,c
+;1.5t/frame
+       djnz yBYTE
+       else
         LD HL,ld
         EXA 
 DEMN0   ADD A,A
@@ -246,6 +272,7 @@ DEMNNC  LD C,(HL)
 ;1.5t/frame
        DEC H
        JR NZ,yBYTE
+       endif
 nBYTE
         SUB 270&0xff
        JP C,m270 ;<270
@@ -258,13 +285,16 @@ nBYTE
        ADD A,(HL)
       INC L
        LD L,(HL)
+      if retree
+      ld h,b;0
+      else
       LD H,0
+      endif
        JP NC,na270
         CALL LDA18
         ADD HL,BC
 na270
-      PUSH HL;!!!!!!!
-      ;jr $
+      ex de,hl;PUSH HL;!!!!!!! ;TODO ex de,hl
         LD HL,dd
         CALL DEHUFF
        SLA L
@@ -290,7 +320,7 @@ na270
         JR C,dIIputs
 ;3t/frame
         LD A,H
-      POP HL ;!!!!!!!
+      ex de,hl;POP HL ;!!!!!!! ;TODO ex de,hl
         CP #20
        JP C,putsPUT
         INC HL
@@ -303,7 +333,7 @@ diNADD
         LD (disp),A
         LD HL,0
         LD (disp+1),HL
-      POP HL ;!!!!!!!
+      ex de,hl;POP HL ;!!!!!!! ;TODO ex de,hl
        JP putsPUT
 diN0
 ;10t/frame
@@ -321,7 +351,7 @@ diN0
         ADC A,0
 eIIputs
         LD (disp+2),A
-      POP HL ;!!!!!!!
+      ex de,hl;POP HL ;!!!!!!! ;TODO ex de,hl
         INC HL
         CP 4
        JP C,putsPUT

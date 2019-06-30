@@ -16,7 +16,6 @@
         pop hl
         ld e,l
         OS_DELPAGE
-
         ld e,'A'
 mountdrives0
         push de
@@ -43,7 +42,7 @@ mountdrives0
 .mnt_next
         inc e
         ld a,e
-        cp 'U'
+        cp 'Y'
         jr nz,mountdrives0
 
 idle_runcmd

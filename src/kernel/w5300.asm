@@ -2,6 +2,7 @@
 WIZ_BASE_ADDR EQU 0x00ab
 WIZ_SOCK0_HNDL EQU 8
 WIZ_REGAD_PORT EQU 0x8100+WIZ_BASE_ADDR
+WIZ_CFG_PORT EQU 0x8200+WIZ_BASE_ADDR
 
 WIZ_S_MR EQU 0x01
 WIZ_S_CR EQU 0x03
@@ -306,7 +307,12 @@ w53_valid_socket1:
 		cp (iy+app.id)
 		jr nz,w53_invalid_socked
 w53_valid_free:
-		ld bc,WIZ_REGAD_PORT
+		ld bc,WIZ_CFG_PORT
+		in a,(c)
+		and 0x40
+		or 0x10
+		out (c),a
+		ld b,0xff&(WIZ_REGAD_PORT>>8) ;bc,WIZ_REGAD_PORT
 		ld a,(ix+1)
 		out (c),a
 		ld b,WIZ_S_MR

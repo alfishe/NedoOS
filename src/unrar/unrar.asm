@@ -14,7 +14,9 @@ TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
 
-frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;TODO почему не работает?kb=0;1kINopt=1border=0unexp=1;0masks=1;v1="0";v2="6";v3="1"
+frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;TODO почему не работает?kb=0;1kINopt=1border=0unexp=1;0masks=1
+retree=1 ;работает? (генератор кода дл€ разгребани€ дерева ’аффмана) ;требуетс€ reld длиной 0x0b08 (298*19/2-7)
+;v1="0";v2="6";v3="1"
 COLOR=7
 CURSORCOLOR=0x38
 
@@ -405,7 +407,7 @@ RDBYH
 ;RDBYHend=$+1
         CP DISKBUF/256+(DISKBUFsz/256)
         LD A,(IY)
-         ccf ;CY=0: OK ;TODO переделать на CY=1 для скорости
+         ;ccf ;CY=0: OK ;TODO переделать на CY=1 для скорости
         RET nz
        PUSH HL
        PUSH DE
@@ -456,7 +458,7 @@ ZIPRDBYHq
          pop hl
        ;ld iy,DISKBUF
        LD A,(IY)
-       or a ;CY=0: OK ;TODO переделать на CY=1 для скорости
+       scf;or a ;CY=0: OK ;TODO переделать на CY=1 для скорости (нужно дл€ retree, там add a,a:call z,bitik ... bitik:rarrdbyte(CY=1):rla:ret)
         RET 
 
 prcrlf
@@ -502,7 +504,12 @@ rd      DS 28*4
         ds MAXPATH_sz
 
 oldtimer
-        dw 0        
+        dw 0
+        if retree
+reld
+        ds (298*19/2-7) ;0x0b08
+        endif
+        
 cmd_end
 
         display "Size ",/d,cmd_end-cmd_begin," bytes"

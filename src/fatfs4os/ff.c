@@ -1988,6 +1988,7 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 			return FR_OK;				/* The file system object is valid */
 		}
 	}
+	fs->fs_type=0;
 
 	/* The logical drive must be mounted. */
 	/* Following code attempts to mount a volume. (analyze BPB and initialize the fs object) */
@@ -2124,9 +2125,10 @@ FRESULT validate (	/* FR_OK(0): The object is valid, !=0: Invalid */
 
 	ENTER_FF(fs);		/* Lock file system */
 
-	if (disk_status(fs->drv) & STA_NOINIT)
+	if (disk_status(fs->drv) & STA_NOINIT){
+		fs->fs_type=0;
 		return FR_NOT_READY;
-
+	}
 	return FR_OK;
 }
 

@@ -14,27 +14,57 @@ device_states
         db 1
         db 1
         db 1
+        db 1
 
 disk_status:
         ld d,0
         ld hl,device_states
         add hl,de
-        ld a,(hl)
-	ret
-
+		if INETDRV != 1
+			ld a,(hl)
+			ret
+		else
+			ld a,4
+			cp e
+			ld a,(hl)
+			jr z,.isSL811
+			ret
+.isSL811
+			or a
+			ret nz
+			ld bc,0x82ab
+			in a,(c)
+			and 0xaf		;хост-мод и сл811 в портах
+			out (c),a	
+			ld b,0x80
+			ld a,0x0d
+			out (c),a
+			in a,(0xab)
+			jr z,.resSL811
+			and 0x40
+			ret z
+.resSL811
+			ld a,1
+			ld (hl),a
+			ret
+		endif
 devices_init
 ;bc=?
 ;e=device number
 ;out: a=?
-        xor a
-        ld d,a
-	ld hl,device_states
-	add hl,de
-	cp (hl)
+;        xor a
+;        ld d,a
+;	ld hl,device_states
+;	add hl,de
+;	cp (hl)
+;	ret z
+	push bc
+	call disk_status
+	pop hl
+	or a
 	ret z
-	ld h,b
-	ld l,c
-	or e ;a=e
+	ld a,e ;a=e
+	or a
 	jr nz,devices_init_noSD
     if atm==3 or atm==1
 		call SD_INIT
@@ -64,6 +94,14 @@ devices_init_noIDEslave
 	ld (device_states+3),a
 	ret  
 devices_init_noGS
+	if INETDRV == 1
+		dec a
+		jr nz,devices_init_noSL811
+		call SL811.init
+		ld (device_states+4),a
+		ret 
+devices_init_noSL811
+	endif
 	ld a,0x01 ;нет такого устройства
 	ret  
 
@@ -122,6 +160,10 @@ readsectors_noIDEmaster
 readsectors_noIDEslave
 	dec a
 	jp z,readsectorsGS
+	if INETDRV == 1
+		dec a
+		jp z,SL811.RBC_Read
+	endif
 	ld a,0x01
 	ret  
 
@@ -159,6 +201,10 @@ writesectors_noIDEmaster
 writesectors_noIDEslave
 	dec a
 	jp z,writesectorsGS
+	if INETDRV == 1
+		dec a
+		jp z,SL811.RBC_Write
+	endif
 	ld a,0x01
 	ret  
 
@@ -958,3 +1004,7 @@ get_fattime:
 		ld bc,4
         ldir
         ret
+
+	if INETDRV == 1
+		include "sl811.asm"
+	endif
