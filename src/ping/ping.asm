@@ -13,6 +13,17 @@ cmd_begin
 	ld sp,0x8000
 	ld e,6
 	OS_SETGFX ;text mode set
+
+	OS_GETMAINPAGES ;hlde
+	push de
+	push hl
+	ld e,l
+	OS_DELPAGE
+	pop hl
+	ld e,h
+	OS_DELPAGE
+	pop de
+	OS_DELPAGE
 ;main
 ;check cmdline
 	call print_nl

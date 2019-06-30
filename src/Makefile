@@ -133,6 +133,19 @@ atm3sd: system install install-doc
 	${SJASMPLUS} kernel/hobeta.asm
 	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
 	mv -f test.trd ${INSTALLDIR}/osatm3sd.trd
+
+evosd: system install install-doc
+	echo atm=1 > _sdk/syssets.asm
+	echo sys_npages=192 >> _sdk/syssets.asm
+	echo NEMOIDE=1 >> _sdk/syssets.asm
+	echo SYSDRV=12 >> _sdk/syssets.asm
+	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
+	${MAKE} trd
+	${SJASMPLUS} kernel/hobeta.asm
+	cp nedoos.\$$C ${INSTALLDIR}/evosd.\$$C
+	mv -f test.trd ${INSTALLDIR}/evosd.trd
+
 pe26:
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=64 >> _sdk/syssets.asm
