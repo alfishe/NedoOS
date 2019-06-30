@@ -92,7 +92,7 @@ atm2hd:
 	echo atm=2 > _sdk\syssets.asm
 	echo sys_npages=64 >> _sdk\syssets.asm
 	echo NEMOIDE=0 >> _sdk\syssets.asm
-	echo SYSDRV=8 >> _sdk\syssets.asm
+	echo SYSDRV=4 >> _sdk\syssets.asm
 	echo INETDRV EQU 0x00 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
@@ -114,7 +114,7 @@ atm3hd:
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
-	echo SYSDRV=8 >> _sdk/syssets.asm
+	echo SYSDRV=4 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
@@ -126,7 +126,7 @@ atm3sd: system install install-doc
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
-	echo SYSDRV=4 >> _sdk/syssets.asm
+	echo SYSDRV=12 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd

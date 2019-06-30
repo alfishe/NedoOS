@@ -65,29 +65,29 @@ devices_init
 	ret z
 	ld a,e ;a=e
 	or a
-	jr nz,devices_init_noSD
-    if atm==3 or atm==1
-		call SD_INIT
-    else
-        ld a,1
-    endif
-	ld (device_states),a
-	ret  
-devices_init_noSD
-	dec a
 	jr nz,devices_init_noIDEmaster
 	ld a,0xe0
 	call IDE_INIT
-	ld (device_states+1),a
+	ld (device_states+0),a
 	ret  
 devices_init_noIDEmaster
 	dec a
 	jr nz,devices_init_noIDEslave
 	ld a,0xf0
 	call IDE_INIT
-	ld (device_states+2),a
+	ld (device_states+1),a
 	ret  
 devices_init_noIDEslave
+	dec a
+	jr nz,devices_init_noSD
+    if atm==3 or atm==1
+		call SD_INIT
+    else
+        ld a,1
+    endif
+	ld (device_states+2),a
+	ret  
+devices_init_noSD
 	dec a
 	jr nz,devices_init_noGS
 	call GS_INIT
@@ -137,8 +137,6 @@ devices_readnopg
 devices_read_go
 	call diskgetpars
 	 ;jr $
-	jp z,readsectorsSD
-	dec a
 	jr nz,readsectors_noIDEmaster
 	ld a,0xe0 ;master ;почему bit6=1???
 ;b+a=head+device
@@ -159,6 +157,8 @@ readsectors_noIDEmaster
 	jp readsectorsIDE
 readsectors_noIDEslave
 	dec a
+	jp z,readsectorsSD
+	dec a
 	jp z,readsectorsGS
 	if INETDRV == 1
 		dec a
@@ -178,8 +178,6 @@ devices_writenopg
 	;call BDOS_setpgstructs
 devices_write_go
 	call diskgetpars
-	jp z,writesectorsSD
-	dec a
 	jr nz,writesectors_noIDEmaster
 	ld a,0xe0 ;master ;почему bit6=1???
 ;b+a=head+device
@@ -199,6 +197,8 @@ writesectors_noIDEmaster
 ;a'=count	
 	jp writesectorsIDE
 writesectors_noIDEslave
+	dec a
+	jp z,writesectorsSD
 	dec a
 	jp z,writesectorsGS
 	if INETDRV == 1

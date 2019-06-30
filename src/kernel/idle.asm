@@ -35,6 +35,8 @@ mountdrives0
 		cp 10 		;The physical drive is write protected
 		jr z,.mnt_next
 		ld a,e
+		cp 'M'
+		jr nc,.mnt_next
 		dec a
 		or %00000011	;Next drive
 		inc a
@@ -42,9 +44,9 @@ mountdrives0
 .mnt_next
         inc e
         ld a,e
-        cp 'Y'
+        cp 'P'
         jr nz,mountdrives0
-
+		
 idle_runcmd
         OS_SETSYSDRV
 

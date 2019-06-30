@@ -1881,12 +1881,20 @@ BDOS_mount
         jr nz,.calcfatfs
 .fix_ffs
         ld (fatfs_org+FFS_DRV.curr_fatfs),hl ;l
-		ld a,e
-		srl e
-		srl e
 		inc hl
+		ld a,e
+		cp 8
+		jr c,.isHDD
+		sub 6
+		ld (hl),a	;םמלונ הנאיגא
+		xor a
+		jr .f_mnt
+.isHDD		
+		srl e
+		srl e
 		ld (hl),e	;םמלונ הנאיגא
 		and %00000011
+.f_mnt
 		inc hl
 		ld (hl),a	;םמלונ נאחהוכא
 		F_MNT
