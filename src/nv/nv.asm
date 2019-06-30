@@ -1694,7 +1694,7 @@ ifcmdnonempty_typedigit
         jp editcmd_typein
 
 windrv
-        dw 0x0103 ;de=yx
+        dw 0x0003 ;de=yx
         dw 256*(3+21)+9;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
