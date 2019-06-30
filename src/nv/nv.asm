@@ -1247,7 +1247,7 @@ seldrv_ok
 seldrv_down
         ld a,(hl)
         inc a
-        cp 21;5 ;drives
+        cp 15; drives
         ret z
         ld (hl),a
         ret
@@ -1695,7 +1695,7 @@ ifcmdnonempty_typedigit
 
 windrv
         dw 0x0003 ;de=yx
-        dw 256*(3+21)+9;0x0809 ;bc=hgt,wid
+        dw 256*(3+15)+9;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
         db "  A:",0,3
@@ -1713,12 +1713,6 @@ windrv
         db "  M:",0,3
         db "  N:",0,3
         db "  O:",0,3
-        db "  P:",0,3
-        db "  Q:",0,3
-        db "  R:",0,3
-        db "  S:",0,3
-        db "  T:",0,3
-        db "  U:",0,3
         db 0 ;end of window
         
 winmkdir
