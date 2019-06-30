@@ -1,5 +1,5 @@
 INSTALLDIR	= ../release
-SUBDIRS		= basic browser cmd emptyapp games kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping
+SUBDIRS		= basic browser cmd emptyapp games kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping telnet
 OBJECTS		= 
 TOOLS		= _sdk/nedotrd.bin _sdk/nedores.bin _sdk/nedopad.bin ../tools/mhmt ../tools/sjasmplus ../tools/dmimg
 SOURCES		= basic.asm bascmds.asm
@@ -119,7 +119,7 @@ atm3hd:
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 	${MAKE} trd
 	${SJASMPLUS} kernel/hobeta.asm
-	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
+	cp nedoos.\$$C ${INSTALLDIR}/osatm3hd.\$$C
 	mv -f test.trd ${INSTALLDIR}/osatm3hd.trd
 
 atm3sd: system install install-doc

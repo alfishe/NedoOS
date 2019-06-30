@@ -29,6 +29,15 @@ printushort_hl
 	call print_hl
 	ret
 
+printhex_a
+	ld de,strprintbuf
+	call bytetohexstr_atode
+	ld hl,strprintbuf
+	call print_hl
+	ret
+
+
+
 skipword_hl
 	ld a,(hl)
 	or a
@@ -182,8 +191,6 @@ ushorttostr_ret
 	ld (de),a
 	ret
 
-bytetohexstr_hltode
-	ld a,(hl)
 bytetohexstr_atode
 	ld b,a
 	srl a
@@ -196,7 +203,6 @@ bytetohexstr_atode
 	call bytetohexstr_putsymb
 	xor a
 	ld (de),a
-	inc hl
 	ret
 bytetohexstr_putsymb
 	sub 10
@@ -335,6 +341,31 @@ strtoushort_hltode_err
 	ld a,0xFF
 	ret
 
+strischar_a
+	sub 0x41
+	jr c,strischar_no
+	add 0x41
+	sub 0x7b
+	jr nc,strischar_no
+	xor a
+	ret
+strischar_no
+	ld a,0xFF
+	or a
+	ret
+
+strisdigit_a
+	sub 0x30
+	jr c,strisdigit_no
+	add 0x30
+	sub 0x3A
+	jr nc,strisdigit_no
+	xor a
+	ret
+strisdigit_no
+	ld a,0xFF
+	or a
+	ret
 
 strprintbuf ds 6
 strbuf ds 6
