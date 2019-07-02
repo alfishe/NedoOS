@@ -93,7 +93,6 @@ cmd_begin
 	pop de
 	OS_DELPAGE
 
-
 ;main
 ;check cmdline
 	call print_nl
@@ -210,6 +209,8 @@ telnet_noresolve
 	ld hl,txt_head3
 	call print_hl
 
+	ld de,ansi_pal
+	OS_SETPAL
 telnet_loop
 	YIELDGETKEY
 	ld a,c
@@ -233,7 +234,7 @@ telnet_loop
 
 telnet_loop0
 	ld bc,(options) ;echo
-	bit 1,c
+	bit 0,c
 	jr z,telnet_purge
 	cp 0x0D
 	jr z,telnet_prchar
@@ -487,7 +488,15 @@ telnetansi_docmd_m ;SGR
 	ld hl,ansi_args
 	ld a,(hl)
 	or a ;0
-	jr z,telnetansi_docmd_m0
+	jp z,telnetansi_docmd_m0
+	cp 1
+	jr z,telnetansi_docmd_m1
+	cp 22
+	jr z,telnetansi_docmd_m22
+	cp 39
+	jr z,telnetansi_docmd_m39
+	cp 49
+	jr z,telnetansi_docmd_m49
 	sub 30
 	jp c,telnet_read
 	sub 8
@@ -496,13 +505,42 @@ telnetansi_docmd_m ;SGR
 	jp c,telnet_read
 	sub 8
 	jr c,telnetansi_docmd_m40
-	jp telnet_read
+	call printbyte_a
+	sub 42 ;90
+	jp c,telnet_read
+	sub 8
+	jr c,telnetansi_docmd_m90
+
+	jp telnet_end
+telnetansi_docmd_m1
+	OS_GETCOLOR
+	set 6,e
+	jr telnetansi_docmd_m0
+telnetansi_docmd_m22
+	OS_GETCOLOR
+	res 6,e
+	jr telnetansi_docmd_m0
+telnetansi_docmd_m39
+	OS_GETCOLOR
+	ld a,e
+	and 0b10111000
+	or  0b00000111 ;default text color
+	ld e,a
+	jr telnetansi_docmd_m0
+telnetansi_docmd_m49
+	OS_GETCOLOR
+	ld a,e
+	and 0b01000111
+	ld e,a
+	jr telnetansi_docmd_m0
+telnetansi_docmd_m90
+	add 64-8 ;intensity
 telnetansi_docmd_m30
 	add 8
 	ld d,a
 	OS_GETCOLOR
 	ld a,e
-	and 0b11110000
+	and 0b11111000
 	add d
 	ld e,a
 	jr telnetansi_docmd_m0
@@ -511,11 +549,10 @@ telnetansi_docmd_m40
 	sla a
 	sla a
 	sla a
-	sla a
 	ld d,a
 	OS_GETCOLOR
 	ld a,e
-	and 0b00001111
+	and 0b11000111
 	add d
 	ld e,a
 telnetansi_docmd_m0
@@ -656,8 +693,6 @@ telnet_end
 	call print_nl
 	QUIT
 
-no20 db 0xFF,0xFB,0x18,0xFF,0xFB,0x20,0xFF,0xFB,0x23,0xFF,0xFB,0x27,0
- 
 ;------------------functions-----------
 	include "../_sdk/string.asm"
 
@@ -695,7 +730,7 @@ telnet_sendtext_hl ;TODO медлееенно (сделать напрямую а не через putbyte)
 telnet_backspace 
 	push af
 ;	ld a,(options) ;echo off?
-;	bit 1,a
+;	bit 0,a
 ;	jr z,telnet_backspace_remote
 ;	pop af
 ;	ret
@@ -899,84 +934,17 @@ telnet_sizeof_hl0
 telnet_sizeof_hl_end
 	ld a,b
 	ret
-/*
-ping_setkey_c
-	inc hl
-	call skipspaces_hl
-	call strtoushort_hltode
-	or a
-	ret nz
-	ld (icmpcnt),de
-	ret
 
-ping_setkey_i
-	inc hl
-	call skipspaces_hl
-	call strtoushort_hltode
-	or a
-	ret nz
-	;check
-	push hl
-	ex hl,de
-;	call printushort_hl
-;	call print_nl
-	ld de,20
-	sbc hl,de ;<20
-	jp c,ping_showusage
-	add hl,de
-	ld (icmpdelay),hl
-	pop hl
-	ret
-
-ping_setkey_s
-	inc hl
-	call skipspaces_hl
-	ld de,buf
-	call strtobyte_hltode
-	or a
-	ret nz
-	ld de,buf
-	ld a,(de)
-	ld d,a
-	;check
-	sub 56 ;<56
-	jp c,ping_showusage
-	add 70 ;>241
-	jp c,ping_showusage
-	ld a,d
-	ld (icmpdatasize),a
-	ret
-*/
 ping_setkey_d
 	ld a,(options)
 	or TN_DEBUG
 	ld (options),a
 	ret
 
-
-ping_printpacket_ix
-	ld b,16 ; only first 16 bytes
-ping_printpacket_ix0
-	push bc
-	ld a,(ix)
-	ld de,buf
-	call bytetohexstr_atode
-	ld hl,buf
-	call print_hl
-	ld a,' '
-	PRCHAR
-	inc ix
-	pop bc
-	djnz ping_printpacket_ix0
-	call print_nl
-	ret
-
-
 telnet_resolveerror
 	ld hl,txt_resolveerror
 	call print_hl
 	ld hl,arg_hostname
-
 
 telnet_error_hl
 	call print_hl
@@ -1172,6 +1140,8 @@ ansi_up		db 27,'[','A',0
 ansi_down	db 27,'[','B',0
 ansi_right	db 27,'[','C',0
 ansi_left	db 27,'[','D',0
+ansi_pal	dw 0xF3F3,0xF1F1,0xE3E3,0xE1E1,0xF2F2,0xF0F0,0xE2E2,0xE0E0
+		dw 0x1313,0xB1B1,0x6363,0x2121,0xD2D2,0x9090,0x4242,0x0000
 
 
 oldtimer ds 2
