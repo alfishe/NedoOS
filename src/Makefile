@@ -143,8 +143,8 @@ evosd: system install install-doc
 	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
 	${MAKE} trd
 	${SJASMPLUS} kernel/hobeta.asm
-	cp nedoos.\$$C ${INSTALLDIR}/evosd.\$$C
-	mv -f test.trd ${INSTALLDIR}/evosd.trd
+	cp nedoos.\$$C ${INSTALLDIR}/osevosd.\$$C
+	mv -f test.trd ${INSTALLDIR}/osevosd.trd
 
 pe26:
 	echo atm=3 > _sdk/syssets.asm

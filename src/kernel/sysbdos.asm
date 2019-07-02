@@ -510,6 +510,9 @@ BDOS_setcolor
         ;ld (pr_textmode_curcolor),a
         ld (iy+app.curcolor),e
         ret
+BDOS_getcolor
+	ld e,(iy+app.curcolor)
+	ret
         
 BDOS_cls
          ld hl,(appaddr)
@@ -627,6 +630,7 @@ BDOShandler
         ret
 
 tbdoscmds
+	db CMD_GETCOLOR
          db CMD_PRATTR
          db CMD_SETXY
          db CMD_SETCOLOR
@@ -750,6 +754,7 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_setcolor
          dw BDOS_setxy
          dw BDOS_prattr
+         dw BDOS_getcolor
         
 BDOS_getkeymatrix
 ;out: bcdehlix = полуряды cs...space
