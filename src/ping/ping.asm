@@ -45,6 +45,10 @@ ping_checkkeys ;Check cmdline keys
 	call z,ping_setkey_i
 	cp 'c'
 	call z,ping_setkey_c
+	cp 'h'
+	jp z,ping_showhelp
+	cp 'V'
+	call z,ping_showversion
 	jr ping_checkkeys
 
 ping_keysok
@@ -259,7 +263,7 @@ ping_setkey_i
 ;	call print_nl
 	ld de,20
 	sbc hl,de ;<20
-	jp c,ping_showusage
+	jp c,ping_showhelp
 	add hl,de
 	ld (icmpdelay),hl
 	pop hl
@@ -277,9 +281,9 @@ ping_setkey_s
 	ld d,a
 	;check
 	sub 56 ;<56
-	jp c,ping_showusage
+	jp c,ping_showhelp
 	add 70 ;>241
-	jp c,ping_showusage
+	jp c,ping_showhelp
 	ld a,d
 	ld (icmpdatasize),a
 	ret
@@ -571,6 +575,18 @@ ping_showusage
 	call print_hl
 	QUIT
 
+ping_showversion
+	ld hl,txt_version
+	call print_hl
+	QUIT
+
+ping_showhelp
+	ld hl,txt_usage
+	call print_hl
+	ld hl,txt_help
+	call print_hl
+	QUIT
+
 dns_resolver		;DE-domain name
 dns_err_loop
 	push de
@@ -724,7 +740,7 @@ txtip		db 0,0,0,'.',0,0,0,'.',0,0,0,'.',0,0,0,0
 
 icmpdatasize db 56,0
 icmpnum db 0,0
-icmpcnt db 10,0
+icmpcnt db 0xFF,0xFF
 icmpnextid db 0x53,0x53
 icmperr db 0,0
 icmpstarttime db 0,0
@@ -738,8 +754,17 @@ crc db 0
 oldtimer ds 2
 arg_hostname ds 255
 
-txt_usage db "Use ping [-d debug] [-s size (56-241)] [-i interval (20-65535ms)]",0x0D,0x0A
-	  db "         [-c count (1-65535)] <host_name|ip>",0x0D,0x0A,0
+txt_usage db "Use ping [-c count] [-d] [-h] [-i interval] [-s size] [-V] <host_name|ip>",0x0D,0x0A,0
+txt_help  
+	  db "   -c count : Stop after sending count (1-65535) packets. Default 65535",0x0D,0x0A
+	  db "         -d : Print first 16 bytes icmp packet to send",0x0D,0x0A
+	  db "         -h : Show this help and exit",0x0D,0x0A
+	  db "-i interval : Wait interval between sending each packet. Min 20, max 65535.",0x0d,0x0a
+	  db "             Default 1000ms",0x0D,0x0A
+	  db "    -s size : Specifies the number of data bytes to send. Min 56 (default), ",0x0d,0x0a
+	  db "             max 241",0x0D,0x0A
+	  db "         -V : Show version info and exit",0x0D,0x0A,0
+txt_version db "Ping v0.1",0x0d,0x0a,"Nedopc group 2019",0x0d,0x0a,0
 txt_head1 db "PING ",0
 txt_head2 db " (",0
 txt_head3 db ") ",0

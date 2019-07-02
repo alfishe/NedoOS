@@ -43,7 +43,7 @@ cmd_begin
         ld a,(hl)
         or a
         jr z,noautoload ;Нет ключей и имени файла
-;command line = "basic [-c] [-n] [-h] [-v] [file to load]" c - fast load as code file, n - no autorun, h - help, v - version
+;command line = "basic [-c] [-n] [-h] [-V] [file to load]" c - fast load as code file, n - no autorun, h - help, v - version
         call cmd_line_parse
         ld a,(cmd_line_h)
         or a
@@ -90,7 +90,6 @@ show_usage_info
 show_version
         ld hl,VERSION
         call prtext
-        call prcrlf
         jr cmd_quit
 
 restorebasicpages
@@ -158,12 +157,14 @@ fail_fo
 
 
 
-VERSION db "Basic interpreter v0.11",0x0d,0x0a,"Nedopc group 2019",0
+VERSION db "Basic interpreter v0.11",0x0d,0x0a,"Nedopc group 2019",0x0d,0x0a,0
 
 usage_info
-        db "Use basic.com [-option] [inputfile]",0x0d,0x0a,"Options:",0x0d,0x0a,"-c : Input file in code format",0x0d,0x0a
-        db "-n : Do not autostart inputfile",0x0d,0x0a,"-v : Show version info and quit",0x0d,0x0a
-        db "-h : Show this help",0
+        db "Use basic.com [-c] [-h] [-n] [-V] [inputfile]",0x0d,0x0a
+	db "              -c : Input file in code format",0x0d,0x0a
+        db "              -h : Show this help",0x0d,0x0a
+        db "              -n : Do not autostart inputfile",0x0d,0x0a
+	db "              -V : Show version info and quit",0x0d,0x0a,0
         
 
 terror
@@ -1014,7 +1015,7 @@ cmd_line_parse_loop
         call z, case_key_n
         cp "h"
         call z, case_key_h
-        cp "v"
+        cp "V"
         call z, case_key_v
         inc hl
         call skipspaces

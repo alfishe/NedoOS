@@ -107,13 +107,11 @@ telnet_checkkeys ;Check cmdline keys
 	inc hl
 	ld a,(hl)
 	cp 'd'
-	call z,ping_setkey_d
-/*	cp 's'
-	call z,ping_setkey_s
-	cp 'i'
-	call z,ping_setkey_i
-	cp 'c'
-	call z,ping_setkey_c*/
+	call z,telnet_setkey_d
+	cp 'h'
+	jp z,telnet_showhelp
+	cp 'V'
+	jp z,telnet_showversion
 	jr telnet_checkkeys
 
 telnet_keysok
@@ -484,11 +482,10 @@ telnetansi_docmd_H ;cursor x,y
 	jp telnet_read
 
 telnetansi_docmd_m ;SGR
-	ld e,0x07
 	ld hl,ansi_args
 	ld a,(hl)
 	or a ;0
-	jp z,telnetansi_docmd_m0
+	jp z,telnetansi_docmd_mreset
 	cp 1
 	jr z,telnetansi_docmd_m1
 	cp 22
@@ -513,36 +510,30 @@ telnetansi_docmd_m ;SGR
 
 	jp telnet_end
 telnetansi_docmd_m1
-	OS_GETCOLOR
-	set 6,e
+	ld a,(color)
+	set 6,a
 	jr telnetansi_docmd_m0
 telnetansi_docmd_m22
-	OS_GETCOLOR
-	res 6,e
+	ld a,(color)
+	res 6,a
 	jr telnetansi_docmd_m0
 telnetansi_docmd_m39
-	OS_GETCOLOR
-	ld a,e
+	ld a,(color)
 	and 0b10111000
 	or  0b00000111 ;default text color
-	ld e,a
 	jr telnetansi_docmd_m0
 telnetansi_docmd_m49
-	OS_GETCOLOR
-	ld a,e
+	ld a,(color)
 	and 0b01000111
-	ld e,a
 	jr telnetansi_docmd_m0
 telnetansi_docmd_m90
 	add 64-8 ;intensity
 telnetansi_docmd_m30
 	add 8
 	ld d,a
-	OS_GETCOLOR
-	ld a,e
+	ld a,(color)
 	and 0b11111000
 	add d
-	ld e,a
 	jr telnetansi_docmd_m0
 telnetansi_docmd_m40
 	add 8
@@ -550,12 +541,15 @@ telnetansi_docmd_m40
 	sla a
 	sla a
 	ld d,a
-	OS_GETCOLOR
-	ld a,e
+	ld a,(color)
 	and 0b11000111
 	add d
-	ld e,a
+	jr telnetansi_docmd_m0
+telnetansi_docmd_mreset
+	ld a,7
 telnetansi_docmd_m0
+	ld e,a
+	ld (color),a
 	OS_SETCOLOR
 	jp telnet_read
 
@@ -935,7 +929,7 @@ telnet_sizeof_hl_end
 	ld a,b
 	ret
 
-ping_setkey_d
+telnet_setkey_d
 	ld a,(options)
 	or TN_DEBUG
 	ld (options),a
@@ -976,6 +970,18 @@ telnet_iptostr_hltode
 
 telnet_showusage
 	ld hl,txt_usage
+	call print_hl
+	QUIT
+
+telnet_showhelp
+	ld hl,txt_usage
+	call print_hl
+	ld hl,txt_help
+	call print_hl
+	QUIT
+
+telnet_showversion
+	ld hl,txt_version
 	call print_hl
 	QUIT
 
@@ -1136,6 +1142,7 @@ ansi_anum	db 0,0
 ansi_cmd	db 0,0
 max_x		db 79,0
 max_y		db 24,0
+color		db 7
 ansi_up		db 27,'[','A',0
 ansi_down	db 27,'[','B',0
 ansi_right	db 27,'[','C',0
@@ -1147,7 +1154,11 @@ ansi_pal	dw 0xF3F3,0xF1F1,0xE3E3,0xE1E1,0xF2F2,0xF0F0,0xE2E2,0xE0E0
 oldtimer ds 2
 arg_hostname ds 255
 
-txt_usage db "Use telnet [-d] <host_name|ip>",0x0D,0x0A,0
+txt_usage db "Use telnet [-d] [-h] [-V] <host_name|ip>",0x0D,0x0A,0
+txt_help  db "            -d : Print incoming IAC commands",0x0D,0x0A
+          db "            -h : Show this help and exit",0x0D,0x0A
+          db "            -V : Show version info and exit",0x0D,0x0A,0
+txt_version db "Telnet v0.1",0x0d,0x0a,"Nedopc group 2019",0x0D,0x0A,0
 txt_resolveerror db "Can not resolve ",0
 txt_socketerror db "IP socket creation error",0
 txt_socketopenerror db "IP socket opening error",0
