@@ -15,11 +15,13 @@ dos3d13nopg.
         exx
         ld e,(iy+app.gfxmode)
         ld iy,23610
+	push af
 dos3d13_waitnospace0
         ld a,0x7f
         in a,(0xfe)
         rra
         jr nc,dos3d13_waitnospace0
+	pop af
         call dos3d13_resident
         pop iy
         ret
