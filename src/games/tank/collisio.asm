@@ -78,7 +78,7 @@ calccollisionmapaddr
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         ld l,a
         ld h,0
         add hl,hl
@@ -97,7 +97,7 @@ calccollisionmapaddr
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         add a,l
         ld l,a
         ld a,collisionmap/256
@@ -120,7 +120,7 @@ calctilemapaddr_de_hl
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         ld l,a
         if coordsfactor !=4
         display "coordsfactor!=4"
@@ -133,7 +133,7 @@ calctilemapaddr_de_hl
         rra
         rra
         rra
-        and #1f
+        and 0x1f
 calctilemapaddr_a_l
         ld h,0
         add hl,hl
@@ -225,7 +225,7 @@ checkbulletcollision_bullet
         ;push af ;номер найденной пули
         ;push ix
         ;pop hl
-        ;ld bc,-bulletlist&#ffff
+        ;ld bc,-bulletlist&0xffff
         ;add hl,bc
         ;ld de,objsize
         ;call divhlde ;hl=номер нашей пули
@@ -257,13 +257,13 @@ _=4 ;половина клеточки
         rra
         srl h
         rra
-        cp _&#ff
+        cp _&0xff
         ccf
         ret nc ;верхняя стена
 ;вычесть (bottomwally/coordsfactor-4)-размер, смотрим <=
         add a,c ;размер
 _=(bottomwally/coordsfactor-4)+1
-        cp _&#ff
+        cp _&0xff
         ret nc ;нижняя стена
 _=4 ;половина клеточки
         ld d,(ix+(obj_x+1))
@@ -272,13 +272,13 @@ _=4 ;половина клеточки
         rra
         srl d
         rra
-        cp _&#ff
+        cp _&0xff
         ccf
         ret nc ;левая стена
 ;вычесть (rightwallx/coordsfactor-4)-размер, смотрим <=
         add a,c ;размер
 _=(rightwallx/coordsfactor-4)+1
-        cp _&#ff
+        cp _&0xff
         ret ;nc=правая стена
         
 checkobstacles_tank

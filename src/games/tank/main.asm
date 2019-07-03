@@ -1,12 +1,12 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
-scrbuf=#e000 ;делится на #800
-tilemap=#dd00 ;#300
-collisionmap=#da00 ;#300 (перед ней ~20 байт затирается)
-validmap=#fc00 ;#300 (перед ней ~20 байт затирается)
-VALID0=#fb ;валидная, не надо обновлять
-VALID1=#80 ;невалидная, надо обновлять, там можно более длинные процедуры
+scrbuf=0xe000 ;делится на 0x800
+tilemap=0xdd00 ;0x300
+collisionmap=0xda00 ;0x300 (перед ней ~20 байт затирается)
+validmap=0xfc00 ;0x300 (перед ней ~20 байт затирается)
+VALID0=0xfb ;валидная, не надо обновлять
+VALID1=0x80 ;невалидная, надо обновлять, там можно более длинные процедуры
 VALID00=VALID0+256*VALID0
 VALID01=VALID0+256*VALID1
 VALID10=VALID1+256*VALID0
@@ -28,10 +28,10 @@ topwally=0
 rightwallx=fieldwid*24*coordsfactor
 bottomwally=fieldhgt*24*coordsfactor
 
-dir_r=#09
-dir_l=#08
-dir_u=#0b
-dir_d=#0a
+dir_r=0x09
+dir_l=0x08
+dir_u=0x0b
+dir_d=0x0a
 
 collisionmaplinesize=32
 collisionmapwid=fieldwid*3
@@ -46,7 +46,7 @@ maxemptytile=9
 
 maxobjects=20
 maxbullets=100
-TERMINATOR=#80
+TERMINATOR=0x80
 
 tanksize=16
 tankdamagesize=11 ;грязный хак
@@ -89,6 +89,10 @@ begin
         ld c,valid11_size
         ldir
 
+        ld a,1
+        ld (nlevel),a
+
+newlevel
         call cls
         call clscrbuf
         
@@ -114,13 +118,13 @@ loop
         call restoreobjects
         call restorebullets
         ;ld a,2
-        ;out (#fe),a
+        ;out (0xfe),a
         call probjlist
         ;ld a,4
-        ;out (#fe),a
+        ;out (0xfe),a
         call prbulletlist
         ;ld a,0
-        ;out (#fe),a
+        ;out (0xfe),a
         
 loopdelay
         OS_GETTIMER ;hlde=timer
@@ -134,7 +138,7 @@ oldtimer=$+1
         jr z,loopdelay
         ld b,a
         ;ld a,5
-        ;out (#fe),a
+        ;out (0xfe),a
 logicloop0
         push bc
         call control
@@ -142,18 +146,24 @@ logicloop0
         call logic
         call bulletlogic
         ;ld a,1
-        ;out (#fe),a
+        ;out (0xfe),a
         call fillcollisionmap
         ;ld a,5
-        ;out (#fe),a
+        ;out (0xfe),a
         call bulletcollision
         pop bc
         djnz logicloop0
         ;ld a,6
-        ;out (#fe),a
+        ;out (0xfe),a
         call prvalid
         ;call displaycollisionmap
-        jp loop
+;TODO сделать что-нибудь, когда врагов не осталось
+        ld a,(nenemies)
+        or a
+        jp nz,loop
+        ld hl,nlevel
+        inc (hl)
+        jp newlevel
 
 initlevel
         call genmap
@@ -163,23 +173,38 @@ initlevel
         ld ix,bulletlist
         call genbullet_terminate
         
-        ld de,#0010 ;x
-        ld hl,#02b0 ;y
+        ld de,0x0010 ;x
+        ld hl,0x02b0 ;y
         ld bc,params_tank
         ld a,1 ;a=dir
         call genobj
         
-        ld de,#0010 ;x
-        ld hl,#0010 ;y
+        ld a,(nlevel)
+        inc a
+        ld b,a
+initlevel_addenemies0
+        push bc
+        ;ld de,0x0010 ;x = 0x0010..0x0370
+        call rndxcoord ;out: hl=x
+        ex de,hl
+        ld hl,0x0010 ;y
         ld bc,params_tanke
         ld a,2 ;a=dir
         call genobj
+        ld hl,nenemies
+        inc (hl)
 
-        ld de,#0370 ;x
-        ld hl,#0010 ;y
+        if 1==0
+        ld de,0x0370 ;x
+        ld hl,0x0010 ;y
         ld bc,params_tanke
         ld a,2 ;a=dir
         call genobj
+        ld hl,nenemies
+        inc (hl)
+        endif
+        pop bc
+        djnz initlevel_addenemies0
 reter        
         ret
 
@@ -188,7 +213,7 @@ attrbox
 ;a=фон
 ;d=y координата левого верхнего угла
 ;е=х координата левого верхнего угла
-;#5800+xcoordredbox+(32*ycoordredbox)
+;0x5800+xcoordredbox+(32*ycoordredbox)
         ld l,d  ;y
         ld h,0        
         add hl,hl     
@@ -196,7 +221,7 @@ attrbox
         add hl,hl     
         add hl,hl     
         add hl,hl
-        ld d,#58
+        ld d,0x58
         add hl,de ;x
 attrbox_lines
         ld e,l
@@ -311,7 +336,7 @@ control_nofire
         rr c
         ld a,c
         cpl
-        and #0f
+        and 0x0f
         jr nz,control_nokeysreleased
         ld a,(ix+obj_anim)
         cp ANIM_GO
@@ -484,7 +509,7 @@ animate0_afterdel
         jr nz,animate_noend
         inc hl
         ld a,(hl) ;режим зацикливания (0=переход на нулевую анимацию, 1=зацикливаемся тут, 2=удалить)
-        cp 2
+        cp 2 ;признак ANIMENDDIE
         jr z,animate_delete
         or a
         jr nz,animate_no0
@@ -511,6 +536,10 @@ animate_delete
         jr z,animate_delete_player
         ld hl,curobjlistend
         call delobj ;копируем из ix+objsize в ix
+
+        ld hl,nenemies
+        dec (hl)
+        
         ld a,TERMINATOR
         ld bc,objsize
         jp animate0_afterdel
@@ -539,6 +568,16 @@ logic0_afterdel
 rndbottomcoords
 ;out: bc=x, de=y
 rndbottomcoords_retry
+        call rndxcoord
+        ex de,hl
+        ld hl,0x02b0 ;y
+        PUTXDE_YHL
+        call checkobstacles_tank ;nc=препятствие
+        jr nc,rndbottomcoords_retry
+        ret
+
+rndxcoord
+;out: hl=x
         ld c,fieldwid
         call rnd
         ld c,a
@@ -547,11 +586,6 @@ rndbottomcoords_retry
         call mulbcde
         ld bc,4*coordsfactor
         add hl,bc ;x
-        ex de,hl
-        ld hl,#02b0 ;y
-        PUTXDE_YHL
-        call checkobstacles_tank ;nc=препятствие
-        jr nc,rndbottomcoords_retry
         ret
 
 delobj
@@ -876,11 +910,11 @@ centr=(fieldEx/2)-(10/2)+(256*fieldEy/2)
 ;a=фон
 ;d=y координата левого верхнего угла
 ;е=х координата левого верхнего угла
-;#5800+xcoordredbox+(32*ycoordredbox)
+;0x5800+xcoordredbox+(32*ycoordredbox)
         ld c,12
         ld b,3
-        ld de,centr-#0101
-        ld a,#57        
+        ld de,centr-0x0101
+        ld a,0x57        
         ld (curattr),a
         call attrbox
         ld hl,endtext
@@ -905,6 +939,11 @@ font
         include "tankdata.asm"
         include "math.asm"
         include "input.asm"
+
+nlevel
+        db 0 ;1..
+nenemies
+        db 0
 end
 
 reobjlist
@@ -922,7 +961,7 @@ bulletlistend
 
 
 	display "End=",end
-	;display "Free after end=",/d,#c000-end
+	;display "Free after end=",/d,0xc000-end
 	display "Size ",/d,end-begin," bytes"
 	
 	savebin "tank.com",begin,end-begin

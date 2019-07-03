@@ -1,6 +1,6 @@
 NAME		= tank.com
 OBJECTS		= sprset.ast tileset.ast
-SOURCES		= collisio.asm collision.asm input.asm macro.asm main.asm math.asm sprite.asm tankdata.asm tankgfx.asm sprset.bmp tileset.bmp tileset.txt spriteset.txt zx.fnt
+SOURCES		= collisio.asm input.asm macro.asm main.asm math.asm sprite.asm tankdata.asm tankgfx.asm sprset.bmp tileset.bmp tileset.dat sprset.dat zx.fnt
 SJASMPLUS	= ../../../tools/sjasmplus
 NEDORES		= ../../_sdk/nedores.bin
 INSTALLDIR	= ../../../release
@@ -11,10 +11,10 @@ tank.com: ${SOURCES} ${OBJECTS}
 	${SJASMPLUS} --nologo main.asm
 
 sprset.ast: sprset.bmp
-	${NEDORES} sprset.bmp spriteset.txt sprset.ast
+	${NEDORES} sprset.bmp sprset.dat sprset.ast
 
 tileset.ast: tileset.bmp
-	${NEDORES} tileset.bmp tileset.txt tileset.ast
+	${NEDORES} tileset.bmp tileset.dat tileset.ast
 
 clean: 
 	rm -f ${NAME} ${OBJECTS}

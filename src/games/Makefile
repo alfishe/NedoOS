@@ -1,4 +1,4 @@
-PROGS		= snake tank tetris
+PROGS		= snake tank tetris smb untangle
 
 all: ${PROGS}
 

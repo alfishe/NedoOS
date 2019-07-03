@@ -78,7 +78,7 @@
         rr l
         rra
         rr l
-        and #03
+        and 0x03
         add a,validmap/256
         ld h,a
 ;%tttttYY YYYXXXXX
@@ -99,7 +99,7 @@
         rr l
         rra
         rr l
-        and #03
+        and 0x03
         add a,validmap/256
         ld h,a
 ;%tttttYY YYYXXXXX

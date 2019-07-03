@@ -61,7 +61,7 @@ valid11
         ld d,lx
         ld h,c
         ;ld a,d
-        ;add a,+(#40-(scrbuf/256))&#ff
+        ;add a,+(0x40-(scrbuf/256))&0xff
         ;ld h,a
         ldi       ;attr(left)
         ld a,(hl)
@@ -130,8 +130,8 @@ prvalid
         ld (prvalidsp),sp
         ld sp,validmap
         ;ld l,0 ;начало экрана
-        ld bc,scrbuf/256*256+(scrbuf/256+#18)
-        ld ix,#4058 ;scr,attr
+        ld bc,scrbuf/256*256+(scrbuf/256+0x18)
+        ld ix,0x4058 ;scr,attr
         ret
 clearvalid
         ld (prvalidsp),sp
@@ -160,17 +160,17 @@ validnext
         ld a,b
         add a,8
         ld b,a
-        add a,+(#40-(scrbuf/256))&#ff
+        add a,+(0x40-(scrbuf/256))&0xff
         ld hx,a
         inc c
         ld a,c
-        add a,+(#40-(scrbuf/256))&#ff
+        add a,+(0x40-(scrbuf/256))&0xff
         ld lx,a
         ret
 
 prlives
 ;печатаем lives сердечек и далее один пробел
-        ld de,#401f;scrbuf+#1f
+        ld de,0x401f;scrbuf+0x1f
         ld a,(lives)
         inc a
         ld c,a
@@ -220,7 +220,7 @@ prmap
         ld hl,tilemap
         ld de,scrbuf
         ld hx,d
-        ld lx,scrbuf/256+#18
+        ld lx,scrbuf/256+0x18
         exx
         ld c,tilemaphgt
 prmaplines
@@ -443,7 +443,7 @@ writerebulletaddr=$+1
 	and 7 ;a=shift right 0..7
         inc a
         ld b,a ;b=shift right 1..8
-        ld a,#01
+        ld a,0x01
         rrca
         djnz $-1
         or (hl)
@@ -453,13 +453,13 @@ writerebulletaddr=$+1
         jp prbulletlist0
 
 cls
-	ld hl,#4000
+	ld hl,0x4000
         call clshl
         ;красим жизни
-        ld de,#581f;scrbuf+#1800+#1f
+        ld de,0x581f;scrbuf+0x1800+0x1f
         ld b,maxlives
 clscrbuf0
-        ld a,#42 ;bright red
+        ld a,0x42 ;bright red
         ld (de),a
         ld a,e
         add a,32
@@ -470,8 +470,8 @@ clshl
 	ld d,h
         ld e,l
         inc de
-        ld bc,#1800
-        ld (hl),0;#ff
+        ld bc,0x1800
+        ld (hl),0;0xff
         ldir
 	ld (hl),emptyattr
 	ld bc,767
@@ -484,7 +484,7 @@ clscrbuf
 
 displaycollisionmap
         ld hl,collisionmap
-        ld de,#5800
+        ld de,0x5800
         ld b,collisionmaphgt
 displaycollisionmap0
         push bc
@@ -521,7 +521,7 @@ restoreobjects0
         ld c,(hl) ;x
         inc hl
         ld a,(hl) ;y
-        and #f8
+        and 0xf8
         ld b,a ;округлить!
         inc hl
         push hl
@@ -530,13 +530,13 @@ restoreobjects0
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         ld l,a ;y (в знакоместах)
         ld a,c
         rra
         rra
         rra
-        and #1f ;x (в знакоместах)
+        and 0x1f ;x (в знакоместах)
         call calctilemapaddr_a_l ;hl=tilemapaddr
         
         call restoretile
@@ -601,7 +601,7 @@ restorebullets0
         ld c,(hl) ;x
         inc hl
         ld a,(hl) ;y
-        and #f8
+        and 0xf8
         ld b,a ;округлить!
         inc hl
         push hl
@@ -610,13 +610,13 @@ restorebullets0
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         ld l,a ;y (в знакоместах)
         ld a,c
         rra
         rra
         rra
-        and #1f ;x (в знакоместах)
+        and 0x1f ;x (в знакоместах)
         call calctilemapaddr_a_l ;hl=tilemapaddr
         call restoretile
         pop hl
@@ -643,13 +643,13 @@ restoretile
         ld a,(hl)
         ld (de),a ;restore scr (y=+7)
         inc l
-        ld a,d ;'scrbuf+7, 'scrbuf+#f, 'scrbuf+#17
+        ld a,d ;'scrbuf+7, 'scrbuf+0xf, 'scrbuf+0x17
         ;sub scrbuf/256
-        rrca ;#80+'scrbuf/2+3, #80+'scrbuf/2+7, #80+'scrbuf/2+#b
-        rrca ;#c0+'scrbuf/4+1, #c0+'scrbuf/4+3, #c0+'scrbuf/4+5
-        rrca ;#e0+'scrbuf/8+0, #e0+'scrbuf/8+1, #e0+'scrbuf/8+2
+        rrca ;0x80+'scrbuf/2+3, 0x80+'scrbuf/2+7, 0x80+'scrbuf/2+0xb
+        rrca ;0xc0+'scrbuf/4+1, 0xc0+'scrbuf/4+3, 0xc0+'scrbuf/4+5
+        rrca ;0xe0+'scrbuf/8+0, 0xe0+'scrbuf/8+1, 0xe0+'scrbuf/8+2
         ;and 3
-        add a,scrbuf/256+#18 - (#e0+scrbuf/#800)
+        add a,scrbuf/256+0x18 - (0xe0+scrbuf/0x800)
         ld d,a ;de=attraddr
         ld a,(hl)
         ld (de),a ;restore attr
@@ -692,7 +692,7 @@ prcharin
         add hl,hl
         add hl,hl
         add hl,hl
-        ld bc,font-256;#3c00
+        ld bc,font-256;0x3c00
         add hl,bc
         ld b,8
 prchar0
@@ -727,9 +727,9 @@ prtext0
         jr prtext0
         
 calcscrbufaddr
-;de=scrbuf + (y&#18)+((y*32)&#ff+x)
+;de=scrbuf + (y&0x18)+((y*32)&0xff+x)
         ld a,b ;y
-        and #18
+        and 0x18
         add a,scrbuf/256
         ld d,a
         ld a,b ;y
@@ -743,10 +743,10 @@ calcscrbufaddr
         ret
         
 calcscraddr
-;de=#4000 + (y&#18)+((y*32)&#ff+x)
+;de=0x4000 + (y&0x18)+((y*32)&0xff+x)
         ld a,b ;y
-        and #18
-        add a,#40
+        and 0x18
+        add a,0x40
         ld d,a
         ld a,b ;y
         add a,a ;*2
@@ -762,14 +762,14 @@ calcattraddr
         call calcscraddr
         ;call calcattraddr_fromscr
 calcattraddr_fromscr
-;de=#5800 + (y&#18)/8+((y*32)&#ff+x)
+;de=0x5800 + (y&0x18)/8+((y*32)&0xff+x)
         ld a,d
-        ;sub #40
+        ;sub 0x40
         rra
         rra
         rra
         and 3
-        add a,#58
+        add a,0x58
         ld d,a ;de=attraddr
         ret
 

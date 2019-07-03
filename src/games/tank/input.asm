@@ -26,9 +26,9 @@ getkey
         
         else
         
-        ld c,#ff
-        ld a,#ef
-        in a,(#fe) ;'0'..'6'
+        ld c,0xff
+        ld a,0xef
+        in a,(0xfe) ;'0'..'6'
         rra ;'0'
         jr c,$+4
         res 0,c ;f
@@ -42,13 +42,13 @@ getkey
         rra ;'6'
         jr c,$+4
         res 2,c ;d
-        ld a,#f7
-        in a,(#fe) ;'1'..'5'
+        ld a,0xf7
+        in a,(0xfe) ;'1'..'5'
         bit 4,a ;'5'
         jr nz,$+4
         res 4,c ;l
-        ld a,#7f
-        in a,(#fe) ;
+        ld a,0x7f
+        in a,(0xfe) ;
         rra ;' '
         ret c
         res 0,c ;f
