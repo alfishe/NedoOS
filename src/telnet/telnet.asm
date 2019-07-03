@@ -77,6 +77,10 @@ TN_ECHO 		EQU 0b00000001
 TN_SGA 			EQU 0b00000010
 TN_DEBUG		EQU 0b10000000
 
+TN_ST_TEXT		EQU 0
+TN_ST_ESC		EQU 1
+TN_ST_ANSI		EQU 2
+
 cmd_begin
 ;init
 	ld sp,0x4000
@@ -246,8 +250,17 @@ telnet_prchar
 	PRCHAR
 telnet_purge
 	call telnet_purge_writebuf
+	jr telnet_read
 
+telnet_read_resetstate
+	xor a
+	ld (read_state),a
 telnet_read
+	ld a,(read_state)
+	cp TN_ST_ESC
+	jr z,telnet_esc
+	cp TN_ST_ANSI
+	jr z,telnet_ansi0
 	call telnet_getbyte
 	jr nz,telnet_loop
 	ld a,(hl)
@@ -283,14 +296,18 @@ telnet_prbackspace
 
 
 telnet_esc
+	ld a,TN_ST_ESC
+	ld (read_state),a
 	call telnet_getbyte
 	jp nz,telnet_loop
 	ld a,(hl)
 	cp '[' ;CSI
 	jr z,telnet_ansi
-	jr telnet_read
+	jr telnet_read_resetstate
 
 telnet_ansi
+	ld a,TN_ST_ANSI
+	ld (read_state),a
 	ld hl,0
 	ld (ansi_cmd),hl
 	ld (ansi_anum),hl
@@ -298,17 +315,19 @@ telnet_ansi
 	ld (ansi_args+2),hl
 telnet_ansi0
 	call telnet_getbyte
-	jp nz,telnet_read
+	jp nz,telnet_loop
 	ld a,(hl)
 	call strisdigit_a
 	jr z,telnetansi_readargs
 	ld a,(hl)
 	cp ';'
 	jr z,telnetansi_nextarg
+	cp '?'
+	jr z,telnet_ansi0 ;TODO
 	ld a,(hl)
 	call strischar_a
 	jr z,telnetansi_readcmd
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_nextarg
 	ld de,(ansi_anum)
@@ -355,14 +374,176 @@ telnetansi_docmd
 	cp 'E'
 	jp z,telnetansi_docmd_E ;cursor x=1 y=y+n
 	cp 'F'
-	jp z,telnetansi_docmd_F ;cursor x=1 y up
+	jp z,telnetansi_docmd_F ;cursor x=1 y=y-1
 	cp 'G'
-	jp z,telnetansi_docmd_G ;cursor x=1 y up
+	jp z,telnetansi_docmd_G ;cursor x=n
 	cp 'H'
-	jp z,telnetansi_docmd_H ;cursor x y
+	jp z,telnetansi_docmd_H ;cursor x=m y=n
+	cp 'J'
+	jp z,telnetansi_docmd_J ;n=0 clear screen after x n=1 clear screen before x n=2 clear all
+	cp 'K'
+	jp z,telnetansi_docmd_K ;n=0 clear line after x n=1 clear line before x n=2 clear whole line
+	cp 'S'
+	jp z,telnetansi_docmd_S ;scroll up n
+	cp 'T'
+	jp z,telnetansi_docmd_T ;scroll down n
 	cp 'f'
 	jp z,telnetansi_docmd_H ;cursor x y
-	jp telnet_read
+	jp telnet_read_resetstate
+
+telnetansi_docmd_J
+	OS_GETXY
+	ld a,(ansi_args)
+	cp 2
+	jr z,telnetansi_docmd_J2
+	cp 1
+	jr z,telnetansi_docmd_J1
+	or a
+	jp nz,telnet_read_resetstate
+;J0
+	ld a,(max_y)
+	sub d
+	jp z,telnetansi_docmd_K0
+	ld b,a
+	push de
+	ld e,0
+	inc d
+	OS_SETXY
+telnetansi_docmd_J0
+	push bc
+	ld b,80
+	call telnet_print_spaces_b
+	pop bc
+	djnz telnetansi_docmd_J0
+	pop de
+	jr telnetansi_docmd_K0
+
+telnetansi_docmd_J1
+	ld a,d
+	or a
+	jp z,telnetansi_docmd_K1
+	ld b,d
+	push de
+	ld de,0
+	OS_SETXY
+telnetansi_docmd_J10
+	push bc
+	ld b,80
+	call telnet_print_spaces_b
+	pop bc
+	djnz telnetansi_docmd_J10
+	pop de
+	jr telnetansi_docmd_K1
+telnetansi_docmd_J2
+	OS_CLS
+	jp telnet_read_resetstate
+
+;KK
+telnetansi_docmd_K
+	OS_GETXY
+	ld a,(ansi_args)
+	cp 2
+	jr z,telnetansi_docmd_K2
+	cp 1
+	jr z,telnetansi_docmd_K1
+	or a
+	jp nz,telnet_read_resetstate
+;J0
+telnetansi_docmd_K0
+	ld a,(max_x)
+	sub e
+	ld b,a
+	ld a,(max_y)
+	sub d
+	jp z,telnet_read_resetstate
+	inc b
+telnetansi_docmd_K0_noscroll
+	push de
+	call telnet_print_spaces_b
+	pop de
+	OS_SETXY
+	jp telnet_read_resetstate
+telnetansi_docmd_K1
+	ld a,e
+	or a
+	jp z,telnet_read_resetstate
+	push de
+	ld e,0
+	OS_SETXY
+	pop de
+	ld b,e
+	dec b
+	call telnet_print_spaces_b
+	jp telnet_read_resetstate
+telnetansi_docmd_K2
+	push de
+	ld e,0
+	OS_SETXY
+	ld b,80
+	call telnet_print_spaces_b
+	pop de
+	OS_SETXY
+	jp telnet_read_resetstate
+
+
+telnet_print_spaces_b
+	push bc
+	ld a,' '
+	PRCHAR
+	pop bc
+	djnz telnet_print_spaces_b
+	ret
+
+
+telnetansi_docmd_S
+;CMD_SCROLLUP=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even
+	ld de,0
+	ld a,(max_y)
+	inc a
+	ld h,a
+	ld a,(max_x)
+	inc a
+	ld l,a
+	ld a,(ansi_args)
+	ld b,a
+	or a
+	jr nz,telnetansi_docmd_S0
+	inc b
+telnetansi_docmd_S0
+	push de
+	push hl
+	push bc
+	OS_SCROLLUP
+	pop bc
+	pop hl
+	pop de
+	djnz telnetansi_docmd_S0
+	jp telnet_read_resetstate
+
+telnetansi_docmd_T
+;CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even
+	ld de,0
+	ld a,(max_y)
+	inc a
+	ld h,a
+	ld a,(max_x)
+	inc a
+	ld l,a
+	ld a,(ansi_args)
+	ld b,a
+	or a
+	jr nz,telnetansi_docmd_T0
+	inc b
+telnetansi_docmd_T0
+	push de
+	push hl
+	push bc
+	OS_SCROLLDOWN
+	pop bc
+	pop hl
+	pop de
+	djnz telnetansi_docmd_T0
+	jp telnet_read_resetstate
 
 telnetansi_docmd_F;;cursor x=1 y up
 	OS_GETXY
@@ -371,8 +552,7 @@ telnetansi_docmd_F;;cursor x=1 y up
 telnetansi_docmd_A ;cursor up
 	OS_GETXY
 telnetansi_docmd_A1
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
 	or a
 	jr nz,telnetansi_docmd_A0
 	ld a,1
@@ -386,7 +566,7 @@ telnetansi_docmd_A0
 	ld d,0
 telnetansi_docmd_A_ret
 	OS_SETXY
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_docmd_E ;cursor x=1 y down
 	OS_GETXY
@@ -395,8 +575,7 @@ telnetansi_docmd_E ;cursor x=1 y down
 telnetansi_docmd_B ;cursor down
 	OS_GETXY
 telnetansi_docmd_B1
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
 	or a
 	jr nz,telnetansi_docmd_B0
 	ld a,1
@@ -409,12 +588,11 @@ telnetansi_docmd_B0
 	ld d,h
 telnetansi_docmd_B_ret
 	OS_SETXY
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_docmd_C ;cursor right
 	OS_GETXY
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
 	or a
 	jr nz,telnetansi_docmd_C0
 	ld a,1
@@ -427,12 +605,11 @@ telnetansi_docmd_C0
 	ld e,h
 telnetansi_docmd_C_ret
 	OS_SETXY
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_docmd_D ;cursor left
 	OS_GETXY
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
 	or a
 	jr nz,telnetansi_docmd_D0
 	ld a,1
@@ -446,44 +623,46 @@ telnetansi_docmd_D0
 	ld e,0
 telnetansi_docmd_D_ret
 	OS_SETXY
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_docmd_G ;cursor x
 	OS_GETXY
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
 	dec a
 	ld hl,(max_x)
 	inc hl
 	cp l
-	jp nc,telnet_read
+	jp nc,telnet_read_resetstate
 	ld e,a
 	OS_SETXY
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_docmd_H ;cursor x,y
-	ld hl,ansi_args+1
-	ld a,(hl)
+	ld a,(ansi_args+1)
+	or a
+	jr z,telnetansi_docmd_H0
 	dec a
+telnetansi_docmd_H0
 	ld hl,(max_x)
 	inc hl
 	cp l
-	jp nc,telnet_read ;x
+	jp nc,telnet_read_resetstate ;x
 	ld e,a
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
+	or a
+	jr z,telnetansi_docmd_H1
 	dec a
+telnetansi_docmd_H1
 	ld hl,(max_y)
 	inc hl
 	cp l
-	jp nc,telnet_read ;y
+	jp nc,telnet_read_resetstate ;y
 	ld d,a
 	OS_SETXY
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnetansi_docmd_m ;SGR
-	ld hl,ansi_args
-	ld a,(hl)
+	ld a,(ansi_args)
 	or a ;0
 	jp z,telnetansi_docmd_mreset
 	cp 1
@@ -495,16 +674,16 @@ telnetansi_docmd_m ;SGR
 	cp 49
 	jr z,telnetansi_docmd_m49
 	sub 30
-	jp c,telnet_read
+	jp c,telnet_read_resetstate
 	sub 8
 	jr c,telnetansi_docmd_m30
 	sub 2 ;40
-	jp c,telnet_read
+	jp c,telnet_read_resetstate
 	sub 8
 	jr c,telnetansi_docmd_m40
 	call printbyte_a
 	sub 42 ;90
-	jp c,telnet_read
+	jp c,telnet_read_resetstate
 	sub 8
 	jr c,telnetansi_docmd_m90
 
@@ -551,7 +730,7 @@ telnetansi_docmd_m0
 	ld e,a
 	ld (color),a
 	OS_SETCOLOR
-	jp telnet_read
+	jp telnet_read_resetstate
 
 telnet_noprintable
 	cp TN_CMD_IAC
@@ -843,15 +1022,14 @@ telnet_send_hl ;hl=buf
 
 telnet_getbyte;*HL=byte a=FF error
 	ld a,(bufindex)
-	ld b,a
+	ld e,a
 	ld a,(bufmax)
-	cp b
+	cp e
 	jr c, telnet_getbyte_read;buffer empty
 	ld hl,buf
 	ld d,0
-	ld e,b
 	add hl,de
-	ld a,(bufindex)
+	ld a,e
 	inc a
 	ld (bufindex),a
 	xor a
@@ -1149,7 +1327,7 @@ ansi_right	db 27,'[','C',0
 ansi_left	db 27,'[','D',0
 ansi_pal	dw 0xF3F3,0xF1F1,0xE3E3,0xE1E1,0xF2F2,0xF0F0,0xE2E2,0xE0E0
 		dw 0x1313,0xB1B1,0x6363,0x2121,0xD2D2,0x9090,0x4242,0x0000
-
+read_state      db 0 ;0 - text, 1- esc, 2-ansi
 
 oldtimer ds 2
 arg_hostname ds 255
