@@ -6,11 +6,17 @@ FALSE=0x00
 ;COMMANDLINE_sz=0x0080
 ;PROGSTART=0x0100
 	org PROGSTART
-	jp startup.
+	jp startup. ;3 байта!
 _=$
 	include "compc_os.dcl"
 	incbin "compc_os.bin"
 startup.
+        ld hl,0xe800 ;FCB1
+        ld de,0xe801
+        ld bc,0x17ff
+        ld [hl],0
+        ldir
+
 	LD HL,fnerr.
 	LD [openwrite.A.],HL
 	CALL openwrite

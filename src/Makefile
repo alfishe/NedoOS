@@ -2,7 +2,7 @@ INSTALLDIR	= ../release
 SUBDIRS		= basic browser cmd emptyapp games kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping telnet
 OBJECTS		= 
 TOOLS		= _sdk/nedotrd.bin _sdk/nedores.bin _sdk/nedopad.bin ../tools/mhmt ../tools/sjasmplus ../tools/dmimg
-SOURCES		= basic.asm bascmds.asm
+SOURCES		= _sdk/syssets.asm
 SJASMPLUS	= ../tools/sjasmplus
 DOCS		= nedoos.txt nedoos.new
 NEDOTRD		= _sdk/nedotrd.bin
@@ -10,13 +10,13 @@ NEDOTRD		= _sdk/nedotrd.bin
 all:
 	echo "Use make atm2|atm2hd|atm3|atm3hd|atm3sd|pe26"
 
-tools: ${TOOLS}
+tools: ${TOOLS} 
 
 system: ${TOOLS} ${SUBDIRS}
 
 .PHONY: ${SUBDIRS} clean
 
-${SUBDIRS}:
+${SUBDIRS}: ${SOURCES}
 	${MAKE} -w -C $@
 
 _sdk/nedotrd.bin _sdk/nedores.bin _sdk/nedopad.bin:

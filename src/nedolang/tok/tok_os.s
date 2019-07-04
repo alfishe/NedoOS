@@ -8,6 +8,12 @@ DOSBUF=0xfe00 ;aligned
 
 	org PROGSTART
 cmd_begin
+        ld hl,0xe800 ;FCB1
+        ld de,0xe801
+        ld bc,0x17ff
+        ld [hl],0
+        ldir
+       
 	call tokinit
 	
 	ld hl,fnbuf.
