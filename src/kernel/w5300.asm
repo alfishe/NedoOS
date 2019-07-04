@@ -305,7 +305,8 @@ w53_valid_socket1:
 		or a
 		jr z,w53_valid_free
 		cp (iy+app.id)
-		jr nz,w53_invalid_socked
+		ret nz
+		;jr nz,w53_invalid_socked0
 w53_valid_free:
 		ld bc,WIZ_CFG_PORT
 		in a,(c)

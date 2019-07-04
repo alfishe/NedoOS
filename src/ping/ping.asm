@@ -470,14 +470,6 @@ ping_resolveerror
 
 ping_error_hl
 	call print_hl
-	ld a,c
-	ld de,buf
-	call bytetostr_atode
-	ld a,':'
-	PRCHAR
-	ld hl,buf
-	call print_hl
-	call print_nl
 	QUIT
 
 ping_wait
@@ -770,8 +762,8 @@ txt_head2 db " (",0
 txt_head3 db ") ",0
 txt_head4 db " bytes of data.",0x0D,0x0A,0
 txt_resolveerror db "Can not resolve ",0
-txt_socketerror db "IP socket creation error",0
-txt_socketopenerror db "IP socket opening error",0
+txt_socketerror db "IP socket creation error",0x0D,0x0A,0
+txt_socketopenerror db "IP socket opening error",0x0D,0x0A,0
 txt_writeerror db "Something wrong with write",0x0D,0x0A,0
 txt_crc db "CRC",0
 txt_timeout db " timeout",0x0D,0x0A,0

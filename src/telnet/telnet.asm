@@ -189,7 +189,7 @@ telnet_noresolve
 	ld c,l
 	ld (soc1),a ; save socket to soc1
 	or a
-	ld hl,txt_socketerror ; In c error code
+	ld hl,txt_socketerror
 	jp m, telnet_error_hl
 
 	ld de,conparam
@@ -197,7 +197,7 @@ telnet_noresolve
 	ld c,a
 	ld a,l
 	or a
-	ld hl,txt_socketopenerror ; In c error code
+	ld hl,txt_socketopenerror
 	jp m, telnet_error_hl
 
 	ld hl,txt_work1 ; showing message connect to blablabla
@@ -869,6 +869,10 @@ telnet_end
 ;------------------functions-----------
 	include "../_sdk/string.asm"
 
+telnet_error_hl
+	call print_hl
+	QUIT
+
 telnet_sendleft
 	ld hl,ansi_left
 	call telnet_sendtext_hl
@@ -1118,18 +1122,6 @@ telnet_resolveerror
 	call print_hl
 	ld hl,arg_hostname
 
-telnet_error_hl
-	call print_hl
-	ld a,c
-	ld de,buf
-	call bytetostr_atode
-	ld a,':'
-	PRCHAR
-	ld hl,buf
-	call print_hl
-	call print_nl
-	QUIT
-
 telnet_iptostr_hltode
 	call bytetostr_hltode
 	ld a, '.'
@@ -1338,8 +1330,8 @@ txt_help  db "            -d : Print incoming IAC commands",0x0D,0x0A
           db "            -V : Show version info and exit",0x0D,0x0A,0
 txt_version db "Telnet v0.1",0x0d,0x0a,"Nedopc group 2019",0x0D,0x0A,0
 txt_resolveerror db "Can not resolve ",0
-txt_socketerror db "IP socket creation error",0
-txt_socketopenerror db "IP socket opening error",0
+txt_socketerror db "IP socket creation error",0x0d,0x0a,0
+txt_socketopenerror db "IP socket opening error",0x0d,0x0a,0
 txt_writeerror db "Something wrong with write",0x0D,0x0A,0
 txt_head1 db "Telnet connecting to ",0
 txt_head2 db " (",0
@@ -1352,5 +1344,6 @@ cmd_end
 	display "telnet_read: ",telnet_read
 	display "telnet_purge_writebyf: ",telnet_purge_writebuf
 	display "telnet_ansi0: ",telnet_ansi0
+	display "telnet_noresolve: ",telnet_noresolve
 	savebin "telnet.com",cmd_begin,cmd_end-cmd_begin
 
