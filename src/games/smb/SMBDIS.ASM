@@ -97,26 +97,34 @@ oldupdtimer=$+1
 	     or a
 	     sbc hl,de
 	if FASTDEMOBEFOREBREAKPOINT
-	     ld b,1
+	     ld c,1
 	     jr z,logic0
 	else
 	     jr z,nologic
 	endif
-	     ld b,8
+	     ld c,8
 	     ld a,l
-	     cp b
-	     jr nc,logic0 ;больше бывает только в бр€кпоинтах
-	     ld b,l
-logic0
-	    push bc
+	     cp c
+	     jr nc,$+3 ;больше бывает только в бр€кпоинтах
+	     ld c,l
+            ld hl,logicframe
+            ld (hl),c
 	     ld b,0
 	     ld d,b
+logic0
              call NonMaskableInterrupt
-	    pop bc
-	    djnz logic0
+            ld hl,logicframe
+            dec (hl)
+	    jr nz,logic0
 nologic
         endif
              jmp EndlessLoop              ;endless loop, need I say more?
+
+	if MUSICONINT
+	include "smbsound.asm"
+        include "smbmusic.asm"
+        display $,"<=0x8000"
+	endif
 
 ;-------------------------------------------------------------------------------------
 ;$00 - vram buffer address table low, also used for pseudorandom bit
@@ -211,7 +219,9 @@ InitBuffer:    ldxy VRAM_Buffer_Offset,y
                lda Mirror_PPU_CTRL_REG2  ;copy mirror of $2001 to register
                sta PPU_CTRL_REG2
         endif
+          if MUSICONINT==0
                jsr SoundEngine           ;play sound
+          endif
                jsr ReadJoypads           ;read joypads
 	      if DEMO
 	      ld a,(readdemo_stopflag)
@@ -995,9 +1005,15 @@ BackgroundColors:
       .db $0f, $22, $0f, $0f ;used by background color control if set
 
 PlayerColors:
+        if Z80MARIOCOLOR
+      dw 0x3333,0xb1b1 ;mario's colors
+      dw 0x3333,0xe3e3 ;luigi's colors
+      dw 0x3333,0x0000 ;fiery (used by both)
+        else
       .db $22, $16, $27, $18 ;mario's colors
       .db $22, $30, $27, $19 ;luigi's colors
       .db $22, $37, $27, $16 ;fiery (used by both)
+        endif
 
 GetBackgroundColor:
            ldy BackgroundColorCtrl   ;check background color control
@@ -1008,6 +1024,32 @@ GetBackgroundColor:
 NoBGColor: inci ScreenRoutineTask     ;increment to next subtask and plod on through
       
 GetPlayerColors:
+        if Z80MARIOCOLOR
+               lda CurrentPlayer        ;check which player is on the screen
+               ld de,PlayerColors
+               or a
+               beq ChkFiery
+               ld de,PlayerColors+4;ldyn ++$04                 ;load offset for luigi
+ChkFiery:      lda PlayerStatus         ;check player status
+               cmpn ++$02
+               bne StartClrGet          ;if fiery, load alternate offset for fiery player
+               ld de,PlayerColors+8;ldyn ++$08
+StartClrGet:
+               ld hl,(curpalette)
+               ld c,12*2
+               add hl,bc
+               ex de,hl
+               ;c>=4
+               ldi
+               ldi
+               inc de
+               inc de
+               ldi
+               ldi
+               ld (oldpalette),hl ;!=curpalette, чтобы автоматически обновилась
+               ld d,b
+                ret
+        else
                ldx VRAM_Buffer1_Offset  ;get current buffer offset
                ldyn ++$00
                lda CurrentPlayer        ;check which player is on the screen
@@ -1044,6 +1086,7 @@ SetBGColor:    lday BackgroundColors,y   ;to background color instead
                txa                      ;move the buffer pointer ahead 7 bytes
                clc                      ;in case we want to write anything else later
                adcn ++$07
+        endif
 SetVRAMOffset: sta VRAM_Buffer1_Offset  ;store as new vram buffer offset
                rts
 
@@ -2223,7 +2266,29 @@ InitATLoop:
 ;0 - Right (8)
 ReadJoypads: 
         if Z80
-        OS_GETKEYMATRIX ;out: bcdehlix = полур€ды cs...space
+	if OSCALLS
+	else
+        ;OS_GETKEYMATRIX ;out: bcdehlix = полур€ды cs...space
+        ld bc,0x7ffe
+        in a,(c)
+        ld lx,a  ;lx=%???bnmS_
+        ld b,0xbf
+        in a,(c)
+        ld hx,a  ;hx=%???hjklE
+        ld b,0xdf
+        in l,(c)  ;l=%???yuiop
+        ld b,0xef
+        in h,(c)  ;h=%???67890
+        ld b,0xf7
+        in e,(c)  ;e=%???54321
+        ld b,0xfb
+        in d,(c)  ;d=%???trewq
+        ld a,0xfd
+        in a,(0xfe);c=%???gfdsa
+        ld b,c;0xfe
+        in b,(c)  ;b=%???vcxzC
+        ld c,a
+	endif
         ld a,lx
         or b
         rra
@@ -5715,7 +5780,13 @@ ProcELoop:    stx ObjectOffset           ;put incremented offset in X as enemy o
               bne ProcELoop
               jsr GetPlayerOffscreenBits ;get offscreen bits for player object ;726t (3 Goomba + 2 очки + ћарио)
               jsr RelativePlayerPosition ;get relative coordinates for player object ;228t (3 Goomba + 2 очки + ћарио)
+           if 0;Z80
+            ld hl,(logicframe)
+            dec l
+            call z,PlayerGfxHandler ;только в последнем кадре логики (непосредственно перед отображением) ;не получаетс€ - очень медленно идЄт мигание при росте и уменьшении
+           else
               jsr PlayerGfxHandler       ;draw the player                               ;3074t (3 Goomba + 2 очки + ћарио) ;<--------------
+           endif
               jsr BlockObjMT_Updater     ;replace block objects with metatiles if necessary ;250t (3 Goomba + 2 очки + ћарио)
               ldxn ++$01
               stx ObjectOffset           ;set offset for second
@@ -9827,7 +9898,14 @@ RunNormalEnemies:
           ;jr $
           jsr GetEnemyOffscreenBits ;1589t (497 opt)
           jsr RelativeEnemyPosition ;316t (274 opt)
-          jsr EnemyGfxHandler ;4939t (внутри 3 вызова по 768t) (3280 opt) <-----
+         if Z80
+logicframe=$+1
+            ld l,0
+            dec l
+            call z,EnemyGfxHandler ;только в последнем кадре логики (непосредственно перед отображением)
+         else
+          jsr EnemyGfxHandler ;4939t (внутри 3 вызова по 768t) (3280 opt) <----- TODO не вызывать, если это не последний кадр логики?
+         endif
           jsr GetEnemyBoundBox ;631t (452 opt)
           jsr EnemyToBGCollisionDet ;3500t (внутри ChkUnderEnemy (cc46) = 1193t, BlockBufferChk_Enemy (cf18) = 1159t) (2058 opt) <-----
           jsr EnemiesCollision ;45/230t (может быть куда больше) (209 opt)
@@ -15313,7 +15391,7 @@ CheckForDefdGoomba:
       cpyn ++Goomba            ;check for goomba object (necessary if previously
      bne CheckForHammerBro  ;failed buzzy beetle object test)
       ldxn ++$54               ;load for regular goomba
-      lda SCRATCHPAD+$ed                ;note that this only gets performed if enemy state =HIGH  $02
+      lda SCRATCHPAD+$ed                ;note that this only gets performed if enemy state => $02
       andn ++%00100000         ;check saved enemy state for d5 set
      bne CheckForHammerBro  ;branch if set
       ldxn ++$8a               ;load offset for defeated goomba
@@ -16872,11 +16950,10 @@ SetHFAt: orai SCRATCHPAD+$04                    ;add other OAM attributes if nec
         endif
 
 ;-------------------------------------------------------------------------------------
-
-	;if Z80==0
+	if MUSICONINT==0
 	include "smbsound.asm"
         include "smbmusic.asm"
-	;endif
+	endif
 ;-------------------------------------------------------------------------------------
 ;INTERRUPT VECTORS
 

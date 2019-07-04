@@ -12,6 +12,9 @@ Z80OPT3ly=1 ;не влияет?
 Z80OPT3hy=1 ;не влияет?
 Z80OPT3hybug=1 ;при 1 не падает в первую яму в 1-4, а должен (задержка старта уровня на несколько фреймов, а карта та же) - в релизе включать не надо!!!
 Z80OPT4=1 ;вывод распакованной карты - не влияет?
+
+Z80MARIOCOLOR=1
+
 INFINITELIVES=1
 NOPIRANHAPLANT=0 ;нет кактуса
 GOODPIRANHAPLANT=1 ;кактус и плевок лавы не убивают
@@ -36,7 +39,13 @@ FASTDEMOBEFOREBREAKPOINT=0;1 ;до брякпоинта в деме (прописывается как reset, т.е
         ;include "6502.asm"
         include "6502fast.asm"
 
-MUSIC=0;1
+RESTOREPG16K=1
+MUSIC=1
+MUSICONINT=1
+
+OSCALLS=0
+	;display "OSCALLS=",OSCALLS
+
 SWEEP=0
 
 DEMO=1
@@ -224,9 +233,9 @@ loaddemoq
         ld (oldtimer),de
 	YIELD ;иначе палитра не установится
         
+        call setpgs_code
         call swapimer
 	
-        call setpgs_code
         jp Start
 
 mirspriteshor
@@ -726,13 +735,24 @@ ttilepalrecode
 	db 0,1,2,3 ;tilepal0
 	db 0,4,5,6 ;tilepal1
 	db 0,7,0xf8,0xf9 ;tilepal2
-	db 0,0xfa,0xfb,6 ;tilepal3
+	db 0,0xfa,0xfb,6 ;tilepal3 ;10=тень монеты/каёмка огня, 11=яркая монета/огонь, 12=рубашка Марио (каёмка монеты бывает синяя - для неё берём цвет 6)
 ;цвета Марио: [1]=4 (лицо) или 13=0x3131, [2]=14=0xb1b1 (фартук красный, а может быть белый), [3]=12 (рубашка может быть коричневая и зелёная!!!)
 ;цвета черепахи/Lakitu: [1]=8 (белый), [2]=2 (зелёный панцирь, а может быть синий!!!) или 15=0xe3e3, [3]=13 (голова черепахи)
 ;цвета Goomba/жук/пушка/пуля: [1]=5 (ножка), [2]=6 (чёрный, а может быть тёмно-серый!!!), [3]=4 (шляпа)
+;цвета огня: [1]=8 (белая внутренность), [2]=10 (красный), [3]=11 (жёлтый)
+;цвета гриба: [1]=5 (ножка), [2]=10 (красный), [3]=13 (оранжевый)
+;цветок отличается от черепахи тем, что всегда зелёная ножка
+;платформа отличается от Марио стабильными цветами???
+;наш флаг отличается от черепахи тем, что всегда красная звезда
 	db 0,0xfd,0xfe,0xfc ;Mario
 	db 0,0xf8,0xff,0xfd ;Koopa/Lakitu
 	db 0,5,6,4 ;Goomba/жук/пушка/пуля
+	db 0,0xf8,0xfa,0xfb ;огонь
+	db 0,5,0xfa,0xfd ;гриб
+	db 0,0xf8,2,0xfd ;цветок (всегда зелёная ножка)
+	db 0,0xfb,0xf8,0xfa ;монета
+	db 0,0xfd,0xfa,4 ;платформа
+	db 0,0xf8,0xfa,0xfd ;наш флаг (всегда красная звезда)
 
         ;ds 0x0200-$
 	
@@ -781,18 +801,30 @@ filepages
 ;DDp palette: %grbG11RB(low),%grbG11RB(high)
 mariopalblack
 castlepalette
+        dw 0xf3f3
+        dw 0xa3a3,0xe1e1,0x7373 ;1=средняя труба, 2=яркая труба, 3=каёмка трубы
+        dw 0xe0e0,0x0000,0x1313 ;4=яркий кирпич, 5=блик на кирпиче, 6=дверь замка=тень в кирпичах (по идее чёрные, но на 8-4 тёмно-серые)
+        dw 0x3131,0x0000,0xf3f3 ;7=вода/тень облака, 8=белый, 9=каёмка облака (чёрная)
+        dw 0xf1f1,0xa1a1,0x3333 ;10=тень монеты, 11=яркая монета, 12=рубашка Марио (каёмка монеты бывает синяя - для неё берём цвет 6)
+        dw 0x3131,0xb1b1,0xe3e3 ;13=лицо Марио/голова черепахи, 14=фартук Марио, 15=панцирь
 undergroundpalette
 ;с чёрным фоном:			каёмка трубы	лицо	фартук	дверь замка, тень в кирпичах (по идее чёрные); рубашка Марио (по идее коричневая), шляпа злого гриба (в подземелье голубая), голова черепахи (по идее оранжевая), стебель кактуса (по идее оранжевый), лицо toad
         ;dw 0xf3f3,0xa3a3,0x6161,0x7373,0xf3f3,0x3131,0xa0a0,0xb3b3
         ;dw 0xf3f3,0x0202,0x0000,0xd3d3,0xf3f3,0xf1f1,0xa1a1,0xb3b3
 				;край облака			разбитый блок с призом, край монеты
         dw 0xf3f3
-        dw 0xa3a3,0x6161,0x7373 ;1=средняя труба, 2=яркая труба, 3=каёмка трубы
+        dw 0xa3a3,0xe1e1,0x7373 ;1=средняя труба, 2=яркая труба, 3=каёмка трубы
         dw 0xe2e2,0x4040,0x5353 ;4=яркий кирпич, 5=блик на кирпиче, 6=дверь замка=тень в кирпичах (по идее чёрные, но на 8-4 тёмно-серые)
         dw 0x0202,0x0000,0xf3f3 ;7=вода/тень облака, 8=белый, 9=каёмка облака (чёрная)
-        dw 0xf1f1,0xa1a1,0xb3b3 ;10=тень монеты, 11=яркая монета, 12=каёмка монеты (можно чёрную, бывает синяя - взять цвет 6?) или рубашка Марио
-        dw 0x3131,0xb1b1,0xe3e3 ;13=лицо Марио/олова черепахи, 14=фартук Марио, 15=панцирь
+        dw 0xf1f1,0xa1a1,0x3333 ;10=тень монеты, 11=яркая монета, 12=рубашка Марио (каёмка монеты бывает синяя - для неё берём цвет 6)
+        dw 0x3131,0xb1b1,0xe3e3 ;13=лицо Марио/голова черепахи, 14=фартук Марио, 15=панцирь
 waterpalette
+        dw 0xc0c0 ;небо
+        dw 0xa3a3,0xe1e1,0x7373 ;1=средняя труба, 2=яркая труба, 3=каёмка трубы
+        dw 0x6363,0x6060,0xf3f3 ;4=яркий кирпич, 5=блик на кирпиче, 6=дверь замка=тень в кирпичах (по идее чёрные, но на 8-4 тёмно-серые)
+        dw 0x0202,0x0000,0xf3f3 ;7=вода/тень облака, 8=белый/коралл???/подводная монета???, 9=каёмка облака (чёрная)
+        dw 0xf1f1,0xa1a1,0x3333 ;10=тень монеты, 11=яркая монета, 12=рубашка Марио (каёмка монеты бывает синяя - для неё берём цвет 6)
+        dw 0x3131,0xb1b1,0xe0e0 ;13=лицо Марио/голова черепахи, 14=фартук Марио, 15=панцирь/серая рыбка
 mariopal
 groundpalette
 ;с синим небом:
@@ -801,15 +833,18 @@ groundpalette
         ;dw 0xc0c0,0x0202,0x0000,0xd3d3,0xc0c0,0xf1f1,0xa1a1,0xb3b3
                 ;вода/кусок облака
         dw 0xc0c0 ;небо
-        dw 0xa3a3,0x6161,0x7373 ;1=средняя труба, 2=яркая труба, 3=каёмка трубы
-        dw 0x3131,0xa0a0,0xf3f3 ;4=яркий кирпич, 5=блик на кирпиче, 6=дверь замка=тень в кирпичах (по идее чёрные, но на 8-4 тёмно-серые)
+        dw 0xa3a3,0xe1e1,0x7373 ;1=средняя труба (0xe3 слишком холодно), 2=яркая труба (0x61 слишком ярко), 3=каёмка трубы
+        dw 0x7171,0xa0a0,0xf3f3 ;4=яркий кирпич (0x11 слишком ярко, 0x31 слишком насыщенно, 0x71 слишком коричнево - но в VirtualNES так), 5=блик на кирпиче, 6=дверь замка=тень в кирпичах (по идее чёрные, но на 8-4 тёмно-серые)
         dw 0x0202,0x0000,0xf3f3 ;7=вода/тень облака, 8=белый, 9=каёмка облака (чёрная)
-        dw 0xf1f1,0xa1a1,0xb3b3 ;10=тень монеты, 11=яркая монета, 12=каёмка монеты (можно чёрную, бывает синяя - взять цвет 6?) или рубашка Марио
-        dw 0x3131,0xb1b1,0xe3e3 ;13=лицо Марио/олова черепахи, 14=фартук Марио, 15=панцирь
+        dw 0xf1f1,0xa1a1,0x3333 ;10=тень монеты/каёмка огня, 11=яркая монета/огонь, 12=рубашка Марио (0xb3 слишком насыщенно, каёмка монеты бывает синяя - для неё берём цвет 6)
+        dw 0x3131,0xb1b1,0xe3e3 ;13=лицо Марио/голова черепахи, 14=фартук Марио, 15=панцирь
 
 ;цвета Марио: [1]=4 (лицо) или 13=0x3131, [2]=14=0xb1b1 (фартук красный, а может быть белый), [3]=12 (рубашка может быть коричневая и зелёная!!!)
-;цвета черепахи/Lakitu: [1]=8 (белый), [2]=2 (зелёный панцирь, а может быть синий!!!) или 0xe3e3, [3]= (голова черепахи)
+;цвета черепахи/Lakitu: [1]=8 (белый), [2]=2 (зелёный панцирь, а может быть синий!!!) или 15=0xe3e3, [3]=13 (голова черепахи)
 ;цвета Goomba/жук/пушка/пуля: [1]=5 (ножка), [2]=6 (чёрный, а может быть тёмно-серый!!!), [3]=4 (шляпа)
+;цвета огня: [1]=8 (белая внутренность), [2]=10 (красный), [3]=11 (жёлтый)
+;цвета рыбы: [1]=8 (белое брюшко), [2]=15 (серый), [3]=13 (розовый хвост) - как у черепахи
+;цвета гриба: [1]=5 (ножка), [2]=10 (красный), [3]=13 (ярко-оранжевый)
 
 quit
         call swapimer
@@ -840,6 +875,9 @@ oldimer
 setpgs_code
 codepage4000=$+1
         ld a,0
+         if RESTOREPG16K
+         ld (curpg4000),a
+         endif
         SETPG16K
 codepage8000=$+1
         ld a,0
@@ -852,6 +890,9 @@ codepagec000=$+1
 setpgs_scr
 tilepage=$+1
         ld a,0
+         if RESTOREPG16K
+         ld (curpg4000),a
+         endif
         SETPG16K
 setpgs_scr_low=$+1
         ld a,0;pgscr0_0 ;scr0_0
@@ -1160,8 +1201,9 @@ endoflastredrawtimer=$+1
         ld de,0
         or a
         sbc hl,de
-        jr z,EmulatePPU_waitforscreenready0
+        jr z,EmulatePPU_waitforscreenready0 ;что-то не так со сменой экранов?
 
+	if OSCALLS
 curpalette=$+1
         ld de,mariopal
 oldpalette=$+1
@@ -1169,7 +1211,7 @@ oldpalette=$+1
 	ld (oldpalette),de
 	or a
 	sbc hl,de
-	jr z,EmulatePPU_nochpal ;TODO поддержать изменение цвета Марио в палитре
+	jp z,EmulatePPU_nochpal ;TODO поддержать изменение цвета Марио в палитре
 	push de
         OS_GETTIMER ;hlde=timer
         ld (oldtimer),de ;иначе yield вылетит без ожидания прерывания
@@ -1179,7 +1221,9 @@ oldpalette=$+1
         OS_SETPAL ;на это время восстановлен обработчик прерываний, музыка выключена (а так надо посчитать, сколько прошло прерываний по системному таймеру и добавить в игровой таймер)
 	YIELD ;иначе палитра не установится
 	call swapimer
+	else
 EmulatePPU_nochpal
+	endif
         
         call setpgs_scr
         
@@ -1206,7 +1250,7 @@ EmulatePPU_nochpal
 prsprites0
         push bc
 	ld a,(ix+2) ;attributes
-	rla ;flip vertically
+	rla ;flip vertically ;TODO программно
 spritepage=$+1
 spritepagemirhor=$+2
 	ld bc,0
@@ -1218,6 +1262,9 @@ spritepagemirhorver=$+2
         ld a,c;
 	jr nc,$+3
         ld a,b;mirver
+         if RESTOREPG16K
+         ld (curpg4000),a
+         endif
         SETPG16K
 	
         ld a,(ix) ;y
@@ -1252,13 +1299,17 @@ prsprites_skip
         ld a,1
         xor 1
         ld ($-1),a
+	if OSCALLS
         ld e,a
         OS_SETSCREEN ;фактически включится по прерыванию ;первый отобразится 0-й экран
          ld a,e
+	endif
          add a,a
          add a,a
          add a,a
          ld (imer_curscreen_value),a
+	 ;ld bc,0x7ffd
+	 ;out (c),a
 
 	call gettimer
         ld (endoflastredrawtimer),hl
@@ -1498,9 +1549,12 @@ prtilelinefast_sp=$+1
 setpgaddrstack4000
 pgaddrstack=$+1
 	ld a,0
+         if RESTOREPG16K
+         ld (curpg4000),a
+         endif
 	SETPG16K
 	ret
-setpgaddrstackcopy4000
+setpgaddrstackcopy4000 ;только в ините и int
 pgaddrstackcopy=$+1
 	ld a,0
 	SETPG16K
@@ -1528,6 +1582,10 @@ shutay0
 	jr nz,shutay0
 	ret
 	
+	if OSCALLS==0
+oldpalette=$
+	dw 0
+	endif
 on_int
 ;if stack in 0x4000..0x7fff:
 ;restore stack from pgaddrstackcopy (set in 0x4000 temporarily, then set pgaddrstack)
@@ -1545,32 +1603,74 @@ on_int
 	push bc
 	push de
 	
+imer_curscreen_value=$+1
+         ld a,0
+         ld bc,0x7ffd
+         out (c),a
+
 	ld a,(on_int_sp+1)
 	sub 0x40
 	cp 0x3f ;запас, чтобы не захватить очистку экрана в 0x8000
 	ld hl,0
 	jr nc,on_int_norestoredata
 	;jr $
-imer_curscreen_value=$+1
-         ld a,0
-         ld bc,0x7ffd
-         out (c),a
 	ld a,(pgaddrstackcopy)
 	SETPG16K
 on_int_spcopy=$+1
 	ld hl,(0)
+        ;if RESTOREPG16K==0
 	ld a,(pgaddrstack)
 	SETPG16K
-	
+        ;endif
 on_int_norestoredata
 on_int_sp=$+1
-	ld (0),hl
+	ld (0),hl ;в стек
+        
+	if OSCALLS==0
+curpalette=$+1
+        ld de,mariopal
+        ld hl,31
+        add hl,de
+        ld c,0xff
+        ld a,7
+        dup 8
+        OUT (0xF6),A
+        ld d,(hl)
+        dec hl
+        ld b,(hl) ;DDp palette low bits
+        OUT (c),d;(0xFF),A
+        dec hl
+        dec a
+        edup
+        ld a,7
+        dup 7
+        OUT (0xFE),A
+        ld d,(hl)
+        dec hl
+        ld b,(hl) ;DDp palette low bits
+        OUT (c),d;(0xFF),A
+        dec hl
+        dec a
+        edup
+        OUT (0xFE),A ;0
+        ld d,(hl)
+        dec hl
+        ld b,(hl) ;DDp palette low bits
+        OUT (c),d;(0xFF),A
+	endif
+
 	ld hl,(curtimer)
 	inc hl
 	ld (curtimer),hl
 
 	if MUSIC
-	;call SoundEngine ;так не работает
+        if MUSICONINT
+        ld a,(codepage4000)
+        SETPG16K
+        ld b,0
+        ld d,b
+	call SoundEngine
+        endif
 
 	ld c,0xfd
 
@@ -1921,6 +2021,12 @@ vol2nodecay
 	
 	endif
 
+        if RESTOREPG16K
+curpg4000=$+1
+        ld a,0
+	SETPG16K
+        endif
+
 	pop de
 	pop bc
 	pop af
@@ -1963,10 +2069,14 @@ tcounterload
 gettimer
 ;out: hl=timer
 ;суммируем оба таймера - вдруг было системное прерывание
+	if OSCALLS
         OS_GETTIMER ;hlde=timer
+	endif
 curtimer=$+1
 	ld hl,0
+	if OSCALLS
         add hl,de
+	endif
 	ret
 
 	;include "smbsound.asm"
