@@ -38,6 +38,7 @@ clean-tools:
 
 clean: clean-tools
 	for d in ${SUBDIRS}; do ${MAKE} -w -C $$d clean; done
+	rm -f _sdk/syssets.asm
 clean-release:
 	cd ${INSTALLDIR} && rm -f bin/* doc/*
 
@@ -48,6 +49,9 @@ install: all
 install-doc: 
 	for d in ${SUBDIRS}; do ${MAKE} -w -C $$d install-doc; done
 	cp ${DOCS} ${INSTALLDIR}/doc
+
+hobeta: system install install-doc
+	${SJASMPLUS} kernel/hobeta.asm
 
 trd: system install install-doc
 	${NEDOTRD} test.trd -n
@@ -88,18 +92,20 @@ atm2:
 	${MAKE} trd
 	mv -f test.trd ${INSTALLDIR}/osatm2.trd
 
-atm2hd:
-	echo atm=2 > _sdk\syssets.asm
-	echo sys_npages=64 >> _sdk\syssets.asm
-	echo NEMOIDE=0 >> _sdk\syssets.asm
-	echo SYSDRV=4 >> _sdk\syssets.asm
+atm2hd: 
+	echo atm=2 > _sdk/syssets.asm 
+	echo sys_npages=64 >> _sdk/syssets.asm 
+	echo NEMOIDE=0 >> _sdk/syssets.asm 
+	echo SYSDRV=4 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x00 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} trd
-	${NEDOTRD} test.trd -eh code.c
-	${NEDOTRD} test.trd -a code.c
-	cp code.c ${INSTALLDIR}/osatm2hd.\$$C
-	mv -f test.trd ${INSTALLDIR}/osatm2hd.trd
+	${MAKE} hobeta
+#	cp nedoos.\$$C ${INSTALLDIR}/osatm2hd.\$$C
+#	${MAKE} trd
+#	${NEDOTRD} test.trd -eh code.c
+#	${NEDOTRD} test.trd -a code.c
+#	cp kernel/code.c ${INSTALLDIR}/osatm2hd.\$$C
+#	mv -f test.trd ${INSTALLDIR}/osatm2hd.trd
 
 atm3:
 	echo atm=3 > _sdk/syssets.asm
@@ -117,34 +123,40 @@ atm3hd:
 	echo SYSDRV=4 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} trd
-	${SJASMPLUS} kernel/hobeta.asm
+	${MAKE} hobeta
 	cp nedoos.\$$C ${INSTALLDIR}/osatm3hd.\$$C
-	mv -f test.trd ${INSTALLDIR}/osatm3hd.trd
+#	${MAKE} trd
+#	${SJASMPLUS} kernel/hobeta.asm
+#	cp nedoos.\$$C ${INSTALLDIR}/osatm3hd.\$$C
+#	mv -f test.trd ${INSTALLDIR}/osatm3hd.trd
 
-atm3sd: system install install-doc
+atm3sd: 
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=12 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} trd
-	${SJASMPLUS} kernel/hobeta.asm
+	${MAKE} hobeta
 	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
-	mv -f test.trd ${INSTALLDIR}/osatm3sd.trd
+#	${MAKE} trd
+#	${SJASMPLUS} kernel/hobeta.asm
+#	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
+#	mv -f test.trd ${INSTALLDIR}/osatm3sd.trd
 
-evosd: system install install-doc
+evosd: 
 	echo atm=1 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=12 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
-	${MAKE} trd
-	${SJASMPLUS} kernel/hobeta.asm
+	${MAKE} hobeta
 	cp nedoos.\$$C ${INSTALLDIR}/osevosd.\$$C
-	mv -f test.trd ${INSTALLDIR}/osevosd.trd
+#	${MAKE} trd
+#	${SJASMPLUS} kernel/hobeta.asm
+#	cp nedoos.\$$C ${INSTALLDIR}/osevosd.\$$C
+#	mv -f test.trd ${INSTALLDIR}/osevosd.trd
 
 pe26:
 	echo atm=3 > _sdk/syssets.asm
