@@ -2,7 +2,7 @@
         include "../_sdk/sys_h.asm"
 
         org PROGSTART
-dns_err_count=25
+dns_err_count=250
 cmd_begin
 
 ;init
@@ -174,7 +174,10 @@ ping_loopwait
 	or l
 	jr nz,ping_loopreceived
 	push bc
-	YIELD
+	YIELDGETKEY
+	ld a,c
+	cp key_esc
+	jr z,ping_end
 	pop bc
 	djnz ping_loopwait ; if read zero bytes
 	ld hl,(icmperr); timeout
@@ -192,6 +195,11 @@ ping_loopwait
 ping_loopreceived
 
 	ld ix,icmppacket
+	ld hl,(ix+STicmpreq.id)
+	ld de,(icmpoldid)
+	or a
+	sbc hl,de
+	jr nz,ping_loopwait
 	call icmpchecksum_ixtohl
 	inc hl ; checksum of cheksummed packet always 0xFFFF
 	ld a,h
@@ -201,8 +209,12 @@ ping_loopreceived
 	ld hl,(icmperr) ; inc packet loss count
 	inc hl
 	ld (icmperr),hl
+	jr ping_crc
 ping_nocrc
-
+	ld hl,(icmprcvd)
+	inc hl
+	ld (icmprcvd),hl
+ping_crc
 	call ping_printwork 
 	call ping_wait ; wait for some time
 	pop bc 
@@ -305,17 +317,18 @@ ping_printstat
 	call printushort_hl
 	ld hl,txt_tail3
 	call print_hl
+	or a
 	ld hl,(icmpnum)
-	ld de,(icmperr)
+	ld de,(icmprcvd)
 	sbc hl,de
+	ex hl,de
 	push de
 	call printushort_hl
 	ld hl,txt_tail4
 	call print_hl
 
 ;print % lost
-	pop hl 
-	ex hl,de ;err packets in DE
+	pop de
 	ld h,d
 	ld l,e
 	add hl,hl
@@ -467,6 +480,8 @@ ping_resolveerror
 	ld hl,txt_resolveerror
 	call print_hl
 	ld hl,arg_hostname
+	call print_hl
+	call print_nl
 
 ping_error_hl
 	call print_hl
@@ -496,8 +511,8 @@ ping_buildicmppacket
 	ld (ix + STicmpreq.checksum),0
 	ld (ix + STicmpreq.checksum+1),0
 	ld hl,(icmpnextid)
-	ld (ix + STicmpreq.id),h
-	ld (ix + STicmpreq.id+1),l
+	ld (ix + STicmpreq.id),hl
+	ld (icmpoldid),hl
 	ld hl,(icmpnum)
 	inc hl
 	ld (icmpnum),hl
@@ -734,7 +749,9 @@ icmpdatasize db 56,0
 icmpnum db 0,0
 icmpcnt db 0xFF,0xFF
 icmpnextid db 0x53,0x53
+icmpoldid db 0,0
 icmperr db 0,0
+icmprcvd db 0,0
 icmpstarttime db 0,0
 icmppacketstime db 0,0
 icmpshowpacket db 0
