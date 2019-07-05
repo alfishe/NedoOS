@@ -1001,8 +1001,13 @@ BGColorCtrl_Addr:
       .db $00, $09, $0a, $04
 
 BackgroundColors:
+        if Z80BGCOLOR
+	db 0xc0,0xc0,0xf3,0xf3 ;used by area type if bg color ctrl not set
+	db 0xf3,0xc0,0xf3,0xf3 ;used by background color control if set
+	else
       .db $22, $22, $0f, $0f ;used by area type if bg color ctrl not set
       .db $0f, $22, $0f, $0f ;used by background color control if set
+        endif
 
 PlayerColors:
         if Z80MARIOCOLOR
@@ -1019,8 +1024,11 @@ GetBackgroundColor:
            ldy BackgroundColorCtrl   ;check background color control
          checky
            beq NoBGColor             ;if not set, increment task and fetch palette
+        if Z80BGCOLOR
+	else
            lday BGColorCtrl_Addr-4,y  ;put appropriate palette into vram
            sta VRAM_Buffer_AddrCtrl  ;note that if set to 5-7, $0301 (VRAM_Buffer1) will not be read
+	endif
 NoBGColor: inci ScreenRoutineTask     ;increment to next subtask and plod on through
       
 GetPlayerColors:
@@ -1047,7 +1055,22 @@ StartClrGet:
                ldi
                ldi
                ld (oldpalette),hl ;!=curpalette, чтобы автоматически обновилась
+
                ld d,b
+
+          if Z80BGCOLOR
+               ldy BackgroundColorCtrl  ;if this value is four or greater, it will be set
+         checky
+               bne SetBGColor           ;therefore use it as offset to background color
+               ldy AreaType             ;otherwise use area type bits from area offset as offset
+SetBGColor:    lday BackgroundColors,y   ;to background color instead
+	       ;jr $
+               ld hl,(curpalette)
+	       ld (hl),a
+	       inc hl
+	       ld (hl),a
+	  endif
+
                 ret
         else
                ldx VRAM_Buffer1_Offset  ;get current buffer offset
@@ -1685,7 +1708,11 @@ SetVRAMCtrl: ldan ++$06
 ;$00 - used as temporary counter in ColorRotation
 
 ColorRotatePalette:
+	if Z80COINCYCLECOLOR
+	db 0xa1,0xa1,0xa1,0x31,0xf1,0x31
+	else
        .db $27, $27, $27, $17, $07, $17
+        endif
 
 BlankPalette:
        .db $3f, $0c, $04, $ff, $ff, $ff, $ff, $00
@@ -1700,6 +1727,32 @@ Palette3Data:
 ColorRotation:
               lda FrameCounter         ;get frame counter
               andn ++$07                 ;mask out all but three LSB
+	if Z80COINCYCLECOLOR
+		ret nz
+              ;lda AreaType             ;get area type
+              ;asl                      ;multiply by 4 to get proper offset
+              ;asl
+              ;tay                      ;save as offset here
+	      ;lday Palette3Data,y       ;fetch palette to be written based on area type
+		
+              ldy ColorRotateOffset    ;get color cycling offset
+              lday ColorRotatePalette,y
+		ld hl,(curpalette)
+		ld e,11*2
+		add hl,de
+		ld (hl),a
+		inc hl
+		ld (hl),a
+	      
+              inci ColorRotateOffset    ;increment color cycling offset
+              lda ColorRotateOffset
+              cmpn ++$06                 ;check to see if it's still in range
+              ;cmpcy
+              ret c;bcc ExitColorRot         ;if so, branch to leave
+              xor a;ldan ++$00
+              sta ColorRotateOffset    ;otherwise, init to keep it in range
+		ret
+	else
               bne ExitColorRot         ;branch if not set to zero to do this every eighth frame
               ldx VRAM_Buffer1_Offset  ;check vram buffer offset
               cpxn ++$31
@@ -1742,6 +1795,7 @@ GetAreaPal:   lday Palette3Data,y       ;fetch palette to be written based on ar
               ldan ++$00
               sta ColorRotateOffset    ;otherwise, init to keep it in range
 ExitColorRot: rts                      ;leave
+	endif
 
 ;-------------------------------------------------------------------------------------
 ;$00 - temp store for offset control bit
@@ -6286,22 +6340,65 @@ PlayerFireFlower:
       lsr                    ;divide by four to change every four frames
 
 CyclePlayerPalette:
+	if Z80MARIOCYCLECOLOR
+	ld hl,(curpalette)
+	ld e,12*2
+	add hl,de
+	ld a,(hl)
+	xor 0xf3
+	ld (hl),a
+	inc hl
+	ld (hl),a
+	inc hl
+	inc hl
+	inc hl
+	ld a,(hl)
+	xor 0xf3
+	ld (hl),a
+	inc hl
+	ld (hl),a
+	else
       andn ++$03              ;mask out all but d1-d0 (previously d3-d2)
       sta SCRATCHPAD+$00               ;store result here to use as palette bits
       lda Player_SprAttrib  ;get player attributes
       andn ++%11111100        ;save any other bits but palette bits
       orai SCRATCHPAD+$00               ;add palette bits
       sta Player_SprAttrib  ;store as new player attributes
+        endif
       rts                   ;and leave
 
 ResetPalFireFlower:
       jsr DonePlayerTask    ;do sub to init timer control and run player control routine
 
 ResetPalStar:
+	if Z80MARIOCYCLECOLOR
+	if 1
+	jp GetPlayerColors
+	else
+	ld hl,(curpalette)
+	ld e,12*2
+	add hl,de
+	ld a,(hl)
+	xor 0xf3
+	ld (hl),a
+	inc hl
+	ld (hl),a
+	inc hl
+	inc hl
+	inc hl
+	ld a,(hl)
+	xor 0xf3
+	ld (hl),a
+	inc hl
+	ld (hl),a
+	ret
+	endif
+	else
       lda Player_SprAttrib  ;get player attributes
       andn ++%11111100        ;mask out palette bits to force palette 0
       sta Player_SprAttrib  ;store as new player attributes
       rts                   ;and leave
+        endif
 
 ExitDeath:
       rts          ;leave from death routine
@@ -15446,6 +15543,9 @@ CheckToAnimateEnemy:
       lda WorldNumber          ;are we on world 8?
       cmpn ++World8
               cmpcy
+	if ALWAYSPRINCESS
+	scf
+	endif
       bcs CheckDefeatedState   ;if so, leave the offset alone (use princess)
       ldxn ++$a2                 ;otherwise, set for mushroom retainer object instead
       ldan ++$03                 ;set alternate state here
@@ -16143,7 +16243,7 @@ PlayerGfxProcessing:
        cmpi FireballThrowingTimer     ;compare to fireball throw timer
        sty FireballThrowingTimer     ;initialize fireball throw timer
               cmpcy
-       bcs PlayerOffscreenChk        ;if animation frame timer =HIGH  fireball throw timer skip to end
+       bcs PlayerOffscreenChk        ;if animation frame timer =>  fireball throw timer skip to end
        sta FireballThrowingTimer     ;otherwise store animation timer into fireball throw timer
        ldyn ++$07                      ;load offset for throwing
        lday PlayerGfxTblOffsets,y     ;get offset to graphics table
@@ -16351,7 +16451,7 @@ AnimationControl:
           adcn ++$01
           cmpi SCRATCHPAD+$00                   ;compare to upper extent
               cmpcy
-          bcc SetAnimC              ;if frame control + 1 LOW  upper extent, use as next
+          bcc SetAnimC              ;if frame control + 1 < upper extent, use as next
           ldan ++$00                  ;otherwise initialize frame control
 SetAnimC: sta PlayerAnimCtrl        ;store as new animation frame control
 ExAnimC:  pla                       ;get offset to graphics table from stack and leave

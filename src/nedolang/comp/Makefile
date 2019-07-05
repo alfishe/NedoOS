@@ -4,7 +4,7 @@ TOOL		= nedolang.bin
 TOOL_SOURCES	= armmain.c codearm.c codez80.c commands.c compile.c compmain.c regs.c z80main.c
 NAMEOS		= comp.com
 NAME		= nedolang
-OBJECTS		= commands.ast commands.var commands.V_ commands.A_ compcode.S_ compcode.bin compile.ast compile.var compile._V compile.A_ comp.bin
+OBJECTS		= commands.ast commands.var commands.V_ commands.A_ compcode.S_ compcode.bin compile.ast compile.var compile._V compile.A_ comp.bin label.f
 SOURCES		= comp.s comp_os.s compc_os.s armmain.c codearm.c codez80.c commands.c compile.c compmain.c regs.c z80main.c
 GCC		= gcc
 CFLAGS		= -m32 
@@ -33,17 +33,28 @@ compcode.bin: compcode.S_
 	${NEDOASM} compcode.S_
 	cat asmerr.f
 
-lang.os: ${SOURCES}
+lang.1: ${SOURCES}
 	${NEDOLANG} ../_sdk/emit.c commands.c
 	cat err.f
 
-tok.os: lang.os ${SOURCES}
+tok.1: lang.1 ${SOURCES}
 	${NEDOTOK} nedotok compc_os.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../../_sdk/sysdefs.asm
 
-${NAMEOS}: lang.os tok.os ${SOURCES}
+compc_os.bin: lang.1 tok.1 ${SOURCES}
 	${NEDOASM} compc_os.S_
 	cat asmerr.f
-	cp compc_os.bin ${NAMEOS}
+
+lang.2: compc_os.bin ${SOURCES}
+	${NEDOLANG} ../_sdk/read.c compile.c
+	cat err.f
+
+tok.2: lang.2 ${SOURCES}
+	${NEDOTOK} comp_os.s ../_sdk/read.ast ../_sdk/read.var compile.ast compile.var
+
+${NAMEOS}: lang.2 tok.2 ${SOURCES}
+	${NEDOASM} comp_os.S_
+	cat asmerr.f
+	cp comp_os.bin ${NAMEOS}
 
 tools: ${TOOL}
 

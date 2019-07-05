@@ -595,6 +595,9 @@ PlayNoiseSfx:
         stx SND_NOISE_REG+2
         ldan ++$18
         sta SND_NOISE_REG+3
+	if Z80
+	call wrnoise3
+	endif
 
 DecrementSfx3Length:
         deci Noise_SfxLenCounter  ;decrement length of sfx
@@ -964,6 +967,27 @@ PlayBeat:
         sta SND_NOISE_REG    ;load beat data into noise regs
         stx SND_NOISE_REG+2
         sty SND_NOISE_REG+3
+        if Z80
+;write to SND_REGISTER+3 causes counter loading from a table
+	ld a,e
+wrnoise3
+        rra
+        rra
+        rra
+        and 0x1f
+        ld hl,tcounterload
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(hl) ;читает 5, а на слух надо примерно 0x10 для музыки, для флага больше, только эффекты покороче
+	add a,a
+        ld (SND_COUNTER+12),a
+;Only a write out to $4003/$4007/$400F will reset the current envelope decay counter to a known state (to $F, the maximum volume level) for the appropriate channel's envelope decay hardware.
+        ld a,0x0f
+        ld (SND_DECAYVOL+12),a
+        endif
 
 ExitMusicHandler:
         rts

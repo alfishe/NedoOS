@@ -1260,6 +1260,9 @@ strmirror
         call strlen
         ld b,h
         ld c,l
+	 ld a,b
+	 or c
+	 ret z
 ;de=начало, bc=hl=длина
         ;ld h,b
         ;ld l,c
@@ -1319,7 +1322,7 @@ cmd_copydir0_recursive
         ld hl,wordbuf
         STRPOP
         pop bc
-        jr cmd_copydir0_skip
+        jp cmd_copydir0_skip
         
 open_setdir2_create_copy
         ;open....
@@ -1466,6 +1469,7 @@ twrongid
 oldtimer
         dw 0
         
+	db 0 ;для запарывания на случай отсутствия пути
 wordbuf
         ds MAXCMDSZ+1
 wordbuf2

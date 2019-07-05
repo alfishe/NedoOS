@@ -14,10 +14,14 @@ Z80OPT3hybug=1 ;при 1 не падает в первую яму в 1-4, а должен (задержка старта ур
 Z80OPT4=1 ;вывод распакованной карты - не влияет?
 
 Z80MARIOCOLOR=1
+Z80BGCOLOR=1
+Z80MARIOCYCLECOLOR=1
+Z80COINCYCLECOLOR=1
 
 INFINITELIVES=1
 NOPIRANHAPLANT=0 ;нет кактуса
 GOODPIRANHAPLANT=1 ;кактус и плевок лавы не убивают
+ALWAYSPRINCESS=0;1 ;no mushroom retainer (Toad), princess in every level-4
 
 FASTDEMOBEFOREBREAKPOINT=0;1 ;до брякпоинта в деме (прописывается как reset, т.е. вторая клеточка) не работает видеоконтроллер
 ;при запуске грузится дема antipac.fm2 - если её нет, то включается режим записи
@@ -742,7 +746,7 @@ ttilepalrecode
 ;цвета огня: [1]=8 (белая внутренность), [2]=10 (красный), [3]=11 (жёлтый)
 ;цвета гриба: [1]=5 (ножка), [2]=10 (красный), [3]=13 (оранжевый)
 ;цветок отличается от черепахи тем, что всегда зелёная ножка
-;платформа отличается от Марио стабильными цветами???
+;платформа отличается от Марио стабильными цветами??? или она ближе к грибу/Goomba наверху
 ;наш флаг отличается от черепахи тем, что всегда красная звезда
 	db 0,0xfd,0xfe,0xfc ;Mario
 	db 0,0xf8,0xff,0xfd ;Koopa/Lakitu
@@ -751,7 +755,8 @@ ttilepalrecode
 	db 0,5,0xfa,0xfd ;гриб
 	db 0,0xf8,2,0xfd ;цветок (всегда зелёная ножка)
 	db 0,0xfb,0xf8,0xfa ;монета
-	db 0,0xfd,0xfa,4 ;платформа
+	;db 0,0xfd,0xfa,4 ;платформа
+	db 0,5,0xfa,0xfd ;платформа
 	db 0,0xf8,0xfa,0xfd ;наш флаг (всегда красная звезда)
 
         ;ds 0x0200-$
@@ -1273,6 +1278,8 @@ spritepagemirhorver=$+2
         jr nc,prsprites_skip
         ld l,a
         ld a,(ix+3) ;x
+	 inc a
+	 jr z,prsprites_skip ;почему-то прыжки на левой границе экрана в контакте с камнем дают x=0xff TODO
 	srl a
 	add a,4*4
         
@@ -1807,7 +1814,7 @@ sweep2disabled
 	ld b,0xbf
 	out (c),l
 
-	ld d,0x07 ;all channels enabled
+	ld d,0x0f ;all channels enabled
 	
 	ld a,11
 	ld b,0xff
@@ -1839,6 +1846,14 @@ sweep2disabled
 	;out (c),e
 	;ld b,0xbf
 	;out (c),a
+
+	ld a,6
+	ld b,0xff
+	out (c),a
+	ld a,(SND_NOISE_REG+2)
+	add a,a
+	ld b,0xbf
+	out (c),a
 
 ;counters
 	ld a,(SND_TRIANGLE_REG)
@@ -1890,6 +1905,18 @@ square2halt
         res 0,d ;disabled because of counter=0
 square1halt
 
+	ld a,(SND_NOISE_REG)
+	bit 5,a
+	jp nz,noisehalt ;counter disable
+	ld a,(SND_COUNTER+12) ;(SND_SQUARE1_REG+3) ;counter register, load it = f(SND_SQUARE2_REG+1) at write there
+	sub 16;1;2
+	jr nc,$+3
+	xor a
+	ld (SND_COUNTER+12),a ;(SND_SQUARE1_REG+3),a
+	jr nz,$+4
+        res 3,d ;disabled because of counter=0
+noisehalt
+
 ;channel enable
 	ld a,7
 	ld b,0xff
@@ -1913,12 +1940,17 @@ noswap21
 	jr z,$+4
 	or 0x04  ;%???DN2T1
        endif
+       ;or 8 ;noise
 	and d
 	ld d,a
 	cpl
-	and 7
+	;and 7
 	 and 5 ;enable B (тихая огибающая) ;or 2 ;disable triangle(B) here
 	or 0x38 ;disable noise
+	 bit 3,d
+	 jr z,$+2+2+2
+	 set 1,a ;disable tone in B
+	 res 4,a ;enable noise in B
 	ld b,0xbf
 	out (c),a
 
@@ -2012,12 +2044,59 @@ vol2nodecay
 	ld e,9
 	ld b,0xff
 	out (c),e
+	ld a,(SND_NOISE_REG) ;bit4=constant volume, or else envelope
+        bit 4,a
+        jr nz,noiseconst
+        ld a,(SND_DECAYVOL+12)
+noiseconst
+	and 15
+        ld hl,tvolume
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(hl)
+	;ld b,0xbf
+	;out (c),l
+
+	;ld e,9
+	;ld b,0xff
+	;out (c),e
+	 bit 3,d ;noise
+	 jr nz,notrianglevolumeout
 	xor a
 	 bit 1,d ;triangle
 	 jr z,$+4
 	ld a,16
+notrianglevolumeout
 	ld b,0xbf
 	out (c),a
+	 ;and 15
+	 ;jr nz,$
+        
+        ld hl,SND_NOISE_REG
+        ld a,(hl)
+        and 15 ;decay rate
+        inc a
+        ld b,a
+noisedecaycounter=$+1
+        ld a,0
+        sub 4 ;4 "sound frames"
+        jr nc,$+3
+        add a,b ;decay rate
+        ld (noisedecaycounter),a
+        jr nc,noisenodecay
+	 ld a,(SND_DECAYVOL+12)
+         dec a
+        jp p,noisenoenddecay
+         and 0xf
+        bit 5,(hl)
+        jr nz,noisenoenddecay ;decay looping enabled
+         xor a
+noisenoenddecay
+	 ld (SND_DECAYVOL+12),a
+noisenodecay
 	
 	endif
 
@@ -2041,7 +2120,7 @@ on_int_jp=$+1
 
 SND_COUNTER
 SND_DECAYVOL=$+1
-        ds 4+4+2 ;sq1,sq2,tri (2 bytes used from 4)
+        ds 4+4+4+2 ;sq1,sq2,tri,noise (2 bytes used from 4)
         
 tvolume
         db 0,9,10,11, 12,12,13,13, 13,14,14,14, 15,15,15,15
@@ -2358,7 +2437,11 @@ getbyte_memoryretry
 	 ret nz;jr nz,getbyte_memorynotended
 	 push de
 	 push hl
+	  halt ;чтобы не сработало системное прерывание
 	 call reservepage ;nz=error
+	  ld a,(imer_curscreen_value)
+	  ld bc,0x7ffd
+	  out (c),a
 	 pop hl
 	 pop de
 	 jr z,getbyte_memoryretry

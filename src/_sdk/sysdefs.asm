@@ -38,7 +38,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
-CMD_GETCOLOR=0xd8 ;e=color byte
+;CMD_GETCOLOR=0xd8 ;e=color byte
 CMD_SETWAITING=0xd9
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb

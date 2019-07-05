@@ -300,10 +300,10 @@ _1=$
         ld c,CMD_SETCOLOR
 	CALLBDOS
         endm
-        macro OS_GETCOLOR
-        ld c,CMD_GETCOLOR
-	CALLBDOS
-        endm
+        ;macro OS_GETCOLOR
+        ;ld c,CMD_GETCOLOR
+	;CALLBDOS
+        ;endm
         macro OS_SETXY
         ld c,CMD_SETXY
 	CALLBDOS

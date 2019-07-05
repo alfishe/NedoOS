@@ -757,3 +757,21 @@ v0.r145.8, 04.07.2019
 - cmd: возможно было повисание в конце copydir
 - cmd: возможна была порча таймера в runapp
 - comp, tok, asm требовали чистую пам€ть. ѕроверить работоспособность можно так: скопировать на SD-карту каталоги _sdk и nedolang, в каталог nedolang/comp скопировать comp.com, tok.com, asm.com, потом из голого cmd запустить test.bat (в каталоге nedolang/comp). Ќа запрос pause нажать Enter. ¬ конце должен получитьс€ comp_os.bin такой же, как comp.com.
+
+v0.r178.1, 04.07.2019
+
+- w5300 socket creation bugfix (demige)
++ Telnet (demige)
++ Ping (demige)
++ Makefile added evosd (enabled sd driver) (demige)
+* добавлена поддержка USB-flash. »зменена нумераци€ дисков (DimkaM):
+A-D: FDD
+E-H: HDD master
+I-L: HDD slave
+M: z-SD
+N: ngs-SD
+O: USB-flash
+- nmisvc портил пам€ть при возврате по nmi (DimkaM)
++ добавлен sdk в директорию release (DimkaM)
++ unreal: в эмул€цию визнета добавлен IPRAW (DimkaM)
++ утилита settime с поддержкой NTP (DimkaM)
