@@ -853,3 +853,77 @@ prendstroka
 	db '¼'
 	db 1	
 	db 0
+
+nv_copyscreen0to1
+	OS_GETMAINPAGES
+	push hl
+	OS_GETSCREENPAGES
+	push hl ;1 screen
+	push de ;0 screen
+	ld a,l
+	SETPG32KHIGH
+	pop de
+	push de
+	ld a,e
+	SETPG32KLOW
+	ld bc,0x4000
+	ld hl,0x8000
+	ld de,0xC000
+	ldir
+	pop de
+	pop hl
+	push de
+	ld a,h
+	SETPG32KHIGH
+	pop de
+	ld a,d
+	SETPG32KLOW
+	ld bc,0x4000
+	ld hl,0x8000
+	ld de,0xC000
+	ldir
+	pop hl
+	push hl
+	ld a,l
+	SETPG32KHIGH
+	pop hl
+	ld a,h
+	SETPG32KLOW
+	ret
+
+nv_copyscreen1to0
+	OS_GETMAINPAGES
+	push hl
+	OS_GETSCREENPAGES
+	push hl ;1 screen
+	push de ;0 screen
+	ld a,l
+	SETPG32KHIGH
+	pop de
+	push de
+	ld a,e
+	SETPG32KLOW
+	ld bc,0x4000
+	ld hl,0xc000
+	ld de,0x8000
+	ldir
+	pop de
+	pop hl
+	push de
+	ld a,h
+	SETPG32KHIGH
+	pop de
+	ld a,d
+	SETPG32KLOW
+	ld bc,0x4000
+	ld hl,0xc000
+	ld de,0x8000
+	ldir
+	pop hl
+	push hl
+	ld a,l
+	SETPG32KHIGH
+	pop hl
+	ld a,h
+	SETPG32KLOW
+	ret

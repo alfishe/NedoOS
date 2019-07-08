@@ -200,7 +200,7 @@ telnet_noresolve
 	ld hl,txt_socketopenerror
 	jp m, telnet_error_hl
 
-	ld hl,txt_work1 ; showing message connect to blablabla
+	ld hl,txt_work1 ; connected to
 	call print_hl
 	ld hl,arg_hostname
 	call print_hl

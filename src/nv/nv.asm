@@ -83,6 +83,7 @@ cmd_begin
         ld e,6 ;textmode
         OS_SETGFX
         
+	call nv_copyscreen0to1
         GET_KEY ;סתוהאול key_redraw
         
         ld e,COLOR
@@ -239,7 +240,7 @@ prhint_color
         call nv_setcolor
         jr prhint0
 thint
-        db "{1}LeftDrv { 2}RightDrv { 3}View { 4}Edit { 5}Copy { 6}Rename { 7}MkDir { 8}Del  { 9}     { 0}Quit ",0
+        db "{1}LeftDrv { 2}RightDrv { 3}View { 4}Edit { 5}Copy { 6}Rename { 7}MkDir { 8}Del  { 9}Screen{ 0}Quit",0
         
 readpanels_reprint
 	ld e,COLOR
@@ -868,8 +869,9 @@ editcmd_enter_runcmd
         ld hl,cmd_filename
         call copy_to_fcb_filename
         ;---
-        ld de,#1800
-        call nv_setxy
+;        ld de,#1800
+;        call nv_setxy
+	call nv_copyscreen1to0
         ld a,#0d
         PRCHAR
         ld a,#0a
@@ -895,6 +897,8 @@ execcmd_runfocusq
         ;djnz execcmd_waitchildredraw0
         ;ld e,6 ;textmode
         ;OS_SETGFX ;take focus (can be random after closing cmd)
+	call nv_copyscreen0to1
+	YIELDGETKEY ;key refresh
         ld hl,cmdbuf
         ld (hl),0
         jp editcmd_reprintall
@@ -1290,6 +1294,11 @@ editcmd_4
         
 editcmd_9
         call ifcmdnonempty_typedigit
+	ld e,1
+	OS_SETSCREEN
+	YIELDGETKEYLOOP
+	ld e,0
+	OS_SETSCREEN
         ret
 
 editcmd_reprintall_keepcursor
