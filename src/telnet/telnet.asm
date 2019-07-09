@@ -791,6 +791,8 @@ telnet_cmd_will
 	jp nz,telnet_read
 	ld a,(hl)
 	push af
+	cp TN_OP_ECHO
+	jr z,telnet_cmd_dont_echo
 ;	call telnet_senddont_a
 	pop af
 	call telnet_debug_a
