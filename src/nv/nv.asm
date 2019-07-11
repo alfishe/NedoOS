@@ -106,6 +106,10 @@ cmd_begin
         ld e,l
         OS_DELPAGE
 
+	OS_NEWPAGE ; for dircopy batch
+	ld hl,dirpg
+	ld (hl),e
+
 	OS_NEWPAGE ; Выделяем по одной страничке для каталогов
         ld hl,HS_strpg
         ld (hl),e
@@ -1476,29 +1480,291 @@ editcmd_5_0
         ld hl,0
         ld (filescopied),hl
         
-        ld de,PROGRESBARWINXY
-        ld bc,PROGRESBARWINHGTWID
-        call prwin
+;        ld de,PROGRESBARWINXY
+;        ld bc,PROGRESBARWINHGTWID
+;        call prwin
         ld hl,proceditcmd_copy
         ld ix,(curpanel)
 	jp processfiles
+
+
+editcmd_5_updatewin
+	ld hl,wincopy2
+	call prwin
+	ret
+
+/*nv_addslashtopath_hl ; out=terminator
+	push hl
+	call skipword_hl
+	dec hl
+	ld a,(hl)
+	cp '/'
+	jr z,nv_addslashtopath_hl0
+	inc hl
+	ld a,'/'
+	ld (hl),a
+nv_addslashtopath_hl0
+	inc hl
+	xor a
+	ld (hl),a
+	pop hl
+	ret
+
+nv_adddirtopath_detohl ; hl=path de=dirname; out - last component of path
+	push hl
+	call skipword_hl
+	ex hl,de
+	push hl
+	call strlen
+	ld b,h
+	ld c,l
+	pop hl
+	ldir
+	xor a
+	ld (de),a
+	pop hl
+	ret*/
+
+nv_strcopy_hltode
+	ld a,(hl)
+	ld (de),a
+	inc hl 
+	inc de
+	or a
+	ret z
+	jr nv_strcopy_hltode
+
+nv_addslash_de
+	dec de
+	dec de
+	ld a,(de)
+	cp '/'
+	jr z,nv_addslash0
+	inc de
+	ld a,'/'
+	ld (de),a
+nv_addslash0
+	inc de 
+	xor a
+	ld (de),a
+	inc de
+	ret
+
+nv_makefilepath_hltode ;DE=dest HL=src BC=filename
+	call nv_strcopy_hltode
+	call nv_addslash_de
+	dec de
+	ld h,b
+	ld l,c
+	call nv_strcopy_hltode
+	ret
+
+nv_fillpathspaces_hl
+	ld b,0
+nv_fillpathspaces_hl0
+	ld a,(hl)
+	inc b
+	inc hl
+	or a
+	jr nz,nv_fillpathspaces_hl0
+	dec hl
+	dec b
+nv_fillpathspaces_hl1
+	ld a,' '
+	ld (hl),a
+	inc b
+	inc hl
+	ld a,b
+	cp 64
+	jr c,nv_fillpathspaces_hl1
+	ret
+	
+nv_copydir_pushrecord
+	OS_GETMAINPAGES
+	ld a,h
+	ld (savepg),a
+	ld a,(dirpg)
+	SETPG32KLOW
+
+	ld hl,0x8000
+	ld bc,(dir_copy_pointer)
+	ld de,256
+nv_copydir_pushsrecord
+	ld a,b
+	or c
+	jr z,nv_copydir_pushsrecordend
+	add hl,de
+	dec bc
+	jr nv_copydir_pushsrecord
+nv_copydir_pushsrecordend
+	push hl
+;dir 1
+	ld de,dir_buf
+	ex hl,de
+	ld bc,filenametext
+	call nv_makefilepath_hltode
+	pop hl
+	ld de,128
+	add hl,de
+;dir2
+	ld de,dir2_buf
+	ex hl,de
+	ld bc,filenametext
+	call nv_makefilepath_hltode
+
+	ld bc,(dir_copy_pointer)
+	inc bc
+	ld (dir_copy_pointer),bc
+	ld a,(savepg)
+	SETPG32KLOW
+	ret
+
+nv_copydir_poprecord; z-empty
+	OS_GETMAINPAGES
+	ld a,h
+	ld (savepg),a
+	ld a,(dirpg)
+	SETPG32KLOW
+
+	ld hl,0x8000
+	ld bc,(dir_copy_pointer)
+	ld a,b
+	or c
+	jr z,nv_copydir_popsrecordq;empty :(
+	dec bc
+	ld de,256
+nv_copydir_popsrecord
+	ld a,b
+	or c
+	jr z,nv_copydir_popsrecordend
+	add hl,de
+	dec bc
+	jr nv_copydir_popsrecord
+nv_copydir_popsrecordend
+	ld de,dir_buf
+	ld bc,128
+	ldir
+	ld de,dir2_buf
+	ld bc,128
+	ldir
+	ld bc,(dir_copy_pointer)
+	dec bc
+	ld (dir_copy_pointer),bc
+	ld a,1
+	or a
+nv_copydir_popsrecordq
+	ld a,(savepg)
+	SETPG32KLOW
+	ret
+
+nv_copydir_add
+	call nv_copydir_pushrecord
+	ret
+
+nv_copydir_batch
+	call nv_copydir_poprecord
+	ret z;empty
+
+	ld de,dir2_buf
+nv_label
+	OS_MKDIR
+	ld de,dir2_buf
+	OS_CHDIR ;de
+	or a
+	ret nz ;Cant open dest dir
+	ld de,dir_buf
+	OS_CHDIR
+	or a
+	ret nz ;Cant open src dir
+
+	ld de,fcb
+	OS_SETDTA
+	ld de,fcbmask
+	OS_FSEARCHFIRST
+	or a
+	ret nz
+	ld de,fcb
+	OS_SETDTA
+	ld de,fcbmask
+	OS_FSEARCHNEXT
+	or a
+	ret nz ;skip . and ..
+nv_copydir1
+	ld de,fcb
+	OS_SETDTA
+	ld de,fcbmask
+	OS_FSEARCHNEXT
+	or a
+	jr nz,nv_copydir_batch ; no more files ;loop!
+	call proceditcmd_copy_fcb
+	jr nv_copydir1
+
+	display "copydir1 ", nv_copydir1
+	display "filebuf ", file_buf
+	display "fcb ", fcb
+	display "nv_label: ",nv_label
+	display "nv_copydir1: ",nv_copydir1
+	display "nv_copydir_batch: ",nv_copydir_batch
+	display "proceditcmd_copy: ",proceditcmd_copy
+	display "proceditcmd_copy_fcb: ",proceditcmd_copy_fcb
+	display "nv_fillpathspaces_hl: ",nv_fillpathspaces_hl
+	display "processfiles_proc: ",processfiles_proc
+	ret
+
+skipword_hl
+	ld a,(hl)
+	or a
+	ret z
+	cp ' '
+	ret z
+	inc hl
+	jr skipword_hl
+
 
 proceditcmd_copy
         bit 0,(hl)
 	ret z
         call getfcbfromhl
-        call setcurpaneldir
+	ld ix,(curpanel)
+	ld de,PANEL.dir
+	add ix,de
+	push ix
+	pop hl
+	ld de,dir_buf
+	call nv_strcopy_hltode
+
+	call getanotherpanel_ix
+	ld de,PANEL.dir
+	add ix,de
+	push ix
+	pop hl
+	ld de,dir2_buf
+	call nv_strcopy_hltode
+
+proceditcmd_copy_fcb
+        ld hl,proceditcmd_copy_q
+        push hl
+	ld de,dir_buf
+	OS_CHDIR
 
         if 1==1
 
-        ld hl,proceditcmd_copy_q
-        push hl
-
         ld de,filenametext;wordbuf ;de=drive/path/file
-         push de
          ld hl,fcb_filename
          call cpmname_to_dotname
-         pop de
+
+	ld a,(fcb_attrib)
+	and FATTRIB_DIR
+	jp nz,nv_copydir_add
+
+	ld de,wincopy_src
+	ld bc,filenametext
+	ld hl,dir_buf
+	call nv_makefilepath_hltode
+	ld hl,wincopy_src
+	call nv_fillpathspaces_hl
+
+	ld de,filenametext
         OS_OPENHANDLE
         or a
         ret nz ;jp nz,cmd_error_wrongfile
@@ -1512,8 +1778,18 @@ proceditcmd_copy
         ld (proceditcmd_copy_time),hl
         ld (proceditcmd_copy_date),ix
 
-     	call setanotherpaneldir
+	ld de,dir2_buf
+	OS_CHDIR
         
+	ld de,wincopy_dest
+	ld bc,filenametext
+	ld hl,dir2_buf
+	call nv_makefilepath_hltode
+	ld hl,wincopy_dest
+	call nv_fillpathspaces_hl
+	ld hl,wincopy2
+	call upwindow_text
+
         ld de,filenametext;swordbuf2 ;de=drive/path/file
         OS_CREATEHANDLE
         or a
@@ -1594,6 +1870,7 @@ editcmd_copy0
 proceditcmd_copy_q
 filescopied=$+1
         ld hl,0
+/*
         inc hl
         ld (filescopied),hl
         ;ld bc,32
@@ -1625,7 +1902,7 @@ proceditcmd_copy_q_progress0
         pop bc
         pop de
         inc e
-        djnz proceditcmd_copy_q_progress0
+        djnz proceditcmd_copy_q_progress0*/
         ret 
         
 mulbcde_ahl
@@ -1770,6 +2047,19 @@ wincopy
         db 1 ;nfiles
 	db " file(s)?",0
         db 0 ;end of window
+
+wincopy2
+	dw 0x0706 ;de=yx
+        db 68,8 ;bc=hgt,wid
+        db 3 ;next line
+	db " Copying",0,3
+wincopy_src
+	db "                                                                ",0,3
+	db " to",0,3
+wincopy_dest
+	db "                                                                ",0
+        db 0 ;end of window
+
         
         
 tdotdot
@@ -1809,6 +2099,7 @@ oldtimer
 fcb
         ds FCB_sz
 fcb_filename=fcb+FCB_FNAME        
+fcb_attrib=fcb+FCB_FATTRIB
 
 fcbmask
         db 0
@@ -1839,8 +2130,14 @@ copybuf_sz=0x4000;$-copybuf
 
         align 256
 file_buf
+dir_buf
         ds 128
 file_buf_end=$-1
+dir2_buf
+        ds 128
+dir_copy_pointer db 0,0
+savepg db 0,0
+dirpg db 0,0
 
 washobetarunner
 ;pgsys=pagexor-10

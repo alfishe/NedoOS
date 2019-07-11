@@ -1269,8 +1269,16 @@ BDOS_opencurdir
 ;                   DE = Pointer to unopened FCB
 ;     Results:     L=A = 0FFH if file not found
 ;                      =   0  if file found.
-;The filename may be ambiguous (containing "?" characters) in which case the first match will be found. The low byte of the extent field will be used, and a file will only be found if it is big enough to contain this extent number. Normally the extent field will be set to zero by the program before calling this function. System file and sub-directory entries will not be found.
-;If a suitable match is found (A=0) then the directory entry will be copied to the DTA address, preceded by the drive number. This can be used directly as an FCB for an OPEN function call if desired. The extent number will be set to the low byte of the extent from the search FCB, and the record count will be initialized appropriately (as for OPEN). The attributes byte from the directory entry will be stored in the S1 byte position, since its normal position (immediately after the filename extension field) is used for the extent byte.
+;The filename may be ambiguous (containing "?" characters) in which case the first match will be found. 
+;The low byte of the extent field will be used, and a file will only be found if it is big enough 
+;to contain this extent number. Normally the extent field will be set to zero by the program before 
+;calling this function. System file and sub-directory entries will not be found.
+;If a suitable match is found (A=0) then the directory entry will be copied to the DTA address, 
+;preceded by the drive number. This can be used directly as an FCB for an OPEN function call if desired. 
+;The extent number will be set to the low byte of the extent from the search FCB, and the record count 
+;will be initialized appropriately (as for OPEN). The attributes byte from the directory entry will be
+;stored in the S1 byte position, since its normal position (immediately after the filename extension field) 
+;is used for the extent byte.
 BDOS_fsearchfirst
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер

@@ -43,7 +43,14 @@ prwindow_waitkey_keyyes
         scf
         ret
 
+
+upwindow_text
+	ld a,0
+	jr prwindow_text0
+
 prwindow_text
+	ld a,1
+prwindow_text0
 ;hl = window text
 ;out: ;de=YX of last line
         ld e,(hl) ;x
@@ -58,7 +65,8 @@ prwindow_text
         push hl ;text
 
         push de
-        call prwin
+	or a
+        call nz,prwin
         pop de
 	inc d
         inc e
@@ -213,24 +221,33 @@ processfiles
 	ld (processfiles_proc),hl
 	;ld a,(ix+PANEL.pg)
 	;SETPG32KHIGH
+	or a
+	ld de,proceditcmd_copy
+	sbc hl,de
+	ld hl,wincopy2
+	call z,prwindow_text
+
         call nv_getpanelfiles_bc
+
 	ld l,(ix+PANEL.pointers)
 	ld h,(ix+PANEL.pointers+1)
         exx
         ld hl,0
         exx
 	ld iy,0
-processfiles0	
+processfiles0
 	ld a,b
 	or c
 	jr z,processfilesq
 	push bc
         call getfilepointer_de_fromhl
-	push hl	
+	push hl
+	push ix
 	ex de,hl
         call isthisdotdir_hl
 processfiles_proc=$+1
 	call nz,0 ;copy может переключать страницы (сейчас не переключает)
+	pop ix
 	pop hl
 	pop bc
 	dec bc
@@ -238,6 +255,7 @@ processfiles_proc=$+1
 processfilesq
         push iy
         pop hl
+	call nv_copydir_batch
         ret
 
 gotofilepointer_numberde
@@ -305,6 +323,7 @@ isthisdotdir_hl
         cp '.'
         dec hl
         ret
+
 
 drawpanelfilesandsize
 ;ix=panel
