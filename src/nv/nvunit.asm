@@ -221,11 +221,6 @@ processfiles
 	ld (processfiles_proc),hl
 	;ld a,(ix+PANEL.pg)
 	;SETPG32KHIGH
-	or a
-	ld de,proceditcmd_copy
-	sbc hl,de
-	ld hl,wincopy2
-	call z,prwindow_text
 
         call nv_getpanelfiles_bc
 

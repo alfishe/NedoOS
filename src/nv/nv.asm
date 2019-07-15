@@ -1421,17 +1421,44 @@ editcmd_8_0
 	jp processfiles
         
 proc_del_file
-	bit 0,(hl)
+	bit 0,(hl) ;marked?
 	ret z
 	call getfcbfromhl
-	call setcurpaneldir
-        ld a,(fcb+FCB_FATTRIB)
-        and FATTRIB_DIR;#10 ;dir?
-        jr nz,editcmd_deldir
-        ld de,fcb
-        OS_FDEL
+
+	ld ix,(curpanel)
+	ld de,PANEL.dir
+	add ix,de
+	push ix
+	pop hl
+	ld de,dir_buf
+	call nv_strcopy_hltode
+
+	ld hl,proc_del_file_batch
+	ld (nv_copydirproc),hl
+
+	display "proc_del_file_batch",proc_del_file_batch
+
+proc_del_file_batch
+	ld de,dir_buf
+	OS_CHDIR
+
+        ld de,filenametext ;needed for batch
+	ld hl,fcb_filename
+	call cpmname_to_dotname
+
+        ld de,filenametext
+        OS_DELETE
+	or a
+	ret z
+
+        ld a,(fcb_attrib)
+        and FATTRIB_DIR
+	jp nz,nv_copydir_add
+
         ret
-editcmd_deldir
+
+
+/*editcmd_deldir
         call changedir_fromfcb
 ;check if dir is empty (contains only "." and "..")
 	ld de,fcb2
@@ -1457,6 +1484,8 @@ editcmd_deldir
         ld de,fcb
         OS_FDEL
         ret
+*/
+
 
 editcmd_5 ;copy
         call ifcmdnonempty_typedigit
@@ -1483,15 +1512,12 @@ editcmd_5_0
 ;        ld de,PROGRESBARWINXY
 ;        ld bc,PROGRESBARWINHGTWID
 ;        call prwin
+	ld hl,wincopy2
+	call prwindow_text
         ld hl,proceditcmd_copy
         ld ix,(curpanel)
 	jp processfiles
 
-
-editcmd_5_updatewin
-	ld hl,wincopy2
-	call prwin
-	ret
 
 /*nv_addslashtopath_hl ; out=terminator
 	push hl
@@ -1661,17 +1687,43 @@ nv_copydir_add
 	call nv_copydir_pushrecord
 	ret
 
+nv_deldir_add
+	ld a,(filenametext)
+	push af
+	ld a,(filenametext+1)
+	push af
+
+	ld a,'.'
+	ld (filenametext),a
+	xor a
+	ld (filenametext+1),a
+	call nv_copydir_pushrecord
+
+	pop af
+	ld (filenametext+1),a
+	pop af
+	ld (filenametext),a
+
+	call nv_copydir_pushrecord
+	ret
+
 nv_copydir_batch
 	call nv_copydir_poprecord
 	ret z;empty
+nv_label
+	or a
+	ld hl,(processfiles_proc)
+	ld de,proceditcmd_copy
+	sbc hl,de
+	jr nz,nv_copydir_check
 
 	ld de,dir2_buf
-nv_label
 	OS_MKDIR
 	ld de,dir2_buf
 	OS_CHDIR ;de
 	or a
 	ret nz ;Cant open dest dir
+nv_copydir_check
 	ld de,dir_buf
 	OS_CHDIR
 	or a
@@ -1696,7 +1748,9 @@ nv_copydir1
 	OS_FSEARCHNEXT
 	or a
 	jr nz,nv_copydir_batch ; no more files ;loop!
-	call proceditcmd_copy_fcb
+;	call proceditcmd_copy_fcb
+nv_copydirproc=$+1
+	call 0
 	jr nv_copydir1
 
 	display "copydir1 ", nv_copydir1
@@ -1741,6 +1795,9 @@ proceditcmd_copy
 	ld de,dir2_buf
 	call nv_strcopy_hltode
 
+	ld hl,proceditcmd_copy_fcb
+	ld (nv_copydirproc),hl
+
 proceditcmd_copy_fcb
         ld hl,proceditcmd_copy_q
         push hl
@@ -1750,8 +1807,8 @@ proceditcmd_copy_fcb
         if 1==1
 
         ld de,filenametext;wordbuf ;de=drive/path/file
-         ld hl,fcb_filename
-         call cpmname_to_dotname
+	ld hl,fcb_filename
+	call cpmname_to_dotname
 
 	ld a,(fcb_attrib)
 	and FATTRIB_DIR

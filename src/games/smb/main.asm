@@ -70,6 +70,8 @@ COMPACTDATA=0 ;1 портит память после прерывания демы
 SCRATCHPAD=0x100 ;в оригинале 0x000
 
 ENDLINETILE=0xff;10+('J'-'A');0xff ;letter 'J' unused
+EMPTYTILE=0x24 ;там и было в оригинале
+FASTEMPTYTILES=1
 
         org PROGSTART
 begin
@@ -130,6 +132,23 @@ begin
 	xor h
         ld (setpgs_scr_high_xor),a
 
+	ld de,gfxfilename
+        call openstream_file
+        or a
+	jp nz,noloadgfx
+;skip 0x8010 bytes
+        ld de,0
+        ld hl,0x8010
+        ;dehl=shift
+        ld a,(filehandle)
+        ld b,a
+        OS_SEEKHANDLE
+	ld de,tilegfx
+	ld hl,0x2000
+;DE = Buffer address, HL = Number of bytes to read
+        call readstream_file
+        call closestream_file
+        
         ld hl,0x2000+TitleScreenDataOffset
         ld de,TitleScreen
         ld bc,TitleScreenDataSize
@@ -640,8 +659,14 @@ gentileproc
 	push de
 	ex de,hl
 	ld hl,gentileproc_jpcode
-	ld bc,gentileproc_jpcode_sz
+	ld c,gentileproc_jpcode_sz
 	ldir
+        if FASTEMPTYTILES
+        ld hl,premptytiles_was
+        ld de,premptytiles;EMPTYTILE*257+0xc000
+        ld c,premptytiles_sz
+        ldir
+        endif
 	pop de
 	ret
 gentileproc_bytes
@@ -723,14 +748,95 @@ gentileproc_skipbyte
 gentileproc_lastnonzeroaddr=$+1
 	ld hl,0
 	ret
+
+        if FASTEMPTYTILES
+;сейчас процедура пустого тайла (0xe424) выглядит так:
+        ;pop hl
+        ;pop hl ;чтобы был правильный sp
+        ;inc e
+        ;ld a,(de)
+        ;ld l,a
+        ;or 0xc0
+        ;ld h,a
+        ;jp (hl) ;50t
+;оптимизировать последовательность пустых тайлов:
+;1 пустой тайл: проигрыш 54t (проигрыш 35t)
+;2 пустых тайла: проигрыш 26t (выигрыш 23t)
+;3 пустых тайла: выигрыш 0t (выигрыш 31t)
+;>=4 пустых тайла: выигрыш 29..32t/tile
+premptytiles_was
+        disp EMPTYTILE*257+0xc000
+premptytiles
+;-24t
+        ld a,l;EMPTYTILE
+        ld h,d
+        ld l,e ;+12t
+        inc l
+        cp (hl)
+        jr nz,premptytilesq1
+        inc l
+        cp (hl)
+        jr nz,premptytilesq2
+        inc l
+        cp (hl)
+        jr nz,premptytilesq3
+premptytiles0
+        dup 3
+        inc l
+        cp (hl)
+        jr nz,premptytilesq
+        edup
+        inc l
+        cp (hl)
+        jp z,premptytiles0 ;+18..21t/tile
+premptytilesq
+         ld a,l
+         sub e
+         ld e,l
+         add a,a
+         add a,a
+         ld l,a
+         ld h,0
+         add hl,sp
+         ld sp,hl ;48t
+        ld a,(de)
+        ld l,a
+        or 0xc0
+        ld h,a
+        jp (hl)
+premptytilesq3
+        pop hl
+        pop hl
+        inc e
+premptytilesq2
+        pop hl
+        pop hl
+        inc e
+premptytilesq1
+        pop hl
+        pop hl
+        ent
 gentileproc_jpcode
-	ld a,(de)
+        inc e
+        ld a,(de)
+        ld l,a
+        or 0xc0
+        ld h,a
+        jp (hl)
+premptytiles_sz=$-premptytiles_was
+        display "premptytiles_sz=",premptytiles_sz,"<=0x40!"
+gentileproc_jpcode_sz=$-gentileproc_jpcode
+        else
+gentileproc_jpcode
 	inc e
+	ld a,(de)
 	ld l,a
 	or 0xc0
 	ld h,a
 	jp (hl)
 gentileproc_jpcode_sz=$-gentileproc_jpcode
+        endif
+
 
         align 256
 tileattr
@@ -857,7 +963,26 @@ quit
 oldquitcode=$+1
         ld hl,0
         ld (0),hl
+quitquit
         QUIT
+
+noloadgfx
+        ld e,6
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+	ld e,0
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+        ld hl,tnofile
+prerr0
+        ld a,(hl)
+        or a
+        jr z,quitquit
+        inc hl
+        push hl
+        PRCHAR
+        pop hl
+        jr prerr0
 
 swapimer
 	di
@@ -907,8 +1032,6 @@ setpgs_scr_high=$+1
         SETPG32KHIGH
         ret
 
-FASTXYTOSCR=1
-        if FASTXYTOSCR
         align 256
 tytoscr
         dup 200
@@ -918,20 +1041,6 @@ tytoscr
         dup 200
         db (($&0xff)*40)/256 + 0x80
         edup
-        
-        ;align 256
-        ;dup 160
-        ;db ($&0xff)/4
-        ;edup
-        ;align 256
-        ;dup 160/4
-        ;db 0x80
-        ;db 0xc0
-        ;db 0xa0
-        ;db 0xe0
-        ;edup
-        
-        endif
 
 	macro NEXTCOLUMN
 	bit 6,h
@@ -1016,7 +1125,6 @@ prcharxy
 ;de=gfx
 ;la=yx
 ;CY=0
-        if FASTXYTOSCR
         ld h,tytoscr/256
        rra
        jr c,prcharxy_nextcolumns13
@@ -1041,40 +1149,6 @@ prcharxy_nextcolumns3
         COUNTSCRADDR
 	NEXTCOLUMNS3
 prcharxy_scrok
-        
-        else
-       
-        ;ld a,c ;x
-        ;ld l,b ;y
-        ld h,0
-        ld b,h;0
-        ld c,l
-        add hl,hl
-        add hl,hl
-        add hl,bc ;*5
-         add hl,hl
-         add hl,hl
-         add hl,hl ;*40
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-	add a,l
-        ld l,a
-        ld a,h
-        adc a,0x80
-        ld h,a
-	
-	push hl
-	NEXTCOLUMN
-	push hl
-	NEXTCOLUMN
-	push hl
-	NEXTCOLUMN
-        endif
 
 	macro SHOWBYTEBEHIND
 	 inc d;e
@@ -1094,7 +1168,7 @@ prcharxy_scrok
         ret
 	endm
         
-	macro SHOWBYTE
+	macro SHOWBYTE ;TODO pop de
 	ex de,hl
 	ld a,(de) ;scr
         and (hl) ;font
@@ -1104,7 +1178,7 @@ prcharxy_scrok
         ld (de),a ;scr
 	ex de,hl
 	endm
-	macro SHOWBYTE_LAST
+	macro SHOWBYTE_LAST ;TODO pop de
 	ex de,hl
 	ld a,(de) ;scr
         and (hl) ;font
@@ -1216,7 +1290,7 @@ oldpalette=$+1
 	ld (oldpalette),de
 	or a
 	sbc hl,de
-	jp z,EmulatePPU_nochpal ;TODO поддержать изменение цвета Марио в палитре
+	jp z,EmulatePPU_nochpal ;реально поддержано изменение цвета Марио в палитре: при этом пишется oldpalette=левоечисло
 	push de
         OS_GETTIMER ;hlde=timer
         ld (oldtimer),de ;иначе yield вылетит без ожидания прерывания
@@ -1239,21 +1313,27 @@ EmulatePPU_nochpal
 	ld hl,0xc000+4+32
 	call emppucls
 	ld hl,0xe000+4+32
-	call emppucls
+	call emppucls ;cls=173000
 	
 	;jr $
 	ld hl,proc_endline
         ld (0),hl ;иначе системный обработчик прерываний успевает запортить (0x0001)
-	call prtilesfast
+	call prtilesfast ;143700
 
         call setpgs_scr
         ;ld a,0x40
         ;ld (fonthsb),a
 ;рисуем спрайты в обратном порядке (0-й на переднем плане)
         ld ix,Sprite_Data+256-4
-        ld b,64;8
+        ;ld b,64;8
 prsprites0
-        push bc
+        ;push bc
+        ld a,(ix) ;y
+         sub 8*YSKIPFROMTOP
+        cp 200-8
+        jp nc,prsprites_skip ;большинство спрайтовых записей пустые, можно даже проверять на ==0xf8
+        ld l,a ;y
+
 	ld a,(ix+2) ;attributes
 	rla ;flip vertically ;TODO программно
 spritepage=$+1
@@ -1272,11 +1352,6 @@ spritepagemirhorver=$+2
          endif
         SETPG16K
 	
-        ld a,(ix) ;y
-         sub 8*YSKIPFROMTOP
-        cp 200-8
-        jr nc,prsprites_skip
-        ld l,a
         ld a,(ix+3) ;x
 	 inc a
 	 jr z,prsprites_skip ;почему-то прыжки на левой границе экрана в контакте с камнем дают x=0xff TODO
@@ -1298,10 +1373,14 @@ spritepagemirhorver=$+2
 ;de=gfx
         call prcharxy
 prsprites_skip
-        ld bc,-4
-        add ix,bc
-        pop bc
-        djnz prsprites0
+        ;ld bc,-4
+        ;add ix,bc
+        ;pop bc
+        ;djnz prsprites0
+        ld a,lx
+        sub 4
+        ld lx,a
+        jp nc,prsprites0
 
         ld a,1
         xor 1
@@ -1343,7 +1422,7 @@ emppucls
 	ld bc,40
 	ld a,200
 emppucls0
-	ld sp,hl
+	ld sp,hl ;во время прерывания de=0
 	ld (hl),e
 	dup 32/2
 	push de
@@ -1354,9 +1433,6 @@ emppucls0
 emppuclssp=$+1
 	ld sp,0
 	ret
-
-;SCRATCHPAD
-;        ds 0x100 ;256 bytes low memory for 6502
 
         include "nesconst.asm"
         include "smbconst.asm"
@@ -1528,7 +1604,7 @@ _prtilesfast0
         exx
 	ld d,a ;de=tileaddr for line start
 	ld a,(de)
-	inc e
+	  ;inc e
 	ld l,a
 	or 0xc0
 	ld h,a
@@ -1552,7 +1628,7 @@ prtilelinefast_sp=$+1
         sub c ;без переноса, т.к. читаем тайлы через inc e
         ld l,a ;hl=tileaddr after last line
 	ret
-
+        
 setpgaddrstack4000
 pgaddrstack=$+1
 	ld a,0
@@ -1596,7 +1672,7 @@ oldpalette=$
 on_int
 ;if stack in 0x4000..0x7fff:
 ;restore stack from pgaddrstackcopy (set in 0x4000 temporarily, then set pgaddrstack)
-;else restore stack with 0
+;else restore stack with de;0
 	ld (on_int_hl),hl
 	ld (on_int_sp),sp
 	ld (on_int_spcopy),sp
@@ -1618,7 +1694,7 @@ imer_curscreen_value=$+1
 	ld a,(on_int_sp+1)
 	sub 0x40
 	cp 0x3f ;запас, чтобы не захватить очистку экрана в 0x8000
-	ld hl,0
+	ex de,hl;ld hl,0
 	jr nc,on_int_norestoredata
 	;jr $
 	ld a,(pgaddrstackcopy)
@@ -1631,7 +1707,7 @@ on_int_spcopy=$+1
         ;endif
 on_int_norestoredata
 on_int_sp=$+1
-	ld (0),hl ;в стек
+	ld (0),hl ;восстановили запоротый стек
         
 	if OSCALLS==0
 curpalette=$+1
@@ -2195,42 +2271,42 @@ democontinue
 	ld (readdemo_stopflag),a
 	ret
 
+        macro NEXTBYTEFAST
+        inc l
+        call z,getbyte_inch_pp
+        endm
+        macro NEXTBYTEEND
+        ld (getbyte_addr),hl
+        endm
+        
 writedemo
 ;сейчас указатель на разделителе после кнопок джойстика
 ;a=keys
 ;DEMOLONGLINE=1!!!
 	push af
-	call getbyte
-        SETPG32KHIGH
+	call getbyte_setpg
+        NEXTBYTEFAST
 	ld (hl),'+'
+        
 	ld b,8
 writedemo0
-	push bc
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),'.'
-	pop bc
 	djnz writedemo0
-	call getbyte
-        SETPG32KHIGH
+        
+        NEXTBYTEFAST
 	ld (hl),'|'
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),0x0d
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),0x0a
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),'|'
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),'.'
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),'.'
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld (hl),'|'
 	
 	pop af
@@ -2256,15 +2332,14 @@ writedemo0
 
 	ld b,8
 writedemo1
-	push bc
-	call getbyte        
-        SETPG32KHIGH
-	pop bc
+        NEXTBYTEFAST
 	rrc c
 	ld (hl),'.'
 	jr nc,$+4
 	ld (hl),'Z'
 	djnz writedemo1
+        
+        NEXTBYTEEND
 
 	call setpgs_code
 	pop af
@@ -2276,16 +2351,18 @@ readdemo
 readdemo_stopflag=$
 	nop ;/ret
 
-	if 1==0
-	call getbyte
-        SETPG32KHIGH
+        ;jr $
+	call getbyte_setpg
+        
+	if 1==0 ;однобайтный формат дем
         ld a,(hl)
 ;a=buttons = %R?D?t?BA
-	ld c,a
 	ld b,8
-	srl c
-	rla
+	rra
+	rl c
 	djnz $-3
+        NEXTBYTEEND
+        ld a,c
 	
 ;a=buttons
 ;bit - button (ZX key)
@@ -2307,9 +2384,9 @@ readdemo_stopflag=$
 	else
 	ld d,3+4
 	endif
+        
 readdemo0
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld a,(hl)
 	add a,256-'A'
 	rr e
@@ -2318,12 +2395,13 @@ readdemo0
 
 	ld d,0x80
 readdemo1
-	call getbyte
-        SETPG32KHIGH
+        NEXTBYTEFAST
 	ld a,(hl)
 	add a,256-'A'
 	rr d
 	jp nc,readdemo1
+        
+        NEXTBYTEEND
 	
 	if DEMOLONGLINE
 	 ;ld a,e
@@ -2384,12 +2462,11 @@ readdemo_noreset
 	pop af
 	ret
 	
-getbyte
+getbyte_setpg
 ;портит hl,bc
 ;не портит de
 ;out: a=pg, hl=addr in pg
-	;push af
-getbyte_addr=$+1
+getbyte_addr=$+1 ;реально читать начнём со следующего адреса
 	;ld hl,0xffe0+5 ;148974
 ;правдоподобно только 5..6, что-то не так с отскоком от врага?
 	;ld hl,0xffe0+14 ;53672
@@ -2425,49 +2502,43 @@ getbyte_addr=$+1
 ;23,24 - застреваем на конечной лестнице 1-1
 ;25 - доходим дальше в 1-2
 getbyte_pg=$+1
-	ld c,0
-        inc l
-        jr z,getbyte_inch
-getbyte_nonewpg
-	ld (getbyte_addr),hl
-getbyte_memoryretry
+	ld a,(filepages)
+	SETPG32KHIGH
+        ret
+	
+getbyte_inch_pp
+;не портит bc, переустанавливает hl в начале новой страницы (тогда же щёлкает страницу)
+;l=0
+	inc h
+        ret nz
+	 ld hl,getbyte_pg
+	 inc (hl)
+        push bc
+getbyte_inch_memoryretry_m
+        ld c,(hl)
         ld b,filepages/256
+getbyte_inch_memoryretry
         ld a,(bc)
-	 or a
-	 ret nz;jr nz,getbyte_memorynotended
+	or a
+        jr z,getbyte_inch_newpg
+        SETPG32KHIGH
+        pop bc
+         ld hl,0xc000
+        ret
+getbyte_inch_newpg
+         push bc
 	 push de
-	 push hl
 	  halt ;чтобы не сработало системное прерывание
-	 call reservepage ;nz=error
+	 call reservepage ;nz=error ;портит все регистры (но нам hl не важен)
 	  ld a,(imer_curscreen_value)
 	  ld bc,0x7ffd
 	  out (c),a
-	 pop hl
 	 pop de
-	 jr z,getbyte_memoryretry
-	 ld a,(getbyte_pg)
-	 dec a
-	 ld (getbyte_pg),a
-	ld c,a
-	 jr getbyte_nonewpg ;нет места - читаем/пишем в предыдущую страницу
-;getbyte_memorynotended
-;        SETPG32KHIGH
-;        ret
-	;pop af
-;getbyte_opcode=$
-;	ld a,(hl) ;/ld (hl),a
-;	ret
-	
-getbyte_inch
-	inc h
-	bit 7,h
-	jr nz,getbyte_nonewpg
-	set 7,h
-	set 6,h
-	inc c
-        ld a,c
-	ld (getbyte_pg),a
-        jr getbyte_nonewpg
+         pop bc
+	 jr z,getbyte_inch_memoryretry
+	 ld hl,getbyte_pg
+	 dec (hl)
+        jr getbyte_inch_memoryretry_m ;no more memory
 	
 
 savedemo
@@ -2534,14 +2605,17 @@ nvview_save0
         ;ld (fcb+FCB_FSIZE+2),hl
 
         call closestream_file
-	call setpgs_code
-	ret
+	jp setpgs_code
 
+gfxfilename
+        db "smb.nes",0
 filename
 	db "antipac.fm2",0
 filename2
 	db "demo.fm2",0
 	include "../../_sdk/file.asm"
+tnofile
+        db "smb.nes not found",0x0d,0x0a,0
 
 oldtimer
 	ds 2
@@ -2550,7 +2624,8 @@ oldtimer
         ds 0x2000-$
 ;tile gfx: 2 256-tile maps
 ;16bytes/tile: 8bytes low bit, 8bytes high bit
-        incbin "smbtiles"
+tilegfx
+        ds 0x2000 ;incbin "smbtiles"
         
         include "SMBDIS.ASM"
 
