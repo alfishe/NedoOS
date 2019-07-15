@@ -98,7 +98,7 @@ cmd_begin
         ld (cmdpgscreen0_0),a
 
         OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000(copybuf),8000,c000
+;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
         push hl
         ld e,h
         OS_DELPAGE
@@ -1416,6 +1416,8 @@ editcmd_8_0
         jp nc,editcmd_reprintall_noreaddir
 	ld hl,editcmd_reprintall
         push hl
+	ld hl,windel2
+	call prwindow_text
 	ld hl,proc_del_file
 	ld ix,(curpanel)
 	jp processfiles
@@ -1446,6 +1448,16 @@ proc_del_file_batch
 	ld hl,fcb_filename
 	call cpmname_to_dotname
 
+	ld de,windel2_file
+	ld bc,filenametext
+	ld hl,dir_buf
+	call nv_makefilepath_hltode
+	ld hl,windel2_file
+	call nv_fillpathspaces_hl
+	ld hl,windel2
+	call upwindow_text
+
+
         ld de,filenametext
         OS_DELETE
 	or a
@@ -1453,7 +1465,10 @@ proc_del_file_batch
 
         ld a,(fcb_attrib)
         and FATTRIB_DIR
-	jp nz,nv_copydir_add
+	push af
+	call nz,nv_copydir_add
+	pop af
+	jp nz,nv_copydir_add; Twice to remove empty dirs
 
         ret
 
@@ -1712,10 +1727,10 @@ nv_copydir_batch
 	ret z;empty
 nv_label
 	or a
-	ld hl,(processfiles_proc)
+	ld hl,(processfiles_proc) 
 	ld de,proceditcmd_copy
 	sbc hl,de
-	jr nz,nv_copydir_check
+	jr nz,nv_copydir_check ;if its not copy
 
 	ld de,dir2_buf
 	OS_MKDIR
@@ -1747,11 +1762,26 @@ nv_copydir1
 	ld de,fcbmask
 	OS_FSEARCHNEXT
 	or a
-	jr nz,nv_copydir_batch ; no more files ;loop!
-;	call proceditcmd_copy_fcb
+	jr nz,nv_batch_nofiles
 nv_copydirproc=$+1
 	call 0
 	jr nv_copydir1
+nv_batch_nofiles
+	or a
+	ld hl,(processfiles_proc)
+	ld de,proc_del_file
+	sbc hl,de
+	jr nz,nv_copydir_batch;if not del
+	ld a,'/'
+	ld (dir2_buf),a
+	xor a
+	ld (dir2_buf+1),a
+	ld de,dir2_buf
+	OS_CHDIR
+	ld de,dir_buf
+	OS_DELETE
+	jp nv_copydir_batch
+
 
 	display "copydir1 ", nv_copydir1
 	display "filebuf ", file_buf
@@ -2107,7 +2137,7 @@ wincopy
 
 wincopy2
 	dw 0x0706 ;de=yx
-        db 68,8 ;bc=hgt,wid
+        db 68,8 ;bc=wid,hgt
         db 3 ;next line
 	db " Copying",0,3
 wincopy_src
@@ -2116,6 +2146,16 @@ wincopy_src
 wincopy_dest
 	db "                                                                ",0
         db 0 ;end of window
+
+windel2
+	dw 0x0706 ;de=yx
+        db 68,6 ;bc=wid,hgt
+	db " Deleting",0,3
+        db 3 ;next line
+windel2_file
+	db "                                                                ",0
+        db 0 ;end of window
+
 
         
         
