@@ -108,6 +108,8 @@ texted_mainloop_keyq
         jp z,texted_enter
         cp key_csenter
         jp z,texted_save
+        cp ext2
+        jp z,texted_save
         cp 0x20
         ret c ;прочие системные кнопки не нужны
 typein

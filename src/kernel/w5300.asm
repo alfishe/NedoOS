@@ -196,6 +196,15 @@ w53_socket2:
 		out (c),d
 		ld a,(iy+app.id)
 		ld (ix+4),a
+		ld de,(wizlocalport)
+		inc de
+		set 6,d
+		set 7,d
+		ld (wizlocalport),de
+		ld b,WIZ_S_PORTR_H
+		out (c),d
+		inc b
+		out (c),e
 		xor a
 		ld (ix+2),a
 		ld (ix+3),a
@@ -341,17 +350,6 @@ w53_connect:
 		or a
 		ld a,ERR_ALREADY
 		ret nz
-		push de
-		ld de,(wizlocalport)
-		inc de
-		set 6,d
-		set 7,d
-		ld (wizlocalport),de
-		ld b,WIZ_S_PORTR_H
-		out (c),d
-		inc b
-		out (c),e
-		pop de
 		ld a,Sn_CR_OPEN
 		call w53_cmd
 		ld b,WIZ_S_SSR
