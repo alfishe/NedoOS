@@ -250,7 +250,7 @@ processfiles_proc=$+1
 processfilesq
         push iy
         pop hl
-	call nv_copydir_batch
+	call nv_batch
         ret
 
 gotofilepointer_numberde

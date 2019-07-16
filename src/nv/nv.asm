@@ -17,7 +17,7 @@ CURSORCOLOR=0x38
 FILECURSORCOLOR=0x38
 COLOR_RED=0x17
 
-PROGRESBARWINXY=0x0e16 ;0x0919 + 051f ;de=yx
+PROGRESBARWINXY=0x0F16 ;0x0919 + 051f ;de=yx
 PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
 
 
@@ -1423,7 +1423,8 @@ editcmd_8_0
 	jp processfiles
         
 proc_del_file
-	bit 0,(hl) ;marked?
+	bit 0,(hl)
+ ;marked?
 	ret z
 	call getfcbfromhl
 
@@ -1436,9 +1437,7 @@ proc_del_file
 	call nv_strcopy_hltode
 
 	ld hl,proc_del_file_batch
-	ld (nv_copydirproc),hl
-
-	display "proc_del_file_batch",proc_del_file_batch
+	ld (nv_batch_proc),hl
 
 proc_del_file_batch
 	ld de,dir_buf
@@ -1448,20 +1447,19 @@ proc_del_file_batch
 	ld hl,fcb_filename
 	call cpmname_to_dotname
 
-	ld de,windel2_file
-	ld bc,filenametext
-	ld hl,dir_buf
-	call nv_makefilepath_hltode
+	ld de,windel2_file ;dest
+	ld bc,filenametext ;add
+	ld hl,dir_buf ;src
+	call nv_makefilepath_hltode ;result :  de=hl'/'bc
 	ld hl,windel2_file
-	call nv_fillpathspaces_hl
+	call nv_fillpathspaces_hl ;fill to 64bytes spaces
 	ld hl,windel2
-	call upwindow_text
-
+	call upwindow_text ;update window
 
         ld de,filenametext
         OS_DELETE
 	or a
-	ret z
+	ret z; if success return
 
         ld a,(fcb_attrib)
         and FATTRIB_DIR
@@ -1471,36 +1469,6 @@ proc_del_file_batch
 	jp nz,nv_copydir_add; Twice to remove empty dirs
 
         ret
-
-
-/*editcmd_deldir
-        call changedir_fromfcb
-;check if dir is empty (contains only "." and "..")
-	ld de,fcb2
-        OS_SETDTA ;set disk transfer address = de
-        ;call makeemptymask
-        ld de,fcbmask
-        OS_FSEARCHFIRST
-        or a
-        ret nz
-	ld de,fcb2
-        OS_SETDTA ;set disk transfer address = de
-        ld de,fcbmask
-        OS_FSEARCHNEXT
-        or a
-        ret nz
-	ld de,fcb2
-        OS_SETDTA ;set disk transfer address = de
-        ld de,fcbmask
-        OS_FSEARCHNEXT
-        or a
-        ret z ;at least 3 files = there is a real file
-	call setcurpaneldir
-        ld de,fcb
-        OS_FDEL
-        ret
-*/
-
 
 editcmd_5 ;copy
         call ifcmdnonempty_typedigit
@@ -1513,13 +1481,13 @@ editcmd_5 ;copy
         call isthisdotdir_hl
         ret z ;"." or ".."
         call changemark_hl ;ld (hl),1
-editcmd_5_0        
+editcmd_5_0
         ld hl,wincopy
         call prwindow_waitkey ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
 
         ld hl,editcmd_reprintall
-        push hl;Õ≈ “–Œ√¿“‹ !!
+        push hl;dont change!
 
         ld hl,0
         ld (filescopied),hl
@@ -1575,7 +1543,7 @@ nv_strcopy_hltode
 	ret z
 	jr nv_strcopy_hltode
 
-nv_addslash_de
+nv_addslash_de ;assumed thad DE positioned to the next char after terminator
 	dec de
 	dec de
 	ld a,(de)
@@ -1585,7 +1553,7 @@ nv_addslash_de
 	ld a,'/'
 	ld (de),a
 nv_addslash0
-	inc de 
+	inc de
 	xor a
 	ld (de),a
 	inc de
@@ -1610,17 +1578,17 @@ nv_fillpathspaces_hl0
 	jr nz,nv_fillpathspaces_hl0
 	dec hl
 	dec b
-nv_fillpathspaces_hl1
-	ld a,' '
-	ld (hl),a
-	inc b
-	inc hl
+	ld c,' '
 	ld a,b
+nv_fillpathspaces_hl1
+	ld (hl),c
+	inc hl
+	inc a
 	cp 64
 	jr c,nv_fillpathspaces_hl1
 	ret
 	
-nv_copydir_pushrecord
+nv_batch_pushrecord
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
@@ -1628,16 +1596,16 @@ nv_copydir_pushrecord
 	SETPG32KLOW
 
 	ld hl,0x8000
-	ld bc,(dir_copy_pointer)
+	ld bc,(dir_batch_pointer)
 	ld de,256
-nv_copydir_pushsrecord
+nv_batch_pushsrecord
 	ld a,b
 	or c
-	jr z,nv_copydir_pushsrecordend
+	jr z,nv_batch_pushsrecordend
 	add hl,de
 	dec bc
-	jr nv_copydir_pushsrecord
-nv_copydir_pushsrecordend
+	jr nv_batch_pushsrecord
+nv_batch_pushsrecordend
 	push hl
 ;dir 1
 	ld de,dir_buf
@@ -1653,14 +1621,14 @@ nv_copydir_pushsrecordend
 	ld bc,filenametext
 	call nv_makefilepath_hltode
 
-	ld bc,(dir_copy_pointer)
+	ld bc,(dir_batch_pointer)
 	inc bc
-	ld (dir_copy_pointer),bc
+	ld (dir_batch_pointer),bc
 	ld a,(savepg)
 	SETPG32KLOW
 	ret
 
-nv_copydir_poprecord; z-empty
+nv_batch_poprecord; z-empty
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
@@ -1668,110 +1636,90 @@ nv_copydir_poprecord; z-empty
 	SETPG32KLOW
 
 	ld hl,0x8000
-	ld bc,(dir_copy_pointer)
+	ld bc,(dir_batch_pointer)
 	ld a,b
 	or c
-	jr z,nv_copydir_popsrecordq;empty :(
+	jr z,nv_batch_popsrecordq;empty :(
 	dec bc
 	ld de,256
-nv_copydir_popsrecord
+nv_batch_popsrecord
 	ld a,b
 	or c
-	jr z,nv_copydir_popsrecordend
+	jr z,nv_batch_popsrecordend
 	add hl,de
 	dec bc
-	jr nv_copydir_popsrecord
-nv_copydir_popsrecordend
+	jr nv_batch_popsrecord
+nv_batch_popsrecordend
 	ld de,dir_buf
 	ld bc,128
 	ldir
 	ld de,dir2_buf
 	ld bc,128
 	ldir
-	ld bc,(dir_copy_pointer)
+	ld bc,(dir_batch_pointer)
 	dec bc
-	ld (dir_copy_pointer),bc
+	ld (dir_batch_pointer),bc
 	ld a,1
 	or a
-nv_copydir_popsrecordq
+nv_batch_popsrecordq
 	ld a,(savepg)
 	SETPG32KLOW
 	ret
 
 nv_copydir_add
-	call nv_copydir_pushrecord
+	call nv_batch_pushrecord
 	ret
 
-nv_deldir_add
-	ld a,(filenametext)
-	push af
-	ld a,(filenametext+1)
-	push af
-
-	ld a,'.'
-	ld (filenametext),a
-	xor a
-	ld (filenametext+1),a
-	call nv_copydir_pushrecord
-
-	pop af
-	ld (filenametext+1),a
-	pop af
-	ld (filenametext),a
-
-	call nv_copydir_pushrecord
-	ret
-
-nv_copydir_batch
-	call nv_copydir_poprecord
+nv_batch
+	call nv_batch_poprecord
 	ret z;empty
 nv_label
 	or a
 	ld hl,(processfiles_proc) 
 	ld de,proceditcmd_copy
 	sbc hl,de
-	jr nz,nv_copydir_check ;if its not copy
+	jr nz,nv_batch_nocopydir ;if its not copy
 
 	ld de,dir2_buf
 	OS_MKDIR
 	ld de,dir2_buf
 	OS_CHDIR ;de
 	or a
-	ret nz ;Cant open dest dir
-nv_copydir_check
+	jr nz,nv_batch ;Cant open dest dir
+nv_batch_nocopydir
 	ld de,dir_buf
-	OS_CHDIR
+	OS_CHDIR ;;
 	or a
-	ret nz ;Cant open src dir
+	jr nz,nv_batch ;Cant open src dir
 
 	ld de,fcb
 	OS_SETDTA
 	ld de,fcbmask
 	OS_FSEARCHFIRST
 	or a
-	ret nz
+	jr nz,nv_batch
 	ld de,fcb
 	OS_SETDTA
 	ld de,fcbmask
 	OS_FSEARCHNEXT
 	or a
-	ret nz ;skip . and ..
-nv_copydir1
+	jr nz,nv_batch ;skip . and ..
+nv_batch1
 	ld de,fcb
 	OS_SETDTA
 	ld de,fcbmask
 	OS_FSEARCHNEXT
 	or a
 	jr nz,nv_batch_nofiles
-nv_copydirproc=$+1
+nv_batch_proc=$+1
 	call 0
-	jr nv_copydir1
+	jr nv_batch1
 nv_batch_nofiles
 	or a
 	ld hl,(processfiles_proc)
 	ld de,proc_del_file
 	sbc hl,de
-	jr nz,nv_copydir_batch;if not del
+	jr nz,nv_batch;if not del
 	ld a,'/'
 	ld (dir2_buf),a
 	xor a
@@ -1780,15 +1728,14 @@ nv_batch_nofiles
 	OS_CHDIR
 	ld de,dir_buf
 	OS_DELETE
-	jp nv_copydir_batch
+	jp nv_batch
 
 
-	display "copydir1 ", nv_copydir1
 	display "filebuf ", file_buf
 	display "fcb ", fcb
 	display "nv_label: ",nv_label
-	display "nv_copydir1: ",nv_copydir1
-	display "nv_copydir_batch: ",nv_copydir_batch
+	display "nv_batch1: ",nv_batch1
+	display "nv_batch: ",nv_batch
 	display "proceditcmd_copy: ",proceditcmd_copy
 	display "proceditcmd_copy_fcb: ",proceditcmd_copy_fcb
 	display "nv_fillpathspaces_hl: ",nv_fillpathspaces_hl
@@ -1803,7 +1750,6 @@ skipword_hl
 	ret z
 	inc hl
 	jr skipword_hl
-
 
 proceditcmd_copy
         bit 0,(hl)
@@ -1826,15 +1772,13 @@ proceditcmd_copy
 	call nv_strcopy_hltode
 
 	ld hl,proceditcmd_copy_fcb
-	ld (nv_copydirproc),hl
+	ld (nv_batch_proc),hl
 
 proceditcmd_copy_fcb
         ld hl,proceditcmd_copy_q
         push hl
 	ld de,dir_buf
 	OS_CHDIR
-
-        if 1==1
 
         ld de,filenametext;wordbuf ;de=drive/path/file
 	ld hl,fcb_filename
@@ -1844,12 +1788,20 @@ proceditcmd_copy_fcb
 	and FATTRIB_DIR
 	jp nz,nv_copydir_add
 
-	ld de,wincopy_src
+	ld de,wincopy_src ;update copy window
 	ld bc,filenametext
 	ld hl,dir_buf
 	call nv_makefilepath_hltode
 	ld hl,wincopy_src
 	call nv_fillpathspaces_hl
+	ld de,wincopy_dest
+	ld bc,filenametext
+	ld hl,dir2_buf
+	call nv_makefilepath_hltode
+	ld hl,wincopy_dest
+	call nv_fillpathspaces_hl
+	ld hl,wincopy2
+	call upwindow_text
 
 	ld de,filenametext
         OS_OPENHANDLE
@@ -1868,15 +1820,6 @@ proceditcmd_copy_fcb
 	ld de,dir2_buf
 	OS_CHDIR
         
-	ld de,wincopy_dest
-	ld bc,filenametext
-	ld hl,dir2_buf
-	call nv_makefilepath_hltode
-	ld hl,wincopy_dest
-	call nv_fillpathspaces_hl
-	ld hl,wincopy2
-	call upwindow_text
-
         ld de,filenametext;swordbuf2 ;de=drive/path/file
         OS_CREATEHANDLE
         or a
@@ -1922,14 +1865,14 @@ proceditcmd_copy_date=$+2
         OS_SETFILETIME
         ret
         
-        else ;CP/M-like functions
+/*        else ;CP/M-like functions
         
         ld hl,fcb_filename
         ld de,fcb2_filename
         call copy_to_defcb_filename
         call nv_openfcb ;autopush nv_closefcb
         ret nz ;jp nz,editcmd_copy_error_wrongfile
-     	call setanotherpaneldir
+        call setanotherpaneldir
         call nv_createfcb2 ;autopush nv_closefcb2
         ret nz ;jp nz,editcmd_copy_error_cant_copy
 editcmd_copy0
@@ -1953,6 +1896,7 @@ editcmd_copy0
         ;ret
         
         endif
+*/
         
 proceditcmd_copy_q
 filescopied=$+1
@@ -1989,7 +1933,8 @@ proceditcmd_copy_q_progress0
         pop bc
         pop de
         inc e
-        djnz proceditcmd_copy_q_progress0*/
+        djnz proceditcmd_copy_q_progress0
+*/
         ret 
         
 mulbcde_ahl
@@ -2107,7 +2052,8 @@ winrename
         db 0 ;end of window
         
 tnewfilename
-        db "12345678.123",0
+        ds 12 
+	db 0
 tnewfilename_sz=12
 
 winquit
@@ -2232,7 +2178,7 @@ dir_buf
 file_buf_end=$-1
 dir2_buf
         ds 128
-dir_copy_pointer db 0,0
+dir_batch_pointer db 0,0
 savepg db 0,0
 dirpg db 0,0
 
