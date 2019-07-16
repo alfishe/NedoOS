@@ -1403,27 +1403,41 @@ nfopenfnslashq.
 
 commandslist
         dw cmd_dir
+        db "ls",0
+        dw cmd_dir
         db "dir",0
         dw cmd_del
         db "del",0
+        dw cmd_del
+        db "rm",0
         dw cmd_exit
         db "exit",0
         dw cmd_cd
         db "cd",0
         dw cmd_copy
         db "copy",0
+        dw cmd_copy
+        db "cp",0
         dw cmd_rem
         db "rem",0
         dw cmd_md
         db "md",0
+        dw cmd_md
+        db "mkdir",0
         dw cmd_ren
         db "ren",0
+        dw cmd_ren
+        db "mv",0
         dw cmd_mem
         db "mem",0
+        dw cmd_mem
+        db "free",0
         dw cmd_proc
         db "proc",0
         dw cmd_drop
         db "drop",0
+        dw cmd_drop
+        db "kill",0
         dw cmd_date
         db "date",0
         dw cmd_start
