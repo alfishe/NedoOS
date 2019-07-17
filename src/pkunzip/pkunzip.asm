@@ -1,5 +1,6 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
+FR_EXIST=8 ;fatfs4os/ff.h
 
        MACRO ziprdbyte
         INC LY
@@ -91,6 +92,7 @@ loop0
 depack_gz_q
         call closestream_file
 openerror
+mkdirerror
 error
         QUIT
 
@@ -328,10 +330,47 @@ IST=$+1
         ld hl,0 ;OK
         ret
 
+findslash_or_zero
+;hl=filename
+;out: hl=at slash or zero, a=code
+findslash_or_zero0
+        ld a,(hl)
+        or a
+        ret z
+        cp '/'
+        ret z
+        inc hl
+        jr findslash_or_zero0
+        
 SAVECREATE
+        ;jr $
         push iy
+SAVECREATE_retry
         ld de,filename
         OS_CREATEHANDLE
+         or a
+         jr z,SAVECREATE_nomkdir
+;5=FR_NO_PATH
+;надо создать путь элемент за элементом: md 1, md 1/2, md 1/2/3...
+        ld hl,filename
+SAVECREATE_mkdir0
+        call findslash_or_zero ;hl=at slash or zero, a=code
+        or a
+        jr z,SAVECREATE_retry ;path created
+        push hl ;hl=at slash or zero
+        ld (hl),0 ;end path at this slash
+        ld de,filename
+        OS_MKDIR ;возможно, такая директория уже есть!
+        pop hl ;hl=at slash or zero
+        ld (hl),'/' ;restore slash
+         cp FR_EXIST
+         jr z,SAVECREATE_mkdir_exist
+         or a
+         jp nz,mkdirerror
+SAVECREATE_mkdir_exist
+        inc hl ;after slash
+        jr SAVECREATE_mkdir0
+SAVECREATE_nomkdir
 ;b=new file handle
         ld a,b
         ld (savefilehandle),a

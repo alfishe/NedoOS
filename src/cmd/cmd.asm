@@ -249,6 +249,7 @@ execcmd
         or a
         ret z
 		display $
+		display wordbuf
         ld de,wordbuf
         call getword ;hl=terminator/space addr
         call skipspaces
@@ -256,7 +257,11 @@ execcmd
 		inc hl
 		ld a,(wordbuf+1)
 		cp ':'
+		jp nz,execcmd0
+		ld a,(wordbuf+2)
+		or a
 		jp z,cmd_t0
+execcmd0
         ld hl,commandslist ;list of internal commands
 strcpexec0
         ld c,(hl)
@@ -427,7 +432,7 @@ loadapp_nopath
         ld hl,fcb_filename+8
         ld a,(hl)
         or 0x20
-        cp 'b'
+        cp 'b'; TODO где проверка на остальные буквы?
         jr z,strcpexec_tryrun_bat
         cp ' '
         jr nz,strcpexec_tryrun_noemptyext
@@ -469,6 +474,7 @@ strcpexec_tryrun_noemptyext
         ret ;Z
         
 strcpexec_tryrun_bat
+	display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
 ;filename in fcb
 ;out: nz=error, cy=end of .bat
 ;open .bat
@@ -477,7 +483,7 @@ strcpexec_tryrun_bat
         ld bc,11
         ldir
 
-        ld de,fcb_bat
+        ld de,fcb_bat	
         OS_FOPEN
         or a
         ret nz ;jp nz,execcmd_error
@@ -530,7 +536,8 @@ readstr
         jr readstr0go
 readstr0
         READBYTE_A ;z=EOF
-        jr z,readstrEOF
+;        jr z,readstrEOF
+	jr z,readstrq
         cp 0x0d
         jr z,readstrq
         cp 0x0a
@@ -1434,6 +1441,8 @@ commandslist
         db "free",0
         dw cmd_proc
         db "proc",0
+        dw cmd_proc
+        db "ps",0
         dw cmd_drop
         db "drop",0
         dw cmd_drop

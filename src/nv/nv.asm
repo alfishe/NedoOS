@@ -937,6 +937,7 @@ editcmd_enter_runfile_com
 execcmd_error
         jp execcmd_runfocusq;editcmd_reprintall
         
+	display "editcmd_enter_runfile_nocom",editcmd_enter_runfile_nocom
 editcmd_enter_runfile_nocom
         ld hl,runfile_nocomq
         push hl
@@ -991,6 +992,8 @@ runfile_nocom_recodeext0
         call nv_openfcb ;autopush nv_closefcb
         ret nz ;error
         ld iy,file_buf_end
+	display "runfile_findhandler",runfile_findhandler
+	display "makeprompt",makeprompt
 runfile_nocom_extloop
         call checkoneext ;c=ошибки, z=нет ошибок
 	jr c,runfile_nocom_readerror
@@ -1005,7 +1008,7 @@ runfile_nocom_readerror
         dec a
         ret ;nz
 runfile_nocom_extok
-        call skiptocolon ;пройти после ':'
+        call skiptocolon ;пройти к ':'
         ld hl,cmdbuf
         call loadtoendline
         xor a

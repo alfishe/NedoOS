@@ -23,6 +23,7 @@ PR700
         ld de,filename        ;call strcopy
         call copyname83
 ; если это директория, то create directory (например, "md scr/1" без слеша в конце):
+; это только для пустых директорий! nedoos-1.zip не содержит записи о директориях с файлами (в отличие от .tar)
 
         ;LD A,(T6624) ;flags
         ;and 8 ;TODO где этот флаг?        ;jr nz,readzip_nodir
