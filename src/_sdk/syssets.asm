@@ -1,6 +1,6 @@
-atm=1
-sys_npages=192
-NEMOIDE=1
-SYSDRV=12
-INETDRV EQU 0x01
-PS2KBD EQU 0x01
+atm=3 
+sys_npages=64 
+NEMOIDE=1 
+SYSDRV=0 
+INETDRV=0x01 
+PS2KBD=0x00 
