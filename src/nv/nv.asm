@@ -10,11 +10,16 @@ txtscrhgt=25
 txtscrwid=80
 CMDLINEY=23;24
 
+;0 1 2 3 4 5 6 7 8 9 a b c d e f
+
 COLOR=7
 PANELCOLOR=0x4f;0xf
-PANELSELECTCOLOR=0x17
+PANELDIRCOLOR=0x4f;0xf
+PANELEXECOLOR=0x4c;0xf
+PANELFILECOLOR=0b00001111;0xf
+PANELSELECTCOLOR=0x4e
 CURSORCOLOR=0x38
-FILECURSORCOLOR=0x38
+FILECURSORCOLOR=0x28
 COLOR_RED=0x17
 
 PROGRESBARWINXY=0x0F16 ;0x0919 + 051f ;de=yx
@@ -89,8 +94,8 @@ cmd_begin
         ld e,COLOR
         OS_CLS
         
-        ld de,nvpal
-        OS_SETPAL
+;        ld de,nvpal
+;        OS_SETPAL
         
         OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
@@ -215,8 +220,11 @@ strnewpage ;выделяем новую страничку IX - панель, E номер странички в HS_strpg
 	ret
 
 nvpal
-        dw 0xf3f3,0x1313,0xf1f1,0xf0f0,0xe3e3,0xe2e2,0xe1e1,0xe0e0 ;NB color 1
-        dw 0xf3f3,0xd2d2,0xb1b1,0x9090,0x6363,0x4242,0x2121,0x0000
+;        dw 0xf3f3,0x1313,0xf1f1,0xf0f0,0xe3e3,0xe2e2,0xe1e1,0xe0e0 ;NB color 1
+;        dw 0xf3f3,0xd2d2,0xb1b1,0x9090,0x6363,0x4242,0x2121,0x0000
+	dw 0xffff,0x1f1f,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec ;NB color 1
+	dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+
         
 printhint
         ld de,24*256
@@ -244,7 +252,7 @@ prhint_color
         call nv_setcolor
         jr prhint0
 thint
-        db "{1}LeftDrv { 2}RightDrv { 3}View { 4}Edit { 5}Copy { 6}Rename { 7}MkDir { 8}Del  { 9}Screen{ 0}Quit",0
+        db "{1}Left  { 2}Right { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}Screen{ 0}Quit  ",0
         
 readpanels_reprint
 	ld e,COLOR
@@ -342,44 +350,93 @@ prNfiles
 	djnz prNfiles
 	ret	
 
+fileiscom_ix;ix=fcb output: z=com
+	ld a,(ix+9)
+	cp 'C'
+	jr nz,fileiscom_ix_nocom
+	ld a,(ix+10)
+	cp 'O'
+	jr nz,fileiscom_ix_nocom
+	ld a,(ix+11)
+	cp 'M'
+	jr nz,fileiscom_ix_nocom
+	xor a
+	ret
+fileiscom_ix_nocom
+	cp '$'
+	jr nz,fileiscom_ix_nohobeta
+	ld a,(ix+10)
+	cp 'C'
+	jr nz,fileiscom_ix_nohobeta
+	ld a,(ix+11)
+	cp ' '
+	jr nz,fileiscom_ix_nohobeta
+	xor a
+	ret
+fileiscom_ix_nohobeta
+	ld a,1
+	or a
+	ret
+
 prdirfile
 ;hl=fcb
-	ld a,(hl) ;mark
+	ld e,PANELFILECOLOR
+	ld (nvcolor),de
+	push hl
+	pop ix
+        ld a,(ix+FCB_FATTRIB)
+        and FATTRIB_DIR
+	jr z,regfile
+	ld e,PANELDIRCOLOR
+	ld (nvcolor),de
+regfile
+	call fileiscom_ix
+	jr nz,nocomfile
+	ld e,PANELEXECOLOR
+	ld (nvcolor),de
+nocomfile
+	ld a,(ix) ;mark
 	and 1
-	ld e,PANELCOLOR
 	jr z,$+4
         ld e,PANELSELECTCOLOR
-	push hl
+	ld (nvcolor),de
+;	push ix
         call nv_setcolor
-	pop hl
-	push hl
 	inc hl
         ld b,8
         call cmdprNchars
-	pop ix
-	push ix
+;	pop ix
+;	push ix
         ld a,(ix+FCB_FATTRIB)
         and FATTRIB_DIR
         xor '.'
         call cmdprchar
         ld b,3
         call cmdprNchars
+	ld e,PANELCOLOR
+	call nv_setcolor
 	ld a,'і'
         PRCHAR
-        pop ix
+	ld de,(nvcolor)
+	call nv_setcolor
+;        pop ix
         ld l,(ix+FCB_FSIZE+2)
         ld h,(ix+FCB_FSIZE+3)
 	exx
         ld l,(ix+FCB_FSIZE)
 	ld h,(ix+FCB_FSIZE+1)
-        push ix
+;        push ix
         call prdword
-        ld a,'і'
+	ld e,PANELCOLOR
+	call nv_setcolor
+	ld a,'і'
         PRCHAR
-        pop ix
+	ld de,(nvcolor)
+	call nv_setcolor
+;        pop ix
 	ld l,(ix+FCB_FDATE)
         ld h,(ix+FCB_FDATE+1)
-	push ix 
+;	push ix 
         push hl
         ld a,h
         srl a
@@ -405,7 +462,7 @@ prdirfile
         call prNNcmd ;day
         ld a,' '
         PRCHAR
-	pop ix
+;	pop ix
         ld l,(ix+FCB_FTIME)
         ld h,(ix+FCB_FTIME+1)
         push hl
@@ -1226,6 +1283,7 @@ seldrv_cury=$+1
         ld b,4
         call drawfilecursor_sizeb ;draw cursor
         YIELDGETKEYLOOP
+	ld a,c
         pop de
         push af
         ld a,COLOR
@@ -1239,6 +1297,12 @@ seldrv_cury=$+1
         jr z,seldrv_ok
         cp key_esc
         ret z
+	cp 'a'
+	jr c,seldrv_cursor
+	cp 'p'
+	jr nc,seldrv_cursor
+	jr seldrv_ok0
+seldrv_cursor
         ld bc,seldrv_mainloop
         push bc
         cp key_down
@@ -1249,6 +1313,7 @@ seldrv_cury=$+1
 seldrv_ok
         ld a,(hl);(seldrv_cury)
         add a,'A'
+seldrv_ok0
         ld ix,(curpanel)
         ld (ix+PANEL.dir),a
         ld (ix+PANEL.dir+1),':'
@@ -1364,6 +1429,8 @@ editcmd_6 ;ren
         ldir
 
         ld hl,winrename
+	ld de,tnewfilename
+	ld c,13
         call prwindow_edit ;CY=OK
         ret nc ;cancel
 ;если в имени есть символы :,/,\, то выйти с ошибкой
@@ -1393,7 +1460,11 @@ editcmd_7 ;mkdir
         push hl
 	call setpaneldir
 
+	xor a
         ld hl,winmkdir
+	ld de,tnewfilename
+	ld (de),a
+	ld c,13
         call prwindow_edit ;CY=OK, de=filename
         ret nc ;cancel
         OS_MKDIR
@@ -1485,8 +1556,29 @@ editcmd_5 ;copy
         ret z ;"." or ".."
         call changemark_hl ;ld (hl),1
 editcmd_5_0
+
+	call getanotherpanel_ix
+	ld de,PANEL.dir
+	add ix,de
+	push ix
+	pop hl
+	ld de,dir2_buf
+	call nv_strcopy_hltode
+
+	ld ix,(curpanel)
+	ld de,PANEL.dir
+	add ix,de
+	push ix
+	pop hl
+	ld de,dir_buf
+	call nv_strcopy_hltode
+
+	ld ix,(curpanel)
+
         ld hl,wincopy
-        call prwindow_waitkey ;CY=OK
+	ld de,dir2_buf
+	ld c,60
+        call prwindow_edit ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
 
         ld hl,editcmd_reprintall
@@ -1758,21 +1850,6 @@ proceditcmd_copy
         bit 0,(hl)
 	ret z
         call getfcbfromhl
-	ld ix,(curpanel)
-	ld de,PANEL.dir
-	add ix,de
-	push ix
-	pop hl
-	ld de,dir_buf
-	call nv_strcopy_hltode
-
-	call getanotherpanel_ix
-	ld de,PANEL.dir
-	add ix,de
-	push ix
-	pop hl
-	ld de,dir2_buf
-	call nv_strcopy_hltode
 
 	ld hl,proceditcmd_copy_fcb
 	ld (nv_batch_proc),hl
@@ -1867,39 +1944,6 @@ proceditcmd_copy_date=$+2
         ld de,filenametext
         OS_SETFILETIME
         ret
-        
-/*        else ;CP/M-like functions
-        
-        ld hl,fcb_filename
-        ld de,fcb2_filename
-        call copy_to_defcb_filename
-        call nv_openfcb ;autopush nv_closefcb
-        ret nz ;jp nz,editcmd_copy_error_wrongfile
-        call setanotherpaneldir
-        call nv_createfcb2 ;autopush nv_closefcb2
-        ret nz ;jp nz,editcmd_copy_error_cant_copy
-editcmd_copy0
-        ld de,copybuf
-        OS_SETDTA
-        ld de,fcb
-        OS_FREAD
-        xor 128
-        jp z,proceditcmd_copy_q ;прочитали 0 байт - успешный выход
-         ld l,a
-         ld h,0
-         push hl
-        ld de,copybuf
-        OS_SETDTA
-         pop hl
-        ld de,fcb2
-        OS_FWRITE_NBYTES
-        or a
-        jr z,editcmd_copy0
-;can't write
-        ;ret
-        
-        endif
-*/
         
 proceditcmd_copy_q
 filescopied=$+1
@@ -2016,24 +2060,24 @@ ifcmdnonempty_typedigit
 
 windrv
         dw 0x0003 ;de=yx
-        dw 256*(3+15)+9;0x0809 ;bc=hgt,wid
+        dw 256*(3+15)+28;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
-        db "  A:",0,3
-        db "  B:",0,3
-        db "  C:",0,3
-        db "  D:",0,3
-        db "  E:",0,3
-        db "  F:",0,3
+        db "  A: - 1st Floppy",0,3
+        db "  B: - 2nd Floppy",0,3
+        db "  C: - 3rd Floppy",0,3
+        db "  D: - 4th Floppy",0,3
+        db "  E: - IDE Master",0,3
+        db "  F: - IDE Slave",0,3
         db "  G:",0,3
         db "  H:",0,3
         db "  I:",0,3
         db "  J:",0,3
         db "  K:",0,3
         db "  L:",0,3
-        db "  M:",0,3
+        db "  M: - SD Z-controller",0,3
         db "  N:",0,3
-        db "  O:",0,3
+        db "  O: - USB flash zx-net",0,3
         db 0 ;end of window
         
 winmkdir
@@ -2053,7 +2097,19 @@ winrename
         db 2 ;print outer text
         dw tnewfilename
         db 0 ;end of window
+
+wincopy
+        dw 0x0a08 ;de=yx
+        dw 0x0540 ;bc=hgt,wid
+        db "Copy ",0
+	db 1
+	db " file(s)/dir(s) to:",0
+        db 3 ;next line
+        db 2 ;print outer text
+        dw dir2_buf
+        db 0 ;end of window
         
+
 tnewfilename
         ds 12 
 	db 0
@@ -2071,15 +2127,6 @@ windel
         dw 0x051f ;bc=hgt,wid
         db 3 ;next line
 	db "Delete ",0 
-        db 1 ;nfiles
-	db " file(s)?",0
-        db 0 ;end of window
-
-wincopy
-	dw 0x0919 ;de=yx
-        dw 0x051f ;bc=hgt,wid
-        db 3 ;next line
-	db "Copy ",0 
         db 1 ;nfiles
 	db " file(s)?",0
         db 0 ;end of window
@@ -2105,9 +2152,6 @@ windel2_file
 	db "                                                                ",0
         db 0 ;end of window
 
-
-        
-        
 tdotdot
 	dw "..",0
 
@@ -2184,6 +2228,7 @@ dir2_buf
 dir_batch_pointer db 0,0
 savepg db 0,0
 dirpg db 0,0
+nvcolor ds 2
 
 washobetarunner
 ;pgsys=pagexor-10

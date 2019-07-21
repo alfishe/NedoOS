@@ -1,6 +1,6 @@
 bmp:scratch.com
 bat:cmd.com
-txt,new,ext,ini:texted.com
+txt,new,ext,ini,nfo,diz:texted.com
 gif,jpg,png,htm:browser.com
 pt2,pt3,m  :player.com
 bas:basic.com

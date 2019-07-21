@@ -1,10 +1,14 @@
 prwindow_edit
-;hl=window
+;hl=window DE=texteditaddr c=texteditsize
 ;out: CY=OK, de=filename
+	push de
+	push bc
         call prwindow_text ;de=YX of last line
-        ld hl,tnewfilename ;hl=textaddr
-        ld a,tnewfilename_sz ;a=maxsz
+	pop bc
+	pop hl
         push hl
+;        ld hl,de ;hl=textaddr
+        ld a,c ;a=maxsz
         call editline
         pop de ;de=filename
         cp key_esc
