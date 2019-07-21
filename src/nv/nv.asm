@@ -278,27 +278,72 @@ readsortdrawpanel_keepcursor
 	call sortfiles
 	jp drawpanel_with_files
 
+drawpanel_head ;ix=panel
+        call nv_getpanelxy_de
+        inc e
+	inc e
+        call nv_setxy
+	push ix
+	or a
+	ld de,(curpanel)
+	pop hl
+	push hl
+	sbc hl,de
+	pop hl
+	jr nz,drawpanel_dir
+	ld e,FILECURSORCOLOR
+	jr drawpanel_dir0
+drawpanel_dir
+	ld e,PANELCOLOR
+drawpanel_dir0
+	call nv_setcolor
+	ld de,PANEL.dir
+	add hl,de
+        ld c,0
+        call panelprtext
+	ret
 	
 drawpanel_with_files
 ;ix=panel
 	call setpanelcolor
         call nv_getpanelxy_de
 	call prtable ;keeps ix
+
+
 	call setpaneldir_makeprompt ;keeps ix
         ld e,7
         call nv_setcolor
-        call nv_getpanelxy_de
+
+	call drawpanel_head
+/*      call nv_getpanelxy_de
         inc e
 	inc e
         call nv_setxy
 	push ix
+	or a
+	ld de,(curpanel)
 	pop hl
+	push hl
+	sbc hl,de
+	pop hl
+	jr nz,drawpanel_dir
+	ld e,FILECURSORCOLOR
+	jr drawpanel_dir0
+
+drawpanel_dir
+	ld e,PANELCOLOR
+drawpanel_dir0
+	call nv_setcolor
 	ld de,PANEL.dir
 	add hl,de
         ld c,0
         call panelprtext
+*/
 
-        call drawpanelfilesandsize
+
+
+
+      call drawpanelfilesandsize
         
 drawpanel_files
 ;ix=panel
@@ -853,7 +898,7 @@ editcmd_down
         call nv_setdirscroll_bc
         ld hl,CONST_HGT_TABLE-1
         add hl,bc
-         push hl
+        push hl
         call nv_getpanelxy_de
         inc d
         push de
@@ -900,8 +945,12 @@ editcmd_setsortmodehl_noold
 	jp editcmd_reprintcurpanel
 
 editcmd_tab
+	push ix
         call getanotherpanel_ix
 	ld (curpanel),ix
+	call drawpanel_head
+	pop ix
+	call drawpanel_head ;inactive panel
         jp editcmd_readprompt_setendcmdx
 
 editcmd_enter
