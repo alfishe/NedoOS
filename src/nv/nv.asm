@@ -2310,7 +2310,7 @@ hobetarunner_sz=$-washobetarunner
 wordfiles
         db " files",0
 wordbytes
-        db " bytes",0
+        db " bytes ",0
 
 ;HS_elpg ;2 pages
 ;        ds 2

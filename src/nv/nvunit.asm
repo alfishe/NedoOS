@@ -333,13 +333,17 @@ drawpanelfilesandsize
         inc e
         inc e
         call nv_setxy
-        ld e,COLOR
+        ld e,PANELFILECOLOR
         call nv_setcolor
         call getmarkedfiles
         ld a,h
         or l
         push af ;z = no marked
         call z,getfiles
+	pop af
+	ld e,PANELSELECTCOLOR
+	call nz,nv_setcolor
+	push af
         push ix
         call prdword
         ld hl,wordfiles
