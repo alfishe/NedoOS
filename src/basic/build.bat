@@ -1,7 +1,4 @@
-set wascurrentdir=%currentdir%
-if "%currentdir%"=="" set currentdir=..
-path=%currentdir%\..\sjasm\;%currentdir%\..\us\;%currentdir%\..\tools\
+if "%sjasmplus%"=="" call ../_sdk/setpath.bat
 
-sjasmplus --nologo basic.asm
-
-if "%wascurrentdir%"=="" (pause)
+%sjasmplus% --nologo basic.asm
+if "%currentdir%"=="" (pause)

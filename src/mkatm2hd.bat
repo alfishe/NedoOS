@@ -6,11 +6,9 @@ echo SYSDRV=4 >> _sdk\syssets.asm
 echo INETDRV=0x00 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 call make.bat
-
 path=_sdk\
 nedotrd test.trd -eh code.$C
 nedotrd test.trd -a code.$C
 copy code.$C ..\release\osatm2hd.$C > nul
-
 move test.trd ..\release\osatm2hd.trd > nul
 if "%makeall%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2hd.trd

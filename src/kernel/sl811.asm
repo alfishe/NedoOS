@@ -1,6 +1,37 @@
 
-		display "SL811 ",$
 SL811
+.EP0Control=0
+.EP0Address=1
+.EP0Status=3
+.EP0Counter=4
+.CtrlReg=5
+.IntEna=6
+.IntStatus=13
+.cDATASet=14
+.cSOFcnt=15
+.INT_CLEAR=0xff
+	MACRO WRITE_REG _r,_v
+	IF _r == 0x00
+		xor a
+	ELSE
+		ld a,_r
+	ENDIF
+	out (c),a		
+	IF _r != _v
+		IF _v == 0x00
+			xor a
+		ELSE
+			ld a,_v
+		ENDIF
+	ENDIF
+	IF _v & 0x80
+		dec b
+		out (c),a
+		inc b
+	ELSE
+		out (0xab),a
+	ENDIF
+	ENDM
 .init	
 ; 32.	    SL11HardReset();
 	
@@ -9,31 +40,20 @@ SL811
 	CALL	.USBReset
 ; 34.	        temp=sl811_init_my();
 	CALL	.sl811_init_my
+	or a
+	ld a,1
+	ret z
 ; 35.	        temp=EnumUsbDev();                              // enumerate USB device, assign USB address = #1
 	CALL	.EnumUsbDev
+	or a
+	ld a,1
+	ret z
 ; 36.	        temp=EnumMassDev();
 	CALL	.EnumMassDev
 	or a
 	ret z
 	ld a,1
 	ret
-; 37.	        temp=RBC_Read(0,2,(void*)0xa000);
-;	LD	HL,.DBUF
-;	ld a,2
-;	ex af,af'
-;	ld bc,0	;lba
-;	ld de,0
-;	CALL	.RBC_Read
-; 38.	        temp=RBC_Write(0,2,(void*)0xa000);
-;	LD	HL,.DBUF
-;	ld a,2
-;	ex af,af'
-;	ld bc,0	;lba
-;	ld de,0
-;	CALL	.RBC_Write
-	
-;	QUIT
-
 
 .DBUF=0x8000-1024
 ; 17.	void USBReset(void)   
@@ -44,52 +64,35 @@ SL811
 	PUSH	AF
 ; 19.	        BYTE tmp;
 ; 20.	        tmp =  SL811Read(CtrlReg);
-	LD	A,5
-	LD	BC,32939
+	LD	A,.CtrlReg	;0x05
+	LD	BC,0x80ab
 	OUT	(C),A
-	LD	B,127
-	IN	D,(C)
+	in a,(0xab)
 	LD	HL,0
 	ADD	HL,SP
-	LD	(HL),D
+	LD	(HL),a
 ; 21.	        SL811Write(CtrlReg,0x08);
-	LD	B,128
-	OUT	(C),A
-	LD	A,8
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .CtrlReg,0x08
 ; 22.	        .delayms(100);
 	LD	E,6
 	CALL	.delayms
 ; 23.	        SL811Write(CtrlReg,0x18);
-	LD	A,5
-	LD	B,128
-	OUT	(C),A
-	LD	A,24
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .CtrlReg, 0x18
 ; 24.	        .delayms(100);
 	LD	E,6
 	CALL	.delayms
 ; 25.	        SL811Write(CtrlReg,0x08);
-	LD	A,5
-	LD	B,128
-	OUT	(C),A
-	LD	A,8
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .CtrlReg, 0x08
 ; 26.	        .delayms(500);
 	LD	E,26
 	CALL	.delayms
 ; 27.	        SL811Write(CtrlReg,tmp);
-	LD	A,5
-	LD	B,128
+	LD	A,.CtrlReg	;0x05
 	OUT	(C),A
 	LD	HL,0
 	ADD	HL,SP
-;	xor a
 	LD	A,(HL)
-	LD	B,127
+	dec B
 	OUT	(C),A
 ; 28.	}   
 	POP	HL
@@ -102,97 +105,53 @@ SL811
 	PUSH	BC
 	PUSH	DE
 ; 31.	                SL811Write(cSOFcnt, 0xae);  // Set SOF high counter, no change D+/D-SL11Write(CtrlReg, 0x48); // Setup Normal Operation
-	LD	A,15
-	LD	BC,32939
+	LD	A,.cSOFcnt
+	LD	BC,0x80ab
 	OUT	(C),A
 	LD	A,174
-	LD	B,127
+	dec	B	;LD	B,0x7f
 	OUT	(C),A
+	inc b
 ; 32.	                SL811Write(IntEna, 0x63); // USBA/B, Insert/Remove,USBRest/Resume.
-	LD	A,6
-	LD	B,128
-	OUT	(C),A
-	LD	A,99
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .IntEna, 0x63
 ; 33.	                SL811Write(cSOFcnt, 0xae);  // Set SOF high counter, no change D+/D-SL11Write(CtrlReg, 0x48); // Setup Normal Operation
-	LD	A,15
-	LD	B,128
-	OUT	(C),A
-	LD	A,174
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .cSOFcnt, 0xae
 ; 34.	                SL811Write(CtrlReg, 0);         // Disable USB transfer operation and SOF
-	LD	A,5
-	LD	B,128
-	OUT	(C),A
-	XOR	A
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .CtrlReg, 0x00
 ; 35.	                SL811Write(cSOFcnt, 0xae);      // Set SOF high counter, no change D+/D-SL11Write(CtrlReg, 0x48); 
-	LD	A,15
-	LD	B,128
-	OUT	(C),A
-	LD	A,174
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .cSOFcnt, 0xae
 ; 36.	                                                                        // Clear SL811H mode and setup normal operation
 ; 37.	                .delayms(20);     // Delay for HW stablize
 	LD	E,2
 	CALL	.delayms
 ; 38.	                SL811Write(CtrlReg, 0);         // Disable USB transfer operation and SOF
-	LD	A,5
-	LD	B,128
-	OUT	(C),A
-	XOR	A
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .CtrlReg, 0
 ; 39.	                if(SL811Read(IntStatus)==0x05) return FALSE;
 	LD	A,13
-	LD	B,128
 	OUT	(C),A
-	LD	B,127
-	IN	A,(C)
+	IN	A,(0xab)
 	CP	5
 	JR	Z,.lo183
 .lo010:
 .lo011:
 ; 40.	                
 ; 41.	                SL811Write(cSOFcnt,0xae);
-	LD	A,15
-	LD	B,128
-	OUT	(C),A
-	LD	A,174
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .cSOFcnt,0xae
 	call .USBReset
 ; 42.	                SL811Write(IntEna,0x00);
-	LD	A,6
-	LD	B,128
-	OUT	(C),A
-	XOR	A
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .IntEna,0x00
 ; 43.	                SL811Write(IntStatus,INT_CLEAR);
-	LD	A,13
-	LD	B,128
-	OUT	(C),A
-	LD	A,255
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .IntStatus, 0xFF
 ; 44.	                .delayms(100);
 	LD	E,6
 	CALL	.delayms
 ; 45.	                if((SL811Read(IntStatus)&0xc0)!=0x80) return FALSE;
 	LD	A,13
-	LD	B,128
 	OUT	(C),A
-	LD	B,127
-	IN	D,(C)
-	LD	A,D
-	AND	192
-	DEC	A
-	JP	PE,.lo013
+	IN	a,(0xab)
+	AND	0xc0
+	cp 0x80
+	jr z,.lo013
 .lo012:
 .lo183:
 	XOR	A
@@ -200,62 +159,24 @@ SL811
 	JR	.lo014
 .lo013:
 ; 47.	                SL811Write(cSOFcnt,0xae);       // Set up Master & low speed direct and SOF cnt high=0x2e   
-	LD	A,15
-	LD	B,128
-	OUT	(C),A
-	LD	A,174
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .cSOFcnt,0xae
 ; 48.	                SL811Write(cDATASet,0xe0);      // SOF Counter Low = 0xE0; 1ms interval   
-	LD	A,14
-	LD	B,128
-	OUT	(C),A
-	LD	A,224
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .cDATASet,0xe0
 ; 49.	                SL811Write(CtrlReg,0x05);       // Setup 48MHz and SOF enable
-	LD	A,5
-	LD	B,128
-	OUT	(C),A
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .CtrlReg,0x05
 ; 50.	                SL811Write(EP0Status,0x50);     //90);
-	LD	A,3
-	LD	B,128
-	OUT	(C),A
-	LD	A,80
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .EP0Status,0x50
 ; 51.	                SL811Write(EP0Counter,0x00);
-	LD	A,4
-	LD	B,128
-	OUT	(C),A
-	XOR	A
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .EP0Counter,0x00
 ; 52.	                SL811Write(EP0Control,1);       //sDATA0_RD);   //0x23
-	LD	B,128
-	OUT	(C),A
-	LD	A,1
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .EP0Control,1
 ; 53.	                .delayms(15);
 	LD	E,A
 	CALL	.delayms
 ; 54.	                SL811Write(IntEna,0x61);
-	LD	A,6
-	LD	B,128
-	OUT	(C),A
-	LD	A,97
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .IntEna,0x61
 ; 55.	                SL811Write(IntStatus,INT_CLEAR);        //0xff
-	LD	A,13
-	LD	B,128
-	OUT	(C),A
-	LD	A,255
-	LD	B,127
-	OUT	(C),A
+	WRITE_REG .IntStatus, 0xFF
 ; 56.	                return TRUE;
 	LD	A,1
 ; 57.	}
@@ -412,50 +333,37 @@ SL811
 ; 113.	    //------------------------------------------------   
 ; 114.	    SL811Write(EP0Status,((.usbstack.endpoint&0x0F)|.usbstack.pid));  // PID + EP address   
 	LD	A,3
-	LD	BC,32939
+	LD	BC,0x80ab
 	OUT	(C),A
-	LD	A,(.usbstack+1)
+	ld hl,(.usbstack+1)
+	LD	A,l
 	AND	15
-	PUSH	AF
-	LD	A,(.usbstack+2)
-	LD	B,A
-	POP	AF
-	OR	B
-	LD	B,127
+	OR	H
+	dec B
 	OUT	(C),A
+	inc B
 ; 115.	    SL811Write(EP0Counter,.usbstack.usbaddr);                    // USB address   
 	LD	A,4
-	LD	B,128
 	OUT	(C),A
 	LD	A,(.usbstack)
-	LD	B,127
+	dec B
 	OUT	(C),A
-; 116.	    SL811Write(EP0Address,data0);                   // buffer address, start with "data0"   
-	LD	A,1
-	LD	B,128
-	OUT	(C),A
-	LD	A,16
-	LD	B,127
-	OUT	(C),A
+	inc B
+; 116.	    SL811Write(EP0Address,data0);                   // buffer address, start with "data0"  
+	WRITE_REG .EP0Address,16
 ; 117.	    SL811Write(.ep0XferLen,xferLen);                 // data transfer length   
 	LD	A,2
-	LD	B,128
 	OUT	(C),A
 	LD	A,IXL
-	LD	B,127
+	dec B
 	OUT	(C),A
-; 118.	    SL811Write(IntStatus,INT_CLEAR);                // clear interrupt status   
-	LD	A,13
-	LD	B,128
-	OUT	(C),A
-	LD	A,255
-	LD	B,127
-	OUT	(C),A
+	inc B
+; 118.	    SL811Write(IntStatus,INT_CLEAR);                // clear interrupt status 
+	WRITE_REG .IntStatus,.INT_CLEAR
 ; 119.	    SL811Write(EP0Control,cmd);                     // Enable ARM and USB transfer start here  
 	XOR	A
-	LD	B,128
 	OUT	(C),A
-	LD	B,127
+	dec B
 	OUT	(C),D
 .lo033:
 ; 120.	    //------------------------------------------------   
@@ -471,9 +379,9 @@ SL811
 ; 127.	        {                                                       // inserted at all time, then you will   
 ; 128.	            result = SL811Read(IntStatus);       
 	LD	A,13
-	LD	BC,32939
+	LD	BC,0x80ab
 	OUT	(C),A
-	LD	B,127
+	dec B
 	IN	H,(C)
 	LD	B,H
 ; 129.	                                    // wait for interrupt to be done, and    
@@ -496,26 +404,22 @@ SL811
 .lo035:
 ; 135.	        }   
 ; 136.	   
-; 137.	        SL811Write(IntStatus,INT_CLEAR); // clear interrupt status   
-	LD	A,13
-	LD	B,128
-	OUT	(C),A
-	LD	A,255
-	LD	B,127
-	OUT	(C),A
+; 137.	        SL811Write(IntStatus,INT_CLEAR); // clear interrupt status  
+	LD	B,0x80
+	WRITE_REG .IntStatus,.INT_CLEAR
 ; 138.	        result    = SL811Read(EP0Status);                       // read EP0status register   
 	LD	A,3
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
-	LD	B,127
+	dec B
 	IN	H,(C)
 	LD	B,H
 	LD	IYH,B
 ; 139.	        remainder = SL811Read(EP0Counter);                      // remainder value in last pkt xfer   
 	LD	A,4
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
-	LD	B,127
+	dec B
 	IN	L,(C)
 	LD	B,L
 	LD	IYL,B
@@ -619,29 +523,29 @@ SL811
 ; 177.	                                   
 ; 178.	                    SL811Write(.ep0XferLen, xferLen);            // select next xfer length   
 	LD	A,2
-	LD	BC,32939
+	LD	BC,0x80ab
 	OUT	(C),A
 	LD	A,IXL
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),A
 ; 179.	                    SL811Write(EP0Address, dataX); //addr);               // data buffer addr    
 	LD	A,1
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),E
 ; 180.	                    SL811Write(IntStatus,INT_CLEAR);            // is a LS is on Hub.   
 	LD	A,13
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
 	LD	A,255
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),A
 ; 181.	                    SL811Write(EP0Control,cmd);                 // Enable USB transfer and re-arm   
 	XOR	A
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),D
 .lo054:
 ; 182.	                                }                    
@@ -722,16 +626,16 @@ SL811
 ; 210.	        {                                                          
 ; 211.	                SL811Write(IntStatus,INT_CLEAR);                // clear interrupt status, need to   
 	LD	A,13
-	LD	BC,32939
+	LD	BC,0x80ab
 	OUT	(C),A
 	LD	A,255
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),A
 ; 212.	                SL811Write(EP0Control,cmd);                     // re-arm and request for last cmd, IN token   
 	XOR	A
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),D
 ; 213.	                                result = 0;                                     // respond to NAK status only   
 	LD	IYH,0
@@ -764,16 +668,16 @@ SL811
 ; 223.	                }   
 ; 224.	                SL811Write(IntStatus,INT_CLEAR);                // clear interrupt status, need to   
 	LD	A,13
-	LD	BC,32939
+	LD	BC,0x80ab
 	OUT	(C),A
 	LD	A,255
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),A
 ; 225.	                SL811Write(EP0Control,cmd);                     // re-arm and request for last cmd again   
 	XOR	A
-	LD	B,128
+	LD	B,0x80
 	OUT	(C),A
-	LD	B,127
+	LD	B,0x7f
 	OUT	(C),D
 ; 226.	                        }   
 ; 227.	            else                                                   
@@ -1142,7 +1046,7 @@ SL811
 .GetDesc:
 	PUSH	BC
 ; 375.	    .usbstack.setup.bmRequest=0x80;   
-	LD	A,128
+	LD	A,0x80
 	LD	(.usbstack+7),A
 ; 376.	    .usbstack.setup.bRequest=GET_DESCRIPTOR;   
 	LD	A,6
@@ -1903,3 +1807,4 @@ SL811BUFREAD
 	ld a,b
 	jp nz,.rdloop
 	ret
+	display "sl811_size ",$-SL811

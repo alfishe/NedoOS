@@ -1,12 +1,10 @@
 path=..\_sdk\;..\..\_sdk\
 call compile.bat
-
 md tmp
 copy *.ast tmp
 copy *.var tmp
 del *.ast
 del *.var
-
 copy *.A_ tmp
 copy *.V_ tmp
 copy *.S_ tmp
@@ -15,10 +13,8 @@ del *.A_
 del *.V_
 del *.S_
 del *.I_
-
 del nedotok
 ren tok.bin nedotok
-
 nedotrd test.trd -n
 nedotrd test.trd -ah ..\batch\batch.$b
 nedotrd test.trd -s 64000 -ac ..\batch\batch
@@ -39,5 +35,4 @@ nedotrd test.trd -a ..\_sdk\lib.i
 nedotrd test.trd -a ..\_sdk\str.i
 nedotrd test.trd -a ..\_sdk\io.i
 nedotrd test.trd -a ..\_sdk\io.c
-
 ..\..\..\us\emul.exe test.trd
