@@ -183,7 +183,8 @@ mainloop
 
 strdelpages ;удаляем str страницы. IX - панель. Первую страничку не удаляем
 	ld hl, HS_strpg
-	ld de, (ix+PANEL.pgadd)
+	ld e, (ix+PANEL.pgadd)
+	ld d, (ix+PANEL.pgadd+1)
 	adc hl, de
 strdelpages_next
         inc hl
@@ -208,7 +209,8 @@ strnewpage ;выделяем новую страничку IX - панель, E номер странички в HS_strpg
 	ld hl, HS_strpg
 	pop de
 	adc hl, de
-	ld de, (ix+PANEL.pgadd)
+	ld e, (ix+PANEL.pgadd)
+	ld d, (ix+PANEL.pgadd+1)
 	adc hl, de
 	ld (hl), a
 	xor a
@@ -315,35 +317,7 @@ drawpanel_with_files
         call nv_setcolor
 
 	call drawpanel_head
-/*      call nv_getpanelxy_de
-        inc e
-	inc e
-        call nv_setxy
-	push ix
-	or a
-	ld de,(curpanel)
-	pop hl
-	push hl
-	sbc hl,de
-	pop hl
-	jr nz,drawpanel_dir
-	ld e,FILECURSORCOLOR
-	jr drawpanel_dir0
-
-drawpanel_dir
-	ld e,PANELCOLOR
-drawpanel_dir0
-	call nv_setcolor
-	ld de,PANEL.dir
-	add hl,de
-        ld c,0
-        call panelprtext
-*/
-
-
-
-
-      call drawpanelfilesandsize
+        call drawpanelfilesandsize
         
 drawpanel_files
 ;ix=panel
@@ -1309,6 +1283,8 @@ editcmd_2
         ld a,50
 editcmd_drvselector
         ld (windrv),a ;x
+	add 5
+	ld (windrverr),a
         ld (curpanel),hl
         ld hl,editcmd_reprintcurpanel;editcmd_reprintall_onlyreadcurdir
         push hl
@@ -1343,14 +1319,14 @@ seldrv_cury=$+1
         jr z,seldrv_redraw_mainloop
         ld hl,seldrv_cury
         cp key_enter
-        jr z,seldrv_ok
+        jr z,seldrv_selcursor
         cp key_esc
         ret z
 	cp 'a'
 	jr c,seldrv_cursor
 	cp 'p'
 	jr nc,seldrv_cursor
-	jr seldrv_ok0
+	jr seldrv_selletter
 seldrv_cursor
         ld bc,seldrv_mainloop
         push bc
@@ -1359,16 +1335,49 @@ seldrv_cursor
         cp key_up
         jr z,seldrv_up
         ret
+seldrv_selletter
+        sub 'a'
+	jr seldrv_ok
+seldrv_selcursor
+	ld a,(hl)
 seldrv_ok
-        ld a,(hl);(seldrv_cury)
-        add a,'A'
+	ld e,a
+	push de
+	OS_SETDRV
+	pop de
+	or a
+        jr z,seldrv_ok0
+	ld e,COLOR_RED
+	call nv_setcolor
+	ld hl,windrverr
+	call prwindow_waitkey
+	ld e,COLOR
+	call nv_setcolor
+	jp seldrv_redraw_mainloop
 seldrv_ok0
+	ld a,e
+        add 'a'
         ld ix,(curpanel)
         ld (ix+PANEL.dir),a
         ld (ix+PANEL.dir+1),':'
         ld (ix+PANEL.dir+2),'/'
         ld (ix+PANEL.dir+3),0
-        ret
+;	ld hl,ix
+;	ld de,PANEL.dir
+;	add hl,de
+;	ex hl,de
+;	OS_CHDIR
+;	or a
+;        ret z
+;	ld e,COLOR_RED
+;	call nv_setcolor
+;	ld hl,windrverr
+;	call prwindow_waitkey
+;	ld e,COLOR
+;	call nv_setcolor
+;	jp seldrv_redraw_mainloop
+	ret
+
 seldrv_down
         ld a,(hl)
         inc a
@@ -2116,16 +2125,16 @@ windrv
         db "  B: - 2nd Floppy",0,3
         db "  C: - 3rd Floppy",0,3
         db "  D: - 4th Floppy",0,3
-        db "  E: - IDE Master",0,3
-        db "  F: - IDE Slave",0,3
-        db "  G:",0,3
-        db "  H:",0,3
-        db "  I:",0,3
-        db "  J:",0,3
-        db "  K:",0,3
-        db "  L:",0,3
+        db "  E: - IDE Master p.1",0,3
+        db "  F: - IDE Master p.2",0,3
+        db "  G: - IDE Master p.3",0,3
+        db "  H: - IDE Master p.4",0,3
+        db "  I: - IDE Slave p.1",0,3
+        db "  J: - IDE Slave p.2",0,3
+        db "  K: - IDE Slave p.3",0,3
+        db "  L: - IDE Slave p.4",0,3
         db "  M: - SD Z-controller",0,3
-        db "  N:",0,3
+        db "  N: - SD NeoGS",0,3
         db "  O: - USB flash zx-net",0,3
         db 0 ;end of window
         
@@ -2200,6 +2209,14 @@ windel2
 windel2_file
 	db "                                                                ",0
         db 0 ;end of window
+
+windrverr
+	dw 0x040f ;de=yx
+        dw 0x0510 ;bc=hgt,wid
+        db 3 ;next line
+	db "Drive error!",0 
+        db 0 ;end of window
+
 
 tdotdot
 	dw "..",0

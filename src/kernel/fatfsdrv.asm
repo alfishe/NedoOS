@@ -80,11 +80,15 @@ devices_init_noIDEmaster
 devices_init_noIDEslave
 	dec a
 	jr nz,devices_init_noSD
+	ifdef KOE
+		call SD_INIT
+	else
     if atm==3 or atm==1
 		call SD_INIT
     else
         ld a,1
     endif
+	endif
 	ld (device_states+2),a
 	ret  
 devices_init_noSD

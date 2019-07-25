@@ -12,7 +12,7 @@ all: ${NAME}
 ${NAME}: ${SOURCES} ${OBJECTS}
 	${NEDOASM} movedisk.S_
 	cat asmerr.f
-	cp -f movedisk.bin ${NAME}
+	mv -f movedisk.bin ${NAME}
 
 %.ast %.var:
 	${NEDOLANG} movedisk.c ../_sdk/io.c
@@ -27,7 +27,7 @@ clean:
 	rm -f *.f *.D_ *.V_ *.bin *.var *.org *.pst
 
 install: all
-	cp ${NAME} ${INSTALLDIR}
+#	cp ${NAME} ${INSTALLDIR}
 
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

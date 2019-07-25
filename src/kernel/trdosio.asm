@@ -306,7 +306,7 @@ nfopen_fail
 trdossetdrvfromtrdosfcb
        ld l,TRDOSFCB.drive
        ld a,(hl)
-       ld (trdoscurdrive),a
+       ;ld (trdoscurdrive),a
        ld l,0
        ret
 
@@ -912,9 +912,17 @@ wrsectors.
 iodos.
 trdoscurdrive=$+1
         ld a,0
+	call iodos_setdrive
+        ;ld iy,23610
+	call dos3d13.
+        ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
+        ret
+
+iodos_setdrive
 trdosolddrive=$+1
         cp 0
-        jr z,iodos_nochdrive
+        ret z ;jr z,iodos_nochdrive
+        ld (trdoscurdrive),a
         ld (trdosolddrive),a
          ;jr $
         push bc
@@ -938,7 +946,4 @@ trdosolddrive=$+1
         pop de
         pop bc
 iodos_nochdrive
-        ;ld iy,23610
-	call dos3d13.
-        ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
-        ret
+	ret

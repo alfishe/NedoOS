@@ -8,7 +8,7 @@ DOCS		= nedoos.txt nedoos.new
 NEDOTRD		= _sdk/nedotrd.bin
 
 all:
-	echo "Use make atm2|atm2hd|atm3|atm3hd|atm3sd|pe26"
+	echo "Use make atm2|atm2hd|atm3|atm3hd|atm3sd|evosd|pe26"
 
 tools: ${TOOLS} 
 

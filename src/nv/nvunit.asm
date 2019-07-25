@@ -253,8 +253,8 @@ processfiles_proc=$+1
 	jp processfiles0
 processfilesq
         push iy
-        pop hl
 	call nv_batch
+	pop hl
         ret
 
 gotofilepointer_numberde

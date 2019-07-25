@@ -7,7 +7,7 @@ INSTALLDIR	= ../../release
 all: ${NAME} ${SOURCES}
 
 nv.com: ${SOURCES}
-	${SJASMPLUS} --nologo nv.asm
+	${SJASMPLUS} --nologo --nofakes nv.asm
 
 clean: 
 	rm -f ${NAME} ${OBJECTS}

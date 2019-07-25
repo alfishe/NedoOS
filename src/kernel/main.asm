@@ -113,6 +113,13 @@ COMPILEPG_SYS1=6
 begin
         xor a
         out (0xfe),a
+	
+	 ifdef KOE
+	 display "KOE!!!"
+	 ld a,0x10 ;noturbo
+	 ld bc,0xeff7
+	 out (c),a ;for KOE
+	 endif
 
         LD (IY+1),0xCC
 
@@ -646,6 +653,10 @@ EM3D13PP
         LD      (23823),A
         LD      (23824),A
         LD      (eRR2),A
+	;ld a,c
+	;ld (EM3D13PPopcode),a
+	;cp 0x18
+	;jr z,$
         EX      AF,AF'
         PUSH BC,DE,HL
         LD HL,0x5e00;5f00
@@ -667,27 +678,28 @@ eRR=$+1
 eRR2=$+1
         LD      A,0x00
         OR      A
-        RET     NZ
+        RET     NZ ;уже была ошибка
         LD      A,(23823)
         AND     A
-        RET     Z
+        RET     Z ;нет ошибки
         PUSH    AF
-       LD A,2
-       OUT (-2),A
+        LD      A,0xFF
+        LD      (eRR2),A ;это будет признак ошибки (изначально там 0)
+       ;LD A,2
+       ;OUT (-2),A
        ;PUSH    IX
-
        ;LD      IX,DISKERROR_TBL ;здесь y меня pисyется окно
        ;CALL    DRAW_WINDOWS     ;с надписью DISK ERROR
        ;CALL    PRINT_WINDOWS
-        XOR     A
-        IN      A,(0xFE)
-        CPL 
-        AND     0x1F
-        JR      Z,$-6             ;нажата ли кнопка
+        ;XOR     A
+        ;IN      A,(0xFE)
+        ;CPL 
+        ;AND     0x1F
+        ;JR      Z,$-6             ;нажата ли кнопка
        ;CALL    REST_WINDOW       ;востановили то, что было под
        ;POP     IX                ;окном
-       XOR A
-       OUT (-2),A
+       ;XOR A
+       ;OUT (-2),A
        ;CALL OLDRV
         POP     AF
         RET 
@@ -714,7 +726,15 @@ ERROR   POP     HL
        ;CALL    PRINT_WINDOWS     ;ABORT/RETRY/IGNORE
                                   ;инфy о тpеке/сектоpе можно
                                   ;взять из (0x5CF4)
-
+;если функция 0x18, то ошибка - всегда Abort
+;но реально на ошибке 0x18 сюда не попадаем
+;EM3D13PPopcode=$+1
+;	ld a,0
+;	jr $
+;	cp 0x18
+;	jr nz,ERROR0
+;	ld c,"A"
+;	jr ERRORABORT
 ERROR0  LD      A,0xFB        ;пpовеpяем нажатие клавиш R,A,I
         IN      A,(0xFE)
         LD      C,"R"
@@ -733,8 +753,9 @@ ERROR0  LD      A,0xFB        ;пpовеpяем нажатие клавиш R,A,I
 ERROR1  LD      A,C
         CP      "A"
         JR      NZ,$+7
+ERRORABORT
         LD      A,0xFF
-        LD      (eRR2),A
+        LD      (eRR2),A ;это будет признак ошибки (изначально там 0)
        ;PUSH    AF
        ;CALL    REST_WINDOW     ;востанавливаем то, что было
                                 ;под LOAD/SAVE ERROR окном

@@ -1934,14 +1934,14 @@ BDOS_setdrv
 ;BDOS_setdrvnfail
          
         ld l,NVOLUMES ;доступно 5 драйвов
-        xor a ;success
+        ;xor a ;success
         ret;jr rest_exit
         
 BDOS_setvol_rootdir
 ;установлена страница PGFATFS
           ld d,(iy+app.vol)
          ld (iy+app.vol),a
-BDOS_setrootdir
+;BDOS_setrootdir
 ;установлена страница PGFATFS
 ;CY=error (при NC a=0)
          xor a
@@ -1950,12 +1950,11 @@ BDOS_setrootdir
          ld (iy+app.dircluster+2),a
          ld (iy+app.dircluster+3),a
         CHECKVOLUMETRDOS
-        sbc a,a; ld a,0
-        ret c ;NC=no error, A=0
-        ;jr $
         push de
+        ;sbc a,a; ld a,0
+        jr c,BDOS_setrootdir_trdos ;ret c ;NC=no error, A=0
         call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
-	;jr $
+BDOS_setrootdir_q
         pop de
         or a
         ret z ;NC=no error, A=0
@@ -1963,6 +1962,13 @@ BDOS_setrootdir
          ld (iy+app.vol),a
          scf
         ret ;CY=error
+BDOS_setrootdir_trdos
+	push af
+        BDOSSETPGTRDOSFS
+	pop af
+	call iodos_setdrive
+	ld a,(eRR2) ;0=OK, 0xff=Abort
+	jr BDOS_setrootdir_q
         
 BDOS_delete
 ;DE = Drive/path/file ASCIIZ string
