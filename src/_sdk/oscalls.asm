@@ -1,11 +1,11 @@
 
-	MODULE OSSYSDRV
-	PUBLIC syspath
-	#include "syssets.asm"
-	RSEG	CONST
-syspath:
-	defb SYSDRV+'0',":/bin"
-	ENDMOD
+;	MODULE OSSYSDRV
+;	PUBLIC syspath
+;	;#include "syssets.asm"
+;	RSEG	CONST
+;syspath:
+;	defb SYSDRV+'0',":/bin"
+;	ENDMOD
 
 	MODULE ERRNOMOD
 	PUBLIC errno

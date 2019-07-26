@@ -1,9 +1,11 @@
 SET currentdir=%CD%
 SET releasedir=%CD%\..\release\
 @echo off
+
 if not exist ..\release mkdir ..\release 
 if not exist %releasedir%\bin mkdir %releasedir%\bin 
 if not exist %releasedir%\doc mkdir %releasedir%\doc 
+
 for %%i in (%currentdir%\fatfs4os,%currentdir%\kernel) do IF EXIST %%i\build.bat (
 	echo %%i
 	cd %%i
@@ -24,32 +26,45 @@ IF "%softbuilded%"=="" (
 		)
 	)
 	cd %currentdir%
+
 	FOR /R . %%i IN (*.txt) DO (
 		if exist %%i (
 			copy %%i %releasedir%\doc\ > nul
 		)
 	)
 	cd %currentdir%
+
 	FOR /R . %%i IN (*.new) DO (
 		if exist %%i (
 			copy %%i %releasedir%\doc\ > nul
 		)
 	)
 	cd %currentdir%
+
 	if not exist %releasedir%\bin\www mkdir %releasedir%\bin\www
 	copy appsdm\3ws\www\*.* %releasedir%\bin\www\
+
 	copy autoexec.bat %releasedir%\bin\ > nul
 	copy net.ini %releasedir%\bin\ > nul
+	copy games\smb\antipac.fm2 %releasedir%\bin\ > nul
+	copy ..\smb.nes %releasedir%\bin\ > nul
+	copy ..\nedoos-1.zip %releasedir%\bin\ > nul
 )
+
 if not "%1"=="noneedtrd" (
+        del %releasedir%\bin\*.zip > nul
+        del %releasedir%\bin\*.fm2 > nul
 	path=_sdk\
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
 	nedotrd test.trd -s 24576 -ac kernel/code.c
+
 	for %%i in (%releasedir%\bin\*.*) do (
 		nedotrd test.trd -a %%i
 	)
+
 	rem nedotrd test.trd -a scratch/lanscape.bmp
+
 	rem nedotrd test.trd -a nedolang/comp/sizesz80.h
 	rem nedotrd test.trd -a nedolang/comp/comp_os.s
 	rem nedotrd test.trd -a nedolang/comp/compc_os.s
@@ -58,6 +73,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a nedolang/comp/commands.c
 	rem nedotrd test.trd -a nedolang/comp/regs.c
 	rem nedotrd test.trd -a nedolang/comp/test.bat
+
 	rem nedotrd test.trd -a nedolang/_sdk/str.h
 	rem nedotrd test.trd -a nedolang/_sdk/io.h
 	rem nedotrd test.trd -a nedolang/_sdk/emit.h
@@ -68,6 +84,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a nedolang/_sdk/str.i
 	rem nedotrd test.trd -a nedolang/_sdk/io_os.i
 	rem nedotrd test.trd -a _sdk/sysdefs.asm
+
 	nedotrd test.trd -a basic/example.bas
 	rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
 	rem nedotrd test.trd -a player/coco.pt2
@@ -98,8 +115,11 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a browser/test/basi0g16.png
 	rem nedotrd test.trd -a pkunzip/pkunzip.zip
 	rem nedotrd test.trd -a modplay/scalsfjy.mod
+
 	nedotrd test.trd -a browser/test/newview.png
+
 	for %%i in (%releasedir%\doc\*.*) do (
 		nedotrd test.trd -a %%i
 	)
+        
 )
