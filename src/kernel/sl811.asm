@@ -411,18 +411,15 @@ SL811
 	LD	A,3
 	LD	B,0x80
 	OUT	(C),A
-	dec B
-	IN	H,(C)
-	LD	B,H
-	LD	IYH,B
+	IN	a,(0xab)
+	LD	h,a
+	LD	IYH,a
 ; 139.	        remainder = SL811Read(EP0Counter);                      // remainder value in last pkt xfer   
 	LD	A,4
-	LD	B,0x80
 	OUT	(C),A
-	dec B
-	IN	L,(C)
-	LD	B,L
-	LD	IYL,B
+	IN	a,(0xab)
+	LD	L,A
+	LD	IYL,A
 ; 140.	   
 ; 141.	        //-------------------------ACK----------------------------   
 ; 142.	        if (result & EP0_ACK)                                   // Transmission ACK   
@@ -526,25 +523,27 @@ SL811
 	LD	BC,0x80ab
 	OUT	(C),A
 	LD	A,IXL
-	LD	B,0x7f
+	dec B	;LD	B,0x7f
 	OUT	(C),A
+	inc B
 ; 179.	                    SL811Write(EP0Address, dataX); //addr);               // data buffer addr    
 	LD	A,1
-	LD	B,0x80
 	OUT	(C),A
-	LD	B,0x7f
+	dec B
 	OUT	(C),E
+	inc B
 ; 180.	                    SL811Write(IntStatus,INT_CLEAR);            // is a LS is on Hub.   
 	LD	A,13
-	LD	B,0x80
 	OUT	(C),A
 	LD	A,255
-	LD	B,0x7f
+	dec B
 	OUT	(C),A
+	inc B
 ; 181.	                    SL811Write(EP0Control,cmd);                 // Enable USB transfer and re-arm   
 	XOR	A
 	LD	B,0x80
 	OUT	(C),A
+	dec B
 	LD	B,0x7f
 	OUT	(C),D
 .lo054:
@@ -625,17 +624,12 @@ SL811
 .lo066:
 ; 210.	        {                                                          
 ; 211.	                SL811Write(IntStatus,INT_CLEAR);                // clear interrupt status, need to   
-	LD	A,13
 	LD	BC,0x80ab
-	OUT	(C),A
-	LD	A,255
-	LD	B,0x7f
-	OUT	(C),A
+	WRITE_REG .IntStatus,.INT_CLEAR
 ; 212.	                SL811Write(EP0Control,cmd);                     // re-arm and request for last cmd, IN token   
 	XOR	A
-	LD	B,0x80
 	OUT	(C),A
-	LD	B,0x7f
+	dec B
 	OUT	(C),D
 ; 213.	                                result = 0;                                     // respond to NAK status only   
 	LD	IYH,0
@@ -667,17 +661,12 @@ SL811
 .lo073:
 ; 223.	                }   
 ; 224.	                SL811Write(IntStatus,INT_CLEAR);                // clear interrupt status, need to   
-	LD	A,13
 	LD	BC,0x80ab
-	OUT	(C),A
-	LD	A,255
-	LD	B,0x7f
-	OUT	(C),A
+	WRITE_REG .IntStatus,.INT_CLEAR
 ; 225.	                SL811Write(EP0Control,cmd);                     // re-arm and request for last cmd again   
 	XOR	A
-	LD	B,0x80
 	OUT	(C),A
-	LD	B,0x7f
+	dec B
 	OUT	(C),D
 ; 226.	                        }   
 ; 227.	            else                                                   

@@ -496,7 +496,7 @@ LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим
 	call read32byteswaitnoffSD
 	exa  
 	dec a
-	jr z,errexitSD ;если карта 256 раз не ответила, то карты нет
+	jp z,errexitSD ;если карта 256 раз не ответила, то карты нет
 	exa  
 	dec a
 	jr nz,LL7c64
@@ -542,6 +542,22 @@ LL7cbf	ld hl,cmd16SD ;SET_BLOCKEN ;команда изменения размера блока
 	call read32byteswaitnoffSD
 	and a
 	jr nz,LL7cbf
+	
+	;запомним размер блока
+	ld a,0x7a ;READ_OCR
+	ld bc,0x0057
+	call outcom_zeroparsSD
+	call read32byteswaitnoffSD
+	in a,(C)
+	nop  
+	in h,(C)
+	nop  
+	in h,(C)
+	nop  
+	in h,(C)
+	and 0x40
+	ld (zsd_blsize),a
+	
 ;включение питания карты при снятом сигнале выбора карты 
 cs_highSD
         push af
@@ -603,7 +619,7 @@ outcom_zeroparsSD
 	dec a
 	out (C),a
 	ret  
-
+zsd_blsize DEFB 0
 ;запись команды чтения/записи с номером сектора в BCDE для карт стандартного размера
 ;при изменяемом размере сектора номер сектора нужно умножать на его размер, для карт
 ;SDHC, мини и микро размер сектора не требует умножения
@@ -612,20 +628,26 @@ setcmdparsSD
 	push de
 	push bc
 	push af
-	push bc
-	ld a,0x7a ;READ_OCR
+;	push bc
+;	ld a,0x7a ;READ_OCR
+;	ld bc,0x0057
+;	call outcom_zeroparsSD
+;	call read32byteswaitnoffSD
+;	in a,(C)
+;	nop  
+;	in h,(C)
+;	nop  
+;	in h,(C)
+;	nop  
+;	in h,(C)
+;	bit 6,a ;проверяем 30 бит регистра OCR (6 бит в «А»)
+;	pop hl       ;при установленном бите умножение номера сектора
+	ld h,b
+	ld l,c
+	call cs_lowSD
 	ld bc,0x0057
-	call outcom_zeroparsSD
-	call read32byteswaitnoffSD
-	in a,(C)
-	nop  
-	in h,(C)
-	nop  
-	in h,(C)
-	nop  
-	in h,(C)
-	bit 6,a ;проверяем 30 бит регистра OCR (6 бит в «А»)
-	pop hl       ;при установленном бите умножение номера сектора
+	ld a,(zsd_blsize)
+	or a
 	jr nz,LL7d40 ;не требуется
 	exd       ;при сброшенном бите соответственно
 	add hl,hl ;умножаем номер сектора на 512 (0x200)
