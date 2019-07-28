@@ -190,9 +190,10 @@ begin
 		ifn atm==1
 			call findpgdos
 		else
-			ld a,0x04
-			in a,(0xbe)
-			and 0xbf;%10111111
+			;ld a,0x04
+			;in a,(0xbe)
+			;and 0xbf;%10111111
+			ld a,0x8b
 		endif
          ld lx,a
         ld (sys_pgdos),a ;до установки резидента

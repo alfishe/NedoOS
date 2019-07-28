@@ -649,9 +649,9 @@ setcmdparsSD
 	ld a,(zsd_blsize)
 	or a
 	jr nz,LL7d40 ;не требуется
-	exd       ;при сброшенном бите соответственно
+	ex de,hl       ;при сброшенном бите соответственно
 	add hl,hl ;умножаем номер сектора на 512 (0x200)
-	exd  
+	ex de,hl  
 	adc hl,hl
 	ld h,l
 	ld l,d
