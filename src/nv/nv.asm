@@ -1309,14 +1309,14 @@ seldrv_cury=$+1
         inc e
         push de
         ld a,CURSORCOLOR;#38
-        ld b,4
+        ld b,22
         call drawfilecursor_sizeb ;draw cursor
         YIELDGETKEYLOOP
 	ld a,c
         pop de
         push af
         ld a,COLOR_DIALOG
-        ld b,4
+        ld b,22
         call drawfilecursor_sizeb ;remove cursor
         pop af
         cp key_redraw
@@ -1525,6 +1525,9 @@ editcmd_7 ;mkdir
         push hl
 	call setpaneldir
 
+
+	ld e,COLOR_DIALOG
+	call nv_setcolor
 	xor a
         ld hl,winmkdir
 	ld de,tnewfilename
