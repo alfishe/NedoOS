@@ -1958,8 +1958,10 @@ BDOS_setrootdir_q
         pop de
         or a
         ret z ;NC=no error, A=0
+		 ex af,af'
          ld a,d
          ld (iy+app.vol),a
+		 ex af,af'
          scf
         ret ;CY=error
 BDOS_setrootdir_trdos

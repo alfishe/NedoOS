@@ -911,19 +911,22 @@ wrsectors.
 	ld c,0x06
 iodos.
 trdoscurdrive=$+1
-        ld a,0
+        ld a,0xff
 	call iodos_setdrive
         ;ld iy,23610
 	call dos3d13.
         ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret
-
+	display "iodos_setdrive ",$
 iodos_setdrive
+		ex af,af'
+		xor a
+		LD	(eRR2),A
+		ex af,af'
 trdosolddrive=$+1
-        cp 0
-        ret z ;jr z,iodos_nochdrive
+        cp 0xff
+        ret z 
         ld (trdoscurdrive),a
-        ld (trdosolddrive),a
          ;jr $
         push bc
         push de
@@ -942,8 +945,14 @@ trdosolddrive=$+1
         or 0x3c
         ld (23830),a
         endif
+iodos_setdrv_exit
         pop hl
         pop de
         pop bc
+		ld a,(trdoscurdrive)
+		ld (trdosolddrive),a
+		ret
 iodos_nochdrive
-	ret
+		ld a,(trdosolddrive)
+        ld (trdoscurdrive),a
+		ret

@@ -121,6 +121,33 @@ begin
 	 out (c),a ;for KOE
 	 endif
 
+	if atm==1
+		ld bc,0x01bf
+		out (c),b
+		ld bc,0xdef7
+		ld a,0xeb
+		out (c),a
+		ld b,0xbe
+		in a,(c)
+		ld l,a
+		and 0x03
+		sla a
+		sla a
+		ld b,a
+		ld a,l
+		and 0x0c
+		cp b
+		jr z,no_fix_cmos_fdd
+		ld a,l
+		and 0xf3
+		or b
+		ld l,a
+		ld h,0xeb
+		rst 8
+		defw 0x0255
+no_fix_cmos_fdd
+	endif		
+		
         LD (IY+1),0xCC
 
         if 1==0
@@ -155,8 +182,6 @@ begin
         ;LD A,0xaa;%10101010 ;640x200 mode
         ;LD A,0xae;%10101110 ;textmode
 		if atm==1
-			ld bc,0x01bf
-			out (c),b
 			ld bc,0xbd77	;shadow ports and palette remain on
 			out (c),a
 			xor a
@@ -644,9 +669,10 @@ EM3D13PP
        LD      HL,ONERR;DDRV
        LD      (0x5CC3),HL
         LD      HL,ERR
-        EX      (SP),HL
+       EX      (SP),HL
         LD      (23613),SP
-        EX      AF,AF'
+        push BC,DE,HL
+		ex af,af'
 ;AC3=$+1
         LD      A,0xC3
         LD      (0x5CC2),A
@@ -658,12 +684,15 @@ EM3D13PP
 	;ld (EM3D13PPopcode),a
 	;cp 0x18
 	;jr z,$
-        EX      AF,AF'
-        PUSH BC,DE,HL
         LD HL,0x5e00;5f00
         LD DE,SYSBUF
         LD BC,256
         LDIR 
+		if atm == 1
+			xor a
+			out (0xbf),a
+		endif
+		ex af,af'
         POP HL,DE,BC
 EMCALL  JP      0x3D13
 ERR
@@ -704,6 +733,7 @@ eRR2=$+1
        ;CALL OLDRV
         POP     AF
         RET 
+		display "ONERR ",$
 ONERR
         EX      (SP),HL
         PUSH    AF

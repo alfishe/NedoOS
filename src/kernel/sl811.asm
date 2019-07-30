@@ -1796,4 +1796,3 @@ SL811BUFREAD
 	ld a,b
 	jp nz,.rdloop
 	ret
-	display "sl811_size ",$-SL811
