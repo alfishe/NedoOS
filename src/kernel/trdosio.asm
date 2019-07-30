@@ -306,7 +306,7 @@ nfopen_fail
 trdossetdrvfromtrdosfcb
        ld l,TRDOSFCB.drive
        ld a,(hl)
-       ;ld (trdoscurdrive),a
+       ld (trdoscurdrive),a
        ld l,0
        ret
 

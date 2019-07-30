@@ -12,15 +12,16 @@ CMDLINEY=23;24
 
 ;0 1 2 3 4 5 6 7 8 9 a b c d e f
 
-COLOR=7
+COLOR=0x07
 PANELCOLOR=0x4f;0xf
 PANELDIRCOLOR=0x4f;0xf
 PANELEXECOLOR=0x4c;0xf
 PANELFILECOLOR=0b00001111;0xf
 PANELSELECTCOLOR=0x4e
-CURSORCOLOR=0x38
+CURSORCOLOR=0x28
 FILECURSORCOLOR=0x28
 COLOR_RED=0x17
+COLOR_DIALOG=0x38
 
 PROGRESBARWINXY=0x0F16 ;0x0919 + 051f ;de=yx
 PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
@@ -1292,6 +1293,9 @@ editcmd_drvselector
 seldrv_redraw_mainloop
         ld hl,windrv
 ;hl=window
+	ld e,COLOR_DIALOG
+	call nv_setcolor
+
         call prwindow_text ;de=YX of last line
 seldrv_mainloop
         ld de,(windrv)
@@ -1311,7 +1315,7 @@ seldrv_cury=$+1
 	ld a,c
         pop de
         push af
-        ld a,COLOR
+        ld a,COLOR_DIALOG
         ld b,4
         call drawfilecursor_sizeb ;remove cursor
         pop af
@@ -1486,6 +1490,9 @@ editcmd_6 ;ren
         ld bc,12
         ldir
 
+	ld e,COLOR_DIALOG
+	call nv_setcolor	
+
         ld hl,winrename
 	ld de,tnewfilename
 	ld c,13
@@ -1631,6 +1638,8 @@ editcmd_5_0
 	ld de,dir_buf
 	call nv_strcopy_hltode
 
+	ld e,COLOR_DIALOG
+	call nv_setcolor
 	ld ix,(curpanel)
 
         ld hl,wincopy
