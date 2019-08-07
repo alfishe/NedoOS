@@ -23,7 +23,7 @@ NOPIRANHAPLANT=0 ;нет кактуса
 GOODPIRANHAPLANT=1 ;кактус и плевок лавы не убивают
 ALWAYSPRINCESS=0;1 ;no mushroom retainer (Toad), princess in every level-4
 
-FASTDEMOBEFOREBREAKPOINT=0;1 ;до брякпоинта в деме (прописывается как reset, т.е. вторая клеточка) не работает видеоконтроллер
+FASTDEMOBEFOREBREAKPOINT=0;1 ;(глючит логика игры) до брякпоинта в деме (прописывается как reset, т.е. вторая клеточка) реже работает видеоконтроллер
 ;при запуске грузится дема antipac.fm2 - если её нет, то включается режим записи
 ;кнопки: стрелки, a="A", s="B", Enter="START", Space="SELECT"
 ;Esc (Break, Caps Shift + Space) - выход в OS
@@ -1261,8 +1261,14 @@ prcharxy_behind
 
 EmulatePPU
 	if FASTDEMOBEFOREBREAKPOINT
+	ld a,0
+	sub 4
+	ld ($-1-2),a
+	 ;scf
+	jr c,EmulatePPU_noskipgo
 skipPPU=$
 	ret
+EmulatePPU_noskipgo	
 	endif
 ;ждать флаг ожидания готовности экрана (включается по прерыванию)
 ;иначе будет так:
@@ -1280,7 +1286,7 @@ endoflastredrawtimer=$+1
         ld de,0
         or a
         sbc hl,de
-        jr z,EmulatePPU_waitforscreenready0 ;что-то не так со сменой экранов?
+        jr z,EmulatePPU_waitforscreenready0
 
 	if OSCALLS
 curpalette=$+1
@@ -2637,4 +2643,4 @@ end
 	
 	savebin "smb.com",begin,end-begin
 	
-	LABELSLIST "user.l"
+	;LABELSLIST "user.l"

@@ -96,9 +96,9 @@ oldupdtimer=$+1
 	 ld (oldupdtimer),hl
 	     or a
 	     sbc hl,de
-	if FASTDEMOBEFOREBREAKPOINT
+	if 0;FASTDEMOBEFOREBREAKPOINT
 	     ld c,1
-	     jr z,logic0
+	     jr z,c_logic0
 	else
 	     jr z,nologic
 	endif
@@ -107,6 +107,7 @@ oldupdtimer=$+1
 	     cp c
 	     jr nc,$+3 ;больше бывает только в брякпоинтах
 	     ld c,l
+c_logic0
             ld hl,logicframe
             ld (hl),c
 	     ld b,0
@@ -116,7 +117,10 @@ logic0
             ld hl,logicframe
             dec (hl)
 	    jr nz,logic0
+		jr logicq
 nologic
+		halt
+logicq
         endif
              jmp EndlessLoop              ;endless loop, need I say more?
 
