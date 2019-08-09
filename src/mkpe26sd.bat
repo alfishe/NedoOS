@@ -6,6 +6,7 @@ echo SYSDRV=12 >> _sdk\syssets.asm
 echo INETDRV=0x01 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 echo 	define KOE >> _sdk\syssets.asm
+echo 	define KOEDI >> _sdk\syssets.asm
 if "%savepath%"=="" set savepath=%PATH%
 call make.bat noneedtrd
 path %savepath%

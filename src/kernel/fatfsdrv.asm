@@ -81,7 +81,13 @@ devices_init_noIDEslave
 	dec a
 	jr nz,devices_init_noSD
 	ifdef KOE
+	 ifdef KOEDI
+		di
+     endif
 		call SD_INIT
+	 ifdef KOEDI
+		ei
+     endif
 	else
     if atm==3 or atm==1
 		call SD_INIT
@@ -127,15 +133,27 @@ diskgetpars
         
 ;?????????????????????????????? чтение секторов
 devices_read
+	 ifdef KOEDI
+		di
+     endif
 	call BDOS_setdepage
 	call devices_read_go
 	push af
 	call BDOS_setpgstructs
 	pop af
+	 ifdef KOEDI
+		ei
+     endif
 	ret
 devices_readnopg
 	;call BDOS_setpgstructs
+	 ifdef KOEDI
+		di
+     endif
 	call devices_read_go
+	 ifdef KOEDI
+		ei
+     endif
 	;jr $
 	ret
 devices_read_go
@@ -173,13 +191,27 @@ readsectors_noIDEslave
 
 ;?????????????????????????????? запись секторов
 devices_write
+	 ifdef KOEDI
+		di
+     endif
 	call BDOS_setdepage
 	call devices_write_go
 	call BDOS_setpgstructs
 	xor a
+	 ifdef KOEDI
+		ei
+     endif
 	ret
 devices_writenopg
 	;call BDOS_setpgstructs
+	 ifdef KOEDI
+		di
+     endif
+	call devices_write_go
+	 ifdef KOEDI
+		ei
+     endif
+	ret
 devices_write_go
 	call diskgetpars
 	jr nz,writesectors_noIDEmaster
