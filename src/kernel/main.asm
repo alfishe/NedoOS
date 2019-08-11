@@ -121,30 +121,24 @@ begin
 	 out (c),a ;for KOE
 	 endif
 
-	if atm==1
+	if atm == 1
+;  fixed baud rate of 19200:  crystal is 3.686400 Mhz.
+;  Divisor is 3,686400/(16*baud)
+;        LD      A,2                   
+;        ld b,0xf8
+;        out (c),a
+;        XOR     A
+;        inc b	;ld b,0xf9
+;        out (c),a
+;        LD      A,00000011B
+;        ld b,0xfb
+;        out (c),a        
+;		dec b	;ld b,0xfa   ;reset fifo
+;		ld a,3
+;		out (c),a
+   
 		ld bc,0x01bf
 		out (c),b
-		ld bc,0xdef7
-		ld a,0xeb
-		out (c),a
-		ld b,0xbe
-		in a,(c)
-		ld l,a
-		and 0x03
-		sla a
-		sla a
-		ld b,a
-		ld a,l
-		and 0x0c
-		cp b
-		jr z,no_fix_cmos_fdd
-		ld a,l
-		and 0xf3
-		or b
-		ld l,a
-		ld h,0xeb
-		rst 8
-		defw 0x0255
 no_fix_cmos_fdd
 	endif		
 		
@@ -236,14 +230,18 @@ no_fix_cmos_fdd
         ld de,0xc000+idle;COMMANDLINE;PROGSTART ;idle code
         ld bc,trdosfs_sz
         ldir
-        ld hl,0x5c00
-        ld de,0xc000+0x1c00
-        ld bc,0x0400;0x5d3b-0x5c00
-        ldir
+			ld hl,0x5c00
+			ld de,0xc000+0x1c00
+			ld bc,0x0200;0x5d3b-0x5c00
+			ldir
         ld hl,wasresident
         ld de,resident+0xc000-0x4000
         ld bc,resident_sz
         ldir
+			ld hl,0x5c4b
+			ld de,varbas_stor+0x8000
+			ld bc,32
+			ldir
         
         ld hl,0xc000+trdos_fcbbuf-0x4000
         ld d,h
@@ -554,10 +552,11 @@ sys_SHADON=$-wasresident+resident
 
 ;TODO убрать в pgtrdos
 dos3d13_resident=$-wasresident+resident
+	display "$-wasresident+resident ",$-wasresident+resident
 ;сейчас включена pg5
 ;iy=23610
         ld (dos_sp),sp
-        ld sp,TRDOSSTACK ;надо стек в 0x4000+ (не пересекающийся с INTSTACK, т.к. сейчас может произойти системное прерывание), по умолчанию стек был в 0x3fxx
+        ld sp,trdos_sp ;надо стек в 0x4000+ (не пересекающийся с INTSTACK, т.к. сейчас может произойти системное прерывание), по умолчанию стек был в 0x3fxx
         ;call swap_sysvars
         ex af,af'
         call sys_SHADOFF ;включили ПЗУ
@@ -572,6 +571,7 @@ dos3d13_resident=$-wasresident+resident
         ;call swap_sysvars
 dos_sp=$+1-wasresident+resident
         ld sp,0
+		ld a,(0x5d0f)
         ret
 		
 	ifn atm==1
@@ -663,143 +663,68 @@ readtime=$-wasresident+resident
 ;использyй свои.
 ;Kurleson
 EM3D13PP
-        PUSH    HL
-        LD      HL,(23613)
-        LD      (eRR),HL
-       LD      HL,ONERR;DDRV
-       LD      (0x5CC3),HL
-        LD      HL,ERR
-       EX      (SP),HL
-        LD      (23613),SP
-        push BC,DE,HL
-		ex af,af'
-;AC3=$+1
-        LD      A,0xC3
-        LD      (0x5CC2),A
-        XOR     A
-        LD      (23823),A
-        LD      (23824),A
-        LD      (eRR2),A
-	;ld a,c
-	;ld (EM3D13PPopcode),a
-	;cp 0x18
-	;jr z,$
-        LD HL,0x5e00;5f00
-        LD DE,SYSBUF
-        LD BC,256
-        LDIR 
-		if atm == 1
-			xor a
-			out (0xbf),a
-		endif
-		ex af,af'
-        POP HL,DE,BC
-EMCALL  JP      0x3D13
-ERR
-eRR=$+1
-        LD      HL,0x0000
-        LD      (23613),HL ;??? eRR же не меняется ???
-        LD      A,0xC9
-        LD      (0x5CC2),A
-        LD DE,0x5e00;5f00
-        LD HL,SYSBUF
-        LD BC,256
-        LDIR 
-eRR2=$+1
-        LD      A,0x00
-        OR      A
-        RET     NZ ;уже была ошибка
-        LD      A,(23823)
-        AND     A
-        RET     Z ;нет ошибки
-        PUSH    AF
-        LD      A,0xFF
-        LD      (eRR2),A ;это будет признак ошибки (изначально там 0)
-       ;LD A,2
-       ;OUT (-2),A
-       ;PUSH    IX
-       ;LD      IX,DISKERROR_TBL ;здесь y меня pисyется окно
-       ;CALL    DRAW_WINDOWS     ;с надписью DISK ERROR
-       ;CALL    PRINT_WINDOWS
-        ;XOR     A
-        ;IN      A,(0xFE)
-        ;CPL 
-        ;AND     0x1F
-        ;JR      Z,$-6             ;нажата ли кнопка
-       ;CALL    REST_WINDOW       ;востановили то, что было под
-       ;POP     IX                ;окном
-       ;XOR A
-       ;OUT (-2),A
-       ;CALL OLDRV
-        POP     AF
-        RET 
-		display "ONERR ",$
+	ld (err_sp),sp
+	PUSH    HL
+	LD      HL,ONERR;DDRV
+	LD      (0x5CC3),HL
+	LD      HL,EM3D13PP_ERR
+	ex (sp),hl
+	LD      (23613),sp
+	ex af,af'
+	LD      A,0xC3
+	LD      (0x5CC2),A
+	XOR     A
+	ld (23801),a
+	LD      (23823),A
+	LD      (23824),A
+	push bc,de,hl
+	ld hl,varbas_stor
+	ld de,0x5c4b
+	ld bc,32
+	ldir
+	if atm == 1
+		ld a,1
+		out (0xbf),a
+		ld bc,0xff77
+		ld a,0xa6
+		out (c),a
+		;ld a,(23830)
+		;and 0x07
+		;out (0xff),a
+		xor a
+		out (0xbf),a
+	endif
+	pop hl,de,bc
+	ex af,af'
+	jp      0x3D13
+	;ld a,(0x5d0f)
+EM3D13PP_ERR
+err_sp=$+1
+	ld sp,0
+	ret
+	
 ONERR
         EX      (SP),HL
         PUSH    AF
+		ld a,(0x5d0f)
+		or a
+		jr nz,EM3D13PP_ERR
         LD      A,H
         CP      0x0D
         JR      Z,ERROR
+ONERR_NO
         POP     AF
         EX      (SP),HL
         RET 
-ERROR   POP     HL
-        POP     HL     ;ЕСЛИ L=0xD8, ТО        READ ONLY
-                       ;ИHАЧЕ DISK ERROR
-        POP     HL
-        POP     HL
-        POP     HL
-       LD A,2
-       OUT (-2),A
-       ;PUSH    IX
-       ;LD      IX,SAVELOADERROR_TBL ;здесь окно
-       ;CALL    DRAW_WINDOWS      ;LOAD/SAVE ERROR
-       ;CALL    PRINT_WINDOWS     ;ABORT/RETRY/IGNORE
-                                  ;инфy о тpеке/сектоpе можно
-                                  ;взять из (0x5CF4)
-;если функция 0x18, то ошибка - всегда Abort
-;но реально на ошибке 0x18 сюда не попадаем
-;EM3D13PPopcode=$+1
-;	ld a,0
-;	jr $
-;	cp 0x18
-;	jr nz,ERROR0
-;	ld c,"A"
-;	jr ERRORABORT
-ERROR0  LD      A,0xFB        ;пpовеpяем нажатие клавиш R,A,I
-        IN      A,(0xFE)
-        LD      C,"R"
-        BIT     3,A
-        JR      Z,ERROR1
-        LD      C,"A"
-        LD      A,0xFD
-        IN      A,(0xFE)
-        RRA 
-        JR      NC,ERROR1
-        LD      C,"I"
-        LD      A,0xDF
-        IN      A,(0xFE)
-        BIT     2,A
-        JR      NZ,ERROR0
-ERROR1  LD      A,C
-        CP      "A"
-        JR      NZ,$+7
-ERRORABORT
+ERROR   
         LD      A,0xFF
-        LD      (eRR2),A ;это будет признак ошибки (изначально там 0)
-       ;PUSH    AF
-       ;CALL    REST_WINDOW     ;востанавливаем то, что было
-                                ;под LOAD/SAVE ERROR окном
-       XOR A
-       OUT (-2),A
-       ;POP     AF
-       ;POP     IX
-        LD      HL,0x3F7E
-        EX      (SP),HL
-        JP       0x3D2F
-SYSBUF
-	ds 256
-
+		ld (0x5d0f),a
+		jr EM3D13PP_ERR
+		
+		ds 100
+trdos_sp
+varbas_stor
+		ds 32
         ent
 resident_sz=$-wasresident
         display "residentend=",resident+resident_sz,"<=",trdos_catbuf

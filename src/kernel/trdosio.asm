@@ -917,12 +917,8 @@ trdoscurdrive=$+1
 	call dos3d13.
         ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret
-	display "iodos_setdrive ",$
+		display "iodos_setdrive ",$
 iodos_setdrive
-		ex af,af'
-		xor a
-		LD	(eRR2),A
-		ex af,af'
 trdosolddrive=$+1
         cp 0xff
         ret z 
@@ -931,28 +927,61 @@ trdosolddrive=$+1
         push bc
         push de
         push hl
-        if 1==1
-        ld c,1
-	call dos3d13nopg.
-        ld c,0x18
-	call dos3d13nopg.
-        else
-        ;ld (23798),a
-        ; ld (23799),a
-        ;ld (23800),a
-        ;ld (23801),a
-        ld (23833),a
-        or 0x3c
-        ld (23830),a
+        if 1 == 1
+			ld (23833),a
+			ld (23798),a
+			ld (23800),a
+			ld (23801),a
+			or 0x3c
+			ld (23830),a
+			xor a
+			ld (23799),a
+	if atm == 1
+		ld a,1
+		out (0xbf),a
+		push bc
+		ld bc,0xff77
+		ld a,0xa6
+		out (c),a
+		ld a,(trdoscurdrive)
+		or 0x04
+		out (0xff),a
+		ld bc,0xbd77
+		ld a,0xae
+		out (c),a
+		xor a
+		out (0xbf),a
+		pop bc
+	endif
+			ld c,0x00
+			call dos3d13nopg.
+			ld a,(trdoscurdrive)
+			ld c,1
+			call dos3d13nopg.
+			;call iodos_chd_cherr
+			ld c,0x18
+			call dos3d13nopg.
+			call iodos_chd_cherr
+			;ld bc,0x0105
+			;ld hl,trdos_sectorbuf
+			;ld de,0x0008
+			;call dos3d13nopg.
+			;call iodos_chd_cherr
         endif
-iodos_setdrv_exit
+		ld a,(trdoscurdrive)
+		ld (trdosolddrive),a
+		xor a
+		jr iodos_chd_noerr
+iodos_chd_cherr
+		or a
+		ret z
+		ld a,0xff
+		ld (trdosolddrive),a
+        ld (trdoscurdrive),a
+		ld a,0xff
+		pop hl
+iodos_chd_noerr
         pop hl
         pop de
         pop bc
-		ld a,(trdoscurdrive)
-		ld (trdosolddrive),a
-		ret
-iodos_nochdrive
-		ld a,(trdosolddrive)
-        ld (trdoscurdrive),a
 		ret

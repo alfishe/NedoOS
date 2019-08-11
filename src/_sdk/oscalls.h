@@ -3,6 +3,7 @@
 void YIELD(void);
 void OS_SETGFX(unsigned char mode);
 void OS_CLS(unsigned char color);
+void OS_SETCOLOR(unsigned char color);
 void OS_SETXY(unsigned char x,unsigned char y);
 void OS_SCROLLUP(unsigned int xy, unsigned int wh);
 unsigned int _low_level_get(void);

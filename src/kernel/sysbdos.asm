@@ -1969,7 +1969,7 @@ BDOS_setrootdir_trdos
         BDOSSETPGTRDOSFS
 	pop af
 	call iodos_setdrive
-	ld a,(eRR2) ;0=OK, 0xff=Abort
+	;ld a,(eRR2) ;0=OK, 0xff=Abort
 	jr BDOS_setrootdir_q
         
 BDOS_delete
