@@ -120,27 +120,6 @@ begin
 	 ld bc,0xeff7
 	 out (c),a ;for KOE
 	 endif
-
-	if atm == 1
-;  fixed baud rate of 19200:  crystal is 3.686400 Mhz.
-;  Divisor is 3,686400/(16*baud)
-;        LD      A,2                   
-;        ld b,0xf8
-;        out (c),a
-;        XOR     A
-;        inc b	;ld b,0xf9
-;        out (c),a
-;        LD      A,00000011B
-;        ld b,0xfb
-;        out (c),a        
-;		dec b	;ld b,0xfa   ;reset fifo
-;		ld a,3
-;		out (c),a
-   
-		ld bc,0x01bf
-		out (c),b
-no_fix_cmos_fdd
-	endif		
 		
         LD (IY+1),0xCC
 
@@ -176,6 +155,8 @@ no_fix_cmos_fdd
         ;LD A,0xaa;%10101010 ;640x200 mode
         ;LD A,0xae;%10101110 ;textmode
 		if atm==1
+			ld bc,0x01bf
+			out (c),b
 			ld bc,0xbd77	;shadow ports and palette remain on
 			out (c),a
 			xor a
@@ -230,6 +211,10 @@ no_fix_cmos_fdd
         ld de,0xc000+idle;COMMANDLINE;PROGSTART ;idle code
         ld bc,trdosfs_sz
         ldir
+			ld a,0xc3
+			ld (0x5cc2),a
+			ld hl,ONERR;ddrv
+			ld (0x5cc3),hl
 			ld hl,0x5c00
 			ld de,0xc000+0x1c00
 			ld bc,0x0200;0x5d3b-0x5c00
@@ -664,15 +649,11 @@ readtime=$-wasresident+resident
 ;Kurleson
 EM3D13PP
 	ld (err_sp),sp
+	ex af,af'
 	PUSH    HL
-	LD      HL,ONERR;DDRV
-	LD      (0x5CC3),HL
 	LD      HL,EM3D13PP_ERR
 	ex (sp),hl
 	LD      (23613),sp
-	ex af,af'
-	LD      A,0xC3
-	LD      (0x5CC2),A
 	XOR     A
 	ld (23801),a
 	LD      (23823),A
@@ -683,21 +664,12 @@ EM3D13PP
 	ld bc,32
 	ldir
 	if atm == 1
-		ld a,1
-		out (0xbf),a
-		ld bc,0xff77
-		ld a,0xa6
-		out (c),a
-		;ld a,(23830)
-		;and 0x07
-		;out (0xff),a
 		xor a
 		out (0xbf),a
 	endif
 	pop hl,de,bc
 	ex af,af'
 	jp      0x3D13
-	;ld a,(0x5d0f)
 EM3D13PP_ERR
 err_sp=$+1
 	ld sp,0

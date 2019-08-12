@@ -116,6 +116,7 @@ function endUp(){
 		rddir(window.curDir);	
 		window.fileToUp.files=null; 
 		document.getElementById('btnUpload').innerHTML='upload';
+		window.r = new XMLHttpRequest();
 	}
 }
 fileToUp = document.getElementById("fileToUp");

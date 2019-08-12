@@ -927,34 +927,19 @@ trdosolddrive=$+1
         push bc
         push de
         push hl
-        if 1 == 1
-			ld (23833),a
-			ld (23798),a
-			ld (23800),a
-			ld (23801),a
-			or 0x3c
-			ld (23830),a
-			xor a
-			ld (23799),a
 	if atm == 1
-		ld a,1
-		out (0xbf),a
-		push bc
-		ld bc,0xff77
-		ld a,0xa6
-		out (c),a
-		ld a,(trdoscurdrive)
-		or 0x04
-		out (0xff),a
-		ld bc,0xbd77
-		ld a,0xae
-		out (c),a
-		xor a
-		out (0xbf),a
-		pop bc
-	endif
+			ld bc,0xfd77
+			ld a,0xa6
+			out (c),a
+			ld a,(trdoscurdrive)
+			or 0x04
+			out (0xff),a
+			ld bc,0xbd77
+			ld a,0xae
+			out (c),a
 			ld c,0x00
 			call dos3d13nopg.
+	endif
 			ld a,(trdoscurdrive)
 			ld c,1
 			call dos3d13nopg.
@@ -967,7 +952,6 @@ trdosolddrive=$+1
 			;ld de,0x0008
 			;call dos3d13nopg.
 			;call iodos_chd_cherr
-        endif
 		ld a,(trdoscurdrive)
 		ld (trdosolddrive),a
 		xor a
