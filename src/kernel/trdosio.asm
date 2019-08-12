@@ -917,6 +917,7 @@ trdoscurdrive=$+1
 	call dos3d13.
         ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret
+		
 		display "iodos_setdrive ",$
 iodos_setdrive
 trdosolddrive=$+1

@@ -478,23 +478,23 @@ blackpalend=$-1
         include "unmegalz.asm" ;DEC40
 
 wasresident
-        ;disp resident
+        disp resident
 		ifn atm==1
-readmouse=$-wasresident+resident
+readmouse  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
 ;out: hl=mousecoords, d=mousebuttons
-        call sys_SHADOFF
-        ld bc,0xfadf ;buttons
-        in d,(c)
-        inc b ;ld bc,0xfbdf ;x
-        in l,(c)
-        ld b,0xff ;y
-        in h,(c)
+			call sys_SHADOFF
+			ld bc,0xfadf ;buttons
+			in d,(c)
+			inc b ;ld bc,0xfbdf ;x
+			in l,(c)
+			ld b,0xff ;y
+			in h,(c)
 		endif
-shadon_pgsys=$-wasresident+resident
+shadon_pgsys  ;=$-wasresident+resident
         LD A,e;0xa8;%10101000 ;320x200 mode
-shadon_pgsys_a=$-wasresident+resident
+shadon_pgsys_a  ;=$-wasresident+resident
 		ifn atm==1
 			CALL sys_SHADON
 		else
@@ -515,11 +515,11 @@ shadon_pgsys_a=$-wasresident+resident
          else
 			ld a,0x7f-(pagexor-pgsys)
          endif
-sys_setpg_low=$-wasresident+resident
+sys_setpg_low  ;=$-wasresident+resident
 		ld bc,memportrom0000
 		jr sys_outca_jr
-sys_SHADOFF=$-wasresident+resident
-sys_pgdos=$+1 ;для патча
+sys_SHADOFF  ;=$-wasresident+resident
+sys_pgdos=wasresident+(($+1)-resident) ;для патча
 		ld a,0x83 ;48 basic switchable to DOS
 		call sys_setpg_low
         LD A,e;0xa8;%10101000 ;320x200 mode
@@ -528,7 +528,7 @@ sys_outca_jr
         out (c),a
 		ret
 		ifn atm==1
-sys_SHADON=$-wasresident+resident
+sys_SHADON  ;=$-wasresident+resident
 			LD bc,10835
 			PUSH bc
 			LD BC,0xBD77 ;shadow ports and palette remain on
@@ -536,33 +536,77 @@ sys_SHADON=$-wasresident+resident
 		endif
 
 ;TODO убрать в pgtrdos
-dos3d13_resident=$-wasresident+resident
-	display "$-wasresident+resident ",$-wasresident+resident
+dos3d13_resident  ;=$-wasresident+resident
+	display "dos3d13_resident ",$
 ;сейчас включена pg5
 ;iy=23610
-        ld (dos_sp),sp
+        ld (dos3d13_sp_st),sp
         ld sp,trdos_sp ;надо стек в 0x4000+ (не пересекающийся с INTSTACK, т.к. сейчас может произойти системное прерывание), по умолчанию стек был в 0x3fxx
         ;call swap_sysvars
         ex af,af'
         call sys_SHADOFF ;включили ПЗУ
-        ex af,af'
-         push de ;e=gfxmode
-        exx
-	call EM3D13PP;0x3d13
-         pop de ;e=gfxmode
+		ld (em3d13_de_st),de	;push de ;e=gfxmode
+		 
+		;*****************************	
+		;call EM3D13PP;0x3d13
+		;собственно дpайвеp, аналогичный 0x3д13 (и с его использованием)
+		;на выходе - A pавно 0 - все окей, не 0 - ошибка
+		;вместо  пpоцедyp DRAW_WINDOWS, PRINT_WINDOWS и REST_WINDOW
+		;использyй свои.
+		;Kurleson
+;EM3D13PP
+	ld      hl,em3d13pp_ret
+	push    hl
+	ld      (23613),sp
+	xor     a
+	ld (23801),a
+	ld      (23823),a
+	ld      (23824),a
+	ld hl,varbas_stor
+	ld de,0x5c4b
+	ld bc,32
+	ldir
+	if atm == 1
+		xor a
+		out (0xbf),a
+	endif
+	exx	;pop hl,de,bc
+	ex af,af'
+	jp      0x3D13
+	
+ONERR
+	ex      (sp),hl
+	push    af
+	ld a,(0x5d0f)
+	or a
+	jr nz,em3d13pp_ret
+	ld      a,h
+	cp      0x0d
+	jr      z,em3d13_error
+ONERR_NO
+	pop     af
+	ex      (sp),hl
+	ret 
+em3d13_error   
+	ld      a,0xff
+	ld (0x5d0f),a
+em3d13pp_ret
+	
+em3d13_de_st=$+1
+    ld de,0	;e=gfxmode
 	di
-        call shadon_pgsys ;выключили ПЗУ (неатомарно - две записи в порт!!!)
+    call shadon_pgsys ;выключили ПЗУ (неатомарно - две записи в порт!!!)
 	ei
         ;call swap_sysvars
-dos_sp=$+1-wasresident+resident
-        ld sp,0
-		ld a,(0x5d0f)
-        ret
+dos3d13_sp_st=$+1	;-wasresident+resident
+	ld sp,0
+	ld a,(0x5d0f)	;возврат ошибки
+	ret
 		
 	ifn atm==1
 NVRAM_REG=0xdf
 NVRAM_VAL=0xbf
-minmes=$-wasresident+resident
+minmes  ;=$-wasresident+resident
     ld h,a
     xor a
     srl h
@@ -573,14 +617,14 @@ minmes=$-wasresident+resident
     rra
     ret
 
-bcd2bin=$-wasresident+resident
+bcd2bin  ;=$-wasresident+resident
     ld b,NVRAM_REG
     out (c),a
     ld b,NVRAM_VAL
     in a,(c)
     ret
     
-readtime=$-wasresident+resident
+readtime  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
 ;out: hl=date, de=time
@@ -641,57 +685,8 @@ readtime=$-wasresident+resident
 	jp shadon_pgsys_a
 		endif
 
-	disp $-wasresident+resident
-;собственно дpайвеp, аналогичный 0x3д13 (и с его использованием)
-;на выходе - A pавно 0 - все окей, не 0 - ошибка
-;вместо  пpоцедyp DRAW_WINDOWS, PRINT_WINDOWS и REST_WINDOW
-;использyй свои.
-;Kurleson
-EM3D13PP
-	ld (err_sp),sp
-	ex af,af'
-	PUSH    HL
-	LD      HL,EM3D13PP_ERR
-	ex (sp),hl
-	LD      (23613),sp
-	XOR     A
-	ld (23801),a
-	LD      (23823),A
-	LD      (23824),A
-	push bc,de,hl
-	ld hl,varbas_stor
-	ld de,0x5c4b
-	ld bc,32
-	ldir
-	if atm == 1
-		xor a
-		out (0xbf),a
-	endif
-	pop hl,de,bc
-	ex af,af'
-	jp      0x3D13
-EM3D13PP_ERR
-err_sp=$+1
-	ld sp,0
-	ret
-	
-ONERR
-        EX      (SP),HL
-        PUSH    AF
-		ld a,(0x5d0f)
-		or a
-		jr nz,EM3D13PP_ERR
-        LD      A,H
-        CP      0x0D
-        JR      Z,ERROR
-ONERR_NO
-        POP     AF
-        EX      (SP),HL
-        RET 
-ERROR   
-        LD      A,0xFF
-		ld (0x5d0f),a
-		jr EM3D13PP_ERR
+	;disp $-wasresident+resident
+
 		
 		ds 100
 trdos_sp
