@@ -43,7 +43,11 @@ sys_newapp
         ld (iy+app.curcolor),7
         ld (iy+app.screen),fd_user
         ;ld (iy+app.gfxmode),0xa8;%10101000 ;320x200 mode
+		IFDEF NOTURBO
+        ld (iy+app.gfxmode),0xa6;%10101110 ;textmode
+		ELSE
         ld (iy+app.gfxmode),0xae;%10101110 ;textmode
+		ENDIF
         push iy
         pop de
         ld hl,app.pal

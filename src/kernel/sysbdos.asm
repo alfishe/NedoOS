@@ -969,7 +969,6 @@ BDOS_waitpid
          push iy
          ;set fwaiting,(iy+app.flags)
         ld c,(iy+app.id) ;my (parent's) id ;caller is the parent
-         ;jr $
         push bc
         call BDOS_findapp ;iy=found app
         pop bc
@@ -983,9 +982,6 @@ BDOS_waitpid_OK
         xor a
         ret
 
-;BDOS_setwaiting
-;        ret
-        
 BDOS_setgfx
         ;ld iy,(appaddr)
 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text
@@ -993,7 +989,11 @@ BDOS_setgfx
         ld a,e
         cp -1
         jr z,BDOS_gfxoff;BDOS_gfxoff_givefocus
-        or %10101000
+		IFDEF NOTURBO
+        or 0xa0;%10100000
+		ELSE
+        or 0xa8;%10101000
+		ENDIF
         ld (iy+app.gfxmode),a
         
 ;кладём фокус в стек, только если не два раза setgfx в одной задаче:

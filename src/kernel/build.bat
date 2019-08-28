@@ -9,4 +9,4 @@ del syscode.c
 del syscode.c.mlz
 cd ..
 %sjasmplus% --nologo kernel/hobeta.asm
-rem if "%currentdir%"=="" (pause)
+if "%currentdir%"=="" (pause)
