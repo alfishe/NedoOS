@@ -78,6 +78,12 @@ BDOS_wiznetwrite
         jp wiznet_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+BDOS_setborder
+        ;ld iy,(appaddr)
+;e=border=0..15
+        ld (iy+app.border),e
+        ret
         
 BDOS_setscreen
         ;ld iy,(appaddr)
@@ -89,14 +95,14 @@ BDOS_setscreen
         ld d,a
         or fd_user
         ld (iy+app.screen),a
-        xor a ;success
+        ;xor a ;success
         ret;jr rest_exit
 
 BDOS_getscreenpages
 ;out: de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld de,pgscr0_1*256+pgscr0_0
         ld hl,pgscr1_1*256+pgscr1_0
-        xor a
+        ;xor a
         ret
 
 BDOS_getappmainpages
@@ -116,7 +122,7 @@ BDOS_getmainpages_iy
         ld hl,(curpg32khigh+0xc000)
         ld h,a
         ld c,(iy+app.flags)
-        xor a
+        ;xor a
         ret
 
 BDOS_preparedepage
@@ -692,7 +698,9 @@ tbdoscmds
         db CMD_GETFILESIZE
         db CMD_DELETE
         db CMD_SETWAITING
+        db CMD_SETBORDER
 nbdoscmds=$-tbdoscmds
+        dw BDOS_setborder
         dw BDOS_setwaiting
         dw BDOS_delete
         dw BDOS_getfilesize

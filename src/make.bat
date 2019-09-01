@@ -48,7 +48,8 @@ IF "%softbuilded%"=="" (
 	copy net.ini %releasedir%\bin\ > nul
 	copy games\smb\antipac.fm2 %releasedir%\bin\ > nul
 	copy ..\smb.nes %releasedir%\bin\ > nul
-	copy ..\nedoos-1.zip %releasedir%\bin\ > nul
+	copy basic\example.bas %releasedir%\bin\ > nul
+	copy games\wolf3d\wolftex.* %releasedir%\bin\ > nul
 )
 
 if not "%1"=="noneedtrd" (
@@ -85,7 +86,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a nedolang/_sdk/io_os.i
 	rem nedotrd test.trd -a _sdk/sysdefs.asm
 
-	nedotrd test.trd -a basic/example.bas
+	rem nedotrd test.trd -a basic/example.bas
 	rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
 	rem nedotrd test.trd -a player/coco.pt2
 	rem nedotrd test.trd -a browser/test/index.htm
@@ -116,7 +117,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a pkunzip/pkunzip.zip
 	rem nedotrd test.trd -a modplay/scalsfjy.mod
 
-	nedotrd test.trd -a browser/test/newview.png
+	rem nedotrd test.trd -a browser/test/newview.png
 
 	for %%i in (%releasedir%\doc\*.*) do (
 		nedotrd test.trd -a %%i

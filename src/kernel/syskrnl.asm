@@ -136,6 +136,7 @@ mainpg          BYTE ;главная страница задачи (там userkernel)
 ;endmsg          WORD ;TODO адрес конца очереди сообщений этой задаче
 ;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
 ;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
+border          BYTE ;текущий цвет бордера 0..15
 screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
 gfxmode         BYTE ;текущий видеорежим ;значение для 0xbd77
 textcuraddr     WORD ;адрес курсора на экране
@@ -223,16 +224,23 @@ sys_int_popregs
         ld de,-safestack_sz
         add iy,de
         ld sp,iy
-        
+
 	pop de ;d=mainpg,e="a"
 	pop hl ;"hl"
         ld bc,memport0000
          exx
 	pop af
 	ex af,af'
-        pop af ;f, a=screenpg
-         ;ld a,(curscreen) ;(focusappaddr)+app.screen
          ld iy,(focusappaddr)
+         ld a,(iy+app.border)
+         cp 8
+         res 3,a ;tapeout sound
+         out (0xfe),a
+         jr c,sys_int_setborderq
+         out (0xf6),a
+sys_int_setborderq
+        pop af ;f, a=screenpg        
+         ;ld a,(curscreen) ;(focusappaddr)+app.screen
          ld a,(iy+app.screen)
 	pop ix
         pop hl

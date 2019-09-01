@@ -154,10 +154,10 @@ _1=$
         ld c,CMD_SETWAITING
 	CALLBDOS
         endm
-        ;macro OS_RESETWAITING
-        ;ld c,CMD_RESETWAITING
-	;CALLBDOS
-        ;endm
+        macro OS_SETBORDER
+        ld c,CMD_SETBORDER
+	CALLBDOS
+        endm
         macro OS_NETSOCKET;D=address family, E=socket type ; out: L=SOCKET(if L < 0 then A=error)
 	ld l,0x01
         ld c,CMD_WIZNETOPEN

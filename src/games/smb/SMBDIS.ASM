@@ -2325,8 +2325,8 @@ InitATLoop:
 ReadJoypads: 
         if Z80
 	if OSCALLS
+        OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
 	else
-        ;OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
         ld bc,0x7ffe
         in a,(c)
         ld lx,a  ;lx=%???bnmS_

@@ -38,7 +38,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
-;CMD_GETCOLOR=0xd8 ;e=color byte
+CMD_SETBORDER=0xd8 ;e=0..15
 CMD_SETWAITING=0xd9
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb
@@ -77,7 +77,7 @@ CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
 CMD_NEWPAGE=0xfc ;out: a=0 (OK), e=page
 CMD_DELPAGE=0xfd ;e=page
 CMD_SETSCREEN=0xfe ;e=screen=0..1
-;TODO ещё установку текущего обрабатываемого экрана
+;TODO ещё установку текущего обрабатываемого экрана?
 CMD_GETSCREENPAGES=0xff ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
 
 ;        STRUCT FCB
