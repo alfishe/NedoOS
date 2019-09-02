@@ -158,11 +158,32 @@ evosd:
 #	cp nedoos.\$$C ${INSTALLDIR}/osevosd.\$$C
 #	mv -f test.trd ${INSTALLDIR}/osevosd.trd
 
-pe26:
-	echo atm=3 > _sdk/syssets.asm
-	echo sys_npages=64 >> _sdk/syssets.asm
+evohd:
+	echo atm=1 > _sdk/syssets.asm
+	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
+	echo SYSDRV=4 >> _sdk/syssets.asm
+	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
+	${MAKE} hobeta
+	cp nedoos.\$$C ${INSTALLDIR}/osevohd.\$$C
+
+pe26:
+	echo atm=2 > _sdk/syssets.asm
+	echo sys_npages=64 >> _sdk/syssets.asm
+	echo NEMOIDE=0 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	mv -f test.trd ${INSTALLDIR}/osatm3.trd
+	${MAKE} trd
+	mv -f test.trd ${INSTALLDIR}/ospe26.trd
+
+pe26sd:
+	echo atm=2 > _sdk/syssets.asm
+	echo sys_npages=64 >> _sdk/syssets.asm
+	echo NEMOIDE=0 >> _sdk/syssets.asm
+	echo SYSDRV=0 >> _sdk/syssets.asm
+	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
+	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
+	${MAKE} hobeta
+	cp nedoos.\$$C ${INSTALLDIR}/ospe26sd.\$$C
