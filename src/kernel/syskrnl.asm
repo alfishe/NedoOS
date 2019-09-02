@@ -231,17 +231,9 @@ sys_int_popregs
          exx
 	pop af
 	ex af,af'
-         ld iy,(focusappaddr)
-         ld a,(iy+app.border)
-         cp 8
-         res 3,a ;tapeout sound
-         out (0xfe),a
-         jr c,sys_int_setborderq
-         out (0xf6),a
-sys_int_setborderq
         pop af ;f, a=screenpg        
-         ;ld a,(curscreen) ;(focusappaddr)+app.screen
-         ld a,(iy+app.screen)
+         ld ix,(focusappaddr) ;здесь снова, т.к. возможен вход из yield в sys_int_popregs (или надо дублировать там и гарантировать, что schedule и on_int не портят ix)
+         ld a,(ix+app.screen)
 	pop ix
         pop hl
         pop de
@@ -356,6 +348,14 @@ setgfxpal_focus
         dec hl
         ld b,(hl) ;DDp palette low bits
         OUT (c),d;(0xFF),A
+;focusappborder
+         ld ix,(focusappaddr)
+         ld a,(ix+app.border)
+         cp 8
+         res 3,a ;tapeout sound
+         out (0xfe),a
+         ret c
+         out (0xf6),a
         ret
 
 sys_sysint

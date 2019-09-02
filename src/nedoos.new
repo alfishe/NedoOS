@@ -828,3 +828,7 @@ v0.r211.1, 01.09.2019
 + добавлен вызов OS_SETBORDER
 + начато портирование wolf3d
 * в вызовах BDOS_getappmainpages, BDOS_getscreenpages, BDOS_setscreen убран возврат кода ошибки
+
+v0.r211.2, 02.09.2019
+
+- бордер мигал (demige)
