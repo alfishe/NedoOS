@@ -22,6 +22,7 @@ IF "%softbuilded%"=="" (
 				call build.bat
 				if exist *.com ( move *.com %releasedir%\bin\ > nul )
 				if exist *.ext ( copy *.ext %releasedir%\bin\ > nul )
+				if exist *.dat ( copy *.dat %releasedir%\bin\ > nul )
 			)
 		)
 	)

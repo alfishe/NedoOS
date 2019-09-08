@@ -1,0 +1,148 @@
+;тесты защит 19.12.97
+TSTA    LD A,2
+        OUT (254),A
+        CALL MEM0
+;-----pM
+TST#0   XOR A
+        LD HL,#4050
+        LD BC,#3600
+tst00   SUB (HL)
+        INC HL
+        DEC C
+        JR NZ,tst00
+        DEC B
+        JR NZ,tst00
+        LD HL,#4002
+        CP (HL)
+        JR NZ,$
+;-----p0
+TST#1   XOR A
+        LD HL,#C000
+        LD BC,#3400
+tst10   ADD A,(HL)
+        INC HL
+        DEC C
+        JR NZ,tst10
+        DEC B
+        JR NZ,tst10
+        LD HL,#400C
+        CP (HL)
+        JR NZ,$
+;-----pM
+TST#2   XOR A
+        LD HL,#4050
+        LD BC,#3600
+tst20   ADD A,(HL)
+        RRCA
+        INC HL
+        DEC C
+        JR NZ,tst20
+        DEC B
+        JR NZ,tst20
+        LD HL,#4043
+        CP (HL)
+        JR NZ,$
+;-----pM
+TST#3   XOR A
+        LD HL,#4050
+        LD BC,#3600/2
+tst30   ADD A,(HL)
+        INC HL
+        XOR (HL)
+        INC HL
+        DEC C
+        JR NZ,tst30
+        DEC B
+        JR NZ,tst30
+        LD HL,#4045
+        CP (HL)
+        JR NZ,$
+;-----p0
+TST#4   XOR A
+        LD HL,#C000
+        LD BC,#3400
+tst40   ADD A,(HL)
+        RLCA
+        INC HL
+        DEC C
+        JR NZ,tst40
+        DEC B
+        JR NZ,tst40
+        LD HL,#7650
+        CP (HL)
+	JR NZ,$
+;=======================================
+;-----p0
+TST#5   XOR A
+        LD HL,#C000
+        LD BC,#3400
+tst50   SUB (HL)
+        RLCA
+        INC HL
+        DEC C
+	JR NZ,tst50
+	DEC B
+	JR NZ,tst50
+	LD HL,#F4AF
+	CP (HL)
+	JR NZ,$
+;-----pM
+	CALL MEM7 ;7!
+TST#6   XOR A
+	LD HL,#4080
+	LD BC,#3500
+tst60   ADD A,(HL)
+	INC HL
+	DEC C
+	JR NZ,tst60
+	DEC B
+	JR NZ,tst60
+	LD HL,#DB00
+	CP (HL)
+	JR NZ,$
+;-----pM
+        CALL MEM7 ;7!
+TST#7   XOR A
+        LD HL,#4060
+        LD BC,#3500
+tst70   XOR (HL)
+        INC HL
+        DEC C
+        JR NZ,tst70
+        DEC B
+        JR NZ,tst70
+        LD HL,#FFFE
+        CP (HL)
+        JR NZ,$
+;-----pM
+        CALL MEM4 ;4!
+TST#8   XOR A
+        LD HL,#4050
+        LD BC,#3600
+tst80   XOR (HL)
+        ADD A,(HL)
+        INC HL
+        DEC C
+        JR NZ,tst80
+        DEC B
+        JR NZ,tst80
+        LD HL,#FF00
+        CP (HL)
+        JR NZ,$
+;-----p0
+        CALL MEM0 ;0!
+TST#9   XOR A
+        LD HL,#C100
+        LD BC,#3300
+tst90   XOR (HL)
+        INC HL
+        DEC C
+        JR NZ,tst90
+        DEC B
+        JR NZ,tst90
+        LD HL,#F4AE
+        CP (HL)
+        JR NZ,$
+        LD A,6
+        OUT (254),A
+        JR $

@@ -1,0 +1,194 @@
+
+LEVDAT	EQU	#79C0 ;адр. нач данных уровня
+	ORG	LEVDAT
+
+DSCR	EQU #4000
+
+*D-
+;********* Победа людей ****************
+
+isRUNC	; кодовый блок
+	LD A,1 ;кунги
+	JP F_CUTh
+
+Sc1
+*B ..\BARKOV\W_END_K.SCR
+Sc2
+*B ..\BARKOV\W_END2.SCR
+
+F_CUTh	DI
+	IM 1
+	LD SP,LEVDAT-2
+	LD B,A
+	PUSH BC
+	CALL OFFD
+	CALL _128
+	LD HL,Sc1
+	CALL COPYAT
+	;пробел?
+lggP	LD BC,#7FFE
+	IN A,(C)
+	AND %1
+	JR NZ,lggP
+	CALL OFFD
+	LD HL,Sc2
+	CALL COPYAT
+	CALL A_or_B
+	LD (tDRIVE),A
+	CALL OFFD
+	;чтение трек 0, сек 9 по 23845
+A009	EQU	23845
+L1st	CALL TR000
+	LD DE,#09
+	LD B,1
+	LD HL,A009
+	PUSH HL
+	CALL D_READ ;загр. табл.ф-лов
+	POP HL
+	JR C,L1st
+	;проверка метки диска D1,BB
+	LD A,(HL)
+	CP #D1
+	JR NZ,L1st
+	INC HL
+	LD A,(HL)
+	CP #BB
+	JR NZ,L1st
+	;перенос т.ф-лов
+	POP BC
+	LD A,(tDRIVE)
+	JP A009+2
+
+;------------------- вспом п/п
+
+A_or_B	;возвр: 0/1 - A/B
+	NOP
+	LD BC,#7FFE
+	IN A,(C)
+	AND %10000
+	LD A,1
+	RET Z
+	LD B,#FD
+	IN A,(C)
+	AND %1
+	RET Z
+	JR NZ,A_or_B
+
+
+
+_128	LD A,%10000
+	LD	BC,#7FFD
+	OUT	(C),A
+	RET
+
+OFFD	LD	DE,DSCR+#1AFE
+	PUSH DE
+	POP HL
+	INC HL
+	LD	BC,768
+	LD	(HL),0
+	LDDR
+	LD	BC,6143
+	LD	(HL),255
+	LDDR
+	RET
+
+COPYAT	;из HL
+	LD	BC,6912
+	LD	DE,DSCR
+	LDIR
+	RET
+
+;-------tr/dos
+RG_DOS	LD	IX,#2A53 ;выв в рег TRDOS (out (C),A:ret)
+	JR	DOS
+
+DOS	PUSH	IX
+	JP	#3D2E
+
+POS	;позиционир трек
+	LD C,#3C
+	LD A,(SIDE)
+	OR A
+	JR	Z,DW_SID
+	RES	4,C
+DW_SID	LD A,(tDRIVE)
+	OR C
+	LD	C,#FF
+	CALL	RG_DOS
+	LD	A,D
+	LD	C,#7F
+	CALL	RG_DOS
+	LD	A,#18
+	LD	IX,#2F57 ;вып ком TRDOS
+	JP DOS
+
+RD_SCT	LD	BC,RD_SCT ;по этому адресу = 1
+	PUSH	BC
+	LD	BC,#17F
+	LD	IX,#2090  ;чтение сектора из п/п форматирования(портит#5cd6)
+	JR	DOS
+
+TR000	CALL TR00 ;иниц дисковода + задержка
+	CALL TR00
+	CALL TR00
+TR00	DI
+	LD	D,0
+	CALL	POS
+	LD	IX,#2F65 ;ld a,8:jr 2f57
+	JR	DOS
+
+tDRIVE	DEFB 0
+SIDE	DEFB 0
+
+
+D_READ	DI ;E-sec,D-trk,B-sec.num,HL-mem.adr
+	CALL	POS
+	LD	A,(#5CD6)
+	EX	AF,AF'
+NXT_S	DEFB	#DD
+	LD	L,#3 ;retry.num
+NXT_SC	PUSH	HL
+	PUSH	BC
+NXC_C1	PUSH	IX
+	LD	C,#5F
+	LD	A,E
+	CALL	RG_DOS
+	CALL	RD_SCT
+	DI
+	LD	HL,#5CD6
+	EX	AF,AF'
+	CP	(HL)
+	POP	IX
+	JR	Z,GOOD
+	LD	(HL),A
+	DEFB	#DD
+	DEC	L
+	POP	BC
+	POP	HL
+	JR	Z,ERR_RW
+	EX	AF,AF'
+	JR	NXT_SC
+GOOD	POP	BC
+	POP	HL
+	EX	AF,AF'
+GOOD1	INC	E
+	LD	A,E
+	CP	#F9
+	JR	C,OLD_TR
+	LD	E,#F4
+	INC	D
+	CALL	POS
+OLD_TR	INC	H
+	INC	H
+	INC	H
+	INC	H
+	DJNZ	NXT_S
+	XOR	A
+	RET
+
+ERR_RW	SCF
+	RET
+
+
+
