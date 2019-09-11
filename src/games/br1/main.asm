@@ -113,12 +113,10 @@ getttexpgs_bagepg=$+1
         ;call genscalers
 
         call swapimer
-
-        call GO
-        
-        call swapimer
-        
-        QUIT
+        jp GO
+        ;call GO
+        ;call swapimer
+        ;QUIT
 
 texfilename
         db 0,"br0.dat",0

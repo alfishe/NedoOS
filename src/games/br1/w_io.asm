@@ -253,7 +253,7 @@ LOADOSpp
 
 LOADms  ;загр. офрмл. уровня
 
-        jr $
+        ;jr $
 
         ;пров защиты
         EX AF,AF'
@@ -270,7 +270,7 @@ LOADms_nonewlevel
         endif
 
         if 1==1
-        call swapimer
+        call swapimer ;делает ei
         im 1
         ;загр ландш A=1..4
         CALL MEM1
@@ -285,6 +285,7 @@ LOADms_nonewlevel
         ld hl,LAND ;addr
         call LOADOSpp
         LD DE,#FFFF
+         di
         CALL DELPZX
 lad2
         ;--загр панели
@@ -305,6 +306,7 @@ lad2
         ld hl,WBUTT ;addr
         call LOADOSpp
         LD DE,WNAMES
+         di
         CALL DELPZX
 lad3
         ;--загр муз A=0..7
@@ -320,9 +322,10 @@ lad3
         ld hl,WMUSIC ;addr
         call LOADOSpp
         LD DE,#FFFF
+         di
         CALL DELPZX
 lad1
-        call swapimer
+        call swapimer ;делает ei
         im 2
         
         else
@@ -527,10 +530,13 @@ LODlev  ;загр нов уровня
         OS_READHANDLE
         pop bc
         OS_CLOSEHANDLE
+       pop hl
+        LD DE,#BFFE
+         di
+        CALL DELPZX
         
         call swapimer
         im 2
-       pop hl
         
         else
 
@@ -546,11 +552,12 @@ LLV0    LD A,(LEVEL)
         PUSH HL
         CALL READ
         POP HL
+
+        LD DE,#BFFE
+        CALL DELPZX
         
         endif
         
-        LD DE,#BFFE
-        CALL DELPZX
          ;jr $
         CALL MEM0
         CALL isRUNL ;для заключ уровней - набор данных

@@ -518,6 +518,27 @@ M_M5	CALL PRINTS
 M_M6	POP AF
 	JP Z,LODrtr
 	;exit
+        
+        if 1==1
+;NedoOS
+        call swapimer
+        im 1
+        call shutay ;outSND уже затёрт?
+        ei
+        QUIT
+shutay
+	ld de,0xe00
+shutay0
+	dec d
+	ld bc,0xfffd
+	out (c),d
+	ld b,0xbf
+	out (c),e
+	jr nz,shutay0
+	ret
+
+        else
+        
 	DI
 	LD HL,#4000
 	LD DE,#4001
@@ -527,6 +548,7 @@ M_M6	POP AF
 	XOR A
 	LD BC,#7FFD
 	JP M_Mexi
+        endif
 
 YES_NO	LD BC,#DFFE  ;Z-Yes/NZ-No
 	IN A,(C)

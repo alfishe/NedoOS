@@ -519,6 +519,7 @@ ipp0	CALL NUMBER ;(1-4)
 ;NedoOS
         call swapimer
         im 1
+        ei
         QUIT
         
         else
