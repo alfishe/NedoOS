@@ -488,7 +488,11 @@ WY2	;для героя
 	LD E,A
 	SUB 9
 	JR NC,WY1
+        if 1==0
 	LD A,4 ;люди
+        else
+        call MEM_humans
+        endif
 	JR WY0
 WY1	LD E,A
 	CP 9

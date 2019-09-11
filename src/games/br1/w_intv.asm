@@ -131,6 +131,7 @@ vptR	EXX
 	EI
 	RET
 
+        if 1==0
 ON256	LD	A,%10000
 	JR	M2
 OFF256	XOR	A
@@ -140,7 +141,7 @@ M2	LD	BC,#1FFD ;скорп
 	LD	B,#7F
 	OUT	(C),A ;пент
 	RET
-
+        endif
 
 INAR0	;Обр прерываний
 	PUSHs

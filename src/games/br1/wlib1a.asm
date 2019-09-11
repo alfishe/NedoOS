@@ -1619,12 +1619,14 @@ isEND	LD A,(TheEND)
 	RET
 
 MU_EN_ ;[--14]
+        if 1==0
 	PUSH AF
 	LD HL,WX_LEN+82
 	LD A,(WX_BAD+14)
 	CP (HL)
 	JR NZ,isEND1 ;err
 	POP AF
+        endif
 	JP MU_END
 
 isEND1	;проверка окончания боя (Z/NZ-ok/конец (A=1/2-победа наших/врагов)
@@ -1730,6 +1732,7 @@ LODn1	CALL LODlev
 	LD BC,12
 	LDIR
 	XOR A
+         ;jr $
 	CALL LOADms	;i/o;C=0
 _start	CALL shadwS	;--1
 	CALL ANIset	;1
@@ -1773,7 +1776,7 @@ NNN	;игровой цикл
 	CALL dMAGIC ;6
 	CALL SPLIN  ;6
 	CALL REpeon ;6
-	LD SP,#403E
+	LD SP,#403E ;???
 	CALL MEM1   ;---1
 	CALL REMONT ;1
 	CALL MEM0   ;---0
@@ -1841,9 +1844,9 @@ wMAIN  ;в этом порядке
 	DI
 ;;;;;;;;*F W_CRC
 	CALL MEM6
-	LD A,(#EEC9) ;портится прерываниями
+	LD A,(#EEC9) ;портится прерываниями ;патч к музыке
 	PUSH AF
-	LD A,(#F221) ;портится прерываниями
+	LD A,(#F221) ;портится прерываниями ;патч к музыке
 	PUSH AF
 	CALL DEMO
 	DI
@@ -1862,6 +1865,7 @@ bWAIT	CALL CONTR
 	RET NZ
 
 putBAR	;выв панели
+         ;jr $
 	CALL OFFS
 	LD DE,DSCR
 	LD HL,#0018

@@ -6,10 +6,12 @@ COMPUT	;подгот данных для выв панели
 	LD A,(NAME)
 	CALL putTX
 	CALL BUTmw
+       if 1==0
        LD HL,WX_BAD-#2080
        LD A,(TIC)
        CP 64
        CALL Z,_crc9
+       endif
 	JP gtINDY
 
 ;---операц с деньгами/лесом
@@ -132,6 +134,7 @@ c_d1	INC HL
 	CCF
 	RET
 
+        if 1==0
 _crc9	;[--9]
 	LD A,(LEVEL)
 	CP 6
@@ -148,6 +151,7 @@ _crc9a	LD A,(HL)
 	CP (HL)
 	RET Z
 	CALL MEM7 ;err
+        endif
 
 BUTmw	;уcт знач денег/леc по кнопкам
 	LD HL,(BX)

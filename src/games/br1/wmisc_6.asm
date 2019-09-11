@@ -500,11 +500,11 @@ INI123	DI
 	CALL INImg1
 ipp0	CALL NUMBER ;(1-4)
 	CP 5
-	JR NC,ipp00
+	JR NC,ipp00 ;секретная комбинация
 	CALL INImg2
 	CP 3
-	JP Z,INIlod
-	JR C,INInew
+	JP Z,INIlod ;загрузка отгрузки
+	JR C,INInew ;новая игра (1/2)
 	;exit
 	CALL NO_NUM
 	LD DE,#808
@@ -514,6 +514,15 @@ ipp0	CALL NUMBER ;(1-4)
 	LD DE,#A0A
 	LD HL,ITX4
 	CALL PRINTS
+
+        if 1==1
+;NedoOS
+        call swapimer
+        im 1
+        QUIT
+        
+        else
+        
 	EI
 	LD B,120
 EEE	HALT
@@ -530,7 +539,7 @@ EEE	HALT
 	LD BC,#7FFD
 	OUT (C),A
 	JP 0
-
+        endif
 
 ITX4	DEFB  25,67,10,56,10, 55,64,79,47,127
 ipp00	CP 8
@@ -677,6 +686,7 @@ ppi4	CALL NUMBER
 TXdsT1	DEFB 14,65,66,48,50,74,66,53,10, 30,82,91,102,26,83, 127 ;вст.ТР-ДОС
 TXdsT2	DEFB 52,56,65,58,10, 65,10, 62,66,51,64,67,55,58,48,60,56, 127 ;д с отгр
 
+;TODO убрать???
 A_or_B	;возвр: 0/1 - A/B
 	NOP
 	LD BC,#7FFE
@@ -694,6 +704,7 @@ TXdsk1	DEFB 14,65,66,48,50,74,66,53,10, 52,56,65,58,10, 2,127 ;insert d2
 TXdsk2	DEFB 56,10, 67,58,48,54,56,66,53,10, 56,60,79,127 ;и укажите имя
 TXdsk3	DEFB 52,56,65,58,62,50,62,52,48,10, 87,12,90,13,88,43,10,127 ;д-ва
 
+;TODO убрать???
 INI_D2	CALL MEM7
 	CALL STS
 	LD DE,#105  ;дисковод c диском 2
@@ -730,6 +741,9 @@ INI_D2	CALL MEM7
 
 BF_256	DEFS 1024,#BF
 LOD1st	;первичн загр
+
+        if 1==0
+
 	CALL selD_2
 	CALL TR000
 	LD DE,#09
@@ -752,8 +766,11 @@ LOD1st	;первичн загр
 	LD DE,WX_LEN
 	LD BC,numFL
 	LDIR
+        
+        endif
+        
 	;выбрать: князь или гризольда?
-	LD A,(MASTER)
+	LD A,(MASTER) ;в зависимости от того, за кого играем
 	OR A
 	RET Z
 	CALL MEM6
@@ -965,7 +982,7 @@ oss7	OUT (C),A
 
 LDI123	CALL LDItmp
 	CALL INI123 ;->>
-
+;???
 ;относятся к загрузке игры
 ;*L+
 	DEFS #FE00-$,98

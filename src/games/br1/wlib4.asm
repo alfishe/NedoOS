@@ -1,6 +1,7 @@
 ;----ВЫБОР ГЕРОЕВ--------
 
 oneSEL	;кто выбран в xy=HL
+        ;jr $
 	LD HL,(PX)
 	LD A,L
 	DEC A

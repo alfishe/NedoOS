@@ -226,7 +226,69 @@ selD_2  LD A,(DISK_2)
 selD_   LD (tDRIVE),A
         RET
 
+muzfilename
+        db "brmuz1.dat",0
+barfilename
+        db "brbar.dat",0
+butfilename
+        db "brbuth.dat",0
+sprfilename
+        db "brspr1.dat",0
+
+LOADOSpp
+        push hl
+        OS_OPENHANDLE
+        pop de
+       push de
+        ld hl,0x4000 ;size
+        push bc
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+       POP HL
+        ret
+
 LOADms  ;загр. офрмл. уровня
+
+        if 1==1
+        call swapimer
+        im 1
+
+        ;загр ландш A=1..4
+        CALL MEM1
+        ld de,sprfilename
+        ld hl,LAND ;addr
+        call LOADOSpp
+        LD DE,#FFFF
+        CALL DELPZX
+        
+        ;--загр панели
+        ld de,barfilename
+        ld hl,DSCR ;addr
+         ;jr $
+        call LOADOSpp
+        
+        ;--загр кнопок A=0..1
+        CALL MEM7
+        ld de,butfilename
+        ld hl,WBUTT ;addr
+        call LOADOSpp
+        LD DE,WNAMES
+        CALL DELPZX
+        
+        ;--загр муз A=0..7
+        CALL MEM6
+        ld de,muzfilename
+        ld hl,WMUSIC ;addr
+        call LOADOSpp
+        LD DE,#FFFF
+        CALL DELPZX
+        
+        call swapimer
+        im 2
+        
+        else
+
         ;пров защиты
         EX AF,AF
         CALL MEM0
@@ -268,12 +330,19 @@ lad3    ;--загр муз A=0..7
         ADD A,9
         LD HL,WMUSIC
         CALL READ_F
-lad1    LD HL,(WX_BAD+1) ;[--8]
+lad1    
+        endif
+
+        if 1==1
+        JP MEM0
+        else
+        LD HL,(WX_BAD+1) ;[--8]
         LD A,H
         SUB L
         LD HL,WX_BAD+8
         CP (HL)
         JP Z,MEM0
+        endif
 
 ;----------сохр игры--
 
@@ -386,8 +455,33 @@ svvCP0  LD A,(DE)
         POP DE
         JP DECODE
 
+levfilename
+        db "br101.dat",0
+
 ;-------- i/o
 LODlev  ;загр нов уровня
+
+        if 1==1
+;TODO ei и восстановить патч музыки???
+        call swapimer
+        im 1
+        ;jr $
+        ld de,levfilename
+        OS_OPENHANDLE
+        ld de,LEVDAT ;addr
+       push de
+        ld hl,0x4000 ;size
+        push bc
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+        
+        call swapimer
+        im 2
+       pop hl
+        
+        else
+
         CALL selD_2
         LD A,(MASTER)
         OR A
@@ -400,8 +494,12 @@ LLV0    LD A,(LEVEL)
         PUSH HL
         CALL READ
         POP HL
+        
+        endif
+        
         LD DE,#BFFE
         CALL DELPZX
+         ;jr $
         CALL MEM0
         CALL isRUNL ;для заключ уровней - набор данных
         CALL OFFS

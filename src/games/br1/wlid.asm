@@ -72,6 +72,7 @@ MEM_kungs
 MEM_snd	LD A,3 ;страница с эффектами
 	JR MEM 
         endif
+MEM_humans
 MEM4	LD A,4
 	JR MEM
 MEM_char1 ;креат 25-26
@@ -85,7 +86,7 @@ MEM6	LD A,6
 MEM7	LD	A,7
 MEM	
         if 1==1
-        OR	%11000
+        ;OR	%11000
          jp _128
         else
         OR	%11000

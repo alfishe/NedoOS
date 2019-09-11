@@ -45,7 +45,7 @@ G_MY	DEFB  010
 G_SIZE	DEFB 8	    ;высота курс
 G_IMG	DEFW G_MAP1 ;изобр курс
 GBU1	DEFS 16,#F0 ;копия из SCR
-GBAD1	DEFW 0	    ;адр копии в SCR
+GBAD1	DEFW 0x0800;0	    ;адр копии в SCR ;запарывает это место при первом вызове
 GBU2	ds 16     ;копия из DSCR
 GBAD2	DEFW 0	    ;
 
@@ -177,7 +177,7 @@ BrWOOD	DEFB 1 ;число ударов по дверям/дереву
 QSC	JP QSCt1 ;тип сканирования: QSCt1,QSCt1H,QSCt2,QSCt2h
 
 ;/BCD
-DCstr	DEFM "Cлавa"
+DCstr	db "Cлавa"
 	DEFB #7F
 ;/SAVlev
 TXMgme	DEFB 20,51,64,48,91,0,0,0,127
@@ -289,7 +289,7 @@ LEV_T	DEFB 0	;тип карты - 0/1 - обычн/подземелье [MAP+0]==0/1
 TIC3	DEFB 1	;\ внутр таймер 0..2
 TIC	DEFB 0	;/ внутр таймер 0..255
 isMAP	DEFB 0	;0/1 - поле/карта
-isTST8	DEFB 3	;[**]
+        nop ;isTST8	DEFB 3	;[**]
 SET_SP	LD SP,0 ;(**) - изм
 	RET	;
 JP_SUB	JP 0	;(**)

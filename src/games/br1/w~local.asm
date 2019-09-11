@@ -3,7 +3,7 @@
 invBUF			  ;буфер инверсии спрайтов 3х2
 ;/READ
 WX_LEN	EQU invBUF+96	  ;место для табл.ф-лов
-WX_BAD	EQU WX_LEN+111	  ;место для табл.BAD-секторов
+;WX_BAD	EQU WX_LEN+111	  ;место для табл.BAD-секторов
 ;/INTRP
 DBL_SP	EQU WX_LEN+numFL+42  ;стек прерываний
 
