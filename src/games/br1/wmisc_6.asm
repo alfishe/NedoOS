@@ -544,6 +544,7 @@ EEE	HALT
 ITX4	DEFB  25,67,10,56,10, 55,64,79,47,127
 ipp00	CP 8
 	JR C,ipp0
+         ;jr $
 	JP NC,NoDoIt
 
 ITX1z	DEFB  29,59,62,54,61,62,65,66,74,10, 56,51,64,75,43,127;diff
@@ -654,6 +655,9 @@ ppi4	CALL NUMBER
 	PUSH AF
 	CALL PRINT
 	CALL NO_NUM
+        
+        if 1==0
+        
 	LD DE,#407  ;дисковод  отгр
 	LD BC,#1608
 	CALL MU_BOX
@@ -678,15 +682,19 @@ ppi4	CALL NUMBER
 	ADD A,12
 	POP DE
 	CALL PRINT
+        
+        endif
+        
 	CALL MEM6
 	POP AF
 	DEC A
 	JP LODgam
 
+        if 1==0
+
 TXdsT1	DEFB 14,65,66,48,50,74,66,53,10, 30,82,91,102,26,83, 127 ;вст.ТР-ДОС
 TXdsT2	DEFB 52,56,65,58,10, 65,10, 62,66,51,64,67,55,58,48,60,56, 127 ;д с отгр
 
-;TODO убрать???
 A_or_B	;возвр: 0/1 - A/B
 	NOP
 	LD BC,#7FFE
@@ -704,7 +712,6 @@ TXdsk1	DEFB 14,65,66,48,50,74,66,53,10, 52,56,65,58,10, 2,127 ;insert d2
 TXdsk2	DEFB 56,10, 67,58,48,54,56,66,53,10, 56,60,79,127 ;и укажите имя
 TXdsk3	DEFB 52,56,65,58,62,50,62,52,48,10, 87,12,90,13,88,43,10,127 ;д-ва
 
-;TODO убрать???
 INI_D2	CALL MEM7
 	CALL STS
 	LD DE,#105  ;дисковод c диском 2
@@ -730,6 +737,8 @@ INI_D2	CALL MEM7
 	POP DE
 	CALL PRINT
 	RET
+
+        endif
 
 	db " *    THIS IS A SOME OF TEXT.   "
 	db " *    GENS4 RULEZ FOREVER :-)   "
@@ -844,7 +853,13 @@ itq0	PUSH AF
 	RET
 
 NDIstr	DEFB 112,109,0,0,10,60,109,0,127
-NoDoIt	;86275-вход в режим отладки
+NoDoIt
+        if 1==1
+        ;8-вход в режим отладки
+	CALL ndi0
+	JP INI123
+        else
+	;86275-вход в режим отладки
 	LD A,44
 	CALL hexPRN
 	CALL hexDIG
@@ -858,6 +873,7 @@ NoDoIt	;86275-вход в режим отладки
 	CALL ndiS
 	JP INI123
 ndiS	JP (HL)
+        endif
 
 hexDIG	CALL NO_NUM ;ввод #XX
 	CALL NUMBER

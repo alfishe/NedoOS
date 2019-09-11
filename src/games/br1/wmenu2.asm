@@ -150,7 +150,7 @@ S_kb	DEFB 1
 S_in2	DEFB 0
 S_kj	DEFB 0
 
-S_km	DEFB 0
+S_km	DEFB 0 ;начальное значение не влияет? см. PMOUSE
 S_ayM	DEFB 1
 S_ayE	DEFB 0
 S_colr	DEFB 1

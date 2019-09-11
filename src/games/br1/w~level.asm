@@ -25,7 +25,7 @@ hWALL	DEFB 0 ;0/17 - можно/нельзя строить стены
 
 ;параметры компьютера
 kTOWER	DEFB 1 ;1-4
-kARC	DEFB 0 ;0-2  ~\
+kARC	DEFB 0 ;0-2  ~\;
 kHORSE	DEFB 2 ;0-3    |
 kSHILD	DEFB 0 ;0-2    |
 kBLADE	DEFB 2 ;0-2  _/

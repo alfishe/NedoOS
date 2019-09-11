@@ -311,7 +311,7 @@ RESUL_	DEFB 0,0,0,43,0,0 ;нач.копия времени прохождения
 KEYS	DEFW	KBR
 KEYJOY	DEFB	0 ;(1-K.-stick)
 
-PMOUSE	DEFB 0	;(1-K.-mouse)
+PMOUSE	DEFB 1;0	;(1-K.-mouse) ;NedoOS
 MUSONF	DEFB 1	;музыка вкл/выкл (1/0)	 (*)
 AY_FX	DEFB 1	;AY_эффекты			(*)
 isCOLR	DEFB 1	;Игра цветная(1), Ч/Б(0)	(*)

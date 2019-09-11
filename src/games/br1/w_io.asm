@@ -227,12 +227,15 @@ selD_   LD (tDRIVE),A
         RET
 
 muzfilename
-        db "brmuz1.dat",0
+muzfilename_number=$+5 ;0..7
+        db "brmuz0.dat",0
 barfilename
         db "brbar.dat",0
 butfilename
-        db "brbuth.dat",0
+butfilename_number=$+5 ;0..1
+        db "brbut0.dat",0
 sprfilename
+sprfilename_number=$+5 ;1..4
         db "brspr1.dat",0
 
 LOADOSpp
@@ -250,49 +253,80 @@ LOADOSpp
 
 LOADms  ;загр. офрмл. уровня
 
+        jr $
+
+        ;пров защиты
+        EX AF,AF'
+        CALL MEM0
+        if 1==0        
+        CALL PROTeC ;AF'=NC/C-нов ур/подгр ;???
+        else
+        EX AF,AF'
+	JR C,LOADms_nonewlevel ;подгр
+        CALL SEEonn	;0 нов ур
+	CALL setC1	;0
+	CALL setMAP	;0
+LOADms_nonewlevel
+        endif
+
         if 1==1
         call swapimer
         im 1
-
         ;загр ландш A=1..4
         CALL MEM1
+        LD A,(fsLAND)
+        LD HL,_sLAND
+        CP (HL)
+        JR Z,lad2 ;загружено
+        LD (HL),A
+        add a,"0"
+        ld (sprfilename_number),a
         ld de,sprfilename
         ld hl,LAND ;addr
         call LOADOSpp
         LD DE,#FFFF
         CALL DELPZX
-        
+lad2
         ;--загр панели
         ld de,barfilename
         ld hl,DSCR ;addr
-         ;jr $
         call LOADOSpp
         
         ;--загр кнопок A=0..1
         CALL MEM7
+        LD A,(MASTER)
+        LD HL,_sBUTT
+        CP (HL)
+        JR Z,lad3 ;загружено
+        LD (HL),A
+        add a,"0"
+        ld (butfilename_number),a
         ld de,butfilename
         ld hl,WBUTT ;addr
         call LOADOSpp
         LD DE,WNAMES
         CALL DELPZX
-        
+lad3
         ;--загр муз A=0..7
         CALL MEM6
+        LD A,(fsMUS)
+        LD HL,_sMUS
+        CP (HL)
+        JR Z,lad1 ;загружено
+        LD (HL),A
+        add a,"0"
+        ld (muzfilename_number),a
         ld de,muzfilename
         ld hl,WMUSIC ;addr
         call LOADOSpp
         LD DE,#FFFF
         CALL DELPZX
-        
+lad1
         call swapimer
         im 2
         
         else
 
-        ;пров защиты
-        EX AF,AF
-        CALL MEM0
-        ;CALL PROTeC ;AF'=NC/C-нов ур/подгр ;???
         ;загр ландш A=1..4
         CALL MEM1
         LD A,(fsLAND)
@@ -456,16 +490,34 @@ svvCP0  LD A,(DE)
         JP DECODE
 
 levfilename
-        db "br101.dat",0
+levfilename_master=$+2
+levfilename_number=$+3
+        ;db "br101.dat",0
+        db "br215.dat",0
 
 ;-------- i/o
 LODlev  ;загр нов уровня
 
         if 1==1
 ;TODO ei и восстановить патч музыки???
-        call swapimer
+        ;jr $
+        call swapimer ;делает ei
         im 1
         ;jr $
+        LD A,(MASTER)
+        add a,"1"
+        ld (levfilename_master),a
+        LD A,(LEVEL)
+        inc a
+        cp 10
+        ld hl,levfilename_number
+        ld (hl),"0"
+        jr c,$+5 ;1..9
+         sub 10 ;10..17
+         inc (hl)
+        add a,"0"
+        inc hl
+        ld (hl),a
         ld de,levfilename
         OS_OPENHANDLE
         ld de,LEVDAT ;addr
@@ -511,6 +563,7 @@ LLV0    LD A,(LEVEL)
         OUT (254),A
         RET
 
+        if 1==0
 ;----диск 2
 
 TXds21  DEFB 14,65,66,48,50,74,66,53,10, 52,56,65,58,10, 02,127 ;insert d2
@@ -542,3 +595,4 @@ isENTR  LD BC,#BFFE
         RET NC
         JR C,isENTR
 
+        endif

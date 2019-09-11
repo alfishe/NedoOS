@@ -1696,7 +1696,10 @@ ien1	ADD IX,DE
 
 ;****** главн цикл *****
 
-CONTgm	CALL INI_D2 ;загрузка отл игры
+CONTgm	
+        if 1==0
+        CALL INI_D2 ;загрузка отл игры
+        endif
 	CALL LOD1st
 	SCF
 	CALL LOADms ;C=1
@@ -1716,14 +1719,18 @@ LODrtr	;рестарт уровня
 LODnxt	;нов.уровень
 	LD A,2
 	LD (V_FLAG),A
+        if 1==0
 	CALL CHNGd2
+        endif
 	CALL MEM6
 	CALL WMUSIC
 	DI
 	JR LODn1
 
 LODnew	;новая игра
+        if 1==0
 	CALL INI_D2
+        endif
 	CALL LOD1st	;6 i/o
 	;загрузка и иниц. данных ур-ня
 LODn1	CALL LODlev
