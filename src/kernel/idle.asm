@@ -50,11 +50,12 @@ mountdrives0
 idle_runcmd
         OS_SETSYSDRV
 
-        ld de,fcb
-         ;jr $
-        OS_FOPEN
+        ld de,cmd_filename
+        OS_OPENHANDLE
         or a
         jr nz,execcmd_error
+        ld a,b
+        ld (curhandle),a
         
         ld hl,tcmdloading
         call prtext
@@ -76,8 +77,9 @@ idle_runcmd
 
         call readfile_pages_dehl
 
-        ld de,fcb
-        OS_FCLOSE
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
 
         pop af ;id
         ld e,a
@@ -143,7 +145,6 @@ readfile_pages_dehl
         ld a,d
         SETPG32KHIGH
         ld a,0xc100/256
-        ld b,0x3f00/128
         call cmd_loadpage
         or a
         ret nz
@@ -151,7 +152,6 @@ readfile_pages_dehl
         ld a,e
         SETPG32KHIGH
         ld a,0xc000/256
-        ld b,0x4000/128
         call cmd_loadpage
         or a
         ret nz
@@ -159,7 +159,6 @@ readfile_pages_dehl
         ld a,h
         SETPG32KHIGH
         ld a,0xc000/256
-        ld b,0x4000/128
         call cmd_loadpage
         or a
         ret nz
@@ -167,37 +166,27 @@ readfile_pages_dehl
         ld a,l
         SETPG32KHIGH
         ld a,0xc000/256
-        ld b,0x4000/128
 
 cmd_loadpage
 ;out: a=error
 ;keeps hl,de
         push de
         push hl
-        push bc
         ld d,a
-        ld e,0
-        OS_SETDTA
-        pop bc
-cmd_loadpage0      
-        push bc
-        ld de,fcb
-         ;jr $
-        OS_FREAD
-        pop bc
-        or a
-        jr nz,cmd_loadpageq
-        djnz cmd_loadpage0
-cmd_loadpageq
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
         pop hl
         pop de
         ret
 
-fcb
-        db 0
-fcb_filename
-        db "cmd     com"
-        ds FCB_sz-1-11
+cmd_filename
+        db "cmd.com"
 stack
         ds 64
 endstack

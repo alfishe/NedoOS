@@ -4,7 +4,7 @@ LEVDAT	EQU	#79C0 ;адр. нач данных уровня
 
 DSCR	EQU #4000
 
-*D-
+;*D-
 ;********* Победа людей ****************
 
 isRUNC	; кодовый блок
@@ -12,9 +12,9 @@ isRUNC	; кодовый блок
 	JP F_CUTh
 
 Sc1
-*B ..\BARKOV\W_END_H.SCR
+        incbin "../BARKOV/W_END_H.SCR"
 Sc2
-*B ..\BARKOV\W_END2.SCR
+        incbin "../BARKOV/W_END2.SCR"
 
 F_CUTh	DI
 	IM 1
@@ -23,16 +23,25 @@ F_CUTh	DI
 	PUSH BC
 	CALL OFFD
 	CALL _128
+        
 	LD HL,Sc1
 	CALL COPYAT
+
 	;пробел?
 lggP	LD BC,#7FFE
 	IN A,(C)
 	AND %1
 	JR NZ,lggP
+
 	CALL OFFD
+
 	LD HL,Sc2
 	CALL COPYAT
+
+        if 1==1
+        
+        else
+
 	CALL A_or_B
 	LD (tDRIVE),A
 	CALL OFFD
@@ -58,7 +67,9 @@ L1st	CALL TR000
 	POP BC
 	LD A,(tDRIVE)
 	JP A009+2
+        endif
 
+        if 1==0
 ;------------------- вспом п/п
 
 A_or_B	;возвр: 0/1 - A/B
@@ -73,9 +84,9 @@ A_or_B	;возвр: 0/1 - A/B
 	AND %1
 	RET Z
 	JR NZ,A_or_B
+        endif
 
-
-
+;TODO fix
 _128	LD A,%10000
 	LD	BC,#7FFD
 	OUT	(C),A
@@ -99,6 +110,7 @@ COPYAT	;из HL
 	LDIR
 	RET
 
+        if 1==0
 ;-------tr/dos
 RG_DOS	LD	IX,#2A53 ;выв в рег TRDOS (out (C),A:ret)
 	JR	DOS
@@ -189,5 +201,5 @@ OLD_TR	INC	H
 ERR_RW	SCF
 	RET
 
-
+        endif
 

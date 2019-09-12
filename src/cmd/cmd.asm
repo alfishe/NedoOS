@@ -424,6 +424,72 @@ loadapp
         call loadapp_keeppath
         pop hl ;hl=after last slash
 loadapp_nopath
+        ;hl=after last slash
+        
+        if 1==1
+
+        push hl
+;ищем точку, проверяем, что после неё стоит .com или .bat
+loadapp_finddot0
+        ld a,(hl)
+        or a
+        jr z,loadapp_nodot
+        cp '.'
+        inc hl
+        jr nz,loadapp_finddot0
+;проверяем, что после неё стоит .com или .bat
+        ld a,(hl)
+        or 0x20
+        cp 'b'
+; TODO где проверка на остальные буквы?
+        jr z,strcpexec_tryrun_bat
+;считаем, что написано .com (в принципе расширение безразлично - просто запускаем)
+        jr loadapp_finddotok
+loadapp_nodot
+;a=0
+        ld (hl),'c'
+        inc hl
+        ld (hl),'o'
+        inc hl
+        ld (hl),'m'
+        inc hl
+        ld (hl),a ;0        
+loadapp_finddotok
+        pop de
+        OS_OPENHANDLE
+         push af
+        ld a,b
+        ld (curhandle),a
+         call loadapp_setoldpath
+         pop af
+        or a
+        ret nz ;jr nz,execcmd_error
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
+        or a
+        ret nz ;error
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+        push bc ;b=id
+        ld a,d
+        SETPG32KHIGH
+        push de
+        push hl
+        ld hl,cmdbuf
+        ld de,0xc000+COMMANDLINE
+        ld bc,COMMANDLINE_sz
+        ldir ;command line
+        pop hl
+        pop de
+        call readfile_pages_dehl
+
+        ld a,(curhandle)
+        OS_CLOSEHANDLE
+        pop de
+        ld e,d ;e=id
+        xor a
+        ret ;Z
+        
+        else ;CP/M-like
+        
         ex de,hl ;de=after last slash
         ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         ld hl,fcb_filename ;Pointer to 11 byte buffer
@@ -473,11 +539,21 @@ strcpexec_tryrun_noemptyext
         xor a
         ret ;Z
         
+        endif
+        
 strcpexec_tryrun_bat
 	display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
 ;filename in fcb
 ;out: nz=error, cy=end of .bat
 ;open .bat
+
+        if 1==1
+        pop de ;de=after last slash
+        ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
+        ld hl,fcb_filename ;Pointer to 11 byte buffer
+        OS_PARSEFNAME
+        endif
+
         ld hl,fcb_filename
         ld de,fcb_bat_filename
         ld bc,11
@@ -1538,8 +1614,32 @@ file_buf
         ds 128
 file_buf_end=$-1
 
-        include "../_sdk/prdword.asm"
+        if 1==1
+cmd_loadpage
+;a=loadaddr/256
+;out: a=error, bc=bytes read
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        ret
+        else
         include "../_sdk/loadpage.asm"
+        endif
+
+        include "../_sdk/prdword.asm"
         include "../_sdk/cmdpr.asm"
 
 cmd_end

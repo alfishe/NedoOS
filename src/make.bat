@@ -56,6 +56,11 @@ IF "%softbuilded%"=="" (
 if not "%1"=="noneedtrd" (
         del %releasedir%\bin\*.zip > nul
         del %releasedir%\bin\*.fm2 > nul
+        md %releasedir%\br
+        ren %releasedir%\bin\browser.com mowser.com
+        move %releasedir%\bin\evsummer.com %releasedir%\br\
+        move %releasedir%\bin\br*.* %releasedir%\br\
+        ren %releasedir%\bin\mowser.com browser.com
 	path=_sdk\
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
@@ -64,6 +69,8 @@ if not "%1"=="noneedtrd" (
 	for %%i in (%releasedir%\bin\*.*) do (
 		nedotrd test.trd -a %%i
 	)
+        move %releasedir%\br\*.* %releasedir%\bin\
+        rd %releasedir%\br
 
 	rem nedotrd test.trd -a scratch/lanscape.bmp
 
