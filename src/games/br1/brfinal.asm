@@ -1,8 +1,14 @@
 ;*Z80
 ;---Финальный мультик
+        DEVICE ZXSPECTRUM1024
+        include "../../_sdk/sys_h.asm"
 ;*L+
 DSCR	EQU #4000
 MUSIC	EQU 25200
+
+_128=PROGSTART+3
+swapimer=PROGSTART+6
+ttexpgs=PROGSTART+0x100
 
         macro PUSHs
 	PUSH DE
@@ -23,12 +29,24 @@ MUSIC	EQU 25200
 	ENDM
 
 	ORG #8000
+begin
 WHO	DEFB 0 ;победили люди(0)/кунги(1)
 
 	;ENT $ ;вх #8000
 FINAL	DI
+         call swapimer ;NedoOS on
 	IM 1
 	LD IY,#1000
+	;ld e,0
+	;OS_SETSCREEN
+        di
+        ;jr $
+        ld sp,0x4000
+        OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ld a,d
+        SETPG16K
+        
 	LD SP,#7FF0
 	XOR A
 	OUT (254),A
@@ -177,6 +195,29 @@ fINTRP	;обработка im1
 	HALT
 	DI
 	CALL MUSIC+6
+        
+         ld a,0x7f
+         in a,(0xfe)
+         rra
+         jr c,noquit
+         ld a,0xfe
+         in a,(0xfe)
+         rra
+         jr c,noquit
+        call shutay
+        ei
+        QUIT
+shutay
+	ld de,0xe00
+shutay0
+	dec d
+	ld bc,0xfffd
+	out (c),d
+	ld b,0xbf
+	out (c),e
+	jr nz,shutay0
+	ret
+noquit
 	LD (SPP+1),SP
 	JP SCROL
 SPP	LD SP,1
@@ -457,7 +498,9 @@ PREFLI	LD A,(FRAME) ;перед каждым кадром (0-15)
 LMP2	LD C,0
 LMP3	LD A,(P_ANI)
 	ADD A,C
+         push bc
 	CALL MEM
+         pop bc
 	LD A,E
 	LD HL,#C000
 	OR A
@@ -507,6 +550,9 @@ DELPZX	PUSH HL
 	POP	DE
 	JP	DELPZ
 
+        if 1==1
+MEM=_128
+        else
 ;TODO fix
 MEM	OR	%10000
 	PUSH BC
@@ -514,6 +560,7 @@ MEM	OR	%10000
 	OUT	(C),A
 	POP BC
 	RET
+        endif
 
 OFFD	XOR	A
 OFFD__	LD	DE,DSCR+#1AFE
@@ -531,14 +578,12 @@ BA	ADD	A,L
 B1	LD	A,(HL)
 	RET
 
-        display $
 TEXT_H
         incbin "DATA/WVICTHUM.DAT"
 TEXT_K
         incbin "DATA/WVICTorc.DAT"
 
 
-        display $
 MUS_K
         incbin "BOBOV/CROW_K.LPZ"
 MUS_H
@@ -546,7 +591,7 @@ MUS_H
 WINF	;окно для флика
         incbin "INTRO/WINVICT.LPZ"
         display $
-
+end
 
 ;*L+
 
@@ -570,3 +615,5 @@ WINF	;окно для флика
 ;	 ORG #C000
 ;*B ..\INTRO\FLICK.LPZ\WANIw_1.LPZ
 ;*P0 ;==
+
+	savebin "brfinal.dat",begin,end-begin

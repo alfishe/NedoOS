@@ -533,7 +533,11 @@ LODlev  ;загр нов уровня
        pop hl
         LD DE,#BFFE
          di
-        CALL DELPZX
+         ld a,(LEVDAT)
+         cp 0xc9
+         jr z,$+3
+         or a
+        CALL nz,DELPZX ;begins with nop/ret = unpacked
         
         call swapimer
         im 2

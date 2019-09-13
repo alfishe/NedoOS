@@ -1,29 +1,116 @@
+        DEVICE ZXSPECTRUM1024
+        include "../../_sdk/sys_h.asm"
+_128=PROGSTART+3
+swapimer=PROGSTART+6
+ttexpgs=PROGSTART+0x100
 
 LEVDAT	EQU	#79C0 ;адр. нач данных уровня
 	ORG	LEVDAT
-
-DSCR	EQU #4000
+begin
+DSCR	EQU 0xc000;#4000
 
 ;*D-
 ;********* Победа людей ****************
 
 isRUNC	; кодовый блок
+         nop
+         ;jr $
 	XOR A  ;люди
 	JP F_CUTh
+
+        if 1==1
+;надо загрузить brfinal.dat и странички
+;*P0;
+;	 ORG #C000
+;*B ..\INTRO\FLICK.LPZ\WANIu_0.LPZ
+;*P1;
+;	 ORG #C000
+;*B ..\INTRO\FLICK.LPZ\WANIu_1.LPZ
+;*P3;
+;	 ORG #C000
+;*B ..\INTRO\FLICK.LPZ\WANIv_0.LPZ
+;*P4;
+;	 ORG #C000
+;*B ..\INTRO\FLICK.LPZ\WANIv_1.LPZ
+;*P6;
+;	 ORG #C000
+;*B ..\INTRO\FLICK.LPZ\WANIw_0.LPZ
+;*P7;
+;	 ORG #C000
+;*B ..\INTRO\FLICK.LPZ\WANIw_1.LPZ
+loader
+        ld hl,texfilename
+        ld de,0x8000 ;addr
+        ld b,7
+getttexpgs0
+        push bc
+         ld a,(hl)
+         call _128
+        inc hl
+        push hl
+        push de ;addr
+        ex de,hl
+        OS_OPENHANDLE
+        pop de ;addr
+        push bc
+        ;ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+                
+        pop hl
+        ld b,1
+        xor a
+        cpir ;after 0
+        pop bc
+        ld de,0xc000 ;addr
+        djnz getttexpgs0
+
+        call swapimer
+        im 2
+        
+	pop af
+        ld (0x8000),a
+
+        jp 0x8001
+        
+texfilename
+        db 0,"brfinal.dat",0
+        db 0,"braniu_0.dat",0
+        db 1,"braniu_1.dat",0
+        db 3,"braniv_0.dat",0
+        db 4,"braniv_1.dat",0
+        db 6,"braniw_0.dat",0
+        db 7,"braniw_1.dat",0
+
+        endif
 
 Sc1
         incbin "../BARKOV/W_END_H.SCR"
 Sc2
         incbin "../BARKOV/W_END2.SCR"
 
-F_CUTh	DI
-	IM 1
+F_CUTh	;DI
+	;IM 1
 	LD SP,LEVDAT-2
 	LD B,A
 	PUSH BC
 	CALL OFFD
+         xor a
 	CALL _128
         
+        if 1==1
+        call swapimer
+        im 1
+	ld e,0
+	OS_SETSCREEN
+        OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ld a,d
+        SETPG32KHIGH
+        endif
+
 	LD HL,Sc1
 	CALL COPYAT
 
@@ -39,7 +126,8 @@ lggP	LD BC,#7FFE
 	CALL COPYAT
 
         if 1==1
-        
+        jp loader
+
         else
 
 	CALL A_or_B
@@ -86,11 +174,13 @@ A_or_B	;возвр: 0/1 - A/B
 	JR NZ,A_or_B
         endif
 
+        if 1==0
 ;TODO fix
 _128	LD A,%10000
 	LD	BC,#7FFD
 	OUT	(C),A
 	RET
+        endif
 
 OFFD	LD	DE,DSCR+#1AFE
 	PUSH DE
@@ -202,4 +292,5 @@ ERR_RW	SCF
 	RET
 
         endif
-
+end
+	savebin "br117.dat",begin,end-begin ;in current dir (not in dir of this source)

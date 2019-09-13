@@ -1,7 +1,9 @@
+        DEVICE ZXSPECTRUM1024
 ;уровень 0-7
 
 LEVDAT	EQU	#79C0 ;адр. нач данных уровня
 	ORG	LEVDAT
+begin
 ;******************************************************
 ;********* ГЛОБАЛЬНЫЕ ПАРАМЕТРЫ УРОВНЯ ****************
 
@@ -50,7 +52,7 @@ LEVEL	DEFB 7	; номер уровня
 MONEY	DEFB 0,0,1,0,0,0 ;деньги
 WOOD	DEFB 0,0,0,5,0,0 ;леc
 TASK_M	;задание: 3 строки по 20+1 символов = 63
-*B ..\TASK\w107.tsk
+        incbin "../TASK/w107.tsk"
 LEVRES	DEFB 0,0,0,43,0,0,127 ;текущее время прохождения
 
 ;------- используемые файлы -------
@@ -195,11 +197,13 @@ datMIN	DEFW 190,270,380,95,9,9,9,9 ;золото для шахт/100
 ;------ Описание героев и карты ---
 
 datHER
-*B ..\MAP\w107_s1.HER
-*B ..\MAP\w107_s1.MAP
+        incbin "../MAP/w107_s1.HER"
+        incbin "../MAP/w107_s1.MAP"
 
 ;-------Картинка-----
 datSCR
-*B ..\BARKOV\horse.SCR
+        incbin "../BARKOV/horse.SCR"
 
 ;----------------------------------
+end
+	savebin "br107.dat",begin,end-begin ;in current dir (not in dir of this source)

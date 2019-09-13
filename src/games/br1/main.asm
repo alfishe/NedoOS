@@ -41,96 +41,9 @@ timer=0x3f00 ;???
         page 0
         org PROGSTART
 begin
-        ld sp,STACK
-
-        ld e,3
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        ld e,0 ;color byte
-        OS_CLS
-	ld e,1
-	OS_SETSCREEN
-        ld e,0 ;color byte
-        OS_CLS
-
-        ;OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000,8000,c000
-        ;ld a,l
-        ;LD (pgscalersnum),A
-
-        OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ;ld a,l
-        ;ld (setpgs_scr_low),a
-	;xor e
-        ;ld (setpgs_scr_xor),a
-        ;ld a,d
-	;xor e
-        ;ld (setpgs_scr_high_xor_low),a
-        ld a,d
-        or 7 ;TODO это годится только для инверсных номеров страниц
-        ld (getttexpgs_bagepg),a
-
-        ;OS_NEWPAGE
-        ;ld a,e
-        ;ld (pgmapnum),a
-
-        ld hl,texfilename
-        ld b,6
-getttexpgs0
-        push bc
-        push hl
-        ;OS_NEWPAGE
-        pop hl
-        ld c,(hl)
-        ld b,ttexpgs/256
-        ;ld a,e
-        ld a,c
-getttexpgs_bagepg=$+1
-        xor 0
-        ld (bc),a
-        inc hl
-        push hl
-        SETPG32KHIGH
-        
-        ex de,hl
-        OS_OPENHANDLE
-        push bc
-        ld de,0xc000 ;addr
-        ld hl,0x4000 ;size
-        OS_READHANDLE
-        pop bc
-        OS_CLOSEHANDLE
-                
-        pop hl
-        ld b,1
-        xor a
-        cpir ;after 0
-        pop bc
-        djnz getttexpgs0
-
-        ;YIELD ;иначе не установится видеорежим и палитра?
-
-        ;call genscalers
-
-        call swapimer
-        jp GO
-        ;call GO
-        ;call swapimer
-        ;QUIT
-
-texfilename
-        db 0,"br0.dat",0
-        db 1,"br1.dat",0
-        db 3,"br3.dat",0
-        db 4,"br4.dat",0
-        db 6,"br6.dat",0
-        db 7,"br7.dat",0
-        
-        ;align 256 ;нельзя в 0x200, портится отрисовщиком
-        ds 0x3000-$
-ttexpgs
-        ds 8
-
+        jp begingo
+        jp _128
+        jp swapimer
 _128
         push bc
         ;LD	BC,#7FFD
@@ -142,6 +55,8 @@ _128
         SETPG32KHIGH
         pop bc
 	RET
+R128
+        db 0
 
 swapimer
 	di
@@ -218,10 +133,107 @@ on_int_sp2=$+1
 on_int_jp=$+1
 	jp 0
 
+        align 256 ;нельзя в 0x200, портится отрисовщиком?
+        ;ds 0x3000-$
+ttexpgs
+        ds 8
+
+
+begingo
+        ld sp,STACK
+
+        ld e,3
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,0 ;color byte
+        OS_CLS
+	ld e,1
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+
+        ;OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000,8000,c000
+        ;ld a,l
+        ;LD (pgscalersnum),A
+
+        OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ;ld a,l
+        ;ld (setpgs_scr_low),a
+	;xor e
+        ;ld (setpgs_scr_xor),a
+        ;ld a,d
+	;xor e
+        ;ld (setpgs_scr_high_xor_low),a
+        ld a,h
+        ld (getttexpgs_bagepg7),a
+;не будем брать физические страницы, кроме 7, т.к. pg4 используется для запарывания осью
+
+        ;OS_NEWPAGE
+        ;ld a,e
+        ;ld (pgmapnum),a
+
+        ld hl,texfilename
+        ld b,6
+getttexpgs0
+        push bc
+        ld a,(hl)
+        cp 7
+getttexpgs_bagepg7=$+1
+        ld a,0
+        jr z,getttexpgs7
+        push de
+        push hl
+        OS_NEWPAGE
+        ld a,e
+        pop hl
+        pop de
+getttexpgs7
+        ld c,(hl)
+        ld b,ttexpgs/256
+        ld (bc),a
+        inc hl
+        push hl
+        SETPG32KHIGH
+        
+        ex de,hl
+        OS_OPENHANDLE
+        push bc
+        ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+                
+        pop hl
+        ld b,1
+        xor a
+        cpir ;after 0
+        pop bc
+        djnz getttexpgs0
+
+        ;YIELD ;иначе не установится видеорежим и палитра?
+
+        ;call genscalers
+
+        call swapimer
+        jp GO
+        ;call GO
+        ;call swapimer
+        ;QUIT
+
+texfilename
+        db 0,"br0.dat",0
+        db 1,"br1.dat",0
+        db 3,"br3.dat",0
+        db 4,"br4.dat",0
+        db 6,"br6.dat",0
+        db 7,"br7.dat",0
+
         ds 0x4000-$ ;ORG #4000
 ;--------/MEM--------
-IR128   DEFB    0
-R128    DEFB    %11000
+        nop ;IR128   DEFB    0
+        nop ;R128    DEFB    %11000
         nop ;CHK#0   DEFB    #EE       ;[**B] чек-сум0 ;#4002 ;???
 ;--------- i/o переменные ---
 DISK_2  DEFB    1 ;номер дисковода для диска 2
