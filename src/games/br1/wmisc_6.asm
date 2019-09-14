@@ -517,6 +517,7 @@ ipp0	CALL NUMBER ;(1-4)
 
         if 1==1
 ;NedoOS
+quitnedoos
         call swapimer
         im 1
         ei
@@ -823,7 +824,12 @@ lggB	LD BC,#7FFE
 	CALL INImg1
 	LD A,3
 	CALL INImg2
+        
+        if 1==1
+        jp quitnedoos
+        else
 	JP INIlod
+        endif
 
 invTAB	;постр табл инв байтов для монстров 6:#C300
 	LD HL,#C300
@@ -906,6 +912,37 @@ WGRIZ
 lggTRY	DEFB 50
 
 LODgam	;восст игры A=0-7
+
+        if 1==1
+        add a,'1'
+        ld (savgamletter),a
+        
+        call swapimer
+        im 1
+        
+        ld de,savgamfilename
+        OS_OPENHANDLE
+        or a
+        jr nz,badbad
+        push bc
+        LD de,G_DATA ;отгрузка идёт с #7700
+        ld hl,0x4900 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+        
+        call swapimer
+        im 2
+        
+	CALL DECODE
+badbad
+        push af
+        CALL LDItmp
+        pop af
+	JP nz,LODbad ;ошибка загрузки/нет данных об игре
+        
+        else
+
 	ADD A,A
 	ADD A,A
 	ADD A,A
@@ -960,7 +997,9 @@ SEC_ok	POPs
 	JR NZ,lgg0
 	CALL DECODE
 	JR NZ,badbad;ошибка загрузки/нет данных об игре
-lgg_OK	CALL LDItmp
+lgg_OK	
+        endif
+        CALL LDItmp
 	LD A,(DISK_T)
 	LD (SAVDSK),A
 	JP CONTgm  ;перейти к диску 2

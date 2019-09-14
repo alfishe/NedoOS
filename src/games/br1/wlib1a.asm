@@ -1696,9 +1696,10 @@ ien1	ADD IX,DE
 
 ;****** главн цикл *****
 
-CONTgm	
+CONTgm
+;загрузка отл игры
         if 1==0
-        CALL INI_D2 ;загрузка отл игры
+        CALL INI_D2
         endif
 	CALL LOD1st
 	SCF

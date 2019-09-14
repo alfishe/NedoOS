@@ -439,18 +439,46 @@ dnc2    INC HL
         JR NZ,dnc1
         RET
 
+savgamfilename
+savgamletter=$+5
+        db "brsav0.dat",0
+
 SAVgam  ;сохр A=0-7
+        if 1==1
+        add a,'1'
+        ld (savgamletter),a
+        else
         ADD A,A
         ADD A,A
         ADD A,A
         ADD A,4
         LD D,A ;c 4-ого трека
         PUSH DE
+        endif
         CALL selSAV
         CALL MEM6
         CALL WMUSIC
         CALL MEM7
         CALL ENCODE ;-di
+        
+        if 1==1
+        call swapimer
+        im 1
+
+        ld de,savgamfilename
+        OS_CREATEHANDLE
+        ;TODO catch errors
+        push bc
+        LD de,G_DATA ;отгрузка идёт с #7700
+        ld hl,0x4900 ;size
+        OS_WRITEHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+        
+        call swapimer
+        im 2
+        else
+        
 Srtry   POP DE
         PUSH DE
         XOR A
@@ -490,6 +518,8 @@ svvCP0  LD A,(DE)
         INC DE
         DJNZ svvCP0
         POP DE
+        endif
+        
         JP DECODE
 
 levfilename

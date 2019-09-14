@@ -832,3 +832,13 @@ v0.r211.1, 01.09.2019
 v0.r211.2, 02.09.2019
 
 - бордер мигал (demige)
+
+v0.r211.3, 14.09.2019
+
++ добавлена игра Чёрный Ворон (by Copper Feet 1997), с сохранением в файловой системе и выходом в NedoOS (по существующим опциям, а из final cut - по Break).
+how to run any level:
+press Space - menu appears
+press 8 - see numbers
+press 1/2-(+/-Level) ;3-(on/off) super energy
+press 6 - back to menu
+start new game
