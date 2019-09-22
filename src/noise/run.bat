@@ -1,0 +1,16 @@
+mkspr.exe forest00.bmp
+mkspr.exe forest01.bmp
+mkspr.exe forest02.bmp
+mkspr.exe forest03.bmp
+mkspr.exe forest10.bmp
+mkspr.exe forest11.bmp
+mkspr.exe forest12.bmp
+mkspr.exe forest13.bmp
+mkspr.exe forest20.bmp
+mkspr.exe forest21.bmp
+mkspr.exe forest22.bmp
+mkspr.exe forest23.bmp
+mkspr.exe forest30.bmp
+mkspr.exe forest31.bmp
+mkspr.exe forest32.bmp
+mkspr.exe forest33.bmp

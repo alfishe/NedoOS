@@ -447,6 +447,8 @@ loadapp_finddot0
         jr loadapp_finddotok
 loadapp_nodot
 ;a=0
+        ld (hl),'.'
+        inc hl
         ld (hl),'c'
         inc hl
         ld (hl),'o'

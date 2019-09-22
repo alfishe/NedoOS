@@ -54,6 +54,7 @@ IF "%softbuilded%"=="" (
 )
 
 if not "%1"=="noneedtrd" (
+        del %releasedir%\bin\forest.dat > nul
         del %releasedir%\bin\*.zip > nul
         del %releasedir%\bin\*.fm2 > nul
         md %releasedir%\br
