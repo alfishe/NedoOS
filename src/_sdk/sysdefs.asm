@@ -8,7 +8,7 @@ MAXPATH_sz=256;64
 ;------------------------ÑÒÐÓÊÒÓÐÛ CP/M --------------------------------------
 ;from CP/M:
 CMD_PRCHAR=0x05 ;e=char
-CMD_SETDRV=0x0e ;e=drive ;out: a!=0 => not mounted, l=number of drives
+CMD_SETDRV=0x0e ;e=drive ;out: a!=0 => not mounted, [l=number of drives]
 CMD_FOPEN=0x0f ;de = pointer to unopened FCB
 CMD_FCLOSE=0x10 ;de = pointer to opened FCB
 CMD_FSEARCHFIRST=0x11 ;de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
@@ -38,6 +38,8 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_READSECTORS=0xd6 ;b=drive, de=buffer, ixhl=sector number, a=count
+CMD_WRITESECTORS=0xd7 ;b=drive, de=buffer, ixhl=sector number, a=count
 CMD_SETBORDER=0xd8 ;e=0..15
 CMD_SETWAITING=0xd9
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size

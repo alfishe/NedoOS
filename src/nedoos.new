@@ -842,3 +842,9 @@ press 8 - see numbers
 press 1/2-(+/-Level) ;3-(on/off) super energy
 press 6 - back to menu
 start new game
+
+v0.r211.4, 22.09.2019
+
++ добавлены OS_READSECTORS, OS_WRITESECTORS
+* OS_SETDRV не возвращает число драйвов
+- были глюки при смене дисков TR-DOS

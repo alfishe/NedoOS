@@ -146,6 +146,14 @@ _1=$
         endm
 
 ;invented  
+        macro OS_READSECTORS
+        ld c,CMD_READSECTORS
+	CALLBDOS
+        endm
+        macro OS_WRITESECTORS
+        ld c,CMD_WRITESECTORS
+	CALLBDOS
+        endm
         macro OS_GETFILESIZE
         ld c,CMD_GETFILESIZE
 	CALLBDOS

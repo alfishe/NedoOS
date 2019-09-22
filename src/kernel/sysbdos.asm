@@ -1,5 +1,5 @@
 
-NVOLUMES=8
+;NVOLUMES=8
 MAXFILES=8
 vol_trdos=4
 
@@ -636,7 +636,6 @@ BDOShandler
         ret
 
 tbdoscmds
-	;db CMD_GETCOLOR
          db CMD_PRATTR
          db CMD_SETXY
          db CMD_SETCOLOR
@@ -699,7 +698,11 @@ tbdoscmds
         db CMD_DELETE
         db CMD_SETWAITING
         db CMD_SETBORDER
+        db CMD_READSECTORS
+        db CMD_WRITESECTORS
 nbdoscmds=$-tbdoscmds
+        dw BDOS_writesectors
+        dw BDOS_readsectors
         dw BDOS_setborder
         dw BDOS_setwaiting
         dw BDOS_delete
@@ -762,7 +765,6 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_setcolor
          dw BDOS_setxy
          dw BDOS_prattr
-         ;dw BDOS_getcolor
         
 BDOS_getkeymatrix
 ;out: bcdehlix = полур€ды cs...space
@@ -1165,7 +1167,6 @@ BDOS_fread
         jr c,BDOS_fread_noFATFS
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
-	 ;jr $
         call BDOS_getdta ;de = disk transfer address
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
@@ -1204,7 +1205,6 @@ BDOS_fwrite
         jr c,BDOS_fwrite_noFATFS
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
-
         call BDOS_getdta ;de = disk transfer address
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
@@ -1535,7 +1535,7 @@ BDOS_createhandle
 
 BDOS_openhandle
 ;DE = Drive/path/file ASCIIZ string
-;A = Open mode. b0 set => no write, b1 set => no read, b2 set => inheritable, b3..b7   -  must be clear
+;[A = Open mode. b0 set => no write, b1 set => no read, b2 set => inheritable, b3..b7   -  must be clear]
 ;out: B = new file handle, A=error
         ld c,a
         ld a,'r'
@@ -1558,7 +1558,6 @@ BDOS_openorcreatehandle
         ex de,hl ;a=fil number, de=poi to FIL
         pop bc
         push af
-	 ;jr $
 .mode=$+1
 	LD HL,FA_READ|FA_WRITE
 .store_a=$+1
@@ -1696,7 +1695,6 @@ BDOS_readhandlego
 ;b=handle
         bit 6,b
         jr nz,BDOS_readhandle_noFATFS
-	 ;jr $
         call BDOS_readwritehandleprepare
 	ld ix,fres
         push ix ;fres
@@ -1757,7 +1755,6 @@ BDOS_fopen
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
 ;de = pointer to unopened FCB
-         ;jr $
         GETVOLUME
         ld (de),a ;volume
         cp vol_trdos ;CHECKVOLUMETRDOS
@@ -1785,7 +1782,6 @@ BDOS_fcreate
         call BDOS_fopen_getname_fil ;de=poi to FIL, bc=mfil
 	LD HL,FA_READ|FA_WRITE|FA_CREATE_ALWAYS
 BDOS_fopen_go
-	 ;jr $
 	;F_OPEN ffile,mfil,FA_READ|FA_WRITE|FA_CREATE_ALWAYS
        	;LD de,ffile
         push de ;FIL
@@ -1827,7 +1823,6 @@ getFILfromFCB
         ret
         
 BDOS_fclose
-	 ;jr $
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
 ;DE = Pointer to opened FCB (дл€ FATFS придЄтс€ игнорировать, брать текущий ffile - TODO искать подход€щий ffile)
@@ -1856,7 +1851,7 @@ call_ffs	;A=логический раздел, HL=функци€
 		push bc
         ld hl,fatfsarray ;вычисл€ем указатель на структуру fatfs
 		sub vol_trdos
-        or a
+        ;or a
         jr z,.fix_vol_dir
         ld bc,FATFS_sz
 .calcfatfs
@@ -1878,7 +1873,7 @@ call_ffs	;A=логический раздел, HL=функци€
 
 		
 BDOS_mount
-;TODO e=logical volume(char A-Z)
+;e=logical volume(char A-Z)
 ;out: a!=0 => not mounted
 		ld a,e
 		and 0xdf
@@ -1928,30 +1923,94 @@ BDOS_setsysdrv
          call BDOS_setdrv
          ld de,syspath
          jp setpath
-        
+
+BDOS_preparereadwritesectors_FATFS
+        sub vol_trdos ;получаем физический номер устройства (HDD master, HDD slave, SD...)
+        push af
+        BDOSSETPGFATFS
+	call BDOS_setdepage
+        pop af
+        push ix
+        pop bc
+        ex de,hl ;bcde=sector number, hl=buffer
+;hl=buffer
+;a=drive
+;bcde=sector
+;a'=count
+        ret
+ 
+BDOS_preparereadwritesectors_TRDOSFS
+         push af
+        BDOSSETPGTRDOSFS
+         pop af
+        ld (trdoscurdrive),a
+        ld a,l
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ex de,hl ;hl=buffer, d=track
+        and 0x0f
+        ld e,a ;e=sector
+        ex af,af'
+        ld b,a ;count
+;hl=buffer
+;d=track
+;e=sector
+;b=count
+        ret
+
+BDOS_readsectors
+;b=drive(0..), de=buffer, ixhl=sector number, a'=count
+;передавать логический volume (букву) и пересчитать в номер драйвера (в смещение раздела, наверно, бессмысленно)?
+        push bc
+        call BDOS_preparedepage
+        pop af
+        cp vol_trdos
+        jr c,BDOS_readsectors_TRDOS
+        call BDOS_preparereadwritesectors_FATFS
+        jp devices_read_go_regs
+BDOS_readsectors_TRDOS
+        call BDOS_preparereadwritesectors_TRDOSFS
+        jp wrsectors. ;out: a=error?
+
+BDOS_writesectors
+;b=drive(0..), de=buffer, ixhl=sector number, a'=count
+;передавать логический volume (букву) и пересчитать в номер драйвера (в смещение раздела, наверно, бессмысленно)?
+        push bc
+        call BDOS_preparedepage
+        pop af
+        cp vol_trdos
+        jr c,BDOS_writesectors_TRDOS
+        call BDOS_preparereadwritesectors_FATFS
+        jp devices_write_go_regs
+BDOS_writesectors_TRDOS
+        call BDOS_preparereadwritesectors_TRDOSFS
+        jp rdsectors. ;out: a=error?
+ 
 BDOS_setdrv
 ;e=volume
-;out: a!=0 => not mounted (TODO), l=number of volumes
+;out: a!=0 => not mounted (TODO), [l=number of volumes]
 ;мы не должны монтировать, просто должны указать volume, текущий дл€ данной задачи, и сбросить path, текущий дл€ данной задачи
         ld a,e
-        call BDOS_setvol_rootdir
+        ;call BDOS_setvol_rootdir
         ;call BDOS_opencurdir ;эта операци€ нужна дл€ определени€ смонтированности (F_MNT всегда возвращает 0)
         ;or a
         ;jr nc,BDOS_setdrvnfail
         ; ld (iy+app.vol),d
 ;BDOS_setdrvnfail
          
-        ld l,NVOLUMES ;доступно 5 драйвов
+        ;ld l,NVOLUMES ;доступно 8 драйвов???
         ;xor a ;success
-        ret;jr rest_exit
+        ;ret;jr rest_exit
         
-BDOS_setvol_rootdir
+;BDOS_setvol_rootdir
 ;установлена страница PGFATFS
           ld d,(iy+app.vol)
          ld (iy+app.vol),a
 ;BDOS_setrootdir
-;установлена страница PGFATFS
-;CY=error (при NC a=0)
+;не установлена страница PGFATFS
+;CY=error (при NC a=0) - TODO убрать?
          xor a
          ld (iy+app.dircluster),a
          ld (iy+app.dircluster+1),a
@@ -1966,10 +2025,7 @@ BDOS_setrootdir_q
         pop de
         or a
         ret z ;NC=no error, A=0
-		 ex af,af'
-         ld a,d
-         ld (iy+app.vol),a
-		 ex af,af'
+         ld (iy+app.vol),d
          scf
         ret ;CY=error
 BDOS_setrootdir_trdos
@@ -2030,7 +2086,7 @@ countfiledrive
         GETVOLUME
         jr nz,BDOS_openhandle_nodriveinpath ;drive not specified in path
          ld a,(de)
-		 and 0xdf
+         and 0xdf
          sub 'A'
          inc de
          inc de

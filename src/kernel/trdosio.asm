@@ -924,7 +924,6 @@ trdosolddrive=$+1
         cp 0xff
         ret z 
         ld (trdoscurdrive),a
-         ;jr $
         push bc
         push de
         push hl
@@ -962,6 +961,7 @@ iodos_chd_cherr
 		ret z
 		ld a,0xff
 		ld (trdosolddrive),a
+        dec a ;Alone Coder: чтобы были не равны в следующий заход, тогда опять будем пытаться включить драйв
         ld (trdoscurdrive),a
 		ld a,0xff
 		pop hl

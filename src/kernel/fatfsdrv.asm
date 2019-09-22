@@ -128,37 +128,39 @@ diskgetpars
 	ld a,(fatfs_org+FFS_DRV.count)
 	exa  
 	ld a,(fatfs_org+FFS_DRV.dio_drv)
-	or a
+	;or a
+;hl=buffer
+;a=drive
+;bcde=sector
+;a'=count
 	ret
         
 ;?????????????????????????????? чтение секторов
 devices_read
-	 ifdef KOEDI
-		di
-     endif
 	call BDOS_setdepage
-	call devices_read_go
+	call devices_readnopg;devices_read_go
 	push af
 	call BDOS_setpgstructs
-	pop af
-	 ifdef KOEDI
-		ei
-     endif
+	pop af ;error
 	ret
 devices_readnopg
 	;call BDOS_setpgstructs
-	 ifdef KOEDI
+	call diskgetpars
+devices_read_go_regs
+         ifdef KOEDI
 		di
-     endif
+         endif
 	call devices_read_go
-	 ifdef KOEDI
+         ifdef KOEDI
 		ei
-     endif
-	;jr $
+         endif
 	ret
 devices_read_go
-	call diskgetpars
-	 ;jr $
+;hl=buffer
+;a=drive
+;bcde=sector
+;a'=count
+	 or a
 	jr nz,readsectors_noIDEmaster
 	ld a,0xe0 ;master ;почему bit6=1???
 ;b+a=head+device
@@ -191,29 +193,30 @@ readsectors_noIDEslave
 
 ;?????????????????????????????? запись секторов
 devices_write
-	 ifdef KOEDI
-		di
-     endif
 	call BDOS_setdepage
-	call devices_write_go
+	call devices_writenopg;devices_write_go
+        push af
 	call BDOS_setpgstructs
-	xor a
-	 ifdef KOEDI
-		ei
-     endif
+	pop af ;error
 	ret
 devices_writenopg
 	;call BDOS_setpgstructs
-	 ifdef KOEDI
+	call diskgetpars
+devices_write_go_regs
+         ifdef KOEDI
 		di
-     endif
+         endif
 	call devices_write_go
-	 ifdef KOEDI
+         ifdef KOEDI
 		ei
-     endif
+         endif
 	ret
 devices_write_go
-	call diskgetpars
+;hl=buffer
+;a=drive
+;bcde=sector
+;a'=count
+         or a
 	jr nz,writesectors_noIDEmaster
 	ld a,0xe0 ;master ;почему bit6=1???
 ;b+a=head+device

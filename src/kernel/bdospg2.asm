@@ -60,7 +60,6 @@ sys_newapp
         ;ld a,SYSDRV ;TODO брать драйв от текущего app
         ;call BDOS_setvol_rootdir ;требует PGFATFS
          ld (iy+app.vol),SYSDRV ;TODO брать драйв от текущего app
-         ;jr $
          ;xor a
          ld (iy+app.dircluster),b;a
          ld (iy+app.dircluster+1),b;a
@@ -85,6 +84,7 @@ makeidle
         call sys_newapp
         ld a,'i' ;idle
         ld (0xc000+COMMANDLINE),a ;command line
+         ;ld (iy+app.vol),SYSDRV ;есть в самом idle
         set factive,(iy+app.flags)
         ret
 
