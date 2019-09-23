@@ -107,7 +107,7 @@ BDOS_getscreenpages
 
 BDOS_getappmainpages
 ;e=id
-;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
+;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
         call BDOS_findapp
         jp nz,BDOS_fail
 BDOS_getmainpages
@@ -122,7 +122,7 @@ BDOS_getmainpages_iy
         ld hl,(curpg32khigh+0xc000)
         ld h,a
         ld c,(iy+app.flags)
-        ;xor a
+        xor a
         ret
 
 BDOS_preparedepage

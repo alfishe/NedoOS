@@ -48,7 +48,7 @@ CMD_WIZNETCLOSE=0xdc
 CMD_WIZNETREAD=0xdd ;de=pointer, hl=buffer size ;out: hl=size
 CMD_WIZNETWRITE=0xde ;de=pointer, hl=size
 CMD_DROPAPP=0xdf ;e=id
-CMD_GETAPPMAINPAGES=0xe0 ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
+CMD_GETAPPMAINPAGES=0xe0 ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
 CMD_GETXY=0xe1 ;out: de=yx ;GET CURSOR POSITION
 CMD_GETTIME=0xe2 ;out: ix=date, hl=time
 CMD_GETFILETIME=0xe3 ;de=Drive/path/file ASCIIZ string, out: ix=date, hl=time
