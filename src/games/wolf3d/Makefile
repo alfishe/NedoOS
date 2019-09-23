@@ -2,7 +2,7 @@ NAME		= wolf3d.com
 OBJECTS		= wolftex.0 wolftex.1 wolftex.2 wolftex.3 wolftex.4
 SOURCES		= main.asm genscale.asm WREND.asm WCTRL.asm WATM2.asm WSCAN10.asm
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release
+INSTALLDIR	= ../../../release/games
 
 all: ${NAME} ${SOURCES}
 

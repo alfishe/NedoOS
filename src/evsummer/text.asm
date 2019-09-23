@@ -22,6 +22,7 @@ Commands
 	\W fade to white
 	\j<s> jump to symbol @
 	\e end of text
+	; comment - skip to next line
 */
 
 text_obj

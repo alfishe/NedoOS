@@ -1,4 +1,4 @@
-PROGS		= snake tank tetris smb untangle wolf3d
+PROGS		= snake tank tetris smb untangle wolf3d br
 
 all: ${PROGS}
 

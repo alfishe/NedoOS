@@ -330,12 +330,13 @@ showtext_hl0
 	jp z,showtext_hl_cmdB0
 	cp '\'
 	jp z,showtext_hl_textcmd
+	cp ';'
+	jp z,showtext_hl_skiptonextline
 	cp 0x0D
 	jp z,showtext_hl_skip
 	cp 0x0A
 	jp nz,showtext_hl_print
 showtext_hl_nextline
-;	inc de;skip crln
 	ld a,(scrollpause)
 	or a
 	jp z,showtext_hl_nextline_nopause
@@ -350,6 +351,11 @@ showtext_hl_nextline_nopause
 	call nextline
 	pop de
 	jp showtext_hl0
+showtext_hl_skiptonextline
+	ld a,(de)
+	inc de
+	cp 0x0A
+	jp nz,showtext_hl_skiptonextline
 showtext_hl_print
 	push de
 	dec de
@@ -357,10 +363,8 @@ showtext_hl_print
 	call printchar
 	pop de
 showtext_hl_skip
-;	inc de
 	jp showtext_hl0
 showtext_hl_cmdB0
-;	inc de
 	ex hl,de
 	call showtext_hl
 	ex hl,de
