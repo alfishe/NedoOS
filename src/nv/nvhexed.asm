@@ -16,6 +16,10 @@ nvview_hexeditor_prfile_mainloop
         ld a,NVVIEW_HEXEDITOR_CURCOLOR
         ld b,2
         call drawfilecursor_sizeb
+        call nvhexed_calctextcursorxy
+        ld a,NVVIEW_HEXEDITOR_CURCOLOR
+        ld b,1
+        call drawfilecursor_sizeb
 	
         YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY ;OS_GETKEYNOLANG
@@ -27,6 +31,10 @@ nvview_hexeditor_prfile_mainloop
         call nvhexed_calccursorxy
         ld a,COLOR_HEXEDITOR
         ld b,2
+        call drawfilecursor_sizeb
+        call nvhexed_calctextcursorxy
+        ld a,COLOR_HEXEDITOR
+        ld b,1
         call drawfilecursor_sizeb
 	pop af
 	pop de
@@ -219,6 +227,13 @@ nvhexed_calccursorxy
         add a,a
         add a,e
         add a,8
+        ld e,a
+        ret
+        
+nvhexed_calctextcursorxy
+        ld de,(hexcuraddrxy)
+        ld a,e
+        add a,57
         ld e,a
         ret
         

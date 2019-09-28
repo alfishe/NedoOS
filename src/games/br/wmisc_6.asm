@@ -918,7 +918,7 @@ LODgam	;восст игры A=0-7
         ld (savgamletter),a
         
         call swapimer
-        im 1
+        ;im 1
         
         ld de,savgamfilename
         OS_OPENHANDLE
@@ -932,7 +932,7 @@ LODgam	;восст игры A=0-7
         OS_CLOSEHANDLE
         
         call swapimer
-        im 2
+        ;im 2
         
 	CALL DECODE
 badbad

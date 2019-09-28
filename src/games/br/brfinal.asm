@@ -35,8 +35,8 @@ WHO	DEFB 0 ;победили люди(0)/кунги(1)
 	;ENT $ ;вх #8000
 FINAL	DI
          call swapimer ;NedoOS on
-	IM 1
-	LD IY,#1000
+	;IM 1
+	;LD IY,#1000
 	;ld e,0
 	;OS_SETSCREEN
         di
@@ -66,6 +66,7 @@ DPZ1	PUSH BC
 	JR Z,DPZ0
 	CP 5
 	JR Z,DPZ0
+        ;jr $
 	CALL MEM
 	LD HL,#C000
 	CALL DELPZF

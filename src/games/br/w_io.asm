@@ -271,7 +271,7 @@ LOADms_nonewlevel
 
         if 1==1
         call swapimer ;делает ei
-        im 1
+        ;im 1
         ;загр ландш A=1..4
         CALL MEM1
         LD A,(fsLAND)
@@ -326,7 +326,7 @@ lad3
         CALL DELPZX
 lad1
         call swapimer ;делает ei
-        im 2
+        ;im 2
         
         else
 
@@ -463,7 +463,7 @@ SAVgam  ;сохр A=0-7
         
         if 1==1
         call swapimer
-        im 1
+        ;im 1
 
         ld de,savgamfilename
         OS_CREATEHANDLE
@@ -476,7 +476,7 @@ SAVgam  ;сохр A=0-7
         OS_CLOSEHANDLE
         
         call swapimer
-        im 2
+        ;im 2
         else
         
 Srtry   POP DE
@@ -535,7 +535,7 @@ LODlev  ;загр нов уровня
 ;TODO ei и восстановить патч музыки???
         ;jr $
         call swapimer ;делает ei
-        im 1
+        ;im 1
         ;jr $
         LD A,(MASTER)
         add a,"1"
@@ -570,7 +570,7 @@ LODlev  ;загр нов уровня
         CALL nz,DELPZX ;begins with nop/ret = unpacked
         
         call swapimer
-        im 2
+        ;im 2
         
         else
 

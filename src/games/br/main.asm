@@ -76,68 +76,26 @@ oldimer
         jp on_int ;заменится на код из 0x0038
 
 on_int
-;if stack in 0x4000..0x7fff:
-;restore stack from pgaddrstackcopy (set in 0x4000 temporarily, then set pgaddrstack)
-;else restore stack with de;0
-	ld (on_int_hl),hl
-	ld (on_int_sp),sp
-	;ld (on_int_spcopy),sp
-	pop hl
-	ld (on_int_sp2),sp
-	ld (on_int_jp),hl
-	
-	ld sp,INTSTACK
-	
-	push af
-	push bc
-	push de
-	
-imer_curscreen_value=$+1
-         ld a,0
-         ld bc,0x7ffd
-         out (c),a
-
-	ex de,hl;ld hl,0
-        if 1==0
-	ld a,(on_int_sp+1)
-	sub 0x40
-	cp 0x3f ;запас, чтобы не захватить очистку экрана в 0x8000
-	jr nc,on_int_norestoredata
-	;jr $
-	ld a,(pgaddrstackcopy)
-	SETPG16K
-on_int_spcopy=$+1
-	ld hl,(0)
-        ;if RESTOREPG16K==0
-	ld a,(pgaddrstack)
-	SETPG16K
-        ;endif
-on_int_norestoredata
-        endif
-on_int_sp=$+1
-	ld (0),hl ;восстановили запоротый стек
-        
-	ld hl,(timer)
-	inc hl
-	ld (timer),hl
-
-	pop de
-	pop bc
-	pop af
-	
-on_int_hl=$+1
-	ld hl,0
+;restore stack with de
+        EX DE,HL
+	EX (SP),HL
+	LD (on_int_jp),HL
+	EX DE,HL
+	POP DE
+	LD (on_int_sp2),SP
+	LD SP,DBL_SP
+	CALL INAR0
 on_int_sp2=$+1
 	ld sp,0
-        ei
+	EI
 on_int_jp=$+1
 	jp 0
 
-        align 256 ;нельзя в 0x200, портится отрисовщиком?
-        ;ds 0x3000-$
+        align 256 ;0x200
 ttexpgs
         ds 8
 
+        include "w_intv.asm"
 
 begingo
         ld sp,STACK
@@ -258,7 +216,7 @@ JP_ST   DI
         LD A,#41
         LD I,A
         LD SP,#403E
-        IM 2
+        ;IM 2
         JP wMAIN
 
 
@@ -409,7 +367,7 @@ GO_Nt2  ;...продолж для расст =2
 WFONT
         incbin "data/wfont.fnt"
         include "xdelpz.asm"
-        include "w_intv.asm"
+        ;include "w_intv.asm"
         include "wlib2.asm"
         ds 157 ;просто так ;???
         include "wlib2x3.asm"
