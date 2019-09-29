@@ -96,7 +96,7 @@ oldupdtimer=$+1
 	 ld (oldupdtimer),hl
 	     or a
 	     sbc hl,de
-	if 0;FASTDEMOBEFOREBREAKPOINT
+	if FASTDEMOBEFOREBREAKPOINT
 	     ld c,1
 	     jr z,c_logic0
 	else
@@ -119,7 +119,10 @@ logic0
 	    jr nz,logic0
 		jr logicq
 nologic
-		halt
+        ;jr $ ;реально не попадаем сюда при нормальной игре
+		YIELD;halt
+	     ld b,0
+	     ld d,b
 logicq
         endif
              jmp EndlessLoop              ;endless loop, need I say more?
@@ -225,6 +228,9 @@ InitBuffer:    ldxy VRAM_Buffer_Offset,y
         endif
           if MUSICONINT==0
                jsr SoundEngine           ;play sound
+          else
+soundenginepatch=$+1
+               call SoundEngine_noint           ;play sound logically
           endif
                jsr ReadJoypads           ;read joypads
 	      if DEMO
@@ -1006,8 +1012,8 @@ BGColorCtrl_Addr:
 
 BackgroundColors:
         if Z80BGCOLOR
-	db 0xc0,0xc0,0xf3,0xf3 ;used by area type if bg color ctrl not set
-	db 0xf3,0xc0,0xf3,0xf3 ;used by background color control if set
+	db 0xcc,0xcc,0xff,0xff ;used by area type if bg color ctrl not set
+	db 0xff,0xcc,0xff,0xff ;used by background color control if set
 	else
       .db $22, $22, $0f, $0f ;used by area type if bg color ctrl not set
       .db $0f, $22, $0f, $0f ;used by background color control if set
@@ -1015,9 +1021,9 @@ BackgroundColors:
 
 PlayerColors:
         if Z80MARIOCOLOR
-      dw 0x3333,0xb1b1 ;mario's colors
-      dw 0x3333,0xe3e3 ;luigi's colors
-      dw 0x3333,0x0000 ;fiery (used by both)
+      dw 0x3f3f,0xbdbd ;mario's colors
+      dw 0x3f3f,0xefef ;luigi's colors
+      dw 0x3f3f,0x0c0c ;fiery (used by both)
         else
       .db $22, $16, $27, $18 ;mario's colors
       .db $22, $30, $27, $19 ;luigi's colors
@@ -2445,8 +2451,8 @@ UpdateScreen0:
 	ld a,(hl)
 	or a
 	ret z
-                 cp 0x40
-                 jr nc,$ ;костыль - почему в потоке значения $42???
+                 ;cp 0x40
+                 ;jr nc,$ ;костыль - почему в потоке значения $42???
                 ld d,a
 		inc hl
 		ld e,(hl)           ;load next byte (second)
@@ -6432,6 +6438,18 @@ Hidden1UpCoinAmts:
       .db $15, $23, $16, $1b, $17, $18, $23, $63
 
 PlayerEndLevel:
+        if MUSICONINT ;костыль: делаем до выхода из уровня режим MUSICONINT=0
+     ;YIELD
+     ;ld b,0
+     ;ld d,b
+     halt
+        ;ld hl,0xffff
+        ;ld (EventMusicQueue_noint),hl
+        ld hl,SoundEngine
+        ld (soundenginepatch),hl
+        ld a,0x21
+        ld (soundenginecall),a
+        endif
           ldan ++$01                  ;force player to walk to the right
           jsr AutoControlPlayer
           lda Player_Y_Position     ;check player's vertical position
@@ -11622,9 +11640,27 @@ DelayToAreaEnd:
       ldax EnemyIntervalTimer,x  ;if interval timer set in previous task
          checka
       bne StarFlagExit2         ;not yet expired, branch to leave
+      
+;костыль: это место мешает предсказуемости при MUSICONINT=1
+        if MUSICONINT
+      lda EventMusicBuffer      ;if event music buffer empty,
+         checka
+     ret nz
+    ;ld hl,(EventMusicQueue_noint)      ;if event music buffer empty,
+    ;jr $ ;hl=fdcb/fdd0/fe2b/ (fdc9/fdce/fe29/fde0)
+               ;ld a,(WorldNumber)           ;check world number
+               ;cp ++World4;8
+               ;jr nc,IncrementSFTask2 ;обычный костыль не помогает на 8-2... этот тоже!
+     ld hl,SoundEngine_noint
+     ld (soundenginepatch),hl ;возвращаем MUSICONINT=1
+     ld a,0xcd
+     ld (soundenginecall),a ;возвращаем MUSICONINT=1
+     jr IncrementSFTask2      ;branch to increment task
+        else
       lda EventMusicBuffer      ;if event music buffer empty,
          checka
       beq IncrementSFTask2      ;branch to increment task
+        endif
 
 StarFlagExit2:
       rts                       ;otherwise leave
@@ -12511,6 +12547,10 @@ ChkForPlayerInjury:
 	   ;jr $ ;если здесь поймать столкновение с грибом на 1-2 (yspeed=0!!!) и перенаправить вручную на EnemyStomped (хотя по идее мы не должны его давить), то дальше умираем на кактусе
           bne EnemyStomped       ;or not at all, and branch elsewhere if moving downwards
 ChkInj:   ldax Enemy_ID,x         ;branch if enemy object <  $07
+      if GOODBULLET
+       cp BulletBill_CannonVar
+       ret z
+      endif
           cmpn ++Bloober
               cmpcy
           bcc ChkETmrs

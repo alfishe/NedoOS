@@ -16,6 +16,19 @@
 ;возвращает:
 ;EventMusicBuffer (0=музыкальный эффект кончился)
 
+SoundEngine_noint
+;play sound logically (for end of level music)
+        if 1==0
+EventMusicQueue_noint=$+1
+        ld hl,0
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld (EventMusicQueue_noint),hl
+        endif
+        ret
+
 
 SoundEngine:
          lda OperMode              ;are we in title screen mode?
@@ -659,6 +672,13 @@ MusicHandler:
         rts                     ;no music, then leave
 
 LoadEventMusic:
+        if 1==0
+        cp EndOfLevelMusic
+        jr nz,noendlevelmusicpatch
+        ld hl,0xffff
+        ld (EventMusicQueue_noint),hl
+noendlevelmusicpatch
+        endif
            sta EventMusicBuffer      ;copy event music queue contents to buffer
            cmpn ++DeathMusic           ;is it death music?
            bne NoStopSfx             ;if not, jump elsewhere

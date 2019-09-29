@@ -278,7 +278,7 @@ findnextappq
           ld iy,(focusappaddr)
           ld a,(iy+app.screen)
           or fd_system
-          ld (user_fdvalue1+0x4000),a
+          ;ld (user_fdvalue1+0x4000),a ;for QUIT, мешает делать многозадачность с 0xffff: jp nn
           ld (user_fdvalue2+0x4000),a
           ld (user_fdvalue3+0x4000),a
           ld (user_fdvalue4+0x4000),a

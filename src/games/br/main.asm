@@ -60,6 +60,8 @@ R128
 
 swapimer
 	di
+         ld hl,(0x0038+3) ;адрес intjp
+         ld (intjpaddr),hl        
         ld de,0x0038
         ld hl,oldimer
         ld bc,3
@@ -79,7 +81,8 @@ on_int
 ;restore stack with de
         EX DE,HL
 	EX (SP),HL
-	LD (on_int_jp),HL
+intjpaddr=$+1
+	LD (0),hl ;(on_int_jp),HL
 	EX DE,HL
 	POP DE
 	LD (on_int_sp2),SP
@@ -87,9 +90,27 @@ on_int
 	CALL INAR0
 on_int_sp2=$+1
 	ld sp,0
-	EI
-on_int_jp=$+1
-	jp 0
+;	EI
+;on_int_jp=$+1
+;	jp 0
+
+        push de
+        ex de,hl
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        jp 0x0038+5
+
+;вход в стандартный обработчик:
+        ;ex de,hl ;de="hl", hl="de"
+        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
+        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        ;ld l,a
+;user_fdvalue6=$+1
+        ;ld a,fd_system
+        ;out (0xfd),a ;10 b
+
 
         align 256 ;0x200
 ttexpgs

@@ -4,6 +4,8 @@
 STACK=0x4000
 scrbase=0x8000
 
+muz=0x8000
+
         org PROGSTART
 begin
         ld sp,STACK
@@ -21,6 +23,8 @@ begin
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,l
         LD (pgscalersnum),A
+        ld a,h
+        LD (pg8000),A
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
@@ -31,6 +35,18 @@ begin
         ld a,d
 	xor e
         ld (setpgs_scr_high_xor_low),a
+
+        OS_NEWPAGE
+        ld a,e
+        ld (pgmuznum),a
+        SETPG32KLOW
+        ld hl,wasmuz
+        ld de,muz
+        ld bc,wasmuz_sz
+        ldir
+        call muz
+        LD a,(pg8000)
+        SETPG32KLOW
 
         OS_NEWPAGE
         ld a,e
@@ -91,8 +107,20 @@ REtID0  LD A,(HL)
         
         call swapimer
         
+        call shutay        
         QUIT
 
+shutay
+	ld de,0xe00
+shutay0
+	dec d
+	ld bc,0xfffd
+	out (c),d
+	ld b,0xbf
+	out (c),e
+	jr nz,shutay0
+	ret
+	
 texfilename
         db "wolftex.0",0
 texfilenamenum=$-2
@@ -108,6 +136,8 @@ pgmapnum=$+1
 
 swapimer
 	di
+         ld hl,(0x0038+3) ;адрес intjp
+         ld (intjpaddr),hl        
         ld de,0x0038
         ld hl,oldimer
         ld bc,3
@@ -124,15 +154,13 @@ oldimer
         jp on_int ;заменится на код из 0x0038
 
 on_int
-;if stack in 0x4000..0x7fff:
-;restore stack from pgaddrstackcopy (set in 0x4000 temporarily, then set pgaddrstack)
-;else restore stack with de;0
+;restore stack with de
 	ld (on_int_hl),hl
 	ld (on_int_sp),sp
-	;ld (on_int_spcopy),sp
 	pop hl
 	ld (on_int_sp2),sp
-	ld (on_int_jp),hl
+intjpaddr=$+1
+	ld (0),hl ;(on_int_jp),hl
 	
 	ld sp,INTSTACK
 	
@@ -146,24 +174,40 @@ imer_curscreen_value=$+1
          out (c),a
 
 	ex de,hl;ld hl,0
-        if 1==0
-	ld a,(on_int_sp+1)
-	sub 0x40
-	cp 0x3f ;запас, чтобы не захватить очистку экрана в 0x8000
-	jr nc,on_int_norestoredata
-	;jr $
-	ld a,(pgaddrstackcopy)
-	SETPG16K
-on_int_spcopy=$+1
-	ld hl,(0)
-        ;if RESTOREPG16K==0
-	ld a,(pgaddrstack)
-	SETPG16K
-        ;endif
-on_int_norestoredata
-        endif
 on_int_sp=$+1
 	ld (0),hl ;восстановили запоротый стек
+        
+        push ix
+        push iy
+        ex af,af'
+        exx
+        push af
+        push bc
+        push de
+        push hl
+        ld a,(curscreen)
+        ld e,a
+        OS_SETSCREEN ;вызываем здесь, а не в рандомном месте, иначе даже с одной задачей можем получить непредсказуемую задержку, которую не фиксирует наш таймер? с несколькими задачами надо учитывать и системный - TODO
+curpalette=$+1
+        ld de,wolfpal
+        OS_SETPAL
+        
+pgmuznum=$+1
+        ld a,0
+        SETPG32KLOW
+        call muz+6
+pg8000=$+1
+        ld a,0
+        SETPG32KLOW
+        
+        pop hl
+        pop de
+        pop bc
+        pop af
+        exx
+        ex af,af'
+        pop iy
+        pop ix
         
 	ld hl,(timer)
 	inc hl
@@ -177,9 +221,26 @@ on_int_hl=$+1
 	ld hl,0
 on_int_sp2=$+1
 	ld sp,0
-        ei
-on_int_jp=$+1
-	jp 0
+;        ei
+;on_int_jp=$+1
+;	jp 0
+
+        push de
+        ex de,hl
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        jp 0x0038+5
+
+;вход в стандартный обработчик:
+        ;ex de,hl ;de="hl", hl="de"
+        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
+        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        ;ld l,a
+;user_fdvalue6=$+1
+        ;ld a,fd_system
+        ;out (0xfd),a ;10 b
 
         include "WATM2.asm"
 
@@ -193,6 +254,9 @@ INTSTACK
         ;ORG #C000;,pgscalers
         ;ds 0xc000-$
         ;INCBIN "scalers"
+wasmuz
+        incbin "DOOM-MUS"
+wasmuz_sz=$-wasmuz
        else
         ;ORG #C000,pgscale
         ds 0xc000-$

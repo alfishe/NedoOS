@@ -3,7 +3,7 @@ maincode
 user_fdvalue1=$+1
         ld a,fd_system
         out (0xfd),a
-;текущий дисковод (TODO?)
+;not used (в CP/M текущий дисковод)
         db 0
 
         ds 0x0005-$ ;0 b
@@ -66,7 +66,7 @@ INTMICROSTACK ;2 байта до (стек) и 2 байта после (bc)
         ld l,a
 user_fdvalue6=$+1
         ld a,fd_system
-        out (0xfd),a ;14 b
+        out (0xfd),a ;10 b
 ;---------
         ;ld sp,INTSTACK
         ;(keep bc in MICROSTACK)
@@ -93,6 +93,9 @@ curpg32khigh=$+1
         ld a,0;pgmainc000
         SETPG32KHIGH ;rst
          pop bc
+;        ld a,e
+;intde=$+1
+;        ld de,0
 intsp=$+1
         ld sp,0xfffe;STACK-2 ;там de ;нельзя в kernelspace, т.к. вложенное прерывание запортит стек! и de уже должно быть присвоено
         ld a,e
