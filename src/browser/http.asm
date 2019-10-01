@@ -446,4 +446,6 @@ exiterr1:
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
 dns_ia:
-	defb 0,0,53,8,8,8,8
+	defb 0
+        db 0,53 ;port (big endian)
+        db 8,8,8,8 ;ip (big endian)
