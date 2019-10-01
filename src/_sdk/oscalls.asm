@@ -229,7 +229,7 @@ OS_SETCOLOR:
 	ENDMOD
 	
 	MODULE OSSETXY
-	PUBLIC OS_SETXY,OS_GETXY,OS_CLS,OS_SETGFX,OS_SCROLLUP
+	PUBLIC OS_SETXY,OS_CLS,OS_SETGFX,OS_SCROLLUP
 	PUBLIC _OS_GFX_CALL
 	#include "sysdefs.asm"
 	RSEG CODE
@@ -247,10 +247,6 @@ OS_CLS:
 	push bc
 	ld c,CMD_CLS
 	jr label1
-OS_GETXY:
-	push bc
-	ld c,CMD_GETXY	;de=yx ;GET CURSOR POSITION
-	jr label1
 OS_SETXY:
 	push bc
 	ld d,c
@@ -263,7 +259,26 @@ label1:
 	pop iy
 	pop ix
 	pop bc
-	ret			;h-y l-x
+	ret	
+	ENDMOD
+	
+	MODULE OSGETXY
+	PUBLIC OS_GETXY
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_GETXY:
+	push bc
+	push de
+	ld c,CMD_GETXY	;de=yx ;GET CURSOR POSITION
+	push ix
+	push iy
+	call BDOS
+	ex de,hl
+	pop iy
+	pop ix
+	pop de
+	pop bc
+	ret
 	ENDMOD
 	
 	MODULE PUTS
@@ -399,10 +414,10 @@ YIELD:
 	push de
 	push ix
 	push iy
-	ld c,0xf2
+	ld c,CMD_YIELD
 	call 0x0005
 yield_loop:
-	ld c,0xf1
+	ld c,CMD_GETTIMER
 	call 0x0005
     ld hl,(oldtimer)
     ld (oldtimer),de

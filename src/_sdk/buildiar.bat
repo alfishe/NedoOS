@@ -14,15 +14,17 @@ if not exist list mkdir list
 if exist list/lfiles.lnk del list\lfiles.lnk
 IF "%PRJDEBUG%"=="1" (
 	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%/clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
-	set C_OPTIONS=-v0 -ml -r -uu -q -e -K -gA -t4 -Llist/ -Olist/ -Alist/ -I%IARINC% -I%~dp0
 )ELSE (
 	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com -C %IARLIB%/clz80 -f Lnk.xcl
-	set C_OPTIONS=-v0 -ml -s7 -S -uu -e -K -gA -Olist/ -Alist/ -I%IARINC% -I%~dp0
 )
 
 FOR %%f IN (%C_FILES%) do (
 	echo %%~nf.r01 >> list/lfiles.lnk
-	%ICCZ80% %C_OPTIONS% %%f 
+	IF "%PRJDEBUG%"=="1" (
+		%ICCZ80% -v0 -ml -r -uu -q -e -K -gA -t4 -l list/%%~nf.lst -o list/%%~nf.r01 -a list/%%~nf.s01 -I%IARINC% -I%~dp0 %%f 
+	)ELSE (
+		%ICCZ80% -v0 -ml -s7 -S -uu -e -K -gA -o list/%%~nf.r01 -a list/%%~nf.s01 -I%IARINC% -I%~dp0 %%f 
+	)
 )
 FOR %%f IN (%ASM_FILES%) do (
 	echo %%~nf.r01 >> list/lfiles.lnk
