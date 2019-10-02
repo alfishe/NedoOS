@@ -14,6 +14,11 @@ begin
 
 		include "ERIC1.ASM"
 
+oldtimer
+        dw 0
+quiter
+	QUIT ;rasmer
+
 end
 
 	display "End=",end

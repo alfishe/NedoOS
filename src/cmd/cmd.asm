@@ -290,6 +290,7 @@ strcpexec_fail
         jr strcpexec0
 
 cmd_start
+;выполнить командную строку по фону (нужно из .bat)
         ld hl,cmdbuf
         ld a,(hl)
         or a
@@ -311,12 +312,12 @@ execcmd_tryrunok
 
 execcmd_tryrunerror
 ;выполнить файл с именем SYSDIR/cmdbuf и параметрами там
-        ;call loadapp_keeppath
+        call loadapp_keeppath
         OS_SETSYSDRV
         ld de,sysdir
         push de
         OS_GETPATH
-        ;call loadapp_setoldpath ;TODO из prompt
+        call loadapp_setoldpath ;TODO из prompt
         ;ld de,cmdprompt
         ;OS_CHDIR
         ;call makeprompt
@@ -404,31 +405,10 @@ loadapp
         push hl
         call findlastslash. ;de=after last slash or beginning of path
         pop hl
-        push de ;de=after last slash or beginning of path
-        dec de
-        ld a,(de)
-        cp '/'
-        jr nz,$+4
-         xor a
-         ld (de),a ;отрезать имя файла
-        inc de
-        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
-        pop hl ;hl=after last slash
-        jr nz,loadapp_nopath
 
-        ;ld bc,loadapp_setoldpath
-        ;push bc
-
-        push hl ;hl=after last slash
-        OS_CHDIR
-        call loadapp_keeppath
-        pop hl ;hl=after last slash
-loadapp_nopath
-        ;hl=after last slash
-        
         if 1==1
 
-        push hl
+        ;push hl
 ;ищем точку, проверяем, что после неё стоит .com или .bat
 loadapp_finddot0
         ld a,(hl)
@@ -457,14 +437,14 @@ loadapp_nodot
         inc hl
         ld (hl),a ;0        
 loadapp_finddotok
-        pop de
+        ld de,wordbuf ;pop de
         OS_OPENHANDLE
-         push af
+        or a
+         ;push af
         ld a,b
         ld (curhandle),a
-         call loadapp_setoldpath
-         pop af
-        or a
+         ;call loadapp_setoldpath
+         ;pop af
         ret nz ;jr nz,execcmd_error
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
@@ -484,6 +464,7 @@ loadapp_finddotok
         call readfile_pages_dehl
 
         ld a,(curhandle)
+        ld b,a
         OS_CLOSEHANDLE
         pop de
         ld e,d ;e=id
@@ -491,6 +472,28 @@ loadapp_finddotok
         ret ;Z
         
         else ;CP/M-like
+
+        push de ;de=after last slash or beginning of path
+        dec de
+        ld a,(de)
+        cp '/'
+        jr nz,$+4
+         xor a
+         ld (de),a ;отрезать имя файла
+        inc de
+        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
+        pop hl ;hl=after last slash        
+        jr nz,loadapp_nopath
+
+        ;ld bc,loadapp_setoldpath
+        ;push bc
+
+        push hl ;hl=after last slash
+        OS_CHDIR
+        call loadapp_keeppath
+        pop hl ;hl=after last slash
+loadapp_nopath
+        ;hl=after last slash
         
         ex de,hl ;de=after last slash
         ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
@@ -545,9 +548,54 @@ strcpexec_tryrun_noemptyext
         
 strcpexec_tryrun_bat
 	display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
-;filename in fcb
 ;out: nz=error, cy=end of .bat
 ;open .bat
+
+        if 1==1
+;filename in wordbuf
+
+        ld de,wordbuf ;pop de
+        OS_OPENHANDLE
+        or a
+        ld a,b
+        ld (curbathandle),a	
+        ret nz ;jp nz,execcmd_error
+        
+         ld a,0x3c ;"inc a"
+         ld (readbyte_readbuf_last),a
+        ld iy,file_buf_end
+strcpexec_tryrun_bat0
+;load line to cmdbuf
+        ld hl,cmdbuf
+        LD (hl),0
+        call readstr ;nz=EOF
+         ;jr $
+        push af ;jr nz,strcpexec_tryrun_batq ;чтобы последнюю строку всё-таки выполнить
+
+        push iy
+        ld hl,cmdbuf
+        call prtext
+        call prcrlf
+        pop iy
+        
+;call command in cmdbuf
+        push iy
+        call callcmd
+        pop iy
+        
+        pop af
+        jr z,strcpexec_tryrun_bat0 ;nz=EOF
+strcpexec_tryrun_batq
+;close .bat
+        ld a,(curbathandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        xor a
+         scf ;чтобы на выходе не делать RUNAPP
+        ret ;Z
+        
+        else ;CP/M-like
+;filename in fcb
 
         if 1==1
         pop de ;de=after last slash
@@ -573,7 +621,7 @@ strcpexec_tryrun_bat0
 ;load line to cmdbuf
         ld hl,cmdbuf
         call readstr ;nz=EOF
-        jr nz,strcpexec_tryrun_batq ;TODO последнюю строку всё-таки выполнить
+        push af ;jr nz,strcpexec_tryrun_batq ;чтобы последнюю строку всё-таки выполнить
 
         push iy
         ld hl,cmdbuf
@@ -585,7 +633,9 @@ strcpexec_tryrun_bat0
         push iy
         call callcmd
         pop iy
-        jr strcpexec_tryrun_bat0
+        
+        pop af
+        jr z,strcpexec_tryrun_bat0 ;nz=EOF
 strcpexec_tryrun_batq
 ;close .bat
         ld de,fcb_bat
@@ -593,6 +643,8 @@ strcpexec_tryrun_batq
         xor a
          scf ;чтобы на выходе не делать RUNAPP
         ret ;Z
+
+        endif
 
         macro READBYTE_A
 ;out: z=EOF
@@ -614,8 +666,8 @@ readstr
         jr readstr0go
 readstr0
         READBYTE_A ;z=EOF
-;        jr z,readstrEOF
-	jr z,readstrq
+        jr z,readstrEOF ;возвращает NZ
+	;jr z,readstrq ;возвращает Z
         cp 0x0d
         jr z,readstrq
         cp 0x0a
@@ -642,11 +694,32 @@ readbyte_readbuf
         push de
         push hl
         push ix
-
+         ;jr $
         xor a
 readbyte_readbuf_last=$ ;TODO keep if recursive!
         inc a ;/nop(z)=last, inc a(nz)=not last
         jr z,readbyte_readbufq
+
+        if 1==1
+;B = file handle, DE = Buffer address, HL = Number of bytes to read
+curbathandle=$+1
+        ld b,0
+        ld de,file_buf
+        push de
+        ld hl,128
+        OS_READHANDLE
+        pop iy
+;HL = Number of bytes actually read, A=error
+        ;sub 1
+        ;sbc a,a ;error=0 => a=255, else a=0 (Z)
+        ;jr z,readbyte_readbufq ;error (=>EOF)
+         ;jr $
+        ld a,l
+        or a
+        jr z,readbyte_readbufq ;0 bytes (=>EOF)
+        jp m,readbyte_readbufq ;128 bytes (NZ no EOF) (not last block)
+        
+        else ;CP/M-like
         
         ld de,file_buf
         push de
@@ -657,11 +730,14 @@ readbyte_readbuf_last=$ ;TODO keep if recursive!
         xor 128 ;a = bytes read
         jr z,readbyte_readbufq
         jp m,readbyte_readbufq ;full block = not last block
+        
+        endif
+        
 ;last block: shift data to the end of buf, mark last
 	ld c,a ;1..128
 	ld b,0 ;nz!
         ld a,b
-        ld (readbyte_readbuf_last),a
+        ld (readbyte_readbuf_last),a ;last block
         ld hl,file_buf
         add hl,bc
         dec hl ;end of data

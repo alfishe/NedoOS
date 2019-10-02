@@ -136,7 +136,12 @@ L_8069	LD	HL,#03E8
 	XOR	A
 	LD	(VAR0082),A
 	LD	(VAR0085),A
-L_80B5	CALL	L_8746
+MAINLOOP;L_80B5
+        YIELDGETKEY
+	cp key_esc
+        jp z,quiter ;Alone Coder
+
+	CALL	L_8746
 	CALL	L_8FFC
 	CALL	L_8E5F
 	CALL	L_89F9
@@ -163,7 +168,7 @@ L_80B5	CALL	L_8746
 	JP	NZ,L_81A1
 	LD	A,(VAR001A)
 	OR	A
-	JR	Z,L_80B5
+	JR	Z,MAINLOOP;L_80B5
 	LD	BC,#0014
 L_8105	PUSH	BC
 	CALL	L_821D
@@ -1576,7 +1581,7 @@ L_8D0C	LD	A,#01
 	RET
 ;
 L_8D12	LD	B,#02
-	CALL	L_91D9
+	CALL	L_91D9 ;out: a=0 или код направления (1=up, 2=up-right, 3=right, 4=down-right, 5=down, 6=down-left, 7=left, 8=up-left)
 	CP	#05
 	JR	Z,L_8D29
 	INC	B
@@ -2148,8 +2153,10 @@ L_91A3 DB #57,#49,#45,#4F,#44,#4C,#43,#0E
 ;
 L_91B3	LD	A,(L_9284)
 	OR	A
-	JR	NZ,L_91CB
-L_91B9	LD	A,#FE
+	JR	NZ,L_91CB ;out: a=0: 0 pressed
+L_91B9
+;out: a=0: break pressed
+	LD	A,#FE
 	IN	A,(#FE)
 	AND	#01
 	CPL
@@ -2162,7 +2169,9 @@ L_91B9	LD	A,#FE
 	XOR	A
 	RET
 ;
-L_91CB	PUSH	BC
+L_91CB
+;out: a=0: 0 pressed
+	PUSH	BC
 	LD	BC,#EFFE
 	IN	A,(C)
 	POP	BC
@@ -2172,7 +2181,9 @@ L_91CB	PUSH	BC
 	XOR	A
 	RET
 ;
-L_91D9	LD	A,(L_9284)
+L_91D9
+;out: a=0 или код направления (1=up, 2=up-right, 3=right, 4=down-right, 5=down, 6=down-left, 7=left, 8=up-left)
+	LD	A,(L_9284)
 	OR	A
 	JR	Z,L_9208
 	PUSH	BC
@@ -2267,20 +2278,19 @@ L_925C DB #E3,#5A,#58,#43,#56,#41,#53,#44
 L_9284 DB #00
 ;
 L_9285
-	GET_KEY
+	GET_KEY ;rasmer
 	cp key_esc
-	jr nz,.l0
-	QUIT
-.l0
+        jp z,quiter
+
 	CALL	L_9223
 	CP	"K"
 	JR	Z,L_92A3
 	CP	"J"
 	JR	Z,L_929B
-	CALL	L_91B9
+	CALL	L_91B9 ;out: a=0: break pressed
 	OR	A
 	JR	NZ,L_92A3
-	CALL	L_91CB
+	CALL	L_91CB ;out: a=0: 0 pressed
 	OR	A
 	RET	Z
 L_929B	LD	A,#01
