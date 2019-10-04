@@ -13,6 +13,7 @@ clean:
 	rm -f ${NAME} ${OBJECTS}
 install: all
 	mkdir -p ${INSTALLDIR}/wolf3d
-	cp ${OBJECTS} ${NAME} ${INSTALLDIR}/wolf3d
+	mkdir -p ${INSTALLDIR}/wolf3d/wolf3d
+	cp ${OBJECTS} ${NAME} ${INSTALLDIR}/wolf3d/wolf3d
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

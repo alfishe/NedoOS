@@ -1,5 +1,5 @@
 @echo off
-path =..\_sdk\;..\..\_sdk\
+if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
 rem nedodefb lvnt_1 font.asm font 0 2048
 nedopad lvnt_1 font.bin 0 2048
 rem nedodefb net-35.s net35.asm _net35 6144 768

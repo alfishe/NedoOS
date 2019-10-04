@@ -1,5 +1,5 @@
 @echo off
-path =..\_sdk\;..\..\_sdk\
+if "%settedpath%"=="" call "..\_sdk\setpath.bat"
 nedores testpic.bmp testpic.da testpic.ast
 nedolang spr.c
 type err.f

@@ -21,6 +21,7 @@ clean:
 	rm -f ${NAME} ${OBJECTS}
 install: all
 	mkdir -p ${INSTALLDIR}/br
-	cp ${NAME} *.dat ${INSTALLDIR}/br
+	mkdir -p ${INSTALLDIR}/br/br
+	cp ${NAME} *.dat ${INSTALLDIR}/br/br
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

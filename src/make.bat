@@ -20,9 +20,11 @@ IF "%softbuilded%"=="" (
 			IF NOT EXIST ffconf.h IF NOT EXIST ffsfunc.asm (
 				echo "%%~pi"
 				call build.bat
-				if exist *.com ( move *.com %releasedir%\bin\ > nul )
+				FOR %%j IN (*.com) DO (
+					move "*.com" "%releasedir%bin\" > nul
+					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%bin\%%~nj\" > nul
+				)
 				if exist *.ext ( copy *.ext %releasedir%\bin\ > nul )
-				if exist *.dat ( copy *.dat %releasedir%\bin\ > nul )
 			)
 		)
 	)
@@ -42,15 +44,12 @@ IF "%softbuilded%"=="" (
 	)
 	cd %currentdir%
 
-	if not exist %releasedir%\bin\www mkdir %releasedir%\bin\www
-	copy appsdm\3ws\www\*.* %releasedir%\bin\www\
-
 	copy autoexec.bat %releasedir%\bin\ > nul
 	copy net.ini %releasedir%\bin\ > nul
 	copy games\smb\antipac.fm2 %releasedir%\bin\ > nul
 	copy ..\smb.nes %releasedir%\bin\ > nul
 	copy basic\example.bas %releasedir%\bin\ > nul
-	copy games\wolf3d\wolftex.* %releasedir%\bin\ > nul
+	rem copy games\wolf3d\wolftex.* %releasedir%\bin\ > nul
 )
 
 if not "%1"=="noneedtrd" (
@@ -62,7 +61,6 @@ if not "%1"=="noneedtrd" (
         move %releasedir%\bin\evsummer.com %releasedir%\br\
         move %releasedir%\bin\br*.* %releasedir%\br\
         ren %releasedir%\bin\mowser.com browser.com
-	path=_sdk\
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
 	nedotrd test.trd -s 24576 -ac kernel/code.c

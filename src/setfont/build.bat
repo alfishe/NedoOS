@@ -1,3 +1,3 @@
-if "%sjasmplus%"=="" call ../_sdk/setpath.bat
-%sjasmplus% --nologo setfont.asm
+if "%settedpath%"=="" call ../_sdk/setpath.bat
+sjasmplus --nologo --msg=war setfont.asm
 if "%currentdir%"=="" (pause)

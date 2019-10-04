@@ -1,5 +1,5 @@
 @echo off
-path=..\_sdk\;..\..\_sdk\
+if "%settedpath%"=="" call "..\_sdk\setpath.bat"
 nedotrd basics.trd -eb net-35.s
 nedotrd basics.trd -eb net-tort.s
 nedotrd basics.trd -eh NedoGift.$b

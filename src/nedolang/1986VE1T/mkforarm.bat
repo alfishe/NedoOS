@@ -1,4 +1,4 @@
-path=..\_sdk\;..\..\_sdk\
+if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
 nedolarm ../_sdk/read.c ../_sdk/fmttg.h migalka.c ../_sdk/io.c ../_sdk/str.c
 type err.f
 nedotarm _tokarm.s ../_sdk/read.ast ../_sdk/read.var ../_sdk/fmttg.var migalka.ast migalka.var ../_sdk/libarm.i ../_sdk/ioarm.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.ast ../_sdk/str.var

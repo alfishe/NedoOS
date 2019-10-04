@@ -1,3 +1,3 @@
-if "%sjasmplus%"=="" call ../_sdk/setpath.bat
-%sjasmplus% --nologo texted.asm
+if "%settedpath%"=="" call ../_sdk/setpath.bat
+sjasmplus --nologo --msg=war texted.asm
 if "%currentdir%"=="" (pause)

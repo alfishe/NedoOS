@@ -117,7 +117,8 @@ ttexpgs
         ds 8
 
         include "w_intv.asm"
-
+br_path
+		defb "br",0
 begingo
         ld sp,STACK
 
@@ -129,7 +130,8 @@ begingo
 	OS_SETSCREEN
         ld e,0 ;color byte
         OS_CLS
-
+		ld de,br_path
+		OS_CHDIR
         ;OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ;ld a,l
@@ -791,16 +793,16 @@ end1
         page 0
 	savebin "br.com",begin,end-begin
         page 0
-	savebin "br0.dat",begin0,end0-begin0
+	savebin "br/br0.dat",begin0,end0-begin0
         page 1
-	savebin "br1.dat",begin1,end1-begin1
+	savebin "br/br1.dat",begin1,end1-begin1
         page 3
-	savebin "br3.dat",begin3,end3-begin3
+	savebin "br/br3.dat",begin3,end3-begin3
         page 4
-	savebin "br4.dat",begin4,end4-begin4
+	savebin "br/br4.dat",begin4,end4-begin4
         page 6
-	savebin "br6.dat",begin6,end6-begin6
+	savebin "br/br6.dat",begin6,end6-begin6
         page 7
-	savebin "br7.dat",begin7,end7-begin7
+	savebin "br/br7.dat",begin7,end7-begin7
 	
 	;LABELSLIST "..\us\user.l"

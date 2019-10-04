@@ -202,4 +202,4 @@ datSCR
 
 ;----------------------------------
 end
-	savebin "br205.dat",begin,end-begin ;in current dir (not in dir of this source)
+	savebin "br/br205.dat",begin,end-begin ;in current dir (not in dir of this source)

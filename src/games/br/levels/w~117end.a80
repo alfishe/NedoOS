@@ -399,4 +399,4 @@ ERR_RW	SCF
 
         endif
 end
-	savebin "br117.dat",begin,end-begin ;in current dir (not in dir of this source)
+	savebin "br/br117.dat",begin,end-begin ;in current dir (not in dir of this source)

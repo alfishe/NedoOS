@@ -18,6 +18,9 @@ begin
 	OS_SETSCREEN
         ld e,0 ;color byte
         OS_CLS
+		
+		ld de,res_path
+		OS_CHDIR
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -109,6 +112,8 @@ REtID0  LD A,(HL)
         
         call shutay        
         QUIT
+res_path
+		defb "wolf3d",0
 
 shutay
 	ld de,0xe00
