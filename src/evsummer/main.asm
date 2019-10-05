@@ -77,7 +77,7 @@ cmd_begin
 	call setcursor_hl
 
 	call setgamepages
-	ld hl,prolog1
+	ld hl,day1
 	call parsenode_hl
 
 	ld e,6
@@ -312,6 +312,30 @@ nextchar_end
 	pop af
 	ret
 
+copytohl_c ; getchar from de, copy to hl while (de) != c
+	push bc
+	push hl
+	call getchar
+	pop hl
+	pop bc
+	cp c
+	jp z,copytohl_c_end
+	ld (hl),a
+	inc hl
+	jp copytohl_c
+copytohl_c_end
+	xor a
+	ld (hl),a
+	ret
+
+skipto_c ; skip de, while (de) != c
+	push bc
+	call getchar
+	pop bc
+	cp c
+	jp nz,skipto_c
+	ret
+
 showtext_hl
 	ld e,(hl)
 	inc hl
@@ -330,12 +354,19 @@ showtext_hl0
 	jp z,showtext_hl_cmdB0
 	cp '\'
 	jp z,showtext_hl_textcmd
-	cp ';'
+	cp '|'
 	jp z,showtext_hl_skiptonextline
+	cp '"'
+	jp z,showtext_hl_doublequotes
 	cp 0x0D
-	jp z,showtext_hl_skip
+	jp z,showtext_hl0
+	cp ' '
+	jp z,showtext_hl0
 	cp 0x0A
-	jp nz,showtext_hl_print
+	jp z,showtext_hl0
+	jp showtext_hl_keyword
+;	jp nz,showtext_hl_print
+;	jp nz,showtext_hl0
 showtext_hl_nextline
 	ld a,(scrollpause)
 	or a
@@ -352,25 +383,251 @@ showtext_hl_nextline_nopause
 	pop de
 	jp showtext_hl0
 showtext_hl_skiptonextline
-	ld a,(de)
-	inc de
+	call getchar
 	cp 0x0A
 	jp nz,showtext_hl_skiptonextline
+	jp showtext_hl0
 showtext_hl_print
 	push de
-	dec de
+;	dec de ;???
 	call printdelay
 	call printchar
 	pop de
-showtext_hl_skip
-	jp showtext_hl0
 showtext_hl_cmdB0
 	ex hl,de
 	call showtext_hl
 	ex hl,de
 	jp showtext_hl0
+
+showtext_hl_doublequotes
+	call showtext_hl_dq_start
+	jp showtext_hl_textcmd_w
+
+showtext_hl_keyword
+	ld hl,buf
+	ld (hl),a
+	inc hl
+	ld c,' '
+	call copytohl_c
+	push de
+
+	ld hl,buf
+	ld de,txt_menu
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_menu
+	ld hl,buf
+	ld de,template_dg
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_th
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_th
+	ld hl,buf
+	ld de,template_me
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_el
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_un
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_dv
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_sl
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_us
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_mt
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_elp
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_unp
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_dvp
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_slp
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_usp
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	ld hl,buf
+	ld de,template_mtp
+	call strcmp_hlde
+	jp z,showtext_hl_keyword_name
+	pop de
+	ld c,0x0A
+	call skipto_c
+	jp showtext_hl0
+showtext_hl_keyword_name
+	ld hl,(textstart)
+	push de
+	call setcursor_hl
+	call cleartext
+	pop hl
+	call printgr_hl
+	pop de
+	ld c,'"'
+	call skipto_c
+	call showtext_hl_dq_noclear
+	jp showtext_hl_textcmd_w
+showtext_hl_keyword_menu
+	pop de
+	ld c,'"'
+	call skipto_c
+	call showtext_hl_dq_start
+	jp showtext_hl0
+showtext_hl_keyword_th
+	ld hl,(textstart)
+	push de
+	call setcursor_hl
+	call cleartext
+	pop hl
+	call printgr_hl
+	pop de
+	ld c,'"'
+	call skipto_c
+	call showtext_hl_dq_noclear0
+	jp showtext_hl_textcmd_w
+
+	display "showtext_hl_keyword: ",showtext_hl_keyword
+
+
+showtext_hl_brace
+	ld c,'}'
+	ld hl,bracebuf
+	call copytohl_c
+	push de
+	ld de,bracebuf
+	ld hl,txt_w
+	call strcmp_hlde
+	jp z,showtext_hl_brace_w
+	jp showtext_hl_dq_print0
+showtext_hl_brace_w
+	YIELDGETKEYLOOP
+	pop de
+	ld a,c
+	cp key_esc
+	jp z,showtext_hl_endandquit
+	jp showtext_hl_dq_print0
+
+showtext_hl_dq_start
+	ld hl,(autoclear)
+	ld a,h
+	or l
+	jp z,showtext_hl_dq_noclear
+	push de
+	ld hl,(textstart)
+	call setcursor_hl
+	call cleartext
+	pop de
+	jp showtext_hl_dq_noclear0
+showtext_hl_dq_noclear
+	push de
+	call nextline
+	pop de
+showtext_hl_dq_noclear0
+	ld hl,buf
+	ld a,' '
+	ld (hl),a
+	inc hl
+	ld c,'"'
+	call copytohl_c
+	push de ;original pointer
+	ld de,buf
+	jp showtext_hl_dq
+showtext_hl_dq_nl
+	push de
+	call nextline
+	pop de
+	push de
+	ld bc,0
+	ld hl,0xFFFF
+	ld (lastspace),hl
+	jp showtext_hl_dq0
+	display "showtext_hl_dq: ",showtext_hl_dq
+showtext_hl_dq
+	ld bc,0x0200 ;space
+	ld hl,0xFFFF
+	ld (lastspace),hl
+	push de 
+showtext_hl_dq0
+	ld a,(de)
+	inc de
+	or a
+	jp z,showtext_hl_dq_print_full
+	cp ' '
+	call z,showtext_hl_dq_rememspace
+	push bc
+	push de
+	call get_char_address
+	pop de
+	pop bc
+	inc hl ;to width
+	ld a,(hl)
+	add b
+	cp 160 ;Screen width
+	jp nc,showtext_hl_dq_print
+	ld b,a
+	jp showtext_hl_dq0
+showtext_hl_dq_rememspace
+	dec de
+	ld (lastspace),de
+	inc de
+	ret
+showtext_hl_dq_print_full ;do not check lastspace
+	ld hl,0xFFFF
+	ld (lastspace),hl
+showtext_hl_dq_print ;print fragment
+	pop de
+showtext_hl_dq_print0
+	ld a,(de)
+	inc de
+	cp '{'
+	jp z,showtext_hl_brace
+	cp 0x0A
+	jp z,showtext_hl_dq_nl
+	or a
+	jp z,showtext_hl_dq_end
+	push de
+	call printchar
+	call printdelay
+	pop de
+	ld hl,(lastspace)
+	or a
+	sbc hl,de
+	jp c,showtext_hl_dq_nl
+	jp showtext_hl_dq_print0
+showtext_hl_dq_end
+	pop de ; original text pointer
+	ret
+
 showtext_hl_textcmd
 	call getchar
+	cp 'A'
+	jp z,showtext_hl_textcmd_A
+	cp 'a'
+	jp z,showtext_hl_textcmd_a
 	cp 'p'
 	jp z,showtext_hl_textcmd_p
 	cp 's'
@@ -395,6 +652,8 @@ showtext_hl_textcmd
 	jp z,showtext_hl_textcmd_l
 	cp 'd'
 	jp z,showtext_hl_textcmd_d
+	cp '2'
+	jp z,showtext_hl_textcmd_2
 	cp '3'
 	jp z,showtext_hl_textcmd_3
 	cp '4'
@@ -411,6 +670,14 @@ showtext_hl_textcmd
 	jp z,showtext_hl_textcmd_j
 	cp 'e'
 	jp z,showtext_hl_end
+	jp showtext_hl0
+showtext_hl_textcmd_A
+	ld a,1
+	ld (autoclear),a
+	jp showtext_hl0
+showtext_hl_textcmd_a
+	xor a
+	ld (autoclear),a
 	jp showtext_hl0
 showtext_hl_textcmd_p
 	ld a,1
@@ -442,6 +709,10 @@ showtext_hl_textcmd_w
 	push de
 	YIELDGETKEYLOOP
 	pop de
+	ld a,c
+	cp key_esc
+	jp z,showtext_hl_endandquit
+	ld (lastkey),a
 	jp showtext_hl0
 showtext_hl_textcmd_i
 	push de
@@ -461,10 +732,16 @@ showtext_hl_textcmd_W
 	jp showtext_hl0
 showtext_hl_textcmd_F
 	push de
+;	call nextscreen
+;	call setgraphpages
+;	call makefadepixel
+;	ld de,(fadepixel)
+;	call fillwithpixel
 	call setpal
+;	call setscreen
 	call fadein
 	pop de
-	jp showtext_hl0
+	jp showtext_hl_textcmd_2
 showtext_hl_textcmd_l
 	ex hl,de
 	ld de,buf
@@ -474,11 +751,15 @@ showtext_hl_textcmd_l
 	call loadpicture
 	call setgraphpages
 	pop de
-	jp showtext_hl0
+	jp showtext_hl_textcmd_2
 showtext_hl_textcmd_d
 	push de
 	call bigdelay
 	pop de
+	jp showtext_hl0
+showtext_hl_textcmd_2
+	ld hl,0xB400
+	ld (textstart),hl
 	jp showtext_hl0
 showtext_hl_textcmd_3
 	ld hl,0xAA00
@@ -596,6 +877,15 @@ strcopy_hlde_skip
 	inc hl
 	jr strcopy_hlde
 
+strcmp_hlde ;de start from or eq to hl
+	ld a,(de)
+	cpi
+	ret nz
+	inc de
+	or a
+	ret z
+	jr strcmp_hlde
+
 win1page ds 1
 win2page ds 1
 win3page ds 1
@@ -610,6 +900,7 @@ picbufpage2 ds 1
 gamefile db "game.o",0
 textfile db "text.o",0
 buf ds 255
+bracebuf ds 16
 breakpoint dw TEXTADDRESS
 filehandle dw 0
 
@@ -617,6 +908,8 @@ pal	ds 32
 
 lastvar
 lastkey db 0
+lastspace dw 0
+lastchar db 0
 
 var_gmode db 0
 var_sound db 0
@@ -628,12 +921,31 @@ smode db SMODE_AY
 var_prologue db 0
 var_slavya db 0
 
+txt_w db "w",0
+
 
 txt_text db "textmode",0
 txt_16c db "16 color (ATM/EVOLUTION)",0
 txt_256c db "256 color (EVOLUTION)",0
 txt_ay db "AY",0
 txt_gs db "GS",0
+txt_menu db "menu:",0
+template_elp db "elp",0,"Пионер",0
+template_mtp db "mtp",0,"Вожатая",0
+template_slp db "slp",0,"Пионерка",0
+template_dvp db "dvp",0,"Пионерка",0
+template_unp db "unp",0,"Пионерка",0
+template_usp db "usp",0,"Пионерка",0
+template_dg db "dg",0,"Девочка",0
+template_th db "th",0," ~ ",0
+template_me db "me",0,"Семён",0
+template_el db "el",0,"Электроник",0
+template_sl db "sl",0,"Славя",0
+template_un db "un",0,"Лена",0
+template_dv db "dv",0,"Алиса",0
+template_us db "us",0,"Ульяна",0
+template_mt db "mt",0,"Ольга Дмитриевна",0
+
 pcmd_quit db GCMD_QUIT
 
 txt_fopenerror 	db 0x0A,"Cannot open file: ",0

@@ -1,4 +1,36 @@
 font_table
+		dw s_0
+		dw s_1
+		dw s_2
+		dw s_3
+		dw s_4
+		dw s_5
+		dw s_6
+		dw s_7
+		dw s_8
+		dw s_9
+		dw s_A
+		dw s_B
+		dw s_C
+		dw s_D
+		dw s_E
+		dw s_F
+		dw s_10
+		dw s_11
+		dw s_12
+		dw s_13
+		dw s_14
+		dw s_15
+		dw s_16
+		dw s_17
+		dw s_18
+		dw s_19
+		dw s_1A
+		dw s_1B
+		dw s_1C
+		dw s_1D
+		dw s_1E
+		dw s_1F
 		dw s_20
 		dw s_21
 		dw s_22

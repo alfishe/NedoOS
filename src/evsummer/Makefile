@@ -1,4 +1,4 @@
-INSTALLDIR	= ../../release
+INSTALLDIR	= ../../release/games/evsummer
 GAMEINSTALLDIR	= ../../../sd/evsummer
 NAME		= evsummer.com
 OBJECTS		= game.o
@@ -32,7 +32,8 @@ arc:
 	sudo cp summer.zip /var/www
 
 install: all
-	cp -r txt pic evsummer.com game.o ${GAMEINSTALLDIR}
+	mkdir -p ${INSTALLDIR}
+	cp -r txt pic evsummer.com game.o ${INSTALLDIR}
 
 install-doc: ${DOC}
 #	cp ${DOC} ${INSTALLDIR}/doc

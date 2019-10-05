@@ -209,23 +209,27 @@ setpicbufpages
 
 printgr_hl
 	ld a,(hl)
+	inc hl
 	or a
 	ret z
 	cp 0x0D
-	jr nz,printgr_print
-	call nextline
-	jr printgr_skip
-printgr_print
+	jr z,printgr_hl
+	cp 0x0A
+	jr z,printgr_hl_nl
 	push hl
+	call printdelay
 	call printchar
 	pop hl
-printgr_skip
-	inc hl
+	jr printgr_hl
+printgr_hl_nl
+	push hl
+	call nextline
+	pop hl
 	jr printgr_hl
 
 printchar ;a=char print char at current cursor position (draw to down-right)
 	call get_char_address
-	ld de,s_20 ;first symbol
+	ld de,s_0 ;first symbol
 	push hl
 	pop ix
 	inc ix
@@ -267,7 +271,7 @@ convertpixel
 
 get_char_address ;a=char ;returns in hl addres of char matrix
 	ld hl,font_table
-	sub 0x20
+;	sub 0x20
 	ld d,0
 	ld e,a
 	sla e ;*2
@@ -325,7 +329,14 @@ nextrow
 
 scroll
 	call getlinescount
+	or a
 	ld hl,(textstart)
+	ld de,0x0A00
+	sbc hl,de
+	ld (textstart),hl
+	push hl
+	call getlinescount
+	pop hl
 	call get2pixeladdr
 	push hl
 	call scroll_copy
@@ -522,6 +533,18 @@ fadein0
 	jr nz,fadein1
 	ret
 
+fillwithpixel ;e=colorpixel
+	ld bc,0x8000
+	ld hl,0x4000
+fillwithpixel0
+	ld (hl),e
+	inc hl
+	dec bc
+	ld a,b
+	or c
+	jp nz,fillwithpixel0
+	ret
+
 makefonttable
 	ld hl,fontcolors
 	ld a,(whitepixel)
@@ -672,6 +695,6 @@ cursorx		db 0 ;0-159
 cursory		db 0 ;0-199
 cursoroffset 	dw 0
 screen		dw 0 ;Screen to draw
-scrollpause 	db 0
-
+scrollpause	dw 0
+autoclear	dw 1
 	include font.asm

@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     printf("Converting font %s to %s\n filesize=%u\n image=%ux%u\n pixeloffset=%u\n colors=%u\n headsize=%u\n bpp=%u\n",argv[1],argv[2], insize, *width,*height,*pixoffset,*colors,*headsize,*bpp);
 
     fprintf(outfile,"font_table\n");
-    for (i=0x20;i<=0xFF;i++)
+    for (i=0;i<=0xFF;i++)
 	fprintf(outfile,"\t\tdw s_%X\n",i);
     for (i=0x0;i<=0x1F;i++)
 	fprintf(outfile,"s_%X\n",i);

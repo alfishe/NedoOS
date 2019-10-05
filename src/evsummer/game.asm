@@ -142,7 +142,7 @@ prolog1
 	db GCMD_PRTEXT
 	dw TEXTADDRESS
 prolog1_input1
-	db GCMD_INPUT
+;	db GCMD_INPUT
 	db GCMD_VARIANT,'1'
 	dw prolog1_input2
 	db GCMD_SETVARB
@@ -165,7 +165,7 @@ day1
 	db GCMD_PRTEXT
 	dw TEXTADDRESS
 day1_sl0
-	db GCMD_INPUT
+;	db GCMD_INPUT
 	db GCMD_VARIANT,'1'
 	dw day1_sl1
 	db GCMD_CONTINUE

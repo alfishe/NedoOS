@@ -3,6 +3,8 @@
 /*
 Commands
 	0xB0 next word is the pointer to text to show
+	\A autoclear on
+	\a autoclear off
 	\p scroll pause
 	\s scroll nopause
 	\f fade to black
@@ -14,6 +16,7 @@ Commands
 	\F fade image from buf
 	\d wait 1 sec
 	\T text window to fullscreen
+	\2 text window to bottom 2 lines
 	\3 text window to bottom 3 lines
 	\4 text window to bottom 4 lines
 	\b save breakpoint
@@ -22,7 +25,7 @@ Commands
 	\W fade to white
 	\j<s> jump to symbol @
 	\e end of text
-	; comment - skip to next line
+	| comment - skip to next line
 */
 
 text_obj
