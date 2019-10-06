@@ -388,6 +388,7 @@ getlinescount
 	ret
 
 printdelay
+	ret
 	ld b,1
 printdelay0
 	push af

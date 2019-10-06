@@ -32,8 +32,8 @@ arc:
 	sudo cp summer.zip /var/www
 
 install: all
-	mkdir -p ${INSTALLDIR}
-	cp -r txt pic evsummer.com game.o ${INSTALLDIR}
+#	mkdir -p ${INSTALLDIR}
+	cp -r txt pic evsummer.com game.o ${GAMEINSTALLDIR}
 
 install-doc: ${DOC}
 #	cp ${DOC} ${INSTALLDIR}/doc

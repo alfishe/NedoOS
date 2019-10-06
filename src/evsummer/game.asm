@@ -141,8 +141,12 @@ prolog1
 	db GCMD_LOADTEXT,"txt/prolog1",0
 	db GCMD_PRTEXT
 	dw TEXTADDRESS
+
+	db GCMD_GOTO
+	dw prolog1_input1
+prolog1_input
+	db GCMD_INPUT
 prolog1_input1
-;	db GCMD_INPUT
 	db GCMD_VARIANT,'1'
 	dw prolog1_input2
 	db GCMD_SETVARB
@@ -152,7 +156,7 @@ prolog1_input1
 	dw prolog2
 prolog1_input2
 	db GCMD_VARIANT,'2'
-	dw prolog1_input1
+	dw prolog1_input
 	db GCMD_SETVARB
 	dw var_prologue
 	db 0
@@ -164,23 +168,38 @@ day1
 	db GCMD_LOADTEXT,"txt/day1",0
 	db GCMD_PRTEXT
 	dw TEXTADDRESS
+
+	db GCMD_GOTO
+	dw day1_sl0
+day1_sl
+	db GCMD_INPUT
 day1_sl0
-;	db GCMD_INPUT
 	db GCMD_VARIANT,'1'
 	dw day1_sl1
 	db GCMD_CONTINUE
-	db GCMD_GOTO
-	dw day1_camp0
 day1_sl1
 	db GCMD_VARIANT,'2'
-	dw day1_sl0
+	dw day1_sl
 	db GCMD_INCVARB
 	dw var_slavya
 	db GCMD_JUMP,'$'
-	db GCMD_GOTO
-	dw day1_camp0
 
-day1_camp0
+	db GCMD_GOTO
+	dw day1_dinhallaway0
+day1_dinhallaway
+	db GCMD_INPUT
+day1_dinhallaway0
+	db GCMD_VARIANT,'1'
+	dw day1_dinhallaway1
+	db GCMD_CONTINUE
+day1_dinhallaway1
+	db GCMD_VARIANT,'2'
+	dw day1_dinhallaway
+	db GCMD_INCVARB
+	dw var_alisa
+	db GCMD_JUMP,'&'
+
+quit
 
 input1
 	db GCMD_INPUT

@@ -77,7 +77,7 @@ cmd_begin
 	call setcursor_hl
 
 	call setgamepages
-	ld hl,day1
+	ld hl,prolog1
 	call parsenode_hl
 
 	ld e,6
@@ -522,6 +522,15 @@ showtext_hl_brace
 	ld hl,txt_w
 	call strcmp_hlde
 	jp z,showtext_hl_brace_w
+	ld de,bracebuf
+	ld hl,txt_i
+	call strcmp_hlde
+	jp z,showtext_hl_brace_i
+	ld de,bracebuf
+	ld hl,txt_i_close
+	call strcmp_hlde
+	jp z,showtext_hl_brace_i_close
+	pop de
 	jp showtext_hl_dq_print0
 showtext_hl_brace_w
 	YIELDGETKEYLOOP
@@ -530,6 +539,19 @@ showtext_hl_brace_w
 	cp key_esc
 	jp z,showtext_hl_endandquit
 	jp showtext_hl_dq_print0
+showtext_hl_brace_i
+	pop de
+	dec de
+	ld a,'<'
+	ld (de),a
+	jp showtext_hl_dq_print0
+showtext_hl_brace_i_close
+	pop de
+	dec de
+	ld a,'>'
+	ld (de),a
+	jp showtext_hl_dq_print0
+
 
 showtext_hl_dq_start
 	ld hl,(autoclear)
@@ -920,8 +942,11 @@ smode db SMODE_AY
 ;game variables
 var_prologue db 0
 var_slavya db 0
+var_alisa db 0
 
 txt_w db "w",0
+txt_i db "i",0
+txt_i_close db "/i",0
 
 
 txt_text db "textmode",0

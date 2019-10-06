@@ -8,25 +8,25 @@
 "Просто сон..."
 |play sound_loop sfx_keyboard_mouse_computer_noise
 \lpic/prol_k1.16c
-\F\d\d\lpic/prol_k2.16c
-    \i\lpic/prol_k3.16c
-    \i\lpic/prol_k4.16c
-    \i\d\d\lpic/prol_k3.16c
-\i\lpic/prol_k2.16c
-    \i\lpic/prol_k1.16c
+\F\d\d\lpic/prolog/keyb2.16c
+    \i\lpic/prolog/keyb3.16c
+    \i\lpic/prolog/keyb4.16c
+\i\d\d\lpic/prolog/keyb3.16c
+    \i\lpic/prolog/keyb2.16c
+    \i\lpic/prolog/keyb1.16c
     \i\d\d\f
-\lpic/prol_km1.16c
-\F\d\d\lpic/prol_km2.16c
-    \i\lpic/prol_km3.16c
-    \i\lpic/prol_km4.16c
-    \i\d\d\lpic/prol_km3.16c
-\i\lpic/prol_km2.16c
-    \i\lpic/prol_km1.16c
+      \lpic/prolog/keybmon1.16c
+\F\d\d\lpic/prolog/keybmon2.16c
+    \i\lpic/prolog/keybmon3.16c
+    \i\lpic/prolog/keybmon4.16c
+\i\d\d\lpic/prolog/keybmon3.16c
+    \i\lpic/prolog/keybmon2.16c
+    \i\lpic/prolog/keybmon1.16c
     \i\d\d\f
-\lpic/prol_m1.16c
-\F\d\d\lpic/prol_m2.16c
-    \i\lpic/prol_m3.16c
-    \i\lpic/prol_m4.16c
+      \lpic/prolog/monitor1.16c
+\F\d\d\lpic/prolog/monitor2.16c
+    \i\lpic/prolog/monitor3.16c
+    \i\lpic/prolog/monitor4.16c
     \i\d\d
 "Экран монитора смотрел на меня словно живой."
 "Иногда мне правда казалось, что он обладает сознанием, своими мыслями и желаниями, стремлениями; умеет чувствовать, любить и страдать."
@@ -38,24 +38,24 @@
 "А людей, сидящих по ту сторону сетевого кабеля, попросту не существует!"
 "Все они всего лишь плод его больной фантазии, ошибка в программном коде или баг ядра, зажившего собственной жизнью"
 \f
-\lpic/prolog15.16c
+\lpic/prolog/prolog15.16c
 \F\d
-\f\lpic/prolog3.16c
+\f\lpic/prolog/prolog3.16c
 \F\d
-\f\lpic/prolog4.16c
+\f\lpic/prolog/prolog4.16c
 \F\d
 |stop sound_loop
 "Если посмотреть со стороны на моё существование, то такие мысли покажутся не столь уж бредовыми, а какой-нибудь психолог наверняка поставит мне кучу заумных диагнозов и, возможно, выпишет направление в жёлтый дом."
 \f
-\lpic/prolog5.16c
+\lpic/prolog/prolog5.16c
 \F\d
-\f\lpic/prolog14.16c
+\f\lpic/prolog/prolog14.16c
 \F\d
-\f\lpic/prolog11.16c
+\f\lpic/prolog/prolog11.16c
 \F\d
 "Маленькая квартирка без следов какого бы то ни было ремонта или даже подобия порядка, и вечно одинаковый вид из окна на серый, день и ночь куда-то бегущий мегаполис, вот условия моей жизни."
 |    play music music_list["farewell_to_the_past_edit"]
-\f\lpic/prolog2.16c
+\f\lpic/prolog/prolog2.16c
 \F
 "Конечно, всё начиналось не так..."
 \a
@@ -86,29 +86,29 @@
 "Любил я разве что читать, но даже при этом никогда бы не назвал себя эрудированным человеком."
 "Возможно, я был асом в просмотре аниме и гроссмейстером неумелых шуточек в интернете."
 "Плати мне за это деньги, я бы обрадовался (да и заработал неплохо), но вряд ли так просто можно заполнить пустоту в душе."
-\f\lpic/roomwin.16c
-\F\d\A| stop music 
+\lpic/bg/semen_rw.16c
+\f\F\d\A| stop music 
 |    play sound_loop sfx_street_traffic_outside fadein 2
 "Сегодня очередной типичный день моей типичной жизни типичного неудачника."
 "И именно сегодня мне нужно ехать на встречу институтских товарищей."
 "По правде говоря, совершенно не хотелось."
 "Да и какой смысл, если вместе с ними я отучился всего ничего?"
 "Однако меня всё же уговорил друг, бывший одногруппник, один из немногих, с кем я поддерживал контакт не только в интернете."
-\d\f
+\f
 |    stop sound_loop
 |    play ambience ambience_cold_wind_loop fadein 3
 |    $ set_mode_adv()
 |    play sound sfx_intro_bus_stop_steps
-\lpic/intro1.16c
-\F\d\lpic/intro2.16c
-\f\F\d\lpic/intro3.16c
-\f\F\d\lpic/intro4.16c
-\f\F\d\lpic/intro5.16c
-\f\F\d\lpic/intro6.16c
+\lpic/prolog/intro_1.16c
+\F\d\lpic/prolog/intro_2.16c
+\f\F\d\lpic/prolog/intro_3.16c
+\f\F\d\lpic/prolog/intro_4.16c
+\f\F\d\lpic/prolog/intro_5.16c
+\f\F\d\lpic/prolog/intro_6.16c
 |    play sound sfx_intro_bus_stop_sigh
-\f\F\d\lpic/intro8.16c
-\f\F\d\lpic/intro7.16c
-\f\F\d\lpic/busstop.16c
+\f\F\d\lpic/prolog/intro_8.16c
+\f\F\d\lpic/prolog/intro_7.16c
+\f\F\d\lpic/bg/bus_stop.16c
 \f\F\d
 "Вечер. Мороз.{w} Остановка и ожидание автобуса."
 "Я никогда не любил зиму.{w} Впрочем, и жаркое лето тоже не моя стихия."
@@ -121,7 +121,7 @@
 "Или пойти опять работать в офис?{w} Нет уж!"
 "Может, стоит попробовать фриланс?"
 "Да что я умею, и кому я нужен..."
-\d\f\lpic/prolog2.16c
+\d\f\lpic/prolog/prolog2.16c
 \F
 "Вдруг мне вспомнилось детство..."
 \a
@@ -147,18 +147,18 @@
 "Хотя где мне их встретить..."
 \f\d|play sound sfx_intro_bus_engine_start
 |    play sound_loop sfx_intro_bus_engine_loop fadein 3
-\lpic/intro9.16c
+\lpic/prolog/intro_9.16c
 \F\A
 "Звук работающего двигателя вернул меня к реальности."
 "Подъехал автобус."
 "<Какой-то он не такой> мелькнула мысль."
 "Впрочем, какая разница. По этому маршруту ходит только 410-ый."
-\lpic/intro10.16c
-\f\F\d\lpic/intro11.16c
+\lpic/prolog/intro_10.16c
+\f\F\d\lpic/prolog/intro_11.16c
 \f\F\d|play sound sfx_intro_bus_door_open
-\lpic/intro13.16c
+\lpic/prolog/intro_13.16c
 \f\F\d| play sound_loop sfx_bus_interior_moving fadein 4
-\lpic/introxx.16c
+\lpic/prolog/intro_xx.16c
 \f\F\d
 "Огни пролетают мимо, их холодный свет словно зажигает внутри давно погасшие чувства."
 |$ volume(0.5, "music")
