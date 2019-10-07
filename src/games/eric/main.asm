@@ -12,7 +12,7 @@ begin
         ld a,d
         SETPG16K
 
-		include "ERIC1.ASM"
+		include "eric1.asm"
 
 oldtimer
         dw 0

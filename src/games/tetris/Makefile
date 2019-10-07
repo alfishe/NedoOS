@@ -2,7 +2,7 @@ NAME		= tetris.com
 OBJECTS		=
 SOURCES		= main.asm zx.fnt
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release
+INSTALLDIR	= ../../../release/games
 
 all: ${NAME} ${SOURCES}
 
@@ -12,6 +12,6 @@ tetris.com: ${SOURCES}
 clean: 
 	rm -f ${NAME} ${OBJECTS}
 install: all
-	cp ${NAME} ${INSTALLDIR}/bin
+	cp ${NAME} ${INSTALLDIR}
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

@@ -2,7 +2,7 @@ NAME		= untangle.com
 OBJECTS		=
 SOURCES		= main.asm control.asm prarrow.asm
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release
+INSTALLDIR	= ../../../release/games
 
 all: ${NAME} ${SOURCES}
 
@@ -12,6 +12,6 @@ untangle.com: ${SOURCES}
 clean: 
 	rm -f ${NAME} ${OBJECTS}
 install: all
-	cp ${NAME} ${INSTALLDIR}/bin
+	cp ${NAME} ${INSTALLDIR}
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

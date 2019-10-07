@@ -2,7 +2,7 @@ INSTALLDIR	=
 EXE		= main.bin
 NAME		= spr
 OBJECTS		= testpic.ast spr.ast spr.var spr.A_ spr.V_
-SOURCES		= spr.c main.s logo testmusic.pt3 testpic.bmp testpic.dat lvnt_1 bqiwo.afb
+SOURCES		= spr.c main.s logo testmusic.pt3 testpic.bmp testpic.da lvnt_1 bqiwo.afb
 NEDOLANG	= ../_sdk/nedolang.bin
 NEDOASM		= ../_sdk/nedoasm.bin
 NEDOTOK		= ../_sdk/nedotok.bin
@@ -17,7 +17,7 @@ ${EXE}: ${SOURCES} ${OBJECTS}
 	cat asmerr.f
 
 testpic.ast:
-	${NEDORES} testpic.bmp testpic.dat testpic.ast
+	${NEDORES} testpic.bmp testpic.da testpic.ast
 
 %ast: testpic.ast
 	${NEDOLANG} ${NAME}.c

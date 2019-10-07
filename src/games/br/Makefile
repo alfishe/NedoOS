@@ -20,8 +20,8 @@ br.com: ${SOURCES}
 clean: 
 	rm -f ${NAME} ${OBJECTS}
 install: all
-	mkdir -p ${INSTALLDIR}/br
 	mkdir -p ${INSTALLDIR}/br/br
-	cp ${NAME} *.dat ${INSTALLDIR}/br/br
+	cp dat/*.dat ${INSTALLDIR}/br/br
+	cp ${NAME} ${INSTALLDIR}/br
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

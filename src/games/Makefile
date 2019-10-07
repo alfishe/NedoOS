@@ -1,4 +1,4 @@
-PROGS		= snake tank tetris smb untangle wolf3d br
+PROGS		= snake tank tetris smb untangle wolf3d br eric
 
 all: ${PROGS}
 
@@ -11,6 +11,7 @@ clean:
 	for d in ${PROGS}; do ${MAKE} -w -C $$d clean; done
 
 install:
+	mkdir -p ../../release/games
 	for d in ${PROGS}; do ${MAKE} -w -C $$d install; done
 
 install-doc:
