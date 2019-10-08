@@ -131,11 +131,19 @@ wgetmainpg=$+1
 	;jp browser_godownload
 
 reloadwget
+        call setpgtemp8000
+        ld de,0x8000;oldpath
+        OS_GETPATH
+
         OS_SETSYSDRV
         ld de,wgetfilename
         call openstream_file
         or a
         ret nz
+        
+        ld de,0x8000;oldpath
+        OS_CHDIR
+        
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         jr nz,html_download_closeq ;error
