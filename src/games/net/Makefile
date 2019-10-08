@@ -7,7 +7,8 @@ INSTALLDIR	= ../../../release/games
 all: ${NAME} ${SOURCES}
 
 snake.com: main.asm
-	${SJASMPLUS} --nologo main.asm
+	${SJASMPLUS} --nologo master.asm
+	${SJASMPLUS} --nologo slave.asm
 
 clean: 
 	rm -f ${NAME} ${OBJECTS}

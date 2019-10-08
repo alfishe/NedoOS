@@ -135,7 +135,7 @@ begin
         
 waitbegin0
         call receivebyte
-        or a
+        ;or a
         jr z,waitbegin0
        
         endif
@@ -267,22 +267,22 @@ getkey
          cp key_esc
          jp z,quit
          
-        push af
         
         if MASTER ;посылаем свои клавиши
         
+        push af
         call sendbyte
         
+        pop af
         else ;slave - принимаем клавиши
         
 waitkey0
         call receivebyte
-        or a
+        ;or a
         jr z,waitkey0
         
         endif
         
-        pop af
          
         cp dir_l
         jr z,getkey_ok
@@ -771,12 +771,12 @@ port_ia:
 ;master: from 192.168.0.7 to 192.168.0.2
 	defb 0
         db 100,53 ;port (big endian)
-        db 192,168,0,2 ;ip (big endian)
+        db 192,168,1,177 ;ip (big endian)
         else
 ;slave: from 192.168.0.2 to 192.168.0.7
 	defb 0
         db 100,53 ;port (big endian)
-        db 192,168,0,7 ;ip (big endian)
+        db 192,168,1,177 ;ip (big endian)
         endif
 
         macro cols data
