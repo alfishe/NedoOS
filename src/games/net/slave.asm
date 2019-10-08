@@ -1,3 +1,3 @@
 MASTER=0
         include "main.asm"
-	savebin "slave.com",begin,end-begin
+	savebin "net2.com",begin,end-begin

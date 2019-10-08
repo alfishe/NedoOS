@@ -1,3 +1,3 @@
 MASTER=1
         include "main.asm"
-	savebin "master.com",begin,end-begin
+	savebin "net1.com",begin,end-begin

@@ -96,6 +96,8 @@ begin
 
         ld hl,#0101
         ld (snakecoords),hl
+        ld hl,#1001
+        ld (snakecoords2),hl
         ;ld bc,#0a1e
         ;call prrabbit
         call genrabbit
@@ -103,24 +105,41 @@ begin
 	ld de,0x0203
 	OS_NETSOCKET
 	ld a,l
-	ld (soc1),a
+	ld (socsend),a
+	or a
+	jp m,inet_exiterr
+	ld de,0x0203
+	OS_NETSOCKET
+	ld a,l
+	ld (socrecv),a
 	or a
 	jp m,inet_exiterr
 	
-        if MASTER==0
-	LD DE,port_ia
-	OS_BIND
-        ld a,l
-	or a
-	jp m,inet_exiterr
-        endif
-	
-	ld a,(soc1)
+        ;if MASTER
+
+	ld a,(socsend)
 	LD DE,port_ia
 	OS_NETCONNECT
         ld a,l
 	or a
 	jp m,inet_exiterr
+        
+        ;else ;slave
+
+	ld a,(socrecv)
+	LD DE,port_ia
+	OS_BIND
+        ld a,l
+	or a
+	jp m,inet_exiterr
+	
+	ld a,(socrecv)
+	LD DE,port_ia
+	OS_NETCONNECT
+        ld a,l
+	or a
+	jp m,inet_exiterr
+        ;endif
 
 ;начальная синхронизация        
 ;если master - при этом посылаем свои клавиши, если slave - принимаем клавиши
@@ -150,6 +169,14 @@ gameloop
         endif
         ld hl,(curlength)
         call prnum
+        if EGA
+        ld bc,192*256+18
+        call calcscraddr
+        else
+        ld de,#50e0+14
+        endif
+        ld hl,(curlength2)
+        call prnum
         
         if MASTER
         call delay
@@ -158,13 +185,22 @@ gameloop
         call getkey ;если master - при этом посылаем свои клавиши, если slave - принимаем клавиши
         
         call shrink
+        call shrink2
         call proldheadastail
+        call proldheadastail2
         call move_grow ;bc=новые координаты головы
         push bc
+        call move_grow2 ;bc=новые координаты головы
+        push bc
         call collide_rabbit_startgrow
+        call collide_rabbit_startgrow2
         call collide_walls_self ;Z=collision
-        pop bc
         jr z,gameover
+        call collide_walls_self2 ;Z=collision
+        jr z,gameover
+        pop bc
+        call prhead2
+        pop bc
         call prhead
 	jp gameloop
 
@@ -197,16 +233,25 @@ rnd0
 
 collide_rabbit_startgrow
         call getheadcoords
-        ;call calcscraddr
-        call calcattraddr;_fromscr
+        call calcattraddr
         ;de=attraddr (head)
         ld a,(de)
         cp rabbitattr
         ret nz
         ld a,5
         ld (curgrow),a
-        ;call genrabbit
-        ;ret
+        jp genrabbit
+
+collide_rabbit_startgrow2
+        call getheadcoords2
+        call calcattraddr
+        ;de=attraddr (head)
+        ld a,(de)
+        cp rabbitattr
+        ret nz
+        ld a,5
+        ld (curgrow2),a
+        jp genrabbit
 
 genrabbit
         ld c,fieldhgt
@@ -247,6 +292,17 @@ collide_walls_self
         cp dangerattr2
         ret
 
+collide_walls_self2
+;out: Z=collision
+        call getheadcoords2
+        call calcattraddr
+        ;de=attraddr (head)
+        ld a,(de)
+        cp dangerattr1
+        ret z
+        cp dangerattr2
+        ret
+
 delay
         ld b,5
 delay0
@@ -267,22 +323,33 @@ getkey
          cp key_esc
          jp z,quit
          
+        push af
         
         if MASTER ;посылаем свои клавиши
         
-        push af
         call sendbyte
-        
-        pop af
-        else ;slave - принимаем клавиши
-        
 waitkey0
         call receivebyte
         ;or a
         jr z,waitkey0
+        or a
+        jr z,$+5
+        ld (curdirection2),a
+        
+        else ;slave - принимаем клавиши
+
+waitkey0
+        call receivebyte
+        ;or a
+        jr z,waitkey0
+        or a
+        jr z,$+5
+        ld (curdirection),a
+        call sendbyte
         
         endif
         
+        pop af
          
         cp dir_l
         jr z,getkey_ok
@@ -293,17 +360,21 @@ waitkey0
         cp dir_d
         ret nz;jr z,getkey_ok
 getkey_ok
+        if MASTER
         ld (curdirection),a
+        else
+        ld (curdirection2),a
+        endif
         ret
 
 shrink
         ld a,(curgrow)
         or a
-        jr z,nogrow
+        jr z,shrink_nogrow
         dec a
         ld (curgrow),a
-        ret;jr growq
-nogrow
+        ret
+shrink_nogrow
         ld bc,(snakecoords)
         call cltail
         ld hl,snakecoords+2
@@ -313,13 +384,42 @@ nogrow
         ld hl,(curlength)
         dec hl
         ld (curlength),hl
-;growq
+        ret
+
+shrink2
+        ld a,(curgrow2)
+        or a
+        jr z,shrink2_nogrow
+        dec a
+        ld (curgrow2),a
+        ret
+shrink2_nogrow
+        ld bc,(snakecoords2)
+        call cltail2
+        ld hl,snakecoords2+2
+        ld de,snakecoords2
+        ld bc,snakecoordssize-2
+        ldir
+        ld hl,(curlength2)
+        dec hl
+        ld (curlength2),hl
         ret
 
 getheadcoords
         ld hl,(curlength) ;не считая головы
         add hl,hl
         ld bc,snakecoords
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        inc hl
+        ret
+
+getheadcoords2
+        ld hl,(curlength2) ;не считая головы
+        add hl,hl
+        ld bc,snakecoords2
         add hl,bc
         ld c,(hl)
         inc hl
@@ -354,13 +454,34 @@ moveq
         inc hl
         ld (curlength),hl
         ret
-
-curgrow
-        db 7
-curdirection
-        db dir_r
-curlength
-        dw 0 ;не считая головы
+        
+move_grow2
+;out: bc=новые координаты головы        
+        call getheadcoords2
+;bc=старые координаты головы        
+        ld a,(curdirection2)
+        dec c
+        cp dir_l
+        jr z,move2q
+        inc c
+        inc c
+        cp dir_r
+        jr z,move2q
+        dec c
+        inc b
+        cp dir_d
+        jr z,move2q
+        dec b
+        dec b
+move2q
+;bc=новые координаты головы        
+        ld (hl),c
+        inc hl
+        ld (hl),b
+        ld hl,(curlength2)
+        inc hl
+        ld (curlength2),hl
+        ret
         
 cls
         if EGA
@@ -432,7 +553,18 @@ proldheadastail
         ld hl,tilesnake
         jp prtilexy
 
+proldheadastail2
+        call getheadcoords2
+;bc=yx
+        ld a,snakeattr
+        ld (curattr),a
+        ;ld a,'O'
+        ;jp prcharxy
+        ld hl,tilesnake
+        jp prtilexy
+
 prhead
+prhead2
 ;bc=yx
         ld a,snakeattr
         ld (curattr),a
@@ -442,6 +574,7 @@ prhead
         jp prtilexy
 
 cltail
+cltail2
 ;bc=yx
         ld a,emptyattr
         ld (curattr),a
@@ -734,7 +867,7 @@ sendbyte
         ld (sendbuf),a
         
 	ld hl,1
-	LD	a,(soc1)
+	LD	a,(socsend)
 	LD	DE,sendbuf
 	OS_WIZNETWRITE
 	bit 7,h
@@ -748,7 +881,7 @@ receivebyte
 
 receivebyte0
 	ld hl,1
-	LD	a,(soc1)
+	LD	a,(socrecv)
 	LD	DE,recvbuf
 	OS_WIZNETREAD
 	ld a,h
@@ -763,7 +896,9 @@ sendbuf
 recvbuf
         ds 1
 
-soc1
+socsend
+        db 0
+socrecv
         db 0
 
 port_ia:
@@ -886,7 +1021,24 @@ font
         incbin "zx.fnt"
         endif
 
+curgrow
+        db 7
+curgrow2
+        db 7
+curdirection
+        db dir_r
+curdirection2
+        db dir_r
+curlength
+        dw 0 ;не считая головы
+curlength2
+        dw 0 ;не считая головы
+
 snakecoords
+;y,x (голова в конце)
+        ds snakecoordssize
+        
+snakecoords2
 ;y,x (голова в конце)
         ;ds snakecoordssize
         
