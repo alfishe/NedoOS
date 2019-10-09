@@ -881,3 +881,13 @@ v0.r235.1, 02.10.2019
 - cmd: при выполнении системных программ менялся текущий каталог
 * cmd: убраны оставшиеся CP/M вызовы
 + eric: slowdown, выход по Esc из режима игры
+
+v0.r246.1, 09.10.2019
+
+* реструктуризация путей (DimkaM)
++ Everlasting summer: New parser. Closer to original; Improved graphics (demige)
+* Some changes to build in linux (demige)
++ browser: fix chdir in browser running wget
++ setpath.bat fix (DimkaM)
++ новая игра net1, net2: two snakes (вторая змея на net1 управляется WASD или ждёт ответа от net2 по адресу 192.168.1.177, который шлёт на 192.168.1.2)
++ eric: переделано под EGA режим (графика грузится из eric/ericgfx.bmp)

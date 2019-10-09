@@ -1,4 +1,8 @@
+        if EGA
+VARIABLES = #4000
+        else
 VARIABLES = #C000
+        endif
 VAR0000 = VARIABLES+#0000
 VAR0002 = VARIABLES+#0002
 VAR0004 = VARIABLES+#0004
@@ -10,7 +14,7 @@ VAR000C = VARIABLES+#000C
 VAR000D = VARIABLES+#000D
 VAR000E = VARIABLES+#000E
 VAR000F = VARIABLES+#000F
-VAR0011 = VARIABLES+#0011
+VAR0011 = VARIABLES+#0011 ;erics
 VAR0012 = VARIABLES+#0012
 VAR0013 = VARIABLES+#0013
 VAR0014 = VARIABLES+#0014
@@ -33,7 +37,7 @@ VAR0075 = VARIABLES+#0075
 VAR0077 = VARIABLES+#0077
 VAR0079 = VARIABLES+#0079
 VAR007B = VARIABLES+#007B
-VAR007D = VARIABLES+#007D
+VAR007D = VARIABLES+#007D ;1=dec erics
 VAR007E = VARIABLES+#007E
 VAR007F = VARIABLES+#007F
 VAR0080 = VARIABLES+#0080
@@ -88,7 +92,7 @@ L_8030	LD	E,(HL)
 	INC	HL
 	LD	B,(HL)
 	INC	HL
-	CALL	L_92A6
+	CALL	L_92A6 ;sound
 	LD	A,(HL)
 	OR	A
 	JR	NZ,L_8030
@@ -102,14 +106,16 @@ L_8047	LD	HL,#0000
 	LD	A,#01
 	LD	(VAR0012),A
 	LD	A,#03
-	LD	(VAR0011),A
+	LD	(VAR0011),A ;erics
 	CALL	L_9140
-	CALL	L_915C
+	CALL	DrawScreen
 	LD	HL,L_9BC6
 	CALL	L_9114
 	LD	HL,L_9C28
 	CALL	L_9114
-L_8069	LD	HL,#03E8
+L_8069
+;retry
+	LD	HL,#03E8
 	LD	(VAR000F),HL
 	XOR	A
 	LD	(VAR001B),A
@@ -124,12 +130,13 @@ L_8069	LD	HL,#03E8
 	LD	(VAR007D),A
 	LD	A,#01
 	LD	(VAR000D),A
+
 	CALL	L_81E7
 	CALL	L_8603
 	CALL	L_8617
 	CALL	L_89E5
 	CALL	L_9140
-	CALL	L_915C
+	CALL	DrawScreen
 	CALL	L_8FEE
 	CALL	L_8E5F
 	CALL	L_8EC8
@@ -158,11 +165,11 @@ MAINLOOP;L_80B5
 	CALL	L_85B5
 	CALL	L_8559
 	CALL	L_8520
-	CALL	L_8D9B
+	CALL	L_8D9B ;печатает счёт
 	CALL	L_8E0F
 	LD	A,(VAR007D)
 	OR	A
-	JP	NZ,L_81D7
+	JP	NZ,L_81D7 ;dec erics
 	LD	A,(VAR0018)
 	OR	A
 	JP	NZ,L_81A1
@@ -207,7 +214,7 @@ L_813F	LD	A,(VAR0012)
 	CALL	Z,L_816F
 	POP	AF
 	AND	#FC
-	JP	Z,L_8069
+	JP	Z,L_8069 ;retry
 	AND	#0C
 	LD	C,A
 	LD	B,#00
@@ -225,7 +232,7 @@ L_813F	LD	A,(VAR0012)
 	LD	D,(HL)
 	EX	DE,HL
 	CALL	L_9114
-	JP	L_8069
+	JP	L_8069 ;retry
 ;
 L_816F	LD	HL,L_8191
 	RET
@@ -257,7 +264,7 @@ L_81A9	PUSH	BC
 	CALL	L_821D
 	POP	BC
 	DJNZ	L_81A9
-	JP	L_8069
+	JP	L_8069 ;retry
 ;
 L_81B3 DB #EE,#00,#14,#00,#00,#D4,#00,#14
  DB #00,#00,#BD,#00,#14,#00,#00,#B2
@@ -265,13 +272,13 @@ L_81B3 DB #EE,#00,#14,#00,#00,#D4,#00,#14
  DB #00,#8E,#00,#14,#00,#00,#7E,#00
  DB #14,#00,#00,#00
 ;
-L_81D7	CALL	L_9014
-	LD	A,(VAR0011)
+L_81D7	CALL	L_9014 ;pause
+	LD	A,(VAR0011) ;erics
 	DEC	A
 	OR	A
-	LD	(VAR0011),A
-	JR	Z,L_820D
-	JP	L_8069
+	LD	(VAR0011),A ;erics
+	JR	Z,L_820D ;game over
+	JP	L_8069 ;retry
 ;
 L_81E7	LD	A,(VAR0012)
 	CP	#06
@@ -293,7 +300,9 @@ L_81F0	DEC	A
 L_8203 DB #01,#10,#02,#15,#03,#1A,#02,#1F
  DB #04,#24
 ;
-L_820D	LD	BC,#0005
+L_820D
+;game over
+	LD	BC,#0005
 L_8210	PUSH	BC
 	CALL	L_821D
 	POP	BC
@@ -335,7 +344,7 @@ L_825C	CALL	L_9285
 	OR	A
 	JR	NZ,L_825C
 	CALL	L_9140
-L_8265	CALL	L_915C
+L_8265	CALL	DrawScreen
 	CALL	L_850A
 ;
  DB #05,#0C
@@ -354,7 +363,7 @@ L_8265	CALL	L_915C
 	JP	L_8047
 ;
 L_82A4	CALL	L_9140
-	CALL	L_915C
+	CALL	DrawScreen
 	LD	HL,L_92C2
 	CALL	L_9114
 	CALL	L_84F2
@@ -437,7 +446,7 @@ L_82CF	LD	A,E
  DB "SCORE!",#00
  DB #FF
 	LD	HL,(VAR0002)
-	CALL	L_8FC2
+	CALL	Pr12345
 	CALL	L_850A
  DB #11,#05
  DB "DOWN",#00
@@ -454,7 +463,7 @@ L_82CF	LD	A,E
  DB #FF
 
 	LD	HL,(VAR0000)
-	CALL	L_8FC2
+	CALL	Pr12345
 	CALL	L_850A
 
  DB #17,#05
@@ -797,7 +806,9 @@ L_8726	LD	A,(BC)
 	LD	A,(BC)
 	RET
 ;
-L_873C	LD	A,(HL)
+L_873C
+;increase (hl) mod (hl+1)
+        LD	A,(HL)
 	INC	A
 	INC	HL
 	CP	(HL)
@@ -808,14 +819,14 @@ L_8743	DEC	HL
 	RET
 ;
 L_8746	LD	HL,VAR0071
-	CALL	L_873C
+	CALL	L_873C ;increase (hl) mod (hl+1)
 	LD	HL,VAR0077
-	CALL	L_873C
+	CALL	L_873C ;increase (hl) mod (hl+1)
 	LD	HL,VAR007B
-	CALL	L_873C
+	CALL	L_873C ;increase (hl) mod (hl+1)
 	LD	HL,VAR0079
-	CALL	L_873C
-	CALL	L_915C
+	CALL	L_873C ;increase (hl) mod (hl+1)
+	CALL	DrawScreen
 	JP	L_8015
 ;
 L_8764	LD	A,(VAR0077)
@@ -1019,7 +1030,7 @@ L_88DC	PUSH	HL
 	LD	D,#00
 	PUSH	BC
 	LD	BC,#000F
-	CALL	L_92A6
+	CALL	L_92A6 ;sound
 	POP	BC
 	JP	L_896A
 ;
@@ -1511,9 +1522,10 @@ L_8C87	DEC	A
 ;
 L_8C95	SUB	#06
 	ADD	A,A
-	LD	E,A
-	LD	A,#4E
-	SUB	E
+	;LD	E,A
+	;LD	A,#4E ;last die sprite
+	;SUB	E
+         add a,0x60 ;die sprites (8 шт. 16x16) - реально там нарисована бомба
 	LD	E,A
 L_8C9D	LD	A,(VAR000C)
 	LD	B,A
@@ -1558,7 +1570,7 @@ L_8CDD	LD	A,(VAR0071)
 	CP	#06
 	JR	C,L_8D12
 	CP	#0D
-	JR	Z,L_8D0C
+	JR	Z,L_8D0C ;set die flag
 	LD	HL,VAR0073
 	CALL	L_873C
 	LD	A,(VAR0073)
@@ -1573,11 +1585,11 @@ L_8CDD	LD	A,(VAR0071)
 	LD	E,A
 	LD	D,#00
 	LD	BC,#000F
-	CALL	L_92A6
+	CALL	L_92A6 ;sound
 	RET
 ;
 L_8D0C	LD	A,#01
-	LD	(VAR007D),A
+	LD	(VAR007D),A ;1=dec erics
 	RET
 ;
 L_8D12	LD	B,#02
@@ -1643,7 +1655,7 @@ L_8D29	LD	A,(VAR000E)
 	LD	D,#00
 	PUSH	BC
 	LD	BC,#0005
-	CALL	L_92A6
+	CALL	L_92A6 ;sound
 	POP	BC
 	RET
 
@@ -1668,18 +1680,23 @@ L_8D9B	LD	BC,(VAR0000)
 L_8DAA	LD	BC,VAR038D
 	CALL	L_8FBC
 ;
- DB #20,#10,#11,#12,#13,#14,#21,#20
+ DB #20
+ db "SCORE";#10,#11,#12,#13,#14
+ db #21
+ db #20
  DB #00
 ;
 	LD	HL,(VAR0000)
-	CALL	L_8FC2
+	CALL	Pr12345
 	CALL	L_8FBC
 ;
- DB #20,#20,#20,#15,#16,#17,#18,#19
- DB #21,#20,#00
+ DB #20,#20,#20
+ db "BONUS";#15,#16,#17,#18,#19
+ DB #21
+ db #20,#00
 ;
 	LD	HL,(VAR000F)
-	CALL	L_8FC2
+	CALL	Pr12345
 	DEC	BC
 	CALL	L_8FBC
 ;
@@ -1688,16 +1705,20 @@ L_8DAA	LD	BC,VAR038D
 	LD	BC,VAR066D
 	CALL	L_8FBC
 ;
- DB #20,#20,#20,#20,#20,#10,#30,#95
- DB #31,#14,#21,#20,#00
+ DB #20,#20,#20,#20,#20
+ db "STAGE";#10,#30,#95,#31,#14
+ db #21
+ db #20,#00
 ;
 	LD	A,(VAR0012)
 	LD	(BC),A
 	INC	BC
 	CALL	L_8FBC
 ;
- DB #20,#20,#20,#20,#14,#13,#97,#11
- DB #10,#21,#20,#00
+ DB #20,#20,#20,#20
+ db "ERICS";#14,#13,#97,#11,#10
+ db #21
+ db #20,#00
 ;
 	LD	A,(VAR0011)
 	LD	(BC),A
@@ -1935,7 +1956,8 @@ L_8FBC	EX	(SP),HL
 	EX	(SP),HL
 	RET
 ;
-L_8FC2	LD	DE,#2710
+Pr12345
+	LD	DE,#2710
 	CALL	L_8FE1
 	LD	DE,#03E8
 	CALL	L_8FE1
@@ -2038,7 +2060,7 @@ L_90FD	IM	1
 	LD	IY,#0000
 	LD	HL,L_92C2
 	CALL	L_9114
-	JP	L_915C
+	JP	DrawScreen
 ;
 L_9114	LD	E,(HL)
 	INC	HL
@@ -2094,8 +2116,40 @@ L_9140	LD	HL,VAR038C
 	LDIR
 	RET
 ;
-L_915C	LD	DE,VAR038C
+DrawScreen
+;draw screen
+	LD	DE,VAR038C
 	LD	HL,VAR068C
+        
+        if EGA
+        
+        exx
+        ld hl,0x8000+4
+        ld lx,24
+drawscreen0
+        ld hx,32
+drawscreen00
+        exx
+        ld a,(de)
+        cp (hl)
+        ld (hl),a
+        call nz,L_9182
+        ld a,#20
+        ld (de),a
+        inc de
+        inc hl
+        exx
+        inc hl
+        dec hx
+        jp nz,drawscreen00
+        ld bc,8*40 - 32
+        add hl,bc
+        dec lx
+        jp nz,drawscreen0
+        ret
+        
+        else ;6912
+        
 	EXX
 	LD	D,#40
 	LD	BC,#5800
@@ -2118,8 +2172,65 @@ L_9168	EXX
 	CP	#58
 	JR	C,L_9168
 	RET
+        
+        endif
 ;
-L_9182	EXX
+L_9182
+;draw tile
+        if EGA
+        exx
+;hl=scr (0x8000+)
+        push hl
+        ld e,a
+        ld d,egagfx/256
+        
+;de=tilegfx
+        ld bc,40
+        push hl
+        push hl
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc d
+        add hl,bc
+        edup
+        pop hl
+        set 6,h
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc d
+        add hl,bc
+        edup
+        pop hl
+        set 5,h
+        push hl
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc d
+        add hl,bc
+        edup
+        pop hl
+        set 6,h
+        ;ld d,font/256
+        dup 7
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc d
+        add hl,bc
+        edup
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        pop hl
+        exx
+        ret
+        
+        else ;6912
+        
+        EXX
 	PUSH	DE
 	LD	E,A
 	LD	D,#00
@@ -2147,6 +2258,9 @@ L_9197	LD	A,(HL)
 	LD	(BC),A
 	EXX
 	RET
+        
+        endif
+        
 ;
 L_91A3 DB #57,#49,#45,#4F,#44,#4C,#43,#0E
  DB #58,#4D,#5A,#4E,#41,#4A,#51,#55
@@ -2301,7 +2415,9 @@ L_929D	LD	(L_9284),A
 L_92A3	XOR	A
 	JR	L_929D
 ;
-L_92A6	PUSH	HL
+L_92A6
+;sound
+	PUSH	HL
 L_92A7	LD	A,#10
 	CALL	L_92B8
 	LD	A,#00

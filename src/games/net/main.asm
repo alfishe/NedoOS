@@ -18,21 +18,21 @@ fieldhgt=22
 STACK=0x4000
         
 
-dangerattr1=#38+2 ;red
-dangerattr2=#38+4 ;green
-dangerattr3=#38+1 ;blue
+dangerattr1=0x38+2 ;red
+dangerattr2=0x38+4 ;green
+dangerattr3=0x38+1 ;blue
 scoreattr=dangerattr3
 wallattr=dangerattr1
 snakeattr=dangerattr2
-rabbitattr=#40+#30 ;bright yellow
-emptyattr=#38
+rabbitattr=0x40+0x30 ;bright yellow
+emptyattr=0x38
 
 snakecoordssize=fieldwid*fieldhgt*2;768*2
 
-dir_r=key_right;cs8;#09
-dir_l=key_left;cs5;#08
-dir_u=key_up;cs7;#0b
-dir_d=key_down;cs6;#0a
+dir_r=key_right;cs8;0x09
+dir_l=key_left;cs5;0x08
+dir_u=key_up;cs7;0x0b
+dir_d=key_down;cs6;0x0a
 
 
 IPPROTO_TCP EQU 6
@@ -94,11 +94,11 @@ begin
 
         call prfield
 
-        ld hl,#0101
+        ld hl,0x0101
         ld (snakecoords),hl
-        ld hl,#1001
+        ld hl,0x1001
         ld (snakecoords2),hl
-        ;ld bc,#0a1e
+        ;ld bc,0x0a1e
         ;call prrabbit
         call genrabbit
 
@@ -107,18 +107,18 @@ begin
 	ld a,l
 	ld (socsend),a
 	or a
-	jp m,inet_exiterr
+	jp m,inet_exiterr_nosockets
 	ld de,0x0203
 	OS_NETSOCKET
 	ld a,l
 	ld (socrecv),a
 	or a
-	jp m,inet_exiterr
+	jp m,inet_exiterr_nosocrecv
 	
         ;if MASTER
 
 	ld a,(socsend)
-	LD DE,port_ia
+	LD DE,port_iasend
 	OS_NETCONNECT
         ld a,l
 	or a
@@ -127,14 +127,14 @@ begin
         ;else ;slave
 
 	ld a,(socrecv)
-	LD DE,port_ia
+	LD DE,port_iarecv
 	OS_BIND
         ld a,l
 	or a
 	jp m,inet_exiterr
 	
 	ld a,(socrecv)
-	LD DE,port_ia
+	LD DE,port_iarecv
 	OS_NETCONNECT
         ld a,l
 	or a
@@ -154,7 +154,6 @@ begin
         
 waitbegin0
         call receivebyte
-        ;or a
         jr z,waitbegin0
        
         endif
@@ -165,15 +164,15 @@ gameloop
         ld bc,0*256+18
         call calcscraddr
         else
-        ld de,#4000+14
+        ld de,0x4000+14
         endif
         ld hl,(curlength)
         call prnum
         if EGA
-        ld bc,192*256+18
+        ld bc,24*256+18
         call calcscraddr
         else
-        ld de,#50e0+14
+        ld de,0x50e0+14
         endif
         ld hl,(curlength2)
         call prnum
@@ -194,14 +193,16 @@ gameloop
         push bc
         call collide_rabbit_startgrow
         call collide_rabbit_startgrow2
-        call collide_walls_self ;Z=collision
-        jr z,gameover
         call collide_walls_self2 ;Z=collision
-        jr z,gameover
+        ;jr z,gameover
+        call z,stopsnake2
         pop bc
-        call prhead2
+        call nz,prhead2
+        call collide_walls_self ;Z=collision
+        ;jr z,gameover
+        call z,stopsnake
         pop bc
-        call prhead
+        call nz,prhead
 	jp gameloop
 
 gameover
@@ -220,6 +221,14 @@ gameoverloop
 inet_exiterr
 inet_exitcode
 quit
+	LD	a,(socrecv)
+	LD	E,0
+	OS_NETSHUTDOWN
+inet_exiterr_nosocrecv
+	LD	a,(socsend)
+	LD	E,0
+	OS_NETSHUTDOWN
+inet_exiterr_nosockets
         QUIT
         
 rnd
@@ -327,20 +336,45 @@ getkey
         
         if MASTER ;посылаем свои клавиши
         
+        push af
         call sendbyte
+        pop af
+        
+        ld c,dir_l
+        cp 'a';dir_l
+        jr z,getkey_ok2
+        ld c,dir_r
+        cp 'd';dir_r
+        jr z,getkey_ok2
+        ld c,dir_u
+        cp 'w';dir_u
+        jr z,getkey_ok2
+        ld c,dir_d
+        cp 's';dir_d
+        jr nz,waitkey0
+getkey_ok2
+;обнаружен второй игрок на мастере - отключаем сеть
+        ld hl,receivebyte_fake
+        ld (waitkey_receivebytepatch),hl
+        ld a,c
+        jr mastergetkeyskipreceive
 waitkey0
+         ld a,0xfd
+         in a,(0xfe) ;костыль D=start
+         bit 2,a ;D
+         jr z,mastergetkeyskipreceiveq
+waitkey_receivebytepatch=$+1
         call receivebyte
-        ;or a
         jr z,waitkey0
         or a
         jr z,$+5
+mastergetkeyskipreceive
         ld (curdirection2),a
-        
+mastergetkeyskipreceiveq        
         else ;slave - принимаем клавиши
 
 waitkey0
         call receivebyte
-        ;or a
         jr z,waitkey0
         or a
         jr z,$+5
@@ -377,9 +411,9 @@ shrink
 shrink_nogrow
         ld bc,(snakecoords)
         call cltail
-        ld hl,snakecoords+2
-        ld de,snakecoords
-        ld bc,snakecoordssize-2
+        ld hl,snakecoords+2-2
+        ld de,snakecoords-2
+        ld bc,snakecoordssize-2+2
         ldir
         ld hl,(curlength)
         dec hl
@@ -396,13 +430,29 @@ shrink2
 shrink2_nogrow
         ld bc,(snakecoords2)
         call cltail2
-        ld hl,snakecoords2+2
-        ld de,snakecoords2
-        ld bc,snakecoordssize-2
+        ld hl,snakecoords2+2-2
+        ld de,snakecoords2-2
+        ld bc,snakecoordssize-2+2
         ldir
         ld hl,(curlength2)
         dec hl
         ld (curlength2),hl
+        ret
+
+stopsnake
+;keep f
+        ld hl,snakecoords+snakecoordssize-1-2
+        ld de,snakecoords+snakecoordssize-1
+        ld bc,snakecoordssize-2+2
+        lddr
+        ret
+
+stopsnake2
+;keep f
+        ld hl,snakecoords2+snakecoordssize-1-2
+        ld de,snakecoords2+snakecoordssize-1
+        ld bc,snakecoordssize-2+2
+        lddr
         ret
 
 getheadcoords
@@ -488,13 +538,13 @@ cls
         ld e,0
         OS_CLS
         else
-	ld hl,#4000
-	ld de,#4001
-        ld bc,#17ff
-        ld (hl),0;#ff
+	ld hl,0x4000
+	ld de,0x4001
+        ld bc,0x17ff
+        ld (hl),0;0xff
         ldir
-	ld hl,#5800
-	ld de,#5801
+	ld hl,0x5800
+	ld de,0x5801
 	ld (hl),emptyattr
 	ld bc,767
 	ldir
@@ -504,16 +554,16 @@ cls
 prfield
         ld a,wallattr
         ld (curattr),a
-        ld bc,#0000
+        ld bc,0x0000
         ld e,fieldwid+2
         call prfieldhor ;top
-        ld bc,256*(fieldhgt+1);#1700
+        ld bc,256*(fieldhgt+1);0x1700
         ld e,fieldwid+2
         call prfieldhor ;bottom
-        ld bc,#0100
+        ld bc,0x0100
         ld e,fieldhgt
         call prfieldver ;left
-        ld bc,#0100+(fieldwid+1);#011f
+        ld bc,0x0100+(fieldwid+1);0x011f
         ld e,fieldhgt
         ;call prfieldver ;right
         ;ret
@@ -560,17 +610,25 @@ proldheadastail2
         ld (curattr),a
         ;ld a,'O'
         ;jp prcharxy
-        ld hl,tilesnake
+        ld hl,tilesnake2
         jp prtilexy
 
 prhead
-prhead2
 ;bc=yx
         ld a,snakeattr
         ld (curattr),a
         ;ld a,'O'
         ;jp prcharxy
         ld hl,tilesnakehead
+        jp prtilexy
+
+prhead2
+;bc=yx
+        ld a,snakeattr
+        ld (curattr),a
+        ;ld a,'O'
+        ;jp prcharxy
+        ld hl,tilesnakehead2
         jp prtilexy
 
 cltail
@@ -653,10 +711,10 @@ calcscraddr
         ld h,a
         ex de,hl
         else
-;de=#4000 + (y&#18)+((y*32)&#ff+x)
+;de=0x4000 + (y&0x18)+((y*32)&0xff+x)
         ld a,b ;y
-        and #18
-        add a,#40
+        and 0x18
+        add a,0x40
         ld d,a
         ld a,b ;y
         add a,a ;*2
@@ -673,7 +731,7 @@ calcattraddr
 ;bc=yx
 ;нельзя портить bc
         if EGA
-;de=attrs + (y&#18)/4+((y*64)&#ff+x)
+;de=attrs + (y&0x18)/4+((y*64)&0xff+x)
         ld a,b
         rrca
         rrca
@@ -686,7 +744,7 @@ calcattraddr
         add a,attrs/256
         ld d,a ;de=attraddr
         else
-;de=#5800 + (y&#18)/8+((y*32)&#ff+x)
+;de=0x5800 + (y&0x18)/8+((y*32)&0xff+x)
         ld a,b
         rrca
         rrca
@@ -697,7 +755,7 @@ calcattraddr
         ld e,a
         sub c
         xor d
-        add a,attrs/256;#58
+        add a,attrs/256;0x58
         ld d,a ;de=attraddr
         endif
         ret
@@ -829,7 +887,7 @@ prcharin_go1
         add hl,hl
         add hl,hl
         add hl,hl
-        ld bc,font-256;#3c00
+        ld bc,font-256;0x3c00
         add hl,bc
         endif
 
@@ -874,10 +932,16 @@ sendbyte
 	jp nz,inet_exitcode
 
         ret
-        
+  
+receivebyte_fake
+        xor a
+        dec a ;nz
+        ld a,0
+        ret
+  
 receivebyte
 ;from UDP
-;0=no data
+;z=no data
 
 receivebyte0
 	ld hl,1
@@ -901,17 +965,28 @@ socsend
 socrecv
         db 0
 
-port_ia:
         if MASTER
-;master: from 192.168.0.7 to 192.168.0.2
+;master: from 192.168.1.177 to 192.168.1.2
+port_iasend:
 	defb 0
         db 100,53 ;port (big endian)
         db 192,168,1,177 ;ip (big endian)
+port_iarecv:
+	defb 0
+        db 100,53 ;port (big endian)
+        db 192,168,1,177 ;ip (big endian)
+
         else
-;slave: from 192.168.0.2 to 192.168.0.7
+
+;slave: from 192.168.1.2 to 192.168.1.177
+port_iarecv:
 	defb 0
         db 100,53 ;port (big endian)
-        db 192,168,1,177 ;ip (big endian)
+        db 192,168,1,2 ;ip (big endian)
+port_iasend:
+	defb 0
+        db 100,53 ;port (big endian)
+        db 192,168,1,2 ;ip (big endian)
         endif
 
         macro cols data
@@ -940,10 +1015,10 @@ tileempty
 
 tilebrick
         if EGA
-        cols8 #00,#22,#aa,#22,#00,#22,#2a,#22
-        cols8 #00,#20,#20,#20,#00,#22,#aa,#22
-        cols8 #00,#22,#2a,#22,#00,#22,#aa,#22
-        cols8 #00,#22,#aa,#22,#00,#20,#20,#20
+        cols8 0x00,0x22,0xaa,0x22,0x00,0x22,0x2a,0x22
+        cols8 0x00,0x20,0x20,0x20,0x00,0x22,0xaa,0x22
+        cols8 0x00,0x22,0x2a,0x22,0x00,0x22,0xaa,0x22
+        cols8 0x00,0x22,0xaa,0x22,0x00,0x20,0x20,0x20
         else
         db %00000000
         db %11101111
@@ -957,10 +1032,27 @@ tilebrick
         
 tilesnake
         if EGA
-        cols8 #00,#00,#04,#4c,#4c,#4c,#04,#00
-        cols8 #00,#44,#cc,#cc,#cc,#cc,#cc,#44
-        cols8 #00,#40,#c4,#cc,#cc,#cc,#c4,#40
-        cols8 #00,#00,#00,#40,#40,#40,#00,#00
+        cols8 0x00,0x00,0x04,0x4c,0x4c,0x4c,0x04,0x00
+        cols8 0x00,0x44,0xcc,0xcc,0xcc,0xcc,0xcc,0x44
+        cols8 0x00,0x40,0xc4,0xcc,0xcc,0xcc,0xc4,0x40
+        cols8 0x00,0x00,0x00,0x40,0x40,0x40,0x00,0x00
+        else
+        db %00000000
+        db %00111000
+        db %01000100
+        db %10000010
+        db %10000010
+        db %10000010
+        db %01000100
+        db %00111000
+        endif
+        
+tilesnake2
+        if EGA
+        cols8 0x00,0x00,0x05,0x5d,0x5d,0x5d,0x05,0x00
+        cols8 0x00,0x55,0xdd,0xdd,0xdd,0xdd,0xdd,0x55
+        cols8 0x00,0x50,0xd5,0xdd,0xdd,0xdd,0xd5,0x50
+        cols8 0x00,0x00,0x00,0x50,0x50,0x50,0x00,0x00
         else
         db %00000000
         db %00111000
@@ -974,10 +1066,27 @@ tilesnake
         
 tilesnakehead
         if EGA
-        cols8 #00,#00,#04,#4c,#4c,#4c,#04,#00
-        cols8 #00,#44,#cc,#fc,#cc,#22,#cc,#44
-        cols8 #00,#40,#c4,#fc,#cc,#2c,#c4,#40
-        cols8 #00,#00,#00,#40,#40,#40,#00,#00
+        cols8 0x00,0x00,0x04,0x4c,0x4c,0x4c,0x04,0x00
+        cols8 0x00,0x44,0xcc,0xfc,0xcc,0x22,0xcc,0x44
+        cols8 0x00,0x40,0xc4,0xfc,0xcc,0x2c,0xc4,0x40
+        cols8 0x00,0x00,0x00,0x40,0x40,0x40,0x00,0x00
+        else
+        db %00000000
+        db %00111000
+        db %01000100
+        db %10101010
+        db %10000010
+        db %10111010
+        db %01000100
+        db %00111000
+        endif
+        
+tilesnakehead2
+        if EGA
+        cols8 0x00,0x00,0x05,0x5d,0x5d,0x5d,0x05,0x00
+        cols8 0x00,0x55,0xdd,0xfd,0xdd,0x22,0xdd,0x55
+        cols8 0x00,0x50,0xd5,0xfd,0xdd,0x2d,0xd5,0x50
+        cols8 0x00,0x00,0x00,0x50,0x50,0x50,0x00,0x00
         else
         db %00000000
         db %00111000
@@ -991,10 +1100,10 @@ tilesnakehead
         
 tilerabbit
         if EGA
-        cols8 #00,#77,#7f,#7f,#07,#07,#07,#00
-        cols8 #00,#00,#70,#70,#f7,#0f,#f2,#77
-        cols8 #00,#07,#7f,#7f,#f7,#07,#f7,#70
-        cols8 #00,#70,#70,#70,#00,#00,#00,#00
+        cols8 0x00,0x77,0x7f,0x7f,0x07,0x07,0x07,0x00
+        cols8 0x00,0x00,0x70,0x70,0xf7,0x0f,0xf2,0x77
+        cols8 0x00,0x07,0x7f,0x7f,0xf7,0x07,0xf7,0x70
+        cols8 0x00,0x70,0x70,0x70,0x00,0x00,0x00,0x00
         else
         db %00000000
         db %11000110
@@ -1034,10 +1143,12 @@ curlength
 curlength2
         dw 0 ;не считая головы
 
+        dw 2 ;на случай возврата змеи
 snakecoords
 ;y,x (голова в конце)
         ds snakecoordssize
         
+        dw 2 ;на случай возврата змеи
 snakecoords2
 ;y,x (голова в конце)
         ;ds snakecoordssize
@@ -1045,7 +1156,7 @@ snakecoords2
 end
 
 	display "End=",end
-	;display "Free after end=",/d,#c000-end
+	;display "Free after end=",/d,0xc000-end
 	display "Size ",/d,end-begin," bytes"
 	
 	;savebin "snake.com",begin,end-begin
