@@ -79,6 +79,12 @@ BDOS_wiznetwrite
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+BDOS_setmainpage
+        ;ld iy,(appaddr)
+;e=page for 0x0000
+        ld (iy+app.mainpg),e
+        ret
+        
 BDOS_setborder
         ;ld iy,(appaddr)
 ;e=border=0..15
@@ -674,7 +680,6 @@ tbdoscmds
         db CMD_MKDIR
         db CMD_RENAME
         db CMD_SETSYSDRV
-        ;db CMD_GETKEYNOLANG
         db CMD_FWRITE_NBYTES
         db CMD_SCROLLUP
         db CMD_SCROLLDOWN
@@ -700,7 +705,9 @@ tbdoscmds
         db CMD_SETBORDER
         db CMD_READSECTORS
         db CMD_WRITESECTORS
+        db CMD_SETMAINPAGE
 nbdoscmds=$-tbdoscmds
+        dw BDOS_setmainpage
         dw BDOS_writesectors
         dw BDOS_readsectors
         dw BDOS_setborder
@@ -726,7 +733,6 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_scrolldown
         dw BDOS_scrollup
         dw BDOS_fwrite_nbytes
-        ;dw BDOS_getkeynolang
         dw BDOS_setsysdrv
         dw BDOS_rename
         dw BDOS_mkdir

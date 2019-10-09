@@ -177,13 +177,13 @@ appaddr=$+2
         push hl
 	push ix
         ;ld a,(iy+app.screen)
-        push af ;f, a=screenpg
+        push af ;f, [a=screenpg]
 	ex af,af'
 	push af
          exx
         ld h,(iy+app.mainpg)
 	push de ;"hl"
-        push hl ;h=mainpg,l="a"
+        push hl ;[h=mainpg,]l="a"
 
         ld sp,iy
 sys_int_iy=$+1
@@ -225,13 +225,14 @@ sys_int_popregs
         add iy,de
         ld sp,iy
 
-	pop de ;d=mainpg,e="a"
+	pop de ;[d=mainpg,]e="a"
+        ld d,(iy+app.mainpg+safestack_sz)
 	pop hl ;"hl"
         ld bc,memport0000
          exx
 	pop af
 	ex af,af'
-        pop af ;f, a=screenpg        
+        pop af ;f, [a=screenpg]
          ld ix,(focusappaddr) ;здесь снова, т.к. возможен вход из yield в sys_int_popregs (или надо дублировать там и гарантировать, что schedule и on_int не портят ix)
          ld a,(ix+app.screen)
 	pop ix

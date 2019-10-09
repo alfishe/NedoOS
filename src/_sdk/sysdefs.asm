@@ -57,7 +57,7 @@ CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset
 CMD_SCROLLUP=0xe6 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even
 CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB ;TODO выбросить
-;CMD_GETKEYNOLANG=0xe9
+CMD_SETMAINPAGE=0xe9 ;e=page for 0x0000
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
 CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
@@ -79,7 +79,7 @@ CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
 CMD_NEWPAGE=0xfc ;out: a=0 (OK), e=page
 CMD_DELPAGE=0xfd ;e=page
 CMD_SETSCREEN=0xfe ;e=screen=0..1
-;TODO ещё установку текущего обрабатываемого экрана?
+;TODO ещё установку текущего обрабатываемого экрана? и "начал рисовать", "закончил рисовать"
 CMD_GETSCREENPAGES=0xff ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
 
 ;        STRUCT FCB

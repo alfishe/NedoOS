@@ -248,10 +248,10 @@ _1=$
         ld c,CMD_FWRITE_NBYTES
         CALLBDOS
         endm
-        ;macro OS_GETKEYNOLANG
-        ;ld c,CMD_GETKEYNOLANG
-        ;CALLBDOS
-        ;endm
+        macro OS_SETMAINPAGE
+        ld c,CMD_SETMAINPAGE
+        CALLBDOS
+        endm
         macro OS_SETSYSDRV
         ld c,CMD_SETSYSDRV
         CALLBDOS
@@ -308,10 +308,6 @@ _1=$
         ld c,CMD_SETCOLOR
 	CALLBDOS
         endm
-        ;macro OS_GETCOLOR
-        ;ld c,CMD_GETCOLOR
-	;CALLBDOS
-        ;endm
         macro OS_SETXY
         ld c,CMD_SETXY
 	CALLBDOS

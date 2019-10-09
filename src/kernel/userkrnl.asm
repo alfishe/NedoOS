@@ -1,5 +1,6 @@
 maincode
 ;возврат в систему
+;TODO через функцию системы (чтобы 0x0000 можно было использовать для своих целей, напр. структура NIL или указатель в 0xffff)
 user_fdvalue1=$+1
         ld a,fd_system
         out (0xfd),a
@@ -8,6 +9,7 @@ user_fdvalue1=$+1
 
         ds 0x0005-$ ;0 b
 ;вызов функции системы
+;TODO сделать рестарт, с сохранением аккумулятора
 user_fdvalue2=$+1
         ld a,fd_system
         out (0xfd),a
@@ -28,8 +30,9 @@ user_fdvalue4=$+1
         display "kernel_result_a=",$
 kernel_result_a
         ex af,af'
-        ret ;можно перенести в 0x0015
+        ret ;можно перенести вместо kernel_setpg
 
+;TODO убрать рестарты включения страниц, вместо них сделать вызовы (будет быстрее из-за отсутствия jr)
         ds 0x0018-$ ;1 b
 ;setpg4000=0x0018
         ld bc,memport4000
