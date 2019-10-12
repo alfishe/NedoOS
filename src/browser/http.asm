@@ -120,8 +120,25 @@ createsoc_err
 		jp CONNECTIONERROR
 connect_ok
 ;form GET message in DISKBUF (will be deleted in readstream)
-        ld hl,tGET
         ld de,DISKBUF
+
+         ld a,0xfe
+         in a,(0xfe)
+         rra
+         jr c,connect_nogopher
+         pop hl ;filename
+         call strcopy
+         dec de
+         ld a,0xd
+         ld (de),a
+         inc de
+         ld a,0xa
+         ld (de),a
+         inc de
+         jr connect_makeheaderq
+connect_nogopher
+
+        ld hl,tGET
         call strcopy
         dec de
         
@@ -144,6 +161,8 @@ connect_ok
         ld hl,tGETend
         call strcopy ;with terminator
          dec de ;no terminator?
+         
+connect_makeheaderq
 		ex de,hl
         ld de,0xffff&(-DISKBUF)
         add hl,de
@@ -191,6 +210,11 @@ http_firstreadflag=$+1
 	ld a,1
 	dec a
 	jr nz,readstream_http_nofirstread
+         ld a,0xfe
+         in a,(0xfe)
+         rra
+         jr nc,readstream_http_nohead
+        
 ;read until cr,lf,cr,lf or EOF or endofbuf
 	push hl
 	push de
@@ -267,8 +291,9 @@ readstream_http_headlineaddr=$+1
         push bc
         call closestream_http
         pop hl
-        ld bc,7 ;"http://"
-        add hl,bc
+        ;ld bc,7 ;"http://"
+        ;add hl,bc
+         call isprotocolpresent
         call openstream_http_hl
         
 	pop de
@@ -288,19 +313,17 @@ readstream_http_headq
 	pop hl
 ;TODO переделать: читать как обычно, потом искать заголовок, отрезать его, сдвинуть остаток в начало буфера и прочитать ещё столько же
 
+readstream_http_nohead
         xor a
 	ld (http_firstreadflag),a
 	
 readstream_http_nofirstread
 
-        ;jr $
 readstream_loop
 	push hl	;докуда читать
 	push de	;текущий ptr
 	or a
 	sbc hl,de ;размер
-	;ld a,h
-	;or l
 	jr z,readstream_err
 	LD	a,(soc1)
 	OS_WIZNETREAD
@@ -318,7 +341,6 @@ readstream_err:
 	pop de ;начало буфера
 	or a
 	sbc hl,de
-         ;jr $
 	ret
 	
 		
