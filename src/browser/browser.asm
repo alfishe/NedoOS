@@ -890,11 +890,23 @@ makefulllink
         sub ':'
         jr z,browser_go_defaultprotocolpresent ;1:/file... => file://1:/file...
 ;нет протокола - взять текущий путь из curfulllink (т.е. отрезать всё после последнего слеша) и приклеить к нему эту ссылку (с учётом ../)
-;слеш в конце http://ser.ver уже есть
+;слеш в конце http://ser.ver уже есть? не всегда! если ввели вручную, то нет
         ld hl,curfulllink
         call isprotocolpresent
 ;a=protocol (0=file, 1=http), hl=after "//"
-        call findlastslash. ;out: de = after last slash
+         push hl
+        call findlastslash. ;out: de = after last slash or beginning
+         pop hl
+         or a
+         sbc hl,de
+         jr nz,browser_go_noaddslashafterserver
+         add hl,de
+         push hl ;after "//"
+         call addslashafterserver
+         pop hl
+         call findlastslash. ;out: de = after last slash
+browser_go_noaddslashafterserver
+;de=curfulllink+...=end of curdir (after slash)
         ld hl,linkbuf
 browser_go_chdir
         ld a,'.'
