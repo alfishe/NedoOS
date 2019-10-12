@@ -37,15 +37,59 @@ openstream_http_hl
         ld de,httphostname
         push de
         call strcopy
+        ld hl,80*256 ;BIG ENDIAN
+        ld (curport),hl
         pop hl
-        call findslash
-        ;call strlen_tobc_keephl
-        ;ld a,'/'
-        ;cpir ;TODO ser.ver:port
-         ;jr nz,$
-        push hl ;filename after ser.ver/
-        dec hl ;at slash
+        ;call findslash
+openstream_http_findslash0
+         ld a,(hl)
+         cp ':'
+         jr z,openstream_http_setport
+         cp '/'
+         jr z,openstream_http_slash
+         or a
+         jr z,openstream_http_slash
+         inc hl
+         jr openstream_http_findslash0
+openstream_http_setport
         ld (hl),0 ;end of httphostname
+;decode port
+        ld de,0 ;oldport
+openstream_http_decodeport0
+        inc hl
+        ld a,(hl)
+        sub '0'
+        cp 10
+        jr nc,openstream_http_decodeportq
+        push hl
+        ld h,d
+        ld l,e
+        add hl,hl
+        add hl,hl
+        add hl,de
+        add hl,hl ;hl=oldport*10
+        add a,l
+        ld e,a
+        adc a,h
+        sub e
+        ld d,a ;de=port
+        pop hl
+        jr openstream_http_decodeport0
+openstream_http_decodeportq
+;de=port
+        ld a,d
+        ld d,e
+        ld e,a
+        ld (curport),de ;BIG ENDIAN
+;hl=delimiter after ser.ver:NNN
+openstream_http_slash
+;hl=at delimiter after hostname and maybe port
+        xor a
+        cp (hl)
+        ld (hl),a ;end of httphostname
+        jr z,$+3
+        inc hl ;after delimiter
+        push hl ;filename after ser.ver/
         
 ;httphostname=server name (filename before slash, not including slash)
 ;top of stack=filename after slash (after ser.ver/)
@@ -284,6 +328,7 @@ closestream_http
 		OS_NETSHUTDOWN
         ret
 
+curport=$+1
 host_ia:
 	defb 0,0,80,8,8,8,8
 ;httpslashcurdir
