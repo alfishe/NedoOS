@@ -7,6 +7,6 @@ echo INETDRV=0x01 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 call make.bat noneedtrd
 ..\tools\sjasmplus --nologo kernel\hobeta.asm > nul
-call ..\tools\chkimg.bat sd
 move /Y nedoos.$C ..\release\osatm3sd.$C > nul
+call ..\tools\chkimg.bat sd
 if "%makeall%"=="" ..\us\emul.exe -i ..\us\dimkam.ini

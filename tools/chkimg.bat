@@ -1,4 +1,7 @@
 @echo off
+IF NOT "%makeall%"=="" EXIT /b
+setlocal EnableDelayedExpansion
+call :ExpandFileName ..\release
 IF EXIST ..\us\sd_nedo.vhd IF EXIST ..\us\hdd_nedo.vhd (
 	GOTO COPYFILES
 )
@@ -15,16 +18,21 @@ IF EXIST hdd_nedo.vhd del hdd_nedo.vhd
 IF EXIST b.bat del b.bat
 
 :COPYFILES
-..\tools\dmimg ..\us\%1_nedo.vhd mkdir bin > nul
-..\tools\dmimg ..\us\%1_nedo.vhd mkdir bin/www > nul
-..\tools\dmimg ..\us\%1_nedo.vhd mkdir bin/doc > nul
-..\tools\dmimg ..\us\%1_nedo.vhd put nedoos.$C nedoos.$C
-FOR %%i IN (..\release\bin\*.*) DO (
-        ..\tools\dmimg ..\us\%1_nedo.vhd put %%i bin/%%~nxi
+echo Copy in to Unreal image ...
+
+FOR /R %rel% %%i in (.) do (
+	set ob=%%~dpni	
+	echo %%i | findstr _sdk > NUL
+	if ERRORLEVEL 1 call dmimg ..\us\%1_nedo.vhd mkdir !ob:%rel%=! > nul
 )
-FOR %%i IN (..\release\bin\www\*.*) DO (
-        ..\tools\dmimg ..\us\%1_nedo.vhd put %%i bin/www/%%~nxi
+FOR /R %rel% %%i IN (*.*) do (
+	set ob=%%~dpnxi	
+	echo %%i | findstr _sdk > NUL
+	if ERRORLEVEL 1 dmimg ..\us\%1_nedo.vhd put %%i !ob:%rel%=! > nul
 )
-FOR %%i IN (..\release\doc\*.*) DO (
-        ..\tools\dmimg ..\us\%1_nedo.vhd put %%i bin/doc/%%~nxi
-)
+exit /b
+
+
+:ExpandFileName
+set rel=%~f1
+exit /b

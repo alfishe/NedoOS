@@ -8,6 +8,6 @@ echo PS2KBD=0x00 >> _sdk\syssets.asm
 		echo "%savepath%"
 call make.bat noneedtrd
 ..\tools\sjasmplus --nologo kernel\hobeta.asm > nul
-call ..\tools\chkimg.bat hdd
 move /Y nedoos.$C ..\release\osatm3hd.$C > nul
+call ..\tools\chkimg.bat hdd
 if "%makeall%"=="" ..\us\emul.exe -i ..\us\dimkam.ini
