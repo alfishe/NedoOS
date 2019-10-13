@@ -614,13 +614,36 @@ countcolorbits1
 	inc c
 	ret
 
+countcolor_hl ;hl=color
+	ld a,(hl)
+	ld bc,0
+	srl a
+	call c,countcolor_hl_inc
+	srl a
+	call c,countcolor_hl_inc
+	.3 srl a
+	call c,countcolor_hl_inc
+	sla c
+	srl a
+	call c,countcolor_hl_inc
+	srl a
+	call c,countcolor_hl_inc
+	srl a
+	call c,countcolor_hl_inc
+	ld a,c
+	ret
+countcolor_hl_inc
+	inc c
+	ret
+
+
 findfadecolor ;e=result
 	ld bc,0x0000
 	ld de,0
 	ld hl,pal
 findfadecolor1
 	push bc
-	call countcolorbits_hl
+	call countcolor_hl
 	pop bc
 	cp c
 	jr c,findfadecolor0
@@ -642,7 +665,7 @@ findwhitecolor ;e=result
 	ld hl,pal
 findwhitecolor1
 	push bc
-	call countcolorbits_hl
+	call countcolor_hl
 	pop bc
 	cp c
 	jr nc,findwhitecolor0
