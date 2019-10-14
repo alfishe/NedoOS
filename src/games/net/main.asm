@@ -105,36 +105,36 @@ begin
 	ld de,0x0203
 	OS_NETSOCKET
 	ld a,l
-	ld (socsend),a
+	ld (soc),a
 	or a
-	jp m,inet_exiterr_nosockets
-	ld de,0x0203
-	OS_NETSOCKET
-	ld a,l
-	ld (socrecv),a
-	or a
-	jp m,inet_exiterr_nosocrecv
+	jp m,inet_exiterr_nosoc
+;	ld de,0x0203
+;	OS_NETSOCKET
+;	ld a,l
+;	ld (socrecv),a
+;	or a
+;	jp m,inet_exiterr_nosocrecv
 	
         ;if MASTER
 
-	ld a,(socsend)
-	LD DE,port_iasend
-	OS_NETCONNECT
-        ld a,l
-	or a
-	jp m,inet_exiterr
+;	ld a,(socsend)
+;	LD DE,port_iasend
+;	OS_NETCONNECT
+;       ld a,l
+;	or a
+;	jp m,inet_exiterr
         
         ;else ;slave
 
-	ld a,(socrecv)
-	LD DE,port_iarecv
+	ld a,(soc)
+	LD DE,port_ia
 	OS_BIND
-        ld a,l
+    ld a,l
 	or a
 	jp m,inet_exiterr
 	
-	ld a,(socrecv)
-	LD DE,port_iarecv
+	ld a,(soc)
+	LD DE,port_ia
 	OS_NETCONNECT
         ld a,l
 	or a
@@ -221,14 +221,14 @@ gameoverloop
 inet_exiterr
 inet_exitcode
 quit
-	LD	a,(socrecv)
+	LD	a,(soc)
 	LD	E,0
 	OS_NETSHUTDOWN
-inet_exiterr_nosocrecv
-	LD	a,(socsend)
-	LD	E,0
-	OS_NETSHUTDOWN
-inet_exiterr_nosockets
+inet_exiterr_nosoc
+;	LD	a,(socsend)
+;	LD	E,0
+;	OS_NETSHUTDOWN
+;inet_exiterr_nosockets
         QUIT
         
 rnd
@@ -331,56 +331,18 @@ getkey
         GET_KEY
          cp key_esc
          jp z,quit
-         
         push af
-        
-        if MASTER ;посылаем свои клавиши
-        
-        push af
+  
         call sendbyte
-        pop af
-        
-        ld c,dir_l
-        cp 'a';dir_l
-        jr z,getkey_ok2
-        ld c,dir_r
-        cp 'd';dir_r
-        jr z,getkey_ok2
-        ld c,dir_u
-        cp 'w';dir_u
-        jr z,getkey_ok2
-        ld c,dir_d
-        cp 's';dir_d
-        jr nz,waitkey0
-getkey_ok2
-;обнаружен второй игрок на мастере - отключаем сеть
-        ld hl,receivebyte_fake
-        ld (waitkey_receivebytepatch),hl
-        ld a,c
-        jr mastergetkeyskipreceive
-waitkey0
-         ld a,0xfd
-         in a,(0xfe) ;костыль D=start
-         bit 2,a ;D
-         jr z,mastergetkeyskipreceiveq
-waitkey_receivebytepatch=$+1
-        call receivebyte
-        jr z,waitkey0
-        or a
-        jr z,$+5
-mastergetkeyskipreceive
-        ld (curdirection2),a
-mastergetkeyskipreceiveq        
-        else ;slave - принимаем клавиши
-
 waitkey0
         call receivebyte
         jr z,waitkey0
         or a
         jr z,$+5
-        ld (curdirection),a
-        call sendbyte
-        
+        if MASTER 
+			ld (curdirection2),a
+        else
+			ld (curdirection),a
         endif
         
         pop af
@@ -925,7 +887,7 @@ sendbyte
         ld (sendbuf),a
         
 	ld hl,1
-	LD	a,(socsend)
+	LD	a,(soc)
 	LD	DE,sendbuf
 	OS_WIZNETWRITE
 	bit 7,h
@@ -945,7 +907,7 @@ receivebyte
 
 receivebyte0
 	ld hl,1
-	LD	a,(socrecv)
+	LD	a,(soc)
 	LD	DE,recvbuf
 	OS_WIZNETREAD
 	ld a,h
@@ -956,37 +918,37 @@ receivebyte0
         ret
 
 sendbuf
-        ds 1
+        ds 256
 recvbuf
-        ds 1
+        ds 256
 
-socsend
+soc
         db 0
-socrecv
-        db 0
+;socrecv
+;        db 0
 
         if MASTER
 ;master: from 192.168.1.177 to 192.168.1.2
-port_iasend:
+port_ia:
 	defb 0
         db 100,53 ;port (big endian)
         db 192,168,1,177 ;ip (big endian)
-port_iarecv:
-	defb 0
-        db 100,53 ;port (big endian)
-        db 192,168,1,177 ;ip (big endian)
+;port_iarecv:
+;	defb 0
+;        db 100,53 ;port (big endian)
+;        db 192,168,1,177 ;ip (big endian)
 
         else
 
 ;slave: from 192.168.1.2 to 192.168.1.177
-port_iarecv:
+port_ia:
 	defb 0
         db 100,53 ;port (big endian)
         db 192,168,1,2 ;ip (big endian)
-port_iasend:
-	defb 0
-        db 100,53 ;port (big endian)
-        db 192,168,1,2 ;ip (big endian)
+;port_iasend:
+;	defb 0
+;        db 100,53 ;port (big endian)
+;        db 192,168,1,2 ;ip (big endian)
         endif
 
         macro cols data
