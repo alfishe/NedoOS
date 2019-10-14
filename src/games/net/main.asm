@@ -970,10 +970,19 @@ getbreak
 	rra
 	ret
 
+sendbuf
+        db "isnk"
+sendbufdata
+sendbufdatashift=$-sendbuf
+sendbufsz=sendbufdatashift+1 ;1 byte
+        ds sendbuf+256-$
+recvbuf
+        ds 256
+
 sendbyte
-        ld (sendbuf),a
+        ld (sendbufdata),a
         
-	ld hl,1
+	ld hl,sendbufsz
 	LD	a,(soc)
 	LD	DE,sendbuf
 	OS_WIZNETWRITE
@@ -996,7 +1005,7 @@ receivebyte0
 	call getbreak
 	jp nc,quit
 
-	ld hl,1
+	ld hl,sendbufsz
 	LD	a,(soc)
 	LD	DE,recvbuf
 	OS_WIZNETREAD
@@ -1004,13 +1013,25 @@ receivebyte0
 	or l
 	ret z ;jr z,receivebyte0
 
-        ld a,(recvbuf)
+        ld hl,recvbuf
+        ld de,sendbuf
+        ld b,sendbufdatashift
+receivebytecp0
+        ld a,(de)
+        cp (hl)
+        jr nz,receivebyte_fail
+        inc hl
+        inc de
+        djnz receivebytecp0
+        xor a
+        dec a ;nz
+
+        ld a,(recvbuf+sendbufdatashift)
+        ret
+receivebyte_fail
+        xor a ;z=no data
         ret
 
-sendbuf
-        ds 256
-recvbuf
-        ds 256
 
 soc
         db 0

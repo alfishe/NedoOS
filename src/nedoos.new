@@ -915,3 +915,7 @@ v0.r246.6, 14.10.2019
 + net: добавлен выход по break
 + Everlasting summer: graphics improvements (demige)
 - eric: убраны лишние файлы (rasmer)
+
+v0.r258.1, 14.10.2019
+
+- net: сделана защита от фальшивых пакетов
