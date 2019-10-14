@@ -837,6 +837,7 @@ memoryerror
 	OS_CLS
 	ld hl,txt_memoryerror
 	call print_hl
+	YIELDGETKEYLOOP
 	QUIT
 
 fileopenerror
@@ -850,6 +851,7 @@ fileopenerror
 	call print_hl
 	ld hl,txt_nl
 	call print_hl
+	YIELDGETKEYLOOP
 	QUIT
 
 filereaderror
@@ -864,6 +866,7 @@ filereaderror
 	call print_hl
 	ld hl,txt_nl
 	call print_hl
+	YIELDGETKEYLOOP
 	QUIT
 
 print_hl

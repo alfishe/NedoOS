@@ -7,7 +7,7 @@
 \f
 "Просто сон..."
 |play sound_loop sfx_keyboard_mouse_computer_noise
-\lpic/prol_k1.16c
+\lpic/prolog/keyb1.16c
 \F\d\d\lpic/prolog/keyb2.16c
     \i\lpic/prolog/keyb3.16c
     \i\lpic/prolog/keyb4.16c

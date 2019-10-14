@@ -171,33 +171,42 @@ day1
 
 	db GCMD_GOTO
 	dw day1_sl0
+;	dw day1_dinhallaway0
 day1_sl
 	db GCMD_INPUT
 day1_sl0
 	db GCMD_VARIANT,'1'
 	dw day1_sl1
 	db GCMD_CONTINUE
+	db GCMD_GOTO
+	dw day1_dinhallaway0
 day1_sl1
 	db GCMD_VARIANT,'2'
 	dw day1_sl
 	db GCMD_INCVARB
 	dw var_slavya
 	db GCMD_JUMP,'$'
-
 	db GCMD_GOTO
 	dw day1_dinhallaway0
+
 day1_dinhallaway
 	db GCMD_INPUT
 day1_dinhallaway0
 	db GCMD_VARIANT,'1'
 	dw day1_dinhallaway1
 	db GCMD_CONTINUE
+	db GCMD_GOTO
+	dw day1_katleta0
 day1_dinhallaway1
 	db GCMD_VARIANT,'2'
 	dw day1_dinhallaway
 	db GCMD_INCVARB
 	dw var_alisa
 	db GCMD_JUMP,'&'
+	db GCMD_GOTO
+	dw day1_katleta0
+
+day1_katleta0
 
 quit
 
