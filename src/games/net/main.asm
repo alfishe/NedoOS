@@ -193,6 +193,7 @@ gameloop
         push bc
         call collide_rabbit_startgrow
         call collide_rabbit_startgrow2
+        
         call collide_walls_self2 ;Z=collision
         ;jr z,gameover
         call z,stopsnake2
@@ -233,7 +234,32 @@ inet_exiterr_nosoc
         
 rnd
 ;0..c-1
-        ld a,r
+        ;ld a,r
+;Patrik Rak
+rndseed1=$+1
+        ld  hl,0xA280   ; xz -> yw
+rndseed2=$+1
+        ld  de,0xC0DE   ; yw -> zt
+        ld  (rndseed1),de  ; x = y, z = w
+        ld  a,e         ; w = w ^ ( w << 3 )
+        add a,a
+        add a,a
+        add a,a
+        xor e
+        ld  e,a
+        ld  a,h         ; t = x ^ (x << 1)
+        add a,a
+        xor h
+        ld  d,a
+        rra             ; t = t ^ (t >> 1) ^ w
+        xor d
+        xor e
+        ld  h,l         ; y = z
+        ld  l,a         ; w = t
+        ld  (rndseed2),hl
+        ;ex de,hl
+        ;ld hl,0
+        ;res 7,c ;int
 rnd0
         sub c
         jr nc,rnd0
@@ -332,7 +358,8 @@ getkey
          cp key_esc
          jp z,quit
         push af
-  
+
+        if 1==0
         call sendbyte
 waitkey0
         call receivebyte
@@ -344,7 +371,58 @@ waitkey0
         else
 			ld (curdirection),a
         endif
-        
+        endif
+        if MASTER
+       
+        push af
+        call sendbyte
+        pop af
+       
+        ld c,dir_l
+        cp 'a';dir_l
+        jr z,getkey_ok2
+        ld c,dir_r
+        cp 'd';dir_r
+        jr z,getkey_ok2
+        ld c,dir_u
+        cp 'w';dir_u
+        jr z,getkey_ok2
+        ld c,dir_d
+        cp 's';dir_d
+        jr nz,waitkey0
+getkey_ok2
+;player2 key pressed - disable net
+        ld hl,receivebyte_fake
+        ld (waitkey_receivebytepatch),hl
+        ld a,c
+        jr mastergetkeyskipreceive
+waitkey0
+         ld a,0xfd
+         in a,(0xfe) ;костыль D=start second player
+         bit 2,a ;D
+         jr z,mastergetkeyskipreceiveq
+waitkey_receivebytepatch=$+1
+        call receivebyte
+        jr z,waitkey0
+        or a
+        jr z,mastergetkeyskipreceiveq
+mastergetkeyskipreceive
+        ld (curdirection2),a
+mastergetkeyskipreceiveq
+        else ;slave
+
+        push af
+waitkey0
+        call receivebyte
+        jr z,waitkey0
+        or a
+        jr z,$+5
+        ld (curdirection),a
+        pop af
+        call sendbyte
+       
+        endif
+
         pop af
          
         cp dir_l
@@ -882,8 +960,17 @@ prchar0
         endif
         ret
 
+getbreak
+	ld a,0x7f
+	in a,(0xfe)
+	rra
+	ret c
+	ld a,0xfe
+	in a,(0xfe)
+	rra
+	ret
+
 sendbyte
-;master: from 192.168.0.7 to 192.168.0.2
         ld (sendbuf),a
         
 	ld hl,1
@@ -906,6 +993,9 @@ receivebyte
 ;z=no data
 
 receivebyte0
+	call getbreak
+	jp nc,quit
+
 	ld hl,1
 	LD	a,(soc)
 	LD	DE,recvbuf
@@ -928,7 +1018,7 @@ soc
 ;        db 0
 
         if MASTER
-;master: from 192.168.1.177 to 192.168.1.2
+;master(net1): from 192.168.1.2 to 192.168.1.177
 port_ia:
 	defb 0
         db 100,53 ;port (big endian)
@@ -940,7 +1030,7 @@ port_ia:
 
         else
 
-;slave: from 192.168.1.2 to 192.168.1.177
+;slave(net2): from 192.168.1.177 to 192.168.1.2
 port_ia:
 	defb 0
         db 100,53 ;port (big endian)
