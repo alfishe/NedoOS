@@ -2,16 +2,8 @@
         ;include "atm.asm"
         include "sysdefs.asm"
         
-;do define oldtimer (2 bytes)
         macro YIELD ;use instead of HALT
         OS_YIELD
-_0=$
-        OS_GETTIMER ;hlde=timer
-        ld hl,(oldtimer)
-        or a
-        sbc hl,de
-        jr z,_0 ;TODO OS_YIELDIDLE (иначе не сработает 'c'+'m'+'d')
-         ld (oldtimer),de
         endm
         macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки

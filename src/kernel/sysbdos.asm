@@ -861,15 +861,15 @@ BDOS_yield
 BDOS_yield_q
         ;di ;TODO critical section
 
-        push iy
-        call schedule ;out: hl=iy=app ;можно с включенными прерываниями, пока системный обработчик не умеет шедулить
-        pop de
-        or a
-        sbc hl,de
-        jr nz,BDOS_yield_nosame
-        ld iy,app1 ;idle (TODO вместо этого сделать полноценные приоритеты)
-        ld (appaddr),iy
-BDOS_yield_nosame
+;        push iy
+        call schedule ;out: iy=app ;можно с включенными прерываниями, пока системный обработчик не умеет шедулить
+;        pop de
+;        or a
+;        sbc hl,de
+;        jr nz,BDOS_yield_nosame
+;        ld iy,app1 ;idle (TODO вместо этого сделать полноценные приоритеты)
+;        ld (appaddr),iy
+;BDOS_yield_nosame
         
         di ;TODO critical section
 

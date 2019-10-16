@@ -662,8 +662,8 @@ tilerabbit
         endtext
         db "GAME OVER!",0
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 
         if EGA
         align 256

@@ -838,8 +838,8 @@ COMSYM  DB 0
 pathbuf
         ds MAXPATH_sz
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
 cmd_end
 

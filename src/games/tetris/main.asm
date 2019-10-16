@@ -698,8 +698,8 @@ nextfigcolor
 dellineslist
         ds 4+1 ;max 4 линии + #ff
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 
         ;align 256
 font

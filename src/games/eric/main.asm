@@ -84,8 +84,8 @@ recodegfx0bmpline
 
 	include "eric1.asm"
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 quiter
 	QUIT ;rasmer
 

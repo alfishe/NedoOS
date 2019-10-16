@@ -372,13 +372,16 @@ prNfiles
 
 fileiscom_ix;ix=fcb output: z=com
 	ld a,(ix+9)
-	cp 'C'
+         or 0x20
+	 cp 'c'
 	jr nz,fileiscom_ix_nocom
 	ld a,(ix+10)
-	cp 'O'
+         or 0x20
+	 cp 'o'
 	jr nz,fileiscom_ix_nocom
 	ld a,(ix+11)
-	cp 'M'
+         or 0x20
+	 cp 'm'
 	jr nz,fileiscom_ix_nocom
 	xor a
 	ret
@@ -2018,7 +2021,7 @@ proceditcmd_copy_date=$+2
 proceditcmd_copy_q
 filescopied=$+1
         ld hl,0
-/*
+         if 1==0
         inc hl
         ld (filescopied),hl
         ;ld bc,32
@@ -2051,7 +2054,7 @@ proceditcmd_copy_q_progress0
         pop de
         inc e
         djnz proceditcmd_copy_q_progress0
-*/
+         endif
         ret 
         
 mulbcde_ahl
@@ -2260,8 +2263,8 @@ dir		BLOCK MAXPATH_sz
 leftpanel PANEL
 rightpanel PANEL
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
 ;<0x4000 for hobeta
 fcb

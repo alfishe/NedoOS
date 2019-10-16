@@ -110,8 +110,8 @@ prtext0
         jp prtext0
 
         
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 
         ;include "../_sdk/pt3play.i"
         include "ptsplay.asm"

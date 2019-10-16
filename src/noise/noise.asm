@@ -134,8 +134,8 @@ texfilename
 palbuf
         ds 32
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
         align 256
 ttexpgs

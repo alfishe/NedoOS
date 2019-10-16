@@ -1643,8 +1643,8 @@ tfree
 twrongid
         db "Wrong ID",0
         
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
 	db 0 ;для запарывания на случай отсутствия пути
 wordbuf

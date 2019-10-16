@@ -1059,8 +1059,8 @@ wordbuf
 curdir
         ds MAXPATH_sz;MAXCMDSZ+1
         
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 
 execcmd_pars
         dw 0

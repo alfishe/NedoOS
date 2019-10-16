@@ -1819,8 +1819,8 @@ curfulllink
         include "drawmc.asm"
         include "editline.asm"
         
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
         align 256
 textpages

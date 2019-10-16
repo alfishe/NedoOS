@@ -503,8 +503,8 @@ rd      DS 28*4
 OUTNAM  DS namln ;DestFileNamepathbuf
         ds MAXPATH_sz
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         if retree
 reld
         ds (298*19/2-7) ;0x0b08

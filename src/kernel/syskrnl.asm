@@ -136,6 +136,7 @@ mainpg          BYTE ;главная страница задачи (там userkernel)
 ;endmsg          WORD ;TODO адрес конца очереди сообщений этой задаче
 ;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
 ;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
+lasttime        BYTE
 border          BYTE ;текущий цвет бордера 0..15
 screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
 gfxmode         BYTE ;текущий видеорежим ;значение для 0xbd77
@@ -206,13 +207,9 @@ sys_intsp=$+1
 
         call setgfxpal_focus
 
-        call schedule ;out: hl=iy=app
+        call on_int ;тикает таймер
 
-        ;ld hl,(appaddr)
-        ;ld iy,(appaddr)
-        ;call iffocus_setgfx
-
-        call on_int
+        call schedule ;out: iy=app
 
 sys_int_popregs
         ld a,pgkillable
@@ -246,38 +243,36 @@ sys_int_popregs
 
 schedule
 ;find next app, set iy
-;out: hl=iy=app
-        ld hl,(appaddr)
+;out: iy=app, ix=(focusappaddr)
+        ld iy,(appaddr)
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
-        ld a,MAXAPPS
+         ld a,(sys_timer)
+        ld l,MAXAPPS
 findnextapp0
-        ;add hl,de
-        ;sbc hl,bc
-        ;add hl,bc
-        ;jr nz,$+5
-        ;ld hl,app1
-        add hl,bc
-        jr nc,$+5
-        ld hl,app1 -(app_last+app_sz)
-        add hl,de
-        bit factive,(hl)
+        add iy,bc
+        jr nc,$+6
+        ld iy,app1 -(app_last+app_sz)
+        add iy,de
+         cp (iy+app.lasttime)
+         jr z,findnextappskip
+        bit factive,(iy)
         jr nz,findnextappq
-        dec a
+findnextappskip
+        dec l
         jr nz,findnextapp0
-;no active apps
-;findnextapp_idle (TODO ещё если в текущем фрейме уже пройдены все активные задачи?)
-        ld hl,app1
+;no active apps (или каждая в данном фрейме уже вызывалась)
+        ld iy,app1 ;idle
 findnextappq
-        ld (appaddr),hl
-          if 1==1
-          ld iy,(appaddr)
+        ld (appaddr),iy
+         ld (iy+app.lasttime),a
+          ;ld iy,(appaddr)
           ld a,(iy+app.mainpg)
           ld bc,memport4000
-          ;ld (sys_curpg4000),a ;TODO или не нужно?
+          ;ld (sys_curpg4000),a ;не нужно?
           out (c),a
-          ld iy,(focusappaddr)
-          ld a,(iy+app.screen)
+          ld ix,(focusappaddr)
+          ld a,(ix+app.screen)
           or fd_system
           ;ld (user_fdvalue1+0x4000),a ;for QUIT, мешает делать многозадачность с 0xffff: jp nn
           ld (user_fdvalue2+0x4000),a
@@ -287,8 +282,7 @@ findnextappq
           ld (user_fdvalue6+0x4000),a
           ld a,pgtrdosfs
           out (c),a ;там INTSTACK
-          endif
-        ld iy,(appaddr)
+        ;ld iy,(appaddr)
         ret
 
 setgfxpal_focus

@@ -220,8 +220,8 @@ oldmousebuttons=$+1
 cur_cs_halfrow
         db 0
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 
 waitsomething
 mainloop_nothing

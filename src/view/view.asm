@@ -70,7 +70,6 @@ curextq
         
         pop de
         
-         ;jr $
         ;ld de,filename
         call openstream_file
         or a
@@ -1000,13 +999,13 @@ extlist
 
         
 defaultfilename
-        db "0:/scr/rockwell.888",0
+        db "m:/scr/rockwell.888",0
 curext
         ds 3
         db 0
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
         
         include "deblc.asm"

@@ -416,22 +416,22 @@ YIELD:
 	push iy
 	ld c,CMD_YIELD
 	call 0x0005
-yield_loop:
-	ld c,CMD_GETTIMER
-	call 0x0005
-    ld hl,(oldtimer)
-    ld (oldtimer),de
-    or a
-    sbc hl,de
-    jr z,yield_loop
+;yield_loop:
+;	ld c,CMD_GETTIMER
+;	call 0x0005
+;    ld hl,(oldtimer)
+;    ld (oldtimer),de
+;    or a
+;    sbc hl,de
+;    jr z,yield_loop
 	pop iy
 	pop ix
 	pop de
 	pop bc
 	ret
-	RSEG	UDATA0
-oldtimer:
-	defs 2 
+;	RSEG	UDATA0
+;oldtimer:
+;	defs 2 
 	ENDMOD
 	
 	MODULE MAIN_ARGS

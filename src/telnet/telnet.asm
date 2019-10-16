@@ -1323,7 +1323,7 @@ ansi_pal	dw 0xF3F3,0xF1F1,0xE3E3,0xE1E1,0xF2F2,0xF0F0,0xE2E2,0xE0E0
 		dw 0x1313,0xB1B1,0x6363,0x2121,0xD2D2,0x9090,0x4242,0x0000
 read_state      db 0 ;0 - text, 1- esc, 2-ansi
 
-oldtimer ds 2
+;oldtimer ds 2
 arg_hostname ds 255
 
 txt_usage db "Use telnet [-d] [-h] [-V] <host_name|ip>",0x0D,0x0A,0
@@ -1344,7 +1344,7 @@ cmd_end
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 	display "telnet_loop: ",telnet_loop
 	display "telnet_read: ",telnet_read
-	display "telnet_purge_writebyf: ",telnet_purge_writebuf
+	display "telnet_purge_writebuf: ",telnet_purge_writebuf
 	display "telnet_ansi0: ",telnet_ansi0
 	display "telnet_noresolve: ",telnet_noresolve
 	savebin "telnet.com",cmd_begin,cmd_end-cmd_begin

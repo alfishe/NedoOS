@@ -254,8 +254,8 @@ loaddemoq
 
         ld de,mariopal
         OS_SETPAL
-        OS_GETTIMER ;hlde=timer
-        ld (oldtimer),de
+        ;OS_GETTIMER ;hlde=timer
+        ;ld (oldtimer),de
 	YIELD ;иначе палитра не установится
         
         call setpgs_code
@@ -1305,8 +1305,8 @@ oldpalette=$+1
 	sbc hl,de
 	jp z,EmulatePPU_nochpal ;реально поддержано изменение цвета Марио в палитре: при этом пишется oldpalette=левоечисло
 	push de
-        OS_GETTIMER ;hlde=timer
-        ld (oldtimer),de ;иначе yield вылетит без ожидания прерывания
+        ;OS_GETTIMER ;hlde=timer
+        ;ld (oldtimer),de ;иначе yield вылетит без ожидания прерывания
 	YIELD ;иначе можем напороться на di в swapimer
 	call swapimer ;делать это после YIELD, т.к. внутри di..ei
 	pop de
@@ -2693,8 +2693,8 @@ filename2
 tnofile
         db "smb.nes not found",0x0d,0x0a,0
 
-oldtimer
-	ds 2
+;oldtimer
+;	ds 2
 
 	display "free before 0x2000=",0x2000-$
         ds 0x2000-$

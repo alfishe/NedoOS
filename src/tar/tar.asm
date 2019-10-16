@@ -1152,8 +1152,8 @@ strcopy0
         jr nz,strcopy0
         ret
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
 
 ttar
         db ".tar",0

@@ -7,8 +7,8 @@ cmd_begin
 
 ;init
 	YIELD
-	ld hl,(oldtimer)
-	ld (icmpstarttime),hl
+        OS_GETTIMER ;hlde=timer
+	ld (icmpstarttime),de
 
 	ld sp,0x8000
 	ld e,6
@@ -352,9 +352,10 @@ ping_printstat0
 
 ;print overal time
 	YIELD 
+        OS_GETTIMER ;hlde=timer
+	ld hl,(icmpstarttime)
+        ex de,hl
 	or a
-	ld hl,(oldtimer)
-	ld de,(icmpstarttime)
 	sbc hl,de
 	ld d,h
 	ld e,l
@@ -445,12 +446,14 @@ ping_printwork_crc
 	call print_hl
 	ld hl,txt_work3
 	call print_hl
-	YIELD ; update current time in "oldtimer"
+	;YIELD ; update current time in "oldtimer"
+        OS_GETTIMER ;hlde=timer
+        ex de,hl
 	ld a,(icmppacket.data+6)
 	ld d,a
 	ld a,(icmppacket.data+7)
 	ld e,a
-	ld hl,(oldtimer)
+	 or a
 	sbc hl,de
 	ld d,h
 	ld e,l
@@ -458,7 +461,7 @@ ping_printwork_crc
 	add hl,hl
 	add hl,de
 	add hl,hl
-	add hl,hl; moultiple by 20ms
+	add hl,hl; multiply by 20ms
 	ex hl,de
 	ld hl,(icmppacketstime) ; add to total packet time
 	add hl,de
@@ -518,7 +521,8 @@ ping_buildicmppacket
 	ld (icmpnum),hl
 	ld (ix + STicmpreq.num),h
 	ld (ix + STicmpreq.num+1),l
-	ld hl, (oldtimer)
+        OS_GETTIMER ;hlde=timer
+        ex de,hl
 	ld (ix + STicmpreq.data),h
 	ld (ix + STicmpreq.data+1),l
 	ld (ix + STicmpreq.data+2),h
@@ -760,7 +764,7 @@ icmpmin db 0xFF,0xFF
 icmpmax db 0,0
 crc db 0
 
-oldtimer ds 2
+;oldtimer ds 2
 arg_hostname ds 255
 
 txt_usage db "Use ping [-c count] [-d] [-h] [-i interval] [-s size] [-V] <host_name|ip>",0x0D,0x0A,0

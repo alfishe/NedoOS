@@ -142,8 +142,8 @@ minhl_bc_tobc
         include "textview.asm"
         include "text_mem.asm"
 
-oldtimer
-        dw 0
+;oldtimer
+;        dw 0
         
 fcb
         ds FCB_sz
