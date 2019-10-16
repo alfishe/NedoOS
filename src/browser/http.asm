@@ -38,6 +38,10 @@ openstream_http_hl
         push de
         call strcopy
         ld hl,80*256 ;BIG ENDIAN
+        ld a,(curprotocol)
+        dec a
+        jr z,$+4 ;1=http
+        ld h,70 ;2=gopher
         ld (curport),hl
         pop hl
         ;call findslash
@@ -122,10 +126,13 @@ connect_ok
 ;form GET message in DISKBUF (will be deleted in readstream)
         ld de,DISKBUF
 
-         ld a,0xfe
-         in a,(0xfe)
-         rra
-         jr c,connect_nogopher
+         ;ld a,0xfe
+         ;in a,(0xfe)
+         ;rra
+         ld a,(curprotocol)
+         ;jr $
+         dec a
+         jr z,connect_nogopher ;http=1, gopher=2
          pop hl ;filename
          call strcopy
          dec de
@@ -209,7 +216,11 @@ readstream_http
 http_firstreadflag=$+1
 	ld a,1
 	dec a
-	jr nz,readstream_http_nofirstread
+	jp nz,readstream_http_nofirstread
+curprotocol=$+1
+         ld a,0;(curprotocol)
+         dec a
+         jr nz,readstream_http_nohead ;2=gopher
          ld a,0xfe
          in a,(0xfe)
          rra

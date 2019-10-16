@@ -308,6 +308,7 @@ browser_backspaceq
         ld hl,curfulllink
         call isprotocolpresent
 ;a=protocol (0=file, 1=http), hl=after "//"
+        ld (curprotocol),a
         push hl ;hl=after "//"
 
 ;включить колбэки под нужный протокол
@@ -1045,6 +1046,13 @@ isprotocolpresent
         call strcp_tillde0 ;if found, hl=after "//"
         pop de
         ld a,1
+        ret z
+        ex de,hl
+        ld de,tgopherprotocol
+        push hl
+        call strcp_tillde0 ;if found, hl=after "//"
+        pop de
+        ld a,2
         ret z
         ex de,hl
         ret ;nz=protocol absent (hl=start)
@@ -1801,6 +1809,8 @@ tfileprotocol
         db "file://",0
 thttpprotocol
         db "http://",0
+tgopherprotocol
+        db "gopher://",0
 
 linkbuf
         ds MAXLINKSZ+1
