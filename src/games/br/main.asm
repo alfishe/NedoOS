@@ -785,6 +785,7 @@ end1
 ;*P0 ;-------------------
 
 
+	display "COORD=",COORD
 	display "begin=",begin
 	display "end=",end
 	;display "Free after end=",/d,#c000-end

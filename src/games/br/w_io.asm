@@ -8,6 +8,7 @@
 
 ;-------запись
 
+        if 1==0
 D_WRITE DI   ;запись 256 бт секторов
         CALL    POS
 LOPWR1  PUSH    HL
@@ -206,6 +207,10 @@ numFL   EQU 129 ;длина т.ф-лов (111+8+8)
 READ_F  PUSH HL  ;загр и декомпр
         CALL READ
         POP HL
+
+        endif
+        
+        
 DELPZF  LD DE,#FFFF
 ;Декомпрессор
 ;HL - ОТКУДА И КУДА, DE - ВЕРХНЯЯ ГРАНИЦА ОБЛАСТИ
@@ -602,6 +607,9 @@ LLV0    LD A,(LEVEL)
         LDIR
         XOR A
         OUT (254),A
+         ld hl,0x6080
+         ld (COORD),hl
+        
         RET
 
         if 1==0
