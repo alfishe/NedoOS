@@ -13,9 +13,9 @@ rem echo Build "%PRJNAME%"
 if not exist list mkdir list
 if exist list/lfiles.lnk del list\lfiles.lnk
 IF "%PRJDEBUG%"=="1" (
-	set LINK_OPTIONS=-FIEEE695 -C %IARLIB%/clz80 -f Lnk.xcl -yvgbls -l list/cout.html -xehinms
+	set LINK_OPTIONS=-FIEEE695 -yvgbls -l list/cout.html -xehinms
 )ELSE (
-	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com -C %IARLIB%/clz80 -f Lnk.xcl
+	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com
 )
 
 FOR %%f IN (%C_FILES%) do (
@@ -30,4 +30,4 @@ FOR %%f IN (%ASM_FILES%) do (
 	echo %%~nf.r01 >> list/lfiles.lnk
 	%AZ80% -S -uu -Olist/ %%f -I%currentdir%/_sdk/
 )
-%XLINK% -f list/lfiles.lnk %LINK_OPTIONS%
+%XLINK% -f list/lfiles.lnk %LINK_OPTIONS% %~dp0iar.lib -C %IARLIB%/clz80 -f Lnk.xcl

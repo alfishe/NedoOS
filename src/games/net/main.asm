@@ -155,7 +155,7 @@ begin
 waitbegin0
         call receivebyte
         jr z,waitbegin0
-       
+       display "recv ",$
         endif
         
         
@@ -1055,7 +1055,7 @@ port_ia:
 port_ia:
 	defb 0
         db 100,53 ;port (big endian)
-        db 192,168,1,2 ;ip (big endian)
+        db 255,255,255,255 ;ip (big endian)
 ;port_iasend:
 ;	defb 0
 ;        db 100,53 ;port (big endian)

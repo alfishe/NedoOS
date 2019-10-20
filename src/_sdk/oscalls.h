@@ -4,10 +4,13 @@ void YIELD(void);
 void OS_SETGFX(unsigned char mode);
 void OS_CLS(unsigned char color);
 void OS_SETCOLOR(unsigned char color);
+void OS_PRATTR(unsigned char attribute);
 void OS_SETXY(unsigned char x,unsigned char y);
+
 void OS_SCROLLUP(unsigned int xy, unsigned int wh);
 unsigned int _low_level_get(void);
 unsigned int OS_GETXY(void);
+char *cgets(char *str);
 void conv1251to866(unsigned char * bufer);
 extern unsigned char t1251to866[128];
 extern unsigned char syspath[8];
@@ -89,6 +92,24 @@ unsigned short htons(unsigned short hostshort);
 
 struct in_addr * dns_resolver(char *);
 
+
+#define INK_BLACK      0x00
+#define INK_BLUE       0x01
+#define INK_RED        0x02
+#define INK_MAGENTA    0x03
+#define INK_GREEN      0x04
+#define INK_CYAN       0x05
+#define INK_YELLOW     0x06
+#define INK_WHITE      0x07
+
+#define PAPER_BLACK    0x00
+#define PAPER_BLUE     0x08
+#define PAPER_RED      0x10
+#define PAPER_MAGENTA  0x18
+#define PAPER_GREEN    0x20
+#define PAPER_CYAN     0x28
+#define PAPER_YELLOW   0x30
+#define PAPER_WHITE    0x38
 
 #define IPPROTO_TCP 6
 #define IPPROTO_UDP 17

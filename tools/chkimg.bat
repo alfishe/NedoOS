@@ -28,7 +28,10 @@ FOR /R %rel% %%i in (.) do (
 FOR /R %rel% %%i IN (*.*) do (
 	set ob=%%~dpnxi	
 	echo %%i | findstr _sdk > NUL
-	if ERRORLEVEL 1 dmimg ..\us\%1_nedo.vhd put %%i !ob:%rel%=! > nul
+	if ERRORLEVEL 1 (
+		echo !ob:%rel%=!
+		dmimg ..\us\%1_nedo.vhd put %%i !ob:%rel%=! > nul
+	)
 )
 exit /b
 
