@@ -11,7 +11,7 @@ clean:
 	for d in ${PROGS}; do ${MAKE} -w -C $$d clean; done
 
 install:
-	mkdir -p ../../release/games
+	mkdir -p ../../release/nedogame || echo
 	for d in ${PROGS}; do ${MAKE} -w -C $$d install; done
 
 install-doc:

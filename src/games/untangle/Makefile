@@ -2,7 +2,7 @@ NAME		= untangle.com
 OBJECTS		=
 SOURCES		= main.asm control.asm prarrow.asm
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame
 
 all: ${NAME} ${SOURCES}
 

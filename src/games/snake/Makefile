@@ -2,7 +2,7 @@ NAME		= snake.com
 OBJECTS		=
 SOURCES		= main.asm fontgfx zx.fnt
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame
 
 all: ${NAME} ${SOURCES}
 

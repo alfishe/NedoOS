@@ -2,7 +2,7 @@ NAME		= tetris.com
 OBJECTS		=
 SOURCES		= main.asm zx.fnt
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame
 
 all: ${NAME} ${SOURCES}
 

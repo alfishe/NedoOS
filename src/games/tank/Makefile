@@ -3,7 +3,7 @@ OBJECTS		= sprset.ast tileset.ast
 SOURCES		= collisio.asm collisio.asm input.asm macro.asm main.asm math.asm sprite.asm tankdata.asm tankgfx.asm sprset.bmp tileset.bmp tileset.da sprset.da zx.fnt
 SJASMPLUS	= ../../../tools/sjasmplus
 NEDORES		= ../../_sdk/nedores.bin
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame
 
 all: ${NAME} ${SOURCES}
 

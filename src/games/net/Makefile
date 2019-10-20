@@ -1,8 +1,8 @@
-NAME		= snake.com
+NAME		= master.com slave.com
 OBJECTS		=
 SOURCES		= main.asm fontgfx zx.fnt
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame/netsnake
 
 all: ${NAME} ${SOURCES}
 

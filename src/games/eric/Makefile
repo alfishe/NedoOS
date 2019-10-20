@@ -2,7 +2,7 @@ NAME		= eric.com
 OBJECTS		=
 SOURCES		= main.asm eric1.asm
 SJASMPLUS	= ../../../tools/sjasmplus --nologo
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame
 
 all: ${NAME} ${SOURCES}
 

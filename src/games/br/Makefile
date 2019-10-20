@@ -2,7 +2,7 @@ NAME		= br.com
 OBJECTS		= 
 SOURCES		= main.asm brfinal.asm 
 SJASMPLUS	= ../../../tools/sjasmplus --nologo
-INSTALLDIR	= ../../../release/games
+INSTALLDIR	= ../../../release/nedogame/br
 
 all: ${NAME} ${SOURCES}
 
@@ -20,8 +20,8 @@ br.com: ${SOURCES}
 clean: 
 	rm -f ${NAME} ${OBJECTS}
 install: all
-	mkdir -p ${INSTALLDIR}/br/br
-	cp dat/*.dat ${INSTALLDIR}/br/br
-	cp ${NAME} ${INSTALLDIR}/br
+	mkdir -p ${INSTALLDIR}/br || echo
+	cp br/*.dat ${INSTALLDIR}/br
+	cp ${NAME} ${INSTALLDIR}
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc
