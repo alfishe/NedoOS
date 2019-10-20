@@ -5,16 +5,91 @@ ouFAST	EQU	5 ;ускорение вывода экрана
 
 ;---выв.спрайтов карты----
 SQROUT	;hl-adr spr ;DE-scr adr
+        if EGA
+        call setpgsscr40008000
+        endif
 	LD B,D
 	LD C,E
 	LD E,(HL)
 	INC L
 	LD D,(HL)
 	INC L
+        
+        if EGA
+
+	LD (SQUsp),SP
+	LD SP,HL
+	LD L,C
+	LD H,B
+        
+        ld hx,16/4
+        jp prtile16columngo
+prtile16column
+	POP DE
+prtile16columngo
+        ld bc,40
+        
+	LD (HL),E ;0
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	POP DE
+	LD (HL),E ;1
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	POP DE
+	LD (HL),E ;2
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	POP DE
+	LD (HL),E ;3
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	LD (HL),E ;+0
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	POP DE
+	LD (HL),E ;+1
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	POP DE
+	LD (HL),E ;+2
+	add hl,bc
+	LD (HL),D
+	add hl,bc
+	POP DE
+	LD (HL),E ;+3
+	add hl,bc
+	LD (HL),D
+        
+        ld bc,0x4000-(15*40)
+        ld a,0x9f;0xa0
+        cp h
+        adc hl,bc ;de = 0x4000 - ((sprhgt-1)*40)
+        jp pe,prtile16column ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+         dec hx
+         jp nz,prtile16column
+
+SQUsp=$+1
+        ld sp,0
+        jp setpgsmain40008000
+        
+        else ;~EGA
+
 	LD (SET_SP+1),SP
 	LD SP,HL
 	LD L,C
 	LD H,B
+        
 	LD B,2
 SQU1	LD (HL),E ;0
 	INC H
@@ -67,11 +142,20 @@ SQU1	LD (HL),E ;0
 	SUB 31
 	LD L,A
 	DJNZ SQU1
+        
 	JP SET_SP
+        
+        endif ;~EGA
 
 P12X12	LD HL,(X0)
 	CALL GMAP
+        if EGA
+        ;call setpgsscr40008000
+	LD DE,scrbase
+        ;jr $
+        else
 	LD DE,DSCR
+        endif
 	LD C,12
 PX0	LD B,12
 PX1	PUSH BC
@@ -82,10 +166,22 @@ PX1	PUSH BC
 	POP DE
 	POP HL
 	POP BC
+        if EGA
 	INC E
 	INC E
+        else
+	INC E
+	INC E
+        endif
 	INC HL
 	DJNZ PX1
+        if EGA
+        push hl
+        ld hl,-24+(40*16)
+        add hl,de
+        ex de,hl
+        pop hl
+        else
 	LD A,E
 	ADD A,40
 	LD E,A
@@ -93,20 +189,31 @@ PX1	PUSH BC
 	LD A,D
 	ADD A,8
 	LD D,A
-PX2	LD A,L
+PX2	
+        endif
+        LD A,L
 	ADD A,52
 	JR NC,PX3
 	INC H
 PX3	LD L,A
 	DEC C
 	JR NZ,PX0
+        if EGA
+        ;call setpgsmain40008000
+        endif
 	RET
 
 
 N12X12	;покрытие невидимых полей
 	LD HL,(X0)
 	CALL GMAP
+        if EGA
+        ;call setpgsscr40008000
+        ;jr $
+	LD DE,scrbase
+        else
 	LD DE,DSCR
+        endif
 	LD C,12
 NPX0	LD B,12
 NPX1	LD A,(HL)
@@ -120,10 +227,23 @@ NPX1	LD A,(HL)
 	POP DE
 	POP HL
 	POP BC
-NPXN	INC E
+NPXN	
+        if EGA
 	INC E
+	INC E
+        else
+	INC E
+	INC E
+        endif
 	INC HL
 	DJNZ NPX1
+        if EGA
+        push hl
+        ld hl,-24+(40*16)
+        add hl,de
+        ex de,hl
+        pop hl
+        else
 	LD A,E
 	ADD A,40
 	LD E,A
@@ -131,15 +251,21 @@ NPXN	INC E
 	LD A,D
 	ADD A,8
 	LD D,A
-NPX2	LD A,L
+NPX2	
+        endif
+        LD A,L
 	ADD A,52
 	JR NC,NPX3
 	INC H
 NPX3	LD L,A
 	DEC C
 	JR NZ,NPX0
+        if EGA
+        ;call setpgsmain40008000
+        endif
 	RET
 
+;вывод строчки при скролле
 PXLO	LD HL,(X0)
 	LD DE,DSCR+#10C0
 	LD A,11
@@ -154,7 +280,9 @@ PxH1	PUSH BC
 	PUSH HL ;adr in map
 	PUSH DE ;adr in scr
 	CALL GSADR
+       if EGA==0 ;TODO
 	CALL NC,SQROUT
+       endif
 	POP DE
 	POP HL
 	POP BC
@@ -181,7 +309,9 @@ NxH1	LD A,(HL)
 	PUSH HL ;adr in map
 	PUSH DE ;adr in scr
 	LD HL,shadwA
+       if EGA==0 ;TODO
 	CALL SQROUT
+       endif
 	POP DE
 	POP HL
 	POP BC
@@ -205,7 +335,9 @@ Py1	PUSH BC
 	PUSH HL ;adr in map
 	PUSH DE ;adr in scr
 	CALL GSADR
+       if EGA==0 ;TODO
 	CALL NC,SQROUT
+       endif
 	POP DE
 	POP HL
 	POP BC
@@ -241,7 +373,9 @@ Ny1	LD A,(HL)
 	PUSH HL ;adr in map
 	PUSH DE ;adr in scr
 	LD HL,shadwA
+       if EGA==0 ;TODO
 	CALL SQROUT
+       endif
 	POP DE
 	POP HL
 	POP BC
@@ -1339,7 +1473,9 @@ _oSA1	EX AF,AF
 	CALL MEM1
 	EX AF,AF
 	CALL GSADR+1
+       if EGA==0 ;TODO
 	CALL SQROUT
+       endif
 	JP MEM7
 
 _shdw	;уст темноты

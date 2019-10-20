@@ -2,6 +2,7 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
+scrbase=0x4000
 sprmaxwid=32;24
 sprmaxhgt=32;24
 scrwid=96 ;double pixels
@@ -131,6 +132,7 @@ ttexpgs
         ds 32;8
 
         include "w_intv.asm"
+        include "wlib1a.asm"
 br_path
 		defb "br",0
 begingo
@@ -385,6 +387,11 @@ changescrpg
 setpgs_scr_scrxor=$+1
         xor 0
         ld (setpgs_scr_low),a
+        ld a,1
+        xor 0
+        ld ($-1),a
+	ld e,a
+	OS_SETSCREEN
         ret
         
 prspr
@@ -1065,7 +1072,7 @@ WFONT
         include "wlib2x3.asm"
         endif
         include "wlie.asm"
-        include "wlib1a.asm"
+        ;include "wlib1a.asm"
         include "wsound2.asm"
         include "wlik.asm"
 

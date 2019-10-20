@@ -12,7 +12,11 @@ BLITER	;обновл экр с уч прерыв
 	CALL V_MRK2
 	LD A,1
 	LD (V_FLAG),A
+       if EGA
+        call changescrpg
+       else
 	CALL DS2SC
+       endif
 	CALL V_copy ;м.быть уч P_FLAG=1 :)
 	XOR A
 	LD (V_FLAG),A
