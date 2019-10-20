@@ -17,6 +17,5 @@ install: all
 	mkdir -p ${INSTALLDIR}
 	cp ${NAME} ${INSTALLDIR}
 
-install-doc: ${DOC} 
+install-doc: ${DOC}
 #	cp ${DOC} ${INSTALLDIR}/doc
-
