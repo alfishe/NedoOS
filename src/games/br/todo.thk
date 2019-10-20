@@ -15,14 +15,15 @@
 при старте 1 уровня при показе задания стрелочка раздваивается (если без мышки)
 при старте 15 уровня не показывается задание
 
-проверить, что при входе в недоос керналь не запорот! поправил начальное значение GBAD1, но это костыль
-переделать процедуру стрелочки для незапарывания?
+проверить, что при входе в недоос керналь не запорот!
++поправил начальное значение GBAD1, но это костыль
++переделал процедуру стрелочки для незапарывания
 
 если выбрать отряд и в режиме карты нажать G, то вместо нормального входа-выхода в информацию об отряде кнопки мигают (из-за турбо?)
 
 сделать автосборку всех уровней (упаковку убрать?), сейчас только для бывших защищённых уровней
 
-сделать конверсию ресурсов из картинок
++сделал конверсию ресурсов из картинок
 
 сделать интро (можно отдельно)
 
@@ -56,32 +57,60 @@ wmisc_4.asm - боксы и линии
         endm
 
 
+        
 
         align 256
 prspr
+;в 4000,8000 уже включен экран (setpgsscr40008000)
 ;найти адрес, ширину, высоту спрайта по ID, phase + включить страницу в 0xc000
-...
+;...
 
 ;iy=sprite data+2
-;?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;e?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c?2=y = -(sprmaxhgt-1)..199 (кодируется как y+(sprmaxhgt-1))
-;?3=sprhgt
+;(iy-3)?3=sprhgt
+;(iy-4)?4=sprwid
 ;по x,y, ширине, высоте найти адрес на экране, куда выводим видимую часть спрайта
 ;спрайт полной высоты и ширины должен работать максимально быстро!
-        ld a,?1 ;x
+        ld a,160+(sprmaxwid-1)
+        sub e ;x ;a=расстояние до правой границы экрана
+        cp (iy-4) ;sprwid
+        jr c,prsprcropygo_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
+         ld a,(iy-4) ;sprwid ;для полной выводилки не нужно - можно ли ускорить?
+prsprcropygo_cropx
+        ld hx,a
+;hx=sprite wid (columns), с учётом правой границы экрана
+
+        ld lx,0 ;по умолчанию нет фальшивого экрана, выход по правой границе экрана будет сразу
+        ld a,e ;x
         sub sprmaxwid-1
         jr nc,prsprnocropleft
-;найти адрес начала видимой части спрайта:
-;сначала столбец (прибавить hgt*2*число скрытых столбцов) можно в цикле, т.к. пропуск столбцов бывает редко
-;или включить фальшивый экран в 0x4000,0x8000 и заменить адреса выхода на переключалку страниц
-...        
-        
+;[найти адрес начала видимой части спрайта:]
+;[сначала столбец (прибавить hgt*2*число скрытых столбцов) можно в цикле, т.к. пропуск столбцов бывает редко]
+;или включить фальшивый экран в 0x4000,0x8000 и заменить адреса выхода на переключалку страниц, так можно работать со спрайтами процедурой
+;a=-число отрезанных слева столбцов
+        push af
+;посчитать hx для правильного выхода из фальшивого экрана
+;посчитать lx для правильного выхода из спрайта в y-клипированной выводилке
+;сейчас hx=sprwid (так получилось, потому что 160+(sprmaxwid-1)-x отрицательно)
+        ld c,a
+        add a,hx
+        ld lx,a ;sprwid-число отрезанных слева столбцов
+        xor a
+        sub c
+        ld hx,a ;число отрезанных слева столбцов
+pgfake=$+1
+        ld a,0
+        SETPG16K
+        SETPG32KLOW
+;hl будет вычислен с ошибкой +128
+        pop af
 prsprnocropleft
-;NC
+;NC для положительных x
         ld b,0
-        ld l,c?2 ;y
+        ld l,c ;y
         ld h,0x40/32
-        rra
+        srl a ;rra
         jr nc,$+4
          ld h,0x80/32
         add hl,hl
@@ -95,30 +124,35 @@ prsprnocropleft
         ld l,a
         adc a,h
         sub l
-        ld h,a ;hl=scr
-        ld a,c?2 ;y
+        ld h,a ;hl=scr ;не может быть переполнения при отрицательных x? maxhl = 199*40 + 127 = 8087
+        ld a,c ;y
         sub sprmaxhgt-1
         jp c,prsprcroptop
-        add a,?3 ;sprhgt
+        add a,(iy-3) ;sprhgt
         cp scrhgt+1 ;200=OK, >200=crop
         jp nc,prsprcropbottom        
-        ld a,160+(sprmaxwid-1)
-        sub ?1 ;NC
-        rra
-        ld hx,a
+;hx=расстояние до правой границы экрана (columns)
+;x=156: hx=4
+;x=157: hx=3
+;x=158: hx=2
+;x=159: hx=1
+         ld a,hx
+         inc a
+         srl a
+         ld hx,a ;lx не пересчитываем, он завышен в 2 раза, но тут в полном спрайте есть выход по ширине раньше
 ;hx=расстояние до правой границы экрана (double columns)
 ;x=156: hx=2
 ;x=157: hx=2
 ;x=158: hx=1
 ;x=159: hx=1
-        ld bc,40
+        ld c,40 ;b=0
 ;iy=sprite data+2
         ld e,(iy-2)
         ld d,(iy-1)
         ld (prsprqsp),sp
         ld sp,iy
 ;выбрать ветку в зависимости от sprhgt
-        ld a,?3 ;sprhgt
+        ld a,(iy-3) ;sprhgt
         cp 16
         jr z,prspr16
         jr nc,prspr24
@@ -172,19 +206,32 @@ prspr8column
         ld a,0xa0
         cp h
         adc hl,de ;de = 0x4000 - ((sprhgt-1)*40)
-         (ret c) ;выход по ширине спрайта, там надо восстановить sp и константу в стеке
+         ret c ;выход по ширине спрайта, там надо восстановить sp и константу в стеке
 prsprcolumnpatch=$+1
         jp pe,prsprcolumn ;в половине случаев
 ;8000->с000 (надо 6000) или a000->e001 (надо 4001)
         xor h
         ld h,a
-         (dec hx:jp nz,prsprcolumn)
+         dec hx
+goprsprcolumn
+         jp nz,prsprcolumn
 prsprcolumnpatch2=$-2
          ;выход по границе экрана
 ;10+11+15+14 = 40t (+5+9)
-        jp prsprqright
+;это может быть граница фальшивого экрана! надо иметь возможность продолжить (с hl-128 из-за ошибки адреса при отрицательных x?)
+;как узнать, фальшивая граница или нет? по lx?
+        ld a,lx
+        or a
+        jp z,prsprqright ;действительно выход
+        ld hx,a
+        ld bc,-128
+        add hl,bc ;из-за ошибки адреса при отрицательных x
+        call setpgsscr40008000 ;выключаем фальшивый экран, включаем настоящий
+        ld bc,40
+        ld lx,b;0 ;второй раз будет действительно выход
+        jp goprsprcolumn ;NZ
 ;можно то же самое сделать при спрайте кодом (патчи не нужны, de присваивать только если меняется, 13-1 байт (36.5t) лишних на столбец, выход по dec hx:ret z и просто ret в конце)
-;а как делать вход в середину, если спрайты кодом, а de присваивается только при изменении? сначала рисовать в фальшивый экран и переключать по ret z?
+;а как делать вход в середину, если спрайты кодом, а de присваивается только при изменении? сначала рисовать в фальшивый экран и переключать по call z?
 ;но клипирование по y уже надо делать с данными спрайта, а не с кодом (т.е. нужна копия спрайта в виде данных)
 
 ;выход по ширине спрайта
@@ -199,35 +246,35 @@ prsprqsp=$+1
 
 
 ;для вывода спрайта неполной высоты:
-TODO
 
 ;клипирование снизу
 prsprcropbottom
 ;a=sprbottom
-;?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;e?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c?2=y = -(sprmaxhgt-1)..199 (кодируется как y+(sprmaxhgt-1))
-;?3=sprhgt
+;(iy-3)?3=sprhgt
+;(iy-4)?4=sprwid
 ;hl=scr
-        ;sub 201
-        ;cpl
-        ;add a,?3 ;sprhgt
-        ;ld ?5,a ;sprvisiblehgt = sprhgt-(sprbottom-200)
         sub 200
-        sub ?3 ;sprhgt
-        ld ?6,a ;-sprvisiblehgt = sprbottom-200-sprhgt
+        ;sub (iy-3) ;sprhgt
+         ld d,(iy-3) ;sprhgt
+         sub d
+        ld c,a ;-sprvisiblehgt = sprbottom-200-sprhgt
         jp prsprcropygo
 
 prsprcroptop
 ;a=sprtop
-;?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;e?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c?2=y = -(sprmaxhgt-1)..199 (кодируется как y+(sprmaxhgt-1))
-;?3=sprhgt
-;hl=scr неверный
+;(iy-3)?3=sprhgt
+;(iy-4)?4=sprwid
+;hl=scr неверный (выше экрана)
         
         neg ;a=number of lines to crop
-        sub ?3 ;sprhgt
-        ld ?6,a ;-sprvisiblehgt = -(sprtop+sprhgt) = linestocrop-sprhgt
-        add a,?3
+         ld d,(iy-3) ;sprhgt
+         sub d
+        ld c,a ;-sprvisiblehgt = -(sprtop+sprhgt) = linestocrop-sprhgt
+         add a,d
         add a,a
 ;прибавить 2*число скрытых строк к адресу
         add a,ly
@@ -235,7 +282,7 @@ prsprcroptop
         jr nc,$+4
         inc hy
         
-        ld a,?1 ;x
+        ld a,e ;x
         sub sprmaxwid-1 ;NC
         rra
         ld h,0x40
@@ -244,53 +291,36 @@ prsprcroptop
         ld l,a
         
 prsprcropygo
-
-;?4=sprwid
-        ld a,160+(sprmaxwid-1)
-        sub ?1 ;x ;a=расстояние до правой границы экрана
-        cp ?4 ;sprwid
-        jr c,$+3 ;берём меньшее из sprwid и расстояния до правой границы экрана
-         ld a,?4
-        ld hx,a
-;hx=sprite wid (columns), с учётом границы экрана
-
-        ex de,hl
-        ;ld l,?5 ;sprvisiblehgt
-        ;dec l
-        ;ld b,0
-        ld l,?6 ;-sprvisiblehgt
-        ld b,-1
-        ld h,0x40/32-1
-        ld c,l
-        add hl,hl
-        add hl,hl
-        add hl,bc
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        ;neghl
-        ;add h,0x40
-        ld (prsprNscraddpatch),hl ;0x4000 - ((sprvisiblehgt-1)*40)
-        ex de,hl
-
-        ld a,?3 ;sprhgt
-        add a,?6 ;-sprvisiblehgt
+;d=(iy-3)?3=sprhgt
+;(iy-4)?4=sprwid
+        ld a,d ;sprhgt
+        add a,c ;-sprvisiblehgt
         inc a
         add a,a
         ld (prsprNspraddpatch),a ;2*(sprhgt-sprvisiblehgt)+2
 
-        ;ld a,?5 ;sprvisiblehgt
-        ;add a,a
-        ;add a,?5
-        ;add a,a
-        ;neg
-        ld a,?6 ;-sprvisiblehgt
+        ld a,c ;-sprvisiblehgt
         add a,a
-        add a,?6
+        add a,c
         add a,a
         ld (prsprNpatch),a ;PRSPR24 и т.п. (по 6 байт)        
+
+        ex de,hl
+         ;ld b,-1 ;убрать за счёт перемещения ld h
+         ;ld h,0x40/32-1
+        ld l,c ;-sprvisiblehgt
+        add hl,hl
+        add hl,hl
+         ld h,0x40/8-1
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld (prsprNscraddpatch),hl ;0x4000 - ((sprvisiblehgt-1)*40)
+        ex de,hl
+
 ;hl=scr
-        ld bc,40
+        ld c,40
         jp prsprN
 
 ;выравнивание на нужный младший байт адреса:
@@ -406,7 +436,7 @@ prsprNscraddpatch=$+1
         ld h,a
 prsprNcolumnq
         dec hx
-        jp z,prsprqright
+        jp z,prsprNmaybeqright ;это может быть граница фальшивого экрана! надо иметь возможность продолжить (с hl-128 из-за ошибки адреса при отрицательных x?)
 ;найти адрес данных следующего столбца спрайта
 ;можно просто сделать много пустых pop de, т.к. пропуск строк бывает редко
 prsprNspraddpatch=$+1
@@ -421,4 +451,15 @@ prsprN
 prsprNpatch=$+1
         jp PRSPR24
         
+prsprNmaybeqright
+        ld a,lx
+        or a
+        jp z,prsprqright ;действительно выход
+        ld hx,a
+        ld bc,-128
+        add hl,bc ;из-за ошибки адреса при отрицательных x
+        call setpgsscr40008000 ;выключаем фальшивый экран, включаем настоящий
+        ld bc,40
+        ld lx,b;0 ;второй раз будет действительно выход
+        jp goprsprcolumn ;NZ
 

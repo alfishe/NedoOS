@@ -909,6 +909,6 @@ OUTBAR	;общий вывод панели
 	CALL outNUM
 	JP outLED
 
-	ds #FFFE-$
-        nop ;CHK_7	DEFB #EE; [**B] чек-сум7 7:#FFFE
-        ds 1
+	;ds #FFFE-$
+        ;nop ;CHK_7	DEFB #EE; [**B] чек-сум7 7:#FFFE
+        ;ds 1

@@ -6,6 +6,7 @@
 #define _STRMAX 79
 
 #define BYTE unsigned char
+#define UINT unsigned int
 #define MAXDEFB 8
 
 #define MASKCOLOR 0x00
@@ -254,6 +255,13 @@ void emitdb(BYTE b, FILE * fout)
   fputs("\n", fout);
 }
 
+void emitdw(UINT u, FILE * fout)
+{
+  fputs("\tdw ", fout);
+  fprintf(fout, "0x%x%x%x%x", (u>>12)&0x0f, (u>>8)&0x0f, (u>>4)&0x0f, u&0x0f);
+  fputs("\n", fout);
+}
+
 void emitnops(BYTE count, FILE * fout)
 {
   fputs("\tds ", fout);
@@ -421,6 +429,14 @@ int rowhgt; //8 for tiles, sprhgt for sprites
               fputs(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = 8;
+            }else if (sprformat == 'x') {
+              fputs("\n", fout);
+              fputs(labelbuf, fout);
+              fputs("=$+4\n", fout);
+              fputs("\n", fout);
+              emitdb((BYTE)(sprwid>>1), fout);
+              emitdb((BYTE)(sprhgt), fout);
+              rowhgt = sprhgt;
             }else { //'s'
               fputs(labelbuf, fout);
               fputs("\n", fout);
@@ -483,13 +499,41 @@ int rowhgt; //8 for tiles, sprhgt for sprites
                   x = x+8;
                 };
                 emitnops((BYTE)(0x100-((BYTE)(sprwid>>3)*0x09)),fout);
-              }else { //sprite
+              }else if (sprformat == 's') { //sprite
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
               };
               y = y+rowhgt;
-            };
+            }; //while y
 
-          };
+            if (sprformat == 'x') {
+              x = sprx;
+              while (x < (sprx+sprwid)) {
+                y = spry;
+                while (y < (spry+sprhgt)) {
+                  b = pic[x][y]; //L
+                  b0 = pic[x+1][y]; //R
+                  bmask = 0; //0x47(L) и 0xb8(R) в тех местах, где цвет=16:
+                  if (b == 16) {bmask = bmask + 0x47; b = 0x00;};
+                  if (b0 == 16) {bmask = bmask + 0xb8; b0 = 0x00;};
+                  b = ((b&0x08)<<3) + (b&0x07) + ((b0&0x08)<<4) + ((b0&0x07)<<3);
+                  fputs("\tdb ", fout);
+                  fprintf(fout, "0x%x%x", bmask>>4, bmask&0x0f);
+                  fprintf(fout, ",0x%x%x", b>>4, b&0x0f);
+                  fputs("\n", fout);
+                  y = y+1;
+                };
+                x = x+2;
+                if (x < (sprx+sprwid)) {
+                  emitdw(0x4000-((sprhgt-1)*40), fout);
+                }else {
+                  emitdw(0xffff, fout);
+                };
+                fputs("\n", fout);
+              };
+              fputs("\tdw prsprqwid\n", fout);
+            }
+
+          }; //while (1)
           fclose(fout);
         }else {printf("can't open %s",foutname);};
         fclose(fintxt);
@@ -512,7 +556,8 @@ int main(int argc,char* argv[])
   if (argc<4) {
     printf(
       "NedoRes\n"
-      "\tnedores.exe file.bmp file.txt file.asm\n"
+      "\tnedores.exe file.bmp file.dat(=txt) file.ast(=asm)\n"
+      "4bpp or 8bpp\n"
     );
   }else {
     finname = argv[1];

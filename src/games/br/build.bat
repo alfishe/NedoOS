@@ -1,4 +1,41 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+"../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1.dat WHUM1.ast
+"../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1b.dat WHUM1b.ast
+"../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1c.dat WHUM1c.ast
+"../../_sdk/nedores.exe" images/WHUM2.bmp images/WHUMCAT.dat WHUMCAT.ast
+"../../_sdk/nedores.exe" images/WHUM2.bmp images/WHUMHOR.dat WHUMHOR.ast
+"../../_sdk/nedores.exe" images/WORC1.bmp images/WORC1.dat WORC1.ast
+"../../_sdk/nedores.exe" images/WORC1.bmp images/WORC1b.dat WORC1b.ast
+"../../_sdk/nedores.exe" images/WORC1.bmp images/WORC1c.dat WORC1c.ast
+"../../_sdk/nedores.exe" images/WORC2.bmp images/WORCCAT.dat WORCCAT.ast
+"../../_sdk/nedores.exe" images/WORC2.bmp images/WORCHOR.dat WORCHOR.ast
+"../../_sdk/nedores.exe" images/WCREAT1.bmp images/WCREAT1.dat WCREAT1.ast
+"../../_sdk/nedores.exe" images/WCREAT1.bmp images/WCREAT1b.dat WCREAT1b.ast
+"../../_sdk/nedores.exe" images/WCREAT1.bmp images/WCREAT1c.dat WCREAT1c.ast
+"../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2.dat WCREAT2.ast
+"../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2b.dat WCREAT2b.ast
+"../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2c.dat WCREAT2c.ast
+"../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
+"../../_sdk/nedores.exe" images/WMISC.bmp images/WBULLET.dat WBULLET.ast
+sjasmplus --nologo --msg=war --msg=war WHUM1.asm
+sjasmplus --nologo --msg=war --msg=war WHUM1b.asm
+sjasmplus --nologo --msg=war --msg=war WHUM1c.asm
+sjasmplus --nologo --msg=war --msg=war WHUMCAT.asm
+sjasmplus --nologo --msg=war --msg=war WHUMHOR.asm
+sjasmplus --nologo --msg=war --msg=war WORC1.asm
+sjasmplus --nologo --msg=war --msg=war WORC1b.asm
+sjasmplus --nologo --msg=war --msg=war WORC1c.asm
+sjasmplus --nologo --msg=war --msg=war WORCCAT.asm
+sjasmplus --nologo --msg=war --msg=war WORCHOR.asm
+sjasmplus --nologo --msg=war --msg=war WCREAT1.asm
+sjasmplus --nologo --msg=war --msg=war WCREAT1b.asm
+sjasmplus --nologo --msg=war --msg=war WCREAT1c.asm
+sjasmplus --nologo --msg=war --msg=war WCREAT2.asm
+sjasmplus --nologo --msg=war --msg=war WCREAT2b.asm
+sjasmplus --nologo --msg=war --msg=war WCREAT2c.asm
+sjasmplus --nologo --msg=war --msg=war WBODY.asm
+sjasmplus --nologo --msg=war --msg=war WBULLET.asm
+
 sjasmplus --nologo --msg=war --msg=war levels/w~104.a80
 sjasmplus --nologo --msg=war --msg=war levels/w~107.a80
 sjasmplus --nologo --msg=war --msg=war levels/w~112.a80

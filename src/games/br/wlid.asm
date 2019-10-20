@@ -348,12 +348,6 @@ MDIVB	RLA
 	POP	HL
 	RET
 
-        macro ATRs _hl,_bc,_e
-	LD	HL,_hl;=0
-	LD	BC,_bc;=1
-	LD	E,_e;=2
-	CALL	ATRBAR
-	ENDM
 ;-------------------------------КОНЕЦ W_Gr.Lib
 
 PRINTS	;печать строки HL(конец 127)

@@ -494,6 +494,84 @@ WYbT	DEFW YU1,YU1,YU3,YU4,yu5,YU6,YU7,YU8,YU9
 	DEFW YU10,YU11,YU12,YU13,YU14,0,YU16,YU17,YU18
 
 WYbull	;получить Wh(C),Hh(B),IMGh(DE),выбрать страницу
+
+        if EGA
+;для EGA не надо тут узнавать размер, это сделает HeF1
+        
+        ld a,25
+        call _128
+	LD A,(IY+4)
+	LD HL,WYbT-2
+	CALL WT
+	JP (HL)
+YU1	;стрелы
+	LD A,(IY+8)
+	AND 3
+        add a,18
+YU1a
+        add a,a
+        ld ($+3+2),a
+        ld iy,(0xc000)
+	JP HeF1
+yu5	;огонь волшебников
+YU3	;огонь свящ
+	LD A,(TIC)
+	AND 1
+        add a,22
+	JR YU1a
+YU4	;взрыв огня волш
+	LD A,(IY+9)
+	AND 1
+        add a,24
+	JR YU1a
+YU6	;снаряд катап
+	LD A,(IY+8)
+        add a,26
+	JR YU1a
+YU7	;cнаряд стеногрыза
+        ld iy,(0xc000+(2*34))
+	JP HeF1
+YU8	;огн дождь
+        ld iy,(0xc000+(2*35))
+	JP HeF1
+YU9	;волш звзды
+        LD A,(TIC3)
+        add a,9;37
+	JR YU1a
+YU10	;взр катап снаряда
+	LD A,3
+	SUB (IY+9)
+        add a,40
+	JR YU1a
+YU13	;хруст шар
+        ld iy,(0xc000+(2*36))
+	JP HeF1
+YU14	;огн пояс
+	LD A,(TIC3)
+        add a,37;12
+	JR YU1a
+YU11	;взрыв здания
+	LD A,(TIC3)
+        add a,15
+	JR YU1a
+YU12	;cмерч
+	LD A,(IY+8)
+        add a,12
+	JR YU1a
+YU16	;дым,низ50%
+        LD A,(TIC3)
+        add a,6
+	JR YU1a
+YU17	;дым,низ25%
+        LD A,(TIC3)
+        add a,3
+	JR YU1a
+YU18	;дым,верх
+        LD A,(TIC3)
+	JR YU1a        
+        
+        else ;~EGA
+
 	CALL MEM1
 	LD A,(IY+4)
 	LD HL,WYbT-2
@@ -591,6 +669,8 @@ YU17	;дым,низ25%
 YU18	;дым,верх
 	LD DE,16*64+WMISC2
 	JR YU9a
+        
+        endif ;~EGA
 
 vBULL	;-------выв.пуль/закл/взр-----------------------
 	LD IY,BULL
@@ -604,7 +684,13 @@ vbu0	LD A,(IY+4)
 	CP 13
 	CALL NC,vbuCRR
 	INC A
+         if EGA
+         push iy
+         endif
 	CALL _XPUT
+         if EGA
+         pop iy
+         endif
 	POP DE
 	POP BC
 vbu1	ADD IY,DE
@@ -670,7 +756,13 @@ vff0	INC HL
 	INC A
 vff5	LD (BUF512+4),A
 	OR A
+         if EGA
+         push iy
+         endif
 	CALL _XPUT
+         if EGA
+         pop iy
+         endif
 	LD HL,(BUF512+2)
 	LD DE,-16
 	ADD HL,DE
@@ -678,7 +770,13 @@ vff5	LD (BUF512+4),A
 	LD A,18
 	LD (BUF512+4),A
 	OR A
+         if EGA
+         push iy
+         endif
 	CALL _XPUT
+         if EGA
+         pop iy
+         endif
 	POP HL
 	POP BC
 	DJNZ vff0

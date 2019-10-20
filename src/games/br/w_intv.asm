@@ -154,6 +154,12 @@ INAR0	;Обр прерываний
 	PUSH IY
 	LD A,(R128)
 	LD (IR128),A
+        if EGA
+        ld a,(pgmain4000)
+        SETPG16K
+        ld a,(pgmain8000)
+        SETPG32KLOW
+        endif
         if 1==0 ;???
 	;анти-теневик
 antiTM	LD HL,(G_MX) ;[**]
@@ -218,6 +224,12 @@ INA02	;LD A,(IR128)
 IR128=$+1
         ld a,0
 	CALL MEM
+        if EGA
+        ld a,(curpg4000)
+        SETPG16K
+        ld a,(curpg8000)
+        SETPG32KLOW
+        endif
 	POP IY
 	POP IX
 	POP AF
@@ -268,6 +280,9 @@ V_copy	;gbu2->gbu1
 
 V_PUT1	;  gbu1->[SCR]
 	LD HL,(GBAD1)
+         ld a,h
+         or a
+         ret z
 	LD DE,GBU1
 	JR v1pEN
 
@@ -384,7 +399,17 @@ V_MRK2	;mrk->SCR
 
 V_MRK1	;mrk->SCR
 	LD BC,(GBAD1)
+         ld a,b
+         or a
+         ret z
 vmr1	LD HL,(G_MX)
+
+        if EGA
+        ;TODO
+        ret
+        
+        else
+
 	LD A,H
 	SUB 185
 	JR C,vmr2
@@ -410,3 +435,4 @@ vmr3	LD (G_SIZE),A
 	LD B,A
 	JP JP_SUB
 
+        endif ;~EGA

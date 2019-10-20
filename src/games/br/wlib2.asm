@@ -1,5 +1,5 @@
 ;-----------Вывод спрайтов героев
-
+        if EGA==0
 t7tab	DEFB 23,#20 ;[**]
 	DEFB 11,#21
 	DEFB 12,#60
@@ -21,19 +21,115 @@ t7tab	DEFB 23,#20 ;[**]
 	DEFB 14,#01
 	DEFB 0
 
+;старшие байты адресов (к ним прибавляется (направление*2 + шаг)*64)
 AT_HER	DEFB #C0,#C6,#CA,#CE,#D2
 	DEFB #D8,#DE,#E4,#F1
 	DEFB #C4,#CA,#D0,#D6,#DC,#DC
 
+;старшие байты адресов фазы удара (к ним прибавляется (направление)*64)
 AT_WAR	DEFB #C4,#C4,#C4,#00,#D6
 	DEFB #DC,#E2,#ED,#FA
 	DEFB #C8,#CE,#D4,#DA,#00,#00
+        endif
 
+        if EGA
+theropg
+;pg,shift in pg
+        db 8,0 ;0=крестьянин
+        db 8,24 ;1=крестьянин с дровами?
+        db 8,24+16 ;2=крестьянин с мешком?
+        db 9,0 ;3=лучник
+        db 9,16 ;4=мечник
+        db 10,0 ;5=священник
+        db 10,24 ;6=волшебник
+        db 11,0 ;7=катапульта
+        db 12,0 ;8=всадник
 
+        db 13,0 ;9=пеон
+        db 13,24 ;10=пеон с дровами?
+        db 13,24+16 ;11=пеон с мешком?
+        db 14,0 ;12=лангольер
+        db 14,16 ;13=кунг
+        db 15,0 ;14=некромант
+        db 15,24 ;15=варлок
+        db 16,0 ;16=катапульта на гусеницах
+        db 17,0 ;17=грюнвер
+
+        db 18,0 ;18=паук
+        db 18,24 ;19=скелет
+        db 19,0 ;20=скорпион
+        db 19,24 ;21=звезда
+        db 20,0 ;22=князь
+        db 20,16 ;23=гризольда
+        db 21,0 ;24=костолом
+        db 22,0 ;25=демон
+        db 23,0 ;26=стеногрыз
+        
+;tbodypg ;все 16 рисунков в pg 24
+;pg,shift in pg
+
+;0..3=человек (меньше=дохлее)
+;4..7=кунг (меньше=дохлее)
+;8..10=шарик (меньше=дохлее)
+;11=звезда
+;12=мокрое место
+;13=паук
+;14=скорпион
+;15=скелет
+;(>=17 используется для трупа катапульты)
+        
+        endif
+
+;для рамки
+;в зависимости от полного ID
+;0: 16x16, 1: 24x24, 2: 24x16
 AT_TY_	DEFB 0,0,0,0,0, 0,0,1,1
+;далее продолжение в AT_TYP
+;для героя
+;в зависимости от ID (для кунгов вычитается 9)
+;0: 16x16, 1: 24x24, 2: 24x16
 AT_TYP	DEFB 0,0,0,0,0, 0,0,1,1
 	DEFB 0,0,0,0,0,0, 2,2,2
+;0=крестьянин
+;1=крестьянин с дровами?
+;2=крестьянин с мешком?
+;3=лучник
+;4=мечник
+;5=священник
+;6=волшебник
+;7=катапульта
+;8=всадник
 
+;9=пеон
+;10=пеон с дровами?
+;11=пеон с мешком?
+;12=лангольер
+;13=кунг
+;14=некромант
+;15=варлок
+;16=катапульта на гусеницах
+;17=грюнвер
+
+;18=паук
+;19=скелет
+;20=скорпион
+;21=звезда
+;22=князь
+;23=гризольда
+;24=костолом
+;25=демон
+;26=стеногрыз
+
+;виды трупов:
+;0..3=человек (меньше=дохлее)
+;4..7=кунг (меньше=дохлее)
+;8..10=шарик (меньше=дохлее)
+;11=звезда
+;12=мокрое место
+;13=паук
+;14=скорпион
+;15=скелет
+;(>=17 используется для трупа катапульты)
 
 XY0pos	LD A,(X0) ;выч смещ _X0pos в пикс
 	CALL _xy0
@@ -55,6 +151,7 @@ _xy0	LD L,A
 	SBC HL,DE
 	RET
 
+        if EGA==0
 ;*M+
         macro HENs lbl
 	POP DE
@@ -373,6 +470,8 @@ HE7L	LD A,E
 	XOR (HL)
 	LD (HL),A
 	HENs HE7L
+        
+        endif ;~EGA
 
 BCOORD	LD	A,D ;de(0-191,0-31) -- hl
 	RRCA
@@ -394,10 +493,11 @@ BCOORD	LD	A,D ;de(0-191,0-31) -- hl
 	RET
 
 XPUT	;формированиe вывода для героя IX
+;IY=блок координат героя
 	XOR A
 _XPUT	EX AF,AF ;Z-герой, NZ-(A=1:рамка/A>1:снаряд)
 	LD L,(IY+2) ;получение Xh Yh SHIFTh
-	LD H,(IY+3)
+	LD H,(IY+3) ;Ypos
 	LD DE,(_Y0pos)
 	ADD HL,DE
 	LD A,H
@@ -408,7 +508,7 @@ _XPUT	EX AF,AF ;Z-герой, NZ-(A=1:рамка/A>1:снаряд)
 	RET NC
 	LD (Yh),A
 	LD L,(IY+0)
-	LD H,(IY+1)
+	LD H,(IY+1) ;Xpos
 	LD DE,(_X0pos)
 	ADD HL,DE
 	LD A,H
@@ -440,34 +540,113 @@ UT21	CP -8
 	RET C
 UT22	LD (Xh),A
 	;получть Wh,Hh,IMGh, выбрать страницу
-;	--------------------
+        
+        if EGA
+
 	EX AF,AF
-	JR Z,WY_0
+	JR Z,WY_0 ;героя, а не рамка/снаряд
 	;для рамки
 	DEC A
-	JP NZ,WYbull;->обр снарядов
-	CALL MEM1
-	LD A,(IX+4)
+	JP NZ,WYbull;->обр снарядов ;заполняет данные и переходит на HeF1
+	;CALL MEM1
+	LD A,(IX+4) ;ID (0..26)
 	LD HL,AT_TY_
-	CALL BA
+	CALL BA ;hl+=a: A=(HL)
 	DEC A
 	JR Z,WYr33
-	LD BC,#1002
+	;LD BC,#1002 ;HhWh
+	;LD DE,fr2x2h
+	ld iy,testspr+4
+        ld bc,0x1002 ;HhWh
+	JR WYr
+WYr33	;LD BC,#1803 ;HhWh
+	;LD DE,fr3x3h
+	ld iy,testspr+4
+        ld bc,0x1803 ;HhWh
+WYr	JP HeF1
+WY_0	
+        LD A,(IX+0) ;x героя (0=труп)
+	OR A
+	LD A,(IX+4) ;ID (0..26)
+	JR NZ,WY2
+	;для трупа a=вид трупа
+        add a,a
+        ld (WYbody_where),a
+        ld a,24
+        call _128
+WYbody_where=$+2 ;LSB
+        ld iy,(0xc000)
+	JP HeF1
+	;
+WY2	;для героя
+        ;ld a,24;8
+
+        ld hl,theropg ;pg, shift in pg
+        add a,a
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld a,(hl)
+        call _128
+        inc hl
+
+	LD D,(IX+2) ;направление (0..7)
+	LD A,(IX+3) ;фаза (=0 - целиком в квадрате) ;или (%1ibttttt, где i-удар b-назад ttttt-задержка) ;или (%10000xxx, где ххх-ожидание свободного прохода)
+	CP #80
+	JR C,H221 ;не бьёт
+	CP #A0
+	LD A,0
+	JR C,H221 ;не фаза удара
+	LD A,D ;направление (0..7)
+        add a,16
+	JR H222
+H221	
+	AND 1 ;шаг0 или шаг1
+	ADD A,D
+	ADD A,D ;a=направление*2 + шаг
+H222
+        add a,(hl) ;ahift in pg
+        add a,a
+        ld (H222_where),a
+
+	;ld iy,testspr+4
+         ;jr $
+H222_where=$+2 ;LSB
+        ld iy,(0xc000)
+        ;ld bc,0x1002 ;HhWh
+
+        else
+;	--------------------
+	EX AF,AF
+	JR Z,WY_0 ;героя, а не рамка/снаряд
+	;для рамки
+	DEC A
+      if EGA==0
+	JP NZ,WYbull;->обр снарядов
+      endif
+	CALL MEM1
+	LD A,(IX+4) ;ID (0..26)
+	LD HL,AT_TY_
+	CALL BA ;hl+=a: A=(HL)
+	DEC A
+	JR Z,WYr33
+	LD BC,#1002 ;HhWh
 	LD DE,fr2x2h
 	JR WYr
-WYr33	LD BC,#1803
+WYr33	LD BC,#1803 ;HhWh
 	LD DE,fr3x3h
 WYr	JP HeF1
-WY_0	LD A,(IX+0)
+WY_0	LD A,(IX+0) ;x героя (0=труп)
 	OR A
-	LD A,(IX+4)
+	LD A,(IX+4) ;ID (0..26)
 	JR NZ,WY2
-	;для трупа
+	;для трупа a=вид трупа
 	CP 17
 	JR C,WYTr
 	CALL MEM6 ;труп катап
-	LD DE,WMISC3
-	LD BC,#1803
+	LD DE,WMISC3 ;gfxdata трупа катапульты
+	LD BC,#1803 ;HhWh
 	JP HeF1
 WYTr	ADD A,A
 	ADD A,A
@@ -476,16 +655,16 @@ WYTr	ADD A,A
 	LD H,0
 	ADD HL,HL
 	ADD HL,HL
-	ADD HL,HL
+	ADD HL,HL ;вид трупа*64
 	LD DE,WMISC2
 	ADD HL,DE
-	EX DE,HL
+	EX DE,HL ;gfxdata
 	CALL MEM1
-	LD BC,#1002
+	LD BC,#1002 ;HhWh
 	JP HeF1
 	;
 WY2	;для героя
-	LD E,A
+	LD E,A ;ID (0..26)
 	SUB 9
 	JR NC,WY1
         if 1==0
@@ -494,7 +673,7 @@ WY2	;для героя
         call MEM_humans
         endif
 	JR WY0
-WY1	LD E,A
+WY1	LD E,A ;ID - 9 (0..17)
 	CP 9
 	JR C,WY04
 	CP 16
@@ -521,26 +700,26 @@ WY0
         if 1==0
         CALL MEM ;page
         endif
-	LD A,E
+	LD A,E ;ID (0..26)
 	LD HL,AT_TYP
-	CALL BA
+	CALL BA ;hl+=a: A=(HL)
 	CP 1
-	LD D,(IX+2)
-	LD A,(IX+3)
+	LD D,(IX+2) ;направление (0..7)
+	LD A,(IX+3) ;фаза (=0 - целиком в квадрате) ;или (%1ibttttt, где i-удар b-назад ttttt-задержка) ;или (%10000xxx, где ххх-ожидание свободного прохода)
 	JR Z,H3x3
 	JP NC,H3x2
 H2x2	CP #80
-	JR C,H221
+	JR C,H221 ;не бьёт
 	CP #A0
 	LD A,0
-	JR C,H221
-	LD A,D
+	JR C,H221 ;не фаза удара
+	LD A,D ;направление (0..7)
 	LD BC,AT_WAR
 	JR H222
 H221	LD BC,AT_HER
-	AND 1
+	AND 1 ;шаг0 или шаг1
 	ADD A,D
-	ADD A,D
+	ADD A,D ;a=направление*2 + шаг
 H222	ADD A,A
 	ADD A,A
 	ADD A,A
@@ -548,12 +727,12 @@ H222	ADD A,A
 	LD L,A
 	LD H,0
 	ADD HL,HL
-	ADD HL,HL
-	LD A,E
+	ADD HL,HL ;*64
+	LD A,E ;ID
 	EX DE,HL
 	LD L,C
 	LD H,B
-	LD BC,#1002
+	LD BC,#1002 ;HhWw
 H225	CALL BA
 	LD H,A
 	LD L,0
@@ -564,18 +743,18 @@ H225	CALL BA
 	;H3x2 - в WLIB2x3
 	;
 H3x3	CP #80
-	JR C,H331
+	JR C,H331 ;не бьёт
 	CP #A0
 	LD A,0
-	JR C,H331
-	LD BC,#ED00
-	LD A,D
+	JR C,H331 ;не фаза удара
+	LD BC,#ED00 ;gfxdata
+	LD A,D ;направление
 	JR H332
-H331	LD BC,#E400
-	AND 1
+H331	LD BC,#E400 ;gfxdata
+	AND 1 ;шаг0 или шаг1
 	ADD A,D
 	ADD A,D
-	LD D,A
+	LD D,A ;направление*2 + шаг
 H332	ADD A,A
 	ADD A,D
 	LD D,A
@@ -586,17 +765,29 @@ H332	ADD A,A
 	ADD HL,HL
 	ADD HL,HL
 	ADD HL,HL
-	ADD HL,HL
-	ADD HL,BC
-	LD BC,#1803
-	LD A,E
+	ADD HL,HL ;*144
+	ADD HL,BC ;+gfxdata
+	LD BC,#1803 ;HhWh
+	LD A,E ;ID
 	CP 7
-	JR Z,H333
+	JR Z,H333 ;катапульта на колёсах
 	LD DE,#D80
-	ADD HL,DE
+	ADD HL,DE ;катапульта на гусеницах
 H333	EX DE,HL
+        endif ;~EGA
 ;	--------------------
 HeF1	;корректировка ширины,длины и др. по границам окна
+        if EGA
+        ld c,(iy-4) ;Wh
+        srl c
+        srl c
+        ld b,(iy-3) ;Hh
+        endif
+
+;YhXh (Xh в знакоместах)
+;SHIFTh = 0..7 (xlow)
+;bc=HhWh (Wh в знакоместах)
+;de=gfxdata
 	LD (Wh),BC
 	LD HL,(Xh)
 	LD A,H
@@ -614,8 +805,8 @@ HeF1	;корректировка ширины,длины и др. по границам окна
 eF3	INC A
 	LD L,A
 	ADD A,C
-	RET M
-	RET Z
+	 RET M
+	 RET Z
 	LD C,A
 	LD A,-1
 	LD (Xh),A
@@ -643,8 +834,8 @@ eF4	LD A,(Yh)
 	JR eF2
 eF1	LD L,A
 	ADD A,B
-	RET M
-	RET Z
+	 RET M
+	 RET Z
 	LD B,A
 	XOR A
 	LD (Yh),A
@@ -656,6 +847,15 @@ eF1	LD L,A
 	JR NC,eF2
 	INC D
 eF2	;собств вывод
+;YhXh (Xh в знакоместах)
+;HhWh (Wh в знакоместах)
+;SHIFTh = 0..7 (xlow)
+;de=gfxdata
+        if EGA
+      ;ld iy,testspr+4
+        jp prsprega
+        else
+
 	PUSH DE
 	LD HL,HE_N
 	LD DE,(Xh)
@@ -710,6 +910,7 @@ HRUp	EX DE,HL
 	LD SP,HL
 	LD HL,(IMGh)
 	JP JP_SUB
+        endif ;~EGA
 
 vBUF	EQU #7E00;BUF512
 	;256 - eсть в строке?(ptr+1/0); 256-1_2:IX,3_4:IY,5й:next+1/null
@@ -725,12 +926,12 @@ vSORT	;видео сортировка
 	EXX
 	LD IX,HUMAN
 	LD B,102
-	LD IY,XY
-vS0	LD A,(IX+0)
+	LD IY,XY ;зачем отдельный массив? в каждом проходе прибавляем 4
+vS0	LD A,(IX+0) ;x героя (0=труп)
 	OR A
-	JR Z,vS6
+	JR Z,vS6 ;???
 	LD L,(IY+0)
-	LD H,(IY+1)
+	LD H,(IY+1) ;Xpos
 	LD DE,(_X0pos)
 	ADD HL,DE
 	LD A,H
@@ -740,9 +941,9 @@ vS0	LD A,(IX+0)
 	CP 192
 	JR NC,vS1
 	JR vS4
-vS6	LD A,(IX+1)
+vS6	LD A,(IX+1) ;y героя (0=пусто)
 	OR A
-	JR Z,vS1
+	JR Z,vS1 ;нет героя
 	LD L,0
 	JR vS4_
 vS3	INC A
@@ -751,7 +952,7 @@ vS3	INC A
 	CP 192+40
 	JR C,vS1
 vS4	LD L,(IY+2)
-	LD H,(IY+3)
+	LD H,(IY+3) ;Ypos
 	LD DE,(_Y0pos)
 	ADD HL,DE
 	LD A,H
@@ -789,9 +990,9 @@ vS5	EXX
 	LD (HL),A
 	RET Z ;более 51 героя в экране
 vS1	LD DE,16
-	ADD IX,DE
+	ADD IX,DE ;следующий герой
 	LD E,4
-	ADD IY,DE
+	ADD IY,DE ;следующий блок координат
 	DJNZ vS0
 	RET
 
@@ -810,13 +1011,13 @@ vX2	LD L,A
 	DEC L
 	LD E,(HL)
 	PUSH DE
-	POP IY
+	POP IY ;адрес в блоке координат
 	DEC L
 	LD D,(HL)
 	DEC L
 	LD E,(HL)
 	PUSH DE
-	POP IX
+	POP IX ;адрес героя
 	CALL XPUT
 	POP HL
 	LD A,(HL)
