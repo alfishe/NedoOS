@@ -1,0 +1,35 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+orccat0=x,0,0,24,24
+orccat0step=x,24,0,24,24
+orccat1=x,48,0,24,24
+orccat1step=x,72,0,24,24
+orccat2=x,96,0,24,24
+orccat2step=x,120,0,24,24
+orccat3=x,144,0,24,24
+orccat3step=x,168,0,24,24
+orccat4=x,0,48,24,24
+orccat4step=x,24,48,24,24
+orccat5=x,48,48,24,24
+orccat5step=x,72,48,24,24
+orccat6=x,96,48,24,24
+orccat6step=x,120,48,24,24
+orccat7=x,144,48,24,24
+orccat7step=x,168,48,24,24
+orccat0hit=x,0,24,24,24
+orccat1hit=x,48,24,24,24
+orccat2hit=x,96,24,24,24
+orccat3hit=x,144,24,24,24
+orccat4hit=x,0,72,24,24
+orccat5hit=x,48,72,24,24
+orccat6hit=x,96,72,24,24
+orccat7hit=x,144,72,24,24

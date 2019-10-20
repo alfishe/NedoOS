@@ -1,0 +1,35 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+orchor0=x,0,96,24,24
+orchor0step=x,24,96,24,24
+orchor1=x,48,96,24,24
+orchor1step=x,72,96,24,24
+orchor2=x,96,96,24,24
+orchor2step=x,120,96,24,24
+orchor3=x,144,96,24,24
+orchor3step=x,168,96,24,24
+orchor4=x,0,144,24,24
+orchor4step=x,24,144,24,24
+orchor5=x,48,144,24,24
+orchor5step=x,72,144,24,24
+orchor6=x,96,144,24,24
+orchor6step=x,120,144,24,24
+orchor7=x,144,144,24,24
+orchor7step=x,168,144,24,24
+orchor0hit=x,0,120,24,24
+orchor1hit=x,48,120,24,24
+orchor2hit=x,96,120,24,24
+orchor3hit=x,144,120,24,24
+orchor4hit=x,0,120,24,24
+orchor5hit=x,48,120,24,24
+orchor6hit=x,96,120,24,24
+orchor7hit=x,144,120,24,24

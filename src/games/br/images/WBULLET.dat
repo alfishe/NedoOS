@@ -1,0 +1,55 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+fire0=x,0,16,16,16
+fire1=x,16,16,16,16
+fire2=x,32,16,16,16
+fire3=x,48,16,16,16
+fire4=x,64,16,16,16
+fire5=x,80,16,16,16
+fire6=x,96,16,16,16
+fire7=x,112,16,16,16
+fire8=x,128,16,16,16
+magic0=x,144,16,16,16
+magic1=x,160,16,16,16
+magic2=x,176,16,16,16
+tornado0=x,0,32,32,32
+tornado1=x,32,32,32,32
+tornado2=x,64,32,32,32
+foam0=x,96,32,32,32
+foam1=x,128,32,32,32
+foam2=x,160,32,32,32
+arrow0=x,0,64,8,8
+arrow1=x,8,64,8,8
+arrow2=x,16,64,8,8
+arrow3=x,24,64,8,8
+spell0=x,32,64,8,8
+spell1=x,40,64,8,8
+spell2=x,48,64,8,8
+spell3=x,56,64,8,8
+projectile0=x,64,64,8,8
+projectile1=x,72,64,8,8
+projectile2=x,80,64,8,8
+projectile3=x,88,64,8,8
+projectile4=x,96,64,8,8
+projectile5=x,104,64,8,8
+projectile6=x,112,64,8,8
+projectile7=x,120,64,8,8
+fireball=x,128,64,8,8
+icefall=x,136,64,8,8
+magicbubble=x,24,80,24,24
+fireballs0=x,48,80,24,24
+fireballs1=x,72,80,24,24
+fireballs2=x,96,80,24,24
+explosion0=x,120,80,24,24
+explosion1=x,144,80,24,24
+explosion2=x,168,80,24,24
+

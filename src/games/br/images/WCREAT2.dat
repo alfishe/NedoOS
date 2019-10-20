@@ -1,0 +1,35 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+kost0=x,0,0,16,24
+kost0step=x,16,0,16,24
+kost1=x,32,0,16,24
+kost1step=x,48,0,16,24
+kost2=x,64,0,16,24
+kost2step=x,80,0,16,24
+kost3=x,96,0,16,24
+kost3step=x,112,0,16,24
+kost4=x,128,0,16,24
+kost4step=x,144,0,16,24
+kost5=x,160,0,16,24
+kost5step=x,176,0,16,24
+kost6=x,192,0,16,24
+kost6step=x,208,0,16,24
+kost7=x,224,0,16,24
+kost7step=x,240,0,16,24
+kost0hit=x,0,24,16,24
+kost1hit=x,32,24,16,24
+kost2hit=x,64,24,16,24
+kost3hit=x,96,24,16,24
+kost4hit=x,128,24,16,24
+kost5hit=x,160,24,16,24
+kost6hit=x,192,24,16,24
+kost7hit=x,224,24,16,24

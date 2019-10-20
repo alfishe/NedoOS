@@ -1,0 +1,67 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+orc0=x,0,0,16,16
+orc0step=x,16,0,16,16
+orc1=x,32,0,16,16
+orc1step=x,48,0,16,16
+orc2=x,64,0,16,16
+orc2step=x,80,0,16,16
+orc3=x,96,0,16,16
+orc3step=x,112,0,16,16
+orc4=x,128,0,16,16
+orc4step=x,144,0,16,16
+orc5=x,160,0,16,16
+orc5step=x,176,0,16,16
+orc6=x,192,0,16,16
+orc6step=x,208,0,16,16
+orc7=x,224,0,16,16
+orc7step=x,240,0,16,16
+orc0hit=x,0,16,16,16
+orc1hit=x,32,16,16,16
+orc2hit=x,64,16,16,16
+orc3hit=x,96,16,16,16
+orc4hit=x,128,16,16,16
+orc5hit=x,160,16,16,16
+orc6hit=x,192,16,16,16
+orc7hit=x,224,16,16,16
+orcwood0=x,0,32,16,16
+orcwood0step=x,16,32,16,16
+orcwood1=x,32,32,16,16
+orcwood1step=x,48,32,16,16
+orcwood2=x,64,32,16,16
+orcwood2step=x,80,32,16,16
+orcwood3=x,96,32,16,16
+orcwood3step=x,112,32,16,16
+orcwood4=x,128,32,16,16
+orcwood4step=x,144,32,16,16
+orcwood5=x,160,32,16,16
+orcwood5step=x,176,32,16,16
+orcwood6=x,192,32,16,16
+orcwood6step=x,208,32,16,16
+orcwood7=x,224,32,16,16
+orcwood7step=x,240,32,16,16
+orcgold0=x,0,48,16,16
+orcgold0step=x,16,48,16,16
+orcgold1=x,32,48,16,16
+orcgold1step=x,48,48,16,16
+orcgold2=x,64,48,16,16
+orcgold2step=x,80,48,16,16
+orcgold3=x,96,48,16,16
+orcgold3step=x,112,48,16,16
+orcgold4=x,128,48,16,16
+orcgold4step=x,144,48,16,16
+orcgold5=x,160,48,16,16
+orcgold5step=x,176,48,16,16
+orcgold6=x,192,48,16,16
+orcgold6step=x,208,48,16,16
+orcgold7=x,224,48,16,16
+orcgold7step=x,240,48,16,16

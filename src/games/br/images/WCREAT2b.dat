@@ -1,0 +1,35 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+demon0=x,0,48,16,24
+demon0step=x,16,48,16,24
+demon1=x,32,48,16,24
+demon1step=x,48,48,16,24
+demon2=x,64,48,16,24
+demon2step=x,80,48,16,24
+demon3=x,96,48,16,24
+demon3step=x,112,48,16,24
+demon4=x,128,48,16,24
+demon4step=x,144,48,16,24
+demon5=x,160,48,16,24
+demon5step=x,176,48,16,24
+demon6=x,192,48,16,24
+demon6step=x,208,48,16,24
+demon7=x,224,48,16,24
+demon7step=x,240,48,16,24
+demon0hit=x,0,72,16,24
+demon1hit=x,32,72,16,24
+demon2hit=x,64,72,16,24
+demon3hit=x,96,72,16,24
+demon4hit=x,128,72,16,24
+demon5hit=x,160,72,16,24
+demon6hit=x,192,72,16,24
+demon7hit=x,224,72,16,24

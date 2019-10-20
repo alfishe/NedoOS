@@ -1,0 +1,35 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+stenogryz0=x,0,96,16,24
+stenogryz0step=x,16,96,16,24
+stenogryz1=x,32,96,16,24
+stenogryz1step=x,48,96,16,24
+stenogryz2=x,64,96,16,24
+stenogryz2step=x,80,96,16,24
+stenogryz3=x,96,96,16,24
+stenogryz3step=x,112,96,16,24
+stenogryz4=x,128,96,16,24
+stenogryz4step=x,144,96,16,24
+stenogryz5=x,160,96,16,24
+stenogryz5step=x,176,96,16,24
+stenogryz6=x,192,96,16,24
+stenogryz6step=x,208,96,16,24
+stenogryz7=x,224,96,16,24
+stenogryz7step=x,240,96,16,24
+stenogryz0hit=x,0,120,16,24
+stenogryz1hit=x,32,120,16,24
+stenogryz2hit=x,64,120,16,24
+stenogryz3hit=x,96,120,16,24
+stenogryz4hit=x,128,120,16,24
+stenogryz5hit=x,160,120,16,24
+stenogryz6hit=x,192,120,16,24
+stenogryz7hit=x,224,120,16,24

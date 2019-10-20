@@ -1,0 +1,59 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+spider0=x,0,0,16,16
+spider0step=x,16,0,16,16
+spider1=x,32,0,16,16
+spider1step=x,48,0,16,16
+spider2=x,64,0,16,16
+spider2step=x,80,0,16,16
+spider3=x,96,0,16,16
+spider3step=x,112,0,16,16
+spider4=x,128,0,16,16
+spider4step=x,144,0,16,16
+spider5=x,160,0,16,16
+spider5step=x,176,0,16,16
+spider6=x,192,0,16,16
+spider6step=x,208,0,16,16
+spider7=x,224,0,16,16
+spider7step=x,240,0,16,16
+spider0hit=x,0,16,16,16
+spider1hit=x,32,16,16,16
+spider2hit=x,64,16,16,16
+spider3hit=x,96,16,16,16
+spider4hit=x,128,16,16,16
+spider5hit=x,160,16,16,16
+spider6hit=x,192,16,16,16
+spider7hit=x,224,16,16,16
+skeleton0=x,0,32,16,16
+skeleton0step=x,16,32,16,16
+skeleton1=x,32,32,16,16
+skeleton1step=x,48,32,16,16
+skeleton2=x,64,32,16,16
+skeleton2step=x,80,32,16,16
+skeleton3=x,96,32,16,16
+skeleton3step=x,112,32,16,16
+skeleton4=x,128,32,16,16
+skeleton4step=x,144,32,16,16
+skeleton5=x,160,32,16,16
+skeleton5step=x,176,32,16,16
+skeleton6=x,192,32,16,16
+skeleton6step=x,208,32,16,16
+skeleton7=x,224,32,16,16
+skeleton7step=x,240,32,16,16
+skeleton0hit=x,0,48,16,16
+skeleton1hit=x,32,48,16,16
+skeleton2hit=x,64,48,16,16
+skeleton3hit=x,96,48,16,16
+skeleton4hit=x,128,48,16,16
+skeleton5hit=x,160,48,16,16
+skeleton6hit=x,192,48,16,16
+skeleton7hit=x,224,48,16,16

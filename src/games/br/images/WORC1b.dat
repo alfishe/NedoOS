@@ -1,0 +1,51 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+orcarc0=x,0,64,16,16
+orcarc0step=x,16,64,16,16
+orcarc1=x,32,64,16,16
+orcarc1step=x,48,64,16,16
+orcarc2=x,64,64,16,16
+orcarc2step=x,80,64,16,16
+orcarc3=x,96,64,16,16
+orcarc3step=x,112,64,16,16
+orcarc4=x,128,64,16,16
+orcarc4step=x,144,64,16,16
+orcarc5=x,160,64,16,16
+orcarc5step=x,176,64,16,16
+orcarc6=x,192,64,16,16
+orcarc6step=x,208,64,16,16
+orcarc7=x,224,64,16,16
+orcarc7step=x,240,64,16,16
+orcblade0=x,0,80,16,16
+orcblade0step=x,16,80,16,16
+orcblade1=x,32,80,16,16
+orcblade1step=x,48,80,16,16
+orcblade2=x,64,80,16,16
+orcblade2step=x,80,80,16,16
+orcblade3=x,96,80,16,16
+orcblade3step=x,112,80,16,16
+orcblade4=x,128,80,16,16
+orcblade4step=x,144,80,16,16
+orcblade5=x,160,80,16,16
+orcblade5step=x,176,80,16,16
+orcblade6=x,192,80,16,16
+orcblade6step=x,208,80,16,16
+orcblade7=x,224,80,16,16
+orcblade7step=x,240,80,16,16
+orcblade0hit=x,0,96,16,16
+orcblade1hit=x,32,96,16,16
+orcblade2hit=x,64,96,16,16
+orcblade3hit=x,96,96,16,16
+orcblade4hit=x,128,96,16,16
+orcblade5hit=x,160,96,16,16
+orcblade6hit=x,192,96,16,16
+orcblade7hit=x,224,96,16,16

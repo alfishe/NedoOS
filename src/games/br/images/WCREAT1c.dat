@@ -1,0 +1,43 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+king0=x,0,128,16,16
+king0step=x,16,128,16,16
+king1=x,32,128,16,16
+king1step=x,48,128,16,16
+king2=x,64,128,16,16
+king2step=x,80,128,16,16
+king3=x,96,128,16,16
+king3step=x,112,128,16,16
+king4=x,128,128,16,16
+king4step=x,144,128,16,16
+king5=x,160,128,16,16
+king5step=x,176,128,16,16
+king6=x,192,128,16,16
+king6step=x,208,128,16,16
+king7=x,224,128,16,16
+king7step=x,240,128,16,16
+griz0=x,0,144,16,16
+griz0step=x,16,144,16,16
+griz1=x,32,144,16,16
+griz1step=x,48,144,16,16
+griz2=x,64,144,16,16
+griz2step=x,80,144,16,16
+griz3=x,96,144,16,16
+griz3step=x,112,144,16,16
+griz4=x,128,144,16,16
+griz4step=x,144,144,16,16
+griz5=x,160,144,16,16
+griz5step=x,176,144,16,16
+griz6=x,192,144,16,16
+griz6step=x,208,144,16,16
+griz7=x,224,144,16,16
+griz7step=x,240,144,16,16

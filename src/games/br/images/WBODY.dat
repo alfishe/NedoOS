@@ -1,0 +1,28 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+body0=x,0,0,16,16
+body1=x,16,0,16,16
+body2=x,32,0,16,16
+body3=x,48,0,16,16
+body4=x,64,0,16,16
+body5=x,80,0,16,16
+body6=x,96,0,16,16
+body7=x,112,0,16,16
+body8=x,128,0,16,16
+body9=x,144,0,16,16
+body10=x,160,0,16,16
+body11=x,176,0,16,16
+body12=x,192,0,16,16
+body13=x,208,0,16,16
+body14=x,224,0,16,16
+body15=x,240,0,16,16
+body16=x,0,80,24,24

@@ -1,0 +1,59 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+humpope0=x,0,112,16,16
+humpope0step=x,16,112,16,16
+humpope1=x,32,112,16,16
+humpope1step=x,48,112,16,16
+humpope2=x,64,112,16,16
+humpope2step=x,80,112,16,16
+humpope3=x,96,112,16,16
+humpope3step=x,112,112,16,16
+humpope4=x,128,112,16,16
+humpope4step=x,144,112,16,16
+humpope5=x,160,112,16,16
+humpope5step=x,176,112,16,16
+humpope6=x,192,112,16,16
+humpope6step=x,208,112,16,16
+humpope7=x,224,112,16,16
+humpope7step=x,240,112,16,16
+humpope0hit=x,0,128,16,16
+humpope1hit=x,32,128,16,16
+humpope2hit=x,64,128,16,16
+humpope3hit=x,96,128,16,16
+humpope4hit=x,128,128,16,16
+humpope5hit=x,160,128,16,16
+humpope6hit=x,192,128,16,16
+humpope7hit=x,224,128,16,16
+hummage0=x,0,144,16,16
+hummage0step=x,16,144,16,16
+hummage1=x,32,144,16,16
+hummage1step=x,48,144,16,16
+hummage2=x,64,144,16,16
+hummage2step=x,80,144,16,16
+hummage3=x,96,144,16,16
+hummage3step=x,112,144,16,16
+hummage4=x,128,144,16,16
+hummage4step=x,144,144,16,16
+hummage5=x,160,144,16,16
+hummage5step=x,176,144,16,16
+hummage6=x,192,144,16,16
+hummage6step=x,208,144,16,16
+hummage7=x,224,144,16,16
+hummage7step=x,240,144,16,16
+hummage0hit=x,0,160,16,16
+hummage1hit=x,32,160,16,16
+hummage2hit=x,64,160,16,16
+hummage3hit=x,96,160,16,16
+hummage4hit=x,128,160,16,16
+hummage5hit=x,160,160,16,16
+hummage6hit=x,192,160,16,16
+hummage7hit=x,224,160,16,16

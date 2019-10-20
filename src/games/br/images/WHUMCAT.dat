@@ -1,0 +1,35 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+humcat0=x,0,0,24,24
+humcat0step=x,24,0,24,24
+humcat1=x,48,0,24,24
+humcat1step=x,72,0,24,24
+humcat2=x,96,0,24,24
+humcat2step=x,120,0,24,24
+humcat3=x,144,0,24,24
+humcat3step=x,168,0,24,24
+humcat4=x,0,48,24,24
+humcat4step=x,24,48,24,24
+humcat5=x,48,48,24,24
+humcat5step=x,72,48,24,24
+humcat6=x,96,48,24,24
+humcat6step=x,120,48,24,24
+humcat7=x,144,48,24,24
+humcat7step=x,168,48,24,24
+humcat0hit=x,0,24,24,24
+humcat1hit=x,48,24,24,24
+humcat2hit=x,96,24,24,24
+humcat3hit=x,144,24,24,24
+humcat4hit=x,0,72,24,24
+humcat5hit=x,48,72,24,24
+humcat6hit=x,96,72,24,24
+humcat7hit=x,144,72,24,24

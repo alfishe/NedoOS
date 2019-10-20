@@ -1,0 +1,59 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+
+scorp0=x,0,64,16,16
+scorp0step=x,16,64,16,16
+scorp1=x,32,64,16,16
+scorp1step=x,48,64,16,16
+scorp2=x,64,64,16,16
+scorp2step=x,80,64,16,16
+scorp3=x,96,64,16,16
+scorp3step=x,112,64,16,16
+scorp4=x,128,64,16,16
+scorp4step=x,144,64,16,16
+scorp5=x,160,64,16,16
+scorp5step=x,176,64,16,16
+scorp6=x,192,64,16,16
+scorp6step=x,208,64,16,16
+scorp7=x,224,64,16,16
+scorp7step=x,240,64,16,16
+scorp0hit=x,0,80,16,16
+scorp1hit=x,32,80,16,16
+scorp2hit=x,64,80,16,16
+scorp3hit=x,96,80,16,16
+scorp4hit=x,128,80,16,16
+scorp5hit=x,160,80,16,16
+scorp6hit=x,192,80,16,16
+scorp7hit=x,224,80,16,16
+star0=x,0,96,16,16
+star0step=x,16,96,16,16
+star1=x,32,96,16,16
+star1step=x,48,96,16,16
+star2=x,64,96,16,16
+star2step=x,80,96,16,16
+star3=x,96,96,16,16
+star3step=x,112,96,16,16
+star4=x,128,96,16,16
+star4step=x,144,96,16,16
+star5=x,160,96,16,16
+star5step=x,176,96,16,16
+star6=x,192,96,16,16
+star6step=x,208,96,16,16
+star7=x,224,96,16,16
+star7step=x,240,96,16,16
+star0hit=x,0,112,16,16
+star1hit=x,32,112,16,16
+star2hit=x,64,112,16,16
+star3hit=x,96,112,16,16
+star4hit=x,128,112,16,16
+star5hit=x,160,112,16,16
+star6hit=x,192,112,16,16
+star7hit=x,224,112,16,16
