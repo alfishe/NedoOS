@@ -565,6 +565,21 @@ _2=5*2;15
         palcol _1,_2,_2 ;[cw]
         endif
         
+load16c
+        ;jr $
+        call setEGA ;keeps hl
+        ld hl,0x8000
+        ld de,0x8000
+        call readstream_file
+        ld de,TPAL;curpal
+        ld hl,32
+        call readstream_file
+        call closestream_file
+        ld de,TPAL;curpal
+        OS_SETPAL
+        jp waitkeyquit
+
+        
 load3
 ;B,R,G
 ;hl=size
@@ -993,6 +1008,8 @@ extlist
         db "mg8",0
         dw loadrmode
         db "rm",0
+        dw load16c
+        db "16c",0
         
         dw -1 ;end of list
         
