@@ -19,22 +19,17 @@ IF EXIST b.bat del b.bat
 
 :COPYFILES
 echo Copy in to Unreal image ...
-
+IF EXIST img.lst del img.lst
 FOR /R %rel% %%i in (.) do (
 	set ob=%%~dpni	
-	echo %%i | findstr _sdk > NUL
-	if ERRORLEVEL 1 call dmimg ..\us\%1_nedo.vhd mkdir !ob:%rel%=! > nul
+	echo mkdir !ob:%rel%=!>> img.lst
 )
 FOR /R %rel% %%i IN (*.*) do (
 	set ob=%%~dpnxi	
-	echo %%i | findstr _sdk > NUL
-	if ERRORLEVEL 1 (
-		echo !ob:%rel%=!
-		dmimg ..\us\%1_nedo.vhd put %%i !ob:%rel%=! > nul
-	)
+	echo put %%i !ob:%rel%=!>> img.lst
 )
+dmimg ..\us\%1_nedo.vhd conf img.lst
 exit /b
-
 
 :ExpandFileName
 set rel=%~f1

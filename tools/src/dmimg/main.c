@@ -9,7 +9,7 @@ FATFS fs;
 FIL f2;
 
 FILE * fconf = NULL;
-
+char strbuf[256];
 char * cc="";
 char buf[8*1024];
 int imagemnt(char * imgname){
@@ -30,11 +30,14 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 	if(strcmp(cmd,"mkdir")==0){
 		if(argc!=2){
 			puts("Error: wrong namber parameters");
-			exit(1);
+			return 1;
 		}
 		if(res=f_mkdir(arg1)){
-			printf("Error fatfs: %d",res);
-			return 1;
+			if(res != 8){
+				printf("%s %s %s ", cmd, arg1, arg2);
+				printf("Error fatfs: %d\r\n",res);
+				return 1;
+			}
 		}
 	}else if(strcmp(cmd,"del")==0){
 		if(argc!=2){
@@ -42,7 +45,8 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 			return 1;
 		}
 		if(res=f_unlink(arg1)){
-			printf("Error fatfs: %d",res);
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("Error fatfs: %d\r\n",res);
 			return 1;
 		}
 	}else if(strcmp(cmd,"put")==0){
@@ -51,11 +55,13 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 			return 1;
 		}
 		if((f1=fopen(arg1,"rb"))==NULL) {
-			printf("file %s not open.\n",arg1);
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("file %s not open.\r\n",arg1);
 			return 1;
 		}
 		if(res=f_open(&f2,arg2,FA_CREATE_ALWAYS|FA_WRITE)) {
-			printf("Error fatfs: %d",res);
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("Error fatfs: %d\r\n",res);
 			return 1;
 		}
 		while(1){
@@ -72,11 +78,13 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 			return 1;
 		}
 		if((f1=fopen(arg2,"w+b"))==NULL) {
-			printf("file %s not open.\n",arg1);
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("file %s not open.\r\n",arg1);
 			return 1;
 		}
 		if(res=f_open(&f2,arg1,FA_OPEN_EXISTING|FA_READ)) {
-			printf("Error fatfs: %d",res);
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("Error fatfs: %d\r\n",res);
 			return 1;
 		}
 		while(1){
@@ -90,15 +98,18 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 	}else if(strcmp(cmd,"dir")==0){
 		DIR dr;
 		FILINFO fi;
+		puts("ok");
 		cc="f_opendir";
 		if(res=f_opendir (&dr,(argc > 1)?arg1:"")) {
-			printf("Error fatfs: %d",res);
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("Error fatfs: %d\r\n",res);
 			return 1;
 		}
 		while(1){
 			cc="f_readdir";
 			if(res=f_readdir (&dr, &fi)){
-				printf("Error fatfs: %d",res);
+				printf("%s %s %s ", cmd, arg1, arg2);
+				printf("Error fatfs: %d\r\n",res);
 				return 1;
 			}
 			if(fi.fname[0]==0x00) break;
@@ -109,8 +120,9 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 			puts("Error: wrong namber parameters");
 			return 1;
 		}
-		if((fconf=fopen(arg1,"w+b"))==NULL) {
-			printf("file %s not open.\n",arg1);
+		if((fconf=fopen(arg1,"r"))==NULL) {
+			printf("%s %s %s ", cmd, arg1, arg2);
+			printf("file %s not open.\r\n",arg1);
 			return 1;
 		}
 		
@@ -131,6 +143,33 @@ int main (int argc, char *argv[]){
 	}
 	if(imagemnt(argv[1])) exit(2);
 	runcmd(argc-2, argv[2], argv[3], argv[4]);
+	if(fconf){
+		while(fgets(strbuf,sizeof(strbuf),fconf)){
+			char * a1 = (void*)0;
+			char * a2 = (void*)0;
+			char * cmd = strbuf;
+			a1=strpbrk(strbuf,"\r\n");
+			if(a1) *a1 = 0x00;
+			if(cmd){
+				a1 = strchr(cmd, ' ');
+				if(a1){
+					*a1 = 0x00;
+					a1++;
+					a2 = strchr(a1, ' ');
+					if(a2){
+						*a2 = 0x00;
+						a2++;
+						runcmd(3, cmd, a1, a2);
+					}
+					else{
+						runcmd(2, cmd, a1, a2);
+					}
+				}else{
+					runcmd(1, cmd, a1, a2);
+				}
+			}
+		}
+	}
 	
 	if(fconf != NULL) fclose(fconf);
 	if(img != NULL) fclose(img);
