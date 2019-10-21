@@ -17,6 +17,14 @@ if "%settedpath%"=="" call ../../_sdk/setpath.bat
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2c.dat WCREAT2c.ast
 "../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
 "../../_sdk/nedores.exe" images/WMISC.bmp images/WBULLET.dat WBULLET.ast
+"../../_sdk/nedores.exe" images/W1LAND.bmp images/W1LAND.dat W1LAND.ast
+"../../_sdk/nedores.exe" images/W2LAND.bmp images/W2LAND.dat W2LAND.ast
+"../../_sdk/nedores.exe" images/W3LAND.bmp images/W3LAND.dat W3LAND.ast
+"../../_sdk/nedores.exe" images/W4LAND.bmp images/W4LAND.dat W4LAND.ast
+sjasmplus --nologo --msg=war --msg=war W1LAND.ast --raw=br/W1LAND.bin
+sjasmplus --nologo --msg=war --msg=war W2LAND.ast --raw=br/W2LAND.bin
+sjasmplus --nologo --msg=war --msg=war W3LAND.ast --raw=br/W3LAND.bin
+sjasmplus --nologo --msg=war --msg=war W4LAND.ast --raw=br/W4LAND.bin
 sjasmplus --nologo --msg=war --msg=war WHUM1.asm
 sjasmplus --nologo --msg=war --msg=war WHUM1b.asm
 sjasmplus --nologo --msg=war --msg=war WHUM1c.asm

@@ -48,6 +48,7 @@ prtile16columngo
 	add hl,bc
 	LD (HL),D
 	add hl,bc
+	POP DE
 	LD (HL),E ;+0
 	add hl,bc
 	LD (HL),D
@@ -222,7 +223,13 @@ NPX1	LD A,(HL)
 	PUSH BC
 	PUSH HL ;adr in map
 	PUSH DE ;adr in scr
+        if EGA
+        ld a,28
+        call _128
+        ld hl,128*(383-256)+0xc000 ;тайл 383
+        else
 	LD HL,shadwA
+        endif
 	CALL SQROUT
 	POP DE
 	POP HL
@@ -444,6 +451,93 @@ sha1	LD (DE),A
 	RET
 
 GSADR	;вхHL-pos in map;  выхHL-adr in LAND ;NC/C-видим,не видим
+        if EGA
+	LD A,(HL)
+	SLA A
+	RET C
+;тайл=128 байт, всего 384 тайла (3 страницы)
+         ;jr $
+	CP 226
+	JR NC,GSA2
+GSA0
+;pg26,27
+        rrca
+	LD h,a
+        ld l,0
+        rla
+        ld a,l;0
+        adc a,26 ;NC
+        scf
+        rr h
+        rr l ;NC
+        set 6,h
+        jp _128
+GSA2	CP 240
+	JR NC,GSA3
+	EX AF,AF'	;вода
+	LD A,(ANIM)
+	OR A
+	JR Z,GSA2A
+GSA2C	DEC A
+	JR Z,GSA2B
+	EX AF,AF'
+	ADD A,10
+	EX AF,AF'
+	JR GSA2C
+GSA2B	EX AF,AF'
+	JR GSA0        
+GSA2A	EX AF,AF'
+	SUB 226-112
+	JR GSA0
+GSAT	DEFW 1,65,64,63,-1,-65,-64,-63 ;смещение на карте до центра здания
+GSA3
+	RRCA ;120..127 - кайма зданий
+	SUB 120
+;a=0..7
+	PUSH DE
+	PUSH AF ;0..7 номер места около домика
+	PUSH HL 	;здания
+	LD HL,GSAT
+	CALL WT ;a=(hl+a)
+	POP DE
+	ADD HL,DE
+	LD A,(HL) ;нашли на карте центр здания = 78..127
+	AND #7F
+	CP 108
+	JR NC,GSA3A ;>=108: домик 2x2
+;домик 3x3
+	SUB 78
+	ADD A,A
+	ADD A,A
+	ADD A,A
+	POP DE
+	ADD A,D ;0..7 номер места около домика
+	JR GSA11
+GSA3A
+;>=108: домик 2x2
+	SUB 108
+	LD E,A
+	ADD A,A
+	ADD A,E
+	POP DE
+	ADD A,D ;0..7 номер места около домика
+        add a,368-128
+GSA11	
+;pg27,28
+        POP DE
+	LD h,a
+        ld l,0
+        rla
+        ld a,l;0
+        adc a,27 ;NC
+        scf
+        rr h
+        rr l ;NC
+        set 6,h
+        jp _128
+        
+        else ;~EGA
+
 	LD A,(HL)
 	SLA A
 	RET C
@@ -512,6 +606,7 @@ GSA11	LD L,A
 	ADD HL,DE
 	POP DE
 	RET
+        endif ;~EGA
 
 ScorrP	LD A,L
 	ADD A,32
@@ -552,6 +647,9 @@ SdUR	CALL ScU1
 	CALL ScR1
 	JP Z,ScUP1
 	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	;--CALL ScU2+ScR2
 	 CALL PXLO
 	 CALL PYLF
@@ -561,6 +659,7 @@ SdUR	CALL ScU1
 	 CALL NYLF
 	CALL MEM7
 	CALL ScUR_
+       endif
 	JP ScNZ
 
 SdDL	CALL ScD1
@@ -568,6 +667,9 @@ SdDL	CALL ScD1
 	CALL ScL1
 	JR Z,ScDW1
 	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	;--CALL ScD2+ScL2
 	 CALL PXHI
 	 CALL PYRT
@@ -577,6 +679,7 @@ SdDL	CALL ScD1
 	 CALL NYRT
 	CALL MEM7
 	CALL ScDL_
+       endif
 	JP ScNZ
 
 
@@ -585,6 +688,9 @@ SdUL	CALL ScU1
 	CALL ScL1
 	JR Z,ScUP1
 	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	;--CALL ScU2+ScL2
 	 CALL PXLO
 	 CALL PYRT
@@ -594,6 +700,7 @@ SdUL	CALL ScU1
 	 CALL NYRT
 	CALL MEM7
 	CALL ScUL_
+       endif
 	JR ScNZ
 
 
@@ -602,6 +709,9 @@ SdDR	CALL ScD1
 	CALL ScR1
 	JR Z,ScDW1
 	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	;--CALL ScD2+ScR2
 	 CALL PXHI
 	 CALL PYLF
@@ -611,14 +721,23 @@ SdDR	CALL ScD1
 	 CALL NYLF
 	CALL MEM7
 	CALL ScDR_
+       endif
 	JR ScNZ
 
 ScDW	CALL ScD1
 	JP Z,noROT
 ScDW1	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	CALL ScD2
 	CALL MEM7
 	JP ScD_
+ScD2	CALL PXHI
+	CALL SXHI
+	CALL NXHI
+       endif
+	JR ScNZ
 ScD1	LD HL,Y0
 	LD A,(HL)
 	OR A
@@ -626,54 +745,66 @@ ScD1	LD HL,Y0
 	DEC (HL)
 	OR A
 	RET
-ScD2	CALL PXHI
-	CALL SXHI
-	CALL NXHI
-	JR ScNZ
 
 ScUP	CALL ScU1
 	JP Z,noROT
 ScUP1	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	CALL ScU2
 	CALL MEM7
 	JP ScU_
+ScU2	CALL PXLO
+	CALL SXLO
+	CALL NXLO
+       endif
+ScNZ	CALL BMOV
+	LD HL,isROT
+	LD (HL),1
+	RET
 ScU1	LD HL,Y0
 	LD A,(HL)
 	CP 52
 	RET Z
 	INC (HL)
 	RET
-ScU2	CALL PXLO
-	CALL SXLO
-	CALL NXLO
-ScNZ	CALL BMOV
-	LD HL,isROT
-	LD (HL),1
-	RET
 
 ScLF	CALL ScL1
 	JP Z,noROT
 	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	CALL ScL2
 	CALL MEM7
 	JP ScL_
+ScL2	CALL PYRT
+	CALL SYRT
+	CALL NYRT
+       endif
+	JR ScNZ
 ScL1	LD HL,X0
 	LD A,(HL)
 	CP 52
 	RET Z
 	INC (HL)
 	RET
-ScL2	CALL PYRT
-	CALL SYRT
-	CALL NYRT
-	JR ScNZ
 
 ScRT	CALL ScR1
 	JP Z,noROT
 	CALL SW_OFF
+       if EGA
+        call O12X12
+       else
 	CALL ScR2
 	CALL MEM7
 	JP ScR_
+ScR2	CALL PYLF
+	CALL SYLF
+	CALL NYLF
+       endif
+	JR ScNZ
 ScR1	LD HL,X0
 	LD A,(HL)
 	OR A
@@ -681,10 +812,8 @@ ScR1	LD HL,X0
 	DEC (HL)
 	OR A
 	RET
-ScR2	CALL PYLF
-	CALL SYLF
-	CALL NYLF
-	JR ScNZ
+
+        if EGA==0
 
 ScD_	CALL B_SETI
 	LD HL,SCR+#17A0
@@ -1045,8 +1174,14 @@ ScR0	EX AF,AF
 	DJNZ ScR00
 	JP B_U2B
 
+        endif ;~EGA
 
 ROTsub	DEFW ScLF,ScRT,000,ScUP,SdUL,SdUR,000,ScDW,SdDL,SdDR
+
+;        if EGA
+;ROTsub	DEFW O12X12,O12X12,000,O12X12,O12X12,O12X12,000,O12X12,O12X12,O12X12
+;        endif
+
 ROTATE	LD A,(BENTER)
 	OR A
 	JR Z,rotCOR
@@ -1124,7 +1259,7 @@ SW_OFF	LD A,(isSWFF)
 
 FRAME	;выв игр оформл
 	CALL MEM7
-	CALL STS
+	CALL STS ;выбор основного экрана (не теневого)
 	;bar-color
 	ATRs #18,#208,#50
 	ATRs #19,#106,#70
@@ -1164,7 +1299,7 @@ FRA_L1	PUSH AF
 	LD E,A
 	LD HL,0
 	LD BC,#118
-	CALL STS
+	CALL STS ;выбор основного экрана (не теневого)
 	CALL ATRBAR
 	LD HL,#017
 	LD BC,#1801
@@ -1902,6 +2037,16 @@ _start	CALL shadwS	;--1
 	LD (TIC_UP),A
 	;
 ENTRY	;общая точка входа для нов. игры и отгрузки
+        if EGA
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,1
+ 	OS_SETSCREEN
+        ld e,0
+        OS_CLS ;там была 6912 картинка
+        call setpal
+        endif
+        
 	XOR A
 	LD (isMAP),A
 	CALL putBAR ;--7
@@ -1920,7 +2065,7 @@ NNN	;игровой цикл
 	CALL dMAGIC ;6
 	CALL SPLIN  ;6
 	CALL REpeon ;6
-	LD SP,#403E ;???
+	LD SP,STACK;#403E ;???
 	CALL MEM1   ;---1
 	CALL REMONT ;1
 	CALL MEM0   ;---0
@@ -1982,7 +2127,7 @@ SxS	CALL vBULL
 ;  CALL SEEonn	 ;0 отлад
 ;  CALL setC1	 ;0 отлад
 ;  CALL setMAP	 ;0 отлад
-  JP _start ;отладочн т.входа
+  JP _start ;отладочн т.входа ;???
 	;---demo
 wMAIN  ;в этом порядке
 	DI

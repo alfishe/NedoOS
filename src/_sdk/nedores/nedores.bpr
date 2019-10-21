@@ -98,7 +98,7 @@ $(BCB)\Bin\bcb2kaxserver50.bpl=Borland C++Builder COM Server Components Sample P
 DebugSourceDirs=$(BCB)\source\vcl
 
 [Parameters]
-RunParams=nedores/WHUM1.bmp nedores/testpic.dat nedores/testpic.ast
+RunParams=nedores/W1LAND.bmp nedores/testpic.dat nedores/testpic.ast
 HostApplication=
 RemoteHost=
 RemotePath=

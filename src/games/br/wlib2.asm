@@ -793,6 +793,9 @@ HeF1	;корректировка ширины,длины и др. по границам окна
 	LD A,H
 	SUB B
 	LD (Yh),A
+        
+        if EGA==0
+        
 	LD A,L
 	CP 24
 	JR NC,eF3
@@ -823,7 +826,8 @@ eF5	ADD A,B
 	LD E,A
 	JR NC,eF4
 	INC D
-eF4	LD A,(Yh)
+eF4	
+        LD A,(Yh)
 	CP 192
 	JR NC,eF1
 	SUB 192
@@ -846,7 +850,10 @@ eF1	LD L,A
 	LD E,A
 	JR NC,eF2
 	INC D
-eF2	;собств вывод
+eF2	
+        endif
+
+;собств вывод
 ;YhXh (Xh в знакоместах)
 ;HhWh (Wh в знакоместах)
 ;SHIFTh = 0..7 (xlow)

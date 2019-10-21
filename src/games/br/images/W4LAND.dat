@@ -10,11 +10,6 @@
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
 ;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
 
-;human0=x,0,0,16,16
-;doska=B,112,0,32,8,7
-;beton=B,80,0,32,8,7
-;cherry=s,176,0,16,13,7
-;tilepic=T,0,0,224,64,15
 land=L,0,0,256,576,384
    7,30,31,32,39,40,41,61, 3, 6, 9,10,11,26,54,27,
    8,33,34,35,42,43,44,62, 2, 4,12,13,14,52,56,53,

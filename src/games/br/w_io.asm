@@ -240,8 +240,13 @@ butfilename
 butfilename_number=$+5 ;0..1
         db "brbut0.dat",0
 sprfilename
+        if EGA
+sprfilename_number=$+1 ;1..4
+        db "W1LAND.bin",0
+        else
 sprfilename_number=$+5 ;1..4
         db "brspr1.dat",0
+        endif
 
 LOADOSpp
         push hl
@@ -258,7 +263,16 @@ LOADOSpp
 
 LOADms  ;загр. офрмл. уровня
 
-        ;jr $
+        if EGA
+        push af
+        ld e,3
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,1
+        OS_SETSCREEN
+        ld de,RSTPAL
+        OS_SETPAL
+        pop af
+        endif
 
         ;пров защиты
         EX AF,AF'
@@ -286,12 +300,44 @@ LOADms_nonewlevel
         LD (HL),A
         add a,"0"
         ld (sprfilename_number),a
+        if EGA
+        ld a,26
+        call _128
+        ld de,sprfilename
+        OS_OPENHANDLE
+         ;jr $
+        ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        push bc
+        push de
+        push hl
+        OS_READHANDLE
+        pop hl
+        pop de
+        ld a,27
+        call _128
+        pop bc
+        push bc
+        push de
+        push hl
+        OS_READHANDLE
+        pop hl
+        pop de
+        ld a,28
+        call _128
+        pop bc
+        push bc
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE        
+        else
         ld de,sprfilename
         ld hl,LAND ;addr
         call LOADOSpp
         LD DE,#FFFF
          di
         CALL DELPZX
+        endif
 lad2
         ;--загр панели
         ld de,barfilename
@@ -600,7 +646,16 @@ LLV0    LD A,(LEVEL)
          ;jr $
         CALL MEM0
         CALL isRUNL ;для заключ уровней - набор данных
-        CALL OFFS
+         if EGA
+;scrpg7=$+1
+;         ld a,0
+;	 LD (R128),A
+;         SETPG32KHIGH
+        ld a,31
+        call _128
+         else
+         CALL OFFS
+         endif
         LD HL,datSCR
         LD DE,SCR
         LD BC,6912

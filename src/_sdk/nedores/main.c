@@ -22,6 +22,11 @@ BYTE maskrow[1024/8][1024];
 //BYTE pixrowshift[1024/8][1024]; //>>4
 BYTE attrrow[1024/8];
 
+#define CONVORDERSZ 1024
+
+int convorderx[CONVORDERSZ]; //для каждого номера тайла координаты
+int convordery[CONVORDERSZ]; //для каждого номера тайла координаты
+
 BYTE ink;
 BYTE paper;
 BYTE curink;
@@ -34,16 +39,31 @@ int hgt;
 int wid;
 int bpp;
 
+void skiplf(FILE * fin)
+{ //возможно, 0x0d уже прочитан, теперь пропускаем 0x0a
+char c;
+  do{
+    if (!fread(&c,1,1,fin)) break;
+  }while (c!=0x0a);
+}
+
 int readnum(FILE * fin)
 {
 char c;
 int num;
+int sign=1;
   num = 0;
   do{
     if (!fread(&c,1,1,fin)) break;
+    if (c==' ') goto skip;
+    //if (c == 0x0d) goto skip;
+    //if (c == 0x0a) break;
+    if (c=='-') {sign = -1; goto skip;};
     if ((c<'0')||(c>'9')) break; //в том числе 0x0a
     num = num*10 + (int)(c-'0');
+skip:
   }while(1);
+  num = num*sign;
 return num;
 }
 
@@ -359,6 +379,8 @@ int j;
 int size;
 int y;
 int x;
+int n;
+int tiles;
 
 BYTE b;
 BYTE bmask;
@@ -416,7 +438,8 @@ int rowhgt; //8 for tiles, sprhgt for sprites
             spry = readnum(fintxt);
             sprwid = readnum(fintxt);
             sprhgt = readnum(fintxt);
-            defaultcolor = (BYTE)readnum(fintxt);
+            tiles = readnum(fintxt); //отсутствует в x
+            defaultcolor = (BYTE)tiles; //для всех, кроме L
 
             if (sprformat == 'B') {
               fputs(labelbuf, fout);
@@ -436,6 +459,11 @@ int rowhgt; //8 for tiles, sprhgt for sprites
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>1), fout);
               emitdb((BYTE)(sprhgt), fout);
+              rowhgt = sprhgt;
+            }else if (sprformat == 'L') { //LAND как в ЧВ, дальше следует таблица - номер тайла для каждой клетки
+              fputs("\n", fout);
+              fputs(labelbuf, fout);
+              fputs("\n", fout);
               rowhgt = sprhgt;
             }else { //'s'
               fputs(labelbuf, fout);
@@ -531,7 +559,64 @@ int rowhgt; //8 for tiles, sprhgt for sprites
                 fputs("\n", fout);
               };
               fputs("\tdw prsprqwid\n", fout);
-            }
+            };
+
+            if (sprformat == 'L') { //далее текст типа (-1=пропуск):
+//   -1, -1, -1,114,116,119,121,124,126,-1,-1,-1,-1,-1,-1,-1,
+//  113,118,123,115,117,120,122,125,127,-1,-1,-1,-1,-1,-1,-1
+//для каждой ячейки картинки указан номер тайла
+//а нам надо заполнить массивы convorderx,y - координаты для каждого номера тайла
+//все должны быть в одной картинке, иначе не получится (перемешаны номера тайлов общие для всех локаций и для конкретной)
+              n = 0;
+              while (n < CONVORDERSZ) {
+                convorderx[n] = 0;
+                convordery[n] = 0;
+                n = n+1;
+              };
+
+                skiplf(fintxt);
+              //tiles = 0;
+
+              y = spry;
+              while (y < (spry+sprhgt)) {
+                x = sprx;
+                while (x < (sprx+sprwid)) {
+                  n = readnum(fintxt);
+                  if (n != -1) {
+                    convorderx[n] = x;
+                    convordery[n] = y;
+                  };
+                  //fprintf(fout, "\tdb %d\n", n);
+                  //tiles = tiles + 1;
+                  x = x+16;
+                };
+                skiplf(fintxt);
+                //fputs("\n", fout);
+                y = y+16;
+              };
+
+              n = 0;
+              while (n < tiles) {
+                x = convorderx[n];
+                while (x < (convorderx[n]+16)) {
+                  fputs(" db ", fout);
+                  y = convordery[n];
+                  while (1) {
+                    b = pic[x][y]; //L
+                    b0 = pic[x+1][y]; //R
+                    b = ((b&0x08)<<3) + (b&0x07) + ((b0&0x08)<<4) + ((b0&0x07)<<3);
+                    fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+                    y = y+1;
+                    if (y == (convordery[n]+16)) break;
+                    fputs(",", fout);
+                  };
+                  fputs("\n", fout);
+                  x = x+2;
+                };
+                n = n+1;
+              };
+
+            };
 
           }; //while (1)
           fclose(fout);

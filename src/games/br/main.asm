@@ -67,6 +67,7 @@ _128
         ;and 7
         ld ($+3+1),a
         ld a,(ttexpgs)
+	;LD	(R128),A
         SETPG32KHIGH
         pop bc
 	RET
@@ -129,7 +130,7 @@ on_int_sp2=$+1
 
         align 256 ;0x200
 ttexpgs
-        ds 32;8
+        ds 32 ;pg31=scr7
 
         include "w_intv.asm"
         include "wlib1a.asm"
@@ -166,7 +167,12 @@ begingo
 	xor e
         ld (setpgs_scr_scrxor),a
         ld a,h
+         ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
+       if EGA
+         ;ld (scrpg7),a
+       else 
          ld (getttexpgs_basepg7),a
+       endif
         xor l
         ld (setpgs_scr_pgxor),a
         
@@ -183,10 +189,12 @@ begingo
 getttexpgs0
         push bc
         ld a,(hl)
+       if EGA==0
         cp 7
 getttexpgs_basepg7=$+1
         ld a,0
         jr z,getttexpgs7
+       endif
         push de
         push hl
         OS_NEWPAGE
@@ -200,9 +208,28 @@ getttexpgs7
         inc hl
         push hl
         SETPG32KHIGH
-        
+
+        ld a,(hl)
+        cp ' '
+        jr nc,gettexpgs_noskipdata
+         ;jr $
+        inc hl
+gettexpgs_noskipdata
         ex de,hl
+        push af
         OS_OPENHANDLE
+        pop af ;CY=skip data, a=number of 16Ks to skip
+        jr nc,gettexpgs_noskipdata2
+        push bc
+        ld de,0
+        ld hl,0
+        rra
+        rr h
+        rra
+        rr h
+        OS_SEEKHANDLE ;dehl=offset
+        pop bc
+gettexpgs_noskipdata2
         push bc
         ld de,0xc000 ;addr
         ld hl,0x4000 ;size
@@ -268,13 +295,35 @@ bbbnoprspr
         ;jr bbb
         endif
         
-        call setpgsmain40008000
+        call setpgsmain40008000 ;на всякой случай, для прерывания
+      
+        call setpal
         
         call swapimer
         jp JP_ST;wMAIN;GO
         ;call GO
         ;call swapimer
         ;QUIT
+
+setpal
+        if EGA
+        ld de,SUMMERPAL
+        else
+        ld de,RSTPAL
+        endif
+        OS_SETPAL
+        ret
+
+SUMMERPAL
+;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;high B, high b, low B, low b
+           ;ok      ;?      ;?     ;?     ;?    ;ok    ;ok   ;ok
+        dw 0xffff,0xbdbd,0x6f6f,0x2d2d,0xdede,0x4c4c,0x4d4d,0xecec
+           ;?       ;ok     ;?     ;?     ;?    ;?     ;?    ;ok
+        dw 0xffff,0x2d2d,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+RSTPAL
+        STANDARDPAL
+
 
 texfilename
         db 0,"br0.dat",0
@@ -306,8 +355,13 @@ zzzz
         db 23,"WCREAT2c.bin",0
         db 24,"WBODY.bin",0
         db 25,"WBULLET.bin",0
+;26..28=land
+;фы  яЁртшы№эюую яюърчр фхью эєцхэ Їюэ! чруЁєчўшъ эх т√ч√трхЄё !
+        db 26,"W1LAND.bin",0
+        db 27,1,"W1LAND.bin",0
+        db 28,2,"W1LAND.bin",0
         display $-zzzz
-ntexfilenames=24
+ntexfilenames=24+3
         endif
         ;ds 0xd7
 

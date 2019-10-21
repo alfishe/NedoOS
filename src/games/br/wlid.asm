@@ -100,6 +100,7 @@ _128	LD	BC,#7FFD
 OFFD	LD	DE,DSCR+#1AFE
 	JR	offx
 
+;TODO убрать в EGA
 OFFS	CALL	MEM7
 	LD	DE,SCR+#1AFE
 offx	PUSH DE
@@ -526,6 +527,7 @@ B_o1	LD A,(DE)
 
 B_IMGM	DEFB #55,#81,#19,#BD,#3D,#99,#01,#FF
 
+;курсор скролла? TODO!!!
 BL_ONN	EXX
 	LD A,(BY)
 	CP B

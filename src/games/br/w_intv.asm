@@ -228,6 +228,7 @@ INA02	;LD A,(IR128)
 IR128=$+1
         ld a,0
 	CALL MEM
+         ;SETPG32KHIGH
         if EGA
         ld a,(curpg4000)
         SETPG16K
