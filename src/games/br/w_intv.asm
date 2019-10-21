@@ -22,6 +22,7 @@ BLITER	;обновл экр с уч прерыв
 	LD (V_FLAG),A
 	RET
 
+        if EGA==0
 DS2SC	;регенер экр
 	LD HL,DSCR
 	LD DE,SCR
@@ -134,6 +135,7 @@ vpt2	CALL V_GET1
 vptR	EXX
 	EI
 	RET
+        endif
 
         if 1==0
 ON256	LD	A,%10000
@@ -159,6 +161,10 @@ INAR0	;Обр прерываний
 	LD A,(R128)
 	LD (IR128),A
         if EGA
+        ld a,(curpg4000)
+        push af
+        ld a,(curpg8000)
+        push af
         ld a,(pgmain4000)
         SETPG16K
         ld a,(pgmain8000)
@@ -211,11 +217,11 @@ INA0M	CALL pSOUND ;эффекты
 	PUSH HL
 	LD HL,(SCRADR)
 	PUSH HL
-	CALL V_PUT1
+	CALL V_PUT1 ;восстановление старой стрелочки TODO
 	LD HL,(MX)
 	LD (G_MX),HL
-	CALL V_GET1
-	CALL V_MRK1
+	CALL V_GET1 ;взятие с экрана из-под новой стрелочки TODO
+	CALL V_MRK1 ;рисование стрелочки
 	POP HL
 	LD (SCRADR),HL
 	POP HL
@@ -230,10 +236,10 @@ IR128=$+1
 	CALL MEM
          ;SETPG32KHIGH
         if EGA
-        ld a,(curpg4000)
-        SETPG16K
-        ld a,(curpg8000)
+        pop af ;ld a,(curpg8000)
         SETPG32KLOW
+        pop af ;ld a,(curpg4000)
+        SETPG16K
         endif
 	POP IY
 	POP IX
@@ -410,8 +416,9 @@ V_MRK1	;mrk->SCR
 vmr1	LD HL,(G_MX)
 
         if EGA
-        ;TODO
-        ret
+        ld a,h
+        ld h,0
+        jp prarr ;TODO restore arrow later (at least in panel)
         
         else
 

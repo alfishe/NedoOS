@@ -548,7 +548,7 @@ UT22	LD (Xh),A
 	;для рамки
 	DEC A
 	JP NZ,WYbull;->обр снарядов ;заполняет данные и переходит на HeF1
-	;CALL MEM1
+	CALL MEM1
 	LD A,(IX+4) ;ID (0..26)
 	LD HL,AT_TY_
 	CALL BA ;hl+=a: A=(HL)
@@ -556,13 +556,13 @@ UT22	LD (Xh),A
 	JR Z,WYr33
 	;LD BC,#1002 ;HhWh
 	;LD DE,fr2x2h
-	ld iy,testspr+4
-        ld bc,0x1002 ;HhWh
+	ld iy,fr2x2h;testspr+4
+        ;ld bc,0x1002 ;HhWh
 	JR WYr
 WYr33	;LD BC,#1803 ;HhWh
 	;LD DE,fr3x3h
-	ld iy,testspr+4
-        ld bc,0x1803 ;HhWh
+	ld iy,fr3x3h;testspr+4
+        ;ld bc,0x1803 ;HhWh
 WYr	JP HeF1
 WY_0	
         LD A,(IX+0) ;x героя (0=труп)

@@ -8,7 +8,7 @@ sprmaxhgt=32;24
 scrwid=96 ;double pixels
 scrhgt=192
 
-EGA=0;1
+EGA=1
         
 ;*L+
 ;*D-
@@ -899,6 +899,149 @@ pgfake=$+1
         ;ld lx,b;0 ;второй раз будет действительно выход
         jp prsprNcolumnqq
 
+prarr
+;hl=x
+;a=y
+        push af
+        call setpgsscr40008000
+        pop af
+        call prarr_calccur
+prarrcolumn0
+        ld bc,40
+        ld hy,ly
+        push de
+        push hl
+        dup 12
+        ld a,(de) ;scr
+        and (hl) ;mask
+        inc hl
+        xor (hl) ;pixels
+        ld (de),a ;scr
+        dec hy
+        jp z,prarrcolumnq
+        inc hl
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        edup
+        ld a,(de) ;scr
+        and (hl) ;mask
+        inc hl
+        xor (hl) ;pixels
+        ld (de),a ;scr
+prarrcolumnq
+        pop hl
+        ld de,13*2
+        add hl,de
+        pop de
+        ex de,hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,prarrcolumnqq ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+prarrcolumnqq
+        ex de,hl
+        dec lx
+        jp nz,prarrcolumn0
+        jp setpgsmain40008000
+
+prarr_calccur
+;hl=x
+;a=y
+;out: hl=scr+, de=gfx, lx=wid
+        ld e,a
+        push hl ;x
+        ld c,l
+        rr c
+         ;push af ;CY=x0
+        ex de,hl ;push de ;e=y
+        ;ld a,(prarr_zone)
+        ;cp ZONE_WORK
+        ld de,sprarr_l
+        ld bc,sprarr_r
+        ;pop hl ;l=y
+;l=y
+;de=spr_l
+;bc=spr_r
+        ;pop af ;CY=x0
+        jr nc,prarr_nor ;de=спрайт для чётного x
+        ld d,b
+        ld e,c ;de=спрайт для нечётного x
+prarr_nor
+        pop bc ;x
+        ld a,(de)
+        ld lx,a
+        inc de
+;l=y
+;bc=x
+;de=spr
+;lx=wid
+        ;ret       
+;prarr_calcscr
+;l=y
+;bc=x
+;de=spr
+;lx=wid
+        push de ;spr
+        ld h,0 ;y HSB
+        ld a,scrhgt
+        sub l ;y
+        ld ly,a ;200-y
+        ld d,0x80/8;scrbase/256/8
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;y*5
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40 + scrbase
+        pop de ;spr
+        srl b ;теперь b=0
+        rr c ;c=x/2
+        ld a,160;scrwid/2
+        sub c ;scrwid/2-(x/2)
+        cp lx
+        jr nc,$+2+2 ;scrwid/2-(x/2) >= ширина
+        ld lx,a ;scrwid/2-(x/2) < ширина
+        srl c
+        jr nc,$+4
+        set 6,h
+        srl c
+        jr nc,$+4
+        set 5,h
+         ld b,-0x40 ;для scrbase=0x4000
+        add hl,bc
+        ex de,hl
+;de=scr
+;lx=ширина
+;ly=200-y
+        ret
+
+sprarr_l
+;mask,pixels = 0xppmm
+;%rlrrrlll
+        db 4
+        dw 0x0000,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0x0047,0x00ff,0x00ff,0x00ff
+        dw 0x00ff,0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xff00,0x0000,0x0047,0x00ff,0x00ff,0x00ff
+        dw 0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0xff00,0xff00,0x4700,0x4700,0x4700,0xb800,0xb800,0x0047
+        dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0x00b8,0x00ff,0x00ff,0x00b8,0x00b8,0x00ff
+sprarr_r
+;mask,pixels = 0xppmm
+;%rlrrrlll
+        db 5
+        dw 0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x00ff,0x00ff,0x00ff,0x00ff
+        dw 0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xff00,0xff00,0x4700,0x00b8,0x00ff,0x00ff,0x00ff
+        dw 0x00ff,0x00ff,0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xb800,0xb800,0x0047,0x0047,0x00ff
+        dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0xff00,0x0000,0x00b8,0x00b8,0x4700,0x4700,0x00b8
+        dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff
+
+
+        if 1==0
         ds 0x3b00-$
         ;include "WHUM1.ast"
 testspr
@@ -919,27 +1062,9 @@ _=_-1
         endif
         edup
         dw prsprqwid
-        
-testspr2
-_hgt=16
-_wid=8 ;width/2
-        db _wid
-        db _hgt
-_=_wid
-        dup _wid
-        dup _hgt*2
-        db (0x55+$)&0xff
-        edup
-_=_-1
-        if _ != 0
-        dw 0x4000 - ((_hgt-1)*40)
-        else
-        dw 0xffff
         endif
-        edup
-        dw prsprqwid
         
-        
+        ds 0x3e00-$
         ds 0x4000-$ ;ORG #4000
 ;--------/MEM--------
         nop ;IR128   DEFB    0
@@ -1487,12 +1612,50 @@ end6
         page 1 ;---Cпрайты ландшафта--
 	ORG #C000
 begin1
+        if EGA==0
 WMISC2			;доп.спр2Х2
         incbin "data/wmisc.dat"
 WMISC4	EQU WMISC2+1792 ;доп.спр4Х4
 WMISC1	EQU WMISC2+3328 ;доп.спр1Х1
+        endif
         include "wmisc_1.asm" ;доп п/п
 ;селект-рамки----
+        if EGA
+;_=0x1b00
+_=0x1200
+_l=_&0x4700+0xb8
+_r=_&0xb800+0x47
+_0=0x00ff
+_hgt=16
+fr2x2h=$+4
+        db 8 ;wid/2
+        db _hgt
+        dw _,_l,_l,_l,_l,_l,_l,_l, _l,_l,_l,_l,_l,_l,_l,_
+        dw 0x4000 - ((_hgt-1)*40)
+       dup 8-2
+        dw _,0,_0,_0,_0,_0,_0,_0, _0,_0,_0,_0,_0,_0,0,_
+        dw 0x4000 - ((_hgt-1)*40)
+       edup
+        dw _,_r,_r,_r,_r,_r,_r,_r, _r,_r,_r,_r,_r,_r,_r,_
+        dw 0xffff
+        dw prsprqwid
+
+_hgt=24
+fr3x3h=$+4
+        db 12 ;wid/2
+        db _hgt
+        dw _,_l,_l,_l,_l,_l,_l,_l, _l,_l,_l,_l,_l,_l,_l,_l, _l,_l,_l,_l,_l,_l,_l,_
+        dw 0x4000 - ((_hgt-1)*40)
+       dup 12-2
+        dw _,0,_0,_0,_0,_0,_0,_0, _0,_0,_0,_0,_0,_0,_0,_0, _0,_0,_0,_0,_0,_0,0,_
+        dw 0x4000 - ((_hgt-1)*40)
+       edup
+        dw _,_r,_r,_r,_r,_r,_r,_r, _r,_r,_r,_r,_r,_r,_r,_r, _r,_r,_r,_r,_r,_r,_r,_
+        dw 0xffff
+        dw prsprqwid
+
+        else
+;or,xor, стоблцами
 fr2x2h	DEFW #FFFF,#80FF,#80C0,#80C0,#80C0,#80C0,#80C0,#80C0
 	DEFW #80C0,#80C0,#80C0,#80C0,#80C0,#80C0,#80FF,#FFFF
 	DEFW #FFFF,#01FF,#0103,#0103,#0103,#0103,#0103,#0103
@@ -1506,6 +1669,7 @@ fr3x3h	DEFW #FFFF,#80FF,#80C0,#80C0,#80C0,#80C0,#80C0,#80C0
 	DEFW #FFFF,#01FF,#0103,#0103,#0103,#0103,#0103,#0103
 	DEFW #0103,#0103,#0103,#0103,#0103,#0103,#0103,#0103
 	DEFW #0103,#0103,#0103,#0103,#0103,#0103,#01FF,#FFFF
+        endif
 	ds #D000-$
 LAND			;ландшафт
 shadwA	EQU	49*32+LAND
