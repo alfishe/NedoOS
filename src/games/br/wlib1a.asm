@@ -1719,7 +1719,9 @@ aus1	PUSH DE
 	INC HL
 	INC D
 	DJNZ aus1
-	CALL BLITER
+        if EGA==0
+	CALL BLITER ;шэрўх чрфрэшх ЄєЄ цх шёўхчрхЄ
+        endif
 	CALL bWAIT
 	JP TMOM
 
@@ -2040,6 +2042,10 @@ ENTRY	;общая точка входа для нов. игры и отгрузки
         if EGA
         ld e,0
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,0
+ 	OS_SETSCREEN
+        ld e,0
+        OS_CLS
         ld e,1
  	OS_SETSCREEN
         ld e,0
@@ -2154,12 +2160,23 @@ bWAIT	CALL CONTR
 	RET NZ
 
 putBAR	;выв панели
-         ;jr $
 	CALL OFFS
+        if EGA
+        ld a,24;29
+        call _128
+        call putBARdoscr
+putBARdoscr
+        call changescrpg_current
+	LD DE,0xc000;DSCR
+	LD HL,0x4000+0x0018
+	LD BC,#1808
+	JP PUTSYM
+        else
 	LD DE,DSCR
 	LD HL,#0018
 	LD BC,#1808
 	JP PUTSYM
+        endif
 
         if 1==0 ;???
 _TST#6	LD A,(RNB) ;[**]mem7

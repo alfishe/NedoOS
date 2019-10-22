@@ -1,4 +1,11 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+"../../_sdk/nedores.exe" images/W1LAND.bmp images/W1LAND.dat W1LAND.ast
+"../../_sdk/nedores.exe" images/W2LAND.bmp images/W2LAND.dat W2LAND.ast
+"../../_sdk/nedores.exe" images/W3LAND.bmp images/W3LAND.dat W3LAND.ast
+"../../_sdk/nedores.exe" images/W4LAND.bmp images/W4LAND.dat W4LAND.ast
+"../../_sdk/nedores.exe" images/WBAR.bmp images/WBAR.dat WBAR.ast
+"../../_sdk/nedores.exe" images/WHUMBUTT.bmp images/WHUMBUTT.dat WHUMBUTT.ast
+"../../_sdk/nedores.exe" images/WORCBUTT.bmp images/WORCBUTT.dat WORCBUTT.ast
 "../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1.dat WHUM1.ast
 "../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1b.dat WHUM1b.ast
 "../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1c.dat WHUM1c.ast
@@ -15,16 +22,15 @@ if "%settedpath%"=="" call ../../_sdk/setpath.bat
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2.dat WCREAT2.ast
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2b.dat WCREAT2b.ast
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2c.dat WCREAT2c.ast
-"../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
+rem "../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
 "../../_sdk/nedores.exe" images/WMISC.bmp images/WBULLET.dat WBULLET.ast
-"../../_sdk/nedores.exe" images/W1LAND.bmp images/W1LAND.dat W1LAND.ast
-"../../_sdk/nedores.exe" images/W2LAND.bmp images/W2LAND.dat W2LAND.ast
-"../../_sdk/nedores.exe" images/W3LAND.bmp images/W3LAND.dat W3LAND.ast
-"../../_sdk/nedores.exe" images/W4LAND.bmp images/W4LAND.dat W4LAND.ast
 sjasmplus --nologo --msg=war --msg=war W1LAND.ast --raw=br/W1LAND.bin
 sjasmplus --nologo --msg=war --msg=war W2LAND.ast --raw=br/W2LAND.bin
 sjasmplus --nologo --msg=war --msg=war W3LAND.ast --raw=br/W3LAND.bin
 sjasmplus --nologo --msg=war --msg=war W4LAND.ast --raw=br/W4LAND.bin
+sjasmplus --nologo --msg=war --msg=war WBAR.ast --raw=br/WBAR.bin
+sjasmplus --nologo --msg=war --msg=war WHUMBUTT.ast --raw=br/W0BUT.bin
+sjasmplus --nologo --msg=war --msg=war WORCBUTT.ast --raw=br/W1BUT.bin
 sjasmplus --nologo --msg=war --msg=war WHUM1.asm
 sjasmplus --nologo --msg=war --msg=war WHUM1b.asm
 sjasmplus --nologo --msg=war --msg=war WHUM1c.asm
@@ -41,7 +47,7 @@ sjasmplus --nologo --msg=war --msg=war WCREAT1c.asm
 sjasmplus --nologo --msg=war --msg=war WCREAT2.asm
 sjasmplus --nologo --msg=war --msg=war WCREAT2b.asm
 sjasmplus --nologo --msg=war --msg=war WCREAT2c.asm
-sjasmplus --nologo --msg=war --msg=war WBODY.asm
+rem sjasmplus --nologo --msg=war --msg=war WBODY.asm
 sjasmplus --nologo --msg=war --msg=war WBULLET.asm
 
 sjasmplus --nologo --msg=war --msg=war levels/w~104.a80

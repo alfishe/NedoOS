@@ -6,15 +6,17 @@ BLITER	;обновл экр с уч прерыв
 	LD (P_FLAG),A
 	DEC A
 	LD (V_LINE),A
-	LD A,2
-	LD (V_FLAG),A
-	CALL V_GET2
-	CALL V_MRK2
-	LD A,1
-	LD (V_FLAG),A
        if EGA
         call changescrpg
        else
+       endif
+	LD A,2
+	LD (V_FLAG),A
+	CALL V_GET2
+	CALL V_MRK2 ;убирание не помогает справа, только слева мигает
+	LD A,1
+	LD (V_FLAG),A
+       if EGA==0
 	CALL DS2SC
        endif
 	CALL V_copy ;м.быть уч P_FLAG=1 :)
@@ -206,10 +208,12 @@ INA0FX	LD BC,#FFFD
 	LD (#EEC9),A
 INA0M	CALL pSOUND ;эффекты
 	CALL MMOV
+       ;if EGA==0
 	LD A,(V_FLAG)
 	CP 1
 	JR Z,INA01
 	JR NC,INA02
+       ;endif
 	CALL MEM7
 	LD HL,(JP_SUB+1)
 	PUSH HL
@@ -217,10 +221,10 @@ INA0M	CALL pSOUND ;эффекты
 	PUSH HL
 	LD HL,(SCRADR)
 	PUSH HL
-	CALL V_PUT1 ;восстановление старой стрелочки TODO
+	CALL V_PUT1 ;восстановление старой стрелочки
 	LD HL,(MX)
 	LD (G_MX),HL
-	CALL V_GET1 ;взятие с экрана из-под новой стрелочки TODO
+	CALL V_GET1 ;взятие с экрана из-под новой стрелочки
 	CALL V_MRK1 ;рисование стрелочки
 	POP HL
 	LD (SCRADR),HL
@@ -254,6 +258,7 @@ IR128=$+1
 
 ;---------------------------------------
 
+        if EGA==0
 G_IMG1	DEFB %11111100,%11111100 ;обычн курсор
 	DEFB %11111110,%10000110
 	DEFB %11111110,%10000010
@@ -280,7 +285,7 @@ G_FIX1	DEFB %11111100,%00000000 ;курсор при зафикс. цели
 	DEFB %11111111,%00101110
 	DEFB %01111111,%00000100
 	DEFB %00001110,%00000000
-
+        endif
 
 V_copy	;gbu2->gbu1
 	LD BC,16
@@ -290,17 +295,30 @@ V_copy	;gbu2->gbu1
 	RET
 
 V_PUT1	;  gbu1->[SCR]
+        if EGA==0
 	LD HL,(GBAD1)
          ld a,h
          or a
          ret z
 	LD DE,GBU1
 	JR v1pEN
+        endif
 
 V_PUT2	;  gbu2->[DSCR]
+        if EGA==0
 	LD HL,(GBAD2)
 	LD DE,GBU2
-v1pEN	CALL v1p0
+        endif
+v1pEN
+        if EGA
+	LD hl,(G_MX) 
+        ;jr $
+        ld a,h
+        ld h,0
+        jp rearr
+        
+        else
+	CALL v1p0
 	LD A,L
 	AND 31
 	CP 31
@@ -334,10 +352,18 @@ v1p5	INC DE
 v1p6	DJNZ v1p5
 	POP HL
 	RET
-
+        endif
 
 V_GET1	; HL->gbad1  [SCR]->gbu1
-	LD DE,(G_MX) ;выв гр курс
+;выв гр курс
+        if EGA
+	LD hl,(G_MX) 
+        ld a,h
+        ld h,0
+        jp getarr
+        
+        else
+	LD DE,(G_MX) 
 	CALL STS
 	CALL PCOORD
 	LD (GBAD1),HL
@@ -363,9 +389,14 @@ v1g1	LD A,(HL)
 v1g2	DJNZ v1g1
 	POP HL
 	RET
+        endif
 
 V_GET2	; HL->gbad2  [DSCR]->gbu2
-	LD DE,(G_MX) ;выв гр курс
+;выв гр курс
+        if EGA
+        jp V_GET1
+        else
+	LD DE,(G_MX)
 	CALL STD
 	CALL PCOORD
 	LD (GBAD2),HL
@@ -402,17 +433,21 @@ v2g1	LD A,(HL)
 v2g2	DJNZ v2g1
 	POP HL
 	RET
-
+        endif
 
 V_MRK2	;mrk->SCR
+        if EGA==0
 	LD BC,(GBAD2)
 	JR vmr1
+        endif
 
 V_MRK1	;mrk->SCR
+        if EGA==0
 	LD BC,(GBAD1)
          ld a,b
          or a
          ret z
+        endif
 vmr1	LD HL,(G_MX)
 
         if EGA

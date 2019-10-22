@@ -14,6 +14,33 @@ EVENT	;произошло событие, возможна смена меню
 ;------обновление окна cоcтояний
 
 TX_ADR	;выч адр назв (A->HL)
+       if EGA
+;[8*4*6 = 192]
+;7*4*6
+        ;ld l,a
+        ;add a,a
+        ;add a,l
+        ;ld l,a ;x3
+        ;ld h,0
+        ;add hl,hl
+	LD L,A ;x3
+	ADD A,A
+	ADD A,L
+	LD L,A
+	LD E,A
+	XOR A
+	LD H,A
+	LD D,A
+	ADD HL,HL;x7
+	ADD HL,DE
+	ADD HL,HL
+	ADD HL,DE
+	ADD HL,HL;x7
+        add hl,hl
+        add hl,hl
+	LD DE,0xc000+(8*4*192) ;WNAMES
+	ADD HL,DE
+       else
 	LD L,A ;x3
 	ADD A,A
 	ADD A,L
@@ -29,6 +56,7 @@ TX_ADR	;выч адр назв (A->HL)
 	ADD HL,HL;x7
 	LD DE,WNAMES
 	ADD HL,DE
+       endif
 	RET
 
 
@@ -200,6 +228,35 @@ BUT_1	LD A,(DE)
 	PUSH HL
 	LD L,A
 	LD H,0
+        
+        if EGA
+        
+;*288 = 12 * 24 = 9 * 32
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,de ;*9
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl ;*9*32
+        ld de,0xa000
+        add hl,de
+        bit 6,h
+        ld a,30
+        jr nz,BUT_1_nopg0
+        ld d,0x20
+        add hl,de
+        dec a
+BUT_1_nopg0
+        call _128
+        ex de,hl
+        
+        else
+        
 	PUSH HL
 	ADD HL,HL
 	ADD HL,HL
@@ -215,20 +272,23 @@ BUT_1	LD A,(DE)
 	LD DE,WBUTT+23
 	ADD HL,DE
 	EX DE,HL
+        
+        endif
+        
 	POP HL
 	PUSH HL
 	PUSH DE
 	LD BC,#404
 	LD A,2
 	LD (V_FLAG),A
-	CALL isOVER
+	CALL isOVER ;курсор над кнопками?
 	JR NC,btt1
 	CALL V_PUT1
 	POP DE
 	POP HL
 	CALL PUTbut
 	CALL V_GET1
-	CALL V_MRK1
+	CALL V_MRK1 ;перерисовываем курсор?
 	JR btt0
 btt1	POP DE
 	POP HL
@@ -238,7 +298,42 @@ btt0	XOR A
 	POP DE
 	RET
 
-PUTbut	LD B,3
+PUTbut
+        if EGA
+        ;jr $
+;hl=yx (chrs)
+        ld a,l
+        ld l,h
+        ld h,0
+        sla l
+        sla l
+        sla l ;y*8
+        ld b,0x40/8
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*8*40
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+;hl=scr
+        push de
+        push hl
+        call PUTbut_doscr
+        pop hl
+        pop de
+PUTbut_doscr
+        call changescrpg_current
+        ld bc,0x180c
+        jp primgega_pixsz
+
+        else ;~EGA
+        
+	LD B,3
 ptg0	PUSH BC
 	PUSH HL
 	PUSH DE
@@ -262,6 +357,8 @@ ptg0	PUSH BC
 	INC L
 	DJNZ ptg0
 	RET
+        
+        endif
 
 
 
@@ -428,6 +525,9 @@ bcd2	ADD HL,DE
 
 iPRINT	;inv печать символа А в поз DE(yx)
 	PUSHs
+        if EGA
+        call prchar
+        else
 	LD C,A
 	CALL SCOORD
 	EX DE,HL
@@ -451,6 +551,7 @@ iPR1	LD A,(HL)
 	INC HL
 	INC D
 	DJNZ iPR1
+        endif
 	POPs
 	INC E
 	RET
@@ -468,6 +569,10 @@ sqrADR	DEFW sq1,sq1+3,sq1+96,sq1+99,sq1+192,sq1+195
 
 
 sqrCOL	;закрасить квадр. c HL цветом A
+        if EGA
+;TODO
+        ret
+        else
 	PUSH DE
 	LD DE,30
 	LD (HL),A
@@ -489,6 +594,7 @@ sqrCOL	;закрасить квадр. c HL цветом A
 	LD (HL),A
 	POP DE
 	RET
+        endif
 
 
 outSQR	LD A,(F_FUNC) ;выв 6и квдр

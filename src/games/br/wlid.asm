@@ -115,6 +115,9 @@ offx	PUSH DE
 	RET
 
 COPY	 ;копир.экр
+        if EGA
+        ret
+        else
 	LD	BC,6144
 CY_	LD	HL,DSCR
 	LD	DE,SCR
@@ -123,6 +126,7 @@ CY_	LD	HL,DSCR
 
 COPYAT	LD	BC,6912
 	JR CY_
+        endif
 
 ;поиск по таблицам
 
@@ -227,6 +231,10 @@ ACOORD	LD A,L ;коорд атр HL->HL
 	RET
 
 ATRBAR	;HL - adr in scr; BC-size(yx) ;E-COLOR
+        if EGA
+;TODO
+        ret
+        else
 	CALL ACOORD
 ATRBA0	LD D,L
 	LD A,C
@@ -241,7 +249,11 @@ ATRBA1	LD (HL),E
 	INC H
 ATRBA2	DJNZ ATRBA0
 	RET
+        endif
 
+        if EGA
+PUTSYM=primgega
+        else
 PUTSYM	;HL - adr in scr; DE-adr spr; BC-size(yx)
 	PUSH DE
 	EX DE,HL
@@ -293,7 +305,7 @@ YS1	DJNZ YS0
 	DEC C
 	JR NZ,YS2
 YSR	JP SET_SP
-
+        endif
 
 ;;MATHEMATICAL LIBRARY	MATH-ZX
 ;MULB2	PUSH	HL	 ;HL*E--DE  (C)
@@ -361,6 +373,9 @@ PRINTS	;печать строки HL(конец 127)
 
 PRINT	;печать символа А в поз DE(yx)
 	PUSHs
+        if EGA
+        call prchar
+        else
 	LD C,A
 	CALL SCOORD
 	EX DE,HL
@@ -404,6 +419,7 @@ PRINT	;печать символа А в поз DE(yx)
 	LD (DE),A
 	INC HL
 	INC D
+        endif
 	POPs
 	INC E
 	RET
@@ -451,9 +467,9 @@ _422	LD A,(CONTRB)
 	ADD	A,B
 	JR	C,_11A
 	CP	E
-	JR	C,_11
+	JR	C,_11B
 _11A	LD	A,E
-_11	LD	L,A
+_11B	LD	L,A
 	LD	D,0
 _1	RR	C
 	JR	NC,_2

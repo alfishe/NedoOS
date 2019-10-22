@@ -570,9 +570,10 @@ WY_0
 	LD A,(IX+4) ;ID (0..26)
 	JR NZ,WY2
 	;для трупа a=вид трупа
+         add a,24
         add a,a
         ld (WYbody_where),a
-        ld a,24
+         ld a,23;24
         call _128
 WYbody_where=$+2 ;LSB
         ld iy,(0xc000)

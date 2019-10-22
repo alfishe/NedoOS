@@ -237,8 +237,13 @@ muzfilename_number=$+5 ;0..7
 barfilename
         db "brbar.dat",0
 butfilename
+        if EGA
+butfilename_number=$+1 ;0..1
+        db "W0BUT.bin",0
+        else
 butfilename_number=$+5 ;0..1
         db "brbut0.dat",0
+        endif
 sprfilename
         if EGA
 sprfilename_number=$+1 ;1..4
@@ -305,7 +310,6 @@ LOADms_nonewlevel
         call _128
         ld de,sprfilename
         OS_OPENHANDLE
-         ;jr $
         ld de,0xc000 ;addr
         ld hl,0x4000 ;size
         push bc
@@ -354,11 +358,41 @@ lad2
         add a,"0"
         ld (butfilename_number),a
         ld de,butfilename
+        
+        if EGA
+        ld a,29
+        call _128
+        OS_OPENHANDLE
+        ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        push de
+        push hl
+        push bc
+        OS_READHANDLE
+        ld a,30
+        call _128
+        pop bc
+        push bc
+        ld de,0
+        ld hl,0x2000
+        OS_SEEKHANDLE ;грузим во вторую страницу то же со сдвигом в 8К, чтобы кнопки не резались границей страниц (вариант: грузить с разрывом ровно по кнопке)
+        pop bc
+        pop hl
+        pop de
+        push bc
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE        
+        
+        else ;~EGA
+        
         ld hl,WBUTT ;addr
         call LOADOSpp
         LD DE,WNAMES
          di
         CALL DELPZX
+        endif ;~EGA
+        
 lad3
         ;--загр муз A=0..7
         CALL MEM6

@@ -1,0 +1,95 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+
+;81 buttons
+button0=i,0,0,24,24
+button1=i,24,0,24,24
+button2=i,48,0,24,24
+button3=i,72,0,24,24
+button4=i,96,0,24,24
+button5=i,120,0,24,24
+button6=i,144,0,24,24
+button7=i,168,0,24,24
+button8=i,192,0,24,24
+button9=i,216,0,24,24
+button10=i,0,24,24,24
+button11=i,24,24,24,24
+button12=i,48,24,24,24
+button13=i,72,24,24,24
+button14=i,96,24,24,24
+button15=i,120,24,24,24
+button16=i,144,24,24,24
+button17=i,168,24,24,24
+button18=i,192,24,24,24
+button19=i,216,24,24,24
+button20=i,0,48,24,24
+button21=i,24,48,24,24
+button22=i,48,48,24,24
+button23=i,72,48,24,24
+button24=i,96,48,24,24
+button25=i,120,48,24,24
+button26=i,144,48,24,24
+button27=i,168,48,24,24
+button28=i,192,48,24,24
+button29=i,216,48,24,24
+button30=i,0,72,24,24
+button31=i,24,72,24,24
+button32=i,48,72,24,24
+button33=i,72,72,24,24
+button34=i,96,72,24,24
+button35=i,120,72,24,24
+button36=i,144,72,24,24
+button37=i,168,72,24,24
+button38=i,192,72,24,24
+button39=i,216,72,24,24
+button40=i,0,96,24,24
+button41=i,24,96,24,24
+button42=i,48,96,24,24
+button43=i,72,96,24,24
+button44=i,96,96,24,24
+button45=i,120,96,24,24
+button46=i,144,96,24,24
+button47=i,168,96,24,24
+button48=i,192,96,24,24
+button49=i,216,96,24,24
+button50=i,0,120,24,24
+button51=i,24,120,24,24
+button52=i,48,120,24,24
+button53=i,72,120,24,24
+button54=i,96,120,24,24
+button55=i,120,120,24,24
+button56=i,144,120,24,24
+button57=i,168,120,24,24
+button58=i,192,120,24,24
+button59=i,216,120,24,24
+button60=i,0,144,24,24
+button61=i,24,144,24,24
+button62=i,48,144,24,24
+button63=i,72,144,24,24
+button64=i,96,144,24,24
+button65=i,120,144,24,24
+button66=i,144,144,24,24
+button67=i,168,144,24,24
+button68=i,192,144,24,24
+button69=i,216,144,24,24
+button70=i,0,168,24,24
+button71=i,24,168,24,24
+button72=i,48,168,24,24
+button73=i,72,168,24,24
+button74=i,96,168,24,24
+button75=i,120,168,24,24
+button76=i,144,168,24,24
+button77=i,168,168,24,24
+button78=i,192,168,24,24
+button79=i,216,168,24,24
+button80=i,0,192,24,24

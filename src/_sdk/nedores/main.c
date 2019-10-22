@@ -447,18 +447,23 @@ int rowhgt; //8 for tiles, sprhgt for sprites
               emitdb((BYTE)(sprwid>>3), fout);
               emitdb((BYTE)(sprhgt>>3), fout);
               rowhgt = 8;
-            }else if (sprformat == 'T') {
+            }else if (sprformat == 'T') { //набор тайлов
               fputs("\tds (-$)&0xff\n", fout);
               fputs(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = 8;
-            }else if (sprformat == 'x') {
+            }else if (sprformat == 'x') { //спрайт 16c
               fputs("\n", fout);
               fputs(labelbuf, fout);
               fputs("=$+4\n", fout);
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>1), fout);
               emitdb((BYTE)(sprhgt), fout);
+              rowhgt = sprhgt;
+            }else if (sprformat == 'i') { //картинка 16c по столбцам
+              fputs("\n", fout);
+              fputs(labelbuf, fout);
+              fputs("\n", fout);
               rowhgt = sprhgt;
             }else if (sprformat == 'L') { //LAND как в ЧВ, дальше следует таблица - номер тайла для каждой клетки
               fputs("\n", fout);
@@ -559,6 +564,23 @@ int rowhgt; //8 for tiles, sprhgt for sprites
                 fputs("\n", fout);
               };
               fputs("\tdw prsprqwid\n", fout);
+            };
+
+            if (sprformat == 'i') {
+              x = sprx;
+              while (x < (sprx+sprwid)) {
+                y = spry;
+                while (y < (spry+sprhgt)) {
+                  b = pic[x][y]; //L
+                  b0 = pic[x+1][y]; //R
+                  b = ((b&0x08)<<3) + (b&0x07) + ((b0&0x08)<<4) + ((b0&0x07)<<3);
+                  fprintf(fout, "\tdb 0x%x%x", b>>4, b&0x0f);
+                  fputs("\n", fout);
+                  y = y+1;
+                };
+                x = x+2;
+                fputs("\n", fout);
+              };
             };
 
             if (sprformat == 'L') { //далее текст типа (-1=пропуск):

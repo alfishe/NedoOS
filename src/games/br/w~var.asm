@@ -40,10 +40,13 @@ V_LINE	DEFB 0 ;текущ выв линия
 V_FLAG	DEFB 0 ;режим отобр курсора: 0-norm, 1-refresh, 2-none
 P_FLAG	DEFB 0 ;если 1, выполнить отображение курсора
 ;/V_...
+        if EGA==0
 G_MX	DEFB  010
 G_MY	DEFB  010
 G_SIZE	DEFB 8	    ;высота курс
 G_IMG	DEFW G_MAP1 ;изобр курс
+        endif
+;TODO в EGA убрать и это:
 GBU1	DEFS 16,#F0 ;копия из SCR
 GBAD1	DEFW 0;0x0800;0	    ;адр копии в SCR ;запарывает это место при первом вызове ;добавил проверку на 0
 GBU2	ds 16     ;копия из DSCR

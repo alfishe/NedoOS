@@ -23,6 +23,25 @@
         dw stenogryz5hit
         dw stenogryz6hit
         dw stenogryz7hit
+
+        dw body0
+        dw body1
+        dw body2
+        dw body3
+        dw body4
+        dw body5
+        dw body6
+        dw body7
+        dw body8
+        dw body9
+        dw body10
+        dw body11
+        dw body12
+        dw body13
+        dw body14
+        dw body15
+        dw body16
         include "WCREAT2c.ast"
+        include "WBODY.ast"
         include "gfxinc2.asm"
 	savebin "br/WCREAT2c.bin",begin,end-begin

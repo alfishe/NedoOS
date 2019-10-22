@@ -218,11 +218,13 @@ gettexpgs_noskipdata
         ex de,hl
         push af
         OS_OPENHANDLE
-        pop af ;CY=skip data, a=number of 16Ks to skip
+        pop af ;CY=skip data, a=number of 8Ks to skip
         jr nc,gettexpgs_noskipdata2
         push bc
         ld de,0
         ld hl,0
+        rra
+        rr h
         rra
         rr h
         rra
@@ -336,7 +338,6 @@ texfilename
         if EGA==0
 ntexfilenames=6
         else
-zzzz
         db 8,"WHUM1.bin",0
         db 9,"WHUM1b.bin",0
         db 10,"WHUM1c.bin",0
@@ -353,18 +354,63 @@ zzzz
         db 21,"WCREAT2.bin",0
         db 22,"WCREAT2b.bin",0
         db 23,"WCREAT2c.bin",0
-        db 24,"WBODY.bin",0
+        ;db 24,"WBODY.bin",0
+         db 24,"WBAR.bin",0
         db 25,"WBULLET.bin",0
-;26..28=land
-;фы  яЁртшы№эюую яюърчр фхью эєцхэ Їюэ! чруЁєчўшъ эх т√ч√трхЄё !
+;26..28=land ;фы  яЁртшы№эюую яюърчр фхью эєцхэ Їюэ! чруЁєчўшъ т фхью эх тvчvтрхЄё !
         db 26,"W1LAND.bin",0
-        db 27,1,"W1LAND.bin",0
-        db 28,2,"W1LAND.bin",0
-        display $-zzzz
-ntexfilenames=24+3
+        db 27,2,"W1LAND.bin",0
+        db 28,4,"W1LAND.bin",0
+         db 29,"W0BUT.bin",0
+         db 30,1,"W0BUT.bin",0
+ntexfilenames=24+5
         endif
         ;ds 0xd7
 
+primgega
+        sla c
+        sla c
+        ld a,b
+        add a,a
+        add a,a
+        add a,a
+        ld b,a
+primgega_pixsz
+;b=hgt,c=wid
+;de=gfx
+;hl=scr
+        ;jr $
+        push bc
+        call setpgsscr40008000_current
+        pop bc
+primgega0
+        push bc
+        ld hx,b
+        push hl
+        ld bc,40
+primgegacolumn0
+        ld a,(de)
+        inc de
+        ld (hl),a
+        add hl,bc
+        dec hx
+        jr nz,primgegacolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,primgegacolumn0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+primgegacolumn0q
+        pop bc
+        dec c
+        jr nz,primgega0
+        jp setpgsmain40008000
+        
         macro MASKBYTE
         ld a,(hl)
         and e
@@ -421,9 +467,13 @@ pgmain8000=$+1
         SETPG32KLOW
         ret
 
+setpgsscr40008000_current
+        ld a,(setpgs_scr_scrxor)
+        jr $+3
 setpgsscr40008000
+        xor a
 setpgs_scr_low=$+1
-        ld a,0
+        xor 0
         ld (curpg4000),a
         SETPG16K
 setpgs_scr_pgxor=$+1
@@ -433,15 +483,20 @@ setpgs_scr_pgxor=$+1
         ret
 
 
+
         include "wmenu2.asm" ;было в pg7
 
-        
-changescrpg
+changescrpg_current
         ld a,(setpgs_scr_low)
 setpgs_scr_scrxor=$+1
         xor 0
         ld (setpgs_scr_low),a
+        ret
+        
+changescrpg
+        call changescrpg_current
         ld a,1
+curscrnum=$+1
         xor 0
         ld ($-1),a
 	ld e,a
@@ -899,11 +954,123 @@ pgfake=$+1
         ;ld lx,b;0 ;второй раз будет действительно выход
         jp prsprNcolumnqq
 
+        if EGA
+G_MX	DEFB  010
+G_MY	DEFB  010
+
+ARRHGT=8
+
+getarr
+;hl=x
+;de=buf
+;a=y
+        ;ret ;jr $
+        ;xor a
+        ;ld hl,0
+        push af
+        call setpgsscr40008000_current
+         ld a,(curscrnum)
+         or a
+         ld de,arbuf0
+         jr z,$+5
+         ld de,arbuf1
+        pop af
+        push de
+        call prarr_calccur
+        pop hl
+getarrcolumn0
+        ld bc,40
+        ld hy,ly
+        ex de,hl
+;hl=scr
+;de=buf
+        push hl
+        dup ARRHGT-1
+        ld a,(hl) ;scr
+        ld (de),a
+        inc de
+         dec hy
+         jr z,getarrcolumnq
+        add hl,bc
+        edup
+        ld a,(hl) ;scr
+        ld (de),a
+        inc de
+getarrcolumnq
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,getarrcolumnqq ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+getarrcolumnqq
+        ex de,hl
+        dec lx
+        jr nz,getarrcolumn0
+        jp setpgsmain40008000
+
+rearr
+;hl=x
+;de=buf
+;a=y
+        ;ret ;jr $
+        push af
+        call setpgsscr40008000_current
+         ld a,(curscrnum)
+         or a
+         ld de,arbuf0
+         jr z,$+5
+         ld de,arbuf1
+        pop af
+        push de
+        call prarr_calccur
+        pop hl
+rearrcolumn0
+        ld bc,40
+        ld hy,ly
+        ex de,hl
+;hl=scr
+;de=buf
+        push hl
+        dup ARRHGT-1
+        ld a,(de)
+        ld (hl),a ;scr
+        inc de
+         dec hy
+         jr z,rearrcolumnq
+        add hl,bc
+        edup
+        ld a,(de)
+        ld (hl),a ;scr
+        inc de
+rearrcolumnq
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,rearrcolumnqq ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+rearrcolumnqq
+        ex de,hl
+        dec lx
+        jr nz,rearrcolumn0
+        jp setpgsmain40008000
+
+
 prarr
 ;hl=x
 ;a=y
         push af
-        call setpgsscr40008000
+        call setpgsscr40008000_current
+        ;jr $
         pop af
         call prarr_calccur
 prarrcolumn0
@@ -911,14 +1078,14 @@ prarrcolumn0
         ld hy,ly
         push de
         push hl
-        dup 12
+        dup ARRHGT-1
         ld a,(de) ;scr
         and (hl) ;mask
         inc hl
         xor (hl) ;pixels
         ld (de),a ;scr
-        dec hy
-        jp z,prarrcolumnq
+         dec hy
+         jr z,prarrcolumnq
         inc hl
         ex de,hl
         add hl,bc
@@ -931,7 +1098,7 @@ prarrcolumn0
         ld (de),a ;scr
 prarrcolumnq
         pop hl
-        ld de,13*2
+        ld de,ARRHGT*2
         add hl,de
         pop de
         ex de,hl
@@ -962,16 +1129,22 @@ prarr_calccur
         ex de,hl ;push de ;e=y
         ;ld a,(prarr_zone)
         ;cp ZONE_WORK
-        ld de,sprarr_l
-        ld bc,sprarr_r
+G_IMG=$+1
+        ld de,G_IMG1;sprarr_l
+        ;ld bc,sprarr_r
         ;pop hl ;l=y
 ;l=y
 ;de=spr_l
 ;bc=spr_r
         ;pop af ;CY=x0
         jr nc,prarr_nor ;de=спрайт для чётного x
-        ld d,b
-        ld e,c ;de=спрайт для нечётного x
+        ;ld d,b
+        ;ld e,c ;de=спрайт для нечётного x
+        ld a,e
+        add a,8*ARRHGT+1
+        ld e,a
+        jr nc,$+3
+        inc d
 prarr_nor
         pop bc ;x
         ld a,(de)
@@ -1022,24 +1195,158 @@ prarr_nor
 ;ly=200-y
         ret
 
+arbuf0
+        ds 8*ARRHGT
+arbuf1
+        ds 8*ARRHGT
+        
+;%rlrrrlll
+_xx=0x00ff
+_x0=0x0047
+_0x=0x00b8
+_x1=0xb847
+_1x=0x47b8
+_10=0x4700
+_01=0xb800
+_00=0x0000
+_11=0xff00
+
+G_IMG1
 sprarr_l
 ;mask,pixels = 0xppmm
 ;%rlrrrlll
         db 4
-        dw 0x0000,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0x0047,0x00ff,0x00ff,0x00ff
-        dw 0x00ff,0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xff00,0x0000,0x0047,0x00ff,0x00ff,0x00ff
-        dw 0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0xff00,0xff00,0x4700,0x4700,0x4700,0xb800,0xb800,0x0047
-        dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0x00b8,0x00ff,0x00ff,0x00b8,0x00b8,0x00ff
+        ;dw 0x0000,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0xb800,0x0047,0x00ff,0x00ff,0x00ff
+        ;dw 0x00ff,0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xff00,0x0000,0x0047,0x00ff,0x00ff,0x00ff
+        ;dw 0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0xff00,0xff00,0x4700,0x4700,0x4700,0xb800,0xb800,0x0047
+        ;dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0x00b8,0x00ff,0x00ff,0x00b8,0x00b8,0x00ff
+        dw _11,_10,_10,_10,_10,_11,_x1,_xx
+        dw _11,_00,_00,_00,_00,_01,_11,_xx
+        dw _11,_01,_00,_01,_00,_00,_10,_11
+        dw _xx,_1x,_1x,_1x,_11,_01,_11,_1x
 sprarr_r
 ;mask,pixels = 0xppmm
 ;%rlrrrlll
         db 5
-        dw 0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x00ff,0x00ff,0x00ff,0x00ff
-        dw 0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xff00,0xff00,0x4700,0x00b8,0x00ff,0x00ff,0x00ff
-        dw 0x00ff,0x00ff,0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xb800,0xb800,0x0047,0x0047,0x00ff
-        dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0xff00,0x0000,0x00b8,0x00b8,0x4700,0x4700,0x00b8
-        dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff
+        ;dw 0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x0047,0x00ff,0x00ff,0x00ff,0x00ff
+        ;dw 0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xff00,0xff00,0x4700,0x00b8,0x00ff,0x00ff,0x00ff
+        ;dw 0x00ff,0x00ff,0x00b8,0x4700,0xff00,0xff00,0xff00,0xff00,0xb800,0xb800,0x0047,0x0047,0x00ff
+        ;dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x4700,0xff00,0x0000,0x00b8,0x00b8,0x4700,0x4700,0x00b8
+        ;dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00b8,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff
+        dw _x1,_x1,_x1,_x1,_x1,_x1,_xx,_xx
+        dw _11,_00,_00,_00,_00,_10,_11,_xx
+        dw _11,_00,_00,_00,_00,_10,_11,_x1
+        dw _1x,_11,_01,_11,_01,_00,_01,_11
+        dw _xx,_xx,_xx,_xx,_1x,_1x,_1x,_xx
 
+G_FIX1
+sprarrfix_l
+        db 4
+        dw _00,_01,_01,_01,_01,_00,_x0,_xx
+        dw _00,_11,_11,_11,_11,_10,_00,_xx
+        dw _00,_10,_11,_10,_11,_11,_01,_00
+        dw _xx,_0x,_0x,_0x,_00,_10,_00,_0x
+sprarrfix_r
+        db 5
+        dw _x0,_x0,_x0,_x0,_x0,_x0,_xx,_xx
+        dw _00,_11,_11,_11,_11,_01,_00,_xx
+        dw _00,_11,_11,_11,_11,_01,_00,_x0
+        dw _0x,_00,_10,_00,_10,_11,_10,_00
+        dw _xx,_xx,_xx,_xx,_0x,_0x,_0x,_xx
+
+G_MAP1
+sprarrmap_l
+        db 4
+        dw _00,_01,_01,_01,_01,_00,_x0,_xx
+        dw _00,_11,_00,_00,_01,_10,_00,_xx
+        dw _00,_10,_01,_10,_01,_10,_01,_00
+        dw _xx,_0x,_0x,_0x,_00,_10,_00,_0x
+sprarrmap_r
+        db 5
+        dw _x0,_x0,_x0,_x0,_x0,_x0,_xx,_xx
+        dw _00,_11,_10,_10,_10,_01,_00,_xx
+        dw _00,_11,_00,_01,_10,_01,_00,_x0
+        dw _0x,_00,_10,_00,_10,_01,_10,_00
+        dw _xx,_xx,_xx,_xx,_0x,_0x,_0x,_xx
+        endif ;EGA
+        
+        if EGA
+WFONT
+        incbin "data/wfont.fnt"
+
+        macro PRCHARBYTE
+        xor a
+        sla b
+        jr nc,$+4
+        or 0x47 ;L
+        sla b
+        jr nc,$+4
+        or 0xb8 ;R
+        ld (hl),a
+        endm
+        
+        macro PRCHAR4BYTES
+        ld a,(de)
+        ld b,a
+        PRCHARBYTE
+        ld a,h
+        add a,0x40
+        ld h,a
+        PRCHARBYTE
+        ld a,h
+        add a,0x20-0x40
+        ld h,a
+        PRCHARBYTE
+        ld a,h
+        add a,0x40
+        ld h,a
+        PRCHARBYTE
+        endm
+        
+prchar
+;de=yx
+;a=char
+	ADD A,A
+	LD BC,(FONT)
+	LD L,A
+	LD H,0
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,BC
+        call setpgsscr40008000_current
+        ex de,hl ;de=font+
+;hl=yx
+        ld a,l
+        ld l,h
+        ld h,0
+        sla l
+        sla l
+        sla l ;y*8
+        ld b,0x40/8
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*8*40
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        
+;hl=scr
+        ld c,40
+        dup 7
+        PRCHAR4BYTES
+        ld b,-0x60
+        add hl,bc        
+        inc de
+        edup
+        PRCHAR4BYTES
+
+        jp setpgsmain40008000
+        endif ;EGA
 
         if 1==0
         ds 0x3b00-$
@@ -1241,8 +1548,10 @@ GO_Nt2  ;...продолж для расст =2
 ;Main procedures
         include "wlid.asm"
         include "w_io.asm"
+        if EGA==0
 WFONT
         incbin "data/wfont.fnt"
+        endif
         include "xdelpz.asm"
         ;include "w_intv.asm"
         include "wlib2.asm"

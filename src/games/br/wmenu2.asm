@@ -121,16 +121,20 @@ sup2	PUSH BC
 	LD HL,#3939
 	LD (ATR+468),HL
 	LD (ATR+436),HL
-Setup0	CALL BLITE2
+Setup0
+        ;jr $
+        if EGA==0
+	CALL BLITE2 ;шэрўх ьшурхЄ
+        endif
 	CALL oSETpr
 	CALL Copper
 	CALL BMOV
 	CALL fSzone
-	HALT
+	HALT ;YIELD никогда не попадёт в наш перехваченный обработчик прерываний
 	JR Setup0
 
-BLITE2	CALL BLITER
-	JP V_PUT2
+BLITE2	CALL BLITER ;копируем на экран, рисуем курсор
+	JP V_PUT2 ;стираем курсор
 
 TXM2	DEFB 22,59,48,50,56,48,66,67,64,48, 10, 32,12,26,28,24, 127
 TXM3	DEFB 20,61,66,53,64,68,53,57,65, 10, 02, 127
@@ -848,7 +852,20 @@ o1m1	CALL PRINT
 	EXX
 	RET
 
-TX48x7	LD HL,(TX_AD) ;выв.назв.героя
+TX48x7	
+;выв.назв.героя
+        if EGA
+        ld a,24;29
+        call _128
+        call TX48x7doscr
+TX48x7doscr
+        call changescrpg_current
+        ld hl,0x4000+(65*40)+25
+        LD de,(TX_AD) ;выв.назв.героя
+        ld bc,0x0718
+        jp primgega_pixsz
+        else ;~EGA
+        LD HL,(TX_AD) ;выв.назв.героя
 	LD E,(HL)
 	INC HL
 	LD D,(HL)
@@ -896,6 +913,7 @@ T4S0	LD (HL),E
 	INC L
 	DJNZ T4S0
 	JP SET_SP
+        endif
 
 OUTBAR	;общий вывод панели
 	CALL STS
