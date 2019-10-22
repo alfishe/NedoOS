@@ -43,7 +43,14 @@ SETUP	 CALL bSETUP ;вх.уст
 	 JP eSETUP
 
 oSETUP	;блок настроек
-	CALL STD
+	CALL STD ;????
+        if EGA
+;выключить стрелочку 
+;стереть стрелочку
+	LD A,2
+	LD (V_FLAG),A
+	CALL V_PUT1
+        endif        
 	LD HL,setuTB
 	LD B,6
 sup1	PUSH BC
@@ -115,16 +122,23 @@ sup2	PUSH BC
 	POP HL
 	POP BC
 	DJNZ sup2
+        if EGA
+;прочитать стрелочку
+;включить стрелочку
+	CALL V_GET1
+	xor a
+	LD (V_FLAG),A
+        else
 	LD HL,#2828
 	LD (ATR+532),HL
 	LD (ATR+564),HL
 	LD HL,#3939
 	LD (ATR+468),HL
 	LD (ATR+436),HL
+        endif
 Setup0
-        ;jr $
         if EGA==0
-	CALL BLITE2 ;шэрўх ьшурхЄ
+	CALL BLITE2 ;иначе мигает
         endif
 	CALL oSETpr
 	CALL Copper
@@ -788,11 +802,13 @@ om0	LD A,(HL)
 om2	INC C
 	LD B,#68
 om1	CALL PRINT
+        if EGA==0
 	LD A,B
 	EXX
 	LD (HL),A
 	INC HL
 	EXX
+        endif
 	LD A,E
 	CP #1E
 	JR C,om0
@@ -814,12 +830,14 @@ out1mw	LD C,0
 	CALL PRINT
 	LD A,11
 	CALL PRINT
+        if EGA==0
 	EXX
 	LD (HL),#50
 	INC HL
 	LD (HL),#50
 	INC HL
 	EXX
+        endif
 o1m8	CALL o1m0
 o1m0	LD A,(HL)
 	RLCA
@@ -845,11 +863,13 @@ o1m7	AND #F
 o1m2	INC C
 	LD B,#58
 o1m1	CALL PRINT
+        if EGA==0
 	LD A,B
 	EXX
 	LD (HL),A
 	INC HL
 	EXX
+        endif
 	RET
 
 TX48x7	
@@ -916,6 +936,7 @@ T4S0	LD (HL),E
         endif
 
 OUTBAR	;общий вывод панели
+;TODO выводить это всё на двух экранах и обвязать стиранием стрелочки
 	CALL STS
 ;;	LD HL,WFONT
 ;;	LD (FONT),HL

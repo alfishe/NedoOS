@@ -22,7 +22,7 @@ if "%settedpath%"=="" call ../../_sdk/setpath.bat
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2.dat WCREAT2.ast
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2b.dat WCREAT2b.ast
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2c.dat WCREAT2c.ast
-rem "../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
+"../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
 "../../_sdk/nedores.exe" images/WMISC.bmp images/WBULLET.dat WBULLET.ast
 sjasmplus --nologo --msg=war --msg=war W1LAND.ast --raw=br/W1LAND.bin
 sjasmplus --nologo --msg=war --msg=war W2LAND.ast --raw=br/W2LAND.bin

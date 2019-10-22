@@ -209,8 +209,12 @@ F_CUTh	;DI
         if 1==1
         call swapimer
         ;im 1
+        ld e,3
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 	ld e,0
 	OS_SETSCREEN
+        ld de,RSTPAL
+        OS_SETPAL
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,d
@@ -233,6 +237,8 @@ lggP	LD BC,#7FFE
 
         if 1==1
         jp loader
+RSTPAL
+        STANDARDPAL
 
         else
 

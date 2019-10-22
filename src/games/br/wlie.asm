@@ -117,7 +117,20 @@ oINDY	;выв инд
         if 1==0
 	CALL _TST#7
         endif
-	LD HL,SCR+189
+
+        call setpgsscr40008000_current
+        call oINDYpp
+        call changescrpg_current
+        call setpgsscr40008000_current
+        call oINDYpp
+        call changescrpg_current
+        jp setpgsmain40008000
+oINDYpp
+        if EGA
+	LD HL,0x6000+(40*40)+0x1d
+        else
+	LD HL,SCR+189 ;0xbd
+        endif
 	LD BC,IND1
 	CALL oIND_
 	LD A,(IND2TP)
@@ -129,15 +142,32 @@ oINDY	;выв инд
 	LD DE,indSYM+5
 	JR Z,oiL1
 	LD DE,indSYM+10
-oiL1	LD HL,SCR+#3FE
+oiL1
+        if EGA
+	LD HL,0x6000+(59*40)+0x1e
+        else
+	LD HL,SCR+#3FE
+        endif
 	LD B,5
 oinL	LD A,(DE)
 	LD (HL),A
 	INC DE
+        if EGA
+        ld a,l
+        add a,40
+        ld l,a
+        jr nc,$+3
+        inc h
+        else
 	INC H
+        endif
 	DJNZ oinL
 	POP AF
-	LD HL,SCR+190
+        if EGA
+	LD HL,0x6000+(40*40)+0x1e
+        else
+	LD HL,SCR+190 ;0xbe
+        endif
 	JR NZ,oin0
 	LD B,16
 	LD E,%10111110
@@ -178,6 +208,13 @@ oin2	LD A,C
 	LD B,C
 	LD E,%10100010
 oin3	LD (HL),E
+        if EGA
+        ld a,l
+        add a,40
+        ld l,a
+        jr nc,$+3
+        inc h
+        else
 	INC H
 	LD A,H
 	AND 7
@@ -188,7 +225,9 @@ oin3	LD (HL),E
 	LD A,L
 	ADD A,32
 	LD L,A
-oin31	DJNZ oin3
+oin31
+        endif
+	DJNZ oin3
 	RET
 
 ;---------кнопки----------
@@ -283,16 +322,54 @@ BUT_1_nopg0
 	LD (V_FLAG),A
 	CALL isOVER ;курсор над кнопками?
 	JR NC,btt1
+        
+        if EGA
+	CALL V_PUT1
+	POP DE
+	POP HL
+        push hl
+        push de
+	CALL PUTbut
+	CALL V_GET1
+	CALL V_MRK1 ;перерисовываем курсор
+        call changescrpg_current
 	CALL V_PUT1
 	POP DE
 	POP HL
 	CALL PUTbut
 	CALL V_GET1
-	CALL V_MRK1 ;перерисовываем курсор?
+	CALL V_MRK1 ;перерисовываем курсор
+        call changescrpg_current
+        
+        else
+
+	CALL V_PUT1
+	POP DE
+	POP HL
+	CALL PUTbut
+	CALL V_GET1
+	CALL V_MRK1 ;перерисовываем курсор
+        
+        endif
+        
 	JR btt0
 btt1	POP DE
 	POP HL
+
+        if EGA
+        push de
+        push hl
 	CALL PUTbut
+        call changescrpg_current
+        pop hl
+        pop de
+	CALL PUTbut
+        call changescrpg_current
+
+        else
+	CALL PUTbut
+        endif
+        
 btt0	XOR A
 	LD (V_FLAG),A
 	POP DE
@@ -321,13 +398,6 @@ PUTbut
         jr nc,$+3
         inc h
 ;hl=scr
-        push de
-        push hl
-        call PUTbut_doscr
-        pop hl
-        pop de
-PUTbut_doscr
-        call changescrpg_current
         ld bc,0x180c
         jp primgega_pixsz
 
@@ -1178,6 +1248,9 @@ outLED	;подсветка 6-и индикаторов
 	;+3-атакуем мы
 	;+4-появился новый человек
 	;+5-наше здание горит
+       if EGA
+;TODO!!!
+       else
 	LD HL,colorL
 	EXX
 	LD HL,LED
@@ -1219,6 +1292,7 @@ oLL1	INC HL
 	EXX
 	DJNZ oLL0
 	RET
+       endif
 
 ;--[**]----супер энергия ;отключить на время - войти в режим карты
 HiENER	LD C,32

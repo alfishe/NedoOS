@@ -140,12 +140,14 @@ F_FUNC	DEFB 1	 ;функция по нажатию space
 MONEY1	DEFW #0 ;деньги на пр-во
 WOOD1	DEFW #150 ;леc на пр-во
 
+        if EGA==0
 ;/oINDY
 IND1	DEFB 127	;тек знач ind1
 IND1MX	DEFB 145	;макc знач
 IND2	DEFB 10
 IND2MX	DEFB 67
 IND2TP	DEFB 2		;тип ind2 (0-none,1-magic,2-%)
+        endif
 
 
 ;/Кнопки: внутр. перем

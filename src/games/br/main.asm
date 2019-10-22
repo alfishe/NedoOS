@@ -296,7 +296,8 @@ bbbnoprspr
         ld (cury),a
         ;jr bbb
         endif
-        
+
+        call changescrpg ;на всякий случай, для заполнения переменных
         call setpgsmain40008000 ;на всякой случай, для прерывания
       
         call setpal
@@ -469,9 +470,12 @@ pgmain8000=$+1
 
 setpgsscr40008000_current
         ld a,(setpgs_scr_scrxor)
-        jr $+3
+        ;xor a
+        jr setpgsscr40008000_go
 setpgsscr40008000
         xor a
+        ;ld a,(setpgs_scr_scrxor)
+setpgsscr40008000_go
 setpgs_scr_low=$+1
         xor 0
         ld (curpg4000),a
@@ -482,26 +486,90 @@ setpgs_scr_pgxor=$+1
         SETPG32KLOW
         ret
 
-
-
-        include "wmenu2.asm" ;было в pg7
-
 changescrpg_current
         ld a,(setpgs_scr_low)
 setpgs_scr_scrxor=$+1
         xor 0
         ld (setpgs_scr_low),a
-        ret
-        
-changescrpg
-        call changescrpg_current
         ld a,1
 curscrnum=$+1
         xor 0
         ld ($-1),a
+        ret
+        
+changescrpg
+        ;jr $
+        call changescrpg_current
+        ld (curscrnum_physical),a
 	ld e,a
 	OS_SETSCREEN
         ret
+        
+curscrnum_physical
+        db 0
+
+IND1	DEFB 127	;тек знач ind1
+IND1MX	DEFB 145	;макc знач
+IND2	DEFB 10
+IND2MX	DEFB 67
+IND2TP	DEFB 2		;тип ind2 (0-none,1-magic,2-%)
+
+;;MATHEMATICAL LIBRARY	MATH-ZX
+;MULB2	PUSH	HL	 ;HL*E--DE  (C)
+;	JR	MULENT
+;MULB	PUSH	HL	 ;L*E--DE
+;	LD	H,0
+;MULENT LD	A,E
+;	LD	E,0
+;	LD	D,E
+;	JR	MMULB2
+;MMULB1 ADD	HL,HL
+;	JR	C,ENDMUL
+;MMULB2 OR	A
+;	JR	Z,ENDMUL
+;	RRA
+;	JR	NC,MMULB1
+;	EX	DE,HL
+;	ADD	HL,DE
+;	EX	DE,HL
+;	JR	MMULB1
+;ENDMUL POP	HL
+;	RET
+;MUL	PUSH	HL ;HL*DE--DE
+;	XOR	A
+;	OR	D
+;	JR	Z,MULENT
+;	EX	DE,HL
+;	XOR	A
+;	OR	D
+;	JR	Z,MULENT
+;	SCF
+;	POP	HL
+;	RET
+DIVB	LD	D,0 ;E/L--E (MOD in D)
+DIVB2	PUSH	HL ;DE/L--E
+	PUSH	BC
+	LD	B,8
+	EX	DE,HL
+	LD	D,E
+	LD	E,0
+DIV1B	OR	A
+	RR	D
+	RR	E
+	SBC	HL,DE
+	JR	NC,MDIVB
+	ADD	HL,DE
+MDIVB	RLA
+	DJNZ	DIV1B
+	CPL
+	LD	D,L
+	LD	E,A
+	POP	BC
+	POP	HL
+	RET
+
+        include "wmenu2.asm" ;было в pg7
+        include "wlie.asm"
         
 prspr
 ;в 4000,8000 уже включен экран (setpgsscr40008000)
@@ -967,14 +1035,20 @@ getarr
         ;ret ;jr $
         ;xor a
         ;ld hl,0
+        ex de,hl
         push af
         call setpgsscr40008000_current
          ld a,(curscrnum)
          or a
-         ld de,arbuf0
+         ld hl,arbuf0
          jr z,$+5
-         ld de,arbuf1
+         ld hl,arbuf1
         pop af
+        ld (hl),e
+        inc hl
+        ld (hl),a
+        inc hl
+        ex de,hl
         push de
         call prarr_calccur
         pop hl
@@ -1018,13 +1092,19 @@ rearr
 ;de=buf
 ;a=y
         ;ret ;jr $
-        push af
-        call setpgsscr40008000_current
          ld a,(curscrnum)
          or a
-         ld de,arbuf0
+         ld hl,arbuf0
          jr z,$+5
-         ld de,arbuf1
+         ld hl,arbuf1
+        ld e,(hl)
+        inc hl
+        ld a,(hl)
+        inc hl
+        ex de,hl
+        ld h,0
+        push af
+        call setpgsscr40008000_current
         pop af
         push de
         call prarr_calccur
@@ -1196,9 +1276,9 @@ prarr_nor
         ret
 
 arbuf0
-        ds 8*ARRHGT
+        ds 2 + (8*ARRHGT)
 arbuf1
-        ds 8*ARRHGT
+        ds 2 + (8*ARRHGT)
         
 ;%rlrrrlll
 _xx=0x00ff
@@ -1559,7 +1639,7 @@ WFONT
         ds 157 ;просто так ;???
         include "wlib2x3.asm"
         endif
-        include "wlie.asm"
+        ;include "wlie.asm"
         ;include "wlib1a.asm"
         include "wsound2.asm"
         include "wlik.asm"

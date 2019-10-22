@@ -1238,8 +1238,10 @@ noROT	CALL MEM7
 	LD A,(isSWFF)
 	OR A
 	JR NZ,noRO2
+        if EGA==0
 	CALL V_GET1
 	CALL V_GET2
+        endif
 noRO2	XOR A
 	LD (V_FLAG),A
 	LD (isROT),A
@@ -1253,11 +1255,16 @@ SW_OFF	LD A,(isSWFF)
 	LD A,2
 	LD (V_FLAG),A
 	CALL MEM7
+        if EGA==0
 	CALL V_PUT1
 	CALL V_PUT2
+        endif
 	JP MEM1
 
 FRAME	;выв игр оформл
+        if EGA
+        ret
+        else
 	CALL MEM7
 	CALL STS ;выбор основного экрана (не теневого)
 	;bar-color
@@ -1319,6 +1326,7 @@ FRA_L1	PUSH AF
 	LD (ATR+632),A
 	LD (ATR+639),A
 	RET
+        endif
 
 typMAP	;определить тип карты (обычн/подземн -> LEV_T=0/1)
 	LD HL,MAP
@@ -1410,9 +1418,11 @@ MAPon	XOR A
 	LD (delMAP),A
 	CALL MP_OFF
 	CALL BLITER
+        if EGA==0
 	LD A,(COLOR)
 	XOR %01011001
 	CALL FRA_L1
+        endif
 	CALL OU_MAP
 	CALL MAPwin
 	LD (isMAP),A
@@ -1421,7 +1431,11 @@ MAPon	XOR A
 MAPoff	XOR A
 	LD (isMAP),A
 	CALL O12X12
+        if EGA
+        ret
+        else
 	JP FRA_L
+        endif
 
 MAPwin	;выв окна видимости
 	CALL STS
@@ -1658,6 +1672,13 @@ PAUSE	;пауза с выводом задания по "H"
 	OR A
 	RET NZ
 	INC (HL)
+        if EGA
+;выключить стрелочку 
+;стереть стрелочку
+	LD A,2
+	LD (V_FLAG),A
+	CALL V_PUT1
+        endif
 	LD DE,#301
 	LD BC,#1612
 	CALL MU_BOX
@@ -1719,8 +1740,14 @@ aus1	PUSH DE
 	INC HL
 	INC D
 	DJNZ aus1
-        if EGA==0
-	CALL BLITER ;шэрўх чрфрэшх ЄєЄ цх шёўхчрхЄ
+        if EGA
+;прочитать стрелочку
+;включить стрелочку
+	CALL V_GET1
+	xor a
+	LD (V_FLAG),A
+        else
+	CALL BLITER ;иначе показывает другой экран
         endif
 	CALL bWAIT
 	JP TMOM

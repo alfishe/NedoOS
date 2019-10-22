@@ -10,12 +10,14 @@ BLITER	;обновл экр с уч прерыв
         call changescrpg
        else
        endif
+       if EGA==0
 	LD A,2
 	LD (V_FLAG),A
 	CALL V_GET2
-	CALL V_MRK2 ;убирание не помогает справа, только слева мигает
+	CALL V_MRK2
 	LD A,1
 	LD (V_FLAG),A
+       endif
        if EGA==0
 	CALL DS2SC
        endif
@@ -171,6 +173,10 @@ INAR0	;Обр прерываний
         SETPG16K
         ld a,(pgmain8000)
         SETPG32KLOW
+         ld a,(curscrnum)
+         push af
+         ld a,(curscrnum_physical)
+         ld (curscrnum),a
         endif
         if 1==0 ;???
 	;анти-теневик
@@ -240,6 +246,8 @@ IR128=$+1
 	CALL MEM
          ;SETPG32KHIGH
         if EGA
+         pop af
+         ld (curscrnum),a
         pop af ;ld a,(curpg8000)
         SETPG32KLOW
         pop af ;ld a,(curpg4000)
