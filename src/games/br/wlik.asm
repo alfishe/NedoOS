@@ -560,11 +560,11 @@ YU12	;cмерч
 	JR YU1a
 YU16	;дым,низ50%
         LD A,(TIC3)
-        add a,6
+        add a,3
 	JR YU1a
 YU17	;дым,низ25%
         LD A,(TIC3)
-        add a,3
+        add a,6
 	JR YU1a
 YU18	;дым,верх
         LD A,(TIC3)

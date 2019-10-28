@@ -41,6 +41,7 @@
         dw body14
         dw body15
         dw body16
+        dw body16 ;труп чужой катапульты?
         include "WCREAT2c.ast"
         include "WBODY.ast"
         include "gfxinc2.asm"

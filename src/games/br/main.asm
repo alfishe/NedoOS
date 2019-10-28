@@ -688,12 +688,25 @@ prspr16
         ld (prsprcolumnpatch2),a
         jp prspr16column+1
 prspr24
+        cp 32
+        jr z,prspr32
         ld a,prspr24column&0xff
         ld (prsprcolumnpatch),a
         ld (prsprcolumnpatch2),a
         jp prspr24column+1
+prspr32
+        ld a,prspr32column&0xff
+        ld (prsprcolumnpatch),a
+        ld (prsprcolumnpatch2),a
+        jp prspr32column+1
         align 256
 ;отдельная процедура для спрайта полной высоты, т.к. там не надо на каждом столбце переставлять sp
+prspr32column
+        dup 8
+        pop de
+        MASKBYTE
+        DOWNBYTE
+        edup
 prspr24column
         dup 8
         pop de
@@ -707,6 +720,7 @@ prspr16column
         DOWNBYTE
         edup
 prspr8column
+        display prspr32column," HSB equal to ",$
         dup 7
         pop de
         MASKBYTE
@@ -877,9 +891,15 @@ prsprcropygo
         jp prsprN
 
 ;выравнивание на нужный младший байт адреса:
-_lowaddr=256-(24*6)
+_lowaddr=256-(sprmaxhgt*6)
         ds (_lowaddr-$)&0xff
 ;младший байт адреса равен 256-(sprvisiblehgt*6)
+PRSPR32
+        dup 8
+        MASKBYTE
+        DOWNBYTE
+        pop de
+        edup
 PRSPR24
         MASKBYTE
         DOWNBYTE
@@ -973,6 +993,7 @@ PRSPR2
         DOWNBYTE
         pop de
 PRSPR1
+        display PRSPR32," HSB equal to ",$
         MASKBYTE
         
 ;найти адрес следующего столбца на экране или выйти        
