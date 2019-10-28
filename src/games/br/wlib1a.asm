@@ -1416,7 +1416,7 @@ O12X12	CALL MEM7
 
 MAPon	XOR A
 	LD (delMAP),A
-	CALL MP_OFF
+	CALL MP_OFF ;очистка
 	CALL BLITER
         if EGA==0
 	LD A,(COLOR)
@@ -1487,6 +1487,7 @@ iW1	CP 52
 	LD A,51
 	RET
 
+        if EGA==0
 MP_OFF	CALL MP_OF1 ;очистка map в DSCR
 	LD (DSCR),HL
 	RET
@@ -1497,6 +1498,7 @@ MP_OF1	LD HL,#FFFF
 mp09	DEFS 13,#E5;PUSH HL
 	DJNZ mp09
 	JP SET_SP
+        endif
 
 MANUAL	;обработка управляющ воздейств
 	CALL BMOV

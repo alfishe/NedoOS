@@ -366,7 +366,40 @@ ntexfilenames=6
          db 30,1,"W0BUT.bin",0
 ntexfilenames=24+5
         endif
-        ;ds 0xd7
+
+        if EGA
+MP_OFF	
+        call setpgsscr40008000
+        ld ix,0x4000+24
+        call MP_OFFlayer
+        ld ix,0x8000+24
+        call MP_OFFlayer
+        ld ix,0x6000+24
+        call MP_OFFlayer
+        ld ix,0xa000+24
+        call MP_OFFlayer
+        jp setpgsmain40008000
+MP_OFFlayer   
+	LD (MP_OFFlayerSP),SP
+        LD bc,40
+        ld d,b
+        ld e,b
+	LD a,192
+MP_OFFlayer0
+	LD SP,ix
+	dup 24/2-1
+        push de
+        edup
+        ld (ix-23),d
+        ld (ix-24),e
+        add ix,bc
+        dec a
+	jr nz,MP_OFFlayer0
+MP_OFFlayerSP=$+1
+        ld sp,0
+        ret
+        endif
+
 
 primgega
         sla c

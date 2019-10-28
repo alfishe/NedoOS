@@ -1,5 +1,5 @@
 ;------------Работа с картой (c #C000)
-
+;align!!!
 MPsign	;номера спрайтов для обычн уровней
 	DEFB 60
 	DEFS 6,18
@@ -25,6 +25,7 @@ MPsign	;номера спрайтов для обычн уровней
 	DEFS 2,42 ;?
 	DEFB 84,90,96,102,108,114,120,126
 
+;полезные данные в битах 7..5, но потом прокручиваются вправо и в следующий байт (MP_R2)
 MP_IMG	DEFW #E0,#80,#80 ;00 люди
 	DEFW #E0,#80,#A0 ;06 кунги
 	DEFW #E0,#C0,#A0 ;12 пленник
@@ -114,6 +115,8 @@ MP_an	LD A,(HL)
 	XOR #60
 	LD (HL),A
 	RET
+        
+        if EGA==0
 
 MP_R1	PUSH HL
 	LD HL,MP_IMG
@@ -135,18 +138,73 @@ mp02	SRL (HL)
 	DJNZ mp02
 	POP HL
 	RET
-
+        
+        endif
 
 MP_OU1	;HL -адр экр
+;вывод столбца карты, если сдвинутое значение умещается в байт
 	LD C,64
 mp03	CALL MP_SPA ;->de адр спр
 	JR Z,mp041
+        if EGA
+        push bc
+        call setpgsscr40008000
+        pop bc
+        endif
 	LD B,3
-mp05	LD A,(DE)
+mp05
+        if EGA
+        push bc
+        push de
+        push hl
+        ld a,(de)
+        ld e,a
+        xor a
+        rl e
+        jr nc,$+4
+        or 0x47 ;L
+        rl e
+        jr nc,$+4
+        or 0xb8 ;R
+	XOR (HL)
+	LD (HL),A	
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,MP_OU1column_noxor ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+MP_OU1column_noxor       
+        rl e
+        jr nc,$+2+4
+         ld a,0x47 ;L
+	 XOR (HL)
+	 LD (HL),A
+        pop hl
+        pop de
+        pop bc
+        inc de
+        inc de
+                
+        else ;~EGA
+        
+	LD A,(DE)
 	XOR (HL)
 	LD (HL),A
 	INC DE
 	INC DE
+        endif
+        
+        if EGA
+        ld a,l
+        add a,40
+        ld l,a
+        jr nc,$+3
+        inc h
+        else
 	INC H
 	LD A,H
 	AND 7
@@ -158,26 +216,96 @@ mp05	LD A,(DE)
 	LD A,H
 	SUB 8
 	LD H,A
-mp04	DJNZ mp05
+mp04
+        endif
+	DJNZ mp05
+        if EGA
+        push bc
+        call setpgsmain40008000
+        pop bc
+        endif
 mp041	DEC C
 	JR NZ,mp03
 	RET
 
 MP_OU2	;HL -адр экр
+;вывод столбца карты
 	LD C,64
 mp43	CALL MP_SPA ;->de адр спр
 	JR Z,mp441
+        if EGA
+        push bc
+        call setpgsscr40008000
+        pop bc
+        endif
 	LD B,3
-mp45	LD A,(DE)
+mp45
+        if EGA
+        push bc
+        push de
+        push hl
+        ld a,(de)
+        add a,a
+        ld e,a
+        jr nc,$+2+4
+         ld a,0xb8 ;R
+	 XOR (HL)
+	 LD (HL),A	
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,MP_OU2column_noxor ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+MP_OU2column_noxor       
+        xor a
+        rl e
+        jr nc,$+4
+        or 0x47 ;L
+        rl e
+        jr nc,$+4
+        or 0xb8 ;R
 	XOR (HL)
 	LD (HL),A
-	INC DE
-	INC L
+        pop hl
+        pop de
+        pop bc
+        inc de
+        inc de
+        
+        else ;~EGA
+        
 	LD A,(DE)
 	XOR (HL)
 	LD (HL),A
-	DEC L
 	INC DE
+        if EGA
+        inc hl
+        else
+	INC L
+        endif
+	LD A,(DE)
+	XOR (HL)
+	LD (HL),A
+        if EGA
+        dec hl
+        else
+	DEC L
+        endif
+	INC DE
+        
+        endif
+        
+        if EGA
+        ld a,l
+        add a,40
+        ld l,a
+        jr nc,$+3
+        inc h
+        else
 	INC H
 	LD A,H
 	AND 7
@@ -189,10 +317,51 @@ mp45	LD A,(DE)
 	LD A,H
 	SUB 8
 	LD H,A
-mp44	DJNZ mp45
+mp44
+        endif
+	DJNZ mp45
+        if EGA
+        push bc
+        call setpgsmain40008000
+        pop bc
+        endif
 mp441	DEC C
 	JR NZ,mp43
 	RET
+
+        if EGA
+MP_OU32_64
+	LD (MP_sub+1),bc
+	LD B,32
+MP_OUT0
+	push bc
+	PUSH HL
+	PUSH DE
+	CALL MP_SET
+MP_sub	CALL MP_OU1
+	POP DE
+	POP HL
+        ld bc,0x4000
+        ld lx,3
+MP_OUT0_3
+        ld a,0x9f;0xa0
+        cp h
+        adc hl,bc
+        jp pe,MP_OUT0_noxor ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+MP_OUT0_noxor
+        dec lx
+        jr nz,MP_OUT0_3
+        pop bc
+        inc e
+        inc e
+	DJNZ MP_OUT0
+	RET
+        
+        else ;~EGA
 
 MP_OU8	PUSH HL
 	PUSH DE
@@ -205,9 +374,15 @@ MP_sub	CALL MP_OU1
 	POP DE
 	POP HL
 	POP BC
+        if EGA
+        inc hl
+        inc hl
+        inc hl
+        else
 	INC L
 	INC L
 	INC L
+        endif
 	LD A,E
 	ADD A,8
 	LD E,A
@@ -215,16 +390,39 @@ MP_sub	CALL MP_OU1
 	POP DE
 	POP HL
 	RET
+        
+        endif
 
-MP_OUT	CALL MPswap
-	CALL MP_OFF
+MP_OUT
+	CALL MPswap
+	CALL MP_OFF ;очистка
 	CALL MP_ANI
+        
+        if EGA
+;00 01 11 22|23 33 44 45|55 66 67 77|
+        ;jr $
+	LD bc,MP_OU1
+        ld hl,0x4000
+	LD DE,MAP
+	CALL MP_OU32_64
+	LD bc,MP_OU2
+        ld hl,0x8000
+	LD DE,MAP+1
+	CALL MP_OU32_64
+	JP MPswap
+        
+        else ;~EGA
+        
 	LD HL,DSCR
 	LD DE,MAP
 	LD B,6
 mp19	PUSH BC
 	CALL MP_OU8
+        if EGA
+        inc hl
+        else
 	INC L
+        endif
 	INC E
 	INC E
 	INC E
@@ -242,9 +440,16 @@ mp19	PUSH BC
 	JR Z,mp17
 	CP 1
 	JR NZ,mp18
-mp17	DEC L
+mp17
+        if EGA
+        dec hl
+        dec hl
+        dec hl
+        else
 	DEC L
 	DEC L
+	DEC L
+        endif
 	LD A,E
 	SUB 8
 	LD E,A
@@ -253,7 +458,11 @@ mp18	DJNZ mp19
 	LD (MP_sub+1),BC
 	CALL MP_OU8
 	CALL MP_R2
+        if EGA
+        inc hl
+        else
 	INC L
+        endif
 	INC E
 	INC E
 	INC E
@@ -261,13 +470,16 @@ mp18	DJNZ mp19
 	CALL MP_R2
 	LD HL,MP_OU1
 	LD (MP_sub+1),HL
-MP_Re	LD HL,MP_IMG+1
+;MP_Re
+	LD HL,MP_IMG+1
 	LD DE,MP_IMG
 	LD BC,MP_LEN-1
 	LDIR
 	XOR A
 	LD (DE),A
 	JP MPswap
+        
+        endif
 
 
 MP_SET	;уст.на карту (DE-адрес)
@@ -315,6 +527,13 @@ mpH2	EXX
 	RET
 mpsN	ADD HL,BC ;невидим поле
 	EXX
+        if EGA
+        ld a,l
+        add a,40*3
+        ld l,a
+        jr nc,$+3
+        inc h
+        else
 	LD A,H
 	ADD A,3
 	LD H,A
@@ -328,7 +547,9 @@ mpsN	ADD HL,BC ;невидим поле
 	LD A,H
 	SUB 8
 	LD H,A
-mps4	XOR A
+mps4
+        endif
+	XOR A
 	RET
 
-
+        display $,"<=0xc300"
