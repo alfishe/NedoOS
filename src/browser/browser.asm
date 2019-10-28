@@ -2012,7 +2012,8 @@ browser_recodefull_protocolpresent
 
 defaultfilename
         ;db "0:/hippiman.bmp",0
-        db "http://zxevo.ru/nos/",0
+        ;db "http://zxevo.ru/nos/",0
+        db "file://browser/nos.htm",0
 
 wgetfilename
         db "wget.com",0

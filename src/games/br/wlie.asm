@@ -109,9 +109,46 @@ otx0	XOR A
 	RET
 
 
-indSYM	DEFB #FF,#FF,#FF,#FF,#FF
-	DEFB #DD,#C9,#D5,#DD,#DD
-	DEFB #CD,#CB,#F7,#E9,#D9
+indSYM
+        if EGA
+;%rlrrrlll
+_10=0x47
+_01=0xb8
+_00=0x00
+_11=0xff
+indsym_nomana
+        db _00,_00,_00,_00
+        db _00,_00,_00,_00
+        db _00,_00,_00,_00
+        db _00,_00,_00,_00
+        db _00,_00,_00,_00
+indsym_mana
+        db _00,_10,_00,_10
+        db _00,_11,_01,_10
+        db _00,_10,_10,_10
+        db _00,_10,_00,_10
+        db _00,_10,_00,_10
+indsym_percent
+        db _00,_11,_00,_10
+        db _00,_11,_01,_00
+        db _00,_00,_10,_00
+        db _00,_01,_01,_10
+        db _00,_10,_01,_10
+        else
+	DEFB #FF,#FF,#FF,#FF,#FF ;no mana indication
+	;DEFB #DD,#C9,#D5,#DD,#DD
+        db 0b11011101 ;M
+        db 0b11001001
+        db 0b11010101
+        db 0b11011101
+        db 0b11011101
+	;DEFB #CD,#CB,#F7,#E9,#D9
+        db 0b11001101 ;%
+        db 0b11001011
+        db 0b11110111
+        db 0b11101001
+        db 0b11011001
+        endif
 
 oINDY	;выв инд
         if 1==0
@@ -135,6 +172,53 @@ oINDYpp
 	CALL oIND_
 	LD A,(IND2TP)
 	OR A
+        
+        if EGA
+;mana indication symbol
+	PUSH AF
+	LD DE,indsym_nomana
+	CP 1
+	JR C,oiL1
+	LD DE,indsym_mana
+	JR Z,oiL1
+	LD DE,indsym_percent
+oiL1
+	LD HL,0x4000+(59*40)+0x1e
+	LD B,5
+oinL
+        push hl
+	LD A,(DE)
+	LD (HL),A
+	INC DE
+        ld a,h
+        add a,0x40
+        ld h,a
+	LD A,(DE)
+	LD (HL),A
+	INC DE
+        ld a,h
+        add a,0x20-0x40
+        ld h,a
+	LD A,(DE)
+	LD (HL),A
+	INC DE
+        ld a,h
+        add a,0x40
+        ld h,a
+	LD A,(DE)
+	LD (HL),A
+	INC DE
+        pop hl
+        ld a,l
+        add a,40
+        ld l,a
+        jr nc,$+3
+        inc h
+	DJNZ oinL
+	POP AF
+        
+        else ;~EGA
+        
 	PUSH AF
 	LD DE,indSYM
 	CP 1
@@ -143,26 +227,17 @@ oINDYpp
 	JR Z,oiL1
 	LD DE,indSYM+10
 oiL1
-        if EGA
-	LD HL,0x6000+(59*40)+0x1e
-        else
 	LD HL,SCR+#3FE
-        endif
 	LD B,5
 oinL	LD A,(DE)
 	LD (HL),A
 	INC DE
-        if EGA
-        ld a,l
-        add a,40
-        ld l,a
-        jr nc,$+3
-        inc h
-        else
 	INC H
-        endif
 	DJNZ oinL
 	POP AF
+        
+        endif ;~EGA
+        
         if EGA
 	LD HL,0x6000+(40*40)+0x1e
         else
