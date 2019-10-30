@@ -16,6 +16,74 @@
         pop hl
         ld e,l
         OS_DELPAGE
+		
+		if atm==1
+;заставка
+		ld hl,spr_cat
+logo_loop
+		push hl
+        ld hl,spr_str
+        call prtext
+		pop hl
+		ld b,16
+logo_loop1
+		ld a,(hl)
+		inc hl
+		cp 0xff
+		ld c,a
+		jr z,logo_end
+logo_pix_loop
+		ld e,0xdb
+		sla c
+		jr c,logo_no_pix
+		ld e,' '
+logo_no_pix
+		push hl
+		push bc
+		push de
+		OS_PRCHAR
+		pop de
+		OS_PRCHAR
+		pop bc
+		pop hl
+		dec b
+		ld a,b
+		cp 8
+		jr z,logo_loop1
+		or a
+		jr nz,logo_pix_loop
+		jr logo_loop
+		
+spr_cat
+	defb %00100000, %00000100
+	defb %00110000, %00001100
+	defb %00111011, %11011100
+	defb %00111111, %11111100
+	defb %01100011, %11000110
+	defb %01111111, %11111110
+	defb %00111111, %11111100
+	defb %00001111, %11110000
+	defb %00000011, %11000000
+	defb %01110000, %00001110
+	defb %10001001, %10010000
+	defb %10001001, %10001110
+	defb %10001011, %11000001
+	defb %01110011, %11001110
+	defb %00000011, %11000000
+	defb %00000111, %11100000
+	defb %00001111, %11110000
+	defb %00001111, %11110000
+	defb %00000111, %11100000
+	defb %00011111, %11111000
+	defb %00111111, %11111100
+	defb 0xff
+spr_str
+        db "\r\n                        ",0
+logo_end	
+		ld de,0
+		OS_SETXY
+		endif
+		
         ld e,'A'
 mountdrives0
         push de

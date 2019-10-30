@@ -115,10 +115,13 @@ begin
         out (0xfe),a
 	
 	 ifdef KOE
-	 display "KOE!!!"
-	 ld a,0x10 ;noturbo
-	 ld bc,0xeff7
-	 out (c),a ;for KOE
+		display "KOE!!!"
+		ld a,0x10 ;noturbo
+		ld bc,0xeff7
+		out (c),a ;for KOE
+		ld a,0x10
+		ld bc,0x7ffd
+		out (c),a
 	 endif
 		
         LD (IY+1),0xCC
@@ -151,17 +154,24 @@ begin
 
 ;;;;;;;;;;;;;;;;;;; set gfx mode ;;;;;;;;;;;;;;;;;
         halt
-        LD A,0xa8;%10101000 ;320x200 mode
         ;LD A,0xaa;%10101010 ;640x200 mode
         ;LD A,0xae;%10101110 ;textmode
 		if atm==1
+			ld bc,0xeff7
+			ld a,0x80
+			out (c),a
+			ld a,0x10
+			ld bc,0x7ffd
+			out (c),a
 			ld bc,0x01bf
 			out (c),b
+			LD A,0xa8;%10101000 ;320x200 mode
 			ld bc,0xbd77	;shadow ports and palette remain on
 			out (c),a
 			xor a
 			out (0xbf),a
 		else
+			LD A,0xa8;%10101000 ;320x200 mode
 			CALL INIT_OUTSHADON
         endif
         call INIT_blackpal
