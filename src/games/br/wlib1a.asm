@@ -1562,6 +1562,17 @@ maz0	;Z-вкл/выкл карту
 	JR NZ,mau2
 	OR A
 	JR NZ,mau1
+         if EGA
+        ld e,0
+        OS_SETSCREEN
+        ld e,0
+        OS_CLS
+        ld e,1
+        OS_SETSCREEN
+        ld e,0
+        OS_CLS
+         call putBAR
+         endif
 mau0	LD A,(isMAP)
 mau0ht	OR A
 	PUSH AF
@@ -1719,7 +1730,7 @@ PAUSE	;пауза с выводом задания по "H"
 ;стереть стрелочку
 	LD A,2
 	LD (V_FLAG),A
-	CALL V_PUT2 ;на рисуемом экране
+	CALL V_PUT1 ;на видимом экране
         endif
 	LD DE,#301
 	LD BC,#1612
@@ -1785,7 +1796,8 @@ aus1	PUSH DE
         if EGA
 ;прочитать стрелочку
 ;включить стрелочку
-	CALL V_GET_MRK2 ;на рисуемом экране
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране
 	xor a
 	LD (V_FLAG),A
         else

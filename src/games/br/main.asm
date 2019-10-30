@@ -398,16 +398,32 @@ ntexfilenames=24+5
 
         if EGA
 MP_OFF	
+        if 1==0
+        ld e,0
+        OS_SETSCREEN
+        ld e,0
+        OS_CLS
+        ld e,1
+        OS_SETSCREEN
+        ld e,0
+        OS_CLS
+        ret
+        else
+_mpoffwid=24
         call setpgsscr40008000
-        ld ix,0x4000+24
+        
+        ld ix,0x4000+_mpoffwid
         call MP_OFFlayer
-        ld ix,0x8000+24
+        ld ix,0x8000+_mpoffwid
         call MP_OFFlayer
-        ld ix,0x6000+24
+        ld ix,0x6000+_mpoffwid
         call MP_OFFlayer
-        ld ix,0xa000+24
+        ld ix,0xa000+_mpoffwid
         call MP_OFFlayer
         jp setpgsmain40008000
+        endif
+
+        if 1==1
 MP_OFFlayer   
 	LD (MP_OFFlayerSP),SP
         LD bc,40
@@ -416,11 +432,11 @@ MP_OFFlayer
 	LD a,192
 MP_OFFlayer0
 	LD SP,ix
-	dup 24/2-1
+	dup _mpoffwid/2-1
         push de
         edup
-        ld (ix-23),d
-        ld (ix-24),e
+        ld (ix-(_mpoffwid-1)),d
+        ld (ix-_mpoffwid),e
         add ix,bc
         dec a
 	jr nz,MP_OFFlayer0
@@ -428,12 +444,12 @@ MP_OFFlayerSP=$+1
         ld sp,0
         ret
         endif
+        
+        endif
 
 
         if EGA
 putBAR
-        ;jr $
-        ;ret
         ld a,24
         call _128
 	LD A,2
