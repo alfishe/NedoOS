@@ -1,11 +1,14 @@
 ;Kурсор на прерываниях	******
 
 BLITER	;обновл экр с уч прерыв
+        ;jr $
+       if EGA==0
 	CALL MEM7
 	XOR A
 	LD (P_FLAG),A
 	DEC A
 	LD (V_LINE),A
+       endif
        if EGA
         call changescrpg
        else
@@ -21,9 +24,11 @@ BLITER	;обновл экр с уч прерыв
        if EGA==0
 	CALL DS2SC
        endif
+       if EGA==0
 	CALL V_copy ;м.быть уч P_FLAG=1 :)
 	XOR A
 	LD (V_FLAG),A
+       endif
 	RET
 
         if EGA==0
@@ -139,7 +144,7 @@ vpt2	CALL V_GET1
 vptR	EXX
 	EI
 	RET
-        endif
+        endif ;~EGA
 
         if 1==0
 ON256	LD	A,%10000
@@ -173,10 +178,10 @@ INAR0	;Обр прерываний
         SETPG16K
         ld a,(pgmain8000)
         SETPG32KLOW
-         ld a,(curscrnum)
-         push af
-         ld a,(curscrnum_physical)
-         ld (curscrnum),a
+         ;ld a,(curscrnum)
+         ;push af
+         ;ld a,(curscrnum_physical)
+         ;ld (curscrnum),a
         endif
         if 1==0 ;???
 	;анти-теневик
@@ -246,11 +251,13 @@ IR128=$+1
 	CALL MEM
          ;SETPG32KHIGH
         if EGA
-         pop af
-         ld (curscrnum),a
+         ;pop af
+         ;ld (curscrnum),a
         pop af ;ld a,(curpg8000)
+        ld (curpg8000),a
         SETPG32KLOW
         pop af ;ld a,(curpg4000)
+        ld (curpg4000),a
         SETPG16K
         endif
 	POP IY
@@ -295,35 +302,62 @@ G_FIX1	DEFB %11111100,%00000000 ;курсор при зафикс. цели
 	DEFB %00001110,%00000000
         endif
 
+        if EGA==0
 V_copy	;gbu2->gbu1
 	LD BC,16
 	LD HL,GBU2
 	LD DE,GBU1
 	LDIR
 	RET
+        endif
 
+V_PUT1onint
+        if EGA
+         ld a,(curscrnum)
+         or a
+         ld hl,arbuf0
+         jr z,$+5
+         ld hl,arbuf1
+        jp rearr
+        endif
 V_PUT1	;  gbu1->[SCR]
-        if EGA==0
+        if EGA
+;на видимом экране
+        call setpgsscr40008000_current
+         ld a,(curscrnum)
+         or a
+         ld hl,arbuf0
+         jr z,$+5
+         ld hl,arbuf1
+        else
 	LD HL,(GBAD1)
          ld a,h
          or a
          ret z
 	LD DE,GBU1
-	JR v1pEN
         endif
+	JR v1pEN
 
 V_PUT2	;  gbu2->[DSCR]
-        if EGA==0
+        if EGA
+;на рисуемом экране
+        call setpgsscr40008000;_current
+         ld a,(curscrnum)
+         or a
+         ld hl,arbuf0
+         jr nz,$+5
+         ld hl,arbuf1
+        else
 	LD HL,(GBAD2)
 	LD DE,GBU2
         endif
 v1pEN
         if EGA
-	LD hl,(G_MX) 
-        ;jr $
-        ld a,h
-        ld h,0
-        jp rearr
+	;LD hl,(G_MX) 
+        ;ld a,h
+        ;ld h,0
+        call rearr
+        jp setpgsmain40008000
         
         else
 	CALL v1p0
@@ -362,13 +396,34 @@ v1p6	DJNZ v1p5
 	RET
         endif
 
-V_GET1	; HL->gbad1  [SCR]->gbu1
-;выв гр курс
+V_GET1onint
         if EGA
+         ld a,(curscrnum)
+         or a
+         ld de,arbuf0
+         jr z,$+5
+         ld de,arbuf1
 	LD hl,(G_MX) 
         ld a,h
         ld h,0
         jp getarr
+        endif
+V_GET1	; HL->gbad1  [SCR]->gbu1
+;выв гр курс
+        if EGA
+;на видимом экране
+        call setpgsscr40008000_current
+         ld a,(curscrnum)
+         or a
+         ld de,arbuf0
+         jr z,$+5
+         ld de,arbuf1
+V_GETgo
+	LD hl,(G_MX) 
+        ld a,h
+        ld h,0
+        call getarr
+        jp setpgsmain40008000
         
         else
 	LD DE,(G_MX) 
@@ -402,7 +457,14 @@ v1g2	DJNZ v1g1
 V_GET2	; HL->gbad2  [DSCR]->gbu2
 ;выв гр курс
         if EGA
-        jp V_GET1
+;на рисуемом экране
+        call setpgsscr40008000;_current
+         ld a,(curscrnum)
+         or a
+         ld de,arbuf0
+         jr nz,$+5
+         ld de,arbuf1
+        jp V_GETgo
         else
 	LD DE,(G_MX)
 	CALL STD
@@ -443,14 +505,50 @@ v2g2	DJNZ v2g1
 	RET
         endif
 
-V_MRK2	;mrk->SCR
-        if EGA==0
-	LD BC,(GBAD2)
-	JR vmr1
+        if EGA
+V_GET_MRK2
+;гарантирует, что считаем фон и рисуем в одном и том же месте
+;на рисуемом экране
+        call setpgsscr40008000;_current
+	LD HL,(G_MX)
+        push hl
+         ld a,(curscrnum)
+         or a
+         ld de,arbuf0
+         jr nz,$+5
+         ld de,arbuf1
+        ld a,h
+        ld h,0
+        call getarr
+        pop hl
+        ld a,h
+        ld h,0
+        call prarr
+        jp setpgsmain40008000
+        
         endif
+        
+V_MRK2	;mrk->SCR
+        if EGA
+;на рисуемом экране
+        call setpgsscr40008000;_current
+        else
+	LD BC,(GBAD2)
+        endif
+	JR vmr1
 
+V_MRK1onint
+        if EGA
+	LD hl,(G_MX) 
+        ld a,h
+        ld h,0
+        jp prarr
+        endif
 V_MRK1	;mrk->SCR
-        if EGA==0
+        if EGA
+;на видимом экране
+        call setpgsscr40008000_current
+        else
 	LD BC,(GBAD1)
          ld a,b
          or a
@@ -461,7 +559,8 @@ vmr1	LD HL,(G_MX)
         if EGA
         ld a,h
         ld h,0
-        jp prarr ;TODO restore arrow later (at least in panel)
+        call prarr
+        jp setpgsmain40008000
         
         else
 

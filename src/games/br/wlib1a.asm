@@ -153,7 +153,6 @@ P12X12	LD HL,(X0)
         if EGA
         ;call setpgsscr40008000
 	LD DE,scrbase
-        ;jr $
         else
 	LD DE,DSCR
         endif
@@ -210,7 +209,6 @@ N12X12	;покрытие невидимых полей
 	CALL GMAP
         if EGA
         ;call setpgsscr40008000
-        ;jr $
 	LD DE,scrbase
         else
 	LD DE,DSCR
@@ -433,6 +431,7 @@ GMAP2	; вхHL-XY, выхHL-pos in map2
 
 shadwS	;выбор адр невидим поля
 	LD A,(shadwT)
+;тут тоже точка входа (+3)
 	PUSH AF
 	CALL MEM1
 	POP AF
@@ -456,7 +455,6 @@ GSADR	;вхHL-pos in map;  выхHL-adr in LAND ;NC/C-видим,не видим
 	SLA A
 	RET C
 ;тайл=128 байт, всего 384 тайла (3 страницы)
-         ;jr $
 	CP 226
 	JR NC,GSA2
 GSA0
@@ -1178,10 +1176,6 @@ ScR0	EX AF,AF
 
 ROTsub	DEFW ScLF,ScRT,000,ScUP,SdUL,SdUR,000,ScDW,SdDL,SdDR
 
-;        if EGA
-;ROTsub	DEFW O12X12,O12X12,000,O12X12,O12X12,O12X12,000,O12X12,O12X12,O12X12
-;        endif
-
 ROTATE	LD A,(BENTER)
 	OR A
 	JR Z,rotCOR
@@ -1235,36 +1229,44 @@ noRO1	LD A,(isROT)
 	RET Z
 noROT	CALL MEM7
 	CALL B_OFF
+        if EGA==0
 	LD A,(isSWFF)
 	OR A
 	JR NZ,noRO2
-        if EGA==0
 	CALL V_GET1
-	CALL V_GET2
+	CALL V_GET2 ;get gfx under cursor before draw ;на рисуемом экране
+        ;if EGA
+	;CALL V_MRK2 ;на рисуемом экране
+	;;CALL BLITER ;иначе показывает другой экран
+        ;endif
+noRO2
         endif
-noRO2	XOR A
-	LD (V_FLAG),A
+	XOR A
+	LD (V_FLAG),A ;cursor on
 	LD (isROT),A
 	RET
 
-SW_OFF	LD A,(isSWFF)
+SW_OFF
+;before draw
+	LD A,(isSWFF)
 	OR A
 	RET Z
 	XOR A
 	LD (isSWFF),A
 	LD A,2
-	LD (V_FLAG),A
+	LD (V_FLAG),A ;cursor off
 	CALL MEM7
         if EGA==0
 	CALL V_PUT1
-	CALL V_PUT2
         endif
+	CALL V_PUT2 ;restore gfx under cursor ;на рисуемом экране
 	JP MEM1
 
 FRAME	;выв игр оформл
         if EGA
         ret
         else
+        ;jr $
 	CALL MEM7
 	CALL STS ;выбор основного экрана (не теневого)
 	;bar-color
@@ -1370,7 +1372,22 @@ OU_MAP	;режим-карта
 	RET
 oum1	LD (HL),oumDEL ;велич, задержки
 	CALL MEM6
+        if EGA
+;заблокировать стрелочку только на рисуемом экране, т.е. вообще не блокировать
+;выключить стрелочку 
+;стереть стрелочку
+	;LD A,2
+	;LD (V_FLAG),A
+	CALL V_PUT2 ;на рисуемом экране
+        endif
 	CALL MP_OUT ;6
+        if EGA
+;прочитать стрелочку
+;включить стрелочку
+	CALL V_GET_MRK2 ;на рисуемом экране
+	;xor a
+	;LD (V_FLAG),A
+        endif
 	CALL BLITER ;7
 	LD HL,G_MAP1
 	LD (G_IMG),HL
@@ -1387,7 +1404,8 @@ OU_SCR	;режим-экран
 	 CP ouFAST
 	 RET C
 	 LD (HL),0
-OU_S1	CALL O12X12
+OU_S1
+	CALL O12X12
 	LD A,(begBOX)
 	OR A
 	RET NZ
@@ -1397,8 +1415,19 @@ OU_RT	CALL ROTATE
 	JR NZ,OU_RT
 	RET Z
 
-O12X12	CALL MEM7
-	CALL M_PLAT ;7
+O12X12
+        if EGA
+;заблокировать стрелочку только на рисуемом экране, т.е. вообще не блокировать
+;выключить стрелочку 
+;стереть стрелочку
+         ;ld a,(curscrnum)
+         ;push af
+	 ;LD A,2
+	 ;LD (V_FLAG),A ;не помогает
+	CALL V_PUT2 ;на рисуемом экране
+        endif
+	CALL MEM7
+	CALL M_PLAT ;7 ;показать площадку под стр-во
 	CALL MEM1
 	CALL P12X12 ;1
 	CALL S12X12 ;m
@@ -1406,8 +1435,19 @@ O12X12	CALL MEM7
 	CALL MEM4
 	CALL outBOX ;4
 	CALL MEM0
-	CALL flpSEL ;0
-	CALL HiENER ;0[**]
+	CALL flpSEL ;0 ;flip пометки селект
+	CALL HiENER ;0[**] ;супер энергия
+        if EGA
+;прочитать стрелочку
+;включить стрелочку
+	CALL V_GET_MRK2 ;на рисуемом экране
+	 ;xor a
+	 ;LD (V_FLAG),A
+         ;ld a,(curscrnum)
+         ;pop bc
+         ;cp b
+         ;jr nz,$ ;не бывает
+        endif
 	CALL BLITER ;7
 	LD HL,G_IMG1
 	LD (G_IMG),HL
@@ -1679,7 +1719,7 @@ PAUSE	;пауза с выводом задания по "H"
 ;стереть стрелочку
 	LD A,2
 	LD (V_FLAG),A
-	CALL V_PUT1
+	CALL V_PUT2 ;на рисуемом экране
         endif
 	LD DE,#301
 	LD BC,#1612
@@ -1745,7 +1785,7 @@ aus1	PUSH DE
         if EGA
 ;прочитать стрелочку
 ;включить стрелочку
-	CALL V_GET1
+	CALL V_GET_MRK2 ;на рисуемом экране
 	xor a
 	LD (V_FLAG),A
         else
@@ -2187,20 +2227,11 @@ bWAIT	CALL CONTR
 	AND %10000
 	JR Z,bWAIT
 	RET NZ
-
-putBAR	;выв панели
-	CALL OFFS
         if EGA
-        ld a,24;29
-        call _128
-        call putBARdoscr
-putBARdoscr
-        call changescrpg_current
-	LD DE,0xc000;DSCR
-	LD HL,0x4000+0x0018
-	LD BC,#1808
-	JP PUTSYM
+        jp putBAR
         else
+putBAR	;выв панели
+	CALL OFFS ;очистка экрана
 	LD DE,DSCR
 	LD HL,#0018
 	LD BC,#1808

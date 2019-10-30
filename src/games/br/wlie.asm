@@ -92,8 +92,12 @@ outTX	LD HL,pTXdel
 	RET NZ
 	LD HL,(pTX_AD)
 	LD (TX_AD),HL
-otx1	LD BC,#207
-	LD HL,#819
+otx1
+        if EGA
+	jp TX48x7
+        else
+	LD BC,#207
+	LD HL,#819 ;для isOVER
 	LD A,2
 	LD (V_FLAG),A
 	CALL isOVER
@@ -107,6 +111,7 @@ otx2	CALL TX48x7
 otx0	XOR A
 	LD (V_FLAG),A
 	RET
+        endif
 
 
 indSYM
@@ -154,7 +159,10 @@ oINDY	;выв инд
         if 1==0
 	CALL _TST#7
         endif
+        
+        if 1==0
 
+        if EGA
         call setpgsscr40008000_current
         call oINDYpp
         call changescrpg_current
@@ -163,6 +171,30 @@ oINDY	;выв инд
         call changescrpg_current
         jp setpgsmain40008000
 oINDYpp
+        endif
+        
+        else
+        
+        if EGA
+	LD A,2
+	LD (V_FLAG),A ;cursor off
+	CALL V_PUT1 ;visible screen
+        call setpgsscr40008000_current
+        call oINDYpp
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+	xor a
+	LD (V_FLAG),A ;cursor on
+	CALL V_PUT2
+        call setpgsscr40008000
+        call oINDYpp
+        call setpgsmain40008000
+	jp V_GET_MRK2
+oINDYpp
+        endif
+
+        endif
+        
         if EGA
 	LD HL,0x6000+(40*40)+0x1d
         else
@@ -389,6 +421,8 @@ BUT_1_nopg0
         
         endif
         
+        if 1==0
+        
 	POP HL
 	PUSH HL
 	PUSH DE
@@ -399,60 +433,134 @@ BUT_1_nopg0
 	JR NC,btt1
         
         if EGA
-	CALL V_PUT1
-	POP DE
-	POP HL
-        push hl
-        push de
-	CALL PUTbut
-	CALL V_GET1
-	CALL V_MRK1 ;перерисовываем курсор
-        call changescrpg_current
-	CALL V_PUT1
-	POP DE
-	POP HL
-	CALL PUTbut
-	CALL V_GET1
-	CALL V_MRK1 ;перерисовываем курсор
-        call changescrpg_current
-        
-        else
-
-	CALL V_PUT1
-	POP DE
-	POP HL
-	CALL PUTbut
-	CALL V_GET1
-	CALL V_MRK1 ;перерисовываем курсор
-        
-        endif
-        
-	JR btt0
-btt1	POP DE
-	POP HL
-
-        if EGA
+	LD A,2
+	LD (V_FLAG),A ;выключить стрелочку
+	CALL V_PUT1 ;на видимом экране
+        pop de
+        pop hl
         push de
         push hl
-	CALL PUTbut
-        call changescrpg_current
+        call setpgsscr40008000_current
+	CALL PUTbut ;в конце делает setpgsmain40008000
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+	xor a
+	LD (V_FLAG),A ;включить стрелочку
         pop hl
         pop de
-	CALL PUTbut
-        call changescrpg_current
+        call setpgsscr40008000 ;на рисуемом экране
+	CALL PUTbut ;в конце делает setpgsmain40008000
+        
+        else ;~EGA
 
-        else
+	CALL V_PUT1
+	POP DE
+	POP HL
 	CALL PUTbut
-        endif
+	CALL V_GET1
+	CALL V_MRK1 ;перерисовываем курсор
+        
+        endif ;~EGA
+        
+	JR btt0
+btt1
+;стрелочка не на панели (а вдруг она была на панели и нельзя будет восстановить?)
+        if EGA
+	LD A,2
+	LD (V_FLAG),A ;выключить стрелочку
+	CALL V_PUT1 ;на видимом экране
+        pop de
+        pop hl
+        push de
+        push hl
+        call setpgsscr40008000_current
+	CALL PUTbut
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+	xor a
+	LD (V_FLAG),A ;включить стрелочку
+        pop hl
+        pop de
+        call setpgsscr40008000 ;на рисуемом экране
+	CALL PUTbut
+        else ;~EGA
+	POP DE
+	POP HL
+	CALL PUTbut
+        endif ;~EGA
         
 btt0	XOR A
 	LD (V_FLAG),A
 	POP DE
 	RET
 
+        else
+        
+	POP HL
+
+        if EGA
+	PUSH HL
+	PUSH DE
+
+	 ;LD BC,#404
+	 ;LD A,2
+	 ;LD (V_FLAG),A
+	 ;CALL isOVER ;курсор над кнопками?
+	 ;JR C,$ ;над кнопками
+
+	LD A,2
+	LD (V_FLAG),A ;выключить стрелочку
+	CALL V_PUT1 ;на видимом экране
+	POP DE
+	POP HL
+        push de
+        push hl
+        call setpgsscr40008000_current
+	CALL PUTbut ;в конце делает setpgsmain40008000
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+	xor a
+	LD (V_FLAG),A ;включить стрелочку
+	CALL V_PUT2 ;на рисуемом экране
+        pop hl
+        pop de
+        call setpgsscr40008000 ;на рисуемом экране
+	CALL PUTbut ;в конце делает setpgsmain40008000
+	CALL V_GET_MRK2 ;на рисуемом экране
+        
+        else ;~EGA
+
+	PUSH HL
+	PUSH DE
+	LD BC,#404
+	LD A,2
+	LD (V_FLAG),A
+	CALL isOVER ;курсор над кнопками?
+	JR NC,btt1        
+	CALL V_PUT1
+	POP DE
+	POP HL
+	CALL PUTbut
+	CALL V_GET1
+	CALL V_MRK1 ;перерисовываем курсор        
+	JR btt0
+btt1
+;стрелочка не на панели (а вдруг она была на панели на другом экране и нельзя будет восстановить?)
+	POP DE
+	POP HL
+	CALL PUTbut
+btt0	XOR A
+	LD (V_FLAG),A
+       
+        endif ;~EGA
+
+	POP DE
+	RET
+        
+        endif
+
 PUTbut
         if EGA
-        ;jr $
 ;hl=yx (chrs)
         ld a,l
         ld l,h
@@ -474,7 +582,7 @@ PUTbut
         inc h
 ;hl=scr
         ld bc,0x180c
-        jp primgega_pixsz
+        jp primgega_pixsz ;в конце делает setpgsmain40008000
 
         else ;~EGA
         

@@ -138,34 +138,46 @@ br_path
 		defb "br",0
 begingo
         ld sp,STACK
-     
-        if EGA
-        ld e,0
-        else
+
         ld e,3
-        endif
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+	ld e,0
+	OS_SETSCREEN
         ld e,0 ;color byte
         OS_CLS
 	ld e,1
 	OS_SETSCREEN
         ld e,0 ;color byte
         OS_CLS
+
+        ld b,25
+waitcls0
+        push bc
+        YIELD
+        pop bc
+        djnz waitcls0 ;чтобы nv не затёр pg7
+        
 		ld de,br_path
 		OS_CHDIR
+       if EGA
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         LD (pgmain4000),A
         ld a,h
         LD (pgmain8000),A
+       endif
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,l
+       if EGA
         ld (setpgs_scr_low),a
+       endif
 	xor e
+       if EGA
         ld (setpgs_scr_scrxor),a
+       endif
         ld a,h
          ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
        if EGA
@@ -173,14 +185,18 @@ begingo
        else 
          ld (getttexpgs_basepg7),a
        endif
+       if EGA
         xor l
         ld (setpgs_scr_pgxor),a
+       endif
         
 ;не будем брать физические страницы, кроме 7, т.к. pg4 используется для запарывания осью
 
+        if EGA
         OS_NEWPAGE
         ld a,e
         ld (pgfake),a
+        endif
 
         if 1==1
         
@@ -248,8 +264,22 @@ gettexpgs_noskipdata2
 
         endif
         
+        if EGA
+;показываем флажки
+        call MEM7
+        call setpgsscr40008000 ;scr1
+        ld hl,0xc000
+        ld de,0x8000
+        ld bc,0x1b00
+        ldir
+        call setpgsmain40008000
+        endif
+        
+        
+        if EGA
         ld hl,prsprqwid
         ld (0x0101),hl
+        endif
         
         if 1==0
 bbb
@@ -297,11 +327,11 @@ bbbnoprspr
         ;jr bbb
         endif
 
+        if EGA
         call changescrpg ;на всякий случай, для заполнения переменных
         call setpgsmain40008000 ;на всякой случай, для прерывания
+        endif
       
-        call setpal
-        
         call swapimer
         jp JP_ST;wMAIN;GO
         ;call GO
@@ -322,8 +352,8 @@ SUMMERPAL
 ;high B, high b, low B, low b
            ;ok      ;?      ;?     ;?     ;?    ;ok    ;ok   ;ok
         dw 0xffff,0xbdbd,0x6f6f,0x2d2d,0xdede,0x4c4c,0x4d4d,0xecec
-           ;?       ;ok     ;?     ;?     ;?    ;?     ;?    ;ok
-        dw 0xffff,0x2d2d,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+           ;ok?     ;ok     ;?     ;?     ;?    ;?     ;?    ;ok
+        dw 0xfdfd,0x2d2d,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
 RSTPAL
         STANDARDPAL
 
@@ -354,11 +384,10 @@ ntexfilenames=6
         db 20,"WCREAT1c.bin",0
         db 21,"WCREAT2.bin",0
         db 22,"WCREAT2b.bin",0
-        db 23,"WCREAT2c.bin",0
-        ;db 24,"WBODY.bin",0
-         db 24,"WBAR.bin",0
+        db 23,"WCREAT2c.bin",0 ;там же трупы
+         db 24,"WBAR.bin",0 ;там же надписи
         db 25,"WBULLET.bin",0
-;26..28=land ;фы  яЁртшы№эюую яюърчр фхью эєцхэ Їюэ! чруЁєчўшъ т фхью эх тvчvтрхЄё !
+;26..28=land
         db 26,"W1LAND.bin",0
         db 27,2,"W1LAND.bin",0
         db 28,4,"W1LAND.bin",0
@@ -401,6 +430,36 @@ MP_OFFlayerSP=$+1
         endif
 
 
+        if EGA
+putBAR
+        ;jr $
+        ;ret
+        ld a,24
+        call _128
+	LD A,2
+	LD (V_FLAG),A ;cursor off
+	CALL V_PUT1 ;visible screen
+        call setpgsscr40008000_current
+        call putBARdoscr
+	CALL V_GET1 ;visible screen
+	CALL V_MRK1 ;visible screen
+	xor a
+	LD (V_FLAG),A ;cursor on
+	CALL V_PUT2
+        call setpgsscr40008000
+        call putBARdoscr
+	CALL V_GET2
+	jp V_MRK2
+putBARdoscr
+        ;call changescrpg_current
+	LD DE,0xc000;DSCR
+	LD HL,0x4000+0x0018
+	LD BC,#1808
+	jr primgega
+
+PUTSYM
+;HL - adr in scr; DE-adr spr; BC-size(yx)
+        call setpgsscr40008000_current
 primgega
         sla c
         sla c
@@ -413,10 +472,6 @@ primgega_pixsz
 ;b=hgt,c=wid
 ;de=gfx
 ;hl=scr
-        ;jr $
-        push bc
-        call setpgsscr40008000_current
-        pop bc
 primgega0
         push bc
         ld hx,b
@@ -444,6 +499,7 @@ primgegacolumn0q
         dec c
         jr nz,primgega0
         jp setpgsmain40008000
+        endif
         
         macro MASKBYTE
         ld a,(hl)
@@ -455,6 +511,7 @@ primgegacolumn0q
         add hl,bc
         endm
 
+        if EGA
 prsprega
         ld a,(Xh)
         add a,a
@@ -533,19 +590,22 @@ curscrnum=$+1
 changescrpg
         ;jr $
         call changescrpg_current
-        ld (curscrnum_physical),a
+        ;ld (curscrnum_physical),a
 	ld e,a
 	OS_SETSCREEN
         ret
         
-curscrnum_physical
-        db 0
+;curscrnum_physical
+;        db 0
+        endif
 
+        if EGA
 IND1	DEFB 127	;тек знач ind1
 IND1MX	DEFB 145	;макc знач
 IND2	DEFB 10
 IND2MX	DEFB 67
 IND2TP	DEFB 2		;тип ind2 (0-none,1-magic,2-%)
+        endif
 
 ;;MATHEMATICAL LIBRARY	MATH-ZX
 ;MULB2	PUSH	HL	 ;HL*E--DE  (C)
@@ -604,6 +664,7 @@ MDIVB	RLA
         include "wmenu2.asm" ;было в pg7
         include "wlie.asm"
         
+        if EGA
 prspr
 ;в 4000,8000 уже включен экран (setpgsscr40008000)
 ;найти адрес, ширину, высоту спрайта по ID, phase + включить страницу в 0xc000
@@ -1075,7 +1136,8 @@ pgfake=$+1
         ;ld bc,40
         ;ld lx,b;0 ;второй раз будет действительно выход
         jp prsprNcolumnqq
-
+        endif
+        
         if EGA
 G_MX	DEFB  010
 G_MY	DEFB  010
@@ -1084,20 +1146,10 @@ ARRHGT=8
 
 getarr
 ;hl=x
-;de=buf
 ;a=y
-        ;ret ;jr $
-        ;xor a
-        ;ld hl,0
+;de=buf
+         ;di
         ex de,hl
-        push af
-        call setpgsscr40008000_current
-         ld a,(curscrnum)
-         or a
-         ld hl,arbuf0
-         jr z,$+5
-         ld hl,arbuf1
-        pop af
         ld (hl),e
         inc hl
         ld (hl),a
@@ -1139,27 +1191,19 @@ getarrcolumnqq
         ex de,hl
         dec lx
         jr nz,getarrcolumn0
-        jp setpgsmain40008000
+         ;ei
+        ret ;jp setpgsmain40008000
 
 rearr
-;hl=x
-;de=buf
-;a=y
-        ;ret ;jr $
-         ld a,(curscrnum)
-         or a
-         ld hl,arbuf0
-         jr z,$+5
-         ld hl,arbuf1
+;hl=buf
         ld e,(hl)
         inc hl
         ld a,(hl)
         inc hl
         ex de,hl
         ld h,0
-        push af
-        call setpgsscr40008000_current
-        pop af
+;hl=x
+;a=y
         push de
         call prarr_calccur
         pop hl
@@ -1196,16 +1240,13 @@ rearrcolumnqq
         ex de,hl
         dec lx
         jr nz,rearrcolumn0
-        jp setpgsmain40008000
+        ret ;jp setpgsmain40008000
 
 
 prarr
 ;hl=x
 ;a=y
-        push af
-        call setpgsscr40008000_current
-        ;jr $
-        pop af
+         ;di
         call prarr_calccur
 prarrcolumn0
         ld bc,40
@@ -1249,7 +1290,8 @@ prarrcolumnqq
         ex de,hl
         dec lx
         jp nz,prarrcolumn0
-        jp setpgsmain40008000
+         ;ei
+        ret ;jp setpgsmain40008000
 
 prarr_calccur
 ;hl=x
@@ -2147,3 +2189,6 @@ end1
 	savebin "br/br7.dat",begin7,end7-begin7
 	
 	;LABELSLIST "..\us\user.l"
+
+        display "putBAR=",putBAR
+        display "BUT_1=",BUT_1

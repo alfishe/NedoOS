@@ -141,7 +141,22 @@ Setup0
 	CALL BLITE2 ;иначе мигает
         endif
 	CALL oSETpr
+
+        if EGA
+	LD A,2
+	LD (V_FLAG),A ;cursor off
+	CALL V_PUT1 ;visible screen
+        endif
+        
 	CALL Copper
+        
+        if EGA
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+	xor a
+	LD (V_FLAG),A ;cursor on
+        endif
+        
 	CALL BMOV
 	CALL fSzone
 	HALT ;YIELD никогда не попадёт в наш перехваченный обработчик прерываний
@@ -877,11 +892,23 @@ TX48x7
         if EGA
         ld a,24;29
         call _128
-        call TX48x7doscr
+	LD A,2
+	LD (V_FLAG),A ;выключить стрелочку
+	CALL V_PUT1 ;на видимом экране
+        LD de,(TX_AD) ;выв.назв.героя (переменная в 8000+!)
+        call setpgsscr40008000_current
+        call TX48x7doscr ;на выходе должна поставить pgmain
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+	xor a
+	LD (V_FLAG),A ;включить стрелочку
+	CALL V_PUT2 ;на рисуемом экране
+        LD de,(TX_AD) ;выв.назв.героя (переменная в 8000+!)
+        call setpgsscr40008000 ;на рисуемом экране
+        call TX48x7doscr ;на выходе должна поставить pgmain
+	jp V_GET_MRK2 ;на рисуемом экране
 TX48x7doscr
-        call changescrpg_current
         ld hl,0x4000+(65*40)+25
-        LD de,(TX_AD) ;выв.назв.героя
         ld bc,0x0718
         jp primgega_pixsz
         else ;~EGA

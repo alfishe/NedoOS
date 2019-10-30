@@ -3,6 +3,7 @@
 
 NNN_D	;демо-режим
 	EI
+        ;jr $
 	CALL MEM6
 	CALL ANIMTR ;6
 	CALL SPLIN  ;6
@@ -80,6 +81,27 @@ DEMO	DI
 	CALL MEM0	;0
 	CALL setMAP	;0
 	CALL shadwS	;1
+
+        ld b,50
+showflags0
+        push bc
+        YIELD
+        pop bc
+        djnz showflags0
+        if EGA
+        call setpal
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+	ld e,0
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+	ld e,1
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+        endif
+
 	CALL ANIset	;1
 	CALL NEWALL ;1
 	CALL NEWenm ;1

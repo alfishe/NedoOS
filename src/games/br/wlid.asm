@@ -251,10 +251,9 @@ ATRBA2	DJNZ ATRBA0
 	RET
         endif
 
-        if EGA
-PUTSYM=primgega
-        else
-PUTSYM	;HL - adr in scr; DE-adr spr; BC-size(yx)
+        if EGA==0
+PUTSYM
+;HL - adr in scr; DE-adr spr; BC-size(yx)
 	PUSH DE
 	EX DE,HL
 	CALL SCOORD
