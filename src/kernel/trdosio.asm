@@ -918,7 +918,6 @@ trdoscurdrive=$+1
         ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret
 		
-		display "iodos_setdrive ",$
 iodos_setdrive
 trdosolddrive=$+1
         cp 0xff

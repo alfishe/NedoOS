@@ -13,9 +13,9 @@ rem echo Build "%PRJNAME%"
 if not exist list mkdir list
 if exist list/lfiles.lnk del list\lfiles.lnk
 IF "%PRJDEBUG%"=="1" (
-	set LINK_OPTIONS=-FIEEE695 -yvgbls -l list/cout.html -xehinms
+	set LINK_OPTIONS=-FIEEE695 -yvgbls -l list/cout.html -xehinms -Z^(CODE^)DBGMON=FBF0-FFFF
 )ELSE (
-	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com
+	set LINK_OPTIONS=-FRAW-BINARY -S -o %PRJNAME%.com -Z^(CODE^)DBGMON=FFFF-FFFF
 )
 
 FOR %%f IN (%C_FILES%) do (

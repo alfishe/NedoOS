@@ -547,7 +547,7 @@ sys_SHADON  ;=$-wasresident+resident
 
 ;TODO убрать в pgtrdos
 dos3d13_resident  ;=$-wasresident+resident
-	display "dos3d13_resident ",$
+
 ;сейчас включена pg5
 ;iy=23610
         ld (dos3d13_sp_st),sp
