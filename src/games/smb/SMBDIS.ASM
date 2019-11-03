@@ -130,7 +130,7 @@ logicq
 	if MUSICONINT
 	include "smbsound.asm"
         include "smbmusic.asm"
-        display $,"<=0x8000"
+        ;display $,"<=0x8000"
 	endif
 
 ;-------------------------------------------------------------------------------------

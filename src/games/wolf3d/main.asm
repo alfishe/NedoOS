@@ -281,9 +281,9 @@ wasmuz_sz=$-wasmuz
        ENDIF 
 end
 
-	display "End=",end
+	;display "End=",end
 	;display "Free after end=",/d,#c000-end
-	display "Size ",/d,end-begin," bytes"
+	;display "Size ",/d,end-begin," bytes"
 	
 	savebin "wolf3d.com",begin,end-begin
 	

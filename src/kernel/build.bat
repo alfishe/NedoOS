@@ -1,4 +1,5 @@
 @echo off
+echo build kernel
 if "%settedpath%"=="" call ../_sdk/setpath.bat
 sjasmplus --nologo --msg=war main.asm
 del code.c

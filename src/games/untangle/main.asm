@@ -2592,9 +2592,9 @@ sprringoff_r
 
 end
 
-	display "End=",end
+	;display "End=",end
 	;display "Free after end=",/d,#c000-end
-	display "Size ",/d,end-begin," bytes"
+	;display "Size ",/d,end-begin," bytes"
 	
 	savebin "untangle.com",begin,end-begin
 	

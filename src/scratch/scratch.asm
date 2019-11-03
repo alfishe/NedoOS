@@ -1363,7 +1363,7 @@ wordbuf
 pathbuf_forBDOS
         ds MAXPATH_sz ;сейчас используется только при инициализации (прочитать текущий драйв)
 
-        display "$ before align=",/h,$
+        ;display "$ before align=",/h,$
         
         .align 256
 ;;;;;;;;;;;;;;;;;;; таблицы для prbitmap
@@ -1414,11 +1414,11 @@ tsqrt
 ;результат 0..127 (соответствует 0..1) и выше
         incbin "sqrtmax2"
 tbitmappages
-        display "tbitmappages=",tbitmappages
+        ;display "tbitmappages=",tbitmappages
         ds bmpmaxpages,0x7f
         
 activeend
-        display "activeend=",activeend
+        ;display "activeend=",activeend
         ds 0x4000-$
 SHAPES_begin
         include "prshapes.asm"
@@ -1428,12 +1428,12 @@ SHAPES_begin
 font48
         incbin "64qua.fnt"
 SHAPES_sz=$-SHAPES_begin
-	display "Shapes size ",/d,SHAPES_sz," bytes"
+	;display "Shapes size ",/d,SHAPES_sz," bytes"
         
 gfxeditor_end
 
 	display "Size ",/d,gfxeditor_end-gfxeditor_begin," bytes"
-	display "Free (incl. stack) ",/d,0x4000-activeend," bytes"
+	;display "Free (incl. stack) ",/d,0x4000-activeend," bytes"
 
 	savebin "scratch.com",gfxeditor_begin,gfxeditor_end-gfxeditor_begin
 	

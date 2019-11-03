@@ -707,9 +707,9 @@ font
 
 end
 
-	display "End=",end
+	;display "End=",end
 	;display "Free after end=",/d,#c000-end
-	display "Size ",/d,end-begin," bytes"
+	;display "Size ",/d,end-begin," bytes"
 	
 	savebin "tetris.com",begin,end-begin
 	

@@ -1,7 +1,10 @@
 if NOT "%settedpath%"=="" exit /b
 set settedpath=1
-set path=%~dp0../../tools/;%~dp0;%~dp0../../us/;%PATH%
+call :ExpandRootDir %~dp0..\..
+set path=%rootdir%\tools\;%rootdir%;%rootdir%\us\;%rootdir%\src\_sdk\;%PATH%
+path
+exit /b
 
-rem if "%settedpath%"=="" set sjasmplus="%~dp0/../../tools/sjasmplus"
-rem if "%mhmt%"=="" set mhmt="%~dp0/../../tools/mhmt"
-rem if "%nedores%"=="" set nedores="%~dp0/nedores"
+:ExpandRootDir
+set rootdir=%~f1
+exit /b

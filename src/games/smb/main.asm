@@ -826,7 +826,7 @@ gentileproc_jpcode
         ld h,a
         jp (hl)
 premptytiles_sz=$-premptytiles_was
-        display "premptytiles_sz=",premptytiles_sz,"<=0x40!"
+        ;display "premptytiles_sz=",premptytiles_sz,"<=0x40!"
 gentileproc_jpcode_sz=$-gentileproc_jpcode
         else
 gentileproc_jpcode
@@ -2696,7 +2696,7 @@ tnofile
 ;oldtimer
 ;	ds 2
 
-	display "free before 0x2000=",0x2000-$
+	;display "free before 0x2000=",0x2000-$
         ds 0x2000-$
 ;tile gfx: 2 256-tile maps
 ;16bytes/tile: 8bytes low bit, 8bytes high bit
@@ -2707,9 +2707,9 @@ tilegfx
 
 end
 
-	display "End=",end
+	;display "End=",end
 	;display "Free after end=",/d,0xc000-end
-	display "Size ",/d,end-begin," bytes"
+	;display "Size ",/d,end-begin," bytes"
 	
 	savebin "smb.com",begin,end-begin
 	

@@ -248,8 +248,8 @@ execcmd
         ld a,(hl)
         or a
         ret z
-		display $
-		display wordbuf
+		;display $
+		;display wordbuf
         ld de,wordbuf
         call getword ;hl=terminator/space addr
         call skipspaces
@@ -547,7 +547,7 @@ strcpexec_tryrun_noemptyext
         endif
         
 strcpexec_tryrun_bat
-	display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
+	;display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
 ;out: nz=error, cy=end of .bat
 ;open .bat
 
@@ -1722,7 +1722,7 @@ curhandle=$+1
 
 cmd_end
 
-	display "cmd size ",/d,cmd_end-cmd_begin," bytes"
+	;display "cmd size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "cmd.com",cmd_begin,cmd_end-cmd_begin
 	

@@ -1859,7 +1859,7 @@ twinto866
 endcode=$
         
         ds end1-$
-        display "free for code=",$-endcode
+        ;display "free for code=",$-endcode
 
         ds 0x4000-$ ;stack
 	include "prmc.asm"
@@ -1919,7 +1919,7 @@ ziptrees
         ds 0xa60 + 2*288
         include "../pkunzip/depk.asm"
         
-        display "depk size=",$-depkbeg
+        ;display "depk size=",$-depkbeg
 
 init
         ld e,2 ;MC hires mode
@@ -2023,7 +2023,7 @@ zxpal
         incbin "zxpal"
 
 free2=end2-$;0x8000-$
-        display "free for code in 0x4000=",free2
+        ;display "free for code in 0x4000=",free2
         ds 0x8000-$
         
         incbin "tdiv"

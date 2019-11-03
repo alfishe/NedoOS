@@ -1021,7 +1021,7 @@ editcmd_enter_runfile_com
 execcmd_error
         jp execcmd_runfocusq;editcmd_reprintall
         
-	display "editcmd_enter_runfile_nocom",editcmd_enter_runfile_nocom
+	;display "editcmd_enter_runfile_nocom",editcmd_enter_runfile_nocom
 editcmd_enter_runfile_nocom
         ld hl,runfile_nocomq
         push hl
@@ -1076,8 +1076,8 @@ runfile_nocom_recodeext0
         call nv_openfcb ;autopush nv_closefcb
         ret nz ;error
         ld iy,file_buf_end
-	display "runfile_findhandler",runfile_findhandler
-	display "makeprompt",makeprompt
+	;display "runfile_findhandler",runfile_findhandler
+	;display "makeprompt",makeprompt
 runfile_nocom_extloop
         call checkoneext ;c=ошибки, z=нет ошибок
 	jr c,runfile_nocom_readerror
@@ -1899,15 +1899,15 @@ nv_batch_nofiles
 	jp nv_batch
 
 
-	display "filebuf ", file_buf
-	display "fcb ", fcb
-	display "nv_label: ",nv_label
-	display "nv_batch1: ",nv_batch1
-	display "nv_batch: ",nv_batch
-	display "proceditcmd_copy: ",proceditcmd_copy
-	display "proceditcmd_copy_fcb: ",proceditcmd_copy_fcb
-	display "nv_fillpathspaces_hl: ",nv_fillpathspaces_hl
-	display "processfiles_proc: ",processfiles_proc
+	;display "filebuf ", file_buf
+	;display "fcb ", fcb
+	;display "nv_label: ",nv_label
+	;display "nv_batch1: ",nv_batch1
+	;display "nv_batch: ",nv_batch
+	;display "proceditcmd_copy: ",proceditcmd_copy
+	;display "proceditcmd_copy_fcb: ",proceditcmd_copy_fcb
+	;display "nv_fillpathspaces_hl: ",nv_fillpathspaces_hl
+	;display "processfiles_proc: ",processfiles_proc
 	ret
 
 skipword_hl

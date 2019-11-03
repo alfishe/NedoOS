@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedogame
 "../../_sdk/nedores.exe" images/W1LAND.bmp images/W1LAND.dat W1LAND.ast
 "../../_sdk/nedores.exe" images/W2LAND.bmp images/W2LAND.dat W2LAND.ast
 "../../_sdk/nedores.exe" images/W3LAND.bmp images/W3LAND.dat W3LAND.ast

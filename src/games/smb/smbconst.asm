@@ -510,7 +510,7 @@ DemoTimer             db 0;= $07a2
                 ds 4
 
 PseudoRandomBitReg    db 0;= $07a7
-        display "PseudoRandomBitReg-Timers=",PseudoRandomBitReg-Timers
+        ;display "PseudoRandomBitReg-Timers=",PseudoRandomBitReg-Timers
 
 ;sound related defines
 MusicOffset_Noise     db 0;= $07b0
@@ -563,9 +563,9 @@ AREADATA_end    = $074b
 GAMEDATA_end    = $076f
 WARMMEMDATA_end        = $07d6;WarmBootOffset
 MEMDATA_end        = $07fe;ColdBootOffset
-        display "MEMDATA_end=",MEMDATA_end
-        display "AREADATA=",AREADATA
-        display "MEMDATA_end-AREADATA=",MEMDATA_end-AREADATA
+        ;display "MEMDATA_end=",MEMDATA_end
+        ;display "AREADATA=",AREADATA
+        ;display "MEMDATA_end-AREADATA=",MEMDATA_end-AREADATA
 
 ObjectOffset          = SCRATCHPAD+$08
 

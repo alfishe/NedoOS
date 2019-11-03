@@ -28,7 +28,7 @@ FOR /R %rel% %%i IN (*.*) do (
 	set ob=%%~dpnxi	
 	echo put %%i !ob:%rel%=!>> img.lst
 )
-dmimg ..\us\%1_nedo.vhd conf img.lst
+%~dp0dmimg ..\us\%1_nedo.vhd conf img.lst
 exit /b
 
 :ExpandFileName

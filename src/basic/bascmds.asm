@@ -785,8 +785,8 @@ cmd_save
 ;de=drive/path/file
         OS_CREATEHANDLE
         push bc ;filehandle
-        display cmd_save, " cmd_save"
-        display cmdbuf, " cmdbuf"
+        ;display cmd_save, " cmd_save"
+        ;display cmdbuf, " cmdbuf"
         
 ;b=new file handle
         or a

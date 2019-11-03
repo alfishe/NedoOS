@@ -1,13 +1,16 @@
+@echo off
+if "%edeset%"=="" (
+	setlocal ENABLEDELAYEDEXPANSION
+	set edeset=1
+)
 SET currentdir=%CD%
 SET releasedir=%CD%\..\release\
-@echo off
 
 if not exist ..\release mkdir ..\release 
 if not exist %releasedir%\bin mkdir %releasedir%\bin 
 if not exist %releasedir%\doc mkdir %releasedir%\doc 
 
 for %%i in (%currentdir%\fatfs4os,%currentdir%\kernel) do IF EXIST %%i\build.bat (
-	echo %%i
 	cd %%i
 	call build.bat
 )
@@ -18,13 +21,15 @@ IF "%softbuilded%"=="" (
 		if exist %%i (
 			cd "%%~pi"
 			IF NOT EXIST ffconf.h IF NOT EXIST ffsfunc.asm (
+				SET installdir=bin
 				echo "%%~pi"
 				call build.bat
+				if not exist "%releasedir%!installdir!" mkdir "%releasedir%!installdir!"
 				FOR %%j IN (*.com) DO (
-					move "*.com" "%releasedir%bin\" > nul
-					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%bin\%%~nj\" > nul
+					move "*.com" "%releasedir%!installdir!" > nul
+					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%!installdir!\%%~nj\" > nul
 				)
-				if exist *.ext ( copy *.ext %releasedir%\bin\ > nul )
+				if exist *.ext ( copy *.ext %releasedir%!installdir!\ > nul )
 			)
 		)
 	)

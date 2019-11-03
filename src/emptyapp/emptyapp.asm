@@ -15,7 +15,7 @@ cmd_begin
 
 cmd_end
 
-	display "Size ",/d,cmd_end-cmd_begin," bytes"
+	;display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "emptyapp.com",cmd_begin,cmd_end-cmd_begin
 	

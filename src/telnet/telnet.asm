@@ -1342,10 +1342,10 @@ txt_work1 db "Connected to ",0
 
 cmd_end
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
-	display "telnet_loop: ",telnet_loop
-	display "telnet_read: ",telnet_read
-	display "telnet_purge_writebuf: ",telnet_purge_writebuf
-	display "telnet_ansi0: ",telnet_ansi0
-	display "telnet_noresolve: ",telnet_noresolve
+	;display "telnet_loop: ",telnet_loop
+	;display "telnet_read: ",telnet_read
+	;display "telnet_purge_writebuf: ",telnet_purge_writebuf
+	;display "telnet_ansi0: ",telnet_ansi0
+	;display "telnet_noresolve: ",telnet_noresolve
 	savebin "telnet.com",cmd_begin,cmd_end-cmd_begin
 

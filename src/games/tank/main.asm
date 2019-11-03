@@ -960,9 +960,9 @@ bulletlist
 bulletlistend
 
 
-	display "End=",end
+	;display "End=",end
 	;display "Free after end=",/d,0xc000-end
-	display "Size ",/d,end-begin," bytes"
+	;display "Size ",/d,end-begin," bytes"
 	
 	savebin "tank.com",begin,end-begin
 	

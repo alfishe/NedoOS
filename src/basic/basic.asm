@@ -1084,7 +1084,7 @@ varindex_int ;varindex_str лежат по адресу+128
         
 cmd_end
 
-	display "Size ",/d,cmd_end-cmd_begin," bytes"
+	;display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "basic.com",cmd_begin,cmd_end-cmd_begin
 	
