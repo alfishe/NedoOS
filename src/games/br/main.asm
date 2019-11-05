@@ -349,11 +349,11 @@ setpal
 
 SUMMERPAL
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
-;high B, high b, low B, low b
-           ;ok      ;?      ;?     ;?     ;?    ;ok    ;ok   ;ok
-        dw 0xffff,0xbdbd,0x6f6f,0x2d2d,0xdede,0x4c4c,0x4d4d,0xecec
-           ;ok?     ;ok     ;?     ;?     ;?    ;?     ;?    ;ok
-        dw 0xfdfd,0x2d2d,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+;high B, high b, low B, low b                          ;,,в степи светло-жёлтый, а не ярко-зелёный 4d
+           ;ok      ;?      ;ok?   ;?     ;ok?  ;ok    ;ok   ;ok
+        dw 0xffff,0xbdbd,0x1d1d,0x2d2d,0x6f6f,0x4c4c,0x2c2c,0xecec
+           ;ok?     ;ok     ;?     ;?     ;?    ;ok?   ;?    ;ok
+        dw 0xfdfd,0x2d2d,0xeeee,0x9c9c,0x6f6f,0x5d5d,0x2d2d,0x0c0c
 RSTPAL
         STANDARDPAL
 

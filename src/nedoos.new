@@ -974,3 +974,9 @@ v0.r286.7, 30.10.2019
 + Everlasting summer: Slavya and Semen cg in night dinning hall re-convert (demige)
 - br: при показе задания стрелка отпечатывалась
 * br: переключение на карту обновляет панельку
+
+v0.r289.1, 6.11.2019
+
+- NoIce-монитор вставил YIELD при таймауте цикла ожидания обмена данными (bugreport LVD) (DimkaM)
+* при сборке батниками игры релизятся в nedogame (DimkaM)
+* br: начали раскрашивать персонажей (Sashapont)
