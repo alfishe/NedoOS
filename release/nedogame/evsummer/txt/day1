@@ -1,3 +1,5 @@
+\mmusic/opening.pt3
+\P
 \A\s\lpic/bg/int_bus.16c
 \F
 "В глаза ударил яркий дневной свет."
@@ -1609,9 +1611,12 @@ me "Ясно..."
     jump day2_main1
     "..."
     "       Спасибо, за проявленный интерес к проекту 
-                    'Бесконечное лето' для Nedoos.
+                    'Бесконечное лето' для NedoOS.
                              Октябрь 2019 г.
-                                  Demige
-              (Для выхода в nedoos нажмите ESC)"
+                                Код Demige
+                          Код плеера Alone Coder
+                               Музыка nq
+
+              (Для выхода в NedoOS нажмите ESC)"
 \x
 # Decompiled by unrpyc: https://github.com/CensoredUsername/unrpyc
