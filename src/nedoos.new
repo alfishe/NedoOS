@@ -988,3 +988,15 @@ v0.r289.2, 6.11.2019
 v0.r289.3, 7.11.2019
 
 * br: раскрашены здания (Sashapont)
+
+v0.r295.1, 11.11.2019
+
+- исправлена бага со сборкой иаром (nedoos-стартап линковался как библиотека) (DimkaM)
++ Everlasting summer: Added music support! (Thanks and respect to NQ for test version of title soundtrack) (demige)
++ Everlasting summer: New keys support added in text files (demige)
+    - \m<filename> - load pt3 track to buffer
+    - \P - Play track in memory
+    - \S - Stop and mute player
++ Everlasting summer: On new sentence the background will be restored and cursor setted to second line from bottom (demige)
+- Everlasting summer: Some outdated code is deleted (demige)
+* убрана кнопка Caps Shift (показывать заголовки) в браузере (Buran)

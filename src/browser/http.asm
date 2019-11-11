@@ -221,10 +221,10 @@ curprotocol=$+1
          ld a,0;(curprotocol)
          dec a
          jr nz,readstream_http_nohead ;2=gopher
-         ld a,0xfe
-         in a,(0xfe)
-         rra
-         jr nc,readstream_http_nohead
+         ;ld a,0xfe
+         ;in a,(0xfe)
+         ;rra
+         ;jr nc,readstream_http_nohead ;Caps Shift - show headers
         
 ;read until cr,lf,cr,lf or EOF or endofbuf
 	push hl
