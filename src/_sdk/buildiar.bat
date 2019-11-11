@@ -30,4 +30,4 @@ FOR %%f IN (%ASM_FILES%) do (
 	echo %%~nf.r01 >> list/lfiles.lnk
 	%AZ80% -S -uu -Olist/ %%f -I%currentdir%/_sdk/
 )
-%XLINK% -f list/lfiles.lnk %LINK_OPTIONS% -C %~dp0iar.lib -C %IARLIB%/clz80 -f Lnk.xcl
+%XLINK% -f list/lfiles.lnk %LINK_OPTIONS% %~dp0iar.lib -C %IARLIB%/clz80 -f Lnk.xcl
