@@ -116,7 +116,7 @@ begin
 	
 	 ifdef KOE
 		display "KOE!!!"
-		ld a,0x10 ;noturbo
+		ld a,0 ;turbo ;0x10 ;noturbo
 		ld bc,0xeff7
 		out (c),a ;for KOE
 		ld a,0x10
@@ -749,7 +749,7 @@ sysend
 	
 	;display "sysbegin=",/d,sysbegin
 	;display "sysend=",/d,sysend
-	
+
         SLOT 1
         page COMPILEPG_INIT
 	savebin "initcode.c",begin,end-begin
