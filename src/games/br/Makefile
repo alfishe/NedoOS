@@ -7,11 +7,11 @@ INSTALLDIR	= ../../../release/nedogame/br
 
 all: ${NAME} ${SOURCES}
 
-br.com: ${SOURCES} resources modules levels
+br.com: ${SOURCES} resources modules level
 	${SJASMPLUS} brfinal.asm
 	${SJASMPLUS} main.asm
 
-levels:	${SOURCES}
+level: ${SOURCES}
 	${SJASMPLUS} levels/w~104.a80
 	${SJASMPLUS} levels/w~107.a80
 	${SJASMPLUS} levels/w~112.a80
@@ -21,6 +21,13 @@ levels:	${SOURCES}
 	${SJASMPLUS} levels/w~217end.a80
 
 modules: ${SOURCES}
+	${SJASMPLUS} W1LAND.ast --raw=br/W1LAND.bin
+	${SJASMPLUS} W2LAND.ast --raw=br/W2LAND.bin
+	${SJASMPLUS} W3LAND.ast --raw=br/W3LAND.bin
+	${SJASMPLUS} W4LAND.ast --raw=br/W4LAND.bin
+	${SJASMPLUS} WBAR.ast --raw=br/WBAR.bin
+	${SJASMPLUS} WHUMBUTT.ast --raw=br/W0BUT.bin
+	${SJASMPLUS} WORCBUTT.ast --raw=br/W1BUT.bin
 	${SJASMPLUS} WHUM1.asm
 	${SJASMPLUS} WHUM1b.asm
 	${SJASMPLUS} WHUM1c.asm
@@ -37,10 +44,17 @@ modules: ${SOURCES}
 	${SJASMPLUS} WCREAT2.asm
 	${SJASMPLUS} WCREAT2b.asm
 	${SJASMPLUS} WCREAT2c.asm
-	${SJASMPLUS} WBODY.asm
+#	${SJASMPLUS} WBODY.asm
 	${SJASMPLUS} WBULLET.asm
 
 resources: 
+	${NEDORES} images/W1LAND.bmp images/W1LAND.dat W1LAND.ast
+	${NEDORES} images/W2LAND.bmp images/W2LAND.dat W2LAND.ast
+	${NEDORES} images/W3LAND.bmp images/W3LAND.dat W3LAND.ast
+	${NEDORES} images/W4LAND.bmp images/W4LAND.dat W4LAND.ast
+	${NEDORES} images/WBAR.bmp images/WBAR.dat WBAR.ast
+	${NEDORES} images/WHUMBUTT.bmp images/WHUMBUTT.dat WHUMBUTT.ast
+	${NEDORES} images/WORCBUTT.bmp images/WORCBUTT.dat WORCBUTT.ast
 	${NEDORES} images/WHUM1.bmp images/WHUM1.dat WHUM1.ast
 	${NEDORES} images/WHUM1.bmp images/WHUM1b.dat WHUM1b.ast
 	${NEDORES} images/WHUM1.bmp images/WHUM1c.dat WHUM1c.ast
@@ -64,7 +78,7 @@ clean:
 	rm -f ${NAME} ${OBJECTS}
 install: all
 	mkdir -p ${INSTALLDIR}/br || echo
-	cp br/*.dat ${INSTALLDIR}/br
+	cp br/* ${INSTALLDIR}/br
 	cp ${NAME} ${INSTALLDIR}
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc
