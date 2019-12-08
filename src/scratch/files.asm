@@ -88,6 +88,12 @@ isfilename_act
         cp 'a'
         ret
 
+isfilename_scr
+        ld a,(fcb_filename+8)
+        or 0x20
+        cp 's'
+        ret
+
 readfile_scr
 ;0xc000=pgtemp
         ld de,scrbuf
@@ -232,11 +238,12 @@ readbmp
         call delbitmap ;удалить текущую картинку и освободить странички
         pop iy
         
-        call readlong ;размер ВМР-файла (байт) ;hlde
-        call readlong ;резерв
-        call readlong ;смещение в байтах от начала файла до начала описания растрового изображения
-        call readlong ;размер описания изображения (обычно 40 в Windows)
-        call readlong ;ширина
+        ;call readlong ;размер ВМР-файла (байт) ;hlde
+        ;call readlong ;резерв
+        ;call readlong ;смещение в байтах от начала файла до начала описания растрового изображения
+        ;call readlong ;размер описания изображения (обычно 40 в Windows)
+        ;call readlong ;ширина
+        call readlong5
         ld (curbitmapwid_edit),de
         ;ld a,d;(curbitmapwid_view+1)
         ;ld (readbmp_checkendline_HSB),a
@@ -264,11 +271,12 @@ readbmp_noneghgt
         push iy
         call reserve_bmp_pages ;там genmuldewid_ahl
         pop iy
-        call readlong ;вид сжатия информации
-        call readlong ;размер образа
-        call readlong ;Рекомендуемое горизон-ое разрешение (нет в ACDSee)
-        call readlong ;Рекомендуемое вертикальное разрешение (нет в ACDSee)
-        call readlong ;количество цветов в палитре (для 4бит не задаётся)
+        ;call readlong ;вид сжатия информации
+        ;call readlong ;размер образа
+        ;call readlong ;Рекомендуемое горизон-ое разрешение (нет в ACDSee)
+        ;call readlong ;Рекомендуемое вертикальное разрешение (нет в ACDSee)
+        ;call readlong ;количество цветов в палитре (для 4бит не задаётся)
+        call readlong5
         ld a,d
         dec a
         or e
@@ -472,6 +480,12 @@ savebmp_inch
         pop af
         ret
 
+readlong5
+        call readlong2
+;readlong3
+        call readlong
+readlong2
+        call readlong
 readlong
 ;e,d,l,h
         call readword
@@ -497,7 +511,7 @@ readbyte_readbuf
         push de
         OS_SETDTA ;set disk transfer address = de
         ld de,fcb
-        OS_FREAD
+        OS_FREAD ;TODO handles!
         pop iy
         pop ix
         pop hl
@@ -524,6 +538,10 @@ writebyte
         WRITEBYTE_A
         ret
         
+writebyte_writebuf_ifneeded
+        inc ly
+        dec ly
+        ret z ;уже только что сохранили
 writebyte_writebuf
         push bc
         push de
@@ -533,7 +551,7 @@ writebyte_writebuf
         push de
         OS_SETDTA ;set disk transfer address = de
         ld de,fcb
-        OS_FWRITE
+        OS_FWRITE ;TODO handles!
         pop iy
         pop ix
         pop hl
@@ -785,20 +803,15 @@ filemenu_invarrzone
 ;hl=x на экране
 ;a=y на экране
         call filemenu_isitsave
+        ;jr c,filemenu_invarrzone_invert
+        call nc,filemenu_isitquit
+        ;jr c,filemenu_invarrzone_invert
+        call nc,filemenu_isitexit
+        ;jr c,filemenu_invarrzone_invert
+        call nc,filemenu_isitfilename
+        ;jr c,filemenu_invarrzone_invert
+        call nc,filemenu_findvisibledrivenumber
         jr c,filemenu_invarrzone_invert
-        
-        call filemenu_isitquit
-        jr c,filemenu_invarrzone_invert
-                
-        call filemenu_isitexit
-        jr c,filemenu_invarrzone_invert
-                
-        call filemenu_isitfilename
-        jr c,filemenu_invarrzone_invert
-
-        call filemenu_findvisibledrivenumber
-        jr c,filemenu_invarrzone_invert
-
         call filemenu_findvisiblefilenumber
         ret nc ;не попали в список файлов
         ;a = номер видимого файла
@@ -817,55 +830,17 @@ filemenu_isitfilename
 ;hl=x на экране (не портится)
 ;a=y на экране (не портится)
 ;out: CY=1 - попали в редактируемое имя файла, bcde=размеры для invarrzone
-        if 1==1
         ld bc,filenamey*256 + filenamex8 ;y, x/8
         ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid/8
         jr filemenu_isitbox
-        else
-        cp filenamey
-        ccf
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        cp filenamey+filenamehgt
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        ld bc,filenamex8*8
-        or a
-        sbc hl,bc
-        add hl,bc
-        ccf
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        ld bc,+(filenamex8*8)+(filenamewid8*8)
-        or a
-        sbc hl,bc
-        add hl,bc
-        ret ;nc=мимо
-        endif
 
 filemenu_isitsave
 ;hl=x на экране (не портится)
 ;a=y на экране (не портится)
 ;out: CY=1 - попали в Save, bcde=размеры для invarrzone
-        if 1==1
         ld bc,savey*256 + savex8 ;y, x/8
         ld de,savehgt*256 + savewid8 ;d=hgt ;e=wid/8
         jr filemenu_isitbox
-        else
-        cp savey
-        ccf
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        cp savey+savehgt
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        ld bc,savex8*8
-        or a
-        sbc hl,bc
-        add hl,bc
-        ccf
-        ret nc ;jr nc,filemenu_invarrzone_nofilename ;nc=мимо
-        ld bc,+(savex8*8)+(savewid8*8)
-        or a
-        sbc hl,bc
-        add hl,bc
-        ret ;nc=мимо
-        endif
 
 filemenu_isitquit
 ;hl=x на экране (не портится)
@@ -897,14 +872,18 @@ filemenu_isitbox
         add a,b
         push bc
         ;ld bc,x8*8
-         ld b,0
+         ;ld b,0
+         ;sla c
+         ;rl b
+         ;sla c
+         ;rl b
+         ;sla c
+         ;rl b
+         ld b,0xc0
          sla c
          rl b
-         sla c
-         rl b
-         sla c
-         rl b
-        or a
+         jr c,$-4
+        ;or a
         sbc hl,bc
         add hl,bc
         pop bc
@@ -915,17 +894,21 @@ filemenu_isitbox
          push af
          ld a,c ;x8
          add a,e ;wid8
-         ld b,0
+         ;ld b,0
+         ;add a,a
+         ;rl b
+         ;add a,a
+         ;rl b
+         ;add a,a
+         ;rl b
+         ld b,0xc0
          add a,a
          rl b
-         add a,a
-         rl b
-         add a,a
-         rl b
+         jr c,$-3
          ld c,a
-         pop af
-        or a
+        ;or a
         sbc hl,bc
+         pop af
         add hl,bc
         pop bc
         ret ;nc=мимо
@@ -1324,6 +1307,8 @@ savefile
 
         ld iy,file_buf
 
+        call isfilename_scr
+        jp z,savefile_scr
         call isfilename_act
         jp z,savefile_pal
         
@@ -1452,7 +1437,7 @@ savebmp4_pic00_widHSB=$+1
         bit 7,d
         jr z,savebmp4_pic0
 savefile_close_quit
-        call writebyte_writebuf
+        call writebyte_writebuf_ifneeded
         ld de,fcb
         OS_FCLOSE
         ; pop af ;снимаем адрес возврата (т.к. вызывали call filemenu_fire)
@@ -1482,6 +1467,130 @@ savefile_pal0
         dec c
         jr nz,savefile_pal0
         jr savefile_close_quit
+
+savefile_scr
+savefile_scr_scrbuf=0xc000
+savefile_scr_attrbuf=savefile_scr_scrbuf+0x1800
+savefile_scr_chrbuf=0xfec0 ;64 bytes
+        ;call setpgtemp ;уже включено, там файловый буфер
+;познакоместно формируем в savefile_scr_scrbuf файл для записи
+        ;jr $
+        ld hl,savefile_scr_scrbuf
+        ld b,0 ;y
+savefile_scr0
+        ld c,0 ;x
+savefile_scr1
+        push bc
+;достаём знакоместо в линейный буфер
+        push hl
+        ld de,savefile_scr_chrbuf
+savefile_scr_readchr0
+        push bc
+        push de
+        ld e,b
+        ld d,0
+        ld b,d;0
+;bc=x в bitmap (не портится)
+;de=y в bitmap (не портится)
+        call calcbitmap_from_xy ;a=pg, hl=addr
+        SETPGBITMAPLOW
+        pop de
+        pop bc
+        ld a,(hl)
+        ld (de),a
+        inc e
+        jr z,savefile_scr_readchrq
+        inc c
+        ld a,c
+        and 7
+        jr nz,savefile_scr_readchr0
+        ld a,c
+        sub 8
+        ld c,a
+        inc b
+        jr savefile_scr_readchr0        
+savefile_scr_readchrq
+;ищем 2 самых частых цвета (или угловой и другой. если другого нет, то он контрастный по отношению к угловому)
+        ld hl,savefile_scr_chrbuf
+        ld e,(hl)
+savefile_scr_findcolors0
+        ld a,(hl)
+        cp e
+        jr nz,savefile_scr_findcolorsq
+        inc l
+        jr nz,savefile_scr_findcolors0
+;другого нет, делаем по умолчанию контрастный
+        ld a,e
+        and 8
+        bit 2,e
+        jr nz,$+4 ;для цветов 4..7 контрастный - 0
+        or 7 ;иначе 7
+savefile_scr_findcolorsq
+        ld d,a
+        pop hl
+;d,e=цвета ink,paper
+;кодируем атрибут
+        push hl
+        ld a,h
+        rra
+        rra
+        rra
+        and 3
+        add a,savefile_scr_attrbuf/256
+        ld h,a
+        ld a,e
+        add a,a
+        add a,a
+        add a,a
+        res 3,d ;ignore bright for ink
+        add a,d
+        ld (hl),a
+        pop hl
+;кодируем пиксели
+        ld c,e ;paper color
+        push hl
+        ld de,savefile_scr_chrbuf
+        ld b,8
+savefile_scr_mkpixels0
+        ld (hl),0xfe
+savefile_scr_mkpixels1
+        ld a,(de)
+        sub c ;0=paper
+         add a,0xff ;ink=CY
+        rl (hl)
+        inc e
+        jr c,savefile_scr_mkpixels1
+        inc h
+        djnz savefile_scr_mkpixels0
+        pop hl
+;следующее знакоместо
+        pop bc
+        inc l
+        ld a,c
+        add a,8
+        ld c,a
+        jr nz,savefile_scr1
+         inc l
+         dec l
+         jr nz,$+6
+         ld a,h
+         add a,8
+         ld h,a
+        ld a,b
+        add a,8
+        ld b,a
+        cp 192
+        jp nz,savefile_scr0
+         ;jr $
+        ld hl,savefile_scr_scrbuf
+        ld bc,0x1b00
+savefile_scrsave0
+        ld a,(hl)
+        WRITEBYTE_A
+        cpi
+        jp pe,savefile_scrsave0
+        
+        jp savefile_close_quit
 
 fcb;=(-FCB_sz)&0xffff     ;ds FCB_sz
         ds FCB_sz

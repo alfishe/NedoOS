@@ -811,6 +811,12 @@ control_keys_right
         add hl,de
 control_keys_setxscroll
         ld (curbitmapxscroll),hl
+control_scroll_emptyqueue_checksize
+         ;call emptykeyqueue
+emptykeyqueue0
+        GET_KEY
+        or a
+        jr nz,emptykeyqueue0
 control_scroll_checksize
         call control_scroll_checksizepp
         call shownavigator
@@ -855,8 +861,6 @@ control_keys_left
         ;ld hl,0
         call subhldecheck0
         jr control_keys_setxscroll
-        ;ld (curbitmapxscroll),hl
-        ;jr control_scroll_checksize
         
 control_keys_down
         call control_getscrollvalue ;de=scrollvalue
@@ -864,7 +868,7 @@ control_keys_down
         add hl,de
 control_keys_setyscroll
         ld (curbitmapyscroll),hl
-        jr control_scroll_checksize
+        jr control_scroll_emptyqueue_checksize
 
 control_keys_up
         call control_getscrollvalue ;de=scrollvalue
@@ -875,8 +879,6 @@ control_keys_up
         ;ld hl,0
         call subhldecheck0
         jr control_keys_setyscroll
-        ;ld (curbitmapyscroll),hl
-        ;jp control_scroll_checksize
 
 control_getscrollvalue
         ld de,64
@@ -1418,7 +1420,7 @@ tbitmappages
         ds bmpmaxpages,0x7f
         
 activeend
-        ;display "activeend=",activeend
+        display "activeend=",activeend
         ds 0x4000-$
 SHAPES_begin
         include "prshapes.asm"
