@@ -29,7 +29,7 @@ ERR_NOTCONN 	EQU 57
 
 
 proxserv
-	db "nedoos.ru/s/?",0
+	db "nedoos.ru/s/?https://",0
 	display "openstream_http = ",$
 openstream_http
 	;display $

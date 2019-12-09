@@ -1819,7 +1819,7 @@ thttpprotocol
 tgopherprotocol
         db "gopher://",0
 thttpsprotocol
-        db "gopher://",0
+        db "https://",0
 
 linkbuf
         ds MAXLINKSZ+1
@@ -2023,6 +2023,7 @@ defaultfilename
         ;db "0:/hippiman.bmp",0
         ;db "http://zxevo.ru/nos/",0
         db "file://browser/nos.htm",0
+        ;db "https://rgb.yandex",0
 
 wgetfilename
         db "wget.com",0
