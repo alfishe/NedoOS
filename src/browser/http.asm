@@ -28,14 +28,26 @@ ERR_NOTCONN 	EQU 57
 
 
 
+proxserv
+	db "nedoos.ru/s/?",0
+	display "openstream_http = ",$
 openstream_http
 	;display $
 ;de=filename (without "http://"), slash always presents
 ;out: A!=0 => error
         ex de,hl
 openstream_http_hl
+		push hl
         ld de,httphostname
-        push de
+		ld a,(curprotocol)
+		cp 3
+		jr nz,nonhttps
+		ld hl,proxserv
+		call strcopy
+		dec de
+nonhttps
+		pop hl
+        ;push de
         call strcopy
         ld hl,80*256 ;BIG ENDIAN
         ld a,(curprotocol)
@@ -43,7 +55,7 @@ openstream_http_hl
         jr nz,$+4 ;1/3=http
         ld h,70 ;2=gopher
         ld (curport),hl
-        pop hl
+        ld hl,httphostname ;pop hl
         ;call findslash
 openstream_http_findslash0
          ld a,(hl)
@@ -130,9 +142,9 @@ connect_ok
          ;in a,(0xfe)
          ;rra
          ld a,(curprotocol)
-;TODO что-то сделать с типом 3
-         dec a
-         jr z,connect_nogopher ;http=1, gopher=2
+;TODO что-то сделать с типом 3 - ничего
+         cp 2
+         jr nz,connect_nogopher ;http=1, gopher=2
          pop hl ;filename
          call strcopy
          dec de
