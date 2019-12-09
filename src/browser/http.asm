@@ -39,8 +39,8 @@ openstream_http_hl
         call strcopy
         ld hl,80*256 ;BIG ENDIAN
         ld a,(curprotocol)
-        dec a
-        jr z,$+4 ;1=http
+        cp 2
+        jr nz,$+4 ;1/3=http
         ld h,70 ;2=gopher
         ld (curport),hl
         pop hl
@@ -130,7 +130,7 @@ connect_ok
          ;in a,(0xfe)
          ;rra
          ld a,(curprotocol)
-         ;jr $
+;TODO что-то сделать с типом 3
          dec a
          jr z,connect_nogopher ;http=1, gopher=2
          pop hl ;filename
@@ -219,8 +219,8 @@ http_firstreadflag=$+1
 	jp nz,readstream_http_nofirstread
 curprotocol=$+1
          ld a,0;(curprotocol)
-         dec a
-         jr nz,readstream_http_nohead ;2=gopher
+         cp 2
+         jr z,readstream_http_nohead ;2=gopher
          ;ld a,0xfe
          ;in a,(0xfe)
          ;rra

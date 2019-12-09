@@ -307,7 +307,7 @@ browser_backspaceq
 
         ld hl,curfulllink
         call isprotocolpresent
-;a=protocol (0=file, 1=http), hl=after "//"
+;a=protocol (0=file, 1=http, 2=gopher, 3=https), hl=after "//"
         ld (curprotocol),a
         push hl ;hl=after "//"
 
@@ -1053,6 +1053,13 @@ isprotocolpresent
         call strcp_tillde0 ;if found, hl=after "//"
         pop de
         ld a,2
+        ret z
+        ex de,hl
+        ld de,thttpsprotocol
+        push hl
+        call strcp_tillde0 ;if found, hl=after "//"
+        pop de
+        ld a,3
         ret z
         ex de,hl
         ret ;nz=protocol absent (hl=start)
@@ -1811,6 +1818,8 @@ thttpprotocol
         db "http://",0
 tgopherprotocol
         db "gopher://",0
+thttpsprotocol
+        db "gopher://",0
 
 linkbuf
         ds MAXLINKSZ+1
@@ -2023,7 +2032,7 @@ zxpal
         incbin "zxpal"
 
 free2=end2-$;0x8000-$
-        ;display "free for code in 0x4000=",free2
+        display "free for code in 0x4000=",free2
         ds 0x8000-$
         
         incbin "tdiv"
