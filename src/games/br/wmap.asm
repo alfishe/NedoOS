@@ -402,11 +402,11 @@ MP_OUT
 ;00 01 11 22|23 33 44 45|55 66 67 77|
         ;jr $
 	LD bc,MP_OU1
-        ld hl,0x4000
+        ld hl,scrbase;0x4000
 	LD DE,MAP
 	CALL MP_OU32_64
 	LD bc,MP_OU2
-        ld hl,0x8000
+        ld hl,scrbase+0x4000;0x8000
 	LD DE,MAP+1
 	CALL MP_OU32_64
 	JP MPswap

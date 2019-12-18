@@ -196,7 +196,7 @@ oINDYpp
         endif
         
         if EGA
-	LD HL,0x6000+(40*40)+0x1d
+	LD HL,scrbase+0x2000+(40*40)+0x1d
         else
 	LD HL,SCR+189 ;0xbd
         endif
@@ -215,7 +215,7 @@ oINDYpp
 	JR Z,oiL1
 	LD DE,indsym_percent
 oiL1
-	LD HL,0x4000+(59*40)+0x1e
+	LD HL,scrbase+(59*40)+0x1e
 	LD B,5
 oinL
         push hl
@@ -271,13 +271,17 @@ oinL	LD A,(DE)
         endif ;~EGA
         
         if EGA
-	LD HL,0x6000+(40*40)+0x1e
+	LD HL,scrbase+0x2000+(40*40)+0x1e
         else
 	LD HL,SCR+190 ;0xbe
         endif
 	JR NZ,oin0
 	LD B,16
+        if EGA
+	ld e,0;%00111111
+        else
 	LD E,%10111110
+        endif
 	JR oin3
 oin0	LD BC,IND2
 oIND_	PUSH HL
@@ -307,13 +311,21 @@ oin1	LD C,A
 	POP HL
 	JR Z,oin2
 	LD B,A
+        if EGA
+	ld e,0;%00111111
+        else
 	LD E,%10111110
+        endif
 	CALL oin3
 oin2	LD A,C
 	OR A
 	RET Z
 	LD B,C
+        if EGA
+	ld e,%00011011
+        else
 	LD E,%10100010
+        endif
 oin3	LD (HL),E
         if EGA
         ld a,l
@@ -395,6 +407,7 @@ BUT_1	LD A,(DE)
         ld a,30
         jr nz,BUT_1_nopg0
         ld d,0x20
+        ;ld de,0x2000
         add hl,de
         dec a
 BUT_1_nopg0
@@ -576,6 +589,7 @@ PUTbut
         add hl,hl
         add hl,hl
         add hl,hl ;y*8*40
+         add a,scrbase&0xff        
         add a,l
         ld l,a
         jr nc,$+3

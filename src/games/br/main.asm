@@ -2,7 +2,7 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
-scrbase=0x4000
+scrbase=0x4004;0
 sprmaxwid=32;24
 sprmaxhgt=32;24
 scrwid=96 ;double pixels
@@ -281,52 +281,6 @@ gettexpgs_noskipdata2
         ld (0x0101),hl
         endif
         
-        if 1==0
-bbb
-        YIELD
-        YIELD
-        call setpgsscr40008000
-         ld a,r
-         and 0x18
-        ld iy,testspr+4
-         jr z,$+2+4
-        ld iy,testspr2+4
-;e?1=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-;c?2=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-curx=$+1
-        ld e,-2+(sprmaxwid-1)
-cury=$+1
-        ld c,-13;190
-         ld a,e
-         rla
-         ld a,r
-         rla
-         ld c,a
-        
-        ld a,e
-        cp scrwid+(sprmaxwid-1)
-        jr nc,bbbnoprspr
-        ld a,c
-        add a,sprmaxhgt-1
-        cp scrhgt+(sprmaxhgt-1)
-        jr nc,bbbnoprspr
-        ;jr $
-        di
-        call prspr
-        ei
-bbbnoprspr
-        ld a,(curx)
-        inc a
-        ;and 0x7f
-        ld (curx),a
-        ld a,(cury)
-        jr nz,$+3
-        inc a
-        ;and 0x7f
-        ld (cury),a
-        ;jr bbb
-        endif
-
         if EGA
         call changescrpg ;на всякий случай, для заполнения переменных
         call setpgsmain40008000 ;на всякой случай, для прерывания
@@ -412,13 +366,13 @@ MP_OFF
 _mpoffwid=24
         call setpgsscr40008000
         
-        ld ix,0x4000+_mpoffwid
+        ld ix,scrbase+_mpoffwid
         call MP_OFFlayer
-        ld ix,0x8000+_mpoffwid
+        ld ix,scrbase+0x4000+_mpoffwid
         call MP_OFFlayer
-        ld ix,0x6000+_mpoffwid
+        ld ix,scrbase+0x2000+_mpoffwid
         call MP_OFFlayer
-        ld ix,0xa000+_mpoffwid
+        ld ix,scrbase+0x6000+_mpoffwid
         call MP_OFFlayer
         jp setpgsmain40008000
         endif
@@ -469,7 +423,7 @@ putBAR
 putBARdoscr
         ;call changescrpg_current
 	LD DE,0xc000;DSCR
-	LD HL,0x4000+0x0018
+	LD HL,scrbase+0x0018
 	LD BC,#1808
 	jr primgega
 
@@ -746,6 +700,7 @@ prsprnocropleft
         add hl,hl
         add hl,hl
         add hl,hl ;y*40+scrbase
+         add a,scrbase&0xff
 ;a=x/4
         add a,l
         ld l,a
@@ -959,6 +914,7 @@ prsprcropygo_cropx
         srl a
         jr nc,$+4 ;x bit 1
          set 5,h
+       add a,scrbase&0xff
         ld l,a
         
 prsprcropygo
@@ -1357,7 +1313,7 @@ prarr_nor
         ld a,scrhgt
         sub l ;y
         ld ly,a ;200-y
-        ld d,0x80/8;scrbase/256/8
+        ld d,h;0x80/8;scrbase/256/8
         ld e,l
         add hl,hl
         add hl,hl
@@ -1379,8 +1335,10 @@ prarr_nor
         srl c
         jr nc,$+4
         set 5,h
-         ld b,-0x40 ;для scrbase=0x4000
+         ;ld b,-0x40 ;для scrbase=0x4000
         add hl,bc
+         ld bc,scrbase
+         add hl,bc
         ex de,hl
 ;de=scr
 ;lx=ширина
@@ -1522,6 +1480,7 @@ prchar
         add hl,hl
         add hl,hl
         add hl,hl ;y*8*40
+         add a,scrbase&0xff
         add a,l
         ld l,a
         jr nc,$+3

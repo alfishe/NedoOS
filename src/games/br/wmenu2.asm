@@ -908,7 +908,7 @@ TX48x7
         call TX48x7doscr ;на выходе должна поставить pgmain
 	jp V_GET_MRK2 ;на рисуемом экране
 TX48x7doscr
-        ld hl,0x4000+(65*40)+25
+        ld hl,scrbase+(65*40)+25
         ld bc,0x0718
         jp primgega_pixsz
         else ;~EGA
