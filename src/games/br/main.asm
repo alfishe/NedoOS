@@ -336,7 +336,7 @@ ntexfilenames=6
         db 18,"WCREAT1.bin",0
         db 19,"WCREAT1b.bin",0
         db 20,"WCREAT1c.bin",0
-        db 21,"WCREAT2.bin",0
+        db 21,"WCREAT2.bin",0 ;там же в 0xe800 demobar
         db 22,"WCREAT2b.bin",0
         db 23,"WCREAT2c.bin",0 ;там же трупы
          db 24,"WBAR.bin",0 ;там же надписи
@@ -405,11 +405,16 @@ MP_OFFlayerSP=$+1
         if EGA
 putBAR
         ld a,24
+	LD DE,0xc000;DSCR
+putBAR_ade
+        push de
         call _128
 	LD A,2
 	LD (V_FLAG),A ;cursor off
 	CALL V_PUT1 ;visible screen
         call setpgsscr40008000_current
+        pop de
+        push de
         call putBARdoscr
 	CALL V_GET1 ;visible screen
 	CALL V_MRK1 ;visible screen
@@ -417,12 +422,13 @@ putBAR
 	LD (V_FLAG),A ;cursor on
 	CALL V_PUT2
         call setpgsscr40008000
+        pop de
         call putBARdoscr
 	CALL V_GET2
 	jp V_MRK2
 putBARdoscr
         ;call changescrpg_current
-	LD DE,0xc000;DSCR
+	;LD DE,0xc000;DSCR
 	LD HL,scrbase+0x0018
 	LD BC,#1808
 	jr primgega

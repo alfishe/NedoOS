@@ -25,6 +25,7 @@ set installdir=nedogame
 "../../_sdk/nedores.exe" images/WCREAT2.bmp images/WCREAT2c.dat WCREAT2c.ast
 "../../_sdk/nedores.exe" images/WMISC.bmp images/WBODY.dat WBODY.ast
 "../../_sdk/nedores.exe" images/WMISC.bmp images/WBULLET.dat WBULLET.ast
+"../../_sdk/nedores.exe" images/demobar.bmp images/demobar.dat demobar.ast
 sjasmplus --nologo --msg=war --msg=war W1LAND.ast --raw=br/W1LAND.bin
 sjasmplus --nologo --msg=war --msg=war W2LAND.ast --raw=br/W2LAND.bin
 sjasmplus --nologo --msg=war --msg=war W3LAND.ast --raw=br/W3LAND.bin

@@ -125,6 +125,7 @@ d_FRAM	;выв демо оформл
 	OUT (254),A
 	POP BC
 	POP HL
+        if EGA==0
 	ADD A,#30
 	LD E,A
 	CALL ATRBAR
@@ -132,5 +133,11 @@ d_FRAM	;выв демо оформл
 	LD BC,#1414
 	LD E,#70
 	CALL ATRBAR
+        endif
+        if EGA
+        ld a,21;24
+	LD DE,0xe800;0xc000
+        call putBAR_ade
+        endif
 	JP NNN_D
 
