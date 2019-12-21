@@ -1,0 +1,13 @@
+label day2_aidpost_eve:
+    $ persistent.sprite_time = "night"
+    scene bg ext_aidpost_night
+\lpic/bg/aidpost/night/bg.16c
+\F
+    with dissolve
+    window show
+    "Я просто шёл вперёд, не особо разбирая направления, и оказался у медпункта."
+    "Если мне и была нужна скорая помощь, то скорее психологическая, а получать её у местной медсестры в мои планы никак не входило."
+    "..."
+    window hide
+    jump day2_main4
+\x

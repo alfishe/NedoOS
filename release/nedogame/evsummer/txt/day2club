@@ -1,0 +1,110 @@
+label day2_clubs:
+    play ambience ambience_camp_center_day fadein 2
+    $ persistent.sprite_time = "day"
+    scene bg ext_clubs_day
+\lpic/bg/clubs/day/bg.16c
+\F
+    with dissolve
+    window show
+    "Я направился к зданию кружков."
+    "По правде говоря, мне никогда особенно не нравилась общественная работа."
+    "В школе я всегда под любым предлогом пропускал субботники, в институте не было ни малейшего желания вступать в студенческий совет."
+    "Меня не интересовали секции бокса, авиамоделирования или кройки и шитья."
+    "Так что сюда я пришёл лишь с целью отметиться."
+    window hide
+    stop ambience fadeout 2
+    play sound sfx_open_door_clubs
+    pause(1)
+    $ persistent.sprite_time = "day"
+    scene bg int_clubs_male_day
+\lpic/bg/iclubs/day/bgelslsh.16c
+\F
+    with dissolve
+    play ambience ambience_clubs_inside_day fadein 3
+    window show
+    "Внутри никого не оказалось."
+    "Я словно оказался в берлоге юного робототехника: повсюду валялись провода, нехитрые платы, микросхемы, на столе стоял осциллограф."
+    "Из соседнего помещения послышались голоса, и через секунду в комнату вошли двое пионеров."
+    show el normal pioneer at cleft
+    show sh normal pioneer at cright
+    with dissolve
+\lpic/bg/iclubs/day/elsh.16c
+\F
+    "В одном я узнал Электроника, второй же мне был незнаком."
+    el "Привет, Семён! А мы тебя ждали."
+    th "Кажется, он знает всё и обо всех..."
+    me "А чего вы меня ждали?"
+    el "Ну как же, ты пришёл в наш клуб кибернетиков записываться, так?"
+    "Он не дал мне ответить."
+    show el smile pioneer at cleft with dspr
+\lpic/bg/iclubs/day/elsmilsh.16c
+\i
+    el "Знакомься, это Шурик, он у нас главный!"
+    me "А вас в клубе этом только двое, я так полагаю?"
+    show el normal pioneer at cleft with dspr
+\lpic/bg/iclubs/day/elsh.16c
+\i
+    el "Ну, можешь считать, что уже трое."
+    "Шурик подошёл ко мне и уверенно протянул руку."
+    "Его лицо почему-то казалось знакомым."
+    show sh normal_smile pioneer at cright with dspr
+\lpic/bg/iclubs/day/elshsmil.16c
+\i
+    sh "Добро пожаловать!"
+    me "Угу..."
+    show sh normal pioneer at cright with dspr
+\lpic/bg/iclubs/day/elsh.16c
+\i
+    el "Давай я тебе тут всё покажу!{w} Ты не стесняйся, располагайся."
+    me "Да нет, ребята, я вообще-то..."
+    show sh normal_smile pioneer at cright with dspr
+\lpic/bg/iclubs/day/elshsmil.16c
+\i
+    sh "Всегда рады новым членам."
+    "Он сказал это так, что в голове у меня невольно заиграл гимн Советского Союза."
+    "Удивительно, но я ещё помнил слова - в первом классе у меня была тетрадка с текстом гимна на обратной стороне."
+    me "Да нет, мне бы просто обходной лист подписать."
+    show sh normal_smile pioneer at cright with dspr
+    show el grin pioneer at cleft with dspr
+\lpic/bg/iclubs/day/elgrshsm.16c
+\i
+    el "Так ты к нам запишись, а мы тебе его подпишем."
+    "Он хитро улыбнулся."
+    "Я уже подготовился к длинному и нудному разговору, как вдруг в комнату кто-то вошёл."
+    show el normal pioneer at left
+    show sh normal pioneer at right
+    show sl normal pioneer at center
+    with dissolve
+\lpic/bg/iclubs/day/elslsh.16c
+\F
+    "Я обернулся и увидел Славю."
+    sl "А, Семён! Надеюсь, они тебя тут не достают?"
+    show sl angry pioneer at center with dspr
+\lpic/bg/iclubs/day/elslansh.16c
+\i
+    "Она строго посмотрела на будущих светил отечественного роботостроения."
+    sl "А то я их знаю - они могут!"
+    me "Да, понимаешь, на самом деле мне бы просто обходной подписать..."
+    "Я решил воспользоваться ситуацией."
+    show sl normal pioneer at center with dspr
+\lpic/bg/iclubs/day/elslsh.16c
+\i
+    sl "Так это не проблема, давай сюда."
+    "Славя взяла листок и подошла к Шурику."
+    sl "Подписывай!"
+    show sh upset pioneer at right with dspr
+\lpic/bg/iclubs/day/elslshup.16c
+\i
+    sh "Ну подожди, мы ещё не закончили..."
+    show sl angry pioneer at center with dspr
+\lpic/bg/iclubs/day/elslashu.16c
+\i
+    sl "Закончили! Подписывай!"
+    "Она посмотрела на него так, что возражать Шурик не решился."
+    stop ambience fadeout 2
+    "Он поставил свою закорючку, и я, поблагодарив Славю, с чистой совестью направился дальше."
+    window hide
+    $ disable_current_zone()
+    $ day2_map_necessary_done +=1
+    jump day2_map
+\x

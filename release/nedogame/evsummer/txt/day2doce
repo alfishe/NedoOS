@@ -1,0 +1,14 @@
+label day2_dock_eve:
+    $ persistent.sprite_time = "night"
+    scene bg ext_boathouse_night
+\lpic/bg/boathous/night/bg.16c
+\F
+    with dissolve
+    window show
+    "Я решил пойти на пристань."
+    "Солнце ещё не полностью скрылось за горизонт, и река вдалеке красиво окрашивалась во все оттенки красного, жёлтого и оранжевого."
+    "Казалось, что вода там горит ярким пламенем, но чем дольше я стоял, тем пожар становился слабее и в конце концов совсем погас."
+    "..."
+    window hide
+    jump day2_main4
+\x

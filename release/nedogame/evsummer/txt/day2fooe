@@ -1,0 +1,17 @@
+label day2_football_eve:
+\x
+    if day2_card_result == 0 and day2_dv_bet == 0:
+        $ lp_un = lp_un + 1
+        jump day2_un
+    $ persistent.sprite_time = "night"
+    scene bg ext_playground_night
+\lpic/bg/playgrnd/night/bgun.16c
+\F
+    with dissolve
+    window hide
+    "Для футбола время было позднее, поэтому ни на поле, ни на спортивной площадке никого не оказалось."
+    "Я постоял там пару минут, тщетно вслушиваясь в тишину, и пошёл назад."
+    "..."
+    window show
+    jump day2_main4
+\x

@@ -1,0 +1,676 @@
+label day2_main2:
+\f
+    scene black
+    with dissolve2
+    window show
+    "..."
+    "Итак, я собрал все подписи, следовательно, надо зайти к Ольге Дмитриевне, чтобы отдать листок."
+    window hide
+    $ persistent.sprite_time = "day"
+    scene bg ext_house_of_mt_day
+\lpic/bg/housemt/day/bgmt.16c
+\F
+    with dissolve
+    play ambience ambience_camp_center_day fadein 3
+    show mt normal panama pioneer far at center with dissolve
+\lpic/bg/housemt/day/pmtfar.16c
+\F
+    window show
+    "Вожатая сидела возле домика и читала книжку."
+    "Вряд ли она сама соответствовала образу идеального пионера, которого хотела сделать из меня."
+    "Видимо, все её обязанности - это произносить пламенные речи на линейке, отчитывать Ульяну и принимать деятельное участие в моём физическом и идеологическом воспитании."
+    show mt normal panama pioneer at center with dissolve
+\lpic/bg/housemt/day/pmt.16c
+\F
+    me "Вот..."
+    "Я протянул ей обходной."
+    "Она не читая сунула листок в карман."
+    th "Отлично! Значит, можно было самому за всех расписаться и вообще никуда не ходить..."
+    show mt smile panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmtsmile.16c
+\i
+    mt "Молодец! Ну как, познакомился с нашей медсестрой?"
+    me "Да..."
+    "Почему-то от этого вопроса у меня мурашки побежали по коже."
+    show mt normal panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmt.16c
+\i
+    mt "В какой кружок записался?"
+    me "Да пока ни в какой... Нужно подумать."
+    show mt surprise panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmtsurp.16c
+\i
+    mt "Ну, что же ты так! Завтра обязательно запишись куда-нибудь!"
+    th "Конечно, всенепременно!"
+    show mt normal panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmt.16c
+\i
+    mt "Ладно, пора уже и на ужин идти."
+    th "Ну наконец-то! Я уже проголодался."
+    window hide
+    $ persistent.sprite_time = "day"
+    scene bg ext_dining_hall_away_day
+\lpic/bg/dinhalaw/day/bgmt.16c
+\F
+    with dissolve
+    window show
+    "Вместе с Ольгой Дмитриевной мы направились к столовой."
+    "Я посмотрел на небо и отметил, что солнце уже начало садиться."
+    window hide
+    $ persistent.sprite_time = "day"
+    scene bg ext_dining_hall_near_day
+    with dissolve
+    show dv normal pioneer at fright
+    show el normal pioneer at fleft
+\lpic/bg/dinhalne/day/eldv.16c
+\F
+    with dissolve
+    window show
+    "На крыльце стояло несколько человек: Алиса, Электроник..."
+    show us normal pioneer at cleft
+    show sl normal pioneer at cright
+\lpic/bg/dinhalne/day/elussldv.16c
+\F
+    with dissolve
+    "Ульяна и Славя."
+    show dv angry pioneer at fright with dspr
+    show el surprise pioneer at fleft with dspr
+\lpic/bg/dinhalne/day/esusslda.16c
+\i
+    play music music_list["always_ready"] fadein 5
+    "Когда мы подошли, я услышал, о чем они говорят:"
+    dv "И больше не называй меня ДваЧе, а то ещё получишь!"
+    el "Да не называл я тебя так! Тебе показалось!"
+    show us grin pioneer at cleft with dspr
+\lpic/bg/dinhalne/day/esugslda.16c
+\i
+    us "Называл, называл, я всё слышала!"
+    show el angry pioneer at fleft with dspr
+    show sl normal pioneer behind el at cright with dspr
+\lpic/bg/dinhalne/day/eaugslda.16c
+\i
+    el "Да тебя вообще там не было!"
+    us "А вот и была! Я в кустах сидела!"
+    hide us with dissolve
+    show sl angry pioneer at cright with dspr
+    show el angry pioneer behind sl at fleft with dspr
+\lpic/bg/dinhalne/day/elaslada.16c
+\F
+    sl "Хватит вам! Прекратите!"
+    th "Значит, Электроник своё ранение не на футболе получил."
+    th "Однако, как хорошо его медсестра подлатала - от фингала не осталось и следа!"
+    show mt normal pioneer at center with dissolve
+\lpic/bg/dinhalne/day/eamtsada.16c
+\F
+    "Ольга Дмитриевна подошла к ним и попыталась выяснить, что происходит:"
+    mt "Что вы тут ругаетесь?"
+    sl "Алиса Сыроежкину в глаз..."
+    dv "Ничего я не делала!"
+    hide dv with dissolve
+\lpic/bg/dinhalne/day/elamtsla.16c
+\F
+    "Алиса обиженно фыркнула и зашла внутрь."
+    stop music fadeout 3
+    mt "Ладно, пора ужинать."
+    hide mt
+    hide el
+    hide sl
+    with dissolve
+    window hide
+    stop ambience fadeout 2
+    $ persistent.sprite_time = "day"
+    scene bg int_dining_hall_people_day
+    with dissolve
+\lpic/bg/ipdinhal/day/bgmi.16c
+\F
+    play ambience ambience_dining_hall_full fadein 3
+    window show
+    "Последним в столовую вошёл я."
+    "Похоже, свободных мест осталось не так много."
+    "Вдалеке виднелось несколько незанятых стульев рядом с Алисой, но лучше поголодать недельку, чем рискнуть сесть рядом."
+    "Также свободно было рядом с Ульяной, но я не сторонник китайской традиционной кухни - <<ем всё, что ползает>>."
+    "И, наконец, свободный стул был рядом с Мику."
+    "Если выбирать из трёх зол..."
+    me "Не возражаешь, если я здесь присяду?"
+    show mi normal pioneer at center with dissolve
+\lpic/bg/ipdinhal/day/mi.16c
+\F
+    play music music_list["so_good_to_be_careless"] fadein 5
+    mi "Ой, да, конечно! То есть нет, не возражаю! То есть да, садись конечно!"
+    "Я сел."
+    show mi smile pioneer at center with dspr
+\lpic/bg/ipdinhal/day/mismile.16c
+\i
+    mi "Сегодня, смотри, гречка. Ты любишь гречку? И варёная курица! Я вообще курицу не люблю. Ну, то есть не то что не люблю..."
+    mi "Но если бы меня спросили, что бы мне больше всего хотелось, то бефстроганов или рагу... Нет, может быть, просто котлета! Или ромштекс! Ты любишь ромштексы?"
+    me "Я не особо привередливый."
+    "И это сущая правда."
+    if _preferences.language != None:
+        $ renpy.notify(translation_new["note6"])
+    mi "Понятно. Но вот десерты, знаешь, мне здесь не очень нравятся. Я мороженое люблю! Ты любишь мороженое? Особенно пломбир <<48 копеек>>, но и <<Ленинградское>> тоже. Ой, прости, я всё о себе!"
+    mi "Может, ты больше эскимо любишь?"
+    "Ужин в компании этой девочки начинал превращаться в пытку."
+    "А я по характеру такой человек, что не могу просто так игнорировать собеседника.{w} Даже её."
+    th "Мы всё же за одним столом сидим."
+    show mi upset pioneer at center with dspr
+\lpic/bg/ipdinhal/day/miupset.16c
+\i
+    mi "Знаешь, я однажды купила вафельный рожок, начала есть, а там внутри шуруп! Представляешь? Настоящий такой шуруп! Или болт... Я, честно говоря, в них не разбираюсь!"
+    show mi normal pioneer at center with dspr
+\lpic/bg/ipdinhal/day/mi.16c
+\i
+    mi "Шурупы - это которыми закручивают гайки, а болты - это такие, которые отвёрткой, да?"
+    th "Думаю, если бы проводился чемпионат по скоростному поеданию пищи, одно из призовых мест точно досталось бы мне."
+    me "Ладно, я пойду, а тебе приятного аппетита!"
+    "Я встал и направился к выходу."
+    hide mi with dissolve
+    stop music fadeout 3
+    stop ambience fadeout 2
+    "Мику что-то пыталась сказать мне вслед, но её слова потерялись в шуме толпы чересчур громко ужинающих пионеров."
+    window hide
+    $ sunset_time()
+    $ persistent.sprite_time = "sunset"
+    scene bg ext_dining_hall_near_sunset
+    with dissolve2
+\lpic/bg/dinhalne/sunset/bgelmtsl.16c
+\F
+    play ambience ambience_camp_center_evening fadein 3
+    window show
+    "Выйдя из столовой, я сел на ступеньки и решил подождать, пока переварится ужин."
+    "Я просто сидел и смотрел, как на лагерь опускается ночь."
+    "Здесь всё было таким живым днём: громкий детский смех, весёлые крики, суета и беготня, шум и гам, спортивные игры и купания на пляже."
+    "Но с наступлением темноты <<Совёнок>> резко преображался."
+    "Дневные звуки сменялись тишиной, которую лишь изредка нарушали сверчки и ночные птицы."
+    "Лагерь засыпал."
+    "В каждой тени можно было узнать кого угодно - привидение, лешего, просто дикое животное, - но никак не пионера."
+    "Всё это я понял ещё по вчерашней ночи."
+    "Местные жители строго следовали заведённому распорядку."
+    "Дневной лагерь - во власти людей, ночной же - скорее сил природы."
+    window hide
+    play sound sfx_pat_shoulder_hard
+    pause(1)
+    window show
+    "Кто-то легонько похлопал меня по плечу."
+    play music music_list["lightness"] fadein 5
+    "Я обернулся."
+    show el normal pioneer at left with dissolve
+\lpic/bg/dinhalne/sunset/el.16c
+\F
+    "Это был Электроник."
+    el "Пойдём в карты играть."
+    me "В карты?"
+    el "Да! Я игру новую придумал. Интерееесную!"
+    me "И какую же?"
+    el "Ну, надо сначала карты найти, потом расскажу."
+    me "Так ищи, в чём проблема?"
+    show el upset pioneer at left with dspr
+\lpic/bg/dinhalne/sunset/elupset.16c
+\i
+    el "Они есть только у Ольги Дмитриевны, а она мне не даст..."
+    me "Почему?"
+    el "Ну, в прошлый раз..."
+    "На крыльцо вышли вожатая и Славя."
+    show el normal pioneer at left
+    show mt normal pioneer at center
+    show sl normal pioneer at right
+\lpic/bg/dinhalne/sunset/elmtsl.16c
+\F
+    with dissolve
+    el "Ольга Дмитриевна! А Семён как раз хотел у вас карты попросить!"
+    me "Я вообще-то..."
+    mt "Зачем?"
+    show el smile pioneer at left with dspr
+\lpic/bg/dinhalne/sunset/elsmmtsl.16c
+\i
+    el "Мы игру новую придумали!"
+    th "Не мы, а ты."
+    show mt surprise pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/elsmtssl.16c
+\i
+    mt "Что за игра?"
+    el "Будут карты - я покажу."
+    show mt sad pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/elsmtdsl.16c
+\i
+    mt "Ох, не нравится мне эта идея...{w} Но раз и Семён за, то, наверное, ничего страшного..."
+    me "Да я вообще-то..."
+    show sl smile pioneer at right with dspr
+\lpic/bg/dinhalne/sunset/esmdss.16c
+\i
+    sl "Давайте я с ним схожу принесу!"
+    window hide
+    |menu:
+        |"Пойти за картами со Славей":
+            $ day2_cards_with_sl = 1
+            $ lp_sl = lp_sl + 1
+            jump day2_cards_with_sl
+        |"Пойти одному":
+            jump day2_cards_without_sl
+"1. Пойти за картами за Славей
+ 2. Пойти одному"
+\x
+label day2_cards_with_sl:
+    window show
+    me "Если ты не против..."
+    stop ambience fadeout 2
+    sl "Конечно! Пошли."
+    window hide
+    $ persistent.sprite_time = "sunset"
+    scene bg ext_houses_sunset
+\lpic/bg/houses/sunset/bgsl.16c
+\F
+    with dissolve
+    window show
+    "Мы направились в сторону домика вожатой."
+    "Где-то на полпути Славя вдруг остановилась."
+    show sl normal pioneer at center with dspr
+\lpic/bg/houses/sunset/sl.16c
+\F
+    sl "Ой, я же совсем забыла, что карты у меня!"
+    th "Очень вовремя."
+    me "А где твой домик?"
+    show sl smile pioneer at center with dspr
+\lpic/bg/houses/sunset/slsmile.16c
+\i
+    sl "Да тут рядом, пойдём!"
+    "..."
+    window hide
+    with fade
+    window show
+    "Мы подошли к домику, который на самом деле больше напоминал вагончик."
+    show sl normal pioneer at center with dspr
+\lpic/bg/houses/sunset/sl.16c
+\i
+    sl "Подожди тут минутку, я сейчас!"
+    hide sl with dissolve
+\lpic/bg/houses/sunset/bgsl.16c
+\F
+    "Минуты ждать не пришлось - она вернулась через пару секунд."
+    show sl normal pioneer at center with dissolve
+\lpic/bg/houses/sunset/sl.16c
+\F
+    sl "Вот!"
+    "Славя показала мне довольно потрёпанную колоду карт."
+    me "Краплёные небось?"
+    show sl smile pioneer at center with dspr
+\lpic/bg/houses/sunset/slsmile.16c
+\i
+    sl "Жульничать не спортивно!"
+    "А уж жульничать, не зная правил игры..."
+    sl "Пойдём?"
+    me "Пойдём."
+    hide sl with dissolve
+\lpic/bg/houses/sunset/bgsl.16c
+\F
+    "..."
+    window hide
+    with fade
+    window show
+    "На обратном пути я решил поговорить с ней в надежде что-нибудь выяснить:"
+    show sl normal pioneer at center with dissolve
+\lpic/bg/houses/sunset/sl.16c
+\F
+    me "А ты давно приехала?"
+    sl "Уже неделю здесь."
+    me "Понятно... А сама откуда?"
+    sl "Я с севера."
+    me "А поточнее?"
+    show sl smile pioneer at center with dspr
+\lpic/bg/houses/sunset/slsmile.16c
+\i
+    sl "Холодного севера."
+    "Она посмотрела на меня и улыбнулась."
+    th "Кажется, никто в этом лагере не хочет отвечать даже на самые невинные вопросы."
+    "Я решил действовать по-другому."
+    me "А что тебе нравится?"
+    sl "В смысле?"
+    me "Ну, твои увлечения?"
+    show sl smile2 pioneer at center with dspr
+\lpic/bg/houses/sunset/slsmile2.16c
+\i
+    sl "Ааа... Я природу люблю."
+    "Странно, но сейчас она почему-то немногословна."
+    me "Природу?.. Ясно.{w} Хочешь стать натуралистом?"
+    sl "Скорее краеведом. Всегда интересовалась историей родной страны."
+    "Это действительно похоже на неё."
+    "Казалось, из всех местных обитателей она единственная, кто не скрывал в себе никаких загадок."
+    th "А вдруг её тоже как-то сюда забросило, и она просто, как и я, не может никому доверять до конца?"
+    "Я решил прощупать почву:"
+    me "А почему ты именно в этот лагерь поехала?"
+    show sl normal pioneer at center with dspr
+\lpic/bg/houses/sunset/sl.16c
+\i
+    sl "Родителям путёвку на работе дали."
+    th "Опять облом."
+    me "Ну, предположим, если бы у тебя был выбор?"
+    sl "Здесь хорошо.{w} Не думаю, что выбрала бы какое-нибудь другое место - здесь кажется, что ты становишься каким-то другим человеком!"
+    "Мне такого совершенно не казалось."
+    me "В смысле <<другим>>?"
+    sl "Ну, столько возможностей, столькому можно научиться, стольких людей узнать!"
+    "Сейчас она рассуждала как вожатая, и это меня насторожило."
+    stop music fadeout 3
+    "Я решил пока прекратить расспросы."
+    window hide
+    $ persistent.sprite_time = "sunset"
+    scene bg ext_dining_hall_near_sunset
+\lpic/bg/dinhalne/sunset/slmt.16c
+\F
+    with dissolve
+    play ambience ambience_camp_center_evening fadein 3
+    show sl normal pioneer at cleft
+    show mt normal pioneer at cright
+    with dissolve
+    window show
+    "Когда мы вернулись, Ольга Дмитриевна сказала Славе:"
+    mt "Я же вспомнила, что карты у тебя!"
+    sl "Да ничего, мы принесли."
+    show mt smile pioneer at cright with dspr
+\lpic/bg/dinhalne/sunset/slmtsmil.16c
+\i
+    mt "Ну и отлично!"
+    jump day2_pre_cards
+\j%
+&label day2_cards_without_sl:
+    window show
+    show sl normal pioneer at right with dspr
+\lpic/bg/dinhalne/sunset/elsmtdsl.16c
+\i
+    me "Да я и один могу сходить..."
+    show mt normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/elsmmtsl.16c
+\i
+    mt "Ладно. Возьмёшь у меня в домике в ящике стола."
+    stop ambience fadeout 2
+    stop music fadeout 3
+    "Я направился к домику Ольги Дмитриевны."
+    window hide
+    $ persistent.sprite_time = "sunset"
+    scene bg ext_houses_sunset
+\lpic/bg/houses/sunset/bgsl.16c
+\F
+    with dissolve
+    play ambience ambience_camp_center_evening fadein 2
+    window show
+    th "И зачем вообще согласился?"
+    th "С другой стороны, какие у меня были ещё варианты?"
+    th "Ночью здесь делать особо нечего, а так хоть развлекусь немного."
+    "Но в мозгу упорно крутилась мысль о том, что сейчас не самое лучшее время для развлечений."
+    th "Хотя, с другой стороны, если {i}здесь{/i} есть лагерь, пионеры, то это кому-то надо?"
+    th "Да даже если и не надо, то самое логичное - ответы искать именно тут, а не в лесах или полях."
+    "А в данный момент {i}ответы{/i} собираются играть в карты..."
+    window hide
+    stop ambience fadeout 2
+    $ persistent.sprite_time = "sunset"
+    scene bg int_house_of_mt_sunset
+\lpic/bg/housemt/sunset/bgsl.16c
+\F
+    with dissolve
+    play sound sfx_unlock_door_campus
+    pause(1)
+    play ambience ambience_int_cabin_evening fadein 2
+    window show
+    "Я открыл дверь своим ключом и зашёл."
+    "К моему удивлению, карт в ящике стола не оказалось."
+    "В нём нашлось всё, что угодно: ножи, вилки, чашки, тарелки, клейкая лента, ножницы, пара садовых перчаток, моток верёвки, несколько целлофановых пакетов, карандаш и пара сломанных ручек."
+    "Но только не карты."
+    th "Может, в шкафу?"
+    "Там в основном была одежда Ольги Дмитриевны, но внимание моё привлёк маленький ящичек с замочной скважиной."
+    play sound sfx_drawer_rattle
+    "Я потянул, но он не открылся."
+    th "Интересно, что она там прячет?"
+    th "Взламывать его - явно не лучшая идея, тем более не факт, что карты там."
+\x
+    if d1_keys:
+        $ d2_gave_keys = True
+        play sound sfx_keys_rattle
+        "Я уже собирался уходить и даже сделал несколько шагов, как в кармане что-то зазвенело."
+        "Это были ключи, которые вчера забыла Славя."
+        th "А что если..."
+        "Некоторое время я стоял в раздумьях, но потом уверенно подошёл к шкафу и начал прикидывать, какой ключ может подойти к замку."
+        "Конечно, на успех особо рассчитывать не стоило, ведь с какой стати у Слави мог оказаться ключ от личного ящика Ольги Дмитриевны?"
+        "Но к моему удивлению, замок приветливо провернулся несколько раз, и я уже собирался потянуть на себя ручку..."
+        window hide
+        play sound sfx_open_door_kick
+        $ renpy.pause(1)
+        window show
+        "Как вдруг сзади хлопнула дверь."
+        "Я подскочил на месте, резко развернулся, но в домике никого, кроме меня, не было."
+        th "Наверное, ветер..."
+        "Я с опаской выглянул на улицу, но и там не оказалось ни единой живой души."
+        "Возможно, ничего страшного и не произошло, но мне всё равно было не по себе."
+        "..."
+        window hide
+        with fade2
+        window show
+        "После тщательного осмотра соседних кустов я всё-таки решил закончить начатое и уже приготовился узнать все страшные секреты вожатой..."
+        sl "Семён, что ты тут так долго?"
+        show sl normal pioneer at center with dissolve
+\lpic/bg/housemt/sunset/sl.16c
+\F
+        me "А... я... да..."
+        "Трясущимися руками я старался побыстрее закрыть ящик и вынуть ключ."
+        "Славя подошла ближе."
+        show sl smile pioneer at center with dspr
+\lpic/bg/housemt/sunset/slsmile.16c
+\i
+        sl "Ой, мои ключи! А я их обыскалась! Где ты..."
+        me "Да вот по дороге... В кустах валялись..."
+        "Слава богу, что я таки успел замести следы."
+        me "Пойдём?"
+        "И сейчас мне больше всего хотелось поскорее убраться отсюда и забыть о попытке бесцеремонного вторжения в чужую личную жизнь."
+        window hide
+\j&
+    else:
+&        window hide
+    stop ambience fadeout 2
+    $ persistent.sprite_time = "sunset"
+    scene bg ext_dining_hall_near_sunset
+    with dissolve
+    play ambience ambience_camp_center_evening fadein 3
+    show mt normal pioneer at right
+    show sl normal pioneer at left
+\lpic/bg/dinhalne/sunset/slmt.16c
+\F
+    with dissolve
+    window show
+    "Когда я вернулся к столовой, Ольга Дмитриевна с невозмутимым видом сказала:"
+    mt "Ой, извини, а карты у Слави были в домике.{w} Пока ты ходил, она сбегала."
+    show sl smile2 pioneer at left with dspr
+\lpic/bg/dinhalne/sunset/slsm2mt.16c
+\i
+    "Я посмотрел на Славю, она виновато улыбнулась."
+    th "Да ладно уж, что там, не беспокойтесь обо мне..."
+    jump day2_pre_cards
+\j%
+%label day2_pre_cards:
+    hide mt
+    hide sl
+    with dissolve
+\lpic/bg/dinhalne/sunset/bgelmtsl.16c
+\F
+    "Славя и Ольга Дмитриевна зашли внутрь."
+    "Я уже собирался последовать за ними, как вдруг кто-то резко дёрнул меня за руку."
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\F
+    stop ambience fadeout 2
+    play music music_list["you_won_t_let_me_down"] fadein 5
+    "Это была Алиса."
+    "Она смотрела так, что у меня мурашки побежали по спине."
+    me "Тебе что-то нужно?"
+    "Осторожно спросил я."
+    dv "Что, тоже планируешь участвовать в этой дурацкой игре?"
+    me "Ну... да, а что такого?"
+    dv "Нет, ничего."
+    show dv smile pioneer at center with dspr:
+\lpic/bg/dinhalne/sunset/dvsmile.16c
+\i
+        linear 0.5 xalign 0.72
+    "Она уже собиралась уходить, но вдруг обернулась и внимательно посмотрела на меня, улыбнувшись."
+    show dv smile pioneer at right:
+        linear 0.5 xalign 0.5
+\lpic/bg/dinhalne/sunset/dvsmiler.16c
+\F
+    dv "А в карты-то играть умеешь?"
+    me "Умею немного."
+    "Я никак не мог понять, что ей от меня нужно."
+    if _preferences.language != None:
+        $ renpy.notify(translation_new["note7"])
+    dv "В дурака небось и всё?"
+    th "Ты-то как будто звезда покера."
+    me "Ну, в принципе, да..."
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\F
+    dv "Значит, тут у тебя шансов никаких."
+    me "Почему?"
+    show dv angry pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvangry.16c
+\i
+    dv "По кочану!"
+    me "То есть ты правила знаешь?"
+    show dv smile pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvsmile.16c
+\i
+    dv "Конечно!"
+    me "Ну, значит, у тебя будет преимущество."
+    "Я не видел смысла дальше продолжать этот разговор и сделал несколько шагов по направлению к двери."
+    show dv angry pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvangry.16c
+\i
+    dv "Что ты всё уйти-то пытаешься?!"
+    th "А о чём, собственно, ещё говорить?"
+    show dv smile pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvsmile.16c
+\i
+    dv "Давай поспорим."
+    me "Ты про что?"
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\i
+    dv "Какой же ты тупой!{w} Про карты, про что же ещё!"
+    me "И каков же предмет спора?"
+    show dv smile pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvsmile.16c
+\i
+    dv "Что я тебя обыграю!"
+    me "Ну, это самый вероятный исход."
+    "Спокойно согласился я."
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\i
+    dv "Значит, боишься?"
+    me "Я не боюсь...{w} Просто не привык спорить, когда не уверен."
+    dv "И рисковать ты тоже не привык."
+    th "Сама наблюдательность просто-таки."
+    me "Ладно, тогда я..."
+    show dv angry pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvangry.16c
+\i
+    dv "Нет уж!"
+    me "Ну что ещё?"
+    "Обессиленно вздохнул я."
+    "Алиса начала мне надоедать своей пустой болтовнёй про какой-то бессмысленный спор."
+    show dv grin pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvgrin.16c
+\i
+    dv "Если не согласишься спорить, я всем расскажу, что ты ко мне приставал!"
+    me "Что?!"
+    dv "Что слышал!"
+    th "Да, пожалуй, она вполне может..."
+    me "Но это же глупо!{w} Тебе никто не поверит - я всего неполных два дня здесь, да и к тому же..."
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\i
+    dv "Хочешь проверить?"
+    me "Ну, предположим...{w} И что будет, если я выиграю?"
+    show dv smile pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvsmile.16c
+\i
+    dv "Я никому ничего не скажу."
+    me "А если проиграю?"
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\i
+    dv "Какой же ты тупой!{w} Расскажу, что ты ко мне приставал, говорила же уже."
+    me "То есть, получается, мне нужно доказать, что я не делал того, что не делал и так?"
+    dv "Считай как хочешь."
+    "Передо мной встал непростой выбор."
+    "С одной стороны, было глупо соглашаться - я не знал правил, да и азартные игры не были моим коньком."
+    "Но с другой - она вполне могла сильно осложнить мою жизнь в лагере."
+    th "Хотя можно ли ей верить?"
+    th "Даже если я выиграю, не претворит ли она в жизнь свои угрозы?"
+    dv "Так что решил?"
+    show un normal pioneer at right with dissolve
+\lpic/bg/dinhalne/sunset/dvun.16c
+\F
+    "Я уже было собирался ответить, как у меня из-за спины бесшумно вынырнула Лена."
+    show dv angry pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvangrun.16c
+\i
+    dv "Чего тебе?"
+    show un scared pioneer at right with dspr
+\lpic/bg/dinhalne/sunset/dvanunsc.16c
+\i
+    un "Ничего..."
+    hide un with dissolve
+\lpic/bg/dinhalne/sunset/dvangry.16c
+\F
+    "Лена спешно зашла в столовую."
+    show dv normal pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dv.16c
+\i
+    dv "Ну?"
+    window hide
+    menu:
+    |    "Поспорить с Алисой":
+            $ day2_dv_bet = 1
+            $ lp_dv = lp_dv + 2
+            $ lp_un = lp_un - 1
+            window show
+    |    "Не спорить с Алисой":
+            $ day2_dv_bet = 0
+            $ lp_dv = lp_dv - 2
+            $ lp_un = lp_un + 1
+            window show
+"1. Поспорить с Алисой
+ 2. Не спорить с Алисой"
+\x
+    if day2_dv_bet == 1:
+        th "Возможно, я ещё сто раз пожалею об этом..."
+        me "Ладно, идёт!"
+        show dv smile pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvsmile.16c
+\i
+        "Она улыбнулась."
+        me "Только если я выиграю..."
+        dv "Да-да, всё честно, без обмана!"
+        "Алиса поднялась по лестнице и вошла внутрь."
+        hide dv with dissolve
+\lpic/bg/dinhalne/sunset/bgelmtsl.16c
+\F
+        th "И зачем я во всё это ввязался?"
+        th "Может быть, уверился, что она в любом случае найдёт, как мне жизнь испортить?"
+        th "Раз уж решила..."
+\j%
+    else:
+&        th "Нет, ни в какие глупые авантюры я пускаться не намерен!"
+        me "Извини уж..."
+        show dv angry pioneer at center with dspr
+\lpic/bg/dinhalne/sunset/dvangry.16c
+\i
+        dv "Слабак!"
+        "Она фыркнула, поднялась по ступенькам и у самой двери бросила мне:"
+        dv "Готовься к последствиям!"
+        hide dv with dissolve
+\lpic/bg/dinhalne/sunset/bgelmtsl.16c
+\F
+        th "Последствиям?.."
+        th "Вдруг я поступил неправильно?"
+        "В конце концов, она вполне может до предела осложнить мою жизнь здесь."
+        "Но с другой стороны, у меня просто не было права на опрометчивые шаги."
+    stop music fadeout 3
+\j%
+%    "Я тяжело вздохнул и направился за ней в столовую."
+    window hide
+\x

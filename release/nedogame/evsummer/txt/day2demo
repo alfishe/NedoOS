@@ -1,0 +1,122 @@
+label demo_play:
+    python:
+        dialogs = {
+                (3,"rival_select","call"): "demo_play_intro",
+                (3,"me_defend_1","call"):  "demo_play_me_defend_1",
+                (3,"me_select_1","call"):  "demo_play_me_select_1",
+                (3,"rival_defend","call"): "demo_play_rival_defend",
+                (2,"rival_select","jump"): "demo_play_after_loop",
+            }
+        INVISIBLE = False
+        VISIBLE = False
+        generate_cards("bg hall",dialogs)
+        rival = CardGameRivalUn(un_avatar_set, translation_new["test_game"])
+    jump cards_gameloop
+label demo_play_intro:
+\lpic/bg/idinhall/sunset/el.16c
+\F
+    show el normal pioneer at center with dissolve
+    $ show_cards()
+    el "Посмотрите на карты внимательно."
+    $ show_cards()
+    el "Перед вами их ровно шесть!"
+    $ show_cards()
+    th "Надеюсь, считать здесь все умеют."
+    $ show_cards()
+    el "Теперь можете их открыть."
+    $ VISIBLE = True
+    $ show_cards()
+    "Когда все посмотрели свои карты, Электроник продолжил."
+    $ show_cards()
+    el "Правила такие же, как в покере."
+    $ show_cards()
+    el "Думаю, все играть умеют?"
+    $ show_cards()
+    "Я-то умел, но вот в остальных не был уверен."
+    $ show_cards()
+    el "Сначала идёт самая старшая карта, потом пара, потом две пары, потом тройка...{w} Ну и так далее."
+    $ show_cards()
+    el "Первым ходом вы выбираете карту, которую хотите забрать у противника."
+    $ show_cards()
+    el "У него же в свою очередь есть возможность поменять карты местами два раза."
+    $ show_cards()
+    el "Но можно и не менять, если собираются забрать ненужную карту."
+    $ show_cards()
+    el "Но учтите - противник видит, какие карты вы меняете местами."
+    $ show_cards()
+    el "Далее соперник забирает у вас одну карту."
+    $ show_cards()
+    el "Ну, и так далее - думаю, всё понятно."
+    $ show_cards()
+    "Мне было совершенно ничего не понятно."
+    $ show_cards()
+    us "Эй, ты, Эйнштейн недоделанный!"
+    $ show_cards()
+    "Послышался издалека голос Ульянки."
+    $ show_cards()
+    us "Ничегошеньки не понятно!"
+    $ show_cards()
+    el "По ходу разберёшься."
+    hide el with dissolve
+    $ show_cards()
+    "Электроник отошёл к столу со схемой, оставив Ульяну злиться в одиночестве."
+    $ show_cards()
+    me "Ходи первая."
+    $ show_cards()
+    "Я надеялся, что быстро смогу вникнуть в игру."
+    $ show_cards()
+    "И Лена, смутившись ещё больше, чем обычно, потянулась к моим картам."
+    window hide
+    return
+
+label demo_play_me_defend_1:
+    $ show_cards()
+    window show
+    "Но на середине стола её рука застыла."
+    $ show_cards()
+    un "Ты будешь..."
+    $ show_cards()
+    th "Точно! Я же должен защищать свою карту!"
+    $ show_cards()
+    th "И что там говорил Электроник..."
+    $ show_cards()
+    "Чтобы попытаться запутать соперника, можно поменять карты местами.{w} И так два раза."
+    $ show_cards()
+    "А можно и не менять."
+    $ show_cards()
+    "Защищать мне эту карту или нет?"
+    $ show_cards()
+    "К тому же я могу сразу согласиться и отдать ей карту, которую она выбрала."
+    $ show_cards()
+    "А Лена может изменить свой выбор, взяв другую карту.{w} А может и не менять."
+    window hide
+    return
+
+label demo_play_me_select_1:
+    window show
+    "Понемногу всё становилось понятно!{w} Или хотя бы понятнее..."
+    $ show_cards()
+    me "Теперь моя очередь."
+    $ show_cards()
+    "Я могу вернуть карту, которую она забрала, или выбрать любую другую."
+    window hide
+    return
+
+label demo_play_rival_defend:
+    $ show_cards()
+    window show
+    "Лена может попробовать защитить свою карту."
+    $ show_cards()
+    "Но если я буду внимателен, то всё равно возьму ту, что выбрал с самого начала."
+    window hide
+    return
+
+label demo_play_after_loop:
+    $ show_cards()
+    window show
+    "Получилось!"
+    window hide
+
+    $ ui.jumpsoutofcontext("day_2_cards_continue")
+
+\x

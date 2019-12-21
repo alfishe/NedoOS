@@ -1,0 +1,147 @@
+label day2_us:
+    scene black
+\f
+    with dissolve
+    window show
+    "События прошедшего дня всё ещё ярко мелькали у меня в голове: чёртов никому не нужный обходной, глупый турнир."
+    "Сегодня мне не хотелось больше ничего делать, ни с кем разговаривать.{w} А уж разбираться со своей непростой ситуацией и подавно не было никакого желания."
+    "Я пошёл на север.{w} По крайней мере в ту сторону, где он по моим прикидкам был."
+    "Моя традиция с молодости - ходить на север."
+    "Я больше любил эту часть своего родного города, чем южные районы."
+    "Также меня никогда не прельщал отдых на черноморских курортах - бескрайние леса и поля были мне куда милее, чем пляжи и барханы."
+    window hide
+    $ persistent.sprite_time = "night"
+\lpic/bg/stagebig/night/bg.16c
+\F
+    scene bg ext_stage_big_night
+    with dissolve
+    play ambience ambience_camp_center_evening fadein 2
+    window show
+    "Спустя пару минут вдалеке показалась концертная площадка: несколько рядов деревянных скамеек и деревянная же эстрада."
+    "Я поднялся на сцену."
+    window hide
+    $ persistent.sprite_time = "night"
+    scene bg ext_stage_normal_night
+\lpic/bg/stage/night/bgus.16c
+\F
+    with dissolve
+    window show
+    "Там было довольно много всякого музыкального оборудования: колонки, микрофонная стойка и даже пианино."
+    "Я представил, что передо мной толпа зрителей, все кричат, приветствуют меня, а в глаза бьёт слепящий свет прожекторов."
+    "Вообразив, что в руках гитара, я попытался исполнить длинное красивое соло."
+    "Наверное, со стороны это смотрелось смешно - парень на сцене размахивает руками, бегает туда-сюда, корчится и кривляется, при этом строя глупые гримасы."
+    th "Хорошо бы меня здесь никто не увидел!"
+    stop ambience fadeout 2
+    play music music_list["glimmering_coals"] fadein 5
+    us "Ого!"
+    "Послышалось откуда-то сверху."
+    show us laugh pioneer with dissolve:
+\lpic/bg/stage/night/uslaugh.16c
+\F
+        xalign 0.5
+        yanchor 0.116
+        rotate 180
+    "Я поднял глаза и увидел Ульянку, свесившуюся с балки под потолком сцены."
+    us "Что это мы тут делаем?"
+    me "Да я просто..."
+    "Оправдываться явно бесполезно."
+    me "Сама всё видела."
+    "Расстроенно сказал я и отвернулся."
+    show us laugh2 pioneer with dspr:
+\lpic/bg/stage/night/uslaugh2.16c
+\i
+        xalign 0.5
+        yanchor 0.116
+        rotate 180
+    us "В тебе, я погляжу, умирает талант великого гитариста."
+    "Я ничего не ответил."
+    show us smile pioneer with dspr:
+\lpic/bg/stage/night/ussmile.16c
+\i
+        xalign 0.5
+        yanchor 0.116
+        rotate 180
+    us "Ну, ладно тебе, не дуйся, смотрелось забавно!"
+    "Она захихикала."
+    me "Забавно, говоришь?"
+    "Фыркнул я."
+    us "Да."
+    "Спокойно ответила Ульяна."
+    show us grin pioneer with dspr:
+\lpic/bg/stage/night/usgrin.16c
+\i
+        xalign 0.5
+        yanchor 0.116
+        rotate 180
+    us "Подойди-ка сюда."
+    me "Куда?"
+    us "Ко мне!"
+    me "Я туда лезть не собираюсь, не думай даже!"
+    "Не то чтобы я боялся высоты, но какой смысл забираться на эту балку?"
+    us "Да нет! Просто сюда."
+    "Я почувствовал что-то недоброе, но всё же медленно направился в её сторону."
+    "Когда я оказался точно под Ульянкой, она крикнула:"
+    us "Лови!"
+    window hide
+    scene cg d2_ussr_falling
+\lpic/cg/d2ussr.16c
+\F
+    with dissolve
+    window show
+    "И прыгнула..."
+    "За мгновение у меня в голове пронеслись тысячи мыслей."
+    th "Как я её поймаю? А надо ли вообще ловить? А что, если она разобьётся? А что, если она мне что-то сломает? Да и почему именно я?!"
+    th "Она сама виновата - нечего дурью маяться!"
+    "Удивительно, сколько мыслей приходят и уходят за долю секунды."
+    "А ведь иногда, чтобы родить хотя бы одну, уходят годы."
+    "В конце концов, логика и инстинкт самосохранения выиграли, и я отошёл в сторону."
+    window hide
+    stop music fadeout 3
+    $ persistent.sprite_time = "night"
+    scene bg ext_stage_normal_night
+    with dissolve
+    play ambience ambience_camp_center_evening fadein 2
+    play sound sfx_uliana_jumps_down
+    show us upset pioneer at center with dissolve
+\lpic/bg/stage/night/usupset.16c
+\F
+    $ renpy.pause(1)
+    show us sad pioneer at center with dspr
+    window show
+    "Ульянка мягко приземлилась, перекувыркнулась, мгновенно вскочила на ноги и обиженно посмотрела на меня."
+    us "Почему не поймал?"
+    me "Ну ты же не разбилась..."
+    "Ответил я, отведя взгляд."
+    show us shy2 pioneer at center with dspr
+\lpic/bg/stage/night/usshy2.16c
+\i
+    us "А если бы разбилась?"
+    me "Не разбилась!{w} Да и что это вообще такое? Дешёвых фильмов обсмотрелась?"
+    show us grin pioneer at center with dspr
+\lpic/bg/stage/night/usgrin.16c
+\i
+    us "А что, волнуешься за меня?"
+    "Она ехидно ухмыльнулась."
+    me "В такой ситуации... Ну, естественно, волнуюсь."
+    show us surp3 pioneer at center with dspr
+\lpic/bg/stage/night/ussur3.16c
+\i
+    us "Я польщена."
+    me "Эй, ты не думай..."
+    show us laugh pioneer at center with dspr
+\lpic/bg/stage/night/uslaugh.16c
+\i
+    us "Ладно-ладно. Прощаю тебе карты."
+    me "А вот я тебе это прощать не..."
+    hide us with dissolve
+\lpic/bg/stage/night/bgus.16c
+\i
+    "Я не успел закончить - Ульянка спрыгнула со сцены и скрылась в ночи."
+    th "Очередная идиотская выходка этой глупой девчонки."
+    th "Да, конечно, я испугался за неё."
+    th "Да и будь любой другой на её месте..."
+    "В очередной раз мысленно обругав Ульяну, я направился в сторону своего домика."
+    window hide
+    stop ambience fadeout 2
+    jump day2_main4
+\x

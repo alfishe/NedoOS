@@ -1,0 +1,319 @@
+label day_2_cards_continue:
+    $ renpy.block_rollback()
+    $ persistent.CardsDemo = True
+    $ persistent.sprite_time = "sunset"
+    scene bg int_dining_hall_sunset
+\lpic/bg/idinhall/sunset/bg.16c
+\F
+    with dissolve
+    window show
+    "Электроник, до этого лишь молча наблюдавший за игрой, удовлетворённо кивнул."
+    "Похоже, теперь мы действительно немного разобрались, что к чему."
+    show el normal pioneer at center with dissolve
+\lpic/bg/idinhall/sunset/el.16c
+\F
+    el "Итак, во время игры противники три раза обмениваются картами, а потом вскрываются."
+    "У меня вырвался невольный смешок от слова <<вскрываются>>."
+    show el angry pioneer at center with dspr
+\lpic/bg/idinhall/sunset/elangry.16c
+\i
+    el "Что смешного?"
+    me "Нет, ничего."
+    "Сдерживаясь из последних сил, чтобы не прыснуть, ответил я."
+    "Он пристально посмотрел на меня и продолжил."
+    show el normal pioneer at center with dspr
+\lpic/bg/idinhall/sunset/el.16c
+\i
+    el "И мы смотрим, у кого лучше карты."
+    hide el with dissolve
+\lpic/bg/idinhall/sunset/bg.16c
+\F
+    "Электроник вернулся к своему ватману."
+    window hide
+"1. Играть турнир (пока недоступно)
+ 2. Пропустить турнир (выиграть у Алисы)
+ 3. Пропустить турнир (проиграть Алисе)
+ 4. Пропустить турнир (проиграть Ульяне)
+ 5. Пропустить турнир (проиграть Лене)"
+\x
+    if persistent.CardsWon3:
+        menu:
+            "Играть турнир":
+                jump un_play
+            "Пропустить турнир (выиграть у Алисы)":
+                jump dv_play_win
+            "Пропустить турнир (проиграть Алисе)":
+                jump dv_play_fail
+            "Пропустить турнир (проиграть Ульяне)":
+                jump us_play_fail
+            "Пропустить турнир (проиграть Лене)":
+                jump un_play_fail
+    elif persistent.CardsWon2:
+        menu:
+            "Играть турнир":
+                jump un_play
+            "Пропустить турнир (проиграть Алисе)":
+                jump dv_play_fail
+            "Пропустить турнир (проиграть Ульяне)":
+                jump us_play_fail
+            "Пропустить турнир (проиграть Лене)":
+                jump un_play_fail
+    elif persistent.CardsWon1:
+        menu:
+            "Играть турнир":
+                jump un_play
+            "Пропустить турнир (проиграть Ульяне)":
+                jump us_play_fail
+            "Пропустить турнир (проиграть Лене)":
+                jump un_play_fail
+    elif persistent.CardsFail:
+        menu:
+            "Играть турнир":
+                jump un_play
+            "Пропустить турнир (проиграть Лене)":
+                jump un_play_fail
+label un_play:
+    python:
+        dialogs = {
+                (0,"win","jump"):          "un_play_win",
+                (0,"fail","jump"):         "un_play_fail",
+                (0,"draw","jump"):         "un_play_draw",
+            }
+        generate_cards("bg hall",dialogs)
+        rival = CardGameRivalUn(un_avatar_set, translation_new["un"])
+    jump cards_gameloop
+label un_play_fail:
+    $ renpy.block_rollback()
+    $ persistent.CardsFail = True
+    $ day2_card_result = 0
+    jump day2_main3
+label un_play_draw:
+    $ show_cards()
+    window show
+    el "Ничья! Играйте ещё раз."
+    window hide
+    jump un_play
+label un_play_win:
+    $ renpy.block_rollback()
+    $ persistent.sprite_time = "sunset"
+    scene bg int_dining_hall_sunset
+    with dissolve
+    window show
+    "Я победил!"
+    "Вот уж действительно - трудно играть в игру, только что придуманную, да ещё и не тобой!"
+    "Но я выиграл!"
+    "Правда, радость победы немного омрачало то, что проигравшей оказалась Лена."
+    "Она и без того была не особо уверена в себе."
+    th "Теперь мне даже неудобно смотреть на неё."
+    "Возможно, следовало всё-таки проиграть, чтобы повысить её самооценку."
+    if day2_dv_bet == 1:
+        th "Но я же поспорил с Алисой..."
+    "Электроник тем временем с гордостью объявил, что первый тур окончен."
+    window hide
+    scene cg lvl_2_semen_win
+    with dissolve
+    window show
+    "Через некоторое время на ватмане появилась схема участников второго тура."
+    "Пары полуфиналистов составили: Алиса и Женя, Ульяна и..."
+    "Я."
+    "У меня вырвался обречённый вздох."
+    window hide
+    $ persistent.sprite_time = "sunset"
+    scene bg int_dining_hall_sunset
+    with dissolve
+    show us grin pioneer at center with dissolve
+    window show
+    "И тут же напротив уселась Ульяна!"
+    us "Хы!"
+    show us laugh pioneer at center with dspr
+    "С улыбкой до ушей она уставилась на меня."
+    us "Как это ты Лену обыграл?"
+    us "Жульничал, наверное?"
+    me "Я же не ты."
+    me "Просто я умею играть в карты."
+    th "Пусть она хотя бы так думает."
+    me "А ты как Шурика обыграла?"
+    show us grin pioneer at center with dspr
+    us "А..."
+    "Ульянка махнула рукой, показывая, как это было просто."
+    us "Пригрозила, что вступлю в его клуб."
+    show us laugh pioneer at center with dspr
+    "И снова широко улыбнулась."
+    us "Будешь мне поддаваться?"
+    me "И не надейся!"
+    show us dontlike pioneer at center with dspr
+    us "Ну вот..."
+    show us laugh pioneer at center with dspr
+    us "Тогда я сама буду выбирать, какую карту тебе отдать!"
+    me "Ты правила слышала?"
+    show us laugh2 pioneer at center with dspr
+    us "Да плевать!"
+    "Похоже, её действительно это мало волновало."
+    me "Ладно, тогда и я буду отдавать тебе только те карты, что выберу сам."
+    show us laugh pioneer at center with dspr
+    us "Договорились!"
+    "Воодушевлённый победой в первом туре, я решился на этот опасный шаг."
+    "Можно было ввязаться в спор, позвать Электроника и в конце концов настоять на своём, но я почему-то был полностью уверен в исходе этой партии."
+    "Да, мы нарушали правила игры, но находились с Ульянкой в равных условиях."
+    "Я посмотрел на Электроника."
+    el "Время начинать второй тур!"
+    "Скомандовал он."
+    "Я аккуратно открыл карты, стараясь не дать Ульянке заглянуть в них."
+    hide us with dissolve
+    window hide
+label us_play:
+    python:
+        dialogs = {
+                (3,"me_defend_2","call"):  "us_play_me_defend_2",
+                (2,"me_defend_2","call"):  "us_play_me_defend_2",
+                (1,"me_defend_2","call"):  "us_play_me_defend_2",
+                (0,"win","jump"):  "us_play_win",
+                (0,"fail","jump"): "us_play_fail",
+                (0,"draw","jump"): "us_play_draw",
+            }
+        generate_cards("bg hall",dialogs)
+        rival = CardGameRivalUs(us_avatar_set, translation_new["us"])
+    jump cards_gameloop
+
+label us_play_me_defend_2:
+    $ show_cards()
+    window show
+    us "Эй, не мешай карты - это меня путает!"
+    window hide
+    $ show_cards()
+    window show
+    "Ммм..."
+    window hide
+    return
+label us_play_fail:
+    $ renpy.block_rollback()
+    $ persistent.CardsWon1 = True
+    $ day2_card_result = 1
+    jump day2_main3
+label us_play_draw:
+    $ show_cards()
+    window show
+    el "Ничья! Играйте ещё раз."
+    window hide
+    jump us_play
+label us_play_win:
+    $ renpy.block_rollback()
+    $ persistent.sprite_time = "sunset"
+    scene bg int_dining_hall_sunset
+    with dissolve
+    show us dontlike pioneer at center with dissolve
+    window show
+    us "Эй! Так нечестно!"
+    us "Ты должен был поддаваться и проиграть!"
+    "От недовольства она надула щёки и стала похожа на колобка."
+    us "Давай переиграем, только ты теперь поддавайся, слышишь?!"
+    "Но её слышал не только я, а весь зал."
+    "И даже Электроник."
+    el "Никаких переигровок!"
+    "Ульяна не обратила на него ни малейшего внимания."
+    show us angry pioneer at center with dspr
+    us "Ты должен проиграть!"
+    me "Я вообще с тобой не собираюсь играть второй раз."
+    "Спокойно сказал я."
+    us "Ах, так?"
+    me "Да, так."
+    show us grin pioneer at center with dspr
+    us "Тогда я всем расскажу о том, что ты к Алисе приставал."
+    "Сказала она шёпотом."
+    me "Чего?!"
+    "Я перегнулся через стол и грозно посмотрел на неё."
+    me "Значит, подслушивала?"
+    us "Не подслушивала, а просто мимо проходила."
+    "В конце концов, сыграть лишний раунд - это куда лучше, чем..."
+    th "А ведь она может!"
+    "Я вздохнул и обратился к Электронику."
+    me "Переиграем, ничего страшного."
+    el "Как знаете..."
+    "Он пожал плечами."
+    "Итак, матч-реванш начался."
+    hide us with dissolve
+    window hide
+label us2_play:
+    python:
+        dialogs = {
+                (0,"win","jump"):  "us2_play_win",
+                (0,"fail","jump"): "us2_play_fail",
+                (0,"draw","jump"): "us2_play_draw",
+            }
+        generate_cards("bg hall",dialogs)
+        rival = CardGameRivalUs(us_avatar_set, translation_new["us"])
+    jump cards_gameloop
+label us2_play_fail:
+    $ renpy.block_rollback()
+    $ persistent.CardsWon1 = True
+    $ day2_card_result = 1
+    jump day2_main3
+label us2_play_draw:
+    $ show_cards()
+    window show
+    el "Ничья! Играйте ещё раз."
+    window hide
+    jump us2_play
+label us2_play_win:
+    $ renpy.block_rollback()
+    $ persistent.sprite_time = "sunset"
+    scene bg int_dining_hall_sunset
+    with dissolve
+    show us dontlike pioneer at center with dissolve
+    window show
+    me "Проще простого."
+    "Сказал я и вальяжно развалился на стуле."
+    us "Так нечестно!"
+    th "Надеюсь, она не потребует ещё одной переигровки!"
+    me "Почему же нечестно?"
+    "Усмехнулся я."
+    us "Ладно..."
+    "Обиженно сказала Ульяна и встала из-за стола."
+    hide us with dissolve
+    "Я внимательно посмотрел на схему турнира, пытаясь понять, кто же мне достался в соперники по финалу."
+    show dv normal pioneer at center with dissolve
+    "В ту же секунду ко мне за стол села Алиса."
+    "Я глупо и неестественно улыбнулся."
+    th "Как будто боюсь её!"
+    me "Поздравляю с победой."
+    if day2_dv_bet == 0:
+        show dv angry pioneer at center with dspr
+        dv "Ты ещё пожалеешь, что струсил."
+        th "Да я уже жалею..."
+        "И не о том, что струсил - не надо вообще было участвовать в этой дурацкой игре."
+    else:
+        dv "Рассчитываешь выиграть?"
+        me "Рассчитываю, что ты сдержишь своё обещание."
+    show dv smile pioneer at center with dspr
+    dv "Ладно, погнали!"
+    hide dv with dissolve
+    window hide
+    jump dv_play
+label dv_play:
+    python:
+        dialogs = {
+                (0,"win","jump"):  "dv_play_win",
+                (0,"fail","jump"): "dv_play_fail",
+                (0,"draw","jump"): "dv_play_draw",
+            }
+        generate_cards("bg hall",dialogs)
+        rival = CardGameRivalDv(dv_avatar_set, translation_new["dv"])
+    jump cards_gameloop
+label dv_play_draw:
+    $ show_cards()
+    window show
+    el "Ничья! Играйте ещё раз."
+    window hide
+    jump dv_play
+label dv_play_fail:
+    $ renpy.block_rollback()
+    $ persistent.CardsWon2 = True
+    $ day2_card_result = 2
+    jump day2_main3
+label dv_play_win:
+    $ renpy.block_rollback()
+    $ persistent.CardsWon3 = True
+    $ day2_card_result = 3
+    jump day2_main3
+
+\x

@@ -1,0 +1,126 @@
+label day2_musclub:
+    play ambience ambience_camp_center_day fadein 3
+    $ persistent.sprite_time = "day"
+    scene bg ext_musclub_day
+\lpic/bg/musclub/day/bgdv.16c
+\F
+    with dissolve
+    window show
+    "Музыкальный клуб - небольшое одноэтажное здание - располагался поодаль от остальных построек лагеря."
+    "Не раздумывая, я открыл дверь и вошёл."
+    window hide
+    stop ambience fadeout 2
+    play sound sfx_open_door_2
+\d
+    pause(1)
+    $ persistent.sprite_time = "day"
+    scene bg int_musclub_day
+\lpic/bg/imusclub/day/bgmi.16c
+\F
+
+    with dissolve
+    play ambience ambience_music_club_day fadein 3
+    window show
+    "Внутри меня встретил настоящий оркестр: барабаны, гитары и даже рояль."
+    "Некоторое время я внимательно изучал музыкальные инструменты - хотелось понять, из какого они примерно временного периода, - но неожиданно под роялем послышалось копошение."
+    window hide
+    scene cg d2_miku_piano2
+\lpic/cg/d2mikup2.16c
+\F
+    with dissolve
+    play music music_list["so_good_to_be_careless"] fadein 5
+    window show
+    th "Девочка. Кажется, что-то ищет."
+    "Она стояла на четвереньках в такой пикантной позе, что я не сразу решился начать разговор."
+    me "Простите..."
+    window hide
+    scene cg d2_miku_piano
+\lpic/cg/d2mikup.16c
+\F
+    with dissolve
+    window show
+    mip "Ааа! Кто здесь?"
+    window hide
+    play sound sfx_piano_head_bump
+    with vpunch
+    $ renpy.pause(1)
+    window show
+    "Она попыталась вскочить, но днище рояля стало для неё непреодолимой преградой."
+    mip "Ай!"
+    window hide
+    $ persistent.sprite_time = "day"
+    scene bg int_musclub_day
+    with dissolve
+    show mi shocked pioneer at center with dissolve
+\lpic/bg/imusclub/day/mishock.16c
+\F
+    window show
+    "С трудом, но девочка всё же выбралась."
+    me "Извини, что напугал..."
+    show mi normal pioneer at center with dspr
+\lpic/bg/imusclub/day/mi.16c
+\i
+    mip "Да ничего! Вижу, у тебя обходной, новенький, значит?"
+    me "А? Да."
+    show mi smile pioneer at center with dspr
+\lpic/bg/imusclub/day/mismile.16c
+\i
+    mip "Меня Мику зовут."
+    mi "Нет, честно-честно! Никто не верит, а меня правда так зовут. Просто у меня мама из Японии. Папа с ней познакомился, когда строил там... Ну, то есть не строил - он у меня инженер..."
+    mi "Короче, атомную станцию! Или плотину... Или мост... Ну, неважно!"
+    "Она говорила с такой скоростью, что половину слов просто проглатывала."
+    me "А я Семён."
+    show mi happy pioneer at center with dspr
+\lpic/bg/imusclub/day/mihappy.16c
+\i
+    mi "Отлично! Не хочешь к нам в клуб вступить? Правда, я тут пока одна, но с тобой нас будет двое! Ты на чём-нибудь играть умеешь?"
+    "Уже в период моего <<отшельничества>> я купил гитару и выучил пару аккордов, но потом забросил, как и всё, на что требовалось больше нескольких часов."
+    me "Знаешь, я как-то не планировал особо..."
+    show mi normal pioneer at center with dspr
+\lpic/bg/imusclub/day/mi.16c
+\i
+    mi "Да ладно тебе, я тебя научу играть! Хочешь, на трубе, например? Или на скрипке? Я на всём умею, честно-честно."
+    "Спорить с девочкой-мультиинструменталистом бессмысленно, так как в ответ наверняка последует ещё одна пулемётная очередь из слов."
+    me "Я подумаю, а пока не могла бы ты подписать?"
+    show mi happy pioneer at center with dspr
+\lpic/bg/imusclub/day/mihappy.16c
+\i
+    mi "Да-да-да, конечно, давай! Ты заходи, не стесняйся! Я ещё и пою хорошо! Послушаешь, как я пою японские народные песни. Ну, или, если не нравится, может, что-нибудь из современных шлягеров?"
+    me "Обязательно... А сейчас мне пора, извини."
+    show mi shy pioneer at center with dspr
+\lpic/bg/imusclub/day/mishy.16c
+\i
+    mi "Конечно, приходи непременно..."
+    window hide
+    stop ambience fadeout 2
+    stop music fadeout 3
+    $ renpy.pause(1)
+    $ persistent.sprite_time = "day"
+    scene bg ext_musclub_day
+\lpic/bg/musclub/day/bgdv.16c
+\F
+    with dissolve
+    play ambience ambience_camp_center_day fadein 3
+    window show
+    "Окончание её фразы скрылось за закрытой дверью."
+    "С одной стороны, неплохо вечерком посидеть побренчать на гитаре, но в такой компании..."
+    show dv normal pioneer close at center with dissolve
+\lpic/bg/musclub/day/dv.16c
+\F
+    "Я повернулся, собираясь уходить, и столкнулся нос к носу с Алисой."
+    "Она недобро посмотрела на меня."
+    dv "Зачем пришёл?"
+    me "Обходной..."
+    dv "Подписал?"
+    me "Да..."
+    dv "Свободен!"
+    hide dv with dissolve
+\lpic/bg/musclub/day/bgdv.16c
+\F
+    "Алиса вошла внутрь, а я поспешил покинуть это место."
+    window hide
+    stop ambience fadeout 2
+    $ disable_current_zone()
+    $ day2_map_necessary_done +=1
+    jump day2_map
+\x

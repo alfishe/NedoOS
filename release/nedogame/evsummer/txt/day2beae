@@ -1,0 +1,19 @@
+label day2_beach_eve:
+    stop ambience fadeout 2
+\lpic/bg/beach/night/bg.16c
+\F
+    $ persistent.sprite_time = "night"
+    scene bg ext_beach_night
+    with dissolve
+    play ambience ambience_lake_shore_night fadein 2
+    window show
+    "Я вышел на пляж."
+    "Настроение было паршивым, и купаться совсем не хотелось, однако я подошёл к воде и опустил в неё руку."
+    "Вода была тёплая."
+    "Видимо, за день она так нагрелась, что к вечеру ещё не успела остыть."
+    th "Что же, может, приду ещё, искупаюсь..."
+    "..."
+    window hide
+    stop ambience fadeout 2
+    jump day2_main4
+\x

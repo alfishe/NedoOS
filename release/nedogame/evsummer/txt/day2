@@ -1,4 +1,3 @@
-
 init:
     $ day2_map_necessary_done = 0
     $ day2_cards_with_sl = 0
@@ -598,6 +597,8 @@ label day2_clubs:
     play ambience ambience_camp_center_day fadein 2
     $ persistent.sprite_time = "day"
     scene bg ext_clubs_day
+\lpic/bg/clubs/day/bg.16c
+\F
     with dissolve
     window show
     "Я направился к зданию кружков."
@@ -611,6 +612,8 @@ label day2_clubs:
     pause(1)
     $ persistent.sprite_time = "day"
     scene bg int_clubs_male_day
+\lpic/bg/iclubs/day/bgelslsh.16c
+\F
     with dissolve
     play ambience ambience_clubs_inside_day fadein 3
     window show
@@ -620,6 +623,8 @@ label day2_clubs:
     show el normal pioneer at cleft
     show sh normal pioneer at cright
     with dissolve
+\lpic/bg/iclubs/day/elsh.16c
+\F
     "В одном я узнал Электроника, второй же мне был незнаком."
     el "Привет, Семён! А мы тебя ждали."
     th "Кажется, он знает всё и обо всех..."
@@ -627,25 +632,37 @@ label day2_clubs:
     el "Ну как же, ты пришёл в наш клуб кибернетиков записываться, так?"
     "Он не дал мне ответить."
     show el smile pioneer at cleft with dspr
+\lpic/bg/iclubs/day/elsmilsh.16c
+\i
     el "Знакомься, это Шурик, он у нас главный!"
     me "А вас в клубе этом только двое, я так полагаю?"
     show el normal pioneer at cleft with dspr
+\lpic/bg/iclubs/day/elsh.16c
+\i
     el "Ну, можешь считать, что уже трое."
     "Шурик подошёл ко мне и уверенно протянул руку."
     "Его лицо почему-то казалось знакомым."
     show sh normal_smile pioneer at cright with dspr
+\lpic/bg/iclubs/day/elshsmil.16c
+\i
     sh "Добро пожаловать!"
     me "Угу..."
     show sh normal pioneer at cright with dspr
+\lpic/bg/iclubs/day/elsh.16c
+\i
     el "Давай я тебе тут всё покажу!{w} Ты не стесняйся, располагайся."
     me "Да нет, ребята, я вообще-то..."
     show sh normal_smile pioneer at cright with dspr
+\lpic/bg/iclubs/day/elshsmil.16c
+\i
     sh "Всегда рады новым членам."
     "Он сказал это так, что в голове у меня невольно заиграл гимн Советского Союза."
     "Удивительно, но я ещё помнил слова - в первом классе у меня была тетрадка с текстом гимна на обратной стороне."
     me "Да нет, мне бы просто обходной лист подписать."
     show sh normal_smile pioneer at cright with dspr
     show el grin pioneer at cleft with dspr
+\lpic/bg/iclubs/day/elgrshsm.16c
+\i
     el "Так ты к нам запишись, а мы тебе его подпишем."
     "Он хитро улыбнулся."
     "Я уже подготовился к длинному и нудному разговору, как вдруг в комнату кто-то вошёл."
@@ -653,20 +670,30 @@ label day2_clubs:
     show sh normal pioneer at right
     show sl normal pioneer at center
     with dissolve
+\lpic/bg/iclubs/day/elslsh.16c
+\F
     "Я обернулся и увидел Славю."
     sl "А, Семён! Надеюсь, они тебя тут не достают?"
     show sl angry pioneer at center with dspr
+\lpic/bg/iclubs/day/elslansh.16c
+\i
     "Она строго посмотрела на будущих светил отечественного роботостроения."
     sl "А то я их знаю - они могут!"
     me "Да, понимаешь, на самом деле мне бы просто обходной подписать..."
     "Я решил воспользоваться ситуацией."
     show sl normal pioneer at center with dspr
+\lpic/bg/iclubs/day/elslsh.16c
+\i
     sl "Так это не проблема, давай сюда."
     "Славя взяла листок и подошла к Шурику."
     sl "Подписывай!"
     show sh upset pioneer at right with dspr
+\lpic/bg/iclubs/day/elslshup.16c
+\i
     sh "Ну подожди, мы ещё не закончили..."
     show sl angry pioneer at center with dspr
+\lpic/bg/iclubs/day/elslashu.16c
+\i
     sl "Закончили! Подписывай!"
     "Она посмотрела на него так, что возражать Шурик не решился."
     stop ambience fadeout 2
@@ -680,6 +707,8 @@ label day2_library:
     $ persistent.sprite_time = "day"
     scene bg ext_library_day
     with dissolve
+\lpic/bg/library/day/bg.16c
+\F
     window show
     "Вообще, я, конечно, любил читать, но просиживать днями в библиотеке при нынешних обстоятельствах в мои планы не входило."
     "Так что этот чекпойнт стоило пройти побыстрее."
@@ -687,6 +716,8 @@ label day2_library:
     stop ambience fadeout 3
     $ persistent.sprite_time = "day"
     scene bg int_library_day
+\lpic/bg/ilibrary/day/bgunmz.16c
+\F
     with dissolve
     play ambience ambience_library_day fadein 3
     window show
@@ -704,6 +735,8 @@ label day2_library:
     "Найти её оказалось не так уж и сложно."
     window hide
     scene cg d2_micu_lib
+\lpic/cg/d2mzlib.16c
+\F
     with dissolve
     window show
     "Я пригляделся.{w} Короткая стрижка, толстые очки, довольно приятное лицо."
@@ -712,6 +745,8 @@ label day2_library:
     window hide
     $ persistent.sprite_time = "day"
     scene bg int_library_day
+\lpic/bg/ilibrary/day/bgunmz.16c
+\F
     with dissolve
     window show
     "Просто так сидеть было скучно, и я взял с полки первую попавшуюся книгу."
@@ -721,25 +756,32 @@ label day2_library:
     $ set_mode_nvl()
     window show
     nvl clear
+\a
     "Жизнь человека с её бесконечными трудами, нуждой и страданием следует рассматривать как объяснение и парафраз акта зачатия, т.е. решительного утверждения воли к жизни; с этим связано и то, что человек обязан природе смертью и с тоской думает об этом обязательстве."
     "Разве это не свидетельствует о том, что в нашей жизни заключена некая вина?"
     "И тем не менее, периодически расплачиваясь смертью за рождения и смерти, мы всегда существуем и испытываем все горести и радости жизни попеременно, когда ни одна из них не может нас миновать: таков результат утверждения воли к жизни."
     nvl clear
+\A
     "При этом страх смерти, который, несмотря на все страдания жизни, удерживает нас в ней, становится, в сущности, иллюзией; но столь же иллюзорно и влечение, заманившее нас в жизнь."
+\a
     "Объективное выражение этого соблазна можно увидеть в обращённых друг на друга страстных взглядах влюблённых: они есть чистейшее выражение воли к жизни в её утверждении. Как она здесь кротка и нежна!"
     "Она хочет благополучия, спокойного наслаждения и тихой радости для себя, для других, для всех."
     window hide
     $ set_mode_adv()
     play sound sfx_knock_door2
     window show
-    "В дверь постучали."
+\A  "В дверь постучали."
     "Я быстро закрыл книгу и положил её на место."
     th "Какая отличная привычка - стучать.{w} Надо и мне её взять на вооружение."
     play sound sfx_open_door_clubs_2
     "В библиотеку вошла Лена."
     show un normal pioneer at cleft with dissolve
+\lpic/bg/ilibrary/day/un.16c
+\F
     un "Ой..."
     show un shy pioneer at cleft with dspr
+\lpic/bg/ilibrary/day/unshy.16c
+\i
     me "Привет!"
     "Я улыбнулся."
     un "Привет, а я вот книжку пришла отдать..."
@@ -747,12 +789,18 @@ label day2_library:
     un "Ой, а Женя спит, тогда я попозже зайду..."
     mz "Уже не сплю."
     show mz normal glasses pioneer far at cright with dissolve
+\lpic/bg/ilibrary/day/unshymz.16c
+\F
     "Я удивлённо посмотрел в сторону библиотекарши."
     "Она сидела за столом и пристально наблюдала за мной."
     show mz angry glasses pioneer far at cright with dspr
+\lpic/bg/ilibrary/day/unshmzan.16c
+\i
     mz "А тебе чего?"
     me "Мне бы обходной..."
     show mz normal glasses pioneer at cright with dissolve
+\lpic/bg/ilibrary/day/unshmzno.16c
+\i
     mz "Давай."
     "Библиотекарша быстро расписалась и протянула мне его."
     "Вид у неё был такой, что продолжать разговор не возникало никакого желания."
@@ -765,6 +813,8 @@ label day2_library:
 label day2_aidpost:
     $ persistent.sprite_time = "day"
     scene bg ext_aidpost_day
+\lpic/bg/aidpost/day/bg.16c
+\F
     with dissolve
     play ambience ambience_camp_center_day fadein 3
     window show
@@ -778,11 +828,15 @@ label day2_aidpost:
     $ renpy.pause(1)
     $ persistent.sprite_time = "day"
     scene bg int_aidpost_day
+\lpic/bg/iaidpost/day/bgelcs.16c
+\F
     with dissolve
     play ambience ambience_medstation_inside_day fadein 3
     window show
     th "Обычный медпункт, у нас в школе был примерно такой же."
     show cs normal stethoscope at center with dissolve
+\lpic/bg/iaidpost/day/csst.16c
+\F
     play music music_list["eternal_longing"] fadein 5
     "За столом сидела женщина средних лет.{w} Очевидно, медсестра."
     "Она пристально, оценивающе посмотрела на меня, и продолжила что-то писать."
@@ -798,6 +852,8 @@ label day2_aidpost:
     me "Зачем?.."
     csp "Смотреть тебя будем, слушать, здоровье проверять."
     show cs smile stethoscope at center with dspr
+\lpic/bg/iaidpost/day/csstsm.16c
+\i
     csp "Меня, кстати, зовут Виолетта, но ты можешь звать меня просто Виолой."
     "Она повернулась в мою сторону."
     cs "Ну, чего сидишь? Раздевайся."
@@ -805,6 +861,8 @@ label day2_aidpost:
     "Я аккуратно протянул ей листок."
     cs "Потом."
     show cs smile at center with dissolve
+\lpic/bg/iaidpost/day/cssm.16c
+\i
     "Она сняла с шеи стетоскоп и, кажется, намеревалась меня им препарировать."
     window hide
     stop music fadeout 3
@@ -813,27 +871,37 @@ label day2_aidpost:
     window show
     "Но тут в дверь постучали."
     show cs normal at center with dspr
+\lpic/bg/iaidpost/day/cs.16c
+\i
     "Медсестра нехотя ответила:"
     cs "Входите!"
     play sound sfx_open_door_strong
     "Моментально дверь распахнулась и в комнату влетел Электроник."
     show el fingal pioneer far at left with dissolve
     show cs normal at center with dspr
+\lpic/bg/iaidpost/day/elfics.16c
+\F
     el "Здрасьте! Я тут это... на футболе упал. Глупости, конечно, я бы и так, но меня Ольга Дмитриевна..."
     "У Электроника под глазом красовался здоровенный фингал."
     th "Что-то я сомневаюсь, что такой можно заработать на футболе."
     cs "Садись, сейчас посмотрим."
     "Сказала она ему."
     show cs normal glasses at center with dissolve
+\lpic/bg/iaidpost/day/elficsgl.16c
+\i
     cs "А ты давай сюда свой обходной."
     "Медсестра быстро подписала его и продолжила:"
     show cs smile glasses at center with dspr
+\lpic/bg/iaidpost/day/elfcsgls.16c
+\i
     cs "Если что заболит - сразу ко мне... пионер."
     stop ambience fadeout 2
     "Я не стал ничего отвечать и вышел, закрыв за собой дверь."
     window hide
     $ persistent.sprite_time = "day"
     scene bg ext_aidpost_day
+\lpic/bg/aidpost/day/bg.16c
+\F
     with dissolve
     window show
     th "Медсестра здесь, конечно, ещё та..."
@@ -845,6 +913,8 @@ label day2_dinner:
     $ lp_us = lp_us +1
     $ persistent.sprite_time = "day"
     scene bg ext_dining_hall_away_day
+\lpic/bg/dinhalaw/day/bgdvel.16c
+\F
     with dissolve
     window show
     "Я решил всё же сходить пообедать."
@@ -853,6 +923,8 @@ label day2_dinner:
     window hide
     $ persistent.sprite_time = "day"
     scene bg int_dining_hall_day
+\lpic/bg/idinhall/day/bgus.16c
+\F
     with dissolve
     play ambience ambience_dining_hall_empty fadein 3
     window show
@@ -870,27 +942,43 @@ label day2_dinner:
     "Однако сосредоточенность моя продлилась недолго - кто-то ударил меня по спине, да так, что я подавился."
     "Передо мной стояла Ульянка и торжествующе улыбалась."
     show us laugh pioneer at center with dissolve
+\lpic/bg/idinhall/day/uslaugh.16c
+\F
     me "Я тебя когда-нибудь удушу!"
     show us laugh2 pioneer at center with dspr
+\lpic/bg/idinhall/day/uslaugh2.16c
+\i
     us "Не догонишь!"
     "Она показала язык!"
     show us grin pioneer at center with dspr
+\lpic/bg/idinhall/day/usgrin.16c
+\i
     us "Один раз уже пытался - не догнал же."
     me "Хорошо, тогда я тебя где-нибудь подкараулю!"
     show us surp2 pioneer at center with dspr
+\lpic/bg/idinhall/day/ussurp2.16c
+\i
     us "Так нечестно!"
     me "Ты на себя посмотри, честная!"
     "Я ухмыльнулся."
     show us laugh pioneer at center with dspr
+\lpic/bg/idinhall/day/uslaugh.16c
+\i
     us "Ладно, подожди, сейчас обед возьму и вернусь, вместе поедим."
     hide us with dissolve
+\lpic/bg/idinhall/day/bgus.16c
+\F
     "Не самая радужная перспектива - я постарался побыстрее закончить с обедом."
     "Однако Ульянка вернулась буквально через полминуты."
     show us smile pioneer at center with dspr
+\lpic/bg/idinhall/day/ussmile.16c
+\F
     "У неё на тарелке лежал огромный кусок жареного мяса и несколько отварных картофелин."
     "По сравнению с моей королевской трапезой..."
     me "Это ты как?.. Откуда?.."
     show us laugh2 pioneer at center with dspr
+\lpic/bg/idinhall/day/uslaugh2.16c
+\i
     us "Уметь надо!"
     "Она посмотрела на меня и улыбнулась во все свои 32... или сколько их у неё там было... зуба."
     th "Не потерплю такого оскорбления!"
@@ -898,41 +986,63 @@ label day2_dinner:
     "Однако как-то ей отомстить всё же было необходимо."
     me "А если Ольга Дмитриевна узнает, что ты воруешь еду?"
     show us surp3 pioneer at center with dspr
+\lpic/bg/idinhall/day/ussurp3.16c
+\i
     us "Так я не ворую!"
     "Возмутилась Ульяна."
     me "А это ты ей будешь рассказывать. Думаешь, поверит?"
     show us surp2 pioneer at center with dspr
+\lpic/bg/idinhall/day/ussurp2.16c
+\i
     us "И откуда же она узнает?!"
     me "Ну... это зависит от многих обстоятельств."
     show us calml pioneer at center with dspr
+\lpic/bg/idinhall/day/uscalml.16c
+\i
     us "Например?"
     "Она внимательно посмотрела на меня."
     me "Принеси мне булочку. Сладкую."
     show us shy2 pioneer at center with dspr
+\lpic/bg/idinhall/day/usshy2.16c
+\i
     us "Откуда же я тебе её возьму?"
     me "Наверное, оттуда же, где взяла это."
     "Я показал на её тарелку."
     "Ульянка замялась."
     show us dontlike pioneer at center with dspr
+\lpic/bg/idinhall/day/usdlike.16c
+\i
     us "Ладно. Но только одну!"
     show us surp2 pioneer at center with dspr
+\lpic/bg/idinhall/day/ussurp2.16c
+\i
     us "И обещай, что после этого не расскажешь Ольге Дмитриевне!"
     me "Слово пионера!"
     hide us with dissolve
+\lpic/bg/idinhall/day/bgus.16c
+\F
     "Она убежала в сторону буфета, а я недолго думая взял перечницу, открутил крышку и высыпал всё содержимое Ульянке в компот."
     "Только я закончил, как неугомонная девочка вернулась."
     show us laugh pioneer at center with dissolve
+\lpic/bg/idinhall/day/uslaugh.16c
+\F
     us "Держи, вымогатель!"
     th "Кажется, она ничего не заметила."
     me "А теперь давай кто быстрее выпьет компот!"
     show us surp2 pioneer at center with dspr
+\lpic/bg/idinhall/day/ussurp2.16c
+\i
     us "Что ещё за глупости!"
     me "Почему глупости? Я выиграю, вот увидишь!"
     show us dontlike pioneer at center with dspr
+\lpic/bg/idinhall/day/usdlike.16c
+\i
     us "Не буду я с тобой в детские игры играть."
     me "Сама-то не ребёнок разве?"
     "Я ехидно улыбнулся."
     show us angry pioneer at center with dspr
+\lpic/bg/idinhall/day/usangry.16c
+\i
     us "Ах так! Ладно! Раз, два, три!"
     "Она не дала мне времени даже взять чашку, а сама моментально, одним глотком, выпила весь свой компот."
     window hide
@@ -947,11 +1057,15 @@ label day2_dinner:
     with flash_red
     stop music fadeout 0
     show us fear pioneer at center with dspr
+\lpic/bg/idinhall/day/usfear.16c
+\i
     play sound sfx_angry_ulyana
     $ renpy.pause(5)
     window show
     "Через секунду у неё на лице появилось выражение первобытного ужаса, щёки покраснели, а глаза, казалось, готовы были вылезти из орбит."
     hide us with dissolve
+\lpic/bg/idinhall/day/bgus.16c
+\i
     "Ульяна вскочила и побежала в сторону чайников с водой, на ходу выкрикивая:"
     us "Ты! Ты! Ты..."
     stop ambience fadeout 2
@@ -960,6 +1074,7 @@ label day2_dinner:
     $ disable_current_zone()
     jump day2_map
 label day2_main2:
+\f
     scene black
     with dissolve2
     window show
@@ -968,34 +1083,50 @@ label day2_main2:
     window hide
     $ persistent.sprite_time = "day"
     scene bg ext_house_of_mt_day
+\lpic/bg/housemt/day/bgmt.16c
+\F
     with dissolve
     play ambience ambience_camp_center_day fadein 3
     show mt normal panama pioneer far at center with dissolve
+\lpic/bg/housemt/day/pmtfar.16c
+\F
     window show
     "Вожатая сидела возле домика и читала книжку."
     "Вряд ли она сама соответствовала образу идеального пионера, которого хотела сделать из меня."
     "Видимо, все её обязанности - это произносить пламенные речи на линейке, отчитывать Ульяну и принимать деятельное участие в моём физическом и идеологическом воспитании."
     show mt normal panama pioneer at center with dissolve
+\lpic/bg/housemt/day/pmt.16c
+\F
     me "Вот..."
     "Я протянул ей обходной."
     "Она не читая сунула листок в карман."
     th "Отлично! Значит, можно было самому за всех расписаться и вообще никуда не ходить..."
     show mt smile panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmtsmile.16c
+\i
     mt "Молодец! Ну как, познакомился с нашей медсестрой?"
     me "Да..."
     "Почему-то от этого вопроса у меня мурашки побежали по коже."
     show mt normal panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmt.16c
+\i
     mt "В какой кружок записался?"
     me "Да пока ни в какой... Нужно подумать."
     show mt surprise panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmtsurp.16c
+\i
     mt "Ну, что же ты так! Завтра обязательно запишись куда-нибудь!"
     th "Конечно, всенепременно!"
     show mt normal panama pioneer at center with dspr
+\lpic/bg/housemt/day/pmt.16c
+\i
     mt "Ладно, пора уже и на ужин идти."
     th "Ну наконец-то! Я уже проголодался."
     window hide
     $ persistent.sprite_time = "day"
     scene bg ext_dining_hall_away_day
+\lpic/bg/dinhalaw/day/bgmt.16c
+\F
     with dissolve
     window show
     "Вместе с Ольгой Дмитриевной мы направились к столовой."
@@ -1006,37 +1137,53 @@ label day2_main2:
     with dissolve
     show dv normal pioneer at fright
     show el normal pioneer at fleft
+\lpic/bg/dinhalne/day/eldv.16c
+\F
     with dissolve
     window show
     "На крыльце стояло несколько человек: Алиса, Электроник..."
     show us normal pioneer at cleft
     show sl normal pioneer at cright
+\lpic/bg/dinhalne/day/elussldv.16c
+\F
     with dissolve
     "Ульяна и Славя."
     show dv angry pioneer at fright with dspr
     show el surprise pioneer at fleft with dspr
+\lpic/bg/dinhalne/day/esusslda.16c
+\i
     play music music_list["always_ready"] fadein 5
     "Когда мы подошли, я услышал, о чем они говорят:"
     dv "И больше не называй меня ДваЧе, а то ещё получишь!"
     el "Да не называл я тебя так! Тебе показалось!"
     show us grin pioneer at cleft with dspr
+\lpic/bg/dinhalne/day/esugslda.16c
+\i
     us "Называл, называл, я всё слышала!"
     show el angry pioneer at fleft with dspr
     show sl normal pioneer behind el at cright with dspr
+\lpic/bg/dinhalne/day/eaugslda.16c
+\i
     el "Да тебя вообще там не было!"
     us "А вот и была! Я в кустах сидела!"
     hide us with dissolve
     show sl angry pioneer at cright with dspr
     show el angry pioneer behind sl at fleft with dspr
+\lpic/bg/dinhalne/day/elaslada.16c
+\F
     sl "Хватит вам! Прекратите!"
     th "Значит, Электроник своё ранение не на футболе получил."
     th "Однако, как хорошо его медсестра подлатала - от фингала не осталось и следа!"
     show mt normal pioneer at center with dissolve
+\lpic/bg/dinhalne/day/eamtsada.16c
+\F
     "Ольга Дмитриевна подошла к ним и попыталась выяснить, что происходит:"
     mt "Что вы тут ругаетесь?"
     sl "Алиса Сыроежкину в глаз..."
     dv "Ничего я не делала!"
     hide dv with dissolve
+\lpic/bg/dinhalne/day/elamtsla.16c
+\F
     "Алиса обиженно фыркнула и зашла внутрь."
     stop music fadeout 3
     mt "Ладно, пора ужинать."
@@ -1049,6 +1196,8 @@ label day2_main2:
     $ persistent.sprite_time = "day"
     scene bg int_dining_hall_people_day
     with dissolve
+\lpic/bg/ipdinhal/day/bgmtdvus.16c
+\F
     play ambience ambience_dining_hall_full fadein 3
     window show
     "Последним в столовую вошёл я."
