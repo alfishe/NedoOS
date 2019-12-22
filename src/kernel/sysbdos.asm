@@ -80,6 +80,7 @@ BDOS_wiznetwrite
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 BDOS_setmusic
+        ex af,af'
         ld (muzpg),a
         ld (muzcall),hl
         ret
