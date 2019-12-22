@@ -79,6 +79,11 @@ BDOS_wiznetwrite
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+BDOS_setmusic
+        ld (muzpg),a
+        ld (muzcall),hl
+        ret
+
 BDOS_setmainpage
         ;ld iy,(appaddr)
 ;e=page for 0x0000
@@ -706,7 +711,9 @@ tbdoscmds
         db CMD_READSECTORS
         db CMD_WRITESECTORS
         db CMD_SETMAINPAGE
+        db CMD_SETMUSIC
 nbdoscmds=$-tbdoscmds
+        dw BDOS_setmusic
         dw BDOS_setmainpage
         dw BDOS_writesectors
         dw BDOS_readsectors

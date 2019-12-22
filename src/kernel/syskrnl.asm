@@ -503,9 +503,16 @@ findnextgfxappq
         ld (focusappaddr),hl
 sys_int_noselectapp
 
+muzpg=$+1
+        ld a,pgkillable
+        ld bc,memport4000
+        out (c),a
 muzcall=$+1
-	jp sys_reter;pt3player.PLAY ;TODO call drivers
-
+	call sys_reter;pt3player.PLAY ;TODO call drivers
+        ld a,pgtrdosfs;pagexor-5
+        ld bc,memport4000
+        out (c),a ;там INTSTACK
+        ret
         
 sys_getchar
 ;out: de=mouse dydx, l=buttons, A=key, H=high bits of key
@@ -643,6 +650,8 @@ sys_quit
         ld iy,(appaddr)
         ld e,(iy+app.id)
         call BDOS_freezeapp
+       ld hl,sys_reter
+       ld (muzcall),hl
         call BDOS_delapppages
         jp BDOS_yield_q ;переходим на какую-нибудь задачу
         

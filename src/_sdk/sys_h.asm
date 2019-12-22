@@ -138,6 +138,10 @@ _1=$
         endm
 
 ;invented  
+        macro OS_SETMUSIC
+        ld c,CMD_SETMUSIC
+	CALLBDOS
+        endm
         macro OS_READSECTORS
         ld c,CMD_READSECTORS
 	CALLBDOS

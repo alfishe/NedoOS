@@ -38,6 +38,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_SETMUSIC=0xd5 ;hl=muzaddr (0x4000..0x7fff), a=muzpg
 CMD_READSECTORS=0xd6 ;b=drive, de=buffer, ixhl=sector number, a=count
 CMD_WRITESECTORS=0xd7 ;b=drive, de=buffer, ixhl=sector number, a=count
 CMD_SETBORDER=0xd8 ;e=0..15
