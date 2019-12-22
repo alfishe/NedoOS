@@ -246,7 +246,7 @@ label day2_main2:
             jump day2_cards_with_sl
         |"Пойти одному":
             jump day2_cards_without_sl
-"1. Пойти за картами за Славей
+"1. Пойти за картами со Славей
  2. Пойти одному"
 \x
 label day2_cards_with_sl:
