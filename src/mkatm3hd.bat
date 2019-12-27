@@ -10,4 +10,4 @@ call make.bat noneedtrd
 ..\tools\sjasmplus --nologo kernel\hobeta.asm > nul
 move /Y nedoos.$C ..\release\osatm3hd.$C > nul
 call ..\tools\chkimg.bat hdd
-if "%makeall%"=="" ..\us\emul.exe -i ..\us\dimkam.ini
+if "%makeall%"=="" ..\us\emul.exe

@@ -1,0 +1,67 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+
+;human0=x,0,0,16,16
+;doska=B,112,0,32,8,7
+;beton=B,80,0,32,8,7
+;cherry=s,176,0,16,13,7
+;tilepic=T,0,0,224,64,15
+bar=i,192,0,64,192,7
+title0=i,0,1,48,7
+title1=i,0,9,48,7
+title2=i,0,17,48,7
+title3=i,0,25,48,7
+title4=i,0,33,48,7
+title5=i,0,41,48,7
+title6=i,0,49,48,7
+title7=i,0,57,48,7
+title8=i,0,65,48,7
+title9=i,0,73,48,7
+title10=i,0,81,48,7
+title11=i,0,89,48,7
+title12=i,0,97,48,7
+title13=i,0,105,48,7
+title14=i,0,113,48,7
+title15=i,0,121,48,7
+title16=i,0,129,48,7
+title17=i,0,137,48,7
+title18=i,0,145,48,7
+title19=i,0,153,48,7
+title20=i,0,161,48,7
+title21=i,0,169,48,7
+title22=i,0,177,48,7
+title23=i,0,185,48,7
+title24=i,48,1,48,7
+title25=i,48,9,48,7
+title26=i,48,17,48,7
+title27=i,48,25,48,7
+title28=i,48,33,48,7
+title29=i,48,41,48,7
+title30=i,48,49,48,7
+title31=i,48,57,48,7
+title32=i,48,65,48,7
+title33=i,48,73,48,7
+title34=i,48,81,48,7
+title35=i,48,89,48,7
+title36=i,48,97,48,7
+title37=i,48,105,48,7
+title38=i,48,113,48,7
+title39=i,48,121,48,7
+title40=i,48,129,48,7
+title41=i,48,137,48,7
+title42=i,48,145,48,7
+title43=i,48,153,48,7
+title44=i,48,161,48,7
+title45=i,48,169,48,7
+title46=i,48,177,48,7
+title47=i,48,185,48,7
