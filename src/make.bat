@@ -10,10 +10,13 @@ if not exist ..\release mkdir ..\release
 if not exist %releasedir%\bin mkdir %releasedir%\bin 
 if not exist %releasedir%\doc mkdir %releasedir%\doc 
 
-for %%i in (%currentdir%\fatfs4os,%currentdir%\kernel) do IF EXIST %%i\build.bat (
-	cd %%i
+IF "%softbuilded%"=="" (
+	cd %currentdir%\fatfs4os
 	call build.bat
 )
+cd %currentdir%\kernel
+call build.bat
+
 cd %currentdir%
 IF "%softbuilded%"=="" (
 	set softbuilded=1
