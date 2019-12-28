@@ -22,11 +22,6 @@ ERR_AFNOSUPPORT EQU 47
 ERR_HOSTUNREACH EQU 65
 ERR_CONNRESET 	EQU 54
 ERR_NOTCONN 	EQU 57
-;struct sockaddr_in {short sin_family;unsigned short sin_port;
-;	struct in_addr sin_addr;char sin_zero[8];};
-
-
-
 
 proxserv
 	db "nedoos.ru/s/?https://",0
@@ -535,6 +530,9 @@ exiterr1:
 	ret
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
+
+;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
+;	struct in_addr sin_addr;char sin_zero[8];};
 dns_ia:
 	defb 0
         db 0,53 ;port (big endian)

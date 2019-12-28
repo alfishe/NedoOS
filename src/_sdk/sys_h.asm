@@ -170,7 +170,7 @@ _1=$
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
         endm
-        macro OS_NETCONNECT;A=SOCKET, DE=sockaddr ptr ; out: if HL < 0 then A=error
+        macro OS_NETCONNECT;A=SOCKET, DE=sockaddr ptr {unsigned char sin_family /*net type*/; unsigned short sin_port; struct in_addr sin_addr /*4 bytes IP*/; char sin_zero[8];}; out: if HL < 0 then A=error
 	ld l,0x03
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
@@ -180,7 +180,7 @@ _1=$
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
         endm
-        macro OS_BIND;A=SOCKET, DE=
+        macro OS_BIND;A=SOCKET, DE=sockaddr ptr {unsigned char sin_family /*net type*/; unsigned short sin_port; struct in_addr sin_addr /*4 bytes IP*/; char sin_zero[8];}
 	ld l,0x05
         ld c,CMD_WIZNETOPEN
 	CALLBDOS

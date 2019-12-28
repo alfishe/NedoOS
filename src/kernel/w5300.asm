@@ -56,7 +56,7 @@ ERR_HOSTUNREACH EQU 65
 ERR_ECONNABORTED EQU	53	/* Software caused connection abort */
 ERR_CONNRESET 	EQU 54
 ERR_NOTCONN 	EQU 57
-;struct sockaddr_in {short sin_family;unsigned short sin_port;
+;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
 ;	struct in_addr sin_addr;char sin_zero[8];};
 
 ;/***************************************/ 

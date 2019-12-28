@@ -56,10 +56,6 @@ ERR_AFNOSUPPORT EQU 47
 ERR_HOSTUNREACH EQU 65
 ERR_CONNRESET 	EQU 54
 ERR_NOTCONN 	EQU 57
-;struct sockaddr_in {short sin_family;unsigned short sin_port;
-;	struct in_addr sin_addr;char sin_zero[8];};
-
-
         
         org PROGSTART
 begin
@@ -1038,6 +1034,8 @@ soc
 ;socrecv
 ;        db 0
 
+;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
+;	struct in_addr sin_addr;char sin_zero[8];};
         if MASTER
 ;master(net1): from 192.168.1.2 to 192.168.1.177
 port_ia:
