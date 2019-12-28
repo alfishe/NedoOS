@@ -1103,7 +1103,7 @@ cmd_copy0
         OS_SETDTA
         pop hl
         ld de,fcb2
-        OS_FWRITE_NBYTES
+        OS_FWRITE_NBYTES ;TODO выкинуть (переделать на handle)
         or a
         jr z,cmd_copy0
         ld hl,tcantwrite

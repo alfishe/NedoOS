@@ -99,8 +99,8 @@ on_int
 	EX (SP),HL
 intjpaddr=$+1
 	LD (0),hl ;(on_int_jp),HL
-	EX DE,HL
-	POP DE
+	;EX DE,HL
+	;POP DE
 	LD (on_int_sp2),SP
 	LD SP,DBL_SP
 	CALL INAR0
@@ -109,9 +109,8 @@ on_int_sp2=$+1
 ;	EI
 ;on_int_jp=$+1
 ;	jp 0
-
-        push de
-        ex de,hl
+        ;push de
+        ;ex de,hl
 ;(intjp)=адрес выхода
 ;de="hl", в стеке "de"
         jp 0x0038+5
