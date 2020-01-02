@@ -11,4 +11,5 @@ nedotrd test.trd -eh code.$C
 nedotrd test.trd -a code.$C
 copy code.$C ..\release\osatm2hd.$C > nul
 move test.trd ..\release\osatm2hd.trd > nul
+call ..\tools\chkimg.bat hdd
 if "%makeall%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2hd.trd
