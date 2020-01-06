@@ -58,6 +58,8 @@ waitcls0
         OS_NEWPAGE
         ld a,e
         ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
+        
+        call bgpush_prepare
 
 	ld de,res_path
 	OS_CHDIR
@@ -94,22 +96,36 @@ pg0=$+1
         ld bc,0xc020 ;hgt,wid
         call primgega
 
+mainloop
+        ld hl,callpush_curscroll
+        ld a,(hl)
+        sub 1
+        jr nc,$+4
+        add a,pushhgt
+        ld (hl),a
+
+        call bgpush_draw
+
 pg1=$+1
         ld a,0
         SETPG32KHIGH
         ld iy,(0xc000);testspr
-        ld e,10+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        ld e,100+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
         ld c,100 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        call prsprega
+        ld iy,(0xc000);testspr
+        ld e,110+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
         call prsprega
         
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
-waitkey
+;waitkey
         halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
 curkey=$+1
         ld a,0
         cp key_esc
-        jr nz,waitkey
+        jr nz,mainloop;waitkey
         
         call swapimer
 pgmusic=$+1
@@ -236,6 +252,19 @@ setpgs_scr_pgxor=$+1
         ld (curpg8000),a
         SETPG32KLOW
         ret
+        
+setpgscrlow4000
+        ld a,(setpgs_scr_low)
+        ld (curpg4000),a
+        SETPG16K
+        ret
+setpgscrhigh4000
+        ld a,(setpgs_scr_low)
+        ld hl,setpgs_scr_pgxor
+        xor (hl)
+        ld (curpg4000),a
+        SETPG16K
+        ret
 
 changescrpg_current
         ld a,(setpgs_scr_low)
@@ -276,6 +305,7 @@ _=_-1
         include "int.asm"
         include "cls.asm"
         include "prspr.asm"
+        include "bgpush.asm"
         
 res_path
         db "sprexamp",0 ;в этом относительном пути будут лежать все загружаемые данные игры

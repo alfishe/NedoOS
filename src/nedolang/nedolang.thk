@@ -1,6 +1,9 @@
 для файлов с переменными можно сгенерить include в каждом
 но надо знать модель памяти (вдруг надо разделить команды и данные!)
 
+Now the _isaddr flag is set if another address was used in a calculation, and reset in multiplications (see _OPMUL in asmj.c). Maybe I must add rule: addr-addr is a number. For this, tempvalue and pushvalue stack must be typed.
+
+
 add(mul(px,px),add(mul(py,py),mul(pz,pz))) - ГЛЮК (первый add получает первый параметр уже затёртым), и при глубинных вызовах тоже
 
 глюк в выражениях с тайпкастом:

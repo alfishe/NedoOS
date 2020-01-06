@@ -1,4 +1,5 @@
-if "%settedpath%"=="" call "..\_sdk\setpath.bat"
+if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
+set path=%PATH%;..\_sdk\
 call compile.bat
 md tmp
 copy *.ast tmp
