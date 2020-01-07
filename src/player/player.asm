@@ -2,11 +2,11 @@
         include "../_sdk/sys_h.asm"
 
 COLOR=7
-module=0xc000
+module=0x6000;0xc000
         
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;не должен опускатьс€ ниже #3b00! иначе возможна порча OS
+        ld sp,0x4000 ;не должен опускатьс€ ниже #3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         
@@ -27,7 +27,7 @@ cmd_begin
 ;b=new file handle
 
         ld de,module;0xc000
-        ld hl,0x4000
+        ld hl,0xffff&(-module);0x4000
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
         push bc
         OS_READHANDLE

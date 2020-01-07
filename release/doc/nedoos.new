@@ -1044,3 +1044,11 @@ v0.311.2, 27.12.2019
 v0.311.3, 28.12.2019
 
 + дополнена документация и sys_h.asm
+
+v0.311.4, 07.01.2020
+
++ hddfdisk: добавлен выбор дисков Немо мастер\слейв и АТМ мастер\слейв (DimkaM)
++ hddfdisk: добавлен сканер на предмет isdos разделов (DimkaM)
++ br: gfx improvements (kotik, Sashapont)
++ sprexamp: background scroll
++ player: tfc
