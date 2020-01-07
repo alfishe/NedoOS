@@ -46,7 +46,12 @@ cmd_begin
 	ld (SETUP),a
 	
         ld hl,module
-        call INIT
+	ld a,(hl)
+	cp 'T'
+        push af
+        call nz,INIT
+        pop af
+        call z,tfmini
         
 mainloopredraw
 filenameaddr=$+1
@@ -60,7 +65,12 @@ filenameaddr=$+1
 mainloop
         YIELD
 	di ;TODO fix player
-        call PLAY
+	ld a,(module)
+	cp 'T'
+        push af
+        call nz,PLAY
+        pop af
+        call z,tfm
 	ei
         GET_KEY
         cp key_redraw
@@ -71,7 +81,12 @@ mainloop
         ;jr z,_1;1b;prwindow_waitkey_nokey
         cp key_esc
         jr nz,mainloop
-        call MUTE
+	ld a,(module)
+	cp 'T'
+        push af
+        call nz,MUTE
+        pop af
+        call z,tfmshut
 noautoload
         QUIT
 
@@ -115,6 +130,7 @@ prtext0
 
         ;include "../_sdk/pt3play.i"
         include "ptsplay.asm"
+        include "tfmplay.asm"
         
 cmd_end
 

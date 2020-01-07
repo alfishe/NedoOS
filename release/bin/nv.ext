@@ -2,7 +2,7 @@ bmp:scratch.com
 bat:cmd.com
 txt,new,ext,ini,nfo,diz:texted.com
 gif,jpg,png,htm:browser.com
-pt2,pt3,m  :player.com
+tfc,pt2,pt3,m  :player.com
 bas:basic.com
 zip,gz :pkunzip.com
 trd,scl,fdi,tap:dmm.com

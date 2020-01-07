@@ -1044,3 +1044,9 @@ v0.311.2, 27.12.2019
 v0.311.3, 28.12.2019
 
 + дополнена документация и sys_h.asm
+
+v0.311.4, 07.01.2020
+
++ br: gfx improvements
++ sprexamp: background scroll
++ player: tfc
