@@ -2155,7 +2155,8 @@ setpath
         
 BDOS_chdir_trdos
 		ld (iy+app.vol),a
-        ld a,(de) ;путь пустой?
+                xor a
+        ;ld a,(de) ;путь пустой?
         ;or a
         ;jp nz,BDOS_fail ;непустой
         ret

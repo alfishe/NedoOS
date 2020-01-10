@@ -104,9 +104,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a basic/example.bas
 	rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
 	rem nedotrd test.trd -a player/coco.pt2
-	rem nedotrd test.trd -a browser/test/index.htm
-	rem nedotrd test.trd -a browser/test/page.htm
-	rem nedotrd test.trd -a browser/test/atmmain.htm
+	nedotrd test.trd -a browser/browser/nos.htm
 	rem nedotrd test.trd -a browser/test/zajchik.gif
 	rem nedotrd test.trd -a browser/test/girl.jpg
 	rem nedotrd test.trd -a browser/test/csprmain.htm
