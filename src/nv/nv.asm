@@ -2113,6 +2113,7 @@ _DIV0.
         ret
         
 editcmd_0
+        call ifcmdnonempty_typedigit
 editcmd_quit
         ld e,COLOR_RED
         call nv_setcolor
