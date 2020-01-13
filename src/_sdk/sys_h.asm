@@ -16,7 +16,7 @@ _1=$
         jr z,_1
         endm
 
-        macro WAITPID
+        macro WAITPID ;wait task E to close
         ;push de
         ;YIELD ;чтобы запускаемая задача успела захватить фокус
         ;ld e,-1
