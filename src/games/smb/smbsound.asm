@@ -1,9 +1,9 @@
-;ўшЄрхЄ:
-;OperMode (0=т√ъы■ўшЄ№ чтєъ ш эх шуЁрЄ№)
-;EventMusicQueue (эюьхЁ фцшэуыр Єшяр TimeRunningOutMusic, EndOfCastleMusic) - яЁш т√чютх яыхщхЁр юэ ¤Єю ъюяшЁєхЄ т EventMusicBuffer ш чрэєы хЄ
-;AreaMusicQueue (эюьхЁ ьєч√ъш) - яЁш т√чютх яыхщхЁр юэ ¤Єю ъюяшЁєхЄ т AreaMusicBuffer ш чрэєы хЄ
-;PauseSoundQueue (1=фюшуЁ√трхь чтєъ ярєч√ ш т√ъы■ўрхь чтєъ - ъръ Єєфр яюярфрхЄ 1???)
-;Square1SoundQueue (jump, flagpole sound ш фЁ.)
+;читает:
+;OperMode (0=выключить звук и не играть)
+;EventMusicQueue (номер джингла типа TimeRunningOutMusic, EndOfCastleMusic) - при вызове плейера он это копирует в EventMusicBuffer и зануляет
+;AreaMusicQueue (номер музыки) - при вызове плейера он это копирует в AreaMusicBuffer и зануляет
+;PauseSoundQueue (1=доигрываем звук паузы и выключаем звук - как туда попадает 1???)
+;Square1SoundQueue (jump, flagpole sound и др.)
 ;Square2SoundQueue (1-up sound, fireworks/gunfire)
 ;      lda Square2SoundQueue
 ;      oran ++Sfx_Blast            ;play fireworks/gunfire sound
@@ -13,8 +13,8 @@
 ;        oran ++Sfx_BowserFlame        ;load bowser's flame sound into queue
 ;        sta NoiseSoundQueue
 
-;тючтЁр∙рхЄ:
-;EventMusicBuffer (0=ьєч√ъры№э√щ ¤ЇЇхъЄ ъюэўшыё )
+;возвращает:
+;EventMusicBuffer (0=музыкальный эффект кончился)
 
 SoundEngine_noint
 ;play sound logically (for end of level music)
@@ -158,7 +158,7 @@ Dump_Freq_Regs:
         adc a,h
         sub l
         ld h,a
-        ld a,(hl) ;ўшЄрхЄ 5, р эр ёыєї эрфю яЁшьхЁэю 0x10 фы  ьєч√ъш, фы  Їырур сюы№°х, Єюы№ъю ¤ЇЇхъЄ√ яюъюЁюўх
+        ld a,(hl) ;читает 5, а на слух надо примерно 0x10 для музыки, для флага больше, только эффекты покороче
 	add a,a
 	;jr $
         stax SND_COUNTER,x
@@ -329,7 +329,7 @@ PlaySmackEnemy:
       sta Squ1_SfxLenCounter
       ldan ++$28                 ;store reg contents for smack enemy sound
       jsr PlaySqu1Sfx
-      bne DecrementSfx1Length  ;unconditional branch ;??? хёыш т√їюф шч PlaySqu1Sfx яю NoTone, Єю яхЁхїюфр эх сєфхЄ!!!
+      bne DecrementSfx1Length  ;unconditional branch ;??? если выход из PlaySqu1Sfx по NoTone, то перехода не будет!!!
 
 ContinueSmackEnemy:
         ldy Squ1_SfxLenCounter  ;check about halfway through
@@ -1001,7 +1001,7 @@ wrnoise3
         adc a,h
         sub l
         ld h,a
-        ld a,(hl) ;ўшЄрхЄ 5, р эр ёыєї эрфю яЁшьхЁэю 0x10 фы  ьєч√ъш, фы  Їырур сюы№°х, Єюы№ъю ¤ЇЇхъЄ√ яюъюЁюўх
+        ld a,(hl) ;читает 5, а на слух надо примерно 0x10 для музыки, для флага больше, только эффекты покороче
 	add a,a
         ld (SND_COUNTER+12),a
 ;Only a write out to $4003/$4007/$400F will reset the current envelope decay counter to a known state (to $F, the maximum volume level) for the appropriate channel's envelope decay hardware.

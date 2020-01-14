@@ -1,4 +1,4 @@
-;  фЁрщтхЁ тшчэхЄр
+;я драйвер визнета
 WIZ_BASE_ADDR EQU 0x00ab
 WIZ_SOCK0_HNDL EQU 8
 WIZ_REGAD_PORT EQU 0x8100+WIZ_BASE_ADDR
@@ -108,7 +108,7 @@ SOCK_CLOSING        EQU 0x1A                 ;< SOCKETn is closing. */
 SOCK_TIME_WAIT      EQU 0x1B                 ;< SOCKETn is closing. */
 SOCK_CLOSE_WAIT     EQU 0x1C                 ;< Disconnect-request(FIN packet) is received from the peer. */
 SOCK_LAST_ACK       EQU 0x1D                 ;< SOCKETn is closing. */
-;фЁрщтхЁ тшчэхЄр
+;драйвер визнета
 SOCK_UDP            EQU 0x22                 ;< SOCKETn is open as UDP mode. */
 SOCK_IPRAW          EQU 0x32                 ;< SOCKETn is open as IPRAW mode. */
 SOCK_MACRAW         EQU 0x42                 ;< SOCKET0 is open as MACRAW mode. */
@@ -153,12 +153,12 @@ wiznet_open
 		jp z,w53_bind
 		dec l
 		jp z,w53_listen
-		ld a,ERR_INTR	;ЇєэъЎш  эх ёє∙хёЄтєхЄ
+		ld a,ERR_INTR	;функция не существует
 		ld hl,-1
 		ret
 w53_socket:
 ;E-socket type, D-address family
-;ш∙хь ётюсюфэ√щ ёюъхЄ
+;ищем свободный сокет
 		ld l,-1
 		ld a,AF_INET
 		cp d
@@ -171,7 +171,7 @@ w53_socket0:
 		cp 37
 		jr c,w53_socket1
 		ld l,-1
-		ld a,ERR_NFILE ;тёх ёюъхЄ√ чрэ Є√
+		ld a,ERR_NFILE ;все сокеты заняты
 		ret
 w53_socket1:
 		ld l,a
@@ -240,15 +240,15 @@ w53_accept:
 		ld b,WIZ_S_SSR		
 		in a,(c)
 		jr nz,w53_accept_live
-		ld a,ERR_ECONNABORTED	;ёюъхЄ ёфюї
+		ld a,ERR_ECONNABORTED	;сокет сдох
 		ret
 w53_accept_live:
 		cp SOCK_ESTABLISHED
 		jr z,w53_accept_est
-		ld a,ERR_EAGAIN			;яюър эшъюую эхЄ
+		ld a,ERR_EAGAIN			;пока никого нет
 		ret		
 w53_accept_est:
-		ld b,WIZ_S_PORTR_H		;чряюьэшь яюЁЄ
+		ld b,WIZ_S_PORTR_H		;запомним порт
 		in e,(c)
 		inc b
 		in d,(c)
@@ -260,7 +260,7 @@ w53_accept_est:
 		ld a,l
 		or a
 		jp p,w53_accept_nsoc
-		pop hl	;ёюъхЄ эхфрыш. тхЁэхь Єхъє∙шщ
+		pop hl	;сокет недали. вернем текущий
 		ret
 w53_accept_nsoc:
 		ld b,WIZ_S_PORTR_H
@@ -270,7 +270,7 @@ w53_accept_nsoc:
 		call w53_listen_acc
 		pop hl
 		inc hl
-		ld a,(hl)	;яюьхэ хь ёюъхЄ√ ьхёЄрьш
+		ld a,(hl)	;поменяем сокеты местами
 		ld e,(ix+1)
 		ld (hl),e
 		ld (ix+1),a
@@ -360,7 +360,7 @@ w53_connect0:
 		call BDOS_preparedepage
 		call BDOS_setdepage 
 		ex de,hl
-		inc hl	;яЁюяєёЄшь ёхьхщёЄтю
+		inc hl	;пропустим семейство
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
 		ld a,6
 w53_connect1:
@@ -396,19 +396,19 @@ w53_close:
 w53_close_valid:
 		ld l,0
 		ld (ix+4),l
-		ret z	;ёюъхЄ єцх єсшЄ
+		ret z	;сокет уже убит
 		dec l
 		ex af,af'
 		ld a,e
 		or a
 		jr z,w53_close_nochk
-		ld b,WIZ_S_FSR_H	;яЁютхЁшь яєёЄ ыш сєЇхЁ юЄяЁртъш
+		ld b,WIZ_S_FSR_H	;проверим пуст ли буфер отправки
 		in a,(c)
 		cp 0x20
 		jr nz,w53_close_nochk
 		inc b
-		in e,(c)	;????ўЄю Єю эх Єръ????
-					;тюёёЄрэютшЄ№ ID
+		in e,(c)	;????что то не так????
+					;восстановить ID
 w53_close_nochk:
 		ex af,af'
 		cp Sn_MR_TCP
@@ -416,7 +416,7 @@ w53_close_nochk:
 w53_close_tcp:
 		ld b,WIZ_S_SSR
 		in a,(c)
-		jr z,w53_close3		;єцх чръЁ√Є??? тючьюцэю эхэєцэю
+		jr z,w53_close3		;уже закрыт??? возможно ненужно
 		cp SOCK_ESTABLISHED
 		jr nz,w53_close_wait	;w53_closewait
 		ld a,e
@@ -460,11 +460,11 @@ w53_cmd0:
 		jr w53_cmd0
 		
 		
-wiznet_read:	;a'-ёюъхЄ, de-┴єЇхЁ, hl-ъюышўхёЄтю
+wiznet_read:	;a'-сокет, de-Буфер, hl-количество
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
 		;call BDOS_preparedepage
-w53_read_min:	;hl-ёъюы№ъю їюЄшь срщЄ
+w53_read_min:	;hl-сколько хотим байт
 		ld a,h
 		or l
 		ret z
@@ -473,9 +473,9 @@ w53_read55:
 		ld b,(ix+3)
 		ld a,b
 		or c
-		jp z,w53_read_new	;ёЄрЁ√ї фрээ√ї эхЄє, ўшЄрЄ№ эют√щ яръхЄ
+		jp z,w53_read_new	;старых данных нету, читать новый пакет
 		
-		;ўшЄрхь ёЄрЁ√щ яръхЄ
+		;читаем старый пакет
 		;bc=min(hl,bc), datasize-=bc
 		sbc hl,bc
                 ld a,c
@@ -493,7 +493,7 @@ w53_minimum0:
 		sbc a,b
 		ld (ix+3),a
 		
-		push bc				;ёъюы№ъю Ёхры№эю яЁюўЄхь ёюїЁрэшь
+		push bc				;сколько реально прочтем сохраним
 		ex de,hl
 		ld d,b
 		ld e,c
@@ -509,7 +509,7 @@ w53_minimum0:
                 ;jr nz,w53_read_loopl
 		cp b 
 		jr z,w53_read_loopl
-w53_read_loop:	;ўЄю-Єю эрфю фюўшЄрЄ№ de-count, hl-ptr
+w53_read_loop:	;что-то надо дочитать de-count, hl-ptr
 		ini
 		ld b,a
 		dec e
@@ -555,28 +555,28 @@ w53_read_fastlooph:
                 jp p,w53_read_fastloophd
 		;jp w53_read_loope
                 endif
-w53_read_loope:		;ъюэхЎ Ўшъыр
-		ld (ix+0),b	;ёюїЁрэшь ёыхфє■∙шщ ЁхушёЄЁ RX	
-		pop hl					;ёъюы№ъю яЁюўшЄрыш
-		ld a,(ix+2)				;хёыш т сєЇхЁх ўЄюЄю хёЄ№,
-		or (ix+3)				;Єю т√їюфшь
+w53_read_loope:		;конец цикла
+		ld (ix+0),b	;сохраним следующий регистр RX	
+		pop hl					;сколько прочитали
+		ld a,(ix+2)				;если в буфере чтото есть,
+		or (ix+3)				;то выходим
 		ret nz					
-		bit 0,b					;шэрўх ъюьрэфр - яръхЄ чрсЁрыш
+		bit 0,b					;иначе команда - пакет забрали
 		jr z,w53_read_noblanc
-		in a,(c)				;фюўшЄрхь їюыюёЄющ срщЄ
+		in a,(c)				;дочитаем холостой байт
 w53_read_noblanc:
 		ld a,Sn_CR_RECV
-		jp w53_cmd	;т√їюфшь
+		jp w53_cmd	;выходим
 		
-w53_read_new:		;ўшЄрЄ№ эют√щ яръхЄ
+w53_read_new:		;читать новый пакет
 		ld bc,WIZ_BASE_ADDR+(WIZ_S_RX_RSR_L<<8)
 		in a,(c)
 		jr nz,w53_read_new1
 		dec b
 		in a,(c)
 		jr nz,w53_read_new1
-		;т сєЇхЁх эшўхую. яЁютхЁшь цшт ыш ёюъхЄ
-		ld h,a			;эшўхую эх яЁюўшЄрыш
+		;в буфере ничего. проверим жив ли сокет
+		ld h,a			;ничего не прочитали
 		ld l,a
 		ld b,WIZ_S_SSR		
 		in a,(c)
@@ -620,23 +620,23 @@ w53_read_new2:
 		jp w53_read_min
 
 wiznet_close:
-wiznet_write:	;a'-ёюъхЄ, de-┴єЇхЁ, hl-ъюышўхёЄтю
+wiznet_write:	;a'-сокет, de-Буфер, hl-количество
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
 		;call BDOS_preparedepage
 		ld c,WIZ_BASE_ADDR
-		ld b,WIZ_S_SSR		;цшт ыш ёюъхЄ
+		ld b,WIZ_S_SSR		;жив ли сокет
 		in a,(c)
 		cp SOCK_ESTABLISHED
 		jr z,w53_write1
 		cp SOCK_UDP
 		jr nc,w53_write1
-		ld a,ERR_NOTCONN	;шчфюї
+		ld a,ERR_NOTCONN	;издох
 wiznet_fail:
 		ld h,-1
 		ret
 w53_write1:
-		ld b,WIZ_S_FSR_L	;яЁютхЁшь ьхёЄю т сєЇхЁх
+		ld b,WIZ_S_FSR_L	;проверим место в буфере
 		in a,(c)
 		dec b
 		sub l
@@ -649,7 +649,7 @@ w53_write1:
 		jr wiznet_fail ;ret
 w53_wr_count_valid:	
 		ex de,hl
-		push de		;ўЄюс√ яюЄюь ёъюы№ъю юЄяЁртшыш тхЁэєЄ№
+		push de		;чтобы потом сколько отправили вернуть
 		dec de
 		push de
 		pop ix

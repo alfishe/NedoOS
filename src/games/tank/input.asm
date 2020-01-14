@@ -1,8 +1,8 @@
 getkey
-;out: c=%???lrduf (0=нажато)
+;out: c=%???lrduf (0=­ ¦ в®)
 ;fire = A
         if 1==1
-        OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
+        OS_GETKEYMATRIX ;out: bcdehlix = Ї®«гап¤л cs...space
         xor a
 	bit 4,e ;5
 	jr z,$+3

@@ -1,17 +1,17 @@
-;bc * de Ёхчєы№ЄрЄ т hl
+;bc * de результат в hl
 mulbcde
         ld hl,0
         ld a,b
         dup 8
         rla
-        jr nc,$+3 ; c - с√ы яхЁхэюё, nc - эх с√ыю яхЁхэюёр    
+        jr nc,$+3 ; c - был перенос, nc - не было переноса    
         add hl,de
         add hl,hl
         edup
         ld a,c
         dup 7
         rla
-        jr nc,$+3 ; c - с√ы яхЁхэюё, nc - эх с√ыю яхЁхэюёр    
+        jr nc,$+3 ; c - был перенос, nc - не было переноса    
         add hl,de
         add hl,hl
         edup
@@ -20,7 +20,7 @@ mulbcde
         add hl,de
         ret
 
-;hl / de Ёхчєы№ЄрЄ т hl
+;hl / de результат в hl
 divhlde
 	ld c,h
 	ld a,l

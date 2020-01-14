@@ -29,7 +29,7 @@ htmlcursorxy=$+1
         call html_prattr
 
 1
-	;YIELD ;halt ;хёыш ёфхырЄ№ яЁюёЄю di:rst #38, Єю 1.ёфтшэхь ЄрщьхЁ ш 2.ьюцхь яюЄхЁ Є№ ърфЁютюх яЁхЁ√трэшх, р хёыш схч ei, Єю сєфєЄ уы■ъш
+	;YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         ;GET_KEY ;OS_GETKEYNOLANG
         ;ld a,c ;keynolang        
         ;cp NOKEY
@@ -104,14 +104,14 @@ wgetloaded_pid=$+1
         or a
         call z,reloadwget
 
-;TODO яЁютхЁшЄ№, ўЄю wget цшт:
+;TODO проверить, что wget жив:
         ld a,(wgetloaded_pid)
         ld e,a
         OS_WAITPID
         or a
         call z,reloadwget
 
-;цф╕ь уюЄютэюёЄш wget
+;ждём готовности wget
 waitwgetinit0
         YIELD
 wgetmainpg=$+1
@@ -125,7 +125,7 @@ wgetmainpg=$+1
         ld de,0xc000+WGETBUF
         call strcopy
         ld a,0xff
-        ld (0xc000+COMMANDLINE),a ;ёЄЁюър чрфрэш  уюЄютр
+        ld (0xc000+COMMANDLINE),a ;строка задания готова
         
         jp remembercurlink
 	;jp browser_godownload
@@ -144,10 +144,10 @@ reloadwget
         ld de,0x8000;oldpath
         OS_CHDIR
         
-        OS_NEWAPP ;эр ьюьхэЄ ёючфрэш  фюыцэр с√Є№ тъы■ўхэр Єхъє∙р  фшЁхъЄюЁш !!!
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         jr nz,html_download_closeq ;error
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000 эютюую яЁшыюцхэш , b=id, a=error
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
         ld a,d
         ld (wgetmainpg),a
@@ -205,13 +205,13 @@ html_enter_virtualy=$+1
         or a
         sbc hl,bc ;HREF_Y - y
         ex de,hl
-        jr z,html_enter_findlineok ;фы  яЁртшы№эющ ёё√ыъш HREF_Y<=y
+        jr z,html_enter_findlineok ;для правильной ссылки HREF_Y<=y
          ;jr c,html_enter_findlineok_hrefy_lessthan_y
         
         endif
          
 ;for long linktexts: beginyx<=yx<endyx
-;ьюцэю яхЁтшўэє■ Їшы№ЄЁрЎш■ (beginy<=y<=endy), эю эхєфюсэю
+;можно первичную фильтрацию (beginy<=y<=endy), но неудобно
 
         ld bc,HREF_Y
         add hl,bc
@@ -490,7 +490,7 @@ htmlshowline_accessedpointer=$+1
 htmlshowline_accessedpointerHSB=$+1
         ld a,0
         
-;ш∙хь тэшч, хёыш (accessedpointer.HREF_Y < y), шэрўх ш∙хь ттхЁї
+;ищем вниз, если (accessedpointer.HREF_Y < y), иначе ищем вверх
         push af
         push hl
         call getandcompareHREF_Y ;CY = (HREF_Y < y)

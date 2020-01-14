@@ -23,14 +23,14 @@ subhldecheck0
         ld l,a
         ret
 
-;bc * de Ёхчєы№ЄрЄ т ahl
+;bc * de результат в ahl
 mulbcde_ahl
         xor a
         ld h,a
         ld l,a
         dup 8
         rlc b
-        jr nc,$+5 ; c - с√ы яхЁхэюё, nc - эх с√ыю яхЁхэюёр    
+        jr nc,$+5 ; c - был перенос, nc - не было переноса    
         add hl,de
         adc a,0
         add hl,hl
@@ -38,7 +38,7 @@ mulbcde_ahl
         edup
         dup 7
         rlc c
-        jr nc,$+5 ; c - с√ы яхЁхэюё, nc - эх с√ыю яхЁхэюёр    
+        jr nc,$+5 ; c - был перенос, nc - не было переноса    
         add hl,de
         adc a,0
         add hl,hl
@@ -55,7 +55,7 @@ genmuldewid_ahl
         ld hl,muldewid_ahl+3
         ld a,d
         or e
-        jr z,genmuldewid_ahlq ;шэрўх чряюЁхЄ эрўрыю яЁюЎхфєЁ√
+        jr z,genmuldewid_ahlq ;иначе запорет начало процедуры
         xor a
         ld b,16
 genmuldewid_ahl_0
@@ -84,15 +84,15 @@ genmuldewid_ahlq
         ld (hl),0xc9 ;ret
         ret
 
-;эхы№ч  т pgshapes, Є.ъ. эєцэю фы  bitmap        
+;нельзя в pgshapes, т.к. нужно для bitmap        
 muldewid_ahl
-;эх яюЁЄшЄ bc
+;не портит bc
         xor a
         ld h,a
         ld l,a
         ds (5*16)
 ;[add hl,de:adc a,0]
-;add hl,hl:rla ;эрўрЄ№ Єюы№ъю ё сшЄр, ъюЄюЁ√щ єёЄрэютыхэ, ш т ъюэЎх эх ёЄртшЄ№
+;add hl,hl:rla ;начать только с бита, который установлен, и в конце не ставить
 
 divhldesigned
         ld a,h
@@ -105,7 +105,7 @@ divhldesigned
         call m,negde
         call divhlde
         pop af
-        ret p ;юфшэръют√х чэръш
+        ret p ;одинаковые знаки
 neghl
         xor a
         sub l
@@ -123,7 +123,7 @@ negde
         ld d,a
         ret
 
-;hl / de Ёхчєы№ЄрЄ т hl
+;hl / de результат в hl
 divhlde
 	ld c,h
 	ld a,l

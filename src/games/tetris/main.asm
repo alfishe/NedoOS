@@ -36,7 +36,7 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+;de=бва ­Ёжл 0-Ј® нЄа ­  (d=бв аи п), hl=бва ­Ёжл 1-Ј® нЄа ­  (h=бв аи п)
         ld a,d
         SETPG16K
 
@@ -51,7 +51,7 @@ gameloop_newfig
         call newfig
     
         ld bc,nextfigy*256 + nextfigx
-        ld de,prfig_pixel_cleanout ;de=адрес процедуры
+        ld de,prfig_pixel_cleanout ;de= ¤аҐб Їа®жҐ¤гал
         ld hl,nextfig
         ld a,(nextfigcolor)
         call prfig_hl_a
@@ -63,7 +63,7 @@ gameloop_newfig
         
 gameloop
         ld bc,(curxy) ;bc=yx 
-        ld de,prfig_pixel ;de=адрес процедуры
+        ld de,prfig_pixel ;de= ¤аҐб Їа®жҐ¤гал
 figmoved=$+1
         ld a,0
         or a
@@ -83,7 +83,7 @@ figmoved=$+1
         GET_KEY
          cp key_esc
          jr z,quit
-        call controlkey ;двигаем координаты фигуры (устанавливает downneeded по down)
+        call controlkey ;¤ўЁЈ Ґ¬ Є®®а¤Ё­ вл дЁЈгал (гбв ­ ў«Ёў Ґв downneeded Ї® down)
 
         ld a,(figmoved)
         or a
@@ -91,7 +91,7 @@ figmoved=$+1
 
         call undraw_oldfig_ifneeded
         call collide
-        call nz,restoreposition ;отменяем движение координат, если нельзя поставить фигуру
+        call nz,restoreposition ;®в¬Ґ­пҐ¬ ¤ўЁ¦Ґ­ЁҐ Є®®а¤Ё­ в, Ґб«Ё ­Ґ«м§п Ї®бв ўЁвм дЁЈгаг
 nokey
 
         call movedownifneeded
@@ -139,7 +139,7 @@ restoreposition
 
 undraw_oldfig_ifneeded
         ld bc,(oldcurxy) ;bc=yx 
-        ld de,prfig_clearpixel ;de=адрес процедуры
+        ld de,prfig_clearpixel ;de= ¤аҐб Їа®жҐ¤гал
         ld hl,oldcurfig
 figcleared=$+1
         ld a,0
@@ -152,7 +152,7 @@ figcleared=$+1
 collide
 ;nz=collision
         ld bc,(curxy) ;bc=yx 
-        ld de,prfig_checkpixel ;de=адрес процедуры
+        ld de,prfig_checkpixel ;de= ¤аҐб Їа®жҐ¤гал
         call prfig
         ld a,hx
         or a 
@@ -160,7 +160,7 @@ collide
         
 stopfig
         ld bc,(oldcurxy) ;bc=yx 
-        ld de,prfig_pixel ;de=адрес процедуры
+        ld de,prfig_pixel ;de= ¤аҐб Їа®жҐ¤гал
         call prfig
         
         ld hl,dellineslist
@@ -170,7 +170,7 @@ finddellines0
         push bc
         ld (hl),b
         call calcattraddr
-        call checkfilledline ;nz значит сжечь
+        call checkfilledline ;nz §­ зЁв б¦Ґзм
         jr z,finddellines_nofire
         inc hl
         inc hx
@@ -214,7 +214,7 @@ firelines1
         ld a,b ;y
         dec a
         push hl
-        call shiftblock ;bc=левый нижний угол, a=количество сдвигаемых строк
+        call shiftblock ;bc=«Ґўл© ­Ё¦­Ё© гЈ®«, a=Є®«ЁзҐбвў® б¤ўЁЈ Ґ¬ле бва®Є
         pop hl
         jr firelines0
 firelinesq
@@ -252,14 +252,14 @@ newfig
         ret
 
 shiftblock
-;bc=левый нижний угол, a=количество сдвигаемых строк
+;bc=«Ґўл© ­Ё¦­Ё© гЈ®«, a=Є®«ЁзҐбвў® б¤ўЁЈ Ґ¬ле бва®Є
 shiftblockline
         push af
         call calcscraddr
-        ex de,hl ;hl=адрес текущей строки
+        ex de,hl ;hl= ¤аҐб вҐЄгйҐ© бва®ЄЁ
         dec b ;y
-        call calcscraddr ;de=адрес предыдущей строки
-        ex de,hl ;de=адрес текущей строки, hl=адрес предыдущей строки
+        call calcscraddr ;de= ¤аҐб ЇаҐ¤л¤гйҐ© бва®ЄЁ
+        ex de,hl ;de= ¤аҐб вҐЄгйҐ© бва®ЄЁ, hl= ¤аҐб ЇаҐ¤л¤гйҐ© бва®ЄЁ
         push bc
         ld a,8
 shiftblockline0
@@ -305,7 +305,7 @@ downneeded=$+1
 	jr nz,movedownok
         ld a,(falldelaycount)
         dec a
-        jr nz, falldelaycount_q ;если не 0, то обходим
+        jr nz, falldelaycount_q ;Ґб«Ё ­Ґ 0, в® ®Ўе®¤Ё¬
 movedownok
         ld a,1
         ld (figmoved),a
@@ -410,7 +410,7 @@ prfieldver0
         ret
       
 prtext
-;bc=координаты
+;bc=Є®®а¤Ё­ вл
 ;hl=text
         ld a,emptyattr
         ld (curattr),a
@@ -538,15 +538,15 @@ oldcurxy
         
 prfig
 ;bc=yx 
-        ld hl,curfig ;hl=указатель на фигуру
+        ld hl,curfig ;hl=гЄ § вҐ«м ­  дЁЈгаг
 prfig_hl
 curfigcolor=$+1
         ld a,6
 prfig_hl_a
-;hl=указатель на фигуру
-;de=адрес процедуры
+;hl=гЄ § вҐ«м ­  дЁЈгаг
+;de= ¤аҐб Їа®жҐ¤гал
         ld lx,a
-        ld hx,0 ;lx=атрибут, hx=0
+        ld hx,0 ;lx= ваЁЎгв, hx=0
         ld (prfig_calladdr),de
         ld e,4
 prfig_lines
@@ -635,32 +635,32 @@ prfig_clearpixel
         ret
         
 figs
-;квадрат
+;Єў ¤а в
         db %0000
         db %0110
         db %0110
         db %0000
-;палка
+;Ї «Є 
         db %0100
         db %0100
         db %0100
         db %0100
-;сапог правый
+;б Ї®Ј Їа ўл©
         db %0100
         db %0100
         db %0110
         db %0000
-;сапог левый
+;б Ї®Ј «Ґўл©
         db %0010
         db %0010
         db %0110
         db %0000
-;зигзаг1
+;§ЁЈ§ Ј1
         db %0000
         db %0011
         db %0110
         db %0000
-;зигзаг2
+;§ЁЈ§ Ј2
         db %0000
         db %1100
         db %0110
@@ -696,7 +696,7 @@ nextfigcolor
 
 
 dellineslist
-        ds 4+1 ;max 4 линии + #ff
+        ds 4+1 ;max 4 «Ё­ЁЁ + #ff
 
 ;oldtimer
 ;        dw 0

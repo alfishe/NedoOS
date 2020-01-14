@@ -9,7 +9,7 @@ FR_EXIST=8 ;fatfs4os/ff.h
        ENDM 
 
 STACK=0x4000
-ziptrees=0x4000;0x8000;0x4000 ;ўЄюс√ с√ыю bit 6 ;size = 0xa60 + 2*288?
+ziptrees=0x4000;0x8000;0x4000 ;чтобы было bit 6 ;size = 0xa60 + 2*288?
 TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
@@ -25,7 +25,7 @@ cmd_begin
         OS_SETGFX
         
         ;OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         if depkbuf==0
         ld hl,PTABL
         ld b,4;6
@@ -60,7 +60,7 @@ getpgs0
         ld a,e
         ld (ST_FLEN),a
 
-        CALL initdepk;Z6629 ;╚═╚╓╚└╦╚╟└╓╚▀ ─┼╧AKEPA
+        CALL initdepk;Z6629 ;ИНИЦИАЛИЗАЦИЯ ДЕПAKEPA
        LD IY,DISKBUF+DISKBUFsz-1
 
 ;0x1f,0x8b = *.gz
@@ -113,8 +113,8 @@ depack_gz
 
         pop af
         bit 3,a
-        jr z,depack_gz_skipname ;TODO фхырЄ№ шч шьхэш рЁїштр
-;ёЇюЁьшЁютрЄ№ filename:
+        jr z,depack_gz_skipname ;TODO делать из имени архива
+;сформировать filename:
         ld hl,filename
 depack_gz_getfn0
         call RDBYTE
@@ -227,19 +227,19 @@ PTABL
         ;DB #11,#13,#14,#17,#10,#16
         ds 4;6 ;patched
         endif;T61F7   DS 14 ;???T6221   DS 4 ;time(2), date(2) of depacked fileCRC_ISH DS 4ML_LEN_ISH DB 0T622A   DB 0ST_LEN_ISH DB 0T622C   DB 0;T622D   DB 0;T622E   DB 0;T622F   DB 0ML_CRC32 DW 0ST_CRC32 DW 0
-;Єхъє∙шщ ЁрчьхЁ Їрщыр фы  яЁюЎхэЄюьхЁр;B1      DB 0;B2      DB 0;B3      DB 0
+;текущий размер файла для процентомера;B1      DB 0;B2      DB 0;B3      DB 0
         if depkbuf==0
 ;a=4: for Z631F
 ;a=5: default
 ;a=0..3: for keep byte
-;эх фюыцэр яюЁЄшЄ№ hl,de, a' (р ўЄю эрёў╕Є bc?)
-ON_BANK        ;CP 0        ;RET Z ;фы  Єръюую яютхфхэш  эрфю яхЁхф ърцфющ Ёрёяръютъющ фхырЄ№ ярЁрчшЄэюх яхЁхъы■ўхэшх, ўЄюс√ яюЄюь ёЁрсюЄрыю ЇръЄшўхёъюх?        ;LD (TPAGE),A
+;не должна портить hl,de, a' (а что насчёт bc?)
+ON_BANK        ;CP 0        ;RET Z ;для такого поведения надо перед каждой распаковкой делать паразитное переключение, чтобы потом сработало фактическое?        ;LD (TPAGE),A
         push bc
        LD b,PTABL/256       ADD A,PTABL&0xff        LD c,A        LD A,(bc)        SETPG32KHIGH
         pop bc
         RET 
         endif;TPAGE=ON_BANK+1
-;╫TEH╚E ╫ACT╚ ╘A╔╦└
+;ЧTEHИE ЧACTИ ФAЙЛА
 ;de=len
 ;ix=buffer
 ;ahl=position in fileREAD    
@@ -260,7 +260,7 @@ ON_BANK        ;CP 0        ;RET Z ;фы  Єръюую яютхфхэш  эрфю яхЁхф ърцфющ Ёрё
         pop hl ;len
         call readstream_file
         ;CALL LOAD        ;LD HL,0        ;LD (OSTAT),HL        ;LD (SMEV),HL        POP AF,HL,BC,DE,IX        RET 
-;яЁюЎхэЄюьхЁ?
+;процентомер?
 COUNT        LD A,0NOPR=$-1        INC A        AND 3        LD (NOPR),A        RET NZ        ;EXX         ;CALL P_IND        ;EXX         RET 
         if 1==0
 P_IND   DI         LD (P_IND1+1),SP        LD SP,TABLICA        LD B,48        LD HL,(Z6546)        LD DE,(B2)        ADD HL,DE        EX DE,HL        LD A,(B1)        ADC A,0        LD C,API2     POP HL,AF        OR A        SBC HL,DE        SBC A,C        JR C,PI1        JR NZ,NE_0        OR H        OR L        JR Z,PI1NE_0    DJNZ PI2PI1     DEC SP,SP        POP HLP_IND1  LD SP,0        LD A,L        CP -1PNP=$-1        RET Z        LD (PNP),A        LD HL,#0A08        LD (COR),HL        LD E,A        LD D,0        LD HL,SKAL        OR A        SBC HL,DE        LD A,#4F        LD (TEKATR+1),A        JP PRINTS;?       DS 48,#0A0ASKAL=$-1        NOP 
@@ -274,10 +274,10 @@ minhl_bc_tobc
         ld c,l
         ret
 
-; HL = ─╦╚═└ ╘└╔╦└
+; HL = ДЛИНА ФАЙЛА
 ;de=0
-;шь  Їрщыр ыхцшЄ т filename
-;out: hl=0SAVE        ;LD A,4        ;CALL ON_BANK        ;LD A,3        ;LD (NOPR),A ;ЇюЁёшЁютрЄ№ яЁюЎхэЄюьхЁ?        ;CALL COUNT ;яЁюЎхэЄюьхЁ?        ;LD (#5CE8),HL ;length
+;имя файла лежит в filename
+;out: hl=0SAVE        ;LD A,4        ;CALL ON_BANK        ;LD A,3        ;LD (NOPR),A ;форсировать процентомер?        ;CALL COUNT ;процентомер?        ;LD (#5CE8),HL ;length
         ld de,0        LD (IST),DE
         
         ld a,h
@@ -351,7 +351,7 @@ SAVECREATE_retry
          or a
          jr z,SAVECREATE_nomkdir
 ;5=FR_NO_PATH
-;эрфю ёючфрЄ№ яєЄ№ ¤ыхьхэЄ чр ¤ыхьхэЄюь: md 1, md 1/2, md 1/2/3...
+;надо создать путь элемент за элементом: md 1, md 1/2, md 1/2/3...
         ld hl,filename
 SAVECREATE_mkdir0
         call findslash_or_zero ;hl=at slash or zero, a=code
@@ -360,7 +360,7 @@ SAVECREATE_mkdir0
         push hl ;hl=at slash or zero
         ld (hl),0 ;end path at this slash
         ld de,filename
-        OS_MKDIR ;тючьюцэю, Єрър  фшЁхъЄюЁш  єцх хёЄ№!
+        OS_MKDIR ;возможно, такая директория уже есть!
         pop hl ;hl=at slash or zero
         ld (hl),'/' ;restore slash
          cp FR_EXIST
@@ -482,18 +482,18 @@ defaultfilename
         db "0:/12345/DOWNLOAD.ZIP",0
 filename
         db "depkfile.fil"
-        ds filename+256-$ ;фы  фышээ√ї шь╕э
+        ds filename+256-$ ;для длинных имён
 
 CAT
-;ърцф√щ Їрщы яю 16 срщЄ:
-;11 срщЄ шь , 3 срщЄр фышэр, 2 срщЄр яЁюяєёърхь
-        ds 0x900 ;TODO єсЁрЄ№
+;каждый файл по 16 байт:
+;11 байт имя, 3 байта длина, 2 байта пропускаем
+        ds 0x900 ;TODO убрать
         
 cmd_end
 
-;BUFER шёяюы№чєхЄё  яЁш ярЁёшэух рЁїштр ш яЁш яхўрЄш ъюььхэЄрЁш , эх шёяюы№чєхЄё  яЁш Ёрёяръютъх
+;BUFER используется при парсинге архива и при печати комментария, не используется при распаковке
 BUFER=0x8000;$;B_LEN=0x3f00-BUFERB_LEN=0xbfff-BUFER
-T6624=BUFER+8 ;flagsT6626=BUFER+#0A ;T6626=METO─ C╞AT╚▀: 0:STORED, 8:DEFLATE, others unknownT6628=BUFER+#0C ;file last modification timeZ6630=BUFER+#14Z6632=BUFER+#16Z6634=BUFER+#18Z6636=BUFER+#1AZ6638=BUFER+#1C ;file name lengthZ663A=BUFER+#1E ;extra field lengthZ663C=BUFER+#20 ;file comment lengthZ6646=BUFER+#2A ;(4)Relative offset of local file header. This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.Z6648=BUFER+#2CZ664A=BUFER+#2E ;ё■фр ъырф╕Єё  шь  Їрщыр
+T6624=BUFER+8 ;flagsT6626=BUFER+#0A ;T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, others unknownT6628=BUFER+#0C ;file last modification timeZ6630=BUFER+#14Z6632=BUFER+#16Z6634=BUFER+#18Z6636=BUFER+#1AZ6638=BUFER+#1C ;file name lengthZ663A=BUFER+#1E ;extra field lengthZ663C=BUFER+#20 ;file comment lengthZ6646=BUFER+#2A ;(4)Relative offset of local file header. This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.Z6648=BUFER+#2CZ664A=BUFER+#2E ;сюда кладётся имя файла
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "pkunzip.com",cmd_begin,cmd_end-cmd_begin

@@ -7,7 +7,7 @@ COLOR=7
         
         org PROGSTART
 cmd_begin
-        ld sp,0x4000 ;эх фюыцхэ юяєёърЄ№ё  эшцх 0x3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         

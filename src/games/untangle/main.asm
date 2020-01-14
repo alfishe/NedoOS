@@ -20,7 +20,7 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,e
         SETPG32KLOW
         ld a,d
@@ -57,11 +57,11 @@ loadiniq
         
         jr mouseloop_go
 mouseloop
-;1. тё╕ т√тюфшь
-;2. цф╕ь ёюс√Єшх
-;[3. тё╕ ёЄшЁрхь]
-;4. юсЁрсрЄ√трхь ёюс√Єшх (схч яхЁхЁшёютъш)
-;5. тё╕ ёЄшЁрхь
+;1. всё выводим
+;2. ждём событие
+;[3. всё стираем]
+;4. обрабатываем событие (без перерисовки)
+;5. всё стираем
 
         ld a,(clickstate)
         or a
@@ -85,23 +85,23 @@ mouseloop
         
 mouseloop_nomove
 
-         call redrawifneeded ;TODO єсЁрЄ№?
+         call redrawifneeded ;TODO убрать?
          
-;TODO яЁютхЁшЄ№, хёЄ№ ыш Їюъєё! хёыш эхЄє, Єю эх т√ч√трЄ№ prlevelifneeded
+;TODO проверить, есть ли фокус! если нету, то не вызывать prlevelifneeded
          
         call prlevelifneeded
 
 mouseloop_go
-;ёхщўрё тё╕ т√тхфхэю, ъЁюьх ёЄЁхыъш
+;сейчас всё выведено, кроме стрелки
         call ahl_coords
         call shapes_memorizearr
         call ahl_coords
         call shapes_prarr8c
 
-        ;call waitsomething ;т ¤Єю тЁхь  ёЄЁхыър тшфэр
+        ;call waitsomething ;в это время стрелка видна
 mainloop_nothing0
         call updatetime
-;т ¤Єю тЁхь  ёЄЁхыър тшфэр
+;в это время стрелка видна
         YIELD ;halt
         call control
         jr nz,mainloop_something
@@ -109,11 +109,11 @@ mainloop_nothing0
          or a
         jr z,mainloop_nothing0
 mainloop_something
-;ўЄю-Єю шчьхэшыюё№
+;что-то изменилось
         
         call ahl_oldcoords
         call shapes_rearr
-;ёхщўрё тё╕ т√тхфхэю, ъЁюьх ёЄЁхыъш
+;сейчас всё выведено, кроме стрелки
 
 key=$+1
         ld a,0
@@ -146,17 +146,17 @@ mouse_unfire
         xor a
         ld (clickstate),a
 
-;юсэютшЄ№ ёў╕Єўшъ crossededges ъюэъЁхЄэю яю Ё╕сЁрь, ъюЄюЁ√х яхЁхёхърышё№ т эрўрых ш т ъюэЎх фтшцхэш 
-;фы  ¤Єюую фы  ёЄрЁющ яючшЎшш тхЁ°шэ√ фы  ърцфюую шч ёт чрээ√ї Ё╕схЁ фхъЁхьхэЄшЁєхь тёх яхЁхёхўхэш  (є эхую ш є яхЁхёхў╕ээюую)
-;р фы  эютющ яючшЎшш тхЁ°шэ√ фы  ърцфюую шч ёт чрээ√ї Ё╕схЁ шэъЁхьхэЄшЁєхь тёх яхЁхёхўхэш  (є эхую ш є яхЁхёхў╕ээюую)
+;обновить счётчик crossededges конкретно по рёбрам, которые пересекались в начале и в конце движения
+;для этого для старой позиции вершины для каждого из связанных рёбер декрементируем все пересечения (у него и у пересечённого)
+;а для новой позиции вершины для каждого из связанных рёбер инкрементируем все пересечения (у него и у пересечённого)
 
-;фы  эютющ яючшЎшш тхЁ°шэ√ фы  ърцфюую шч ёт чрээ√ї Ё╕схЁ шэъЁхьхэЄшЁєхь тёх яхЁхёхўхэш  (є эхую ш є яхЁхёхў╕ээюую)
+;для новой позиции вершины для каждого из связанных рёбер инкрементируем все пересечения (у него и у пересечённого)
         ld hl,inccrossedandself
         call inccrossededges
-;шыш яЁюёЄю яюёўшЄрхь ърцф√щ ё ърцф√ь
+;или просто посчитаем каждый с каждым
         ;call countcrossededges
         
-;яюёых яюсхф√ єцх эх яЁютхЁ хь яюсхфє
+;после победы уже не проверяем победу
         ld a,(nextlevelon)
         or a
         ret nz
@@ -218,7 +218,7 @@ mouse_fire_nextlevel
         
         ld a,1
         ld (doredraw),a
-        ;call redraw ;хёЄ№ doredraw
+        ;call redraw ;есть doredraw
         
         ret
 
@@ -233,10 +233,10 @@ mouse_fire_nonextlevel
         ld (curvertex),a
         ld a,1
         ld (clickstate),a
-;фы  ёЄрЁющ яючшЎшш тхЁ°шэ√ фы  ърцфюую шч ёт чрээ√ї Ё╕схЁ фхъЁхьхэЄшЁєхь тёх яхЁхёхўхэш  (є эхую ш є яхЁхёхў╕ээюую)
+;для старой позиции вершины для каждого из связанных рёбер декрементируем все пересечения (у него и у пересечённого)
         ld hl,deccrossedandself
         call inccrossededges
-;ёЄшЁрхь Єхъє∙є■ тхЁ°шэє, Єхъє∙шх Ё╕сЁр ш яхЁхЁшёют√трхь шї шэтхЁёшхщ
+;стираем текущую вершину, текущие рёбра и перерисовываем их инверсией
         call undrawcurvertex
         call undrawconnectedvertices
         call undrawcuredges
@@ -435,7 +435,7 @@ drawconnectedverticesno
         ret
 
 drawunconnectededges
-;Ёшёєхь тёх Ё╕сЁр, ъЁюьх ёт чрээ√ї ё Єхъє∙хщ тхЁ°шэющ
+;рисуем все рёбра, кроме связанных с текущей вершиной
 ;find all edges with current vertex (1st or 2nd), draw others
 ;vertex1,vertex2,crossed
         ld hl,edges
@@ -472,21 +472,21 @@ drawunconnectededgesno
         ret
         
 drawunconnectedvertices
-;Ёшёєхь тёх тхЁ°шэ√, ъЁюьх Єхъє∙хщ ш ёт чрээ√ї ё эхщ
-;фы  ¤Єюую:
-;ўшёЄшь ЄрсышЎє ёт чрээ√ї тхЁ°шэ
+;рисуем все вершины, кроме текущей и связанных с ней
+;для этого:
+;чистим таблицу связанных вершин
         ld hl,vertlinkflags
         ld de,vertlinkflags+1
         ld bc,MAXVERTICES-1
         ld (hl),0
         ldir
-;яюьхўрхь Єрь Єхъє∙є■ тхЁ°шэє
+;помечаем там текущую вершину
         ld de,vertlinkflags
         ld hl,(curvertex)
         ld h,0
         add hl,de
         inc (hl)
-;яхЁхсшЁрхь тёх Ё╕сЁр, ш∙хь Єрь ёт чрээ√х тхЁ°шэ√ ш яюьхўрхь т ЄрсышЎх ёт чрээ√ї тхЁ°шэ
+;перебираем все рёбра, ищем там связанные вершины и помечаем в таблице связанных вершин
         ld hl,edges
         ld bc,(nedges)
 drawunconnectedvertices0
@@ -515,7 +515,7 @@ drawunconnectedverticesno
         ld a,b
         or c
         jr nz,drawunconnectedvertices0
-;яхЁхсшЁрхь тёх тхЁ°шэ√, т√тюфшь Єюы№ъю эх яюярт°шх т ЄрсышЎє
+;перебираем все вершины, выводим только не попавшие в таблицу
         ld hl,vertlinkflags
         ld a,(nvertices)
         ld b,a
@@ -830,8 +830,8 @@ drawedge
         ld l,a
 
         ex af,af' ;color
-;bc=x (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de=y (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;de=y (в плоскости экрана, но может быть отрицательным)
 ;ix=x2
 ;hl=y2
 ;a=color = %332103210
@@ -976,7 +976,7 @@ cls
         ret
 
 prtext
-;bc=ъююЁфшэрЄ√
+;bc=координаты
 ;hl=text
         ld a,(hl)
         or a
@@ -1019,7 +1019,7 @@ prchar
         
 calcscraddr
 ;bc=yx
-;ьюцэю яюЁЄшЄ№ bc
+;можно портить bc
         ex de,hl
         ld a,c ;x
         ld l,b ;y
@@ -1126,8 +1126,8 @@ prcharin_go
         ret
 
 invpixel
-;bc=x (эх яюЁЄшЄё ) ;de
-;e=y (de эх яюЁЄшЄё ) ;c
+;bc=x (не портится) ;de
+;e=y (de не портится) ;c
 ;lx=color = %33210210
        ;ld a,d;b
         ld l,e;c
@@ -1142,7 +1142,7 @@ invpixel
         add hl,hl ;y*40 + scrbase
        ;ld d,a;b,a
 ;invpixel_cury
-;bc=x (эх яюЁЄшЄё );de
+;bc=x (не портится);de
 ;hl=addr(y)
 ;lx=color = %33210210
         ld a,b;d
@@ -1191,8 +1191,8 @@ invpixel_color_r=$+1
         ret
 
 prpixel
-;de=x (эх яюЁЄшЄё )
-;c=y (bc эх яюЁЄшЄё )
+;de=x (не портится)
+;c=y (bc не портится)
 ;[lx=color = %33210210]
        ;ld a,d;b
         ld l,e;c
@@ -1207,7 +1207,7 @@ prpixel
         add hl,hl ;y*40 + scrbase
        ;ld d,a;b,a
 ;prpixel_cury
-;bc=x (эх яюЁЄшЄё );de
+;bc=x (не портится);de
 ;hl=addr(y)
 ;lx=color = %33210210
         ld a,b;d
@@ -1256,8 +1256,8 @@ prpixel_color_r=$+1
         ret
 
 shapes_line
-;bc=x (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de=y (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;de=y (в плоскости экрана, но может быть отрицательным)
 ;ix=x2
 ;hl=y2
 ;a=color = %332103210
@@ -1298,9 +1298,9 @@ shapes_line_noswap
         ld a,#0b ;dec bc
 shapes_line_nodec
         pop de ;dy
-;a=ъюф inc/dec bc
-;bc'=x (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de'=y (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;a=код inc/dec bc
+;bc'=x (в плоскости экрана, но может быть отрицательным)
+;de'=y (в плоскости экрана, но может быть отрицательным)
 ;bc=dx
 ;de=dy
         ex de,hl
@@ -1319,11 +1319,11 @@ shapes_line_nodec
 	inc ly
 	inc hy
 	
-        ;inc iy ;inc hy ;Ёшёєхь, тъы■ўр  яюёыхфэшщ яшъёхы№ (єўЄхэю т Ўшъых)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,b
         ld l,c
         sra h
-        rr l ;ym=dx div 2 ;TODO р хёыш dx<0?
+        rr l ;ym=dx div 2 ;TODO а если dx<0?
          ;xor a
          ;sub l
          ;ld l,a
@@ -1371,7 +1371,7 @@ shapes_linever
 	inc ly
 	inc hy
 	
-        ;inc iy ;inc hy ;Ёшёєхь, тъы■ўр  яюёыхфэшщ яшъёхы№ (єўЄхэю т Ўшъых)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,d
         ld l,e
         sra h
@@ -1396,7 +1396,7 @@ pixelprocver=$+1
         exx
         ;add hl,bc ;mxm+dx
         or a
-        sbc hl,bc ;xm-dx ;TODO р хёыш dx<0?
+        sbc hl,bc ;xm-dx ;TODO а если dx<0?
         exx
         jr nc,shapes_linever1
 shapes_lineincx2=$
@@ -1449,25 +1449,25 @@ genmesh
         ld hl,0
         ld (nedges),hl
         ;ld (ncrossededges),hl
-        ld (genmeshedge_old),hl ;эхтючьюцэюх ЁхсЁю
-;ёючфрЄ№ Ё ф шч 2 Єюўхъ (шыш ыєў°х шч sqrt(verticesneeded)) ё Ё╕сЁрьш ьхцфє эшьш:
+        ld (genmeshedge_old),hl ;невозможное ребро
+;создать ряд из 2 точек (или лучше из sqrt(verticesneeded)) с рёбрами между ними:
         ld (genmeshx),hl
         ld (genmeshy),hl
         call genmeshvertex ;in verlist2
         ld hl,(verticesneeded)
         ld h,0
         call sqrt
-        ld b,d ;сєфхЄ юфэр ыш°э   ётхЁї sqrt
+        ld b,d ;будет одна лишняя сверх sqrt
 genmeshfirstrow0
         push bc
-        call newedgeinlist2 ;Ўхяы хь эютюх ЁхсЁю т vertlist2
+        call newedgeinlist2 ;цепляем новое ребро в vertlist2
         pop bc
         djnz genmeshfirstrow0
 
         call copyvertlist2to1
         
 genmeshrows0
-;эрўшэрхь ёыхфє■∙шщ Ё ф
+;начинаем следующий ряд
         ld hl,(genmeshy)
         ld bc,25
         add hl,bc
@@ -1477,22 +1477,22 @@ genmeshrows0
         xor a
         ld (curopenvertinlist1),a
         ld (nvertices2),a
-;ёэрўрыр Ўхяы хь ъ яхЁтющ юЄъЁ√Єющ Єюўъх ЁхсЁю
+;сначала цепляем к первой открытой точке ребро
 ;.    .    .    .
-;|    ^Єхъє∙р  юЄъЁ√Єр  Єюўър
-;* Єхъє∙р  Ўхяы хьр  Єюўър
+;|    ^текущая открытая точка
+;* текущая цепляемая точка
         ld a,(nvertices)
         push af
         call genmeshvertex ;in verlist2
-        pop af ;эютр  Єюўър
+        pop af ;новая точка
         ld (curmeshvertex),a
         call linktoopenvertex
         
 genmeshrow00
         call func_rnd
         cp 128
-;хёыш rnd>0.?, Єю ёючфр╕ь ЁхсЁю ш Ўшъышьё  чфхё№, шэрўх Ўхяы хь яюёыхфэхх ЁхсЁю чр ёыхфє■∙є■ юЄъЁ√Єє■ Єюўъє
-;TODO тхЁю ЄэюёЄ№ яюёЄртшЄ№ т ёююЄтхЄёЄтшх ё ўшёыюь nvertices2 - хёыш ёшы№эю ьхэ№°х, ўхь эрфю, Єю эрфю ухэхЁшЄ№ Ё╕сЁр
+;если rnd>0.?, то создаём ребро и циклимся здесь, иначе цепляем последнее ребро за следующую открытую точку
+;TODO вероятность поставить в соответствие с числом nvertices2 - если сильно меньше, чем надо, то надо генерить рёбра
 ;.   .    .    .
 ;|_\/
 
@@ -1501,64 +1501,64 @@ genmeshrow00
 
 ;.    .    .    .
 ;|_\_.__\
-;        * Єхъє∙р  Ўхяы хьр  Єюўър
-;ш Єръ яюър эх ъюэўрЄё  юЄъЁ√Є√х Єюўъш
+;        * текущая цепляемая точка
+;и так пока не кончатся открытые точки
         jr c,genmesh_nextopenvert
-        call newedgeinlist2 ;Ўхяы хь эютюх ЁхсЁю т vertlist2        
+        call newedgeinlist2 ;цепляем новое ребро в vertlist2        
         ld a,(nvertices)
         ld hl,verticesneeded
         cp (hl)
-        jr nc,genmesh_finishlastvertex;jp nc,linktoopenvertex ;ёухэхЁшыш Єюўхъ ёЄюы№ъю, ёъюы№ъю яЁюёшыш
-;ё эхъюЄюЁющ тхЁю ЄэюёЄ№■ Ўхяы хь ъ Єхъє∙хщ юЄъЁ√Єющ Єюўъх
+        jr nc,genmesh_finishlastvertex;jp nc,linktoopenvertex ;сгенерили точек столько, сколько просили
+;с некоторой вероятностью цепляем к текущей открытой точке
         call func_rnd
         cp 128
         call c,linktoopenvertex
         jr genmeshrow00
 genmesh_finishlastvertex
-;Ўхяы хь ЁхсЁю ъ Єхъє∙хщ юЄъЁ√Єющ Єюўъх (фрцх ъю тёхь юЄъЁ√Є√ь фю ъюэЎр! шэрўх яЁш 2 Ё фрї ьюцхЄ юёЄрЄ№ё  їтюёЄ т тхЁїэхь Ё фє) ш т√їюфшь
+;цепляем ребро к текущей открытой точке (даже ко всем открытым до конца! иначе при 2 рядах может остаться хвост в верхнем ряду) и выходим
 genmesh_finishlastvertex0
-        call linktoopenvertex ;Ўхяы хь ЁхсЁю ъ Єхъє∙хщ юЄъЁ√Єющ Єюўъх
+        call linktoopenvertex ;цепляем ребро к текущей открытой точке
         ld de,curopenvertinlist1
         ld a,(de)
         inc a
         ld hl,nvertices1
         cp (hl)
-        ret nc ;сюы№°х эхЄ юЄъЁ√Є√ї Єюўхъ - чрърэўштрхь
+        ret nc ;больше нет открытых точек - заканчиваем
         ld (de),a
         jr genmesh_finishlastvertex0
 
 genmesh_nextopenvert
-;яхЁхїюфшь ъ ёыхфє■∙хщ юЄъЁ√Єющ Єюўъх, хёыш юэр хёЄ№, ш Ўхяы хь ъ эхщ ЁхсЁю
+;переходим к следующей открытой точке, если она есть, и цепляем к ней ребро
         ld de,curopenvertinlist1
         ld a,(de)
         inc a
         ld hl,nvertices1
         cp (hl)
-        jr nc,genmesh_rowend ;сюы№°х эхЄ юЄъЁ√Є√ї Єюўхъ - чрърэўштрхь Ё ф
+        jr nc,genmesh_rowend ;больше нет открытых точек - заканчиваем ряд
         ld (de),a
-        call linktoopenvertex ;Ўхяы хь ЁхсЁю ъ Єхъє∙хщ юЄъЁ√Єющ Єюўъх
+        call linktoopenvertex ;цепляем ребро к текущей открытой точке
         jr genmeshrow00
 genmesh_rowend
-        call linktoopenvertex ;Ўхяы хь ЁхсЁю ъ Єхъє∙хщ (яюёыхфэхщ) юЄъЁ√Єющ Єюўъх
-;Ё ф юЄъЁ√Є√ї Єюўхъ чрьхэшЄ№ эют√ь
+        call linktoopenvertex ;цепляем ребро к текущей (последней) открытой точке
+;ряд открытых точек заменить новым
         call copyvertlist2to1
         jr genmeshrows0
 
 newedgeinlist2
-;Ўхяы хь эютюх ЁхсЁю т vertlist2
+;цепляем новое ребро в vertlist2
         ld a,(nvertices)
         push af
         call genmeshvertex ;in verlist2
         ld a,(curmeshvertex)
-        ld e,a ;Єхъє∙р  Ўхяы хьр  Єюўър
-        pop af ;эютр  Єюўър
+        ld e,a ;текущая цепляемая точка
+        pop af ;новая точка
         ld (curmeshvertex),a
         ld d,a
         jp genmeshedge
 
 linktoopenvertex
 curmeshvertex=$+1
-        ld d,0 ;эюьхЁ Єюўъш, ъюЄюЁє■ эрфю яЁшЎхяшЄ№
+        ld d,0 ;номер точки, которую надо прицепить
 curopenvertinlist1=$+1
         ld a,0
         ld hl,vertlist1
@@ -1567,7 +1567,7 @@ curopenvertinlist1=$+1
         adc a,h
         sub l
         ld h,a
-        ld e,(hl) ;Єхъє∙р  юЄъЁ√Єр  Єюўър
+        ld e,(hl) ;текущая открытая точка
         jp genmeshedge
 
 genmeshvertex
@@ -1653,7 +1653,7 @@ copyvertlist2to1
 genmeshedge
 ;d=vertex1
 ;e=vertex2
-;яЁютхЁшь, ўЄю ь√ єцх эх яЁшЎхяшыш ¤Єю ЁхсЁю
+;проверим, что мы уже не прицепили это ребро
 genmeshedge_old=$+1
         ld hl,0
         or a
@@ -1679,7 +1679,7 @@ genmeshedge_old=$+1
 
         if 1==0
 countcrossededges
-;яЁютхЁ хь яхЁхёхўхэшх тёхї ёю тёхьш
+;проверяем пересечение всех со всеми
         ;ld hl,0
         ;ld (ncrossededges),hl
         ld hl,edges
@@ -1720,11 +1720,11 @@ countcrossededges0
 
 inccrossededges
         ld (inccrossededges_proc),hl
-;фы  ърцфюую шч ёт чрээ√ї Ё╕схЁ шэъЁхьхэЄшЁєхь/фхъЁхьхэЄшЁєхь тёх яхЁхёхўхэш  (є эхую ш є яхЁхёхў╕ээюую)
+;для каждого из связанных рёбер инкрементируем/декрементируем все пересечения (у него и у пересечённого)
         ld hl,edges
         ld bc,(nedges)
 inccrossededges0
-;ш∙хь ёт чрээ√х Ё╕сЁр
+;ищем связанные рёбра
         ld e,(hl)
         inc hl
         ld d,(hl)
@@ -1737,7 +1737,7 @@ inccrossededges0
         cp e
         jr nz,inccrossededgesno
 inccrossededgesok
-;эр°ыш ёт чрээюх ЁхсЁю, ш∙хь тёх хую яхЁхёхўхэш  (яю тёхь Ё╕сЁрь, ъЁюьх ёрьюую ёхс ) ш шї шэъЁхьхэЄшЁєхь (ш є ёхс  Єюцх)
+;нашли связанное ребро, ищем все его пересечения (по всем рёбрам, кроме самого себя) и их инкрементируем (и у себя тоже)
         push bc
         push hl
         ld (inccrossededges_selfaddr),hl
@@ -1767,7 +1767,7 @@ inccrossededges00_skipself
         ld a,b
         or c
         jr nz,inccrossededges00
-;ъюэхЎ юсЁрсюЄъш ёт чрээюую ЁхсЁр
+;конец обработки связанного ребра
         pop hl
         pop bc
 inccrossededgesno
@@ -1847,27 +1847,27 @@ checkcrossed_edge
 ;hl=edge1addr
 ;de=edge2addr
 ;out: CY=crossed
-;фы  эрф╕цэюёЄш ёфхырхь hl>=de тёхуфр (яюїюцх, ЄхёЄ эхъюььєЄрЄштэ√щ т Ёхфъшї ёыєўр ї)
+;для надёжности сделаем hl>=de всегда (похоже, тест некоммутативный в редких случаях)
         or a
         sbc hl,de
         add hl,de
         jr nc,$+3
         ex de,hl
 
-;хёыш A=C шыш A=D шыш B=C шыш B=D, Єю эхяхЁхёхўхэшх (яЁшь√ърэшх) - эрфю яЁютхЁ Є№ эх ъююЁфшэрЄ√, р эюьхЁр тхЁ°шэ!!!
+;если A=C или A=D или B=C или B=D, то непересечение (примыкание) - надо проверять не координаты, а номера вершин!!!
 	ld a,(de)
 	cp (hl)
-	ret z ;яЁшь√ърэшх
+	ret z ;примыкание
 	inc hl
 	cp (hl)
-	ret z ;яЁшь√ърэшх
+	ret z ;примыкание
 	inc de
 	ld a,(de)
 	cp (hl)
-	ret z ;яЁшь√ърэшх
+	ret z ;примыкание
 	dec hl
 	cp (hl)
-	ret z ;яЁшь√ърэшх
+	ret z ;примыкание
 
         ld c,(hl) ;edge1vertex1
         inc hl
@@ -1941,12 +1941,12 @@ checkcrossed_edge
         ld b,(hl)
         ld (checkyD),bc
         
-;яЁютхЁър яхЁхёхўхэш  AB ш CD
-;яЁютхЁшЄ№ юфшэръютє■ ыхтюёЄ№ (чэръ тхъЄюЁэюую яЁюшчтхфхэш  фтєї ёЄюЁюэ) ЄЁхєуюы№эшъют ABC ш BCD. ┼ёыш юфшэръютр , Єю яхЁхёхўхэшх.
-;╦юцэюх ёЁрсрЄ√трэшх! ╧ю¤Єюьє хёыш ыхтюёЄ№ юфшэръютр , эрфю яЁютхЁшЄ№ х∙╕ ыхтюёЄ№ DBA - хёыш Єрър  цх, Єю яхЁхёхўхэшх.
-;ыюцэюх ёЁрсрЄ√трэшх яЁш ярыъх B,A эрф CD ;яЁютхЁ хь DCA
-;╩ръ яЁш ¤Єюь урЁрэЄшЁютрЄ№ [0..1]?
-;┼ёыш (A=C ш B=D) шыш (B=C ш A=D), Єю яхЁхёхўхэшх (ўЄюс√ эх т√шуЁ√трыш ьхЄюфюь эрыюцхэш  юЄЁхчъют)
+;проверка пересечения AB и CD
+;проверить одинаковую левость (знак векторного произведения двух сторон) треугольников ABC и BCD. Если одинаковая, то пересечение.
+;Ложное срабатывание! Поэтому если левость одинаковая, надо проверить ещё левость DBA - если такая же, то пересечение.
+;ложное срабатывание при палке B,A над CD ;проверяем DCA
+;Как при этом гарантировать [0..1]?
+;Если (A=C и B=D) или (B=C и A=D), то пересечение (чтобы не выигрывали методом наложения отрезков)
         if 1==1
         ld hl,(checkxA)
         ld de,(checkxC)
@@ -1968,7 +1968,7 @@ checkcrossed_edge
         or a
         sbc hl,de
         scf
-        ret z ;яхЁхёхўхэшх
+        ret z ;пересечение
 checkcrossed_noAC
         ld hl,(checkxB)
         ld de,(checkxC)
@@ -1990,11 +1990,11 @@ checkcrossed_noAC
         or a
         sbc hl,de
         scf
-        ret z ;яхЁхёхўхэшх
+        ret z ;пересечение
 checkcrossed_noBC
         endif
         
-;хёыш A=C шыш A=D шыш B=C шыш B=D, Єю эхяхЁхёхўхэшх (яЁшь√ърэшх) - эрфю яЁютхЁ Є№ эх ъююЁфшэрЄ√, р эюьхЁр тхЁ°шэ!!! яю¤Єюьє єсЁрэю ЄєЄ, ёь. т√°х
+;если A=C или A=D или B=C или B=D, то непересечение (примыкание) - надо проверять не координаты, а номера вершин!!! поэтому убрано тут, см. выше
         if 1==0
         ld hl,(checkxA)
         ld de,(checkxC)
@@ -2005,7 +2005,7 @@ checkcrossed_noBC
         ld de,(checkyC)
         or a
         sbc hl,de
-        ret z ;яЁшь√ърэшх
+        ret z ;примыкание
 checkcrossed_noACcommon
         ld hl,(checkxA)
         ld de,(checkxD)
@@ -2016,7 +2016,7 @@ checkcrossed_noACcommon
         ld de,(checkyD)
         or a
         sbc hl,de
-        ret z ;яЁшь√ърэшх
+        ret z ;примыкание
 checkcrossed_noADcommon
         ld hl,(checkxB)
         ld de,(checkxC)
@@ -2027,7 +2027,7 @@ checkcrossed_noADcommon
         ld de,(checkyC)
         or a
         sbc hl,de
-        ret z ;яЁшь√ърэшх
+        ret z ;примыкание
 checkcrossed_noBCcommon
         ld hl,(checkxB)
         ld de,(checkxD)
@@ -2038,13 +2038,13 @@ checkcrossed_noBCcommon
         ld de,(checkyD)
         or a
         sbc hl,de
-        ret z ;яЁшь√ърэшх
+        ret z ;примыкание
 checkcrossed_noBDcommon
         endif
         ;or a
         ;ret
         
-;шэрўх ёўшЄрхь ьрЄхьрЄшъє
+;иначе считаем математику
         ld hl,(checkxA)
         ld (trix1),hl
         ld hl,(checkxB)
@@ -2072,12 +2072,12 @@ checkcrossed_noBDcommon
 	pop bc
         pop de
         xor b
-        ret nz ;Ёрчэр  ыхтюёЄ№ - эхЄ яхЁхёхўхэш 
+        ret nz ;разная левость - нет пересечения
         ld a,h
         or l
         or d
         or e
-        jr z,checkcrossed_collinear ;тёх 4 эр юфэющ ышэшш - юЄфхы№эр  яЁютхЁър
+        jr z,checkcrossed_collinear ;все 4 на одной линии - отдельная проверка
         push bc
         ld hl,(checkxA)
         ld (trix3),hl
@@ -2087,9 +2087,9 @@ checkcrossed_noBDcommon
 	sbc a,a
         pop bc
         xor b
-        ret nz ;Ёрчэр  ыхтюёЄ№ - эхЄ яхЁхёхўхэш 
-;ыюцэюх ёЁрсрЄ√трэшх яЁш ярыъх B,A эрф CD
-;яЁютхЁ хь DCA
+        ret nz ;разная левость - нет пересечения
+;ложное срабатывание при палке B,A над CD
+;проверяем DCA
         push bc
         ld hl,(checkxC)
         ld (trix2),hl
@@ -2101,7 +2101,7 @@ checkcrossed_noBDcommon
         xor b
 	rla
         ccf
-        ret ;юфшэръютр  ыхтюёЄ№ - хёЄ№ яхЁхёхўхэшх
+        ret ;одинаковая левость - есть пересечение
 
 	else
 	
@@ -2116,7 +2116,7 @@ checkcrossed_noBDcommon
         xor d
         rla
         ccf
-        ret nc ;Ёрчэр  ыхтюёЄ№ - эхЄ яхЁхёхўхэш 
+        ret nc ;разная левость - нет пересечения
         push hl
         ld hl,(checkxA)
         ld (trix3),hl
@@ -2128,14 +2128,14 @@ checkcrossed_noBDcommon
         xor b
         rla
         ccf
-        ret nc ;Ёрчэр  ыхтюёЄ№ - эхЄ яхЁхёхўхэш 
+        ret nc ;разная левость - нет пересечения
         ld a,h
         or l
         or d
         or e
-        jr z,checkcrossed_collinear ;яыю∙рф№ DBC = 0 - юЄфхы№эр  яЁютхЁър
-;ыюцэюх ёЁрсрЄ√трэшх яЁш ярыъх B,A эрф CD
-;яЁютхЁ хь DCA
+        jr z,checkcrossed_collinear ;площадь DBC = 0 - отдельная проверка
+;ложное срабатывание при палке B,A над CD
+;проверяем DCA
         push hl
         ld hl,(checkxC)
         ld (trix2),hl
@@ -2147,13 +2147,13 @@ checkcrossed_noBDcommon
         xor d
         rla
         ccf
-        ret ;юфшэръютр  ыхтюёЄ№ - хёЄ№ яхЁхёхўхэшх
+        ret ;одинаковая левость - есть пересечение
 	endif
 	
 checkcrossed_collinear
-;юЄЁхчъш эр юфэющ яЁ ьющ
-;юЄфхы№эю яЁютхЁшЄ№, ўЄю юЄЁхчъш ыхцрЄ фЁєу эр фЁєух (Ёрэ№°х яыю∙рфш 0 ёўшЄрышё№ ъръ эхяхЁхёхўхэшх)
-;эрщЄш ёрьє■ сюы№°є■ юё№ (max-min)
+;отрезки на одной прямой
+;отдельно проверить, что отрезки лежат друг на друге (раньше площади 0 считались как непересечение)
+;найти самую большую ось (max-min)
         ld hl,(checkxA)
         ld bc,(checkxB)
         call minhl_bc_tobc
@@ -2213,11 +2213,11 @@ checkcrossed_collinear
         
         pop de ;maxx-minx
         
-;хёыш эхЄ яхЁхёхўхэш , Єю фюыцэю с√Є№ max(A,B)<min(C,D) шыш max(C,D)<min(A,B)
+;если нет пересечения, то должно быть max(A,B)<min(C,D) или max(C,D)<min(A,B)
         or a
-        sbc hl,de ;NC: ЁрчсЁюё яю y >= ЁрчсЁюё яю x, схЁ╕ь y
+        sbc hl,de ;NC: разброс по y >= разброс по x, берём y
         jr nc,checkcrossed_collinear_y
-;ЁрчсЁюё яю y < ЁрчсЁюё яю x, схЁ╕ь x
+;разброс по y < разброс по x, берём x
 checkxmaxAB=$+1
         ld hl,0
 checkxminCD=$+1
@@ -2225,7 +2225,7 @@ checkxminCD=$+1
         or a
         sbc hl,de
         ccf
-        ret nc ;эхЄ яхЁхёхўхэш 
+        ret nc ;нет пересечения
 checkxmaxCD=$+1
         ld hl,0
 checkxminAB=$+1
@@ -2235,7 +2235,7 @@ checkxminAB=$+1
         ccf
         ret
 checkcrossed_collinear_y
-;ЁрчсЁюё яю y >= ЁрчсЁюё яю x, схЁ╕ь y
+;разброс по y >= разброс по x, берём y
 checkymaxAB=$+1
         ld hl,0
 checkyminCD=$+1
@@ -2243,7 +2243,7 @@ checkyminCD=$+1
         or a
         sbc hl,de
         ccf
-        ret nc ;эхЄ яхЁхёхўхэш 
+        ret nc ;нет пересечения
 checkymaxCD=$+1
         ld hl,0
 checkyminAB=$+1
@@ -2288,7 +2288,7 @@ checkyD
         dw 0
 
 checktriangle
-;out: CY=ыхтюёЄ№, hl==0 т√ЁюцфхээюёЄ№
+;out: CY=левость, hl==0 вырожденность
 ;    x21:=vert[poly[i].v2].xscr-vert[poly[i].v1].xscr;
 ;    x31:=vert[poly[i].v3].xscr-vert[poly[i].v1].xscr;
 ;    y21:=vert[poly[i].v2].yscr-vert[poly[i].v1].yscr;
@@ -2338,15 +2338,15 @@ y31=$-2
         or a
         sbc hl,de ;lsw
 	sbc a,lx ;hsb
-	rla ;CY=Ёхчєы№ЄрЄ ёЁртэхэш  чэръют√ї (LVD)
+	rla ;CY=результат сравнения знаковых (LVD)
         ret
 
 mul9
 ;9*9 -> 18
-;ьюцэю шёяюы№чютрЄ№ фы  +-319*+-192, Єюуфр Ёхчєы№ЄрЄ ёю чэръюь т CY
+;можно использовать для +-319*+-192, тогда результат со знаком в CY
 ;hl=A+(tsqr/2) (A=+-319)
 ;bc=B = +-192
-;A*B = ((A+B)^2)/4 - ((A-B)^2)/4 ;ьырф°шх 2 сшЄр яхЁхф фхыхэшхь юфшэръют√х ёыхтр ш ёяЁртр, юяЁхфхы ■Єё  ў╕ЄэюёЄ№■
+;A*B = ((A+B)^2)/4 - ((A-B)^2)/4 ;младшие 2 бита перед делением одинаковые слева и справа, определяются чётностью
 	push hl
 	add hl,bc
 ;hl=A+B
@@ -2466,7 +2466,7 @@ _MULLONG0.
 	add ix,de
 	adc hl,bc
 	exx
-	djnz _MULLONG0. ;ьюцэю яю a==0 (яхЁт√щ тїюф ё scf:rla, фрыхх add a,a)
+	djnz _MULLONG0. ;можно по a==0 (первый вход с scf:rla, далее add a,a)
 	exx
 	ret
 	endif
@@ -2520,7 +2520,7 @@ ttimem1=$-5
 ttimem2=$-4
 ttimes1=$-2
 ttimes2=$-1
-nextlevelon=$ ;¤ЄюЄ Їыру эрфю ёюїЁрэ Є№
+nextlevelon=$ ;этот флаг надо сохранять
         db 0
         db "NEXT LEVEL"
         db 0

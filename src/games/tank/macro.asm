@@ -65,7 +65,7 @@
         ENDM
         
         MACRO CALCvalidmapaddr_hlyx_tohl
-;hl=yx (β οθκρελÿυ)
+;hl=yx (Ά ―¨ªα¥«οε)
 ;%YYYYYyyy XXXXXxxx
         ld a,h
         rra
@@ -85,7 +85,7 @@
         ENDM
 
         MACRO CALCvalidmapaddr_bcyx_tohl
-;bc=yx (β οθκρελÿυ)
+;bc=yx (Ά ―¨ªα¥«οε)
 ;%YYYYYyyy XXXXXxxx
         ld a,b
         rra

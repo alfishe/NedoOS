@@ -1,6 +1,6 @@
 
 islinevisible
-;ьюцхЄ т√ч√трЄ№ё  фтр Ёрчр чр ёЄЁюъє cury!!! яю¤Єюьє яЁш фЁюсэюь чєьх ¤ыхьхэЄ√ чєьр фюыцэ√ с√Є№ т inccury
+;может вызываться два раза за строку cury!!! поэтому при дробном зуме элементы зума должны быть в inccury
 ;out: NZ=invisible
 ;keeps hl,de
         ld a,(cury)
@@ -9,14 +9,14 @@ islinevisible_patch=$+1
         ret
 inccury
 ;keeps hl
-cury=$+1 ;шэшЎшрышчшЁєхЄё  т initframe
+cury=$+1 ;инициализируется в initframe
         ld de,0
         inc de
         ld (cury),de
         ret
         
 initframes_time_scroll
-;т√ч√трхЄё  яхЁхф чруЁєчъющ ърЁЄшэъш, эшўхую эх чэрхЄ ю ърЁЄшэъх
+;вызывается перед загрузкой картинки, ничего не знает о картинке
         ld hl,0
         ld (nframes),hl
         ld (xscroll),hl
@@ -43,8 +43,8 @@ setzoom_patch=$
         ret
 
 initframe
-;т√ч√трЄ№ юфшэ Ёрч эр ърЁЄшэъє яюёых setpicwid, setpichgt ш яюёых єёЄрэютъш gifframetime ;чрърч√трхЄ ярь Є№ яюф ъюэтхЁўхээ√щ ърфЁ
-;out: ahl=рфЁхё ярь Єш яюф ъюэтхЁўхээ√щ ърфЁ
+;вызывать один раз на картинку после setpicwid, setpichgt и после установки gifframetime ;заказывает память под конверченный кадр
+;out: ahl=адрес памяти под конверченный кадр
 initframe_ditherphase=$+1
         ld hl,dithermcy0-2
         ld (drawscreenline_frombuf_ixaddr),hl
@@ -66,8 +66,8 @@ initframe_colorphase=$+1
         ld hl,0
         ld (cury),hl
 
-        call initprlinefast ;юфшэ Ёрч т эрўрых ърЁЄшэъш (яюЄюь ьюцэю шэшЄшЄ№ яЁш ёъЁюыых юфшэ Ёрч чр тё■ яхЁхЁшёютъє)
-        jp reservemem_convertedframe ;чрърч√трхЄ ярь Є№ яюф ъюэтхЁўхээ√щ ърфЁ
+        call initprlinefast ;один раз в начале картинки (потом можно инитить при скролле один раз за всю перерисовку)
+        jp reservemem_convertedframe ;заказывает память под конверченный кадр
 
 reservefirstframeaddr
         ld hl,(freemem_hl)
@@ -140,7 +140,7 @@ reservemem_convertedframe
         ld e,a;ld (keepframeaddrHSB),a
          pop hl
          pop af
-;ahl=эрўрыю ърфЁр
+;ahl=начало кадра
         call writeword ;pnext
         ld c,e
         call writebyte ;pnextHSB
@@ -152,7 +152,7 @@ gifframetime=$+1
         ret
 
 keepconvertedline
-;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє шч LINEPIXELS
+;запоминаем сконверченную строку из LINEPIXELS
         ld bc,(keepframe_linesize_bytes) ;size (pixels+attr)
         push bc
         ld de,LINEPIXELS;KEEPFRAMELINE
@@ -160,7 +160,7 @@ keepframeaddr=$+1
         ld hl,0
 keepframeaddrHSB=$+1
         ld a,0
-        call puttomem ;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє
+        call puttomem ;запоминаем сконверченную строку
         pop bc ;size
         ld hl,(keepframeaddr)
         ld a,(keepframeaddrHSB)
@@ -216,12 +216,12 @@ xscroll=$+1
         jr z,showframelinesq
         jr c,showframelinesq
 
-        ld bc,SCROLLHGT;200 ;TODO т чртшёшьюёЄш юЄ scry
+        ld bc,SCROLLHGT;200 ;TODO в зависимости от scry
         call minhl_bc_tobc        
         ld hy,c
          ;ld hy,100
-        ld de,0x4000 ;TODO т чртшёшьюёЄш юЄ scry
-;ЁшёютрЄ№ яЁ ью шч ярь Єш (юъэр 2,3), р яшъёхыш/рЄЁшсєЄ√ яхЁхъы■ўрЄ№ т 0x4000:
+        ld de,0x4000 ;TODO в зависимости от scry
+;рисовать прямо из памяти (окна 2,3), а пиксели/атрибуты переключать в 0x4000:
 showframelines0
 ;de=screen
          ;push de
@@ -272,13 +272,13 @@ initprlinefast
 stopprlinefast_data=$+1
         ld hl,0
 stopprlinefast_patch=$+1
-        ld (stopprlinefast_data),hl ;ёэшьрхь ёЄрЁ√щ ярЄў
+        ld (stopprlinefast_data),hl ;снимаем старый патч
 
-        ld hl,(keepframe_linesize) ;TODO endx (ърЁЄшэър ьюцхЄ с√Є№ сюы№°х ¤ъЁрэр)
+        ld hl,(keepframe_linesize) ;TODO endx (картинка может быть больше экрана)
         ld bc,80
         call minhl_bc_tobc
         
-        ld de,0 ;TODO x (ърЁЄшэър ьюцхЄ с√Є№ эх яЁшцрЄр ъ ыхтюьє ъЁр■)
+        ld de,0 ;TODO x (картинка может быть не прижата к левому краю)
 
 ;e=visible x in chr
 ;c=visible endx in chr
@@ -307,26 +307,26 @@ stopprlinefast_patch=$+1
         ld (prlinefast_jp),hl
         ld (prlinefast_jp2),hl
         
-;ъръюх т ъюэЎх яюыєўрхЄё  ёьх∙хэшх sp юЄэюёшЄхы№эю эрўры№эюую data
-        ;яЁшсртшь 2*ёъюы№ъю Ёрч ёфхырыш pop (тъы■ўр  pseudo-pop т эрўрых)
-        ;((endx-1)/2 - x/2)+1 = ((endx+1)/2 - x/2) Ёрч ёфхырыш pop
+;какое в конце получается смещение sp относительно начального data
+        ;прибавим 2*сколько раз сделали pop (включая pseudo-pop в начале)
+        ;((endx-1)/2 - x/2)+1 = ((endx+1)/2 - x/2) раз сделали pop
         ld a,c ;endx
         inc a
          srl a
          srl e ;x
          sub e ;((endx+1)/2 - x/2)
-         add a,a ;NC ;TODO яЁюЄхёЄшЁютрЄ№ or 0x01:sub e:and 0xfe
+         add a,a ;NC ;TODO протестировать or 0x01:sub e:and 0xfe
         ld e,a
-        ;ld d,0 ;de=ёьх∙хэшх sp юЄэюёшЄхы№эю эрўры№эюую data
-;ъръюх эрь эрфю яюыєўшЄ№ эрўры№эюх ёьх∙хэшх data фы  paper:
+        ;ld d,0 ;de=смещение sp относительно начального data
+;какое нам надо получить начальное смещение data для paper:
 keepframe_linesize=$+1
         ld hl,0;(keepframe_linesize)
         ;or a
         sbc hl,de
-        ld (prlinefast_sizeadd),hl ;ърЁЄшэър ьюцхЄ с√Є№ сюы№°х ¤ъЁрэр, эхы№ч  яЁюёЄю юсющЄшё№ ў╕Єэющ °шЁшэющ ш эх яхЁхёЄрты Є№ sp
+        ld (prlinefast_sizeadd),hl ;картинка может быть больше экрана, нельзя просто обойтись чётной шириной и не переставлять sp
 
 ;exitpatch = prlinefast_go + endx*3 - 2
-;эю яЁш x mod 4 = 3 эрфю эр 1 срщЄ Ёрэ№°х
+;но при x mod 4 = 3 надо на 1 байт раньше
         ;bc=endx
         ld hl,prlinefast_go-2
         add hl,bc
@@ -361,12 +361,12 @@ keepframe_linesize=$+1
 prlinefast
 ;hl=data
 ;bc=screen (kept except bit 5,b)
-        ld (prlinefastsp),sp ;TODO юфшэ Ёрч
+        ld (prlinefastsp),sp ;TODO один раз
 prlinefast_datadec=$
         nop ;/dec hl for odd x
         ld e,(hl)
         inc hl
-        ld d,(hl) ;схЁ╕ь тЁєўэє■, ўЄюс√ ёЄхъ эх чряюЁюы юсырёЄ№ яхЁхф фрээ√ьш
+        ld d,(hl) ;берём вручную, чтобы стек не запорол область перед данными
         inc hl
          exx
 setpgs_scr_pixels=$+1
@@ -381,16 +381,16 @@ prlinefast_scrset5=$+1
 prlinefast_ix=$+2
         ld ix,prlinefastq
 prlinefast_jp=$+1
-        jp prlinefast_go+1 ;ьюцхЄ с√Є№ фЁєур  Єюўър ;draw pixels
+        jp prlinefast_go+1 ;может быть другая точка ;draw pixels
 prlinefastqres5h ;endx mod 4 = 3
         res 5,h
         ld (hl),e
 prlinefastq ;endx mod 4 = 0, 1, 2
-;эхы№ч  т√їюфшЄ№ ёЁрчє яюёых pop de:ld (hl),d, эрфю яюёых pop de
+;нельзя выходить сразу после pop de:ld (hl),d, надо после pop de
 prlinefast_sizeadd=$+1
         ld hl,0
         add hl,sp ;attr data
-        ld sp,SPOIL4B ;ьюцэю яюЁЄшЄ№ (фры№°х de ёЄрэхЄ эхръЄєры№э√ь ш эх ёьюцхЄ шёяЁрты Є№ ёЄхъ)
+        ld sp,SPOIL4B ;можно портить (дальше de станет неактуальным и не сможет исправлять стек)
          exx
 setpgs_scr_attr=$+1
          ld a,0
@@ -398,7 +398,7 @@ setpgs_scr_attr=$+1
          exx
         ld e,(hl)
         inc hl
-        ld d,(hl) ;схЁ╕ь тЁєўэє■, ўЄюс√ ёЄхъ эх чряюЁюы юсырёЄ№ яхЁхф фрээ√ьш
+        ld d,(hl) ;берём вручную, чтобы стек не запорол область перед данными
         inc hl
         ld sp,hl
         ld h,b
@@ -406,12 +406,12 @@ setpgs_scr_attr=$+1
 prlinefast_ix2=$+2
         ld ix,prlinefastq2
 prlinefast_jp2=$+1
-        jp prlinefast_go ;ьюцхЄ с√Є№ фЁєур  Єюўър ;draw attr
+        jp prlinefast_go ;может быть другая точка ;draw attr
 prlinefastq2res5h ;endx mod 4 = 3
         res 5,h
         ld (hl),e
 prlinefastq2 ;endx mod 4 = 0, 1, 2
-;эхы№ч  т√їюфшЄ№ ёЁрчє яюёых pop de:ld (hl),d, эрфю яюёых pop de
+;нельзя выходить сразу после pop de:ld (hl),d, надо после pop de
 prlinefastsp=$+1
         ld sp,0
         ret

@@ -4,13 +4,13 @@ MAXCMDSZ=255
 txtscrhgt=25
 txtscrwid=80
 
-STACK=0x8000 ;эхы№ч  0x0000, шэрўх эх яюыєўшЄё  уЁєчшЄ№ ўхЁхч тхЁїэхх юъэю ш яхЁхъы■ўрЄ№ ёЄЁрэшЎ√ яЁюуЁрьь√ ш яхЁхьхээ√ї
+STACK=0x8000 ;нельзя 0x0000, иначе не получится грузить через верхнее окно и переключать страницы программы и переменных
 
 COLOR=7
 CURSORCOLOR=#38
 
-varmem=0x4000 ;ёЄЁюъш (256 срщЄ asciiz), ўшёыр (4 срщЄр), ярЁрьхЄЁ√ Ўшъыр (4+4(step)+4(to)+4(goto) срщЄр), ьрёёшт√ (2 срщЄр ўшёыю ¤ыхьхэЄют, ¤ыхьхэЄ√ яю 4 срщЄр)
-progmem=0x8000 ;эюьхЁ ёЄЁюъш(ёЄ,ьы), фышэр ёЄЁюъш(ьы,ёЄ схч ЄхЁьшэрЄюЁр), ёЄЁюър(asciiz)
+varmem=0x4000 ;строки (256 байт asciiz), числа (4 байта), параметры цикла (4+4(step)+4(to)+4(goto) байта), массивы (2 байта число элементов, элементы по 4 байта)
+progmem=0x8000 ;номер строки(ст,мл), длина строки(мл,ст без терминатора), строка(asciiz)
 szprogmem=0x8000
 
 RUNMODE_PROG=1
@@ -20,13 +20,13 @@ RUNMODE_INTERACTIVE=0
 
 cmd_begin
         OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ld a,h
         ld (pg32klow),a
         ld a,l
         ld (pg32khigh),a
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,e
         ld (setpgs_scr_low),a
         ld a,d
@@ -42,7 +42,7 @@ cmd_begin
         call skipspaces
         ld a,(hl)
         or a
-        jr z,noautoload ;═хЄ ъы■ўхщ ш шьхэш Їрщыр
+        jr z,noautoload ;Нет ключей и имени файла
 ;command line = "basic [-c] [-n] [-h] [-V] [file to load]" c - fast load as code file, n - no autorun, h - help, v - version
         call cmd_line_parse
         ld a,(cmd_line_h)
@@ -181,9 +181,9 @@ tendbreak
         db "Break",0
         
 findline
-;ш∙хЄ рфЁхё ёЄЁюъш ё чрфрээ√ь эюьхЁюь шыш эх ьхэ№°х
+;ищет адрес строки с заданным номером или не меньше
 ;de=linenum
-;out: hl=рфЁхё ёЄЁюъш шыш (progend)
+;out: hl=адрес строки или (progend)
         ld hl,progmem
 findline_lines0
         ld bc,(progend)
@@ -207,10 +207,10 @@ findline_lines_less
         inc hl
         ld c,(hl)
         inc hl
-        ld b,(hl) ;фышэр ёЄЁюъш схч ЄхЁьшэрЄюЁр
+        ld b,(hl) ;длина строки без терминатора
         inc hl
         add hl,bc
-        inc hl ;яЁюяєёърхь ЄхЁьшэрЄюЁ
+        inc hl ;пропускаем терминатор
         jr findline_lines0
        
 readnum_
@@ -219,19 +219,19 @@ readnum_
         ld a,(hl)
         exx
         sub '0'
-        cp 10 ;NC = эх ўшёыю
-        ccf ;CY = эх ўшёыю
+        cp 10 ;NC = не число
+        ccf ;CY = не число
         ret c ;error
 readnum
 ;out: hlde=num, hl'=text, CY=error
         ld hl,0
-        ld de,0 ;эръюяшЄхы№
+        ld de,0 ;накопитель
 readnum0
         exx
         ld a,(hl)
         exx
         sub '0'
-        cp 10 ;NC = ъюэхЎ ўшёыр
+        cp 10 ;NC = конец числа
         jr nc,readnumq
         exx
         inc hl
@@ -282,7 +282,7 @@ eatspaces
         ret
         
 add_or_run_line
-;фюсрты хЄ т яЁюуЁрььє ёЄЁюъє т cmdbuf
+;добавляет в программу строку в cmdbuf
         ld hl,cmdbuf
         exx
         call eatspaces
@@ -300,8 +300,8 @@ add_or_run_line
         pop hl
         exx
         push de ;linenum
-        call findline ;hl=рфЁхё ёЄЁюъш шыш (progend)
-;ь√ фюыцэ√ тёЄртшЄ№ ёЄЁюъє яхЁхф ¤Єшь ьхёЄюь (шыш чрьхэшЄ№ ёЄЁюъє Єрь)
+        call findline ;hl=адрес строки или (progend)
+;мы должны вставить строку перед этим местом (или заменить строку там)
         ld bc,(progend)
         or a
         sbc hl,bc
@@ -320,19 +320,19 @@ add_or_run_line
         pop hl
 addline_nodel
 
-        push hl ;hl=рфЁхё тёЄртъш
+        push hl ;hl=адрес вставки
 
-        ex de,hl ;de=рфЁхё тёЄртъш
+        ex de,hl ;de=адрес вставки
         ld hl,(progend)
         or a
-        sbc hl,de ;progend-рфЁхё тёЄртъш
+        sbc hl,de ;progend-адрес вставки
         ld b,h
-        ld c,l ;bc=фышэр ёьх∙рхьющ ярь Єш (фю ъюэЎр яЁюуЁрьь√)
+        ld c,l ;bc=длина смещаемой памяти (до конца программы)
         ld hl,(progend)
         push hl
         ld de,(addline_linelen)
         add hl,de
-        ld de,4+1 ;эюьхЁ,фышэр,ЄхЁьшэрЄюЁ
+        ld de,4+1 ;номер,длина,терминатор
         add hl,de
         ld (progend),hl
         ex de,hl ;new progend
@@ -341,33 +341,33 @@ addline_nodel
         dec de
         call safelddr
 
-        pop hl ;hl=рфЁхё тёЄртъш
+        pop hl ;hl=адрес вставки
         pop de ;de=linenum
         
         ld (hl),d
         inc hl
-        ld (hl),e ;эюьхЁ ёЄЁюъш
+        ld (hl),e ;номер строки
         inc hl
         
 addline_linelen=$+1
         ld de,0
         ld (hl),e
         inc hl
-        ld (hl),d ;фышэр ёЄЁюъш
+        ld (hl),d ;длина строки
         inc hl
-        push hl ;рфЁхё тёЄртъш
-        push de ;фышэр ёЄЁюъш
+        push hl ;адрес вставки
+        push de ;длина строки
         exx
-        pop bc ;фышэр ёЄЁюъш
-        inc bc ;фышэр тъы■ўр  ЄхЁьшэрЄюЁ
-        pop de ;рфЁхё тёЄртъш
+        pop bc ;длина строки
+        inc bc ;длина включая терминатор
+        pop de ;адрес вставки
         call safeldir ;hl -> de (bc bytes)
         
         ret
         
 delline
 ;de=linenum
-        call findline ;hl=рфЁхё ёЄЁюъш шыш (progend)
+        call findline ;hl=адрес строки или (progend)
         ld bc,(progend)
         or a
         sbc hl,bc
@@ -382,27 +382,27 @@ delline
         cp e
         ret nz
 delline_hl
-;hl=рфЁхё ёЄЁюъш, ъюЄюЁє■ эрфю єфрышЄ№
-        push hl ;рфЁхё ёЄЁюъш, ъюЄюЁє■ эрфю єфрышЄ№
+;hl=адрес строки, которую надо удалить
+        push hl ;адрес строки, которую надо удалить
         
         inc hl
         inc hl
         ld c,(hl)
         inc hl
-        ld b,(hl) ;фышэр ёЄЁюъш схч ЄхЁьшэрЄюЁр
+        ld b,(hl) ;длина строки без терминатора
         inc hl
         add hl,bc
-        inc hl ;яЁюяєёърхь ЄхЁьшэрЄюЁ
-        push hl ;hl=рфЁхё ёыхфє■∙хщ ёЄЁюъш
+        inc hl ;пропускаем терминатор
+        push hl ;hl=адрес следующей строки
 
-        ex de,hl ;de=рфЁхё тёЄртъш
+        ex de,hl ;de=адрес вставки
         ld hl,(progend)
         or a
-        sbc hl,de ;progend-рфЁхё тёЄртъш
+        sbc hl,de ;progend-адрес вставки
         ld b,h
-        ld c,l ;bc=фышэр ёьх∙рхьющ ярь Єш (фю ъюэЎр яЁюуЁрьь√)
-        pop hl ;hl=рфЁхё ёыхфє■∙хщ ёЄЁюъш
-        pop de ;de=рфЁхё ёЄЁюъш, ъюЄюЁє■ эрфю єфрышЄ№
+        ld c,l ;bc=длина смещаемой памяти (до конца программы)
+        pop hl ;hl=адрес следующей строки
+        pop de ;de=адрес строки, которую надо удалить
 
         call safeldir
         ld (progend),de
@@ -420,7 +420,7 @@ getword0
         ld a,(hl)
         or a
         jr z,getwordq
-        ;TODO юсЁ√трЄ№ ёыютю яю эхЎшЇЁюсєътх
+        ;TODO обрывать слово по нецифробукве
         sub ' '
         jr z,getwordq0
         ldi
@@ -503,13 +503,13 @@ editcmd0
         call cmdcalccurxy
         OS_SETXY
         ld e,CURSORCOLOR;#38
-        OS_PRATTR ;эрЁшёютрЄ№ ъєЁёюЁ
+        OS_PRATTR ;нарисовать курсор
         YIELDGETKEYLOOP
         push af
         call cmdcalccurxy
         OS_SETXY
         ld e,COLOR;7
-        OS_PRATTR ;ёЄхЁхЄ№ ъєЁёюЁ
+        OS_PRATTR ;стереть курсор
         pop af
         ld hl,cmdbuf
         cp key_enter
@@ -523,7 +523,7 @@ editcmd0
         ;cp key_up
         ;jr z,editcmd_up
         cp 0x20
-        jr c,editcmdok ;яЁюўшх ёшёЄхьэ√х ъэюяъш эх эєцэ√
+        jr c,editcmdok ;прочие системные кнопки не нужны
 ;type in
         ld e,a
         ld hl,cmdbuf
@@ -531,7 +531,7 @@ editcmd0
         ld bc,MAXCMDSZ
         or a
         sbc hl,bc
-        jr nc,editcmdok ;эхъєфр ттюфшЄ№
+        jr nc,editcmdok ;некуда вводить
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc a
         ld (curcmdx),a
@@ -542,16 +542,16 @@ editcmdok
 editcmd_backspace
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         or a
-        jr z,editcmdok ;эхўхую єфры Є№
+        jr z,editcmdok ;нечего удалять
         dec a
         ld (curcmdx),a
-        call strdelch ;єфры хЄ яЁхф√фє∙шщ ёшьтюы
+        call strdelch ;удаляет предыдущий символ
         jr editcmdok
       
 editcmd_left
         ld a,(curcmdx)
         or a
-        jr z,editcmdok ;эхъєфр тыхтю
+        jr z,editcmdok ;некуда влево
         dec a
         ld (curcmdx),a
         jr editcmdok
@@ -560,7 +560,7 @@ editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
-        jr z,editcmdok ;эхъєфр яЁртю, ёЄюшь эр ЄхЁьшэрЄюЁх
+        jr z,editcmdok ;некуда право, стоим на терминаторе
         inc a
         ld (curcmdx),a
         jr editcmdok
@@ -601,9 +601,9 @@ editcmd_bs0
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
@@ -627,16 +627,16 @@ cmdcalccurxy
 ;out: de=yx
 ;x=cmdpromptsz+curcmdx-curcmdscroll
         call cmdcalcpromptsz ;a=promptsz
-        ld hl,curcmdx ;эх эр ¤ъЁрэх, р тэєЄЁш ъюьрэф√
+        ld hl,curcmdx ;не на экране, а внутри команды
         add a,(hl)
-        ld hl,curcmdscroll ;ёфтшу ъюьрэф√ юЄэюёшЄхы№эю ¤ъЁрэр
+        ld hl,curcmdscroll ;сдвиг команды относительно экрана
         sub (hl)
         ld e,a
         ld d,txtscrhgt-1
         ret
 
 fixscroll_prcmd
-;Ўшъы яюшёър ёъЁюыыр фы  Єхъє∙хую яюыюцхэш  ъєЁёюЁр
+;цикл поиска скролла для текущего положения курсора
 editcmd_scroll0
         call cmdcalccurxy ;e=scrx
         call cmdcalcpromptsz ;a=promptsz
@@ -644,14 +644,14 @@ editcmd_scroll0
         dec a
         cp e ;scrx
         jr c,editcmd_noscrollleft ;x>=promptsz (x>(promptsz-1))
-;x<promptsz - ёъЁюыы тыхтю
+;x<promptsz - скролл влево
         dec (hl)
         jr editcmd_scroll0
 editcmd_noscrollleft
         ld a,e ;scrx
         cp txtscrwid
         jr c,editcmd_noscrollright
-;x>=txtscrwid - ёъЁюыы тяЁртю
+;x>=txtscrwid - скролл вправо
         inc (hl)
         jr editcmd_scroll0
 editcmd_noscrollright
@@ -673,10 +673,10 @@ editcmd_noscrollright
         ld de,cmdbuf
         add hl,de
         call cmdprtext
-;фюс№╕ь юёЄрЄюъ ёЄЁюъш яЁюсхырьш
+;добьём остаток строки пробелами
 prcmdspc0
         ld a,c
-        cp txtscrwid-1 ;юёЄрты ь ьхёЄю ёяЁртр фы  ъєЁёюЁр
+        cp txtscrwid-1 ;оставлям место справа для курсора
         ret z
         push bc
         ld a,' '
@@ -698,7 +698,7 @@ cmdprtext0
         inc c
         inc hl
         ld a,c
-        cp txtscrwid-1 ;юёЄрты ь ьхёЄю ёяЁртр фы  ъєЁёюЁр
+        cp txtscrwid-1 ;оставлям место справа для курсора
         jp nz,cmdprtext0
         ret
 
@@ -970,11 +970,11 @@ addvar_str
         ret
 
 findvar_index
-;TODO яЁютхЁър Єшяр яхЁхьхээющ (int эх ЁрчЁх°рхЄё )
+;TODO проверка типа переменной (int не разрешается)
 findvar_array
-;TODO яЁютхЁър Єшяр яхЁхьхээющ
+;TODO проверка типа переменной
 findvar_int
-;TODO яЁютхЁър Єшяр яхЁхьхээющ (index ЁрчЁх°рхЄё , array эх ЁрчЁх°рхЄё )
+;TODO проверка типа переменной (index разрешается, array не разрешается)
 ;a=name (char)
 ;out: hl=addr, z=error
         ld h,varindex_int/256
@@ -1006,7 +1006,7 @@ cmd_line_parse
 cmd_line_parse_loop
         ld a,(hl)
         cp "-"
-        ret nz; эх ъы■ў, чэрўшЄ тючтЁрЄ
+        ret nz; не ключ, значит возврат
         inc hl
         ld a,(hl)
         cp "c"
@@ -1065,9 +1065,9 @@ curdir
 execcmd_pars
         dw 0
 
-curcmdscroll ;ёфтшу ъюьрэф√ юЄэюёшЄхы№эю ¤ъЁрэр
+curcmdscroll ;сдвиг команды относительно экрана
         db 0
-curcmdx ;эх эр ¤ъЁрэх, р тэєЄЁш ъюьрэф√
+curcmdx ;не на экране, а внутри команды
         db 0
 
 progend
@@ -1077,7 +1077,7 @@ varend
         
         
         align 256
-varindex_int ;varindex_str ыхцрЄ яю рфЁхёє+128
+varindex_int ;varindex_str лежат по адресу+128
         ds 512
 
 ;varmem

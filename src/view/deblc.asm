@@ -25,7 +25,7 @@ deblc
         ADD HL,DE
 
         LD A,(HL)
-        LD E,A;ĞÀÇĞÛÂ
+        LD E,A;€‡›‚
 
         AND 3
         RLCA 
@@ -34,7 +34,7 @@ deblc
         OR deblcscradr/256
 
         EXX 
-        LD D,A;ÍÀ×ÀËÎ
+        LD D,A;€—€‹
         LD E,0
         EXX 
 
@@ -42,7 +42,7 @@ deblc
         INC HL
         XOR deblcscradr/256+#18
         AND #FC
-        LD HX,A;ÊÎÍÅÖ ×. ÈÇÎ.
+        LD HX,A;Š…– —. ˆ‡.
 
 dlc1    LD A,(HL)
         INC HL

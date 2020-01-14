@@ -2,7 +2,7 @@ functionslist
         dw func_rnd
         db "$rnd",0
         
-        dw -1 ;конец таблицы функций
+        dw -1 ;Є®­Ґж в Ў«Ёжл дг­ЄжЁ©
 
 getval_function
 ;hl'=text
@@ -11,7 +11,7 @@ getval_function
 getval_function0
         ld c,(hl)
         inc hl
-        ld b,(hl) ;адрес процедуры, соответствующей этой команде
+        ld b,(hl) ; ¤аҐб Їа®жҐ¤гал, б®®вўҐвбвўгойҐ© нв®© Є®¬ ­¤Ґ
         inc hl
         ld a,b
         cp -1
@@ -25,9 +25,9 @@ getval_function0
         ld l,c
         jp (hl) ;run internal command
 getval_function_fail
-        ld b,-1 ;чтобы точно найти терминатор
+        ld b,-1 ;зв®Ўл в®з­® ­ ©вЁ вҐа¬Ё­ в®а
         xor a
-        cpir ;найдём обязательно
+        cpir ;­ ©¤с¬ ®Ўп§ вҐ«м­®
         jr getval_function0
 
 commandslist
@@ -87,7 +87,7 @@ commandslist
         dw cmd_rem
         db "rem",0
         
-        dw -1 ;конец таблицы команд
+        dw -1 ;Є®­Ґж в Ў«Ёжл Є®¬ ­¤
 
 docmd
 ;hl'=text
@@ -103,7 +103,7 @@ docmd
 strcpexec0
         ld c,(hl)
         inc hl
-        ld b,(hl) ;адрес процедуры, соответствующей этой команде
+        ld b,(hl) ; ¤аҐб Їа®жҐ¤гал, б®®вўҐвбвўгойҐ© нв®© Є®¬ ­¤Ґ
         inc hl
         ld a,b
         cp -1
@@ -117,13 +117,13 @@ strcpexec0
         ld l,c
         jp (hl) ;run internal command
 strcpexec_fail
-        ld b,-1 ;чтобы точно найти терминатор
+        ld b,-1 ;зв®Ўл в®з­® ­ ©вЁ вҐа¬Ё­ в®а
         xor a
-        cpir ;найдём обязательно
+        cpir ;­ ©¤с¬ ®Ўп§ вҐ«м­®
         jr strcpexec0
         
 eat
-;hl'=курсор
+;hl'=Єгаб®а
         exx
         inc hl
         call skipspaces
@@ -134,9 +134,9 @@ eatword
         exx
         ld de,wordbuf
         call getword
- ;Берем слово из (HL)-> wordbuf
+ ;ЃҐаҐ¬ б«®ў® Ё§ (HL)-> wordbuf
         call skipspaces
- ; в (HL) пропускаем пробелы
+ ; ў (HL) Їа®ЇгбЄ Ґ¬ Їа®ЎҐ«л
         exx
         ret
 
@@ -203,7 +203,7 @@ getexprcolor
         ret
 
 cmd_line
-;hl'=курсор
+;hl'=Єгаб®а
 ;line x2,y2,color
         call getexpr
         ld (cmd_line_x2),de
@@ -224,8 +224,8 @@ cmd_line_x2=$+2
 cmd_line_y2=$+1
         ld hl,0
         ld (cmd_plot_y),hl
-;bc=x (в плоскости экрана, но может быть отрицательным)
-;de=y (в плоскости экрана, но может быть отрицательным)
+;bc=x (ў Ї«®бЄ®бвЁ нЄа ­ , ­® ¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
+;de=y (ў Ї«®бЄ®бвЁ нЄа ­ , ­® ¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
 ;ix=x2
 ;hl=y2
 ;a=color = %332103210
@@ -239,7 +239,7 @@ cmd_line_y2=$+1
         jp restorebasicpages
         
 cmd_plot
-;hl'=курсор
+;hl'=Єгаб®а
 ;plot x,y,color
         call getexpr
         ld (cmd_plot_x),de
@@ -291,8 +291,8 @@ setpgs_scr_high=$+1
         
 scrbase=0x8000
 shapes_line
-;bc=x (в плоскости экрана, но может быть отрицательным)
-;de=y (в плоскости экрана, но может быть отрицательным)
+;bc=x (ў Ї«®бЄ®бвЁ нЄа ­ , ­® ¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
+;de=y (ў Ї«®бЄ®бвЁ нЄа ­ , ­® ¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
 ;ix=x2
 ;hl=y2
 ;a=color = %332103210
@@ -329,9 +329,9 @@ shapes_line_noswap
         ld a,#0b ;dec bc
 shapes_line_nodec
         pop de ;dy
-;a=код inc/dec bc
-;bc'=x (в плоскости экрана, но может быть отрицательным)
-;de'=y (в плоскости экрана, но может быть отрицательным)
+;a=Є®¤ inc/dec bc
+;bc'=x (ў Ї«®бЄ®бвЁ нЄа ­ , ­® ¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
+;de'=y (ў Ї«®бЄ®бвЁ нЄа ­ , ­® ¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
 ;bc=dx
 ;de=dy
         ex de,hl
@@ -342,11 +342,11 @@ shapes_line_nodec
         jr nc,shapes_linever ;dy>=dx
         ld hy,b
         ld ly,c ;counter=dx
-        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
+        ;inc iy ;inc hy ;аЁбгҐ¬, ўЄ«оз п Ї®б«Ґ¤­Ё© ЇЁЄбҐ«м (гзвҐ­® ў жЁЄ«Ґ)
         ld h,b
         ld l,c
         sra h
-        rr l ;ym=dx div 2 ;TODO а если dx<0?
+        rr l ;ym=dx div 2 ;TODO   Ґб«Ё dx<0?
          ;xor a
          ;sub l
          ;ld l,a
@@ -385,7 +385,7 @@ shapes_linehor1
 shapes_linever
         ld hy,d
         ld ly,e ;counter=dy
-        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
+        ;inc iy ;inc hy ;аЁбгҐ¬, ўЄ«оз п Ї®б«Ґ¤­Ё© ЇЁЄбҐ«м (гзвҐ­® ў жЁЄ«Ґ)
         ld h,d
         ld l,e
         sra h
@@ -409,7 +409,7 @@ shapes_linever0
         exx
         ;add hl,bc ;mxm+dx
         or a
-        sbc hl,bc ;xm-dx ;TODO а если dx<0?
+        sbc hl,bc ;xm-dx ;TODO   Ґб«Ё dx<0?
         exx
         jr nc,shapes_linever1
 shapes_lineincx2=$
@@ -427,8 +427,8 @@ shapes_linever1
         ret
 
 line_pixel
-;bc=x (может быть отрицательным)
-;de=y (может быть отрицательным)
+;bc=x (¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
+;de=y (¬®¦Ґв Ўлвм ®ваЁж вҐ«м­л¬)
         ld hl,199
         or a
         sbc hl,de ;y
@@ -446,8 +446,8 @@ line_pixel
         ;ld c,a ;c=y
 ;line_pixel_color=$+2
 ;        ld lx,0
-;de=x (не портится)
-;c=y (bc не портится)
+;de=x (­Ґ Ї®авЁвбп)
+;c=y (bc ­Ґ Ї®авЁвбп)
 ;lx=color = %33210210
         ;call prpixel
 ;        pop ix
@@ -455,8 +455,8 @@ line_pixel
         ;pop bc
         ;ret
 prpixel
-;bc=x (не портится)
-;e=y (de не портится)
+;bc=x (­Ґ Ї®авЁвбп)
+;e=y (de ­Ґ Ї®авЁвбп)
 ;[lx=color = %33210210]
        ;ld a,d
         ld l,e
@@ -471,7 +471,7 @@ prpixel
         add hl,hl ;y*40 + scrbase
        ;ld d,a
 prpixel_cury
-;bc=x (не портится)
+;bc=x (­Ґ Ї®авЁвбп)
 ;hl=addr(y)
 ;lx=color = %33210210
         ld a,b
@@ -520,7 +520,7 @@ prpixel_color_r=$+1
         ret
 
 cmd_system
-;hl'=курсор
+;hl'=Єгаб®а
 ;system "command params"
         call getexpr
         bit 7,c
@@ -532,7 +532,7 @@ cmd_system
 
         ld de,curdir ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
         OS_GETPATH
-        OS_SETSYSDRV ;TODO каталог cmd
+        OS_SETSYSDRV ;TODO Є в «®Ј cmd
         
         ld de,tcmd
         OS_OPENHANDLE
@@ -543,7 +543,7 @@ cmd_system
         OS_NEWAPP
         or a
         jp nz,close_restoredir_fail
-;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+;dehl=­®¬Ґа  бва ­Ёж ў 0000,4000,8000,c000 ­®ў®Ј® ЇаЁ«®¦Ґ­Ёп, b=id, a=error
         push bc ;b=id
         
         ld a,d
@@ -555,7 +555,7 @@ cmd_system
         ld bc,COMMANDLINE_sz
         ldir ;command line
         xor a
-        ld (#c000+COMMANDLINE+COMMANDLINE_sz-1),a ;на случай, если "cmd "+wordbuf больше 128 байт
+        ld (#c000+COMMANDLINE+COMMANDLINE_sz-1),a ;­  б«гз ©, Ґб«Ё "cmd "+wordbuf Ў®«миҐ 128 Ў ©в
         pop hl
         pop de
 cmd_system_handle=$+1
@@ -640,13 +640,13 @@ tcmd
         
         
 cmd_loadcode
-;hl'=курсор
+;hl'=Єгаб®а
 ;load "name.bas"
         call getexpr
         bit 7,c
         jp z,fail_syntax
         call cmd_load_hl
-;нельзя выходить по ret, потому что старая программа уничтожена
+;­Ґ«м§п ўле®¤Ёвм Ї® ret, Ї®в®¬г зв® бв а п Їа®Ја ¬¬  г­Ёзв®¦Ґ­ 
         jp endofprog
         
 cmd_load_hl
@@ -680,13 +680,13 @@ cmd_load_hl
         ret
 
 cmd_load
-;hl'=курсор
+;hl'=Єгаб®а
 ;load "name.bas"
         call getexpr
         bit 7,c
         jp z,fail_syntax
         call cmd_load_text
-;нельзя выходить по ret, потому что старая программа уничтожена
+;­Ґ«м§п ўле®¤Ёвм Ї® ret, Ї®в®¬г зв® бв а п Їа®Ја ¬¬  г­Ёзв®¦Ґ­ 
         jp endofprog
 
 cmd_load_text
@@ -710,39 +710,39 @@ read_fsmb
         pop bc
         ld a,l
         or a
-        jp z,endfile ;Если не прочитали = конец файла - выходим
+        jp z,endfile ;…б«Ё ­Ґ Їа®зЁв «Ё = Є®­Ґж д ©«  - ўле®¤Ё¬
         ld a,(de)
         cp 0x0A
-        jp z,end_read ; Новая строка определяется по 0x0A
+        jp z,end_read ; Ќ®ў п бва®Є  ®ЇаҐ¤Ґ«пҐвбп Ї® 0x0A
         ld a,(de)
         cp 0x0D
-        jp z,read_fsmb ; Просто проглатываем символ возврата каретки
+        jp z,read_fsmb ; Џа®бв® Їа®Ј« влў Ґ¬ бЁ¬ў®« ў®§ўа в  Є аҐвЄЁ
         inc de
         jp read_fsmb
 
 end_read
         xor a
-        ld (de),a ;ставим терминатор в строку
+        ld (de),a ;бв ўЁ¬ вҐа¬Ё­ в®а ў бва®Єг
         ld hl,cmdbuf
  
         ex de,hl
         ;or a
-        sbc hl,de ;вычисляем длину строки
-        jp z, read_next_str ; если пустая строка, читаем следующую
-        ex de,hl ;возвращаем на место hl=cmdbuf
-        push bc ; На всякий случай сохраняем file handle, мало ли чего...
+        sbc hl,de ;ўлзЁб«пҐ¬ ¤«Ё­г бва®ЄЁ
+        jp z, read_next_str ; Ґб«Ё Їгбв п бва®Є , зЁв Ґ¬ б«Ґ¤гойго
+        ex de,hl ;ў®§ўа й Ґ¬ ­  ¬Ґбв® hl=cmdbuf
+        push bc ; Ќ  ўбпЄЁ© б«гз © б®еа ­пҐ¬ file handle, ¬ «® «Ё зҐЈ®...
         call add_or_run_line
         pop bc
         jp read_next_str
 
 endfile
         OS_CLOSEHANDLE
-        ld hl,cmdbuf; иначе в командной строке последняя загруженная из файла команда
+        ld hl,cmdbuf; Ё­ зҐ ў Є®¬ ­¤­®© бва®ЄҐ Ї®б«Ґ¤­пп § Јаг¦Ґ­­ п Ё§ д ©«  Є®¬ ­¤ 
         ld (hl),0
         jp cmd_clear
 
-cmd_savecode ; оригинальная процедура быстрой выгрузки программы в файл
-;hl'=курсор
+cmd_savecode ; ®аЁЈЁ­ «м­ п Їа®жҐ¤га  Ўлбва®© ўлЈаг§ЄЁ Їа®Ја ¬¬л ў д ©«
+;hl'=Єгаб®а
 ;save "name.bas"
         call getexpr
         bit 7,c
@@ -770,13 +770,13 @@ cmd_savecode ; оригинальная процедура быстрой выгрузки программы в файл
         OS_WRITEHANDLE
         pop bc
         OS_CLOSEHANDLE
-        ld hl,cmdbuf ; курсор на начало буфера
+        ld hl,cmdbuf ; Єгаб®а ­  ­ з «® ЎгдҐа 
         ld (hl),0
         exx
         ret
 
 cmd_save
-;hl'=курсор
+;hl'=Єгаб®а
 ;save "name.bas"
         call getexpr
         bit 7,c
@@ -791,7 +791,7 @@ cmd_save
 ;b=new file handle
         or a
         jp nz,fail_fo
-;формат строк: номер строки(ст,мл), длина строки(мл,ст), строка(asciiz)
+;д®а¬ в бва®Є: ­®¬Ґа бва®ЄЁ(бв,¬«), ¤«Ё­  бва®ЄЁ(¬«,бв), бва®Є (asciiz)
         ld hl,progmem
 save_lines0
         ld de,(progend) 
@@ -800,61 +800,61 @@ save_lines0
         add hl,de
         jr z,save_end
         
-        push hl ;Проверка на нажатие брик
+        push hl ;Џа®ўҐаЄ  ­  ­ ¦ вЁҐ ЎаЁЄ
         GET_KEY
         pop hl
         cp key_esc
         jp z,endbreak
 
-        ld d, (hl) ; загружаем в DE номер строки 
+        ld d, (hl) ; § Јаг¦ Ґ¬ ў DE ­®¬Ґа бва®ЄЁ 
         inc hl
         ld e, (hl)
         inc hl
 
-        push hl ; продолжение строки
-        push de ; номер в hex
-        ld hl,cmdbuf ; надо загрузить в hl' буфер куда положить уже текстовый номер строки
-        exx ; в hl' теперь номер
-        pop de ; номер в hex
-        call prlinenum_tomem ; hl' куда, de номер в hex
+        push hl ; Їа®¤®«¦Ґ­ЁҐ бва®ЄЁ
+        push de ; ­®¬Ґа ў hex
+        ld hl,cmdbuf ; ­ ¤® § Јаг§Ёвм ў hl' ЎгдҐа Єг¤  Ї®«®¦Ёвм г¦Ґ вҐЄбв®ўл© ­®¬Ґа бва®ЄЁ
+        exx ; ў hl' вҐЇҐам ­®¬Ґа
+        pop de ; ­®¬Ґа ў hex
+        call prlinenum_tomem ; hl' Єг¤ , de ­®¬Ґа ў hex
         exx
-        ex hl,de ; de на продолжение cmdbuf
-        pop hl; продолжание строки
+        ex hl,de ; de ­  Їа®¤®«¦Ґ­ЁҐ cmdbuf
+        pop hl; Їа®¤®«¦ ­ЁҐ бва®ЄЁ
 
-        ld a,' ' ; пробел
+        ld a,' ' ; Їа®ЎҐ«
         ld (de),a
         inc de
-        ld c,(hl) ;длина строки
+        ld c,(hl) ;¤«Ё­  бва®ЄЁ
         inc hl
-        ld b,(hl) ;длина строки
+        ld b,(hl) ;¤«Ё­  бва®ЄЁ
         inc hl
-        ldir      ;копируем всю строку в de
+        ldir      ;Є®ЇЁагҐ¬ ўбо бва®Єг ў de
         ld a,0x0D
         ld (de),a
         inc de
         ld a,0x0A
         ld (de),a
         inc de
-        inc hl; пропускаем терминатор
+        inc hl; Їа®ЇгбЄ Ґ¬ вҐа¬Ё­ в®а
 
-        pop bc ; достаем filehandle
-        push bc ;filehandle нам ещё пригодится
-        push hl ;там следующая строка
+        pop bc ; ¤®бв Ґ¬ filehandle
+        push bc ;filehandle ­ ¬ Ґйс ЇаЁЈ®¤Ёвбп
+        push hl ;в ¬ б«Ґ¤гой п бва®Є 
         ld hl,cmdbuf
         ex hl,de
-        sbc hl,de ; в hl длина получившейся текстовой строки
-        ld de,cmdbuf ; в de адрес самой строки
+        sbc hl,de ; ў hl ¤«Ё­  Ї®«гзЁўиҐ©бп вҐЄбв®ў®© бва®ЄЁ
+        ld de,cmdbuf ; ў de  ¤аҐб б ¬®© бва®ЄЁ
 
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         OS_WRITEHANDLE
-        pop hl ; следующая строка
+        pop hl ; б«Ґ¤гой п бва®Є 
         jr save_lines0
 save_end
         pop bc
         OS_CLOSEHANDLE
         ld hl,cmdbuf
-        ld (hl),0 ; очищаем командную строку
-        exx ; hl' курсор на начало буфера
+        ld (hl),0 ; ®зЁй Ґ¬ Є®¬ ­¤­го бва®Єг
+        exx ; hl' Єгаб®а ­  ­ з «® ЎгдҐа 
         ret
         
 cmd_new
@@ -877,13 +877,13 @@ cmd_rem
         jp gotonextline
         
 cmd_for
-;hl'=курсор
+;hl'=Єгаб®а
 ;for i=1 to 10 step 2
-;параметры цикла (4+4(step)+4(to)+4(goto) байта)
+;Ї а ¬Ґвал жЁЄ«  (4+4(step)+4(to)+4(goto) Ў ©в )
         exx
         ld a,(hl)
         exx
-        ld c,a ;имя
+        ld c,a ;Ё¬п
         call eat
         
         ld a,c
@@ -981,12 +981,12 @@ cmd_for_nocreate
         ret
         
 cmd_next
-;hl'=курсор
+;hl'=Єгаб®а
 ;next i (i = i+step, if i<=to then goto...)
         exx
         ld a,(hl)
         exx
-        ld c,a ;имя
+        ld c,a ;Ё¬п
         call eat
         
         ld a,c
@@ -1052,30 +1052,30 @@ cmd_next
         ld b,a
         inc hl
 ;bcde = to-i
-;TODO знаковое переполнение
+;TODO §­ Є®ў®Ґ ЇҐаҐЇ®«­Ґ­ЁҐ
         pop af ;NZ = step<0
         call nz,negbcde
 ;i<=to (to-i >= 0) - continue loop
         bit 7,b ;Z = to-i>=0
         ret nz ;end of loop
-        call getint ;de=адрес после for ;было hlde=номер строки
+        call getint ;de= ¤аҐб Ї®б«Ґ for ;Ўл«® hlde=­®¬Ґа бва®ЄЁ
         ex de,hl
         exx
         ret
         ;jp cmd_goto_ok
         
 cmd_dim
-;hl'=курсор
-;dim a(15) - нумерация элементов с нуля
+;hl'=Єгаб®а
+;dim a(15) - ­г¬Ґа жЁп н«Ґ¬Ґ­в®ў б ­г«п
         exx
         ld a,(hl)
         exx
-        ld c,a ;имя
+        ld c,a ;Ё¬п
         call eat
         
         ld a,c
         call findvar_array
-        jp nz,fail_syntax ;уже есть такая переменная
+        jp nz,fail_syntax ;г¦Ґ Ґбвм в Є п ЇҐаҐ¬Ґ­­ п
 
         exx
         ld a,(hl)
@@ -1112,7 +1112,7 @@ cmd_dim
         ret
         
 cmd_edit
-;hl'=курсор
+;hl'=Єгаб®а
         call getexpr
         call findline
         ld a,(hl)
@@ -1122,7 +1122,7 @@ cmd_edit
         ld a,(hl)
         cp e
         jp nz,fail_syntax
-        ;hl=адрес строки, которую надо взять + 1
+        ;hl= ¤аҐб бва®ЄЁ, Є®в®аго ­ ¤® ў§пвм + 1
         inc hl
         inc hl
         inc hl
@@ -1137,14 +1137,14 @@ cmd_edit
         inc hl
         push hl
         exx
-        pop de ;cmdbuf+номер
-        pop hl ;hl=адрес строки (текст)
+        pop de ;cmdbuf+­®¬Ґа
+        pop hl ;hl= ¤аҐб бва®ЄЁ (вҐЄбв)
         
         push hl
         call strlen
         ld b,h
         ld c,l
-        inc bc ;длина с терминатором
+        inc bc ;¤«Ё­  б вҐа¬Ё­ в®а®¬
         pop hl
         
         ;ld de,cmdbuf
@@ -1157,16 +1157,16 @@ cmd_colon
         ret
         
 cmd_list
-;номер строки(ст,мл), длина строки(мл,ст), строка(asciiz)
-        ld hl,progmem ; progmem константа задающая начало памяти программы
+;­®¬Ґа бва®ЄЁ(бв,¬«), ¤«Ё­  бва®ЄЁ(¬«,бв), бва®Є (asciiz)
+        ld hl,progmem ; progmem Є®­бв ­в  § ¤ ой п ­ з «® Ї ¬пвЁ Їа®Ја ¬¬л
 list_lines0
-        ld de,(progend) ; по адресу progend находится переменная указывающая на конец памяти программы
+        ld de,(progend) ; Ї®  ¤аҐбг progend ­ е®¤Ёвбп ЇҐаҐ¬Ґ­­ п гЄ §лў ой п ­  Є®­Ґж Ї ¬пвЁ Їа®Ја ¬¬л
         or a
         sbc hl,de
         add hl,de
         ret z
         
-        push hl ;Проверка на нажатие брик
+        push hl ;Џа®ўҐаЄ  ­  ­ ¦ вЁҐ ЎаЁЄ
         GET_KEY
         pop hl
         cp key_esc
@@ -1174,17 +1174,17 @@ list_lines0
 
         ld d,(hl)
         inc hl
-        ld e,(hl) ;номер строки
+        ld e,(hl) ;­®¬Ґа бва®ЄЁ
         inc hl
         push hl
-        call prword_de ;номер строки
+        call prword_de ;­®¬Ґа бва®ЄЁ
         ld a,' '
         PRCHAR
         pop hl
 
         ;ld e,(hl)
         inc hl
-        ;ld d,(hl) ;длина строки
+        ;ld d,(hl) ;¤«Ё­  бва®ЄЁ
         inc hl
         call prtext ;hl after terminator
         call prcrlf
@@ -1202,7 +1202,7 @@ list_lines0
          push af
         jr nz,$-4
         pop af
-;в стеке лежит \0, текст (без терминатора)
+;ў бвҐЄҐ «Ґ¦Ёв \0, вҐЄбв (ЎҐ§ вҐа¬Ё­ в®а )
         endm
         
         macro STRPOP
@@ -1225,10 +1225,10 @@ strmirror
         call strlen
         ld b,h
         ld c,l
-;de=начало, bc=hl=длина
+;de=­ з «®, bc=hl=¤«Ё­ 
         ;ld h,b
         ;ld l,c
-        add hl,de ;hl=конец+1
+        add hl,de ;hl=Є®­Ґж+1
         srl b
         rr c ;bc=wid/2
 mirrorbytes0
@@ -1242,7 +1242,7 @@ mirrorbytes0
         
 
 cmd_let
-;hl'=курсор
+;hl'=Єгаб®а
         exx ;ld hl,(execcmd_pars)
         ld a,(hl)
         exx
@@ -1255,7 +1255,7 @@ cmd_let
         jr z,cmd_let_str
         cp '('
         jr z,cmd_let_array
-;hl'=курсор
+;hl'=Єгаб®а
         call eatspaces
         call eateq
         ld a,c
@@ -1266,9 +1266,9 @@ cmd_let
 cmd_let_createq
         push bc
         call getexpr ;hlde=value
-        pop bc ;иначе выражение может запороть c
+        pop bc ;Ё­ зҐ ўла ¦Ґ­ЁҐ ¬®¦Ґв § Ї®а®вм c
         ld a,c
-        call setvar_int ;TODO не искать переменную второй раз
+        call setvar_int ;TODO ­Ґ ЁбЄ вм ЇҐаҐ¬Ґ­­го ўв®а®© а §
         ret
 
 cmd_let_array
@@ -1281,12 +1281,12 @@ cmd_let_array
         call findvar_int
         jp z,fail_syntax
         call indexarray
-        push hl ;адрес элемента
+        push hl ; ¤аҐб н«Ґ¬Ґ­в 
         call eateq
         call getexpr ;hlde
         ld b,h
         ld c,l ;bcde
-        pop hl ;адрес элемента
+        pop hl ; ¤аҐб н«Ґ¬Ґ­в 
         ld (hl),e
         inc hl
         ld (hl),d
@@ -1309,7 +1309,7 @@ cmd_let_str
         ld a,c
         call addvar_str
 cmd_let_str_createq
-;hl'=курсор
+;hl'=Єгаб®а
         call eateq
         exx
         ld a,(hl)
@@ -1362,7 +1362,7 @@ cmd_cls
         ret
 
 cmd_if
-;hl'=курсор
+;hl'=Єгаб®а
         call getexpr
 	ld a,h
 	or l
@@ -1374,21 +1374,21 @@ gotonextline
 	xor a
 	ld bc,0
 	cpir
-        dec hl ;на терминаторе	
+        dec hl ;­  вҐа¬Ё­ в®аҐ	
 	ld a,(runmode)
 	cp RUNMODE_PROG
 	jr nz,gotonextlineq
-        inc hl ;после строки
+        inc hl ;Ї®б«Ґ бва®ЄЁ
         call startline
 gotonextlineq
 	exx
 	ret
         
 cmd_goto
-;hl'=курсор
+;hl'=Єгаб®а
         call getexpr
 cmd_goto_ok
-;hlde=номер строки
+;hlde=­®¬Ґа бва®ЄЁ
         call findline
         call startline
         exx
@@ -1398,13 +1398,13 @@ cmd_goto_ok
 
 
 cmd_run
-;нельзя выходить по ret, потому что run могли вызвать из обработчика командной строки
+;­Ґ«м§п ўле®¤Ёвм Ї® ret, Ї®в®¬г зв® run ¬®Ј«Ё ўл§ў вм Ё§ ®Ўа Ў®взЁЄ  Є®¬ ­¤­®© бва®ЄЁ
         ld a,RUNMODE_PROG
         ld (runmode),a
         ld hl,progmem
         jr cmd_run_startline
 cmd_run0
-;hl'=адрес строки
+;hl'= ¤аҐб бва®ЄЁ
         exx
         ld a,(hl)
         or a
@@ -1452,7 +1452,7 @@ eatcolon
         ret
         
 cmd_print
-;hl'=курсор
+;hl'=Єгаб®а
         call eatcolon
         jp z,prcrlf
 cmd_print0
@@ -1700,7 +1700,7 @@ getmulexpr_div
         ex (sp),hl ;pop hl ;HSW old
         call _DIVLONG.
         exx
-        pop hl ;курсор
+        pop hl ;Єгаб®а
         exx
         pop bc
         jr getmulexpr0
@@ -1856,7 +1856,7 @@ _MULLONG0.
 	add ix,de
 	adc hl,bc
 	exx
-	djnz _MULLONG0. ;можно по a==0 (первый вход с scf:rla, далее add a,a)
+	djnz _MULLONG0. ;¬®¦­® Ї® a==0 (ЇҐаўл© ўе®¤ б scf:rla, ¤ «ҐҐ add a,a)
 	exx
 	ret
 
@@ -1872,7 +1872,7 @@ getval_bracket
         jp eatclosebracket
         
 getval_
-;hl'=курсор
+;hl'=Єгаб®а
 ;out: hlde=value, c=type
         exx
         ld a,(hl)
@@ -1984,12 +1984,12 @@ prval_str
 
 
 readstr
-;hl'=курсор (указывает на открывающую кавычку)
+;hl'=Єгаб®а (гЄ §лў Ґв ­  ®вЄалў ойго Є ўлзЄг)
 ;out: hl=str, hl'=after num and spaces, CY=error
         exx
         inc hl
         ld de,wordbuf
-;TODO проверка длины
+;TODO Їа®ўҐаЄ  ¤«Ё­л
 quote_getword0
         ld a,(hl)
         or a
@@ -2004,16 +2004,16 @@ quote_getwordq
         xor a
         ld (de),a
         exx
-        call eat ;съедаем кавычку и последующие пробелы
+        call eat ;бкҐ¤ Ґ¬ Є ўлзЄг Ё Ї®б«Ґ¤гойЁҐ Їа®ЎҐ«л
         ld hl,wordbuf
         or a ;NC = OK
         ret ;NC
 
 indexarray
-;hl=адрес массива
-;de=индекс
-;c=имя массива?
-;out: hl=адрес элемента (fail, если out of bounds)
+;hl= ¤аҐб ¬ ббЁў 
+;de=Ё­¤ҐЄб
+;c=Ё¬п ¬ ббЁў ?
+;out: hl= ¤аҐб н«Ґ¬Ґ­в  (fail, Ґб«Ё out of bounds)
         push bc
         ld c,(hl)
         inc hl

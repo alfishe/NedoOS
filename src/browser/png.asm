@@ -1,10 +1,10 @@
 LINEPNG=0x8008
-LINEPNGTEMP=0x9000 ;äëÿ êîíâåðòàöèè 16bit->8bit (TODO â êîíöå LINEPNGPRIOR)
+LINEPNGTEMP=0x9000 ;¤«ï ª®­¢¥àâ æ¨¨ 16bit->8bit (TODO ¢ ª®­æ¥ LINEPNGPRIOR)
 LINEPNGPRIOR=0xa008
 
         align 256
 PNGPAL
-        ds 768 ;TODO óáðàòü â ñòðàíè÷êó
+        ds 768 ;TODO ã¡à âì ¢ áâà ­¨çªã
 
 readpng
         ld b,7
@@ -37,7 +37,7 @@ readpng_chunk_IHDR
         call RDWORDHSBLSBtohl
         call RDWORDHSBLSBtohl ;hl=hgt
         call setpichgt
-        call RDBYTE ;bit depth (ãëóáèíà öâåòà 1, 2, 4, 8, 16)
+        call RDBYTE ;bit depth (£«ã¡¨­  æ¢¥â  1, 2, 4, 8, 16)
          ld (readpng_bitdepth),a
         add a,7 ;8,9,11,15,23
         rra
@@ -45,7 +45,7 @@ readpng_chunk_IHDR
         rra
         and 3 ;1,1,1,1,2
         ld e,a
-        call RDBYTE ;color type (òèï öâåòà: 1 (èíäåêñèðîâàííûé öâåò - ñ ïàëèòðîé) + 2 (öâåòíîå èçîáðàæåíèå, ò.å. íå Grayscale) + 4 (èñïîëüçóåòñÿ àëüôà-êàíàë))
+        call RDBYTE ;color type (â¨¯ æ¢¥â : 1 (¨­¤¥ªá¨à®¢ ­­ë© æ¢¥â - á ¯ «¨âà®©) + 2 (æ¢¥â­®¥ ¨§®¡à ¦¥­¨¥, â.¥. ­¥ Grayscale) + 4 (¨á¯®«ì§ã¥âáï  «ìä -ª ­ «))
          ld (readpng_palflag_bit0),a
          rra
          ld d,1
@@ -65,9 +65,9 @@ readpng_countbppok
 
         call RDBYTE ;compression method (0 = deflate)
         call RDBYTE ;filter method (=0)
-        call RDBYTE ;interlace method (0 (íåò ÷åðåäîâàíèÿ) / 1 (Adam7 interlace)) ;TODO
+        call RDBYTE ;interlace method (0 (­¥â ç¥à¥¤®¢ ­¨ï) / 1 (Adam7 interlace)) ;TODO
 
-        call initframe ;îäèí ðàç íà êàäð ïîñëå setpicwid, setpichgt è ïîñëå óñòàíîâêè gifframetime ;çàêàçûâàåò ïàìÿòü ïîä êîíâåð÷åííûé êàäð
+        call initframe ;®¤¨­ à § ­  ª ¤à ¯®á«¥ setpicwid, setpichgt ¨ ¯®á«¥ ãáâ ­®¢ª¨ gifframetime ;§ ª §ë¢ ¥â ¯ ¬ïâì ¯®¤ ª®­¢¥àç¥­­ë© ª ¤à
 
         call GETDWORD_slow ;e,d,l,h
         jr readpng_chunk
@@ -121,15 +121,15 @@ readpng_skiprestofchunk0
         jp readpng_chunk
 
 readpng_chunk_IDAT
-;çàêàçàòü ïàìÿòü ïîä áëîê äàííûõ hgt*(wid*bytesperpix+1):
+;§ ª § âì ¯ ¬ïâì ¯®¤ ¡«®ª ¤ ­­ëå hgt*(wid*bytesperpix+1):
 ; if bpp=1
-; then RawLen:=IHDRData.Width div bp+1 {bp:=8 div BitDepth} {ðåàëüíî íàäî îêðóãëåíèå ââåðõ??? TODO ïðîâåðèòü - ñäåëàë ââåðõ}
+; then RawLen:=IHDRData.Width div bp+1 {bp:=8 div BitDepth} {à¥ «ì­® ­ ¤® ®ªàã£«¥­¨¥ ¢¢¥àå??? TODO ¯à®¢¥à¨âì - á¤¥« « ¢¢¥àå}
 ; else RawLen:=IHDRData.Width*bpp+1;
-;òåîðåòè÷åñêè ñåé÷àñ â DISKBUF ìîæåò áûòü áîëüøå, ÷åì ðàçìåð òåêóùåãî IDAT (õîòÿ ðåàëüíî ðàçðåçàþò IDAT ïî 8K)        
-;TODO ïåðåñòàâèòü óêàçàòåëü ôàéëà íà òåêóùèé áàéò è ïðî÷èòàòü íà ðàçìåð òåêóùåãî IDAT (åñëè ýòî ìåíüøå DUSKBUFsz)
-;à ïîêà áåç ïåðåñòàíîâêè óêàçàòåëÿ - óçíàåì, êàêóþ ÷àñòü IDAT ìû óæå ïðî÷èòàëè, è âû÷èòàåì å¸ èç chunk size
-;chunksize -= DISKBUF+DISKBUFsz-(iy+1) ;ìîæåò áûòü 0
-;[chunksize += iy + (1 - (DISKBUF+DISKBUFsz)) ;ìîæåò áûòü 0]
+;â¥®à¥â¨ç¥áª¨ á¥©ç á ¢ DISKBUF ¬®¦¥â ¡ëâì ¡®«ìè¥, ç¥¬ à §¬¥à â¥ªãé¥£® IDAT (å®âï à¥ «ì­® à §à¥§ îâ IDAT ¯® 8K)        
+;TODO ¯¥à¥áâ ¢¨âì ãª § â¥«ì ä ©«  ­  â¥ªãé¨© ¡ ©â ¨ ¯à®ç¨â âì ­  à §¬¥à â¥ªãé¥£® IDAT (¥á«¨ íâ® ¬¥­ìè¥ DUSKBUFsz)
+;  ¯®ª  ¡¥§ ¯¥à¥áâ ­®¢ª¨ ãª § â¥«ï - ã§­ ¥¬, ª ªãî ç áâì IDAT ¬ë ã¦¥ ¯à®ç¨â «¨, ¨ ¢ëç¨â ¥¬ ¥ñ ¨§ chunk size
+;chunksize -= DISKBUF+DISKBUFsz-(iy+1) ;¬®¦¥â ¡ëâì 0
+;[chunksize += iy + (1 - (DISKBUF+DISKBUFsz)) ;¬®¦¥â ¡ëâì 0]
         exx
 ;dehl=chunk size
         push iy
@@ -162,7 +162,7 @@ png_bytesperpix=$+1
 
         ld a,(readpng_bitdepth)
         cp 8
-        jr nc,readpng_chunk_IDATlinesizeok ;íåëüçÿ ãåíåðèòü ïàëèòðó, ò.ê. áûâàåò YA?
+        jr nc,readpng_chunk_IDATlinesizeok ;­¥«ì§ï £¥­¥à¨âì ¯ «¨âàã, â.ª. ¡ë¢ ¥â YA?
         cp 4
          ld e,17
         jr z,readpng_chunk_IDATlinesizediv2
@@ -181,10 +181,10 @@ readpng_chunk_IDATlinesizediv2
         inc bc
         srl b
         rr c
-;ñãåíåðèðîâàòü íóæíóþ ñåðóþ ïàëèòðó:
+;á£¥­¥à¨à®¢ âì ­ã¦­ãî á¥àãî ¯ «¨âàã:
          ld a,(readpng_palflag_bit0)
          rra
-         jr c,readpng_chunk_IDATlinesizeok ;íàñòîÿùóþ ïàëèòðó óæå ïðî÷èòàëè
+         jr c,readpng_chunk_IDATlinesizeok ;­ áâ®ïéãî ¯ «¨âàã ã¦¥ ¯à®ç¨â «¨
 
         push hl
         xor a
@@ -211,16 +211,16 @@ readpng_chunk_IDATlinesizeok
         inc bc ;every line starts with subfilter byte
          ;bc=physical line data size
         ld de,(curpichgt)
-        call MULWORD ;hlbc=de*bc = ðàçìåð áëîêà äàííûõ
+        call MULWORD ;hlbc=de*bc = à §¬¥à ¡«®ª  ¤ ­­ëå
         ld d,b
         ld e,c
 ;hlde=size
-        call reserve_mem ;ïîðòèò íîìåð áàíêà â 0xc000
+        call reserve_mem ;¯®àâ¨â ­®¬¥à ¡ ­ª  ¢ 0xc000
          call gifsetpgLZW
 
 ;zlib/gzip header:
         call RDBYTE ;0xW8, W=max window
-        call RDBYTE ;7..6=compression level, 5=DICT (TODO read 4 bytes - è ÷òî ñ íèìè äåëàòü?), 4..0=for multiple of 31
+        call RDBYTE ;7..6=compression level, 5=DICT (TODO read 4 bytes - ¨ çâ® á ­¨¬¨ ¤¥« âì?), 4..0=for multiple of 31
 ;
         
         call INFLATING
@@ -234,13 +234,13 @@ readpng_chunk_IDATlinesizeok
         ldir
         ld hl,0
         ld (LINEPNG-2),hl
-        ld (LINEPNG-4),hl ;÷òîáû íå ïðîâåðÿòü k>=bpp
+        ld (LINEPNG-4),hl ;çâ®¡ë ­¥ ¯à®¢¥àïâì k>=bpp
         ld (LINEPNG-6),hl
-        ld (LINEPNG-8),hl ;÷òîáû íå ïðîâåðÿòü k>=bpp
+        ld (LINEPNG-8),hl ;çâ®¡ë ­¥ ¯à®¢¥àïâì k>=bpp
         ld (LINEPNGPRIOR-2),hl
-        ld (LINEPNGPRIOR-4),hl ;÷òîáû íå ïðîâåðÿòü k>=bpp
+        ld (LINEPNGPRIOR-4),hl ;çâ®¡ë ­¥ ¯à®¢¥àïâì k>=bpp
         ld (LINEPNGPRIOR-6),hl
-        ld (LINEPNGPRIOR-8),hl ;÷òîáû íå ïðîâåðÿòü k>=bpp
+        ld (LINEPNGPRIOR-8),hl ;çâ®¡ë ­¥ ¯à®¢¥àïâì k>=bpp
 
 pngdecodefromaddr=$+1
         ld hl,0
@@ -357,7 +357,7 @@ pngfilterq
         call islinevisible
         jp nz,renderpng_lineinvisible
         
-;êîíâåðòèðîâàòü ñîñòàâëÿþùèå èç 16bit â 8bit:
+;ª®­¢¥àâ¨à®¢ âì á®áâ ¢«ïîé¨¥ ¨§ 16bit ¢ 8bit:
         ld hl,LINEPNG
         ld de,LINEPNGPRIOR ;result of recolor
         ld a,(readpng_bitdepth)
@@ -366,7 +366,7 @@ pngfilterq
         jr nz,pngrecolor16q
         rra
         push de
-        ld de,LINEPNGTEMP ;TODO â êîíöå PRIOR
+        ld de,LINEPNGTEMP ;TODO ¢ ª®­æ¥ PRIOR
         push de
         ;jr $
         ld bc,(png_bytesperline)
@@ -377,12 +377,12 @@ pngrecolor160
         ldi
         jp pe,pngrecolor160
         pop hl
-        pop de ;áóäåì ïåðåêîäèðîâàòü TEMP->PRIOR
+        pop de ;¡ã¤¥¬ ¯¥à¥ª®¤¨à®¢ âì TEMP->PRIOR
 pngrecolor16q
-;êîíâåðòèðîâàòü èç bpp â 24bit:
+;ª®­¢¥àâ¨à®¢ âì ¨§ bpp ¢ 24bit:
 ;hl=from
 ;de=to
-;a=÷èñëî öâåòîâûõ ñîñòàâëÿþùèõ(1..4)
+;a=ç¨á«® æ¢¥â®¢ëå á®áâ ¢«ïîé¨å(1..4)
          ;jr $
         ld bc,(curpicwid)
         dec a
@@ -544,19 +544,19 @@ pngrecolorq
         ld (hl),b;0
         inc de
         ld bc,7*3-1
-        ldir ;÷òîáû ñïðàâà â îñòàòêå çíàêîìåñòà áûëà ÷åðíîòà (ïîòîì ìîæíî óáðàòü, êîãäà readchr áóäåò ýòî äåëàòü)
+        ldir ;çâ®¡ë á¯à ¢  ¢ ®áâ âª¥ §­ ª®¬¥áâ  ¡ë«  ç¥à­®â  (¯®â®¬ ¬®¦­® ã¡à âì, ª®£¤  readchr ¡ã¤¥â íâ® ¤¥« âì)
 
         ld hl,LINEPNGPRIOR ;recolored line
-        call drawscreenline_frombuf ;êîíâåðòèðóåì LINEGIF â LINEPIXELS è âûâîäèì å¸ íà ýêðàí
-        call keepconvertedline ;çàïîìèíàåì ñêîíâåð÷åííóþ ñòðîêó èç LINEPIXELS
-        call nextoldconvertedframeaddr ;ñìåùàåì àäðåñ, îòêóäà áðàòü ñêîíâåð÷åííóþ ñòðîêó èç ïðåäûäóùåãî êàäðà (gifoldconvertedframeaddr)
+        call drawscreenline_frombuf ;ª®­¢¥àâ¨àã¥¬ LINEGIF ¢ LINEPIXELS ¨ ¢ë¢®¤¨¬ ¥ñ ­  íªà ­
+        call keepconvertedline ;§ ¯®¬¨­ ¥¬ áª®­¢¥àç¥­­ãî áâà®ªã ¨§ LINEPIXELS
+        call nextoldconvertedframeaddr ;á¬¥é ¥¬  ¤à¥á, ®âªã¤  ¡à âì áª®­¢¥àç¥­­ãî áâà®ªã ¨§ ¯à¥¤ë¤ãé¥£® ª ¤à  (gifoldconvertedframeaddr)
 renderpng_lineinvisible
         call inccury
 
         ld hl,LINEPNG
         ld de,LINEPNGPRIOR
         ld bc,(png_bytesperline)
-        ldir ;TODO ìåíÿòü ìåñòàìè óêàçàòåëè
+        ldir ;TODO ¬¥­ïâì ¬¥áâ ¬¨ ãª § â¥«¨
         
         pop hl
         pop af
@@ -566,7 +566,7 @@ renderpng_lineinvisible
         cpi
         jp pe,renderpng_lines0
 
-        ret ;îñòàëüíîå íàñ íå èíòåðåñóåò (êóðñîð ôàéëà ïîñëå unzip â ñëó÷àéíîì ïîëîæåíèè?)
+        ret ;®áâ «ì­®¥ ­ á ­¥ ¨­â¥à¥áã¥â (ªãàá®à ä ©«  ¯®á«¥ unzip ¢ á«ãç ©­®¬ ¯®«®¦¥­¨¨?)
 
 ;function TPNG.PaethPredictor(a,b,c:BYTE):byte;
 ; var
@@ -606,15 +606,15 @@ paethpredictor
         add a,a
         jp paethpredok
 paeth1
-        sub (hl);?c ;a=(a+b-2c)/2 - 1/2 ;1 âìåñòî 1.5, -1 âìåñòî -0.5
+        sub (hl);?c ;a=(a+b-2c)/2 - 1/2 ;1 ¢¬¥áâ® 1.5, -1 ¢¬¥áâ® -0.5
         jr nc,$+3
-        cpl ;-1 (îçíà÷àåò -0.5) => 0 (îçíà÷àåò 0.5)
+        cpl ;-1 (®§­ ç ¥â -0.5) => 0 (®§­ ç ¥â 0.5)
         scf
         rla
 paethpredok
         jr nc,$+3
         sbc a,a
-         ld lx,a;?pc,a ;pc=abs(a+b-2c) ;åñëè >255, òî 255
+         ld lx,a;?pc,a ;pc=abs(a+b-2c) ;¥á«¨ >255, â® 255
          
         ld a,hy;?pb
         cp ly;?pa

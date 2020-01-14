@@ -21,7 +21,7 @@ nvview_hexeditor_prfile_mainloop
         ld b,1
         call drawfilecursor_sizeb
 	
-        YIELD ;halt ;хёыш ёфхырЄ№ яЁюёЄю di:rst #38, Єю 1.ёфтшэхь ЄрщьхЁ ш 2.ьюцхь яюЄхЁ Є№ ърфЁютюх яЁхЁ√трэшх, р хёыш схч ei, Єю сєфєЄ уы■ъш
+        YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY ;OS_GETKEYNOLANG
         ld a,c ;keynolang
         push hl

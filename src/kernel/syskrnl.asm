@@ -1,8 +1,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; KERNEL (system side) ;;;;;;;;;;;;;;;;;;;;;;;        
-;яЁш т√чютх 0x0005 т ёшёЄхьх тъы■ўхэ√ ёЄЁрэшЎ√: pgsystem, pgkillable, pgkillable, pgkillable (эр ёыєўрщ яюЁўш ёЄхъюь)
+;при вызове 0x0005 в системе включены страницы: pgsystem, pgkillable, pgkillable, pgkillable (на случай порчи стеком)
 
 MAXAPPS=16
-bdosstack_sz=0;150 ;80 ьрыю фы  чруЁєчъш Їрщыр, 110 ьрыю фы  fopen (фрцх ё INTSTACK2), 140 ьрыю фы  ўЄхэш  ърЄрыюур (фрцх ё INTSTACK2) ;0=юЄъы■ўшЄ№ ь№■Єхъё BDOS
+bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTSTACK2), 140 мало для чтения каталога (даже с INTSTACK2) ;0=отключить мьютекс BDOS
 
 QUITSTACK=0x4000 ;<=0x4000
 
@@ -66,7 +66,7 @@ endsys_result_aq
 ;e=char
         if bdosstack_sz==0
         ld (sys_prchar_sp),sp
-        ld sp,BDOSSTACK ;фю ¤Єюую ьюьхэЄр яЁхЁ√трэшх ьюцхЄ чряюЁюЄ№ ы■сюх ьхёЄю ярь Єш (user sp >=0x3b00)
+        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
         else
         exx
         ld hl,0
@@ -76,12 +76,12 @@ endsys_result_aq
         ;ld (iy+app.callbdos_sp+1),h
         ld bc,app.bdosstack+bdosstack_sz
         add iy,bc
-        ld sp,iy ;фю ¤Єюую ьюьхэЄр яЁхЁ√трэшх ьюцхЄ чряюЁюЄ№ ы■сюх ьхёЄю ярь Єш (user sp >=0x3b00)
+        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
         exx
         endif
         
         ld iy,(appaddr)
-        call BDOS_prchar ;яюЁЄшЄ Єюы№ъю 0xc000+, эю ёрьр тюёёЄрэртыштрхЄ pgkillable
+        call BDOS_prchar ;портит только 0xc000+, но сама восстанавливает pgkillable
         if bdosstack_sz==0
 sys_prchar_sp=$+1
         ld sp,0
@@ -108,45 +108,45 @@ sys_timer
 sys_intq
 ;bc=memport0000
 ;d=pgmain
-;e=чэрўхэшх фы  ръъєьєы ЄюЁр
+;e=значение для аккумулятора
 ;a=screenpg
 ;iy="iy"
         ld sp,INTMICROSTACK
-        out (0xfd),a ;фры№°х яюярфрхь т init_resident
+        out (0xfd),a ;дальше попадаем в init_resident
 ;sp=INTMICROSTACK
 ;bc=memport0000
 ;d=pgmain
-;e=чэрўхэшх фы  ръъєьєы ЄюЁр
+;e=значение для аккумулятора
 ;di
 
         ds 0x0038+14-$ -4
-        ;TODO чрїтрЄшЄ№ ь№■Єхъё (яЁхЁ√трэшх тэєЄЁш яЁхЁ√трэш  фюыцэю яюярёЄ№ т яЁюёЄющ юсЁрсюЄўшъ схч °хфєыхЁр)
-        jp sys_intgo ;эєцэю, ўЄюс√ ьюцэю с√ыю ёЄртшЄ№ Єюўъє юёЄрэютр эр 0x0100
-        ;ds 0x0101-$ ;эєцэю, ўЄюс√ ьюцэю с√ыю ёЄртшЄ№ Єюўъє юёЄрэютр эр 0x0100
+        ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
+        jp sys_intgo ;нужно, чтобы можно было ставить точку останова на 0x0100
+        ;ds 0x0101-$ ;нужно, чтобы можно было ставить точку останова на 0x0100
 
 safestack_sz=18
         STRUCT app
-flags           BYTE ;Їыруш (тёхуфр т эрўрых ёЄЁєъЄєЁ√)
-;priority        BYTE ;TODO яЁшюЁшЄхЄ (0=ъюэхЎ ёяшёър)
-id              BYTE ;эюьхЁ чрфрўш (0=ётюсюфэю)
-parentid        BYTE ;эюьхЁ ЁюфшЄхы№ёъющ чрфрўш
-mainpg          BYTE ;уыртэр  ёЄЁрэшЎр чрфрўш (Єрь userkernel)
-;callbdos_sp     WORD ;ё■фр ёюїЁрэ хЄё  ёЄхъ яЁш т√чютх BDOS
-;curmsg          WORD ;TODO рфЁхё Єхъє∙хую ёююс∙хэш  ¤Єющ чрфрўх
-;endmsg          WORD ;TODO рфЁхё ъюэЎр юўхЁхфш ёююс∙хэшщ ¤Єющ чрфрўх
-;sp              WORD ;Єхъє∙шщ рфЁхё ёЄхър (ыхцшЄ т mainpg:intsp)
-;next            WORD ;TODO єърчрЄхы№ эр ёыхфє∙є■ чрфрўє (ёыхфє■∙р  чр т√яюыэ хьющ тэєЄЁш Єюую цх яЁшюЁшЄхЄр)
+flags           BYTE ;флаги (всегда в начале структуры)
+;priority        BYTE ;TODO приоритет (0=конец списка)
+id              BYTE ;номер задачи (0=свободно)
+parentid        BYTE ;номер родительской задачи
+mainpg          BYTE ;главная страница задачи (там userkernel)
+;callbdos_sp     WORD ;сюда сохраняется стек при вызове BDOS
+;curmsg          WORD ;TODO адрес текущего сообщения этой задаче
+;endmsg          WORD ;TODO адрес конца очереди сообщений этой задаче
+;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
+;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
 lasttime        BYTE
-border          BYTE ;Єхъє∙шщ ЎтхЄ сюЁфхЁр 0..15
-screen          BYTE ;Єхъє∙шщ эюьхЁ ¤ъЁрэр ;fd_user + 8*screen
-gfxmode         BYTE ;Єхъє∙шщ тшфхюЁхцшь ;чэрўхэшх фы  0xbd77
-textcuraddr     WORD ;рфЁхё ъєЁёюЁр эр ¤ъЁрэх
-curcolor        BYTE ;Єхъє∙шщ рЄЁшсєЄ яЁш яхўрЄш
+border          BYTE ;текущий цвет бордера 0..15
+screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
+gfxmode         BYTE ;текущий видеорежим ;значение для 0xbd77
+textcuraddr     WORD ;адрес курсора на экране
+curcolor        BYTE ;текущий атрибут при печати
 dta             WORD ;data transfer address
-vol             BYTE ;Єхъє∙шщ фЁрщт (volume)
-dircluster      DWORD ;Єхъє∙р  фшЁхъЄюЁш 
-dir             BLOCK DIR_sz ;тЁхьхээ√щ сєЇхЁ фы  ўЄхэш  ърЄрыюур
-bdosstack       BLOCK bdosstack_sz ;ёЄхъ яЁш т√чютх BDOS
+vol             BYTE ;текущий драйв (volume)
+dircluster      DWORD ;текущая директория
+dir             BLOCK DIR_sz ;временный буфер для чтения каталога
+bdosstack       BLOCK bdosstack_sz ;стек при вызове BDOS
 pal             BLOCK 32
 ;safestack       BLOCK safestack_sz ;de,hl,af',af,ix,hl',de',bc',iy
         ENDS
@@ -200,14 +200,14 @@ sys_intsp=$+1
          ld hl,0
          ld (intsp+0x4000),hl ;"sp"
         ld a,pgtrdosfs;pagexor-5
-        out (c),a ;Єрь INTSTACK
+        out (c),a ;там INTSTACK
 
 ;sys_int_schedule_and_go
         ld sp,INTSTACK2
 
         call setgfxpal_focus
 
-        call on_int ;ЄшърхЄ ЄрщьхЁ
+        call on_int ;тикает таймер
 
         call schedule ;out: iy=app
 
@@ -230,7 +230,7 @@ sys_int_popregs
 	pop af
 	ex af,af'
         pop af ;f, [a=screenpg]
-         ld ix,(focusappaddr) ;чфхё№ ёэютр, Є.ъ. тючьюцхэ тїюф шч yield т sys_int_popregs (шыш эрфю фєсышЁютрЄ№ Єрь ш урЁрэЄшЁютрЄ№, ўЄю schedule ш on_int эх яюЁЄ Є ix)
+         ld ix,(focusappaddr) ;здесь снова, т.к. возможен вход из yield в sys_int_popregs (или надо дублировать там и гарантировать, что schedule и on_int не портят ix)
          ld a,(ix+app.screen)
 	pop ix
         pop hl
@@ -238,7 +238,7 @@ sys_int_popregs
         pop bc
         exx
         pop iy
-        ;TODO юётюсюфшЄ№ ь№■Єхъё, ьюцэю тъы■ўшЄ№ яЁхЁ√трэш 
+        ;TODO освободить мьютекс, можно включить прерывания
         jp sys_intq
 
 schedule
@@ -261,7 +261,7 @@ findnextapp0
 findnextappskip
         dec l
         jr nz,findnextapp0
-;no active apps (шыш ърцфр  т фрээюь ЇЁхщьх єцх т√ч√трырё№)
+;no active apps (или каждая в данном фрейме уже вызывалась)
         ld iy,app1 ;idle
 findnextappq
         ld (appaddr),iy
@@ -269,27 +269,27 @@ findnextappq
           ;ld iy,(appaddr)
           ld a,(iy+app.mainpg)
           ld bc,memport4000
-          ;ld (sys_curpg4000),a ;эх эєцэю?
+          ;ld (sys_curpg4000),a ;не нужно?
           out (c),a
           ld ix,(focusappaddr)
           ld a,(ix+app.screen)
           or fd_system
-          ;ld (user_fdvalue1+0x4000),a ;for QUIT, ьх°рхЄ фхырЄ№ ьэюуючрфрўэюёЄ№ ё 0xffff: jp nn
+          ;ld (user_fdvalue1+0x4000),a ;for QUIT, мешает делать многозадачность с 0xffff: jp nn
           ld (user_fdvalue2+0x4000),a
           ld (user_fdvalue3+0x4000),a
           ld (user_fdvalue4+0x4000),a
           ;ld (user_fdvalue5+0x4000),a ;not supported yet
           ld (user_fdvalue6+0x4000),a
           ld a,pgtrdosfs
-          out (c),a ;Єрь INTSTACK
+          out (c),a ;там INTSTACK
         ;ld iy,(appaddr)
         ret
 
 setgfxpal_focus
-;хёыш т yield эх яюёЄртшЄ№ ярышЄЁє тЄюЁющ чрфрўх, Єю юэр эшъюуфр эх яюёЄртшЄё , хёыш яхЁтр  чрфрўр т Ўшъых фхырхЄ yield
-;яюЄюьє ўЄю тёх яЁхЁ√трэш  сєфєЄ ёЄртшЄ№ яхЁтє■ чрфрўє
-;хёыш цх ярышЄЁє ёЄртшЄ№ т ёрьюь yield, Єю ьюуєЄ с√Є№ яЁюсыхь√ ё т√ёЄртыхэшхь ярышЄЁ√, хёыш yield т√ч√трЄ№ т ёыєўрщэ√ї ьхёЄрї шыш хёыш тёх чрфрўш эхръЄштэ√
-;яю¤Єюьє юсЁрсюЄўшъ яЁхЁ√трэшщ фюыцхэ т√ёЄрты Є№ ярышЄЁє ш тшфхюЁхцшь чрфрўш, ъюЄюЁр  т Їюъєёх, эхчртшёшью юЄ х╕ ръЄштэюёЄш
+;если в yield не поставить палитру второй задаче, то она никогда не поставится, если первая задача в цикле делает yield
+;потому что все прерывания будут ставить первую задачу
+;если же палитру ставить в самом yield, то могут быть проблемы с выставлением палитры, если yield вызывать в случайных местах или если все задачи неактивны
+;поэтому обработчик прерываний должен выставлять палитру и видеорежим задачи, которая в фокусе, независимо от её активности
 
         ;ld de,(focusappaddr)
         ;or a
@@ -300,7 +300,7 @@ setgfxpal_focus
         ;ld (sys_curgfxmode),a
 ;sys_int_nofocus
         
-        ;TODO т ьюьхэЄ яхЁхъы■ўхэш  эр focusapp (Є.х. эр яЁхф√фє∙хь ЇЁхщьх эх с√ыю Їюъєёр)
+        ;TODO в момент переключения на focusapp (т.е. на предыдущем фрейме не было фокуса)
         ;;push iy
         ;;ld iy,(focusappaddr)
         ;call restoretextmode
@@ -354,11 +354,11 @@ setgfxpal_focus
         ret
 
 sys_sysint
-;TODO schedule (фы  RTOS), эю Єюуфр эрфю ЁххэЄхЁрсхы№эюёЄ№ тёхї яЁюЎхфєЁ BDOS (фрцх схч ¤Єюую °хфєышэур юэш тё╕ Ёртэю эх фюыцэ√ шьхЄ№ ёюёЄю эш !)
-;ъръ °хфєышЄ№, ъюуфр ь√ т kernelspace???
-;TODO яЁютхЁър ъЁшЄшўхёъющ ёхъЎшш (т юс√ўэюь яЁхЁ√трэшш эх эєцэю)
+;TODO schedule (для RTOS), но тогда надо реентерабельность всех процедур BDOS (даже без этого шедулинга они всё равно не должны иметь состояния!)
+;как шедулить, когда мы в kernelspace???
+;TODO проверка критической секции (в обычном прерывании не нужно)
         ex de,hl
-        ex (sp),hl ;тюёёЄрэютшыш ёЄхъ шч de
+        ex (sp),hl ;восстановили стек из de
         ld (sys_sysint_jp),hl
         ld (sys_sysint_sp),sp
         ld sp,INTSTACK1
@@ -377,7 +377,7 @@ sys_sysint
         ld sp,INTSTACK2
 
         ld bc,memport4000
-        ld a,pgtrdosfs;pagexor-5 ;Єрь INTSTACK
+        ld a,pgtrdosfs;pagexor-5 ;там INTSTACK
         out (c),a
 
         call setgfxpal_focus
@@ -410,7 +410,7 @@ sys_sysint_jp=$+1
         jp 0
         
 on_int
-;т 0x4000 ёхщўрё pg5, Єрь ёЄхъ
+;в 0x4000 сейчас pg5, там стек
 focusappaddr=$+1
         ld hl,app1
         ld bc,app.gfxmode
@@ -511,7 +511,7 @@ muzcall=$+1
 	call sys_reter;pt3player.PLAY ;TODO call drivers
         ld a,pgtrdosfs;pagexor-5
         ld bc,memport4000
-        out (c),a ;Єрь INTSTACK
+        out (c),a ;там INTSTACK
         ret
         
 sys_getchar
@@ -526,7 +526,7 @@ endsys_result_a
         ld iy,(appaddr)
         jp endsys_result_aq
 
-;TODO сЁрЄ№ эюьхЁ ¤ъЁрэр є чрфрўш ё Їюъєёюь ш яЁш °хфєышэух ёЄртшЄ№ ¤ЄюЄ эюьхЁ т userkernel эютющ чрфрўш
+;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи
         
 sys_getchar_fail
 ;a=0, nz
@@ -569,26 +569,26 @@ sys_mousebuttons=$+1
         ret ;z
 
 callbdos
-;яЁш т√чютх bdos эрфю тъы■ўшЄ№:
-;0x0000 - syscode (єцх тъы■ўхэю)
+;при вызове bdos надо включить:
+;0x0000 - syscode (уже включено)
 ;0x4000 - fatfs
 ;[0x8000 - curpg32klow]
 ;0xc000 - curpg32khigh
-;чр∙шЄр юЄ юфэютЁхьхээюую фюёЄєяр фтєь чрфрўрь
-;чрэ Єю a,bc,de,hl
-;ётюсюфэю iy
+;защита от одновременного доступа двум задачам
+;занято a,bc,de,hl
+;свободно iy
         if bdosstack_sz==0
 
         ld (callbdos_sp),sp
-        ld sp,BDOSSTACK ;фю ¤Єюую ьюьхэЄр яЁхЁ√трэшх ьюцхЄ чряюЁюЄ№ ы■сюх ьхёЄю ярь Єш (user sp >=0x3b00)
+        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
 
         else
         
         exx
 callbdos_lock        
-        ld hl,callbdos_mutex ;шчэрўры№эю 0xc0
+        ld hl,callbdos_mutex ;изначально 0xc0
         sla (hl)
-        jr z,callbdos_lock ;с√ы чрэ Є
+        jr z,callbdos_lock ;был занят
         
         ld hl,0
         add hl,sp
@@ -597,7 +597,7 @@ callbdos_lock
         ;ld (iy+app.callbdos_sp+1),h
         ld bc,app.bdosstack+bdosstack_sz
         add iy,bc
-        ld sp,iy ;фю ¤Єюую ьюьхэЄр яЁхЁ√трэшх ьюцхЄ чряюЁюЄ№ ы■сюх ьхёЄю ярь Єш (user sp >=0x3b00)
+        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
         push hl
         exx
         
@@ -614,7 +614,7 @@ callbdos_lock
          call setpgs_killable
         if bdosstack_sz !=0
         ld a,0xc0
-        ld (callbdos_mutex),a ;Єю цх ёрьюх фхыр■Є Єх ЇєэъЎшш BDOS, ъюЄюЁ√х эх ёюсшЁр■Єё  тючтЁр∙рЄ№ё 
+        ld (callbdos_mutex),a ;то же самое делают те функции BDOS, которые не собираются возвращаться
         endif
          pop bc
          pop af
@@ -645,19 +645,19 @@ setpgs_killable
         ret
 
 sys_quit
-;ёэ Є№ Єхъє∙є■ чрфрўє
-        ld sp,QUITSTACK ;хёыш эх ёфхырЄ№, Єю тё╕ х∙╕ ёЄхъ чрфрўш, ш ь√ эх тхЁэ╕ьё  шч schedule
+;снять текущую задачу
+        ld sp,QUITSTACK ;если не сделать, то всё ещё стек задачи, и мы не вернёмся из schedule
         ld iy,(appaddr)
         ld e,(iy+app.id)
         call BDOS_freezeapp
        ld hl,sys_reter
        ld (muzcall),hl
         call BDOS_delapppages
-        jp BDOS_yield_q ;яхЁхїюфшь эр ъръє■-эшсєф№ чрфрўє
+        jp BDOS_yield_q ;переходим на какую-нибудь задачу
         
 setkernelpages_go
 ;sp=0x3ffx
-;ёхщўрё тъы■ўхэр 5-  ёЄЁрэшЎр
+;сейчас включена 5-я страница
         BDOSSETPGTRDOSFS
         call makeidle
 setkernelpages_go_iy
@@ -667,10 +667,10 @@ setkernelpages_go_iy
         ;ld iy,(appaddr)
         ld d,(iy+app.mainpg)
 ;d=pgmain
-;e=чэрўхэшх фы  ръъєьєы ЄюЁр
+;e=значение для аккумулятора
         ld bc,memport0000
         ld a,(iy+app.screen)
-        jp sys_intq ;Єрь ei
+        jp sys_intq ;там ei
 
 
 sys_findfreeappstruct
@@ -690,7 +690,7 @@ sys_findfreeappstruct0
 sys_findfreeid
         xor a
 sys_findfreeid_next
-        inc a ;a!=0 (0 ш 0xff эхы№ч  - ёь. BDOS_newpage)
+        inc a ;a!=0 (0 и 0xff нельзя - см. BDOS_newpage)
         ld iy,app1
         ld de,app_sz
         ld b,MAXAPPS
@@ -709,7 +709,7 @@ readtime
 ;sp=0x7fxx
 ;e=gfxmode
 ;out: hl=date, de=time
-;TODO рЄюьрЁэю
+;TODO атомарно
 		ld bc,0xf7 + (NVRAM_REG<<8)
 		ld a,0x0b
 		out (c),a
@@ -782,7 +782,7 @@ bcd2bin
 		endif
         
         include "fatfsdrv.asm"
-        include "sysbdos.asm" ;т ъюэЎх хёЄ№ align 256
+        include "sysbdos.asm" ;в конце есть align 256
         ent
 syscodesz=$-wassyscode
         display "syscodesz=",/h,syscodesz," < minstack=",/h,SYSMINSTACK

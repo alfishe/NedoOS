@@ -1,12 +1,12 @@
-;эх тъы■ўрхь gfxmode, ўЄюс√ idle эшъюуфр эх яюыєўры Їюъєё
-;яю єьюыўрэш■ ёЄюшЄ ЄхъёЄьюф
-        ld sp,0x4000 ;эхы№ч  эшцх 0x3b00 ш эхы№ч  яхЁхёхў№ё  ё resident (хёыш ь√ т pgtrdosfs)
+;не включаем gfxmode, чтобы idle никогда не получал фокус
+;по умолчанию стоит текстмод
+        ld sp,0x4000 ;нельзя ниже 0x3b00 и нельзя пересечься с resident (если мы в pgtrdosfs)
         ld e,7
         OS_CLS
-        ;хёыш ёфхырЄ№ SETGFX, Єю яюёых ттхфхэш  ЄхЁьшэрыют яю тшЄё  ыш°эшщ ЄхЁьшэры яюф idle
+        ;если сделать SETGFX, то после введения терминалов появится лишний терминал под idle
         
         OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         push hl
         OS_DELPAGE
         pop hl
@@ -18,7 +18,7 @@
         OS_DELPAGE
 		
 		if atm==1
-;чрёЄртър
+;заставка
 		ld hl,spr_cat
 logo_loop
 		push hl
@@ -129,7 +129,7 @@ idle_runcmd
         call prtext
         
         OS_NEWAPP
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000 эютюую яЁшыюцхэш , b=id, a=error
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
 
         ld a,d
@@ -153,7 +153,7 @@ idle_runcmd
         ld e,a
         OS_RUNAPP
         
-;яюэшчшЄ№ яЁшюЁшЄхЄ ёхсх
+;понизить приоритет себе
         ld e,1
         OS_FREEZEAPP
         
@@ -194,7 +194,7 @@ tdrivemounted_drive
 
 cmdbuf
         ;db "cmd autoexec.bat",0
-        db "autoexec.bat autoexec.bat",0 ;ўЄюс√ яюЄюь тїюфшЄ№ т шэЄхЁръЄштэ√щ Ёхцшь (cmd яЁютхЁ хЄ яхЁтюх ёыютю), шэрўх яЁшф╕Єё  яЁюяшёрЄ№ т autoexec.bat ъюьрэфє cmd ш шьхЄ№ фтх чрфрўш cmd (юфэє тшё ∙є■ т юцшфрэшш фЁєуюую cmd)
+        db "autoexec.bat autoexec.bat",0 ;чтобы потом входить в интерактивный режим (cmd проверяет первое слово), иначе придётся прописать в autoexec.bat команду cmd и иметь две задачи cmd (одну висящую в ожидании другого cmd)
         
 prtext
 prtext0

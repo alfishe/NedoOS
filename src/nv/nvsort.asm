@@ -189,7 +189,7 @@ sorter2_add0
 	;res 6,d
 	;ld a,3 ;TODO remove copy
 	;PGW2strpg
-;т c000 PANEL.pg
+;в c000 PANEL.pg
 	;ld bc,32
 	;ldir
 	;pop hl
@@ -228,7 +228,7 @@ sorter1
         ret z
 	ld l,(ix+PANEL.pointers)
 	ld h,(ix+PANEL.pointers+1)
-;яЁш юсЁрЄэющ ёюЁЄшЁютъх т Ёхцшьх "схч ёюЁЄшЁютъш" эр ърцфюь яЁюїюфх т ъюэхЎ ёяшёър яюярф╕Є яхЁт√щ Їрщы, р эр ёыхфє■∙хь юэ яюярф╕Є т юўхЁхфэюх эрўрыю, Є.х. яхЁхёЄрэютър т юсЁрЄэюь яюЁ фъх эх т√щфхЄ
+;при обратной сортировке в режиме "без сортировки" на каждом проходе в конец списка попадёт первый файл, а на следующем он попадёт в очередное начало, т.е. перестановка в обратном порядке не выйдет
 sortfiles_pass0
 	push bc
 	push hl ;hl=start (in pointers)
@@ -246,7 +246,7 @@ sortfiles_pass0
         pop af
 	pop bc
          jr nz,$+6 ;not compareempty
-	 dec bc ;хёыш compareempty
+	 dec bc ;если compareempty
 	 ld a,b
 	 or c
          ret z
@@ -277,7 +277,7 @@ findmin0
         
 	push de ;de=current min (pointer)
         call getfilepointer_de_fromhl
-	 SETPG32KLOW ;р Єю ёхщўрё яю current min тъы■ўрхЄё  PG32KHIGH
+	 SETPG32KLOW ;а то сейчас по current min включается PG32KHIGH
 	 res 6,d
         ex de,hl ;hl=FCB
         ex (sp),hl ;hl=current min (pointer)

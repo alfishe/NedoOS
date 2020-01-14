@@ -14,7 +14,7 @@ CMARK=8
 loadhtml
         push af ;first char
 ;skip spaces and line breaks
-        cp 0xef ;hippiman.16mb.com эрўшэрхЄё▀ ё ef bb bf (UTF-8 BOM)
+        cp 0xef ;hippiman.16mb.com начинаетсЯ с ef bb bf (UTF-8 BOM)
         jr z,loadhtml_html
         call htmlskipspaces_go
          cp '<'
@@ -48,7 +48,7 @@ defaultunicodeflag=$+1
         ld (first2pointer),hl
         ld (first2pointerHSB),a
 
-        call initstringbuf1 ;buf2 шэшЎшрышчшЁєхЄё  т Є¤ух a/img ;ёюфхЁцшЄ setfontweight
+        call initstringbuf1 ;buf2 инициализируется в тэге a/img ;содержит setfontweight
         
         ;ld de,0
         ;call setxymc_stateful
@@ -100,7 +100,7 @@ loadhtml_spacemainloop
          ;jr $
         ;call countlinewidth
         ;ld a,h
-        ;or l ;р Єрь єцх єяЁрты ■∙шх ъюф√
+        ;or l ;а там уже управляющие коды
         ld a,(prcharvirtual_stateful_x)
         or a
         jr z,loadhtml_mainloop
@@ -127,9 +127,9 @@ mangledcharstrcp0
         ld a,(hl) ;decoded char
         jp loadhtml_mainloop_mangledcharq
 mangledcharstrcp_fail
-        ld b,-1 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld b,-1 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю
+        cpir ;найдём обязательно
         jr mangledcharstrcp0
 mangledchar_error=loadhtml_mainloop
         
@@ -188,9 +188,9 @@ loadhtml_tagcloser=$+1
 jphl
         jp (hl) ;run internal command
 strcpexec_fail
-        ld b,-1 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld b,-1 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю
+        cpir ;найдём обязательно
         jr strcpexec0
 
 executetag_error
@@ -328,17 +328,17 @@ tagslist
 ;Z=closing tag
 
 tag_label
-;<label for="searchInput">╧юшёъ</label>
+;<label for="searchInput">Поиск</label>
 ;TODO
         jp skiprestoftag
 
 tag_form
 tag_input
 ;<form action="http://speccy.info/w/index.php" id="searchform">
-;<input type="hidden" name="title" value="╤ыєцхсэр :╧юшёъ">
-;<input type="search" name="search" placeholder="╧юшёъ" title="╚ёърЄ№ т SpeccyWiki [shift-esc-f]" accesskey="f" id="searchInput" autocomplete="off">
-;<input type="submit" name="go" value="╧хЁхщЄш" title="╧хЁхщЄш ъ ёЄЁрэшЎх, шьх■∙хщ т ЄюўэюёЄш Єръюх эрчтрэшх" id="searchGoButton" class="searchButton">&nbsp;
-;<input type="submit" name="fulltext" value="═рщЄш" title="═рщЄш ёЄЁрэшЎ√, ёюфхЁцр∙шх єърчрээ√щ ЄхъёЄ" id="mw-searchButton" class="searchButton">
+;<input type="hidden" name="title" value="Служебная:Поиск">
+;<input type="search" name="search" placeholder="Поиск" title="Искать в SpeccyWiki [shift-esc-f]" accesskey="f" id="searchInput" autocomplete="off">
+;<input type="submit" name="go" value="Перейти" title="Перейти к странице, имеющей в точности такое название" id="searchGoButton" class="searchButton">&nbsp;
+;<input type="submit" name="fulltext" value="Найти" title="Найти страницы, содержащие указанный текст" id="mw-searchButton" class="searchButton">
 ;</form>
 ;TODO
         jp skiprestoftag
@@ -351,7 +351,7 @@ tag_code
 tag_pre
         push af ;z/nz
         call prcharvirtual_crlf_stateful ;opening&closing
-        call htmlinitbody ;zxdn Ёхъырьр т plain text
+        call htmlinitbody ;zxdn реклама в plain text
         pop af ;z/nz
         ld hl,ispre
         ld a,1
@@ -408,7 +408,7 @@ tag_u_b_i
         
 tag_ul ;list
         jp nz,skiprestoftag ;opening (li does newline)
-tag_dd ;эр lib.ru ¤Єю яхЁхтюф ёЄЁюъш
+tag_dd ;на lib.ru это перевод строки
 tag_div
 tag_table
 tag_br
@@ -440,7 +440,7 @@ tag_frame0
         call htmlskipspaces_go
 
         ld de,wordbuf
-        call getword_param_go ;т ярЁрьхЄЁх ьюуєЄ с√Є№ чрърт√ўхээ√х яЁюсхы√!
+        call getword_param_go ;в параметре могут быть закавыченные пробелы!
         ld (executetag_endchar),a
         or a
         ret z
@@ -478,7 +478,7 @@ tag_frame_typetag0
 inithref
          ld a,(curlink)
          or a
-         call nz,savestringbuf2 ;хёыш img тэєЄЁш a
+         call nz,savestringbuf2 ;если img внутри a
         call initstringbuf2
         ;ld a,CLINK
         ;ld (curlink),a
@@ -578,7 +578,7 @@ tag_img_opening_altfail
         jr nz,tag_img_opening_readalt
 tag_img_opening_readaltq
          ld (executetag_endchar),a
-tag_frame_typetagq ;TODO яюўхьє т√°х ё·хфрхЄ яхЁт√щ ЇЁхщь atmturbo?
+tag_frame_typetagq ;TODO почему выше съедает первый фрейм atmturbo?
         ld a,']'
         call prcharvirtual_stateful
         xor a
@@ -643,7 +643,7 @@ tag_a_opening_read_go
          cp '&'
          jr nz,tag_a_opening_read0ok
         call printtostringbuf2
-;TODO яЁютхЁшЄ№ &amp; (forum.nedopc.com)
+;TODO проверить &amp; (forum.nedopc.com)
         call RDBYTE;rdbyte
          cp 'a'
          jr nz,tag_a_opening_read0ok
@@ -717,7 +717,7 @@ getword_tag
 ;hl=string
 ;de=wordbuf
 ;out: hl=terminator/space/> addr, a=terminator/space/> char
-;TODO яЁютхЁ Є№ яхЁхяюыэхэшх WORDBUFSIZE
+;TODO проверять переполнение WORDBUFSIZE
 getword_tag0
         call RDBYTE;rdbyte
 getword_tag_go
@@ -743,7 +743,7 @@ getword_mangledchar
 ;hl=string
 ;de=wordbuf
 ;out: hl=terminator/space/; addr, a=terminator/space/; char
-;TODO яЁютхЁ Є№ яхЁхяюыэхэшх WORDBUFSIZE
+;TODO проверять переполнение WORDBUFSIZE
 getword_mangledchar0
         call RDBYTE;rdbyte
         ;or a
@@ -768,10 +768,10 @@ getword_mangledcharq
 ;hl=string
 ;de=wordbuf
 ;out: hl=terminator/space/; addr, a=terminator/space/; char
-;TODO яЁютхЁ Є№ яхЁхяюыэхэшх WORDBUFSIZE
+;TODO проверять переполнение WORDBUFSIZE
 getword_param0
         call RDBYTE;rdbyte
-getword_param_go ;т ярЁрьхЄЁх ьюуєЄ с√Є№ чрърт√ўхээ√х яЁюсхы√!
+getword_param_go ;в параметре могут быть закавыченные пробелы!
         or a
         jr z,getword_paramq
          cp "'"
@@ -798,10 +798,10 @@ getword_paramquote0
         inc de
         call RDBYTE;rdbyte
         cp c
-        jr nz,getword_paramquote0 ;TODO р хёыш юэр эшъюуфр эх чръЁюхЄё▀???
+        jr nz,getword_paramquote0 ;TODO а если она никогда не закроетсЯ???
         jr getword_param0ok
 getword_paramspaceq
-;шыш ЄєЄ яЁютхЁ▀Є№, т ърт√ўърї ыш ь√?
+;или тут проверЯть, в кавычках ли мы?
 getword_paramq
         push af
         xor a
@@ -860,7 +860,7 @@ tag_title
         jp nz,tag_h1 ;open
 ;tag_titleclose
          ;ld a,1
-         ;ld (utf8flag),a ;эхы№ч▀, Є.ъ. title яюёых charset
+         ;ld (utf8flag),a ;нельзЯ, т.к. title после charset
         call prcharvirtual_crlf_stateful ;</title> forces newline
         xor a ;z
         jp tag_h1
@@ -868,7 +868,7 @@ tag_title
 tag_li ;list line (no closing tag)
         jp z,skiprestoftag ;closing
         call prcharvirtual_crlf_stateful
-        ld a,'*';'Х';'*' ;TODO ё єў▐Єюь UTF8
+        ld a,'*';'-';'*' ;TODO с учЮтом UTF8
         call prcharvirtual_stateful
         ld a,' '
         call prcharvirtual_stateful
@@ -952,10 +952,10 @@ htmlinitbody
          ld (iscentered),a
          inc a ;ld a,1
          ld (printableflag),a
-;¤Єш ьрэшяєы Ўшш чрЄЁєЄ єцх эряхўрЄрээ√х ЇЁхщь√:
+;эти манипуляции затрут уже напечатанные фреймы:
          ;call prcharvirtual_x0
          call setdefaultfontweight
-         jp setfontweight;call initstringbuf1 ;схч ¤Єюую эх яш°хЄ ъюф√ єёЄрэютъш ЎтхЄр
+         jp setfontweight;call initstringbuf1 ;без этого не пишет коды установки цвета
         
 skiprestoftag
 ;we can be at >/space/EOF (in executetag_endchar)

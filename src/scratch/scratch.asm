@@ -3,7 +3,7 @@
 
         include "../_sdk/sys_h.asm"
 
-MAXCMDSZ=COMMANDLINE_sz-1 ;эх ёўшЄр  ЄхЁьшэрЄюЁр
+MAXCMDSZ=COMMANDLINE_sz-1 ;не считая терминатора
 
 scrwid=320
 scrwid8=scrwid/8
@@ -12,7 +12,7 @@ scrhgt=200
 scrbase=0x8000
 scrbase16k=0x4000
 
-tempc000=0x4000 ;ъЁєуыюх!
+tempc000=0x4000 ;круглое!
 tempe000=0x6000
 
 editpal_c0=0x80
@@ -37,7 +37,7 @@ palettex8=rightpanelx8
 
 navigatorx=rightpanelx8*8
 navigatory=palettey+(8*4)
-navigatorhgt=31 ;ыєў°х эх єтхышўштрЄ№, ўЄюс√ эх с√ыю яхЁхяюыэхэш  яЁш єьэюцхэшш эр bitmapwid (max 2048)
+navigatorhgt=31 ;лучше не увеличивать, чтобы не было переполнения при умножении на bitmapwid (max 2048)
 navigatorwid=31
 
 coordsx=navigatorx
@@ -96,18 +96,18 @@ main_go
         jp main_go2
         ds 256
 main_go2
-        ld sp,0x4000 ;эх фюыцхэ юяєёърЄ№ё  эшцх 0x3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,0 ;EGA
         OS_SETGFX
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,e
         ld (setpgs_scr_low),a
         ld a,d
         ld (setpgs_scr_high),a
         
         OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         ld (curpgshapes),a
         ld a,h
@@ -136,9 +136,9 @@ main_go2
         cp '/'
         jr nz,$+4
         xor a
-        ld (de),a ;юЄЁхчрЄ№ шь  Їрщыр
+        ld (de),a ;отрезать имя файла
         inc de
-        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (т 0xc000...)
+        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         ;push de
         jr nz,autoload_nopath
         OS_CHDIR
@@ -153,7 +153,7 @@ autoload_nopath
         OS_FOPEN
         or a
         jr nz,noautoload;error
-        call readbmp ;nz=ю°шсър (Єюуфр эх ьхэ Є№ шь  Їрщыр)
+        call readbmp ;nz=ошибка (тогда не менять имя файла)
         jr nz,autoloaderror
         
         ld hl,fcb_filename ;Pointer to 11 byte buffer
@@ -182,18 +182,18 @@ autoloadq
         call showworkscreen
         
 mainloop
-;1. тё╕ т√тюфшь
-;2. цф╕ь ёюс√Єшх
-;3. тё╕ ёЄшЁрхь
-;4. юсЁрсрЄ√трхь ёюс√Єшх
+;1. всё выводим
+;2. ждём событие
+;3. всё стираем
+;4. обрабатываем событие
         call ahl_coords
-        call invarrzone ;шэтхЁЄшЁєхь яєэъЄ яюф ёЄЁхыъющ
+        call invarrzone ;инвертируем пункт под стрелкой
         call ahl_coords
-        call showline ;Ёшёєхь эютє■ ышэш■
+        call showline ;рисуем новую линию
         call ahl_coords
-        call showwindow ;Ёшёєхь эютюх юъэю
+        call showwindow ;рисуем новое окно
         call ahl_coords
-        call showcopywindow ;Ёшёєхь эютюх юъэю ъюяшЁютрэш 
+        call showcopywindow ;рисуем новое окно копирования
         call ahl_coords
         call checkfirezone
         ld (prarr_zone),a
@@ -205,23 +205,23 @@ mainloop
         call ahl_coords
         call shapes_memorizearr
         call ahl_coords
-        call shapes_prarr ;Ёшёєхь ёЄЁхыъє
+        call shapes_prarr ;рисуем стрелку
         
-        call waitsomething ;т ¤Єю тЁхь  ёЄЁхыър тшфэр
-;ўЄю-Єю шчьхэшыюё№ - ёЄшЁрхь ёЄЁхыъє ш ёЄрЁюх юъэю, фтшурхь ёЄЁхыъє, Ёшёєхь эютюх юъэю ш ёЄЁхыъє
+        call waitsomething ;в это время стрелка видна
+;что-то изменилось - стираем стрелку и старое окно, двигаем стрелку, рисуем новое окно и стрелку
 
         call setpgshapes
         
         call ahl_oldcoords
-        call shapes_rearr ;ёЄшЁрхь ёЄЁхыъє
+        call shapes_rearr ;стираем стрелку
         call ahl_oldcoords
-        call showcopywindow ;ёЄшЁрхь ёЄрЁюх юъэю ъюяшЁютрэш 
+        call showcopywindow ;стираем старое окно копирования
         call ahl_oldcoords
-        call showwindow ;ёЄшЁрхь ёЄрЁюх юъэю
+        call showwindow ;стираем старое окно
         call ahl_oldcoords
-        call showline ;ёЄшЁрхь ёЄрЁє■ ышэш■
+        call showline ;стираем старую линию
         call ahl_oldcoords
-        call invarrzone ;тюёёЄрэртыштрхь (шэтхЁЄшЁєхь) яєэъЄ яюф ёЄЁхыъющ
+        call invarrzone ;восстанавливаем (инвертируем) пункт под стрелкой
         
         call control_mousebuttons
         call control_keys
@@ -238,8 +238,8 @@ ahl_oldcoords
         ret
 
 showline
-;hl=x эр ¤ъЁрэх
-;a=y эр ¤ъЁрэх
+;hl=x на экране
+;a=y на экране
 curlinestate=$+1
         ld c,0
         dec c
@@ -247,18 +247,18 @@ curlinestate=$+1
         call checkfirezone
         cp ZONE_WORK
         ret nz
-;out: bc=x cur, de=y cur т сшЄь¤ях (ё ъышяшЁютрэшхь яю workzone)          
+;out: bc=x cur, de=y cur в битмэпе (с клипированием по workzone)          
         ;push bc
         ;push de
         ld (curlinex2),bc
         ld (curliney2),de
         
 curlinex=$+1
-        ld bc,-1 ;яю єьюыўрэш■ ышэш  ўхЁхч shift эхфюёЄєяэр
+        ld bc,-1 ;по умолчанию линия через shift недоступна
 curliney=$+1
         ld de,0
-;bc=x т bitmap
-;de=y т bitmap
+;bc=x в bitmap
+;de=y в bitmap
         call calccoords_frombitmapcoords_noclip ;hl=x, de=y
 
         push hl ;x
@@ -277,16 +277,16 @@ curliney2=$+1
         pop bc ;x
         
         call setpgshapes
-;bc=x (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de=y (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;de=y (в плоскости экрана, но может быть отрицательным)
 ;ix=x2
 ;hl=y2
         jp shapes_line
         
 invarrzone
-;шэтхЁЄшЁютрЄ№ яєэъЄ яюф ёЄЁхыъющ
-;hl=x эр ¤ъЁрэх
-;a=y эр ¤ъЁрэх
+;инвертировать пункт под стрелкой
+;hl=x на экране
+;a=y на экране
         push af ;y
         call checkfirezone
         pop bc ;b=y
@@ -294,7 +294,7 @@ invarrzone
         ret nz
         ld a,b;(arry)
         call calccurtool
-        ret nc ;эхЄ Єръющ Єєыч√
+        ret nc ;нет такой тулзы
         add a,a
         add a,a
         add a,a
@@ -311,30 +311,30 @@ control_mousebuttons
         cpl
         and 7
         cp 3
-        jr nc,mmb ;LMB+RMB шыш MMB
+        jr nc,mmb ;LMB+RMB или MMB
         rra
         jp c,fire
         rra
         jr c,rmb
-        ret ;эшъюуфр
+        ret ;никогда
 
 isitclick
 	ld a,(oldmousebuttons)
 	cpl
 	and 7
-        ret ;nz=ъэюяъє єцх фхЁцрыш
+        ret ;nz=кнопку уже держали
 
 mmb
         call ahl_coords
-        call checkfirezone ;out: a=ъюф чюэ√
+        call checkfirezone ;out: a=код зоны
         cp ZONE_WORK
         jr z,mmb_work
         cp ZONE_PAL
-        ret nz ;эх ярышЄЁр
+        ret nz ;не палитра
         call ahl_coords
         sub palettey
         cp 4*8
-        ret nc ;эх ярышЄЁр
+        ret nc ;не палитра
         rra
         and 0x0c
         ld c,a
@@ -346,14 +346,14 @@ mmb
         srl h
         rra
         sub palettex8
-        ret c ;эх ярышЄЁр
+        ret c ;не палитра
         ;a=x8-palettex8
         add a,c
         add a,a
         ld l,a
         ld h,0
         ld bc,workpal
-        add hl,bc ;hl=єърчрЄхы№ эр Єхъє∙шщ ЎтхЄ т ярышЄЁх
+        add hl,bc ;hl=указатель на текущий цвет в палитре
         ld (mmb_setpal_coloraddr),hl
         ld a,(hl)
         inc hl
@@ -364,8 +364,8 @@ mmb_setpal_coloraddr=$+1
         ld (0),hl
         jp showworkscreen        
 mmb_work
-;Ёшёютрэшх ёхЄъющ
-;bc=x т bitmap, de=y т bitmap
+;рисование сеткой
+;bc=x в bitmap, de=y в bitmap
         ld a,(curcolor1)
         ld (curcolorA),a
         ld a,(curcolor2)
@@ -387,7 +387,7 @@ rmb
         
 fire_or_rmb_action_
         call ahl_coords
-        call checkfirezone ;out: a=ъюф чюэ√
+        call checkfirezone ;out: a=код зоны
         cp ZONE_LEFT
         jp z,setcurtool
         cp ZONE_PAL
@@ -399,8 +399,8 @@ fire_or_rmb_action_
         cp ZONE_WORK
         ret nz
         xor a
-        ld (windowcopymode),a ;ьхэ хь ърЁЄшэъє - т√ъы■ўрхь Ёхцшь ъюяшЁютрэш 
-;bc=x т bitmap, de=y т bitmap
+        ld (windowcopymode),a ;меняем картинку - выключаем режим копирования
+;bc=x в bitmap, de=y в bitmap
         ld a,(curtool)
         cp TOOL_PENCIL
         jp z,fire_or_rmb_pencil
@@ -433,9 +433,9 @@ fire
         jr fire_or_rmb_action_
 
 fire_or_rmb_line
-;bc=x т bitmap, de=y т bitmap
+;bc=x в bitmap, de=y в bitmap
         call isitclick
-	ret nz ;ъэюяъє єцх фхЁцрыш
+	ret nz ;кнопку уже держали
         ld hl,(curlinestate)
         dec l
         jr z,fire_or_rmb_line_finish
@@ -456,23 +456,23 @@ fire_or_rmb_line_finish
         jp showbitmap
 
 fire_or_rmb_brush
-;bc=x т bitmap, de=y т bitmap
+;bc=x в bitmap, de=y в bitmap
         ld (minx),bc
         ld (maxx),bc
         ld (miny),de
         ld (maxy),de
         
         ;call ahl_oldcoords
-        ;call checkfirezone ;out: a=ъюф чюэ√
+        ;call checkfirezone ;out: a=код зоны
         ;cp ZONE_WORK
-        ;jr nz,firebrushpixel ;ёЄрЁюх яюыюцхэшх с√ыю тэх Ёрсюўхщ чюэ√ - ышэш■ эхы№ч  (TODO ъышяшЁютрЄ№ ышэш■)
+        ;jr nz,firebrushpixel ;старое положение было вне рабочей зоны - линию нельзя (TODO клипировать линию)
 
         call ahl_oldcoords
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
         push bc ;x2
         push de ;y2
         call ahl_coords
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
         ld (curlinex),bc
         ld (curliney),de
         pop hl ;y2
@@ -486,8 +486,8 @@ fire_or_rmb_brush
        
 ;firebrushpixel
         ;call ahl_coords
-        ;call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
-;bc=x т bitmap, de=y т bitmap
+        ;call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
+;bc=x в bitmap, de=y в bitmap
         call firepixelpp
         dec bc
         call firepixelpp
@@ -510,8 +510,8 @@ fire_or_rmb_brush
         
 firepixelpp
         call checkminmaxxy
-;bc=x т bitmap (эх яюЁЄшЄё )
-;de=y т bitmap (эх яюЁЄшЄё )
+;bc=x в bitmap (не портится)
+;de=y в bitmap (не портится)
         ;jr $
         push bc
         push de
@@ -527,7 +527,7 @@ brushlinedy=$+1
         push ix
         pop bc
         ex de,hl
-        call checkminmaxxy ;яюЁЄшЄ hl
+        call checkminmaxxy ;портит hl
         ex de,hl
         pop de
         pop bc
@@ -543,16 +543,16 @@ brushlinedy=$+1
         ret
 
 fire_or_rmb_pencil        
-;bc=x т bitmap, de=y т bitmap (тёхуфр яюыюцшЄхы№э√х, Є.ъ. ь√ т workzone - TODO яЁш єфхЁцрэшш Ёхцшьр Ёшёютрэш  єўхёЄ№ юЄЁшЎрЄхы№э√х)
+;bc=x в bitmap, de=y в bitmap (всегда положительные, т.к. мы в workzone - TODO при удержании режима рисования учесть отрицательные)
         ld (minx),bc
         ld (maxx),bc
         ld (miny),de
         ld (maxy),de
         
         ;call ahl_oldcoords
-        ;call checkfirezone ;out: a=ъюф чюэ√
+        ;call checkfirezone ;out: a=код зоны
         ;cp ZONE_WORK
-        ;jr nz,firepixel ;ёЄрЁюх яюыюцхэшх с√ыю тэх Ёрсюўхщ чюэ√ - ышэш■ эхы№ч 
+        ;jr nz,firepixel ;старое положение было вне рабочей зоны - линию нельзя
 fireline
         ;ld a,0xfe
         ;in a,(0xfe)
@@ -562,18 +562,18 @@ fireline
         ld bc,(curlinex)
         ld a,b
         inc a
-        ret z ;0xffxx - эхЄ яЁхф√фє∙хщ Єюўъш
+        ret z ;0xffxx - нет предыдущей точки
         ld de,(curliney)
         jr fireline_noshiftq
 fireline_noshift
         call ahl_oldcoords
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
 fireline_noshiftq
         call checkminmaxxy
         push bc ;x2
         push de ;y2
         call ahl_coords
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
         ld (curlinex),bc
         ld (curliney),de
         call checkminmaxxy
@@ -590,10 +590,10 @@ fireline_noshiftq
         
 firepixel
         call ahl_coords
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
         call checkminmaxxy
-;bc=x т bitmap (эх яюЁЄшЄё )
-;de=y т bitmap (эх яюЁЄшЄё )
+;bc=x в bitmap (не портится)
+;de=y в bitmap (не портится)
         ld a,(curcolorA)
         ex af,af'
         ld a,(curcolorB)
@@ -602,7 +602,7 @@ firepixel
         endif
         
 fire_scrupdate
-;юсэютшЄ№ ўрёЄ№ ¤ъЁрэр
+;обновить часть экрана
 ;bc=minx
 ;de=miny
 ;hl=maxx, maxy
@@ -622,7 +622,7 @@ maxx=$+1
         ld bc,0
 maxy=$+1
         ld de,0
-;юЄёхърхь ъююЁфшэрЄ√ ётхЁїє, ўЄюс√ эх фхырЄ№ ¤Єю ърцф√щ Ёрч т checkminmaxxy
+;отсекаем координаты сверху, чтобы не делать это каждый раз в checkminmaxxy
         ld hl,(curbitmapwid_edit)
         dec hl
         call minhl_bc_tobc
@@ -638,20 +638,20 @@ maxy=$+1
         srl h
         rr l
         edup
-        inc hl ;hl=x/8(max) ё юъЁєуыхэшхь т сюы№°є■ ёЄюЁюэє
+        inc hl ;hl=x/8(max) с округлением в большую сторону
         pop de ;x/8(min)
         pop bc ;y(min)
-        inc a ;y(max) ё юъЁєуыхэшхь т сюы№°є■ ёЄюЁюэє
+        inc a ;y(max) с округлением в большую сторону
         sub b ;y(max)-y(min)
          ;jr z,$ ;ret z
         ld hy,a ;hy=hgt
-        ld a,l ;x/8(max) ё юъЁєуыхэшхь т сюы№°є■ ёЄюЁюэє
+        ld a,l ;x/8(max) с округлением в большую сторону
         sub e ;x/8(min)
          ;jr z,$ ;ret z
         ld lx,a ;lx=wid(chr)
         ld l,e
         ld h,b
-        push hl ;h=y эр ¤ъЁрэх, l=x эр ¤ъЁрэх
+        push hl ;h=y на экране, l=x на экране
         ex de,hl
         add hl,hl
         add hl,hl
@@ -659,13 +659,13 @@ maxy=$+1
         ld a,b ;a=y(min)
         call calcbitmapcoords
         ld h,b
-        ld l,c ;hl=x т bitmap ;de=y т bitmap
-        pop bc ;b=y эр ¤ъЁрэх, c=x эр ¤ъЁрэх
+        ld l,c ;hl=x в bitmap ;de=y в bitmap
+        pop bc ;b=y на экране, c=x на экране
         jp prbitmapbox
 
 setcurcolor
         call isitclick
-	ret nz ;ъэюяъє єцх фхЁцрыш
+	ret nz ;кнопку уже держали
         ld a,(curmousebutton)
         or a
         ld de,curcolor1
@@ -685,10 +685,10 @@ setcurcolor
         jp showcurcolor
         
 checkfirecoords
-;hl=x эр ¤ъЁрэх, a=y эр ¤ъЁрэх
-;out: CY=тэх сшЄь¤яр
-;bc=x т bitmap, de=y т bitmap
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+;hl=x на экране, a=y на экране
+;out: CY=вне битмэпа
+;bc=x в bitmap, de=y в bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
         ld hl,(curbitmapwid_edit)
         scf
         sbc hl,bc
@@ -699,7 +699,7 @@ checkfirecoords
         ret ;CY: y>(bitmaphgt-1) => y>=bitmaphgt
 
 checkminmaxxy
-;bc=x, de=y (ьюуєЄ с√Є№ юЄЁшЎрЄхы№э√х) (эх яюЁЄ Єё )
+;bc=x, de=y (могут быть отрицательные) (не портятся)
         bit 7,b
         jr nz,checkminmaxxy_nox
         ld hl,(maxx)
@@ -787,16 +787,16 @@ control_keys_selectbmp
 
 kill_unfinished_shapes
         xor a
-        ld (curlinestate),a ;єсштрхь эхфююяЁхфхы╕ээє■ ышэш■
+        ld (curlinestate),a ;убиваем недоопределённую линию
         dec a
-        ld (curlinex+1),a ;юЄьхэ хь эрўры№эє■ Єюўъє ышэшш ўхЁхч shift
+        ld (curlinex+1),a ;отменяем начальную точку линии через shift
          ld a,(curwindowstate)
          dec a
-         call z,clearwindowstate ;єсштрхь эхфююяЁхфхы╕ээюх юъэю
+         call z,clearwindowstate ;убиваем недоопределённое окно
         ret
 
 findcurbitmap
-;a=эюьхЁ
+;a=номер
         ld c,a
         ld b,0
         ld de,bitmapstruct_sz
@@ -825,14 +825,14 @@ control_scroll_checksize
 control_scroll_checksizepp
         ld hl,+(workzonex8+workzonewid8)*8 ;hl=x
         ld a,workzoney+workzonehgt ;a=y        
-        call calcbitmapcoords ;out: bc=x т bitmap, de=y т bitmap
+        call calcbitmapcoords ;out: bc=x в bitmap, de=y в bitmap
 
         ld hl,(curbitmaphgt)
         or a
         sbc hl,de
         jr nc,control_scroll_nocorrecty ;hgt>=y
-;hl<0 (ёъюы№ъю ыш°эшї яшъёхыхщ bitmap яю y)
-;яюёўшЄрЄ№ bitmaphgt-(workzonehgt/scale) = bitmaphgt+hl
+;hl<0 (сколько лишних пикселей bitmap по y)
+;посчитать bitmaphgt-(workzonehgt/scale) = bitmaphgt+hl
         ld de,workzonehgt
         call scalescrcoords
         ld hl,(curbitmaphgt)
@@ -843,8 +843,8 @@ control_scroll_nocorrecty
         or a
         sbc hl,bc
         ret nc ;wid>=x
-;hl<0 (ёъюы№ъю ыш°эшї яшъёхыхщ bitmap яю x)
-;яюёўшЄрЄ№ bitmapwid-(workzonewid/scale) = bitmapwid+hl
+;hl<0 (сколько лишних пикселей bitmap по x)
+;посчитать bitmapwid-(workzonewid/scale) = bitmapwid+hl
         ld de,workzonewid8*8
         call scalescrcoords
         ld hl,(curbitmapwid_edit)
@@ -901,7 +901,7 @@ control_keys_plus
         jr c,$+3
         dec a
         ld (curbitmapscale),a
-        jp control_scroll_checksize ;эх эєцэю яхЁхяхўрЄ√трЄ№ яєёЄюх ьхёЄю
+        jp control_scroll_checksize ;не нужно перепечатывать пустое место
 control_keys_minus
         ld a,(curbitmapscale)
         dec a
@@ -914,8 +914,8 @@ control_keys_clear
         ld a,(curwindowstate)
         cp 2
         ret nz
-        ld bc,(curwindowx) ;bc=x т bitmap
-        ld de,(curwindowy) ;de=y т bitmap
+        ld bc,(curwindowx) ;bc=x в bitmap
+        ld de,(curwindowy) ;de=y в bitmap
         ld hl,(curwindowwid) ;hl=wid
         ld ix,(curwindowhgt) ;ix=hgt
         ld a,(curcolor2)
@@ -929,7 +929,7 @@ control_keys_clear
 checkfirezone
 ;hl=x
 ;a=y
-;out: a=ъюф чюэ√ ш фы  ZONE_WORK: bc=x т bitmap, de=y т bitmap
+;out: a=код зоны и для ZONE_WORK: bc=x в bitmap, de=y в bitmap
         ld c,a
         cp workzoney
         ld a,ZONE_TOP
@@ -946,9 +946,9 @@ checkfirezone
         add hl,de
         ld a,c
         jr nc,checkfirezone_right ;right
-        call checkfirecoords ;CY=тэх сшЄь¤яр
+        call checkfirecoords ;CY=вне битмэпа
         ld a,ZONE_NO
-        ret c ;bc=x т bitmap, de=y т bitmap
+        ret c ;bc=x в bitmap, de=y в bitmap
         ld a,ZONE_WORK
         ret
 checkfirezone_right
@@ -993,7 +993,7 @@ showcurcolor
 
 calccurtool
 ;a=y
-;юяЁхфхы хЄ эюьхЁ Єєыч√ яю ъююЁфшэрЄрь ёЄЁхыъш
+;определяет номер тулзы по координатам стрелки
 ;out: a=tool, NC: a>=NTOOLS
         sub 8
         rra
@@ -1006,9 +1006,9 @@ calccurtool
 
 setcurtool
         call isitclick
-	ret nz ;ъэюяъє єцх фхЁцрыш
+	ret nz ;кнопку уже держали
         xor a
-        ld (curlinestate),a ;юЄьхэшЄ№ эхфююяЁхфхы╕ээє■ ышэш■
+        ld (curlinestate),a ;отменить недоопределённую линию
 curmousebutton=$+1 ;0=LMB
         or 0
         ld hl,curtool1
@@ -1063,7 +1063,7 @@ showtools0
         add a,4
         ld b,a
         call calcscr_from_xchr_y
-        set 5,h ;эр 4 яшъёхы  яЁртхх
+        set 5,h ;на 4 пикселя правее
         call shapes_prtext48ega_black
         pop bc
         ld a,b
@@ -1126,7 +1126,7 @@ showtitle
         call shapes_prtext48ega
         ld a,' '
         call shapes_prchar48ega
-        ld lx,0 ;Їюэют√щ ЎтхЄ
+        ld lx,0 ;фоновый цвет
         ex de,hl
         ld hl,(curbitmapwid_edit)
         call shapes_prnum
@@ -1169,7 +1169,7 @@ showbitmap
         ld de,(curbitmaphgt)
         ld a,d
         or e
-        ret z ;яєёЄющ сшЄь¤я
+        ret z ;пустой битмэп
         call scalebitmapcoords ;hl=wid, de=hgt
         inc hl
         srl h
@@ -1184,28 +1184,28 @@ showbitmap
         or a
         sbc hl,bc
         add hl,bc
-        jr nc,$+3 ;wid>=workzonewid => схЁ╕ь °шЁшэє Ёрсюўхщ чюэ√
-        ld c,l ;wid<workzonewid => схЁ╕ь wid сшЄь¤яр
+        jr nc,$+3 ;wid>=workzonewid => берём ширину рабочей зоны
+        ld c,l ;wid<workzonewid => берём wid битмэпа
         ld lx,c;workzonewid8 ;lx=wid(chr)
         ex de,hl
         ld bc,workzonehgt
         or a
         sbc hl,bc
         add hl,bc
-        jr nc,$+3 ;hgt>=workzonehgt => схЁ╕ь °шЁшэє Ёрсюўхщ чюэ√
-        ld c,l ;hgt<workzonehgt => схЁ╕ь hgt сшЄь¤яр
+        jr nc,$+3 ;hgt>=workzonehgt => берём ширину рабочей зоны
+        ld c,l ;hgt<workzonehgt => берём hgt битмэпа
         ld hy,c;workzonehgt ;hy=hgt
         
-        ld hl,(curbitmapxscroll) ;hl=x т bitmap
-        ld de,(curbitmapyscroll) ;de=y т bitmap
-        ld bc,workzoney*256+workzonex8 ;c=x/8 эр ¤ъЁрэх, b=y эр ¤ъЁрэх
+        ld hl,(curbitmapxscroll) ;hl=x в bitmap
+        ld de,(curbitmapyscroll) ;de=y в bitmap
+        ld bc,workzoney*256+workzonex8 ;c=x/8 на экране, b=y на экране
         jp prbitmapbox
 
 calcscr_from_xchr_y
 ;b=y
 ;c=x/8
 ;out: hl=scraddr
-;эх яюЁЄшЄ de
+;не портит de
          ld a,c
 calcscr_from_xchr_ya
         ld l,b
@@ -1363,12 +1363,12 @@ wordbuf
         ds MAXCMDSZ+1
         
 pathbuf_forBDOS
-        ds MAXPATH_sz ;ёхщўрё шёяюы№чєхЄё  Єюы№ъю яЁш шэшЎшрышчрЎшш (яЁюўшЄрЄ№ Єхъє∙шщ фЁрщт)
+        ds MAXPATH_sz ;сейчас используется только при инициализации (прочитать текущий драйв)
 
         ;display "$ before align=",/h,$
         
         .align 256
-;;;;;;;;;;;;;;;;;;; ЄрсышЎ√ фы  prbitmap
+;;;;;;;;;;;;;;;;;;; таблицы для prbitmap
 tpixelrecode
 ;%00003210 => %33210210
         dup 256
@@ -1393,14 +1393,14 @@ _210=$&7
         db (_3*0x10) + (_210*0x08)
         edup
         
-;;;;;;;;;;;;;;;;;;; ЄрсышЎ√ фы  ярышЄЁ√
+;;;;;;;;;;;;;;;;;;; таблицы для палитры
 tsin
         incbin "tsin200"
 tarcsin
         incbin "tarcsin"
 tsqr
-;рЁуєьхэЄ +-0..127 (ёююЄтхЄёЄтєхЄ -1..+1)
-;Ёхчєы№ЄрЄ 0..127 (ёююЄтхЄёЄтєхЄ -1..+1)
+;аргумент +-0..127 (соответствует -1..+1)
+;результат 0..127 (соответствует -1..+1)
 _=0
         dup 128
         db (_*_)/128
@@ -1412,8 +1412,8 @@ _=128
 _=_-1
         edup
 tsqrt
-;рЁуєьхэЄ 0..255 (ёююЄтхЄёЄтєхЄ 0..2)
-;Ёхчєы№ЄрЄ 0..127 (ёююЄтхЄёЄтєхЄ 0..1) ш т√°х
+;аргумент 0..255 (соответствует 0..2)
+;результат 0..127 (соответствует 0..1) и выше
         incbin "sqrtmax2"
 tbitmappages
         ;display "tbitmappages=",tbitmappages

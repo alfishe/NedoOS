@@ -77,15 +77,15 @@
         scf
         endm
         
-        macro secsub ;яхЁхэюё т т√ўшЄрэшш шэтхЁёэ√щ
+        macro secsub ;перенос в вычитании инверсный
         or a
         endm
         
-        macro cmpcy ;яхЁхэюё яюёых ёЁртэхэш  шэтхЁёэ√щ
+        macro cmpcy ;перенос после сравнения инверсный
         ccf
         endm
         
-        macro clc ;ёюїЁрэ хЄ Z ъръ ьшэшьєь т chkjumpstringmetatiles
+        macro clc ;сохраняет Z как минимум в chkjumpstringmetatiles
         scf
         ccf
         endm

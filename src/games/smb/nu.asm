@@ -7,7 +7,7 @@ _prtilesfast0
         ld sp,hl ;addrstack for this line
         ld a,c
         exx
-	add a,l ;(¤Єю т√ўшЄрэшх) схч яхЁхэюёр, Є.ъ. ўшЄрхь Єрщы√ ўхЁхч inc e
+	add a,l ;(это вычитание) без переноса, т.к. читаем тайлы через inc e
         ld e,a
 	ld d,h
 ;hl=tileaddr for line end

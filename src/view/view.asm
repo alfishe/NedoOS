@@ -21,7 +21,7 @@ cmd_begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         
         OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         ld (codepg4000),a
         ld a,h
@@ -30,7 +30,7 @@ cmd_begin
         ld (highpgc000),a
 
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,e
         ld (setpgs_scr_low),a
         ;ld (setpgs_scr_attr),a
@@ -97,7 +97,7 @@ curextq
         or l
         or d
         or e
-        jr z,loadscr ;TODO х∙╕ 6913
+        jr z,loadscr ;TODO ещё 6913
         ld a,h
         sub 0x18
         or l
@@ -147,7 +147,7 @@ quit
 
 loadscr
 ;hl=size
-;TODO ъэюяъє A т√ъы■ўхэш /яхЁхъы■ўхэш  рЄЁшсєЄют
+;TODO кнопку A выключения/переключения атрибутов
         ld de,0xc000
         call readstream_file
         call closestream_file
@@ -174,7 +174,7 @@ loadfnt
         call readstream_file
         call closestream_file
         pop hl
-;эр ёыєўрщ ышэхщэюую °ЁшЇЄр - Ёшёєхь хую ёэшчє
+;на случай линейного шрифта - рисуем его снизу
         ld e,0
 loadfnt0
         ld d,0xd0
@@ -476,12 +476,12 @@ cleanafter8000
         jp fillzero
 
 loadrmode
-;scr1 (6144 ёяЁрщЄюь) (яхЁт√щ ЇЁхщь)
-;scr2 (6144 ёяЁрщЄюь) (тЄюЁющ ЇЁхщь)
-;attr1 (768) ;G/M/C - эшч(эхўхЄ) яхЁтюую ЇЁхщьр
-;attr2 (768) ;R/C/M - эшч(эхўхЄ) тЄюЁюую ЇЁхщьр
-;attr3 (768) ;B/Y - тхЁї(ў╕Є) тЄюЁюую ЇЁхщьр - яхЁхёЄртшь эр 1-щ шч-чр шэЄхЁыхщёр
-;attr4 (768) ;W - тхЁї(ў╕Є) яхЁтюую ЇЁхщьр - яхЁхёЄртшь эр 2-щ шч-чр шэЄхЁыхщёр
+;scr1 (6144 спрайтом) (первый фрейм)
+;scr2 (6144 спрайтом) (второй фрейм)
+;attr1 (768) ;G/M/C - низ(нечет) первого фрейма
+;attr2 (768) ;R/C/M - низ(нечет) второго фрейма
+;attr3 (768) ;B/Y - верх(чёт) второго фрейма - переставим на 1-й из-за интерлейса
+;attr4 (768) ;W - верх(чёт) первого фрейма - переставим на 2-й из-за интерлейса
         call cleanafter8000
         ld e,2
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
@@ -491,18 +491,18 @@ loadrmode
         call cleanafter8000
         call read40001800
         call convmcscr
-;attr1 (768) ;G/M/C - эшч(эхўхЄ) яхЁтюую ЇЁхщьр
+;attr1 (768) ;G/M/C - низ(нечет) первого фрейма
         call setpgs_scr
         ld de,0x8000+4+40 ;attrs
         call readrmodeattrs
-;attr2 (768) ;R/C/M - эшч(эхўхЄ) тЄюЁюую ЇЁхщьр
+;attr2 (768) ;R/C/M - низ(нечет) второго фрейма
         call setpgs_scr2
         ld de,0x8000+4+40 ;attrs
         call readrmodeattrs
-;attr3 (768) ;B/Y - тхЁї(ў╕Є) тЄюЁюую ЇЁхщьр - яхЁхёЄртшь эр 1-щ шч-чр шэЄхЁыхщёр
+;attr3 (768) ;B/Y - верх(чёт) второго фрейма - переставим на 1-й из-за интерлейса
         call setpgs_scr
         call readrmodeattrs_top
-;attr4 (768) ;W - тхЁї(ў╕Є) яхЁтюую ЇЁхщьр - яхЁхёЄртшь эр 2-щ шч-чр шэЄхЁыхщёр
+;attr4 (768) ;W - верх(чёт) первого фрейма - переставим на 2-й из-за интерлейса
         call setpgs_scr2
         call readrmodeattrs_top
         jp loadmcxq
@@ -525,10 +525,10 @@ readrmodeattrs
         ld de,0x4000
         call readstream_file
         call closestream_file
-;0. эрщЄш тёх ЎтхЄр attr1,attr2,attr3,attr4
-;1. ёухэхЁшЁютрЄ№ ярышЄЁє (тёх ъюьсшэрЎшш attr4+attr3 2*3 °Є, тёх ъюьсшэрЎшш attr1+attr2 4*4 °Є) ёю ёё√ыърьш эр ёяхЎярышЄЁє
-;2. тъы■ўшЄ№ ёяхЎярышЄЁє
-;3. ёъюэтхЁЄшЁютрЄ№ яшъёхыш ё єў╕Єюь рЄЁшсєЄют
+;0. найти все цвета attr1,attr2,attr3,attr4
+;1. сгенерировать палитру (все комбинации attr4+attr3 2*3 шт, все комбинации attr1+attr2 4*4 шт) со ссылками на спецпалитру
+;2. включить спецпалитру
+;3. сконвертировать пиксели с учётом атрибутов
 
         LD de,TRMODEPAL
         OS_SETPAL
@@ -537,11 +537,11 @@ readrmodeattrs
         
 TRMODEPAL
 ;0, r, c, m, g, y, gc, w, mr, mc, [M], [C], bw, yw, [rw], [cw]
-;шёяюы№чєхь єЁютэш 8 (2 эр ATM), 15 (3 эр ATM)
+;используем уровни 8 (2 на ATM), 15 (3 на ATM)
 _0=5*0
 _1=5*1;8
 _2=5*2;15
-;DDp palette: %grbG11RB(low),%grbG11RB(high), шэтхЁёэ√х
+;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
 ;high B, high b, low B, low b
         macro palcol r,g,b ;0..15
         db 0xff - (((g&1)<<7) + ((r&1)<<6) + ((b&1)<<5) + ((g&2)<<3) + (r&2) + ((b&2)>>1))
@@ -585,11 +585,11 @@ load3
 ;hl=size
         call setEGA ;keeps hl
  
-;0.ў╕Ёэр  ярышЄЁр (єцх)
-;1.чруЁєчшь т 0x4000
-;2.яхЁхъюфшЁєхь т 0x8800
-;3.ъюяшЁєхь т 0x8000
-;4.эюЁьры№эр  ярышЄЁр
+;0.чёрная палитра (уже)
+;1.загрузим в 0x4000
+;2.перекодируем в 0x8800
+;3.копируем в 0x8000
+;4.нормальная палитра
         ld de,0x4000
         call readstream_file
         call closestream_file
@@ -643,11 +643,11 @@ loadplus
 ;B,R,G sprites (hgt=128)
 ;hl=size
         call setEGA ;keeps hl
-;0.ў╕Ёэр  ярышЄЁр (єцх)
-;1.чруЁєчшь т 0x4000
-;2.яхЁхъюфшЁєхь т 0x8800
-;3.ъюяшЁєхь т 0x8000
-;4.эюЁьры№эр  ярышЄЁр
+;0.чёрная палитра (уже)
+;1.загрузим в 0x4000
+;2.перекодируем в 0x8800
+;3.копируем в 0x8000
+;4.нормальная палитра
         ld de,0x4000
         ld hl,0x1000
         call readstream_file
@@ -963,9 +963,9 @@ runextaddr=$+1
         or a
         ret
 strcpexec_fail
-        ld b,-1 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld b,-1 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю
+        cpir ;найдём обязательно
         jr strcpexec0
 
 runext_error

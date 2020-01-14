@@ -1,7 +1,7 @@
 showcopywindow
-;hl=x эр ¤ъЁрэх
-;a=y эр ¤ъЁрэх
-;Ёшёєхь юъэю ъюяшЁютрэш , хёыш юъэю ёє∙хёЄтєхЄ (т ы■сюь сшЄь¤ях) ш тъы■ўхэ Ёхцшь windowcopymode!=0
+;hl=x на экране
+;a=y на экране
+;рисуем окно копирования, если окно существует (в любом битмэпе) и включен режим windowcopymode!=0
         call iscopywindowvisible
         ret nz
         jp showwindow_calcandshow_noshowwindowcoords
@@ -11,30 +11,30 @@ iscopywindowvisible
         ld bc,(curwindowstate)
         dec c
         dec c
-        ret nz ;юъэю эшуфх эх ёє∙хёЄтєхЄ
+        ret nz ;окно нигде не существует
         ld bc,(windowcopymode)
         dec c
-        ret nz ;т√ъы■ўхэ Ёхцшь windowcopymode
+        ret nz ;выключен режим windowcopymode
         call checkfirezone
         cp ZONE_WORK
         ret ;nz=invisible
 
 showwindow
-;hl=x эр ¤ъЁрэх
-;a=y эр ¤ъЁрэх
-;Ёшёєхь юъэю, хёыш юэю т√фхыхэю т Єхъє∙хь сшЄь¤ях
+;hl=x на экране
+;a=y на экране
+;рисуем окно, если оно выделено в текущем битмэпе
         ld bc,(curwindowstate)
         dec c
         jr z,showwindow_onecorner
         inc c
-        ret z ;юъэр эхЄ
+        ret z ;окна нет
         ld bc,(curwindowx)
         ld de,(curwindowy)
 showwindow_calcandshow
          ld a,(curwindowbmp)
          ld hl,curbmp
          cp (hl)
-         ret nz ;юъэю т√фхыхэю эх т Єхъє∙хь сшЄь¤ях
+         ret nz ;окно выделено не в текущем битмэпе
         push bc
         push de
         call showwindowcoords
@@ -43,11 +43,11 @@ showwindow_calcandshow
 showwindow_calcandshow_noshowwindowcoords
         call calccoords_frombitmapcoords_noclip ;hl=x, de=y
         ld b,h
-        ld c,l ;bc=x, de=y схч єў╕Єр workzone
+        ld c,l ;bc=x, de=y без учёта workzone
         push de ;y
         ld hl,(curwindowwid)
         ld de,(curwindowhgt)
-        call scalebitmapcoords ;hl=wid, de=hgt (ьюуєЄ юърчрЄ№ё  0)
+        call scalebitmapcoords ;hl=wid, de=hgt (могут оказаться 0)
         dec hl
         bit 7,h
         jr z,$+3
@@ -63,30 +63,30 @@ showwindow_calcandshow_noshowwindowcoords
         jp shapes_invpixelframe
         
 showwindow_onecorner
-;hl=x эр ¤ъЁрэх
-;a=y эр ¤ъЁрэх
+;hl=x на экране
+;a=y на экране
         call checkfirezone
         cp ZONE_WORK
         ret nz
-;out: bc=x cur, de=y cur т bitmap (ё ъышяшЁютрэшхь яю workzone)          
+;out: bc=x cur, de=y cur в bitmap (с клипированием по workzone)          
         call window_definecorner2
-;bc=x т bitmap
-;de=y т bitmap
+;bc=x в bitmap
+;de=y в bitmap
         jr showwindow_calcandshow
 
 fire_or_rmb_window
-;bc=x т bitmap, de=y т bitmap
+;bc=x в bitmap, de=y в bitmap
         call isitclick
-	ret nz ;ъэюяъє єцх фхЁцрыш
+	ret nz ;кнопку уже держали
          ld a,(curbmp)
-         ld (curwindowbmp),a ;юЄэ√эх т√фхы хь юъэю т Єхъє∙хь сшЄь¤ях
+         ld (curwindowbmp),a ;отныне выделяем окно в текущем битмэпе
         ld hl,(curwindowstate)
         dec l 
-        jr z,fire_or_rmb_window_onecorner ;чрфрэ юфшэ єуюы - чрфр╕ь тЄюЁющ
+        jr z,fire_or_rmb_window_onecorner ;задан один угол - задаём второй
         inc l
-        ld a,1 ;чрфрэ єуюы
-        jr z,fire_or_rmb_window_setcorner ;юъэр эхЄ - чрфр╕ь єуюы
-;юъэю хёЄ№ - юЄьхэ хь юъэю
+        ld a,1 ;задан угол
+        jr z,fire_or_rmb_window_setcorner ;окна нет - задаём угол
+;окно есть - отменяем окно
 clearwindowcoords
         ld bc,coordswindowy*256 + (coordswindowx/8) ;b=y ;c=x/8
         ld de,coordswindowhgt*256 + (coordswindowwid/8) ;d=hgt ;e=wid8
@@ -96,30 +96,30 @@ clearwindowstate
         xor a
         jr setwindowstate
 fire_or_rmb_window_onecorner
-;єуюы єцх чрфрэ, эю эх тё╕ юъэю
+;угол уже задан, но не всё окно
         call window_definecorner2
 window_settwocorners
-;bc=x т bitmap
-;de=y т bitmap
+;bc=x в bitmap
+;de=y в bitmap
         ld a,1
         ld (windowcopymode),a
-        inc a ;ld a,2 ;юъэю чрфрэю
+        inc a ;ld a,2 ;окно задано
 fire_or_rmb_window_setcorner
-        ld (curwindowx),bc ;яхЁхёЄрты хь xcorner
-        ld (curwindowy),de ;яхЁхёЄрты хь ycorner
+        ld (curwindowx),bc ;переставляем xcorner
+        ld (curwindowy),de ;переставляем ycorner
 setwindowstate
         ld (curwindowstate),a
         ret
 
 window_allpicture
-;TODO ўхЁхч OS_KEYMATRIX
+;TODO через OS_KEYMATRIX
         ld a,0xfb
         in a,(0xfe)
         rra ;Q
-        ret nc ;с√ыю ярЁрчшЄэюх эрцрЄшх W яЁш фтшцхэшш ёЄЁхыъш ўхЁхч OPQA
+        ret nc ;было паразитное нажатие W при движении стрелки через OPQA
         ld a,(curwindowstate)
         or a
-        jr nz,clearwindowcoords ;юъэю хёЄ№ - юЄьхэ хь юъэю
+        jr nz,clearwindowcoords ;окно есть - отменяем окно
         ld hl,(curbitmapwid_edit)
         ld (curwindowwid),hl
         ld hl,(curbitmaphgt)
@@ -133,16 +133,16 @@ window_allpicture
 window_definecorner2        
         ld hl,(curwindowx)
         or a
-        sbc hl,bc ;|hl|+1 = °шЁшэр юъэр
-        jr nc,$+2+4 ;с√ы xcorner >= x; яхЁхёЄрты хь xcorner
+        sbc hl,bc ;|hl|+1 = ширина окна
+        jr nc,$+2+4 ;был xcorner >= x; переставляем xcorner
         ld bc,(curwindowx) ;xcorner < x
         call m,neghl
         inc hl
         ld (curwindowwid),hl
         ld hl,(curwindowy)
         or a
-        sbc hl,de ;|hl|+1 = т√ёюЄр юъэр
-        jr nc,$+2+4 ;с√ы ycorner >= y; яхЁхёЄрты хь ycorner
+        sbc hl,de ;|hl|+1 = высота окна
+        jr nc,$+2+4 ;был ycorner >= y; переставляем ycorner
         ld de,(curwindowy) ;xcorner < x
         call m,neghl
         inc hl
@@ -242,20 +242,20 @@ window_copy
         ret nz
         ld a,(curbmp)
         ld (window_curbmp),a
-;out: bc=x cur, de=y cur т bitmap (ё ъышяшЁютрэшхь яю workzone)
+;out: bc=x cur, de=y cur в bitmap (с клипированием по workzone)
         ld (window_copy_xto),bc
-        ex de,hl ;hl=y ъєфр
-;ёЁртэхэшх ъююЁфшэрЄ ш ъюяшЁютрэшх ёэшчє ттхЁї, хёыш эрфю
+        ex de,hl ;hl=y куда
+;сравнение координат и копирование снизу вверх, если надо
         ld a,(curpgtemp)
         SETPG16K
         ld bc,(curwindowhgt)
         ld de,(curwindowy)
-        ;hl=y ъєфр
+        ;hl=y куда
         or a
         sbc hl,de
         add hl,de
-        jr nc,window_copyup ;y ъєфр >= y юЄъєфр, ъюяшЁєхь ёэшчє ттхЁї
-;ъюяшЁєхь ётхЁїє тэшч
+        jr nc,window_copyup ;y куда >= y откуда, копируем снизу вверх
+;копируем сверху вниз
 window_copyline0
         call window_copylinepp
         inc hl
@@ -266,12 +266,12 @@ window_copyline0
 window_copyup
 ;bc=curwindowhgt
 ;de=curwindowy
-;hl=y ъєфр
+;hl=y куда
         add hl,bc
         ex de,hl
         add hl,bc
         ex de,hl
-;ъюяшЁєхь ёэшчє ттхЁї
+;копируем снизу вверх
 window_copylineup0
         dec hl
         dec de
@@ -281,38 +281,38 @@ window_copylineup0
 
 window_copylinepp
         push bc
-        push de ;y юЄъєфр
-        push hl ;y ъєфр
-         push hl ;y ъєфр
-        push de ;y юЄъєфр
+        push de ;y откуда
+        push hl ;y куда
+         push hl ;y куда
+        push de ;y откуда
         ld a,(curwindowbmp)
         call selectbmp
-        pop de ;y юЄъєфр
-        call window_x_setpg32k ;hl=addr юЄъєфр
+        pop de ;y откуда
+        call window_x_setpg32k ;hl=addr откуда
         ld de,tempc000
         ld bc,(curwindowwid)
         ldir
 window_curbmp=$+1
         ld a,0;(curbmp)
         call selectbmp
-         pop hl ;y ъєфр
+         pop hl ;y куда
         ld bc,(curbitmaphgt)
         or a
         sbc hl,bc
         add hl,bc
-        jr nc,window_copylineppq ;y ъєфр чр уЁрэшЎхщ 
-         ex de,hl ;de=y ъєфр
+        jr nc,window_copylineppq ;y куда за границей 
+         ex de,hl ;de=y куда
 window_copy_xto=$+1
         ld bc,0
-        call calcbitmap_setpg32k ;hl=addr ъєфр
-        ex de,hl ;de=addr ъєфр
+        call calcbitmap_setpg32k ;hl=addr куда
+        ex de,hl ;de=addr куда
         ld hl,(curbitmapwid_edit)
         ld bc,(window_copy_xto)
         or a
-        sbc hl,bc ;ёъюы№ъю яшъёхыхщ фюёЄєяэю ёяЁртр
-        ld bc,(curwindowwid) ;ёъюы№ъю эрфю яшъёхыхщ
+        sbc hl,bc ;сколько пикселей доступно справа
+        ld bc,(curwindowwid) ;сколько надо пикселей
         jr z,window_copylineppq
-        call minhl_bc_tobc ;ъышяшЁютрэшх яю x
+        call minhl_bc_tobc ;клипирование по x
         ld hl,tempc000
         ld a,(key)
         cp 'a'
@@ -330,8 +330,8 @@ window_copylinepp0
 window_copylinepp_ldir
         ldir
 window_copylineppq
-        pop hl ;y ъєфр
-        pop de ;y юЄъєфр
+        pop hl ;y куда
+        pop de ;y откуда
         pop bc
         dec bc
         ld a,b

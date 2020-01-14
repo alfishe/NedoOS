@@ -1,6 +1,6 @@
 ;PROC prspr(BYTE x, BYTE y, PBYTE data);
 ;wid8xhgt sprite (wid8, hgt, (antimask, antipixels, ...))
-;ъышяшЁютрэш  эхЄ!
+;клипирования нет!
 prspr
 ;bc=yx
 ;hl'=gfx data
@@ -39,7 +39,7 @@ prspr
 	dec c
 	jp z,prspr8.
 	dec c
-	jp z,prspr16. ;єьххЄ шэтрышфрЎш■
+	jp z,prspr16. ;умеет инвалидацию
 	dec c
 	jp z,prspr24.
 	dec c

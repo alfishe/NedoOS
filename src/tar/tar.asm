@@ -13,7 +13,7 @@ COLOR=7
          push af
         jr nz,$-4
         pop af
-;т ёЄхъх ыхцшЄ \0, ЄхъёЄ (схч ЄхЁьшэрЄюЁр)
+;в стеке лежит \0, текст (без терминатора)
         endm
         
         macro STRPOP
@@ -25,13 +25,13 @@ COLOR=7
          inc hl
          or a
         jr nz,$-4
-        ex de,hl ;hl=string addr, de эх трцхэ
+        ex de,hl ;hl=string addr, de не важен
         call strmirror
         endm
         
         org PROGSTART
 cmd_begin
-        ld sp,0xc000;0x4000 ;эх фюыцхэ юяєёърЄ№ё  эшцх 0x3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,0xc000;0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         
@@ -44,7 +44,7 @@ cmd_begin
         ld a,(hl)
         or a
         jp z,noautoload
-;яЁютхЁ хь, ¤Єю *.tar шыш Їрщы/фшЁхъЄюЁш ? хёыш Їрщы/фшЁхъЄюЁш , Єю х╕ эрфю яръютрЄ№
+;проверяем, это *.tar или файл/директория? если файл/директория, то её надо паковать
         push hl
         call findlastdot ;out: de = after last dot or start
         pop hl
@@ -68,11 +68,11 @@ cmd_begin
         jr nz,notar
         jp untar
 notar
-;¤Єю эх *.tar
+;это не *.tar
         ld de,filename
         call strcopy
-;ЇюЁьшЁєхь шь  рЁїштр (юЄЁхчрхь Ёрё°шЁхэшх, хёыш хёЄ№, ш яЁшяшё√трхь ёяЁртр .tar)
-;эрфю тч Є№ Єюы№ъю яюёых ёых°р (ўЄюс√ рЁїшт с√ы т Єхъє∙хщ фшЁхъЄюЁшш):
+;формируем имя архива (отрезаем расширение, если есть, и приписываем справа .tar)
+;надо взять только после слеша (чтобы архив был в текущей директории):
         ld hl,filename
         call findlastslash. ;de=after last slash or start
         ex de,hl
@@ -88,7 +88,7 @@ notar
         sbc hl,de
         add hl,de
         jr z,tarname_nolastdot
-;яЁютхЁ хь, ўЄю ¤Єр Єюўър юЄэюёшЄё  ъ Ёрё°шЁхэш■, Є.х. яюёых эх╕ эхЄ ёы¤°хщ
+;проверяем, что эта точка относится к расширению, т.е. после неё нет слэшей
         ld h,d
         ld l,e ;de=after last dot
 tarname_checkext0
@@ -106,14 +106,14 @@ tarname_nolastdot
         ld hl,ttar
         call strcopy
 
-;ёючфр╕ь рЁїшт
+;создаём архив
         ld de,tarname
         call SAVECREATE
         or a
         jp nz,openerror
 
-;filename=шь  Їрщыр ё яєЄ╕ь
-;яєёЄ№ ь√ эрїюфшьё  т Єющ цх фшЁхъЄюЁшш, ўЄю яръєхь√щ Їрщы (т фрээюь ёыєўрх яръєхьр  фшЁхъЄюЁш ), т filename єцх эхЄ яєЄш:
+;filename=имя файла с путём
+;пусть мы находимся в той же директории, что пакуемый файл (в данном случае пакуемая директория), в filename уже нет пути:
         ld hl,filename
         call findlastslash. ;out: de = after last slash or start
         ld hl,filename
@@ -135,7 +135,7 @@ tarname_nolastdot
 nopathinfilename
         xor a
         ld (cmdprompt),a
-;filename=шь  Їрщыр схч яєЄш, т√сЁрэр фшЁхъЄюЁш  Їрщыр, cmdprompt яєёЄющ
+;filename=имя файла без пути, выбрана директория файла, cmdprompt пустой
         ld hl,filename
         ld de,filenametoopen
         call strcopy
@@ -160,9 +160,9 @@ taraddfile
         ld hl,filename
         call prtext
         call prcrlf
-;filenametoopen=шь  Їрщыр, ъюЄюЁ√щ эрфю юЄъЁ√Є№ т Єхъє∙хщ фшЁхъЄюЁшш
-;filename=шь  Їрщыр, ъюЄюЁюх эрфю яюыюцшЄ№ т рЁїшт
-;фхырхь чруюыютюъ Їрщыр
+;filenametoopen=имя файла, который надо открыть в текущей директории
+;filename=имя файла, которое надо положить в архив
+;делаем заголовок файла
         ld hl,tarfileheader
         ld bc,100*256
         ld (hl),c
@@ -181,8 +181,8 @@ tarmkfilename0
         djnz tarmkfilename0
 tarmkfilenameq
 
-;юЄъЁ√трхь Їрщы
-;тЁхь  ьюцэю яЁюўшЄрЄ№ ш шч фшЁхъЄюЁшш, р юЄъЁ√Є№ х╕ ъръ Їрщы эхы№ч 
+;открываем файл
+;время можно прочитать и из директории, а открыть её как файл нельзя
         ld de,filenametoopen
         OS_GETFILETIME ;out: ix=date, hl=time
         or a
@@ -199,7 +199,7 @@ tarmkfilenameq
         ld a,(filehandle)
         ld b,a
        push bc
-        jp nz,tardir;openfileerror ;4=no file, 5=no path, 13=no drive, 20=it's a directory (с√ыю Єюцх 4)
+        jp nz,tardir;openfileerror ;4=no file, 5=no path, 13=no drive, 20=it's a directory (было тоже 4)
 
 	OS_GETFILESIZE ;dehl=filesize
         
@@ -208,7 +208,7 @@ tarmkfilenameq
         ld (tarfileordir),a
         call tarwrsizeheader
 ;tarwritefile
-;яръєхь Їрщы
+;пакуем файл
 ;dehl=size
 writefile0
         ld a,d
@@ -262,9 +262,9 @@ tardir
         ld d,h
         ld e,l ;size=0
 ;dehl=filesize
-        call tarwrsizeheader ;чряшёрыш фшЁхъЄюЁш■ т рЁїшт
-;фюяєёЄшь, ўЄю ь√ эрїюфшьё  т Єющ цх фшЁхъЄюЁшш, ўЄю яръєхь√щ Їрщы (т фрээюь ёыєўрх яръєхьр  фшЁхъЄюЁш ), т filename єцх эхЄ яєЄш, cmdprompt яєёЄющ
-;ЁхъєЁёштэю яръєхь ёюфхЁцшьюх фшЁхъЄюЁшш:
+        call tarwrsizeheader ;записали директорию в архив
+;допустим, что мы находимся в той же директории, что пакуемый файл (в данном случае пакуемая директория), в filename уже нет пути, cmdprompt пустой
+;рекурсивно пакуем содержимое директории:
 ;- strpush cmdprompt
         ;jr $
         ld hl,cmdprompt
@@ -273,16 +273,16 @@ tardir
         ;ld de,cmdprompt ;de=pointer to 64 byte (MAXPATH_sz!) buf
         ;OS_GETPATH
         ld hl,cmdprompt
-;хёыш эхяєёЄющ ш т ъюэЎх эхЄ ёых°р, Єю фюсртшь:
-        ;ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+;если непустой и в конце нет слеша, то добавим:
+        ;ld bc,0 ;чтобы точно найти терминатор
         xor a
        cp (hl)
        jr z,tardirnoaddslash
         ld b,a
         ld c,a;0
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
-        dec hl ;эр ЄхЁьшэрЄюЁх
-        dec hl ;яхЁхф ЄхЁьшэрЄюЁюь
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        dec hl ;на терминаторе
+        dec hl ;перед терминатором
         ld a,'/'
         cp (hl)
         jr z,$+2+5
@@ -293,11 +293,11 @@ tardir
 tardirnoaddslash
         ex de,hl
         ld hl,filenametoopen
-        call strcopy ;TODO яЁютхЁ Є№ яхЁхяюыэхэшх сєЇхЁр cmdprompt
+        call strcopy ;TODO проверять переполнение буфера cmdprompt
 ;- chdir filenametoopen
         ld de,filenametoopen
         OS_CHDIR
-;- ўшЄрхь т Ўшъых cpmname, шч эхую ЇюЁьшЁєхь filenametoopen (dotname(cpmname)), filename (cmdprompt+dotname(cpmname)) - яєЄ№ юЄэюёшЄхы№эю ъюЁэ  фшЁхъЄюЁшш!) ш т√ч√трхь taraddfile
+;- читаем в цикле cpmname, из него формируем filenametoopen (dotname(cpmname)), filename (cmdprompt+dotname(cpmname)) - путь относительно корня директории!) и вызываем taraddfile
 ;        ld de,fcb
 ;        OS_SETDTA ;set disk transfer address = de
 ;        ;call makeemptymask
@@ -305,14 +305,14 @@ tardirnoaddslash
 ;        OS_FSEARCHFIRST
 ;        or a
 ;        jr nz,tardir0q
-       ld bc,0 ;эюьхЁ Їрщыр т фшЁхъЄюЁшш
+       ld bc,0 ;номер файла в директории
 tardir0
         ;jr $
         push bc
         call getdirfcb_bc
         pop bc
         jr nz,tardir0q
-       push bc ;эюьхЁ Їрщыр т фшЁхъЄюЁшш
+       push bc ;номер файла в директории
         ld hl,fcb_filename
        ld a,(hl)
        cp '.'
@@ -324,7 +324,7 @@ tardir0
         call strcopy
         ex de,hl
         dec hl ;hl=terminator addr
-;хёыш т ъюэЎх эхЄ ёых°р, Єю фюсртшь:
+;если в конце нет слеша, то добавим:
         dec hl
         ld a,'/'
         cp (hl)
@@ -334,13 +334,13 @@ tardir0
          inc hl
         ex de,hl
         ld hl,filenametoopen
-        call strcopy ;TODO яЁютхЁ Є№ яхЁхяюыэхэшх сєЇхЁр filename
+        call strcopy ;TODO проверять переполнение буфера filename
         call taraddfile ;filenametoopen (dotname(cpmname)), filename (cmdprompt+dotname(cpmname))
 tardir0skip
        ; ld de,fcb
        ; OS_SETDTA ;set disk transfer address = de
-       ;  ;call makeemptymask ;т CP/M эх эєцэю, эю юЄёєЄёЄтшх тЁхфшЄ ьэюуючрфрўэюёЄш
-       ;  ld de,fcbmask ;т CP/M эх эєцэю, эю юЄёєЄёЄтшх тЁхфшЄ ьэюуючрфрўэюёЄш
+       ;  ;call makeemptymask ;в CP/M не нужно, но отсутствие вредит многозадачности
+       ;  ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
        ; OS_FSEARCHNEXT
        pop bc
        inc bc
@@ -469,12 +469,12 @@ dos2unixtime
         push hl ;time
         ld a,lx
         push af
-        ld hl,0 ;ўшёыю фэхщ
+        ld hl,0 ;число дней
         ld a,hx
         srl a
         add a,10
         ld d,a ;d=year since 1970 (0 for 1970)
-;т Ўшъых яю уюфрь яЁшсрты Є№ ўшёыю фэхщ, ёююЄтхЄёЄтє■∙хх уюфрь
+;в цикле по годам прибавлять число дней, соответствующее годам
         ;jr z,dos2unixtime_noyear
         push de
         ld b,d
@@ -496,7 +496,7 @@ dos2unixtime_years0
         djnz dos2unixtime_years0
         pop de
 ;dos2unixtime_noyear
-;т Ўшъых яю ьхё Ўрь яЁшсрты Є№ ўшёыю фэхщ, ёююЄтхЄёЄтє■∙хх ьхё Ўрь
+;в цикле по месяцам прибавлять число дней, соответствующее месяцам
         add ix,ix
         add ix,ix
         add ix,ix
@@ -520,13 +520,13 @@ dos2unixtime_nomonth
         pop af
         and 0x1f ;day (1..31)
         dec a
-;яюЄюь яЁшсртшЄ№ (day-1) (Є.ъ. фэш є эрё ё хфшэшЎ√)
+;потом прибавить (day-1) (т.к. дни у нас с единицы)
         add a,l
         ld l,a
         adc a,h
         sub l
-        ld h,a ;hl=ўшёыю фэхщ ё эрўрыр 1970
-;яюЄюь єьэюцшЄ№ эр 86400 (0x15180) / 2
+        ld h,a ;hl=число дней с начала 1970
+;потом умножить на 86400 (0x15180) / 2
         ex de,hl
         ld bc,86400/2
         call MULWORD ;out: HLBC=DE*BC
@@ -534,7 +534,7 @@ dos2unixtime_nomonth
         ld e,c
         ex de,hl ;dehl = days*86400/2
         pop bc ;time
-;яюЄюь яЁшсртшЄ№ (3600/2*hour) + (60/2*minute) + (second/2) = 30*(60*hour + minute) + (second/2)
+;потом прибавить (3600/2*hour) + (60/2*minute) + (second/2) = 30*(60*hour + minute) + (second/2)
         push de
         push hl ;dehl = days*86400/2
 
@@ -593,7 +593,7 @@ dos2unixtime_nomonth
         jr nc,$+3
         inc de
         
-;яюЄюь єьэюцшЄ№ эр 2
+;потом умножить на 2
         add hl,hl
         rl e
         rl d ;dehl=UNIX time
@@ -604,12 +604,12 @@ unix2dostime
 ;out: ix=date, hl=time
 ;UNIX time (seconds since beginning of 1970) to DOS date, time
         ;jr $
-;яюфхышЄ№ эр 2 (Є.ъ. т DOS Єюы№ъю фтющэ√х ёхъєэф√)
+;поделить на 2 (т.к. в DOS только двойные секунды)
         srl d
         rr e
         rr h
         rr l
-;яюфхышЄ№ эр 86400/2 - т юёЄрЄъх тЁхь 
+;поделить на 86400/2 - в остатке время
         push de
         ld de,86400/2
         exx
@@ -617,10 +617,10 @@ unix2dostime
         ld de,0
         exx
         call ldiv ; hl'hl = hl'hl / de'de ; de'de = hl'hl % de'de
-;hl=фэш
-        push de ;de=фтющэ√х ёхъєэф√
+;hl=дни
+        push de ;de=двойные секунды
 
-;т Ўшъых яю уюфрь т√ўшЄрЄ№ ўшёыю фэхщ, ёююЄтхЄёЄтє■∙хх уюфрь
+;в цикле по годам вычитать число дней, соответствующее годам
         ld d,-1 ;year 1970-1
 unix2dostime_years0
         inc d ;d=0 = year 1970 etc
@@ -637,7 +637,7 @@ unix2dostime_years0
 ;d=year
 ;hl=days
 
-;т Ўшъых яю ьхё Ўрь т√ўшЄрЄ№ ўшёыю фэхщ, ёююЄтхЄёЄтє■∙хх ьхё Ўрь
+;в цикле по месяцам вычитать число дней, соответствующее месяцам
         ld e,0
 unix2dostime_months0
         inc e ;e=month (1..12)
@@ -669,9 +669,9 @@ unix2dostime_months0
         ld lx,a
 ;ix = DOS date: %YYYYYYYM MMMDDDDD
         
-        pop hl ;hl=фтющэ√х ёхъєэф√
+        pop hl ;hl=двойные секунды
 
-;т Ўшъых яю ўрёрь т√ўшЄрЄ№ ўшёыю 3600/2
+;в цикле по часам вычитать число 3600/2
         ld bc,3600/2
         xor a ;NC
 unix2dostime_hours0
@@ -685,7 +685,7 @@ unix2dostime_hours0
         add a,a
         ld d,a ;d=hours<<3
         
-;т Ўшъых яю ьшэєЄрь т√ўшЄрЄ№ ўшёыю 60/2
+;в цикле по минутам вычитать число 60/2
         ld bc,60/2
         xor a ;NC
 unix2dostime_minutes0
@@ -710,13 +710,13 @@ unix2dostime_minutes0
 ;hl = DOS time: %hhhhhmmm mmmsssss
         ret
 
-; тхЁёш  юЄ 2006-12-18T15:11:28+0300
-; ┴хччэръютюх 32-ЁрчЁ фэюх фхыхэшх
-; ЇєэъЎш  ёюёЄюшЄ шч фтєї ўрёЄхщ:
-; 1. 32-ЁрчЁ фэюх фхышьюх ш 16-ЁрчЁ фэ√щ
-;    фхышЄхы№.
-; 2. 32-Ёрчф фэюх фхышьюх ш 32-ЁрчЁ фэ√щ
-;    фхышЄхы№.
+; версия от 2006-12-18T15:11:28+0300
+; Беззнаковое 32-разрядное деление
+; функция состоит из двух частей:
+; 1. 32-разрядное делимое и 16-разрядный
+;    делитель.
+; 2. 32-раздядное делимое и 32-разрядный
+;    делитель.
 ; hl'hl = hl'hl / de'de
 ; de'de = hl'hl % de'de
 ldiv
@@ -861,22 +861,22 @@ readtar0
         or a
         jp z,untarend
          xor a
-         ld (header+100),a ;эр тё ъшщ ёыєўрщ, хёыш фышэр шьхэш = 100
+         ld (header+100),a ;на всякий случай, если длина имени = 100
         ld de,filename
         call copyname83
         
         ld a,(header+0x09c) ;type (0=file, 5=dir)
         cp '5'
         jr nz,readtar_nodir
-;єсшЁрхь ёых° т ъюэЎх
+;убираем слеш в конце
         ld hl,filename
         push hl
         xor a
         ld b,-1
         cpir
         ld a,'/'
-        dec hl ;эр ЄхЁьшэрЄюЁх
-        dec hl ;яхЁхф ЄхЁьшэрЄюЁюь
+        dec hl ;на терминаторе
+        dec hl ;перед терминатором
         sub (hl)
         jr nz,$+3
         ld (hl),a ;0
@@ -885,7 +885,7 @@ readtar0
         jr readtar0
 readtar_nodir
 
-        ld bc,header+0x07c ;size in octal (TODO size in bytes - эрщЄш яЁшьхЁ)
+        ld bc,header+0x07c ;size in octal (TODO size in bytes - найти пример)
         call readoctal_dehl
         
 ;dehl=size
@@ -1235,10 +1235,10 @@ strmirror
          ld a,b
          or c
          ret z
-;de=эрўрыю, bc=hl=фышэр
+;de=начало, bc=hl=длина
         ;ld h,b
         ;ld l,c
-        add hl,de ;hl=ъюэхЎ+1
+        add hl,de ;hl=конец+1
         srl b
         rr c ;bc=wid/2
 mirrorbytes0
@@ -1282,9 +1282,9 @@ cpmname_to_dotnameq
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
@@ -1296,10 +1296,10 @@ tarfileheader
         db "0000000",0
         db "0000000",0
 ;tarfilesizeoctal=$
-        db "00000000000",0 ;11 ЎшЇЁ = 33 сшЄр
+        db "00000000000",0 ;11 цифр = 33 бита
 tarfilesizeoctal_end=$-1
 ;tarfiletimeoctal=$
-        db "00000000000",0 ;11 ЎшЇЁ = 33 сшЄр
+        db "00000000000",0 ;11 цифр = 33 бита
 tarfiletimeoctal_end=$-1
 tarfileheaderchecksumoctal=$
         db "007147 ",0
@@ -1310,10 +1310,10 @@ tarfileordir=$
         db "ustar"
         ds tarfileheader+0x200-$
 
-        db 0 ;фы  чрЄшЁрэш , хёыш эхЄ яєЄш
+        db 0 ;для затирания, если нет пути
 filename
         db "depkfile.fil"
-        ds filename+256-$ ;фы  фышээ√ї шь╕э
+        ds filename+256-$ ;для длинных имён
 
 filenametoopen
         ds 256

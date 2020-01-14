@@ -113,7 +113,7 @@ StompChainCounter     db 0;= $0484
 ;VRAM_Buffer1_Offset   db 0;= $0300
 ;VRAM_Buffer1          ds 63;???;= $0301
 ;VRAM_Buffer2_Offset   db 0;= $0340
-;VRAM_Buffer2          ds TitleScreenDataSize-64;63;???;= $0341 ;следующий блок данных в $0363, но нужен буфер до 0x043a
+;VRAM_Buffer2          ds TitleScreenDataSize-64;63;???;= $0341 ;б«Ґ¤гойЁ© Ў«®Є ¤ ­­ле ў $0363, ­® ­г¦Ґ­ ЎгдҐа ¤® 0x043a
 
 Sprite0HitDetectFlag  db 0;= $0722
 ColorRotateOffset     db 0;= $06d4
@@ -258,7 +258,7 @@ SprObj_BoundBoxCtrl   ;= $0499
 Player_BoundBoxCtrl   db 0;= $0499
 Enemy_BoundBoxCtrl    ds MAX_ENEMIES-1;???;= $049a ;-1???
 Fireball_BoundBoxCtrl ds 2;???;= $04a0
-Misc_BoundBoxCtrl     ds 9;???;= $04a2 ;начиная с объекта #9 идут misc objects (что это???)
+Misc_BoundBoxCtrl     ds 9;???;= $04a2 ;­ зЁ­ п б ®ЎкҐЄв  #9 Ё¤гв misc objects (зв® нв®???)
 
 EnemyFrenzyBuffer     db 0;= $06cb
 EnemyFrenzyQueue      db 0;= $06cd
@@ -337,8 +337,8 @@ FireballThrowingTimer db 0;= $0711
 HammerEnemyOffset     ds MAX_ENEMIES;???;= $06ae
 JumpCoinMiscOffset    db 0;= $06b7
 
-        align 16;256 ;не помогает
-Block_Buffer_1        ds 0xd0;= $0500 ;at least +$b4 ;13 строк по 16 блоков
+        align 16;256 ;­Ґ Ї®¬®Ј Ґв
+Block_Buffer_1        ds 0xd0;= $0500 ;at least +$b4 ;13 бва®Є Ї® 16 Ў«®Є®ў
 Block_Buffer_2        ds 0xd0;= $05d0
 
 HammerThrowingTimer   ds MAX_ENEMIES;???;= $03a2
@@ -546,9 +546,9 @@ WARMMEMDATA_end=$
 DisplayDigits         ;= $07d7
 TopScoreDisplay       ds 6;= $07d7
 ScoreAndCoinDisplay   ;= $07dd
-PlayerScoreDisplay    ds 6;= $07dd ;почему тут? это всё блок DisplayDigits
-        ds DisplayDigits+($07f8-$07d7)-$ ;TODO убрать
-GameTimerDisplay      ds 6;???;= $07f8 ;почему тут? это всё блок DisplayDigits
+PlayerScoreDisplay    ds 6;= $07dd ;Ї®зҐ¬г вгв? нв® ўбс Ў«®Є DisplayDigits
+        ds DisplayDigits+($07f8-$07d7)-$ ;TODO гЎа вм
+GameTimerDisplay      ds 6;???;= $07f8 ;Ї®зҐ¬г вгв? нв® ўбс Ў«®Є DisplayDigits
 
 WorldSelectEnableFlag db 0;= $07fc
 ContinueWorld         db 0;= $07fd
@@ -615,7 +615,7 @@ FrenzyEnemyTimer      = $078f
 BowserFireBreathTimer = $0790
 StompTimer            = $0791
 AirBubbleTimer        = $0792
- ;нижеследующие таймеры уменьшаются только раз в 21 фрейм
+ ;­Ё¦Ґб«Ґ¤гойЁҐ в ©¬Ґал г¬Ґ­ми овбп в®«мЄ® а § ў 21 даҐ©¬
 ScrollIntervalTimer   = $0795
 EnemyIntervalTimer    = $0796
 BrickCoinTimer        = $079d

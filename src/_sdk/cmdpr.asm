@@ -70,9 +70,9 @@ cmdcalccurxy
 ;out: de=yx
 ;x=cmdpromptsz+curcmdx-curcmdscroll
         call cmdcalcpromptsz ;a=promptsz
-        ld hl,curcmdx ;эх эр ¤ъЁрэх, р тэєЄЁш ъюьрэф√
+        ld hl,curcmdx ;не на экране, а внутри команды
         add a,(hl)
-        ld hl,curcmdscroll ;ёфтшу ъюьрэф√ юЄэюёшЄхы№эю ¤ъЁрэр
+        ld hl,curcmdscroll ;сдвиг команды относительно экрана
         sub (hl)
         ld e,a
         ;ld d,txtscrhgt-1
@@ -82,16 +82,16 @@ cmdcalccurxy
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
         ret
 
 fixscroll_prcmd
-;Ўшъы яюшёър ёъЁюыыр фы  Єхъє∙хую яюыюцхэш  ъєЁёюЁр
+;цикл поиска скролла для текущего положения курсора
 editcmd_scroll0
         call cmdcalccurxy ;e=scrx
         call cmdcalcpromptsz ;a=promptsz
@@ -99,14 +99,14 @@ editcmd_scroll0
         dec a
         cp e ;scrx
         jr c,editcmd_noscrollleft ;x>=promptsz (x>(promptsz-1))
-;x<promptsz - ёъЁюыы тыхтю
+;x<promptsz - скролл влево
         dec (hl)
         jr editcmd_scroll0
 editcmd_noscrollleft
         ld a,e ;scrx
         cp txtscrwid
         jr c,editcmd_noscrollright
-;x>=txtscrwid - ёъЁюыы тяЁртю
+;x>=txtscrwid - скролл вправо
         inc (hl)
         jr editcmd_scroll0
 editcmd_noscrollright
@@ -130,10 +130,10 @@ editcmd_noscrollright
         add hl,de
         ;ld c,0
         call cmdprtext
-;фюс№╕ь юёЄрЄюъ ёЄЁюъш яЁюсхырьш
+;добьём остаток строки пробелами
 prcmdspc0
         ld a,c
-        cp txtscrwid-1 ;юёЄрты ь ьхёЄю ёяЁртр фы  ъєЁёюЁр
+        cp txtscrwid-1 ;оставлям место справа для курсора
         ret z
         push bc
         ld a,' '
@@ -155,7 +155,7 @@ cmdprtext0
         inc c
         inc hl
         ld a,c
-        cp txtscrwid-1 ;юёЄрты ь ьхёЄю ёяЁртр фы  ъєЁёюЁр
+        cp txtscrwid-1 ;оставлям место справа для курсора
         jp nz,cmdprtext0
         ret
 
@@ -185,9 +185,9 @@ editcmd_ins0
         ld (hl),a
         ret
 
-curcmdscroll ;ёфтшу ъюьрэф√ юЄэюёшЄхы№эю ¤ъЁрэр
+curcmdscroll ;сдвиг команды относительно экрана
         db 0
-curcmdx ;эх эр ¤ъЁрэх, р тэєЄЁш ъюьрэф√
+curcmdx ;не на экране, а внутри команды
         db 0
 cmdprompt
         ds MAXPATH_sz;MAXCMDSZ+1

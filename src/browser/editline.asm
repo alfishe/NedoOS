@@ -15,7 +15,7 @@ editcmd_scroll0
         ld hl,browser_editline_scroll;curcmdscroll
         inc e ;scrx
         jr nz,editcmd_noscrollleft ;x>=promptsz (x>(promptsz-1))
-;x<promptsz - ёъЁюыы тыхтю
+;x<promptsz - скролл влево
         dec (hl)
         jr editcmd_scroll0
 editcmd_noscrollleft
@@ -23,7 +23,7 @@ editcmd_noscrollleft
         ld a,e ;scrx
         cp EDITLINEMAXVISIBLEX;txtscrwid
         jr c,editcmd_noscrollright
-;x>=txtscrwid - ёъЁюыы тяЁртю
+;x>=txtscrwid - скролл вправо
         inc (hl)
         jr editcmd_scroll0
 editcmd_noscrollright
@@ -45,7 +45,7 @@ browser_editlinenokey
         cp key_redraw
         jr z,browser_editline0
         cp key_enter
-        jp z,browser_reload ;curfulllink ёюфхЁцшЄ яюыэ√щ url
+        jp z,browser_reload ;curfulllink содержит полный url
         ld hl,browser_editline0
         push hl
         cp key_left
@@ -55,14 +55,14 @@ browser_editlinenokey
         cp key_backspace
         jr z,browser_editline_backspace
         cp 0x20
-        ret c ;яЁюўшх ёшёЄхьэ√х ъэюяъш эх эєцэ√
+        ret c ;прочие системные кнопки не нужны
         ld e,a
         ld hl,curfulllink
         call strlen ;hl=length
         ld bc,MAXLINKSZ
         or a
         sbc hl,bc
-        ret nc ;эхъєфр ттюфшЄ№
+        ret nc ;некуда вводить
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc a
         ld (curcmdx),a
@@ -71,15 +71,15 @@ browser_editlinenokey
 browser_editline_backspace
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         or a
-        ret z ;jr z,editcmdok ;эхўхую єфры Є№
+        ret z ;jr z,editcmdok ;нечего удалять
         dec a
         ld (curcmdx),a
-        jp strdelch ;єфры хЄ яЁхф√фє∙шщ ёшьтюы
+        jp strdelch ;удаляет предыдущий символ
       
 browser_editline_left
         ld a,(curcmdx)
         or a
-        ret z ;jr z,editcmdok ;эхъєфр тыхтю
+        ret z ;jr z,editcmdok ;некуда влево
         dec a
         ld (curcmdx),a
         ret
@@ -88,7 +88,7 @@ browser_editline_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
-        ret z ;jr z,editcmdok ;эхъєфр яЁртю, ёЄюшь эр ЄхЁьшэрЄюЁх
+        ret z ;jr z,editcmdok ;некуда право, стоим на терминаторе
         inc a
         ld (curcmdx),a
         ret
@@ -119,7 +119,7 @@ editcmd_ins0
         ld (hl),a
         ret
 
-curcmdx ;эх эр ¤ъЁрэх, р тэєЄЁш ъюьрэф√
+curcmdx ;не на экране, а внутри команды
         db 0
         
 browser_editline_print
@@ -129,7 +129,7 @@ browser_editline_print
         call setxymc
         ld de,curfulllink
         ex de,hl
-browser_editline_scroll=$+1 ;ёфтшу ъюьрэф√ юЄэюёшЄхы№эю ¤ъЁрэр
+browser_editline_scroll=$+1 ;сдвиг команды относительно экрана
         ld bc,0
         add hl,bc
         ex de,hl
@@ -168,9 +168,9 @@ browser_editline_cursor
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
@@ -189,8 +189,8 @@ cmdcalctextaddr
 cmdcalccurxy
 ;out: de=yx
 ;x=curcmdx-curcmdscroll
-        ld a,(curcmdx) ;эх эр ¤ъЁрэх, р тэєЄЁш ъюьрэф√
-        ld hl,browser_editline_scroll;curcmdscroll ;ёфтшу ъюьрэф√ юЄэюёшЄхы№эю ¤ъЁрэр
+        ld a,(curcmdx) ;не на экране, а внутри команды
+        ld hl,browser_editline_scroll;curcmdscroll ;сдвиг команды относительно экрана
         sub (hl)
         ld e,a
         ld d,EDITLINEY

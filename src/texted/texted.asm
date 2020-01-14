@@ -6,11 +6,11 @@ COLOR=7
         
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;эх фюыцхэ юяєёърЄ№ё  эшцх #3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
 
-        ;YIELD ;ўЄюс√ cmd ьюу фюфхырЄ№ ётюш фхыр эр ¤ъЁрэх
+        ;YIELD ;чтобы cmd мог доделать свои дела на экране
         
         ld e,COLOR
         OS_CLS
@@ -147,7 +147,7 @@ minhl_bc_tobc
         
 fcb
         ds FCB_sz
-fcb_filename=fcb+FCB_FNAME        ;яю єьюыўрэш■ Єрь фышэр 0
+fcb_filename=fcb+FCB_FNAME        ;по умолчанию там длина 0
         
 cmd_end
 

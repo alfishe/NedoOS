@@ -1,4 +1,4 @@
-;на входе ожидается pgstructs в c000. на выходе всегда ставить pgstructs
+;­  ўе®¤Ґ ®¦Ё¤ Ґвбп pgstructs ў c000. ­  ўле®¤Ґ ўбҐЈ¤  бв ўЁвм pgstructs
 
 ;/* Results of Disk Functions */
 ;typedef enum {
@@ -34,7 +34,7 @@ disk_status:
 			ret nz
 			ld bc,0x82ab
 			in a,(c)
-			and 0xaf		;хост-мод и сл811 в портах
+			and 0xaf		;е®бв-¬®¤ Ё б«811 ў Ї®ав е
 			out (c),a	
 			ld b,0x80
 			ld a,0x0d
@@ -112,7 +112,7 @@ devices_init_noGS
 		ret 
 devices_init_noSL811
 	endif
-	ld a,0x01 ;нет такого устройства
+	ld a,0x01 ;­Ґв в Є®Ј® гбва®©бвў 
 	ret  
 
 diskgetpars
@@ -135,7 +135,7 @@ diskgetpars
 ;a'=count
 	ret
         
-;?????????????????????????????? чтение секторов
+;?????????????????????????????? звҐ­ЁҐ бҐЄв®а®ў
 devices_read
 	call BDOS_setdepage
 	call devices_readnopg;devices_read_go
@@ -162,7 +162,7 @@ devices_read_go
 ;a'=count
 	 or a
 	jr nz,readsectors_noIDEmaster
-	ld a,0xe0 ;master ;почему bit6=1???
+	ld a,0xe0 ;master ;Ї®зҐ¬г bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -172,7 +172,7 @@ devices_read_go
 readsectors_noIDEmaster
 	dec a
 	jr nz,readsectors_noIDEslave
-	ld a,0xf0 ;slave ;почему bit6=1???
+	ld a,0xf0 ;slave ;Ї®зҐ¬г bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -191,7 +191,7 @@ readsectors_noIDEslave
 	ld a,0x01
 	ret  
 
-;?????????????????????????????? запись секторов
+;?????????????????????????????? § ЇЁбм бҐЄв®а®ў
 devices_write
 	call BDOS_setdepage
 	call devices_writenopg;devices_write_go
@@ -218,7 +218,7 @@ devices_write_go
 ;a'=count
          or a
 	jr nz,writesectors_noIDEmaster
-	ld a,0xe0 ;master ;почему bit6=1???
+	ld a,0xe0 ;master ;Ї®зҐ¬г bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -228,7 +228,7 @@ devices_write_go
 writesectors_noIDEmaster
 	dec a
 	jr nz,writesectors_noIDEslave
-	ld a,0xf0 ;slave ;почему bit6=1???
+	ld a,0xf0 ;slave ;Ї®зҐ¬г bit6=1???
 ;b+a=head+device
 ;c=cylHI
 ;d=cylLO
@@ -258,7 +258,7 @@ IDE_INIT
 	ret nz
 	;jp checkidentIDE
 checkidentIDE
-;зачем сохранять hl? TODO убрать
+;§ зҐ¬ б®еа ­пвм hl? TODO гЎа вм
 	push hl
 	;ld d,h
 	;ld e,l
@@ -322,7 +322,7 @@ waitDRQ0
 	in a,(C)
 	and 0x88
 	cp 0x08
-	jr nz,waitDRQ0 ;ожидание готовности передачи данных
+	jr nz,waitDRQ0 ;®¦Ё¤ ­ЁҐ Ј®в®ў­®бвЁ ЇҐаҐ¤ зЁ ¤ ­­ле
 	exa  
 readsectorsIDE0
 	exa  
@@ -360,7 +360,7 @@ waitDRQ01
 	in a,(C)
 	and 0x88
 	cp 0x08
-	jr nz,waitDRQ01 ;ожидание готовности передачи данных
+	jr nz,waitDRQ01 ;®¦Ё¤ ­ЁҐ Ј®в®ў­®бвЁ ЇҐаҐ¤ зЁ ¤ ­­ле
 	exa
 writesectorsIDE0
 	exa  
@@ -441,7 +441,7 @@ setblockparsIDE
         push de
 	ld d,b
 	ld e,c
-	;ld bc,0xff00+hddhead ;зачем ff???
+	;ld bc,0xff00+hddhead ;§ зҐ¬ ff???
         ld bc,hddhead
 	out (C),d ;head
 	ld bc,hddstat
@@ -462,7 +462,7 @@ nobsy02
 	ret
         
 readidentIDE
-	;ld bc,0xff00+hddhead ;зачем ff???
+	;ld bc,0xff00+hddhead ;§ зҐ¬ ff???
         ld bc,hddhead
 	out (C),a
 	ld bc,hddstat
@@ -518,24 +518,24 @@ ldaff
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Z-Controller (SD-card) ;;;;;;;;;;;;;;;;
 
 SD_INIT
-        call cs_highSD ;включаем питание карты при снятом выборе
+        call cs_highSD ;ўЄ«оз Ґ¬ ЇЁв ­ЁҐ Є авл ЇаЁ б­пв®¬ ўлЎ®аҐ
 	ld bc,0x0057
 	ld de,0x20ff
 LL7c5d	out (C),e
 	dec d
-	jr nz,LL7c5d ;записываем в порт много единичек
+	jr nz,LL7c5d ;§ ЇЁблў Ґ¬ ў Ї®ав ¬­®Ј® Ґ¤Ё­ЁзҐЄ
 	xor a
 	exa  
-LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим после включения питания
-	call outcom_hlSD ;этой командой карточка переводится в режим SPI
+LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;Є®¬ ­¤  бЎа®б  Ё ЇҐаҐў®¤  Є авл ў SPI аҐ¦Ё¬ Ї®б«Ґ ўЄ«озҐ­Ёп ЇЁв ­Ёп
+	call outcom_hlSD ;нв®© Є®¬ ­¤®© Є ав®зЄ  ЇҐаҐў®¤Ёвбп ў аҐ¦Ё¬ SPI
 	call read32byteswaitnoffSD
 	exa  
 	dec a
-	jp z,errexitSD ;если карта 256 раз не ответила, то карты нет
+	jp z,errexitSD ;Ґб«Ё Є ав  256 а § ­Ґ ®вўҐвЁ« , в® Є авл ­Ґв
 	exa  
 	dec a
 	jr nz,LL7c64
-	ld hl,cmd08SD ;SEND_IF_COND ;запрос поддерживаемых напряжений
+	ld hl,cmd08SD ;SEND_IF_COND ;§ Їа®б Ї®¤¤Ґа¦Ёў Ґ¬ле ­ Їап¦Ґ­Ё©
 	call outcom_hlSD
 	call read32byteswaitnoffSD
 	in h,(C)
@@ -549,11 +549,11 @@ LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим
 	bit 2,a
 	jr nz,LL7c92
 	ld h,0x40
-LL7c92	ld a,0x77 ;запускаем процесс внутренней инициализации
+LL7c92	ld a,0x77 ;§ ЇгбЄ Ґ¬ Їа®жҐбб ў­гваҐ­­Ґ© Ё­ЁжЁ «Ё§ жЁЁ
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
 	ld a,0x69
-	out (C),a ;бит 6 установлен для инициализации SDHC карты
+	out (C),a ;ЎЁв 6 гбв ­®ў«Ґ­ ¤«п Ё­ЁжЁ «Ё§ жЁЁ SDHC Є авл
 	nop  
 	out (C),h
 	nop  
@@ -564,21 +564,21 @@ LL7c92	ld a,0x77 ;запускаем процесс внутренней инициализации
 	out (C),l
 	ld a,0xff
 	out (C),a
-	call read32byteswaitnoffSD ;ждем перевода карты в режим готовности
-	and a ;время ожидания примерно 1 секунда
+	call read32byteswaitnoffSD ;¦¤Ґ¬ ЇҐаҐў®¤  Є авл ў аҐ¦Ё¬ Ј®в®ў­®бвЁ
+	and a ;ўаҐ¬п ®¦Ё¤ ­Ёп ЇаЁ¬Ґа­® 1 бҐЄг­¤ 
 	jr nz,LL7c92
-LL7cb4	ld a,0x7b ;принудительно отключаем CRC16
+LL7cb4	ld a,0x7b ;ЇаЁ­г¤ЁвҐ«м­® ®вЄ«оз Ґ¬ CRC16
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
 	and a
 	jr nz,LL7cb4
-LL7cbf	ld hl,cmd16SD ;SET_BLOCKEN ;команда изменения размера блока
-	call outcom_hlSD ;принудительно задаем размер блока 512 байт
+LL7cbf	ld hl,cmd16SD ;SET_BLOCKEN ;Є®¬ ­¤  Ё§¬Ґ­Ґ­Ёп а §¬Ґа  Ў«®Є 
+	call outcom_hlSD ;ЇаЁ­г¤ЁвҐ«м­® § ¤ Ґ¬ а §¬Ґа Ў«®Є  512 Ў ©в
 	call read32byteswaitnoffSD
 	and a
 	jr nz,LL7cbf
 	
-	;запомним размер блока
+	;§ Ї®¬­Ё¬ а §¬Ґа Ў«®Є 
 	ld a,0x7a ;READ_OCR
 	ld bc,0x0057
 	call outcom_zeroparsSD
@@ -593,16 +593,16 @@ LL7cbf	ld hl,cmd16SD ;SET_BLOCKEN ;команда изменения размера блока
 	and 0x40
 	ld (zsd_blsize),a
 	
-;включение питания карты при снятом сигнале выбора карты 
+;ўЄ«озҐ­ЁҐ ЇЁв ­Ёп Є авл ЇаЁ б­пв®¬ бЁЈ­ «Ґ ўлЎ®а  Є авл 
 cs_highSD
         push af
 	ld a,0x03
 	ld bc,0x8057
-	out (C),a ;включаем питание, снимаем выбор карты
+	out (C),a ;ўЄ«оз Ґ¬ ЇЁв ­ЁҐ, б­Ё¬ Ґ¬ ўлЎ®а Є авл
 	xor a
 	dec b
-	out (C),a ;обнуляем порт данных
-;обнуление порта можно не делать, просто последний записанный бит всегда 1, а при сбросе через вывод данных карты напряжение попадает на вывод питания карты и светодиод на питании подсвечивается 
+	out (C),a ;®Ў­г«пҐ¬ Ї®ав ¤ ­­ле
+;®Ў­г«Ґ­ЁҐ Ї®ав  ¬®¦­® ­Ґ ¤Ґ« вм, Їа®бв® Ї®б«Ґ¤­Ё© § ЇЁб ­­л© ЎЁв ўбҐЈ¤  1,   ЇаЁ бЎа®бҐ зҐаҐ§ ўлў®¤ ¤ ­­ле Є авл ­ Їап¦Ґ­ЁҐ Ї®Ї ¤ Ґв ­  ўлў®¤ ЇЁв ­Ёп Є авл Ё бўҐв®¤Ё®¤ ­  ЇЁв ­ЁЁ Ї®¤бўҐзЁў Ґвбп 
 	pop af
 	xor a;ld a,0x00
 	ret  
@@ -615,12 +615,12 @@ errexitSD
 SD_OFF
         xor a
 	ld bc,0x8057
-	out (C),a ;выключение питания карты
+	out (C),a ;ўлЄ«озҐ­ЁҐ ЇЁв ­Ёп Є авл
 	dec b
-	out (C),a ;обнуление порта данных
+	out (C),a ;®Ў­г«Ґ­ЁҐ Ї®ав  ¤ ­­ле
 	ret  
 
-;выбираем карту сигналом 0
+;ўлЎЁа Ґ¬ Є авг бЁЈ­ «®¬ 0
 cs_lowSD
         push af
 	ld a,0x01
@@ -629,16 +629,16 @@ cs_lowSD
 	pop af
 	ret  
 
-;запись в карту команды с неизменяемым параметром из памяти
-;адрес команды в HL
+;§ ЇЁбм ў Є авг Є®¬ ­¤л б ­ҐЁ§¬Ґ­пҐ¬л¬ Ї а ¬Ґва®¬ Ё§ Ї ¬пвЁ
+; ¤аҐб Є®¬ ­¤л ў HL
 outcom_hlSD
         call cs_lowSD
 	ld bc,0x0657
 	otir  
 	ret  
 
-;запись в карту команды с нулевыми аргументами
-;А=код команды, аргумент команды равен 0 
+;§ ЇЁбм ў Є авг Є®¬ ­¤л б ­г«Ґўл¬Ё  аЈг¬Ґ­в ¬Ё
+;Ђ=Є®¤ Є®¬ ­¤л,  аЈг¬Ґ­в Є®¬ ­¤л а ўҐ­ 0 
 outcom_zeroparsSD
         call cs_lowSD
 	ld bc,0x0057
@@ -655,9 +655,9 @@ outcom_zeroparsSD
 	out (C),a
 	ret  
 zsd_blsize DEFB 0
-;запись команды чтения/записи с номером сектора в BCDE для карт стандартного размера
-;при изменяемом размере сектора номер сектора нужно умножать на его размер, для карт
-;SDHC, мини и микро размер сектора не требует умножения
+;§ ЇЁбм Є®¬ ­¤л звҐ­Ёп/§ ЇЁбЁ б ­®¬Ґа®¬ бҐЄв®а  ў BCDE ¤«п Є ав бв ­¤ ав­®Ј® а §¬Ґа 
+;ЇаЁ Ё§¬Ґ­пҐ¬®¬ а §¬ҐаҐ бҐЄв®а  ­®¬Ґа бҐЄв®а  ­г¦­® г¬­®¦ вм ­  ҐЈ® а §¬Ґа, ¤«п Є ав
+;SDHC, ¬Ё­Ё Ё ¬ЁЄа® а §¬Ґа бҐЄв®а  ­Ґ ваҐЎгҐв г¬­®¦Ґ­Ёп
 setcmdparsSD
         push hl
 	push de
@@ -675,41 +675,41 @@ setcmdparsSD
 ;	in h,(C)
 ;	nop  
 ;	in h,(C)
-;	bit 6,a ;проверяем 30 бит регистра OCR (6 бит в «А»)
-;	pop hl       ;при установленном бите умножение номера сектора
+;	bit 6,a ;Їа®ўҐапҐ¬ 30 ЎЁв аҐЈЁбва  OCR (6 ЎЁв ў "Ђ")
+;	pop hl       ;ЇаЁ гбв ­®ў«Ґ­­®¬ ЎЁвҐ г¬­®¦Ґ­ЁҐ ­®¬Ґа  бҐЄв®а 
 	ld h,b
 	ld l,c
 	call cs_lowSD
 	ld bc,0x0057
 	ld a,(zsd_blsize)
 	or a
-	jr nz,LL7d40 ;не требуется
-	ex de,hl       ;при сброшенном бите соответственно
-	add hl,hl ;умножаем номер сектора на 512 (0x200)
+	jr nz,LL7d40 ;­Ґ ваҐЎгҐвбп
+	ex de,hl       ;ЇаЁ бЎа®иҐ­­®¬ ЎЁвҐ б®®вўҐвбвўҐ­­®
+	add hl,hl ;г¬­®¦ Ґ¬ ­®¬Ґа бҐЄв®а  ­  512 (0x200)
 	ex de,hl  
 	adc hl,hl
 	ld h,l
 	ld l,d
 	ld d,e
 	ld e,0x00
-LL7d40	pop af ;заготовленный номер сектора находится в HLDE
-	out (C),a ;команда
+LL7d40	pop af ;§ Ј®в®ў«Ґ­­л© ­®¬Ґа бҐЄв®а  ­ е®¤Ёвбп ў HLDE
+	out (C),a ;Є®¬ ­¤ 
 	nop  
-	out (C),h ;;пишем номер сектора от старшего
+	out (C),h ;;ЇЁиҐ¬ ­®¬Ґа бҐЄв®а  ®в бв аиҐЈ®
 	nop  
 	out (C),l
 	nop  
 	out (C),d
 	nop  
-	out (C),e ;до младшего байта
+	out (C),e ;¤® ¬« ¤иҐЈ® Ў ©в 
 	ld a,0xff
-	out (C),a ;пишем пустой CRC7 и стоповый бит
+	out (C),a ;ЇЁиҐ¬ Їгбв®© CRC7 Ё бв®Ї®ўл© ЎЁв
 	pop bc
 	pop de
 	pop hl
 	ret
         
-;чтение ответа карты до 32 раз, если ответ не 0xFF - немедленный выход 
+;звҐ­ЁҐ ®вўҐв  Є авл ¤® 32 а §, Ґб«Ё ®вўҐв ­Ґ 0xFF - ­Ґ¬Ґ¤«Ґ­­л© ўле®¤ 
 read32byteswaitnoffSD
         push de
 	ld de,0x20ff
@@ -724,7 +724,7 @@ LL7d66	pop de
 
 cmd00SD
 ;GO_IDLE_STATE
-;команда сброса и перевода карты в SPI режим после включения питания
+;Є®¬ ­¤  бЎа®б  Ё ЇҐаҐў®¤  Є авл ў SPI аҐ¦Ё¬ Ї®б«Ґ ўЄ«озҐ­Ёп ЇЁв ­Ёп
         db 0x40
         db 0x00
         db 0x00
@@ -733,7 +733,7 @@ cmd00SD
         db 0x95
 cmd08SD
 ;SEND_IF_COND
-;запрос поддерживаемых напряжений 
+;§ Їа®б Ї®¤¤Ґа¦Ёў Ґ¬ле ­ Їап¦Ґ­Ё© 
         db 0x48
         db 0x00
         db 0x00
@@ -742,7 +742,7 @@ cmd08SD
         db 0x87
 cmd16SD
 ;SET_BLOCKEN
-;команда изменения размера блока 
+;Є®¬ ­¤  Ё§¬Ґ­Ґ­Ёп а §¬Ґа  Ў«®Є  
         db 0x50
         db 0x00
         db 0x00
@@ -872,7 +872,7 @@ writesecGS200
 ;writesecGS_waitready0
 ;	in a,(C)
 ;	cp 0x77
-;	jr nz,writesecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
+;	jr nz,writesecGS_waitready0 ;??? ®¦Ё¤ Ґ¬ ­ҐЇ®­пв­® зҐЈ® ў б ¬®¬ GS
 ;	pop bc
 ;	pop de
 ;	xor a
@@ -911,7 +911,7 @@ readsectorsGSwait77
 readsecGS_waitready0
 	in a,(C)
 	cp 0x77
-	jr nz,readsecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
+	jr nz,readsecGS_waitready0 ;??? ®¦Ё¤ Ґ¬ ­ҐЇ®­пв­® зҐЈ® ў б ¬®¬ GS
 	pop bc
 	pop de
 	xor a
@@ -961,7 +961,7 @@ setblockparsGS
 	jr $+2
 	ret
 
-;ожидание освобождения устройства
+;®¦Ё¤ ­ЁҐ ®бў®Ў®¦¤Ґ­Ёп гбва®©бвў 
 no_bsyGS
         in a,(0xbb)
 	rla  
@@ -986,7 +986,7 @@ writesecGS
 	halt  
 	;di  
 	ld a,0xf3
-	ld b,0x30 ;количество повторов (*1/50 с)
+	ld b,0x30 ;Є®«ЁзҐбвў® Ї®ўв®а®ў (*1/50 б)
 	out (0xbb),a
 waitGS0
         ;ei  
@@ -1050,7 +1050,7 @@ GS_INIT
 	call setblockparsGS
 	call wait_bsyGS
 	;in a,(0xb3)
-	;sub 0x77 ;какое-то состояние GS???
+	;sub 0x77 ;Є Є®Ґ-в® б®бв®п­ЁҐ GS???
 	;ret z
         ;ld a,1
 	;ret 

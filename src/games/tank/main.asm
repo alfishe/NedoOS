@@ -1,18 +1,18 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
-scrbuf=0xe000 ;фхышЄё  эр 0x800
+scrbuf=0xe000 ;делится на 0x800
 tilemap=0xdd00 ;0x300
-collisionmap=0xda00 ;0x300 (яхЁхф эхщ ~20 срщЄ чрЄшЁрхЄё )
-validmap=0xfc00 ;0x300 (яхЁхф эхщ ~20 срщЄ чрЄшЁрхЄё )
-VALID0=0xfb ;трышфэр , эх эрфю юсэюты Є№
-VALID1=0x80 ;эхтрышфэр , эрфю юсэюты Є№, Єрь ьюцэю сюыхх фышээ√х яЁюЎхфєЁ√
+collisionmap=0xda00 ;0x300 (перед ней ~20 байт затирается)
+validmap=0xfc00 ;0x300 (перед ней ~20 байт затирается)
+VALID0=0xfb ;валидная, не надо обновлять
+VALID1=0x80 ;невалидная, надо обновлять, там можно более длинные процедуры
 VALID00=VALID0+256*VALID0
 VALID01=VALID0+256*VALID1
 VALID10=VALID1+256*VALID0
 VALID11=VALID1+256*VALID1
 validmaplinesize=32
-validmapwid=validmaplinesize-2 ;т ъюэЎх ёЄЁюъш ыхцшЄ validmapnext
+validmapwid=validmaplinesize-2 ;в конце строки лежит validmapnext
 
 emptyattr=7
 
@@ -49,7 +49,7 @@ maxbullets=100
 TERMINATOR=0x80
 
 tanksize=16
-tankdamagesize=11 ;уЁ чэ√щ їръ
+tankdamagesize=11 ;грязный хак
 tankaimsize=8
 tankspeed=4 ;2^n!
 bulletspeed=6
@@ -68,7 +68,7 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,d
         SETPG16K
         
@@ -157,7 +157,7 @@ logicloop0
         ;out (0xfe),a
         call prvalid
         ;call displaycollisionmap
-;TODO ёфхырЄ№ ўЄю-эшсєф№, ъюуфр тЁруют эх юёЄрыюё№
+;TODO сделать что-нибудь, когда врагов не осталось
         ld a,(nenemies)
         or a
         jp nz,loop
@@ -210,9 +210,9 @@ reter
 
 attrbox  
 ;bc=yx
-;a=Їюэ
-;d=y ъююЁфшэрЄр ыхтюую тхЁїэхую єуыр
-;х=ї ъююЁфшэрЄр ыхтюую тхЁїэхую єуыр
+;a=фон
+;d=y координата левого верхнего угла
+;е=х координата левого верхнего угла
 ;0x5800+xcoordredbox+(32*ycoordredbox)
         ld l,d  ;y
         ld h,0        
@@ -257,10 +257,10 @@ genmapline
         push hl
         ld a,b ;1..fieldwid
         sub 2 ;n
-        cp fieldwid-2 ;nc=ыхт√щ шыш яЁрт√щ ъЁрщ
+        cp fieldwid-2 ;nc=левый или правый край
         adc a,nblocks+1 ;n + cy + (nblocks+1)
         sub b ;n + cy + nblocks - (n+2)
-        ld c,a ;nblocks шыш nblocks-1
+        ld c,a ;nblocks или nblocks-1
         call rnd
         ld c,a
         ld b,0
@@ -302,7 +302,7 @@ control
         GET_KEY
         cp key_esc
         jp z,quit
-        call getkey ;c=%???lrduf (0=эрцрЄю)
+        call getkey ;c=%???lrduf (0=нажато)
         ld a,c
         rra ;f
         jr nc,control_noreleasefire
@@ -310,29 +310,29 @@ control
         ld (control_firehasbeenreleased),a
 control_noreleasefire
 
-;ъэюяъш фюыцэ√ ёЁрсрЄ√трЄ№, ъюуфр ь√ ёЄюшь яюёЁхфшэх ъыхЄъш ((x&(8*coordsfactor-1)) == 4*coordsfactor, (y&(8*coordsfactor-1)) == 4*coordsfactor)
-        ld ix,objlist ;яхЁт√щ юс·хъЄ - эр°
-        call checkevencoords ;nz=эх яюёЁхфшэх ъыхЄъш
+;кнопки должны срабатывать, когда мы стоим посредине клетки ((x&(8*coordsfactor-1)) == 4*coordsfactor, (y&(8*coordsfactor-1)) == 4*coordsfactor)
+        ld ix,objlist ;первый объект - наш
+        call checkevencoords ;nz=не посредине клетки
         ret nz
 
         ld a,c
         rra ;f
         jr c,control_nofire
-        ;яЁютхЁшь, ўЄю фю ¤Єюую с√ы ьюьхэЄ, ъюуфр юуюэ№ эх эрцшьрыш
+        ;проверим, что до этого был момент, когда огонь не нажимали
 control_firehasbeenreleased=$+1
         ld a,0
         or a
-        jr z,control_nofire ;эх с√ыю ьюьхэЄр, ъюуфр юуюэ№ эх эрцшьрыш
+        jr z,control_nofire ;не было момента, когда огонь не нажимали
         xor a
         ld (control_firehasbeenreleased),a
-        ;ld ix,objlist ;яхЁт√щ юс·хъЄ - эр°
+        ;ld ix,objlist ;первый объект - наш
         push bc
         call shoot
         pop bc
 control_nofire
 
-        ld ix,objlist ;яхЁт√щ юс·хъЄ - эр°
-        ;хёыш эх эрцрЄр ъэюяър фтшцхэш  ш ь√ хфхь, Єю юёЄрэютшЄ№ё 
+        ld ix,objlist ;первый объект - наш
+        ;если не нажата кнопка движения и мы едем, то остановиться
         rr c
         ld a,c
         cpl
@@ -376,12 +376,12 @@ goifpossible
         ld a,ANIM_STOP
         cp ANIM_STOP
         ld a,c
-        ret nz ;эх ёЄюшь, Єръ ўЄю эх ьюцхь яюхїрЄ№
+        ret nz ;не стоим, так что не можем поехать
         SETANIM ANIM_GO
         ret
         
 checkevencoords
-;out: nz=эх яюёЁхфшэх ъыхЄъш
+;out: nz=не посредине клетки
         ld a,(ix+obj_x)
         and 8*coordsfactor-1
         cp 4*coordsfactor
@@ -483,37 +483,37 @@ animate0_afterdel
         ret z
         dec (ix+obj_animcounter)
         jp nz,animate0
-        ;Єхъє∙р  Їрчр рэшьрЎшш ъюэўшырё№, ш∙хь ёыхфє■∙є■
+        ;текущая фаза анимации кончилась, ищем следующую
         ld l,(ix+obj_objaddr)
-        ld h,(ix+(obj_objaddr+1)) ;hl=рфЁхё юяшёрЄхы  юс·хъЄр (т эрўрых ыхцшЄ єърчрЄхы№ эр ёяшёюъ рэшьрЎшщ)
+        ld h,(ix+(obj_objaddr+1)) ;hl=адрес описателя объекта (в начале лежит указатель на список анимаций)
         ld a,(hl)
         inc hl
         ld h,(hl)
-        ld l,a ;hl=єърчрЄхы№ эр ёяшёюъ рэшьрЎшщ
-        ld e,(ix+obj_anim) ;эюьхЁ рэшьрЎшш
+        ld l,a ;hl=указатель на список анимаций
+        ld e,(ix+obj_anim) ;номер анимации
         ld d,0
         add hl,de
         add hl,de
         ld a,(hl)
         inc hl
         ld h,(hl)
-        ld l,a ;hl=єърчрЄхы№ эр рэшьрЎш■
-        ld e,(ix+obj_animphase) ;эюьхЁ Їрч√ рэшьрЎшш
-        inc e ;ёыхфє■∙р  Їрчр рэшьрЎшш
+        ld l,a ;hl=указатель на анимацию
+        ld e,(ix+obj_animphase) ;номер фазы анимации
+        inc e ;следующая фаза анимации
         ld (animate_pointer),hl
         add hl,de
         add hl,de
         add hl,de
-        ld a,(hl) ;тЁхь  Їрч√
-        or a ;хёыш 0, Єю ¤Єю ъюэхЎ рэшьрЎшш
+        ld a,(hl) ;время фазы
+        or a ;если 0, то это конец анимации
         jr nz,animate_noend
         inc hl
-        ld a,(hl) ;Ёхцшь чрЎшъыштрэш  (0=яхЁхїюф эр эєыхтє■ рэшьрЎш■, 1=чрЎшъыштрхьё  ЄєЄ, 2=єфрышЄ№)
-        cp 2 ;яЁшчэръ ANIMENDDIE
+        ld a,(hl) ;режим зацикливания (0=переход на нулевую анимацию, 1=зацикливаемся тут, 2=удалить)
+        cp 2 ;признак ANIMENDDIE
         jr z,animate_delete
         or a
         jr nz,animate_no0
-        ld (ix+obj_anim),a ;0-  рэшьрЎш 
+        ld (ix+obj_anim),a ;0-я анимация
 animate_no0
         ld e,0
 animate_pointer=$+1
@@ -521,10 +521,10 @@ animate_pointer=$+1
         add hl,de
         add hl,de
         add hl,de
-        ld a,(hl) ;тЁхь  Їрч√
+        ld a,(hl) ;время фазы
 animate_noend
         ld (ix+obj_animcounter),a
-        ld (ix+obj_animphase),e ;ёыхфє■∙р  Їрчр рэшьрЎшш
+        ld (ix+obj_animphase),e ;следующая фаза анимации
         jp animate0_prepareregs
         
 animate_delete
@@ -535,7 +535,7 @@ animate_delete
         sbc hl,de
         jr z,animate_delete_player
         ld hl,curobjlistend
-        call delobj ;ъюяшЁєхь шч ix+objsize т ix
+        call delobj ;копируем из ix+objsize в ix
 
         ld hl,nenemies
         dec (hl)
@@ -560,10 +560,10 @@ logic0
         add ix,bc
 logic0_afterdel
         ld l,(ix+obj_objaddr)
-        ld h,(ix+(obj_objaddr+1)) ;hl=рфЁхё юяшёрЄхы  юс·хъЄр (т эрўрых ыхцшЄ єърчрЄхы№ эр ёяшёюъ рэшьрЎшщ)
+        ld h,(ix+(obj_objaddr+1)) ;hl=адрес описателя объекта (в начале лежит указатель на список анимаций)
         inc hl
         inc hl
-        jp (hl) ;hl=рфЁхё юсЁрсюЄўшър юс·хъЄр
+        jp (hl) ;hl=адрес обработчика объекта
         
 rndbottomcoords
 ;out: bc=x, de=y
@@ -572,7 +572,7 @@ rndbottomcoords_retry
         ex de,hl
         ld hl,0x02b0 ;y
         PUTXDE_YHL
-        call checkobstacles_tank ;nc=яЁхя ЄёЄтшх
+        call checkobstacles_tank ;nc=препятствие
         jr nc,rndbottomcoords_retry
         ret
 
@@ -589,17 +589,17 @@ rndxcoord
         ret
 
 delobj
-;hl=рфЁхё єърчрЄхы  эр ъюэхЎ ёяшёър (эр ЄхЁьшэрЄюЁ)
-;ъюяшЁєхь шч ix+objsize т ix
+;hl=адрес указателя на конец списка (на терминатор)
+;копируем из ix+objsize в ix
         ld (delobj_curlistend1),hl
         ld (delobj_curlistend2),hl
         ld c,(hl)
         inc hl
-        ld b,(hl) ;єърчрЄхы№ эр ъюэхЎ ёяшёър (эр ЄхЁьшэрЄюЁ)
+        ld b,(hl) ;указатель на конец списка (на терминатор)
         ld hl,objsize
         add hl,bc
         ld b,h
-        ld c,l ;єърчрЄхы№ эр ъюэхЎ ёяшёър (яюёых юс·хъЄр-ЄхЁьшэрЄюЁр)
+        ld c,l ;указатель на конец списка (после объекта-терминатора)
         ld d,hx
         ld e,lx ;de=ix
         ld a,e
@@ -616,8 +616,8 @@ delobj
         ld b,a ;bc=objlistend-hl
         ld a,b
         or c
-        ret z ;яюўхьє єфры хь ЄхЁьшэрЄюЁ яюёых тёЄЁхўш фтєї яєы№??? TODO
-        ldir ;ъюяшЁєхь тёх ёыхфє■∙шх юс·хъЄ√, тъы■ўр  ЄхЁьшэрЄюЁ
+        ret z ;почему удаляем терминатор после встречи двух пуль??? TODO
+        ldir ;копируем все следующие объекты, включая терминатор
 delobj_curlistend1=$+1
         ld hl,(curobjlistend)
         ld bc,-objsize
@@ -672,16 +672,16 @@ objtank_move
         push de
         push hl
         call movetank
-        call checkobstacles_tank ;nc=ъюыышчш 
+        call checkobstacles_tank ;nc=коллизия
         jr nc,objtank_collided
-        ld c,tanksize ;ЁрчьхЁ
-        call checkwalls ;nc=ёЄхэр
-        ;TODO ъръ-Єю тюЄъэєЄ№ checkwalls т moveobj, эю эх т є∙хЁс яєы ь
+        ld c,tanksize ;размер
+        call checkwalls ;nc=стена
+        ;TODO как-то воткнуть checkwalls в moveobj, но не в ущерб пулям
 objtank_collided
         pop hl
         pop de
-        jp c,logic0 ;эх ёЄхэр
-        PUTXDE_YHL ;ёЄхэр - тюёёЄрэютшь ёЄрЁ√х ъююЁфшэрЄ√
+        jp c,logic0 ;не стена
+        PUTXDE_YHL ;стена - восстановим старые координаты
         jp logic0
 
 objtanke
@@ -702,10 +702,10 @@ objtanke_nogundelaystop
         ld a,(ix+obj_anim)
         cp ANIM_DIE
         jp z,objtanke_nologic
-;ыюушър фюыцэр ёЁрсрЄ√трЄ№, ъюуфр ь√ ёЄюшь яюёЁхфшэх ъыхЄъш ((x&(8*coordsfactor-1)) == 4*coordsfactor, (y&(8*coordsfactor-1)) == 4*coordsfactor)
-        call checkevencoords ;nz=эх яюёЁхфшэх ъыхЄъш
+;логика должна срабатывать, когда мы стоим посредине клетки ((x&(8*coordsfactor-1)) == 4*coordsfactor, (y&(8*coordsfactor-1)) == 4*coordsfactor)
+        call checkevencoords ;nz=не посредине клетки
         jp nz,objtanke_nologic
-;хфхь ¤ээюх ЁрёЄю эшх, яюЄюь ёыєўрщэю ьхэ хь эряЁртыхэшх шыш тёЄр╕ь
+;едем энное растояние, потом случайно меняем направление или встаём
         dec (ix+obj_delaycounter)
         jr nz,objtanke_nonewmove
         ld (ix+obj_delaycounter),20
@@ -719,23 +719,23 @@ objtanke_nogundelaystop
 objtanke_stop
         SETANIM ANIM_STOP
 objtanke_nonewmove
-;хёыш юфэр шч ъююЁфшэрЄ сышчър ъ эр°хщ (x-(tanksize/2*coordsfactor) > xe >= x+(tanksize/2*coordsfactor)), Єю тёЄрЄ№, чрфхЁцрЄ№ ш ёЄЁхы Є№
+;если одна из координат близка к нашей (x-(tanksize/2*coordsfactor) > xe >= x+(tanksize/2*coordsfactor)), то встать, задержать и стрелять
         GETXDE_YHL
         push hl ;y
-        ld hl,(objlist+obj_x) ;эр°р ъююЁфшэрЄр
+        ld hl,(objlist+obj_x) ;наша координата
         ld bc,-(tankaimsize/2*coordsfactor)
         add hl,bc
         or a
-        sbc hl,de ;эрфю -tanksize*coordsfactor..-1
+        sbc hl,de ;надо -tanksize*coordsfactor..-1
         ld bc,tankaimsize*coordsfactor
-        add hl,bc ;cy=ъююЁфшэрЄр сышчър ъ эр°хщ
+        add hl,bc ;cy=координата близка к нашей
         pop hl ;y
         ex de,hl ;de=y, hl=x
         jr z,$+4
         jr nc,objtanke_noprepareshootx
-        ld hl,(objlist+obj_y) ;эр°р ъююЁфшэрЄр
+        ld hl,(objlist+obj_y) ;наша координата
         or a
-        sbc hl,de ;y >= ye? Єюуфр d, шэрўх u
+        sbc hl,de ;y >= ye? тогда d, иначе u
         ld a,2 ;d
         jr nc,$+4 ;y >= xe
         ld a,0 ;u
@@ -743,19 +743,19 @@ objtanke_nonewmove
         jr objtanke_prepareshoot
 objtanke_noprepareshootx
         push hl ;x
-        ld hl,(objlist+obj_y) ;эр°р ъююЁфшэрЄр
+        ld hl,(objlist+obj_y) ;наша координата
         ld bc,-(tankaimsize/2*coordsfactor)
         add hl,bc
         or a
-        sbc hl,de ;эрфю -tanksize*coordsfactor..-1
+        sbc hl,de ;надо -tanksize*coordsfactor..-1
         ld bc,tankaimsize*coordsfactor
-        add hl,bc ;cy=ъююЁфшэрЄр сышчър ъ эр°хщ
+        add hl,bc ;cy=координата близка к нашей
         pop de ;x
         jr z,$+4
         jr nc,objtanke_noprepareshoot
-        ld hl,(objlist+obj_x) ;эр°р ъююЁфшэрЄр
+        ld hl,(objlist+obj_x) ;наша координата
         or a
-        sbc hl,de ;x >= xe? Єюуфр r, шэрўх l
+        sbc hl,de ;x >= xe? тогда r, иначе l
         ld a,1 ;r
         jr nc,$+4 ;x >= xe
         ld a,3 ;l
@@ -770,11 +770,11 @@ objtanke_nologic
 objbullet
         dw 0
         call moveobj
-        ld c,0 ;ЁрчьхЁ
-        call checkwalls ;nc=ёЄхэр
-        jp c,logic0 ;эх ёЄхэр
+        ld c,0 ;размер
+        call checkwalls ;nc=стена
+        jp c,logic0 ;не стена
         ld hl,curbulletlistend
-        call delobj ;ъюяшЁєхь шч ix+objsize т ix
+        call delobj ;копируем из ix+objsize в ix
         ld bc,-objsize
         add ix,bc
         jp logic0
@@ -797,12 +797,12 @@ bulletcollision0_afterdel
         jr nc,bulletcollision_collided
         call calccollisionmapaddr
         ld a,(hl)
-        add a,ly ;эюьхЁ Єхъє∙хщ яєыш ;CY=1 яЁш ёютярфхэшш
+        add a,ly ;номер текущей пули ;CY=1 при совпадении
         call nz,checkbulletcollision
-        jp c,bulletcollision0 ;эх ъюыышчш 
+        jp c,bulletcollision0 ;не коллизия
 bulletcollision_delete
         ld hl,curbulletlistend
-        call delobj ;ъюяшЁєхь шч ix+objsize т ix
+        call delobj ;копируем из ix+objsize в ix
         jp bulletcollision0_afterdel
 bulletcollision_collided
         ;ld c,l
@@ -812,13 +812,13 @@ bulletcollision_collided
         ld a,(ix+obj_dir)
         rra ;nc=vertical direction
         ccf
-        call divmul3 ;hl=x ъыхЄъш ърЁЄ√
-        ex (sp),hl ;ёюїЁрэшыш x ъыхЄъш ърЁЄ√ ;hl=y
+        call divmul3 ;hl=x клетки карты
+        ex (sp),hl ;сохранили x клетки карты ;hl=y
         ld a,(ix+obj_dir)
         rra ;nc=vertical direction
-        call divmul3 ;hl=y ъыхЄъш ърЁЄ√
-        pop bc ;x ъыхЄъш ърЁЄ√
-        ld b,l ;y ъыхЄъш ърЁЄ√
+        call divmul3 ;hl=y клетки карты
+        pop bc ;x клетки карты
+        ld b,l ;y клетки карты
         ld a,c
         call calctilemapaddr_a_l
         ld a,(ix+obj_dir)
@@ -850,20 +850,20 @@ objbullet_collided_ver
         jp bulletcollision_delete
         
 divmul3
-;хёыш CY=1, Єю фхышь фю чэръюьхёЄ ш юъЁєуы хь фю 3
-;шэрўх яЁюёЄю фхышь фю чэръюьхёЄ
+;если CY=1, то делим до знакомест и округляем до 3
+;иначе просто делим до знакомест
         ld de,8*coordsfactor
-        jp nc,divhlde ;hl=x(y) ъыхЄъш ърЁЄ√ (схч юъЁєуыхэш )
+        jp nc,divhlde ;hl=x(y) клетки карты (без округления)
         ld de,8*coordsfactor*3
-        call divhlde ;hl=x(y) ъыхЄъш яюы 
+        call divhlde ;hl=x(y) клетки поля
         ld c,l
         ld b,h
         add hl,hl
         add hl,bc
-        ret ;hl=x(y) ъыхЄъш ърЁЄ√
+        ret ;hl=x(y) клетки карты
 
 degradetile
-;bc=yx ъыхЄъш ърЁЄ√
+;bc=yx клетки карты
 ;hl=tilemap+
         ;push bc
         push de
@@ -907,9 +907,9 @@ fieldEx=32
 fieldEy=24
 centr=(fieldEx/2)-(10/2)+(256*fieldEy/2)
 ;bc=yx
-;a=Їюэ
-;d=y ъююЁфшэрЄр ыхтюую тхЁїэхую єуыр
-;х=ї ъююЁфшэрЄр ыхтюую тхЁїэхую єуыр
+;a=фон
+;d=y координата левого верхнего угла
+;е=х координата левого верхнего угла
 ;0x5800+xcoordredbox+(32*ycoordredbox)
         ld c,12
         ld b,3

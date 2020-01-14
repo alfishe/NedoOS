@@ -1,14 +1,14 @@
-;TODO т срЄэшъх %0 (ярЁрьхЄЁ√ чряєёър), %1 ...
-;TODO %~dp0 (фЁрщт ш яєЄ№ чряєёър)
-;TODO %~t1 (фрЄр-тЁхь  1-ую ярЁрьхЄЁр)
-;TODO goto ш ьхЄъш :label
+;TODO в батнике %0 (параметры запуска), %1 ...
+;TODO %~dp0 (драйв и путь запуска)
+;TODO %~t1 (дата-время 1-го параметра)
+;TODO goto и метки :label
 ;TODO if ???==??? goto
 ;TODO for
-;TODO PATH (уфх їЁрэшЄ№? фюыцэр яюфуЁєцрЄ№ё  яЁш ёЄрЁЄх эютющ ъюяшш cmd)
+;TODO PATH (где хранить? должна подгружаться при старте новой копии cmd)
 
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
-MAXCMDSZ=COMMANDLINE_sz-1;127 ;эх ёўшЄр  ЄхЁьшэрЄюЁр
+MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
 txtscrhgt=25
 txtscrwid=80
 CMDLINEY=24
@@ -18,14 +18,14 @@ CURSORCOLOR=0x38
 
         org PROGSTART
 cmd_begin
-        ld sp,0x4000 ;эх фюыцхэ юяєёърЄ№ё  эшцх 0x3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         ;ld e,COLOR
         ;OS_CLS
         
         OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         push hl
         OS_DELPAGE
         pop hl
@@ -51,14 +51,14 @@ cmd_begin
         ;ld hl,cmdbuf
         ;call prtext
         ;call prcrlf
-        call makeprompt ;шэрўх чряєёЄшЄё  шч эхяЁртшы№эющ фшЁхъЄюЁшш
+        call makeprompt ;иначе запустится из неправильной директории
          ;jr cmd_interactive
         
         call execcmd ;can show errors ;a!=0: no such internal command
         or a
-        call nz,strcpexec_tryrun ;чряєёърхЄ яю Їюэє
-        YIELD ;ўЄюс√ чряє∙хээр  чрфрўр єёяхыр чрїтрЄшЄ№ Їюъєё ;???
-;хёыш ъюьрэфэр  ёЄЁюър с√ыр ёю ёыютюь autoexec.bat тьхёЄю ёыютр cmd, Єю ¤Єю эрўры№э√щ чряєёъ autoexec.bat, шч эхую эрфю тїюфшЄ№ т шэЄхЁръЄштэ√щ Ёхцшь
+        call nz,strcpexec_tryrun ;запускает по фону
+        YIELD ;чтобы запущенная задача успела захватить фокус ;???
+;если командная строка была со словом autoexec.bat вместо слова cmd, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
         ld a,(COMMANDLINE)
         cp 'a'
         jr z,cmd_interactive
@@ -68,7 +68,7 @@ cmd_begin
 cmd_interactive
         
         ;OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ;ld a,e
         ;ld (curpgshapes),a
         ;ld a,h
@@ -136,14 +136,14 @@ editcmd0
         call cmdcalccurxy
         OS_SETXY
         ld e,CURSORCOLOR;0x38
-        OS_PRATTR ;эрЁшёютрЄ№ ъєЁёюЁ
+        OS_PRATTR ;нарисовать курсор
         YIELDGETKEYLOOP
          ;ld a,c ;keynolang
         push af
         call cmdcalccurxy
         OS_SETXY
         ld e,COLOR;7
-        OS_PRATTR ;ёЄхЁхЄ№ ъєЁёюЁ
+        OS_PRATTR ;стереть курсор
         pop af
         cp key_enter
         ret z
@@ -159,7 +159,7 @@ editcmd0
         cp key_right
         jr z,editcmd_right
         cp 0x20
-        ret c ;jr c,editcmdok ;яЁюўшх ёшёЄхьэ√х ъэюяъш эх эєцэ√
+        ret c ;jr c,editcmdok ;прочие системные кнопки не нужны
 ;type in
 editcmdtypein
         ld e,a
@@ -168,7 +168,7 @@ editcmdtypein
         ld bc,MAXCMDSZ
         or a
         sbc hl,bc
-        ret nc ;jr nc,editcmdok ;эхъєфр ттюфшЄ№
+        ret nc ;jr nc,editcmdok ;некуда вводить
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc a
         ld (curcmdx),a
@@ -179,16 +179,16 @@ editcmdtypein
 editcmd_backspace
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         or a
-        ret z ;jr z,editcmdok ;эхўхую єфры Є№
+        ret z ;jr z,editcmdok ;нечего удалять
         dec a
         ld (curcmdx),a
-        jp strdelch ;єфры хЄ яЁхф√фє∙шщ ёшьтюы
+        jp strdelch ;удаляет предыдущий символ
         ;jr editcmdok
       
 editcmd_left
         ld a,(curcmdx)
         or a
-        ret z ;jr z,editcmdok ;эхъєфр тыхтю
+        ret z ;jr z,editcmdok ;некуда влево
         dec a
         ld (curcmdx),a
         ret ;jr editcmdok
@@ -197,7 +197,7 @@ editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
-        ret z ;jr z,editcmdok ;эхъєфр яЁртю, ёЄюшь эр ЄхЁьшэрЄюЁх
+        ret z ;jr z,editcmdok ;некуда право, стоим на терминаторе
         inc a
         ld (curcmdx),a
         ret ;jr editcmdok
@@ -284,13 +284,13 @@ strcpexec0
 jphl
         jp (hl) ;run internal command
 strcpexec_fail
-        ld b,-1 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld b,-1 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю
+        cpir ;найдём обязательно
         jr strcpexec0
 
 cmd_start
-;т√яюыэшЄ№ ъюьрэфэє■ ёЄЁюъє яю Їюэє (эєцэю шч .bat)
+;выполнить командную строку по фону (нужно из .bat)
         ld hl,cmdbuf
         ld a,(hl)
         or a
@@ -302,8 +302,8 @@ cmd_start
         ld bc,MAXCMDSZ+1
         ldir
 strcpexec_tryrun
-;т√яюыэшЄ№ Їрщы ё шьхэхь cmdbuf ш ярЁрьхЄЁрьш Єрь
-        call loadapp ;чруЁєчшЄ№ Їрщы ё шьхэхь cmdbuf, e=id, cy=end of .bat
+;выполнить файл с именем cmdbuf и параметрами там
+        call loadapp ;загрузить файл с именем cmdbuf, e=id, cy=end of .bat
         jr nz,execcmd_tryrunerror
 execcmd_tryrunok
         ret c ;cy=end of .bat
@@ -311,13 +311,13 @@ execcmd_tryrunok
         ret
 
 execcmd_tryrunerror
-;т√яюыэшЄ№ Їрщы ё шьхэхь SYSDIR/cmdbuf ш ярЁрьхЄЁрьш Єрь
+;выполнить файл с именем SYSDIR/cmdbuf и параметрами там
         call loadapp_keeppath
         OS_SETSYSDRV
         ld de,sysdir
         push de
         OS_GETPATH
-        call loadapp_setoldpath ;TODO шч prompt
+        call loadapp_setoldpath ;TODO из prompt
         ;ld de,cmdprompt
         ;OS_CHDIR
         ;call makeprompt
@@ -326,14 +326,14 @@ execcmd_tryrunerror
         ;OS_CHDIR
         pop hl
         push hl
-;хёыш т ъюэЎх эхЄ ёых°р, Єю фюсртшь:
-        ;ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+;если в конце нет слеша, то добавим:
+        ;ld bc,0 ;чтобы точно найти терминатор
         xor a
         ld b,a
         ld c,a;0
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
-        dec hl ;эр ЄхЁьшэрЄюЁх
-        dec hl ;яхЁхф ЄхЁьшэрЄюЁюь
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        dec hl ;на терминаторе
+        dec hl ;перед терминатором
         ld a,'/'
         cp (hl)
         jr z,$+2+5
@@ -360,8 +360,8 @@ execcmd_tryrunerror
         ld hl,sysdir
         ld de,cmdbuf
          pop bc ;SYSDIR_size
-        ldir ;эхы№ч  strcopy, Є.ъ. эх эєцхэ ЄхЁьшэрЄюЁ
-        call loadapp ;чруЁєчшЄ№ Їрщы ё шьхэхь cmdbuf, e=id, cy=end of .bat
+        ldir ;нельзя strcopy, т.к. не нужен терминатор
+        call loadapp ;загрузить файл с именем cmdbuf, e=id, cy=end of .bat
         jr z,execcmd_tryrunok
 execcmd_error
         ld hl,tunknowncommand
@@ -372,7 +372,7 @@ callcmd
         call execcmd ;a!=0: no such internal command
         or a
         ret z ;command executed
-        call loadapp ;чруЁєчшЄ№ Їрщы ё шьхэхь cmdbuf, e=id
+        call loadapp ;загрузить файл с именем cmdbuf, e=id
         jr nz,execcmd_error
         push de
         OS_RUNAPP
@@ -384,12 +384,12 @@ loadapp_keeppath
         ld hl,cmdprompt
         ld de,oldpath
         ld bc,MAXPATH_sz;MAXCMDSZ+1
-        ldir ;TODO ЁхъєЁёштэю (фы  .bat)
+        ldir ;TODO рекурсивно (для .bat)
         ret
 
 loadapp_setoldpath
         push de
-        ld de,oldpath ;TODO ЁхъєЁёштэю (фы  .bat)
+        ld de,oldpath ;TODO рекурсивно (для .bat)
         OS_CHDIR
         pop de
         xor a
@@ -400,7 +400,7 @@ loadapp
         ld hl,cmdbuf
         ld de,wordbuf
         call getword
-;єўхёЄ№ яєЄ№ т шьхэш (TODO шёяюы№чютрЄ№ OS_OPENHANDLE)
+;учесть путь в имени (TODO использовать OS_OPENHANDLE)
         ld hl,wordbuf
         push hl
         call findlastslash. ;de=after last slash or beginning of path
@@ -409,7 +409,7 @@ loadapp
         if 1==1
 
         ;push hl
-;ш∙хь Єюўъє, яЁютхЁ хь, ўЄю яюёых эх╕ ёЄюшЄ .com шыш .bat
+;ищем точку, проверяем, что после неё стоит .com или .bat
 loadapp_finddot0
         ld a,(hl)
         or a
@@ -417,13 +417,13 @@ loadapp_finddot0
         cp '.'
         inc hl
         jr nz,loadapp_finddot0
-;яЁютхЁ хь, ўЄю яюёых эх╕ ёЄюшЄ .com шыш .bat
+;проверяем, что после неё стоит .com или .bat
         ld a,(hl)
         or 0x20
         cp 'b'
-; TODO уфх яЁютхЁър эр юёЄры№э√х сєът√?
+; TODO где проверка на остальные буквы?
         jr z,strcpexec_tryrun_bat
-;ёўшЄрхь, ўЄю эряшёрэю .com (т яЁшэЎшях Ёрё°шЁхэшх схчЁрчышўэю - яЁюёЄю чряєёърхь)
+;считаем, что написано .com (в принципе расширение безразлично - просто запускаем)
         jr loadapp_finddotok
 loadapp_nodot
 ;a=0
@@ -446,10 +446,10 @@ loadapp_finddotok
          ;call loadapp_setoldpath
          ;pop af
         ret nz ;jr nz,execcmd_error
-        OS_NEWAPP ;эр ьюьхэЄ ёючфрэш  фюыцэр с√Є№ тъы■ўхэр Єхъє∙р  фшЁхъЄюЁш !!!
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         ret nz ;error
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000 эютюую яЁшыюцхэш , b=id, a=error
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
         ld a,d
         SETPG32KHIGH
@@ -479,9 +479,9 @@ loadapp_finddotok
         cp '/'
         jr nz,$+4
          xor a
-         ld (de),a ;юЄЁхчрЄ№ шь  Їрщыр
+         ld (de),a ;отрезать имя файла
         inc de
-        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (т 0xc000...)
+        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         pop hl ;hl=after last slash        
         jr nz,loadapp_nopath
 
@@ -496,14 +496,14 @@ loadapp_nopath
         ;hl=after last slash
         
         ex de,hl ;de=after last slash
-        ;ld de,wordbuf ;ASCIIZ string for parsing (т 0xc000...)
+        ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         ld hl,fcb_filename ;Pointer to 11 byte buffer
         OS_PARSEFNAME
         
         ld hl,fcb_filename+8
         ld a,(hl)
         or 0x20
-        cp 'b'; TODO уфх яЁютхЁър эр юёЄры№э√х сєът√?
+        cp 'b'; TODO где проверка на остальные буквы?
         jr z,strcpexec_tryrun_bat
         cp ' '
         jr nz,strcpexec_tryrun_noemptyext
@@ -520,10 +520,10 @@ strcpexec_tryrun_noemptyext
          pop af
         or a
         ret nz ;jr nz,execcmd_error
-        OS_NEWAPP ;эр ьюьхэЄ ёючфрэш  фюыцэр с√Є№ тъы■ўхэр Єхъє∙р  фшЁхъЄюЁш !!!
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         ret nz ;error
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000 эютюую яЁшыюцхэш , b=id, a=error
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
         ld a,d
         SETPG32KHIGH
@@ -570,7 +570,7 @@ strcpexec_tryrun_bat0
         LD (hl),0
         call readstr ;nz=EOF
          ;jr $
-        push af ;jr nz,strcpexec_tryrun_batq ;ўЄюс√ яюёыхфэ■■ ёЄЁюъє тё╕-Єръш т√яюыэшЄ№
+        push af ;jr nz,strcpexec_tryrun_batq ;чтобы последнюю строку всё-таки выполнить
 
         push iy
         ld hl,cmdbuf
@@ -591,7 +591,7 @@ strcpexec_tryrun_batq
         ld b,a
         OS_CLOSEHANDLE
         xor a
-         scf ;ўЄюс√ эр т√їюфх эх фхырЄ№ RUNAPP
+         scf ;чтобы на выходе не делать RUNAPP
         ret ;Z
         
         else ;CP/M-like
@@ -599,7 +599,7 @@ strcpexec_tryrun_batq
 
         if 1==1
         pop de ;de=after last slash
-        ;ld de,wordbuf ;ASCIIZ string for parsing (т 0xc000...)
+        ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
         ld hl,fcb_filename ;Pointer to 11 byte buffer
         OS_PARSEFNAME
         endif
@@ -621,7 +621,7 @@ strcpexec_tryrun_bat0
 ;load line to cmdbuf
         ld hl,cmdbuf
         call readstr ;nz=EOF
-        push af ;jr nz,strcpexec_tryrun_batq ;ўЄюс√ яюёыхфэ■■ ёЄЁюъє тё╕-Єръш т√яюыэшЄ№
+        push af ;jr nz,strcpexec_tryrun_batq ;чтобы последнюю строку всё-таки выполнить
 
         push iy
         ld hl,cmdbuf
@@ -641,7 +641,7 @@ strcpexec_tryrun_batq
         ld de,fcb_bat
         OS_FCLOSE
         xor a
-         scf ;ўЄюс√ эр т√їюфх эх фхырЄ№ RUNAPP
+         scf ;чтобы на выходе не делать RUNAPP
         ret ;Z
 
         endif
@@ -666,8 +666,8 @@ readstr
         jr readstr0go
 readstr0
         READBYTE_A ;z=EOF
-        jr z,readstrEOF ;тючтЁр∙рхЄ NZ
-	;jr z,readstrq ;тючтЁр∙рхЄ Z
+        jr z,readstrEOF ;возвращает NZ
+	;jr z,readstrq ;возвращает Z
         cp 0x0d
         jr z,readstrq
         cp 0x0a
@@ -826,8 +826,8 @@ loaddir0
         call prcrlf
         ld de,fcb
         OS_SETDTA ;set disk transfer address = de
-         ;call makeemptymask ;т CP/M эх эєцэю, эю юЄёєЄёЄтшх тЁхфшЄ ьэюуючрфрўэюёЄш
-         ld de,fcbmask ;т CP/M эх эєцэю, эю юЄёєЄёЄтшх тЁхфшЄ ьэюуючрфрўэюёЄш
+         ;call makeemptymask ;в CP/M не нужно, но отсутствие вредит многозадачности
+         ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
         OS_FSEARCHNEXT
         pop bc ;nfiles
         inc bc ;nfiles
@@ -1094,7 +1094,7 @@ cmd_copy0
         ld de,fcb
         OS_FREAD
         cp 128
-        ret z ;яЁюўшЄрыш 0 срщЄ
+        ret z ;прочитали 0 байт
         xor 128
         ld l,a
         ld h,0
@@ -1103,7 +1103,7 @@ cmd_copy0
         OS_SETDTA
         pop hl
         ld de,fcb2
-        OS_FWRITE_NBYTES ;TODO т√ъшэєЄ№ (яхЁхфхырЄ№ эр handle)
+        OS_FWRITE_NBYTES ;TODO выкинуть (переделать на handle)
         or a
         jr z,cmd_copy0
         ld hl,tcantwrite
@@ -1356,7 +1356,7 @@ cmd_copydir_go
         ld de,wordbuf2
         OS_MKDIR
 
-        ld bc,0 ;эюьхЁ Їрщыр т фшЁхъЄюЁшш
+        ld bc,0 ;номер файла в директории
 cmd_copydir0
         push bc
         ld de,cmdprompt
@@ -1398,7 +1398,7 @@ cmd_copydir0_skip
          push af
         jr nz,$-4
         pop af
-;т ёЄхъх ыхцшЄ \0, ЄхъёЄ (схч ЄхЁьшэрЄюЁр)
+;в стеке лежит \0, текст (без терминатора)
         endm
         
         macro STRPOP
@@ -1424,10 +1424,10 @@ strmirror
 	 ld a,b
 	 or c
 	 ret z
-;de=эрўрыю, bc=hl=фышэр
+;de=начало, bc=hl=длина
         ;ld h,b
         ;ld l,c
-        add hl,de ;hl=ъюэхЎ+1
+        add hl,de ;hl=конец+1
         srl b
         rr c ;bc=wid/2
 mirrorbytes0
@@ -1614,7 +1614,7 @@ commandslist
         dw cmd_pause
         db "pause",0
         
-        dw -1 ;ъюэхЎ ЄрсышЎ√ ъюьрэф
+        dw -1 ;конец таблицы команд
 
 tunknowncommand
         db "Unknown command",0
@@ -1646,7 +1646,7 @@ twrongid
 ;oldtimer
 ;        dw 0
         
-	db 0 ;фы  чрярЁ√трэш  эр ёыєўрщ юЄёєЄёЄтш  яєЄш
+	db 0 ;для запарывания на случай отсутствия пути
 wordbuf
         ds MAXCMDSZ+1
 wordbuf2
@@ -1674,7 +1674,7 @@ fcb_bat
         ds FCB_sz
 fcb_bat_filename=fcb_bat+FCB_FNAME        
 
-oldpath ;TODO єсЁрЄ№ (ъюуфр сєфхЄ loadapp ўхЁхч OPENHANDLE)
+oldpath ;TODO убрать (когда будет loadapp через OPENHANDLE)
         ds MAXPATH_sz;MAXCMDSZ+1
 
 sysdir

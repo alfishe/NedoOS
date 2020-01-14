@@ -46,7 +46,7 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         if EGA
         ld a,e
         SETPG32KLOW
@@ -88,7 +88,7 @@ gameloop
         call getkey
         call shrink
         call proldheadastail
-        call move_grow ;bc=эют√х ъююЁфшэрЄ√ уюыют√
+        call move_grow ;bc=новые координаты головы
         push bc
         call collide_rabbit_startgrow
         call collide_walls_self ;Z=collision
@@ -145,7 +145,7 @@ genrabbit
         inc a
         ld c,a
         
-;genrabbit, хёыш яюярыю эр їтюёЄ:
+;genrabbit, если попало на хвост:
         ;call calcscraddr
         call calcattraddr;_fromscr
         ;de=attraddr (rabbit)
@@ -217,7 +217,7 @@ nogrow
         ret
 
 getheadcoords
-        ld hl,(curlength) ;эх ёўшЄр  уюыют√
+        ld hl,(curlength) ;не считая головы
         add hl,hl
         ld bc,snakecoords
         add hl,bc
@@ -228,9 +228,9 @@ getheadcoords
         ret
 
 move_grow
-;out: bc=эют√х ъююЁфшэрЄ√ уюыют√        
+;out: bc=новые координаты головы        
         call getheadcoords
-;bc=ёЄрЁ√х ъююЁфшэрЄ√ уюыют√        
+;bc=старые координаты головы        
         ld a,(curdirection)
         dec c
         cp dir_l
@@ -246,7 +246,7 @@ move_grow
         dec b
         dec b
 moveq
-;bc=эют√х ъююЁфшэрЄ√ уюыют√        
+;bc=новые координаты головы        
         ld (hl),c
         inc hl
         ld (hl),b
@@ -260,7 +260,7 @@ curgrow
 curdirection
         db dir_r
 curlength
-        dw 0 ;эх ёўшЄр  уюыют√
+        dw 0 ;не считая головы
         
 cls
         if EGA
@@ -347,7 +347,7 @@ proldheadastail
         ld hl,tileempty
         jp prtilexy
        prtext
-;bc=ъююЁфшэрЄ√
+;bc=координаты
 ;hl=text
         ld a,emptyattr
         ld (curattr),a
@@ -384,7 +384,7 @@ prchar;a=code;de=screen        push de        push hl
         pop hl        pop de        inc e        ret        
 calcscraddr
 ;bc=yx
-;ьюцэю яюЁЄшЄ№ bc
+;можно портить bc
         if EGA
         ex de,hl
         ld a,c ;x
@@ -422,7 +422,7 @@ calcscraddr
 
 calcattraddr
 ;bc=yx
-;эхы№ч  яюЁЄшЄ№ bc
+;нельзя портить bc
         if EGA
 ;de=attrs + (y&#18)/4+((y*64)&#ff+x)
         ld a,b
@@ -675,7 +675,7 @@ font
         endif
 
 snakecoords
-;y,x (уюыютр т ъюэЎх)
+;y,x (голова в конце)
         ;ds snakecoordssize        
 end
 

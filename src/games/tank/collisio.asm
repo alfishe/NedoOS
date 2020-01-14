@@ -1,7 +1,7 @@
-;0 - яєёЄю
-;1..127 - юс·хъЄ
-;128..254 - яєы 
-;[255 - яЁхя ЄёЄтшх]
+;0 - пусто
+;1..127 - объект
+;128..254 - пуля
+;[255 - препятствие]
 fillcollisionmap
         ;ld hl,collisionmap
         ;ld de,collisionmap+1
@@ -19,7 +19,7 @@ fillcollisionmap_clear0
         djnz fillcollisionmap_clear0
 fillcollisionmapsp=$+1
         ld sp,0
-;яюьхўрхь яєыш
+;помечаем пули
         ld ix,bulletlist
         ld c,128
 fillcollisionmap_bullet0
@@ -33,7 +33,7 @@ fillcollisionmap_bullet0
         inc c
         jp fillcollisionmap_bullet0
 fillcollisionmap_bulletq
-;яюьхўрхь юс·хъЄ√
+;помечаем объекты
         ld ix,objlist
         ld c,1
 fillcollisionmap_obj0
@@ -65,7 +65,7 @@ fillcollisionmap_obj0
         jp fillcollisionmap_obj0
         
 calccollisionmapaddr
-;bc,e эх яюЁЄшь
+;bc,e не портим
         GETXDE_YHL
         if coordsfactor !=4
         display "coordsfactor!=4"
@@ -108,7 +108,7 @@ calccollisionmapaddr
 calctilemapaddr_de_hl
 ;de=x
 ;hl=y
-;bc,e эх яюЁЄшь
+;bc,e не портим
         if coordsfactor !=4
         display "coordsfactor!=4"
         endif
@@ -150,13 +150,13 @@ calctilemapaddr_a_l
 
 checkbulletcollision
 ;hl=collisionmapaddr
-;out: nc=ъюыышчш 
+;out: nc=коллизия
         ld a,(hl)
-        or a ;яєёЄю
+        or a ;пусто
         ;scf
         ;jr z,$;ret z ;CY=1
         jp m,checkbulletcollision_bullet
-;1..127 = юс·хъЄ
+;1..127 = объект
         ld c,a
         ld b,0
         ld de,objsize
@@ -166,8 +166,8 @@ checkbulletcollision
         ld bc,objlist-objsize+obj_energy
         add hl,bc
         
-        else ;яЁютхЁър яюярфрэш  т  сыюўъю
-        ;эрфю яЁютхЁшЄ№ x > xbullet > x+tanksize
+        else ;проверка попадания в яблочко
+        ;надо проверить x > xbullet > x+tanksize
         ld bc,objlist-objsize+obj_x
         add hl,bc
         ld a,(ix+obj_x) ;xbullet
@@ -178,7 +178,7 @@ checkbulletcollision
         sbc a,(hl) ;x(HSB)
         ld b,a ;bc = xbullet-x
         scf
-        ret nz ;bc >= 256 (Єюўэю ьшью)
+        ret nz ;bc >= 256 (точно мимо)
         ld a,c
         or a
         scf
@@ -195,7 +195,7 @@ checkbulletcollision
         sbc a,(hl) ;y(HSB)
         ld b,a ;bc = ybullet-y
         scf
-        ret nz ;bc >= 256 (Єюўэю ьшью)
+        ret nz ;bc >= 256 (точно мимо)
         ld a,c
         or a
         scf
@@ -205,12 +205,12 @@ checkbulletcollision
         ret c ;bc >= tanksize
         ld bc,obj_energy-(obj_y+1)
         add hl,bc
-        endif ;яЁютхЁър яюярфрэш  т  сыюўъю
+        endif ;проверка попадания в яблочко
         
         ld a,(hl)
-        sub (ix+obj_energy) ;¤эхЁуш  яєыш
+        sub (ix+obj_energy) ;энергия пули
         ld (hl),a
-        ret nc ;є юс·хъЄр х∙╕ юёЄрырё№ ¤эхЁуш 
+        ret nc ;у объекта ещё осталась энергия
         push ix
         ex de,hl
         ld ix,-obj_energy
@@ -220,19 +220,19 @@ checkbulletcollision
         or a
         ret ;nc
 checkbulletcollision_bullet
-;128..255 = яєы  (т collisionmap тёхуфр тшфэр сюыхх яючфэ   яєы , Є.х. х╕ ьюцэю ёьхыю єфры Є№)
+;128..255 = пуля (в collisionmap всегда видна более поздняя пуля, т.е. её можно смело удалять)
         sub 128
-        ;push af ;эюьхЁ эрщфхээющ яєыш
+        ;push af ;номер найденной пули
         ;push ix
         ;pop hl
         ;ld bc,-bulletlist&0xffff
         ;add hl,bc
         ;ld de,objsize
-        ;call divhlde ;hl=эюьхЁ эр°хщ яєыш
-        ;pop af ;эюьхЁ эрщфхээющ яєыш
-        ;cp l ;эюьхЁ эр°хщ яєыш
+        ;call divhlde ;hl=номер нашей пули
+        ;pop af ;номер найденной пули
+        ;cp l ;номер нашей пули
         ;scf
-        ;ret z ;CY=1 ;яєы  єтшфхыр ёрьр ёхс 
+        ;ret z ;CY=1 ;пуля увидела сама себя
         ld c,a
         ld b,0
         ld de,objsize
@@ -242,15 +242,15 @@ checkbulletcollision_bullet
         ld ix,bulletlist
         add ix,de
         ld hl,curbulletlistend
-        call delobj ;ъюяшЁєхь шч ix+objsize т ix
+        call delobj ;копируем из ix+objsize в ix
         pop ix
         or a
         ret ;nc
         
 checkwalls
-;bc=ЁрчьхЁ
-;out: nc=ёЄхэр
-_=4 ;яюыютшэр ъыхЄюўъш
+;bc=размер
+;out: nc=стена
+_=4 ;половина клеточки
         ld h,(ix+(obj_y+1))
         ld a,(ix+obj_y) ;y
         srl h
@@ -259,13 +259,13 @@ _=4 ;яюыютшэр ъыхЄюўъш
         rra
         cp _&0xff
         ccf
-        ret nc ;тхЁїэ   ёЄхэр
-;т√ўхёЄ№ (bottomwally/coordsfactor-4)-ЁрчьхЁ, ёьюЄЁшь <=
-        add a,c ;ЁрчьхЁ
+        ret nc ;верхняя стена
+;вычесть (bottomwally/coordsfactor-4)-размер, смотрим <=
+        add a,c ;размер
 _=(bottomwally/coordsfactor-4)+1
         cp _&0xff
-        ret nc ;эшцэ   ёЄхэр
-_=4 ;яюыютшэр ъыхЄюўъш
+        ret nc ;нижняя стена
+_=4 ;половина клеточки
         ld d,(ix+(obj_x+1))
         ld a,(ix+obj_x) ;x
         srl d
@@ -274,15 +274,15 @@ _=4 ;яюыютшэр ъыхЄюўъш
         rra
         cp _&0xff
         ccf
-        ret nc ;ыхтр  ёЄхэр
-;т√ўхёЄ№ (rightwallx/coordsfactor-4)-ЁрчьхЁ, ёьюЄЁшь <=
-        add a,c ;ЁрчьхЁ
+        ret nc ;левая стена
+;вычесть (rightwallx/coordsfactor-4)-размер, смотрим <=
+        add a,c ;размер
 _=(rightwallx/coordsfactor-4)+1
         cp _&0xff
-        ret ;nc=яЁртр  ёЄхэр
+        ret ;nc=правая стена
         
 checkobstacles_tank
-;nc=яЁхя ЄёЄтшх
+;nc=препятствие
         GETXDE_YHL
         ld bc,-4*coordsfactor
         ex de,hl
@@ -291,13 +291,13 @@ checkobstacles_tank
         add hl,bc
         ld a,l
         and 8*coordsfactor-1
-        ld b,3 ;ўшёыю яЁютхЁ хь√ї ёЄЁюъ
+        ld b,3 ;число проверяемых строк
         jr z,$+3
-        inc b ;ўшёыю яЁютхЁ хь√ї ёЄЁюъ (ёЄюшь эхЁютэю яю y)
-        call calctilemapaddr_de_hl ;bc,e эх яюЁЄшь
+        inc b ;число проверяемых строк (стоим неровно по y)
+        call calctilemapaddr_de_hl ;bc,e не портим
         ld a,e
         and 8*coordsfactor-1
-        jr nz,checkobstacles_tank_lines4 ;ёЄюшь эхЁютэю яю x
+        jr nz,checkobstacles_tank_lines4 ;стоим неровно по x
         ld de,tilemaplinesize-2
 checkobstacles_tank_lines30
         ld a,(hl)
@@ -314,7 +314,7 @@ checkobstacles_tank_lines30
         add hl,de
         djnz checkobstacles_tank_lines30
         scf
-        ret ;CY=1 (эхЄ яЁхя ЄёЄтш )
+        ret ;CY=1 (нет препятствия)
 checkobstacles_tank_lines4
         ld de,tilemaplinesize-3
 checkobstacles_tank_lines40
@@ -336,4 +336,4 @@ checkobstacles_tank_lines40
         add hl,de
         djnz checkobstacles_tank_lines40
         scf
-        ret ;CY=1 (эхЄ яЁхя ЄёЄтш )
+        ret ;CY=1 (нет препятствия)

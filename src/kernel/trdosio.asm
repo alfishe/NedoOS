@@ -253,15 +253,15 @@ nfopen_reopen
 ;h-TRDOSFCB/256
 	;xor a
 	;ld l,TRDOSFCB.block
-	;ld [hl],a;0 ;cur block for write, next block for read ;TODO сЁрЄ№ шч шьхэш (Єєяю чръюььхэЄшЁютрЄ№)
+	;ld [hl],a;0 ;cur block for write, next block for read ;TODO брать из имени (тупо закомментировать)
 	;inc hl
-	;ld [hl],0x60 ;(padding for "start") ;TODO сЁрЄ№ шч шьхэш (Єєяю чръюььхэЄшЁютрЄ№)
+	;ld [hl],0x60 ;(padding for "start") ;TODO брать из имени (тупо закомментировать)
         
         ld l,0
         ld a,(hl)
         cp 'w'
-        jr z,nfopen_nofindfile ;TODO єфрышЄ№, хёыш хёЄ№
-;яЁютхЁшЄ№, ўЄю Їрщы ёє∙хёЄтєхЄ, шэрўх тхЁэєЄ№ ю°шсъє ш юётюсюфшЄ№ FCB
+        jr z,nfopen_nofindfile ;TODO удалить, если есть
+;проверить, что файл существует, иначе вернуть ошибку и освободить FCB
         ld c,9 ;FILENAMESZ
 	 ld l,TRDOSFCB.fn ;poi to fn
         call findfile
@@ -327,7 +327,7 @@ fclose
 	ret nz ;hl!=0
 ;hl = poi to TRDOSFCB
 	call flush.
-	;ёыхфє■∙р  яЁютхЁър эх уюфшЄё , хёыш сєфхЄ Ёєўэющ flush:
+	;следующая проверка не годится, если будет ручной flush:
 	ld l,TRDOSFCB.secwritten
 	ld a,[hl]
 	or a
@@ -538,7 +538,7 @@ fread1blkq.
 	inc hl
 	ld [hl],d
 ;secinblk = (lastlen+255)/256 = (lastlen-1)/256 + 1
-;шэрўх эхы№ч  сєфхЄ т√фхы Є№ сыюъш эрт√ЁюёЄ (ъръ фхырхЄ TR-DOS)
+;иначе нельзя будет выделять блоки навырост (как делает TR-DOS)
 	ld l,TRDOSFCB.lastlen
 	ld e,[hl]
 	inc hl
@@ -691,7 +691,7 @@ fwrite1.
 	inc l
 	inc [hl] ;lastlen (HSB)
 flush.
-;Ёєўэющ flush яюър эхтючьюцхэ!!!
+;ручной flush пока невозможен!!!
 ;can create zero length file
 ;hl = poi to TRDOSFCB
 	push bc
@@ -701,8 +701,8 @@ flush.
 	ld a,[hl]
 	or a
 	jr nz,flushnnew.
-;уы■ўшЄ, хёыш яюёыхфэшщ сыюъ <256 TODO
-;яюЄюьє ўЄю fclose тЄюЁющ Ёрч т√ч√трхЄ flush
+;глючит, если последний блок <256 TODO
+;потому что fclose второй раз вызывает flush
 	ld l,TRDOSFCB.secinblk
 	ld [hl],SECINBLK;16 ;TR-DOS reserves 16 sectors per block
 ;update sec8
@@ -787,7 +787,7 @@ flushnnew.
 ;increase block number (after flushdesc!!!)
 	ld l,TRDOSFCB.block
 	inc [hl] ;cur block for write, next block for read
-;ЄхяхЁ№ фхёъЁшяЄюЁ эхтрышфэ√щ, яюър эх ёючфрфшь хую т эрўрых фЁєуюую flush
+;теперь дескриптор невалидный, пока не создадим его в начале другого flush
 ;zero lastlen (after flushdesc!!!)
 	ld l,TRDOSFCB.lastlen+1 ;(HSB), LSB is already 0 if not fclose
 	ld [hl],0
@@ -960,7 +960,7 @@ iodos_chd_cherr
 		ret z
 		ld a,0xff
 		ld (trdosolddrive),a
-        dec a ;Alone Coder: ўЄюс√ с√ыш эх Ёртэ√ т ёыхфє■∙шщ чрїюф, Єюуфр юя Є№ сєфхь я√ЄрЄ№ё  тъы■ўшЄ№ фЁрщт
+        dec a ;Alone Coder: чтобы были не равны в следующий заход, тогда опять будем пытаться включить драйв
         ld (trdoscurdrive),a
 		ld a,0xff
 		pop hl

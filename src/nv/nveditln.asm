@@ -46,7 +46,7 @@ editline_curx=$+1
         cp key_del
         jr z,editline_del
         cp 0x20
-        ret c ;яЁюўшх ёшёЄхьэ√х ъэюяъш эх эєцэ√
+        ret c ;прочие системные кнопки не нужны
         ld e,a
         push hl
         call strlen ;hl=len
@@ -70,7 +70,7 @@ editline_backspace
         add hl,bc
         dec a
         ld (editline_curx),a
-        jp strdelch ;ёЄшЁрхЄ яЁхф√фє∙шщ ёшьтюы
+        jp strdelch ;стирает предыдущий символ
         
 editline_del
         ld a,(editline_curx)
@@ -81,7 +81,7 @@ editline_del
         or a
         ret z
         inc hl
-        jp strdelch ;ёЄшЁрхЄ яЁхф√фє∙шщ ёшьтюы
+        jp strdelch ;стирает предыдущий символ
 
 editline_left
         ld hl,editline_curx
@@ -108,7 +108,7 @@ editline_text=$+1
         ld hl,0
         ld c,0 
         call cmdprtext
-;фюс№╕ь юёЄрЄюъ ёЄЁюъш яЁюсхырьш
+;добьём остаток строки пробелами
 editline_prspc0
         ld a,c
 editline_maxsz=$+1

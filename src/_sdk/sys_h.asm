@@ -4,7 +4,7 @@
         OS_YIELD
         endm
         macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
-	YIELD ;halt ;хёыш ёфхырЄ№ яЁюёЄю di:rst 0x38, Єю 1.ёфтшэхь ЄрщьхЁ ш 2.ьюцхь яюЄхЁ Є№ ърфЁютюх яЁхЁ√трэшх, р хёыш схч ei, Єю сєфєЄ уы■ъш
+	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY
         or a ;cp NOKEY ;keylang==0?
         jr nz,$+3
@@ -18,9 +18,9 @@ _1=$
 
         macro WAITPID ;wait task E to close
         ;push de
-        ;YIELD ;ўЄюс√ чряєёърхьр  чрфрўр єёяхыр чрїтрЄшЄ№ Їюъєё
+        ;YIELD ;чтобы запускаемая задача успела захватить фокус
         ;ld e,-1
-        ;OS_SETGFX ;disable gfx, give focus (хёыш эх ёфхырЄ№ YIELD, Їюъєё юЄфр╕Єё  эх Єюьє яЁшыюцхэш■, ъръюх ь√ цф╕ь!)
+        ;OS_SETGFX ;disable gfx, give focus (если не сделать YIELD, фокус отдаётся не тому приложению, какое мы ждём!)
         ;ld a,e
         ;pop de
         ;ld d,a
@@ -238,7 +238,7 @@ _1=$
         ld c,CMD_SCROLLDOWN
         CALLBDOS
         endm
-        macro OS_FWRITE_NBYTES ;hl=bytes, de=FCB ;don't use! ;TODO т√сЁюёшЄ№
+        macro OS_FWRITE_NBYTES ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
         ld c,CMD_FWRITE_NBYTES
         CALLBDOS
         endm

@@ -1,11 +1,11 @@
-LINEGIF=0x8000 ;рфЁхё фы  ёсюЁъш ёЄЁюъ
-LINEGIF_sz=0x1800 ;ьръё. °шЁшэр = 2048
+LINEGIF=0x8000 ;адрес для сборки строк
+LINEGIF_sz=0x1800 ;макс. ширина = 2048
 ;KEEPFRAMELINE=LINEGIF-0x4000
-PAL_GLOB=0x9a00 ;,0x300 ;уыюсры№эр  ЄрсышЎр ЎтхЄют
-PAL_LOCAL=0x9d00 ;,0x300 ;ыюъры№эр  ЄрсышЎр ЎтхЄют
+PAL_GLOB=0x9a00 ;,0x300 ;глобальная таблица цветов
+PAL_LOCAL=0x9d00 ;,0x300 ;локальная таблица цветов
 ROL_TAB=0xa000 ;,0x1000 ;L0>>n (16 bit)
 
-;яЁюЎхфєЁ√ ўЄхэш  эр тїюфх їюЄ Є NC, шэрўх ьюуєЄ эрёътюч№ тхЁэєЄ№ C фрцх схч ю°шсъш
+;процедуры чтения на входе хотят NC, иначе могут насквозь вернуть C даже без ошибки
         macro GIFINITCY
         ;or a
         endm
@@ -32,16 +32,16 @@ ROL_TAB=0xa000 ;,0x1000 ;L0>>n (16 bit)
         GIFRETIFDISKERR
         endm
 
-;╧ЁюшчтюфшЄ яюшёъ ¤ыхьхэЄр ё ъюфюь т HL яю ЄрсышЎх Ўхяюўхъ
-;  1,x-эрўры№э√щ (ъюЁэхтю╔) ¤ыхьхэЄ ЄрсышЎ√ (яЁш LZW_SIZE=8 тёхую шї сєфхЄ 256)
-;  0,0-¤ыхьхэЄр эх ёє∙хёЄтєхЄ
-;  0,1-ъюф юўшёЄъш
-;  0,2-ъюф чртхЁ°хэш  фрээ√ї EOI
-;  юёЄры№э√х тхышўшэ√ ючэрўр■Є рфЁхё, яю ъюЄюЁюьє ёшфшЄ яЁхф√фє∙шщ ¤ыхьхэЄ Ўхяюўъш +256
-;ш ЄЁхЄшщ срщЄ - ёюсёЄтхээю ёрь ёшьтюы
-;out: HL=рфЁхё ¤ыхьхэЄр. ┼ёыш ¤ыхьхэЄ Ёртхэ CC,EOI шыш юЄёєЄёЄтєхЄ, Єю Z=1, └=0-эхЄ ¤ыхьхэЄр,1-CC,2-EOI
+;Производит поиск элемента с кодом в HL по таблице цепочек
+;  1,x-начальный (корневоЙ) элемент таблицы (при LZW_SIZE=8 всего их будет 256)
+;  0,0-элемента не существует
+;  0,1-код очистки
+;  0,2-код завершения данных EOI
+;  остальные величины означают адрес, по которому сидит предыдущий элемент цепочки +256
+;и третий байт - собственно сам символ
+;out: HL=адрес элемента. Если элемент равен CC,EOI или отсутствует, то Z=1, А=0-нет элемента,1-CC,2-EOI
 ;==========================================
-        macro GIFRECODE ;out: HL=рфЁхё ¤ыхьхэЄр. ┼ёыш ¤ыхьхэЄ Ёртхэ CC,EOI шыш юЄёєЄёЄтєхЄ, Єю Z=1, └=0-эхЄ ¤ыхьхэЄр,1-CC,2-EOI
+        macro GIFRECODE ;out: HL=адрес элемента. Если элемент равен CC,EOI или отсутствует, то Z=1, А=0-нет элемента,1-CC,2-EOI
         LD C,L
         ;LD a,H
          or 0xc0
@@ -71,7 +71,7 @@ readgif
         ld de,LINEGIF+1
         ld (hl),BACKGROUNDCOLORLEVEL
         ld bc,LINEGIF_sz-1
-        ldir ;ўЄюс√ ёяЁртр т юёЄрЄъх чэръюьхёЄр с√ыр ўхЁэюЄр (яюЄюь ьюцэю єсЁрЄ№, ъюуфр readchr сєфхЄ ¤Єю фхырЄ№)
+        ldir ;чтобы справа в остатке знакоместа была чернота (потом можно убрать, когда readchr будет это делать)
         
         xor a
         ld (gifdisposalmethod),a
@@ -81,7 +81,7 @@ readgif
         CALL ROL_INSTALL
         CALL GIFSEARCH
         RET C
-        CALL GIF_LOGSCR ;юсЁрсюЄър фхёъЁшяЄюЁр ърЁЄшэъш тьхёЄх ё ярышЄЁющ (PAL_GLOB) ;чрърч√трхЄ ярь Є№ яюф bmp
+        CALL GIF_LOGSCR ;обработка дескриптора картинки вместе с палитрой (PAL_GLOB) ;заказывает память под bmp
         RET C
 GIF_newframe
 GIF_parsechunk
@@ -93,8 +93,8 @@ GIF_parsechunk
         ;JR Z,GIF_SPEC
         ;CP #3B ;???
         ;ret z
-        ret nz ;эхюяючэрээ√щ сыюъ, т√їюф яю ю°шсъх
-;GIF_SPEC ;ёяхЎшры№э√щ сыюъ
+        ret nz ;неопознанный блок, выход по ошибке
+;GIF_SPEC ;специальный блок
         GIFINITCY
         GIFGETBYTE
         cp #f9 ;graphic control extension
@@ -107,7 +107,7 @@ GIF_HELP
         jr z,GIF_parsechunk;newframe
         LD B,A
 GIF_HP0 
-        GIFGETBYTE    ;╧ЁюяєёЄшЄ№ HELP...
+        GIFGETBYTE    ;Пропустить HELP...
         DJNZ GIF_HP0
         JR GIF_HELP
 
@@ -119,7 +119,7 @@ gifdisposalmethod=$+1
          ld (gifwasdisposalmethod),a
         GIFGETBYTE ;bit0 = transparent color present, bit4..2 = disposal method (0=not specified(?), 1=do not dispose(?), 2=overwrite with bg color, 3=overwrite with prev frame(?))
 ;6908fast.gif, 6914fast.gif, 6911sled.gif: a=5 (transparent color present, do not dispose), 5, 5...
-;6906wrbg.gif: a=5, 5, 5, 9 (Єю хёЄ№ єърчрээ√щ dispose эрфю фхырЄ№ яюёых ърЁЄшэъш?)
+;6906wrbg.gif: a=5, 5, 5, 9 (то есть указанный dispose надо делать после картинки?)
 ;5scroll.gif: a=4...
 ;sprites.gif: a=1 (transparent color present, disposal not specified)
 ;animatie.gif: a=9 (transparent color present, overwrite with bg color), 9, 9...
@@ -128,7 +128,7 @@ gifdisposalmethod=$+1
 ;ris4.gif: a=0
 ;optic_14.gif: a=0
 ;optic_15.gif: a=0
-;multipal.gif, melnchud.gif, melnchil.gif (тёх шч Photoshop) - эхЄ graphic control extension - TODO эх чрърч√трЄ№ ярь Є№ яюф bmp ш эх фхырЄ№ putline?
+;multipal.gif, melnchud.gif, melnchil.gif (все из Photoshop) - нет graphic control extension - TODO не заказывать память под bmp и не делать putline?
         ld (gifdisposalmethod),a
          ;cp 9 
          ;ret z
@@ -152,26 +152,26 @@ gifdisposalmethod=$+1
         jp GIF_parsechunk
 
 ;"""""""""""""""""""""""
-GIF_IMG ;╬сЁрсюЄър сыюър шчюсЁрцхэш .
-        call initframe ;юфшэ Ёрч эр ърфЁ яюёых setpicwid, setpichgt ш яюёых єёЄрэютъш gifframetime ;чрърч√трхЄ ярь Є№ яюф ъюэтхЁўхээ√щ ърфЁ
+GIF_IMG ;Обработка блока изображения.
+        call initframe ;один раз на кадр после setpicwid, setpichgt и после установки gifframetime ;заказывает память под конверченный кадр
          ld (gifconvertedframeaddr),hl
          ld (gifconvertedframeaddrHSB),a
 
         GIFINITCY
         GIFGETWORD
-        ex de,hl;ld (localx),hl ;ыюъры№эюх эрўрыю ёЄЁюъш        
+        ex de,hl;ld (localx),hl ;локальное начало строки        
         GIFGETWORD
-        ;ld (starty),hl ;ыюъры№эр  яхЁтр  ёЄЁюър
+        ;ld (starty),hl ;локальная первая строка
         ld b,h
         ld c,l
         GIFGETWORD
-        LD (DX_IMG),HL ;ыюъры№эр  °шЁшэр
+        LD (DX_IMG),HL ;локальная ширина
          LD (pixelcounter_back),HL
         GIFRETIFDISKERR
         GIFGETWORD
-        LD (DY_IMG),HL ;ыюъры№эр  т√ёюЄр
+        LD (DY_IMG),HL ;локальная высота
         ld h,d
-        ld l,e ;ыюъры№эюх эрўрыю ёЄЁюъш
+        ld l,e ;локальное начало строки
         add hl,hl
         add hl,de
         ex de,hl ;de=localx*3
@@ -186,17 +186,17 @@ gifrasteraddrHSB=$+1
         ld a,0;(putchar_a)
         call setputlineaddr
 
-;яЁюяєёЄшЄ№ ёЄЁюъш фю starty (ёъюяшЁютрЄ№ шч яЁхф√фє∙хую ърфЁр) TODO ўЄю хёыш ¤Єю яхЁт√щ ърфЁ, р ёЄЁюъ эхЄ? Єръ эх с√трхЄ?
+;пропустить строки до starty (скопировать из предыдущего кадра) TODO что если это первый кадр, а строк нет? так не бывает?
 ;starty=$+1
 ;        ld bc,0
-;bc=ыюъры№эр  яхЁтр  ёЄЁюър
+;bc=локальная первая строка
         call gifpreparepic_skiplines
 
         if 1==0
-;ш∙хь, т ъръюх ьхёЄю bmp ъырёЄ№ эрўры№эє■ ёЄЁюўъє ърфЁр:
+;ищем, в какое место bmp класть начальную строчку кадра:
         ld bc,(cury);(Y_IMG)
          srl b
-         rr c ;TODO ё єў╕Єюь чєьр
+         rr c ;TODO с учётом зума
         inc bc
         jr gifrasterstart0loop
 gifrasterstart0
@@ -210,9 +210,9 @@ gifrasterstart0loop
         GIFINITCY
         GIFGETBYTE
         if 1==0
-        BIT 6,A ;эхюсїюфшью яЁютхЁшЄ№ сшЄ 6 эр яЁхфьхЄ эрышўш  ўхЁхфютрэш  ёЄЁюъ
+        BIT 6,A ;необходимо проверить бит 6 на предмет наличия чередования строк
         JR Z,GIF_IMG_NORM
-;ўхЁхфютрэшх ёЄЁюъ. TODO яюффхЁцрЄ№ ўхЁхфютрэшх ёЄЁюъ (0,2,1,3? - ЁрчэшЎє сєфхЄ тшфэю Єюы№ъю ё чєьюь)
+;чередование строк. TODO поддержать чередование строк (0,2,1,3? - разницу будет видно только с зумом)
          SCF 
          RET 
 
@@ -221,22 +221,22 @@ GIF_IMG_NORM
         push af
 
 ;for PUTCHAR:
-        call PUTCHARgetline_ifvisible ;єёЄрэртыштрхЄ PUTCHARaddr, PUTCHARputaddr
+        call PUTCHARgetline_ifvisible ;устанавливает PUTCHARaddr, PUTCHARputaddr
         CALL gifsetpgLZW
 linebufpointer=$+1
-        ld de,0 ;└фЁхё фы  т√тюфр срщЄр т LINEGIF
+        ld de,0 ;Адрес для вывода байта в LINEGIF
 pixelcounter_back=$+1
         ld bc,0
         exx
 
-        pop af ;A bit 7: яЁшчэръ эрышўш  ярышЄЁ√, 2..0: ўшёыю ЎтхЄют
+        pop af ;A bit 7: признак наличия палитры, 2..0: число цветов
         LD HL,PAL_LOCAL
         CALL GIF_PAL
         RET C
 
-;эрўрыю ЁрчсюЁъш юЄфхы№эюую сыюър уЁрЇшъш
+;начало разборки отдельного блока графики
         XOR A
-        ld lx,a;LD (GETCOD0+1),A ;ъюышўхёЄтю сшЄ т эрышўшш
+        ld lx,a;LD (GETCOD0+1),A ;количество бит в наличии
         LD (GIF_IMG_ENDcode),A
 
         inc a ;ld a,1
@@ -246,32 +246,32 @@ pixelcounter_back=$+1
         LD (LZW_SIZE),A
          push hl
 ;"""""""""""""""""""""""
-GIF_IMGclearLZW ;юўшёЄър LZW
+GIF_IMGclearLZW ;очистка LZW
          pop hl
         CALL LZW_INSTALL
         GIFGETCODE
-        GIFRECODE ;out: HL=рфЁхё ¤ыхьхэЄр. ┼ёыш ¤ыхьхэЄ Ёртхэ CC,EOI шыш юЄёєЄёЄтєхЄ, Єю Z=1, └=0-эхЄ ¤ыхьхэЄр,1-CC,2-EOI
-        push hl ;чряюьшэрхь рфЁхё ¤ыхьхэЄр, ўЄюс√ яюёых NEW_CODE яЁшётюшЄ№ хую чэрўхэшх LZW_OLD'є
+        GIFRECODE ;out: HL=адрес элемента. Если элемент равен CC,EOI или отсутствует, то Z=1, А=0-нет элемента,1-CC,2-EOI
+        push hl ;запоминаем адрес элемента, чтобы после NEW_CODE присвоить его значение LZW_OLD'у
         JR nz,GIF_IMGputstring
          inc hl
          ld a,(hl)
         dec a;CP 1
-        JR Z,GIF_IMGclearLZW ;ъюф юўшёЄъш
+        JR Z,GIF_IMGclearLZW ;код очистки
         dec a;CP 2
-        jr Z,GIF_IMG_END ;ъюф ъюэЎр фрээ√ї...
-;¤ыхьхэЄ юЄёєЄёЄтєхЄ - ю°шсър
+        jr Z,GIF_IMG_END ;код конца данных...
+;элемент отсутствует - ошибка
          pop hl
         SCF 
         RET 
 GIF_IMGputstring
-        CALL PUTSTRING ;т√тюф Ўхяюўъш шч ЄрсышЎ√ Ўхяюўхъ
+        CALL PUTSTRING ;вывод цепочки из таблицы цепочек
         jr GIF_IMGunpackloop
 
 GIF_IMGputstring_newcode
         ;nop ;4t = 0.04 s
-        CALL PUTSTRING ;т√тюф Ўхяюўъш шч ЄрсышЎ√ Ўхяюўхъ
+        CALL PUTSTRING ;вывод цепочки из таблицы цепочек
 GIF_IMGnewcode_unpackloop
-;фюсртшЄ№ т ЄрсышЎє Ўхяюўхъ ¤ыхьхэЄ, ёюёЄю ∙шщ шч ёё√ыъш эр OLD ш ёшьтюыр └
+;добавить в таблицу цепочек элемент, состоящий из ссылки на OLD и символа А
 NEW_COD0 LD HL,0
         LD DE,(LZW_OLD)
          inc d
@@ -286,48 +286,48 @@ NEW_COD1 LD HL,0
         INC HL
         LD (NEW_COD1+1),HL
 NEW_CODmask=$+1
-        LD DE,0 ;ьрёър+1
+        LD DE,0 ;маска+1
         OR A
         SBC HL,DE
-        call z,gif_inccodemask ;ёэрўрыр юфэш 111, чрЄхь 000... - єтхышўшЄ№ LZW_SIZW
+        call z,gif_inccodemask ;сначала одни 111, затем 000... - увеличить LZW_SIZW
 GIF_IMGunpackloop
-;уыртэ√щ Ўшъы Ёрёяръютъш
+;главный цикл распаковки
         pop hl
         LD (LZW_OLD),HL
         GIFGETCODE
-        GIFRECODE ;out: HL=рфЁхё ¤ыхьхэЄр. ┼ёыш ¤ыхьхэЄ Ёртхэ CC,EOI шыш юЄёєЄёЄтєхЄ, Єю Z=1, └=0:эхЄ ¤ыхьхэЄр,1:CC,2:EOI
-        push hl ;чряюьшэрхь рфЁхё ¤ыхьхэЄр, ўЄюс√ яюёых NEW_CODE яЁшётюшЄ№ хую чэрўхэшх LZW_OLD'є
+        GIFRECODE ;out: HL=адрес элемента. Если элемент равен CC,EOI или отсутствует, то Z=1, А=0:нет элемента,1:CC,2:EOI
+        push hl ;запоминаем адрес элемента, чтобы после NEW_CODE присвоить его значение LZW_OLD'у
         jp nz,GIF_IMGputstring_newcode
          inc hl
          ld a,(hl)
         dec a;CP 1
-        JR Z,GIF_IMGclearLZW ;ъюф юўшёЄъш
+        JR Z,GIF_IMGclearLZW ;код очистки
         dec a;CP 2
-        jr Z,GIF_IMG_END;ъюэхЎ сыюър
-;¤ыхьхэЄ юЄёєЄёЄтєхЄ
+        jr Z,GIF_IMG_END;конец блока
+;элемент отсутствует
         ;nop ;4t < 0.02 s
 LZW_OLD=$+1
         LD HL,0
-        CALL PUTSTRING ;т√тюф Ўхяюўъш шч ЄрсышЎ√ Ўхяюўхъ
+        CALL PUTSTRING ;вывод цепочки из таблицы цепочек
 PUTCHARaddr2=$+1
-        CALL PUTCHAR ;хёыш эх ярЄўшЄ№ эр эхтшфшь√ї ёЄЁюърї, тшфэю ёыхф√ ;keeps de
-         ld a,(de) ;яхЁт√щ ёшьтюы Ўхяюўъш
+        CALL PUTCHAR ;если не патчить на невидимых строках, видно следы ;keeps de
+         ld a,(de) ;первый символ цепочки
         jp GIF_IMGnewcode_unpackloop
 
 GIF_IMG_END
          pop hl
 GIF_IMG_END0
-;эрщфхэ ъюф ъюэЎр LZW-фрээ√ї
-;эхюсїюфшью ёўшЄрЄ№ ёыхф. сыюъ, ш хёыш хую фышэр=0, Єю ъюэхЎ ърфЁр
+;найден код конца LZW-данных
+;необходимо считать след. блок, и если его длина=0, то конец кадра
         GIFINITCY
-        call GETCHAR_ ;ўЄюс√ с√ыр яЁртшы№эр  уыєсшэр ёЄхър яЁш эрїюцфхэшш сыюър ё фышэющ 0 (юэ яЁюяєёърхЄ ўЄхэшх ёыхфє■∙хую срщЄр ўхЁхч ёэ Єшх рфЁхёр ёю ёЄхър)
-;єёЄрэютшЄ яхЁхьхээє■ GIF_IMG_ENDcode, хёыш яющф╕Є сыюъ ё фышэющ 0, р яюър фюўшЄ√трхь Єхъє∙шщ сыюъ
+        call GETCHAR_ ;чтобы была правильная глубина стека при нахождении блока с длиной 0 (он пропускает чтение следующего байта через снятие адреса со стека)
+;установит переменную GIF_IMG_ENDcode, если пойдёт блок с длиной 0, а пока дочитываем текущий блок
         GIFRETIFDISKERR
 GIF_IMG_ENDcode=$+1
-        LD A,0 ;/0xff, хёыш тёЄЁхЄшыё  сыюъ ё фышэющ 0
+        LD A,0 ;/0xff, если встретился блок с длиной 0
         OR A
-        jr z,GIF_IMG_END0 ;Є.х. х∙╕ эх ъюэхЎ сыюър.
-;тёЄЁхЄшыё  сыюъ ё фышэющ 0 - ъюэхЎ шчюсЁрцхэш 
+        jr z,GIF_IMG_END0 ;т.е. ещё не конец блока.
+;встретился блок с длиной 0 - конец изображения
 
         ld bc,(curpichgt)
         ;jr $
@@ -346,11 +346,11 @@ gifconvertedframeaddrHSB=$+1
          ;ld a,(nframes)
          ;cp 2
          ;ret z
-        JP GIF_newframe ;ёыхфє■∙шщ ърфЁ
+        JP GIF_newframe ;следующий кадр
         
-;bc=эюьхЁ ёЄЁюъш т√їюфр
+;bc=номер строки выхода
 gifpreparepic_skiplines0
-;TODO ъюяшЁютрЄ№ яЁ ью шч ярь Єш (юъэр 1,2) т ярь Є№ (юъэю 3)
+;TODO копировать прямо из памяти (окна 1,2) в память (окно 3)
          push bc
         call islinevisible ;nz=invisible
         jr nz,gifpreparepic_skiplines_invisible
@@ -358,16 +358,16 @@ gifpreparepic_skiplines0
         ld a,(gifoldconvertedframeaddrHSB)
         ld de,LINEPIXELS
         ld bc,(keepframe_linesize_bytes)
-        call getfrommem ;схЁ╕ь ёъюэтхЁўхээє■ ёЄЁюъє шч яЁхф√фє∙хую ърфЁр
-        call nextoldconvertedframeaddr ;ёьх∙рхь рфЁхё, юЄъєфр сЁрЄ№ ёъюэтхЁўхээє■ ёЄЁюъє шч яЁхф√фє∙хую ърфЁр (gifoldconvertedframeaddr)
-        call keepconvertedline ;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє шч LINEPIXELS, ёьх∙рхь рфЁхё, ъєфр ъырёЄ№ (keepframeaddr)
+        call getfrommem ;берём сконверченную строку из предыдущего кадра
+        call nextoldconvertedframeaddr ;смещаем адрес, откуда брать сконверченную строку из предыдущего кадра (gifoldconvertedframeaddr)
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS, смещаем адрес, куда класть (keepframeaddr)
          call nextscreenline
          call nextputlineaddr
 gifpreparepic_skiplines_invisible
         call inccury
          pop bc
 gifpreparepic_skiplines
-;тїюф ЄєЄ
+;вход тут
         ld hl,(cury)
         or a
         sbc hl,bc
@@ -387,10 +387,10 @@ gifoldconvertedframeaddrHSB=$+1
         ld (gifoldconvertedframeaddrHSB),a
         ret
 
-DX_IMG  DEFW 0  ;ЁрчьхЁ юЄфхы№эюую шчюсЁрцхэш 
+DX_IMG  DEFW 0  ;размер отдельного изображения
 DY_IMG  DEFW 0
 ;===========================
-;чрЄ√ўър фы  эхшёяюы№чєхь√ї ёЄЁюъ (т√ч√трхЄё  Єюы№ъю т фтєї ьхёЄрї)
+;затычка для неиспользуемых строк (вызывается только в двух местах)
 PUTCHAR_DUMMY
         exx
         cpi
@@ -408,8 +408,8 @@ PUTCHARtransparent
         jp PUTCHARendline
 
 PUTCHAR
-;┬√тюф ёшьтюыр т яюЄюъ (ёЄЁюъє)...
-;яюЁЄшЄ a
+;Вывод символа в поток (строку)...
+;портит a
 ;de'=linebufpointer, bc'=counter
         exx
 giftransparentcolor=$+1
@@ -432,7 +432,7 @@ putchar_palH=$+1
         inc h
         ldi
         exx
-        ret pe ;ёЄЁюър эх ъюэўшырё№
+        ret pe ;строка не кончилась
 PUTCHARendline
 ;end of line
         push bc
@@ -444,36 +444,36 @@ PUTCHARputaddr=$+1
 PUTCHARputline
         ld bc,(curpicwidx3)
         ld hl,LINEGIF
-;hl=юЄъєфр ъюяшЁєхь ёЄЁюъє
-;bc=ёъюы№ъю срщЄ ъюяшЁєхь
+;hl=откуда копируем строку
+;bc=сколько байт копируем
         push hl
-        call putline ;TODO фы  рэшьшЁютрээ√ї ;ъырф╕Є т bmp
+        call putline ;TODO для анимированных ;кладёт в bmp
         pop hl
-        call drawscreenline_frombuf ;ъюэтхЁЄшЁєхь LINEGIF т LINEPIXELS ш т√тюфшь х╕ эр ¤ъЁрэ
-        call keepconvertedline ;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє шч LINEPIXELS
-         ;call setpgtemp8000 ;drawscreenline_frombuf ёрьр тюёёЄрэртыштрхЄ
-         ;call setpgcode4000 ;drawscreenline_frombuf ёрьр тюёёЄрэртыштрхЄ
-        call nextoldconvertedframeaddr ;ёьх∙рхь рфЁхё, юЄъєфр сЁрЄ№ ёъюэтхЁўхээє■ ёЄЁюъє шч яЁхф√фє∙хую ърфЁр (gifoldconvertedframeaddr)
+        call drawscreenline_frombuf ;конвертируем LINEGIF в LINEPIXELS и выводим её на экран
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
+         ;call setpgtemp8000 ;drawscreenline_frombuf сама восстанавливает
+         ;call setpgcode4000 ;drawscreenline_frombuf сама восстанавливает
+        call nextoldconvertedframeaddr ;смещаем адрес, откуда брать сконверченную строку из предыдущего кадра (gifoldconvertedframeaddr)
 PUTCHARskipline
-        call PUTCHARgetline_ifvisible ;схЁ╕ь ёЄЁюъє шч bmp, хёыш юэр тшфшьр  ш хёыш эрфю ЁшёютрЄ№ яютхЁї ;єёЄрэртыштрхЄ PUTCHARaddr
+        call PUTCHARgetline_ifvisible ;берём строку из bmp, если она видимая и если надо рисовать поверх ;устанавливает PUTCHARaddr
         call gifsetpgLZW
         pop hl
         pop de
         pop bc
         exx
-        ld bc,(DX_IMG) ;ыюъры№эр  °шЁшэр
+        ld bc,(DX_IMG) ;локальная ширина
 linebufstart_local=$+1
-        ld de,0 ;ыюъры№эюх эрўрыю ёЄЁюъш
+        ld de,0 ;локальное начало строки
         exx
         ret
 
 PUTCHARgetline_ifvisible
-;єёЄрэртыштрхЄ PUTCHARaddr, PUTCHARputaddr
+;устанавливает PUTCHARaddr, PUTCHARputaddr
          ld hl,PUTCHAR_DUMMY
          ld de,PUTCHARskipline
         call islinevisible ;nz=invisible
         jr nz,PUTCHARgetline_ifvisibleq
-;getline, хёыш DX_IMG!=curpicwid шыш хёыш хёЄ№ яЁючЁрўэюёЄ№ ;TODO фхырЄ№ ¤Єє яЁютхЁъє юфшэ Ёрч чр ърфЁ
+;getline, если DX_IMG!=curpicwid или если есть прозрачность ;TODO делать эту проверку один раз за кадр
          ld hl,(DX_IMG)
          ld de,(curpicwid)
          or a
@@ -481,12 +481,12 @@ PUTCHARgetline_ifvisible
         ld bc,(curpicwidx3)
         ld de,LINEGIF
         jr nz,PUTCHARgetline
-;de=ъєфр фюёЄр╕ь ёЄЁюъє
-;bc=ёъюы№ъю срщЄ фюёЄр╕ь
+;de=куда достаём строку
+;bc=сколько байт достаём
         ld a,(giftransparencyflag)
         cp GIFTRANSP_off
 PUTCHARgetline
-        call nz,getline ;TODO фы  рэшьшЁютрээ√ї: хёыш эх яхЁт√щ ърфЁ, яЁюўшЄрЄ№ ёЄЁюъє шч ярь Єш т LINEGIF (ўЄюс√ ЁшёютрЄ№ яютхЁї эх╕)
+        call nz,getline ;TODO для анимированных: если не первый кадр, прочитать строку из памяти в LINEGIF (чтобы рисовать поверх неё)
          ld hl,PUTCHAR
          ld de,PUTCHARputline
 PUTCHARgetline_ifvisibleq
@@ -497,10 +497,10 @@ PUTCHARgetline_ifvisibleq
 
 ;__________________________________
 PUTSTRING
-;т√тюфшЄ Ўхяюўъє ё эрў. рфЁхёюь т HL т яюЄюъ ёшьтюыют
-;out: └=яхЁт√щ ёшьтюы ¤Єющ Ўхяюўъш
-;яюЁЄшЄ bc,de,hl
-;шёяюы№чєхЄ сєЇхЁ яю рфЁхёє -1..-4096
+;выводит цепочку с нач. адресом в HL в поток символов
+;out: А=первый символ этой цепочки
+;портит bc,de,hl
+;использует буфер по адресу -1..-4096
         ld bc,0
 PUTSTR0 ;
         dec bc
@@ -512,10 +512,10 @@ PUTSTR0 ;
         ld (bc),a
         ex de,hl
          ;BIT 4,B
-         ;JR Z,PUTSTR_fail ;ю°шсър (фышэр 4096 ¤ыхьхэЄют, сюы№°х эхЄ ьхёЄр) ;эю Ёхры№эю Єръюую эх ьюцхЄ с√Є№ т ёюёЄртыхээющ эрьш ЄрсышЎх
+         ;JR Z,PUTSTR_fail ;ошибка (длина 4096 элементов, больше нет места) ;но реально такого не может быть в составленной нами таблице
          ;nop ;4t = 0.1 s
          dec h
-        jp nz,PUTSTR0 ;яюър эх яхЁхщф╕ь ъ ъюЁэхтющ Ўхяюўъх
+        jp nz,PUTSTR0 ;пока не перейдём к корневой цепочке
 PUTSTR2 ld a,(bc)
 PUTCHARaddr=$+1
         call PUTCHAR
@@ -523,19 +523,19 @@ PUTCHARaddr=$+1
         jp nz,PUTSTR2
         inc b
         jp nz,PUTSTR2
-         ld a,(de) ;яхЁт√щ ёшьтюы Ўхяюўъш
+         ld a,(de) ;первый символ цепочки
         ret
 
 ;________________________________________________
 LZW_INSTALL
-;╚эёЄрыы Ўш  ЄрсышЎ√ Ўхяюўхъ т 0xc000
-;╤ЄЁєъЄєЁр ЄрсышЎ√ - ЄЁ╕їсрщЄэ√х ¤ыхьхэЄ√:
-;  1,x-эрўры№э√щ (ъюЁэхтю╔) ¤ыхьхэЄ ЄрсышЎ√ (яЁш LZW_SIZE=8 тёхую шї сєфхЄ 256)
-;  0,0-¤ыхьхэЄр эх ёє∙хёЄтєхЄ
-;  0,1-ъюф юўшёЄъш
-;  0,2-ъюф чртхЁ°хэш  фрээ√ї EOI
-;  юёЄры№э√х тхышўшэ√ ючэрўр■Є рфЁхё, яю ъюЄюЁюьє ёшфшЄ яЁхф√фє∙шщ ¤ыхьхэЄ Ўхяюўъш +256
-;ш ЄЁхЄшщ срщЄ - ёюсёЄтхээю ёрь ёшьтюы
+;Инсталляция таблицы цепочек в 0xc000
+;Структура таблицы - трёхбайтные элементы:
+;  1,x-начальный (корневоЙ) элемент таблицы (при LZW_SIZE=8 всего их будет 256)
+;  0,0-элемента не существует
+;  0,1-код очистки
+;  0,2-код завершения данных EOI
+;  остальные величины означают адрес, по которому сидит предыдущий элемент цепочки +256
+;и третий байт - собственно сам символ
         ld hl,0xc000
         push hl
         ld de,0xc001
@@ -543,7 +543,7 @@ LZW_INSTALL
         ld (hl),l;=0
         ldir
 LZW_SIZE=$+1
-        ld b,0 ;эрўры№э√щ ЁрчьхЁ ъюфр LZW (Ёрё°шЁ Є№ё  сєфхЄ эх чфхё№, р т LZW_SIZW)
+        ld b,0 ;начальный размер кода LZW (расширяться будет не здесь, а в LZW_SIZW)
         ld hl,1
         add hl,hl
         djnz $-1
@@ -576,7 +576,7 @@ LZW_INS1
         INC HL
         LD (HL),A;0
         INC HL
-        LD (NEW_COD0+1),HL ;└фЁхё яхЁтюую ётюсюфэюую ▌ыхьхэЄр т ЄрсышЎх Ўхяю╫хъ.
+        LD (NEW_COD0+1),HL ;Адрес первого свободного Элемента в таблице цепоЧек.
         LD A,(LZW_SIZE)
         INC A
 gif_setcodemask
@@ -595,7 +595,7 @@ gif_setcodemask
         ld a,h
         ld (GETCODmaskhigh),a
          inc hl
-        ld (NEW_CODmask),hl ;ьрёър+1
+        ld (NEW_CODmask),hl ;маска+1
         ret
 gif_inccodemask
         ld a,(LZW_SIZW) ;1..12 *2 +(ROL_TAB/256-2)
@@ -609,34 +609,34 @@ gif_inccodemask
         jp gif_setcodemask ;out: CY=0
 ;__________________________
 GETCHAR_
-;фы  GIF_IMG_END
-        GIFGETCHAR ;ьюцхЄ т√трышЄ№ё  ё C (ю°шсър) шыш NC (эрщфхэ сыюъ ё фышэющ 0)
+;для GIF_IMG_END
+        GIFGETCHAR ;может вывалиться с C (ошибка) или NC (найден блок с длиной 0)
         ret
         
 GETCHRnewblock
-;Єхъє∙шщ сыюъ чръюэўшыё 
+;текущий блок закончился
         GIFGETBYTE_noret
         GIFJRIFDISKERR GETCHRnewblock_fail
         or a
-        ret nz ;єёЄрэютшЄ№ фышэє сыюър ш ўшЄрЄ№ срщЄ
-;сыюъ эєыхтющ фышэ√ - юяЁхфхышЄ№ ъюэхЎ фрээ√ї
-;эєцэю Єюы№ъю т GIF_IMG_END
+        ret nz ;установить длину блока и читать байт
+;блок нулевой длины - определить конец данных
+;нужно только в GIF_IMG_END
          ex af,af'
-         pop af ;т√їюф эр єЁютхэ№ т√°х, ўЄюс√ эх ўшЄрЄ№ фрээюх (ret сєфхЄ ¤ътштрыхэЄэю ret nc шч GIFGETCHAR)
+         pop af ;выход на уровень выше, чтобы не читать данное (ret будет эквивалентно ret nc из GIFGETCHAR)
         LD A,#FF
         LD (GIF_IMG_ENDcode),A
         GIFINITCY
         RET 
 GETCHRnewblock_fail
          ex af,af'
-        pop af ;т√їюф эр єЁютхэ№ т√°х (ret сєфхЄ ¤ътштрыхэЄэю ret c т GIFGETCHAR)
+        pop af ;выход на уровень выше (ret будет эквивалентно ret c в GIFGETCHAR)
         scf
         ret
 
 ;__________________________
-GETCODE_ ;ўшЄрхЄ ъюф т HL ё чрфрээ√ь ъюышўхёЄтюь сшЄ (ёь. LZW_SIZW)
-GETCOD00 LD L,0 ;юёЄрт°шхё  фрээ√х.
-        ld a,lx ;ъюышўхёЄтю сшЄ т эрышўшш *2
+GETCODE_ ;читает код в HL с заданным количеством бит (см. LZW_SIZW)
+GETCOD00 LD L,0 ;оставшиеся данные.
+        ld a,lx ;количество бит в наличии *2
         or a;ADD A,A
         JP NZ,GETCOD1
         GIFGETCHAR
@@ -649,15 +649,15 @@ GETCOD1
         ADD A,ROL_TAB/256-2
         LD H,A
 
-       ;LD A,lx ;ъюышўхёЄтю сшЄ т эрышўшш *2
+       ;LD A,lx ;количество бит в наличии *2
        SUB 0
-LZW_SIZW=$-1 ;Єхъє∙шщ ЁрчьхЁ ъюфр LZW *2 +1 +(ROL_TAB/256-2)
-        JR NC,GETCODneed0bytes ;шьххь фюёЄрЄюўэю сшЄ т эрышўшш
+LZW_SIZW=$-1 ;текущий размер кода LZW *2 +1 +(ROL_TAB/256-2)
+        JR NC,GETCODneed0bytes ;имеем достаточно бит в наличии
         ADD A,16;8
-        jr nc,GETCODneed2bytes ;эрфю тч Є№ фюяюыэшЄхы№эю 2 срщЄр
+        jr nc,GETCODneed2bytes ;надо взять дополнительно 2 байта
 ;GETCODneed1byte
-;эрфю тч Є№ фюяюыэшЄхы№эю 1 срщЄ (ёрь√щ ўрёЄ√щ ёыєўрщ)
-        LD lx,a;(GETCOD0+1),A ;ъюышўхёЄтю сшЄ т эрышўшш
+;надо взять дополнительно 1 байт (самый частый случай)
+        LD lx,a;(GETCOD0+1),A ;количество бит в наличии
         LD E,(HL) ;LSB (L>>n)
         GIFINITCY
         GIFGETCHAR
@@ -676,11 +676,11 @@ GETCODmaskhigh=$+1
         LD A,0
         AND d
         LD H,A
-        RET ;NC=OK, HL=ъюф
+        RET ;NC=OK, HL=код
 GETCODneed2bytes
-;эрфю тч Є№ фюяюыэшЄхы№эю 2 срщЄр
+;надо взять дополнительно 2 байта
         ADD A,16;8
-        LD lx,a;(GETCOD0+1),A ;ъюышўхёЄтю сшЄ т эрышўшш
+        LD lx,a;(GETCOD0+1),A ;количество бит в наличии
         LD E,(HL) ;LSB (L>>n)
         GIFINITCY
         GIFGETCHAR
@@ -699,14 +699,14 @@ GETCODneed2bytes
         ld a,e
         JP GETCODq
 GETCODneed0bytes
-;шьххь фюёЄрЄюўэю сшЄ т эрышўшш
-        LD lx,a;(GETCOD0+1),A ;ъюышўхёЄтю сшЄ т эрышўшш
+;имеем достаточно бит в наличии
+        LD lx,a;(GETCOD0+1),A ;количество бит в наличии
         LD D,0
         ld a,(hl)
         JP GETCODq
 ;________________________________________
 GIF_LOGSCR
-;юсЁрсюЄър фхёъЁшяЄюЁр ърЁЄшэъш
+;обработка дескриптора картинки
          ld a,PAL_GLOB/256
          ld (putchar_palH),a
         GIFINITCY
@@ -719,7 +719,7 @@ GIF_LOGSCR
         ld (gifrasteraddr),hl
         ld a,(freemem_a)
         ld (gifrasteraddrHSB),a
-        call reserve_bmp_pages ;TODO фы  рэшьшЁютрээ√ї
+        call reserve_bmp_pages ;TODO для анимированных
         call reservefirstframeaddr
         
         GIFINITCY
@@ -733,19 +733,19 @@ GIF_LOGSCR
         ;JP GIF_PAL
 ;_______________________________
 GIF_PAL
-;ўЄхэшх ярышЄЁ√
-;HL=рфЁхё, ъєфр ъырёЄ№ ярышЄЁє (768 b), └=Їыру ярышЄЁ√ (7) ш ўшёыю ЎтхЄют (2..0)
+;чтение палитры
+;HL=адрес, куда класть палитру (768 b), А=флаг палитры (7) и число цветов (2..0)
         OR A
-        ret p ;эхЄ ярышЄЁ√
+        ret p ;нет палитры
         AND 7
         INC A
-        LD B,A ;ўшёыю сшЄют ярышЄЁ√ 1..8
+        LD B,A ;число битов палитры 1..8
         ld a,h
         ld (putchar_palH),a
         LD a,1
         add a,a
         djnz $-1
-        ld b,a ;B=фышэр ярышЄЁ√ т ЄЁшяыхЄрї RGB (min=2, max=256)
+        ld b,a ;B=длина палитры в триплетах RGB (min=2, max=256)
         GIFINITCY
 GIF_PAL1
         inc h
@@ -760,7 +760,7 @@ GIF_PAL1
         ld (hl),a
         inc l
         djnz GIF_PAL1
-;zajchik.gif - т ыюъры№э√ї ярышЄЁрї яюёыхфэшщ ЎтхЄ ў╕Ёэ√щ
+;zajchik.gif - в локальных палитрах последний цвет чёрный
         XOR A
         RET 
 
@@ -798,7 +798,7 @@ GIFSEARCH1
 
 ;=============================
 ROL_INSTALL
-;╚эёЄры ЄюЁ Єрсышўъш фы  єёъюЁхэш  яЁюЎхфєЁ√ GETCODE
+;Инсталятор таблички для ускорения процедуры GETCODE
 ;L0>>n (16 bit)
         LD HL,ROL_TAB+#0E00
         ld de,0x08FF

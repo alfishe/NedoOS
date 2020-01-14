@@ -11,18 +11,18 @@ end1=0x3500
 DISKBUF=0x3500;0xb000
 DISKBUFsz=0x800;0x1000
 
-LINEPIXELS=0x3d00 ;,wid8*2 (ьръё. ЁрчьхЁ = 512 фы  wid=2048) ;TODO Ёрэ№°х ш яютхЁї LINEGIF (ўЄюс√ pixels °ыш Ёрэ№°х, р attr чрЄшЁры х╕ т яЁюЎхёёх ъюэтхЁёшш)
+LINEPIXELS=0x3d00 ;,wid8*2 (макс. размер = 512 для wid=2048) ;TODO раньше и поверх LINEGIF (чтобы pixels шли раньше, а attr затирал её в процессе конверсии)
 
 STACK=0x3ffc
-SPOIL4B=0x4000 ;ьшъЁюёЄхъ эр 4 срщЄр, эхы№ч  эшцх 0x3b00 ;Ёрэ№°х с√ыю т эхтшфшьющ ўрёЄш ёЄЁрэшЎ√ ¤ъЁрэр, эю ёхщўрё ь√ яхЁхъы■ўрхь ¤ъЁрэ ё ¤Єшь ёЄхъюь
+SPOIL4B=0x4000 ;микростек на 4 байта, нельзя ниже 0x3b00 ;раньше было в невидимой части страницы экрана, но сейчас мы переключаем экран с этим стеком
 
 end2=0x7e00
 
-depkbuf=0x7e00 ;32K+ for zip (match length of 3Ц258 bytes)
+depkbuf=0x7e00 ;32K+ for zip (match length of 3-258 bytes)
 buf64k=0
 
-FREE=0x8000 ;фшэрьшўхёър  ярь Є№ jpeg, сєЇхЁ ёЄЁюъш gif
-LINE1=0x9400 ;сєЇхЁ ёЄЁюъш 0x400*3? jpeg
+FREE=0x8000 ;динамическая память jpeg, буфер строки gif
+LINE1=0x9400 ;буфер строки 0x400*3? jpeg
 LINE1_sz=0x0c00
 
 
@@ -35,7 +35,7 @@ HTMLTOPY=0
 HTMLHGT=24
 SCROLLHGT=HTMLHGT*8;192;200
 
-BACKGROUNDCOLORLEVEL=0 ;яЁш юўшёЄъх сєЇхЁр ёЄЁюъш (фы  яЁртшы№эюую яЁртюую ъЁр  т юёЄрЄъх чэръюьхёЄр)
+BACKGROUNDCOLORLEVEL=0 ;при очистке буфера строки (для правильного правого края в остатке знакоместа)
 
 MAXLINKSZ=256-1
 
@@ -56,9 +56,9 @@ EDITLINEMAXVISIBLEX=72
        ENDM 
 
 ;b=R/G/Bmin
-;de эр эрўрых сєЇхЁр R/G/B
+;de на начале буфера R/G/B
 ;h=maxdistdiv
-;т фшЇхЁшэух їюфшь Єюы№ъю яю юфэющ ёюёЄрты ■∙хщ, юёЄры№э√х эх ўшЄрхь:
+;в диферинге ходим только по одной составляющей, остальные не читаем:
         macro DITHERMC1B ch0,ch1,ch2,ch3
         ld a,(de) ;R(pixel)
         inc e
@@ -127,17 +127,17 @@ EDITLINEMAXVISIBLEX=72
         ld a,c
         rla ;bits
         exx
-        ld (de),a ;чряшёрЄ№ bits
+        ld (de),a ;записать bits
         ;exx
         endm
         
         org PROGSTART
 cmd_begin
-        ld sp,STACK ;эх фюыцхэ юяєёърЄ№ё  эшцх #3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,STACK ;не должен опускаться ниже #3b00! иначе возможна порча OS
         call init        
         
-;curfulllink эєцхэ фы  ёюїЁрэхэш  т шёЄюЁшш ш шёяюы№чютрэш  яєЄш фы  юЄэюёшЄхы№э√ї ёё√ыюъ
-;linkbuf ёюфхЁцшЄ ёё√ыъє (ьюцхЄ с√Є№ юЄэюёшЄхы№эр )
+;curfulllink нужен для сохранения в истории и использования пути для относительных ссылок
+;linkbuf содержит ссылку (может быть относительная)
         if 1==0
         call setpgs_scr
         call setpgcode4000
@@ -157,9 +157,9 @@ browser_godownload
 	ld a,1
 	ld (downloadflag),a
 browser_go
-;curfulllink ёюфхЁцшЄ Єхъє∙є■ ёё√ыъє (шч эх╕ сЁрЄ№ яєЄ№), ёых° т ъюэЎх http://ser.ver єцх хёЄ№
-;т linkbuf ыхцшЄ ёё√ыър (ьюцхЄ с√Є№ ыюъры№эр )
-;TODO яхЁхъюфшЁютрЄ№ Ёєёёъшх сєът√ т ёё√ыъх т %? Єюы№ъю т эрсЁрээющ тЁєўэє■?
+;curfulllink содержит текущую ссылку (из неё брать путь), слеш в конце http://ser.ver уже есть
+;в linkbuf лежит ссылка (может быть локальная)
+;TODO перекодировать русские буквы в ссылке в %? только в набранной вручную?
         ld hl,linkbuf
         push hl
         push hl
@@ -213,7 +213,7 @@ recodelinkamp0q
         call keepcurlink
         
         call makefulllink
-;curfulllink ёюфхЁцшЄ яюыэ√щ url, ёюсЁрээ√щ шч ёЄрЁюую curfullink ш ёё√ыъш linkbuf
+;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
 
         if 1==0
         call setpgs_scr
@@ -230,8 +230,8 @@ browser_go_curfulllink
 	
         jr browser_backspaceq
 keepcurlink
-;фы  backspace: чряюьэшЄ№ яюыэ√щ яєЄ№ ё яЁюЄюъюыюь ш шьхэхь
-;histaddr єърч√трхЄ эр яюёыхфэшщ ¤ыхьхэЄ шёЄюЁшш
+;для backspace: запомнить полный путь с протоколом и именем
+;histaddr указывает на последний элемент истории
 	call setpghist
 histaddr=$+1
 	ld de,0xc000
@@ -275,7 +275,7 @@ browser_downloadthis
 	ld a,1
 	ld (downloadflag),a
 browser_reload
-;histaddr єърч√трхЄ эр яюёыхфэшщ ¤ыхьхэЄ шёЄюЁшш
+;histaddr указывает на последний элемент истории
 	;ld hl,(histaddr)
 	;call setpghist
         ;ld de,curfulllink;linkbuf
@@ -283,13 +283,13 @@ browser_reload
 	jr browser_backspaceq
 
 browser_backspace
-;тёяюьэшЄ№ ёЄрЁ√щ яєЄ№ ё яЁюЄюъюыюь ш шьхэхь, яюыюцшЄ№ хую т curfulllink
-;ёхщўрё histaddr єърч√трхЄ эр яюёыхфэшщ ¤ыхьхэЄ шёЄюЁшш. шф╕ь эрчрф ш чряюьэшь эют√щ єърчрЄхы№
+;вспомнить старый путь с протоколом и именем, положить его в curfulllink
+;сейчас histaddr указывает на последний элемент истории. идём назад и запомним новый указатель
         call remembercurlink
 
 browser_backspaceq
-;curfulllink ёюфхЁцшЄ яюыэ√щ url, ёюсЁрээ√щ шч ёЄрЁюую curfullink ш ёё√ыъш linkbuf        
-        ld sp,STACK ;эх фюыцхэ юяєёърЄ№ё  эшцх #3b00! шэрўх тючьюцэр яюЁўр OS
+;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf        
+        ld sp,STACK ;не должен опускаться ниже #3b00! иначе возможна порча OS
         
         call unreservepages
         xor a
@@ -311,7 +311,7 @@ browser_backspaceq
         ld (curprotocol),a
         push hl ;hl=after "//"
 
-;тъы■ўшЄ№ ъюыс¤ъш яюф эєцэ√щ яЁюЄюъюы
+;включить колбэки под нужный протокол
         ld bc,readstream_file
         ld de,closestream_file
         ld hl,openstream_file
@@ -327,7 +327,7 @@ browser_go_changeprotocol_nohttp
         
         pop hl
 
-;hl=эрўрыю path схч яЁюЄюъюыр
+;hl=начало path без протокола
 
         ex de,hl ;de=filename
 openstream_patch=$+1
@@ -363,27 +363,27 @@ downloadflag=$+1
         cp 'M'
         jp nz,loadhtml;loadbmp_fail
 
-; I    1    0      2    ╧Ёшчэръ ┬╠╨-Їрщыр - ёшьтюы√ 'BM'       (+)
-;      2    2      4    ╨рчьхЁ ┬╠╨-Їрщыр (срщЄ)                (═└─╬ ╤╘╬╨╠╚╨╬┬└╥▄, ╫╚╥└╥▄ ═┼ ═╙╞═╬)
-;      3    6      4    ╨хчхЁт (=0)                            (═└╠ ═┼ ═╙╞═╬)
-;      4   10      4    ╤ьх∙хэшх т срщЄрї юЄ эрўрыр Їрщыр фю   
-;                       эрўрыр юяшёрэш  ЁрёЄЁютюую шчюсЁрцхэш  (═└╠ ═┼ ═╙╞═╬, є эрё 118)
+; I    1    0      2    Признак ВМР-файла - символы 'BM'       (+)
+;      2    2      4    Размер ВМР-файла (байт)                (НАДО СФОРМИРОВАТЬ, ЧИТАТЬ НЕ НУЖНО)
+;      3    6      4    Резерв (=0)                            (НАМ НЕ НУЖНО)
+;      4   10      4    Смещение в байтах от начала файла до   
+;                       начала описания растрового изображения (НАМ НЕ НУЖНО, у нас 118)
                                                               
-; II   5   14      4    ╨рчьхЁ ╬яшёрэш  ╚чюсЁрцхэш  (=40 WINDOWS) (═└╠ ═┼ ═╙╞═╬, тёхуфр 40)
-;      6   18      4    ╪шЁшэр шчюсЁрцхэш  (т яшъёхырї)        (+)
-;      7   22      4    ┬√ёюЄр шчюсЁрцхэш  (т яшъёхырї)        (+)
-;      8   26      2    ╩юышўхёЄтю ЎтхЄют√ї яыюёъюёЄхщ (=1)    (═└╠ ═┼ ═╙╞═╬, тёхуфр 1)
-;      9   28      2    ╩юышўхёЄтю сшЄ эр яшъёхы               (+ 4, 8, 24 ┴╚╥, ╧╬╥╬╠ ╠╬╞═╬ 1┴╚╥)
-;     10   30      4    ┬шф ёцрЄш  шэЇюЁьрЎшш (0,1 шыш 2)      (╧╬╩└ ╫╥╬ ┴┼╟ ╤╞└╥╚▀)
-;     11   34      4    ╨рчьхЁ юсЁрчр ЁрёЄЁютюую шчюсЁрцхэш    (═└─╬ ╤╘╬╨╠╚╨╬┬└╥▄, ╫╚╥└╥▄ ═┼ ═╙╞═╬)
-;     12   38      4    ╨хъюьхэфєхьюх уюЁшчюэ-юх ЁрчЁх°хэшх    (═└╠ ═┼ ═╙╞═╬)
-;     13   42      4    ╨хъюьхэфєхьюх тхЁЄшъры№эюх ЁрчЁх°хэшх  (═└╠ ═┼ ═╙╞═╬)
-;     14   46      4    ╩юышўхёЄтю ЎтхЄют т ярышЄЁх            (+)
-;     15   50      4    ╩юышўхёЄтю трцэ√ї ЎтхЄют т ярышЄЁх     (═└╠ ═┼ ═╙╞═╬)
+; II   5   14      4    Размер Описания Изображения (=40 WINDOWS) (НАМ НЕ НУЖНО, всегда 40)
+;      6   18      4    Ширина изображения (в пикселах)        (+)
+;      7   22      4    Высота изображения (в пикселах)        (+)
+;      8   26      2    Количество цветовых плоскостей (=1)    (НАМ НЕ НУЖНО, всегда 1)
+;      9   28      2    Количество бит на пиксел               (+ 4, 8, 24 БИТ, ПОТОМ МОЖНО 1БИТ)
+;     10   30      4    Вид сжатия информации (0,1 или 2)      (ПОКА ЧТО БЕЗ СЖАТИЯ)
+;     11   34      4    Размер образа растрового изображения   (НАДО СФОРМИРОВАТЬ, ЧИТАТЬ НЕ НУЖНО)
+;     12   38      4    Рекомендуемое горизон-ое разрешение    (НАМ НЕ НУЖНО)
+;     13   42      4    Рекомендуемое вертикальное разрешение  (НАМ НЕ НУЖНО)
+;     14   46      4    Количество цветов в палитре            (+)
+;     15   50      4    Количество важных цветов в палитре     (НАМ НЕ НУЖНО)
 
-;фры№°х шф╕Є ярышЄЁр (B, G, R, 0)
+;дальше идёт палитра (B, G, R, 0)
 
-;фры№°х шф╕Є ърЁЄшэър (фышэ√ ёЄЁюъ т срщЄрї ъЁрЄэ√ 4)
+;дальше идёт картинка (длины строк в байтах кратны 4)
 
         ld b,18-2
 loadbmp_skipheader0
@@ -406,7 +406,7 @@ loadbmp_skipheader0
         ;ld b,a
         ;OS_SEEKHANDLE
 
-;TODO чрърчрЄ№ сыюъ ярь Єш ш уЁєчшЄ№ т эхую (ьюцэю уЁєчшЄ№ яю юфэюьє срщЄє, ёЄЁюўъш ъюэтхЁЄшЄ№ яю юфэющ, Єюуфр сєЇхЁ bmp эх эєцхэ)
+;TODO заказать блок памяти и грузить в него (можно грузить по одному байту, строчки конвертить по одной, тогда буфер bmp не нужен)
         
         call reservepage
         ret nz ;no memory
@@ -442,15 +442,15 @@ nvview_loadbmp0go
         srl a
         rr h
         ld (freemem_hl),hl
-        ld (freemem_a),a ;ъюёЄ√ы№ (TODO чрърч√трЄ№ ярь Є№ яюф bmp эюЁьры№эю)
+        ld (freemem_a),a ;костыль (TODO заказывать память под bmp нормально)
         
         call reservefirstframeaddr
-        call initframe ;юфшэ Ёрч эр ърЁЄшэъє яюёых setpicwid, setpichgt ш яюёых єёЄрэютъш gifframetime ;чрърч√трхЄ ярь Є№ яюф ъюэтхЁўхээ√щ ърфЁ
-;ahl=рфЁхё ярь Єш яюф ъюэтхЁўхээ√щ ърфЁ
+        call initframe ;один раз на картинку после setpicwid, setpichgt и после установки gifframetime ;заказывает память под конверченный кадр
+;ahl=адрес памяти под конверченный кадр
 
-        ld hl,54 ;TODO юЄэюёшЄхы№эю эрўрыр bmp
+        ld hl,54 ;TODO относительно начала bmp
         xor a
-;яхЁхщЄш эр яюёыхфэ■■ ёЄЁюўъє (ўЄюс√ ЁшёютрЄ№ ёэшчє ттхЁї, эєцэю ьхэ Є№ drawscreenline_frombuf):
+;перейти на последнюю строчку (чтобы рисовать снизу вверх, нужно менять drawscreenline_frombuf):
         if GIF_PIXELSIZE
         ld de,(curpicwid)
         else
@@ -459,7 +459,7 @@ nvview_loadbmp0go
         dec de
         set 1,e
         set 0,e
-        inc de ;юъЁєуышыш ЁрчьхЁ ёЄЁюъш ттхЁї фю 4 срщЄ: 0=>0, 1..3=>4, 4=>4...
+        inc de ;округлили размер строки вверх до 4 байт: 0=>0, 1..3=>4, 4=>4...
         ld (bmplinestep),de
         ld bc,(curpichgt)
 bmpfindlastline0
@@ -496,7 +496,7 @@ bmplinestep=$+1
         call getfrommem
         ld hl,LINEGIF
         call drawscreenline_frombuf
-        call keepconvertedline ;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє шч LINEPIXELS
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
 bmpgetline_ifvisibleq
         call inccury
 
@@ -509,7 +509,7 @@ downloadfile
         call reservepage
         ret nz ;no memory
 	
-	ld de,downloadfilename ;TODO ёухэхЁшЁютрЄ№ шч єЁыр шыш HTTP юЄтхЄр + чряЁюёшЄ№ ЁхфръЄшЁютрэшх
+	ld de,downloadfilename ;TODO сгенерировать из урла или HTTP ответа + запросить редактирование
 ;de=filename
         OS_CREATEHANDLE
 ;b=new file handle
@@ -544,7 +544,7 @@ downloadfilehandle=$+1
 	OS_CLOSEHANDLE
 	
 	ld hl,downloadfilename
-	inc (hl) ;TODO ттюф шьхэш
+	inc (hl) ;TODO ввод имени
 
 	jp closequit
 
@@ -568,7 +568,7 @@ showgif
 showgif_firstframe
         ;jr $
 nframes=$+1
-        ld bc,0 ;0 шыш 1 т√ъы■ўр■Є єяЁртыхэшх
+        ld bc,0 ;0 или 1 выключают управление
         dec bc
         
         ld hl,(curpichgt_visible)
@@ -584,14 +584,14 @@ nframes=$+1
         dec bc
         bit 7,b
         inc bc
-        jp nz,closequit;showgifq ;хёыш 0 шыш 1 ърфЁ
+        jp nz,closequit;showgifq ;если 0 или 1 кадр
 showgif_drawevenifoneframe
 
 firstframeaddr=$+1
         ld hl,0
 firstframeaddrHSB=$+1
         ld a,0
-;bc=ўшёыю ърфЁют-1
+;bc=число кадров-1
 showgif_frames0
         push bc
         
@@ -601,7 +601,7 @@ showgif_frames0
 	pop af
 	ex de,hl
 	ex (sp),hl
-        call showframe ;ўшЄрхЄ showframetime шч ърфЁр
+        call showframe ;читает showframetime из кадра
 	
 	pop de ;timer
 	
@@ -659,7 +659,7 @@ showframe_setzoom
         ld (hl),a
         jp browser_reload
 
-;TODO яЁюсыхьр, хёыш чрфхЁцър ърфЁр ёыш°ъюь ьрыхэ№ър , єёяххь Єюы№ъю юфшэ Ёрч яЁюўшЄрЄ№ ъыртш°ш
+;TODO проблема, если задержка кадра слишком маленькая, успеем только один раз прочитать клавиши
 
 showframe_left
 ;hl=xscroll
@@ -671,7 +671,7 @@ showframe_left
 
 showframe_right
 ;hl=xscroll
-;эх фтшурхь xscroll, хёыш яЁртр  уЁрэшЎр (=keepframe_linesize-xscroll) яюыєўрхЄё  <80
+;не двигаем xscroll, если правая граница (=keepframe_linesize-xscroll) получается <80
         inc hl
         inc hl
         ex de,hl
@@ -683,7 +683,7 @@ showframe_right
         sbc hl,bc
         ex de,hl
         jr nc,showframe_leftrightq
-;яЁхфхы ёъЁюыыр: xscroll=keepframe_linesize-80 >=0
+;предел скролла: xscroll=keepframe_linesize-80 >=0
          ld hl,(keepframe_linesize)
          or a
          sbc hl,bc
@@ -704,7 +704,7 @@ showframe_up
 
 showframe_down
 ;hl=yscroll
-;эх фтшурхь yscroll, хёыш эшцэ   уЁрэшЎр (=curpichgt_visible-yscroll) яюыєўрхЄё  <SCROLLHGT(200)
+;не двигаем yscroll, если нижняя граница (=curpichgt_visible-yscroll) получается <SCROLLHGT(200)
         ld bc,8
         add hl,bc
         ex de,hl
@@ -716,7 +716,7 @@ showframe_down
         sbc hl,bc
         ex de,hl
         jr nc,showframe_updownq
-;яЁхфхы ёъЁюыыр: yscroll=curpichgt_visible-SCROLLHGT >=0
+;предел скролла: yscroll=curpichgt_visible-SCROLLHGT >=0
          ld hl,(curpichgt_visible)
          or a
          sbc hl,bc
@@ -757,7 +757,7 @@ ERROR4
         ;jr $
 getkeyquit
 getkeyquit0
-	;YIELD ;halt ;хёыш ёфхырЄ№ яЁюёЄю di:rst #38, Єю 1.ёфтшэхь ЄрщьхЁ ш 2.ьюцхь яюЄхЁ Є№ ърфЁютюх яЁхЁ√трэшх, р хёыш схч ei, Єю сєфєЄ уы■ъш
+	;YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         ;GET_KEY ;OS_GETKEYNOLANG
         ;ld a,c ;keynolang
         call yieldgetkeynolang
@@ -782,7 +782,7 @@ browser_quit
         or a
         jr z,browser_quitq
 
-;TODO яЁютхЁшЄ№, ўЄю wget цшт:
+;TODO проверить, что wget жив:
         ld e,a
         OS_WAITPID
         or a
@@ -879,19 +879,19 @@ strcopy0
 makefulllink
 ;curfulllink = curfulllink+linkbuf
         ld hl,linkbuf
-;хёыш ёё√ыър эрўшэрхЄё  ёю ёых°р, Єю эрфю юЄЁхчрЄ№ тхё№ яєЄ№, ъЁюьх ёхЁтхЁр
+;если ссылка начинается со слеша, то надо отрезать весь путь, кроме сервера
         ld a,(hl)
         cp '/'
         jr z,browser_go_rootlink ;"/Timex"
         
         call isprotocolpresent
 ;nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
-        jr z,browser_go_protocolpresent ;яЁюЄюъюы хёЄ№ - linkbuf ёюфхЁцшЄ яюыэє■ ёё√ыъє (ъ эхщ Єюы№ъю фюсртшЄ№ / т ёыєўрх http://ser.ver)
+        jr z,browser_go_protocolpresent ;протокол есть - linkbuf содержит полную ссылку (к ней только добавить / в случае http://ser.ver)
         ld a,(linkbuf+1)
         sub ':'
         jr z,browser_go_defaultprotocolpresent ;1:/file... => file://1:/file...
-;эхЄ яЁюЄюъюыр - тч Є№ Єхъє∙шщ яєЄ№ шч curfulllink (Є.х. юЄЁхчрЄ№ тё╕ яюёых яюёыхфэхую ёых°р) ш яЁшъыхшЄ№ ъ эхьє ¤Єє ёё√ыъє (ё єў╕Єюь ../)
-;ёых° т ъюэЎх http://ser.ver єцх хёЄ№? эх тёхуфр! хёыш ттхыш тЁєўэє■, Єю эхЄ
+;нет протокола - взять текущий путь из curfulllink (т.е. отрезать всё после последнего слеша) и приклеить к нему эту ссылку (с учётом ../)
+;слеш в конце http://ser.ver уже есть? не всегда! если ввели вручную, то нет
         ld hl,curfulllink
         call isprotocolpresent
 ;a=protocol (0=file, 1=http), hl=after "//"
@@ -977,7 +977,7 @@ browser_go_protocolpresent
 browser_go_copyto
         call strcopy
 browser_go_protocolpresentq
-;curfulllink ёюфхЁцшЄ яюыэ√щ url, ёюсЁрээ√щ шч ёЄрЁюую curfullink ш ёё√ыъш linkbuf
+;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
         ret
 
 adddefaultprotocol
@@ -1006,7 +1006,7 @@ addslashafterserver
         ;call strlen_tobc_keephl
         ;ld a,'/'
         ;cpir
-        ret z ;ёых° єцх хёЄ№
+        ret z ;слеш уже есть
          ld (hl),c;0
          dec hl
          ld (hl),a ;add / after http://ser.ver
@@ -1065,7 +1065,7 @@ isprotocolpresent
         ret ;nz=protocol absent (hl=start)
 
 nextscreenline
-;out: de=ёЄрЁр  ёЄЁюър, nc=out of screen
+;out: de=старая строка, nc=out of screen
 drawscreenline_frombuf_scr=$+1
         ld de,0
         ld hl,40
@@ -1107,7 +1107,7 @@ drawscreenline_frombuf_iyaddr=$+2
         add hl,de
         exx
          call setpgdiv4000
-         call setpgtemp8000 ;Єръющ эрь фрыш рфЁхё        
+         call setpgtemp8000 ;такой нам дали адрес        
         jr drawscreenline_frombuf0go
 drawscreenline_frombuf0
         exx
@@ -1116,9 +1116,9 @@ drawscreenline_frombuf0go
 readchr_patch=$+1
         call readchrlomem
         push hl
-        call convertchr ;jp=1980t (эх фхырхЄ exx т ъюэЎх, фы  єфюсёЄтр)
+        call convertchr ;jp=1980t (не делает exx в конце, для удобства)
         inc de
-        cpi ;фхырхЄ inc hl
+        cpi ;делает inc hl
         jp pe,drawscreenline_frombuf0
         pop af
         
@@ -1213,7 +1213,7 @@ readdiskbuf_nozeros
         RET 
 
 ZIPRDBYH
-;TODO ўшЄрЄ№ ёЄюы№ъю, ёъюы№ъю юёЄрыюё№ т IDAT (хёыш ¤Єю эх сюы№°х DISKBUFsz), яюЄюь шёърЄ№ ёыхфє■∙шщ IDAT
+;TODO читать столько, сколько осталось в IDAT (если это не больше DISKBUFsz), потом искать следующий IDAT
         INC HY
         LD A,HY
         CP DISKBUF/256+(DISKBUFsz/256)
@@ -1247,13 +1247,13 @@ ZIPRDBYH0read
         ld a,b
         or c
         jr nz,ZIPRDBYHn0
-;яЁюўшЄрЄ№ CRC
-;яЁюўшЄрЄ№ chunksize
-;яЁюўшЄрЄ№ "IDAT"
+;прочитать CRC
+;прочитать chunksize
+;прочитать "IDAT"
         ld de,DISKBUF
         ld hl,12
         call readstream
-;тьхёЄю remained:
+;вместо remained:
         ld hl,DISKBUF+4
         ld d,(hl)
         inc hl
@@ -1263,7 +1263,7 @@ ZIPRDBYH0read
         inc hl
         ld l,(hl)
         ld h,a
-;ёэютр яюёўшЄрЄ№ ЁрчьхЁ Єхъє∙хую сыюър
+;снова посчитать размер текущего блока
         jr ZIPRDBYH0read
 ZIPRDBYHn0
 ;bc=size
@@ -1338,7 +1338,7 @@ getCS
         RRA 
         RET        
 
-;ўшЄрЄ№ с√ёЄЁю, р яюЄюь юЄърЄ√трЄ№ єърчрЄхы№ Їрщыр
+;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
 ;hlde
         ;call RDBYTE
@@ -1430,7 +1430,7 @@ _=_+2
 convertchr
 
 chrbufG=64+8
-;яюшёъ 2 ЎтхЄют (чряюьшэрхь яюыюцхэш  ЁхъюЁфэ√ї ЎтхЄют, ўЄюс√ яюЄюь шї яЁюўшЄрЄ№):
+;поиск 2 цветов (запоминаем положения рекордных цветов, чтобы потом их прочитать):
         ld hl,chrbuf
 _=chrbufG
         ld de,_*257
@@ -1443,11 +1443,11 @@ _=_+1
         cp c ;Rmin
         jr nc,$+2+1+2
          ld c,a ;Rmin
-         ld e,_ ;Rmincolor = яюыюцхэшх Єхъє∙хую ЎтхЄр
+         ld e,_ ;Rmincolor = положение текущего цвета
         cp b ;Rmax
         jr c,$+2+1+2
          ld b,a ;Rmax
-         ld d,_ ;Rmaxcolor = яюыюцхэшх Єхъє∙хую ЎтхЄр
+         ld d,_ ;Rmaxcolor = положение текущего цвета
 _=_+1
         edup
         push de ;ld (Rminmaxcolor),de
@@ -1467,11 +1467,11 @@ _=_+1
         cp c ;Gmin
         jr nc,$+2+1+2
          ld c,a ;Gmin
-         ld e,_ ;Gmincolor = яюыюцхэшх Єхъє∙хую ЎтхЄр
+         ld e,_ ;Gmincolor = положение текущего цвета
         cp b ;Gmax
         jr c,$+2+1+2
          ld b,a ;Gmax
-         ld d,_ ;Gmaxcolor = яюыюцхэшх Єхъє∙хую ЎтхЄр
+         ld d,_ ;Gmaxcolor = положение текущего цвета
 _=_+1
         edup
         push de ;ld (Gminmaxcolor),de
@@ -1491,17 +1491,17 @@ _=_+1
         cp c ;Bmin
         jr nc,$+2+1+2
          ld c,a ;Bmin
-         ld e,_ ;Bmincolor = яюыюцхэшх Єхъє∙хую ЎтхЄр
+         ld e,_ ;Bmincolor = положение текущего цвета
         cp b ;Bmax
         jr c,$+2+1+2
          ld b,a ;Bmax
-         ld d,_ ;Bmaxcolor = яюыюцхэшх Єхъє∙хую ЎтхЄр
+         ld d,_ ;Bmaxcolor = положение текущего цвета
 _=_+1
         edup
         ld a,b
         sub c ;Bmax-Bmin
 
-;т√сшЁрхь ыєў°є■ юё№ ш х╕ minmaxcolor:
+;выбираем лучшую ось и её minmaxcolor:
         ld c,a ;maxdist
         pop af ;Gmax-Gmin
         pop hl ;Gminmaxcolor
@@ -1517,8 +1517,8 @@ _=_+1
 
 ;d=maxcolor
 ;e=mincolor
-;схЁ╕ь ЁхъюЁфэ√х ЎтхЄр (т тшфх color16):
-;ўЄюс√ яюыєўшЄ№ color16, эрфю ёэрўрыр color64(=BBGGRR), яюЄюь яю ЄрсышЎх шч эхую
+;берём рекордные цвета (в виде color16):
+;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
         jp (iy) ;colorlace0 ;/1
 
 ROUNDUP=32
@@ -1539,8 +1539,8 @@ ROUNDDOWN=32
 colorlace0
 ;d=maxcolor
 ;e=mincolor
-;схЁ╕ь ЁхъюЁфэ√х ЎтхЄр (т тшфх color16):
-;ўЄюс√ яюыєўшЄ№ color16, эрфю ёэрўрыр color64(=BBGGRR), яюЄюь яю ЄрсышЎх шч эхую
+;берём рекордные цвета (в виде color16):
+;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
         ld h,chrbuf/256
         ld l,d ;maxcolor
         ld c,(hl) ;G
@@ -1587,29 +1587,29 @@ colorlace0
        or (hl) ;ink(mincolor)     
 ;a=attr
         exx
-        ld (hl),a ;чряшёрЄ№ attr
+        ld (hl),a ;записать attr
         exx
-;яю Ёхры№э√ь рЄЁшсєЄрь чрэютю яхЁхёўшЄрЄ№ maxaxis, min, maxdist! (яЁютхЁхэю, ўЄю схч ¤Єюую яюыєўрхЄё  я ЄэшёЄюёЄ№):
+;по реальным атрибутам заново пересчитать maxaxis, min, maxdist! (проверено, что без этого получается пятнистость):
         ld d,h
         dec h ;ld h,tmaxaxis/256+2
-        ld l,a ;сєфхь їюфшЄ№ яю ¤Єющ ЎтхЄютющ ёюёЄрты ■∙хщ
+        ld l,a ;будем ходить по этой цветовой составляющей
         ld e,(hl) ;maxaxis*8
         dec h
         ld b,(hl) ;min
         dec h
         ld h,(hl) ;maxdistdiv
 ;b=R/G/Bmin
-;de эр эрўрых сєЇхЁр R/G/B
+;de на начале буфера R/G/B
 ;h=maxdistdiv
-;т фшЇхЁшэух їюфшь Єюы№ъю яю юфэющ ёюёЄрты ■∙хщ, юёЄры№э√х эх ўшЄрхь:
+;в диферинге ходим только по одной составляющей, остальные не читаем:
         jp (ix) ;dithermcy0/1/2/3
 
         dw colorlace0
 colorlace1
 ;d=maxcolor
 ;e=mincolor
-;схЁ╕ь ЁхъюЁфэ√х ЎтхЄр (т тшфх color16):
-;ўЄюс√ яюыєўшЄ№ color16, эрфю ёэрўрыр color64(=BBGGRR), яюЄюь яю ЄрсышЎх шч эхую
+;берём рекордные цвета (в виде color16):
+;чтобы получить color16, надо сначала color64(=BBGGRR), потом по таблице из него
         ld h,chrbuf/256
         ld l,d ;maxcolor
          ld d,ROUNDUP
@@ -1657,24 +1657,24 @@ colorlace1
         ld a,(hl) ;ink(mincolor)
         or d ;paper(maxcolor)
         exx
-        ld (hl),a ;чряшёрЄ№ attr
+        ld (hl),a ;записать attr
         exx
-;яю Ёхры№э√ь рЄЁшсєЄрь чрэютю яхЁхёўшЄрЄ№ maxaxis, min, maxdist! (яЁютхЁхэю, ўЄю схч ¤Єюую яюыєўрхЄё  я ЄэшёЄюёЄ№):
+;по реальным атрибутам заново пересчитать maxaxis, min, maxdist! (проверено, что без этого получается пятнистость):
         ld d,h
         dec h ;ld h,tmaxaxis/256+2
-        ld l,a ;сєфхь їюфшЄ№ яю ¤Єющ ЎтхЄютющ ёюёЄрты ■∙хщ
+        ld l,a ;будем ходить по этой цветовой составляющей
         ld e,(hl) ;maxaxis*8
         dec h
         ld b,(hl) ;min
         dec h
         ld h,(hl) ;maxdistdiv
 ;b=R/G/Bmin
-;de эр эрўрых сєЇхЁр R/G/B
+;de на начале буфера R/G/B
 ;h=maxdistdiv
-;т фшЇхЁшэух їюфшь Єюы№ъю яю юфэющ ёюёЄрты ■∙хщ, юёЄры№э√х эх ўшЄрхь:
+;в диферинге ходим только по одной составляющей, остальные не читаем:
         jp (ix) ;dithermcy0/1/2/3
         
- ;0 схёёь√ёыхээю (тёхуфр NC), яю¤Єюьє тёх чэрўхэш  єтхышўхэ√ эр 1:
+ ;0 бессмысленно (всегда NC), поэтому все значения увеличены на 1:
         dw dithermcy2
 dithermcy3
         DITHERMC1B 0x1, 0xd, 0x3, 0xf
@@ -1742,9 +1742,9 @@ MULWOR0 RR B
         JR MULWOR0
 
 putline
-;hl=юЄъєфр ъюяшЁєхь ёЄЁюъє
-;bc=ёъюы№ъю срщЄ ъюяшЁєхь
-;эр т√їюфх ёфтшурхЄ єърчрЄхы№, ъєфр ъюяшЁєхь (putchar_hl, putchar_a)
+;hl=откуда копируем строку
+;bc=сколько байт копируем
+;на выходе сдвигает указатель, куда копируем (putchar_hl, putchar_a)
         ex de,hl
 putchar_hl=$+1
         ld hl,0
@@ -1768,8 +1768,8 @@ setputlineaddr
         ret
 
 getline
-;de=ъєфр фюёЄр╕ь ёЄЁюъє
-;bc=ёъюы№ъю срщЄ фюёЄр╕ь
+;de=куда достаём строку
+;bc=сколько байт достаём
 gifwasdisposalmethod=$+1
         ld a,0 ;bit0 = transparent color present, bit4..2 = disposal method (0=not specified(?), 1=do not dispose(?), 2=overwrite with bg color, 3=overwrite with prev frame(?))
         and 0x1c
@@ -1780,7 +1780,7 @@ gifwasdisposalmethod=$+1
         or l
         jr nz,getline_frommem
 getline_fill
-;Їюэ яхЁтюую ърфЁр - чрыштър
+;фон первого кадра - заливка
         push de
 gifbgcolor=$+1
          ld hl,PAL_GLOB
@@ -1790,7 +1790,7 @@ gifbgcolor=$+1
          ldi
          dec hl
          inc h
-         ldi ;TODO яЁютхЁшЄ№ яюЁ фюъ ъюьяюэхэЄ!
+         ldi ;TODO проверить порядок компонент!
         pop hl
          ret po ;bc=0
         ldir
@@ -1844,13 +1844,13 @@ curfulllink
         align 256
 textpages
         ds 256
-;TODO х∙╕ юЄфхы№эю gfxpages (ўЄюс√ ьюцэю с√ыю єфры Є№ RGB яюёых ъюэтхЁёшш)
+;TODO ещё отдельно gfxpages (чтобы можно было удалять RGB после конверсии)
 
         align 256
 tmaxaxis ;maxdistdiv_fromattr[256], min_fromattr[256], maxaxis_fromattr[256]
         incbin "tmaxaxis"
         
-        ;align 256 ;эхяюёЁхфёЄтхээю яюёых tmaxaxis
+        ;align 256 ;непосредственно после tmaxaxis
 t64to16ink
         incbin "t64to16i"
 chrbuf
@@ -1884,19 +1884,19 @@ savelastblock
         push bc
         push de
         push hl
-;TODO єёъюЁшЄ№
+;TODO ускорить
         ld de,depkbuf        
 pngdepktoaddr=$+1
         ld hl,0
 pngdepktoaddrHSB=$+1
         ld a,0
-        ld bc,(Z6546) ;ёъюы№ъю срщЄ ёюїЁрэшЄ№
-        ld (TD198),bc ;ёъюы№ъю срщЄ ёюїЁрэ ыш 
+        ld bc,(Z6546) ;сколько байт сохранить
+        ld (TD198),bc ;сколько байт сохраняли 
 
 
         inc bc
         jr saveblock0_go
-;рфЁхё 0x7e00..0xffff
+;адрес 0x7e00..0xffff
 saveblock0
         push bc
          push af
@@ -1934,10 +1934,10 @@ init
         ld e,2 ;MC hires mode
         OS_SETGFX
         
-        ;YIELD ;ўЄюс√ cmd ьюу фюфхырЄ№ ётюш фхыр эр ¤ъЁрэх
+        ;YIELD ;чтобы cmd мог доделать свои дела на экране
 
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,e
         ld (setpgs_scr_low),a
         ld (setpgs_scr_attr),a
@@ -1946,7 +1946,7 @@ init
         ld (setpgs_scr_pixels),a
         
         OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         ld (codepg4000),a
         ld a,h

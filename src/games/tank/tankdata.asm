@@ -27,12 +27,12 @@ tankbulletcoords
         dw spraddr
         endm
        
-        macro ANIMEND ;яюёых ъюэЎр рэшьрЎшш яхЁхїюфшь ъ 0-щ рэшьрЎшш
+        macro ANIMEND ;после конца анимации переходим к 0-й анимации
         db 0
         dw 0
         endm
 
-        macro ANIMCYCLE ;яюёых ъюэЎр рэшьрЎшш яхЁхїюфшь эрўрыє ¤Єющ рэшьрЎшш
+        macro ANIMCYCLE ;после конца анимации переходим началу этой анимации
         db 0
         dw 1
         endm

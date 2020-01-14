@@ -1,6 +1,6 @@
 fire_or_rmb_navigator
         call isitclick
-	ret nz ;ъэюяъє єцх фхЁцрыш
+	ret nz ;кнопку уже держали
         ld hl,(arrx)
         ld bc,-navigatorx
         add hl,bc
@@ -8,7 +8,7 @@ fire_or_rmb_navigator
         ld bc,(curbitmapwid_edit)
         ;ld a,b
         ;or c
-        ;ret z ;яєёЄющ сшЄь¤я
+        ;ret z ;пустой битмэп
         call mulbcde_ahl ;hl=bitmapwid * (x-navigatorx)
         push hl ;hl=bitmapwid * (x-navigatorx)
         call calcnavigatorsize ;hl=navigatorwid, b=navigatorhgt
@@ -16,7 +16,7 @@ fire_or_rmb_navigator
         pop hl ;hl=bitmapwid * (x-navigatorx)
         push bc ;navigatorhgt
         call divhlde ;hl=hl/de = (bitmapwid * (x-navigatorx))/navigatorwid
-;т√ўхёЄ№ workzonewid/scale/2 ё єў╕Єюь яхЁхяюыэхэш 
+;вычесть workzonewid/scale/2 с учётом переполнения
         push hl
         ld hl,workzonewid8*8/2
         call scalescrcoords
@@ -27,7 +27,7 @@ fire_or_rmb_navigator
         ;jr nc,$+5
         ;ld hl,0
         call subhldecheck0
-       ld (curbitmapxscroll),hl ;ёЄртшь т ЎхэЄЁ
+       ld (curbitmapxscroll),hl ;ставим в центр
         ld a,(arry)
         sub navigatory
         ld e,a
@@ -38,7 +38,7 @@ fire_or_rmb_navigator
         ld d,0
         ld e,b
         call divhlde ;hl=hl/de = (bitmaphgt * (y-navigatory))/navigatorhgt
-;т√ўхёЄ№ workzonehgt/scale/2 ё єў╕Єюь яхЁхяюыэхэш 
+;вычесть workzonehgt/scale/2 с учётом переполнения
         push hl
         ld hl,workzonehgt/2
         call scalescrcoords
@@ -49,7 +49,7 @@ fire_or_rmb_navigator
         ;jr nc,$+5
         ;ld hl,0
         call subhldecheck0
-       ld (curbitmapyscroll),hl ;ёЄртшь т ЎхэЄЁ
+       ld (curbitmapyscroll),hl ;ставим в центр
         jp control_scroll_checksize
 
 calcnavigatorsize
@@ -59,7 +59,7 @@ calcnavigatorsize
         add hl,hl
         add hl,hl
         add hl,hl
-        add hl,hl ;яЁш wid>=2048 сєфхЄ яхЁхяюыэхэшх!
+        add hl,hl ;при wid>=2048 будет переполнение!
         jr nc,$+5
         ld hl,0xffff ;wid==2048
         ld de,(curbitmaphgt)
@@ -92,9 +92,9 @@ shownavigator
         ld hl,(curbitmaphgt)
         ld a,h
         or l
-        ret z ;яєёЄющ сшЄь¤я
-;ърЁЄшэър т√ёюър  шыш °шЁюър ?
-;хёыш bitmapwid/bitmaphgt >= navigatorwid/navigatorhgt, Єю ърЁЄшэър °шЁюър , шэрўх т√ёюър 
+        ret z ;пустой битмэп
+;картинка высокая или широкая?
+;если bitmapwid/bitmaphgt >= navigatorwid/navigatorhgt, то картинка широкая, иначе высокая
         call setpgshapes
 
         call calcnavigatorsize ;hl=wid, b=hgt
@@ -118,7 +118,7 @@ shownavigator
 
 ;shapes_prpixelframe(navigatorx+xleft, navigatory+ytop, xright-xleft, ybottom-ytop)
 
-;Ёрёў╕Є k=navigatorwid*256/bitmapwid:
+;расчёт k=navigatorwid*256/bitmapwid:
         ;ld hl,navigatorwid*256
         ld hl,(shownavigator_wid-1) ;h=wid
         ld l,0
@@ -131,7 +131,7 @@ shownavigator
         ld b,a
         ld c,h
 ;bc=xleft
-;яЁш xleft==0, эю bitmapxscroll!=0, ёфхырЄ№ xleft++
+;при xleft==0, но bitmapxscroll!=0, сделать xleft++
         ld a,b
         or c
         jr nz,shownavigator_nocorrectxleft
@@ -158,15 +158,15 @@ shownavigator_nocorrectxleft
         ld h,a
 shownavigator_wid=$+1
         ld bc,navigatorwid
-        call minhl_bc_tobc ;bc = эршьхэ№°хх шч k*(bitmapxscroll+workzonewid/scale) ш navigatorwid
+        call minhl_bc_tobc ;bc = наименьшее из k*(bitmapxscroll+workzonewid/scale) и navigatorwid
 ;bc=xright
-;хёыш эх ёє∙хёЄтєхЄ яшъёхы№ (workzonex+workzonewid,workzoney), Єю xright=navigatorwid
-;яЁш xright==navigatorwid, эю ёє∙хёЄтєхЄ яшъёхы№ (workzonex+workzonewid,workzoney), ёфхырЄ№ xright--
+;если не существует пиксель (workzonex+workzonewid,workzoney), то xright=navigatorwid
+;при xright==navigatorwid, но существует пиксель (workzonex+workzonewid,workzoney), сделать xright--
         push de ;k
         push bc
         ld a,workzoney
         ld hl,workzonex8*8+(workzonewid8*8)
-        call checkfirecoords ;out: CY=тэх сшЄь¤яр ;bc=x т bitmap, de=y т bitmap
+        call checkfirecoords ;out: CY=вне битмэпа ;bc=x в bitmap, de=y в bitmap
         pop bc
         ld hl,(shownavigator_wid)
         jr nc,shownavigator_nogluexright
@@ -184,13 +184,13 @@ shownavigator_nocorrectxright
         add hl,bc
         ld (shownavigator_xright),hl
 
-;y рэрыюушўэю
+;y аналогично
 
 ;yleft=k*bitmapyscroll
         ld bc,(curbitmapyscroll)
         call mulbcde_ahl
 ;h=ytop
-;яЁш ytop==0, эю bitmapyscroll!=0, ёфхырЄ№ ytop++
+;при ytop==0, но bitmapyscroll!=0, сделать ytop++
         ld a,h
         or a
         jr nz,shownavigator_nocorrectytop
@@ -210,17 +210,17 @@ shownavigator_nocorrectytop
         ld bc,(curbitmapyscroll)
         add hl,bc
         ld bc,(curbitmaphgt)
-        call minhl_bc_tobc ;bc = эршьхэ№°хх шч bitmapyscroll+workzonehgt/scale ш bitmaphgt
+        call minhl_bc_tobc ;bc = наименьшее из bitmapyscroll+workzonehgt/scale и bitmaphgt
         pop de
         call mulbcde_ahl
 ;h=ybottom
-;хёыш эх ёє∙хёЄтєхЄ яшъёхы№ (workzonex,workzoney+workzonehgt), Єю ybottom=navigatorhgt
-;яЁш ybottom==navigatorhgt, эю ёє∙хёЄтєхЄ яшъёхы№ (workzonex,workzoney+workzonehgt), ёфхырЄ№ ybottom--
+;если не существует пиксель (workzonex,workzoney+workzonehgt), то ybottom=navigatorhgt
+;при ybottom==navigatorhgt, но существует пиксель (workzonex,workzoney+workzonehgt), сделать ybottom--
         push de ;k
         push hl
         ld a,workzoney+workzonehgt
         ld hl,workzonex8*8
-        call checkfirecoords ;out: CY=тэх сшЄь¤яр ;bc=x т bitmap, de=y т bitmap
+        call checkfirecoords ;out: CY=вне битмэпа ;bc=x в bitmap, de=y в bitmap
         pop hl
 shownavigator_hgt=$+1
         ld a,0
@@ -260,12 +260,12 @@ shownavigator_ybottom=$+1
 showbitmapcoords
 ;hl=x
 ;a=y
-        call checkfirezone ;out: a=ъюф чюэ√
+        call checkfirezone ;out: a=код зоны
         cp ZONE_WORK
-        ret nz ;тэх Ёрсюўхщ чюэ√
-;bc=x т bitmap, de=y т bitmap
+        ret nz ;вне рабочей зоны
+;bc=x в bitmap, de=y в bitmap
         call setpgshapes
-        ld lx,0x3f;%00111111 ;Їюэют√щ ЎтхЄ
+        ld lx,0x3f;%00111111 ;фоновый цвет
 
         push de ;y
         ;push bc ;x
@@ -281,7 +281,7 @@ showwindowcoords
 ;bc=x
 ;de=y
         call setpgshapes
-        ld lx,0x3f;%00111111 ;Їюэют√щ ЎтхЄ
+        ld lx,0x3f;%00111111 ;фоновый цвет
 
         push de ;y
         ;push bc ;x

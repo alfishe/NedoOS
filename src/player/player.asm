@@ -6,7 +6,7 @@ module=0x6000;0xc000
         
         org PROGSTART
 cmd_begin
-        ld sp,0x4000 ;эх фюыцхэ юяєёърЄ№ё  эшцх #3b00! шэрўх тючьюцэр яюЁўр OS
+        ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
         

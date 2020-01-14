@@ -1,9 +1,9 @@
-;tilemask ёюфхЁцшЄ рфЁхёр яЁюЎхфєЁ фы  ърцфющ ъыхЄъш:
-;copychr шыш skipchr
+;tilemask содержит адреса процедур для каждой клетки:
+;copychr или skipchr
 ;cl=screen addr
 ;bl=attr addr
-;т ёЄхъх ыхцрЄ чэрўхэш  VALID0,VALID1, шч ъюЄюЁ√ї юсЁрчє■Єё  рфЁхёр яЁюЎхфєЁ
-;т ъюэЎх ёЄЁюъш ыхцшЄ validnext (2 срщЄр)
+;в стеке лежат значения VALID0,VALID1, из которых образуются адреса процедур
+;в конце строки лежит validnext (2 байта)
 valid00
         ;inc l
         ;inc l
@@ -129,7 +129,7 @@ valid11_size=$-valid11
 prvalid
         ld (prvalidsp),sp
         ld sp,validmap
-        ;ld l,0 ;эрўрыю ¤ъЁрэр
+        ;ld l,0 ;начало экрана
         ld bc,scrbuf/256*256+(scrbuf/256+0x18)
         ld ix,0x4058 ;scr,attr
         ret
@@ -141,7 +141,7 @@ validq
         ld de,VALID00
         ld b,tilemaphgt
 clearvalid0
-        push hl ;validq шыш validnext
+        push hl ;validq или validnext
         dup validmaplinesize/2-1
         push de
         edup
@@ -169,7 +169,7 @@ validnext
         ret
 
 prlives
-;яхўрЄрхь lives ёхЁфхўхъ ш фрыхх юфшэ яЁюсхы
+;печатаем lives сердечек и далее один пробел
         ld de,0x401f;scrbuf+0x1f
         ld a,(lives)
         inc a
@@ -265,7 +265,7 @@ prmapnewlineq
         exx
         dec c
         jr nz,prmaplines
-;ёфхырЄ№ эхтрышфэ√ьш т√тхфхээ√х  ўхщъш
+;сделать невалидными выведенные ячейки
         ld hl,validmap
         ld a,tilemaphgt
 prmap_invalidatelines
@@ -290,13 +290,13 @@ probjlist0
         ret z
         ld l,(ix+obj_objaddr)
         ld h,(ix+(obj_objaddr+1))
-        ;hl=рфЁхё юяшёрЄхы  юс·хъЄр (т эрўрых ыхцшЄ єърчрЄхы№ эр ёяшёюъ рэшьрЎшщ)
+        ;hl=адрес описателя объекта (в начале лежит указатель на список анимаций)
         ld a,(hl)
         inc hl
         ld h,(hl)
         ld l,a
-        ;hl=єърчрЄхы№ эр ёяшёюъ рэшьрЎшщ
-        ld c,(ix+obj_anim) ;эюьхЁ рэшьрЎшш
+        ;hl=указатель на список анимаций
+        ld c,(ix+obj_anim) ;номер анимации
         ;ld b,0
         add hl,bc
         add hl,bc
@@ -304,19 +304,19 @@ probjlist0
         inc hl
         ld h,(hl)
         ld l,a
-        ;hl=єърчрЄхы№ эр рэшьрЎш■
-        ld c,(ix+obj_animphase) ;эюьхЁ Їрч√ рэшьрЎшш
+        ;hl=указатель на анимацию
+        ld c,(ix+obj_animphase) ;номер фазы анимации
         ;ld b,0
         add hl,bc
         add hl,bc
         add hl,bc
-         inc hl ;яЁюяєёЄшыш тЁхь  Їрч√
+         inc hl ;пропустили время фазы
         ld a,(hl)
         inc hl
         ld h,(hl)
         ld l,a
-        ;hl=рфЁхё views фы  фрээющ Їрч√ рэшьрЎшш
-        ld c,(ix+obj_dir) ;эюьхЁ эряЁртыхэш  0..3
+        ;hl=адрес views для данной фазы анимации
+        ld c,(ix+obj_dir) ;номер направления 0..3
         ;ld b,0
         add hl,bc
         add hl,bc
@@ -324,7 +324,7 @@ probjlist0
         inc hl
         ld h,(hl)
         ld l,a
-        ;hl=рфЁхё ёяЁрщЄр
+        ;hl=адрес спрайта
         exx
         ld c,(ix+obj_x)
         ld a,(ix+(obj_x+1))
@@ -351,7 +351,7 @@ writereobjaddr=$+1
         ld (hl),b
         inc hl
         ld (writereobjaddr),hl
-;ёфхырЄ№ эхтрышфэ√ьш т√тхфхээ√х  ўхщъш
+;сделать невалидными выведенные ячейки
         ;ld (validxy),bc
         CALCvalidmapaddr_bcyx_tohl
         ld a,VALID1
@@ -373,9 +373,9 @@ writereobjaddr=$+1
         ld (hl),a
         inc l
         ld (hl),a
-        call prspr ;эр т√їюфх b=0
+        call prspr ;на выходе b=0
         if 1==0
-;ёфхырЄ№ эхтрышфэ√ьш т√тхфхээ√х  ўхщъш
+;сделать невалидными выведенные ячейки
 validxy=$+1
         ld hl,0
         CALCvalidmapaddr_hlyx_tohl
@@ -455,7 +455,7 @@ writerebulletaddr=$+1
 cls
 	ld hl,0x4000
         call clshl
-        ;ъЁрёшь цшчэш
+        ;красим жизни
         ld de,0x581f;scrbuf+0x1800+0x1f
         ld b,maxlives
 clscrbuf0
@@ -522,7 +522,7 @@ restoreobjects0
         inc hl
         ld a,(hl) ;y
         and 0xf8
-        ld b,a ;юъЁєуышЄ№!
+        ld b,a ;округлить!
         inc hl
         push hl
         COORDSBC_TOSCRDE ;de=scrbuf+
@@ -531,12 +531,12 @@ restoreobjects0
         rra
         rra
         and 0x1f
-        ld l,a ;y (т чэръюьхёЄрї)
+        ld l,a ;y (в знакоместах)
         ld a,c
         rra
         rra
         rra
-        and 0x1f ;x (т чэръюьхёЄрї)
+        and 0x1f ;x (в знакоместах)
         call calctilemapaddr_a_l ;hl=tilemapaddr
         
         call restoretile
@@ -602,7 +602,7 @@ restorebullets0
         inc hl
         ld a,(hl) ;y
         and 0xf8
-        ld b,a ;юъЁєуышЄ№!
+        ld b,a ;округлить!
         inc hl
         push hl
         COORDSBC_TOSCRDE ;de=scrbuf+
@@ -611,12 +611,12 @@ restorebullets0
         rra
         rra
         and 0x1f
-        ld l,a ;y (т чэръюьхёЄрї)
+        ld l,a ;y (в знакоместах)
         ld a,c
         rra
         rra
         rra
-        and 0x1f ;x (т чэръюьхёЄрї)
+        and 0x1f ;x (в знакоместах)
         call calctilemapaddr_a_l ;hl=tilemapaddr
         call restoretile
         pop hl
@@ -658,7 +658,7 @@ restoretile
         add a,+(validmap-tilemap)/256
         ld d,a
         ld e,l
-        ld a,VALID1 ;эхтрышфхэ, эрфю яхЁхЁшёютрЄ№
+        ld a,VALID1 ;невалиден, надо перерисовать
         ld (de),a
         pop de ;scrbuf+
         ret
@@ -715,7 +715,7 @@ prchar
         ret
         
 prtext
-;bc=ъююЁфшэрЄ√
+;bc=координаты
 ;hl=text
 prtext0
         ld a,(hl)

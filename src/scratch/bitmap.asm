@@ -1,5 +1,5 @@
-;ЁрсюЄр тэєЄЁш сшЄь¤яр
-;ш ётющёЄтр сшЄь¤яр
+;работа внутри битмэпа
+;и свойства битмэпа
 
 fillbitmap
 ;bc=x
@@ -13,13 +13,13 @@ fillbitmap
         ld (curcheckcolor),a ;checkcolor
         ld hl,setpixel_color
         cp (hl)
-        jr nz,fillbitmap_noerrorcolor ;ЎтхЄ чрыштъш != ЎтхЄ яшъёхы 
+        jr nz,fillbitmap_noerrorcolor ;цвет заливки != цвет пикселя
          ld a,(setpixel_color2)
          cp (hl)
-        ret z ;эхы№ч  ъышърЄ№ эр ЎтхЄ ш чрыштрЄ№ Єхь цх ╤╧╦╬╪═█╠ ЎтхЄюь - чрЎшъышЄё 
+        ret z ;нельзя кликать на цвет и заливать тем же СПЛОШНЫМ цветом - зациклится
 fillbitmap_noerrorcolor
-;шёяюы№чєхЄ ьръёшьєь 1K ёЄхър
-;ъырф╕Є т ёЄхъ Єюы№ъю эрўрыю яєёЄющ яюёыхфютрЄхы№эюёЄш ётхЁїє шыш ёэшчє
+;использует максимум 1K стека
+;кладёт в стек только начало пустой последовательности сверху или снизу
         push bc
         push de
         ld lx,2
@@ -30,10 +30,10 @@ fillarea0
         pop bc
         ld (fillareastartx),bc
         ld (fillareastarty),de
-        ld iy,0xffff ;hy: тхЁї с√ы чрэ Є (сєфхЄ эютр  яюёыхфютрЄхы№эюёЄ№), ly: эшч с√ы чрэ Є (сєфхЄ эютр  яюёыхфютрЄхы№эюёЄ№)
+        ld iy,0xffff ;hy: верх был занят (будет новая последовательность), ly: низ был занят (будет новая последовательность)
 fillarea00
         call setpixel_fast
-;яЁютхЁ хь ёэшчє
+;проверяем снизу
         inc de
         ld a,lx ;stack size
         or a
@@ -46,7 +46,7 @@ fillarea00
         jr nz,fillareanodown_blocked
         xor a
         cp ly
-        jr z,fillareanodown ;ёЄрЁр  яюёыхфютрЄхы№эюёЄ№
+        jr z,fillareanodown ;старая последовательность
         ld ly,a
          push bc
          push de
@@ -56,7 +56,7 @@ fillareanodown_blocked
         ld ly,0xff
 fillareanodown
         dec de
-;яЁютхЁ хь ётхЁїє
+;проверяем сверху
         ld a,d
         or e
          dec de ;y
@@ -68,7 +68,7 @@ fillareanodown
         jr nz,fillareanoup_blocked
         xor a
         cp hy
-        jr z,fillareanoup ;ёЄрЁр  яюёыхфютрЄхы№эюёЄ№
+        jr z,fillareanoup ;старая последовательность
         ld hy,a
          push bc
          push de
@@ -78,13 +78,13 @@ fillareanoup_blocked
         ld hy,0xff
 fillareanoup
          inc de ;y
-;фтшцхьё  тыхтю (хёыш тючьюцэю), шэрўх тяЁртю
+;движемся влево (если возможно), иначе вправо
         ld a,b
         or c
         dec bc ;x
         jr z,fillareanoleft_blocked;filrarea0
         call getpixel
-        jr z,fillarea00 ;ёЄртшЄ яшъёхы№
+        jr z,fillarea00 ;ставит пиксель
 fillareanoleft_blocked
         call showbitmap_rarely
 fillareastartx=$+1
@@ -92,16 +92,16 @@ fillareastartx=$+1
 fillareastarty=$+1
         ld de,0
         jr filrarea00
-;фтшцхьё  тяЁртю
+;движемся вправо
 filrarea0
         dec lx ;stack size
         ret z ;jp z,setpgs_scr
         pop de
         pop bc
-        ld iy,0xffff ;hy: тхЁї с√ы чрэ Є (сєфхЄ эютр  яюёыхфютрЄхы№эюёЄ№), ly: эшч с√ы чрэ Є (сєфхЄ эютр  яюёыхфютрЄхы№эюёЄ№)
+        ld iy,0xffff ;hy: верх был занят (будет новая последовательность), ly: низ был занят (будет новая последовательность)
 filrarea00
         call setpixel_fast
-;яЁютхЁ хь ёэшчє
+;проверяем снизу
         inc de
         ld a,lx ;stack size
         or a
@@ -114,7 +114,7 @@ filrarea00
         jr nz,filrareanodown_blocked
         xor a
         cp ly
-        jr z,filrareanodown ;ёЄрЁр  яюёыхфютрЄхы№эюёЄ№
+        jr z,filrareanodown ;старая последовательность
         ld ly,a
          push bc
          push de
@@ -124,7 +124,7 @@ filrareanodown_blocked
         ld ly,0xff
 filrareanodown
         dec de
-;яЁютхЁ хь ётхЁїє
+;проверяем сверху
         ld a,d
         or e
          dec de ;y
@@ -136,7 +136,7 @@ filrareanodown
         jr nz,filrareanoup_blocked
         xor a
         cp hy
-        jr z,filrareanoup ;ёЄрЁр  яюёыхфютрЄхы№эюёЄ№
+        jr z,filrareanoup ;старая последовательность
         ld hy,a
          push bc
          push de
@@ -146,16 +146,16 @@ filrareanoup_blocked
         ld hy,0xff
 filrareanoup
          inc de ;y
-;фтшцхьё  тяЁртю
+;движемся вправо
         inc bc ;x
         ld hl,(curbitmapwid_edit)
         or a
         sbc hl,bc
         jp z,fillarea0
         call getpixel
-        jr z,filrarea00 ;ёЄртшЄ яшъёхы№
+        jr z,filrarea00 ;ставит пиксель
         call showbitmap_rarely
-        jp fillarea0 ;схЁ╕Є шч ёЄхър
+        jp fillarea0 ;берёт из стека
 
 showbitmap_rarely
         ld a,r
@@ -170,7 +170,7 @@ showbitmap_rarely
         
 prlinebitmap
 ;bc=x
-;de=y ;TODO ЁшёютрЄ№ схч єў╕Єр ¤Єюую яшъёхы  (эю 1 яшъёхы№ ЁшёютрЄ№ тёхуфр)
+;de=y ;TODO рисовать без учёта этого пикселя (но 1 пиксель рисовать всегда)
 ;ix=x2
 ;hl=y2
 ;a=color1
@@ -220,7 +220,7 @@ prlinebitmap_noswap
         ld a,0x0b ;dec bc
 prlinebitmap_nodec
         pop de ;dy
-;a=ъюф inc/dec bc
+;a=код inc/dec bc
 ;bc'=x
 ;de'=y
 ;bc=dx
@@ -233,7 +233,7 @@ prlinebitmap_nodec
         jr nc,prlinebitmap_ver ;dy>=dx
         ld hy,b
         ld ly,c ;counter=dx
-        ;inc iy ;inc hy ;Ёшёєхь, тъы■ўр  яюёыхфэшщ яшъёхы№ (єўЄхэю т Ўшъых)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,b
         ld l,c
         sra h
@@ -276,7 +276,7 @@ prlinebitmap_hor1
 prlinebitmap_ver
         ld hy,d
         ld ly,e ;counter=dy
-        ;inc iy ;inc hy ;Ёшёєхь, тъы■ўр  яюёыхфэшщ яшъёхы№ (єўЄхэю т Ўшъых)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,d
         ld l,e
         sra h
@@ -318,8 +318,8 @@ prlinebitmap_ver1
         ret
         
 bitmap_fillbox
-;bc=x т bitmap
-;de=y т bitmap
+;bc=x в bitmap
+;de=y в bitmap
 ;hl=wid
 ;ix=hgt
 ;a=color1
@@ -361,8 +361,8 @@ setpixel_fast_coloraa
         ex af,af'
         ld (setpixel_color2),a
 setpixel_line
-;bc=x т bitmap (эх яюЁЄшЄё ) - ьюцхЄ с√Є№ тэх bitmap
-;de=y т bitmap (эх яюЁЄшЄё ) - ьюцхЄ с√Є№ тэх bitmap
+;bc=x в bitmap (не портится) - может быть вне bitmap
+;de=y в bitmap (не портится) - может быть вне bitmap
         ld hl,(curbitmapwid_edit)
         scf
         sbc hl,bc
@@ -372,8 +372,8 @@ setpixel_line
         sbc hl,de
         ret c
 setpixel_fast
-;bc=x т bitmap (эх яюЁЄшЄё )
-;de=y т bitmap (эх яюЁЄшЄё )
+;bc=x в bitmap (не портится)
+;de=y в bitmap (не портится)
         push bc
         ld a,c
         xor e
@@ -394,9 +394,9 @@ setpixel_color2=$+1
         ret
 
 getpixel
-;bc=x т bitmap (эх яюЁЄшЄё )
-;de=y т bitmap (эх яюЁЄшЄё )
-;out: a=ЎтхЄ, Z=ЎтхЄ ёютярфрхЄ ё curcheckcolor
+;bc=x в bitmap (не портится)
+;de=y в bitmap (не портится)
+;out: a=цвет, Z=цвет совпадает с curcheckcolor
         push bc
         call calcbitmap_from_xy ;a=pg, hl=addr
         SETPGBITMAPLOW
@@ -407,8 +407,8 @@ curcheckcolor=$+1
         ret
         
 calcbitmap_from_xy
-;bc=x т bitmap (эх яюЁЄшЄё )
-;de=y т bitmap (эх яюЁЄшЄё )
+;bc=x в bitmap (не портится)
+;de=y в bitmap (не портится)
 ;out: a=pg, hl=addr
         call muldewid_ahl
         add hl,bc ;x
@@ -427,32 +427,32 @@ calcbitmap_from_xy
         ret
         
 calcbitmapcoords
-;hl=x эр ¤ъЁрэх
-;a=y эр ¤ъЁрэх
-;out: bc=x т bitmap, de=y т bitmap (ьюуєЄ с√Є№ юЄЁшЎрЄхы№э√х)
+;hl=x на экране
+;a=y на экране
+;out: bc=x в bitmap, de=y в bitmap (могут быть отрицательные)
         sub workzoney
         ld e,a
         sbc a,a
-        ld d,a ;de=y т workzone
+        ld d,a ;de=y в workzone
         ld bc,-workzonex8*8
-        add hl,bc ;hl=x т workzone
+        add hl,bc ;hl=x в workzone
         call scalescrcoords ;hl=x,de=y
         ld bc,(curbitmapxscroll)
-        add hl,bc ;hl=y т bitmap
+        add hl,bc ;hl=y в bitmap
         ld b,h
         ld c,l
         ld hl,(curbitmapyscroll)
-        add hl,de ;hl=y т bitmap
+        add hl,de ;hl=y в bitmap
         ex de,hl
         ret
         
 calccoords_frombitmapcoords
-;bc=x т bitmap
-;de=y т bitmap
-;out: hl=x, a=y (ё ъышяшЁютрэшхь яю workzone)
+;bc=x в bitmap
+;de=y в bitmap
+;out: hl=x, a=y (с клипированием по workzone)
         call calccoords_frombitmapcoords_noclip
-;TODO єсЁрЄ№ шч ¤Єюую ьюфєы 
-;hl=x, de=y схч єў╕Єр workzone
+;TODO убрать из этого модуля
+;hl=x, de=y без учёта workzone
         bit 7,h
         jr z,$+5
         ld hl,0
@@ -480,9 +480,9 @@ calccoords_frombitmapcoords
         ret
         
 calccoords_frombitmapcoords_noclip
-;bc=x т bitmap
-;de=y т bitmap
-;out: hl=x, de=y (юЄэюёшЄхы№эю workzone, ьюуєЄ с√Є№ юЄЁшЎрЄхы№э√х)
+;bc=x в bitmap
+;de=y в bitmap
+;out: hl=x, de=y (относительно workzone, могут быть отрицательные)
         ld hl,(curbitmapyscroll)
         ex de,hl
         or a
@@ -496,7 +496,7 @@ calccoords_frombitmapcoords_noclip
         sbc a,h
         ld h,a
 scalebitmapcoords
-;hl=x, de=y (ьюуєЄ с√Є№ юЄЁшЎрЄхы№э√х!)
+;hl=x, de=y (могут быть отрицательные!)
         ld a,(curbitmapscale)
         dec a
         jr nz,calccoords_frombitmapcoords_no25
@@ -529,9 +529,9 @@ calcbitmapcoords_no25
         ret c ;100%
         call nz,shrhl_de ;400%
 shrhl_de
-        sra h ;ьюуєЄ с√Є№ юЄЁшЎрЄхы№э√х!
+        sra h ;могут быть отрицательные!
         rr l
-        sra d ;ьюуєЄ с√Є№ юЄЁшЎрЄхы№э√х!
+        sra d ;могут быть отрицательные!
         rr e
         ret
 
@@ -573,9 +573,9 @@ newbitmap
         ld (curbitmapwid_edit),bc
         ;dec bc
         ;ld a,c
-        ;or 8-1 ;фы  4bit
+        ;or 8-1 ;для 4bit
         ;ld c,a
-        ;inc bc ;юъЁєуышыш ттхЁї (ўЄюс√ ёЄЁюър .bmp с√ыр ъЁрЄэр 4 срщЄрь)
+        ;inc bc ;округлили вверх (чтобы строка .bmp была кратна 4 байтам)
         ;ld (curbitmapwid_view),bc
         ld (curbitmaphgt),de
         call reserve_bmp_pages
@@ -583,16 +583,16 @@ newbitmap
         ;ex af,af'
         xor a
         ld b,a
-        ld c,a ;bc=x т bitmap
+        ld c,a ;bc=x в bitmap
         ld d,a
-        ld e,a ;de=y т bitmap
+        ld e,a ;de=y в bitmap
         ld hl,(curbitmapwid_edit) ;hl=wid
         ld ix,(curbitmaphgt) ;ix=hgt
         pop af ;color
         jp bitmap_fillbox
         
 reserve_bmp_pages
-        call genmuldewid_ahl ;яюёых ёьхэ√ curbitmapwid
+        call genmuldewid_ahl ;после смены curbitmapwid
         call calcbitmapsize_pages ;a=number of pages, z=no pages
         ld hl,tbitmappages
         ld b,a
@@ -614,7 +614,7 @@ delbitmap
         ld hl,(curbitmaphgt)
         ld a,h
         or l
-        ret z ;яєёЄющ сшЄь¤я
+        ret z ;пустой битмэп
         call calcbitmapsize_pages ;a=number of pages, z=no pages
         ld hl,tbitmappages
         ld b,a
@@ -630,11 +630,11 @@ unreserve_bmp_pages0
         ret
 
 selectbmp
-;a=т√сшЁрхь√щ сшЄь¤я
+;a=выбираемый битмэп
         push af
 curbmp=$+1
         ld a,0
-        call findcurbitmap ;hl=рфЁхё ёЄЁєъЄєЁ√ Єхъє∙хую bmp
+        call findcurbitmap ;hl=адрес структуры текущего bmp
         ex de,hl
         ld hl,curbitmapstruct
         ld bc,curbitmapstruct_sz
@@ -644,18 +644,18 @@ curbmp=$+1
         ldir
         pop af
         ld (curbmp),a
-        call findcurbitmap ;hl=рфЁхё ёЄЁєъЄєЁ√ т√сЁрээюую bmp
+        call findcurbitmap ;hl=адрес структуры выбранного bmp
         ld de,curbitmapstruct
         ld bc,curbitmapstruct_sz
         ldir
         ld de,tbitmappages
         ld bc,bmpmaxpages
         ldir
-        jp genmuldewid_ahl ;яюёых ёьхэ√ curbitmapwid
+        jp genmuldewid_ahl ;после смены curbitmapwid
 
 curbitmapstruct
 curbitmapwid_view
-        ;dw 0 ;ъЁрЄэю 32 шыш ъръ єфюсэю bmp'°ъх яЁш чруЁєчъх ;ЄхяхЁ№ юс·хфшэхэю (фрцх яЁш чруЁєчъх bmp эх шэшЎшрышчшЁєхЄё )
+        ;dw 0 ;кратно 32 или как удобно bmp'шке при загрузке ;теперь объединено (даже при загрузке bmp не инициализируется)
 curbitmapwid_edit
         dw 0
 curbitmaphgt
@@ -676,8 +676,8 @@ bitmapstruct_sz=$-curbitmapstruct+bmpmaxpages
 
 bitmaps
         dup maxbitmaps
-        ds curbitmapstruct_sz-32-1 ;эєыш т юяшёрЄхы ї bmp
+        ds curbitmapstruct_sz-32-1 ;нули в описателях bmp
         db 3 ;scale
         STANDARDPAL
-        ds bmpmaxpages,0x7f ;шьх■∙р  ёь√ёы ёЄЁрэшўър
+        ds bmpmaxpages,0x7f ;имеющая смысл страничка
         edup

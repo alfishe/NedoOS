@@ -14,7 +14,7 @@ mousebuttons=$+1
         ld a,l ;hl=(sysmousebuttons)
         push af ;ld (control_imer_buttons),a
 
-        OS_GETKEYMATRIX ;out: bcdehlix = яюыєЁ ф√ cs...space
+        OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
         ;ld b,a
         ;ex af,af'
         ld a,b ;
@@ -86,15 +86,15 @@ control_curspeedtime=$+1
         ld c,0
         
         call isfirechanged
-        ;and 7;%00000111 ;ъэюяъш юуэ 
+        ;and 7;%00000111 ;кнопки огня
         ld a,(mousebuttons)
         cpl
         rra
         rra
         rra
-        jr nz,control_slower ;ъышъ шыш рэъышъ ЄюЁьючшЄ ёЄЁхыъє
-        and 0x0f;%00001111 ;ъэюяъш фтшцхэш 
-        jr nz,control_noslower ;фтшцхьё , эх ЄюЁьючшь
+        jr nz,control_slower ;клик или анклик тормозит стрелку
+        and 0x0f;%00001111 ;кнопки движения
+        jr nz,control_noslower ;движемся, не тормозим
         ld d,a ;0
         ld e,a ;0
         ld c,a ;0 ;speedtime
@@ -133,17 +133,17 @@ control_noslower
         ld e,a
 
         or d
-        jr z,$+3 ;ёъюЁюёЄ№ Ёртэр эєы■, ёсЁрё√трхь speedtime
+        jr z,$+3 ;скорость равна нулю, сбрасываем speedtime
          ld a,c ;speedtime
         inc a
         jr nz,$+3
         dec a
         ld (control_curspeedtime),a
-;1=ёъюЁюёЄ№ Ёртэр эєы■
-;2=Єюы№ъю ўЄю эрцрыш ъыртш°є фтшцхэш 
+;1=скорость равна нулю
+;2=только что нажали клавишу движения
         dec a
         jr z,control_keymoveq
-        cp 3 ;шуэюЁшЁєхь ЄЁхЄшщ ЇЁхщь єфхЁцрэш  ъыртш°ш фы  Єюўэюую яючшЎшюэшЁютрэш  юфшэюўэ√ь эрцрЄшхь ъыртш°ш
+        cp 3 ;игнорируем третий фрейм удержания клавиши для точного позиционирования одиночным нажатием клавиши
         jr nz,control_keymoveok
 control_keymoveq
 control_imer_mousecoordsdelta=$+1
@@ -205,15 +205,15 @@ oldarrx=$+1
         ld a,(key)
         cp NOKEY
         ret
-;nz=ўЄю-Єю шчьхэшыюё№
+;nz=что-то изменилось
 
 isfirechanged
         ld a,(mousebuttons)
 oldmousebuttons=$+1
         xor 0
         ret
-;a=ёЄрЁ√х ъэюяъш XOR эют√х
-;nz=ўЄю-Єю шчьхэшыюё№
+;a=старые кнопки XOR новые
+;nz=что-то изменилось
 
 ;keymatrix
         ;ds 8
@@ -225,7 +225,7 @@ cur_cs_halfrow
 
 waitsomething
 mainloop_nothing
-;т ¤Єю тЁхь  ёЄЁхыър тшфэр
+;в это время стрелка видна
         YIELD ;halt
         call control
         jr z,mainloop_nothing

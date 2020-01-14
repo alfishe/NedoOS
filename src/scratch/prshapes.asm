@@ -1,4 +1,4 @@
-;т√тюф эр ¤ъЁрэ
+;вывод на экран
 
         SHAPESPROC shapes_cls
         ld e,a
@@ -6,8 +6,8 @@
         ret
 
         SHAPESPROC shapes_copybox
-;hl=¤ъЁрээ√щ рфЁхё ыхтюую тхЁїэхую єуыр юъэр
-;de=¤ъЁрээ√щ рфЁхё, ъєфр ъюяшЁютрЄ№ юъэю
+;hl=экранный адрес левого верхнего угла окна
+;de=экранный адрес, куда копировать окно
 ;c=wid8
 ;b=hgt
         or a
@@ -15,8 +15,8 @@
         add hl,de
         jr c,copyboxrightdown_topleft ;hl < de
 copyboxleftup
-;hl=¤ъЁрээ√щ рфЁхё ыхтюую тхЁїэхую єуыр юъэр
-;de=¤ъЁрээ√щ рфЁхё, ъєфр ъюяшЁютрЄ№ юъэю (т√°х шыш ыхтхх hl)
+;hl=экранный адрес левого верхнего угла окна
+;de=экранный адрес, куда копировать окно (выше или левее hl)
 ;c=wid8
 ;b=hgt
         ld a,c
@@ -44,8 +44,8 @@ copyboxleftup0
         djnz copyboxleftup0
         ret
 copyboxrightdown_topleft
-;hl=¤ъЁрээ√щ рфЁхё ыхтюую тхЁїэхую єуыр юъэр
-;de=¤ъЁрээ√щ рфЁхё, ъєфр ъюяшЁютрЄ№ юъэю (т√°х шыш ыхтхх hl)
+;hl=экранный адрес левого верхнего угла окна
+;de=экранный адрес, куда копировать окно (выше или левее hl)
 ;c=wid8
 ;b=hgt
         push bc
@@ -74,8 +74,8 @@ copyboxrightdown_topleft
         ex de,hl
         add hl,bc
         pop bc
-;hl=¤ъЁрээ√щ рфЁхё яЁртюую эшцэхую єуыр юъэр + 40
-;de=¤ъЁрээ√щ рфЁхё, ъєфр ъюяшЁютрЄ№ юъэю + 40 (эшцх шыш яЁртхх hl)
+;hl=экранный адрес правого нижнего угла окна + 40
+;de=экранный адрес, куда копировать окно + 40 (ниже или правее hl)
 ;c=wid8
 ;b=hgt
         ld a,c
@@ -122,8 +122,8 @@ lddr_a
         ret
         
 prpixel
-;de=x (эх яюЁЄшЄё )
-;c=y (bc эх яюЁЄшЄё )
+;de=x (не портится)
+;c=y (bc не портится)
 ;lx=color = %33210210
        ld a,b
         ld l,c
@@ -137,7 +137,7 @@ prpixel
         add hl,hl ;y*40 + scrbase
        ld b,a
 prpixel_cury
-;de=x (эх яюЁЄшЄё )
+;de=x (не портится)
 ;hl=addr(y)
 ;lx=color = %33210210
         ld a,d
@@ -184,22 +184,22 @@ prpixel_r
         ret
 
 line_invpixel
-;bc=x (т яыюёъюёЄш ¤ъЁрэр юЄэюёшЄхы№эю Ёрсюўхщ чюэ√, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de=y (т яыюёъюёЄш ¤ъЁрэр юЄэюёшЄхы№эю Ёрсюўхщ чюэ√, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;bc=x (в плоскости экрана относительно рабочей зоны, но может быть отрицательным)
+;de=y (в плоскости экрана относительно рабочей зоны, но может быть отрицательным)
         ld a,c
         sub 255&(workzonewid8*8)
         ld a,b
         sbc a,+(workzonewid8*8)/256
         ret p
         xor b
-        ret p ;x с√ыю юЄЁшЎрЄхы№эюх
+        ret p ;x было отрицательное
         ld a,e
         sub 255&workzonehgt
         ld a,d
         sbc a,workzonehgt/256
         ret p
         xor d
-        ret p ;y с√ыю юЄЁшЎрЄхы№эюх
+        ret p ;y было отрицательное
         push bc
         push de
         ld a,e ;y
@@ -214,8 +214,8 @@ line_invpixel
         ret
         
 invpixel
-;de=x (эх яюЁЄшЄё )
-;c=y (bc эх яюЁЄшЄё )
+;de=x (не портится)
+;c=y (bc не портится)
        ld a,b
         ld l,c
         ld h,0
@@ -228,7 +228,7 @@ invpixel
         add hl,hl ;y*40 + scrbase
        ld b,a
 invpixel_cury
-;de=x (эх яюЁЄшЄё )
+;de=x (не портится)
 ;hl=addr(y)
         ld a,d
         rra
@@ -272,8 +272,8 @@ invpixel_r
         SHAPESPROC shapes_prpixelbox
 ;c=y
 ;de=x
-;b=hgt (яюёыхфэшщ яшъёхы№ = y+hgt-1)
-;hl=wid (яюёыхфэшщ яшъёхы№ = x+wid-1)
+;b=hgt (последний пиксель = y+hgt-1)
+;hl=wid (последний пиксель = x+wid-1)
 ;lx=color %rlrrrlll
 prpixelbox0
         push bc
@@ -290,8 +290,8 @@ prpixelbox0
         SHAPESPROC shapes_invpixelframe
 ;bc=x
 ;de=y
-;hl=hgt (яюёыхфэшщ яшъёхы№ = y+hgt)
-;ix=wid (яюёыхфэшщ яшъёхы№ = x+wid)
+;hl=hgt (последний пиксель = y+hgt)
+;ix=wid (последний пиксель = x+wid)
         push bc
         push de
         push hl ;wid
@@ -366,8 +366,8 @@ invpixelhorline0
         SHAPESPROC shapes_prpixelframe
 ;c=y
 ;de=x
-;b=hgt (яюёыхфэшщ яшъёхы№ = y+hgt)
-;hl=wid (яюёыхфэшщ яшъёхы№ = x+wid)
+;b=hgt (последний пиксель = y+hgt)
+;hl=wid (последний пиксель = x+wid)
 ;lx=color %rlrrrlll
         push bc
         push de
@@ -534,7 +534,7 @@ fillbox0
 ;c=x/8
 ;d=hgt
 ;e=wid8
-;a=%33210210 (Ёрьър ў╕Ёэр )
+;a=%33210210 (рамка чёрная)
         push bc ;b = y, c = x 
         push de ;d = hgt, e = wid(chr)
         call shapes_fillbox
@@ -547,7 +547,7 @@ fillbox0
 ;c=x/8
 ;d=hgt
 ;e=wid8
-;(Ёрьър ў╕Ёэр )
+;(рамка чёрная)
         push de ;d = hgt, e = wid(chr)
         call prverline_l
         pop de ;d = hgt, e = wid(chr)
@@ -632,8 +632,8 @@ prverline_r0
         ret
         
         SHAPESPROC shapes_line
-;bc=x (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de=y (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;de=y (в плоскости экрана, но может быть отрицательным)
 ;ix=x2
 ;hl=y2
         or a
@@ -678,9 +678,9 @@ shapes_line_noswap
         ld a,0x0b ;dec bc
 shapes_line_nodec
         pop de ;dy
-;a=ъюф inc/dec bc
-;bc'=x (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
-;de'=y (т яыюёъюёЄш ¤ъЁрэр, эю ьюцхЄ с√Є№ юЄЁшЎрЄхы№э√ь)
+;a=код inc/dec bc
+;bc'=x (в плоскости экрана, но может быть отрицательным)
+;de'=y (в плоскости экрана, но может быть отрицательным)
 ;bc=dx
 ;de=dy
         ex de,hl
@@ -691,7 +691,7 @@ shapes_line_nodec
         jr nc,shapes_linever ;dy>=dx
         ld hy,b
         ld ly,c ;counter=dx
-        inc iy ;inc hy ;Ёшёєхь, тъы■ўр  яюёыхфэшщ яшъёхы№ (єўЄхэю т Ўшъых)
+        inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,b
         ld l,c
         sra h
@@ -734,7 +734,7 @@ shapes_linehor1
 shapes_linever
         ld hy,d
         ld ly,e ;counter=dy
-        ;inc iy ;inc hy ;Ёшёєхь, тъы■ўр  яюёыхфэшщ яшъёхы№ (єўЄхэю т Ўшъых)
+        ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
         ld h,d
         ld l,e
         sra h

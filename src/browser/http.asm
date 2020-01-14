@@ -137,7 +137,7 @@ connect_ok
          ;in a,(0xfe)
          ;rra
          ld a,(curprotocol)
-;TODO ўЄю-Єю ёфхырЄ№ ё Єшяюь 3 - эшўхую
+;TODO что-то сделать с типом 3 - ничего
          cp 2
          jr nz,connect_nogopher ;http=1, gopher=2
          pop hl ;filename
@@ -159,7 +159,7 @@ connect_nogopher
          pop hl ;filename
         call strcopy
         dec de
-;amp.dascene.net: єсЁрЄ№ яЁюсхы т ъюэЎх url:
+;amp.dascene.net: убрать пробел в конце url:
         dec de
         ld a,(de)
         sub ' '
@@ -218,7 +218,7 @@ readstream_http
 	;display $
          ld (readstream_http_requestedsize),hl
 	add hl,de
-	push de	;эрўрыю сєЇхЁр
+	push de	;начало буфера
 	
 http_firstreadflag=$+1
 	ld a,1
@@ -237,7 +237,7 @@ curprotocol=$+1
 	push hl
 	push de
 	or a
-	sbc hl,de ;ЁрчьхЁ
+	sbc hl,de ;размер
         jr readstream_http_headlines0
 readstream_http_headretry
         push de
@@ -252,7 +252,7 @@ readstream_http_headlines0
          ld (readstream_http_headlineaddr),de
 readstream_http_head0
 	push de
-	push hl ;ЁрчьхЁ
+	push hl ;размер
 	ld hl,1
 	ld a,(soc1)
 	OS_WIZNETREAD
@@ -262,8 +262,8 @@ readstream_http_head0
 	pop de
 	jr nz,readstream_err
          or a
-         jr z,readstream_http_head0 ;тфЁєу юЄтхЄ эх єёяхы яЁшщЄш
-	dec hl ;ЁрчьхЁ
+         jr z,readstream_http_head0 ;вдруг ответ не успел прийти
+	dec hl ;размер
 	ld a,h
 	or l
 	jr z,readstream_err
@@ -286,7 +286,7 @@ readstream_http_head0
 	;cp 0x0d
 	;jr nz,readstream_http_head0
         
-;хёыш ёЄЁюър яєёЄр , Єю readstream_http_headq
+;если строка пустая, то readstream_http_headq
 readstream_http_headlineaddr=$+1
         ld a,(0)
         cp 0x0d
@@ -298,7 +298,7 @@ readstream_http_headlineaddr=$+1
         ;jr $
         ld hl,(readstream_http_headlineaddr)
         ld de,tlocation
-;эрщЄш ёЄЁюъє Location: <url> (хёыш moved temporarily)
+;найти строку Location: <url> (если moved temporarily)
         call strcp_tillde0
         ld b,h
         ld c,l
@@ -317,19 +317,19 @@ readstream_http_headlineaddr=$+1
 	pop de
 	pop hl
         
-	pop de ;эрўрыю сєЇхЁр
+	pop de ;начало буфера
 readstream_http_requestedsize=$+1
         ld hl,0
         ;jr $
         xor a
-	ld (http_firstreadflag),a ;яюўхьє-Єю ёЄЁрэшўър, ъєфр яхЁхрфЁхёєхЄ amp.dascene.net, юЄфр╕Є Їрщы схч http чруюыютър!
+	ld (http_firstreadflag),a ;почему-то страничка, куда переадресует amp.dascene.net, отдаёт файл без http заголовка!
         jp readstream_http
         
         
 readstream_http_headq
 	pop de
 	pop hl
-;TODO яхЁхфхырЄ№: ўшЄрЄ№ ъръ юс√ўэю, яюЄюь шёърЄ№ чруюыютюъ, юЄЁхчрЄ№ хую, ёфтшэєЄ№ юёЄрЄюъ т эрўрыю сєЇхЁр ш яЁюўшЄрЄ№ х∙╕ ёЄюы№ъю цх
+;TODO переделать: читать как обычно, потом искать заголовок, отрезать его, сдвинуть остаток в начало буфера и прочитать ещё столько же
 
 readstream_http_nohead
         xor a
@@ -338,25 +338,25 @@ readstream_http_nohead
 readstream_http_nofirstread
 
 readstream_loop
-	push hl	;фюъєфр ўшЄрЄ№
-	push de	;Єхъє∙шщ ptr
+	push hl	;докуда читать
+	push de	;текущий ptr
 	or a
-	sbc hl,de ;ЁрчьхЁ
+	sbc hl,de ;размер
 	jr z,readstream_err
 	LD	a,(soc1)
 	OS_WIZNETREAD
 	bit 7,h
 	jr nz,readstream_err
-	pop de ;de=ъєфр ўшЄрыш, hl=ёъюы№ъю яЁюўшЄрыш
+	pop de ;de=куда читали, hl=сколько прочитали
 	add hl,de
-	ex de,hl ;de=Єхъє∙шщ ptr
-	pop hl ;фюъєфр ўшЄрЄ№
+	ex de,hl ;de=текущий ptr
+	pop hl ;докуда читать
 	jr readstream_loop
 readstream_err:	
 	pop hl
 	pop de
         
-	pop de ;эрўрыю сєЇхЁр
+	pop de ;начало буфера
 	or a
 	sbc hl,de
 	ret

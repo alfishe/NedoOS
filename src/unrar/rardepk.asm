@@ -13,8 +13,8 @@ bdlens=$-19
 HEXBUF=$-19;24;TOO MUCH
 DECBUF ;DB 0
 ;begin
-midBT ;ъЁєуы√щ рфЁхё!
-;tree added 3,bits sub L(bits=0 юёЄртыхэю)
+midBT ;круглый адрес!
+;tree added 3,bits sub L(bits=0 оставлено)
       ;L=00   2   4   6   8   A   C   E
      db #00,#03,#00,#04,#00,#05,#00,#06,#00,#07,#00,#08,#00,#09,#00,#0A
         ;10  12  14  16  18  1A  1C  1E
@@ -82,14 +82,14 @@ DEPK
         LD HL,s8
         LD DE,8
         LD BC,#105
-       ;LD HY,B ;¤Єю с√ыр чр∙шЄр юЄ im 1, ўЄюс√ ьюцэю с√ыю шёяюы№чютрЄ№ ly (яюф ьы. срщЄ юёЄрЄър фышэ√ Їрщыр) TODO
+       ;LD HY,B ;это была защита от im 1, чтобы можно было использовать ly (под мл. байт остатка длины файла) TODO
         CALL DOD
         LD HL,(s8+#E1)
        ;LD A,(doSAVEk)
        ;SUB "y"
        ;JR NZ,$+4
        ;LD H,A,L,A ;depack as trd
-        LD (stsec),HL ;эрўшэр  ё ъръюую ёхъЄюЁр яш°хь
+        LD (stsec),HL ;начиная с какого сектора пишем
         endif
         
         LD A,128
@@ -126,7 +126,7 @@ nohobski
        ;LD (SAVElenLS1),A
         XOR A
         SUB (HL)
-        LD lx,a;LY,A ;TODO fix, ўЄю-Єю эх Єръ ё фышэющ Ёрёяръютрээюую Їрщыр
+        LD lx,a;LY,A ;TODO fix, что-то не так с длиной распакованного файла
         INC HL
         LD A,0
         SBC A,(HL)
@@ -248,8 +248,8 @@ DEPK0X
         EXA 
 DEMN0   ADD A,A
         JR Z,NEWDEMN
-        JR NC,$+4 ;эюы№
-DEMNC   INC L  ;хфшэшЎр
+        JR NC,$+4 ;ноль
+DEMNC   INC L  ;единица
         INC L;HL
 DEMNNC  LD C,(HL)
         INC L
@@ -447,16 +447,16 @@ ind03=$+1
         LD (HL),C
         INC L
         LD (HL),B
-_2      LD HL,+(1-INITIALMEMPAGES)*64+(THEEND/256)-256 ;INITIALMEMPAGES;6 = ўшёыю ёЄЁрэшЎ ярь Єш?
+_2      LD HL,+(1-INITIALMEMPAGES)*64+(THEEND/256)-256 ;INITIALMEMPAGES;6 = число страниц памяти?
         ADD HL,BC
 GPaddrpatch=$+1
-        JP NC,GPmem ;яюфьхэ хЄё  эр ъюяш■ p48 (юЁшушэры p48 ъюяшЁєхЄё  яютхЁї юъюэўрэш  GPmem, Є.ъ. шчэрўры№эю шэшЎшрышчрЄюЁ чрЄшЁрыё , ш p48 Єюцх, ш Єръ с√ёЄЁхх т√їюф шч p48)
-        ;jr $ ;ё■фр эх яюярфрхь
+        JP NC,GPmem ;подменяется на копию p48 (оригинал p48 копируется поверх окончания GPmem, т.к. изначально инициализатор затирался, и p48 тоже, и так быстрее выход из p48)
+        ;jr $ ;сюда не попадаем
         
 ;TODO
         if 1==0
 GPdisk
-;уы■ўшЄ :(
+;глючит :(
 ;FROM=disk
 ;solid shift
         EXX 
@@ -582,9 +582,9 @@ GPmem
         RR H
         SCF 
         RR H
-       CP 128 ;ўЄю ¤Єю? TODO
+       CP 128 ;что это? TODO
        JR C,GPendif
-        LD C,A ;ўЄю ¤Єю? TODO
+        LD C,A ;что это? TODO
         LD A,H
         ADD A,#C0-(THEEND/256)
         JR NC,GPelse
@@ -592,7 +592,7 @@ GPmem
         JR Z,GPthen
 GPelse  OR 192
         LD H,A
-_p1      LD A,INITIALMEMPAGES;6 ;ўшёыю ёЄЁрэшЎ ярь Єш?
+_p1      LD A,INITIALMEMPAGES;6 ;число страниц памяти?
         ADD A,C
         JR C,GPendif
 GPthen  RES 6,H
@@ -694,7 +694,7 @@ store
         LD A,(curPG)
         INC A
         LD D,#C0
-_4      CP INITIALMEMPAGES;6 ;ўшёыю ёЄЁрэшЎ ярь Єш?
+_4      CP INITIALMEMPAGES;6 ;число страниц памяти?
         JR Z,storer
         jp OUTMEcu
 
@@ -728,7 +728,7 @@ storePG0
        INC BC
         EXA 
         INC A
-_5      CP INITIALMEMPAGES;6 ;ўшёыю ёЄЁрэшЎ ярь Єш?
+_5      CP INITIALMEMPAGES;6 ;число страниц памяти?
        JR Z,storQQQ
         LDIR 
         LD H,#C0 ;V0.42
@@ -787,8 +787,8 @@ storQQQ
         POP HL
 
         if 1==0
-;TODO ¤Єю фы  тючьюцэюёЄш ўЄхэш  єцх чряшёрээюую
-;TODO фышэє ёюїЁрэ хьюую Їрщыр - SAVErmn*256, ёфхырЄ№ SEEK, яЁюўшЄрЄ№, р яюЄюь SEEK юсЁрЄэю (сєфхЄ ыш ¤Єю ЁрсюЄрЄ№ т FATFS? т TRDOSFS эх сєфхЄ)
+;TODO это для возможности чтения уже записанного
+;TODO длину сохраняемого файла - SAVErmn*256, сделать SEEK, прочитать, а потом SEEK обратно (будет ли это работать в FATFS? в TRDOSFS не будет)
        PUSH HL
        LD DE,(stsec)
        LD BC,#106
@@ -824,7 +824,7 @@ frPG=$+1
         INC A
         LD (frPG),A
         LD H,#C0
-_3      CP INITIALMEMPAGES;6 ;ўшёыю ёЄЁрэшЎ ярь Єш?
+_3      CP INITIALMEMPAGES;6 ;число страниц памяти?
         JP NZ,OUTME
         XOR A
         LD H,THEEND/256

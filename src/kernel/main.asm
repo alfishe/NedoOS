@@ -27,7 +27,7 @@ pagexor=0x7f
         endif
         
         if NEMOIDE==1
-;ёїхьр Nemo:
+;схема Nemo:
 hddstat=0xF0
 hddcmd=0xF0
 hddhead=0xD0
@@ -41,7 +41,7 @@ hdddathi=0x11
 hddupr=0xC8
 hdduprON=0
         else
-;ёїхьр ATM:
+;схема ATM:
 hddstat=0xFEEF
 hddcmd=0xFEEF
 hddhead=0xFECF
@@ -52,7 +52,7 @@ hddcount=0xFE4F
 hdderr=0xFE2F
 hdddatlo=0xFE0F
 hdddathi=0xFF0F
-hddupr=0xFEBE ;яЁш єёЄрэютыхээюь b7 FFBA
+hddupr=0xFEBE ;при установленном b7 FFBA
 hdduprON=0xFFBA
 hddupr1=0xF7
 hddupr0=0x77
@@ -62,19 +62,19 @@ memportc000_hi=memportc000/256
 
 SYSMINSTACK=0x3b00
 
-resident=0x6000;0x6000+8000 (уфх эх чрЄЁєЄ яЁш юўшёЄъх ¤ъЁрэр) ;pgtrdosfs
+resident=0x6000;0x6000+8000 (где не затрут при очистке экрана) ;pgtrdosfs
 trdos_catbuf=0x6300;0x3200 ;,0x900 ;pgtrdosfs (0x4000)
 trdos_sectorbuf=0x6c00
 trdos_fcbbuf=0x6d00 ;size=0x200*trdos_MAXFILES
 trdos_MAXFILES=8
-INTSTACK1=0x3f00 ;kernelspace (фы  тїюфр т юсЁрсюЄўшъ схч яюЁўш ёЄхър)
-INTSTACK2=0x5f00;0x6000 ;pgkillable ш pgtrdosfs (Ёрсюўшщ ёЄхъ юсЁрсюЄўшър яЁхЁ√трэшщ) (>=0x4000, шэрўх эхы№ч  т√ъы■ўшЄ№ Єхэхт√х яюЁЄ√)
-TRDOSSTACK=0x5f00-96;0x6000-96 ;ўЄюс√ эх яхЁхёхърыюё№ ё INTSTACK (т яЁюьхцєЄъх ьхцфє яЁхъы■ўхэш ьш ёЄЁрэшЎ ьюцхЄ яЁюшчющЄш ёшёЄхьэюх яЁхЁ√трэшх), эю ш эр ¤ъЁрэ эх яюярыю
+INTSTACK1=0x3f00 ;kernelspace (для входа в обработчик без порчи стека)
+INTSTACK2=0x5f00;0x6000 ;pgkillable и pgtrdosfs (рабочий стек обработчика прерываний) (>=0x4000, иначе нельзя выключить теневые порты)
+TRDOSSTACK=0x5f00-96;0x6000-96 ;чтобы не пересекалось с INTSTACK (в промежутке между преключениями страниц может произойти системное прерывание), но и на экран не попало
 BDOSSTACK=0x4000 ;kernelspace
 STACK=0x4000 ;userspace
-;яЁш т√чютх BDOS ёЄхъ эхъюЄюЁюх тЁхь  Єръющ цх, ъръ т ■чхЁёяхщёх
-;яю¤Єюьє эр тїюфх т BDOS эрфю шьхЄ№ т 0x4000...0xffff ёЄЁрэшЎ√, ъюЄюЁ√х эх црыъю
-;яЁхфяюырурхЄё , ўЄю ■чхЁ эх шьххЄ ёЄхъ эшцх 0x3b00, шэрўх юэ чрЄЁ╕Є ёшёЄхьє
+;при вызове BDOS стек некоторое время такой же, как в юзерспейсе
+;поэтому на входе в BDOS надо иметь в 0x4000...0xffff страницы, которые не жалко
+;предполагается, что юзер не имеет стек ниже 0x3b00, иначе он затрёт систему
 
         include "../_sdk/sys_h.asm"
 
@@ -90,7 +90,7 @@ pgsys=pagexor-10
 pgfatfs2=pagexor-11 ;structs
         endif
 
-pgkillable=pagexor-4 ;т 128K ярь Єш, Є.ъ. ьюцэю яюЁЄшЄ№
+pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
 ;pgfirstfree=pagexor-11
 
 pgscr0_0=pagexor-1
@@ -98,11 +98,11 @@ pgscr0_1=pagexor-5
 pgscr1_0=pagexor-3
 pgscr1_1=pagexor-7
 
-fd_system=0x57;%01010111 ;%0x01sx1x ;фы  эхшёяЁртыхээюую └╥╠2 эрфю A9=1, р эюьхЁ ёЄЁрэшЎ√ т 0x7ffd эх сєфхЄ тыш Є№, хёыш рфЁхёрЎш  яю memportc000
-fd_system_getchar=0x56;%01010110 ;%0x01sx1x ;фы  эхшёяЁртыхээюую └╥╠2 эрфю A9=1, р эюьхЁ ёЄЁрэшЎ√ т 0x7ffd эх сєфхЄ тыш Є№, хёыш рфЁхёрЎш  яю memportc000
-fd_user=0x47;%01000111 ;%0x00sx1x ;фы  эхшёяЁртыхээюую └╥╠2 эрфю A9=1, р эюьхЁ ёЄЁрэшЎ√ т 0x7ffd эх сєфхЄ тыш Є№, хёыш рфЁхёрЎш  яю memportc000
+fd_system=0x57;%01010111 ;%0x01sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в 0x7ffd не будет влиять, если адресация по memportc000
+fd_system_getchar=0x56;%01010110 ;%0x01sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в 0x7ffd не будет влиять, если адресация по memportc000
+fd_user=0x47;%01000111 ;%0x00sx1x ;для неисправленного АТМ2 надо A9=1, а номер страницы в 0x7ffd не будет влиять, если адресация по memportc000
 
-;єёыютэ√х ёЄЁрэшЎ√ фы  sjasm
+;условные страницы для sjasm
 COMPILEPG_INIT=0
 COMPILEPG_SYS0=4
 COMPILEPG_SYS1=6
@@ -188,13 +188,13 @@ begin
 		if atm==3 or atm==1
 			ld a,0x7f-5
 			ld bc,memportrom4000
-			out (c),a ;юЄъы■ўрхь 7ffd
+			out (c),a ;отключаем 7ffd
 			ld a,0x7f-2
 			ld bc,memportrom8000
-			out (c),a ;юЄъы■ўрхь 7ffd
+			out (c),a ;отключаем 7ffd
 			;ld a,0x7f-2
 			ld bc,memportromc000
-			out (c),a ;юЄъы■ўрхь 7ffd
+			out (c),a ;отключаем 7ffd
 		endif
 		
 		ifn atm==1
@@ -206,7 +206,7 @@ begin
 			ld a,0x8b
 		endif
          ld lx,a
-        ld (sys_pgdos),a ;фю єёЄрэютъш ЁхчшфхэЄр
+        ld (sys_pgdos),a ;до установки резидента
 
         ld a,pgsys
         call INIT_setpg_c000
@@ -258,16 +258,16 @@ begin
         ld a,pgfatfs
         call INIT_setpg_c000
         
-;яхЁхсЁрё√трхь 16K єяръютрээ√щ сыюъ т 0xc000
+;перебрасываем 16K упакованный блок в 0xc000
         ld hl,wassys+0x3fff
         ld de,0xffff
         ld bc,0x4000
         lddr
-;Ёрёяръют√трхь т 0x6400
+;распаковываем в 0x6400
         ld hl,0xc000;wassys
         ld de,0x6400;0x8000
-        call DEC40 ;Ёрёяръют√трхь т 0x8000 (Єрь єцх тъы■ўхэ√ ёшёЄхьэ√х ёЄЁрэшўъш)
-;яхЁхсЁрё√трхь 32K шч 0x6400 т 0x8000
+        call DEC40 ;распаковываем в 0x8000 (там уже включены системные странички)
+;перебрасываем 32K из 0x6400 в 0x8000
         ld hl,0x6400+0x7fff
         ld de,0x8000+0x7fff
         ld bc,0x8000
@@ -302,25 +302,25 @@ fatfspatchaddr=0xc000
         ld hl,memcpy_usp2buf
         ld (0xc000+FFS_DRV.memcpy_usp2buf),hl
 
-;шэшЎшрышчрЎш  ьхэхфцхЁр ярь Єш ш тїюф т ■чхЁёяхщё:
-;HALT (ўЄюс√ яЁхЁ√трэшх эх яЁюшчю°ыю ъюуфр эх эрфю)
-;[эрчэрўрхь ёЄЁрэшЎ√ ёшёЄхьёяхщёр (юфэр шч эшї фюыцэр с√Є№ Єрър  цх, ъръ т ■чхЁёяхщёх) - єцх хёЄ№ юс∙р  ёЄЁрэшЎр 5]
-;т ■чхЁёяхщёх эрчэрўрхь эшцэ■■ ёЄЁрэшЎє ё ъхЁэрыхь (тьхёЄю ╧╟╙)
+;инициализация менеджера памяти и вход в юзерспейс:
+;HALT (чтобы прерывание не произошло когда не надо)
+;[назначаем страницы системспейса (одна из них должна быть такая же, как в юзерспейсе) - уже есть общая страница 5]
+;в юзерспейсе назначаем нижнюю страницу с керналем (вместо ПЗУ)
         ld a,fd_user
         out (0xfd),a
 		if atm==3 or atm==1
          ld a,0x7f
          ld bc,memportrom0000
-         out (c),a ;юЄъы■ўрхь ╧╟╙
+         out (c),a ;отключаем ПЗУ
          ld a,0x7f-5
          ld bc,memportrom4000
-         out (c),a ;юЄъы■ўрхь 7ffd
+         out (c),a ;отключаем 7ffd
          ld a,0x7f-2
          ld bc,memportrom8000
-         out (c),a ;юЄъы■ўрхь 7ffd
+         out (c),a ;отключаем 7ffd
          ;ld a,0x7f-2
          ld bc,memportromc000
-         out (c),a ;юЄъы■ўрхь 7ffd
+         out (c),a ;отключаем 7ffd
         endif
         ld a,pgtrdosfs ;idle
         ld bc,memport0000
@@ -336,16 +336,16 @@ fatfspatchaddr=0xc000
 		if atm==3 or atm==1
          ld a,0x7f
          ld bc,memportrom0000
-         out (c),a ;юЄъы■ўрхь ╧╟╙
-         ;4000,8000,c000 єцх юЄъы■ўшыш 7ffd т√°х
+         out (c),a ;отключаем ПЗУ
+         ;4000,8000,c000 уже отключили 7ffd выше
         endif
         ld a,pgsys
         ld bc,memport0000
         out (c),a
-;т ёшёЄхьёяхщёх:
-;тъы■ўшЄ№ fatfs
-;яюёЄртшЄ№ ЁхчшфхэЄ т 7fxx
-;яхЁхїюфшь т sys_intq, р юЄЄєфр т init_resident
+;в системспейсе:
+;включить fatfs
+;поставить резидент в 7fxx
+;переходим в sys_intq, а оттуда в init_resident
 
         if 1==0
         ld a,lx;(sys_pgdos)
@@ -368,7 +368,7 @@ fatfspatchaddr=0xc000
 
         ld sp,BDOSSTACK
         ;ei
-        ;halt ;ўЄюс√ яЁхЁ√трэшх эх яЁюшчю°ыю ъюуфр эх эрфю
+        ;halt ;чтобы прерывание не произошло когда не надо
         ;di
         ;jr $
 init_oldmousecoords=$+1
@@ -379,7 +379,7 @@ init_oldmousecoords=$+1
 	 ld de,0xc001
 	 ld bc,0x3fff
 	 ld (hl),l;0
-	 ldir ;эх яюьюуыю
+	 ldir ;не помогло
         jp setkernelpages_go
 
         
@@ -409,7 +409,7 @@ INIT_setpg_c000
 		
 		ifn atm==1
 findpgdos
-;хёыш эх эрщЄш ёЄЁрэшЎє Єхъє∙хую фюёр, Єю эр ёЄрЁ√ї тхЁёш ї ╧╟╙ ZX Evo эх сєфхЄ ЁрсюЄрЄ№ (т ёЄЁрэшЎх 0x83 яюўхьє-Єю эх фюё яю єьюыўрэш■)
+;если не найти страницу текущего доса, то на старых версиях ПЗУ ZX Evo не будет работать (в странице 0x83 почему-то не дос по умолчанию)
         call crcdos
         ld (doscrchi),de
         ld (doscrclo),bc
@@ -462,7 +462,7 @@ crcdos0
 
 INIT_blackpal
         LD HL,blackpalend
-        ;halt ;halt хёЄ№ т√°х - єсЁрэю, ўЄюс√ эх ётхЄшыюё№ эшўхую
+        ;halt ;halt есть выше - убрано, чтобы не светилось ничего
         LD DE,0xa80f ;0xab=6912 ;palette on, EGA, turbo
         LD BC,0xBD77
         OUT (C),D
@@ -529,7 +529,7 @@ sys_setpg_low  ;=$-wasresident+resident
 		ld bc,memportrom0000
 		jr sys_outca_jr
 sys_SHADOFF  ;=$-wasresident+resident
-sys_pgdos=wasresident+(($+1)-resident) ;фы  ярЄўр
+sys_pgdos=wasresident+(($+1)-resident) ;для патча
 		ld a,0x83 ;48 basic switchable to DOS
 		call sys_setpg_low
         LD A,e;0xa8;%10101000 ;320x200 mode
@@ -545,24 +545,24 @@ sys_SHADON  ;=$-wasresident+resident
 			JP 0x3D2F
 		endif
 
-;TODO єсЁрЄ№ т pgtrdos
+;TODO убрать в pgtrdos
 dos3d13_resident  ;=$-wasresident+resident
 
-;ёхщўрё тъы■ўхэр pg5
+;сейчас включена pg5
 ;iy=23610
         ld (dos3d13_sp_st),sp
-        ld sp,trdos_sp ;эрфю ёЄхъ т 0x4000+ (эх яхЁхёхър■∙шщё  ё INTSTACK, Є.ъ. ёхщўрё ьюцхЄ яЁюшчющЄш ёшёЄхьэюх яЁхЁ√трэшх), яю єьюыўрэш■ ёЄхъ с√ы т 0x3fxx
+        ld sp,trdos_sp ;надо стек в 0x4000+ (не пересекающийся с INTSTACK, т.к. сейчас может произойти системное прерывание), по умолчанию стек был в 0x3fxx
         ;call swap_sysvars
         ex af,af'
-        call sys_SHADOFF ;тъы■ўшыш ╧╟╙
+        call sys_SHADOFF ;включили ПЗУ
 		ld (em3d13_de_st),de	;push de ;e=gfxmode
 		 
 		;*****************************	
 		;call EM3D13PP;0x3d13
-		;ёюсёЄтхээю фpрщтхp, рэрыюушўэ√щ 0x3ф13 (ш ё хую шёяюы№чютрэшхь)
-		;эр т√їюфх - A pртэю 0 - тёх юъхщ, эх 0 - ю°шсър
-		;тьхёЄю  яpюЎхфyp DRAW_WINDOWS, PRINT_WINDOWS ш REST_WINDOW
-		;шёяюы№чyщ ётюш.
+		;собственно дpайвеp, аналогичный 0x3д13 (и с его использованием)
+		;на выходе - A pавно 0 - все окей, не 0 - ошибка
+		;вместо  пpоцедyp DRAW_WINDOWS, PRINT_WINDOWS и REST_WINDOW
+		;использyй свои.
 		;Kurleson
 ;EM3D13PP
 	ld      hl,em3d13pp_ret
@@ -605,12 +605,12 @@ em3d13pp_ret
 em3d13_de_st=$+1
     ld de,0	;e=gfxmode
 	di
-    call shadon_pgsys ;т√ъы■ўшыш ╧╟╙ (эхрЄюьрЁэю - фтх чряшёш т яюЁЄ!!!)
+    call shadon_pgsys ;выключили ПЗУ (неатомарно - две записи в порт!!!)
 	ei
         ;call swap_sysvars
 dos3d13_sp_st=$+1	;-wasresident+resident
 	ld sp,0
-	ld a,(0x5d0f)	;тючтЁрЄ ю°шсъш
+	ld a,(0x5d0f)	;возврат ошибки
 	ret
 		
 	ifn atm==1
@@ -638,7 +638,7 @@ readtime  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
 ;out: hl=date, de=time
-;TODO рЄюьрЁэю
+;TODO атомарно
 	call sys_SHADOFF
 	LD A,e;0xa8;%10101000 ;320x200 mode
 	push af

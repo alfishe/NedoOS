@@ -1,6 +1,6 @@
-;т√тюф сшЄь¤яр эр ¤ъЁрэ
+;вывод битмэпа на экран
 
-        MACRO SHOWBITMAPLINELAYER02_25 ;т√тюф яшъёхыхщ ab..ef..
+        MACRO SHOWBITMAPLINELAYER02_25 ;вывод пикселей ab..ef..
         ld b,lx
 _=$
         exx
@@ -22,7 +22,7 @@ _=$
         djnz _
         ENDM
 
-        MACRO SHOWBITMAPLINELAYER02_50 ;т√тюф яшъёхыхщ ab..ef..
+        MACRO SHOWBITMAPLINELAYER02_50 ;вывод пикселей ab..ef..
         ld b,lx
 _=$
         exx
@@ -44,8 +44,8 @@ _=$
         djnz _
         ENDM
 
-        MACRO SHOWBITMAPLINELAYER02_100 ;т√тюф яшъёхыхщ ab..ef..
-;180t/4pix (с√ыю 202)
+        MACRO SHOWBITMAPLINELAYER02_100 ;вывод пикселей ab..ef..
+;180t/4pix (было 202)
         ld b,lx
 _=$
         exx
@@ -67,8 +67,8 @@ _=$
         djnz _
         ENDM
 
-        MACRO SHOWBITMAPLINELAYER02_200 ;т√тюф яшъёхыхщ ab..ef..
-;106t/ (ўхЁхч ёЄхъ ьюцэю 86)
+        MACRO SHOWBITMAPLINELAYER02_200 ;вывод пикселей ab..ef..
+;106t/ (через стек можно 86)
         ld hx,lx
 _=$
         ld e,(hl)
@@ -88,7 +88,7 @@ _=$
         jp nz,_
         ENDM
 
-        MACRO SHOWBITMAPLINELAYER02_400 ;т√тюф яшъёхыхщ ab..ef..
+        MACRO SHOWBITMAPLINELAYER02_400 ;вывод пикселей ab..ef..
         ld hx,lx
 _=$
         ld e,(hl)
@@ -107,16 +107,16 @@ _=$
         ENDM
 
 prbitmapbox
-;hl=x т bitmap
-;de=y т bitmap
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+;hl=x в bitmap
+;de=y в bitmap
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
-        push bc ;xy эр ¤ъЁрэх
-        push hl ;x т bitmap
+        push bc ;xy на экране
+        push hl ;x в bitmap
         call calcscr_from_xchr_y
-        pop bc ;x т bitmap
+        pop bc ;x в bitmap
         ld a,h
         add a,+((scrbase16k-scrbase)/256)&0xff ;or scrbase16k/256 ;0xc0
         ld h,a
@@ -135,14 +135,14 @@ prbitmapbox
         ;dec c
         ;jp z,showbitmapbox_400_lines
         ;pop bc
-        ;ret ;эшъюуфр
+        ;ret ;никогда
 showbitmapbox_400_lines
         ld c,hy
         inc c
         srl c
         inc c
         srl c
-        ld hy,c ;/4 ё юъЁєуыхэшхь ттхЁї
+        ld hy,c ;/4 с округлением вверх
         push iy
 showbitmapbox_400_lines0
         ld ly,4
@@ -178,19 +178,19 @@ showbitmapbox_400_lines1
         add a,a
         jr addaa_hya_popbc_showbitmaprightbox
         ;add a,a
-        ;ld hy,a ;hy=hgt эр ¤ъЁрэх
-        ;pop bc ;xy эр ¤ъЁрэх
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+        ;ld hy,a ;hy=hgt на экране
+        ;pop bc ;xy на экране
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
-        ;jp showbitmaprightbox ;фхырхЄ setpgs_scr
+        ;jp showbitmaprightbox ;делает setpgs_scr
 
 showbitmapbox_200_lines
         ld c,hy
         inc c
         srl c
-        ld hy,c ;/2 ё юъЁєуыхэшхь ттхЁї
+        ld hy,c ;/2 с округлением вверх
         push iy
 showbitmapbox_200_lines0
         ld ly,2
@@ -226,13 +226,13 @@ showbitmapbox_200_lines1
         ld a,hy
 addaa_hya_popbc_showbitmaprightbox
         add a,a
-        ld hy,a ;hy=hgt эр ¤ъЁрэх
-        pop bc ;xy эр ¤ъЁрэх
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+        ld hy,a ;hy=hgt на экране
+        pop bc ;xy на экране
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
-        jp showbitmaprightbox ;фхырхЄ setpgs_scr
+        jp showbitmaprightbox ;делает setpgs_scr
 
 showbitmapbox_25_lines
         push iy
@@ -276,13 +276,13 @@ showbitmapbox_25_lines0
         dec l
         jp nz,showbitmapbox_25_lines0
         jp popiy_popbc_showbitmaprightbox
-        ;pop iy ;hy=hgt эр ¤ъЁрэх
-        ;pop bc ;xy эр ¤ъЁрэх
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+        ;pop iy ;hy=hgt на экране
+        ;pop bc ;xy на экране
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
-        ;jp showbitmaprightbox ;фхырхЄ setpgs_scr
+        ;jp showbitmaprightbox ;делает setpgs_scr
 
 showbitmapbox_50_lines
         push iy
@@ -325,13 +325,13 @@ showbitmapbox_50_lines0
         dec l
         jp nz,showbitmapbox_50_lines0
         jp popiy_popbc_showbitmaprightbox
-        ;pop iy ;hy=hgt эр ¤ъЁрэх
-        ;pop bc ;xy эр ¤ъЁрэх
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+        ;pop iy ;hy=hgt на экране
+        ;pop bc ;xy на экране
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
-        ;jp showbitmaprightbox ;фхырхЄ setpgs_scr
+        ;jp showbitmaprightbox ;делает setpgs_scr
 
 showbitmapbox_100_lines
 ;hy=hgt
@@ -378,17 +378,17 @@ showbitmapbox_100_lines0
         dec l
         jp nz,showbitmapbox_100_lines0
 popiy_popbc_showbitmaprightbox
-        pop iy ;hy=hgt эр ¤ъЁрэх
-        pop bc ;xy эр ¤ъЁрэх
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+        pop iy ;hy=hgt на экране
+        pop bc ;xy на экране
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
-        ;jp showbitmaprightbox ;фхырхЄ setpgs_scr
+        ;jp showbitmaprightbox ;делает setpgs_scr
 
 showbitmaprightbox
-;c=x/8 эр ¤ъЁрэх
-;b=y эр ¤ъЁрэх
+;c=x/8 на экране
+;b=y на экране
 ;hy=hgt
 ;lx=wid(chr)
         push bc ;xy
@@ -403,37 +403,37 @@ showbitmaprightbox
         
         ld de,workzonewid8*8
         or a
-        sbc hl,de ;т√ўыш °шЁшэє Ёрсюўхщ чюэ√
-        ret nc ;тэх ¤ъЁрэр
-        ;hl=ьшэєё ьръёшьры№эр  °шЁшэр сюъёр яю ¤Єющ x-ъююЁфшэрЄх (!=0)
+        sbc hl,de ;вычли ширину рабочей зоны
+        ret nc ;вне экрана
+        ;hl=минус максимальная ширина бокса по этой x-координате (!=0)
         
         push hl
         add hl,de
         ld de,workzonex8*8
-        add hl,de ;hl=x эр ¤ъЁрэх яЁртющ уЁрэшЎ√ сшЄь¤яр
-        ex de,hl ;de=x эр ¤ъЁрэх яЁртющ уЁрэшЎ√ сшЄь¤яр
-        pop hl ;hl=ьшэєё ьръёшьры№эр  °шЁшэр сюъёр яю ¤Єющ x-ъююЁфшэрЄх
+        add hl,de ;hl=x на экране правой границы битмэпа
+        ex de,hl ;de=x на экране правой границы битмэпа
+        pop hl ;hl=минус максимальная ширина бокса по этой x-координате
         ;xor a
         ;sub l
         ;ld l,a
         ;sbc a,h
         ;sub l
         ;ld h,a
-        call neghl ;hl=ьръёшьры№эр  °шЁшэр сюъёр яю ¤Єющ x-ъююЁфшэрЄх (!=0)
+        call neghl ;hl=максимальная ширина бокса по этой x-координате (!=0)
         push de ;x
-        ld de,7 ;ьръёшьєь ёЄюы№ъю яшъёхыхщ фюсрты хЄё  фы  юъЁєуыхэш 
+        ld de,7 ;максимум столько пикселей добавляется для округления
         or a
         sbc hl,de
         add hl,de
         jr c,$+3
-        ex de,hl ;тч ыш эршьхэ№°хх шч 7 ш ьръёшьры№эющ °шЁшэ√ сюъёр яю ¤Єющ x-ъююЁфшэрЄх
-        ;hl=wid (яюёыхфэшщ яшъёхы№ = x+wid-1)
+        ex de,hl ;взяли наименьшее из 7 и максимальной ширины бокса по этой x-координате
+        ;hl=wid (последний пиксель = x+wid-1)
         pop de ;x
         
         ld a,c ;x/8
         add a,lx ;wid(chr)
         dec a
-        ld c,a ;x/8 ёрьюую яЁртюую юЄЁшёютрээюую срщЄр
+        ld c,a ;x/8 самого правого отрисованного байта
         push de
         ld a,e
         srl d
@@ -444,13 +444,13 @@ showbitmaprightbox
         rra
         pop de
         cp c
-        ret nz ;эх Ёшёєхь эр яЁртющ уЁрэшЎх
+        ret nz ;не рисуем на правой границе
         
         call setpgshapes
         
         ld c,b;30 ;c=y
         ;ld de,50 ;de=x
-        ld b,hy;10 ;b=hgt (яюёыхфэшщ яшъёхы№ = y+hgt-1)
+        ld b,hy;10 ;b=hgt (последний пиксель = y+hgt-1)
         ld lx,backcolor ;lx=color
         jp shapes_prpixelbox
 

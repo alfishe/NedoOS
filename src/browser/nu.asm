@@ -1,5 +1,5 @@
         
-;тч Є№ b=R/G/Bmin, hl єёЄрэютшЄ№ эр эрўрыю сєЇхЁр R/G/B:
+;взять b=R/G/Bmin, hl установить на начало буфера R/G/B:
         ;pop bc ;ld bc,(maxdistaxis) ;b=maxaxis
         ;ld l,0xff&chrbuf
         ;ld a,(Rminmax) ;Rmin
@@ -17,7 +17,7 @@
         ; add a,tmaxdistdiv/256
         ;ld d,a ;d=maxdistdiv
 
-;яюЄюь т√сшЁрхь ыєў°є■ юё№:
+;потом выбираем лучшую ось:
         ;ld de,(Bminmax)
         ld a,d ;Bmax
         sub e ;Bmin
@@ -41,7 +41,7 @@
          ld hl,(Rminmaxcolor)
         ex de,hl
 
-;яюЄюь схЁ╕ь яюыюцхэшх ЁхъюЁфэ√ї ЎтхЄют:
+;потом берём положение рекордных цветов:
         ;pop de ;ld de,(Rminmaxcolor)
         ;djnz $+2+4
         ;ld de,(Gminmaxcolor)
@@ -49,9 +49,9 @@
         ;ld de,(Bminmaxcolor)
 
 
-        if 1==0;0:03CNVTOGR        LD HL,#C000        LD BC,#7FFD        LD E,1        CALL SETPG       LD D,GRF/256 ;ЄрсышЎр brightness/contract/dithering level        LD A,(MAXV8)        LD B,AYSGOOP        PUSH BC        LD BC,(LSZX) ;<256?      ;LD A,C      ;DEC BC      ;INC B      ;LD C,B ;1..256 => 1, 257..512 => 2      ;LD B,AXSGOOP        LD E,(HL)        LD A,(DE)        LD (HL),A      ;INC HL      ;DJNZ XSGOOP      ;DEC C      ;JNZ XSGOOP       CPI        JP PE,XSGOOP        POP BC       ;hgt<256        DJNZ YSGOOP        RET 
+        if 1==0;0:03CNVTOGR        LD HL,#C000        LD BC,#7FFD        LD E,1        CALL SETPG       LD D,GRF/256 ;таблица brightness/contract/dithering level        LD A,(MAXV8)        LD B,AYSGOOP        PUSH BC        LD BC,(LSZX) ;<256?      ;LD A,C      ;DEC BC      ;INC B      ;LD C,B ;1..256 => 1, 257..512 => 2      ;LD B,AXSGOOP        LD E,(HL)        LD A,(DE)        LD (HL),A      ;INC HL      ;DJNZ XSGOOP      ;DEC C      ;JNZ XSGOOP       CPI        JP PE,XSGOOP        POP BC       ;hgt<256        DJNZ YSGOOP        RET 
         endif
-        if 1==0;0:26CNVTORGB        LD HL,#C000        LD BC,#7FFD        LD DE,#7FDF        EXX         LD E,1        CALL SETPG        LD A,(MAXV8)        LD B,AYSLOOP        PUSH BC        LD BC,(LSZX)XSLOOP        PUSH BC;once+ini;/168900 CALLS;20t=1s!!!;SCONV        EXX         LD A,#1B        OUT (C),A        LD A,(HL)        LD (pCB+1),A        LD A,#1C        OUT (C),A        LD A,(HL)       EXA         LD A,#19        OUT (C),A        LD A,(HL)        LD (pY+1),A       EXA         EXX        LD L,A       LD H,'G716C        LD E,(HL)        INC H        LD D,(HL)       INC H        LD C,(HL)        INC H        LD B,(HL)pY      LD HL,PTAB       EX DE,HL        ADD HL,DE        LD A,(HL)       LD (RC+1),ApCB    LD HL,G7170       DEC H       LD A,(HL)       DEC H       LD L,(HL)       LD H,A        ADD HL,BC        ADD HL,DE        LD A,(HL)       LD (GC+1),A       LD HL,(pCB+1)        LD C,(HL)        INC H        LD B,(HL)       EX DE,HL        ADD HL,BC        LD C,(HL)       LD B,'GRF       LD A,(BC)       LD (BCL+1),A       LD A,(RC+1)       LD C,A       LD A,(BC)       LD (RC+1),A       LD A,(GC+1)       LD C,A       LD A,(BC)       LD (GC+1),A;ёўшЄрыш тёх, р схЁхь юфэє....pCLRS   LD A,(0)        EXX         LD (HL),A        INC HL        EXX         POP BC        DEC BC        LD A,B        OR C        JP NZ,XSLOOP        POP BC        DEC B ;hgt<256        JP NZ,YSLOOP        RET 
+        if 1==0;0:26CNVTORGB        LD HL,#C000        LD BC,#7FFD        LD DE,#7FDF        EXX         LD E,1        CALL SETPG        LD A,(MAXV8)        LD B,AYSLOOP        PUSH BC        LD BC,(LSZX)XSLOOP        PUSH BC;once+ini;/168900 CALLS;20t=1s!!!;SCONV        EXX         LD A,#1B        OUT (C),A        LD A,(HL)        LD (pCB+1),A        LD A,#1C        OUT (C),A        LD A,(HL)       EXA         LD A,#19        OUT (C),A        LD A,(HL)        LD (pY+1),A       EXA         EXX        LD L,A       LD H,'G716C        LD E,(HL)        INC H        LD D,(HL)       INC H        LD C,(HL)        INC H        LD B,(HL)pY      LD HL,PTAB       EX DE,HL        ADD HL,DE        LD A,(HL)       LD (RC+1),ApCB    LD HL,G7170       DEC H       LD A,(HL)       DEC H       LD L,(HL)       LD H,A        ADD HL,BC        ADD HL,DE        LD A,(HL)       LD (GC+1),A       LD HL,(pCB+1)        LD C,(HL)        INC H        LD B,(HL)       EX DE,HL        ADD HL,BC        LD C,(HL)       LD B,'GRF       LD A,(BC)       LD (BCL+1),A       LD A,(RC+1)       LD C,A       LD A,(BC)       LD (RC+1),A       LD A,(GC+1)       LD C,A       LD A,(BC)       LD (GC+1),A;считали все, а берем одну....pCLRS   LD A,(0)        EXX         LD (HL),A        INC HL        EXX         POP BC        DEC BC        LD A,B        OR C        JP NZ,XSLOOP        POP BC        DEC B ;hgt<256        JP NZ,YSLOOP        RET 
         endif
 
 RC      OR 0GC      OR 0BCL     OR 0
@@ -103,7 +103,7 @@ browser_oldfilename=$+1
         ;ld hl,curfulllink;linkbuf
         ;ld de,COMMANDLINE
         ;push de
-        ;call strcopy ;TODO єсЁрЄ№ (ёхщўрё Єюы№ъю фы  юЄырфъш)
+        ;call strcopy ;TODO убрать (сейчас только для отладки)
         ;pop hl        
 ;command line = "<file to load>"
 
@@ -111,7 +111,7 @@ browser_oldfilename=$+1
 
          xor a
          ld (washttpword),a
-;хёыш т шьхэш Їрщыр ёЄюшЄ file://, Єю тъы■ўшЄ№ ЁрсюЄє ё Їрщырьш, хёыш http://, Єю тъы■ўшЄ№ ЁрсюЄє ё http
+;если в имени файла стоит file://, то включить работу с файлами, если http://, то включить работу с http
         push hl
         ld de,tfileprotocol
         call strcp_tillde0 ;if found, hl=after "//"
@@ -137,8 +137,8 @@ browser_go_changeprotocol
         
 
         if 1==0
-;ёьхэшЄ№ Єхъє∙шщ ърЄрыюу (шыш http-ърЄрыюу) т ёююЄтхЄёЄтшш ё ърЄрыюуюь т ёё√ыъх
-        push hl ;hl=эрўрыю path схч яЁюЄюъюыр
+;сменить текущий каталог (или http-каталог) в соответствии с каталогом в ссылке
+        push hl ;hl=начало path без протокола
 browser_go_findslash
 	 push hl
         call findlastslash.
@@ -146,7 +146,7 @@ browser_go_findslash
 ;de=after last slash or start
 	 or a
 	 sbc hl,de
-	 add hl,de ;hl=эрўрыю path схч яЁюЄюъюыр
+	 add hl,de ;hl=начало path без протокола
 	 jr nz,browser_go_slashfound
 	 ;no slash in end
 browserprotocol=$+1
@@ -168,10 +168,10 @@ washttpword=$+1
 	 jr browser_go_findslash
 browser_go_slashfound
         ex de,hl ;hl=after last slash (filename)
-        pop de ;эрўрыю path схч яЁюЄюъюыр
+        pop de ;начало path без протокола
         or a
         sbc hl,de
-        add hl,de ;hl=filename, de=эрўрыю path схч яЁюЄюъюыр, Z=(path len==0)
+        add hl,de ;hl=filename, de=начало path без протокола, Z=(path len==0)
         jr z,browsernopath
         push hl ;filename
         dec hl
@@ -303,7 +303,7 @@ openstream_http_emptypath
 ;+5 converted frame
 
         if 1==0
-;схЁ╕ь ё ¤ъЁрэр
+;берём с экрана
         ;call setpgtemp4000
         ld hl,0xc000
         ld bc,(curpichgt_visible)
@@ -394,7 +394,7 @@ keepframeaddrHSB=$+1
 copylinetoscr
 ;hl=line (kept)
 ;de=buf
-;a=эхў╕ЄэюёЄ№ (0=ў╕Єэ√х, 1=эхў╕Єэ√х ёЄюысЎ√)
+;a=нечётность (0=чётные, 1=нечётные столбцы)
         push de
         push hl
         ex de,hl
@@ -408,7 +408,7 @@ copylinetoscr
 copylinefromscr
 ;hl=line (kept)
 ;de=buf
-;a=эхў╕ЄэюёЄ№ (0=ў╕Єэ√х, 1=эхў╕Єэ√х ёЄюысЎ√)
+;a=нечётность (0=чётные, 1=нечётные столбцы)
         push de
         push hl
         call copyline_countsize
@@ -421,7 +421,7 @@ copyline_countsize
 keepframe_linesize=$+1
         ld bc,0
         or a
-        jr nz,$+3 ;эхў╕Єэ√ї ёЄюысЎют ьхэ№°х
+        jr nz,$+3 ;нечётных столбцов меньше
         inc bc
         srl b
         rr c
@@ -449,14 +449,14 @@ copyline_countsize_ldirtoscr0
         if 1==0
         
         push iy
-;ш∙хь рфЁхё яюёыхфэхую срщЄр ърЁЄшэъш
+;ищем адрес последнего байта картинки
         ex de,hl
         ld bc,0
         scf
         sbc hl,bc
         ex de,hl
         sbc hl,bc
-;ш∙хь эюьхЁ ёЄЁрэшЎ√ яюёыхфэхую срщЄр ърЁЄшэъш
+;ищем номер страницы последнего байта картинки
         ld a,l
         rl d
         rla
@@ -482,7 +482,7 @@ reserve_bmp_pages_fail
         if 1==0
 readchr
 ;b,g,r
-;TODO ё ьрё°ЄрсшЁютрэшхь ш ё єў╕Єюь яЁртюую ъЁр  ърЁЄшэъш, эх фхы ∙хуюё  эр 8
+;TODO с масштабированием и с учётом правого края картинки, не делящегося на 8
         ;push bc
         push af
         push hl

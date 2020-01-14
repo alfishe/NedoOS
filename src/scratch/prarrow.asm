@@ -1,5 +1,5 @@
-;вывод стрелки на экран (тут же запоминание и стирание)
-;и буфер стрелки
+;ўлў®¤ бваҐ«ЄЁ ­  нЄа ­ (вгв ¦Ґ § Ї®¬Ё­ ­ЁҐ Ё бвЁа ­ЁҐ)
+;Ё ЎгдҐа бваҐ«ЄЁ
 
         SHAPESPROC shapes_memorizearr
 ;hl=x
@@ -158,7 +158,7 @@ prarr_cross8c_go
         call prarr_calcscr
 ;bc=40
 ;de=scr
-;lx=ширина
+;lx=иЁаЁ­ 
 ;ly=200-y
         
         ld a,(prarr_crosscolumny)
@@ -241,8 +241,8 @@ prarr_crosscolumn_to2
         ld l,a
         bit 0,c
         ld de,sprarr8c_l
-        jr z,$+5 ;de=спрайт для чётного x
-        ld de,sprarr8c_r ;de=спрайт для нечётного x
+        jr z,$+5 ;de=бЇа ©в ¤«п зсв­®Ј® x
+        ld de,sprarr8c_r ;de=бЇа ©в ¤«п ­Ґзсв­®Ј® x
         ld a,(de)
         ld lx,a
         inc de
@@ -253,7 +253,7 @@ prarr_crosscolumn_to2
         call prarr_calcscr
 ;bc=40
 ;de=scr
-;lx=ширина
+;lx=иЁаЁ­ 
 ;ly=200-y
         jr prarrcolumn0
         
@@ -361,9 +361,9 @@ prarr_calcscr_nocross
 ;de=spr_l
 ;bc=spr_r
         pop af ;CY=x0
-        jr nc,prarr_nor ;de=спрайт для чётного x
+        jr nc,prarr_nor ;de=бЇа ©в ¤«п зсв­®Ј® x
         ld d,b
-        ld e,c ;de=спрайт для нечётного x
+        ld e,c ;de=бЇа ©в ¤«п ­Ґзсв­®Ј® x
 prarr_nor
         pop bc ;x
         ld a,(de)
@@ -394,13 +394,13 @@ prarr_calcscr
         add hl,hl
         add hl,hl ;y*40 + scrbase
         pop de ;spr
-        srl b ;теперь b=0
+        srl b ;вҐЇҐам b=0
         rr c ;c=x/2
         ld a,scrwid/2
         sub c ;scrwid/2-(x/2)
         cp lx
-        jr nc,$+2+2 ;scrwid/2-(x/2) >= ширина
-        ld lx,a ;scrwid/2-(x/2) < ширина
+        jr nc,$+2+2 ;scrwid/2-(x/2) >= иЁаЁ­ 
+        ld lx,a ;scrwid/2-(x/2) < иЁаЁ­ 
         srl c
         jr nc,$+4
         set 6,h
@@ -412,7 +412,7 @@ prarr_calcscr
         ld bc,40
 ;bc=40
 ;de=scr
-;lx=ширина
+;lx=иЁаЁ­ 
 ;ly=200-y
         ret
 
@@ -523,7 +523,7 @@ sprtext_r
         dw 0x00ff,0x00ff,0x00ff,0xffff,0x00ff,0x00ff,0xffff,0xb8ff,0xb8ff,0xffff,0x00ff,0x00ff,0x00ff
         dw 0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x00ff,0x47ff,0x00ff,0x00ff,0x47ff,0x00ff,0x00ff,0x00ff
 
-;;;;;;; для палитры (инвертируют внутри первых 8 цветов)
+;;;;;;; ¤«п Ї «Ёвал (Ё­ўҐавЁагов ў­гваЁ ЇҐаўле 8 жўҐв®ў)
         
 sprcross8c_l
 ;mask,pixels = 0xppmm

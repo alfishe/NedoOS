@@ -34,7 +34,7 @@ texted_redrawflag=$
 	call nv_setxy
 	OS_GETATTR ;a
         push af ;color
-	ld e,#38 ;TODO чртшёшЄ юЄ ЁхушёЄЁр ъыртшрЄєЁ√ (яхЁхфрЄ№ хую т ёЄрЁ°шї сшЄрї H т GET_KEY)
+	ld e,#38 ;TODO зависит от регистра клавиатуры (передать его в старших битах H в GET_KEY)
 	OS_PRATTR
 
         if 1==0
@@ -43,13 +43,13 @@ texted_panelredrawflag=$
         scf ;/or a
         else
 1;prwindow_waitkey_nokey
-	YIELD ;halt ;хёыш ёфхырЄ№ яЁюёЄю di:rst #38, Єю 1.ёфтшэхь ЄрщьхЁ ш 2.ьюцхь яюЄхЁ Є№ ърфЁютюх яЁхЁ√трэшх, р хёыш схч ei, Єю сєфєЄ уы■ъш
+	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY ;OS_GETKEYNOLANG
         or a ;cp NOKEY ;keylang==0?
         jr nz,texted_mainloop_keyq
         cp c ;keynolang==0?
         ;ld a,c ;keynolang
-        ;cp NOKEY ;ъръ юЄышўшЄ№ юЄ юЄёєЄёЄтш  Їюъєёр? (эх т Їюъєёх ъыртш°ш эх юЄфр■Єё ) TODO
+        ;cp NOKEY ;как отличить от отсутствия фокуса? (не в фокусе клавиши не отдаются) TODO
         jr nz,texted_mainloop_keyq
 texted_panelredrawflag=$
         scf ;/or a
@@ -111,7 +111,7 @@ texted_mainloop_keyq
         cp ext2
         jp z,texted_save
         cp 0x20
-        ret c ;яЁюўшх ёшёЄхьэ√х ъэюяъш эх эєцэ√
+        ret c ;прочие системные кнопки не нужны
 typein
         ld c,a
         call linesize_minus_x ;sz<x = error
@@ -262,7 +262,7 @@ calccurlinex
         ret
         
 calccursoraddr
-;TODO єўшЄ√трЄ№ °шЁшэє ёЄЁюъш (яЁртхх ёЄЁюъш яЁюёЄюх ёыюцхэшх схёёь√ёыхээю)
+;TODO учитывать ширину строки (правее строки простое сложение бессмысленно)
         call calccurlinex
         ex de,hl
         ld hl,(curlineaddr)
@@ -395,7 +395,7 @@ skipbackcrlf
 setxshift_hl
 ;X=hl=ahl-startline
 ;x+shift = X:
-;x = min(X,texted_WID-1), эю яюф mod8 фюыцхэ ёютярфрЄ№ ё X
+;x = min(X,texted_WID-1), но под mod8 должен совпадать с X
 ;shift = X-x
         ld bc,texted_WID-1
         call minhl_bc_tobc
@@ -417,7 +417,7 @@ texted_del
         call texted_right
         jp texted_backspace
 texted_del_newline
-;єфрыхэшх хэЄхЁр ёяЁртр (backspace эх єьххЄ)
+;удаление ентера справа (backspace не умеет)
 ;hl=sz-x
         call c,insert_minushl_spaces
         call setredrawflag
@@ -749,7 +749,7 @@ texted_calccurline_count0
         call texted_nextline ;texted_pseudoprline
 
         if 1==0
-        jr c,texted_calccurline_countq ;эх яюьюурхЄ
+        jr c,texted_calccurline_countq ;не помогает
         ex de,hl
 texted_calccurline_old=$+1
         ld hl,0
@@ -939,7 +939,7 @@ texted_prevline
         call isbof
          scf
         ret z
-;яхЁхф эрьш ьюцхЄ с√Є№ #0d шыш #0d,#0a шыш эшўхую
+;перед нами может быть #0d или #0d,#0a или ничего
         ld (findprevline_old),hl
         ld (findprevline_oldHSB),a
         
@@ -960,10 +960,10 @@ texted_prevline
         push hl
         call ahl_to_pgaddr
         set 6,h
-;hl=c000+, ьюцэю єьхэ№°рЄ№
+;hl=c000+, можно уменьшать
 ;bc=number of chars to go != 0
 
-;яхЁхф эрьш ьюцхЄ с√Є№ #0d шыш #0d,#0a шыш эшўхую
+;перед нами может быть #0d или #0d,#0a или ничего
         dec hl
         dec bc
         ld a,b
@@ -987,7 +987,7 @@ texted_prevline_nolf
         or c
         jr z,texted_prevlineq
 texted_prevline_nocr
-;ёхщўрё ь√ эрїюфшьё  яхЁхф ёшьтюыюь ъюэЎр яЁхф√фє∙хщ ёЄЁюъш (эх эр э╕ь)
+;сейчас мы находимся перед символом конца предыдущей строки (не на нём)
 texted_prevline0
         ld a,(hl)
         cp 0x0d
@@ -1003,7 +1003,7 @@ texted_prevline0
         jr texted_prevlineq
 texted_prevline_cr
 texted_prevline_lf
-;ёхщўрё ь√ эрїюфшьё  эр ъюэЎх ёшьтюыр ъюэЎр ёЄЁюъш яхЁхф яЁхф√фє∙хщ
+;сейчас мы находимся на конце символа конца строки перед предыдущей
         inc hl
 texted_prevlineq
         ex de,hl ;new addr (bits 13..0), bit 14 = overflow
@@ -1014,9 +1014,9 @@ texted_prevlineq
         ret nc ;no wrap
 
 findprevline_linewrap
-;ahl = т эрўрых ёЄЁюъш
-;яхЁхф эхщ ьюцхЄ с√Є№ #0d шыш #0d,#0a
-;эрфю яёхтфюэряхўрЄрЄ№ эхёъюы№ъю яёхтфюёЄЁюъ, яюър эх фющф╕ь фю Єхъє∙хщ
+;ahl = в начале строки
+;перед ней может быть #0d или #0d,#0a
+;надо псевдонапечатать несколько псевдострок, пока не дойдём до текущей
 findprevline_linewrap_count0
          push af
          push hl
@@ -1036,7 +1036,7 @@ findprevline_oldHSB=$+1
         jr c,findprevline_linewrap_count0
         ex de,hl
         ld a,b
-;ahl=эр яёхтфюёЄЁюўъє Ёрэ№°х
+;ahl=на псевдострочку раньше
         ret ;nc
 
 getmaxlinesize
@@ -1178,7 +1178,7 @@ texted_prlinespc_all
         ld c,texted_WID
 texted_prline_cr
 texted_prline_lf
-;фюяхўрЄрЄ№ яЁюсхы√ фю ъюэЎр ёЄЁюъш
+;допечатать пробелы до конца строки
         ld a,c
 texted_prlinespc
         ld b,a
@@ -1235,7 +1235,7 @@ texted_pseudoprline_cr
 texted_pseudoprline_lf
         jp texted_nextlineq
         
-;яю шфхх ¤Єю яёхтфюяхўрЄ№ N ¤ъЁрээ√ї яючшЎшщ (Єрь ьюуєЄ с√Є№ ЎтхЄют√х ъюф√ ш Є.я.)
+;по идее это псевдопечать N экранных позиций (там могут быть цветовые коды и т.п.)
 istherecr_or_lf
 ;hl=addr ;TODO ahl
 ;de=length to search
@@ -1253,7 +1253,7 @@ istherecrlfgo
         push bc
         ld b,d
         ld c,e
-        cpir ;TODO эхёъюы№ъю Ёрч ўхЁхч тёх сыюъш, хёыш чрърэўштр■Єё  сыюъш, Єю шї яхЁхъы■ўрЄ№
+        cpir ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
         pop bc
         ret nz ;nz=not found
          dec hl

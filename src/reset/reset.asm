@@ -43,7 +43,7 @@ washobetarunner
 ;pgsys=pagexor-10
 ;pgfatfs=pagexor-9
 ;pgtrdosfs=pagexor-8
-;pgkillable=pagexor-4 ;т 128K ярь Єш, Є.ъ. ьюцэю яюЁЄшЄ№
+;pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
 	disp hobetarunner ;in pgkillable
 ;$c loaded in pages 4,1,0
 ;only ATM2 ports here!
@@ -113,7 +113,7 @@ washobetarunner
 	ei
          ld a,0
          ld bc,#7ffd
-         out (c),a ;for 128 basic (яЁютхЁхэю, ЁрсюЄрхЄ, 48 Єюцх ЁрсюЄрхЄ)
+         out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
 hobetarunner_jp=$+1
 	jp 0;#6000
         ent

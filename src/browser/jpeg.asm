@@ -1,14 +1,14 @@
 preview=1 ;CAPS=thumbnail 
 
-ONEPAGEYUV=0;1 ;TODO YUV т юфэюь яюЄюъх эр эхёъюы№ъю ёЄЁрэшЎ ё ўхЁхфютрэшхь ёюёЄрты ■∙шї? (ўЄюс√ ърЁЄшэъє ьюцэю с√ыю °шЁх 1024), эю сєфхЄ яЁюсыхьр ё ьрё°ЄрсшЁютрэшхь SAMPLE эр уЁрэшЎх ёЄЁрэшЎ
+ONEPAGEYUV=0;1 ;TODO YUV в одном потоке на несколько страниц с чередованием составляющих? (чтобы картинку можно было шире 1024), но будет проблема с масштабированием SAMPLE на границе страниц
 
-JPGPAGESTART=0xc000 ;т юфэющ ёЄЁрэшўъх фю 16 ёЄЁюъ фю 0x400 яшъёхыхщ ърцфр 
-;TODO 0x8000 ё фтющэ√ьш ёЄЁрэшЎрьш яюф ёюёЄрты ■∙є■ (ўЄюс√ ърЁЄшэъє ьюцэю с√ыю °шЁшэющ 2048)
-;TODO ёюёЄрты ■∙шх їЁрэшЄ№ тхЁЄшъры№эю ш ЁхэфхЁшЄ№ яЁ ью т эшї, схч яхЁхсЁюёъш ё ьрё°ЄрсшЁютрэшхь
+JPGPAGESTART=0xc000 ;в одной страничке до 16 строк до 0x400 пикселей каждая
+;TODO 0x8000 с двойными страницами под составляющую (чтобы картинку можно было шириной 2048)
+;TODO составляющие хранить вертикально и рендерить прямо в них, без переброски с масштабированием
 
-;ЄрсышЎ√ єьэюцхэш  т pg0 ;TODO т 0x4000+
-;чряюыэ ■Єё  т GENMTAB
-_D0=0xd0 ;фтр эрсюЁр, тЄюЁющ т +0x18
+;таблицы умножения в pg0 ;TODO в 0x4000+
+;заполняются в GENMTAB
+_D0=0xd0 ;два набора, второй в +0x18
 _D2=_D0+0x02
 _D4=_D0+0x04
 _D6=_D0+0x06
@@ -21,38 +21,38 @@ _E2=_D0+0x12
 _E4=_D0+0x14
 _E6=_D0+0x16
 
-;FREE=0x8000 ;фшэрьшўхёър  ярь Є№, ЁрчьхЁ=0x13be фы  girl.jpg, izba1024.jpg, =0x12be фы  ърЁыёюэ.jpg
+;FREE=0x8000 ;динамическая память, размер=0x13be для girl.jpg, izba1024.jpg, =0x12be для карлсон.jpg
 
-;LINE1=0x3300;0x9400 ;сєЇхЁ ёЄЁюъш 0x400*3?
+;LINE1=0x3300;0x9400 ;буфер строки 0x400*3?
       
 G716C=0xa000 ;CR tab (add to Y->R)G7174=G716C+0x200 ;CR tab (add to Y->G)G7178=G7174+0x200 ;CB tab (add to Y->B)G7170=G7178+0x200 ;CB tab (add to Y->G)
 
-_thuffs=0xad00 ;ЁрчьхЁ=0x214 (girl.jpg, izba1024.jpg, ърЁыёюэ.jpg) - тЁхьхээ√щ сєЇхЁ, яюёых maketree эх эєцхэ
+_thuffs=0xad00 ;размер=0x214 (girl.jpg, izba1024.jpg, карлсон.jpg) - временный буфер, после maketree не нужен
 
-SAMPLE=0xac00 ;DS #80 ;сыюъ 8x8 (яю 2 срщЄр), яюЄюь юЄЄєфр ўшЄрхь ўхЁхч ёЄхъ (яюфЁ ф, юфшэ Ёрч) ;яхЁхф эшь эхьэюую ьхёЄр яюф ёЄхъSAMTAB=SAMPLE+0x80 ;DS #80
-;ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш PLTAB=0xad00 ;DS #300PTAB=PLTAB+0x100
-VAR=0xaa00 ;с√ыю т #4200
+SAMPLE=0xac00 ;DS #80 ;блок 8x8 (по 2 байта), потом оттуда читаем через стек (подряд, один раз) ;перед ним немного места под стекSAMTAB=SAMPLE+0x80 ;DS #80
+;таблица обрубания переполненияPLTAB=0xad00 ;DS #300PTAB=PLTAB+0x100
+VAR=0xaa00 ;было в #4200
 VARS=VAR ;???
 VARSsz=0x123
- ;+#48 = ??? [2] т jpgreadsizes, фюыцэю с√Є№ =8
- ;+#4e = ??? Єюы№ъю чряшё№ ;+#50-51 = ??? Єюы№ъю чряшё№ ;+#52-53 = ??? Єюы№ъю чряшё№ ;+#56-#57 = ??? Ёхчєы№ЄрЄ т√фхыхэш  фшэрьшўхёъющ ярь Єш т jpgreadsizes;+#5A-#69=Єрсы pQTB;+#6A-#79=Єрсы pLHTB;+#7A-#89=Єрсы pHHTB;+#C2=яхЁшюф т√чютр M18E7A (ўрэъ M141FE);+#120=чфхё№ юэ ёўшЄрхЄё ;+#110-#11F=Єрсы.эръюяыхээ√ї DC, 4? чряшёш яю 2 срщЄр (+E0*2 срщЄ???)
-;+#120=ъръющ-Єю ёў╕Єўшъ?
-;+#122=ўЄю-Єю write only???
+ ;+#48 = ??? [2] в jpgreadsizes, должно быть =8
+ ;+#4e = ??? только запись ;+#50-51 = ??? только запись ;+#52-53 = ??? только запись ;+#56-#57 = ??? результат выделения динамической памяти в jpgreadsizes;+#5A-#69=табл pQTB;+#6A-#79=табл pLHTB;+#7A-#89=табл pHHTB;+#C2=период вызова M18E7A (чанк M141FE);+#120=здесь он считается;+#110-#11F=табл.накопленных DC, 4? записи по 2 байта (+E0*2 байт???)
+;+#120=какой-то счётчик?
+;+#122=что-то write only???
 ;DISKBUF=0xb000
         
        MACRO rdbytecheckFFSCF        rdbyte        CP -1        CALL NC,RDFF       ENDM  
 
-RDFF        CALL RDBYTE        INC A        JR Z,RDFF ;ьюцхЄ с√Є№ ьэюую #FF        SUB 2 ;#FF ъюфшЁютрэю ъръ #FF,#00        RET 
+RDFF        CALL RDBYTE        INC A        JR Z,RDFF ;может быть много #FF        SUB 2 ;#FF кодировано как #FF,#00        RET 
 GENMTAB        LD E,0        CALL SETPG       LD HL,_D0<<8s=2k=1<<sf=#E8-#D0        LD DE,#1151*2/k        CALL GEN        LD DE,#187E*2/k ;D2        CALL GEN        LD DE,#3B21*2/k ;D4        CALL GEN        LD DE,#25A1*2/k ;D6        CALL GEN        LD DE,#0C7C*2/k ;D8        CALL GEN        LD DE,#1CCD*2/k ;DA        CALL GEN        LD DE,#300B*2/k ;DC        CALL GEN        LD DE,#3EC5*2/k ;DE        CALL GEN        LD DE,#5203*2/k ;E0        CALL GEN        LD DE,#6254*2/k ;E2        CALL GEN        LD DE,#41B3*2/k ;E4        CALL GEN        LD DE,#098E*2/k ;E6        CALL GENs2=5k=1<<s2        LD DE,#1151*2/k ;E8        CALL GENA        LD DE,#187E*2/k ;EA        CALL GENA        LD DE,#3B21*2/k ;EC        CALL GENA        LD DE,#25A1*2/k ;EE        CALL GENA        LD DE,#0C7C*2/k ;F0        CALL GENA        LD DE,#1CCD*2/k ;F2        CALL GENA        LD DE,#300B*2/k ;F4        CALL GENA        LD DE,#3EC5*2/k ;F6        CALL GENA        LD DE,#5203*2/k ;F8        CALL GENA        LD DE,#6254*2/k ;FA        CALL GENA        LD DE,#41B3*2/k ;FC        CALL GENA        LD DE,#098E*2/k ;FEGENA        LD IX,0        LD C,0GM0A    LD B,128GM1A    LD A,HX        LD (HL),A        INC H        LD (HL),C        DEC H        ADD IX,DE        JR NC,$+3        INC C        INC L        DJNZ GM1A        XOR A        SUB LX        LD LX,A        LD A,B;0        SBC A,HX        LD HX,A        SBC A,A        SUB C        LD C,A        INC L        DEC L        JR NZ,GM0A       INC H
        inc H        RET GEN        LD IX,0        LD BC,0GM1     LD (HL),C        INC H        LD (HL),B        DEC H        ADD IX,DE        JR NC,$+3        INC BC        INC L        JR NZ,GM1       INC H
-       inc H        RET M18E7A       ;IFN rdcyc       ; LD A,(RDCYC)       ; OR A       ; JR NZ,rDCOK       ;ENDIF FMR1    rdbyte        INC A        JR NZ,FMR1FMR2    rdbyte        INC A        JR Z,FMR2        DEC A        JR Z,FMR1rDCOK        LD A,(VAR+#E0)        ADD A,A        LD B,A ;эх сюы№°х #10? (ёь. эшцх VAR+#120)        LD HL,VAR+#110        XOR AcLHT    LD (HL),A        INC HL        DJNZ cLHT       ;IFN rdcyc       ; LD (RDCYC),A       ;ENDIF        LD A,128       LD (BITER),A        LD A,(VAR+#C2)        LD (VAR+#120),A        RET 
+       inc H        RET M18E7A       ;IFN rdcyc       ; LD A,(RDCYC)       ; OR A       ; JR NZ,rDCOK       ;ENDIF FMR1    rdbyte        INC A        JR NZ,FMR1FMR2    rdbyte        INC A        JR Z,FMR2        DEC A        JR Z,FMR1rDCOK        LD A,(VAR+#E0)        ADD A,A        LD B,A ;не больше #10? (см. ниже VAR+#120)        LD HL,VAR+#110        XOR AcLHT    LD (HL),A        INC HL        DJNZ cLHT       ;IFN rdcyc       ; LD (RDCYC),A       ;ENDIF        LD A,128       LD (BITER),A        LD A,(VAR+#C2)        LD (VAR+#120),A        RET 
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%RDSAMP
         IF preview       ;LD A,(cOLPOI) ;0=B/W       ;OR A       ;SCF        ;JR NZ,RDSAnGR       ;LD A,(pSMPPG+1) ;1/2/5       ;CP 2 ;1/2/5 (2/5=CB/CR=SKIP);RDSAnGR       ;IFN fCS       CALL getCS       ;ELSE        ;CALL C,8026       ;ENDIF          LD A,prevdj
          ld BC,#202        JR NC,$+7        LD A,YBITdj
         ld BC,#FCFA       LD (YBITjr),A       LD A,C
        ld (HORdjnz),A       LD A,B
        ld (VERdjnz),A        ENDIF        ;DI        LD (pSPS1+1),SP        LD SP,SAMPLE+#80        LD HL,0       DUP #40        PUSH HL       EDUP pSPS1   LD SP,0pLHTB   LD IX,0        CALL dehuf        OR A       LD H,A
-       ld L,A       CALL NZ,RDBITS        EX DE,HLpHCNT   LD HL,(VAR+#110)        ADD HL,DEpHCNT2  LD (VAR+#110),HL        EX DE,HLpQTBDC  LD A,(0)        CALL MULDE_AQ        LD (SAMPLE),HLPRMODE=$+1    LD A,0    CP #C2    JR Z,BRKLP       LD A,#02;63 ъю¤ЇЇшЎшхэЄр ACSCNLP1        ex af,af'
+       ld L,A       CALL NZ,RDBITS        EX DE,HLpHCNT   LD HL,(VAR+#110)        ADD HL,DEpHCNT2  LD (VAR+#110),HL        EX DE,HLpQTBDC  LD A,(0)        CALL MULDE_AQ        LD (SAMPLE),HLPRMODE=$+1    LD A,0    CP #C2    JR Z,BRKLP       LD A,#02;63 коэффициента ACSCNLP1        ex af,af'
 pHHTB   LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       LD H,(HL)        AND #0F        JR NZ,YBITYBITjr=$-1        LD A,H        CP #20 ;L=#F0?        JR NZ,BRKLP        ex af,af'
        ADD A,32       JP P,SCNLP1       JR BRKLPprevYBITprevdj=$-YBITjr-1        LD B,A        LD DE,BITER        LD A,(DE)skBLP   ADD A,A        JR Z,skNEW        DJNZ skBLP        LD (DE),A        ex af,af'
         ADD A,H       JP P,SCNLP1       JR BRKLPskNEW        rdbytecheckFFSCF        RLA         DJNZ skBLP        LD (DE),A        ex af,af'
@@ -60,7 +60,7 @@ pHHTB   LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       L
         ADD A,H       LD E,A
        ld D,Qorder/256        ex af,af'
        CALL RDBITS        EX DE,HL       LD A,(HL)       LD (Qadr),ApQTB    LD BC,0        ADD HL,BC        LD A,(HL)        CALL MULDE_AQQadr=$+1       LD (SAMPLE),HL        ex af,af'
-       JP P,SCNLP1BRKLP        LD E,0        CALL SETPG;---------------------------       ;DI ;шч-чр iy?       PUSH IY        LD IX,SAMPLE        LD B,8HORLP        PUSH BC       PUSH IX       POP HL        INC L        XOR A        LD B,7        INC L        OR (HL)        INC L        OR (HL)        DJNZ $-4HORdjnz=$-1        JR NZ,NOEMPH        LD A,(IX)
+       JP P,SCNLP1BRKLP        LD E,0        CALL SETPG;---------------------------       ;DI ;из-за iy?       PUSH IY        LD IX,SAMPLE        LD B,8HORLP        PUSH BC       PUSH IX       POP HL        INC L        XOR A        LD B,7        INC L        OR (HL)        INC L        OR (HL)        DJNZ $-4HORdjnz=$-1        JR NZ,NOEMPH        LD A,(IX)
         ld D,(IX+1)       DUP 2+s        SRA D        RRA        EDUP        PUSH IX       POP HL        LD B,8        LD (HL),A        INC L
         inc L        DJNZ $-3        JP HORZOKNOEMPH       LD C,(IX+4)
        ld B,(IX+5)       LD L,(IX+#C)
@@ -106,51 +106,51 @@ pHHTB   LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       L
         ld (IX+#31),HVERTUOK        INC LX
         inc LX        POP BC        DEC B        JP NZ,VERULP       POP IY       ;EI         RET ;twice;/21331 CALLS;150t=1sMULDE_AQ       LD HL,0       RLA       JP NC,$+6      LD H,D
       ld L,E      ADD HL,HL        DUP 6       RLA        JR NC,$+3       ADD HL,DE       ADD HL,HL        EDUP        RLA        RET NC       ADD HL,DE       RET ;/65537 CALLS;50t=1sRD1BBITER=$+1        LD A,128        ADD A,A        JR Z,rD1NOLD        LD (BITER),A        RET rD1NOLD        rdbytecheckFFSCF        RLA rD1OLD  LD (BITER),A        RET ;2RDBITS        LD B,A       CALL RD1B       DEC B       JR NC,RDBITSm        LD HL,1       RET ZrDBLP   ADD A,A        JR Z,rDNEWrDNEWQ        ADC HL,HL        DJNZ rDBLP        LD (BITER),A        RET RDBITSm        LD HL,-2       JR Z,rDBITsmQrDBLPm  ADD A,A        JR Z,rDNEWmrDNEWQm        ADC HL,HL        DJNZ rDBLPm        LD (BITER),ArDBITsmQ       INC HL        RET rDNEW        rdbytecheckFFSCF        RLA         JP rDNEWQrDNEWm        rdbytecheckFFSCF        RLA         JP rDNEWQm
-;їрЇЇьрэ;/25364 CALLS;150t=1sdehuf
-;ix т Ёрщюэх FREE        LD A,(BITER)        ADD A,A        CALL Z,rD1NOLD       LD DE,0       RL E        JP fNDHLPhD1NOLD        rdbytecheckFFSCF        RLA         JP $+6rDNXT        ADD A,A        JR Z,hD1NOLD       RL E
+;хаффман;/25364 CALLS;150t=1sdehuf
+;ix в районе FREE        LD A,(BITER)        ADD A,A        CALL Z,rD1NOLD       LD DE,0       RL E        JP fNDHLPhD1NOLD        rdbytecheckFFSCF        RLA         JP $+6rDNXT        ADD A,A        JR Z,hD1NOLD       RL E
        rl D        INC IX
         inc IXfNDHLP        LD L,(IX+1)
         ld H,(IX)       INC HL       SCF         SBC HL,DE        JP C,rDNXT        LD (BITER),A        LD H,(IX+#482-#43C)
         ld L,(IX+#483-#43C)        ADD HL,DE        LD A,(HL)        RET MSHTAB        LD A,H        OR AMSHTABA
            ;JR mSH3216
-        JR NZ,mSH3216 ;HL>=256: яюыэюЎхээюх єьэюцхэшх        LD H,D        LD E,(HL)        INC H        LD D,(HL)        EX DE,HL        RET mSH3216        EX DE,HL       LD L,64;16        LD A,(HL)        LD H,0        RRA         JR NC,$+7        ADD HL,DE        RR H
+        JR NZ,mSH3216 ;HL>=256: полноценное умножение        LD H,D        LD E,(HL)        INC H        LD D,(HL)        EX DE,HL        RET mSH3216        EX DE,HL       LD L,64;16        LD A,(HL)        LD H,0        RRA         JR NC,$+7        ADD HL,DE        RR H
         rr L       DUP 5;3        RRA         JR NC,$+3        ADD HL,DE        RR H
         rr L       EDUP         RET 
 
 ;hl=nnnn
 ;d=multable/256 (512 bytes)
 ;out: hlMULLONG        BIT 7,H        JP Z,MSHTAB        XOR A        SUB L        LD L,A        SBC A,A        SUB H        LD H,A        CALL MSHTABA        XOR A        SUB L        LD L,A        SBC A,A        SUB H        LD H,A        RET M1696A
-;яхЁхъюфшЁєхь 2-срщЄэ√х фрээ√х шч SAMPLE (-#180..+#180) т юфэюсрщЄэ√х т ёЄЁюъх сыюъют
-;hl=рфЁхё сыюър т ёЄЁюъх сыюъют LSZX*8        ;DI        LD (pSPS3+1),SP         ;LD DE,(LSZXM8)         ;INC DE
+;перекодируем 2-байтные данные из SAMPLE (-#180..+#180) в однобайтные в строке блоков
+;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS3+1),SP         ;LD DE,(LSZXM8)         ;INC DE
 LSZXm7=$+1
-         ld de,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш         LD B,8cOPLOOP  DUP 7         POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A         INC HL         EXX          EDUP          POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A        ADD HL,DE ;de=LSZX-7        EXX         DJNZ cOPLOOPpSPS3   LD SP,0        ;EI         RET ;HL=(pLNADR+1)M166AA;яхЁхъюфшЁєхь 2-срщЄэ√х фрээ√х шч SAMPLE т юфэюсрщЄэ√х т ёЄЁюъх сыюъют, ё єтхышўхэшхь т 2 Ёрчр
-;hl=рфЁхё сыюър т ёЄЁюъх сыюъют LSZX*8        ;DI        LD (pSPS6+1),SPpLSMH2  LD BC,0        LD SP,SAMPLE        LD (pLSS+1),BC        EXX         LD DE,PTAB+#80 ;ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш         LD B,8pXSCL   JR IN3IN2        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN+1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HLpYSCL   LD A,0C2LP        ADD HL,BC       EX DE,HLpLLIN   LD HL,0
+         ld de,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD B,8cOPLOOP  DUP 7         POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A         INC HL         EXX          EDUP          POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A        ADD HL,DE ;de=LSZX-7        EXX         DJNZ cOPLOOPpSPS3   LD SP,0        ;EI         RET ;HL=(pLNADR+1)M166AA;перекодируем 2-байтные данные из SAMPLE в однобайтные в строке блоков, с увеличением в 2 раза
+;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS6+1),SPpLSMH2  LD BC,0        LD SP,SAMPLE        LD (pLSS+1),BC        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD B,8pXSCL   JR IN3IN2        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN+1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HLpYSCL   LD A,0C2LP        ADD HL,BC       EX DE,HLpLLIN   LD HL,0
         dup 16
         ldi
         edup       EX DE,HLpLSS    LD BC,0        DEC A        JR NZ,C2LP        ADD HL,BC        EXX         DJNZ IN2        JP pSPS6IN3        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN1+1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HL        LD (HL),A        INC HL        LD A,(pYSCL+1)C3LP        ADD HL,BC       EX DE,HLpLLIN1  LD HL,0
         dup 24
         ldi
-        edup       EX DE,HL        LD BC,(pLSS+1)        DEC A        JR NZ,C3LP        ADD HL,BC        EXX         DEC B        JP NZ,IN3pSPS6   LD SP,0        ;EI         RET M1675A;яхЁхъюфшЁєхь 2-срщЄэ√х фрээ√х шч SAMPLE т юфэюсрщЄэ√х т ёЄЁюъх сыюъют, ё єтхышўхэшхь т 2 Ёрчр яю X?
-;hl=рфЁхё сыюър т ёЄЁюъх сыюъют LSZX*8        ;DI        LD (pSPS5+1),SPpLSMH   LD DE,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш         LD C,8Co3LOOP       DUP 7        POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        EXX        EDUP         POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        ADD HL,DE        EXX         DEC C        JR NZ,Co3LOOPpSPS5   LD SP,0        ;EI         RET 
+        edup       EX DE,HL        LD BC,(pLSS+1)        DEC A        JR NZ,C3LP        ADD HL,BC        EXX         DEC B        JP NZ,IN3pSPS6   LD SP,0        ;EI         RET M1675A;перекодируем 2-байтные данные из SAMPLE в однобайтные в строке блоков, с увеличением в 2 раза по X?
+;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS5+1),SPpLSMH   LD DE,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD C,8Co3LOOP       DUP 7        POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        EXX        EDUP         POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        ADD HL,DE        EXX         DEC C        JR NZ,Co3LOOPpSPS5   LD SP,0        ;EI         RET 
 ;pg1 = Y -> G?
 ;pg2 = Cb -> R
 ;pg5 = Cr -> B
-;яю юфэшь ш Єхь цх рфЁхёрь, эрўшэр  ё JPGPAGESTART(0xc000) -> BGR
+;по одним и тем же адресам, начиная с JPGPAGESTART(0xc000) -> BGR
         
-;TODO ё єў╕Єюь ьрё°ЄрсшЁютрэш  яЁюяєёърЄ№ ёЄЁюъшjpgconvRGB
-;HL=JPGPAGESTART;A=(MAXV8) ;т√ёюЄр яюыэюЎхээюую сыюърjpgconvRGBlines0jpglinecount=$+1
+;TODO с учётом масштабирования пропускать строкиjpgconvRGB
+;HL=JPGPAGESTART;A=(MAXV8) ;высота полноценного блокаjpgconvRGBlines0jpglinecount=$+1
         ld de,0
         dec de
         bit 7,d
-        ret nz ;ёЄЁюъш ётхЁї т√ёюЄ√ ърЁЄшэъш эх т√тюфшЄ№
+        ret nz ;строки сверх высоты картинки не выводить
         ld (jpglinecount),de
         push af
          ;bit 0,e
-         ;jp z,jpgconvRGBlineskip ;TODO ё єў╕Єюь чєьр
+         ;jp z,jpgconvRGBlineskip ;TODO с учётом зума
          call islinevisible
          jp nz,jpgconvRGBlineskip
         push hl
-        ;1.ўшЄрЄ№ т LINE ърцфє■ ёюёЄрты ■∙є■ юЄфхы№эю, 2.яхЁхъюфшЁютрЄ№ ърцфє■ ёюёЄрты ■∙є■ юЄфхы№эю, 3. чряшё√трЄ№ ёЁрчє т bmp (BGR)
+        ;1.читать в LINE каждую составляющую отдельно, 2.перекодировать каждую составляющую отдельно, 3. записывать сразу в bmp (BGR)
         ld e,1
         call SETPG
         ld de,LINE1
@@ -182,7 +182,7 @@ jpgcnvcopylineCR0
         inc de
         inc de
         jp pe,jpgcnvcopylineCR0
-;¤ЄюЄ ЇЁруьхэЄ=55481
+;этот фрагмент=55481
         
         ld hl,LINE1
         ld bc,(curpicwid)
@@ -192,51 +192,51 @@ jpgconvRGBpixels0
         inc hl        LD (pCB8_),A
         LD A,(HL) ;CR
         EXX        LD L,A ;CR       LD H,G716C/256 ;CR tab (add to Y->R) ;k>=0?        LD E,(HL)        INC H        LD D,(HL)       INC H ;G7174/256 ;CR tab (add to Y->G) ;k<0?        LD C,(HL)        INC H        LD B,(HL)pY8_=$+1
-        LD HL,PTAB ;ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш  + Y       EX DE,HL        ADD HL,DE ;de=ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш  + Y        LD A,(HL) ;R схч ъюэЄЁрёЄр
+        LD HL,PTAB ;таблица обрубания переполнения + Y       EX DE,HL        ADD HL,DE ;de=таблица обрубания переполнения + Y        LD A,(HL) ;R без контраста
         exx
-        ld (hl),a ;R схч ъюэЄЁрёЄр
+        ld (hl),a ;R без контраста
         exxpCB8_=$+1
-        LD HL,G7170 ;CB tab (add to Y->G)       DEC H       LD A,(HL)       DEC H ;G7178/256 ;CB tab (add to Y->B) ;k<0?       LD L,(HL)       LD H,A        ADD HL,BC        ADD HL,DE ;de=ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш  + Y        LD A,(HL) ;G схч ъюэЄЁрёЄр
-        ex af,af'       LD HL,(pCB8_) ;G7170+ ;CB tab (add to Y->G) ;k>=0?        LD C,(HL)        INC H        LD B,(HL)       EX DE,HL ;hl=ЄрсышЎр юсЁєсрэш  яхЁхяюыэхэш  + Y        ADD HL,BC         ld a,(hl) ;B схч ъюэЄЁрёЄр        EXX         dec hl
+        LD HL,G7170 ;CB tab (add to Y->G)       DEC H       LD A,(HL)       DEC H ;G7178/256 ;CB tab (add to Y->B) ;k<0?       LD L,(HL)       LD H,A        ADD HL,BC        ADD HL,DE ;de=таблица обрубания переполнения + Y        LD A,(HL) ;G без контраста
+        ex af,af'       LD HL,(pCB8_) ;G7170+ ;CB tab (add to Y->G) ;k>=0?        LD C,(HL)        INC H        LD B,(HL)       EX DE,HL ;hl=таблица обрубания переполнения + Y        ADD HL,BC         ld a,(hl) ;B без контраста        EXX         dec hl
         dec hl
-        LD (HL),A ;B схч ъюэЄЁрёЄр
+        LD (HL),A ;B без контраста
         inc hl
          ex af,af'
-         ld (hl),a ;G схч ъюэЄЁрёЄр        inc hl
-        cpi        jp pe,jpgconvRGBpixels0 ;юфшэ яЁюїюф Ўшъыр = 358
-;Ўшъы=171870
+         ld (hl),a ;G без контраста        inc hl
+        cpi        jp pe,jpgconvRGBpixels0 ;один проход цикла = 358
+;цикл=171870
 
         ld hl,LINE1
         ld bc,(curpicwidx3)
-;hl=юЄъєфр ъюяшЁєхь ёЄЁюъє
-;bc=ёъюы№ъю срщЄ ъюяшЁєхь
+;hl=откуда копируем строку
+;bc=сколько байт копируем
         ;push hl
         ;call putline ;30644
         ;pop hl
-        call drawscreenline_frombuf ;ъюэтхЁЄшЁєхь LINEGIF т LINEPIXELS ш т√тюфшь х╕ эр ¤ъЁрэ ;ьхэ хЄ, яюЄюь тюёёЄрэртыштрхЄ 0x4000, 0x8000
-        call keepconvertedline ;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє шч LINEPIXELS
+        call drawscreenline_frombuf ;конвертируем LINEGIF в LINEPIXELS и выводим её на экран ;меняет, потом восстанавливает 0x4000, 0x8000
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
 
         pop hl
 jpgconvRGBlineskip
          call inccury
-        LD DE,(LSZX) ;°шЁшэр ёЄЁюъш, юъЁєуы╕ээр  ттхЁї фю яюыэюЎхээюую сыюър        ADD HL,DE ;ёыхфє■∙р  ёЄЁюър сыюър        pop af        dec a        JP NZ,jpgconvRGBlines0 ;эр тё■ т√ёюЄє яюыэюЎхээюую сыюър ;юфэр ёЄЁюър = 258150        RET ;4 130 590
+        LD DE,(LSZX) ;ширина строки, округлённая вверх до полноценного блока        ADD HL,DE ;следующая строка блока        pop af        dec a        JP NZ,jpgconvRGBlines0 ;на всю высоту полноценного блока ;одна строка = 258150        RET ;4 130 590
 jpgconvBW
-;HL=JPGPAGESTART;A=(MAXV8) ;т√ёюЄр яюыэюЎхээюую сыюър        ;ld e,1
+;HL=JPGPAGESTART;A=(MAXV8) ;высота полноценного блока        ;ld e,1
         ;call SETPG
 jpgconvBWlines0        ld de,(jpglinecount)
         dec de
         bit 7,d
-        ret nz ;ёЄЁюъш ётхЁї т√ёюЄ√ ърЁЄшэъш эх т√тюфшЄ№
+        ret nz ;строки сверх высоты картинки не выводить
         ld (jpglinecount),de
         push af         ;bit 0,e
-         ;jp z,jpgconvBWlineskip ;TODO ё єў╕Єюь чєьр
+         ;jp z,jpgconvBWlineskip ;TODO с учётом зума
          call islinevisible
          jp nz,jpgconvBWlineskip
         push hl
          ld e,1
          call SETPG
          
-;1.ўшЄрЄ№ т LINE ёюёЄрты ■∙є■ Y тю тёх ЄЁш ёюёЄрты ■∙шї RGB, 2. чряшё√трЄ№ ёЁрчє т bmp (BGR)
+;1.читать в LINE составляющую Y во все три составляющих RGB, 2. записывать сразу в bmp (BGR)
         ld de,LINE1
         ld bc,(curpicwid)
 jpgconvBWcopylineY0
@@ -250,18 +250,18 @@ jpgconvBWcopylineY0
         
         ld hl,LINE1
         ld bc,(curpicwidx3)
-;hl=юЄъєфр ъюяшЁєхь ёЄЁюъє
-;bc=ёъюы№ъю срщЄ ъюяшЁєхь
+;hl=откуда копируем строку
+;bc=сколько байт копируем
         ;push hl
         ;call putline ;30644
         ;pop hl
-        call drawscreenline_frombuf ;ъюэтхЁЄшЁєхь LINEGIF т LINEPIXELS ш т√тюфшь х╕ эр ¤ъЁрэ ;ьхэ хЄ, яюЄюь тюёёЄрэртыштрхЄ 0x4000, 0x8000
-        call keepconvertedline ;чряюьшэрхь ёъюэтхЁўхээє■ ёЄЁюъє шч LINEPIXELS
+        call drawscreenline_frombuf ;конвертируем LINEGIF в LINEPIXELS и выводим её на экран ;меняет, потом восстанавливает 0x4000, 0x8000
+        call keepconvertedline ;запоминаем сконверченную строку из LINEPIXELS
 
         pop hl
 jpgconvBWlineskip
          call inccury
-        LD DE,(LSZX) ;°шЁшэр ёЄЁюъш, юъЁєуы╕ээр  ттхЁї фю яюыэюЎхээюую сыюър        ADD HL,DE ;ёыхфє■∙р  ёЄЁюър сыюър        pop af        dec a        JP NZ,jpgconvBWlines0 ;эр тё■ т√ёюЄє яюыэюЎхээюую сыюър        ret
+        LD DE,(LSZX) ;ширина строки, округлённая вверх до полноценного блока        ADD HL,DE ;следующая строка блока        pop af        dec a        JP NZ,jpgconvBWlines0 ;на всю высоту полноценного блока        ret
         
 
  
@@ -272,79 +272,79 @@ readjpeg
         ld de,LINE1+1
         ld (hl),BACKGROUNDCOLORLEVEL
         ld bc,LINE1_sz-1
-        ldir ;ўЄюс√ ёяЁртр т юёЄрЄъх чэръюьхёЄр с√ыр ўхЁэюЄр (яюЄюь ьюцэю єсЁрЄ№, ъюуфр readchr сєфхЄ ¤Єю фхырЄ№)
+        ldir ;чтобы справа в остатке знакоместа была чернота (потом можно убрать, когда readchr будет это делать)
         
         ld hl,VARS
         ld de,VARS+1
         ld bc,VARSsz-1
         ld (hl),0
-        ldir ;ъръшх-Єю яхЁхьхээ√х юцшфр■Єё  т 0 - TODO эрщЄш ъръшх
+        ldir ;какие-то переменные ожидаются в 0 - TODO найти какие
         
-        ;LD HL,jpgputline        ;LD (pPROC+1),HL        LD HL,FREE        LD (MEMDN),HL       ;LD HL,JPGPAGESTART        ;LD (pSCR2+1),HL       ;IFN buf9000       ;LD A,DISKBUF/256+(DISKBUFsz/256)       ;LD (RDBYHend),A       ;LD IY,DISKBUF+DISKBUFsz-1       ;ELSE        ; LD H,L       ; LD (BFLEN),HL       ;ENDIF        ;LD A,(SCRPRC)       ;LD (WASCRPRC),A ;эрёЄЁющър эрыюцхэш  эр ёЄрЁ√щ ¤ъЁрэ?        ;CALL iNITJPG         ld hl,SAMTAB
+        ;LD HL,jpgputline        ;LD (pPROC+1),HL        LD HL,FREE        LD (MEMDN),HL       ;LD HL,JPGPAGESTART        ;LD (pSCR2+1),HL       ;IFN buf9000       ;LD A,DISKBUF/256+(DISKBUFsz/256)       ;LD (RDBYHend),A       ;LD IY,DISKBUF+DISKBUFsz-1       ;ELSE        ; LD H,L       ; LD (BFLEN),HL       ;ENDIF        ;LD A,(SCRPRC)       ;LD (WASCRPRC),A ;настройка наложения на старый экран?        ;CALL iNITJPG         ld hl,SAMTAB
          ld (pPST+1),hl
 
-        CALL FBMARK        CALL LBMARK        ;CALL pSCAL ;єёЄрэютър ьрё°Єрсют        ;CALL SETPG7       ;CALL PRSIZES;onceGMAXC        LD A,(CNUM)        LD B,A        LD IX,(VAR+#56)        PUSH IX
+        CALL FBMARK        CALL LBMARK        ;CALL pSCAL ;установка масштабов        ;CALL SETPG7       ;CALL PRSIZES;onceGMAXC        LD A,(CNUM)        LD B,A        LD IX,(VAR+#56)        PUSH IX
         push BC        LD HL,#101       LD DE,18gMAXS   LD A,(IX+2)        CP H        JR C,$+3        LD H,A        LD A,(IX+3)        CP L        JR C,$+3        LD L,A        ADD IX,DE        DJNZ gMAXS       ;LD A,H       ;LD (MAXH),A       ;LD A,L        LD (MAXV),HL;A        POP BC
-        pop IXrESCLP  PUSH BC        LD DE,(curpicwid)        LD A,(IX+2)        CALL MULDE_A        LD DE,(MAXH)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+7),C       LD (IX+8),B        LD DE,(curpichgt)        LD A,(IX+3)        CALL MULDE_A        LD DE,(MAXV)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+9),C       LD (IX+#0A),B       LD DE,18       ADD IX,DE        POP BC        DJNZ rESCLP;SELECT OUTPUT        ;CALL 8026        ;LD A,(PIXPOI)        ;JR C,$+4        ;LD A,3        ;LD (pIXPOI),A        ;LD BC,0        ;JR NC,bC_JR        ;LD A,(BRIGP)        ;LD HL,CONTP        ;OR (HL)        ;LD B,A        ;INC B        ;DEC C;bC_JR       ;IFN fCS       ;LD A,C,(rdCS+1),A       CALL rdCSU ;яхЁтюэрўры№эюх ўЄхэшх CS       ;ENDIF 
+        pop IXrESCLP  PUSH BC        LD DE,(curpicwid)        LD A,(IX+2)        CALL MULDE_A        LD DE,(MAXH)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+7),C       LD (IX+8),B        LD DE,(curpichgt)        LD A,(IX+3)        CALL MULDE_A        LD DE,(MAXV)        ADD HL,DE        DEC HL        CALL DIVHL_DE       LD (IX+9),C       LD (IX+#0A),B       LD DE,18       ADD IX,DE        POP BC        DJNZ rESCLP;SELECT OUTPUT        ;CALL 8026        ;LD A,(PIXPOI)        ;JR C,$+4        ;LD A,3        ;LD (pIXPOI),A        ;LD BC,0        ;JR NC,bC_JR        ;LD A,(BRIGP)        ;LD HL,CONTP        ;OR (HL)        ;LD B,A        ;INC B        ;DEC C;bC_JR       ;IFN fCS       ;LD A,C,(rdCS+1),A       CALL rdCSU ;первоначальное чтение CS       ;ENDIF 
        
         LD A,(CNUM)        ;LD (VAR+#C8),A        ;LD (VAR+#CA),A        DEC A
          ld hl,jpgconvBW
         JR Z,YEGRSC ;greyscale image        CP 2        CALL NZ,ERROR ;not YUV        LD HL,jpgconvRGB
-        ;JR sTCFYEGRSC        ;LD HL,CNVTOGR        ;DJNZ $+5        ;LD HL,EMPTYsTCF      ;LD (cOLPOI),A        LD (jpgconv_patch),HL ;яЁюЎхфєЁр ъюэтхЁёшш YUV -> RGB        ;DEC A        ;ADD A,A        ;LD HL,CLADR        ;CALL HLA   ;HL+=A        ;CALL DEGRB ;DE=(HL)        ;EX DE,HL        ;LD (pCLRS+1),HL         
+        ;JR sTCFYEGRSC        ;LD HL,CNVTOGR        ;DJNZ $+5        ;LD HL,EMPTYsTCF      ;LD (cOLPOI),A        LD (jpgconv_patch),HL ;процедура конверсии YUV -> RGB        ;DEC A        ;ADD A,A        ;LD HL,CLADR        ;CALL HLA   ;HL+=A        ;CALL DEGRB ;DE=(HL)        ;EX DE,HL        ;LD (pCLRS+1),HL         
 
         ;push iy
         ;call reserve_bmp_pages
         ;pop iy
         
-;тё╕ фю render=203762
+;всё до render=203762
 render
         ld hl,(curpichgt)
         ld (jpglinecount),hl
                 CALL YCCTAB ;103518        CALL GENMTAB ;430734       ;CALL MAKCTB
       PUSH IY       CALL setsamplescalers ;1253       CALL maketrees;M18E08 ;110466      POP IY        
-;чряюыэ хь яюёых maketrees, яютхЁї х╕ сєЇхЁр        LD l,0cNTBLP  LD H,PLTAB/256 ;ЄрсышЎр юЄёхўхэш  яхЁхяюыэхэш         ld (hl),0
+;заполняем после maketrees, поверх её буфера        LD l,0cNTBLP  LD H,PLTAB/256 ;таблица отсечения переполнения        ld (hl),0
         inc h        LD (HL),L
         inc h        LD (HL),-1        INC L        JR NZ,cNTBLP        LD A,(MAXV)        ADD A,A        ADD A,A        ADD A,A        LD (MAXV8),A        LD A,(MAXH)        ADD A,A        ADD A,A        ADD A,A        LD (MAXH8),A        LD HL,(curpicwid)        CALL ROUND ;HL=k*A (>=HL)        LD (LSZX),HL        LD DE,7       OR A        SBC HL,DE        LD (LSZXm7),HL        ADD HL,DE        LD DE,(MAXH8)       OR A        SBC HL,DE        LD (pLSMH+1),HL        LD (pLSMH2+1),HL        ADD HL,DE        ADD HL,HL        ADD HL,HL        ADD HL,HL        LD (BLSZ),HL       CALL MAKTS
-;¤ЄюЄ сыюъ=27612
+;этот блок=27612
        
-;ЁхэфхЁ        LD A,(pichgt_inblocks) ;т√ёюЄр ърЁЄшэъш т яюыэюЎхээ√ї сыюърї        LD B,A ;0x16YLOOP   PUSH BC
-;ЁхэфхЁшь ёЄЁюъє шч яюыэюЎхээ√ї сыюъют        LD HL,JPGPAGESTART        LD (LPNT),HL        LD A,(picwid_inblocks) ;°шЁшэр ърЁЄшэъш т яюыэюЎхээ√ї сыюърї        LD B,A ;0x1eXLOP    PUSH BC        CALL rENDLIN ;147235 юфшэ т√чют        LD HL,(LPNT)        LD DE,(MAXH8)        ADD HL,DE        LD (LPNT),HL        POP BC        DJNZ XLOP
-;6 007 979 Ўшъы яю уюЁшчюэЄрыш
-                LD HL,JPGPAGESTART        LD A,(MAXV8) ;т√ёюЄр яюыэюЎхээюую сыюърjpgconv_patch=$+1
-        CALL jpgconvRGB ;яхЁхъюфшЁєхь т bmp ;4 130 590 юфшэ т√чют
-;ёыхфє■∙р  ёЄЁюър шч яюыэюЎхээ√ї сыюъют        POP BC        DJNZ YLOOP
-        pNFX   LD DE,0 ;ърър  яюыєўшырё№ т√ёюЄр ё юъЁєуыхэшхь ттхЁї эр яюыэюЎхээ√щ сыюъ ;0x160       LD HL,(curpichgt) ;0x15c       OR A       SBC HL,DE       RET Z       RET C ;т girl.jpg т√їюф яю CY
-;т√ёюЄр ё юъЁєуыхэшхь ттхЁї яюыєўшырё№ ьхэ№°х Ёхры№эющ??? ¤Єю ъръ??? TODO
+;рендер        LD A,(pichgt_inblocks) ;высота картинки в полноценных блоках        LD B,A ;0x16YLOOP   PUSH BC
+;рендерим строку из полноценных блоков        LD HL,JPGPAGESTART        LD (LPNT),HL        LD A,(picwid_inblocks) ;ширина картинки в полноценных блоках        LD B,A ;0x1eXLOP    PUSH BC        CALL rENDLIN ;147235 один вызов        LD HL,(LPNT)        LD DE,(MAXH8)        ADD HL,DE        LD (LPNT),HL        POP BC        DJNZ XLOP
+;6 007 979 цикл по горизонтали
+                LD HL,JPGPAGESTART        LD A,(MAXV8) ;высота полноценного блокаjpgconv_patch=$+1
+        CALL jpgconvRGB ;перекодируем в bmp ;4 130 590 один вызов
+;следующая строка из полноценных блоков        POP BC        DJNZ YLOOP
+        pNFX   LD DE,0 ;какая получилась высота с округлением вверх на полноценный блок ;0x160       LD HL,(curpichgt) ;0x15c       OR A       SBC HL,DE       RET Z       RET C ;в girl.jpg выход по CY
+;высота с округлением вверх получилась меньше реальной??? это как??? TODO
        
-;ўЄю яЁюшёїюфшЄ яюёых ЁхэфхЁр??? TODO
+;что происходит после рендера??? TODO
               LD HL,JPGPAGESTART        LD (LPNT),HL
 rENDLIN
-        LD HL,VAR+#110        LD (pHCNT+1),HL        LD (pHCNT2+1),HL        LD A,(VAR+#C2)       OR A        JR Z,gOREAD        LD A,(VAR+#120)       OR A       CALL Z,M18E7A        LD HL,VAR+#120        DEC (HL)gOREAD  LD HL,JF44 ;рфЁхё ЄрсышЎ√ шч 4 ЇєэъЎшщ        LD (pSFUNC+1),HL
-                LD IX,SPGTB ;ЄрсышЎр шч 3 ёЄЁрэшЎ 1/2/5 ;TODO єсЁрЄ№        LD HL,SAMTABNXRS    LD A,(IX)        INC IX        LD (pSMPPG+1),A ;ёЄЁрэшўър 1/2/5 ;TODO єсЁрЄ№
-                LD A,(HL) ;ўшёыю ёыю╕т?        INC HL        OR A       RET Z        PUSH IX        LD B,A
-;яхЁхсшЁрхь тёх ёыюш?NXRS1   PUSH BC        LD E,(HL)        INC HL        LD D,(HL)        INC HL       PUSH HL       LD HL,(LPNT)       ADD HL,DE       LD (pLNADR+1),HL       POP HL        LD E,(HL)        INC HL        LD D,(HL)        INC HL       INC DE       LD (pQTBDC+1),DE      DEC DE
+        LD HL,VAR+#110        LD (pHCNT+1),HL        LD (pHCNT2+1),HL        LD A,(VAR+#C2)       OR A        JR Z,gOREAD        LD A,(VAR+#120)       OR A       CALL Z,M18E7A        LD HL,VAR+#120        DEC (HL)gOREAD  LD HL,JF44 ;адрес таблицы из 4 функций        LD (pSFUNC+1),HL
+                LD IX,SPGTB ;таблица из 3 страниц 1/2/5 ;TODO убрать        LD HL,SAMTABNXRS    LD A,(IX)        INC IX        LD (pSMPPG+1),A ;страничка 1/2/5 ;TODO убрать
+                LD A,(HL) ;число слоёв?        INC HL        OR A       RET Z        PUSH IX        LD B,A
+;перебираем все слои?NXRS1   PUSH BC        LD E,(HL)        INC HL        LD D,(HL)        INC HL       PUSH HL       LD HL,(LPNT)       ADD HL,DE       LD (pLNADR+1),HL       POP HL        LD E,(HL)        INC HL        LD D,(HL)        INC HL       INC DE       LD (pQTBDC+1),DE      DEC DE
       dec DE       LD A,D       SUB Qorder/256       LD D,A       LD (pQTB+1),DE        LD E,(HL)        INC HL        LD D,(HL)        INC HL        LD C,(HL)        INC HL        LD B,(HL)        INC HL       PUSH HL       LD HL,#43C;16       ADD HL,DE       LD (pLHTB+2),HL       SBC HL,DE       ADD HL,BC       LD (pHHTB+2),HL       POP HL        LD A,(HL)       ADD A,-1       SBC A,A       AND IN3-IN2        LD (pXSCL+1),A        INC HL        LD A,(HL)        LD (pYSCL+1),A        INC HL        PUSH HL        CALL RDSAMP
-        if !ONEPAGEYUVpSMPPG  LD E,0 ;1/2/5 эюьхЁ ёыю 
+        if !ONEPAGEYUVpSMPPG  LD E,0 ;1/2/5 номер слоя
         CALL SETPG
         endifpLNADR  LD HL,0
         if ONEPAGEYUV        LD E,1
-        CALL SETPG ;TODO єсЁрЄ№
-pSMPPG  LD A,0 ;1/2/5 эюьхЁ ёыю 
-        ;яхЁхёў╕Є HL т чртшёшьюёЄш юЄ эюьхЁр ёыю 
+        CALL SETPG ;TODO убрать
+pSMPPG  LD A,0 ;1/2/5 номер слоя
+        ;пересчёт HL в зависимости от номера слоя
         cp 2
         jr nz,$+6
          set 3,h
          jr $+6
         jr c,$+4
         set 4,h
-        endif pSFUNC  CALL 0 ;Єхъє∙шщ рфЁхё т ЄрсышЎх 4 ЇєэъЎшщ ;яю шфхх фюыцэю с√Є№ M1696A, M166AA, M1675A шыш EMPTY? яхЁхъырф√трхЄ SAMPLE т эєцэ√щ ёыющ ё эєцэ√ь ьрё°ЄрсшЁютрэшхь        POP HL        POP BC        DJNZ NXRS1 ;ёыхфє■∙шщ ёыющ?
+        endif pSFUNC  CALL 0 ;текущий адрес в таблице 4 функций ;по идее должно быть M1696A, M166AA, M1675A или EMPTY? перекладывает SAMPLE в нужный слой с нужным масштабированием        POP HL        POP BC        DJNZ NXRS1 ;следующий слой?
                 EX DE,HL        LD HL,(pHCNT+1)        INC HL
-        inc HL        LD (pHCNT+1),HL        ;LD HL,(pHCNT2+1) ;чрўхь? TODO        ;INC HL
+        inc HL        LD (pHCNT+1),HL        ;LD HL,(pHCNT2+1) ;зачем? TODO        ;INC HL
         ;inc HL        LD (pHCNT2+1),HL        LD HL,(pSFUNC+1)       INC HL
        inc HL
        inc HL        LD (pSFUNC+1),HL        EX DE,HL        POP IX       JP NXRS
-ROUNDm8        ADD A,A        ADD A,A        ADD A,A;3 timesROUND        LD E,A        LD D,0       ADD HL,DE       DEC HL       PUSH HL       CALL QUAHL_DE ;DE=HLmodDE       POP HL       OR A       SBC HL,DE ;HL=k*A (>=HL)        RET ;onceMAKTS        LD HL,(curpicwid)        LD A,(MAXH8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;фы  юъЁєуыхэш  ттхЁї       CALL DIVHL_DE       LD (picwid_inblocks),BC        LD HL,(curpichgt)        LD A,(MAXV8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;фы  юъЁєуыхэш  ттхЁї       CALL DIVHL_DE       LD D,B
-       ld E,C        LD (pichgt_inblocks),DE        LD A,(MAXV8)        CALL MULDE_A        LD (pNFX+1),HL ;ърър  яюыєўшырё№ т√ёюЄр ё юъЁєуыхэшхь эр яюыэюЎхээ√щ сыюъ        LD HL,VAR+#E2        LD A,(CNUM)        LD B,ARCLP1   PUSH BC
+ROUNDm8        ADD A,A        ADD A,A        ADD A,A;3 timesROUND        LD E,A        LD D,0       ADD HL,DE       DEC HL       PUSH HL       CALL QUAHL_DE ;DE=HLmodDE       POP HL       OR A       SBC HL,DE ;HL=k*A (>=HL)        RET ;onceMAKTS        LD HL,(curpicwid)        LD A,(MAXH8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;для округления вверх       CALL DIVHL_DE       LD (picwid_inblocks),BC        LD HL,(curpichgt)        LD A,(MAXV8)       LD E,A       LD D,0       ADD HL,DE ;       DEC HL    ;для округления вверх       CALL DIVHL_DE       LD D,B
+       ld E,C        LD (pichgt_inblocks),DE        LD A,(MAXV8)        CALL MULDE_A        LD (pNFX+1),HL ;какая получилась высота с округлением на полноценный блок        LD HL,VAR+#E2        LD A,(CNUM)        LD B,ARCLP1   PUSH BC
         push HL        CALL GETIXHL       LD B,(IX+2)
        ld C,(IX+3)       LD (IX+#B),B
        ld (IX+#C),C       LD L,(IX+7)
@@ -352,37 +352,37 @@ pSMPPG  LD A,0 ;1/2/5 эюьхЁ ёыю 
        ld (IX+#F),H       LD L,(IX+9)
        ld H,(IX+#A)        LD A,C        CALL ROUNDm8 ;HL=k*A*8 (>=HL)       LD (IX+#10),L
        ld (IX+#11),HpPST    LD HL,SAMTAB        LD A,(IX+#D)        LD (HL),A        INC HL        LD DE,0        LD C,(IX+3)YMTLP   PUSH DE        LD B,(IX+2)XMTLP   PUSH BC        PUSH DE        LD (HL),E        INC HL        LD (HL),D        INC HL       EX DE,HL       LD HL,VAR+#5A        LD A,(IX+4)       ADD A,A       ADD A,L       LD L,A        LDI         LDI         LD A,(IX+5)       ADD A,A       ADD A,0xff&(VAR+#6A)       LD L,A        LDI         LDI         LD A,(IX+6)       ADD A,A       ADD A,0xff&(VAR+#7A)       LD L,A        LDI         LDI         LD A,(MAXH)        LD B,(IX+2)        CALL DIV8       SUB 2        LD (DE),A        INC DE        LD A,(MAXV)        LD B,(IX+3)        CALL DIV8        DEC A        LD (DE),A        INC DE       POP HL        LD BC,8        ADD HL,BC       EX DE,HL       POP BC        DJNZ XMTLP       POP DE       PUSH HL        LD HL,(BLSZ)        ADD HL,DE       EX DE,HL       POP HL        DEC C        JR NZ,YMTLP        LD (pPST+1),HL       EX DE,HL        POP HL        INC HL
-        inc HL        POP BC       DEC B       JP NZ,RCLP1       EX DE,HL       LD (HL),B        RET ;         Y CB CRSPGTB        DB 1,2,5;oncesetsamplescalers        LD A,(VAR+#BE)        OR A        CALL NZ,ERROR        LD A,(VAR+#E0)        LD B,A        LD HL,VAR+#E2        LD IY,JF44+1 ;рфЁхё ЄрсышЎ√ шч 4 ЇєэъЎшщuPFLP        PUSH HL        CALL GETIXHL       LD HL,(MAXH)       LD A,(MAXV)       LD E,A       LD H,(IX+2)       LD D,(IX+3)        LD A,H        CP L        JR NZ,uPF1        LD A,D        CP E       JR NZ,uPF1       LD HL,M1696A ;схч єтхышўхэш        JR uPFOKuPF1    LD A,H        ADD A,A        CP L        JR NZ,uPF2        LD A,D        CP E       JR NZ,uPF2       LD HL,M1675A ;ё єтхышўхэшхь т 2 Ёрчр яю X?       JR uPFOKuPF2    LD A,H        CP L        JR NZ,uPF3        LD A,D        ADD A,A        CP E       JR NZ,uPF3       LD HL,ERROR ;M16810       JR uPFOKuPF3    LD A,L       SUB H       CALL C,ERROR       JR NZ,$-4        LD A,E       SUB D       CALL C,ERROR       JR NZ,$-4        LD HL,M166AA ;ё єтхышўхэшхь т 2 Ёрчр       ;LD A,(cOLPOI) ;0=B/W Ёхцшь яюърчр       ;OR A       ;JR NZ,$+5       ;LD HL,EMPTYuPFOK   LD (IY),L        LD (IY+1),H ;ъырф╕ь рфЁхё ЇєэъЎшш т ЄрсышЎє шч 4 ЇєэъЎшщ        LD DE,3        ADD IY,DE        POP HL        INC HL
+        inc HL        POP BC       DEC B       JP NZ,RCLP1       EX DE,HL       LD (HL),B        RET ;         Y CB CRSPGTB        DB 1,2,5;oncesetsamplescalers        LD A,(VAR+#BE)        OR A        CALL NZ,ERROR        LD A,(VAR+#E0)        LD B,A        LD HL,VAR+#E2        LD IY,JF44+1 ;адрес таблицы из 4 функцийuPFLP        PUSH HL        CALL GETIXHL       LD HL,(MAXH)       LD A,(MAXV)       LD E,A       LD H,(IX+2)       LD D,(IX+3)        LD A,H        CP L        JR NZ,uPF1        LD A,D        CP E       JR NZ,uPF1       LD HL,M1696A ;без увеличения       JR uPFOKuPF1    LD A,H        ADD A,A        CP L        JR NZ,uPF2        LD A,D        CP E       JR NZ,uPF2       LD HL,M1675A ;с увеличением в 2 раза по X?       JR uPFOKuPF2    LD A,H        CP L        JR NZ,uPF3        LD A,D        ADD A,A        CP E       JR NZ,uPF3       LD HL,ERROR ;M16810       JR uPFOKuPF3    LD A,L       SUB H       CALL C,ERROR       JR NZ,$-4        LD A,E       SUB D       CALL C,ERROR       JR NZ,$-4        LD HL,M166AA ;с увеличением в 2 раза       ;LD A,(cOLPOI) ;0=B/W режим показа       ;OR A       ;JR NZ,$+5       ;LD HL,EMPTYuPFOK   LD (IY),L        LD (IY+1),H ;кладём адрес функции в таблицу из 4 функций        LD DE,3        ADD IY,DE        POP HL        INC HL
         inc HL        DJNZ uPFLP        RET ;oncemaketrees;M18E08       LD A,128       LD (BITER),A       LD A,(VAR+#E0)       LD B,A        LD HL,VAR+#E2        LD DE,VAR+#110hUFLP   PUSH BC
         push HL
         push DE        CALL GETIXHL        LD A,(IX+5)        LD HL,VAR+#6A       CALL maketree;m18950       LD A,(PRMODE)       CP #C2        LD A,(IX+6)        LD HL,VAR+#7A       CALL NZ,maketree;m18950        POP DE        XOR A        LD (DE),A        INC DE        POP HL        INC HL
-        inc HL        POP BC        DJNZ hUFLP        ;LD (VAR+#122),A ;TODO чрўхь?        LD A,(VAR+#C2)        LD (VAR+#120),A        RET 
-;яюёЄЁюхэшх фхЁхтр;twicemaketree;m18950
-;_thuffs - тЁхьхээ√щ сєЇхЁ, яюёых ¤Єющ яЁюЎхфєЁ√ эх эєцхэ
-;фхЁхтю ёючфр╕Єё  т Ёрщюэх FREE яю єърчрЄхы■ т [[hl+a*2]]
+        inc HL        POP BC        DJNZ hUFLP        ;LD (VAR+#122),A ;TODO зачем?        LD A,(VAR+#C2)        LD (VAR+#120),A        RET 
+;построение дерева;twicemaketree;m18950
+;_thuffs - временный буфер, после этой процедуры не нужен
+;дерево создаётся в районе FREE по указателю в [[hl+a*2]]
        ADD A,A       LD E,A       LD D,0       ADD HL,DE       LD E,(HL)       INC HL       LD D,(HL)       LD A,D       OR E       CALL Z,ERROR        PUSH IX        EX DE,HL        LD (pHFT),HL        LD DE,_thuffs+#0207
          push de        LD A,1l3      LD B,(HL)        INC HL        INC B        LD (DE),A        INC DE        DJNZ $-2        DEC DE        INC A        CP 17        JR NZ,l3       XOR A       LD (DE),A
          ;jr $         pop ix ;LD IX,_thuffs+#0207       LD HL,_thuffs+#0004       LD D,A
-       ld E,A ;de=0        LD C,(IX);ўЄю-Єю їшЄЁюхl5      LD A,(IX)        CP C        JR NZ,l4        INC IX        LD (HL),D        INC HL        LD (HL),E        INC HL        INC DE        JR l5l4      SLA E        RL D        INC C        LD A,(IX)        OR A        JR NZ,l5pHFT=$+2        LD IY,0        PUSH IY        LD DE,#43C        ADD IY,DE       LD H,A
+       ld E,A ;de=0        LD C,(IX);что-то хитроеl5      LD A,(IX)        CP C        JR NZ,l4        INC IX        LD (HL),D        INC HL        LD (HL),E        INC HL        INC DE        JR l5l4      SLA E        RL D        INC C        LD A,(IX)        OR A        JR NZ,l5pHFT=$+2        LD IY,0        PUSH IY        LD DE,#43C        ADD IY,DE       LD H,A
        ld L,A       LD DE,2+#480        EXX         POP HL        EXX         LD B,16L8      PUSH BC        EXX         LD A,(HL)       INC HL        EXX        OR A        JR Z,L7        LD IX,(pHFT)       ;LD BC,#480       ;ADD IX,BC        ADD IX,DE        LD (IX),H        LD (IX+1),L       PUSH HL        LD IX,(pHFT)        ADD IX,DE        ADD HL,HL        LD BC,_thuffs+#0004        ADD HL,BC        LD B,(HL)        INC HL        LD C,(HL)       LD (IX+#416-#480),B       LD (IX+#417-#480),C       POP HL        LD C,A        LD B,0        ADD HL,BC       PUSH HL        ADD HL,HL        LD BC,_thuffs+#0002        ADD HL,BC        LD B,(HL)        INC HL        LD C,(HL)       POP HL        JR $+5L7      LD BC,-1        LD (IY),B        LD (IY+1),C        INC IY
         inc IY        INC DE
         inc DE        POP BC        DJNZ L8        LD HL,(pHFT)        LD DE,#47C        ADD HL,DE       LD (HL),B        INC HL        LD (HL),#0F        INC HL       DEC B       LD (HL),B        INC HL       LD (HL),B;(+482)=(+482)-(+418)+A+16       LD HL,(pHFT)       LD BC,16       ADD HL,BC       EX DE,HL       LD IX,#482-16       ADD IX,DE       LD A,CREHUF0       LD H,(IX)       LD L,(IX+1)       LD B,(IX+#418-#482)       LD C,(IX+#419-#482)       OR A       SBC HL,BC       ADD HL,DE       LD (IX),H       LD (IX+1),L       INC IX
        inc IX       DEC A       JR NZ,REHUF0        POP IX        RET          
 
-FBMARK        ;CALL RDBYTE ;єцх яЁюўшЄрыш т browser        ;INC A        ;CALL NZ,ERROR2        CALL RDBYTE        CP #D8        CALL NZ,ERROR2        LD IX,VARS+#8A        LD B,#10       LD HL,1ARTLP  LD (IX),H       LD (IX+#10),L        LD (IX+#20),5        INC IX        DJNZ ARTLP        LD (VARS+#50),HL        LD (VARS+#52),HL        DEC L        LD (VARS+#C2),HL       LD A,H        LD (VARS+#4E),A        LD (VARS+#BE),A        CALL PRCMARK1       LD (PRMODE),A ;чэрўхэш  #c2, #c3, ъръшх х∙╕?       CP #C3        CALL NC,ERROR4        CALL jpgreadsizesMRKP3        LD A,(CNUM)       CP 1        JR Z,MRKPOK       CP 3        JR NZ,mRKPC4        LD A,(VARS+#4A)        OR A        RET NZ        LD IX,(VARS+#56)        LD A,1        CP (IX)        CALL NZ,ERROR        INC A        CP (IX+#12)       JR NZ,mRKP4        INC A        CP (IX+#24)        JR Z,MRKPOKmRKP4   LD A,4        CP (IX+#12)        CALL NZ,ERROR        INC A        CP (IX+#24)        CALL NZ,ERROR        DEC A        JR MRKPOKmRKPC4  CP 4        CALL NZ,ERROR        INC AMRKPOK  LD (VARS+#4A),A        RET ;twicePRCMARK1        CALL PRCMARKpMRK    LD A,0        RET MPHT    CALL P_HTABPRCMARK
+FBMARK        ;CALL RDBYTE ;уже прочитали в browser        ;INC A        ;CALL NZ,ERROR2        CALL RDBYTE        CP #D8        CALL NZ,ERROR2        LD IX,VARS+#8A        LD B,#10       LD HL,1ARTLP  LD (IX),H       LD (IX+#10),L        LD (IX+#20),5        INC IX        DJNZ ARTLP        LD (VARS+#50),HL        LD (VARS+#52),HL        DEC L        LD (VARS+#C2),HL       LD A,H        LD (VARS+#4E),A        LD (VARS+#BE),A        CALL PRCMARK1       LD (PRMODE),A ;значения #c2, #c3, какие ещё?       CP #C3        CALL NC,ERROR4        CALL jpgreadsizesMRKP3        LD A,(CNUM)       CP 1        JR Z,MRKPOK       CP 3        JR NZ,mRKPC4        LD A,(VARS+#4A)        OR A        RET NZ        LD IX,(VARS+#56)        LD A,1        CP (IX)        CALL NZ,ERROR        INC A        CP (IX+#12)       JR NZ,mRKP4        INC A        CP (IX+#24)        JR Z,MRKPOKmRKP4   LD A,4        CP (IX+#12)        CALL NZ,ERROR        INC A        CP (IX+#24)        CALL NZ,ERROR        DEC A        JR MRKPOKmRKPC4  CP 4        CALL NZ,ERROR        INC AMRKPOK  LD (VARS+#4A),A        RET ;twicePRCMARK1        CALL PRCMARKpMRK    LD A,0        RET MPHT    CALL P_HTABPRCMARK
         ;jr $       CALL RDBYTE       INC A       JR NZ,$-4       CALL RDBYTE        LD (pMRK+1),A        SUB #C0       JP C,ERROR4        RET Z        SUB 4       RET C        JR Z,MPHT        SUB 8       RET C        JP Z,ERROR ;MPAT        SUB 3       RET C        RET Z        SUB 9        JP C,ERROR4        SUB 3       RET C        JR Z,MPQT        SUB 2        JR Z,M141FE        SUB 3        JR Z,MPAPP        LD A,(pMRK+1)        CALL RDWORDHSBLSBtohl        DEC HL
         dec HLSKPM    CALL RDBYTE        DEC HL        LD A,H        OR L        JR NZ,SKPM        JR PRCMARKMPQT    CALL P_QTAB        JR PRCMARKM141FE        CALL RDWORDHSBLSBtohl       LD A,L       SUB 4       OR H        CALL NZ,ERROR        CALL RDWORDHSBLSBtohl        LD (VAR+#C2),HL        JR PRCMARKMPAPP   CALL P_APP0        JR PRCMARK;onceP_APP0        CALL RDWORDHSBLSBtohl       LD DE,-16       ADD HL,DE        LD (pAPPR+1),HL        CALL RDBYTE        CP "J"       JR NZ,ERR2_        CALL RDBYTE        CP "F"       JR NZ,ERR2_        CALL RDBYTE        CP "I"       JR NZ,ERR2_        CALL RDBYTE        CP "F"ERR2_  JP NZ,ERROR2
 
         CALL RDBYTE        OR A        CALL NZ,ERROR        CALL RDWORDHSBLSBtohl        CALL RDBYTE        LD (VARS+#4E),A        CALL RDWORDHSBLSBtohl        LD (VARS+#50),HL        CALL RDWORDHSBLSBtohl        LD (VARS+#52),HL        CALL RDWORDHSBLSBtohlpAPPR   LD BC,0APPSL   LD A,B        OR C        RET Z        CALL RDBYTE        DEC BC        JR APPSL 
         
 ;onceP_QTAB        CALL RDWORDHSBLSBtohl        DEC HL
-        dec HL ;lenNQTB   PUSH HL        rdbyte        LD B,A        RRCA         RRCA         RRCA         RRCA         AND #0F       LD DE,#41       JR Z,$+4       LD E,#81       PUSH DE       LD C,A        LD A,B        AND #0F        CP 4        CALL NC,ERROR       ADD A,A       LD HL,VARS+#5B       ADD A,L       LD L,A        LD D,(HL)        DEC HL        LD E,(HL)        LD A,D        OR E        JR NZ,QTP       PUSH HL        LD DE,#80        CALL ALLDNP ;эх яюЁЄшЄ bc! hl=єърчрЄхы№ эр т√фхыхээє■ ярь Є№       EX DE,HL       POP HL       LD (HL),E       INC HL       LD (HL),DQTP     EX DE,HL        LD B,#40pQPRC   LD A,C       OR A       CALL NZ,RDBYTE        LD (HL),A        INC HL        rdbyte        LD (HL),A        INC HL        DJNZ pQPRC       POP DE       POP HL       OR A       SBC HL,DE       RET Z       RET C        JR NQTB 
+        dec HL ;lenNQTB   PUSH HL        rdbyte        LD B,A        RRCA         RRCA         RRCA         RRCA         AND #0F       LD DE,#41       JR Z,$+4       LD E,#81       PUSH DE       LD C,A        LD A,B        AND #0F        CP 4        CALL NC,ERROR       ADD A,A       LD HL,VARS+#5B       ADD A,L       LD L,A        LD D,(HL)        DEC HL        LD E,(HL)        LD A,D        OR E        JR NZ,QTP       PUSH HL        LD DE,#80        CALL ALLDNP ;не портит bc! hl=указатель на выделенную память       EX DE,HL       POP HL       LD (HL),E       INC HL       LD (HL),DQTP     EX DE,HL        LD B,#40pQPRC   LD A,C       OR A       CALL NZ,RDBYTE        LD (HL),A        INC HL        rdbyte        LD (HL),A        INC HL        DJNZ pQPRC       POP DE       POP HL       OR A       SBC HL,DE       RET Z       RET C        JR NQTB 
         
-;т√фхыхэшх фшэрьшўхёъющ ярь Єш
-;de=ЁрчьхЁ (Ёхры№эю юўш∙рхЄё  эр 1 срщЄ сюы№°х)
-;out: hl=єърчрЄхы№ эр т√фхыхээє■ ярь Є№
+;выделение динамической памяти
+;de=размер (реально очищается на 1 байт больше)
+;out: hl=указатель на выделенную память
 ALLDNP  
-        if 1==0 ;эх ўшёЄшь
+        if 1==0 ;не чистим
         CALL ALLDN        LD E,0        CALL SETPG        PUSH HL
         push DE
         push BC        LD E,L
@@ -396,15 +396,15 @@ ALLDN        LD (pCLR_),DE
 ;oncejpgreadsizes        CALL RDWORDHSBLSBtohl       PUSH HL ;pFSML        CALL RDBYTE        CP 8        CALL NZ,ERROR        LD (VARS+#48),A        CALL RDWORDHSBLSBtohl        call setpichgt        CALL RDWORDHSBLSBtohl
         call setpicwid
         call reservefirstframeaddr
-        call initframe ;юфшэ Ёрч эр ърЁЄшэъє яюёых setpicwid, setpichgt ;чрърч√трхЄ ярь Є№ яюф ъюэтхЁўхээ√щ ърфЁ
+        call initframe ;один раз на картинку после setpicwid, setpichgt ;заказывает память под конверченный кадр
 
         CALL RDBYTE        LD (CNUM),A        LD B,A        ADD A,A        ADD A,B        ADD A,8       POP HL        CP L        CALL NZ,ERROR        LD HL,(CNUM) ;16bit!!!        ADD HL,HL        LD E,L
-        ld D,H        ADD HL,HL        ADD HL,HL        ADD HL,HL        ADD HL,DE        EX DE,HL        CALL ALLDNP ;hl=єърчрЄхы№ эр т√фхыхээє■ ярь Є№        LD (VARS+#56),HL       PUSH HL       POP IX       LD D,0        LD A,(CNUM)        LD B,AsFLP    LD (IX+1),D        CALL RDBYTE        LD (IX),A        CALL RDBYTE       LD C,A       RRCA        RRCA        RRCA        RRCA        AND #0F       LD (IX+2),A       LD A,C       AND #0F       LD (IX+3),A        CALL RDBYTE        LD (IX+4),A        INC D       PUSH BC       LD BC,18       ADD IX,BC       POP BC        DJNZ sFLP        RET ;onceLBMARK        CALL PRCMARK1       SUB #D9       ;OR A       RET Z       DEC A        CALL NZ,ERROR        CALL STSCAN        SCF         RET 
+        ld D,H        ADD HL,HL        ADD HL,HL        ADD HL,HL        ADD HL,DE        EX DE,HL        CALL ALLDNP ;hl=указатель на выделенную память        LD (VARS+#56),HL       PUSH HL       POP IX       LD D,0        LD A,(CNUM)        LD B,AsFLP    LD (IX+1),D        CALL RDBYTE        LD (IX),A        CALL RDBYTE       LD C,A       RRCA        RRCA        RRCA        RRCA        AND #0F       LD (IX+2),A       LD A,C       AND #0F       LD (IX+3),A        CALL RDBYTE        LD (IX+4),A        INC D       PUSH BC       LD BC,18       ADD IX,BC       POP BC        DJNZ sFLP        RET ;onceLBMARK        CALL PRCMARK1       SUB #D9       ;OR A       RET Z       DEC A        CALL NZ,ERROR        CALL STSCAN        SCF         RET 
 ;onceSTSCAN        LD IX,VARS+#E2        CALL RDWORDHSBLSBtohl        CALL RDBYTE        LD (VARS+#E0),A        LD B,A       ADD A,A       ADD A,3       LD E,A       XOR A       LD D,A       SBC HL,DE       PUSH HL; pSKPSCNsCCLP   PUSH BC        LD HL,(VAR+#56)        LD A,(CNUM)        LD B,A        CALL RDBYTE        LD DE,18sCCLP1  CP (HL)        JR Z,sCCF1        DEC B        CALL Z,ERROR        ADD HL,DE        JR sCCLP1sCCF1  LD (IX),L       LD (IX+1),H       LD E,5        ADD HL,DE        CALL RDBYTE       LD B,A       RRCA        RRCA        RRCA        RRCA        AND #0F       LD (HL),A       LD A,B       INC HL       AND #0F       LD (HL),A        INC IX
         inc IX        POP BC        DJNZ sCCLP       POP BCrdmany LD A,B       OR C       RET Z       DEC BC       rdbyte       JR rdmany ;APPSL 
        
 ;onceP_HTAB        CALL RDWORDHSBLSBtohl        DEC HL
-        dec HLrDHNT  PUSH HL ;pHML        LD DE,#4A2 ;яюф фхЁхтю?        CALL ALLDNP ;hl=єърчрЄхы№ эр т√фхыхээє■ ярь Є№        rdbyte        LD IX,VARS+#6A       CP #10       JR C,$+6        LD IX,VARS+#7A       AND #0F       ADD A,A       LD E,A       LD D,0       ADD IX,DE       LD (IX),L       LD (IX+1),H       PUSH HL       POP IX       LD H,D
+        dec HLrDHNT  PUSH HL ;pHML        LD DE,#4A2 ;под дерево?        CALL ALLDNP ;hl=указатель на выделенную память        rdbyte        LD IX,VARS+#6A       CP #10       JR C,$+6        LD IX,VARS+#7A       AND #0F       ADD A,A       LD E,A       LD D,0       ADD IX,DE       LD (IX),L       LD (IX+1),H       PUSH HL       POP IX       LD H,D
        ld L,D        LD B,#10rDHHD   rdbyte        LD (IX),A        INC IX       LD E,A       ADD HL,DE        DJNZ rDHHD       LD A,H       OR A        CALL NZ,ERROR       LD B,LrDHTB   rdbyte        LD (IX),A        INC IX       DJNZ rDHTB       LD DE,17       ADD HL,DE       EX DE,HL       POP HL       ;OR A       SBC HL,DE        RET Z        CALL M,ERROR        JR rDHNT 
 
 ;5 times;/8 CALLSDIVHL_DE        LD BC,-1        OR AdIV11   SBC HL,DE        INC BC        JR NC,dIV11        RET ;once;/7 CALLSQUAHL_DE
@@ -414,8 +414,8 @@ GETIXHL       LD A,(HL)       LD LX,A       INC HL       LD A,(HL)       LD
 EMPTY        RET  
         
 SETPG
-;e=0/1 чрфр■Є тЁєўэє■, 1/2/5 яю ЄрсышЎх (ЎтхЄют√х ёюёЄрты ■∙шх)
-;ёюїЁрэ хЄ af,bc,de,hl
+;e=0/1 задают вручную, 1/2/5 по таблице (цветовые составляющие)
+;сохраняет af,bc,de,hl
         push af
         push bc
         push hl
@@ -452,7 +452,7 @@ MUL1616        LD HL,0;DE>0;FFFF=*2        LD A,C       DUP 8        RRA 
 ;3 times;/7 CALLSMULDE_A        LD HL,0mUL11   ADD HL,DE        DEC A        JR NZ,mUL11        RET  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-MEMDN   DW FREE ;єърчрЄхы№ эр фшэрьшўхёъє■ ярь Є№
+MEMDN   DW FREE ;указатель на динамическую память
         ;display "MEMDN=",MEMDN 
 JF44    
         JP 0;JF48    
@@ -460,9 +460,9 @@ JF44
         JP 0;JF50    
         JP 0 
 
-CNUM    DW 0 ;ўшёыю ёыю╕т? HSB=0!!!
+CNUM    DW 0 ;число слоёв? HSB=0!!!
 
-picwid_inblocks   DW 0 ;°шЁшэр ърЁЄшэъш т яюыэюЎхээ√ї сыюърїpichgt_inblocks   DW 0 ;т√ёюЄр ърЁЄшэъш т яюыэюЎхээ√ї сыюърїMAXV    DB 0MAXH    DB 0BLSZ    DW 0MAXH8   DW 0 ;°шЁшэр яюыэюЎхээюую сыюър ърЁЄшэъш ;яю шфхх 8 шыш 16MAXV8   DW 0 ;т√ёюЄр яюыэюЎхээюую сыюър ърЁЄшэъш ;яю шфхх 8 шыш 16LPNT    DW 0 ;єърчрЄхы№ эр уЁрЇшъє яюыэюЎхээюую сыюър (ЁрёЄ╕Є юЄ JPGPAGESTART(0xc000) т ёЄЁюъх сыюъют LSZX*MAXV8, яю юъюэўрэшш ёЄЁюъш сыюъют юя Є№ эрўшэрхЄё  ё JPGPAGESTART)LSZX    DW 0 ;°шЁшэр ърЁЄшэъш ё юъЁєуыхэшхь ттхЁї фю яюыэюЎхээюую сыюър
+picwid_inblocks   DW 0 ;ширина картинки в полноценных блокахpichgt_inblocks   DW 0 ;высота картинки в полноценных блокахMAXV    DB 0MAXH    DB 0BLSZ    DW 0MAXH8   DW 0 ;ширина полноценного блока картинки ;по идее 8 или 16MAXV8   DW 0 ;высота полноценного блока картинки ;по идее 8 или 16LPNT    DW 0 ;указатель на графику полноценного блока (растёт от JPGPAGESTART(0xc000) в строке блоков LSZX*MAXV8, по окончании строки блоков опять начинается с JPGPAGESTART)LSZX    DW 0 ;ширина картинки с округлением вверх до полноценного блока
 
         align 256
 R4A0F        DS 16,2        DS 16,4        DS 16,6        DS 16,8        DS 16,10        DS 16,12        DS 16,14        DS 16,16        DS 16,18        DS 16,20        DS 16,22        DS 16,24        DS 16,26        DS 16,28        DS 16,30        DS 16,32       DW 2

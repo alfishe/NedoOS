@@ -66,7 +66,7 @@ nvview_redrawloop
 nvview_mainloop
         ;YIELDGETKEYLOOP
 1;prwindow_waitkey_nokey
-	YIELD ;halt ;хёыш ёфхырЄ№ яЁюёЄю di:rst #38, Єю 1.ёфтшэхь ЄрщьхЁ ш 2.ьюцхь яюЄхЁ Є№ ърфЁютюх яЁхЁ√трэшх, р хёыш схч ei, Єю сєфєЄ уы■ъш
+	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY ;OS_GETKEYNOLANG
         ld a,c ;keynolang
         cp NOKEY
@@ -109,7 +109,7 @@ nvview_mainloop_keyq
         ret
 
 nvview_hexeditor
-        ;pop af ;ёэшьрхь рфЁхё тючтЁрЄр
+        ;pop af ;снимаем адрес возврата
         ld de,#0000
         call nv_setxy
         ld hl,(curtoptextaddr)
@@ -478,7 +478,7 @@ nvview_prevline
         call isbof
          scf
         ret z
-;яхЁхф эрьш ьюцхЄ с√Є№ #0d шыш #0d,#0a шыш эшўхую
+;перед нами может быть #0d или #0d,#0a или ничего
         ld (findprevline_old),hl
         ld (findprevline_oldHSB),a
         
@@ -496,10 +496,10 @@ nvview_prevline
         push hl
         call ahl_to_pgaddr
         set 6,h
-;hl=c000+, ьюцэю єьхэ№°рЄ№
+;hl=c000+, можно уменьшать
 ;bc=number of chars to go != 0
 
-;яхЁхф эрьш ьюцхЄ с√Є№ #0d шыш #0d,#0a шыш эшўхую
+;перед нами может быть #0d или #0d,#0a или ничего
         dec hl
         dec bc
         ld a,b
@@ -523,7 +523,7 @@ nvview_prevline_nolf
         or c
         jr z,nvview_prevlineq
 nvview_prevline_nocr
-;ёхщўрё ь√ эрїюфшьё  яхЁхф ёшьтюыюь ъюэЎр яЁхф√фє∙хщ ёЄЁюъш (эх эр э╕ь)
+;сейчас мы находимся перед символом конца предыдущей строки (не на нём)
 nvview_prevline0
         ld a,(hl)
         cp 0x0d
@@ -539,7 +539,7 @@ nvview_prevline0
         jr nvview_prevlineq
 nvview_prevline_cr
 nvview_prevline_lf
-;ёхщўрё ь√ эрїюфшьё  эр ъюэЎх ёшьтюыр ъюэЎр ёЄЁюъш яхЁхф яЁхф√фє∙хщ
+;сейчас мы находимся на конце символа конца строки перед предыдущей
         inc hl
 nvview_prevlineq
         ex de,hl ;new addr (bits 13..0), bit 14 = overflow
@@ -550,9 +550,9 @@ nvview_prevlineq
         ret nc ;no wrap
 
 findprevline_linewrap
-;ahl = т эрўрых ёЄЁюъш
-;яхЁхф эхщ ьюцхЄ с√Є№ #0d шыш #0d,#0a
-;эрфю яёхтфюэряхўрЄрЄ№ эхёъюы№ъю яёхтфюёЄЁюъ, яюър эх фющф╕ь фю Єхъє∙хщ
+;ahl = в начале строки
+;перед ней может быть #0d или #0d,#0a
+;надо псевдонапечатать несколько псевдострок, пока не дойдём до текущей
 findprevline_linewrap_count0
          push af
          push hl
@@ -572,7 +572,7 @@ findprevline_oldHSB=$+1
         jr c,findprevline_linewrap_count0
         ex de,hl
         ld a,b
-;ahl=эр яёхтфюёЄЁюўъє Ёрэ№°х
+;ahl=на псевдострочку раньше
         ret ;nc
 
 getmaxlinesize
@@ -724,7 +724,7 @@ nvview_prlinespc_all
         ld c,NVVIEW_WID
 nvview_prline_cr
 nvview_prline_lf
-;фюяхўрЄрЄ№ яЁюсхы√ фю ъюэЎр ёЄЁюъш
+;допечатать пробелы до конца строки
         ld a,c
 nvview_prlinespc
         ld b,a

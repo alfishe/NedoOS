@@ -5,7 +5,7 @@ PROGSTART=0x0100
 
 MAXPATH_sz=256;64
 
-;------------------------╤╥╨╙╩╥╙╨█ CP/M --------------------------------------
+;------------------------СТРУКТУРЫ CP/M --------------------------------------
 ;from CP/M (try to avoid use!):
 CMD_PRCHAR=0x05 ;e=char
 CMD_SETDRV=0x0e ;e=drive ;out: a!=0 => not mounted, [l=number of drives]
@@ -57,7 +57,7 @@ CMD_SETFILETIME=0xe4 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
 CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset ;GET POSITION IN FILE
 CMD_SCROLLUP=0xe6 ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
 CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
-CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB ;don't use! ;TODO т√сЁюёшЄ№
+CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
 CMD_SETMAINPAGE=0xe9 ;e=page for 0x0000
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
@@ -80,7 +80,7 @@ CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
 CMD_NEWPAGE=0xfc ;out: a=0 (OK)/!=0 (fail), e=page
 CMD_DELPAGE=0xfd ;e=page ;GIVE SOME PAGE BACK TO THE OS
 CMD_SETSCREEN=0xfe ;e=screen=0..1
-;TODO х∙╕ єёЄрэютъє Єхъє∙хую юсЁрсрЄ√трхьюую ¤ъЁрэр? ш "эрўры ЁшёютрЄ№", "чръюэўшы ЁшёютрЄ№"
+;TODO ещё установку текущего обрабатываемого экрана? и "начал рисовать", "закончил рисовать"
 CMD_GETSCREENPAGES=0xff ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
 
 ;        STRUCT FCB
@@ -92,12 +92,12 @@ FCB_EXTENTNUMBERHI=14 ;EXTENTNUMBERHI  BYTE; ;NU
 FCB_RECORDCOUNT=15 ;RECORDCOUNT     BYTE; ;NU
 FCB_FSIZE=16 ;FSIZE           DWORD;
 FCB_FTIME=20 ;FTIME           WORD;
-FCB_FFSFCB=22 ;FFSFCB          WORD; /* TRDOSFCB шыш FIL */
-FCB_DIRPOS=24 ;DIRPOS          WORD; /* яЁшт чър ъ Єюўъх яюшёър */
+FCB_FFSFCB=22 ;FFSFCB          WORD; /* TRDOSFCB или FIL */
+FCB_DIRPOS=24 ;DIRPOS          WORD; /* привязка к точке поиска */
 ;RESERVED        BLOCK 2 ;reserved (14 in MS-DOS???)
 FCB_RECORDSIZE=28 ;RECORDSIZE      WORD; /* must be 128 */
 FCB_FDATE=30 ;FDATE           WORD
-FCB_FRECORD=32 ;FRECORD         BYTE; /*эюьхЁ чряшёш тэєЄЁш ¤ъёЄхэЄр*/
+FCB_FRECORD=32 ;FRECORD         BYTE; /*номер записи внутри экстента*/
 ;	ENDS
 FCB_sz=33
 
@@ -105,8 +105,8 @@ FATTRIB_DIR=0x10 ;mask for FCB_FATTRIB
 
 ;Application flags:
 
-factive=0 ;0=zombie, 1=scheduled ;TODO хёЄ№ ёююс∙хэш : SET яЁш фюсртыхэшш ёююс∙хэш , RES яЁш тч Єшш яюёыхфэхую ёююс∙хэш 
-;fcritical=4 (ўЄюс√ эх яюЁЄшЄ№ hl)
+factive=0 ;0=zombie, 1=scheduled ;TODO есть сообщения: SET при добавлении сообщения, RES при взятии последнего сообщения
+;fcritical=4 (чтобы не портить hl)
 fgfx=5 ;app can take focus
 ;ffocus=6 ;app has focus (only one can)
 fwaiting=7 ;app is waiting for another app, can't take focus by hand

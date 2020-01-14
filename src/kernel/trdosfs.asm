@@ -6,7 +6,7 @@ dos3d13.
 	;push bc
 	;ex de,hl
         ;call BDOS_preparedepage
-        ;call BDOS_setdepage ;TODO єсЁрЄ№ т фЁрщтхЁ
+        ;call BDOS_setdepage ;TODO убрать в драйвер
 	;ex de,hl
 	;pop bc
 dos3d13nopg.
@@ -37,7 +37,7 @@ trdos_fread
         ;ld de,(dma_addr) ;de=poi to data
         call BDOS_getdta
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO єсЁрЄ№ т фЁрщтхЁ
+        call BDOS_setdepage ;TODO убрать в драйвер
 
         ex de,hl ;hl=poi to data, de=poi to TRDOSFCB
         ld bc,128 ;bc=size
@@ -46,12 +46,12 @@ trdos_fread
          pop bc ;blocksize
         call movedma_addr ;+bc
         ld a,l
-        xor 0x80 ;!=, хёыш яЁюўшЄрыш эх 128 срщЄ
-;a=0: OK (яЁюўшЄрыш 128 срщЄ)
-;a=128: fail (яЁюўшЄрыш 0 срщЄ)
-;a=???: OK (яюёыхфэшщ сыюъ Їрщыр ьхэ№°х 128 срщЄ)
+        xor 0x80 ;!=, если прочитали не 128 байт
+;a=0: OK (прочитали 128 байт)
+;a=128: fail (прочитали 0 байт)
+;a=???: OK (последний блок файла меньше 128 байт)
         ;ld a,(_waseof)
-        ;and 128 ;EOF (ўЄюс√ с√ыю ъръ т FatFS)
+        ;and 128 ;EOF (чтобы было как в FatFS)
         ;xor a ;success
         ret
 trdos_fread_b
@@ -62,7 +62,7 @@ trdos_fread_b
         ld h,b
         ld l,0
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO єсЁрЄ№ т фЁрщтхЁ
+        call BDOS_setdepage ;TODO убрать в драйвер
         pop bc ;Number of bytes to read
         ex de,hl
 ;hl=poi to data
@@ -85,7 +85,7 @@ trdos_fwrite_nbytes
         ;ld de,(dma_addr) ;de=poi to data
         call BDOS_getdta
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO єсЁрЄ№ т фЁрщтхЁ
+        call BDOS_setdepage ;TODO убрать в драйвер
         pop bc
         ex de,hl ;hl=poi to data, de=poi to TRDOSFCB
          push bc ;blocksize
@@ -103,7 +103,7 @@ trdos_fwrite_b
         ld h,b
         ld l,0
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO єсЁрЄ№ т фЁрщтхЁ
+        call BDOS_setdepage ;TODO убрать в драйвер
         pop bc ;Number of bytes to write
         ex de,hl
 ;hl=poi to data
@@ -112,9 +112,9 @@ trdos_fwrite_b
         jp fwrite ;hl=total processed bytes
         
 trdos_searchnext
-;hl=рфЁхё т фшЁхъЄюЁшш
-;de=FCB, ъєфр ъырёЄ№ юяшёрЄхы№
-;out: hl=ёыхфє■∙шщ рфЁхё т фшЁхъЄюЁшш, z=error
+;hl=адрес в директории
+;de=FCB, куда класть описатель
+;out: hl=следующий адрес в директории, z=error
          ld a,' '
          ld (de),a
         ld a,(hl)
@@ -126,7 +126,7 @@ trdos_searchnext
         ldi
         cp 'B'
         jr nz,trdos_searchnext_nobas
-;basic, хёыш start < 0x4100 (ўЄюс√ ьюцэю с√ыю .BAT)
+;basic, если start < 0x4100 (чтобы можно было .BAT)
          inc hl
          ld a,(hl)
          cp 0x41
@@ -174,7 +174,7 @@ trdos_fopen
 trdos_fopen_go
 ;a=drive 0..3
         call nfopen ;out: a (0=success, 0xff=fail), hl=TRDOSFCB
-        pop bc ;bc = pointer to opened FCB (TODO ўхь юЄышўрхЄё  юЄ unopened?)
+        pop bc ;bc = pointer to opened FCB (TODO чем отличается от unopened?)
         or a
         ret nz ;error
         ex de,hl ;de=TRDOSFCB
@@ -192,8 +192,8 @@ trdos_fcreate
         ld c,'w'
         jr trdos_fopen_go
         ;call nfopen
-        ;pop bc ;bc = pointer to opened FCB (TODO ўхь юЄышўрхЄё  юЄ unopened?)
-        ;xor a ;success ;TODO ю°шсър ёючфрэш 
+        ;pop bc ;bc = pointer to opened FCB (TODO чем отличается от unopened?)
+        ;xor a ;success ;TODO ошибка создания
         ;ret
 
 trdos_fclose
@@ -258,7 +258,7 @@ trdos_getfilesizeHSB=$+1
 trdos_seekhandle_bof
 ;b=file handle
         ld h,b
-        call nfopen_reopen ;яхЁхюЄъЁ√трхь Їрщы
+        call nfopen_reopen ;переоткрываем файл
         jr trdos_seekhandle_q
         ;pop hl
         ;pop de
@@ -271,15 +271,15 @@ trdos_seekhandle
 ;                DE:HL = Signed offset
 ;     Results:       A = Error
 ;                DE:HL = New file pointer
-;Єюы№ъю фы  ўЄхэш !!!
+;только для чтения!!!
         push de
         push hl
 
         ld a,e
         or h
         or l
-        jr z,trdos_seekhandle_bof ;хёыш addr=0, Єю яхЁхюЄъЁ√Є№ Їрщы
-;addrm1=addr-1, Є.ъ. тёх єърчрЄхыш ш эюьхЁр т TRDOSFCB яЁш ўЄхэшш ЁрёёўшЄрэ√ эр яЁхф√фє∙шщ срщЄ
+        jr z,trdos_seekhandle_bof ;если addr=0, то переоткрыть файл
+;addrm1=addr-1, т.к. все указатели и номера в TRDOSFCB при чтении рассчитаны на предыдущий байт
         ld a,e
         ld de,1
         ;or a
@@ -301,7 +301,7 @@ trdos_seekhandle
         call findfile
         jr nz,trdos_seekhandle_q
         ;jr $
-;яЁющЄш сыюъш Їрщыр, ёєььшЁютрЄ№ totalsize+=blocksize ш юёЄрэютшЄ№ё  эр Єюь, уфх addrm1 < totalsize+blocksize ((addrm1-totalsize) < blocksize)
+;пройти блоки файла, суммировать totalsize+=blocksize и остановиться на том, где addrm1 < totalsize+blocksize ((addrm1-totalsize) < blocksize)
 ;hl,de=after filename
 trdos_seekhandle_0
         push bc
@@ -337,9 +337,9 @@ trdos_seekhandlesizeHSB=$+1
 ;ahl=addrm1-totalsize
 ;keep h
         ld (trdos_seekhandle_shiftinblock),hl
-;юёЄрэютшЄ№ё  эр Єюь сыюъх, уфх addrm1 < totalsize+blocksize ((addrm1-totalsize) < blocksize)
+;остановиться на том блоке, где addrm1 < totalsize+blocksize ((addrm1-totalsize) < blocksize)
 trdos_seekhandle_length=$+1
-        ld de,0 ;blocksize = length сыюър
+        ld de,0 ;blocksize = length блока
         or a
         sbc hl,de
         sbc a,0
@@ -366,22 +366,22 @@ trdos_seekhandle_q
 trdos_seekhandle_blockfound
         pop hl ;TRDOSFCB
         push hl
-;єёЄрэютшЄ№ TRDOSFCB.remain = addrm1&0xff
+;установить TRDOSFCB.remain = addrm1&0xff
         ld l,TRDOSFCB.remain
         ld (hl),c
-;єёЄрэютшЄ№ TRDOSFCB.firstsector = яхЁт√щ ёхъЄюЁ сыюър
+;установить TRDOSFCB.firstsector = первый сектор блока
 trdos_seekhandle_trsec=$+1
         ld bc,0
         ld l,TRDOSFCB.firstsector
         ld (hl),c
         inc l
         ld (hl),b
-;єёЄрэютшЄ№ TRDOSFCB.lastlen = length сыюър
+;установить TRDOSFCB.lastlen = length блока
         ld l,TRDOSFCB.lastlen
         ld (hl),e
         inc l
         ld (hl),d
-;єёЄрэютшЄ№ TRDOSFCB.secinblk = ўшёыю юёЄрт°шїё  ёхъЄюЁют т сыюъх = ЁрчьхЁ сыюър - (addrm1-totalsize)/256 - 1 (ьюцхЄ яюыєўшЄ№ё  0, хёыш яюёыхфэшщ ёхъЄюЁ сыюър єцх чруЁєцхэ)
+;установить TRDOSFCB.secinblk = число оставшихся секторов в блоке = размер блока - (addrm1-totalsize)/256 - 1 (может получиться 0, если последний сектор блока уже загружен)
         dec de
         inc d
         ld a,d
@@ -391,7 +391,7 @@ trdos_seekhandle_shiftinblock=$+1
         dec a
         ld l,TRDOSFCB.secinblk
         ld (hl),a
-;єёЄрэютшЄ№ TRDOSFCB.cursector = яхЁт√щ ёхъЄюЁ сыюър + (addrm1-totalsize)/256, яЁюўшЄрЄ№ ¤ЄюЄ ёхъЄюЁ ш шэъЁхьхэЄшЁютрЄ№
+;установить TRDOSFCB.cursector = первый сектор блока + (addrm1-totalsize)/256, прочитать этот сектор и инкрементировать
         ld lx,d
         call addsectors
         ld d,b
@@ -406,7 +406,7 @@ trdos_seekhandle_shiftinblock=$+1
         ld (hl),e
         inc l
         ld (hl),d
-;єёЄрэютшЄ№ TRDOSFCB.block = эюьхЁ сыюър + 1(!), Є.х. тёхуфр ёыхфє■∙шщ сыюъ
+;установить TRDOSFCB.block = номер блока + 1(!), т.е. всегда следующий блок
         ld l,TRDOSFCB.block
 trdos_seekhandle_blocknumber=$+1
         ld (hl),0
@@ -523,13 +523,13 @@ parse_filename0.
 	ret z ;jr z,parse_filenameq. ;no extension in string
 	inc de
 	cp '.'
-	jr z,parse_filenamedot. ;ьюцхь єцх с√Є№ эр ЄхЁьшэрЄюЁх
+	jr z,parse_filenamedot. ;можем уже быть на терминаторе
 	ld [hl],a
 	inc hl
 	djnz parse_filename0.
 ;9 bytes in filename, no dot (9th byte goes to extension)
-;тючьюцэю, фышээюх шь , эрфю эрщЄш, ўЄю Ёрэ№°х - Єюўър шыш ЄхЁьшэрЄюЁ
-;ьюцхь єцх с√Є№ эр ЄхЁьшэрЄюЁх шыш эр Єюўъх
+;возможно, длинное имя, надо найти, что раньше - точка или терминатор
+;можем уже быть на терминаторе или на точке
         dec hl
         ld [hl],' '
 parse_filenamelongname0.
@@ -538,7 +538,7 @@ parse_filenamelongname0.
         ret z ;jr z,parse_filenameq. ;a=0
         inc de
         cp '.'
-        jr z,parse_filenameLONGnamedot. ;ьюцхь єцх с√Є№ эр ЄхЁьшэрЄюЁх
+        jr z,parse_filenameLONGnamedot. ;можем уже быть на терминаторе
         jr parse_filenamelongname0.
 parse_filenamedot.
 	inc hl
@@ -566,7 +566,7 @@ parse_filenameq_findterminator.
         ld a,[de]
         or a
         jr nz,parse_filenameq_findterminator.
-;parse_filenameq. ;de эр ЄхЁьшэрЄюЁх
+;parse_filenameq. ;de на терминаторе
         ;pop hl ;buffer
         ret ;a=0
         
@@ -575,4 +575,4 @@ trdos_tempfilename
 trdos_tempfilename2
         ds 11
 BDOS_parse_filename_cpmnamebuf
-        ds 11 ;TODO юс·хфшэшЄ№ ё юфэшь шч tempfilename
+        ds 11 ;TODO объединить с одним из tempfilename

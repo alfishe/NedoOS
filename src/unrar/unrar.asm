@@ -14,13 +14,13 @@ TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
 
-frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;TODO яюўхьє эх ЁрсюЄрхЄ?kb=0;1kINopt=1border=0unexp=1;0masks=1
-retree=1 ;ЁрсюЄрхЄ? (ухэхЁрЄюЁ ъюфр фы  ЁрчуЁхсрэш  фхЁхтр ╒рЇЇьрэр) ;ЄЁхсєхЄё  reld фышэющ 0x0b08 (298*19/2-7)
+frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;TODO почему не работает?kb=0;1kINopt=1border=0unexp=1;0masks=1
+retree=1 ;работает? (генератор кода для разгребания дерева Хаффмана) ;требуется reld длиной 0x0b08 (298*19/2-7)
 ;v1="0";v2="6";v3="1"
 COLOR=7
 CURSORCOLOR=0x38
 
-namln=MAXPATH_sz;100 ;#FATHEEND=#c000;#8000;#C000CODETOP=#7D00 ;ъюэёЄрэЄр-ьръёшьєь,шёяюы№чєхЄё  Єюы№ъю т DISPLAYs8=#7D00;#5B00 ;sysTAB44=#5B00;#7A3D ;#7F00 эхы№ч  (bufstor)stBUF=#7E00;#5800 ;TODO;sec=stBUF      ;dirbufstor=THEEND-256
+namln=MAXPATH_sz;100 ;#FATHEEND=#c000;#8000;#C000CODETOP=#7D00 ;константа-максимум,используется только в DISPLAYs8=#7D00;#5B00 ;sysTAB44=#5B00;#7A3D ;#7F00 нельзя (bufstor)stBUF=#7E00;#5800 ;TODO;sec=stBUF      ;dirbufstor=THEEND-256
         org PROGSTART
 cmd_begin
         ld sp,STACK
@@ -29,9 +29,9 @@ cmd_begin
         OS_SETGFX
         
         ;OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ld hl,PTABL
-        ld b,64 ;TODO ьхэ№°х фы  ATM2
+        ld b,64 ;TODO меньше для ATM2
 getpgs0
         push bc
         push hl
@@ -57,7 +57,7 @@ getpgs0
 ;        or a
 ;        jp nz,openerror
         
-        ;CALL initdepk;Z6629 ;╚═╚╓╚└╦╚╟└╓╚▀ ─┼╧AKEPA
+        ;CALL initdepk;Z6629 ;ИНИЦИАЛИЗАЦИЯ ДЕПAKEPA
 
        call GO
         ;call depack
@@ -70,8 +70,8 @@ quit
 
 copyname83
 ;hl->de
-;фышэр шьхэш эх єтхышўштрхЄё  - ьюцэю яютхЁї?
-;яхЁхъюфшЁєхЄ ёы¤° т яЁ ьющ
+;длина имени не увеличивается - можно поверх?
+;перекодирует слэш в прямой
 copyname83_element
         ld b,8
 copyname83_0
@@ -213,9 +213,9 @@ SAVEBLOCK
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
@@ -224,16 +224,16 @@ strlen
 SAVECREATE
         push iy
 
-;ёЇюЁьшЁютрЄ№ filename 8.3 (тю тёхї ¤ыхьхэЄрї):
+;сформировать filename 8.3 (во всех элементах):
         ld hl,OUTNAM;Z664A
         ld de,OUTNAM;filename        ;call strcopy
-        call copyname83 ;чрюфэю яхЁхъюфшЁєхЄ ёы¤° т /
-;TODO хёыш эхЄ Єръющ фшЁхъЄюЁшш, Єю create directory (эряЁшьхЁ, "md scr/1" схч ёых°р т ъюэЎх):
+        call copyname83 ;заодно перекодирует слэш в /
+;TODO если нет такой директории, то create directory (например, "md scr/1" без слеша в конце):
 
         ld hl,OUTNAM
 SAVECREATE_dir0
-;hl=Єхъє∙шщ ¤ыхьхэЄ яєЄш
-;1.яЁютхЁшЄ№, ўЄю яєЄ№ эх ъюэўшыё  (Є.х. фры№°х хёЄ№ /)
+;hl=текущий элемент пути
+;1.проверить, что путь не кончился (т.е. дальше есть /)
         push hl
         call strlen
         ld b,h
@@ -244,7 +244,7 @@ SAVECREATE_dir0
         jr nz,SAVECREATE_dirq
         dec hl
 ;hl=at slash
-;2.яЁютхЁшЄ№, ўЄю хёЄ№ i-щ ¤ыхьхэЄ яєЄш (фю ёы¤°р) - ўхЁхч CHDIR?
+;2.проверить, что есть i-й элемент пути (до слэша) - через CHDIR?
         ld (hl),0
         push hl
         ld de,pathbuf
@@ -256,8 +256,8 @@ SAVECREATE_dir0
         OS_CHDIR
         pop af
         or a
-        jr z,SAVECREATE_dirnomk ;Єрър  фшЁхъЄюЁш  єцх хёЄ№
-;3.хёыш эхЄ, Єю ёючфрЄ№ 0..i-щ (Єхъє∙шщ яєЄ№ эх ьхэ хь)
+        jr z,SAVECREATE_dirnomk ;такая директория уже есть
+;3.если нет, то создать 0..i-й (текущий путь не меняем)
         ld de,OUTNAM
         OS_MKDIR
 SAVECREATE_dirnomk
@@ -299,7 +299,7 @@ stPG=$+1
         RET 
 
 SAVE
-;size = SAVErmn*256 (ўєЄ№ ьхэ№°х, Є.ъ. єўшЄ√трхь (uNPremn) ъръ ьы.срщЄ)
+;size = SAVErmn*256 (чуть меньше, т.к. учитываем (uNPremn) как мл.байт)
 doSAVEk=$+1
         LD A,0
         CP "N"
@@ -407,7 +407,7 @@ RDBYH
 ;RDBYHend=$+1
         CP DISKBUF/256+(DISKBUFsz/256)
         LD A,(IY)
-         ;ccf ;CY=0: OK ;TODO яхЁхфхырЄ№ эр CY=1 фы▀ ёъюЁюёЄш
+         ;ccf ;CY=0: OK ;TODO переделать на CY=1 длЯ скорости
         RET nz
        PUSH HL
        PUSH DE
@@ -458,7 +458,7 @@ ZIPRDBYHq
          pop hl
        ;ld iy,DISKBUF
        LD A,(IY)
-       scf;or a ;CY=0: OK ;TODO яхЁхфхырЄ№ эр CY=1 фы▀ ёъюЁюёЄш (эєцэю фы  retree, Єрь add a,a:call z,bitik ... bitik:rarrdbyte(CY=1):rla:ret)
+       scf;or a ;CY=0: OK ;TODO переделать на CY=1 длЯ скорости (нужно для retree, там add a,a:call z,bitik ... bitik:rarrdbyte(CY=1):rla:ret)
         RET 
 
 prcrlf
@@ -488,16 +488,16 @@ defaultfilename
         db "0:/rar/acnews47.rar",0
 ;filename
 ;        db "depkfile.fil"
-;        ds filename+256-$ ;фы  фышээ√ї шь╕э
+;        ds filename+256-$ ;для длинных имён
 
-CURFILE DS namln;DESCRIP DS 16 ;TODO єсЁрЄ№CURPOS  DS 4NXTPOS  DS 4
+CURFILE DS namln;DESCRIP DS 16 ;TODO убратьCURPOS  DS 4NXTPOS  DS 4
 ;;;;;32 bytes rar file headerCRCF    DW 0TYPEF   DB 0FLAGF   DW 0SIZEF   DW 0 ;head size
 ;;^^^7 bytes also form archive footerADDSZF  DS 4 ;packed sizeUNPSIZE DS 4HOSTOS DB 0;NUFILECRC DS 4FTIME   DS 4UNPVER  DB 0METHOD  DB 0NAMSIZE DW 0ATTR    DS 4
-;;;;;;;;;;;;;;;;;;;EXPTYP  DW 0 ;expected type&FLAGH;CRCLO   DW 0;YEFLAGH DB 0 ;TWICE;1=depk,0=view;FREXPT  DB 0 ;TWICE;FILEZ   DW 0;usable.FileCountERRORS  DW 0;ErrCount;unknown DW 0;NU=0.ExtrFileknown   DB 0 ;NOT unknown.MDCode;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed;CANTCR  DW 0;NU=0!can't create.UserReject;PASWFLG DW 0 ;(password?).TmpPassword;BEFEXTR DB 0 ;1=фю EXTRACT.FirstFile;GDEIX   DW 0 ;ArcPtrVOLFLG  DB 0;ArcType,2=volSOLFLG  DB 0;SolidType(1)TSTARES DB 0;ArcFormatvolPKSZ DS 4volUNSZ DS 4pieces  DW 0 ;FileCount;zagol   DW 0;1=чруюы єцх эряхўuNPremn DS 4;DestUnpSize IF crcCRCArea DS 4 ENDIF CRCA    DW 0 ;TWICE=BUF32TYPEA  DB 0;NUFLAGA   DW 0SIZEA   DW 0_62ae  DW 0;NU_62b0  DW 0;NU_62b2  DW 0;NU ;UnpCRC  DS 4 ;UnpFileCRC;YCOMM   DB 0;UnpVolume.4timesCOMSYM  DB 0
+;;;;;;;;;;;;;;;;;;;EXPTYP  DW 0 ;expected type&FLAGH;CRCLO   DW 0;YEFLAGH DB 0 ;TWICE;1=depk,0=view;FREXPT  DB 0 ;TWICE;FILEZ   DW 0;usable.FileCountERRORS  DW 0;ErrCount;unknown DW 0;NU=0.ExtrFileknown   DB 0 ;NOT unknown.MDCode;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed;CANTCR  DW 0;NU=0!can't create.UserReject;PASWFLG DW 0 ;(password?).TmpPassword;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile;GDEIX   DW 0 ;ArcPtrVOLFLG  DB 0;ArcType,2=volSOLFLG  DB 0;SolidType(1)TSTARES DB 0;ArcFormatvolPKSZ DS 4volUNSZ DS 4pieces  DW 0 ;FileCount;zagol   DW 0;1=загол уже напечuNPremn DS 4;DestUnpSize IF crcCRCArea DS 4 ENDIF CRCA    DW 0 ;TWICE=BUF32TYPEA  DB 0;NUFLAGA   DW 0SIZEA   DW 0_62ae  DW 0;NU_62b0  DW 0;NU_62b2  DW 0;NU ;UnpCRC  DS 4 ;UnpFileCRC;YCOMM   DB 0;UnpVolume.4timesCOMSYM  DB 0
 ;        align 256;       IFN kb;SECBUF  DS kb*1024;       ELSE ;SECBUF  DS 256;       ENDIF 
         ds 0x2000-$ ;DS -$&3
 bd
-ld      DS 298*4 ;фюыцэю с√Є№ т√°х 0x4000! TODO
+ld      DS 298*4 ;должно быть выше 0x4000! TODO
 dd      DS 48*4
 rd      DS 28*4
 OUTNAM  DS namln ;DestFileNamepathbuf

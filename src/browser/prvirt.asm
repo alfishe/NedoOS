@@ -32,9 +32,9 @@ HREF_Y=$-HREF_BASE
 HREF_X=$-HREF_BASE
         ds 1 ;x
 HREF_ENDY=$-HREF_BASE
-        ds 2 ;endy (TODO ёыюцэє■ ухюьхЄЁш■ ёё√ыюъ ЁрчсштрЄ№ эр ўрёЄш ё юс∙шь яюыхь ёё√ыюъ, эю Ёрчэ√ьш яюы ьш ухюьхЄЁшш)
+        ds 2 ;endy (TODO сложную геометрию ссылок разбивать на части с общим полем ссылок, но разными полями геометрии)
 HREF_ENDX=$-HREF_BASE
-        ds 1 ;endx (TODO ёыюцэє■ ухюьхЄЁш■ ёё√ыюъ ЁрчсштрЄ№ эр ўрёЄш ё юс∙шь яюыхь ёё√ыюъ, эю Ёрчэ√ьш яюы ьш ухюьхЄЁшш)
+        ds 1 ;endx (TODO сложную геометрию ссылок разбивать на части с общим полем ссылок, но разными полями геометрии)
 HREF_VISITED=$-HREF_BASE
         ds 1 ;visited
 HREF_TEXT=$-HREF_BASE
@@ -46,7 +46,7 @@ first2pointer
 first2pointerHSB
         db 0
 
-;ёыхфшЄ№ чр яхЁхяюыэхэшхь STRINGBUFSZ!
+;следить за переполнением STRINGBUFSZ!
 printtostringbuf1
 curstringbuf1addr=$+1
         ld hl,stringbuf1
@@ -62,7 +62,7 @@ curstringbuf1addr=$+1
         ld (curstringbuf1addr),hl
         ret
         
-;ёыхфшЄ№ чр яхЁхяюыэхэшхь STRINGBUFSZ!
+;следить за переполнением STRINGBUFSZ!
 printtostringbuf2
 curstringbuf2addr=$+1
         ld hl,stringbuf2
@@ -411,7 +411,7 @@ utf8flag=$+1
          jr z,prcharvirtual_utf8_d0
          cp 1
          jr z,prcharvirtual_utf8_d0
-         cp 0xe2-0xd0 ;dash = e2 80 94 (эю 80 шёяюы№чєхЄё  т "р" = d1 80)
+         cp 0xe2-0xd0 ;dash = e2 80 94 (но 80 используется в "а" = d1 80)
          jr z,prcharvirtual_utf8_e2
          cp 0xc2-0xd0 ;bullet = c2 b7
          jr z,prcharvirtual_utf8_c2
@@ -426,7 +426,7 @@ prcharvirtual_utf8_add=$+1
          pop af
          ret
 prcharvirtual_utf8_yo
-         ld a,0xb8;'╕'
+         ld a,0xb8;'ё'
         jr prcharvirtual_noutf8
 prcharvirtual_utf8_c2
         ld a,0xb7-0xb7+0xd0

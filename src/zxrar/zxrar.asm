@@ -28,9 +28,9 @@ cmd_begin
         OS_SETGFX
         
         ;OS_GETMAINPAGES
-;dehl=эюьхЁр ёЄЁрэшЎ т 0000,4000,8000,c000
+;dehl=номера страниц в 0000,4000,8000,c000
         ld hl,PTABL
-        ld b,INITIALMEMPAGES;64 ;TODO ьхэ№°х фы  ATM2
+        ld b,INITIALMEMPAGES;64 ;TODO меньше для ATM2
 getpgs0
         push bc
         push hl
@@ -56,9 +56,9 @@ curfilenameaddr=$+1
 ;        or a
 ;        jp nz,openerror
         
-        ;CALL initdepk;Z6629 ;╚═╚╓╚└╦╚╟└╓╚▀ ─┼╧AKEPA
+        ;CALL initdepk;Z6629 ;ИНИЦИАЛИЗАЦИЯ ДЕПAKEPA
 
-        ld a,'c' ;"create" (not "new") ;new яЁютхЁхэю - ЁрсюЄрхЄ
+        ld a,'c' ;"create" (not "new") ;new проверено - работает
        call SELCREA
         ;call depack
         QUIT
@@ -73,8 +73,8 @@ quitoperation
 
 copyname83
 ;hl->de
-;фышэр шьхэш эх єтхышўштрхЄё  - ьюцэю яютхЁї?
-;яхЁхъюфшЁєхЄ ёы¤° т яЁ ьющ
+;длина имени не увеличивается - можно поверх?
+;перекодирует слэш в прямой
 copyname83_element
         ld b,8
 copyname83_0
@@ -310,9 +310,9 @@ SAVEBLOCK_skip
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;ўЄюс√ Єюўэю эрщЄш ЄхЁьшэрЄюЁ
+        ld bc,0 ;чтобы точно найти терминатор
         xor a
-        cpir ;эрщф╕ь юс чрЄхы№эю, хёыш фышэр=0, Єю bc=-1 ш Є.ф.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a
         sbc hl,bc
@@ -322,17 +322,17 @@ SAVECREATE
 ;out: a=1: file exists, add to end
         push iy
 
-;ёЇюЁьшЁютрЄ№ filename 8.3 (тю тёхї ¤ыхьхэЄрї):
+;сформировать filename 8.3 (во всех элементах):
         ld hl,OUTNAM;Z664A
         ld de,OUTNAM;filename
         ;call strcopy
-        call copyname83 ;чрюфэю яхЁхъюфшЁєхЄ ёы¤° т /
-;TODO хёыш эхЄ Єръющ фшЁхъЄюЁшш, Єю create directory (эряЁшьхЁ, "md scr/1" схч ёых°р т ъюэЎх):
+        call copyname83 ;заодно перекодирует слэш в /
+;TODO если нет такой директории, то create directory (например, "md scr/1" без слеша в конце):
 
         ld hl,OUTNAM
 SAVECREATE_dir0
-;hl=Єхъє∙шщ ¤ыхьхэЄ яєЄш
-;1.яЁютхЁшЄ№, ўЄю яєЄ№ эх ъюэўшыё  (Є.х. фры№°х хёЄ№ /)
+;hl=текущий элемент пути
+;1.проверить, что путь не кончился (т.е. дальше есть /)
         push hl
         call strlen
         ld b,h
@@ -343,7 +343,7 @@ SAVECREATE_dir0
         jr nz,SAVECREATE_dirq
         dec hl
 ;hl=at slash
-;2.яЁютхЁшЄ№, ўЄю хёЄ№ i-щ ¤ыхьхэЄ яєЄш (фю ёы¤°р) - ўхЁхч CHDIR?
+;2.проверить, что есть i-й элемент пути (до слэша) - через CHDIR?
         ld (hl),0
         push hl
         ld de,pathbuf
@@ -355,8 +355,8 @@ SAVECREATE_dir0
         OS_CHDIR
         pop af
         or a
-        jr z,SAVECREATE_dirnomk ;Єрър  фшЁхъЄюЁш  єцх хёЄ№
-;3.хёыш эхЄ, Єю ёючфрЄ№ 0..i-щ (Єхъє∙шщ яєЄ№ эх ьхэ хь)
+        jr z,SAVECREATE_dirnomk ;такая директория уже есть
+;3.если нет, то создать 0..i-й (текущий путь не меняем)
         ld de,OUTNAM
         OS_MKDIR
 SAVECREATE_dirnomk
@@ -424,7 +424,7 @@ XBYTE   LD (HL),A
 	 ;inc (hl)
 	 ;inc hl
 	 ;jr z,$-2
-	 ;pop hl ;TODO юсэюты Є№ Єюы№ъю яЁш ёюїЁрэхэшш сыюър, т ъюэЎх ш т эрўрых ёюїЁрэ Є№ эхяюыэ√щ сыюъ?
+	 ;pop hl ;TODO обновлять только при сохранении блока, в конце и в начале сохранять неполный блок?
 
        LD A,H
         INC L
@@ -468,8 +468,8 @@ SAVEREWIND
 
 BYTEsPP_endfile
         if 1==1
-;;хёыш hl<fout+512, Єю яхЁт√х 2 ёхъЄюЁр х∙╕ эх ёюїЁрэхэ√, эрфю ёюїЁрэшЄ№ ёъюы№ъю хёЄ№ ё рфЁхёр fout
-;;шэрўх ёюїЁрэшЄ№ hl-(fout+512) ё рфЁхёр fout+512 (ьюцхЄ с√Є№ 0)
+;;если hl<fout+512, то первые 2 сектора ещё не сохранены, надо сохранить сколько есть с адреса fout
+;;иначе сохранить hl-(fout+512) с адреса fout+512 (может быть 0)
 ;        ld de,fout+512
 ;        ld a,h
 ;        cp d;+(fout+512)/256
@@ -493,7 +493,7 @@ BYTEsPP_endfile
         endif
 
 BYTEsPP_startfile
-;ёюїЁрэшЄ№ шыш яЁюяєёЄшЄ№ яхЁт√х 2 ёхъЄюЁр Їрщыр
+;сохранить или пропустить первые 2 сектора файла
         if 1==1
         LD HL,fout ;begin of fout after sec2
         ld (BYTEsPP_hl),hl
@@ -509,10 +509,10 @@ BYTEsPP_startfile
         ret
 
 BYTsPPPfout
-;т√ч√трхЄё  яхЁхф чръЁ√Єшхь outfile
-;de эх трцэю
-;хёыш hl<fout+512, Єю т√їюф (Єюы№ъю ўЄю ёюїЁрэшыш ёъюы№ъю хёЄ№ < 512, эх эрфю ёюїЁрэ Є№ 512 срщЄ)
-;шэрўх ёюїЁрэшЄ№ 512 срщЄ ё рфЁхёр fout
+;вызывается перед закрытием outfile
+;de не важно
+;если hl<fout+512, то выход (только что сохранили сколько есть < 512, не надо сохранять 512 байт)
+;иначе сохранить 512 байт с адреса fout
         ld a,h
         cp +(fout+512)/256
         ret c
@@ -521,17 +521,17 @@ BYTsPPPfout
         
 BYTEsPP
 ;a=H
-;яхЁт√х 2ёхъ.ёюїЁрэ ■Єё  т яюёы.юўхЁхф№
-;ўЄюс√ єёяхЄ№ шчьхэшЄ№ paklen,CRC
+;первые 2сек.сохраняются в посл.очередь
+;чтобы успеть изменить paklen,CRC
 BYTEsPP_hl=$+1 ;TODO init
         LD HL,fout ;begin of fout (initially) / begin of fount after sec2 (after first save)
 _BYTsPPP
-;hl=fout+512 (юс√ўэю)/fout (т эрўрых ш т ъюэЎх ёюїЁрэхэш )
+;hl=fout+512 (обычно)/fout (в начале и в конце сохранения)
 ;de=(SAVEsz) in sectors
        CP H
         RET C
-        RET Z ;яхЁт√х 2ёхъ.ёюїЁрэ ■Єё  т яюёы.юўхЁхф№ ;т NedoOS шї эрфю ёюїЁрэ Є№ Єюы№ъю яхЁт√щ Ёрч!
-       SUB h;fout/256 ;H ;т NedoOS эх ьюцхь яЁюяєёърЄ№ яхЁт√х 2 ёхъЄюЁр, тё╕ Ёртэю ёюїЁрэ хь
+        RET Z ;первые 2сек.сохраняются в посл.очередь ;в NedoOS их надо сохранять только первый раз!
+       SUB h;fout/256 ;H ;в NedoOS не можем пропускать первые 2 сектора, всё равно сохраняем
         LD B,A ;b=sectors to save
         ADD A,E
         LD E,A
@@ -547,7 +547,7 @@ _BYTsPPP
 ;       OR A
 ;         jr Z,notosav
        ;CALL NZ,DOD
-         ;ld hl,fout ;т NedoOS эх ьюцхь яЁюяєёърЄ№ яхЁт√х 2 ёхъЄюЁр, тё╕ Ёртэю ёюїЁрэ хь
+         ;ld hl,fout ;в NedoOS не можем пропускать первые 2 сектора, всё равно сохраняем
         ld d,b
         ld e,0
 ;de=bytes to save
@@ -589,7 +589,7 @@ _BYTsPPP
 
         
 ;save b bytes from ix
-;TODO ўхЁхч SAVEBLOCK
+;TODO через SAVEBLOCK
 BLOCK
         LD A,(IX)
         INC IX
@@ -612,7 +612,7 @@ bit
         RET 
 
 PKNNpp
-;яш°хь ъюф ╒рЇЇьрэр (т hl ўхЁхч 256: фышэр, HSB, LSB) - яш°хь ёЄрЁ°шх сшЄ√
+;пишем код Хаффмана (в hl через 256: длина, HSB, LSB) - пишем старшие биты
         LD B,(HL)
         INC H
         LD C,(HL)
@@ -641,7 +641,7 @@ RDBYH
 ;RDBYHend=$+1
         CP DISKBUF/256+(DISKBUFsz/256)
         LD A,(IY)
-         ccf ;CY=0: OK ;TODO яхЁхфхырЄ№ эр CY=1 фы▀ ёъюЁюёЄш
+         ccf ;CY=0: OK ;TODO переделать на CY=1 длЯ скорости
         RET nz
        PUSH HL
        PUSH DE
@@ -692,7 +692,7 @@ ZIPRDBYHq
          pop hl
        ;ld iy,DISKBUF
        LD A,(IY)
-       or a ;CY=0: OK ;TODO яхЁхфхырЄ№ эр CY=1 фы▀ ёъюЁюёЄш
+       or a ;CY=0: OK ;TODO переделать на CY=1 длЯ скорости
         RET 
 
 prcrlf
@@ -808,7 +808,7 @@ known   DB 0 ;NOT unknown.MDCode
 ;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed
 ;CANTCR  DW 0;NU=0!can't create.UserReject
 ;PASWFLG DW 0 ;(password?).TmpPassword
-;BEFEXTR DB 0 ;1=фю EXTRACT.FirstFile
+;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile
 ;GDEIX   DW 0 ;ArcPtr
 VOLFLG  DB 0;ArcType,2=vol
 SOLFLG  DB 0;SolidType(1)
@@ -817,7 +817,7 @@ TSTARES DB 0;ArcFormat
 volPKSZ DS 4
 volUNSZ DS 4
 pieces  DW 0 ;FileCount
-;zagol   DW 0;1=чруюы єцх эряхў
+;zagol   DW 0;1=загол уже напеч
 uNPremn DS 4;DestUnpSize
 
  IF crc

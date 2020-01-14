@@ -1,7 +1,7 @@
 ;font48 = 256 aligned vertical 2K
 
         SHAPESPROC shapes_prtext_num
-;печатает на экране hl текст (de), потом число bc, переводит адрес экрана на 8 строк вниз, de на следующий текст (после терминатора)
+;ЇҐз в Ґв ­  нЄа ­Ґ hl вҐЄбв (de), Ї®в®¬ зЁб«® bc, ЇҐаҐў®¤Ёв  ¤аҐб нЄа ­  ­  8 бва®Є ў­Ё§, de ­  б«Ґ¤гойЁ© вҐЄбв (Ї®б«Ґ вҐа¬Ё­ в®а )
         push hl
         push bc
         call shapes_prtext48ega_oncolor
@@ -9,7 +9,7 @@
         ex (sp),hl
         call shapes_prnum
         pop de
-        inc de ;пропускаем терминатор строки
+        inc de ;Їа®ЇгбЄ Ґ¬ вҐа¬Ё­ в®а бва®ЄЁ
         pop hl
         ld bc,40*8
         add hl,bc ;next screen chr line

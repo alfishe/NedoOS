@@ -69,7 +69,7 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         OS_GETSCREENPAGES
-;de=ёЄЁрэшЎ√ 0-ую ¤ъЁрэр (d=ёЄрЁ°р ), hl=ёЄЁрэшЎ√ 1-ую ¤ъЁрэр (h=ёЄрЁ°р )
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         if EGA
         ld a,e
         SETPG32KLOW
@@ -137,16 +137,16 @@ begin
 	jp m,inet_exiterr
         ;endif
 
-;эрўры№эр  ёшэїЁюэшчрЎш         
-;хёыш master - яЁш ¤Єюь яюё√ырхь ётюш ъыртш°ш, хёыш slave - яЁшэшьрхь ъыртш°ш
-;TODO фы  фтєї шуЁюъют:
+;начальная синхронизация        
+;если master - при этом посылаем свои клавиши, если slave - принимаем клавиши
+;TODO для двух игроков:
 ;???
-        if MASTER ;яюё√ырхь ёюс√Єшх ёЄрЁЄр
+        if MASTER ;посылаем событие старта
 
         ld a,1
         call sendbyte
         
-        else ;slave - яЁшэшьрхь ёюс√Єшх ёЄрЁЄр
+        else ;slave - принимаем событие старта
         
 waitbegin0
         call receivebyte
@@ -177,15 +177,15 @@ gameloop
         call delay
         endif
          
-        call getkey ;хёыш master - яЁш ¤Єюь яюё√ырхь ётюш ъыртш°ш, хёыш slave - яЁшэшьрхь ъыртш°ш
+        call getkey ;если master - при этом посылаем свои клавиши, если slave - принимаем клавиши
         
         call shrink
         call shrink2
         call proldheadastail
         call proldheadastail2
-        call move_grow ;bc=эют√х ъююЁфшэрЄ√ уюыют√
+        call move_grow ;bc=новые координаты головы
         push bc
-        call move_grow2 ;bc=эют√х ъююЁфшэрЄ√ уюыют√
+        call move_grow2 ;bc=новые координаты головы
         push bc
         call collide_rabbit_startgrow
         call collide_rabbit_startgrow2
@@ -294,7 +294,7 @@ genrabbit
         inc a
         ld c,a
         
-;genrabbit, хёыш яюярыю эр їтюёЄ:
+;genrabbit, если попало на хвост:
         ;call calcscraddr
         call calcattraddr;_fromscr
         ;de=attraddr (rabbit)
@@ -344,11 +344,11 @@ delay0
         ret
 
 getkey
-;хёыш master - яЁш ¤Єюь яюё√ырхь ётюш ъыртш°ш, хёыш slave - яЁшэшьрхь ъыртш°ш
-;TODO фы  фтєї шуЁюъют:
-;master яюё√ырхЄ ъыртш°ш ш яюыєўрхЄ ёюёЄю эшх (шыш ёяшёюъ ёюс√Єшщ)
-;slave ухэхЁшЁєхЄ ёяшёюъ ёюс√Єшщ ш яхЁшюфшўхёъш шї Ёрёё√ырхЄ эр master
-;яюЄюь юср юсЁрсрЄ√тр■Є ёюс√Єш 
+;если master - при этом посылаем свои клавиши, если slave - принимаем клавиши
+;TODO для двух игроков:
+;master посылает клавиши и получает состояние (или список событий)
+;slave генерирует список событий и периодически их рассылает на master
+;потом оба обрабатывают события
 
         GET_KEY
          cp key_esc
@@ -394,7 +394,7 @@ getkey_ok2
         jr mastergetkeyskipreceive
 waitkey0
          ld a,0xfd
-         in a,(0xfe) ;ъюёЄ√ы№ D=start second player
+         in a,(0xfe) ;костыль D=start second player
          bit 2,a ;D
          jr z,mastergetkeyskipreceiveq
 waitkey_receivebytepatch=$+1
@@ -492,7 +492,7 @@ stopsnake2
         ret
 
 getheadcoords
-        ld hl,(curlength) ;эх ёўшЄр  уюыют√
+        ld hl,(curlength) ;не считая головы
         add hl,hl
         ld bc,snakecoords
         add hl,bc
@@ -503,7 +503,7 @@ getheadcoords
         ret
 
 getheadcoords2
-        ld hl,(curlength2) ;эх ёўшЄр  уюыют√
+        ld hl,(curlength2) ;не считая головы
         add hl,hl
         ld bc,snakecoords2
         add hl,bc
@@ -514,9 +514,9 @@ getheadcoords2
         ret
 
 move_grow
-;out: bc=эют√х ъююЁфшэрЄ√ уюыют√        
+;out: bc=новые координаты головы        
         call getheadcoords
-;bc=ёЄрЁ√х ъююЁфшэрЄ√ уюыют√        
+;bc=старые координаты головы        
         ld a,(curdirection)
         dec c
         cp dir_l
@@ -532,7 +532,7 @@ move_grow
         dec b
         dec b
 moveq
-;bc=эют√х ъююЁфшэрЄ√ уюыют√        
+;bc=новые координаты головы        
         ld (hl),c
         inc hl
         ld (hl),b
@@ -542,9 +542,9 @@ moveq
         ret
         
 move_grow2
-;out: bc=эют√х ъююЁфшэрЄ√ уюыют√        
+;out: bc=новые координаты головы        
         call getheadcoords2
-;bc=ёЄрЁ√х ъююЁфшэрЄ√ уюыют√        
+;bc=старые координаты головы        
         ld a,(curdirection2)
         dec c
         cp dir_l
@@ -560,7 +560,7 @@ move_grow2
         dec b
         dec b
 move2q
-;bc=эют√х ъююЁфшэрЄ√ уюыют√        
+;bc=новые координаты головы        
         ld (hl),c
         inc hl
         ld (hl),b
@@ -678,7 +678,7 @@ cltail2
         jp prtilexy
        
 prtext
-;bc=ъююЁфшэрЄ√
+;bc=координаты
 ;hl=text
         ld a,emptyattr
         ld (curattr),a
@@ -723,7 +723,7 @@ prchar
         
 calcscraddr
 ;bc=yx
-;ьюцэю яюЁЄшЄ№ bc
+;можно портить bc
         if EGA
         ex de,hl
         ld a,c ;x
@@ -765,7 +765,7 @@ calcscraddr
 
 calcattraddr
 ;bc=yx
-;эхы№ч  яюЁЄшЄ№ bc
+;нельзя портить bc
         if EGA
 ;de=attrs + (y&0x18)/4+((y*64)&0xff+x)
         ld a,b
@@ -1210,18 +1210,18 @@ curdirection
 curdirection2
         db dir_r
 curlength
-        dw 0 ;эх ёўшЄр  уюыют√
+        dw 0 ;не считая головы
 curlength2
-        dw 0 ;эх ёўшЄр  уюыют√
+        dw 0 ;не считая головы
 
-        dw 2 ;эр ёыєўрщ тючтЁрЄр чьхш
+        dw 2 ;на случай возврата змеи
 snakecoords
-;y,x (уюыютр т ъюэЎх)
+;y,x (голова в конце)
         ds snakecoordssize
         
-        dw 2 ;эр ёыєўрщ тючтЁрЄр чьхш
+        dw 2 ;на случай возврата змеи
 snakecoords2
-;y,x (уюыютр т ъюэЎх)
+;y,x (голова в конце)
         ;ds snakecoordssize
         
 end

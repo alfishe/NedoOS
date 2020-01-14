@@ -1,44 +1,44 @@
-;тёхую єяЁрты ■∙шї ъюьсшэрЎшщ:
+;всего управляющих комбинаций:
 ;1: nokey
 ;1: redraw
 ;1: Enter
-;12: ЎшЇЁ√ ё CS, cs+Space, cs+Enter
+;12: цифры с CS, cs+Space, cs+Enter
 ;3: ss, cs, sscs
 ;6[5]: ss+Q,+W,+E,+I,[+Enter],+Space
-;38[37] ext+ъэюяър[ъЁюьх extSpace, ъюЄюЁ√щ т√фр╕Єё  тьхёЄх ё extZ]
-;=62[60], ьюцэю єьхёЄшЄ№ т фтр эрсюЁр 0..31, эю Єръ эх яюьхёЄ Єё  ёшьтюы√ 0..31 ъръ ёшьтюы√!
+;38[37] ext+кнопка[кроме extSpace, который выдаётся вместе с extZ]
+;=62[60], можно уместить в два набора 0..31, но так не поместятся символы 0..31 как символы!
 
-;SO, SI чрэшьрЄ№ эхы№ч 
-;єяЁ. ъюф√, эхюсїюфшь√х фы  CP/M, яхЁхфртрЄ№ эхяюёЁхфёЄтхээю (ўхь шї ьхэ№°х, Єхь сюы№°х юЄфхы№э√ї ext+keys ьюцэю яЁхфєёьюЄЁхЄ№)
-;ext+keys яхЁхфртрЄ№ ъръ 0..31 (ўЄюс√ ьюцэю с√ыю ттхёЄш ы■сющ єяЁ.ъюф CP/M, эрфю х∙╕ эхёъюы№ъю ъыртш° фы  юёЄры№э√ї ъюфют)
-;TODO ёшьтюы√ 0..31 яхЁхфртрЄ№ ъръ SO, ъюф+0xb0, SI?
-;TODO юёЄры№э√х єяЁ. ъюф√ (cs+digit, ext+digit, extSpace, extEnt, ssQWE) яхЁхфртрЄ№ ъръ SO, ъюф+0xd0, SI?
+;SO, SI занимать нельзя
+;упр. коды, необходимые для CP/M, передавать непосредственно (чем их меньше, тем больше отдельных ext+keys можно предусмотреть)
+;ext+keys передавать как 0..31 (чтобы можно было ввести любой упр.код CP/M, надо ещё несколько клавиш для остальных кодов)
+;TODO символы 0..31 передавать как SO, код+0xb0, SI?
+;TODO остальные упр. коды (cs+digit, ext+digit, extSpace, extEnt, ssQWE) передавать как SO, код+0xd0, SI?
 
-;00*nokey ^@ NUL - (хёыш GET_KEY сєфхЄ ёрь фхырЄ№ YIELD фю яЁшїюфр ёюс√Єш  ъыртшрЄєЁ√/ь√°ш, р ў№╕ ёюс√Єшх - ъръ-Єю ъюфшЁютрЄ№ т H - Єюуфр эхы№ч  яхЁхфртрЄ№ юЄцрЄшх, Є.ъ. ёюс√Єшх хёЄ№, р ъюф HA=nokey)
-;01       ^A SOH All (WordLeft т TP) -- home
+;00*nokey ^@ NUL - (если GET_KEY будет сам делать YIELD до прихода события клавиатуры/мыши, а чьё событие - как-то кодировать в H - тогда нельзя передавать отжатие, т.к. событие есть, а код HA=nokey)
+;01       ^A SOH All (WordLeft в TP) -- home
 ;02       ^B STX -- left
-;03       ^C ETX Copy (PgDn т TP) (close app т MS-DOS) -- close app
-;04       ^D EOT (Right т TP ш ATM CP/M) -- del
-;05       ^E ENQ (Up т TP) -- end
-;06       ^F ACK Find (WordRight т TP) -- right
-;07       ^G BEL Replace (Del т TP)
-;08 cs0   ^H BS  BS! (BS т MS-DOS) (Up т TPlib) -- bs
-;09 csss  ^I HT  Tab! (Tab т MS-DOS) -- tab
-;0A       ^J LF (Enter т ATM CP/M)
-;0B       ^K VT (Left т TPlib) -- kill line
-;0C       ^L FF  (FindNext т TP) -- update screen
-;0D Enter ^M CR  Enter! (Enter т ATM CP/M ш Notepad++) (Right т TPlib) (Ёхцшь т√фхыхэш  т Win) -- enter
+;03       ^C ETX Copy (PgDn в TP) (close app в MS-DOS) -- close app
+;04       ^D EOT (Right в TP и ATM CP/M) -- del
+;05       ^E ENQ (Up в TP) -- end
+;06       ^F ACK Find (WordRight в TP) -- right
+;07       ^G BEL Replace (Del в TP)
+;08 cs0   ^H BS  BS! (BS в MS-DOS) (Up в TPlib) -- bs
+;09 csss  ^I HT  Tab! (Tab в MS-DOS) -- tab
+;0A       ^J LF (Enter в ATM CP/M)
+;0B       ^K VT (Left в TPlib) -- kill line
+;0C       ^L FF  (FindNext в TP) -- update screen
+;0D Enter ^M CR  Enter! (Enter в ATM CP/M и Notepad++) (Right в TPlib) (режим выделения в Win) -- enter
 ;0E       ^N SO  New -- next
 ;0F       ^O SI  Open -- flush
-;10       ^P DEL Del (Down т TPlib) -- previous
+;10       ^P DEL Del (Down в TPlib) -- previous
 ;11       ^Q DC1 -- verbatim?
-;12       ^R DC2 (PgUp? т TP) -- search back
-;13       ^S DC3 Save (Left т TP ш ATM CP/M) -- search forward
-;14       ^T DC4 (DelWordRight т TP)
+;12       ^R DC2 (PgUp? в TP) -- search back
+;13       ^S DC3 Save (Left в TP и ATM CP/M) -- search forward
+;14       ^T DC4 (DelWordRight в TP)
 ;15       ^U NAK -- numeric?
-;16       ^V SYN Paste (Ins т TP) -- verbatim? pgup?
+;16       ^V SYN Paste (Ins в TP) -- verbatim? pgup?
 ;17       ^W ETB
-;18       ^X CAN Cut (Down т TP) (delete command т ATM CP/M)
+;18       ^X CAN Cut (Down в TP) (delete command в ATM CP/M)
 ;19       ^Y EM  DelLn
 ;1A       ^Z SUB Undo (EOF)
 ;1B csSpc ^[ SUB Esc! (Esc key, Esc symbol)

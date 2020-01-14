@@ -1,4 +1,4 @@
-;TODO яхЁхфхырЄ№ эр handle
+;TODO переделать на handle
 cmd_loadpage
 ;a=loadaddr/256
 ;out: a=error, bc=bytes read
