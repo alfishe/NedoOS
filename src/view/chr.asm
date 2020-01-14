@@ -117,7 +117,7 @@ chrs_left
         
 chrs_right
         inc hl
-;–Ω–µ –¥–≤–∏–≥–∞–µ–º xscroll, –µ—Å–ª–∏ –ø—Ä–∞–≤–∞—è –≥—Ä–∞–Ω–∏—Ü–∞ (=wid-xscroll) –ø–æ–ª—É—á–∞–µ—Ç—Å—è <32
+;≠• §¢®£†•¨ xscroll, •·´® Ø‡†¢†Ô £‡†≠®Ê† (=wid-xscroll) ØÆ´„Á†•‚·Ô <32
         ex de,hl
         ld hl,(chrswid)
         or a
@@ -140,7 +140,7 @@ chrs_up
         
 chrs_down
         inc hl
-;–Ω–µ –¥–≤–∏–≥–∞–µ–º yscroll, –µ—Å–ª–∏ –Ω–∏–∂–Ω—è—è –≥—Ä–∞–Ω–∏—Ü–∞ (=hgt-yscroll) –ø–æ–ª—É—á–∞–µ—Ç—Å—è <24
+;≠• §¢®£†•¨ yscroll, •·´® ≠®¶≠ÔÔ £‡†≠®Ê† (=hgt-yscroll) ØÆ´„Á†•‚·Ô <24
         ex de,hl
         ld hl,(chrshgt)
         or a

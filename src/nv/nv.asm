@@ -438,7 +438,7 @@ nocomfile
         call cmdprNchars
 	ld e,PANELCOLOR
 	call nv_setcolor
-	ld a,'³'
+	ld a,0xb3 ;'|'
         PRCHAR
 	ld de,(nvcolor)
 	call nv_setcolor
@@ -452,7 +452,7 @@ nocomfile
         call prdword
 	ld e,PANELCOLOR
 	call nv_setcolor
-	ld a,'³'
+	ld a,0xb3 ;'|'
         PRCHAR
 	ld de,(nvcolor)
 	call nv_setcolor
@@ -476,12 +476,12 @@ nocomfile
         add hl,hl
         add hl,hl
         ld a,h
-        and #0f
+        and 0x0f
         call prNNcmd ;month
         ld a,'-'
         PRCHAR
         pop af
-        and #1f
+        and 0x1f
         call prNNcmd ;day
         ld a,' '
         PRCHAR
@@ -493,7 +493,7 @@ nocomfile
         rra
         rra
         rra
-        and #1f
+        and 0x1f
         call prNNcmd ;hour
         ld a,':'
         PRCHAR
@@ -502,7 +502,7 @@ nocomfile
         add hl,hl
         add hl,hl
         ld a,h
-        and #3f
+        and 0x3f
         jp prNNcmd ;minute
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

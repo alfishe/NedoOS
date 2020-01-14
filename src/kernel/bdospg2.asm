@@ -5,10 +5,10 @@ sys_newapp
 ;a=id
 ;e=page (0xff = auto)
 ;hl=textcuraddr
-;–≤ —ç—Ç–æ –≤—Ä–µ–º—è –Ω–µ–ª—å–∑—è –ø–µ—Ä–µ–∫–ª—é—á–∞—Ç—å –∑–∞–¥–∞—á–∏, –∏–Ω–∞—á–µ —Å—Ç—Ä—É–∫—Ç—É—Ä—É –º–æ–≥—É—Ç –ø–µ—Ä–µ–∑–∞—Ö–≤–∞—Ç–∏—Ç—å!
+;¢ Ì‚Æ ¢‡•¨Ô ≠•´ÏßÔ Ø•‡•™´ÓÁ†‚Ï ß†§†Á®, ®≠†Á• ·‚‡„™‚„‡„ ¨Æ£„‚ Ø•‡•ß†Â¢†‚®‚Ï!
         ;TODO priority
-        ld (iy+app.id),a ;–∑–∞—Ä–µ–∑–µ—Ä–≤–∏—Ä–æ–≤–∞–ª–∏ –º–µ—Å—Ç–æ
-        ld (iy+app.flags),0 ;–ø–æ–∫–∞ —Ç—É—Ç 0, –∑–∞–¥–∞—á—É –Ω–∏–∫—Ç–æ –Ω–µ –±—É–¥–µ—Ç —Ç—Ä–æ–≥–∞—Ç—å
+        ld (iy+app.id),a ;ß†‡•ß•‡¢®‡Æ¢†´® ¨•·‚Æ
+        ld (iy+app.flags),0 ;ØÆ™† ‚„‚ 0, ß†§†Á„ ≠®™‚Æ ≠• °„§•‚ ‚‡Æ£†‚Ï
         ;ld hl,0xc1c0
         ld (iy+app.textcuraddr),l
         ld (iy+app.textcuraddr+1),h
@@ -57,9 +57,9 @@ sys_newapp
         ld bc,32
         ldir
 
-        ;ld a,SYSDRV ;TODO –±—Ä–∞—Ç—å –¥—Ä–∞–π–≤ –æ—Ç —Ç–µ–∫—É—â–µ–≥–æ app
-        ;call BDOS_setvol_rootdir ;—Ç—Ä–µ–±—É–µ—Ç PGFATFS
-         ld (iy+app.vol),SYSDRV ;TODO –±—Ä–∞—Ç—å –¥—Ä–∞–π–≤ –æ—Ç —Ç–µ–∫—É—â–µ–≥–æ app
+        ;ld a,SYSDRV ;TODO °‡†‚Ï §‡†©¢ Æ‚ ‚•™„È•£Æ app
+        ;call BDOS_setvol_rootdir ;‚‡•°„•‚ PGFATFS
+         ld (iy+app.vol),SYSDRV ;TODO °‡†‚Ï §‡†©¢ Æ‚ ‚•™„È•£Æ app
          ;xor a
          ld (iy+app.dircluster),b;a
          ld (iy+app.dircluster+1),b;a
@@ -84,7 +84,7 @@ makeidle
         call sys_newapp
         ld a,'i' ;idle
         ld (0xc000+COMMANDLINE),a ;command line
-         ;ld (iy+app.vol),SYSDRV ;–µ—Å—Ç—å –≤ —Å–∞–º–æ–º idle
+         ;ld (iy+app.vol),SYSDRV ;•·‚Ï ¢ ·†¨Æ¨ idle
         set factive,(iy+app.flags)
         ret
 

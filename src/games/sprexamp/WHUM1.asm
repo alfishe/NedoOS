@@ -1,7 +1,7 @@
         DEVICE ZXSPECTRUM1024
         org 0xc000
 begin
-prsprqwid=0x0100 ;TODO ╨┐╤А╤П╨╝╨╛ ╨┐╨╛ ╨║╨░╨║╨╛╨╝╤Г-╤В╨╛ ╨░╨┤╤А╨╡╤Б╤Г ╨║╨╛╨┤, ╨░ ╨╜╨╡ jp
+prsprqwid=0x0100 ;TODO прямо по какому-то адресу код, а не jp
         dw human0
         dw human0step
         dw human1

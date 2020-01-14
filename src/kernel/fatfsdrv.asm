@@ -89,7 +89,7 @@ devices_init_noIDEslave
 		ei
      endif
 	else
-    if atm==3 or atm==1
+    if (atm==3) || (atm==1)
 		call SD_INIT
     else
         ld a,1
@@ -654,7 +654,8 @@ outcom_zeroparsSD
 	dec a
 	out (C),a
 	ret  
-zsd_blsize DEFB 0
+zsd_blsize
+        DEFB 0
 ;запись команды чтения/записи с номером сектора в BCDE для карт стандартного размера
 ;при изменяемом размере сектора номер сектора нужно умножать на его размер, для карт
 ;SDHC, мини и микро размер сектора не требует умножения
@@ -1038,10 +1039,17 @@ lda1
 	ret  
 
 GS_INIT
-        call writesecGS
+        call writesecGS ;ЧТО ЭТО???
 	or a
 	ret nz
+        
+         ;ld a,1
+         ;ex af,af' ;не помогает
 	xor a
+         ;ld b,a
+         ;ld c,a
+         ;ld d,a
+         ;ld e,a ;не помогает
 ;b=head
 ;c=cylHI
 ;d=cylLO
