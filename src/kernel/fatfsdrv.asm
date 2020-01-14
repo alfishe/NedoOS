@@ -842,6 +842,9 @@ LL7de6	exa
 	jr readsectorsSD_q
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;NeoGS
+
+    if 1==0 ;~~~~~~~~~
+
 writesectorsGS
         ld a,0x05
 ;b=head
@@ -1063,6 +1066,13 @@ GS_INIT
         ;ld a,1
 	;ret 
 	jr GScp77
+
+    else ;~~~~~~~~~
+    
+        include "portsngs.asm"
+        include "ngssddrv.asm"
+    
+    endif ;~~~~~~~~~
 
 get_fattime:
 ;de=buf
