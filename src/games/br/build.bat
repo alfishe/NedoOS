@@ -61,4 +61,5 @@ sjasmplus --nologo --msg=war --msg=war levels/w~213.a80
 sjasmplus --nologo --msg=war --msg=war levels/w~217end.a80
 sjasmplus --nologo --msg=war --msg=war brfinal.asm
 sjasmplus --nologo --msg=war --msg=war main.asm
+sjasmplus --nologo --msg=war --msg=war WSTART1.asm
 if "%currentdir%"=="" (pause)
