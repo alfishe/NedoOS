@@ -1,13 +1,13 @@
 ;---Развевающийся Флаг
 
-bFLAG	DI
+bFLAG	;DI
 	LD A,1
 	OUT (#FE),A
 	CALL MEM7
 	LD DE,SCR
 	LD HL,CROW+2
 	CALL DELPZ
-	CALL SW7
+	CALL SW7 ;изначально видим ворону
 	LD A,3
 	CALL MEM
 	LD HL,PIKE+2
@@ -20,9 +20,10 @@ bFLAG	DI
 	;Развевающийся Флаг
 fSS1	CALL PRESS
 	PUSH BC
-	EI
-	HALT
-	DI
+	;EI
+	;HALT
+	;DI
+        YIELD
 	CALL MUS+6
 	POP BC
 	DEC BC
@@ -30,7 +31,7 @@ fSS1	CALL PRESS
 	OR B
 	JR NZ,fSS1
 	;
-	CALL SW5
+	CALL SW5 ;теперь видим флаг
 fSS2	CALL PRESS
 	CALL fLDIR
 	XOR A
@@ -83,9 +84,26 @@ fMM4	;
 	LD A,#68
 	JR NZ,fMM22
 	LD A,#78
-fMM22	EI
-	HALT
-	DI
+fMM22	;EI
+	;HALT
+	;DI
+        push af
+        push bc
+        push de
+        push hl
+        exx
+        push bc
+        push de
+        push hl
+        YIELD
+        pop hl
+        pop de
+        pop bc
+        exx
+        pop hl
+        pop de
+        pop bc
+        pop af
 	LD (#5800+124),A
 fEM0	EXX
 	LDI
@@ -327,7 +345,7 @@ PRINT	;печать символа А в поз DE(yx)
 ;---МУЛЬТФИЛЬМ------------
 MUSj45	EQU 43700
 
-bFLICK	DI
+bFLICK	;DI
 	LD A,0;6
 	OUT (#FE),A
 	LD A,R
@@ -731,9 +749,9 @@ LEM1	EXX
 	RET
 
 fINTRP	;обработка im1
-	EI
+	;EI
 	HALT
-	DI
+	;DI
 	CALL MUSj45+6
 	CALL fTITR
 	JP fPRESS
