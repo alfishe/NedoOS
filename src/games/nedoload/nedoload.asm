@@ -1,0 +1,520 @@
+        DEVICE ZXSPECTRUM1024
+        include "../../_sdk/sys_h.asm"
+
+	include "target.asm"
+
+	ifdef EVO
+
+	display "EVO version"
+
+MEM_SLOT0=#37f7
+MEM_SLOT1=#77f7
+MEM_SLOT2=#b7f7
+MEM_SLOT3=#f7f7
+
+INVMASK=#ff
+
+	else
+
+	display "ATM version"
+
+MEM_SLOT0=#3ff7
+MEM_SLOT1=#7ff7
+MEM_SLOT2=#bff7
+MEM_SLOT3=#fff7
+
+INVMASK=#7f
+
+	endif
+
+	ifdef DOS
+	display "DOS support"
+	endif
+
+
+        include "pages.asm"
+NUMBER_OF_PAGES=10
+
+scrbase=0x4000
+sprmaxwid=32
+sprmaxhgt=32
+scrwid=160 ;double pixels
+scrhgt=200
+clswid=40 ;*8
+clshgt=200
+
+STACK=0x4000
+tempsp=0x3f06 ;6 bytes for prspr
+INTSTACK=0x3f00
+
+
+SCR_PAGE1=(1^INVMASK)
+SCR_PAGE3=(3^INVMASK)
+SCR_PAGE5=(5^INVMASK)
+SCR_PAGE7=(7^INVMASK)
+
+SPBUF_PAGE0=(8^INVMASK)
+SPBUF_PAGE1=(9^INVMASK)
+SPBUF_PAGE2=(10^INVMASK)
+SPBUF_PAGE3=(11^INVMASK)
+
+SPTBL_PAGE=(6^INVMASK)
+
+;CC_PAGE0=(12^INVMASK)
+CC_PAGE1=(13^INVMASK)
+CC_PAGE2=(14^INVMASK)
+CC_PAGE3=(12^INVMASK)
+
+SND_PAGE=(0^INVMASK)
+PAL_PAGE=(4^INVMASK)
+GFX_PAGE=(16^INVMASK)
+
+
+IMG_LIST =0xd000;#1000
+
+;смещения в SND_PAGE
+
+AFX_INIT =#4000
+AFX_PLAY =#4003
+AFX_FRAME=#4006
+PT3_INIT =#4009
+PT3_FRAME=#400c
+PT3_MUTE =#400f ;NEW for TFM
+TURBOFMON=#4012 ;NEW for TFM
+
+MUS_COUNT=#49fe
+SMP_COUNT=#49ff
+SFX_COUNT=#5000
+
+MUS_LIST =#4a00
+SMP_LIST =#4d00
+SFX_DATA =#5100
+
+
+
+	macro MDebug color
+	push af
+	ld a,color
+	out (#fe),a
+	pop af
+	endm
+
+	macro MSetShadowScreen
+	ld a,(_screenActive)
+	;ld bc,MEM_SLOT1
+	ld (_memSlot1),a
+	;out (c),a
+        SETPG16K
+
+	;ld b,high MEM_SLOT2
+	sub 4
+	ld (_memSlot2),a
+	;out (c),a
+        SETPG32KLOW
+	endm
+
+	macro MRestoreMemMap012
+	;ld bc,MEM_SLOT3
+	ld a,CC_PAGE3
+	;out (c),a
+        SETPG32KHIGH
+
+	;ld b,high MEM_SLOT1
+	ld a,CC_PAGE1
+	ld (_memSlot1),a
+	;out (c),a
+        SETPG16K
+
+	;ld b,high MEM_SLOT2
+	ld a,CC_PAGE2
+	ld (_memSlot2),a
+	;out (c),a
+        SETPG32KLOW
+	endm
+
+	macro MRestoreMemMap12
+	;ld bc,MEM_SLOT1
+	ld a,CC_PAGE1
+	ld (_memSlot1),a
+	;out (c),a
+        SETPG16K
+
+	;ld b,high MEM_SLOT2
+	ld a,CC_PAGE2
+	ld (_memSlot2),a
+	;out (c),a
+        SETPG32KLOW
+	endm
+
+        org PROGSTART
+begin
+        ld sp,STACK
+
+        ld b,25
+waitcls0
+        push bc
+        YIELD
+        pop bc
+        djnz waitcls0 ;чтобы nv не перехватил фокус при вызове через комстроку
+
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+	ld e,0
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+	ld e,1
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+        
+        OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000,8000,c000
+        ld a,e
+        LD (pgmain4000),A
+        ld a,h
+        LD (pgmain8000),A
+        call setpgsmain40008000 ;записать в curpg...
+
+        OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ld a,l
+        ld (setpgs_scr_low),a
+	xor e
+        ld (setpgs_scr_scrxor),a
+        ld a,h
+         ;ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
+        xor l
+        ld (setpgs_scr_pgxor),a
+        
+	ld de,res_path
+	OS_CHDIR
+
+        ld de,tpages
+        ld b,NUMBER_OF_PAGES
+loadloop0
+        push bc
+        push de
+        ld hl,texfilename
+        call loadpage
+        pop de
+        ld (de),a
+        inc e
+        ld hl,texfilename_pgnumend
+loadloop_nextdigit0
+        dec hl
+        ld a,(hl)
+        inc a
+        cp "0"+10
+        ld (hl),"0"
+        jr z,loadloop_nextdigit0
+        ld (hl),a
+        pop bc
+        djnz loadloop0
+        
+        if 1==0
+        call loadpage
+        ld (pgmusic),a
+        SETPG16K
+        push af
+        call 0x4000 ;init
+        pop af
+        ld hl,0x4005 ;play
+        OS_SETMUSIC
+        endif
+        call setpgsmain40008000
+        
+        call swapimer
+
+        ld de,SUMMERPAL
+        OS_SETPAL
+
+        jr $
+mainloop
+        
+        call changescrpg ;с этого момента можем видеть, что нарисовали
+        
+;waitkey
+        halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
+curkey=$+1
+        ld a,0
+        cp key_esc
+        jr nz,mainloop;waitkey
+        
+        call swapimer
+pgmusic=$+1
+        ld a,0
+        SETPG16K
+        ld hl,0x4008 ;stop
+        OS_SETMUSIC
+        halt
+        QUIT
+
+        ds 0x0200-$
+tpages
+        ds 256 ;pages
+
+loadpage
+;заказывает страничку и грузит туда файл (имя файла в hl)
+;out: hl=после имени файла, a=pg
+        push hl
+        OS_NEWPAGE
+        pop hl
+        ld a,e
+        push af ;pg
+        SETPG32KHIGH
+        push hl
+        ex de,hl
+        OS_OPENHANDLE
+        push bc
+        ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE                
+        pop hl
+        ld b,1
+        xor a
+        cpir ;after 0
+        pop af ;pg
+        ret
+
+SUMMERPAL
+;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+        dw 0xffff,0xfefe,0x1d1d,0x3c3c,0xcdcd,0x4c4c,0x2c2c,0xecec
+        dw 0xfdfd,0x2d2d,0xeeee,0x3f3f,0xafaf,0x5d5d,0x4e4e,0x0c0c
+;RSTPAL
+;        STANDARDPAL
+
+
+texfilename
+texfilename_pgnumend=$+8
+        db "page_000.bin",0
+
+
+setpgsmain40008000
+pgmain4000=$+1
+        ld a,0
+        ld (curpg4000),a
+        SETPG16K
+pgmain8000=$+1
+        ld a,0
+        ld (curpg8000),a
+        SETPG32KLOW
+        ret
+
+setpgsscr40008000_current
+        ld a,(setpgs_scr_scrxor)
+        jr setpgsscr40008000_go
+setpgsscr40008000
+        xor a
+setpgsscr40008000_go
+setpgs_scr_low=$+1
+        xor 0
+        ld (curpg4000),a
+        SETPG16K
+setpgs_scr_pgxor=$+1
+        xor 0
+        ld (curpg8000),a
+        SETPG32KLOW
+        ret
+        
+setpgscrlow4000
+        ld a,(setpgs_scr_low)
+        ld (curpg4000),a
+        SETPG16K
+        ret
+setpgscrhigh4000
+        ld a,(setpgs_scr_low)
+        ld hl,setpgs_scr_pgxor
+        xor (hl)
+        ld (curpg4000),a
+        SETPG16K
+        ret
+
+changescrpg_current
+        ld a,(setpgs_scr_low)
+setpgs_scr_scrxor=$+1
+        xor 0
+        ld (setpgs_scr_low),a
+        ld a,1
+curscrnum=$+1
+        xor 0
+        ld ($-1),a
+        ret
+        
+changescrpg
+        call changescrpg_current
+	ld e,a
+	OS_SETSCREEN
+        ret
+
+setShadowScreen
+	MSetShadowScreen
+	ret
+
+
+
+;более быстрая версия ldir, эффективна при bc>12
+;из статьи на MSX Assembly Page
+;в отличие от нормального ldir портит A и флаги
+
+_fast_ldir
+DOSorTFM=0
+	ifdef DOS
+DOSorTFM=1
+        endif
+	ifdef TFM
+DOSorTFM=1
+        endif
+        
+	if DOSorTFM
+	ldir
+	ret
+	else
+
+	xor a
+	sub c
+	and 63
+	add a,a
+	ld (.jump),a
+.jump=$+1
+	jr nz,.loop
+.loop
+	dup 64
+	ldi
+	edup
+	jp pe,.loop
+	ret
+
+	endif ;~DOSorTFM
+
+	align 256	;#nn00
+tileUpdateXTable
+	dup 8
+	db #01,#02,#04,#08,#10,#20,#40,#80
+	edup
+.x=0
+	dup 64
+	db .x>>3
+.x=.x+1
+	edup
+
+
+	align 256	;#nn00
+colorMaskTable
+	db #00,#09,#12,#1b,#24,#2d,#36,#3f	;для двух пикселей
+	db #c0,#c9,#d2,#db,#e4,#ed,#f6,#ff
+	db #00,#01,#02,#03,#04,#05,#06,#07	;для ink
+	db #40,#41,#42,#43,#44,#45,#46,#47
+	ds 16,0
+	db #00,#08,#10,#18,#20,#28,#30,#38	;для paper
+	db #80,#88,#90,#98,#a0,#a8,#b0,#b8
+
+
+	align 256
+_sprqueue
+_sprqueue0	;формат 4 байта на спрайт, idh,idl,y,x (idh=255 конец списка)
+	ds 256,255
+_sprqueue1
+	ds 256,255
+
+	align 256	;#nn00
+scrTable
+adr=#4000
+	dup 25
+	db low adr
+adr=adr+(40*8)
+	edup
+	align 32	;#nn20
+adr=#4000
+	dup 25
+	db high adr
+adr=adr+(40*8)
+	edup
+
+tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
+	ds 8*25,0
+
+        include "int.asm"
+        include "lib_tiles.asm"
+
+;переменные
+
+musicPage		db 0
+tileOffset		dw 0
+spritesActive	db 0	;1 если вывод спрайтов разрешён
+tileUpdate		db 0	;1 если выводились тайлы, для системы обновления фона под спрайтами
+palTemp			ds 16,0
+keysPrevState	ds 40,0
+	ifdef TFM
+;turboFM			db 0	;!=0 если есть TFM
+	else
+turboSound		db 0	;!=0 если есть TS
+	endif
+
+;экспортируемые переменные
+
+	macro rgb222 b2,g2,r2
+	db (((r2&3)<<4)|((g2&3)<<2)|(b2&3))
+	endm
+
+	align 16
+_palette
+	rgb222(0,0,0)
+	rgb222(0,0,2)
+	rgb222(2,0,0)
+	rgb222(2,0,2)
+	rgb222(0,2,0)
+	rgb222(0,2,2)
+	rgb222(2,2,0)
+	rgb222(2,2,2)
+	rgb222(0,0,0)
+	rgb222(0,0,3)
+	rgb222(3,0,0)
+	rgb222(3,0,3)
+	rgb222(0,3,0)
+	rgb222(0,3,3)
+	rgb222(3,3,0)
+	rgb222(3,3,3)
+
+_memSlot1
+curpg4000
+        db 0
+_memSlot2
+curpg8000
+        db 0
+_memSlot3
+curpgc000
+        db 0
+
+_borderCol	db 0
+_palBright	dw 3<<6
+_palChange	db 1
+_screenActive	db 0	;~1 или ~3
+_mouse_dx	db 0
+_mouse_dy	db 0
+_mouse_x	db 80
+_mouse_y	db 100
+_mouse_cx1	db 0
+_mouse_cx2	db 160
+_mouse_cy1	db 0
+_mouse_cy2	db 200
+_mouse_btn	db 0
+_mouse_prev_dx	db 0
+_mouse_prev_dy	db 0
+_time		dd 0
+
+	export changescrpg
+        
+res_path
+        db "nedoload",0 ;в этом относительном пути будут лежать все загружаемые данные игры
+end        
+
+	display "begin=",begin
+	display "end=",end
+	display "Size ",/d,end-begin," bytes"
+	
+	savebin "nedoload.com",begin,end-begin
+	
+	;LABELSLIST "..\us\user.l"
