@@ -6,4 +6,6 @@ java -jar exp2hConverter.jar nedoload.exp
 copy functions.h nedoload.h
 java -jar exp2hConverter.jar lib_tiles.exp
 copy functions.h lib_tiles.h
+rem java -jar exp2hConverter.jar functions
+del functions.h
 if "%currentdir%"=="" (pause)

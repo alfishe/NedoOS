@@ -229,6 +229,14 @@ loadloop_nextdigit0
         ld de,SUMMERPAL
         OS_SETPAL
 
+        ld c,10
+        ld b,2
+        ld de,0
+;c=X, b=Y, de=tile
+;координаты в тайлах
+        call _draw_tile
+        call _swap_screen
+        
         jr $
 mainloop
         
@@ -342,17 +350,159 @@ curscrnum=$+1
         xor 0
         ld ($-1),a
         ret
-        
+
+;TODO убрать        
 changescrpg
         call changescrpg_current
 	ld e,a
 	OS_SETSCREEN
         ret
 
+
+
 setShadowScreen
 	MSetShadowScreen
 	ret
 
+_clear_screen
+	and 15
+	ld l,a
+	ld h,high colorMaskTable
+	ld e,(hl)
+	call setShadowScreen
+	ld hl,#4000
+	ld (hl),e
+	ld de,#4001
+	ld bc,#7fff
+	call _fast_ldir
+RestoreMemMap12
+	MRestoreMemMap12
+	ret
+
+_swap_screen
+	push ix
+	push iy
+
+	ld a,(spritesActive)
+	or a
+	push af
+	jr z,.noSpr0
+	call setShadowScreen
+	call updateTilesToBuffer
+	call prspr
+.noSpr0
+
+	halt
+
+	ld a,(_screenActive)
+	xor 2
+	ld (_screenActive),a
+	;ld e,a
+
+	;ld a,#10
+	;bit 1,e
+	;jr z,$+4
+	;or #08
+	;ld bc,#7ffd
+	;out (c),a
+         rra
+         and 1 ;+cpl?
+         ld e,a
+	 OS_SETSCREEN
+
+	pop af
+	jr z,.noSpr1
+
+	call setShadowScreen
+	call respr
+	call updateTilesFromBuffer
+	;MRestoreMemMap012
+        call RestoreMemMap3;0
+        call RestoreMemMap12
+.noSpr1
+	pop iy
+	pop ix
+	ret
+
+pal_get_address
+	ld h,0
+	ld l,a
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
+         set 7,h
+         set 6,h
+
+	;ld bc,MEM_SLOT0
+	ld a,PAL_PAGE
+	;out (c),a
+        SETPG32KHIGH
+	ret
+
+
+
+_pal_select
+	call pal_get_address
+
+	ld de,_palette
+	ld bc,16
+	ldir
+
+	ld a,d
+	ld (_palChange),a
+RestoreMemMap3;0
+	;ld bc,MEM_SLOT0
+	ld a,CC_PAGE3;0
+	;out (c),a
+        SETPG32KHIGH
+	ret
+
+
+
+_pal_bright
+	cp 7
+	jr c,.l1
+	ld a,6
+.l1
+	ld h,a
+	ld l,0
+	srl h
+	rr l
+	srl h
+	rr l
+	ld (_palBright),hl
+	ld a,1
+	ld (_palChange),a
+	ret
+
+
+
+_pal_copy
+	push de
+	call pal_get_address
+
+	ld de,palTemp
+	ld bc,16
+	ldir
+
+	;ld bc,MEM_SLOT0
+	ld a,CC_PAGE3;0
+	;out (c),a
+        SETPG32KHIGH
+
+	pop de
+	ld hl,palTemp
+	ld bc,16
+	ldir
+
+	ret
+
+
+prspr
+respr
+        ;TODO
+        ret
 
 
 ;более быстрая версия ldir, эффективна при bc>12
