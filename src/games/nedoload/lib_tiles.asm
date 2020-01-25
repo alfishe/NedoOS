@@ -76,6 +76,7 @@
 	bit 0,d
 	jr z,$+4
 	or #20
+         or 0xc0
 	ld d,a
 	ld a,e
 	and #e0
@@ -363,6 +364,8 @@ _select_image
 	ld e,(hl)	;tile
 	inc l
 	ld d,(hl)
+         ;set 7,d
+         ;set 6,d
 	ld (tileOffset),de
 
 	ld a,CC_PAGE3;0
@@ -409,7 +412,7 @@ _draw_tile
 	ld a,(spritesActive)
 	or a
 	call nz,setTileUpdateMapF
-	
+	MDrawTileGetAddrs
 	MSetShadowScreen
 	MDrawTile
 	MRestoreMemMap012 ;TODO восстанавливать страницы, бывшие до вызова
@@ -747,6 +750,7 @@ _draw_image_noextraq
 	bit 0,d
 	jr z,$+4
 	or #20
+         or 0xc0
 	ld d,a
 	ld a,e
 	and #e0
@@ -760,9 +764,12 @@ _draw_image_noextraq
 	inc e
 	jr nz,.noPageChange
 	inc d
-	bit 6,d
+	;bit 6,d
 	jr z,.noPageChange
-	res 6,d
+	;res 6,d
+         ld a,d
+         or 0xc0
+         ld d,a
 .page=$+1
 	ld a,0
 	dec a

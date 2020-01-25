@@ -229,6 +229,7 @@ loadloop_nextdigit0
         ld de,SUMMERPAL
         OS_SETPAL
 
+        ;jr $
         ld c,10
         ld b,2
         ld de,0
