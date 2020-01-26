@@ -147,15 +147,13 @@ devices_readnopg
 	;call BDOS_setpgstructs
 	call diskgetpars
 devices_read_go_regs
-         ifdef KOEDI
+    ifdef KOEDI
 		di
-         endif
-	call devices_read_go
-         ifdef KOEDI
+		call devices_read_go
 		ei
-         endif
-	ret
+		ret
 devices_read_go
+    endif
 ;hl=buffer
 ;a=drive
 ;bcde=sector
@@ -203,15 +201,13 @@ devices_writenopg
 	;call BDOS_setpgstructs
 	call diskgetpars
 devices_write_go_regs
-         ifdef KOEDI
+    ifdef KOEDI
 		di
-         endif
-	call devices_write_go
-         ifdef KOEDI
+		call devices_write_go
 		ei
-         endif
-	ret
+		ret
 devices_write_go
+    endif
 ;hl=buffer
 ;a=drive
 ;bcde=sector
@@ -305,7 +301,7 @@ readsectorsIDE
 ;d=cylLO
 ;e=sec
 ;a'=count
-        add a,b
+    add a,b
 	ld b,a
 ;b=head
 ;c=cylHI
@@ -463,6 +459,7 @@ nobsy02
         
 readidentIDE
 	;ld bc,0xff00+hddhead ;зачем ff???
+	;потому что неучаствующие биты в единице обычно
         ld bc,hddhead
 	out (C),a
 	ld bc,hddstat
@@ -841,238 +838,10 @@ LL7de6	exa
 	;jp cs_highSD
 	jr readsectorsSD_q
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;NeoGS
-
-    if 1==0 ;~~~~~~~~~
-
-writesectorsGS
-        ld a,0x05
-;b=head
-;c=cylHI
-;d=cylLO
-;e=sec
-;a'=count
-	call setblockparsGS
-	exa  
-	push de
-	push bc
-	ld bc,0x00b3 ;TODO c
-writesectorsGS0
-	exa  
-	out (0xbb),a
-	call loop_errGS
-	ld de,0x0200
-writesecGS200
-	outi  
-	call no_bsyGS
-	dec de
-	ld a,d
-	or e
-	jr nz,writesecGS200
-	exa  
-	dec a
-	jr nz,writesectorsGS0
-;	call wait_bsyGS
-;writesecGS_waitready0
-;	in a,(C)
-;	cp 0x77
-;	jr nz,writesecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
-;	pop bc
-;	pop de
-;	xor a
-;	ret
-	jr readsectorsGSwait77
-        
-readsectorsGS
-        ld a,0x03
-;b=head
-;c=cylHI
-;d=cylLO
-;e=sec
-;a'=count	
-	call setblockparsGS
-	exa  
-	push de
-	push bc
-	ld bc,0x00b3 ;TODO c
-readsectorsGS0
-	exa
-	out (0xbb),a
-	call loop_errGS
-	ld de,0x0200
-readsecGS0
-	call wait_bsyGS
-	ini  
-	dec de
-	ld a,d
-	or e
-	jr nz,readsecGS0
-	exa
-	dec a
-	jr nz,readsectorsGS0
-readsectorsGSwait77
-	call wait_bsyGS
-readsecGS_waitready0
-	in a,(C)
-	cp 0x77
-	jr nz,readsecGS_waitready0 ;??? ожидаем непонятно чего в самом GS
-	pop bc
-	pop de
-	xor a
-	ret  
-
-;??????? not used        
-	;db 0x3e,0x01 ;ld a,0x01
-	;db 0x18,0x01 ;jr LL7e68
-        
-setblockparsGS	
-;a=? 0/3/5
-;b=head
-;c=cylHI
-;d=cylLO
-;e=sec
-;a'=count	
-        out (0xb3),a
-	ld a,0x1e
-	out (0xbb),a
-	call loop_errGS
-	ld a,b
-	out (0xb3),a
-	call no_bsyGS
-	ld a,c
-	out (0xb3),a
-	call no_bsyGS
-	ld a,d
-	out (0xb3),a
-	call no_bsyGS
-	ld a,e
-	out (0xb3),a
-	call no_bsyGS
-	exa  
-	out (0xb3),a
-	exa  
-	;nop  
-	;nop  
-	;nop  
-	jr $+2
-	;nop  
-	;nop  
-	;nop  
-	jr $+2
-	;nop  
-	;nop  
-	;nop  
-	jr $+2
-	ret
-
-;ожидание освобождения устройства
-no_bsyGS
-        in a,(0xbb)
-	rla  
-	jr c,no_bsyGS
-	ret  
-wait_bsyGS
-        in a,(0xbb)
-	rla  
-	jr nc,wait_bsyGS
-	ret  
-loop_errGS
-        in a,(0xbb)
-	rra  
-	jr c,loop_errGS ;c=error???
-	ret
-
-writesecGS
-        ld a,0x80
-	out (0x33),a
-	;ei  
-	halt  
-	halt  
-	;di  
-	ld a,0xf3
-	ld b,0x30 ;количество повторов (*1/50 с)
-	out (0xbb),a
-waitGS0
-        ;ei  
-	halt  
-	;di  
-	dec b
-	jr z,lda1
-	in a,(0xbb)
-	rra  
-	jr c,waitGS0
-	ld bc,0x00b3 ;TODO c
-	in a,(C)
-	ld de,0x0300
-	ld hl,0x5b00
-	out (C),e
-	ld a,0x14
-	out (0xbb),a
-	call loop_errGS
-	out (C),d
-	call no_bsyGS
-	out (C),l
-	call no_bsyGS
-	out (C),h
-	call no_bsyGS
-	ld hl,(0x0006)
-writesecGS300	
-        outi  
-	call no_bsyGS
-	dec de
-	ld a,d
-	or e
-	jr nz,writesecGS300
-	ld hl,0x5b00
-	out (C),l
-	ld a,0x13
-	out (0xbb),a
-	call loop_errGS
-	out (C),h
-	;ei  
-	halt  
-	halt  
-	;di  
-GScp77
-	in a,(0xb3)
-	sub 0x77
-	ret z
-lda1
-	ld a,1
-	ret  
-
-GS_INIT
-        call writesecGS ;ЧТО ЭТО???
-	or a
-	ret nz
-        
-         ;ld a,1
-         ;ex af,af' ;не помогает
-	xor a
-         ;ld b,a
-         ;ld c,a
-         ;ld d,a
-         ;ld e,a ;не помогает
-;b=head
-;c=cylHI
-;d=cylLO
-;e=sec
-;a'=count	
-	call setblockparsGS
-	call wait_bsyGS
-	;in a,(0xb3)
-	;sub 0x77 ;какое-то состояние GS???
-	;ret z
-        ;ld a,1
-	;ret 
-	jr GScp77
-
-    else ;~~~~~~~~~
     
         include "portsngs.asm"
         include "ngssddrv.asm"
     
-    endif ;~~~~~~~~~
 
 get_fattime:
 ;de=buf

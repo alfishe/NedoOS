@@ -71,7 +71,6 @@ SDWRSN2		OUTI
 
 ;—’…… "A" ‘…’‚
 ;SDRDMUL		EX AF,AF'
-	display "readsectorsGS=",$
 readsectorsGS
 		LD A,_DEV_READ
 		CALL COMM2SD
@@ -130,37 +129,32 @@ SDRDSN2		IN A,(GSCOM)
 		POP BC
 		POP DE
 		RET
+	display "GS_INIT=",$
 GS_INIT
         ;jr SD_NO ;savelij13: please fix
 ;‚…€ €‹— €’—
-;GSDCMP		;LD H,CMOS_BYTE_01
-		;ROMCALL READCMOS,ROM_RST82
-		;LD A,L
-		;AND M_ACCESSSDG			;‚…€ €‡…… „‘’“€  SD €’… NEOGS
-		;JR Z,SD_NO			;‚›•„ …‘‹ „‘’“  €’—… ‡€…™…
-		;LD A,(FLAGS_DRV)
-		;AND B_INST_SDG
-		;JR Z,SD_NO			;‚›•„ …‘‹ „€‰‚… … “‘’€‚‹…
-		XOR A
-		OUT (GSDAT),A
-		LD A,0X1D
-		OUT (GSCOM),A
-		IN A,(GSCOM)
-		RRA
-		JR C,$-3
-		IN A,(GSDAT)
-		LD D,A
-		AND 0X0F
-		LD E,A
-		LD A,D
-		AND 0XF0
-		RRCA
-		RRCA
-		RRCA
-		RRCA
-		CP E
-		LD A,1
-		JR NZ,GSDINIT1
+		;XOR A
+		;OUT (GSDAT),A
+		;LD A,0X1D
+		;OUT (GSCOM),A
+		;IN A,(GSCOM)
+		;RRA
+		;JR C,$-3
+		;IN A,(GSDAT)
+		;LD D,A
+		;AND 0X0F
+		;LD E,A
+		;LD A,D
+		;AND 0XF0
+		;RRCA
+		;RRCA
+		;RRCA
+		;RRCA
+		;CP E
+		;LD A,1
+		
+		;JR NZ,GSDINIT1 
+		;­ ¤® ΰ αª®¬¥­β¨ΰ®Ά βμ,   ¨­αβ ««οβ®ΰ ―¥ΰ¥­¥αβ¨ Ά main
 		CALL INSTSDD
 
 ;–€‹‡€– €’—
@@ -229,6 +223,13 @@ INSTSDD		LD A,0X80
 		;EI
 		HALT
 		;DI
+		in a,(GSSTAT)
+		and 0x01
+		jr z,gs_present
+		pop hl
+		ld a,1	;nGS'  ­¥βγ
+		ret
+gs_present
 		LD A,0XF3
 		OUT (GSCOM),A
 		LD B,0X30
