@@ -1,7 +1,7 @@
 @echo off
 echo atm=2 > _sdk\syssets.asm
 echo sys_npages=64 >> _sdk\syssets.asm
-echo NEMOIDE=0 >> _sdk\syssets.asm
+echo NEMOIDE=1 >> _sdk\syssets.asm
 rem NEMOIDE=1 при монтировании виснет с левым символом на экране
 echo SYSDRV=0 >> _sdk\syssets.asm
 echo INETDRV=0x01 >> _sdk\syssets.asm

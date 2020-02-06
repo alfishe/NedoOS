@@ -168,7 +168,43 @@ BA	ADD A,L
 ;ATRADR DEFB #D8
 ;FONT	DEFW WFONT
 
-PCOORD	LD	A,D ;de(0-191,0-255) -- hl
+PCOORD
+;de(0-191,0-255) -- hl
+        if EGA
+        ;jr $
+        ld a,e ;x
+        srl a
+        push bc
+        ld c,d ;y
+        ld b,0
+        ld l,c ;y
+        srl a ;x bit 0
+        ;ld h,0x40/32/2
+        ;jr nc,$+4 ;x bit 0
+        ; ld h,0x80/32/2
+         ld h,b;0
+         rl h
+         inc h ;0x40/32/2 или 0x80/32/2
+        srl a ;x bit 1
+         rl h
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40+scrbase
+         add a,scrbase&0xff
+;a=x/4
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a ;hl=scr ;не может быть переполнения при отрицательных x? maxhl = 199*40 + 127 = 8087
+        pop bc
+        ret
+        
+        else
+	LD	A,D
 	RRCA
 	RRCA
 	RRCA
@@ -191,6 +227,7 @@ PCOORD	LD	A,D ;de(0-191,0-255) -- hl
 	RRA
 	RR	L
 	RET
+        endif ;~EGA
 
 
 SCOORD	LD	A,(SCRADR) ;de(0-23,0-31)--hl

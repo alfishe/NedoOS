@@ -117,9 +117,11 @@ U_ABUF	DEFB 0
 U_BUF	ds 8
 B_ONOF	DEFB 0	;0/1 -выкл/вкл
 
+        if EGA==0
 ;/hLINE
 LMask	DEFB #C3 ;маска линии
 LMask_	DEFB 10
+        endif
 
 ;/TST7[**]
 t7pos	DEFW #2820

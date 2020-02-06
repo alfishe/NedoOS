@@ -133,6 +133,8 @@ ttexpgs
 
         include "w_intv.asm"
         include "wlib1a.asm"
+        include "wlid.asm"
+        include "wmisc_4.asm"
 br_path
 		defb "br",0
 begingo
@@ -580,6 +582,8 @@ IND1MX	DEFB 145	;макc знач
 IND2	DEFB 10
 IND2MX	DEFB 67
 IND2TP	DEFB 2		;тип ind2 (0-none,1-magic,2-%)
+LMask	DEFB #C3 ;маска линии
+LMask_	DEFB 10
         endif
 
 ;;MATHEMATICAL LIBRARY	MATH-ZX
@@ -1504,6 +1508,14 @@ prchar
         jp setpgsmain40008000
         endif ;EGA
 
+       if EGA
+        align 256
+;---выровн табл (H-без изменений)------------
+MLtab1  DEFB #FF,#7F,#3F,#1F,#F,#7,#3,#1        ;для hLINE
+MLtab2  DEFB #80,#C0,#E0,#F0,#F8,#FC,#FE,#FF
+MLtabV  DEFB #80,#40,#20,#10,#8,#4,#2,#1        ;для vLINE
+       endif
+
         if 1==0
         ds 0x3b00-$
         ;include "WHUM1.ast"
@@ -1675,9 +1687,11 @@ exiCRC  POP AF
         DEFS 257,#40
 ;---выровн табл (H-без изменений)------------
 inMAP   DEFW 64,65,1,-63,-64,-65,-1,63 ;for MAKE_R
+        if EGA==0
 MLtab1  DEFB #FF,#7F,#3F,#1F,#F,#7,#3,#1        ;для hLINE
 MLtab2  DEFB #80,#C0,#E0,#F0,#F8,#FC,#FE,#FF
 MLtabV  DEFB #80,#40,#20,#10,#8,#4,#2,#1        ;для vLINE
+        endif
 GO_Ntb  ;смещ по напр y,x;y,x;y,x...  для GO_NXT
         DEFB 0,1, 1,1, 1,0, 1,-1, 0,-1, -1,-1, -1,0, -1,1; (8)
 ;---------------------------------------------
@@ -1702,7 +1716,7 @@ GO_Nt2  ;...продолж для расст =2
         DEFB -2,-4, 4,-2, 2,4, -4,2 ;(68)
 
 ;Main procedures
-        include "wlid.asm"
+        ;include "wlid.asm"
         include "w_io.asm"
         if EGA==0
 WFONT
@@ -2059,7 +2073,7 @@ begin4
         incbin "data/wshum.dat"
 ;вспомогательн. подпрограмы
         nop;CHK_8	 DEFB #EE; [**B] чек-сум7 4:#FF00
-        include "wmisc_4.asm"
+        ;include "wmisc_4.asm"
 end4
 
         page 6 ;---Магич.создания--
