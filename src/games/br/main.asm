@@ -584,7 +584,42 @@ IND2MX	DEFB 67
 IND2TP	DEFB 2		;тип ind2 (0-none,1-magic,2-%)
 LMask	DEFB #C3 ;маска линии
 LMask_	DEFB 10
+timer
+        db 0
         endif
+
+SLOWER	;замедлитель
+	EI
+	XOR A
+	OUT (254),A ;sys установки
+	LD A,(MAXTRY)
+	LD (makTRY),A ;ограничитель числа трассировок
+	;
+        if EGA
+;ждать не менее 5 фреймов с прошлого раза
+oldtimer=$+1
+        ld c,0
+SLOWER0
+        ld a,(timer)
+        ld (oldtimer),a
+        sub c
+        cp 5
+        jr c,SLOWER0
+        else
+        
+	LD A,(SLOW)
+	OR A
+	RET Z
+	LD B,A
+ssLW	LD DE,4000 ;x112000тактов
+ssL1	DEC DE
+	LD A,E
+	OR D
+	JR NZ,ssL1
+	DJNZ ssLW
+        endif
+        
+	RET
 
 ;;MATHEMATICAL LIBRARY	MATH-ZX
 ;MULB2	PUSH	HL	 ;HL*E--DE  (C)

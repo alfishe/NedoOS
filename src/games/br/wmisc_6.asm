@@ -1,24 +1,5 @@
 ;******* ВСПОМОГАТЕЛЬНЫЕ ПОДПРОГРАММЫ ****** page6
 
-SLOWER	;замедлитель
-	EI
-	XOR A
-	OUT (254),A ;sys установки
-	LD A,(MAXTRY)
-	LD (makTRY),A ;ограничитель числа трассировок
-	;
-	LD A,(SLOW)
-	OR A
-	RET Z
-	LD B,A
-ssLW	LD DE,4000 ;x112000тактов
-ssL1	DEC DE
-	LD A,E
-	OR D
-	JR NZ,ssL1
-	DJNZ ssLW
-	RET
-
 TIMER	LD A,(TIC) ;таймер
 	CP 97
 	RET NZ

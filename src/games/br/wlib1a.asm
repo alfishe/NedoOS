@@ -1451,7 +1451,11 @@ O12X12
 	CALL BLITER ;7
 	LD HL,G_IMG1
 	LD (G_IMG),HL
+        if EGA
+        jp SLOWER
+        else
 	RET
+        endif
 
 
 MAPon	XOR A

@@ -182,6 +182,8 @@ INAR0	;Обр прерываний
          ;push af
          ;ld a,(curscrnum_physical)
          ;ld (curscrnum),a
+         ld hl,timer
+         inc (hl)
         endif
         if 1==0 ;???
 	;анти-теневик
