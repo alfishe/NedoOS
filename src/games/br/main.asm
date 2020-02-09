@@ -596,14 +596,14 @@ SLOWER	;замедлитель
 	LD (makTRY),A ;ограничитель числа трассировок
 	;
         if EGA
-;ждать не менее 5 фреймов с прошлого раза
+;ждать не менее 3 фреймов с прошлого раза
 oldtimer=$+1
         ld c,0
 SLOWER0
         ld a,(timer)
         ld (oldtimer),a
         sub c
-        cp 5
+        cp 3;5
         jr c,SLOWER0
         else
         

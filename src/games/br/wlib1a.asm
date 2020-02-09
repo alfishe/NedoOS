@@ -1452,7 +1452,7 @@ O12X12
 	LD HL,G_IMG1
 	LD (G_IMG),HL
         if EGA
-        jp SLOWER
+        jp SLOWER ;TODO не 5 фреймов, а 3?
         else
 	RET
         endif

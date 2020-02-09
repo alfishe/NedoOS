@@ -1436,7 +1436,16 @@ cii1	EX AF,AF
 ;--------------------
 
 colorL	;цвета индикаторов
+        if EGA
+        db 0b00011011
+        db 0b00100100
+        db 0b00110110
+        db 0b00101101
+        db 0b00100100
+        db 0b00010010
+        else
 	DEFB #58,#60,#70,#28,#60,#50
+        endif
 
 outLED	;подсветка 6-и индикаторов
 	;+0-атакует враг
@@ -1446,7 +1455,78 @@ outLED	;подсветка 6-и индикаторов
 	;+4-появился новый человек
 	;+5-наше здание горит
        if EGA
-;TODO!!!
+;TODO обновлять только при изменении
+	LD HL,colorL
+	EXX
+	LD HL,LED ;внутри level!
+        ld de,scrbase+(40*160)+24
+        call outled3
+        ld de,scrbase+(40*176)+24
+outled3
+        call outled1
+        call outled1
+outled1
+        push de
+        push hl
+	LD A,(HL)
+	OR A
+	JR Z,oLL2
+	DEC (HL)
+	AND 1
+	JR Z,oLL2
+	EXX
+	LD A,(HL) ;цвет индикатора
+	EXX
+	JR oLL1
+oLL2	LD A,0b00001001 ;#8
+oLL1	ld (outledcolor),a
+        ex de,hl
+        call setpgsscr40008000
+        ld c,8
+outledcols0
+        ld de,40
+        ld b,16
+outledcol0
+        ld a,(hl)
+        or a
+        jr z,outledcol0_skip
+        ;выделим нужные пиксели белым
+        cp 8
+        jr c,$+4
+        or 0x38
+        ld (hl),a
+        and 7
+        ld a,(hl)
+        jr z,$+4
+        or 7
+outledcolor=$+1
+        and 0 ;наложим нужный цвет
+        ld (hl),a
+outledcol0_skip
+        add hl,de
+        djnz outledcol0
+        ld de,0x4000-(16*40)
+        ld a,0x9f;0xa0
+        cp h
+        adc hl,de
+        jp pe,outledcol0_columnq ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+outledcol0_columnq
+        dec c
+        jr nz,outledcols0
+        pop hl
+        pop de
+        inc hl
+        inc de
+        inc de
+        exx
+        inc hl
+        exx
+        jp setpgsmain40008000
+
        else
 	LD HL,colorL
 	EXX
