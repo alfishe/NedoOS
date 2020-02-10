@@ -6,6 +6,15 @@ void OS_CLS(unsigned char color);
 void OS_SETCOLOR(unsigned char color);
 void OS_PRATTR(unsigned char attribute);
 void OS_SETXY(unsigned char x,unsigned char y);
+void OS_SETMUSIC(void (*play)(void),unsigned char pg);
+
+typedef struct {
+	unsigned char window_3;
+	unsigned char window_2;
+	unsigned char window_1;
+	unsigned char window_0;
+}APP_PAGES;
+APP_PAGES OS_GETMAINPAGES(void);
 
 void OS_SCROLLUP(unsigned int xy, unsigned int wh);
 unsigned int _low_level_get(void);
