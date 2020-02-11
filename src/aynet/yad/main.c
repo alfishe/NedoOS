@@ -4,8 +4,15 @@
 #include <oscalls.h>
 #include <stdlib.h>
 
-no_init unsigned char buf_rx[8*1024+1];  
-no_init APP_PAGES app_pages;
+extern unsigned char 	buf_rx[6*1024];  
+extern unsigned char *	ptr_in_rx; 
+extern unsigned char *	ptr_out_rx;
+extern unsigned char	u32_intcount[4];
+extern unsigned char	flag_play;
+extern unsigned char 	msg_hello[9];
+extern unsigned char 	msg_framesync[5];
+
+no_init union APP_PAGES app_pages;
 no_init	int 			len;
 
 SOCKET 					cmds = 0;
@@ -15,6 +22,11 @@ char					grmod =0;
 no_init struct sockaddr_in web_ia;
 
 no_init unsigned char * ptr;
+
+void int_play(void);
+void int_null(void);
+
+
 
 void exit(int e){
 	if(cmds)closesocket(cmds,0);
@@ -30,14 +42,15 @@ void exit(int e){
 
 void initMCU(void){
 	YIELD();
-	app_pages = OS_GETMAINPAGES();
+	app_pages.l = OS_GETMAINPAGES();
+	//OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 	//OS_SETGFX(6);
 }
 
 void putserr(const char * s1,const char * s2){
-	if(grmod==0){
+	if(grmod == 0){
 		OS_SETGFX(6);
-		grmod=1;
+		grmod = 1;
 	}
 	printf("Error: %s %s!",s1,s2);
 }
@@ -47,7 +60,9 @@ C_task main (int argc, char *argv[])
 {
 	int l=1;
     initMCU();
-	web_ia.sin_port=htons(0x4159);
+	ptr_out_rx =  buf_rx;
+	ptr_in_rx = buf_rx + sizeof(buf_rx);
+	web_ia.sin_port=htons(16729); //'AY' chars
 	while(l!=argc){
 		char * p=argv[l];
 		if(p[0]!='-') exit((int)"Wrong parameter");
@@ -70,6 +85,7 @@ C_task main (int argc, char *argv[])
 			if((datasoc<=0) && (errno!=ERR_EAGAIN))datasoc=accept(cmds,0,0);
 			if(datasoc<0){
 				datasoc=0;
+				OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 				if(errno!=ERR_EAGAIN){
 					closesocket(cmds,0);
 					cmds=socket(AF_INET,SOCK_STREAM,0);
@@ -79,20 +95,28 @@ C_task main (int argc, char *argv[])
 					YIELD();
 				}
 				continue;
+			}else{//to do else
+				send(datasoc, msg_hello, 9, 0);
+				OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 			}
+		}
+		if(flag_play){
+			send(datasoc, msg_framesync, 5, 0);
+			flag_play = 0;
 		}
 		l=recv(datasoc,buf_rx,sizeof(buf_rx),0);
 		if(l<0){
 			closesocket(datasoc,0);
+			OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 			datasoc=0;
-			//ka=0;
 			continue;
 		}else if(l==0){
 			YIELD();
 			continue;
+		}else{//echo
+			send(datasoc, buf_rx, l, 0);
 		}
 		//тут складываем пакет в буфер
-		
 		
 	}
 }   

@@ -1,8 +1,8 @@
 -cZ80 //процессор, под который собираем
 -Ilist
 -Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-3FFF //сегменты памяти с константами и кодом
--Z(CODE)PLAYER=4000-67FF //плеер
--Z(DATA)RXBUF=6800-7FFF //буфер
+-Z(CODE)PLAYER=4000-63FF //плеер
+-Z(DATA)RXBUF=6400-7FFF //буфер
 -Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+200,FREESEG=8000-FBFF //сегменты стека, переменных и т.п.
 -e_medium_write=_formatted_write //конфигурация printf/sprintf  
 -e_medium_read=_formatted_read //конфигурация scanf/sscanf 
