@@ -8,10 +8,10 @@ extern unsigned char 	buf_rx[6*1024];
 extern unsigned char *	ptr_in_rx; 
 extern unsigned char *	ptr_out_rx;
 extern unsigned char	u32_intcount[4];
-extern unsigned char	flag_play;
+extern unsigned char	flag_int_change;
+extern unsigned char	flag_syncrply;
 extern unsigned char 	msg_hello[9];
 extern unsigned char 	msg_framesync[5];
-
 no_init union APP_PAGES app_pages;
 no_init	int 			len;
 
@@ -25,7 +25,7 @@ no_init unsigned char * ptr;
 
 void int_play(void);
 void int_null(void);
-
+void ptr_increment(int l);
 
 
 void exit(int e){
@@ -81,11 +81,9 @@ C_task main (int argc, char *argv[])
 	while(1){
 		if(datasoc==0){
 			datasoc=accept(cmds,0,0);
-			if((datasoc<=0) && (errno!=ERR_EAGAIN))datasoc=accept(cmds,0,0);
-			if((datasoc<=0) && (errno!=ERR_EAGAIN))datasoc=accept(cmds,0,0);
 			if(datasoc<0){
 				datasoc=0;
-				OS_SETMUSIC(int_play, app_pages.pgs.window_1);
+				OS_SETMUSIC(int_null, app_pages.pgs.window_1);
 				if(errno!=ERR_EAGAIN){
 					closesocket(cmds,0);
 					cmds=socket(AF_INET,SOCK_STREAM,0);
@@ -97,26 +95,34 @@ C_task main (int argc, char *argv[])
 				continue;
 			}else{//to do else
 				send(datasoc, msg_hello, 9, 0);
+				ptr_in_rx =  buf_rx;
+				ptr_out_rx = NULL;
+				buf_rx[0] = 0xFF; //маркер конца
 				OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 			}
 		}
-		if(flag_play){
-			send(datasoc, msg_framesync, 5, 0);
-			flag_play = 0;
+		if(flag_int_change){
+			flag_int_change = 0;
+			if(flag_syncrply == 2){
+				send(datasoc, msg_framesync, 10, 0);
+			}else{
+				send(datasoc, msg_framesync, 5, 0);
+			}
+			flag_syncrply = 0;
 		}
-		l=recv(datasoc,buf_rx,sizeof(buf_rx),0);
+		l=recv(datasoc,ptr_in_rx,1500,0);
 		if(l<0){
 			closesocket(datasoc,0);
-			OS_SETMUSIC(int_play, app_pages.pgs.window_1);
+			OS_SETMUSIC(int_null, app_pages.pgs.window_1);
 			datasoc=0;
 			continue;
 		}else if(l==0){
 			YIELD();
 			continue;
-		}else{//echo
-			send(datasoc, buf_rx, l, 0);
 		}
 		//тут складываем пакет в буфер
+		if(ptr_in_rx[0] >= ' ') send(datasoc, ptr_in_rx, l, 0);
+		ptr_increment(l);
 		
 	}
 }   
