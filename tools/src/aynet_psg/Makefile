@@ -9,8 +9,17 @@ COMMON = -std=gnu99 -Os
 CFLAGS = $(COMMON)
 LDFLAGS = $(COMMON)
 
+LIBS = 
+
+ifeq ($(OS),Windows_NT)
+	LIBS += -lws2_32
+else
+	LIBS += 
+endif
+
 CFLAGS +=
 LDFLAGS += 
+
 
 all: $(EXE)
 
@@ -24,7 +33,7 @@ main.o: main.c net.h psg.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXE): $(OBJS) Makefile
-	$(LD) $(LDFLAGS) $(OBJS) -o $@
+	$(LD) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
 clean:
 	rm $(EXE) $(OBJS)

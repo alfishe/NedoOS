@@ -6,10 +6,11 @@
 
 int main(int argc, char ** argv)
 {
+	net_init();
+	
+	net_test();
 
-
-
-
+	net_dispose();
 	return 0;
 }
 
