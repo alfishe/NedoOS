@@ -46,18 +46,25 @@ int net_test(void){
 
 #ifdef _WIN32
 WSADATA wsaData;
+#endif
 
 int net_init(void){
+#ifdef _WIN32
 	WORD wVersionRequested = MAKEWORD(2, 2);
 	int err = WSAStartup(wVersionRequested, &wsaData);
     if (err != 0) {
         printf("WSAStartup failed with error: %d\n", err);
     }
 	return err;
+#else
+	return 0;
+#endif
 }
 
 int net_dispose(void){
+#ifdef _WIN32
 	WSACleanup();
+#endif
 	return 0;
 }
-#endif
+
