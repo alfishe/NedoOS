@@ -5,6 +5,7 @@
 
 #include "psg.h"
 #include "net.h"
+#include "play.h"
 
 int main(int argc, char ** argv)
 {
@@ -33,24 +34,32 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 
 
 	// load PSG file
-//	psg = load_psg_file(argv[2]);
+	psg = load_psg_file(argv[2]);
 	//
-//	frames = build_psg_frames(psg);
+	frames = build_psg_frames(psg);
 
 
 
-	// init network (required for NedowindOS)
+	// init network (required for nedoVindOvS)
 	net_init();
 
 
 	// resolve address
 	struct in_addr a = net_resolve(argv[1]);
 
-	printf("%08x\n",a.s_addr);
+	// connect to the AY server
+	int sock = net_connect(a);	
 
 
 
-	net_test();
+	// play it!
+	play_tune(sock,frames);
+
+
+
+
+
+//	net_test();
 
 
 

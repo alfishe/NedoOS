@@ -1,10 +1,10 @@
 EXE = psgplay
-OBJS = main.o psg.o net.o
+OBJS = main.o psg.o net.o play.o
 
 CC = gcc
 LD = gcc
 
-COMMON = -std=gnu99 -Os
+COMMON = -std=gnu99 -Og -ggdb
 
 CFLAGS = $(COMMON)
 LDFLAGS = $(COMMON)
@@ -29,7 +29,10 @@ psg.o: psg.c psg.h Makefile
 net.o: net.c net.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
-main.o: main.c net.h psg.h Makefile
+play.o: play.c play.h Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
+
+main.o: main.c net.h psg.h play.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXE): $(OBJS) Makefile

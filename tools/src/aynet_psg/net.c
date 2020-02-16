@@ -89,3 +89,84 @@ struct in_addr net_resolve(char * name)
 	return a;
 }
 
+
+int net_connect(struct in_addr resolved_address)
+{
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in addr;
+
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	
+	if( sock==(-1) )
+	{
+		fprintf(stderr,"%s: Can't create socket!\n",__PRETTY_FUNCTION__);
+		exit(1);
+	}
+
+	memset(&addr,0,sizeof(addr));
+
+	addr.sin_family = AF_INET;
+	addr.sin_port   = htons(AY_PORT);
+	addr.sin_addr   = resolved_address;
+
+	if( connect(sock,(const struct sockaddr *)&addr, sizeof(addr)) )
+	{
+		fprintf(stderr,"%s: Can't connect()!\n",__PRETTY_FUNCTION__); // TODO: add more diagnostics depending on errno
+		exit(1);
+	}
+
+	
+	// set TCP_NODELAY option for sending to ZX
+	int dummy = 1;
+	setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &dummy, sizeof(dummy));
+
+
+	return sock;
+}
+
+
+
+
+// receive exactly the given number of bytes, which must be >0.
+// works only with a blocking socket (EAGAIN or EWOULDBLOCK currently terminate the program)
+// returns 0 if connection is closed, otherwise 1
+// any error (recv() returns (-1)) currently terminates the program
+int net_recv_bytes(int sock, uint8_t * ptr, size_t recv_size)
+{
+	if( !recv_size )
+	{
+		fprintf(stderr,"%s: Requested size to receive is zero!\n",__PRETTY_FUNCTION__);
+		exit(1);
+	}
+
+	ssize_t curr_size;
+	
+
+	while( recv_size )
+	{
+		curr_size=recv(sock, ptr, recv_size, 0);
+
+		if( curr_size==0 ) // connection closed
+		{
+			return 0;
+		}
+		else if( curr_size<0 )
+		{
+			fprintf(stderr,"%s: recv() returned (-1), strerror() gave: %s!\n",__PRETTY_FUNCTION__,strerror(errno));
+			exit(1);
+		}
+		else if( curr_size > recv_size )
+		{
+			fprintf(stderr,"%s: recv() received more bytes than requested!\n",__PRETTY_FUNCTION__);
+			exit(1);
+		}
+
+		recv_size -= curr_size;
+		ptr       += curr_size;
+	}
+
+	
+	return 1;
+}
+

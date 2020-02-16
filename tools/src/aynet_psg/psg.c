@@ -191,6 +191,9 @@ int update_psg_regs(uint8_t * regs, struct psg_file * psg, size_t * position)
 				frames++;
 			else
 				was_delimiter = 1;
+			
+			(*position)++;
+			if( *position >= psg->size ) return frames;
 		}
 		else if( psg->bytes[*position]==0xFE )
 		{ // pause in 4-frame increments
@@ -212,8 +215,7 @@ int update_psg_regs(uint8_t * regs, struct psg_file * psg, size_t * position)
 			frames += num_frames;
 
 			(*position)++;
-			if( *position >= psg->size )
-				return frames;
+			if( *position >= psg->size ) return frames;
 		}
 		else
 		{
@@ -276,7 +278,6 @@ struct frame_list * build_psg_frames(struct psg_file * psg)
 		}
 	}
 
-
 	// reverse local_head-based list into global head-pointed list
 	if( local_head )
 	{
@@ -317,9 +318,24 @@ ERROR:
 
 void free_psg_frames(struct frame_list * head)
 {
+	struct frame_base * oldframe = NULL;
+	struct frame_list * freeme;
+
 	while( head )
 	{
-		if( head->frame ) free(head->frame);
+		if( head->frame )
+		{
+			if( oldframe != head->frame )
+			{
+				oldframe = head->frame;
+				free(oldframe);
+			}
+		}
+
+		freeme = head;
 		head = head->next;
+
+		free(freeme);
 	}
 }
+
