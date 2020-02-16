@@ -27,6 +27,7 @@ int net_test(void);
 
 struct in_addr net_resolve(char *);
 int net_connect(struct in_addr);
+void net_disconnect(int sock);
 
 int net_recv_bytes(int sock, uint8_t * ptr, size_t recv_size);
 

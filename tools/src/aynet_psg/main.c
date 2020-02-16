@@ -57,6 +57,8 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 
 
 
+	net_disconnect(sock);
+
 
 
 //	net_test();

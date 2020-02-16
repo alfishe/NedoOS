@@ -126,6 +126,10 @@ int net_connect(struct in_addr resolved_address)
 }
 
 
+void net_disconnect(int sock)
+{
+	shutdown(sock, SHUT_RDWR);
+}
 
 
 // receive exactly the given number of bytes, which must be >0.
