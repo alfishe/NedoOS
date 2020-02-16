@@ -2,16 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
-#ifdef _WIN32
-	#include <Winsock2.h>
-	#include <ws2tcpip.h>
-#else
-	#include <sys/socket.h>
-	#include <netinet/in.h>
-	#include <arpa/inet.h>
-	#include <netdb.h>
-#endif
+#include "net.h"
 unsigned char buf_rx[2048];
 
 int net_test(void){

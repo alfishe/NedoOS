@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-	#include <sys/socket.h>
-	#include <netinet/in.h>
-	#include <netinet/ip.h>
 
 #include "psg.h"
 #include "net.h"
