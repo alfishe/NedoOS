@@ -1,5 +1,5 @@
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -9,6 +9,8 @@
 #else
 	#include <sys/socket.h>
 	#include <netinet/in.h>
+	#include <arpa/inet.h>
+	#include <netdb.h>
 #endif
 unsigned char buf_rx[2048];
 
@@ -52,13 +54,12 @@ int net_init(void){
 #ifdef _WIN32
 	WORD wVersionRequested = MAKEWORD(2, 2);
 	int err = WSAStartup(wVersionRequested, &wsaData);
-    if (err != 0) {
-        printf("WSAStartup failed with error: %d\n", err);
-    }
-	return err;
-#else
-	return 0;
+	if (err != 0) {
+		fprintf(stderr,"WSAStartup failed with error: %d\n", err);
+		exit(1);
+	}
 #endif
+	return 0;
 }
 
 int net_dispose(void){
@@ -66,5 +67,34 @@ int net_dispose(void){
 	WSACleanup();
 #endif
 	return 0;
+}
+
+
+
+
+
+struct in_addr net_resolve(char * name)
+{
+	struct hostent * h;
+	struct in_addr a;
+
+
+	h = gethostbyname(name);
+	
+	if( !h )
+	{
+		fprintf(stderr,"%s: Can't resolve name <%s>\n",__PRETTY_FUNCTION__,name);
+		exit(1);
+	}
+
+	if( h->h_addrtype != AF_INET || h->h_length != 4 )
+	{
+		fprintf(stderr,"%s: Name <%s> doesn't resolve into IPv4 address!\n",__PRETTY_FUNCTION__,name);
+		exit(1);
+	}
+
+	a = *((struct in_addr *)h->h_addr_list[0]);
+
+	return a;
 }
 

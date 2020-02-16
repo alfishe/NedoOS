@@ -1,5 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <netinet/ip.h>
 
 #include "psg.h"
 #include "net.h"
@@ -31,15 +36,20 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 
 
 	// load PSG file
-	psg = load_psg_file(argv[2]);
+//	psg = load_psg_file(argv[2]);
 	//
-	frames = build_psg_frames(psg);
+//	frames = build_psg_frames(psg);
 
 
 
 	// init network (required for NedowindOS)
 	net_init();
 
+
+	// resolve address
+	struct in_addr a = net_resolve(argv[1]);
+
+	printf("%08x\n",a.s_addr);
 
 
 
