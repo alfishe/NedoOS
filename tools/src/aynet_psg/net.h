@@ -1,9 +1,15 @@
 #ifndef _NET_H_
 #define _NET_H_
 
+#include <stdint.h>
+
 #ifdef _WIN32
 	#include <Winsock2.h>
 	#include <ws2tcpip.h>
+	#define MSG_DONTWAIT 0 //set in ioctlsocket
+	#define MSG_NOSIGNAL 0
+	#define EWOULDBLOCK WSAEWOULDBLOCK
+	#define ECONNRESET WSAECONNRESET
 #else
 	#include <errno.h>
 	#include <sys/types.h>

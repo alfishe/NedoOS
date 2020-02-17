@@ -66,9 +66,12 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 	sock_set = 1;
 
 	// set signal handler that shuts up connection when process is terminated intentionally
+
+#ifndef _WIN32
 	signal(SIGHUP,  &signal_handler);
-	signal(SIGINT,  &signal_handler);
 	signal(SIGQUIT, &signal_handler);
+#endif
+	signal(SIGINT,  &signal_handler);
 	signal(SIGABRT, &signal_handler);
 	signal(SIGTERM, &signal_handler);
 
@@ -104,7 +107,7 @@ void signal_handler(int num)
 	{ // try shut up remote AY by sending lots of ZX<< SHUTUP
 		uint8_t a[100]; // must be greater than any other packet size
 		memset(a,0,sizeof(a));
-		send(sock, &a, sizeof(a), 0);
+		send(sock, (void*)&a, sizeof(a), 0);
 
 		net_disconnect(sock);
 	}

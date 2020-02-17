@@ -118,8 +118,15 @@ int net_connect(struct in_addr resolved_address)
 
 	
 	// set TCP_NODELAY option for sending to ZX
+#ifdef _WIN32
+	char dummy = 1;
+	u_long non_blocked = 1;
+	ioctlsocket(sock, FIONBIO, &non_blocked);
+	setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &dummy, sizeof(dummy));
+#else
 	int dummy = 1;
 	setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &dummy, sizeof(dummy));
+#endif
 
 
 	return sock;
@@ -128,7 +135,15 @@ int net_connect(struct in_addr resolved_address)
 
 void net_disconnect(int sock)
 {
+#ifdef _WIN32
+	u_long non_blocked = 0;
+	ioctlsocket(sock, FIONBIO, &non_blocked);
+	shutdown(sock, SD_BOTH);
+	closesocket(sock);
+#else
 	shutdown(sock, SHUT_RDWR);
+	close(sock);
+#endif
 }
 
 
@@ -149,15 +164,26 @@ int net_recv_bytes(int sock, uint8_t * ptr, size_t recv_size)
 
 	while( recv_size )
 	{
+#ifdef _WIN32
+		while(1){
+			curr_size=recv(sock, ptr, recv_size, 0);
+			if(curr_size > 0)break;
+			if(WSAGetLastError() != WSAEWOULDBLOCK) break;
+		}
+#else
 		curr_size=recv(sock, ptr, recv_size, 0);
-
+#endif
 		if( curr_size==0 ) // connection closed
 		{
 			return 0;
 		}
 		else if( curr_size<0 )
 		{
+#ifdef _WIN32
+			fprintf(stderr,"%s: recv() returned (-1), WSAGetLastError() gave: %d!\n",__PRETTY_FUNCTION__,WSAGetLastError());
+#else
 			fprintf(stderr,"%s: recv() returned (-1), strerror() gave: %s!\n",__PRETTY_FUNCTION__,strerror(errno));
+#endif
 			exit(1);
 		}
 		else if( curr_size > recv_size )

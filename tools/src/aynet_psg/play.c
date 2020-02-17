@@ -179,13 +179,14 @@ void play_tune(int sock, struct frame_list * frames)
 		// wait for frame sync
 		do
 		{
-			if( !(rcvd=rcv_packet(&from_zx)) ) return;
+		if( !(rcvd=rcv_packet(&from_zx)) ) return;
 
 			if( rcvd->type==FROMZX_HELLO )
 			{
 				if( was_hello )
 				{
 					fprintf(stderr,"%s: protocol error: received multiple ZX>> HELLO!\n",__PRETTY_FUNCTION__);
+					net_disconnect(sock);
 					exit(1);
 				}
 
@@ -250,19 +251,27 @@ void play_tune(int sock, struct frame_list * frames)
 			ssize_t sent = send(to_zx.sock, get_out_ptr(&to_zx), send_size, MSG_DONTWAIT|MSG_NOSIGNAL);
 			if( sent<0 )
 			{
-				if( errno==EAGAIN || errno==EWOULDBLOCK )
-				{
-					break;
-				}
-				else if( errno==ECONNRESET || errno==EPIPE )
-				{
+#ifdef _WIN32
+				switch (WSAGetLastError()){
+#else
+				switch (errno){
+					case EPIPE:
 					printf("Connection dropped!\n");
 					return;
-				}
-				else
-				{
+#if EAGAIN != EWOULDBLOCK
+					case EAGAIN:
+					break;
+#endif
+#endif
+					case EWOULDBLOCK:
+					break;
+					case ECONNRESET:
+					printf("Connection dropped!\n");
+					return;
+					default:
 					fprintf(stderr,"%s: send() returned (-1), strerror() gave: %s!\n",__PRETTY_FUNCTION__,strerror(errno));
 					exit(1);
+					break;
 				}
 			}
 			else if( sent>0 )
