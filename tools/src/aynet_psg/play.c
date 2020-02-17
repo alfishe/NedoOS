@@ -131,6 +131,7 @@ struct packet * rcv_packet(struct net_context * ctx)
 
 		default:
 			fprintf(stderr,"%s: invalid packet type (0x%02x) received!\n",__PRETTY_FUNCTION__,type);
+			net_disconnect(ctx->sock);
 			exit(1);
 		break;
 	}
@@ -172,6 +173,16 @@ void play_tune(int sock, struct frame_list * frames)
 	was_syncrply = 0;
 
 
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
 	// play loop
 
 	for(;;)
@@ -218,6 +229,10 @@ void play_tune(int sock, struct frame_list * frames)
 		was_syncrply=0;
 
 
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	if( !curr_frame ) curr_frame = frames;
+	continue;
 
 		// put many ZX<< DUMP packets in tx fifo
 		while( get_in_free_size(&to_zx) >= sizeof(dump) )

@@ -128,6 +128,7 @@ void signal_handler(int num)
 
 	if( psg ) free_psg_file(psg);
 
+	net_dispose();
 	exit(1);
 }
 

@@ -77,9 +77,12 @@ dump_loop
 	cp 13
 	jr nz,dump_loop
 	ld a,(hl)
+	inc hl
 	cp d
 	jr z,play_exit
+	dec hl
 	ld b,d
+	ld a,13
 	out (c),a
 	ld b,e
 	outi
