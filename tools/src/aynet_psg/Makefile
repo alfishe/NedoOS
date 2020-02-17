@@ -26,6 +26,9 @@ CFLAGS +=
 LDFLAGS += 
 
 
+debug: CFLAGS += -DDEBUG
+debug: $(EXE)
+
 all: $(EXE)
 
 psg.o: psg.c psg.h Makefile

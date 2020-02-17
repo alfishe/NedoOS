@@ -48,7 +48,6 @@ struct rx_packet_hello
 struct tx_packet_shutup
 {
 	struct packet base;
-	uint8_t type;
 } __attribute__((packed));
 
 struct tx_packet_dump

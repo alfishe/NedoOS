@@ -29,7 +29,19 @@ int main(int argc, char ** argv)
 	sock_set =   0;
 
 	
-	
+#ifdef DEBUG
+printf("DEBUG: %s\n",__PRETTY_FUNCTION__);
+printf("DEBUG: sizeof(struct packet             )=%ld\n",sizeof(struct packet             ));
+printf("DEBUG: sizeof(struct rx_packet_framesync)=%ld\n",sizeof(struct rx_packet_framesync));
+printf("DEBUG: sizeof(struct rx_packet_syncrply )=%ld\n",sizeof(struct rx_packet_syncrply ));
+printf("DEBUG: sizeof(struct rx_packet_hello    )=%ld\n",sizeof(struct rx_packet_hello    ));
+printf("DEBUG: sizeof(struct tx_packet_shutup   )=%ld\n",sizeof(struct tx_packet_shutup   ));
+printf("DEBUG: sizeof(struct tx_packet_dump     )=%ld\n",sizeof(struct tx_packet_dump     ));
+printf("DEBUG: sizeof(struct tx_packet_syncreq  )=%ld\n",sizeof(struct tx_packet_syncreq  ));
+#endif
+
+
+
 	// parse arguments
 	if( argc!=3 && argc!=4 )
 	{
