@@ -30,7 +30,7 @@ void init_ctx(struct net_context * ctx, int sock)
 
 int get_in_free_size(struct net_context * ctx)
 {
-	return (int)( NET_BUF_SIZE-1 - ((ctx->out_ptr - ctx->in_ptr)&(NET_BUF_SIZE-1)) );
+	return (int)( ((ctx->out_ptr - ctx->in_ptr - 1)&(NET_BUF_SIZE-1)) );
 }
 
 
@@ -68,11 +68,11 @@ int get_out_used_size(struct net_context * ctx)
 
 int get_out_cont_size(struct net_context * ctx)
 {
-	int free_size = get_in_free_size(ctx);
+	int used_size = get_out_used_size(ctx);
 
 	int up_to_end = NET_BUF_SIZE-ctx->out_ptr;
 
-	if( up_to_end > free_size ) up_to_end = free_size;
+	if( up_to_end > used_size ) up_to_end = used_size;
 
 	return up_to_end;
 }
@@ -172,17 +172,19 @@ void play_tune(int sock, struct frame_list * frames)
 	was_hello = 0;
 	was_syncrply = 0;
 
+/*
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+	curr_frame = curr_frame->next;
+*/
 
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
 	// play loop
 
 	for(;;)
@@ -224,17 +226,22 @@ void play_tune(int sock, struct frame_list * frames)
 				was_syncrply=1;
 			}
 		} while( rcvd->type!=FROMZX_FRAMESYNC );
-
+#ifdef DEBUG
+printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_framesync *)rcvd)->value);
+#endif
 		// FRAMESYNC was finally received
 		was_syncrply=0;
 
 
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
+/*	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
 	curr_frame = curr_frame->next;
 	if( !curr_frame ) curr_frame = frames;
-	continue;
+	continue;*/
 
 		// put many ZX<< DUMP packets in tx fifo
+#ifdef DEBUG
+printf("%s: get_in_free_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,get_in_free_size(&to_zx));
+#endif
 		while( get_in_free_size(&to_zx) >= sizeof(dump) )
 		{
 			memcpy(dump.data, ((struct frame_ay *)curr_frame->frame)->regs, 14);
@@ -245,6 +252,10 @@ void play_tune(int sock, struct frame_list * frames)
 			while( remaining_size )
 			{
 				max_size = get_in_cont_size(&to_zx);
+#ifdef DEBUG
+printf("%s: get_in_cont_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,max_size);
+printf("%s: remaining_size=%d\n",__PRETTY_FUNCTION__,remaining_size);
+#endif
 
 				if( max_size > remaining_size ) max_size = remaining_size;
 
@@ -256,6 +267,9 @@ void play_tune(int sock, struct frame_list * frames)
 			// next frame
 			curr_frame = curr_frame->next;
 			if( !curr_frame ) curr_frame = frames;
+#ifdef DEBUG
+printf("%s: get_in_free_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,get_in_free_size(&to_zx));
+#endif
 		}
 
 		
@@ -263,11 +277,18 @@ void play_tune(int sock, struct frame_list * frames)
 		int send_size;
 		while( (send_size=get_out_cont_size(&to_zx))>0 )
 		{
+#ifdef DEBUG
+printf("%s: send_size=%d\n",__PRETTY_FUNCTION__,send_size);
+#endif
 			ssize_t sent = send(to_zx.sock, get_out_ptr(&to_zx), send_size, MSG_DONTWAIT|MSG_NOSIGNAL);
+#ifdef DEBUG
+printf("%s: sent=%d\n",__PRETTY_FUNCTION__,sent);
+if( sent==(-1) ) printf("%s: strerror()=%s\n",__PRETTY_FUNCTION__,strerror(errno));
+#endif
 			if( sent<0 )
 			{
 #ifdef _WIN32
-				switch (WSAGetLastError()){
+				switch (errno=WSAGetLastError()){
 #else
 				switch (errno){
 					case EPIPE:
