@@ -26,10 +26,11 @@ CFLAGS +=
 LDFLAGS += 
 
 
+all: $(EXE)
+
 debug: CFLAGS += -DDEBUG
 debug: $(EXE)
 
-all: $(EXE)
 
 psg.o: psg.c psg.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
