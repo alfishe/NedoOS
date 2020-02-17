@@ -177,10 +177,10 @@ void play_tune(int sock, struct frame_list * frames)
 	for(;;)
 	{
 		// wait for frame sync
-		if( !(rcvd=rcv_packet(&from_zx)) ) return;
-
-		while( rcvd->type!=FROMZX_FRAMESYNC )
+		do
 		{
+			if( !(rcvd=rcv_packet(&from_zx)) ) return;
+
 			if( rcvd->type==FROMZX_HELLO )
 			{
 				if( was_hello )
@@ -211,7 +211,7 @@ void play_tune(int sock, struct frame_list * frames)
 
 				was_syncrply=1;
 			}
-		}
+		} while( rcvd->type!=FROMZX_FRAMESYNC );
 
 		// FRAMESYNC was finally received
 		was_syncrply=0;
@@ -243,17 +243,18 @@ void play_tune(int sock, struct frame_list * frames)
 		}
 
 		
-		// try to send fifo (only single nonblocking try)
+		// try to send the whole fifo. stop if actual len<requested or EAGAIN/EWOULDBLOCK
 		int send_size;
-		if( (send_size=get_out_cont_size(&to_zx))>0 )
+		while( (send_size=get_out_cont_size(&to_zx))>0 )
 		{
-			ssize_t sent = send(to_zx.sock, get_out_ptr(&to_zx), send_size, MSG_DONTWAIT);
+			ssize_t sent = send(to_zx.sock, get_out_ptr(&to_zx), send_size, MSG_DONTWAIT|MSG_NOSIGNAL);
 			if( sent<0 )
 			{
 				if( errno==EAGAIN || errno==EWOULDBLOCK )
-				{ // do nothing
+				{
+					break;
 				}
-				else if( errno==ECONNRESET )
+				else if( errno==ECONNRESET || errno==EPIPE )
 				{
 					printf("Connection dropped!\n");
 					return;
@@ -268,9 +269,10 @@ void play_tune(int sock, struct frame_list * frames)
 			{
 				set_read_size(&to_zx, sent);
 			}
+
+			if( sent < send_size )
+				break;
 		}
 	}
-
-
 }
 

@@ -1,4 +1,9 @@
-EXE = psgplay
+ifeq ($(OS),Windows_NT)
+	EXE = psgplay.exe
+else
+	EXE = psgplay
+endif
+
 OBJS = main.o psg.o net.o play.o
 
 CC = gcc
