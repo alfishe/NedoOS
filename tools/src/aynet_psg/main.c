@@ -2,17 +2,31 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <signal.h>
 
 #include "psg.h"
 #include "net.h"
 #include "play.h"
 
+
+
+struct psg_file   * psg; 
+struct frame_list * frames;
+int sock;
+int sock_set;
+
+void signal_handler(int);
+
+
 int main(int argc, char ** argv)
 {
 	int nosync = 0;
 
-	struct psg_file   * psg    = NULL; 
-	struct frame_list * frames = NULL;
+	psg    = NULL; 
+	frames = NULL;
+
+	sock     = (-1);
+	sock_set =   0;
 
 	
 	
@@ -48,8 +62,15 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 	struct in_addr a = net_resolve(argv[1]);
 
 	// connect to the AY server
-	int sock = net_connect(a);	
+	sock = net_connect(a);	
+	sock_set = 1;
 
+	// set signal handler that shuts up connection when process is terminated intentionally
+	signal(SIGHUP,  &signal_handler);
+	signal(SIGINT,  &signal_handler);
+	signal(SIGQUIT, &signal_handler);
+	signal(SIGABRT, &signal_handler);
+	signal(SIGTERM, &signal_handler);
 
 
 	// play it!
@@ -73,5 +94,25 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 	free_psg_file(psg);
 
 	return 0;
+}
+
+
+
+void signal_handler(int num)
+{
+	if( sock_set )
+	{ // try shut up remote AY by sending lots of ZX<< SHUTUP
+		uint8_t a[100]; // must be greater than any other packet size
+		memset(a,0,sizeof(a));
+		send(sock, &a, sizeof(a), 0);
+
+		net_disconnect(sock);
+	}
+
+	if( frames ) free_psg_frames(frames);
+
+	if( psg ) free_psg_file(psg);
+
+	exit(1);
 }
 
