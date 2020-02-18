@@ -4,7 +4,7 @@
 #include <oscalls.h>
 #include <stdlib.h>
 
-extern unsigned char 	buf_rx[6*1024];  
+extern unsigned char 	buf_rx[4*1024];  
 extern unsigned char *	ptr_in_rx; 
 extern unsigned char *	ptr_out_rx;
 extern unsigned char	u32_intcount[4];
@@ -97,7 +97,7 @@ C_task main (int argc, char *argv[])
 				send(datasoc, msg_hello, 9, 0);
 				ptr_in_rx =  buf_rx;
 				ptr_out_rx = NULL;
-				buf_rx[0] = 0xFF; //маркер конца
+				//buf_rx[0] = 0xFF; //маркер конца
 				OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 			}
 		}
@@ -110,7 +110,14 @@ C_task main (int argc, char *argv[])
 			}
 			flag_syncrply = 0;
 		}
-		l=recv(datasoc,ptr_in_rx,1500,0);
+		if(ptr_out_rx < ptr_in_rx){
+			l=recv(datasoc,ptr_in_rx,buf_rx+sizeof(buf_rx)-ptr_in_rx,0);
+		}else if(ptr_out_rx > ptr_in_rx){
+			l=recv(datasoc,ptr_in_rx,ptr_out_rx - ptr_in_rx,0);
+		}else{
+			YIELD();
+			continue;
+		}
 		if(l<0){
 			closesocket(datasoc,0);
 			OS_SETMUSIC(int_null, app_pages.pgs.window_1);
@@ -121,7 +128,6 @@ C_task main (int argc, char *argv[])
 			continue;
 		}
 		//тут складываем пакет в буфер
-		if(ptr_in_rx[0] >= ' ') send(datasoc, ptr_in_rx, l, 0);
 		ptr_increment(l);
 		
 	}
