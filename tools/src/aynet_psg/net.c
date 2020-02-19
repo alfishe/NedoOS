@@ -181,6 +181,7 @@ int net_recv_bytes(int sock, uint8_t * ptr, size_t recv_size)
 		{
 #ifdef _WIN32
 			fprintf(stderr,"%s: recv() returned (-1), WSAGetLastError() gave: %d!\n",__PRETTY_FUNCTION__,WSAGetLastError());
+			net_disconnect(sock);
 			net_dispose();
 #else
 			fprintf(stderr,"%s: recv() returned (-1), strerror() gave: %s!\n",__PRETTY_FUNCTION__,strerror(errno));

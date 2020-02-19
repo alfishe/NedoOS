@@ -26,9 +26,10 @@ no_init unsigned char * ptr;
 void int_play(void);
 void int_null(void);
 void ptr_increment(int l);
-
+void shutup(void);
 
 void exit(int e){
+	shutup();
 	if(cmds)closesocket(cmds,0);
 	if(datasoc)closesocket(datasoc,0);
 	if(e!=0){	
@@ -119,6 +120,7 @@ C_task main (int argc, char *argv[])
 			continue;
 		}
 		if(l<0){
+			shutup();
 			closesocket(datasoc,0);
 			OS_SETMUSIC(int_null, app_pages.pgs.window_1);
 			datasoc=0;

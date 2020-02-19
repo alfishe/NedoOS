@@ -17,6 +17,40 @@ int sock_set;
 
 void signal_handler(int);
 
+BOOL WINAPI HandlerRoutine(
+  DWORD dwCtrlType   //  control signal type
+)
+{
+  //if (!g_hEvent)
+    //return FALSE;
+
+  switch (dwCtrlType)
+  {
+    case CTRL_C_EVENT:
+      printf ("Ctrl+C pressed");
+      //SetEvent (g_hEvent);
+      break;
+    case CTRL_BREAK_EVENT:
+      printf ("Ctrl+Break pressed");
+      //SetEvent (g_hEvent);
+      break;
+    case CTRL_CLOSE_EVENT:
+      printf ("Close pressed");
+      //SetEvent (g_hEvent);
+      break;
+    case CTRL_LOGOFF_EVENT:
+      printf ("User logoff");
+      //SetEvent (g_hEvent);
+      break;
+    case CTRL_SHUTDOWN_EVENT:
+      printf ("System shutdown");
+      //SetEvent (g_hEvent);
+      break;
+  }
+
+  return TRUE; // as we handle the event
+}
+
 
 int main(int argc, char ** argv)
 {
@@ -80,6 +114,9 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 	// set signal handler that shuts up connection when process is terminated intentionally
 
 #ifndef _WIN32
+  SetConsoleCtrlHandler (HandlerRoutine, TRUE);
+
+
 	signal(SIGHUP,  &signal_handler);
 	signal(SIGQUIT, &signal_handler);
 #endif

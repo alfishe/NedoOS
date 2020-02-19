@@ -1,10 +1,47 @@
+	MODULE	SHUTUPMOD
+	PUBLIC	shutup
+	RSEG	PLAYER
+shutup
+	xor a
+	ld d,0xff
+	ld e,a
+	ld c,0xfd
+shutup_loop
+	ld b,d
+	out (c),a
+	ld b,0xbf
+	out (c),e
+	inc a
+	cp 14
+	jr nz,shutup_loop
+	ret
+	ENDMOD
+	
+	MODULE	PTR_INCREMENT
+	PUBLIC	ptr_increment
+	EXTERN	ptr_in_rx, ptr_out_rx
+	RSEG	CODE
+ptr_increment: ;DE-count
+	ld hl,(ptr_in_rx)
+	push hl
+	add hl,de
+	res 4,h
+	ld (ptr_in_rx),hl
+	pop hl
+	ld de,(ptr_out_rx)
+	ld a,e
+	or d
+	ret nz
+	ld (ptr_out_rx),hl
+	ret
+	ENDMOD
 	
 	MODULE 	BUF_RX
-	PUBLIC 	int_play, int_null, ptr_increment
+	PUBLIC 	int_play, int_null
 	PUBLIC	buf_rx, ptr_in_rx, ptr_out_rx, u32_intcount
 	PUBLIC	msg_hello, msg_framesync
 	PUBLIC	flag_int_change, flag_syncrply
-	
+	EXTERN	shutup
 	RSEG	RXBUF
 buf_rx:
 	defs 1024*4
@@ -59,7 +96,7 @@ parse_loop
 	ex de,hl
 	inc hl
 	res 4,h
-	;TODO SHUTUP пока нету
+	call shutup
 	jr play_exit
 not_shutup
 	dec a
@@ -103,10 +140,10 @@ dump_loop
 	jr z,play_exit
 	ld b,e
 	out (c),a
-	jr play_exit
+	jp play_exit
 no_dump
 	dec a
-	jp nz,0x0000	;нет такой команды
+	jp nz,0x0000	;нет такой команды. Что делать непонятно
 syncreq
 	ld hl,(ptr_in_rx)
 	or a
@@ -131,22 +168,7 @@ sync_full
 	ldi
 	jr parse_loop
 
-chek_size
 	
-
-ptr_increment: ;DE-count
-	ld hl,(ptr_in_rx)
-	push hl
-	add hl,de
-	res 4,h
-	ld (ptr_in_rx),hl
-	pop hl
-	ld de,(ptr_out_rx)
-	ld a,e
-	or d
-	ret nz
-	ld (ptr_out_rx),hl
-	ret
 
 flag_syncrply
 	defb 0
