@@ -58,12 +58,6 @@ int_null:
 	
 play_exit
 	ex de,hl
-	;ld hl,buf_rx+(1024*4)-1
-	;xor a
-	;sbc hl,de
-	;jr nc,no_out_over
-	;ld de,buf_rx
-;no_out_over
 	ld (ptr_out_rx),de
 	ld hl,(ptr_in_rx)
 	xor a
@@ -138,7 +132,7 @@ dump_loop
 	res 4,h
 	cp d
 	jr z,play_exit
-	ld b,e
+	ld b,0xbf
 	out (c),a
 	jp play_exit
 no_dump
