@@ -1143,15 +1143,19 @@ BDOS_fail
 BDOS_delpage
 ;e=page
 ;не портит de
-        ld a,pagexor;0x7f
-        sub e
+        ld a,e
+        call addrpage
+        ld (hl),b ;0
+        ret ;a=0
+
+addrpage
+        xor pagexor;0x7f
         ld c,a
         ld hl,tsys_pages
         xor a
         ld b,a
         add hl,bc
-        ld (hl),b ;0
-        ret ;a=0
+        ret
 
 BDOS_fdel
         call BDOS_preparedepage

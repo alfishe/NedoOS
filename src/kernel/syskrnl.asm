@@ -649,9 +649,18 @@ sys_quit
         ld sp,QUITSTACK ;если не сделать, то всё ещё стек задачи, и мы не вернёмся из schedule
         ld iy,(appaddr)
         ld e,(iy+app.id)
+        push de
         call BDOS_freezeapp
+;если установлен muzcall в пространстве задачи, снимаем его
+        ld a,(muzpg)
+        call addrpage
+        pop de
+        ld a,(hl)
+        cp e
+        jr nz,sys_quit_nomuzcall
        ld hl,sys_reter
        ld (muzcall),hl
+sys_quit_nomuzcall
         call BDOS_delapppages
         jp BDOS_yield_q ;переходим на какую-нибудь задачу
         
