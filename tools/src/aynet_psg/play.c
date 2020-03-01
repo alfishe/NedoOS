@@ -6,6 +6,7 @@
 #include "net.h"
 #include "psg.h"
 #include "play.h"
+#include "global.h"
 
 
 // init net_context
@@ -160,6 +161,8 @@ void play_tune(int sock, struct frame_list * frames)
 	struct tx_packet_dump dump;
 
 
+	int frames_in_flight = 0;
+
 
 
 	// inits
@@ -232,34 +235,50 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
 		// FRAMESYNC was finally received
 		was_syncrply=0;
 
+		// assume we have one frame in flight less if we've received framesync.
+		if( frames_in_flight>0 ) frames_in_flight--;
+
 
 /*	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
 	curr_frame = curr_frame->next;
 	if( !curr_frame ) curr_frame = frames;
 	continue;*/
 
-		// put many ZX<< DUMP packets in tx fifo
-		while( get_in_free_size(&to_zx) >= sizeof(dump) )
+		if( g.buf_num>=0 )
 		{
-			memcpy(dump.data, ((struct frame_ay *)curr_frame->frame)->regs, 14);
-
-			int remaining_size = sizeof(dump);
-			int max_size;
-
-			while( remaining_size )
+			// put many (or required number of) ZX<< DUMP packets in tx fifo
+			while( get_in_free_size(&to_zx) >= sizeof(dump) )
 			{
-				max_size = get_in_cont_size(&to_zx);
+				memcpy(dump.data, ((struct frame_ay *)curr_frame->frame)->regs, 14);
+        
+				int remaining_size = sizeof(dump);
+				int max_size;
+        
+				while( remaining_size )
+				{
+					max_size = get_in_cont_size(&to_zx);
+        
+					if( max_size > remaining_size ) max_size = remaining_size;
+        
+					memcpy(get_in_ptr(&to_zx), ((uint8_t *)&dump)+(sizeof(dump)-remaining_size), max_size);
+					set_write_size(&to_zx,max_size);
+					remaining_size -= max_size;
+				}
 
-				if( max_size > remaining_size ) max_size = remaining_size;
+				// next frame
+				curr_frame = curr_frame->next;
+				if( !curr_frame ) curr_frame = frames;
 
-				memcpy(get_in_ptr(&to_zx), ((uint8_t *)&dump)+(sizeof(dump)-remaining_size), max_size);
-				set_write_size(&to_zx,max_size);
-				remaining_size -= max_size;
+				frames_in_flight++;
+
+				// control how many frames must be pre-buffered
+				if( g.buf_num > 0 && frames_in_flight >= g.buf_num ) break;
 			}
-
-			// next frame
-			curr_frame = curr_frame->next;
-			if( !curr_frame ) curr_frame = frames;
+		}
+		else
+		{
+			fprintf(stderr,"%s: g.buf_num < 0!\n",__PRETTY_FUNCTION__);
+			exit(1);
 		}
 
 		

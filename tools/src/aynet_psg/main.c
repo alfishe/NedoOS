@@ -44,6 +44,8 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--preb
 	init_global();
 
 	if( argc>3 && !parse_args(3,argc,argv) ) goto ERRARGS;
+	if( g.buf_num < 0 ) goto ERRARGS;
+
 
 #ifdef DEBUG
 printf("DEBUG: %s, prebuf=%d, testsync=%d\n",__PRETTY_FUNCTION__,g.buf_num,g.test_sync);
