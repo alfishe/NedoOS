@@ -239,9 +239,6 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
 	continue;*/
 
 		// put many ZX<< DUMP packets in tx fifo
-#ifdef DEBUG
-printf("%s: get_in_free_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,get_in_free_size(&to_zx));
-#endif
 		while( get_in_free_size(&to_zx) >= sizeof(dump) )
 		{
 			memcpy(dump.data, ((struct frame_ay *)curr_frame->frame)->regs, 14);
@@ -252,10 +249,6 @@ printf("%s: get_in_free_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,get_in_free_size(
 			while( remaining_size )
 			{
 				max_size = get_in_cont_size(&to_zx);
-#ifdef DEBUG
-printf("%s: get_in_cont_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,max_size);
-printf("%s: remaining_size=%d\n",__PRETTY_FUNCTION__,remaining_size);
-#endif
 
 				if( max_size > remaining_size ) max_size = remaining_size;
 
@@ -267,9 +260,6 @@ printf("%s: remaining_size=%d\n",__PRETTY_FUNCTION__,remaining_size);
 			// next frame
 			curr_frame = curr_frame->next;
 			if( !curr_frame ) curr_frame = frames;
-#ifdef DEBUG
-printf("%s: get_in_free_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,get_in_free_size(&to_zx));
-#endif
 		}
 
 		
@@ -277,14 +267,7 @@ printf("%s: get_in_free_size(&to_zx)=%d\n",__PRETTY_FUNCTION__,get_in_free_size(
 		int send_size;
 		while( (send_size=get_out_cont_size(&to_zx))>0 )
 		{
-#ifdef DEBUG
-printf("%s: send_size=%d\n",__PRETTY_FUNCTION__,send_size);
-#endif
 			ssize_t sent = send(to_zx.sock, get_out_ptr(&to_zx), send_size, MSG_DONTWAIT|MSG_NOSIGNAL);
-#ifdef DEBUG
-printf("%s: sent=%d\n",__PRETTY_FUNCTION__,sent);
-if( sent==(-1) ) printf("%s: strerror()=%s\n",__PRETTY_FUNCTION__,strerror(errno));
-#endif
 			if( sent<0 )
 			{
 #ifdef _WIN32

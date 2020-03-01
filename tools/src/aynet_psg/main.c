@@ -7,6 +7,8 @@
 #include "psg.h"
 #include "net.h"
 #include "play.h"
+#include "args.h"
+#include "global.h"
 
 
 
@@ -20,8 +22,6 @@ void signal_handler(int);
 
 int main(int argc, char ** argv)
 {
-	int nosync = 0;
-
 	psg    = NULL; 
 	frames = NULL;
 
@@ -29,34 +29,26 @@ int main(int argc, char ** argv)
 	sock_set =   0;
 
 	
-#ifdef DEBUG
-printf("DEBUG: %s\n",__PRETTY_FUNCTION__);
-printf("DEBUG: sizeof(struct packet             )=%ld\n",sizeof(struct packet             ));
-printf("DEBUG: sizeof(struct rx_packet_framesync)=%ld\n",sizeof(struct rx_packet_framesync));
-printf("DEBUG: sizeof(struct rx_packet_syncrply )=%ld\n",sizeof(struct rx_packet_syncrply ));
-printf("DEBUG: sizeof(struct rx_packet_hello    )=%ld\n",sizeof(struct rx_packet_hello    ));
-printf("DEBUG: sizeof(struct tx_packet_shutup   )=%ld\n",sizeof(struct tx_packet_shutup   ));
-printf("DEBUG: sizeof(struct tx_packet_dump     )=%ld\n",sizeof(struct tx_packet_dump     ));
-printf("DEBUG: sizeof(struct tx_packet_syncreq  )=%ld\n",sizeof(struct tx_packet_syncreq  ));
-#endif
 
 
 
 	// parse arguments
-	if( argc!=3 && argc!=4 )
+	if( argc<3 )
 	{
-ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosync]\n");
-		fprintf(stderr," --nosync instructs the program not to send SYNCREQ and check SYNCRPLY packets\n");
+ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--prebuf N] [--testsync]\n");
+		fprintf(stderr," --prebuf N : how many frames to send ahead of time (default is 100 (2 seconds), 0 means as many as possible)\n");
+		fprintf(stderr," --testync  : instructs the program to send SYNCREQ and check SYNCRPLY packets\n");
 		exit(1);
 	}
 
-	if( argc==4 )
-	{
-		if( !strcmp(argv[3],"--nosync") )
-			nosync=1;
-		else
-			goto ERRARGS;
-	}
+	init_global();
+
+	if( argc>3 && !parse_args(3,argc,argv) ) goto ERRARGS;
+
+#ifdef DEBUG
+printf("DEBUG: %s, prebuf=%d, testsync=%d\n",__PRETTY_FUNCTION__,g.buf_num,g.test_sync);
+#endif
+
 
 
 	// load PSG file
@@ -97,16 +89,11 @@ ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--nosy
 
 
 
-//	net_test();
-
-
-
-
-
-	net_dispose();
 
 	free_psg_frames(frames);
 	free_psg_file(psg);
+	
+	net_dispose();
 
 	return 0;
 }
