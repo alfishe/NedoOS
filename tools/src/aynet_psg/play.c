@@ -155,6 +155,7 @@ void play_tune(int sock, struct frame_list * frames)
 
 	int was_hello;
 	int was_syncrply;
+	int was_framesync;
 
 	struct frame_list * curr_frame = frames;
 
@@ -163,6 +164,7 @@ void play_tune(int sock, struct frame_list * frames)
 
 	int frames_in_flight = 0;
 
+	uint32_t framesync_val, framesync_old, framesync_init;
 
 
 	// inits
@@ -174,6 +176,7 @@ void play_tune(int sock, struct frame_list * frames)
 
 	was_hello = 0;
 	was_syncrply = 0;
+	was_framesync = 0;
 
 /*
 	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
@@ -233,10 +236,36 @@ void play_tune(int sock, struct frame_list * frames)
 printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_framesync *)rcvd)->value);
 #endif
 		// FRAMESYNC was finally received
+
+		if( !was_framesync )
+		{ // first framesync
+			was_framesync = 1;
+
+			framesync_init = framesync_val = ((struct rx_packet_framesync *)rcvd)->value;
+
+			if( g.framechk )
+			{
+				printf("FRAMECHK: initial framesync received, value = %d\n",framesync_init);
+			}
+		}
+		else
+		{ // normal sequential framesyncs
+			framesync_old = framesync_val;
+
+			framesync_val = ((struct rx_packet_framesync *)rcvd)->value;
+
+			if( g.framechk & (framesync_val-framesync_old)!=1 )
+			{
+				printf("FRAMECHK: framesync skipped %d counts, total counts from initial: %d\n", framesync_val-framesync_old, framesync_val-framesync_init);
+			}
+		}
+
+
+
 		was_syncrply=0;
 
-		// assume we have one frame in flight less if we've received framesync.
-		if( frames_in_flight>0 ) frames_in_flight--;
+		// assume we have (framesync_val-framesync_old) frames less
+		if( frames_in_flight >= (framesync_val-framesync_old) ) frames_in_flight -= (framesync_val - framesync_old);
 
 
 /*	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
@@ -244,7 +273,7 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
 	if( !curr_frame ) curr_frame = frames;
 	continue;*/
 
-		if( g.buf_num>=0 )
+		if( g.prebuf >= 0 )
 		{
 			// put many (or required number of) ZX<< DUMP packets in tx fifo
 			while( get_in_free_size(&to_zx) >= sizeof(dump) )
@@ -272,7 +301,7 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
 				frames_in_flight++;
 
 				// control how many frames must be pre-buffered
-				if( g.buf_num > 0 && frames_in_flight >= g.buf_num ) break;
+				if( g.prebuf > 0 && frames_in_flight >= g.prebuf ) break;
 			}
 		}
 		else

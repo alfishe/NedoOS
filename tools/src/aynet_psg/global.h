@@ -3,9 +3,9 @@
 
 struct global
 {
-	int buf_num;
-
-	int test_sync;
+	int prebuf;
+	int syncchk;
+	int framechk;
 };
 
 extern struct global g;

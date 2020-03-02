@@ -6,8 +6,10 @@ struct global g;
 
 void init_global(void)
 {
-	g.buf_num = 100;
+	g.prebuf = 100;
 
-	g.test_sync = 0;
+	g.syncchk = 0;
+
+	g.framechk = 0;
 }
 

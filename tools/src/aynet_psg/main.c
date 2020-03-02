@@ -35,20 +35,21 @@ int main(int argc, char ** argv)
 	// parse arguments
 	if( argc<3 )
 	{
-ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> [--prebuf N] [--testsync]\n");
+ERRARGS:	fprintf(stderr,"usage: psgplay <ZX host address> <filename.psg> {options}\n");
 		fprintf(stderr," --prebuf N : how many frames to send ahead of time (default is 100 (2 seconds), 0 means as many as possible)\n");
-		fprintf(stderr," --testync  : instructs the program to send SYNCREQ and check SYNCRPLY packets\n");
+		fprintf(stderr," --syncchk  : instructs the program to send SYNCREQ and check SYNCRPLY packets\n");
+		fprintf(stderr," --framechk : instructs the program to check FRAMESYNC packets\n");
 		exit(1);
 	}
 
 	init_global();
 
 	if( argc>3 && !parse_args(3,argc,argv) ) goto ERRARGS;
-	if( g.buf_num < 0 ) goto ERRARGS;
+	if( g.prebuf < 0 ) goto ERRARGS;
 
 
 #ifdef DEBUG
-printf("DEBUG: %s, prebuf=%d, testsync=%d\n",__PRETTY_FUNCTION__,g.buf_num,g.test_sync);
+printf("DEBUG: %s, prebuf=%d, testsync=%d\n",__PRETTY_FUNCTION__,g.prebuf,g.syncchk);
 #endif
 
 

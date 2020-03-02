@@ -15,19 +15,28 @@ struct argstruct
 
 struct argstruct args_info[] = 
 {
-	{ .match     = "--prebuf",
-	  .value_ptr = &g.buf_num,
-	  .is_int    = 1
+	{
+		.match     = "--prebuf",
+		.value_ptr = &g.prebuf,
+		.is_int    = 1
 	},
 
-	{ .match     = "--testsync",
-	  .value_ptr = &g.test_sync,
-	  .is_int    = 0
+	{
+		.match     = "--syncchk",
+		.value_ptr = &g.syncchk,
+		.is_int    = 0
 	},
 
-	{ .match     = NULL,
-	  .value_ptr = NULL,
-	  .is_int    = 0
+	{
+		.match     = "--framechk",
+		.value_ptr = &g.framechk,
+		.is_int    = 0
+	},
+
+	{
+		.match     = NULL,
+		.value_ptr = NULL,
+		.is_int    = 0
 	}
 };
 
