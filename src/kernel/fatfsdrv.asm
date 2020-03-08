@@ -100,7 +100,11 @@ devices_init_noIDEslave
 devices_init_noSD
 	dec a
 	jr nz,devices_init_noGS
+	ifdef NGSSD
 	call GS_INIT
+        else
+	ld a,1
+        endif
 	ld (device_states+3),a
 	ret  
 devices_init_noGS
