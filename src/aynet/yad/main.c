@@ -28,6 +28,12 @@ void int_null(void);
 void ptr_increment(int l);
 void shutup(void);
 
+
+unsigned char scrredraw(void){
+	puts(msg_hello+2);
+	return 0;
+}
+
 void exit(int e){
 	shutup();
 	if(cmds)closesocket(cmds,0);
@@ -45,7 +51,8 @@ void initMCU(void){
 	YIELD();
 	app_pages.l = OS_GETMAINPAGES();
 	//OS_SETMUSIC(int_play, app_pages.pgs.window_1);
-	//OS_SETGFX(6);
+	OS_SETGFX(6);
+	puts(msg_hello+2);
 }
 
 void putserr(const char * s1,const char * s2){
@@ -80,25 +87,29 @@ C_task main (int argc, char *argv[])
 	bind(cmds,&web_ia,sizeof(web_ia));
 	listen(cmds,0);
 	while(1){
-		if(datasoc==0){
-			datasoc=accept(cmds,0,0);
-			if(datasoc<0){
+		if(datasoc == 0){
+			if(cmds == 0){
+				cmds = socket(AF_INET,SOCK_STREAM,0);
+				bind(cmds, &web_ia, sizeof(web_ia));
+				listen(cmds, 0);
+			}
+			datasoc=accept(cmds, 0, 0);
+			if(datasoc < 0){
 				datasoc=0;
 				OS_SETMUSIC(int_null, app_pages.pgs.window_1);
-				if(errno!=ERR_EAGAIN){
-					closesocket(cmds,0);
-					cmds=socket(AF_INET,SOCK_STREAM,0);
-					bind(cmds,&web_ia,sizeof(web_ia));
-					listen(cmds,0);
+				if(errno != ERR_EAGAIN){
+					closesocket(cmds, 0);
+					cmds = 0;
 				}else{
-					YIELD();
+					_low_level_get();
 				}
 				continue;
 			}else{//to do else
+				closesocket(cmds, 0);
+				cmds = 0;
 				send(datasoc, msg_hello, 9, 0);
 				ptr_in_rx =  buf_rx;
 				ptr_out_rx = NULL;
-				//buf_rx[0] = 0xFF; //маркер конца
 				OS_SETMUSIC(int_play, app_pages.pgs.window_1);
 			}
 		}
@@ -112,21 +123,20 @@ C_task main (int argc, char *argv[])
 			flag_syncrply = 0;
 		}
 		if(ptr_out_rx < ptr_in_rx){
-			l=recv(datasoc,ptr_in_rx,buf_rx+sizeof(buf_rx)-ptr_in_rx,0);
+			l=recv(datasoc, ptr_in_rx, buf_rx+sizeof(buf_rx)-ptr_in_rx, 0);
 		}else if(ptr_out_rx > ptr_in_rx){
-			l=recv(datasoc,ptr_in_rx,ptr_out_rx - ptr_in_rx,0);
+			l=recv(datasoc, ptr_in_rx, ptr_out_rx - ptr_in_rx, 0);
 		}else{
-			YIELD();
 			continue;
 		}
-		if(l<0){
+		if(l < 0){
 			shutup();
-			closesocket(datasoc,0);
+			closesocket(datasoc, 0);
 			OS_SETMUSIC(int_null, app_pages.pgs.window_1);
-			datasoc=0;
+			datasoc = 0;
 			continue;
-		}else if(l==0){
-			YIELD();
+		}else if(l == 0){
+			_low_level_get();
 			continue;
 		}
 		//тут складываем пакет в буфер

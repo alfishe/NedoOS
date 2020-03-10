@@ -45,7 +45,7 @@ CMD_SETBORDER=0xd8 ;e=0..15
 CMD_SETWAITING=0xd9 ;set WAITING state for current task
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb ;A=SOCKET, L=subfunction (see sys_h.asm)
-CMD_WIZNETCLOSE=0xdc ;A=SOCKET
+CMD_WIZNETCLOSE=0xdc ;A=SOCKET, E=(0 - закрыть сразу, 1 - закрыть только если буфер приёма пуст)
 CMD_WIZNETREAD=0xdd ;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
 CMD_WIZNETWRITE=0xde ;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
 CMD_DROPAPP=0xdf ;e=id

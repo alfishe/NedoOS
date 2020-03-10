@@ -169,7 +169,7 @@ flag_syncrply
 flag_int_change
 	defb 0
 msg_hello
-	defb 0x00,7,'I','\'','M',' ','Y','A','D'
+	defb 0x00,7,'I','\'','M',' ','Y','A','D',0x00
 msg_framesync
 	defb 0x01
 u32_intcount
