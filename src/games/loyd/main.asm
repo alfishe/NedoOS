@@ -15,9 +15,30 @@ begin
         ld a,d
         SETPG16K
 
-        ld a,r
-        add a,3
-        jr nc,$-2
+        ;ld a,r
+        ;add a,3
+        ;jr nc,$-2
+        ;ld (curlevel),a
+
+	ld de,filename
+	OS_OPENHANDLE
+	or a
+	jr nz,noloadini
+	push bc
+	ld de,SAVEDATA
+	ld hl,SAVEDATAsz
+	OS_READHANDLE
+	pop bc
+	OS_CLOSEHANDLE
+	jr loadiniq
+noloadini
+	xor a
+        ld (level),a
+
+        ;jr loadiniq
+restart
+        ld a,(level)
+        or a
         LD HL,FIG9
         jr z,gameinit_hl
         dec a
@@ -25,13 +46,8 @@ begin
         jr z,gameinit_hl
         LD HL,FIG11
 gameinit_hl
-        ld (curfield),hl
-        
-restart
-        call cls
-        
-curfield=$+1
-        ld hl,0
+        ;ld (curfield),hl
+        ;ld hl,(curfield)
         ld a,(hl)
         inc hl
         ld (cur_nfigures),a
@@ -51,11 +67,39 @@ curfield=$+1
         inc hl
         ld b,(hl)
         inc hl
-        CALL COPBUF
+        ld (curtopleft),bc
+        ld b,(hl)
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld (curtarget),bc
+        LD A,(HL)
+        ADD A,A
+        INC A
+        ADD A,A
+        INC HL
+        ld d,a
+        ld a,(HL)
+        ADD A,A
+        INC A
+        ADD A,A
+        ld e,a
+         ld (curmainboxsizes),de
+        INC HL
+        CALL COPBUF ;тоже рисует
+loadiniq
+
+        call cls
+        call drawfield
         
 gameloop
         
         ;call prscore
+        ld hl,(FIGBUF)
+        ld de,(curtarget)
+        or a
+        sbc hl,de
+        jr z,newlevel
 
         YIELD ;call delay
 
@@ -73,8 +117,8 @@ gameloop
         SUB 'A'-':'
         SUB '1'
         JR C,gameloop
-cur_nfigures=$+1
-        CP 10
+        ld hl,cur_nfigures
+        CP (hl);10
         JR NC,gameloop
         PUSH AF
         CALL MOVFIG
@@ -87,15 +131,34 @@ cur_nfigures=$+1
         POP AF
         CALL MOVFIG
         jr gameloop
+newlevel
+        ld a,(level)
+        inc a
+        cp 3
+        jr nz,$+3
+        xor a
+        ld (level),a
+        jp restart
+        
 quit
+	ld de,filename
+	OS_CREATEHANDLE
+	push bc
+	ld de,SAVEDATA
+	ld hl,SAVEDATAsz
+	OS_WRITEHANDLE
+	pop bc
+	OS_CLOSEHANDLE
         QUIT
 
-MOVFIG  LD HL,FIGBUF-4
+
+
+MOVFIG
+;a=fig
         push af
-        push hl
         YIELD
-        pop hl
         pop af
+        LD HL,FIGBUF-4
 FNDFIG  INC HL
         INC HL
         INC HL
@@ -161,8 +224,7 @@ ICANGO  PUSH BC
         POP HL
 STARTA_boxname=$+1
         LD A,"A"
-        CALL BOX
-        RET 
+        jp BOX
 NORT    LD C,(HL)
         DEC HL
         LD B,(HL)
@@ -180,7 +242,8 @@ NORT    LD C,(HL)
         JR C,ICANGO
         RET 
 
-TOLIETO PUSH BC
+TOLIETO
+        PUSH BC
         LD (TOLIETO_A),A
         PUSH DE
         DEC HL
@@ -226,33 +289,46 @@ TOLIETO_A=$+1
         POP BC
         RET 
 
-COPBUF  LD A,(HL)
-        ADD A,A
-        INC A
-        ADD A,A
-        INC HL
-        PUSH BC
-        PUSH HL
-        LD L,(HL)
-        ADD HL,HL
-        INC L
-        ADD HL,HL
-        LD H,A
+drawfield
+        ld bc,(curtopleft)
+        ld hl,(curmainboxsizes)
         XOR A
         CALL BOX
-        POP HL
-        POP BC
-        INC HL
-        LD DE,FIGBUF
+        ld hl,FIGBUF
         LD A,"1"
-COPBUF0 EX AF,AF'
+drawfield0
+        BIT 7,(HL)
+         ret nz
+        ld b,(hl)
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld e,(hl)
+        inc hl
+        PUSH HL
+        EX DE,HL
+        CALL BOX
+        POP HL
+        INC A
+        CP ":"
+        JR NZ,$+4
+        LD A,"A"
+        JR drawfield0
+        
+COPBUF
+        LD DE,FIGBUF
+        ld bc,(curtopleft)
+        ;LD A,"1"
+COPBUF0 ;EX AF,AF'
         BIT 7,(HL)
         LD A,(HL)
         ;JR Z,$+4
          LD (DE),A
         ; RET 
          ret nz
-        PUSH BC
+        ;PUSH BC
         INC HL
         ADD A,A
         ADD A,A
@@ -260,7 +336,7 @@ COPBUF0 EX AF,AF'
         INC A
         LD (DE),A
         INC DE
-        LD B,A
+        ;LD B,A
         LD A,(HL)
         INC HL
         ADD A,A
@@ -269,37 +345,37 @@ COPBUF0 EX AF,AF'
         INC A
         LD (DE),A
         INC DE
-        LD C,A
+        ;LD C,A ;bc=xy
         LD A,(HL)
         INC HL
         ADD A,A
         ADD A,A
         LD (DE),A
         INC DE
-        PUSH DE
-        LD D,A
+        ;PUSH DE
+        ;LD D,A
         LD A,(HL)
         INC HL
         ADD A,A
         ADD A,A
-        LD E,A
-        PUSH AF
-        PUSH HL
-        EX DE,HL
-        EX AF,AF'
-        CALL BOX
-        EX AF,AF'
-        POP HL
-        POP AF
-        POP DE
+        ;LD E,A
+        ;PUSH AF
+        ;PUSH HL
+        ;EX DE,HL
+        ;EX AF,AF'
+        ;CALL BOX
+        ;EX AF,AF'
+        ;POP HL
+        ;POP AF
+        ;POP DE
         LD (DE),A
         INC DE
-        POP BC
-        EX AF,AF'
-        INC A
-        CP ":"
-        JR NZ,$+4
-        LD A,"A"
+        ;POP BC
+        ;EX AF,AF'
+        ;INC A
+        ;CP ":"
+        ;JR NZ,$+4
+        ;LD A,"A"
         JR COPBUF0
 
 EXBCHL  LD A,B
@@ -323,7 +399,11 @@ EXBCHL  LD A,B
         LD B,A
         RET 
 
-BOX     PUSH AF
+BOX
+;a=boxnum (kept)
+;bc=xy
+;hl=wh
+        PUSH AF
         CALL EXBCHL
         LD A,C
         PUSH HL
@@ -391,20 +471,28 @@ MAYIGO  PUSH BC
         PUSH HL
         LD (MAYGO_A),A
         LD A,B
-curtopmargin=$+1
-        CP 4
+        push hl
+        ld hl,curtopmargin
+        CP (hl);4
+        pop hl
         JR C,MAYGON
         ADD A,D
-curbottommargin=$+1
-        CP 21
+        push hl
+        ld hl,curbottommargin
+        CP (hl);21
+        pop hl
         JR NC,MAYGON
         LD A,C
-curleftmargin=$+1
-        CP 6
+        push hl
+        ld hl,curleftmargin
+        CP (hl);6
+        pop hl
         JR C,MAYGON
         ADD A,E
-currightmargin=$+1
-        CP 27 ;31 for 11
+        push hl
+        ld hl,currightmargin
+        CP (hl);27 ;31 for 11
+        pop hl
         JR NC,MAYGON
         DEC HL
         PUSH HL
@@ -473,32 +561,57 @@ DOWNHL  INC H
 FIG9
         db 9
         db 4,21,6,27 ;top,bottom,left,right margin
-        dw 0x0305
-        DEFW #504,2,#202,0,#102,#100,#102
-        DEFW #200,#101,#201,#101,#300,#102,#400
-        DEFW #102,#302,#201,#303,#201
+        dw 0x0305 ;topleft
+        dw 0x0305 + 0x0101 + 0x000c;0x0804 ;target for first box
+        dw #504 ;main box
+        ;xy,wh
+        dw 2,#202
+        dw 0,#102
+        dw #100,#102
+        dw #200,#101
+        dw #201,#101
+        dw #300,#102
+        dw #400,#102
+        dw #302,#201
+        dw #303,#201
         dw 255
 FIG10
         db 10
         db 4,21,6,27 ;top,bottom,left,right margin
-        dw 0x0305
-        DEFW #504,1,#202,0,#201,#200,#201,3
-        DEFW #201,#203,#201,#400,#101,#301,#101
-        DEFW #302,#101,#403,#101,#201,#102
+        dw 0x0305 ;topleft
+        dw 0x0305 + 0x0101 + 0x040c ;target for first box
+        dw #504 ;main box
+        ;xy,wh
+        dw 1,#202
+        dw 0,#201
+        dw #200,#201
+        dw 3,#201
+        dw #203,#201
+        dw #400,#101
+        dw #301,#101
+        dw #302,#101
+        dw #403,#101
+        dw #201,#102
         dw 255
 FIG11
         db 11
         db 4,21,6,31 ;top,bottom,left,right margin
-        dw 0x0305
-        DEFW #604,2,#202,0,#102,#100,#102
-        DEFW #200,#101,#300,#101,#400,#102,#500
-        DEFW #102,#402,#201,#403,#201,#302,#102
-        DEFW #202,#102
+        dw 0x0305 ;topleft
+        dw 0x0305 + 0x0101 + 0x0010 ;target for first box
+        dw #604 ;main box
+        ;xy,wh
+        dw 2,#202
+        dw 0,#102
+        dw #100,#102
+        dw #200,#101
+        dw #300,#101
+        dw #400,#102
+        dw #500,#102
+        dw #402,#201
+        dw #403,#201
+        dw #302,#102
+        dw #202,#102
         dw 255
-FIGBUF
-        DEFS FIGBUF_sz;100
-FIGBUF2
-        DEFS FIGBUF_sz;100
 
 cls
 	ld hl,#4000
@@ -644,6 +757,34 @@ curscore
         dw 0
 font
         incbin "zx.fnt"
+
+filename
+	db "loyd.ini",0
+        
+SAVEDATA
+level
+        db 0
+cur_nfigures
+        db 9
+curtopmargin
+        db 4
+curbottommargin
+        db 21
+curleftmargin
+        db 6
+currightmargin
+        db 27 ;31 for 11
+curtopleft
+        dw 0
+curtarget
+        dw 0
+curmainboxsizes
+        dw 0
+FIGBUF
+        DEFS FIGBUF_sz;100
+FIGBUF2
+        DEFS FIGBUF_sz;100
+SAVEDATAsz=$-SAVEDATA
 
 end
 
