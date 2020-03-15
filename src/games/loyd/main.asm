@@ -15,8 +15,6 @@ begin
         ld a,d
         SETPG16K
 
-        call cls
-        
         ld a,r
         add a,3
         jr nc,$-2
@@ -27,6 +25,13 @@ begin
         jr z,gameinit_hl
         LD HL,FIG11
 gameinit_hl
+        ld (curfield),hl
+        
+restart
+        call cls
+        
+curfield=$+1
+        ld hl,0
         ld a,(hl)
         inc hl
         ld (cur_nfigures),a
@@ -57,6 +62,8 @@ gameloop
         GET_KEY
          cp key_esc
          jr z,quit
+        cp 'r'
+        jr z,restart
         cp 'a'
         jr c,$+4
         sub 0x20
