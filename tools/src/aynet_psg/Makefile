@@ -4,7 +4,7 @@ else
 	EXE = psgplay
 endif
 
-OBJS = main.o psg.o net.o play.o args.o global.o
+OBJS = main.o psg.o net.o play.o args.o global.o rnd.o ififo.o
 
 CC = gcc
 LD = gcc
@@ -45,6 +45,12 @@ args.o: args.c args.h global.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 global.o: global.c global.h Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
+
+ififo.o: ififo.c ififo.h Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
+
+rnd.o: rnd.c rnd.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 main.o: main.c net.h psg.h play.h global.h Makefile

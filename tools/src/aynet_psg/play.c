@@ -178,18 +178,6 @@ void play_tune(int sock, struct frame_list * frames)
 	was_syncrply = 0;
 	was_framesync = 0;
 
-/*
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-*/
 
 	// play loop
 
@@ -268,10 +256,6 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
 		if( frames_in_flight >= (framesync_val-framesync_old) ) frames_in_flight -= (framesync_val - framesync_old);
 
 
-/*	send(to_zx.sock, (char*)curr_frame->frame, 15, MSG_DONTWAIT|MSG_NOSIGNAL);
-	curr_frame = curr_frame->next;
-	if( !curr_frame ) curr_frame = frames;
-	continue;*/
 
 		if( g.prebuf >= 0 )
 		{
