@@ -145,6 +145,7 @@ fEM1	EXX
 	RET
 
 PRESS	;нажатие клавиши 1-2-3
+        if 1==0
 	PUSH BC
 	LD BC,#F7FE
 	IN A,(C)
@@ -162,14 +163,27 @@ PRESS	;нажатие клавиши 1-2-3
 	INC E
 PRE1	LD A,E
 	PUSH AF
-	CALL MUS+9
+	CALL MUS+9 ;stop muz
 	POP AF
 	CP 2
 	JP C,bFLICK
 	;JP Z,bGAME
 	CALL OFFS
 	JP bINSTR
-
+        else
+         push bc
+         GET_KEY
+         pop bc
+         or a
+         ret z
+	PUSH AF
+	CALL MUS+9 ;stop muz
+	POP AF
+         cp key_esc
+         jp nz,bFLICK
+press_quit
+        QUIT         
+        endif
 
 COLOR	;раскр флага
 	CALL STD
@@ -350,7 +364,9 @@ bFLICK	;DI
 	OUT (#FE),A
 	LD A,R
 	LD (RNB),A
-	CALL SW70
+	;CALL SW70 ;CALL SW7:JP MEM0 ;в 4000+
+         call SW7
+         call MEM0
 	LD HL,WIN+2
 	LD DE,#4000
 	CALL DELPZ
@@ -382,6 +398,8 @@ bFLICK	;DI
 	CALL MUSj45
 	CALL SW5
 	CALL MEM0
+         ;jr $
+         ;сейчас в 4000..7fff экранная страница 5
 	;
 fREP	LD A,-3
 	LD (fBLOCK),A
@@ -629,6 +647,10 @@ fStt	LD HL,(TITadr)
 	LD (TITtim),HL
 	RET
 
+quit
+        call MUSj45 ;init muz
+        QUIT
+
 TITadr	DEFW TITRES ;текст титров
 TITad_	DEFB 0 ;+0,+208
 TITtim	DEFW 10 ;время показа
@@ -746,6 +768,11 @@ LEM0	EXX
 	LD D,A
 LEM1	EXX
 	DJNZ LEM0
+        
+         GET_KEY
+         cp key_esc
+         jp z,quit
+        
 	RET
 
 fINTRP	;обработка im1
@@ -888,7 +915,8 @@ FFONT
         incbin "data/WFONT.FNT"
 
 LOA1_M	INC C
-	CALL LOA2_M
+	CALL LOA2_M ;грузим файл "wani?_0.lpz"
+                    ;грузим файл "wani?_1.lpz"
 LOA2_M	PUSH BC
 	PUSH AF
 	LD A,C

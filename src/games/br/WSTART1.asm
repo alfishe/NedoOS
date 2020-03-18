@@ -122,6 +122,7 @@ F_DAT
 
 ;*F w&DISK1
         if 1==0
+;sec,trk,size
   DEFB	 #C0,0,16 	; none (0)
   DEFB	#C0,2,9 	; file (1) name (..\W01\W&START1.B04)
   DEFB	#C4,3,10 	; file (2) name (..\W01\W&START1.lp2)
@@ -138,7 +139,7 @@ F_DAT
   DEFB	#C3,27,9 	; file (13) name (..\game.lpz\w.lp6)
   DEFB	 #C2,42,16 	; none (14)
   DEFB	#C2,29,16 	; file (15) name (..\W01\W&FINAL.BIN)
-  DEFB	#C3,32,5 	; file (16) name (..\intro\flick.lpz\waniB_0.lpz)
+  DEFB	#C3,32,5 	; file (16) name (..\intro\flick.lpz\waniB_0.lpz) ;используем файлы, начиная с этого №16
   DEFB	#C3,33,5 	; file (17) name (..\intro\flick.lpz\waniB_1.lpz)
   DEFB	#C3,34,10 	; file (18) name (..\intro\flick.lpz\waniD_0.lpz)
   DEFB	#C3,36,9 	; file (19) name (..\intro\flick.lpz\waniD_1.lpz)
@@ -187,6 +188,37 @@ F_DAT
   DEFB	#C4,123,10 	; file (62) name (..\intro\flick.lpz\waniZ_0.lpz)
   DEFB	#C4,125,10 	; file (63) name (..\intro\flick.lpz\waniZ_1.lpz)
         endif
+        
+        db "B"
+        db "D"
+        db "8"
+        db "J"
+        db "A"
+        db "C"
+        db "G"
+        db "I"
+        db "7"
+        db "E"
+        db "F"
+        db "9"
+        db "2"
+        db "6"
+        db "H"
+        db "3"
+        db "4"
+        db "5"
+        db "U"
+        db "V"
+        db "W"
+        db "X"
+        db "Y"
+        db "Z"
+        
+curfilename
+curfilename_letter=$+4
+curfilename_number=$+6
+        db "waniZ_1.lpz",0
+        
 
 R128
         db 0
@@ -226,7 +258,19 @@ waitcls0
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,l
-        LD (ttexpgs+0),A
+        ;LD (ttexpgs+0),A
+        ld hl,ttexpgs
+        ld (hl),a
+        ld b,7
+filltexpgs0
+        push bc
+        push hl
+        OS_NEWPAGE
+        pop hl
+        inc l
+        ld (hl),e
+        pop bc
+        djnz filltexpgs0
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
@@ -525,32 +569,47 @@ B1      LD      A,(HL)
 
 LOADF   ;A-N ф-ла (0..NN)
         PUSH    AF
-        LD D,A
-        ADD A,A
-        ADD A,D
+         sub 16
+         rra
+        ;LD D,A
+        ;ADD A,A
+        ;ADD A,D
         LD HL,F_DAT
-        CALL BA
-        LD E,(HL)
-        INC HL
-        LD D,(HL)
-        INC HL
-        LD B,(HL)
+        CALL BA ;add hl,a:ld a,(hl)
+        ;LD E,(HL)
+        ;INC HL
+        ;LD D,(HL)
+        ;INC HL
+        ;LD B,(HL)
+         ld (curfilename_letter),a
         POP AF
-        LD H,#C0 ;флики
-        CP 16
-        JR NC,L16
-        LD HL,ST_ADR ;остальные файлы
-        CALL BA
-        LD H,A
-L16     XOR A
-        LD L,A
-RETRY1  CALL    READ
-        RET     NC
-        DI
+         and 1
+         add a,'0'
+         ld (curfilename_number),a
+        ;LD H,#C0 ;флики
+        ;CP 16
+        ;JR NC,L16
+        ;LD HL,ST_ADR ;остальные файлы
+        ;CALL BA
+        ;LD H,A
+;L16     XOR A
+        ;LD L,A
+;RETRY1  ;CALL    READ
+        ;RET     NC
+        ;DI
         ;CALL    TR00
         ;CALL    TR00
         ;CALL    TR00
-        JR      RETRY1
+        ;JR      RETRY1
+        ld de,curfilename
+        OS_OPENHANDLE
+        push bc
+        ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+        ret
 
 ;===============================
 
