@@ -9,6 +9,7 @@
 #include "play.h"
 #include "args.h"
 #include "global.h"
+#include "ififo.h"
 
 
 
@@ -84,8 +85,9 @@ printf("DEBUG: %s, prebuf=%d, testsync=%d\n",__PRETTY_FUNCTION__,g.prebuf,g.sync
 
 
 	// play it!
+	ififo_init();
 	play_tune(sock,frames);
-
+	ififo_free();
 
 
 	net_disconnect(sock);

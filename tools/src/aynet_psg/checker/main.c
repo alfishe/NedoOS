@@ -23,7 +23,7 @@ unsigned int tick=123456;
 
 int send_bytes(char * ptr, int len);
 int send_hello(void);
-int send_tick(void);
+int send_tick(int was_syncreq, uint32_t sync_value);
 
 int recv_bytes(char * ptr, int len);
 
@@ -33,6 +33,9 @@ int main(int argc, char ** argv)
 	sock_valid = 0;
 
 	struct sockaddr_in addr;
+
+	int was_syncreq = 0;
+	uint32_t sync_value;
 
 
 	// init network (required for nedoVindOvS)
@@ -75,8 +78,8 @@ int main(int argc, char ** argv)
 		sock = accept(sock_listen, NULL, NULL);
 		if( sock==(-1) )
 		{
-			if( errno==EAGAIN ||
-			    errno==EWOULDBLOCK ||
+			if( errno==EAGAIN       ||
+			    errno==EWOULDBLOCK  ||
 			    errno==ECONNABORTED )
 			{
 				continue; // try again
@@ -103,8 +106,10 @@ printf("Hello sent!\n");
 		{
 			usleep(20000); // 20ms
 			tick++;
-			if( !send_tick() ) goto STOPTICKS;
+			if( !send_tick(was_syncreq,sync_value) ) goto STOPTICKS;
 printf("Tick=%08x sent!\n",tick);
+if( was_syncreq ) printf("Syncrply=%08x sent!\n",sync_value);
+			was_syncreq = 0;
 
 			uint8_t buf[15];
 
@@ -120,6 +125,15 @@ printf("SHUTUP received!\n");
 printf("DUMP received!\n");
 for(int i=0;i<14;i++)
 printf("DUMP: [reg %02x] = %02x\n",i,buf[i+1]);
+			}
+			else if( buf[0]==0x02 )
+			{
+				if( !recv_bytes(&buf[1],4) ) goto STOPTICKS;
+
+				was_syncreq = 1;
+				sync_value = *((uint32_t *) &buf[1]);
+printf("SYNCREQ received!\n");
+printf("SYNCREQ: value = %08x\n",sync_value);
 			}
 			else
 			{
@@ -240,12 +254,24 @@ int send_hello(void)
 	return send_bytes(hello_pkt,2+hello_pkt[1]);
 }
 
-int send_tick(void)
+int send_tick(int was_syncreq, uint32_t sync_value)
 {
-	char buf[5];
+	char buf[10];
 
 	buf[0] = 0x01;
 	memcpy(&buf[1],&tick,4);
 
-	return send_bytes(buf,5);
+	if( was_syncreq )
+	{
+		buf[5] = 0x02;
+		memcpy(&buf[6],&sync_value,4);
+
+		return send_bytes(buf,10);
+	}
+	else
+	{
+		return send_bytes(buf,5);
+	}
 }
+
+

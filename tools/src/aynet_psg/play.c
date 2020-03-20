@@ -7,6 +7,8 @@
 #include "psg.h"
 #include "play.h"
 #include "global.h"
+#include "rnd.h"
+#include "ififo.h"
 
 
 // init net_context
@@ -159,7 +161,20 @@ void play_tune(int sock, struct frame_list * frames)
 
 	struct frame_list * curr_frame = frames;
 
-	struct tx_packet_dump dump;
+	// buffer for dump packet and (if needed) syncreq packet.
+	uint8_t txbuf[sizeof(struct tx_packet_syncreq)+sizeof(struct tx_packet_dump)];
+
+	struct tx_packet_dump    * const dump    = (struct tx_packet_dump    *) ( txbuf+sizeof(struct tx_packet_syncreq) );
+	struct tx_packet_syncreq * const syncreq = (struct tx_packet_syncreq *) txbuf;
+
+	struct packet * pkt;
+
+
+	const size_t size_dump    = sizeof(struct tx_packet_dump);
+	const size_t size_syncreq = sizeof(struct tx_packet_syncreq);
+	const size_t size_both    = size_dump + size_syncreq;
+
+	size_t actual_size;
 
 
 	int frames_in_flight = 0;
@@ -169,7 +184,8 @@ void play_tune(int sock, struct frame_list * frames)
 
 	// inits
 
-	dump.base.type = TOZX_DUMP;
+	dump->base.type    = TOZX_DUMP;
+	syncreq->base.type = TOZX_SYNCREQ;
 
 	init_ctx(&from_zx,sock);
 	init_ctx(&to_zx,sock);
@@ -179,8 +195,13 @@ void play_tune(int sock, struct frame_list * frames)
 	was_framesync = 0;
 
 
-	// play loop
 
+
+	actual_size = g.syncchk ? size_both : size_dump;
+	pkt         = g.syncchk ? syncreq   : dump;
+
+
+	// play loop
 	for(;;)
 	{
 		// wait for frame sync
@@ -211,13 +232,28 @@ void play_tune(int sock, struct frame_list * frames)
 			}
 			else if( rcvd->type==FROMZX_SYNCRPLY )
 			{
-				if( was_syncrply ) // TODO: more checks for whether syncrply was requested and whether it carries correct data
+				if( !g.syncchk )
+				{
+					fprintf(stderr,"%s: protocol error: received ZX>> SYNCRPLY while it was not requested!\n",__PRETTY_FUNCTION__);
+					exit(1);
+				}
+				else if( was_syncrply ) // TODO: more checks for whether syncrply was requested and whether it carries correct data
 				{
 					fprintf(stderr,"%s: protocol error: received multiple ZX>> SYNCRPLY!\n",__PRETTY_FUNCTION__);
 					exit(1);
 				}
 
 				was_syncrply=1;
+
+				uint32_t from_ififo = ififo_get();
+				
+				struct rx_packet_syncrply * syncrply = (struct rx_packet_syncrply *)rcvd;
+
+				if( syncrply->value != from_ififo )
+				{
+					fprintf(stderr,"%s: protocol error: wrong data in ZX>> SYNCRPLY!\n",__PRETTY_FUNCTION__);
+					exit(1);
+				}
 			}
 		} while( rcvd->type!=FROMZX_FRAMESYNC );
 #ifdef DEBUG
@@ -259,12 +295,21 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
 
 		if( g.prebuf >= 0 )
 		{
-			// put many (or required number of) ZX<< DUMP packets in tx fifo
-			while( get_in_free_size(&to_zx) >= sizeof(dump) )
+			// put many (or required number of) ZX<< DUMP (and, if needed, ZX<< SYNCREQ) packets in tx fifo
+			while( get_in_free_size(&to_zx) >= actual_size )
 			{
-				memcpy(dump.data, ((struct frame_ay *)curr_frame->frame)->regs, 14);
+				// make ZX<< SYNCREQ packet, if needed
+				if( g.syncchk )
+				{
+					uint32_t rnd_val = get_rnd();
+					memcpy(&syncreq->value, &rnd_val, sizeof(uint32_t));
+					ififo_put(rnd_val);
+				}
+
+				// make ZX<< DUMP packet
+				memcpy(dump->data, ((struct frame_ay *)curr_frame->frame)->regs, 14);
         
-				int remaining_size = sizeof(dump);
+				int remaining_size = actual_size;
 				int max_size;
         
 				while( remaining_size )
@@ -273,7 +318,7 @@ printf("%s: FRAMESYNC received: %08x!\n",__PRETTY_FUNCTION__,((struct rx_packet_
         
 					if( max_size > remaining_size ) max_size = remaining_size;
         
-					memcpy(get_in_ptr(&to_zx), ((uint8_t *)&dump)+(sizeof(dump)-remaining_size), max_size);
+					memcpy(get_in_ptr(&to_zx), ((uint8_t *)pkt)+(actual_size-remaining_size), max_size);
 					set_write_size(&to_zx,max_size);
 					remaining_size -= max_size;
 				}

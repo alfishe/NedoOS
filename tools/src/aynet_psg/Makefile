@@ -38,7 +38,7 @@ psg.o: psg.c psg.h Makefile
 net.o: net.c net.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
-play.o: play.c play.h net.h psg.h global.h Makefile
+play.o: play.c play.h net.h psg.h global.h rnd.h ififo.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 args.o: args.c args.h global.h Makefile
@@ -53,7 +53,7 @@ ififo.o: ififo.c ififo.h Makefile
 rnd.o: rnd.c rnd.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
-main.o: main.c net.h psg.h play.h global.h Makefile
+main.o: main.c net.h psg.h play.h global.h ififo.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXE): $(OBJS) Makefile
