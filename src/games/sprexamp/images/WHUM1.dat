@@ -8,6 +8,7 @@
 ;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
 ;T: colour tilepic 28xN (size 0xN00 bytes)
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;P: DDp palette
 
 human0=x,0,0,16,16
 human0step=x,16,0,16,16

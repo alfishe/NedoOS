@@ -21,6 +21,7 @@ BYTE pixrow[1024/8][1024+1024];
 BYTE maskrow[1024/8][1024];
 //BYTE pixrowshift[1024/8][1024]; //>>4
 BYTE attrrow[1024/8];
+BYTE pal[64];
 
 #define CONVORDERSZ 1024
 
@@ -392,6 +393,8 @@ int sprwid;
 int sprhgt;
 int rowhgt; //8 for tiles, sprhgt for sprites
 
+UINT color;
+
   fin = fopen(finname, "rb");
   if (fin) {
     fread(filebuf, 10, 1, fin); //skip to 10 (header size)
@@ -401,7 +404,9 @@ int rowhgt; //8 for tiles, sprhgt for sprites
     hgt = read4b(fin); //22
     fread(filebuf, 2, 1, fin); //skip to 28
     fread(&bpp, 1, 1, fin); //28
-    fread(filebuf, 1, size-29, fin); //skip to pic
+    fread(filebuf, 1, 54-29, fin); //skip to pal
+    fread(pal, 1, 64, fin); //палитра (B, G, R, 0)
+    if (size > (54+64)) {fread(filebuf, 1, size-(54+64), fin);}; //skip to pic
     if ((wid>0)&&(wid<=1024)&&(hgt>0)&&(hgt<=1024)&&((wid&7)==0)&&((hgt&7)==0)) {
       y = hgt;
       while (y>0) {
@@ -468,6 +473,33 @@ int rowhgt; //8 for tiles, sprhgt for sprites
             }else if (sprformat == 'L') { //LAND как в ЧВ, дальше следует таблица - номер тайла для каждой клетки
               fputs("\n", fout);
               fputs(labelbuf, fout);
+              fputs("\n", fout);
+              rowhgt = sprhgt;
+            }else if (sprformat == 'P') { //DDp palette
+              fputs("\n", fout);
+              fputs(labelbuf, fout);
+              fputs("\n", fout);
+              i = 0;
+              while (i < 64) { //DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные //color = highlow
+                color = 0; //pal = палитра (B, G, R, 0)
+                if (pal[i]&0x80) color = color | 0x0100;
+                if (pal[i]&0x40) color = color | 0x2000;
+                if (pal[i]&0x20) color = color | 0x0001;
+                if (pal[i]&0x10) color = color | 0x0020;
+                i++;
+                if (pal[i]&0x80) color = color | 0x1000;
+                if (pal[i]&0x40) color = color | 0x8000;
+                if (pal[i]&0x20) color = color | 0x0010;
+                if (pal[i]&0x10) color = color | 0x0080;
+                i++;
+                if (pal[i]&0x80) color = color | 0x0200;
+                if (pal[i]&0x40) color = color | 0x4000;
+                if (pal[i]&0x20) color = color | 0x0002;
+                if (pal[i]&0x10) color = color | 0x0040;
+                i++;
+                emitdw(~color, fout);
+                i++;
+              };
               fputs("\n", fout);
               rowhgt = sprhgt;
             }else { //'s'
