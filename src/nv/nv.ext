@@ -1,7 +1,7 @@
 bmp:scratch.com
 bat:cmd.com
 txt,new,ext,ini,nfo,diz:texted.com
-gif,jpg,png,htm:browser.com
+gif,jpg,png,htm,svg:browser.com
 tfc,pt2,pt3,m  :player.com
 bas:basic.com
 zip,gz :pkunzip.com

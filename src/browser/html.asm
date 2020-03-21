@@ -14,7 +14,7 @@ CMARK=8
 loadhtml
         push af ;first char
 ;skip spaces and line breaks
-        cp 0xef ;hippiman.16mb.com начинаетсЯ с ef bb bf (UTF-8 BOM)
+        cp 0xef ;hippiman.16mb.com начинается с ef bb bf (UTF-8 BOM)
         jr z,loadhtml_html
         call htmlskipspaces_go
          cp '<'
@@ -52,7 +52,7 @@ defaultunicodeflag=$+1
         
         ;ld de,0
         ;call setxymc_stateful
-        pop af;ld a,'<' ;already read
+        pop af;ld a,'<' ;already read ;TODO может не там сделали push? по идее надо на '<'?
          ;jr $
         call loadhtml_mainloop_go
          call prcharvirtual_crlf_stateful

@@ -27,6 +27,17 @@ setpgtemp4000
         SETPG16K
         ret
 
+setpgscr4000
+        ld a,(setpgs_scr_high)
+        SETPG16K
+        ret
+
+setpgsvgc000
+codepg_svg=$+1
+        ld a,0
+        SETPG32KHIGH
+        ret
+
 setpgs_scr
         call setpgscr8000
 setpgscrc000

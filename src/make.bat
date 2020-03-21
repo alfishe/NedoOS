@@ -105,6 +105,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
 	rem nedotrd test.trd -a player/coco.pt2
 	nedotrd test.trd -a browser/browser/nos.htm
+	nedotrd test.trd -a browser/house.svg
 	rem nedotrd test.trd -a browser/test/zajchik.gif
 	rem nedotrd test.trd -a browser/test/girl.jpg
 	rem nedotrd test.trd -a browser/test/csprmain.htm
