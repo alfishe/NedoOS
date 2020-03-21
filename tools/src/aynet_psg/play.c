@@ -198,7 +198,7 @@ void play_tune(int sock, struct frame_list * frames)
 
 
 	actual_size = g.syncchk ? size_both : size_dump;
-	pkt         = g.syncchk ? syncreq   : dump;
+	pkt = g.syncchk ? (struct packet *)syncreq : (struct packet *)dump;
 
 
 	// play loop

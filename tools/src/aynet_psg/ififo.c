@@ -47,7 +47,7 @@ void ififo_put(uint32_t value)
 {
 	if( ((head+1)&mask)==(tail&mask) )
 	{ // fifo is to be overflown, add more memory to it
-		
+printf("ififo overflow: old head=%x, old tail=%x, old mask=%x, old size=%x, old ptr=%p\n",head,tail,mask,size,fifo);
 		uint32_t old_size = size;
 		uint32_t old_mask = mask;
 
@@ -59,8 +59,9 @@ void ififo_put(uint32_t value)
 		}
 
 		mask = (size-1);
-
-		fifo = realloc((void *)fifo,size);
+printf("ififo overflow: new mask=%x, new size=%x\n",mask,size);	
+		fifo = realloc((void *)fifo,size*sizeof(uint32_t));
+printf("ififo overflow: new ptr=%p\n",fifo);
 		if( !fifo )
 		{
 			fprintf(stderr,"%s: can't allocate more memory for fifo!\n",__PRETTY_FUNCTION__);
@@ -78,6 +79,7 @@ void ififo_put(uint32_t value)
 			head += old_size;
 			head &= mask;
 		}
+printf("ififo overflow: new head=%x\n",head);
 	}
 
 	fifo[head&mask] = value;

@@ -101,6 +101,8 @@ int main(int argc, char ** argv)
 		if( !send_hello() ) continue;
 printf("Hello sent!\n");
 
+		was_syncreq = 0;
+
 		// send ticks, accept dumps
 		for(;;)
 		{
@@ -113,32 +115,37 @@ if( was_syncreq ) printf("Syncrply=%08x sent!\n",sync_value);
 
 			uint8_t buf[15];
 
-			if( !recv_bytes(&buf[0],1) ) goto STOPTICKS;
+			while(1)
+			{
+				if( !recv_bytes(&buf[0],1) ) goto STOPTICKS;
 
-			if( buf[0]==0x00 )
-			{
+				if( buf[0]==0x00 )
+				{
 printf("SHUTUP received!\n");
-			}
-			else if( buf[0]==0x01 )
-			{
-				if( !recv_bytes(&buf[1],14) ) goto STOPTICKS;
+					break;
+				}
+				else if( buf[0]==0x01 )
+				{
+					if( !recv_bytes(&buf[1],14) ) goto STOPTICKS;
 printf("DUMP received!\n");
 for(int i=0;i<14;i++)
 printf("DUMP: [reg %02x] = %02x\n",i,buf[i+1]);
-			}
-			else if( buf[0]==0x02 )
-			{
-				if( !recv_bytes(&buf[1],4) ) goto STOPTICKS;
+					break;
+				}
+				else if( buf[0]==0x02 )
+				{
+					if( !recv_bytes(&buf[1],4) ) goto STOPTICKS;
 
-				was_syncreq = 1;
-				sync_value = *((uint32_t *) &buf[1]);
+					was_syncreq = 1;
+					sync_value = *((uint32_t *) &buf[1]);
 printf("SYNCREQ received!\n");
 printf("SYNCREQ: value = %08x\n",sync_value);
-			}
-			else
-			{
-				fprintf(stderr,"%s: unknown incoming pkt type = %02x\n",__PRETTY_FUNCTION__,buf[0]);
-				exit(1);
+				}
+				else
+				{
+					fprintf(stderr,"%s: unknown incoming pkt type = %02x\n",__PRETTY_FUNCTION__,buf[0]);
+					exit(1);
+				}
 			}
 		}
 STOPTICKS:
@@ -213,7 +220,7 @@ int recv_bytes(char * ptr, int len)
 
 	if( len>sizeof(bigbuf) )
 	{
-		fprintf(stderr,"%s: len=%d is greater than buffer size %d\n",__PRETTY_FUNCTION__,len,sizeof(bigbuf));
+		fprintf(stderr,"%s: len=%d is greater than buffer size %ld\n",__PRETTY_FUNCTION__,len,sizeof(bigbuf));
 		exit(1);
 	}
 
