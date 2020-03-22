@@ -3,17 +3,43 @@
 
 emptyattr=7
 FIGBUF_sz=100
+scrx=4
+scrbase=0x4000+scrx
+bgcolor=13
+bgcolorbyte=%11101101 ;color13
         
         org PROGSTART
 begin
 
-        ld e,3 ;6912
+        ld e,0 ;EGA
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,d
+        ld a,e
         SETPG16K
+        ld a,d
+        SETPG32KLOW
+
+        ld de,pal
+        OS_SETPAL
+        
+        if 1==0
+        ld de,block44
+        ld hl,0x4000
+        ld bc,0x2010
+        call primgega_pixsz
+
+        ld bc,0x0100
+        ld hl,0x0408
+        ld a,%11101101 ;color13
+;a=color byte
+;b=y/8
+;c=x/8
+;h=hgt/8
+;l=wid/8
+        call CLW     
+        endif
 
         ;ld a,r
         ;add a,3
@@ -111,7 +137,7 @@ gameloop
         cp 'a'
         jr c,$+4
         sub 0x20
-        LD (STARTA_boxname),A
+        ;LD (STARTA_boxname),A
         CP 'A'
         JR C,$+4
         SUB 'A'-':'
@@ -120,6 +146,7 @@ gameloop
         ld hl,cur_nfigures
         CP (hl);10
         JR NC,gameloop
+         LD (STARTA_boxname),A
         PUSH AF
         CALL MOVFIG
         POP AF
@@ -219,6 +246,7 @@ ICANGO  PUSH BC
         LD B,C
         LD C,A
         EX DE,HL
+         ld a,bgcolorbyte
         CALL CLW
         POP BC
         POP HL
@@ -292,10 +320,12 @@ TOLIETO_A=$+1
 drawfield
         ld bc,(curtopleft)
         ld hl,(curmainboxsizes)
-        XOR A
-        CALL BOX
+        ;XOR A
+        ;CALL BOX
+        ld a,bgcolorbyte
+        call CLW
         ld hl,FIGBUF
-        LD A,"1"
+        xor a ;LD A,"1"
 drawfield0
         BIT 7,(HL)
          ret nz
@@ -312,23 +342,19 @@ drawfield0
         CALL BOX
         POP HL
         INC A
-        CP ":"
-        JR NZ,$+4
-        LD A,"A"
+        ;CP ":"
+        ;JR NZ,$+4
+        ;LD A,"A"
         JR drawfield0
         
 COPBUF
         LD DE,FIGBUF
         ld bc,(curtopleft)
-        ;LD A,"1"
-COPBUF0 ;EX AF,AF'
+COPBUF0
         BIT 7,(HL)
         LD A,(HL)
-        ;JR Z,$+4
          LD (DE),A
-        ; RET 
          ret nz
-        ;PUSH BC
         INC HL
         ADD A,A
         ADD A,A
@@ -336,7 +362,6 @@ COPBUF0 ;EX AF,AF'
         INC A
         LD (DE),A
         INC DE
-        ;LD B,A
         LD A,(HL)
         INC HL
         ADD A,A
@@ -345,125 +370,98 @@ COPBUF0 ;EX AF,AF'
         INC A
         LD (DE),A
         INC DE
-        ;LD C,A ;bc=xy
         LD A,(HL)
         INC HL
         ADD A,A
         ADD A,A
         LD (DE),A
         INC DE
-        ;PUSH DE
-        ;LD D,A
         LD A,(HL)
         INC HL
         ADD A,A
         ADD A,A
-        ;LD E,A
-        ;PUSH AF
-        ;PUSH HL
-        ;EX DE,HL
-        ;EX AF,AF'
-        ;CALL BOX
-        ;EX AF,AF'
-        ;POP HL
-        ;POP AF
-        ;POP DE
         LD (DE),A
         INC DE
-        ;POP BC
-        ;EX AF,AF'
-        ;INC A
-        ;CP ":"
-        ;JR NZ,$+4
-        ;LD A,"A"
         JR COPBUF0
 
-EXBCHL  LD A,B
+        if 1==0
+EXBCHL
+;b=y/8
+;c=x/8
+;h=hgt/8
+;l=wid/8
+        LD A,B ;y/8
         AND 24
         ADD A,64
-        LD E,H
+        LD E,H ;hgt/8
         LD H,A
-        LD A,B
+        LD A,B ;y/8
         RRCA 
         RRCA 
         RRCA 
-        LD B,A
+         LD B,A ;???
         AND #E0
-        OR C
-        LD C,L
+        OR C ;x/8
+        LD C,L ;wid/8
         LD L,A
-        LD A,E
+        LD A,E ;hgt/8
         ADD A,A
         ADD A,A
         ADD A,A
-        LD B,A
+        LD B,A ;hgt
+;hl=scr
+;b=hgt
+;c=wid/8
         RET 
+        endif
 
 BOX
 ;a=boxnum (kept)
-;bc=xy
-;hl=wh
-        PUSH AF
-        CALL EXBCHL
-        LD A,C
-        PUSH HL
-BOX0    LD (HL),255
-        INC HL
-        DEC A
-        JR NZ,BOX0
-        POP HL
-        PUSH HL
-        DEC B
-BOX1    CALL DOWNHL
-        PUSH HL
-        SET 7,(HL)
-        LD A,L
-        ADD A,C
-        DEC A
-        LD L,A
-        SET 0,(HL)
-        POP HL
-        DJNZ BOX1
-        LD B,C
-BOX2    LD (HL),255
-        INC HL
-        DJNZ BOX2
-        POP DE
-        POP AF
-        OR A
-        RET Z
-        LD L,A
-        EX AF,AF'
-        ;ADD HL,HL
-        ;LD H,15
-        ;ADD HL,HL
-        ;ADD HL,HL
-        ld h,0
+;b=y/8
+;c=x/8
+;h=hgt/8
+;l=wid/8
+        ld (BOX_num),a
+        call coords_to_scr
+;hl=scr
+;b=hgt
+;c=wid/2
+        ld a,b
+        cp 4*8
+        ld a,c
+        jr z,BOXy4
+BOXy8
+        cp 4*4
+        ld de,block48
+        jr z,BOXok
+        ld de,block88
+        jr BOXok
+BOXy4
+        cp 4*4
+        ld de,block44
+        jr z,BOXok
+        ld de,block84
+BOXok
+        push hl
+        call primgega_pixsz
+        pop hl
+        ld de,40*8 + 1
+        add hl,de
+        push hl
+BOX_num=$+1
+        ld hl,0
         add hl,hl
         add hl,hl
         add hl,hl
-        ld bc,font-256;#3c00
+        add hl,hl
+        add hl,hl
+        ld bc,digit1
         add hl,bc
-        LD B,8
-BOX3    LD A,(DE)
-        XOR (HL)
-        LD (DE),A
-        INC D
-        INC hl
-        DJNZ BOX3
-        EX AF,AF'
-        RET 
-
-CLW     CALL EXBCHL
-CLW0    PUSH HL
-        LD A,C
-CLW1    LD (HL),0
-        INC HL
-        DEC A
-        JR NZ,CLW1
-        POP HL
-        CALL DOWNHL
-        DJNZ CLW0
+        ex de,hl
+        pop hl
+        ld bc,0x0804
+        call primgega_pixsz
+        ld a,(BOX_num)
         RET 
 
 MAYIGO  PUSH BC
@@ -614,6 +612,9 @@ FIG11
         dw 255
 
 cls
+        ld e,9
+        OS_CLS
+        if 1==0
 	ld hl,#4000
 	ld de,#4001
         ld bc,#17ff
@@ -624,6 +625,7 @@ cls
 	ld (hl),emptyattr
 	ld bc,767
 	ldir
+        endif
         ret
         
       
@@ -744,6 +746,114 @@ prchar0
         djnz prchar0
         ret
 
+coords_to_scr
+;b=y/8
+;c=x/8
+;h=hgt/8
+;l=wid/8
+        ex de,hl
+        ld h,0
+        ld a,b ;y/8
+        add a,a
+        add a,a
+        add a,a
+        ld l,a
+        ld a,c ;x/8
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40
+        ld bc,scrbase
+        add a,c
+        ld c,a
+        add hl,bc
+        ld a,d ;hgt/8
+        add a,a
+        add a,a
+        add a,a
+        ld b,a
+        ld a,e ;wid/8
+        add a,a
+        add a,a
+        ld c,a
+;hl=scr
+;b=hgt
+;c=wid/2
+        ret
+
+CLW     
+;a=color byte
+;b=y/8
+;c=x/8
+;h=hgt/8
+;l=wid/8
+        ld (CLW_color),a
+        call coords_to_scr
+;hl=scr
+;b=hgt
+;c=wid/2
+clw0
+        push bc
+        push hl
+        ld de,40
+CLW_color=$+1
+        ld a,0
+clwcolumn0
+        ld (hl),a
+        add hl,de
+        djnz clwcolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,clw0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+clw0q
+        pop bc
+        dec c
+        jr nz,clw0
+        RET 
+
+primgega_pixsz
+;b=hgt,c=wid
+;de=gfx
+;hl=scr
+primgega0
+        push bc
+        ld hx,b
+        push hl
+        ld bc,40
+primgegacolumn0
+        ld a,(de)
+        inc de
+        ld (hl),a
+        add hl,bc
+        dec hx
+        jr nz,primgegacolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,primgegacolumn0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+primgegacolumn0q
+        pop bc
+        dec c
+        jr nz,primgega0
+        ret
+
 ;text
 ;        db "Hello world!",0
 endtext
@@ -760,6 +870,8 @@ font
 
 filename
 	db "loyd.ini",0
+
+        include "loydgfx.ast"
         
 SAVEDATA
 level
