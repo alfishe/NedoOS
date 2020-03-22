@@ -39,7 +39,7 @@ ptr_increment: ;DE-count
 	MODULE 	BUF_RX
 	PUBLIC 	int_play, int_null
 	PUBLIC	buf_rx, ptr_in_rx, ptr_out_rx, u32_intcount
-	PUBLIC	msg_hello, msg_framesync
+	PUBLIC	msg_hello, msg_framesync, syncreq
 	PUBLIC	flag_int_change, flag_syncrply
 	EXTERN	shutup
 	RSEG	RXBUF
@@ -157,10 +157,15 @@ sync_full
 	ld (flag_syncrply),a
 	ld de,msg_syncrply + 1
 	ldi
+	res 4,h
 	ldi
+	res 4,h
 	ldi
+	res 4,h
 	ldi
-	jr parse_loop
+	res 4,h
+	ex de,hl
+	jp parse_loop
 
 	
 
