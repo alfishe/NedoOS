@@ -361,8 +361,8 @@ downloadflag=$+1
         jr z,loadbmp
          ld a,(DISKBUF+1)
          cp '?' ;<?xml
-         jp z,loadsvg
          ld a,(DISKBUF)
+         jp z,loadsvg
         jp nz,loadhtml;loadbmp_fail
         call RDBYTE
         cp 'M'
@@ -554,8 +554,13 @@ downloadfilehandle=$+1
 	jp closequit
 
 loadsvg
+        push af
+        push iy
         ld e,3 ;6912
         OS_SETGFX
+         call setpgscr4000
+         call setpgtemp8000
+         call setpgsvgc000
         LD      HL,#4000
         LD      DE,#4001
         LD      BC,#1800
@@ -564,9 +569,8 @@ loadsvg
         LD      (HL),7
         LD      BC,#2FF
         LDIR 
-         call setpgscr4000
-         call setpgtemp8000
-         call setpgsvgc000
+        pop iy
+        pop af ;a=first char
         call readsvg
         jr $;showgif
 

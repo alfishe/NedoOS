@@ -40,7 +40,11 @@ ADDY=4
 CPLX=0  ;X MIRRORING
 
 readsvg
+;a=first char
+        jr $
+        push af
         CALL INITS
+        pop af
         CALL CONVERT
         ;CALL PRNREAL
         CALL COMPACT
@@ -295,6 +299,7 @@ DRAW
 
 
 CONVERT
+;a=first char
         ;LD A,#10
         ;CALL PAG_128
         ;LD HL,LINETXT
@@ -311,118 +316,55 @@ CONVERT
         LD (LINES),HL
         LD (POLYGONS),HL
         LD (POLYLINES),HL
-
-        if 1==0
-        
-        LD A,9
-        LD (23814),A
-        LD HL,FILENAME
-        LD DE,23773
-        LD BC,9
-        LDIR 
-        LD C,#0A        ;SEARCH
-        CALL #3D13
-        BIT 7,C
-        JR Z,FILEFOUND
-NO_FILE
-        LD A,2
-        OUT (#FE),A
-        RET 
-FILEFOUND
-        LD A,C
-        LD C,#08        ;FILEDATUM
-        CALL #3D13
-        LD HL,(23773+14)
-        LD (#5CF4),HL
-        LD A,(23773+13)
-;       LD IY,VTX_BUF+2
-        LD LX,A
-READ1
-        PUSH IY
-        push IX
-READADR LD HL,READBUF
-        LD DE,(#5CF4)
-        LD BC,#0105
-        PUSH HL
-        LD IY,#5C3A
-        CALL #3D13      ;READSECTOR
-        POP HL
-        POP IX
-        pop IY
-        XOR A
-        INC H
-CLEANBUF
-        LD (HL),A
-        INC L
-        JR NZ,CLEANBUF
-        endif
         
 SEARCH
-        ;LD A,#7F
-        ;IN A,(#FE)
-        ;RRCA 
-        ;RET NC
+;a=first char
+;find '<'
+        jr findtag_go
+findtag0
+        rdbyte
+        or a
+        ret z
+findtag_go
+        cp '<'
+        jr nz,findtag0
         
-SEARCH1 ;LD HL,READBUF
         LD DE,STR_BUF
-SEARCH4
-        ;LD A,(HL)
-        ;INC HL
+copytag0
         rdbyte
         LD (DE),A
         INC DE
-        AND A
-        ret z ;JR Z,SEARCH3
-        CP #0D
-        ;JR Z,SEARCH2
-        JR nz,SEARCH4
-SEARCH2
-        ;LD (SEARCH1+1),HL
+        or a
+        ret z
+        CP ' '
+        JR z,copytagq
+        CP 0x0d
+        JR nz,copytag0
+copytagq
         XOR A
         LD (DE),A
 
-        if 1==0
-        JR SEARCH5
-        
-SEARCH3
-        DEC HL
-        LD DE,(SEARCH1+1)
-        AND A
-        SBC HL,DE
-        LD B,H
-        LD C,L
-        EX DE,HL
-        LD DE,READBUF
-        LD (SEARCH1+1),DE
-        LD A,B
-        OR C
-        JR Z,$+2+2
-        LDIR 
-        LD (READADR+1),DE
-        ;CALL PRNREAL
-        DEC LX
-        JP NZ,READ1
-        RET 
-        endif
+;compare tag
 
-SEARCH5
-        LD DE,POLYLINETXT
+        LD DE,POLYLINETXT ;"polyline"
         LD HL,STR_BUF
-        CALL FINDSEQ
+        CALL comparetag;FINDSEQ
         JP NC,POLYLSUB
-        LD DE,LINETXT
+        LD DE,LINETXT ;"line"
         LD HL,STR_BUF
-        CALL FINDSEQ
+        CALL comparetag;FINDSEQ
         JP NC,LINESUB
-        LD DE,POLYGONTXT
+        LD DE,POLYGONTXT ;"polygon"
         LD HL,STR_BUF
-        CALL FINDSEQ
+        CALL comparetag;FINDSEQ
         JP NC,POLYGSUB
-        LD DE,PATHTXT
+        LD DE,PATHTXT ;"path"
         LD HL,STR_BUF
-        CALL FINDSEQ
+        CALL comparetag;FINDSEQ
         JP NC,PATHSUB
-        JR C,SEARCH
+;A kept
+;a=first char
+        JR SEARCH
 
 POLYLSUB
         LD DE,POINTSTXT
@@ -495,6 +437,8 @@ POLYLS3
         LD (POLYLINES),HL
         ;LD H,D
         ;LD L,E
+;TODO
+;a=first char
         JP SEARCH
 
 
@@ -506,15 +450,15 @@ PATHS1  LD HL,POLYLINES+2
         EXX 
         LD DE,DTXT
         CALL FINDSEQ
-        LD C,"M"
+        LD C,"M" ;??? absent in the example!
         CALL FINDCHAR
         CALL TAKEVALUE
         EXX 
         LD C,A
         EXX 
         LD C," "
-        LD H,D
-        ld L,E
+        ;LD H,D
+        ;ld L,E
         CALL FINDCHAR
         CALL TAKEVALUE
         EXX 
@@ -550,7 +494,7 @@ PATHS2
         LD C," "
         ;LD H,D
         ;ld L,E
-        INC HL
+        ;INC HL
         CALL FINDCHAR
         CALL TAKEVALUE
         EXX 
@@ -578,7 +522,7 @@ PATHS_LY=$+1
         ld (PATHS_LY),a
         ;LD H,D
         ;ld L,E
-        INC HL
+        ;INC HL
         CALL CHEKPATH
         JR Z,PATHS2
   ;CONTINUOUS PATHS ARE NOT IMPLEMENTED
@@ -648,9 +592,9 @@ CHEKPATH
         RET 
 
 FINDCHAR
-        ;LD A,(HL)
-        ;INC HL
         rdbyte
+         or a
+         ret z
         CP C
         JR NZ,FINDCHAR
         RET 
@@ -736,6 +680,8 @@ CHEKEND1
         ;LD A,(HL)
         ;INC HL
         rdbyte
+         or a
+         jr z,CHEKEND3
         CP '0'-1
         JR NC,CHEKEND1
         CP '.'
@@ -856,21 +802,22 @@ MINL3
         JP SEARCH
 
 TAKEVALUE
-;a=first char?
+;для line (не polyline) nextchar='"'
 ;may be sign TODO
         ld de,0 ;val
-        jr TAKEVALUE_go ;TODO test
+TAKEVALUEbeg
+        rdbyte
+        cp 34 ;'"'
+        jr z,TAKEVALUEbeg
+        cp '-'
+       push af ;sign
+        jr nz,TAKEVALUE_go
 TAKEVALUE0
-        ;LD A,(HL)
         rdbyte
 TAKEVALUE_go
-        CP "0"-1
-        JR C,TAKEVAL6
-        CP "9"+1
-        JR C,TAKEVAL5
-TAKEVAL6
-        ;INC HL
         sub '0'
+        cp 10
+        jr nc,TAKEVAL5
 ;val=val*10+A
         push hl
         ld h,d
@@ -888,150 +835,90 @@ TAKEVAL6
         JR TAKEVALUE0
 TAKEVAL5
 ;non-numeric char
-        ;LD D,H
-        ;LD E,L
-        LD H,0 ;???
-;TAKEVAL2
-        ;INC DE
-        ;LD A,(DE)
-        ;rdbyte
-        ;CP "9"+1
-        ;JR NC,TAKEVAL7
-        ;CP "0"-1
-        ;JR NC,TAKEVAL2
+        add a,'0'
         CP "."
-        JR Z,TAKEVAL1 ;fraction
-TAKEVAL7 ;no fraction
-        ;DEC DE
-        ;LD L,0 ;no rounding up
-        JR TAKEVAL4
-
-TAKEVAL1
+        JR nz,TAKEVAL4 ;no fraction
 ;fraction
-        ;INC DE
-        ;LD A,(DE)
         rdbyte
         CP "5" ;rounding up or down?
-        ;LD L,0
-        JR C,TAKEVAL3
-        inc de;LD L,1
-TAKEVAL3
-        ;DEC DE
-        ;DEC DE
+        JR C,$+3
+        inc de ;rounding up
 TAKEVAL4
-        if 1==0
-        ;LD A,(DE)
-        ;rdbyte
-        ;SUB "0"
-        ;ADD A,L
-        ;LD L,A
-        ;DEC DE
-        ;LD A,(DE)
-        ;rdbyte
-        CP "0"-1
-        JR C,SIGNCHECK
-        CP "9"+1
-        JR NC,SIGNCHECK
-        SUB "0"
-        AND A
-        RLA 
-        LD C,A
-        RLA             ;x10
-        RLA 
-        ADD A,C
-        ADD A,L
-        LD L,A
 
-        DEC DE
-        LD A,(DE)
-        CP "0"-1
-        JR C,SIGNCHECK
-        CP "9"+1
-        JR NC,SIGNCHECK
-
-        SUB "0"         ;x100
-        AND A
-        RLA 
-        RLA 
-        LD C,A          ;4
-        RLA 
-        RLA 
-        RLA 
-        LD B,A          ;32
-        RLA             ;64
-        ADD A,B
-        ADD A,C
-        ADD A,L
-        JR NC,$+2+2
-        LD A,#FF
-        LD L,A
-        DEC DE
-        LD A,(DE)
-SIGNCHECK
-        endif
-
-        PUSH AF ;TODO push '-' at the beginning
-        ;PUSH DE
-        LD H,e;L
+        LD H,e
         LD L,0
         LD DE,SCALE
         CALL DIV
-        ;POP DE
-        POP AF
-        CP "-"
+       pop af ;sign (Z='-')
         LD A,L
         JR NZ,SIGNCH1
         NEG 
 SIGNCH1
-;       AND A
-;       RR L
-;       LD A,L
-;       CP #74
-;       RET NZ
         RET 
 
 
+comparetag
+;A kept
+;hl=string
+;de=substring what we need
+;CY=1: fail
+        push af
+comparetag0
+        ld a,(de)
+        or a
+        jr z,comparetagok
+        cp (hl)
+        inc hl
+        inc de
+        jr z,comparetag0
+comparetagfail
+        pop af
+        scf
+        ret
+comparetagok       
+        pop af
+        or a
+        ret
+
 FINDSEQ
+;de=substring to find
+;out:
+;(first char after match is not read)
+;CY=1 - fail
+;TODO a=first char
+FINDSEQ0
         LD A,(DE)
         LD C,A
         rdbyte ;LD A,(HL)
-        AND A
-        JR Z,FINDS4
+        or a
+        scf
+        ret z ;EOF
         CP C
         CALL Z,FINDS2
-        JR Z,FINDS7
-        ;INC HL
-        JR FINDSEQ
-FINDS7
-        SCF 
-        CCF 
+        JR nz,FINDSEQ0
+        or a
         RET 
 
 FINDS2
+;out:
+;(first char after match is not read)
+;NZ - fail
+;(de kept)
         PUSH DE
-         inc de ;first char is already checked
-FINDS6
+FINDS20
+        inc de ;first char is already checked
         LD A,(DE)
-        AND A
-        JR Z,FINDS5
-        ;CP (HL)
-        ex de,hl
-        rdbyte
-        cp (hl)
-        ex de,hl
-        JR NZ,FINDS3
-        ;INC HL
-        INC DE
-        JR FINDS6
-FINDS5
+        or a
+        JR Z,FINDS2ok
+        ld c,a
+        rdbyte ;TODO check EOF
+        cp c
+        JR z,FINDS20
+FINDS2fail ;nz
+FINDS2ok ;z
         POP DE
         RET 
 
-FINDS3
-        POP DE
-FINDS4
-        SCF 
-        RET 
 
         if 1==0
 ;---PRINT HEX NUMBER
