@@ -554,7 +554,7 @@ downloadfilehandle=$+1
 	jp closequit
 
 loadsvg
-        push af
+        ;push af
         push iy
         ld e,3 ;6912
         OS_SETGFX
@@ -570,9 +570,17 @@ loadsvg
         LD      BC,#2FF
         LDIR 
         pop iy
-        pop af ;a=first char
+        ;pop af ;a=(iy)=first char
         call readsvg
-        jr $;showgif
+         call setpgcode4000
+loadsvgq0
+        call yieldgetkeynolang ;z=nokey
+        jr z,loadsvgq0
+        ld e,2 ;MC hires mode
+        OS_SETGFX
+        call globalbuttons
+        jr loadsvgq0
+        ;jr showgif
 
 loadpng
          call setpgtemp8000

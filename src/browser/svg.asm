@@ -40,11 +40,11 @@ ADDY=4
 CPLX=0  ;X MIRRORING
 
 readsvg
-;a=first char
-        jr $
-        push af
+;a=(iy)=first char
+        ;jr $
+        ;push af
         CALL INITS
-        pop af
+        ;pop af
         CALL CONVERT
         ;CALL PRNREAL
         CALL COMPACT
@@ -59,9 +59,7 @@ readsvg
         ;LDIR 
         ;POP BC
         ;pop HL
-
         RET 
-
 
 CRDINI
         LD HL,(FINDAT)
@@ -299,7 +297,7 @@ DRAW
 
 
 CONVERT
-;a=first char
+;a=(iy)=first char
         ;LD A,#10
         ;CALL PAG_128
         ;LD HL,LINETXT
@@ -318,6 +316,7 @@ CONVERT
         LD (POLYLINES),HL
         
 SEARCH
+        ld a,(iy)
 ;a=first char
 ;find '<'
         jr findtag_go
@@ -362,8 +361,6 @@ copytagq
         LD HL,STR_BUF
         CALL comparetag;FINDSEQ
         JP NC,PATHSUB
-;A kept
-;a=first char
         JR SEARCH
 
 POLYLSUB
@@ -381,7 +378,7 @@ POLYLS1
         PUSH HL
         ;LD H,D
         ;ld L,E
-        CALL TAKEVALUE
+        CALL TAKEVALUE_usechar
         POP HL
         ADD A,ADDX
         IF CPLX
@@ -392,7 +389,7 @@ POLYLS1
         PUSH HL
         ;LD H,D
         ;LD L,E
-        LD C,","
+        LD C,','
         CALL FINDCHAR
         CALL TAKEVALUE
         POP HL
@@ -402,32 +399,40 @@ POLYLS1
         PUSH HL
         ;LD H,D
         ;LD L,E
-        LD C," "
-        CALL FINDCHAR
+        LD C,' '
+        CALL FINDCHAR ;always space after a coordinate pair
+        ;push af
         ;INC LY
 POLYLSUB_LY=$+1
         ld a,0
         inc a
         ld (POLYLSUB_LY),a
-        CALL CHEKEND
+        ;pop af
+        ;CALL CHEKEND ;no more coordinates?
+         rdbyte
+         or a
+         jr z,$+4
+         cp 34 ;'"'
         ;LD D,H
         ;LD E,L
         POP HL
-        JR NC,POLYLS1
+        ;JR NC,POLYLS1
+        jr nz,POLYLS1 ;A=char
+        
         LD A,(POLYLSUB_LY);LY
         CP 2
         JR NZ,POLYLS3
         POP HL
         INC HL
-        PUSH DE
+        ;PUSH DE
         LD DE,(LINES1+1)
         LDI 
         LDI 
         LDI 
         LDI 
         LD (LINES1+1),DE
-        POP DE
-        JP INCLINES
+        ;POP DE
+        JP INCLINES ;then go to SEARCH
 POLYLS3
         LD (PATHS1+1),HL
         POP HL
@@ -437,26 +442,30 @@ POLYLS3
         LD (POLYLINES),HL
         ;LD H,D
         ;LD L,E
-;TODO
-;a=first char
         JP SEARCH
 
-
+;<path
+;       style="opacity:0.5;fill:#fbd18c;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.99999994000000003px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+;       d="M 277.29341,317.6659 L 273.34797,332.71054 C 261.22154,336.98064 252.44384,347.94937 243.51063,358.60706 C 236.13584,370.87482 233.6126,384.52895 230.68798,398.0684 C 228.07703,416.06618 225.69032,434.07143 228.96183,450.10806 C 230.4419,470.61379 228.50633,481.00099 228.22209,494.74869 C 241.62433,501.24807 254.04631,507.5823 269.40254,513.98611 C 277.03418,517.22393 283.63529,521.18884 290.85583,522.12501 C 298.55151,525.56769 302.87162,518.88188 307.37735,512.75292 C 310.39581,503.95065 313.11655,495.0739 313.54206,485.62327 C 313.51245,473.88189 314.88711,461.43824 317.48752,448.38162 C 324.7129,437.1143 329.17434,426.64049 332.52947,412.37314 C 334.3987,398.14383 333.52075,385.77337 331.55551,372.68269 C 328.70412,364.8855 328.86795,346.24999 322.74448,340.66065 C 315.68984,334.22137 321.89707,339.41824 313.62504,332.60726 C 310.05408,329.4694 310.21048,327.59421 310.55162,322.68856"
+;       id="path3258"
+;       sodipodi:nodetypes="cccccccccccccscc" />
+;<path d="M1240.8016 149.5791 L1231.7411 158.9015 L1237.4938 157.9492 L1241.0413 162.5769 Z" clip-path="url(#clipPath2)" stroke="none"/>
+;      <path fill="none" d="M1296.431 128.426 L1491.5957 172.0709" clip-path="url(#clipPath2)"/>
 PATHSUB
         EXX 
 PATHS1  LD HL,POLYLINES+2
-        PUSH HL
-        INC HL
+        PUSH HL ;start of path
+        INC HL ;there will be number of lines
         EXX 
         LD DE,DTXT
         CALL FINDSEQ
-        LD C,"M" ;??? absent in the example!
+        LD C,'m';"M" ;BIG and small!
         CALL FINDCHAR
         CALL TAKEVALUE
         EXX 
         LD C,A
         EXX 
-        LD C," "
+        LD C,' '
         ;LD H,D
         ;ld L,E
         CALL FINDCHAR
@@ -468,7 +477,6 @@ PATHS1  LD HL,POLYLINES+2
         IF CPLX
         CPL 
         ENDIF 
-
         LD (HL),A
         INC HL
         LD A,B
@@ -480,22 +488,28 @@ PATHS1  LD HL,POLYLINES+2
         ld a,1
         ld (PATHS_LY),a
 
-        LD C,"l"
+        ;LD C,'l' ;letter ;or maybe 'c'???
         ;LD H,D
         ;ld L,E
-        INC HL
-        CALL FINDCHAR
+        ;INC HL
+        ;CALL FINDCHAR
+        call CHEKPATH ;skip end of number
 PATHS2
-        CALL TAKEVALUE
+        rdbyte
+        or 0x20
+        cp 'z'
+        jr z,PATHS2q
+        CALL TAKEVALUE_usechar
         EXX 
         ADD A,C
         LD C,A
         EXX 
-        LD C," "
+        ;LD C,' ' ;or maybe ','!!!
         ;LD H,D
         ;ld L,E
         ;INC HL
-        CALL FINDCHAR
+        ;CALL FINDCHAR
+        call CHEKPATH ;skip end of number
         CALL TAKEVALUE
         EXX 
         ADD A,B
@@ -523,8 +537,9 @@ PATHS_LY=$+1
         ;LD H,D
         ;ld L,E
         ;INC HL
-        CALL CHEKPATH
-        JR Z,PATHS2
+        CALL CHEKPATH ;skip end of number
+        JR Z,PATHS2 ;space after number
+PATHS2q
   ;CONTINUOUS PATHS ARE NOT IMPLEMENTED
   ;"z,m,l" AND OTHER CASES SHOULD BE CHECKED HERE
         EXX 
@@ -533,27 +548,30 @@ PATHS_LY=$+1
         POP HL
         LD A,(PATHS_LY);LY
         CP 2
-        JR NZ,PATHS3
-        POP HL
+        JR NZ,PATHS3 ;more that 1 coordinate pair?
+;1 coordinate pair?
+        POP HL ;start of path
         INC HL
-        PUSH DE
+        ;PUSH DE
         LD DE,(LINES1+1)
         LDI 
         LDI 
         LDI 
         LDI 
         LD (LINES1+1),DE
-        POP DE
-        JP INCLINES
+        ;POP DE
+        JP INCLINES ;then go to SEARCH
 PATHS3
+;more that 1 coordinate pair?
+;TODO test!
         LD (PATHS1+1),HL
-        POP HL
-        LD (HL),A
+        POP HL ;start of path
+        LD (HL),A ;number of lines
         LD BC,(POLYLINES)
         INC BC
         LD (POLYLINES),BC
 
-        PUSH DE
+        ;PUSH DE
         LD B,(HL)
         INC HL
         LD E,(HL)
@@ -574,29 +592,43 @@ POLYLD11
         POP DE
         POP BC
         DJNZ POLYLD11
-        POP DE
+        ;POP DE
         ;LD H,D
         ;LD L,E
         JP SEARCH
 
 
 CHEKPATH
+;skip end of number
+;out: Z = space, NZ = nonspace
+CHEKPATH0
         ;LD A,(HL)
         ;INC HL
         rdbyte
-        CP " "
+         or a
+         ret z
+        CP ' '
         RET Z
-        CP "9"+1
-        JR C,CHEKPATH
+        cp '0'
+        ret c ;jr c,CHEKPATHq
+        CP '9'+1
+        JR C,CHEKPATH0
+;CHEKPATHq
         AND A
         RET 
 
 FINDCHAR
+;finds BIG and small!
+        ld a,(iy) ;to find a delimiter after a number (the next char after the number is already read)
+        jr FINDCHAR_go
+FINDCHAR0
         rdbyte
          or a
          ret z
+FINDCHAR_go
+         or 0x20 ;small
         CP C
-        JR NZ,FINDCHAR
+        JR NZ,FINDCHAR0
         RET 
 
 POLYGSUB
@@ -614,7 +646,7 @@ POLYGS1
         PUSH HL
         ;LD H,D
         ;ld L,E
-        CALL TAKEVALUE
+        CALL TAKEVALUE_usechar
         POP HL
         ADD A,ADDX
         IF CPLX
@@ -637,31 +669,39 @@ POLYGS1
         ;LD H,D
         ;LD L,E
         LD C," "
-        CALL FINDCHAR
+        CALL FINDCHAR ;always space after a coordinate pair
+        ;push af
         ;INC LY
 POLYGSUB_LY=$+1
         ld a,0
         inc a
         ld (POLYGSUB_LY),a
-        CALL CHEKEND
+        ;pop af
+        ;CALL CHEKEND ;no more coordinates?
+         rdbyte
+         or a
+         jr z,$+4
+         cp 34 ;'"'
         ;LD D,H
         ;LD E,L
         POP HL
-        JR NC,POLYGS1
+        ;JR NC,POLYGS1
+        jr nz,POLYGS1
+        
         LD A,(POLYGSUB_LY);LY
         CP 2
         JR NZ,POLYGS3
         POP HL
         INC HL
-        PUSH DE
+        ;PUSH DE
         LD DE,(LINES1+1)
         LDI 
         LDI 
         LDI 
         LDI 
         LD (LINES1+1),DE
-        POP DE
-        JP INCLINES
+        ;POP DE
+        JP INCLINES ;then go to SEARCH
 POLYGS3
         LD (POLYGS+1),HL
         POP HL
@@ -673,12 +713,10 @@ POLYGS3
         ;LD L,E
         JP SEARCH
 
-
+        if 1==0
 CHEKEND
-        ;PUSH HL
+;find end of number
 CHEKEND1
-        ;LD A,(HL)
-        ;INC HL
         rdbyte
          or a
          jr z,CHEKEND3
@@ -687,17 +725,14 @@ CHEKEND1
         CP '.'
         JR Z,CHEKEND2
         CP 34;'"'
-        ;JR Z,CHEKEND3
         JR nz,CHEKEND1
 CHEKEND3
         SCF 
-        ;POP HL
         RET 
 CHEKEND2
         AND A
-        ;POP HL
         RET 
-
+        endif
 
 LINESUB
         LD DE,X1
@@ -755,9 +790,10 @@ LINES1  LD HL,LINES+2
         LD (LINES1+1),HL
 
 INCLINES
+;then go to SEARCH
         ;LD H,D
         ;LD L,E
-        PUSH HL
+        ;PUSH HL
         LD HL,(LINES1+1)
         DEC HL
         LD D,(HL)
@@ -796,25 +832,43 @@ MINL2
         LD HL,(LINES)
         INC HL
         LD (LINES),HL
-
 MINL3
-        POP HL
+        ;POP HL
         JP SEARCH
 
+TAKEVALUE_usechar
+        ;ld de,0 ;val
+        ;jr TAKEVALUEbeg_go
 TAKEVALUE
-;для line (не polyline) nextchar='"'
-;may be sign TODO
+;out: A=value (TODO de)
+;for line (not polyline) nextchar='"'
+;can be space before
+;may be sign
         ld de,0 ;val
-TAKEVALUEbeg
+        ld a,(iy) ;old char
+        jr TAKEVALUEbeg_go
+TAKEVALUEbeg0
         rdbyte
-        cp 34 ;'"'
-        jr z,TAKEVALUEbeg
+         or a
+         ret z
+TAKEVALUEbeg_go
+        ;cp ' '
+        ;jr z,TAKEVALUEbeg
+        ;cp 34 ;'"'
+        ;jr z,TAKEVALUEbeg
+        cp '-'
+        jr z,TAKEVALUEbegq
+        cp '0'
+        jr c,TAKEVALUEbeg0
+        cp '9'+1
+        jr nc,TAKEVALUEbeg0
+TAKEVALUEbegq
         cp '-'
        push af ;sign
-        jr nz,TAKEVALUE_go
+        jr nz,TAKEVALUE0_go
 TAKEVALUE0
         rdbyte
-TAKEVALUE_go
+TAKEVALUE0_go
         sub '0'
         cp 10
         jr nc,TAKEVAL5
@@ -963,7 +1017,7 @@ PRNREAL
 INITS
         ;XOR A
         ;OUT (#FE),A
-        CALL DCRHORN
+        ;CALL DCRHORN
         ;LD A,#15
         ;CALL PAG_128
         ;LD A,COLM1
@@ -972,7 +1026,7 @@ INITS
         ;CALL PAG_128
         ;LD A,COLM1
         ;CALL SCR_FIL
-        RET 
+        ;RET 
 
 ;[512] LINE JUMP TABLE ON ROW X COL Y
 ;EA=PROC#*64+X*8+Y
