@@ -144,7 +144,10 @@ L_8069
 	LD	(VAR0082),A
 	LD	(VAR0085),A
 MAINLOOP;L_80B5
-        YIELDGETKEY
+        ;YIELDGETKEY
+        halt
+curkey=$+1
+        ld a,0
 	cp key_esc
         jp z,quiter ;Alone Coder
 

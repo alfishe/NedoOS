@@ -5,6 +5,11 @@ EGA=1
 bmpbuf=0xbf00
 egagfx=0x6000 ;converted gfx (256 tiles *32 bytes vertically) = 0x2000
 
+muz=0xc000
+muzplay=muz+3
+
+INTSTACK=0x3f00
+
         org PROGSTART
 begin
         ld sp,0x4000
@@ -70,24 +75,152 @@ recodegfx0bmpline
         endif
 
 
-        OS_GETSCREENPAGES
+        OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000,8000,c000
+        ld a,l
+        LD (pgmuznum),A
+        ld hl,wasmuz
+        ld de,muz
+        ld bc,muzsz
+        ldir
 
+        OS_GETSCREENPAGES
         if EGA
         ld a,e
         SETPG32KLOW
         ld a,d
+        ld (pgc000),a
         SETPG32KHIGH
         else ;6912
         ld a,d
         SETPG16K
         endif
 
+        call swapimer
+
 	include "eric1.asm"
 
 ;oldtimer
 ;        dw 0
 quiter
+        halt
+        ld a,(pgmuznum)
+        SETPG32KHIGH
+        call muz
+        call swapimer
 	QUIT ;rasmer
+
+
+swapimer
+	di
+         ld hl,(0x0038+3) ;адрес intjp
+         ld (intjpaddr),hl        
+        ld de,0x0038
+        ld hl,oldimer
+        ld bc,3
+swapimer0
+        ld a,(de)
+        ldi ;[oldimer] -> [0x0038]
+        dec hl
+        ld (hl),a ;[0x0038] -> [oldimer]
+        inc hl
+        jp pe,swapimer0
+	ei
+        ret
+oldimer
+        jp on_int ;заменится на код из 0x0038
+
+on_int
+;restore stack with de
+	ld (on_int_hl),hl
+	ld (on_int_sp),sp
+	pop hl
+	ld (on_int_sp2),sp
+intjpaddr=$+1
+	ld (0),hl ;(on_int_jp),hl
+	
+	ld sp,INTSTACK
+	
+	push af
+	push bc
+	push de
+	
+;imer_curscreen_value=$+1
+         ;ld a,0
+         ;ld bc,0x7ffd
+         ;out (c),a
+
+	ex de,hl;ld hl,0
+on_int_sp=$+1
+	ld (0),hl ;восстановили запоротый стек
+        
+        push ix
+        push iy
+        ex af,af'
+        exx
+        push af
+        push bc
+        push de
+        push hl
+        ;ld a,(curscreen)
+        ;ld e,a
+        ;OS_SETSCREEN ;вызываем здесь, а не в рандомном месте, иначе даже с одной задачей можем получить непредсказуемую задержку, которую не фиксирует наш таймер? с несколькими задачами надо учитывать и системный - TODO
+;curpalette=$+1
+        ;ld de,wolfpal
+        ;OS_SETPAL
+        GET_KEY
+        ld (curkey),a
+        
+pgmuznum=$+1
+        ld a,0
+        SETPG32KHIGH
+        call muzplay
+pgc000=$+1
+        ld a,0
+        SETPG32KHIGH
+        
+        pop hl
+        pop de
+        pop bc
+        pop af
+        exx
+        ex af,af'
+        pop iy
+        pop ix
+        
+	;ld hl,(timer)
+	;inc hl
+	;ld (timer),hl
+
+	pop de
+	pop bc
+	pop af
+	
+on_int_hl=$+1
+	ld hl,0
+on_int_sp2=$+1
+	ld sp,0
+;        ei
+;on_int_jp=$+1
+;	jp 0
+
+        push de
+        ex de,hl
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        jp 0x0038+5
+
+;вход в стандартный обработчик:
+        ;ex de,hl ;de="hl", hl="de"
+        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
+        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        ;ld l,a
+;user_fdvalue6=$+1
+        ;ld a,fd_system
+        ;out (0xfd),a ;10 b
+
 
         if EGA
         
@@ -105,9 +238,9 @@ quiter
         endm
         
 recodegfxsubchr
-;╨╕╨╖ hl ╨▓ de
-;de ╤А╨░╤Б╤В╤С╤В ╨┐╨╛ +256 (╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╨╝ ╨┐╨╛╨╗╨╛╨╢╨╡╨╜╨╕╨╡ ╨▓ ╨║╨╛╨╜╤Ж╨╡)
-;hl ╤А╨░╤Б╤В╤С╤В ╨┐╨╛ -128 (╨▓╨╛╨╖╨▓╤А╨░╤Й╨░╨╡╨╝ ╨▓ ╨║╨╛╨╜╤Ж╨╡ ╨║╨░╨║ ╨▒╤Л╨╗╨╛)
+;из hl в de
+;de растёт по +256 (сохраняем положение в конце)
+;hl растёт по -128 (возвращаем в конце как было)
         push bc
         push hl
         ld c,128
@@ -155,7 +288,7 @@ readfile_rgbtopal
 
 calcRGBtopal_pp
 ;e=B, d=G, l=R
-;DDp palette: %grbG11RB(low),%grbG11RB(high), ╨╕╨╜╨▓╨╡╤А╤Б╨╜╤Л╨╡
+;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
         xor a
         rl e  ;B
         rra
@@ -173,6 +306,8 @@ calcRGBtopal_pp
         rra
         cpl
         ret
+
+;INTSTACK ;затирает процедуры выше (по доке надо 0x3b00+)
 
 pal
         ds 32
@@ -201,6 +336,10 @@ _210=$&7
         edup
 
         endif
+
+wasmuz
+        incbin "ericmuz.bin"
+muzsz=$-wasmuz
 
 end
 
