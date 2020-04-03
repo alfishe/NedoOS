@@ -46,8 +46,12 @@ CMD_SETWAITING=0xd9 ;set WAITING state for current task
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb ;A=SOCKET, L=subfunction (see sys_h.asm)
 CMD_WIZNETCLOSE=0xdc ;A=SOCKET, E=(0 - закрыть сразу, 1 - закрыть только если буфер приёма пуст)
-CMD_WIZNETREAD=0xdd ;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
-CMD_WIZNETWRITE=0xde ;A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; out: HL=count if HL < 0 then A=error
+CMD_WIZNETREAD=0xdd 	;if TCP: A=SOCKET, de=buffer_ptr, HL=sizeof(buffer)
+						;else:	 A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
+						;out: HL=count if HL < 0 then A=error
+CMD_WIZNETWRITE=0xde 	;if TCP: A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) 
+						;else:	 A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
+						;out: HL=count if HL < 0 then A=error
 CMD_DROPAPP=0xdf ;e=id
 CMD_GETAPPMAINPAGES=0xe0 ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
 CMD_GETXY=0xe1 ;out: de=yx ;GET CURSOR POSITION

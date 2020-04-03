@@ -449,18 +449,19 @@ is_dot:
 	ld (soc1),a
 	or a
 	jp m,dns_exiterr
-	LD	DE,dns_ia
-	OS_NETCONNECT
-                 ld a,l ;DimkaM 12.03.2019
-	or a
-	jp m,dns_exiterr
+	;LD	DE,dns_ia
+	;OS_NETCONNECT
+    ;ld a,l
+	;or a
+	;jp m,dns_exiterr
 	
 	pop hl
 	push hl
 	ld de,0xffff&(-dnsbuf)
 	add hl,de
 	LD	a,(soc1)
-	LD	DE,dnsbuf
+	LD	IX,dnsbuf
+	LD	DE,dns_ia
 	OS_WIZNETWRITE
 	bit 7,h
 	jr nz,dns_exitcode
@@ -477,11 +478,13 @@ recv_wait1:
 	ld hl,256
 	LD	a,(soc1)
 	LD	DE,dnsbuf
+	LD	IX,dnsbuf
 	OS_WIZNETREAD
 	pop bc
-	ld a,h
-	or l
-	jr nz,recv_wait_end
+	;ld a,h
+	;or l
+	bit 7,h
+	jr z,recv_wait_end
 	djnz recv_wait
 	;ld a,54	;ERR_CONNRESET
 	;ld (errno),a

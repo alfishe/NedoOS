@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <oscalls.h>
+#include <socket.h>
 #include <stdlib.h>
 
 extern unsigned char 	buf_rx[4*1024];  

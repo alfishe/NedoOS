@@ -108,7 +108,6 @@ SOCK_CLOSING        EQU 0x1A                 ;< SOCKETn is closing. */
 SOCK_TIME_WAIT      EQU 0x1B                 ;< SOCKETn is closing. */
 SOCK_CLOSE_WAIT     EQU 0x1C                 ;< Disconnect-request(FIN packet) is received from the peer. */
 SOCK_LAST_ACK       EQU 0x1D                 ;< SOCKETn is closing. */
-;драйвер визнета
 SOCK_UDP            EQU 0x22                 ;< SOCKETn is open as UDP mode. */
 SOCK_IPRAW          EQU 0x32                 ;< SOCKETn is open as IPRAW mode. */
 SOCK_MACRAW         EQU 0x42                 ;< SOCKET0 is open as MACRAW mode. */
@@ -327,7 +326,7 @@ w53_valid_free:
 		out (c),a
 		ld b,WIZ_S_MR
 		in a,(c)
-		or a	
+		and 0x0f	
 		ret
 w53_invalid_socked:
 		pop af
@@ -335,7 +334,16 @@ w53_invalid_socked0:
 		ld hl,-1
 		ld a,ERR_NOTSOCK 
 		ret
-		
+
+w53_open_cmd
+		ld a,Sn_CR_OPEN
+		call w53_cmd
+		ld b,WIZ_S_SSR
+w53_op_cmd1:
+		in a,(c)
+		or a
+		jr z,w53_op_cmd1
+		ret
 		
 w53_connect:
 ;DE-sockaddr_in
@@ -350,29 +358,8 @@ w53_connect:
 		or a
 		ld a,ERR_ALREADY
 		ret nz
-		ld a,Sn_CR_OPEN
-		call w53_cmd
-		ld b,WIZ_S_SSR
-w53_connect0:
-		in a,(c)
-		or a
-		jr z,w53_connect0
-		call BDOS_preparedepage
-		call BDOS_setdepage 
-		ex de,hl
-		inc hl	;пропустим семейство
-		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
-		ld a,6
-w53_connect1:
-		outi
-		inc b
-		inc b
-		dec a
-		jr nz,w53_connect1
-		ld b,WIZ_S_MR
-		in a,(c)
-		cp Sn_MR_TCP
-		jr nz,w53_connect3
+		call w53_open_cmd
+		call w53_cpy_ia
 		ld a,Sn_CR_CONNECT
 		call w53_cmd
 		ld b,WIZ_S_SSR
@@ -390,6 +377,22 @@ w53_connect3:
 		ld l,a
 		ret
 		
+w53_cpy_ia
+		call BDOS_preparedepage
+		call BDOS_setdepage 
+w53_cpy_ia2
+		ex de,hl
+		inc hl	;пропустим семейство
+		ld bc,WIZ_BASE_ADDR+(WIZ_S_DPORTR_L<<8)
+		ld a,6
+w53_cpy_ia1:
+		outi
+		inc b
+		inc b
+		dec a
+		jr nz,w53_cpy_ia1
+		ex de,hl
+		ret
 		
 w53_close:
 		call w53_valid_socket
@@ -458,12 +461,108 @@ w53_cmd0:
 		or a
 		ret z
 		jr w53_cmd0
-		
-		
+
+w53_rd_nontcp:
+		ld b,WIZ_S_SSR
+		in a,(c)
+		call z,w53_open_cmd
+		ld bc,WIZ_BASE_ADDR+(WIZ_S_RX_RSR_L<<8)
+		in a,(c)
+		jr nz,w53_rd_udp_full
+		dec b
+		in a,(c)
+		jr nz,w53_rd_udp_full
+w53_eagain
+		ld hl,-1
+		ld a,ERR_EAGAIN
+		ret	
+w53_rd_udp_full
+		ld a,d
+		or e
+		jr nz,w53_rd_ia
+		ld de,w53_ia_buf		
+w53_rd_ia:
+		ex de,hl
+		inc hl
+		push hl
+		inc hl
+		inc hl
+		ld b,WIZ_S_SSR
+		in a,(c)
+		ld b,WIZ_S_RX_H
+		ini
+		ld b,WIZ_S_RX_L
+		ini
+		ini
+		ld b,WIZ_S_RX_L
+		ini
+		pop hl
+		cp SOCK_IPRAW
+		jr z,w53_rd_ipraw
+		ini
+		ld b,WIZ_S_RX_L
+		ini
+w53_rd_ipraw:
+		in h,(c)
+		inc b
+		in l,(c)
+		or a
+		sbc hl,de
+		bit 7,h
+		ex de,hl
+		jr z,w53_rd_udpbuf
+		add hl,de
+		ld de,0
+w53_rd_udpbuf; читать hl, пропустить de
+		push de
+w53_rd_ix=$+1
+		ld de,0
+		call BDOS_preparedepage
+		call BDOS_setdepage
+		ld (w53_rdudp_cnt),hl
+		push hl
+		pop ix
+		ex de,hl
+		ld bc,WIZ_BASE_ADDR+(WIZ_S_RX_H<<8)
+		ld de, -2
+		jp w53_rd_udp_loop1
+		;IX = count, DE = -2, HL = ptr
+w53_rd_udp_loop
+		ini
+		ld b,WIZ_S_RX_L
+		ini
+w53_rd_udp_loop1
+		add ix,de
+		jp c,w53_rd_udp_loop
+		ld a,xl
+		rra
+		jr nc,w53_rd_udp_odd
+		ini
+		ld b,WIZ_S_RX_L
+		in a,(c)
+		dec b
+w53_rd_udp_odd
+		pop hl
+		jp .l2
+.l1
+		in a,(c)
+		inc b
+		in a,(c)
+		dec b
+.l2
+		add hl,de
+		jp c,.l1
+w53_rdudp_cnt=$+1
+		ld hl,0
+		ld a,Sn_CR_RECV
+		jp w53_cmd	;выходим
+			
 wiznet_read:	;a'-сокет, de-Буфер, hl-количество
+		ld (w53_rd_ix),ix
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
-		;call BDOS_preparedepage
+		and 0x02
+		jp nz,w53_rd_nontcp
 w53_read_min:	;hl-сколько хотим байт
 		ld a,h
 		or l
@@ -582,35 +681,10 @@ w53_read_new:		;читать новый пакет
 		in a,(c)
 		cp SOCK_ESTABLISHED
 		ret z
-		cp SOCK_ARP
-		ret z
-		cp SOCK_UDP
-		ret nc
-		;ld h,-1
 		ld a,ERR_NOTCONN
 		jr wiznet_fail ;ret
 w53_read_new1:
-		ld b,WIZ_S_SSR
-		in a,(c)
 		ld b,WIZ_S_RX_H
-		cp SOCK_IPRAW
-		jr z,w53_read_skip4
-		cp SOCK_UDP
-		jr c,w53_read_new2
-		in a,(c)
-		inc b
-		in a,(c)
-		dec b
-w53_read_skip4:
-		in a,(c)
-		inc b
-		in a,(c)
-		dec b
-		in a,(c)
-		inc b
-		in a,(c)
-		dec b	
-w53_read_new2:
 		ld (ix+0),b
 		in a,(c)
 		ld (ix+3),a
@@ -619,22 +693,35 @@ w53_read_new2:
 		ld (ix+2),a
 		jp w53_read_min
 
-wiznet_close:
+wiznet_close:	
 wiznet_write:	;a'-сокет, de-Буфер, hl-количество
+		ld (w53_wr_ix),ix
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
-		;call BDOS_preparedepage
-		ld c,WIZ_BASE_ADDR
-		ld b,WIZ_S_SSR		;жив ли сокет
-		in a,(c)
+		and 0x02
+		ld a,WIZ_S_SSR
+		in a,(WIZ_BASE_ADDR)	;чтоп не трогать флаги
+		jr nz,wiz_wr_isudp
 		cp SOCK_ESTABLISHED
 		jr z,w53_write1
-		cp SOCK_UDP
-		jr nc,w53_write1
+wiznet_fail_1
 		ld a,ERR_NOTCONN	;издох
 wiznet_fail:
 		ld h,-1
-		ret
+		ret	
+wiz_wr_isudp:
+		cp SOCK_UDP
+		jr nc,w53_wr_set_addr
+		or a
+		jr nz,wiznet_fail_1
+		call w53_open_cmd
+w53_wr_set_addr	
+		call w53_cpy_ia2	
+w53_wr_ix=$+1
+		ld de,0
+		call BDOS_preparedepage
+		call BDOS_setdepage 
+		ld c,WIZ_BASE_ADDR
 w53_write1:
 		ld b,WIZ_S_FSR_L	;проверим место в буфере
 		in a,(c)
@@ -669,5 +756,7 @@ w53_wr_loop:
 		out (c),l
 		ld a,Sn_CR_SEND
 		jp w53_cmd
-		
+	
+w53_ia_buf:
+	defs 7
 		

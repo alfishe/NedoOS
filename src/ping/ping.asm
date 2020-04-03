@@ -135,13 +135,13 @@ ping_noresolve
 	ld hl,txt_socketerror ; In c error code
 	jp m, ping_error_hl
 
-	ld de,conparam
-	OS_NETCONNECT ; open socket
-	ld c,a
-	ld a,l
-	or a
-	ld hl,txt_socketopenerror ; In c error code
-	jp m, ping_error_hl
+	;ld de,conparam
+	;OS_NETCONNECT ; open socket
+	;ld c,a
+	;ld a,l
+	;or a
+	;ld hl,txt_socketopenerror ; In c error code
+	;jp m, ping_error_hl
 
 	ld bc,(icmpcnt) ; num of packets
 ping_loop
@@ -152,7 +152,8 @@ ping_loop
 	ld de,8 ; header 8 bytes
 	add hl,de
 	ld a,(soc1)
-	ld de,icmppacket ; send icmp packet
+	ld ix,icmppacket ; send icmp packet
+	ld de,conparam
 
 	OS_WIZNETWRITE
 	ld a,h
@@ -167,12 +168,14 @@ ping_loopwait
 	push bc
 	ld hl,256 ; try to read all buff with trash bytes.
 	ld a,(soc1)
-	ld de,icmppacket; Don't worry after icmppacket - buf 256bytes
+	ld ix,icmppacket; Don't worry after icmppacket - buf 256bytes
+	ld de,sa_recv
 	OS_WIZNETREAD
 	pop bc
-	ld a,h
-	or l
-	jr nz,ping_loopreceived
+	;ld a,h
+	;or l
+	bit 7,h
+	jr z,ping_loopreceived
 	push bc
 	YIELDGETKEY
 	ld a,c
@@ -650,18 +653,19 @@ is_dot
 	ld (soc1),a
 	or a
 	jp m,dns_exiterr
-	LD DE,conparam
-	OS_NETCONNECT
-	ld a,l
-	or a
-	jp m,dns_exiterr
+	;LD DE,conparam
+	;OS_NETCONNECT
+	;ld a,l
+	;or a
+	;jp m,dns_exiterr
 	
 	pop hl
 	push hl
 	ld de,0xffff&(-buf)
 	add hl,de
 	LD a,(soc1)
-	LD DE,buf
+	LD IX,buf
+	LD DE,conparam
 	OS_WIZNETWRITE
 	bit 7,h
 	jr nz,dns_exitcode
@@ -676,12 +680,14 @@ recv_wait1
 	push bc
 	ld hl,256
 	LD a,(soc1)
-	LD DE,buf
+	LD ix,buf
+	ld de,sa_recv
 	OS_WIZNETREAD
 	pop bc
-	ld a,h
-	or l
-	jr nz,recv_wait_end
+	;ld a,h
+	;or l
+	bit 7,h
+	jr z,recv_wait_end
 	djnz recv_wait
 	jr dns_exiterr
 recv_wait_end
@@ -744,6 +750,7 @@ data		ds 8
 soc1		db 0
 dns_head 	db 0x11,0x22,0x01,0x00,0x00,0x01
 conparam	db 0,0,53,8,8,8,8
+sa_recv		defs 7
 icmppacket 	STicmpreq
 buf 		ds 255
 ip		ds 4
