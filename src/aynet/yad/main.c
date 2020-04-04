@@ -22,6 +22,12 @@ char					grmod =0;
 
 no_init struct sockaddr_in web_ia;
 
+
+SOCKET 					udps = 0;
+no_init struct sockaddr_in udps_ia;
+no_init struct sockaddr_in udpr_ia;
+no_init unsigned char udp_buf[50];
+
 no_init unsigned char * ptr;
 
 void int_play(void);
@@ -39,6 +45,7 @@ void exit(int e){
 	shutup();
 	if(cmds)closesocket(cmds,0);
 	if(datasoc)closesocket(datasoc,0);
+	if(udps)closesocket(udps,0);
 	if(e!=0){	
 		OS_SETGFX(6);
 		puts((char*)e);
@@ -72,6 +79,7 @@ C_task main (int argc, char *argv[])
 	ptr_out_rx =  buf_rx;
 	ptr_in_rx = buf_rx + sizeof(buf_rx);
 	web_ia.sin_port=htons(16729); //'AY' chars
+	udpr_ia.sin_port=htons(16730);
 	while(l!=argc){
 		char * p=argv[l];
 		if(p[0]!='-') exit((int)"Wrong parameter");
@@ -89,6 +97,16 @@ C_task main (int argc, char *argv[])
 	listen(cmds,0);
 	while(1){
 		if(datasoc == 0){
+			if(udps == 0){
+				udps = socket(AF_INET,SOCK_DGRAM,0);
+				bind(udps,&udpr_ia, sizeof (udpr_ia));
+			}
+			l=recvfrom(udps,udp_buf,sizeof(udp_buf),0,&udps_ia,0);
+			if(l>0){
+				udp_buf[l] = 0x00;
+				puts(udp_buf);
+				sendto(udps,msg_hello+2,8,0,&udps_ia,0);
+			}		
 			if(cmds == 0){
 				cmds = socket(AF_INET,SOCK_STREAM,0);
 				bind(cmds, &web_ia, sizeof(web_ia));
@@ -108,6 +126,8 @@ C_task main (int argc, char *argv[])
 			}else{//to do else
 				closesocket(cmds, 0);
 				cmds = 0;
+				closesocket(udps, 0);
+				udps = 0;
 				send(datasoc, msg_hello, 9, 0);
 				ptr_in_rx =  buf_rx;
 				ptr_out_rx = NULL;

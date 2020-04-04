@@ -5,40 +5,11 @@
 #include "net.h"
 unsigned char buf_rx[2048];
 
-int net_test(void){
-	int soc;
-	struct sockaddr_in server_addr;
-	
-	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	server_addr.sin_port = htons(16729);
-	
-	soc = socket(AF_INET, SOCK_STREAM, 0);
-	if (soc < 0) {
-		puts("error: socket()");
-		return -1;
-	}
-	
-    if (connect(soc, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    	puts("error: connect()");
-		close(soc);
-		return -1;
-    }
-	puts("Wait to receive...");
-	int l = recv(soc, buf_rx, sizeof(buf_rx), 0);
-	for(int i = 0; i < l; i++){
-		printf("0x%X ",buf_rx[i]);
-	}
-	puts("");
-	shutdown(soc, 0);
-	close(soc);
-	return 0;
-}
-
 
 #ifdef _WIN32
 WSADATA wsaData;
+#else
+#include <fcntl.h>
 #endif
 
 int net_init(void){
@@ -61,7 +32,62 @@ int net_dispose(void){
 }
 
 
+struct in_addr find_yad(char * name){
+	struct in_addr yadip;
+	int sock;
+    sock = socket(AF_INET,SOCK_DGRAM,0);
+#ifdef _WIN32
+	u_long non_blocked = 1;
+	ioctlsocket(sock, FIONBIO, &non_blocked);
+    char broadcast = '1';
+#else
+	fcntl(sock, F_SETFL, O_NONBLOCK);
+    int broadcast = 1;
+#endif
+	puts("Find Yad...");
+    if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast)) < 0)
+    {
+        puts("Error in setting Broadcast option");
+        return yadip;
+    }
+	struct sockaddr_in Recv_addr;  
+    struct sockaddr_in Sender_addr; 
 
+    int len = sizeof(struct sockaddr_in);
+    char sendMSG[] ="Who is Yad?";
+	
+    char recvbuff[50] = "";
+    int recvbufflen = 50;
+	
+    Recv_addr.sin_family       = AF_INET;        
+    Recv_addr.sin_port         = htons(16730);  
+	Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST;
+	
+	while(1){
+		sendto(sock,sendMSG,strlen(sendMSG)+1,0,(const struct sockaddr *)&Recv_addr,sizeof(Recv_addr));
+		sleep(1);
+		len = recvfrom(sock,recvbuff,sizeof(recvbuff)-1,0,(struct sockaddr *)&Recv_addr,&len);
+		if(len>0){
+			recvbuff[len] = 0x00;
+			if(strcmp(recvbuff,"I'M YAD")==0x00){
+				//puts(recvbuff);
+				break;
+			}
+		}
+		sleep(2);
+	}
+#ifdef _WIN32
+	non_blocked = 0;
+	ioctlsocket(sock, FIONBIO, &non_blocked);
+	shutdown(sock, SD_BOTH);
+	closesocket(sock);
+#else
+	fcntl(sock, F_SETFL, 0);
+	shutdown(sock, SHUT_RDWR);
+	close(sock);
+#endif
+	return Recv_addr.sin_addr;
+}
 
 
 struct in_addr net_resolve(char * name)
@@ -69,23 +95,25 @@ struct in_addr net_resolve(char * name)
 	struct hostent * h;
 	struct in_addr a;
 
+	if(name[0] == '?'){
+		a = find_yad(name);
+	}else{
+		h = gethostbyname(name);
+		
+		if( !h )
+		{
+			fprintf(stderr,"%s: Can't resolve name <%s>\n",__PRETTY_FUNCTION__,name);
+			exit(1);
+		}
 
-	h = gethostbyname(name);
-	
-	if( !h )
-	{
-		fprintf(stderr,"%s: Can't resolve name <%s>\n",__PRETTY_FUNCTION__,name);
-		exit(1);
+		if( h->h_addrtype != AF_INET || h->h_length != 4 )
+		{
+			fprintf(stderr,"%s: Name <%s> doesn't resolve into IPv4 address!\n",__PRETTY_FUNCTION__,name);
+			exit(1);
+		}
+
+		a = *((struct in_addr *)h->h_addr_list[0]);
 	}
-
-	if( h->h_addrtype != AF_INET || h->h_length != 4 )
-	{
-		fprintf(stderr,"%s: Name <%s> doesn't resolve into IPv4 address!\n",__PRETTY_FUNCTION__,name);
-		exit(1);
-	}
-
-	a = *((struct in_addr *)h->h_addr_list[0]);
-
 	return a;
 }
 
