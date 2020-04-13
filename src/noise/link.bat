@@ -29,3 +29,6 @@ copy /b forest.dat + 0forest33.bmpx + 16b + 1forest33.bmpx + 16b forest.dat
 copy /b forest.dat + 0forest21.bmpx + 16b + 1forest21.bmpx + 16b forest.dat
 copy /b forest.dat + 0forest00.bmpx + 16b + 1forest00.bmpx + 16b forest.dat
 copy /b forest.dat + 0forest12.bmpx + 16b + 1forest12.bmpx + 16b forest.dat
+
+copy forest.dat noise
+del forest.dat

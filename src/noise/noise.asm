@@ -1,6 +1,7 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+INTSTACK=0x3f00
 STACK=0x4000
 scrbase=0x8000
 
@@ -71,6 +72,11 @@ copypal0
         ld de,palbuf
         OS_SETPAL
 
+        ld hl,module
+        call INIT
+
+        call swapimer
+
         ld hl,ttexpgs
 showpic0
         call setpgs_scr0
@@ -97,7 +103,120 @@ showpic0
         res 5,l
         cp key_esc
         jr nz,showpic0
+        
+        call MUTE
+        call swapimer
         QUIT
+
+swapimer
+	di
+         ld hl,(0x0038+3) ;адрес intjp
+         ld (intjpaddr),hl        
+        ld de,0x0038
+        ld hl,oldimer
+        ld bc,3
+swapimer0
+        ld a,(de)
+        ldi ;[oldimer] -> [0x0038]
+        dec hl
+        ld (hl),a ;[0x0038] -> [oldimer]
+        inc hl
+        jp pe,swapimer0
+	ei
+        ret
+oldimer
+        jp on_int ;заменится на код из 0x0038
+
+on_int
+;restore stack with de
+	ld (on_int_hl),hl
+	ld (on_int_sp),sp
+	pop hl
+	ld (on_int_sp2),sp
+intjpaddr=$+1
+	ld (0),hl ;(on_int_jp),hl
+	
+	ld sp,INTSTACK
+	
+	push af
+	push bc
+	push de
+	
+;imer_curscreen_value=$+1
+         ;ld a,0
+         ;ld bc,0x7ffd
+         ;out (c),a
+
+	ex de,hl;ld hl,0
+on_int_sp=$+1
+	ld (0),hl ;восстановили запоротый стек
+        
+        push ix
+        push iy
+        ex af,af'
+        exx
+        push af
+        push bc
+        push de
+        push hl
+        ;ld a,(curscreen)
+        ;ld e,a
+        ;OS_SETSCREEN ;вызываем здесь, а не в рандомном месте, иначе даже с одной задачей можем получить непредсказуемую задержку, которую не фиксирует наш таймер? с несколькими задачами надо учитывать и системный - TODO
+;curpalette=$+1
+        ;ld de,wolfpal
+        ;OS_SETPAL
+;        GET_KEY
+;        ld (curkey),a
+        
+;pgmuznum=$+1
+;        ld a,0
+;        SETPG32KHIGH
+        call PLAY ;muzplay
+;pgc000=$+1
+;        ld a,0
+;        SETPG32KHIGH
+        
+        pop hl
+        pop de
+        pop bc
+        pop af
+        exx
+        ex af,af'
+        pop iy
+        pop ix
+        
+	;ld hl,(timer)
+	;inc hl
+	;ld (timer),hl
+
+	pop de
+	pop bc
+	pop af
+	
+on_int_hl=$+1
+	ld hl,0
+on_int_sp2=$+1
+	ld sp,0
+;        ei
+;on_int_jp=$+1
+;	jp 0
+
+        push de
+        ex de,hl
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        jp 0x0038+5
+
+;вход в стандартный обработчик:
+        ;ex de,hl ;de="hl", hl="de"
+        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
+        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
+;(intjp)=адрес выхода
+;de="hl", в стеке "de"
+        ;ld l,a
+;user_fdvalue6=$+1
+        ;ld a,fd_system
+        ;out (0xfd),a ;10 b
 
 setpgs_scr0
 setpgs_scr0_low=$+1
@@ -129,7 +248,7 @@ ldirpg
         ret
 
 texfilename
-        db "forest.dat"
+        db "noise/forest.dat"
 
 palbuf
         ds 32
@@ -140,6 +259,10 @@ palbuf
         align 256
 ttexpgs
         ds 32
+
+        include "ptsplay.asm"
+module
+        incbin "NOISE20.pt3"
 
 end
 
