@@ -1426,12 +1426,18 @@ O12X12
 	 ;LD (V_FLAG),A ;не помогает
 	CALL V_PUT2 ;на рисуемом экране
         endif
+        if EGA==0
 	CALL MEM7
 	CALL M_PLAT ;7 ;показать площадку под стр-во
+        endif
 	CALL MEM1
 	CALL P12X12 ;1
 	CALL S12X12 ;m
 	CALL N12X12 ;1
+        if EGA
+	CALL MEM7
+	CALL M_PLAT ;7 ;показать площадку под стр-во
+        endif
 	CALL MEM4
 	CALL outBOX ;4
 	CALL MEM0

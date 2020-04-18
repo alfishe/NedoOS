@@ -1479,6 +1479,17 @@ WFONT
         ld (hl),a
         endm
         
+        macro PRCHARINVBYTE
+        xor a
+        sla b
+        jr c,$+4
+        or 0x47 ;L
+        sla b
+        jr c,$+4
+        or 0xb8 ;R
+        ld (hl),a
+        endm
+        
         macro PRCHAR4BYTES
         ld a,(de)
         ld b,a
@@ -1497,6 +1508,24 @@ WFONT
         PRCHARBYTE
         endm
         
+        macro PRCHARINV4BYTES
+        ld a,(de)
+        ld b,a
+        PRCHARINVBYTE
+        ld a,h
+        add a,0x40
+        ld h,a
+        PRCHARINVBYTE
+        ld a,h
+        add a,0x20-0x40
+        ld h,a
+        PRCHARINVBYTE
+        ld a,h
+        add a,0x40
+        ld h,a
+        PRCHARINVBYTE
+        endm
+
 prchar
 ;de=yx
 ;a=char
@@ -1541,6 +1570,53 @@ prchar
         PRCHAR4BYTES
 
         jp setpgsmain40008000
+
+
+prcharinv
+;de=yx
+;a=char
+	ADD A,A
+	LD BC,(FONT)
+	LD L,A
+	LD H,0
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,BC
+        call setpgsscr40008000_current
+        ex de,hl ;de=font+
+;hl=yx
+        ld a,l
+        ld l,h
+        ld h,0
+        sla l
+        sla l
+        sla l ;y*8
+        ld b,0x40/8
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*8*40
+         add a,scrbase&0xff
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        
+;hl=scr
+        ld c,40
+        dup 7
+        PRCHARINV4BYTES
+        ld b,-0x60
+        add hl,bc        
+        inc de
+        edup
+        PRCHARINV4BYTES
+
+        jp setpgsmain40008000
+
         endif ;EGA
 
        if EGA
@@ -2194,6 +2270,12 @@ SHADOW	EQU	383*32+LAND
 ;*B ..\DATA\w4SPR.DAT ;4
 end1
 ;*P0 ;-------------------
+
+        if EGA
+MONEYPRINT=iPRINT
+        else
+MONEYPRINT=PRINT
+        endif
 
 
 	display "COORD=",COORD

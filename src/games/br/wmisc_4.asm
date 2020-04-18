@@ -19,6 +19,9 @@ oB1	LD DE,(BOXX)
 	SBC HL,DE
 	POP HL
 	RET Z
+outboxpp
+;de=top left
+;hl=bottom right
        if EGA==0
 	CALL STD ;выбор теневого экрана
        endif
@@ -34,21 +37,73 @@ oB1	LD DE,(BOXX)
         ;jr $
 	PUSH DE
 	LD E,L
+       if EGA
+       push hl
+       endif
 	CALL vLINE
+       if EGA
+       pop hl
+       endif
 	POP DE
 	PUSH DE
 	LD D,H
+       if EGA
+       push hl
+       endif
 	CALL hLINE
+       if EGA
+       pop hl
+       endif
 	POP DE
+       if EGA
+       push de
+       push hl
+       endif
 	CALL vLINE
+       if EGA
+       pop hl
+       pop de
+       endif
 	CALL hLINE
 	LD HL,LMask
 	RRC (HL)
 	RET
 
+        if EGA
+outBOXsolid
+;de=top left
+;hl=bottom right
+;a'=mask
+        ld a,(LMask)
+        push af
+        ex af,af'
+        ld (LMask),a
+        call outboxpp
+        pop af
+        ld (LMask),a
+        ret
+        endif
+
 hLINE	;гориз уч DE->L;
 	LD A,(LMask)
 	LD (LMask_),A
+         if EGA ;для выделения домиков
+         ld a,d
+         cp 192
+         ret nc
+         ld a,e
+         cp 192
+         jr c,hlinenoclipleft
+         ld e,0
+hlinenoclipleft
+         ld a,l
+         cp -16
+         ret nc
+         cp 191
+         jr c,hlinenoclipright
+         ld l,191
+hlinenoclipright
+         endif
 	LD A,L
 	CP E
 	RET Z
@@ -245,6 +300,23 @@ pvMASKq
 vLINE	;верт.линияDE->H
 	LD A,(LMask)
 	LD (LMask_),A
+         if EGA ;для выделения домиков
+         ld a,e
+         cp 192
+         ret nc
+         ld a,d
+         cp 192
+         jr c,vlinenocliptop
+         ld d,0
+vlinenocliptop
+         ld a,h
+         cp -16
+         ret nc
+         cp 192;191
+         jr c,vlinenoclipbottom
+         ld h,192;191
+vlinenoclipbottom
+         endif
 	LD A,D
 	CP H
 	RET Z

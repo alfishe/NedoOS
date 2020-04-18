@@ -541,36 +541,48 @@ BDOS_cls
         ;ld iy,(appaddr)
 ;e=color byte
         BDOSSETPGSSCR
+
+        if 1==1
         ld a,(iy+app.gfxmode)
         and 7
-        jr z,BDOS_cls_EGA
-         cp 2 ;MC hires
-         jr z,BDOS_cls_EGA ;TODO отдельную очистку для MC hires
-;textmode
+        ;jr z,BDOS_cls_EGA(0)
+         sub 3 ;MC hires(2)
+         jr c,BDOS_cls_EGA ;TODO отдельную очистку для MC hires
+         ;dec a ;6912(3)
+;textmode (6)
         ld a,e ;attr byte
-        ld hl,0x81c0
+         ld hl,0xc000
+         ld bc,0x1aff
+         jr z,BDOS_cls_textmode_ldirbc ;6912(3)
+        ld h,0x81;c0
         call BDOS_cls_textmode_ldir
-        ld hl,0xa1c0
+        ld h,0xa1;c0
         call BDOS_cls_textmode_ldir
+        endif
         
         ;ld de,0
         ld d,b
         ld e,b ;0
         call BDOS_setxy
         
+        if 1==1
         xor a
-        ld hl,0xc1c0
+        ld h,0xc1;c0
         call BDOS_cls_textmode_ldir
-        ld hl,0xe1c0
+        ld h,0xe1;c0
 BDOS_cls_textmode_ldir
+        ld l,0xc0
+        ld bc,25*64-1
+BDOS_cls_textmode_ldirbc
         ld d,h
         ld e,l
         inc de
         ld (hl),a
-        ld bc,25*64-1
         ldir
         ret
 BDOS_cls_EGA
+        endif
+       
         ld a,e
 scrbase=0x8000
 ;чистим через стек, кроме первых байтов (иначе прерывание может запортить два байта перед экраном)

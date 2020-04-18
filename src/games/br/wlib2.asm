@@ -1252,6 +1252,61 @@ N_IX	ADD A,A
 
 
 _BPUT	;выв рамки выбора зд
+
+        if EGA
+	CALL HL_IX0
+	LD A,(IX+2)
+	CP 8
+        ld c,4*8-1
+	JR Z,_Bsmal
+	CP 18
+	JR Z,_Bsmal
+        ld c,6*8-1
+_Bsmal
+;h,l=координаты центра здания на карте
+        LD de,(X0)
+	LD A,L
+	SUB e
+	;CP 12
+	;RET NC
+         inc a
+         cp 12+2
+         dec a
+         ret nc
+        dec a
+        add a,a
+        add a,a
+        add a,a
+        add a,a
+	ld e,a
+        add a,c
+        ld l,a
+        
+	LD A,H
+	SUB d
+	;CP 12
+	;RET NC
+         inc a
+         cp 12+2
+         dec a
+         ret nc
+        dec a
+        add a,a
+        add a,a
+        add a,a
+        add a,a
+        ld d,a
+        add a,c
+        ld h,a
+        
+        ld a,0xff
+        ex af,af'
+;de=top left
+;hl=bottom right
+        jp outBOXsolid
+        
+        else
+
 	CALL HL_IX0
 	LD A,(IX+2)
 	CP 8
@@ -1434,6 +1489,8 @@ bJadr	LD BC,(X0) ;выч адр (NC/C-out/ok)
 	CCF
 	RET
 
+        endif ;~EGA
+
         if 1==0
 _TST#7	 LD HL,dummy+0 ;isTST7[**]
 	LD A,(HL) ;mem7!
@@ -1473,5 +1530,4 @@ t7d0	LD A,(DE)
 	JR t7d0
 t7de	XOR A
 	RET
-
         endif

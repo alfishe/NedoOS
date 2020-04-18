@@ -652,6 +652,7 @@ isOVER	;?перкр курcор и обл вывода? NC-не перекр
 
 
 outNUM	;выв чисел для шахты/избы
+        display "outNUM=",$
 	LD A,(BUT_N+2)
 	CP 80
 	JR Z,oNmine
@@ -793,7 +794,7 @@ bcd2	ADD HL,DE
 iPRINT	;inv печать символа А в поз DE(yx)
 	PUSHs
         if EGA
-        call prchar
+        call prcharinv
         else
 	LD C,A
 	CALL SCOORD
@@ -1114,7 +1115,9 @@ aBN1	XOR A
 
 
 M_PLAT ;показать площадку под стр-во
+        if EGA==0
 	CALL ofPLAT
+        endif
 	LD A,(F_FUNC)
 	CP #FF
 	RET NC
@@ -1141,7 +1144,12 @@ M_P1x1	SUB 16
 	LD (waPLAT),A
 	LD A,1
 	LD (szPLAT),A
-M_Pxz	CALL mayBLT
+M_Pxz	CALL mayBLT ;можно ли разместить здание? Z/NZ-да/нет
+        if EGA
+        ld a,0x99
+        jr nz,$+4
+        ld a,0xff
+        else
 	LD A,#10 ;саn't
 	JR NZ,plt2
 	LD A,(isCOLR)
@@ -1150,7 +1158,9 @@ M_Pxz	CALL mayBLT
 	JR Z,plt2
 	LD A,(COLOR)
 	XOR #8
-plt2	EX AF,AF
+plt2	
+        endif
+        EX AF,AF
 	LD HL,(BX)
 	LD A,L
 	CP 24
@@ -1170,20 +1180,55 @@ plt2	EX AF,AF
 	JR NC,plt0
 	ADD A,B
 	LD B,A
-plt0	LD A,24
+plt0	
+        LD A,24
 	SUB C
 	SUB H
 	JR NC,plt1
 	ADD A,C
 	LD C,A
 plt1	LD (bcPLAT),BC
-	CALL STS
-	CALL ACOORD
+	CALL STS ;выб.осн.экр (только адрес)
+;h=Y/8
+;l=X/8
+;c=hgt/8
+;b=wid/8
+        if EGA
+         ;ld hl,0
+        ;jr $
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld a,c
+        add a,a
+        add a,a
+        add a,a
+        ld d,h
+        add a,h
+        dec a
+        ld h,a
+        ld a,b
+        add a,a
+        add a,a
+        add a,a
+        ld e,l
+        add a,l
+        dec a
+        ld l,a
+;de=top left
+;hl=bottom right
+        jp outBOXsolid
+        
+        else
+  
+	CALL ACOORD ;hl=attr addr
 	LD (adPLAT),HL
 	LD (isPLAT),A
-	EX AF,AF
+	EX AF,AF ;a=color
 	JR PA0
+        endif
 
+        if EGA==0
 ofPLAT	LD HL,isPLAT;cтереть площадку
 	LD A,(HL)
 	OR A
@@ -1222,7 +1267,7 @@ PA2	LD A,(HL)
 	DEC C
 	JR NZ,PA1
 	RET
-
+        endif
 
 ;------------новый герой------
 

@@ -816,7 +816,7 @@ om0	LD A,(HL)
 	JR om1
 om2	INC C
 	LD B,#68
-om1	CALL PRINT
+om1	CALL MONEYPRINT
         if EGA==0
 	LD A,B
 	EXX
@@ -842,9 +842,9 @@ oMN1WD	LD HL,ATR+57 ;альт.вывод
 	LD HL,WOOD1+1
 out1mw	LD C,0
 	LD A,11
-	CALL PRINT
+	CALL MONEYPRINT
 	LD A,11
-	CALL PRINT
+	CALL MONEYPRINT
         if EGA==0
 	EXX
 	LD (HL),#50
@@ -877,7 +877,7 @@ o1m7	AND #F
 	JR o1m1
 o1m2	INC C
 	LD B,#58
-o1m1	CALL PRINT
+o1m1	CALL MONEYPRINT
         if EGA==0
 	LD A,B
 	EXX
