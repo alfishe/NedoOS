@@ -2329,7 +2329,16 @@ InitATLoop:
 ;1 - Left (5)
 ;0 - Right (8)
 ReadJoypads: 
+              ldan ++$01               ;reset and clear strobe of joypad ports
+              sta JOYPAD_PORT
+              lsr
+              tax                    ;start with joypad 1's port
+              sta JOYPAD_PORT
+              jsr ReadPortBits
+              inx                    ;increment for joypad 2's port
+ReadPortBits:
         if Z80
+        push bc
 	if OSCALLS
         OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
 	else
@@ -2363,7 +2372,6 @@ ReadJoypads:
 	 bit 2,c ;'d'
 	 call z,demooff
 	endif
-	
 	rr c ;'a'
 	rla ;A
 	rr c ;'s'
@@ -2373,7 +2381,6 @@ ReadJoypads:
 	rla ;Select
 	ld c,hx
 	rr c ;'Enter'
-	 ;jr nc,$
 	rla ;Start
 	add a,a
 	bit 3,h ;7
@@ -2402,17 +2409,10 @@ ReadJoypads:
 	pop af
 	endif
         ld d,0
-        ld bc,0 ;x = joypad number
+        pop bc ;ld bc,0 ;x = joypad number
         else
 
-              ldan ++$01               ;reset and clear strobe of joypad ports
-              sta JOYPAD_PORT
-              lsr
-              tax                    ;start with joypad 1's port
-              sta JOYPAD_PORT
-              jsr ReadPortBits
-              inx                    ;increment for joypad 2's port
-ReadPortBits: ldyn ++$08
+              ldyn ++$08
 PortLoop:     pha                    ;push previous bit onto stack
               ldax JOYPAD_PORT,x      ;read current bit on joypad port
               sta SCRATCHPAD+$00                ;check d1 and d0 of port output

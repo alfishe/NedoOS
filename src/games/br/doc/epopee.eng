@@ -1,0 +1,633 @@
+Epopee by [[Вячеслав Медноногов|Vyacheslav Mednonogov]] ([[ZX-Format]] #8[http://pmg.org.ru/gamedev/epic1.htm][http://pmg.org.ru/gamedev/epic2.htm])
+
+== Part 1 ==
+When we hear sometimes that another cool thing for ZX Spectrum was postponed for unknown time we ask - why? Why authors who've set the launch date themselves couldn't make it in time? It is really so hard to write programs? Just learn assembly language and write one kilobyte after another...
+
+I think now you have rare opportunity to understand this yourself. Here I want to present a diary of making one program, collected from messages to [[ZX.SPECTRUM]] conference in [[FIDO]]. No comments, in purpose. You should know though that not everything that was said more than year ago is still true. What program is it? [[Чёрный Ворон|Guess yourself]] :)
+
+=== 12 Jul 96 ===
+
+...to be serious, half a year ago there was a [[Citadel|Doom-demo]] from [[Харьков|Kharkov]].
+
+Now I'm thinking about this idea too. You can't feed people with games like [[Дурак|Durak]], [[Буратино|Buratino]] and [[НЛО|UFO]] forever. Waiting for Enlight'96 to see works from my competitors. If I see that I can't do better, I better start something like Warcraft.
+
+=== 17 Jul 96 ===
+
+That's how I see Doom on Spectrum:
+
+# Screen - 256х64 to 16х64 (width can be adjusted by 16 pixels to make the player comfortable enough with his CPU's frequency).
+# View angle - 60 degrees.
+# Texture size - 64х64, 20 base textures, 20 additional ones (additional textures to be kept in high memory, so they will be drawn slower and used rarely).
+# Maximum scale - 2:1. Two 16K pages for fast scale subroutines from 2:1 to 1:32.
+# Floor and ceiling are at fixed height, not textured. Walls almost certainly should be at 90 degrees to each other. So, it's more Wolf than Doom.
+# Enemies are 32х64 sprites (8 top halves 32х32 for any position and 16 low halves to show moving legs). Masked. I plan to rip them from Doom. Maybe someone tells how? If not, I'll draw them myself.
+# Objects are 32х32 sprites, masked. The same for bullets, projectiles, explosions.
+
+So that's the plan.
+
+One pixel will be drawn in 25 (!) t-states in average. This means the screen, say 128х64, will be 200000 t-states. Add extra work to switch pages, select texture line, move buffer to actual screen etc (around 50 percent overhead as always). My calculations give 12 FPS or so. In short, there's no problem with drawing walls.
+
+There is a problem with adding sprites of characters and objects. Especially how to find quickly, what line of what texture is drawn on given screen vertical line and in what scale. I picked a book on this topic, "Secrets of game programming" published by Piter, and my hair stood on end - four multiplications/divisions per line. There is also a problem how to keep the maze in memory to calculate less on each step, which wall is farther or nearer.
+
+I'll begin, however. Even if it will be very-very slow, the screen width can be always decreased to 16 pixels. And then everything will be very-very fast :))
+
+=== 21 Jul 96 ===
+
+I haven't come up with the story yet, but at a wild guess it will look like this (if we see it as UFO-3):
+
+People gained a lot of technologies after 2017 alien war, they made it to space and built a lot of colonies there (in Solar system or elsewhere). And someday all of this went wrong :(
+
+Player will fly around these colonies (may be 10..1000 of them :) and clear them from evil, saving his ships by the way and destroying enemy ships. In the course of the game he must make scientific investigations, find some access codes, new weapons - I'm used to it :) Finally, he must find the prime cause.
+
+And the cleaning of bases and UFOs will be made with Doom engine. There can be any plot - for example, the remaining aliens have dug in, so you must run though sewerage and underground tunnels :)))))
+
+The main thing is to make it all good-looking and somehow FAST (8 FPS by Western standards, but even 6-7 are OK for me). It won't be boring then.
+
+=== 27 Jul 96 ===
+
+I spent some 3 weeks thinking how to make the Doom. I'm stuck at sprites. If we are close enough, their time to draw (scaling in the first time) is comparable to redrawing the full screen.
+
+We can't keep pre-scaled sprites - even 128K is too little for this. So, I dally off this idea until I obtain sufficient experience or someone helps.
+
+Switch to plan B - UFO-3 à la Warcraft :) I.e. a lot of characters (walking robots this time) fight by themselves, you just give them commands. Maybe I'll add Doom-like part as a sub-level - walking in a maze to find something (without any enemies).
+
+=== 30 Jul 96 ===
+
+[[Max Iwamoto]] called me on the phone.
+
+He doesn't recommend start something Doom-like. They drew 128x64 screen for 6 frames (6/50 of a second) - in the best case. 10-12 in the worst. Without any characters! So, down with this Doom :) Until everybody will have turbo mode :))
+
+=== 09 Aug 96 ===
+
+UFO-3. BLACK RAVEN.
+
+Preliminary advertisement.
+
+After many estimates I started making the game. This will be full-scale Warcraft. I'd write the actual Warcraft but, because some [[G-Soft]] are making it in St. Petersburg too, I changed the plot. What if G-Soft will finish their version, why we need two Warcrafts? :))
+
+Playfield is 64x64 cells, viewfield is 20x20 CHR$, one cell is 2x2 CHR$, buildings are 4x4 CHR$, the graphics is black and white. And so on...
+
+Launch date unknown (even approximate). I'll try not to lengthen out.
+
+=== 18 Aug 96 ===
+
+[[Илья Фомин|Ilya Fomin]]> Slava, write it, WARCRAFT is RULEZZZ! One of my friends tries this idea for two years but never wrote anything but demo.
+
+There are two big difficulties in the game: ultra-fast (not exactly optimal) routing and computer strategy. Luckily enough, I think myself a big pro in exact two these fields - I know how to deceive people so that everyone will say "how clever is the program" :)
+
+=== 16 Sep 96 ===
+
+Work in progress. Remember, this will be almost WC-1. By the way the "UFO-3" prefix was thrown out, so it will be just "Black Raven" (can't glue aliens to Warcraft :)
+
+I realized at last, how the characters find quite suitable routes so fast. This was the main trouble in the game. I can make it too (or better ;)
+
+Still no idea how to adapt fully mouse-controlled game to keyboard or joystick: the interface will be very different from the original. Just in case, provide yourselves with [[Kempston mouse|Kempston mice]] :)))
+
+=== 28 Sep 96 ===
+
+[[НЛО 2|UFO-2]] was a mistake - too many man-hours wasted. Make it simpler, less piling up. If we had a lot of software houses and big competition we'd exert ourselves and tweak the whole game.
+
+Nevertheless, I made more that $200 worth of advance orders for "Black Raven":
+
+Intro and outro demos - $120 - contractor is [[X-TRADE]].
+
+Two tunes - 2х$10 - contractor is [[Dangerous]].
+
+24 colour pictures - 24х20000 roubles - contractor is [[Денис Барков|Denis Barkov]].
+
+Of course I could better ask people from Moscow ([[Scorpiоn Club]] and [[KSA]]) for two latter items, but there is 800 km to Moscow from here :((
+
+=== 08 Nov 96 ===
+
+So how it will look. Viewfield is 24х24 CHR$, monochrome. As [[Илья Фомин|Ilya]] requested there will be background music (although it was not so easy to add having stack-based drawing :)
+
+=== 17 Nov 96 ===
+
+Sprites are drawn with stack-based routine again, and interrupts can occur any time - even when the stack points to sprite image!
+
+[[Arty|Artyom Kharitonov]]> And when it comes, the sprite writhes as in hell :)))
+
+The thing is, the sprite remains live and untouched.
+
+Briefly, how it's done (in case that the interrupt service routine has its own stack):
+
+Method "A" (suggested by [[Stalker]], for example): keep copies of all sprites in memory, and if an interrupt occurs, look if the stack was on sprite image. If so, restore the broken part of the sprite (2 bytes) from its copy. Drawback: you have to double the memory used for sprites.
+
+Method "B" (mine): write all the sprite drawing procedures so that they read words from sprite image into certain register pair (POP DE for example). In this case, if an interrupt occurs, the two broken bytes are guaranteed to be in DE. The rest is simple. And no copies.
+
+Of course, this is not important for Dizzy-like games - they have so few moving sprites so they can can be drawn ten times in one frame. However this is very useful for Dunes, Dooms, and Warcrafts :)))
+
+=== 22 Nov 96 ===
+
+It seems the little men will be already running tomorrow, without any purpose though :)
+
+Difficulties in Black Raven came from unexpected side. I gave the original tracks from Warcraft to Dangerous to remake them for Spectrum, and he said that this set of noises is not to be remade. Here you are, professional musicians :(
+
+=== 03 Dec 96 ===
+
+At least the version with [[General Sound]] (if it will be) will load all the songs and samples third disk that will be fully made and distributed by X-Trade.
+
+=== 19 Dec 96 ===
+
+[[Spirit|Sergey Novikov]]> How's the crow?
+
+Goes by itself :))
+
+Approximate launch date may be given - in February (that means April :). The funny thing is, the most hard parts are initially written in C on PC, then I rewrite them in assembly language (by hand, of course). So it appears faster and more reliable. The next time I plan to write the full game on IBM, then port it to ZX :))
+
+There are a lot of things done already, but that's little for playable demo - they can only walk, not fight. I wonder how fast it will be, because 96 characters can be processed in the same time (however there will be less in average - 15-20 in the first levels to 50-60 in the end).
+
+Scrolling turned out to be fast - a lot faster than it was in UFO1/2, because the graphics is flat and all the moves stop while scrolling (that was not before). The water is animated (switchable, but doesn't affect drawing time).
+
+Routing seems fast too, although far from optimal. However it searches fairly what side of the obstacle to pass around. Average time is no more than 5000-15000 t-states. It won't affect game speed because it is called rarely.
+
+Game map is not always on screen but appears by keystroke. Maybe not that good but all the objects are clearly visible, shown with 3х3 pixel sprites. Of course the redrawing speed is not so high because of this. The user couldn't see this though because the map will redraw once per 4-5 game iterations.
+
+All the buttons at the control panel have their hotkeys for those who has no mouse :) Half of the keyboard is used for this (joking).
+
+The enemies are called kungs, not orcs.
+
+=== 21 Dec 96 ===
+
+Sergey Novikov> ...kangs :) Couldn't you invent something better?
+
+You are late, my friend... You should guess yourself, invent yourself, and mail it to me yourself... Now they are called this way in the announcement :))))
+
+If you had known how the others are called... Ж-[]
+
+ps: kangs aren't bad too, I had to thought of that :))
+
+pps: I worried about the arrow for a long time. The arrow is a challenge because screen update is not synchnized with interrupts. First I wanted to make as in my previous games - to redraw the cursor when screen updates. However the time to recalculate BR game state may vary badly, so the arrow would move with different speed in levels with different complexity (I even added adjustable cursor speed, that's terrible). Recently I found how to draw the cursor on interrupts irrespective to screen redraw at that moment.
+
+And this whole trouble was because of people not having mice :)))
+
+=== 17 Jan 97 ===
+
+By the way, the demo of BR for [[ZX-Format|ZXF]] #6 is ready - you can take it - following the traditions I kept a lot of bugs in it (joke).
+
+2All: There are no enemies, you can't fight, you can't build/produce/mine, I put around 20 people there what is funny itself (they walk stupidly sometimes but always make it to their target). The map is present, invisible cells can open. Surprisingly all of that isn't so slow - equal to FAST speed in Warcraft 1 (it's even cooler on computers with turbo mode). In short, that's OK for an unplayable demo. Full version is guaranteed to slow down no more than by 5-10%. That's certain that the next game will be "[[Чёрный Ворон 2|Black Raven - 2]]" - an attempt to squeeze Warcraft 2 in 128 (maybe 256?) KB.
+
+=== 30 Jan 97 ===
+
+About "Black Raven":
+
+The work is at the final stage - the end is near.
+
+In short, number of characters on screen affects the speed strongly - every character/explosion/projectile etc slows it down by 1-1.5%. So in the given case everything is 1.5-2 times slower (I hope that situation will be rare in actual game :) Characters are selected with CAPS. If you hold it you can select characters within the frame (as in [[Art Studio]]). Selected characters are outlined. You can group up to 6 people. Using SYM you can add or remove a character in the group.
+
+Logic calculations grow weakly with adding more characters in game - no more than 1% slowdown for ten characters. I feared mostly because of obstacle rounding procedure (that can be up to 15000 t-states depending of the obstacle size) but the tests have shown that even for such a big group it is called once per 4 frames in average (it looks very funny if you send them all somewhere - like a caravan :))
+
+=== 26 Feb 97 ===
+
+Dmitry Fedotov> I was told that [[Scorpion]] has Black Raven game on 2 disks.
+
+No, they just made new catalogue (in colour!!!) of Spectrum games and added an announcement about BR in advance. But in the end there is a postscript - launch date is March to April.
+
+Dmitry Fedotov> for 6 USD - this means it's ready??? Please, elaborate.
+
+As for the price, I think, in St. Petersburg it will be 30000 roubles exactly.
+
+The last week I was occupied with making animations, and possibly the following week too. According to the plan, the first disk should contain the intro part, that consists of 16 frames of 14х18 CHR$ size. And two final animations of 48 frames of the same size. So that is ZX-multimedia :)) Little more than half of it is ready. I suppose, everybody will enjoy it :)) [I like it very much]
+
+=== 02 Mar 97 ===
+
+The static part of sequence converts to Spectrum slightly different in every frame (maybe you remember [[Welcome Press]] #1, it can be seen there) - it needs a lot of correction by hand. So I move the background in most scenes (a lot smoother than the rest though).
+
+I've chosen this frame size to keep 8 frames per page. 14х18 is good to move it to screen with simple LDIRs without "tearing" (I'm not a demo maker, you know :))
+
+=== 05 Mar 97 ===
+
+All the animations, including two final ones, are made (it remained only to stick it all together). The most disgusting is the scene with creeping spiders - it gives the shivers...
+
+=== 01 Apr 97 ===
+
+[[General Sound|GS]] support for BR will be made by [[Stinger]] (A. Ageev).
+
+=== 11 Apr 97 ===
+
+Especially nowadays, when user demands to makers arise. This strongly applies to real-time strategy. I don't know what is inside "[[Dune 2]]" and "[[Warcraft|WC]]" for Spectrum, but Black Raven is written in truly object oriented level, I dare to say :)) When one object acts onto another, this generally does not involve immediate effect but generates a sign of the event. Only when the target object is in turn, it recognizes the received impact and processes it.
+
+This is very handy to debug single subroutines, this sets all the characters in equal conditions, this doesn't overload the program with many actions. However, this is troublesome when you debug interfaces between blocks (that's hard to find the source of the bug).
+
+=== 11 Apr 97 ===
+
+Black Raven - demo v0.02
+
+Demo in [[.Z80]] format.
+
+Music by [[Jam (Москва)|JAM]] from Moscow region.
+
+To have some fun, select the Wizard and press "scorpions" button. Then send them somewhere. Remember scattering cockroaches when you switch the light on in the kitchen at night? :)))
+
+=== 19 Apr 97 ===
+
+[[Dangerous]]>> The biggest bug in the world: Mednonogov wants to make music for Black Raven as a supplement on 3rd disk!!!
+
+[[Spirit|Sergey Novikov]]> A novel trick. People will pay for a 3 disk game more than for a 2 disk game.
+
+The game will be distributed on 2 disks. Tunes and sounds are completely up to Dangerous ([[X-Trade]]), and he decides how to distribute them (I'd post them in fileecho or BBS with pleasure). I doubt anybody remembers that GS was scheduled even before [[НЛО 2|UFO-2]], and they spoke about support even then (!). By the way, we had an agreement with X-Trade about making an elaborate demo for BR and they haven't made it. I don't want to burn my fingers for the third time.
+
+The sound support will load once at the start of the game, and will be called from the game (if X-Trade won't forget their promise to supply bug-free GS support subroutines :))
+
+=== 21 Apr 97 ===
+
+Almost 500 KB on the first disk is taken by video.
+
+[[Alex Letaev]]> Packed or not?
+
+476 when packed, 794 when unpacked. However, if there will remain enough space on the second disk, I'll move two final animations there.
+
+=== 21 Apr 97 ===
+
+"Rounding the obstacles" - in [[НЛО|UFO-1]] it was quite wretched - the hero got stuck at every post. And the aliens simply moved around in pseudorandom directions - ofcourse they came somewhere sometimes :) [Brownian motion effect]
+
+Routing in [[HЛО 2|UFO-2]] was described in a big article in [[ZX-Format|ZXF]] #6 (with example in Basic :) Lee algorithm was used there.
+
+Routing in BR... I can describe it in simple words. A character walks in the line of the target. He bumps into an obstacle, he inspects its outline clockwise and counter-clockwise, finds a spot on the outline which is the closest to the target and decides how to reach it faster - clockwise or counter-clockwise. He rounds the obstacle and continues the movement towards the target. And so with all the obstacles, until he reaches the target.
+
+Theoretically it would be better to remember the route to optimize it (make it smoother), but Spectrum has too few memory. Because of that I store only the direction of bypassing the obstacle and the length of the bypass, one byte is enough for this. Practically this is disturbed by other moving objects. Although it works somehow (see the demo).
+
+=== 08 May 97 ===
+
+IMHO recently the coolest things for ZX are made with the help of IBM/Amiga. Sometimes almost without using actual Spectrum :)) Just with emulators. For example, [[STEP]] group does so for a long time (using [[UKV]] 1.2)
+
+Indeed, if a hereditary musician [[LAV]] writes his tunes using modest sound of [[Shalaev]]'s emulator, forgetting the delights of real AY.
+
+Alexander Lebedev> Slava, when will you start to code for IBM? :)
+
+The first step is already done - I bought a book "Secrets of game programming for WINDOWS 95" :))
+
+== Part 2 ==
+=== 16 May 97 ===
+
+Black Raven - the last hurdle.
+
+Work with BR slowed down a little. The cause the need to detect nearby enemies for each character. Especially in the case of computer AI, whose soldiers see quite far (how else you can do an AI? :) I tried to solve this in straightforward way (check all agaist all) but in vain. I hope the task can be solved. I wonder how the developers of [[Dune 2]] did this (or they stuck here too?).
+
+=== 18 May 97 ===
+
+With the rules of Black Raven seeing a big sector is a fair game, because human player is able to see the whole open part of the map. I'd let this to the computer, too, but:
+
+* processing all this information is too much for little Speccy;
+* even it I obtain this information I hardly can find decent rules to use it (this reminds me the same problem in [[Дурак|Durak]] where in "card-sharper" mode the computer knows all the cards in the deck and the hands but can't really use this great information :)) 
+
+On the other hand, to have the game absolutely fair, the computer must be all like human - have its own map of visible space, send scouts to see more. This would make the program a lot "fatter".
+
+[[Юрий Матвеев|Yuri Matveev]]> If the problem is to find the closest object to fight - use the usual method of spiral scanning until you hit the enemy. Then attack.
+
+This method is not very good too. Even if you limit the radius of the spiral (N), the number of cells to see will be = (2*N+1)^2, that is very long time for computer's soldiers that have quite a big N, while the game is real-time. Even for our soldiers the N is 2..4 in average.
+
+We need to hope that the task can be solved.
+
+Yuri Matveev> Of course :) Look at warcrafts, dunes, and all the commands-and-conquers :)
+
+Well, having 133 MHz, I'd make it in straightforward way and in Basic :))
+
+=== 21 May 97 ===
+
+If I decided right, in a regular game all the enemy soldiers must have visibility range a litle more than the Sight of catapult, for them to react to its approaching in advance. The rule is simple but it should be made - or a few slow catapults of the player will break everything in pieces. That's the whole trouble :((
+
+[[Spirit|Sergey Novikov]]> Well, we wait at the barrack to accumulate 4 units, then go fighting. 9 is even better - the computer will play very strong then - not anyone can deal with 9 units on once!
+
+I haven't got so far, but in WC1 there was a special place (of places) to gather. That looked beter than in WC2, where the squad started from the barrack, but there was a vulnerable point - you can intercept enemy units while they walk from the barrack to the gathering place by one.
+
+Sergey Novikov> Additional mode can be added - for computers with turbo mode ONLY - where the computer will think better, and more effects can be added (animations in game).
+
+Well, just a little more than 4K remained, you can't get much going :(( Not even effects and animations - I think of removing the music (5K, after all). GS effects can also be fired, and game saves, some functions like building fences and roads. Troubles everywhere :(
+
+=== 21 May 97 ===
+
+Unlike UFO-1/2, a direction in BR is purely formal. A unit can turn in 180 degrees at once that is not as realistic. On the other hand, that makes sense because if you stand the units wrong in the line of defense you can lose a lot of health (because of time to turn around). Rotating your soldiers when you stand them in position will be unhandy, and you should look afer them, do they face the right way. Because of that, they have circular sight.
+
+=== 21 May 97 ===
+
+[[Oldman|Dmitry Grigoryev]]> So let them stay and scan. With a ray - you can scan the whole map. After, say, 10 iterations all the directions will be scanned. If they find anybody, let them chase him.
+
+Why 10? Maybe more? :)
+
+I understand the idea - partial scan on every iteration. I think to do this, too, if I won't come with anything better. However I'd better divide all the soldiers in groups and at every iteration I'll work with just one group. This will worsen the reaction though :((
+
+=== 26 May 97 ===
+
+To see the full picture, here's the method suggested by [[Николай Мезенцев|Nickolay Mezencef]].
+
+(It was about scanning the map by each character of a real-time strategy, to find a target.)
+
+"Why can't we, instead of scanning cells, check the coordinates of enemy objects. I don't think this will take more than one frame even with the maximum number of objects at both sides. If reaction time is 1 second (I mean the objects act once per second), such checking will take infinitely small resourses."
+
+This poses a question what is better: scan the surrounding cells indeed or check the coordinates of all the enemy objects. The first method was discussed thoroughly, unlike the second. Nickolay proposes the second method with the following optimization:
+
+"This can be optimized even further: if an object moves, it itself informs enemy objects about its coming in their range of view. In this case, if there was no move, the scanning is not needed at all."
+
+Very (IMHO) good solution - all the work in fact will be held with moving characters. A little odd, i.e. not the units standing in defense will scan the area, but moving enemies will signal them about their approaching. It is known that most of time the sides gather their forces and don't move. I can mention just one downside of this method: all these calculations should be done with peasants/peons, who always move. There are not a few of them (usually 15-25% of total population).
+
+Rescanning can be required in some other cases (a character killed an enemy and must search for another victim; enemies moving in attack can additionally scan the area to not miss player's soldiers that move in enemy's rear, although this was not done in WC2). But all of this is really nothing :)
+
+To sensibly close the topic I'll describe the method that I've chosen finally.
+
+All the map is divided in squares (in the case of BR, 8x8 cell squares appeared the most suitable). Each of these squares keeps a list of enemy units that reside there. If a square contains no enemies, the list is empty.
+
+Scanning for each player's soldier is checking 9 squares (8 adjacent squares and his own square). If enemies were found in a square, the coordinates are checked to find if an enemy is close enough.
+
+The same procedure is held with enemy soldiers.
+
+The idea is based on the fact that most of the time all the characters of confronting sides reside very far from each other, so the lists in scanned squares will be mostly empty.
+
+As an alternative, we can use 4x4 squares but in this case all characters having Sight>4 would scan 25 squares instead of 9 :(
+
+A little difficulty is in making lists but this is just a small technical task :))
+
+=== 12 Jun 97 ===
+
+Now I can promise firmly - Black Raven will be no dumber than Warcraft :))
+
+=== 13 Jun 97 ===
+
+Unit descriptor at Spectrum will fit in 20 bytes with ease (even 19), unlike, for example, [[HЛО 2|UFO-2]], where 32 bytes were needed. 2K given is enough for 102 characters.
+
+Trying to copy WC2 seems to be indeed hard though, because for 128х128 map (instead of 64х64 in WC1) 32К is needed (with 2 bytes per cell).
+
+In this case the map + characters data + bullet/spell data + buildings data + most of variables + 6К shadow screen must always reside in the memory accessible from all the pages, i.e. #4000 to #C000, that is just 32К :((
+
+So, if WC2 will be on Spectrum, it will have smaller map (80х80 or 128х64) and work on 256K computers only (even without flying characters unless cell descriptor will be 3 bytes instead of 2).
+
+=== 21 Jun 97 ===
+
+Well, the memory problem seems solved (yet :). Sprites of three less used characters were cut down (this means their sprites facing right are made from left-facing sprites in realtime. This was done using tables in ~3000 t-states) - demon, walleater, bonebreaker. This gave additional 2.5K - this must be enough for the most sophisticated AI :))
+
+It seems the game will have 3 levels of difficulty:
+
+* normal (as in WC1), without a couple or three last levels;
+* hard (more clever enemy + harder rules);
+* very hard (the same as 2 but without saves in game).
+
+The main rating of player's acting will be the time of passing the levels and the game in total - IMHO that's fair.
+
+I haven't got close to the AI yet but I managed to clear almost all the bugs and finish everything unfinished :) This includes the system of alarm indicators (at bottom right corner) that signal the attack, finishing the building/production, destroying buildings etc.
+
+=== 24 Jun 97 ===
+
+Spectrum graphics takes 8 times less than on PC; 2-4 times less phases showing movement or attack, less landscape sprites - in short, everything fits in ~80K.
+
+Misha Turnovsky> To have a normal strategy you need 1000-1500 characters IMHO.
+
+That's too many. In WC1, a number of units on human side is usually no more than 30-35, on computer's side - 50-60 (in final levels). In WC2 this number is 1.5-2 times bigger (among other things, this is because of that computer's game is based on defense). Spectrum can do this easily (as measured at 3.5 MHz, it is between FAST and FASTER in WC1, and at 7 MHz - well... :))
+
+=== 26 Jun 97 ===
+
+[[Денис Паринов|Denis Parinov]]> How many levels there will be?
+
+For now I think of 12 for either side (12+12). Although I suspect for some reason that there will be more. There are four landscapes so far - winter forest, regular forest, empty land, and underground (for special levels if you remember WC1). Maybe there will be two more - mountains (instead of rivers) and black forest (black land, fire rivers). In BR-2 (if it will be) I plan more landscapes: city, a port with ships.
+
+=== 01 Jul 97 ===
+
+Today I finished the last spell - enemy tornadoes, looking more like nazi swastikas - couldn't invent anything better :)
+
+=== 01 Jul 97 ===
+
+The biggest problem for Speccy in the future will be the absence of empty 5,25" disks in sale!!! This is even more frightening than evil hackers :))
+
+=== 01 Jul 97 ===
+
+In BR the computer will act according to the following plan:
+
+* units will be divided in "constant" and "additional" staff;
+* constant staff - units that were on the map in the beginning - guards and peasants. Peasants are divided in advance into those who mine gold or forest and maybe repairers. New peasants appear only in case of their death. Guards won't restore if dead (under normal difficulty), or will restore (hard difficulty);
+* additional staff appears in the course of the game (when resources are collected or certain time passed or ...) and form attack squads. After gathering a certain number of additional units all they set off to the campaign (the target is usually "town-hall" but not always).
+
+Each enemy unit has a special field in its descriptor that shows what he does (for example, in case of wizard it shows the type of spell he specializes in). Another field shows what he is actually doing now. The computer doesn't process this unit until this field is 0 (not 0 means the task is in process). Once the task is done or interrupted by external forces, the computer tries to "find job" for the unit taking into account his professional abilities. The guards are an exception (they find their job themselves, scanning around), as well as additional units until they gathered in number sufficient for a campaign.
+
+Something like this. Variants are possible though...
+
+=== 10 Aug 97 ===
+
+[[John Stunner]]> How's the BR?
+
+Lives its mysterious life. You know, it's summer, there is 25°С in Petersburg :) So, the last month it goes somehow weak :(
+
+=== 15 Aug 97 ===
+
+Black Raven - Demo v0.04
+
+Well, that's it, in [[.Z80]] format. As planned, this is the last demo version, only the full game can follow...
+
+One hypothetical level, not so complicated (no magic, no catapults; enemies are not so clever, not idiots though). Allegedly passable. If you win, shows "Well Done", or "R.I.P." otherwise.
+
+That's symbolistic, I started working on BR precisely one year ago...
+
+Special for Еnlight'97! ;)
+
+P.S.: Warning, if you play without mouse, you'll have hand paralysis in 30 minutes! Ж-)
+
+=== 30 Aug 97 ===
+
+Alex Koval'> I made it! Yes! I got it through! I finished that demo!!! In the end there is WELL DONE in attibutes.
+
+Exactly!!!
+
+Alex Koval'> Cool! If it will the the last level you can keep the logic.
+
+In fact, it was the first ;)
+
+My brother couldn't finish it :( While he said he'd be my beta tester. Here they are, PC Warcraft lovers :))
+
+=== 04 Sep 97 ===
+
+About BR: in the last days I heavily improved the router according to reported bugs:
+
+* enemy soldiers are counted passable, so if you block a bridge or some other narrow place with your soldiers, it won't be impassable for the enemy (as it was in the demo);
+* moving soldiers are counter passable, too, this makes possible to go in big groups through narrow passages without dissolving the squad. With extra gimmicks I succeeded in 100% passability of groups;
+* twisting happens no more (when a soldier walks for a long time around an empty spot);
+* a lot better exit from narrow dead-end passages.
+
+In addition, as people asked:
+
+* to attack your own soldier, you need to press a special button. This excludes the possibility to kill your soldier by chance in the heat of fight. Target fixation was added - if you have chosen a target, you can't select another by chance until you release SPACE. The cursor blinks when a target is selected;
+* it's forbidden to build on stone roads and paths,so you can't build an impassable roadblock with your buildings (as it was possible in the demo). The same holds with fences (in levels where you can build them);
+* other little things. 
+
+Maybe in the weekend I'll finish the strategy code (at last ;) and I'll start making levels.
+
+=== 11 Sep 97 ===
+
+Denis Dmitriev> I don't understand why the group is no more than 6 soldiers?
+
+I don't know myself... However, if you select a group and click on "G" icon, on the shield below you'll see all the members of the group shown - without parameters though.
+
+=== 13 Sep 97 ===
+
+[[Paul Falcon]]> How it will go between levels?
+
+Once you completed the mission (usually "kill them all"), you progress to the next level.
+
+P.S.: I just remembered that graphic artist ([[Barkov|D. Barkov]]) supplied 10 level pictures only and ran away to PC :( I had to made 22 more in fast pace (then it became clear than there will be 16+16 levels in total :)
+
+Following the requests from the users I made all the graphics in colour.
+
+Interesting thing was that scanning then colouring appeared less productive than converting in colour (with [[ZXC]] 1.1), then correcting by hand (correctinf takes 1.5 to 2.5 hours in average). All the work was done in five (!) days.
+
+IMHO this shows that there won't be any problem with quality graphics on Spectrum - practically any picture can be converted in 4-5 colours very well (and fast).
+
+=== 13 Oct 97 ===
+
+As it turned out, BR was included in the new catalogue of [[Logros]]/[[Nemo]] (it's in [[Scorpion]]'s catalogue since April :), and the people send money actively. Although I haven't made strong promises, I'll calm the buyers about their money - everything will be O.K., and relatively soon ;)
+
+By the end of this week all the 32 levels will be made. What remained:
+
+* to add a lot of parameters to each level;
+* murdered peasants don't repair yet;
+* even while all the spells are made, the wizards controlled by the computer still can't use them;
+* disk procedures are not made yet;
+* no protection (I can't finally decide what method to use, I prefer the one used in [[The Turn|Turn]] and [[ZX-Format]]);
+* [[Владимир Ларьков|Larkov]] must return me my Pentagon that stays since [[Enlight]];
+* it seems that's all!
+
+In the end I'll test it a little - for debugging, I don't plan to win it - I'm tired of playing it for the whole year :) By the way, passability of some levels is uncertain, but a skilled gamer will probably manage it though.
+
+As for the second part (kung missions), maybe I'll add a password there which I'll make public a month or more after the launch.
+
+=== 15 Nov 97 ===
+
+Raster and I started a socialist emulation: "What comes earlier, [[ZX-Format|ZXF]] #7 or BR?" The loser will give a winner 1 (one) can of beer :)
+
+P.S.: There are problems near the completion of BR - global memory shortage :((( Day after day I fight for every byte. Not in the sense of optimization, but in cutting the sprites and removing pieces of code.
+
+However there is a TR-DOS version (in [[FDI]] format) with several levels, Finаl Cuts and possibility to save. The saves went very large (around 20K), so they will save on separate TR-DOS disk. Two drives are supported (thanks to [[UKV]] emulator), and you can select what drive you use for what. The second disk is always 5.25" (to make scratches on it :), the first one can be 3.5 or 5.25 as the customer wants. The same for saves (any type, too). I think this is right because polls didn't show people using 3.5" drives only.
+
+As it was said, due to technical problems, [[General Sound|GS]] support was not included in the game, so two new options were added in setup: "colour/monochrome game" and "drive for saves".
+
+Once the game is loaded, an infinite demo mode is started for traders who (like [[Lorgos]]) have a working computer at their points of sale. I can watch for hours how they fight in the demo :))
+
+The format of the second disk (that contains levels) was made to not depend on the first one. So, it's possible to make disks with new missions in the future. In addition to new levels the graphics can be changed in landscapes, buttons, pictures between levels, as well as the music. Maybe so-called hackers will make such new missions, although I see this sceptically :))
+
+No protection again (no place to add it), but it will be there :)
+
+=== 23 Nov 97 ===
+
+Ruslan Scherbatyuk> Does anybody know - is a'la War-Craft complete?
+
+Launch date (in Petersburg) is set at 6th of December. Reserve plan is a week after. Now author's beta-testing is held. I stuck at 9th level (for humans) by now - can't free the peasants.
+
+I like to see practically 100% bug free game - no hangs so far. Even the evil bug where soldiers walked on top of the forest and buildings was fixed (is seems :)
+
+Ruslan Scherbatyuk> UFO-3 won't be done.
+
+Nobody knows about that...
+
+=== 26 Nov 97 ===
+
+The protection is not added yet, but 26 levels out of 32 are tested.
+
+Twelve of them I passed fairly, the rest seem to be passable too. The most hard level (yet) - "Humans #13". I even wanted to remove it but I suddenly finished it in 50th try :-) My brother can testify.
+
+=== 05 Dec 97 ===
+
+Black Raven won't launch tomorrow!
+
+Firstly because [[ZX-Format]] 7 is out. Why not read the new issue.
+
+Secondly, this chance was planned.
+
+Thirdly, it just went wrong :( Disk Reading/writing is unreliable, the protection is buggy.
+
+This happens every time when you stick pieces together...
+
+Therefore the final launch date will be 13th of December (what a number. Not a Friday luckily :)
+
+Because of this - about distribution in other cities:
+
+The distribution will start a week later to test the game in Petersburg. As always, the distribution is up to [[Logros]], [[Сергей Зонов|Zonov]], [[Nemo]].
+
+I can be contacted by phone: (812)- 143-33-03.
+
+=== 12 Dec 97 ===
+
+Black Raven - v1.00.
+
+As planned, the first 30 kits will be on sale tomorrow. This is more like beta version. Kung levels are protected with a password.
+
+During a week I hope to receive bug reports, to fix the program if needed. So the final version (1.01) will come a week later. At least because of that I haven't finished the documentation and have to prepare the stickers/inlays/covers.
+
+P.S. Maybe it would be better to launch one more week later, but I promised... :-)
+
+=== 13 Dec 97 (04:54 a.m.) ===
+
+Alex Petrovsky> When DOOM and Black Raven will be out - who knows, people?
+
+I don't know about Doom but Black Raven v1.0 already exists for 10 minutes in 34 units!!!
+
+=== 17 Dec 97 ===
+
+For the whole usage time only one bug was found - invisible cells turn white instead of black after saving (repairs after going to setup, fixed). There was a false alarm from a member of [[Omega group]] about sawmill inability.
+
+All in all, realtime stratery is something new for Spectrum users, of course. The most skilled ones could advance to fifth level (I even suppose that they added money, and money doesn't help at fifth level ;)
+
+The game failed on new [[KAY]] 1024 (what can I do, I'm unlucky with KAY). The bug will be fixed.
+
+Because of user requests I'll remove the password from the second part of the game.
+
+As [[Сергей Зонов|Sergey Zonov]] requested, there will be a version with two 3,5" disks - once I fulfill the research how to scratch them :)
+
+So, the release version 1.01 will come this Saturday (20th of December).
+
+=== 22 Dec 97 ===
+
+It's out. Workability is guaranteed. Maybe one bug remained - if you give a random data instead of game save it can hang. The moral being - don't do this. I'll fix it some day...
+
+Amazingly, although the program looks like "little Windows'95" inside, it works without incidents, like clockwork :)
+
+In 1.00 clever people (for example, Sasha from [[Omega group]]) made it even to 9th level (!) where they still sit. They did it without cheating (!), not added money (because if you just add 100 coins there, the level is completed with ease)
+
+Following the requests, protection against [[Scorpion]]'s [[Теневой сервис-монитор|Shadow Monitor]] was added. I don't know if it protects in fact (I don't have Scorpion), but at lest neither [[Pentagon]] nor Scorpion don't hang with it :)
+
+The first 24 kits went to [[Ростов-на-Дону|Rostov-on-Don]].
+
+=== 26 Dec 97 ===
+
+The first welcome news:
+
+Dmitry from [[G-Soft]] finished all the 16 levels for humans (!) in v1.01.
+
+In his opinion, the most hard were 15th and 16th levels because of demons and far away goldmines. He enjoyed the final animation :)
+
+G-Soft's success is unsurprising, because they once made [[Warcraft]] demo published in [[ZX-Format]], so they got into BR better than others.
+
+=== 01 Jan 98 ===
+
+[[Владимир Спашко|Vladimir Spashko]]> Black Ravens have arrived and started their way to people :-) There's no need to write about impressions - you must see this!!! The first achievement of one fan - 9 levels for humans in 2 days interrupted with sleeping and eating.
+
+Cool!
+
+Sorry that I sent you versions where you can't save to drive "B:" :((( If anybody in Rostov-on-Don is worried about that, you can copy their first disk with [[Teledisk]] or [[McDonald]] (or I can change).
+
+By the way, about the versions:
+
+1.00 - beta-version for testing. To be safe I made it impassable (or the hackers will crack it again and pin all the bugs on me :))). That's strange than only six of them were returned (although the instruction clearly said that the game must be changed). Two people made it even to 12th level and failed :((
+
+1.01 - release version, fully passable (if you can play ;)
+
+Everything reported by users was fixed.
+
+1.01A - a) fixed bug with denied saving to "B:" (nobody spotted it for a long time); b) Talabruk was called Warlock by mistake (fixed).
+
+1.01B - a) sometimes you could build fences where it is forbidden (fixed); b) [[G-Soft]] founded a bug that made spell research easier (fixed).
+
+All the 1.01х are marked as 1.01 (the version number is in documentation). The first and second disks of any 1.01х versions are compatible respectively. But the game saves are not compatible (because the save includes physical addresses of some subroutines). No more versions are planned.
+
+Kung game: nobody yet reported passing it after the second level. This is old information though. Kung levels differ more, in my opinion, there are more places to think.
+
+=== 02 Jan 98 ===
+
+When everyone celebrated New Year, guys from G-Soft played for kungs, four together :) They got to 9th level yet. Hard, they say. Level 7 ("islands") seemed the most hard, although their method of solving it is not the best IMHO. I think the following levels are tough too:
+
+* 9th ("joining forces");
+* 12th (the toughest of underground levels);
+* 16th (maybe impassable). 
+
+Advanced gamer will manage it, though!
+
+That's useful to see that every game faces quite hard problems that sometimes make the author change the plot!
+
+Compared to this, a seasoned gamemaker cope with tasks like making a videoclip, converting graphics and making sound effects with ease, without slowing down, even if he never did this before :)
+
+Always yours, Vyacheslav Mednonogov.
