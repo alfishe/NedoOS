@@ -653,7 +653,7 @@ isOVER	;?перкр курcор и обл вывода? NC-не перекр
 
 outNUM	;выв чисел для шахты/избы
         display "outNUM=",$
-	LD A,(BUT_N+2)
+	LD A,(BUT_N+2) ;текущие номера изображений кнопок (6 шт)
 	CP 80
 	JR Z,oNmine
 	CP 77
@@ -832,8 +832,16 @@ spc_DO	;1-команда иcп по space ;2-исполняется только для героев
 	DEFB 1,1,1,1,1,2,2,2,0,2
 	;оcтальные -0
 
+        if EGA
+sq1=scrbase+25+(10*8*40)
+sqrADR
+        dw sq1,sq1+3
+        dw sq1+(3*8*40),sq1+3+(3*8*40)
+        dw sq1+(6*8*40),sq1+3+(6*8*40)
+        else
 sq1	EQU ATR+345
 sqrADR	DEFW sq1,sq1+3,sq1+96,sq1+99,sq1+192,sq1+195
+        endif
 
 
 sqrCOL	;закрасить квадр. c HL цветом A
@@ -864,18 +872,20 @@ sqrCOL	;закрасить квадр. c HL цветом A
 	RET
         endif
 
-
-outSQR	LD A,(F_FUNC) ;выв 6и квдр
+;выв 6и квдр
+outSQR	LD A,(F_FUNC) ;функция по нажатию Space - идти или атаковать/нести, или фармить (#ff = ничего?)
 	LD B,A
 	LD DE,sqrADR
 	XOR A
+        
 oQ0	PUSH AF
 	CP B
-	LD A,(MCOLOR) ;текущ действие?
+	LD A,(MCOLOR) ;цвет панели (#28/#30) [текущ действие?]
 	LD C,A
-	JR NZ,oQ1
+	JR NZ,oQ1 ;не та кнопка
+        ;та кнопка - красим красным
 	INC C
-	INC C
+	INC C ;+2=красный
 	LD A,(isCOLR) ;игра цветная?
 	OR A
 	JR NZ,oQ1
@@ -885,29 +895,32 @@ oQ1	LD A,(DE)
 	LD L,A
 	LD A,(DE)
 	INC DE
-	LD H,A
+	LD H,A ;hl=адрес атрибута кнопки
 	LD A,(HL)
 	CP C
 	LD A,C
-	CALL NZ,sqrCOL
+	CALL NZ,sqrCOL ;не тот атрибут - красим
 	POP AF
 	INC A
 	CP 6
 	JR C,oQ0
-	LD A,(N_FUN1) ;нажатый квдр
+        
+	LD A,(N_FUN1) ;нажатый квдр ;FIRBUT пишет туда (_n_FUN)
 	CP #FF
 	JR Z,oQ5
 	LD C,A
-	LD HL,BUT_N
+	LD HL,BUT_N ;текущие номера изображений кнопок (6 шт)
 	CALL BA
 	CP 77
 	JR NC,oQ5
 	LD A,C
 	LD HL,sqrADR
 	CALL WT
+        
 	LD A,(HL)
 	OR %01111001
 	CALL sqrCOL
+        
 oQ5	LD A,(SEL_T) ;квдр героя
 	CP 7
 	LD A,#38
@@ -1121,7 +1134,7 @@ M_PLAT ;показать площадку под стр-во
 	LD A,(F_FUNC)
 	CP #FF
 	RET NC
-	LD HL,BUT_N
+	LD HL,BUT_N ;текущие номера изображений кнопок (6 шт)
 	CALL BA
 	CP 16
 	RET C

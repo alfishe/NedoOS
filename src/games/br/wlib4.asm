@@ -447,16 +447,16 @@ FIRBUT	;обработка нажатия иконки + подсветка
 	CP (HL)
 	JR NZ,nSQ0
 	INC HL
-	LD (HL),A
+	LD (HL),A ;N_FUNC=#ff ;функция 0-5, или 255-none
 	RET
 nSQ0	LD A,(N_FUNC)
 	CP #FF
 	RET C
-	LD A,(HL)
+	LD A,(HL) ;_n_FUN
 	INC HL
-	LD (HL),A
+	LD (HL),A ;N_FUNC ;функция 0-5, или 255-none
 	INC HL
-	LD (HL),A
+	LD (HL),A ;N_FUN1 ;дубль для подсветки
 	LD B,A
 	LD HL,BUT_N
 	CALL BA
@@ -548,7 +548,7 @@ pb01	LD (IX+4),A
 	POP BC
 	DJNZ pBF23a
 	JP EVENTr
-pBF3	;стоять на смерть
+pBF3	;стоять насмерть
 	LD C,1
 	JR pb03
 pBF4	;остановиться
