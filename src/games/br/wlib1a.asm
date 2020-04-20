@@ -1472,6 +1472,9 @@ MAPon	XOR A
 	LD A,(COLOR)
 	XOR %01011001
 	CALL FRA_L1
+        else
+        call MAPoffclbuttons ;иначе затираются кнопки
+         ;call OUTBAR
         endif
 	CALL OU_MAP
 	CALL MAPwin
@@ -1482,6 +1485,13 @@ MAPoff	XOR A
 	LD (isMAP),A
 	CALL O12X12
         if EGA
+MAPoffclbuttons
+;иначе затираются кнопки
+	LD HL,_BUT_H
+	LD B,7
+MAPoncBU1i LD (HL),#FF
+	INC HL
+	DJNZ MAPoncBU1i
         ret
         else
 	JP FRA_L
