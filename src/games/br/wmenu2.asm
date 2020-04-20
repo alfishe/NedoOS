@@ -970,8 +970,13 @@ OUTBAR	;общий вывод панели
 	CALL oMN_WD
 	CALL outTX
 	CALL oINDY
+        if EGA
+	CALL oBUT ;TODO не перерисовывать кнопки, если они не изменились
+	CALL outSQR
+        else
 	CALL outSQR
 	CALL oBUT
+        endif
 	CALL outNUM
 	JP outLED
 

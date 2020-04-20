@@ -547,10 +547,10 @@ BDOS_cls
         and 7
         ;jr z,BDOS_cls_EGA(0)
          sub 3 ;MC hires(2)
+        ld a,e ;attr byte
          jr c,BDOS_cls_EGA ;TODO отдельную очистку для MC hires
          ;dec a ;6912(3)
 ;textmode (6)
-        ld a,e ;attr byte
          ld hl,0xc000
          ld bc,0x1aff
          jr z,BDOS_cls_textmode_ldirbc ;6912(3)
@@ -583,7 +583,7 @@ BDOS_cls_textmode_ldirbc
 BDOS_cls_EGA
         endif
        
-        ld a,e
+        ;ld a,e
 scrbase=0x8000
 ;чистим через стек, кроме первых байтов (иначе прерывание может запортить два байта перед экраном)
         ld (clssp),sp

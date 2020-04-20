@@ -126,7 +126,8 @@ WA2	DEC BC
 
 ;===========================
 
-bINSTR	CALL SW70
+bINSTR	
+        CALL SW70
 XI00	XOR A
 	OUT (#FE),A
 	CALL DLPPIC
@@ -149,11 +150,12 @@ XI3	CP 7
 	CP 9
 	JR Z,XI8
 	JR NC,XI9
-	CALL MEM7
-	CALL OFFS
-	CALL OFFD
-	CALL MEM0
-	JP bFLAG
+	;CALL MEM7
+	;CALL OFFS
+	;CALL OFFD
+	;CALL MEM0
+	;JP bFLAG
+        jp press_quit
 
 XI4	CALL PgUp
 	JR XI0
@@ -659,5 +661,5 @@ PIC2
 
 
 Instr
-        incbin "data/WINSTR.DAT"
+        incbin "data/WINSTR.DAT" ;текст зашифрован, оригинала нет, есть конвертор из оригинала на C, но не наоборот
 

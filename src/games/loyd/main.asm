@@ -13,6 +13,8 @@ begin
 
         ld e,0 ;EGA
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ;ld e,0
+        ;OS_CLS
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
@@ -612,7 +614,7 @@ FIG11
         dw 255
 
 cls
-        ld e,9
+        ld e,0;0xc9;9
         OS_CLS
         if 1==0
 	ld hl,#4000

@@ -350,6 +350,11 @@ START   ;начало начал
         ;DI
         ;IM 1
         LD SP,0x4000;#61FE
+
+        OS_GETMAINPAGES
+;dehl=pages in 0000,4000,8000,c000
+        ld a,e
+        ld (curpginstr),a
         
         call loadpic
         di
@@ -616,7 +621,8 @@ LOADF   ;A-N ф-ла (0..NN)
         ;ORG #6200 ;.B01
         include "WINTRO.asm"
 ;*L+
-        ds 0x4000-$
+        ;ds 0x4000-$
+        ds 0x5b00-$
         include "WINSTR.asm"
 WFTXT
         incbin "data/WFLICTXT.LPZ"

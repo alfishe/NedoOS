@@ -19,6 +19,8 @@ oB1	LD DE,(BOXX)
 	SBC HL,DE
 	POP HL
 	RET Z
+        ld ix,0xf0c0
+        ld hy,0xff ;white
 outboxpp
 ;de=top left
 ;hl=bottom right
@@ -70,10 +72,17 @@ outboxpp
 	RET
 
         if EGA
+outBOXsolid_nomargins
+        ld ix,0xffff
+        ld hy,0x36 ;yellow
+        jr outBOXsolid_ix
 outBOXsolid
 ;de=top left
 ;hl=bottom right
 ;a'=mask
+        ld ix,0xf0c0
+        ld hy,0xff ;white
+outBOXsolid_ix
         ld a,(LMask)
         push af
         ex af,af'
@@ -92,14 +101,14 @@ hLINE	;гориз уч DE->L;
          cp 192
          ret nc
          ld a,e
-         cp 192
+         cp lx;192
          jr c,hlinenoclipleft
          ld e,0
 hlinenoclipleft
          ld a,l
-         cp -16
+         cp hx;-16
          ret nc
-         cp 191
+         cp lx;191
          jr c,hlinenoclipright
          ld l,191
 hlinenoclipright
@@ -224,16 +233,18 @@ hLA1	CALL pMASK
 pMASK	;выв байта LMask по маске А в (HL)
        if EGA
 	LD C,A
-	OR (HL)
-	LD (HL),A
+	or (HL)
+         xor c
+	LD (HL),A ;black
 	LD A,(LMask_)
 	RLCA
 	RLCA
 	LD (LMask_),A
-        jr nc,pMASKq
+        jr c,pMASKq
 	ld a,c
+         and hy;0x36
 	XOR (HL)
-	LD (HL),A
+	LD (HL),A ;white
 pMASKq
         ld de,0x4000
         ld a,0x9f;0xa0
@@ -261,14 +272,16 @@ pvMASK
        if EGA
 	LD A,C
 	OR (HL)
-	LD (HL),A
+         xor c
+	LD (HL),A ;black
 	LD A,(LMask_)
 	RLCA
 	LD (LMask_),A
-        jr nc,pvMASKq
+        jr c,pvMASKq
 	ld a,c
+         and hy;0x36
 	XOR (HL)
-	LD (HL),A
+	LD (HL),A ;white
 pvMASKq
         ld de,40
         add hl,de
@@ -302,7 +315,7 @@ vLINE	;верт.линияDE->H
 	LD (LMask_),A
          if EGA ;для выделения домиков
          ld a,e
-         cp 192
+         cp lx;192
          ret nc
          ld a,d
          cp 192
@@ -312,7 +325,7 @@ vlinenocliptop
          ld a,h
          cp -16
          ret nc
-         cp 192;191
+         cp lx;192;191
          jr c,vlinenoclipbottom
          ld h,192;191
 vlinenoclipbottom

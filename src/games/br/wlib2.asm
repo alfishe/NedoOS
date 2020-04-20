@@ -1303,6 +1303,7 @@ _Bsmal
         ex af,af'
 ;de=top left
 ;hl=bottom right
+;a'=pattern
         jp outBOXsolid
         
         else

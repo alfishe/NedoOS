@@ -180,7 +180,15 @@ PRE1	LD A,E
 	CALL MUS+9 ;stop muz
 	POP AF
          cp key_esc
-         jp nz,bFLICK
+         jr z,press_quit
+         cp '1'
+         jp z,bFLICK
+	CALL OFFS
+curpginstr=$+1
+        ld a,0
+        SETPG16K
+        ;jr $
+	JP bINSTR
 press_quit
         QUIT         
         endif

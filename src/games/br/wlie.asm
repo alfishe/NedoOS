@@ -652,7 +652,7 @@ isOVER	;?перкр курcор и обл вывода? NC-не перекр
 
 
 outNUM	;выв чисел для шахты/избы
-        display "outNUM=",$
+        ;display "outNUM=",$
 	LD A,(BUT_N+2) ;текущие номера изображений кнопок (6 шт)
 	CP 80
 	JR Z,oNmine
@@ -833,11 +833,17 @@ spc_DO	;1-команда иcп по space ;2-исполняется только для героев
 	;оcтальные -0
 
         if EGA
-sq1=scrbase+25+(10*8*40)
+;sq1=scrbase+25+(10*8*40)
 sqrADR
-        dw sq1,sq1+3
-        dw sq1+(3*8*40),sq1+3+(3*8*40)
-        dw sq1+(6*8*40),sq1+3+(6*8*40)
+        ;dw sq1,sq1+3
+        ;dw sq1+(3*8*40),sq1+3+(3*8*40)
+        ;dw sq1+(6*8*40),sq1+3+(6*8*40)
+        dw 0x4fc8,0x4fe0
+        dw 0x67c8,0x67e0
+        dw 0x7fc8,0x7fe0
+        ;dw 0x50c9,0x50e1
+        ;dw 0x68c9,0x68e1
+        ;dw 0x80c9,0x80e1
         else
 sq1	EQU ATR+345
 sqrADR	DEFW sq1,sq1+3,sq1+96,sq1+99,sq1+192,sq1+195
@@ -873,13 +879,82 @@ sqrCOL	;закрасить квадр. c HL цветом A
         endif
 
 ;выв 6и квдр
-outSQR	LD A,(F_FUNC) ;функция по нажатию Space - идти или атаковать/нести, или фармить (#ff = ничего?)
+outSQR
+        if EGA
+;убираем все обводки кнопок (для избы/шахты только внешнюю рамочку, которую не могли затереть кнопки при перерисовке)
+        ld de,0x4fc8
+        ld hl,0x4fc8+0x4830
+	LD A,(BUT_N+2) ;текущие номера изображений кнопок (6 шт)
+	CP 80
+	JR Z,outSQRizba ;шахта
+	CP 77
+	jr z,outSQRizba ;изба
+        ;ld de,0x4fc8
+        ld hl,0x4fc8+0x4818
+        xor a
+        ex af,af'
+;de=top left
+;hl=bottom right
+;a'=pattern
+        call outBOXsolid_nomargins
+        ld de,0x4fe0
+        ld hl,0x4fe0+0x4818
+        xor a
+        ex af,af'
+;de=top left
+;hl=bottom right
+;a'=pattern
+        call outBOXsolid_nomargins
+        ld de,0x4fc8+0x1800
+        ld hl,0x4fc8+0x3030
+outSQRizba
+        xor a
+        ex af,af'
+;de=top left
+;hl=bottom right
+;a'=pattern
+        call outBOXsolid_nomargins
+        endif
+        LD A,(F_FUNC) ;функция по нажатию Space - идти или атаковать/нести, или фармить (#ff = ничего?)
 	LD B,A
+	LD A,(N_FUN1) ;нажатый квдр ;FIRBUT пишет туда (_n_FUN)
+        cp 0xff
+        jr z,$+3
+        ld b,a
 	LD DE,sqrADR
 	XOR A
         
 oQ0	PUSH AF
 	CP B
+       if EGA
+	LD A,(DE)
+	INC DE
+	LD L,A
+	LD A,(DE)
+	INC DE
+	LD H,A ;hl=YX кнопки
+	JR NZ,oQ1 ;не та кнопка
+        ld a,0x99;ff
+        ;jr z,$+3
+        ;xor a ;не та кнопка - стираем обводку
+        ex af,af'
+        push de
+        ex de,hl
+        ld a,d
+        add a,24
+        ld h,a
+        ld a,e
+        add a,24
+        ld l,a       
+;de=top left
+;hl=bottom right
+;a'=pattern
+        push bc
+        call outBOXsolid_nomargins
+        pop bc
+        pop de
+oQ1
+       else
 	LD A,(MCOLOR) ;цвет панели (#28/#30) [текущ действие?]
 	LD C,A
 	JR NZ,oQ1 ;не та кнопка
@@ -900,6 +975,7 @@ oQ1	LD A,(DE)
 	CP C
 	LD A,C
 	CALL NZ,sqrCOL ;не тот атрибут - красим
+       endif
 	POP AF
 	INC A
 	CP 6
@@ -921,7 +997,11 @@ oQ1	LD A,(DE)
 	OR %01111001
 	CALL sqrCOL
         
-oQ5	LD A,(SEL_T) ;квдр героя
+oQ5	
+        if EGA
+        ret
+        else
+        LD A,(SEL_T) ;квдр героя
 	CP 7
 	LD A,#38
 	JR C,oQ2
@@ -932,6 +1012,7 @@ oQ2	LD HL,ATR+185
 	CP (HL)
 	RET Z
 	JR sqrCOL
+        endif
 
 ;----------------
 mayBLT	;можно ли разместить здание? Z/NZ-да/нет;
