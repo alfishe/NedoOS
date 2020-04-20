@@ -60,7 +60,7 @@ struct in_addr find_yad(char * name){
     int recvbufflen = 50;
 	
     Recv_addr.sin_family       = AF_INET;        
-    Recv_addr.sin_port         = htons(16730);  
+    Recv_addr.sin_port         = htons(16729);  
 	Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST;
 	
 	while(1){

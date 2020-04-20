@@ -79,7 +79,7 @@ C_task main (int argc, char *argv[])
 	ptr_out_rx =  buf_rx;
 	ptr_in_rx = buf_rx + sizeof(buf_rx);
 	web_ia.sin_port=htons(16729); //'AY' chars
-	udpr_ia.sin_port=htons(16730);
+	udpr_ia.sin_port=htons(16729);
 	while(l!=argc){
 		char * p=argv[l];
 		if(p[0]!='-') exit((int)"Wrong parameter");
