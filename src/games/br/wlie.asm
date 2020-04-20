@@ -878,8 +878,7 @@ sqrCOL	;закрасить квадр. c HL цветом A
 	RET
         endif
 
-;выв 6и квдр
-outSQR
+clearbuttonframes
         if EGA
 ;убираем все обводки кнопок (для избы/шахты только внешнюю рамочку, которую не могли затереть кнопки при перерисовке)
         ld de,0x4fc8
@@ -891,30 +890,34 @@ outSQR
 	jr z,outSQRizba ;изба
         ;ld de,0x4fc8
         ld hl,0x4fc8+0x4818
-        xor a
-        ex af,af'
+        ;xor a
+        ;ex af,af'
 ;de=top left
 ;hl=bottom right
 ;a'=pattern
-        call outBOXsolid_nomargins
+        call clearbuttonframes_frame;outBOXsolid_nomargins
         ld de,0x4fe0
         ld hl,0x4fe0+0x4818
-        xor a
-        ex af,af'
+        ;xor a
+        ;ex af,af'
 ;de=top left
 ;hl=bottom right
 ;a'=pattern
-        call outBOXsolid_nomargins
+        call clearbuttonframes_frame;outBOXsolid_nomargins
         ld de,0x4fc8+0x1800
         ld hl,0x4fc8+0x3030
 outSQRizba
+clearbuttonframes_frame
         xor a
         ex af,af'
 ;de=top left
 ;hl=bottom right
 ;a'=pattern
-        call outBOXsolid_nomargins
+        jp outBOXsolid_nomargins
         endif
+
+;выв 6и квдр
+outSQR
         LD A,(F_FUNC) ;функция по нажатию Space - идти или атаковать/нести, или фармить (#ff = ничего?)
 	LD B,A
 	LD A,(N_FUN1) ;нажатый квдр ;FIRBUT пишет туда (_n_FUN)

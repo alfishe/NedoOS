@@ -971,13 +971,15 @@ OUTBAR	;общий вывод панели
 	CALL outTX
 	CALL oINDY
         if EGA
+        call clearbuttonframes ;затирает рамки кнопок (немножко срезает с левой цифры)
 	CALL oBUT ;TODO не перерисовывать кнопки, если они не изменились
+	CALL outNUM ;
 	CALL outSQR
         else
 	CALL outSQR
 	CALL oBUT
-        endif
 	CALL outNUM
+        endif
 	JP outLED
 
 	;ds #FFFE-$

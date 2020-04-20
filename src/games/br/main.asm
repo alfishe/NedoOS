@@ -1582,7 +1582,7 @@ prcharinv
 	ADD HL,HL
 	ADD HL,HL
 	ADD HL,BC
-        call setpgsscr40008000_current
+        call setpgsscr40008000;_current
         ex de,hl ;de=font+
 ;hl=yx
         ld a,l
