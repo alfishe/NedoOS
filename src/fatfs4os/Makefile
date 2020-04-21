@@ -4,10 +4,10 @@ SOURCES		= ff.c ff.h diskio.h integer.h ffconf.h mylib.asm
 all: ${NAME} ${SOURCES}
 
 ifeq ($(OS),Windows_NT)
-wget.com: ${SOURCES}
+$(NAME): ${SOURCES}
 	build.bat
 else
-wget.com: ${SOURCES}
+$(NAME): ${SOURCES}
 	wine cmd /c build.bat /nogui
 endif
 
