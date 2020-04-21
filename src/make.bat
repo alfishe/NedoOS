@@ -5,7 +5,7 @@ if "%edeset%"=="" (
 )
 SET currentdir=%CD%
 SET releasedir=%CD%\..\release\
-set COPYCMD=/Y
+
 if not exist ..\release mkdir ..\release 
 if not exist %releasedir%\bin mkdir %releasedir%\bin 
 if not exist %releasedir%\doc mkdir %releasedir%\doc 
@@ -18,44 +18,21 @@ cd %currentdir%\kernel
 call build.bat
 
 cd %currentdir%
-
 IF "%softbuilded%"=="" (
 	set softbuilded=1
-	IF EXIST soft.lst (
-		del /Q soft.lst
-	)
-	FOR /R %currentdir% %%i IN (build.bat) DO (
-		IF EXIST %%i (
-			IF NOT EXIST ffconf.h (
-				IF NOT EXIST ffsfunc.asm (
-					echo %%~dpi >> soft.lst
-				)
-			)
-		)
-	)
-)
-IF "%softbuilded%"=="" (
-	set softbuilded=1
-	FOR /R %currentdir% %%i IN (build.bat) DO (
-		if exist "%%i" 
+	FOR /R . %%i IN (build.bat) DO (
+		if exist %%i (
 			cd "%%~pi"
-			IF NOT EXIST ffconf.h (
-				IF NOT EXIST ffsfunc.asm (
-					SET installdir=bin
-					echo "%%~pi"
-					call build.bat
-					if not exist %releasedir%!installdir! (
-						mkdir %releasedir%!installdir! > nul
-					)
-					FOR %%j IN (*.com) DO (
-						del "%releasedir%!installdir!\%%~nxj" >nul
-						move "%%~fj" "%releasedir%!installdir!\%%~nxj" >nul
-						del /Q "%releasedir%!installdir!\%%~nj"
-						xcopy /I "%%~nj" "%releasedir%!installdir!\%%~nj" 
-					)
-					del /Q %releasedir%!installdir!\*.ext
-					copy *.ext %releasedir%!installdir!\
+			IF NOT EXIST ffconf.h IF NOT EXIST ffsfunc.asm (
+				SET installdir=bin
+				echo "%%~pi"
+				call build.bat
+				if not exist "%releasedir%!installdir!" mkdir "%releasedir%!installdir!"
+				FOR %%j IN (*.com) DO (
+					move "*.com" "%releasedir%!installdir!" > nul
+					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%!installdir!\%%~nj\" > nul
 				)
+				if exist *.ext ( copy *.ext %releasedir%!installdir!\ > nul )
 			)
 		)
 	)
