@@ -53,9 +53,12 @@ struct in_addr find_yad(char * name){
 	struct sockaddr_in Recv_addr;  
     struct sockaddr_in Sender_addr; 
 
-    int len = sizeof(struct sockaddr_in);
-    char sendMSG[] ="Who is Yad?";
-	
+    int Recv_addr_len = sizeof(struct sockaddr_in);
+
+	const char sendMSG[] = "Who is Yad?";
+	const char rplyMSG[] = "I'M YAD";
+
+
     char recvbuff[50] = "";
     int recvbufflen = 50;
 	
@@ -64,12 +67,14 @@ struct in_addr find_yad(char * name){
 	Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST;
 	
 	while(1){
+		int len;
+
 		sendto(sock,sendMSG,strlen(sendMSG)+1,0,(const struct sockaddr *)&Recv_addr,sizeof(Recv_addr));
 		sleep(1);
-		len = recvfrom(sock,recvbuff,sizeof(recvbuff)-1,0,(struct sockaddr *)&Recv_addr,&len);
+		len = recvfrom(sock,recvbuff,sizeof(recvbuff)-1,0,(struct sockaddr *)&Recv_addr,&Recv_addr_len);
 		if(len>0){
 			recvbuff[len] = 0x00;
-			if(strcmp(recvbuff,"I'M YAD")==0x00){
+			if( len>=strlen(rplyMSG) && !strcmp(recvbuff,rplyMSG) ){
 				//puts(recvbuff);
 				break;
 			}
