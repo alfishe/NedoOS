@@ -77,8 +77,8 @@ resources:
 clean: 
 	rm -f ${NAME} ${OBJECTS}
 install: all
-	mkdir -p ${INSTALLDIR}/br || echo
-	cp br/* ${INSTALLDIR}/br
+	mkdir -p ${INSTALLDIR} || echo
+	cp br/* ${INSTALLDIR}
 	cp ${NAME} ${INSTALLDIR}
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc

@@ -2,7 +2,7 @@ NAME		= smb.com
 OBJECTS		=
 SOURCES		= main.asm 6502.asm 6502fast.asm main.asm nesconst.asm nu.asm smbconst.asm smbmusic.asm smbsound.asm tileattr.asm
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/nedogame/smb
+INSTALLDIR	= ../../../release/nedogame
 
 
 all: ${NAME} ${SOURCES}
