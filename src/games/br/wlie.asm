@@ -71,7 +71,10 @@ putTX	;напр на выв cообщ A
 	LD (pTXdel),A
 	RET
 
-dirTX	CALL TX_ADR ;экcтр cообщ A
+dirTX
+;keep ix!!! иначе виснет, если нет ресурсов на ремонт
+;но просто обернуть push-ами не помогает, только напрямую в wlih.asm/ZZ8n
+	CALL TX_ADR ;экcтр cообщ A
 	LD A,(pTXdel)
 	OR A
 	JR NZ,dtx1
@@ -81,7 +84,13 @@ dtx1	LD (TX_AD),HL
 	LD A,6 ;t задер экcтр c
 dtx2	LD (pTXdel),A
 	CALL MEM7
+         ;if EGA
+         ;push ix
+         ;endif
 	CALL otx1
+         ;if EGA
+         ;pop ix
+         ;endif
 	JP MEM0
 
 outTX	LD HL,pTXdel

@@ -1030,7 +1030,13 @@ ZZ8k	INC (IX+3)
 	LD (IX+2),A
 	JP IMPIX3
 ZZ8n	POP IX;нет средств на ремонт
-	CALL nMN_WD
+         if EGA
+         push ix
+         endif
+	CALL nMN_WD ;при EGA портит ix!!!
+         if EGA
+         pop ix
+         endif
 	JP IX_98
 ZZ8_2	;cтройка
 	LD A,(IX+7)

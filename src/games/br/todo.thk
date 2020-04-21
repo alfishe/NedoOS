@@ -1,4 +1,11 @@
+если на ремонт нет ресурсов, может повиснуть!!!
 
+
+The game Black Raven (Чёрный Ворон) by Vyacheslav Mednonogov (1997) is dedicated for Russian clones of ZX Spectrum 128K with Beta 128 disk interface, such as Pentagon 128 and Scorpion 256K. It was released on two protected floppy disks and required an extra disk for saving states. The colourized hard drive compatible version requires ATM-Turbo 2 clone or higher: http://nedoos.ru/
+This is a Warcraft-like game in medieval Russian setting.
+The game was a commercial product. Later the author made the game freeware and released the source codes.
+The game had a cult following, with mission editors and extra missions by other authors.
+The sequel named Black Raven 2 (set in the future) has not been finished, its sources are also available.
 
 
 не обновлять палитру, если она не изменилась, а то полоски
@@ -10,9 +17,10 @@
 
 
 при старте уровня хрюкает музыка?
+при включении карты тормозит музыка?
 
 
-если выбрать отряд и в режиме карты нажать G, то вместо нормального входа-выхода в информацию об отряде кнопки мигают (из-за турбо?)
+если выбрать отряд и в режиме карты нажать G, а потом выйти из карты, то отряд не работает (так и было?)
 
 +-сделать автосборку всех уровней (упаковку убрать?), сейчас только для бывших защищённых уровней
 
@@ -33,6 +41,7 @@ sqrCOL	;закрасить квадр. c HL цветом A
 
 
 в сетупе: не видно воду
+
 
 
 
