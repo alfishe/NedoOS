@@ -63,6 +63,7 @@ int sign=1;
     if ((c<'0')||(c>'9')) break; //в том числе 0x0a
     num = num*10 + (int)(c-'0');
 skip:
+	;
   }while(1);
   num = num*sign;
 return num;

@@ -11,5 +11,5 @@ type err.f
 ..\_sdk\nedoasm comp_os.S_
 type asmerr.f
 del compc_os.bin
-move comp_os.bin comp.com > nul
+move /Y comp_os.bin comp.com > nul
 if "%currentdir%"=="" (pause)

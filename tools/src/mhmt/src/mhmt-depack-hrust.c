@@ -498,7 +498,7 @@ NO_BYTE_HST:
 						disptype = DISP_PLUSBYTE;
 						// NO break!
 					}
-
+					__attribute__ ((fallthrough));
 				case DISP_PLUSBYTE:
 					byte = depack_getbyte(DEPACK_GETBYTE_NEXT);
 #ifdef DPK_CHECK

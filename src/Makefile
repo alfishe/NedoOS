@@ -1,5 +1,5 @@
 INSTALLDIR	= ../release
-SUBDIRS		= basic browser cmd emptyapp games kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping telnet
+SUBDIRS		= basic browser cmd emptyapp games fatfs4os kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping telnet appsDM
 OBJECTS		= 
 TOOLS		= _sdk/nedotrd.bin _sdk/nedores.bin _sdk/nedopad.bin ../tools/mhmt ../tools/sjasmplus ../tools/dmimg
 SOURCES		= _sdk/syssets.asm

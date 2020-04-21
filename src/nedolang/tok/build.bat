@@ -5,5 +5,5 @@ type err.f
 ..\_sdk\nedotok tok_os.s ../_sdk/read.ast ../_sdk/read.var ../_sdk/fmttg.var token.ast token.var tokenz80.ast tokenz80.var ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../../_sdk/sysdefs.asm
 ..\_sdk\nedoasm tok_os.S_
 type asmerr.f
-move tok_os.bin tok.com > nul
+move /Y tok_os.bin tok.com > nul
 if "%currentdir%"=="" (pause)
