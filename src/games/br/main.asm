@@ -759,7 +759,7 @@ prsprnocropleft
          jp nc,prsprcroptop
         add a,(iy-3) ;sprhgt
         cp scrhgt+1 ;200=OK, >200=crop
-        jp nc,prsprcropbottom        
+        jp nc,prsprcropbottom
 ;hx=расстояние до правой границы экрана (columns)
 ;x=156: hx=4
 ;x=157: hx=3
@@ -911,8 +911,9 @@ prsprcropbottom
         
         ld a,(iy-4) ;sprwid
         cp hx ;расстояние до правого края экрана
-        jr nc,prsprcropygo_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
-        ld hx,a
+        ;display "---",$
+        jr nc,prsprcropygo;_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
+        ld hx,a ;столько столбцов выведем
         jp prsprcropygo
 
 prsprcroptop
@@ -937,7 +938,7 @@ prsprcroptop
         ld a,(iy-4) ;sprwid
         cp hx ;расстояние до правого края экрана
         jr nc,prsprcropygo_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
-        ld hx,a
+        ld hx,a ;столько столбцов выведем
 prsprcropygo_cropx
 
          ld a,c
