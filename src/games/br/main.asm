@@ -572,6 +572,31 @@ changescrpg
 	OS_SETSCREEN
         ret
         
+copyscreen
+        display "-",$
+        call setpgsscr40008000
+        ld a,(setpgs_scr_scrxor)
+        ld hl,setpgs_scr_low
+        xor (hl)
+        push af
+        ld (curpg8000),a
+        SETPG32KLOW
+        ld hl,0x8000
+        ld de,0x4000
+        ld bc,0x4000
+        ldir
+        call setpgsscr40008000
+        pop bc
+        ld a,(setpgs_scr_pgxor)
+        xor b
+        ld (curpg4000),a
+        SETPG16K
+        ld hl,0x4000
+        ld de,0x8000
+        ld bc,0x4000
+        ldir
+        jp setpgsmain40008000
+        
 ;curscrnum_physical
 ;        db 0
         endif

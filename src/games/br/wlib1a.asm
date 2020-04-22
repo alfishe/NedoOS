@@ -1247,7 +1247,7 @@ noRO2
 	RET
 
 SW_OFF
-;before draw
+;before scroll
 	LD A,(isSWFF)
 	OR A
 	RET Z
@@ -1255,11 +1255,17 @@ SW_OFF
 	LD (isSWFF),A
 	LD A,2
 	LD (V_FLAG),A ;cursor off
+        
 	CALL MEM7
-        if EGA==0
+        ;if EGA==0
 	CALL V_PUT1
-        endif
+        ;endif
 	CALL V_PUT2 ;restore gfx under cursor ;на рисуемом экране
+
+        if EGA ;копируем экран
+        call copyscreen
+        endif
+        
 	JP MEM1
 
 FRAME	;выв игр оформл
