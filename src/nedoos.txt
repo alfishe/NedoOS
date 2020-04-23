@@ -437,7 +437,7 @@ NedoBasic написан с участием Кирилла Ловягина в рамках обучения ассемблеру.
 Дальнейшее развитие NedoBasic и Nedovigator, скрипты сборки под Linux, утилиты - demige.
 Сортировка файлов, фиксы скриптов сборки под Linux, утилита aynet_psg - Lord Vader.
 Портирование игры Eric and the Floaters - Rasmer, раскраска - Alone Coder, Sashapont.
-Портирование игры Black Raven - Alone Coder, раскраска - Alone Coder, Sashapont, Котик.
+Портирование игры Black Raven - Alone Coder, раскраска - Alone Coder, Sashapont, Котик, Louisa.
 Логотипы - Louisa, Sashapont, Wizard.
 
 Дисковая подсистема основана на библиотеке FatFS с драйверами от Savelij13 и DimkaM и на библиотеке iofast из комплекта NedoLang.
