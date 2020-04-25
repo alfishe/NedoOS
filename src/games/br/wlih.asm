@@ -344,6 +344,8 @@ smpp1	CP 2
 	SUB #38
 	JR C,smww1
 smpp2	;(для враж.зданий)
+        display "sMPACT=",sMPACT
+        display "smpp2=",$
 	PUSH IX
 	CALL B_IX
 	LD (en_IX),IX ;/для FX

@@ -72,7 +72,7 @@ putTX	;напр на выв cообщ A
 	RET
 
 dirTX
-;keep ix!!! иначе виснет, если нет ресурсов на ремонт
+;keep ix!!! иначе виснет, если нет ресурсов на ремонт или когда кончается мана при огненном дожде (там и iy тоже)
 ;но просто обернуть push-ами не помогает, только напрямую в wlih.asm/ZZ8n
 	CALL TX_ADR ;экcтр cообщ A
 	LD A,(pTXdel)
@@ -84,13 +84,15 @@ dtx1	LD (TX_AD),HL
 	LD A,6 ;t задер экcтр c
 dtx2	LD (pTXdel),A
 	CALL MEM7
-         ;if EGA
-         ;push ix
-         ;endif
+         if EGA
+         push ix
+         push iy
+         endif
 	CALL otx1
-         ;if EGA
-         ;pop ix
-         ;endif
+         if EGA
+         pop iy
+         pop ix
+         endif
 	JP MEM0
 
 outTX	LD HL,pTXdel

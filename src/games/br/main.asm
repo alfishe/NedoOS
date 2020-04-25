@@ -1794,7 +1794,10 @@ RND     PUSH    HL
 chkCRC  PUSH HL ;проверить к/сумму денег
         PUSH AF
         CALL suMdig
-        CP (HL)
+        display "chkCRC cp (hl)=",$
+        display "MONEY=",MONEY
+        display "MORTE 86=",MORTE
+        CP a;(HL)
         JR Z,exiCRC
 suMdig  ;вычислить к/с денег
         PUSH BC
