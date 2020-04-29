@@ -464,7 +464,11 @@ TXMM4	DEFB 10,19,48,58,62,61,71,56,66,74,10, 56,51,64,67,127
 
 M_MENU	;>>главное меню
 	LD A,2
-	LD (V_FLAG),A
+	LD (V_FLAG),A ;cursor off
+        if EGA
+	CALL V_PUT1 ;visible screen
+        endif
+        
 	CALL STS
 	;пункты
 	LD B,4
@@ -497,8 +501,13 @@ M_M2	PUSH DE
 	INC D
 	INC D
 	DJNZ M_M2
+
+        if EGA
+	CALL V_GET1
+        call V_MRK1 ;на видимом экране (в это время G_MX не обновляется, т.к. стрелочка выключена)
+        endif
 	XOR A
-	LD (V_FLAG),A
+	LD (V_FLAG),A ;cursor on
 	;опрос гл.меню
 	CALL TMOM
 M_M3	CALL Mfunc
