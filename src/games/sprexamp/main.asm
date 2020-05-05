@@ -59,10 +59,11 @@ waitcls0
         ld a,e
         ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
         
-        call bgpush_prepare
-
 	ld de,res_path
 	OS_CHDIR
+
+        ld de,bgfilename
+        call bgpush_prepare
 
         ld hl,texfilename
         call loadpage
@@ -90,33 +91,45 @@ waitcls0
 
 pg0=$+1
         ld a,0
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
         ld hl,0x4000 ;scr
         ld de,0xc000 ;gfx
         ld bc,0xc020 ;hgt,wid
         call primgega
 
 mainloop
-        ld hl,callpush_curscroll
-        ld a,(hl)
-        sub 1
-        jr nc,$+4
-        add a,pushhgt
-        ld (hl),a
+        ld bc,-1
+        call bgpush_inccurscroll
 
-        call bgpush_draw
+        call bgpush_draw ;359975t
 
 pg1=$+1
         ld a,0
-        SETPG32KHIGH
+        call setpgc000
+        call setpgsscr40008000
+        
+_x=10
+        dup 8
+_y=10
+        dup 8
+        
+        ;call setpgsscr40008000 ;предыдущий спрайт мог выключить, если был левее экрана и вообще не попал на экран?
         ld iy,(0xc000);testspr
-        ld e,100+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-        ld c,100 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        call prsprega
-        ld iy,(0xc000);testspr
-        ld e,110+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-        ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        call prsprega
+        ld e,_x+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        ld c,_y ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        ;call prsprega ;(с включением экранных страниц и проверкой попадания спрайта в экран) один спрайт 16x16 = 6875t
+        call prspr ;(без включения экранных страниц и без проверки попадания спрайта в экран) один спрайт 16x16 = 6408t (из них 4224t само мясо)
+        ;ld iy,(0xc000);testspr
+        ;ld e,110+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        ;ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        ;call prsprega
+_y=_y+20
+        edup
+_x=_x+20
+        edup
+;817000(prsprega)/793000(prspr)t на всё
+
+        call setpgsmain40008000
         
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
@@ -125,7 +138,7 @@ pg1=$+1
 curkey=$+1
         ld a,0
         cp key_esc
-        jr nz,mainloop;waitkey
+        jp nz,mainloop;waitkey
         
         call swapimer
 pgmusic=$+1
@@ -144,7 +157,7 @@ loadpage
         pop hl
         ld a,e
         push af ;pg
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
         push hl
         ex de,hl
         OS_OPENHANDLE
@@ -284,6 +297,11 @@ changescrpg
 	OS_SETSCREEN
         ret
         
+setpgc000
+        ld (curpgc000),a
+        SETPG32KHIGH
+        ret
+
 testspr=$+4
 _hgt=16
 _wid=8 ;width/2
@@ -307,9 +325,12 @@ _=_-1
         include "cls.asm"
         include "prspr.asm"
         include "bgpush.asm"
+        include "../../_sdk/file.asm"
         
 res_path
         db "sprexamp",0 ;в этом относительном пути будут лежать все загружаемые данные игры
+bgfilename
+        db "bg6-16c.bmp",0
 end        
 
 	display "begin=",begin

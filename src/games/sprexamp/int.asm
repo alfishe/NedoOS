@@ -51,6 +51,9 @@ intjpaddr=$+1
         SETPG16K
         ld a,(curpg8000)
         SETPG32KLOW
+curpgc000=$+1
+        ld a,0
+        SETPG32KHIGH
         
         pop iy
         pop ix
