@@ -42,9 +42,9 @@ prspr
         ld hx,a ;число отрезанных слева столбцов
         push bc
         ld a,(pgfake)
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
 ;hl будет вычислен с ошибкой +64
         pop bc
@@ -186,8 +186,10 @@ prsprcolumnpatch2=$-2
          ;выход по границе экрана
 ;10+11+15+14 = 40t (+5+9)
 ;это может быть граница фальшивого экрана! надо иметь возможность продолжить (с hl-64 из-за ошибки адреса при отрицательных x?)
-        ld a,(pgfake)
-curpg4000=$+1
+;        ld a,(pgfake)
+;curpg4000=$+1
+        ld a,(CURPG16K)
+pgfake2=$+1
         cp 0
         jp nz,prsprqright ;действительно выход по правой границе
 ;был фальшивый экран для клипирования по левой границе, продолжаем на настоящем экране
@@ -469,8 +471,9 @@ prsprNpatch=$+1
         jp PRSPR24
         
 prsprNmaybeqright
-curpg8000=$+1
-        ld a,0
+;curpg8000=$+1
+;        ld a,0
+        ld a,(CURPG32KLOW)
 pgfake=$+1
         cp 0
         jp nz,prsprqright ;действительно выход

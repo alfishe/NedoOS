@@ -27,7 +27,7 @@ begin
         ld a,l
         LD (pgscalersnum),A
         ld a,h
-        LD (pg8000),A
+        push af;LD (pg8000),A
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
@@ -48,7 +48,8 @@ begin
         ld bc,wasmuz_sz
         ldir
         call muz
-        LD a,(pg8000)
+        
+        pop af ;LD a,(pg8000)
         SETPG32KLOW
 
         OS_NEWPAGE
@@ -197,12 +198,15 @@ curpalette=$+1
         ld de,wolfpal
         OS_SETPAL
         
+        ld a,(CURPG32KLOW)
+        push af
 pgmuznum=$+1
         ld a,0
         SETPG32KLOW
         call muz+6
-pg8000=$+1
-        ld a,0
+;pg8000=$+1
+;        ld a,0
+        pop af
         SETPG32KLOW
         
         pop hl

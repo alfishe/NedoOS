@@ -3,6 +3,11 @@ COMMANDLINE=0x0080
 COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 
+;from userkrnl.asm:
+CURPG16K=0x0045
+CURPG32KLOW=0x0048
+CURPG32KHIGH=0x004b
+
 MAXPATH_sz=256;64
 
 ;------------------------ëíêìäíìêõ CP/M --------------------------------------

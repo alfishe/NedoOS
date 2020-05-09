@@ -58,6 +58,7 @@ waitcls0
         OS_NEWPAGE
         ld a,e
         ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
+        ld (pgfake2),a
         
 	ld de,res_path
 	OS_CHDIR
@@ -243,11 +244,11 @@ noprspr
 setpgsmain40008000
 pgmain4000=$+1
         ld a,0
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
 pgmain8000=$+1
         ld a,0
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
         ret
 
@@ -259,24 +260,24 @@ setpgsscr40008000
 setpgsscr40008000_go
 setpgs_scr_low=$+1
         xor 0
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
 setpgs_scr_pgxor=$+1
         xor 0
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
         ret
         
 setpgscrlow4000
         ld a,(setpgs_scr_low)
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
         ret
 setpgscrhigh4000
         ld a,(setpgs_scr_low)
         ld hl,setpgs_scr_pgxor
         xor (hl)
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
         ret
 
@@ -298,7 +299,7 @@ changescrpg
         ret
         
 setpgc000
-        ld (curpgc000),a
+        ;ld (curpgc000),a
         SETPG32KHIGH
         ret
 

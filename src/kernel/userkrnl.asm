@@ -1,4 +1,4 @@
-maincode
+;maincode
 ;возврат в систему
 ;TODO через функцию системы (чтобы 0x0000 можно было использовать для своих целей, напр. структура NIL или указатель в 0xffff)
 user_fdvalue1=$+1
@@ -108,3 +108,6 @@ intjp=$+1
         jp 0x0100 ;main_go ;18+2 b
 
         display "end of user kernel=",$
+        display "curpg16k=",curpg16k
+        display "curpg32klow=",curpg32klow
+        display "curpg32khigh=",curpg32khigh

@@ -1013,7 +1013,7 @@ setpgs_code
 codepage4000=$+1
         ld a,0
          if RESTOREPG16K
-         ld (curpg4000),a
+         ;ld (curpg4000),a
          endif
         SETPG16K
 codepage8000=$+1
@@ -1028,7 +1028,7 @@ setpgs_scr
 tilepage=$+1
         ld a,0
          if RESTOREPG16K
-         ld (curpg4000),a
+         ;ld (curpg4000),a
          endif
         SETPG16K
 setpgs_scr_low=$+1
@@ -1360,7 +1360,7 @@ spritepagemirhorver=$+2
 	jr nc,$+3
         ld a,b;mirver
          if RESTOREPG16K
-         ld (curpg4000),a
+         ;ld (curpg4000),a
          endif
         SETPG16K
 	
@@ -1646,7 +1646,7 @@ setpgaddrstack4000
 pgaddrstack=$+1
 	ld a,0
          if RESTOREPG16K
-         ld (curpg4000),a
+         ;ld (curpg4000),a
          endif
 	SETPG16K
 	ret
@@ -1698,6 +1698,11 @@ on_int
 	push af
 	push bc
 	push de
+
+        if RESTOREPG16K
+        ld a,(CURPG16K)
+        push af
+        endif
 	
 imer_curscreen_value=$+1
          ld a,0
@@ -2219,8 +2224,9 @@ noisenodecay
 	endif
 
         if RESTOREPG16K
-curpg4000=$+1
-        ld a,0
+;curpg4000=$+1
+;        ld a,0
+        pop af
 	SETPG16K
         endif
 
