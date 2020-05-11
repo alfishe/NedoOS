@@ -1,12 +1,16 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
-SPOIL2BSTACK=0x4000;-2
-STACK=0x3ffe
+tempintstack=0x4000 ;2 bytes
+SPOIL2BSTACK=0x3ffe;-2
+STACK=0x3ffc
+INTSTACK=0x3e80
 ;scrbase=0x8000
 
 addhlbc=1 ;можно scrhgt=200 и в одной странице
 customscales=0;1
+
+IMPOSSIBLECOLOR=0xff;0x01 (Ч+Б)
 
 muz=0x8000
 
@@ -31,7 +35,8 @@ begin
         ld a,l
         LD (pgscalersnum),A
         ld a,h
-        push af;LD (pg8000),A
+        ;push af;LD (pg8000),A
+        ld (pgmuznum),a
 
         OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
@@ -43,18 +48,18 @@ begin
 	xor e
         ld (setpgs_scr_high_xor_low),a
 
-        OS_NEWPAGE
-        ld a,e
-        ld (pgmuznum),a
-        SETPG32KLOW
+        ;OS_NEWPAGE
+        ;ld a,e
+        ;ld (pgmuznum),a
+        ;SETPG32KLOW
         ld hl,wasmuz
         ld de,muz
         ld bc,wasmuz_sz
         ldir
         call muz
         
-        pop af ;LD a,(pg8000)
-        SETPG32KLOW
+        ;pop af ;LD a,(pg8000)
+        ;SETPG32KLOW
 
         OS_NEWPAGE
         ld a,e
@@ -104,6 +109,32 @@ REtID0  LD A,(HL)
         INC L
         INC L
         jr NZ,REtID0
+
+        ld ix,tscales
+        ld hl,tscales_rev
+        ld b,64
+revscale0
+        push bc
+        push hl
+        ld c,(ix)
+        inc ix
+        ld b,(ix)
+        inc ix
+        ld de,256
+;деление
+;DE=+-7.8;BC=+7.8
+;DE=DE/BC=+-8.7/2
+    ;BC сохраняется!!!
+        call MONDIV
+        pop hl
+        sla e
+        rl d
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc hl
+        pop bc
+        djnz revscale0
 
         ;YIELD ;иначе не установится видеорежим и палитра?
 
@@ -155,6 +186,8 @@ swapimer
 	di
          ld hl,(0x0038+3) ;адрес intjp
          ld (intjpaddr),hl        
+         ld hl,(0x0026)
+         ld (on_int_0026),hl
         ld de,0x0038
         ld hl,oldimer
         ld bc,3
@@ -176,8 +209,9 @@ on_int
 	ld (on_int_sp),sp
 	pop hl
 	ld (on_int_sp2),sp
-intjpaddr=$+1
-	ld (0),hl ;(on_int_jp),hl
+        ld (on_int_jp),hl
+;intjpaddr=$+1
+;	ld (0),hl ;(on_int_jp),hl
 	
 	ld sp,INTSTACK
 	
@@ -193,6 +227,14 @@ imer_curscreen_value=$+1
 	ex de,hl;ld hl,0
 on_int_sp=$+1
 	ld (0),hl ;восстановили запоротый стек
+
+on_int_0026=$+1
+        ld hl,0
+        ld (0x0026),hl ;восстановили запоротый стек 0x0028 (=40)
+
+        ld hl,on_int_q
+intjpaddr=$+1
+	ld (0),hl
         
         push ix
         push iy
@@ -248,12 +290,13 @@ curpg=$+1
 	
 on_int_hl=$+1
 	ld hl,0
-on_int_sp2=$+1
-	ld sp,0
+;on_int_sp2=$+1
+;	ld sp,0
 ;        ei
 ;on_int_jp=$+1
 ;	jp 0
 
+        ld sp,tempintstack
         push de
         ex de,hl
 ;(intjp)=адрес выхода
@@ -270,6 +313,14 @@ on_int_sp2=$+1
 ;user_fdvalue6=$+1
         ;ld a,fd_system
         ;out (0xfd),a ;10 b
+
+on_int_q
+;на выходе из стандартного обработчика в стеке "de"
+;восстановим как надо
+on_int_sp2=$+1
+	ld sp,0
+on_int_jp=$+1
+	jp 0
 
 wolfpal
         dw 0xffff,0x0c0c,0x3f3f,0xdede,0xfefe,0xdfdf,0x4c4c,0xaeae
@@ -360,20 +411,8 @@ tscales
         DS 1,44,0
         DISPLAY $-tscales,"=#80"
        ENDIF 
-
-        include "genscale.asm"
-
-        ;ds 64
-INTSTACK
-
-        display "WASMAP=",$
-WASMAP
-       IF atm
-        INCBIN "mapatm.E"
-       ELSE 
-        INCBIN "map48.E"
-       ENDIF 
-szMAP=$-WASMAP
+tscales_rev
+        ds 128
 
 level
         DB "W"
@@ -387,23 +426,47 @@ levname DS 23
 monstrs DB 0
 prizes  DW 0 ;$$$/10
 EXITx   DB 23
-EXITy   DB 15+#A0
-yx      DW #8080
-YX      DW #BA08
+EXITy   DB 15+0xA0
+yx      DW 0x8080
+YX      DW 0xBA08
 angle   DW 64
 endlev
 
-res_path
-	defb "wolf3d",0
-       
+        DS ((-$)&7)&0xff
+MONSTRS
+;Xx,Yy,TYPEphase,TIMEenergy
+        ;DW -1
+
+;        ds 64
+;INTSTACK
+
+        display "free before stack=",0x3e00-$
+
+        ds 0x8000-$
+
        IF atm
         ;ORG #C000;,pgscalers
         ;ds 0xc000-$
         ;INCBIN "scalers"
 wasmuz
-        incbin "DOOM-MUS"
+        incbin "DOOM-MUS" ;TODO load
 wasmuz_sz=$-wasmuz
-       else
+
+        include "genscale.asm"
+
+        display "WASMAP=",$
+WASMAP
+        INCBIN "mapatm.E" ;TODO load
+szMAP=$-WASMAP
+
+res_path
+	defb "wolf3d",0
+      
+
+       else ;~atm
+WASMAP
+        INCBIN "map48.E"
+szMAP=$-WASMAP
         ;ORG #C000,pgscale
         ds 0xc000-$
       IF 1

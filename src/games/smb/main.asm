@@ -56,7 +56,8 @@ SWEEP=0
 
 DEMO=1
 
-STACK=0x4000
+tempintstack=0x4000 ;2 bytes
+STACK=0x3ffe
 INTSTACK=0x3f00
 scrbase=0x8000
 
@@ -2252,8 +2253,8 @@ on_int_jp=$+1
 ;de="hl", в стеке "de"
         jp 0x0038+5
 
-        dw 0
-tempintstack=$
+;        dw 0
+;tempintstack=$ ;нельзя тут (ниже 0x3b00)
 
 ;вход в стандартный обработчик:
         ;ex de,hl ;de="hl", hl="de"
