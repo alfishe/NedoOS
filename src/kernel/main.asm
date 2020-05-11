@@ -157,6 +157,72 @@ begin
         ;LD A,0xaa;%10101010 ;640x200 mode
         ;LD A,0xae;%10101110 ;textmode
 		if atm==1
+			;выясним откуда запустились
+init_rst_buf=0x4000
+			ld hl,init_rst_buf
+			rst 0x08
+			defb 0x50,0x03
+			rst 0x08	; в D вернется текущий драйв
+			defb 0x50,0x02
+			ld a,d
+			add a,a
+			add a,a
+			add a,a
+			ld hl,init_rst_buf
+			ld b,0
+			ld c,a
+			add hl,bc
+			ld de,init_rst_buf+512
+			ld bc,8
+			ldir
+			ld a,(init_rst_buf+512)
+			rst 0x08
+			defb 0x50,0x05
+			ld a,(init_rst_buf+512)
+			and 1 ;m/s
+			ld hl,init_rst_buf
+			ld bc,0x0000
+			ld d,b
+			ld e,c
+			ld a,2
+			ex af,af'
+			ld a,1
+			rst 0x08
+			defb 0x50,0x04,0x02
+			ld a,(init_rst_buf+512)
+			ld d,12
+			cp 0x0f
+			jr z,.l3
+			ld d,3
+			cp 4
+			jr z,.init_sysdev_part
+			ld d,7
+			cp 5
+			jp nz,init_sysdev_end
+.init_sysdev_part
+			ld hl,init_rst_buf+0x01BE+0x0008-12
+.l2
+			inc d
+			push de
+			ld bc,12
+			add hl,bc
+			ld bc,0x0400
+			ld de,init_rst_buf+512+3
+.l1			ld a,(de)
+			xor (hl)
+			or c
+			ld c,a
+			inc de
+			inc hl
+			djnz .l1
+			pop de
+			or a
+			jr nz,.l2
+.l3
+			ld a,d
+			ld (init_sysdrv_val),a
+init_sysdev_end
+			halt
 			ld bc,0xeff7
 			ld a,0x80
 			out (c),a
@@ -380,8 +446,10 @@ init_oldmousecoords=$+1
 	 ld bc,0x3fff
 	 ld (hl),l;0
 	 ldir ;не помогло
+init_sysdrv_val=$+1
+	 ld a,SYSDRV
+	 ld (SYSDRV_VAL),a
         jp setkernelpages_go
-
         
 		ifn atm==1
 INIT_OUTSHADON

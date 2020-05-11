@@ -1948,7 +1948,9 @@ BDOS_mount
 .noFATFS
         xor a ;xor a ;NC:success, CY:fail
         ret;jr rest_exit
+			display "BDOS_setsysdrv ",BDOS_setsysdrv
 BDOS_setsysdrv
+SYSDRV_VAL=$+1
         ld e,SYSDRV
          call BDOS_setdrv
          ld de,syspath

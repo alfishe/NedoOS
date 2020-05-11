@@ -59,7 +59,8 @@ sys_newapp
 
         ;ld a,SYSDRV ;TODO брать драйв от текущего app
         ;call BDOS_setvol_rootdir ;требует PGFATFS
-         ld (iy+app.vol),SYSDRV ;TODO брать драйв от текущего app
+		ld a,(SYSDRV_VAL)
+         ld (iy+app.vol),a	;SYSDRV ;TODO брать драйв от текущего app
          ;xor a
          ld (iy+app.dircluster),b;a
          ld (iy+app.dircluster+1),b;a
