@@ -1,8 +1,12 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
-STACK=0x4000
-scrbase=0x8000
+SPOIL2BSTACK=0x4000;-2
+STACK=0x3ffe
+;scrbase=0x8000
+
+addhlbc=1 ;можно scrhgt=200 и в одной странице
+customscales=0;1
 
 muz=0x8000
 
@@ -103,6 +107,15 @@ REtID0  LD A,(HL)
 
         ;YIELD ;иначе не установится видеорежим и палитра?
 
+        if 1==0 ;нельзя при интерполяции
+        ld hl,tlogd2sca
+retlogd2sca0
+        sla (hl)
+        sla (hl)
+        inc l
+        jr nz,retlogd2sca0
+        endif
+
         call genscalers
 
         call swapimer
@@ -113,8 +126,6 @@ REtID0  LD A,(HL)
         
         call shutay        
         QUIT
-res_path
-		defb "wolf3d",0
 
 shutay
 	ld de,0xe00
@@ -194,6 +205,9 @@ on_int_sp=$+1
         ld a,(curscreen)
         ld e,a
         OS_SETSCREEN ;вызываем здесь, а не в рандомном месте, иначе даже с одной задачей можем получить непредсказуемую задержку, которую не фиксирует наш таймер? с несколькими задачами надо учитывать и системный - TODO
+        
+        if atm
+        
 curpalette=$+1
         ld de,wolfpal
         OS_SETPAL
@@ -208,6 +222,12 @@ pgmuznum=$+1
 ;        ld a,0
         pop af
         SETPG32KLOW
+        
+        else
+curpg=$+1
+        ld a,0
+        setpgafast
+        endif
         
         pop hl
         pop de
@@ -251,14 +271,131 @@ on_int_sp2=$+1
         ;ld a,fd_system
         ;out (0xfd),a ;10 b
 
+wolfpal
+        dw 0xffff,0x0c0c,0x3f3f,0xdede,0xfefe,0xdfdf,0x4c4c,0xaeae
+        dw 0xbdbd,0xfdfd,0xbfbf,0xeded,0x8d8d,0x7d7d,0xecec,0x1f1f
+
         include "WATM2.asm"
+
+scale2ytop
+;bc=scale
+;out: de=Y, lx=y
+        XOR A
+        LD L,A
+        ld H,A
+        SBC HL,BC ;-scale = -0x40..-0x410
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL ;*32 = -0x800..-0x8200
+        EXD 
+        LD LX,E
+        LD a,D
+        LD D,-1
+        ADD A,Ycenter ;0x64
+        LD E,A
+        ret nc ;jr NC,$+3
+        INC D
+        ret
+
+YtoADDR
+       PUSH HL
+        LD H,D
+        ld L,E
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,DE ;*5
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL ;*40
+        LD DE,scrbase
+        ADD HL,DE
+;genX=$+1
+;        LD DE,0
+;        ADD HL,DE
+        EXD 
+       POP HL
+        RET 
+        ;align 256;DS .(-$)
+tscales
+       IF customscales == 0
+        INCBIN "scalesw3" ;сначала мелкие
+       ELSE 
+        DS 8,5,0
+        DS 7,6,0
+        DS 6,7,0
+        DS 5,8,0
+        DS 4,9,0
+        DS 3,10,0
+        DS 2,11,0
+        DS 1,12,0
+        DS 1,13,0
+        DS 1,14,0
+        DS 1,15,0
+        DS 1,16,0
+        DS 1,17,0
+        DS 1,18,0
+        DS 1,19,0
+        DS 1,20,0
+        DS 1,21,0
+        DS 1,22,0
+        DS 1,23,0
+        DS 1,24,0
+        DS 1,25,0
+        DS 1,26,0
+        DS 1,27,0
+        DS 1,28,0
+        DS 1,29,0
+        DS 1,30,0
+        DS 1,31,0
+        DS 1,32,0
+        DS 1,33,0
+        DS 1,34,0
+        DS 1,35,0
+        DS 1,36,0
+        DS 1,38,0
+        DS 1,40,0
+        DS 1,42,0
+        DS 1,44,0
+        DISPLAY $-tscales,"=#80"
+       ENDIF 
 
         include "genscale.asm"
 
         ;ds 64
 INTSTACK
 
+        display "WASMAP=",$
+WASMAP
+       IF atm
+        INCBIN "mapatm.E"
+       ELSE 
+        INCBIN "map48.E"
+       ENDIF 
+szMAP=$-WASMAP
 
+level
+        DB "W"
+gfxnr   DB "0"
+muznr   DB "A"
+pol     DB #E7
+potolok DB #F3
+color   DB 7
+levname DS 23
+        DB 0
+monstrs DB 0
+prizes  DW 0 ;$$$/10
+EXITx   DB 23
+EXITy   DB 15+#A0
+yx      DW #8080
+YX      DW #BA08
+angle   DW 64
+endlev
+
+res_path
+	defb "wolf3d",0
+       
        IF atm
         ;ORG #C000;,pgscalers
         ;ds 0xc000-$
