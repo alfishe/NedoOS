@@ -1,9 +1,12 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
+TEXBMP=1
+NTEXPGS=5
+
 tempintstack=0x4000 ;2 bytes
-SPOIL2BSTACK=0x3ffe;-2
-STACK=0x3ffc
+SPOIL6BSTACK=0x3ffe;-2
+STACK=SPOIL6BSTACK-6
 INTSTACK=0x3e80
 ;scrbase=0x8000
 
@@ -65,6 +68,101 @@ begin
         ld a,e
         ld (pgmapnum),a
 
+        if TEXBMP
+        ld de,texfilename
+        OS_OPENHANDLE
+
+        push bc
+        ld de,bmpbuf;0x4000 ;addr
+        ld hl,0x0076 ;size
+        OS_READHANDLE ;b=handle
+        pop bc
+
+        ld hl,ttexpgs+NTEXPGS-1
+        ld c,NTEXPGS
+getttexpgs0
+        push bc
+        push hl
+        push bc
+        OS_NEWPAGE
+        ld a,e
+        SETPG16K
+        pop bc ;b=handle
+        push de
+        ld de,0x4000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+
+        ld hl,0x4000
+        ld d,trecolor/256
+gettexpgsrecode0
+        ld e,(hl)
+        ld a,(de)
+        ld (hl),a
+        inc hl
+        bit 7,h
+        jr z,gettexpgsrecode0
+
+;повернуть текстуры на 90 градусов (для стен, а для спрайтов просто перевернуть?)
+;1. переворот текстур
+        ld hl,0x4000
+        ld de,0x4000+0x3f00
+        ld b,32
+gettexpgsturn0
+gettexpgsturn1
+        ld c,(hl)
+        ld a,(de)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc l
+        inc e
+        jr nz,gettexpgsturn1
+        inc h
+        dec d
+        djnz gettexpgsturn0
+;2. проходим по hl правый верхний треугольник текстуры, а по de - левый нижний, меняем их местами
+        ld hl,0x4000
+gettexpgsrot0
+        push hl    
+        ld b,64
+gettexpgsrot1
+        push bc
+        push hl
+        ld d,h
+        ld e,l
+gettexpgsrot2
+        ld c,(hl)
+        ld a,(de)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc l
+        inc d
+        djnz gettexpgsrot2
+        pop hl
+        inc l
+        inc h
+        pop bc
+        djnz gettexpgsrot1
+        pop hl
+        ld a,l
+        add a,64
+        ld l,a
+        jr nz,gettexpgsrot0
+        
+        pop de
+        pop hl
+        ld (hl),e
+        dec hl
+        pop bc
+        dec c
+        jr nz,getttexpgs0
+
+        OS_CLOSEHANDLE
+
+        else
+        
         ld hl,ttexpgs
         ld b,5
 getttexpgs0
@@ -77,7 +175,6 @@ getttexpgs0
         SETPG16K
         ld de,texfilename
         OS_OPENHANDLE
-         ;jr $
         push bc
         ld de,0x4000 ;addr
         ld hl,0x4000 ;size
@@ -94,6 +191,9 @@ getttexpgs0
         inc hl
         pop bc
         djnz getttexpgs0
+
+        endif
+
 
         LD HL,tID
 REtID0  LD A,(HL)
@@ -170,11 +270,15 @@ shutay0
 	ret
 	
 texfilename
+        if TEXBMP
+        db "wolftex.bmp",0
+        else
         db "wolftex.0",0
 texfilenamenum=$-2
+        endif
 
 ttexpgs
-        ds 5
+        ds NTEXPGS
 
 setpgmap4000
 pgmapnum=$+1
@@ -439,6 +543,19 @@ MONSTRS
 
 ;        ds 64
 ;INTSTACK
+
+        align 256
+trecolor
+;%00003210 => %.3...210
+        dup 256
+_3=$&8
+_210=$&7
+_3L=($>>4)&8
+_210L=($>>4)&7
+        db (_3L*0x08) + (_210L*0x01) + (_3*0x10) + (_210*0x08)
+        edup
+
+bmpbuf
 
         display "free before stack=",0x3e00-$
 
