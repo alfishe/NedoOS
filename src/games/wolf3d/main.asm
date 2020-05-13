@@ -3,6 +3,7 @@
 
 TEXBMP=1
 NTEXPGS=5
+NSPRPGS=1
 
 tempintstack=0x4000 ;2 bytes
 SPOIL6BSTACK=0x3ffe;-2
@@ -13,7 +14,7 @@ INTSTACK=0x3e80
 addhlbc=1 ;можно scrhgt=200 и в одной странице
 customscales=0;1
 
-IMPOSSIBLECOLOR=0xff;0x01 (Ч+Б)
+IMPOSSIBLECOLOR=0x01 ;(Ч+Б)
 
 muz=0x8000
 
@@ -70,57 +71,17 @@ begin
 
         if TEXBMP
         ld de,texfilename
-        OS_OPENHANDLE
-
-        push bc
-        ld de,bmpbuf;0x4000 ;addr
-        ld hl,0x0076 ;size
-        OS_READHANDLE ;b=handle
-        pop bc
-
+        call openfile_skipbmpheader
+;b=handle
         ld hl,ttexpgs+NTEXPGS-1
         ld c,NTEXPGS
-getttexpgs0
+gettexpgs0
         push bc
         push hl
-        push bc
-        OS_NEWPAGE
-        ld a,e
-        SETPG16K
-        pop bc ;b=handle
+        call ldpgrecodebmp
+        
         push de
-        ld de,0x4000 ;addr
-        ld hl,0x4000 ;size
-        OS_READHANDLE
-
-        ld hl,0x4000
-        ld d,trecolor/256
-gettexpgsrecode0
-        ld e,(hl)
-        ld a,(de)
-        ld (hl),a
-        inc hl
-        bit 7,h
-        jr z,gettexpgsrecode0
-
-;повернуть текстуры на 90 градусов (для стен, а для спрайтов просто перевернуть?)
-;1. переворот текстур
-        ld hl,0x4000
-        ld de,0x4000+0x3f00
-        ld b,32
-gettexpgsturn0
-gettexpgsturn1
-        ld c,(hl)
-        ld a,(de)
-        ld (hl),a
-        ld a,c
-        ld (de),a
-        inc l
-        inc e
-        jr nz,gettexpgsturn1
-        inc h
-        dec d
-        djnz gettexpgsturn0
+        
 ;2. проходим по hl правый верхний треугольник текстуры, а по de - левый нижний, меняем их местами
         ld hl,0x4000
 gettexpgsrot0
@@ -157,7 +118,25 @@ gettexpgsrot2
         dec hl
         pop bc
         dec c
-        jr nz,getttexpgs0
+        jr nz,gettexpgs0
+
+        OS_CLOSEHANDLE
+
+        ld de,sprfilename
+        call openfile_skipbmpheader
+;b=handle
+        ld hl,ttexpgs+NTEXPGS+NSPRPGS-1
+        ld c,NSPRPGS
+getsprpgs0
+        push bc
+        push hl
+        call ldpgrecodebmp        
+        pop hl
+        ld (hl),e
+        dec hl
+        pop bc
+        dec c
+        jr nz,getsprpgs0
 
         OS_CLOSEHANDLE
 
@@ -258,6 +237,59 @@ retlogd2sca0
         call shutay        
         QUIT
 
+openfile_skipbmpheader
+        OS_OPENHANDLE
+        push bc
+        ld de,bmpbuf;0x4000 ;addr
+        ld hl,0x0076 ;size
+        OS_READHANDLE ;b=handle
+        pop bc
+        ret
+
+ldpgrecodebmp
+        push bc
+        OS_NEWPAGE
+        ld a,e
+        SETPG16K
+        pop bc ;b=handle
+        push de
+        
+        ld de,0x4000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+
+        ld hl,0x4000
+        ld d,trecolor/256
+gettexpgsrecode0
+        ld e,(hl)
+        ld a,(de)
+        ld (hl),a
+        inc hl
+        bit 7,h
+        jr z,gettexpgsrecode0
+
+;повернуть текстуры на 90 градусов (для стен, а для спрайтов просто перевернуть?)
+;1. переворот текстур
+        ld hl,0x4000
+        ld de,0x4000+0x3f00
+        ld b,32
+gettexpgsturn0
+gettexpgsturn1
+        ld c,(hl)
+        ld a,(de)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc l
+        inc e
+        jr nz,gettexpgsturn1
+        inc h
+        dec d
+        djnz gettexpgsturn0
+        
+        pop de ;e=pg
+        ret
+
 shutay
 	ld de,0xe00
 shutay0
@@ -276,9 +308,11 @@ texfilename
         db "wolftex.0",0
 texfilenamenum=$-2
         endif
+sprfilename
+        db "wolfspr.bmp",0
 
 ttexpgs
-        ds NTEXPGS
+        ds NTEXPGS+NSPRPGS
 
 setpgmap4000
 pgmapnum=$+1
