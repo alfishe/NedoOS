@@ -311,6 +311,7 @@ texfilenamenum=$-2
 sprfilename
         db "wolfspr.bmp",0
 
+        align 256
 ttexpgs
         ds NTEXPGS+NSPRPGS
 
@@ -552,6 +553,128 @@ tscales
 tscales_rev
         ds 128
 
+tsprites
+;pg,xmid,xleft-1,xright-1
+        macro TSPRITES pg,xleft,wid
+xright=xleft+wid
+xmid=(xleft+xright)/2
+        db NTEXPGS+pg
+        db xmid/2
+        db xleft/2
+        db xright/2
+        endm
+;TODO надо правильно центровать
+        ;TSPRITES 0,0,0 ;ID 0 not used
+        TSPRITES 0,0,44 ;ID 1
+        TSPRITES 0,44,42
+        TSPRITES 0,86,36
+        TSPRITES 0,122,56
+        TSPRITES 0,178,40
+        TSPRITES 0,218,48
+        TSPRITES 0,266,36
+        TSPRITES 0,302,56
+        TSPRITES 0,358,38
+        TSPRITES 0,396,50
+
+MONSTAB
+;ZOMBIEMAN stay
+        db 1
+        db 2
+        db 1
+        db 2
+        db 1
+        db 2
+        db 0,0
+;ZOMBIEMAN go1
+        db 3
+        db 4
+        db 5
+        db 6
+        db 3
+        db 4
+        db 0,0
+;ZOMBIEMAN go2
+        db 7
+        db 8
+        db 9
+        db 10
+        db 7
+        db 8
+        db 0,0
+;AMMO
+        db 7 ;G
+        db 8 ;R
+        db 9 ;MEGAHEALTH
+        db 10 ;RL
+        db 11 ;AMMO
+        db 0
+        db 0,0
+;STOLB
+        db 12
+        db 12
+        db 12
+        db 12
+        db 12
+        db 12
+        db 12
+        db 12
+
+        if 1==0
+        DS ((-$)&7)&0xff
+MONSTRS
+;Xx,Yy,TYPEphase,TIMEenergy
+        DW #0F80,#AF80,#000,-1;ENEMY
+        DW #2680,#A080,#000,64
+        DW #0380,#BA80,#000,64
+        DW #0780,#B780,#000,64
+
+        DW #0F80,#B080,#002,64
+        DW #1380,#A080,#000,64
+        DW #1380,#AA80,#000,64
+        DW #1380,#B280,#000,64
+        DW #1380,#B380,#000,64
+        DW #1280,#B580,#002,64
+        DW #1480,#AB80,#000,64
+        DW #1480,#AE80,#002,64
+
+        DW #1480,#B080,#002,64
+        DW #1480,#B380,#000,64
+        DW #1580,#A180,#002,80
+        DW #1680,#AD80,#002,90
+        DW #1680,#B180,#002,100
+        DW #2180,#AD80,#002,10
+        DW #2380,#A080,#000,50
+        DW #2380,#A580,#002,50
+
+        DW #2680,#A480,#003,50
+        DW #2680,#B280,#004,50
+        DW #2780,#A880,#005,50
+        DW #2780,#B180,#003,64
+
+        DW #2780,#A380,#100,150
+        DW #2080,#A580,#101,100
+        DW #2280,#A580,#102,100
+        DW #2580,#A080,#103,20
+        DW #2080,#A080,#104,40
+
+        DW #1380,#A2C0,#200,0
+        DW #1380,#A440,#200,0
+        DW #1280,#A2C0,#200,0
+        DW #1280,#A440,#200,0
+        DW #1180,#A2C0,#200,0
+        DW #1180,#A440,#200,0
+        DW #1080,#A2C0,#200,0
+        DW #1080,#A440,#200,0
+        DW #0F80,#A2C0,#200,0
+        DW #0F80,#A440,#200,0
+        DW #0E80,#A2C0,#200,0
+        DW #0E80,#A440,#200,0
+        DW #0D80,#A2C0,#200,0
+        DW #0D80,#A440,#200,0
+        DW -1
+eNDMONS
+        endif
+
 level
         DB "W"
 gfxnr   DB "0"
@@ -574,6 +697,12 @@ endlev
 MONSTRS
 ;Xx,Yy,TYPEphase,TIMEenergy
         ;DW -1
+
+;сейчас TYPE кодируется так (что видно в редакторе: что в TYPE):
+;31: вход
+;29: выход
+;32..63: goods (58..63: gold 5,10,20,50,100,200)
+;1..28: monsters
 
 ;        ds 64
 ;INTSTACK
