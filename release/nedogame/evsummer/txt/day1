@@ -1,4 +1,5 @@
-\mmusic/opening.pt3
+|Музыку поменять на no transpassing
+\mmusic/everlast.pt3
 \P
 \A\s\lpic/bg/int_bus.16c
 \F
@@ -364,6 +365,8 @@ th "Значит, направо!"
 th "Наверное, не туда свернул."
 slp "Ой, так тебе не сюда!"
 |    play music music_list["take_me_beautifully"] fadein 5
+\mmusic/takemebu.pt3
+\P
 "Я обернулся на голос."
 \lpic/bg/boathous/day/swsm.16c
 \F
@@ -421,8 +424,9 @@ us "Есть, гржнинначаник!"
 th "Лучше сначала добраться до этой таинственной Ольги Дмитриевны."
 th "Она у них главная вроде бы."
 \lpic/bg/houses/day/bgdv.16c
+\S
 \F|stop music fadeout 5
-|    play ambience ambience_camp_center_day fadein 5
+play ambience ambience_camp_center_day fadein 5
 "Мы шли сквозь ряды почти одинаковых строений, некоторые из которых напоминали пузатые пивные бочонки, а иные - хозяйственные сараи."
 "Наконец Славя остановилась перед небольшим одноэтажным домиком."
 \lpic/bg/housemt/day/bg.16c
