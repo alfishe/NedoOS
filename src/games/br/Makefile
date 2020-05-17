@@ -1,6 +1,6 @@
 NAME		= br.com
 OBJECTS		= 
-SOURCES		= main.asm brfinal.asm
+SOURCES		= main.asm brfinal.asm WSTART1.asm
 SJASMPLUS	= ../../../tools/sjasmplus --nologo --msg=war
 NEDORES		= ../../_sdk/nedores.bin
 INSTALLDIR	= ../../../release/nedogame/br
@@ -8,8 +8,10 @@ INSTALLDIR	= ../../../release/nedogame/br
 all: ${NAME} ${SOURCES}
 
 br.com: ${SOURCES} resources modules level
+	cp intro/flick.lpz/* br
 	${SJASMPLUS} brfinal.asm
 	${SJASMPLUS} main.asm
+	${SJASMPLUS} WSTART1.asm
 
 level: ${SOURCES}
 	${SJASMPLUS} levels/w~104.a80
@@ -19,6 +21,7 @@ level: ${SOURCES}
 	${SJASMPLUS} levels/w~205.a80
 	${SJASMPLUS} levels/w~213.a80
 	${SJASMPLUS} levels/w~217end.a80
+	
 
 modules: ${SOURCES}
 	${SJASMPLUS} W1LAND.ast --raw=br/W1LAND.bin
@@ -73,6 +76,7 @@ resources:
 	${NEDORES} images/WCREAT2.bmp images/WCREAT2c.dat WCREAT2c.ast
 	${NEDORES} images/WMISC.bmp images/WBODY.dat WBODY.ast
 	${NEDORES} images/WMISC.bmp images/WBULLET.dat WBULLET.ast
+	${NEDORES} images/demobar.bmp images/demobar.dat demobar.ast
 
 clean: 
 	rm -f ${NAME} ${OBJECTS}

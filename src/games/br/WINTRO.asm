@@ -872,7 +872,7 @@ fCOLOR	;цвета фликов
 	DEFB #70,#72,#78, #68
 
 WIN	;окно для флика
-        incbin "intro/WINFLICK.LPZ"
+        incbin "intro/winflick.lpz"
 RNA	DEFW 14
 RNB	DEFB 22
 
@@ -921,7 +921,7 @@ DPZ0	POP BC
 	RET
 
 FFONT
-        incbin "data/WFONT.FNT"
+        incbin "data/wfont.fnt"
 
 LOA1_M	INC C
 	CALL LOA2_M ;грузим файл "wani?_0.lpz"

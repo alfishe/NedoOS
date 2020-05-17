@@ -2,8 +2,8 @@
 ;пока не работает - TODO
 ;лежит в 4000+
 FONT42
-        incbin "data/WNF1.FNT"
-        incbin "data/WNF2.FNT"
+        incbin "data/wnf1.fnt"
+        incbin "data/wnf2.fnt"
 
 WTR	EI
 	HALT
@@ -391,7 +391,7 @@ XDT	DEFB 0,0,1,2,3,3,4,5,6,6,7,8,9,9,10,11,12,12
 	DEFB 13,14,15,15,16,17,18,18,19,20,21,21,22,23
 	DEFB 24,24,25,26,27,27,28,29,30,30,30,30
 INCMPR
-        incbin "data/WINSTRCM.DAT"
+        incbin "data/winstrcm.dat"
 
 COPY	CALL MEM7
 	LD HL,#4000
@@ -661,5 +661,5 @@ PIC2
 
 
 Instr
-        incbin "data/WINSTR.DAT" ;текст зашифрован, оригинала нет, есть конвертор из оригинала на C, но не наоборот
+        incbin "data/winstr.dat" ;текст зашифрован, оригинала нет, есть конвертор из оригинала на C, но не наоборот
 

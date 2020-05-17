@@ -625,10 +625,10 @@ LOADF   ;A-N ф-ла (0..NN)
         ds 0x5b00-$
         include "WINSTR.asm"
 WFTXT
-        incbin "data/WFLICTXT.LPZ"
+        incbin "data/wflictxt.lpz"
 MUS     EQU 60000
         ds MUS-$,#10
-        incbin "intro/FORGIVME.MUS"
+        incbin "intro/forgivme.mus"
 
 ;*L+
         db "End of code"
@@ -639,16 +639,16 @@ end
         page 3
         ORG #C000
 begin3
-        incbin "intro/XLAG_BL0.DAT"
+        incbin "intro/xlag_bl0.dat"
 PIKE
-        incbin "intro/WXLAG.LPZ"
+        incbin "intro/wxlag.lpz"
 end3
 ;*P4;======4        .B03
         ;slot 3
         page 4
         ORG #C000
 begin4
-        incbin "intro/XLAG_BL1.DAT"
+        incbin "intro/xlag_bl1.dat"
 end4
 ;*P7;======7        .B04
         ;slot 3
@@ -656,9 +656,9 @@ end4
         ORG #DB00
 begin7=0xc000 ;лоадер иначе не умеет
 CROW
-        incbin "barkov/CROW1.LPZ"
+        incbin "barkov/crow1.lpz"
 J45LPZ
-        incbin "intro/JAMMY45.LPZ"
+        incbin "intro/jammy45.lpz"
 end7
 ;*P0;======0
         ;slot 3
