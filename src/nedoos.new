@@ -1086,3 +1086,30 @@ v0.410.1, 13.04.2020
 + osevsd-g.$C - версия без NeoGS-SDcard (Fyrex)
 - kernel: плейер музыки выключался при выходе из любой программы
 + noise: добавлена музыка
+
+v0.444.1, 17.05.2020
+
+*kernel: GET_KEY returns mouse position instead of deltas, nz=no focus
++kernel: OS_CLS for 6912
++userkernel: current pages are kept in CURPG16K CURPG32KLOW CURPG32KHIGH
++init: для евы (osevo.$C) автоопределение системного диска (DimkaM)
++add make files (DimkaM)
++Added Makefile for dmm.com (demige)
+-nedoos: fatfs4os: fixed Makefile and build.bat (Lord Vader)
+*nedoos: wizcfg: renamed Lnk.xcl to lnk.xcl (Lord Vader)
++Changed upcase-lowercase conflicts for correct building in linux (demige)
++драйвер PS/2: уменьшен интервал репита (DimkaM)
+-psgplay: fixed continuous wait for reply on broadcast (Lord Vader)
+*yad: UPD port for detection broadcast is now 16729, same as TCP port (Lord Vader)
++browser: mouse support (lmb=go, rmb=back, wheel=scroll), fix http redirect
++wolf3d: спрайты с текстурой и прозрачностью, импорт текстур и спрайтов из bmp, спрайты берутся из карты по таблице; переделал формат Big L editor'а, теперь монстры сохраняются с тем же номером, что указан, а не пересчитываются
++sprexamp: поддержан скролл фона высотой 512 пикс (max=768 при ширине 320), добавлена загрузка bmp с палитрой
+*br: новая графика домиков (Котик, Louisa), перекрашена панелька, перекрашены некоторые существа, князь и Гризольда, огонь в подземелье; немного перекрашены контуры воды
++br: выделение зданий, подсветка места под строительство, исправлены некоторые цвета на панельке
+-br: fix отпечаток стрелки в правом нижнем углу при вызове меню; fix затирание кнопок при входе-выходе в карту; мигали числа на шахте; при начале скролла экраны сделаны одинаковыми, иначе цифры в панели мигают и может отпечататься стрелочка; fixed sprite clipping bug in bottom right corner
+-br: fixed hail magic bug
+-br: если не хватало ресурсов для ремонта, могло повиснуть
++br: help added (key "3" in intro), current function buttons shown in game, English version of Epopee added
+*loyd: black background
+-smb: Luigi controls fixed
+-smb: мог возникнуть сбой системы из-за sp<0x3b00
