@@ -43,7 +43,7 @@ openstream_http_hl
 nonhttps
 		pop hl
         ;push de
-        call strcopy
+        call strcopy ;hl->de
         ld hl,80*256 ;BIG ENDIAN
         ld a,(curprotocol)
         cp 2
@@ -215,7 +215,7 @@ tlocation
         db "Location: ",0
 
 readstream_http
-	;display $
+	display $
          ld (readstream_http_requestedsize),hl
 	add hl,de
 	push de	;начало буфера
@@ -227,7 +227,7 @@ http_firstreadflag=$+1
 curprotocol=$+1
          ld a,0;(curprotocol)
          cp 2
-         jr z,readstream_http_nohead ;2=gopher
+         jp z,readstream_http_nohead ;2=gopher
          ;ld a,0xfe
          ;in a,(0xfe)
          ;rra
@@ -311,7 +311,18 @@ readstream_http_headlineaddr=$+1
         pop hl
         ;ld bc,7 ;"http://"
         ;add hl,bc
-         call isprotocolpresent
+         call isprotocolpresent ;out: nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
+         jr nz,readstream_http_redirect_noprotocol
+         ld (curprotocol),a
+readstream_http_redirect_noprotocol
+;заменим 0d на 00
+        push hl
+        ld a,0x0d
+        ld bc,256
+        cpir
+        dec hl
+        ld (hl),0
+        pop hl
         call openstream_http_hl
         
 	pop de
@@ -321,8 +332,12 @@ readstream_http_headlineaddr=$+1
 readstream_http_requestedsize=$+1
         ld hl,0
         ;jr $
+         ld a,(curprotocol)
+         cp 3 ;https
+         jr z,readstream_http_redirectq ;костыль
         xor a
-	ld (http_firstreadflag),a ;почему-то страничка, куда переадресует amp.dascene.net, отдаёт файл без http заголовка!
+	ld (http_firstreadflag),a ;почему-то страничка, куда переадресует amp.dascene.net, отдаёт файл без http заголовка (HTTP/1.1 200 OK...)! а WoS с заголовком!
+readstream_http_redirectq
         jp readstream_http
         
         

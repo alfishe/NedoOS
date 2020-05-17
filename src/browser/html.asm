@@ -12,6 +12,7 @@ CMARK=8
 
 
 loadhtml
+         display "decode html=",$
         push af ;first char
 ;skip spaces and line breaks
         cp 0xef ;hippiman.16mb.com начинается с ef bb bf (UTF-8 BOM)

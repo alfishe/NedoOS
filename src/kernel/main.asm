@@ -146,11 +146,11 @@ begin
         ;ld hl,0xc9f1 ;pop af:ret
         ;ld (0x5cc2),hl
         
-        ld bc,0xfbdf ;x
-        in l,(c)
-        ld b,0xff
-        in h,(c)
-        ld (init_oldmousecoords),hl
+        ;ld bc,0xfbdf ;x
+        ;in l,(c)
+        ;ld b,0xff
+        ;in h,(c)
+        ;ld (init_oldmousecoords),hl
 
 ;;;;;;;;;;;;;;;;;;; set gfx mode ;;;;;;;;;;;;;;;;;
         halt
@@ -437,9 +437,9 @@ fatfspatchaddr=0xc000
         ;halt ;чтобы прерывание не произошло когда не надо
         ;di
         ;jr $
-init_oldmousecoords=$+1
-        ld hl,0
-        ld (sys_oldmousecoords),hl
+;init_oldmousecoords=$+1
+;        ld hl,0
+;        ld (sys_oldmousecoords),hl
 	 call BDOS_setpgstructs
 	 ld hl,0xc000
 	 ld de,0xc001

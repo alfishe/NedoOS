@@ -42,6 +42,8 @@ MAXLINKSZ=256-1
 EDITLINEY=192
 EDITLINEMAXVISIBLEX=72
 
+key_up_scroll=key_ssup ;=F7!
+key_down_scroll=key_ssdown ;=F6!
 
        MACRO rdbyte
         INC LY
@@ -830,9 +832,64 @@ browser_quitq
         QUIT
 
 yieldgetkeynolang
-	YIELDGETKEY
-        ld a,c
-        ret
+;out: z=no key, no action
+	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        GET_KEY
+        ld lx,a ;keylang
+        jr z,yieldgetkeynolang_focus
+        ld de,(control_imer_oldmousecoords) ;no focus
+yieldgetkeynolang_focus
+;hl=(sysmousebuttons)
+        ld a,l
+        and 0xf0
+control_imer_oldmousewheel=$+2
+        ld hx,0
+        ld (control_imer_oldmousewheel),a
+        sub hx
+        ld (mouse_scrollvalue),a
+        jr z,yieldgetkeynolang_key
+        ;jp p,yieldgetkeynolang_scrollup
+        ;neg
+        ;ld (mouse_scrollvalue),a        
+        ld a,key_down_scroll
+        ret m ;nz        
+;yieldgetkeynolang_scrollup
+        ld a,key_up_scroll
+        ret ;nz
+yieldgetkeynolang_key
+        ld a,0
+        ld (mouse_scrollvalue),a ;default scrollvalue
+        ld a,l
+        cpl
+        ld l,a
+        bit 0,l ;LMB
+        ld a,key_enter
+        ret nz
+        bit 1,l ;RMB
+        ld a,key_backspace
+        ret nz
+        ld a,lx ;keylang
+        or a ;cp NOKEY ;keylang==0?
+        ret nz ;jr nz,$+3
+        cp c ;keynolang==0?
+        ret nz
+;no action? mouse coords change is also an action
+        push bc
+control_imer_oldmousecoords=$+1
+        ld bc,0
+        ld (control_imer_oldmousecoords),de
+        ld a,b
+        sub d
+        ld d,a
+        ld a,e
+        sub c
+        ld e,a
+        ld (control_imer_mousecoordsdelta),de
+        ld a,d
+        or e
+        ld a,0
+        pop bc
+        ret ;z/nz
 
 closestream
 closestream_patch=$+1

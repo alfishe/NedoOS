@@ -54,6 +54,8 @@ init
         ld de,zxpal
         OS_SETPAL
 
+        call yieldgetkeynolang ;get mouse coords
+
         ;call setpgcode4000
         ;call setpgtemp8000
         

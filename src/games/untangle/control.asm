@@ -10,6 +10,17 @@ mousebuttons=$+1
         GET_KEY ;OS_GETKEYNOLANG
         ld a,c ;keynolang
         ld (key),a
+         jr nz,control_nofocus
+control_imer_oldmousecoords=$+1
+        ld bc,0
+        ld (control_imer_oldmousecoords),de
+        ld a,b
+        sub d
+        ld d,a
+        ld a,e
+        sub c
+        ld e,a
+control_nofocus
         ld (control_imer_mousecoordsdelta),de
         ld a,l ;hl=(sysmousebuttons)
         push af ;ld (control_imer_buttons),a

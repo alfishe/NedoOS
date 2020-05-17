@@ -515,7 +515,7 @@ muzcall=$+1
         ret
         
 sys_getchar
-;out: de=mouse dydx, l=buttons, A=key, H=high bits of key
+;out: de=mouse yx, l=buttons, A=key, H=high bits of key, nz=no focus (mouse position=0, ignore it!)
         call checkfocus_getkbdmouse
         ;jp endsys_result_a
         ;ds 0x0050-$
@@ -547,16 +547,16 @@ checkfocus_getkbdmouse
         sbc hl,de
         jr nz,sys_getchar_fail ;nz
 sys_mousecoords=$+1
-        ld hl,0
-sys_oldmousecoords=$+1
-        ld de,0
-        ld (sys_oldmousecoords),hl
-        ld a,l
-        sub e ;a=dx
-        ld e,a ;e=dx
-        ld a,d
-        sub h ;a=dy
-        ld d,a ;d=dy
+        ld de,0;hl,0
+;sys_oldmousecoords=$+1
+;        ld de,0
+;        ld (sys_oldmousecoords),hl
+;        ld a,l
+;        sub e ;a=dx
+;        ld e,a ;e=dx
+;        ld a,d
+;        sub h ;a=dy
+;        ld d,a ;d=dy
 		if atm==1
 		push de
         call GETKEY ;A=key, H=high bits of key, BC=keynolang
@@ -564,6 +564,7 @@ sys_oldmousecoords=$+1
 		else
         call GETKEY ;A=key, H=high bits of key, BC=keynolang
 		endif
+        cp a ;z
 sys_mousebuttons=$+1
         ld l,0xff
         ret ;z

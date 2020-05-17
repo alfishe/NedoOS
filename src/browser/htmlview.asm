@@ -28,15 +28,29 @@ htmlcursorxy=$+1
 	ld a,0x38
         call html_prattr
 
-1
+html_getkeyloop0
 	;YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         ;GET_KEY ;OS_GETKEYNOLANG
+        ; jr nz,html_getkeyloop0 ;no focus
         ;ld a,c ;keynolang        
         ;cp NOKEY
         call yieldgetkeynolang
         jr nz,html_mainloop_keyq
+;control_imer_oldmousecoords=$+1
+;        ld bc,0
+;        ld (control_imer_oldmousecoords),de
+;        ld a,b
+;        sub d
+;        ld d,a
+;        ld a,e
+;        sub c
+;        ld e,a
+;        ld (control_imer_mousecoordsdelta),de
+        
         ;call nvview_panel
-        jr 1b
+        jr html_getkeyloop0
+;html_mainloop_keyq_nokey
+;        xor a
 html_mainloop_keyq
 
         pop de ;e=oldcolor
@@ -47,6 +61,11 @@ html_mainloop_keyq
         pop de
 	ld a,e
         call html_prattr
+
+control_imer_mousecoordsdelta=$+1
+        ld de,0
+        call html_mousemove
+
         pop af
         cp key_redraw
         jr z,html_redrawloop
@@ -57,8 +76,12 @@ html_mainloop_keyq
         push hl
         cp key_up
         jp z,html_up
+        cp key_up_scroll
+        jp z,html_up_scroll
         cp key_down
         jp z,html_down
+        cp key_down_scroll
+        jp z,html_down_scroll
         cp key_right
         jp z,html_right
         cp key_left
@@ -350,15 +373,97 @@ html_right
         ret nc
         ld (htmlcursorxy),a
         ret
+
+MOUSEFACTOR=8
+html_mousemove
+;de=mouse delta
+;чтобы двигать не резко, надо отдельно хранить младшие части x,y (не отображаемые на экране)
+        ld hl,(htmlcursorxy)
+htmlcursorxylow=$+1
+        ld bc,0 ;bits 7..5 (for Y) 7..6 (for X), others=0
+        dup 3
+        sla b
+        rl h
+        edup        
+        ld a,h
+        add a,d
+        bit 7,d
+        jr z,html_mousemove_yplus
+        jr nc,html_mousemove_yminus_overflow
+        cp HTMLTOPY*MOUSEFACTOR
+        jr nc,html_mousemove_yq
+html_mousemove_yminus_overflow
+        ld a,HTMLTOPY*MOUSEFACTOR
+        jr html_mousemove_yq
+html_mousemove_yplus
+        jr c,html_mousemove_yplus_overflow
+        cp MOUSEFACTOR*(HTMLTOPY+HTMLHGT-1)
+        jr c,html_mousemove_yq
+html_mousemove_yplus_overflow
+        ld a,MOUSEFACTOR*(HTMLTOPY+HTMLHGT-1)
+html_mousemove_yq  
+        srl a
+        rr b
+        rra
+        rr b
+        rra
+        rr b
+        ld (htmlcursorxy+1),a
+
+        ld h,0
+        sla c
+        rl l
+        sla c
+        adc hl,hl
+        ld a,e
+        rla
+        sbc a,a
+        ld d,a
+        add hl,de
+        bit 7,e
+        jr z,html_mousemove_xplus
+        jr c,html_mousemove_xq
+        ld hl,0 ;ld a,HTMLTOPY*MOUSEFACTOR
+        jr html_mousemove_xq
+html_mousemove_xplus
+        ld de,MOUSEFACTOR/2*(80-1)
+        jr c,html_mousemove_xplus_overflow
+        ;or a
+        sbc hl,de
+        add hl,de
+        jr c,html_mousemove_xq
+html_mousemove_xplus_overflow
+        ex de,hl
+html_mousemove_xq
+        ld a,l
+        rr h
+        rra
+        rr c
+        rra
+        rr c
+        ld (htmlcursorxy),a
+
+        ld (htmlcursorxylow),bc
+        ret
         
 html_up
         ld a,(htmlcursorxy+1)
         cp HTMLTOPY
-        jr z,html_up_scroll
+        jr z,html_up_scroll1
         dec a
         ld (htmlcursorxy+1),a
         ret
 html_up_scroll
+mouse_scrollvalue=$+1
+        ld a,0 ;*0x10
+html_up_scroll0
+        push af
+        call html_up_scroll1
+        pop af
+        sub 0x10
+        jr nz,html_up_scroll0
+        ret
+html_up_scroll1
         ld hl,(html_curtopy)
         ld a,h
         or l
@@ -376,11 +481,20 @@ html_up_scroll
 html_down
         ld a,(htmlcursorxy+1)
         cp HTMLTOPY+HTMLHGT-1
-        jr z,html_down_scroll
+        jr z,html_down_scroll1
         inc a
         ld (htmlcursorxy+1),a
         ret
 html_down_scroll
+        ld a,(mouse_scrollvalue) ;*-0x10
+html_down_scroll0
+        push af
+        call html_down_scroll1
+        pop af
+        add a,0x10
+        jr nz,html_down_scroll0
+        ret
+html_down_scroll1
         ld hl,(html_curtopy)
         inc hl
         ld (html_curtopy),hl

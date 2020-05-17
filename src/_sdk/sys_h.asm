@@ -347,7 +347,7 @@ _1=$
         endm
 
         macro GET_KEY
-        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse delta (dy,dx), l=mouse buttons (bits 0,1,2: 0=pressed), h=high bits of key|register, bc=keynolang
+        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
         endm
 
         macro PRCHAR
