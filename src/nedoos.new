@@ -1102,6 +1102,7 @@ v0.444.1, 17.05.2020
 -psgplay: fixed continuous wait for reply on broadcast (Lord Vader)
 *yad: UPD port for detection broadcast is now 16729, same as TCP port (Lord Vader)
 +browser: mouse support (lmb=go, rmb=back, wheel=scroll), fix http redirect
+*в браузере в HTTP добавлена строка Referer, пока тестовая, для картинок на www.pouet.net (Lord Vader)
 +wolf3d: спрайты с текстурой и прозрачностью, импорт текстур и спрайтов из bmp, спрайты берутся из карты по таблице; переделал формат Big L editor'а, теперь монстры сохраняются с тем же номером, что указан, а не пересчитываются
 +sprexamp: поддержан скролл фона высотой 512 пикс (max=768 при ширине 320), добавлена загрузка bmp с палитрой
 *br: новая графика домиков (Котик, Louisa), перекрашена панелька, перекрашены некоторые существа, князь и Гризольда, огонь в подземелье; немного перекрашены контуры воды
@@ -1109,7 +1110,15 @@ v0.444.1, 17.05.2020
 -br: fix отпечаток стрелки в правом нижнем углу при вызове меню; fix затирание кнопок при входе-выходе в карту; мигали числа на шахте; при начале скролла экраны сделаны одинаковыми, иначе цифры в панели мигают и может отпечататься стрелочка; fixed sprite clipping bug in bottom right corner
 -br: fixed hail magic bug
 -br: если не хватало ресурсов для ремонта, могло повиснуть
-+br: help added (key "3" in intro), current function buttons shown in game, English version of Epopee added
++br: help added (key "3" in intro), current function buttons shown in game, English version of Epopee added, full walkthrough: https://www.youtube.com/playlist?list=PL3pgnoYbP3wp-7paZwvd6pwWQSIUFOnun
 *loyd: black background
 -smb: Luigi controls fixed
 -smb: мог возникнуть сбой системы из-за sp<0x3b00
+
+v0.446.1, 18.05.2020
+
++browser: поддержка ссылок длиной до 509 байт, защита от запарывания first1pointer и first2pointer, редактирование таких ссылок
++browser: поддержаны ссылки вида "//ser.ver/file.htm"
+-browser: исправлено сохранение первой ссылки после div
+-browser: исправлен поиск слеша в пустой строке
++browser: в ссылках автоматически убирается #blabla

@@ -1,4 +1,4 @@
-STRINGBUFSZ=512;256
+STRINGBUFSZ=MAXLINKSZ ;512;256
 
 ;for text
 stringbuf1header
@@ -14,6 +14,7 @@ TEXT_X=$-TEXT_BASE
 TEXT_TEXT=$-TEXT_BASE
 stringbuf1
         ds STRINGBUFSZ
+        db 0 ;на случай длины STRINGBUFSZ
 
 firstpointer
         dw 0
@@ -40,6 +41,7 @@ HREF_VISITED=$-HREF_BASE
 HREF_TEXT=$-HREF_BASE
 stringbuf2
         ds STRINGBUFSZ
+        db 0 ;на случай длины STRINGBUFSZ
 
 first2pointer
         dw 0
@@ -138,6 +140,7 @@ linklast2pointer_lastnullq
         ld (last2pointerHSB),a
         ret
 
+        display "savestringbuf1=",$
 savestringbuf1
 ;add terminator
 ;find size
@@ -238,6 +241,7 @@ initstringbuf1
         ld (curstringbuf1addr),hl
         jp setfontweight
 
+        display "savestringbuf2=",$
 savestringbuf2
 ;add terminator
 ;find size
@@ -247,6 +251,11 @@ savestringbuf2
 ;lastpointer = addr
 ;initialize stringbuf2
         ld hl,(curstringbuf2addr)
+         ld de,stringbuf2
+         or a
+         sbc hl,de
+         add hl,de
+         ret z ;пустую не сохраняем, иначе глюк с первой ссылкой после div???
         xor a
         ld (hl),a
         inc hl

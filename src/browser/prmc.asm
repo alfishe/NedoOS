@@ -1,6 +1,3 @@
-fnt
-        incbin "1125vert.fnt"
-
 prnum123
 ;d=y, e=x8
 ;hl=num

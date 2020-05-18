@@ -459,7 +459,7 @@ readword
         
 isnull
 ;ahl=pointer
-;out: z=null
+;out: z=null (pointer == -1)
         push bc
         ld c,a
         and h

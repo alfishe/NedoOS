@@ -37,7 +37,7 @@ SCROLLHGT=HTMLHGT*8;192;200
 
 BACKGROUNDCOLORLEVEL=0 ;при очистке буфера строки (для правильного правого края в остатке знакоместа)
 
-MAXLINKSZ=256-1
+MAXLINKSZ=256+256-1-2 ;запас под терминатор и Yy
 
 EDITLINEY=192
 EDITLINEMAXVISIBLEX=72
@@ -238,15 +238,15 @@ keepcurlink
 histaddr=$+1
 	ld de,0xc000
         ld a,d
-	inc a
+	 cp -2 ;inc a
 	jr nz,keeptohist_nooverflow
-	ld hl,0xc100
+	 ld hl,0xc100+256
 	ld de,0xc000
-	ld bc,0x3f00
+	 ld bc,0x3f00-256
 	ldir ;forget oldest link
 keeptohist_nooverflow
 	ld hl,curfulllink;linkbuf
-	ld bc,254
+	 ld bc,254+256
 	ldir
         ld hl,html_curtopy
         ld c,2
@@ -261,12 +261,13 @@ remembercurlink
 	cp 0xc0
 	ret z ;jr z,browser_reload ;no history
 	dec h
+         dec h
 	ld (histaddr),hl
 	call setpghist
          ;jr $
         ld de,curfulllink;linkbuf
         ;call strcopy
-	ld bc,254
+	 ld bc,256+254
 	ldir
         ld de,html_curtopy
         ldi
@@ -302,6 +303,7 @@ browser_backspaceq
 
         call cleanstatusline
         call browser_editline_print
+         ;call setpgcode4000 ;само восстанавливается
         call setpgtemp8000
 
          OS_GETTIMER ;hlde=timer
@@ -330,6 +332,17 @@ browser_go_changeprotocol_nohttp
         pop hl
 
 ;hl=начало path без протокола
+;выкидываем #... (TODO сохранить и использовать для перехода на якорь)
+        push hl
+        call strlen_tobc_keephl
+        jr z,browser_open_skip
+        ld a,'#'
+        cpir
+        jr nz,browser_open_skip
+        dec hl
+        ld (hl),0
+browser_open_skip
+        pop hl
 
         ex de,hl ;de=filename
 openstream_patch=$+1
@@ -364,7 +377,7 @@ downloadflag=$+1
          ld a,(DISKBUF+1)
          cp '?' ;<?xml
          ld a,(DISKBUF)
-         jp z,loadsvg
+         jp z,loadxml;svg ;надо искать !DOCTYPE HTML или svg
         jp nz,loadhtml;loadbmp_fail
         call RDBYTE
         cp 'M'
@@ -438,12 +451,13 @@ nvview_loadbmp0go
         ld b,h
         ld c,l
          pop hl
-        or a
+        xor a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
         jr z,nvview_loadbmp0
         
+        ld h,a
+        ld l,a ;0
         ld a,(npages)
-        ld hl,0
         srl a
         rr h
         srl a
@@ -555,8 +569,24 @@ downloadfilehandle=$+1
 
 	jp closequit
 
-loadsvg
-        ;push af
+DOCTYPEsz=9
+loadxml;svg
+;надо искать !DOCTYPE HTML или svg
+;a=first char
+         ld e,a
+        ld hl,DISKBUF
+        ld bc,DISKBUFsz-DOCTYPEsz
+        ld a,'!'
+        cpir ;костыль!
+        ld bc,DOCTYPEsz
+        add hl,bc
+        ld a,(hl)
+        or 0x20
+        cp 's'
+         ld a,e ;ld a,(iy) ;first char
+        jp nz,loadhtml
+        
+        push af
         push iy
         ld e,3 ;6912
         OS_SETGFX
@@ -572,7 +602,7 @@ loadsvg
         LD      BC,#2FF
         LDIR 
         pop iy
-        ;pop af ;a=(iy)=first char
+        pop af ;a=(iy)=first char
         call readsvg
          call setpgcode4000
 loadsvgq0
@@ -1050,6 +1080,12 @@ browser_go_dotslash=browser_go_chdir ;"./Timex"
 browser_go_rootlink
 ;"/Timex"
 ;hl=linkbuf+... at slash
+;если ссылка начинается с //, то надо отрезать весь путь, кроме протокола
+         inc hl
+         ld a,(hl)
+         cp '/'
+         jr z,browser_go_rootprotocol
+         dec hl
          push hl
         ld hl,curfulllink
         call isprotocolpresent
@@ -1059,6 +1095,7 @@ browser_go_rootlink
         ex de,hl ;de=curfulllink+ after server (at slash)
          pop hl
         jr browser_go_copyto;linkbuf
+
 browser_go_protocolpresent
 ;a=protocol (0=file, 1=http), hl=after "//"
         call addslashafterserver ;add / after http://ser.ver
@@ -1070,6 +1107,17 @@ browser_go_copyto
 browser_go_protocolpresentq
 ;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
         ret
+
+browser_go_rootprotocol
+        inc hl
+;hl=linkbuf+... after "//"
+         push hl
+        ld hl,curfulllink
+        call isprotocolpresent
+;a=protocol (0=file, 1=http), hl=after "//"
+        ex de,hl ;de=curfulllink+ after protocol://
+         pop hl
+        jr browser_go_copyto;linkbuf
 
 adddefaultprotocol
 ;1:/file... => file://1:/file...
@@ -1105,6 +1153,7 @@ addslashafterserver
 
 findslash
         call strlen_tobc_keephl
+         ret z
         ld a,'/'
         cpir
         ret
@@ -1925,7 +1974,7 @@ curfulllink
 	include "mempgs.asm"
         include "dynmem.asm"
         include "../_sdk/file.asm"
-        include "http.asm"
+        ;include "http.asm"
         include "gif.asm"
         include "drawmc.asm"
         include "editline.asm"
@@ -1963,6 +2012,10 @@ endcode=$
         ;display "free for code=",$-endcode
 
         ds 0x4000-$ ;stack
+        align 256
+fnt
+        incbin "1125vert.fnt"
+        include "http.asm"
 	include "prmc.asm"
         include "jpeg.asm"
         include "png.asm"

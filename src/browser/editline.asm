@@ -5,26 +5,31 @@ browser_editline
         call keepcurlink
         ld hl,curfulllink
         call strlen
-        ld a,l
-        ld (curcmdx),a
+        ld (curcmdx),hl
 
 browser_editline0
 
 editcmd_scroll0
-        call cmdcalccurxy ;e=scrx
-        ld hl,browser_editline_scroll;curcmdscroll
-        inc e ;scrx
-        jr nz,editcmd_noscrollleft ;x>=promptsz (x>(promptsz-1))
+        call cmdcalccurxy ;de=scrx
+        ld hl,(browser_editline_scroll);curcmdscroll
+         bit 7,d
+        jr z,editcmd_noscrollleft ;x>=promptsz (x>(promptsz-1))
 ;x<promptsz - скролл влево
-        dec (hl)
+        dec hl
+        ld (browser_editline_scroll),hl
         jr editcmd_scroll0
 editcmd_noscrollleft
-        dec e
-        ld a,e ;scrx
-        cp EDITLINEMAXVISIBLEX;txtscrwid
+        ;ld a,e ;scrx
+        ;cp EDITLINEMAXVISIBLEX;txtscrwid
+        ;jr c,editcmd_noscrollright
+         ld a,e
+         sub EDITLINEMAXVISIBLEX;txtscrwid
+         ld a,d
+         sbc a,0
         jr c,editcmd_noscrollright
 ;x>=txtscrwid - скролл вправо
-        inc (hl)
+        inc hl
+        ld (browser_editline_scroll),hl
         jr editcmd_scroll0
 editcmd_noscrollright
 
@@ -56,41 +61,43 @@ browser_editlinenokey
         jr z,browser_editline_backspace
         cp 0x20
         ret c ;прочие системные кнопки не нужны
-        ld e,a
+        ld lx,a
         ld hl,curfulllink
         call strlen ;hl=length
         ld bc,MAXLINKSZ
         or a
         sbc hl,bc
         ret nc ;некуда вводить
-        call cmdcalctextaddr ;hl=addr, a=curcmdx
-        inc a
-        ld (curcmdx),a
-        jp strinsch ;e=ch
+        call cmdcalctextaddr_xde ;hl=addr, de=curcmdx
+        inc de
+        ld (curcmdx),de
+        jp strinsch_lx ;lx=ch
 
 browser_editline_backspace
-        call cmdcalctextaddr ;hl=addr, a=curcmdx
-        or a
+        call cmdcalctextaddr_xde ;hl=addr, de=curcmdx
+        ld a,d
+        or e
         ret z ;jr z,editcmdok ;нечего удалять
-        dec a
-        ld (curcmdx),a
+        dec de
+        ld (curcmdx),de
         jp strdelch ;удаляет предыдущий символ
       
 browser_editline_left
-        ld a,(curcmdx)
-        or a
+        ld de,(curcmdx)
+        ld a,d
+        or e
         ret z ;jr z,editcmdok ;некуда влево
-        dec a
-        ld (curcmdx),a
+        dec de
+        ld (curcmdx),de
         ret
       
 browser_editline_right
-        call cmdcalctextaddr ;hl=addr, a=curcmdx
+        call cmdcalctextaddr_xde ;hl=addr, de=curcmdx
         inc (hl)
         dec (hl)
         ret z ;jr z,editcmdok ;некуда право, стоим на терминаторе
-        inc a
-        ld (curcmdx),a
+        inc de
+        ld (curcmdx),de
         ret
 
 strdelch
@@ -106,9 +113,9 @@ editcmd_bs0
         jr nz,editcmd_bs0
         ret
 
-strinsch
-;insert char E at (hl), shift string right
-;keeps ix
+strinsch_lx
+;insert char lx at (hl), shift string right
+        ld e,lx
 editcmd_ins0
         ld a,(hl)
         ld (hl),e
@@ -120,7 +127,7 @@ editcmd_ins0
         ret
 
 curcmdx ;не на экране, а внутри команды
-        db 0
+        dw 0
         
 browser_editline_print
         call setpgs_scr
@@ -159,6 +166,7 @@ browser_editline_cursor
         ;ld de,(curcmdx)
         ;ld d,EDITLINEY
         call cmdcalccurxy
+         ld d,EDITLINEY
         call setxymc
         res 6,h
         pop af
@@ -176,22 +184,20 @@ strlen
         sbc hl,bc
         ret
 
-cmdcalctextaddr
-;out: hl=addr, a=curcmdx
+cmdcalctextaddr_xde
+;out: hl=addr, de=curcmdx
 ;keeps ix
-        ld a,(curcmdx)
-        ld c,a
-        ld b,0
+        ld de,(curcmdx)
         ld hl,cmdbuf
-        add hl,bc
+        add hl,de
         ret
 
 cmdcalccurxy
-;out: de=yx
+;out: de=x
 ;x=curcmdx-curcmdscroll
-        ld a,(curcmdx) ;не на экране, а внутри команды
-        ld hl,browser_editline_scroll;curcmdscroll ;сдвиг команды относительно экрана
-        sub (hl)
-        ld e,a
-        ld d,EDITLINEY
+        ld hl,(curcmdx) ;не на экране, а внутри команды
+        ld de,(browser_editline_scroll);curcmdscroll ;сдвиг команды относительно экрана
+        or a
+        sbc hl,de
+        ex de,hl
         ret

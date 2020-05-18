@@ -50,6 +50,7 @@ defaultunicodeflag=$+1
         ld (first2pointerHSB),a
 
         call initstringbuf1 ;buf2 инициализируется в тэге a/img ;содержит setfontweight
+         call rememberhrefyxposition ;иначе ссылки могут записаться с неправильным Y после div
         
         ;ld de,0
         ;call setxymc_stateful
@@ -411,6 +412,7 @@ tag_ul ;list
         jp nz,skiprestoftag ;opening (li does newline)
 tag_dd ;на lib.ru это перевод строки
 tag_div
+        ;jr $
 tag_table
 tag_br
         call prcharvirtual_crlf_stateful
@@ -655,7 +657,7 @@ tag_a_opening_read_go
 tag_a_opening_read0ok
          endif
          ;push af
-         ;call prcharvirtual_stateful
+         ;call prcharvirtual_stateful ;debug print
          ;pop af
         call printtostringbuf2
         jr tag_a_opening_read0
@@ -861,15 +863,15 @@ tag_title
         jp nz,tag_h1 ;open
 ;tag_titleclose
          ;ld a,1
-         ;ld (utf8flag),a ;нельзЯ, т.к. title после charset
+         ;ld (utf8flag),a ;нельзя, т.к. title после charset
         call prcharvirtual_crlf_stateful ;</title> forces newline
         xor a ;z
         jp tag_h1
 
-tag_li ;list line (no closing tag)
+tag_li ;list line (no closing tag)? но на msn.com куча <li ><a...>...</a></li>
         jp z,skiprestoftag ;closing
         call prcharvirtual_crlf_stateful
-        ld a,'*';'-';'*' ;TODO с учЮтом UTF8
+        ld a,'*';'-';'*' ;TODO с учётом UTF8
         call prcharvirtual_stateful
         ld a,' '
         call prcharvirtual_stateful
