@@ -7,16 +7,7 @@ bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTST
 QUITSTACK=0x4000 ;<=0x4000
 
         macro BDOSSETPGSSCR
-        ld a,(iy+app.screen)
-	bit 3,a
-        ld a,pgscr0_0
-	jr z,$+4
-        ld a,pgscr1_0
-        ld bc,memport8000
-        out (c),a
-        xor pgscr0_1^pgscr0_0 ;ld a,pgscr0_1
-        ld b,memportc000_hi;0xff
-        out (c),a
+        call sys_setpgsscr
         endm
 
         macro BDOSSETPGFATFS
@@ -507,11 +498,27 @@ muzpg=$+1
         ld a,pgkillable
         ld bc,memport4000
         out (c),a
+muzpg8000=$+1
+         ld a,pgkillable
+         ld b,memport8000_hi
+         out (c),a
+muzpgc000=$+1
+         ld a,pgkillable
+         ld b,memportc000_hi
+         out (c),a
 muzcall=$+1
 	call sys_reter;pt3player.PLAY ;TODO call drivers
         ld a,pgtrdosfs;pagexor-5
         ld bc,memport4000
         out (c),a ;там INTSTACK
+sys_curpg8000=$+1
+         ld a,pgkillable
+         ld b,memport8000_hi
+         out (c),a
+sys_curpgc000=$+1
+         ld a,pgkillable
+         ld b,memportc000_hi
+         out (c),a
         ret
         
 sys_getchar
@@ -639,11 +646,31 @@ setpgs_killable
         ld bc,memport4000
         ld (sys_curpg4000),a
         out (c),a
-        ld b,memport8000_hi;0xbf
-        out (c),a
-        ld b,memportc000_hi;0xff
+        ;ld b,memport8000_hi;0xbf
+        ;out (c),a
+        ;ld b,memportc000_hi;0xff
+        ;out (c),a
+        ;ret
+        call sys_setpg8000
+sys_setpgc000
+        ld (sys_curpgc000),a
+        ld bc,memportc000
         out (c),a
         ret
+
+sys_setpgsscr
+        ld a,(iy+app.screen)
+	bit 3,a
+        ld a,pgscr0_0
+	jr z,$+4
+        ld a,pgscr1_0
+        ;ld bc,memport8000
+        ;out (c),a
+        call sys_setpg8000
+        xor pgscr0_1^pgscr0_0 ;ld a,pgscr0_1
+        ;ld b,memportc000_hi;0xff
+        ;out (c),a
+        jr sys_setpgc000
 
 sys_quit
 ;снять текущую задачу

@@ -29,7 +29,7 @@ fatfs_org=0x4000
 
 BDOS_setpgtrdosfs
         ld a,pgtrdosfs
-	jr BDOS_setpg4000
+	jr sys_setpg4000
         ;ld bc,memport4000
         ;ld (sys_curpg4000),a
         ;out (c),a
@@ -37,7 +37,7 @@ BDOS_setpgtrdosfs
 
 BDOS_setpgfatfs
         ld a,pgfatfs
-BDOS_setpg4000
+sys_setpg4000
         ld bc,memport4000
         ld (sys_curpg4000),a ;для sys_sysint
         out (c),a
@@ -83,6 +83,13 @@ BDOS_setmusic
         ex af,af'
         ld (muzpg),a
         ld (muzcall),hl
+;страницы для 8000, c000 берём из текущей юзерской карты памяти
+        ld a,(iy+app.mainpg)
+        call sys_setpg8000
+        ld a,(curpg32klow+0x8000)
+        ld (muzpg8000),a
+        ld a,(curpg32khigh+0x8000)
+        ld (muzpgc000),a
         ret
 
 BDOS_setmainpage
@@ -142,8 +149,7 @@ BDOS_preparedepage
 ;out: de>=0x8000, включены нужные страницы в 8000,c000
         ;ld iy,(appaddr)
         ld a,(iy+app.mainpg)
-        ld bc,memport8000
-        out (c),a
+        call sys_setpg8000
         bit 7,d
         jr nz,BDOS_preparedepage8000_c000
         bit 6,d
@@ -160,22 +166,18 @@ BDOS_preparedepage4000_8000
         add a,0x40
         ld d,a
         ld a,(curpg32klow+0x8000)
-        ;ld bc,memportc000
-        ;out (c),a
+        ;call sys_setpgc000
 	ld (depagec000),a
         ld a,(curpg16k+0x8000)
-        ;ld bc,memport8000
-        ;out (c),a
+        ;call sys_setpg8000
 	ld (depage8000),a
         ret
 BDOS_preparedepage8000_c000
         ld a,(curpg32khigh+0x8000)
-        ;ld bc,memportc000
-        ;out (c),a
+        ;call sys_setpgc000
 	ld (depagec000),a
         ld a,(curpg32klow+0x8000)
-        ;ld bc,memport8000
-        ;out (c),a
+        ;call sys_setpg8000
 	ld (depage8000),a
         ret
 
@@ -183,17 +185,12 @@ BDOS_setdepage
 ;keep de,hl
 depagec000=$+1
         ld a,0
-        ld bc,memportc000
-        out (c),a
+        call sys_setpgc000
 depage8000=$+1
         ld a,0
-        ld b,memport8000_hi
-        out (c),a
-	ret
-
-BDOS_setpgstructs
-	ld a,pgfatfs2
-        ld bc,memportc000
+sys_setpg8000
+        ld (sys_curpg8000),a
+        ld bc,memport8000
         out (c),a
 	ret
 
@@ -322,7 +319,13 @@ BDOS_prchar
 ;e=char
         ld a,e
 BDOS_prchar_a
-;портит только 0xc000+, но сама восстанавливает там pgkillable
+;портит только 0xc000+, но сама восстанавливает там pgkillable (для быстрого вызова через rst)
+         ld hl,(appaddr)
+         ld bc,(focusappaddr)
+         or a
+         sbc hl,bc
+         ret nz ;no focus - no print
+
 	ld h,trecode/256
 	ld l,a
 	ld a,(hl)
@@ -333,33 +336,39 @@ BDOS_prchar_a
         cp 0x0e
         jr c,BDOS_prchar_controlcode
 BDOS_prchar_nocontrolcode
-         push hl
-         ld hl,(appaddr)
-         ld de,(focusappaddr)
-         or a
-         sbc hl,de
-         pop hl
-         jr nz,BDOS_prchar_skip
-        ld de,pgscr0_1*256+pgscr0_0
-        ld bc,memportc000
-        out (c),d ;text
-        ld (hl),a
-        out (c),e ;attr
-BDOS_prchar_skip        
+         ;push hl
+         ;ld hl,(appaddr)
+         ;ld bc,(focusappaddr)
+         ;or a
+         ;sbc hl,bc
+         ;pop hl
+         ;jr nz,BDOS_prchar_skip
+        ;ld de,pgscr0_1*256+pgscr0_0
+        ;ld bc,memportc000
+        ;out (c),d ;text
+        ;ld (hl),a
+        ;out (c),e ;attr
+        ld e,a
+        ld a,pgscr0_1
+        call sys_setpgc000
+        ld (hl),e
+        ld a,pgscr0_0
+        call sys_setpgc000
+;BDOS_prchar_skip        
 
-        ld de,0x2000 + pgkillable
+        ;ld de,0x2000 + pgkillable
         
-         push af
+         ;push af
 
         ld a,h
-        xor d;0x20 ;attr + 0x20
+        xor 0x20;d;0x20 ;attr + 0x20
         ld h,a
-        and d;0x20
+        and 0x20;d;0x20
         jr nz,$+3
         inc l
 
-         pop af
-         jr nz,BDOS_prchar_skipattr
+         ;pop af
+         ;jr nz,BDOS_prchar_skipattr
 ;pr_textmode_curcolor=$+1
         ;ld (hl),7
         ld a,(iy+app.curcolor)
@@ -367,9 +376,11 @@ BDOS_prchar_skip
         
         ;set 6,h ;attr -> next char
 
-        ;ld e,pgkillable
-        out (c),e ;pgkillable
-BDOS_prchar_skipattr
+        ;;ld e,pgkillable
+        ;out (c),e ;pgkillable
+        ld a,pgkillable
+        call sys_setpgc000
+;BDOS_prchar_skipattr
 
         ld a,l
         and 0x3f
@@ -400,16 +411,19 @@ BDOS_scrolllock0
 ;scroll+clear bottom line
         call BDOS_scrollpage ;attr
         ld a,pgscr0_1 ;text
-        ld bc,memportc000
-        out (c),a
+        ;ld bc,memportc000
+        ;out (c),a
+        call sys_setpgc000
         call BDOS_cllastline
         ld a,pgscr0_0 ;attr
-        ld bc,memportc000
-        out (c),a
+        ;ld bc,memportc000
+        ;out (c),a
+        call sys_setpgc000
         call BDOS_cllastline
         ld a,pgkillable
-        ld bc,memportc000
-        out (c),a
+        ;ld bc,memportc000
+        ;out (c),a
+        call sys_setpgc000
 BDOS_prchar_skipscroll
         ld hl,0xc7c0
 BDOS_prchar_q
@@ -441,8 +455,9 @@ BDOS_scrollpageline
         ld a,pgscr0_0 ;attr
         scf
 BDOS_scrollpagelinelayers
-        ld bc,memportc000
-        out (c),a
+        ;ld bc,memportc000
+        ;out (c),a
+        call sys_setpgc000
         push af
         push de
         push hl
@@ -869,9 +884,11 @@ BDOS_yield
         ld (intjp+0xc000),de
 
         ld a,pgkillable
-        out (c),a
-        ld b,memport8000_hi
-        out (c),a
+        ;out (c),a
+        call sys_setpgc000
+        ;ld b,memport8000_hi
+        ;out (c),a
+        call sys_setpg8000
         
         ld a,0xc0
         ld (callbdos_mutex),a ;то же самое делают те функции BDOS, которые не собираются возвращаться
@@ -2393,7 +2410,10 @@ strcpy_lib2usp0
 	or a
 	jr nz,strcpy_lib2usp0
         ;BDOSSETPGFATFS
-	jp BDOS_setpgstructs
+	;jp BDOS_setpgstructs
+BDOS_setpgstructs
+	ld a,pgfatfs2
+        jp sys_setpgc000
 
 ;копирование в\из юзерспейса в\из структуру
 memcpy_buf2usp	;DE - dst, BC - src, на стеке count
@@ -2404,7 +2424,7 @@ memcpy_usp2buf
 memcpy_buf_go
 	push bc
         ld a,pgfatfs2;=pgstructs
-	call BDOS_setpg4000
+	call sys_setpg4000
 	pop bc
 	jr memcpy_loop
 ;копирование в\из юзерспейса в\из либу фатфс

@@ -136,7 +136,7 @@ _1=$
         endm
 
 ;invented  
-        macro OS_SETMUSIC ;hl=muzaddr (0x4000..0x7fff), a=muzpg
+        macro OS_SETMUSIC ;hl=muzaddr (0x4000..0xffff), a=muzpg (pages in 0x8000, 0xc000 are taken from current user memory)
         ld c,CMD_SETMUSIC
 	CALLBDOS
         endm

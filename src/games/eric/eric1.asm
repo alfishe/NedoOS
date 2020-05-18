@@ -336,7 +336,9 @@ L_823C	CALL	L_8746
 	CALL	L_8D9B
 	RET
 ;
-L_8252	LD	(HL),A
+L_8252
+        ;jr $
+	LD	(HL),A
 	OR	A
 	RET	Z
 	CALL	L_9285
@@ -1107,9 +1109,9 @@ L_897F	LD	A,(VAR000D)
 	LD	A,(VAR0012)
 	AND	#03
 	JR	Z,L_8991
-	CALL	L_91B3
+	CALL	L_91B3 ;a=0:0/break pressed, -1:not pressed
 	INC	A
-	RET	NZ
+	RET	NZ ;pressed
 L_8991	LD	IX,VAR005B
 L_8995	LD	A,(IX+#00)
 	INC	A
@@ -2264,13 +2266,13 @@ L_9197	LD	A,(HL)
         
         endif
         
-;
+;actionkeycodes
 L_91A3 DB #57,#49,#45,#4F,#44,#4C,#43,#0E
  DB #58,#4D,#5A,#4E,#41,#4A,#51,#55
 ;
-L_91B3	LD	A,(L_9284)
+L_91B3	LD	A,(L_9284);keyboard/joystick?
 	OR	A
-	JR	NZ,L_91CB ;out: a=0: 0 pressed
+	JR	NZ,L_91CB ;out: a=0: 0 pressed, -1: not pressed
 L_91B9
 ;out: a=0: break pressed
 	LD	A,#FE
@@ -2287,9 +2289,9 @@ L_91B9
 	RET
 ;
 L_91CB
-;out: a=0: 0 pressed
+;out: a=0: 0 pressed, -1: not pressed
 	PUSH	BC
-	LD	BC,#EFFE
+	LD	BC,#EFFE;sinclair joystick
 	IN	A,(C)
 	POP	BC
 	AND	#01
@@ -2300,11 +2302,11 @@ L_91CB
 ;
 L_91D9
 ;out: a=0 или код направления (1=up, 2=up-right, 3=right, 4=down-right, 5=down, 6=down-left, 7=left, 8=up-left)
-	LD	A,(L_9284)
+	LD	A,(L_9284);keyboard/joystick?
 	OR	A
-	JR	Z,L_9208
+	JR	Z,L_9208;readactionkey
 	PUSH	BC
-	LD	BC,#EFFE
+	LD	BC,#EFFE;sinclair joystick
 	IN	A,(C)
 	CPL
 	RRCA
@@ -2324,11 +2326,11 @@ L_91D9
 ;
 L_91F8 DB #00,#01,#05,#00,#03,#02,#04,#00
  DB #07,#08,#06,#00,#00,#01,#05,#00
-;
-L_9208	CALL	L_9223
+;readactionkey
+L_9208	CALL	L_9223;readkey
 	PUSH	HL
 	PUSH	BC
-	LD	HL,L_91A3
+	LD	HL,L_91A3;actionkeycodes
 	LD	B,#10
 L_9212	CP	(HL)
 	JR	Z,L_921A
@@ -2342,7 +2344,7 @@ L_921A	LD	A,#12
 	POP	BC
 	POP	HL
 	RET
-;
+;readkey
 L_9223	PUSH	BC
 	PUSH	HL
 	PUSH	DE
@@ -2385,7 +2387,7 @@ L_9255	LD	A,D
 	AND	#7F
 	JR	Z,L_9239
 	JR	L_9236
-;
+;коды кнопок
 L_925C DB #E3,#5A,#58,#43,#56,#41,#53,#44
  DB #46,#47,#51,#57,#45,#52,#54,#31
  DB #32,#33,#34,#35,#30,#39,#38,#37
@@ -2395,11 +2397,14 @@ L_925C DB #E3,#5A,#58,#43,#56,#41,#53,#44
 L_9284 DB #00
 ;
 L_9285
+;keep hl!!!
+        push hl
 	GET_KEY ;rasmer
+        pop hl
 	cp key_esc
         jp z,quiter
 
-	CALL	L_9223
+	CALL	L_9223;readkey
 	CP	"K"
 	JR	Z,L_92A3
 	CP	"J"
