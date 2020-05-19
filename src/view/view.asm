@@ -189,6 +189,28 @@ loadfnt1
         jr nz,loadfnt0
         jr waitkeyquit
         
+loadmlt
+        call read4000
+        call closestream_file
+        call cleanafter8000
+        ld e,2
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld hl,0x4000
+        ld de,0xc000+4 ;pixels
+        call convmgpixelscr_hlde
+        ;ld hl,convmcattrline
+        ;ld (convmgpixelscr_linepatch),hl
+        ld hl,0x5800
+        ld de,0x8000+4 ;attrs
+        ld bc,0xc001 ;b=hgt in chrs ;c=hgt of chr
+        call convmgattrs
+        ;ld lx,40
+        ;call convmgattrlines
+        ;call convmgpixelscr_hlde
+        ;ld hl,convmcline
+        ;ld (convmgpixelscr_linepatch),hl
+        jp waitkeyquit
+
 loadmc
         call read4000
         call closestream_file
@@ -353,11 +375,14 @@ readconvmgpixelscr
         call read40001800
         ;ld hl,0x4000
         ld de,0xc000+4 ;pixels
+convmgpixelscr_hlde
         ld b,192
 convmglines0
         push bc
         push hl
-        call convmcline
+         ;ld bc,32 ;for convmcattrline
+;convmgpixelscr_linepatch=$+1
+        call convmcline ;/convmcattrline
         pop hl
         call downhl
         ex de,hl
@@ -1010,6 +1035,8 @@ extlist
         db "rm",0
         dw load16c
         db "16c",0
+        dw loadmlt
+        db "mlt",0
         
         dw -1 ;end of list
         
