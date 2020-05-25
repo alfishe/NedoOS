@@ -506,8 +506,15 @@ muzpgc000=$+1
          ld a,pgkillable
          ld b,memportc000_hi
          out (c),a
+
+        ;jr $
+        ld sp,INTMUZSTACK
+
 muzcall=$+1
 	call sys_reter;pt3player.PLAY ;TODO call drivers
+        
+        ld sp,INTSTACK2-2
+        
         ld a,pgtrdosfs;pagexor-5
         ld bc,memport4000
         out (c),a ;⠬ INTSTACK

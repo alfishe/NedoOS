@@ -67,6 +67,7 @@ trdos_catbuf=0x6300;0x3200 ;,0x900 ;pgtrdosfs (0x4000)
 trdos_sectorbuf=0x6c00
 trdos_fcbbuf=0x6d00 ;size=0x200*trdos_MAXFILES
 trdos_MAXFILES=8
+INTMUZSTACK=0x3e00 ;kernelspace
 INTSTACK1=0x3f00 ;kernelspace (для входа в обработчик без порчи стека)
 INTSTACK2=0x5f00;0x6000 ;pgkillable и pgtrdosfs (рабочий стек обработчика прерываний) (>=0x4000, иначе нельзя выключить теневые порты)
 TRDOSSTACK=0x5f00-96;0x6000-96 ;чтобы не пересекалось с INTSTACK (в промежутке между преключениями страниц может произойти системное прерывание), но и на экран не попало
