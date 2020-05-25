@@ -651,6 +651,53 @@ clslayer
         add hl,de
         ret
 
+BDOS_playcovox
+;hl=data (0xc000+), ends with 0x00
+;de=pagetable (0x0000+)
+;hx=delay
+        set 7,d ;de=pagetable (0x8000+)
+        ld a,(iy+app.mainpg)
+        call sys_setpg8000 ;pagetable in mainpg
+	di
+        ld a,(iy+app.gfxmode)
+        and 0xf7 ;noturbo
+	ld bc,0xbd77
+	out (c),a
+        push bc
+;hx=delay
+;hl=data
+;de=pagetable (0x8000+)
+        ld bc,memportc000
+	ld a,(de)
+	out (c),a
+BDOS_playcovox0
+        xor a ;4
+BDOS_playcovox0_a0
+	or (hl)	;7
+	out (0xfb),a	;11
+	jr z,BDOS_playcovoxdone	;7/12
+	inc hl		;6
+	bit 6,h		;8
+	jr z,BDOS_playcovoxpage	;7/12
+BDOS_playcovoxdelay
+	ld a,hx		;4+4
+	dec a		;4
+	jp nz,$-1	;10
+	jp BDOS_playcovox0_a0		;10=78t при d=1, шаг задержки 14 тактов
+BDOS_playcovoxpage
+;тут и раньше была неточная задержка
+	ld h,0xc0
+        inc de
+	ld a,(de)
+	out (c),a
+	jp BDOS_playcovoxdelay
+BDOS_playcovoxdone
+        ld a,(iy+app.gfxmode) ;turbo
+        pop bc
+	out (c),a
+	ei
+        ret
+
 BDOShandler
         push hl
         ld a,c
@@ -740,7 +787,9 @@ tbdoscmds
         db CMD_WRITESECTORS
         db CMD_SETMAINPAGE
         db CMD_SETMUSIC
+        db CMD_PLAYCOVOX
 nbdoscmds=$-tbdoscmds
+        dw BDOS_playcovox
         dw BDOS_setmusic
         dw BDOS_setmainpage
         dw BDOS_writesectors

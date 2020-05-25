@@ -136,6 +136,10 @@ _1=$
         endm
 
 ;invented  
+        macro OS_PLAYCOVOX ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
+        ld c,CMD_PLAYCOVOX
+	CALLBDOS
+        endm
         macro OS_SETMUSIC ;hl=muzaddr (0x4000..0xffff), a=muzpg (pages in 0x8000, 0xc000 are taken from current user memory)
         ld c,CMD_SETMUSIC
 	CALLBDOS
