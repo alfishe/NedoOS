@@ -11,7 +11,7 @@
 #define BLOCKSIZE 65280/*32768*/
 #define DESCSIZE 16
 
-BYTE trd[TRDSIZE];
+BYTE trd[10000000];
 BYTE filebuf[TRDSIZE];
 BYTE descbuf[DESCSIZE+1]; //for hobeta
 
