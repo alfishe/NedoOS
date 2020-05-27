@@ -8,7 +8,7 @@ DOCS		= nedoos.txt nedoos.new
 NEDOTRD		= _sdk/nedotrd.bin
 
 all:
-	echo "Use make atm2|atm2hd|atm3|atm3hd|atm3sd|evosd|pe26"
+	echo "Use make atm2|atm2hd|atm3|atm3hd|atm3sd|evolution|pe26"
 
 tools: ${TOOLS} 
 
@@ -144,29 +144,19 @@ atm3sd:
 #	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
 #	mv -f test.trd ${INSTALLDIR}/osatm3sd.trd
 
-evosd: 
+evolution evosd evohd: 
 	echo atm=1 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
-	echo SYSDRV=12 >> _sdk/syssets.asm
+	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
 	${MAKE} hobeta
-	cp nedoos.\$$C ${INSTALLDIR}/osevosd.\$$C
+	cp nedoos.\$$C ${INSTALLDIR}/osevo.\$$C
 #	${MAKE} trd
 #	${SJASMPLUS} kernel/hobeta.asm
-#	cp nedoos.\$$C ${INSTALLDIR}/osevosd.\$$C
-#	mv -f test.trd ${INSTALLDIR}/osevosd.trd
-
-evohd:
-	echo atm=1 > _sdk/syssets.asm
-	echo sys_npages=192 >> _sdk/syssets.asm
-	echo NEMOIDE=1 >> _sdk/syssets.asm
-	echo SYSDRV=4 >> _sdk/syssets.asm
-	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
-	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
-	${MAKE} hobeta
-	cp nedoos.\$$C ${INSTALLDIR}/osevohd.\$$C
+#	cp nedoos.\$$C ${INSTALLDIR}/osevo.\$$C
+#	mv -f test.trd ${INSTALLDIR}/osevo.trd
 
 pe26:
 	echo atm=2 > _sdk/syssets.asm
