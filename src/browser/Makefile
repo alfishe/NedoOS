@@ -1,20 +1,46 @@
 NAME		= browser.com
-OBJECTS		= 
-SOURCES		= browser.asm drawmc.asm dynmem.asm editline.asm file.asm gif.asm html.asm htmlview.asm http.asm jpeg.asm mempgs.asm nu.asm png.asm prmc.asm prvirt.asm
-RESOURCE	= 
+OBJECTS		=
+SOURCES		= browser.asm
+RESOURCE	=
+ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
 INSTALLDIR	= ../../release
+DEPAS		= ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
-all: ${NAME} ${SOURCES}
+.PHONY: all clean install install-doc
 
-browser.com: ${SOURCES}
-	${SJASMPLUS} --nologo browser.asm
+# Dependency generation rule (.com from .asm):
+%.${DEPEXT}: %.asm
+	set -e; ${RM} $@; \
+	${DEPAS} ${DEPAFLAGS} -MT $*.com -MF $@.tmp $<; \
+	sed -e 's,\($*\.com\) *:,\1 $@ :,g' < $@.tmp > $@; \
+	${RM} $@.tmp
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
+IncludeDeps = 0
+ifeq "${MAKECMDGOALS}" ""
+IncludeDeps = 1
+endif
+ifeq "${MAKECMDGOALS}" "all"
+IncludeDeps = 1
+endif
+
+ifeq "${IncludeDeps}" "1"
+include ${DEPS}
+endif
+
+all: ${NAME}
+
+${NAME}: ${SOURCES}
+	${SJASMPLUS} --nologo $<
+
+clean:
+	${RM} ${NAME} ${OBJECTS} ${DEPS}
 
 install: all
 	cp ${NAME} ${INSTALLDIR}/bin
 
-install-doc: ${DOC} 
+install-doc: ${DOC}
 #	cp ${DOC} ${INSTALLDIR}/doc
