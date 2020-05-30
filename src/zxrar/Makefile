@@ -1,6 +1,6 @@
-NAME		= tar.com
+NAME		= zxrar.com
 OBJECTS		=
-SOURCES		= tar.asm
+SOURCES		= zxrar.asm
 ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
 SJASMPLUSFLAGS	= --nologo --msg=war
@@ -31,7 +31,7 @@ include ${DEPS}
 endif
 
 ${NAME}: ${SOURCES}
-	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $^
 
 all: ${NAME}
 

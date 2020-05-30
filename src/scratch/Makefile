@@ -1,20 +1,46 @@
 NAME		= scratch.com
 OBJECTS		=
-SOURCES		= bitmap.asm control.asm files.asm math.asm navigator.asm pal.asm prarrow.asm prbitmap.asm prshapes.asm prtext.asm scratch.asm window.asm tarcsin tsin200 tsqrt_max2 64qua.fnt
-INSTALLDIR	= ../../release
+SOURCES		= scratch.asm
 DOC		= scratch.txt scratch.new
-
+ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
+INSTALLDIR	= ../../release
+DEPAS		= ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
-all: ${NAME} ${SOURCES}
+.DEFAULT_GOAL =
 
-scratch.com: ${SOURCES}
-	${SJASMPLUS} --nologo scratch.asm
+.PHONY: all clean install install-doc
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
+# Dependency generation rule (.com from .asm):
+%.${DEPEXT}: %.asm
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT $*.com -MT $@ -MF $@ $<
 
-install: all
-	cp ${NAME} ${INSTALLDIR}/bin
-install-doc: ${DOC} 
-	cp ${DOC} ${INSTALLDIR}/doc
+IncludeDeps = 0
+ifeq "${MAKECMDGOALS}" ""
+IncludeDeps = 1
+endif
+ifeq "${MAKECMDGOALS}" "all"
+IncludeDeps = 1
+endif
+
+ifeq "${IncludeDeps}" "1"
+include ${DEPS}
+endif
+
+${NAME}: ${SOURCES}
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+
+all: ${NAME}
+
+clean:
+	${RM} ${NAME} ${OBJECTS} ${DEPS}
+
+install: ${NAME}
+	cp $^ ${INSTALLDIR}/bin
+
+install-doc: ${DOC}
+#	cp $^ ${INSTALLDIR}/doc

@@ -1,18 +1,45 @@
 NAME		= cmd.com
 OBJECTS		=
 SOURCES		= cmd.asm
+ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
 INSTALLDIR	= ../../release
+DEPAS		= ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
-all: ${NAME} ${SOURCES}
+.DEFAULT_GOAL =
 
-cmd.com: ${SOURCES}
-	${SJASMPLUS} --nologo cmd.asm
+.PHONY: all clean install install-doc
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
-install:
-	cp ${NAME} ${INSTALLDIR}/bin
+# Dependency generation rule (.com from .asm):
+%.${DEPEXT}: %.asm
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT $*.com -MT $@ -MF $@ $<
 
-install-doc: ${DOC} 
-#	cp ${DOC} ${INSTALLDIR}/doc
+IncludeDeps = 0
+ifeq "${MAKECMDGOALS}" ""
+IncludeDeps = 1
+endif
+ifeq "${MAKECMDGOALS}" "all"
+IncludeDeps = 1
+endif
+
+ifeq "${IncludeDeps}" "1"
+include ${DEPS}
+endif
+
+${NAME}: ${SOURCES}
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+
+all: ${NAME}
+
+clean:
+	${RM} ${NAME} ${OBJECTS} ${DEPS}
+
+install: ${NAME}
+	cp $^ ${INSTALLDIR}/bin
+
+install-doc: ${DOC}
+#	cp $^ ${INSTALLDIR}/doc

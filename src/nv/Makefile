@@ -1,18 +1,46 @@
 NAME		= nv.com
 OBJECTS		=
-SOURCES		= heapsort.asm nv.asm nveditln.asm nvhexed.asm nvjptbl.asm nvsort.asm nvunit.asm nvview.asm winto866 nv.ext
+SOURCES		= nv.asm
+RESOURCES	= nv.ext
+ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
 INSTALLDIR	= ../../release
+DEPAS		= ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
-all: ${NAME} ${SOURCES}
+.DEFAULT_GOAL =
 
-nv.com: ${SOURCES}
-	${SJASMPLUS} --nologo --nofakes nv.asm
+.PHONY: all clean install install-doc
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
+# Dependency generation rule (.com from .asm):
+%.${DEPEXT}: %.asm
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT $*.com -MT $@ -MF $@ $<
 
-install: all
-	cp nv.ext ${NAME} ${INSTALLDIR}/bin
-install-doc: ${DOC} 
-#	cp ${DOC} ${INSTALLDIR}/doc
+IncludeDeps = 0
+ifeq "${MAKECMDGOALS}" ""
+IncludeDeps = 1
+endif
+ifeq "${MAKECMDGOALS}" "all"
+IncludeDeps = 1
+endif
+
+ifeq "${IncludeDeps}" "1"
+include ${DEPS}
+endif
+
+${NAME}: ${SOURCES}
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+
+all: ${NAME}
+
+clean:
+	${RM} ${NAME} ${OBJECTS} ${DEPS}
+
+install: ${NAME} ${RESOURCES}
+	cp $^ ${INSTALLDIR}/bin
+
+install-doc: ${DOC}
+#	cp $^ ${INSTALLDIR}/doc

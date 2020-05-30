@@ -1,23 +1,22 @@
 NAME		= browser.com
 OBJECTS		=
 SOURCES		= browser.asm
-RESOURCE	=
 ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
 INSTALLDIR	= ../../release
 DEPAS		= ${ASPP}
 DEPAFLAGS	= -E -MM -I .
 DEPEXT		= d
 DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
+.DEFAULT_GOAL =
+
 .PHONY: all clean install install-doc
 
 # Dependency generation rule (.com from .asm):
 %.${DEPEXT}: %.asm
-	set -e; ${RM} $@; \
-	${DEPAS} ${DEPAFLAGS} -MT $*.com -MF $@.tmp $<; \
-	sed -e 's,\($*\.com\) *:,\1 $@ :,g' < $@.tmp > $@; \
-	${RM} $@.tmp
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT $*.com -MT $@ -MF $@ $<
 
 IncludeDeps = 0
 ifeq "${MAKECMDGOALS}" ""
@@ -31,16 +30,16 @@ ifeq "${IncludeDeps}" "1"
 include ${DEPS}
 endif
 
-all: ${NAME}
-
 ${NAME}: ${SOURCES}
-	${SJASMPLUS} --nologo $<
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+
+all: ${NAME}
 
 clean:
 	${RM} ${NAME} ${OBJECTS} ${DEPS}
 
-install: all
-	cp ${NAME} ${INSTALLDIR}/bin
+install: ${NAME}
+	cp $^ ${INSTALLDIR}/bin
 
 install-doc: ${DOC}
-#	cp ${DOC} ${INSTALLDIR}/doc
+#	cp $^ ${INSTALLDIR}/doc

@@ -1,20 +1,45 @@
 NAME		= basic.com
 OBJECTS		=
-SOURCES		= basic.asm bascmds.asm
+SOURCES		= basic.asm
+ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
 INSTALLDIR	= ../../release
+DEPAS		= ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
+.DEFAULT_GOAL =
 
-all: ${NAME} ${SOURCES}
+.PHONY: all clean install install-doc
+
+# Dependency generation rule (.com from .asm):
+%.${DEPEXT}: %.asm
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT $*.com -MT $@ -MF $@ $<
+
+IncludeDeps = 0
+ifeq "${MAKECMDGOALS}" ""
+IncludeDeps = 1
+endif
+ifeq "${MAKECMDGOALS}" "all"
+IncludeDeps = 1
+endif
+
+ifeq "${IncludeDeps}" "1"
+include ${DEPS}
+endif
 
 ${NAME}: ${SOURCES}
-	${SJASMPLUS} --nologo basic.asm
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
+all: ${NAME}
 
-install: all
-	cp ${NAME} ${INSTALLDIR}/bin
+clean:
+	${RM} ${NAME} ${OBJECTS} ${DEPS}
 
-install-doc: ${DOC} 
-#	cp ${DOC} ${INSTALLDIR}/doc
+install: ${NAME}
+	cp $^ ${INSTALLDIR}/bin
+
+install-doc: ${DOC}
+#	cp $^ ${INSTALLDIR}/doc

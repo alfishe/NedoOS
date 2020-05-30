@@ -1,16 +1,28 @@
 #!/bin/bash
 #
-# Simple assembler source file preprocessor.
+# aspp - Simple assembler source file preprocessor.
 #
-# (c) Ivan Ivanovich Tatarinov, <ivan-tat@ya.ru>, 2019.
+# Author: Ivan Tatarinov, <ivan-tat@ya.ru>, 2019-2020.
 #
 # This is free and unencumbered software released into the public domain.
 # For more information, please refer to <http://unlicense.org>.
-# Last version can be found at
-# https://gitlab.com/ivan-tat/retroplayer/-/blob/master/scripts/aspp/aspp
 #
-
+# Home page: <https://gitlab.com/ivan-tat/aspp>
+#
 set -e
+
+PROGRAM_NAME=\
+'aspp'
+PROGRAM_DESCRIPTION=\
+'Simple assembler source file preprocessor.'
+PROGRAM_LICENSE=\
+'License: public domain, <http://unlicense.org>
+This is free software; you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.'
+PROGRAM_AUTHORS=\
+'Author: Ivan Tatarinov, <ivan-tat@ya.ru>, 2019-2020.'
+PROGRAM_CONTACTS=\
+'Home page: <https://gitlab.com/ivan-tat/aspp>'
 
 DEBUG=0
 
@@ -35,7 +47,7 @@ declare -a v_sources_real
 declare -a v_sources_base
 declare -a v_sources_user
 declare -a v_sources_parse  # 1 (must be parsed) or 0 (no parsing)
-declare    v_target_name
+declare -a v_target_names
 declare    v_output_name
 declare -a v_prerequisites
 declare    inc_real
@@ -50,11 +62,11 @@ _dbg() {
 }
 
 _dbg_dump_tables() {
-    local -i i
-    local -i N
+    local -i i N
     if [[ -n $DEBUG ]]; then
         i=0
         N=${#v_include_paths_real[@]}
+        if [[ $N -eq 0 ]]; then _dbg "No include paths."; fi
         while [[ $i -lt $N ]]; do
             _dbg "include path [$i]: user path = '${v_include_paths_user[$i]}'"
             _dbg "include path [$i]: base path = '${v_include_paths_base[$i]}'"
@@ -63,13 +75,20 @@ _dbg_dump_tables() {
         done
         i=0
         N=${#v_input_sources_real[@]}
+        if [[ $N -eq 0 ]]; then _dbg "No input sources."; fi
         while [[ $i -lt $N ]]; do
             _dbg "input source [$i]: user file = '${v_input_sources_user[$i]}'"
             _dbg "input source [$i]: base path = '${v_input_sources_base[$i]}'"
             _dbg "input source [$i]: real file = '${v_input_sources_real[$i]}'"
             let i=i+1
         done
-        _dbg "target = '$v_target_name'"
+        i=0
+        N=${#v_target_names[@]}
+        if [[ $N -eq 0 ]]; then _dbg "No target names."; fi
+        while [[ $i -lt $N ]]; do
+            _dbg "target [$i] = '${v_target_names[$i]}'"
+            let i=i+1
+        done
         _dbg "output = '$v_output_name'"
     fi
 }
@@ -126,6 +145,15 @@ add_include_path() {
     _dbg "include path [$i]: user name = '$3'"
     _dbg "include path [$i]: base path = '$2'"
     _dbg "include path [$i]: real path = '$1'"
+    return 0
+}
+
+# $1=target name
+add_target_name() {
+    local -i i
+    i=${#v_target_names[@]}
+    v_target_names[$i]="$1"
+    _dbg "added new target name #$i: '$1'"
     return 0
 }
 
@@ -415,12 +443,14 @@ print_prerequisites() {
 
 show_title() {
     cat <<EOT
-Simple assembler source file preprocessor.
-(c) Ivan Ivanovich Tatarinov, <ivan-tat@ya.ru>, 2019.
-This is free and unencumbered software released into the public domain.
-For more information, please refer to <http://unlicense.org>.
+$PROGRAM_NAME - $PROGRAM_DESCRIPTION
+$PROGRAM_LICENSE
+$PROGRAM_AUTHORS
+$PROGRAM_CONTACTS
 EOT
 }
+
+HELP_HINT="Use '-h' or '--help' to get help."
 
 show_help() {
     cat <<EOT
@@ -429,12 +459,12 @@ Usage:
     `basename $0` [options] [filename ...] [options]
 
 Options (GCC-compatible):
--h, --help      show this help.
+-h, --help      show this help and exit
 -E              preprocess
 -I <path>       include directory
 -M[M]           output autodepend make rule
 -MF <file>      autodepend output name
--MT <target>    autodepend target name
+-MT <target>    autodepend target name (can be specified multiple times)
 EOT
 }
 
@@ -468,7 +498,7 @@ resolve_file() {
         fi
         let i=i+1
     done
-    _dbg "'$f_loc' not resolved."
+    _dbg "'$f_loc' is not resolved."
     return 1
 }
 
@@ -592,14 +622,15 @@ make_rule() {
     return 0
 }
 
+# $1=output file
 write_rule() {
-    echo -n "$v_target_name :" > "$1"
+    echo -n "${v_target_names[*]}:" > "$1"
     print_prerequisites >> "$1"
     echo '' >> "$1"
 }
 
 if [[ $# -eq 0 ]]; then
-    error_exit "No parameters. Use '-h' for help."
+    error_exit "No parameters. $HELP_HINT"
 fi
 
 v_base_path_real="$PWD"
@@ -644,7 +675,7 @@ while [[ $# -gt 0 ]]; do
             add_missing_arg_error -MT $i
             break
         fi
-        v_target_name=$1
+        add_target_name "$1"
         shift 1
         ;;
     -*)
@@ -656,7 +687,7 @@ while [[ $# -gt 0 ]]; do
             add_error "Don't know what to do with input file '$1' (#$i)."
         else
             if ! add_input_source_with_check $1; then
-                error_exit "$1 not found."
+                error_exit "$1 is not found."
             fi
         fi
         shift 1
@@ -697,7 +728,7 @@ show_help)
     exit 0
     ;;
 make_rule)
-    if [[ -z "${v_target_name}" ]]; then
+    if [[ ${#v_target_names[@]} -eq 0 ]]; then
         add_error "No target name was specified."
     fi
     if [[ -z "${v_output_name}" ]]; then
