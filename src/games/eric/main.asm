@@ -33,7 +33,17 @@ begin
         ;or a
 	;jp nz,noloadgfx
 	ld de,bmpbuf
-	ld hl,16504 ;8bit bmp 128x128
+        ld hl,14+2
+;DE = Buffer address, HL = Number of bytes to read
+        call readstream_file
+        ld de,bmpbuf
+        ld hl,(bmpbuf+14)
+        dec hl
+        dec hl
+;DE = Buffer address, HL = Number of bytes to read
+        call readstream_file
+        ld de,bmpbuf
+	ld hl,16384+(4*16);16504 ;8bit bmp 128x128
 ;DE = Buffer address, HL = Number of bytes to read
         call readstream_file
         call closestream_file
@@ -42,7 +52,7 @@ begin
         ld de,pal
         OS_SETPAL
         
-        ld hl,bmpbuf+(128*127)+0x76 ;bottom
+        ld hl,bmpbuf+(128*127)+(4*16);+0x76 ;bottom
         ld e,0
 recodegfx0
         push hl
@@ -259,7 +269,7 @@ recodegfxsubchr
         ret
 
 recodepal
-        ld hl,bmpbuf+54
+        ld hl,bmpbuf;+54
         ld ix,pal
         ld b,16
 recodepal0

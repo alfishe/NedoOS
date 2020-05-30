@@ -44,7 +44,7 @@ file_buf_end=file_buf+127
 ;      4   10      4    Смещение в байтах от начала файла до   
 ;                       начала описания растрового изображения (НАМ НЕ НУЖНО, у нас 118)
                                                               
-; II   5   14      4    Размер Описания Изображения (=40 WINDOWS) (НАМ НЕ НУЖНО, всегда 40)
+; II   5   14      4    Размер Описания Изображения (=40 WINDOWS) (НАМ НЕ НУЖНО, всегда 40 - в Linux больше!!!)
 ;      6   18      4    Ширина изображения (в пикселах)        (+)
 ;      7   22      4    Высота изображения (в пикселах)        (+)
 ;      8   26      2    Количество цветовых плоскостей (=1)    (НАМ НЕ НУЖНО, всегда 1)
@@ -238,12 +238,13 @@ readbmp
         call delbitmap ;удалить текущую картинку и освободить странички
         pop iy
         
-        ;call readlong ;размер ВМР-файла (байт) ;hlde
-        ;call readlong ;резерв
-        ;call readlong ;смещение в байтах от начала файла до начала описания растрового изображения
-        ;call readlong ;размер описания изображения (обычно 40 в Windows)
-        ;call readlong ;ширина
-        call readlong5
+        call readlong ;размер ВМР-файла (байт) ;hlde
+        call readlong ;резерв
+        call readlong ;смещение в байтах от начала файла до начала описания растрового изображения
+        call readlong ;размер описания изображения (обычно 40 в Windows)
+         ld (bmpdescrsize),de
+        call readlong ;ширина
+        ;call readlong5
         ld (curbitmapwid_edit),de
         ;ld a,d;(curbitmapwid_view+1)
         ;ld (readbmp_checkendline_HSB),a
@@ -287,7 +288,20 @@ readbmp_noneghgt
         ld a,16
 readbmp_pal_256c
         push af
-        call readlong ;количество важных цветов в палитре
+        ;call readlong ;количество важных цветов в палитре
+        
+;в Linux может быть дополнительный блок
+bmpdescrsize=$+1
+        ld hl,0
+        ld de,-(40-4)
+        add hl,de
+bmpdescrsizeskip0
+        call readbyte
+        dec hl
+        ld a,h
+        or l
+        jr nz,bmpdescrsizeskip0
+
 ;дальше идёт палитра?
         ld ix,workpal
         pop bc ;b=число цветов

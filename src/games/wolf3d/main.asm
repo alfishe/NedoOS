@@ -241,7 +241,19 @@ openfile_skipbmpheader
         OS_OPENHANDLE
         push bc
         ld de,bmpbuf;0x4000 ;addr
-        ld hl,0x0076 ;size
+        ld hl,14+2;0x0076 ;size
+        OS_READHANDLE ;b=handle
+        pop bc
+        push bc
+        ld de,bmpbuf;0x4000 ;addr
+        ld hl,(bmpbuf+14)
+        dec hl
+        dec hl
+        OS_READHANDLE ;b=handle
+        pop bc
+        push bc
+        ld de,bmpbuf;0x4000 ;addr
+        ld hl,4*16;0x0076 ;size
         OS_READHANDLE ;b=handle
         pop bc
         ret

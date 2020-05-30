@@ -389,7 +389,7 @@ loadbmp
 ;      4   10      4    Смещение в байтах от начала файла до   
 ;                       начала описания растрового изображения (НАМ НЕ НУЖНО, у нас 118)
                                                               
-; II   5   14      4    Размер Описания Изображения (=40 WINDOWS) (НАМ НЕ НУЖНО, всегда 40)
+; II   5   14      4    Размер Описания Изображения (=40 WINDOWS) (НАМ НЕ НУЖНО, всегда 40 - в Linux больше!)
 ;      6   18      4    Ширина изображения (в пикселах)        (+)
 ;      7   22      4    Высота изображения (в пикселах)        (+)
 ;      8   26      2    Количество цветовых плоскостей (=1)    (НАМ НЕ НУЖНО, всегда 1)
@@ -404,20 +404,29 @@ loadbmp
 ;дальше идёт палитра (B, G, R, 0)
 
 ;дальше идёт картинка (длины строк в байтах кратны 4)
+        ;jr $
 
-        ld b,18-2
-loadbmp_skipheader0
-        call RDBYTE
-        djnz loadbmp_skipheader0
+        ld b,18-2 -4+1
+;loadbmp_skipheader0
+;        call RDBYTE
+;        djnz loadbmp_skipheader0
+        call read_b_bytes
+         call GETDWORD_slow
+         push de
+
         call GETDWORD_slow
-        ex de,hl ;hl=wid
+        ex de,hl ;hl=wid ;TODO защита
         call setpicwid
         call GETDWORD_slow
         ;ld (curpichgt),de
-        ex de,hl
+        ex de,hl ;TODO защита
         call setpichgt
         
-        ld b,54-26
+         pop hl
+         ld a,l
+         sub 12
+         ld b,a
+        ;ld b,54-26
         call read_b_bytes
         
         ;ld de,0
@@ -2009,7 +2018,7 @@ twinto866
 endcode=$
         
         ds end1-$
-        ;display "free for code=",$-endcode
+        display "free for code=",$-endcode
 
         ds 0x4000-$ ;stack
         align 256
