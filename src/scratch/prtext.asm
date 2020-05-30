@@ -102,6 +102,12 @@ prnumdword_nozeroq
 ;de=text
         ld bc,prchar48ega_whiteoncolor
         jr prtext48egago
+        SHAPESPROC shapes_prtext48ega_white7oncolor
+;lx=color %33210210
+;hl=scr
+;de=text
+        ld bc,prchar48ega_white7oncolor
+        jr prtext48egago
         SHAPESPROC shapes_prtext48ega
 ;hl=scr
 ;de=text

@@ -328,7 +328,7 @@ drawpalcurcolor
         call setpgshapes
 
         ld de,(paleditorpal_curcolor)
-        ld hl,0x2000+(editpal_curcolory+editpal_curcolorhgt)*40+editpal_curcolorx8 + scrbase
+        ld hl,0x2000+((editpal_curcolory+editpal_curcolorhgt)*40)+editpal_curcolorx8 + scrbase
         call prhexcolor
         ld bc,editpal_curcolory*256 + editpal_curcolorx8 ;b=y ;c=x/8
         ld de,editpal_curcolorhgt*256+editpal_curcolorwid8 ;d=hgt ;e=wid8
@@ -643,6 +643,19 @@ curV=$+1
         call calcHSVtoRGB
         exx
 ;d=r, e=g, b=b = 0..15
+         ld a,(t444)
+         cp '4'
+         jr z,drawpal_HSVtocolor_no222
+         ld a,d
+         call col4to2
+         ld d,a
+         ld a,e
+         call col4to2
+         ld e,a
+         ld a,b
+         call col4to2
+         ld b,a
+drawpal_HSVtocolor_no222
         ld a,d
         rla
         rla
@@ -669,6 +682,14 @@ curV=$+1
 ;b,c=%grbG11RB
         ld (paleditorpal_color),bc
         jp setpgs_scr
+
+col4to2
+         and 0x0c
+         ld c,a
+         rrca
+         rrca
+         add a,c
+         ret
 
 calcRGBtopal_pp
 ;e=B, d=G, l=R
@@ -698,6 +719,11 @@ drawpalcolor
 
         call setpgshapes
 
+        ld lx,0
+        ld hl,0x2000+((editpal_colory+editpal_curcolorhgt+8)*40)+editpal_colorx8 + scrbase + 1
+        ld de,t444
+        call shapes_prtext48ega_white7oncolor
+
         ld de,(paleditorpal_color)
         ld hl,0x2000+(editpal_colory+editpal_colorhgt)*40+editpal_colorx8 + scrbase
         call prhexcolor
@@ -709,7 +735,9 @@ drawpalcolor
         ld de,editpal_colorhgt*256+editpal_colorwid8 ;d=hgt ;e=wid8
         ld a,0xc0;%11000000 ;a=%33210210
         jp shapes_fillbox
-        
+
+t444
+        db "444",0
        
 editpal
 ;hl=редактируемый цвет
@@ -840,7 +868,7 @@ editpal_fire_or_rmbsetcolor
         ld a,(arry) ;0..199
         sub editpal_colory
         cp editpal_colorhgt
-        ret nc
+         jr nc,switch444 ;ret nc
         ld hl,(paleditorpal_color)
         ld (paleditorpal_curcolor),hl ;чтобы видеть на следующем входе
         ;jp editpal_quit ;hl=цвет-результат
@@ -850,6 +878,18 @@ editpal_quit
 editpal_quitsp=$+1
         ld sp,0
         ret
+
+switch444
+        ld hl,t444
+        ld a,(hl)
+        xor 2^4
+        ld (hl),a
+        inc hl
+        ld (hl),a
+        inc hl
+        ld (hl),a
+        call drawpal_HSVtocolor
+        jp drawpalcolor
 
 editpal_fire_or_rmbsetcurcolor
         ld a,(arry)
