@@ -586,7 +586,9 @@ xmid=(xleft+xright)/2
         TSPRITES 0,266,36
         TSPRITES 0,302,56
         TSPRITES 0,358,38
-        TSPRITES 0,396,50
+        TSPRITES 0,396,50 ;10
+        TSPRITES 0,448,24
+        TSPRITES 0,474,22
 
 MONSTAB
 ;ZOMBIEMAN stay
@@ -614,22 +616,22 @@ MONSTAB
         db 8
         db 0,0
 ;AMMO
-        db 7 ;G
-        db 8 ;R
-        db 9 ;MEGAHEALTH
-        db 10 ;RL
-        db 11 ;AMMO
-        db 0
+        db 12 ;G
+        db 12 ;R
+        db 12 ;MEGAHEALTH
+        db 12 ;RL
+        db 12 ;AMMO
+        db 12
         db 0,0
 ;STOLB
-        db 12
-        db 12
-        db 12
-        db 12
-        db 12
-        db 12
-        db 12
-        db 12
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
 
         if 1==0
         DS ((-$)&7)&0xff
