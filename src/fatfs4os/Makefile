@@ -1,5 +1,8 @@
+# Supported environments:
+#   GNU/Linux.
+#
 # Used tools:
-#   GNU core utilities, aspp.sh, GCC, IAR, Wine, GNU grep, GNU sed, unix2dos.
+#   GNU core utilities, GNU grep, GNU sed, tools/aspp.sh, GCC, unix2dos, Wine, IAR.
 
 NAME		= fatfs.raw
 SOURCES		= mylib.asm ff.c
@@ -17,7 +20,12 @@ AZ80		= ${IARDIR}/bin/az80.exe
 XLINK		= ${IARDIR}/bin/xlink.exe
 IARINC		= ${IARDIR}/inc
 IARLIB		= ${IARDIR}/lib
-WINE		= wine
+ifeq "${OS}" "Windows_NT"
+WINE		=
+else
+UNIX2DOS	= unix2dos -q
+WINE		= wine cmd /c
+endif
 ICCZ80FLAGS	= -S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -I${IARINC}/
 DEPAS		= ${ASPP}
 DEPAFLAGS	= -E -MM -I .
@@ -28,9 +36,12 @@ DEPS		= \
  ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}} \
  ${patsubst %.c,%.${DEPEXT},${filter %.c,${SOURCES}}}
 
-.DEFAULT_GOAL =
+.DEFAULT_GOAL = all
 
-.PHONY: all clean install install-doc
+.PHONY: empty all clean install install-doc
+
+empty:
+	@echo 'Usage: make [ all | clean | install | install-doc ]'
 
 # Dependency generation rule (.r01 from .asm):
 %.${DEPEXT}: %.asm
@@ -40,15 +51,9 @@ DEPS		= \
 %.${DEPEXT}: %.c
 	${RM} $@ && ${DEPCC} ${DEPCFLAGS} -MT ${TMPDIR}/$*.r01 -MT $@ -MF $@ $< || true
 
-IncludeDeps = 0
-ifeq "${MAKECMDGOALS}" ""
-IncludeDeps = 1
-endif
-ifeq "${MAKECMDGOALS}" "all"
-IncludeDeps = 1
-endif
-
-ifeq "${IncludeDeps}" "1"
+ifeq "${MAKECMDGOALS}" "empty"
+else ifeq "${MAKECMDGOALS}" "clean"
+else
 include ${DEPS}
 endif
 
@@ -56,27 +61,35 @@ ${TMPDIR}:
 	mkdir -p $@
 
 ${TMPDIR}/%.r01: %.asm | ${AZ80} ${TMPDIR}
-	${WINE} cmd /c ${AZ80} -S -O${@D}/ -uu $<
+	${WINE} ${AZ80} -S -O${@D}/ -uu $<
 
 ${TMPDIR}/%.r01 ${TMPDIR}/%.lst ${TMPDIR}/%.s01: %.c | ${ICCZ80} ${TMPDIR}
-	${WINE} cmd /c ${ICCZ80} ${ICCZ80FLAGS} -L${@D}/ -O${@D}/ -A${@D}/ $<
+	${WINE} ${ICCZ80} ${ICCZ80FLAGS} -L${@D}/ -O${@D}/ -A${@D}/ $<
 
 ${LINKER_FLAGS_FILE}: | ${TMPDIR}
-	echo '${OBJECTS}' | unix2dos > $@ && \
-	echo '-S -cZ80 -FRAW-BINARY -C ${IARLIB}/clz80 -o ${NAME} -l ${LISTING} -xe' | unix2dos >> $@ && \
-	echo '-Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF' | unix2dos >> $@
+	echo '${OBJECTS}' > $@
+	echo '-S -cZ80 -FRAW-BINARY -C ${IARLIB}/clz80 -o ${NAME} -l ${LISTING} -xe' >> $@
+	echo '-Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF' >> $@
+ifeq "${OS}" "Windows_NT"
+else
+	${UNIX2DOS} $@
+endif
 
 ${NAME} ${LISTING}: ${LINKER_FLAGS_FILE} ${OBJECTS}
-	${WINE} cmd /c ${XLINK} -f $<
+	${WINE} ${XLINK} -f $<
 
 ${EXPORTS_FILE}: ${LISTING}
-	echo '; ${@F} - FatFS calls.' | unix2dos > $@ && \
-	echo '; This file is a part of NedoOS project.' | unix2dos >> $@ && \
-	echo '; Compatible compiler: sjasmplus.' | unix2dos >> $@ && \
-	echo '; This file was generated automatically while building FatFS.' | unix2dos >> $@ && \
-	echo 'ffsfunc' | unix2dos >> $@ && \
+	echo '; ${@F} - FatFS calls.' > $@
+	echo '; This file is a part of NedoOS project.' >> $@
+	echo '; Compatible compiler: sjasmplus.' >> $@
+	echo '; This file was generated automatically while building FatFS.' >> $@
+	echo 'ffsfunc' >> $@
 	grep -Ee '^[[:space:]]+f_' $< | \
-	sed -re 's/^[[:space:]]+(f_[^ ]+)[[:space:]]+([[:xdigit:]]{4})/.\1 EQU 0x\2/' | unix2dos >> $@
+	sed -re 's/^[[:space:]]+(f_[^ ]+)[[:space:]]+([[:xdigit:]]{4})/.\1 EQU 0x\2/' >> $@
+ifeq "${OS}" "Windows_NT"
+else
+	${UNIX2DOS} $@
+endif
 
 all: ${NAME} ${EXPORTS_FILE}
 
