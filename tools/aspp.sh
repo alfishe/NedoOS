@@ -536,10 +536,13 @@ parse_source() {
                     inc_base=`dirname "$f_loc"`
                     add_source "$inc_real" "$inc_base" "$inc_user" $inc_parse
                 else
-                    rm -f $tmp
-                    add_error "Specified '$f_loc' not found."
-                    _dbg "'$f_loc' not found."
-                    return 1
+#                   rm -f $tmp
+#                   add_error "Specified '$f_loc' not found."
+#                   _dbg "'$f_loc' not found."
+#                   return 1
+                    inc_real="$f_loc"
+                    inc_base=`dirname "$f_loc"`
+                    add_source "$inc_real" "$inc_base" "$inc_user" 0
                 fi
             else
                 # realtive source's path - try to resolve real name
@@ -562,10 +565,11 @@ parse_source() {
                     if resolve_file "$f_loc" inc_user inc_base inc_real; then
                         add_source "$inc_real" "$inc_base" "$inc_user" $inc_parse
                     else
-                        rm -f $tmp
-                        add_error "Specified '$f_loc' not found."
-                        _dbg "'$f_loc' not found."
-                        return 1
+#                       rm -f $tmp
+#                       add_error "Specified '$f_loc' not found."
+#                       _dbg "'$f_loc' not found."
+#                       return 1
+                        add_source "$inc_real" "$inc_base" "$inc_user" 0
                     fi
                 fi
             fi

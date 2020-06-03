@@ -1,27 +1,66 @@
+# Supported environments:
+#   GNU/Linux.
+#
+# Used tools:
+#   GNU core utilities, tools/aspp.sh, tools/sjasmplus, tools/mhmt.
+
 NAME		= code.c
-OBJECTS		= initcode.c syscode.c syscode.c.mlz
-SOURCES		= ffsfunc.asm bdospg2.asm fatfsdrv.asm fatfs_h.asm idle.asm main.asm unmegalz.asm sysbdos.asm syskey2.asm syskrnl.asm trdosfs.asm trdosio.asm unmegalz.asm userkrnl.asm userkrnl.asm w5300.asm 866toatm ../fatfs4os/fatfs.raw ps2drv.asm sl811.asm ../_sdk/syssets.asm
-
+OBJECTS		=
+SOURCES		= main.asm
+DOC		=
+BINS		= initcode.c syscode.c
+TMPS		= user.l syscode.c.mlz
+ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
-MHMT		=../../tools/mhmt
+SJASMPLUSFLAGS	= --nologo --msg=war
+MHMT		= ../../tools/mhmt
+DEPAS		= ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPCC		= gcc
+DEPCFLAGS	= -E -MM -I .
+DEPEXT		= d
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
-all: ${NAME} ${SOURCES}
+.DEFAULT_GOAL = all
 
-code.c: syscode.c.mlz initcode.c
-	cat initcode.c syscode.c.mlz > code.c
+.PHONY: empty all clean install install-doc
 
-syscode.c.mlz: syscode.c
-	${MHMT} -mlz syscode.c
+empty:
+	@echo 'Usage: make [ all | clean | install | install-doc ]'
 
-initcode.c: syscode.c
+# Dependency generation rule (${BINS} from .asm):
+%.${DEPEXT}: %.asm
+ifeq "${OS}" "Windows_NT"
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} ${addprefix -MT ,${BINS}} -MT $@ -MF $@ $<
+else
+	${RM} $@ && env LC_CTYPE=C ${DEPAS} ${DEPAFLAGS} ${addprefix -MT ,${BINS}} -MT $@ -MF $@ $<
+endif
 
-syscode.c: ${SOURCES}
-	${SJASMPLUS} --nologo main.asm
+ifeq "${MAKECMDGOALS}" "empty"
+else ifeq "${MAKECMDGOALS}" "clean"
+else
+include ${DEPS}
+endif
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
+../fatfs4os/fatfs.raw:
+	${MAKE} -C ${@D}
+
+${BINS} user.l: ${SOURCES}
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+
+%.mlz: %
+	${MHMT} -mlz $<
+
+# The order of files does matter!
+${NAME}: initcode.c syscode.c.mlz
+	cat $^ > $@
+
+all: ${NAME}
+
+clean:
+	${RM} ${NAME} ${OBJECTS} ${BINS} ${TMPS} ${DEPS}
 
 install: all
 
-install-doc: ${DOC} 
+install-doc: ${DOC}
 #	cp ${DOC} ${INSTALLDIR}/doc
