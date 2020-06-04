@@ -49,3 +49,8 @@
 + nedotok исправлен для компиляции в gcc (demige) - 32bit only!
 + в str добавлена функция strlen (demige)
 
+04.06.2020:
++ enum позволяет запятую после последнего элемента
++ enum {a, b=10, c, d}
+- неправильно работал двойной typecast, например VAR LONG l2 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb;
+- неправильно работали вложенные #ifdef, если внутри был #include

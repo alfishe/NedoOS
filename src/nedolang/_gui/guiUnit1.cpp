@@ -124,10 +124,15 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
   //setfhint('fouthints'); //AssignFile(fhint,'fouthints'); Rewrite(fhint);
   //setferr('ferr'); //AssignFile(ferr,'ferr'); Rewrite(ferr);
 //  if (cbARM->Checked) {
-  if (rgTarget->ItemIndex == 1) {
-    s="..\\_sdk\\nedolarm.exe";
-  }else {
+  switch (rgTarget->ItemIndex) {
+  case 0:
     s="..\\_sdk\\nedolang.exe";
+    break;
+  case 1:
+    s="..\\_sdk\\nedolarm.exe";
+    break;
+  default:
+    s="..\\_sdk\\nedolspt.exe";
   };
 //  if(!cbAsm->Checked) s=s+" -a";
   if(cbComments->Checked) s=s+" -C";

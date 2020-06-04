@@ -588,7 +588,7 @@ xmid=(xleft+xright)/2
         TSPRITES 0,358,38
         TSPRITES 0,396,50 ;10
         TSPRITES 0,448,24
-        TSPRITES 0,474,22
+        TSPRITES 0,472,26
 
 MONSTAB
 ;ZOMBIEMAN stay

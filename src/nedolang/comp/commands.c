@@ -7,7 +7,11 @@
 #ifdef TARGET_THUMB
 #include "sizesarm.h"
 #else
+#ifdef TARGET_SCRIPT
+#include "sizesspt.h"
+#else
 #include "sizesz80.h"
+#endif
 #endif
 
 CONST BYTE _typeshift[32]; //log размер типа (n для 2^n байт)
@@ -29,7 +33,11 @@ EXPORT VAR UINT  _lenjoined;
 #ifdef TARGET_THUMB
 #include "codearm.c"
 #else
+#ifdef TARGET_SCRIPT
+#include "codespt.c"
+#else
 #include "codez80.c"
+#endif
 #endif
 
 #include "regs.c"
@@ -66,7 +74,7 @@ VAR UINT _oldlblshift[0x100];
 VAR BYTE _lbls[_LBLBUFSZ];
 VAR BYTE _lblhash;
 
-VAR UINT _typeaddr;
+EXPORT VAR UINT _typeaddr;
 EXPORT VAR UINT _varszaddr;
 EXPORT VAR UINT _varsz;
 
@@ -119,7 +127,7 @@ EXPORT PROC setvarsz(UINT addr, UINT shift)
   POKE *(PUINT)(&_lbls[addr]) = shift;
 }
 
-EXPORT FUNC TYPE lbltype() //вернуть тип метки _name
+EXPORT FUNC TYPE lbltype() //вернуть тип метки _name и _typeaddr
 {
 VAR PBYTE plbl; //метка в таблице заканчивается нулём
 VAR TYPE t;
@@ -484,10 +492,16 @@ EXPORT PROC cmdmul()
 ;;  cmtstr( ";OPERATION *" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {emitmulbyte();
+  }ELSE IF ( (_t==_T_UINT)||(_t==_T_INT) ) {emitmuluint();
+  }ELSE IF (_t==_T_LONG) {emitmullong();
+#else
   IF (_t==_T_BYTE) {emitcall2rgs("_MULB.");
   }ELSE IF (_t==_T_UINT) {emitcall2rgs("_MUL.");
   }ELSE IF (_t==_T_INT) {emitcall2rgs("_MULSIGNED.");
   }ELSE IF (_t==_T_LONG) {emitcall4rgs("_MULLONG.");
+#endif
   }ELSE errtype("*",_t);
 }
 
@@ -497,10 +511,17 @@ EXPORT PROC cmddiv() //старое разделить на новое!
 ;;  cmtstr(";OPERATION /"); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {emitdivbyte();
+  }ELSE IF (_t==_T_UINT) {emitdivuint();
+  }ELSE IF (_t==_T_INT) {emitdivint();
+  }ELSE IF (_t==_T_LONG) {emitdivlong();
+#else
   IF (_t==_T_BYTE) {emitcall2rgs("_DIVB.");
   }ELSE IF (_t==_T_UINT) {emitcall2rgs("_DIV.");
   }ELSE IF (_t==_T_INT) {emitcall2rgs("_DIVSIGNED.");
   }ELSE IF (_t==_T_LONG) {emitcall4rgs("_DIVLONG.");
+#endif
   }ELSE errtype("/",_t);
 }
 
@@ -510,9 +531,15 @@ EXPORT PROC cmdshl() //старое сдвинуть столько раз, сколько гласит новое!
 ;;  cmtstr( ";OPERATION shl" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {emitshlbyte();
+  }ELSE IF ( (_t==_T_UINT)||(_t==_T_INT) ) {emitshluint();
+  }ELSE IF (_t==_T_LONG) {emitshllong();
+#else
   IF (_t==_T_BYTE) {emitcall2rgs("_SHLB.");
   }ELSE IF ( (_t==_T_INT)||(_t==_T_UINT) ) {emitcall2rgs("_SHL.");
   }ELSE IF (_t==_T_LONG) {emitcall4rgs("_SHLLONG.");
+#endif
   }ELSE errtype("<<",_t);
 }
 
@@ -522,10 +549,17 @@ EXPORT PROC cmdshr() //старое сдвинуть столько раз, сколько гласит новое!
 ;;  cmtstr( ";OPERATION shr" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {emitshrbyte();
+  }ELSE IF (_t==_T_UINT) {emitshruint();
+  }ELSE IF (_t==_T_INT) {emitshrint();
+  }ELSE IF (_t==_T_LONG) {emitshrlong();
+#else
   IF (_t==_T_BYTE) {emitcall2rgs("_SHRB.");
   }ELSE IF (_t==_T_UINT) {emitcall2rgs("_SHR.");
   }ELSE IF (_t==_T_INT) {emitcall2rgs("_SHRSIGNED.");
   }ELSE IF (_t==_T_LONG) {emitcall4rgs("_SHRLONG.");
+#endif
   }ELSE errtype(">>",_t);
 }
 

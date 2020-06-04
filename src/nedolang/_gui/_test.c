@@ -1,8 +1,20 @@
 VAR LONG la[2];
 
+enum {
+_a=5, //123
+_b=10, //asb cd
+_c, //23423
+_d, //1231243
+_e, //dsfdfg
+}
+VAR INT asa;
+
+#define X 0
+
 VAR INT a;
 INC a;
-CONST PCHAR bla = "blabla"
+CONST PCHAR bla = "blabla";
+
 
 struct zzz{
   BYTE ba;
@@ -21,10 +33,12 @@ VAR STRUCT zzz* pzz1
 VAR tpzzz pzzz
 
 CONST UINT zzz_nnn = 0;
+VAR LONG ly = (LONG)2;
+VAR LONG lx = (STRUCT zzz*)(zzz_nnn)->lb;
 VAR LONG l0 = &zuzu->lb;
-VAR LONG l1 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb
-
-#define X 1
+VAR LONG l1 = (STRUCT zzz*)(zzz_nnn+(UINT)&zuzu)->lb;
+VAR LONG l2 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb;
+VAR LONG l3 = (STRUCT zzz*)((UINT)&zuzu+0)->lb;
 
 #ifdef DOUBLES
 

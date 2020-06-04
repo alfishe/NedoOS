@@ -2,7 +2,11 @@
 #ifdef TARGET_THUMB
 #include "sizesarm.h"
 #else
+#ifdef TARGET_SCRIPT
+#include "sizesspt.h"
+#else
 #include "sizesz80.h"
+#endif
 #endif
 
 //#ifdef DOUBLES

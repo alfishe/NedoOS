@@ -11,7 +11,11 @@ CONST BYTE _typesz[32];
 #ifdef TARGET_THUMB
 #include "sizesarm.h"
 #else
+#ifdef TARGET_SCRIPT
+#include "sizesspt.h"
+#else
 #include "sizesz80.h"
+#endif
 #endif
 
 CONST BOOL _isalphanum[256];
@@ -30,7 +34,7 @@ EXTERN PCHAR _name; //метка без префикса (для таблицы меток)
 EXTERN UINT  _lenname;
 EXTERN PCHAR _joined; //автометка
 EXTERN UINT  _lenjoined;
-VAR PCHAR _ncells; //в addlbl нельзя объединить ncells с callee
+VAR PCHAR _ncells; //в addlbl нельзя объединить ncells с callee //там же временно прошлая метка для enum
 VAR UINT  _lenncells;
 VAR CHAR  _s1[_STRLEN]; //префикс текущего слова (остаток - в _tword)
 VAR CHAR  _s2[_STRLEN]; //название текущей процедуры (с учётом модуля)
@@ -45,6 +49,8 @@ EXTERN UINT _spcsize; //число пробелов после прочитанной команды
 EXTERN UINT _curline; //текущий номер строки
 
 EXTERN UINT _waseols; //сколько было EOL с прошлого раза
+
+EXTERN UINT _typeaddr;
 
 PROC rdch FORWARD();
 PROC rdchcmt FORWARD();
@@ -330,7 +336,8 @@ PROC eatvarname() //для создания меток
 }
 
 PROC getstructfield() //возвращает _t = тип поля
-{ //структура уже прочитана и адресована, тип _t = некий указатель
+{ //структура уже прочитана и адресована _typeaddr (в lbltype или addlbl), тип _t = некий указатель???
+//errstr("------------"); erruint(_typeaddr); enderr();
   _lenjoined = gettypename(_joined); //взять название типа структуры в joined
   eat('>'); //rdword(); //use '>'
   jdot();
@@ -435,6 +442,7 @@ PROC numtype()
 PROC val RECURSIVE()
 {
 VAR TYPE t; //для cast,peek
+VAR UINT typeaddr; //для cast
 {
 //<val>::=
 //(<expr>) //выражение (вычисляется)
@@ -554,12 +562,14 @@ VAR TYPE t; //для cast,peek
       };
     }ELSE IF (_opsym == '(') {
       rdword(); //первое слово expr
-      eatexpr(); //на выходе из expr уже прочитана ')', но следующий символ или команда не прочитаны
-      IF ((_t&_T_TYPE)!=(TYPE)0x00) { //(type)val //нельзя в sizeof(expr)
+      eatexpr(); //на выходе из expr уже прочитана ')'???, но следующий символ или команда не прочитаны
+typeaddr = _typeaddr; //errstr("((((("); erruint(_typeaddr); enderr();
+      IF ((_t&_T_TYPE)!=(TYPE)0x00) { //(type)val typecast//нельзя в sizeof(expr)
         t = _t&~_T_TYPE;
         _t = t;
         rdword();
         val();
+_typeaddr = typeaddr; //errstr(")))))"); erruint(_typeaddr); enderr();
         cmdcastto(t);
       };
     }ELSE IF (_opsym == '-') {
@@ -691,7 +701,7 @@ VAR TYPE t1;
     t1 = _t;
     rdword();
     IF (*(PCHAR)_tword=='>') { //structinstancepointer->structfield
-      //структура уже прочитана и адресована, тип _t = некий указатель
+      //структура уже прочитана и адресована _typeaddr, тип _t = некий указатель
       getstructfield(); //_t = тип поля
       IF (!_addrexpr) cmdpeek(); //peek
       rdword(); //использовали structfield
@@ -830,7 +840,7 @@ VAR BOOL ispoke;
         cmdpushvar(); //указатель (в том числе на структуру) или обычная переменная
       };
       eat('-');
-      //структура уже прочитана и адресована, тип _t = некий указатель
+      //структура уже прочитана и адресована _typeaddr, тип _t = некий указатель
       getstructfield(); //_t = тип поля
       t = _t; //todo
       rdword(); //использовали structfield
@@ -1467,17 +1477,33 @@ PROC eatasm()
 
 PROC eatenum()
 //enum{<constname0>,<constname1>...}
+//можно в конце запятую
 {
-VAR UINT i = 0;
+//VAR UINT i = 0;
   //rdword(); //'{'
+_lenncells = strcopy("-1", 2, _ncells);
   WHILE (!_waseof) {
     rdword(); //метка
-    varequ(_tword); /**varstr(_tword); varc('=');*/ varuint(i); endvar();
+    IF (*(PCHAR)_tword=='}') BREAK; //BREAK работает, а goto qqq не работает ('}' не съедена)
+    varequ(_tword); /**varstr(_tword); varc('=');*/
+//    rdword(); //',' или '}'
+//    IF (*(PCHAR)_tword=='=') {
+    IF (_cnext=='=') {
+      rdword(); //съели =
+      rdword(); //первое слово expr
+      //eatexpr(); //parentheses not included
+      //rdword(); //',' или '}'
+      varstr(_tword);
+    }ELSE {
+      varstr(_ncells); varc('+'); varc('1'); /**varuint(i);*/
+    };
+_lenncells = strcopy(_tword, _lentword, _ncells);
+    endvar();
     rdword(); //',' или '}'
-    IF (*(PCHAR)_tword!=',') BREAK;
-    INC i;
+    IF (*(PCHAR)_tword!=',') BREAK; //}
+    //INC i;
   };
-  rdword();
+  rdword(); //слово после }
 }
 
 PROC eatstruct()
@@ -1718,6 +1744,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
               //_doskip = +FALSE; //todo вложенность (подсчёт числа ифов)
               _doskip = ((_doskipcond&1) == 0);
               _doskipcond = _doskipcond>>1;
+//erruint(_doskipcond); errstr("#endif "); erruint((UINT)_doskip); enderr();
             }ELSE IF (*(PCHAR)_tword == 'i') { //ifdef
               _doskipcond = _doskipcond+_doskipcond;
               rdword(); //имя
@@ -1728,6 +1755,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
                 //нет метки - пропустить тело
                 _doskip = (lbltype() == _T_UNKNOWN); //включить пропуск строк, кроме начинающихся с #, а здесь обрабатывать только их
               };
+//erruint(_doskipcond); errstr("#ifdef "); erruint((UINT)_doskip); enderr();
             }ELSE { //undef
               rdword(); //имя
               _lenname = strcopy(_tword, _lentword, _name);
@@ -1746,6 +1774,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
           }ELSE IF (_c2 == 's') { //else
             //_doskip = !_doskip;
             IF ((_doskipcond&1) != 0) _doskip = !_doskip; //не игнорируем этот ifdef
+//erruint(_doskipcond); errstr("#else "); erruint((UINT)_doskip); enderr();
           }ELSE IF ((_c2 == 'f')&&(!_doskip)) { //define
             rdword(); //имя
             _lenjoined = strcopy(_tword, _lentword, _joined);
@@ -1797,7 +1826,6 @@ PROC compfile RECURSIVE(PCHAR fn)
     _fn[_lenfn] = '\0';
     _waseof = +FALSE;
 
-    _doskipcond = 1;
     _curline = 1;
     initrd();
     rdword();
@@ -1834,6 +1862,8 @@ RETURN last; //после последнего терминатора
 
 PROC compile(PCHAR fn)
 {
+  _doskipcond = 1;
+
   _prefix = (PCHAR)_s1; //заполняется в doprefix: module/func/const/var/extern - локально, joinvarname
   _title  = (PCHAR)_s2;
   _callee = (PCHAR)_s3;
