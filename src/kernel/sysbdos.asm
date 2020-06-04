@@ -2537,4 +2537,4 @@ tsys_pages
 ;TODO хранить прямо в текстовом экране? а если затрут, то восстанавливать? по какому событию?
 	align 256
 trecode
-	incbin "866toatm"
+	incbin "../_sdk/codepage/866toatm"

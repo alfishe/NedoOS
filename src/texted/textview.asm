@@ -1292,4 +1292,4 @@ cury
         
         align 256
 twinto866
-        incbin "winto866"
+        incbin "../_sdk/codepage/winto866"

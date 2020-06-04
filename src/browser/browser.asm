@@ -2013,7 +2013,7 @@ t64to16paper
         incbin "t64to16p"
         
 twinto866
-        incbin "winto866"
+        incbin "../_sdk/codepage/winto866"
         
 endcode=$
         

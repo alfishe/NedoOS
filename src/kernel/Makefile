@@ -42,8 +42,8 @@ else
 include ${DEPS}
 endif
 
-../fatfs4os/fatfs.raw:
-	${MAKE} -C ${@D}
+../fatfs4os/fatfs.raw ffsfunc.asm:
+	${MAKE} -w -C ../fatfs4os
 
 ${BINS} user.l: ${SOURCES}
 	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
