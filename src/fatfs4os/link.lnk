@@ -1,0 +1,2 @@
+-S -cZ80 -Ilist -FRAW-BINARY -C ..\..\iar\lib\\clz80 -o fatfs.raw -l list/cout.l -xe 
+-Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF 

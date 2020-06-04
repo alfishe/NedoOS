@@ -16,13 +16,11 @@ IF NOT EXIST %ICCZ80%.exe (
 )
 if not exist list mkdir list
 set C_OPTIONS=-S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -Llist\ -Olist\ -Alist\ -I%IARINC%
-echo -S -cZ80 -Ilist -FRAW-BINARY -C %IARLIB%\clz80 -o fatfs.raw -l list/cout.l -xe >list\link.lnk
-echo -Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF >>list\link.lnk
 
 %ICCZ80% %C_OPTIONS% ff.c 
 %AZ80% -S -Olist\ -uu mylib.asm
 
-%XLINK% ff mylib -f list\link.lnk
+%XLINK% ff mylib -f link.lnk
 
 echo ;FatFS calls > ..\kernel\ffsfunc.asm
 echo ffsfunc >> ..\kernel\ffsfunc.asm

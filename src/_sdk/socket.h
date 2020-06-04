@@ -18,7 +18,6 @@ struct sockaddr_in {
         char    sin_zero[8];
 };
 
-
 SOCKET  OS_NETSOCKET(unsigned int);
 #define socket(domain, type, protocol) OS_NETSOCKET((domain<<8)+type)
 
@@ -28,31 +27,24 @@ int OS_NETRECV(unsigned char * buffer, SOCKET socket, unsigned int buf_size);
 int OS_NETSEND(unsigned char * buffer, SOCKET socket, unsigned int length);
 #define send(socket, buffer, length, flags) OS_NETSEND(buffer, socket, length)
 
-int OS_NETRECVFROM(const struct sockaddr_in * addr,
-	SOCKET socket, unsigned int buf_size, unsigned char * buffer);
-#define recvfrom(socket, buffer, buf_size, flags, sain, sain_cnt) \
-OS_NETRECVFROM(sain, socket, buf_size, buffer)
+int OS_NETSENDTO(const struct sockaddr_in * addr, SOCKET socket, unsigned int length, unsigned char * buffer);
+#define sendto(socket, buffer, length, flags, sain, sain_l) OS_NETSENDTO(sain, socket, length, buffer)
 
-int OS_NETSENDTO(const struct sockaddr_in * addr,
-	SOCKET socket, unsigned int buf_size, unsigned char * buffer);
-#define sendto(socket, buffer, buf_size, flags, sain, sain_cnt) \
-OS_NETSENDTO(sain, socket, buf_size, buffer)
+int OS_NETRECVFROM(const struct sockaddr_in * addr, SOCKET socket, unsigned int length, unsigned char * buffer);
+#define recvfrom(socket, buffer, length, flags, sain, sain_l) OS_NETRECVFROM(sain, socket, length, buffer)
 
 signed char  OS_NETCLOSE(unsigned char,SOCKET);
 #define closesocket(socket,how) OS_NETCLOSE(how,socket)
 
+
 signed char OS_NETCONNECT(const struct sockaddr_in * addr, SOCKET socket);
 #define connect(socket, addr, address_len) OS_NETCONNECT(addr,socket)
-
 signed char OS_LISTEN(int, SOCKET socket);
 #define listen(socket, backlog) OS_LISTEN(backlog,socket)
-
 signed char OS_BIND(const struct sockaddr_in * addr, SOCKET socket);
 #define bind(socket, addr, address_len) OS_BIND(addr,socket)
-
 SOCKET OS_ACCEPT(const struct sockaddr_in * addr, SOCKET socket);
 #define accept(socket, addr, address_len) OS_ACCEPT(addr,socket)
-
 unsigned short htons(unsigned short hostshort);
 
 struct in_addr * dns_resolver(char *);
@@ -65,6 +57,6 @@ struct in_addr * dns_resolver(char *);
 #define AF_INET6 23
 
 #define SOCK_STREAM 0x01	//tcp/ip
-#define SOCK_DGRAM 	0x03	//udp/ip
+#define SOCK_DGRAM 	0x03		//udp/ip
 
 #endif

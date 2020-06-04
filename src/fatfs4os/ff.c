@@ -2396,7 +2396,6 @@ FRESULT f_read (
 			}
 #if !_FS_TINY
 			if (fp->dsect != sect) {			/* Load data sector if not in cache */
-#if !_FS_READONLY
 				if (fp->flag & FA__DIRTY) {		/* Write-back dirty sector cache */
 					SET_DIO_PAR(fp->fs->drv, fp->buf, fp->dsect, 1);
 					if (drv_calls.write_from_buf() != RES_OK)
