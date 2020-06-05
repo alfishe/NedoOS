@@ -1,9 +1,10 @@
 @ECHO OFF
-set PRJNAME=yad
-set PRJDEBUG=0
-set C_FILES=main.c
-set ASM_FILES=yadplay.asm
-SET ADD_LINK_FILES=
-call ..\..\_sdk\buildiar.bat
+IF NOT EXIST ..\..\..\iar\bin\az80.exe (
+	ECHO IAR not found. Skipping build "yad"
+	EXIT /b
+)
+if not exist list mkdir list
 
-rem ..\..\..\us\emul
+..\..\..\iar\bin\az80 -S -uu -Olist/ main.asm
+..\..\..\iar\bin\az80 -S -uu -Olist/ yadplay.asm
+..\..\..\iar\bin\xlink list/main.r01 list/yadplay.r01 -FRAW-BINARY -S -o yad.com -f Lnk.xcl
