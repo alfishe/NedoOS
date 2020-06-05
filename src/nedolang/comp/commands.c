@@ -234,10 +234,10 @@ EXPORT PROC var_alignwsz_label(TYPE t)
 EXPORT PROC var_def(TYPE t, PCHAR s) //доступно из compile!
 {
 VAR BYTE sz = _typesz[t];
-  IF (sz==_SZ_BYTE/**(tmasked==_T_BYTE)||(tmasked==_T_CHAR)||(tmasked==_T_BOOL)*/) {
-    var_db(); varstr(s); endvar();
-  }ELSE IF (sz==_SZ_REG/**(tmasked==_T_INT)||(tmasked==_T_UINT)*/) {
+  IF (sz==_SZ_REG/**(tmasked==_T_INT)||(tmasked==_T_UINT)*/) {
     var_dw(); varstr(s); endvar(); //ширина DW равна uint
+  }ELSE IF (sz==_SZ_BYTE/**(tmasked==_T_BYTE)||(tmasked==_T_CHAR)||(tmasked==_T_BOOL)*/) {
+    var_db(); varstr(s); endvar();
   }ELSE IF (sz==_SZ_LONG/**tmasked==_T_LONG*/) {
     var_dl(); varstr(s); endvar();
   }ELSE { errstr( "const bad type " ); erruint(+(UINT)t); enderr(); };
@@ -863,6 +863,14 @@ EXPORT PROC cmdless() //старое меньше нового
 ;;  cmtstr( ";OPERATION <" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {
+    emitlessb();
+  }ELSE IF (_t==_T_UINT) {
+    emitless();
+  }ELSE IF (_t==_T_INT) {
+    emitlesssigned();
+#else
   IF (_t==_T_BYTE) {
     getrnew();
     getrold();
@@ -888,6 +896,7 @@ EXPORT PROC cmdless() //старое меньше нового
     getrfree(); //_rnew
     emitSxorVtob(); //S xor overflow
   //}ELSE IF (_t==_T_LONG) {
+#endif
   }ELSE errtype("<",_t);
   _t = _T_BOOL;
 }
@@ -898,6 +907,14 @@ EXPORT PROC cmdmore() //старое больше нового
 ;;  cmtstr( ";OPERATION >" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {
+    emitmoreb();
+  }ELSE IF (_t==_T_UINT) {
+    emitmore();
+  }ELSE IF (_t==_T_INT) {
+    emitmoresigned();
+#else
   IF (_t==_T_BYTE) {
     getrold();
     getrnew();
@@ -923,6 +940,7 @@ EXPORT PROC cmdmore() //старое больше нового
     getrfree(); //_rnew
     emitSxorVtob(); //S xor overflow
   //}ELSE IF (_t==_T_LONG) {
+#endif
   }ELSE errtype(">",_t);
   _t = _T_BOOL;
 }
@@ -933,6 +951,14 @@ EXPORT PROC cmdlesseq() //старое <= нового
 ;;  cmtstr( ";OPERATION <=" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {
+    emitlesseqb();
+  }ELSE IF (_t==_T_UINT) {
+    emitlesseq();
+  }ELSE IF (_t==_T_INT) {
+    emitlesseqsigned();
+#else
   IF (_t==_T_BYTE) {
     getrold();
     getrnew();
@@ -958,6 +984,7 @@ EXPORT PROC cmdlesseq() //старое <= нового
     getrfree(); //_rnew
     emitinvSxorVtob(); //S xor overflow + инверсия флага результата
   //}ELSE IF (_t==_T_LONG) {
+#endif
   }ELSE errtype("<=",_t);
   _t = _T_BOOL;
 }
@@ -968,6 +995,14 @@ EXPORT PROC cmdmoreeq() //старое >= нового
 ;;  cmtstr( ";OPERATION >=" ); endcmt();
 #endif
   IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_BYTE) {
+    emitmoreeqb();
+  }ELSE IF (_t==_T_UINT) {
+    emitmoreeq();
+  }ELSE IF (_t==_T_INT) {
+    emitmoreeqsigned();
+#else
   IF (_t==_T_BYTE) {
     getrnew();
     getrold();
@@ -993,6 +1028,7 @@ EXPORT PROC cmdmoreeq() //старое >= нового
     getrfree(); //_rnew
     emitinvSxorVtob(); //S xor overflow + инверсия флага результата
   //}ELSE IF (_t==_T_LONG) {
+#endif
   }ELSE errtype(">=",_t);
   _t = _T_BOOL;
 }

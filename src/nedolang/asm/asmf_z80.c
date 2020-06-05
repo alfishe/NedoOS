@@ -48,12 +48,20 @@ VAR UINT uinttempvalue;
       uinttempvalue = _curaddr+_curshift-_curbegin; //_curaddr+_curshift-_BASEADDR;
       fwrite((PBYTE)&uinttempvalue, 2, 1, _forg);
     }; //
+#ifdef TARGET_SCRIPT
+    fwrite((PBYTE)&_value[_nvalues], +sizeof(LONG), 1, _fout);
+#else
     ;;uinttempvalue = +(UINT)_value[_nvalues]; //+(UINT)asmpopvalue()
     ;;writefout(+(BYTE)uinttempvalue); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
     ;;writefout(+(BYTE)(uinttempvalue>>8)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
     /*fwrite((PBYTE)&_value[_nvalues], 2, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+#endif
   };
+#ifdef TARGET_SCRIPT
+  _curaddr = _curaddr + 1; //слово - это ячейка скрипта
+#else
   _curaddr = _curaddr + 2; //не _SIZEOF_UINT, т.к. тут надо размер для таргета!
+#endif
 }
 
 PROC asmlong(LONG value) //разная разрядность LONG/DL
