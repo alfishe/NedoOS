@@ -54,3 +54,6 @@
 + enum {a, b=10, c, d}
 - неправильно работал двойной typecast, например VAR LONG l2 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb;
 - неправильно работали вложенные #ifdef, если внутри был #include
+
+05.06.2020:
++ добавлен таргет script, в нём 4-байтные слова (список слов в testspt/enum.h)
