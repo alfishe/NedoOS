@@ -333,6 +333,18 @@ VAR BYTE t2sz;
 #endif
   tsz = _typesz[_t];
   t2sz = _typesz[t2];
+#ifdef TARGET_SCRIPT
+  IF (_t == t2) {
+  }ELSE IF (t2==_T_FLOAT) {
+    IF (_t==_T_INT) {emitinttofloat();
+    }ELSE {goto bad;
+    };
+  }ELSE IF (_t==_T_FLOAT) {
+    IF (t2==_T_INT) {emitfloattoint();
+    }ELSE {goto bad;
+    };
+  }ELSE
+#endif
   IF (tsz==t2sz/**_t == t2*/) { //типы одного размера - не портим константу
     //todo badcast LONG<=>FLOAT
   }ELSE {
@@ -373,14 +385,16 @@ VAR BYTE t2sz;
         getrnew();
         emitrgtob();
 /**      }ELSE { //LONG<=>FLOAT
-        bad:
+        goto bad;
         errstr("bad cast: "); erruint(+(UINT)_t); err('>'); erruint(+(UINT)t2); enderr();*/
       };
     //}ELSE IF ( (_t==_T_CHAR) && (t2==_T_BYTE) ) { //CHAR => BYTE
     //}ELSE IF ( (_t==_T_BOOL) && (t2==_T_BYTE) ) { //BOOL => BYTE (for serialization)
     //}ELSE IF ( (_t>=_T_POI) && ((t2==_T_UINT)||(t2>=_T_POI)) ) { //POINTER => UINT|POINTER (conversion between pointers)
     //}ELSE IF ((t2&_T_POI)!=0x00) { // anything (i.e. array) => POINTER
-//    }ELSE {goto bad; //по идее никогда не произойдёт
+    }ELSE { //по идее никогда не произойдёт
+      bad:
+      errstr("bad cast: "); erruint(+(UINT)_t); err('>'); erruint(+(UINT)t2); enderr();
     };
   };
   _t = t2;
@@ -420,6 +434,9 @@ EXPORT PROC cmdadd()
       emitadcrg(); //old2+new+CY => old2
       freernew();
       //теперь new=(oldlow+newlow), old=(oldhigh+newhigh+CY)
+#ifdef TARGET_SCRIPT
+    }ELSE IF (_t==_T_FLOAT) {emitaddfloat();
+#endif
     }ELSE errtype("+",_t);
   };
 }
@@ -459,6 +476,9 @@ EXPORT PROC cmdsub() //из старого вычесть новое!
       emitsbcrg(); //old2-new-CY => old2
       freernew();
       //теперь new=(oldlow-newlow), old=(oldhigh-newhigh-CY)
+#ifdef TARGET_SCRIPT
+    }ELSE IF (_t==_T_FLOAT) {emitsubfloat();
+#endif
     }ELSE errtype("-",_t);
   };
 }
@@ -496,6 +516,7 @@ EXPORT PROC cmdmul()
   IF (_t==_T_BYTE) {emitmulbyte();
   }ELSE IF ( (_t==_T_UINT)||(_t==_T_INT) ) {emitmuluint();
   }ELSE IF (_t==_T_LONG) {emitmullong();
+  }ELSE IF (_t==_T_FLOAT) {emitmulfloat();
 #else
   IF (_t==_T_BYTE) {emitcall2rgs("_MULB.");
   }ELSE IF (_t==_T_UINT) {emitcall2rgs("_MUL.");
@@ -516,6 +537,7 @@ EXPORT PROC cmddiv() //старое разделить на новое!
   }ELSE IF (_t==_T_UINT) {emitdivuint();
   }ELSE IF (_t==_T_INT) {emitdivint();
   }ELSE IF (_t==_T_LONG) {emitdivlong();
+  }ELSE IF (_t==_T_FLOAT) {emitdivfloat();
 #else
   IF (_t==_T_BYTE) {emitcall2rgs("_DIVB.");
   }ELSE IF (_t==_T_UINT) {emitcall2rgs("_DIV.");
@@ -738,6 +760,9 @@ EXPORT PROC cmdneg()
   IF ( (_t==_T_INT)||(_t==_T_UINT) ) {
     getrnew();
     emitnegrg();
+#ifdef TARGET_SCRIPT
+  }ELSE IF (_t==_T_FLOAT) { emitnegfloat();
+#endif
   }ELSE errtype("neg",_t);
 }
 

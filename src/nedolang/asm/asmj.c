@@ -268,6 +268,7 @@
             scale=8;
             goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
           }ELSE IF (+(CHAR)_token=='L') { //0L
+          }ELSE IF (+(CHAR)_token=='.') { //0.
           }ELSE IF (_token!=+_TOKENDTEXT) {
             scale=8;
             errstr("Use 0o oct"); enderr();
@@ -281,6 +282,62 @@
             IF (+(CHAR)_token!='L') {
               IF (_token>=+(BYTE)'a') {_token = _token - 0x27/**- +(BYTE)'a' + 0x0a + +(BYTE)'0'*/; //todo error
               }ELSE IF (_token>=+(BYTE)'A') {_token = _token - 0x07/**- +(BYTE)'A' + 0x0a + +(BYTE)'0'*/; //todo error
+#ifdef TARGET_SCRIPT
+              }ELSE IF (_token==+(BYTE)'.') { //float
+                fexp = 0L;
+                fexpminus = +FALSE;
+                ffraction = 0L;
+                ffractionscale = 1L;
+                _token = readfin();
+                IF (_token!=+_TOKENDTEXT) {
+                  rdfloatloop:
+                  { //первая цифра числа уже прочитана
+                    //printf("ffraction = %lf\n",(double)ffraction);
+                    IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
+                    //IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
+                    IF (+(CHAR)_token!='f') {
+                      IF (_token==+(BYTE)'e') { //TODO e12/e-12
+                        _token = readfin();
+                        IF (_token==+_TOKENDTEXT) goto rdfloatend; //BREAK;
+                        IF (_token=='-') { //TODO
+                          fexpminus = +TRUE;
+                          _token = readfin();
+                        };
+                        //printf("fexp = %u, token = %c\n",(unsigned int)fexp, _token);
+                        IF (_token!=+_TOKENDTEXT) {
+                          rdexploop:
+                          { //первая цифра экспоненты уже прочитана
+                            //printf("fexp = %u\n",(unsigned int)fexp);
+                            IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
+                            fexp = fexp*10L + (LONG)(_token - +(BYTE)'0');
+                            _token = readfin();
+                            goto rdexploop;
+                          }
+                        };
+                        goto rdfloatend; //BREAK;
+                      };
+                    };
+                    ffraction = ffraction*10L + (LONG)(_token - +(BYTE)'0');
+                    ffractionscale = ffractionscale*10L;
+                    //ffraction += (float)(_token - +(BYTE)'0')*ffractionscale;
+                    _token = readfin();
+                    goto rdfloatloop;
+                  };
+                };
+                rdfloatend:
+                fvalue = (double)tempvalue + (double)ffraction/(double)ffractionscale; //знак работает как операция, так что не учитываем
+                IF (fexpminus) {
+                  fvalue = fvalue/pow10(fexp);
+                }ELSE {
+                  fvalue = fvalue*pow10(fexp);
+                };
+                //fvalue = 0.1415926536;
+                //printf("%ld\n",fexp);
+                //printf("%20.20lf\n",fvalue);
+                //printf("%20.20lf\n",0.1415926536);
+                tempvalue = *(LONG*)(&fvalue);
+                goto rdnumend;
+#endif
               };//ELSE _token = _token - +(BYTE)'0';
               tempvalue = (LONG)scale*tempvalue + (LONG)(_token - +(BYTE)'0');
             };

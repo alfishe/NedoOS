@@ -4,6 +4,7 @@ del /s *.~c
 del /s *.~h
 del /s *.~dsk
 del /s *.~bpr
+del /s *.~bpf
 del /s *.~cpp
 del /s *.~dfm
 del /s *.org

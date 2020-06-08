@@ -1,8 +1,9 @@
-//#ifdef __BORLANDC__
+#ifdef __BORLANDC__
 //typedef unsigned long intptr_t;
-//#else
+#else
 //#include <stdint.h>
-//#endif
+#include <sys/types.h>
+#endif
 
 #define BIGMEM
 
@@ -20,7 +21,15 @@
 #ifdef TARGET_THUMB
 #define LONG unsigned long
 #else
+#ifdef TARGET_SCRIPT
+#ifdef __BORLANDC__
+#define LONG unsigned __int64
+#else
+#define LONG uint64_t
+#endif
+#else
 #define LONG unsigned int
+#endif
 #endif
 //#define FLOAT double
 #define BOOL unsigned char

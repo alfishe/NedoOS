@@ -414,7 +414,7 @@ RETURN t; //тип элемента массива
 
 PROC numtype()
 {
-  /**IF (_cnext == '.') { //дробное число (нельзя начинать с точки или заканчивать точкой)
+  IF (_cnext == '.') { //дробное число (нельзя начинать с точки или заканчивать точкой)
     rdaddword(); //приклеить точку
     rdaddword(); //приклеить дробную часть
     IF ( (_tword[_lentword-1]=='e') && (_cnext=='-') ) {
@@ -422,7 +422,7 @@ PROC numtype()
       rdaddword(); //приклеить отрицательную экспоненту
     };
     _t = _T_FLOAT;
-  }ELSE*/ IF (*(PCHAR)_tword == '-') { //в val уже есть, надо для define
+  }ELSE IF (*(PCHAR)_tword == '-') { //в val уже есть, надо для define
     _t = _T_INT;
   }ELSE IF (_tword[_lentword-1]=='L') {
     _t = _T_LONG;
@@ -1178,11 +1178,13 @@ VAR TYPE t;
     _lenname = strcopy(_joined, _lenjoined, _name);
     addlbl(t, /**isloc*/+FALSE, (UINT)_typesz[t&_TYPEMASK]/**, "0", _lenncells*/); //отметили в таблице, что не выделять память //(_name) //TODO размер массива или структуры!
   };
+  //printf("%s \n",_joined);
   IF (body) {
     IF ((t&_T_ARRAY)!=(TYPE)0x00) {
       var_alignwsz_label(t);
       //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar();
       var_ds(); /**varstr( "\tDS " );*/ varuint(+(UINT)_typesz[t&_TYPEMASK]); varc('*'); varstr(_ncells); endvar(); //todo рассчитать размер уже в addlbl, тогда можно будет делать +sizeof(<array>)
+      //printf("%s ds \n",_joined);
     }ELSE {
       var_num(t, "0");
     };
@@ -1476,8 +1478,7 @@ PROC eatasm()
 }
 
 PROC eatenum()
-//enum{<constname0>,<constname1>...}
-//можно в конце запятую
+//enum{<constname0>[=<num>],<constname1>...[,]}
 {
 //VAR UINT i = 0;
   //rdword(); //'{'
@@ -1486,6 +1487,10 @@ _lenncells = strcopy("-1", 2, _ncells);
     rdword(); //метка
     IF (*(PCHAR)_tword=='}') BREAK; //BREAK работает, а goto qqq не работает ('}' не съедена)
     varequ(_tword); /**varstr(_tword); varc('=');*/
+
+//костыль для script: создаём переменную UINT с адресом, как текущее число в enum:
+    _lenname = strcopy(_tword, _lentword, _name);
+    addlbl(_T_UINT, /**isloc*/+FALSE, /**varsz*/0/**, "0", _lenncells*/); //отметили в таблице, что не выделять память
 //    rdword(); //',' или '}'
 //    IF (*(PCHAR)_tword=='=') {
     IF (_cnext=='=') {
@@ -1892,8 +1897,8 @@ PROC compile(PCHAR fn)
   addlbl(_T_TYPE + _T_LONG, +FALSE, (UINT)_typesz[_T_LONG]);
   _lenname = strcopy("CHAR", 4, _name);
   addlbl(_T_TYPE + _T_CHAR, +FALSE, (UINT)_typesz[_T_CHAR]);
-  //_lenname = strcopy("FLOAT", 5, _name);
-  //addlbl(_T_TYPE + _T_FLOAT, +FALSE, (UINT)_typesz[_T_FLOAT]);
+  _lenname = strcopy("FLOAT", 5, _name);
+  addlbl(_T_TYPE + _T_FLOAT, +FALSE, (UINT)_typesz[_T_FLOAT]);
   _lenname = strcopy("STRUCT", 6, _name);
   addlbl(_T_TYPE + _T_STRUCTWORD, +FALSE, (UINT)_typesz[_T_STRUCT]);
   _lenname = strcopy("PINT", 4, _name);
@@ -1908,8 +1913,8 @@ PROC compile(PCHAR fn)
   addlbl(_T_TYPE + _T_POI + _T_LONG, +FALSE, (UINT)_typesz[_T_POI]);
   _lenname = strcopy("PCHAR", 5, _name);
   addlbl(_T_TYPE + _T_POI + _T_CHAR, +FALSE, (UINT)_typesz[_T_POI]);
-  //_lenname = strcopy("PFLOAT", 5, _name);
-  //addlbl(_T_TYPE + _T_POI + _T_FLOAT, +FALSE, (UINT)_typesz[_T_POI]);
+  _lenname = strcopy("PFLOAT", 6, _name);
+  addlbl(_T_TYPE + _T_POI + _T_FLOAT, +FALSE, (UINT)_typesz[_T_POI]);
   //_lenname = strcopy("PPROC", 5, _name);
   //addlbl(_T_TYPE + _T_POI + _T_PROC, +FALSE, (UINT)_typesz[_T_POI]);
 

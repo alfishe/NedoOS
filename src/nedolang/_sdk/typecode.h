@@ -6,7 +6,7 @@ typedef BYTE TYPE;
 #define _T_BOOL  (TYPE)(0x03)
 #define _T_LONG  (TYPE)(0x04)
 #define _T_CHAR  (TYPE)(0x05) /**размер не обязательно равен байту*/
-//#define _T_FLOAT (TYPE)(0x06)
+#define _T_FLOAT (TYPE)(0x06)
 
 #define _T_POI   (TYPE)(0x10) /**накладывается на тип по OR (для переменных)*/
 #define _T_ARRAY (TYPE)(0x20) /**накладывается на тип по OR (для переменных/констант)*/

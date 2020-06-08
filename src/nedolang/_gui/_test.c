@@ -1,3 +1,12 @@
+VAR FLOAT ffa;
+VAR INT fia;
+ffa = 3.1415926536e-4+(FLOAT)fia;
+fia = (INT)ffa;
+
+FUNC INT f(UINT p) {
+  RETURN (INT)(3.1415926536e-4+(FLOAT)(INT)p);
+}
+
 enum {
         CMD_NOP,
         CMD_ADD,
@@ -36,8 +45,10 @@ enum {
   Pusk,
 };
 
+//if (*(PUINT)Gotov1 == 0) {
 if (*(PUINT)Gotov1 == 0) {
-  POKE *(PUINT)Gotov2 = *(PUINT)Pusk;
+  //POKE *(PUINT)Gotov2 = *(PUINT)Pusk;
+  Gotov2 = Pusk;
 };
 
 

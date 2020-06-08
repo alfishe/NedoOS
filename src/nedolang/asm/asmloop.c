@@ -3,6 +3,10 @@
 #include "../_sdk/str.h" //stradd, strjoineol
 #include "../_sdk/emit.h"
 
+#ifdef TARGET_SCRIPT
+#include <math.h>
+#endif
+
 EXTERN BYTE _token; //текущий считанный токен
 EXTERN BYTE _prefixedtoken; //расшифрованный токен с учётом \n и т.п.
 EXTERN BYTE _curdir; //токен текущей обрабатываемой директивы ассемблера (нужно для правильной обработки формата)
@@ -72,6 +76,13 @@ EXTERN BYTE _isaddr; //маска "в выражении использовался адрес"
 PROC asmloop()
 {
 VAR UINT scale; //показатель системы счисления
+#ifdef TARGET_SCRIPT
+VAR double fvalue;
+VAR LONG ffraction;
+VAR LONG ffractionscale;
+VAR LONG fexp;
+VAR BOOL fexpminus;
+#endif
 VAR LONG tempvalue; //значение, считанное по popvalue и которое пишем по pushvalue
 VAR UINT i;
   loop:

@@ -393,6 +393,18 @@ VAR CHAR opsym;
     IF (+(BYTE)(+(BYTE)opsym - +(BYTE)'0') < 0x0a) { //<num> //выдаёт <num><text>digits<endtext>
       asmtoken(+_TOKNUM);
       asmtoken(+_TOKTEXT);
+//for float:
+      IF (_cnext=='.') {
+        rdaddword(); //приклеить точку
+        rdaddword(); //приклеить дробную часть
+        IF ( (_tword[_lentword-1]=='e') && (_cnext=='-') ) {
+          rdaddword(); //приклеить '-' отрицательной экспоненты
+          rdaddword(); //приклеить отрицательную экспоненту
+        };
+/*        asmrdword_tokspc();
+        fputs(_tword, _fout);
+        asmrdword_tokspc();*/ //todo e-12
+      };
       fputs(_tword, _fout);
       asmtoken(+_TOKENDTEXT);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
@@ -431,7 +443,7 @@ VAR CHAR opsym;
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
       asmtoken(+_OPPEEK);
-/**    }ELSE IF ( opsym=='~' ) {
+    }ELSE IF ( opsym=='~' ) {
       asmtoken(+_OPPUSH0); asmtoken(+_TOKTILDE);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
@@ -441,7 +453,7 @@ VAR CHAR opsym;
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
       asmtoken(+_OPINV); //todo BOOL
-*/    }ELSE { tokerr(+_ERREXPR);/**errstr( ">>>WRONG PREFIX " ); err( opsym ); enderr();*/ };
+    }ELSE { tokerr(+_ERREXPR);/**errstr( ">>>WRONG PREFIX " ); err( opsym ); enderr();*/ };
   };
 }
 }

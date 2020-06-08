@@ -169,9 +169,34 @@ PROC asm_div_eol()
   asmstr( "\tDW CMD_DIV" ); endasm();
 }
 
+PROC asm_addfloat_eol()
+{
+  asmstr( "\tDW CMD_ADDFLOAT" ); endasm();
+}
+
+PROC asm_subfloat_eol()
+{
+  asmstr( "\tDW CMD_SUBFLOAT" ); endasm();
+}
+
+PROC asm_mulfloat_eol()
+{
+  asmstr( "\tDW CMD_MULFLOAT" ); endasm();
+}
+
+PROC asm_divfloat_eol()
+{
+  asmstr( "\tDW CMD_DIVFLOAT" ); endasm();
+}
+
 PROC asm_divsigned_eol()
 {
   asmstr( "\tDW CMD_DIVSIGNED" ); endasm();
+}
+
+PROC asm_negfloat_eol()
+{
+  asmstr( "\tDW CMD_NEGFLOAT" ); endasm();
 }
 
 PROC asm_if0goto()
@@ -292,6 +317,16 @@ PROC asm_done_eol()
 PROC asm_1_eol()
 {
   asmstr( "\tDW CMD_CONST,1" ); endasm();
+}
+
+PROC asm_floattoint_eol()
+{
+  asmstr( "\tDW CMD_FLOATTOINT" ); endasm();
+}
+
+PROC asm_inttofloat_eol()
+{
+  asmstr( "\tDW CMD_INTTOFLOAT" ); endasm();
 }
 
 PROC emitinc()
@@ -521,6 +556,15 @@ PROC emitret()
   asm_ret_eol();
 }
 
+PROC emitaddfloat()
+{
+  asm_addfloat_eol();
+}
+PROC emitsubfloat()
+{
+  asm_subfloat_eol();
+}
+
 PROC emitmulbyte()
 {
   asm_mul_eol();
@@ -532,6 +576,10 @@ PROC emitmuluint()
 PROC emitmullong()
 {
   asm_mul_eol();
+}
+PROC emitmulfloat()
+{
+  asm_mulfloat_eol();
 }
 
 PROC emitdivbyte()
@@ -549,6 +597,15 @@ PROC emitdivuint()
 PROC emitdivlong()
 {
   asm_div_eol();
+}
+PROC emitdivfloat()
+{
+  asm_divfloat_eol();
+}
+
+PROC emitnegfloat()
+{
+  asm_negfloat_eol();
 }
 
 PROC emitshlbyte()
@@ -918,6 +975,16 @@ PROC emitrgtob() //нельзя убирать - специфично
 
 PROC emitbtorg()
 {
+}
+
+PROC emitinttofloat()
+{
+  asm_inttofloat_eol();
+}
+
+PROC emitfloattoint()
+{
+  asm_floattoint_eol();
 }
 
 PROC emitincrg_byname()
