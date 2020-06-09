@@ -34,6 +34,12 @@ uvscroll_prepare
         ld ix,tpushpgs+3
         call uvscroll_genpush
 
+;зациклим страницы (UVSCROLL_HGT/64 страниц в каждом слое)
+        ld hl,tpushpgs
+        ld de,tpushpgs+(UVSCROLL_HGT/64*4)
+        ld bc,UVSCROLL_HGT/64*4 ;4*4 ;на высоту экрана
+        ldir
+
         call uvscroll_gencall
 
         if 1==1
@@ -71,6 +77,17 @@ uvscroll_ldbmp0_nonextpg
         OS_SETPAL
 
 uvscrollloop0
+        ld bc,(xscroll) ;0..511 for 0..1022 pixels
+        ld hl,(yscroll) ;0..511
+         ld a,h
+         and UVSCROLL_HGT/256-1
+         ld h,a
+        rr b
+        adc hl,hl
+        ld (allscroll),hl
+        ld a,c
+        ld (allscroll_lsb),a
+
         call uvscroll_draw
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
@@ -119,18 +136,17 @@ control_nofocus
         ld b,a
         ld hl,(yscroll)
         add hl,bc
-        bit 7,h
-        jr z,$+5
-        ld hl,0
-        ld de,UVSCROLL_HGT-UVSCROLL_SCRHGT
-        or a
-        sbc hl,de
-        add hl,de
-        jr c,$+3
-        ex de,hl
+        ;bit 7,h
+        ;jr z,$+5
+        ;ld hl,0
+        ;ld de,UVSCROLL_HGT-UVSCROLL_SCRHGT
+        ;or a
+        ;sbc hl,de
+        ;add hl,de
+        ;jr c,$+3
+        ;ex de,hl
         ld (yscroll),hl
         jr uvscrollloop0
-        ;ret
 
 
 
@@ -208,12 +224,9 @@ uvscroll_nnnext_last
          push bc
 uvscroll_nnnext_last_sp=$+1
         ld sp,0 ;надо две копии для рисования 0..39 или 1..40 столбцов (sp+1) *2 копии для +0/0x2000 - копии можно разместить в тех же страницах, но с другими L адресами
-        ;exx
-        ;ld sp,UVSCROLL_TEMPSP
 uvscroll_nnnext_last_pg=$+1
         ld a,0 ;следующая страница вызывалки
         SETPG32KHIGH ;сама себя заменяет!!!
-        ;exx
         inc hx ;адрес следующего ldpush
         ld h,uvscroll_callbase/256+1 ;адрес следующего nnnext_i
         jp (ix)
@@ -221,7 +234,6 @@ uvscroll_nnnext_last_sz=$-uvscroll_nnnext_last
 
 ;в последней строке экрана вместо всего этого:
 ;jp uvscroll_endofscreen
-
 
 ;после последней строки графики (0xc0xx) вместо ld-push (в любой странице вызывалки!):
 ;dup UVSCROLL_NPUSHES
@@ -236,7 +248,7 @@ uvscroll_gencall
         ;ld l,0x00
         call uvscroll_gencall_startpage
         ld de,UVSCROLL_SCRSTART+(UVSCROLL_SCRWID/8)        
-        ld b,UVSCROLL_SCRHGT-1
+        ld b,UVSCROLL_SCRHGT;-1
 uvscroll_gencall0
         push bc
         ld a,h
@@ -315,9 +327,6 @@ uvscroll_gencall_end0
         ldir
         ld a,(ix-1)
         SETPG32KHIGH
-        ;ld de,uvscroll_callbase+0x3f00
-        ;ld hl,uvscroll_buf256
-        ;ld bc,256
         pop de
         pop hl
         pop bc
@@ -417,59 +426,59 @@ uvscroll_patch
 ;a=layer 0..3 + 4
         ld d,0xe9 ;d=patch byte jp (hl)
 uvscroll_patch_d
-
-        ld hl,(xscroll) ;0..511 for 0..1022 pixels
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        rra        
-        ld a,l
-        rr l ;l=(xscroll+layer+4)/2
+        ;ld bc,(xscroll) ;0..511 for 0..1022 pixels
+        ;ld hl,(yscroll) ;0..511
+        ;rr b
+        ;adc hl,hl
+allscroll=$+1
+        ld hl,0
+allscroll_lsb=$+1
+        add a,0 ;ld c,0
+;hlc = allscroll = yscroll*512+xscroll
+        ;add a,c
+        ld c,a
+          jr nc,$+3
+          inc hl
+         ld e,l ;yscroll*2
+        add hl,hl
+         rr e ;yscroll (corrected для зацикливания)
+         rra
+         and 0xfc
+         cpl
+         ld l,a ;a=0xff-(((xscroll+layer+4)/2)&0xfc)
+         ld a,h
+         rla
+         rla ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
+         xor c
+         and 0xfc
+         xor c
         exx
-        ld hl,(yscroll) ;0..511
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        add hl,hl ;h=yscroll/16
-        xor h
-        and 3
-        xor h ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
         ld hl,tpushpgs
         add a,l
         ld l,a
         adc a,h
         sub l
         ld h,a
-
+        ld a,(hl)
+        SETPG32KHIGH
         exx ;hl'=список страниц графики =f((xscroll+layer)&3 + ((yscroll/64)*4))
-        ld a,(yscroll) ;0..511
-        and 63
-
-        add a,0xc0
+         ld a,e ;yscroll (corrected для зацикливания)
+        or 0xc0
         ld h,a
-        ld a,l
-        and 0xfc       
-        cpl
-        ld l,a
+        add a,UVSCROLL_SCRHGT
+        ld e,a
 ;конец (крайнее правое положение L при вызове, т.е. xscroll=0) = 256-(UVSCROLL_SCRNPUSHES*4)
 ;адрес входа графики: конец - ((xscroll+layer+4)/2&0xfc)
 ;d=patch byte
-;h=0x80+(yscroll&63)
+;e=число оставшихся строк патча
+;h=0xc0+(yscroll&63)
 ;l=f(xscroll+layer) ;L = адрес патча выхода = адрес входа графики + (UVSCROLL_SCRNPUSHES*4)-1
 ;hl'=список страниц графики =f((xscroll+layer)&3 + ((yscroll/64)*4))
         ;ld e,UVSCROLL_SCRHGT
-        exx
-        ld a,(hl)
-        SETPG32KHIGH
-        exx
-        ld a,h
-        sub 0xc0
+        ;ld a,h
+        sub 0xff&(0xc0+UVSCROLL_SCRHGT)
         add a,a ;a=0..64*2
         ld (uvscroll_patcher_patch0),a
-        ld a,UVSCROLL_SCRHGT
-        add a,h
-        ld e,a
 uvscroll_patcher_patch0=$+1
         call uvscroll_patcher
 uvscroll_patcher0
@@ -502,56 +511,53 @@ uvscroll_callpp
 ;a=layer 0..3 + 4
          push af ;a=layer 0..3 + 4
 
-        ld hl,(xscroll) ;0..511 for 0..1022 pixels
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        rra        
-        ld a,l ;a=(xscroll+layer+4)
-        rr l ;l=(xscroll+layer+4)/2
+        ;ld hl,(allscroll)
+        ld hl,allscroll_lsb
+        ;ld c,(hl)
+         add a,+(UVSCROLL_SCRNPUSHES-1)*8
+;hlc = allscroll = yscroll*512+xscroll
+        add a,(hl);c
+        ld c,a
+          ld hl,(allscroll)
+          jr nc,$+3
+          inc hl
+         ld e,l ;yscroll*2
+        add hl,hl
+         rr e ;yscroll (corrected для зацикливания)
+         rra
+         cpl
+          ld b,a
+         and 0xfc
+         ld lx,a ;a=0xfc-(((xscroll+layer+4+((UVSCROLL_SCRNPUSHES-1)*8))/2)&0xfc)
+         ld a,h
+         rla
+         rla ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
+         xor c
+         and 0xfc
+         xor c
         exx
-        ld hl,(yscroll) ;0..511
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        add hl,hl ;h=yscroll/16
-        xor h
-        and 3
-        xor h ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
         ld hl,tpushpgs
         add a,l
         ld l,a
         adc a,h
         sub l
         ld h,a
-
         ld a,(hl) ;gfx pages
         SETPG32KLOW
-        ld a,(tcallpgs)
-        SETPG32KHIGH
-
+      ld a,(tcallpgs)
+      SETPG32KHIGH
         exx
-        ld a,(yscroll) ;0..511
+        ld a,e ;yscroll (corrected для зацикливания)
         and 63
-
         add a,0x80
         ld hx,a
-        ld a,l
-        and 0xfc
-         cpl
-         sub UVSCROLL_SCRNPUSHES*4-1
-        ld lx,a
-        ;ld lx,256-(UVSCROLL_SCRNPUSHES*4) ;зависит от xscroll
          pop af ;a=layer 0..3 + 4
          push af
          rrca
          rrca
          and 0x80;0xc0
-         ld c,l
          ld l,a ;L=(layer&2)*0x80
-         ld a,c ;a=(xscroll+layer+4)/2
-         sub 4/2
+         ld a,b ;a=~((xscroll+layer+4)/2)
          and 4/2 ;если не 0, то на выходе подрисовка левого столбца
          rrca
          rrca
@@ -592,6 +598,7 @@ uvscroll_endofscreen_sp=$+1
         else
 ;uvscroll_drawcolumn
 ;a=layer 0..3 + 4
+       if 1==0
         ld hl,(xscroll) ;0..511 for 0..1022 pixels
         add a,l
         ld l,a
@@ -615,11 +622,9 @@ uvscroll_endofscreen_sp=$+1
         adc a,h
         sub l
         ld h,a
-
         exx ;hl'=список страниц графики =f((xscroll+layer)&3 + ((yscroll/64)*4))
         ld a,(yscroll) ;0..511
         and 63
-
         add a,0xc0
         ld h,a
         ld a,l
@@ -627,32 +632,64 @@ uvscroll_endofscreen_sp=$+1
         cpl
          add a,3 ;add a,+(UVSCROLL_SCRNPUSHES*4)-1 ;адрес байта графики H
         ld l,a
-         ;jr $
+       else 
+        ;ld hl,(allscroll)
+        ld hl,allscroll_lsb
+        ;ld c,(hl)
+         sub 8
+;hlc = allscroll = yscroll*512+xscroll
+        add a,(hl);c
+        ld c,a
+          ld hl,(allscroll)
+          jr c,$+3
+          inc hl
+         ld e,l ;yscroll*2
+        add hl,hl
+         rr e ;yscroll (corrected для зацикливания)
+         rra
+         and 0xfc
+         cpl
+          dec a ;адрес байта графики H
+         ld l,a ;a=0xff-(((xscroll+layer+4)/2)&0xfc)
+         ld a,h
+         rla
+         rla ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
+         xor c
+         and 0xfc
+         xor c
+        exx
+        ld hl,tpushpgs
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(hl)
+        SETPG32KHIGH
+        exx ;hl'=список страниц графики =f((xscroll+layer)&3 + ((yscroll/64)*4))
+         ld a,e ;yscroll (corrected для зацикливания)
+        or 0xc0
+        ld h,a
+       endif        
 ;конец (крайнее правое положение L при вызове, т.е. xscroll=0) = 256-(UVSCROLL_SCRNPUSHES*4)
 ;адрес входа графики: конец - ((xscroll+layer+4)/2&0xfc)
 ;d=patch byte
 ;h=0x80+(yscroll&63)
 ;l=f(xscroll+layer) ;L = адрес патча выхода = адрес входа графики + (UVSCROLL_SCRNPUSHES*4)-1
 ;hl'=список страниц графики =f((xscroll+layer)&3 + ((yscroll/64)*4))
+        add a,UVSCROLL_SCRHGT
+        ld lx,a
          ex de,hl
          ld hl,UVSCROLL_SCRSTART
          ld a,ly
          bit 7,a
          jr z,$+4
          set 5,h
-        ;ld lx,UVSCROLL_SCRHGT
-        exx
-        ld a,(hl)
-        SETPG32KHIGH
-        exx
         ld a,d;h
         ;sub 0xc0
         add a,a ;a=0..64*2
         add a,a
         ld (uvscroll_columndrawer_patch0),a
-        ld a,UVSCROLL_SCRHGT
-        add a,d;h
-        ld lx,a
         ld bc,UVSCROLL_LINESTEP
 uvscroll_columndrawer_patch0=$+1
         call uvscroll_columndrawer

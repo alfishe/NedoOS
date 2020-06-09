@@ -515,6 +515,8 @@ bgfilename
 bgxyfilename
         db "bg8-16d.bmp",0
 
+tpushpgs
+        ds 128 ;¯¥à¢ ï áâà ­¨æ  0 á«®ï, ¯¥à¢ ï áâà ­¨æ  1 á«®ï, ¯¥à¢ ï áâà ­¨æ  2 á«®ï, ¯¥à¢ ï áâà ­¨æ  3 á«®ï, ¢â®à ï áâà ­¨æ  0 á«®ï...
 
         align 256
 trecodebyteleft
