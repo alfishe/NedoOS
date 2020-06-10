@@ -101,8 +101,8 @@ control_imer_oldmousecoords=$+1
         ld a,d;b
         sub b;d
         ld d,a
-        ld a,e
-        sub c
+        ld a,c;e
+        sub e;c
         ld e,a
 control_nofocus
         ;ld (control_imer_mousecoordsdelta),de
@@ -117,16 +117,16 @@ control_nofocus
         ld b,a
         ld hl,(xscroll)
         add hl,bc
-        bit 7,h
-        jr z,$+5
-        ld hl,0
-        ld bc,+(UVSCROLL_WID-UVSCROLL_SCRWID)/2
-        or a
-        sbc hl,bc
-        add hl,bc
-        jr c,$+4
-        ld h,b
-        ld l,c
+        ;bit 7,h
+        ;jr z,$+5
+        ;ld hl,0
+        ;ld bc,+(UVSCROLL_WID-UVSCROLL_SCRWID)/2
+        ;or a
+        ;sbc hl,bc
+        ;add hl,bc
+        ;jr c,$+4
+        ;ld h,b
+        ;ld l,c
         ld (xscroll),hl
         
         ld c,d
@@ -150,10 +150,26 @@ control_nofocus
 
 
 
-uvscroll_nextgfxpg       
-;sp=scr
+uvscroll_suddennextgfxpg
+;если вошли в ловушку в середине строки
+;sp=scr(line end)-... (но точно не line start)
         exx
-        ;ld sp,UVSCROLL_TEMPSP
+        ;ld sp,UVSCROLL_TEMPSP ;для поля уже экрана? но SETPG и IMER займут только два слова стека - вылет на одно слово, всё равно что штатно
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+        ld a,(hl) ;gfx pages
+        SETPG32KLOW
+        exx
+        ld hx,uvscroll_pushbase/256-1
+        jp uvscroll_pushbase;(ix)
+
+uvscroll_nextgfxpg
+;если вошли в ловушку вместо начала строки
+;sp=scr(line end)
+        exx
+        ;ld sp,UVSCROLL_TEMPSP ;обязательно для поля уже экрана!
         inc hl
         inc hl
         inc hl
@@ -348,11 +364,11 @@ uvscroll_gencall_pgend
 uvscroll_gencall_startpage
         ld hl,0xc000
 uvscroll_gencall_nextgfxpg0
-        ld (hl),0xc3 ;jp
+        ld (hl),0xfd;0xc3 ;jp (iy)
         inc l
-        ld (hl),uvscroll_nextgfxpg&0xff
+        ld (hl),0xe9;uvscroll_nextgfxpg&0xff
         inc l
-        ld (hl),uvscroll_nextgfxpg/256
+        ;ld (hl),uvscroll_nextgfxpg/256
         inc l
         inc l
         jr nz,uvscroll_gencall_nextgfxpg0
@@ -399,16 +415,16 @@ uvscroll_gencall_newpage
 uvscroll_draw
         ld hy,0xc1
         call setpgscrlow4000
-        ld a,4 ;layer 0..3 + 4
+        ld a,7;4 ;layer 0..3 + 4
         call uvscroll_drawlayer
         call setpgscrhigh4000
-        ld a,5 ;layer 0..3 + 4
+        ld a,6;5 ;layer 0..3 + 4
         call uvscroll_drawlayer
         call setpgscrlow4000
-        ld a,6 ;layer 0..3 + 4
+        ld a,5;6 ;layer 0..3 + 4
         call uvscroll_drawlayer
         call setpgscrhigh4000
-        ld a,7 ;layer 0..3 + 4
+        ld a,4;7 ;layer 0..3 + 4
 uvscroll_drawlayer
         push af
         call uvscroll_patch
@@ -426,12 +442,14 @@ uvscroll_patch
 ;a=layer 0..3 + 4
         ld d,0xe9 ;d=patch byte jp (hl)
 uvscroll_patch_d
+         ;jr $
         ;ld bc,(xscroll) ;0..511 for 0..1022 pixels
         ;ld hl,(yscroll) ;0..511
         ;rr b
         ;adc hl,hl
 allscroll=$+1
         ld hl,0
+         add a,+(UVSCROLL_SCRNPUSHES-1)*8
 allscroll_lsb=$+1
         add a,0 ;ld c,0
 ;hlc = allscroll = yscroll*512+xscroll
@@ -443,8 +461,8 @@ allscroll_lsb=$+1
         add hl,hl
          rr e ;yscroll (corrected для зацикливания)
          rra
-         and 0xfc
-         cpl
+         or 3 ;and 0xfc
+         ;cpl
          ld l,a ;a=0xff-(((xscroll+layer+4)/2)&0xfc)
          ld a,h
          rla
@@ -452,6 +470,7 @@ allscroll_lsb=$+1
          xor c
          and 0xfc
          xor c
+          xor 3
         exx
         ld hl,tpushpgs
         add a,l
@@ -514,7 +533,7 @@ uvscroll_callpp
         ;ld hl,(allscroll)
         ld hl,allscroll_lsb
         ;ld c,(hl)
-         add a,+(UVSCROLL_SCRNPUSHES-1)*8
+         ;add a,+(UVSCROLL_SCRNPUSHES-1)*8
 ;hlc = allscroll = yscroll*512+xscroll
         add a,(hl);c
         ld c,a
@@ -525,16 +544,30 @@ uvscroll_callpp
         add hl,hl
          rr e ;yscroll (corrected для зацикливания)
          rra
-         cpl
+         ;cpl
           ld b,a
          and 0xfc
          ld lx,a ;a=0xfc-(((xscroll+layer+4+((UVSCROLL_SCRNPUSHES-1)*8))/2)&0xfc)
+         
+        if 1==1
+        ;ld hl,(xscroll)
+        ;ld bc,+(UVSCROLL_WID-UVSCROLL_SCRWID)/2+1
+        ;or a
+        ;sbc hl,bc
+        cp 0x100-(UVSCROLL_SCRNPUSHES*4-1)
+        ld iy,uvscroll_nextgfxpg
+        jr c,uvscroll_callpp_noxcycled
+        ld iy,uvscroll_suddennextgfxpg
+uvscroll_callpp_noxcycled
+        endif
+         
          ld a,h
          rla
          rla ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
          xor c
          and 0xfc
          xor c
+          xor 3
         exx
         ld hl,tpushpgs
         add a,l
@@ -553,6 +586,7 @@ uvscroll_callpp
         ld hx,a
          pop af ;a=layer 0..3 + 4
          push af
+          cpl
          rrca
          rrca
          and 0x80;0xc0
@@ -567,23 +601,28 @@ uvscroll_callpp
 ;конец (крайнее правое положение L при вызове, т.е. xscroll=0) = 256-(UVSCROLL_SCRNPUSHES*4)
 ;адрес входа графики: конец - ((xscroll+layer+4)/2&0xfc)
          add a,4
-         ld ly,a
+         push af
+         ld (uvscroll_callpp_jp),a
+
         ld de,0 ;for interrupt
         ld h,0xc2
         ld (uvscroll_endofscreen_sp),sp
-        jp (iy);0xc104 + (N*0x40)
+        ;jp (iy);0xc104 + (N*0x40)
+         ;jr $
+uvscroll_callpp_jp=$+1
+        jp 0xc104 ;ld sp:jp (ix)
 uvscroll_endofscreen
          push bc
 uvscroll_endofscreen_sp=$+1
         ld sp,0
+         pop bc;ld b,ly
          pop af ;layer+4
-         ld c,ly
-         bit 6,c
+         bit 6,b
         ret z
 ;TODO подрисовка левого столбца (а если UVSCROLL_SCRWID<320, то и затирание правого)
         if 1==0
         ld hl,UVSCROLL_SCRSTART
-         bit 7,c
+         bit 7,b
          jr z,$+4
          set 5,h
         ld de,UVSCROLL_LINESTEP
@@ -616,6 +655,7 @@ uvscroll_endofscreen_sp=$+1
         xor h
         and 3
         xor h ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
+          xor 3
         ld hl,tpushpgs
         add a,l
         ld l,a
@@ -636,19 +676,20 @@ uvscroll_endofscreen_sp=$+1
         ;ld hl,(allscroll)
         ld hl,allscroll_lsb
         ;ld c,(hl)
-         sub 8
+         add a,+(UVSCROLL_SCRNPUSHES-0)*8
+         ;sub 8
 ;hlc = allscroll = yscroll*512+xscroll
         add a,(hl);c
         ld c,a
           ld hl,(allscroll)
-          jr c,$+3
+          jr nc,$+3
           inc hl
          ld e,l ;yscroll*2
         add hl,hl
          rr e ;yscroll (corrected для зацикливания)
          rra
-         and 0xfc
-         cpl
+         or 3 ;and 0xfc
+         ;cpl
           dec a ;адрес байта графики H
          ld l,a ;a=0xff-(((xscroll+layer+4)/2)&0xfc)
          ld a,h
@@ -657,6 +698,7 @@ uvscroll_endofscreen_sp=$+1
          xor c
          and 0xfc
          xor c
+          xor 3
         exx
         ld hl,tpushpgs
         add a,l
@@ -681,8 +723,8 @@ uvscroll_endofscreen_sp=$+1
         ld lx,a
          ex de,hl
          ld hl,UVSCROLL_SCRSTART
-         ld a,ly
-         bit 7,a
+         ;ld b,ly
+         bit 7,b
          jr z,$+4
          set 5,h
         ld a,d;h
@@ -728,7 +770,7 @@ tcallpgs
 
         display "xscroll=",xscroll
 xscroll
-        dw +(UVSCROLL_WID-UVSCROLL_SCRWID)/2;0
+        dw 0;+(UVSCROLL_WID-UVSCROLL_SCRWID)/2
 yscroll
         dw 0
 

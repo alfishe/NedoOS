@@ -9,7 +9,7 @@ scrhgt=200
 clswid=40 ;*8
 clshgt=200
 
-STACK=0x4000
+STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
