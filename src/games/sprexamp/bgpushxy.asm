@@ -88,6 +88,8 @@ uvscrollloop0
         ld a,c
         ld (allscroll_lsb),a
 
+       ;call drawtiles_hor
+
         call uvscroll_draw
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
@@ -637,42 +639,6 @@ uvscroll_endofscreen_sp=$+1
         else
 ;uvscroll_drawcolumn
 ;a=layer 0..3 + 4
-       if 1==0
-        ld hl,(xscroll) ;0..511 for 0..1022 pixels
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        rra        
-        ld a,l
-        rr l ;l=(xscroll+layer+4)/2
-        exx
-        ld hl,(yscroll) ;0..511
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        add hl,hl ;h=yscroll/16
-        xor h
-        and 3
-        xor h ;a=(xscroll+layer)&3 + ((yscroll/64)*4)
-          xor 3
-        ld hl,tpushpgs
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
-        exx ;hl'=список страниц графики =f((xscroll+layer)&3 + ((yscroll/64)*4))
-        ld a,(yscroll) ;0..511
-        and 63
-        add a,0xc0
-        ld h,a
-        ld a,l
-        and 0xfc       
-        cpl
-         add a,3 ;add a,+(UVSCROLL_SCRNPUSHES*4)-1 ;адрес байта графики H
-        ld l,a
-       else 
         ;ld hl,(allscroll)
         ld hl,allscroll_lsb
         ;ld c,(hl)
@@ -712,7 +678,6 @@ uvscroll_endofscreen_sp=$+1
          ld a,e ;yscroll (corrected для зацикливания)
         or 0xc0
         ld h,a
-       endif        
 ;конец (крайнее правое положение L при вызове, т.е. xscroll=0) = 256-(UVSCROLL_SCRNPUSHES*4)
 ;адрес входа графики: конец - ((xscroll+layer+4)/2&0xfc)
 ;d=patch byte
@@ -764,6 +729,206 @@ uvscroll_columndrawer_patch1=$+1
         jp uvscroll_columndrawer
         endif
 
+;256x64 tiles = 2048x512 pixels = мало!!! сразу пересчитывать из метатайлов?
+;нужна текущая карта метатайлов (также для коллизий) 21x14
+;её можно двигать прямо ldir, время пренебрежимо малое (для сравнения, карта тайлов 41x26 = 17056 тактов ldi, т.е. 5% от отрисовки)
+;или пока обойдёмся тайлами?
+
+        macro DRAWTILELAYERDOWN
+        dup 7
+        ld a,(bc)
+        ld (de),a
+        inc b
+        inc d
+        edup
+        ld a,(bc)
+        ld (de),a
+        endm
+
+        macro DRAWTILELAYERUP
+        dup 7
+        ld a,(bc)
+        ld (de),a
+        dec b
+        dec d
+        edup
+        ld a,(bc)
+        ld (de),a
+        endm
+
+drawtiles_ver
+;8x8
+;рисуем всегда с ровного X/8, а Y может пересекать страницу
+;может понадобиться отрисовать 26 тайлов по вертикали
+;TODO
+        ret
+drawtiles_hor
+;8x8
+;рисуем всегда с ровного X/8, а Y может пересекать страницу
+;может понадобиться отрисовать 41 тайл по горизонтали
+;большая карта может состоять из нескольких зон с разной tilegfx
+;одна отрисовка должна быть в рамках одной tilegfx
+;так что выводим 48 тайлов по горизонтали всегда? тогда можно и X всегда привязанный к целому push (ровный X/16), и весь блок из 8 тайлов не вылетит за сегмент (ровный X/64)
+;при экране 39x23 знакомест выводим 40 тайлов по горизонтали и 24 по вертикали (выгода 20%)
+        ld a,(pgtilegfx) ;TODO по зоне
+        SETPG32KHIGH
+
+;сейчас выводит в правом нижнем углу, за границей экрана (может попасть на 6 пикс в экран по X, но по Y за экраном)
+        ld hl,(allscroll)
+        ld bc,(allscroll_lsb)
+        
+        ;ld a,4
+;a=layer 0..3 + 4
+         ;add a,+(UVSCROLL_SCRNPUSHES-0)*8
+;hlc = allyx = y*512+x
+        ;add a,c
+        ;ld c,a
+       ld a,c
+       and 0xe0
+       ld c,a
+          ;jr nc,$+3
+          ;inc hl
+         ld e,l ;y*2
+        add hl,hl
+         rr e ;y (corrected для зацикливания)
+         rra
+         or 3 ;and 0xfc ;a=0xff-(((x+layer+4)/2)&0xfc)
+          sub 2 ;адрес байта графики L
+         ld l,a
+         ld a,h
+         add a,a
+         add a,a ;a=((y/64)*4)
+         ;xor c
+         ;and 0xfc
+         ;xor c
+         ;xor 3
+        ld c,a
+        ld b,0
+        ld ix,tpushpgs
+        add ix,bc ;ix=список страниц графики =f((x+layer)&3 + ((y/64)*4))
+         ld a,e ;y (corrected для зацикливания)
+        and 0x3f
+        add a,0x40
+        ld h,a
+        ex de,hl
+
+;ix=tpushpgs+(Y/64*4)+layer
+;TODO hl=tilemap+ (c000)
+        ld hl,TILEMAP
+
+;de=ldpush+ (4000,8000)
+;^^^делать SETPG один раз для горизонтальной линии тайлов и 1 раз за 8 тайлов для вертикальной линии тайлов (8 тайлов не может вылететь за вторую страницу, т.к. мы рисуем всегда с ровного X/8)
+;выводить линию тайлов: сначала весь первый слой, потом весь второй и т.д.
+        ld a,(ix)
+        SETPG16K
+        ld a,(ix+4)
+        SETPG32KLOW
+        ld b,TILEGFX/256
+        push de
+        push hl
+        call drawtiles_hor_layer
+        pop hl
+        pop de
+        ld a,(ix+1)
+        SETPG16K
+        ld a,(ix+5)
+        SETPG32KLOW
+        ld b,TILEGFX/256+8
+        push de
+        push hl
+        call drawtiles_hor_layer
+        pop hl
+        pop de
+        ld a,(ix+2)
+        SETPG16K
+        ld a,(ix+6)
+        SETPG32KLOW
+        ld b,TILEGFX/256+16
+        push de
+        push hl
+        call drawtiles_hor_layer
+        pop hl
+        pop de
+        ld a,(ix+3)
+        SETPG16K
+        ld a,(ix+7)
+        SETPG32KLOW
+        ld b,TILEGFX/256+24
+drawtiles_hor_layer
+;8 tiles = 1489 (не считая call-ret)
+;*4 слоя*(6+4, считая вертикальные) блоков по 8 = 59560 > 10% от отрисовки при скролле на 8 пикс за фрейм
+;
+;c000: tile gfx (len = 0x2000)
+;<3f00: tilemap
+;4000,8000: ld:push
+        ;ld b,TILEGFX/256 ;зависит от слоя
+        ld c,(hl) ;tile ;7
+        DRAWTILELAYERDOWN ;+168
+        inc l
+        inc e
+        ld c,(hl) ;tile ;+15
+        DRAWTILELAYERUP ;+168
+        inc l
+        ld a,e
+        sub 5
+        ld e,a ;+19 = 377
+        ld c,(hl) ;tile
+        DRAWTILELAYERDOWN
+        inc l
+        inc e
+        ld c,(hl) ;tile
+        DRAWTILELAYERUP
+        inc l
+        ld a,e
+        sub 5
+        ld e,a
+        ld c,(hl) ;tile
+        DRAWTILELAYERDOWN
+        inc l
+        inc e
+        ld c,(hl) ;tile
+        DRAWTILELAYERUP
+        inc l
+        ld a,e
+        sub 5
+        ld e,a
+        ld c,(hl) ;tile
+        DRAWTILELAYERDOWN
+        inc l
+        inc e
+        ld c,(hl) ;tile
+        DRAWTILELAYERUP
+        ret
+
+;TODO для игр с большими тайлами сгенерить в процедуры тайлов 16x8 (каждый слой - страничка, вывод по вертикали в другой страничке), вход такой:
+	;ld a,(bc) ;в конце нужен терминатор - невозможный номер тайла
+	;inc c
+	;ld l,a
+	;or 0xc0
+	;ld h,a
+	;jp (hl) ;30
+        ;ex de,hl
+        ;dup 7
+        ;ld (hl),n
+        ;inc h
+        ;edup
+        ;ld (hl),n
+        ;inc l
+        ;dup 7
+        ;ld (hl),n
+        ;dec h
+        ;edup
+        ;ld (hl),n
+        ;ld a,l
+        ;sub 5
+        ;ld l,a ;поэтому нельзя 8x8
+        ;ex de,hl ;+195
+	;ld a,(bc)
+	;inc c
+	;ld l,a
+	;or 0xc0
+	;ld h,a
+	;jp (hl) ;+30, итого тайл 16x8 = 225*4(layers) = 900, *8(tiles)*(3+4)(блоков по 8, считая и горизонтальные) = 50400, при горизонтальном скролле вдвое реже, чем без генерации процедур
 
 tcallpgs
         ds UVSCROLL_NCALLPGS

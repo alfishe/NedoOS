@@ -13,6 +13,9 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
+TILEMAP=0x0300 ;41x26
+TILEGFX=0x0800 ;TODO 0xc000
+
         macro RECODEBYTE
         ld a,(de)
         ld ($+4),a
@@ -67,6 +70,10 @@ waitcls0
          ;ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
         xor l
         ld (setpgs_scr_pgxor),a
+
+        OS_NEWPAGE
+        ld a,e
+        ld (pgtilegfx),a
         
         OS_NEWPAGE
         ld a,e
@@ -514,6 +521,9 @@ bgfilename
         db "bg6-16c.bmp",0
 bgxyfilename
         db "bg8-16d.bmp",0
+
+pgtilegfx
+        db 0 ;TODO по зонам
 
 tpushpgs
         ds 128 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
