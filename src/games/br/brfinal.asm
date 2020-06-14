@@ -617,4 +617,4 @@ end
 ;*B ..\INTRO\FLICK.LPZ\WANIw_1.LPZ
 ;*P0 ;==
 
-	savebin "br/brfinal.dat",begin,end-begin
+;	savebin "br/brfinal.dat",begin,end-begin

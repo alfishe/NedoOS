@@ -1,20 +1,114 @@
+# Supported environments:
+#   GNU/Linux.
+#
+# Tools used:
+#   GNU core utilities, tools/aspp.sh, tools/sjasmplus.
+
+include ../../_sdk/common.mk
+
 NAME		= wolf3d.com
-OBJECTS		= 
-DATA		= wolftex.0 wolftex.1 wolftex.2 wolftex.3 wolftex.4
-SOURCES		= main.asm genscale.asm WREND.asm WCTRL.asm WATM2.asm WSCAN10.asm
+OBJECTS		=
+SOURCES		= main.asm
+SPRITES		= wolfspr.bmp wolftex.bmp
+RESOURCES	=
+DOCS		=
+LOCALDIR	= wolf3d
+INSTALLDIR	= ../../../release/nedogame
+BIN_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
+ASPP		= ../../../tools/aspp.sh
 SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/nedogame/wolf3d
+SJASMPLUSFLAGS	= --nologo --msg=war
+DEPAS		= env LC_CTYPE=C ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
 
-all: ${NAME} ${SOURCES}
+# All targets
+TARGETS=executables resources
+.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
 
-wolf3d.com: ${SOURCES}
-	${SJASMPLUS} --nologo main.asm
+.DEFAULT_GOAL=all
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
-install: all
-	mkdir -p ${INSTALLDIR}/wolf3d || echo
-	cp wolf3d/* ${INSTALLDIR}/wolf3d
-	cp ${NAME} ${INSTALLDIR}
-install-doc: ${DOC} 
-#	cp ${DOC} ${INSTALLDIR}/doc
+empty:
+	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
+	@echo 'where ACTION is one of: install clean'
+	@echo '      TARGET is one of: ${TARGETS}'
+
+# Clear lists
+DEPS=
+
+# Create directories
+${sort \
+${BIN_INSTALLDIR} \
+${RES_INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $<
+
+##########################
+## Target "executables" ##
+##########################
+
+EXEC_DEPS=
+EXEC_BINS=
+
+${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+
+executables: ${EXEC_BINS}
+
+install-executables: executables | ${BIN_INSTALLDIR}
+	cp ${EXEC_BINS} $|
+
+clean-executables:
+	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+
+DEPS+=${EXEC_DEPS}
+
+########################
+## Target "resources" ##
+########################
+
+RES_BINS=
+
+${foreach f,${SPRITES},\
+${eval ${call copy_to_dir_rule,${LOCALDIR},${f},RES_BINS}}}
+
+resources: ${RES_BINS} | ${LOCALDIR}
+
+install-resources: resources | ${RES_INSTALLDIR}
+	cp ${RES_BINS} $|
+
+clean-resources:
+	${RM} ${RES_BINS}
+
+####################
+## Common targets ##
+####################
+
+all: executables resources
+
+install: install-executables install-resources
+
+ifeq "${sort ${DOCS}}" ""
+install-doc:
+else
+install-doc: ${DOCS} | ${DOC_INSTALLDIR}
+	cp $^ $|
+endif
+
+clean: clean-executables clean-resources
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+${filter clean-%,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif

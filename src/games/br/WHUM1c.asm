@@ -49,4 +49,4 @@
         dw hummage7hit
         include "WHUM1c.ast"
         include "gfxinc2.asm"
-	savebin "br/WHUM1c.bin",begin,end-begin
+;	savebin "br/WHUM1c.bin",begin,end-begin

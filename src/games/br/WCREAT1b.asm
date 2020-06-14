@@ -49,4 +49,4 @@
         dw star7hit
         include "WCREAT1b.ast"
         include "gfxinc2.asm"
-	savebin "br/WCREAT1b.bin",begin,end-begin
+;	savebin "br/WCREAT1b.bin",begin,end-begin

@@ -27,4 +27,4 @@
         ds 0xe800-$
         include "demobar.ast"
         include "gfxinc2.asm"
-	savebin "br/WCREAT2.bin",begin,end-begin
+;	savebin "br/WCREAT2.bin",begin,end-begin

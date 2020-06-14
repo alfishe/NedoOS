@@ -57,4 +57,4 @@
         dw orcgold7step
         include "WORC1.ast"
         include "gfxinc2.asm"
-	savebin "br/WORC1.bin",begin,end-begin
+;	savebin "br/WORC1.bin",begin,end-begin

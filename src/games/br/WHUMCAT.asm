@@ -25,4 +25,4 @@
         dw humcat7hit
         include "WHUMCAT.ast"
         include "gfxinc2.asm"
-	savebin "br/WHUMCAT.bin",begin,end-begin
+;	savebin "br/WHUMCAT.bin",begin,end-begin

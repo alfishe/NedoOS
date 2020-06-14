@@ -1,19 +1,43 @@
+# Supported environments:
+#   GNU/Linux.
+#
+# Used tools:
+#   GNU core utilities.
+
 PROGS		= snake tank tetris smb untangle wolf3d br eric
+DOC		=
+INSTALLDIR	= ../../release/nedogame
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 
-all: ${PROGS}
+.PHONY: ${PROGS} empty all install install-doc clean
 
-.PHONY: ${PROGS}
+.DEFAULT_GOAL=all
+
+empty:
+	@echo 'Usage: make [ TARGET | all | clean | install | install-doc ]'
+	@echo '(TARGET is one of: ${PROGS})'
 
 ${PROGS}:
 	${MAKE} -w -C $@
 
-clean:
-	for d in ${PROGS}; do ${MAKE} -w -C $$d clean; done
+${sort \
+${INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $@ || echo
 
-install:
-	mkdir -p ../../release/nedogame || echo
-	for d in ${PROGS}; do ${MAKE} -w -C $$d install; done
+all: ${PROGS}
 
+install: | ${INSTALLDIR}
+	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done
+
+ifeq "${DOC}" ""
 install-doc:
-	for d in ${PROGS}; do ${MAKE} -w -C $$d install-doc; done
+else
+install-doc: ${DOC} | ${DOC_INSTALLDIR}
+	cp $^ $|
+endif
+	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done
 
+clean:
+	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done

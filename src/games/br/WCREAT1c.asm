@@ -33,4 +33,4 @@
         dw griz7step
         include "WCREAT1c.ast"
         include "gfxinc2.asm"
-	savebin "br/WCREAT1c.bin",begin,end-begin
+;	savebin "br/WCREAT1c.bin",begin,end-begin

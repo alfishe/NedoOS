@@ -1,0 +1,100 @@
+# common.mk - common definitions for Makefiles.
+#
+# Supported environments:
+#   GNU/Linux.
+#
+# Tools used:
+#   GNU core utilities, tools/aspp.sh, tools/sjasmplus.
+#
+# Variables used:
+#   DEPAS - tools/aspp.sh name
+#   DEPAFLAGS - flags for ${DEPAS}
+#   DEPEXT - dependency file's extension (no leading dot)
+#   SJASMPLUS - tools/sjasmplus name
+#   SJASMPLUSFLAGS - flags for ${SJASMPLUS}
+
+# sjasmplus_rule - rule to compile assembler source file using tools ${DEPAS} and ${SJASMPLUS}
+#
+# Parameters:
+# ${1} = output file(s)
+# ${2} = single input file
+# ${3} = extra parameters for "sjasmplus"
+# ${4} = variable's name for output dependencies files list (or empty)
+# ${5} = variable's name for output binaries files list (or empty)
+#
+# Usage:
+# ${eval ${call sjasmplus_rule,${RELEASE}/program.com ${RELEASE}/intro.com,main.asm,,DEPS,BINS}}
+
+define sjasmplus_rule =
+# Dependency generation rule for .asm file:
+${patsubst %${suffix ${2}},%.${DEPEXT},${2}}: ${2}
+	$${RM} $$@ && $${DEPAS} $${DEPAFLAGS} ${addprefix -MT ,${1}} -MT $$@ -MF $$@ $$<
+${1}: ${2}
+	$${SJASMPLUS} $${SJASMPLUSFLAGS} ${3} $$< --raw=$$@
+ifneq "${4}" ""
+${4}+=${patsubst %${suffix ${2}},%.${DEPEXT},${2}}
+endif
+ifneq "${5}" ""
+${5}+=${1}
+endif
+endef
+
+# sjasmplus_odd_rule - rule to compile assembler source file using tools ${DEPAS} and ${SJASMPLUS}
+#
+# Parameters:
+# ${1} = output file(s) - must be the same as specified in the source file!
+# ${2} = single input file
+# ${3} = extra parameters
+# ${4} = variable's name for output dependencies files list (or empty)
+# ${5} = variable's name for output binaries files list (or empty)
+#
+# Usage:
+# ${eval ${call sjasmplus_odd_rule,${RELEASE}/program.com ${RELEASE}/intro.com,main.asm,,DEPS,BINS}}
+
+define sjasmplus_odd_rule =
+# Dependency generation rule for .asm file:
+# FIXME: No output file specified here (we must check sources manually):
+${patsubst %${suffix ${2}},%.${DEPEXT},${2}}: ${2}
+	$${RM} $$@ && $${DEPAS} $${DEPAFLAGS} ${addprefix -MT ,${1}} -MT $$@ -MF $$@ $$<
+${1}: ${2}
+	$${SJASMPLUS} $${SJASMPLUSFLAGS} ${3} $$<
+ifneq "${4}" ""
+${4}+=${patsubst %${suffix ${2}},%.${DEPEXT},${2}}
+endif
+ifneq "${5}" ""
+${5}+=${1}
+endif
+endef
+
+# copy_file_rule - rule to copy single file
+#
+# Parameters:
+# ${1} = single output file
+# ${2} = single input file
+# ${3} = variable's name for output files list (or empty)
+#
+# Usage:
+# ${eval ${call copy_file_rule,${RELEASE}/program.spr,sprites.bin,ALL_BINS}}
+
+define copy_file_rule =
+${1}: ${2}
+	@mkdir -p $${@D}
+	cp $$< $$@
+ifneq "${3}" ""
+${3}+=${1}
+endif
+endef
+
+# copy_to_dir_rule - rule to copy file(s) to a directory
+#
+# Parameters:
+# ${1} = output directory (no trailing '/')
+# ${2} = input file(s)
+# ${3} = variable's name for output files list (or empty)
+#
+# Usage:
+# ${eval ${call copy_to_dir_rule,${RELEASE}/data,gfx.bin music.bin,ALL_BINS}}
+
+define copy_to_dir_rule =
+${foreach f,${2},${eval ${call copy_file_rule,${1}/${notdir ${f}},${f},${3}}}}
+endef

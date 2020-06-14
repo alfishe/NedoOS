@@ -25,4 +25,4 @@
         dw orchor7hit
         include "WORCHOR.ast"
         include "gfxinc2.asm"
-	savebin "br/WORCHOR.bin",begin,end-begin
+;	savebin "br/WORCHOR.bin",begin,end-begin

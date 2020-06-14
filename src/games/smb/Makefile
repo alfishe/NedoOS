@@ -1,21 +1,108 @@
+# Supported environments:
+#   GNU/Linux.
+#
+# Tools used:
+#   GNU core utilities, tools/aspp.sh, tools/sjasmplus.
+
+include ../../_sdk/common.mk
+
 NAME		= smb.com
 OBJECTS		=
-SOURCES		= main.asm 6502.asm 6502fast.asm main.asm nesconst.asm nu.asm smbconst.asm smbmusic.asm smbsound.asm tileattr.asm
-SJASMPLUS	= ../../../tools/sjasmplus
+SOURCES		= main.asm
+RESOURCES	=
+DOCS		=
 INSTALLDIR	= ../../../release/nedogame
+BIN_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
+ASPP		= ../../../tools/aspp.sh
+SJASMPLUS	= ../../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
+DEPAS		= env LC_CTYPE=C ${ASPP}
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
 
+# All targets
+TARGETS=executables resources
+.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
 
-all: ${NAME} ${SOURCES}
+.DEFAULT_GOAL=all
 
-${NAME}: ${SOURCES}
-	${SJASMPLUS} --nologo main.asm
+empty:
+	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
+	@echo 'where ACTION is one of: install clean'
+	@echo '      TARGET is one of: ${TARGETS}'
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
+# Clear lists
+DEPS=
 
-install: all
-	mkdir -p ${INSTALLDIR}
-	cp ${NAME} ${INSTALLDIR}
+# Create directories
+${sort \
+${BIN_INSTALLDIR} \
+${RES_INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $<
 
-install-doc: ${DOC}
-#	cp ${DOC} ${INSTALLDIR}/doc
+##########################
+## Target "executables" ##
+##########################
+
+EXEC_DEPS=
+EXEC_BINS=
+
+${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+
+executables: ${EXEC_BINS}
+
+install-executables: executables | ${BIN_INSTALLDIR}
+	cp ${EXEC_BINS} $|
+
+clean-executables:
+	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+
+DEPS+=${EXEC_DEPS}
+
+########################
+## Target "resources" ##
+########################
+
+resources: ${RESOURCES}
+
+install-resources: resources | ${RES_INSTALLDIR}
+ifneq "${sort ${RESOURCES}}" ""
+	cp ${RESOURCES} $|
+endif
+
+clean-resources:
+
+####################
+## Common targets ##
+####################
+
+all: executables resources
+
+install: install-executables install-resources
+
+ifeq "${sort ${DOCS}}" ""
+install-doc:
+else
+install-doc: ${DOCS} | ${DOC_INSTALLDIR}
+	cp $^ $|
+endif
+
+clean: clean-executables clean-resources
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+${filter clean-%,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif

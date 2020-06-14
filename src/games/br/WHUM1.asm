@@ -57,4 +57,4 @@
         dw humangold7step
         include "WHUM1.ast"
         include "gfxinc2.asm"
-	savebin "br/WHUM1.bin",begin,end-begin
+;	savebin "br/WHUM1.bin",begin,end-begin

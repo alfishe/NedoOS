@@ -25,4 +25,4 @@
         dw humhor7hit
         include "WHUMHOR.ast"
         include "gfxinc2.asm"
-	savebin "br/WHUMHOR.bin",begin,end-begin
+;	savebin "br/WHUMHOR.bin",begin,end-begin

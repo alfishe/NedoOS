@@ -41,4 +41,4 @@
         dw humblade7hit
         include "WHUM1b.ast"
         include "gfxinc2.asm"
-	savebin "br/WHUM1b.bin",begin,end-begin
+;	savebin "br/WHUM1b.bin",begin,end-begin

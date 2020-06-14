@@ -41,4 +41,4 @@
         dw orcblade7hit
         include "WORC1b.ast"
         include "gfxinc2.asm"
-	savebin "br/WORC1b.bin",begin,end-begin
+;	savebin "br/WORC1b.bin",begin,end-begin

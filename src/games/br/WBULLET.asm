@@ -44,4 +44,4 @@
         dw explosion2
         include "WBULLET.ast"
         include "gfxinc2.asm"
-	savebin "br/WBULLET.bin",begin,end-begin
+;	savebin "br/WBULLET.bin",begin,end-begin

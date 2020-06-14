@@ -49,4 +49,4 @@
         dw orcmage7hit
         include "WORC1c.ast"
         include "gfxinc2.asm"
-	savebin "br/WORC1c.bin",begin,end-begin
+;	savebin "br/WORC1c.bin",begin,end-begin

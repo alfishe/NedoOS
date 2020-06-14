@@ -25,4 +25,4 @@
         dw orccat7hit
         include "WORCCAT.ast"
         include "gfxinc2.asm"
-	savebin "br/WORCCAT.bin",begin,end-begin
+;	savebin "br/WORCCAT.bin",begin,end-begin

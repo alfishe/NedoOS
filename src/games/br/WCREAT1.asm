@@ -49,4 +49,4 @@
         dw skeleton7hit
         include "WCREAT1.ast"
         include "gfxinc2.asm"
-	savebin "br/WCREAT1.bin",begin,end-begin
+;	savebin "br/WCREAT1.bin",begin,end-begin

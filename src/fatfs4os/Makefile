@@ -2,83 +2,76 @@
 #   GNU/Linux.
 #
 # Used tools:
-#   GNU core utilities, GNU grep, GNU sed, tools/aspp.sh, GCC, unix2dos, Wine, IAR.
+#   GNU core utilities, GNU grep, GNU sed, tools/aspp.sh, Wine, IAR.
+
+include ../_sdk/common.mk
+include ../_sdk/iar.mk
 
 NAME		= fatfs.raw
-SOURCES		= mylib.asm ff.c
-TMPDIR		= tmp
-OBJECTS		= \
- ${patsubst %.asm,${TMPDIR}/%.r01,${filter %.asm,${SOURCES}}} \
- ${patsubst %.c,${TMPDIR}/%.r01,${filter %.c,${SOURCES}}}
-LINKER_FLAGS_FILE = ${TMPDIR}/fatfs.lnk
-LISTING		= ${TMPDIR}/fatfs.lst
+SOURCES		= mylib.asm ff.asm
 EXPORTS_FILE	= ../kernel/ffsfunc.asm
+TMPDIR		= tmp
 ASPP		= ../../tools/aspp.sh
 IARDIR		= ../../iar
-ICCZ80		= ${IARDIR}/bin/iccz80.exe
-AZ80		= ${IARDIR}/bin/az80.exe
-XLINK		= ${IARDIR}/bin/xlink.exe
-IARINC		= ${IARDIR}/inc
-IARLIB		= ${IARDIR}/lib
+IAR_LIBDIR	= ${IARDIR}/lib
+IAR_AZ80	= ${IARDIR}/bin/az80.exe
+IAR_XLINK	= ${IARDIR}/bin/xlink.exe
+IAR_AZ80FLAGS	= -S -uu
+IAR_XLINKFLAGS	= -S
 ifeq "${OS}" "Windows_NT"
 WINE		=
 else
-UNIX2DOS	= unix2dos -q
 WINE		= wine cmd /c
 endif
-ICCZ80FLAGS	= -S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -I${IARINC}/
-DEPAS		= ${ASPP}
+DEPAS		= env LC_CTYPE=C ${ASPP}
 DEPAFLAGS	= -E -MM -I .
-DEPCC		= gcc
-DEPCFLAGS	= -E -MM -I .
 DEPEXT		= d
-DEPS		= \
- ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}} \
- ${patsubst %.c,%.${DEPEXT},${filter %.c,${SOURCES}}}
 
-.DEFAULT_GOAL = all
+# All targets
+.PHONY: empty all install install-doc clean
 
-.PHONY: empty all clean install install-doc
+.DEFAULT_GOAL=all
 
 empty:
-	@echo 'Usage: make [ all | clean | install | install-doc ]'
+	@echo 'Usage: make [ all | install | install-doc | clean ]'
 
-# Dependency generation rule (.r01 from .asm):
-%.${DEPEXT}: %.asm
-	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT ${TMPDIR}/$*.r01 -MT $@ -MF $@ $<
+# Clear lists
+DEPS=
+OBJECTS=
+TMPS=
 
-# Dependency generation rule (.r01 from .c):
-%.${DEPEXT}: %.c
-	${RM} $@ && ${DEPCC} ${DEPCFLAGS} -MT ${TMPDIR}/$*.r01 -MT $@ -MF $@ $< || true
-
-ifeq "${MAKECMDGOALS}" "empty"
-else ifeq "${MAKECMDGOALS}" "clean"
-else
-include ${DEPS}
-endif
-
-${TMPDIR}:
+# Create directories
+${sort \
+${TMPDIR} \
+}:
 	mkdir -p $@
 
-${TMPDIR}/%.r01: %.asm | ${AZ80} ${TMPDIR}
-	${WINE} ${AZ80} -S -O${@D}/ -uu $<
+####################
+## Common targets ##
+####################
 
-${TMPDIR}/%.r01 ${TMPDIR}/%.lst ${TMPDIR}/%.s01: %.c | ${ICCZ80} ${TMPDIR}
-	${WINE} ${ICCZ80} ${ICCZ80FLAGS} -L${@D}/ -O${@D}/ -A${@D}/ $<
+fatfs_XCL=${TMPDIR}/fatfs.xcl
+fatfs_LST=${TMPDIR}/fatfs.lst
 
-${LINKER_FLAGS_FILE}: | ${TMPDIR}
-	echo '${OBJECTS}' > $@
-	echo '-S -cZ80 -FRAW-BINARY -C ${IARLIB}/clz80 -o ${NAME} -l ${LISTING} -xe' >> $@
-	echo '-Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF' >> $@
-ifeq "${OS}" "Windows_NT"
-else
-	${UNIX2DOS} $@
-endif
+# mylib.asm
+${TMPDIR}/mylib.r01: | ${TMPDIR}
+${eval ${call iar_az80_rule,${TMPDIR}/mylib.r01,mylib.asm,-O${TMPDIR}/ -L${TMPDIR}/,DEPS,OBJECTS}}
+TMPS+=${TMPDIR}/mylib.lst
 
-${NAME} ${LISTING}: ${LINKER_FLAGS_FILE} ${OBJECTS}
-	${WINE} ${XLINK} -f $<
+# ff.asm
+${TMPDIR}/ff.r01: | ${TMPDIR}
+${eval ${call iar_az80_rule,${TMPDIR}/ff.r01,ff.asm,-O${TMPDIR}/ -L${TMPDIR}/,DEPS,OBJECTS}}
+TMPS+=${TMPDIR}/ff.lst
 
-${EXPORTS_FILE}: ${LISTING}
+${fatfs_XCL}: ${OBJECTS} | ${TMPDIR}
+	echo '$^ ' > $@
+	echo '-cZ80 -FRAW-BINARY -C ${IAR_LIBDIR}/clz80 -o ${NAME} -l ${fatfs_LST} -xe ' >> $@
+	echo '-Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF ' >> $@
+
+${NAME} ${fatfs_LST}: ${fatfs_XCL} | ${TMPDIR}
+	${WINE} ${IAR_XLINK} ${IAR_XLINKFLAGS} -f $<
+
+${EXPORTS_FILE}: ${fatfs_LST}
 	echo '; ${@F} - FatFS calls.' > $@
 	echo '; This file is a part of NedoOS project.' >> $@
 	echo '; Compatible compiler: sjasmplus.' >> $@
@@ -86,17 +79,26 @@ ${EXPORTS_FILE}: ${LISTING}
 	echo 'ffsfunc' >> $@
 	grep -Ee '^[[:space:]]+f_' $< | \
 	sed -re 's/^[[:space:]]+(f_[^ ]+)[[:space:]]+([[:xdigit:]]{4})/.\1 EQU 0x\2/' >> $@
-ifeq "${OS}" "Windows_NT"
-else
-	${UNIX2DOS} $@
-endif
 
 all: ${NAME} ${EXPORTS_FILE}
 
-clean:
-	${RM} -r ${TMPDIR}
-	${RM} ${NAME} ${EXPORTS_FILE} ${DEPS}
-
-install:
+install: all
 
 install-doc:
+
+clean:
+	${RM} ${DEPS} ${OBJECTS} ${TMPS} ${fatfs_XCL} ${fatfs_LST} ${NAME} ${EXPORTS_FILE}
+	${RM} -r ${TMPDIR}
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif
