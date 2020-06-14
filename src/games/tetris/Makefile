@@ -11,10 +11,13 @@ OBJECTS		=
 SOURCES		= main.asm
 RESOURCES	=
 DOCS		=
+INSTALLDIR	= ../../../release/nedogame
+BIN_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 ASPP		= ../../../tools/aspp.sh
 SJASMPLUS	= ../../../tools/sjasmplus
 SJASMPLUSFLAGS	= --nologo --msg=war
-INSTALLDIR	= ../../../release/nedogame
 DEPAS		= ${ASPP}
 DEPAFLAGS	= -E -MM -I .
 DEPEXT		= d

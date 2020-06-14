@@ -88,13 +88,13 @@ EXEC_DATS+=${EXEC_INTRO_DATS}
 
 # final
 
-EXEC_FINAL_BINS=${LOCALDIR}/brfinal.dat
+EXEC_FINAL_DATS=${LOCALDIR}/brfinal.dat
 
-${eval ${call sjasmplus_rule,${EXEC_FINAL_BINS},brfinal.asm,,EXEC_DEPS,EXEC_BINS}}
+${eval ${call sjasmplus_rule,${EXEC_FINAL_DATS},brfinal.asm,,EXEC_DEPS,}}
 
-EXEC_BINS+=${EXEC_FINAL_BINS}
+EXEC_DATS+=${EXEC_FINAL_DATS}
 
-executables: ${EXEC_BINS} | ${LOCALDIR}
+executables: ${EXEC_BINS} ${EXEC_DATS} | ${LOCALDIR}
 
 install-executables: executables | ${sort ${BIN_INSTALLDIR} ${RES_INSTALLDIR}}
 	cp ${EXEC_BINS} ${BIN_INSTALLDIR}
