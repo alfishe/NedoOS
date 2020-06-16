@@ -1,33 +1,16 @@
-#include "g_states.h"
-#include <math.h>
+#include "interpreter.h"
+#include "global_const.h"
 
-#define STACKSIZE 256
+void interpret(uint64_t *prog) {
 
-uint64_t datastack[STACKSIZE];
-uint64_t callstack[STACKSIZE];
-
-g_states::g_states() {
-
-}
-
-//TODO проверка переполнения адреса в VAL()
-
-#define DISPATCH /*printf("pc %u labels_pc %u stk %u(%x) %u %u\n",(unsigned int)(uint64_t)(pc-prog),(unsigned int)(*pc),(unsigned int)datastack[datastackindex],(unsigned int)datastack[datastackindex],(unsigned int)datastack[(uint8_t)(datastackindex-1)],(unsigned int)datastack[(uint8_t)(datastackindex-2)]);*/ goto *labels[*pc++]
-#define GETPAR *pc++
-#define PUSH(x) datastack[++datastackindex] = x
-#define PUSHFLOAT(x) *(double*)&datastack[++datastackindex] = x
-#define POP datastack[datastackindex--]
-#define TOS datastack[datastackindex]
-#define PUSHCALLSTACK(x) callstack[++callstackindex] = x
-#define POPCALLSTACK callstack[callstackindex--]
-
-void g_states::interpret(uint64_t *prog) {
-
-    int state;
+//    int state;
     uint64_t *pc = prog;
     uint8_t datastackindex = 0; //растёт вверх
     uint8_t callstackindex = 0; //растёт вверх
 
+    uint64_t datastack[STACKSIZE];
+    uint64_t callstack[STACKSIZE];
+#if 1
     const void *labels[CMDS] = {
         /*[CMD_NOP] = */&&op_nop,
         /*[CMD_ADD] = */&&op_add,
@@ -92,13 +75,13 @@ op_mul: {
 op_div: {
         uint64_t par1 = POP;
         uint64_t par2 = TOS;
-        TOS = (par1/par2);
+        if (par2) TOS = (par1/par2);
         DISPATCH;
     }
 op_divsigned: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
-        TOS = ((uint64_t)((int64_t)par1/(int64_t)par2));
+        int64_t par1 = POP;
+        int64_t par2 = TOS;
+        if (par2) TOS = ((uint64_t)((int64_t)par1/(int64_t)par2));
         DISPATCH;
     }
 op_mod: {
@@ -170,7 +153,8 @@ op_const: {
         DISPATCH;
     }
 op_dup: {
-        PUSH(TOS);
+        uint64_t par1 = TOS;
+        PUSH(par1);
         DISPATCH;
     }
 op_drop: {
@@ -185,16 +169,16 @@ op_swap: {
         DISPATCH;
     }
 op_readvar: {
-        TOS = VAL(TOS);
+        if ((uint64_t)(TOS) < (uint64_t)(N)) TOS = VAL(TOS);
         DISPATCH;
     }
 op_writevar: {
         uint64_t vardata = POP;
-        VAL(POP) = vardata;
+        uint64_t varaddr = POP;
+        if (varaddr < (uint64_t)(N)) VAL(varaddr) = vardata;
         DISPATCH;
     }
 op_goto: {
-        //printf("goto %u\n",(unsigned int)(*pc));
         pc = prog+(*pc); //нельзя GETPAR - делает pc++
         DISPATCH;
     }
@@ -218,34 +202,36 @@ op_ret: {
     }
 op_rst: {
         double par1 = *(double*)&(POP);
+        double par2;
         uint64_t op = GETPAR;
         switch (op) {
         case RST_SIN:
             PUSHFLOAT(sin(par1));
-                break;
+            break;
         case RST_COS:
             PUSHFLOAT(cos(par1));
-                break;
+            break;
         case RST_ATAN:
             PUSHFLOAT(atan(par1));
-                break;
+            break;
         case RST_ATAN2:
-            PUSHFLOAT(atan2(par1,*(double*)&(POP)));
-                break;
+            par2 = *(double*)&(POP);
+            PUSHFLOAT(atan2(par1,par2));
+            break;
         case RST_EXP:
             PUSHFLOAT(exp(par1));
-                break;
+            break;
         case RST_LOG:
             PUSHFLOAT(log(par1));
-                break;
+            break;
         case RST_SQRT:
             PUSHFLOAT(sqrt(par1));
-                break;
+            break;
         case RST_ABS:
             PUSHFLOAT(abs(par1));
-                break;
+            break;
 
-            default: ;
+        default: ;
         };
         DISPATCH;
     }
@@ -296,5 +282,37 @@ op_inttofloat: {
 op_done: {
         //state = POP;
     };
+#endif
     //return state;
+}
+
+uint64_t *loadscript(int state_index, char *waspath) {
+    uint64_t *prog;
+    FILE *fileProg;
+
+    stringstream strToInt;
+    string stateIndex;
+    string path = waspath;
+
+    strToInt << state_index; // перевод из числа в строку
+    strToInt >> stateIndex; //
+
+    path += stateIndex;
+    path += ".bin";
+
+    int size;
+    fileProg = fopen(path.c_str(), "r");
+    if (fileProg) {
+        fseek(fileProg,0,SEEK_END);
+        size = ftell(fileProg);
+        fseek(fileProg,0,SEEK_SET);
+        prog = reinterpret_cast<uint64_t*>(malloc(size));
+        fread(prog, 1, size, fileProg);
+        fclose(fileProg);
+
+    } else {
+        prog = reinterpret_cast<uint64_t*>(malloc(sizeof(uint64_t)));
+        prog[0] = CMD_DONE;
+    }
+    return prog;
 }
