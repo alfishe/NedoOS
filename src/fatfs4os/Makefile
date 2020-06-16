@@ -2,27 +2,16 @@
 #   GNU/Linux.
 #
 # Used tools:
-#   GNU core utilities, GNU grep, GNU sed, tools/aspp.sh, Wine, IAR.
+#   GNU core utilities, GNU sed, tools/aspp.sh, tools/sjasmplus.
 
 include ../_sdk/common.mk
-include ../_sdk/iar.mk
 
 NAME		= fatfs.raw
-SOURCES		= mylib.asm ff.asm
+SOURCES		= ff_sj.asm
 EXPORTS_FILE	= ../kernel/ffsfunc.asm
-TMPDIR		= tmp
 ASPP		= ../../tools/aspp.sh
-IARDIR		= ../../iar
-IAR_LIBDIR	= ${IARDIR}/lib
-IAR_AZ80	= ${IARDIR}/bin/az80.exe
-IAR_XLINK	= ${IARDIR}/bin/xlink.exe
-IAR_AZ80FLAGS	= -S -uu
-IAR_XLINKFLAGS	= -S
-ifeq "${OS}" "Windows_NT"
-WINE		=
-else
-WINE		= wine cmd /c
-endif
+SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
 DEPAS		= env LC_CTYPE=C ${ASPP}
 DEPAFLAGS	= -E -MM -I .
 DEPEXT		= d
@@ -38,47 +27,22 @@ empty:
 # Clear lists
 DEPS=
 OBJECTS=
-TMPS=
-
-# Create directories
-${sort \
-${TMPDIR} \
-}:
-	mkdir -p $@
 
 ####################
 ## Common targets ##
 ####################
 
-fatfs_XCL=${TMPDIR}/fatfs.xcl
-fatfs_LST=${TMPDIR}/fatfs.lst
+fatfs_EXP=ff_sj.exp
 
-# mylib.asm
-${TMPDIR}/mylib.r01: | ${TMPDIR}
-${eval ${call iar_az80_rule,${TMPDIR}/mylib.r01,mylib.asm,-O${TMPDIR}/ -L${TMPDIR}/,DEPS,OBJECTS}}
-TMPS+=${TMPDIR}/mylib.lst
+${eval ${call sjasmplus_odd_rule,${NAME} ${fatfs_EXP},${SOURCES},--exp=${fatfs_EXP},DEPS,}}
 
-# ff.asm
-${TMPDIR}/ff.r01: | ${TMPDIR}
-${eval ${call iar_az80_rule,${TMPDIR}/ff.r01,ff.asm,-O${TMPDIR}/ -L${TMPDIR}/,DEPS,OBJECTS}}
-TMPS+=${TMPDIR}/ff.lst
-
-${fatfs_XCL}: ${OBJECTS} | ${TMPDIR}
-	echo '$^ ' > $@
-	echo '-cZ80 -FRAW-BINARY -C ${IAR_LIBDIR}/clz80 -o ${NAME} -l ${fatfs_LST} -xe ' >> $@
-	echo '-Z(CODE)TRST,RCODE,CODE,CDATA0,CONST,CSTR,CCSTR,DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,TEMP=4000-7FFF ' >> $@
-
-${NAME} ${fatfs_LST}: ${fatfs_XCL} | ${TMPDIR}
-	${WINE} ${IAR_XLINK} ${IAR_XLINKFLAGS} -f $<
-
-${EXPORTS_FILE}: ${fatfs_LST}
+${EXPORTS_FILE}: ${fatfs_EXP}
 	echo '; ${@F} - FatFS calls.' > $@
 	echo '; This file is a part of NedoOS project.' >> $@
 	echo '; Compatible compiler: sjasmplus.' >> $@
 	echo '; This file was generated automatically while building FatFS.' >> $@
 	echo 'ffsfunc' >> $@
-	grep -Ee '^[[:space:]]+f_' $< | \
-	sed -re 's/^[[:space:]]+(f_[^ ]+)[[:space:]]+([[:xdigit:]]{4})/.\1 EQU 0x\2/' >> $@
+	sed -re 's/^.+/.&/' $< >> $@
 
 all: ${NAME} ${EXPORTS_FILE}
 
@@ -87,8 +51,7 @@ install: all
 install-doc:
 
 clean:
-	${RM} ${DEPS} ${OBJECTS} ${TMPS} ${fatfs_XCL} ${fatfs_LST} ${NAME} ${EXPORTS_FILE}
-	${RM} -r ${TMPDIR}
+	${RM} ${DEPS} ${OBJECTS} ${fatfs_EXP} ${NAME} ${EXPORTS_FILE}
 
 ##################
 ## Dependencies ##
