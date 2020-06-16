@@ -395,11 +395,11 @@ VAR CHAR opsym;
       asmtoken(+_TOKTEXT);
 //for float:
       IF (_cnext=='.') {
-        rdaddword(); //приклеить точку
-        rdaddword(); //приклеить дробную часть
+        rdaddwordall(); //приклеить точку
+        rdaddwordall(); //приклеить дробную часть
         IF ( (_tword[_lentword-1]=='e') && (_cnext=='-') ) {
-          rdaddword(); //приклеить '-' отрицательной экспоненты
-          rdaddword(); //приклеить отрицательную экспоненту
+          rdaddwordall(); //приклеить '-' отрицательной экспоненты
+          rdaddwordall(); //приклеить отрицательную экспоненту
         };
 /*        asmrdword_tokspc();
         fputs(_tword, _fout);

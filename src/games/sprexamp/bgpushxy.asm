@@ -120,6 +120,7 @@ control_nofocus
         ld b,a
         ld hl,(xscroll)
         add hl,bc
+         ;inc hl
         ;bit 7,h
         ;jr z,$+5
         ;ld hl,0
@@ -130,7 +131,7 @@ control_nofocus
         ;jr c,$+4
         ;ld h,b
         ;ld l,c
-        ld (xscroll),hl
+        ld (xscroll),hl ;чем больше, тем более левая часть карты
         
         ld c,d
         ld a,d
@@ -139,6 +140,7 @@ control_nofocus
         ld b,a
         ld hl,(yscroll)
         add hl,bc
+         ;inc hl
         ;bit 7,h
         ;jr z,$+5
         ;ld hl,0
@@ -148,7 +150,15 @@ control_nofocus
         ;add hl,de
         ;jr c,$+3
         ;ex de,hl
-        ld (yscroll),hl
+        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
+        
+;при горизонтальном скролле надо отрисовать все появившиеся столбцы
+;допустим, было xscroll/4 = N
+;стало xscroll/4 = N2 > N, т.е. мы ушли левее
+;надо подрисовать N2-N столбцов: N+(SCRWID/8)..N2+(SCRWID/8)-1 ;или везде добавить +1?
+;но перед этим сдвинуть TILEMAP на N2-N столбцов и сгенерировать вылезшие тайлы
+
+;аналогичный алгоритм при вертикальном скролле
         jr uvscrollloop0
 
 
@@ -771,6 +781,10 @@ drawtiles_hor
 ;сейчас выводит в правом нижнем углу, за границей экрана (может попасть на 6 пикс в экран по X, но по Y за экраном)
         ld hl,(allscroll)
         ld a,(allscroll_lsb)
+        add a,+32
+        ld bc,UVSCROLL_SCRHGT*2;0
+        adc hl,bc
+;TODO округлять Y
         
          ld d,l ;y*2
         add hl,hl
@@ -791,6 +805,54 @@ drawtiles_hor
 ;ix=tpushpgs+(Y/64*4)+layer
 ;TODO hl=tilemap+
         ld hl,TILEMAP
+        
+;TODO отрисовывать тайлы справа налево (по возрастанию адресов ld-push)
+        push de
+        call drawtiles_hor_block
+        inc hl
+        pop de
+        ld a,e
+        add a,8*2
+        ld e,a
+        jr nc,$+3
+        inc d
+        push de
+        call drawtiles_hor_block
+        inc hl
+        pop de
+        ld a,e
+        add a,8*2
+        ld e,a
+        jr nc,$+3
+        inc d
+        push de
+        call drawtiles_hor_block
+        inc hl
+        pop de
+        ld a,e
+        add a,8*2
+        ld e,a
+        jr nc,$+3
+        inc d
+        push de
+        call drawtiles_hor_block
+        inc hl
+        pop de
+        ld a,e
+        add a,8*2
+        ld e,a
+        jr nc,$+3
+        inc d
+        push de
+        call drawtiles_hor_block
+        inc hl
+        pop de
+        ld a,e
+        add a,8*2
+        ld e,a
+        jr nc,$+3
+        inc d        
+drawtiles_hor_block
 
 ;de=ldpush+ (4000,8000)
 ;^^^делать SETPG один раз для горизонтальной линии тайлов и 1 раз за 8 тайлов для вертикальной линии тайлов (8 тайлов не может вылететь за вторую страницу, т.к. мы рисуем всегда с ровного X/8)
@@ -840,37 +902,37 @@ drawtiles_hor_layer
         ;ld b,TILEGFX/256 ;зависит от слоя
         ld c,(hl) ;tile ;7
         DRAWTILELAYERDOWN ;+168
-        inc l
+        inc hl
         inc e
         ld c,(hl) ;tile ;+15
         DRAWTILELAYERUP ;+168
-        inc l
+        inc hl
         ld a,e
         sub 5
         ld e,a ;+19 = 377
         ld c,(hl) ;tile
         DRAWTILELAYERDOWN
-        inc l
+        inc hl
         inc e
         ld c,(hl) ;tile
         DRAWTILELAYERUP
-        inc l
+        inc hl
         ld a,e
         sub 5
         ld e,a
         ld c,(hl) ;tile
         DRAWTILELAYERDOWN
-        inc l
+        inc hl
         inc e
         ld c,(hl) ;tile
         DRAWTILELAYERUP
-        inc l
+        inc hl
         ld a,e
         sub 5
         ld e,a
         ld c,(hl) ;tile
         DRAWTILELAYERDOWN
-        inc l
+        inc hl
         inc e
         ld c,(hl) ;tile
         DRAWTILELAYERUP
