@@ -55,56 +55,56 @@ op_nop: {
         DISPATCH;
     }
 op_add: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1+par2);
         DISPATCH;
     }
 op_sub: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1-par2);
         DISPATCH;
     }
 op_mul: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1*par2);
         DISPATCH;
     }
 op_div: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         if (par2) TOS = (par1/par2);
         DISPATCH;
     }
 op_divsigned: {
-        int64_t par1 = POP;
-        int64_t par2 = TOS;
+        int64_t par2 = POP;
+        int64_t par1 = TOS;
         if (par2) TOS = ((uint64_t)((int64_t)par1/(int64_t)par2));
         DISPATCH;
     }
 op_mod: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
-        TOS = (par1-((par1/par2)*par2));
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
+        if (par2) TOS = (par1-((par1/par2)*par2));
         DISPATCH;
     }
 op_and: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1&par2);
         DISPATCH;
     }
 op_or: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1|par2);
         DISPATCH;
     }
 op_xor: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1^par2);
         DISPATCH;
     }
@@ -113,38 +113,38 @@ op_inv: {
         DISPATCH;
     }
 op_shr: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
-        TOS = (par1>>par2);
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
+        TOS = (par2>>par1);
         DISPATCH;
     }
 op_shrsigned: {
-        int64_t par1 = POP;
-        uint64_t par2 = TOS;
+        int64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1>>par2);
         DISPATCH;
     }
 op_shl: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1<<par2);
         DISPATCH;
     }
 op_eq: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1==par2)?-1:0;
         DISPATCH;
     }
 op_moreeq: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
         TOS = (par1>=par2)?-1:0;
         DISPATCH;
     }
 op_moreeqsigned: {
-        int64_t par1 = POP;
-        int64_t par2 = TOS;
+        int64_t par2 = POP;
+        int64_t par1 = TOS;
         TOS = (par1>=par2)?-1:0;
         DISPATCH;
     }
@@ -162,10 +162,10 @@ op_drop: {
         DISPATCH;
     }
 op_swap: {
-        uint64_t par1 = POP;
-        uint64_t par2 = TOS;
-        TOS = par1;
-        PUSH(par2);
+        uint64_t par2 = POP;
+        uint64_t par1 = TOS;
+        TOS = par2;
+        PUSH(par1);
         DISPATCH;
     }
 op_readvar: {
@@ -202,7 +202,7 @@ op_ret: {
     }
 op_rst: {
         double par1 = *(double*)&(POP);
-        double par2;
+        double par0;
         uint64_t op = GETPAR;
         switch (op) {
         case RST_SIN:
@@ -215,8 +215,8 @@ op_rst: {
             PUSHFLOAT(atan(par1));
             break;
         case RST_ATAN2:
-            par2 = *(double*)&(POP);
-            PUSHFLOAT(atan2(par1,par2));
+            par0 = *(double*)&(POP); //записан в стек первым
+            PUSHFLOAT(atan2(par0,par1));
             break;
         case RST_EXP:
             PUSHFLOAT(exp(par1));
@@ -236,29 +236,29 @@ op_rst: {
         DISPATCH;
     }
 op_addfloat: {
-        double par1 = *(double*)&(POP);
-        double par2 = *(double*)&(TOS);
+        double par2 = *(double*)&(POP);
+        double par1 = *(double*)&(TOS);
         double res = par1+par2;
         *(double*)&(TOS) = res;
         DISPATCH;
     }
 op_subfloat: {
-        double par1 = *(double*)&(POP);
-        double par2 = *(double*)&(TOS);
+        double par2 = *(double*)&(POP);
+        double par1 = *(double*)&(TOS);
         double res = par1-par2;
         *(double*)&(TOS) = res;
         DISPATCH;
     }
 op_mulfloat: {
-        double par1 = *(double*)&(POP);
-        double par2 = *(double*)&(TOS);
+        double par2 = *(double*)&(POP);
+        double par1 = *(double*)&(TOS);
         double res = par1*par2;
         *(double*)&(TOS) = res;
         DISPATCH;
     }
 op_divfloat: {
-        double par1 = *(double*)&(POP);
-        double par2 = *(double*)&(TOS);
+        double par2 = *(double*)&(POP);
+        double par1 = *(double*)&(TOS);
         double res = par1/par2;
         *(double*)&(TOS) = res;
         DISPATCH;
