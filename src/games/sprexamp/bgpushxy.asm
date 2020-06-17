@@ -161,6 +161,98 @@ control_nofocus
 ;аналогичный алгоритм при вертикальном скролле
         jr uvscrollloop0
 
+uvscroll_scrolltilemap
+;hx=delta y (>0: scroll up)
+;lx=delta x (>0: scroll left)
+        ld a,hx
+        or lx
+        ret z
+
+        ld hl,TILEMAP ;from
+        ld d,h
+        ld e,l        ;to
+        ld bc,TILEMAPWID
+        exx
+        ld hl,TILEMAPHGT*TILEMAPWID ;size
+        ld bc,-TILEMAPWID
+        exx
+        ld a,hx
+        or a
+        jr z,uvscroll_scrolltilemap_dyq
+        jp m,uvscroll_scrolltilemap_dyneg
+;dy>0: hl+=dy*TILEMAPWID, hl'-=dy*TILEMAPWID
+uvscroll_scrolltilemap_dypos0
+        add hl,bc
+        exx
+        add hl,bc
+        exx
+        dec a
+        jr nz,uvscroll_scrolltilemap_dypos0
+        jr uvscroll_scrolltilemap_dyq
+uvscroll_scrolltilemap_dyneg
+;dy<0: de+=dy*-TILEMAPHGT, hl'-=dy*-TILEMAPHGT
+        ex de,hl
+uvscroll_scrolltilemap_dyneg0
+        add hl,bc
+        exx
+        add hl,bc
+        exx
+        inc a
+        jr nz,uvscroll_scrolltilemap_dyneg0
+        ex de,hl
+uvscroll_scrolltilemap_dyq
+        ld a,lx
+        or a
+        jr z,uvscroll_scrolltilemap_dxq
+        jp m,uvscroll_scrolltilemap_dxneg
+;dx>0: hl+=dx, hl'-=dx
+        ld c,a
+        ;ld b,0
+        add hl,bc ;NC
+        exx
+        ld c,a
+        ld b,0
+        ;or a
+        sbc hl,bc
+        ;exx
+        jr uvscroll_scrolltilemap_dxq
+uvscroll_scrolltilemap_dxneg
+;dx<0: de-=dx, hl'+=dx
+        ex de,hl
+        ld c,a
+        ;ld b,0
+        ;or a
+        sbc hl,bc
+        ex de,hl
+        exx
+        ld c,a
+        ld b,0
+        add hl,bc
+        ;exx
+uvscroll_scrolltilemap_dxq
+        ;exx
+        push hl
+        exx
+        pop bc
+;hl=from
+;de=to
+;bc=size
+        or a
+        sbc hl,de
+        add hl,de
+        jr nc,uvscroll_scrolltilemap_ldir
+        add hl,bc
+        dec hl
+        ex de,hl
+        add hl,bc
+        dec hl
+        ex de,hl
+        lddr ;TODO ldd in a loop
+        ret
+uvscroll_scrolltilemap_ldir
+        ldir ;TODO ldi in a loop
+        ret
+
 
 
 uvscroll_suddennextgfxpg
@@ -1046,10 +1138,10 @@ drawtiles_ver_layer
         ld c,(iy+(TILEMAPWID*2)) ;tile
         DRAWTILELAYERDOWN
         inc d
-        inc hy
         ld b,h
-        ld c,(iy+(TILEMAPWID*3-256)) ;tile
+        ld c,(iy+(TILEMAPWID*3)) ;tile
         DRAWTILELAYERDOWN
+        inc hy
         inc d
         ld b,h
         ld c,(iy+(TILEMAPWID*4-256)) ;tile

@@ -13,7 +13,7 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
-TILEMAPWID=48
+TILEMAPWID=41
 TILEMAPHGT=26
 TILEMAP=0x0300 ;TILEMAPWIDxTILEMAPHGT (постоянно скроллится и обновляется)
 TILEGFX=0x0800 ;TODO 0xc000
