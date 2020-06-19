@@ -268,7 +268,7 @@ syssets-pe26sd:
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
 
-pe26sd: syssets-pe26sd hobeta INSTALLDIR=${INSTALLDIR}/pe26 | ${INSTALLDIR}/pe26
+pe26sd: syssets-pe26sd hobeta | ${INSTALLDIR}
 	cp kernel/nedoos.\$$C $|/ospe26sd.\$$C
 
 #########

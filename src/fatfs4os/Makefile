@@ -52,7 +52,8 @@ install: all
 install-doc:
 
 clean:
-	${RM} ${DEPS} ${OBJECTS} ${fatfs_EXP} ${NAME} ${EXPORTS_FILE}
+	${RM} ${DEPS} ${OBJECTS} ${fatfs_EXP}
+#	${RM} ${DEPS} ${OBJECTS} ${fatfs_EXP} ${NAME} ${EXPORTS_FILE}
 
 ##################
 ## Dependencies ##
