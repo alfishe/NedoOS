@@ -7,7 +7,9 @@ echo INETDRV=0x01 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 		echo "%savepath%"
 call make.bat noneedtrd
-..\tools\sjasmplus --nologo kernel\hobeta.asm > nul
-move /Y nedoos.$C ..\release\osatm3hd.$C > nul
+cd kernel
+..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul
+cd ..
+move /Y kernel\nedoos.$C ..\release\osatm3hd.$C > nul
 call ..\tools\chkimg.bat hdd
 if "%makeall%"=="" ..\us\emul.exe

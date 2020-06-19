@@ -12,7 +12,7 @@ SOURCES		= main.asm
 SPRITES		= sprset.bmp tileset.bmp
 RESOURCES	=
 DOCS		=
-INSTALLDIR	= ../../../release/nedogame
+INSTALLDIR	?= ../../../release/nedogame
 BIN_INSTALLDIR	= ${INSTALLDIR}
 RES_INSTALLDIR	= ${INSTALLDIR}
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
@@ -44,7 +44,7 @@ ${BIN_INSTALLDIR} \
 ${RES_INSTALLDIR} \
 ${DOC_INSTALLDIR} \
 }:
-	mkdir -p $<
+	mkdir -p $@
 
 ##########################
 ## Target "executables" ##

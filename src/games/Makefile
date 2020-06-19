@@ -6,7 +6,7 @@
 
 PROGS		= snake tank tetris smb untangle wolf3d br eric
 DOC		=
-INSTALLDIR	= ../../release/nedogame
+INSTALLDIR	?= ../../release/nedogame
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 
 .PHONY: ${PROGS} empty all install install-doc clean

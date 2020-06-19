@@ -11,7 +11,7 @@ OBJECTS		=
 SOURCES		= cmd.asm
 RESOURCES	=
 DOCS		=
-INSTALLDIR	= ../../release
+INSTALLDIR	?= ../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
 RES_INSTALLDIR	= ${INSTALLDIR}/bin
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
@@ -42,7 +42,7 @@ ${BIN_INSTALLDIR} \
 ${RES_INSTALLDIR} \
 ${DOC_INSTALLDIR} \
 }:
-	mkdir -p $<
+	mkdir -p $@
 
 ##########################
 ## Target "executables" ##

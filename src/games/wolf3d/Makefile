@@ -13,9 +13,9 @@ SPRITES		= wolfspr.bmp wolftex.bmp
 RESOURCES	=
 DOCS		=
 LOCALDIR	= wolf3d
-INSTALLDIR	= ../../../release/nedogame
+INSTALLDIR	?= ../../../release/nedogame
 BIN_INSTALLDIR	= ${INSTALLDIR}
-RES_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}/wolf3d
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 ASPP		= ../../../tools/aspp.sh
 SJASMPLUS	= ../../../tools/sjasmplus
@@ -44,7 +44,7 @@ ${BIN_INSTALLDIR} \
 ${RES_INSTALLDIR} \
 ${DOC_INSTALLDIR} \
 }:
-	mkdir -p $<
+	mkdir -p $@
 
 ##########################
 ## Target "executables" ##

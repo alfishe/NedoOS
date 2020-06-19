@@ -7,7 +7,7 @@
 include ../_sdk/common.mk
 
 NAME		= fatfs.raw
-SOURCES		= ff_sj.asm
+#SOURCES		= ff_sj.asm
 EXPORTS_FILE	= ../kernel/ffsfunc.asm
 ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
@@ -34,7 +34,7 @@ OBJECTS=
 
 fatfs_EXP=ff_sj.exp
 
-${eval ${call sjasmplus_odd_rule,${NAME} ${fatfs_EXP},${SOURCES},--exp=${fatfs_EXP},DEPS,}}
+#{eval ${call sjasmplus_odd_rule,${NAME} ${fatfs_EXP},${SOURCES},--exp=${fatfs_EXP},DEPS,}}
 
 ${EXPORTS_FILE}: ${fatfs_EXP}
 	echo '; ${@F} - FatFS calls.' > $@
@@ -44,7 +44,8 @@ ${EXPORTS_FILE}: ${fatfs_EXP}
 	echo 'ffsfunc' >> $@
 	sed -re 's/^.+/.&/' $< >> $@
 
-all: ${NAME} ${EXPORTS_FILE}
+#all: ${NAME} ${EXPORTS_FILE}
+all: ${NAME}
 
 install: all
 

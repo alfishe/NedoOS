@@ -1,63 +1,121 @@
+# Supported environments:
+#   GNU/Linux.
+#
+# Tools used:
+#   * GNU core utilities
+#   * _sdk/nedotrd.bin
+#   * tools/sjasmplus
+
 INSTALLDIR	= ../release
+BIN_INSTALLDIR	= ${INSTALLDIR}/bin
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 SUBDIRS		= basic browser cmd emptyapp games fatfs4os kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping telnet
-OBJECTS		= 
-TOOLS		= _sdk/nedotrd.bin _sdk/nedores.bin _sdk/nedopad.bin ../tools/mhmt ../tools/sjasmplus ../tools/dmimg
-SOURCES		= _sdk/syssets.asm
-SJASMPLUS	= ../tools/sjasmplus
+OBJECTS		=
 DOCS		= nedoos.txt nedoos.new
-NEDOTRD		= _sdk/nedotrd.bin
+SOURCES		= _sdk/syssets.asm
 
-all:
-	echo "Use make atm2|atm2hd|atm3|atm3hd|atm3sd|evolution|pe26"
+# Tools
+SDK_DIR		= _sdk
+NEDOTRD		= ${SDK_DIR}/nedotrd.bin
+NEDORES		= ${SDK_DIR}/nedores.bin
+NEDOPAD		= ${SDK_DIR}/nedopad.bin
+TOOLS_DIR	= ../tools
+MHMT		= ${TOOLS_DIR}/mhmt
+SJASMPLUS	= ${TOOLS_DIR}/sjasmplus
+DMIMG		= ${TOOLS_DIR}/dmimg
+TOOLS		= ${NEDOTRD} ${NEDORES} ${NEDOPAD} ${MHMT} ${SJASMPLUS} ${DMIMG}
 
-tools: ${TOOLS} 
+SJASMPLUSFLAGS	= --nologo --msg=war
 
-system: ${TOOLS} ${SUBDIRS}
+# All targets
+TARGETS=atm2 atm2hd atm3 atm3hd atm3sd evolution pe26
+.PHONY: empty ${SUBDIRS} tools clean-tools subdirs clean-subdirs system install install-doc hobeta trd ${foreach t,${TARGETS},${t} syssets-${t}} all clean-syssets clean-release clean
 
-.PHONY: ${SUBDIRS} clean
+.DEFAULT_GOAL=empty
+
+empty:
+	@echo 'Usage: make [ tools | clean-tools | subdirs | clean-subdirs | system | install'
+	@echo '            | install-doc | hobeta | trd | TARGET | all | clean-release'
+	@echo '            | clean ]'
+	@echo 'where TARGET is one of: ${TARGETS}'
+	@echo 'Example:'
+	@echo '	make clean'
+	@echo '	make TARGET'
+
+# Create directories
+${sort \
+${INSTALLDIR} \
+${BIN_INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $@
+
+###########
+## tools ##
+###########
+
+${TOOLS}:
+	${MAKE} -w -C ${@D} ${@F}
+
+tools: ${TOOLS}
+
+clean-tools:
+	${MAKE} -w -C ${SDK_DIR} clean
+	${MAKE} -w -C ${TOOLS_DIR} clean
+
+#############
+## subdirs ##
+#############
 
 ${SUBDIRS}: ${SOURCES}
 	${MAKE} -w -C $@
 
-_sdk/nedotrd.bin _sdk/nedores.bin _sdk/nedopad.bin:
-	${MAKE} -w -C _sdk
+subdirs: ${SUBDIRS}
 
-../tools/mhmt:
-	cd ../tools/src && cd mhmt/linux && make && cp mhmt ../../..
-../tools/sjasmplus:
-	cd ../tools/src && cd sjasmplus && make && cp sjasmplus ../..
-../tools/dmimg:
-	cd ../tools/src && cd dmimg && make && cp dmimg ../..
-
-clean-tools:
-	${MAKE} -w -C _sdk clean
-	${MAKE} -w -C ../tools/src/dmimg clean
-	${MAKE} -w -C ../tools/src/sjasmplus clean
-	${MAKE} -w -C ../tools/src/mhmt/linux clean
-	#cd ../tools && rm sjasmplus mhmt
-
-clean: clean-tools
+clean-subdirs:
+	${RM} _sdk/syssets.asm
 	for d in ${SUBDIRS}; do ${MAKE} -w -C $$d clean; done
-	rm -f _sdk/syssets.asm
-clean-release:
-	cd ${INSTALLDIR} && rm -f bin/* doc/*
 
-install: all
+############
+## system ##
+############
+
+system: tools subdirs
+
+#############
+## install ##
+#############
+
+install: autoexec.bat | ${BIN_INSTALLDIR}
 	for d in ${SUBDIRS}; do ${MAKE} -w -C $$d install; done
-	cp autoexec.bat ${INSTALLDIR}/bin
+	cp $^ $|
 
-install-doc: 
+#################
+## install-doc ##
+#################
+
+install-doc: ${DOCS} | ${DOC_INSTALLDIR}
 	for d in ${SUBDIRS}; do ${MAKE} -w -C $$d install-doc; done
-	cp ${DOCS} ${INSTALLDIR}/doc
+	cp $^ $|
 
-hobeta: system install install-doc
-	${SJASMPLUS} kernel/hobeta.asm
+############
+## hobeta ##
+############
+
+kernel/nedoos.$$C:
+	${MAKE} -w -C ${@D} hobeta
+
+hobeta: system install install-doc kernel/nedoos.$$C
+
+#########
+## trd ##
+#########
 
 trd: system install install-doc
 	${NEDOTRD} test.trd -n
 	${NEDOTRD} test.trd -ah BOOT6000.\$$B
 	${NEDOTRD} test.trd -s 24576 -ac kernel/code.c
-	for d in `find ${INSTALLDIR}/bin -type f`; do ${NEDOTRD} test.trd -a $$d; done
+	for d in `find ${BIN_INSTALLDIR} -type f`; do ${NEDOTRD} test.trd -a $$d; done
 #	${NEDOTRD} test.trd -a nedolang/comp/sizesz80.h
 #	${NEDOTRD} test.trd -a nedolang/comp/comp_os.s
 #	${NEDOTRD} test.trd -a nedolang/comp/compc_os.s
@@ -82,98 +140,148 @@ trd: system install install-doc
 #	${NEDOTRD} test.trd -a modplay/scalsfjy.mod
 #	for d in `find ${INSTALLDIR}/doc -type f`; do ${NEDOTRD} test.trd -a $$d; done
 
-atm2:
+##########
+## atm2 ##
+##########
+
+syssets-atm2:
 	echo atm=2 > _sdk/syssets.asm
 	echo sys_npages=64 >> _sdk/syssets.asm
 	echo NEMOIDE=0 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x00 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} trd
-	mv -f test.trd ${INSTALLDIR}/osatm2.trd
 
-atm2hd: 
-	echo atm=2 > _sdk/syssets.asm 
-	echo sys_npages=64 >> _sdk/syssets.asm 
-	echo NEMOIDE=0 >> _sdk/syssets.asm 
+atm2: syssets-atm2 trd | ${INSTALLDIR}
+	mv -f test.trd $|/osatm2.trd
+
+############
+## atm2hd ##
+############
+
+syssets-atm2hd:
+	echo atm=2 > _sdk/syssets.asm
+	echo sys_npages=64 >> _sdk/syssets.asm
+	echo NEMOIDE=0 >> _sdk/syssets.asm
 	echo SYSDRV=4 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x00 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} hobeta
-#	cp nedoos.\$$C ${INSTALLDIR}/osatm2hd.\$$C
+
+atm2hd: syssets-atm2hd hobeta | ${INSTALLDIR}
+#	cp kernel/nedoos.\$$C $|/osatm2hd.\$$C
 #	${MAKE} trd
 #	${NEDOTRD} test.trd -eh code.c
 #	${NEDOTRD} test.trd -a code.c
-#	cp kernel/code.c ${INSTALLDIR}/osatm2hd.\$$C
-#	mv -f test.trd ${INSTALLDIR}/osatm2hd.trd
+#	cp kernel/code.c $|/osatm2hd.\$$C
+#	mv -f test.trd $|/osatm2hd.trd
 
-atm3:
+##########
+## atm3 ##
+##########
+
+syssets-atm3:
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} trd
-	mv -f test.trd ${INSTALLDIR}/osatm3.trd
-atm3hd:
+
+atm3: syssets-atm3 trd | ${INSTALLDIR}
+	mv -f test.trd $|/osatm3.trd
+
+############
+## atm3hd ##
+############
+
+syssets-atm3hd:
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=4 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} hobeta
-	cp nedoos.\$$C ${INSTALLDIR}/osatm3hd.\$$C
-#	${MAKE} trd
-#	${SJASMPLUS} kernel/hobeta.asm
-#	cp nedoos.\$$C ${INSTALLDIR}/osatm3hd.\$$C
-#	mv -f test.trd ${INSTALLDIR}/osatm3hd.trd
 
-atm3sd: 
+#atm3hd: syssets-atm3hd hobeta trd | ${INSTALLDIR}
+atm3hd: syssets-atm3hd hobeta | ${INSTALLDIR}
+	cp kernel/nedoos.\$$C $|/osatm3hd.\$$C
+#	mv -f test.trd $|/osatm3hd.trd
+
+############
+## atm3sd ##
+############
+
+syssets-atm3sd:
 	echo atm=3 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=12 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} hobeta
-	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
-#	${MAKE} trd
-#	${SJASMPLUS} kernel/hobeta.asm
-#	cp nedoos.\$$C ${INSTALLDIR}/osatm3sd.\$$C
-#	mv -f test.trd ${INSTALLDIR}/osatm3sd.trd
 
-evolution evosd evohd: 
+#atm3sd: syssets-atm3sd hobeta trd | ${INSTALLDIR}
+atm3sd: syssets-atm3sd hobeta | ${INSTALLDIR}
+	cp kernel/nedoos.\$$C $|/osatm3sd.\$$C
+#	mv -f test.trd $|/osatm3sd.trd
+
+###############
+## evolution ##
+###############
+
+syssets-evolution:
 	echo atm=1 > _sdk/syssets.asm
 	echo sys_npages=192 >> _sdk/syssets.asm
 	echo NEMOIDE=1 >> _sdk/syssets.asm
 	echo SYSDRV=12 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x01 >> _sdk/syssets.asm
-	${MAKE} hobeta
-	cp nedoos.\$$C ${INSTALLDIR}/osevo.\$$C
-#	${MAKE} trd
-#	${SJASMPLUS} kernel/hobeta.asm
-#	cp nedoos.\$$C ${INSTALLDIR}/osevo.\$$C
-#	mv -f test.trd ${INSTALLDIR}/osevo.trd
 
-pe26:
+#evolution: syssets-evolution hobeta trd | ${INSTALLDIR}
+evolution: syssets-evolution hobeta | ${INSTALLDIR}
+	cp kernel/nedoos.\$$C $|/osevo.\$$C
+#	mv -f test.trd $|/osevo.trd
+
+##########
+## pe26 ##
+##########
+
+syssets-pe26:
 	echo atm=2 > _sdk/syssets.asm
 	echo sys_npages=64 >> _sdk/syssets.asm
 	echo NEMOIDE=0 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} trd
-	mv -f test.trd ${INSTALLDIR}/ospe26.trd
 
-pe26sd:
+pe26: syssets-pe26 trd | ${INSTALLDIR}
+	mv -f test.trd $|/ospe26.trd
+
+############
+## pe26sd ##
+############
+
+syssets-pe26sd:
 	echo atm=2 > _sdk/syssets.asm
 	echo sys_npages=64 >> _sdk/syssets.asm
 	echo NEMOIDE=0 >> _sdk/syssets.asm
 	echo SYSDRV=0 >> _sdk/syssets.asm
 	echo INETDRV EQU 0x01 >> _sdk/syssets.asm
 	echo PS2KBD EQU 0x00 >> _sdk/syssets.asm
-	${MAKE} hobeta
-	cp nedoos.\$$C ${INSTALLDIR}/ospe26sd.\$$C
+
+pe26sd: syssets-pe26sd hobeta INSTALLDIR=${INSTALLDIR}/pe26 | ${INSTALLDIR}/pe26
+	cp kernel/nedoos.\$$C $|/ospe26sd.\$$C
+
+#########
+## all ##
+#########
+
+all: ${TARGETS}
+
+###########
+## clean ##
+###########
+
+clean-release:
+	${RM} -r ${INSTALLDIR}/*
+
+clean: clean-subdirs

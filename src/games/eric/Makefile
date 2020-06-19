@@ -9,11 +9,11 @@ include ../../_sdk/common.mk
 NAME		= eric.com
 OBJECTS		=
 SOURCES		= main.asm
-RESOURCES	=
+RESOURCES	= eric/ericgfx.bmp
 DOCS		=
-INSTALLDIR	= ../../../release/nedogame
+INSTALLDIR	?= ../../../release/nedogame
 BIN_INSTALLDIR	= ${INSTALLDIR}
-RES_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}/eric
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 ASPP		= ../../../tools/aspp.sh
 SJASMPLUS	= ../../../tools/sjasmplus
@@ -42,7 +42,7 @@ ${BIN_INSTALLDIR} \
 ${RES_INSTALLDIR} \
 ${DOC_INSTALLDIR} \
 }:
-	mkdir -p $<
+	mkdir -p $@
 
 ##########################
 ## Target "executables" ##

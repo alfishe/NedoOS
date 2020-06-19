@@ -14,9 +14,9 @@ SOURCES		= main.asm WSTART1.asm brfinal.asm
 RESOURCES	=
 DOCS		=
 LOCALDIR	= br
-INSTALLDIR	= ../../../release/nedogame/br
+INSTALLDIR	?= ../../../release/nedogame
 BIN_INSTALLDIR	= ${INSTALLDIR}
-RES_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}/br
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 ASPP		= ../../../tools/aspp.sh
 SJASMPLUS	= ../../../tools/sjasmplus
@@ -47,7 +47,7 @@ ${BIN_INSTALLDIR} \
 ${RES_INSTALLDIR} \
 ${DOC_INSTALLDIR} \
 }:
-	mkdir -p $<
+	mkdir -p $@
 
 ##########################
 ## Target "executables" ##

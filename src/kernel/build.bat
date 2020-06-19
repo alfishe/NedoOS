@@ -8,6 +8,6 @@ copy /b initcode.c + syscode.c.mlz code.c > nul
 del initcode.c
 del syscode.c
 del syscode.c.mlz
+sjasmplus --nologo --msg=war hobeta.asm
 cd ..
-sjasmplus --nologo --msg=war kernel/hobeta.asm
 if "%currentdir%"=="" (pause)

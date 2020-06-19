@@ -8,7 +8,9 @@ echo PS2KBD=0x00 >> _sdk\syssets.asm
 echo 	define KOE >> _sdk\syssets.asm
 echo 	define KOEDI >> _sdk\syssets.asm
 call make.bat noneedtrd
-..\tools\sjasmplus --nologo kernel\hobeta.asm > nul
+cd kernel
+..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul
+cd ..
 call ..\tools\chkimg.bat sd
-move /Y nedoos.$C ..\release\osp26sd.$C > nul
+move /Y kernel\nedoos.$C ..\release\osp26sd.$C > nul
 if "%makeall%"=="" ..\us\emul.exe -i ..\us\dimkam.ini
