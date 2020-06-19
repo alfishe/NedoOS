@@ -336,11 +336,13 @@ VAR BYTE t2sz;
 #ifdef TARGET_SCRIPT
   IF (_t == t2) {
   }ELSE IF (t2==_T_FLOAT) {
-    IF (_t==_T_INT) {emitinttofloat();
+    IF (_wasconst) pushconst(); //не портим константу при BYTE<=>CHAR
+    IF (_t==_T_INT) {emitinttofloat(); //(FLOAT)intval - несовместимо с C!
     }ELSE {goto bad;
     };
   }ELSE IF (_t==_T_FLOAT) {
-    IF (t2==_T_INT) {emitfloattoint();
+    IF (_wasconst) pushconst(); //не портим константу при BYTE<=>CHAR
+    IF (t2==_T_INT) {emitfloattoint(); //(INT)floatval - несовместимо с C!
     }ELSE {goto bad;
     };
   }ELSE
@@ -418,6 +420,10 @@ EXPORT PROC cmdadd()
     };
   }ELSE {
     IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+    IF (_t==_T_FLOAT) {emitaddfloat();
+    }ELSE
+#endif
     IF (_typesz[_t]==_SZ_REG/**(_t==_T_INT)||(_t==_T_UINT)||(_t>=_T_POI)*/) {
       getrold(); //берём раньше, чтобы получить быстрый регистр
       getrnew();
@@ -434,9 +440,6 @@ EXPORT PROC cmdadd()
       emitadcrg(); //old2+new+CY => old2
       freernew();
       //теперь new=(oldlow+newlow), old=(oldhigh+newhigh+CY)
-#ifdef TARGET_SCRIPT
-    }ELSE IF (_t==_T_FLOAT) {emitaddfloat();
-#endif
     }ELSE errtype("+",_t);
   };
 }
@@ -459,6 +462,10 @@ EXPORT PROC cmdsub() //из старого вычесть новое!
     };
   }ELSE {
     IF (_wasconst) pushconst();
+#ifdef TARGET_SCRIPT
+    IF (_t==_T_FLOAT) {emitsubfloat();
+    }ELSE
+#endif
     IF (_typesz[_t]==_SZ_REG/**(_t==_T_INT)||(_t==_T_UINT)||(_t>=_T_POI)*/) {
       getrold(); //берём раньше, чтобы получить быстрый регистр
       getrnew();
@@ -476,9 +483,6 @@ EXPORT PROC cmdsub() //из старого вычесть новое!
       emitsbcrg(); //old2-new-CY => old2
       freernew();
       //теперь new=(oldlow-newlow), old=(oldhigh-newhigh-CY)
-#ifdef TARGET_SCRIPT
-    }ELSE IF (_t==_T_FLOAT) {emitsubfloat();
-#endif
     }ELSE errtype("-",_t);
   };
 }
@@ -787,7 +791,7 @@ EXPORT PROC cmdinv()
   };//ELSE errtype("inv",_t);
 }
 
-EXPORT PROC cmdinc()
+EXPORT PROC cmdinc() //no float
 {
 #ifdef USE_COMMENTS
 ;;  cmtstr(";OPERATION ++"); endcmt();
@@ -812,7 +816,7 @@ EXPORT PROC cmdinc()
   }ELSE errtype("inc",_t);
 }
 
-EXPORT PROC cmddec()
+EXPORT PROC cmddec() //no float
 {
 #ifdef USE_COMMENTS
 ;;  cmtstr( ";OPERATION --" ); endcmt();
@@ -837,7 +841,7 @@ EXPORT PROC cmddec()
   }ELSE errtype("dec",_t);
 }
 
-EXPORT PROC cmdincbyaddr()
+EXPORT PROC cmdincbyaddr() //no float
 {
 #ifdef USE_COMMENTS
 ;;  cmtstr(";OPERATION ++byaddr"); endcmt();
@@ -858,7 +862,7 @@ EXPORT PROC cmdincbyaddr()
   freernew();
 }
 
-EXPORT PROC cmddecbyaddr()
+EXPORT PROC cmddecbyaddr() //no float
 {
 #ifdef USE_COMMENTS
 ;;  cmtstr(";OPERATION --byaddr"); endcmt();
@@ -889,7 +893,9 @@ EXPORT PROC cmdless() //старое меньше нового
 #endif
   IF (_wasconst) pushconst();
 #ifdef TARGET_SCRIPT
-  IF (_t==_T_BYTE) {
+  IF (_t==_T_FLOAT) {
+    emitlessfloat();
+  }ELSE IF (_t==_T_BYTE) {
     emitlessb();
   }ELSE IF (_t==_T_UINT) {
     emitless();
@@ -933,7 +939,9 @@ EXPORT PROC cmdmore() //старое больше нового
 #endif
   IF (_wasconst) pushconst();
 #ifdef TARGET_SCRIPT
-  IF (_t==_T_BYTE) {
+  IF (_t==_T_FLOAT) {
+    emitmorefloat();
+  }ELSE IF (_t==_T_BYTE) {
     emitmoreb();
   }ELSE IF (_t==_T_UINT) {
     emitmore();
@@ -977,7 +985,9 @@ EXPORT PROC cmdlesseq() //старое <= нового
 #endif
   IF (_wasconst) pushconst();
 #ifdef TARGET_SCRIPT
-  IF (_t==_T_BYTE) {
+  IF (_t==_T_FLOAT) {
+    emitlesseqfloat();
+  }ELSE IF (_t==_T_BYTE) {
     emitlesseqb();
   }ELSE IF (_t==_T_UINT) {
     emitlesseq();
@@ -1021,7 +1031,9 @@ EXPORT PROC cmdmoreeq() //старое >= нового
 #endif
   IF (_wasconst) pushconst();
 #ifdef TARGET_SCRIPT
-  IF (_t==_T_BYTE) {
+  IF (_t==_T_FLOAT) {
+    emitmoreeqfloat();
+  }ELSE IF (_t==_T_BYTE) {
     emitmoreeqb();
   }ELSE IF (_t==_T_UINT) {
     emitmoreeq();
@@ -1064,6 +1076,11 @@ EXPORT PROC cmdeq()
 ;;  cmtstr( ";OPERATION ==" ); endcmt();
 #endif
   _sz = _typesz[_t];
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_FLOAT) {
+    emiteqfloat();
+  }ELSE
+#endif
   IF (_sz==_SZ_BYTE) {
     IF (_wasconst) {
       getrnew();
@@ -1112,6 +1129,11 @@ EXPORT PROC cmdnoteq()
 ;;  cmtstr( ";OPERATION !=" ); endcmt();
 #endif
   _sz = _typesz[_t];
+#ifdef TARGET_SCRIPT
+  IF (_t==_T_FLOAT) {
+    emitneqfloat();
+  }ELSE
+#endif
   IF (_sz==_SZ_BYTE) {
     IF (_wasconst) {
       getrnew();

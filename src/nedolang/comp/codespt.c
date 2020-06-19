@@ -279,6 +279,16 @@ PROC asm_moreeqsigned_eol()
   asmstr( "\tDW CMD_MOREEQSIGNED" ); endasm();
 }
 
+PROC asm_eqfloat_eol()
+{
+  asmstr( "\tDW CMD_EQFLOAT" ); endasm();
+}
+
+PROC asm_moreeqfloat_eol()
+{
+  asmstr( "\tDW CMD_MOREEQFLOAT" ); endasm();
+}
+
 PROC asm_inv_eol()
 {
   asmstr( "\tDW CMD_INV" ); endasm();
@@ -463,10 +473,48 @@ PROC emitless()
   _jpflag = 0x00;
 }
 
+PROC emitlesssigned()
+{
+  asm_moreeqsigned_eol();
+  asm_inv_eol();
+  _jpflag = 0x00;
+}
+
+PROC emitlessb()
+{
+  emitless();
+}
+
+PROC emitlessfloat()
+{
+  asm_moreeqfloat_eol();
+  asm_inv_eol();
+  _jpflag = 0x00;
+}
+
 PROC emitlesseq()
 {
   asm_swap_eol();
   asm_moreeq_eol();
+  _jpflag = 0x00;
+}
+
+PROC emitlesseqsigned()
+{
+  asm_swap_eol();
+  asm_moreeqsigned_eol();
+  _jpflag = 0x00;
+}
+
+PROC emitlesseqb()
+{
+  emitlesseq();
+}
+
+PROC emitlesseqfloat()
+{
+  asm_swap_eol();
+  asm_moreeqfloat_eol();
   _jpflag = 0x00;
 }
 
@@ -478,31 +526,30 @@ PROC emitmore()
   _jpflag = 0x00;
 }
 
-PROC emitmoreeq()
-{
-  asm_moreeq_eol();
-  _jpflag = 0x00;
-}
-
-PROC emitlesssigned()
-{
-  asm_moreeqsigned_eol();
-  asm_inv_eol();
-  _jpflag = 0x00;
-}
-
-PROC emitlesseqsigned()
-{
-  asm_swap_eol();
-  asm_moreeqsigned_eol();
-  _jpflag = 0x00;
-}
-
 PROC emitmoresigned()
 {
   asm_swap_eol();
   asm_moreeqsigned_eol();
   asm_inv_eol();
+  _jpflag = 0x00;
+}
+
+PROC emitmoreb()
+{
+  emitmore();
+}
+
+PROC emitmorefloat()
+{
+  asm_swap_eol();
+  asm_moreeqfloat_eol();
+  asm_inv_eol();
+  _jpflag = 0x00;
+}
+
+PROC emitmoreeq()
+{
+  asm_moreeq_eol();
   _jpflag = 0x00;
 }
 
@@ -512,24 +559,28 @@ PROC emitmoreeqsigned()
   _jpflag = 0x00;
 }
 
-PROC emitlessb()
-{
-  emitless();
-}
-
-PROC emitlesseqb()
-{
-  emitlesseq();
-}
-
-PROC emitmoreb()
-{
-  emitmore();
-}
-
 PROC emitmoreeqb()
 {
   emitmoreeq();
+}
+
+PROC emitmoreeqfloat()
+{
+  asm_moreeqfloat_eol();
+  _jpflag = 0x00;
+}
+
+PROC emiteqfloat()
+{
+  asm_eqfloat_eol();
+  _jpflag = 0x00;
+}
+
+PROC emitneqfloat()
+{
+  asm_eqfloat_eol();
+  asm_inv_eol();
+  _jpflag = 0x00;
 }
 
 PROC emitjpiffalse()

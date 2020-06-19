@@ -1,151 +1,167 @@
 #include "interpreter.h"
-#include "global_const.h"
+#include "global_mem.h"
+#include <stdio.h>
+#include <stdlib.h>
+//#include <time.h>
+#include <string>
+#include <sstream>
 
-void interpret(uint64_t *prog) {
+uint8_t datastackindex = 0; //растёт вверх
+uint8_t callstackindex = 0; //растёт вверх
 
-//    int state;
-    uint64_t *pc = prog;
-    uint8_t datastackindex = 0; //растёт вверх
-    uint8_t callstackindex = 0; //растёт вверх
+data64bit datastack[STACKSIZE];
+uint64_t callstack[STACKSIZE];
 
-    uint64_t datastack[STACKSIZE];
-    uint64_t callstack[STACKSIZE];
+#ifdef FOR_DEBUGGER
+    uint64_t *pc;
+    uint64_t *prog;
+    int interpret() {
+#else //FOR_DEBUGGER
+    int interpret(uint64_t *prog) {
+        uint64_t *pc = prog;
+#endif //FOR_DEBUGGER
 #if 1
     const void *labels[CMDS] = {
-        /*[CMD_NOP] = */&&op_nop,
-        /*[CMD_ADD] = */&&op_add,
-        /*[CMD_SUB] = */&&op_sub,
-        /*[CMD_MUL] = */&&op_mul,
-        /*[CMD_DIV] = */&&op_div,
-        /*[CMD_DIVSIGNED] = */&&op_divsigned,
-        /*[CMD_IF0GOTO] = */&&op_if0goto,
-        /*[CMD_GOTO] = */&&op_goto,
-        /*[CMD_DUP] = */&&op_dup,
-        /*[CMD_DROP] = */&&op_drop,
-        /*[CMD_SWAP] = */&&op_swap,
-        /*[CMD_READVAR] = */&&op_readvar,
-        /*[CMD_WRITEVAR] = */&&op_writevar,
-        /*[CMD_CONST] = */&&op_const,
-        /*[CMD_RET] = */&&op_ret,
-        /*[CMD_CALL] = */&&op_call,
-        /*[CMD_AND] = */&&op_and,
-        /*[CMD_OR] = */&&op_or,
-        /*[CMD_XOR] = */&&op_xor,
-        /*[CMD_EQ] = */&&op_eq,
-        /*[CMD_MOREEQ] = */&&op_moreeq,
-        /*[CMD_MOREEQSIGNED] = */&&op_moreeqsigned,
-        /*[CMD_INV] = */&&op_inv,
-        /*[CMD_RST] = */&&op_rst,
-        /*[CMD_SHR] = */&&op_shr,
-        /*[CMD_SHRSIGNED] = */&&op_shrsigned,
-        /*[CMD_SHL] = */&&op_shl,
-        /*[CMD_MOD] = */&&op_mod,
-        /*[CMD_DONE] = */&&op_done,
-        /*[CMD_ADDFLOAT] = */&&op_addfloat,
-        /*[CMD_SUBFLOAT] = */&&op_subfloat,
-        /*[CMD_MULFLOAT] = */&&op_mulfloat,
-        /*[CMD_DIVFLOAT] = */&&op_divfloat,
-        /*[CMD_NEGFLOAT] = */&&op_negfloat,
-        /*[CMD_FLOATTOINT] = */&&op_floattoint,
-        /*[CMD_INTTOFLOAT] = */&&op_inttofloat,
+        /*[CMD_NOP] = */&&op_nop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
+        /*[CMD_ADD] = */&&op_add, /* OK */
+        /*[CMD_SUB] = */&&op_sub, /* OK */
+        /*[CMD_MUL] = */&&op_mul, /* OK */
+        /*[CMD_DIV] = */&&op_div, /* OK */
+        /*[CMD_DIVSIGNED] = */&&op_divsigned, /* OK */
+        /*[CMD_IF0GOTO] = */&&op_if0goto, /* OK */
+        /*[CMD_GOTO] = */&&op_goto, /* OK */
+        /*[CMD_DUP] = */&&op_dup, /* OK */
+        /*[CMD_DROP] = */&&op_drop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
+        /*[CMD_SWAP] = */&&op_swap, /* OK */
+        /*[CMD_READVAR] = */&&op_readvar, /* OK */
+        /*[CMD_WRITEVAR] = */&&op_writevar, /* OK */
+        /*[CMD_CONST] = */&&op_const, /* OK */
+        /*[CMD_RET] = */&&op_ret, /* OK */
+        /*[CMD_CALL] = */&&op_call, /* OK */
+        /*[CMD_AND] = */&&op_and, /* OK */
+        /*[CMD_OR] = */&&op_or, /* OK */
+        /*[CMD_XOR] = */&&op_xor, /* OK */
+        /*[CMD_EQ] = */&&op_eq, /* OK */
+        /*[CMD_MOREEQ] = */&&op_moreeq, /* OK */
+        /*[CMD_MOREEQSIGNED] = */&&op_moreeqsigned, /* OK */
+        /*[CMD_INV] = */&&op_inv, /* OK */
+        /*[CMD_RST] = */&&op_rst, /* OK */
+        /*[CMD_SHR] = */&&op_shr, /* OK */
+        /*[CMD_SHRSIGNED] = */&&op_shrsigned, /* OK */
+        /*[CMD_SHL] = */&&op_shl, /* OK */
+        /*[CMD_MOD] = */&&op_mod, /* !!! НЕ ГЕНЕРИТСЯ !!! */
+        /*[CMD_DONE] = */&&op_done, /* OK */
+        /*[CMD_ADDFLOAT] = */&&op_addfloat, /* OK */
+        /*[CMD_SUBFLOAT] = */&&op_subfloat, /* OK */
+        /*[CMD_MULFLOAT] = */&&op_mulfloat, /* OK */
+        /*[CMD_DIVFLOAT] = */&&op_divfloat, /* OK */
+        /*[CMD_NEGFLOAT] = */&&op_negfloat, /* OK */
+        /*[CMD_FLOATTOINT] = */&&op_floattoint, /* OK */
+        /*[CMD_INTTOFLOAT] = */&&op_inttofloat, /* OK */
+        /*[CMD_EQFLOAT] = */&&op_eqfloat,
+        /*[CMD_MOREEQFLOAT] = */&&op_moreeqfloat, /* OK */
+
     };
 
-    DISPATCH;
+    MAINDISPATCH;/*!*/
 op_nop: {
         DISPATCH;
     }
-op_add: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1+par2);
+op_add: {/*!*/
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS;
+        TOS.u = (TOS.u+par2);
         DISPATCH;
     }
-op_sub: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1-par2);
+op_sub: {/*!*/
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS;
+        TOS.u = (TOS.u-par2);
         DISPATCH;
     }
 op_mul: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1*par2);
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        TOS.u = (TOS.u*par2);
         DISPATCH;
     }
 op_div: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        if (par2) TOS = (par1/par2);
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        if (par2)
+            TOS.u = (TOS.u/par2);
         DISPATCH;
     }
-op_divsigned: {
-        int64_t par2 = POP;
-        int64_t par1 = TOS;
-        if (par2) TOS = ((uint64_t)((int64_t)par1/(int64_t)par2));
+op_divsigned: {/*!*/
+        int64_t par2 = POP.i;
+        //int64_t par1 = static_cast<int64_t>(TOS);
+        if (par2)
+            TOS.i = TOS.i/par2;
         DISPATCH;
     }
 op_mod: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        if (par2) TOS = (par1-((par1/par2)*par2));
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        if (par2)
+            TOS.u = (TOS.u-((TOS.u/par2)*par2));
         DISPATCH;
     }
 op_and: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1&par2);
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        TOS.u = (TOS.u&par2);
         DISPATCH;
     }
 op_or: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1|par2);
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        TOS.u = (TOS.u|par2);
         DISPATCH;
     }
 op_xor: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1^par2);
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        TOS.u = (TOS.u^par2);
         DISPATCH;
     }
 op_inv: {
-        TOS = ~TOS;
+        TOS.u = ~TOS.u;
         DISPATCH;
     }
 op_shr: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par2>>par1);
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS.u;
+        TOS.u = (TOS.u>>par2);
         DISPATCH;
     }
-op_shrsigned: {
-        int64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1>>par2);
+op_shrsigned: {/*!*/
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS;
+        TOS.i = (TOS.i>>par2);
         DISPATCH;
     }
-op_shl: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1<<par2);
+op_shl: {/*!*/
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS;
+        TOS.u = (TOS.u<<par2);
         DISPATCH;
     }
-op_eq: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1==par2)?-1:0;
+op_eq: {/*!*/
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS;
+        TOS.i = (TOS.u==par2)?-1:0;
         DISPATCH;
     }
-op_moreeq: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = (par1>=par2)?-1:0;
+op_moreeq: {/*!*/
+        uint64_t par2 = POP.u;
+        //uint64_t par1 = TOS;
+        TOS.i = (TOS.u>=par2)?-1:0;
         DISPATCH;
     }
-op_moreeqsigned: {
-        int64_t par2 = POP;
-        int64_t par1 = TOS;
-        TOS = (par1>=par2)?-1:0;
+op_moreeqsigned: {/*!*/
+        int64_t par2 = POP.i;
+        //int64_t par1 = TOS;
+        TOS.i = (TOS.i>=par2)?-1:0;
         DISPATCH;
     }
 op_const: {
@@ -153,7 +169,7 @@ op_const: {
         DISPATCH;
     }
 op_dup: {
-        uint64_t par1 = TOS;
+        uint64_t par1 = TOS.u;
         PUSH(par1);
         DISPATCH;
     }
@@ -162,20 +178,22 @@ op_drop: {
         DISPATCH;
     }
 op_swap: {
-        uint64_t par2 = POP;
-        uint64_t par1 = TOS;
-        TOS = par2;
+        uint64_t par2 = POP.u;
+        uint64_t par1 = TOS.u;
+        TOS.u = par2;
         PUSH(par1);
         DISPATCH;
     }
-op_readvar: {
-        if ((uint64_t)(TOS) < (uint64_t)(N)) TOS = VAL(TOS);
+op_readvar: {/*!*/
+        if (TOS.u < static_cast<uint64_t>(N))
+            TOS.u = VAL(TOS.u);
         DISPATCH;
     }
-op_writevar: {
-        uint64_t vardata = POP;
-        uint64_t varaddr = POP;
-        if (varaddr < (uint64_t)(N)) VAL(varaddr) = vardata;
+op_writevar: {/*!*/
+        uint64_t vardata = POP.u;
+        uint64_t varaddr = POP.u;
+        if (varaddr < static_cast<uint64_t>(N))
+            VAL(varaddr) = vardata;
         DISPATCH;
     }
 op_goto: {
@@ -183,7 +201,7 @@ op_goto: {
         DISPATCH;
     }
 op_if0goto: {
-        if (!POP) {
+        if (!POP.u) {
             pc = prog+(*pc); //нельзя GETPAR - делает pc++
         }else {
             pc++;
@@ -192,100 +210,114 @@ op_if0goto: {
     }
 op_call: {
         uint64_t callpc = GETPAR;
-        PUSHCALLSTACK((uint64_t)pc);
+        PUSHCALLSTACK(reinterpret_cast<uint64_t>(pc));
         pc = prog+callpc;
         DISPATCH;
     }
 op_ret: {
-        pc = (uint64_t*)(POPCALLSTACK);
+        pc = reinterpret_cast<uint64_t*>(POPCALLSTACK);
         DISPATCH;
     }
-op_rst: {
-        double par1 = *(double*)&(POP);
-        double par0;
+op_rst: {/*!*/
+        double par1 = POP.d;
+        //double par0;
         uint64_t op = GETPAR;
         switch (op) {
-        case RST_SIN:
-            PUSHFLOAT(sin(par1));
-            break;
-        case RST_COS:
-            PUSHFLOAT(cos(par1));
-            break;
-        case RST_ATAN:
-            PUSHFLOAT(atan(par1));
-            break;
-        case RST_ATAN2:
-            par0 = *(double*)&(POP); //записан в стек первым
-            PUSHFLOAT(atan2(par0,par1));
-            break;
-        case RST_EXP:
-            PUSHFLOAT(exp(par1));
-            break;
-        case RST_LOG:
-            PUSHFLOAT(log(par1));
-            break;
-        case RST_SQRT:
-            PUSHFLOAT(sqrt(par1));
-            break;
-        case RST_ABS:
-            PUSHFLOAT(abs(par1));
-            break;
-
-        default: ;
-        };
+            case RST_SIN:
+                PUSHFLOAT(sin(par1));
+                break;
+            case RST_COS:
+                PUSHFLOAT(cos(par1));
+                break;
+            case RST_ATAN:
+                PUSHFLOAT(atan(par1));
+                break;
+            case RST_ATAN2:{
+                double par0 = POP.d; //записан в стек первым
+                PUSHFLOAT(atan2(par0,par1));
+                break;
+            }
+            case RST_EXP:
+                PUSHFLOAT(exp(par1));
+                break;
+            case RST_LOG:
+                PUSHFLOAT(log(par1));
+                break;
+            case RST_SQRT:
+                PUSHFLOAT(sqrt(par1));
+                break;
+            case RST_ABS:
+                PUSHFLOAT(abs(par1));
+                break;
+            default: ;
+        }
         DISPATCH;
     }
-op_addfloat: {
-        double par2 = *(double*)&(POP);
-        double par1 = *(double*)&(TOS);
-        double res = par1+par2;
-        *(double*)&(TOS) = res;
+op_addfloat: {/*!*/
+        double par2 = POP.d;
+        //double par1 = static_cast<double>(TOS);
+        //double res = static_cast<double>(TOS)+par2;
+        TOS.d = TOS.d+par2;
         DISPATCH;
     }
-op_subfloat: {
-        double par2 = *(double*)&(POP);
-        double par1 = *(double*)&(TOS);
-        double res = par1-par2;
-        *(double*)&(TOS) = res;
+op_subfloat: {/*!*/
+        double par2 = POP.d;
+        //double par1 = *(double*)&(TOS);
+        //double res = par1-par2;
+        TOS.d = TOS.d - par2;
         DISPATCH;
     }
 op_mulfloat: {
-        double par2 = *(double*)&(POP);
-        double par1 = *(double*)&(TOS);
-        double res = par1*par2;
-        *(double*)&(TOS) = res;
+        double par2 = POP.d;
+        //double par1 = *(double*)&(TOS);
+        //double res = par1*par2;
+        TOS.d = TOS.d * par2;
         DISPATCH;
     }
 op_divfloat: {
-        double par2 = *(double*)&(POP);
-        double par1 = *(double*)&(TOS);
-        double res = par1/par2;
-        *(double*)&(TOS) = res;
+        double par2 = POP.d;
+        //double par1 = *(double*)&(TOS);
+        //double res = par1/par2;
+        TOS.d = TOS.d / par2;
         DISPATCH;
     }
 op_negfloat: {
-        double par1 = *(double*)&(TOS);
-        double res = -par1;
-        *(double*)&(TOS) = res;
+        //double par1 = *(double*)&(TOS);
+        //double res = -static_cast<double>(TOS);
+        TOS.d = -TOS.d;
         DISPATCH;
     }
 op_floattoint: {
-        double par1 = *(double*)&(TOS);
-        TOS = static_cast<uint64_t>(par1);
+        //double par1 = TOS.d;
+        TOS.i = static_cast<int64_t>(rint(TOS.d));
+        //TOS = static_cast<uint64_t>(par1);
         DISPATCH;
     }
 op_inttofloat: {
-        double par1 = static_cast<double>(TOS);
-        *(double*)&(TOS) = par1;
+        //double par1 = TOS.d;
+        TOS.d = TOS.i;
+        DISPATCH;
+    }
+op_eqfloat: {/*!*/
+        double par2 = POP.d;
+        //uint64_t par1 = TOS;
+        TOS.i = (TOS.d==par2)?-1:0;
+        DISPATCH;
+    }
+op_moreeqfloat: {/*!*/
+        double par2 = POP.d;
+        //uint64_t par1 = TOS;
+        TOS.i = (TOS.d>=par2)?-1:0;
         DISPATCH;
     }
 op_done: {
-        //state = POP;
-    };
+        return static_cast<int>(stcSMData[0].current_value.i);
+    }
 #endif
     //return state;
 }
 
+#ifndef FOR_DEBUGGER
 uint64_t *loadscript(int state_index, char *waspath) {
     uint64_t *prog;
     FILE *fileProg;
@@ -316,3 +348,4 @@ uint64_t *loadscript(int state_index, char *waspath) {
     }
     return prog;
 }
+#endif //FOR_DEBUGGER

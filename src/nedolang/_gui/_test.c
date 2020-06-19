@@ -1,11 +1,15 @@
-VAR FLOAT ffa;
+CONST PCHAR str = "123";
+VAR INT a=+5;
+VAR UINT bb=4;
+
+/**VAR FLOAT ffa;
 VAR INT fia;
 ffa = 3.1415926536e-4+(FLOAT)fia;
 fia = (INT)ffa;
 
 FUNC INT f(UINT p) {
   RETURN (INT)(3.1415926536e-4+(FLOAT)(INT)p);
-}
+}*/
 
 enum {
         CMD_NOP,

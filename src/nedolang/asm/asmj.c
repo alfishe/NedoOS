@@ -376,7 +376,12 @@
           asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
           IF ((_token==+_TOKENDTEXT)||_waseof) goto loop; //BREAK;
           //IF (_waseof) BREAK; //на всякий случай
+#ifdef TARGET_SCRIPT
+          asmpushvalue((LONG)_prefixedtoken);
+          asmbytepopvalue();
+#else
           asmbyte(_prefixedtoken);
+#endif
           goto writestringloop;
       }
       case _OPWRVAL: { //стоит после выражения

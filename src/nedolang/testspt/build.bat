@@ -1,6 +1,6 @@
 @echo off
 if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
-..\_sdk\nedolspt state.c
+..\_sdk\nedolspt -C state.c
 type err.f
 ..\_sdk\nedolspt cmdlist.c
 type err.f

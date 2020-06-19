@@ -254,6 +254,82 @@ uvscroll_scrolltilemap_ldir
         ret
 
 
+uvscroll_filltilemap
+;заполнение TILEMAP из карты
+;карта из метатайлов 2x2 тайла, разложена по страничкам? при размере 16x8 экранов это 16*20*8*12 = 30720 байт, лучше строчки по 2^N
+;TODO
+        ld hl,TILEMAP
+        ld b,UVSCROLL_SCRHGT/8+1
+
+uvscroll_filltilemap0
+        push bc
+        call uvscroll_filltilemap_line
+;TODO
+        pop bc
+        djnz uvscroll_filltilemap0
+
+	ret
+
+uvscroll_filltilemap_line
+;заполнение одной строки TILEMAP из карты
+;TODO включить нужную страницу метатайлов
+;TODO
+
+        ld b,UVSCROLL_SCRWID/8+1
+
+	ret
+
+uvscroll_filltilemap_column
+;заполнение одного столбца TILEMAP из карты
+;TODO
+        ld b,UVSCROLL_SCRHGT/8+1
+;TODO включить нужную страницу метатайлов
+
+
+	ret
+
+
+uvscroll_showtilemap
+;вывод из TILEMAP в текущее место ld-push (какое?)
+;TODO
+
+        call uvscroll_showtilemap_line
+
+	ret
+
+uvscroll_showtilemap_line
+;TODO
+        call drawtiles_hor_hla_de
+        
+        ret
+
+uvscroll_showmetatilemap
+;вывод из метатайловой карты (64x32 метатайлов) во весь ld-push
+;TODO (без этого можем только хранить карты в картинках)
+        ld hl,0
+        ld de,0
+        ld ix,tpushpgs
+        ld b,UVSCROLL_HGT/16
+uvscroll_showmetatilemap0
+        push bc
+;TODO включить нужную страницу метатайлов
+;;TODO включить нужную страницу ld-push
+;        ld b,UVSCROLL_WID/16
+;uvscroll_showmetatilemap1
+;        push bc
+
+        call uvscroll_filltilemap_line ;TODO шириной UVSCROLL_WID
+        call uvscroll_filltilemap_line ;TODO шириной UVSCROLL_WID
+        call uvscroll_showtilemap_line ;TODO шириной UVSCROLL_WID
+        call uvscroll_showtilemap_line ;TODO шириной UVSCROLL_WID
+        
+;        pop bc
+;        djnz uvscroll_showmetatilemap1
+
+        pop bc
+        djnz uvscroll_showmetatilemap0
+
+	ret
 
 uvscroll_suddennextgfxpg
 ;если вошли в ловушку в середине строки
@@ -877,7 +953,11 @@ drawtiles_hor
         ld bc,UVSCROLL_SCRHGT*2;0
         adc hl,bc
 ;TODO округлять Y
-        
+
+        ld de,TILEMAP
+drawtiles_hor_hla_de
+        push de
+
          ld d,l ;y*2
         add hl,hl
          srl d ;y (corrected для зацикливания)
@@ -896,7 +976,7 @@ drawtiles_hor
 
 ;ix=tpushpgs+(Y/64*4)+layer
 ;TODO hl=tilemap+
-        ld hl,TILEMAP
+        pop hl;ld hl,TILEMAP
         
 ;TODO отрисовывать тайлы справа налево (по возрастанию адресов ld-push)
         push de

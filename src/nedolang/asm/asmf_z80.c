@@ -32,8 +32,12 @@ PROC asmbytepopvalue()
 {
   DEC _nvalues;
   IF (_asms) {
+#ifdef TARGET_SCRIPT
+    fwrite((PBYTE)&_value[_nvalues], +sizeof(LONG), 1, _fout);
+#else
     ;;writefout((BYTE)_value[_nvalues]/**+(BYTE)asmpopvalue()*/); //compatible version
     /*writefout(*(PBYTE)&_value[_nvalues]);*/ //fast version (little endian)
+#endif
   };
   INC _curaddr;
 }

@@ -8,7 +8,7 @@ enum {
         CMD_IF0GOTO, //IF0GOTO ADDR
         CMD_GOTO, //GOTO ADDR
         CMD_DUP,
-        CMD_DROP,
+        CMD_DROP, /** ??? */
         CMD_SWAP, //CONST A CONST B SWAP SUB = B-A
         CMD_READVAR, //CONST A READVAR = VAR(A)
         CMD_WRITEVAR, //CONST A CONST B WRITEVAR: VAR(A) = B
@@ -26,7 +26,7 @@ enum {
         CMD_SHR, //CONST A CONST B SHR = A>>B
         CMD_SHRSIGNED,
         CMD_SHL,
-        CMD_MOD, //CONST A CONST B MOD = A % B
+        CMD_MOD, //CONST A CONST B MOD = A % B NOT TESTED
         CMD_DONE, //end
         CMD_ADDFLOAT,
         CMD_SUBFLOAT,
@@ -35,6 +35,9 @@ enum {
         CMD_NEGFLOAT,
         CMD_FLOATTOINT,
         CMD_INTTOFLOAT,
+        CMD_EQFLOAT,
+        CMD_MOREEQFLOAT,
+        CMDS
 };
 
 enum {
