@@ -81,6 +81,8 @@ waitcls0
 	ld de,res_path
 	OS_CHDIR
 
+        call getmousedelta
+
         call uvscroll_prepare
         ;ld de,bgxyfilename
         ;call uvscroll_preparebmp
@@ -174,6 +176,24 @@ pgmusic=$+1
         OS_SETMUSIC
         halt
         QUIT
+
+getmousedelta
+        GET_KEY ;OS_GETKEYNOLANG
+        ld a,c ;keynolang
+        ;ld (key),a
+         jr nz,control_nofocus
+control_imer_oldmousecoords=$+1
+        ld bc,0
+        ld (control_imer_oldmousecoords),de
+        ld a,d;b
+        sub b;d
+        ld d,a
+        ld a,c;e
+        sub e;c
+        ld e,a
+control_nofocus
+        ;ld (control_imer_mousecoordsdelta),de
+        ret
 
 loadpage
 ;заказывает страничку и грузит туда файл (имя файла в hl)

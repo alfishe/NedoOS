@@ -257,25 +257,13 @@ uvscrollloop0
         call uvscroll_draw
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
-        GET_KEY ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
-        ;ld (key),a
-         jr nz,control_nofocus
-control_imer_oldmousecoords=$+1
-        ld bc,0
-        ld (control_imer_oldmousecoords),de
-        ld a,d;b
-        sub b;d
-        ld d,a
-        ld a,c;e
-        sub e;c
-        ld e,a
-control_nofocus
-        ;ld (control_imer_mousecoordsdelta),de
+        call getmousedelta
+;de=delta
         ld a,l ;hl=(sysmousebuttons)
         rra
          ret nc ;LMB
 
+        ;ld de,0
         push de
         ld a,e
         call uvscroll_scroll_x
@@ -872,16 +860,16 @@ uvscroll_gencall_newpage
 uvscroll_draw
         ld hy,0xc1
         call setpgscrlow4000
-        ld a,7;4 ;layer 0..3 + 4
+        ld a,3;7;4 ;layer 0..3 + 4
         call uvscroll_drawlayer
         call setpgscrhigh4000
-        ld a,6;5 ;layer 0..3 + 4
+        ld a,2;6;5 ;layer 0..3 + 4
         call uvscroll_drawlayer
         call setpgscrlow4000
-        ld a,5;6 ;layer 0..3 + 4
+        ld a,1;5;6 ;layer 0..3 + 4
         call uvscroll_drawlayer
         call setpgscrhigh4000
-        ld a,4;7 ;layer 0..3 + 4
+        ld a,0;4;7 ;layer 0..3 + 4
 uvscroll_drawlayer
         push af
         call uvscroll_patch
