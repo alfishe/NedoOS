@@ -281,6 +281,21 @@ control_nofocus
         call uvscroll_scroll_x
         pop af
         call uvscroll_scroll_y
+;scroll by metatile
+;hx=delta y (>0: go up)
+;lx=delta x (>0: go left)
+        call uvscroll_scrolltilemap ;делаем этот ldir/lddr только один раз для двух координат
+;TODO подкачать появившиеся строки
+;TODO подкачать появившиеся столбцы
+
+
+;draw by tile
+;hy=delta y (>0: go up) надо отрисовать все появившиеся строки
+;TODO
+
+;ly=delta x (>0: go left) надо отрисовать все появившиеся столбцы
+;TODO
+
 ;при горизонтальном скролле надо отрисовать все появившиеся столбцы
 ;допустим, было xscroll/4 = N
 ;стало xscroll/4 = N2 > N, т.е. мы ушли левее
@@ -294,15 +309,16 @@ uvscroll_scroll_x
 ;a>0 = go left
         ld hl,(xscroll)
         ld c,a
-        or a
-        jp m,uvscroll_scroll_x_minus
-;uvscroll_scroll_x_plus
-        ld b,0
          ld a,l
          and 0xfc
          ld d,a
          and 0xf8
          ld e,a
+        ld a,(allscroll_lsb)
+        bit 7,c
+        jr nz,uvscroll_scroll_x_minus
+;uvscroll_scroll_x_plus
+        ld b,0
         add hl,bc
         ;ld bc,+(UVSCROLL_WID-UVSCROLL_SCRWID)/2
         ;or a
@@ -311,41 +327,30 @@ uvscroll_scroll_x
         ;jr c,$+4
         ;ld h,b
         ;ld l,c
+        add a,c
+        ld bc,(allscroll)
+        jr nc,$+3
+        inc bc
+uvscroll_scroll_x_q
+        ld (allscroll_lsb),a
+         ld a,b
+         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
+         ld b,a
+        ld (allscroll),bc
         ld (xscroll),hl ;чем больше, тем более левая часть карты
-;TODO подкачать левые столбцы в tilemap, если надо (изменился xscroll/8)
          ld a,l
          and 0xf8
          sub e
-        jr z,uvscroll_scroll_x_nupdleft
-        neg
-        rrca
-        rrca
-        rrca ;a=число левых столбцов, которые надо подкачать
-        
-uvscroll_scroll_x_nupdleft
-        push hl
-        ld hl,(allscroll)
-        ld a,(allscroll_lsb)
-        add a,c
-        jr nc,$+3
-        inc hl
-        ld (allscroll_lsb),a
-         ld a,h
-         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
-         ld h,a
-        ld (allscroll),hl
-        pop hl
-;TODO подрисовать левые столбцы в ldpush, если надо (изменился xscroll/4)
+        sra a
+        sra a
+        sra a ;a=число левых (с минусом - правых) столбцов, которые надо подкачать (изменился xscroll/8)
+        ld lx,a
          ld a,l
          and 0xfc
          sub d
-        jr z,uvscroll_scroll_x_ndrawleft
-        neg
-        rrca
-        rrca ;a=число левых столбцов, которые надо подрисовать
-        
-uvscroll_scroll_x_ndrawleft
-        
+        sra a
+        sra a ;a=число левых (с минусом - правых) столбцов, которые надо подрисовать (изменился xscroll/4)
+        ld ly,a
         ret
         
 uvscroll_scroll_x_minus
@@ -354,36 +359,23 @@ uvscroll_scroll_x_minus
         ;bit 7,h
         ;jr z,$+5
         ;ld hl,0
-        ld (xscroll),hl ;чем больше, тем более левая часть карты
-;TODO подкачать правые столбцы в tilemap, если надо (изменился xscroll/8)
-        
-        ld hl,(allscroll)
-        ld a,(allscroll_lsb)
-        add a,c ;c<0
-        jr c,$+3
-        dec hl
-        ld (allscroll_lsb),a
-         ld a,h
-         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
-         ld h,a
-        ld (allscroll),hl
-;TODO подрисовать правые столбцы в ldpush, если надо (изменился xscroll/4)
-        
-;при горизонтальном скролле надо отрисовать все появившиеся столбцы
-;допустим, было xscroll/4 = N
-;стало xscroll/4 = N2 > N, т.е. мы ушли левее
-;надо подрисовать N2-N столбцов: N+(SCRWID/8)..N2+(SCRWID/8)-1 ;или везде добавить +1?
-;но перед этим сдвинуть TILEMAP на N2-N столбцов и сгенерировать вылезшие тайлы
-;TODO
-
-        ret
+        add a,c
+        ld bc,(allscroll)
+        jr c,uvscroll_scroll_x_q;$+3
+        dec bc
+        jr uvscroll_scroll_x_q
         
 uvscroll_scroll_y
 ;a>0 = go up
         ld hl,(yscroll)
         ld c,a
-        or a
-        jp m,uvscroll_scroll_y_minus
+         ld a,l
+         and 0xf8
+         ld d,a
+         and 0xf0
+         ld e,a
+        bit 7,c
+        jr nz,uvscroll_scroll_y_minus
 ;uvscroll_scroll_y_plus
         ld b,0
         add hl,bc
@@ -393,9 +385,8 @@ uvscroll_scroll_y
         ;add hl,de
         ;jr c,$+3
         ;ex de,hl
-        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
-;TODO подкачать верхние строки в tilemap, если надо (изменился yscroll/16)
-
+uvscroll_scroll_y_q
+        push hl
         ld hl,(allscroll)
         dup UVSCROLL_WID/512
         add hl,bc
@@ -404,8 +395,23 @@ uvscroll_scroll_y
          and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
          ld h,a
         ld (allscroll),hl
-;TODO подрисовать верхние строки в ldpush, если надо (изменился yscroll/8)
-        
+        pop hl
+        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
+         ld a,l
+         and 0xf0
+         sub e
+        sra a
+        sra a
+        sra a
+        sra a ;a=число верхних (с минусом - нижних) строк, которые надо подкачать (изменился yscroll/16)
+        ld hx,a
+         ld a,l
+         and 0xf8
+         sub d
+        sra a
+        sra a
+        sra a ;a=число верхних (с минусом - нижних) строк, которые надо подрисовать (изменился yscroll/8)
+        ld hy,a
         ret
         
 uvscroll_scroll_y_minus
@@ -414,68 +420,65 @@ uvscroll_scroll_y_minus
         ;bit 7,h
         ;jr z,$+5
         ;ld hl,0
-        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
-;TODO подкачать нижние строки в tilemap, если надо (изменился yscroll/16)
-
-        ld hl,(allscroll)
-        dup UVSCROLL_WID/512
-        add hl,bc
-        edup
-         ld a,h
-         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
-         ld h,a
-        ld (allscroll),hl
-;TODO подрисовать нижние строки в ldpush, если надо (изменился yscroll/8)
-        
-        ret
+        jr uvscroll_scroll_y_q
 
 
-;процедура скроллинга буфера tilemap (содержит номера тайлов в видимой части карты):
+;процедура скроллинга буфера tilemap (содержит номера тайлов в видимой части карты, снизу вверх, справа налево)
 uvscroll_scrolltilemap
-;hx=delta y (>0: scroll up)
-;lx=delta x (>0: scroll left)
+;hx=delta y (>0: go up)
+;lx=delta x (>0: go left)
+;скроллим ровно вдвое больше!!!
         ld a,hx
         or lx
         ret z
-
+         ;jr $
         ld hl,TILEMAP ;from
         ld d,h
         ld e,l        ;to
-        ld bc,TILEMAPWID
+        ld bc,TILEMAPWID *2 ;b=0!!!
         exx
         ld hl,TILEMAPHGT*TILEMAPWID ;size
-        ld bc,-TILEMAPWID
+        ld bc,-TILEMAPWID *2
         exx
+       ;jr uvscroll_scrolltilemap_dyq
         ld a,hx
         or a
         jr z,uvscroll_scrolltilemap_dyq
         jp m,uvscroll_scrolltilemap_dyneg
-;dy>0: hl+=dy*TILEMAPWID, hl'-=dy*TILEMAPWID
+         cp TILEMAPHGT /2
+         ret nc ;скроллить весь экран или даже больше бессмысленно - весь экран будет подкачан
+;dy>0: go up (удалить начальную часть tilemap): hl+=dy*TILEMAPWID *2, hl'-=dy*TILEMAPWID *2
 uvscroll_scrolltilemap_dypos0
-        add hl,bc
+        add hl,bc ;from
         exx
-        add hl,bc
+        add hl,bc ;size
         exx
         dec a
         jr nz,uvscroll_scrolltilemap_dypos0
         jr uvscroll_scrolltilemap_dyq
 uvscroll_scrolltilemap_dyneg
-;dy<0: de+=dy*-TILEMAPHGT, hl'-=dy*-TILEMAPHGT
+         cp -(TILEMAPHGT /2 +1)
+         ret c ;скроллить весь экран или даже больше бессмысленно - весь экран будет подкачан
+;dy<0: go down (удалить конечную часть tilemap): de+=dy*-TILEMAPHGT *2, hl'-=dy*-TILEMAPHGT *2
         ex de,hl
 uvscroll_scrolltilemap_dyneg0
-        add hl,bc
+        add hl,bc ;to
         exx
-        add hl,bc
+        add hl,bc ;size
         exx
         inc a
         jr nz,uvscroll_scrolltilemap_dyneg0
         ex de,hl
 uvscroll_scrolltilemap_dyq
         ld a,lx
-        or a
+       ;jr uvscroll_scrolltilemap_dxq
+        ;or a
+         add a,a
         jr z,uvscroll_scrolltilemap_dxq
         jp m,uvscroll_scrolltilemap_dxneg
-;dx>0: hl+=dx, hl'-=dx
+         cp TILEMAPWID
+         ret nc ;скроллить весь экран или даже больше бессмысленно - весь экран будет подкачан
+;dx>0: go left (удалить начальную часть tilemap): hl+=dx, hl'-=dx
         ld c,a
         ;ld b,0
         add hl,bc ;NC
@@ -484,26 +487,28 @@ uvscroll_scrolltilemap_dyq
         ld b,0
         ;or a
         sbc hl,bc
-        ;exx
+        exx
         jr uvscroll_scrolltilemap_dxq
 uvscroll_scrolltilemap_dxneg
-;dx<0: de-=dx, hl'+=dx
+         cp -(TILEMAPWID+1)
+         ret c ;скроллить весь экран или даже больше бессмысленно - весь экран будет подкачан
+;dx<0: go right (удалить конечную часть tilemap): de-=dx, hl'+=dx
         ex de,hl
         ld c,a
         ;ld b,0
-        ;or a
+        or a
         sbc hl,bc
         ex de,hl
         exx
         ld c,a
         ld b,0
         add hl,bc
-        ;exx
-uvscroll_scrolltilemap_dxq
-        ;exx
-        push hl
         exx
-        pop bc
+uvscroll_scrolltilemap_dxq
+        exx
+        push hl ;size
+        exx
+        pop bc ;size
 ;hl=from
 ;de=to
 ;bc=size

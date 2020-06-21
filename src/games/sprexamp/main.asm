@@ -525,7 +525,7 @@ bgxyfilename
         db "bg8-16d.bmp",0
 
 TILEMAP
-        ds TILEMAPWID*TILEMAPHGT
+        ds TILEMAPWID*TILEMAPHGT ;снизу вверх, справа налево
 
 tpushpgs
         ds 128 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
