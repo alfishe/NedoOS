@@ -109,7 +109,7 @@ uvscroll_preparetilemap
 ;tilemap
         OS_NEWPAGE
         ld a,e
-        ld (pgtilemap),a
+        ld (pgmetatilemap),a
         SETPG32KHIGH
 
         ld de,tilemapfilename
@@ -143,7 +143,7 @@ uvscroll_preparetilemap_remetatiles0
         
 ;выводим для теста tilemap 64x32 в ldpush
 
-        ld hl,0;2*(UVSCROLL_HGT-16) ;y*2
+        ld hl,0 ;y*(UVSCROLL_WID/512)
         ld de,0xc000+0x0800 ;metatilemap
         ld b,UVSCROLL_HGT/16
 uvscroll_showmetatilemap0
@@ -152,11 +152,11 @@ uvscroll_showmetatilemap0
         push hl
 
         push hl
-pgtilemap=$+1
+pgmetatilemap=$+1
         ld a,0
         SETPG32KHIGH
         ld hl,TILEMAP
-        ld b,64
+        ld b,UVSCROLL_WID/16
 uvscroll_gettilemapline0
         ld a,(de)
         inc de
@@ -168,8 +168,6 @@ uvscroll_gettilemapline0
         pop hl
         ld de,TILEMAP
 
-;de=tilemap+
-;hla=allscroll
         ld b,128/8 ;b=число блоков по 8 тайлов
         push bc
         push de
@@ -177,23 +175,27 @@ uvscroll_gettilemapline0
         ld a,TILEGFX/256
         ld (drawtiles_hor_block_tilegfx),a
         xor a
+;de=tilemap+
+;hla=allscroll
         call drawtiles_hor_hla_de
         pop hl
-        ld bc,2*8
+        ld bc,8*(UVSCROLL_WID/512)
         add hl,bc ;y*2
         pop de
         pop bc
         ld a,TILEGFX/256+8
         ld (drawtiles_hor_block_tilegfx),a
         xor a ;x=0
+;de=tilemap+
+;hla=allscroll
         call drawtiles_hor_hla_de
         
         pop hl
-        ld bc,2*16
-        add hl,bc ;y*2
+        ld bc,16*(UVSCROLL_WID/512)
+        add hl,bc ;y*(UVSCROLL_WID/512)
         pop de ;metatilemap
         ex de,hl
-        ld bc,64
+        ld bc,METATILEMAPWID
         add hl,bc
         ex de,hl
         pop bc
@@ -205,8 +207,6 @@ uvscroll_preparebmp
 ;de=filename
         call openstream_file
 
-        if 1==1
-        ;jr $
         call readbmphead_pal
 
 ;загрузить графику bmp в ld-push
@@ -232,8 +232,6 @@ uvscroll_ldbmp0_nonextpg
         or c
         jr nz,uvscroll_ldbmp0
 
-        endif
-
         call closestream_file
         ret
 
@@ -242,16 +240,16 @@ uvscroll
         OS_SETPAL
 
 uvscrollloop0
-        ld bc,(xscroll) ;0..511 for 0..1022 pixels
-        ld hl,(yscroll) ;0..511
-         ld a,h
-         and UVSCROLL_HGT/256-1
-         ld h,a
-        rr b
-        adc hl,hl
-        ld (allscroll),hl
-        ld a,c
-        ld (allscroll_lsb),a
+        ;ld bc,(xscroll) ;0..511 for 0..1022 pixels
+        ;ld hl,(yscroll) ;0..511
+        ; ld a,h
+        ; and UVSCROLL_HGT/256-1
+        ; ld h,a
+        ;rr b
+        ;adc hl,hl
+        ;ld (allscroll),hl
+        ;ld a,c
+        ;ld (allscroll_lsb),a
 
        ;call drawtiles_hor
        ;call drawtiles_ver
@@ -278,45 +276,11 @@ control_nofocus
         rra
          ret nc ;LMB
 
-        ld c,e
+        push de
         ld a,e
-        rla
-        sbc a,a
-        ld b,a
-        ld hl,(xscroll)
-        add hl,bc
-         ;inc hl
-        ;bit 7,h
-        ;jr z,$+5
-        ;ld hl,0
-        ;ld bc,+(UVSCROLL_WID-UVSCROLL_SCRWID)/2
-        ;or a
-        ;sbc hl,bc
-        ;add hl,bc
-        ;jr c,$+4
-        ;ld h,b
-        ;ld l,c
-        ld (xscroll),hl ;чем больше, тем более левая часть карты
-        
-        ld c,d
-        ld a,d
-        rla
-        sbc a,a
-        ld b,a
-        ld hl,(yscroll)
-        add hl,bc
-         ;inc hl
-        ;bit 7,h
-        ;jr z,$+5
-        ;ld hl,0
-        ;ld de,UVSCROLL_HGT-UVSCROLL_SCRHGT
-        ;or a
-        ;sbc hl,de
-        ;add hl,de
-        ;jr c,$+3
-        ;ex de,hl
-        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
-        
+        call uvscroll_scroll_x
+        pop af
+        call uvscroll_scroll_y
 ;при горизонтальном скролле надо отрисовать все появившиеся столбцы
 ;допустим, было xscroll/4 = N
 ;стало xscroll/4 = N2 > N, т.е. мы ушли левее
@@ -325,6 +289,146 @@ control_nofocus
 
 ;аналогичный алгоритм при вертикальном скролле
         jr uvscrollloop0
+
+uvscroll_scroll_x
+;a>0 = go left
+        ld hl,(xscroll)
+        ld c,a
+        or a
+        jp m,uvscroll_scroll_x_minus
+;uvscroll_scroll_x_plus
+        ld b,0
+         ld a,l
+         and 0xfc
+         ld d,a
+         and 0xf8
+         ld e,a
+        add hl,bc
+        ;ld bc,+(UVSCROLL_WID-UVSCROLL_SCRWID)/2
+        ;or a
+        ;sbc hl,bc
+        ;add hl,bc
+        ;jr c,$+4
+        ;ld h,b
+        ;ld l,c
+        ld (xscroll),hl ;чем больше, тем более левая часть карты
+;TODO подкачать левые столбцы в tilemap, если надо (изменился xscroll/8)
+         ld a,l
+         and 0xf8
+         sub e
+        jr z,uvscroll_scroll_x_nupdleft
+        neg
+        rrca
+        rrca
+        rrca ;a=число левых столбцов, которые надо подкачать
+        
+uvscroll_scroll_x_nupdleft
+        push hl
+        ld hl,(allscroll)
+        ld a,(allscroll_lsb)
+        add a,c
+        jr nc,$+3
+        inc hl
+        ld (allscroll_lsb),a
+         ld a,h
+         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
+         ld h,a
+        ld (allscroll),hl
+        pop hl
+;TODO подрисовать левые столбцы в ldpush, если надо (изменился xscroll/4)
+         ld a,l
+         and 0xfc
+         sub d
+        jr z,uvscroll_scroll_x_ndrawleft
+        neg
+        rrca
+        rrca ;a=число левых столбцов, которые надо подрисовать
+        
+uvscroll_scroll_x_ndrawleft
+        
+        ret
+        
+uvscroll_scroll_x_minus
+        ld b,-1
+        add hl,bc
+        ;bit 7,h
+        ;jr z,$+5
+        ;ld hl,0
+        ld (xscroll),hl ;чем больше, тем более левая часть карты
+;TODO подкачать правые столбцы в tilemap, если надо (изменился xscroll/8)
+        
+        ld hl,(allscroll)
+        ld a,(allscroll_lsb)
+        add a,c ;c<0
+        jr c,$+3
+        dec hl
+        ld (allscroll_lsb),a
+         ld a,h
+         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
+         ld h,a
+        ld (allscroll),hl
+;TODO подрисовать правые столбцы в ldpush, если надо (изменился xscroll/4)
+        
+;при горизонтальном скролле надо отрисовать все появившиеся столбцы
+;допустим, было xscroll/4 = N
+;стало xscroll/4 = N2 > N, т.е. мы ушли левее
+;надо подрисовать N2-N столбцов: N+(SCRWID/8)..N2+(SCRWID/8)-1 ;или везде добавить +1?
+;но перед этим сдвинуть TILEMAP на N2-N столбцов и сгенерировать вылезшие тайлы
+;TODO
+
+        ret
+        
+uvscroll_scroll_y
+;a>0 = go up
+        ld hl,(yscroll)
+        ld c,a
+        or a
+        jp m,uvscroll_scroll_y_minus
+;uvscroll_scroll_y_plus
+        ld b,0
+        add hl,bc
+        ;ld de,UVSCROLL_HGT-UVSCROLL_SCRHGT
+        ;or a
+        ;sbc hl,de
+        ;add hl,de
+        ;jr c,$+3
+        ;ex de,hl
+        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
+;TODO подкачать верхние строки в tilemap, если надо (изменился yscroll/16)
+
+        ld hl,(allscroll)
+        dup UVSCROLL_WID/512
+        add hl,bc
+        edup
+         ld a,h
+         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
+         ld h,a
+        ld (allscroll),hl
+;TODO подрисовать верхние строки в ldpush, если надо (изменился yscroll/8)
+        
+        ret
+        
+uvscroll_scroll_y_minus
+        ld b,-1
+        add hl,bc
+        ;bit 7,h
+        ;jr z,$+5
+        ;ld hl,0
+        ld (yscroll),hl ;чем больше, тем более верхняя часть карты
+;TODO подкачать нижние строки в tilemap, если надо (изменился yscroll/16)
+
+        ld hl,(allscroll)
+        dup UVSCROLL_WID/512
+        add hl,bc
+        edup
+         ld a,h
+         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
+         ld h,a
+        ld (allscroll),hl
+;TODO подрисовать нижние строки в ldpush, если надо (изменился yscroll/8)
+        
+        ret
+
 
 ;процедура скроллинга буфера tilemap (содержит номера тайлов в видимой части карты):
 uvscroll_scrolltilemap
@@ -419,7 +523,7 @@ uvscroll_scrolltilemap_ldir
         ldir ;TODO ldi in a loop
         ret
 
-        if 1==0
+
 uvscroll_filltilemap
 ;заполнение TILEMAP из карты
 ;карта из метатайлов 2x2 тайла, разложена по страничкам? при размере 16x8 экранов это 16*20*8*12 = 30720 байт, лучше строчки по 2^N
@@ -437,23 +541,51 @@ uvscroll_filltilemap0
 	ret
 
 uvscroll_filltilemap_line
-;заполнение одной строки TILEMAP из карты
-;TODO включить нужную страницу метатайлов
-;TODO
-
-        ld b,UVSCROLL_SCRWID/8+1
-
+;заполнение одной двойной строки TILEMAP из карты
+;de=tilemap+
+;hl=metatilemap+
+        ld a,(pgmetatilemap)
+        SETPG32KHIGH
+        push de
+        ld bc,TILEMAPWID/2
+uvscroll_filltilemap_line0
+        ld a,(hl)
+        ld (de),a
+        ldi
+        jp pe,uvscroll_filltilemap_line0
+        pop hl
+        ld bc,TILEMAPWID
+        ldir ;вторая строка тайлов такая же
 	ret
 
 uvscroll_filltilemap_column
-;заполнение одного столбца TILEMAP из карты
-;TODO
-        ld b,UVSCROLL_SCRHGT/8+1
-;TODO включить нужную страницу метатайлов
-
-
+;заполнение одного двойного столбца TILEMAP из карты
+;de=tilemap+
+;hl=metatilemap+
+        ld a,(pgmetatilemap)
+        SETPG32KHIGH
+        push de ;tilemap+
+        ld de,METATILEMAPWID
+        exx
+        pop hl ;tilemap+
+        ld de,TILEMAPWID-1
+        ld b,TILEMAPHGT/2
+uvscroll_filltilemap_column0
+        exx
+        ld a,(hl)
+        add hl,de
+        exx
+        ld (hl),a
+        inc hl
+        ld (hl),a
+        add hl,de
+        ld (hl),a
+        inc hl
+        ld (hl),a ;копируем номер метатайла в 4 тайла
+        add hl,de
+        djnz uvscroll_filltilemap_column0
 	ret
-        endif
+
 
 uvscroll_showtilemap
 ;вывод из TILEMAP в текущее место ld-push (какое?)
@@ -1402,35 +1534,6 @@ drawtiles_ver_nextpg
         add ix,bc
         ret
 
-;TODO для игр с большими тайлами сгенерить в процедуры тайлов 16x8 (каждый слой - страничка, вывод по вертикали в другой страничке), вход такой:
-	;ld a,(bc) ;в конце нужен терминатор - невозможный номер тайла
-	;inc c
-	;ld l,a
-	;or 0xc0
-	;ld h,a
-	;jp (hl) ;30
-        ;ex de,hl
-        ;dup 7
-        ;ld (hl),n
-        ;inc h
-        ;edup
-        ;ld (hl),n
-        ;inc l
-        ;dup 7
-        ;ld (hl),n
-        ;dec h
-        ;edup
-        ;ld (hl),n
-        ;ld a,l
-        ;sub 5
-        ;ld l,a ;поэтому нельзя 8x8
-        ;ex de,hl ;+195
-	;ld a,(bc)
-	;inc c
-	;ld l,a
-	;or 0xc0
-	;ld h,a
-	;jp (hl) ;+30, итого тайл 16x8 = 225*4(layers) = 900, *8(tiles)*(3+4)(блоков по 8, считая и горизонтальные) = 50400, при горизонтальном скролле вдвое реже, чем без генерации процедур
 
 
 tcallpgs

@@ -13,9 +13,9 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
-TILEMAPWID=41
-TILEMAPHGT=26
-;TILEMAP=0x0300 ;TILEMAPWIDxTILEMAPHGT (постоянно скроллится и обновляется)
+METATILEMAPWID=64
+TILEMAPWID=42 ;целые метатайлы
+TILEMAPHGT=26 ;целые метатайлы
 TILEGFX=0xc000
 
         macro RECODEBYTE
@@ -82,10 +82,10 @@ waitcls0
 	OS_CHDIR
 
         call uvscroll_prepare
-        ld de,bgxyfilename
-        call uvscroll_preparebmp
-         ;call uvscroll_preparetiles
-         ;call uvscroll_preparetilemap
+        ;ld de,bgxyfilename
+        ;call uvscroll_preparebmp
+         call uvscroll_preparetiles
+         call uvscroll_preparetilemap
         call uvscroll
 
         ld de,bgfilename
