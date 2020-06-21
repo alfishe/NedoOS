@@ -15,8 +15,8 @@ INTSTACK=0x3f00
 
 TILEMAPWID=41
 TILEMAPHGT=26
-TILEMAP=0x0300 ;TILEMAPWIDxTILEMAPHGT (постоянно скроллится и обновляется)
-TILEGFX=0x0800 ;TODO 0xc000
+;TILEMAP=0x0300 ;TILEMAPWIDxTILEMAPHGT (постоянно скроллится и обновляется)
+TILEGFX=0xc000
 
         macro RECODEBYTE
         ld a,(de)
@@ -75,18 +75,18 @@ waitcls0
 
         OS_NEWPAGE
         ld a,e
-        ld (pgtilegfx),a
-        
-        OS_NEWPAGE
-        ld a,e
         ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
         ld (pgfake2),a
         
 	ld de,res_path
 	OS_CHDIR
 
-        ld de,bgxyfilename
         call uvscroll_prepare
+        ld de,bgxyfilename
+        call uvscroll_preparebmp
+         ;call uvscroll_preparetiles
+         ;call uvscroll_preparetilemap
+        call uvscroll
 
         ld de,bgfilename
         call bgpush_prepare
@@ -524,8 +524,8 @@ bgfilename
 bgxyfilename
         db "bg8-16d.bmp",0
 
-pgtilegfx
-        db 0 ;TODO по зонам
+TILEMAP
+        ds TILEMAPWID*TILEMAPHGT
 
 tpushpgs
         ds 128 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
