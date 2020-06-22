@@ -6,121 +6,131 @@
 #include <string>
 #include <sstream>
 
+#ifdef FOR_DEBUGGER
+#include "mainwindow.h"
+//#include <QString>
+//#include <QMessageBox>
+
 uint8_t datastackindex = 0; //растёт вверх
 uint8_t callstackindex = 0; //растёт вверх
 
 data64bit datastack[STACKSIZE];
 uint64_t callstack[STACKSIZE];
 
-#ifdef FOR_DEBUGGER
     uint64_t *pc;
     uint64_t *prog;
+#endif //FOR_DEBUGGER
+    void myprintstr(uint64_t *prog, uint64_t addr){
+        char s[100];
+        char *ps=s;
+        uint64_t *tmppc=prog+addr;
+        while(*tmppc)
+            *ps++=static_cast<char>(*tmppc++);
+        *ps=0;
+        myprint(reinterpret_cast<char *>(s));
+    }
+
+#ifdef FOR_DEBUGGER
     int interpret() {
 #else //FOR_DEBUGGER
     int interpret(uint64_t *prog) {
         uint64_t *pc = prog;
+uint8_t datastackindex = 0; //растёт вверх
+uint8_t callstackindex = 0; //растёт вверх
+
+data64bit datastack[STACKSIZE];
+uint64_t callstack[STACKSIZE];
 #endif //FOR_DEBUGGER
-#if 1
+
     const void *labels[CMDS] = {
-        /*[CMD_NOP] = */&&op_nop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
-        /*[CMD_ADD] = */&&op_add, /* OK */
-        /*[CMD_SUB] = */&&op_sub, /* OK */
-        /*[CMD_MUL] = */&&op_mul, /* OK */
-        /*[CMD_DIV] = */&&op_div, /* OK */
-        /*[CMD_DIVSIGNED] = */&&op_divsigned, /* OK */
-        /*[CMD_IF0GOTO] = */&&op_if0goto, /* OK */
-        /*[CMD_GOTO] = */&&op_goto, /* OK */
-        /*[CMD_DUP] = */&&op_dup, /* OK */
-        /*[CMD_DROP] = */&&op_drop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
-        /*[CMD_SWAP] = */&&op_swap, /* OK */
-        /*[CMD_READVAR] = */&&op_readvar, /* OK */
-        /*[CMD_WRITEVAR] = */&&op_writevar, /* OK */
-        /*[CMD_CONST] = */&&op_const, /* OK */
-        /*[CMD_RET] = */&&op_ret, /* OK */
-        /*[CMD_CALL] = */&&op_call, /* OK */
-        /*[CMD_AND] = */&&op_and, /* OK */
-        /*[CMD_OR] = */&&op_or, /* OK */
-        /*[CMD_XOR] = */&&op_xor, /* OK */
-        /*[CMD_EQ] = */&&op_eq, /* OK */
-        /*[CMD_MOREEQ] = */&&op_moreeq, /* OK */
-        /*[CMD_MOREEQSIGNED] = */&&op_moreeqsigned, /* OK */
-        /*[CMD_INV] = */&&op_inv, /* OK */
-        /*[CMD_RST] = */&&op_rst, /* OK */
-        /*[CMD_SHR] = */&&op_shr, /* OK */
-        /*[CMD_SHRSIGNED] = */&&op_shrsigned, /* OK */
-        /*[CMD_SHL] = */&&op_shl, /* OK */
-        /*[CMD_MOD] = */&&op_mod, /* !!! НЕ ГЕНЕРИТСЯ !!! */
-        /*[CMD_DONE] = */&&op_done, /* OK */
-        /*[CMD_ADDFLOAT] = */&&op_addfloat, /* OK */
-        /*[CMD_SUBFLOAT] = */&&op_subfloat, /* OK */
-        /*[CMD_MULFLOAT] = */&&op_mulfloat, /* OK */
-        /*[CMD_DIVFLOAT] = */&&op_divfloat, /* OK */
-        /*[CMD_NEGFLOAT] = */&&op_negfloat, /* OK */
-        /*[CMD_FLOATTOINT] = */&&op_floattoint, /* OK */
-        /*[CMD_INTTOFLOAT] = */&&op_inttofloat, /* OK */
-        /*[CMD_EQFLOAT] = */&&op_eqfloat,
-        /*[CMD_MOREEQFLOAT] = */&&op_moreeqfloat, /* OK */
-
+        &&op_nop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
+        &&op_add, /* OK */
+        &&op_sub, /* OK */
+        &&op_mul, /* OK */
+        &&op_div, /* OK */
+        &&op_divsigned, /* OK */
+        &&op_if0goto, /* OK */
+        &&op_goto, /* OK */
+        &&op_dup, /* OK */
+        &&op_drop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
+        &&op_swap, /* OK */
+        &&op_readvar, /* OK */
+        &&op_writevar, /* OK */
+        &&op_const, /* OK */
+        &&op_ret, /* OK */
+        &&op_call, /* OK */
+        &&op_and, /* OK */
+        &&op_or, /* OK */
+        &&op_xor, /* OK */
+        &&op_eq, /* OK */
+        &&op_moreeq, /* OK */
+        &&op_moreeqsigned, /* OK */
+        &&op_inv, /* OK */
+        &&op_rst, /* OK */
+        &&op_shr, /* OK */
+        &&op_shrsigned, /* OK */
+        &&op_shl, /* OK */
+        &&op_mod, /* !!! НЕ ГЕНЕРИТСЯ !!! */
+        &&op_done, /* OK */
+        &&op_addfloat, /* OK */
+        &&op_subfloat, /* OK */
+        &&op_mulfloat, /* OK */
+        &&op_divfloat, /* OK */
+        &&op_negfloat, /* OK */
+        &&op_floattoint, /* OK */
+        &&op_inttofloat, /* OK */
+        &&op_eqfloat,
+        &&op_moreeqfloat /* OK */
     };
-
     MAINDISPATCH;/*!*/
 op_nop: {
         DISPATCH;
     }
-op_add: {/*!*/
+op_add: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS;
         TOS.u = (TOS.u+par2);
         DISPATCH;
     }
-op_sub: {/*!*/
+op_sub: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS;
         TOS.u = (TOS.u-par2);
         DISPATCH;
     }
 op_mul: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         TOS.u = (TOS.u*par2);
         DISPATCH;
     }
 op_div: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         if (par2)
             TOS.u = (TOS.u/par2);
         DISPATCH;
     }
 op_divsigned: {/*!*/
         int64_t par2 = POP.i;
-        //int64_t par1 = static_cast<int64_t>(TOS);
         if (par2)
             TOS.i = TOS.i/par2;
         DISPATCH;
     }
 op_mod: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         if (par2)
             TOS.u = (TOS.u-((TOS.u/par2)*par2));
         DISPATCH;
     }
 op_and: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         TOS.u = (TOS.u&par2);
         DISPATCH;
     }
 op_or: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         TOS.u = (TOS.u|par2);
         DISPATCH;
     }
 op_xor: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         TOS.u = (TOS.u^par2);
         DISPATCH;
     }
@@ -130,37 +140,31 @@ op_inv: {
     }
 op_shr: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS.u;
         TOS.u = (TOS.u>>par2);
         DISPATCH;
     }
-op_shrsigned: {/*!*/
+op_shrsigned: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS;
         TOS.i = (TOS.i>>par2);
         DISPATCH;
     }
-op_shl: {/*!*/
+op_shl: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS;
         TOS.u = (TOS.u<<par2);
         DISPATCH;
     }
-op_eq: {/*!*/
+op_eq: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS;
         TOS.i = (TOS.u==par2)?-1:0;
         DISPATCH;
     }
-op_moreeq: {/*!*/
+op_moreeq: {
         uint64_t par2 = POP.u;
-        //uint64_t par1 = TOS;
         TOS.i = (TOS.u>=par2)?-1:0;
         DISPATCH;
     }
-op_moreeqsigned: {/*!*/
+op_moreeqsigned: {
         int64_t par2 = POP.i;
-        //int64_t par1 = TOS;
         TOS.i = (TOS.i>=par2)?-1:0;
         DISPATCH;
     }
@@ -184,12 +188,12 @@ op_swap: {
         PUSH(par1);
         DISPATCH;
     }
-op_readvar: {/*!*/
+op_readvar: {
         if (TOS.u < static_cast<uint64_t>(N))
             TOS.u = VAL(TOS.u);
         DISPATCH;
     }
-op_writevar: {/*!*/
+op_writevar: {
         uint64_t vardata = POP.u;
         uint64_t varaddr = POP.u;
         if (varaddr < static_cast<uint64_t>(N))
@@ -218,103 +222,181 @@ op_ret: {
         pc = reinterpret_cast<uint64_t*>(POPCALLSTACK);
         DISPATCH;
     }
-op_rst: {/*!*/
-        double par1 = POP.d;
-        //double par0;
-        uint64_t op = GETPAR;
-        switch (op) {
-            case RST_SIN:
-                PUSHFLOAT(sin(par1));
-                break;
-            case RST_COS:
-                PUSHFLOAT(cos(par1));
-                break;
-            case RST_ATAN:
-                PUSHFLOAT(atan(par1));
-                break;
-            case RST_ATAN2:{
-                double par0 = POP.d; //записан в стек первым
-                PUSHFLOAT(atan2(par0,par1));
-                break;
-            }
-            case RST_EXP:
-                PUSHFLOAT(exp(par1));
-                break;
-            case RST_LOG:
-                PUSHFLOAT(log(par1));
-                break;
-            case RST_SQRT:
-                PUSHFLOAT(sqrt(par1));
-                break;
-            case RST_ABS:
-                PUSHFLOAT(abs(par1));
-                break;
-            default: ;
-        }
-        DISPATCH;
-    }
-op_addfloat: {/*!*/
+op_addfloat: {
         double par2 = POP.d;
-        //double par1 = static_cast<double>(TOS);
-        //double res = static_cast<double>(TOS)+par2;
         TOS.d = TOS.d+par2;
         DISPATCH;
     }
-op_subfloat: {/*!*/
+op_subfloat: {
         double par2 = POP.d;
-        //double par1 = *(double*)&(TOS);
-        //double res = par1-par2;
         TOS.d = TOS.d - par2;
         DISPATCH;
     }
 op_mulfloat: {
         double par2 = POP.d;
-        //double par1 = *(double*)&(TOS);
-        //double res = par1*par2;
         TOS.d = TOS.d * par2;
         DISPATCH;
     }
 op_divfloat: {
         double par2 = POP.d;
-        //double par1 = *(double*)&(TOS);
-        //double res = par1/par2;
         TOS.d = TOS.d / par2;
         DISPATCH;
     }
 op_negfloat: {
-        //double par1 = *(double*)&(TOS);
-        //double res = -static_cast<double>(TOS);
         TOS.d = -TOS.d;
         DISPATCH;
     }
 op_floattoint: {
-        //double par1 = TOS.d;
         TOS.i = static_cast<int64_t>(rint(TOS.d));
-        //TOS = static_cast<uint64_t>(par1);
         DISPATCH;
     }
 op_inttofloat: {
-        //double par1 = TOS.d;
         TOS.d = TOS.i;
         DISPATCH;
     }
-op_eqfloat: {/*!*/
+op_eqfloat: {
         double par2 = POP.d;
-        //uint64_t par1 = TOS;
         TOS.i = (TOS.d==par2)?-1:0;
         DISPATCH;
     }
-op_moreeqfloat: {/*!*/
+op_moreeqfloat: {
         double par2 = POP.d;
-        //uint64_t par1 = TOS;
         TOS.i = (TOS.d>=par2)?-1:0;
         DISPATCH;
     }
 op_done: {
         return static_cast<int>(stcSMData[0].current_value.i);
     }
-#endif
-    //return state;
+op_rst: {
+    uint64_t op = GETPAR;
+    double par1;
+    uint64_t upar1;
+    switch (op) {
+//case RST_NOP: //fn_nop:
+//        break;
+case RST_SIN: //fn_sin:{
+        TOS.d=sin(TOS.d);
+        break;
+case RST_COS: //fn_cos:{
+        TOS.d=cos(TOS.d);
+        break;
+case RST_ATAN: //fn_atan:{
+        TOS.d=atan(TOS.d);
+        break;
+case RST_ATAN2: //fn_atan2:{
+        par1 = POP.d;
+        TOS.d = atan2(TOS.d,par1);
+        break;
+case RST_EXP: //fn_exp:{
+        TOS.d=exp(TOS.d);
+        break;
+case RST_LOG: //fn_log:{
+        TOS.d=log(TOS.d);
+        break;
+case RST_SQRT: //fn_sqrt:{
+        TOS.d=sqrt(TOS.d);
+        break;
+case RST_ABS: //fn_abs:{
+        TOS.d=abs(TOS.d);
+        break;
+case RST_ACOS: //fn_acos:{
+        TOS.d=acos(TOS.d);
+        break;
+case RST_ACOSH: //fn_acosh:{
+        TOS.d=acosh(TOS.d);
+        break;
+case RST_ASIN: //fn_asin:{
+        TOS.d=asin(TOS.d);
+        break;
+case RST_ASINH: //fn_asinh:{
+        TOS.d=asinh(TOS.d);
+        break;
+case RST_ATANH: //fn_atanh:{
+        TOS.d=atanh(TOS.d);
+        break;
+case RST_CBRT: //fn_cbrt:{
+        TOS.d=cbrt(TOS.d);
+        break;
+case RST_CEIL: //fn_ceil:{
+        TOS.d=ceil(TOS.d);
+        break;
+case RST_COSH: //fn_cosh:{
+        TOS.d=cosh(TOS.d);
+        break;
+case RST_HYPOT: //fn_hypot:{
+        par1 = POP.d;
+        TOS.d=hypot(TOS.d,par1);
+        break;
+case RST_ISFINITE: //fn_isfinite:{
+        TOS.i=(isfinite(TOS.d)?-1:0);
+        break;
+case RST_ISINF: //fn_isinf:{
+        TOS.i=(isinf(TOS.d)?-1:0);
+        break;
+case RST_ISNAN: //fn_isnan:{
+        TOS.i=(isnan(TOS.d)?-1:0);
+        break;
+case RST_J0: //fn_j0:{
+        //TOS.d=j0(TOS.d);
+        break;
+case RST_J1: //fn_j1:{
+        //TOS.d=j1(TOS.d);
+        break;
+case RST_JN: //fn_jn:{
+        par1 = POP.d;
+        //TOS.d=jn(static_cast<int>(TOS.i),par1);
+        break;
+case RST_LOG10: //fn_log10:{
+        TOS.d=log10(TOS.d);
+        break;
+case RST_LOG1P: //fn_log1p:{
+        TOS.d=log1p(TOS.d);
+        break;
+case RST_LOGB: //fn_logb:{
+        TOS.d=logb(TOS.d);
+        break;
+case RST_MAX: //fn_max:{
+        par1 = POP.d;
+        TOS.d=(TOS.d>par1?TOS.d:par1);
+        break;
+case RST_MIN: //fn_min:{
+        par1 = POP.d;
+        TOS.d=(TOS.d<par1?TOS.d:par1);
+        break;
+case RST_RINT: //fn_rint:{
+        TOS.d=rint(TOS.d);
+        break;
+case RST_SINH: //fn_sinh:{
+        TOS.d=sinh(TOS.d);
+        break;
+case RST_TAN: //fn_tan:{
+        TOS.d=tan(TOS.d);
+        break;
+case RST_TANH: //fn_tanh:{
+        TOS.d=tanh(TOS.d);
+        break;
+case RST_Y0: //fn_y0:{
+        //TOS.d=y0(TOS.d);
+        break;
+case RST_Y1: //fn_y1:{
+        //TOS.d=y1(TOS.d);
+        break;
+case RST_YN: //fn_yn:{
+        par1 = POP.d;
+        //TOS.d=yn(static_cast<int>(TOS.i),par1);
+        break;
+case RST_POW: //fn_pow:{
+        par1 = POP.d;
+        TOS.d=pow(TOS.d,par1);
+        break;
+case RST_PRINT: //fn_print:{
+        upar1 = POP.u;
+        myprintstr(prog, upar1);
+        break;
+default: ;
+}
+        DISPATCH;
+    }
 }
 
 #ifndef FOR_DEBUGGER

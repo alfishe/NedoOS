@@ -359,9 +359,9 @@ FUNC BOOL eatcmd RECURSIVE FORWARD();  //вызывает call
 FUNC TYPE do_call RECURSIVE FORWARD(BOOL isfunc); //возвращает тип функции
 PROC compfile RECURSIVE FORWARD(PCHAR fn);
 
-PROC varstrz()
+PROC varstrz() //для строковых констант в выражениях
 {
-  emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar();
+  emitvarlabel(_joined); //varstr(_joined); endvar();
   WHILE (+TRUE) {
     rdquotes('\"');
     rdch(); //добавляем закрывающую кавычку
@@ -373,9 +373,9 @@ PROC varstrz()
   var_db(); varc('0'); endvar();
 }
 
-PROC asmstrz() //костыль для константных массивов строк
+PROC asmstrz() //все CONST строки теперь в коде (раньше было только для константных массивов строк)
 {
-  emitasmlabel(_joined); //asmstr(_joined); /**varc( ':' );*/ endasm();
+  emitasmlabel(_joined); //asmstr(_joined); endasm();
   WHILE (+TRUE) {
     rdquotes('\"');
     rdch(); //добавляем закрывающую кавычку
@@ -1106,7 +1106,7 @@ PROC do_const_num(TYPE t)
       var_num(_T_ARRAY|_T_UINT, _joined); //_T_ARRAY не даёт создать метку
       asmstrz(); //с меткой _joined //костыль вместо varstrz //todo целиком заполнить указатели, потом генерировать строки? (нельзя будет &str в const pchar arr[]?)
     }ELSE {
-      varstrz(); //с меткой _joined
+      asmstrz(); //varstrz(); //с меткой joined
     };
   }ELSE var_num(t, _tword);
 }

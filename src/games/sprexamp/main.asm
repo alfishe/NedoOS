@@ -13,10 +13,6 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
-METATILEMAPWID=64
-TILEMAPWID=42 ;целые метатайлы
-TILEMAPHGT=26 ;целые метатайлы
-TILEGFX=0xc000
 
         macro RECODEBYTE
         ld a,(de)
@@ -81,17 +77,7 @@ waitcls0
 	ld de,res_path
 	OS_CHDIR
 
-        call getmousedelta
-
-        call uvscroll_prepare
-        ;ld de,bgxyfilename
-        ;call uvscroll_preparebmp
-         call uvscroll_preparetiles
-         call uvscroll_preparetilemap
-        call uvscroll
-
-        ld de,bgfilename
-        call bgpush_prepare
+        call getmousedelta ;prepare mouse
 
         ld hl,texfilename
         call loadpage
@@ -113,6 +99,36 @@ waitcls0
       
         call swapimer
 
+;UV scroll
+        call uvscroll_prepare
+        ;ld de,bgxyfilename
+        ;call uvscroll_preparebmp
+         call uvscroll_preparetiles
+         call uvscroll_preparetilemap
+        ld de,pal
+        OS_SETPAL
+mainloop_uv0
+        halt
+        ;call uvscroll_filltilemap
+        ;call uvscroll_showtilemap
+        call uvscroll_draw
+
+        call drawsprites
+
+        call changescrpg ;с этого момента можем видеть, что нарисовали
+
+        call getmousedelta ;de=delta (d>0: go up) (e>0: go left)
+        ld a,l ;hl=(sysmousebuttons)
+        rra
+         jr nc,mainloop_uvq ;LMB
+        call uvscroll_scroll
+        jr mainloop_uv0
+mainloop_uvq
+
+;vertical scroll
+        ld de,bgfilename
+        call bgpush_prepare
+
         call cls
         ld de,pal;SUMMERPAL
         OS_SETPAL
@@ -131,33 +147,7 @@ mainloop
 
         call bgpush_draw ;359975t
 
-pg1=$+1
-        ld a,0
-        call setpgc000
-        call setpgsscr40008000
-        
-_x=10
-        dup 8
-_y=10
-        dup 8
-        
-        ;call setpgsscr40008000 ;предыдущий спрайт мог выключить, если был левее экрана и вообще не попал на экран?
-        ld iy,(0xc000);testspr
-        ld e,_x+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-        ld c,_y ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        ;call prsprega ;(с включением экранных страниц и проверкой попадания спрайта в экран) один спрайт 16x16 = 6875t
-        call prspr ;(без включения экранных страниц и без проверки попадания спрайта в экран) один спрайт 16x16 = 6408t (из них 4224t само мясо)
-        ;ld iy,(0xc000);testspr
-        ;ld e,110+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-        ;ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        ;call prsprega
-_y=_y+20
-        edup
-_x=_x+20
-        edup
-;817000(prsprega)/793000(prspr)t на всё
-
-        call setpgsmain40008000
+        call drawsprites
         
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
@@ -176,6 +166,66 @@ pgmusic=$+1
         OS_SETMUSIC
         halt
         QUIT
+
+drawsprites
+pg1=$+1
+        ld a,0
+        call setpgc000
+        
+        ld ix,objects
+drawsprites0       
+        call setpgsscr40008000 ;предыдущий спрайт мог выключить, если был левее экрана и вообще не попал на экран?
+        ld l,(ix+4)
+        ld h,(ix+5)
+         ld a,2
+         add a,0
+         ld ($-1),a
+         and 2*3
+         add a,l
+         ld l,a
+        ld (drawsprites0_sprdescr),hl
+drawsprites0_sprdescr=$+2
+        ld iy,(0xc000);testspr
+        ld e,(ix+2);_x+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        ld c,(ix+0);_y ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        push ix
+        ;call prsprega ;(с включением экранных страниц и проверкой попадания спрайта в экран) один спрайт 16x16 = 6875t
+        call prspr ;(без включения экранных страниц и без проверки попадания спрайта в экран) один спрайт 16x16 = 6408t (из них 4224t само мясо)
+        pop ix
+        ld bc,OBJSIZE
+        add ix,bc
+        bit 7,(ix+1) ;yhigh
+        jr z,drawsprites0
+;817000(prsprega)/793000(prspr)t на всё
+
+        ;ld iy,(0xc000);testspr
+        ;ld e,110+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        ;ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        ;call prsprega
+
+        call setpgsmain40008000
+        ret
+
+OBJSIZE=6
+objects
+;y16
+;x16
+;sprite16
+_=0
+_x=10
+        dup 5
+_y=10
+        dup 5
+        
+        dw _y ;y
+        dw _x+(sprmaxwid-1) ;x
+        dw 0xc000
+_=_+1
+_y=_y+20
+        edup
+_x=_x+20
+        edup
+        dw -1
 
 getmousedelta
         GET_KEY ;OS_GETKEYNOLANG

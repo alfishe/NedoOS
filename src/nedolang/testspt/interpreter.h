@@ -6,10 +6,11 @@
 
 #include "cmdlist.c"
 
-#define FOR_DEBUGGER
+void myprint(char * s);
+
+//#define FOR_DEBUGGER
 
 using namespace std;
-
 #ifdef FOR_DEBUGGER
     extern uint64_t *pc;
     extern uint64_t *prog;
