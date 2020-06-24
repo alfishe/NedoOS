@@ -12,16 +12,13 @@
 #define CONST const
 #define CHAR char
 #define BYTE unsigned char
-#ifdef TARGET_THUMB
-#define INT int
-#else
-#define INT short int
-#endif
-#define UINT unsigned INT
+#define BOOL unsigned char
+
 #ifdef TARGET_THUMB
 #define LONG unsigned long
 #else
 #ifdef TARGET_SCRIPT
+//#define LONG unsigned long
 #ifdef __BORLANDC__
 #define LONG unsigned __int64
 #else
@@ -31,8 +28,29 @@
 #define LONG unsigned int
 #endif
 #endif
+
+#ifdef TARGET_THUMB
+#define INT int
+#else
+#ifdef TARGET_SCRIPT
+#define INT int
+#else
+#define INT short int
+#endif
+#endif
+
+//#define UINT unsigned INT
+#ifdef TARGET_THUMB
+#define UINT unsigned int
+#else
+#ifdef TARGET_SCRIPT
+#define UINT unsigned int
+#else
+#define UINT unsigned short int
+#endif
+#endif
+
 //#define FLOAT double
-#define BOOL unsigned char
 #define PBYTE BYTE*
 #define PCHAR CHAR*
 #define PBOOL BOOL*

@@ -16,6 +16,7 @@ uint8_t callstackindex = 0; //растёт вверх
 
 data64bit datastack[STACKSIZE];
 uint64_t callstack[STACKSIZE];
+uint64_t locals[LOCALSSIZE];
 
     uint64_t *pc;
     uint64_t *prog;
@@ -31,15 +32,16 @@ uint64_t callstack[STACKSIZE];
     }
 
 #ifdef FOR_DEBUGGER
-    int interpret() {
+    int interpret(uint64_t progpar) {
 #else //FOR_DEBUGGER
-    int interpret(uint64_t *prog) {
+    int interpret(uint64_t *prog, uint64_t progpar) {
         uint64_t *pc = prog;
 uint8_t datastackindex = 0; //растёт вверх
 uint8_t callstackindex = 0; //растёт вверх
 
 data64bit datastack[STACKSIZE];
 uint64_t callstack[STACKSIZE];
+        PUSH(progpar);
 #endif //FOR_DEBUGGER
 
     const void *labels[CMDS] = {
@@ -188,25 +190,39 @@ op_swap: {
         PUSH(par1);
         DISPATCH;
     }
+//pointers:
+//0x00000000 - global data segment (VAL)
+//0x40000000 - code segment (prog)
+//0x80000000 - local data segment (locals)
 op_readvar: {
-        if (TOS.u < static_cast<uint64_t>(N))
+        if (TOS.u < static_cast<uint64_t>(N)) {
             TOS.u = VAL(TOS.u);
+        }else if ((TOS.u < 0x80000000)/*&&((TOS.u&0x3fffffff) < progsize)*/) {
+            TOS.u = prog[TOS.u&0x3fffffff];
+        }else if ((TOS.u&0x3fffffff) < LOCALSSIZE) {
+            TOS.u = locals[TOS.u&0x3fffffff];
+        }
         DISPATCH;
     }
 op_writevar: {
         uint64_t vardata = POP.u;
         uint64_t varaddr = POP.u;
-        if (varaddr < static_cast<uint64_t>(N))
+        if (varaddr < static_cast<uint64_t>(N)) {
             VAL(varaddr) = vardata;
+        }else if ((varaddr < 0x80000000)/*&&((varaddr&0x3fffffff) < progsize)*/) {
+            prog[varaddr&0x3fffffff] = vardata; //по идее не нужно
+        }else if ((varaddr&0x3fffffff) < LOCALSSIZE) {
+            locals[varaddr&0x3fffffff] = vardata;
+        }
         DISPATCH;
     }
 op_goto: {
-        pc = prog+(*pc); //нельзя GETPAR - делает pc++
+        pc = prog+((*pc)&0x3fffffff); //нельзя GETPAR - делает pc++
         DISPATCH;
     }
 op_if0goto: {
         if (!POP.u) {
-            pc = prog+(*pc); //нельзя GETPAR - делает pc++
+            pc = prog+((*pc)&0x3fffffff); //нельзя GETPAR - делает pc++
         }else {
             pc++;
         }
@@ -215,7 +231,7 @@ op_if0goto: {
 op_call: {
         uint64_t callpc = GETPAR;
         PUSHCALLSTACK(reinterpret_cast<uint64_t>(pc));
-        pc = prog+callpc;
+        pc = prog+(callpc&0x3fffffff);
         DISPATCH;
     }
 op_ret: {

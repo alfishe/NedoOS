@@ -1,8 +1,18 @@
+;pointers:
+;0x00000000 - global data segment (VAL)
+;0x40000000 - code segment (prog)
+;0x80000000 - local data segment (locals)
 ;startup
-	org 0x0000
 	include "cmdlist.var"
+	org 0x40000000 ;code segment
+;в стеке параметр
+	DW CMD_CONST,main.A.
+	DW CMD_SWAP
+	DW CMD_WRITEVAR
+        DW CMD_CALL,main
+;в стеке результат
+        DW CMD_DONE
 	include "state.ast"
-	DW CMD_DONE
 
 sin
 	DW CMD_CONST,sin.A.
@@ -233,7 +243,10 @@ print
 	DW CMD_RST,RST_PRINT
 	DW CMD_RET
         
-        org 0x0000
+	include "constarr.ast" ;
+	include "constarr.var" ;const arrays in code segment
+
+        org 0x80000000 ;local data segment (no preinitialized data!)
 	include "state.var"
 exp.A.
 log.A.
@@ -281,3 +294,6 @@ min.B.
 yn.B.
 pow.B.
 	dw 0
+
+        org 0x00000000 ;global data segment (no temporary variables!)
+	include "global.var"

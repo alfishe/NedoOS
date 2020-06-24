@@ -16,11 +16,11 @@ using namespace std;
     extern uint64_t *prog;
     #define MAINDISPATCH goto *labels[*pc++]
     #define DISPATCH return -1
-    int interpret();
+    int interpret(uint64_t progpar);
 #else
     #define MAINDISPATCH DISPATCH
     #define DISPATCH goto *labels[*pc++]
-    int interpret(uint64_t *prog);
+    int interpret(uint64_t *prog, uint64_t progpar);
 #endif //FOR_DEBUGGER
 
 #define GETPAR *pc++
@@ -32,6 +32,8 @@ using namespace std;
 #define POPCALLSTACK callstack[callstackindex--]
 
 #define STACKSIZE 256
+#define LOCALSSIZE 8192
+
 typedef union {
     uint64_t u;
     int64_t i;

@@ -57,10 +57,10 @@ user_fdvalue5=$+1
         ld a,fd_system
         out (0xfd),a
         ds 2
-INTMICROSTACK ;2 байта до (стек) и 2 байта после (bc)
+INTMICROSTACK ;2 байта до (стек) и 2 байта после (bc) ;di!!!
         ds 2
 
-;int=5112t (из них 905t установка палитры, 2875t чтение клавиатуры)
+;int=4246t (из них 905t установка палитры, 874t чтение клавиатуры)
         ds 0x0038-$ ;0 b
         ex de,hl ;de="hl", hl="de"
         ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"

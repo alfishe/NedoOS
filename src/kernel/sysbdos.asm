@@ -728,6 +728,7 @@ tbdoscmds
          db CMD_GETATTR
          db CMD_PRCHAR
          db CMD_WIZNETREAD
+         db CMD_YIELD
 	db CMD_SETDTA;0x1a
 	db CMD_FOPEN;0x0f
 	db CMD_FREAD;0x14
@@ -743,7 +744,6 @@ tbdoscmds
         db CMD_GETPATH
         db CMD_GETKEYMATRIX
         db CMD_GETTIMER
-        db CMD_YIELD
         db CMD_RUNAPP
         db CMD_NEWAPP
         db CMD_CLS
@@ -833,7 +833,6 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_cls
         dw BDOS_newapp
         dw BDOS_runapp
-        dw BDOS_yield
         dw BDOS_gettimer
         dw BDOS_getkeymatrix
         dw BDOS_getpath
@@ -849,6 +848,7 @@ nbdoscmds=$-tbdoscmds
 	dw BDOS_fread
 	dw BDOS_fopen
         dw BDOS_setdta
+         dw BDOS_yield
          dw BDOS_wiznetread
          dw BDOS_prchar
          dw BDOS_getattr
@@ -918,7 +918,7 @@ BDOS_yield
         endif
 
         call setmainpg_c000
-        ld (intsp+0xc000),hl
+        ld (intsp+0xc000),hl ;sp приложения не может быть на границе страниц (с нечётным адресом)!!!
 
         ex de,hl
         call BDOS_preparedepage
@@ -932,15 +932,15 @@ BDOS_yield
         call setmainpg_c000
         ld (intjp+0xc000),de
 
-        ld a,pgkillable
-        ;out (c),a
-        call sys_setpgc000
-        ;ld b,memport8000_hi
-        ;out (c),a
-        call sys_setpg8000
+        ;ld a,pgkillable
+        ;call sys_setpgc000
+        ;call sys_setpg8000
+        call setpgs_killable
         
+        if bdosstack_sz !=0
         ld a,0xc0
         ld (callbdos_mutex),a ;то же самое делают те функции BDOS, которые не собираются возвращаться
+        endif
 
 ;не выходим из CALLBDOS, взамен шедулим и выходим через конец обработчика прерываний
 

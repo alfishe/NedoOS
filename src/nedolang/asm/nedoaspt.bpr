@@ -116,7 +116,7 @@ Item0=_DEBUG
 DebugSourceDirs=$(BCB)\source\vcl
 
 [Parameters]
-RunParams=../tok/_tokarm.S_
+RunParams=../testspt/state.S_
 HostApplication=
 RemoteHost=
 RemotePath=

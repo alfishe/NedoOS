@@ -310,7 +310,7 @@ uvscroll_preparebmp
 ;загрузить графику bmp в ld-push
         ld ix,tpushpgs
         ld hl,uvscroll_pushbase
-        ld bc,UVSCROLL_HGT;pushhgt
+        ld bc,UVSCROLL_HGT
 uvscroll_ldbmp0
         ;ld a,UVSCROLL_WID/8/2
         ld a,512/8/2
@@ -1060,7 +1060,7 @@ uvscroll_genpush
         call genpush_newpage ;заказывает страницу, заносит в tpushpgs, a=pg
         SETPG32KLOW
         ld hl,uvscroll_pushbase
-        ld bc,UVSCROLL_HGT;pushhgt
+        ld bc,UVSCROLL_HGT
 uvscroll_genpush0
         push bc
         ld a,h

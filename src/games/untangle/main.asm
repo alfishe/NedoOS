@@ -2466,11 +2466,12 @@ _MULLONG0.
 	add ix,de
 	adc hl,bc
 	exx
-	djnz _MULLONG0. ;можно по a==0 (первый вход с scf:rla, далее add a,a)
+	djnz _MULLONG0. ;можно по a==0 (первый вход с scf:rla, далее add a,a) ;или раскрыть цикл
 	exx
 	ret
 	endif
 
+        display $
 SAVEDATA
 level
         db 0
@@ -2588,6 +2589,7 @@ sprringoff_r
 
 
         include "prarrow.asm"
+        display $
         include "control.asm"
 
 end

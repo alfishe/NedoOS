@@ -1,6 +1,5 @@
-VAR UINT state;
-VAR UINT time;
-#include "globals.h"
+EXTERN UINT state;
+EXTERN UINT time;
 #include "enum.h"
 
 FUNC FLOAT sin FORWARD(FLOAT x);

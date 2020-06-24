@@ -1,16 +1,24 @@
-CONST PCHAR str = "123";
-VAR INT a=+5;
-VAR UINT bb=4;
+//CONST PCHAR str = "123";
+//VAR INT a=+5;
+//VAR UINT bb=4;
 
-/**VAR FLOAT ffa;
+CONST UINT ma[10] = {
+1,1,2,3,4,5,6,7,8,9
+}
+
+//VAR FLOAT ffa;
 VAR INT fia;
-ffa = 3.1415926536e-4+(FLOAT)fia;
-fia = (INT)ffa;
+//ffa = 3.1415926536e-4+(FLOAT)fia;
+//fia = (INT)ffa;
 
 FUNC INT f(UINT p) {
-  RETURN (INT)(3.1415926536e-4+(FLOAT)(INT)p);
-}*/
-
+  RETURN (INT)(((FLOAT)(INT)p+1.0+(FLOAT)(+1)));
+}
+/**
+FUNC INT f(UINT p) {
+  RETURN (INT)((BYTE)(INT)p+0x02+(BYTE)(1));
+}
+*/
 enum {
         CMD_NOP,
         CMD_ADD,
