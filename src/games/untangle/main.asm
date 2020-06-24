@@ -9,7 +9,7 @@ scrbase=0x8000
 scrwid=320
 scrhgt=200
 
-COLORS_UNCROSSED=%11100100;%11001001
+COLORS_UNCROSSED=%11001001
 COLORS_CROSSED=%11010010
 
         org PROGSTART
@@ -25,6 +25,10 @@ begin
         SETPG32KLOW
         ld a,d
         SETPG32KHIGH
+        call cls
+
+        ld de,pal
+        OS_SETPAL
 
         ld a,r
         ld (rndseed1),a
@@ -46,7 +50,7 @@ begin
 	OS_CLOSEHANDLE
 	jr loadiniq
 noloadini
-        ;ld a,12
+        ;ld a,8
 	xor a
         ld (level),a
         call countverticesneeded
@@ -120,6 +124,9 @@ key=$+1
         cp key_esc
         call z,quitifnoclickstate
         cp key_redraw
+        push af
+        call z,cls
+        pop af
         call z,redraw
 
         ;call control_keys
@@ -217,9 +224,8 @@ mouse_fire_nextlevel
         call genmesh
         
         ld a,1
-        ld (doredraw),a
-        ;call redraw ;есть doredraw
-        
+        ld (docls),a
+        ld (doredraw),a        
         ret
 
 mouse_fire
@@ -328,7 +334,7 @@ curvertex=$+1
         ret
 
 undrawcuredges
-        ld hl,prpixel
+        ld hl,delpixel
         ld a,0
         jr drawcuredges_go
 drawcuredges
@@ -616,7 +622,7 @@ doredraw=$+1
 redraw
         xor a
         ld (doredraw),a
-        call cls
+        ;call cls
         
         call drawedges
         call drawvertices
@@ -788,56 +794,6 @@ drawedges0
         jr nz,drawedges0
         ret
 
-drawedge
-;e=vertex1
-;d=vertex2
-;a=color
-        ex af,af'
-        ld a,d ;vertex2
-        ld d,0
-        ld hl,vertices
-        add hl,de
-        add hl,de
-        add hl,de
-        add hl,de
-        ld c,(hl)
-        inc hl
-        ld b,(hl) ;x
-        inc hl
-        ld e,(hl)
-        inc hl
-        ld d,(hl) ;y
-        push de
-
-        ld d,0
-        ld e,a ;vertex2
-        ld hl,vertices
-        add hl,de
-        add hl,de
-        add hl,de
-        add hl,de
-
-        pop de
-        ld a,(hl)
-        ld lx,a
-        inc hl
-        ld a,(hl) ;x2
-        ld hx,a
-        inc hl
-        ld a,(hl)
-        inc hl
-        ld h,(hl) ;y2
-        ld l,a
-
-        ex af,af' ;color
-;bc=x (в плоскости экрана, но может быть отрицательным)
-;de=y (в плоскости экрана, но может быть отрицательным)
-;ix=x2
-;hl=y2
-;a=color = %332103210
-        call shapes_line
-        ret
-
 drawvertices
 ;x,X,y,Y
         ld hl,vertices
@@ -970,6 +926,13 @@ div4signedup
         sra a
         ret
 
+clsifneeded
+docls=$+1
+        ld a,0
+        or a
+        ret z
+        xor a
+        ld (docls),a
 cls
         ld e,0
         OS_CLS
@@ -1126,168 +1089,217 @@ prcharin_go
         ret
 
 invpixel
-;bc=x (не портится) ;de
-;e=y (de не портится) ;c
-;lx=color = %33210210
-       ;ld a,d;b
-        ld l,e;c
-        ;ld h,0
-        ;ld d,scrbase/256/8 ;b
-        ld h,scrbase/256/32
-        add hl,hl
-        add hl,hl
-        add hl,de;bc
-        add hl,hl
-        add hl,hl
-        add hl,hl ;y*40 + scrbase
-       ;ld d,a;b,a
-;invpixel_cury
-;bc=x (не портится);de
-;hl=addr(y)
-;lx=color = %33210210
-        ld a,b;d
+;bc=x (не портится)
+;e=y (не портится)
+;screen pages are mapped in 2 CPU windows
+;addr = tY(y) + tX(x)
+        push bc
+        ld a,b
         rra
-        ld a,c;e
+        ld a,c
         rra
-        jr c,invpixel_r
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-        add a,l
         ld l,a
-        adc a,h
-        sub l
-        ld h,a
+        ;ld d,ty/256
+        ;ld h,tx/256
+        ld a,(de) ;(y*40)
+        jr c,invpixel_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld b,a
+        ld a,(bc)
 invpixel_color_l=$+1
-        ld a,0;lx
-        ;xor (hl)
-        ;and %01000111 ;keep left pixel 
-        xor (hl) ;right pixel from screen
-        ld (hl),a
+        xor 0;lx
+        ld (bc),a
+        dec h
+        dec d
+        pop bc
         ret
 invpixel_r
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld b,a
+        ld a,(bc)
 invpixel_color_r=$+1
-        ld a,0;lx
-        ;xor (hl)
-        ;and %10111000 ;keep right pixel 
-        xor (hl) ;left pixel from screen
-        ld (hl),a
+        xor 0;lx
+        ld (bc),a
+        dec h
+        dec d
+        pop bc
         ret
 
 prpixel
-;de=x (не портится)
-;c=y (bc не портится)
-;[lx=color = %33210210]
-       ;ld a,d;b
-        ld l,e;c
-        ;ld h,0
-        ;ld d,scrbase/256/8 ;b
-        ld h,scrbase/256/32
-        add hl,hl
-        add hl,hl
-        add hl,de;bc
-        add hl,hl
-        add hl,hl
-        add hl,hl ;y*40 + scrbase
-       ;ld d,a;b,a
-;prpixel_cury
-;bc=x (не портится);de
-;hl=addr(y)
-;lx=color = %33210210
-        ld a,b;d
+;bc=x (не портится)
+;e=y (не портится)
+;screen pages are mapped in 2 CPU windows
+;addr = tY(y) + tX(x)
+        push bc
+        ld a,b
         rra
-        ld a,c;e
+        ld a,c
         rra
-        jr c,prpixel_r
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-        add a,l
         ld l,a
-        adc a,h
-        sub l
-        ld h,a
+        ;ld d,ty/256
+        ;ld h,tx/256
+        ld a,(de) ;(y*40)
+        jr c,prpixel_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld b,a
+        ld a,(bc)
+        and 0xb8 ;keep right pixel ;иначе надо cls перед redraw
 prpixel_color_l=$+1
-        ld a,0;lx
-        xor (hl)
-        and %01000111 ;keep left pixel 
-        xor (hl) ;right pixel from screen
-        ld (hl),a
+        or 0;lx
+        ld (bc),a
+        dec h
+        dec d
+        pop bc
         ret
 prpixel_r
-        rra
-        jr nc,$+4
-        set 6,h
-        rra
-        jr nc,$+4
-        set 5,h
-        and %00111111
-        add a,l
-        ld l,a
-        adc a,h
-        sub l
-        ld h,a
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld b,a
+        ld a,(bc)
+        and 0x47 ;keep left pixel ;иначе надо cls перед redraw
 prpixel_color_r=$+1
-        ld a,0;lx
-        xor (hl)
-        and %10111000 ;keep right pixel 
-        xor (hl) ;left pixel from screen
-        ld (hl),a
+        or 0;lx
+        ld (bc),a
+        dec h
+        dec d
+        pop bc
+        ret
+        
+delpixel
+;bc=x (не портится)
+;e=y (не портится)
+;screen pages are mapped in 2 CPU windows
+;addr = tY(y) + tX(x)
+        push bc
+        ld a,b
+        rra
+        ld a,c
+        rra
+        ld l,a
+        ;ld d,ty/256
+        ;ld h,tx/256
+        ld a,(de) ;(y*40)
+        jr c,delpixel_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld b,a
+        ld a,(bc)
+        and 0xb8 ;keep right pixel 
+        ld (bc),a
+        dec h
+        dec d
+        pop bc
+        ret
+delpixel_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld b,a
+        ld a,(bc)
+        and 0x47 ;keep left pixel 
+        ld (bc),a
+        dec h
+        dec d
+        pop bc
         ret
 
-shapes_line
-;bc=x (в плоскости экрана, но может быть отрицательным)
-;de=y (в плоскости экрана, но может быть отрицательным)
-;ix=x2
-;hl=y2
-;a=color = %332103210
-        ld (prpixel_color_l),a
-        ld (prpixel_color_r),a
-        ld ly,a
-        and %01000111 ;keep left pixel 
+drawedge
+;e=vertex1
+;d=vertex2
+;a=color = %33210210
+        ;ld (prpixel_color_l),a
+        ;ld (prpixel_color_r),a
+        ld l,a
+        and 0x47;%01000111 ;keep left pixel 
         ld (invpixel_color_l),a
-        xor ly ;keep right pixel 
+         ld (prpixel_color_l),a
+        xor l ;keep right pixel 
         ld (invpixel_color_r),a
-        or a
-        sbc hl,de
-        add hl,de
-        jp p,shapes_line_noswap
-        ex de,hl ;y <-> y2
-        push ix
-        push bc
-        pop ix
-        pop bc ;x <-> x2
-shapes_line_noswap
-        or a
-        sbc hl,de ;dy >= 0
-        push hl ;dy
-        push ix
-        pop hl
+         ld (prpixel_color_r),a
+        ld h,0
+        ld l,e ;vertex1
+        ld bc,vertices
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl) ;x
+        inc hl
+        ld a,(hl) ;y
+
+        ld h,0
+        ld l,d ;vertex2
+        ld de,vertices
+        add hl,hl
+        add hl,hl
+        add hl,de ;NC
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;x2
+        inc hl
+;bc=x (в плоскости экрана, но может быть отрицательным)
+;a=y
+;de=x2
+;(hl)=y2
+        ;or a
+        ;sbc hl,de
+        ;add hl,de
+        ;jp p,shapes_line_noswap
+         sub (hl)
+        jr c,shapes_line_noswap
+        push af ;dy
+        ld a,d
+        ld d,b
+        ld b,a
+        ld a,e
+        ld e,c
+        ld c,a ;x <-> x2
+        ex de,hl
         sbc hl,bc
         push hl ;dx
+        ex de,hl
+         ld e,(hl) ;y
+         jp shapes_line_noswapq
+shapes_line_noswap
+        neg
+        push af ;dy
+        neg
+        add a,(hl)
+        ex de,hl
+        sbc hl,bc
+        push hl ;dx
+         ld e,a ;y
+shapes_line_noswapq
         exx
         pop bc ;dx
-        ld a,#03 ;inc bc
+        ld a,0x03 ;inc bc
         jp p,shapes_line_nodec
         xor a
         sub c
@@ -1295,20 +1307,21 @@ shapes_line_noswap
         sbc a,b
         sub c
         ld b,a ;dx >= 0
-        ld a,#0b ;dec bc
+        ld a,0x0b ;dec bc
 shapes_line_nodec
-        pop de ;dy
+        pop hl ;dy
+         ld l,h
+         ld h,0
 ;a=код inc/dec bc
 ;bc'=x (в плоскости экрана, но может быть отрицательным)
-;de'=y (в плоскости экрана, но может быть отрицательным)
-;bc=dx
-;de=dy
-        ex de,hl
+;e'=y
         or a
         sbc hl,bc
         add hl,bc
-        ex de,hl
+;bc=dx
+;hl=dy
         jr nc,shapes_linever ;dy>=dx
+        ex de,hl
         ld hy,b
         ld ly,c ;counter=dx
 	
@@ -1333,10 +1346,12 @@ shapes_line_nodec
         exx
         ld (shapes_lineincx),a
 ;bc=x
-;de=y
+;e=y
 ;hl'=xm
 ;bc'=dx
 ;de'=dy
+        ld h,tx/256
+        ld d,ty/256
 shapes_linehor0
 pixelprochor=$+1
         call prpixel
@@ -1348,7 +1363,7 @@ shapes_lineincx=$
         sbc hl,de ;ym-dy
         exx
         jr nc,shapes_linehor1
-        inc de ;y+1
+        inc  e ;y+1
         exx
         ;or a
         ;sbc hl,bc ;mym-dx
@@ -1361,6 +1376,8 @@ shapes_linehor1
         jp nz,shapes_linehor0
         ret
 shapes_linever
+        ld d,h
+        ld e,l
         ld hy,d
         ld ly,e ;counter=dy
 	
@@ -1372,8 +1389,8 @@ shapes_linever
 	inc hy
 	
         ;inc iy ;inc hy ;рисуем, включая последний пиксель (учтено в цикле)
-        ld h,d
-        ld l,e
+        ;ld h,d
+        ;ld l,e
         sra h
         rr l
          ;xor a
@@ -1385,14 +1402,16 @@ shapes_linever
         exx
         ld (shapes_lineincx2),a
 ;bc=x
-;de=y
+;e=y
 ;hl'=xm
 ;bc'=dx
 ;de'=dy
+        ld h,tx/256
+        ld d,ty/256
 shapes_linever0
 pixelprocver=$+1
         call prpixel
-        inc de ;y+1
+        inc  e ;y+1
         exx
         ;add hl,bc ;mxm+dx
         or a
@@ -1438,6 +1457,23 @@ oldupdtimer
         dw 0
 
         align 256
+tx
+        dup 256
+        db ($&0xff)/4
+        edup
+        dup 64
+        db 0x80
+        db 0xc0
+        db 0xa0
+        db 0xe0
+        edup
+ty
+        dup 256
+        db 0xff&(($&0xff)*40)
+        edup
+        dup 256
+        db (($&0xff)*40)/256
+        edup
 font
         incbin "fontgfx"
 
@@ -2527,6 +2563,11 @@ nextlevelon=$ ;этот флаг надо сохранять
         db 0
 
 SAVEDATAsz=$-SAVEDATA
+
+pal ;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
+        dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+        ;dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+        dw 0xffff,0x6f6f,0xbdbd,0x6f6f,0x6f6f,0x4e4e,0x2d2d,0x0c0c
 
         macro SHAPESPROC name
 name

@@ -918,11 +918,11 @@ BDOS_yield
         endif
 
         call setmainpg_c000
-        ld (intsp+0xc000),hl ;sp приложения не может быть на границе страниц (с нечётным адресом)!!!
+        ld (intsp+0xc000),hl
 
         ex de,hl
         call BDOS_preparedepage
-        call BDOS_setdepage
+        call BDOS_setdepage ;включается сразу 2 страницы на случай sp на границе страниц
         ex de,hl
         
         ld e,(hl)
@@ -930,7 +930,7 @@ BDOS_yield
         ld d,(hl)
 
         call setmainpg_c000
-        ld (intjp+0xc000),de
+        ld (intjp+0xc000),de ;TODO при многозадачности в кернале это надо делать атомарно вместе с записью sp!
 
         ;ld a,pgkillable
         ;call sys_setpgc000
