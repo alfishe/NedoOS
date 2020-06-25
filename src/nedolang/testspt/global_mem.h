@@ -17,6 +17,7 @@ extern int N; // число ячеек в разделяемой памяти
 extern g_SM *stcSMData;
 
 #define VAL(i) stcSMData[i].current_value.u
+#define POKEVAL(i,val) stcSMData[i].current_value.u = val;
 #define OLDVAL(i) stcSMData[i].last_value
 
 #endif // GLOBAL_MEM_H

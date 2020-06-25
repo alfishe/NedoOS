@@ -41,6 +41,7 @@ uint8_t callstackindex = 0; //растёт вверх
 
 data64bit datastack[STACKSIZE];
 uint64_t callstack[STACKSIZE];
+uint64_t locals[LOCALSSIZE];
         PUSH(progpar);
 #endif //FOR_DEBUGGER
 
@@ -208,7 +209,7 @@ op_writevar: {
         uint64_t vardata = POP.u;
         uint64_t varaddr = POP.u;
         if (varaddr < static_cast<uint64_t>(N)) {
-            VAL(varaddr) = vardata;
+            POKEVAL(varaddr, vardata);
         }else if ((varaddr < 0x80000000)/*&&((varaddr&0x3fffffff) < progsize)*/) {
             prog[varaddr&0x3fffffff] = vardata; //по идее не нужно
         }else if ((varaddr&0x3fffffff) < LOCALSSIZE) {
