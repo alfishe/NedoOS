@@ -12,7 +12,15 @@ cmd_begin
         
         ;ld e,COLOR
         ;OS_CLS
-
+	OS_GETMAINPAGES
+	ld a,e
+	ld (musicpage),a 
+        
+        ld hl,wasplayer
+        ld de,0x4000
+        ld bc,szplayer
+        ldir
+        
         ld hl,COMMANDLINE ;command line
         call skipword
         call skipspaces
@@ -52,7 +60,12 @@ cmd_begin
         call nz,INIT
         pop af
         call z,tfmini
-        
+
+musicpage=$+1
+	 ld a,0
+         ld hl,player
+         OS_SETMUSIC 
+         
 mainloopredraw
 filenameaddr=$+1
         ld hl,0
@@ -64,14 +77,9 @@ filenameaddr=$+1
         
 mainloop
         YIELD
-	di ;TODO fix player
-	ld a,(module)
-	cp 'T'
-        push af
-        call nz,PLAY
-        pop af
-        call z,tfm
-	ei
+	;di ;TODO fix player
+        ;call player
+	;ei
         GET_KEY
         cp key_redraw
         jr z,mainloopredraw
@@ -81,16 +89,14 @@ mainloop
         ;jr z,_1;1b;prwindow_waitkey_nokey
         cp key_esc
         jr nz,mainloop
-	ld a,(module)
-	cp 'T'
-        push af
-        call nz,MUTE
-        pop af
-        call z,tfmshut
+        
+	  ld a,(musicpage)
+	  ld hl,muter
+	  OS_SETMUSIC 
+          halt
 noautoload
         QUIT
 
-        
 skipword
 ;hl=string
 ;out: hl=terminator/space addr
@@ -128,9 +134,33 @@ prtext0
 ;oldtimer
 ;        dw 0
 
+        ;ds 0x4000-$
+wasplayer
+        disp 0x4000
+player
+        di
+	ld a,(module)
+	cp 'T'
+        push af
+        call nz,PLAY
+        pop af
+        call z,tfm
+        ei
+        ret
+muter        
+	ld a,(module)
+	cp 'T'
+        push af
+        call nz,MUTE
+        pop af
+        call z,tfmshut
+        ret
+
         ;include "../_sdk/pt3play.i"
         include "ptsplay.asm"
         include "tfmplay.asm"
+        ent
+szplayer=$-wasplayer
         
 cmd_end
 

@@ -13,7 +13,10 @@ htmlview
         ld (htmlshowline_accessedpointerHSB),a
         
 html_redrawloop
-;TODO redraw interface
+;redraw interface (TODO test)
+        call cleanstatusline
+        call browser_editline_print
+
         call htmlshowpage
         ;call setpgs_scr
         

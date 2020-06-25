@@ -8,9 +8,11 @@ mousebuttons=$+1
         ld (oldmousebuttons),a
 
         GET_KEY ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
+        ld a,nofocuskey
         ld (key),a
          jr nz,control_nofocus
+        ld a,c ;keynolang
+        ld (key),a
 control_imer_oldmousecoords=$+1
         ld bc,0
         ld (control_imer_oldmousecoords),de

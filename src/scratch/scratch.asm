@@ -68,6 +68,8 @@ backcolor=0x3f;%00111111
 bmpmaxpages=251
 maxbitmaps=4
         
+nofocuskey=0xff
+
         macro SHAPESPROC name
 ;_=$
         ;org _curorg

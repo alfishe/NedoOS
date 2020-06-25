@@ -12,6 +12,8 @@ scrhgt=200
 COLORS_UNCROSSED=%11001001
 COLORS_CROSSED=%11010010
 
+nofocuskey=0xff
+
         org PROGSTART
 begin
         ld sp,STACK
@@ -57,6 +59,7 @@ noloadini
         ;jr $
         call genmesh
 loadiniq
+         call cls
         call redraw
         
         jr mouseloop_go
@@ -89,19 +92,23 @@ mouseloop
         
 mouseloop_nomove
 
+         call clsifneeded ;TODO убрать?
          call redrawifneeded ;TODO убрать?
          
-;TODO проверить, есть ли фокус! если нету, то не вызывать prlevelifneeded
-         
-        call prlevelifneeded
+        ld a,(key)
+        cp nofocuskey
+        call nz,prlevelifneeded
 
 mouseloop_go
 ;сейчас всё выведено, кроме стрелки
+        ld a,(key)
+        cp nofocuskey
+        jr z,mouseloop_noprarr
         call ahl_coords
         call shapes_memorizearr
         call ahl_coords
         call shapes_prarr8c
-
+mouseloop_noprarr
         ;call waitsomething ;в это время стрелка видна
 mainloop_nothing0
         call updatetime
@@ -115,8 +122,12 @@ mainloop_nothing0
 mainloop_something
 ;что-то изменилось
         
+        ld a,(key)
+        cp nofocuskey
+        jr z,mouseloop_norearr
         call ahl_oldcoords
         call shapes_rearr
+mouseloop_norearr
 ;сейчас всё выведено, кроме стрелки
 
 key=$+1
@@ -138,7 +149,7 @@ clickstate=$+1
         cpl
         and 7
         call nz,mouse_fire
-        jr mouseloop
+        jp mouseloop
 mouseloop_wasclicked
         ld a,(mousebuttons)
         cpl
@@ -1293,6 +1304,7 @@ shapes_line_noswap
         neg
         add a,(hl)
         ex de,hl
+        or a
         sbc hl,bc
         push hl ;dx
          ld e,a ;y
@@ -1468,12 +1480,14 @@ tx
         db 0xe0
         edup
 ty
-        dup 256
+        dup 200
         db 0xff&(($&0xff)*40)
         edup
-        dup 256
+        ds 56,0xff&8000
+        dup 200
         db (($&0xff)*40)/256
         edup
+        ds 56,8000/256
 font
         incbin "fontgfx"
 
