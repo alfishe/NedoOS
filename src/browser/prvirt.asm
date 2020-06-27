@@ -178,6 +178,7 @@ laststringx=$+1
         ld (stringbuf1header+TEXT_X),a
         
 ;if iscentered then TEXT_X = (textfieldwidth-textlength)/2
+;TODO FIX: все ссылки в этой строке тоже надо сдвинуть по X! а они уже сохранены!!!
 iscentered=$+1
         ld a,0
         or a

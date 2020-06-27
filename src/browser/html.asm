@@ -360,6 +360,7 @@ tag_pre
         jr tag_u_b_i
 
 tag_center
+;TODO test
         ld hl,iscentered
         ld a,1
         jr tag_u_b_i
@@ -370,10 +371,15 @@ tag_h3
 tag_h4
 tag_h5
 tag_h6
-        jr z,tag_b
+        jr z,tag_hclose
         ld a,1
         ld (iscentered),a
         jr tag_b
+tag_hclose
+        call prcharvirtual_crlf_stateful
+        ;xor a
+        ;ld (iscentered),a
+        jr tag_u_b_iq
 
 tag_mark
         ld hl,curmark
@@ -405,6 +411,7 @@ tag_u_b_i
         ld (hl),0
         jr z,$+3 ;Z=closing tag
         ld (hl),a
+tag_u_b_iq
         call setfontweight
         jp skiprestoftag
         
@@ -479,6 +486,7 @@ tag_frame_typetag0
          jr tag_frame_typetag0
 
 inithref
+        display "inithref=",inithref
          ld a,(curlink)
          or a
          call nz,savestringbuf2 ;если img внутри a
@@ -617,7 +625,7 @@ tag_a_opening_readhref
   
         ld a,CLINK
         ld (curlink),a
-        call inithref         
+        call inithref
         
         ;zxdn: no quotes in href
         call RDBYTE;rdbyte
@@ -851,7 +859,7 @@ talt
         db "alt=",0
         
 rememberhrefyxposition
-        ld a,(prcharvirtual_stateful_x)
+        ld a,(prcharvirtual_stateful_x) ;для центрированных получается неправильно! на этом этапе экранный x ещё не известен!
         ld (hrefxposition),a
         ld hl,(curprintvirtualy)
         ld (hrefyposition),hl

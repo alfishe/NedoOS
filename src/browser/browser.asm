@@ -870,6 +870,10 @@ browser_quit
 browser_quitq
         QUIT
 
+oraret
+;a!=0
+        or a ;nz
+        ret
 yieldgetkeynolang
 ;out: z=no key, no action
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
@@ -878,6 +882,8 @@ yieldgetkeynolang
         jr z,yieldgetkeynolang_focus
         ld de,(control_imer_oldmousecoords) ;no focus
 yieldgetkeynolang_focus
+         cp key_redraw ;!=0
+         jr z,oraret ;эту кнопку нельзя подменять, иначе экран не перерисуется (NZ!)
 ;hl=(sysmousebuttons)
         ld a,l
         and 0xf0
