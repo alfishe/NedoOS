@@ -7,6 +7,10 @@ PROGSTART=0x0100
 CURPG16K=0x0045
 CURPG32KLOW=0x0048
 CURPG32KHIGH=0x004b
+user_scr0_low=0x0004
+user_scr0_high=0x0017
+user_scr1_low=0x0032
+user_scr1_high=0x0033
 
 MAXPATH_sz=256;64
 

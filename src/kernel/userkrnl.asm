@@ -4,8 +4,9 @@
 user_fdvalue1=$+1
         ld a,fd_system
         out (0xfd),a
-;not used (в CP/M текущий дисковод)
-        db 0
+;(в CP/M текущий дисковод!)
+user_scr0_low=0x0004
+        nop
 
         ds 0x0005-$ ;0 b
 ;вызов функции системы
@@ -31,6 +32,8 @@ user_fdvalue4=$+1
 kernel_result_a
         ex af,af'
         ret ;можно перенести вместо kernel_setpg
+user_scr0_high=0x0017
+        nop
 
 ;TODO убрать рестарты включения страниц, вместо них сделать вызовы (будет быстрее из-за отсутствия jr)
         ds 0x0018-$ ;1 b
@@ -52,10 +55,11 @@ kernel_result_a
         jr kernel_setpg
 
         ds 0x0030-$ ;0 b
-;farcall=0x0030
-user_fdvalue5=$+1
-        ld a,fd_system
-        out (0xfd),a
+        jr $
+user_scr1_low=0x0032
+        nop
+user_scr1_high=0x0033
+        nop
         ds 2
 INTMICROSTACK ;2 байта до (стек) и 2 байта после (bc) ;di!!!
         ds 2
