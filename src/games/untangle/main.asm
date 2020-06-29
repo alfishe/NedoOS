@@ -125,7 +125,8 @@ mainloop_something
         ld a,(key)
         cp nofocuskey
         jr z,mouseloop_norearr
-        call ahl_oldcoords
+        ld a,(oldarry)
+        ld hl,(oldarrx)
         call shapes_rearr
 mouseloop_norearr
 ;сейчас всё выведено, кроме стрелки
@@ -216,9 +217,10 @@ mouse_fire_nextlevel
         call ahl_coords
         cp 8
         jr nc,mouse_fire_nonextlevel
-        ld bc,8*(nextlevelon+1-tlevel)
-        or a
-        sbc hl,bc
+        ld bc,-(8*(nextlevelon+1-tlevel))
+        ;or a
+        ;sbc hl,bc
+        add hl,bc
         ld bc,8*10 ;"NEXT LEVEL"
         or a
         sbc hl,bc
@@ -228,16 +230,13 @@ mouse_fire_nextlevel
         ld (nextlevelon),a
         inc a;ld a,1
         ld (invalidatetime),a
+        ;ld a,1
+        ld (docls),a
+        ld (doredraw),a
         ld hl,level
         inc (hl)
         call countverticesneeded
-
-        call genmesh
-        
-        ld a,1
-        ld (docls),a
-        ld (doredraw),a        
-        ret
+        jp genmesh
 
 mouse_fire
         ld a,(nextlevelon)
@@ -265,9 +264,22 @@ mouse_fire_nonextlevel
         
         call drawcuredges
         call drawconnectedvertices
-        call drawcurvertex
-        
-        ret
+        ;jp drawcurvertex
+drawcurvertex
+        ;ld a,(clickstate)
+        ;or a
+        ;ret z ;unclicked
+        call getcurvertexxy_ahl
+        jp shapes_prarr_ring8c
+drawringon
+        bit 0,l
+        ld de,sprringon_l+1
+        jr nz,$+5+2
+         ld de,sprringon_r+1
+         dec hl
+         dec hl
+        jp prarr_cross8c_go
+
 
 movecurvertex
         ld a,(clickstate)
@@ -289,21 +301,6 @@ movecurvertex
         inc hl
         ld (hl),0
         ret
-
-drawcurvertex
-        ;ld a,(clickstate)
-        ;or a
-        ;ret z ;unclicked
-        call getcurvertexxy_ahl
-        jp shapes_prarr_ring8c
-drawringon
-        bit 0,l
-        ld de,sprringon_l+1
-        jr nz,$+5+2
-         ld de,sprringon_r+1
-         dec hl
-         dec hl
-        jp prarr_cross8c_go
 
 undrawcurvertex
         ;ld a,(clickstate)
@@ -336,25 +333,40 @@ getcurvertexxy_ahl
 
 getcurvertexaddr
 curvertex=$+1
-        ld de,0
-        ld hl,vertices
-        add hl,de
-        add hl,de
-        add hl,de
+        ld hl,0
+        ld de,vertices
+        add hl,hl
+        add hl,hl
         add hl,de
         ret
 
 undrawcuredges
-        ld hl,delpixel
-        ld a,0
+        call setlinenormalmask
+        ;ld a,0x47 ;keep left pixel ;иначе надо cls перед redraw
+        ;ld (lineverR_and_r),a
+        ;ld (lineverL_and_r),a
+        ;cpl
+        ;ld (lineverR_and_l),a
+        ;ld (lineverL_and_l),a
+        ;ld hl,delpixel
+        xor a
         jr drawcuredges_go
 drawcuredges
-        ld hl,invpixel
         ld a,0xff
+        ld (lineverR_and_l),a
+        ld (lineverL_and_l),a
+        ld (lineverR_and_r),a
+        ld (lineverL_and_r),a
+        ld (linehorR_and_r),a
+        ld (linehorL_and_r),a
+        ld (linehorR_and_l),a
+        ld (linehorL_and_l),a
+        ;ld hl,invpixel
+        ;ld a,0xff
 drawcuredges_go
-        ld (pixelprocver),hl
-        ld (pixelprochor),hl
-        ld (drawcuredges_color),a
+        ;ld (pixelprocver),hl
+        ;ld (pixelprochor),hl
+        ld (drawcuredges_colormask),a
         ld a,(clickstate)
         or a
         ret z ;unclicked
@@ -382,20 +394,33 @@ drawcuredges0
         ld a,COLORS_UNCROSSED;%11001001
         jr z,$+4
         ld a,COLORS_CROSSED;%11010010
-drawcuredges_color=$+1
+drawcuredges_colormask=$+1
         and 0
         call drawedge
         pop hl
 drawcuredgesno
-        inc hl
         pop bc
-        dec bc
-        ld a,b
-        or c
-        jr nz,drawcuredges0
-        ld hl,prpixel
-        ld (pixelprocver),hl
-        ld (pixelprochor),hl
+        ;inc hl
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,drawcuredges0
+        cpi
+        jp pe,drawcuredges0
+        ;ld hl,prpixel
+        ;ld (pixelprocver),hl
+        ;ld (pixelprochor),hl
+setlinenormalmask
+        ld a,0x47 ;keep left pixel ;иначе надо cls перед redraw
+        ld (lineverR_and_r),a
+        ld (lineverL_and_r),a
+        ld (linehorR_and_r),a
+        ld (linehorL_and_r),a
+        cpl
+        ld (lineverR_and_l),a
+        ld (lineverL_and_l),a
+        ld (linehorR_and_l),a
+        ld (linehorL_and_l),a
         ret
 
 drawconnectedvertices
@@ -443,12 +468,14 @@ drawconnectedvertices_drawproc=$+1
         call drawringon
         pop hl
 drawconnectedverticesno
-        inc hl
         pop bc
-        dec bc
-        ld a,b
-        or c
-        jr nz,drawconnectedvertices0
+        ;inc hl
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,drawconnectedvertices0
+        cpi
+        jp pe,drawconnectedvertices0
         ret
 
 drawunconnectededges
@@ -480,12 +507,14 @@ drawunconnectededges0
         call drawedge
         pop hl
 drawunconnectededgesno
-        inc hl
         pop bc
-        dec bc
-        ld a,b
-        or c
-        jr nz,drawunconnectededges0
+        ;inc hl
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,drawunconnectededges0
+        cpi
+        jp pe,drawunconnectededges0
         ret
         
 drawunconnectedvertices
@@ -500,7 +529,7 @@ drawunconnectedvertices
 ;помечаем там текущую вершину
         ld de,vertlinkflags
         ld hl,(curvertex)
-        ld h,0
+        ld h,b;0
         add hl,de
         inc (hl)
 ;перебираем все рёбра, ищем там связанные вершины и помечаем в таблице связанных вершин
@@ -589,23 +618,7 @@ ahl_coords
         ld a,(arry)
         ld hl,(arrx)
         ret
-ahl_oldcoords
-        ld a,(oldarry)
-        ld hl,(oldarrx)
-        ret
 
-
-	if 1==0
-gameover
-        ld hl,endtext
-        ld bc,0x0b0f
-        call prtext
-gameoverloop
-        YIELD
-        GET_KEY
-        cp key_esc
-        jr nz,gameoverloop
-	endif
 
 quitifnoclickstate
 	ld a,(clickstate)
@@ -626,9 +639,9 @@ filename
 	db "untangle.ini",0
 
 redrawifneeded
+        xor a
 doredraw=$+1
-        ld a,0
-        or a
+        cp 0
         ret z
 redraw
         xor a
@@ -637,12 +650,12 @@ redraw
         
         call drawedges
         call drawvertices
-        jp prlevel
+        jr prlevel
 
 prlevelifneeded
+        xor a
 invalidatetime=$+1
-        ld a,0
-        or a
+        cp 0
         ret z
 prlevel
         ld a,(level)
@@ -662,12 +675,12 @@ prlevel
         ld hl,ttimes1
         call dectotxt12
         
-        ld bc,0
-        ld hl,tlevel
-        call prtext
          xor a
          ld (invalidatetime),a
-        ret
+        ld b,a
+        ld c,a ;ld bc,0
+        ld hl,tlevel
+        jp prtext
 
 dectotxt12
         ld b,'0'-1
@@ -692,10 +705,12 @@ updatetime
         ld c,l
 updatetime0
         call inctime
-        dec bc
-        ld a,b
-        or c
-        jr nz,updatetime0
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,updatetime0
+        cpi
+        jp pe,updatetime0
         ret
 inctime
         ld hl,cur_f
@@ -797,12 +812,14 @@ drawedges0
         ld a,COLORS_CROSSED;%11010010
         call drawedge
         pop hl
-        inc hl
         pop bc
-        dec bc
-        ld a,b
-        or c
-        jr nz,drawedges0
+        ;inc hl
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,drawedges0
+        cpi
+        jp pe,drawedges0
         ret
 
 drawvertices
@@ -938,12 +955,11 @@ div4signedup
         ret
 
 clsifneeded
-docls=$+1
-        ld a,0
-        or a
-        ret z
         xor a
-        ld (docls),a
+docls=$+1
+        cp 0
+        ret z
+        ld (docls),a ;0
 cls
         ld e,0
         OS_CLS
@@ -1017,17 +1033,6 @@ calcscraddr
         ex de,hl
         ret
 
-prtilexy
-;hl=tile
-;bc=yx
-        push de
-        push bc
-        call calcscraddr
-        call prcharin_go
-        pop bc
-        pop de
-        ret
-        
 prcharxy
 ;a=code
 ;bc=yx
@@ -1098,6 +1103,8 @@ prcharin_go
         add hl,bc
         edup        
         ret
+
+        if 1==0
 
 invpixel
 ;bc=x (не портится)
@@ -1239,6 +1246,8 @@ delpixel_r
         dec d
         pop bc
         ret
+        
+        endif
 
 drawedge
 ;e=vertex1
@@ -1248,11 +1257,19 @@ drawedge
         ;ld (prpixel_color_r),a
         ld l,a
         and 0x47;%01000111 ;keep left pixel 
-        ld (invpixel_color_l),a
-         ld (prpixel_color_l),a
+        ;ld (invpixel_color_l),a
+         ;ld (prpixel_color_l),a
+         ld (lineverR_color_l),a
+         ld (lineverL_color_l),a
+         ld (linehorR_color_l),a
+         ld (linehorL_color_l),a
         xor l ;keep right pixel 
-        ld (invpixel_color_r),a
-         ld (prpixel_color_r),a
+        ;ld (invpixel_color_r),a
+         ;ld (prpixel_color_r),a
+         ld (lineverR_color_r),a
+         ld (lineverL_color_r),a
+         ld (linehorR_color_r),a
+         ld (linehorL_color_r),a
         ld h,0
         ld l,e ;vertex1
         ld bc,vertices
@@ -1332,7 +1349,7 @@ shapes_line_nodec
         add hl,bc
 ;bc=dx
 ;hl=dy
-        jr nc,shapes_linever ;dy>=dx
+        jp nc,shapes_linever ;dy>=dx
         ex de,hl
         ld hy,b
         ld ly,c ;counter=dx
@@ -1356,14 +1373,18 @@ shapes_line_nodec
          ;sub l
          ;ld h,a ;mym=256-(dx div 2)
         exx
+        ld h,tx/256
+        ld d,ty/256
+         cp 0x03 ;inc bc
+         jr nz,shapes_linehorL
+         ;jr z,shapes_linehorR
+        if 1==0
         ld (shapes_lineincx),a
 ;bc=x
 ;e=y
 ;hl'=xm
 ;bc'=dx
 ;de'=dy
-        ld h,tx/256
-        ld d,ty/256
 shapes_linehor0
 pixelprochor=$+1
         call prpixel
@@ -1387,6 +1408,185 @@ shapes_linehor1
         dec hy
         jp nz,shapes_linehor0
         ret
+        endif
+
+        if 1==1
+shapes_linehorR
+        ld a,b
+        rra
+        ld a,c
+        rra
+        ld l,a
+        ld b,ly
+        ld a,(de) ;(y*40)
+        jr c,shapes_linehorR_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+;hl=scr
+;de=40
+;b=pixels
+shapes_linehorR0_l
+        ld a,(hl)
+linehorR_and_l=$+1
+        and 0xb8 ;keep right pixel ;иначе надо cls перед redraw
+linehorR_color_l=$+1
+        xor 0;lx
+        ld (hl),a
+        exx
+        ;or a
+        sbc hl,de ;ym-dy
+        exx
+        jr nc,shapes_linehorR0_ldjnz
+        add hl,de ;y+1
+        exx
+        add hl,bc ;ym+dx
+        exx
+shapes_linehorR0_ldjnz
+        djnz shapes_linehorR0_r
+        dec hy
+        jp nz,shapes_linehorR0_r
+        ret
+shapes_linehorR_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+;hl=scr
+;de=40
+;b=pixels
+shapes_linehorR0_r
+        ld a,(hl)
+linehorR_and_r=$+1
+        and 0x47 ;keep left pixel ;иначе надо cls перед redraw
+linehorR_color_r=$+1
+        xor 0;lx
+        ld (hl),a        
+	bit 6,h
+	set 6,h
+	jr z,shapes_linehorR_incxok
+	ld a,h
+	xor 0x60
+	ld h,a
+	and 0x20
+	jr nz,shapes_linehorR_incxok
+	inc hl
+shapes_linehorR_incxok
+        exx
+        ;or a
+        sbc hl,de ;ym-dy
+        exx
+        jr nc,shapes_linehorR0_rdjnz
+        add hl,de ;y+1
+        exx
+        add hl,bc ;ym+dx
+        exx
+shapes_linehorR0_rdjnz
+        djnz shapes_linehorR0_l
+        dec hy
+        jp nz,shapes_linehorR0_l
+        ret
+
+shapes_linehorL
+        ld a,b
+        rra
+        ld a,c
+        rra
+        ld l,a
+        ld b,ly
+        ld a,(de) ;(y*40)
+        jr c,shapes_linehorL_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+;hl=scr
+;de=40
+;b=pixels
+shapes_linehorL0_l
+        ld a,(hl)
+linehorL_and_l=$+1
+        and 0xb8 ;keep right pixel ;иначе надо cls перед redraw
+linehorL_color_l=$+1
+        xor 0;lx
+        ld (hl),a
+	bit 6,h
+	res 6,h
+	jr nz,shapes_linehorL_decxok
+	ld a,h
+	xor 0x60
+	ld h,a
+	and 0x20
+	jr z,shapes_linehorL_decxok
+	dec hl
+shapes_linehorL_decxok
+        exx
+        ;or a
+        sbc hl,de ;ym-dy
+        exx
+        jr nc,shapes_linehorL0_ldjnz
+        add hl,de ;y+1
+        exx
+        add hl,bc ;ym+dx
+        exx
+shapes_linehorL0_ldjnz
+        djnz shapes_linehorL0_r
+        dec hy
+        jp nz,shapes_linehorL0_r
+        ret
+shapes_linehorL_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+;hl=scr
+;de=40
+;b=pixels
+shapes_linehorL0_r
+        ld a,(hl)
+linehorL_and_r=$+1
+        and 0x47 ;keep left pixel ;иначе надо cls перед redraw
+linehorL_color_r=$+1
+        xor 0;lx
+        ld (hl),a        
+        exx
+        ;or a
+        sbc hl,de ;ym-dy
+        exx
+        jr nc,shapes_linehorL0_rdjnz
+        add hl,de ;y+1
+        exx
+        add hl,bc ;ym+dx
+        exx
+shapes_linehorL0_rdjnz
+        djnz shapes_linehorL0_l
+        dec hy
+        jp nz,shapes_linehorL0_l
+        ret
+
+        endif
+        
 shapes_linever
         ld d,h
         ld e,l
@@ -1412,14 +1612,18 @@ shapes_linever
          ;sub l
          ;ld h,a ;mxm=256-(dy div 2)
         exx
+        ld h,tx/256
+        ld d,ty/256
+         cp 0x03 ;inc bc
+         jr nz,shapes_lineverL
+         ;jr z,shapes_lineverR
+        if 1==0
         ld (shapes_lineincx2),a
 ;bc=x
 ;e=y
 ;hl'=xm
 ;bc'=dx
 ;de'=dy
-        ld h,tx/256
-        ld d,ty/256
 shapes_linever0
 pixelprocver=$+1
         call prpixel
@@ -1427,7 +1631,7 @@ pixelprocver=$+1
         exx
         ;add hl,bc ;mxm+dx
         or a
-        sbc hl,bc ;xm-dx ;TODO а если dx<0?
+        sbc hl,bc ;xm-dx
         exx
         jr nc,shapes_linever1
 shapes_lineincx2=$
@@ -1443,27 +1647,191 @@ shapes_linever1
         dec hy
         jp nz,shapes_linever0
         ret
+        endif
 
+        if 1==1
+;bc=x
+;e=y
+;hl'=xm
+;bc'=dx
+;de'=dy
+shapes_lineverR
+        ld a,b
+        rra
+        ld a,c
+        rra
+        ld l,a
+        ld b,ly
+        ld a,(de) ;(y*40)
+        jr c,shapes_lineverR_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+;hl=scr
+;de=40
+;b=pixels
+shapes_lineverR0_l
+        ld a,(hl)
+lineverR_and_l=$+1
+        and 0xb8 ;keep right pixel ;иначе надо cls перед redraw
+lineverR_color_l=$+1
+        xor 0;lx
+        ld (hl),a
+        add hl,de ;y+1 ;NC
+        exx
+        ;or a
+        sbc hl,bc ;xm-dx
+        jr c,shapes_lineverRincx_r
+        ;add hl,de ;xm+dy
+        exx
+shapes_lineverR0_ldjnz
+        djnz shapes_lineverR0_l
+        dec hy
+        jp nz,shapes_lineverR0_l
+        ret
+shapes_lineverR_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+shapes_lineverR0_r
+        ld a,(hl)
+lineverR_and_r=$+1
+        and 0x47 ;keep left pixel ;иначе надо cls перед redraw
+lineverR_color_r=$+1
+        xor 0;lx
+        ld (hl),a
+        add hl,de ;y+1 ;NC
+        exx
+        ;or a
+        sbc hl,bc ;xm-dx
+        jr c,shapes_lineverRincx_l
+        exx
+        djnz shapes_lineverR0_r
+        dec hy
+        jp nz,shapes_lineverR0_r
+        ret
+shapes_lineverRincx_r
+        add hl,de ;xm+dy
+        exx
+        djnz shapes_lineverR0_r
+        dec hy
+        jp nz,shapes_lineverR0_r
+        ret
+shapes_lineverRincx_l
+        add hl,de ;xm+dy
+        exx
+	bit 6,h
+	set 6,h
+	jr z,shapes_lineverR0_ldjnz
+	ld a,h
+	xor 0x60
+	ld h,a
+	and 0x20
+	jr nz,shapes_lineverR0_ldjnz
+	inc hl
+        jp shapes_lineverR0_ldjnz
 
-        macro cols data
-_l=data/16
-_r=data&15
-        db ((_r&8)<<4) + ((_r&7)<<3) + ((_l&8)<<3) + (_l&7)
-        endm
-        
-        macro cols8 d0,d1,d2,d3,d4,d5,d6,d7
-        cols d0
-        cols d1
-        cols d2
-        cols d3
-        cols d4
-        cols d5
-        cols d6
-        cols d7
-        endm
+shapes_lineverL
+        ld a,b
+        rra
+        ld a,c
+        rra
+        ld l,a
+        ld b,ly
+        ld a,(de) ;(y*40)
+        jr c,shapes_lineverL_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+;hl=scr
+;de=40
+;b=pixels
+shapes_lineverL0_l
+        ld a,(hl)
+lineverL_and_l=$+1
+        and 0xb8 ;keep right pixel ;иначе надо cls перед redraw
+lineverL_color_l=$+1
+        xor 0;lx
+        ld (hl),a
+        add hl,de ;y+1 ;NC
+        exx
+        ;or a
+        sbc hl,bc ;xm-dx
+        jr c,shapes_lineverLdecx_r
+        ;add hl,de ;xm+dy
+        exx
+        djnz shapes_lineverL0_l
+        dec hy
+        jp nz,shapes_lineverL0_l
+        ret
+shapes_lineverL_r
+        add a,(hl) ;x div 4
+        ld c,a
+        inc d
+        inc h
+        ld a,(de) ;'(y*40)
+        adc a,(hl) ;f(x mod 4)
+        ld h,a
+        ld l,c
+        ld de,40
+shapes_lineverL0_r
+        ld a,(hl)
+lineverL_and_r=$+1
+        and 0x47 ;keep left pixel ;иначе надо cls перед redraw
+lineverL_color_r=$+1
+        xor 0;lx
+        ld (hl),a
+        add hl,de ;y+1 ;NC
+        exx
+        ;or a
+        sbc hl,bc ;xm-dx
+        jr c,shapes_lineverLdecx_l
+        exx
+shapes_lineverL0_rdjnz
+        djnz shapes_lineverL0_r
+        dec hy
+        jp nz,shapes_lineverL0_r
+        ret
+shapes_lineverLdecx_r
+        add hl,de ;xm+dy
+        exx
+	bit 6,h
+	res 6,h
+	jr nz,shapes_lineverL0_rdjnz
+	ld a,h
+	xor 0x60
+	ld h,a
+	and 0x20
+	jr z,shapes_lineverL0_rdjnz
+	dec hl
+        jp shapes_lineverL0_rdjnz
+shapes_lineverLdecx_l
+        add hl,de ;xm+dy
+        exx
+        djnz shapes_lineverL0_l
+        dec hy
+        jp nz,shapes_lineverL0_l
+        ret
 
-endtext
-        db "GAME OVER!",0
+        endif
 
 oldupdtimer
         dw 0
@@ -1496,7 +1864,8 @@ genmesh
         ld (nvertices),a
         ld (nvertices2),a
         ld (curmeshvertex),a
-        ld hl,0
+        ld h,a
+        ld l,a ;ld hl,0
         ld (nedges),hl
         ;ld (ncrossededges),hl
         ld (genmeshedge_old),hl ;невозможное ребро
@@ -1504,9 +1873,29 @@ genmesh
         ld (genmeshx),hl
         ld (genmeshy),hl
         call genmeshvertex ;in verlist2
-        ld hl,(verticesneeded)
-        ld h,0
-        call sqrt
+        ld a,(verticesneeded)
+        ;ld h,0
+;sqrt
+;in: a [hl]
+;out: d
+        or a
+        ld de,64
+        ;ld a,l
+        ld l,d;h
+        ld h,d
+        ld b,8
+sqrt0
+        sbc hl,de
+        jr nc,$+3
+        add hl,de
+        ccf
+        rl d
+        add a,a
+        adc hl,hl
+        add a,a
+        adc hl,hl
+        djnz sqrt0
+
         ld b,d ;будет одна лишняя сверх sqrt
 genmeshfirstrow0
         push bc
@@ -1522,11 +1911,12 @@ genmeshrows0
         ld bc,25
         add hl,bc
         ld (genmeshy),hl
-        ld hl,0
-        ld (genmeshx),hl
         xor a
         ld (curopenvertinlist1),a
         ld (nvertices2),a
+        ld h,a
+        ld l,a ;ld hl,0
+        ld (genmeshx),hl
 ;сначала цепляем к первой открытой точке ребро
 ;.    .    .    .
 ;|    ^текущая открытая точка
@@ -1627,20 +2017,6 @@ genmeshx=$+1
 genmeshy=$+1
         ld de,0
         
-        if 1==0
-        push bc
-        ld c,160
-        call rnd
-        add a,a
-        ld a,a
-        ld a,0
-        rl a
-        ld c,200
-        call rnd
-        ld a,a
-        ld a,0
-        pop bc
-        else
         ld c,160
         call rnd
         add a,a
@@ -1652,11 +2028,10 @@ genmeshy=$+1
         call rnd
         add a,8
         ld e,a
-        ld d,0
+        ;ld d,0
         pop bc
-        endif
 ;bc=x
-;de=y
+;e=y
         ld a,(nvertices2)
         ld hl,vertlist2
         add a,l
@@ -1680,7 +2055,7 @@ genmeshy=$+1
         inc hl
         ld (hl),e
         inc hl
-        ld (hl),d ;y
+        ld (hl),0;d ;y
         ld hl,nvertices
         inc (hl)
         ld hl,nvertices2
@@ -1812,22 +2187,26 @@ inccrossededges_proc=$+1
 inccrossededges00_skipself
         inc hl
         inc hl
-        inc hl
-        dec bc
-        ld a,b
-        or c
-        jr nz,inccrossededges00
+        ;inc hl
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,inccrossededges00
+        cpi
+        jp pe,inccrossededges00
 ;конец обработки связанного ребра
         pop hl
         pop bc
 inccrossededgesno
         inc hl
         inc hl
-        inc hl
-        dec bc
-        ld a,b
-        or c
-        jr nz,inccrossededges0
+        ;inc hl
+        ;dec bc
+        ;ld a,b
+        ;or c
+        ;jr nz,inccrossededges0
+        cpi
+        jp pe,inccrossededges0
         ret
 inccrossedandself
         push hl
@@ -1937,12 +2316,11 @@ checkcrossed_edge
         inc hl
         ld b,(hl)
         ld (checkyA),bc
-        ld c,a ;edge1vertex2
-        ld b,0
-        ld hl,vertices
-        add hl,bc
-        add hl,bc
-        add hl,bc
+        ld l,a ;edge1vertex2
+        ld h,0
+        ld bc,vertices
+        add hl,hl
+        add hl,hl
         add hl,bc
         ld c,(hl)
         inc hl
@@ -1974,12 +2352,11 @@ checkcrossed_edge
         inc hl
         ld b,(hl)
         ld (checkyC),bc
-        ld c,a ;edge2vertex2
-        ld b,0
-        ld hl,vertices
-        add hl,bc
-        add hl,bc
-        add hl,bc
+        ld l,a ;edge2vertex2
+        ld h,0
+        ld bc,vertices
+        add hl,hl
+        add hl,hl
         add hl,bc
         ld c,(hl)
         inc hl
@@ -2431,28 +2808,6 @@ _=0
 _=_+1
 	edup
 
-sqrt
-;in: hl
-;out: d
-        or a
-        ld a,l
-        ld l,h
-        ld de,64
-        ld h,d
-        ld b,8
-sqrt0
-        sbc hl,de
-        jr nc,$+3
-        add hl,de
-        ccf
-        rl d
-        add a,a
-        adc hl,hl
-        add a,a
-        adc hl,hl
-        djnz sqrt0
-        ret
-
 
         if 1==0
 ;hl * de (signed = unsigned)
@@ -2587,69 +2942,13 @@ pal ;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
 name
         endm
 
-ZONE_NO=0
-ZONE_TOP=1
-ZONE_LEFT=2
-ZONE_RIGHT=3
-ZONE_WORK=4
-ZONE_PAL=5
-ZONE_NAVIGATOR=6
-
-TOOL_WINDOW=0
-TOOL_PENCIL=1
-TOOL_BRUSH=2
-TOOL_LINE=3
-TOOL_FILL=4
-TOOL_TEXT=5
-NTOOLS=6
-
-prarr_zone
-        db 0
-curtool1
-        db 0
-
-sprringon_l
-;mask,pixels = #ppmm
-;%rlrrrlll
-        db 4
-        dw #00ff,#3847,#07b8,#07b8,#07b8,#3847,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #07b8,#3847,#00ff,#00ff,#00ff,#3847,#07b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #00ff,#00ff,#07b8,#07b8,#07b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-sprringon_r
-;mask,pixels = #ppmm
-;%rlrrrlll
-        db 4
-        dw #00ff,#00ff,#3847,#3847,#3847,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #3847,#07b8,#00ff,#00ff,#00ff,#07b8,#3847,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#3f00,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #00ff,#07b8,#3847,#3847,#3847,#07b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-
-sprringoff_l
-;mask,pixels = #ppmm
-;%rlrrrlll
-        db 4
-        dw #00ff,#0047,#00b8,#00b8,#00b8,#0047,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #0000,#00ff,#00ff,#00ff,#00ff,#00ff,#0000,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #00b8,#0047,#00ff,#00ff,#00ff,#0047,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #00ff,#00ff,#00b8,#00b8,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-sprringoff_r
-;mask,pixels = #ppmm
-;%rlrrrlll
-        db 4
-        dw #00ff,#00ff,#0047,#0047,#0047,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #0047,#00b8,#00ff,#00ff,#00ff,#00b8,#0047,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #0000,#00ff,#00ff,#00ff,#00ff,#00ff,#0000,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-        dw #00ff,#00b8,#0047,#0047,#0047,#00b8,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff,#00ff
-
-
         include "prarrow.asm"
-        display $
+
         include "control.asm"
 
 end
 
-	;display "End=",end
+	display "End=",end
 	;display "Free after end=",/d,#c000-end
 	;display "Size ",/d,end-begin," bytes"
 	

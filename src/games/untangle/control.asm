@@ -28,10 +28,8 @@ control_nofocus
         push af ;ld (control_imer_buttons),a
 
         OS_GETKEYMATRIX ;out: bcdehlix = полуряды cs...space
-        ;ld b,a
-        ;ex af,af'
-        ld a,b ;
-        ld (cur_cs_halfrow),a
+        ;ld a,b ;
+        ;ld (cur_cs_halfrow),a
         
         ;ld a,0xef
         ;in a,(0xfe)
@@ -230,12 +228,13 @@ oldmousebuttons=$+1
 
 ;keymatrix
         ;ds 8
-cur_cs_halfrow
-        db 0
+;cur_cs_halfrow
+;        db 0
 
 ;oldtimer
 ;        dw 0
 
+        if 1==0
 waitsomething
 mainloop_nothing
 ;в это время стрелка видна
@@ -243,3 +242,4 @@ mainloop_nothing
         call control
         jr z,mainloop_nothing
         ret
+        endif
