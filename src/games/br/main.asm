@@ -173,22 +173,22 @@ waitcls0
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,l
        if EGA
-        ld (setpgs_scr_low),a
+        ;ld (setpgs_scr_low),a
        endif
-	xor e
+	;xor e
        if EGA
-        ld (setpgs_scr_scrxor),a
+        ;ld (setpgs_scr_scrxor),a
        endif
         ld a,h
          ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
        if EGA
          ;ld (scrpg7),a
        else 
-         ld (getttexpgs_basepg7),a
+         ;ld (getttexpgs_basepg7),a
        endif
        if EGA
-        xor l
-        ld (setpgs_scr_pgxor),a
+        ;xor l
+        ;ld (setpgs_scr_pgxor),a
        endif
         
 ;не будем брать физические страницы, кроме 7, т.к. pg4 используется для запарывания осью
@@ -426,7 +426,8 @@ putBAR_ade
         pop de
         call putBARdoscr
 	CALL V_GET2
-	jp V_MRK2
+	call V_MRK2
+        jp setpgsmain40008000
 putBARdoscr
         ;call changescrpg_current
 	;LD DE,0xc000;DSCR
@@ -536,28 +537,69 @@ pgmain8000=$+1
         ret
 
 setpgsscr40008000_current
-        ld a,(setpgs_scr_scrxor)
-        ;xor a
-        jr setpgsscr40008000_go
-setpgsscr40008000
-        xor a
-        ;ld a,(setpgs_scr_scrxor)
-setpgsscr40008000_go
-setpgs_scr_low=$+1
-        xor 0
-        ld (curpg4000),a
+        call getuser_scr_low_cur
+        ld (curpg4000),a ;TODO kill
         SETPG16K
-setpgs_scr_pgxor=$+1
-        xor 0
-        ld (curpg8000),a
+        call getuser_scr_high_cur
+        ld (curpg8000),a ;TODO kill
         SETPG32KLOW
         ret
 
+setpgsscr40008000
+        call getuser_scr_low
+        ld (curpg4000),a ;TODO kill
+        SETPG16K
+        call getuser_scr_high
+        ld (curpg8000),a ;TODO kill
+        SETPG32KLOW
+        ret
+
+getuser_scr_low
+getuser_scr_low_patch=$+1
+getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr1_low)
+        ret
+
+getuser_scr_high
+getuser_scr_high_patch=$+1
+getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr1_high)
+        ret
+
+getuser_scr_low_cur
+getuser_scr_low_cur_patch=$+1
+getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr0_low)
+        ret
+
+getuser_scr_high_cur
+getuser_scr_high_cur_patch=$+1
+getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr0_high)
+        ret
+
 changescrpg_current
-        ld a,(setpgs_scr_low)
-setpgs_scr_scrxor=$+1
-        xor 0
-        ld (setpgs_scr_low),a
+;        ld a,(setpgs_scr_low)
+;setpgs_scr_scrxor=$+1
+;        xor 0
+;        ld (setpgs_scr_low),a
+        ld hl,getuser_scr_low_patch
+        ld a,(hl)
+        xor getuser_scr_low_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_patch
+        ld a,(hl)
+        xor getuser_scr_high_patchN
+        ld (hl),a
+        ld hl,getuser_scr_low_cur_patch
+        ld a,(hl)
+        xor getuser_scr_low_cur_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_cur_patch
+        ld a,(hl)
+        xor getuser_scr_high_cur_patchN
+        ld (hl),a
+
         ld a,1
 curscrnum=$+1
         xor 0
@@ -575,10 +617,11 @@ changescrpg
 copyscreen
         display "-",$
         call setpgsscr40008000
-        ld a,(setpgs_scr_scrxor)
-        ld hl,setpgs_scr_low
-        xor (hl)
-        push af
+        ;ld a,(setpgs_scr_scrxor)
+        ;ld hl,setpgs_scr_low
+        ;xor (hl)
+        ;push af
+         call getuser_scr_low_cur
         ld (curpg8000),a
         SETPG32KLOW
         ld hl,0x8000
@@ -586,9 +629,10 @@ copyscreen
         ld bc,0x4000
         ldir
         call setpgsscr40008000
-        pop bc
-        ld a,(setpgs_scr_pgxor)
-        xor b
+        ;pop bc
+        ;ld a,(setpgs_scr_pgxor)
+        ;xor b
+         call getuser_scr_high_cur
         ld (curpg4000),a
         SETPG16K
         ld hl,0x4000
@@ -621,6 +665,32 @@ SLOWER	;замедлитель
 	LD (makTRY),A ;ограничитель числа трассировок
 	;
         if EGA
+        display "wascurkeyredraw=",$,"<0x4000"
+wascurkeyredraw=$+1
+        ld a,0
+        cp key_redraw
+        if 1==1
+        jr nz,EmulatePPU_nofullcls
+        xor a
+        ld (wascurkeyredraw),a
+        ;push ix ;
+        ;push iy ;на всякий случай
+	ld e,0
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+	ld e,1
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+        call putBAR
+        call MAPoffclbuttons
+        call OUTBAR
+        call copyscreen
+        ;pop iy
+        ;pop ix
+EmulatePPU_nofullcls
+        endif
 ;ждать не менее 3 фреймов с прошлого раза
 oldtimer=$+1
         ld c,0
@@ -705,6 +775,7 @@ MDIVB	RLA
         
         if EGA
 prspr
+        ;jr $
 ;в 4000,8000 уже включен экран (setpgsscr40008000)
 ;найти адрес, ширину, высоту спрайта по ID, phase + включить страницу в 0xc000
 ;...

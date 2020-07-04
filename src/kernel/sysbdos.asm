@@ -119,6 +119,7 @@ BDOS_setscreen
 
 BDOS_getscreenpages
 ;out: de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+;TODO kill
         ld de,pgscr0_1*256+pgscr0_0
         ld hl,pgscr1_1*256+pgscr1_0
         ;xor a
@@ -1097,6 +1098,8 @@ BDOS_setgfx
         or 0xa8;%10101000
 		ENDIF
         ld (iy+app.gfxmode),a
+
+        call enablescreeninapp_setc000
         
 ;кладём фокус в стек, только если не два раза setgfx в одной задаче:
         ld hl,(focusappaddr)
@@ -1120,8 +1123,26 @@ BDOS_gfxoff
         push de
         call BDOS_gfxoff_givefocus
         pop de
+disablescreeninapp_setc000
+        call setmainpg_c000
+disablescreeninapp
+        ld a,pgkillable
+        ld (0xc000+user_scr0_low),a
+        ld (0xc000+user_scr0_high),a
+        ld (0xc000+user_scr1_low),a
+        ld (0xc000+user_scr1_high),a
         ret
-
+enablescreeninapp_setc000
+        call setmainpg_c000
+        ld a,pgscr0_0
+        ld (0xc000+user_scr0_low),a
+        ld a,pgscr0_1
+        ld (0xc000+user_scr0_high),a
+        ld a,pgscr1_0
+        ld (0xc000+user_scr1_low),a
+        ld a,pgscr1_1
+        ld (0xc000+user_scr1_high),a
+        ret
         
 BDOS_freezeapp
 ;e=id

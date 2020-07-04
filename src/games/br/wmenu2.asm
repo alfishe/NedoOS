@@ -981,7 +981,7 @@ OUTBAR	;общий вывод панели
 	CALL oINDY
         if EGA
         call clearbuttonframes ;затирает рамки кнопок (немножко срезает с левой цифры)
-	CALL oBUT ;TODO не перерисовывать кнопки, если они не изменились
+	CALL oBUT ;не перерисовывает кнопки, если они не изменились?
 	CALL outNUM ;
 	CALL outSQR
         else

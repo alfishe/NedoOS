@@ -764,6 +764,7 @@ editpal
         ld (prarr_zone),a
         
 editpalloop
+        call setpgs_scr
 ;1. всё выводим
 ;2. ждём событие
 ;3. всё стираем

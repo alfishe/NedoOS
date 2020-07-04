@@ -431,6 +431,7 @@ GMAP2	; вхHL-XY, выхHL-pos in map2
 
 shadwS	;выбор адр невидим поля
 	LD A,(shadwT)
+shadwS_3
 ;тут тоже точка входа (+3)
 	PUSH AF
 	CALL MEM1
@@ -1464,7 +1465,8 @@ O12X12
 	LD HL,G_IMG1
 	LD (G_IMG),HL
         if EGA
-        jp SLOWER ;TODO не 5 фреймов, а 3?
+        call SLOWER ;TODO не 5 фреймов, а 3?
+        jp MEM7
         else
 	RET
         endif
@@ -1707,7 +1709,7 @@ _oSA1	EX AF,AF
 	JP MEM7
 
 _shdw	;уст темноты
-	CALL shadwS+3
+	CALL shadwS_3
 	JP MEM7
 
 aSETUP	;исполнение установок
@@ -2173,6 +2175,7 @@ NNN	;игровой цикл
 	CALL MEM6    ;---6
 	CALL TIMER  ;6
 	CALL SLOWER ;6
+	 CALL MEM6    ;---6
 	CALL RNDcrr ;6
 	CALL cTIC   ;6
 	CALL dMAGIC ;6

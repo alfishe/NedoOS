@@ -29,6 +29,7 @@ sys_newapp
         ldir
         xor a
         ld (0xc000+COMMANDLINE),a ;command line
+        call disablescreeninapp
         
         call BDOS_newpage_iy
         ld a,e

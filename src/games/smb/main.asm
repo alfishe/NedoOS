@@ -124,16 +124,16 @@ begin
         ld a,e
         ld (pgaddrstackcopy),a
         
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        ld (setpgs_scr_low),a
-	xor l
-        ld (setpgs_scr_low_xor),a
-        ld a,d
-        ld (setpgs_scr_high),a
-	xor h
-        ld (setpgs_scr_high_xor),a
+        ;ld a,e
+        ;ld (setpgs_scr_low),a
+	;xor l
+        ;ld (setpgs_scr_low_xor),a
+        ;ld a,d
+        ;ld (setpgs_scr_high),a
+	;xor h
+        ;ld (setpgs_scr_high_xor),a
 
 	ld de,gfxfilename
         call openstream_file
@@ -1032,13 +1032,28 @@ tilepage=$+1
          ;ld (curpg4000),a
          endif
         SETPG16K
-setpgs_scr_low=$+1
-        ld a,0;pgscr0_0 ;scr0_0
+;setpgs_scr_low=$+1
+;        ld a,0;pgscr0_0 ;scr0_0
+        call getuser_scr_low
         SETPG32KLOW
-setpgs_scr_high=$+1
-        ld a,0;pgscr0_1 ;scr0_1
+;setpgs_scr_high=$+1
+;        ld a,0;pgscr0_1 ;scr0_1
+        call getuser_scr_high
         SETPG32KHIGH
         ret
+
+getuser_scr_low
+getuser_scr_low_patch=$+1
+getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr0_low)
+        ret
+
+getuser_scr_high
+getuser_scr_high_patch=$+1
+getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr0_high)
+        ret
+
 
         align 256
 tytoscr
@@ -1320,6 +1335,28 @@ EmulatePPU_nochpal
 
         call setpgs_scr
         
+wascurkeyredraw=$+1
+        ld a,0
+        cp key_redraw
+        if 1==1
+        jr nz,EmulatePPU_nofullcls
+        xor a
+        ld (wascurkeyredraw),a
+        ;ld hl,0x8000
+        ;ld de,0x8000+1
+        ;ld bc,0x7fff
+        ;ld (hl),l;0
+        ;ldir
+	ld e,0
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+	ld e,1
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+EmulatePPU_nofullcls
+        endif
 	ld hl,0x8000+4+32
 	call emppucls
 	ld hl,0xa000+4+32
@@ -1415,15 +1452,23 @@ curscreen=$+1
 	call gettimer
         ld (endoflastredrawtimer),hl
 
-        ld hl,setpgs_scr_low
+;        ld hl,setpgs_scr_low
+;        ld a,(hl)
+;setpgs_scr_low_xor=$+1
+;        xor 2
+;        ld (hl),a
+;        ld hl,setpgs_scr_high
+;        ld a,(hl)
+;setpgs_scr_high_xor=$+1
+;        xor 2
+;        ld (hl),a
+        ld hl,getuser_scr_low_patch
         ld a,(hl)
-setpgs_scr_low_xor=$+1
-        xor 2
+        xor getuser_scr_low_patchN
         ld (hl),a
-        ld hl,setpgs_scr_high
+        ld hl,getuser_scr_high_patch
         ld a,(hl)
-setpgs_scr_high_xor=$+1
-        xor 2
+        xor getuser_scr_high_patchN
         ld (hl),a
 
         call setpgs_code
@@ -1545,12 +1590,14 @@ prtilesfast0block
 	push de
 	push hl
 	push bc
-	ld a,(setpgs_scr_high)
+	;ld a,(setpgs_scr_high)
+        call getuser_scr_high
 	SETPG32KLOW
 	call setpgtileprocL
 	pop bc
 	call prtilesfast0lines
-	ld a,(setpgs_scr_low)
+	;ld a,(setpgs_scr_low)
+        call getuser_scr_low
 	SETPG32KLOW
 	call setpgtileprocR
 	pop hl
@@ -1565,12 +1612,14 @@ prtilesfast0block_even
 	push de
 	push hl
 	push bc
-	ld a,(setpgs_scr_low)
+	;ld a,(setpgs_scr_low)
+        call getuser_scr_low
 	SETPG32KLOW
 	call setpgtileprocL
 	pop bc
 	call prtilesfast0lines
-	ld a,(setpgs_scr_high)
+	;ld a,(setpgs_scr_high)
+        call getuser_scr_high
 	SETPG32KLOW
 	call setpgtileprocR
 	pop hl
@@ -1746,6 +1795,12 @@ intjpaddr=$+1
 curpalette=$+1
         ld de,mariopal
         OS_SETPAL
+        
+        GET_KEY
+        cp key_redraw
+        jr nz,$+5
+        ld (wascurkeyredraw),a ;иначе не пишем
+
         pop hl
         pop de
         pop bc

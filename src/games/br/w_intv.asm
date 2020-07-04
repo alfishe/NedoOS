@@ -253,6 +253,11 @@ IR128=$+1
 	CALL MEM
          ;SETPG32KHIGH
         if EGA
+        GET_KEY
+        cp key_redraw
+        jr nz,$+5
+        ld (wascurkeyredraw),a ;иначе не пишем
+        
          ;pop af
          ;ld (curscrnum),a
         pop af ;ld a,(curpg8000)

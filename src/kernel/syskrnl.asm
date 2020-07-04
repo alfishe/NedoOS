@@ -469,6 +469,17 @@ on_int_oldssEnter=$+1
          call KEY_PUTREDRAW
 
         ld hl,(focusappaddr)
+        ;отключить страницы экрана этой задаче и выключить их в памяти задачи TODO
+        push hl
+        pop iy
+        call disablescreeninapp_setc000
+        ld de,curpg16k+0xc000
+        call disablescrpg
+        ld de,curpg32klow+0xc000
+        call disablescrpg
+        ld de,curpg32khigh+0xc000
+        call disablescrpg
+        
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
         ld a,MAXAPPS
@@ -492,6 +503,14 @@ findnextgfxappskip
         ld hl,app1
 findnextgfxappq
         ld (focusappaddr),hl
+        ;включить страницы экрана этой задаче
+        ;push iy
+        push hl
+        pop iy
+        call enablescreeninapp_setc000
+        
+        ;pop iy
+        
 sys_int_noselectapp
 
 muzpg=$+1
@@ -528,6 +547,17 @@ sys_curpgc000=$+1
          out (c),a
         ret
         
+disablescrpg
+;de=page keeping addr
+        ld a,(de)
+        or 7&(pgscr0_0|pgscr0_1|pgscr1_0|pgscr1_1)
+        cp pgscr0_0
+        ret nz;jr z,disablescrpg_ok
+disablescrpg_ok        
+        ld a,pgkillable
+        ld (de),a
+        ret
+
 sys_getchar
 ;out: de=mouse yx, l=buttons, A=key, H=high bits of key, nz=no focus (mouse position=0, ignore it!)
         call checkfocus_getkbdmouse

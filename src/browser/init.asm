@@ -4,14 +4,14 @@ init
         
         ;YIELD ;чтобы cmd мог доделать свои дела на экране
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        ld (setpgs_scr_low),a
-        ld (setpgs_scr_attr),a
-        ld a,d
-        ld (setpgs_scr_high),a
-        ld (setpgs_scr_pixels),a
+        ;ld a,e
+        ;ld (setpgs_scr_low),a
+        ;ld (setpgs_scr_attr),a
+        ;ld a,d
+        ;ld (setpgs_scr_high),a
+        ;ld (setpgs_scr_pixels),a
         
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000

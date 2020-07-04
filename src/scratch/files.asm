@@ -591,6 +591,7 @@ filemenu_restart
         ld (prarr_zone),a;от этого зависит форма стрелочки
         
 filemenuloop
+        call setpgs_scr
 ;1. всё выводим
 ;2. ждём событие
 ;3. всё стираем

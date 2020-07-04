@@ -101,12 +101,12 @@ main_go2
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,0 ;EGA
         OS_SETGFX
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        ld (setpgs_scr_low),a
-        ld a,d
-        ld (setpgs_scr_high),a
+        ;ld a,e
+        ;ld (setpgs_scr_low),a
+        ;ld a,d
+        ;ld (setpgs_scr_high),a
         
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -184,6 +184,7 @@ autoloadq
         call showworkscreen
         
 mainloop
+        call setpgs_scr
 ;1. всё выводим
 ;2. ждём событие
 ;3. всё стираем
@@ -1276,11 +1277,13 @@ prarr_zone
         db 0
 
 setpgs_scr
-setpgs_scr_low=$+1
-        ld a,0;pgscr0_0 ;scr0_0
+;setpgs_scr_low=$+1
+;        ld a,0;pgscr0_0 ;scr0_0
+        ld a,(user_scr0_low)
         SETPG32KLOW
-setpgs_scr_high=$+1
-        ld a,0;pgscr0_1 ;scr0_1
+;setpgs_scr_high=$+1
+;        ld a,0;pgscr0_1 ;scr0_1
+        ld a,(user_scr0_high)
         SETPG32KHIGH
         ret
 

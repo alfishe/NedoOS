@@ -28,7 +28,8 @@ setpgtemp4000
         ret
 
 setpgscr4000
-        ld a,(setpgs_scr_high)
+        ;ld a,(setpgs_scr_high)
+        ld a,(user_scr0_high)
         SETPG16K
         ret
 
@@ -41,13 +42,15 @@ codepg_svg=$+1
 setpgs_scr
         call setpgscr8000
 setpgscrc000
-setpgs_scr_high=$+1
-        ld a,0;pgscr0_1 ;scr0_1
+;setpgs_scr_high=$+1
+;        ld a,0;pgscr0_1 ;scr0_1
+        ld a,(user_scr0_high)
         SETPG32KHIGH
         ret
 setpgscr8000
-setpgs_scr_low=$+1
-        ld a,0;pgscr0_0 ;scr0_0
+;setpgs_scr_low=$+1
+;        ld a,0;pgscr0_0 ;scr0_0
+        ld a,(user_scr0_low)
         SETPG32KLOW
         ret
 

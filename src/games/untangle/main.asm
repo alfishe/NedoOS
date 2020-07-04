@@ -21,12 +21,8 @@ begin
         ld e,0
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        SETPG32KLOW
-        ld a,d
-        SETPG32KHIGH
         call cls
 
         ld de,pal
@@ -646,8 +642,7 @@ doredraw=$+1
 redraw
         xor a
         ld (doredraw),a
-        ;call cls
-        
+        call setscrpgs
         call drawedges
         call drawvertices
         jr prlevel
@@ -2875,6 +2870,13 @@ _MULLONG0.
 	exx
 	ret
 	endif
+
+setscrpgs
+        ld a,(user_scr0_low)
+        SETPG32KLOW
+        ld a,(user_scr0_high)
+        SETPG32KHIGH
+        ret
 
         display $
 SAVEDATA

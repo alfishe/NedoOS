@@ -369,8 +369,9 @@ prlinefast_datadec=$
         ld d,(hl) ;берём вручную, чтобы стек не запорол область перед данными
         inc hl
          exx
-setpgs_scr_pixels=$+1
-         ld a,0
+;setpgs_scr_pixels=$+1
+;         ld a,0
+        ld a,(user_scr0_high)
          SETPG16K
          exx
         ld sp,hl
@@ -392,8 +393,9 @@ prlinefast_sizeadd=$+1
         add hl,sp ;attr data
         ld sp,SPOIL4B ;можно портить (дальше de станет неактуальным и не сможет исправлять стек)
          exx
-setpgs_scr_attr=$+1
-         ld a,0
+;setpgs_scr_attr=$+1
+;         ld a,0
+        ld a,(user_scr0_low)
          SETPG16K
          exx
         ld e,(hl)

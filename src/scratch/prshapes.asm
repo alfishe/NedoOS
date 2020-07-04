@@ -452,7 +452,7 @@ prpixelhorline_patch=$+1
 ;e=wid
 invbox0
         push de ;d = hgt, e = wid(chr)
-        call invhorline               
+        call invhorline
         pop de ;d = hgt, e = wid(chr)
         inc b ;y
         dec d
