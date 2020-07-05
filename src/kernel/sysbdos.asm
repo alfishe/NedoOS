@@ -47,9 +47,10 @@ blocksize=128 ;сколько байтов читать в CP/M операциях
 
 setmainpg_c000
         ld a,(iy+app.mainpg)
-        ld bc,memportc000
-        out (c),a
-        ret
+        jp sys_setpgc000
+        ;ld bc,memportc000
+        ;out (c),a
+        ;ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 BDOS_wiznetopen

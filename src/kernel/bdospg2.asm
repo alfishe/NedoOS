@@ -20,8 +20,10 @@ sys_newapp
         call z,BDOS_newpage_iy
         ld (iy+app.mainpg),e
 
-        ld bc,memportc000
-        out (c),e
+        ;ld bc,memportc000
+        ;out (c),e
+        ld a,e
+        call sys_setpgc000
 
         ld hl,wasuserkernel
         ld de,0+0xc000

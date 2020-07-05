@@ -97,6 +97,7 @@ sys_timer
 
         ds 0x0038+9-$ -4
 sys_intq
+;di
 ;bc=memport0000
 ;d=pgmain
 ;e=значение для аккумулятора
@@ -205,7 +206,7 @@ sys_intsp=$+1
 sys_int_popregs
         ld a,pgkillable
         ld bc,memport4000
-        ld (sys_curpg4000),a
+        ld (sys_curpg4000),a ;не надо? (если di)
         out (c),a
 
 ;sys_int_popregs
@@ -260,7 +261,7 @@ findnextappq
           ;ld iy,(appaddr)
           ld a,(iy+app.mainpg)
           ld bc,memport4000
-          ;ld (sys_curpg4000),a ;не нужно?
+          ld (sys_curpg4000),a ;нужно (могут вызвать из yield - в любой момент)
           out (c),a
           ld ix,(focusappaddr)
           ld a,(ix+app.screen)
@@ -618,7 +619,7 @@ callbdos
 ;0x0000 - syscode (уже включено)
 ;0x4000 - fatfs
 ;[0x8000 - curpg32klow]
-;0xc000 - curpg32khigh
+;[0xc000 - curpg32khigh]
 ;защита от одновременного доступа двум задачам
 ;занято a,bc,de,hl
 ;свободно iy
@@ -730,11 +731,12 @@ sys_quit_nomuzcall
         jp BDOS_yield_q ;переходим на какую-нибудь задачу
         
 setkernelpages_go
+;di!!!
 ;sp=0x3ffx
 ;сейчас включена 5-я страница
         BDOSSETPGTRDOSFS
         call makeidle
-setkernelpages_go_iy
+;setkernelpages_go_iy
         ;ld sp,BDOSSTACK
         call setpgs_killable
 

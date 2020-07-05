@@ -450,7 +450,7 @@ fatfspatchaddr=0xc000
 init_sysdrv_val=$+1
 	 ld a,SYSDRV
 	 ld (SYSDRV_VAL),a
-        jp setkernelpages_go
+        jp setkernelpages_go ;di!!!
         
 		ifn atm==1
 INIT_OUTSHADON
