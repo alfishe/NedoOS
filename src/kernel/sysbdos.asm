@@ -45,13 +45,6 @@ sys_setpg4000
 
 blocksize=128 ;сколько байтов читать в CP/M операциях
 
-setmainpg_c000
-        ld a,(iy+app.mainpg)
-        jp sys_setpgc000
-        ;ld bc,memportc000
-        ;out (c),a
-        ;ret
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 BDOS_wiznetopen
         BDOSSETPGW5300 ;портит bc
@@ -609,6 +602,9 @@ scrbase=0x8000
 clsline0
         ld d,a
         ld e,a
+        
+        ld c,2
+clsline1  
         ld sp,hl
         dup 20
         push de
@@ -618,16 +614,21 @@ clsline0
         dup 20
         push de
         edup
-        set 6,h
-        ld sp,hl
-        dup 20
-        push de
-        edup
         res 5,h
-        ld sp,hl
-        dup 20
-        push de
-        edup
+        
+        set 6,h
+        dec c
+        jp nz,clsline1
+        
+        ;ld sp,hl
+        ;dup 20
+        ;push de
+        ;edup
+        ;res 5,h
+        ;ld sp,hl
+        ;dup 20
+        ;push de
+        ;edup
         ;res 6,h
         ld de,-40-0x4000
         add hl,de
@@ -884,8 +885,10 @@ BDOS_getkeymatrix
         ld b,c;0xfe
         in b,(c)  ;b=%???vcxzC
         ld c,a
+         xor a ;z
         ret
 BDOS_getkeymatrix_fail
+;nz
         ld bc,0xffff
         ld d,c
         ld e,c
@@ -974,48 +977,7 @@ BDOS_newapp
 ;пока структура не заполнена до конца, нельзя делать runapp
 ;out: b=id, dehl=номера страниц в 0000,4000,8000,c000 нового приложения, a=error
         BDOSSETPGTRDOSFS
-        ld a,(iy+app.id)
-        push af ;parent id
-         ld l,(iy+app.textcuraddr)
-         ld h,(iy+app.textcuraddr+1)
-         push hl
-          di ;между findfreeid+findfreeappstruct и заполнением iy+app.id нельзя переключать задачи!!! ;TODO critical section
-        call sys_findfreeid ;портит iy
-         pop hl
-        push af ;id
-         push hl
-        call sys_findfreeappstruct ;возвращает iy = адрес первой свободной структуры app ;TODO error
-         pop hl
-         jr nz,BDOS_newapp_fail
-        pop af ;id
-        push af ;id
-        ld e,0xff ;auto page
-        ;hl=textcuraddr
-        call sys_newapp
-          ei
-         push iy
-         pop de
-         ld hl,(appaddr)
-         ld bc,app.vol
-         add hl,bc
-         ex de,hl
-         add hl,bc
-         ex de,hl
-         ld bc,5;DIR_sz
-         ;jr $
-         ldir ;копировать текущий vol и dircluster
-        call BDOS_getmainpages_iy
-        pop bc ;b=id
-        pop af ;parent id
-        ld (iy+app.parentid),a
-        xor a
-        ret ;success
-BDOS_newapp_fail
-        pop af
-        pop af
-        ld a,0xff
-          ei
-        ret
+        jp sys_newapp_forBDOS
 
 BDOS_findapp
 ;nz=error
@@ -1425,8 +1387,7 @@ BDOS_fsearchfirst_noFATFS
        ld (trdoscurdrive),a
         ld hl,trdos_catbuf
         ;ld (BDOS_fsearch_loadloop_trdosaddr),hl ;TODO где хранить для многозадачности? возвращать в FCB_DIRPOS?
-        ld (iy+app.dircluster),l
-        ld (iy+app.dircluster+1),h
+        call writedircluster_hl
         
         ld de,0x0000 ;track,sector
         ld bc,0x0905 ;read 9 sectors
@@ -1462,19 +1423,7 @@ BDOS_fsearch_loadloop
         or a
         jp z,BDOS_fail ;fsearchnext_nofile
         BDOSSETPGTRDOSFS
-        ld hl,fcb2+FCB_FNAME
-        call dotname_to_cpmname ;de -> hl
-        ld hl,mfilinfo+FILINFO.FSIZE
-        ld de,fcb2+FCB_FSIZE
-        ld bc,4
-        ldir
-        ld hl,(mfilinfo+FILINFO.FDATE)
-        ld (fcb2+FCB_FDATE),hl
-        ld hl,(mfilinfo+FILINFO.FTIME)
-        ld (fcb2+FCB_FTIME),hl       
-     	ld a,(mfilinfo+FILINFO.FATTRIB)
-	;and 0x10
-	ld (fcb2+FCB_FATTRIB),a
+        call trdosgetdirfcb
         jr BDOS_fsearch_loadloop_FATFSq
 BDOS_fsearch_loadloop_noFATFS
 ;TR-DOS
@@ -1487,8 +1436,7 @@ BDOS_fsearch_loadloop_noFATFS
         call trdos_searchnext
         jp z,BDOS_fail ;fsearchnext_nofile;BDOS_fsearch_loadloop_noFATFS_empty
         ;ld (BDOS_fsearch_loadloop_trdosaddr),hl
-        ld (iy+app.dircluster),l
-        ld (iy+app.dircluster+1),h
+        call writedircluster_hl
         jr BDOS_fsearch_loadloop_FATFSq
 BDOS_fsearch_loadloop_FATFSq
         ld hl,fcb2+FCB_FNAME ;прочитанное имя
@@ -2132,8 +2080,11 @@ BDOS_setdrv
 ;не установлена страница PGFATFS
 ;CY=error (при NC a=0) - TODO убрать?
          xor a
-         ld (iy+app.dircluster),a
-         ld (iy+app.dircluster+1),a
+         ld h,a
+         ld l,a
+         call writedircluster_hl
+         ;ld (iy+app.dircluster),a
+         ;ld (iy+app.dircluster+1),a
          ld (iy+app.dircluster+2),a
          ld (iy+app.dircluster+3),a
         CHECKVOLUMETRDOS
@@ -2250,14 +2201,18 @@ setpath
         or a
         ret nz
 		ld (iy+app.vol),h
-         ld hl,(fatfs_org+FFS_DRV.curr_dir0)
-         ld (iy+app.dircluster),l
-         ld (iy+app.dircluster+1),h
          ld hl,(fatfs_org+FFS_DRV.curr_dir2)
          ld (iy+app.dircluster+2),l
          ld (iy+app.dircluster+3),h
 		 ;xor a
-         ret
+         ld hl,(fatfs_org+FFS_DRV.curr_dir0)
+         ;ld (iy+app.dircluster),l
+         ;ld (iy+app.dircluster+1),h
+         ;ret
+writedircluster_hl
+        ld (iy+app.dircluster),l
+        ld (iy+app.dircluster+1),h
+        ret
         
 BDOS_chdir_trdos
 		ld (iy+app.vol),a
@@ -2316,11 +2271,11 @@ BDOS_getpath_FAT
         F_GETCWD_CURDRV
 BDOS_getpath_FATq
         pop hl ;Pointer to 64 byte (MAXPATH_sz!) buffer (0x8000+/0xc000+!)
-        call findlastslash.
+        call findlastslash. ;NC!!!
         ex de,hl ;HL = Pointer to start of last item (0x8000+/0xc000+!)
         
         pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer (0x8000+/0xc000+!)
-        or a
+        ;or a
         sbc hl,de ;hl=расстояние до последнего слэша
         pop de ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
         add hl,de ;HL = Pointer to start of last item
@@ -2329,7 +2284,7 @@ BDOS_getpath_FATq
 ;hl = poi to filename in string
 findlastslash.
 ;hl=path string
-;out: de = after last slash (or start of path)
+;out: de = after last slash (or start of path) ;NC!!!
 nfopenfnslash.
 	ld d,h
 	ld e,l ;de = after last slash
@@ -2338,7 +2293,7 @@ nfopenfnslash0.
 	ld a,[hl]
 	inc hl
 	or a
-	ret z;jr z,nfopenfnslashq.
+	ret z;jr z,nfopenfnslashq. ;NC!!!
 	cp '/'
 	jr nz,nfopenfnslash0.
 	jr nfopenfnslash.
@@ -2400,30 +2355,32 @@ get_name
 	ld b,7
 	ld de,mfil
 	ld a,' '
-1	ldi
+get_name1
+	ldi
 	cp (hl)
         jr z,get_name_skipspaces
-	djnz 1b
+	djnz get_name1
         ldi
         jr get_name_findext ;скопировали 8 символов, пробел не нашли
 get_name_skipspaces
-1	inc hl
-	djnz 1b ;пропускаем оставшиеся пробелы
+	inc hl
+	djnz $-1;1b ;пропускаем оставшиеся пробелы
 get_name_findext
 	cp (hl)
-	jr z,1f ;на месте расширения пробел - не ставим точку
+	jr z,get_name1f ;на месте расширения пробел - не ставим точку
 	ex hl,de
 	ld (hl),'.'
 	inc hl
 	ex hl,de
 	ldi
 	cp (hl)
-	jr z,1f
+	jr z,get_name1f
 	ldi
 	cp (hl)
-	jr z,1f
+	jr z,get_name1f
 	ldi
-1	xor a
+get_name1f
+	xor a
         ld (de),a
 	ret
 
@@ -2440,15 +2397,14 @@ findfreeffile0
         ret z ;OK
         add hl,de
         inc b
-        ld a,b
-        cp MAXFILES
-        jr nz,findfreeffile0
-        or a ;nz
-        ret
-
-BDOS_getdta
-        ld e,(iy+app.dta)
-        ld d,(iy+app.dta+1)
+        ;ld a,b
+        ;cp MAXFILES
+        ;jr nz,findfreeffile0
+        ;or a ;nz
+         ld a,MAXFILES-1
+         cp b
+         jr nc,findfreeffile0
+         ;or a ;nz
         ret
         
 movedma_addr
@@ -2463,6 +2419,10 @@ movedma_addr
 BDOS_setdta
         ld (iy+app.dta),e
         ld (iy+app.dta+1),d
+        ;ret
+BDOS_getdta
+        ld e,(iy+app.dta)
+        ld d,(iy+app.dta+1)
         ret
 
 ;***********************ЗАГЛУШКИ**************************	
@@ -2484,7 +2444,42 @@ strcpy_lib2usp0
 	;jp BDOS_setpgstructs
 BDOS_setpgstructs
 	ld a,pgfatfs2
-        jp sys_setpgc000
+        jr sys_setpgc000
+
+setmainpg_c000
+        ld a,(iy+app.mainpg)
+        jr sys_setpgc000
+
+sys_setpgsscr
+        ld a,(iy+app.screen)
+	bit 3,a
+        ld a,pgscr0_0
+	jr z,$+4
+        ld a,pgscr1_0
+        ;ld bc,memport8000
+        ;out (c),a
+        call sys_setpg8000
+        xor pgscr0_1^pgscr0_0 ;ld a,pgscr0_1
+        ;ld b,memportc000_hi;0xff
+        ;out (c),a
+        jr sys_setpgc000
+
+setpgs_killable
+        ld a,pgkillable
+        ld bc,memport4000
+        ld (sys_curpg4000),a
+        out (c),a
+        ;ld b,memport8000_hi;0xbf
+        ;out (c),a
+        ;ld b,memportc000_hi;0xff
+        ;out (c),a
+        ;ret
+        call sys_setpg8000
+sys_setpgc000
+        ld (sys_curpgc000),a
+        ld bc,memportc000
+        out (c),a
+        ret
 
 ;копирование в\из юзерспейса в\из структуру
 memcpy_buf2usp	;DE - dst, BC - src, на стеке count

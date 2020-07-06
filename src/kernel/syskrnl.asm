@@ -476,9 +476,9 @@ on_int_oldssEnter=$+1
         call disablescreeninapp_setc000
         ld de,curpg16k+0xc000
         call disablescrpg
-        ld de,curpg32klow+0xc000
+        ld  e,0xff&(curpg32klow+0xc000)
         call disablescrpg
-        ld de,curpg32khigh+0xc000
+        ld  e,0xff&(curpg32khigh+0xc000)
         call disablescrpg
         
         ld bc,-app_last;app_afterlast
@@ -678,37 +678,6 @@ callbdos_sp=$+1
         exx
         endif
         jp endsys_result_a
-
-setpgs_killable
-        ld a,pgkillable
-        ld bc,memport4000
-        ld (sys_curpg4000),a
-        out (c),a
-        ;ld b,memport8000_hi;0xbf
-        ;out (c),a
-        ;ld b,memportc000_hi;0xff
-        ;out (c),a
-        ;ret
-        call sys_setpg8000
-sys_setpgc000
-        ld (sys_curpgc000),a
-        ld bc,memportc000
-        out (c),a
-        ret
-
-sys_setpgsscr
-        ld a,(iy+app.screen)
-	bit 3,a
-        ld a,pgscr0_0
-	jr z,$+4
-        ld a,pgscr1_0
-        ;ld bc,memport8000
-        ;out (c),a
-        call sys_setpg8000
-        xor pgscr0_1^pgscr0_0 ;ld a,pgscr0_1
-        ;ld b,memportc000_hi;0xff
-        ;out (c),a
-        jr sys_setpgc000
 
 sys_quit
 ;снять текущую задачу

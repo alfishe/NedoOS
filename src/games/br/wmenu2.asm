@@ -567,6 +567,8 @@ M_M6	POP AF
         im 1
         call shutay ;outSND уже затёрт?
         ei
+        halt ;чтобы кнопка была поймана системой
+        GET_KEY ;вычитать кнопку Y
         QUIT
 shutay
 	ld de,0xe00

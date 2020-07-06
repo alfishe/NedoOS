@@ -1,4 +1,51 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
+
+sys_newapp_forBDOS
+        ld a,(iy+app.id)
+        push af ;parent id
+         ld l,(iy+app.textcuraddr)
+         ld h,(iy+app.textcuraddr+1)
+         push hl
+          di ;между findfreeid+findfreeappstruct и заполнением iy+app.id нельзя переключать задачи!!! ;TODO critical section
+        call sys_findfreeid ;портит iy
+         pop hl
+        push af ;id
+         push hl
+        call sys_findfreeappstruct ;возвращает iy = адрес первой свободной структуры app ;TODO error
+         pop hl
+         ;jr nz,BDOS_newapp_fail
+         jr z,sys_newapp_forBDOS2
+;BDOS_newapp_fail
+        pop af
+        pop af
+        ld a,0xff
+          ei
+        ret
+
+sys_newapp_forBDOS2
+        pop af ;id
+        push af ;id
+        ld e,0xff ;auto page
+        ;hl=textcuraddr
+        call sys_newapp
+          ei
+         push iy
+         pop de
+         ld hl,(appaddr)
+         ld bc,app.vol
+         add hl,bc
+         ex de,hl
+         add hl,bc
+         ex de,hl
+         ld bc,5;DIR_sz
+         ;jr $
+         ldir ;копировать текущий vol и dircluster
+        call BDOS_getmainpages_iy
+        pop bc ;b=id
+        pop af ;parent id
+        ld (iy+app.parentid),a
+        xor a
+        ret ;success
         
 sys_newapp
 ;iy=app

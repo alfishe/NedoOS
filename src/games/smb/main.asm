@@ -967,6 +967,8 @@ oldquitcode=$+1
         ld hl,0
         ld (0),hl
 quitquit
+        halt
+        GET_KEY ;вычитать Break
         QUIT
 
 noloadgfx

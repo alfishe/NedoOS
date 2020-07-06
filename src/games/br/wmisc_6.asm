@@ -502,6 +502,7 @@ quitnedoos
         call swapimer
         im 1
         ei
+        GET_KEY ;вычитать кнопку Y
         QUIT
         
         else

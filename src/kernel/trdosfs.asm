@@ -1,3 +1,19 @@
+trdosgetdirfcb
+        ld hl,fcb2+FCB_FNAME
+        call dotname_to_cpmname ;de -> hl
+        ld hl,mfilinfo+FILINFO.FSIZE
+        ld de,fcb2+FCB_FSIZE
+        ld bc,4
+        ldir
+        ld hl,(mfilinfo+FILINFO.FDATE)
+        ld (fcb2+FCB_FDATE),hl
+        ld hl,(mfilinfo+FILINFO.FTIME)
+        ld (fcb2+FCB_FTIME),hl       
+     	ld a,(mfilinfo+FILINFO.FATTRIB)
+	;and 0x10
+	ld (fcb2+FCB_FATTRIB),a
+        ret
+
 dos3d13.
 ;hl=addr
 ;de=track,sector
