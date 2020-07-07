@@ -599,11 +599,12 @@ scrbase=0x8000
         ld (clssp),sp
         ld hl,scrbase+(200*40) ;чистим с конца, потому что прерывание портит стек
         ld b,200-1
+        scf
 clsline0
         ld d,a
         ld e,a
         
-        ld c,2
+        ;ld c,2
 clsline1  
         ld sp,hl
         dup 20
@@ -617,8 +618,10 @@ clsline1
         res 5,h
         
         set 6,h
-        dec c
-        jp nz,clsline1
+        ;dec c
+        ;jp nz,clsline1
+        ccf
+        jp nc,clsline1
         
         ;ld sp,hl
         ;dup 20
@@ -631,7 +634,7 @@ clsline1
         ;edup
         ;res 6,h
         ld de,-40-0x4000
-        add hl,de
+        add hl,de ;CY=1!!!
         djnz clsline0
 clssp=$+1
         ld sp,0

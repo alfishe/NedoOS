@@ -16,12 +16,12 @@ begin
         ;ld e,0
         ;OS_CLS
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        SETPG16K
-        ld a,d
-        SETPG32KLOW
+        ;ld a,e
+        ;SETPG16K
+        ;ld a,d
+        ;SETPG32KLOW
 
         ld de,pal
         OS_SETPAL
@@ -116,9 +116,10 @@ gameinit_hl
         INC HL
         CALL COPBUF ;тоже рисует
 loadiniq
-
-        call cls
-        call drawfield
+        ;call setpgs_scr
+        ;call cls
+        ;call drawfield
+        call redraw
         
 gameloop
         
@@ -129,11 +130,17 @@ gameloop
         sbc hl,de
         jr z,newlevel
 
+        call setpgs_scr
+
         YIELD ;call delay
 
         GET_KEY
          cp key_esc
          jr z,quit
+         cp key_redraw
+         push af
+         call z,redraw
+         pop af
         cp 'r'
         jr z,restart
         cp 'a'
@@ -168,7 +175,14 @@ newlevel
         xor a
         ld (level),a
         jp restart
-        
+
+setpgs_scr
+        ld a,(user_scr0_low)
+        SETPG16K
+        ld a,(user_scr0_high)
+        SETPG32KLOW
+        ret
+                
 quit
 	ld de,filename
 	OS_CREATEHANDLE
@@ -180,7 +194,10 @@ quit
 	OS_CLOSEHANDLE
         QUIT
 
-
+redraw
+        call setpgs_scr
+        call cls
+        jp drawfield
 
 MOVFIG
 ;a=fig

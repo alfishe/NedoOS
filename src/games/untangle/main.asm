@@ -2267,6 +2267,44 @@ genmeshedge_nocrossed
 ;genmeshedge_nocheckcrossed
         ret
 
+checkcrossedcoord
+;ix<=bc: AB
+;hl<=de: CD
+;out: CY=crossed
+;crossed case1: C(hl)<=B(bc), D(de)>=B(bc)
+        or a
+        sbc hl,bc
+        add hl,bc
+        jr z,checkcrossedcoord_maybecrossed1
+        ;jr c,checkcrossedcoord_maybecrossed1
+        jr nc,checkcrossedcoord_cross1q
+checkcrossedcoord_maybecrossed1
+        ex de,hl
+        ;or a
+        sbc hl,bc
+        add hl,bc
+        ;ex de,hl
+        jr nc,checkcrossedcoord_crossed
+checkcrossedcoord_cross1q
+;crossed case2: A(ix)<=C(hl), B(bc)>=C(hl)
+        push ix
+        pop de
+        or a
+        sbc hl,de
+        add hl,de
+        jr c,checkcrossedcoord_notcrossed
+        ;or a
+        sbc hl,bc
+        add hl,bc
+        jr z,checkcrossedcoord_crossed
+        jr c,checkcrossedcoord_crossed
+checkcrossedcoord_notcrossed
+        or a
+        ret
+checkcrossedcoord_crossed
+        scf
+        ret
+
 checkcrossed_edge
 ;hl=edge1addr
 ;de=edge2addr
@@ -2362,6 +2400,35 @@ checkcrossed_edge
         inc hl
         ld b,(hl)
         ld (checkyD),bc
+
+        if 1==1
+;test xA..xB doesn't cross xC..xD: if cross, check y...
+        ld hl,(checkxA)
+        ld de,(checkxB)
+        call maxhl_de_tode ;de>=hl
+        push hl
+        pop ix
+        ld b,d
+        ld c,e ;bc>=ix
+        ld hl,(checkxC)
+        ld de,(checkxD)
+        call maxhl_de_tode ;de>=hl
+        call checkcrossedcoord ;out: CY=crossed
+        ret nc
+;test yA..yB doesn't cross yC..yD
+        ld hl,(checkyA)
+        ld de,(checkyB)
+        call maxhl_de_tode ;de>=hl
+        push hl
+        pop ix
+        ld b,d
+        ld c,e ;bc>=ix
+        ld hl,(checkyC)
+        ld de,(checkyD)
+        call maxhl_de_tode ;de>=hl
+        call checkcrossedcoord ;out: CY=crossed
+        ret nc
+        endif
         
 ;проверка пересечения AB и CD
 ;проверить одинаковую левость (знак векторного произведения двух сторон) треугольников ABC и BCD. Если одинаковая, то пересечение.
@@ -2684,13 +2751,13 @@ minhl_bc_tobc
         ld c,l
         ret
 
-maxhl_de_tode
+maxhl_de_tode ;de>=hl
         or a
         sbc hl,de
         add hl,de
         ret c ;de>hl
         ex de,hl
-        ret
+        ret ;de>=hl
 
 checkxA
         dw 0

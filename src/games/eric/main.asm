@@ -94,17 +94,24 @@ recodegfx0bmpline
         ld bc,muzsz
         ldir
 
-        OS_GETSCREENPAGES
-        if EGA
-        ld a,e
-        SETPG32KLOW
-        ld a,d
-        ld (pgc000),a
+        ;OS_GETSCREENPAGES
+        ;if EGA
+        ;ld a,e
+        ;SETPG32KLOW
+        ;ld a,d
+        ;ld (pgc000),a
+        ;SETPG32KHIGH
+        ;else ;6912
+        ;ld a,d
+        ;SETPG16K
+        ;endif
+        ;call setpgs_scr
+
+	 ld a,(pgmuznum)
         SETPG32KHIGH
-        else ;6912
-        ld a,d
-        SETPG16K
-        endif
+	 ;ld a,(pgmuznum)
+         ld hl,muzplay
+         OS_SETMUSIC 
 
         call swapimer
 
@@ -116,7 +123,11 @@ quiter
         halt
         ld a,(pgmuznum)
         SETPG32KHIGH
-        call muz
+        ;ld a,(pgmuznum)
+	  ld hl,muz
+	  OS_SETMUSIC 
+        ;call muz ;shutay
+        halt
         call swapimer
 	QUIT ;rasmer
 
@@ -180,13 +191,15 @@ on_int_sp=$+1
         ;OS_SETPAL
         GET_KEY
         ld (curkey),a
-        
+
+        ld a,(CURPG32KHIGH)
+        push af
 pgmuznum=$+1
         ld a,0
         SETPG32KHIGH
-        call muzplay
-pgc000=$+1
-        ld a,0
+        ;call muzplay
+;pgc000=$+1
+        pop af
         SETPG32KHIGH
         
         pop hl

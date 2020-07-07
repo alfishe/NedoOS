@@ -150,6 +150,8 @@ curkey=$+1
         ld a,0
 	cp key_esc
         jp z,quiter ;Alone Coder
+        cp key_redraw
+        call z,redraw
 
 	CALL	L_8746
 	CALL	L_8FFC
@@ -2121,8 +2123,33 @@ L_9140	LD	HL,VAR038C
 	LDIR
 	RET
 ;
+
+setpgs_scr
+        ld a,(user_scr0_low)
+        SETPG32KLOW
+        ld a,(user_scr0_high)
+        SETPG32KHIGH
+        ret
+
+redraw
+        ld e,0
+        OS_CLS
+
+        ld hl,VAR038C
+        ld de,VAR068C ;что сейчас отрисовано
+        ld bc,768
+redraw0
+        ld a,(hl)
+        inc a
+        ld (de),a
+        inc de
+        cpi
+        jp pe,redraw0
+
 DrawScreen
 ;draw screen
+        call setpgs_scr
+
 	LD	DE,VAR038C
 	LD	HL,VAR068C
         
@@ -2398,11 +2425,14 @@ L_9284 DB #00
 ;
 L_9285
 ;keep hl!!!
-        push hl
-	GET_KEY ;rasmer
-        pop hl
+        ;push hl
+	;GET_KEY ;rasmer
+        ;pop hl
+        ld a,(curkey)
 	cp key_esc
         jp z,quiter
+        cp key_redraw
+        call z,redraw
 
 	CALL	L_9223;readkey
 	CP	"K"
