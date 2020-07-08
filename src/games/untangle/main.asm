@@ -2271,6 +2271,54 @@ checkcrossedcoord
 ;ix<=bc: AB
 ;hl<=de: CD
 ;out: CY=crossed
+
+; all possible configurations:
+;
+; 1.
+;  A===B
+;        C===D
+;
+; 2.
+;  C===D 
+;        A===B
+;
+; 3.
+; A======B
+;   C==D 
+;
+; 4.
+; C======D
+;   A==B
+;
+; 5.
+; A===B
+;   C===D
+;
+; 6.
+; C===D
+;   A===B
+
+; hence NON-crossed case is:
+;
+; if B(bc)<C(hl), otherwise if D(de)<A(ix)
+
+	or	a
+	sbc	hl,bc ; C(hl)-B(bc): Z if B==C, cy if B>C, nc if B<C and not Z
+	jr	z,checkcrossedcoord_crossed
+	ret	nc
+
+	push	ix
+	pop	hl
+	or	a
+	sbc	hl,de	;A(hl, was ix)-D(de)
+	ret	nz
+checkcrossedcoord_crossed:
+	scf
+	ret
+
+
+
+ if 1==0
 ;crossed case1: C(hl)<=B(bc), D(de)>=B(bc)
         or a
         sbc hl,bc
@@ -2304,6 +2352,10 @@ checkcrossedcoord_notcrossed
 checkcrossedcoord_crossed
         scf
         ret
+ endif
+
+
+
 
 checkcrossed_edge
 ;hl=edge1addr
