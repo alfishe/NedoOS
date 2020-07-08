@@ -45,27 +45,25 @@ begin
         endif
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        if EGA
-        ld a,e
-        SETPG32KLOW
-        ld a,d
-        SETPG32KHIGH
-        else
-        ld a,d
-        SETPG16K
-        endif
+        ;if EGA
+        ;ld a,e
+        ;SETPG32KLOW
+        ;ld a,d
+        ;SETPG32KHIGH
+        ;else
+        ;ld a,d
+        ;SETPG16K
+        ;endif
 
-        call cls
-        
         ld hl,attrs
         ld de,attrs+1
         ld bc,attrs_sz-1
         ld (hl),emptyattr
         ldir
-
-        call prfield
+        
+        call redraw
 
         ld hl,#0101
         ld (snakecoords),hl
@@ -73,6 +71,8 @@ begin
         ;call prrabbit
         call genrabbit
 gameloop
+        call setpgs_scr
+
         if EGA
         ld bc,0*256+18
         call calcscraddr
@@ -85,6 +85,11 @@ gameloop
         GET_KEY
          cp key_esc
          jr z,quit
+         cp key_redraw
+         push af
+         call z,redrawall
+         pop af
+;a=key
         call getkey
         call shrink
         call proldheadastail
@@ -97,6 +102,28 @@ gameloop
         call prhead
 	jp gameloop
 
+redrawall
+        call redraw
+        call prsnake
+        call getheadcoords
+        call prhead
+rabbitxy=$+1
+        ld bc,0
+        jp prrabbit
+redraw
+        call setpgs_scr
+        call cls        
+        jp prfield
+
+setpgs_scr
+        ld a,(user_scr0_low)
+        SETPG32KLOW
+        ld a,(user_scr0_high)
+        SETPG32KHIGH
+        ret
+
+redrawgameover
+        call redrawall
 gameover
         ld hl,endtext
         if EGA
@@ -108,6 +135,8 @@ gameover
 gameoverloop
         YIELD
         GET_KEY
+        cp key_redraw
+        jr z,redrawgameover
         cp key_esc
         jr nz,gameoverloop
 quit
@@ -152,6 +181,7 @@ genrabbit
         ld a,(de)
         cp emptyattr
         jr nz,genrabbit
+        ld (rabbitxy),bc
         
 prrabbit
 ;bc=yx
@@ -214,6 +244,23 @@ nogrow
         dec hl
         ld (curlength),hl
 ;growq
+        ret
+
+prsnake
+        ld hl,snakecoords
+        ld bc,(curlength)
+prsnake0
+        push bc
+        push hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        call prtailelement
+        pop hl
+        pop bc
+        inc hl
+        cpi
+        jp pe,prsnake0
         ret
 
 getheadcoords
@@ -323,6 +370,7 @@ prfieldhor0
      
 proldheadastail
         call getheadcoords
+prtailelement
 ;bc=yx
         ld a,snakeattr
         ld (curattr),a

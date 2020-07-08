@@ -68,27 +68,25 @@ begin
         endif
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        if EGA
-        ld a,e
-        SETPG32KLOW
-        ld a,d
-        SETPG32KHIGH
-        else
-        ld a,d
-        SETPG16K
-        endif
+        ;if EGA
+        ;ld a,e
+        ;SETPG32KLOW
+        ;ld a,d
+        ;SETPG32KHIGH
+        ;else
+        ;ld a,d
+        ;SETPG16K
+        ;endif
 
-        call cls
-        
         ld hl,attrs
         ld de,attrs+1
         ld bc,attrs_sz-1
         ld (hl),emptyattr
         ldir
 
-        call prfield
+        call redraw
 
         ld hl,0x0101
         ld (snakecoords),hl
@@ -97,6 +95,10 @@ begin
         ;ld bc,0x0a1e
         ;call prrabbit
         call genrabbit
+
+         xor a
+         ld (snakestopped),a
+         ld (snake2stopped),a
 
 	ld de,0x0203
 	OS_NETSOCKET
@@ -129,12 +131,14 @@ begin
 	or a
 	jp m,inet_exiterr
 	
+        if 1==0
 	ld a,(soc)
 	LD DE,port_ia
 	OS_NETCONNECT
         ld a,l
 	or a
 	jp m,inet_exiterr
+        endif
         ;endif
 
 ;начальная синхронизация        
@@ -200,8 +204,41 @@ gameloop
         call z,stopsnake
         pop bc
         call nz,prhead
+        
+snakestopped=$+1
+        ld a,0
+snake2stopped=$+1
+        and 0
+        dec a
+        jp z,gameover
+        
 	jp gameloop
 
+redrawall
+        call redraw
+        call prsnake
+        call getheadcoords
+        call prhead
+        call prsnake2
+        call getheadcoords2
+        call prhead2
+rabbitxy=$+1
+        ld bc,0
+        jp prrabbit
+redraw
+        call setpgs_scr
+        call cls        
+        jp prfield
+
+setpgs_scr
+        ld a,(user_scr0_low)
+        SETPG32KLOW
+        ld a,(user_scr0_high)
+        SETPG32KHIGH
+        ret
+
+redrawgameover
+        call redrawall
 gameover
         ld hl,endtext
         if EGA
@@ -213,6 +250,8 @@ gameover
 gameoverloop
         YIELD
         GET_KEY
+        cp key_redraw
+        jr z,redrawgameover
         cp key_esc
         jr nz,gameoverloop
 inet_exiterr
@@ -301,6 +340,7 @@ genrabbit
         ld a,(de)
         cp emptyattr
         jr nz,genrabbit
+        ld (rabbitxy),bc
         
 prrabbit
 ;bc=yx
@@ -481,6 +521,8 @@ stopsnake
         ld de,snakecoords+snakecoordssize-1
         ld bc,snakecoordssize-2+2
         lddr
+         ld a,1
+         ld (snakestopped),a
         ret
 
 stopsnake2
@@ -489,6 +531,42 @@ stopsnake2
         ld de,snakecoords2+snakecoordssize-1
         ld bc,snakecoordssize-2+2
         lddr
+         ld a,1
+         ld (snake2stopped),a
+        ret
+
+prsnake
+        ld hl,snakecoords
+        ld bc,(curlength)
+prsnake0
+        push bc
+        push hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        call prtailelement
+        pop hl
+        pop bc
+        inc hl
+        cpi
+        jp pe,prsnake0
+        ret
+
+prsnake2
+        ld hl,snakecoords2
+        ld bc,(curlength2)
+prsnake20
+        push bc
+        push hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        call prtailelement2
+        pop hl
+        pop bc
+        inc hl
+        cpi
+        jp pe,prsnake20
         ret
 
 getheadcoords
@@ -631,6 +709,7 @@ prfieldhor0
      
 proldheadastail
         call getheadcoords
+prtailelement
 ;bc=yx
         ld a,snakeattr
         ld (curattr),a
@@ -641,6 +720,7 @@ proldheadastail
 
 proldheadastail2
         call getheadcoords2
+prtailelement2
 ;bc=yx
         ld a,snakeattr
         ld (curattr),a
@@ -980,7 +1060,8 @@ sendbyte
         
 	ld hl,sendbufsz
 	LD	a,(soc)
-	LD	DE,sendbuf
+	ld ix,sendbuf
+        ld de,port_ia
 	OS_WIZNETWRITE
 	bit 7,h
 	jp nz,inet_exitcode
@@ -1003,7 +1084,8 @@ receivebyte0
 
 	ld hl,sendbufsz
 	LD	a,(soc)
-	LD	DE,recvbuf
+	ld ix,recvbuf
+        ld de,port_ia
 	OS_WIZNETREAD
 	ld a,h
 	or l

@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
+EGA=0
+
 nextfigx=4
 nextfigy=8
         
@@ -20,6 +22,8 @@ scoreattr=dangerattr3
 wallattr=dangerattr1
 emptyattr=0x38
 
+attrs=0x3800 ;0x600
+
 ;fieldEx=32
 ;fieldEy=24
 centr=0x0b0b;(fieldEx/2)+(256*fieldEy/2)
@@ -35,19 +39,24 @@ begin
         ld e,3 ;6912
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,d
-        SETPG16K
+        ;ld a,d
+        ;SETPG16K
 
+        call setpgs_scr
+       
         call cls
         call prfield
         call newfig
+        call copybuftoscr
 
         ld a,(curfalldelay) 
         ld (falldelaycount),a
 
-gameloop_newfig        
+gameloop_newfig 
+        call setpgs_scr
+       
         call newfig
     
         ld bc,nextfigy*256 + nextfigx
@@ -62,6 +71,9 @@ gameloop_newfig
         ld (figmoved),a
         
 gameloop
+        call setpgs_scr
+        call copybuftoscr
+       
         ld bc,(curxy) ;bc=yx 
         ld de,prfig_pixel ;de=адрес процедуры
 figmoved=$+1
@@ -83,6 +95,11 @@ figmoved=$+1
         GET_KEY
          cp key_esc
          jr z,quit
+         cp key_redraw
+         push af
+         call z,redraw
+         pop af
+;a=key
         call controlkey ;двигаем координаты фигуры (устанавливает downneeded по down)
 
         ld a,(figmoved)
@@ -108,6 +125,7 @@ figureonground
         call stopfig
 	jp gameloop_newfig
 gameover
+        jr $
         ld hl,endtext
         ld bc,centr
         call prtext
@@ -118,6 +136,38 @@ gameoverloop
         jr nz,gameoverloop
 quit
         QUIT
+
+copybuftoscr
+        ld hl,attrs
+        ld de,0x5800
+        ld bc,0x300
+        ldir
+        ret
+
+redraw
+        call setpgs_scr
+        ;jr $
+        ;call cls
+        ld e,0
+        OS_CLS
+        call copybuftoscr
+        call prfield
+;TODO напечатать текущее заполнение поля
+;TODO напечатать будущую фигуру
+        ret
+
+setpgs_scr
+        if EGA
+        ld a,(user_scr0_low)
+        SETPG32KLOW
+        ld a,(user_scr0_high)
+        SETPG32KHIGH
+        else
+        ld a,(user_scr0_high)
+        SETPG16K
+        endif
+        ret
+
 
 storeposition
         ld bc, 4
@@ -378,11 +428,12 @@ cls
         ld bc,#17ff
         ld (hl),0;#ff
         ldir
-	ld hl,#5800
-	ld de,#5801
+	ld hl,attrs;#5800
+	ld de,attrs+1;#5801
 	ld (hl),emptyattr
 	ld bc,767
 	ldir
+        call copybuftoscr
         ret
         
 prfield
@@ -484,7 +535,7 @@ calcattraddr_fromscr
         rra
         rra
         and 3
-        add a,#58
+        add a,attrs/256;#58
         ld d,a ;de=attraddr
         ret
 
