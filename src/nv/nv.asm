@@ -966,7 +966,6 @@ editcmd_enter_runcmd
         PRCHAR
         ;---
         ld hl,cmdbuf
-         ;jr $
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error

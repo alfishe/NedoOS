@@ -56,7 +56,7 @@ cmd_begin
         
         call execcmd ;can show errors ;a!=0: no such internal command
         or a
-        call nz,strcpexec_tryrun ;запускает по фону
+        call nz,callcmd;strcpexec_tryrun ;запускает по фону
         YIELD ;чтобы запущенная задача успела захватить фокус ;???
 ;если командная строка была со словом autoexec.bat вместо слова cmd, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
         ld a,(COMMANDLINE)
@@ -92,7 +92,7 @@ cmdmainloop
         
         call execcmd ;a!=0: no such internal command
         or a
-        call nz,strcpexec_tryrun
+        call nz,callcmd;strcpexec_tryrun ;запускает по фону
         ld hl,cmdbuf
         ld (hl),0
         jp cmdmainloop

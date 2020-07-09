@@ -9,6 +9,6 @@ call make.bat noneedtrd
 cd  kernel
 ..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul
 cd ..
-move /Y kernel\nedoos.$C ..\release\osevo.$C > nul
+move /Y kernel\nedoos.$C ..\release\sd_boot.$C > nul
 call ..\tools\chkimg.bat sd
 if "%makeall%"=="" ..\us\emul.exe

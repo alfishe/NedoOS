@@ -5,6 +5,8 @@ INTSTACK=0x3f00
 STACK=0x4000
 scrbase=0x8000
 
+music=0x4000
+
         org PROGSTART
 begin
         ld sp,STACK
@@ -18,16 +20,21 @@ begin
         ld e,0 ;color byte
         OS_CLS
 
-        OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
-        ld (setpgs_scr0_low),a
-	ld a,d
-        ld (setpgs_scr0_high),a
-        ld a,l
-        ld (setpgs_scr1_low),a
-	ld a,h
-        ld (setpgs_scr1_high),a
+        LD (pgmusic),A
+
+        ;OS_GETSCREENPAGES
+;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
+        ;ld a,e
+        ;ld (setpgs_scr0_low),a
+	;ld a,d
+        ;ld (setpgs_scr0_high),a
+        ;ld a,l
+        ;ld (setpgs_scr1_low),a
+	;ld a,h
+        ;ld (setpgs_scr1_high),a
 
         ld de,texfilename
         OS_OPENHANDLE
@@ -72,8 +79,18 @@ copypal0
         ld de,palbuf
         OS_SETPAL
 
+        call setpgmusic
+        ld hl,wasmusic
+        ld de,music
+        ld bc,sz_music
+        ldir
+
         ld hl,module
         call INIT
+
+        ld a,(pgmusic)
+        ld hl,PLAY
+        OS_SETMUSIC
 
         call swapimer
 
@@ -103,10 +120,22 @@ showpic0
         res 5,l
         cp key_esc
         jr nz,showpic0
-        
-        call MUTE
+
         call swapimer
+
+	  ld a,(pgmusic)
+	  ld hl,MUTE
+	  OS_SETMUSIC 
+          halt
+        ;call setpgmusic
+        ;call MUTE
         QUIT
+
+setpgmusic
+pgmusic=$+1
+        ld a,0
+        SETPG16K
+        ret
 
 swapimer
 	di
@@ -171,7 +200,7 @@ on_int_sp=$+1
 ;pgmuznum=$+1
 ;        ld a,0
 ;        SETPG32KHIGH
-        call PLAY ;muzplay
+        ;call PLAY ;muzplay
 ;pgc000=$+1
 ;        ld a,0
 ;        SETPG32KHIGH
@@ -219,20 +248,16 @@ on_int_sp2=$+1
         ;out (0xfd),a ;10 b
 
 setpgs_scr0
-setpgs_scr0_low=$+1
-        ld a,0
+        ld a,(user_scr0_low)
         SETPG32KLOW
-setpgs_scr0_high=$+1
-        ld a,0
+        ld a,(user_scr0_high)
         SETPG32KHIGH
         ret
 
 setpgs_scr1
-setpgs_scr1_low=$+1
-        ld a,0
+        ld a,(user_scr1_low)
         SETPG32KLOW
-setpgs_scr1_high=$+1
-        ld a,0
+        ld a,(user_scr1_high)
         SETPG32KHIGH
         ret
 
@@ -260,9 +285,13 @@ palbuf
 ttexpgs
         ds 32
 
+wasmusic
+        disp music
         include "ptsplay.asm"
 module
         incbin "NOISE20.pt3"
+        ent
+sz_music=$-wasmusic
 
 end
 

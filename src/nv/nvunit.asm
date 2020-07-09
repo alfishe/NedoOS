@@ -776,16 +776,23 @@ nv_createfcb2
         jp (hl)
 
 nv_closefcb2
+;keep de!!!
+        push de
         ld de,fcb2
-        jr nv_closefcb_de
+        jr nv_closefcb_de_
 nv_closefcb
+;keep de!!!
+        push de
         ld de,fcb
-nv_closefcb_de
-;out: nz=error
+nv_closefcb_de_
+;out: keep flags!!!
+        push af
         push ix
         OS_FCLOSE
         pop ix
-        or a
+        pop af
+        pop de
+        ;or a
         ret
 
 copy_to_fcb_filename
