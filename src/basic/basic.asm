@@ -25,12 +25,12 @@ cmd_begin
         ld (pg32klow),a
         ld a,l
         ld (pg32khigh),a
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        ld (setpgs_scr_low),a
-        ld a,d
-        ld (setpgs_scr_high),a
+        ;ld a,e
+        ;ld (setpgs_scr_low),a
+        ;ld a,d
+        ;ld (setpgs_scr_high),a
 
         ld e,6 ;textmode
         OS_SETGFX

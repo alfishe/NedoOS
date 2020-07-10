@@ -280,11 +280,11 @@ cmd_plot_y=$+1
         jp restorebasicpages
 
 setpgs_scr
-setpgs_scr_low=$+1
-        ld a,0;pgscr0_0 ;scr0_0
+;setpgs_scr_low=$+1
+        ld a,(user_scr0_low)
         SETPG32KLOW
-setpgs_scr_high=$+1
-        ld a,0;pgscr0_1 ;scr0_1
+;setpgs_scr_high=$+1
+        ld a,(user_scr0_high)
         SETPG32KHIGH
         ret
 

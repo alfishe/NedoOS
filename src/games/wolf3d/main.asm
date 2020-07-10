@@ -42,15 +42,15 @@ begin
         ;push af;LD (pg8000),A
         ld (pgmuznum),a
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,l
-        ld (setpgs_scr_low),a
-	xor e
-        ld (setpgs_scr_xor),a
-        ld a,d
-	xor e
-        ld (setpgs_scr_high_xor_low),a
+        ;ld a,l
+        ;ld (setpgs_scr_low),a
+	;xor e
+        ;ld (setpgs_scr_xor),a
+        ;ld a,d
+	;xor e
+        ;ld (setpgs_scr_high_xor_low),a
 
         ;OS_NEWPAGE
         ;ld a,e
@@ -237,6 +237,96 @@ retlogd2sca0
         call shutay        
         QUIT
 
+        if 1==0
+setpgsscr40008000_current
+        call getuser_scr_low_cur
+        SETPG16K
+        call getuser_scr_high_cur
+        SETPG32KLOW
+        ret
+
+setpgsscr40008000
+        call getuser_scr_low
+        SETPG16K
+        call getuser_scr_high
+        SETPG32KLOW
+        ret
+
+setpgscrlow4000
+        call getuser_scr_low
+        SETPG16K
+        ret
+
+setpgscrhigh4000
+        call getuser_scr_high
+        SETPG16K
+        ret
+        endif
+
+getuser_scr_low
+getuser_scr_low_patch=$+1
+getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr1_low)
+        ret
+
+getuser_scr_high
+getuser_scr_high_patch=$+1
+getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr1_high)
+        ret
+
+getuser_scr_low_cur
+getuser_scr_low_cur_patch=$+1
+getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr0_low)
+        ret
+
+getuser_scr_high_cur
+getuser_scr_high_cur_patch=$+1
+getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr0_high)
+        ret
+
+changescrpg_current
+;        ld a,(setpgs_scr_low)
+;setpgs_scr_scrxor=$+1
+;        xor 0
+;        ld (setpgs_scr_low),a
+        ld hl,getuser_scr_low_patch
+        ld a,(hl)
+        xor getuser_scr_low_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_patch
+        ld a,(hl)
+        xor getuser_scr_high_patchN
+        ld (hl),a
+        ld hl,getuser_scr_low_cur_patch
+        ld a,(hl)
+        xor getuser_scr_low_cur_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_cur_patch
+        ld a,(hl)
+        xor getuser_scr_high_cur_patchN
+        ld (hl),a
+
+        ld a,1
+curscrnum=$+1
+        xor 0
+        ld ($-1),a
+         ;add a,a
+         ;add a,a
+         ;add a,a
+         ;ld (imer_curscreen_value),a
+        ret
+        
+changescrpg
+        ;jr $
+        call changescrpg_current
+        ;ld (curscrnum_physical),a
+	ld e,a
+	OS_SETSCREEN
+        ret
+
 openfile_skipbmpheader
         OS_OPENHANDLE
         push bc
@@ -370,10 +460,10 @@ on_int
 	push bc
 	push de
 	
-imer_curscreen_value=$+1
-         ld a,0
-         ld bc,0x7ffd
-         out (c),a
+;imer_curscreen_value=$+1
+;         ld a,0
+;         ld bc,0x7ffd
+;         out (c),a
 
 	ex de,hl;ld hl,0
 on_int_sp=$+1
@@ -395,7 +485,7 @@ intjpaddr=$+1
         push bc
         push de
         push hl
-        ld a,(curscreen)
+        ld a,(curscrnum)
         ld e,a
         OS_SETSCREEN ;вызываем здесь, а не в рандомном месте, иначе даже с одной задачей можем получить непредсказуемую задержку, которую не фиксирует наш таймер? с несколькими задачами надо учитывать и системный - TODO
         
@@ -411,10 +501,14 @@ pgmuznum=$+1
         ld a,0
         SETPG32KLOW
         call muz+6
-;pg8000=$+1
-;        ld a,0
+        ;TODO music + sound effects in OS_SETMUSIC
         pop af
         SETPG32KLOW
+        
+        GET_KEY
+        or a
+        jr z,$+5
+        ld (curkey),a
         
         else
 curpg=$+1
