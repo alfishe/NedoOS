@@ -113,7 +113,7 @@ begin
 ;	or a
 ;	jp m,inet_exiterr_nosocrecv
 	
-        ;if MASTER
+        ;if CLIENT
 
 ;	ld a,(socsend)
 ;	LD DE,port_iasend
@@ -123,13 +123,14 @@ begin
 ;	jp m,inet_exiterr
         
         ;else ;slave
-
+	if CLIENT==0
 	ld a,(soc)
 	LD DE,port_ia
 	OS_BIND
     ld a,l
 	or a
 	jp m,inet_exiterr
+	endif
 	
         if 1==0
 	ld a,(soc)
@@ -145,7 +146,7 @@ begin
 ;если master - при этом посылаем свои клавиши, если slave - принимаем клавиши
 ;TODO для двух игроков:
 ;???
-        if MASTER ;посылаем событие старта
+        if CLIENT ;посылаем событие старта
 
         ld a,1
         call sendbyte
@@ -155,7 +156,6 @@ begin
 waitbegin0
         call receivebyte
         jr z,waitbegin0
-       display "recv ",$
         endif
         
         
@@ -177,7 +177,7 @@ gameloop
         ld hl,(curlength2)
         call prnum
         
-        if MASTER
+        if CLIENT
         call delay
         endif
          
@@ -402,13 +402,13 @@ waitkey0
         jr z,waitkey0
         or a
         jr z,$+5
-        if MASTER 
+        if CLIENT 
 			ld (curdirection2),a
         else
 			ld (curdirection),a
         endif
         endif
-        if MASTER
+        if CLIENT
        
         push af
         call sendbyte
@@ -470,7 +470,7 @@ waitkey0
         cp dir_d
         ret nz;jr z,getkey_ok
 getkey_ok
-        if MASTER
+        if CLIENT
         ld (curdirection),a
         else
         ld (curdirection2),a
@@ -1087,9 +1087,10 @@ receivebyte0
 	ld ix,recvbuf
         ld de,port_ia
 	OS_WIZNETREAD
-	ld a,h
-	or l
-	ret z ;jr z,receivebyte0
+	bit 7,h
+	;ld a,h
+	;or l
+	jr nz,receivebyte_fail ;jr z,receivebyte0
 
         ld hl,recvbuf
         ld de,sendbuf
@@ -1118,12 +1119,12 @@ soc
 
 ;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
 ;	struct in_addr sin_addr;char sin_zero[8];};
-        if MASTER
+        if CLIENT
 ;master(net1): from 192.168.1.2 to 192.168.1.177
 port_ia:
 	defb 0
         db 100,53 ;port (big endian)
-        db 192,168,1,177 ;ip (big endian)
+        db 127,0,0,1 ;ip (big endian)
 ;port_iarecv:
 ;	defb 0
 ;        db 100,53 ;port (big endian)
@@ -1312,6 +1313,9 @@ end
 	;display "Free after end=",/d,0xc000-end
 	display "Size ",/d,end-begin," bytes"
 	
-	;savebin "snake.com",begin,end-begin
-	
+	if CLIENT
+		savebin "net1.com",begin,end-begin
+	else
+		savebin "net2.com",begin,end-begin
+	endif
 	;LABELSLIST "..\us\user.l"

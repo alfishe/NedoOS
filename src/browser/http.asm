@@ -505,8 +505,8 @@ recv_wait1:
 	;ld (errno),a
 	jr dns_exiterr
 recv_wait_end:
-	bit 7,h
-	jr nz,dns_exitcode
+	;bit 7,h
+	;jr nz,dns_exitcode
 	;ld a,65		;ERR_HOSTUNREACH
 	;ld (errno),a
 	ld a,(dnsbuf+3)
