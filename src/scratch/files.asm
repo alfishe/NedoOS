@@ -993,17 +993,17 @@ prfilemenu_drive
 prfilemenu
 ;FILINFO_sz=32
         call cls
-        ld lx,0 ;фоновый цвет
+        ld ix,0xff00 ;lx=фоновый цвет
         call prfilename
         ld de,tsave
         ld hl,savey*40 + savex8 + scrbase
-        call shapes_prtext48ega_oncolor
+        call shapes_prtext48ega;_oncolor
         ld de,tquit
         ld hl,quity*40 + quitx8 + scrbase
-        call shapes_prtext48ega_oncolor
+        call shapes_prtext48ega;_oncolor
         ld de,texit
         ld hl,exity*40 + exitx8 + scrbase
-        call shapes_prtext48ega_oncolor
+        call shapes_prtext48ega;_oncolor
 
         ld hl,drivesy*40 + drivesx8 + scrbase
         ld bc,256*(driveshgt/8) + 'A'
@@ -1013,7 +1013,7 @@ prfilemenu_drives0
         ld de,prfilemenu_drive
         ld a,c
         ld (de),a
-        call shapes_prtext48ega_oncolor
+        call shapes_prtext48ega;_oncolor
         pop hl
         ld bc,40*8
         add hl,bc
@@ -1127,7 +1127,7 @@ prdirfile
 	ld (prdirfile_dot_or_dir),a
         ld  c,32-FCB_FATTRIB ;FCB_sz-FCB_FATTRIB
         ldir
-        ld lx,0
+        ld ix,0xff00 ;lx=фоновый цвет
         call setpgshapes
         call setpgs_scr
         ;ld de,filinfo+FILINFO.FNAME
@@ -1144,16 +1144,18 @@ prdirfile
         ;djnz $-3
         ;ld (hl),b ;0
         ;pop de ;de=text
+        ;ld hl,prchar48ega_whiteoncolor
+        ;ld (prchar48ega_colorproc),hl
         pop hl ;hl=scr (начало строки)
         ;call shapes_prtext48ega_oncolor
         ld a,8
-        call shapes_prNchars
+        call shapes_prNchars;_oncolor
         ld a,'.'
 prdirfile_dot_or_dir=$+1
 	xor 0
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ld a,3
-        call shapes_prNchars
+        call shapes_prNchars;_oncolor
         
         ex hl,de
         exx
@@ -1162,7 +1164,7 @@ prdirfile_dot_or_dir=$+1
         exx
         ;ld hl,(filinfo+FILINFO.FSIZE)
         ld hl,(fcb_print+FCB_FSIZE)
-        call shapes_prnumdword
+        call shapes_prnumdword;_oncolor
         
 ;       shapes_prchar48ega
 ;a=char
@@ -1177,7 +1179,7 @@ prdirfile_dot_or_dir=$+1
 ;a=Nchars
         ld a,' '
         ex de,hl
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         
         ld hl,(fcb_print+FCB_FDATE)
@@ -1190,7 +1192,7 @@ prdirfile_dot_or_dir=$+1
         call shapes_prNN ;year
         ld a,'-'
         ex de,hl
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         pop hl
         ld a,l
@@ -1200,18 +1202,18 @@ prdirfile_dot_or_dir=$+1
         add hl,hl
         ld a,h
         and 0x0f
-        call shapes_prNN ;month
+        call shapes_prNN;_oncolor ;month
         ld a,'-'
         ex de,hl
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         pop af
         and 0x1f
-        call shapes_prNN ;day
+        call shapes_prNN;_oncolor ;day
         
         ld a,' '
         ex de,hl
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         
         ld hl,(fcb_print+FCB_FTIME)
@@ -1221,10 +1223,10 @@ prdirfile_dot_or_dir=$+1
         rra
         rra
         and 0x1f
-        call shapes_prNN ;hour
+        call shapes_prNN;_oncolor ;hour
         ld a,':'
         ex de,hl
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         pop hl
         ld a,l
@@ -1234,15 +1236,15 @@ prdirfile_dot_or_dir=$+1
         add hl,hl
         ld a,h
         and 0x3f
-        call shapes_prNN ;minute
+        call shapes_prNN;_oncolor ;minute
         ld a,':'
         ex de,hl
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         pop af
         add a,a
         and 0x3f
-        jp shapes_prNN ;second
+        jp shapes_prNN;_oncolor ;second
         
 file_findvisiblefile_a
 ;a = номер видимого файла
@@ -1302,10 +1304,10 @@ editfilename_backspace
 
 prfilename
         call setpgshapes
-        ld lx,0
+        ld ix,0xff00 ;lx=background color
         ld de,savepicname
         ld hl,filenamey*40 + filenamex8 + scrbase
-        jp shapes_prtext48ega_oncolor
+        jp shapes_prtext48ega;_oncolor
 
 savefile
         call setpgtemp

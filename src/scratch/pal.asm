@@ -410,7 +410,7 @@ prhexcolor
 ;pgshapes!
 ;de=color (DDp palette)
 ;hl=screen        
-        ld lx,0
+        ld ix,0x3f00 ;lx=background color
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
 ;high B, high b, low B, low b
         push hl
@@ -719,10 +719,10 @@ drawpalcolor
 
         call setpgshapes
 
-        ld lx,0
+        ld ix,0x3f00 ;lx=background color
         ld hl,0x2000+((editpal_colory+editpal_curcolorhgt+8)*40)+editpal_colorx8 + scrbase + 1
         ld de,t444
-        call shapes_prtext48ega_white7oncolor
+        call shapes_prtext48ega;_white7oncolor
 
         ld de,(paleditorpal_color)
         ld hl,0x2000+(editpal_colory+editpal_colorhgt)*40+editpal_colorx8 + scrbase

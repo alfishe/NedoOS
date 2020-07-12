@@ -4,7 +4,7 @@
 ;печатает на экране hl текст (de), потом число bc, переводит адрес экрана на 8 строк вниз, de на следующий текст (после терминатора)
         push hl
         push bc
-        call shapes_prtext48ega_oncolor
+        call shapes_prtext48ega;_oncolor
         ex de,hl
         ex (sp),hl
         call shapes_prnum
@@ -90,30 +90,12 @@ prnumdword_nozeroq
         ex de,hl
         ret        
 
-        SHAPESPROC shapes_prtext48ega_black
-;lx=color %33210210
+        ;SHAPESPROC shapes_prtext48ega_oncolor
+;lx=background color %33210210
 ;hl=scr
 ;de=text
-        ld bc,prchar48ega_black
-        jr prtext48egago
-        SHAPESPROC shapes_prtext48ega_oncolor
-;lx=color %33210210
-;hl=scr
-;de=text
-        ld bc,prchar48ega_whiteoncolor
-        jr prtext48egago
-        SHAPESPROC shapes_prtext48ega_white7oncolor
-;lx=color %33210210
-;hl=scr
-;de=text
-        ld bc,prchar48ega_white7oncolor
-        jr prtext48egago
+        ;ld hx,0b11111111
         SHAPESPROC shapes_prtext48ega
-;hl=scr
-;de=text
-        ld bc,prchar48ega_white
-prtext48egago
-        ld (prchar48ega_colorproc),bc
 prtext48ega0
         ld a,(de)
         or a
@@ -129,10 +111,47 @@ prtext48ega0
         ld e,a
         ld d,font48/256
         push hl
-        ld b,+((40-0x4000)&0xff00)/256
-        ld hx,8
-prchar48ega_colorproc=$+1
-        call prchar48ega_white
+        push iy
+        ld hy,8
+;lx=background color %33210210
+;hx=color %33210210
+;de=font char
+;hl=screen
+prchar48ega_hxoncolor0
+        ld b,hx
+        ld a,(de)
+        ld c,a
+        ld a,lx
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0xb8;%10111000
+         xor b
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0x47;%01000111
+         xor b
+        ld (hl),a
+        set 6,h
+        ld a,lx
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0xb8;%10111000
+         xor b
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0x47;%01000111
+         xor b
+        ld (hl),a
+        inc d
+        ld bc,+(40-0x4000)
+        add hl,bc
+        dec hy
+        jp nz,prchar48ega_hxoncolor0
+        pop iy
         pop hl
         pop de
         ld a,h
@@ -146,8 +165,8 @@ prchar48ega_colorproc=$+1
         SHAPESPROC shapes_prnum
 ;de=scr
 ;hl=num
-        ld bc,prchar48ega_whiteoncolor
-        ld (prchar48ega_colorproc),bc
+        ;ld bc,prchar48ega_whiteoncolor
+        ;ld (prchar48ega_colorproc),bc
         ld bc,1000
         call prdig
         ld bc,100
@@ -176,8 +195,8 @@ prdig0
 ;hl=num =a
         ld h,0
         ld l,a
-        ld bc,prchar48ega_whiteoncolor
-        ld (prchar48ega_colorproc),bc
+        ;ld bc,prchar48ega_whiteoncolor
+        ;ld (prchar48ega_colorproc),bc
         ld bc,10
         call prdigNN
         ld bc,1
@@ -200,8 +219,8 @@ prdigNN0
 ;hl=scr
 ;de=text
 ;a=Nchars
-        ld bc,prchar48ega_whiteoncolor
-        ld (prchar48ega_colorproc),bc
+        ;ld bc,prchar48ega_whiteoncolor
+        ;ld (prchar48ega_colorproc),bc
         ld b,a
 prNchars0
         push bc
@@ -217,10 +236,10 @@ prNchars0
 ;a=XX 
 ;lx=color %33210210
 ;hl=scr
-        push hl
-        ld hl,prchar48ega_white7oncolor
-        ld (prchar48ega_colorproc),hl
-        pop hl
+        ;push hl
+        ;ld hl,prchar48ega_white7oncolor
+        ;ld (prchar48ega_colorproc),hl
+        ;pop hl
         ;push hl
         ;push af
         rrca
@@ -251,117 +270,3 @@ prcharbit_noletter
         pop bc
         ret
         
-        
-prchar48ega_black
-prchar48ega_black0
-        ld a,(de)
-        ld c,a
-        ld a,(hl)
-        rl c
-        jr nc,$+4
-        and 0xb8;%10111000
-        rl c
-        jr nc,$+4
-        and 0x47;%01000111
-        ld (hl),a
-        set 6,h
-        ld a,(hl)
-        rl c
-        jr nc,$+4
-        and 0xb8;%10111000
-        rl c
-        jr nc,$+4
-        and 0x47;%01000111
-        ld (hl),a
-        inc d
-        ld c,+(40-0x4000)&0xff
-        add hl,bc
-        dec hx
-        jp nz,prchar48ega_black0
-        ret
-        
-prchar48ega_white
-prchar48ega_white0
-        ld a,(de)
-        ld c,a
-        ld a,(hl)
-        rl c
-        jr nc,$+4
-        or 0x47;%01000111
-        rl c
-        jr nc,$+4
-        or 0xb8;%10111000
-        ld (hl),a
-        set 6,h
-        ld a,(hl)
-        rl c
-        jr nc,$+4
-        or 0x47;%01000111
-        rl c
-        jr nc,$+4
-        or 0xb8;%10111000
-        ld (hl),a
-        inc d
-        ld c,+(40-0x4000)&0xff
-        add hl,bc
-        dec hx
-        jp nz,prchar48ega_white0
-        ret
-
-prchar48ega_whiteoncolor
-;lx=color %33210210
-prchar48ega_whiteoncolor0
-        ld a,(de)
-        ld c,a
-        ld a,lx
-        rl c
-        jr nc,$+4
-        or 0x47;%01000111
-        rl c
-        jr nc,$+4
-        or 0xb8;%10111000
-        ld (hl),a
-        set 6,h
-        ld a,lx
-        rl c
-        jr nc,$+4
-        or 0x47;%01000111
-        rl c
-        jr nc,$+4
-        or 0xb8;%10111000
-        ld (hl),a
-        inc d
-        ld c,+(40-0x4000)&0xff
-        add hl,bc
-        dec hx
-        jp nz,prchar48ega_whiteoncolor0
-        ret
-
-prchar48ega_white7oncolor
-;lx=color %33210210
-prchar48ega_white7oncolor0
-        ld a,(de)
-        ld c,a
-        ld a,lx
-        rl c
-        jr nc,$+4
-        or 0x07;%00000111
-        rl c
-        jr nc,$+4
-        or 0x38;%00111000
-        ld (hl),a
-        set 6,h
-        ld a,lx
-        rl c
-        jr nc,$+4
-        or 0x07;%00000111
-        rl c
-        jr nc,$+4
-        or 0x38;%00111000
-        ld (hl),a
-        inc d
-        ld c,+(40-0x4000)&0xff
-        add hl,bc
-        dec hx
-        jp nz,prchar48ega_white7oncolor0
-        ret

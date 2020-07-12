@@ -265,7 +265,7 @@ showbitmapcoords
         ret nz ;вне рабочей зоны
 ;bc=x в bitmap, de=y в bitmap
         call setpgshapes
-        ld lx,0x3f;%00111111 ;фоновый цвет
+        ld ix,0xff3f;%00111111 ;lx=фоновый цвет
 
         push de ;y
         ;push bc ;x
@@ -281,7 +281,7 @@ showwindowcoords
 ;bc=x
 ;de=y
         call setpgshapes
-        ld lx,0x3f;%00111111 ;фоновый цвет
+        ld ix,0xff3f;%00111111 ;lx=фоновый цвет
 
         push de ;y
         ;push bc ;x

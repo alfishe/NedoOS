@@ -5,6 +5,11 @@
 
 MAXCMDSZ=COMMANDLINE_sz-1 ;не считая терминатора
 
+T_BUTTON=1
+T_LABEL=2
+T_EDIT=3
+T_RADIO=4
+        
 scrwid=320
 scrwid8=scrwid/8
 scrhgt=200
@@ -225,7 +230,8 @@ mainloop
         call showline ;стираем старую линию
         call ahl_oldcoords
         call invarrzone ;восстанавливаем (инвертируем) пункт под стрелкой
-        
+
+        ;call window_messages ;TODO
         call control_mousebuttons
         call control_keys
 
@@ -753,6 +759,8 @@ key=$+1
         jp z,control_keys_plus
         cp '-'
         jp z,control_keys_minus
+        cp 'n'
+        jp z,control_keys_new
         cp 'c'
         jp z,control_keys_clear
         cp 'w'
@@ -771,9 +779,118 @@ key=$+1
         jp z,showworkscreen
         sub '1'
         cp 4
-        jr c,control_keys_selectbmp
+        jp c,control_keys_selectbmp
         
         ret
+        
+control_keys_new
+        ld lx,0b00111111 ;background fill color byte 0bRLrrrlll
+        ld hx,0b00000000 ;11111111 ;brush color byte 0bRLrrrlll
+        ld iy,win_new
+        call window_start
+
+        jr $
+        
+window_start
+        ld (curwindow),iy
+        ld l,(iy);1 ;x/2
+        ld h,(iy+1);10 ;y
+        ld c,(iy+2);159 ;wid/2
+        ld b,(iy+3);100 ;hgt
+        ld (curwidow_xy),hl
+        ld (curwidow_wh),bc
+        ld e,h
+;l=x/2
+;e=y
+;hx=brush color byte 0bRLrrrlll
+;lx=background fill color byte 0bRLrrrlll
+;b=hgt
+;c=wid/2
+        call shapes_drawwindow
+        ;jr $
+        ld bc,4
+        add iy,bc
+drawwindow_elements0
+        ld l,(iy)
+        ld h,(iy+1)
+        push hl
+        ld a,(iy+8) ;hidden
+        or a
+        jr nz,drawwindow_elements0_skip
+curwidow_xy=$+1
+        ld de,0
+        ld l,(iy+2) ;x/2
+        ld h,(iy+3) ;y
+        add hl,de
+        ld c,(iy+4) ;wid/2
+        ld b,(iy+5) ;hgt
+        ld a,(iy+6) ;type
+        ld d,(iy+7) ;checked
+        ld e,h
+        cp T_BUTTON
+        jr nz,drawwindow_elements0_nbutton
+        call shapes_drawbutton
+        jr drawwindow_elements0_skip
+drawwindow_elements0_nbutton
+        cp T_RADIO
+        jr nz,drawwindow_elements0_nradio
+        call shapes_drawbutton_pressed
+        jr drawwindow_elements0_skip
+drawwindow_elements0_nradio
+        
+drawwindow_elements0_skip
+        pop iy
+        ld a,hy
+        or ly
+        jr nz,drawwindow_elements0
+        ret
+        
+
+;TODO dispatch window messages
+curwindow=$+2
+        ld iy,0
+curwidow_wh=$+1
+        ld bc,0
+
+       
+button_ok_click
+reter
+        ret
+       
+win_new
+;x/2,y,wid/2,hgt
+        db 51,10,109,100
+;;window elements (linked list)
+;link16 ;0=end of list
+;x/2,y,wid/2,hgt
+;type
+;checked
+;hidden
+;disabled
+;onclick16
+;onunclick16
+;onmove16
+        dw win_new_button2 ;0=end of list
+        db 20,10,20,16
+        db T_BUTTON
+        db 0 ;checked
+        db 0 ;hidden
+        db 0 ;disabled
+        dw button_ok_click
+        dw reter ;onunclick16
+        dw reter ;onmove16
+win_new_button2
+        dw 0 ;0=end of list
+        db 40,10,20,16
+        db T_RADIO
+        db 0 ;checked
+        db 0 ;hidden
+        db 0 ;disabled
+        dw button_ok_click
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        
+
         
 control_keys_swapcolors
         ld hl,(curcolor1) ;1, 2
@@ -1042,15 +1159,15 @@ showcurtool
         ld (de),a
         dec de
         dec de
-        ld lx,backcolor
-        jp shapes_prtext48ega_oncolor
+        ld ix,0xff00+backcolor
+        jp shapes_prtext48ega;_oncolor
 
 text_ntool
         db "0 0",0
         
 showtools
         call setpgshapes
-
+        ld ix,0x0000+backcolor
         ld de,ttools
         ld bc,256*workzoney+0
 showtools0
@@ -1067,7 +1184,7 @@ showtools0
         ld b,a
         call calcscr_from_xchr_y
         set 5,h ;на 4 пикселя правее
-        call shapes_prtext48ega_black
+        call shapes_prtext48ega;_black
         pop bc
         ld a,b
         add a,0x10
@@ -1117,31 +1234,31 @@ showtitle
         ld de,titlehgt*256 + scrwid8 ;d=hgt ;e=wid8
         xor a ;a=%33210210
         call shapes_fillbox
-        ld hl,prchar48ega_white
-        ld (prchar48ega_colorproc),hl
+        ;ld hl,prchar48ega_whiteoncolor
+        ;ld (prchar48ega_colorproc),hl
+        ld ix,0xff00 ;lx=фоновый цвет
         ld hl,scrbase ;scr
         ld a,(curbmp)
         add a,'1'
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ld a,':'
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ld de,curpicname
-        call shapes_prtext48ega
+        call shapes_prtext48ega;_oncolor
         ld a,' '
-        call shapes_prchar48ega
-        ld lx,0 ;фоновый цвет
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         ld hl,(curbitmapwid_edit)
-        call shapes_prnum
+        call shapes_prnum;_oncolor
         ex de,hl
         ld a,'x'
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         ld hl,(curbitmaphgt)
-        call shapes_prnum
+        call shapes_prnum;_oncolor
         ex de,hl
         ld a,' '
-        call shapes_prchar48ega
+        call shapes_prchar48ega;_oncolor
         ex de,hl
         ld a,(curbitmapscale)
         ld l,a
@@ -1151,10 +1268,10 @@ showtitle
         ld bc,tscalesnames-4
         add hl,bc
         ex de,hl
-        call shapes_prtext48ega
+        call shapes_prtext48ega;_oncolor
         
         ld a,'%'
-        jp shapes_prchar48ega
+        jp shapes_prchar48ega;_oncolor
         
         
 tscalesnames
@@ -1435,7 +1552,7 @@ SHAPES_begin
 font48
         incbin "64qua.fnt"
 SHAPES_sz=$-SHAPES_begin
-	;display "Shapes size ",/d,SHAPES_sz," bytes"
+	display "Shapes size ",/d,SHAPES_sz," bytes"
         
 gfxeditor_end
 
