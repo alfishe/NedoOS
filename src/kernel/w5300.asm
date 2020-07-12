@@ -283,6 +283,11 @@ w53_accept_nsoc:
 w53_listen:
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
+		ld b,WIZ_S_SSR
+		in a,(c)
+		or a
+		ld a,ERR_ALREADY
+		ret nz
 w53_listen_acc:
 		ld a,Sn_CR_OPEN
 		call w53_cmd
