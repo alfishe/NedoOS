@@ -999,18 +999,24 @@ drawwindowhormarks
         SHAPESPROC shapes_drawbutton
         or a
 drawbutton_go
+       push iy
+
         push af
+;iy=button descriptor (kept)
 ;hx=brush color byte 0bRLrrrlll
 ;lx=background fill color byte 0bRLrrrlll
 ;b=hgt
 ;c=wid/2
 ;l=x/2
 ;e=y
+       push iy
         ld hy,e
         ld a,l
         ld ly,a
 ;ly=x/2
 ;hy=y
+;l=x/2
+;e=y
         call xytoscraddr
 ;hl=screen addr
         dec b
@@ -1032,13 +1038,135 @@ drawbuttonfill0
         endif
 
         push bc
-        ;push hl
-        call drawbox
-        ;pop hl
+        ;call drawbox
+              
+        ld a,hy
+        add a,4
+        ld e,a
+        ld a,ly
+        add a,4
+        ld l,a
+;l=x/2
+;e=y
+        call xytoscraddr
         pop bc
+       pop de ;"iy"
+        
+        push bc
+        ex de,hl
+        ld bc,WINELEMENTSTRUCTSIZE
+        add hl,bc ;hl=text
+        ex de,hl
+;hl=scr
+;de=text
+        call shapes_prtext48ega
+        pop bc
+        
         pop af
         jr c,drawbutton_pressed_go
 
+         push ix
+         ld a,hx
+         ld hx,lx
+         ld lx,a
+        call drawbutton_pressed_pp
+         pop ix
+        push bc
+        ld e,hy
+        ld a,ly
+        ld l,a
+;l=x/2
+;e=y
+        call xytoscraddr
+        call drawbox
+        pop bc
+
+        call drawbutton_unpressed_pp
+
+        push bc
+;ly=x/2
+;hy=y
+        ld e,hy
+        inc e
+        inc e
+        ld a,ly
+        add a,c
+        dec a
+        ld l,a
+;l=x/2
+;e=y
+        call xytoscraddr
+;hl=scraddr
+        dec b
+        ld c,hx
+;c=color byte 0bRLrrrlll
+;b=hgt
+        call drawverline
+        pop bc
+       pop iy
+        ret
+
+drawbutton_pressed_go
+         push ix
+         ld a,hx
+         ld hx,lx
+         ld lx,a
+        call drawbutton_unpressed_pp
+         pop ix
+        push bc
+        ld e,hy
+        ld a,ly
+        ld l,a
+;l=x/2
+;e=y
+        call xytoscraddr
+        call drawbox
+        pop bc
+        call drawbutton_pressed_pp
+
+        push bc
+;ly=x/2
+;hy=y
+        ld e,hy
+        inc e
+        ld a,ly
+        ld l,a
+;l=x/2
+;e=y
+        call xytoscraddr
+;hl=scraddr
+        ld c,hx
+;c=color byte 0bRLrrrlll
+;b=hgt
+        dec b
+        call drawverline
+        pop bc
+       pop iy
+        ret
+
+drawbutton_pressed_pp
+;bc=hgtwid/2
+        push bc
+;ly=x/2
+;hy=y
+        ld e,hy
+        inc e
+        ld a,ly
+        ld l,a
+;l=x/2
+;e=y
+        call xytoscraddr
+;hl=scraddr
+        ld b,c
+        ld c,hx
+;c=color byte 0bRLrrrlll
+;b=wid/2
+        call drawhorline
+        pop bc
+        ret
+
+drawbutton_unpressed_pp
+;bc=hgtwid/2
         push bc
 ;ly=x/2
 ;hy=y
@@ -1060,58 +1188,7 @@ drawbuttonfill0
 ;b=wid/2
         call drawhorline
         pop bc
-
-;ly=x/2
-;hy=y
-        ld e,hy
-        inc e
-        inc e
-        ld a,ly
-        add a,c
-        dec a
-        ld l,a
-;l=x/2
-;e=y
-        call xytoscraddr
-;hl=scraddr
-        dec b
-        ld c,hx
-;c=color byte 0bRLrrrlll
-;b=hgt
-        jp drawverline
-
-drawbutton_pressed_go
-        push bc
-;ly=x/2
-;hy=y
-        ld e,hy
-        inc e
-        ld a,ly
-        ld l,a
-;l=x/2
-;e=y
-        call xytoscraddr
-;hl=scraddr
-        ld b,c
-        ld c,hx
-;c=color byte 0bRLrrrlll
-;b=wid/2
-        call drawhorline
-        pop bc
-
-;ly=x/2
-;hy=y
-        ld e,hy
-        ld a,ly
-        ld l,a
-;l=x/2
-;e=y
-        call xytoscraddr
-;hl=scraddr
-        ld c,hx
-;c=color byte 0bRLrrrlll
-;b=hgt
-        jp drawverline
+        ret
 
 
 drawbox

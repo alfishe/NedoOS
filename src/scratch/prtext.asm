@@ -90,11 +90,10 @@ prnumdword_nozeroq
         ex de,hl
         ret        
 
-        ;SHAPESPROC shapes_prtext48ega_oncolor
+;hx=color %33210210
 ;lx=background color %33210210
 ;hl=scr
 ;de=text
-        ;ld hx,0b11111111
         SHAPESPROC shapes_prtext48ega
 prtext48ega0
         ld a,(de)

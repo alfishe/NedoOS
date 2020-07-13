@@ -5,11 +5,8 @@
 
 MAXCMDSZ=COMMANDLINE_sz-1 ;не считая терминатора
 
-T_BUTTON=1
-T_LABEL=2
-T_EDIT=3
-T_RADIO=4
-        
+        include "windowsh.asm"
+      
 scrwid=320
 scrwid8=scrwid/8
 scrhgt=200
@@ -788,78 +785,29 @@ control_keys_new
         ld hx,0b00000000 ;11111111 ;brush color byte 0bRLrrrlll
         ld iy,win_new
         call window_start
-
-        jr $
-        
-window_start
-        ld (curwindow),iy
-        ld l,(iy);1 ;x/2
-        ld h,(iy+1);10 ;y
-        ld c,(iy+2);159 ;wid/2
-        ld b,(iy+3);100 ;hgt
-        ld (curwidow_xy),hl
-        ld (curwidow_wh),bc
-        ld e,h
-;l=x/2
-;e=y
-;hx=brush color byte 0bRLrrrlll
-;lx=background fill color byte 0bRLrrrlll
-;b=hgt
-;c=wid/2
-        call shapes_drawwindow
-        ;jr $
-        ld bc,4
-        add iy,bc
-drawwindow_elements0
-        ld l,(iy)
-        ld h,(iy+1)
-        push hl
-        ld a,(iy+8) ;hidden
-        or a
-        jr nz,drawwindow_elements0_skip
-curwidow_xy=$+1
-        ld de,0
-        ld l,(iy+2) ;x/2
-        ld h,(iy+3) ;y
-        add hl,de
-        ld c,(iy+4) ;wid/2
-        ld b,(iy+5) ;hgt
-        ld a,(iy+6) ;type
-        ld d,(iy+7) ;checked
-        ld e,h
-        cp T_BUTTON
-        jr nz,drawwindow_elements0_nbutton
-        call shapes_drawbutton
-        jr drawwindow_elements0_skip
-drawwindow_elements0_nbutton
-        cp T_RADIO
-        jr nz,drawwindow_elements0_nradio
-        call shapes_drawbutton_pressed
-        jr drawwindow_elements0_skip
-drawwindow_elements0_nradio
-        
-drawwindow_elements0_skip
-        pop iy
-        ld a,hy
-        or ly
-        jr nz,drawwindow_elements0
+        call window_mainloop
+;restore screen:
+        call showworkscreen
         ret
         
 
-;TODO dispatch window messages
-curwindow=$+2
-        ld iy,0
-curwidow_wh=$+1
-        ld bc,0
-
        
 button_ok_click
+        ret
+button_ok_unclick
+        jp window_close
 reter
         ret
        
 win_new
 ;x/2,y,wid/2,hgt
         db 51,10,109,100
+        db 0b1000 ;flags
+; Bit 0 - рамка не рисуется (don't draw frame)
+; Bit 1 - reserved
+; Bit 2	- таскать окно по экрану (movable window)
+; Bit 3	- выход из окна-ткнуть только лишь за пределами (CANCEL by clicking outside the window) 
+
 ;;window elements (linked list)
 ;link16 ;0=end of list
 ;x/2,y,wid/2,hgt
@@ -870,25 +818,34 @@ win_new
 ;onclick16
 ;onunclick16
 ;onmove16
+        STARTWINELEMENT
         dw win_new_button2 ;0=end of list
         db 20,10,20,16
         db T_BUTTON
         db 0 ;checked
         db 0 ;hidden
         db 0 ;disabled
+        db 0 ;hotkey
         dw button_ok_click
-        dw reter ;onunclick16
+        dw button_ok_unclick ;onunclick16
         dw reter ;onmove16
+        PADWINELEMENT
+        db "OK",0
+        
 win_new_button2
+        STARTWINELEMENT
         dw 0 ;0=end of list
         db 40,10,20,16
         db T_RADIO
         db 0 ;checked
         db 0 ;hidden
         db 0 ;disabled
+        db 0 ;hotkey
         dw button_ok_click
         dw reter ;onunclick16
         dw reter ;onmove16
+        PADWINELEMENT
+        db "Cancel",0
         
 
         
@@ -1441,6 +1398,8 @@ curpgtemp=$+1
         include "math.asm"
         
         include "files.asm"
+
+        include "windows.asm"
 
 skipword
 ;hl=string

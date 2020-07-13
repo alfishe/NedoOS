@@ -152,7 +152,7 @@ _1=$
         ld c,CMD_WRITESECTORS
 	CALLBDOS
         endm
-        macro OS_GETFILESIZE ;e=0..15
+        macro OS_GETFILESIZE ;b=handle, out: dehl=file size
         ld c,CMD_GETFILESIZE
 	CALLBDOS
         endm
@@ -334,7 +334,7 @@ _1=$
         ld c,CMD_SETSCREEN
 	CALLBDOS
         endm
-        macro OS_GETSCREENPAGES ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
+        macro OS_GETSCREENPAGES ;DEPRECATED!!!! out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
         ld c,CMD_GETSCREENPAGES
 	CALLBDOS
         endm
