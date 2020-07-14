@@ -685,7 +685,7 @@ w53_read_new:		;читать новый пакет
 		ld b,WIZ_S_SSR		
 		in a,(c)
 		cp SOCK_ESTABLISHED
-		ret z
+		jp z,w53_eagain
 		ld a,ERR_NOTCONN
 		jr wiznet_fail ;ret
 w53_read_new1:

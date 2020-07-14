@@ -81,6 +81,8 @@ TN_ST_TEXT		EQU 0
 TN_ST_ESC		EQU 1
 TN_ST_ANSI		EQU 2
 
+ERR_EAGAIN		EQU 35		;/* Try again */
+
 cmd_begin
 ;init
 	ld sp,0x4000
@@ -1046,11 +1048,12 @@ telnet_getbyte_read
 	ld de,buf
 	ld a,(soc1)
 	OS_WIZNETREAD
-	ld a,h
-	cp 0xFF
-	jp z,telnet_end ;error read
-	or l
+	bit 7,h
+	jp z,telnet_getbyte_readed ;error read
+	cp ERR_EAGAIN
 	jr z,telnet_getbyte_empty
+	jp telnet_end ;error read
+telnet_getbyte_readed
 	dec hl
 	ld a,l
 	ld (bufmax),a ;max index
@@ -1250,9 +1253,10 @@ recv_wait1
 	LD DE,buf
 	OS_WIZNETREAD
 	pop bc
-	ld a,h
-	or l
-	jr nz,recv_wait_end
+	bit 7,h
+	jr z,recv_wait_end
+	cp ERR_EAGAIN
+	jr nz,dns_exiterr
 	djnz recv_wait
 	jr dns_exiterr
 recv_wait_end

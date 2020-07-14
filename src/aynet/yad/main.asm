@@ -437,7 +437,10 @@ main:
 ?0054:
 	LD	B,IYH
 	BIT	7,B
-	JR	Z,?0059
+	JR	Z,?0061
+	ld a,(errno)
+	cp 35
+	jr z,?0060
 ?0058:
 	CALL	shutup
 	LD	BC,(datasoc)
@@ -449,10 +452,6 @@ main:
 	XOR	A
 	LD	(datasoc),A
 	JP	?0032
-?0059:
-	LD	A,IYL
-	OR	IYH
-	JR	NZ,?0061
 ?0060:
 	CALL	_low_level_get
 	JP	?0032

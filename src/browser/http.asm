@@ -14,6 +14,7 @@ SOCK_DGRAM 	EQU 0x03		;udp/ip
 SHUT_RDWR 		EQU 2
 ERR_INTR 		EQU 4
 ERR_NFILE 		EQU 23
+ERR_EAGAIN		EQU 35		;/* Try again */
 ERR_ALREADY 	EQU 37
 ERR_NOTSOCK 	EQU 38
 ERR_EMSGSIZE 	EQU 40    ;/* Message too long */
@@ -257,12 +258,13 @@ readstream_http_head0
 	ld a,(soc1)
 	OS_WIZNETREAD
 	bit 7,h
-         ld a,l
 	pop hl
 	pop de
-	jr nz,readstream_err
-         or a
-         jr z,readstream_http_head0 ;вдруг ответ не успел прийти
+	jr z,readstream_http_head_ok
+	cp ERR_EAGAIN
+    jr z,readstream_http_head0 ;вдруг ответ не успел прийти
+	jp readstream_err
+readstream_http_head_ok
 	dec hl ;размер
 	ld a,h
 	or l
@@ -361,7 +363,11 @@ readstream_loop
 	LD	a,(soc1)
 	OS_WIZNETREAD
 	bit 7,h
+	jr z,readstream_loop_ok
+	cp ERR_EAGAIN
 	jr nz,readstream_err
+	ld hl,0
+readstream_loop_ok
 	pop de ;de=куда читали, hl=сколько прочитали
 	add hl,de
 	ex de,hl ;de=текущий ptr
