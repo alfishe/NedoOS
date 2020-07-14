@@ -801,7 +801,7 @@ reter
        
 win_new
 ;x/2,y,wid/2,hgt
-        db 51,10,109,100
+        db 52,10,100,100
         db 0b1000 ;flags
 ; Bit 0 - рамка не рисуется (don't draw frame)
 ; Bit 1 - reserved
@@ -820,11 +820,9 @@ win_new
 ;onmove16
         STARTWINELEMENT
         dw win_new_button2 ;0=end of list
-        db 20,10,20,16
+        db 20,20,20,16
         db T_BUTTON
-        db 0 ;checked
-        db 0 ;hidden
-        db 0 ;disabled
+        db 0b1000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
         db 0 ;hotkey
         dw button_ok_click
         dw button_ok_unclick ;onunclick16
@@ -835,11 +833,9 @@ win_new
 win_new_button2
         STARTWINELEMENT
         dw 0 ;0=end of list
-        db 40,10,20,16
+        db 48,20,20,16
         db T_RADIO
-        db 0 ;checked
-        db 0 ;hidden
-        db 0 ;disabled
+        db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
         db 0 ;hotkey
         dw button_ok_click
         dw reter ;onunclick16

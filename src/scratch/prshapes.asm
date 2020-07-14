@@ -465,22 +465,25 @@ invhorline
 ;e=wid(chr)
         push bc
         call calcscr_from_xchr_y
+         ld a,hx
+         xor lx
+         ld c,a
         ld b,e
 invhorline0
         ld a,(hl)
-        cpl
+        xor c;cpl
         ld (hl),a
         set 5,h
         ld a,(hl)
-        cpl
+        xor c;cpl
         ld (hl),a
         set 6,h
         ld a,(hl)
-        cpl
+        xor c;cpl
         ld (hl),a
         res 5,h
         ld a,(hl)
-        cpl
+        xor c;cpl
         ld (hl),a
         res 6,h
         inc hl
@@ -1009,7 +1012,7 @@ drawbutton_go
 ;c=wid/2
 ;l=x/2
 ;e=y
-       push iy
+       ;push iy
         ld hy,e
         ld a,l
         ld ly,a
@@ -1017,7 +1020,7 @@ drawbutton_go
 ;hy=y
 ;l=x/2
 ;e=y
-        call xytoscraddr
+        ;call xytoscraddr
 ;hl=screen addr
         dec b
         if 1==0
@@ -1037,30 +1040,7 @@ drawbuttonfill0
         pop bc
         endif
 
-        push bc
-        ;call drawbox
-              
-        ld a,hy
-        add a,4
-        ld e,a
-        ld a,ly
-        add a,4
-        ld l,a
-;l=x/2
-;e=y
-        call xytoscraddr
-        pop bc
-       pop de ;"iy"
-        
-        push bc
-        ex de,hl
-        ld bc,WINELEMENTSTRUCTSIZE
-        add hl,bc ;hl=text
-        ex de,hl
-;hl=scr
-;de=text
-        call shapes_prtext48ega
-        pop bc
+       ;pop de ;"iy"
         
         pop af
         jr c,drawbutton_pressed_go
