@@ -22,9 +22,6 @@ QUITSTACK=0x4000 ;<=0x4000
         call BDOS_setpgtrdosfs
         endm
 
-        macro BDOSSETPGKEYB
-        call BDOS_setpgtrdosfs
-        endm
 
 fatfs.tabl=0x4000
         include "fatfs_h.asm"
@@ -448,17 +445,7 @@ on_int_noreadtime
         inc (hl)
 on_int_timerq
         
-		if PS2KBD==1
-KEYSCAN
-.rep_wait=$+1
-			ld a,0
-			dec a
-			jp m,.end_scan
-			ld (.rep_wait),a
-.end_scan
-		else 
-			call KEYSCAN
-		endif
+        call KEYSCAN
 
         ;call PEEKKEY ;ld a,(curkey)
         ;cp ssEnter
@@ -604,6 +591,8 @@ checkfocus_getkbdmouse
         xor a
         sbc hl,de
         jr nz,sys_getchar_fail ;nz
+sys_mousecoords=$+1
+        ld de,0;hl,0
 ;sys_oldmousecoords=$+1
 ;        ld de,0
 ;        ld (sys_oldmousecoords),hl
@@ -613,17 +602,14 @@ checkfocus_getkbdmouse
 ;        ld a,d
 ;        sub h ;a=dy
 ;        ld d,a ;d=dy
-		if PS2KBD==1
-			BDOSSETPGKEYB
-			;push de
-			call GETKEY ;A=key, H=high bits of key, BC=keynolang
-			;pop de
+		if atm==1
+		push de
+        call GETKEY ;A=key, H=high bits of key, BC=keynolang
+		pop de
 		else
-			call GETKEY ;A=key, H=high bits of key, BC=keynolang
+        call GETKEY ;A=key, H=high bits of key, BC=keynolang
 		endif
         cp a ;z
-sys_mousecoords=$+1
-        ld de,0;hl,0
 sys_mousebuttons=$+1
         ld l,0xff
         ret ;z
@@ -834,7 +820,9 @@ bcd2bin
 		endif
 
 
-		if PS2KBD==0
+		if PS2KBD
+			include "ps2drv.asm"
+		else
 			include "syskey2.asm"
 		endif
         

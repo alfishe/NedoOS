@@ -144,17 +144,12 @@ standardpal
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 		if INETDRV
-			include "w5300.asm"
+        include "w5300.asm"
         else
-		
 wiznet_open
 wiznet_close
 wiznet_read
 wiznet_write
         ld hl,0xffff
         ret
-		endif
-		
-		if PS2KBD==1
-			include "ps2drv.asm"
-		endif
+		ENDIF
