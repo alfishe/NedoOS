@@ -53,6 +53,18 @@ drawwindow_elements0_nbutton
         call windowelement_drawtext
         jr drawwindow_elements0_skip
 drawwindow_elements0_nradio
+        cp T_LABEL
+        jr nz,drawwindow_elements0_nlabel
+        ld de,0x0000 ;dydx
+        call windowelement_drawtext
+        jr drawwindow_elements0_skip
+drawwindow_elements0_nlabel
+        cp T_EDIT
+        jr nz,drawwindow_elements0_nedit
+        ld de,0x0000 ;dydx
+        call windowelement_drawtext
+        jr drawwindow_elements0_skip
+drawwindow_elements0_nedit
         
 drawwindow_elements0_skip
         pop iy
@@ -62,6 +74,7 @@ drawwindow_elements0_skip
         ret
 
 windowelement_drawtext
+;iy=element
 ;hl=yx/2
 ;de=dydx/2
         add hl,de
@@ -161,6 +174,9 @@ pressed_iy=$+2
         ld c,(iy+WINELEMENT_WID) ;wid/2
         ld b,(iy+WINELEMENT_HGT) ;hgt
         ld e,h
+        ld a,(iy+WINELEMENT_TYPE)
+        cp T_BUTTON
+        jr nz,window_nunclick
          ld a,hy
          or a
         call nz,shapes_drawbutton
@@ -213,8 +229,21 @@ window_fire_elements0
         rra
         jr c,window_fire_unclick ;unclick
         ld e,h
-        call shapes_drawbutton_pressed
          ld (pressed_iy),iy
+        ld a,(iy+WINELEMENT_TYPE)
+        cp T_BUTTON
+        jr z,window_fire_clickbutton
+        cp T_EDIT
+        jr z,window_fire_clickedit
+        ;TODO
+        jr window_fire_click
+window_fire_clickedit       
+        call window_fire_click
+        call window_edit
+        ret
+window_fire_clickbutton
+        call shapes_drawbutton_pressed
+window_fire_click
          ld l,(iy+WINELEMENT_CLICK)
          ld h,(iy+WINELEMENT_CLICK+1)
          jp (hl)
@@ -261,10 +290,7 @@ window_invarrzone0
         jr nz,window_invarrzone0_skip
         bit WINELEMENT_FLAG_INVERTIBLE,(iy+WINELEMENT_FLAGS)
         jr z,window_invarrzone0_skip
-        ld de,(curwindow_xy)
-        ld l,(iy+WINELEMENT_X) ;x/2
-        ld h,(iy+WINELEMENT_Y) ;y
-        add hl,de
+        call windowelement_getxy ;hl=yx/2
         ld a,(iy+WINELEMENT_WID) ;wid/2
         add a,l
         ld c,a
@@ -310,4 +336,126 @@ window_invarrzone0_skip
         ld a,hy
         or ly
         jp nz,window_invarrzone0
+        ret
+
+windowelement_getxy
+        ld de,(curwindow_xy)
+        ld l,(iy+WINELEMENT_X) ;x/2
+        ld h,(iy+WINELEMENT_Y) ;y
+        add hl,de
+        ret
+
+strtoint
+;hl=str
+;out: hl=int
+        ld de,0
+strtoint0
+        ld a,(hl)
+        sub '0'
+        cp 10
+        jr nc,strtointq
+        inc hl
+        ex de,hl
+        push de
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+        add hl,hl ;*10
+        ld e,a
+        ld d,0
+        add hl,de
+        pop de
+        ex de,hl
+        jr strtoint0
+strtointq
+        ex de,hl
+        ret
+
+window_edit
+        ;ld ix,(curwindowcolors)
+        ;ld hl,3
+;TODO hl=strlen (когда будет ввод в середину строки)
+        ;ld (window_edit_strlen),hl
+        push iy
+        pop hl
+        ld de,WINELEMENTSTRUCTSIZE
+        add hl,de
+        ld (window_edit_str),hl
+;находим длину строки
+        call strlen_wo_trailing_spaces
+        ld (window_edit_curx),hl
+
+window_edit0
+        ;ld bc,filenamey*256 + filenamex8 ;y, x/8
+        ;ld de,filenamehgt*256 + filenamewid8 ;d=hgt ;e=wid
+        ;xor a
+        ;call shapes_fillbox
+window_edit_nokey
+        call windowelement_getxy ;hl=yx/2
+        ;ld hl,filenamey*256 + filenamex8*4 ;y, x/8
+        ld de,0
+;iy=element
+;hl=yx/2
+;de=dydx/2
+        call windowelement_drawtext
+        ;halt
+        ;GET_KEY
+        ;cp NOKEY
+        ;jr z,editfilename_nokey
+        push ix
+        push iy
+        YIELDGETKEYLOOP
+        pop iy
+        pop ix
+window_edit_str=$+1
+        ld hl,0
+        cp key_enter
+        ret z
+window_edit_curx=$+1
+        ld bc,0
+        add hl,bc
+        cp key_backspace
+        jr z,window_edit_backspace
+        cp 0x20
+        jr c,window_edit_nokey ;прочие системные кнопки не нужны
+        ld e,a
+        ld a,(hl)
+        or a
+        jr z,window_edit0 ;максимальная длина строки, нельзя вводить
+        ld (hl),e
+        inc bc
+        ld (window_edit_curx),bc
+        jr window_edit0
+window_edit_backspace
+        ld a,b
+        or c
+        jr z,window_edit0 ;удалять нечего
+        dec hl
+        ld (hl),' '
+        dec bc
+        ld (window_edit_curx),bc
+        jr window_edit0
+
+strlen_wo_trailing_spaces
+;hl=str
+;out: hl=length
+        xor a
+        push hl
+        call strlen_pp
+        ex (sp),hl
+        ld a,' '
+        call strlen_pp
+        pop bc
+        call minhl_bc_tobc
+        ld h,b
+        ld l,c
+        ret
+strlen_pp 
+        ld bc,0 ;чтобы точно найти терминатор
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        ld hl,-1
+        or a
+        sbc hl,bc
         ret

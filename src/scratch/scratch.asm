@@ -792,16 +792,53 @@ control_keys_new
         
 
        
-button_ok_click
-        ret
-button_ok_unclick
+buttoncancel_unclick
+        jp window_close
+buttonok_unclick
+;TODO check sizes
+        ld hl,win_new_twid
+        call strtoint
+        dec hl
+        ld bc,2048
+        or a
+        sbc hl,bc
+        add hl,bc
+        inc hl
+        ret nc ;wrong number
+         ld (buttonok_wid),hl
+        ld hl,win_new_thgt
+        call strtoint
+        dec hl
+        ld bc,2048
+        or a
+        sbc hl,bc
+        add hl,bc
+        inc hl
+        ret nc ;wrong number
+;new image:
+        push hl
+        call delbitmap ;удалить текущую картинку и освободить странички
+buttonok_wid=$+1
+        ld hl,0
+        ld (curbitmapwid_edit),hl
+        pop hl
+        ld (curbitmaphgt),hl
+        call reserve_bmp_pages ;там genmuldewid_ahl
+        
+        ld bc,0 ;bc=x in bitmap
+        ld de,0 ;de=y in bitmap
+        ld hl,(curbitmapwid_edit) ;hl=wid
+        ld ix,(curbitmaphgt) ;ix=hgt
+        ld a,(curcolor2) ;a=color1
+        call bitmap_fillbox
+
         jp window_close
 reter
         ret
        
 win_new
 ;x/2,y,wid/2,hgt
-        db 52,10,100,100
+        db 52,10,64,64
         db 0b1000 ;flags
 ; Bit 0 - рамка не рисуется (don't draw frame)
 ; Bit 1 - reserved
@@ -818,27 +855,95 @@ win_new
 ;onclick16
 ;onunclick16
 ;onmove16
+win_new_title
         STARTWINELEMENT
-        dw win_new_button2 ;0=end of list
-        db 20,20,20,16
-        db T_BUTTON
+        dw win_new_labelhgt ;0=end of list
+        db 24,3,9*2,8
+        db T_LABEL
+        db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+        db "New image",0
+        
+win_new_labelhgt
+        STARTWINELEMENT
+        dw win_new_edithgt ;0=end of list
+        db 8,14,8,8
+        db T_LABEL
+        db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+        db "Hgt=",0
+        
+win_new_edithgt
+        STARTWINELEMENT
+        dw win_new_labelwid ;0=end of list
+        db 16,14,8,8
+        db T_EDIT
         db 0b1000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
         db 0 ;hotkey
-        dw button_ok_click
-        dw button_ok_unclick ;onunclick16
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+win_new_thgt
+        db "1   ",0
+        
+win_new_labelwid
+        STARTWINELEMENT
+        dw win_new_editwid ;0=end of list
+        db 8,24,8,8
+        db T_LABEL
+        db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+        db "Wid=",0
+        
+win_new_editwid
+        STARTWINELEMENT
+        dw win_new_buttonok ;0=end of list
+        db 16,24,8,8
+        db T_EDIT
+        db 0b1000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+win_new_twid
+        db "1   ",0
+        
+win_new_buttonok
+        STARTWINELEMENT
+        dw win_new_buttoncancel ;0=end of list
+        db 8,40,20,16
+        db T_BUTTON
+        db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw buttonok_unclick ;onunclick16
         dw reter ;onmove16
         PADWINELEMENT
         db "OK",0
         
-win_new_button2
+win_new_buttoncancel
         STARTWINELEMENT
         dw 0 ;0=end of list
-        db 48,20,20,16
-        db T_RADIO
+        db 36,40,20,16
+        db T_BUTTON
         db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
         db 0 ;hotkey
-        dw button_ok_click
-        dw reter ;onunclick16
+        dw reter ;onclick16
+        dw buttoncancel_unclick ;onunclick16
         dw reter ;onmove16
         PADWINELEMENT
         db "Cancel",0
