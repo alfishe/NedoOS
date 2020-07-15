@@ -2486,6 +2486,7 @@ writedemo1
 	ret
 
 readdemo
+        display "readdemo=",$
 	or a ;/scf
 	jr c,writedemo
 readdemo_stopflag=$

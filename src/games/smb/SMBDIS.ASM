@@ -2400,8 +2400,11 @@ ReadPortBits:
 	inc a ;Right
         cpl
 	if DEMO
+         pop de ;x = joypad number
+         push de
+         dec e ;(для joy1/2)
 	push bc
-	call readdemo ;оно же writedemo
+	call nz,readdemo ;оно же writedemo (для joy2)
 	pop bc
 	push af
 	 bit 4,b ;'v'
