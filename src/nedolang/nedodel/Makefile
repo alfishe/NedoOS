@@ -1,4 +1,4 @@
-INSTALLDIR	= 
+INSTALLDIR	= ../../../release/bin
 EXE		= nedodel
 NAME		= del
 OBJECTS		= del.ast del.var del.A_ del.S_ del.V_

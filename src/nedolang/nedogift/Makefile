@@ -1,4 +1,4 @@
-INSTALLDIR	=
+INSTALLDIR	= ../../../release/bin
 EXE		= code
 NAME		= demo
 OBJECTS		= demo.ast demo.var demo.V_ demo.A_ demo.S_ demoproc.S_ font.bin net35.bin nettort.bin
@@ -33,7 +33,7 @@ clean:
 	rm -f *.f *.D_ *.V_ *.S_ *.bin *.var *.org *.pst *.b test.trd
 
 install:
-	cp ${NAME} ${INSTALLDIR}
+	cp ${EXE} ${INSTALLDIR}/${NAME}
 
 install-doc: ${DOC} 
 #	cp ${DOC} ${INSTALLDIR}/doc
