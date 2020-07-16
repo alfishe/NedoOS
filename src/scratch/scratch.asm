@@ -781,8 +781,9 @@ key=$+1
         ret
         
 control_keys_new
-        ld lx,0b00111111 ;background fill color byte 0bRLrrrlll
-        ld hx,0b00000000 ;11111111 ;brush color byte 0bRLrrrlll
+        ;ld lx,0b00111111 ;background fill color byte 0bRLrrrlll
+        ;ld hx,0b00000000 ;11111111 ;brush color byte 0bRLrrrlll
+        call getcontrastcolors
         ld iy,win_new
         call window_start
         call window_mainloop
@@ -790,7 +791,66 @@ control_keys_new
         call showworkscreen
         ret
         
-
+getcontrastcolors
+        ld hl,workpal
+;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;high B, high b, low B, low b
+        ld ix,0x00ff ;hx=current max, lx=current min
+        ;ld iy,0x0000 ;hy=current max index, ly=current min index
+        ld c,16
+getcontrastcolors0
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        push hl
+        ex de,hl
+        call calchexcolor
+;b=0xBB
+;d=0xRR
+;e=0xGG
+        ld a,b
+        cp d
+        jr nc,$+3
+        ld a,d
+        cp e
+        jr nc,$+3
+        ld a,e
+        cp hx ;current max
+        jr c,getcontrastcolors_nmax
+        ld hx,a
+        ld hy,c
+getcontrastcolors_nmax
+        ld a,b
+        cp d
+        jr c,$+3
+        ld a,d
+        cp e
+        jr c,$+3
+        ld a,e
+        cp lx ;current min
+        jr nc,getcontrastcolors_nmin
+        ld lx,a
+        ld ly,c
+getcontrastcolors_nmin
+        pop hl
+        dec c
+        jr nz,getcontrastcolors0
+;hy=current max index (for background), ly=current min index (for brush)
+        ld h,tpixelrecode/256
+        ld a,16
+        sub hy
+        ld l,a
+        ld a,(hl)
+        ld lx,a
+        ld a,16
+        sub ly
+        ld l,a
+        ld a,(hl)
+        ld hx,a
+        ;ld lx,0b00111111 ;background fill color byte 0bRLrrrlll
+        ;ld hx,0b00000000 ;11111111 ;brush color byte 0bRLrrrlll
+        ret
        
 buttoncancel_unclick
         jp window_close
@@ -829,6 +889,11 @@ buttonok_wid=$+1
         ld de,0 ;de=y in bitmap
         ld hl,(curbitmapwid_edit) ;hl=wid
         ld ix,(curbitmaphgt) ;ix=hgt
+        
+        ld a,(win_new_flagcolor_flags)
+        bit WINELEMENT_FLAG_CHECKED,a
+        ld a,(curcolor1) ;a=color1
+        jr nz,$+5
         ld a,(curcolor2) ;a=color1
         call bitmap_fillbox
 
@@ -857,7 +922,7 @@ win_new
 ;onmove16
 win_new_title
         STARTWINELEMENT
-        dw win_new_labelhgt ;0=end of list
+        dw win_new_flagcolor ;0=end of list
         db 24,3,9*2,8
         db T_LABEL
         db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
@@ -867,6 +932,20 @@ win_new_title
         dw reter ;onmove16
         PADWINELEMENT
         db "New image",0
+        
+win_new_flagcolor
+        STARTWINELEMENT
+        dw win_new_labelhgt ;0=end of list
+        db 32,24,4,8
+        db T_FLAG
+win_new_flagcolor_flags
+        db 0b1001 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+        db "Brush color",0
         
 win_new_labelhgt
         STARTWINELEMENT

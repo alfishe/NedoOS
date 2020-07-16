@@ -44,15 +44,15 @@ curwindow_xy=$+1
         call windowelement_drawtext
         jr drawwindow_elements0_skip
 drawwindow_elements0_nbutton
-        cp T_RADIO
-        jr nz,drawwindow_elements0_nradio
+        cp T_FLAG
+        jr nz,drawwindow_elements0_nflag
         push hl
-        call shapes_drawbutton_pressed
+        call window_drawflag
         pop hl
-        ld de,0x0404 ;dydx
+        ld de,0x0004 ;dydx
         call windowelement_drawtext
         jr drawwindow_elements0_skip
-drawwindow_elements0_nradio
+drawwindow_elements0_nflag
         cp T_LABEL
         jr nz,drawwindow_elements0_nlabel
         ld de,0x0000 ;dydx
@@ -72,6 +72,91 @@ drawwindow_elements0_skip
         or ly
         jr nz,drawwindow_elements0
         ret
+
+window_drawflag
+        ld e,h
+;l=x/2
+;e=y
+        call xytoscraddr        
+        ld de,spr_flag
+        bit WINELEMENT_FLAG_CHECKED,(iy+WINELEMENT_FLAGS)
+        jr nz,$+5
+        ld de,spr_flag_off
+        jp prspr88ega
+
+spr_flag
+        db 0b00000000
+        db 0b00000000
+        db 0b10000000
+        db 0b10000000
+        db 0b01000000
+        db 0b01000000
+        db 0b01000000
+        db 0b00000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b10000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b10000000
+        db 0b10000000
+        db 0b00000000
+        db 0b00000000
+
+        db 0b01000000
+        db 0b10000000
+        db 0b10000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+
+spr_flag_off
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b00000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b10000000
+        db 0b01000000
+        db 0b10000000
+        db 0b00000000
+        db 0b00000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b10000000
+        db 0b00000000
+        db 0b10000000
+        db 0b01000000
+        db 0b00000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
 
 windowelement_drawtext
 ;iy=element
@@ -235,12 +320,19 @@ window_fire_elements0
         jr z,window_fire_clickbutton
         cp T_EDIT
         jr z,window_fire_clickedit
+        cp T_FLAG
+        jr z,window_fire_clickflag
         ;TODO
         jr window_fire_click
+window_fire_clickflag
+        ld a,(iy+WINELEMENT_FLAGS)
+        xor 1<<WINELEMENT_FLAG_CHECKED
+        ld (iy+WINELEMENT_FLAGS),a
+        call windowelement_getxy ;hl=yx/2
+        jp window_drawflag
 window_fire_clickedit       
         call window_fire_click
-        call window_edit
-        ret
+        jp window_edit
 window_fire_clickbutton
         call shapes_drawbutton_pressed
 window_fire_click

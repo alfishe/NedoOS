@@ -234,12 +234,13 @@ calcRGBtoHSV_findnomin
 ;в палитре редактора палитры первые 8 цветов: BGR
 
 copytemp_setpal
-        call setpgtemp
-        ld de,0xffe0
-        push de
-        ld bc,32
-        ldir
-        pop de
+        ;call setpgtemp
+        ;ld de,0xffe0
+        ;push de
+        ;ld bc,32
+        ;ldir
+        ;pop de
+        ex de,hl
         OS_SETPAL
         ret
 paleditorpal
@@ -336,6 +337,7 @@ drawpalcurcolor
         jp shapes_fillbox
 
 calchexcolor
+;keep c!!!
 ;hl=color (DDp palette)
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
 ;high B, high b, low B, low b

@@ -269,3 +269,47 @@ prcharbit_noletter
         pop bc
         ret
         
+prspr88ega
+;lx=background color %33210210
+;hx=color %33210210
+;de=gfx
+;hl=scr
+        push hl
+        push hl
+        call prspr88ega_column
+        pop hl
+        set 6,h
+        call prspr88ega_column
+        pop hl
+        set 5,h
+        push hl
+        call prspr88ega_column
+        pop hl
+        set 6,h
+        ;call prspr88ega_column
+prspr88ega_column
+        push iy
+        ld hy,8
+prspr88ega1
+        ld b,hx
+        ld a,(de)
+        ld c,a
+        ld a,lx
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0xb8;%10111000
+         xor b
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0x47;%01000111
+         xor b
+        ld (hl),a
+        inc de
+        ld bc,+40
+        add hl,bc
+        dec hy
+        jr nz,prspr88ega1
+        pop iy
+        ret
