@@ -98,10 +98,10 @@ cmd_begin
 ;        ld de,nvpal
 ;        OS_SETPAL
         
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
-        ld a,e
-        ld (cmdpgscreen0_0),a
+        ;ld a,e
+        ;ld (cmdpgscreen0_0),a
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
@@ -1184,7 +1184,7 @@ readbyte_readbuf
 
 editcmd_enter_runfile_hobeta
 hobetarunner=#4100
-        ld a,(cmdpgscreen0_0)
+        ld a,(user_scr0_low)
 	sub 4-1 ;ld a,#ff-4 ;pgkillable
 	SETPG16K
 
@@ -1192,8 +1192,9 @@ hobetarunner=#4100
         ld de,hobetarunner
         ld bc,hobetarunner_sz
         ldir
-cmdpgscreen0_0=$+1
-	ld a,#ff-1
+;cmdpgscreen0_0=$+1
+;	ld a,#ff-1
+        ld a,(user_scr0_low)
 	SETPG32KLOW
         inc a ;ld a,#ff-0
 	SETPG32KHIGH

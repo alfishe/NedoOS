@@ -4,9 +4,13 @@
         org PROGSTART
 cmd_begin
         ld sp,0x4000
-        OS_GETSCREENPAGES
+        
+        ld e,3 ;6912
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+
+        ;OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
-        ld a,e
+        ld a,(user_scr0_low)
         ld (cmdpgscreen0_0),a
 
 hobetarunner=#4100

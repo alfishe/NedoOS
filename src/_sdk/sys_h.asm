@@ -334,10 +334,10 @@ _1=$
         ld c,CMD_SETSCREEN
 	CALLBDOS
         endm
-        macro OS_GETSCREENPAGES ;DEPRECATED!!!! out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
-        ld c,CMD_GETSCREENPAGES
-	CALLBDOS
-        endm
+        ;macro OS_GETSCREENPAGES ;DEPRECATED!!!! out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
+        ;ld c,CMD_GETSCREENPAGES
+	;CALLBDOS
+        ;endm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         

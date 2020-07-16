@@ -272,13 +272,13 @@ filltexpgs0
         pop bc
         djnz filltexpgs0
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,h
+        ld a,(user_scr1_high)
          ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
          ld (getttexpgs_basepg7),a
          
-        ld a,d
+        ld a,(user_scr0_high)
         SETPG16K
         
 ;не будем брать физические страницы, кроме 7, т.к. pg4 используется для запарывания осью

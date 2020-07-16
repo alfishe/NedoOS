@@ -886,7 +886,15 @@ prendstroka
 nv_copyscreen0to1
 	OS_GETMAINPAGES
 	push hl
-	OS_GETSCREENPAGES
+	;OS_GETSCREENPAGES
+        ld a,(user_scr1_low)
+        ld l,a
+        ld a,(user_scr1_high)
+        ld h,a
+        ld a,(user_scr0_low)
+        ld e,a
+        ld a,(user_scr0_high)
+        ld d,a
 	push hl ;1 screen
 	push de ;0 screen
 	ld a,l
@@ -923,7 +931,15 @@ nv_copyscreen0to1
 nv_copyscreen1to0
 	OS_GETMAINPAGES
 	push hl
-	OS_GETSCREENPAGES
+	;OS_GETSCREENPAGES
+        ld a,(user_scr1_low)
+        ld l,a
+        ld a,(user_scr1_high)
+        ld h,a
+        ld a,(user_scr0_low)
+        ld e,a
+        ld a,(user_scr0_high)
+        ld d,a
 	push hl ;1 screen
 	push de ;0 screen
 	ld a,l

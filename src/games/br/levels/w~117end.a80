@@ -215,9 +215,9 @@ F_CUTh	;DI
 	OS_SETSCREEN
         ld de,RSTPAL
         OS_SETPAL
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,d
+        ld a,(user_scr0_high)
         SETPG32KHIGH
         endif
 

@@ -406,7 +406,7 @@ setTileUpdateMap
 
 _draw_tile
 	;---------------
-	ld a,(_memSlot2)
+	ld a,(CURPG32KLOW);(_memSlot2)
 	push af
 	;---------------
 	ld a,(spritesActive)
@@ -418,7 +418,7 @@ _draw_tile
 	MRestoreMemMap012 ;TODO восстанавливать страницы, бывшие до вызова
 	;-----------------
 	pop af ;чтобы не делать это
-    ld (_memSlot2),a
+    ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
     SETPG32KLOW
@@ -458,7 +458,7 @@ _color_key
 
 _draw_tile_key
 	;---------------
-	ld a,(_memSlot2)
+	ld a,(CURPG32KLOW);(_memSlot2)
 	push af
 	;---------------
 	ld a,(spritesActive)
@@ -595,7 +595,7 @@ _draw_tile_key
 	
 	;-----------------
 	pop af
-    ld (_memSlot2),a
+    ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
     SETPG32KLOW
@@ -799,13 +799,13 @@ _draw_image_noextraq
 
 	;ld bc,MEM_SLOT1
 	ld a,CC_PAGE1
-	ld (_memSlot1),a
+	;ld (_memSlot1),a
 	;out (c),a
         SETPG16K
 
 	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
-	ld (_memSlot2),a
+	;ld (_memSlot2),a
 	;out (c),a
         SETPG32KLOW
 	

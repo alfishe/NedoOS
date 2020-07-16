@@ -210,7 +210,7 @@ drawchrslines0
 drawchrs_scrwid=$+2
         ld lx,32 ;TODO
 drawchrs0
-         ld a,(setpgs_scr_high)
+         ld a,(user_scr0_high)
          SETPG16K
         ld d,hx
         dup 7
@@ -232,7 +232,7 @@ chrstype=$+1
         cp 18
         jr nz,drawchrs_skipscr2
         
-         ld a,(setpgs_scr2_high)
+         ld a,(user_scr1_high)
          SETPG16K
         ld d,hx
         dup 7

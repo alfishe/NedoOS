@@ -111,13 +111,13 @@ BDOS_setscreen
         ;xor a ;success
         ret;jr rest_exit
 
-BDOS_getscreenpages
+;BDOS_getscreenpages
 ;out: de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
 ;TODO kill
-        ld de,pgscr0_1*256+pgscr0_0
-        ld hl,pgscr1_1*256+pgscr1_0
-        ;xor a
-        ret
+;        ld de,pgscr0_1*256+pgscr0_0
+;        ld hl,pgscr1_1*256+pgscr1_0
+;        ;xor a
+;        ret
 
 BDOS_getappmainpages
 ;e=id
@@ -759,7 +759,7 @@ tbdoscmds
         db CMD_NEWPAGE
         db CMD_DELPAGE
         db CMD_SETSCREEN
-        db CMD_GETSCREENPAGES
+        ;db CMD_GETSCREENPAGES
         db CMD_MOUNT
         db CMD_FREEZEAPP
         db CMD_WAITPID
@@ -829,7 +829,7 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_waitpid
         dw BDOS_freezeapp
         dw BDOS_mount
-        dw BDOS_getscreenpages
+        ;dw BDOS_getscreenpages
         dw BDOS_setscreen
         dw BDOS_delpage
         dw BDOS_newpage

@@ -42,9 +42,9 @@ FINAL	DI
         di
         ;jr $
         ld sp,0x4000
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,d
+        ld a,(user_scr0_high)
         SETPG16K
         
 	LD SP,#7FF0

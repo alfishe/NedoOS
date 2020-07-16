@@ -67,9 +67,9 @@ begin
         ld e,3 ;6912
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,d
+        ld a,(user_scr0_high)
         SETPG16K
         
         ld hl,valid00

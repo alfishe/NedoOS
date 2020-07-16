@@ -29,18 +29,18 @@ cmd_begin
         ld a,l
         ld (highpgc000),a
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,e
-        ld (setpgs_scr_low),a
-        ;ld (setpgs_scr_attr),a
-        ld a,d
-        ld (setpgs_scr_high),a
-        ;ld (setpgs_scr_pixels),a
-        ld a,l
-        ld (setpgs_scr2_low),a
-        ld a,h
-        ld (setpgs_scr2_high),a
+        ;ld a,e
+        ;ld (setpgs_scr_low),a
+        ;;ld (setpgs_scr_attr),a
+        ;ld a,d
+        ;ld (setpgs_scr_high),a
+        ;;ld (setpgs_scr_pixels),a
+        ;ld a,l
+        ;ld (setpgs_scr2_low),a
+        ;ld a,h
+        ;ld (setpgs_scr2_high),a
         
         
         ld hl,COMMANDLINE
@@ -894,20 +894,16 @@ highpgc000=$+1
 	ret
 
 setpgs_scr
-setpgs_scr_low=$+1
-        ld a,0 ;scr0_0
+        ld a,(user_scr0_low)
         SETPG32KLOW
-setpgs_scr_high=$+1
-        ld a,0 ;scr0_1
+        ld a,(user_scr0_high)
         SETPG32KHIGH
         ret
         
 setpgs_scr2
-setpgs_scr2_low=$+1
-        ld a,0
+        ld a,(user_scr1_low)
         SETPG32KLOW
-setpgs_scr2_high=$+1
-        ld a,0
+        ld a,(user_scr1_high)
         SETPG32KHIGH
         ret
 

@@ -102,13 +102,13 @@ SFX_DATA =#5100
 	macro MSetShadowScreen
 	ld a,(_screenActive)
 	;ld bc,MEM_SLOT1
-	ld (_memSlot1),a
+	;ld (_memSlot1),a
 	;out (c),a
         SETPG16K
 
 	;ld b,high MEM_SLOT2
 	sub 4
-	ld (_memSlot2),a
+	;ld (_memSlot2),a
 	;out (c),a
         SETPG32KLOW
 	endm
@@ -121,13 +121,13 @@ SFX_DATA =#5100
 
 	;ld b,high MEM_SLOT1
 	ld a,CC_PAGE1
-	ld (_memSlot1),a
+	;ld (_memSlot1),a
 	;out (c),a
         SETPG16K
 
 	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
-	ld (_memSlot2),a
+	;ld (_memSlot2),a
 	;out (c),a
         SETPG32KLOW
 	endm
@@ -135,13 +135,13 @@ SFX_DATA =#5100
 	macro MRestoreMemMap12
 	;ld bc,MEM_SLOT1
 	ld a,CC_PAGE1
-	ld (_memSlot1),a
+	;ld (_memSlot1),a
 	;out (c),a
         SETPG16K
 
 	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
-	ld (_memSlot2),a
+	;ld (_memSlot2),a
 	;out (c),a
         SETPG32KLOW
 	endm
@@ -176,16 +176,16 @@ waitcls0
         LD (pgmain8000),A
         call setpgsmain40008000 ;записать в curpg...
 
-        OS_GETSCREENPAGES
+        ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,l
-        ld (setpgs_scr_low),a
-	xor e
-        ld (setpgs_scr_scrxor),a
-        ld a,h
+        ;ld a,l
+        ;ld (setpgs_scr_low),a
+	;xor e
+        ;ld (setpgs_scr_scrxor),a
+        ;ld a,h
          ;ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
-        xor l
-        ld (setpgs_scr_pgxor),a
+        ;xor l
+        ;ld (setpgs_scr_pgxor),a
         
 	ld de,res_path
 	OS_CHDIR
@@ -304,57 +304,99 @@ texfilename_pgnumend=$+8
 setpgsmain40008000
 pgmain4000=$+1
         ld a,0
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
 pgmain8000=$+1
         ld a,0
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
         ret
 
 setpgsscr40008000_current
-        ld a,(setpgs_scr_scrxor)
-        jr setpgsscr40008000_go
-setpgsscr40008000
-        xor a
-setpgsscr40008000_go
-setpgs_scr_low=$+1
-        xor 0
-        ld (curpg4000),a
+        call getuser_scr_low_cur
+        ;ld (curpg4000),a ;TODO kill
         SETPG16K
-setpgs_scr_pgxor=$+1
-        xor 0
-        ld (curpg8000),a
+        call getuser_scr_high_cur
+        ;ld (curpg8000),a ;TODO kill
         SETPG32KLOW
         ret
-        
-setpgscrlow4000
-        ld a,(setpgs_scr_low)
-        ld (curpg4000),a
+
+setpgsscr40008000
+        call getuser_scr_low
+        ;ld (curpg4000),a ;TODO kill
         SETPG16K
+        call getuser_scr_high
+        ;ld (curpg8000),a ;TODO kill
+        SETPG32KLOW
         ret
-setpgscrhigh4000
-        ld a,(setpgs_scr_low)
-        ld hl,setpgs_scr_pgxor
-        xor (hl)
-        ld (curpg4000),a
+
+setpgscrlow4000
+        call getuser_scr_low
         SETPG16K
         ret
 
+setpgscrhigh4000
+        call getuser_scr_high
+        SETPG16K
+        ret
+
+getuser_scr_low
+getuser_scr_low_patch=$+1
+getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr1_low)
+        ret
+
+getuser_scr_high
+getuser_scr_high_patch=$+1
+getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr1_high)
+        ret
+
+getuser_scr_low_cur
+getuser_scr_low_cur_patch=$+1
+getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr0_low)
+        ret
+
+getuser_scr_high_cur
+getuser_scr_high_cur_patch=$+1
+getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr0_high)
+        ret
+
 changescrpg_current
-        ld a,(setpgs_scr_low)
-setpgs_scr_scrxor=$+1
-        xor 0
-        ld (setpgs_scr_low),a
+;        ld a,(setpgs_scr_low)
+;setpgs_scr_scrxor=$+1
+;        xor 0
+;        ld (setpgs_scr_low),a
+        ld hl,getuser_scr_low_patch
+        ld a,(hl)
+        xor getuser_scr_low_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_patch
+        ld a,(hl)
+        xor getuser_scr_high_patchN
+        ld (hl),a
+        ld hl,getuser_scr_low_cur_patch
+        ld a,(hl)
+        xor getuser_scr_low_cur_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_cur_patch
+        ld a,(hl)
+        xor getuser_scr_high_cur_patchN
+        ld (hl),a
+
         ld a,1
 curscrnum=$+1
         xor 0
         ld ($-1),a
         ret
-
-;TODO убрать        
+        
 changescrpg
+;TODO убрать
+        ;jr $
         call changescrpg_current
+        ;ld (curscrnum_physical),a
 	ld e,a
 	OS_SETSCREEN
         ret
@@ -629,15 +671,15 @@ _palette
 	rgb222(3,3,0)
 	rgb222(3,3,3)
 
-_memSlot1
-curpg4000
-        db 0
-_memSlot2
-curpg8000
-        db 0
-_memSlot3
-curpgc000
-        db 0
+;_memSlot1
+;curpg4000
+;        db 0
+;_memSlot2
+;curpg8000
+;        db 0
+;_memSlot3
+;curpgc000
+;        db 0
 
 _borderCol	db 0
 _palBright	dw 3<<6
