@@ -141,6 +141,10 @@ makeidle
 
 standardpal
         STANDARDPAL
+
+        if PS2KBD==0
+        include "syskey2.asm"
+        endif
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 		if INETDRV

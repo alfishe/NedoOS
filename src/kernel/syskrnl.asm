@@ -445,6 +445,9 @@ on_int_noreadtime
         inc (hl)
 on_int_timerq
         
+        ld a,pgtrdosfs
+        ld bc,memport4000
+        out (c),a ;don't keep in sys_curpg4000!
         call KEYSCAN
 
         ;call PEEKKEY ;ld a,(curkey)
@@ -823,7 +826,7 @@ bcd2bin
 		if PS2KBD
 			include "ps2drv.asm"
 		else
-			include "syskey2.asm"
+			include "syskey1.asm"
 		endif
         
         include "fatfsdrv.asm"
