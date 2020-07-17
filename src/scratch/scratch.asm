@@ -890,11 +890,16 @@ buttonok_wid=$+1
         ld hl,(curbitmapwid_edit) ;hl=wid
         ld ix,(curbitmaphgt) ;ix=hgt
         
-        ld a,(win_new_flagcolor_flags)
+        ld a,(win_new_flag0color_flags)
+        bit WINELEMENT_FLAG_CHECKED,a
+        ld a,0
+        jr nz,newimage_q
+        ld a,(win_new_flagbrushcolor_flags)
         bit WINELEMENT_FLAG_CHECKED,a
         ld a,(curcolor1) ;a=color1
         jr nz,$+5
         ld a,(curcolor2) ;a=color1
+newimage_q
         call bitmap_fillbox
 
         jp window_close
@@ -922,7 +927,7 @@ win_new
 ;onmove16
 win_new_title
         STARTWINELEMENT
-        dw win_new_flagcolor ;0=end of list
+        dw win_new_flagbgcolor ;0=end of list
         db 24,3,9*2,8
         db T_LABEL
         db 0b0000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
@@ -933,19 +938,47 @@ win_new_title
         PADWINELEMENT
         db "New image",0
         
-win_new_flagcolor
+win_new_flagbgcolor
         STARTWINELEMENT
-        dw win_new_labelhgt ;0=end of list
-        db 32,24,4,8
-        db T_FLAG
-win_new_flagcolor_flags
+        dw win_new_flagbrushcolor ;0=end of list
+        db 24,14,4,8
+        db T_RADIO
+win_new_flagbgcolor_flags
         db 0b1001 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
         db 0 ;hotkey
         dw reter ;onclick16
         dw reter ;onunclick16
         dw reter ;onmove16
         PADWINELEMENT
+        db "Background color",0
+        
+win_new_flagbrushcolor
+        STARTWINELEMENT
+        dw win_new_flag0color ;0=end of list
+        db 24,22,4,8
+        db T_RADIO
+win_new_flagbrushcolor_flags
+        db 0b1000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
         db "Brush color",0
+        
+win_new_flag0color
+        STARTWINELEMENT
+        dw win_new_labelhgt ;0=end of list
+        db 24,30,4,8
+        db T_RADIO
+win_new_flag0color_flags
+        db 0b1000 ;b0:checked, b1:hidden, b2:disabled, b3:invertible
+        db 0 ;hotkey
+        dw reter ;onclick16
+        dw reter ;onunclick16
+        dw reter ;onmove16
+        PADWINELEMENT
+        db "Color 0",0
         
 win_new_labelhgt
         STARTWINELEMENT
@@ -972,7 +1005,7 @@ win_new_edithgt
         dw reter ;onmove16
         PADWINELEMENT
 win_new_thgt
-        db "1   ",0
+        db "192 ",0
         
 win_new_labelwid
         STARTWINELEMENT
@@ -999,7 +1032,7 @@ win_new_editwid
         dw reter ;onmove16
         PADWINELEMENT
 win_new_twid
-        db "1   ",0
+        db "256 ",0
         
 win_new_buttonok
         STARTWINELEMENT

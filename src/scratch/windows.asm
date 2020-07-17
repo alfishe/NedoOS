@@ -53,6 +53,15 @@ drawwindow_elements0_nbutton
         call windowelement_drawtext
         jr drawwindow_elements0_skip
 drawwindow_elements0_nflag
+        cp T_RADIO
+        jr nz,drawwindow_elements0_nradio
+        push hl
+        call window_drawradio
+        pop hl
+        ld de,0x0004 ;dydx
+        call windowelement_drawtext
+        jr drawwindow_elements0_skip
+drawwindow_elements0_nradio
         cp T_LABEL
         jr nz,drawwindow_elements0_nlabel
         ld de,0x0000 ;dydx
@@ -78,13 +87,24 @@ window_drawflag
 ;l=x/2
 ;e=y
         call xytoscraddr        
-        ld de,spr_flag
+        ld de,spr_flag_on
         bit WINELEMENT_FLAG_CHECKED,(iy+WINELEMENT_FLAGS)
         jr nz,$+5
         ld de,spr_flag_off
         jp prspr88ega
 
-spr_flag
+window_drawradio
+        ld e,h
+;l=x/2
+;e=y
+        call xytoscraddr        
+        ld de,spr_radio_on
+        bit WINELEMENT_FLAG_CHECKED,(iy+WINELEMENT_FLAGS)
+        jr nz,$+5
+        ld de,spr_radio_off
+        jp prspr88ega
+
+spr_flag_on
         db 0b00000000
         db 0b00000000
         db 0b10000000
@@ -155,6 +175,80 @@ spr_flag_off
         db 0b00000000
         db 0b00000000
         db 0b00000000
+        db 0b00000000
+        db 0b00000000
+
+spr_radio_off
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b10000000
+        db 0b10000000
+        db 0b10000000
+        db 0b01000000
+        db 0b00000000
+
+        db 0b00000000
+        db 0b11000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b11000000
+
+        db 0b00000000
+        db 0b10000000
+        db 0b01000000
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b10000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b10000000
+        db 0b10000000
+        db 0b10000000
+        db 0b00000000
+        db 0b00000000
+
+spr_radio_on
+        db 0b00000000
+        db 0b00000000
+        db 0b01000000
+        db 0b10000000
+        db 0b10000000
+        db 0b10000000
+        db 0b01000000
+        db 0b00000000
+
+        db 0b00000000
+        db 0b11000000
+        db 0b00000000
+        db 0b11000000
+        db 0b11000000
+        db 0b11000000
+        db 0b00000000
+        db 0b11000000
+
+        db 0b00000000
+        db 0b10000000
+        db 0b01000000
+        db 0b10000000
+        db 0b10000000
+        db 0b10000000
+        db 0b01000000
+        db 0b10000000
+
+        db 0b00000000
+        db 0b00000000
+        db 0b00000000
+        db 0b10000000
+        db 0b10000000
+        db 0b10000000
         db 0b00000000
         db 0b00000000
 
@@ -272,6 +366,18 @@ curwindow=$+2
         ld bc,WINDESCRIPTORSIZE
         add iy,bc
 window_fire_elements0
+         ld a,(iy+WINELEMENT_TYPE)
+         cp T_RADIO
+         jr nz,window_fire_elements_nradio
+        ld a,(window_firstradio+1) ;HSB
+        or a
+        jr nz,window_fire_elements_radiook
+        ld (window_firstradio),iy
+         jr window_fire_elements_radiook
+window_fire_elements_nradio
+        ld hl,0
+        ld (window_firstradio),hl
+window_fire_elements_radiook
         ld l,(iy+WINELEMENT_NEXT)
         ld h,(iy+WINELEMENT_NEXT+1)
         push hl
@@ -322,8 +428,39 @@ window_fire_elements0
         jr z,window_fire_clickedit
         cp T_FLAG
         jr z,window_fire_clickflag
+        cp T_RADIO
+        jr z,window_fire_clickradio
         ;TODO
         jr window_fire_click
+window_fire_elements0_skip
+        pop iy
+        ld a,hy
+        or ly
+        jp nz,window_fire_elements0
+        ret
+window_fire_clickradio
+        push iy
+window_firstradio=$+2
+        ld iy,0
+window_fire_clickradio0
+         ld a,(iy+WINELEMENT_TYPE)
+         cp T_RADIO
+         jr nz,window_fire_clickradiook
+        res WINELEMENT_FLAG_CHECKED,(iy+WINELEMENT_FLAGS)
+        call windowelement_getxy ;hl=yx/2
+        call window_drawradio
+        ld l,(iy+WINELEMENT_NEXT)
+        ld h,(iy+WINELEMENT_NEXT+1)
+        push hl
+        pop iy
+        ld a,h
+        or l
+        jr nz,window_fire_clickradio0
+window_fire_clickradiook
+        pop iy
+        set WINELEMENT_FLAG_CHECKED,(iy+WINELEMENT_FLAGS)
+        call windowelement_getxy ;hl=yx/2
+        jp window_drawradio
 window_fire_clickflag
         ld a,(iy+WINELEMENT_FLAGS)
         xor 1<<WINELEMENT_FLAG_CHECKED
@@ -351,12 +488,6 @@ window_fire_unclick
          ld l,(iy+WINELEMENT_UNCLICK)
          ld h,(iy+WINELEMENT_UNCLICK+1)
          jp (hl)
-window_fire_elements0_skip
-        pop iy
-        ld a,hy
-        or ly
-        jp nz,window_fire_elements0
-        ret
 
 window_close
          pop af ;skip window_mainloop return addr
