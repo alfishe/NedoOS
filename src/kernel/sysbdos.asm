@@ -1014,10 +1014,43 @@ sys_quit_delpages0
 		BDOSSETPGW5300
 		call w53_drop_socs
 		endif
+        if 1==1
+        ld ix,ffilearray
+        ld b,MAXFILES
+BDOS_dropapp_closefiles0
+        ld de,FIL_sz
+        ld a,(ix+FIL.PAD1)
+        cp (iy+app.id)
+        jr nz,BDOS_dropapp_closefiles_skip
+        push bc
+        push ix
+        pop de
+        push de
+        F_CLOS_CURDRV
+        pop ix
+        pop bc
+BDOS_dropapp_closefiles_skip
+        add ix,de
+        djnz BDOS_dropapp_closefiles0
+        endif
         xor a ;ok
         ld (iy+app.id),a ;b;0 ;освободили место
         ret
         
+open_keeppid
+        push af
+        push de
+        inc de
+        inc de
+        inc de
+        inc de
+        inc de
+        ld a,(iy+app.id)
+        ld (de),a
+        pop de
+        pop af
+        ret
+
 BDOS_runapp
 ;e=id
         ;push iy

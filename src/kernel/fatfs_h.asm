@@ -167,7 +167,11 @@ FIL_sz=32+512
 	; TCHAR *path,	/* Pointer to the file name */
 	; BYTE mode			/* Access mode and file open mode flags */
 ; )
+;de=fil
+;hl=flags
+;bc=filename
         MACRO F_OP
+        call open_keeppid
 	PUSH HL
 	LD hl,ffsfunc.f_open
 	call call_ffs
@@ -175,12 +179,12 @@ FIL_sz=32+512
 	ENDM
 	
     MACRO F_OPEN_CURDRV
+        call open_keeppid
 	PUSH HL
 	LD hl,ffsfunc.f_open
 	call call_ffs_curvol
 	POP BC
 	ENDM
-
 
 ;seek
 ;FRESULT f_lseek (
@@ -227,7 +231,16 @@ FIL_sz=32+512
 ; /*-----------------------------------------------------------------------*/
 ; FRESULT f_close (
 	; FIL *fp		/* Pointer to the file object to be closed */)
-    MACRO F_CLOS_CURDRV
+    MACRO F_CLOS_CURDRV ;de=fil
+    push de
+    inc de
+    inc de
+    inc de
+    inc de
+    inc de
+    xor a
+    ld (de),a
+    pop de
 	ld hl,ffsfunc.f_close
 	call call_ffs_curvol
 	ENDM
