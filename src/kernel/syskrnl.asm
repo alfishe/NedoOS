@@ -604,8 +604,6 @@ checkfocus_getkbdmouse
         xor a
         sbc hl,de
         jr nz,sys_getchar_fail ;nz
-sys_mousecoords=$+1
-        ld de,0;hl,0
 ;sys_oldmousecoords=$+1
 ;        ld de,0
 ;        ld (sys_oldmousecoords),hl
@@ -615,14 +613,17 @@ sys_mousecoords=$+1
 ;        ld a,d
 ;        sub h ;a=dy
 ;        ld d,a ;d=dy
-		if atm==1
-		push de
-        call GETKEY ;A=key, H=high bits of key, BC=keynolang
-		pop de
+		if PS2KBD==1
+			ld a,pgtrdosfs
+			ld bc,memport4000
+			out (c),a
+			call GETKEY ;A=key, H=high bits of key, BC=keynolang
 		else
-        call GETKEY ;A=key, H=high bits of key, BC=keynolang
+			call GETKEY ;A=key, H=high bits of key, BC=keynolang
 		endif
         cp a ;z
+sys_mousecoords=$+1
+        ld de,0;hl,0
 sys_mousebuttons=$+1
         ld l,0xff
         ret ;z
@@ -833,8 +834,25 @@ bcd2bin
 		endif
 
 
-		if PS2KBD
-			include "ps2drv.asm"
+		if PS2KBD==1
+KEY_PUTREDRAW
+		ld bc,0xdef7
+		out (c),c
+		ld b,0xbe
+		in a,(c)
+		jr nz,KEY_PUTREDRAW
+		xor a
+		ld (KEYSCAN.rep_wait),a
+		ld b,a
+		ld c,a
+		ld (.rep_key),bc
+		ld bc,key_redraw
+		ld (.redrawkey),bc
+		ret
+.rep_key
+		defw 0x0000
+.redrawkey
+		defw 0x0000
 		else
 			include "syskey1.asm"
 		endif

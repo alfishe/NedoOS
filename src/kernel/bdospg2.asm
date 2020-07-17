@@ -143,7 +143,9 @@ standardpal
         STANDARDPAL
 
         if PS2KBD==0
-        include "syskey2.asm"
+			include "syskey2.asm"
+		else
+			include "ps2drv.asm"
         endif
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
