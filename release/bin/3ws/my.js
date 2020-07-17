@@ -82,7 +82,7 @@ function rddir(dirPath){
 		}
 	});	
 	j.fno.forEach(function(item, i, arr) {
-		var n,pn;
+		var n,pn,iof;
 		if(item.isdir==0){
 			if(item.ln!='')n=item.ln;
 			else {
@@ -92,6 +92,28 @@ function rddir(dirPath){
 			window.s+='<tr>';
 			
 			window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+'<a href="?g='+pn+'">Download</a></td>';
+			iof=n.lastIndexOf('.');
+			if(iof != -1){
+				switch(n.toLowerCase().substring(iof)){
+					case '.com':
+						window.s+='<td><a href="javascript:runprog(\''+pn+'\')">Run</a></td>';
+						break;
+					case '.pt3':	
+					case '.pt2':
+					case '.tfc':
+					case '.m':
+						window.s+='<td><a href="javascript:runprog(\'bin/player.com%20/'+pn+'\')">Play</a></td>';
+						break;
+					case '.scr':
+						window.s+='<td><a href="javascript:runprog(\'bin/view.com%20/'+pn+'\')">View</a></td>';
+						break;
+					default:
+						window.s+='<td></td>';
+						break;
+				}
+			}else 
+				window.s+='<td></td>';
+			/*
 			if(n.toLowerCase().substring(n.length-4)=='.com')
 				window.s+='<td><a href="javascript:runprog(\''+pn+'\')">Run</a></td>';	
 			else if(n.toLowerCase().substring(n.length-4)=='.pt3'){
@@ -99,6 +121,7 @@ function rddir(dirPath){
 			}
 			else 
 				window.s+='<td></td>';
+			*/
 			window.s+='</td><td><a href="javascript:unlink(\''+n+'\')">Remove</a></td>';
 			window.s+='</tr>';
 		}
