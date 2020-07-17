@@ -74,9 +74,15 @@ BDOS_wiznetwrite
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 BDOS_setmusic
+muzpid=$+1
+        ld a,0
+        or a
+        call z,killmuz
         ex af,af'
         ld (muzpg),a
         ld (muzcall),hl
+        ld a,(iy+app.id)
+        ld (muzpid),a
 ;страницы для 8000, c000 берём из текущей юзерской карты памяти
         ld a,(iy+app.mainpg)
         call sys_setpg8000
@@ -84,6 +90,22 @@ BDOS_setmusic
         ld (muzpg8000),a
         ld a,(curpg32khigh+0x8000)
         ld (muzpgc000),a
+        ret
+        
+killmuz
+        xor a
+        ld (muzpid),a
+        ld de,sys_reter
+        ld (muzcall),de
+        ld c,0xfd
+        ld de,0x0e00
+shutay0
+        dec d
+        ld b,0xff
+        out (c),d
+        ld b,0xbf
+        out (c),e
+        jr nz,shutay0
         ret
 
 BDOS_setmainpage
@@ -1033,6 +1055,9 @@ BDOS_dropapp_closefiles_skip
         add ix,de
         djnz BDOS_dropapp_closefiles0
         endif
+        ld a,(muzpid)
+        cp (iy+app.id)
+        call z,killmuz
         xor a ;ok
         ld (iy+app.id),a ;b;0 ;освободили место
         ret
