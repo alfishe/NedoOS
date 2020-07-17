@@ -445,10 +445,20 @@ on_int_noreadtime
         inc (hl)
 on_int_timerq
         
-        ld a,pgtrdosfs
-        ld bc,memport4000
-        out (c),a ;don't keep in sys_curpg4000!
-        call KEYSCAN
+		if PS2KBD==0
+			ld a,pgtrdosfs
+			ld bc,memport4000
+			out (c),a ;don't keep in sys_curpg4000!
+			call KEYSCAN
+		else
+KEYSCAN
+.rep_wait=$+1
+			ld a,0
+			dec a
+			jp m,.end_keyscan
+			ld (.rep_wait),a
+.end_keyscan			
+		endif
 
         ;call PEEKKEY ;ld a,(curkey)
         ;cp ssEnter
