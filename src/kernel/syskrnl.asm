@@ -614,10 +614,23 @@ checkfocus_getkbdmouse
 ;        sub h ;a=dy
 ;        ld d,a ;d=dy
 		if PS2KBD==1
-			ld a,pgtrdosfs
-			ld bc,memport4000
-			out (c),a
+			display "ps2_sp ",$
+			ld (ps2_sp),sp
+			ld sp,BDOSSTACK
+			call BDOS_setpgtrdosfs
 			call GETKEY ;A=key, H=high bits of key, BC=keynolang
+			ld e,a
+			push bc ;ld (ps2_bc),bc
+			ld a,pgkillable
+			ld bc,memport4000
+			ld (sys_curpg4000),a
+			out (c),a
+			pop bc
+ps2_sp=$+1
+			ld sp,0
+;ps2_bc=$+1
+;			ld bc,0
+			ld a,e
 		else
 			call GETKEY ;A=key, H=high bits of key, BC=keynolang
 		endif
