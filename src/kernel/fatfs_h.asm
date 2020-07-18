@@ -233,6 +233,7 @@ FIL_sz=32+512
 	; FIL *fp		/* Pointer to the file object to be closed */)
     MACRO F_CLOS_CURDRV ;de=fil
     push de
+    call BDOS_setpgstructs
     inc de
     inc de
     inc de

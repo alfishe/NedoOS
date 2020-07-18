@@ -1,7 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; KERNEL (system side) ;;;;;;;;;;;;;;;;;;;;;;;        
 ;при вызове 0x0005 в системе включены страницы: pgsystem, pgkillable, pgkillable, pgkillable (на случай порчи стеком)
 
-MAXAPPS=13;16
+MAXAPPS=16
 bdosstack_sz=0;150 ;80 мало для загрузки файла, 110 мало для fopen (даже с INTSTACK2), 140 мало для чтения каталога (даже с INTSTACK2) ;0=отключить мьютекс BDOS
 
 QUITSTACK=0x4000 ;<=0x4000

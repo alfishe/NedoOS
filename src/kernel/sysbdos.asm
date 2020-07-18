@@ -1,6 +1,6 @@
 
 ;NVOLUMES=8
-MAXFILES=8
+MAXFILES=16;8
 vol_trdos=4
 
 ;предполагается, что юзер не имеет стек ниже 0x3b00, иначе он затрёт систему
@@ -1037,6 +1037,7 @@ sys_quit_delpages0
 		call w53_drop_socs
 		endif
         if 1==1
+        call BDOS_setpgstructs
         ld ix,ffilearray
         ld b,MAXFILES
 BDOS_dropapp_closefiles0
@@ -1072,6 +1073,9 @@ open_keeppid
         inc de
         ld a,(iy+app.id)
         ld (de),a
+    push bc
+    call BDOS_setpgstructs
+    pop bc
         pop de
         pop af
         ret
@@ -1681,6 +1685,9 @@ BDOS_openorcreatehandle
          ;call z,BDOS_setvol_rootdir ;drive specified in path
         call findfreeffile
          jr nz,$ ;TODO error
+        push bc
+        call BDOS_setdepage ;TODO убрать в драйвер????
+        pop bc
         ld a,b
         ex de,hl ;a=fil number, de=poi to FIL
         pop bc
@@ -2447,6 +2454,7 @@ get_name1f
 
 findfreeffile
 ;out: nz=fail, hl=FIL, b=fil number
+        call BDOS_setpgstructs
         ld hl,ffilearray
         ld de,FIL_sz
         ld b,0
@@ -2576,8 +2584,9 @@ fatfsarray=0xc000
 	;display "fatfsarray=",fatfsarray
         ;ds 4*FATFS_sz
 
-ffilearray
-        ds MAXFILES*FIL_sz
+ffilearray=fatfsarray+(13*FATFS_sz)
+        display "ffilearray_end=",ffilearray+(MAXFILES*FIL_sz)
+        ;ds MAXFILES*FIL_sz
         ;dw 0x100 ;признак конца ffilearray
         
 mfil    db "12345678.123",0 ;нужно только на время операции, которая принимает имя файла (может быть с путём?)
