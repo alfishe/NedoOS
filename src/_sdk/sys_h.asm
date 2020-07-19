@@ -136,6 +136,14 @@ _1=$
         endm
 
 ;invented  
+        macro OS_SETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        ld c,CMD_SETSTDINOUT
+	CALLBDOS
+        endm
+        macro OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        ld c,CMD_GETSTDINOUT
+	CALLBDOS
+        endm
         macro OS_PLAYCOVOX ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
         ld c,CMD_PLAYCOVOX
 	CALLBDOS

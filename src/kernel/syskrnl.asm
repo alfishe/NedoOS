@@ -128,6 +128,9 @@ mainpg          BYTE ;главная страница задачи (там userkernel)
 ;endmsg          WORD ;TODO адрес конца очереди сообщений этой задаче
 ;sp              WORD ;текущий адрес стека (лежит в mainpg:intsp)
 ;next            WORD ;TODO указатель на следущую задачу (следующая за выполняемой внутри того же приоритета)
+stdin           BYTE
+stdout          BYTE
+stderr          BYTE ;TODO не нужен?
 lasttime        BYTE
 border          BYTE ;текущий цвет бордера 0..15
 screen          BYTE ;текущий номер экрана ;fd_user + 8*screen

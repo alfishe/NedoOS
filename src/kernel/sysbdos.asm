@@ -816,7 +816,11 @@ tbdoscmds
         db CMD_SETMAINPAGE
         db CMD_SETMUSIC
         db CMD_PLAYCOVOX
+        db CMD_GETSTDINOUT
+        db CMD_SETSTDINOUT
 nbdoscmds=$-tbdoscmds
+        dw BDOS_setstdinout
+        dw BDOS_getstdinout
         dw BDOS_playcovox
         dw BDOS_setmusic
         dw BDOS_setmainpage
@@ -883,7 +887,21 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_setcolor
          dw BDOS_setxy
          dw BDOS_prattr
-        
+
+BDOS_setstdinout
+;e=stdin, d=stdout, h=stderr
+        ld (iy+app.stdin),e
+        ld (iy+app.stdout),d
+        ld (iy+app.stderr),h
+        ret
+
+BDOS_getstdinout
+;e=stdin, d=stdout, h=stderr
+        ld e,(iy+app.stdin)
+        ld d,(iy+app.stdout)
+        ld h,(iy+app.stderr)
+        ret
+
 BDOS_getkeymatrix
 ;out: bcdehlix = полуряды cs...space
         ld hl,(appaddr)
@@ -1735,6 +1753,7 @@ BDOS_number_to_fil0
 BDOS_closehandle
 ;B = file handle
 ;out: A=error
+        ;display "BDOS_closehandle=",BDOS_closehandle
         bit 6,b
         jr nz,BDOS_closehandle_noFATFS
         call BDOS_number_to_fil
@@ -1827,9 +1846,12 @@ BDOS_readwritehandle_oldaddr=$+1
 ;        jp BDOS_readhandlego
 BDOS_readhandlego
 ;b=handle
+        bit 7,b
+        jr nz,BDOS_readhandle_pipe
         bit 6,b
         jr nz,BDOS_readhandle_noFATFS
         call BDOS_readwritehandleprepare
+;hl=fil, de=number of bytes, bc=addr(0x8000+)
 	ld ix,fres
         push ix ;fres
         push de ;blocksize
@@ -1844,6 +1866,16 @@ BDOS_readhandle_noFATFS
         BDOSSETPGTRDOSFS
         pop bc
         jp trdos_fread_b ;hl=total processed bytes
+
+BDOS_readhandle_pipe
+;b=handle, hl=number of bytes, de=addr
+        display "BDOS_readhandle_pipe=",$
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld a,r
+        ld (de),a
+        ld hl,1
+        ret
 
 BDOS_writehandle
 ;B = file handle

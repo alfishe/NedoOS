@@ -839,6 +839,7 @@ filemenu_invarrzone
         ld de,8*256 + filelistwid8 ;d=hgt ;e=wid/8
 filemenu_invarrzone_invert
         call setpgshapes
+        ld ix,0xff00
         jp shapes_invbox
         
 filemenu_isitfilename

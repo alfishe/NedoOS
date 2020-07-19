@@ -9,5 +9,6 @@ del initcode.c
 del syscode.c
 del syscode.c.mlz
 sjasmplus --nologo --msg=war hobeta.asm
+sjasmplus --nologo --msg=war term.asm
 cd ..
 if "%currentdir%"=="" (pause)
