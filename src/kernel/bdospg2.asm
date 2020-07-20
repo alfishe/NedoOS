@@ -163,5 +163,6 @@ wiznet_close
 wiznet_read
 wiznet_write
         ld hl,0xffff
+        ld a,l
         ret
 		ENDIF

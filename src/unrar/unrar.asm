@@ -21,6 +21,13 @@ COLOR=7
 CURSORCOLOR=0x38
 
 namln=MAXPATH_sz;100 ;#FATHEEND=#c000;#8000;#C000CODETOP=#7D00 ;константа-максимум,используется только в DISPLAYs8=#7D00;#5B00 ;sysTAB44=#5B00;#7A3D ;#7F00 нельзя (bufstor)stBUF=#7E00;#5800 ;TODO;sec=stBUF      ;dirbufstor=THEEND-256
+TREES=0x2000
+bd=TREES
+ld=bd ;должно быть выше 0x4000! TODO
+dd=ld+(298*4)
+rd=dd+(48*4)
+TREES_SZ=rd+(28*4)-TREES
+
         org PROGSTART
 cmd_begin
         ld sp,STACK
@@ -495,11 +502,8 @@ CURFILE DS namln;DESCRIP DS 16 ;TODO убратьCURPOS  DS 4NXTPOS  DS 4
 ;;^^^7 bytes also form archive footerADDSZF  DS 4 ;packed sizeUNPSIZE DS 4HOSTOS DB 0;NUFILECRC DS 4FTIME   DS 4UNPVER  DB 0METHOD  DB 0NAMSIZE DW 0ATTR    DS 4
 ;;;;;;;;;;;;;;;;;;;EXPTYP  DW 0 ;expected type&FLAGH;CRCLO   DW 0;YEFLAGH DB 0 ;TWICE;1=depk,0=view;FREXPT  DB 0 ;TWICE;FILEZ   DW 0;usable.FileCountERRORS  DW 0;ErrCount;unknown DW 0;NU=0.ExtrFileknown   DB 0 ;NOT unknown.MDCode;SCANres DW 0 ;TWICE.SCANres=HL.AllArgsUsed;CANTCR  DW 0;NU=0!can't create.UserReject;PASWFLG DW 0 ;(password?).TmpPassword;BEFEXTR DB 0 ;1=до EXTRACT.FirstFile;GDEIX   DW 0 ;ArcPtrVOLFLG  DB 0;ArcType,2=volSOLFLG  DB 0;SolidType(1)TSTARES DB 0;ArcFormatvolPKSZ DS 4volUNSZ DS 4pieces  DW 0 ;FileCount;zagol   DW 0;1=загол уже напечuNPremn DS 4;DestUnpSize IF crcCRCArea DS 4 ENDIF CRCA    DW 0 ;TWICE=BUF32TYPEA  DB 0;NUFLAGA   DW 0SIZEA   DW 0_62ae  DW 0;NU_62b0  DW 0;NU_62b2  DW 0;NU ;UnpCRC  DS 4 ;UnpFileCRC;YCOMM   DB 0;UnpVolume.4timesCOMSYM  DB 0
 ;        align 256;       IFN kb;SECBUF  DS kb*1024;       ELSE ;SECBUF  DS 256;       ENDIF 
-        ds 0x2000-$ ;DS -$&3
-bd
-ld      DS 298*4 ;должно быть выше 0x4000! TODO
-dd      DS 48*4
-rd      DS 28*4
+        ds TREES-$ ;DS -$&3
+        ds TREES_SZ
 OUTNAM  DS namln ;DestFileNamepathbuf
         ds MAXPATH_sz
 
