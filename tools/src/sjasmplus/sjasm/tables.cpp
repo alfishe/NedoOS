@@ -377,9 +377,15 @@ void CLabelTable::DumpForUnreal() {
 		}
 		int lvalue = LabelTable[i].value & PAGE_MASK;
 		ep = ln;
-		if (page < LABEL_PAGE_ROM) ep += sprintf(ep, "%02d", page&255);
-		*(ep++) = ':';
-		PrintHexAlt(ep, lvalue);
+
+		// dirty fix to emit only "virtual" z80 addresses
+	
+//		if (page < LABEL_PAGE_ROM) ep += sprintf(ep, "%02d", page&255);
+//		*(ep++) = ':';
+//		PrintHexAlt(ep, lvalue);
+
+		PrintHexAlt(ep, LabelTable[i].value & 0xFFFF);
+
 		*(ep++) = ' ';
 		STRCPY(ep, LINEMAX-(ep-ln), LabelTable[i].name);
 		STRCAT(ep, LINEMAX, "\n");
