@@ -1,9 +1,0 @@
-INC_DEPTH=INC_DEPTH+1
-    IF INC_DEPTH < 7
-        INCLUDE "i36_II.i.asm"
-    ENDIF
-    ld  b,INC_DEPTH
-    DUP INC_DEPTH
-    nop
-    EDUP
-INC_DEPTH=INC_DEPTH-1
