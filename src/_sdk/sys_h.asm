@@ -218,7 +218,7 @@ _1=$
         ld c,CMD_DROPAPP
 	CALLBDOS
         endm
-        macro OS_GETAPPMAINPAGES ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
+        macro OS_GETAPPMAINPAGES ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id, a=error
         ld c,CMD_GETAPPMAINPAGES
 	CALLBDOS
         endm

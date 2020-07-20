@@ -1,7 +1,15 @@
 
 ;NVOLUMES=8
 MAXFILES=16;8
-vol_trdos=4
+vol_trdos=4 ;'A'..'D'
+vol_pipe=25 ;'Z'
+
+TRDOSADD40=0x40
+PIPEADD80=0x80
+
+MAXPIPES=8
+PIPEBUF_SZ=255
+PIPEDESC_SZ=PIPEBUF_SZ+1
 
 ;предполагается, что юзер не имеет стек ниже 0x3b00, иначе он затрёт систему
 
@@ -148,7 +156,7 @@ BDOS_getappmainpages
         jp nz,BDOS_fail
 BDOS_getmainpages
         ;ld iy,(appaddr)
-;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags
+;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags, b=id
 BDOS_getmainpages_iy
         call setmainpg_c000
         ld d,a
@@ -158,6 +166,7 @@ BDOS_getmainpages_iy
         ld hl,(curpg32khigh+0xc000)
         ld h,a
         ld c,(iy+app.flags)
+        ld b,(iy+app.id)
         xor a
         ret
 
@@ -889,7 +898,11 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_prattr
 
 BDOS_setstdinout
-;e=stdin, d=stdout, h=stderr
+;b=id, e=stdin, d=stdout, h=stderr
+        push de
+        ld e,b
+        call BDOS_findapp
+        pop de
         ld (iy+app.stdin),e
         ld (iy+app.stdout),d
         ld (iy+app.stderr),h
@@ -1697,6 +1710,8 @@ BDOS_openorcreatehandle
 ;DE = Drive/path/file ASCIIZ string
         call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
         jr c,BDOS_openhandle_noFATFS
+        cp vol_pipe
+        jr z,BDOS_openhandle_pipe
 		ld (.store_a),a
         push de
          ;dec c ;was c=1: drive in path
@@ -1738,6 +1753,26 @@ BDOS_openorcreatehandle_trdosmode=$+1
         ld b,h ;new file handle
         ret
 
+BDOS_openhandle_pipe
+;find free pipe
+        ld hl,freepipes
+        xor a
+        ld bc,MAXPIPES
+        cpir
+        jp nz,BDOS_fail
+        dec hl
+        inc (hl)
+        ld a,l
+        add a,0xff&(-freepipes+PIPEADD80)
+        push af ;a=handle
+;a = PIPEADD80... = pipes
+        call findpipe_byhandle ;hl=pipe ;bc=number of bytes
+        xor a
+        ld (hl),a ;size=0
+        pop bc ;b=handle
+;b=new pipe handle
+        ret
+
 BDOS_number_to_fil
 ;b = file handle = 0..
 ;out: de=fil
@@ -1754,6 +1789,8 @@ BDOS_closehandle
 ;B = file handle
 ;out: A=error
         ;display "BDOS_closehandle=",BDOS_closehandle
+        bit 7,b
+        jr nz,BDOS_closehandle_pipe
         bit 6,b
         jr nz,BDOS_closehandle_noFATFS
         call BDOS_number_to_fil
@@ -1765,6 +1802,19 @@ BDOS_closehandle_noFATFS
         ld l,0
         BDOSSETPGTRDOSFS
         jp trdos_fclose_hl
+
+BDOS_closehandle_pipe
+        inc a
+        ret z ;0xff=rnd
+        ld hl,freepipes-1
+        ld c,a
+        xor a
+        ld b,a
+        add hl,bc
+        dec (hl)
+        ret
+freepipes
+        ds MAXPIPES
 
         
 BDOS_readwritehandleprepare
@@ -1867,16 +1917,6 @@ BDOS_readhandle_noFATFS
         pop bc
         jp trdos_fread_b ;hl=total processed bytes
 
-BDOS_readhandle_pipe
-;b=handle, hl=number of bytes, de=addr
-        display "BDOS_readhandle_pipe=",$
-        call BDOS_preparedepage
-        call BDOS_setdepage
-        ld a,r
-        ld (de),a
-        ld hl,1
-        ret
-
 BDOS_writehandle
 ;B = file handle
 ;DE = Buffer address
@@ -1887,6 +1927,8 @@ BDOS_writehandle
         jr BDOS_readwritehandle
 BDOS_writehandlego
 ;b=handle
+        bit 7,b
+        jr nz,BDOS_writehandle_pipe
         bit 6,b
         jr nz,BDOS_writehandle_noFATFS
         call BDOS_readwritehandleprepare
@@ -1904,6 +1946,128 @@ BDOS_writehandle_noFATFS
         BDOSSETPGTRDOSFS
         pop bc
         jp trdos_fwrite_b ;hl=total processed bytes
+
+BDOS_readhandle_pipe
+;b=handle, hl=number of bytes, de=addr
+        display "BDOS_readhandle_pipe=",$
+        push bc
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        pop bc
+        ld a,b
+        cp 0xff
+        jr nz,BDOS_readhandle_pipe_nrnd
+        ld a,r
+        ld (de),a
+        ld hl,1
+        ret
+BDOS_readhandle_pipe_nrnd
+;a = PIPEADD80... = pipes
+        call findpipe_byhandle ;bc=number of bytes
+;читаем из текущей головы столько байт, сколько есть, но не больше number of bytes
+;пока делаем, что вся очередь лежит в начале (не атомарно)
+         ld (BDOS_readhandle_pipe_addr),hl
+        ld a,(hl) ;cur_size
+        inc hl
+        push hl ;buf start
+        ld l,a
+        ld h,0
+        call minhl_bc_tobc ;to_user_size=bc<=hl
+        pop hl ;buf start
+;
+        push bc ;to_user_size
+        ld a,b
+        or c
+        jr z,$+4
+        ldir ;to user
+        ex de,hl
+        ld l,a
+        xor a
+        ld h,a
+        pop bc ;to_user_size
+        push bc ;to_user_size
+;bc=cur_size-to_user_size
+        sbc hl,bc
+        ld b,h
+        ld c,l
+        ex de,hl
+BDOS_readhandle_pipe_addr=$+1
+        ld de,0
+         ld a,c
+         ld (de),a
+         inc de
+        jr z,BDOS_readhandle_pipe_noremain
+        ldir ;на начало очереди
+BDOS_readhandle_pipe_noremain
+        pop hl ;to_user_size ;возвращаем, сколько реально прочитано
+        ret
+        
+findpipe_byhandle
+        sub PIPEADD80-1
+        ld b,a
+        push hl ;number of bytes
+        push de ;user space
+        ld de,PIPEDESC_SZ
+        ld hl,pipebufs-PIPEDESC_SZ
+        add hl,de
+        djnz $-1
+        pop de ;user space
+        pop bc ;bc=number of bytes
+        ret
+
+BDOS_writehandle_pipe
+;b=handle, hl=number of bytes, de=addr
+        push bc
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        pop bc
+        ld a,b
+        cp 0xff
+        ret z ;rnd - fail
+;a = PIPEADD80... = pipes
+        call findpipe_byhandle ;bc=number of bytes
+;добавляем в текущий хвост столько байт, сколько есть, но чтобы не превысило размер буфера
+;пока делаем, что вся очередь лежит в начале (не атомарно)
+         ld (BDOS_writehandle_pipe_addr),hl
+        ld a,(hl) ;cur_size
+        inc hl
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        push hl ;tail
+        ld hl,PIPEBUF_SZ
+        push bc ;bc=number of bytes
+        ld c,a
+        xor a
+        ld b,a
+        sbc hl,bc ;оставшееся место в буфере
+        pop bc ;bc=number of bytes
+        call minhl_bc_tobc ;from_user_size=bc<=hl
+BDOS_writehandle_pipe_addr=$+1
+         ld hl,0
+         ld a,(hl) ;cur_size
+         add a,c ;from_user_size
+         ld (hl),a ;cur_size
+        ex de,hl ;hl=user space
+        pop de ;tail
+        push bc ;from_user_size
+        ld a,b
+        or c
+        jr z,$+4
+        ldir ;from user
+        pop hl ;from_user_size ;возвращаем, сколько реально прочитано
+        ret
+        
+minhl_bc_tobc
+        or a
+        sbc hl,bc
+        add hl,bc
+        ret nc ;bc<=hl
+        ld b,h
+        ld c,l
+        ret
+
 
 BDOS_fopen_getname_fil
 ;out: de=poi to FIL, bc=mfil
@@ -2651,6 +2815,9 @@ tsys_pages
         else
         db 0,0,0,0
         endif
+
+pipebufs
+        ds PIPEDESC_SZ*MAXPIPES
 
 	display "$ before align=",$
 ;TODO хранить прямо в текстовом экране? а если затрут, то восстанавливать? по какому событию?

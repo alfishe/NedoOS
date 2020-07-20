@@ -47,7 +47,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
-CMD_SETSTDINOUT=0xd2 ;e=stdin, d=stdout, h=stderr
+CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
 CMD_PLAYCOVOX=0xd4 ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
 CMD_SETMUSIC=0xd5 ;hl=muzaddr (0x4000..0x7fff), a=muzpg
@@ -92,7 +92,7 @@ CMD_SETCOLOR=0xf7 ;e=color byte
 CMD_SETXY=0xf8 ;de=yx ;SET CURSOR POSITION
 CMD_SETGFX=0xf9 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 CMD_SETPAL=0xfa ;de=palette (32 bytes)
-CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
+CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
 CMD_NEWPAGE=0xfc ;out: a=0 (OK)/!=0 (fail), e=page
 CMD_DELPAGE=0xfd ;e=page ;GIVE SOME PAGE BACK TO THE OS
 CMD_SETSCREEN=0xfe ;e=screen=0..1

@@ -1,3 +1,7 @@
+
+kbd(term:stdout) -> pipe0x80 -> cmd:stdin -> cmd:stdout -> pipe0x81 -> screen(term:stdin)
+
+
 почему-то proc из nv не запоминал экран (11 - 10:00, теперь не воспроизводится)
 todo сделать start proc и прочих команд?
 

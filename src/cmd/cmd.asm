@@ -16,14 +16,30 @@ CMDLINEY=24
 COLOR=7
 CURSORCOLOR=0x38
 
+        macro PRCHAR_
+        PRCHAR
+        ;call sendchar       
+        endm
+
+        macro GET_KEY_
+        GET_KEY
+        ;call receivechar       
+        endm
+
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
-        ;ld e,COLOR
-        ;OS_CLS
+        ;;ld e,COLOR
+        ;;OS_CLS
         
+        OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        ld a,e
+        ld (stdinhandle),a
+        ld a,d
+        ld (stdouthandle),a
+
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         push hl
@@ -103,7 +119,7 @@ prNNcmd
         ld c,10
         call prNcmd
         add a,'0'
-        PRCHAR
+        PRCHAR_
         ret
 prNcmd
 ;a=NN
@@ -115,7 +131,7 @@ prNcmd
         add a,c
         push af
         ld a,b
-        PRCHAR
+        PRCHAR_
         pop af
         ret
         
@@ -137,7 +153,7 @@ editcmd0
         OS_SETXY
         ld e,CURSORCOLOR;0x38
         OS_PRATTR ;нарисовать курсор
-        YIELDGETKEYLOOP
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
          ;ld a,c ;keynolang
         push af
         call cmdcalccurxy
@@ -208,7 +224,7 @@ prtext0
         or a
         ret z
         push hl
-        PRCHAR ;testing (351/352t) (was 986/987t)
+        PRCHAR_ ;testing (351/352t) (was 986/987t)
         pop hl
         inc hl
         jp prtext0
@@ -218,7 +234,7 @@ cmdprNchars
         ld a,(hl)
         inc hl
         push hl
-        PRCHAR
+        PRCHAR_
         pop hl
         pop bc
         djnz cmdprNchars
@@ -804,7 +820,7 @@ loaddir0
         and FATTRIB_DIR
         xor '.'
         push hl
-        PRCHAR
+        PRCHAR_
         pop hl
         ld b,3
         call cmdprNchars
@@ -815,11 +831,11 @@ loaddir0
         ld hl,(fcb+FCB_FSIZE)
         call prdword
         ld a,' '
-        PRCHAR
+        PRCHAR_
         ld hl,(fcb+FCB_FDATE)
         call prdate
         ld a,' '
-        PRCHAR
+        PRCHAR_
         ld hl,(fcb+FCB_FTIME)
         call prtime
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -851,7 +867,7 @@ prdate
         add a,100 ;XX century
         call prNNcmd ;year
         ld a,'-'
-        PRCHAR
+        PRCHAR_
         pop hl
         ld a,l
         push af
@@ -862,7 +878,7 @@ prdate
         and 0x0f
         call prNNcmd ;month
         ld a,'-'
-        PRCHAR
+        PRCHAR_
         pop af
         and 0x1f
         jp prNNcmd ;day
@@ -876,7 +892,7 @@ prtime
         and 0x1f
         call prNNcmd ;hour
         ld a,':'
-        PRCHAR
+        PRCHAR_
         pop hl
         ld a,l
         push af
@@ -887,7 +903,7 @@ prtime
         and 0x3f
         call prNNcmd ;minute
         ld a,':'
-        PRCHAR
+        PRCHAR_
         pop af
         add a,a
         and 0x3f
@@ -1205,7 +1221,7 @@ cmd_proc0
         ld h,0
         call prword
         ld a,' '
-        PRCHAR
+        PRCHAR_
         pop af ;main page
         SETPG32KHIGH
          pop bc ;c=flags
@@ -1214,22 +1230,22 @@ cmd_proc0
          ld a,'-'
          jr z,$+4
          ld a,'+'
-         PRCHAR
+         PRCHAR_
          pop bc
          push bc
          bit fgfx,c
          ld a,' '
          jr z,$+4
          ld a,'g'
-         PRCHAR
+         PRCHAR_
          pop bc
           bit fwaiting,c
           ld a,' '
           jr z,$+4
           ld a,'w'
-          PRCHAR
+          PRCHAR_
          ld a,' '
-         PRCHAR
+         PRCHAR_
         ld hl,0xc000+COMMANDLINE
         call prtext
         call prcrlf
@@ -1248,7 +1264,7 @@ cmd_date
         pop hl ;date
         call prdate
         ld a,' '
-        PRCHAR
+        PRCHAR_
         pop hl ;time
         call prtime
         jp prcrlf
@@ -1273,9 +1289,9 @@ cmderror
         OS_SETCOLOR
 prcrlf
         ld a,0x0d
-        PRCHAR
+        PRCHAR_
         ld a,0x0a
-        PRCHAR
+        PRCHAR_
         ret
         
 cmdsetdrive
@@ -1315,7 +1331,7 @@ cmd_type0
         push bc
 cmd_type_buf=$+1
         ld a,0
-        PRCHAR
+        PRCHAR_
         pop bc
         jr cmd_type0
         
@@ -1325,7 +1341,7 @@ cmd_echo
         jp prcrlf
         
 cmd_pause
-        YIELDGETKEYLOOP
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
          cp key_redraw
          jr z,cmd_pause
         ret
@@ -1348,7 +1364,7 @@ cmd_copydir_go
         ld hl,wordbuf
         call prtext
         ld a,'>'
-        PRCHAR
+        PRCHAR_
         ld hl,wordbuf2
         call prtext
         call prcrlf
@@ -1719,6 +1735,44 @@ curhandle=$+1
 
         include "../_sdk/prdword.asm"
         include "../_sdk/cmdpr.asm"
+
+yieldgetkeyloop
+_1=$
+	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        GET_KEY_
+        or a ;cp NOKEY ;keylang==0?
+        jr nz,$+3
+        cp c ;keynolang==0?
+        jr z,_1
+        ret
+
+sendchar
+        ld (stdoutbuf),a
+        ld hl,1
+        ld de,stdoutbuf
+stdouthandle=$+1
+        ld b,0
+        OS_WRITEHANDLE
+        ret
+
+receivechar
+        ld hl,1
+        ld de,stdinbuf
+stdinhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ld a,h
+        or l
+        ld c,a
+        ret z
+        ld a,(stdinbuf)
+        ret
+
+stdoutbuf
+        db 0
+
+stdinbuf
+        db 0 ;ds STDINBUF_SZ
 
 cmd_end
 

@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
+atm=1
+
 TEXBMP=1
 NTEXPGS=5
 NSPRPGS=1

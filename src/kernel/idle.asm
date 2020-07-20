@@ -116,41 +116,63 @@ mountdrives0
         jr nz,mountdrives0
 		
 idle_runcmd
+        ld de,tpipename
+        push de
+        OS_OPENHANDLE
+        ld a,b
+        ld (pipe1handle),a
+        pop de
+        OS_OPENHANDLE
+        ld a,b
+        ld (pipe2handle),a
+
         OS_SETSYSDRV
 
+        ld hl,tcmdloading
+        call prtext
+        
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
         jr nz,execcmd_error
-        ld a,b
-        ld (curhandle),a
         
-        ld hl,tcmdloading
-        call prtext
+        call idle_readapp ;делает CLOSE
         
-        OS_NEWAPP
-;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
-        push bc ;b=id
-
-        ld a,d
-        SETPG32KHIGH
-        push de
-        push hl
-        ld hl,cmdbuf
-        ld de,0xc080
-        ld bc,128  
-        ldir ;command line
-        pop hl
-        pop de
-
-        call readfile_pages_dehl
-
-        ld a,(curhandle)
+        push af
         ld b,a
-        OS_CLOSEHANDLE
-
+pipehandles=$+1
+pipe1handle=$+1
+pipe2handle=$+2
+        ld de,0
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+        
         pop af ;id
         ld e,a
+        OS_RUNAPP
+
+
+
+        ld de,term_filename
+        OS_OPENHANDLE
+        or a
+        jr nz,execcmd_error
+        
+        call idle_readapp ;делает CLOSE
+        
+        push af
+        ld b,a
+        ld hl,(pipehandles)
+        ld d,l
+        ld e,h
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+        
+        pop af ;id
+        ld e,a
+        ;jr $
         OS_RUNAPP
         
 ;понизить приоритет себе
@@ -182,6 +204,34 @@ execcmd_error
         ld hl,tcmdnotfound
         call prtext
         jr idleloop
+
+idle_readapp
+        ld a,b
+        ld (curhandle),a
+        
+        OS_NEWAPP ;для первой создаваемой задачи будут созданы первые два пайпа и подключены
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+        push bc ;b=id
+
+        ld a,d
+        SETPG32KHIGH
+        push de
+        push hl
+        ld hl,cmdbuf
+        ld de,0xc080
+        ld bc,128  
+        ldir ;command line
+        pop hl
+        pop de
+
+        call readfile_pages_dehl
+
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+
+        pop af ;id
+        ret
 
 tcmdnotfound
         db "cmd.com not found",0x0d,0x0a,0
@@ -253,8 +303,13 @@ curhandle=$+1
         pop de
         ret
 
+tpipename
+        db "z:",0
+
+term_filename
+        db "term.com",0
 cmd_filename
-        db "cmd.com"
+        db "cmd.com" ;0 в конце подразумевается
 stack
         ds 64
 endstack
