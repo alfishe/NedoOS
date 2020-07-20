@@ -28,162 +28,167 @@
 
 // tables.cpp
 
+#include <assert.h>
 #include "sjdefs.h"
 
-char* PreviousIsLabel;
+TextFilePos::TextFilePos() : filename(nullptr), line(0), colBegin(0), colEnd(0) {
+}
 
-char* ValidateLabel(char* naam, int flags) {
-	char* np = naam,* lp,* label,* mlp = macrolabp;
-	int p = (flags&VALIDATE_LABEL_AS_GLOBAL), l = 0;
-	label = new char[LINEMAX];
-	if (label == NULL) {
-		ErrorInt("No enough memory!", LINEMAX, FATAL);
-	}
-	lp = label;
-	label[0] = 0;
-	switch (*np) {
-	case '@':
-		if (mlp) mlp = NULL;
-		p = 1; ++np; break;
-	case '.':
-		l = 1; ++np; break;
-	default:
-		break;
-	}
-	naam = np;
-	if (!isalpha((unsigned char) * np) && *np != '_') {
+void TextFilePos::newFile(const char* fileNamePtr) {
+	filename = fileNamePtr;
+	line = colBegin = colEnd = 0;
+}
+
+// advanceColumns are valid only when true == endsWithColon (else advanceColumns == 0)
+// default arguments are basically "next line"
+void TextFilePos::nextSegment(bool endsWithColon, size_t advanceColumns) {
+	if (endsWithColon && 0 == colEnd) colEnd = 1;	// first segment of "colonized" line (do +1,+1)
+	colBegin = colEnd;
+	if (colBegin <= 1) ++line;		// first segment of any line, increment also line number
+	if (endsWithColon)	colEnd += advanceColumns;
+	else				colEnd = 0;
+}
+
+char* PreviousIsLabel = nullptr;
+
+// since v1.14.2:
+// When "setNameSpace == true" the naam is parsed as whole, reporting invalid labelname error
+// When "setNameSpace == false" the naam is parsed only through valid label chars (early exit)
+// => the labels can be evaluated straight from the expression string without copying them out!
+char* ValidateLabel(const char* naam, bool setNameSpace) {
+	const bool global = '@' == *naam;
+	const bool local = '.' == *naam;
+	if (!isLabelStart(naam)) {		// isLabelStart assures that only single modifier exist
+		if (global || local) ++naam;// single modifier is parsed (even when invalid name)
 		Error("Invalid labelname", naam);
-		delete[] label;
-		return NULL;
+		return nullptr;
 	}
-	while (*np) {
-		if (isalnum((unsigned char) * np) || *np == '_' || *np == '.' || *np == '?' || *np == '!' || *np == '#' || *np == '@') {
-			++np;
-		} else {
-			Error("Invalid labelname", naam);
-			delete[] label;
-			return NULL;
-		}
+	if (global || local) ++naam;	// single modifier is parsed
+	const bool inMacro = local && macrolabp;
+	const bool inModule = !inMacro && !global && ModuleName[0];
+	// check all chars of label
+	const char* np = naam;
+	while (islabchar(*np)) ++np;
+	if ('[' == *np) return nullptr;	// this is DEFARRAY name, do not process it as label (silent exit)
+	if (setNameSpace && *np) {
+		// if this is supposed to be new label, there shoulnd't be anything else after it
+		Error("Invalid labelname", naam);
+		return nullptr;
 	}
-	if (strlen(naam) > LABMAX) {
-		Error("Label too long", naam);
-		naam[LABMAX] = 0;
+	// calculate expected length of fully qualified label name
+	int labelLen = (np - naam), truncateAt = LABMAX;
+	if (LABMAX < labelLen) Error("Label too long", naam, IF_FIRST);	// non-fatal error, will truncate it
+	if (inMacro) labelLen += 1 + strlen(macrolabp);
+	else if (local) labelLen += 1 + strlen(vorlabp);
+	if (inModule) labelLen += 1 + strlen(ModuleName);
+	// build fully qualified label name (in newly allocated memory buffer, with precise length)
+	char* label = new char[1+labelLen];
+	if (nullptr == label) ErrorOOM();
+	label[0] = 0;
+	if (inModule) {
+		STRCAT(label, labelLen, ModuleName);	STRCAT(label, 2, ".");
 	}
-	if (mlp && l) {
-		STRCAT(lp, LINEMAX, macrolabp); STRCAT(lp, LINEMAX, ">");
-	} else {
-		if (!p && ModuleName) {
-			//int len1=strlen(lp);
-			//int len2=strlen(ModuleName);
-			STRCAT(lp, LINEMAX, ModuleName);
-			STRCAT(lp, LINEMAX, ".");
-		}
-		if (l) {
-			STRCAT(lp, LINEMAX, vorlabp); STRCAT(lp, LINEMAX, ".");
-		} else if (flags&VALIDATE_LABEL_SET_NAMESPACE) {
-			free(vorlabp);
-			vorlabp = STRDUP(naam);
-			if (vorlabp == NULL) {
-				Error("No enough memory!", NULL, FATAL);
-			}
-		}
+	if (inMacro) {
+		STRCAT(label, labelLen, macrolabp);		STRCAT(label, 2, ">");
+	} else if (local) {
+		STRCAT(label, labelLen, vorlabp);		STRCAT(label, 2, ".");
 	}
-	STRCAT(lp, LINEMAX, naam);
+	char* lp = label + strlen(label), * newVorlabP = nullptr;
+	if (setNameSpace && !local) newVorlabP = lp;	// here will start new non-local label prefix
+	while (truncateAt-- && islabchar(*naam)) *lp++ = *naam++;	// add the new label (truncated if needed)
+	*lp = 0;
+	if (labelLen < lp - label) Error("internal error", nullptr, FATAL);		// should never happen :)
+	if (newVorlabP) {
+		free(vorlabp);
+		vorlabp = STRDUP(newVorlabP);
+		if (vorlabp == NULL) ErrorOOM();
+	}
 	return label;
 }
 
-int GetLabelValue(char*& p, aint& val) {
-	val = 0;
-	char* mlp = macrolabp, *op = p;
-	int g = 0, l = 0, oIsLabelNotFound = IsLabelNotFound;
-	unsigned int len;
-	char* np;
-	if (mlp && *p == '@') {
-		mlp = 0;
-	}
-	if (mlp && '.' == *p) {
-		++p;
-		STRCPY(temp, LINEMAX, macrolabp);
-		STRCAT(temp, LINEMAX, ">");
-		len = strlen(temp);
-		np = temp + len;
-		if (!isalpha((unsigned char) * p) && *p != '_') {
-			Error("Invalid labelname", temp);
-			return 0;
-		}
-		while (islabchar(*p)) *np++ = *p++;
-		*np = 0;
-		if (need(p, '[')) {		// check if this is DEFARRAY name, refuse to parse as label then
-			p = op;
-			return 0;
-		}
-		if (strlen(temp) > LABMAX + len) {
-			Error("Label too long", temp + len);
-			temp[LABMAX + len] = 0;
-		}
-		np = temp;
-		while (*np && '>' != *np) {
-			if (LabelTable.GetValue(np, val)) return 1;
-			IsLabelNotFound = oIsLabelNotFound;
-			while (*np && '>' != *np && '.' != *np) ++np;
-			if ('.' == *np) ++np;
-		}
-	}
+static bool getLabel_invalidName = false;
 
-	p = op;
-	switch (*p) {
-	case '@':
-		g = 1;
-		++p;
-		break;
-	case '.':
-		l = 1;
-		++p;
-		break;
-	default:
-		break;
-	}
+static CLabelTableEntry* GetLabel(char*& p) {
+	getLabel_invalidName = true;
+	char* fullName = ValidateLabel(p, false);
+	if (nullptr == fullName) return nullptr;
+	getLabel_invalidName = false;
+	const bool global = '@' == *p;
+	const bool local = '.' == *p;
+	bool inMacro = local && macrolabp;		// not just inside macro, but should be prefixed
+	while (islabchar(*p)) ++p;		// advance pointer beyond the parsed label
+	const int modNameLen = strlen(ModuleName);
+	// find the label entry in the label table (for local macro labels it has to try all sub-parts!)
+	// then regular full label has to be tried
+	// and if it's regular non-local in module, then variant w/o current module has to be tried
+	char *findName = fullName;
+	bool inTableAlready = false;
+	CLabelTableEntry* labelEntry = nullptr;
 	temp[0] = 0;
-	if (!g && ModuleName) {
-		STRCAT(temp, LINEMAX, ModuleName);
-		STRCAT(temp, LINEMAX, ".");
+	do {
+		labelEntry = LabelTable.Find(findName);
+		if (labelEntry) {
+			inTableAlready = true;
+			if (LASTPASS != pass) labelEntry->used = true;
+			if (LABEL_PAGE_UNDEFINED != labelEntry->page) break;
+			labelEntry = nullptr;
+			IsLabelNotFound = 2;
+		}
+		// not found (the defined one, try more variants)
+		if (inMacro) {				// try outer macro (if there is one)
+			while ('>' != *findName && '.' != *findName) ++findName;
+			// if no more outer macros, try module+non-local prefix with the original local label
+			if ('>' == *findName++) {
+				inMacro = false;
+				if (modNameLen) {
+					STRCAT(temp, LINEMAX-2, ModuleName); STRCAT(temp, 2, ".");
+				}
+				STRCAT(temp, LABMAX-1, vorlabp); STRCAT(temp, 2, ".");
+				STRCAT(temp, LABMAX-1, findName);
+				findName = temp;
+			}
+		} else {
+			if (!global && !local && fullName == findName && modNameLen) {
+				// this still may be global label without current module (but author didn't use "@")
+				findName = fullName + modNameLen + 1;
+			} else {
+				findName = nullptr;	// all options exhausted
+			}
+		}
+	} while (findName);
+	if (nullptr == findName) {		// not found, check if it needs to be inserted into table
+		// canonical name is either in "temp" (when in-macro) or in "fullName" (outside macro)
+		findName = temp[0] ? temp : fullName;
+		if (!inTableAlready) {
+			LabelTable.Insert(findName, 0, true);
+			IsLabelNotFound = 1;
+		}
+		Error("Label not found", findName);
 	}
-	if (l) {
-		STRCAT(temp, LINEMAX, vorlabp);
-		STRCAT(temp, LINEMAX, ".");
-	}
-	len = strlen(temp); np = temp + len;
-	if (!isalpha((unsigned char) *p) && *p != '_') {
-		Error("Invalid labelname", temp); return 0;
-	}
-	while (islabchar(*p)) *np++ = *p++;
-	*np = 0;
-	if (need(p, '[')) {		// check if this is DEFARRAY name, refuse to parse as label then
-		p = op;
-		return 0;
-	}
-	if (strlen(temp) > LABMAX + len) {
-		Error("Label too long", temp + len);
-		temp[LABMAX + len] = 0;
-	}
-	if (LabelTable.GetValue(temp, val)) return 1;
-	bool undefinedInTable = (2 == IsLabelNotFound);
-	IsLabelNotFound = oIsLabelNotFound;
-	if (!l && !g && LabelTable.GetValue(temp + len, val)) return 1;
-	undefinedInTable |= (2 == IsLabelNotFound);
-	if (!undefinedInTable) LabelTable.Insert(temp, 0, true);
-	if (pass == LASTPASS) {
-		Error("Label not found", temp); return 1;
-	}
-	val = 0;
-	return 1;
+	delete[] fullName;
+	return labelEntry;
+}
+
+
+bool GetLabelPage(char*& p, aint& val) {
+	CLabelTableEntry* labelEntry = GetLabel(p);
+	val = labelEntry ? labelEntry->page : LABEL_PAGE_UNDEFINED;
+	// true even when not found, but valid label name (neeed for expression-eval logic)
+	return !getLabel_invalidName;
+}
+
+bool GetLabelValue(char*& p, aint& val) {
+	CLabelTableEntry* labelEntry = GetLabel(p);
+	val = labelEntry ? labelEntry->value : 0;
+	// true even when not found, but valid label name (neeed for expression-eval logic)
+	return !getLabel_invalidName;
 }
 
 int GetLocalLabelValue(char*& op, aint& val) {
 	char* p = op;
-	if (SkipBlanks(p) || !isdigit(*p)) return 0;
+	if (SkipBlanks(p) || !isdigit((byte)*p)) return 0;
 	char* const numberB = p;
-	while (isdigit(*p)) ++p;
+	while (isdigit((byte)*p)) ++p;
 	const char type = *p|0x20;		// [bB] => 'b', [fF] => 'f'
 	if ('b' != type && 'f' != type) return 0;	// local label must have "b" or "f" after number
 	const char following = p[1];	// should be EOL, colon or whitespace
@@ -218,6 +223,28 @@ CLabelTable::CLabelTable() {
 	NextLocation = 1;
 }
 
+static short getAddressPageNumber(const aint address, bool forceRecalculateByAddress) {
+	// everything is "ROM" based when device is NONE
+	if (!DeviceID) return LABEL_PAGE_ROM;
+	// fast-shortcut for regular labels in current slot (if they fit into it)
+	auto slot = Device->GetCurrentSlot();
+	assert(Page && slot);
+	if (!forceRecalculateByAddress && !PseudoORG) {
+		if (slot->Address <= address && address < slot->Address + slot->Size) {
+			return Page->Number;
+		}
+	}
+	// enforce explicit request of fake DISP page
+	if (PseudoORG && LABEL_PAGE_UNDEFINED != dispPageNum) {
+		return dispPageNum;
+	}
+	// in other case (implicit DISP, out-of-slot-bounds or forceRecalculateByAddress)
+	// track down the page num from current memory mapping
+	const short page = Device->GetPageOfA16(address);
+	if (LABEL_PAGE_UNDEFINED == page) return LABEL_PAGE_OUT_OF_BOUNDS;
+	return page;
+}
+
 int CLabelTable::Insert(const char* nname, aint nvalue, bool undefined, bool IsDEFL, bool IsEQU) {
 	if (NextLocation >= LABTABSIZE * 2 / 3) {
 		Error("Label table full", NULL, FATAL);
@@ -231,7 +258,7 @@ int CLabelTable::Insert(const char* nname, aint nvalue, bool undefined, bool IsD
 		} else {
 			//if label already added (as used, or in previous pass), just refresh values
 			label->value = nvalue;
-			label->page = Page ? Page->Number : LABEL_PAGE_ROM;
+			label->page = getAddressPageNumber(nvalue, IsDEFL|IsEQU);
 			label->IsDEFL = IsDEFL;
 			label->IsEQU = IsEQU;
 			label->updatePass = pass;
@@ -245,17 +272,13 @@ int CLabelTable::Insert(const char* nname, aint nvalue, bool undefined, bool IsD
 	HashTable[tr] = NextLocation;
 	label = LabelTable + NextLocation++;
 	label->name = STRDUP(nname);
-	if (label->name == NULL) Error("No enough memory!", NULL, FATAL);
+	if (label->name == NULL) ErrorOOM();
 	label->IsDEFL = IsDEFL;
 	label->IsEQU = IsEQU;
 	label->updatePass = pass;
 	label->value = nvalue;
 	label->used = undefined;
-	if (!undefined) {
-		label->page = Page ? Page->Number : LABEL_PAGE_ROM;
-	} else {
-		label->page = LABEL_PAGE_UNDEFINED;
-	}
+	label->page = undefined ? LABEL_PAGE_UNDEFINED : getAddressPageNumber(nvalue, IsDEFL|IsEQU);
 	return 1;
 }
 
@@ -263,23 +286,6 @@ int CLabelTable::Update(char* nname, aint nvalue) {
 	CLabelTableEntry* label = Find(nname);
 	if (label) label->value = nvalue;
 	return NULL != label;
-}
-
-int CLabelTable::GetValue(char* nname, aint& nvalue) {
-	nvalue = 0;
-	CLabelTableEntry* label = Find(nname);
-	if (label) {
-		if (LASTPASS != pass) label->used = true;
-		if (LABEL_PAGE_UNDEFINED == label->page) {
-			IsLabelNotFound = 2;
-			return 0;
-		} else {
-			nvalue = label->value;
-			return 1;
-		}
-	}
-	IsLabelNotFound = 1;
-	return 0;
 }
 
 CLabelTableEntry* CLabelTable::Find(const char* name, bool onlyDefined)
@@ -343,7 +349,7 @@ void CLabelTable::Dump() {
 			*(ep++) = ' ';
 			*(ep++) = LabelTable[i].used ? ' ' : 'X';
 			*(ep++) = ' ';
-			STRCPY(ep, LINEMAX - (ep - &line[0]), LabelTable[i].name);
+			STRCPY(ep, LINEMAX - (ep - line), LabelTable[i].name);
 			ep += strlen(LabelTable[i].name);
 			*(ep++) = '\n';
 			*(ep) = 0;
@@ -387,25 +393,25 @@ void CLabelTable::DumpForCSpect() {
 	if (!FOPEN_ISOK(file, Options::CSpectMapFName, "w")) {
 		Error("Error opening file", Options::CSpectMapFName, FATAL);
 	}
-	const int PAGE_SIZE = DeviceID ? Device->GetPage(0)->Size : 0x4000;
+	const int PAGE_SIZE = Options::CSpectMapPageSize;
 	const int PAGE_MASK = PAGE_SIZE - 1;
 	for (int i = 1; i < NextLocation; ++i) {
 		if (LABEL_PAGE_UNDEFINED == LabelTable[i].page) continue;
 		const int labelType =
 			LabelTable[i].IsEQU ? 1 :
 			LabelTable[i].IsDEFL ? 2 :
-			(LABEL_PAGE_ROM == LabelTable[i].page) ? 3 : 0;
+			(LABEL_PAGE_ROM <= LabelTable[i].page) ? 3 : 0;
 		const short page = labelType ? 0 : LabelTable[i].page;
 		const aint longAddress = (PAGE_MASK & LabelTable[i].value) + page * PAGE_SIZE;
-		fprintf(file, "%08lX %08lX %02X ", 0xFFFF & LabelTable[i].value, longAddress, labelType);
+		fprintf(file, "%08X %08X %02X ", 0xFFFF & LabelTable[i].value, longAddress, labelType);
 		// convert primary+local label to be "@" delimited (not "." delimited)
 		STRCPY(temp, LINEMAX, LabelTable[i].name);
 		// look for "primary" label (where the local label starts)
 		char* localLabelStart = strrchr(temp, '.');
 		while (temp < localLabelStart) {	// the dot must be at least second character
 			*localLabelStart = 0;			// terminate the possible "primary" part
-			CLabelTableEntry* label = Find(temp);
-			if (label && LABEL_PAGE_UNDEFINED != label->page) {
+			CLabelTableEntry* label = Find(temp, true);
+			if (label) {
 				*localLabelStart = '@';		// "primary" label exists, modify delimiter '.' -> '@'
 				break;
 			}
@@ -425,15 +431,15 @@ void CLabelTable::DumpSymbols() {
 		Error("Error opening file", Options::SymbolListFName, FATAL);
 	}
 	for (int i = 1; i < NextLocation; ++i) {
-		if (LabelTable[i].name && isalpha(LabelTable[i].name[0])) {
+		if (LabelTable[i].name && isalpha((byte)LabelTable[i].name[0])) {
 			STRCPY(ErrorLine, LINEMAX, LabelTable[i].name);
-			STRCAT(ErrorLine, LINEMAX2, ": equ ");
-			STRCAT(ErrorLine, LINEMAX2, "0x");
+			STRCAT(ErrorLine, LINEMAX2-1, ": equ ");
+			STRCAT(ErrorLine, LINEMAX2-1, "0x");
 			char lnrs[16], * l = lnrs;
 			PrintHex32(l, LabelTable[i].value);
 			*l = 0;
-			STRCAT(ErrorLine, LINEMAX2, lnrs);
-			STRCAT(ErrorLine, LINEMAX2, "\n");
+			STRCAT(ErrorLine, LINEMAX2-1, lnrs);
+			STRCAT(ErrorLine, LINEMAX2-1, "\n");
 			fputs(ErrorLine, symfp);
 		}
 	}
@@ -460,14 +466,12 @@ int CFunctionTable::Insert(const char* nname, void(*nfunp) (void)) {
 	}
 	HashTable[tr] = NextLocation;
 	funtab[NextLocation].name = STRDUP(nname);
-	if (funtab[NextLocation].name == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	if (funtab[NextLocation].name == NULL) ErrorOOM();
 	funtab[NextLocation].funp = nfunp;
 	++NextLocation;
 
 	STRCPY(p = temp, LINEMAX, nname);
-	while ((*p = (char) toupper(*p))) { ++p; }
+	while ((*p = (char) toupper((byte)*p))) { ++p; }
 
 	if (NextLocation >= FUNTABSIZE * 2 / 3) {
 		Error("Functions Table is full", NULL, FATAL);
@@ -482,9 +486,7 @@ int CFunctionTable::Insert(const char* nname, void(*nfunp) (void)) {
 	}
 	HashTable[tr] = NextLocation;
 	funtab[NextLocation].name = STRDUP(temp);
-	if (funtab[NextLocation].name == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	if (funtab[NextLocation].name == NULL) ErrorOOM();
 	funtab[NextLocation].funp = nfunp;
 	++NextLocation;
 
@@ -537,7 +539,7 @@ int CFunctionTable::Hash(const char* s) {
 	return h % FUNTABSIZE;
 }
 
-CLocalLabelTableEntry::CLocalLabelTableEntry(long int number, long int address, CLocalLabelTableEntry* previous) {
+CLocalLabelTableEntry::CLocalLabelTableEntry(aint number, aint address, CLocalLabelTableEntry* previous) {
 	nummer = number;
 	value = address;
 	prev = previous; next = NULL;
@@ -593,11 +595,22 @@ aint CLocalLabelTable::seekBack(const aint labelNumber) const {
 	return l ? l->value : -1L;
 }
 
+CStringsList::CStringsList() : string(NULL), next(NULL)
+{
+	// all initialized already
+}
+
+CStringsList::~CStringsList() {
+	if (string) free(string);
+	if (next) delete next;
+}
+
+
 CDefineTableEntry::CDefineTableEntry(const char* nname, const char* nvalue, CStringsList* nnss, CDefineTableEntry* nnext)
 		: name(NULL), value(NULL) {
 	name = STRDUP(nname);
 	value = new char[strlen(nvalue) + 1];
-	if (NULL == name || NULL == value) Error("No enough memory!", NULL, FATAL);
+	if (NULL == name || NULL == value) ErrorOOM();
 	char* s1 = value;
 	while (White(*nvalue)) ++nvalue;
 	while (*nvalue && *nvalue != '\n' && *nvalue != '\r') *s1++ = *nvalue++;
@@ -641,8 +654,23 @@ void CDefineTable::Add(const char* name, const char* value, CStringsList* nss) {
 	defs[(*name)&127] = new CDefineTableEntry(name, value, nss, defs[(*name)&127]);
 }
 
+static char defineGet__Counter__Buffer[32] = {};
+static char defineGet__Line__Buffer[32] = {};
+
 char* CDefineTable::Get(const char* name) {
 	if (NULL != name) {
+		// the __COUNTER__ and __LINE__ have fully dynamic custom implementation here
+		if ('_' == name[1]) {
+			if (!strcmp(name, "__COUNTER__")) {
+				SPRINTF1(defineGet__Counter__Buffer, 30, "%d", PredefinedCounter);
+				++PredefinedCounter;
+				return defineGet__Counter__Buffer;
+			}
+			if (!strcmp(name, "__LINE__")) {
+				SPRINTF1(defineGet__Line__Buffer, 30, "%d", CurSourcePos.line);
+				return defineGet__Line__Buffer;
+			}
+		}
 		CDefineTableEntry* p = defs[(*name)&127];
 		while (p) {
 			if (!strcmp(name, p->name)) {
@@ -717,23 +745,38 @@ void CDefineTable::RemoveAll() {
 	}
 }
 
-void CMacroDefineTable::Init() {
-	defs = NULL;
-	for (int i = 0; i < 128; ) used[i++] = 0;
+CMacroDefineTable::CMacroDefineTable() : defs(nullptr) {
+	for (auto & usedX : used) usedX = false;
+}
+
+CMacroDefineTable::~CMacroDefineTable() {
+	if (defs) delete defs;
+}
+
+void CMacroDefineTable::ReInit() {
+	if (defs) delete defs;
+	defs = nullptr;
+	for (auto & usedX : used) usedX = false;
 }
 
 void CMacroDefineTable::AddMacro(char* naam, char* vervanger) {
 	CDefineTableEntry* tmpdefs = new CDefineTableEntry(naam, vervanger, 0, defs);
 	defs = tmpdefs;
-	used[(*naam)&127] = 1;
+	used[(*naam)&127] = true;
 }
 
 CDefineTableEntry* CMacroDefineTable::getdefs() {
 	return defs;
 }
 
-void CMacroDefineTable::setdefs(CDefineTableEntry* ndefs) {
-	defs = ndefs;
+void CMacroDefineTable::setdefs(CDefineTableEntry* const ndefs) {
+	if (ndefs == defs) return;			// the current HEAD of defines is already same as requested one
+	// traverse through current HEAD until the requested chain is found, unchain the HEAD from it
+	CDefineTableEntry* entry = defs;
+	while (entry && ndefs != entry->next) entry = entry->next;
+	if (entry) entry->next = nullptr;	// if "ndefs" is chained to current HEAD, unchain
+	if (defs) delete defs;				// release front part of current chain from memory
+	defs = ndefs;						// the requested chain is new current HEAD
 }
 
 char* CMacroDefineTable::getverv(char* name) {
@@ -763,16 +806,33 @@ int CMacroDefineTable::FindDuplicate(char* name) {
 CStringsList::CStringsList(const char* stringSource, CStringsList* nnext) {
 	string = STRDUP(stringSource);
 	next = nnext;
-	sourceLine = CurrentSourceLine;
+	source = CurSourcePos;
+	definition = DefinitionPos.line ? DefinitionPos : CurSourcePos;
 }
 
 CMacroTableEntry::CMacroTableEntry(char* nnaam, CMacroTableEntry* nnext) {
 	naam = nnaam; next = nnext; args = body = NULL;
 }
 
-void CMacroTable::Init() {
-	macs = NULL;
-	for (int i = 0; i < 128; ) used[i++] = 0;
+CMacroTableEntry::~CMacroTableEntry() {
+	if (naam) free(naam);	// must be of STRDUP origin!
+	if (args) delete args;
+	if (body) delete body;
+	if (next) delete next;
+}
+
+CMacroTable::CMacroTable() : macs(nullptr) {
+	for (auto & usedX : used) usedX = false;
+}
+
+CMacroTable::~CMacroTable() {
+	if (macs) delete macs;
+}
+
+void CMacroTable::ReInit() {
+	if (macs) delete macs;
+	macs = nullptr;
+	for (auto & usedX : used) usedX = false;
 }
 
 int CMacroTable::FindDuplicate(char* naam) {
@@ -795,13 +855,10 @@ void CMacroTable::Add(char* nnaam, char*& p) {
 	if (FindDuplicate(nnaam)) {
 		Error("Duplicate macroname", nnaam);return;
 	}
-	char* macroname;
-	macroname = STRDUP(nnaam);
-	if (macroname == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	char* macroname = STRDUP(nnaam);
+	if (macroname == NULL) ErrorOOM();
 	macs = new CMacroTableEntry(macroname, macs);
-	used[(*macroname)&127] = 1;
+	used[(*macroname)&127] = true;
 	SkipBlanks(p);
 	while (*p) {
 		if (!(n = GetID(p))) {
@@ -840,9 +897,9 @@ int CMacroTable::Emit(char* naam, char*& p) {
 	SPRINTF1(labnr, LINEMAX, "%d", macronummer++);
 	macrolabp = labnr;
 	if (omacrolabp) {
-		STRCAT(macrolabp, LINEMAX, "."); STRCAT(macrolabp, LINEMAX, omacrolabp);
+		STRCAT(macrolabp, LINEMAX-1, "."); STRCAT(macrolabp, LINEMAX-1, omacrolabp);
 	} else {
-		MacroDefineTable.Init();
+		MacroDefineTable.ReInit();
 	}
 	// parse argument values
 	CDefineTableEntry* odefs = MacroDefineTable.getdefs();
@@ -873,12 +930,14 @@ int CMacroTable::Emit(char* naam, char*& p) {
 	++lijst;
 	STRCPY(ml, LINEMAX, line);
 	while (lijstp) {
+		DefinitionPos = lijstp->definition;
 		STRCPY(line, LINEMAX, lijstp->string);
 		substitutedLine = line;		// reset substituted listing
 		eolComment = NULL;			// reset end of line comment
 		lijstp = lijstp->next;
 		ParseLineSafe();
 	}
+	DefinitionPos = TextFilePos();
 	STRCPY(line, LINEMAX, ml);
 	lijstp = olijstp;
 	--lijst;
@@ -891,14 +950,22 @@ int CMacroTable::Emit(char* naam, char*& p) {
 CStructureEntry1::CStructureEntry1(char* nnaam, aint noffset) {
 	next = 0;
 	naam = STRDUP(nnaam);
-	if (naam == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	if (naam == NULL) ErrorOOM();
 	offset = noffset;
 }
 
+CStructureEntry1::~CStructureEntry1() {
+	free(naam);
+	if (next) delete next;
+}
+
+
 CStructureEntry2::CStructureEntry2(aint noffset, aint nlen, aint ndef, EStructureMembers ntype) {
 	next = 0; offset = noffset; len = nlen; def = ndef; type = ntype;
+}
+
+CStructureEntry2::~CStructureEntry2() {
+	if (next) delete next;
 }
 
 // Parses source input for types: BYTE, WORD, DWORD, D24
@@ -919,24 +986,28 @@ aint CStructureEntry2::ParseValue(char* & p) {
 			check24(val);
 			return(val & 0xFFFFFF);
 		case SMEMBDWORD:
-			return(val & 0xFFFFFFFFL);
+			return val;
 		default:
 			return def;
 	}
 }
 
-CStructure::CStructure(char* nnaam, char* nid, int idx, int no, int ngl, CStructure* p) {
+CStructure::CStructure(const char* nnaam, char* nid, int no, int ngl, CStructure* p) {
 	mnf = mnl = NULL; mbf = mbl = NULL;
 	naam = STRDUP(nnaam);
-	if (naam == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	if (naam == NULL) ErrorOOM();
 	id = STRDUP(nid);
-	if (id == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
-	binding = idx; next = p; noffset = no; global = ngl;
+	if (id == NULL) ErrorOOM();
+	next = p; noffset = no; global = ngl;
 	maxAlignment = 0;
+}
+
+CStructure::~CStructure() {
+	free(naam);
+	free(id);
+	if (mnf) delete mnf;
+	if (mbf) delete mbf;
+	if (next) delete next;
 }
 
 void CStructure::AddLabel(char* nnaam) {
@@ -961,8 +1032,8 @@ void CStructure::CopyLabels(CStructure* st) {
 	CStructureEntry1* np = st->mnf;
 	if (!np || !PreviousIsLabel) return;
 	char str[LINEMAX];
-	STRCPY(str, LINEMAX, PreviousIsLabel);
-	STRCAT(str, LINEMAX, ".");
+	STRCPY(str, LINEMAX-1, PreviousIsLabel);
+	STRCAT(str, LINEMAX-1, ".");
 	char * const stw = str + strlen(str);
 	while (np) {
 		STRCPY(stw, LINEMAX, np->naam);	// overwrite the second part of label
@@ -1025,7 +1096,7 @@ void CStructure::CopyMembers(CStructure* st, char*& lp) {
 
 static void InsertSingleStructLabel(char *name, const aint value) {
 	char *op = name, *p;
-	if (!(p = ValidateLabel(op, VALIDATE_LABEL_SET_NAMESPACE))) {
+	if (!(p = ValidateLabel(op, true))) {
 		Error("Illegal labelname", op, EARLY);
 		return;
 	}
@@ -1035,7 +1106,7 @@ static void InsertSingleStructLabel(char *name, const aint value) {
 			Error("Internal error. ParseLabel()", op, FATAL);
 		}
 		if (value != oval) {
-			Error("Label has different value in pass 2", temp);
+			Error("Label has different value in pass 2", p);
 		}
 	} else {
 		if (!LabelTable.Insert(p, value, false, false, true)) Error("Duplicate label", p, EARLY);
@@ -1044,11 +1115,11 @@ static void InsertSingleStructLabel(char *name, const aint value) {
 }
 
 static void InsertStructSubLabels(const char* mainName, const CStructureEntry1* members, const aint address = 0) {
-	char ln[LINEMAX];
+	char ln[LINEMAX+1];
 	STRCPY(ln, LINEMAX, mainName);
 	char * const lnsubw = ln + strlen(ln);
 	while (members) {
-		STRCPY(lnsubw, LINEMAX, members->naam);		// overwrite sub-label part
+		STRCPY(lnsubw, LINEMAX-strlen(ln), members->naam);		// overwrite sub-label part
 		InsertSingleStructLabel(ln, members->offset + address);
 		members = members->next;
 	}
@@ -1056,9 +1127,9 @@ static void InsertStructSubLabels(const char* mainName, const CStructureEntry1* 
 
 void CStructure::deflab() {
 	char sn[LINEMAX] = { '@' };
-	STRCPY(sn+1, LINEMAX, id);
+	STRCPY(sn+1, LINEMAX-1, id);
 	InsertSingleStructLabel(sn, noffset);
-	STRCAT(sn, LINEMAX, ".");
+	STRCAT(sn, LINEMAX-1, ".");
 	InsertStructSubLabels(sn, mnf);
 }
 
@@ -1068,14 +1139,14 @@ void CStructure::emitlab(char* iid, aint address) {
 		// emitting in misaligned position (considering the ALIGN used to define this struct)
 		char warnTxt[LINEMAX];
 		SPRINTF3(warnTxt, LINEMAX,
-					"Struct %s did use ALIGN %d in definition, but here it is misaligned by %ld bytes",
+					"Struct %s did use ALIGN %d in definition, but here it is misaligned by %d bytes",
 					naam, maxAlignment, misalignment);
 		Warning(warnTxt);
 	}
 	char sn[LINEMAX];
-	STRCPY(sn, LINEMAX, iid);
+	STRCPY(sn, LINEMAX-1, iid);
 	InsertSingleStructLabel(sn, address);
-	STRCAT(sn, LINEMAX, ".");
+	STRCAT(sn, LINEMAX-1, ".");
 	InsertStructSubLabels(sn, mnf, address);
 }
 
@@ -1134,25 +1205,34 @@ void CStructure::emitmembs(char*& p) {
 	if (!SkipBlanks(p)) Error("[STRUCT] Syntax error - too many arguments?");
 }
 
-void CStructureTable::Init() {
-	for (int i = 0; i < 128; strs[i++] = 0) {
-		;
+CStructureTable::CStructureTable() {
+	for (auto & structPtr : strs) structPtr = nullptr;
+}
+
+CStructureTable::~CStructureTable() {
+	for (auto structPtr : strs) if (structPtr) delete structPtr;
+}
+
+void CStructureTable::ReInit() {
+	for (auto & structPtr : strs) {
+		if (structPtr) delete structPtr;
+		structPtr = nullptr;
 	}
 }
 
-CStructure* CStructureTable::Add(char* naam, int no, int idx, int gl) {
+CStructure* CStructureTable::Add(char* naam, int no, int gl) {
 	char sn[LINEMAX], * sp;
 	sn[0] = 0;
-	if (!gl && ModuleName) {
-		STRCPY(sn, LINEMAX, ModuleName);
-		STRCAT(sn, LINEMAX, ".");
+	if (!gl && *ModuleName) {
+		STRCPY(sn, LINEMAX-2, ModuleName);
+		STRCAT(sn, 2, ".");
 	}
-	STRCAT(sn, LINEMAX, naam);
+	STRCAT(sn, LINEMAX-1, naam);
 	sp = sn;
 	if (FindDuplicate(sp)) {
 		Error("Duplicate structure name", naam, EARLY);
 	}
-	strs[(*sp)&127] = new CStructure(naam, sp, idx, 0, gl, strs[(*sp)&127]);
+	strs[(*sp)&127] = new CStructure(naam, sp, 0, gl, strs[(*sp)&127]);
 	if (no) {
 		strs[(*sp)&127]->AddMember(new CStructureEntry2(0, no, -1, SMEMBBLOCK));
 	}
@@ -1162,18 +1242,18 @@ CStructure* CStructureTable::Add(char* naam, int no, int idx, int gl) {
 CStructure* CStructureTable::zoek(const char* naam, int gl) {
 	char sn[LINEMAX], * sp;
 	sn[0] = 0;
-	if (!gl && ModuleName) {
-		STRCPY(sn, LINEMAX, ModuleName);
-		STRCAT(sn, LINEMAX, ".");
+	if (!gl && *ModuleName) {
+		STRCPY(sn, LINEMAX-2, ModuleName);
+		STRCAT(sn, 2, ".");
 	}
-	STRCAT(sn, LINEMAX, naam);
+	STRCAT(sn, LINEMAX-1, naam);
 	sp = sn;
 	CStructure* p = strs[(*sp)&127];
 	while (p) {
 		if (!strcmp(sp, p->id)) return p;
 		p = p->next;
 	}
-	if (gl || !ModuleName) return NULL;
+	if (gl || ! *ModuleName) return NULL;
 	sp += 1 + strlen(ModuleName); p = strs[(*sp)&127];
 	while (p) {
 		if (!strcmp(sp, p->id)) return p;
@@ -1214,13 +1294,10 @@ int CStructureTable::Emit(char* naam, char* l, char*& p, int gl) {
 }
 
 int LuaGetLabel(char *name) {
+	//TODO v2.0: deprecated, use default "calculate" feature to get identical results as asm line
 	aint val;
-
-	if (!LabelTable.GetValue(name, val)) {
-		return -1;
-	} else {
-		return val;
-	}
+	if (!GetLabelValue(name, val)) val = -1;
+	return val;
 }
 
 //eof tables.cpp

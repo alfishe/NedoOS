@@ -218,7 +218,7 @@ static int tolua_sjasm_zx_trdimage_create00(lua_State* tolua_S)
  {
   char* fname = ((char*)  tolua_tostring(tolua_S,1,0));
   {
-   int tolua_ret = (int)  TRD_SaveEmpty(fname);
+   int tolua_ret = (int)  TRD_SaveEmpty(fname, nullptr);
    tolua_pushnumber(tolua_S,(lua_Number)tolua_ret);
   }
  }
@@ -243,7 +243,8 @@ static int tolua_sjasm_zx_trdimage_add_file00(lua_State* tolua_S)
      !tolua_isnumber(tolua_S,3,0,&tolua_err) ||
      !tolua_isnumber(tolua_S,4,0,&tolua_err) ||
      !tolua_isnumber(tolua_S,5,0,&tolua_err) ||
-     !tolua_isnoobj(tolua_S,6,&tolua_err)
+     !tolua_isboolean(tolua_S,6,0,&tolua_err) ||
+     !tolua_isnoobj(tolua_S,7,&tolua_err)
  )
   goto tolua_lerror;
  else
@@ -254,8 +255,9 @@ static int tolua_sjasm_zx_trdimage_add_file00(lua_State* tolua_S)
   int start = ((int)  tolua_tonumber(tolua_S,3,0));
   int length = ((int)  tolua_tonumber(tolua_S,4,0));
   int autostart = ((int)  tolua_tonumber(tolua_S,5,0));
+  bool replace = ((int)  tolua_toboolean(tolua_S,6,0));
   {
-   int tolua_ret = (int)  TRD_AddFile(fname,fhobname,start,length,autostart);
+   int tolua_ret = (int)  TRD_AddFile(fname,fhobname,start,length,autostart,replace,false);
    tolua_pushnumber(tolua_S,(lua_Number)tolua_ret);
   }
  }
@@ -354,8 +356,9 @@ static int tolua_sjasm_sj_error00(lua_State* tolua_S)
  {
   char* tolua_var_9 = ((char*)  tolua_tostring(tolua_S,1,0));
   char* tolua_var_10 = ((char*)  tolua_tostring(tolua_S,2,0));
+  EStatus tolua_var_11 = ((EStatus) tolua_tovalue(tolua_S,3,ALL));
   {
-   Error(tolua_var_9, tolua_var_10, ALL);
+   Error(tolua_var_9, tolua_var_10, tolua_var_11);
   }
  }
  return 0;
@@ -385,8 +388,9 @@ static int tolua_sjasm_sj_warning00(lua_State* tolua_S)
  {
   char* tolua_var_12 = ((char*)  tolua_tostring(tolua_S,1,0));
   char* tolua_var_13 = ((char*)  tolua_tostring(tolua_S,2,0));
+  EWStatus tolua_var_14 = ((EWStatus) tolua_tovalue(tolua_S,3,W_ALL));
   {
-   Warning(tolua_var_12, tolua_var_13, W_ALL);
+   Warning(tolua_var_12, tolua_var_13, tolua_var_14);
   }
  }
  return 0;
@@ -703,8 +707,8 @@ static int tolua_sjasm_sj_calc00(lua_State* tolua_S)
  {
   char* str = ((char*)  tolua_tostring(tolua_S,1,0));
   {
-   unsigned long tolua_ret = (unsigned long)  LuaCalculate(str);
-   tolua_pushnumber(tolua_S,(lua_Number)tolua_ret);
+   lua_Number tolua_ret = LuaCalculate(str);
+   tolua_pushnumber(tolua_S, tolua_ret);
   }
  }
  return 1;
@@ -788,8 +792,8 @@ static int tolua_sjasm__c00(lua_State* tolua_S)
  {
   char* str = ((char*)  tolua_tostring(tolua_S,1,0));
   {
-   unsigned long tolua_ret = (unsigned long)  LuaCalculate(str);
-   tolua_pushnumber(tolua_S,(lua_Number)tolua_ret);
+   lua_Number tolua_ret = LuaCalculate(str);
+   tolua_pushnumber(tolua_S, tolua_ret);
   }
  }
  return 1;

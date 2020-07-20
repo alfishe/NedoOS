@@ -49,7 +49,7 @@ int ParseExpPrim(char*& p, aint& nval) {
 	} else if (DeviceID && *p == '{') {		// read WORD/BYTE from virtual device memory
 		char* const readMemP = p;
 		const int byteOnly = cmphstr(++p, "b");
-		ParseExpression(p, nval);
+		if (!ParseExpression(p, nval)) return 0;	// some syntax error inside the address expression
 		if (!need(p, '}')) {
 			Error("'}' expected", readMemP, SUPPRESS);
 			return 0;
@@ -63,23 +63,25 @@ int ParseExpPrim(char*& p, aint& nval) {
 		if (!byteOnly) res += int(MemGetByte(nval + 1)) << 8;
 		nval = res;
 		return 1;
-	} else if (isdigit((unsigned char) * p) || (*p == '#' && isalnum((unsigned char) * (p + 1))) || (*p == '$' && isalnum((unsigned char) * (p + 1))) || *p == '%') {
-	  	res = GetConstant(p, nval);
-	} else if (isalpha((unsigned char) * p) || *p == '_' || *p == '.' || *p == '@') {
-	  	res = GetLabelValue(p, nval);
-	} else if (*p == '?' && (isalpha((unsigned char) * (p + 1)) || *(p + 1) == '_' || *(p + 1) == '.' || *(p + 1) == '@')) {
-	  	++p;
-		res = GetLabelValue(p, nval);
+	} else if (isdigit((byte)*p) || (*p == '#' && isalnum((byte)*(p + 1))) || (*p == '$' && isalnum((byte)*(p + 1))) || *p == '%') {
+		return GetConstant(p, nval);
+	} else if (isLabelStart(p)) {
+		return GetLabelValue(p, nval);
+	} else if (*p == '?' && isLabelStart(p+1)) {
+		// this is undocumented "?<symbol>" operator, seems as workaround for labels like "not"
+		// This is deprecated and will be removed in v2.x of sjasmplus
+		// (where keywords will be reserved and such label would be invalid any way)
+		Warning("?<symbol> operator is deprecated and will be removed in v2.x", p);
+		++p;
+		return GetLabelValue(p, nval);
 	} else if (DeviceID && *p == '$' && *(p + 1) == '$') {
-		++p;
-		++p;
+		p += 2;
+		if (isLabelStart(p)) return GetLabelPage(p, nval);
 		nval = Page->Number;
-
 		return 1;
 	} else if (*p == '$') {
 		++p;
 		nval = CurAddress;
-
 		return 1;
 	} else if (!(res = GetCharConst(p, nval))) {
 		if (synerr) Error("Syntax error", p, IF_FIRST);
@@ -91,34 +93,34 @@ int ParseExpPrim(char*& p, aint& nval) {
 int ParseExpUnair(char*& p, aint& nval) {
 	aint right;
 	int oper;
-	if ((oper = need(p, "! ~ + - ")) || (oper = needa(p, "not", '!', "low", 'l', "high", 'h'))) {
+	if ((oper = need(p, "! ~ + - ")) || \
+		(oper = needa(p, "not", '!', "low", 'l', "high", 'h', true)) ) {
 		switch (oper) {
 		case '!':
-			if (!ParseExpUnair(p, right)) {
-				return 0;
-			} nval = -!right; break;
+			if (!ParseExpUnair(p, right)) return 0;
+			nval = -!right;
+			break;
 		case '~':
-			if (!ParseExpUnair(p, right)) {
-				return 0;
-			} nval = ~right; break;
+			if (!ParseExpUnair(p, right)) return 0;
+			nval = ~right;
+			break;
 		case '+':
-			if (!ParseExpUnair(p, right)) {
-				return 0;
-			} nval = right; break;
+			if (!ParseExpUnair(p, right)) return 0;
+			nval = right;
+			break;
 		case '-':
-			if (!ParseExpUnair(p, right)) {
-				return 0;
-			} nval = ~right + 1; break;
+			if (!ParseExpUnair(p, right)) return 0;
+			nval = ~right + 1;
+			break;
 		case 'l':
-			if (!ParseExpUnair(p, right)) {
-				return 0;
-			} nval = right & 255; break;
+			if (!ParseExpUnair(p, right)) return 0;
+			nval = right & 255;
+			break;
 		case 'h':
-			if (!ParseExpUnair(p, right)) {
-				return 0;
-			} nval = (right >> 8) & 255; break;
-		default:
-			Error("Parser error"); break;
+			if (!ParseExpUnair(p, right)) return 0;
+			nval = (right >> 8) & 255;
+			break;
+		default: Error("internal error", nullptr, FATAL); break;	// unreachable
 		}
 		return 1;
 	} else {
@@ -129,118 +131,89 @@ int ParseExpUnair(char*& p, aint& nval) {
 int ParseExpMul(char*& p, aint& nval) {
 	aint left, right;
 	int oper;
-	if (!ParseExpUnair(p, left)) {
-		return 0;
-	}
+	if (!ParseExpUnair(p, left)) return 0;
 	while ((oper = need(p, "* / % ")) || (oper = needa(p, "mod", '%'))) {
-		if (!ParseExpUnair(p, right)) {
-			return 0;
-		}
+		if (!ParseExpUnair(p, right)) return 0;
 		switch (oper) {
 		case '*':
 			left *= right; break;
 		case '/':
-			if (right) {
-				left /= right;
-			} else {
-				Error("Division by zero"); left = 0;
-			} break;
+			left = right ? left / right : 0;
+			if (!right) Error("Division by zero");
+			break;
 		case '%':
-			if (right) {
-				left %= right;
-			} else {
-				Error("Division by zero"); left = 0;
-			} break;
-		default:
-			Error("Parser error"); break;
+			left = right ? left % right : 0;
+			if (!right) Error("Division by zero");
+			break;
+		default: Error("internal error", nullptr, FATAL); break;	// unreachable
 		}
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpAdd(char*& p, aint& nval) {
 	aint left, right;
 	int oper;
-	if (!ParseExpMul(p, left)) {
-		return 0;
-	}
+	if (!ParseExpMul(p, left)) return 0;
 	while ((oper = need(p, "+ - "))) {
-		if (!ParseExpMul(p, right)) {
-			return 0;
-		}
-		switch (oper) {
-		case '+':
-			left += right; break;
-		case '-':
-			left -= right; break;
-		default:
-			Error("Parser error"); break;
-		}
+		if (!ParseExpMul(p, right)) return 0;
+		if ('-' == oper) right = -right;
+		left += right;
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpShift(char*& p, aint& nval) {
 	aint left, right;
-	unsigned long l;
+	uint32_t l;
 	int oper;
-	if (!ParseExpAdd(p, left)) {
-		return 0;
-	}
-	while ((oper = need(p, "<<>>")) || (oper = needa(p, "shl", '<' + '<', "shr", '>'))) {
+	if (!ParseExpAdd(p, left)) return 0;
+	while ((oper = need(p, "<<>>")) || (oper = needa(p, "shl", '<' + '<', "shr", '>' + '>'))) {
 		if (oper == '>' + '>' && *p == '>') {
-			++p; oper = '>' + '@';
+			++p;
+			oper += '>';
 		}
-		if (!ParseExpAdd(p, right)) {
-			return 0;
-		}
+		if (!ParseExpAdd(p, right)) return 0;
 		switch (oper) {
 		case '<'+'<':
 			left <<= right; break;
-		case '>':
 		case '>'+'>':
 			left >>= right; break;
-		case '>'+'@':
+		case '>'+'>'+'>':
 			l = left; l >>= right; left = l; break;
-		default:
-			Error("Parser error"); break;
+		default: Error("internal error", nullptr, FATAL); break;	// unreachable
 		}
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpMinMax(char*& p, aint& nval) {
 	aint left, right;
 	int oper;
-	if (!ParseExpShift(p, left)) {
-		return 0;
-	}
+	if (!ParseExpShift(p, left)) return 0;
 	while ((oper = need(p, "<?>?"))) {
-		if (!ParseExpShift(p, right)) {
-			return 0;
-		}
+		if (!ParseExpShift(p, right)) return 0;
 		switch (oper) {
 		case '<'+'?':
 			left = left < right ? left : right; break;
 		case '>'+'?':
 			left = left > right ? left : right; break;
-		default:
-			Error("Parser error"); break;
+		default: Error("internal error", nullptr, FATAL); break;	// unreachable
 		}
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpCmp(char*& p, aint& nval) {
 	aint left, right;
 	int oper;
-	if (!ParseExpMinMax(p, left)) {
-		return 0;
-	}
+	if (!ParseExpMinMax(p, left)) return 0;
 	while ((oper = need(p, "<=>=< > "))) {
-		if (!ParseExpMinMax(p, right)) {
-			return 0;
-		}
+		if (!ParseExpMinMax(p, right)) return 0;
 		switch (oper) {
 		case '<':
 			left = -(left < right); break;
@@ -250,110 +223,82 @@ int ParseExpCmp(char*& p, aint& nval) {
 			left = -(left <= right); break;
 		case '>'+'=':
 			left = -(left >= right); break;
-		default:
-			Error("Parser error"); break;
+		default: Error("internal error", nullptr, FATAL); break;	// unreachable
 		}
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpEqu(char*& p, aint& nval) {
 	aint left, right;
 	int oper;
-	if (!ParseExpCmp(p, left)) {
-		return 0;
-	}
+	if (!ParseExpCmp(p, left)) return 0;
 	while ((oper = need(p, "=_==!="))) {
-		if (!ParseExpCmp(p, right)) {
-			return 0;
-		}
-		switch (oper) {
-		case '=':
-		case '='+'=':
-			left = -(left == right); break;
-		case '!'+'=':
-			left = -(left != right); break;
-		default:
-			Error("Parser error"); break;
-		}
+		if (!ParseExpCmp(p, right)) return 0;
+		left = (('!'+'=') == oper) ? -(left != right) : -(left == right);
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpBitAnd(char*& p, aint& nval) {
 	aint left, right;
-	if (!ParseExpEqu(p, left)) {
-		return 0;
-	}
+	if (!ParseExpEqu(p, left)) return 0;
 	while (need(p, "&_") || needa(p, "and", '&')) {
-		if (!ParseExpEqu(p, right)) {
-			return 0;
-		}
+		if (!ParseExpEqu(p, right)) return 0;
 		left &= right;
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpBitXor(char*& p, aint& nval) {
 	aint left, right;
-	if (!ParseExpBitAnd(p, left)) {
-		return 0;
-	}
+	if (!ParseExpBitAnd(p, left)) return 0;
 	while (need(p, "^ ") || needa(p, "xor", '^')) {
-		if (!ParseExpBitAnd(p, right)) {
-			return 0;
-		}
+		if (!ParseExpBitAnd(p, right)) return 0;
 		left ^= right;
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpBitOr(char*& p, aint& nval) {
 	aint left, right;
-	if (!ParseExpBitXor(p, left)) {
-		return 0;
-	}
+	if (!ParseExpBitXor(p, left)) return 0;
 	while (need(p, "|_") || needa(p, "or", '|')) {
-		if (!ParseExpBitXor(p, right)) {
-			return 0;
-		}
+		if (!ParseExpBitXor(p, right)) return 0;
 		left |= right;
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpLogAnd(char*& p, aint& nval) {
 	aint left, right;
-	if (!ParseExpBitOr(p, left)) {
-		return 0;
-	}
+	if (!ParseExpBitOr(p, left)) return 0;
 	while (need(p, "&&")) {
-		if (!ParseExpBitOr(p, right)) {
-			return 0;
-		}
+		if (!ParseExpBitOr(p, right)) return 0;
 		left = -(left && right);
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpLogOr(char*& p, aint& nval) {
 	aint left, right;
-	if (!ParseExpLogAnd(p, left)) {
-		return 0;
-	}
+	if (!ParseExpLogAnd(p, left)) return 0;
 	while (need(p, "||")) {
-		if (!ParseExpLogAnd(p, right)) {
-			return 0;
-		}
+		if (!ParseExpLogAnd(p, right)) return 0;
 		left = -(left || right);
 	}
-	nval = left; return 1;
+	nval = left;
+	return 1;
 }
 
 int ParseExpression(char*& p, aint& nval) {
-	if (ParseExpLogOr(p, nval)) {
-		return 1;
-	}
+	if (ParseExpLogOr(p, nval)) return 1;
 	nval = 0;
 	return 0;
 }
@@ -364,6 +309,19 @@ int ParseExpressionNoSyntaxError(char*& lp, aint& val) {
 	int ret_val = ParseExpression(lp, val);
 	synerr = osynerr;
 	return ret_val;
+}
+
+// returns 0 on syntax error, 1 on expression which is not enclosed in parentheses
+// 2 when whole expression is in [] or () (--syntax=b/B affects when "2" is reported)
+int ParseExpressionMemAccess(char*& p, aint& nval) {
+	const EBracketType bt = OpenBracket(p);
+	// if round parenthesis starts the expression, calculate pointer where it ends (and move "p" back on "(")
+	char* const expectedEndBracket = (BT_ROUND == bt) ? ParenthesesEnd(--p) : nullptr;
+	if (!ParseExpression(p, nval)) return 0;	// evaluate expression
+	if (BT_NONE == bt) return 1;				// no parentheses are always "value"
+	if (BT_ROUND == bt) return (expectedEndBracket == p) ? 2 : 1;	// round parentheses are "memory" when end is as expected
+	if (CloseBracket(p)) return 2;				// square brackets must be closed properly, then it is "memory"
+	return 0;	// curly brackets are not detect by OpenBracket, but if they would, it would work same as square here
 }
 
 void ParseAlignArguments(char* & src, aint & alignment, aint & fill) {
@@ -382,6 +340,7 @@ void ParseAlignArguments(char* & src, aint & alignment, aint & fill) {
 	}
 	if (!comma(src)) return;
 	if (!ParseExpression(lp, fill)) {
+		Error("[ALIGN] fill-byte expected after comma", bp, IF_FIRST);
 		fill = -1;
 	} else if (fill < 0 || 255 < fill) {
 		Error("[ALIGN] Illegal align fill-byte", oldSrc, SUPPRESS);
@@ -391,13 +350,14 @@ void ParseAlignArguments(char* & src, aint & alignment, aint & fill) {
 
 static bool ReplaceDefineInternal(char* lp, char* const nl) {
 	int definegereplaced = 0,dr;
-	char* rp = nl,* nid,* kp,* ver;
-	bool isPrevDefDir, isCurrDefDir = false;	// to remember if one of DEFINE-related directives was previous word
+	char* rp = nl,* nid,* ver;
+	bool isDefDir = false;	// to remember if one of DEFINE-related directives was used
 	bool afterNonAlphaNum, afterNonAlphaNumNext = true;
-	while (*lp) {
+	char defarrayCountTxt[16] = { 0 };
+	while (*lp && ((rp - nl) < LINEMAX)) {
 		const char c1 = lp[0], c2 = lp[1];
 		afterNonAlphaNum = afterNonAlphaNumNext;
-		afterNonAlphaNumNext = !isalnum(c1);
+		afterNonAlphaNumNext = !isalnum((byte)c1);
 		if (c1 == '/' && c2 == '*') {	// block-comment local beginning (++block_nesting)
 			lp += 2;
 			++comlin;
@@ -427,8 +387,6 @@ static bool ReplaceDefineInternal(char* lp, char* const nl) {
 
 		// strings parsing
 		if (afterNonAlphaNum && (c1 == '"' || c1 == '\'')) {
-			isPrevDefDir = isCurrDefDir;
-			isCurrDefDir = false;
 			*rp++ = *lp++;				// copy the string delimiter (" or ')
 			// apostrophe inside apostrophes ('') will parse as end + start of another string
 			// which sort of "accidentally" leads to correct final results
@@ -441,16 +399,17 @@ static bool ReplaceDefineInternal(char* lp, char* const nl) {
 			continue;
 		}
 
-		if (!isalpha((unsigned char) * lp) && *lp != '_') {
+		if (!isLabelStart(lp, false)) {
 			*rp++ = *lp++;
 			continue;
 		}
 
-		// update previous/current word is define-related directive
-		isPrevDefDir = isCurrDefDir;
-		kp = lp;
-		isCurrDefDir = afterNonAlphaNum && (cmphstr(kp, "define") || cmphstr(kp, "undefine") || cmphstr(kp, "defarray+")
+		// update "is define-related directive" for remainder of the line
+		char* kp = lp;
+		isDefDir |= afterNonAlphaNum && (cmphstr(kp, "define") || cmphstr(kp, "undefine") || cmphstr(kp, "defarray+")
 			|| cmphstr(kp, "defarray") || cmphstr(kp, "ifdef") || cmphstr(kp, "ifndef"));
+		// if DEFINE-related directive was used, only macro-arguments are substituted
+		// in the remaining part of the line, the define-based substitution is inhibited till EOL
 
 		// The following loop is recursive-like macro/define substitution, the `*lp` here points
 		// at alphabet/underscore char, marking start of "id" string, and it will be parsed by
@@ -466,7 +425,7 @@ static bool ReplaceDefineInternal(char* lp, char* const nl) {
 			const bool canSubstituteInside = '_' != nid[0] || nextSubIdLp == wholeIdLp;
 			if (macrolabp && canSubstituteInside && (ver = MacroDefineTable.getverv(nid))) {
 				dr = 2;			// macro argument substitution is possible
-			} else if (!isPrevDefDir && canSubstituteInside && (ver = DefineTable.Get(nid))) {
+			} else if (!isDefDir && canSubstituteInside && (ver = DefineTable.Get(nid))) {
 				dr = 1;			// DEFINE substitution is possible
 				//handle DEFARRAY case
 				if (DefineTable.DefArrayList) {
@@ -475,7 +434,16 @@ static bool ReplaceDefineInternal(char* lp, char* const nl) {
 					while (White(*lp)) GrowSubIdByExtraChar(lp);
 					aint val;
 					if ('[' != *lp) Error("[ARRAY] Expression error", nextSubIdLp, SUPPRESS);
-					if ('[' == *lp && GrowSubIdByExtraChar(lp) && ParseExpressionNoSyntaxError(lp, val) && ']' == *lp) {
+					if ('[' == *lp && '#' == lp[1] && ']' == lp[2]) {	// calculate size of defarray
+						lp += 3;
+						val = 0;
+						while (a) {
+							++val;
+							a = a->next;
+						}
+						sprintf(defarrayCountTxt, "%d", val);
+						ver = defarrayCountTxt;
+					} else if ('[' == *lp && GrowSubIdByExtraChar(lp) && ParseExpressionNoSyntaxError(lp, val) && ']' == *lp) {
 						++lp;
 						while (0 < val && a) {
 							a = a->next;
@@ -504,7 +472,7 @@ static bool ReplaceDefineInternal(char* lp, char* const nl) {
 			}
 			if (0 < dr) definegereplaced = 1;		// above zero => count as replacement
 			if (0 != dr) {				// any non-zero dr => write to the output
-				while (*ver) *rp++ = *ver++;		// replace the string into target buffer
+				while (*ver && ((rp - nl) < LINEMAX)) *rp++ = *ver++;		// replace the string into target buffer
 				// reset subId parser to catch second+ subId in current Id
 				ResetGrowSubId();
 				nextSubIdLp = lp;
@@ -513,8 +481,8 @@ static bool ReplaceDefineInternal(char* lp, char* const nl) {
 		} while(islabchar(*lp));
 	} // while(*lp)
 	// add line terminator to the output buffer
-	*rp = 0;
-	if (strlen(nl) > LINEMAX - 1) {
+	*rp++ = 0;
+	if (LINEMAX <= (rp - nl)) {
 		Error("line too long after macro expansion", NULL, FATAL);
 	}
 	// check if whole line is just blanks, then return just empty one
@@ -535,27 +503,43 @@ char* ReplaceDefine(char* lp) {
 		if (!ReplaceDefineInternal(sline2, sline)) return sline;
 	}
 	Error("Over 20 defines nested", NULL, FATAL);
-	return NULL;
+	return NULL;	//unreachable
+}
+
+void SetLastParsedLabel(const char* label) {
+	if (LastParsedLabel) free(LastParsedLabel);
+	if (nullptr != label) {
+		LastParsedLabel = STRDUP(label);
+		if (nullptr == LastParsedLabel) ErrorOOM();
+		LastParsedLabelLine = CompiledCurrentLine;
+	} else {
+		LastParsedLabel = nullptr;
+		LastParsedLabelLine = 0;
+	}
 }
 
 void ParseLabel() {
 	if (White()) return;
 	if (Options::syx.IsPseudoOpBOF && ParseDirective(true)) return;
 	char temp[LINEMAX], * tp = temp, * ttp;
-	aint val, oval;
+	aint val;
 	while (*lp && !White() && *lp != ':' && *lp != '=') {
 		*tp = *lp; ++tp; ++lp;
 	}
 	*tp = 0;
-	if (*lp == ':') {
-		++lp;
-	}
+	if (*lp == ':') ++lp;
 	tp = temp;
 	SkipBlanks();
 	IsLabelNotFound = 0;
-	if (isdigit((unsigned char) * tp)) {
+	if (isdigit((byte)*tp)) {
+		ttp = tp;
+		while (*ttp && isdigit((byte)*ttp)) ++ttp;
+		if (*ttp) {
+			Error("Invalid temporary label (not a number)", temp);
+			return;
+		}
 		if (NeedEQU() || NeedDEFL()) {
-			Error("Number labels only allowed as address labels");
+			Error("Number labels are allowed as address labels only, not for DEFL/=/EQU", temp, SUPPRESS);
 			return;
 		}
 		val = atoi(tp);
@@ -563,13 +547,17 @@ void ParseLabel() {
 			Error("Local-labels flow differs in this pass (missing/new local label or final pass source difference)");
 		}
 	} else {
+		if (isMacroNext()) {
+			SetLastParsedLabel(tp);	// store raw label into "last parsed" without adding module/etc
+			return;					// and don't add it to labels table at all
+		}
 		bool IsDEFL = NeedDEFL(), IsEQU = NeedEQU();
 		if (IsDEFL || IsEQU) {
 			if (!ParseExpression(lp, val)) {
 				Error("Expression error", lp);
 				val = 0;
 			}
-			if (IsLabelNotFound) Error("Forward reference", NULL, EARLY);
+			if (IsLabelNotFound && IsDEFL) Error("Forward reference", NULL, EARLY);
 		} else {
 			int gl = 0;
 			char* p = lp,* n;
@@ -579,34 +567,37 @@ void ParseLabel() {
 			}
 			if ((n = GetID(p)) && StructureTable.Emit(n, tp, p, gl)) {
 				lp = p;
+				// this was instancing STRUCT, make it also define "main" label for future "local" ones
+				tp = ValidateLabel(tp, true);
+				if (tp) delete[] tp;
 				return;
 			}
 			val = CurAddress;
 		}
 		ttp = tp;
-		if (!(tp = ValidateLabel(tp, VALIDATE_LABEL_SET_NAMESPACE))) {
+		if (!(tp = ValidateLabel(tp, true))) {
 			return;
 		}
 		// Copy label name to last parsed label variable
-		if (!IsDEFL) {
-			if (LastParsedLabel != NULL) free(LastParsedLabel);
-			LastParsedLabel = STRDUP(tp);
-			if (LastParsedLabel == NULL) {
-				Error("No enough memory!", NULL, FATAL);
-			}
-			LastParsedLabelLine = CompiledCurrentLine;
-		}
+		if (!IsDEFL) SetLastParsedLabel(tp);
 		if (pass == LASTPASS) {
-			if (IsDEFL && !LabelTable.Insert(tp, val, false, IsDEFL, IsEQU)) {
-				Error("Duplicate label", tp, PASS3);
+
+			CLabelTableEntry* label = LabelTable.Find(tp, true);
+			if (nullptr == label) {		// should have been already defined before last pass
+				Error("Label not found", tp);
+				return;
 			}
-			if (!GetLabelValue(ttp, oval)) {
-				Error("Internal error. ParseLabel()", NULL, FATAL);
+			if (IsDEFL) {		//re-set DEFL value
+				LabelTable.Insert(tp, val, false, true, false);
+			} else if (IsSldExportActive()) {
+				// SLD (Source Level Debugging) tracing-data logging
+				WriteToSldFile(IsEQU ? -1 : label->page, val, IsEQU ? 'D' : 'F', tp);
 			}
-			if (!IsDEFL && val != oval) {
+
+			if (val != label->value) {
 				char* buf = new char[LINEMAX];
 
-				SPRINTF2(buf, LINEMAX, "previous value %lu not equal %lu", oval, val);
+				SPRINTF2(buf, LINEMAX, "previous value %u not equal %u", label->value, val);
 				Warning("Label has different value in pass 3", buf);
 				LabelTable.Update(tp, val);
 
@@ -617,12 +608,35 @@ void ParseLabel() {
 		} else if (pass == 1 && !LabelTable.Insert(tp, val, false, IsDEFL, IsEQU)) {
 			Error("Duplicate label", tp, EARLY);
 		}
+
+// TODO v2.x: currently DEFL+EQU label can be followed with instruction => remove this syntax
+// TODO v2.x: this is too complicated in current version: Unreal/Cspect already expect
+// EQU/DEFL to be current page or "ROM" = not a big deal as they did change in v1.x course already.
+// But also struct labels are set as EQU ones, so this has to split, and many other details.
+// (will also need more than LABEL_PAGE_UNDEFINED value to deal with more states)
+// 		if (IsEQU && comma(lp)) {	// Device extension: "<label> EQU <address>,<page number>"
+// 			if (!DeviceID) {
+// 				Error("EQU can set page to label only in device mode", line);
+// 				SkipToEol(lp);
+// 			} else if (!ParseExpression(lp, oval)) {	// try to read page number into "oval"
+// 				Error("Expression error", lp);
+// 				oval = -1;
+// 			} else if (oval < 0 || Device->PagesCount <= oval) {
+// 				ErrorInt("Invalid page number", oval);
+// 				oval = -1;
+// 			} else {
+// 				if (val < 0 || 0xFFFF < val) Warning("The EQU address is outside of 16bit range", line);
+// 				CLabelTableEntry* equLabel = LabelTable.Find(tp, true);	// must be already defined + found
+// 				equLabel->page = oval;			// set it's page number
+// 			}
+// 		}
+
 		delete[] tp;
 	}
 }
 
 int ParseMacro() {
-	int gl = 0, r;
+	int gl = 0, r = 0;
 	char* p = lp, *n;
 	SkipBlanks(p);
 	if (*p == '@') {
@@ -632,29 +646,68 @@ int ParseMacro() {
 		return 0;
 	}
 
-	r = MacroTable.Emit(n, p);
-	if (r == 2) return 1;
-	if (r == 1) return 0;
-	if (StructureTable.Emit(n, 0, p, gl)) { lp = p; return 1; }
+	if (!gl) r = MacroTable.Emit(n, p);		// global '@' operator inhibits macros
+	if (r == 2) return 1;	// successfully emitted
+	if (r == 1) {			// error reported
+		lp = p;
+		return 0;
+	}
+
+	// not a macro, see if it's structure
+	if (StructureTable.Emit(n, 0, p, gl)) {
+		lp = p;
+		return 1;
+	}
 
 	return 0;
 }
 
+static bool PageDiffersWarningShown = false;
+
 void ParseInstruction() {
+	if ('@' == *lp) ++lp;		// skip single '@', if it was used to inhibit macro expansion
 	if (ParseDirective()) {
 		return;
 	}
+
+	// SLD (Source Level Debugging) tracing-data logging
+	if (IsSldExportActive()) {
+		int pageNum = Page->Number;
+		if (PseudoORG) {
+			int mappingPageNum = Device->GetPageOfA16(CurAddress);
+			if (LABEL_PAGE_UNDEFINED == dispPageNum) {	// special DISP page is not set, use mapped
+				pageNum = mappingPageNum;
+			} else {
+				pageNum = dispPageNum;					// special DISP page is set, use it instead
+				if (pageNum != mappingPageNum && !PageDiffersWarningShown) {
+					Warning("DISP memory page differs from current mapping");
+					PageDiffersWarningShown = true;		// show warning about different mapping only once
+				}
+			}
+		}
+		WriteToSldFile(pageNum, CurAddress);
+	}
+
 	Z80::GetOpCode();
 }
 
-unsigned char win2dos[] = //taken from HorrorWord %)))
+static const byte win2dos[] = //taken from HorrorWord %)))
 {
-	0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xF0, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF1, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0x20, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF
+	0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+	0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,
+	0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xF0, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE,
+	0xDF, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF1, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0x20,
+	0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
+	0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F,
+	0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
+	0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF
 };
 
 //#define DEBUG_COUT_PARSE_LINE
 
 void ParseLine(bool parselabels) {
+	ListSilentOrExternalEmits();
+
 	++CompiledCurrentLine;
 	if (!RepeatStack.empty()) {
 		SRepeatStack& dup = RepeatStack.top();
@@ -685,22 +738,24 @@ void ParseLine(bool parselabels) {
 
 	// update current address by memory wrapping, current page, etc... (before the label is defined)
 	if (DeviceID)	Device->CheckPage(CDevice::CHECK_NO_EMIT);
-	else			CheckRamLimitExceeded();
 	ListAddress = CurAddress;
 
 	if (!ConvertEncoding) {
-		unsigned char* lp2 = (unsigned char*) lp;
-		while (*(lp2++)) {
-			if ((*lp2) >= 128) {
+		byte* lp2 = (byte*) lp;
+		while (*lp2) {
+			if (128 <= *lp2) {
 				*lp2 = win2dos[(*lp2) - 128];
 			}
+			++lp2;
 		}
 	}
 	if (!*lp) {
+
+
 		char *srcNonWhiteChar = line;
 		SkipBlanks(srcNonWhiteChar);
 		// check if only "end-line" comment remained, treat that one as "empty" line too
-		if (';' == *srcNonWhiteChar || ('/' == srcNonWhiteChar[0] && '/' == srcNonWhiteChar[1]))
+		if (';' == srcNonWhiteChar[0] || ('/' == srcNonWhiteChar[0] && '/' == srcNonWhiteChar[1]))
 			srcNonWhiteChar = lp;			// force srcNonWhiteChar to point to 0
 		if (*srcNonWhiteChar || comlin) {	// non-empty source line turned into nothing
 			ListFile(true);					// or empty source inside comment-block -> "skipped"
@@ -709,22 +764,10 @@ void ParseLine(bool parselabels) {
 		}
 		return;
 	}
-	if (parselabels) {
-		ParseLabel();
-	}
-	if (SkipBlanks()) {
-		ListFile();
-		return;
-	}
-	ParseMacro();
-	if (SkipBlanks()) {
-		ListFile(); return;
-	}
-	ParseInstruction();
-	if (SkipBlanks()) {
-		ListFile(); return;
-	}
-	if (*lp) Error("Unexpected", lp);
+	if (parselabels) ParseLabel();
+	if (!SkipBlanks()) ParseMacro();
+	if (!SkipBlanks()) ParseInstruction();
+	if (!SkipBlanks()) Error("Unexpected", lp);
 	ListFile();
 }
 
@@ -733,15 +776,11 @@ void ParseLineSafe(bool parselabels) {
 	char* rp = lp;
 	if (sline[0] > 0) {
 		tmp = STRDUP(sline);
-		if (tmp == NULL) {
-			Error("No enough memory!", NULL, FATAL);
-		}
+		if (tmp == NULL) ErrorOOM();
 	}
 	if (sline2[0] > 0) {
 		tmp2 = STRDUP(sline2);
-		if (tmp2 == NULL) {
-			Error("No enough memory!", NULL, FATAL);
-		}
+		if (tmp2 == NULL) ErrorOOM();
 	}
 
 	ParseLine(parselabels);
@@ -762,27 +801,30 @@ void ParseLineSafe(bool parselabels) {
 
 void ParseStructLabel(CStructure* st) {	//FIXME Ped7g why not to reuse ParseLabel()?
 	char* tp, temp[LINEMAX];
-	PreviousIsLabel = 0;
+	if (PreviousIsLabel) {
+		free(PreviousIsLabel);
+		PreviousIsLabel = nullptr;
+	}
 	if (White()) {
 		return;
 	}
-	tp = temp; if (*lp == '.') {
-			   	++lp;
-			   }
+	tp = temp;
+	if (*lp == '.') {
+		++lp;
+	}
 	while (*lp && islabchar(*lp)) {
 		*tp = *lp; ++tp; ++lp;
 	}
-	*tp = 0; if (*lp == ':') {
-			 	++lp;
-			 }
+	*tp = 0;
+	if (*lp == ':') {
+		++lp;
+	}
 	tp = temp; SkipBlanks();
-	if (isdigit((unsigned char) * tp)) {
+	if (isdigit((byte)*tp)) {
 		Error("[STRUCT] Number labels not allowed within structs"); return;
 	}
 	PreviousIsLabel = STRDUP(tp);
-	if (PreviousIsLabel == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	if (PreviousIsLabel == NULL) ErrorOOM();
 	st->AddLabel(tp);
 }
 
@@ -845,19 +887,23 @@ void ParseStructMember(CStructure* st) {
 		char* pp = lp,* n;
 		int gl = 0;
 		CStructure* s;
-		SkipBlanks(pp); if (*pp == '@') {
-							++pp; gl = 1;
-						}
+		SkipBlanks(pp);
+		if (*pp == '@') {
+			++pp; gl = 1;
+		}
 		if ((n = GetID(pp)) && (s = StructureTable.zoek(n, gl))) {
-			if (cmphstr(st->naam, n)) {
-				Error("[STRUCT] Use structure itself", NULL, IF_FIRST);
+			char* structName = st->naam;	// need copy of pointer so cmphstr can advance it in case of match
+			if (cmphstr(structName, n)) {
+				Error("[STRUCT] Can't include itself", NULL);
+				SkipToEol(pp);
+				lp = pp;
 				break;
 			}
 			if (s->maxAlignment && ((~st->noffset + 1) & (s->maxAlignment - 1))) {
 				// Inserted structure did use ALIGN in definition and it is misaligned here
 				char warnTxt[LINEMAX];
 				SPRINTF3(warnTxt, LINEMAX,
-						 "Struct %s did use ALIGN %d in definition, but here it is misaligned by %ld bytes",
+						 "Struct %s did use ALIGN %d in definition, but here it is misaligned by %d bytes",
 						 s->naam, s->maxAlignment, ((~st->noffset + 1) & (s->maxAlignment - 1)));
 				Warning(warnTxt);
 			}
@@ -879,41 +925,71 @@ void ParseStructLine(CStructure* st) {
 	if (*lp) Error("[STRUCT] Unexpected", lp);
 }
 
-unsigned long LuaCalculate(char *str) {
-	aint val;
-	if (!ParseExpression(str, val)) {
-		return 0;
-	} else {
-		return val;
+uint32_t LuaCalculate(char *str) {
+	// substitute defines + macro_args in the `str` first (preserve original global variables)
+	char* const oldSubstitutedLine = substitutedLine;
+	const int oldComlin = comlin;
+	comlin = 0;
+	char* tmp = NULL, * tmp2 = NULL;
+	if (sline[0]) {
+		tmp = STRDUP(sline);
+		if (tmp == NULL) ErrorOOM();
 	}
+	if (sline2[0]) {
+		tmp2 = STRDUP(sline2);
+		if (tmp2 == NULL) ErrorOOM();
+	}
+	char* substitutedStr = ReplaceDefine(str);
+
+	// evaluate the expression
+	aint val;
+	int parseResult = ParseExpression(substitutedStr, val);
+
+	// restore any global values affected by substitution
+	substitutedLine = oldSubstitutedLine;
+	comlin = oldComlin;
+	*sline = 0;
+	*sline2 = 0;
+	if (tmp2 != NULL) {
+		STRCPY(sline2, LINEMAX2, tmp2);
+		free(tmp2);
+	}
+	if (tmp != NULL) {
+		STRCPY(sline, LINEMAX2, tmp);
+		free(tmp);
+	}
+
+	return parseResult ? val : 0;
 }
 
 void LuaParseLine(char *str) {
-	char *ml;
+	// preserve current actual line which will be parsed next
+	char *oldLine = STRDUP(line);
+	char *oldEolComment = eolComment;
+	if (oldLine == NULL) ErrorOOM();
 
-	ml = STRDUP(line);
-	if (ml == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
-
+	// inject new line from Lua call and assemble it
 	STRCPY(line, LINEMAX, str);
+	eolComment = NULL;
 	ParseLineSafe();
 
-	STRCPY(line, LINEMAX, ml);
+	// restore the original line
+	STRCPY(line, LINEMAX, oldLine);
+	eolComment = oldEolComment;
+	free(oldLine);
 }
 
 void LuaParseCode(char *str) {
 	char *ml;
 
 	ml = STRDUP(line);
-	if (ml == NULL) {
-		Error("No enough memory!", NULL, FATAL);
-	}
+	if (ml == NULL) ErrorOOM();
 
 	STRCPY(line, LINEMAX, str);
 	ParseLineSafe(false);
 
 	STRCPY(line, LINEMAX, ml);
+	free(ml);
 }
 
 //eof parser.cpp

@@ -34,13 +34,16 @@
 
 #define DESTBUFLEN 8192
 
+static void CloseBreakpointsFile();
+
 // ReadLine buffer and variables around
 char rlbuf[4096 * 2]; //x2 to prevent errors
 char * rlpbuf, * rlpbuf_end, * rlppos;
 bool colonSubline;
 int blockComment;
 
-int EB[1024 * 64],nEB = 0;
+constexpr int LIST_EMIT_BYTES_BUFFER_SIZE = 1024 * 64;
+int ListEmittedBytes[LIST_EMIT_BYTES_BUFFER_SIZE], nListBytes = 0;
 char WriteBuffer[DESTBUFLEN];
 int tape_seek = 0;
 int tape_length = 0;
@@ -51,6 +54,62 @@ FILE* FP_ListingFile = NULL,* FP_ExportFile = NULL;
 int ListAddress;
 aint WBLength = 0;
 bool IsSkipErrors = false;
+
+static void initErrorLine() {		// adds filename + line of definition if possible
+	*ErrorLine = 0;
+	*ErrorLine2 = 0;
+	// when OpenFile is reporting error, the filename is still nullptr, but pass==1 already
+	if (pass < 1 || LASTPASS < pass || nullptr == CurSourcePos.filename) return;
+	// during assembling, show also file+line info
+	TextFilePos errorPos = DefinitionPos.line ? DefinitionPos : CurSourcePos;
+	bool isEmittedMsgEnabled = true;
+#ifdef USE_LUA
+	if (LuaStartPos.line) {
+		errorPos = LuaStartPos;
+		lua_Debug ar;
+
+		// find either top level of lua stack, or standalone file, otherwise it's impossible
+		// to precisely report location of error (ASM can have 2+ LUA blocks defining functions)
+		int level = 1;			// level 0 is "C" space, ignore that always
+		// suppress "is emitted here" when directly inlined in current code
+		isEmittedMsgEnabled = (0 < listmacro);
+		while (true) {
+			if (!lua_getstack(LUA, level, &ar)) break;	// no more lua stack levels
+			if (!lua_getinfo(LUA, "Sl", &ar)) break;	// no more info about current level
+			if (strcmp("[string \"script\"]", ar.short_src)) {
+				// standalone definition in external file found, pinpoint it precisely
+				errorPos.filename = ar.short_src;
+				errorPos.line = ar.currentline;
+				isEmittedMsgEnabled = true;				// and add "emitted here" in any case
+				break;	// no more lua-stack traversing, stop here
+			}
+			// if source was inlined script, update the possible source line
+			errorPos.line = LuaStartPos.line + ar.currentline;
+			// and keep traversing stack until top level is found (to make the line meaningful)
+			++level;
+		}
+	}
+#endif //USE_LUA
+	SPRINTF2(ErrorLine, LINEMAX2, "%s(%d): ", errorPos.filename, errorPos.line);
+	// if the error filename:line is not identical with current source line, add ErrorLine2 about emit
+	if (isEmittedMsgEnabled &&
+		(strcmp(errorPos.filename, CurSourcePos.filename) || errorPos.line != CurSourcePos.line)) {
+		SPRINTF2(ErrorLine2, LINEMAX2, "%s(%d): ^ emitted from here\n", CurSourcePos.filename, CurSourcePos.line);
+	}
+}
+
+static void outputErrorLine(const EOutputVerbosity errorLevel) {
+	// always print the message into listing file (the OutputVerbosity does not apply to listing)
+	if (GetListingFile()) {
+		fputs(ErrorLine, GetListingFile());
+		if (*ErrorLine2) fputs(ErrorLine2, GetListingFile());
+	}
+	// print the error into stderr if OutputVerbosity allows this type of message
+	if (Options::OutputVerbosity <= errorLevel) {
+		_CERR ErrorLine _END;
+		if (*ErrorLine2) _CERR ErrorLine2 _END;
+	}
+}
 
 void Error(const char* message, const char* badValueMessage, EStatus type) {
 	// check if it is correct pass by the type of error
@@ -66,32 +125,19 @@ void Error(const char* message, const char* badValueMessage, EStatus type) {
 	PreviousErrorLine = CompiledCurrentLine;
 	++ErrorCount;							// number of non-skipped (!) errors
 
-	DefineTable.Replace("_ERRORS", ErrorCount);
+	DefineTable.Replace("__ERRORS__", ErrorCount);
 
-	if (1 <= pass && pass <= LASTPASS) {	// during assembling, show also file+line info
-		int ln = CurrentSourceLine;
+	initErrorLine();
+	STRCAT(ErrorLine, LINEMAX2-1, "error: ");
 #ifdef USE_LUA
-		if (LuaLine >= 0) {
-			lua_Debug ar;
-			lua_getstack(LUA, 1, &ar) ;
-			lua_getinfo(LUA, "l", &ar);
-			ln = LuaLine + ar.currentline;
-		}
-#endif //USE_LUA
-		SPRINTF2(ErrorLine, LINEMAX2, "%s(%d): ", filename, ln);
-	} else ErrorLine[0] = 0;				// reset ErrorLine for STRCAT
-	STRCAT(ErrorLine, LINEMAX2, "error: ");
-	STRCAT(ErrorLine, LINEMAX2, message);
+	if (LuaStartPos.line) STRCAT(ErrorLine, LINEMAX2-1, "[LUA] ");
+#endif
+	STRCAT(ErrorLine, LINEMAX2-1, message);
 	if (badValueMessage) {
-		STRCAT(ErrorLine, LINEMAX2, ": "); STRCAT(ErrorLine, LINEMAX2, badValueMessage);
+		STRCAT(ErrorLine, LINEMAX2-1, ": "); STRCAT(ErrorLine, LINEMAX2-1, badValueMessage);
 	}
-	if (!strchr(ErrorLine, '\n')) STRCAT(ErrorLine, LINEMAX2, "\n");	// append EOL if needed
-	// print the error into listing file always (the OutputVerbosity does not apply to listing)
-	if (GetListingFile()) fputs(ErrorLine, GetListingFile());
-	// print the error into stderr if OutputVerbosity allows errors
-	if (Options::OutputVerbosity <= OV_ERROR) {
-		_CERR ErrorLine _END;
-	}
+	if (!strchr(ErrorLine, '\n')) STRCAT(ErrorLine, LINEMAX2-1, "\n");	// append EOL if needed
+	outputErrorLine(OV_ERROR);
 	// terminate whole assembler in case of fatal error
 	if (type == FATAL) {
 		ExitASM(1);
@@ -100,8 +146,12 @@ void Error(const char* message, const char* badValueMessage, EStatus type) {
 
 void ErrorInt(const char* message, aint badValue, EStatus type) {
 	char numBuf[24];
-	SPRINTF1(numBuf, 24, "%ld", badValue);
+	SPRINTF1(numBuf, 24, "%d", badValue);
 	Error(message, numBuf, type);
+}
+
+void ErrorOOM() {		// out of memory
+	Error("Not enough memory!", nullptr, FATAL);
 }
 
 void Warning(const char* message, const char* badValueMessage, EWStatus type)
@@ -110,42 +160,81 @@ void Warning(const char* message, const char* badValueMessage, EWStatus type)
 	if (type == W_EARLY && LASTPASS <= pass) return;
 	if (type == W_PASS3 && pass < LASTPASS) return;
 
+	// turn the warning into error if "Warnings as errors" is switched on
+	if (Options::syx.WarningsAsErrors) switch (type) {
+		case W_EARLY:	Error(message, badValueMessage, EARLY); return;
+		case W_PASS3:	Error(message, badValueMessage, PASS3); return;
+		case W_ALL:		Error(message, badValueMessage, ALL); return;
+	}
+
 	++WarningCount;
 
-	DefineTable.Replace("_WARNINGS", WarningCount);
+	DefineTable.Replace("__WARNINGS__", WarningCount);
 
-	if (pass <= LASTPASS) {					// during assembling, show also file+line info
-		int ln = CurrentSourceLine;
+	initErrorLine();
+	STRCAT(ErrorLine, LINEMAX2-1, "warning: ");
 #ifdef USE_LUA
-		if (LuaLine >= 0) {
-			lua_Debug ar;
-			lua_getstack(LUA, 1, &ar) ;
-			lua_getinfo(LUA, "l", &ar);
-			ln = LuaLine + ar.currentline;
-		}
-#endif //USE_LUA
-		SPRINTF2(ErrorLine, LINEMAX2, "%s(%d): ", filename, ln);
-	} else ErrorLine[0] = 0;				// reset ErrorLine for STRCAT
-	STRCAT(ErrorLine, LINEMAX2, "warning: ");
-	STRCAT(ErrorLine, LINEMAX2, message);
+	if (LuaStartPos.line) STRCAT(ErrorLine, LINEMAX2-1, "[LUA] ");
+#endif
+	STRCAT(ErrorLine, LINEMAX2-1, message);
 	if (badValueMessage) {
-		STRCAT(ErrorLine, LINEMAX2, ": "); STRCAT(ErrorLine, LINEMAX2, badValueMessage);
+		STRCAT(ErrorLine, LINEMAX2-1, ": "); STRCAT(ErrorLine, LINEMAX2-1, badValueMessage);
 	}
-	if (!strchr(ErrorLine, '\n')) STRCAT(ErrorLine, LINEMAX2, "\n");	// append EOL if needed
-	// print the warning into listing file always (the OutputVerbosity does not apply to listing)
-	if (GetListingFile()) fputs(ErrorLine, GetListingFile());
-	// print the warning into stderr if OutputVerbosity allows warnings
-	if (Options::OutputVerbosity <= OV_WARNING) {
-		_CERR ErrorLine _END;
+	if (!strchr(ErrorLine, '\n')) STRCAT(ErrorLine, LINEMAX2-1, "\n");	// append EOL if needed
+	outputErrorLine(OV_WARNING);
+}
+
+// find position of extension in filename (points at dot char or beyond filename if no extension)
+// filename is pointer to writeable format containing file name (can be full path) (NOT NULL)
+// if initWithName and filenameBufferSize are explicitly provided, filename will be first overwritten with those
+char* FilenameExtPos(char* filename, const char* initWithName, size_t initNameMaxLength) {
+	// if the init value is provided with positive buffer size, init the buffer first
+	if (0 < initNameMaxLength && initWithName) {
+		STRCPY(filename, initNameMaxLength, initWithName);
 	}
+	// find start of the base filename
+	const char* baseName = FilenameBasePos(filename);
+	// find extension of the filename and return position of it
+	char* const filenameEnd = filename + strlen(filename);
+	char* extPos = filenameEnd;
+	while (baseName < extPos && '.' != *extPos) --extPos;
+	if (baseName < extPos) return extPos;
+	// no extension found (empty filename, or "name", or ".name"), return end of filename
+	return filenameEnd;
+}
+
+const char* FilenameBasePos(const char* fullname) {
+	const char* const filenameEnd = fullname + strlen(fullname);
+	const char* baseName = filenameEnd;
+	while (fullname < baseName && '/' != baseName[-1] && '\\' != baseName[-1]) --baseName;
+	return baseName;
+}
+
+void ConstructDefaultFilename(char* dest, size_t dest_size, const char* ext, bool checkIfDestIsEmpty) {
+	if (nullptr == dest || nullptr == ext || !ext[0]) exit(1);	// invalid arguments
+	// if the destination buffer has already some content and check is requested, exit
+	if (checkIfDestIsEmpty && dest[0]) return;
+	size_t extSz = strlen(ext);
+	dest[0] = 0;
+	// construct the new default name - search for explicit name in sourcefiles
+	for (SSource & src : sourceFiles) {
+		if (!src.fname[0]) continue;
+		STRNCPY(dest, dest_size, src.fname, dest_size-1-extSz);
+		dest[dest_size-1-extSz] = 0;
+		break;
+	}
+	if (!dest[0]) STRNCPY(dest, dest_size, "asm", dest_size-1);		// no explicit, use "asm" base
+	// replace the extension
+	STRCPY(FilenameExtPos(dest), dest_size, ext);
 }
 
 void CheckRamLimitExceeded() {
+	if (Options::IsLongPtr) return;		// in "longptr" mode with no device keep the address as is
 	static bool notWarnedCurAdr = true;
 	static bool notWarnedDisp = true;
 	char buf[64];
 	if (CurAddress >= 0x10000) {
-		if (notWarnedCurAdr) {
+		if (LASTPASS == pass && notWarnedCurAdr) {
 			SPRINTF2(buf, 64, "RAM limit exceeded 0x%X by %s", (unsigned int)CurAddress, PseudoORG ? "DISP":"ORG");
 			Warning(buf);
 			notWarnedCurAdr = false;
@@ -153,7 +242,7 @@ void CheckRamLimitExceeded() {
 		if (PseudoORG) CurAddress &= 0xFFFF;	// fake DISP address gets auto-wrapped FFFF->0
 	} else notWarnedCurAdr = true;
 	if (PseudoORG && adrdisp >= 0x10000) {
-		if (notWarnedDisp) {
+		if (LASTPASS == pass && notWarnedDisp) {
 			SPRINTF1(buf, 64, "RAM limit exceeded 0x%X by ORG", (unsigned int)adrdisp);
 			Warning(buf);
 			notWarnedDisp = false;
@@ -193,10 +282,10 @@ void WriteDest() {
 }
 
 void PrintHex(char* & dest, aint value, int nibbles) {
-	if (nibbles < 1 || 16 < nibbles) ExitASM(33);	// invalid argument
+	if (nibbles < 1 || 8 < nibbles) ExitASM(33);	// invalid argument
 	const char oldChAfter = dest[nibbles];
-	const aint mask = (int(sizeof(aint)*2) <= nibbles) ? ~0UL : (1UL<<(nibbles*4))-1UL;
-	if (nibbles != sprintf(dest, "%0*lX", nibbles, value&mask)) ExitASM(33);
+	const aint mask = (int(sizeof(aint)*2) <= nibbles) ? ~0L : (1L<<(nibbles*4))-1L;
+	if (nibbles != sprintf(dest, "%0*X", nibbles, value&mask)) ExitASM(33);
 	dest += nibbles;
 	*dest = oldChAfter;
 }
@@ -207,15 +296,15 @@ void PrintHex32(char*& dest, aint value) {
 
 void PrintHexAlt(char*& dest, aint value)
 {
-	value &= 0xFFFFFFFFUL;
 	char buffer[24] = { 0 }, * bp = buffer;
-	sprintf(buffer, "%04lX", value & 0xFFFFFFFFUL);
+	sprintf(buffer, "%04X", value);
 	while (*bp) *dest++ = *bp++;
 }
 
 static char pline[4*LINEMAX];
 
-void PrepareListLine(aint hexadd)
+// buffer must be at least 4*LINEMAX chars long
+void PrepareListLine(char* buffer, aint hexadd)
 {
 	////////////////////////////////////////////////////
 	// Line numbers to 1 to 99999 are supported only  //
@@ -224,25 +313,25 @@ void PrepareListLine(aint hexadd)
 
 	int digit = ' ';
 	int linewidth = reglenwidth;
-	long linenumber = CurrentSourceLine % 10000;
+	aint linenumber = CurSourcePos.line % 10000;
 	if (linewidth > 5)
 	{
 		linewidth = 5;
-		digit = CurrentSourceLine / 10000 + '0';
+		digit = CurSourcePos.line / 10000 + '0';
 		if (digit > '~') digit = '~';
-		if (CurrentSourceLine >= 10000) linenumber += 10000;
+		if (CurSourcePos.line >= 10000) linenumber += 10000;
 	}
-	memset(pline, ' ', 24);
-	if (listmacro) pline[23] = '>';
-	sprintf(pline, "%*lu", linewidth, linenumber); pline[linewidth] = ' ';
-	memcpy(pline + linewidth, "++++++", IncludeLevel > 6 - linewidth ? 6 - linewidth : IncludeLevel);
-	sprintf(pline + 6, "%04lX", hexadd & 0xFFFF); pline[10] = ' ';
-	if (digit > '0') *pline = digit & 0xFF;
+	memset(buffer, ' ', 24);
+	if (listmacro) buffer[23] = '>';
+	sprintf(buffer, "%*u", linewidth, linenumber); buffer[linewidth] = ' ';
+	memcpy(buffer + linewidth, "++++++", IncludeLevel > 6 - linewidth ? 6 - linewidth : IncludeLevel);
+	sprintf(buffer + 6, "%04X", hexadd & 0xFFFF); buffer[10] = ' ';
+	if (digit > '0') *buffer = digit & 0xFF;
 	// if substitutedLine is completely empty, list rather source line any way
 	if (!*substitutedLine) substitutedLine = line;
-	STRCPY(pline + 24, LINEMAX2-24, substitutedLine);
+	STRCPY(buffer + 24, LINEMAX2-24, substitutedLine);
 	// add EOL comment if substituted was used and EOL comment is available
-	if (substitutedLine != line && eolComment) STRCAT(pline, LINEMAX2, eolComment);
+	if (substitutedLine != line && eolComment) STRCAT(buffer, LINEMAX2, eolComment);
 }
 
 static void ListFileStringRtrim() {
@@ -266,32 +355,51 @@ FILE* GetListingFile() {
 
 void ListFile(bool showAsSkipped) {
 	if (LASTPASS != pass || NULL == GetListingFile() || donotlist || Options::syx.IsListingSuspended) {
-		donotlist = nEB = 0;
+		donotlist = nListBytes = 0;
 		return;
 	}
 	int pos = 0;
 	do {
 		if (showAsSkipped) substitutedLine = line;	// override substituted lines in skipped mode
-		PrepareListLine(ListAddress);
+		PrepareListLine(pline, ListAddress);
 		if (pos) pline[24] = 0;		// remove source line on sub-sequent list-lines
 		char* pp = pline + 10;
-		int BtoList = (nEB < 4) ? nEB : 4;
+		int BtoList = (nListBytes < 4) ? nListBytes : 4;
 		for (int i = 0; i < BtoList; ++i) {
-			if (-2 == EB[i + pos]) pp += sprintf(pp, "...");
-			else pp += sprintf(pp, " %02X", EB[i + pos]);
+			if (-2 == ListEmittedBytes[i + pos]) pp += sprintf(pp, "...");
+			else pp += sprintf(pp, " %02X", ListEmittedBytes[i + pos]);
 		}
 		*pp = ' ';
 		if (showAsSkipped) pline[11] = '~';
 		ListFileStringRtrim();
 		fputs(pline, GetListingFile());
-		nEB -= BtoList;
+		nListBytes -= BtoList;
 		ListAddress += BtoList;
 		pos += BtoList;
-	} while (0 < nEB);
-	nEB = 0;
+	} while (0 < nListBytes);
+	nListBytes = 0;
+}
+
+void ListSilentOrExternalEmits() {
+	// catch silent/external emits like "sj.add_byte(0x123)" from Lua script
+	if (0 == nListBytes) return;		// no silent/external emit happened
+	char silentOrExternalBytes[] = "; these bytes were emitted silently/externally (lua script?)";
+	substitutedLine = silentOrExternalBytes;
+	eolComment = nullptr;
+	ListFile();
+	substitutedLine = line;
+}
+
+static bool someByteEmitted = false;
+
+bool DidEmitByte() {	// returns true if some byte was emitted since last call to this function
+	bool didEmit = someByteEmitted;		// value to return
+	someByteEmitted = false;			// reset the flag
+	return didEmit;
 }
 
 static void EmitByteNoListing(int byte, bool preserveDeviceMemory = false) {
+	someByteEmitted = true;
 	if (LASTPASS == pass) {
 		WriteBuffer[WBLength++] = (char)byte;
 		if (DESTBUFLEN == WBLength) WriteDest();
@@ -303,6 +411,8 @@ static void EmitByteNoListing(int byte, bool preserveDeviceMemory = false) {
 			if (LASTPASS == pass && !preserveDeviceMemory) *MemoryPointer = (char)byte;
 			++MemoryPointer;
 		}
+	} else {
+		CheckRamLimitExceeded();
 	}
 	++CurAddress;
 	if (PseudoORG) ++adrdisp;
@@ -310,7 +420,14 @@ static void EmitByteNoListing(int byte, bool preserveDeviceMemory = false) {
 
 void EmitByte(int byte) {
 	byte &= 0xFF;
-	EB[nEB++] = byte;		// write also into listing
+	if (nListBytes < LIST_EMIT_BYTES_BUFFER_SIZE-1) {
+		ListEmittedBytes[nListBytes++] = byte;		// write also into listing
+	} else {
+		if (nListBytes < LIST_EMIT_BYTES_BUFFER_SIZE) {
+			// too many bytes, show it in listing as "..."
+			ListEmittedBytes[nListBytes++] = -2;
+		}
+	}
 	EmitByteNoListing(byte);
 }
 
@@ -319,7 +436,7 @@ void EmitWord(int word) {
 	EmitByte(word / 256);
 }
 
-void EmitBytes(int* bytes) {
+void EmitBytes(const int* bytes) {
 	if (*bytes == -1) {
 		Error("Illegal instruction", line, IF_FIRST);
 		SkipToEol(lp);
@@ -339,41 +456,48 @@ void EmitBlock(aint byte, aint len, bool preserveDeviceMemory, int emitMaxToList
 		else			CheckRamLimitExceeded();
 		return;
 	}
+	if (LIST_EMIT_BYTES_BUFFER_SIZE <= nListBytes + emitMaxToListing) {	// clamp emit to list buffer
+		emitMaxToListing = LIST_EMIT_BYTES_BUFFER_SIZE - nListBytes;
+	}
 	while (len--) {
 		int dVal = (preserveDeviceMemory && DeviceID && MemoryPointer) ? MemoryPointer[0] : byte;
 		EmitByteNoListing(byte, preserveDeviceMemory);
 		if (LASTPASS == pass && emitMaxToListing) {
 			// put "..." marker into listing if some more bytes are emitted after last listed
-			if ((0 == --emitMaxToListing) && len) EB[nEB++] = -2;
-			else EB[nEB++] = dVal&0xFF;
+			if ((0 == --emitMaxToListing) && len) ListEmittedBytes[nListBytes++] = -2;
+			else ListEmittedBytes[nListBytes++] = dVal&0xFF;
 		}
 	}
 }
 
-char* GetPath(char* fname, char** filenamebegin, bool systemPathsBeforeCurrent)
+char* GetPath(const char* fname, char** filenamebegin, bool systemPathsBeforeCurrent)
 {
-	// temporary "head" with CurrentDirectory as first item in list
-	CStringsList includesWithCurrent(CurrentDirectory, Options::IncludeDirsList);
-	// start search either with the temporary head, or with the list of system include-paths
-	CStringsList* dir = systemPathsBeforeCurrent ? Options::IncludeDirsList : &includesWithCurrent;
-	char fullFilePath[MAX_PATH];
+	char fullFilePath[MAX_PATH] = { 0 };
+	CStringsList* dir = Options::IncludeDirsList;	// include-paths to search
+	// search current directory first (unless "systemPathsBeforeCurrent")
+	if (!systemPathsBeforeCurrent) {
+		// if found, just skip the `while (dir)` loop
+		if (SJ_SearchPath(CurrentDirectory, fname, nullptr, MAX_PATH, fullFilePath, filenamebegin)) dir = nullptr;
+		else fullFilePath[0] = 0;	// clear fullFilePath every time when not found
+	}
 	while (dir) {
-		if (SearchPath(dir->string, fname, NULL, MAX_PATH, fullFilePath, filenamebegin)) break;
+		if (SJ_SearchPath(dir->string, fname, nullptr, MAX_PATH, fullFilePath, filenamebegin)) break;
+		fullFilePath[0] = 0;	// clear fullFilePath every time when not found
 		dir = dir->next;
 	}
-	// disconnect temporary head from real include list (prevents destructor from releasing it all)
-	includesWithCurrent.next = NULL;
-	// if the file was not found in the list
-	if (NULL == dir) {
+	// if the file was not found in the list, and current directory was not searched yet
+	if (!fullFilePath[0] && systemPathsBeforeCurrent) {
 		//and the current directory was not searched yet, do it now, set empty string if nothing
-		if (systemPathsBeforeCurrent ||
-			!SearchPath(CurrentDirectory, fname, NULL, MAX_PATH, fullFilePath, filenamebegin)) {
-			fullFilePath[0] = 0;
+		if (!SJ_SearchPath(CurrentDirectory, fname, NULL, MAX_PATH, fullFilePath, filenamebegin)) {
+			fullFilePath[0] = 0;	// clear fullFilePath every time when not found
 		}
+	}
+	if (!fullFilePath[0] && filenamebegin) {	// if still not found, reset also *filenamebegin
+		*filenamebegin = fullFilePath;
 	}
 	// copy the result into new memory
 	char* kip = STRDUP(fullFilePath);
-	if (kip == NULL) Error("No enough memory!", NULL, FATAL);
+	if (kip == NULL) ErrorOOM();
 	// convert filenamebegin pointer into the copied string (from temporary buffer pointer)
 	if (filenamebegin) *filenamebegin += (kip - fullFilePath);
 	return kip;
@@ -428,6 +552,7 @@ void BinIncFile(char* fname, int offset, int length) {
 				if (MemoryPointer) {	// fill up current memory page if possible
 					advanceLength = Page->RAM + Page->Size - MemoryPointer;
 					if (length < advanceLength) advanceLength = length;
+					MemoryPointer += advanceLength;		// also update it! Doh!
 				}
 			}
 			length -= advanceLength;
@@ -438,7 +563,7 @@ void BinIncFile(char* fname, int offset, int length) {
 	} else {
 		// Reading data from file
 		char* data = new char[length + 1], * bp = data;
-		if (NULL == data) ErrorInt("No enough memory for file", (length + 1), FATAL);
+		if (NULL == data) ErrorOOM();
 		size_t res = fread(bp, 1, length, bif);
 		if (res != (size_t)length) Error("reading data from file failed", fname, FATAL);
 		while (length--) EmitByteNoListing(*bp++);
@@ -449,30 +574,46 @@ void BinIncFile(char* fname, int offset, int length) {
 
 static void OpenDefaultList(const char *fullpath);
 
-static auto stdin_log_it = stdin_log.cbegin();
+static stdin_log_t::const_iterator stdin_read_it;
+static stdin_log_t* stdin_log = nullptr;
 
-void OpenFile(char* nfilename, bool systemPathsBeforeCurrent)
+void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t* fStdinLog)
 {
-	char ofilename[LINEMAX];
-	char* oCurrentDirectory, * fullpath, * listFullName = NULL;
+	const char* oFileNameFull = fileNameFull;
+	TextFilePos oSourcePos = CurSourcePos;
+	char* oCurrentDirectory, * fullpath;
 	TCHAR* filenamebegin;
 
 	if (++IncludeLevel > 20) {
 		Error("Over 20 files nested", NULL, FATAL);
 	}
-	if (!*nfilename) {
+	if (!*nfilename && fStdinLog) {
 		fullpath = STRDUP("console_input");
 		filenamebegin = fullpath;
 		FP_Input = stdin;
-		stdin_log_it = stdin_log.cbegin();	// reset read iterator (for 2nd+ pass)
+		stdin_log = fStdinLog;
+		stdin_read_it = stdin_log->cbegin();	// reset read iterator (for 2nd+ pass)
 	} else {
 		fullpath = GetPath(nfilename, &filenamebegin, systemPathsBeforeCurrent);
 
-		if (!FOPEN_ISOK(FP_Input, fullpath, "rb")) {
+		if (!*fullpath || !FOPEN_ISOK(FP_Input, fullpath, "rb")) {
 			free(fullpath);
 			Error("Error opening file", nfilename, FATAL);
 		}
 	}
+	// archive the filename (for referencing it in SLD tracing data or listing/errors)
+	auto ofnIt = std::find(openedFileNames.cbegin(), openedFileNames.cend(), fullpath);
+	if (ofnIt == openedFileNames.cend()) {		// new filename, add it to archive
+		openedFileNames.push_back(fullpath);
+		ofnIt = --openedFileNames.cend();
+	}
+	fileNameFull = ofnIt->c_str();				// get const pointer into archive
+	CurSourcePos.newFile(Options::IsShowFullPath ? fileNameFull : FilenameBasePos(fileNameFull));
+
+	// refresh pre-defined values related to file/include
+	DefineTable.Replace("__INCLUDE_LEVEL__", IncludeLevel);
+	DefineTable.Replace("__FILE__", fileNameFull);
+	if (0 == IncludeLevel) DefineTable.Replace("__BASE_FILE__", fileNameFull);
 
 	// open default listing file for each new source file (if default listing is ON)
 	if (LASTPASS == pass && 0 == IncludeLevel && Options::IsDefaultListingName) {
@@ -481,20 +622,9 @@ void OpenFile(char* nfilename, bool systemPathsBeforeCurrent)
 	// show in listing file which file was opened
 	FILE* listFile = GetListingFile();
 	if (LASTPASS == pass && listFile) {
-		listFullName = STRDUP(fullpath);	// create copy of full filename for listing file
 		fputs("# file opened: ", listFile);
-		fputs(listFullName, listFile);
+		fputs(fileNameFull, listFile);
 		fputs("\n", listFile);
-	}
-
-	aint oCurrentLocalLine = CurrentSourceLine;
-	CurrentSourceLine = 0;
-	STRCPY(ofilename, LINEMAX, filename);
-
-	if (Options::IsShowFullPath) {
-		STRCPY(filename, LINEMAX, fullpath);
-	} else {
-		STRCPY(filename, LINEMAX, filenamebegin);
 	}
 
 	oCurrentDirectory = CurrentDirectory;
@@ -508,15 +638,19 @@ void OpenFile(char* nfilename, bool systemPathsBeforeCurrent)
 	ReadBufLine();
 
 	if (stdin != FP_Input) fclose(FP_Input);
-	else if (1 == pass) stdin_log.push_back(0);		// add extra zero terminator
+	else {
+		if (1 == pass) {
+			stdin_log->push_back(0);	// add extra zero terminator
+			clearerr(stdin);			// reset EOF on the stdin for another round of input
+		}
+	}
 	CurrentDirectory = oCurrentDirectory;
 
 	// show in listing file which file was closed
 	if (LASTPASS == pass && listFile) {
 		fputs("# file closed: ", listFile);
-		fputs(listFullName, listFile);
+		fputs(fileNameFull, listFile);
 		fputs("\n", listFile);
-		free(listFullName);
 
 		// close listing file (if "default" listing filename is used)
 		if (FP_ListingFile && 0 == IncludeLevel && Options::IsDefaultListingName) {
@@ -531,20 +665,27 @@ void OpenFile(char* nfilename, bool systemPathsBeforeCurrent)
 	// Free memory
 	free(fullpath);
 
-	STRCPY(filename, LINEMAX, ofilename);
-	if (CurrentSourceLine > maxlin) {
-		maxlin = CurrentSourceLine;
+	if (CurSourcePos.line > maxlin) {
+		maxlin = CurSourcePos.line;
 	}
-	CurrentSourceLine = oCurrentLocalLine;
+	fileNameFull = oFileNameFull;
+	CurSourcePos = oSourcePos;
+
+	// refresh pre-defined values related to file/include
+	DefineTable.Replace("__INCLUDE_LEVEL__", IncludeLevel);
+	DefineTable.Replace("__FILE__", fileNameFull ? fileNameFull : "<none>");
+	if (-1 == IncludeLevel) DefineTable.Replace("__BASE_FILE__", "<none>");
 }
 
-void IncludeFile(char* nfilename, bool systemPathsBeforeCurrent)
+void IncludeFile(const char* nfilename, bool systemPathsBeforeCurrent)
 {
+	auto oStdin_log = stdin_log;
+	auto oStdin_read_it = stdin_read_it;
 	FILE* oFP_Input = FP_Input;
 	FP_Input = 0;
 
 	char* pbuf = rlpbuf, * pbuf_end = rlpbuf_end, * buf = STRDUP(rlbuf);
-	if (buf == NULL) Error("No enough memory!", NULL, FATAL);
+	if (buf == NULL) ErrorOOM();
 	bool oColonSubline = colonSubline;
 	if (blockComment) Error("Internal error 'block comment'", NULL, FATAL);	// comment can't INCLUDE
 
@@ -556,14 +697,31 @@ void IncludeFile(char* nfilename, bool systemPathsBeforeCurrent)
 	free(buf);
 
 	FP_Input = oFP_Input;
+	stdin_log = oStdin_log;
+	stdin_read_it = oStdin_read_it;
 }
+
+typedef struct {
+	char	name[12];
+	size_t	length;
+	byte	marker[16];
+} BOMmarkerDef;
+
+const BOMmarkerDef UtfBomMarkers[] = {
+	{ { "UTF8" }, 3, { 0xEF, 0xBB, 0xBF } },
+	{ { "UTF32BE" }, 4, { 0, 0, 0xFE, 0xFF } },
+	{ { "UTF32LE" }, 4, { 0xFF, 0xFE, 0, 0 } },		// must be detected *BEFORE* UTF16LE
+	{ { "UTF16BE" }, 2, { 0xFE, 0xFF } },
+	{ { "UTF16LE" }, 2, { 0xFF, 0xFE } }
+};
 
 static bool ReadBufData() {
 	// check here also if `line` buffer is not full
 	if ((LINEMAX-2) <= (rlppos - line)) Error("Line too long", NULL, FATAL);
 	// now check for read data
 	if (rlpbuf < rlpbuf_end) return 1;		// some data still in buffer
-	if (stdin != FP_Input && feof(FP_Input)) return 0;	// no more data in file
+	// check EOF on files in every pass, stdin only in first, following will starve the stdin_log
+	if ((stdin != FP_Input || 1 == pass) && feof(FP_Input)) return 0;	// no more data in file
 	// read next block of data
 	rlpbuf = rlbuf;
 	// handle STDIN file differently (pass1 = read it, pass2+ replay "log" variable)
@@ -574,19 +732,30 @@ static bool ReadBufData() {
 	if (stdin == FP_Input) {
 		// store copy of stdin into stdin_log during pass 1
 		if (1 == pass && rlpbuf < rlpbuf_end) {
-			stdin_log.insert(stdin_log.end(), rlpbuf, rlpbuf_end);
+			stdin_log->insert(stdin_log->end(), rlpbuf, rlpbuf_end);
 		}
 		// replay the log in 2nd+ pass
 		if (1 < pass) {
 			rlpbuf_end = rlpbuf;
-			long toCopy = std::min(8000L, (long)std::distance(stdin_log_it, stdin_log.cend()));
+			long toCopy = std::min(8000L, (long)std::distance(stdin_read_it, stdin_log->cend()));
 			if (0 < toCopy) {
-				memcpy(rlbuf, &(*stdin_log_it), toCopy);
-				stdin_log_it += toCopy;
+				memcpy(rlbuf, &(*stdin_read_it), toCopy);
+				stdin_read_it += toCopy;
 				rlpbuf_end += toCopy;
 			}
 			*rlpbuf_end = 0;				// add zero terminator after new block
 		}
+	}
+	// check UTF BOM markers only at the beginning of the file (source line == 0)
+	if (CurSourcePos.line) return (rlpbuf < rlpbuf_end);	// return true if some data were read
+	//UTF BOM markers detector
+	for (const auto & bomMarkerData : UtfBomMarkers) {
+		if (rlpbuf_end < (rlpbuf + bomMarkerData.length)) continue;	// not enough bytes in buffer
+		if (memcmp(rlpbuf, bomMarkerData.marker, bomMarkerData.length)) continue;	// marker not found
+		if (&bomMarkerData != UtfBomMarkers) {	// UTF8 is first in the array, other markers show error
+			Error("Invalid UTF encoding detected (only ASCII and UTF8 works)", bomMarkerData.name, FATAL);
+		}
+		rlpbuf += bomMarkerData.length;	// skip the UTF8 BOM marker
 	}
 	return (rlpbuf < rlpbuf_end);			// return true if some data were read
 }
@@ -606,7 +775,6 @@ void ReadBufLine(bool Parse, bool SplitByColon) {
 			*(rlppos++) = ' ';
 			IsLabel = false;
 		} else {					// starting real new line
-			++CurrentSourceLine;
 			IsLabel = (0 == blockComment);
 		}
 		bool afterNonAlphaNum, afterNonAlphaNumNext = true;
@@ -618,7 +786,7 @@ void ReadBufLine(bool Parse, bool SplitByColon) {
 			// copy the new character to new line
 			*rlppos = *rlpbuf++;
 			afterNonAlphaNum = afterNonAlphaNumNext;
-			afterNonAlphaNumNext = !isalnum(*rlppos);
+			afterNonAlphaNumNext = !isalnum((byte)*rlppos);
 			// Block comments logic first (anything serious may happen only "outside" of block comment
 			if ('*' == *rlppos && ReadBufData() && '/' == *rlpbuf) {
 				if (0 < blockComment) --blockComment;	// block comment ends here, -1 from nesting
@@ -680,6 +848,9 @@ void ReadBufLine(bool Parse, bool SplitByColon) {
 			// advance over single colon if that was the reason to terminate line parsing
 			colonSubline = SplitByColon && ReadBufData() && (':' == *rlpbuf) && ++rlpbuf;
 		}
+		// do +1 for very first colon-segment only (rest is +1 due to artificial space at beginning)
+		size_t advanceColumns = colonSubline ? (0 == CurSourcePos.colEnd) + strlen(line) : 0;
+		CurSourcePos.nextSegment(colonSubline, advanceColumns);
 		// line is parsed and ready to be processed
 		if (Parse) 	ParseLine();	// processed here in loop
 		else 		return;			// processed externally
@@ -712,17 +883,8 @@ static void OpenDefaultList(const char *fullpath) {
 	if (NULL == fullpath || !*fullpath) return;		// no filename provided
 	// Create default listing name, and try to open it
 	char tempListName[LINEMAX+10];		// make sure there is enough room for new extension
-	STRCPY(tempListName, LINEMAX, fullpath);
-	// find extension of that file and overwrite it with ".lst"
-	char* extPos = tempListName + strlen(tempListName);
-	while (tempListName < extPos && '.' != *extPos) {
-		--extPos;
-		if ('/' == *extPos || '\\' == *extPos || tempListName == extPos) {	// no extension found
-			extPos = tempListName + strlen(tempListName);	// just append it then to the fullname
-			break;
-		}
-	}
-	STRCPY(extPos, 5, ".lst");
+	char* extPos = FilenameExtPos(tempListName, fullpath, LINEMAX);	// find extension position
+	STRCPY(extPos, 5, ".lst");			// overwrite it with ".lst"
 	// list filename prepared, open it
 	OpenListImp(tempListName);
 }
@@ -751,7 +913,7 @@ void CloseDest() {
 void SeekDest(long offset, int method) {
 	WriteDest();
 	if (FP_Output != NULL && fseek(FP_Output, offset, method)) {
-		Error("File seek error (FORG)", NULL, FATAL);
+		Error("File seek error (FPOS)", NULL, FATAL);
 	}
 }
 
@@ -814,16 +976,15 @@ void OpenTapFile(char * tapename, int flagbyte)
 
 	if (!FOPEN_ISOK(FP_tapout,tapename, "r+b"))	Error( "Error opening file in TAPOUT", tapename, FATAL);
 	if (fseek(FP_tapout, 0, SEEK_END))			Error("File seek end error in TAPOUT", tapename, FATAL);
-	
+
 	tape_seek = ftell(FP_tapout);
 	tape_parity = flagbyte;
 	tape_length = 2;
-	
+
 	char tap_data[4] = { 0,0,0,0 };
 	tap_data[2] = (char)flagbyte;
-	
-	if (fwrite(tap_data, 1, 3, FP_tapout) != 3)
-	{
+
+	if (fwrite(tap_data, 1, 3, FP_tapout) != 3) {
 		fclose(FP_tapout);
 		Error("Write error (disk full?)", NULL, FATAL);
 	}
@@ -840,6 +1001,10 @@ int FileExists(char* file_name) {
 }
 
 void Close() {
+	if (*ModuleName) {
+		Warning("ENDMODULE missing for module", ModuleName, W_ALL);
+	}
+
 	CloseDest();
 	CloseTapFile();
 	if (FP_ExportFile != NULL) {
@@ -854,16 +1019,14 @@ void Close() {
 		fclose(FP_ListingFile);
 		FP_ListingFile = NULL;
 	}
+	CloseSld();
+	CloseBreakpointsFile();
 }
 
 int SaveRAM(FILE* ff, int start, int length) {
 	//unsigned int addadr = 0,save = 0;
 	aint save = 0;
-
-	if (!DeviceID) {
-		return 0;
-	}
-
+	if (!DeviceID) return 0;		// unreachable currently
 	if (length + start > 0x10000) {
 		length = -1;
 	}
@@ -890,16 +1053,11 @@ int SaveRAM(FILE* ff, int start, int length) {
 			}
 		}
 	}
-
-	return 1;
+	return 0;		// unreachable (with current devices)
 }
 
 unsigned int MemGetWord(unsigned int address) {
-	if (pass != LASTPASS) {
-		return 0;
-	}
-
-	return MemGetByte(address)+(MemGetByte(address+1)<<8);
+	return MemGetByte(address) + (MemGetByte(address+1)<<8);
 }
 
 unsigned char MemGetByte(unsigned int address) {
@@ -915,7 +1073,7 @@ unsigned char MemGetByte(unsigned int address) {
 		}
 	}
 
-	Error("Error with MemGetByte!", NULL, FATAL);
+	ErrorInt("MemGetByte: Error reading address", address);
 	return 0;
 }
 
@@ -925,19 +1083,9 @@ int SaveBinary(char* fname, int start, int length) {
 	if (!FOPEN_ISOK(ff, fname, "wb")) {
 		Error("Error opening file", fname, FATAL);
 	}
-
-	if (length + start > 0x10000) {
-		length = -1;
-	}
-	if (length <= 0) {
-		length = 0x10000 - start;
-	}
-	if (!SaveRAM(ff, start, length)) {
-		fclose(ff);return 0;
-	}
-
+	int result = SaveRAM(ff, start, length);
 	fclose(ff);
-	return 1;
+	return result;
 }
 
 
@@ -989,7 +1137,6 @@ int SaveHobeta(char* fname, char* fhobname, int start, int length) {
 		header[0x0a] = (unsigned char)(start >> 8);
 	}
 
-
 	header[0x0b] = (unsigned char)(length & 0xff);
 	header[0x0c] = (unsigned char)(length >> 8);
 	header[0x0d] = 0;
@@ -1011,16 +1158,9 @@ int SaveHobeta(char* fname, char* fhobname, int start, int length) {
 		Error("Error opening file", fname, FATAL);
 	}
 
-	if (fwrite(header, 1, 17, ff) != 17) {
-		fclose(ff);return 0;
-	}
-
-	if (!SaveRAM(ff, start, length)) {
-		fclose(ff);return 0;
-	}
-
+	int result = (17 == fwrite(header, 1, 17, ff)) && SaveRAM(ff, start, length);
 	fclose(ff);
-	return 1;
+	return result;
 }
 
 EReturn ReadFile() {
@@ -1031,18 +1171,14 @@ EReturn ReadFile() {
 			SkipBlanks(p);
 			if ('.' == *p) ++p;
 			if (cmphstr(p, "endif")) {
-				lp = ReplaceDefine(p);
+				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
 				substitutedLine = line;		// override substituted listing for ENDIF
 				return ENDIF;
 			} else if (cmphstr(p, "else")) {
-				lp = ReplaceDefine(p);
+				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
 				substitutedLine = line;		// override substituted listing for ELSE
 				ListFile();
 				return ELSE;
-			} else if (cmphstr(p, "endt") || cmphstr(p, "dephase") || cmphstr(p, "unphase")) {
-				lp = ReplaceDefine(p);
-				substitutedLine = line;		// override substituted listing for ENDT
-				return ENDTEXTAREA;
 			}
 		}
 		ParseLineSafe();
@@ -1064,13 +1200,13 @@ EReturn SkipFile() {
 			if (iflevel) {
 				--iflevel;
 			} else {
-				lp = ReplaceDefine(p);
+				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
 				substitutedLine = line;		// override substituted listing for ENDIF
 				return ENDIF;
 			}
 		} else if (cmphstr(p, "else")) {
 			if (!iflevel) {
-				lp = ReplaceDefine(p);
+				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
 				substitutedLine = line;		// override substituted listing for ELSE
 				ListFile();
 				return ELSE;
@@ -1088,8 +1224,10 @@ int ReadLineNoMacro(bool SplitByColon) {
 }
 
 int ReadLine(bool SplitByColon) {
+	DefinitionPos = TextFilePos();
 	if (IsRunning && lijst) {		// read MACRO lines, if macro is being emitted
 		if (!lijstp) return 0;
+		DefinitionPos = lijstp->definition;
 		STRCPY(line, LINEMAX, lijstp->string);
 		substitutedLine = line;		// reset substituted listing
 		eolComment = NULL;			// reset end of line comment
@@ -1125,12 +1263,162 @@ void WriteExp(char* n, aint v) {
 		}
 	}
 	STRCPY(ErrorLine, LINEMAX2, n);
-	STRCAT(ErrorLine, LINEMAX2, ": EQU ");
-	STRCAT(ErrorLine, LINEMAX2, "0x");
+	STRCAT(ErrorLine, LINEMAX2-1, ": EQU ");
+	STRCAT(ErrorLine, LINEMAX2-1, "0x");
 	PrintHex32(l, v); *l = 0;
-	STRCAT(ErrorLine, LINEMAX2, lnrs);
-	STRCAT(ErrorLine, LINEMAX2, "\n");
+	STRCAT(ErrorLine, LINEMAX2-1, lnrs);
+	STRCAT(ErrorLine, LINEMAX2-1, "\n");
 	fputs(ErrorLine, FP_ExportFile);
+}
+
+/////// source-level-debugging support by Ckirby
+
+static FILE* FP_SourceLevelDebugging = NULL;
+static char sldMessage[LINEMAX];
+static const char* WriteToSld_noSymbol = "";
+static char sldMessage_sourcePos[80];
+static char sldMessage_definitionPos[80];
+static const char* sldMessage_posFormat = "%d:%d:%d";	// at +3 is "%d:%d" and at +6 is "%d"
+
+static void WriteToSldFile_TextFilePos(char* buffer, const TextFilePos & pos) {
+	int offsetFormat = !pos.colBegin ? 6 : !pos.colEnd ? 3 : 0;
+	snprintf(buffer, 79, sldMessage_posFormat + offsetFormat, pos.line, pos.colBegin, pos.colEnd);
+}
+
+static void OpenSldImp(const char* sldFilename) {
+	if (nullptr == sldFilename || !sldFilename[0]) return;
+	if (!FOPEN_ISOK(FP_SourceLevelDebugging, sldFilename, "w")) {
+		Error("Error opening file", sldFilename, FATAL);
+	}
+	fputs("|SLD.data.version|0\n", FP_SourceLevelDebugging);
+}
+
+// will write directly into Options::SourceLevelDebugFName array
+static void OpenSld_buildDefaultNameIfNeeded() {
+	// check if SLD file name is already explicitly defined, or default is wanted
+	if (Options::SourceLevelDebugFName[0] || !Options::IsDefaultSldName) return;
+	// name is still empty, and default is wanted, create one (start with "out" or first source name)
+	ConstructDefaultFilename(Options::SourceLevelDebugFName, LINEMAX, ".sld.txt", false);
+}
+
+// returns true only in the LASTPASS and only when "sld" file was specified by user
+// and only when assembling is in "virtual DEVICE" mode (for "none" device no tracing is emitted)
+bool IsSldExportActive() {
+	return (nullptr != FP_SourceLevelDebugging && DeviceID);
+}
+
+void OpenSld() {
+	// check if source-level-debug file is already opened
+	if (nullptr != FP_SourceLevelDebugging) return;
+	// build default filename if not explicitly provided, and default was requested
+	OpenSld_buildDefaultNameIfNeeded();
+	// try to open it if not opened yet
+	OpenSldImp(Options::SourceLevelDebugFName);
+}
+
+void CloseSld() {
+	if (!FP_SourceLevelDebugging) return;
+	fclose(FP_SourceLevelDebugging);
+	FP_SourceLevelDebugging = nullptr;
+}
+
+void WriteToSldFile(int pageNum, int value, char type, const char* symbol) {
+	// SLD line format:
+	// <file name>|<source line>|<definition file>|<definition line>|<page number>|<value>|<type>|<data>\n
+	//
+	// * string <file name> can't be empty (empty is for specific "control lines" with different format)
+	//
+	// * unsigned <source line> when <file name> is not empty, line number (in human way starting at 1)
+	// The actual format is "%d[:%d[:%d]]", first number is always line. If second number is present,
+	// that's the start column (in bytes), and if also third number is present, that's end column.
+	//
+	// * string <definition file> where the <definition line> was defined, if empty, it's equal to <file name>
+	//
+	// * unsigned <definition line> explicit zero value in regular source, but inside macros
+	// the <source line> keeps pointing at line emitting the macro, while this value points
+	// to source with actual definitions of instructions/etc (nested macro in macro <source line>
+	// still points at the top level source which initiated it).
+	// The format is again "%d[:%d[:%d]]" same as <source line>, optionally including the columns data.
+	//
+	// * int <value> is not truncated to page range, but full 16b Z80 address or even 32b value (equ)
+	//
+	// * string <data> content depends on char <type>:
+	// 'T' = instruction Trace, empty data
+	// 'D' = EQU symbol, <data> is the symbol name ("label")
+	// 'F' = function label, <data> is the symbol name
+	// 'Z' = device (memory model) changed, <data> has special custom formatting
+	//
+	// 'Z' device <data> format:
+	// pages.size:<page size>,pages.count:<page count>,slots.count:<slots count>[,slots.adr:<slot0 adr>,...,<slotLast adr>]
+	// unsigned <page size> is also any-slot size in current version.
+	// unsigned <page count> and <slots count> define how many pages/slots there are
+	// uint16_t <slotX adr> is starting address of slot memory region in Z80 16b addressing
+	//
+	// specific lines (<file name> string was empty):
+	// |SLD.data.version|<version number>
+	// <version number> is SLD file format version, currently should be 0
+	// ||<anything till EOL>
+	// comment line, not to be parsed
+	if (nullptr == FP_SourceLevelDebugging || !type) return;
+	if (nullptr == symbol) symbol = WriteToSld_noSymbol;
+	const char* macroFN = DefinitionPos.filename && strcmp(DefinitionPos.filename, CurSourcePos.filename) ?
+							DefinitionPos.filename : "";
+	WriteToSldFile_TextFilePos(sldMessage_sourcePos, CurSourcePos);
+	WriteToSldFile_TextFilePos(sldMessage_definitionPos, DefinitionPos);
+	snprintf(sldMessage, LINEMAX, "%s|%s|%s|%s|%d|%d|%c|%s\n",
+				CurSourcePos.filename, sldMessage_sourcePos, macroFN, sldMessage_definitionPos,
+				pageNum, value, type, symbol);
+	fputs(sldMessage, FP_SourceLevelDebugging);
+}
+
+/////// Breakpoints list (for different emulators)
+static FILE* FP_BreakpointsFile = nullptr;
+static EBreakpointsFile breakpointsType;
+static int breakpointsCounter;
+
+void OpenBreakpointsFile(const char* filename, const EBreakpointsFile type) {
+	if (nullptr == filename || !filename[0]) {
+		Error("empty filename", filename, EARLY);
+		return;
+	}
+	if (FP_BreakpointsFile) {
+		Error("breakpoints file was already opened", nullptr, EARLY);
+		return;
+	}
+	if (!FOPEN_ISOK(FP_BreakpointsFile, filename, "w")) {
+		Error("Error opening file", filename, FATAL);
+	}
+	breakpointsCounter = 0;
+	breakpointsType = type;
+}
+
+static void CloseBreakpointsFile() {
+	if (!FP_BreakpointsFile) return;
+	fclose(FP_BreakpointsFile);
+	FP_BreakpointsFile = nullptr;
+}
+
+void WriteBreakpoint(const aint val) {
+	if (!FP_BreakpointsFile) {
+		if (warningNotSuppressed()) Warning("breakpoints file was not specified");
+		return;
+	}
+	++breakpointsCounter;
+	switch (breakpointsType) {
+		case BPSF_UNREAL:
+			check16u(val);
+			fprintf(FP_BreakpointsFile, "x0=0x%04X\n", val&0xFFFF);
+			break;
+		case BPSF_ZESARUX:
+			if (1 == breakpointsCounter) fputs(" --enable-breakpoints ", FP_BreakpointsFile);
+			if (100 < breakpointsCounter) {
+				Warning("Maximum amount of 100 breakpoints has been already reached, this one is ignored");
+				break;
+			}
+			check16u(val);
+			fprintf(FP_BreakpointsFile, "--set-breakpoint %d \"PC=%d\" ", breakpointsCounter, val&0xFFFF);
+			break;
+	}
 }
 
 //eof sjio.cpp

@@ -1,0 +1,87 @@
+# file opened: memory_limits.asm
+ 1    0000                      ; common case, reset, second one
+ 2    0000                          ORG     0xFFFF
+memory_limits.asm(3): warning: RAM limit exceeded 0x10000 by ORG
+ 3    FFFF ED B0                    ldir            ; warning about memory limit
+ 4    0001 ED B0                    ldir            ; no warning (not doubling)
+ 5    0003                          ORG     0       ; reset warnings state
+ 6    0000                          ORG     0xFFFF
+memory_limits.asm(7): warning: RAM limit exceeded 0x10000 by ORG
+ 7    FFFF ED B0                    ldir            ; (again) warning about memory limit
+ 8    0001 ED B0                    ldir            ; no warning (not doubling)
+ 9    0003
+10    0003                      ; DISP-only
+11    0003                          ORG     0x1000
+12    1000                          DISP    0xFFFF
+memory_limits.asm(13): warning: RAM limit exceeded 0x10000 by DISP
+13    FFFF ED B0                    ldir            ; warning about DISP memory limit
+14    0001 ED B0                    ldir
+15    0003                          ORG     0       ; ok ; does reset the DISP part only, not real address
+16    0000                          ORG     0xFFFF  ; ok
+memory_limits.asm(17): warning: RAM limit exceeded 0x10000 by DISP
+17    FFFF ED B0                    ldir            ; (again) warning about DISP memory limit
+18    0001 ED B0                    ldir            ; no warning (not doubling)
+19    0003                          ENDT
+20    1008
+21    1008                      ; physical under DISP
+22    1008                          ORG     0xFFFF
+23    FFFF                          DISP    0x2000
+memory_limits.asm(24): warning: RAM limit exceeded 0x10000 by ORG
+24    2000 ED B0                    ldir            ; warning about memory limit
+25    2002 ED B0                    ldir
+26    2004                          ORG     0x3000  ; ok ; does NOT reset physical one, only DISP one
+27    3000 ED B0                    ldir
+28    3002 ED B0                    ldir
+29    3004                          ENDT
+30    0007
+31    0007                      ; physical AND disp together
+32    0007                          ORG     0xFFFF
+33    FFFF                          DISP    0xFFFF
+memory_limits.asm(34): warning: RAM limit exceeded 0x10000 by DISP
+memory_limits.asm(34): warning: RAM limit exceeded 0x10000 by ORG
+34    FFFF ED B0                    ldir            ; will get TWO warnings (DISP + ORG)
+35    0001 ED B0                    ldir
+36    0003                          ENDT
+37    0003
+38    0003                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+39    0003                  ;; Block-emit code coverage
+40    0003                          ORG     0xFFF0
+memory_limits.asm(41): warning: RAM limit exceeded 0x10000 by ORG
+41    FFF0 AA AA AA...              block   100,0xAA    ; warning about memory limit
+42    0054                          ORG     0
+43    0000                          ORG     0xFFF0
+memory_limits.asm(44): warning: RAM limit exceeded 0x10000 by ORG
+44    FFF0 BB BB BB...              block   100,0xBB    ; again
+45    0054
+46    0054                      ; DISP-only
+47    0054                          ORG     0x1000
+48    1000                          DISP    0xFFF0
+memory_limits.asm(49): warning: RAM limit exceeded 0x10000 by DISP
+49    FFF0 CC CC CC...              block   100,0xCC    ; warning about DISP memory limit
+50    0054                          ORG     0       ; ok ; does reset the DISP part only, not real address
+51    0000                          ORG     0xFFF0  ; ok
+memory_limits.asm(52): warning: RAM limit exceeded 0x10000 by DISP
+52    FFF0 DD DD DD...              block   100,0xDD    ; again
+53    0054                          ENDT
+54    10C8
+55    10C8                      ; physical under DISP
+56    10C8                          ORG     0xFFF0
+57    FFF0                          DISP    0x2000
+memory_limits.asm(58): warning: RAM limit exceeded 0x10000 by ORG
+58    2000 EE EE EE...              block   100,0xEE    ; warning about memory limit
+59    2064                          ORG     0x3000  ; ok ; does NOT reset physical one, only DISP one
+60    3000 FF FF FF...              block   100,0xFF
+61    3064                          ENDT
+62    00B8
+63    00B8                      ; physical AND disp together
+64    00B8                          ORG     0xFFF0
+65    FFF0                          DISP    0xFFF0
+memory_limits.asm(66): warning: RAM limit exceeded 0x10000 by DISP
+memory_limits.asm(66): warning: RAM limit exceeded 0x10000 by ORG
+66    FFF0 77 77 77...              block   100,0x77    ; will get TWO warnings (DISP + ORG)
+67    0054                          ENDT
+68    0054
+# file closed: memory_limits.asm
+
+Value    Label
+------ - -----------------------------------------------------------

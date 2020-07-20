@@ -1,4 +1,4 @@
-/* 
+/*
 
   SjASMPlus Z80 Cross Compiler
 
@@ -31,16 +31,22 @@
 #ifndef __IO_TRD
 #define __IO_TRD
 
-int TRD_SaveEmpty(char* fname);
-int TRD_AddFile(char* fname, char* fhobname, int start, int length, int autostart); //autostart added by boo_boo 19_0ct_2008
-struct STRDOSSectorHeader {
-	unsigned char c, s, n, l;
-	unsigned short crc;
-	unsigned char c1, c2; // correct CRCs in address and data
-	unsigned char* data, * id;
-	unsigned datlen; 
-	unsigned crcd;
-};
+enum ETrdFileName { OK, INVALID_EXTENSION, THREE_LETTER_EXTENSION };
+
+int TRD_SaveEmpty(const char* fname, const char label[8]);
+ETrdFileName TRD_FileNameToBytes(const char* inputName, byte binName[12], int & nameL);
+int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, int autostart, bool replace, bool addplace);
+
+/**
+ * @brief Checks TRD file and return absolute offset + length into the raw file.
+ *
+ * @param trdname filename of the TRD image (will be passed to GetPath(...))
+ * @param filename filename of the requested file inside the TRD image
+ * @param offset data offset (0 or more), and return value = absolute offset into TRD file
+ * @param length data length (1 or more or INT_MAX to include all), and return value = data length
+ * @return int 0 when error, 1 when offset + length are valid values into TRD image file
+ */
+int TRD_PrepareIncFile(const char* trdname, const char* filename, aint & offset, aint & length);
 
 #endif
 

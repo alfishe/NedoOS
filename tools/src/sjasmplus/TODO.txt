@@ -5,35 +5,68 @@ scratch area + TODO keeper for sjasmplus developers:
 ====================
 Ped:
 
-LUA quirks:
-    -- v includelua:
-    function inc_ld(reg, val)
-        _pc('LD '..reg..','..val)
-    end
-    -- v kode:
-    LUA
-        inc_ld(A, pass)     -- bug, should be 'A'
-    ENDLUA
-= no output, no error, just dies. ... Seems like any LUA syntax error does that, just dies.
+add block/reserve which does really preserve the device memory content (currently only the
+structure block+align does preserve memory, and standalone ALIGN, but not DS/BLOCK)
+
+"emitted from here" error should maybe show original line, as people not using error parsing
+claim it's confusing/useless.
+ -> turned out to be lot more difficult than expected (macros + lua inlining)
+
+remote build script - "done" ATM, waiting for feedback/improvements suggestions/logs
+
+ARM emulation on x86: https://github.com/nongiach/arm_now  ???
+
++3DOS podpora do sjasmplus:
+    z00m:
+    uz sme to tu sto razy rozoberali
+    Elliotova utilitka to vie
+    lepit tie hlavicky
+    http://www.seasip.info/ZX/unix.html
+    specform a unspecform
+    a ma tam aj priamo patchnuty zmakebas
+    a ma k tym taptools aj zdrojaky
+    aha tak na zmakebas je len patch
+    a teraz som si spomenul, ze u mna je to cele uz patchnute
+    https://github.com/z00m128/zmakebas (edited)
+
++3DOS v pythone: https://github.com/shred/nextskeleton/blob/master/skeleton/tools/makeautoexec.py
+
+
+`make install` doesn't refresh binary???
+(does link, but doesn't use the new library, but old)
+ --- not sure what was this varmfskii report about, the Makefile is now tuned a bit any way
+ -- maybe dependencies? (but it did sound like after clean the `make install` alone doesn't
+ work properly, and that should now work) Dependencies are borked, needs `make clean` when
+ headers are modified (known bug, too lazy to build dependencies in universal makefile).
+
+consider the "low memory access" warning locked to only ZX-like devices?
+
+parser.cpp ParseExpShift and other "needa" doing transformations (shr => '>' ???)
+- write tests trying those "while" loops for groups of operators
+- write tests testing operator precedence
 
 CSPECTMAP - needs better support for DISP and instances of STRUCT
+- also reported to be not as good as external tool, but seems that is due to not-using DEVICE directive by author
+(can't help that)
 
 --syntax: "I" to uppercase all labels + usage (needs labels refactoring)
-
---syntax: B+L options implementation
-    add DOCS example test: "hl: ld a,(hl),,de,hl" when all is implemented
+--syntax: L options implementation
+    add DOCS example test: "hl: Ld a,(hl),,de,hl" when all is implemented
 
 static analysis: PVS-Studio https://www.viva64.com/en/m/0036/
+ * https://scan.coverity.com/projects/z00m128-sjasmplus
+    (needs build according to their tool or Travis CI)
+
+Lua error reporting: if function is defined in different anonymous block, only the emit
+line is reported in error message. If each anonymous block would get unique name, and
+track the starting position of the definition, then it would be possible to report even
+errors from inside lua functions defined in current asm file with the definition-line of
+error + "emitted here" line.
 
 FIXME in sources mark further points worth refactoring
 
 FIXME: get rid of ParseDirective_REPT somehow, its existence can't be right
 (breaks ` .34 repeatX` directive probably? .. and END@beginningOfLine? .. actually not?)
-
-SplitLuaErrorMessage - add some tests after Liniya fix, maybe review the code more.
-
-"--lst" bez hodnoty nech spravi default nazov sam
-  ==> needs tests (badly, was bugged a lot during development)
 
 ReadBufLine parsing refactored. Now look for other parts of code trying to do similar things and refactor too..
 
@@ -42,9 +75,6 @@ I almost certainly broke some STRCPY/STRCAT max-size limits (i.e. malicious sour
 Macro world issues:
 - macros for operators? (in ideal case `zeuskeyaddr` possible to recreate in macro?)
 - more operators, capable of some string manipulation and maybe some type/expression checks (islabel)
-- ability to issue real instruction (ignoring possible macro of same name)
-
-Input file without extension does produce wrong default output filename
 
 SAVEHOB/SAVETRD/SAVETAP/... global review of filename handling, adding warnings/errors
 where filename modification happens or filename is invalid.
@@ -57,7 +87,7 @@ where filename modification happens or filename is invalid.
 (can substitute only at beginning)
 ? extend that rule to underscore at end sealing also the tail?
 - lock some keywords for define/etc... at least put them under warning
-- inhibitor of substitutions/macros happening (like `@djnz` always assembled as djnz inst.
+- inhibitor of substitutions happening (like `@djnz` inhibits macro replacement).
 ** Current refactored implementation:
 - doesn't play priorities as proposed above
 - evaluation of defarray index is still flaky and doesn't work correctly inside macro/etc
@@ -65,10 +95,13 @@ where filename modification happens or filename is invalid.
 + should be already a bit more intuitive than 1.08+ (although it may break legacy source)
 
 ZX128 snapshot default state and mapping - still doesn't survive simple `ret` into BASIC
+ret to basic: di : ld iy,#5c3a : ld hl,#2758 : exx : im 1 : ei : ret
 
 DISP inside DISP bugs => documented. Correct solution = nesting DISPs?!
 
 $$label operator to get label page. (and fix pages for defl/equ/expression/... labels)
+    ^^ done, also whole label parsing and validation refactored, the syntax "$$label" is winner
+    ^^ TODO: remove this note maybe after some time, when everything will prove to be stable
 //// syntax summary:
     labels (\.|@|)[A-Za-z_][A-Za-z0-9_.?!#@]*
     , argument-separator    : instruction-separator     ; // comment
@@ -77,7 +110,7 @@ $$label operator to get label page. (and fix pages for defl/equ/expression/... l
     operators-binary: * / % mod + - << >> >>> shl shr <? >? < > <= >= = == != & and ^ xor | or && ||
     us keyboard: ~!@#$%^&*()_+`-=[]{};':"<>?,./\|
     $$label - hexa are single $ only, so this looks fine (unary operator)
-    ?label - 5<?label => ambiguous
+    ?label - 5<?label => ambiguous (there is already unary "?" for labels, undocummented, deprecated)
     \label - looks weird, no syntax clash
 Needs more syntax:
     - reformat label into different slot... <slot>$$expression ? (binary operator)
@@ -88,7 +121,22 @@ MMU:
 - custom pages order for wrap-next-mapping option (like "<3, 5, 1, 2>" ?)
 - err/warn/warp option for slot range?
 
-sjasmplus 2.x/fork:
+Kate syntax:
+    - backward slashes in path strings are not working as escapes, single "\" there is OK, but syntax highlight thinks it's "DB" like string.
+
+* maybe create extra syntax rules for listing files? (especially if it's possible to include asm syntax for half of line)
+
+##### sjasmplus 2.x/fork:
+
+SHELLEXEC change syntax
+
+"ok" warning suppressing mechanism for ALL warnings?
+
+EQU and DEFL to not affect local labels (not defining new "main" label)
+
+Operators precedence: (2 == 3&2) = ((2 == 3)&2) = false in current sjasmplus... ????
+    https://en.cppreference.com/w/cpp/language/operator_precedence
+Operator "word" or "w16/i16" to truncate big value (similar to "low")
 
 address space of labels -> 2|3:30|29 bits, the top bits being default slot number,
 remaining bits being physical address into global chip address space
@@ -99,7 +147,27 @@ To stay backward compatible/similar, one would have to support also 0000-FFFF ra
 going through the mapped pages.. but that does collide with early pages 0..n ...
 How about abusing "@" or "." or something to distinguish between? (& resembles C/C++!)
 
-Kate syntax: broken with LUA block containing "end" keyword (maybe even consider including Lua highlight rules from KDE defaults, if it's possible)
+Make --syntax=abflL default for v2.x and check other defaults
+Maybe add support for escaped '\'' and other combinations back, to be more C++ compatible
+(escape sequences in C/C++ are case sensitive => adopt to sjasmplus (insensitive currently))
+
+Check about other syntax ambiguities, what seems too much relaxed and could be stricter for v2.x
+
+N-pass
+
+new lua + js support?
+
+Refactor filepath functions to deal with backward slashes systematically
+(or maybe just wait few more years, can't be that long now before windows are gone)
+
+====================
+Debian packaging:
+
+cmake used to enforce (and test) system libs:
+cmake -DCMAKE_BUILD_TYPE=Release -DSYSTEM_LUA=ON -DCMAKE_INSTALL_PREFIX:PATH=~/.local2/ ..
+
+https://www.debian.org/doc/manuals/distribute-deb/distribute-deb.html
+
 
 ====================
 Docs:
@@ -108,3 +176,35 @@ Docs:
 ^^ link each?
 
 DEVICE needs better description? Issue #55
+... and also SAVENEX and default ZXNEXT device... again...
+
+When printed into PDF from browser on my local system, some of the program listings don't
+fit into their box and the end of line is cut out, check how many chars work and review
+all code listings in docs to fit into default A4 pdf print.
+(already changelog is trimmed ... seems like 88 chars is max, 80 is probably reasonable)
+
+Add chapter about usefult test-examples (library-like functions), like INC_TEXT, etc.
+
+===== github milestone v2.x: => create issues (cleanup this TODO as much as reasonable)
+v2.x of sjasmplus, changing some default settings (making it mildly incompatible with old sources, considerably more than v1.07 vs v1.14 incompatibilities), and refactoring some implementation even further, to make it hopefully a bit cleaner C++ source, simpler to maintain and modify.
+
+Major changes on my mind:
+* n-pass assembling
+* syntax by default similar to `--syntax=abflL`
+* GNU/GCC/clang-ification of assembler, mimicking the general tools as much as possible, like formatting of error reports, options with identical syntax where it makes sense, etc.. (should help with other tools unaware of sjasmplus specifically, but capable to process gcc/clang stuff)
+* `define` substitution formalized even more (and refactored)
+* C++ification of syntax and language, i.e. changing operator precedence, probably apostrophe enclosed string/char literals escaping rules, etc.
+* new operators (string and device-memory/labels related, type/checks, maybe var-arg-like stuff)
+* macro-defined-operators (not only "instructions")
+* nesting DISPs?
+* better support for Maziac's tools (label type export, whatever else is needed)
+* fresher version of lua, revisit integration
+* maybe also JavaScript scripting support
+* filepath stuff through POSIX/clib API to make it cross-platform without hacks (normal slashes everywhere)
+
+RELEASE spam:
+Next wiki assemblers
+Next discord
+zx-pk.ru forum
+Next FB
+(maybe once per year or two: next forum, linkedin)

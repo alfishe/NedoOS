@@ -41,6 +41,8 @@ int SkipBlanks();
 void SkipToEol(char*& p);
 int NeedEQU();
 int NeedDEFL();
+bool NeedIoC();
+bool isMacroNext();				// checks if ".macro" directive is ahead (but doesn't consume it)
 char* GetID(char*& p);
 void ResetGrowSubId();
 char* GrowSubId(char* & p);
@@ -49,18 +51,19 @@ char* getinstr(char*& p);
 bool anyComma(char*& p);		// eats any comma (even one of double-commas)
 bool comma(char*& p);			// eats single comma, but not if double-comma is ahead
 bool doubleComma(char* & p);
-bool doubleBacktick(char* & p);
 bool nonMaComma(char* & p);		// eats single comma only if multi-arg is configured to non-comma
 EBracketType OpenBracket(char*& p);
 int CloseBracket(char*& p);
-char* getparen(char* p);
-int check8(aint val, bool error=true);
-int check8o(long val);
-int check16(aint val, bool error=true);
-int check24(aint val, bool error=true);
+char* ParenthesesEnd(char* p);
+int check8(aint val);
+int check8o(aint val);
+int check16(aint val);
+int check16u(aint val);
+int check24(aint val);
+void checkLowMemory(byte lowByte, byte hiByte);
 int need(char*& p, char c);
 int need(char*& p, const char* c);
-int needa(char*& p, const char* c1, int r1, const char* c2 = 0, int r2 = 0, const char* c3 = 0, int r3 = 0);
+int needa(char*& p, const char* c1, int r1, const char* c2 = 0, int r2 = 0, const char* c3 = 0, int r3 = 0, bool allowParenthesisEnd = false);
 bool GetNumericValue_ProcessLastError(const char* const srcLine);
 bool GetNumericValue_TwoBased(char*& p, const char* const pend, aint& val, const int shiftBase);
 bool GetNumericValue_IntBased(char*& p, const char* const pend, aint& val, const int base);
@@ -72,11 +75,14 @@ template <class strT> int GetCharConstAsString(char* & p, strT e[], int & ei, in
 int GetBytes(char*& p, int e[], int add, int dc);
 int GetBits(char*& p, int e[]);
 int GetBytesHexaText(char*& p, int e[]);
-int cmphstr(char*& p1, const char* p2);		// p2 must be lowercase to match both cases
-char* GetFileName(char*& p, bool convertslashes=false);
+int cmphstr(char*& p1, const char* p2, bool allowParenthesisEnd = false);		// p2 must be lowercase to match both cases
+char* GetFileName(char*& p, bool convertslashes=true);
+char* GetOutputFileName(char*& p, bool convertslashes=true);	// prepends the filename with OutPrefix
 EDelimiterType GetDelimiterOfLastFileName();	// DT_NONE if no GetFileName was called
+bool isLabelStart(const char *p, bool modifiersAllowed = true);
 int islabchar(char p);
 EStructureMembers GetStructMemberId(char*& p);
 EDelimiterType DelimiterBegins(char*& src, const std::array<EDelimiterType, 3> delimiters, bool advanceSrc = true);
 EDelimiterType DelimiterAnyBegins(char*& src, bool advanceSrc = true);
 int GetMacroArgumentValue(char* & src, char* & dst);
+bool warningNotSuppressed(bool alsoFake = false);	// checks for "ok" ("fake") in EOL comment

@@ -30,7 +30,8 @@
 #define __SJDEFS
 
 // version string
-#define VERSION "1.13.1"
+#define VERSION "1.15.1"
+#define VERSION_NUM "0x00010F01"
 
 #define LASTPASS 3
 
@@ -75,17 +76,13 @@ extern "C" {
 // global defines
 #define LINEMAX 2048
 #define LINEMAX2 LINEMAX*2
-#ifdef DOS
-#define LABMAX 32
-#define LABTABSIZE 16384
-#define FUNTABSIZE 2048
-#else
 #define LABMAX 64
 #define LABTABSIZE 32768
 #define FUNTABSIZE 4096
-#endif
-typedef long aint;
+typedef int32_t aint;
 typedef uint8_t byte;
+typedef uint16_t word;
+typedef std::vector<char> stdin_log_t;
 
 #ifndef PATH_MAX
 #define PATH_MAX	4096

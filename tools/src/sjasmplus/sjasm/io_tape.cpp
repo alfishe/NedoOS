@@ -28,6 +28,7 @@ misrepresented as being the original software.
 
 #include "sjdefs.h"
 #include "io_tape_ldrs.h"
+#include <cassert>
 
 unsigned char parity;
 unsigned char blocknum=1;
@@ -114,29 +115,19 @@ int TAP_SaveBlock(char* fname, unsigned char flag, const char *ftapname, int sta
 	writebyte(flag, fpout);
 
 	CDeviceSlot *S;
-	for (aint i = 0, save = 0, ptr; i < Device->SlotsCount; i++) {
+	for (aint i = 0, ptr; i < Device->SlotsCount; i++) {
 	    S = Device->GetSlot(i);
-	    if (start >= (int) S->Address && start < (int) (S->Address + S->Size)) {
-			ptr = (start - S->Address);
-			if (length < (int) (S->Size - ptr)) {
-				save = length;
-			} else {
-				save = S->Size - ptr;
-			}
+		if (S->Address + S->Size <= start) continue;
+		if (length <= 0) break;
+		assert(S->Address <= start && start < S->Address + S->Size);
+		ptr = (start - S->Address);
 
-			while (save > 0) {
-				writebyte(S->Page->RAM[ptr], fpout);
-
-				length--;
-				start++;
-				save--;
-				ptr++;
-			}
-
-			if (length <= 0) {
-				break;
-			}
-	    }
+		while (length && ptr < S->Size) {
+			writebyte(S->Page->RAM[ptr], fpout);
+			++start;
+			++ptr;
+			--length;
+		}
 	}
 
 	writebyte(parity, fpout);
@@ -220,15 +211,13 @@ int TAP_SaveSnapshot(char* fname, unsigned short start) {
 		aint ram_length = 0xA200;
 		aint ram_start = 0x0000;
 		unsigned char* ram = (unsigned char*)malloc(ram_length);
-		if (ram == NULL) {
-			Error("No enough memory", NULL, FATAL);
-		}
+		if (ram == NULL) ErrorOOM();
 		memcpy(ram, (unsigned char*)Device->GetSlot(1)->Page->RAM + 0x1E00, 0x2200);
 		memcpy(ram + 0x2200, (unsigned char*)Device->GetSlot(2)->Page->RAM, 0x4000);
 		memcpy(ram + 0x6200, (unsigned char*)Device->GetSlot(3)->Page->RAM, 0x4000);
 
 		// remove basic vars
-		remove_basic_sp(ram + ram_length - sizeof(BASin48SP));
+		remove_basic_sp(ram + ram_length - sizeof(ZX_STACK_DATA));
 
 		detect_vars_changes();
 
@@ -239,9 +228,7 @@ int TAP_SaveSnapshot(char* fname, unsigned short start) {
 		// write loader
 		unsigned char *loader = new unsigned char[SaveTAP_ZX_Spectrum_48K_SZ];
 		memcpy(loader, (char*)&SaveTAP_ZX_Spectrum_48K[0], SaveTAP_ZX_Spectrum_48K_SZ);
-		if (loader == NULL) {
-			Error("No enough memory!", NULL, FATAL);
-		}
+		if (loader == NULL) ErrorOOM();
 		// Settings.LoadScreen
 		loader[SaveTAP_ZX_Spectrum_48K_SZ - 7] = char(has_screen_changes());
 		loader[SaveTAP_ZX_Spectrum_48K_SZ - 6] = char(start & 0x00FF);
@@ -267,9 +254,7 @@ int TAP_SaveSnapshot(char* fname, unsigned short start) {
 		// prepare main code block
 		aint ram_length = 0x6200, ram_start = 0x0000;
 		unsigned char* ram = (unsigned char*)malloc(ram_length);
-		if (ram == NULL) {
-			Error("No enough memory", NULL, FATAL);
-		}
+		if (ram == NULL) ErrorOOM();
 		memcpy(ram, (unsigned char*)Device->GetSlot(1)->Page->RAM + 0x1E00, 0x2200);
 		memcpy(ram + 0x2200, (unsigned char*)Device->GetSlot(2)->Page->RAM, 0x4000);
 
@@ -290,9 +275,7 @@ int TAP_SaveSnapshot(char* fname, unsigned short start) {
 		aint loader_len = loader_defsize + (Device->PagesCount - 2)*5;
 		unsigned char *loader = new unsigned char[loader_len];
 		memcpy(loader, loader_code, loader_defsize);
-		if (loader == NULL) {
-			Error("No enough memory!", NULL, FATAL);
-		}
+		if (loader == NULL) ErrorOOM();
 		// Settings.Start
 		loader[loader_defsize - 8] = char(start & 0x00FF);
 		loader[loader_defsize - 7] = char(start >> 8);
@@ -428,13 +411,13 @@ void writecode(unsigned char* block, aint length, unsigned short loadaddr, bool 
 
 void remove_basic_sp(unsigned char* ram) {
 	bool remove = true;
-	for (size_t i=0; i < sizeof(BASin48SP);i++) {
-		if (BASin48SP[i] != ram[i]) {
+	for (size_t i=0; i < sizeof(ZX_STACK_DATA);i++) {
+		if (ZX_STACK_DATA[i] != ram[i]) {
 			remove = false;
 		}
 	}
 	if (remove) {
-		for (size_t i=0; i < sizeof(BASin48SP);i++) {
+		for (size_t i=0; i < sizeof(ZX_STACK_DATA);i++) {
 			ram[i] = 0;
 		}
 	}
@@ -444,20 +427,13 @@ void detect_vars_changes() {
 	unsigned char *psys = (unsigned char*)Device->GetSlot(1)->Page->RAM + 0x1C00;
 
 	bool nobas48 = false;
-	for (size_t i=0; i < sizeof(BASin48Vars);i++) {
-		if (BASin48Vars[i] != psys[i]) {
+	for (size_t i=0; i < sizeof(ZX_SYSVARS_DATA);i++) {
+		if (ZX_SYSVARS_DATA[i] != psys[i]) {
 			nobas48 = true;
 		}
 	}
 
-	bool nosys = false;
-	for (size_t i=0; i < sizeof(ZXSysVars);i++) {
-		if (ZXSysVars[i] != psys[i]) {
-			nosys = true;
-		}
-	}
-
-	if (nosys && nobas48) {
+	if (nobas48) {
 		Warning("[SAVETAP] Tape file will not contains data from 0x5B00 to 0x5E00");
 	}
 }

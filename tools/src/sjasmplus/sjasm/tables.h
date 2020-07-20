@@ -27,22 +27,31 @@
 */
 
 // tables.h
-using std::cout;
-using std::cerr;
-using std::endl;
+
+struct TextFilePos {
+	const char*		filename;
+	uint32_t		line;				// line numbering start at 1 (human way) 0 = invalid/init value
+	uint32_t 		colBegin, colEnd;	// columns coordinates are unused at this moment
+
+	TextFilePos();
+	void newFile(const char* fileNamePtr);	// requires stable immutable pointer (until sjasmplus exits)
+
+	// advanceColumns are valid only when true == endsWithColon (else advanceColumns == 0)
+	// default arguments are basically "next line"
+	void nextSegment(bool endsWithColon = false, size_t advanceColumns = 0);
+};
 
 enum EStructureMembers { SMEMBUNKNOWN, SMEMBALIGN, SMEMBBYTE, SMEMBWORD, SMEMBBLOCK, SMEMBDWORD, SMEMBD24, SMEMBPARENOPEN, SMEMBPARENCLOSE };
 
-// bit flags for ValidateLabel
-constexpr int VALIDATE_LABEL_SET_NAMESPACE = 0x01;
-constexpr int VALIDATE_LABEL_AS_GLOBAL = 0x02;
-char* ValidateLabel(char* naam, int flags);
+char* ValidateLabel(const char* naam, bool setNameSpace);
 extern char* PreviousIsLabel;
-int GetLabelValue(char*& p, aint& val);
+bool GetLabelPage(char*& p, aint& val);
+bool GetLabelValue(char*& p, aint& val);
 int GetLocalLabelValue(char*& op, aint& val);
 
 constexpr int LABEL_PAGE_UNDEFINED = -1;
 constexpr int LABEL_PAGE_ROM = 0x7F00;			// must be minimum of special values (but positive)
+constexpr int LABEL_PAGE_OUT_OF_BOUNDS = 0x7F01;	// label is defined, but not within Z80 address space
 
 class CLabelTableEntry {
 public:
@@ -62,7 +71,6 @@ public:
 	CLabelTable();
 	int Insert(const char* nname, aint nvalue, bool undefined = false, bool IsDEFL = false, bool IsEQU = false);
 	int Update(char*, aint);
-	int GetValue(char* nname, aint& nvalue);
 	CLabelTableEntry* Find(const char* name, bool onlyDefined = false);
 	bool Remove(const char* name);
 	bool IsUsed(const char* name);
@@ -90,9 +98,9 @@ public:
 	int insertd(const char*, void(*) (void));
 	int zoek(const char*);
 	int Find(char*);
-private:	//FIXME LABTABSIZE should be probably FUNTABSIZE here, but afraid to fix (rather use regular C++ facilities later)
-	int HashTable[LABTABSIZE], NextLocation;
-	CFunctionTableEntry funtab[LABTABSIZE];
+private:
+	int HashTable[FUNTABSIZE], NextLocation;
+	CFunctionTableEntry funtab[FUNTABSIZE];
 	int Hash(const char*);
 };
 
@@ -100,7 +108,7 @@ class CLocalLabelTableEntry {
 public:
 	aint nummer, value;
 	CLocalLabelTableEntry* next, * prev;
-	CLocalLabelTableEntry(long int number, long int address, CLocalLabelTableEntry* previous);
+	CLocalLabelTableEntry(aint number, aint address, CLocalLabelTableEntry* previous);
 };
 
 class CLocalLabelTable {
@@ -117,31 +125,14 @@ private:
 	CLocalLabelTableEntry* first, * last, * refresh;
 };
 
-class CAddressList {
-public:
-	aint val;
-	CAddressList* next;
-	CAddressList() {
-		next = 0;
-	}
-	~CAddressList() {
-		if (next) delete next;
-	}
-	CAddressList(aint nval, CAddressList* nnext) {
-		val = nval; next = nnext;
-	}
-};
-
 class CStringsList {
 public:
 	char* string;
 	CStringsList* next;
-	int sourceLine;
-	CStringsList() : string(NULL), next(NULL), sourceLine(0) {}
-	~CStringsList() {
-		if (string) free(string);
-		if (next) delete next;
-	}
+	TextFilePos source;
+	TextFilePos definition;
+	CStringsList();
+	~CStringsList();
 	CStringsList(const char* stringSource, CStringsList* next = NULL);
 };
 
@@ -156,19 +147,18 @@ public:
 
 class CMacroDefineTable {
 public:
-	void Init();
+	void ReInit();
 	void AddMacro(char*, char*);
 	CDefineTableEntry* getdefs();
 	void setdefs(CDefineTableEntry*);
 	char* getverv(char*);
 	int FindDuplicate(char*);
-	CMacroDefineTable() {
-		Init();
-	}
+	CMacroDefineTable();
 	CMacroDefineTable(const CMacroDefineTable&) = delete;
 	CMacroDefineTable& operator=(CMacroDefineTable const&) = delete;
+	~CMacroDefineTable();
 private:
-	int used[128];
+	bool used[128];
 	CDefineTableEntry* defs;
 };
 
@@ -199,7 +189,7 @@ public:
 	CStringsList* args, * body;
 	CMacroTableEntry* next;
 	CMacroTableEntry(char*, CMacroTableEntry*);
-	~CMacroTableEntry(){if (next)delete next;};
+	~CMacroTableEntry();
 };
 
 class CMacroTable {
@@ -207,13 +197,11 @@ public:
 	void Add(char*, char*&);
 	int Emit(char*, char*&);
 	int FindDuplicate(char*);
-	void Init();
-	CMacroTable() {
-		Init();
-	}
-	~CMacroTable(){if(macs) delete macs;};
+	void ReInit();
+	CMacroTable();
+	~CMacroTable();
 private:
-	int used[128];
+	bool used[128];
 	CMacroTableEntry* macs;
 };
 
@@ -223,6 +211,7 @@ public:
 	aint offset;
 	CStructureEntry1* next;
 	CStructureEntry1(char*, aint);
+	~CStructureEntry1();
 };
 
 class CStructureEntry2 {
@@ -231,13 +220,13 @@ public:
 	EStructureMembers type;
 	CStructureEntry2* next;
 	CStructureEntry2(aint noffset, aint nlen, aint ndef, EStructureMembers ntype);
+	~CStructureEntry2();
 	aint ParseValue(char* & p);
 };
 
 class CStructure {
 public:
 	char* naam, * id;
-	int binding;
 	int global;
 	int maxAlignment;
 	aint noffset;
@@ -251,7 +240,8 @@ public:
 	void emitlab(char* iid, aint address);
 	void emitmembs(char*&);
 	CStructure* next;
-	CStructure(char*, char*, int, int, int, CStructure*);
+	CStructure(const char* nnaam, char* nid, int no, int ngl, CStructure* p);
+	~CStructure();
 private:
 	CStructureEntry1* mnf, * mnl;
 	CStructureEntry2* mbf, * mbl;
@@ -259,11 +249,10 @@ private:
 
 class CStructureTable {
 public:
-	CStructure* Add(char*, int, int, int);
-	void Init();
-	CStructureTable() {
-		Init();
-	}
+	CStructure* Add(char* naam, int no, int gl);
+	void ReInit();
+	CStructureTable();
+	~CStructureTable();
 	CStructure* zoek(const char*, int);
 	int FindDuplicate(char*);
 	int Emit(char*, char*, char*&, int);
@@ -274,7 +263,8 @@ private:
 
 struct SRepeatStack {
 	int RepeatCount;
-	long CurrentSourceLine;
+	TextFilePos sourcePos;
+	aint CurrentSourceLine;
 	CStringsList* Lines;
 	CStringsList* Pointer;
 	bool IsInWork;
@@ -282,7 +272,7 @@ struct SRepeatStack {
 };
 
 struct SConditionalStack {
-	long CurrentSourceLine;
+	aint CurrentSourceLine;
 	CStringsList* Lines;
 	CStringsList* Pointer;
 	bool IsInWork;
