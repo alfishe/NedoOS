@@ -1,0 +1,386 @@
+#define STR_CURSOR_LF "\033[D"
+#define STR_CURSOR_RT "\033[C"
+#define STR_CURSOR_UP "\033[A"
+#define STR_CURSOR_DN "\033[B"
+///////////////////////////////
+
+void cmd_parse_byte(uint8_t inchar)
+{
+	switch(pb_state)
+	{
+///////////////////////////////////////////////////////////////////////////////
+	case PB_ST_DEFAULT:
+		if( inchar==0x1B )
+		{
+			pb_state = PB_ST_ESC;
+		}
+		else if( inchar==0x08 || inchar==0x7F )
+		{
+			(*cmd_parse_symbol)(CMD_BACKSPACE);
+		}
+		else if( inchar=='\r' || inchar=='\n' )
+		{
+			(*cmd_parse_symbol)(CMD_ENTER);
+		}
+		else if( inchar==0x09 )
+		{
+			(*cmd_parse_symbol)(CMD_TAB);
+		}
+		else if( inchar>=' ' )
+		{ // just character
+			(*cmd_parse_symbol)(inchar);
+		}
+		// other codes are ignored
+	break;
+///////////////////////////////////////////////////////////////////////////////
+	case PB_ST_ESC:
+		     if( inchar=='O' )
+		{
+			pb_state = PB_ST_SS3;
+		}
+		else if( inchar=='[' )
+		{
+			pb_state = PB_ST_CSI;
+			csi_buf_size = 0;
+		}
+		else
+		{
+			pb_state = PB_ST_DEFAULT;
+		}
+	break;
+///////////////////////////////////////////////////////////////////////////////
+	case PB_ST_SS3:
+		pb_state = PB_ST_DEFAULT;
+
+		     if( inchar=='P' )
+		{
+			(*cmd_parse_symbol)(CMD_F1);
+		}
+		else if( inchar=='Q' )
+		{
+			(*cmd_parse_symbol)(CMD_F2);
+		}
+		else if( inchar=='R' )
+		{
+			(*cmd_parse_symbol)(CMD_F3);
+		}
+		else if( inchar=='S' )
+		{
+			(*cmd_parse_symbol)(CMD_F4);
+		}
+		else if( inchar=='T' )
+		{
+			(*cmd_parse_symbol)(CMD_F5);
+		}
+		else if( inchar=='U' )
+		{
+			(*cmd_parse_symbol)(CMD_F6);
+		}
+		else if( inchar=='V' )
+		{
+			(*cmd_parse_symbol)(CMD_F7);
+		}
+		else if( inchar=='W' )
+		{
+			(*cmd_parse_symbol)(CMD_F8);
+		}
+		else if( inchar=='X' )
+		{
+			(*cmd_parse_symbol)(CMD_F9);
+		}
+		else if( inchar=='Y' )
+		{
+			(*cmd_parse_symbol)(CMD_F10);
+		}
+		else if( inchar=='Z' )
+		{
+			(*cmd_parse_symbol)(CMD_F11);
+		}
+		else if( inchar=='[' )
+		{
+			(*cmd_parse_symbol)(CMD_F12);
+		}
+		else if( inchar=='F' )
+		{
+			(*cmd_parse_symbol)(CMD_END);
+		}
+		else if( inchar=='H' )
+		{
+			(*cmd_parse_symbol)(CMD_HOME);
+		}
+		else if( inchar=='w' )
+		{
+			(*cmd_parse_symbol)(CMD_END);
+		}
+	break;
+///////////////////////////////////////////////////////////////////////////////
+	case PB_ST_CSI:
+		if( 0x20<=inchar && inchar<=0x7E ) // parameter bytes or intermediate bytes or final byte
+		{
+			if( csi_buf_size<CSI_BUF_SIZE )
+			{
+				csi_buf[csi_buf_size++] = inchar;
+			}
+			else // mark buffer overflow: esc sequence was greater than buffer
+			{
+				csi_buf_size = CSI_BUF_SIZE+1;
+			}
+			
+			if( 0x40<=inchar && inchar<=0x7F ) // final byte
+			{
+				pb_state = PB_ST_DEFAULT;
+
+				if( csi_buf_size<=CSI_BUF_SIZE )
+				{ // only parse if buffer wasn't overflown
+					cmd_parse_csi();
+				}
+			}
+		}
+		else // bytes not allowed in CSI sequence
+		{
+			pb_state = PB_ST_DEFAULT;
+		}
+	break;
+///////////////////////////////////////////////////////////////////////////////
+	case PB_ST_DBLSQ:
+		pb_state = PB_ST_DEFAULT;
+
+		     if( inchar=='A' )
+		{
+			(*cmd_parse_symbol)(CMD_F1);
+		}
+		else if( inchar=='B' )
+		{
+			(*cmd_parse_symbol)(CMD_F2);
+		}
+		else if( inchar=='C' )
+		{
+			(*cmd_parse_symbol)(CMD_F3);
+		}
+		else if( inchar=='D' )
+		{
+			(*cmd_parse_symbol)(CMD_F4);
+		}
+		else if( inchar=='E' )
+		{
+			(*cmd_parse_symbol)(CMD_F5);
+		}
+	break;
+///////////////////////////////////////////////////////////////////////////////
+	default:
+		pb_state = PB_ST_DEFAULT;
+	break;
+///////////////////////////////////////////////////////////////////////////////
+	}
+}
+
+void cmd_parse_csi(void)
+{
+	uint32_t csi_buf_pos = 0;
+
+	uint32_t number = 0;
+
+	enum cmd_parse_csi_states
+	{
+		CPCS_DEFAULT,
+		CPCS_NUM     // number
+	};
+
+	uint32_t mode = CPCS_DEFAULT; 
+
+	uint8_t chr;
+
+
+	while( csi_buf_pos < csi_buf_size )
+	{
+		chr = csi_buf[csi_buf_pos++];
+
+		switch( mode )
+		{
+///////////////////////////////////////////////////////////////////////////////
+		case CPCS_DEFAULT:
+			     if( chr=='[' )
+			{
+				pb_state = PB_ST_DBLSQ;
+				return;
+			}
+			else if( chr==STR_CURSOR_UP[2] )
+			{
+				(*cmd_parse_symbol)(CMD_CURSOR_UP);
+				return;
+			}
+			else if( chr==STR_CURSOR_DN[2] )
+			{
+				(*cmd_parse_symbol)(CMD_CURSOR_DN);
+				return;
+			}
+			else if( chr==STR_CURSOR_RT[2] )
+			{
+				(*cmd_parse_symbol)(CMD_CURSOR_RT);
+				return;
+			}
+			else if( chr==STR_CURSOR_LF[2] )
+			{
+				(*cmd_parse_symbol)(CMD_CURSOR_LF);
+				return;
+			}
+			else if( chr=='H' )
+			{
+				(*cmd_parse_symbol)(CMD_HOME);
+				return;
+			}
+			else if( chr=='F' )
+			{
+				(*cmd_parse_symbol)(CMD_END);
+				return;
+			}
+			else if( chr=='M' )
+			{
+				(*cmd_parse_symbol)(CMD_F1);
+				return;
+			}
+			else if( chr=='N' )
+			{
+				(*cmd_parse_symbol)(CMD_F2);
+				return;
+			}
+			else if( chr=='O' )
+			{
+				(*cmd_parse_symbol)(CMD_F3);
+				return;
+			}
+			else if( chr=='P' )
+			{
+				(*cmd_parse_symbol)(CMD_F4);
+				return;
+			}
+			else if( chr=='Q' )
+			{
+				(*cmd_parse_symbol)(CMD_F5);
+				return;
+			}
+			else if( chr=='R' )
+			{
+				(*cmd_parse_symbol)(CMD_F6);
+				return;
+			}
+			else if( chr=='S' )
+			{
+				(*cmd_parse_symbol)(CMD_F7);
+				return;
+			}
+			else if( chr=='T' )
+			{
+				(*cmd_parse_symbol)(CMD_F8);
+				return;
+			}
+			else if( chr=='U' )
+			{
+				(*cmd_parse_symbol)(CMD_F9);
+				return;
+			}
+			else if( chr=='V' )
+			{
+				(*cmd_parse_symbol)(CMD_F10);
+				return;
+			}
+			else if( chr=='W' )
+			{
+				(*cmd_parse_symbol)(CMD_F11);
+				return;
+			}
+			else if( chr=='X' )
+			{
+				(*cmd_parse_symbol)(CMD_F12);
+				return;
+			}
+
+			if( chr<'0' || '9'<chr )
+			{
+				return;
+			}
+
+			// else -- chr is number
+			mode = CPCS_NUM;
+		// NO break!!
+///////////////////////////////////////////////////////////////////////////////
+		case CPCS_NUM:
+			if( '0'<=chr && chr<='9' )
+			{
+				number = number*10 + (chr-'0');
+			}
+			else if( chr=='~' )
+			{
+				switch( number )
+				{
+				case 1:
+					(*cmd_parse_symbol)(CMD_HOME);
+					return;
+				case 2:
+					(*cmd_parse_symbol)(CMD_INSERT);
+					return;
+				case 3:
+					(*cmd_parse_symbol)(CMD_DELETE);
+					return;
+				case 4:
+					(*cmd_parse_symbol)(CMD_END);
+					return;
+				case 5:
+					(*cmd_parse_symbol)(CMD_PGUP);
+					return;
+				case 6:
+					(*cmd_parse_symbol)(CMD_PGDN);
+					return;
+				case 11:
+					(*cmd_parse_symbol)(CMD_F1);
+					return;
+				case 12:
+					(*cmd_parse_symbol)(CMD_F2);
+					return;
+				case 13:
+					(*cmd_parse_symbol)(CMD_F3);
+					return;
+				case 14:
+					(*cmd_parse_symbol)(CMD_F4);
+					return;
+				case 15:
+				case 16:
+					(*cmd_parse_symbol)(CMD_F5);
+					return;
+				case 17:
+					(*cmd_parse_symbol)(CMD_F6);
+					return;
+				case 18:
+					(*cmd_parse_symbol)(CMD_F7);
+					return;
+				case 19:
+					(*cmd_parse_symbol)(CMD_F8);
+					return;
+				case 20:
+					(*cmd_parse_symbol)(CMD_F9);
+					return;
+				case 21:
+					(*cmd_parse_symbol)(CMD_F10);
+					return;
+				case 23:
+					(*cmd_parse_symbol)(CMD_F11);
+					return;
+				case 24:
+					(*cmd_parse_symbol)(CMD_F12);
+				default:
+					return;
+				}
+			}
+			else
+			{
+				return;
+			}
+		break;
+///////////////////////////////////////////////////////////////////////////////
+		default:
+			return;
+		break;
+///////////////////////////////////////////////////////////////////////////////
+		}
+	}
+}

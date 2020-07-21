@@ -16,21 +16,26 @@ CMDLINEY=24
 COLOR=7
 CURSORCOLOR=0x38
 
+        macro SETXY_
+        ;OS_SETXY
+        call setxy
+        endm
+
         macro PRCHAR_
-        PRCHAR
-        ;call sendchar       
+        ;PRCHAR
+        call sendchar       
         endm
 
         macro GET_KEY_
-        GET_KEY
-        ;call receivechar       
+        ;GET_KEY
+        call receivechar       
         endm
 
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
-        ld e,6 ;textmode
-        OS_SETGFX
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         ;;ld e,COLOR
         ;;OS_CLS
         
@@ -38,6 +43,7 @@ cmd_begin
         ld a,e
         ld (stdinhandle),a
         ld a,d
+        ld (stdouthandle_wasatstart),a
         ld (stdouthandle),a
 
         OS_GETMAINPAGES
@@ -106,7 +112,36 @@ cmdmainloop
         ld bc,MAXCMDSZ+1
         ldir
         
+;если command pars >file, то create file, перенаправить вывод в него, execcmd, close file, перенаправить вывод обратно
+        ld hl,cmdbuf
+        ld a,'>'
+        ld bc,MAXCMDSZ
+        cpir
+        jr nz,cmd_noexeccmdtofile
+        dec hl
+        ld (hl),0
+        inc hl
+        ex de,hl ;de=filename
+        OS_CREATEHANDLE
+        ld a,b
+        ld (execcmdtofile_handle),a
+        ld (stdouthandle),a
+        
+        call execcmd ;can show errors ;a!=0: no such internal command
+        push af
+
+execcmdtofile_handle=$+1
+        ld b,0
+        OS_CLOSEHANDLE
+stdouthandle_wasatstart=$+1
+        ld a,0
+        ld (stdouthandle),a
+
+        pop af
+        jr cmd_noexeccmdtofileq
+cmd_noexeccmdtofile
         call execcmd ;a!=0: no such internal command
+cmd_noexeccmdtofileq
         or a
         call nz,callcmd;strcpexec_tryrun ;запускает по фону
         ld hl,cmdbuf
@@ -150,14 +185,14 @@ editcmd
 editcmd0
         call fixscroll_prcmd
         call cmdcalccurxy
-        OS_SETXY
+        SETXY_
         ld e,CURSORCOLOR;0x38
         OS_PRATTR ;нарисовать курсор
         call yieldgetkeyloop ;YIELDGETKEYLOOP
          ;ld a,c ;keynolang
         push af
         call cmdcalccurxy
-        OS_SETXY
+        SETXY_
         ld e,COLOR;7
         OS_PRATTR ;стереть курсор
         pop af
@@ -1733,8 +1768,8 @@ curhandle=$+1
         include "../_sdk/loadpage.asm"
         endif
 
-        include "../_sdk/prdword.asm"
-        include "../_sdk/cmdpr.asm"
+        include "prdword.asm"
+        include "cmdpr.asm"
 
 yieldgetkeyloop
 _1=$
@@ -1746,14 +1781,107 @@ _1=$
         jr z,_1
         ret
 
+sendchar_esckey
+        push bc
+        ld a,0x1b
+        call sendchar_byte_a
+        ld a,'['
+        call sendchar_byte_a
+        pop bc
+        jr sendchar_byte
+
+sendchar_esckey2
+        push bc
+        ld a,0x1b
+        call sendchar_byte_a
+        ld a,'['
+        call sendchar_byte_a
+        pop bc
+        push bc
+        ld a,b
+        call sendchar_byte_a
+        pop bc
+        jr sendchar_byte
+
+setxy
+;de=yx
+        ;display "setxy=",$
+        push de
+        ld a,0x1b
+        call sendchar_byte_a
+        ld a,'['
+        call sendchar_byte_a
+        pop de
+        push de
+        ld a,d
+        inc a
+        call sendchar_num
+        ld a,';'
+        call sendchar_byte_a
+        pop de
+        ld a,e
+        inc a
+        call sendchar_num
+        ld a,'H'
+        jr sendchar_byte_a
+
+sendchar_num
+;a=num
+        ld c,'0'-1
+        inc c
+        sub 10
+        jr nc,$-3
+        push af
+        call sendchar_byte
+        pop af
+        add a,'0'+10
+        jr sendchar_byte_a
+
 sendchar
+        cp 0x80
+        ;jr nc,sendchar_rustoutf8
+        ;cp 0x08 ;backspace
+        ;cp 0x0d ;enter
+        cp key_left
+        ld c,'D'
+        jr z,sendchar_esckey
+        cp key_right
+        ld c,'C'
+        jr z,sendchar_esckey
+        cp key_down
+        ld c,'B'
+        jr z,sendchar_esckey
+        cp key_up
+        ld c,'A'
+        jr z,sendchar_esckey
+        cp key_del
+        ld bc,'3'*256+'~'
+        jr z,sendchar_esckey2
+        cp key_home
+        ld bc,'1'*256+'~'
+        jr z,sendchar_esckey2
+        cp key_end
+        ld bc,'4'*256+'~'
+        jr z,sendchar_esckey2
+        cp key_ins
+        ld bc,'2'*256+'~'
+        jr z,sendchar_esckey2
+        ld c,a
+sendchar_byte
+        ld a,c
+sendchar_byte_a
         ld (stdoutbuf),a
+sendchar_repeat
         ld hl,1
         ld de,stdoutbuf
 stdouthandle=$+1
         ld b,0
         OS_WRITEHANDLE
-        ret
+        ld a,h
+        or l
+        ret nz
+        YIELD
+        jr sendchar_repeat
 
 receivechar
         ld hl,1
@@ -1780,4 +1908,4 @@ cmd_end
 
 	savebin "cmd.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "..\..\us\user.l"
