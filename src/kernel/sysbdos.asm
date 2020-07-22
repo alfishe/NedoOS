@@ -1976,10 +1976,12 @@ BDOS_readhandle_pipe_nrnd
         pop hl ;buf start
 ;
         push bc ;to_user_size
+        ex af,af'
         ld a,b
         or c
         jr z,$+4
         ldir ;to user
+        ex af,af'
         ex de,hl
         ld l,a
         xor a

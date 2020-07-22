@@ -16,6 +16,8 @@ CMDLINEY=24
 COLOR=7
 CURSORCOLOR=0x38
 
+RECODEINPUT=0;1
+
         macro SETXY_
         ;OS_SETXY
         call setxy
@@ -28,7 +30,7 @@ CURSORCOLOR=0x38
 
         macro GET_KEY_
         ;GET_KEY
-        call receivechar       
+        call receivechar
         endm
 
         org PROGSTART
@@ -77,7 +79,7 @@ cmd_begin
         call makeprompt ;иначе запустится из неправильной директории
          ;jr cmd_interactive
         
-        call execcmd ;can show errors ;a!=0: no such internal command
+        call execcmd_maybepipes ;can show errors ;a!=0: no such internal command
         or a
         call nz,callcmd;strcpexec_tryrun ;запускает по фону
         YIELD ;чтобы запущенная задача успела захватить фокус ;???
@@ -119,7 +121,21 @@ cmdmainloop
         ld de,oldcmd
         ld bc,MAXCMDSZ+1
         ldir
-        
+
+        call execcmd_maybepipes
+     
+        jr cmd_noexeccmdtofileq
+cmd_noexeccmdtofile
+        call execcmd ;a!=0: no such internal command
+cmd_noexeccmdtofileq
+        or a
+        call nz,callcmd;strcpexec_tryrun ;запускает по фону
+        ld hl,cmdbuf
+        ld (hl),0
+        jp cmdmainloop
+
+execcmd_maybepipes
+;a!=0: no such internal command
 ;если command pars >file, то create file, перенаправить вывод в него, execcmd, close file, перенаправить вывод обратно
         ld hl,cmdbuf
         ld a,'>'
@@ -146,15 +162,7 @@ stdouthandle_wasatstart=$+1
         ld (stdouthandle),a
 
         pop af
-        jr cmd_noexeccmdtofileq
-cmd_noexeccmdtofile
-        call execcmd ;a!=0: no such internal command
-cmd_noexeccmdtofileq
-        or a
-        call nz,callcmd;strcpexec_tryrun ;запускает по фону
-        ld hl,cmdbuf
-        ld (hl),0
-        jp cmdmainloop
+        ret
 
 ;;;;;;;;;;;;;;;;;;
 prNNcmd
@@ -1378,6 +1386,40 @@ cmd_type_buf=$+1
         pop bc
         jr cmd_type0
         
+cmd_tee
+        ld hl,(execcmd_pars)
+        ld a,(hl)
+        or a
+        jp z,cmd_error_nopars
+        ld de,wordbuf
+        call getword ;hl=terminator/space addr
+
+        ld de,wordbuf ;de=drive/path/file
+        OS_CREATEHANDLE
+        or a
+        jp nz,cmd_error_wrongfile
+        ld a,b
+        ld (close_file1_handle),a
+        ld hl,close_file1
+        push hl
+        
+cmd_tee0
+        push bc
+        GET_KEY_
+        ld (cmd_type_buf),a
+        pop bc
+        ret c ;input pipe closed
+        ld a,(cmd_type_buf)
+        PRCHAR_
+;B = file handle, DE = Buffer address, HL = Number of bytes to read
+        push bc
+        ld de,cmd_type_buf
+        ld hl,1 ;TODO набивать буфер, потом писать много
+        OS_WRITEHANDLE
+;HL = Number of bytes actually written, A=error?
+        pop bc
+        jr cmd_tee0
+        
 cmd_echo
         ld hl,(execcmd_pars)
         call prtext
@@ -1656,6 +1698,8 @@ commandslist
         db "proc",0
         dw cmd_proc
         db "ps",0
+        dw cmd_tee
+        db "tee",0
         dw cmd_drop
         db "drop",0
         dw cmd_drop
@@ -1668,6 +1712,8 @@ commandslist
         db "copydir",0
         dw cmd_type
         db "type",0
+        dw cmd_type
+        db "cat",0
         dw cmd_echo
         db "echo",0
         dw cmd_pause
@@ -1892,17 +1938,143 @@ stdouthandle=$+1
         jr sendchar_repeat
 
 receivechar
+;CY=error
         ld hl,1
         ld de,stdinbuf
 stdinhandle=$+1
         ld b,0
         OS_READHANDLE
+        scf
+        or a
+        ret nz
         ld a,h
         or l
         ld c,a
         ret z
         ld a,(stdinbuf)
+        ld e,a
+       if RECODEINPUT==0
         ret
+       else
+term_prfsm
+;e=char
+        ld a,(term_prfsm_curstate)
+        or a
+        jr nz,term_prfsm_nosingle
+        ld a,e
+        cp 0x1b
+        ret nz ;jr nz,term_prfsm_prchar
+        ld a,1
+        ld (term_prfsm_curstate),a
+        xor a
+        ret
+term_prfsm_nosingle
+        dec a
+        jr nz,term_prfsm_noafteresc
+        ;ld a,e
+        ;cp '['
+        ;jr nz,term_prfsm_prchar
+        ld a,2
+        ld (term_prfsm_curstate),a
+        xor a
+        ld (term_prfsm_curnumber),a
+        xor a
+        ret
+term_prfsm_noafteresc
+        ;dec a
+        ;jr nz,term_prfsm_noafterescbracket
+        ld a,e
+        sub '0'
+        cp 10
+        jr nc,term_prfsm_afterescbracket_nonumber
+        ld e,a
+        ld hl,term_prfsm_curnumber
+        ld a,(hl)
+        add a,a
+        add a,a
+        add a,(hl)
+        add a,a ;*10
+        add a,e
+        ld (hl),a
+        xor a
+        ret
+term_prfsm_afterescbracket_nonumber
+        ld a,e
+        cp ';'
+        jr nz,term_prfsm_afterescbracket_nosemicolon
+        ld a,(term_prfsm_curnumber)
+        ld (term_prfsm_curnumber1),a
+        xor a
+        ld (term_prfsm_curnumber),a
+        xor a
+        ret
+term_prfsm_afterescbracket_nosemicolon
+        xor a
+        ld (term_prfsm_curstate),a        
+        ld a,e
+        cp 'H'
+        jr nz,term_prfsm_afterescbracket_noH
+        ;ld a,(term_prfsm_curnumber1) ;row
+        ;dec a
+        ;ld d,a
+        ;ld a,(term_prfsm_curnumber) ;column
+        ;dec a
+        ;ld e,a
+        ;OS_SETXY
+        xor a
+        ret
+term_prfsm_afterescbracket_noH
+        cp '~'
+        jr nz,term_prfsm_afterescbracket_notilde
+        ld a,(term_prfsm_curnumber) ;column
+        cp 3
+        ld c,key_del
+        jr z,term_prfsm_keycok
+        cp 1
+        ld c,key_home
+        jr z,term_prfsm_keycok
+        cp 4
+        ld c,key_end
+        jr z,term_prfsm_keycok
+        cp 2
+        ld c,key_ins
+        jr z,term_prfsm_keycok
+        xor a
+        ret
+term_prfsm_afterescbracket_notilde
+        ;cp 'A' ;A..D = up, down, right, left
+        cp 'A'
+        ld c,key_up
+        jr z,term_prfsm_keycok
+        cp 'B'
+        ld c,key_down
+        jr z,term_prfsm_keycok
+        cp 'C'
+        ld c,key_right
+        jr z,term_prfsm_keycok
+        cp 'D'
+        ld c,key_left
+        jr z,term_prfsm_keycok
+        xor a
+        ret
+
+term_prfsm_keycok
+        ld a,c
+        or a ;nc
+        ret
+
+term_prfsm_curstate
+        db 0
+;states:
+;0: wait for single symbol
+;1: after 0x1b
+;2: after 0x1b [ [number] (might be more digits)
+
+term_prfsm_curnumber
+         db 0
+term_prfsm_curnumber1
+         db 0
+       endif ;RECODEINPUT
 
 stdoutbuf
         db 0

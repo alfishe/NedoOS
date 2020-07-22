@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+RECODEINPUT=0;1
+
 STDINBUF_SZ=256
 
         org PROGSTART
@@ -97,16 +99,14 @@ mainloop_afterkey
         ;jr z,
         cp key_esc
         jr z,quit
-        ld (stdoutbuf),a
-         ;ld e,a
-         ;OS_PRCHAR
-        ld de,stdoutbuf
-        ld hl,1
-stdouthandle=$+1
-        ld b,0
-        OS_WRITEHANDLE
+        if RECODEINPUT
+        call sendchar
+        else
+        call sendchar_byte_a
+        endif
         jr mainloop_afterkey
 quit
+;TODO close cmd!!!
 
         ld a,(stdinhandle)
         ld b,a
@@ -115,6 +115,86 @@ quit
         ld b,a
         OS_CLOSEHANDLE
         QUIT
+
+sendchar_esckey
+        push bc
+        ld a,0x1b
+        call sendchar_byte_a
+        ld a,'['
+        call sendchar_byte_a
+        pop bc
+        jr sendchar_byte
+
+sendchar_esckey2
+        push bc
+        ld a,0x1b
+        call sendchar_byte_a
+        ld a,'['
+        call sendchar_byte_a
+        pop bc
+        push bc
+        ld a,b
+        call sendchar_byte_a
+        pop bc
+        jr sendchar_byte
+
+sendchar_num
+;a=num
+        ld c,'0'-1
+        inc c
+        sub 10
+        jr nc,$-3
+        push af
+        call sendchar_byte
+        pop af
+        add a,'0'+10
+        jr sendchar_byte_a
+
+sendchar
+        cp 0x80
+        ;jr nc,sendchar_rustoutf8
+        ;cp 0x08 ;backspace
+        ;cp 0x0d ;enter
+        cp key_left
+        ld c,'D'
+        jr z,sendchar_esckey
+        cp key_right
+        ld c,'C'
+        jr z,sendchar_esckey
+        cp key_down
+        ld c,'B'
+        jr z,sendchar_esckey
+        cp key_up
+        ld c,'A'
+        jr z,sendchar_esckey
+        cp key_del
+        ld bc,'3'*256+'~'
+        jr z,sendchar_esckey2
+        cp key_home
+        ld bc,'1'*256+'~'
+        jr z,sendchar_esckey2
+        cp key_end
+        ld bc,'4'*256+'~'
+        jr z,sendchar_esckey2
+        cp key_ins
+        ld bc,'2'*256+'~'
+        jr z,sendchar_esckey2
+        ld c,a
+sendchar_byte
+        ld a,c
+sendchar_byte_a
+        ld (stdoutbuf),a
+sendchar_repeat
+        ld hl,1
+        ld de,stdoutbuf
+stdouthandle=$+1
+        ld b,0
+        OS_WRITEHANDLE
+        ld a,h
+        or l
+        ret nz
+        YIELD
+        jr sendchar_repeat
 
 term_prfsm
 ;e=char
