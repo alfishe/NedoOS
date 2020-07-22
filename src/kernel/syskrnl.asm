@@ -242,7 +242,7 @@ schedule
         ld iy,(appaddr)
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
-         ld a,(sys_timer)
+         ld a,(sys_timer) ;ok
         ld l,MAXAPPS
 findnextapp0
         add iy,bc
@@ -427,7 +427,7 @@ focusappaddr=$+1
         ld a,d
 		ld (sys_mousebuttons),a
 		if atm != 1
-			ld a,(sys_timer)
+			ld a,(sys_timer) ;ok
 			and 7
 			jr nz,on_int_noreadtime
 			call readtime ;hl=date, de=time

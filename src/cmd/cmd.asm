@@ -62,6 +62,7 @@ cmd_begin
         ld de,wordbuf
         call getword
         call skipspaces
+        ld (cmdlineword2),hl
          ;jr cmd_interactive
         ld a,(hl)
         or a
@@ -81,12 +82,19 @@ cmd_begin
         call nz,callcmd;strcpexec_tryrun ;запускает по фону
         YIELD ;чтобы запущенная задача успела захватить фокус ;???
 ;если командная строка была со словом autoexec.bat вместо слова cmd, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
-        ld a,(COMMANDLINE)
-        cp 'a'
+        ;ld a,(COMMANDLINE)
+        ;cp 'a'
+        ld hl,tautoexecbat
+cmdlineword2=$+1
+        ld de,0
+        call strcp ;z=yes
         jr z,cmd_interactive
         ;jr $
         QUIT
         
+tautoexecbat
+        db "autoexec.bat",0
+
 cmd_interactive
         
         ;OS_GETMAINPAGES

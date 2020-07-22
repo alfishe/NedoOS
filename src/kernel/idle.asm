@@ -116,42 +116,41 @@ mountdrives0
         jr nz,mountdrives0
 		
 idle_runcmd
-        ld de,tpipename
-        push de
-        OS_OPENHANDLE
-        ld a,b
-        ld (pipe1handle),a
-        pop de
-        OS_OPENHANDLE
-        ld a,b
-        ld (pipe2handle),a
+        ;ld de,tpipename
+        ;push de
+        ;OS_OPENHANDLE
+        ;ld a,b
+        ;ld (pipe1handle),a
+        ;pop de
+        ;OS_OPENHANDLE
+        ;ld a,b
+        ;ld (pipe2handle),a
 
         OS_SETSYSDRV
 
         ld hl,tcmdloading
         call prtext
         
-        ld de,cmd_filename
-        OS_OPENHANDLE
-        or a
-        jr nz,execcmd_error
+        ;ld de,cmd_filename
+        ;OS_OPENHANDLE
+        ;or a
+        ;jr nz,execcmd_error
         
-        call idle_readapp ;делает CLOSE
+        ;call idle_readapp ;делает CLOSE
         
-        push af
-        ld b,a
+        ;push af
+        ;ld b,a
 pipehandles=$+1
 pipe1handle=$+1
 pipe2handle=$+2
         ld de,0
         ld h,0xff ;rnd
 ;b=id, e=stdin, d=stdout, h=stderr        
-        OS_SETSTDINOUT
+        ;OS_SETSTDINOUT
         
-        pop af ;id
-        ld e,a
-        OS_RUNAPP
-
+        ;pop af ;id
+        ;ld e,a
+        ;OS_RUNAPP
 
 
         ld de,term_filename
@@ -234,17 +233,16 @@ idle_readapp
         ret
 
 tcmdnotfound
-        db "cmd.com not found",0x0d,0x0a,0
+        db "term.com not found",0x0d,0x0a,0
 tcmdloading
-        db "loading cmd.com",0x0d,0x0a,0
+        db "loading term.com",0x0d,0x0a,0
 tdrivemounted
         db "Drive "
 tdrivemounted_drive
         db "N mounted",0x0d,0x0a,0
 
 cmdbuf
-        ;db "cmd autoexec.bat",0
-        db "autoexec.bat autoexec.bat",0 ;чтобы потом входить в интерактивный режим (cmd проверяет первое слово), иначе придётся прописать в autoexec.bat команду cmd и иметь две задачи cmd (одну висящую в ожидании другого cmd)
+        db "term.com cmd.com autoexec.bat",0 ;чтобы потом входить в интерактивный режим (cmd проверяет первое слово), иначе придётся прописать в autoexec.bat команду cmd и иметь две задачи cmd (одну висящую в ожидании другого cmd)
         
 prtext
 prtext0
@@ -303,13 +301,10 @@ curhandle=$+1
         pop de
         ret
 
-tpipename
-        db "z:",0
-
 term_filename
         db "term.com",0
-cmd_filename
-        db "cmd.com" ;0 в конце подразумевается
+;cmd_filename
+;        db "cmd.com" ;0 в конце подразумевается
 stack
         ds 64
 endstack

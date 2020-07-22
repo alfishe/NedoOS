@@ -5,14 +5,59 @@ STDINBUF_SZ=256
 
         org PROGSTART
 begin
+        ld sp,0x4000
         ld e,6 ;textmode
         OS_SETGFX
 
-        OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
-        ld a,e
+        ld de,tpipename
+        push de
+        OS_OPENHANDLE
+        ld a,b
         ld (stdinhandle),a
-        ld a,d
+        pop de
+        OS_OPENHANDLE
+        ld a,b
         ld (stdouthandle),a
+
+        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
+
+        ld a,(stdinhandle)
+        ld e,a
+        ld a,(stdouthandle)
+        ld d,a
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+
+        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr ;TODO создать пайпы
+        ;ld a,e
+        ;ld (stdinhandle),a
+        ;ld a,d
+        ;ld (stdouthandle),a
+
+        ld de,cmd_filename
+        OS_OPENHANDLE
+        or a
+        jr nz,execcmd_error
+        
+        call idle_readapp ;делает CLOSE
+        
+        push af
+        ld b,a
+        ld a,(stdinhandle)
+        ld d,a
+        ld a,(stdouthandle)
+        ld e,a
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+        
+        pop af ;id
+
+        ld e,a ;id
+        OS_RUNAPP
+
+execcmd_error
 
 mainloop
         YIELD
@@ -157,6 +202,105 @@ term_prfsm_prchar
         OS_PRCHAR
         ret
 
+idle_readapp
+        ld a,b
+        ld (curhandle),a
+        
+        OS_NEWAPP ;для первой создаваемой задачи будут созданы первые два пайпа и подключены
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+        push bc ;b=id
+
+        ld a,d
+        SETPG32KHIGH
+        push de
+        push hl
+        ld hl,COMMANDLINE ;command line
+        call skipword
+        call skipspaces ;пропустили первое слово (там было term.com, а дальше, например, cmd.com autoexec.bat)
+        ld de,0xc080
+        ld bc,128  
+        ldir ;command line
+        pop hl
+        pop de
+
+        call readfile_pages_dehl
+
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+
+        pop af ;id
+        ret
+
+readfile_pages_dehl
+        ld a,d
+        SETPG32KHIGH
+        ld a,0xc100/256
+        call cmd_loadpage
+        or a
+        ret nz
+        
+        ld a,e
+        SETPG32KHIGH
+        ld a,0xc000/256
+        call cmd_loadpage
+        or a
+        ret nz
+        
+        ld a,h
+        SETPG32KHIGH
+        ld a,0xc000/256
+        call cmd_loadpage
+        or a
+        ret nz
+        
+        ld a,l
+        SETPG32KHIGH
+        ld a,0xc000/256
+
+cmd_loadpage
+;out: a=error
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        pop hl
+        pop de
+        ret
+
+skipword
+;hl=string
+;out: hl=terminator/space addr
+skipword0
+        ld a,(hl)
+        or a
+        jr z,skipwordq
+        sub ' '
+        jr z,skipwordq
+        inc hl ;ldi
+        jp skipword0
+skipwordq
+        ;xor a
+        ;ld (de),a
+        ret
+
+skipspaces
+;hl=string
+;out: hl=after last space
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces
+
 term_prfsm_curstate
         db 0
 ;states:
@@ -169,10 +313,16 @@ term_prfsm_curnumber
 term_prfsm_curnumber1
          db 0
 
+cmd_filename
+        db "cmd.com",0
+
 stdinfn
         db "stdin",0
 stdoutfn
         db "stdout",0
+
+tpipename
+        db "z:",0
 
 stdoutbuf
         db 0
@@ -180,5 +330,8 @@ stdoutbuf
 stdinbuf
         ds STDINBUF_SZ
 
+;cmdbuf
+;        db "cmd.com autoexec.bat",0 ;чтобы потом входить в интерактивный режим (cmd проверяет первое слово), иначе придётся прописать в autoexec.bat команду cmd и иметь две задачи cmd (одну висящую в ожидании другого cmd)
+        
 end
 	savebin "term.com",begin,end-begin

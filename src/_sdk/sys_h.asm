@@ -326,7 +326,7 @@ _1=$
         ld c,CMD_SETPAL
 	CALLBDOS
         endm
-        macro OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags
+        macro OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld c,CMD_GETMAINPAGES
 	CALLBDOS
         endm

@@ -956,9 +956,9 @@ BDOS_getkeymatrix_fail
 
 BDOS_gettimerX
 BDOS_gettimer
-        ld hl,(sys_timer+2)
-        ld de,(sys_timer)
-         ld a,(sys_timer+2)
+        ld hl,(sys_timer+2) ;ok
+        ld de,(sys_timer) ;ok
+         ld a,(sys_timer+2) ;ok
          sub l
          jr nz,BDOS_gettimerX ;для атомарности
         ret ;a=0
@@ -1600,8 +1600,8 @@ BDOS_gettime
 		if atm==1
 			call readtime
 		endif
-        ld hl,(sys_time_date)
-        ld ix,(sys_time_date+2)
+        ld hl,(sys_time_date) ;ok
+        ld ix,(sys_time_date+2) ;ok
         ret
         
 
