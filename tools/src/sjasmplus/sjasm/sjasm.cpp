@@ -28,6 +28,7 @@
 
 // sjasm.cpp
 
+#include "termcolor.hpp"
 #include "sjdefs.h"
 #include <cstdlib>
 #include <chrono>
@@ -659,12 +660,12 @@ int main(int argc, char **argv) {
 	}
 
 	if (!Options::HideLogo) {
-		_CERR logo _ENDL;
+		_COUT logo _ENDL;
 	}
 
 	if (Options::ShowVersion) {
 		if (Options::HideLogo) {	// if "sjasmplus --version --nologo", emit only the raw VERSION
-			_CERR VERSION _ENDL;
+			_COUT VERSION _ENDL;
 		}
 		// otherwise the full logo was already printed
 		// now check if there were some sources to assemble, if NOT, exit with "OK"!
@@ -723,9 +724,9 @@ int main(int argc, char **argv) {
 
 		if (Options::OutputVerbosity <= OV_ALL) {
 			if (pass != LASTPASS) {
-				_CERR "Pass " _CMDL pass _CMDL " complete (" _CMDL ErrorCount _CMDL " errors)" _ENDL;
+				_COUT "Pass " _CMDL pass _CMDL " complete (" _CMDL ErrorCount _CMDL " errors)" _ENDL;
 			} else {
-				_CERR "Pass 3 complete" _ENDL;
+				_COUT "Pass 3 complete" _ENDL;
 			}
 		}
 	} while (pass < LASTPASS);
@@ -750,7 +751,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (Options::OutputVerbosity <= OV_ALL) {
-		_CERR "Errors: " _CMDL ErrorCount _CMDL ", warnings: " _CMDL WarningCount _CMDL ", compiled: " _CMDL CompiledCurrentLine _CMDL " lines" _END;
+		_COUT "Errors: " _CMDL ErrorCount _CMDL ", warnings: " _CMDL WarningCount _CMDL ", compiled: " _CMDL CompiledCurrentLine _CMDL " lines" _END;
 
 		double dwCount;
 		dwCount = GetTickCount() - dwStart;
@@ -758,7 +759,7 @@ int main(int argc, char **argv) {
 		char workTimeTxt[200] = "";
 		SPRINTF1(workTimeTxt, 200, ", work time: %.3f seconds", dwCount / 1000);
 
-		_CERR workTimeTxt _ENDL;
+		_COUT workTimeTxt _ENDL;
 	}
 
 	cout << flush;

@@ -28,6 +28,7 @@
 
 // direct.cpp
 
+#include "termcolor.hpp"
 #include "sjdefs.h"
 
 CFunctionTable DirectivesTable;
@@ -1560,7 +1561,7 @@ void dirDISPLAY() {
 	*ep = 0; // end line
 
 	if (LASTPASS == pass && *e) {
-		_CERR "> " _CMDL e _ENDL;
+		_COUT "> " _CMDL e _ENDL;
 	}
 }
 
@@ -1616,7 +1617,7 @@ void dirSHELLEXEC() {
 				STRNCAT(temp, LINEMAX, parameters, LINEMAX-1);
 			}
 			if (Options::OutputVerbosity <= OV_ALL) {
-				_CERR "Executing <" _CMDL temp _CMDL ">" _ENDL;
+				_COUT "Executing <" _CMDL temp _CMDL ">" _ENDL;
 			}
 			// flush both stdout and stderr before trying to execute anything externally
 			_COUT flush;

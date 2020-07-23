@@ -36,11 +36,11 @@
 #define LASTPASS 3
 
 // output
-#define _COUT cout <<
-#define _CERR cerr <<
+#define _COUT cout << termcolor::reset <<
+#define _CERR cerr << termcolor::red <<
 #define _CMDL  <<
-#define _ENDL << endl
-#define _END ;
+#define _ENDL << termcolor::reset << endl
+#define _END << termcolor::reset
 
 // standard libraries
 #ifdef WIN32
