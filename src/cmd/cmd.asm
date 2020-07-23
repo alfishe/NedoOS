@@ -1971,9 +1971,10 @@ term_prfsm
 term_prfsm_nosingle
         dec a
         jr nz,term_prfsm_noafteresc
-        ;ld a,e
-        ;cp '['
-        ;jr nz,term_prfsm_prchar
+        ld a,e
+        cp '['
+        ld c,e
+        jr nz,term_prfsm_keycok ;esc esc -> esc_key
         ld a,2
         ld (term_prfsm_curstate),a
         xor a
@@ -2059,8 +2060,9 @@ term_prfsm_afterescbracket_notilde
         ret
 
 term_prfsm_keycok
-        ld a,c
-        or a ;nc
+        xor a
+        ld (term_prfsm_curstate),a        
+        or c ;nc
         ret
 
 term_prfsm_curstate

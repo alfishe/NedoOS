@@ -98,13 +98,23 @@ mainloop_afterkey
         cp key_redraw
         ;jr z,
         cp key_esc
-        jr z,quit
+        jr z,term_esckey
         if RECODEINPUT
         call sendchar
         else
         call sendchar_byte_a
         endif
         jr mainloop_afterkey
+term_esckey
+        if RECODEINPUT
+        call sendchar
+        ld a,key_esc
+        call sendchar
+        else
+        call sendchar_byte_a
+        endif
+        jr mainloop_afterkey
+        
 quit
 ;TODO close cmd!!!
 
