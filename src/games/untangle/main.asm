@@ -2901,9 +2901,9 @@ mul9
 ;CY=0
 	ld (mulpatchsub),hl
 mulpatchadd=$+1
-	ld hl,(0)
+	ld hl,(0) ;ok
 mulpatchsub=$+2
-	ld bc,(0)
+	ld bc,(0) ;ok
 	sbc hl,bc
 ;HL = %rrrrrrrr rrrrrrrr
 	ret
@@ -2991,9 +2991,9 @@ _MULLONG0.
 	endif
 
 setscrpgs
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         ret
 

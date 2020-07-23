@@ -371,7 +371,7 @@ prlinefast_datadec=$
          exx
 ;setpgs_scr_pixels=$+1
 ;         ld a,0
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
          SETPG16K
          exx
         ld sp,hl
@@ -395,7 +395,7 @@ prlinefast_sizeadd=$+1
          exx
 ;setpgs_scr_attr=$+1
 ;         ld a,0
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
          SETPG16K
          exx
         ld e,(hl)

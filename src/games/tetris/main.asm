@@ -158,12 +158,12 @@ redraw
 
 setpgs_scr
         if EGA
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         else
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG16K
         endif
         ret

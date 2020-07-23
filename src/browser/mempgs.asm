@@ -29,7 +29,7 @@ setpgtemp4000
 
 setpgscr4000
         ;ld a,(setpgs_scr_high)
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG16K
         ret
 
@@ -44,13 +44,13 @@ setpgs_scr
 setpgscrc000
 ;setpgs_scr_high=$+1
 ;        ld a,0;pgscr0_1 ;scr0_1
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         ret
 setpgscr8000
 ;setpgs_scr_low=$+1
 ;        ld a,0;pgscr0_0 ;scr0_0
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
         ret
 

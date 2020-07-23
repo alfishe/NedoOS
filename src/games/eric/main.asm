@@ -158,7 +158,7 @@ on_int
 	pop hl
 	ld (on_int_sp2),sp
 intjpaddr=$+1
-	ld (0),hl ;(on_int_jp),hl
+	ld (0),hl ;ok ;(on_int_jp),hl
 	
 	ld sp,INTSTACK
 	
@@ -173,7 +173,7 @@ intjpaddr=$+1
 
 	ex de,hl;ld hl,0
 on_int_sp=$+1
-	ld (0),hl ;восстановили запоротый стек
+	ld (0),hl ;ok ;восстановили запоротый стек
         
         push ix
         push iy
@@ -192,7 +192,7 @@ on_int_sp=$+1
         GET_KEY
         ld (curkey),a
 
-        ld a,(CURPG32KHIGH)
+        ld a,(CURPG32KHIGH) ;ok
         push af
 pgmuznum=$+1
         ld a,0

@@ -69,7 +69,7 @@ begin
 
         ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG16K
         
         ld hl,valid00

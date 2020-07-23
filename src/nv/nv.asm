@@ -1184,7 +1184,7 @@ readbyte_readbuf
 
 editcmd_enter_runfile_hobeta
 hobetarunner=#4100
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
 	sub 4-1 ;ld a,#ff-4 ;pgkillable
 	SETPG16K
 
@@ -1194,7 +1194,7 @@ hobetarunner=#4100
         ldir
 ;cmdpgscreen0_0=$+1
 ;	ld a,#ff-1
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
 	SETPG32KLOW
         inc a ;ld a,#ff-0
 	SETPG32KHIGH

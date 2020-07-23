@@ -281,10 +281,10 @@ cmd_plot_y=$+1
 
 setpgs_scr
 ;setpgs_scr_low=$+1
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
 ;setpgs_scr_high=$+1
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         ret
 

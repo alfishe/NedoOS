@@ -1148,7 +1148,7 @@ ZD5D2   INC A
         inc HL
 ZD5D9   LD (ZD5DD),HL
 ZD5DD=$+1
-        LD HL,(0)
+        LD HL,(0) ;ok
          if ziptrees>=0x8000
          BIT 7,H
          else

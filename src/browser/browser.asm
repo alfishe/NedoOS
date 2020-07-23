@@ -587,7 +587,7 @@ loadxml;svg
         ld bc,DISKBUFsz-DOCTYPEsz
         ld a,'!'
         cpir ;костыль!
-        ld bc,DOCTYPEsz
+        ld bc,DOCTYPEsz-1
         add hl,bc
         ld a,(hl)
         or 0x20
@@ -613,14 +613,22 @@ loadxml;svg
         pop iy
         pop af ;a=(iy)=first char
         call readsvg
+        ;jr $
          call setpgcode4000
 loadsvgq0
         call yieldgetkeynolang ;z=nokey
         jr z,loadsvgq0
+        cp key_enter
+        jr nz,loadsvgq0
         ld e,2 ;MC hires mode
         OS_SETGFX
+        ld e,0
+        OS_CLS
+loadsvgq1
+        call yieldgetkeynolang
         call globalbuttons
-        jr loadsvgq0
+        ;jp browser_backspace
+        jr loadsvgq1
         ;jr showgif
 
 loadpng
@@ -2112,4 +2120,5 @@ cmd_end
 
 	savebin "browser.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "../us/user.l"
+	;LABELSLIST "user.l"
+	LABELSLIST "../../us/user.l"

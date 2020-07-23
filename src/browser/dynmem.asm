@@ -341,7 +341,7 @@ puttomem
         ld hl,(putchar_ldir_hl) ;локальное начало строки
         ldir
 purchar_nextpgtabaddr=$+1
-        ld a,(0)
+        ld a,(0) ;ok
         SETPG32KHIGH
         ld de,0xc000
 ;hl=остаток строки
@@ -402,7 +402,7 @@ getfrommem
         ldir
         ex de,hl
 getfrommem_nextpgtabaddr=$+1
-        ld a,(0)
+        ld a,(0) ;ok
         SETPG32KHIGH
         ld de,0xc000
 ;hl=остаток строки

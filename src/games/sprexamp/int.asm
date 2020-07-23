@@ -47,13 +47,13 @@ intjpaddr=$+1
         jr z,$+5
         ld (curkey),a
 	;CALL .. ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
-        ld a,(CURPG16K);(curpg4000)
+        ld a,(CURPG16K) ;ok ;(curpg4000)
         SETPG16K
-        ld a,(CURPG32KLOW);(curpg8000)
+        ld a,(CURPG32KLOW) ;ok ;(curpg8000)
         SETPG32KLOW
 ;curpgc000=$+1
 ;        ld a,0
-        ld a,(CURPG32KHIGH)
+        ld a,(CURPG32KHIGH) ;ok
         SETPG32KHIGH
         
         pop iy

@@ -188,7 +188,7 @@ prsprcolumnpatch2=$-2
 ;это может быть граница фальшивого экрана! надо иметь возможность продолжить (с hl-64 из-за ошибки адреса при отрицательных x?)
 ;        ld a,(pgfake)
 ;curpg4000=$+1
-        ld a,(CURPG16K)
+        ld a,(CURPG16K) ;ok
 pgfake2=$+1
         cp 0
         jp nz,prsprqright ;действительно выход по правой границе
@@ -473,7 +473,7 @@ prsprNpatch=$+1
 prsprNmaybeqright
 ;curpg8000=$+1
 ;        ld a,0
-        ld a,(CURPG32KLOW)
+        ld a,(CURPG32KLOW) ;ok
 pgfake=$+1
         cp 0
         jp nz,prsprqright ;действительно выход

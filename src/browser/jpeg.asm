@@ -24,7 +24,10 @@ _E6=_D0+0x16
 ;FREE=0x8000 ;динамическая память, размер=0x13be для girl.jpg, izba1024.jpg, =0x12be для карлсон.jpg
 
 ;LINE1=0x3300;0x9400 ;буфер строки 0x400*3?
-      
+  
+JPEGCLEARADDR=FREE;0xa000
+JPEGCLEARSZ=0xc000-JPEGCLEARADDR
+
 G716C=0xa000 ;CR tab (add to Y->R)G7174=G716C+0x200 ;CR tab (add to Y->G)G7178=G7174+0x200 ;CB tab (add to Y->B)G7170=G7178+0x200 ;CB tab (add to Y->G)
 
 _thuffs=0xad00 ;размер=0x214 (girl.jpg, izba1024.jpg, карлсон.jpg) - временный буфер, после maketree не нужен
@@ -47,13 +50,17 @@ GENMTAB        LD E,0        CALL SETPG       LD HL,_D0<<8s=2k=1<<sf=#E8-#
        inc H        RET GEN        LD IX,0        LD BC,0GM1     LD (HL),C        INC H        LD (HL),B        DEC H        ADD IX,DE        JR NC,$+3        INC BC        INC L        JR NZ,GM1       INC H
        inc H        RET M18E7A       ;IFN rdcyc       ; LD A,(RDCYC)       ; OR A       ; JR NZ,rDCOK       ;ENDIF FMR1    rdbyte        INC A        JR NZ,FMR1FMR2    rdbyte        INC A        JR Z,FMR2        DEC A        JR Z,FMR1rDCOK        LD A,(VAR+#E0)        ADD A,A        LD B,A ;не больше #10? (см. ниже VAR+#120)        LD HL,VAR+#110        XOR AcLHT    LD (HL),A        INC HL        DJNZ cLHT       ;IFN rdcyc       ; LD (RDCYC),A       ;ENDIF        LD A,128       LD (BITER),A        LD A,(VAR+#C2)        LD (VAR+#120),A        RET 
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%RDSAMP
-        IF preview       ;LD A,(cOLPOI) ;0=B/W       ;OR A       ;SCF        ;JR NZ,RDSAnGR       ;LD A,(pSMPPG+1) ;1/2/5       ;CP 2 ;1/2/5 (2/5=CB/CR=SKIP);RDSAnGR       ;IFN fCS       CALL getCS       ;ELSE        ;CALL C,8026       ;ENDIF          LD A,prevdj
+        IF preview       ;LD A,(cOLPOI) ;0=B/W       ;OR A       ;SCF        ;JR NZ,RDSAnGR       ;LD A,(pSMPPG_1) ;1/2/5       ;CP 2 ;1/2/5 (2/5=CB/CR=SKIP);RDSAnGR       ;IFN fCS       CALL getCS       ;ELSE        ;CALL C,8026       ;ENDIF          LD A,prevdj
          ld BC,#202        JR NC,$+7        LD A,YBITdj
         ld BC,#FCFA       LD (YBITjr),A       LD A,C
        ld (HORdjnz),A       LD A,B
-       ld (VERdjnz),A        ENDIF        ;DI        LD (pSPS1+1),SP        LD SP,SAMPLE+#80        LD HL,0       DUP #40        PUSH HL       EDUP pSPS1   LD SP,0pLHTB   LD IX,0        CALL dehuf        OR A       LD H,A
-       ld L,A       CALL NZ,RDBITS        EX DE,HLpHCNT   LD HL,(VAR+#110)        ADD HL,DEpHCNT2  LD (VAR+#110),HL        EX DE,HLpQTBDC  LD A,(0)        CALL MULDE_AQ        LD (SAMPLE),HLPRMODE=$+1    LD A,0    CP #C2    JR Z,BRKLP       LD A,#02;63 коэффициента ACSCNLP1        ex af,af'
-pHHTB   LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       LD H,(HL)        AND #0F        JR NZ,YBITYBITjr=$-1        LD A,H        CP #20 ;L=#F0?        JR NZ,BRKLP        ex af,af'
+       ld (VERdjnz),A        ENDIF        ;DI        LD (pSPS1_1),SP        LD SP,SAMPLE+#80        LD HL,0       DUP #40        PUSH HL       EDUP pSPS1_1=$+1
+        LD SP,0pLHTB_2=$+2
+        LD IX,0        CALL dehuf        OR A       LD H,A
+       ld L,A       CALL NZ,RDBITS        EX DE,HLpHCNT   LD HL,(VAR+#110)        ADD HL,DEpHCNT2  LD (VAR+#110),HL        EX DE,HLpQTBDC_1=$+1
+        LD A,(0) ;ok        CALL MULDE_AQ        LD (SAMPLE),HLPRMODE=$+1    LD A,0    CP #C2    JR Z,BRKLP       LD A,#02;63 коэффициента ACSCNLP1        ex af,af'
+pHHTB_2=$+2
+        LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       LD H,(HL)        AND #0F        JR NZ,YBITYBITjr=$-1        LD A,H        CP #20 ;L=#F0?        JR NZ,BRKLP        ex af,af'
        ADD A,32       JP P,SCNLP1       JR BRKLPprevYBITprevdj=$-YBITjr-1        LD B,A        LD DE,BITER        LD A,(DE)skBLP   ADD A,A        JR Z,skNEW        DJNZ skBLP        LD (DE),A        ex af,af'
         ADD A,H       JP P,SCNLP1       JR BRKLPskNEW        rdbytecheckFFSCF        RLA         DJNZ skBLP        LD (DE),A        ex af,af'
         ADD A,H       JP P,SCNLP1       JR BRKLPYBITYBITdj=$-YBITjr-1        ex af,af'
@@ -82,21 +89,29 @@ pHHTB   LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       L
         sub L        LD (IX+#A),A      POP HL       LD D,_E2       LD A,H       OR L       CALL NZ,MULLONG        LD A,L        SUB B        ADD A,C        LD L,A      EXX       ADD A,C      EXX         LD (IX+2),A        SUB L
         sub L        LD (IX+#C),AHORZOK        LD DE,16        ADD IX,DE        POP BC        DEC B        JP NZ,HORLP;---------------------------        LD IX,SAMPLE        LD B,8VERULP        PUSH BC        PUSH IX        POP HL        XOR A        LD DE,16        LD B,7        ADD HL,DE        OR (HL)        DJNZ $-2VERdjnz=$-1        JR NZ,NOEMPV        LD A,(IX)       ADD A,A       LD L,A       SBC A,A       LD H,A        PUSH IX        LD B,8fLULP   LD (IX),L
         ld (IX+1),H        ADD IX,DE        DJNZ fLULP        POP IX        JP VERTUOKNOEMPV        LD A,(IX+#60)        LD E,(IX+#20)        ADD A,E        LD L,A       LD H,_D0+f       LD C,(HL)       INC H       LD B,(HL)        LD L,E       INC H       LD A,(HL)       INC H       LD H,(HL)
-       ld L,A        ADD HL,BC       EX DE,HL         LD A,(IX)         ADD A,(IX+#40)       ADD A,A       LD L,A       SBC A,A       LD H,A        SBC HL,DE      PUSH HL       ;LD (vLC6+1),HL        ADD HL,DE
-        add HL,DE        LD (nPD0H+1),HL        LD L,(IX+#60)       LD H,_D4+f       LD E,(HL)       INC H       LD D,(HL)      LD H,B
-      ld L,C        SBC HL,DE        EX DE,HL         LD A,(IX)         SUB (IX+#40)       ADD A,A       LD L,A       SBC A,A       LD H,A        SBC HL,DE      PUSH HL       ;LD (vLC2+1),HL        ADD HL,DE
-        add HL,DE        LD (vLC0E+1),HL        LD A,(IX+#50)        LD (vLC20+1),A        LD E,A        LD A,(IX+#30)        LD (vLC1C+1),A        LD C,A        ADD A,E        LD (vLC24+1),A        LD A,(IX+#70)        LD (vLC14+1),A       LD B,A        ADD A,C        LD (vLC28+1),A        ADD A,E       LD C,(IX+#10)       ADD A,C        LD L,A       LD H,_D6+f       LD A,(HL)       INC H       LD H,(HL)
-       ld L,A      PUSH HL       LD A,E       ADD A,C        LD L,A       LD H,_D8+f       LD E,(HL)       INC H       LD D,(HL)      POP HL      PUSH HL       SBC HL,DE        LD (nPD3H+1),HL        EX DE,HL       LD A,B       ADD A,C       LD L,A        LD A,C       LD H,_DA+f       LD C,(HL)       INC H       LD B,(HL)        LD L,A       INC H       LD A,(HL)       INC H       LD H,(HL)
-       ld L,A        SBC HL,BC        ADD HL,DE       EX DE,HLnPD0H   LD HL,0        SBC HL,DE        LD (IX+#70),L
+       ld L,A        ADD HL,BC       EX DE,HL         LD A,(IX)         ADD A,(IX+#40)       ADD A,A       LD L,A       SBC A,A       LD H,A        SBC HL,DE      PUSH HL       ;LD (vLC6_1),HL        ADD HL,DE
+        add HL,DE        LD (nPD0H_1),HL        LD L,(IX+#60)       LD H,_D4+f       LD E,(HL)       INC H       LD D,(HL)      LD H,B
+      ld L,C        SBC HL,DE        EX DE,HL         LD A,(IX)         SUB (IX+#40)       ADD A,A       LD L,A       SBC A,A       LD H,A        SBC HL,DE      PUSH HL       ;LD (vLC2_1),HL        ADD HL,DE
+        add HL,DE        LD (vLC0E_1),HL        LD A,(IX+#50)        LD (vLC20_1),A        LD E,A        LD A,(IX+#30)        LD (vLC1C_1),A        LD C,A        ADD A,E        LD (vLC24_1),A        LD A,(IX+#70)        LD (vLC14_1),A       LD B,A        ADD A,C        LD (vLC28_1),A        ADD A,E       LD C,(IX+#10)       ADD A,C        LD L,A       LD H,_D6+f       LD A,(HL)       INC H       LD H,(HL)
+       ld L,A      PUSH HL       LD A,E       ADD A,C        LD L,A       LD H,_D8+f       LD E,(HL)       INC H       LD D,(HL)      POP HL      PUSH HL       SBC HL,DE        LD (nPD3H_1),HL        EX DE,HL       LD A,B       ADD A,C       LD L,A        LD A,C       LD H,_DA+f       LD C,(HL)       INC H       LD B,(HL)        LD L,A       INC H       LD A,(HL)       INC H       LD H,(HL)
+       ld L,A        SBC HL,BC        ADD HL,DE       EX DE,HLnPD0H_1=$+1
+        LD HL,0        SBC HL,DE        LD (IX+#70),L
         ld (IX+#71),H        ADD HL,DE
         add HL,DE        LD (IX),L
-        ld (IX+1),HvLC28  LD HL,+(_DE+f)<<8       LD E,(HL)       INC H       LD D,(HL)      POP HL       SBC HL,DE      LD D,H
-      ld E,L      SBC HL,BC      PUSH HLvLC24  LD HL,+(_E0+f)<<8       LD C,(HL)       INC H       LD B,(HL)vLC1C  LD HL,+(_E2+f)<<8       LD A,(HL)       INC H       LD H,(HL)
-       ld L,A        SBC HL,BC        ADD HL,DE       EX DE,HLvLC0E   LD HL,0        SBC HL,DE        LD (IX+#60),L
+        ld (IX+1),HvLC28_1=$+1
+       LD HL,+(_DE+f)<<8       LD E,(HL)       INC H       LD D,(HL)      POP HL       SBC HL,DE      LD D,H
+      ld E,L      SBC HL,BC      PUSH HLvLC24_1=$+1
+       LD HL,+(_E0+f)<<8       LD C,(HL)       INC H       LD B,(HL)vLC1C_1=$+1
+       LD HL,+(_E2+f)<<8       LD A,(HL)       INC H       LD H,(HL)
+       ld L,A        SBC HL,BC        ADD HL,DE       EX DE,HLvLC0E_1=$+1
+        LD HL,0        SBC HL,DE        LD (IX+#60),L
         ld (IX+#61),H        ADD HL,DE
         add HL,DE        LD (IX+#10),L
-        ld (IX+#11),HvLC14  LD HL,+(_E6+f)<<8       LD E,(HL)       INC H       LD D,(HL)      POP HL        ADD HL,DE       EX DE,HLvLC20  LD HL,+(_E4+f)<<8       LD A,(HL)       INC H       LD H,(HL)
-       ld L,A        SBC HL,BCnPD3H   LD BC,0        ADD HL,BC       LD B,H
+        ld (IX+#11),HvLC14_1=$+1
+       LD HL,+(_E6+f)<<8       LD E,(HL)       INC H       LD D,(HL)      POP HL        ADD HL,DE       EX DE,HLvLC20_1=$+1
+       LD HL,+(_E4+f)<<8       LD A,(HL)       INC H       LD H,(HL)
+       ld L,A        SBC HL,BCnPD3H_1=$+1
+        LD BC,0        ADD HL,BC       LD B,H
        ld C,L      POP HL        SBC HL,BC        LD (IX+#50),L
         ld (IX+#51),H        ADD HL,BC
         add HL,BC        LD (IX+#20),L
@@ -121,17 +136,28 @@ pHHTB   LD IX,0        CALL dehuf        LD L,A       LD H,R4A0F/256       L
 ;d=multable/256 (512 bytes)
 ;out: hlMULLONG        BIT 7,H        JP Z,MSHTAB        XOR A        SUB L        LD L,A        SBC A,A        SUB H        LD H,A        CALL MSHTABA        XOR A        SUB L        LD L,A        SBC A,A        SUB H        LD H,A        RET M1696A
 ;перекодируем 2-байтные данные из SAMPLE (-#180..+#180) в однобайтные в строке блоков
-;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS3+1),SP         ;LD DE,(LSZXM8)         ;INC DE
+;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS3_1),SP         ;LD DE,(LSZXM8)         ;INC DE
 LSZXm7=$+1
-         ld de,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD B,8cOPLOOP  DUP 7         POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A         INC HL         EXX          EDUP          POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A        ADD HL,DE ;de=LSZX-7        EXX         DJNZ cOPLOOPpSPS3   LD SP,0        ;EI         RET ;HL=(pLNADR+1)M166AA;перекодируем 2-байтные данные из SAMPLE в однобайтные в строке блоков, с увеличением в 2 раза
-;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS6+1),SPpLSMH2  LD BC,0        LD SP,SAMPLE        LD (pLSS+1),BC        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD B,8pXSCL   JR IN3IN2        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN+1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HLpYSCL   LD A,0C2LP        ADD HL,BC       EX DE,HLpLLIN   LD HL,0
+         ld de,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD B,8cOPLOOP  DUP 7         POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A         INC HL         EXX          EDUP          POP HL         ADD HL,DE         LD A,(HL)         EXX          LD (HL),A        ADD HL,DE ;de=LSZX-7        EXX         DJNZ cOPLOOPpSPS3_1=$+1
+        LD SP,0        ;EI         RET ;HL=(pLNADR+1)M166AA;перекодируем 2-байтные данные из SAMPLE в однобайтные в строке блоков, с увеличением в 2 раза
+;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS6_1),SPpLSMH2_1=$+1
+        LD BC,0        LD SP,SAMPLE        LD (pLSS_1),BC        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD B,8pXSCL_1=$+1
+        JR IN3IN2        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN_1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HLpYSCL_1=$+1
+        LD A,0C2LP        ADD HL,BC       EX DE,HLpLLIN_1=$+1
+        LD HL,0
         dup 16
         ldi
-        edup       EX DE,HLpLSS    LD BC,0        DEC A        JR NZ,C2LP        ADD HL,BC        EXX         DJNZ IN2        JP pSPS6IN3        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN1+1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HL        LD (HL),A        INC HL        LD A,(pYSCL+1)C3LP        ADD HL,BC       EX DE,HLpLLIN1  LD HL,0
+        edup       EX DE,HLpLSS_1=$+1
+        LD BC,0        DEC A        JR NZ,C2LP        ADD HL,BC        EXX         DJNZ IN2        JP pSPS6IN3        POP HL        ADD HL,DE        LD A,(HL)        EXX        LD (pLLIN1_1),HL       DUP 7        LD (HL),A        INC HL        LD (HL),A        INC HL        LD (HL),A        INC HL        EXX         POP HL        ADD HL,DE        LD A,(HL)        EXX        EDUP         LD (HL),A        INC HL        LD (HL),A        INC HL        LD (HL),A        INC HL        LD A,(pYSCL_1)C3LP        ADD HL,BC       EX DE,HLpLLIN1_1=$+1
+        LD HL,0
         dup 24
         ldi
-        edup       EX DE,HL        LD BC,(pLSS+1)        DEC A        JR NZ,C3LP        ADD HL,BC        EXX         DEC B        JP NZ,IN3pSPS6   LD SP,0        ;EI         RET M1675A;перекодируем 2-байтные данные из SAMPLE в однобайтные в строке блоков, с увеличением в 2 раза по X?
-;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS5+1),SPpLSMH   LD DE,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD C,8Co3LOOP       DUP 7        POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        EXX        EDUP         POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        ADD HL,DE        EXX         DEC C        JR NZ,Co3LOOPpSPS5   LD SP,0        ;EI         RET 
+        edup       EX DE,HL        LD BC,(pLSS_1)        DEC A        JR NZ,C3LP        ADD HL,BC        EXX         DEC B        JP NZ,IN3
+pSPS6pSPS6_1=$+1
+        LD SP,0        ;EI         RET M1675A;перекодируем 2-байтные данные из SAMPLE в однобайтные в строке блоков, с увеличением в 2 раза по X?
+;hl=адрес блока в строке блоков LSZX*8        ;DI        LD (pSPS5_1),SPpLSMH_1=$+1
+        LD DE,0        LD SP,SAMPLE        EXX         LD DE,PTAB+#80 ;таблица обрубания переполнения        LD C,8Co3LOOP       DUP 7        POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        EXX        EDUP         POP HL        ADD HL,DE        LD A,(HL)        EXX         LD (HL),A        INC HL        LD (HL),A        INC HL        ADD HL,DE        EXX         DEC C        JR NZ,Co3LOOPpSPS5_1=$+1
+        LD SP,0        ;EI         RET 
 ;pg1 = Y -> G?
 ;pg2 = Cb -> R
 ;pg5 = Cr -> B
@@ -266,22 +292,48 @@ jpgconvBWlineskip
 
  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+clpg
+        ld hl,0xc000
+        ld de,0xc001
+        ld bc,0x3fff
+        ld (hl),l ;0
+        ldir
+        ret
 
 readjpeg
+        ld e,0
+        call SETPG
+        call clpg
+        ld e,1
+        call SETPG
+        call clpg
+        ld e,2
+        call SETPG
+        call clpg
+        ld e,5
+        call SETPG
+        call clpg
+
+        ld hl,JPEGCLEARADDR
+        ld de,JPEGCLEARADDR+1
+        ld bc,JPEGCLEARSZ-1
+        ld (hl),0
+        ldir
+
         ld hl,LINE1
         ld de,LINE1+1
         ld (hl),BACKGROUNDCOLORLEVEL
         ld bc,LINE1_sz-1
         ldir ;чтобы справа в остатке знакоместа была чернота (потом можно убрать, когда readchr будет это делать)
         
-        ld hl,VARS
-        ld de,VARS+1
-        ld bc,VARSsz-1
-        ld (hl),0
-        ldir ;какие-то переменные ожидаются в 0 - TODO найти какие
+        ;ld hl,VARS
+        ;ld de,VARS+1
+        ;ld bc,VARSsz-1
+        ;ld (hl),0
+        ;ldir ;какие-то переменные ожидаются в 0 - TODO найти какие
         
         ;LD HL,jpgputline        ;LD (pPROC+1),HL        LD HL,FREE        LD (MEMDN),HL       ;LD HL,JPGPAGESTART        ;LD (pSCR2+1),HL       ;IFN buf9000       ;LD A,DISKBUF/256+(DISKBUFsz/256)       ;LD (RDBYHend),A       ;LD IY,DISKBUF+DISKBUFsz-1       ;ELSE        ; LD H,L       ; LD (BFLEN),HL       ;ENDIF        ;LD A,(SCRPRC)       ;LD (WASCRPRC),A ;настройка наложения на старый экран?        ;CALL iNITJPG         ld hl,SAMTAB
-         ld (pPST+1),hl
+         ld (pPST_1),hl
 
         CALL FBMARK        CALL LBMARK        ;CALL pSCAL ;установка масштабов        ;CALL SETPG7       ;CALL PRSIZES;onceGMAXC        LD A,(CNUM)        LD B,A        LD IX,(VAR+#56)        PUSH IX
         push BC        LD HL,#101       LD DE,18gMAXS   LD A,(IX+2)        CP H        JR C,$+3        LD H,A        LD A,(IX+3)        CP L        JR C,$+3        LD L,A        ADD IX,DE        DJNZ gMAXS       ;LD A,H       ;LD (MAXH),A       ;LD A,L        LD (MAXV),HL;A        POP BC
@@ -304,7 +356,7 @@ render
       PUSH IY       CALL setsamplescalers ;1253       CALL maketrees;M18E08 ;110466      POP IY        
 ;заполняем после maketrees, поверх её буфера        LD l,0cNTBLP  LD H,PLTAB/256 ;таблица отсечения переполнения        ld (hl),0
         inc h        LD (HL),L
-        inc h        LD (HL),-1        INC L        JR NZ,cNTBLP        LD A,(MAXV)        ADD A,A        ADD A,A        ADD A,A        LD (MAXV8),A        LD A,(MAXH)        ADD A,A        ADD A,A        ADD A,A        LD (MAXH8),A        LD HL,(curpicwid)        CALL ROUND ;HL=k*A (>=HL)        LD (LSZX),HL        LD DE,7       OR A        SBC HL,DE        LD (LSZXm7),HL        ADD HL,DE        LD DE,(MAXH8)       OR A        SBC HL,DE        LD (pLSMH+1),HL        LD (pLSMH2+1),HL        ADD HL,DE        ADD HL,HL        ADD HL,HL        ADD HL,HL        LD (BLSZ),HL       CALL MAKTS
+        inc h        LD (HL),-1        INC L        JR NZ,cNTBLP        LD A,(MAXV)        ADD A,A        ADD A,A        ADD A,A        LD (MAXV8),A        LD A,(MAXH)        ADD A,A        ADD A,A        ADD A,A        LD (MAXH8),A        LD HL,(curpicwid)        CALL ROUND ;HL=k*A (>=HL)        LD (LSZX),HL        LD DE,7       OR A        SBC HL,DE        LD (LSZXm7),HL        ADD HL,DE        LD DE,(MAXH8)       OR A        SBC HL,DE        LD (pLSMH_1),HL        LD (pLSMH2_1),HL        ADD HL,DE        ADD HL,HL        ADD HL,HL        ADD HL,HL        LD (BLSZ),HL       CALL MAKTS
 ;этот блок=27612
        
 ;рендер        LD A,(pichgt_inblocks) ;высота картинки в полноценных блоках        LD B,A ;0x16YLOOP   PUSH BC
@@ -322,8 +374,8 @@ render
         LD HL,VAR+#110        LD (pHCNT+1),HL        LD (pHCNT2+1),HL        LD A,(VAR+#C2)       OR A        JR Z,gOREAD        LD A,(VAR+#120)       OR A       CALL Z,M18E7A        LD HL,VAR+#120        DEC (HL)gOREAD  LD HL,JF44 ;адрес таблицы из 4 функций        LD (pSFUNC+1),HL
                 LD IX,SPGTB ;таблица из 3 страниц 1/2/5 ;TODO убрать        LD HL,SAMTABNXRS    LD A,(IX)        INC IX        LD (pSMPPG+1),A ;страничка 1/2/5 ;TODO убрать
                 LD A,(HL) ;число слоёв?        INC HL        OR A       RET Z        PUSH IX        LD B,A
-;перебираем все слои?NXRS1   PUSH BC        LD E,(HL)        INC HL        LD D,(HL)        INC HL       PUSH HL       LD HL,(LPNT)       ADD HL,DE       LD (pLNADR+1),HL       POP HL        LD E,(HL)        INC HL        LD D,(HL)        INC HL       INC DE       LD (pQTBDC+1),DE      DEC DE
-      dec DE       LD A,D       SUB Qorder/256       LD D,A       LD (pQTB+1),DE        LD E,(HL)        INC HL        LD D,(HL)        INC HL        LD C,(HL)        INC HL        LD B,(HL)        INC HL       PUSH HL       LD HL,#43C;16       ADD HL,DE       LD (pLHTB+2),HL       SBC HL,DE       ADD HL,BC       LD (pHHTB+2),HL       POP HL        LD A,(HL)       ADD A,-1       SBC A,A       AND IN3-IN2        LD (pXSCL+1),A        INC HL        LD A,(HL)        LD (pYSCL+1),A        INC HL        PUSH HL        CALL RDSAMP
+;перебираем все слои?NXRS1   PUSH BC        LD E,(HL)        INC HL        LD D,(HL)        INC HL       PUSH HL       LD HL,(LPNT)       ADD HL,DE       LD (pLNADR+1),HL       POP HL        LD E,(HL)        INC HL        LD D,(HL)        INC HL       INC DE       LD (pQTBDC_1),DE      DEC DE
+      dec DE       LD A,D       SUB Qorder/256       LD D,A       LD (pQTB+1),DE        LD E,(HL)        INC HL        LD D,(HL)        INC HL        LD C,(HL)        INC HL        LD B,(HL)        INC HL       PUSH HL       LD HL,#43C;16       ADD HL,DE       LD (pLHTB_2),HL       SBC HL,DE       ADD HL,BC       LD (pHHTB_2),HL       POP HL        LD A,(HL)       ADD A,-1       SBC A,A       AND IN3-IN2        LD (pXSCL_1),A ;jr disp        INC HL        LD A,(HL)        LD (pYSCL_1),A        INC HL        PUSH HL        CALL RDSAMP
         if !ONEPAGEYUVpSMPPG  LD E,0 ;1/2/5 номер слоя
         CALL SETPG
         endifpLNADR  LD HL,0
@@ -351,7 +403,8 @@ pSMPPG  LD A,0 ;1/2/5 номер слоя
        ld H,(IX+8)        LD A,B        CALL ROUNDm8 ;HL=k*A*8 (>=HL)        XOR A        ADD A,C        DJNZ $-1        LD (IX+#0D),A       LD (IX+#E),L
        ld (IX+#F),H       LD L,(IX+9)
        ld H,(IX+#A)        LD A,C        CALL ROUNDm8 ;HL=k*A*8 (>=HL)       LD (IX+#10),L
-       ld (IX+#11),HpPST    LD HL,SAMTAB        LD A,(IX+#D)        LD (HL),A        INC HL        LD DE,0        LD C,(IX+3)YMTLP   PUSH DE        LD B,(IX+2)XMTLP   PUSH BC        PUSH DE        LD (HL),E        INC HL        LD (HL),D        INC HL       EX DE,HL       LD HL,VAR+#5A        LD A,(IX+4)       ADD A,A       ADD A,L       LD L,A        LDI         LDI         LD A,(IX+5)       ADD A,A       ADD A,0xff&(VAR+#6A)       LD L,A        LDI         LDI         LD A,(IX+6)       ADD A,A       ADD A,0xff&(VAR+#7A)       LD L,A        LDI         LDI         LD A,(MAXH)        LD B,(IX+2)        CALL DIV8       SUB 2        LD (DE),A        INC DE        LD A,(MAXV)        LD B,(IX+3)        CALL DIV8        DEC A        LD (DE),A        INC DE       POP HL        LD BC,8        ADD HL,BC       EX DE,HL       POP BC        DJNZ XMTLP       POP DE       PUSH HL        LD HL,(BLSZ)        ADD HL,DE       EX DE,HL       POP HL        DEC C        JR NZ,YMTLP        LD (pPST+1),HL       EX DE,HL        POP HL        INC HL
+       ld (IX+#11),HpPST_1=$+1
+        LD HL,SAMTAB        LD A,(IX+#D)        LD (HL),A        INC HL        LD DE,0        LD C,(IX+3)YMTLP   PUSH DE        LD B,(IX+2)XMTLP   PUSH BC        PUSH DE        LD (HL),E        INC HL        LD (HL),D        INC HL       EX DE,HL       LD HL,VAR+#5A        LD A,(IX+4)       ADD A,A       ADD A,L       LD L,A        LDI         LDI         LD A,(IX+5)       ADD A,A       ADD A,0xff&(VAR+#6A)       LD L,A        LDI         LDI         LD A,(IX+6)       ADD A,A       ADD A,0xff&(VAR+#7A)       LD L,A        LDI         LDI         LD A,(MAXH)        LD B,(IX+2)        CALL DIV8       SUB 2        LD (DE),A        INC DE        LD A,(MAXV)        LD B,(IX+3)        CALL DIV8        DEC A        LD (DE),A        INC DE       POP HL        LD BC,8        ADD HL,BC       EX DE,HL       POP BC        DJNZ XMTLP       POP DE       PUSH HL        LD HL,(BLSZ)        ADD HL,DE       EX DE,HL       POP HL        DEC C        JR NZ,YMTLP        LD (pPST_1),HL       EX DE,HL        POP HL        INC HL
         inc HL        POP BC       DEC B       JP NZ,RCLP1       EX DE,HL       LD (HL),B        RET ;         Y CB CRSPGTB        DB 1,2,5;oncesetsamplescalers        LD A,(VAR+#BE)        OR A        CALL NZ,ERROR        LD A,(VAR+#E0)        LD B,A        LD HL,VAR+#E2        LD IY,JF44+1 ;адрес таблицы из 4 функцийuPFLP        PUSH HL        CALL GETIXHL       LD HL,(MAXH)       LD A,(MAXV)       LD E,A       LD H,(IX+2)       LD D,(IX+3)        LD A,H        CP L        JR NZ,uPF1        LD A,D        CP E       JR NZ,uPF1       LD HL,M1696A ;без увеличения       JR uPFOKuPF1    LD A,H        ADD A,A        CP L        JR NZ,uPF2        LD A,D        CP E       JR NZ,uPF2       LD HL,M1675A ;с увеличением в 2 раза по X?       JR uPFOKuPF2    LD A,H        CP L        JR NZ,uPF3        LD A,D        ADD A,A        CP E       JR NZ,uPF3       LD HL,ERROR ;M16810       JR uPFOKuPF3    LD A,L       SUB H       CALL C,ERROR       JR NZ,$-4        LD A,E       SUB D       CALL C,ERROR       JR NZ,$-4        LD HL,M166AA ;с увеличением в 2 раза       ;LD A,(cOLPOI) ;0=B/W режим показа       ;OR A       ;JR NZ,$+5       ;LD HL,EMPTYuPFOK   LD (IY),L        LD (IY+1),H ;кладём адрес функции в таблицу из 4 функций        LD DE,3        ADD IY,DE        POP HL        INC HL
         inc HL        DJNZ uPFLP        RET ;oncemaketrees;M18E08       LD A,128       LD (BITER),A       LD A,(VAR+#E0)       LD B,A        LD HL,VAR+#E2        LD DE,VAR+#110hUFLP   PUSH BC
         push HL
@@ -369,11 +422,13 @@ pSMPPG  LD A,0 ;1/2/5 номер слоя
         inc DE        POP BC        DJNZ L8        LD HL,(pHFT)        LD DE,#47C        ADD HL,DE       LD (HL),B        INC HL        LD (HL),#0F        INC HL       DEC B       LD (HL),B        INC HL       LD (HL),B;(+482)=(+482)-(+418)+A+16       LD HL,(pHFT)       LD BC,16       ADD HL,BC       EX DE,HL       LD IX,#482-16       ADD IX,DE       LD A,CREHUF0       LD H,(IX)       LD L,(IX+1)       LD B,(IX+#418-#482)       LD C,(IX+#419-#482)       OR A       SBC HL,BC       ADD HL,DE       LD (IX),H       LD (IX+1),L       INC IX
        inc IX       DEC A       JR NZ,REHUF0        POP IX        RET          
 
-FBMARK        ;CALL RDBYTE ;уже прочитали в browser        ;INC A        ;CALL NZ,ERROR2        CALL RDBYTE        CP #D8        CALL NZ,ERROR2        LD IX,VARS+#8A        LD B,#10       LD HL,1ARTLP  LD (IX),H       LD (IX+#10),L        LD (IX+#20),5        INC IX        DJNZ ARTLP        LD (VARS+#50),HL        LD (VARS+#52),HL        DEC L        LD (VARS+#C2),HL       LD A,H        LD (VARS+#4E),A        LD (VARS+#BE),A        CALL PRCMARK1       LD (PRMODE),A ;значения #c2, #c3, какие ещё?       CP #C3        CALL NC,ERROR4        CALL jpgreadsizesMRKP3        LD A,(CNUM)       CP 1        JR Z,MRKPOK       CP 3        JR NZ,mRKPC4        LD A,(VARS+#4A)        OR A        RET NZ        LD IX,(VARS+#56)        LD A,1        CP (IX)        CALL NZ,ERROR        INC A        CP (IX+#12)       JR NZ,mRKP4        INC A        CP (IX+#24)        JR Z,MRKPOKmRKP4   LD A,4        CP (IX+#12)        CALL NZ,ERROR        INC A        CP (IX+#24)        CALL NZ,ERROR        DEC A        JR MRKPOKmRKPC4  CP 4        CALL NZ,ERROR        INC AMRKPOK  LD (VARS+#4A),A        RET ;twicePRCMARK1        CALL PRCMARKpMRK    LD A,0        RET MPHT    CALL P_HTABPRCMARK
-        ;jr $       CALL RDBYTE       INC A       JR NZ,$-4       CALL RDBYTE        LD (pMRK+1),A        SUB #C0       JP C,ERROR4        RET Z        SUB 4       RET C        JR Z,MPHT        SUB 8       RET C        JP Z,ERROR ;MPAT        SUB 3       RET C        RET Z        SUB 9        JP C,ERROR4        SUB 3       RET C        JR Z,MPQT        SUB 2        JR Z,M141FE        SUB 3        JR Z,MPAPP        LD A,(pMRK+1)        CALL RDWORDHSBLSBtohl        DEC HL
-        dec HLSKPM    CALL RDBYTE        DEC HL        LD A,H        OR L        JR NZ,SKPM        JR PRCMARKMPQT    CALL P_QTAB        JR PRCMARKM141FE        CALL RDWORDHSBLSBtohl       LD A,L       SUB 4       OR H        CALL NZ,ERROR        CALL RDWORDHSBLSBtohl        LD (VAR+#C2),HL        JR PRCMARKMPAPP   CALL P_APP0        JR PRCMARK;onceP_APP0        CALL RDWORDHSBLSBtohl       LD DE,-16       ADD HL,DE        LD (pAPPR+1),HL        CALL RDBYTE        CP "J"       JR NZ,ERR2_        CALL RDBYTE        CP "F"       JR NZ,ERR2_        CALL RDBYTE        CP "I"       JR NZ,ERR2_        CALL RDBYTE        CP "F"ERR2_  JP NZ,ERROR2
+FBMARK        ;CALL RDBYTE ;уже прочитали в browser        ;INC A        ;CALL NZ,ERROR2        CALL RDBYTE        CP #D8        CALL NZ,ERROR2        LD IX,VARS+#8A        LD B,#10       LD HL,1ARTLP  LD (IX),H       LD (IX+#10),L        LD (IX+#20),5        INC IX        DJNZ ARTLP        LD (VARS+#50),HL        LD (VARS+#52),HL        DEC L        LD (VARS+#C2),HL       LD A,H        LD (VARS+#4E),A        LD (VARS+#BE),A        CALL PRCMARK1       LD (PRMODE),A ;значения #c2, #c3, какие ещё?       CP #C3        CALL NC,ERROR4        CALL jpgreadsizesMRKP3        LD A,(CNUM)       CP 1        JR Z,MRKPOK       CP 3        JR NZ,mRKPC4        LD A,(VARS+#4A)        OR A        RET NZ        LD IX,(VARS+#56)        LD A,1        CP (IX)        CALL NZ,ERROR        INC A        CP (IX+#12)       JR NZ,mRKP4        INC A        CP (IX+#24)        JR Z,MRKPOKmRKP4   LD A,4        CP (IX+#12)        CALL NZ,ERROR        INC A        CP (IX+#24)        CALL NZ,ERROR        DEC A        JR MRKPOKmRKPC4  CP 4        CALL NZ,ERROR        INC AMRKPOK  LD (VARS+#4A),A        RET ;twicePRCMARK1        CALL PRCMARKpMRK_1=$+1
+        LD A,0        RET MPHT    CALL P_HTABPRCMARK
+        ;jr $       CALL RDBYTE       INC A       JR NZ,$-4       CALL RDBYTE        LD (pMRK_1),A        SUB #C0       JP C,ERROR4        RET Z        SUB 4       RET C        JR Z,MPHT        SUB 8       RET C        JP Z,ERROR ;MPAT        SUB 3       RET C        RET Z        SUB 9        JP C,ERROR4        SUB 3       RET C        JR Z,MPQT        SUB 2        JR Z,M141FE        SUB 3        JR Z,MPAPP        LD A,(pMRK_1)        CALL RDWORDHSBLSBtohl        DEC HL
+        dec HLSKPM    CALL RDBYTE        DEC HL        LD A,H        OR L        JR NZ,SKPM        JR PRCMARKMPQT    CALL P_QTAB        JR PRCMARKM141FE        CALL RDWORDHSBLSBtohl       LD A,L       SUB 4       OR H        CALL NZ,ERROR        CALL RDWORDHSBLSBtohl        LD (VAR+#C2),HL        JR PRCMARKMPAPP   CALL P_APP0        JR PRCMARK;onceP_APP0        CALL RDWORDHSBLSBtohl       LD DE,-16       ADD HL,DE        LD (pAPPR_1),HL        CALL RDBYTE        CP "J"       JR NZ,ERR2_        CALL RDBYTE        CP "F"       JR NZ,ERR2_        CALL RDBYTE        CP "I"       JR NZ,ERR2_        CALL RDBYTE        CP "F"ERR2_  JP NZ,ERROR2
 
-        CALL RDBYTE        OR A        CALL NZ,ERROR        CALL RDWORDHSBLSBtohl        CALL RDBYTE        LD (VARS+#4E),A        CALL RDWORDHSBLSBtohl        LD (VARS+#50),HL        CALL RDWORDHSBLSBtohl        LD (VARS+#52),HL        CALL RDWORDHSBLSBtohlpAPPR   LD BC,0APPSL   LD A,B        OR C        RET Z        CALL RDBYTE        DEC BC        JR APPSL 
+        CALL RDBYTE        OR A        CALL NZ,ERROR        CALL RDWORDHSBLSBtohl        CALL RDBYTE        LD (VARS+#4E),A        CALL RDWORDHSBLSBtohl        LD (VARS+#50),HL        CALL RDWORDHSBLSBtohl        LD (VARS+#52),HL        CALL RDWORDHSBLSBtohlpAPPR_1=$+1
+        LD BC,0APPSL   LD A,B        OR C        RET Z        CALL RDBYTE        DEC BC        JR APPSL 
         
 ;onceP_QTAB        CALL RDWORDHSBLSBtohl        DEC HL
         dec HL ;lenNQTB   PUSH HL        rdbyte        LD B,A        RRCA         RRCA         RRCA         RRCA         AND #0F       LD DE,#41       JR Z,$+4       LD E,#81       PUSH DE       LD C,A        LD A,B        AND #0F        CP 4        CALL NC,ERROR       ADD A,A       LD HL,VARS+#5B       ADD A,L       LD L,A        LD D,(HL)        DEC HL        LD E,(HL)        LD A,D        OR E        JR NZ,QTP       PUSH HL        LD DE,#80        CALL ALLDNP ;не портит bc! hl=указатель на выделенную память       EX DE,HL       POP HL       LD (HL),E       INC HL       LD (HL),DQTP     EX DE,HL        LD B,#40pQPRC   LD A,C       OR A       CALL NZ,RDBYTE        LD (HL),A        INC HL        rdbyte        LD (HL),A        INC HL        DJNZ pQPRC       POP DE       POP HL       OR A       SBC HL,DE       RET Z       RET C        JR NQTB 
@@ -420,6 +475,17 @@ SETPG
         push bc
         push hl
         ld a,e
+
+        ;cp 0
+        ;jr z,setpgok
+        ;cp 1
+        ;jr z,setpgok
+        ;cp 2
+        ;jr z,setpgok
+        ;cp 5
+        ;jr z,setpgok
+        ;jr $
+;setpgok
         
         ld hl,tpgs
         add a,l

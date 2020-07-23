@@ -27,9 +27,9 @@ begin
         ld e,0 ;color byte 0bRLrrrlll
         OS_CLS
         
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         
 ;01          89          01    ;low+0x0000

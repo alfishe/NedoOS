@@ -179,7 +179,7 @@ waitcls0
        if EGA
         ;ld (setpgs_scr_scrxor),a
        endif
-        ld a,(user_scr1_high)
+        ld a,(user_scr1_high) ;ok
          ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
        if EGA
          ;ld (scrpg7),a
@@ -557,25 +557,25 @@ setpgsscr40008000
 getuser_scr_low
 getuser_scr_low_patch=$+1
 getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr1_low)
+        ld a,(user_scr1_low) ;ok
         ret
 
 getuser_scr_high
 getuser_scr_high_patch=$+1
 getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr1_high)
+        ld a,(user_scr1_high) ;ok
         ret
 
 getuser_scr_low_cur
 getuser_scr_low_cur_patch=$+1
 getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         ret
 
 getuser_scr_high_cur
 getuser_scr_high_cur_patch=$+1
 getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         ret
 
 changescrpg_current

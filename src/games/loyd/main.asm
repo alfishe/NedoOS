@@ -177,9 +177,9 @@ newlevel
         jp restart
 
 setpgs_scr
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG16K
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KLOW
         ret
                 

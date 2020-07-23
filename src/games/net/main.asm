@@ -231,9 +231,9 @@ redraw
         jp prfield
 
 setpgs_scr
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         ret
 

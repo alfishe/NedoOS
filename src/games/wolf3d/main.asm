@@ -268,25 +268,25 @@ setpgscrhigh4000
 getuser_scr_low
 getuser_scr_low_patch=$+1
 getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr1_low)
+        ld a,(user_scr1_low) ;ok
         ret
 
 getuser_scr_high
 getuser_scr_high_patch=$+1
 getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr1_high)
+        ld a,(user_scr1_high) ;ok
         ret
 
 getuser_scr_low_cur
 getuser_scr_low_cur_patch=$+1
 getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         ret
 
 getuser_scr_high_cur
 getuser_scr_high_cur_patch=$+1
 getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         ret
 
 changescrpg_current
@@ -429,7 +429,7 @@ swapimer
 	di
          ld hl,(0x0038+3) ;адрес intjp
          ld (intjpaddr),hl        
-         ld hl,(0x0026)
+         ld hl,(0x0026) ;ok
          ld (on_int_0026),hl
         ld de,0x0038
         ld hl,oldimer
@@ -497,7 +497,7 @@ curpalette=$+1
         ld de,wolfpal
         OS_SETPAL
         
-        ld a,(CURPG32KLOW)
+        ld a,(CURPG32KLOW) ;ok
         push af
 pgmuznum=$+1
         ld a,0

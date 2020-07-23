@@ -1102,11 +1102,11 @@ open_keeppid
         inc de
         inc de
         inc de
-        ld a,(iy+app.id)
-        ld (de),a
     push bc
     call BDOS_setpgstructs
     pop bc
+        ld a,(iy+app.id)
+        ld (de),a
         pop de
         pop af
         ret

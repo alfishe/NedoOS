@@ -10,7 +10,7 @@ cmd_begin
 
         ;OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         ld (cmdpgscreen0_0),a
 
 hobetarunner=#4100

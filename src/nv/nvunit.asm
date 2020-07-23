@@ -887,13 +887,13 @@ nv_copyscreen0to1
 	OS_GETMAINPAGES
 	push hl
 	;OS_GETSCREENPAGES
-        ld a,(user_scr1_low)
+        ld a,(user_scr1_low) ;ok
         ld l,a
-        ld a,(user_scr1_high)
+        ld a,(user_scr1_high) ;ok
         ld h,a
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         ld e,a
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         ld d,a
 	push hl ;1 screen
 	push de ;0 screen
@@ -932,13 +932,13 @@ nv_copyscreen1to0
 	OS_GETMAINPAGES
 	push hl
 	;OS_GETSCREENPAGES
-        ld a,(user_scr1_low)
+        ld a,(user_scr1_low) ;ok
         ld l,a
-        ld a,(user_scr1_high)
+        ld a,(user_scr1_high) ;ok
         ld h,a
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         ld e,a
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         ld d,a
 	push hl ;1 screen
 	push de ;0 screen

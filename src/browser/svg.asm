@@ -65,29 +65,31 @@ CRDINI
         LD HL,(FINDAT)
         LD BC,FINDAT
         ADD HL,BC
-        LD (LS+1),HL
+        LD (LS_1),HL
         LD HL,FINDAT+2
-        LD (LQ+2),HL
+        LD (LQ_2),HL
         LD HL,(FINDAT+4)
         ADD HL,BC
-        LD (PLS+1),HL
+        LD (PLS_1),HL
 ;       LD (PLS1+1),HL
         LD HL,FINDAT+6
-        LD (PLQ+2),HL
+        LD (PLQ_2),HL
         LD HL,(FINDAT+8)
         ADD HL,BC
-        LD (PLGS+1),HL
-;       LD (PLGS1+1),HL
+        LD (PLGS_1),HL
+;       LD (PLGS1_1),HL
         LD HL,FINDAT+10
-        LD (PLGQ+2),HL
+        LD (PLGQ_2),HL
         RET 
 
 POLYGONDRAW
-PLGQ    LD BC,(POLYGONS)
+PLGQ_2=$+2
+        LD BC,(POLYGONS)
         LD A,B
         OR C
         RET Z
-PLGS    LD HL,POLYGONS+2
+PLGS_1=$+1
+        LD HL,POLYGONS+2
 
 POLYGDR2
         PUSH BC
@@ -125,11 +127,13 @@ LC2     CALL LINE
         RET 
 
 POLYLINEDRAW
-PLQ     LD BC,(POLYLINES)
+PLQ_2=$+2
+        LD BC,(POLYLINES)
         LD A,B
         OR C
         RET Z
-PLS     LD HL,POLYLINES+2
+PLS_1=$+1
+        LD HL,POLYLINES+2
 POLYLDR2
         PUSH BC
         LD B,(HL)
@@ -162,14 +166,17 @@ LC3     CALL LINE
 
 
 LINEDRAW
-LQ      LD BC,(0)
+LQ_2=$+2
+        LD BC,(0) ;ok
         LD A,B
         OR C
         RET Z
-        LD (LINEDR4+1),BC
+        LD (LINEDR4_1),BC
 LINEDR3
-LINEDR4 LD BC,0
-LS      LD HL,LINES+2
+LINEDR4_1=$+1
+        LD BC,0
+LS_1=$+1
+        LD HL,LINES+2
 LINEDR1
         PUSH BC
         LD E,(HL)
@@ -213,7 +220,7 @@ COMPACT
         OR C
         JR Z,COMPACT1
         PUSH HL
-        LD HL,(LINES1+1)
+        LD HL,(LINES1_1)
         LD BC,LINES+2
         AND A
         SBC HL,BC
@@ -267,7 +274,7 @@ COMPACT2
         OR C
         JR Z,COMPACT3
         PUSH HL
-        LD HL,(POLYGS+1)
+        LD HL,(POLYGS_1)
         LD BC,POLYGONS+2
         AND A
         SBC HL,BC
@@ -425,12 +432,12 @@ POLYLSUB_LY=$+1
         POP HL
         INC HL
         ;PUSH DE
-        LD DE,(LINES1+1)
+        LD DE,(LINES1_1)
         LDI 
         LDI 
         LDI 
         LDI 
-        LD (LINES1+1),DE
+        LD (LINES1_1),DE
         ;POP DE
         JP INCLINES ;then go to SEARCH
 POLYLS3
@@ -553,12 +560,12 @@ PATHS2q
         POP HL ;start of path
         INC HL
         ;PUSH DE
-        LD DE,(LINES1+1)
+        LD DE,(LINES1_1)
         LDI 
         LDI 
         LDI 
         LDI 
-        LD (LINES1+1),DE
+        LD (LINES1_1),DE
         ;POP DE
         JP INCLINES ;then go to SEARCH
 PATHS3
@@ -636,7 +643,8 @@ POLYGSUB
         CALL FINDSEQ
         ;LD D,H
         ;ld E,L
-POLYGS  LD HL,POLYGONS+2
+POLYGS_1=$+1
+        LD HL,POLYGONS+2
         PUSH HL
         INC HL
         ;LD LY,#0
@@ -694,16 +702,16 @@ POLYGSUB_LY=$+1
         POP HL
         INC HL
         ;PUSH DE
-        LD DE,(LINES1+1)
+        LD DE,(LINES1_1)
         LDI 
         LDI 
         LDI 
         LDI 
-        LD (LINES1+1),DE
+        LD (LINES1_1),DE
         ;POP DE
         JP INCLINES ;then go to SEARCH
 POLYGS3
-        LD (POLYGS+1),HL
+        LD (POLYGS_1),HL
         POP HL
         LD (HL),A
         LD HL,(POLYGONS)
@@ -738,7 +746,8 @@ LINESUB
         LD DE,X1
         CALL FINDSEQ
         CALL TAKEVALUE
-LINES1  LD HL,LINES+2
+LINES1_1=$+1
+        LD HL,LINES+2
         ADD A,ADDX
 
         IF CPLX
@@ -787,14 +796,14 @@ LINES1  LD HL,LINES+2
         ADD A,ADDY
         LD (HL),A
         INC HL
-        LD (LINES1+1),HL
+        LD (LINES1_1),HL
 
 INCLINES
 ;then go to SEARCH
         ;LD H,D
         ;LD L,E
         ;PUSH HL
-        LD HL,(LINES1+1)
+        LD HL,(LINES1_1)
         DEC HL
         LD D,(HL)
         DEC HL
@@ -1540,7 +1549,7 @@ LINE4   RRCA
         INC H
         LD H,(HL)
         LD L,A
-        LD (LINEJP+1),HL
+        LD (LINEJP_1),HL
         LD H,HLTMP/256
         LD L,B
         LD A,(HL)
@@ -1558,7 +1567,8 @@ LINE4   RRCA
         POP DE
         LD A,D
         SRL A
-LINEJP  CALL 0
+LINEJP_1=$+1
+        CALL 0
         LD HL,0
 LINETA  EQU $-2
         LD (HL),0

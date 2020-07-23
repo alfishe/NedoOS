@@ -406,7 +406,7 @@ setTileUpdateMap
 
 _draw_tile
 	;---------------
-	ld a,(CURPG32KLOW);(_memSlot2)
+	ld a,(CURPG32KLOW) ;ok ;(_memSlot2)
 	push af
 	;---------------
 	ld a,(spritesActive)
@@ -458,7 +458,7 @@ _color_key
 
 _draw_tile_key
 	;---------------
-	ld a,(CURPG32KLOW);(_memSlot2)
+	ld a,(CURPG32KLOW) ;ok ;(_memSlot2)
 	push af
 	;---------------
 	ld a,(spritesActive)

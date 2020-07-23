@@ -248,16 +248,16 @@ on_int_sp2=$+1
         ;out (0xfd),a ;10 b
 
 setpgs_scr0
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG32KLOW
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG32KHIGH
         ret
 
 setpgs_scr1
-        ld a,(user_scr1_low)
+        ld a,(user_scr1_low) ;ok
         SETPG32KLOW
-        ld a,(user_scr1_high)
+        ld a,(user_scr1_high) ;ok
         SETPG32KHIGH
         ret
 

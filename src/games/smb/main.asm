@@ -624,7 +624,7 @@ gentileproc_all0
 	jr nz,gentileproc_all0
 	ld (hl),0xf7 ;rst 0x30 for tile #0xff
 ;tile for endline = ENDLINETILE;0xff?
-        ld hl,(0)
+        ld hl,(0) ;ok
         ld (oldquitcode),hl
 	ld hl,ENDLINETILE*0x0101|0xc000;0xffff
 	ld (hl),0xc3 ;"jp"
@@ -1047,13 +1047,13 @@ tilepage=$+1
 getuser_scr_low
 getuser_scr_low_patch=$+1
 getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         ret
 
 getuser_scr_high
 getuser_scr_high_patch=$+1
 getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         ret
 
 
@@ -1752,7 +1752,7 @@ on_int
 	push de
 
         if RESTOREPG16K
-        ld a,(CURPG16K)
+        ld a,(CURPG16K) ;ok
         push af
         endif
 	
@@ -1770,7 +1770,7 @@ imer_curscreen_value=$+1
 	ld a,(pgaddrstackcopy)
 	SETPG16K
 on_int_spcopy=$+1
-	ld hl,(0)
+	ld hl,(0) ;ok
         ;if RESTOREPG16K==0
 	ld a,(pgaddrstack)
 	SETPG16K

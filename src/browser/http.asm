@@ -290,7 +290,7 @@ readstream_http_head_ok
         
 ;если строка пустая, то readstream_http_headq
 readstream_http_headlineaddr=$+1
-        ld a,(0)
+        ld a,(0) ;ok
         cp 0x0d
         jr z,readstream_http_headq
         
