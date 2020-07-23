@@ -28,6 +28,23 @@
 
 // sjio.cpp
 
+// \/\/\/ termcolor-related
+#if defined(_WIN32) || defined(_WIN64)
+#   define NO_ANSI_ESCAPE_SEQUENCES
+#endif
+
+#if defined(__CYGWIN__)
+#   undef __STRICT_ANSI__
+#   include <iostream>
+#   include <sstream>
+#   define __STRICT_ANSI__
+#else
+#   include <iostream>
+#   include <sstream>
+#endif
+#include "termcolor.hpp"
+// ^^^ termcolor-related
+
 #include "sjdefs.h"
 
 #include <fcntl.h>
@@ -106,10 +123,8 @@ static void outputErrorLine(const EOutputVerbosity errorLevel) {
 	}
 	// print the error into stderr if OutputVerbosity allows this type of message
 	if (Options::OutputVerbosity <= errorLevel) {
-//		_CERR ErrorLine _END;
-		cerr << ANSI_COLOR_RED << ErrorLine << ANSI_COLOR_RESET;
-//		if (*ErrorLine2) _CERR ErrorLine2 _END;
-		if (*ErrorLine2)  cerr << ANSI_COLOR_RED << ErrorLine2 << ANSI_COLOR_RESET;
+		cerr << termcolor::red << ErrorLine << termcolor::reset;
+		if (*ErrorLine2)  cerr << termcolor::red << ErrorLine2 << termcolor::reset;
 	}
 }
 
