@@ -42,6 +42,9 @@
 #define _ENDL << endl
 #define _END ;
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 // standard libraries
 #ifdef WIN32
 #define NOMINMAX

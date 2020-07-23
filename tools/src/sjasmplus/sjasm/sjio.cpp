@@ -106,8 +106,10 @@ static void outputErrorLine(const EOutputVerbosity errorLevel) {
 	}
 	// print the error into stderr if OutputVerbosity allows this type of message
 	if (Options::OutputVerbosity <= errorLevel) {
-		_CERR ErrorLine _END;
-		if (*ErrorLine2) _CERR ErrorLine2 _END;
+//		_CERR ErrorLine _END;
+		cerr << ANSI_COLOR_RED << ErrorLine << ANSI_COLOR_RESET;
+//		if (*ErrorLine2) _CERR ErrorLine2 _END;
+		if (*ErrorLine2)  cerr << ANSI_COLOR_RED << ErrorLine2 << ANSI_COLOR_RESET;
 	}
 }
 
