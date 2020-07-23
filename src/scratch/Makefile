@@ -17,7 +17,7 @@ RES_INSTALLDIR	= ${INSTALLDIR}/bin
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 ASPP		= ../../tools/aspp.sh
 SJASMPLUS	= ../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
+SJASMPLUSFLAGS	= --nologo --msg=war --syntax=m
 DEPAS		= env LC_CTYPE=C ${ASPP}
 DEPAFLAGS	= -E -MM -I .
 DEPEXT		= d
