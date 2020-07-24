@@ -37,7 +37,7 @@
 
 // output
 #define _COUT cout << termcolor::reset <<
-#define _CERR cerr << termcolor::red <<
+#define _CERR cerr << termcolor::red_br <<
 #define _CMDL  <<
 #define _ENDL << termcolor::reset << endl
 #define _END << termcolor::reset

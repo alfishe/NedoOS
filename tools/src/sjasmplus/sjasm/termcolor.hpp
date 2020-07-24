@@ -311,7 +311,23 @@ namespace termcolor
         }
         return stream;
     }
-
+	
+    inline
+    std::ostream& red_br(std::ostream& stream)
+    {
+        if (_internal::is_colorized(stream))
+        {
+        #if defined(TERMCOLOR_OS_MACOS) || defined(TERMCOLOR_OS_LINUX)
+            stream << "\033[31;1m";
+        #elif defined(TERMCOLOR_OS_WINDOWS)
+            _internal::win_change_attributes(stream,
+                FOREGROUND_RED|FOREGROUND_INTENSITY
+            );
+        #endif
+        }
+        return stream;
+    }
+	
     inline
     std::ostream& green(std::ostream& stream)
     {
