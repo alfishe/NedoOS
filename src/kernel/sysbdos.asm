@@ -1672,6 +1672,7 @@ BDOS_tellhandle
         call BDOS_number_to_fil ;de=fil
         ld hl,FIL.FPTR
 BDOS_tellhandleq
+        call BDOS_setpgstructs
         add hl,de
         ld c,(hl)
         inc hl
