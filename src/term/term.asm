@@ -1,7 +1,9 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
-RECODEINPUT=0;1
+;TODO при закрытии cmd term должен закрыться
+
+RECODEINPUT=1
 
 STDINBUF_SZ=256
 
@@ -57,12 +59,20 @@ begin
         pop af ;id
 
         ld e,a ;id
+        ld (waitpid_id),a
         OS_RUNAPP
 
 execcmd_error
 
 mainloop
         YIELD
+        
+waitpid_id=$+1
+        ld e,0
+        OS_WAITPID
+        or a
+        jp z,quit
+        
         ld de,stdinbuf
         ld hl,STDINBUF_SZ
 stdinhandle=$+1
@@ -116,7 +126,7 @@ term_esckey
         jr mainloop_afterkey
         
 quit
-;TODO close cmd!!!
+;cmd closed!!!
 
         ld a,(stdinhandle)
         ld b,a
@@ -425,3 +435,5 @@ stdinbuf
         
 end
 	savebin "term.com",begin,end-begin
+	
+	LABELSLIST "..\..\us\user.l"

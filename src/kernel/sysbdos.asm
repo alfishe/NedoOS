@@ -2034,10 +2034,12 @@ BDOS_writehandle_pipe
          ld (BDOS_writehandle_pipe_addr),hl
         ld a,(hl) ;cur_size
         inc hl
+        push af
         add a,l
         ld l,a
         jr nc,$+3
         inc h
+        pop af
         push hl ;tail
         ld hl,PIPEBUF_SZ
         push bc ;bc=number of bytes

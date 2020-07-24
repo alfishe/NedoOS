@@ -971,8 +971,8 @@ editcmd_enter_runcmd
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch, запускает scratch по фону и выходит
         ;YIELD ;дать время задаче cmd захватить фокус
-        ;ld e,-1
-        ;OS_SETGFX ;disable gfx, give focus
+        ld e,-1
+        OS_SETGFX ;disable gfx, give focus
         WAITPID
 execcmd_runfocusq
         ;YIELD ;дать время системе передать фокус рандомной задаче
@@ -982,8 +982,8 @@ execcmd_runfocusq
         ;YIELD ;дать время задаче scratch захватить фокус и перерисовать (но загрузить картинку и перерисовать не успеет)
         ;pop bc
         ;djnz execcmd_waitchildredraw0
-        ;ld e,6 ;textmode
-        ;OS_SETGFX ;take focus (can be random after closing cmd)
+        ld e,6 ;textmode
+        OS_SETGFX ;take focus (can be random after closing cmd)
 	call nv_copyscreen0to1
 	YIELDGETKEY ;key refresh
         ld hl,cmdbuf

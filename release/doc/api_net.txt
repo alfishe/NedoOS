@@ -79,7 +79,7 @@ AF_INET EQU 2
 		ERR_PROTOTYPE	- протокол не поддерживается
 		
 	Пример создания TCP/IP сокета:
-		LD D,2
+		LD D,AF_INET;2
 		LD E,SOCK_STREAM
 		OS_NETSOCKET
 		BIT 7,L
@@ -139,7 +139,7 @@ close_wait:
 		
 	Пример подключения к хосту с IP адресом 1.2.3.4 на порт 80:
 		LD A,(SOC)
-		LD DE,(destination_host)
+		LD DE,destination_host
 		OS_NETCONNECT
 		BIT 7,L
 		JP NZ,ERR_EXIT	;обработка ошибки
@@ -168,7 +168,7 @@ destination_host
 		
 	Пример присвоения сокету исходяего порта 433:
 		LD A,(SOC)
-		LD DE,(destination_host)
+		LD DE,destination_host
 		OS_BIND
 		BIT 7,L
 		JP NZ,ERR_EXIT	;обработка ошибки
@@ -310,19 +310,19 @@ BUF_SIZE EQU $-BUF
 		ERR_EMSGSIZE - в буфере отправки нет места, либо пакет слишком большой
 		
 	Пример отправки данных по протоколу TCP/IP с ожиданием данных:
-WAIT_DATA
+WAIT_SEND
 		LD A,(SOC)
 		LD DE,BUF
 		LD HL,BUF_SIZE
 		OS_WIZNETWRITE
 		BIT 7,H
-		JR Z,RECEIVED	;ошибок нет
+		JR Z,SEND_OK	;ошибок нет
 		CP ERR_EMSGSIZE
 		JP NZ,ERR_EXIT	;обработка ошибки
 		OS_YIELD		;не обязательно. Если время не критично,
 						;то отдадим квант времени системе.
-		JR WAIT_DATA	;буфер отправки переполнен, ждём освобождения
-RECEIVED
+		JR WAIT_SEND	;буфер отправки переполнен, ждём освобождения
+SEND_OK
 		LD (DATA_SIZE),HL	;удачно. если требуется, то сохраняем количество отправленных данных.
 		... ;продолжаем работу
 	

@@ -16,7 +16,7 @@ CMDLINEY=24
 COLOR=7
 CURSORCOLOR=0x38
 
-RECODEINPUT=0;1
+RECODEINPUT=1
 
         macro SETXY_
         ;OS_SETXY
@@ -123,11 +123,6 @@ cmdmainloop
         ldir
 
         call execcmd_maybepipes
-     
-        jr cmd_noexeccmdtofileq
-cmd_noexeccmdtofile
-        call execcmd ;a!=0: no such internal command
-cmd_noexeccmdtofileq
         or a
         call nz,callcmd;strcpexec_tryrun ;запускает по фону
         ld hl,cmdbuf
@@ -135,13 +130,13 @@ cmd_noexeccmdtofileq
         jp cmdmainloop
 
 execcmd_maybepipes
-;a!=0: no such internal command
+;out:a!=0: no such internal command
 ;если command pars >file, то create file, перенаправить вывод в него, execcmd, close file, перенаправить вывод обратно
         ld hl,cmdbuf
         ld a,'>'
         ld bc,MAXCMDSZ
         cpir
-        jr nz,cmd_noexeccmdtofile
+        jp nz,execcmd ;jr nz,cmd_noexeccmdtofile
         dec hl
         ld (hl),0
         inc hl
@@ -162,7 +157,11 @@ stdouthandle_wasatstart=$+1
         ld (stdouthandle),a
 
         pop af
-        ret
+        ret;jr cmd_noexeccmdtofileq
+;cmd_noexeccmdtofile
+;        jp execcmd ;a!=0: no such internal command
+;cmd_noexeccmdtofileq
+;        ret
 
 ;;;;;;;;;;;;;;;;;;
 prNNcmd
@@ -1962,6 +1961,9 @@ term_prfsm
         or a
         jr nz,term_prfsm_nosingle
         ld a,e
+         cp 0x0a
+         ld c,0x0d
+         jp z,term_prfsm_keycok
         cp 0x1b
         ret nz ;jr nz,term_prfsm_prchar
         ld a,1
