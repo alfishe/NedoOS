@@ -292,6 +292,8 @@ jpgconvBWlineskip
 
  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+JPEG_CLPG=0
+        if JPEG_CLPG
 clpg
         ld hl,0xc000
         ld de,0xc001
@@ -299,8 +301,10 @@ clpg
         ld (hl),l ;0
         ldir
         ret
+        endif
 
 readjpeg
+        if JPEG_CLPG
         ld e,0
         call SETPG
         call clpg
@@ -313,6 +317,7 @@ readjpeg
         ld e,5
         call SETPG
         call clpg
+        endif
 
         ld hl,JPEGCLEARADDR
         ld de,JPEGCLEARADDR+1

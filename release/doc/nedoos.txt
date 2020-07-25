@@ -10,14 +10,14 @@ Capabilities
   Works with TR-DOS floppies, SD card, IDE HDD (FAT12/16/32). Device letters: "E".."H" - IDE HDD (Master), "I".."L" - IDE HDD (Slave), "M" - SD-карта (Z-controller), "N" - SD-карта (NeoGS), "O" - USB flash, "A".."D" - TR-DOS floppies. IDE controller (ATM or Nemo IDE) depends on the batch file you run. Includes support for segmented TR-DOS files of any size (according to TR-DOS sequential access files standard).
 * до 16 задач одновременно. Задачи могут быть активными (одна из них имеет фокус, то есть может читать устройства ввода и печатать на видимый экран терминала) и замороженными. Задачи могут отдавать свой квант времени системе с помощью YIELD, но не обязаны это делать.
   Up to 16 tasks at the same time. Tasks may be active (one of them has the focus, so it can read input devices and print on visible terminal screen) or frozen. Tasks may give away their times slot to system with using YIELD, but don't have to.
-* одновременно можно открыть до 8 файлов на FAT и до 8 файлов на TR-DOS.
-  May open up to 8 files on FAT and up to 8 files on TR-DOS at the same time.
+* одновременно можно открыть до 8 файлов на FAT, до 8 файлов на TR-DOS и до 8 пайпов между задачами.
+  May open up to 8 files on FAT, up to 8 files on TR-DOS, and up to 8 pipes between tasks at the same time.
 * программе пользователя доступна вся память 0x0100..0xffff, причём все 16K окна можно щёлкать через вызовы ОС (см. ниже). Файловые операции и передача данных в BDOS могут вестись по любому адресу в userspace.
   User program can access the whole memory 0x0100..0xffff, any 16K window can be switched via OS calls (see below). File operations and BDOS data transfer can be done at any address in userspace.
 * системный обработчик прерываний не портит стек, восстанавливает 2 байта из DE. Программа пользователя может легко переставлять стек.
   System interrupt handler doesn't spoil stack, the two bytes spoiled by hardware are restored from DE. User programs can move stack pointer.
-* графический редактор Scratch, плейеры NedoPlayer и modplay, текстовый редактор texted, монтировщик образов дисков dmm, запускатель/переключатель снапшотов nmisvc, компилятор NedoLang, ассемблер NedoAsm, бейсик NedoBasic, просмотрщик картинок NedoView, разархиваторы *.zip, *gz, *.rar, *.tar, архиваторы *.rar и *.tar, сетевые утилиты (NedoBrowser, dmirc, dmftp и др.), игры...
-  Gfx editor Scratch, music players NedoPlayer and modplay, text editor texted, disk image mounter dmm, snapshot runner/switcher nmisvc, compiler NedoLang, assembler NedoAsm, basic interpreter NedoBasic, picture viewer NedoView, decompressors for *.zip, *gz, *.rar, *.tar, archivers for *.rar and *.tar, network utilities (NedoBrowser, dmirc, dmftp etc.), games...
+* графический редактор Scratch, плейеры NedoPlayer и modplay, текстовый редактор texted, монтировщик образов дисков dmm, запускатель/переключатель снапшотов nmisvc, компилятор NedoLang, ассемблер NedoAsm, бейсик NedoBasic, просмотрщик картинок NedoView, разархиваторы *.zip, *gz, *.rar, *.tar, архиваторы *.rar и *.tar, сетевые утилиты (NedoBrowser, dmirc, dmftp, netterm и др.), игры...
+  Gfx editor Scratch, music players NedoPlayer and modplay, text editor texted, disk image mounter dmm, snapshot runner/switcher nmisvc, compiler NedoLang, assembler NedoAsm, basic interpreter NedoBasic, picture viewer NedoView, decompressors for *.zip, *gz, *.rar, *.tar, archivers for *.rar and *.tar, network utilities (NedoBrowser, dmirc, dmftp, netterm etc.), games...
 
 Системные требования
 System requirements
@@ -86,8 +86,9 @@ pause - ждать нажатия клавиши
 echo <сообщение> - вывести сообщение
 type <path/filename> - вывести файл
 
-Системная задача idle запускает командный интерпретатор для исполнения autoexec.bat и входит в бесконечный цикл с опросом C+M+D (см. выше).
-При запуске командный интерпретатор смотрит свою командную строку и исполняет её. Если командная строка имеет вид "autoexec.bat autoexec.bat", то после выполнения autoexec.bat командный интерпретатор входит в интерактивный режим, иначе выход.
+Системная задача idle запускает терминал term.com, который создаёт пайпы stdin и stdout и запускает командный интерпретатор для исполнения autoexec.bat. Потом idle входит в бесконечный цикл с опросом C+M+D (см. выше).
+При запуске командный интерпретатор смотрит свою командную строку и исполняет её. Если командная строка имеет вид "cmd.com autoexec.bat", то после выполнения autoexec.bat командный интерпретатор входит в интерактивный режим, иначе выход.
+Можно запустить ещё один независимый терминал командой start term или сетевой терминал (netterm), доступный по TCP/IP port 2323.
 
 nv
 ~~
@@ -103,7 +104,7 @@ Space - пометка
 * - инверсия пометки
 BackSpace (Caps Shift+0) - переход на директорию уровнем выше
 Enter - запуск файла в фоновом режиме (файлы .com и .$c запускаются непосредственно, остальные типы - с помощью внешних запускальщиков, см. ниже)
-Enter - исполнение командной строки в блокирующем режиме (потом кнопкой 9 можно посмотреть текстовый экран, который был на момент завершения команды)
+Enter - исполнение командной строки в блокирующем режиме, когда nv освобождает фокус и ожидает окончания вызыванной программы (потом кнопкой 9 можно посмотреть текстовый экран, который был на момент завершения команды)
 3 - просмотр текстовых файлов (стрелки, PageUp (Caps Shift+3), PageDown (Caps Shift+4), s - переключение кодировки, w - переключение переноса строк, Break (Esc, Caps Shift+Space) - выход, Tab (Caps Shift + Symbol Shift) - hex viewer (управление стрелками, PgUp, PgDn, ввод цифрами и a-f, Caps Shift+Enter (сохранение), Break (Esc, Caps Shift+Space) - выход), Tab (Caps Shift+Symbol Shift) - переход в просмотрщик)
 4 - вызов редактора texted для редактирования файла под курсором
 5 - копирование помеченных файлов или текущего файла на противоположную панель

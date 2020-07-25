@@ -965,15 +965,16 @@ editcmd_enter_runcmd
         ld a,#0a
         PRCHAR
         ;---
+        ld e,-1
+        OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
         ld hl,cmdbuf
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch, запускает scratch по фону и выходит
         ;YIELD ;дать время задаче cmd захватить фокус
-        ld e,-1
-        OS_SETGFX ;disable gfx, give focus
         WAITPID
+execcmd_error
 execcmd_runfocusq
         ;YIELD ;дать время системе передать фокус рандомной задаче
         ;ld b,25
@@ -989,6 +990,9 @@ execcmd_runfocusq
         ld hl,cmdbuf
         ld (hl),0
         jp editcmd_reprintall
+
+;execcmd_error
+;        jp execcmd_runfocusq;editcmd_reprintall
 
 editcmd_enter_run
 	call setpaneldir
@@ -1017,9 +1021,6 @@ editcmd_enter_runfile_com
 ;hl=rest of command line
         jp loadandrun ;nz=error, e=id
 
-execcmd_error
-        jp execcmd_runfocusq;editcmd_reprintall
-        
 	;display "editcmd_enter_runfile_nocom",editcmd_enter_runfile_nocom
 editcmd_enter_runfile_nocom
         ld hl,runfile_nocomq
