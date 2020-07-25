@@ -1961,9 +1961,9 @@ term_prfsm
         or a
         jr nz,term_prfsm_nosingle
         ld a,e
-         cp 0x0a
-         ld c,0x0d
-         jp z,term_prfsm_keycok
+         ;cp 0x0a
+         ;ld c,0x0d
+         ;jp z,term_prfsm_keycok
         cp 0x1b
         ret nz ;jr nz,term_prfsm_prchar
         ld a,1
