@@ -64,14 +64,14 @@ WAIT_CLIENTS
 	JR Z,ESTABLISHED
 	CP ERR_EAGAIN
 	JP NZ,inet_exiterr	;обработка ошибки
-	OS_YIELD	;не обязательно. Если время реагирования на подключение не критично,
+	YIELD	;не обязательно. Если время реагирования на подключение не критично,
 				;то отдадим квант времени системе.
 	JR WAIT_CLIENTS	;никто не подключился, ждём
 ESTABLISHED
 	LD A,L				;удачно
 	LD (soc_client),A	;сохраняем дескриптор сокета.
 ;6. OS_NETSHUTDOWN(s)
-close_wait:
+;close_wait:
 	LD A,(soc)
 	LD E,0 ;0 - закрыть немедленно, 1 - закрыть только если буфер отправки пуст
 	OS_NETSHUTDOWN
@@ -79,7 +79,7 @@ close_wait:
 	;jp z,close_ok       ;сокет закрылся
 	;CP ERR_EAGAIN
 	;JP NZ,inet_exiterr		;обработка ошибки не связанной с ожиданием отправки.
-	;OS_YIELD		;не обязательно. Если время не критично,
+	;YIELD		;не обязательно. Если время не критично,
 					;то отдадим квант времени системе.
 	;JR close_wait ;ожидаем отправки данных
 close_ok
@@ -110,12 +110,6 @@ close_ok
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
 
-        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr ;TODO создать пайпы
-        ;ld a,e
-        ;ld (stdinhandle),a
-        ;ld a,d
-        ;ld (stdouthandle),a
-
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
@@ -136,14 +130,16 @@ close_ok
         pop af ;id
 
         ld e,a ;id
+        ld (waitpid_id),a
         OS_RUNAPP
 
 execcmd_error
 
 mainloop
         YIELD
-
-        call send_stdin
+        call checkquit
+        
+        call send_stdin ;stdin to internet client
         
 mainloop_afterkey
         call readsocket_key ;GET_KEY
@@ -152,12 +148,10 @@ mainloop_afterkey
         ;cp c ;keynolang==0?
         jr z,mainloop
         
-         push af
-         call prhex ;debug
-         pop af
+         ;push af
+         ;call prhex ;debug
+         ;pop af
         
-        ;cp key_redraw
-        ;jr z,
         ;cp key_esc
         ;jr z,term_esckey
          cp 251
@@ -215,9 +209,19 @@ subnegotiation_onoff
         jr mainloop_afterkey
 
 
+checkquit
+waitpid_id=$+1
+        ld e,0
+        OS_WAITPID
+        or a
+        jp z,quit
+        ret
+
 quit
-;TODO close cmd!!!
-;TODO close socket!!!
+;cmd closed!!!
+	LD A,(soc_client)
+	LD E,0 ;0 - закрыть немедленно, 1 - закрыть только если буфер отправки пуст
+	OS_NETSHUTDOWN
 
         ld a,(stdinhandle)
         ld b,a
@@ -248,17 +252,6 @@ prhexdigit
         pop af
         ret
 
-send_stdin
-        ld de,stdinbuf
-        ld hl,STDINBUF_SZ
-stdinhandle=$+1
-        ld b,0
-        ;ld b,0xff
-        OS_READHANDLE
-;hl=size
-        call term_print
-        ret
-
 readsocket_key
 datain_size=$+1
         ld hl,0
@@ -287,8 +280,9 @@ wait_data0
 	JR Z,RECEIVED	;ошибок нет
 	CP ERR_EAGAIN
 	JP NZ,inet_exiterr	;обработка ошибки
-	OS_YIELD		;не обязательно. Если время реагирования на пришедшие данные не критично,
+	YIELD		;не обязательно. Если время реагирования на пришедшие данные не критично,
 						;то отдадим квант времени системе.
+        call checkquit
         call send_stdin
 	JR wait_data0	;данных нет, ждём
 RECEIVED
@@ -298,74 +292,12 @@ RECEIVED
         ;pop hl
         jr readsocket_key
 
-        if 1==0
-sendchar_esckey
-        push bc
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop bc
-        jr sendchar_byte
-
-sendchar_esckey2
-        push bc
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop bc
-        push bc
-        ld a,b
-        call sendchar_byte_a
-        pop bc
-        jr sendchar_byte
-
-sendchar_num
-;a=num
-        ld c,'0'-1
-        inc c
-        sub 10
-        jr nc,$-3
-        push af
-        call sendchar_byte
-        pop af
-        add a,'0'+10
-        jr sendchar_byte_a
-        endif
-
 sendchar
 ;to stdout
         cp 0x80
         ;jr nc,sendchar_rustoutf8
         ;cp 0x08 ;backspace
         ;cp 0x0d ;enter
-        if 1==0
-        cp key_left
-        ld c,'D'
-        jr z,sendchar_esckey
-        cp key_right
-        ld c,'C'
-        jr z,sendchar_esckey
-        cp key_down
-        ld c,'B'
-        jr z,sendchar_esckey
-        cp key_up
-        ld c,'A'
-        jr z,sendchar_esckey
-        cp key_del
-        ld bc,'3'*256+'~'
-        jr z,sendchar_esckey2
-        cp key_home
-        ld bc,'1'*256+'~'
-        jr z,sendchar_esckey2
-        cp key_end
-        ld bc,'4'*256+'~'
-        jr z,sendchar_esckey2
-        cp key_ins
-        ld bc,'2'*256+'~'
-        jr z,sendchar_esckey2
-        endif
         ld c,a
 sendchar_byte
         ld a,c
@@ -381,10 +313,22 @@ stdouthandle=$+1
         or l
         ret nz
         YIELD
+        call checkquit
         jr sendchar_repeat
 
-term_print
-;from stdin to screen
+send_stdin
+;stdin to internet client
+        ld de,stdinbuf
+        ld hl,STDINBUF_SZ
+stdinhandle=$+1
+        ld b,0
+        ;ld b,0xff
+        OS_READHANDLE
+;hl=size
+        ;call term_print
+        ;ret
+
+;term_print
 ;hl=size
         ld a,h
         or l
@@ -407,96 +351,11 @@ term_print0
         jp pe,term_print0
         ret
 
-        if 1==0
-term_prfsm
-;e=char
-        ld a,(term_prfsm_curstate)
-        or a
-        jr nz,term_prfsm_nosingle
-        ld a,e
-        cp 0x1b
-        jr nz,term_prfsm_prchar
-        ld a,1
-        ld (term_prfsm_curstate),a
-        ret
-term_prfsm_nosingle
-        dec a
-        jr nz,term_prfsm_noafteresc
-        ;ld a,e
-        ;cp '['
-        ;jr nz,term_prfsm_prchar
-        ld a,2
-        ld (term_prfsm_curstate),a
-        xor a
-        ld (term_prfsm_curnumber),a
-        ret
-term_prfsm_noafteresc
-        ;dec a
-        ;jr nz,term_prfsm_noafterescbracket
-        ld a,e
-        sub '0'
-        cp 10
-        jr nc,term_prfsm_afterescbracket_nonumber
-        ld e,a
-        ld hl,term_prfsm_curnumber
-        ld a,(hl)
-        add a,a
-        add a,a
-        add a,(hl)
-        add a,a ;*10
-        add a,e
-        ld (hl),a
-        ret
-term_prfsm_afterescbracket_nonumber
-        ld a,e
-        cp ';'
-        jr nz,term_prfsm_afterescbracket_nosemicolon
-        ld a,(term_prfsm_curnumber)
-        ld (term_prfsm_curnumber1),a
-        xor a
-        ld (term_prfsm_curnumber),a
-        ret
-term_prfsm_afterescbracket_nosemicolon
-        xor a
-        ld (term_prfsm_curstate),a        
-        ld a,e
-        cp 'H'
-        jr nz,term_prfsm_afterescbracket_noH
-        ld a,(term_prfsm_curnumber1) ;row
-        dec a
-        ld d,a
-        ld a,(term_prfsm_curnumber) ;column
-        dec a
-        ld e,a
-        OS_SETXY
-        ret
-term_prfsm_afterescbracket_noH
-        cp '~'
-        jr nz,term_prfsm_afterescbracket_notilde
-        ;cp key_del
-        ;ld bc,'3'*256+'~'
-        ;jr z,sendchar_esckey2
-        ;cp key_home
-        ;ld bc,'1'*256+'~'
-        ;jr z,sendchar_esckey2
-        ;cp key_end
-        ;ld bc,'4'*256+'~'
-        ;jr z,sendchar_esckey2
-        ;cp key_ins
-        ;ld bc,'2'*256+'~'
-        ret
-term_prfsm_afterescbracket_notilde
-        ;cp 'A' ;A..D = up, down, right, left
-        ret
-        
-        endif
-
 term_prfsm_prchar
+;to internet client
 ;e=char
-        ;OS_PRCHAR
         ld a,e
-        ld (netoutbuf),a
-        
+        ld (netoutbuf),a        
 send_data0
 	LD A,(soc_client)
 send_data_addr=$+1
@@ -508,15 +367,15 @@ send_data_size=$+1
 	JR Z,send_ok	;ошибок нет
 	CP ERR_EMSGSIZE
 	JP NZ,inet_exiterr	;обработка ошибки
-	OS_YIELD		;не обязательно. Если время не критично,
+	YIELD		;не обязательно. Если время не критично,
 						;то отдадим квант времени системе.
+        call checkquit
 	JR send_data0	;буфер отправки переполнен, ждём освобождения
 send_ok
 	;LD (DATA_SIZE),HL	;удачно. если требуется, то сохраняем количество отправленных данных.
         ;ld bc,(send_data_size)
         ;or a
-        ;sbc hl,bc
-        
+        ;sbc hl,bc        
         ret
 
 idle_readapp
@@ -599,15 +458,11 @@ skipword
 skipword0
         ld a,(hl)
         or a
-        jr z,skipwordq
+        ret z
         sub ' '
-        jr z,skipwordq
-        inc hl ;ldi
+        ret z
+        inc hl
         jp skipword0
-skipwordq
-        ;xor a
-        ;ld (de),a
-        ret
 
 skipspaces
 ;hl=string
@@ -632,11 +487,6 @@ term_prfsm_curnumber1
 
 cmd_filename
         db "cmd.com",0
-
-stdinfn
-        db "stdin",0
-stdoutfn
-        db "stdout",0
 
 tpipename
         db "z:",0

@@ -33,12 +33,6 @@ begin
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
 
-        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr ;TODO создать пайпы
-        ;ld a,e
-        ;ld (stdinhandle),a
-        ;ld a,d
-        ;ld (stdouthandle),a
-
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
@@ -415,11 +409,6 @@ term_prfsm_curnumber1
 
 cmd_filename
         db "cmd.com",0
-
-stdinfn
-        db "stdin",0
-stdoutfn
-        db "stdout",0
 
 tpipename
         db "z:",0

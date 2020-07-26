@@ -9,6 +9,9 @@ del initcode.c
 del syscode.c
 del syscode.c.mlz
 sjasmplus --nologo --msg=war hobeta.asm
-rem sjasmplus --nologo --msg=war term.asm
 
-if "%currentdir%"=="" (pause)
+if "%currentdir%"=="" (
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put nedoos.$c /sd_boot.$c
+ pause
+ if "%makeall%"=="" ..\..\us\emul.exe
+)
