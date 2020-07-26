@@ -3,7 +3,7 @@
 
 STACK=0x4000
 MAXVERTICES=256
-MAXEDGES=512;256
+MAXEDGES=768;512;256
 scrbase=0x8000
 
 scrwid=320
@@ -188,9 +188,11 @@ sumcrossededges0
         inc hl
         add a,e
         ld e,a
+         ld a,(hl) ;crossedHSB
         adc a,d
-        sub e
+        ;sub e
         ld d,a
+         inc hl
         dec bc
         ld a,b
         or c
@@ -231,6 +233,7 @@ mouse_fire_nextlevel
         ld (doredraw),a
         ld hl,level
         inc (hl)
+         ;jr $
         call countverticesneeded
         jp genmesh
 
@@ -381,8 +384,10 @@ drawcuredges0
         jr z,$+3
         cp e
         jr nz,drawcuredgesno
-        ld a,(hl)
         push hl
+        ld a,(hl)
+         inc hl
+         or (hl) ;crossedHSB
 ;e=vertex1
 ;d=vertex2
 ;a=crossed
@@ -396,6 +401,7 @@ drawcuredges_colormask=$+1
         pop hl
 drawcuredgesno
         pop bc
+         inc hl
         ;inc hl
         ;dec bc
         ;ld a,b
@@ -465,6 +471,7 @@ drawconnectedvertices_drawproc=$+1
         pop hl
 drawconnectedverticesno
         pop bc
+         inc hl ;crossedHSB
         ;inc hl
         ;dec bc
         ;ld a,b
@@ -491,8 +498,10 @@ drawunconnectededges0
         jr z,$+3
         cp e
         jr  z,drawunconnectededgesno
-        ld a,(hl)
         push hl
+        ld a,(hl)
+         inc hl
+         or (hl) ;crossedHSB
 ;e=vertex1
 ;d=vertex2
 ;a=crossed
@@ -504,6 +513,7 @@ drawunconnectededges0
         pop hl
 drawunconnectededgesno
         pop bc
+         inc hl
         ;inc hl
         ;dec bc
         ;ld a,b
@@ -552,6 +562,7 @@ drawunconnectedvertices_e
         inc (hl)
         pop hl
 drawunconnectedverticesno
+         inc hl ;crossedHSB
         inc hl
         dec bc
         ld a,b
@@ -778,6 +789,8 @@ genedges0
         inc hl
         ld (hl),0 ;uncrossed
         inc hl
+         ld (hl),0 ;crossedHSB
+         inc hl
         pop bc
         dec bc
         ld a,b
@@ -797,6 +810,8 @@ drawedges0
         ld d,(hl)
         inc hl
         ld a,(hl)
+         inc hl
+         or (hl) ;crossedHSB
         push hl
 ;e=vertex1
 ;d=vertex2
@@ -2012,6 +2027,7 @@ genmeshx=$+1
 genmeshy=$+1
         ld de,0
         
+        if 1==1
         ld c,160
         call rnd
         add a,a
@@ -2025,6 +2041,7 @@ genmeshy=$+1
         ld e,a
         ;ld d,0
         pop bc
+        endif
 ;bc=x
 ;e=y
         ld a,(nvertices2)
@@ -2085,10 +2102,16 @@ genmeshedge_old=$+1
         add hl,bc
         add hl,bc
         add hl,bc
+         add hl,bc
+        push hl
         ld (hl),d
         inc hl
         ld (hl),e
-        dec hl
+         inc hl
+         ld (hl),0 ;crossed
+         inc hl
+         ld (hl),0 ;crossedHSB
+        pop hl
 ;check if this edge crossed with something, mark crossing here and there
         ld bc,(nedges)
         call checkcrossedwith_oldedges
@@ -2109,6 +2132,8 @@ initcrossededges0
         inc hl
         ld (hl),0 ;uncrossed
         inc hl
+         ld (hl),0 ;crossedHSB
+         inc hl
         dec bc
         ld a,b
         or c
@@ -2128,6 +2153,7 @@ countcrossededges0
         inc hl
         inc hl
         inc hl
+         inc hl
         pop de
         pop bc
         inc de
@@ -2182,6 +2208,7 @@ inccrossededges_proc=$+1
 inccrossededges00_skipself
         inc hl
         inc hl
+         inc hl
         ;inc hl
         ;dec bc
         ;ld a,b
@@ -2195,6 +2222,7 @@ inccrossededges00_skipself
 inccrossededgesno
         inc hl
         inc hl
+         inc hl
         ;inc hl
         ;dec bc
         ;ld a,b
@@ -2208,20 +2236,38 @@ inccrossedandself
         inc hl
         inc hl
         inc (hl)
+         jr nz,$+4
+         inc hl
+         inc (hl)
         ld hl,(inccrossededges_selfaddr)
         inc hl
         inc hl
         inc (hl)
+         jr nz,$+4
+         inc hl
+         inc (hl)
         pop hl
         ret
 deccrossedandself
         push hl
         inc hl
         inc hl
+         inc (hl)
+         dec (hl)
+         jr nz,$+5
+          inc hl
+          dec (hl)        
+          dec hl
         dec (hl)
         ld hl,(inccrossededges_selfaddr)
         inc hl
         inc hl
+         inc (hl)
+         dec (hl)
+         jr nz,$+5
+          inc hl
+          dec (hl)        
+          dec hl
         dec (hl)
         pop hl
         ret
@@ -2232,6 +2278,9 @@ checkcrossedwith_oldedges
         ;inc hl
         ;inc hl
         ;ld (hl),0
+         ;inc hl
+         ;ld (hl),0
+         ;dec hl
         ;dec hl
         ;dec hl
         ld de,edges
@@ -2250,15 +2299,24 @@ genmeshedge_checkcrossed0
         inc de
         inc de
         jr nc,genmeshedge_nocrossed
-        ld a,(de)
-        inc a
-        ld (de),a
+        ex de,hl
+        inc (hl)
+         jr nz,$+5
+          inc hl
+          inc (hl)
+          dec hl
+        ex de,hl
         inc hl
         inc hl
         inc (hl)
+         jr nz,$+5
+          inc hl
+          inc (hl)
+          dec hl
         dec hl
         dec hl
 genmeshedge_nocrossed
+         inc de ;crossedHSB
         inc de
         dec bc
         ld a,b
@@ -3021,8 +3079,8 @@ vertices
 ;x,X,y,Y
         ds MAXVERTICES*4
 edges
-;vertex1,vertex2,crossed
-        ds MAXEDGES*3
+;vertex1,vertex2,crossed,crossedHSB
+        ds MAXEDGES*4
 nedges
         dw 0
 ;ncrossededges
@@ -3075,4 +3133,4 @@ end
 	
 	savebin "untangle.com",begin,end-begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "..\..\..\us\user.l"
