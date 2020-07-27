@@ -423,7 +423,7 @@ panelprtext0
         jr z,panelprtextq
         push bc
         push hl
-        PRCHAR
+        PRCHAR_
         pop hl
         pop bc
         inc c
@@ -443,7 +443,7 @@ prtext0
         or a
         ret z
         push hl
-        PRCHAR ;testing (351/352t) (was 986/987t)
+        PRCHAR_ ;testing (351/352t) (was 986/987t)
         pop hl
         jp prtext0
 
@@ -454,7 +454,7 @@ cmdprNchars
         ld a,(hl)
         inc hl
         push hl
-        PRCHAR
+        PRCHAR_
         pop hl
         pop bc
         djnz cmdprNchars
@@ -571,7 +571,7 @@ prNsymbol
 prNsymbol0
 	push bc
         ld a,c
-	PRCHAR
+	PRCHAR_
 	pop bc
 	djnz prNsymbol0
         pop ix
@@ -585,7 +585,7 @@ prNNcmd
         ld c,10
         call prNcmd
         add a,'0'
-        PRCHAR
+        PRCHAR_
         ret
 prNcmd
 ;a=NN
@@ -597,14 +597,14 @@ prNcmd
         add a,c
         push af
         ld a,b
-        PRCHAR
+        PRCHAR_
         pop af
         ret
         
 cmdprchar
         push hl
 	push ix
-        PRCHAR
+        PRCHAR_
 	pop ix
         pop hl
         ret

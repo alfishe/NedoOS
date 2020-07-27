@@ -35,6 +35,7 @@ RECODEINPUT=1
 
         org PROGSTART
 cmd_begin
+         ds 0x300
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ;ld e,6 ;textmode
         ;OS_SETGFX
@@ -367,13 +368,22 @@ cmd_start
         ld de,cmdbuf
         ld bc,MAXCMDSZ+1
         ldir
+        call strcpexec_tryrun ;выполнить файл с именем cmdbuf или SYSDIR/cmdbuf и параметрами там, e=id, nz=error
+        ret z
+execcmd_error
+        ld hl,tunknowncommand
+        jp cmderror
+        
 strcpexec_tryrun
-;выполнить файл с именем cmdbuf и параметрами там
-        call loadapp ;загрузить файл с именем cmdbuf, e=id, cy=end of .bat
+;выполнить файл с именем cmdbuf или SYSDIR/cmdbuf и параметрами там, e=id, nz=error
+        call loadapp ;загрузить файл с именем cmdbuf, e=id, nz=error, cy=end of .bat
         jr nz,execcmd_tryrunerror
 execcmd_tryrunok
         ret c ;cy=end of .bat
-        OS_RUNAPP
+        push de
+        OS_RUNAPP ;e=id
+        pop de
+         xor a ;z
         ret
 
 execcmd_tryrunerror
@@ -384,6 +394,10 @@ execcmd_tryrunerror
         push de
         OS_GETPATH
         call loadapp_setoldpath ;TODO из prompt
+         ;OS_SETSYSDRV
+         ;ld de,wordbuf2
+         ;OS_GETPATH
+         ;jr $
         ;ld de,cmdprompt
         ;OS_CHDIR
         ;call makeprompt
@@ -427,22 +441,27 @@ execcmd_tryrunerror
         ld de,cmdbuf
          pop bc ;SYSDIR_size
         ldir ;нельзя strcopy, т.к. не нужен терминатор
-        call loadapp ;загрузить файл с именем cmdbuf, e=id, cy=end of .bat
+         ;ld hl,sysdir
+         ;ld de,oldpath
+         ;ld bc,MAXPATH_sz;MAXCMDSZ+1
+         ;ldir ;TODO рекурсивно (для .bat)
+         ;jr $
+        call loadapp ;загрузить файл с именем cmdbuf, e=id, nz=error, cy=end of .bat
         jr z,execcmd_tryrunok
-execcmd_error
-        ld hl,tunknowncommand
-        jp cmderror
+        ret ;nz=error
         
 callcmd
 ;call command (cmdbuf) with waiting
         call execcmd ;a!=0: no such internal command
         or a
         ret z ;command executed
-        call loadapp ;загрузить файл с именем cmdbuf, e=id
+        ;jr $
+        ;call loadapp ;загрузить файл с именем cmdbuf, e=id
+        call strcpexec_tryrun ;загрузить файл с именем cmdbuf или SYSDIR/cmdbuf, e=id, nz=error
         jr nz,execcmd_error
-        push de
-        OS_RUNAPP
-        pop de
+        ;push de
+        ;OS_RUNAPP
+        ;pop de
         WAITPID
         ret
 
@@ -506,11 +525,11 @@ loadapp_finddotok
         ld de,wordbuf ;pop de
         OS_OPENHANDLE
         or a
-         ;push af
+         push af
         ld a,b
         ld (curhandle),a
-         ;call loadapp_setoldpath
-         ;pop af
+         call loadapp_setoldpath
+         pop af
         ret nz ;jr nz,execcmd_error
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
@@ -1834,6 +1853,7 @@ _1=$
         jr z,_1
         ret
 
+        if 1==0
 sendchar_esckey
         push bc
         ld a,0x1b
@@ -1855,6 +1875,7 @@ sendchar_esckey2
         call sendchar_byte_a
         pop bc
         jr sendchar_byte
+        endif
 
 setxy
 ;de=yx
@@ -1885,16 +1906,18 @@ sendchar_num
         sub 10
         jr nc,$-3
         push af
-        call sendchar_byte
+        ld a,c
+        call sendchar_byte_a
         pop af
         add a,'0'+10
         jr sendchar_byte_a
 
 sendchar
-        cp 0x80
+        ;cp 0x80
         ;jr nc,sendchar_rustoutf8
         ;cp 0x08 ;backspace
         ;cp 0x0d ;enter
+        if 1==0
         cp key_left
         ld c,'D'
         jr z,sendchar_esckey
@@ -1922,18 +1945,38 @@ sendchar
         ld c,a
 sendchar_byte
         ld a,c
+        endif
 sendchar_byte_a
         ld (stdoutbuf),a
-sendchar_repeat
         ld hl,1
         ld de,stdoutbuf
+sendchar_repeat
+        push de
+        push hl
 stdouthandle=$+1
         ld b,0
         OS_WRITEHANDLE
-        ld a,h
-        or l
-        ret nz
+        ld b,h
+        ld c,l ;bytes actually written
+        pop hl
+        pop de
+         or a
+         sbc hl,bc ;datasize-byteswritten
+         ret z
+         ex de,hl
+         add hl,bc ;dataaddr+byteswritten
+         ex de,hl
+;hl=remaining data size
+;de=remaining data addr
+        ;ld a,b
+        ;or c
+        ;ret nz ;2754t
+         ;jr $
+        push de
+        push hl
         YIELD
+        pop hl
+        pop de
         jr sendchar_repeat
 
 receivechar

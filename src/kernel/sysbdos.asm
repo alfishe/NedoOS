@@ -968,6 +968,7 @@ BDOS_yield
 ;но надо:
 ;взять адрес стека для выхода из CALLBDOS и записать его в ld sp на выходе из обработчика прерываний
 ;взять адрес возврата из CALLBDOS и записать его в jp на выходе из обработчика прерываний
+;на выходе надо вручную выставить везде pgkillable!
         ;ld iy,(appaddr)
         
         if bdosstack_sz==0
@@ -979,24 +980,27 @@ BDOS_yield
         endif
 
         call setmainpg_c000
+         ;halt ;проверка на вшивость
         ld (intsp+0xc000),hl
 
         ex de,hl
         call BDOS_preparedepage
         call BDOS_setdepage ;включается сразу 2 страницы на случай sp на границе страниц
         ex de,hl
+         ;halt ;проверка на вшивость
         
         ld e,(hl)
         inc hl
         ld d,(hl)
 
         call setmainpg_c000
+         ;halt ;проверка на вшивость
         ld (intjp+0xc000),de ;TODO при многозадачности в кернале это надо делать атомарно вместе с записью sp!
 
         ;ld a,pgkillable
         ;call sys_setpgc000
         ;call sys_setpg8000
-        call setpgs_killable
+        ;call setpgs_killable
         
         if bdosstack_sz !=0
         ld a,0xc0
@@ -1010,6 +1014,8 @@ BDOS_yield_q
 
 ;        push iy
         call schedule ;out: iy=app ;можно с включенными прерываниями, пока системный обработчик не умеет шедулить
+        call setpgs_killable ;во всех случаях!
+         ;halt ;проверка на вшивость
 ;        pop de
 ;        or a
 ;        sbc hl,de
@@ -1052,7 +1058,9 @@ BDOS_dropapp
 ;e=id
         call BDOS_findapp
         jp nz,BDOS_fail ;BDOS_popfail
+        push iy
         call BDOS_freezeapp_go
+        pop iy
 BDOS_delapppages
         ld hl,tsys_pages
         ld a,(iy+app.id)
@@ -1150,7 +1158,7 @@ BDOS_setgfx
 ;e=-1: disable gfx (out: e=old gfxmode)
         ld a,e
         cp -1
-        jr z,BDOS_gfxoff;BDOS_gfxoff_givefocus
+        jr z,BDOS_setgfx_gfxoff;BDOS_gfxoff_givefocus
 		IFDEF NOTURBO
         or 0xa0;%10100000
 		ELSE
@@ -1167,6 +1175,14 @@ BDOS_setgfx
         or a
         sbc hl,de
         jr z,BDOS_setgfx_nopushfocus
+        ;jr $
+        add hl,de
+        push de;iy
+        push hl
+        pop iy
+        call disablescrpgs_setc000 ;у старой focusapp отключить экран в переменных и в памяти
+        pop iy
+        
          ld hl,(oldfocusappaddr)
          ld (oldoldfocusappaddr),hl ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         ld hl,(focusappaddr)
@@ -1175,13 +1191,15 @@ BDOS_setgfx
 BDOS_setgfx_nopushfocus        
         set fgfx,(iy+app.flags)
         ld e,(iy+app.gfxmode)
-        xor a ;success
+        ;xor a ;success
         ret
-BDOS_gfxoff
+BDOS_setgfx_gfxoff
+        call disablescrpgs_setc000 ;у старой focusapp отключить экран в переменных и в памяти
         ld e,(iy+app.gfxmode)
         push de
-        call BDOS_gfxoff_givefocus
+        call BDOS_gfxoff_givefocus ;spoils iy!
         pop de
+        ret
 disablescreeninapp_setc000
         call setmainpg_c000
 disablescreeninapp
@@ -1241,6 +1259,10 @@ sys_quit_findgfxapp0
         jr z,sys_quit_findgfxapp0
 sys_quit_findgfxappq
         ld (focusappaddr),hl
+        push hl
+        pop iy
+        call enablescreeninapp_setc000 ;включить экран в переменные этой задачи
+        
          ;ld a,key_redraw
          ;ld (curkey),a
          ;ld bc,key_redraw

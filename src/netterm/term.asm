@@ -32,9 +32,10 @@ AF_INET EQU 2
 
         org PROGSTART
 begin
+gotostart
         ld sp,0x4000
-        ld e,6 ;textmode
-        OS_SETGFX
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
 
 ;1. s = OS_NETSOCKET
 	LD D,AF_INET
@@ -230,8 +231,11 @@ quit
         ld b,a
         OS_CLOSEHANDLE
 inet_exiterr
+        jp gotostart
+
         QUIT
 
+        if 1==0
 prhex
         push af
         ld a,'#'
@@ -251,6 +255,7 @@ prhexdigit
         PRCHAR
         pop af
         ret
+        endif
 
 readsocket_key
 datain_size=$+1

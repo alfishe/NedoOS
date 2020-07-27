@@ -131,6 +131,10 @@ editcmd_noscrollright
         ;ld c,0
         call cmdprtext
 ;добьём остаток строки пробелами
+        if 1==1
+        ld hl,tspaces
+        jp cmdprtext
+        else
 prcmdspc0
         ld a,c
         cp txtscrwid-1 ;оставлям место справа для курсора
@@ -141,8 +145,43 @@ prcmdspc0
         pop bc
         inc c
         jp prcmdspc0
+        endif
 
+tspaces
+        ds txtscrwid-1
+        db 0
+        
 cmdprtext
+;c=x
+        if 1==1
+        push bc
+        push hl
+        ld a,txtscrwid-1
+        sub c
+        ld c,a
+        push bc
+        call strlen ;hl=length
+        pop bc
+        ld b,0
+        call minhl_bc_tobc
+        ld h,b
+        ld l,c
+        pop de
+        pop bc ;c=x
+        ld a,h
+        or l
+;de=buf
+;hl=len
+        push bc
+        push hl
+        call nz,sendchar_repeat
+        pop hl
+        pop bc
+        add hl,bc
+        ld c,l
+;c=x        
+        ret
+        else
 cmdprtext0
         ld a,(hl)
         or a
@@ -157,6 +196,16 @@ cmdprtext0
         ld a,c
         cp txtscrwid-1 ;оставлям место справа для курсора
         jp nz,cmdprtext0
+        ret
+        endif
+
+minhl_bc_tobc
+        or a
+        sbc hl,bc
+        add hl,bc
+        ret nc ;bc<=hl
+        ld b,h
+        ld c,l
         ret
 
 strdelch

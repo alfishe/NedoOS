@@ -276,6 +276,7 @@ findnextappq
           ;ld (user_fdvalue5+0x4000),a ;not supported yet
           ld (user_fdvalue6+0x4000),a
           ld a,pgtrdosfs
+          ;ld (sys_curpg4000),a ;нужно (могут вызвать из yield - в любой момент - но там не важно, там стек в нулях, а потом само ввключает pgkillable)
           out (c),a ;там INTSTACK
         ;ld iy,(appaddr)
         ret
@@ -486,16 +487,10 @@ on_int_oldssEnter=$+1
          call KEY_PUTREDRAW
 
         ld hl,(focusappaddr)
-        ;отключить страницы экрана этой задаче и выключить их в памяти задачи TODO
+        ;отключить страницы экрана этой задаче и выключить их в памяти задачи
         push hl
         pop iy
-        call disablescreeninapp_setc000
-        ld de,curpg16k+0xc000
-        call disablescrpg
-        ld  e,0xff&(curpg32klow+0xc000)
-        call disablescrpg
-        ld  e,0xff&(curpg32khigh+0xc000)
-        call disablescrpg
+        call disablescrpgs_setc000
         
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
@@ -564,6 +559,14 @@ sys_curpgc000=$+1
          out (c),a
         ret
         
+disablescrpgs_setc000
+        call disablescreeninapp_setc000
+        ld de,curpg16k+0xc000
+        call disablescrpg
+        ld  e,0xff&(curpg32klow+0xc000)
+        call disablescrpg
+        ld  e,0xff&(curpg32khigh+0xc000)
+        ;call disablescrpg
 disablescrpg
 ;de=page keeping addr
         ld a,(de)
@@ -577,30 +580,8 @@ disablescrpg_ok
 
 sys_getchar
 ;out: de=mouse yx, l=buttons, A=key, H=high bits of key, nz=no focus (mouse position=0, ignore it!)
-        call checkfocus_getkbdmouse
-        ;jp endsys_result_a
-        ;ds 0x0050-$
-endsys_result_a
-         ld iy,(focusappaddr)
-        ex af,af'
-        ld a,(iy+app.screen)
-        ld iy,(appaddr)
-        jp endsys_result_aq
-
-;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи
-        
-sys_getchar_fail
-;a=0, nz
-        ;ld a,NOKEY ;no key
-         ;ld h,a
-         ;ld b,a
-         ld c,a ;no keynolang
-        ld d,a;0
-        ld e,a;0 ;no mouse movement
-        ld l,0xff ;no buttons
-        ret ;nz ;jp endsys_result_a
-
-checkfocus_getkbdmouse
+        ;call checkfocus_getkbdmouse
+;checkfocus_getkbdmouse
 ;out: nz=fail
         ld de,(focusappaddr)
         ld hl,(appaddr)
@@ -619,7 +600,7 @@ checkfocus_getkbdmouse
 		if PS2KBD==1
 			display "ps2_sp ",$
 			ld (ps2_sp),sp
-			ld sp,BDOSSTACK
+			ld sp,BDOSSTACK ;это может затереть стек возврата! поэтому возвращаемся через jp
 			call BDOS_setpgtrdosfs
 			call GETKEY ;A=key, H=high bits of key, BC=keynolang
 			ld e,a
@@ -642,21 +623,39 @@ sys_mousecoords=$+1
         ld de,0;hl,0
 sys_mousebuttons=$+1
         ld l,0xff
-        ret ;z
+        ;ret ;z
+        ;jp endsys_result_a
+endsys_result_a
+         ld iy,(focusappaddr)
+        ex af,af'
+        ld a,(iy+app.screen)
+        ld iy,(appaddr)
+        jp endsys_result_aq
+
+;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи
+        
+sys_getchar_fail
+;a=0, nz
+        ;ld a,NOKEY ;no key
+         ;ld h,a
+         ;ld b,a
+         ld c,a ;no keynolang
+        ld d,a;0
+        ld e,a;0 ;no mouse movement
+        ld l,0xff ;no buttons
+        jr endsys_result_a ;ret ;nz ;jp endsys_result_a
 
 callbdos
 ;при вызове bdos надо включить:
 ;0x0000 - syscode (уже включено)
-;0x4000 - fatfs
-;[0x8000 - curpg32klow]
-;[0xc000 - curpg32khigh]
+;[0x4000 - pgfatfs или bdospg2]
 ;защита от одновременного доступа двум задачам
 ;занято a,bc,de,hl
 ;свободно iy
         if bdosstack_sz==0
 
         ld (callbdos_sp),sp
-        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
+        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00) ;это может затереть стек возврата! поэтому возвращаемся через jp
 
         else
         
@@ -715,7 +714,9 @@ sys_quit
         ld iy,(appaddr)
         ld e,(iy+app.id)
         push de
+        push iy
         call BDOS_freezeapp
+        pop iy
 ;если установлен muzcall в пространстве задачи, снимаем его
         ld a,(muzpg)
         call addrpage
