@@ -148,7 +148,7 @@ prcmdspc0
         endif
 
 tspaces
-        ds txtscrwid-1
+        ds txtscrwid-1,' '
         db 0
         
 cmdprtext

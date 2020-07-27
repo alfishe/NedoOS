@@ -3,6 +3,9 @@
         macro YIELD ;use instead of HALT
         OS_YIELD
         endm
+        macro YIELDKEEP ;use instead of HALT if you want reentry in this frame
+        OS_YIELDKEEP
+        endm
         macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY
@@ -346,6 +349,10 @@ _1=$
         ;ld c,CMD_GETSCREENPAGES
 	;CALLBDOS
         ;endm
+        macro OS_YIELDKEEP ;schedule to another app, can return in this frame
+        ld c,CMD_YIELDKEEP
+	CALLBDOS
+        endm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         

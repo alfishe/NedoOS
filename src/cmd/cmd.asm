@@ -1844,13 +1844,29 @@ curhandle=$+1
         include "cmdpr.asm"
 
 yieldgetkeyloop
-_1=$
-	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+;в одном фрейме может прийти много кнопок (управляющий esc-код)!
+	YIELDKEEP ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        jr yieldgetkey_afteryield
+yieldgetkey_nokey
+;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
+        YIELD
+;getkey_waskey=$+1
+;        ld a,0
+;        or a
+;        jr z,yieldgetkey_yield
+yieldgetkey_afteryield
+         ;ld a,2
+         ;out (0xfe),a
         GET_KEY_
+         ;push af
+         ;ld a,3
+         ;out (0xfe),a
+         ;pop af
         or a ;cp NOKEY ;keylang==0?
         jr nz,$+3
         cp c ;keynolang==0?
-        jr z,_1
+        jr z,yieldgetkey_nokey
+         ;ld (getkey_waskey),a
         ret
 
         if 1==0
@@ -1974,7 +1990,7 @@ stdouthandle=$+1
          ;jr $
         push de
         push hl
-        YIELD
+        YIELDKEEP
         pop hl
         pop de
         jr sendchar_repeat

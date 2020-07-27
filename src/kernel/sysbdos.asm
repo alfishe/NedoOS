@@ -766,6 +766,7 @@ tbdoscmds
          db CMD_PRCHAR
          db CMD_WIZNETREAD
          db CMD_YIELD
+         db CMD_YIELDKEEP
 	db CMD_SETDTA;0x1a
 	db CMD_FOPEN;0x0f
 	db CMD_FREAD;0x14
@@ -889,6 +890,7 @@ nbdoscmds=$-tbdoscmds
 	dw BDOS_fread
 	dw BDOS_fopen
         dw BDOS_setdta
+         dw BDOS_yieldkeep
          dw BDOS_yield
          dw BDOS_wiznetread
          dw BDOS_prchar
@@ -963,6 +965,16 @@ BDOS_gettimer
          jr nz,BDOS_gettimerX ;для атомарности
         ret ;a=0
         
+;BDOS_yield
+;        ex af,af'
+;        or a
+;        jr z,BDOS_yieldnokeep
+;        ;dec (iy+app.lasttime)
+BDOS_yieldkeep
+         ld a,(sys_timer) ;ok
+         dec a
+         ld (iy+app.lasttime),a
+;BDOS_yieldnokeep
 BDOS_yield
 ;регистры не сохраняем, т.к. нам не важно, что на выходе из yield
 ;но надо:

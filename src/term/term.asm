@@ -76,9 +76,11 @@ begin
 execcmd_error
         ;jr mainloop
 mainloop_afternokey
-
+mainloop_afterkey
 ;mainloop
         YIELD
+         ;ld a,4
+         ;out (0xfe),a
 ;unprint cursor
 unprint_cursor_color=$+1
         ld e,COLOR
@@ -92,40 +94,18 @@ waitpid_id=$+1
         or a
         jp z,quit
         
-        ld de,stdinbuf
-        ld hl,STDINBUF_SZ
-stdinhandle=$+1
-        ld b,0
-        ;ld b,0xff
-        OS_READHANDLE
-;hl=size
-        ld a,h
-        or l
-        jr z,nostdinmsg;mainloop_afterkey
-
-        push hl
-        OS_GETTIMER ;hlde=timer
-        ld (lastsdtinmsgtimer),de
-        pop bc
-        ld hl,stdinbuf
-term_print0
-        push bc
-        push hl
-        ;ld a,(hl)
-        ;PRCHAR
-        ld e,(hl)
-        call term_prfsm;OS_PRCHAR
-        pop hl
-        pop bc
-        cpi
-        jp pe,term_print0
-
-nostdinmsg
+        call type_stdin ;stdin to screen
+        YIELDKEEP
+        call type_stdin ;stdin to screen
+         ;ld a,5
+         ;out (0xfe),a
+       
         call BDOS_countattraddr
         ld a,(hl) ;из pgscrbuf_low
         ld (unprint_cursor_color),a
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
+        push de
         ex de,hl
 lastsdtinmsgtimer=$+1
         ld de,0
@@ -133,18 +113,30 @@ lastsdtinmsgtimer=$+1
         or a
         sbc hl,de ;hl=timer-oldtimer
 cursortimelimit=$+1        
-        ld de,0;2
+        ld bc,0;2
         or a
-        sbc hl,de
+        sbc hl,bc
+        pop hl
         jr c,noprintcursor
-         ld hl,2
+         ;ld (lastsdtinmsgtimer),hl
+         ld hl,4
          ld (cursortimelimit),hl
+         ;ld a,7
+         ;out (0xfe),a
         ld e,CURSORCOLOR
         call BDOS_prattr
+         ;ld a,6
+         ;out (0xfe),a
 noprintcursor
 
-mainloop_afterkey
+         ;ld a,6
+         ;out (0xfe),a
+;mainloop_afterkey
         GET_KEY
+         ;push af
+         ;ld a,7
+         ;out (0xfe),a
+         ;pop af
         or a ;cp NOKEY ;keylang==0?
         ;jr nz,$+3
         ;cp c ;keynolang==0?
@@ -186,7 +178,7 @@ redraw
         ld de,0xc000
         ld bc,0x4000
         ldir
-        jr mainloop_afterkey
+        jp mainloop_afterkey
         
 quit
 ;cmd closed!!!
@@ -198,6 +190,37 @@ quit
         ld b,a
         OS_CLOSEHANDLE
         QUIT
+
+type_stdin
+        ld de,stdinbuf
+        ld hl,STDINBUF_SZ
+stdinhandle=$+1
+        ld b,0
+        ;ld b,0xff
+        OS_READHANDLE
+;hl=size
+        ld a,h
+        or l
+        ret z ;jr z,nostdinmsg;mainloop_afterkey
+
+        push hl
+         OS_GETTIMER ;hlde=timer
+         ld (lastsdtinmsgtimer),de
+        pop bc
+        ld hl,stdinbuf
+term_print0
+        push bc
+        push hl
+        ;ld a,(hl)
+        ;PRCHAR
+        ld e,(hl)
+        call term_prfsm;OS_PRCHAR
+        pop hl
+        pop bc
+        cpi
+        jp pe,term_print0
+;nostdinmsg
+        ret
 
 forcereprintcursor
         ;push de
@@ -213,7 +236,7 @@ forcereprintcursor
         
 sendchar_esckey
         push bc
-         call forcereprintcursor
+         ;call forcereprintcursor
         ld a,0x1b
         call sendchar_byte_a
         ld a,'['
@@ -289,7 +312,8 @@ stdouthandle=$+1
         ld a,h
         or l
         ret nz
-        YIELD
+        YIELDKEEP
+        call type_stdin
         jr sendchar_repeat
 
 term_prfsm
@@ -354,6 +378,7 @@ term_prfsm_afterescbracket_nosemicolon
         ld e,a
         ;OS_SETXY
         call BDOS_setxy
+         call forcereprintcursor ;не прокатит, в начале печати cmd тоже setxy
         ret
 term_prfsm_afterescbracket_noH
         cp '~'

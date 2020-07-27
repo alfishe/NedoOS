@@ -98,6 +98,7 @@ CMD_DELPAGE=0xfd ;e=page ;GIVE SOME PAGE BACK TO THE OS
 CMD_SETSCREEN=0xfe ;e=screen=0..1
 ;TODO ещё установку текущего обрабатываемого экрана? и "начал рисовать", "закончил рисовать"
 ;CMD_GETSCREENPAGES=0xff ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
+CMD_YIELDKEEP=0xff
 
 ;        STRUCT FCB
 FCB_drv=0 ;drv             BYTE; /* drive number */
