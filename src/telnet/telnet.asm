@@ -83,6 +83,8 @@ TN_ST_ANSI		EQU 2
 
 ERR_EAGAIN		EQU 35		;/* Try again */
 
+AF_INET EQU 2
+
 cmd_begin
 ;init
 	ld sp,0x4000
@@ -98,6 +100,7 @@ cmd_begin
 	OS_DELPAGE
 	pop de
 	OS_DELPAGE
+
 
 ;main
 ;check cmdline
@@ -127,6 +130,52 @@ telnet_keysok
 	ld a,(arg_hostname)
 	or a
 	jp z, telnet_showusage ;if no hostname show usage
+
+        ld hl,23*256 ;BIG ENDIAN 23
+        ld (curport),hl
+
+        ld hl,arg_hostname
+openstream_http_findslash0
+         ld a,(hl)
+         cp ':'
+         jr z,openstream_http_setport
+         ;cp '/'
+         ;jr z,openstream_http_slash
+         or a
+         jr z,openstream_http_slash
+         inc hl
+         jr openstream_http_findslash0
+openstream_http_setport
+        ld (hl),0 ;end of httphostname
+;decode port
+        ld de,0 ;oldport
+openstream_http_decodeport0
+        inc hl
+        ld a,(hl)
+        sub '0'
+        cp 10
+        jr nc,openstream_http_decodeportq
+        push hl
+        ld h,d
+        ld l,e
+        add hl,hl
+        add hl,hl
+        add hl,de
+        add hl,hl ;hl=oldport*10
+        add a,l
+        ld e,a
+        adc a,h
+        sub e
+        ld d,a ;de=port
+        pop hl
+        jr openstream_http_decodeport0
+openstream_http_decodeportq
+;de=port
+        ld a,d
+        ld d,e
+        ld e,a
+        ld (curport),de ;BIG ENDIAN
+openstream_http_slash
 
 	ld hl,arg_hostname-1 ;для удобства в цикле
 	ld de,ip
@@ -160,6 +209,10 @@ telnet_resolve
 	ld bc,4
 	ldir
 
+curport=$+1
+        ld hl,0
+        ld (conparam_port),hl
+
 telnet_noresolve 
 
 	ld hl,ip
@@ -177,18 +230,24 @@ telnet_noresolve
 	ld hl,txt_head3
 	call print_hl
 
-	ld a,23 ; Preparing connect params
+;curport=$+1
+;	ld bc,23 ; Preparing connect params
 	ld hl,ip
-	ld de,conparam+2
-	ld (de),a ; port 23 
-	inc de
+        ;ex de,hl
+	;ld hl,conparam+1;2
+        ;ld (hl),b
+        ;inc hl
+	;ld (hl),c ; port 23 
+        ;ex de,hl
+	;inc de
+        ld de,conparam_ip
 	ld bc,4
 	ldir ; copy ip address
 
 	ld de,0x0201 ; AF_INET,SOCK_TCP
 	OS_NETSOCKET
 	ld a,l 
-	ld c,l
+	   ld c,l ;???
 	ld (soc1),a ; save socket to soc1
 	or a
 	ld hl,txt_socketerror
@@ -196,7 +255,7 @@ telnet_noresolve
 
 	ld de,conparam
 	OS_NETCONNECT ; open socket
-	ld c,a
+	   ld c,a ;???
 	ld a,l
 	or a
 	ld hl,txt_socketopenerror
@@ -276,7 +335,7 @@ telnet_read
 	jr z,telnet_esc
 	cp 0x20
 	jp c,telnet_read
-	cp 223;128
+	cp 223;128 ;TODO 240?
 	jp nc,telnet_noprintable
 telnet_read_prchar
 	PRCHAR
@@ -437,6 +496,7 @@ telnetansi_docmd_J10
 	pop de
 	jr telnetansi_docmd_K1
 telnetansi_docmd_J2
+        ld e,0 ;color byte
 	OS_CLS
 	jp telnet_read_resetstate
 
@@ -865,7 +925,7 @@ telnet_cmd_SB_unknown
 
 telnet_end
 	ld a,(soc1)
-	ld E,0
+	ld E,0 ;close immediately
 	OS_NETSHUTDOWN 
 	call print_nl
 	QUIT
@@ -1049,7 +1109,7 @@ telnet_getbyte_read
 	ld a,(soc1)
 	OS_WIZNETREAD
 	bit 7,h
-	jp z,telnet_getbyte_readed ;error read
+	jp z,telnet_getbyte_readed ;no error read
 	cp ERR_EAGAIN
 	jr z,telnet_getbyte_empty
 	jp telnet_end ;error read
@@ -1235,8 +1295,8 @@ is_dot
 	ld de,0xffff&(-buf)
 	add hl,de
 	LD a,(soc1)
+	LD IX,buf
 	LD DE,conparam
-	LD ix,buf
 	OS_WIZNETWRITE
 	bit 7,h
 	jr nz,dns_exitcode
@@ -1251,14 +1311,14 @@ recv_wait1
 	push bc
 	ld hl,256
 	LD a,(soc1)
-	LD DE,conparam1
-	ld ix,buf
+	LD ix,buf
+	ld de,sa_recv
 	OS_WIZNETREAD
 	pop bc
+	;ld a,h
+	;or l
 	bit 7,h
 	jr z,recv_wait_end
-	cp ERR_EAGAIN
-	jr nz,dns_exiterr
 	djnz recv_wait
 	jr dns_exiterr
 recv_wait_end
@@ -1306,8 +1366,17 @@ exiterr1
 
 soc1		db 0
 dns_head 	db 0x11,0x22,0x01,0x00,0x00,0x01
-conparam	db 0,0,53,8,8,8,8
-conparam1	db 0,0,0,0,0,0,0
+conparam	db 0;AF_INET
+PORT=53;DNS;14321
+conparam_port
+                db PORT/256,PORT&255;53 ;port (HSB,LSB)
+conparam_ip
+                db 8,8,8,8 ;ip
+                ds 8 ;reserve
+;conparam1
+sa_recv
+	db 0,0,0,0,0,0,0
+        ds 8 ;reserve
 buf 		ds 255
 bufindex	db 1
 bufmax		db 0
@@ -1337,7 +1406,7 @@ txt_usage db "Use telnet [-d] [-h] [-V] <host_name|ip>",0x0D,0x0A,0
 txt_help  db "            -d : Print incoming IAC commands",0x0D,0x0A
           db "            -h : Show this help and exit",0x0D,0x0A
           db "            -V : Show version info and exit",0x0D,0x0A,0
-txt_version db "Telnet v0.1",0x0d,0x0a,"Nedopc group 2019",0x0D,0x0A,0
+txt_version db "Telnet v0.1",0x0d,0x0a,"NedoPC group 2019",0x0D,0x0A,0
 txt_resolveerror db "Can not resolve ",0
 txt_socketerror db "IP socket creation error",0x0d,0x0a,0
 txt_socketopenerror db "IP socket opening error",0x0d,0x0a,0
@@ -1356,3 +1425,4 @@ cmd_end
 	;display "telnet_noresolve: ",telnet_noresolve
 	savebin "telnet.com",cmd_begin,cmd_end-cmd_begin
 
+	LABELSLIST "..\..\us\user.l"
