@@ -1224,18 +1224,19 @@ is_dot
 	ld (soc1),a
 	or a
 	jp m,dns_exiterr
-	LD DE,conparam
-	OS_NETCONNECT
-	ld a,l
-	or a
-	jp m,dns_exiterr
+	;LD DE,conparam
+	;OS_NETCONNECT
+	;ld a,l
+	;or a
+	;jp m,dns_exiterr
 	
 	pop hl
 	push hl
 	ld de,0xffff&(-buf)
 	add hl,de
 	LD a,(soc1)
-	LD DE,buf
+	LD DE,conparam
+	LD ix,buf
 	OS_WIZNETWRITE
 	bit 7,h
 	jr nz,dns_exitcode
@@ -1250,7 +1251,8 @@ recv_wait1
 	push bc
 	ld hl,256
 	LD a,(soc1)
-	LD DE,buf
+	LD DE,conparam1
+	ld ix,buf
 	OS_WIZNETREAD
 	pop bc
 	bit 7,h
@@ -1305,6 +1307,7 @@ exiterr1
 soc1		db 0
 dns_head 	db 0x11,0x22,0x01,0x00,0x00,0x01
 conparam	db 0,0,53,8,8,8,8
+conparam1	db 0,0,0,0,0,0,0
 buf 		ds 255
 bufindex	db 1
 bufmax		db 0
