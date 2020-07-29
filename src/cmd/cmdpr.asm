@@ -118,7 +118,7 @@ editcmd_noscrollright
         SETXY_
         ld hl,cmdprompt
         ld c,0
-        call cmdprtext
+        call prtext
         push bc
         ld a,'>'
         PRCHAR_
@@ -128,32 +128,45 @@ editcmd_noscrollright
         ld h,0
         ld de,cmdbuf
         add hl,de
-        ;ld c,0
-        call cmdprtext
+        call prtext
 ;добьём остаток строки пробелами
-        if 1==1
         ld hl,tspaces
-        jp cmdprtext
-        else
-prcmdspc0
-        ld a,c
-        cp txtscrwid-1 ;оставлям место справа для курсора
-        ret z
-        push bc
-        ld a,' '
-        PRCHAR_
-        pop bc
-        inc c
-        jp prcmdspc0
-        endif
+        jp prtext
 
 tspaces
         ds txtscrwid-1,' '
         db 0
-        
-cmdprtext
-;c=x
+ 
         if 1==1
+cmdprNchars
+;hl=buffer
+;de=size
+;out: hl=buffer+size
+        ex de,hl
+        push de
+        push hl
+        call sendchar_repeat
+        pop hl
+        pop de
+        add hl,de
+        ret
+        else
+cmdprNchars
+        ld b,e ;size
+cmdprNchars0
+        push bc
+        ld a,(hl)
+        inc hl
+        push hl
+        PRCHAR_
+        pop hl
+        pop bc
+        djnz cmdprNchars0
+        ret
+        endif
+        
+prtext
+;c=x
         push bc
         push hl
         ld a,txtscrwid-1
@@ -181,23 +194,6 @@ cmdprtext
         ld c,l
 ;c=x        
         ret
-        else
-cmdprtext0
-        ld a,(hl)
-        or a
-        ret z
-        push bc
-        push hl
-        PRCHAR_ ;testing (351/352t) (was 986/987t)
-        pop hl
-        pop bc
-        inc c
-        inc hl
-        ld a,c
-        cp txtscrwid-1 ;оставлям место справа для курсора
-        jp nz,cmdprtext0
-        ret
-        endif
 
 minhl_bc_tobc
         or a

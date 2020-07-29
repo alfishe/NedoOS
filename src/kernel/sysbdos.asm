@@ -141,14 +141,6 @@ BDOS_setscreen
         ;xor a ;success
         ret;jr rest_exit
 
-;BDOS_getscreenpages
-;out: de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-;TODO kill
-;        ld de,pgscr0_1*256+pgscr0_0
-;        ld hl,pgscr1_1*256+pgscr1_0
-;        ;xor a
-;        ret
-
 BDOS_getappmainpages
 ;e=id
 ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
@@ -759,14 +751,16 @@ BDOShandler
         ret
 
 tbdoscmds
+         db CMD_WRITEHANDLE
          db CMD_PRATTR
          db CMD_SETXY
          db CMD_SETCOLOR
-         db CMD_GETATTR
-         db CMD_PRCHAR
          db CMD_WIZNETREAD
-         db CMD_YIELD
          db CMD_YIELDKEEP
+         db CMD_YIELD
+         db CMD_READHANDLE
+         db CMD_PRCHAR
+         db CMD_GETATTR
 	db CMD_SETDTA;0x1a
 	db CMD_FOPEN;0x0f
 	db CMD_FREAD;0x14
@@ -791,7 +785,6 @@ tbdoscmds
         db CMD_NEWPAGE
         db CMD_DELPAGE
         db CMD_SETSCREEN
-        ;db CMD_GETSCREENPAGES
         db CMD_MOUNT
         db CMD_FREEZEAPP
         db CMD_WAITPID
@@ -804,8 +797,6 @@ tbdoscmds
         db CMD_OPENHANDLE
         db CMD_CREATEHANDLE
         db CMD_CLOSEHANDLE
-        db CMD_READHANDLE
-        db CMD_WRITEHANDLE
         db CMD_SEEKHANDLE
         db CMD_TELLHANDLE
         db CMD_SETFILETIME
@@ -851,8 +842,6 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_setfiletime
         dw BDOS_tellhandle
         dw BDOS_seekhandle
-        dw BDOS_writehandle
-        dw BDOS_readhandle
         dw BDOS_closehandle
         dw BDOS_createhandle
         dw BDOS_openhandle
@@ -865,7 +854,6 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_waitpid
         dw BDOS_freezeapp
         dw BDOS_mount
-        ;dw BDOS_getscreenpages
         dw BDOS_setscreen
         dw BDOS_delpage
         dw BDOS_newpage
@@ -890,14 +878,16 @@ nbdoscmds=$-tbdoscmds
 	dw BDOS_fread
 	dw BDOS_fopen
         dw BDOS_setdta
-         dw BDOS_yieldkeep
-         dw BDOS_yield
-         dw BDOS_wiznetread
-         dw BDOS_prchar
          dw BDOS_getattr
+         dw BDOS_prchar
+         dw BDOS_readhandle
+         dw BDOS_yield
+         dw BDOS_yieldkeep
+         dw BDOS_wiznetread
          dw BDOS_setcolor
          dw BDOS_setxy
          dw BDOS_prattr
+         dw BDOS_writehandle
 
 BDOS_setstdinout
 ;b=id, e=stdin, d=stdout, h=stderr
@@ -1796,12 +1786,13 @@ BDOS_openhandle_pipe
         cpir
         jp nz,BDOS_fail
         dec hl
-        inc (hl)
+         inc (hl)
+        inc (hl) ;opened once, used as stdin and as stdout, closed twice
         ld a,l
         add a,0xff&(-freepipes+PIPEADD80)
         push af ;a=handle
-;a = PIPEADD80... = pipes
-        call findpipe_byhandle ;hl=pipe ;bc=number of bytes
+;a = PIPEADD80+pipeindex
+        call findpipe_byhandle ;hl=pipe
         xor a
         ld (hl),a ;size=0
         pop bc ;b=handle
@@ -1823,7 +1814,6 @@ BDOS_number_to_fil0
 BDOS_closehandle
 ;B = file handle
 ;out: A=error
-        ;display "BDOS_closehandle=",BDOS_closehandle
         bit 7,b
         jr nz,BDOS_closehandle_pipe
         bit 6,b
@@ -1847,6 +1837,8 @@ BDOS_closehandle_pipe
         ld b,a
         add hl,bc
         dec (hl)
+        ret p
+        inc (hl) ;чтобы терминал не думал, а закрывал оба пайпа дважды
         ret
 freepipes
         ds MAXPIPES
@@ -1861,7 +1853,7 @@ BDOS_readwritehandleprepare
         ex de,hl ;hl=FIL
         pop de ;Buffer address
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO убрать в драйвер
+         call BDOS_setdepage ;TODO убрать в драйвер (или уже убрано?)
         ld b,d
         ld c,e
         pop de ;Number of bytes to read
@@ -1872,6 +1864,9 @@ BDOS_readhandle
 ;DE = Buffer address
 ;HL = Number of bytes to read
 ;out: HL = Number of bytes actually read, A=error
+         ld a,h
+         cp 0x40
+         jr c,BDOS_readhandlego
         push hl
         ld hl,BDOS_readhandlego
 BDOS_readwritehandle
@@ -1892,7 +1887,7 @@ BDOS_readwritehandle0
         ;call BDOS_readwritehandlego ;hl=processed bytes
 BDOS_readwritehandle_proc=$+1
         call BDOS_readhandlego
-;TODO что делать, если возвратилось hl=0?
+;TODO что делать, если возвратилось hl==0 или a!=0?
         ;ex af,af' ;error
         ;jr $
          pop bc ;bytes to process
@@ -1945,25 +1940,32 @@ BDOS_readhandlego
 	pop bc
         pop bc ;fres
         ld hl,(fres) ;hl=total processed bytes
+        xor a ;no error
         ret
 BDOS_readhandle_noFATFS
         push bc
         BDOSSETPGTRDOSFS
         pop bc
-        jp trdos_fread_b ;hl=total processed bytes
+        jp trdos_fread_b ;hl=total processed bytes, A=error
 
 BDOS_writehandle
 ;B = file handle
 ;DE = Buffer address
 ;HL = Number of bytes to write
 ;out: HL = Number of bytes actually written, A=error
+         ld a,h
+         cp 0x40
+         jr c,BDOS_writehandlego
         push hl
         ld hl,BDOS_writehandlego
         jr BDOS_readwritehandle
 BDOS_writehandlego
-;b=handle
+;B = file handle
+;DE = Buffer address
+;HL = Number of bytes to write <= 0x4000
+;out: HL = Number of bytes actually written, A=error
         bit 7,b
-        jr nz,BDOS_writehandle_pipe
+        jp nz,BDOS_writehandle_pipe
         bit 6,b
         jr nz,BDOS_writehandle_noFATFS
         call BDOS_readwritehandleprepare
@@ -1975,54 +1977,59 @@ BDOS_writehandlego
 	pop bc
         pop bc ;fres
         ld hl,(fres) ;hl=total processed bytes
+        xor a ;a=0: no error
         ret
 BDOS_writehandle_noFATFS
         push bc
         BDOSSETPGTRDOSFS
         pop bc
-        jp trdos_fwrite_b ;hl=total processed bytes
+        jp trdos_fwrite_b ;hl=total processed bytes, a=0: no error
 
 BDOS_readhandle_pipe
-;b=handle, hl=number of bytes, de=addr
-        display "BDOS_readhandle_pipe=",$
+;B = file handle
+;DE = Buffer address
+;HL = Number of bytes to write <= 0x4000
+;out: HL = Number of bytes actually written, A=error
+;TODO check EOF (input closed)
         push bc
         call BDOS_preparedepage
         call BDOS_setdepage
-        pop bc
-        ld a,b
+        pop af ;a=handle
         cp 0xff
         jr nz,BDOS_readhandle_pipe_nrnd
         ld a,r
         ld (de),a
         ld hl,1
+        xor a ;no error
         ret
 BDOS_readhandle_pipe_nrnd
-;a = PIPEADD80... = pipes
+;a = PIPEADD80+pipeindex
+         ld (BDOS_readhandle_pipe_handle),a
         call findpipe_byhandle ;bc=number of bytes
 ;читаем из текущей головы столько байт, сколько есть, но не больше number of bytes
 ;пока делаем, что вся очередь лежит в начале (не атомарно)
          ld (BDOS_readhandle_pipe_addr),hl
         ld a,(hl) ;cur_size
         inc hl
-        push hl ;buf start
+       push hl ;buf start
         ld l,a
         ld h,0
         call minhl_bc_tobc ;to_user_size=bc<=hl
-        pop hl ;buf start
+       pop hl ;buf start
 ;
-        push bc ;to_user_size
         ex af,af'
         ld a,b
         or c
-        jr z,$+4
-        ldir ;to user
+        jr z,BDOS_readhandle_pipe_empty
         ex af,af'
+       push bc ;to_user_size
+        ldir ;to user
+       pop bc ;to_user_size
         ex de,hl
         ld l,a
         xor a
         ld h,a
-        pop bc ;to_user_size
-        push bc ;to_user_size
+       push bc ;to_user_size
 ;bc=cur_size-to_user_size
         sbc hl,bc
         ld b,h
@@ -2033,10 +2040,21 @@ BDOS_readhandle_pipe_addr=$+1
          ld a,c
          ld (de),a
          inc de
-        jr z,BDOS_readhandle_pipe_noremain
+        jr z,$+4
         ldir ;на начало очереди
-BDOS_readhandle_pipe_noremain
-        pop hl ;to_user_size ;возвращаем, сколько реально прочитано
+       pop hl ;to_user_size ;возвращаем, сколько реально прочитано
+        xor a ;no error
+        ret
+BDOS_readhandle_pipe_empty
+;проверяем, что нет EOF (т.е. не закрыла пишущая сторона)
+        ld hl,freepipes-PIPEADD80
+BDOS_readhandle_pipe_handle=$+1
+        ld bc,0 ;PIPEADD80+pipeindex
+        add hl,bc
+        ld a,(hl) ;2=both sides open, 1=one side closed
+        sub 2 ;a=error
+        ld h,b
+        ld l,b ;0 ;возвращаем, сколько реально прочитано
         ret
         
 findpipe_byhandle
@@ -2057,11 +2075,11 @@ BDOS_writehandle_pipe
         push bc
         call BDOS_preparedepage
         call BDOS_setdepage
-        pop bc
-        ld a,b
+        pop af ;a=handle
         cp 0xff
         ret z ;rnd - fail
-;a = PIPEADD80... = pipes
+;a = PIPEADD80+pipeindex
+         ld (BDOS_writehandle_pipe_handle),a
         call findpipe_byhandle ;bc=number of bytes
 ;добавляем в текущий хвост столько байт, сколько есть, но чтобы не превысило размер буфера
 ;пока делаем, что вся очередь лежит в начале (не атомарно)
@@ -2090,12 +2108,24 @@ BDOS_writehandle_pipe_addr=$+1
          ld (hl),a ;cur_size
         ex de,hl ;hl=user space
         pop de ;tail
-        push bc ;from_user_size
         ld a,b
         or c
-        jr z,$+4
+        jr z,BDOS_readhandle_pipe_full
+        push bc ;from_user_size
         ldir ;from user
-        pop hl ;from_user_size ;возвращаем, сколько реально прочитано
+        pop hl ;from_user_size ;возвращаем, сколько реально записано
+        xor a ;no error
+        ret
+BDOS_readhandle_pipe_full
+;проверяем, что не закрыла читающая сторона
+        ld hl,freepipes-PIPEADD80
+BDOS_writehandle_pipe_handle=$+1
+        ld bc,0 ;PIPEADD80+pipeindex
+        add hl,bc
+        ld a,(hl) ;2=both sides open, 1=one side closed
+        sub 2 ;a=error
+        ld h,b
+        ld l,b ;0 ;возвращаем, сколько реально записано
         ret
         
 minhl_bc_tobc

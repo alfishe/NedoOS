@@ -55,7 +55,7 @@ begin
         or a
         jr nz,execcmd_error
         
-        call idle_readapp ;делает CLOSE
+        call readapp ;делает CLOSE
         
         push af
         ld b,a
@@ -84,8 +84,6 @@ mainloop_afterkey
 ;unprint cursor
 unprint_cursor_color=$+1
         ld e,COLOR
-         ;ld a,r
-         ;ld e,a
         call BDOS_prattr
         
 waitpid_id=$+1
@@ -183,12 +181,14 @@ redraw
 quit
 ;cmd closed!!!
 
+        dup 2 ;close twice - as stdin and as stdout! на случай, если клиент не закрыл у себя
         ld a,(stdinhandle)
         ld b,a
         OS_CLOSEHANDLE
         ld a,(stdouthandle)
         ld b,a
         OS_CLOSEHANDLE
+        edup
         QUIT
 
 type_stdin
@@ -197,7 +197,7 @@ type_stdin
 stdinhandle=$+1
         ld b,0
         ;ld b,0xff
-        OS_READHANDLE
+        OS_READHANDLE ;6933t (incl. 5350=ldir 255 bytes)
 ;hl=size
         ld a,h
         or l
@@ -211,10 +211,8 @@ stdinhandle=$+1
 term_print0
         push bc
         push hl
-        ;ld a,(hl)
-        ;PRCHAR
-        ld e,(hl)
-        call term_prfsm;OS_PRCHAR
+        ld a,(hl)
+        call term_prfsm ;520/521t
         pop hl
         pop bc
         cpi
@@ -222,18 +220,6 @@ term_print0
 ;nostdinmsg
         ret
 
-forcereprintcursor
-        ;push de
-        ;push hl
-        ;OS_GETTIMER ;hlde=timer
-        ;dec d
-        ;ld (lastsdtinmsgtimer),de
-         ld hl,0;2
-         ld (cursortimelimit),hl
-        ;pop hl
-        ;pop de
-        ret
-        
 sendchar_esckey
         push bc
          ;call forcereprintcursor
@@ -270,6 +256,7 @@ sendchar_num
         jr sendchar_byte_a
 
 sendchar
+;key to stdout
         ;cp 0x80
         ;jr nc,sendchar_rustoutf8
         ;cp 0x08 ;backspace
@@ -317,31 +304,28 @@ stdouthandle=$+1
         jr sendchar_repeat
 
 term_prfsm
-;e=char
-        ld a,(term_prfsm_curstate)
-        or a
-        jr nz,term_prfsm_nosingle
-        ld a,e
+;a=char
+TERM_ST_SINGLE=1 ;1: wait for single symbol
+TERM_ST_AFTERESC=2 ;2: after 0x1b
+TERM_ST_AFTERESCBRACKET=2 ;3: after 0x1b [ [number] (might be more digits)
+term_prfsm_curstate=$+1
+        ld b,TERM_ST_SINGLE
+        djnz term_prfsm_nosingle
         cp 0x1b
-        jr nz,term_prfsm_prchar
-        ld a,1
-        ld (term_prfsm_curstate),a
+        jp nz,BDOS_prchar_a
+        ld hl,term_prfsm_curstate
+        inc (hl) ;TERM_ST_AFTERESC
         ret
 term_prfsm_nosingle
-        dec a
-        jr nz,term_prfsm_noafteresc
-        ;ld a,e
+        djnz term_prfsm_noafteresc
         ;cp '['
-        ;jr nz,term_prfsm_prchar
-        ld a,2
-        ld (term_prfsm_curstate),a
+        ;jr nz,term_prfsm_prchar ;считаем, что после esc всегда [
+        ld hl,term_prfsm_curstate
+        inc (hl) ;TERM_ST_AFTERESCBRACKET
         xor a
         ld (term_prfsm_curnumber),a
         ret
 term_prfsm_noafteresc
-        ;dec a
-        ;jr nz,term_prfsm_noafterescbracket
-        ld a,e
         sub '0'
         cp 10
         jr nc,term_prfsm_afterescbracket_nonumber
@@ -356,7 +340,7 @@ term_prfsm_noafteresc
         ld (hl),a
         ret
 term_prfsm_afterescbracket_nonumber
-        ld a,e
+        add a,'0'
         cp ';'
         jr nz,term_prfsm_afterescbracket_nosemicolon
         ld a,(term_prfsm_curnumber)
@@ -365,24 +349,16 @@ term_prfsm_afterescbracket_nonumber
         ld (term_prfsm_curnumber),a
         ret
 term_prfsm_afterescbracket_nosemicolon
-        xor a
-        ld (term_prfsm_curstate),a        
-        ld a,e
+        ld hl,term_prfsm_curstate
+        ld (hl),TERM_ST_SINGLE
         cp 'H'
-        jr nz,term_prfsm_afterescbracket_noH
-        ld a,(term_prfsm_curnumber1) ;row
-        dec a
-        ld d,a
-        ld a,(term_prfsm_curnumber) ;column
-        dec a
-        ld e,a
-        ;OS_SETXY
-        call BDOS_setxy
-         call forcereprintcursor ;не прокатит, в начале печати cmd тоже setxy
-        ret
-term_prfsm_afterescbracket_noH
+        jr z,term_prfsm_afterescbracket_H
+;TODO J etc.
         cp '~'
-        jr nz,term_prfsm_afterescbracket_notilde
+        jr z,term_prfsm_afterescbracket_tilde
+        ;cp 'A' ;A..D = up, down, right, left
+        ret
+term_prfsm_afterescbracket_tilde
         ;cp key_del
         ;ld bc,'3'*256+'~'
         ;jr z,sendchar_esckey2
@@ -395,15 +371,29 @@ term_prfsm_afterescbracket_noH
         ;cp key_ins
         ;ld bc,'2'*256+'~'
         ret
-term_prfsm_afterescbracket_notilde
-        ;cp 'A' ;A..D = up, down, right, left
+
+term_prfsm_afterescbracket_H
+        ld a,(term_prfsm_curnumber1) ;row
+        dec a
+        ld d,a
+        ld a,(term_prfsm_curnumber) ;column
+        dec a
+        ld e,a
+        call BDOS_setxy
+        ;jp forcereprintcursor ;не прокатит? в начале печати cmd тоже setxy
+forcereprintcursor
+        ;push de
+        ;push hl
+        ;OS_GETTIMER ;hlde=timer
+        ;dec d
+        ;ld (lastsdtinmsgtimer),de
+         ld hl,0;2
+         ld (cursortimelimit),hl
+        ;pop hl
+        ;pop de
         ret
 
-term_prfsm_prchar
-;e=char
-        ;OS_PRCHAR
-        jp BDOS_prchar
-
+        if 1==0
 BDOS_scroll_prepare
         ld a,l
         srl a
@@ -428,7 +418,6 @@ BDOS_countxy
         ld l,a
         ret
 
-        if 1==0
 BDOS_getxy
 ;out: de=yx ;GET CURSOR POSITION
         ld hl,(pr_textmode_curaddr)
@@ -477,7 +466,21 @@ BDOS_prattr
 
 BDOS_setxy
 ;de=yx
-        call BDOS_countxy
+        ;call BDOS_countxy
+        ld a,d ;y
+        sub -0x87&0xff ;0xe1c0*4=0x8700
+        rra
+        ld h,a
+         ld a,0;16
+        rra
+        sra h
+        rra
+        ld l,e ;x
+        srl l
+        jr c,$+4
+        res 5,h
+        add a,l
+        ld l,a
 BDOS_settextcuraddr
         ld (pr_textmode_curaddr),hl
         ;ld (iy+app.textcuraddr),l
@@ -506,9 +509,9 @@ BDOS_prchar_lf
         jr nc,BDOS_settextcuraddr ;BDOS_prchar_q ;ret nc
         jr BDOS_prchar_lf_q
 
-BDOS_prchar
-;e=char
-        ld a,e
+;BDOS_prchar
+;;e=char
+;        ld a,e
 BDOS_prchar_a
 ;портит только 0xc000+, но сама восстанавливает там pgkillable (для быстрого вызова через rst)
 	ld h,trecode/256
@@ -606,8 +609,9 @@ BDOS_prchar_q
         ;ret
         
 BDOS_scrollpage
-        ld a,40
-        ld (BDOS_scrollpagelinelayer_wid),a
+;156046t [195810t]
+        ;ld a,40
+        ;ld (BDOS_scrollpagelinelayer_wid),a
         ld hl,0xc1c0
         ld b,24
 BDOS_scrollpage0
@@ -652,13 +656,19 @@ BDOS_scrollpagelinelayer
         jr nc,$+4
         inc hl
         inc de
-BDOS_scrollpagelinelayer_wid=$+1
-        ld bc,39;40
-        ldir
+;BDOS_scrollpagelinelayer_wid=$+1
+;        ld bc,39;40
+;        ldir
+        dup 39
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
         pop hl
         pop de
         ret
 
+        if 1==0
 BDOS_scrolldown
 ;de=topyx, hl=hgt,wid
 ;x, wid even
@@ -697,6 +707,7 @@ BDOS_scrollup
          ;ret nz
         call BDOS_scroll_prepare
         jp BDOS_scrollpage0
+        endif
         
 BDOS_cllastline
         ld hl,0xc7c0
@@ -710,7 +721,7 @@ BDOS_scrollpage_clline
         ld d,h
         ld e,l
         inc e
-        ld bc,64-1
+        ld bc,41-1;64-1
         ld (hl),b
         ldir ;clear bottom line
         ret
@@ -763,7 +774,7 @@ cls_halfpg
 ;        SETPG32KHIGH
 ;        ret
 
-idle_readapp
+readapp
         ld a,b
         ld (curhandle),a
         
@@ -862,12 +873,6 @@ skipspaces
         inc hl
         jr skipspaces
 
-term_prfsm_curstate
-        db 0
-;states:
-;0: wait for single symbol
-;1: after 0x1b
-;2: after 0x1b [ [number] (might be more digits)
 
 term_prfsm_curnumber
          db 0

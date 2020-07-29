@@ -269,28 +269,6 @@ editcmd_right
         ld (curcmdx),a
         ret ;jr editcmdok
 
-prtext
-prtext0
-        ld a,(hl)
-        or a
-        ret z
-        push hl
-        PRCHAR_ ;testing (351/352t) (was 986/987t)
-        pop hl
-        inc hl
-        jp prtext0
-
-cmdprNchars
-        push bc
-        ld a,(hl)
-        inc hl
-        push hl
-        PRCHAR_
-        pop hl
-        pop bc
-        djnz cmdprNchars
-        ret
-        
 getword
 ;hl=string
 ;de=wordbuf
@@ -883,7 +861,7 @@ loaddir0
         ;cp ' ' 
         ;jp z,loaddirq
         push bc
-        ld b,8
+        ld de,8
         call cmdprNchars
         ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
@@ -891,7 +869,7 @@ loaddir0
         push hl
         PRCHAR_
         pop hl
-        ld b,3
+        ld de,3
         call cmdprNchars
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         exx
@@ -1405,6 +1383,8 @@ cmd_type_buf=$+1
         jr cmd_type0
         
 cmd_tee
+;tee filename
+;copy sdtin to filename and to stdout
         ld hl,(execcmd_pars)
         ld a,(hl)
         or a
@@ -1850,52 +1830,16 @@ yieldgetkeyloop
 yieldgetkey_nokey
 ;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
         YIELD
-;getkey_waskey=$+1
-;        ld a,0
-;        or a
-;        jr z,yieldgetkey_yield
 yieldgetkey_afteryield
-         ;ld a,2
-         ;out (0xfe),a
         GET_KEY_
-         ;push af
-         ;ld a,3
-         ;out (0xfe),a
-         ;pop af
         or a ;cp NOKEY ;keylang==0?
         jr nz,$+3
         cp c ;keynolang==0?
         jr z,yieldgetkey_nokey
-         ;ld (getkey_waskey),a
         ret
-
-        if 1==0
-sendchar_esckey
-        push bc
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop bc
-        jr sendchar_byte
-
-sendchar_esckey2
-        push bc
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop bc
-        push bc
-        ld a,b
-        call sendchar_byte_a
-        pop bc
-        jr sendchar_byte
-        endif
 
 setxy
 ;de=yx
-        ;display "setxy=",$
         push de
         ld a,0x1b
         call sendchar_byte_a
@@ -1931,37 +1875,6 @@ sendchar_num
 sendchar
         ;cp 0x80
         ;jr nc,sendchar_rustoutf8
-        ;cp 0x08 ;backspace
-        ;cp 0x0d ;enter
-        if 1==0
-        cp key_left
-        ld c,'D'
-        jr z,sendchar_esckey
-        cp key_right
-        ld c,'C'
-        jr z,sendchar_esckey
-        cp key_down
-        ld c,'B'
-        jr z,sendchar_esckey
-        cp key_up
-        ld c,'A'
-        jr z,sendchar_esckey
-        cp key_del
-        ld bc,'3'*256+'~'
-        jr z,sendchar_esckey2
-        cp key_home
-        ld bc,'1'*256+'~'
-        jr z,sendchar_esckey2
-        cp key_end
-        ld bc,'4'*256+'~'
-        jr z,sendchar_esckey2
-        cp key_ins
-        ld bc,'2'*256+'~'
-        jr z,sendchar_esckey2
-        ld c,a
-sendchar_byte
-        ld a,c
-        endif
 sendchar_byte_a
         ld (stdoutbuf),a
         ld hl,1
@@ -1971,12 +1884,13 @@ sendchar_repeat
         push hl
 stdouthandle=$+1
         ld b,0
-        OS_WRITEHANDLE
+        OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
         ld b,h
         ld c,l ;bytes actually written
         pop hl
         pop de
          or a
+          ret nz ;error ;TODO обработать? а так пока просто избегаем зацикливания
          sbc hl,bc ;datasize-byteswritten
          ret z
          ex de,hl
@@ -1984,13 +1898,9 @@ stdouthandle=$+1
          ex de,hl
 ;hl=remaining data size
 ;de=remaining data addr
-        ;ld a,b
-        ;or c
-        ;ret nz ;2754t
-         ;jr $
         push de
         push hl
-        YIELDKEEP
+        YIELDKEEP ;2158t
         pop hl
         pop de
         jr sendchar_repeat

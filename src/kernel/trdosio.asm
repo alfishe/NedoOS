@@ -651,7 +651,7 @@ fread00q
 ;bc=size-processedbytes
 fread00size=$+1
         ld hl,0
-        or a
+        xor a ;a=0: no error
         sbc hl,bc ;hl=processedbytes
 	ret
 ;freadpopret.

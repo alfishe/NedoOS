@@ -109,13 +109,13 @@ _1=$
         ld c,CMD_CLOSEHANDLE
         CALLBDOS
         endm
-        macro OS_READHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to read, out: HL = Number of bytes actually read, A=error(=0)
+        macro OS_READHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to read, out: HL = Number of bytes actually read, A=error
         ld c,CMD_READHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
-        macro OS_WRITEHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error(=0)
+        macro OS_WRITEHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error
         ld c,CMD_WRITEHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
         ld c,CMD_RENAME
@@ -362,6 +362,9 @@ _1=$
 
         macro CALLBDOS ;don't use directly CALLBDOS or call 0x0005!!!
         ex af,af'
+        call 0x0005 ;c=CMD
+        endm
+        macro CALLBDOS_NOPARAM_A ;don't use directly CALLBDOS or call 0x0005!!!
         call 0x0005 ;c=CMD
         endm
 

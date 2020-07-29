@@ -84,7 +84,7 @@ trdos_fread_b
 ;hl=poi to data
 ;de=poi to TRDOSFCB
 ;bc=size
-        jp fread ;hl=total processed bytes
+        jp fread ;hl=total processed bytes, a=error
 
         
 trdos_fwrite
@@ -125,7 +125,7 @@ trdos_fwrite_b
 ;hl=poi to data
 ;de=poi to TRDOSFCB
 ;bc=size
-        jp fwrite ;hl=total processed bytes
+        jp fwrite ;hl=total processed bytes, a=0: no error
         
 trdos_searchnext
 ;hl=адрес в директории

@@ -116,7 +116,7 @@ close_ok
         or a
         jr nz,execcmd_error
         
-        call idle_readapp ;делает CLOSE
+        call readapp ;делает CLOSE
         
         push af
         ld b,a
@@ -224,12 +224,14 @@ quit
 	LD E,0 ;0 - закрыть немедленно, 1 - закрыть только если буфер отправки пуст
 	OS_NETSHUTDOWN
 
+        dup 2 ;close twice - as stdin and as stdout! на случай, если клиент не закрыл у себя
         ld a,(stdinhandle)
         ld b,a
         OS_CLOSEHANDLE
         ld a,(stdouthandle)
         ld b,a
         OS_CLOSEHANDLE
+        edup
 inet_exiterr
         jp gotostart
 
@@ -383,7 +385,7 @@ send_ok
         ;sbc hl,bc        
         ret
 
-idle_readapp
+readapp
         ld a,b
         ld (curhandle),a
         
