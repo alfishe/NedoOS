@@ -76,6 +76,8 @@ nvview_hexeditor_prfileq
         jp z,nvview_hexeditor_right
          cp key_csenter
          jp z,nvview_hexeditor_save
+         cp key_F2
+         jp z,nvview_hexeditor_save
         ;cp 'w'
         ;jp z,nvview_wrap
         cp '0'

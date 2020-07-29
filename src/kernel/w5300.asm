@@ -482,11 +482,11 @@ w53_eagain
 		ld a,ERR_EAGAIN
 		ret	
 w53_rd_udp_full
-		ld a,d
-		or e
-		jr nz,w53_rd_ia
-		ld de,w53_ia_buf		
-w53_rd_ia:
+;		ld a,d
+;		or e
+;		jr nz,w53_rd_ia
+;		ld de,w53_ia_buf		
+;w53_rd_ia:
 		ex de,hl
 		inc hl
 		push hl
@@ -762,6 +762,6 @@ w53_wr_loop:
 		ld a,Sn_CR_SEND
 		jp w53_cmd
 	
-w53_ia_buf:
-	defs 7
+;w53_ia_buf:
+;	defs 7
 		
