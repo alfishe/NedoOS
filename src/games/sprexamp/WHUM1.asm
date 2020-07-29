@@ -26,38 +26,14 @@ prsprqwid=0x0100 ;TODO прямо по какому-то адресу код, а не jp
         dw human5hit
         dw human6hit
         dw human7hit
-        dw humanwood0
-        dw humanwood0step
-        dw humanwood1
-        dw humanwood1step
-        dw humanwood2
-        dw humanwood2step
-        dw humanwood3
-        dw humanwood3step
-        dw humanwood4
-        dw humanwood4step
-        dw humanwood5
-        dw humanwood5step
-        dw humanwood6
-        dw humanwood6step
-        dw humanwood7
-        dw humanwood7step
-        dw humangold0
-        dw humangold0step
-        dw humangold1
-        dw humangold1step
-        dw humangold2
-        dw humangold2step
-        dw humangold3
-        dw humangold3step
-        dw humangold4
-        dw humangold4step
-        dw humangold5
-        dw humangold5step
-        dw humangold6
-        dw humangold6step
-        dw humangold7
-        dw humangold7step
+        dw hero0
+        dw hero1
+        dw herorunright0
+        dw herorunright1
+        dw herorunright2
+        dw herorunleft0
+        dw herorunleft1
+        dw herorunleft2
         include "WHUM1.ast"
 end
 	savebin "sprexamp/WHUM1.bin",begin,end-begin

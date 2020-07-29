@@ -14,4 +14,9 @@ sjasmplus --nologo --msg=war --msg=war tiles.ast --raw=sprexamp/tiles.bin
 sjasmplus --nologo --msg=war --msg=war WHUM1.asm
 sjasmplus --nologo --msg=war --msg=war music.asm
 sjasmplus --nologo --msg=war --msg=war main.asm
-if "%currentdir%"=="" (pause)
+
+if "%currentdir%"=="" (
+ "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put sprexamp.com /nedogame/sprexamp.com
+ pause
+ if "%makeall%"=="" ..\..\..\us\emul.exe
+)

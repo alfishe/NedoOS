@@ -5,7 +5,7 @@ scrbase=0x4000
 sprmaxwid=32
 sprmaxhgt=32
 scrwid=160 ;double pixels
-scrhgt=200
+scrhgt=192-16;200
 clswid=40 ;*8
 clshgt=200
 
@@ -13,6 +13,7 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3b80;0x3f00 ;чтобы не запороть стек загрузки bmp в bgpush
 
+MAXSPEED=8*8
 
         macro RECODEBYTE
         ld a,(de)
@@ -108,9 +109,7 @@ waitcls0
         ld de,pal
         OS_SETPAL
 mainloop_uv0
-        halt
-        ;call uvscroll_filltilemap
-        ;call uvscroll_showtilemap
+        ;halt
         call uvscroll_draw
 
         call drawsprites
@@ -122,6 +121,22 @@ mainloop_uv0
         rra
          jr nc,mainloop_uvq ;LMB
         call uvscroll_scroll
+        call uvscroll_scrolltiles
+        
+mainloop_uvwaittimer0
+        ld a,(timer)
+uvoldtimer=$+1
+        ld b,0
+        ld (uvoldtimer),a
+        sub b
+        ld b,a
+        jr z,mainloop_uvwaittimer0
+mainloop_uvlogic0
+        push bc
+        call logic
+        pop bc
+        djnz mainloop_uvlogic0
+
         jr mainloop_uv0
 mainloop_uvq
 ;vertical scroll
@@ -150,8 +165,23 @@ mainloop
         
         call changescrpg ;с этого момента можем видеть, что нарисовали
         
+mainloopwaittimer0
+        ld a,(timer)
+oldtimer=$+1
+        ld b,0
+        ld (oldtimer),a
+        sub b
+        ld b,a
+        jr z,mainloopwaittimer0
+mainlooplogic0
+        push bc
+        call logic
+        pop bc
+        djnz mainlooplogic0
+        
+        
 ;waitkey
-        halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
+        ;halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
 curkey=$+1
         ld a,0
         cp key_esc
@@ -166,6 +196,181 @@ pgmusic=$+1
         halt
         QUIT
 
+logic
+        ld ix,objects
+logic0
+        ld l,(ix+obj.animaddr16+0)
+        ld h,(ix+obj.animaddr16+1)
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;de = phase
+        inc hl
+        dec (ix+obj.animtime)
+        jr nz,logic_nonextphase
+        ld a,(hl) ;new animtime
+        inc hl
+        ld (ix+obj.animtime),a
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;de = phase
+        ld a,d
+        cp 0xc0
+        jr nc,logic_nocycleanim
+        ex de,hl 
+        ;ld e,(hl)
+        inc hl
+        ;ld d,(hl) ;de = phase (>=0xc000) or new animaddr (<0xc000)
+logic_nocycleanim
+        dec hl
+        ld (ix+obj.animaddr16+0),l
+        ld (ix+obj.animaddr16+1),h
+logic_nonextphase
+
+        ld l,(ix+obj.xspeed16+0)
+        ld h,(ix+obj.xspeed16+1)
+        ld e,(ix+obj.x16+0)
+        ld d,(ix+obj.x16+1)
+        add hl,de
+        ld (ix+obj.x16+0),l
+        ld (ix+obj.x16+1),h
+        ld l,(ix+obj.yspeed16+0)
+        ld h,(ix+obj.yspeed16+1)
+        inc hl
+        inc hl
+        inc hl
+        inc hl ;gravity
+        ld (ix+obj.yspeed16+0),l
+        ld (ix+obj.yspeed16+1),h
+        ld c,(ix+obj.y16+0)
+        ld b,(ix+obj.y16+1)
+        add hl,bc
+        ld de,100*8
+        or a
+        sbc hl,de
+        add hl,de
+        jr c,nofloor
+        ld hl,0
+        ld (ix+obj.yspeed16+0),l
+        ld (ix+obj.yspeed16+1),h
+        ld a,0
+        ld (heroair),a
+        ex de,hl
+nofloor
+        ld (ix+obj.y16+0),l
+        ld (ix+obj.y16+1),h
+
+        ld bc,OBJSIZE
+        add ix,bc
+        bit 7,(ix+obj.y16+1) ;yhigh
+        jr z,logic0
+
+;hero control 
+joystate=$+1
+oldjoystate=$+2
+        ld bc,0
+        ld a,c
+        ld (oldjoystate),a
+        xor b
+        ld b,a
+;bit - button (ZX key)
+;7 - A (A)
+;6 - B (S)
+;5 - Select (Space)
+;4 - Start (Enter)
+;3 - Up (7)
+;2 - Down (6)
+;1 - Left (5)
+;0 - Right (8) 
+        ld ix,objects
+        ld l,(ix+obj.xspeed16+0)
+        ld h,(ix+obj.xspeed16+1)
+        bit 1,c
+        jr z,noleft
+        ld a,h
+        or a
+        jp m,nostartrunleft
+         ld de,heroanim_runleft
+        ld (ix+obj.animaddr16+0),e
+        ld (ix+obj.animaddr16+1),d
+nostartrunleft
+        ld de,-1
+        add hl,de
+        ld de,-MAXSPEED
+        or a
+        sbc hl,de
+        ld a,h
+        add hl,de
+        or a
+        jr z,leftq
+        ex de,hl
+        jr leftq
+noleft
+        bit 0,c
+        jr z,noright
+        ld a,h
+        or a
+        jp m,startrunright
+        or l
+        jr nz,nostartrunright
+startrunright
+         ld de,heroanim_runright
+        ld (ix+obj.animaddr16+0),e
+        ld (ix+obj.animaddr16+1),d
+nostartrunright
+        ld de,1
+        add hl,de
+        ld de,MAXSPEED
+        or a
+        sbc hl,de
+        ld a,h
+        add hl,de
+        or a
+        jr nz,leftq
+        ex de,hl
+        jr leftq
+noright
+         bit 7,h
+         jr z,$+3
+         inc hl
+         sra h
+         rr l
+         ld a,h
+         or l
+         jr nz,leftq
+         ld de,heroanim_stand
+        ld (ix+obj.animaddr16+0),e
+        ld (ix+obj.animaddr16+1),d
+leftq
+        ld (ix+obj.xspeed16+0),l
+        ld (ix+obj.xspeed16+1),h
+
+        ld l,(ix+obj.yspeed16+0)
+        ld h,(ix+obj.yspeed16+1)
+        bit 7,c
+        jr z,nojump
+        bit 7,b
+        jr z,nojump ;не изменилась кнопка
+        
+;TODO check floor
+        ld l,(ix+obj.y16+0)
+        ld h,(ix+obj.y16+1)
+        ld de,100*8
+        or a
+        sbc hl,de
+        add hl,de
+        jr c,nojump
+
+        ld hl,-60
+        ld (ix+obj.yspeed16+0),l
+        ld (ix+obj.yspeed16+1),h
+        
+        ld a,1
+        ld (heroair),a
+        
+nojump
+
+        ret
+
 drawsprites
 pg1=$+1
         ld a,0
@@ -173,27 +378,61 @@ pg1=$+1
         
         ld ix,objects
 drawsprites0       
-        call setpgsscr40008000 ;предыдущий спрайт мог выключить, если был левее экрана и вообще не попал на экран?
-        ld l,(ix+4)
-        ld h,(ix+5)
-         ld a,2
-         add a,0
-         ld ($-1),a
-         and 2*3
-         add a,l
-         ld l,a
+
+        ld l,(ix+obj.animaddr16+0)
+        ld h,(ix+obj.animaddr16+1)
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;de = phase
+
+        ;ld l,(ix+obj.spraddr16+0)
+        ;ld h,(ix+obj.spraddr16+1)
+        
+        ex de,hl
+        
+         ;ld a,2
+         ;add a,0
+         ;ld ($-1),a
+         ;and 2*3
+         ;add a,l
+         ;ld l,a
         ld (drawsprites0_sprdescr),hl
+        call setpgsscr40008000 ;предыдущий спрайт мог выключить, если был левее экрана и вообще не попал на экран? ;TODO если спрайт в границах экрана
 drawsprites0_sprdescr=$+2
         ld iy,(0xc000);testspr
-        ld e,(ix+2);_x+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-        ld c,(ix+0);_y ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+
+;храним x*8,y*8
+        ld a,(ix+obj.x16+0)
+        ld d,(ix+obj.x16+1)
+        srl d
+        rra
+        srl d
+        rra
+        srl d
+        rra
+        ld e,a
+        ld a,(ix+obj.y16+0)
+        ld b,(ix+obj.y16+1)
+        srl b
+        rra
+        srl b
+        rra
+        srl b
+        rra
+        ld c,a
+;TODO вычесть координаты скролла
+
+;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+
         push ix
         ;call prsprega ;(с включением экранных страниц и проверкой попадания спрайта в экран) один спрайт 16x16 = 6875t
         call prspr ;(без включения экранных страниц и без проверки попадания спрайта в экран) один спрайт 16x16 = 6408t (из них 4224t само мясо)
         pop ix
+        
         ld bc,OBJSIZE
         add ix,bc
-        bit 7,(ix+1) ;yhigh
+        bit 7,(ix+obj.y16+1) ;yhigh
         jr z,drawsprites0
 ;817000(prsprega)/793000(prspr)t на всё
 
@@ -204,26 +443,6 @@ drawsprites0_sprdescr=$+2
 
         jp setpgsmain40008000
 
-OBJSIZE=6
-objects
-;y16
-;x16
-;sprite16
-_=0
-_x=10
-        dup 5
-_y=10
-        dup 5
-        
-        dw _y ;y
-        dw _x+(sprmaxwid-1) ;x
-        dw 0xc000
-_=_+1
-_y=_y+20
-        edup
-_x=_x+20
-        edup
-        dw -1
 
 getmousedelta
         GET_KEY ;OS_GETKEYNOLANG
@@ -457,6 +676,85 @@ _=_-1
         edup
         dw prsprqwid
 
+
+
+HERO0=0xc000+(24*2)
+HERO1=0xc000+(25*2)
+HERORUNRIGHT0=0xc000+(26*2)
+HERORUNRIGHT1=0xc000+(27*2)
+HERORUNRIGHT2=0xc000+(28*2)
+HERORUNLEFT0=0xc000+(29*2)
+HERORUNLEFT1=0xc000+(30*2)
+HERORUNLEFT2=0xc000+(31*2)
+
+heroanim_stand
+        dw HERO0
+        db 25
+        dw HERO1
+        db 25
+        dw heroanim_stand
+heroanim_runright
+        dw HERORUNRIGHT0
+        db 4
+        dw HERORUNRIGHT1
+        db 4
+        dw HERORUNRIGHT2
+        db 4
+        dw heroanim_runright
+heroanim_runleft
+        dw HERORUNLEFT0
+        db 4
+        dw HERORUNLEFT1
+        db 4
+        dw HERORUNLEFT2
+        db 4
+        dw heroanim_runleft
+
+        STRUCT obj
+y16     WORD
+x16     WORD
+;sprite16 WORD
+animtime BYTE
+animaddr16 WORD
+xspeed16 WORD
+yspeed16 WORD
+health  BYTE
+sz
+        ENDS
+
+OBJSIZE=obj.sz
+objects
+;y16
+;x16
+;animtime
+;animaddr16
+;xspeed16
+;yspeed16
+;health
+_=0
+_x=10
+        dup 1
+_y=100
+        dup 1;  3
+        
+        dw 8*_y ;y
+        dw 8*(_x+(sprmaxwid-1)) ;x
+        ;dw HERO0
+        db 1
+        dw heroanim_stand
+        dw 1
+        dw 0
+        db 100
+_=_+1
+_y=_y+40
+        edup
+_x=_x+20
+        edup
+        dw -1
+
+heroair
+        db 0 ;0=not in air
+
         include "int.asm"
         include "cls.asm"
         include "prspr.asm"
@@ -667,4 +965,4 @@ end
 	
 	savebin "sprexamp.com",begin,end-begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "..\..\..\us\user.l"

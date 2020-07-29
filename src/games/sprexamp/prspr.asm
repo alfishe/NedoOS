@@ -10,7 +10,7 @@
 
 prspr
 ;в 4000,8000 уже включен экран (setpgsscr40008000)
-;iy=sprite data+2
+;iy=sprite data+2 = spraddr+4
 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
 ;(iy-3)=sprhgt

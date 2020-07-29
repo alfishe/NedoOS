@@ -340,6 +340,8 @@ uvscroll_scroll
         call uvscroll_scroll_x
         pop af
         call uvscroll_scroll_y
+        ret
+uvscroll_scrolltiles
 ;scroll by metatile
 ;hx=delta y (>0: go up)
 ;lx=delta x (>0: go left)
