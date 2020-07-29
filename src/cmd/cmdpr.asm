@@ -137,7 +137,6 @@ tspaces
         ds txtscrwid-1,' '
         db 0
  
-        if 1==1
 cmdprNchars
 ;hl=buffer
 ;de=size
@@ -150,20 +149,6 @@ cmdprNchars
         pop de
         add hl,de
         ret
-        else
-cmdprNchars
-        ld b,e ;size
-cmdprNchars0
-        push bc
-        ld a,(hl)
-        inc hl
-        push hl
-        PRCHAR_
-        pop hl
-        pop bc
-        djnz cmdprNchars0
-        ret
-        endif
         
 prtext
 ;c=x

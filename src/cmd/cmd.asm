@@ -35,7 +35,7 @@ RECODEINPUT=1
 
         org PROGSTART
 cmd_begin
-         ds 0x300
+         ;ds 0x300
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         ;ld e,6 ;textmode
         ;OS_SETGFX
@@ -165,26 +165,6 @@ stdouthandle_wasatstart=$+1
 ;        ret
 
 ;;;;;;;;;;;;;;;;;;
-prNNcmd
-;a=NN
-        ld c,10
-        call prNcmd
-        add a,'0'
-        PRCHAR_
-        ret
-prNcmd
-;a=NN
-;c=divisor
-        ld b,'0'-1
-        sub c
-        inc b
-        jr nc,$-2
-        add a,c
-        push af
-        ld a,b
-        PRCHAR_
-        pop af
-        ret
         
 editcmd_up
         ld de,cmdbuf
@@ -856,43 +836,55 @@ cmd_dir
         ld bc,0 ;nfiles
         jp nz,loaddir_error
 loaddir0
+       push bc ;nfiles
+       
         ld hl,fcb+FCB_FNAME
-        ;ld a,(hl)
-        ;cp ' ' 
-        ;jp z,loaddirq
-        push bc
-        ld de,8
-        call cmdprNchars
-        ld a,(fcb+FCB_FATTRIB)
-        and FATTRIB_DIR
-        xor '.'
-        push hl
-        PRCHAR_
+        
+         ld de,dirfnbuf
+        push de
+         ld bc,8
+         ldir
+         ld a,(fcb+FCB_FATTRIB)
+         and FATTRIB_DIR
+         xor '.'
+         ld (de),a
+         inc de
+         ld c,3
+         ldir
         pop hl
-        ld de,3
+        ld de,8+1+3+1
         call cmdprNchars
-        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        exx
+
+        ; ld de,8
+        ;call cmdprNchars
+        ;ld a,(fcb+FCB_FATTRIB)
+        ;and FATTRIB_DIR
+        ;xor '.'
+        ;push hl
+        ;PRCHAR_
+        ;pop hl
+        ;ld de,3
+        ;call cmdprNchars
+        ;ld a,' '
+        ;PRCHAR_
+
         ld hl,(fcb+FCB_FSIZE+2)
         exx
         ld hl,(fcb+FCB_FSIZE)
         call prdword
         ld a,' '
         PRCHAR_
-        ld hl,(fcb+FCB_FDATE)
-        call prdate
-        ld a,' '
-        PRCHAR_
+        ld ix,(fcb+FCB_FDATE)
         ld hl,(fcb+FCB_FTIME)
-        call prtime
-        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        call prdate_time
         call prcrlf
         ld de,fcb
         OS_SETDTA ;set disk transfer address = de
          ;call makeemptymask ;в CP/M не нужно, но отсутствие вредит многозадачности
          ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
         OS_FSEARCHNEXT
-        pop bc ;nfiles
+        
+       pop bc ;nfiles
         inc bc ;nfiles
         or a
         jp z,loaddir0
@@ -905,32 +897,44 @@ loaddirq
         ld hl,t_files_crlf
         jp prtext
 
-prdate
-        push hl
-        ld a,h
+dirfnbuf
+        db "filename.ext "
+
+prdate_time
+;ix=date, hl=time
+        ld de,datetimebuf
+       push de
+       push hl ;time
+        ;push ix ;date
+        ld a,hx
         srl a
         sub 20
         jr nc,$+4
         add a,100 ;XX century
         call prNNcmd ;year
-        ld a,'-'
-        PRCHAR_
-        pop hl
-        ld a,l
+        ;ld a,'-'
+        ;PRCHAR_
+         inc de
+        ;pop hl
+        ld a,lx
         push af
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        ld a,h
+        add ix,ix
+        add ix,ix
+        add ix,ix
+        ld a,hx
         and 0x0f
         call prNNcmd ;month
-        ld a,'-'
-        PRCHAR_
+        ;ld a,'-'
+        ;PRCHAR_
+         inc de
         pop af
         and 0x1f
-        jp prNNcmd ;day
+        call prNNcmd ;day
 
-prtime
+        ;ld a,' '
+        ;PRCHAR_
+         inc de
+       pop hl ;time
         push hl
         ld a,h
         rra
@@ -938,8 +942,9 @@ prtime
         rra
         and 0x1f
         call prNNcmd ;hour
-        ld a,':'
-        PRCHAR_
+        ;ld a,':'
+        ;PRCHAR_
+         inc de
         pop hl
         ld a,l
         push af
@@ -949,13 +954,40 @@ prtime
         ld a,h
         and 0x3f
         call prNNcmd ;minute
-        ld a,':'
-        PRCHAR_
+        ;ld a,':'
+        ;PRCHAR_
+         inc de
         pop af
         add a,a
         and 0x3f
-        jp prNNcmd ;second
+        call prNNcmd ;second
+       pop hl
+        ld de,8+1+8
+        jp cmdprNchars
 
+prNNcmd
+;a=NN
+        ld bc,10+(256*('0'-1))
+        sub c
+        inc b
+        jr nc,$-2
+        ;add a,c
+        ;push af
+        ;ld a,b
+         ;ld (de),a
+         ex de,hl
+         ld (hl),b
+         ex de,hl
+         inc de
+        ;pop af
+        add a,'0'+10
+         ld (de),a
+         inc de
+        ret
+
+datetimebuf
+        db "00-00-00 00:00:00"
+        
 ;makeemptymask
         ;ld hl,fcbmask_filename
         ;ld d,h
@@ -1306,19 +1338,12 @@ cmd_proc_skip
 
 cmd_date
         OS_GETTIME ;ix=date, hl=time
-        push hl
-        push ix
-        pop hl ;date
-        call prdate
-        ld a,' '
-        PRCHAR_
-        pop hl ;time
-        call prtime
+        call prdate_time
         jp prcrlf
         
 cmd_t0
         ld a,(wordbuf)
-		and 0xdf
+	and 0xdf
         sub 'A'
         call cmdsetdrive
         or a
@@ -1335,11 +1360,15 @@ cmderror
         ld e,COLOR
         OS_SETCOLOR
 prcrlf
-        ld a,0x0d
-        PRCHAR_
-        ld a,0x0a
-        PRCHAR_
-        ret
+        ;ld a,0x0d
+        ;PRCHAR_
+        ;ld a,0x0a
+        ;PRCHAR_
+        ld hl,crlfbuf
+        ld de,2
+        jp cmdprNchars
+crlfbuf
+        db 0x0d,0x0a
         
 cmdsetdrive
         ;ld (curdrive),a

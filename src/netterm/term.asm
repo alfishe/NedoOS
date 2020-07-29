@@ -1,8 +1,6 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
-RECODEINPUT=1
-
 STDINBUF_SZ=256
 NETINBUF_SZ=256
 
@@ -36,7 +34,17 @@ gotostart
         ld sp,0x4000
         ;ld e,6 ;textmode
         ;OS_SETGFX
-
+	OS_GETMAINPAGES ;dehl
+	push de
+	push hl
+	ld e,l
+	OS_DELPAGE
+	pop hl
+	ld e,h
+	OS_DELPAGE
+	pop de
+	OS_DELPAGE
+ 
 ;1. s = OS_NETSOCKET
 	LD D,AF_INET
 	LD E,SOCK_STREAM
@@ -102,7 +110,6 @@ close_ok
         ld (stdouthandle),a
 
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-
         ld a,(stdinhandle)
         ld e,a
         ld a,(stdouthandle)
@@ -111,6 +118,7 @@ close_ok
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
 
+;TODO запускать файл, указанный в параметре (по умолчанию cmd, искать в bin)
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
@@ -153,44 +161,28 @@ mainloop_afterkey
          ;call prhex ;debug
          ;pop af
         
-        ;cp key_esc
-        ;jr z,term_esckey
-         cp 251
-         jr z,will_do_on
-         cp 253
-         jr z,will_do_on
-         cp 250
-         jr z,subnegotiation_on
-         cp 240
-         jr z,subnegotiation_off
-         cp 240 ;other telnet codes
-         jr nc,mainloop
-
+         cp 240 ;telnet codes
+         jr nc,parsetelnetcodes
 will_do_flag=$
         or a
         jr c,will_do_off ;skip one byte
-        
 subnegotiation_flag=$
         or a
         jr c,mainloop_afterkey
-        if RECODEINPUT
         call sendchar
-        else
-        call sendchar_byte_a
-        endif
         jr mainloop_afterkey
-        if 1==0
-term_esckey
-        if RECODEINPUT
-        call sendchar
-        ld a,key_esc
-        call sendchar
-        else
-        call sendchar_byte_a
-        endif
-        jr mainloop_afterkey
-        endif
 
+parsetelnetcodes
+         ;cp 240
+         jr z,subnegotiation_off
+         cp 250
+         jr z,subnegotiation_on
+         cp 251
+         jr z,will_do_on ;skip next byte
+         cp 253
+         jr z,will_do_on ;skip next byte
+         jr mainloop
+        
 will_do_off
         ld a,55+128 ;or a
         jr will_do_onoff
@@ -301,13 +293,13 @@ RECEIVED
 
 sendchar
 ;to stdout
-        cp 0x80
+        ;cp 0x80
         ;jr nc,sendchar_rustoutf8
         ;cp 0x08 ;backspace
         ;cp 0x0d ;enter
-        ld c,a
-sendchar_byte
-        ld a,c
+;        ld c,a
+;sendchar_byte
+;        ld a,c
 sendchar_byte_a
         ld (stdoutbuf),a
 sendchar_repeat
@@ -319,7 +311,7 @@ stdouthandle=$+1
         ld a,h
         or l
         ret nz
-        YIELD
+        YIELDKEEP
         call checkquit
         jr sendchar_repeat
 
@@ -332,11 +324,6 @@ stdinhandle=$+1
         ;ld b,0xff
         OS_READHANDLE
 ;hl=size
-        ;call term_print
-        ;ret
-
-;term_print
-;hl=size
         ld a,h
         or l
         ret z;jr z,mainloop_afterkey
@@ -346,12 +333,8 @@ stdinhandle=$+1
 term_print0
         push bc
         push hl
-         ;push hl
-         ;ld a,(hl)
-         ;PRCHAR ;debug
-         ;pop hl
-        ld e,(hl)
-        call term_prfsm_prchar;term_prfsm;OS_PRCHAR
+        ld a,(hl)
+        call term_prfsm_prchar ;to internet client
         pop hl
         pop bc
         cpi
@@ -360,8 +343,7 @@ term_print0
 
 term_prfsm_prchar
 ;to internet client
-;e=char
-        ld a,e
+;a=char
         ld (netoutbuf),a        
 send_data0
 	LD A,(soc_client)
@@ -479,18 +461,6 @@ skipspaces
         ret nz
         inc hl
         jr skipspaces
-
-term_prfsm_curstate
-        db 0
-;states:
-;0: wait for single symbol
-;1: after 0x1b
-;2: after 0x1b [ [number] (might be more digits)
-
-term_prfsm_curnumber
-         db 0
-term_prfsm_curnumber1
-         db 0
 
 cmd_filename
         db "cmd.com",0

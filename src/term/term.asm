@@ -1,7 +1,7 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
-;TODO при закрытии cmd term должен закрыться
+;при закрытии cmd term должен закрыться
 
 RECODEINPUT=1
 
@@ -22,7 +22,17 @@ begin
         ld sp,0x4000
         ld e,6 ;textmode
         OS_SETGFX
-
+	;OS_GETMAINPAGES ;dehl
+	;push de
+	;push hl
+	;ld e,l
+	;OS_DELPAGE
+	;pop hl
+	;ld e,h
+	;OS_DELPAGE
+	;pop de
+	;OS_DELPAGE
+ 
         ld de,tpipename
         push de
         OS_OPENHANDLE
@@ -35,9 +45,10 @@ begin
 
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld a,h
-        ld (pgscrbuf_low),a
-        ld a,l
-        ld (pgscrbuf_high),a
+        ld (pgscrbuf),a
+        ;ld (pgscrbuf_low),a
+        ;ld a,l
+        ;ld (pgscrbuf_high),a
         
         ld e,COLOR
         call BDOS_cls
@@ -50,6 +61,7 @@ begin
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
 
+;TODO запускать файл, указанный в параметре (по умолчанию cmd, искать в bin)
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
@@ -81,10 +93,13 @@ mainloop_afterkey
         YIELD
          ;ld a,4
          ;out (0xfe),a
-;unprint cursor
+        ;call unprint_cursor
+;unprint_cursor
 unprint_cursor_color=$+1
         ld e,COLOR
         call BDOS_prattr
+
+mainloop_afterredraw
         
 waitpid_id=$+1
         ld e,0
@@ -98,7 +113,14 @@ waitpid_id=$+1
          ;ld a,5
          ;out (0xfe),a
        
-        call BDOS_countattraddr
+        ;call BDOS_countattraddr
+        ld a,(pgscrbuf) ;ok
+        SETPG16K
+         ld hl,(pr_buf_curaddr)
+        ld a,l
+        add a,0x40 ;attr
+        adc a,0
+        ld l,a
         ld a,(hl) ;из pgscrbuf_low
         ld (unprint_cursor_color),a
 ;if long time no message from stdin, print cursor
@@ -140,7 +162,11 @@ noprintcursor
         ;cp c ;keynolang==0?
         jr z,mainloop_afternokey
         cp key_redraw
-        jr z,redraw
+        push af
+        call z,redraw
+        pop af
+         cp key_pgup
+         jr z,term_pgup
         cp key_esc
         jr z,term_esckey
         if RECODEINPUT
@@ -159,7 +185,75 @@ term_esckey
         endif
         jr mainloop_afterkey
         
+term_pgdown
+        ld hl,redraw_scroll
+        ld a,(hl)
+        cp 24
+        jr z,$+3
+        dec a
+        ld (hl),a
+        jr term_pgup0redraw
+term_pgup
+        ld hl,redraw_scroll
+        ld a,(hl)
+        cp 63
+        jr z,$+3
+        inc a
+        ld (hl),a
+term_pgup0redraw
+        call redraw
+term_pgup0
+        YIELD
+        GET_KEY
+        or a
+        jr z,term_pgup0
+         cp key_pgup
+         jr z,term_pgup
+         cp key_pgdown
+         jr z,term_pgdown
+        ld a,24
+        ld (redraw_scroll),a
+        call redraw
+        jp mainloop_afterredraw
+
 redraw
+       if 1==1
+;scrbuf состоит из строк длиной 256 байт
+;каждая из них из 4 слоёв:
+;+0x40: аналог +0x4000 (text0) ;1
+;+0x80: аналог +0x2000 (attr0) ;3
+;+0xc0: аналог +0x6000 (text1) ;2
+;+0x01: аналог +0x0001 (attr1) ;4
+        ld a,(pgscrbuf)
+        SETPG16K
+        BDOSSETPGSSCR
+         call getscrbuftop_a
+        ld h,a
+        ld de,0xc1c0
+        ld b,25
+redrawlines0
+        push bc
+        ld l,0x40
+        push de
+        call copylinelayer
+        set 5,d
+        set 7,l
+        call copylinelayer
+        res 6,d
+        res 6,l
+        call copylinelayer
+        res 5,d
+        res 7,l
+        call copylinelayer
+        pop de
+        ex de,hl
+        ld bc,0x0040
+        add hl,bc
+        ex de,hl
+        inc h ;TODO nextpg
+        pop bc
+        djnz redrawlines0
+       else
         ld a,(pgscrbuf_low)
         SETPG32KLOW
         ld a,(user_scr0_low) ;ok
@@ -176,7 +270,8 @@ redraw
         ld de,0xc000
         ld bc,0x4000
         ldir
-        jp mainloop_afterkey
+       endif
+        ret
         
 quit
 ;cmd closed!!!
@@ -190,6 +285,15 @@ quit
         OS_CLOSEHANDLE
         edup
         QUIT
+
+copylinelayer
+        push de
+        push hl
+        ld bc,40+1;0x3f
+        ldir
+        pop hl
+        pop de
+        ret
 
 type_stdin
         ld de,stdinbuf
@@ -206,6 +310,10 @@ stdinhandle=$+1
         push hl
          OS_GETTIMER ;hlde=timer
          ld (lastsdtinmsgtimer),de
+        ld a,(user_scr0_high) ;ok ;pgscr0_1
+        SETPG32KHIGH
+        ld a,(user_scr0_low) ;ok ;pgscr0_0
+        SETPG32KLOW
         pop bc
         ld hl,stdinbuf
 term_print0
@@ -421,8 +529,6 @@ BDOS_countxy
 BDOS_getxy
 ;out: de=yx ;GET CURSOR POSITION
         ld hl,(pr_textmode_curaddr)
-        ;ld l,(iy+app.textcuraddr)
-        ;ld h,(iy+app.textcuraddr+1)
         ld a,h
         rla
         rla
@@ -442,12 +548,10 @@ BDOS_getxy
         endif
 
 BDOS_countattraddr
-        ;BDOSSETPGSSCR
-        ld a,(pgscrbuf_low)
-        SETPG32KLOW ;attr
+        ;ld a,(pgscrbuf_low)
+        ld a,(user_scr0_low) ;ok
+        SETPG32KLOW ;attr ;TODO считывать из scrbuf!
         ld hl,(pr_textmode_curaddr)
-        ;ld l,(iy+app.textcuraddr)
-        ;ld h,(iy+app.textcuraddr+1)
         ld a,h
         xor 0x60 ;attr + 0x20
         ld h,a
@@ -460,13 +564,39 @@ BDOS_prattr
 ;e=color byte
         call BDOS_countattraddr
         ld (hl),e
-        BDOSSETPGSSCR
+         
+        ld a,(pgscrbuf) ;ok
+        SETPG16K
+         ld hl,(pr_buf_curaddr)
+        ld a,l
+        add a,0x40 ;attr
+        adc a,0
+        ld l,a
         ld (hl),e
+        ret
+
+getscrbuftop_a
+        ld hl,(pr_buf_curaddr)
+        ld a,h
+redraw_scroll=$+1
+        sub 24
+         cp 0x40
+         jr nc,$+4
+         ld a,0x40 ;TODO prevpg
         ret
 
 BDOS_setxy
 ;de=yx
         ;call BDOS_countxy
+         call getscrbuftop_a
+         add a,d ;0..24
+         ld h,a
+         ld a,e
+         or 0x80
+         rrca ;(x/2)+0x40 или 0xc0
+         ld l,a
+         ld (pr_buf_curaddr),hl
+        
         ld a,d ;y
         sub -0x87&0xff ;0xe1c0*4=0x8700
         rra
@@ -483,9 +613,6 @@ BDOS_setxy
         ld l,a
 BDOS_settextcuraddr
         ld (pr_textmode_curaddr),hl
-        ;ld (iy+app.textcuraddr),l
-        ;ld (iy+app.textcuraddr+1),h
-        ;xor a ;success
         ret
         
 BDOS_prchar_controlcode
@@ -495,119 +622,163 @@ BDOS_prchar_controlcode
         jp nz,BDOS_prchar_nocontrolcode
         ;jr z,BDOS_prchar_cr
 BDOS_prchar_cr
+         ld a,0x40
+         ld (pr_buf_curaddr),a
         ld a,l
         and 0xc0
         ld l,a
         res 5,h
         jr BDOS_settextcuraddr
-        ;jp BDOS_prchar_q
         
 BDOS_prchar_lf
+        push hl
+        ld hl,(pr_buf_curaddr)
+        inc h
+        call m,scrollscrbuf
+        ld (pr_buf_curaddr),hl
+        pop hl
+        
         ld a,l
         add a,0x40
         ld l,a
-        jr nc,BDOS_settextcuraddr ;BDOS_prchar_q ;ret nc
+        jr nc,BDOS_settextcuraddr
         jr BDOS_prchar_lf_q
 
-;BDOS_prchar
-;;e=char
-;        ld a,e
 BDOS_prchar_a
 ;портит только 0xc000+, но сама восстанавливает там pgkillable (для быстрого вызова через rst)
-	ld h,trecode/256
-	ld l,a
-	ld a,(hl)
 pr_textmode_curaddr=$+1
         ld hl,0xc1c0
-        ;ld l,(iy+app.textcuraddr)
-        ;ld h,(iy+app.textcuraddr+1)
         cp 0x0e
         jr c,BDOS_prchar_controlcode
+	ld d,trecode/256
+	ld e,a
+	ld a,(de)
 BDOS_prchar_nocontrolcode
         ld e,a
-        ld a,(user_scr0_high) ;ok ;pgscr0_1
-        SETPG32KHIGH ;call sys_setpgc000
+pr_textmode_curcolor=$+1
+        ld d,7
+        ;ld a,(user_scr0_high) ;ok ;pgscr0_1
+        ;SETPG32KHIGH
+        ;ld a,(user_scr0_low) ;ok ;pgscr0_0
+        ;SETPG32KLOW
         ld (hl),e
-pgscrbuf_high=$+1
-        ld a,0 ;ok ;pgscr0_1
-        SETPG32KHIGH ;call sys_setpgc000
-        ld (hl),e
-        ld a,(user_scr0_low) ;ok ;pgscr0_0
-        SETPG32KHIGH ;call sys_setpgc000
-;BDOS_prchar_skip        
-
-        ;ld de,0x2000 + pgkillable
-        
-         ;push af
 
         ld a,h
-        xor 0x20;d;0x20 ;attr + 0x20
+        xor 0x60 ;attr + 0x20
         ld h,a
-        and 0x20;d;0x20
+        and 0x20
         jr nz,$+3
         inc l
 
-pr_textmode_curcolor=$+1
-        ld e,7
-        ld (hl),e
-pgscrbuf_low=$+1
-        ld a,0 ;ok ;pgscr0_0
-        SETPG32KHIGH ;call sys_setpgc000
-        ld (hl),e
+        ld (hl),d
 
+        set 6,h
+        ld (pr_textmode_curaddr),hl
+
+;scrbuf состоит из строк длиной 256 байт
+;каждая из них из 4 слоёв:
+;+0x40: аналог +0x4000 (text0)
+;+0x80: аналог +0x2000 (attr0)
+;+0xc0: аналог +0x6000 (text1)
+;+0x01: аналог +0x0001 (attr1)
+
+pr_buf_curaddr=$+1
+        ld hl,0x4000+0x40 ;text0
+pgscrbuf=$+1
+         ld a,0
+         SETPG16K ;TODO вне prchar
+         ld (hl),e
         ld a,l
+        add a,0x40 ;attr
+        adc a,0
+        ld l,a
+         ld (hl),d
+        add a,0x40 ;text (next)
+        ld l,a
+        ld (pr_buf_curaddr),hl
+
+         ;ld hl,(pr_textmode_curaddr)
+         ;ld a,l
         and 0x3f
         cp 80/2
-        ld (pr_textmode_curaddr),hl
-        ;ld (iy+app.textcuraddr),l
-        ;ld (iy+app.textcuraddr+1),h
-        ret nz ;jr nz,BDOS_prchar_q ;ret nz ;нет переноса строки
+        ;ld (pr_textmode_curaddr),hl
+        ret nz ;нет переноса строки
+        
+        inc h
+        call m,scrollscrbuf
+        ld (pr_buf_curaddr),hl
+        
+        ld hl,(pr_textmode_curaddr)
         ld a,l
         and 0xc0
         add a,0x40
         ld l,a
-        jr nc,BDOS_settextcuraddr ;BDOS_prchar_q ;ret nc
+        jr nc,BDOS_settextcuraddr
 BDOS_prchar_lf_q
         inc h
         bit 3,h
-        jr z,BDOS_settextcuraddr ;BDOS_prchar_q ;нет выхода за последнюю строку
+        jr z,BDOS_settextcuraddr ;нет выхода за последнюю строку
 BDOS_scrolllock0
         ld a,0xfe
         in a,(0xfe)
         rra ;Caps Shift
         jr nc,BDOS_scrolllock0
-        ;ld hl,(appaddr)
-        ;ld de,(focusappaddr)
-        ;or a
-        ;sbc hl,de
-        ;jr nz,BDOS_prchar_skipscroll
 ;scroll+clear bottom line
         call BDOS_scrollpage ;attr
-        ld a,(pgscrbuf_high) ;ok ;pgscr0_0 ;text
-        SETPG32KHIGH ;call sys_setpgc000
-        call BDOS_cllastline
-        ld a,(pgscrbuf_low) ;ok ;pgscr0_0 ;attr
-        SETPG32KHIGH ;call sys_setpgc000
-        call BDOS_cllastline
+        ;ld a,(pgscrbuf_high) ;ok ;pgscr0_0 ;text
+        ;SETPG32KHIGH ;call sys_setpgc000
+        ;call BDOS_cllastline
+        ;ld a,(pgscrbuf_low) ;ok ;pgscr0_0 ;attr
+        ;SETPG32KHIGH ;call sys_setpgc000
+        ;call BDOS_cllastline
         ld a,(user_scr0_high) ;ok ;pgscr0_1 ;text
         SETPG32KHIGH ;call sys_setpgc000
+        xor a
         call BDOS_cllastline
         ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
         SETPG32KHIGH ;call sys_setpgc000
+        ld a,COLOR
         call BDOS_cllastline
-        ;ld a,pgkillable
-        ;ld bc,memportc000
-        ;out (c),a
-        ;call sys_setpgc000
+        ld a,(user_scr0_high) ;ok ;pgscr0_1
+        SETPG32KHIGH
+        ld a,(user_scr0_low) ;ok ;pgscr0_0
+        SETPG32KLOW
 BDOS_prchar_skipscroll
         ld hl,0xc7c0
-BDOS_prchar_q
         jp BDOS_settextcuraddr
-        ;;ld (pr_textmode_curaddr),hl
-        ;ld (iy+app.textcuraddr),l
-        ;ld (iy+app.textcuraddr+1),h
-        ;ret
         
+scrollscrbuf
+;TODO reserve page
+;TODO unreserve very old page
+        dec h
+        push hl
+        ld de,0x4040 ;text ;TODO scroll attr
+        ld hx,0x3f*2
+scrollscrbuf0
+        ld h,d
+        ld l,e
+        inc h
+        dup 40
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
+        ld bc,128-40
+        add hl,bc
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        dec hx
+        jr nz,scrollscrbuf0
+        xor a
+        ld de,0x7f40 ;text
+        call BDOS_scrollpage_cllinelayer
+        ld de,0x7fc0 ;text
+        call BDOS_scrollpage_cllinelayer
+        ;TODO clear attr
+        pop hl
+        ret
+
 BDOS_scrollpage
 ;156046t [195810t]
         ;ld a,40
@@ -625,20 +796,18 @@ BDOS_scrollpage0
         djnz BDOS_scrollpage0
         ret
 BDOS_scrollpageline
-        ld a,(pgscrbuf_high) ;ok ;pgscr0_1 ;text
-        or a
-        call BDOS_scrollpagelinelayers ;text
-        ld a,(pgscrbuf_low) ;ok ;pgscr0_0 ;attr
-        scf
-        call BDOS_scrollpagelinelayers ;attr
+        ;ld a,(pgscrbuf_high) ;ok ;pgscr0_1 ;text
+        ;or a
+        ;call BDOS_scrollpagelinelayers ;text
+        ;ld a,(pgscrbuf_low) ;ok ;pgscr0_0 ;attr
+        ;scf
+        ;call BDOS_scrollpagelinelayers ;attr
         ld a,(user_scr0_high) ;ok ;pgscr0_1 ;text
         or a
         call BDOS_scrollpagelinelayers ;text
         ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
         scf
 BDOS_scrollpagelinelayers
-        ;ld bc,memportc000
-        ;out (c),a
         SETPG32KHIGH ;call sys_setpgc000
         push af
         push de
@@ -659,11 +828,11 @@ BDOS_scrollpagelinelayer
 ;BDOS_scrollpagelinelayer_wid=$+1
 ;        ld bc,39;40
 ;        ldir
-        dup 39
-        ldi
-        edup
-        ld a,(hl)
-        ld (de),a
+         dup 39
+         ldi
+         edup
+         ld a,(hl)
+         ld (de),a
         pop hl
         pop de
         ret
@@ -672,13 +841,6 @@ BDOS_scrollpagelinelayer
 BDOS_scrolldown
 ;de=topyx, hl=hgt,wid
 ;x, wid even
-         ;push hl
-         ;ld hl,(appaddr)
-         ;ld bc,(focusappaddr)
-         ;or a
-         ;sbc hl,bc
-         ;pop hl
-         ;ret nz
         ld a,d
         add a,h
         dec a
@@ -698,54 +860,51 @@ BDOS_scrolldown0
 BDOS_scrollup
 ;de=topyx, hl=hgt,wid
 ;x, wid even
-         ;push hl
-         ;ld hl,(appaddr)
-         ;ld bc,(focusappaddr)
-         ;or a
-         ;sbc hl,bc
-         ;pop hl
-         ;ret nz
         call BDOS_scroll_prepare
         jp BDOS_scrollpage0
         endif
         
 BDOS_cllastline
         ld hl,0xc7c0
-        call BDOS_scrollpage_clline
-        ;ld de,0xc7c1
-        ;ld bc,64-1
-        ;ld (hl),b
-        ;ldir
+        call BDOS_scrollpage_cllinelayer
         ld hl,0xe7c0
-BDOS_scrollpage_clline        
+BDOS_scrollpage_cllinelayer
         ld d,h
         ld e,l
         inc e
         ld bc,41-1;64-1
-        ld (hl),b
+        ld (hl),a
         ldir ;clear bottom line
         ret
         
-BDOS_setcolor
-;e=color byte
-        ld a,e
-        ld (pr_textmode_curcolor),a
-        ;ld (iy+app.curcolor),e
-        ret
-        
 BDOS_cls
-         ;ld hl,(appaddr)
-         ;ld bc,(focusappaddr)
-         ;or a
-         ;sbc hl,bc
-         ;ret nz
-        ;ld iy,(appaddr)
 ;e=color byte
-        ld a,(pgscrbuf_low)
-        SETPG32KLOW
-        ld a,(pgscrbuf_high)
-        SETPG32KHIGH
-        call clspp
+        ;ld a,(pgscrbuf_low)
+        ;SETPG32KLOW
+        ;ld a,(pgscrbuf_high)
+        ;SETPG32KHIGH
+        ;call clspp
+        ld a,(pgscrbuf)
+        SETPG16K
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x0040
+        ld (hl),COLOR
+        ldir
+        ld c,0x40
+        ld (hl),b;0
+        ldir
+        ld c,0x40
+        ld (hl),COLOR
+        ldir
+        ld c,0x40
+        ld (hl),b;0
+        ldir        
+        dec h;ld hl,0x4000
+        ld de,0x4100
+        ld b,0x3f
+        ldir
+;TODO reset current number of lines in buf
 
         BDOSSETPGSSCR
 
@@ -770,9 +929,6 @@ cls_halfpg
         ldir
         ret
 
-;sys_setpgc000
-;        SETPG32KHIGH
-;        ret
 
 readapp
         ld a,b

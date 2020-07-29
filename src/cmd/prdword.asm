@@ -5,6 +5,15 @@ prword
         exx
 prdword
 ;hl'hl=num
+        ld de,prdwordbuf
+        push de
+        call prdword_de
+        pop hl
+        ld de,10
+        jp cmdprNchars
+prdword_de
+;hl'hl=num
+;de=buf
         ld a,' '
         ld (prnumdwordcmd_zero),a
         exx
@@ -61,8 +70,8 @@ prnumdwordcmd1
         exx
         adc hl,bc
         exx
-        push bc
-        push de
+        ;push bc
+        ;push de
         push hl
         cp '0'
         jr nz,prnumdwordcmd_nozero
@@ -73,14 +82,19 @@ prnumdwordcmd_nozero
         ld hl,prnumdwordcmd_zero
         ld (hl),'0'
 prnumdwordcmd_nozeroq
-        exx
-        push bc
-        push hl
-        PRCHAR_
+        ;exx
+        ;push bc
+        ;push hl
+        ;PRCHAR_
+        ;pop hl
+        ;pop bc
+        ;exx
         pop hl
-        pop bc
-        exx
-        pop hl
-        pop de
-        pop bc
+        ld (de),a
+        inc de
+        ;pop de
+        ;pop bc
         ret   
+
+prdwordbuf
+        db "1234567890"
