@@ -40,7 +40,7 @@ left_panel_xy=0x0000
 right_panel_xy=0x0028
 firstfiley=left_panel_xy/256 + 1
 
-        macro PRCHAR_
+        macro PRCHAR__
         PRCHAR
         endm
 
@@ -247,7 +247,7 @@ prhint0
         cp '}'
         jr z,prhint_color1
         push hl
-        PRCHAR_ ;testing (351/352t) (was 986/987t)
+        PRCHAR__ ;testing (351/352t) (was 986/987t)
         pop hl
         jr prhint0
 prhint_color0
@@ -443,7 +443,7 @@ nocomfile
 	ld e,PANELCOLOR
 	call nv_setcolor
 	ld a,0xb3 ;'|'
-        PRCHAR_
+        PRCHAR__
 	ld de,(nvcolor)
 	call nv_setcolor
 ;        pop ix
@@ -457,7 +457,7 @@ nocomfile
 	ld e,PANELCOLOR
 	call nv_setcolor
 	ld a,0xb3 ;'|'
-        PRCHAR_
+        PRCHAR__
 	ld de,(nvcolor)
 	call nv_setcolor
 ;        pop ix
@@ -472,7 +472,7 @@ nocomfile
         add a,100 ;XX century
         call prNNcmd ;year
         ld a,'-'	
-        PRCHAR_
+        PRCHAR__
         pop hl
         ld a,l
         push af
@@ -483,12 +483,12 @@ nocomfile
         and 0x0f
         call prNNcmd ;month
         ld a,'-'
-        PRCHAR_
+        PRCHAR__
         pop af
         and 0x1f
         call prNNcmd ;day
         ld a,' '
-        PRCHAR_
+        PRCHAR__
 ;	pop ix
         ld l,(ix+FCB_FTIME)
         ld h,(ix+FCB_FTIME+1)
@@ -500,7 +500,7 @@ nocomfile
         and 0x1f
         call prNNcmd ;hour
         ld a,':'
-        PRCHAR_
+        PRCHAR__
         pop hl
         add hl,hl
         add hl,hl
@@ -965,9 +965,9 @@ editcmd_enter_runcmd
 ;        call nv_setxy
 	call nv_copyscreen1to0
         ld a,#0d
-        PRCHAR_
+        PRCHAR__
         ld a,#0a
-        PRCHAR_
+        PRCHAR__
         ;---
         ld e,-1
         OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!

@@ -3,9 +3,43 @@
         macro YIELD ;use instead of HALT
         OS_YIELD
         endm
-        macro YIELDKEEP ;use instead of HALT if you want reentry in this frame
+        
+        macro YIELDKEEP ;if you want reentry in this frame
         OS_YIELDKEEP
         endm
+
+        macro SETXY_ ;set cursor position (in: de=YX, top left is 0;0)
+        ;OS_SETXY
+        call setxy
+        endm
+
+        macro CLS_ ;clear visible area of terminal
+        ;ld e,0
+        ;OS_CLS
+        call clearterm
+        endm
+
+        macro PRCHAR_ ;send char to stdout (in: A=char)
+        ;PRCHAR
+        call sendchar
+        endm
+
+        macro GETCHAR_ ;read char from stdin (out: A=char, CY=error)
+        ;GET_KEY
+        call receivechar
+        endm
+
+        macro GETKEY_ ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
+        ;GET_KEY
+        call receivekey
+        endm
+
+        macro SETCOLOR_ ;setcolor (macro SETCOLOR_) - set color attribute (in: A=attribute=0bPIpppiii)
+        ;ld e,a
+        ;OS_SETCOLOR
+        call setcolor
+        endm
+
         macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY
@@ -71,7 +105,7 @@ _1=$
         ld c,CMD_FSEARCHNEXT
         CALLBDOS
         endm
-        macro OS_FDEL ;DE = Pointer to unopened FCB
+        macro OS_FDEL ;DEPRECATED!!!!! ;DE = Pointer to unopened FCB
         ld c,CMD_FDEL
         CALLBDOS
         endm

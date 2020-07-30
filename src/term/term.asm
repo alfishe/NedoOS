@@ -86,18 +86,12 @@ begin
         OS_RUNAPP
 
 execcmd_error
-        ;jr mainloop
 mainloop_afternokey
 mainloop_afterkey
-;mainloop
         YIELD
-         ;ld a,4
-         ;out (0xfe),a
-        ;call unprint_cursor
-;unprint_cursor
+        call BDOS_countattraddr
 unprint_cursor_color=$+1
-        ld e,COLOR
-        call BDOS_prattr
+        ld (hl),COLOR
 
 mainloop_afterredraw
         
@@ -110,10 +104,7 @@ waitpid_id=$+1
         call type_stdin ;stdin to screen
         YIELDKEEP
         call type_stdin ;stdin to screen
-         ;ld a,5
-         ;out (0xfe),a
        
-        ;call BDOS_countattraddr
         ld a,(pgscrbuf) ;ok
         SETPG16K
          ld hl,(pr_buf_curaddr)
@@ -123,6 +114,7 @@ waitpid_id=$+1
         ld l,a
         ld a,(hl) ;из pgscrbuf_low
         ld (unprint_cursor_color),a
+
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
         push de
@@ -141,22 +133,12 @@ cursortimelimit=$+1
          ;ld (lastsdtinmsgtimer),hl
          ld hl,4
          ld (cursortimelimit),hl
-         ;ld a,7
-         ;out (0xfe),a
-        ld e,CURSORCOLOR
-        call BDOS_prattr
-         ;ld a,6
-         ;out (0xfe),a
+        call BDOS_countattraddr
+        ld (hl),CURSORCOLOR
 noprintcursor
 
-         ;ld a,6
-         ;out (0xfe),a
 ;mainloop_afterkey
         GET_KEY
-         ;push af
-         ;ld a,7
-         ;out (0xfe),a
-         ;pop af
         or a ;cp NOKEY ;keylang==0?
         ;jr nz,$+3
         ;cp c ;keynolang==0?
@@ -217,7 +199,6 @@ term_pgup0
         jp mainloop_afterredraw
 
 redraw
-       if 1==1
 ;scrbuf состоит из строк длиной 256 байт
 ;каждая из них из 4 слоёв:
 ;+0x40: аналог +0x4000 (text0) ;1
@@ -253,24 +234,6 @@ redrawlines0
         inc h ;TODO nextpg
         pop bc
         djnz redrawlines0
-       else
-        ld a,(pgscrbuf_low)
-        SETPG32KLOW
-        ld a,(user_scr0_low) ;ok
-        SETPG32KHIGH
-        ld hl,0x8000
-        ld de,0xc000
-        ld bc,0x4000
-        ldir
-        ld a,(pgscrbuf_high)
-        SETPG32KLOW
-        ld a,(user_scr0_high) ;ok
-        SETPG32KHIGH
-        ld hl,0x8000
-        ld de,0xc000
-        ld bc,0x4000
-        ldir
-       endif
         ret
         
 quit
@@ -285,15 +248,6 @@ quit
         OS_CLOSEHANDLE
         edup
         QUIT
-
-copylinelayer
-        push de
-        push hl
-        ld bc,40+1;0x3f
-        ldir
-        pop hl
-        pop de
-        ret
 
 type_stdin
         ld de,stdinbuf
@@ -461,6 +415,8 @@ term_prfsm_afterescbracket_nosemicolon
         ld (hl),TERM_ST_SINGLE
         cp 'H'
         jr z,term_prfsm_afterescbracket_H
+        cp 'm'
+        jr z,term_prfsm_afterescbracket_m
 ;TODO J etc.
         cp '~'
         jr z,term_prfsm_afterescbracket_tilde
@@ -499,6 +455,33 @@ forcereprintcursor
          ld (cursortimelimit),hl
         ;pop hl
         ;pop de
+        ret
+        
+term_prfsm_afterescbracket_m
+;CSI Pm m Character Attributes (SGR)
+;Ps = 30  Set foreground color to Black.
+;Ps = 31  Set foreground color to Red.
+;Ps = 32  Set foreground color to Green.
+;Ps = 33  Set foreground color to Yellow.
+;Ps = 34  Set foreground color to Blue.
+;Ps = 35  Set foreground color to Magenta.
+;Ps = 36  Set foreground color to Cyan.
+;Ps = 37  Set foreground color to White.
+;Ps = 39  Set foreground color to default, ECMA-48 3rd.
+;Ps = 40  Set background color to Black.
+;Ps = 41  Set background color to Red.
+;Ps = 42  Set background color to Green.
+;Ps = 43  Set background color to Yellow.
+;Ps = 44  Set background color to Blue.
+;Ps = 45  Set background color to Magenta.
+;Ps = 46  Set background color to Cyan.
+;Ps = 47  Set background color to White.
+;Ps = 49  Set background color to default, ECMA-48 3rd.
+;1  -  BRIGHT ON: Включение яркости INK. (Bold, VT100.)
+;21  -  BRIGHT OFF: Выключение яркости INK. (Doubly-underlined, ECMA-48 3rd.)
+        ld a,(term_prfsm_curnumber)
+        sub 30
+        ld (pr_textmode_curcolor),a
         ret
 
         if 1==0
@@ -559,7 +542,8 @@ BDOS_countattraddr
         jr nz,$+3
         inc l
         ret
-        
+
+        if 1==0
 BDOS_prattr
 ;e=color byte
         call BDOS_countattraddr
@@ -574,6 +558,7 @@ BDOS_prattr
         ld l,a
         ld (hl),e
         ret
+        endif
 
 getscrbuftop_a
         ld hl,(pr_buf_curaddr)
@@ -697,11 +682,8 @@ pgscrbuf=$+1
         ld l,a
         ld (pr_buf_curaddr),hl
 
-         ;ld hl,(pr_textmode_curaddr)
-         ;ld a,l
         and 0x3f
         cp 80/2
-        ;ld (pr_textmode_curaddr),hl
         ret nz ;нет переноса строки
         
         inc h
@@ -752,8 +734,8 @@ scrollscrbuf
 ;TODO unreserve very old page
         dec h
         push hl
-        ld de,0x4040 ;text ;TODO scroll attr
-        ld hx,0x3f*2
+        ld de,0x4000 ;0x4040 ;text ;TODO scroll attr
+        ld hx,0x3f*4;*2
 scrollscrbuf0
         ld h,d
         ld l,e
@@ -763,19 +745,23 @@ scrollscrbuf0
         edup
         ld a,(hl)
         ld (de),a
-        ld bc,128-40
+        ld bc,64-40;128-40
         add hl,bc
         ex de,hl
         add hl,bc
         ex de,hl
         dec hx
-        jr nz,scrollscrbuf0
+        jp nz,scrollscrbuf0
         xor a
-        ld de,0x7f40 ;text
+        ld hl,0x7f40 ;text
         call BDOS_scrollpage_cllinelayer
-        ld de,0x7fc0 ;text
+        ld hl,0x7fc0 ;text
         call BDOS_scrollpage_cllinelayer
-        ;TODO clear attr
+        ld a,COLOR
+        ld hl,0x7f01 ;attr
+        call BDOS_scrollpage_cllinelayer
+        ld hl,0x7f80 ;attr
+        call BDOS_scrollpage_cllinelayer
         pop hl
         ret
 
@@ -796,17 +782,11 @@ BDOS_scrollpage0
         djnz BDOS_scrollpage0
         ret
 BDOS_scrollpageline
-        ;ld a,(pgscrbuf_high) ;ok ;pgscr0_1 ;text
-        ;or a
-        ;call BDOS_scrollpagelinelayers ;text
-        ;ld a,(pgscrbuf_low) ;ok ;pgscr0_0 ;attr
-        ;scf
-        ;call BDOS_scrollpagelinelayers ;attr
         ld a,(user_scr0_high) ;ok ;pgscr0_1 ;text
-        or a
+        ;or a
         call BDOS_scrollpagelinelayers ;text
         ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
-        scf
+        ;scf
 BDOS_scrollpagelinelayers
         SETPG32KHIGH ;call sys_setpgc000
         push af
@@ -814,25 +794,19 @@ BDOS_scrollpagelinelayers
         push hl
         set 5,h
         set 5,d
-        or a
-        call BDOS_scrollpagelinelayer
+        ;or a
+        call copylinelayer
         pop hl
         pop de
         pop af
-BDOS_scrollpagelinelayer
+copylinelayer
         push de
         push hl
-        jr nc,$+4
-        inc hl
-        inc de
-;BDOS_scrollpagelinelayer_wid=$+1
-;        ld bc,39;40
-;        ldir
-         dup 39
-         ldi
-         edup
-         ld a,(hl)
-         ld (de),a
+        dup 40
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
         pop hl
         pop de
         ret

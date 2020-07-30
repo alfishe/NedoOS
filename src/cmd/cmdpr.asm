@@ -111,8 +111,8 @@ editcmd_noscrollleft
         jr editcmd_scroll0
 editcmd_noscrollright
 ;prcmd
-        ld e,7
-        OS_SETCOLOR
+        ld a,COLOR
+        SETCOLOR_
         ;ld de,+(txtscrhgt-1)*256+0
         ld de,CMDLINEY*256+0
         SETXY_
@@ -144,7 +144,7 @@ cmdprNchars
         ex de,hl
         push de
         push hl
-        call sendchar_repeat
+        call sendchars
         pop hl
         pop de
         add hl,de
@@ -172,7 +172,7 @@ prtext
 ;hl=len
         push bc
         push hl
-        call nz,sendchar_repeat
+        call nz,sendchars
         pop hl
         pop bc
         add hl,bc

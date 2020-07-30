@@ -15,39 +15,15 @@ CMDLINEY=24
 
 COLOR=7
 CURSORCOLOR=0x38
-
-RECODEINPUT=1
-
-        macro SETXY_
-        ;OS_SETXY
-        call setxy
-        endm
-
-        macro PRCHAR_
-        ;PRCHAR
-        call sendchar       
-        endm
-
-        macro GET_KEY_
-        ;GET_KEY
-        call receivechar
-        endm
+ERRORCOLOR=0x42
 
         org PROGSTART
 cmd_begin
-         ;ds 0x300
-        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
-        ;ld e,6 ;textmode
-        ;OS_SETGFX
-        ;;ld e,COLOR
-        ;;OS_CLS
-        
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS        
+        call initstdio
+
         OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
-        ld a,e
-        ld (stdinhandle),a
-        ld a,d
         ld (stdouthandle_wasatstart),a
-        ld (stdouthandle),a
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -66,7 +42,6 @@ cmd_begin
         call getword
         call skipspaces
         ld (cmdlineword2),hl
-         ;jr cmd_interactive
         ld a,(hl)
         or a
         jr z,cmd_interactive
@@ -74,25 +49,19 @@ cmd_begin
         ld de,cmdbuf
         call strcopy
         
-        ;ld hl,cmdbuf
-        ;call prtext
-        ;call prcrlf
         call makeprompt ;иначе запустится из неправильной директории
-         ;jr cmd_interactive
         
         call execcmd_maybepipes ;can show errors ;a!=0: no such internal command
         or a
         call nz,callcmd;strcpexec_tryrun ;запускает по фону
         YIELD ;чтобы запущенная задача успела захватить фокус ;???
-;если командная строка была со словом autoexec.bat вместо слова cmd, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
-        ;ld a,(COMMANDLINE)
-        ;cp 'a'
+;если командная строка была со словом autoexec.bat в параметре, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
         ld hl,tautoexecbat
 cmdlineword2=$+1
         ld de,0
         call strcp ;z=yes
         jr z,cmd_interactive
-        ;jr $
+cmd_exit
         QUIT
         
 tautoexecbat
@@ -100,19 +69,6 @@ tautoexecbat
 
 cmd_interactive
         
-        ;OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000,8000,c000
-        ;ld a,e
-        ;ld (curpgshapes),a
-        ;ld a,h
-        ;ld (curpgpal),a
-        ;ld a,l
-        ;ld (curpgtemp),a
-;TODO free pages
-        
-        ;ld a,4;TR-DOS ;0=SD card (Z-controller)
-        ;call cmdsetdrive
-       
 cmdmainloop
         call makeprompt
         call editcmd
@@ -145,7 +101,7 @@ execcmd_maybepipes
         OS_CREATEHANDLE
         ld a,b
         ld (execcmdtofile_handle),a
-        ld (stdouthandle),a
+        call setstdouthandle
         
         call execcmd ;can show errors ;a!=0: no such internal command
         push af
@@ -155,7 +111,7 @@ execcmdtofile_handle=$+1
         OS_CLOSEHANDLE
 stdouthandle_wasatstart=$+1
         ld a,0
-        ld (stdouthandle),a
+        call setstdouthandle
 
         pop af
         ret;jr cmd_noexeccmdtofileq
@@ -220,8 +176,6 @@ editcmdtypein
         inc a
         ld (curcmdx),a
         jp strinsch ;e=ch
-;editcmdok
-        ;ret ;jp editcmd0
         
 editcmd_backspace
         call cmdcalctextaddr ;hl=addr, a=curcmdx
@@ -230,7 +184,6 @@ editcmd_backspace
         dec a
         ld (curcmdx),a
         jp strdelch ;удаляет предыдущий символ
-        ;jr editcmdok
       
 editcmd_left
         ld a,(curcmdx)
@@ -238,7 +191,7 @@ editcmd_left
         ret z ;jr z,editcmdok ;некуда влево
         dec a
         ld (curcmdx),a
-        ret ;jr editcmdok
+        ret
       
 editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
@@ -247,7 +200,7 @@ editcmd_right
         ret z ;jr z,editcmdok ;некуда право, стоим на терминаторе
         inc a
         ld (curcmdx),a
-        ret ;jr editcmdok
+        ret
 
 getword
 ;hl=string
@@ -355,12 +308,10 @@ execcmd_tryrunerror
          ;OS_SETSYSDRV
          ;ld de,wordbuf2
          ;OS_GETPATH
-         ;jr $
         ;ld de,cmdprompt
         ;OS_CHDIR
         ;call makeprompt
         ;ld de,cmdprompt
-        ;jr $
         ;OS_CHDIR
         pop hl
         push hl
@@ -413,7 +364,6 @@ callcmd
         call execcmd ;a!=0: no such internal command
         or a
         ret z ;command executed
-        ;jr $
         ;call loadapp ;загрузить файл с именем cmdbuf, e=id
         call strcpexec_tryrun ;загрузить файл с именем cmdbuf или SYSDIR/cmdbuf, e=id, nz=error
         jr nz,execcmd_error
@@ -448,8 +398,6 @@ loadapp
         push hl
         call findlastslash. ;de=after last slash or beginning of path
         pop hl
-
-        if 1==1
 
         ;push hl
 ;ищем точку, проверяем, что после неё стоит .com или .bat
@@ -514,89 +462,11 @@ loadapp_finddotok
         xor a
         ret ;Z
         
-        else ;CP/M-like
-
-        push de ;de=after last slash or beginning of path
-        dec de
-        ld a,(de)
-        cp '/'
-        jr nz,$+4
-         xor a
-         ld (de),a ;отрезать имя файла
-        inc de
-        ex de,hl;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
-        pop hl ;hl=after last slash        
-        jr nz,loadapp_nopath
-
-        ;ld bc,loadapp_setoldpath
-        ;push bc
-
-        push hl ;hl=after last slash
-        OS_CHDIR
-        call loadapp_keeppath
-        pop hl ;hl=after last slash
-loadapp_nopath
-        ;hl=after last slash
-        
-        ex de,hl ;de=after last slash
-        ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
-        ld hl,fcb_filename ;Pointer to 11 byte buffer
-        OS_PARSEFNAME
-        
-        ld hl,fcb_filename+8
-        ld a,(hl)
-        or 0x20
-        cp 'b'; TODO где проверка на остальные буквы?
-        jr z,strcpexec_tryrun_bat
-        cp ' '
-        jr nz,strcpexec_tryrun_noemptyext
-        ld (hl),'c'
-        inc hl
-        ld (hl),'o'
-        inc hl
-        ld (hl),'m'
-strcpexec_tryrun_noemptyext
-        ld de,fcb
-        OS_FOPEN
-         push af
-         call loadapp_setoldpath
-         pop af
-        or a
-        ret nz ;jr nz,execcmd_error
-        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
-        or a
-        ret nz ;error
-;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
-        push bc ;b=id
-        ld a,d
-        SETPG32KHIGH
-        push de
-        push hl
-        ld hl,cmdbuf
-        ld de,0xc000+COMMANDLINE
-        ld bc,COMMANDLINE_sz
-        ldir ;command line
-        pop hl
-        pop de
-        call readfile_pages_dehl
-
-        ld de,fcb
-        OS_FCLOSE
-        pop de
-        ld e,d ;e=id
-        xor a
-        ret ;Z
-        
-        endif
-        
 strcpexec_tryrun_bat
 	;display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
 ;out: nz=error, cy=end of .bat
 ;open .bat
-
-        if 1==1
 ;filename in wordbuf
-
         ld de,wordbuf ;pop de
         OS_OPENHANDLE
         or a
@@ -612,7 +482,6 @@ strcpexec_tryrun_bat0
         ld hl,cmdbuf
         LD (hl),0
         call readstr ;nz=EOF
-         ;jr $
         push af ;jr nz,strcpexec_tryrun_batq ;чтобы последнюю строку всё-таки выполнить
 
         push iy
@@ -636,58 +505,6 @@ strcpexec_tryrun_batq
         xor a
          scf ;чтобы на выходе не делать RUNAPP
         ret ;Z
-        
-        else ;CP/M-like
-;filename in fcb
-
-        if 1==1
-        pop de ;de=after last slash
-        ;ld de,wordbuf ;ASCIIZ string for parsing (в 0xc000...)
-        ld hl,fcb_filename ;Pointer to 11 byte buffer
-        OS_PARSEFNAME
-        endif
-
-        ld hl,fcb_filename
-        ld de,fcb_bat_filename
-        ld bc,11
-        ldir
-
-        ld de,fcb_bat	
-        OS_FOPEN
-        or a
-        ret nz ;jp nz,execcmd_error
-        
-         ld a,0x3c ;"inc a"
-         ld (readbyte_readbuf_last),a
-        ld iy,file_buf_end
-strcpexec_tryrun_bat0
-;load line to cmdbuf
-        ld hl,cmdbuf
-        call readstr ;nz=EOF
-        push af ;jr nz,strcpexec_tryrun_batq ;чтобы последнюю строку всё-таки выполнить
-
-        push iy
-        ld hl,cmdbuf
-        call prtext
-        call prcrlf
-        pop iy
-        
-;call command in cmdbuf
-        push iy
-        call callcmd
-        pop iy
-        
-        pop af
-        jr z,strcpexec_tryrun_bat0 ;nz=EOF
-strcpexec_tryrun_batq
-;close .bat
-        ld de,fcb_bat
-        OS_FCLOSE
-        xor a
-         scf ;чтобы на выходе не делать RUNAPP
-        ret ;Z
-
-        endif
 
         macro READBYTE_A
 ;out: z=EOF
@@ -988,16 +805,6 @@ prNNcmd
 datetimebuf
         db "00-00-00 00:00:00"
         
-;makeemptymask
-        ;ld hl,fcbmask_filename
-        ;ld d,h
-        ;ld e,l
-        ;inc de
-        ;ld bc,11-1
-        ;ld (hl),'?'
-        ;ldir
-        ;ret
-        
 skipspaces
 ;hl=string
 ;out: hl=after last space
@@ -1054,16 +861,8 @@ cmd_del
         ld a,(hl)
         or a
         jr z,cmd_error_nopars
-        if 1==1
         ex de,hl
         OS_DELETE
-        else ;CP/M-like
-        ex de,hl
-        ld hl,fcb_filename
-        OS_PARSEFNAME
-        ld de,fcb
-        OS_FDEL
-        endif
         or a
         ret z
 cmd_error_wrongfile
@@ -1105,8 +904,6 @@ cmd_copy
         ld de,filenamebuf2;wordbuf2
         call getword ;hl=terminator/space addr
 
-        if 1==1
-        
         ld de,filenamebuf;wordbuf ;de=drive/path/file
         OS_OPENHANDLE
         or a
@@ -1157,72 +954,12 @@ cmd_copy_close_file2_handle=$+1
         OS_GETFILETIME ;ix=date, hl=time
         ld de,filenamebuf2;wordbuf2
         OS_SETFILETIME
-        ret
-        
-        else ;CP/M-like functions
-        
-        ld de,filenamebuf;wordbuf
-        ld hl,fcb_filename
-        OS_PARSEFNAME
-        
-        ld de,fcb
-        OS_FOPEN
-        or a
-        jp nz,cmd_error_wrongfile
-        ld hl,cmd_copy_close_fcb
-        push hl
-        
-        ld de,filenamebuf2;wordbuf2
-        ld hl,fcb2_filename
-        OS_PARSEFNAME
-        
-        ld de,fcb2
-        OS_FCREATE
-        or a
-        jp nz,cmd_error_cant_copy
-        ld hl,cmd_copy_close_fcb2
-        push hl
-        
-cmd_copy0
-        ld de,copybuf
-        OS_SETDTA
-        ld de,fcb
-        OS_FREAD
-        cp 128
-        ret z ;прочитали 0 байт
-        xor 128
-        ld l,a
-        ld h,0
-        push hl
-        ld de,copybuf
-        OS_SETDTA
-        pop hl
-        ld de,fcb2
-        OS_FWRITE_NBYTES ;TODO выкинуть (переделать на handle)
-        or a
-        jr z,cmd_copy0
-        ld hl,tcantwrite
-        jp cmderror
-        
-cmd_copy_close_fcb2
-        ld de,fcb2
-        OS_FCLOSE
-        ret
-
-cmd_copy_close_fcb
-        ld de,fcb
-        OS_FCLOSE
-        ret
-
-        endif
+        ret      
         
 cmd_error_cant_copy
         ld hl,tcantcopy
         jp cmderror
-        
-cmd_exit
-        QUIT
-        
+
 cmd_rem
         ret
         
@@ -1353,12 +1090,12 @@ cmd_t0
         
 cmderror
         push hl
-        ld e,0x42
-        OS_SETCOLOR
+        ld a,ERRORCOLOR
+        SETCOLOR_
         pop hl
         call prtext
-        ld e,COLOR
-        OS_SETCOLOR
+        ld a,COLOR
+        SETCOLOR_
 prcrlf
         ;ld a,0x0d
         ;PRCHAR_
@@ -1371,7 +1108,6 @@ crlfbuf
         db 0x0d,0x0a
         
 cmdsetdrive
-        ;ld (curdrive),a
         ld e,a
         OS_SETDRV
         ret
@@ -1432,7 +1168,7 @@ cmd_tee
         
 cmd_tee0
         push bc
-        GET_KEY_
+        GETKEY_
         ld (cmd_type_buf),a
         pop bc
         ret c ;input pipe closed
@@ -1513,8 +1249,6 @@ cmd_copydir0
 cmd_copydir0_skip
         inc bc
         jr cmd_copydir0
-;cmd_copydirq
-        ;ret
 
         macro STRPUSH
 ;hl=string addr
@@ -1669,8 +1403,7 @@ getdirfcb_bc0
         pop bc
         or a
         jr z,getdirfcb_bc0
-        ret
-        
+        ret        
         
 ;hl = poi to filename in string
 findlastslash.
@@ -1824,7 +1557,6 @@ file_buf
         ds 128
 file_buf_end=$-1
 
-        if 1==1
 cmd_loadpage
 ;a=loadaddr/256
 ;out: a=error, bc=bytes read
@@ -1845,244 +1577,10 @@ curhandle=$+1
         pop hl
         pop de
         ret
-        else
-        include "../_sdk/loadpage.asm"
-        endif
 
         include "prdword.asm"
         include "cmdpr.asm"
-
-yieldgetkeyloop
-;в одном фрейме может прийти много кнопок (управляющий esc-код)!
-	YIELDKEEP ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        jr yieldgetkey_afteryield
-yieldgetkey_nokey
-;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
-        YIELD
-yieldgetkey_afteryield
-        GET_KEY_
-        or a ;cp NOKEY ;keylang==0?
-        jr nz,$+3
-        cp c ;keynolang==0?
-        jr z,yieldgetkey_nokey
-        ret
-
-setxy
-;de=yx
-        push de
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop de
-        push de
-        ld a,d
-        inc a
-        call sendchar_num
-        ld a,';'
-        call sendchar_byte_a
-        pop de
-        ld a,e
-        inc a
-        call sendchar_num
-        ld a,'H'
-        jr sendchar_byte_a
-
-sendchar_num
-;a=num
-        ld c,'0'-1
-        inc c
-        sub 10
-        jr nc,$-3
-        push af
-        ld a,c
-        call sendchar_byte_a
-        pop af
-        add a,'0'+10
-        jr sendchar_byte_a
-
-sendchar
-        ;cp 0x80
-        ;jr nc,sendchar_rustoutf8
-sendchar_byte_a
-        ld (stdoutbuf),a
-        ld hl,1
-        ld de,stdoutbuf
-sendchar_repeat
-        push de
-        push hl
-stdouthandle=$+1
-        ld b,0
-        OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
-        ld b,h
-        ld c,l ;bytes actually written
-        pop hl
-        pop de
-         or a
-          ret nz ;error ;TODO обработать? а так пока просто избегаем зацикливания
-         sbc hl,bc ;datasize-byteswritten
-         ret z
-         ex de,hl
-         add hl,bc ;dataaddr+byteswritten
-         ex de,hl
-;hl=remaining data size
-;de=remaining data addr
-        push de
-        push hl
-        YIELDKEEP ;2158t
-        pop hl
-        pop de
-        jr sendchar_repeat
-
-receivechar
-;CY=error
-        ld hl,1
-        ld de,stdinbuf
-stdinhandle=$+1
-        ld b,0
-        OS_READHANDLE
-        scf
-        or a
-        ret nz
-        ld a,h
-        or l
-        ld c,a
-        ret z
-        ld a,(stdinbuf)
-        ld e,a
-       if RECODEINPUT==0
-        ret
-       else
-term_prfsm
-;e=char
-        ld a,(term_prfsm_curstate)
-        or a
-        jr nz,term_prfsm_nosingle
-        ld a,e
-         ;cp 0x0a
-         ;ld c,0x0d
-         ;jp z,term_prfsm_keycok
-        cp 0x1b
-        ret nz ;jr nz,term_prfsm_prchar
-        ld a,1
-        ld (term_prfsm_curstate),a
-        xor a
-        ret
-term_prfsm_nosingle
-        dec a
-        jr nz,term_prfsm_noafteresc
-        ld a,e
-        cp '['
-        ld c,e
-        jr nz,term_prfsm_keycok ;esc esc -> esc_key
-        ld a,2
-        ld (term_prfsm_curstate),a
-        xor a
-        ld (term_prfsm_curnumber),a
-        xor a
-        ret
-term_prfsm_noafteresc
-        ;dec a
-        ;jr nz,term_prfsm_noafterescbracket
-        ld a,e
-        sub '0'
-        cp 10
-        jr nc,term_prfsm_afterescbracket_nonumber
-        ld e,a
-        ld hl,term_prfsm_curnumber
-        ld a,(hl)
-        add a,a
-        add a,a
-        add a,(hl)
-        add a,a ;*10
-        add a,e
-        ld (hl),a
-        xor a
-        ret
-term_prfsm_afterescbracket_nonumber
-        ld a,e
-        cp ';'
-        jr nz,term_prfsm_afterescbracket_nosemicolon
-        ld a,(term_prfsm_curnumber)
-        ld (term_prfsm_curnumber1),a
-        xor a
-        ld (term_prfsm_curnumber),a
-        xor a
-        ret
-term_prfsm_afterescbracket_nosemicolon
-        xor a
-        ld (term_prfsm_curstate),a        
-        ld a,e
-        cp 'H'
-        jr nz,term_prfsm_afterescbracket_noH
-        ;ld a,(term_prfsm_curnumber1) ;row
-        ;dec a
-        ;ld d,a
-        ;ld a,(term_prfsm_curnumber) ;column
-        ;dec a
-        ;ld e,a
-        ;OS_SETXY
-        xor a
-        ret
-term_prfsm_afterescbracket_noH
-        cp '~'
-        jr nz,term_prfsm_afterescbracket_notilde
-        ld a,(term_prfsm_curnumber) ;column
-        cp 3
-        ld c,key_del
-        jr z,term_prfsm_keycok
-        cp 1
-        ld c,key_home
-        jr z,term_prfsm_keycok
-        cp 4
-        ld c,key_end
-        jr z,term_prfsm_keycok
-        cp 2
-        ld c,key_ins
-        jr z,term_prfsm_keycok
-        xor a
-        ret
-term_prfsm_afterescbracket_notilde
-        ;cp 'A' ;A..D = up, down, right, left
-        cp 'A'
-        ld c,key_up
-        jr z,term_prfsm_keycok
-        cp 'B'
-        ld c,key_down
-        jr z,term_prfsm_keycok
-        cp 'C'
-        ld c,key_right
-        jr z,term_prfsm_keycok
-        cp 'D'
-        ld c,key_left
-        jr z,term_prfsm_keycok
-        xor a
-        ret
-
-term_prfsm_keycok
-        xor a
-        ld (term_prfsm_curstate),a        
-        or c ;nc
-        ret
-
-term_prfsm_curstate
-        db 0
-;states:
-;0: wait for single symbol
-;1: after 0x1b
-;2: after 0x1b [ [number] (might be more digits)
-
-term_prfsm_curnumber
-         db 0
-term_prfsm_curnumber1
-         db 0
-       endif ;RECODEINPUT
-
-stdoutbuf
-        db 0
-
-stdinbuf
-        db 0 ;ds STDINBUF_SZ
+        include "../_sdk/stdio.asm"
 
 cmd_end
 

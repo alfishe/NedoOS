@@ -22,7 +22,7 @@ CMD_FOPEN=0x0f ;de = pointer to unopened FCB
 CMD_FCLOSE=0x10 ;de = pointer to opened FCB
 CMD_FSEARCHFIRST=0x11 ;de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
 CMD_FSEARCHNEXT=0x12 ;(NOT CP/M compatible!!!)de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
-CMD_FDEL=0x13 ;DE = Pointer to unopened FCB
+CMD_FDEL=0x13 ;DEPRECATED!!!!! ;DE = Pointer to unopened FCB
 CMD_FREAD=0x14 ;DE = Pointer to opened FCB, read 128 bytes in DTA, out: a=128^bytes actually read (not CP/M!)
 CMD_FWRITE=0x15 ;DE = Pointer to opened FCB, write 128 bytes from DTA
 CMD_FCREATE=0x16 ;DE = Pointer to unopened FCB

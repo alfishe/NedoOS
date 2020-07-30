@@ -765,7 +765,7 @@ tbdoscmds
 	db CMD_FOPEN;0x0f
 	db CMD_FREAD;0x14
 	db CMD_FCLOSE;0x10
-	db CMD_FDEL;0x13
+	db CMD_FDEL;0x13 ;DEPRECATED!!!!! 
 	db CMD_FCREATE;0x16
 	db CMD_FWRITE;0x15
         db CMD_FSEARCHFIRST;0x11
@@ -873,7 +873,7 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_fsearchfirst
 	dw BDOS_fwrite
 	dw BDOS_fcreate
-	dw BDOS_fdel
+	dw BDOS_fdel ;DEPRECATED!!!!! 
 	dw BDOS_fclose
 	dw BDOS_fread
 	dw BDOS_fopen
@@ -1339,6 +1339,7 @@ addrpage
         add hl,bc
         ret
 
+;DEPRECATED!!!!! 
 BDOS_fdel
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
