@@ -4,12 +4,16 @@
 ;receivekey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;yieldgetkeyloop - wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
-;setink
+;setcolor_invisible
+;setcolor_visible
+;scrolldown ;de=topyx, hl=hgt,wid ;x, wid even
+;scrollup ;de=topyx, hl=hgt,wid ;x, wid even
 ;setxy (macro SETXY_) - set cursor position (in: de=YX, top left is 0;0)
 ;sendchar (macro PRCHAR_) - send char to stdout (in: A=char)
 ;sendchars - send chars to stdout (in: de=buf, hl=size, out: A=error)
 ;setstdouthandle - in: A=handle
 ;setstdinhandle - in: A=handle
+;clearterm - print 25 lines of spaces except one
 
 initstdio
         OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
@@ -293,7 +297,7 @@ stdinhandle=$+1
         ret z ;NC=no error
         ld a,(stdinbuf)
         ret ;NC=no error
-        
+
 receivekey
 ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
         call receivechar
@@ -301,7 +305,10 @@ receivekey
 ;a=char
 TERM_ST_SINGLE=1 ;1: wait for single symbol
 TERM_ST_AFTERESC=2 ;2: after 0x1b
-TERM_ST_AFTERESCBRACKET=2 ;3: after 0x1b [ [number] (might be more digits)
+TERM_ST_AFTERESCBRACKET=3 ;3: after 0x1b [ [number] (might be more digits)
+TERM_ST_AFTERMOUSE=4
+TERM_ST_AFTERMOUSEb=5
+TERM_ST_AFTERMOUSEbx=6
 term_prfsm_curstate=$+1
         ld b,TERM_ST_SINGLE
         djnz term_prfsm_nosingle
@@ -318,7 +325,7 @@ term_prfsm_nosingle
         djnz term_prfsm_noafteresc
         cp '['
         ld c,0x1b
-        jr nz,term_prfsm_keycok ;esc esc -> esc_key
+        jp nz,term_prfsm_keycok ;esc esc -> esc_key
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESCBRACKET
 term_prfsm_0curnumber_nokey
@@ -328,6 +335,7 @@ term_prfsm_0curnumber_nokey
         ld c,a
         ret
 term_prfsm_noafteresc
+        djnz term_prfsm_noafterescbracket
         sub '0'
         cp 10
         jr nc,term_prfsm_afterescbracket_nonumber
@@ -366,7 +374,29 @@ term_prfsm_afterescbracket_nosemicolon
         cp 'D'
         ld c,key_left
         jr z,term_prfsm_keycok
+        cp 'M'
+        jr z,term_prfsm_mouse
 term_prfsm_nokey
+        xor a ;no key, no error
+        ld c,a
+        ret
+term_prfsm_noafterescbracket
+        djnz term_prfsm_noaftermouse
+        ld hl,term_prfsm_curstate
+        inc (hl) ;TERM_ST_AFTERMOUSEb
+        xor a ;no key, no error
+        ld c,a
+        ret
+term_prfsm_noaftermouse
+        djnz term_prfsm_aftermousebx;term_prfsm_noaftermouseb
+        ld hl,term_prfsm_curstate
+        inc (hl) ;TERM_ST_AFTERMOUSEbx
+        xor a ;no key, no error
+        ld c,a
+        ret
+term_prfsm_aftermousebx
+        ld hl,term_prfsm_curstate
+        ld (hl),TERM_ST_SINGLE
         xor a ;no key, no error
         ld c,a
         ret
@@ -391,6 +421,12 @@ term_prfsm_keycok
         ld (hl),TERM_ST_SINGLE
         xor a
         or c ;NC=no error
+        ret
+term_prfsm_mouse
+        ld hl,term_prfsm_curstate
+        ld (hl),TERM_ST_AFTERMOUSE
+        xor a ;no key, no error
+        ld c,a
         ret
 
 term_prfsm_curnumber

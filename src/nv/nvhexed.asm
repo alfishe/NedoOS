@@ -11,7 +11,7 @@ nvview_hexeditor_redrawloop
         ;YIELDGETKEYLOOP
         call nvview_hexeditor_prpage
 nvview_hexeditor_prfile_mainloop
-1;prwindow_waitkey_nokey
+nvview_hexeditor_prfile_mainloop0
         call nvhexed_calccursorxy
         ld hl,_NVVIEW_HEXEDITOR_CURSORCOLOR
         ld b,2
@@ -20,6 +20,8 @@ nvview_hexeditor_prfile_mainloop
         ld hl,_NVVIEW_HEXEDITOR_CURSORCOLOR
         ld b,1
         call drawfilecursor_sizeb_colorhl
+        ld de,24*256+79
+        SETXY_
 	
         YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GETKEY_ ;OS_GETKEYNOLANG
@@ -44,7 +46,7 @@ nvview_hexeditor_prfile_mainloop
         cp NOKEY
         jr nz,nvview_hexeditor_prfileq
         call nvview_hexeditor_panel
-        jr 1b;prwindow_waitkey_nokey
+        jr nvview_hexeditor_prfile_mainloop0
 nvview_hexeditor_prfileq
         cp key_redraw
         jr z,nvview_hexeditor_redrawloop

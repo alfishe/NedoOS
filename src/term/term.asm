@@ -7,6 +7,9 @@ RECODEINPUT=1
 
 STDINBUF_SZ=256
 
+HTMLTOPY=0
+HTMLHGT=25
+
 COLOR=7
 CURSORCOLOR=0x38
 
@@ -95,6 +98,11 @@ mainloop_afterkey
 unprint_cursor_color=$+1
         ld (hl),COLOR
 
+curmouseaddr=$+1
+        ld hl,killbuf_byte
+unprint_mousecursor_color=$+1
+        ld (hl),COLOR
+
 mainloop_afterredraw
         
 waitpid_id=$+1
@@ -118,8 +126,25 @@ waitpid_id=$+1
         add a,0x40 ;attr
         adc a,0
         ld l,a
-        ld a,(hl) ;из pgscrbuf_low
+        ld a,(hl) ;из pgscrbuf
         ld (unprint_cursor_color),a
+
+        call getmousexy
+         call getscrbuftop_a
+         add a,d ;0..24
+         ld h,a
+         ld a,e
+         or 0x80
+         rrca ;(x/2)+0x40 или 0xc0
+        add a,0x40 ;attr
+        adc a,0
+        ld l,a
+        ld a,(hl) ;из pgscrbuf
+        ld (unprint_mousecursor_color),a
+
+        call BDOS_countattraddr_mousecursor
+        ld (curmouseaddr),hl
+        ld (hl),CURSORCOLOR
 
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
@@ -144,35 +169,115 @@ cursortimelimit=$+1
 noprintcursor
 
 ;mainloop_afterkey
-        GET_KEY
-        or a ;cp NOKEY ;keylang==0?
+        GET_KEY ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
+        jp nz,mainloop_afternokey ;no focus
+
+        ;or a ;cp NOKEY ;keylang==0?
         ;jr nz,$+3
         ;cp c ;keynolang==0?
-        jr z,mainloop_afternokey
+        ;jp z,mainloop_afternokey
         cp key_redraw
-        push af
-        call z,redraw
-        pop af
-         cp key_pgup
-         jr z,term_pgup
+        jp z,term_redraw
+        ld b,a
+
+        ld a,l
+        and 0xf0
+control_imer_oldmousewheel=$+2
+        ld hx,0
+        ld (control_imer_oldmousewheel),a
+        sub hx
+        ;ld (mouse_scrollvalue),a
+        jr z,nowheelmove
+        jp m,term_pgdown
+        jp term_pgup
+nowheelmove
+        ;ld a,0
+        ;ld (mouse_scrollvalue),a ;default scrollvalue
+
+        ld a,b
+         ;cp key_pgup
+         ;jr z,term_pgup
+        or a
+        jr nz,term_sendchar        
+;no action? mouse coords change is also an action
+control_imer_oldmousecoords=$+1
+        ld bc,0
+        ld (control_imer_oldmousecoords),de
+        ld a,b
+        sub d
+        ld d,a
+        ld a,e
+        sub c
+        ld e,a
+        or d
+        jr z,nomousemove
+        call mousemove
+        jr sendmouseevent
+nomousemove
+        ld a,l ;mouse buttons
+oldmousebuttons=$+1
+        ld h,0
+        ld (oldmousebuttons),a
+        xor h
+        and 7
+        jr nz,sendmouseevent
+        jp mainloop_afterkey
+sendmouseevent
+;send mousemove event
+        push hl
+        ;call redraw_to_base
+        ld hl,stdoutbuf
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld (hl),'M'
+        inc hl
+        pop bc
+        ld a,c
+        ld b,1
+        rra
+        jr nc,sendmouseevent_buttons
+        inc b
+        rra
+        jr nc,sendmouseevent_buttons
+        inc b
+        rra
+        jr nc,sendmouseevent_buttons
+        ld b,0
+sendmouseevent_buttons
+        ld (hl),b
+        inc hl
+        call getmousexy
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        ld de,stdoutbuf
+        ld hl,6
+        call sendchars
+        jp mainloop_afterkey
+
+term_sendchar
+        ;call redraw_to_base
+
         cp key_esc
         jr z,term_esckey
         if RECODEINPUT
-        call sendchar
-        else
-        call sendchar_byte_a
-        endif
-        jr mainloop_afterkey
-term_esckey
-        if RECODEINPUT
-        call sendchar
-        ld a,key_esc
-        call sendchar
+        call sendkey
         else
         call sendchar_byte_a
         endif
         jp mainloop_afterkey
-        
+term_esckey
+        if RECODEINPUT
+        call sendchar_byte_a
+        ld a,key_esc
+        call sendchar_byte_a
+        else
+        call sendchar_byte_a
+        endif
+        jp mainloop_afterkey
+
 term_pgdown
         ld hl,redraw_scroll
         ld a,(hl)
@@ -180,7 +285,8 @@ term_pgdown
         jr z,$+3
         dec a
         ld (hl),a
-        jr term_pgup0redraw
+        call redraw
+        jp mainloop_afterredraw
 term_pgup
         ld hl,redraw_scroll
         ld a,(hl)
@@ -188,22 +294,23 @@ term_pgup
         jr z,$+3
         inc a
         ld (hl),a
-term_pgup0redraw
-        call redraw
-term_pgup0
-        YIELD
-        GET_KEY
-        or a
-        jr z,term_pgup0
-         cp key_pgup
-         jr z,term_pgup
-         cp key_pgdown
-         jr z,term_pgdown
-        ld a,0;24
-        ld (redraw_scroll),a
         call redraw
         jp mainloop_afterredraw
 
+term_redraw
+        call redraw_to_base
+        jp mainloop_afterredraw
+
+redraw_to_base
+        ld hl,redraw_scroll
+        inc (hl)
+        dec (hl)
+        ret z
+        ld (hl),0
+        push af
+        call redraw
+        pop af
+        ret
 redraw
 ;scrbuf состоит из строк длиной 256 байт
 ;каждая из них из 4 слоёв:
@@ -255,6 +362,11 @@ quit
         edup
         QUIT
 
+getmousexy
+mousexy=$+1
+        ld de,0
+        ret
+
 type_stdin
         ld de,stdinbuf
         ld hl,STDINBUF_SZ
@@ -268,6 +380,7 @@ stdinhandle=$+1
         ret z ;jr z,nostdinmsg;mainloop_afterkey
 
         push hl
+        call redraw_to_base
          OS_GETTIMER ;hlde=timer
          ld (lastsdtinmsgtimer),de
         ld a,(user_scr0_high) ;ok ;pgscr0_1
@@ -323,7 +436,7 @@ sendchar_num
         add a,'0'+10
         jr sendchar_byte_a
 
-sendchar
+sendkey
 ;key to stdout
         ;cp 0x80
         ;jr nc,sendchar_rustoutf8
@@ -357,19 +470,47 @@ sendchar
 sendchar_byte
         ld a,c
 sendchar_byte_a
+sendchar
+        ;cp 0x80
+        ;jr nc,sendchar_rustoutf8
+;sendchar_byte_a
         ld (stdoutbuf),a
-sendchar_repeat
         ld hl,1
         ld de,stdoutbuf
+sendchars
+;send chars to stdout (in: de=buf, hl=size, out: A=error)
+sendchars0
+        push de
+        push hl
 stdouthandle=$+1
         ld b,0
-        OS_WRITEHANDLE
-        ld a,h
-        or l
-        ret nz
-        YIELDKEEP
+        OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
+      ;push af
+      ;push hl
+      ;YIELDKEEP ;2158t
+      ;pop bc ;bytes actually written
+      ;pop af
+        ld b,h
+        ld c,l ;bytes actually written
+        pop hl
+        pop de
+         or a
+          ret nz ;error ;TODO обработать? а так пока просто избегаем зацикливания
+         sbc hl,bc ;datasize-byteswritten
+         ret z
+         ex de,hl
+         add hl,bc ;dataaddr+byteswritten
+         ex de,hl
+;hl=remaining data size
+;de=remaining data addr
+        push de
+        push hl
+        YIELDKEEP ;2158t
         call type_stdin
-        jr sendchar_repeat
+        pop hl
+        pop de
+        jr sendchars0
+
 
 term_prfsm
 ;a=char
@@ -432,8 +573,12 @@ term_prfsm_afterescbracket_nosemicolon
         cp '~'
         jr z,term_prfsm_afterescbracket_tilde
         ;cp 'A' ;A..D = up, down, right, left
+        cp 'B'
+        jp z,cursor_down
         cp 'C'
         jp z,cursor_right
+        cp 'D'
+        jp z,cursor_left
         ret
 term_prfsm_afterescbracket_tilde
         ;cp key_del
@@ -657,17 +802,114 @@ term_setinvisible
         ld a,0x5e ;"ld e,(hl)"
         ld (finvisible),a
         ret
-        
-BDOS_countattraddr
-        ;ld a,(pgscrbuf_low)
+
+MOUSEFACTOR=8
+mousemove
+;de=mouse delta
+;чтобы двигать не резко, надо отдельно хранить младшие части x,y (не отображаемые на экране)
+        ld hl,(mousexy)
+htmlcursorxylow=$+1
+        ld bc,0 ;bits 7..5 (for Y) 7..6 (for X), others=0
+        dup 3
+        sla b
+        rl h
+        edup        
+        ld a,h
+        add a,d
+        bit 7,d
+        jr z,html_mousemove_yplus
+        jr nc,html_mousemove_yminus_overflow
+        cp HTMLTOPY*MOUSEFACTOR
+        jr nc,html_mousemove_yq
+html_mousemove_yminus_overflow
+        ld a,HTMLTOPY*MOUSEFACTOR
+        jr html_mousemove_yq
+html_mousemove_yplus
+        jr c,html_mousemove_yplus_overflow
+        cp MOUSEFACTOR*(HTMLTOPY+HTMLHGT-1)
+        jr c,html_mousemove_yq
+html_mousemove_yplus_overflow
+        ld a,MOUSEFACTOR*(HTMLTOPY+HTMLHGT-1)
+html_mousemove_yq  
+        srl a
+        rr b
+        rra
+        rr b
+        rra
+        rr b
+        ld (mousexy+1),a
+
+        ld h,0
+        sla c
+        rl l
+        sla c
+        adc hl,hl
+        ld a,e
+        rla
+        sbc a,a
+        ld d,a
+        add hl,de
+        bit 7,e
+        jr z,html_mousemove_xplus
+        jr c,html_mousemove_xq
+        ld hl,0 ;ld a,HTMLTOPY*MOUSEFACTOR
+        jr html_mousemove_xq
+html_mousemove_xplus
+        ld de,MOUSEFACTOR/2*(80-1)
+        jr c,html_mousemove_xplus_overflow
+        ;or a
+        sbc hl,de
+        add hl,de
+        jr c,html_mousemove_xq
+html_mousemove_xplus_overflow
+        ex de,hl
+html_mousemove_xq
+        ld a,l
+        rr h
+        rra
+        rr c
+        rra
+        rr c
+        ld (mousexy),a
+
+        ld (htmlcursorxylow),bc
+        ret
+
+BDOS_countattraddr_mousecursor
         ld a,(user_scr0_low) ;ok
-        SETPG32KLOW ;attr ;TODO считывать из scrbuf!
+        SETPG32KLOW ;attr ;TODO убрать? считывать из scrbuf!
+        call getmousexy
+        ld a,d ;y
+        sub -0x87&0xff ;0xe1c0*4=0x8700
+        rra
+        ld h,a
+         ld a,0;16
+        rra
+        sra h
+        rra
+        ld l,e ;x
+        srl l
+        jr c,$+4
+        res 5,h
+        add a,l
+        ld l,a
+        ld a,h
+        xor 0x60 ;attr + 0x20
+        ld h,a
+         and 0x20
+        ret nz ;jr nz,$+3
+        inc l
+        ret
+
+BDOS_countattraddr
+        ld a,(user_scr0_low) ;ok
+        SETPG32KLOW ;attr ;TODO убрать? считывать из scrbuf!
         ld hl,(pr_textmode_curaddr)
         ld a,h
         xor 0x60 ;attr + 0x20
         ld h,a
          and 0x20
-        jr nz,$+3
+        ret nz ;jr nz,$+3
         inc l
         ret
 
@@ -804,7 +1046,7 @@ pr_textmode_curcolor=$+1
         ;SETPG32KLOW
 finvisible=$
         nop ;/ld e,(hl)
-writee1=$+1
+writee1=$
         ld (hl),e
 
         ld a,h
@@ -813,7 +1055,7 @@ writee1=$+1
         and 0x20
         jr nz,$+3
         inc l
-writed1=$+1
+writed1=$
         ld (hl),d
 
         set 6,h
@@ -831,13 +1073,13 @@ pr_buf_curaddr=$+1
 pgscrbuf=$+1
          ld a,0
          SETPG16K ;TODO вне prchar
-writee2=$+1
+writee2=$
          ld (hl),e
         ld a,l
         add a,0x40 ;attr
         adc a,0
         ld l,a
-writed2=$+1
+writed2=$
          ld (hl),d
         add a,0x40 ;text (next)
         ld l,a
@@ -1185,8 +1427,11 @@ cmd_filename
 tpipename
         db "z:",0
 
-stdoutbuf
+killbuf_byte
         db 0
+
+stdoutbuf
+        ds 6
 
 stdinbuf
         ds STDINBUF_SZ

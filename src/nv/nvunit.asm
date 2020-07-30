@@ -687,12 +687,12 @@ drawfilecursor_sizeb_colorhl
         push de
 	call nv_setxy
         pop de
-        OS_SETXY
-	OS_GETATTR
+        ;OS_SETXY
+	;OS_GETATTR
 	;pop de
         pop bc
          ;jr $
-	 push af ;oldcolor
+	 ;push af ;oldcolor
         push bc
 drawfilecursor_color=$+1
 	ld de,_FILECURSORCOLOR
@@ -717,10 +717,10 @@ drawfilecursor_color=$+1
 ;	djnz drawfilecursor0
 
         call setcolor_visible 
-         pop af ;oldcolor
-         and 7
-         ld l,a
-         ld h,4 ;blue
+         ;pop af ;oldcolor
+         ;and 7
+         ;ld l,a
+         ;ld h,4 ;blue
 	ret
 
 nv_openfcb

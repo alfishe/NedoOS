@@ -452,6 +452,8 @@ prdirfile
 	;ld a,0xb3 ;'|'
         ;PRCHAR_
          inc de
+         inc de
+         inc de
 	;ld de,(nvcolor)
 	;call nv_setcolor
 ;        pop ix
@@ -467,6 +469,8 @@ prdirfile
 	;call nv_setcolor
 	;ld a,0xb3 ;'|'
         ;PRCHAR_
+         inc de
+         inc de
          inc de
 	;ld de,(nvcolor)
 	;call nv_setcolor
@@ -542,7 +546,8 @@ prNNcmd
         ret
 
 filelinebuf
-        db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
+        ;db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
+        db "filename.ext",0x1b,"[C1234567890",0x1b,"[CYY-MM-DD hh:mm"
 filelinebuf_sz=$-filelinebuf
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
