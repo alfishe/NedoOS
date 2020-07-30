@@ -1,7 +1,7 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
-;–ø—Ä–∏ –∑–∞–∫—Ä—ã—Ç–∏–∏ cmd term –¥–æ–ª–∂–µ–Ω –∑–∞–∫—Ä—ã—Ç—å—Å—è
+;Ø‡® ß†™‡Î‚®® cmd term §Æ´¶•≠ ß†™‡Î‚Ï·Ô
 
 RECODEINPUT=1
 
@@ -22,6 +22,8 @@ begin
         ld sp,0x4000
         ld e,6 ;textmode
         OS_SETGFX
+        ld de,ansipal
+        OS_SETPAL
 	;OS_GETMAINPAGES ;dehl
 	;push de
 	;push hl
@@ -61,13 +63,13 @@ begin
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
 
-;TODO –∑–∞–ø—É—Å–∫–∞—Ç—å —Ñ–∞–π–ª, —É–∫–∞–∑–∞–Ω–Ω—ã–π –≤ –ø–∞—Ä–∞–º–µ—Ç—Ä–µ (–ø–æ —É–º–æ–ª—á–∞–Ω–∏—é cmd, –∏—Å–∫–∞—Ç—å –≤ bin)
+;TODO ß†Ø„·™†‚Ï ‰†©´, „™†ß†≠≠Î© ¢ Ø†‡†¨•‚‡• (ØÆ „¨Æ´Á†≠®Ó cmd, ®·™†‚Ï ¢ bin)
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
         jr nz,execcmd_error
         
-        call readapp ;–¥–µ–ª–∞–µ—Ç CLOSE
+        call readapp ;§•´†•‚ CLOSE
         
         push af
         ld b,a
@@ -97,10 +99,14 @@ mainloop_afterredraw
         
 waitpid_id=$+1
         ld e,0
-        OS_WAITPID ;TODO –ø—Ä–æ–≤–µ—Ä—è—Ç—å, —á—Ç–æ –ø–∞–π–ø —Å —Ç–æ–π —Å—Ç–æ—Ä–æ–Ω—ã –Ω–µ –∑–∞–∫—Ä—ã—Ç
+        OS_WAITPID ;TODO Ø‡Æ¢•‡Ô‚Ï, Á‚Æ Ø†©Ø · ‚Æ© ·‚Æ‡Æ≠Î ≠• ß†™‡Î‚
         or a
         jp z,quit
         
+        call type_stdin ;stdin to screen
+        YIELDKEEP
+        call type_stdin ;stdin to screen
+        YIELDKEEP
         call type_stdin ;stdin to screen
         YIELDKEEP
         call type_stdin ;stdin to screen
@@ -112,7 +118,7 @@ waitpid_id=$+1
         add a,0x40 ;attr
         adc a,0
         ld l,a
-        ld a,(hl) ;–∏–∑ pgscrbuf_low
+        ld a,(hl) ;®ß pgscrbuf_low
         ld (unprint_cursor_color),a
 
 ;if long time no message from stdin, print cursor
@@ -165,12 +171,12 @@ term_esckey
         else
         call sendchar_byte_a
         endif
-        jr mainloop_afterkey
+        jp mainloop_afterkey
         
 term_pgdown
         ld hl,redraw_scroll
         ld a,(hl)
-        cp 24
+        cp 0;24
         jr z,$+3
         dec a
         ld (hl),a
@@ -178,7 +184,7 @@ term_pgdown
 term_pgup
         ld hl,redraw_scroll
         ld a,(hl)
-        cp 63
+        cp 63 -24
         jr z,$+3
         inc a
         ld (hl),a
@@ -193,18 +199,18 @@ term_pgup0
          jr z,term_pgup
          cp key_pgdown
          jr z,term_pgdown
-        ld a,24
+        ld a,0;24
         ld (redraw_scroll),a
         call redraw
         jp mainloop_afterredraw
 
 redraw
-;scrbuf —Å–æ—Å—Ç–æ–∏—Ç –∏–∑ —Å—Ç—Ä–æ–∫ –¥–ª–∏–Ω–æ–π 256 –±–∞–π—Ç
-;–∫–∞–∂–¥–∞—è –∏–∑ –Ω–∏—Ö –∏–∑ 4 —Å–ª–æ—ë–≤:
-;+0x40: –∞–Ω–∞–ª–æ–≥ +0x4000 (text0) ;1
-;+0x80: –∞–Ω–∞–ª–æ–≥ +0x2000 (attr0) ;3
-;+0xc0: –∞–Ω–∞–ª–æ–≥ +0x6000 (text1) ;2
-;+0x01: –∞–Ω–∞–ª–æ–≥ +0x0001 (attr1) ;4
+;scrbuf ·Æ·‚Æ®‚ ®ß ·‚‡Æ™ §´®≠Æ© 256 °†©‚
+;™†¶§†Ô ®ß ≠®Â ®ß 4 ·´ÆÒ¢:
+;+0x40: †≠†´Æ£ +0x4000 (text0) ;1
+;+0x80: †≠†´Æ£ +0x2000 (attr0) ;3
+;+0xc0: †≠†´Æ£ +0x6000 (text1) ;2
+;+0x01: †≠†´Æ£ +0x0001 (attr1) ;4
         ld a,(pgscrbuf)
         SETPG16K
         BDOSSETPGSSCR
@@ -239,7 +245,7 @@ redrawlines0
 quit
 ;cmd closed!!!
 
-        dup 2 ;close twice - as stdin and as stdout! –Ω–∞ —Å–ª—É—á–∞–π, –µ—Å–ª–∏ –∫–ª–∏–µ–Ω—Ç –Ω–µ –∑–∞–∫—Ä—ã–ª —É —Å–µ–±—è
+        dup 2 ;close twice - as stdin and as stdout! ≠† ·´„Á†©, •·´® ™´®•≠‚ ≠• ß†™‡Î´ „ ·•°Ô
         ld a,(stdinhandle)
         ld b,a
         OS_CLOSEHANDLE
@@ -381,11 +387,12 @@ term_prfsm_curstate=$+1
 term_prfsm_nosingle
         djnz term_prfsm_noafteresc
         ;cp '['
-        ;jr nz,term_prfsm_prchar ;—Å—á–∏—Ç–∞–µ–º, —á—Ç–æ –ø–æ—Å–ª–µ esc –≤—Å–µ–≥–¥–∞ [
+        ;jr nz,term_prfsm_prchar ;·Á®‚†•¨, Á‚Æ ØÆ·´• esc ¢·•£§† [
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESCBRACKET
         xor a
         ld (term_prfsm_curnumber),a
+        ld (term_prfsm_curnumber1),a
         ret
 term_prfsm_noafteresc
         sub '0'
@@ -417,10 +424,16 @@ term_prfsm_afterescbracket_nosemicolon
         jr z,term_prfsm_afterescbracket_H
         cp 'm'
         jr z,term_prfsm_afterescbracket_m
+        cp 'd' ;NON-STANDARD!
+        jr z,term_prfsm_afterescbracket_scrolldown
+        cp 'u' ;NON-STANDARD!
+        jr z,term_prfsm_afterescbracket_scrollup
 ;TODO J etc.
         cp '~'
         jr z,term_prfsm_afterescbracket_tilde
         ;cp 'A' ;A..D = up, down, right, left
+        cp 'C'
+        jp z,cursor_right
         ret
 term_prfsm_afterescbracket_tilde
         ;cp key_del
@@ -444,7 +457,7 @@ term_prfsm_afterescbracket_H
         dec a
         ld e,a
         call BDOS_setxy
-        ;jp forcereprintcursor ;–Ω–µ –ø—Ä–æ–∫–∞—Ç–∏—Ç? –≤ –Ω–∞—á–∞–ª–µ –ø–µ—á–∞—Ç–∏ cmd —Ç–æ–∂–µ setxy
+        ;jp forcereprintcursor ;≠• Ø‡Æ™†‚®‚? ¢ ≠†Á†´• Ø•Á†‚® cmd ‚Æ¶• setxy
 forcereprintcursor
         ;push de
         ;push hl
@@ -465,7 +478,7 @@ term_prfsm_afterescbracket_m
 ;Ps = 33  Set foreground color to Yellow.
 ;Ps = 34  Set foreground color to Blue.
 ;Ps = 35  Set foreground color to Magenta.
-;Ps = 36  Set foreground color to Cyan.
+;Ps = 36  Set foreground color to Cyan. (Grey?)
 ;Ps = 37  Set foreground color to White.
 ;Ps = 39  Set foreground color to default, ECMA-48 3rd.
 ;Ps = 40  Set background color to Black.
@@ -477,63 +490,178 @@ term_prfsm_afterescbracket_m
 ;Ps = 46  Set background color to Cyan.
 ;Ps = 47  Set background color to White.
 ;Ps = 49  Set background color to default, ECMA-48 3rd.
-;1  -  BRIGHT ON: –í–∫–ª—é—á–µ–Ω–∏–µ —è—Ä–∫–æ—Å—Ç–∏ INK. (Bold, VT100.)
-;21  -  BRIGHT OFF: –í—ã–∫–ª—é—á–µ–Ω–∏–µ —è—Ä–∫–æ—Å—Ç–∏ INK. (Doubly-underlined, ECMA-48 3rd.)
+;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300.
+;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300.
+;Assume that xterm's resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
+;Ps = 90  Set foreground color to Black.
+;Ps = 91  Set foreground color to Red.
+;Ps = 92  Set foreground color to Green.
+;Ps = 93  Set foreground color to Yellow.
+;Ps = 94  Set foreground color to Blue.
+;Ps = 95  Set foreground color to Magenta.
+;Ps = 96  Set foreground color to Cyan.
+;Ps = 97  Set foreground color to White.
+;TODO 1  -  BRIGHT ON: Ç™´ÓÁ•≠®• Ô‡™Æ·‚® INK. (Bold, VT100.)
+;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: ÇÎ™´ÓÁ•≠®• Ô‡™Æ·‚® INK. (Doubly-underlined, ECMA-48 3rd.)]
+        ld a,(pr_textmode_curcolor)
+        ld e,a
         ld a,(term_prfsm_curnumber)
-        sub 30
+        call term_setcolorpp
+        ld a,(term_prfsm_curnumber1)
+        call term_setcolorpp
+        ld a,e
         ld (pr_textmode_curcolor),a
         ret
 
-        if 1==0
-BDOS_scroll_prepare
+term_prfsm_afterescbracket_scrolldown
+        ld a,(term_prfsm_curnumber1)
+        ld e,a ;xtop
+        ld a,(term_prfsm_curnumber)
+        ld d,a ;ytop
+        ld hl,21*256 + 40 ;TODO Ø•‡•§†¢†‚Ï
+        push de
+        push hl
+        OS_SCROLLDOWN ;TODO ¢ scrbuf ‚Æ¶•
+        ld a,(pgscrbuf)
+        SETPG16K
+        pop hl
+        pop de        
+        ld a,d
+        add a,h
+        dec a
+        ld d,a ;ybottom
+        call BDOS_scrollbuf_prepare
+BDOS_scrolldown0
+        push bc
+        ld d,h
+        ld e,l
+        ;ld bc,-64
+        ;add hl,bc
+        dec h
+        call BDOS_scrollpageline_bufwindow
+        set 6,l ;text
+        pop bc
+        djnz BDOS_scrolldown0
+        ret
+        
+term_prfsm_afterescbracket_scrollup
+        ld a,(term_prfsm_curnumber1)
+        ld e,a ;xtop
+        ld a,(term_prfsm_curnumber)
+        ld d,a ;ytop
+        ld hl,21*256 + 40 ;TODO Ø•‡•§†¢†‚Ï
+        push de
+        push hl
+        OS_SCROLLUP ;TODO ¢ scrbuf ‚Æ¶•
+        ld a,(pgscrbuf)
+        SETPG16K
+        pop hl
+        pop de
+        call BDOS_scrollbuf_prepare
+BDOS_scrollup0
+        push bc
+        ld d,h
+        ld e,l
+        ;ld bc,64
+        ;add hl,bc
+        inc h
+        call BDOS_scrollpageline_bufwindow
+        set 6,l ;text
+        pop bc
+        djnz BDOS_scrollup0
+        ret
+
+BDOS_scrollbuf_prepare
         ld a,l
         srl a
         ld (BDOS_scrollpagelinelayer_wid),a
         ld b,h
         dec b
-BDOS_countxy
-;keeps bc
-        ld a,d ;y
-        sub -0x87&0xff ;0xe1c0*4=0x8700
-        rra
-        ld h,a
-         ld a,0;16
-        rra
-        sra h
-        rra
-        ld l,e ;x
-        srl l
-        jr c,$+4
-        res 5,h
-        add a,l
-        ld l,a
+         call getscrbuftop_a
+         add a,d ;0..24
+         ld h,a
+         ld a,e
+         or 0x80
+         rrca ;(x/2)+0x40 ®´® 0xc0
+         ld l,a
         ret
 
-BDOS_getxy
-;out: de=yx ;GET CURSOR POSITION
-        ld hl,(pr_textmode_curaddr)
-        ld a,h
-        rla
-        rla
-        rla ;bit5
-        ld a,l
-        rla
-        and 0x7f
-        ld e,a ;x
-        add hl,hl
-        add hl,hl ;h=y*4 + const + n*0x80
-        ld a,h
-        sub 0x87 ;0xe1c0*4=0x8700
-        and 0x1f
-        ld d,a ;y
-        ;xor a ;success
+BDOS_scrollpageline_bufwindow
+        or a
+        call BDOS_scrollpageline_bufwindowlayers ;text
+        res 6,l ;attr
+        res 6,e ;attr
+        scf
+BDOS_scrollpageline_bufwindowlayers
+        push af
+        push de
+        push hl
+        set 7,l
+        set 7,e
+        or a
+        call BDOS_scrollpageline_bufwindowlayer
+        pop hl
+        pop de
+        pop af
+BDOS_scrollpageline_bufwindowlayer
+        push de
+        push hl
+        jr nc,$+4
+        inc hl
+        inc de
+BDOS_scrollpagelinelayer_wid=$+1
+        ld bc,39;40
+        ldir
+        pop hl
+        pop de
         ret
-        endif
 
+term_setcolorpp
+        cp 8
+        jr z,term_setinvisible
+        ret c
+        cp 28
+        jr z,term_setvisible
+        cp 90
+        jr c,term_nosetbrightink
+        sub 90-64 ;ink + bright
+        xor e
+        and 0x47
+        xor e
+        ld e,a
+        ret
+term_nosetbrightink
+        cp 40
+        jr c,term_nosetpaper
+        sub 40 ;paper
+        add a,a
+        add a,a
+        add a,a
+        xor e
+        and 0x38
+        xor e
+        ld e,a
+        ret
+term_nosetpaper
+        sub 30 ;ink
+        xor e
+        and 0x47
+        xor e
+        ld e,a
+        ret
+term_setvisible
+        xor a
+        ld (finvisible),a
+        ret
+term_setinvisible
+        ld a,0x5e ;"ld e,(hl)"
+        ld (finvisible),a
+        ret
+        
 BDOS_countattraddr
         ;ld a,(pgscrbuf_low)
         ld a,(user_scr0_low) ;ok
-        SETPG32KLOW ;attr ;TODO —Å—á–∏—Ç—ã–≤–∞—Ç—å –∏–∑ scrbuf!
+        SETPG32KLOW ;attr ;TODO ·Á®‚Î¢†‚Ï ®ß scrbuf!
         ld hl,(pr_textmode_curaddr)
         ld a,h
         xor 0x60 ;attr + 0x20
@@ -543,28 +671,11 @@ BDOS_countattraddr
         inc l
         ret
 
-        if 1==0
-BDOS_prattr
-;e=color byte
-        call BDOS_countattraddr
-        ld (hl),e
-         
-        ld a,(pgscrbuf) ;ok
-        SETPG16K
-         ld hl,(pr_buf_curaddr)
-        ld a,l
-        add a,0x40 ;attr
-        adc a,0
-        ld l,a
-        ld (hl),e
-        ret
-        endif
-
 getscrbuftop_a
-        ld hl,(pr_buf_curaddr)
+        ld hl,(pr_buf_curtopaddr)
         ld a,h
 redraw_scroll=$+1
-        sub 24
+        sub 0;24
          cp 0x40
          jr nc,$+4
          ld a,0x40 ;TODO prevpg
@@ -578,7 +689,7 @@ BDOS_setxy
          ld h,a
          ld a,e
          or 0x80
-         rrca ;(x/2)+0x40 –∏–ª–∏ 0xc0
+         rrca ;(x/2)+0x40 ®´® 0xc0
          ld l,a
          ld (pr_buf_curaddr),hl
         
@@ -608,12 +719,19 @@ BDOS_prchar_controlcode
         ;jr z,BDOS_prchar_cr
 BDOS_prchar_cr
          ld a,0x40
-         ld (pr_buf_curaddr),a
+         ld (pr_buf_curaddr),a ;x=0
         ld a,l
         and 0xc0
         ld l,a
         res 5,h
         jr BDOS_settextcuraddr
+        
+buftopaddr_down
+pr_buf_curtopaddr=$+1
+        ld hl,0x4040
+        inc h
+        ld (pr_buf_curtopaddr),hl
+        ret
         
 BDOS_prchar_lf
         push hl
@@ -621,16 +739,54 @@ BDOS_prchar_lf
         inc h
         call m,scrollscrbuf
         ld (pr_buf_curaddr),hl
+        ;call buftopaddr_down
         pop hl
         
         ld a,l
         add a,0x40
         ld l,a
         jr nc,BDOS_settextcuraddr
-        jr BDOS_prchar_lf_q
+        jp BDOS_prchar_lf_q
 
+cursor_right
+        xor a
+        ld (writed1),a
+        ld (writed2),a
+        ld (writee1),a
+        ld (writee2),a
+        ld a,' '
+        call BDOS_prchar_a
+        ld a,0x72 ;"ld (hl),d"
+        ld (writed1),a
+        ld (writed2),a
+        ld a,0x73 ;"ld (hl),e"
+        ld (writee1),a
+        ld (writee2),a
+        ret
+
+cursor_left
+;TODO · Ø•‡•ÂÆ§Æ¨ ≠† Ø‡•§Î§„È„Ó ·‚‡Æ™„
+        ld hl,(pr_textmode_curaddr)
+        ld a,h
+        xor 0x20 ;attr + 0x20
+        ld h,a
+        and 0x20
+        jr z,$+3
+        dec l
+        ld (pr_textmode_curaddr),hl
+        ld hl,(pr_buf_curaddr)
+        ld a,l
+        sub 0x40
+        sub 0x40
+        sbc a,0
+        ld l,a
+        ld (pr_buf_curaddr),hl
+        ret
+
+cursor_down
+        ld a,0x0a ;lf
 BDOS_prchar_a
-;–ø–æ—Ä—Ç–∏—Ç —Ç–æ–ª—å–∫–æ 0xc000+, –Ω–æ —Å–∞–º–∞ –≤–æ—Å—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ—Ç —Ç–∞–º pgkillable (–¥–ª—è –±—ã—Å—Ç—Ä–æ–≥–æ –≤—ã–∑–æ–≤–∞ —á–µ—Ä–µ–∑ rst)
+;ØÆ‡‚®‚ ‚Æ´Ï™Æ 0xc000+, ≠Æ ·†¨† ¢Æ··‚†≠†¢´®¢†•‚ ‚†¨ pgkillable (§´Ô °Î·‚‡Æ£Æ ¢ÎßÆ¢† Á•‡•ß rst)
 pr_textmode_curaddr=$+1
         ld hl,0xc1c0
         cp 0x0e
@@ -646,6 +802,9 @@ pr_textmode_curcolor=$+1
         ;SETPG32KHIGH
         ;ld a,(user_scr0_low) ;ok ;pgscr0_0
         ;SETPG32KLOW
+finvisible=$
+        nop ;/ld e,(hl)
+writee1=$+1
         ld (hl),e
 
         ld a,h
@@ -654,29 +813,31 @@ pr_textmode_curcolor=$+1
         and 0x20
         jr nz,$+3
         inc l
-
+writed1=$+1
         ld (hl),d
 
         set 6,h
         ld (pr_textmode_curaddr),hl
 
-;scrbuf —Å–æ—Å—Ç–æ–∏—Ç –∏–∑ —Å—Ç—Ä–æ–∫ –¥–ª–∏–Ω–æ–π 256 –±–∞–π—Ç
-;–∫–∞–∂–¥–∞—è –∏–∑ –Ω–∏—Ö –∏–∑ 4 —Å–ª–æ—ë–≤:
-;+0x40: –∞–Ω–∞–ª–æ–≥ +0x4000 (text0)
-;+0x80: –∞–Ω–∞–ª–æ–≥ +0x2000 (attr0)
-;+0xc0: –∞–Ω–∞–ª–æ–≥ +0x6000 (text1)
-;+0x01: –∞–Ω–∞–ª–æ–≥ +0x0001 (attr1)
+;scrbuf ·Æ·‚Æ®‚ ®ß ·‚‡Æ™ §´®≠Æ© 256 °†©‚
+;™†¶§†Ô ®ß ≠®Â ®ß 4 ·´ÆÒ¢:
+;+0x40: †≠†´Æ£ +0x4000 (text0)
+;+0x80: †≠†´Æ£ +0x2000 (attr0)
+;+0xc0: †≠†´Æ£ +0x6000 (text1)
+;+0x01: †≠†´Æ£ +0x0001 (attr1)
 
 pr_buf_curaddr=$+1
         ld hl,0x4000+0x40 ;text0
 pgscrbuf=$+1
          ld a,0
-         SETPG16K ;TODO –≤–Ω–µ prchar
+         SETPG16K ;TODO ¢≠• prchar
+writee2=$+1
          ld (hl),e
         ld a,l
         add a,0x40 ;attr
         adc a,0
         ld l,a
+writed2=$+1
          ld (hl),d
         add a,0x40 ;text (next)
         ld l,a
@@ -684,28 +845,30 @@ pgscrbuf=$+1
 
         and 0x3f
         cp 80/2
-        ret nz ;–Ω–µ—Ç –ø–µ—Ä–µ–Ω–æ—Å–∞ —Å—Ç—Ä–æ–∫–∏
-        
+        ret nz ;≠•‚ Ø•‡•≠Æ·† ·‚‡Æ™®
+        ld l,0x40
         inc h
         call m,scrollscrbuf
         ld (pr_buf_curaddr),hl
+        ;call buftopaddr_down
         
         ld hl,(pr_textmode_curaddr)
         ld a,l
         and 0xc0
         add a,0x40
         ld l,a
-        jr nc,BDOS_settextcuraddr
+        jp nc,BDOS_settextcuraddr
 BDOS_prchar_lf_q
         inc h
         bit 3,h
-        jr z,BDOS_settextcuraddr ;–Ω–µ—Ç –≤—ã—Ö–æ–¥–∞ –∑–∞ –ø–æ—Å–ª–µ–¥–Ω—é—é —Å—Ç—Ä–æ–∫—É
+        jp z,BDOS_settextcuraddr ;≠•‚ ¢ÎÂÆ§† ß† ØÆ·´•§≠ÓÓ ·‚‡Æ™„
 BDOS_scrolllock0
         ld a,0xfe
         in a,(0xfe)
         rra ;Caps Shift
         jr nc,BDOS_scrolllock0
 ;scroll+clear bottom line
+        call buftopaddr_down
         call BDOS_scrollpage ;attr
         ;ld a,(pgscrbuf_high) ;ok ;pgscr0_0 ;text
         ;SETPG32KHIGH ;call sys_setpgc000
@@ -762,6 +925,8 @@ scrollscrbuf0
         call BDOS_scrollpage_cllinelayer
         ld hl,0x7f80 ;attr
         call BDOS_scrollpage_cllinelayer
+        ld hl,pr_buf_curtopaddr+1
+        dec (hl) ;compensate shift
         pop hl
         ret
 
@@ -908,8 +1073,8 @@ readapp
         ld a,b
         ld (curhandle),a
         
-        OS_NEWAPP ;–¥–ª—è –ø–µ—Ä–≤–æ–π —Å–æ–∑–¥–∞–≤–∞–µ–º–æ–π –∑–∞–¥–∞—á–∏ –±—É–¥—É—Ç —Å–æ–∑–¥–∞–Ω—ã –ø–µ—Ä–≤—ã–µ –¥–≤–∞ –ø–∞–π–ø–∞ –∏ –ø–æ–¥–∫–ª—é—á–µ–Ω—ã
-;dehl=–Ω–æ–º–µ—Ä–∞ —Å—Ç—Ä–∞–Ω–∏—Ü –≤ 0000,4000,8000,c000 –Ω–æ–≤–æ–≥–æ –ø—Ä–∏–ª–æ–∂–µ–Ω–∏—è, b=id, a=error
+        OS_NEWAPP ;§´Ô Ø•‡¢Æ© ·Æß§†¢†•¨Æ© ß†§†Á® °„§„‚ ·Æß§†≠Î Ø•‡¢Î• §¢† Ø†©Ø† ® ØÆ§™´ÓÁ•≠Î
+;dehl=≠Æ¨•‡† ·‚‡†≠®Ê ¢ 0000,4000,8000,c000 ≠Æ¢Æ£Æ Ø‡®´Æ¶•≠®Ô, b=id, a=error
         push bc ;b=id
 
         ld a,d
@@ -918,7 +1083,7 @@ readapp
         push hl
         ld hl,COMMANDLINE ;command line
         call skipword
-        call skipspaces ;–ø—Ä–æ–ø—É—Å—Ç–∏–ª–∏ –ø–µ—Ä–≤–æ–µ —Å–ª–æ–≤–æ (—Ç–∞–º –±—ã–ª–æ term.com, –∞ –¥–∞–ª—å—à–µ, –Ω–∞–ø—Ä–∏–º–µ—Ä, cmd.com autoexec.bat)
+        call skipspaces ;Ø‡ÆØ„·‚®´® Ø•‡¢Æ• ·´Æ¢Æ (‚†¨ °Î´Æ term.com, † §†´ÏË•, ≠†Ø‡®¨•‡, cmd.com autoexec.bat)
         ld de,0xc080
         ld bc,128  
         ldir ;command line
@@ -1003,6 +1168,11 @@ skipspaces
         inc hl
         jr skipspaces
 
+ansipal
+	;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+	;dw 0x1f1f,0x1e1e,0x1d1d,0x1c1c,0x0f0f,0x0e0e,0x0d0d,0x0c0c
+	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
+	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
 
 term_prfsm_curnumber
          db 0

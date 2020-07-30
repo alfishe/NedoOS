@@ -725,7 +725,7 @@ sys_quit
         cp e
         jr nz,sys_quit_nomuzcall
        ld hl,sys_reter
-       ld (muzcall),hl
+       ld (muzcall),hl ;есть в delapppages тоже!!! TODO выбросить?
 sys_quit_nomuzcall
         call BDOS_delapppages
         jp BDOS_yield_q ;переходим на какую-нибудь задачу

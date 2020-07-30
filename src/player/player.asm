@@ -9,9 +9,14 @@ cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         ld e,6 ;textmode
         OS_SETGFX
+        ;call initstdio
+
+;TODO найти копию себя в памяти и закрыть её
+;а как заглушить музыку, если не опрашивать клаву?
+;если опрашивать, то нужен терминал
+;можно было бы в nv.ext прописать cmd.com start term.com player.com, но такие конструкции пока не поддержаны ни в nv, ни в term
+;поэтому пока без терминала
         
-        ;ld e,COLOR
-        ;OS_CLS
 	OS_GETMAINPAGES
 	ld a,e
 	ld (musicpage),a 
@@ -67,6 +72,8 @@ musicpage=$+1
          OS_SETMUSIC 
          
 mainloopredraw
+        ld e,COLOR
+        OS_CLS
 filenameaddr=$+1
         ld hl,0
         call prtext
@@ -81,8 +88,8 @@ mainloop
         ;call player
 	;ei
         GET_KEY
-        cp key_redraw
-        jr z,mainloopredraw
+      cp key_redraw
+      jr z,mainloopredraw
         ;or a ;cp NOKEY ;keylang==0?
         ;jr nz,$+2+1+2
         ;cp c ;keynolang==0?
@@ -134,6 +141,8 @@ prtext0
 ;oldtimer
 ;        dw 0
 
+        ;include "../_sdk/stdio.asm"
+
         ;ds 0x4000-$
 wasplayer
         disp 0x4000
@@ -156,7 +165,6 @@ muter
         call z,tfmshut
         ret
 
-        ;include "../_sdk/pt3play.i"
         include "ptsplay.asm"
         include "tfmplay.asm"
         ent

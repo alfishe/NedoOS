@@ -3,7 +3,7 @@
 ;receivechar (macro GETCHAR_) - read char from stdin (out: A=char, CY=error)
 ;receivekey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;yieldgetkeyloop - wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
-;setcolor (macro SETCOLOR_) - set color attribute (in: A=attribute=0bPIpppiii)
+;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
 ;setink
 ;setxy (macro SETXY_) - set cursor position (in: de=YX, top left is 0;0)
 ;sendchar (macro PRCHAR_) - send char to stdout (in: A=char)
@@ -41,8 +41,10 @@ yieldgetkey_afteryield
          ccf ;no error
         ret
 
+;последовательности слать одним куском!
+
 setcolor
-;set color attribute (in: A=attribute=0bPIpppiii)
+;set color attribute (in: d=paper, e=ink)
 ;CSI Pm m Character Attributes (SGR)
 ;Ps = 30  Set foreground color to Black.
 ;Ps = 31  Set foreground color to Red.
@@ -50,7 +52,7 @@ setcolor
 ;Ps = 33  Set foreground color to Yellow.
 ;Ps = 34  Set foreground color to Blue.
 ;Ps = 35  Set foreground color to Magenta.
-;Ps = 36  Set foreground color to Cyan.
+;Ps = 36  Set foreground color to Cyan. (Grey?)
 ;Ps = 37  Set foreground color to White.
 ;Ps = 39  Set foreground color to default, ECMA-48 3rd.
 ;Ps = 40  Set background color to Black.
@@ -64,40 +66,112 @@ setcolor
 ;Ps = 49  Set background color to default, ECMA-48 3rd.
 ;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300.
 ;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300.
-;1  -  BRIGHT ON: ¬ключение €ркости INK. (Bold, VT100.)
-;21  -  BRIGHT OFF: ¬ыключение €ркости INK. (Doubly-underlined, ECMA-48 3rd.)
-        push af
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop af
-        and 7
-        add a,30 ;TODO paper, bright
+;Assume that xtermТs resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
+;Ps = 90  Set foreground color to Black.
+;Ps = 91  Set foreground color to Red.
+;Ps = 92  Set foreground color to Green.
+;Ps = 93  Set foreground color to Yellow.
+;Ps = 94  Set foreground color to Blue.
+;Ps = 95  Set foreground color to Magenta.
+;Ps = 96  Set foreground color to Cyan.
+;Ps = 97  Set foreground color to White.
+;TODO 1  -  BRIGHT ON: ¬ключение €ркости INK. (Bold, VT100.)
+;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: ¬ыключение €ркости INK. (Doubly-underlined, ECMA-48 3rd.)]
+        ld hl,stdoutbuf
+       push hl
+        ;push de
+        ;ld a,0x1b
+        ;call sendchar_byte_a
+        ld (hl),0x1b
+        inc hl
+        ;ld a,'['
+        ;call sendchar_byte_a
+        ld (hl),'['
+        inc hl
+        ;pop de
+        ;push de
+        ld a,e ;a=ink
+        cp 8
+        jr c,$+4
+        add a,90-30-8
+        add a,30
         call sendchar_num
-        ld a,'m'
-        jp sendchar_byte_a
+        ;ld a,';'
+        ;call sendchar_byte_a
+        ld (hl),';'
+        inc hl
+        ;pop de
+        ld a,d ;a=paper
+        and 7
+        add a,40
+setcolorq
+        call sendchar_num
+        ;ld a,'m'
+        ;call sendchar_byte_a
+        ld (hl),'m'
+setcolorqq
+        inc hl
+       pop de
+       or a
+       sbc hl,de ;de=buf, hl=size
+        jp sendchars
 
 setcolor_invisible
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
         ld a,8
-        call sendchar_num
-        ld a,'m'
-        jp sendchar_byte_a
+        jr setcolorq
         
 setcolor_visible
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
         ld a,28
-        call sendchar_num
-        ld a,'m'
-        jp sendchar_byte_a
+        jr setcolorq
 
+scrolldown
+;de=topyx, hl=hgt,wid
+;x, wid even
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld a,e ;topx
+        call sendchar_num
+        ld (hl),';'
+        inc hl
+        ld a,d ;topy
+        call sendchar_num
+        ld (hl),'d' ;NON-STANDARD!!!
+        jr setcolorqq
+        
+scrollup
+;de=topyx, hl=hgt,wid
+;x, wid even
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld a,e ;topx
+        call sendchar_num
+        ld (hl),';'
+        inc hl
+        ld a,d ;topy
+        call sendchar_num
+        ld (hl),'u' ;NON-STANDARD!!!
+        jr setcolorqq
+        
 clearterm
         ld b,24
 clearterm0
@@ -117,24 +191,33 @@ clearterm_data
 
 setxy
 ;set cursor position (in: de=YX, top left is 0;0)
-        push de
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
-        pop de
-        push de
-        ld a,d
+        ld hl,stdoutbuf
+       push hl
+        ;push de
+        ;ld a,0x1b
+        ;call sendchar_byte_a
+        ld (hl),0x1b
+        inc hl
+        ;ld a,'['
+        ;call sendchar_byte_a
+        ld (hl),'['
+        inc hl
+        ;pop de
+        ;push de
+        ld a,d ;y
         inc a
         call sendchar_num
-        ld a,';'
-        call sendchar_byte_a
-        pop de
-        ld a,e
+        ;ld a,';'
+        ;call sendchar_byte_a
+         ld (hl),';'
+         inc hl
+        ;pop de
+        ld a,e ;x
         inc a
         call sendchar_num
-        ld a,'H'
-        jr sendchar_byte_a
+        ;ld a,'H'
+        ld (hl),'H'
+        jp setcolorqq
 
 sendchar_num
 ;a=num
@@ -142,17 +225,22 @@ sendchar_num
         inc c
         sub 10
         jr nc,$-3
-        push af
-        ld a,c
-        call sendchar_byte_a
-        pop af
+        ;push af
+        ;ld a,c
+        ;call sendchar_byte_a
+        ;pop af
+         ld (hl),c
+         inc hl
         add a,'0'+10
-        jr sendchar_byte_a
+        ;jr sendchar_byte_a
+         ld (hl),a
+         inc hl
+         ret
 
 sendchar
         ;cp 0x80
         ;jr nc,sendchar_rustoutf8
-sendchar_byte_a
+;sendchar_byte_a
         ld (stdoutbuf),a
         ld hl,1
         ld de,stdoutbuf
@@ -164,6 +252,11 @@ sendchars0
 stdouthandle=$+1
         ld b,0
         OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
+      ;push af
+      ;push hl
+      ;YIELDKEEP ;2158t
+      ;pop bc ;bytes actually written
+      ;pop af
         ld b,h
         ld c,l ;bytes actually written
         pop hl
@@ -306,7 +399,7 @@ term_prfsm_curnumber1
          db 0
 
 stdoutbuf
-        db 0
+        db "-[00;00m"
 
 stdinbuf
         db 0 ;ds STDINBUF_SZ

@@ -34,7 +34,12 @@
         call receivekey
         endm
 
-        macro SETCOLOR_ ;setcolor (macro SETCOLOR_) - set color attribute (in: A=attribute=0bPIpppiii)
+        macro SETCOLOR_ ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
+        ;ld a,d
+        ;add a,a
+        ;add a,a
+        ;add a,a
+        ;or e
         ;ld e,a
         ;OS_SETCOLOR
         call setcolor

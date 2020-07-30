@@ -17,17 +17,17 @@ editline_curx=$+1
         ld a,0
         add a,e
         ld e,a
-        OS_SETXY
-	OS_GETATTR
-         ld e,a
-	 push de ;color under cursor
-        ld e,CURSORCOLOR;#38
-        OS_PRATTR ;draw cursor
-        YIELDGETKEYLOOP
-	 pop de ;d=color under file cursor
-        push af
-        OS_PRATTR ;remove cursor
-        pop af
+        SETXY_
+	;OS_GETATTR
+        ; ld e,a
+	; push de ;color under cursor
+        ;ld e,CURSORCOLOR;#38
+        ;OS_PRATTR ;draw cursor
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
+	; pop de ;d=color under file cursor
+        ;push af
+        ;OS_PRATTR ;remove cursor
+        ;pop af
         cp key_redraw
         jr z,editline_mainloop
         cp key_enter
@@ -103,11 +103,11 @@ editline_right
 editline_pr
 editline_xy=$+1
         ld de,0
-        OS_SETXY
+        SETXY_
 editline_text=$+1
         ld hl,0
         ld c,0 
-        call cmdprtext
+        call prtext
 ;добьём остаток строки пробелами
 editline_prspc0
         ld a,c
@@ -116,7 +116,7 @@ editline_maxsz=$+1
         ret z
         push bc
         ld a,' '
-        PRCHAR
+        PRCHAR_
         pop bc
         inc c
         jp editline_prspc0

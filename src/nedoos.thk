@@ -1,16 +1,20 @@
+nv запуск хобеты давно сломан
 
-kbd(term:stdout) -> pipe0x80 -> cmd:stdin -> cmd:stdout -> pipe0x81 -> screen(term:stdin)
+147f 4d
 
-
-почему-то proc из nv не запоминал экран (11 - 10:00, теперь не воспроизводится)
-todo сделать start proc и прочих команд?
+scratch выделение на левой панельке неправильно
+scratch верхняя панель, левая, правая тоже должны быть контрастными цветами
+scratch ярко-жёлтый почему-то выбирается как более контрастный чёрному, чем белый
 
 nvview надо стримить из файла (сделать виртуальное резервирование страниц, реально занимать не больше 64 K)
+сделать less
 
 todo no keyroll after '.' (interpret as noshift)
 todo no keyroll "s." (сейчас выдаёт "s./")
 
 удалить fwrite_nbytes -сейчас только в nvhexed.asm->cmd_savepage->nvunit.asm
+удалить fdel - нигде не используется
+
 
 в драйверы передавать адрес в юзерспейсе (не пересчитанный), пересчитывать внутри
 а как в trdosio перегонять байты туда?
@@ -40,7 +44,7 @@ copydir 0:/demo 1:/demo
 как минимум надо OS_STARTDRAW ... OS_ENDDRAW (реально это макросы с циклами), но их наличие-отсутствие не отладить
 разве что если они возвратят номера экранных страниц или включат их
 
-cmd: запуск программ переделать через handle, переоткрывать bat-файл на каждой строке, чтобы не отнимать файловые записи?
+cmd: переоткрывать bat-файл на каждой строке, чтобы не отнимать файловые записи?
 
 
 почему-то после чтения за границей файла в FATFS не работает SEEK на 0 (ошибка 1 - физическая)
@@ -49,5 +53,18 @@ cmd: запуск программ переделать через handle, переоткрывать bat-файл на каждой с
 если в расширении TR-DOS есть 0x0d, то nv показывает искажённо
 
 в TRDOSFS определять одно/трёхсимвольные расширения, чтобы не было кривых символов
+
+
+
+
+
+
+The technology is called The Alternate Screen Buffer. Terminal emulator provides two modes: primary and alternate. Alternate screen buffer has no scroll back, when you switch between these buffers the contents in them is preserved. To switch between them use smcup and rmcup ANSI Escape Sequences. In binary form they are:
+
+$ tput smcup|hexdump -C 
+00000000  1b 5b 3f 31 30 34 39 68                           |.[?1049h|
+
+$ tput rmcup|hexdump -C 
+00000000  1b 5b 3f 31 30 34 39 6c                           |.[?1049l|
 
 

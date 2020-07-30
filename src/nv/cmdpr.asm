@@ -171,13 +171,19 @@ prtext
 ;de=buf
 ;hl=len
         push bc
+        push de
         push hl
         call nz,sendchars
         pop hl
+        pop de
         pop bc
-        add hl,bc
-        ld c,l
+        ld a,l
+        add a,c
+        ld c,a
+         add hl,de
+         inc hl
 ;c=x        
+;hl=after terminator
         ret
 
 minhl_bc_tobc

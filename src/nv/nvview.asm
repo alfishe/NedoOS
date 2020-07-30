@@ -2,7 +2,7 @@
 NVVIEW_XYTOP=0x0000
 NVVIEW_HGT=24
 NVVIEW_WID=80
-NVVIEW_PANELCOLOR=#38
+_NVVIEW_PANELCOLOR=0x0700;0x38
 
 editcmd_3
         call ifcmdnonempty_typedigit
@@ -14,8 +14,11 @@ editcmd_3
         ld hl,editcmd_reprintall_noreaddir
         push hl
 
-        ld e,COLOR
-        OS_CLS
+        ;ld e,COLOR
+        ;OS_CLS
+        ld de,0
+        SETXY_
+        CLS_
 
         ld hl,unreservepages
         push hl
@@ -33,7 +36,7 @@ nvview_load0
         pop hl
         pop de
         ret nz ;no memory
-        ld a,#c000/256
+        ld a,0xc000/256
         call cmd_loadpage
         push af
         ex de,hl
@@ -64,15 +67,14 @@ nvview_redrawloop
 
         call nvview_prcurpage
 nvview_mainloop
-        ;YIELDGETKEYLOOP
-1;prwindow_waitkey_nokey
+nvview_mainloop0
 	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        GET_KEY ;OS_GETKEYNOLANG
+        GETKEY_ ;OS_GETKEYNOLANG
         ld a,c ;keynolang
         cp NOKEY
         jr nz,nvview_mainloop_keyq
         call nvview_panel
-        jr 1b;prwindow_waitkey_nokey
+        jr nvview_mainloop0
 nvview_mainloop_keyq
         cp key_redraw
         jr z,nvview_redrawloop
@@ -355,7 +357,7 @@ clear_keyboardbuffer
         ld b,5
 clear_keyboardbuffer0
         push bc
-        GET_KEY
+        GETKEY_
         pop bc
         djnz clear_keyboardbuffer0
         pop bc
@@ -371,18 +373,19 @@ nvview_changeencoding
 nvview_panel
         ld de,0x1800
         call nv_setxy
-        ld e,NVVIEW_PANELCOLOR;#38
-        OS_SETCOLOR
+        ld de,_NVVIEW_PANELCOLOR;#38
+        SETCOLOR_
         
         ld a,(nvview_prline_recodepatch)
         or a
         ld hl,t866
         jr z,$+5
         ld hl,twin
+         ld c,0
         call prtext
         
         ld a,' '
-        PRCHAR
+        PRCHAR_
 nvview_ncurline=$+1
         ld hl,0
         exx 
@@ -391,14 +394,14 @@ nvview_ncurline=$+1
         call prdword
         ;ix
         ld a,'/'
-        PRCHAR
+        PRCHAR_
         ld hl,(nlines)
         exx 
         ld hl,0
         exx
         call prdword
         ld a,' '
-        PRCHAR
+        PRCHAR_
         ld hl,(fcb+FCB_FSIZE+2)
         exx
         ld hl,(fcb+FCB_FSIZE)
@@ -407,13 +410,13 @@ nvview_ncurline=$+1
 nvview_panel0
         ld a,' '
         push bc
-        PRCHAR
+        PRCHAR_
         pop bc
         djnz nvview_panel0
-        ld e,NVVIEW_PANELCOLOR;#38
-        OS_PRATTR
-        ld e,COLOR;#38
-        OS_SETCOLOR
+        ;ld e,NVVIEW_PANELCOLOR;#38
+        ;OS_PRATTR
+        ld de,_COLOR;#38
+        SETCOLOR_
         
         ret
         
@@ -713,7 +716,7 @@ nvview_prline0
         ld l,a
 nvview_prline_recodepatch=$
         nop ;/ld a,(hl)
-        PRCHAR
+        PRCHAR_
         pop hl
         pop bc
         dec c
@@ -734,7 +737,7 @@ nvview_prlinespc_b
 nvview_prlinespc0
         push bc
         ld a,' '
-        PRCHAR
+        PRCHAR_
         pop bc
         djnz nvview_prlinespc0
         pop hl

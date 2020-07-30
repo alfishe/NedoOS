@@ -13,9 +13,8 @@ txtscrhgt=25
 txtscrwid=80
 CMDLINEY=24
 
-COLOR=7
-CURSORCOLOR=0x38
-ERRORCOLOR=0x42
+_COLOR=0x0007;7
+_ERRORCOLOR=0x0009;0x42
 
         org PROGSTART
 cmd_begin
@@ -138,16 +137,16 @@ editcmd0
         call fixscroll_prcmd
         call cmdcalccurxy
         SETXY_
-        ld e,CURSORCOLOR;0x38
-        OS_PRATTR ;нарисовать курсор
+        ;ld e,CURSORCOLOR;0x38
+        ;OS_PRATTR ;нарисовать курсор
         call yieldgetkeyloop ;YIELDGETKEYLOOP
          ;ld a,c ;keynolang
-        push af
-        call cmdcalccurxy
-        SETXY_
-        ld e,COLOR;7
-        OS_PRATTR ;стереть курсор
-        pop af
+        ;push af
+        ;call cmdcalccurxy
+        ;SETXY_
+        ;ld e,COLOR;7
+        ;OS_PRATTR ;стереть курсор
+        ;pop af
         cp key_enter
         ret z
         cp key_up
@@ -784,19 +783,15 @@ prdate_time
 
 prNNcmd
 ;a=NN
+;de=buf
         ld bc,10+(256*('0'-1))
         sub c
         inc b
         jr nc,$-2
-        ;add a,c
-        ;push af
-        ;ld a,b
-         ;ld (de),a
          ex de,hl
          ld (hl),b
          ex de,hl
          inc de
-        ;pop af
         add a,'0'+10
          ld (de),a
          inc de
@@ -1090,11 +1085,11 @@ cmd_t0
         
 cmderror
         push hl
-        ld a,ERRORCOLOR
+        ld de,_ERRORCOLOR
         SETCOLOR_
         pop hl
         call prtext
-        ld a,COLOR
+        ld de,_COLOR
         SETCOLOR_
 prcrlf
         ;ld a,0x0d

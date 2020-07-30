@@ -27,7 +27,7 @@ prwindow_waitkey0
 ;prwindow_waitkey_addr=$+1 ; comment by demige 190511
 ;        ld hl,0 ; comment by demige 190511
 ;        call prwindow_text ; comment by demige 190511
-        YIELDGETKEYLOOP
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
         ld a,c
         cp key_esc
         ret z
@@ -89,6 +89,7 @@ prwindow_waitkey_text0
         dec a;cp 3
         jr z,prwindow_waitkey_textnextline
         push de
+         ld c,0
         call prtext
         pop de
         jr prwindow_waitkey_text0
@@ -110,6 +111,7 @@ prwindow_waitkey_textoutertext
         inc hl
         push hl
         ex de,hl
+         ld c,0
         call prtext
         pop hl
         pop de
@@ -194,7 +196,7 @@ getmarkedfilessize
         
 getfiles
 ;ix = panel
-;out: hl'hl=files (áåç ".", "..")
+;out: hl'hl=files (without ".", "..")
         ld hl,0
         exx
         ld l,(ix+PANEL.filesdirs)
@@ -203,7 +205,7 @@ getfiles
 
 countfiles
         ld hl,proc_count
-        jp processfiles ;hl'hl=files (áåç ".", "..")
+        jp processfiles ;hl'hl=files (without ".", "..")
 proc_count
 	inc iy
 	ret
@@ -245,7 +247,7 @@ processfiles0
 	ex de,hl
         call isthisdotdir_hl
 processfiles_proc=$+1
-	call nz,0 ;copy ìîæåò ïåðåêëþ÷àòü ñòðàíèöû (ñåé÷àñ íå ïåðåêëþ÷àåò)
+	call nz,0 ;copy ¬®¦¥â ¯¥à¥ª«îç âì áâà ­¨æã (á¥©ç á ­¥ ¯¥à¥ª«îç ¥â)
 	pop ix
 	pop hl
 	pop bc
@@ -333,7 +335,7 @@ drawpanelfilesandsize
         inc e
         inc e
         call nv_setxy
-        ld e,PANELFILECOLOR
+        ld de,_PANELFILECOLOR
         call nv_setcolor
         call getmarkedfiles
         ld a,h
@@ -341,12 +343,13 @@ drawpanelfilesandsize
         push af ;z = no marked
         call z,getfiles
 	pop af
-	ld e,PANELSELECTCOLOR
+	ld de,_PANELSELECTCOLOR
 	call nz,nv_setcolor
 	push af
         push ix
         call prdword
         ld hl,wordfiles
+         ld c,0
         call prtext
         pop ix
         pop af ;z = no marked
@@ -359,6 +362,7 @@ drawpanelfilesandsize_markedsizeq
         push ix
         call prdword
         ld hl,wordbytes
+         ld c,0
         call prtext
         pop ix
         ret
@@ -369,19 +373,21 @@ nv_setxy
         push de
         push hl
         push ix
-        OS_SETXY
+        SETXY_
         pop ix
         pop hl
         pop de
         ret
         
 setpanelcolor
-	ld e,PANELCOLOR
+	ld de,_PANELCOLOR
 nv_setcolor
-;e=color
+;d=paper, e=ink
+        push hl
         push ix
-        OS_SETCOLOR
+        SETCOLOR_
         pop ix
+        pop hl
         ret
         
 getfcbaddrundercursor
@@ -423,7 +429,7 @@ panelprtext0
         jr z,panelprtextq
         push bc
         push hl
-        PRCHAR__
+        PRCHAR_
         pop hl
         pop bc
         inc c
@@ -433,31 +439,6 @@ panelprtext0
         jp nz,panelprtext0
 panelprtextq
         pop ix
-        ret
-
-prtext
-;out: hl=after terminator
-prtext0
-        ld a,(hl)
-        inc hl
-        or a
-        ret z
-        push hl
-        PRCHAR__ ;testing (351/352t) (was 986/987t)
-        pop hl
-        jp prtext0
-
-cmdprNchars
-;hl=word
-;b=size word
-        push bc
-        ld a,(hl)
-        inc hl
-        push hl
-        PRCHAR__
-        pop hl
-        pop bc
-        djnz cmdprNchars
         ret
 
 changedir_fromfcb
@@ -473,35 +454,35 @@ changedir_fromfcb
 readfile_pages_dehl
         ld a,d
         SETPG32KHIGH
-        ld a,+(#c000+PROGSTART)/256
+        ld a,+(0xc000+PROGSTART)/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,e
         SETPG32KHIGH
-        ld a,#c000/256
+        ld a,0xc000/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,h
         SETPG32KHIGH
-        ld a,#c000/256
+        ld a,0xc000/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,l
         SETPG32KHIGH
-        ld a,#c000/256
+        ld a,0xc000/256
         jp cmd_loadpage
 
 cmd_savepage
 ;hl=size
 ;out: a=error
         push hl
-        ld de,#8000
+        ld de,0x8000
         OS_SETDTA
         pop hl
         ld de,fcb2
@@ -571,7 +552,7 @@ prNsymbol
 prNsymbol0
 	push bc
         ld a,c
-	PRCHAR__
+	PRCHAR_
 	pop bc
 	djnz prNsymbol0
         pop ix
@@ -580,31 +561,11 @@ prNsymbol0
 	ret
 
 ;;;;;;;;;;;;;;;;;;
-prNNcmd
-;a=NN
-        ld c,10
-        call prNcmd
-        add a,'0'
-        PRCHAR__
-        ret
-prNcmd
-;a=NN
-;c=divisor
-        ld b,'0'-1
-        sub c
-        inc b
-        jr nc,$-2
-        add a,c
-        push af
-        ld a,b
-        PRCHAR__
-        pop af
-        ret
         
 cmdprchar
         push hl
 	push ix
-        PRCHAR__
+        PRCHAR_
 	pop ix
         pop hl
         ret
@@ -657,23 +618,26 @@ count_filecursor_y
 	ret
 
 setfilecursorxy
-	push af
+	;push af
 	ld ix,(curpanel)
 	call count_filecursor_y
 	ld d,a
 	;ld e,(ix+PANEL.xy)
 	inc d
 	inc e
-	pop af
-	push af
+	;pop af
+	;push af
 	call nv_setxy
-	pop af ;color
+	;pop af ;color
 	ret
 
 prfilecursor
-;a=color
+;hl=color
+        push hl
 	call setfilecursorxy
-	call drawfilecursor ;a=old color
+        pop hl
+	ld b,12
+	call drawfilecursor_sizeb_colorhl ;hl=old color
 	ld ix,(curpanel)
 	ret
 
@@ -712,41 +676,51 @@ setpaneldir
 	OS_CHDIR
 	ret
 	
-minhl_bc_tobc
-        or a
-        sbc hl,bc
-        add hl,bc
-        ret nc ;bc<=hl
-        ld b,h
-        ld c,l
-        ret
-
-drawfilecursor
+drawfilecursor_sizeb_colorhl
 ;de=yx
-;a=color
-;out: a=oldcolor
-	ld b,12
-drawfilecursor_sizeb
-	ld (drawfilecursor_color),a
+;hl=color
+;b=size
+;out: hl=oldcolor
+	ld (drawfilecursor_color),hl
 	push bc
-	push de
+	;push de
+        push de
 	call nv_setxy
+        pop de
+        OS_SETXY
 	OS_GETATTR
-	pop de
+	;pop de
         pop bc
-	push af ;oldcolor
-drawfilecursor0
-	push bc
-	push de
-	call nv_setxy
+         ;jr $
+	 push af ;oldcolor
+        push bc
 drawfilecursor_color=$+1
-	ld e,FILECURSORCOLOR
-	OS_PRATTR
-	pop de
-	pop bc
-	inc e
-	djnz drawfilecursor0
-	pop af ;oldcolor
+	ld de,_FILECURSORCOLOR
+        SETCOLOR_
+        call setcolor_invisible 
+        pop bc
+        ld de,tspaces
+        ld h,0
+        ld l,b
+        call sendchars
+        
+;drawfilecursor0
+;	push bc
+;	push de
+;	call nv_setxy
+;drawfilecursor_color=$+1
+;	ld de,_FILECURSORCOLOR
+;	OS_PRATTR
+;	pop de
+;	pop bc
+;	inc e
+;	djnz drawfilecursor0
+
+        call setcolor_visible 
+         pop af ;oldcolor
+         and 7
+         ld l,a
+         ld h,4 ;blue
 	ret
 
 nv_openfcb
@@ -803,83 +777,83 @@ copy_to_defcb_filename
         ret
 
 winbeginstroka
-	db 'É'
+	db 0xc9;'£'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 winbeginstroka_wid=$
 	db 12;wdtcolumn1 
-	db '»'
+	db 0xbb;'¿'
 	db 1
 	db 0
 	
 winmidstroka
-	db 'º'
+	db 0xba;'³'
 	db 1
 	db ' '
 winmidstroka_wid=$
 	db 12;wdtcolumn1 
-	db 'º'
+	db 0xba;'³'
 	db 1	
 	db 0
 
 winendstroka
-	db 'È'
+	db 0xc8;'L'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 winendstroka_wid=$
 	db 12;wdtcolumn1 
-	db '¼'
+	db 0xbc;'-'
 	db 1	
 	db 0
 
 prbeginstroka
-	db 'É'
+	db 0xc9;'£'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 	db 12;wdtcolumn1 
-	db 'Ñ'
+	db 0xd1;'T'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 	db 10;wdtcolumn2
-	db 'Ñ'
+	db 0xd1;'T'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 	db 14;wdtcolumn3 
-	db '»'
+	db 0xbb;'¿'
 	db 1
 	db 0
 
 prmidstroka
-	db 'º'
+	db 0xba;'³'
 	db 1
 	db ' '
 	db 12;wdtcolumn1 
-	db '³'
+	db 0xb3;'³'
 	db 1
 	db ' '
 	db 10;wdtcolumn2
-	db '³'
+	db 0xb3;'³'
 	db 1
 	db ' '
 	db 14;wdtcolumn3 
-	db 'º'
+	db 0xba;'³'
 	db 1	
 	db 0
 
 prendstroka
-	db 'È'
+	db 0xc8;'L'
 	db 1
-	db 'Í'
+	db 0xcd;;'='
 	db 12;wdtcolumn1 
-	db 'Ï'
+	db 0xcf;'³'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 	db 10;wdtcolumn2
-	db 'Ï'
+	db 0xcf;'³'
 	db 1
-	db 'Í'
+	db 0xcd;'='
 	db 14;wdtcolumn3 
-	db '¼'
+	db 0xbc;'-'
 	db 1	
 	db 0
 

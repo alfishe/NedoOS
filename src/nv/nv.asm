@@ -12,20 +12,21 @@ CMDLINEY=23;24
 
 ;0 1 2 3 4 5 6 7 8 9 a b c d e f
 
-COLOR=0x07
-PANELCOLOR=0x4f;0xf
-PANELDIRCOLOR=0x4f;0xf
-PANELEXECOLOR=0x4c;0xf
-PANELFILECOLOR=0b00001111;0xf
-PANELSELECTCOLOR=0x4e
-CURSORCOLOR=0x28
-FILECURSORCOLOR=0x28
-COLOR_RED=0x17
-COLOR_DIALOG=0x38
+_COLOR=0x0007;0x07
+_PANELCOLOR=0x040f;0x4f
+_PANELDIRCOLOR=0x040f;0x4f
+_PANELEXECOLOR=0x040a;0x4c
+_PANELFILECOLOR=0x0407;0b00001111;0xf
+_PANELSELECTCOLOR=0x040b;0x4e
+_CURSORCOLOR=0x0600;0x28
+_FILECURSORCOLOR=0x0600;0x28
+_COLOR_RED=0x0107;0x17
+_COLOR_DIALOG=0x0700;0x38
+_HINTCOLOR1=0x0007;7
+_HINTCOLOR0=0x0600;5*8
 
-PROGRESBARWINXY=0x0F16 ;0x0919 + 051f ;de=yx
+PROGRESBARWINXY=0x0f16 ;0x0919 + 051f ;de=yx
 PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
-
 
 CONST_HGT_TABLE=21
 
@@ -39,10 +40,6 @@ FILES_POINTERS_right=0xc000;0x3b00
 left_panel_xy=0x0000
 right_panel_xy=0x0028
 firstfiley=left_panel_xy/256 + 1
-
-        macro PRCHAR__
-        PRCHAR
-        endm
 
         macro PGW2elpg0
         ;LD A,(HS_elpg)
@@ -89,15 +86,17 @@ firstfiley=left_panel_xy/256 + 1
         org PROGSTART
 cmd_begin
         ld sp,0x4000
+        call initstdio
 
-        ld e,6 ;textmode
-        OS_SETGFX
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         
-	call nv_copyscreen0to1
-        GET_KEY ;съедаем key_redraw
+	;call nv_copyscreen0to1
+        ;GET_KEY ;бкҐ¤ Ґ¬ key_redraw
         
-        ld e,COLOR
-        OS_CLS
+        ;ld e,COLOR
+        ;OS_CLS
+        CLS_
         
 ;        ld de,nvpal
 ;        OS_SETPAL
@@ -108,7 +107,7 @@ cmd_begin
         ;ld (cmdpgscreen0_0),a
 
         OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
+;dehl=­®¬Ґа  бва ­Ёж ў 0000,4000(copybuf),8000,c000*(dirbuf)
         push hl
         ld e,h
         OS_DELPAGE
@@ -120,19 +119,19 @@ cmd_begin
 	ld hl,dirpg
 	ld (hl),e
 
-	OS_NEWPAGE ; Выделяем по одной страничке для каталогов
+	OS_NEWPAGE ;ўл¤Ґ«пҐ¬ Ї® ®¤­®© бва ­ЁзЄҐ ¤«п Є в «®Ј®ў
         ld hl,HS_strpg
         ld (hl),e
 	inc hl
 	xor a
-	ld (hl),a ;Маркер конца списка страниц
+	ld (hl),a ;¬ аЄҐа Є®­ж  бЇЁбЄ  бва ­Ёж
 
 	OS_NEWPAGE
 	ld hl, HS_strpg+DIRPAGES+1
         ld (hl),e
 	inc hl
 	xor a
-	ld (hl),a ;Маркер конца списка страниц
+	ld (hl),a ;¬ аЄҐа Є®­ж  бЇЁбЄ  бва ­Ёж
         
 	ld hl,left_panel_xy
 	ld (leftpanel+PANEL.xy),hl
@@ -186,7 +185,7 @@ mainloop
         call controlloop
         jp mainloop
 
-strdelpages ;удаляем str страницы. IX - панель. Первую страничку не удаляем
+strdelpages ;г¤ «пҐ¬ str бва ­Ёжл. IX - Ї ­Ґ«м. ЇҐаўго бва ­ЁзЄг ­Ґ г¤ «пҐ¬
 	ld hl, HS_strpg
 	ld e, (ix+PANEL.pgadd)
 	ld d, (ix+PANEL.pgadd+1)
@@ -204,7 +203,7 @@ strdelpages_next
         ld (hl), a
         jr strdelpages_next
 
-strnewpage ;выделяем новую страничку IX - панель, E номер странички в HS_strpg
+strnewpage ;ўл¤Ґ«пҐ¬ ­®ўго бва ­ЁзЄг IX - Ї ­Ґ«м, E ­®¬Ґа бва ­ЁзЄЁ ў HS_strpg
 	push hl
 	push de
 
@@ -220,17 +219,15 @@ strnewpage ;выделяем новую страничку IX - панель, E номер странички в HS_strpg
 	ld (hl), a
 	xor a
 	inc hl
-	ld (hl),a ; маркер конца списка
+	ld (hl),a ; ¬ аЄҐа Є®­ж  бЇЁбЄ 
 
 	pop de
 	pop hl
 	ret
 
-nvpal
-;        dw 0xf3f3,0x1313,0xf1f1,0xf0f0,0xe3e3,0xe2e2,0xe1e1,0xe0e0 ;NB color 1
-;        dw 0xf3f3,0xd2d2,0xb1b1,0x9090,0x6363,0x4242,0x2121,0x0000
-	dw 0xffff,0x1f1f,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec ;NB color 1
-	dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+;nvpal
+;	dw 0xffff,0x1f1f,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec ;NB color 1
+;	dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
 
         
 printhint
@@ -247,14 +244,14 @@ prhint0
         cp '}'
         jr z,prhint_color1
         push hl
-        PRCHAR__ ;testing (351/352t) (was 986/987t)
+        PRCHAR_
         pop hl
         jr prhint0
 prhint_color0
-        ld e,7
+        ld de,_HINTCOLOR1;7
         jr prhint_color
 prhint_color1
-        ld e,5*8
+        ld de,_HINTCOLOR0;5*8
 prhint_color
         call nv_setcolor
         jr prhint0
@@ -262,8 +259,8 @@ thint
         db "{1}Left  { 2}Right { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}Screen{ 0}Quit  ",0
         
 readpanels_reprint
-	ld e,COLOR
-	OS_CLS
+	;ld e,COLOR
+	;OS_CLS
         call printhint
 	ld ix,leftpanel
 	call readsortdrawpanel
@@ -274,8 +271,8 @@ readsortdrawpanel
 	jp drawpanel_with_files
 
 readpanels_reprint_keepcursor
-	ld e,COLOR
-	OS_CLS
+	;ld e,COLOR
+	;OS_CLS
         call printhint
 	ld ix,leftpanel
 	call readsortdrawpanel_keepcursor
@@ -298,10 +295,10 @@ drawpanel_head ;ix=panel
 	sbc hl,de
 	pop hl
 	jr nz,drawpanel_dir
-	ld e,FILECURSORCOLOR
+	ld de,_FILECURSORCOLOR
 	jr drawpanel_dir0
 drawpanel_dir
-	ld e,PANELCOLOR
+	ld de,_PANELCOLOR
 drawpanel_dir0
 	call nv_setcolor
 	ld de,PANEL.dir
@@ -318,7 +315,7 @@ drawpanel_with_files
 
 
 	call setpaneldir_makeprompt ;keeps ix
-        ld e,7
+        ld de,_COLOR
         call nv_setcolor
 
 	call drawpanel_head
@@ -405,61 +402,74 @@ fileiscom_ix_nohobeta
 	or a
 	ret
 
-prdirfile
-;hl=fcb
-	ld e,PANELFILECOLOR
-	ld (nvcolor),de
-	push hl
-	pop ix
+colorfile
+;ix=fcb
+;out: de=color
+	ld de,_PANELFILECOLOR
+	;ld (nvcolor),de
         ld a,(ix+FCB_FATTRIB)
         and FATTRIB_DIR
 	jr z,regfile
-	ld e,PANELDIRCOLOR
-	ld (nvcolor),de
+	ld de,_PANELDIRCOLOR
+	;ld (nvcolor),de
 regfile
 	call fileiscom_ix
 	jr nz,nocomfile
-	ld e,PANELEXECOLOR
-	ld (nvcolor),de
+	ld de,_PANELEXECOLOR
+	;ld (nvcolor),de
 nocomfile
 	ld a,(ix) ;mark
 	and 1
-	jr z,$+4
-        ld e,PANELSELECTCOLOR
-	ld (nvcolor),de
+	ret z ;jr z,nomarkfile
+        ld de,_PANELSELECTCOLOR
+;nomarkfile
+	;ld (nvcolor),de
+        ret
+
+prdirfile
+;hl=fcb
+	push hl
+	pop ix
+        call colorfile ;de=color
 ;	push ix
         call nv_setcolor
 	inc hl
-        ld b,8
-        call cmdprNchars
+         ld de,filelinebuf
+         ld bc,8
+         ldir
 ;	pop ix
 ;	push ix
         ld a,(ix+FCB_FATTRIB)
         and FATTRIB_DIR
         xor '.'
-        call cmdprchar
-        ld b,3
-        call cmdprNchars
-	ld e,PANELCOLOR
-	call nv_setcolor
-	ld a,0xb3 ;'|'
-        PRCHAR__
-	ld de,(nvcolor)
-	call nv_setcolor
+        ;call cmdprchar
+         ld (de),a
+         inc de
+         ld c,3
+         ldir
+	;ld de,_PANELCOLOR
+	;call nv_setcolor
+	;ld a,0xb3 ;'|'
+        ;PRCHAR_
+         inc de
+	;ld de,(nvcolor)
+	;call nv_setcolor
 ;        pop ix
+        exx
         ld l,(ix+FCB_FSIZE+2)
         ld h,(ix+FCB_FSIZE+3)
 	exx
         ld l,(ix+FCB_FSIZE)
 	ld h,(ix+FCB_FSIZE+1)
 ;        push ix
-        call prdword
-	ld e,PANELCOLOR
-	call nv_setcolor
-	ld a,0xb3 ;'|'
-        PRCHAR__
-	ld de,(nvcolor)
-	call nv_setcolor
+        call prdword_de
+	;ld de,_PANELCOLOR
+	;call nv_setcolor
+	;ld a,0xb3 ;'|'
+        ;PRCHAR_
+         inc de
+	;ld de,(nvcolor)
+	;call nv_setcolor
 ;        pop ix
 	ld l,(ix+FCB_FDATE)
         ld h,(ix+FCB_FDATE+1)
@@ -471,8 +481,9 @@ nocomfile
         jr nc,$+4
         add a,100 ;XX century
         call prNNcmd ;year
-        ld a,'-'	
-        PRCHAR__
+        ;ld a,'-'	
+        ;PRCHAR_
+         inc de
         pop hl
         ld a,l
         push af
@@ -482,13 +493,15 @@ nocomfile
         ld a,h
         and 0x0f
         call prNNcmd ;month
-        ld a,'-'
-        PRCHAR__
+        ;ld a,'-'
+        ;PRCHAR_
+         inc de
         pop af
         and 0x1f
         call prNNcmd ;day
-        ld a,' '
-        PRCHAR__
+        ;ld a,' '
+        ;PRCHAR_
+         inc de
 ;	pop ix
         ld l,(ix+FCB_FTIME)
         ld h,(ix+FCB_FTIME+1)
@@ -499,16 +512,39 @@ nocomfile
         rra
         and 0x1f
         call prNNcmd ;hour
-        ld a,':'
-        PRCHAR__
+        ;ld a,':'
+        ;PRCHAR_
+         inc de
         pop hl
         add hl,hl
         add hl,hl
         add hl,hl
         ld a,h
         and 0x3f
-        jp prNNcmd ;minute
+        call prNNcmd ;minute
+        ld de,filelinebuf
+        ld hl,filelinebuf_sz
+        jp sendchars
+prNNcmd
+;a=NN
+;de=buf
+        ld bc,10+(256*('0'-1))
+        sub c
+        inc b
+        jr nc,$-2
+         ex de,hl
+         ld (hl),b
+         ex de,hl
+         inc de
+        add a,'0'+10
+         ld (de),a
+         inc de
+        ret
 
+filelinebuf
+        db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
+filelinebuf_sz=$-filelinebuf
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 readdir
@@ -546,8 +582,8 @@ readdir_keepcursor
 
 	ld e,(ix+PANEL.catbuf)     ;00
 	ld d,(ix+PANEL.catbuf+1)   ;c0
-	ld l,(ix+PANEL.pointers)   ;00  номер страницы
-	ld h,(ix+PANEL.pointers+1) ;c0  номер файла
+	ld l,(ix+PANEL.pointers)   ;00  ­®¬Ґа бва ­Ёжл
+	ld h,(ix+PANEL.pointers+1) ;c0  ­®¬Ґа д ©« 
         ld bc,0 ;nfiles
         jp nz,loaddir_error
 		ld a,(fcb+1)
@@ -563,28 +599,28 @@ loaddir0
 	add a,(ix+PANEL.pgadd)
 	PGW3strpg
 	ld a,e
-	and 0xe0 ;отбрасываем младшую часть (<32) с номером страницы, остается только номер файла
+	and 0xe0 ;®вЎа блў Ґ¬ ¬« ¤иго з бвм (<32) б ­®¬Ґа®¬ бва ­Ёжл, ®бв Ґвбп в®«мЄ® ­®¬Ґа д ©« 
 	ld e,a
 	xor a
 	ld (de),a ;mark
 	inc de
         ld hl,fcb+1
         ld bc,31;FCB_sz 
-        ldir ; копируем fcb в catbuf
+        ldir ; Є®ЇЁагҐ¬ fcb ў catbuf
 	pop hl
 	pop de
-        call putfilepointer_de_tohl ; возвращает в верхнее окно страницу poipg и в pointers заносит de
+        call putfilepointer_de_tohl ; ў®§ўа й Ґв ў ўҐае­ҐҐ ®Є­® бва ­Ёжг poipg Ё ў pointers § ­®бЁв de
 	ex de,hl
 	ld bc,32
 	add hl,bc
-	ex hl,de ; увеличили на 32 catbuf
-	jr nc,nonewpg ; всё ещё убираемся в страницу
+	ex hl,de ; гўҐ«ЁзЁ«Ё ­  32 catbuf
+	jr nc,nonewpg ; ўбс Ґйс гЎЁа Ґ¬бп ў бва ­Ёжг
 	inc de ;next page de
 	call strnewpage
 	set 7,d 
 	set 6,d ;de=c0pg
 nonewpg:
-        ;TODO через процедуру
+        ;TODO зҐаҐ§ Їа®жҐ¤гаг
 	push hl
         ld l,(ix+PANEL.totalsize)
         ld h,(ix+PANEL.totalsize+1)
@@ -602,7 +638,7 @@ nonewpg:
         
         pop bc
         inc bc ;nfiles
-        bit 5,b;1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
+        bit 5,b;1,b ;бва ­ЁзЄ  pgtemp § Є®­зЁ« бм? max 512 д ©«®ў Ї® 32 Ў ©в 
         jr nz,loaddirq
 loaddir_onedot
         push bc
@@ -611,7 +647,7 @@ loaddir_onedot
         push ix
         ld de,fcb
         OS_SETDTA ;set disk transfer address = de
-         ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
+         ld de,fcbmask ;ў CP/M ­Ґ ­г¦­®, ­® ®вбгвбвўЁҐ ўаҐ¤Ёв ¬­®Ј®§ ¤ з­®бвЁ
         OS_FSEARCHNEXT
         pop ix
 	pop hl
@@ -670,35 +706,41 @@ controlloop_noprline
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
         call z,nv_setdirpos_zero ;can't move cursor if 0 files
-        call cmdcalccurxy
-        call nv_setxy
-        ld e,CURSORCOLOR;#38
-        OS_PRATTR ;draw cursor
-	ld a,FILECURSORCOLOR
+        ;ld e,CURSORCOLOR;#38
+        ;OS_PRATTR ;draw cursor
+	ld hl,_FILECURSORCOLOR
 	call prfilecursor
-	 push af ;color under file cursor
-        YIELDGETKEYLOOP
-	 pop de ;d=color under file cursor
-        push af
-	ld a,d
-	call prfilecursor ;remove file cursor
+	 ;push hl ;color under file cursor
         call cmdcalccurxy
         call nv_setxy
-        ld e,COLOR;7
-        OS_PRATTR ;remove cursor
-         ld e,COLOR
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
+	 ;pop hl ;color under file cursor
+        push af
+        ld ix,(curpanel)
+        call getfcbaddrundercursor
+        push hl
+        pop ix
+        ;display $
+        call colorfile
+        ex de,hl ;hl=color
+	call prfilecursor ;remove file cursor
+        ;call cmdcalccurxy
+        ;call nv_setxy
+        ;ld e,COLOR;7
+        ;OS_PRATTR ;remove cursor
+         ld de,_COLOR
          call nv_setcolor ;even if we didn't reprint command line, draw windows with its color
         pop af
         ld hl,tnvcmds
         ld bc,nnvcmds
         cpir
         jp nz,editcmd_keyfail
-;bc=nnvcmds-(#команды+1) = 0..(nnvcmds-1)
+;bc=nnvcmds-(#Є®¬ ­¤л+1) = 0..(nnvcmds-1)
         add hl,bc
 ;hl=tnvcmds+nnvcmds
         add hl,bc
         add hl,bc
-;hl=tnvcmds+nnvcmds+ 2*(nnvcmds-(#команды+1))
+;hl=tnvcmds+nnvcmds+ 2*(nnvcmds-(#Є®¬ ­¤л+1))
         ld c,(hl)
         inc hl
         ld h,(hl)
@@ -709,7 +751,7 @@ controlloop_noprline
         ret
 editcmd_keyfail
         cp 0x20
-        ret c ;прочие системные кнопки не нужны
+        ret c ;Їа®зЁҐ бЁбвҐ¬­лҐ Є­®ЇЄЁ ­Ґ ­г¦­л
 editcmd_typein
 ;keeps ix
         ld e,a
@@ -718,7 +760,7 @@ editcmd_typein
         ld bc,MAXCMDSZ
         or a
         sbc hl,bc
-        ret nc ;некуда вводить
+        ret nc ;­ҐЄг¤  ўў®¤Ёвм
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc a
         ld (curcmdx),a
@@ -743,7 +785,7 @@ editcmd_space
 editcmd_backspace
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         or a
-        jr z,editcmddirback;editcmdok ;нечего удалять
+        jr z,editcmddirback;editcmdok ;­ҐзҐЈ® г¤ «пвм
         dec a
         ld (curcmdx),a
         jp strdelch
@@ -757,7 +799,7 @@ editcmddirback
 editcmd_left
         ld a,(curcmdx)
         or a
-        ret z ;некуда влево
+        ret z ;­ҐЄг¤  ў«Ґў®
         dec a
         ld (curcmdx),a
         ret
@@ -766,7 +808,7 @@ editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
-        ret z ;некуда право, стоим на терминаторе
+        ret z ;­ҐЄг¤  ўЇа ў®, бв®Ё¬ ­  вҐа¬Ё­ в®аҐ
         inc a
         ld (curcmdx),a
         ret
@@ -853,7 +895,7 @@ editcmd_up
         inc d
         push de
         ld hl,CONST_HGT_TABLE*256 + 40
-        OS_SCROLLDOWN
+        call scrolldown ;OS_SCROLLDOWN
         pop de
         inc e
         call nv_setxy
@@ -885,7 +927,7 @@ editcmd_down
         inc d
         push de
         ld hl,CONST_HGT_TABLE*256 + 40
-        OS_SCROLLUP
+        call scrollup ;OS_SCROLLUP
         pop de
         ld a,d
         add a,CONST_HGT_TABLE-1
@@ -957,40 +999,46 @@ editcmd_setpaneldirfromcurdir_panelhl
 
 editcmd_enter_runcmd
 ;run "cmd <command to run>"
-        OS_SETSYSDRV ;TODO каталог cmd
+        OS_SETSYSDRV ;TODO Є в «®Ј cmd
         ld hl,cmd_filename
         call copy_to_fcb_filename
         ;---
 ;        ld de,#1800
 ;        call nv_setxy
-	call nv_copyscreen1to0
-        ld a,#0d
-        PRCHAR__
-        ld a,#0a
-        PRCHAR__
+	;call nv_copyscreen1to0
+        ;ld a,0x0d
+        ;PRCHAR_
+        ;ld a,0x0a
+        ;PRCHAR_
+        ld de,0
+        SETXY_
+        ld de,_COLOR
+        SETCOLOR_
+        ;YIELD ;зв®Ўл term ­ ЇҐз в «
         ;---
-        ld e,-1
-        OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
+        ;ld e,-1
+        ;OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
         ld hl,cmdbuf
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
-;команда scratch - реально cmd scratch, запускает scratch по фону и выходит
-        ;YIELD ;дать время задаче cmd захватить фокус
+;Є®¬ ­¤  scratch - аҐ «м­® cmd scratch, § ЇгбЄ Ґв scratch Ї® д®­г Ё ўvе®¤Ёв
+        ;YIELD ;¤ вм ўаҐ¬п § ¤ зҐ cmd § еў вЁвм д®Єгб
         WAITPID
 execcmd_error
 execcmd_runfocusq
-        ;YIELD ;дать время системе передать фокус рандомной задаче
+        ;YIELD ;¤ вм ўаҐ¬п бЁбвҐ¬Ґ ЇҐаҐ¤ вм д®Єгб а ­¤®¬­®© § ¤ зҐ
         ;ld b,25
 ;execcmd_waitchildredraw0
         ;push bc
-        ;YIELD ;дать время задаче scratch захватить фокус и перерисовать (но загрузить картинку и перерисовать не успеет)
+        ;YIELD ;¤ вм ўаҐ¬п § ¤ зҐ scratch § еў вЁвм д®Єгб Ё ЇҐаҐаЁб®ў вм (­® § Јаг§Ёвм Є авЁ­Єг Ё ЇҐаҐаЁб®ў вм ­Ґ гбЇҐҐв)
         ;pop bc
         ;djnz execcmd_waitchildredraw0
-        ld e,6 ;textmode
-        OS_SETGFX ;take focus (can be random after closing cmd)
-	call nv_copyscreen0to1
-	YIELDGETKEY ;key refresh
+        ;ld e,6 ;textmode
+        ;OS_SETGFX ;take focus (can be random after closing cmd)
+	;call nv_copyscreen0to1
+	;YIELDGETKEY ;key refresh
+        CLS_
         ld hl,cmdbuf
         ld (hl),0
         jp editcmd_reprintall
@@ -1008,15 +1056,15 @@ editcmd_enter_run
         ld b,(hl)
 	cp '$'
 	jp z,editcmd_enter_runfile_hobeta
-        or #20
+        or 0x20
         cp 'c'
         jr nz,editcmd_enter_runfile_nocom
         ld a,c
-        or #20
+        or 0x20
         cp 'o'
         jr nz,editcmd_enter_runfile_nocom
         ld a,b
-        or #20
+        or 0x20
         cp 'm'
         jr nz,editcmd_enter_runfile_nocom
 editcmd_enter_runfile_com
@@ -1038,7 +1086,7 @@ editcmd_enter_runfile_nocom
         ld hl,fcb_filename
         OS_PARSEFNAME ;de->hl
         
-        OS_SETSYSDRV ;TODO директория cmd
+        OS_SETSYSDRV ;TODO ¤ЁаҐЄв®аЁп cmd
         ld hl,cmdprompt
         jp loadandrun ;nz=error, e=id
 
@@ -1048,7 +1096,7 @@ makeprompt_filename
         ld hl,cmdprompt
         xor a
         cpir
-        dec hl ;hl=адрес терминатора
+        dec hl ;hl= ¤аҐб вҐа¬Ё­ в®а 
         ld a,'/'
         dec hl
         cp (hl)
@@ -1056,7 +1104,7 @@ makeprompt_filename
         jr z,$+4
          ld (hl),a
          inc hl
-        ex de,hl ;de=prompt = "d:/path/" без терминатора
+        ex de,hl ;de=prompt = "d:/path/" ЎҐ§ вҐа¬Ё­ в®а 
         ld hl,fcb_filename
         call cpmname_to_dotname ;prompt = "d:/path/filename"
         ret
@@ -1069,21 +1117,19 @@ runfile_findhandler
         ld b,3
 runfile_nocom_recodeext0
         ld a,(hl)
-        or #20
+        or 0x20
         ld (de),a
         inc hl
         inc de
         djnz runfile_nocom_recodeext0
-        OS_SETSYSDRV ;TODO директория nv
+        OS_SETSYSDRV ;TODO ¤ЁаҐЄв®аЁп nv
         ld hl,ext_filename
         call copy_to_fcb_filename
         call nv_openfcb ;autopush nv_closefcb
         ret nz ;error
         ld iy,file_buf_end
-	;display "runfile_findhandler",runfile_findhandler
-	;display "makeprompt",makeprompt
 runfile_nocom_extloop
-        call checkoneext ;c=ошибки, z=нет ошибок
+        call checkoneext ;c=®иЁЎЄЁ, z=­Ґв ®иЁЎ®Є
 	jr c,runfile_nocom_readerror
         jr z,runfile_nocom_extok
         call checkcomma
@@ -1096,9 +1142,10 @@ runfile_nocom_readerror
         dec a
         ret ;nz
 runfile_nocom_extok
-        call skiptocolon ;пройти к ':'
+        call skiptocolon ;Їа®©вЁ Є ':'
         ld hl,cmdbuf
         call loadtoendline
+         ;jr $
         xor a
         ret ;z
         
@@ -1123,15 +1170,15 @@ checkoneext
 checkoneext0
         READBYTE_A
         ret z ;EOF
-        cp #0a
+        cp 0x0a
         jr z,checkoneext0 ;skip LF
-        or #20
+        or 0x20
         xor (hl)
         inc hl
         or c
         ld c,a
         djnz checkoneext0
-;c=ошибки, z=нет ошибок
+;c=®иЁЎЄЁ, z=­Ґв ®иЁЎ®Є
         ret
 
 skiptocolon
@@ -1144,13 +1191,13 @@ skiptocolon
 checkcomma
         READBYTE_A
         cp ','
-        ret ;TODO проверить EOF
+        ret ;TODO Їа®ўҐаЁвм EOF
         
 loadtoendline
 ;hl=buf
         READBYTE_A
         jr z,loadtoendlineq
-        cp #0d
+        cp 0x0d
         jr z,loadtoendlineq
         ld (hl),a
         inc hl
@@ -1162,7 +1209,7 @@ loadtoendlineq
 skiptonextline
         READBYTE_A
         ret z ;EOF
-        cp #0d
+        cp 0x0d
         jr nz,skiptonextline
         or a
         ret ;nz
@@ -1188,7 +1235,9 @@ readbyte_readbuf
         
 
 editcmd_enter_runfile_hobeta
-hobetarunner=#4100
+hobetarunner=0x4100
+        ld e,6 ;textmode
+        OS_SETGFX
         ld a,(user_scr0_low) ;ok
 	sub 4-1 ;ld a,#ff-4 ;pgkillable
 	SETPG16K
@@ -1197,21 +1246,26 @@ hobetarunner=#4100
         ld de,hobetarunner
         ld bc,hobetarunner_sz
         ldir
+        
 ;cmdpgscreen0_0=$+1
 ;	ld a,#ff-1
         ld a,(user_scr0_low) ;ok
 	SETPG32KLOW
         inc a ;ld a,#ff-0
 	SETPG32KHIGH
+;0x4000 : pg4
+;0x8000 : pg1
+;0xc000 : pg0
 
         call loadhobeta
         ret nz ;error
-        ld hl,#6000
-        ld bc,(#6000-17+11) ;len
+         ;jr $
+        ld hl,0x6000
+        ld bc,(0x6000-17+11) ;len
         add hl,bc
         dec hl ;hl=load end
         ex de,hl
-        ld hl,(#6000-17+9) ;start
+        ld hl,(0x6000-17+9) ;start
         ld (hobetarunner_jp),hl
         add hl,bc
         dec hl
@@ -1222,7 +1276,7 @@ hobetarunner=#4100
 loadhobeta        
         call nv_openfcb ;autopush nv_closefcb
         ret nz ;error
-        ld de,#6000-17
+        ld de,0x6000-17
         OS_SETDTA
 editcmd_enter_runfile_hobeta_fcb0      
         ld de,fcb
@@ -1230,6 +1284,7 @@ editcmd_enter_runfile_hobeta_fcb0
         or a
         jr z,editcmd_enter_runfile_hobeta_fcb0
 ;editcmd_enter_runfile_hobeta_fcbq
+        xor a ;no error
         ret ;call nv_closefcb
 
 loadandrun
@@ -1245,15 +1300,15 @@ loadandrun
         OS_NEWAPP
         or a
         ret nz ;error
-;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+;dehl=­®¬Ґа  бва ­Ёж ў 0000,4000,8000,c000 ­®ў®Ј® ЇаЁ«®¦Ґ­Ёп, b=id, a=error
         push bc ;b=id
         ld a,d
         SETPG32KHIGH
         push de
         push hl
         ld hl,fcb_filename
-        ld de,#c000+COMMANDLINE
-        call cpmname_to_dotname ;de указывает на терминатор
+        ld de,0xc000+COMMANDLINE
+        call cpmname_to_dotname ;de гЄ §лў Ґв ­  вҐа¬Ё­ в®а
 loadandrun_restcmd=$+1
         ld hl,0
          ld a,(hl)
@@ -1264,9 +1319,9 @@ loadandrun_restcmd=$+1
         inc de
 loadandrun_noparams
         ld bc,COMMANDLINE_sz;-tcmd_sz
-        ldir ;copy command line ;можем залезть за #0100!
+        ldir ;copy command line ;¬®¦Ґ¬ § «Ґ§вм §  0x0100!
         xor a
-        ld (#c000+COMMANDLINE+COMMANDLINE_sz-1),a
+        ld (0xc000+COMMANDLINE+COMMANDLINE_sz-1),a
         pop hl
         pop de
 
@@ -1301,7 +1356,7 @@ editcmd_drvselector
 seldrv_redraw_mainloop
         ld hl,windrv
 ;hl=window
-	ld e,COLOR_DIALOG
+	ld de,_COLOR_DIALOG
 	call nv_setcolor
 
         call prwindow_text ;de=YX of last line
@@ -1316,16 +1371,16 @@ seldrv_cury=$+1
         inc e
         inc e
         push de
-        ld a,CURSORCOLOR;#38
+        ld hl,_CURSORCOLOR
         ld b,22
-        call drawfilecursor_sizeb ;draw cursor
-        YIELDGETKEYLOOP
+        call drawfilecursor_sizeb_colorhl ;draw cursor
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
 	ld a,c
         pop de
         push af
-        ld a,COLOR_DIALOG
+        ld hl,_COLOR_DIALOG
         ld b,22
-        call drawfilecursor_sizeb ;remove cursor
+        call drawfilecursor_sizeb_colorhl ;remove cursor
         pop af
         cp key_redraw
         jr z,seldrv_redraw_mainloop
@@ -1359,11 +1414,11 @@ seldrv_ok
 	pop de
 	or a
         jr z,seldrv_ok0
-	ld e,COLOR_RED
+	ld de,_COLOR_RED
 	call nv_setcolor
 	ld hl,windrverr
 	call prwindow_waitkey
-	ld e,COLOR
+	ld de,_COLOR
 	call nv_setcolor
 	jp seldrv_redraw_mainloop
 seldrv_ok0
@@ -1381,11 +1436,11 @@ seldrv_ok0
 ;	OS_CHDIR
 ;	or a
 ;        ret z
-;	ld e,COLOR_RED
+;	ld de,_COLOR_RED
 ;	call nv_setcolor
 ;	ld hl,windrverr
 ;	call prwindow_waitkey
-;	ld e,COLOR
+;	ld de,_COLOR
 ;	call nv_setcolor
 ;	jp seldrv_redraw_mainloop
 	ret
@@ -1423,7 +1478,7 @@ editcmd_4
         ;ld hl,fcb_filename
         ;OS_PARSEFNAME ;de->hl
         
-        OS_SETSYSDRV ;TODO директория texted
+        OS_SETSYSDRV ;TODO ¤ЁаҐЄв®аЁп texted
         
         ld hl,texted_filename
         call copy_to_fcb_filename
@@ -1436,11 +1491,11 @@ editcmd_4
         
 editcmd_9
         call ifcmdnonempty_typedigit
-	ld e,1
-	OS_SETSCREEN
-	YIELDGETKEYLOOP
-	ld e,0
-	OS_SETSCREEN
+	;ld e,1
+	;OS_SETSCREEN
+	;YIELDGETKEYLOOP
+	;ld e,0
+	;OS_SETSCREEN
         ret
 
 editcmd_reprintall_keepcursor
@@ -1462,8 +1517,8 @@ editcmd_reprintcurpanel
 	call drawpanel_with_files
         jp editcmd_readprompt_setendcmdx
 editcmd_reprintall_noreaddir
-	ld e,COLOR
-	OS_CLS
+	;ld e,COLOR
+	;OS_CLS
         call printhint
 	ld ix,leftpanel
 	call drawpanel_with_files
@@ -1498,7 +1553,7 @@ editcmd_6 ;ren
         ld bc,12
         ldir
 
-	ld e,COLOR_DIALOG
+	ld de,_COLOR_DIALOG
 	call nv_setcolor	
 
         ld hl,winrename
@@ -1506,7 +1561,7 @@ editcmd_6 ;ren
 	ld c,13
         call prwindow_edit ;CY=OK
         ret nc ;cancel
-;если в имени есть символы :,/,\, то выйти с ошибкой
+;Ґб«Ё ў Ё¬Ґ­Ё Ґбвм бЁ¬ў®«л :,/,\, в® ўл©вЁ б ®иЁЎЄ®©
         ld hl,tnewfilename
 editcmd_ren_checkname0
         ld a,(hl)
@@ -1534,7 +1589,7 @@ editcmd_7 ;mkdir
 	call setpaneldir
 
 
-	ld e,COLOR_DIALOG
+	ld de,_COLOR_DIALOG
 	call nv_setcolor
 	xor a
         ld hl,winmkdir
@@ -1559,7 +1614,7 @@ editcmd_8 ;del
         ret z ;"." or ".."
         call changemark_hl ;ld (hl),1
 editcmd_8_0  
-        ld e,COLOR_RED
+        ld de,_COLOR_RED
         call nv_setcolor
         ld hl,windel
         call prwindow_waitkey ;CY=OK
@@ -1609,25 +1664,25 @@ proc_del_file_batch
         ld de,filenametext
         OS_DELETE
 	or a
-	ret z; if success return
+	ret z ;if success return
 
         ld a,(fcb_attrib)
         and FATTRIB_DIR
 	push af
 	call nz,nv_copydir_add
 	pop af
-	jp nz,nv_copydir_add; Twice to remove empty dirs
+	jp nz,nv_copydir_add ;twice to remove empty dirs
 
         ret
 
 editcmd_5 ;copy
         call ifcmdnonempty_typedigit
         ;ld ix,(curpanel)
-        call getmarkedfiles;countmarkedfiles
+        call getmarkedfiles ;countmarkedfiles
         ld a,h
         or l
         jr nz,editcmd_5_0       
-        call getfcbaddrundercursor;hl=fcb
+        call getfcbaddrundercursor ;hl=fcb
         call isthisdotdir_hl
         ret z ;"." or ".."
         call changemark_hl ;ld (hl),1
@@ -1649,7 +1704,7 @@ editcmd_5_0
 	ld de,dir_buf
 	call nv_strcopy_hltode
 
-	ld e,COLOR_DIALOG
+	ld de,_COLOR_DIALOG
 	call nv_setcolor
 	ld ix,(curpanel)
 
@@ -1660,7 +1715,7 @@ editcmd_5_0
         jp nc,editcmd_reprintall_noreaddir
 
         ld hl,editcmd_reprintall
-        push hl;dont change!
+        push hl ;don't change!
 
         ld hl,0
         ld (filescopied),hl
@@ -1674,8 +1729,8 @@ editcmd_5_0
         ld ix,(curpanel)
 	jp processfiles
 
-
-/*nv_addslashtopath_hl ; out=terminator
+        if 1==0
+nv_addslashtopath_hl ; out=terminator
 	push hl
 	call skipword_hl
 	dec hl
@@ -1705,7 +1760,8 @@ nv_adddirtopath_detohl ; hl=path de=dirname; out - last component of path
 	xor a
 	ld (de),a
 	pop hl
-	ret*/
+	ret
+        endif
 
 nv_strcopy_hltode
 	ld a,(hl)
@@ -1801,7 +1857,7 @@ nv_batch_pushsrecordend
 	SETPG32KLOW
 	ret
 
-nv_batch_poprecord; z-empty
+nv_batch_poprecord ;z=empty
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
@@ -1812,7 +1868,7 @@ nv_batch_poprecord; z-empty
 	ld bc,(dir_batch_pointer)
 	ld a,b
 	or c
-	jr z,nv_batch_popsrecordq;empty :(
+	jr z,nv_batch_popsrecordq ;empty :(
 	dec bc
 	ld de,256
 nv_batch_popsrecord
@@ -1851,19 +1907,19 @@ nv_label
 	ld hl,(processfiles_proc) 
 	ld de,proceditcmd_copy
 	sbc hl,de
-	jr nz,nv_batch_nocopydir ;if its not copy
+	jr nz,nv_batch_nocopydir ;if it's not copy
 
 	ld de,dir2_buf
 	OS_MKDIR
 	ld de,dir2_buf
 	OS_CHDIR ;de
 	or a
-	jr nz,nv_batch ;Cant open dest dir
+	jr nz,nv_batch ;can't open dest dir
 nv_batch_nocopydir
 	ld de,dir_buf
 	OS_CHDIR ;;
 	or a
-	jr nz,nv_batch ;Cant open src dir
+	jr nz,nv_batch ;can't open src dir
 
 	ld de,fcb
 	OS_SETDTA
@@ -1892,7 +1948,7 @@ nv_batch_nofiles
 	ld hl,(processfiles_proc)
 	ld de,proc_del_file
 	sbc hl,de
-	jr nz,nv_batch;if not del
+	jr nz,nv_batch ;if not del
 	ld a,'/'
 	ld (dir2_buf),a
 	xor a
@@ -1902,18 +1958,6 @@ nv_batch_nofiles
 	ld de,dir_buf
 	OS_DELETE
 	jp nv_batch
-
-
-	;display "filebuf ", file_buf
-	;display "fcb ", fcb
-	;display "nv_label: ",nv_label
-	;display "nv_batch1: ",nv_batch1
-	;display "nv_batch: ",nv_batch
-	;display "proceditcmd_copy: ",proceditcmd_copy
-	;display "proceditcmd_copy_fcb: ",proceditcmd_copy_fcb
-	;display "nv_fillpathspaces_hl: ",nv_fillpathspaces_hl
-	;display "processfiles_proc: ",processfiles_proc
-	ret
 
 skipword_hl
 	ld a,(hl)
@@ -1938,7 +1982,7 @@ proceditcmd_copy_fcb
 	ld de,dir_buf
 	OS_CHDIR
 
-        ld de,filenametext;wordbuf ;de=drive/path/file
+        ld de,filenametext ;wordbuf ;de=drive/path/file
 	ld hl,fcb_filename
 	call cpmname_to_dotname
 
@@ -2052,9 +2096,11 @@ filescopied=$+1
 proceditcmd_copy_q_progress0       
         push de
         push bc
-        OS_SETXY
-        ld e,#ff
-        OS_PRATTR
+        SETXY_
+        ;ld e,#ff
+        ;OS_PRATTR
+        ld a,'*'
+        PRCHAR_
         pop bc
         pop de
         inc e
@@ -2063,13 +2109,13 @@ proceditcmd_copy_q_progress0
         ret 
         
 mulbcde_ahl
-;bc * de результат в ahl
+;bc * de аҐ§г«мв в ў ahl
         xor a
         ld h,a
         ld l,a
         dup 8
         rlc b
-        jr nc,$+5 ; c - был перенос, nc - не было переноса    
+        jr nc,$+5 ; c - Ўл« ЇҐаҐ­®б, nc - ­Ґ Ўл«® ЇҐаҐ­®б     
         add hl,de
         adc a,0
         add hl,hl
@@ -2077,7 +2123,7 @@ mulbcde_ahl
         edup
         dup 7
         rlc c
-        jr nc,$+5 ; c - был перенос, nc - не было переноса    
+        jr nc,$+5 ; c - Ўл« ЇҐаҐ­®б, nc - ­Ґ Ўл«® ЇҐаҐ­®б     
         add hl,de
         adc a,0
         add hl,hl
@@ -2089,7 +2135,7 @@ mulbcde_ahl
         adc a,0
         ret
         
-;hl / de результат в hl
+;hl / de аҐ§г«мв в ў hl
 divhlde
 	ld c,h
 	ld a,l
@@ -2120,7 +2166,7 @@ _DIV0.
 editcmd_0
         call ifcmdnonempty_typedigit
 editcmd_quit
-        ld e,COLOR_RED
+        ld de,_COLOR_RED
         call nv_setcolor
         ld hl,winquit
         call prwindow_waitkey ;CY=OK
@@ -2139,7 +2185,7 @@ ifcmdnonempty_typedigit
 
 windrv
         dw 0x0003 ;de=yx
-        dw 256*(3+15)+28;0x0809 ;bc=hgt,wid
+        dw 256*(3+15)+28 ;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
         db "  A: - 1st Floppy",0,3
@@ -2299,11 +2345,11 @@ filenametext ;for change dir, rename
         db "prince  .   ",0 ;ds 64
 
 ext
-        ds 3 ;TODO объединить с filenametext
+        ds 3 ;TODO ®ЎкҐ¤Ё­Ёвм б filenametext
         
-copybuf=0x4000 ;нельзя 0xc000 - поверх какой-нибудь директории (а она используется при копировании) ;0x8000 можно только после выставления страницы там
+copybuf=0x4000 ;­Ґ«м§п 0xc000 - Ї®ўҐае Є Є®©-­ЁЎг¤м ¤ЁаҐЄв®аЁЁ (  ®­  ЁбЇ®«м§гҐвбп ЇаЁ Є®ЇЁа®ў ­ЁЁ) ;0x8000 ¬®¦­® в®«мЄ® Ї®б«Ґ ўлбв ў«Ґ­Ёп бва ­Ёжл в ¬
         ;ds 4096;128
-copybuf_sz=0x4000;$-copybuf
+copybuf_sz=0x4000 ;$-copybuf
 
         align 256
 file_buf
@@ -2315,82 +2361,83 @@ dir2_buf
 dir_batch_pointer db 0,0
 savepg db 0,0
 dirpg db 0,0
-nvcolor ds 2
+;nvcolor ds 2
 
 washobetarunner
 ;pgsys=pagexor-10
 ;pgfatfs=pagexor-9
 ;pgtrdosfs=pagexor-8
-;pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
+;pgkillable=pagexor-4 ;ў 128K Ї ¬пвЁ, в.Є. ¬®¦­® Ї®авЁвм
 	disp hobetarunner ;in pgkillable
 ;$c loaded in pages 4,1,0
 ;only ATM2 ports here!
 	di
-	ld a,#7f-5
-        ld bc,#bff7
-	out (c),a
-	ld a,#7f-4
-        ld bc,#fff7
-	out (c),a
-        ld hl,#c000
-        ld de,#8000
-        ld bc,#4000
+	ld a,0x7f-5
+        ld bc,0xbff7
+	out (c),a ;4,5,0
+	ld a,0x7f-4
+        ld bc,0xfff7
+	out (c),a ;4,5,4
+        ld hl,0xc000
+        ld de,0x8000
+        ld bc,0x4000
         ldir ;pg4 -> pg5
-	ld a,#7f-8;pgtrdosfs
-        ld bc,#fff7
-	out (c),a
-        ld hl,#1c00+#c000
-        ld de,#1c00+#8000
-        ld bc,#400
+	ld a,0x7f-8;pgtrdosfs ;­Ґ«м§п TOPDOWNMEM!!!
+        ld bc,0xfff7
+	out (c),a ;4,5,8
+        ld hl,0x1c00+0xc000
+        ld de,0x1c00+0x8000
+        ld bc,0x400
         ldir ;restore sysvars
-	ld a,#7f-2
-        ld bc,#bff7
+	ld a,0x7f-2
+        ld bc,0xbff7
 	out (c),a
-	ld a,#7f-1
-        ld bc,#fff7
+	ld a,0x7f-1
+        ld bc,0xfff7
 	out (c),a
-        ld hl,#c000
-        ld de,#8000
-        ld bc,#4000
+        ld hl,0xc000
+        ld de,0x8000
+        ld bc,0x4000
         ldir ;pg1 -> pg2
-	ld a,#7f-0+#80
-	ld bc,#fff7
+	ld a,0x7f-0+0x80
+	ld bc,0xfff7
 	out (c),a
-	ld a,#00
-	ld bc,#7ffd
+	ld a,0x00
+	ld bc,0x7ffd
 	out (c),a
-	ld a,#81 ;128 basic (with 7ffd)
-	ld bc,#3ff7
+	ld a,0x81 ;128 basic (with 7ffd)
+	ld bc,0x3ff7
 	out (c),a
-	ld a,#7f-5
-	ld bc,#7ff7
+	ld a,0x7f-5
+	ld bc,0x7ff7
 	out (c),a
 ;128: pages DOS,5,2,0(7ffd)
-	ld a,#10
-	ld bc,#7ffd
+	ld a,0x10
+	ld bc,0x7ffd
 	out (c),a
 ;48: pages 2,4,4,4
-	ld a,#7f-5
-	ld bc,#7ff7
+	ld a,0x7f-5
+	ld bc,0x7ff7
 	out (c),a
-	ld a,#7f-2
-        ld bc,#bff7
+	ld a,0x7f-2
+        ld bc,0xbff7
 	out (c),a
-	ld a,#7f-0+#80
-        ld bc,#fff7
+	ld a,0x7f-0+0x80
+        ld bc,0xfff7
 	out (c),a
-	ld a,#83 ;48 basic switchable to DOS
-	ld bc,#3ff7
+	ld a,0x83 ;48 basic switchable to DOS
+	ld bc,0x3ff7
 	out (c),a
 ;48: pages DOS,5,2,0(7ffd)
         
-        LD A,%10101011 ;6912
-	ld bc,#ff77 ;shadow ports off, palette off
+        LD A,0b10101011 ;6912
+	ld bc,0xff77 ;shadow ports off, palette off
         out (c),a
-	ld sp,#6000
+	ld sp,0x6000
+         ;jr $
 	ei
 hobetarunner_jp=$+1
-	jp #6000
+	jp 0x6000
         ent
 hobetarunner_sz=$-washobetarunner
 
@@ -2403,7 +2450,7 @@ wordbytes
 ;        ds 2
         align 256
 HS_strpg
-        ds DIRPAGES*2+2 ; по 1 байту на маркеры "0"
+        ds DIRPAGES*2+2 ;Ї® 1 Ў ©вг ­  ¬ аЄҐал "0"
         
         include "nvsort.asm"
         include "heapsort.asm"
@@ -2414,9 +2461,10 @@ HS_strpg
         include "nvview.asm"
         include "nvhexed.asm"
 
-        include "../_sdk/prdword.asm"
+        include "prdword.asm"
         include "../_sdk/loadpage.asm"
-        include "../_sdk/cmdpr.asm"
+        include "cmdpr.asm"
+        include "../_sdk/stdio.asm"
         
 cmd_end
 
@@ -2424,4 +2472,4 @@ cmd_end
 
 	savebin "nv.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "..\..\us\user.l"

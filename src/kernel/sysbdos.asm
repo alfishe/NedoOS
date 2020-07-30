@@ -502,13 +502,13 @@ BDOS_scrollpagelinelayer_wid=$+1
 BDOS_scrolldown
 ;de=topyx, hl=hgt,wid
 ;x, wid even
-         push hl
-         ld hl,(appaddr)
-         ld bc,(focusappaddr)
-         or a
-         sbc hl,bc
-         pop hl
-         ret nz
+         ;push hl
+         ;ld hl,(appaddr)
+         ;ld bc,(focusappaddr)
+         ;or a
+         ;sbc hl,bc
+         ;pop hl
+         ;ret nz
         ld a,d
         add a,h
         dec a
@@ -528,13 +528,13 @@ BDOS_scrolldown0
 BDOS_scrollup
 ;de=topyx, hl=hgt,wid
 ;x, wid even
-         push hl
-         ld hl,(appaddr)
-         ld bc,(focusappaddr)
-         or a
-         sbc hl,bc
-         pop hl
-         ret nz
+         ;push hl
+         ;ld hl,(appaddr)
+         ;ld bc,(focusappaddr)
+         ;or a
+         ;sbc hl,bc
+         ;pop hl
+         ;ret nz
         call BDOS_scroll_prepare
         jp BDOS_scrollpage0
         
