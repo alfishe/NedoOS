@@ -255,34 +255,22 @@ prtext0
         inc hl
         jr prtext0
 
-        
-        
 readfile_pages_dehl
         ld a,d
         SETPG32KHIGH
         ld a,0xc100/256
         call cmd_loadpage
-        or a
-        ret nz
-        
+        ret nz        
         ld a,e
-        SETPG32KHIGH
-        ld a,0xc000/256
-        call cmd_loadpage
-        or a
+        call cmd_loadfullpage
         ret nz
-        
         ld a,h
-        SETPG32KHIGH
-        ld a,0xc000/256
-        call cmd_loadpage
-        or a
+        call cmd_loadfullpage
         ret nz
-        
         ld a,l
+cmd_loadfullpage
         SETPG32KHIGH
         ld a,0xc000/256
-
 cmd_loadpage
 ;out: a=error
 ;keeps hl,de
@@ -299,6 +287,7 @@ curhandle=$+1
         OS_READHANDLE
         pop hl
         pop de
+        or a
         ret
 
 term_filename

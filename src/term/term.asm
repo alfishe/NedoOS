@@ -27,16 +27,15 @@ begin
         OS_SETGFX
         ld de,ansipal
         OS_SETPAL
-	;OS_GETMAINPAGES ;dehl
-	;push de
-	;push hl
-	;ld e,l
-	;OS_DELPAGE
-	;pop hl
-	;ld e,h
-	;OS_DELPAGE
-	;pop de
-	;OS_DELPAGE
+        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
+        ld a,e
+        ld (pgscrbuf),a
+	push hl
+	ld e,l
+	OS_DELPAGE
+	pop hl
+	ld e,h
+	OS_DELPAGE
  
         ld de,tpipename
         push de
@@ -47,13 +46,6 @@ begin
         OS_OPENHANDLE
         ld a,b
         ld (stdouthandle),a
-
-        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-        ld a,h
-        ld (pgscrbuf),a
-        ;ld (pgscrbuf_low),a
-        ;ld a,l
-        ;ld (pgscrbuf_high),a
         
         ld e,COLOR
         call BDOS_cls
@@ -94,42 +86,20 @@ execcmd_error
 mainloop_afternokey
 mainloop_afterkey
         YIELD
-        call BDOS_countattraddr
-unprint_cursor_color=$+1
-        ld (hl),COLOR
-
-curmouseaddr=$+1
-        ld hl,killbuf_byte
-unprint_mousecursor_color=$+1
-        ld (hl),COLOR
-
-mainloop_afterredraw
-        
-waitpid_id=$+1
-        ld e,0
-        OS_WAITPID ;TODO проверять, что пайп с той стороны не закрыт
-        or a
-        jp z,quit
-        
-        call type_stdin ;stdin to screen
-        YIELDKEEP
-        call type_stdin ;stdin to screen
-        YIELDKEEP
-        call type_stdin ;stdin to screen
-        YIELDKEEP
-        call type_stdin ;stdin to screen
-       
         ld a,(pgscrbuf) ;ok
         SETPG16K
-         ld hl,(pr_buf_curaddr)
-        ld a,l
+        call BDOS_countattraddr
+wascursorcuraddr=$+1
+        ld de,killbuf_byte
+        ld a,e
         add a,0x40 ;attr
         adc a,0
-        ld l,a
-        ld a,(hl) ;из pgscrbuf
-        ld (unprint_cursor_color),a
+        ld e,a
+        ld a,(de) ;из pgscrbuf
+        ld (hl),a;COLOR
 
-        call getmousexy
+mousecursor_wasxy=$+1
+        ld de,0
          call getscrbuftop_a
          add a,d ;0..24
          ld h,a
@@ -140,11 +110,52 @@ waitpid_id=$+1
         adc a,0
         ld l,a
         ld a,(hl) ;из pgscrbuf
-        ld (unprint_mousecursor_color),a
-
+        push af
         call BDOS_countattraddr_mousecursor
-        ld (curmouseaddr),hl
-        ld (hl),CURSORCOLOR
+        pop af
+        ld (hl),a ;screen
+
+mainloop_afterredraw
+        
+waitpid_id=$+1
+        ld e,0
+        OS_WAITPID ;TODO проверять, что пайп с той стороны не закрыт
+        or a
+        jp z,quit
+        
+        ;ld a,1
+        ;out (0xfe),a
+        call type_stdin ;stdin to screen
+        ;ld a,2
+        ;out (0xfe),a
+        YIELDKEEP
+        ;ld a,1
+        ;out (0xfe),a
+        call type_stdin ;stdin to screen
+        ;ld a,2
+        ;out (0xfe),a
+        YIELDKEEP
+        ;ld a,1
+        ;out (0xfe),a
+        call type_stdin ;stdin to screen
+        ;ld a,2
+        ;out (0xfe),a
+        YIELDKEEP
+        ;ld a,1
+        ;out (0xfe),a
+        call type_stdin ;stdin to screen
+        ;ld a,2
+        ;out (0xfe),a
+       
+         ld hl,(pr_buf_curaddr)
+         ld (wascursorcuraddr),hl        
+        call getmousexy
+        ld (mousecursor_wasxy),de
+        call BDOS_countattraddr_mousecursor
+        ld a,(hl)
+        cpl
+        ld (hl),a
+        ;ld (hl),CURSORCOLOR
 
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
@@ -167,9 +178,15 @@ cursortimelimit=$+1
         call BDOS_countattraddr
         ld (hl),CURSORCOLOR
 noprintcursor
+        ;ld a,3
+        ;out (0xfe),a
 
 ;mainloop_afterkey
         GET_KEY ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
+        ;push af
+        ;ld a,2
+        ;out (0xfe),a
+        ;pop af
         jp nz,mainloop_afternokey ;no focus
 
         ;or a ;cp NOKEY ;keylang==0?
@@ -252,9 +269,13 @@ sendmouseevent_buttons
         ld (hl),e
         inc hl
         ld (hl),d
+        ;ld a,1
+        ;out (0xfe),a
         ld de,stdoutbuf
         ld hl,6
         call sendchars
+        ;ld a,4
+        ;out (0xfe),a
         jp mainloop_afterkey
 
 term_sendchar
@@ -298,7 +319,9 @@ term_pgup
         jp mainloop_afterredraw
 
 term_redraw
-        call redraw_to_base
+        ld hl,redraw_scroll
+        ld (hl),0
+        call redraw
         jp mainloop_afterredraw
 
 redraw_to_base
@@ -383,10 +406,10 @@ stdinhandle=$+1
         call redraw_to_base
          OS_GETTIMER ;hlde=timer
          ld (lastsdtinmsgtimer),de
-        ld a,(user_scr0_high) ;ok ;pgscr0_1
-        SETPG32KHIGH
-        ld a,(user_scr0_low) ;ok ;pgscr0_0
-        SETPG32KLOW
+        BDOSSETPGSSCR
+pgscrbuf=$+1
+        ld a,0 ;ok
+        SETPG16K
         pop bc
         ld hl,stdinbuf
 term_print0
@@ -479,7 +502,9 @@ sendchar
         ld de,stdoutbuf
 sendchars
 ;send chars to stdout (in: de=buf, hl=size, out: A=error)
+        ld b,5 ;attempts
 sendchars0
+        push bc
         push de
         push hl
 stdouthandle=$+1
@@ -494,6 +519,7 @@ stdouthandle=$+1
         ld c,l ;bytes actually written
         pop hl
         pop de
+        pop ix
          or a
           ret nz ;error ;TODO обработать? а так пока просто избегаем зацикливания
          sbc hl,bc ;datasize-byteswritten
@@ -503,13 +529,17 @@ stdouthandle=$+1
          ex de,hl
 ;hl=remaining data size
 ;de=remaining data addr
+        push ix
         push de
         push hl
         YIELDKEEP ;2158t
         call type_stdin
         pop hl
         pop de
-        jr sendchars0
+        pop bc
+        djnz sendchars0
+        xor a ;z=no error
+        ret ;клиент завис, но не сдох
 
 
 term_prfsm
@@ -666,7 +696,7 @@ term_prfsm_afterescbracket_scrolldown
         ld hl,21*256 + 40 ;TODO передавать
         push de
         push hl
-        OS_SCROLLDOWN ;TODO в scrbuf тоже
+        OS_SCROLLDOWN
         ld a,(pgscrbuf)
         SETPG16K
         pop hl
@@ -697,7 +727,7 @@ term_prfsm_afterescbracket_scrollup
         ld hl,21*256 + 40 ;TODO передавать
         push de
         push hl
-        OS_SCROLLUP ;TODO в scrbuf тоже
+        OS_SCROLLUP
         ld a,(pgscrbuf)
         SETPG16K
         pop hl
@@ -797,10 +827,12 @@ term_nosetpaper
 term_setvisible
         xor a
         ld (finvisible),a
+        ld (finvisible2),a
         ret
 term_setinvisible
         ld a,0x5e ;"ld e,(hl)"
         ld (finvisible),a
+        ld (finvisible2),a
         ret
 
 MOUSEFACTOR=8
@@ -876,9 +908,9 @@ html_mousemove_xq
         ret
 
 BDOS_countattraddr_mousecursor
+;de=yx
         ld a,(user_scr0_low) ;ok
         SETPG32KLOW ;attr ;TODO убрать? считывать из scrbuf!
-        call getmousexy
         ld a,d ;y
         sub -0x87&0xff ;0xe1c0*4=0x8700
         rra
@@ -1070,9 +1102,10 @@ writed1=$
 
 pr_buf_curaddr=$+1
         ld hl,0x4000+0x40 ;text0
-pgscrbuf=$+1
-         ld a,0
-         SETPG16K ;TODO вне prchar
+         ;ld a,(pgscrbuf)
+         ;SETPG16K ;вне prchar
+finvisible2=$
+        nop ;/ld e,(hl)
 writee2=$
          ld (hl),e
         ld a,l
@@ -1126,10 +1159,7 @@ BDOS_scrolllock0
         SETPG32KHIGH ;call sys_setpgc000
         ld a,COLOR
         call BDOS_cllastline
-        ld a,(user_scr0_high) ;ok ;pgscr0_1
-        SETPG32KHIGH
-        ld a,(user_scr0_low) ;ok ;pgscr0_0
-        SETPG32KLOW
+        BDOSSETPGSSCR
 BDOS_prchar_skipscroll
         ld hl,0xc7c0
         jp BDOS_settextcuraddr
@@ -1346,27 +1376,17 @@ readfile_pages_dehl
         SETPG32KHIGH
         ld a,0xc100/256
         call cmd_loadpage
-        or a
         ret nz
-        
         ld a,e
-        SETPG32KHIGH
-        ld a,0xc000/256
-        call cmd_loadpage
-        or a
+        call cmd_loadfullpage
         ret nz
-        
         ld a,h
-        SETPG32KHIGH
-        ld a,0xc000/256
-        call cmd_loadpage
-        or a
+        call cmd_loadfullpage
         ret nz
-        
         ld a,l
+cmd_loadfullpage
         SETPG32KHIGH
         ld a,0xc000/256
-
 cmd_loadpage
 ;out: a=error
 ;keeps hl,de
@@ -1383,6 +1403,7 @@ curhandle=$+1
         OS_READHANDLE
         pop hl
         pop de
+        or a
         ret
 
 skipword
@@ -1428,7 +1449,7 @@ tpipename
         db "z:",0
 
 killbuf_byte
-        db 0
+        db COLOR;0
 
 stdoutbuf
         ds 6

@@ -15,6 +15,8 @@
 ;setstdinhandle - in: A=handle
 ;clearterm - print 25 lines of spaces except one
 
+STDINBUF_SZ=255
+
 initstdio
         OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
         ld a,e
@@ -33,10 +35,28 @@ yieldgetkeyloop
 	YIELDKEEP
         jr yieldgetkey_afteryield
 yieldgetkey_nokey
+;может быть, мы в середине esc-кода? тогда надо yieldgetkeyloop
+        ld a,(term_prfsm_curstate)
+        dec a
+        jr nz,yieldgetkeyloop
+        ;ld a,7
+        ;out (0xfe),a
         YIELD ;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
 yieldgetkey_afteryield
+        ;ld a,5
+        ;out (0xfe),a
+        xor a
+        ld (wasmouseevent),a
         call receivekey
          ret c ;error
+;был mouse event? считаем за нажатие, а приложение будет смотреть координаты и кнопку мыши
+stdio_mousebuttons=$+1
+        ld l,0
+stdio_mousex=$+1
+stdio_mousey=$+2
+        ld de,0
+wasmouseevent=$
+        ret ;NC=no error
         or a ;cp NOKEY ;keylang==0?
         jr nz,$+3
         cp c ;keynolang==0?
@@ -250,6 +270,8 @@ sendchar
         ld de,stdoutbuf
 sendchars
 ;send chars to stdout (in: de=buf, hl=size, out: A=error)
+        ;ld a,6
+        ;out (0xfe),a
 sendchars0
         push de
         push hl
@@ -276,6 +298,8 @@ stdouthandle=$+1
 ;de=remaining data addr
         push de
         push hl
+        ;ld a,5
+        ;out (0xfe),a
         YIELDKEEP ;2158t
         pop hl
         pop de
@@ -283,11 +307,26 @@ stdouthandle=$+1
 
 receivechar
 ;read char from stdin (out: A=char, CY=error)
-        ld hl,1
+stdindatacount=$+1
+        ld a,0
+        or a
+        jr z,receivechar_doreceive
+        dec a
+        ld (stdindatacount),a
+stdindatapointer=$+1
+        ld hl,0
+        ld a,(hl)
+        inc hl
+        ld (stdindatapointer),hl
+        or a ;NC=no error
+        ret
+receivechar_doreceive
+        ld hl,STDINBUF_SZ
         ld de,stdinbuf
+        ld (stdindatapointer),de
 stdinhandle=$+1
         ld b,0
-        OS_READHANDLE
+        OS_READHANDLE ;hl=size actually received
         or a
         scf
         ret nz ;error
@@ -295,8 +334,9 @@ stdinhandle=$+1
         or l
         ;ld c,a
         ret z ;NC=no error
-        ld a,(stdinbuf)
-        ret ;NC=no error
+        ;ld a,l
+        ld (stdindatacount),a
+        jr receivechar
 
 receivekey
 ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
@@ -384,6 +424,18 @@ term_prfsm_noafterescbracket
         djnz term_prfsm_noaftermouse
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEb
+         ld l,0xff
+         dec a
+         jr nz,$+3
+         dec l
+         dec a
+         jr nz,$+4
+         res 1,l
+         dec a
+         jr nz,$+4
+         res 2,l
+         ld a,l
+         ld (stdio_mousebuttons),a
         xor a ;no key, no error
         ld c,a
         ret
@@ -391,12 +443,16 @@ term_prfsm_noaftermouse
         djnz term_prfsm_aftermousebx;term_prfsm_noaftermouseb
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEbx
+         ld (stdio_mousex),a
         xor a ;no key, no error
         ld c,a
         ret
 term_prfsm_aftermousebx
         ld hl,term_prfsm_curstate
         ld (hl),TERM_ST_SINGLE
+         ld (stdio_mousey),a
+        ld a,0xc9
+        ld (wasmouseevent),a
         xor a ;no key, no error
         ld c,a
         ret
@@ -438,4 +494,4 @@ stdoutbuf
         db "-[00;00m"
 
 stdinbuf
-        db 0 ;ds STDINBUF_SZ
+        ds STDINBUF_SZ

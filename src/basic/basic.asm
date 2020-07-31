@@ -6,8 +6,9 @@ txtscrwid=80
 
 STACK=0x8000 ;нельзя 0x0000, иначе не получится грузить через верхнее окно и переключать страницы программы и переменных
 
-COLOR=7
-CURSORCOLOR=#38
+_COLOR=0x0007;7
+_ERRORCOLOR=0x0009;0x0007;0x42
+;_CURSORCOLOR=0x0700;0x38
 
 varmem=0x4000 ;строки (256 байт asciiz), числа (4 байта), параметры цикла (4+4(step)+4(to)+4(goto) байта), массивы (2 байта число элементов, элементы по 4 байта)
 progmem=0x8000 ;номер строки(ст,мл), длина строки(мл,ст без терминатора), строка(asciiz)
@@ -19,6 +20,8 @@ RUNMODE_INTERACTIVE=0
         org PROGSTART
 
 cmd_begin
+        ld sp,STACK
+        call initstdio
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,h
@@ -32,10 +35,8 @@ cmd_begin
         ;ld a,d
         ;ld (setpgs_scr_high),a
 
-        ld e,6 ;textmode
-        OS_SETGFX
-        
-        ld sp,STACK
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         
         ld hl,COMMANDLINE ;command line
         call skipword
@@ -64,8 +65,15 @@ noautoload
         
 mainloop
         ld sp,STACK
-        ld e,6 ;textmode
+        ld a,6 ;textmode
+curgfx=$+1
+        cp 6
+        jr z,mainloop_noresetgfx
+        ld (curgfx),a
+        ;ld e,6 ;textmode
+        ld e,-1 ;disable gfx (out: e=old gfxmode)
         OS_SETGFX
+mainloop_noresetgfx
         ;call restorebasicpages
 
         ;ld (fail_sp),sp
@@ -141,6 +149,8 @@ fail_or_ok
         jr mainloop
 
 fail_syntax
+        ld de,_ERRORCOLOR
+        SETCOLOR_
     ld hl,fsyntax
     call prtext
     ld hl,wordbuf
@@ -149,6 +159,8 @@ fail_syntax
     jp mainloop
 
 fail_fo
+        ld de,_ERRORCOLOR
+        SETCOLOR_
     ld hl,fopenerror
     call prtext
     call prcrlf
@@ -450,6 +462,7 @@ strcp0.
 	ret ;z
 
         include "bascmds.asm"
+        include "../_sdk/stdio.asm"
         
 tunknowncommand
         db "Unknown command",0
@@ -475,9 +488,9 @@ safelddr
 prcrlf        
         push hl
         ld a,0x0d
-        PRCHAR
+        PRCHAR_
         ld a,0x0a
-        PRCHAR
+        PRCHAR_
         pop hl
         ret
         
@@ -489,7 +502,7 @@ prtext
         or a
         ret z
         push hl
-        PRCHAR
+        PRCHAR_
         pop hl
         jr prtext
 
@@ -501,16 +514,16 @@ editcmd
 editcmd0
         call fixscroll_prcmd
         call cmdcalccurxy
-        OS_SETXY
-        ld e,CURSORCOLOR;#38
-        OS_PRATTR ;нарисовать курсор
-        YIELDGETKEYLOOP
-        push af
-        call cmdcalccurxy
-        OS_SETXY
-        ld e,COLOR;7
-        OS_PRATTR ;стереть курсор
-        pop af
+        SETXY_
+        ;ld e,CURSORCOLOR;#38
+        ;OS_PRATTR ;нарисовать курсор
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
+        ;push af
+        ;call cmdcalccurxy
+        ;OS_SETXY
+        ;ld e,COLOR;7
+        ;OS_PRATTR ;стереть курсор
+        ;pop af
         ld hl,cmdbuf
         cp key_enter
         ret z
@@ -656,16 +669,18 @@ editcmd_noscrollleft
         jr editcmd_scroll0
 editcmd_noscrollright
 ;prcmd
-        ld e,COLOR
-        OS_SETCOLOR
+        ld de,_COLOR
+        SETCOLOR_
         ld de,+(txtscrhgt-1)*256+0
-        OS_SETXY
+        SETXY_
+        ;ld a,0x0d
+        ;PRCHAR_
         ;ld hl,cmdprompt
         ld c,0
         ;call cmdprtext
         push bc
         ld a,'>'
-        PRCHAR
+        PRCHAR_
         pop bc
         inc c
         ld hl,(curcmdscroll)
@@ -680,7 +695,7 @@ prcmdspc0
         ret z
         push bc
         ld a,' '
-        PRCHAR
+        PRCHAR_
         pop bc
         inc c
         jp prcmdspc0
@@ -692,7 +707,7 @@ cmdprtext0
         ret z
         push bc
         push hl
-        PRCHAR ;testing (351/352t) (was 986/987t)
+        PRCHAR_
         pop hl
         pop bc
         inc c
@@ -814,7 +829,7 @@ prdword_digit_toscr
         push de
         push hl
         push ix
-        PRCHAR
+        PRCHAR_
         pop ix
         pop hl
         pop de
@@ -876,7 +891,7 @@ prstr_withlen0
         push bc
         push hl
         ld a,(hl)
-        PRCHAR
+        PRCHAR_
         pop hl
         inc hl
         pop bc
@@ -1088,4 +1103,4 @@ cmd_end
 
 	savebin "basic.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "../us/user.l"
+	LABELSLIST "../../us/user.l"

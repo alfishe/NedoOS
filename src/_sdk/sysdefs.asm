@@ -47,6 +47,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling
 CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
 CMD_PLAYCOVOX=0xd4 ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)

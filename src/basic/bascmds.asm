@@ -93,7 +93,14 @@ docmd
 ;hl'=text
         exx
         push hl
-        GET_KEY
+        ld a,(curgfx)
+        cp 6 ;textmode
+        jr z,docmd_nogfx
+        GET_KEY ;from BDOS
+        jr docmd_nogfxq
+docmd_nogfx
+        GETKEY_ ;from stdin
+docmd_nogfxq
         pop hl
         exx
         cp key_esc
@@ -167,7 +174,14 @@ eatcomma
 cmd_pause
         exx
         push hl
-        YIELDGETKEYLOOP
+        ld a,(curgfx)
+        cp 6 ;textmode
+        jr z,cmd_pause_nogfx
+        YIELDGETKEYLOOP ;from BDOS
+        jr cmd_pause_nogfxq
+cmd_pause_nogfx
+        call yieldgetkeyloop ;from stdin
+cmd_pause_nogfxq
         pop hl
         exx
         ret
@@ -179,6 +193,8 @@ cmd_gfx
         exx
         ld a,e
         and 7
+        ld e,a
+         ld (curgfx),a
         OS_SETGFX
         pop hl
         exx
@@ -801,7 +817,7 @@ save_lines0
         jr z,save_end
         
         push hl ;Проверка на нажатие брик
-        GET_KEY
+        GETKEY_
         pop hl
         cp key_esc
         jp z,endbreak
@@ -1167,7 +1183,7 @@ list_lines0
         ret z
         
         push hl ;Проверка на нажатие брик
-        GET_KEY
+        GETKEY_
         pop hl
         cp key_esc
         jp z,endbreak
@@ -1179,7 +1195,7 @@ list_lines0
         push hl
         call prword_de ;номер строки
         ld a,' '
-        PRCHAR
+        PRCHAR_
         pop hl
 
         ;ld e,(hl)

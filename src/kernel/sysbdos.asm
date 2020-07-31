@@ -752,13 +752,17 @@ BDOShandler
 
 tbdoscmds
          db CMD_WRITEHANDLE
-         db CMD_PRATTR
-         db CMD_SETXY
-         db CMD_SETCOLOR
          db CMD_WIZNETREAD
          db CMD_YIELDKEEP
          db CMD_YIELD
          db CMD_READHANDLE
+          db CMD_GETKEYMATRIX
+          db CMD_GETTIMER
+          db CMD_WAITPID
+          db CMD_SETSCREEN
+         db CMD_PRATTR
+         db CMD_SETXY
+         db CMD_SETCOLOR
          db CMD_PRCHAR
          db CMD_GETATTR
 	db CMD_SETDTA;0x1a
@@ -774,8 +778,6 @@ tbdoscmds
 	db CMD_PARSEFNAME;0x5c
         db CMD_CHDIR
         db CMD_GETPATH
-        db CMD_GETKEYMATRIX
-        db CMD_GETTIMER
         db CMD_RUNAPP
         db CMD_NEWAPP
         db CMD_CLS
@@ -784,10 +786,8 @@ tbdoscmds
         db CMD_GETMAINPAGES
         db CMD_NEWPAGE
         db CMD_DELPAGE
-        db CMD_SETSCREEN
         db CMD_MOUNT
         db CMD_FREEZEAPP
-        db CMD_WAITPID
         db CMD_MKDIR
         db CMD_RENAME
         db CMD_SETSYSDRV
@@ -819,7 +819,9 @@ tbdoscmds
         db CMD_PLAYCOVOX
         db CMD_GETSTDINOUT
         db CMD_SETSTDINOUT
+        db CMD_HIDEFROMPARENT
 nbdoscmds=$-tbdoscmds
+        dw BDOS_hidefromparent
         dw BDOS_setstdinout
         dw BDOS_getstdinout
         dw BDOS_playcovox
@@ -851,10 +853,8 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_setsysdrv
         dw BDOS_rename
         dw BDOS_mkdir
-        dw BDOS_waitpid
         dw BDOS_freezeapp
         dw BDOS_mount
-        dw BDOS_setscreen
         dw BDOS_delpage
         dw BDOS_newpage
         dw BDOS_getmainpages
@@ -863,8 +863,6 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_cls
         dw BDOS_newapp
         dw BDOS_runapp
-        dw BDOS_gettimer
-        dw BDOS_getkeymatrix
         dw BDOS_getpath
         dw BDOS_chdir
         dw BDOS_parse_filename
@@ -880,14 +878,36 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_setdta
          dw BDOS_getattr
          dw BDOS_prchar
+         dw BDOS_setcolor
+         dw BDOS_setxy
+         dw BDOS_prattr
+          dw BDOS_setscreen
+          dw BDOS_waitpid
+          dw BDOS_gettimer
+          dw BDOS_getkeymatrix
          dw BDOS_readhandle
          dw BDOS_yield
          dw BDOS_yieldkeep
          dw BDOS_wiznetread
-         dw BDOS_setcolor
-         dw BDOS_setxy
-         dw BDOS_prattr
          dw BDOS_writehandle
+
+BDOS_hidefromparent
+        push iy
+        call sys_findfreeid ;портит iy        
+        pop iy
+        ld c,a
+;перезахватить страницы
+        ld hl,tsys_pages
+        ld a,(iy+app.id)
+        ld (iy+app.id),c
+        ld b,sys_npages&0xff
+BDOS_hidefromparent0
+        cp (hl) ;id задачи, которой принадлежит страница
+        jr nz,$+4
+        ld (hl),c ;заменили страницу
+        inc hl
+        djnz BDOS_hidefromparent0
+        ret
 
 BDOS_setstdinout
 ;b=id, e=stdin, d=stdout, h=stderr

@@ -718,7 +718,10 @@ controlloop_noprline
 	 ;push hl ;color under file cursor
         call cmdcalccurxy
         call nv_setxy
+controlloop_nokey
         call yieldgetkeyloop ;YIELDGETKEYLOOP
+         or a
+         jr z,controlloop_nokey ;TODO handle mouse events
 	 ;pop hl ;color under file cursor
         push af
         ld ix,(curpanel)
@@ -1019,7 +1022,6 @@ editcmd_enter_runcmd
         SETXY_
         ld de,_COLOR
         SETCOLOR_
-        ;YIELD ;чтобы term напечатал
         ;---
         ;ld e,-1
         ;OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
@@ -1027,7 +1029,7 @@ editcmd_enter_runcmd
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
-;команда scratch - реально cmd scratch, запускает scratch по фону и вvходит
+;команда scratch - реально cmd scratch в текущем терминале
         ;YIELD ;дать время задаче cmd захватить фокус
         WAITPID
 execcmd_error
@@ -1379,7 +1381,10 @@ seldrv_cury=$+1
         ld hl,_CURSORCOLOR
         ld b,22
         call drawfilecursor_sizeb_colorhl ;draw cursor
+seldrv_mainloop_nokey
         call yieldgetkeyloop ;YIELDGETKEYLOOP
+         or a
+         jr z,seldrv_mainloop_nokey ;TODO handle mouse events
 	ld a,c
         pop de
         push af

@@ -101,6 +101,7 @@ main_go
         ds 256
 main_go2
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
+        OS_HIDEFROMPARENT
         ld e,0 ;EGA
         OS_SETGFX
         ;OS_GETSCREENPAGES

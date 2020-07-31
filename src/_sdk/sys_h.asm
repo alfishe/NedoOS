@@ -72,6 +72,7 @@ _1=$
 _1=$
         push de
         YIELD
+        ;call receivechar
         pop de
         push de
         OS_WAITPID
@@ -88,65 +89,65 @@ _1=$
 ;from CP/M (try to avoid use!) FCB = file control block (size FCB_sz)    
         macro OS_PRCHAR ;e=char
         ld c,CMD_PRCHAR
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_SETDRV ;e=drive ;out: a!=0 => not mounted, [l=number of drives]
         ld c,CMD_SETDRV
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FOPEN ;de = pointer to unopened FCB
         ld c,CMD_FOPEN
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FCLOSE ;de = pointer to opened FCB
         ld c,CMD_FCLOSE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FSEARCHFIRST ;de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
         ld c,CMD_FSEARCHFIRST
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FSEARCHNEXT ;(NOT CP/M compatible!!!)de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
         ld c,CMD_FSEARCHNEXT
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FDEL ;DEPRECATED!!!!! ;DE = Pointer to unopened FCB
         ld c,CMD_FDEL
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FREAD ;DE = Pointer to opened FCB, read 128 bytes in DTA, out: a=128^bytes actually read (not CP/M!)
         ld c,CMD_FREAD
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FWRITE ;DE = Pointer to opened FCB, write 128 bytes from DTA
         ld c,CMD_FWRITE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FCREATE ;DE = Pointer to unopened FCB
         ld c,CMD_FCREATE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_SETDTA ;DE = data transfer address (DTA)
         ld c,CMD_SETDTA
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
 
 ;from MSX-DOS
         macro OS_SEEKHANDLE ;b=file handle, dehl=offset
         ld c,CMD_SEEKHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_OPENHANDLE ;DE = Drive/path/file ASCIIZ string ;out: B = new file handle, A=error
         ld c,CMD_OPENHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_CREATEHANDLE ;DE = Drive/path/file ASCIIZ string ;out: B = new file handle, A=error
         ld c,CMD_CREATEHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_CLOSEHANDLE ;B = file handle, out: A=error
         ld c,CMD_CLOSEHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_READHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to read, out: HL = Number of bytes actually read, A=error
         ld c,CMD_READHANDLE
@@ -158,37 +159,41 @@ _1=$
         endm
         macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
         ld c,CMD_RENAME
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_CHDIR ;DE = Pointer to ASCIIZ string. Out A=error
         ld c,CMD_CHDIR
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_PARSEFNAME ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
         ld c,CMD_PARSEFNAME
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_GETPATH ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
         ld c,CMD_GETPATH
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_DELETE ;DE = Drive/path/file ASCIIZ string, out: A = Error
         ld c,CMD_DELETE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
 
 ;invented  
+        macro OS_HIDEFROMPARENT ;for tasks with their own screen handling
+        ld c,CMD_HIDEFROMPARENT
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_SETSTDINOUT ;e=stdin, d=stdout, h=stderr
         ld c,CMD_SETSTDINOUT
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
         ld c,CMD_GETSTDINOUT
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_PLAYCOVOX ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
         ld c,CMD_PLAYCOVOX
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETMUSIC ;hl=muzaddr (0x4000..0xffff), a=muzpg (pages in 0x8000, 0xc000 are taken from current user memory)
         ld c,CMD_SETMUSIC
@@ -204,15 +209,15 @@ _1=$
         endm
         macro OS_GETFILESIZE ;b=handle, out: dehl=file size
         ld c,CMD_GETFILESIZE
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETBORDER ;e=0..15
         ld c,CMD_SETBORDER
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETWAITING ;set WAITING state for current task
         ld c,CMD_SETWAITING
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_NETSOCKET ;D=address family (2=inet, 23=inet6), E=socket type (0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip) ;out: L=SOCKET (if L < 0 then A=error)
 	ld l,0x01
