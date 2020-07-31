@@ -105,6 +105,25 @@ waitcls0
         ;ld de,bgxyfilename
         ;call uvscroll_preparebmp
          call uvscroll_preparetiles
+;TODO обновить allscroll
+;allscroll=yscroll*(UVSCROLL_WID/512)+xscroll
+        ;jr $
+        ;ld hl,1;+(511*2)+(1023/256)
+        ;ld a,1023&0xff
+        ;ld (allscroll),hl
+        ;ld (allscroll_lsb),a
+        ld hl,-160 ;top left
+        ld (cameraym),hl
+        ld de,1024-160 ;top left
+        add hl,de
+        ld (yscroll),hl
+        
+        ld hl,-160 ;top left
+        ld (cameraxm),hl
+        ld de,2048-160 ;top left
+        add hl,de
+        ld (x2scroll),hl
+
          call uvscroll_preparetilemap
         ld de,pal
         OS_SETPAL
@@ -114,9 +133,39 @@ mainloop_uv0
 
         call drawsprites
 
+        ;call prcoords
+
         call changescrpg ;с этого момента можем видеть, что нарисовали
 
         call getmousedelta ;de=delta (d>0: go up) (e>0: go left)
+        
+        push de
+        push hl
+        
+        ld hl,(cameraxm) ;(in double pixels)
+        ;xor a
+        ;sub e
+        ld a,e
+        ld c,a
+        rla
+        sbc a,a
+        ld b,a
+        add hl,bc
+        ld (cameraxm),hl
+        ld hl,(cameraym)
+        ;xor a
+        ;sub d
+        ld a,d
+        ld c,a
+        rla
+        sbc a,a
+        ld b,a
+        add hl,bc
+        ld (cameraym),hl
+        
+        pop hl
+        pop de ;TODO привязать сдвиг камеры движка к сдвигу камеры для спрайтов
+        
         ld a,l ;hl=(sysmousebuttons)
         rra
          jr nc,mainloop_uvq ;LMB
@@ -226,6 +275,9 @@ logic_nocycleanim
         ld (ix+obj.animaddr16+1),h
 logic_nonextphase
 
+        ld a,(pgmetatilemap)
+        SETPG32KHIGH
+
         ld l,(ix+obj.xspeed16+0)
         ld h,(ix+obj.xspeed16+1)
         ld e,(ix+obj.x16+0)
@@ -239,22 +291,68 @@ logic_nonextphase
         inc hl
         inc hl
         inc hl ;gravity
+         ld a,h
+         rla
+         jr c,gravityok
+         ld de,16*8
+         or a
+         sbc hl,de
+         add hl,de
+         jr c,gravityok
+         ex de,hl
+gravityok
         ld (ix+obj.yspeed16+0),l
         ld (ix+obj.yspeed16+1),h
+        
+;check floor
+        push hl
+        ld l,(ix+obj.y16+0) ;*8
+        ld h,(ix+obj.y16+1)
+        dup 3
+        srl h
+        rr l
+        edup
+        dup 4
+        add hl,hl
+        edup
+        ld c,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld b,(ix+obj.x16+1)
+        dup 3
+        srl b
+        rr c
+        edup
+        dup 3
+        srl b
+        rr c
+        edup
+        ld a,c
+         sub 3
+        cpl
+        ld l,a
+        ld a,h
+         sub 1
+        cpl
+        ld h,a
+        ld a,(hl)
+        pop hl
         ld c,(ix+obj.y16+0)
         ld b,(ix+obj.y16+1)
         add hl,bc
-        ld de,100*8
-        or a
-        sbc hl,de
-        add hl,de
+        cp 32
         jr c,nofloor
+        
+;выравнивание по y на 16(пикс)*8
+        ld a,l
+        and 128
+        ld l,a
+        dec hl
+        push hl   
         ld hl,0
         ld (ix+obj.yspeed16+0),l
         ld (ix+obj.yspeed16+1),h
         ld a,0
         ld (heroair),a
-        ex de,hl
+        pop hl
 nofloor
         ld (ix+obj.y16+0),l
         ld (ix+obj.y16+1),h
@@ -262,7 +360,7 @@ nofloor
         ld bc,OBJSIZE
         add ix,bc
         bit 7,(ix+obj.y16+1) ;yhigh
-        jr z,logic0
+        jp z,logic0
 
 ;hero control 
 joystate=$+1
@@ -401,7 +499,7 @@ drawsprites0
 drawsprites0_sprdescr=$+2
         ld iy,(0xc000);testspr
 
-;храним x*8,y*8
+;храним x*8 (in double pixels),y*8
         ld a,(ix+obj.x16+0)
         ld d,(ix+obj.x16+1)
         srl d
@@ -411,6 +509,20 @@ drawsprites0_sprdescr=$+2
         srl d
         rra
         ld e,a
+        
+cameraxm=$+1
+        ld hl,0;+160;-2048+160
+        add hl,de
+         ;jr $
+        ld a,h
+        or a
+        jr nz,drawspr_skip
+        ld a,l
+        cp 159+sprmaxwid
+        jr nc,drawspr_skip
+        ;sub sprmaxwid-1
+        ld e,a
+        
         ld a,(ix+obj.y16+0)
         ld b,(ix+obj.y16+1)
         srl b
@@ -420,7 +532,17 @@ drawsprites0_sprdescr=$+2
         srl b
         rra
         ld c,a
-;TODO вычесть координаты скролла
+cameraym=$+1
+        ld hl,0;+160;-1024+160
+        add hl,bc
+        ld a,h
+        or a
+        jr nz,drawspr_skip
+        ld a,l
+        cp 199+sprmaxhgt
+        jr nc,drawspr_skip
+        sub sprmaxhgt-1
+        ld c,a
 
 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
@@ -429,7 +551,8 @@ drawsprites0_sprdescr=$+2
         ;call prsprega ;(с включением экранных страниц и проверкой попадания спрайта в экран) один спрайт 16x16 = 6875t
         call prspr ;(без включения экранных страниц и без проверки попадания спрайта в экран) один спрайт 16x16 = 6408t (из них 4224t само мясо)
         pop ix
-        
+drawspr_skip
+
         ld bc,OBJSIZE
         add ix,bc
         bit 7,(ix+obj.y16+1) ;yhigh
@@ -724,8 +847,8 @@ sz
 
 OBJSIZE=obj.sz
 objects
-;y16
-;x16
+;y16 (*8)
+;x16 (*8) (in double pixels)
 ;animtime
 ;animaddr16
 ;xspeed16
@@ -924,6 +1047,156 @@ bgpush_ldbmp_bytes0
         pop de
         pop bc
         ret
+
+prcoords
+        call setpgsscr40008000
+        ld hl,(cameraxm)
+        ld de,0x4000 + (192*40)
+        call prnum
+        ld hl,(cameraym)
+        ld de,0x4008 + (192*40)
+        call prnum
+        ret
+
+prnum
+        ld bc,10000
+        call prdig
+        ld bc,1000
+        call prdig
+        ld bc,100
+        call prdig
+        ld bc,10
+        call prdig
+        ld bc,1
+prdig
+        ld a,'0'-1
+prdig0
+        inc a
+        or a
+        sbc hl,bc
+        jr nc,prdig0
+        add hl,bc
+        ;push hl
+        ;call prchar
+        ;pop hl
+        ;ret
+prchar
+;a=code
+;de=screen
+        push de
+        push hl
+        call prcharin
+        pop hl
+        pop de
+        inc e
+        ret
+        
+calcscraddr
+;bc=yx
+;можно портить bc
+        ex de,hl
+        ld a,c ;x
+        ld l,b ;y
+        ld h,0
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+         add hl,hl
+         add hl,hl
+         add hl,hl
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        ex de,hl
+        ret
+
+prcharxy
+;a=code
+;bc=yx
+        push de
+        push hl
+        push bc
+        push af
+        call calcscraddr
+        pop af
+        call prcharin
+        pop bc
+        pop hl
+        pop de
+        ret
+        
+prcharin
+        sub 32
+        ld l,a
+        ld h,0
+         add hl,hl
+         add hl,hl
+         add hl,hl
+         add hl,hl
+         add hl,hl
+        ;ld bc,font-(32*32)
+        ;add hl,bc
+        ld a,h
+        add a,font/256
+        ld h,a
+prcharin_go
+        ex de,hl
+        
+        ld bc,40
+        push hl
+        push hl
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
+        edup
+        pop hl
+        ;set 6,h
+         ld a,h
+         add a,0x40
+         ld h,a
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
+        edup
+        pop hl
+        set 5,h
+        push hl
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
+        edup
+        pop hl
+        ;set 6,h
+         ld a,h
+         add a,0x40
+         ld h,a
+        ;ld d,font/256
+        dup 8
+        ld a,(de) ;font
+        ld (hl),a ;scr
+        inc de
+        add hl,bc
+        edup        
+        ret
+
+        align 256
+font
+        incbin "fontgfx"
         
 res_path
         db "sprexamp",0 ;в этом относительном пути будут лежать все загружаемые данные игры

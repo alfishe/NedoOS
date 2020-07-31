@@ -3,6 +3,6 @@
 begin
         include "ptsplay.asm"
 module
-        incbin "testmusi.pt3"
+        incbin "everlast.pt3"
 end
 	savebin "sprexamp/music.bin",begin,end-begin
