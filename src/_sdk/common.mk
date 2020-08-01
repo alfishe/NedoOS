@@ -1,3 +1,25 @@
+
+SJASMPLUS	= ../../tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
+WINTOP := $(dir $(abspath $(lastword $(MAKEFILE_LIST))../../../))
+INSTALLDIR	:= $(dir $(WINTOP)release/)
+
+ifeq ($(OS),Windows_NT)
+	WINSDK := $(dir $(WINTOP)src/_sdk/)
+	ASPP = "../../tools/parsasm.bat"
+	DEPAS = ${ASPP}
+	DEPAFLAGS	= -E -MM -I $(WINSDK)
+	RM = @del /Q
+	COPY = @copy /Y
+else
+	ASPP = ../../tools/aspp.sh
+	DEPAS = env LC_CTYPE=C ${ASPP}
+	DEPAFLAGS	= -E -MM -I .
+#	DEL = @rm -f
+	COPY = @cp
+#	BINEXT =
+endif
+
 # common.mk - common definitions for Makefiles.
 #
 # Supported environments:
@@ -27,12 +49,12 @@
 
 define sjasmplus_rule =
 # Dependency generation rule for .asm file:
-${patsubst %${suffix ${2}},%.${DEPEXT},${2}}: ${2}
+${patsubst %${suffix ${2}},%.d,${2}}: ${2}
 	$${RM} $$@ && $${DEPAS} $${DEPAFLAGS} ${addprefix -MT ,${1}} -MT $$@ -MF $$@ $$<
 ${1}: ${2}
 	$${SJASMPLUS} $${SJASMPLUSFLAGS} ${3} $$< --raw=$$@
 ifneq "${4}" ""
-${4}+=${patsubst %${suffix ${2}},%.${DEPEXT},${2}}
+${4}+=${patsubst %${suffix ${2}},%.d,${2}}
 endif
 ifneq "${5}" ""
 ${5}+=${1}
@@ -54,12 +76,12 @@ endef
 define sjasmplus_odd_rule =
 # Dependency generation rule for .asm file:
 # FIXME: No output file specified here (we must check sources manually):
-${patsubst %${suffix ${2}},%.${DEPEXT},${2}}: ${2}
+${patsubst %${suffix ${2}},%.d,${2}}: ${2}
 	$${RM} $$@ && $${DEPAS} $${DEPAFLAGS} ${addprefix -MT ,${1}} -MT $$@ -MF $$@ $$<
 ${1}: ${2}
 	$${SJASMPLUS} $${SJASMPLUSFLAGS} ${3} $$<
 ifneq "${4}" ""
-${4}+=${patsubst %${suffix ${2}},%.${DEPEXT},${2}}
+${4}+=${patsubst %${suffix ${2}},%.d,${2}}
 endif
 ifneq "${5}" ""
 ${5}+=${1}
@@ -79,7 +101,7 @@ endef
 define copy_file_rule =
 ${1}: ${2}
 	@mkdir -p $${@D}
-	cp $$< $$@
+	$(COPY) $$< $$@
 ifneq "${3}" ""
 ${3}+=${1}
 endif
@@ -98,3 +120,87 @@ endef
 define copy_to_dir_rule =
 ${foreach f,${2},${eval ${call copy_file_rule,${1}/${notdir ${f}},${f},${3}}}}
 endef
+# All targets
+TARGETS=executables resources
+.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
+
+.DEFAULT_GOAL=all
+
+empty:
+	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
+	@echo 'where ACTION is one of: install clean'
+	@echo '      TARGET is one of: ${TARGETS}'
+
+# Clear lists
+DEPS=
+
+# Create directories
+${sort \
+${BIN_INSTALLDIR} \
+${RES_INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $@
+
+##########################
+## Target "executables" ##
+##########################
+
+EXEC_DEPS=
+EXEC_BINS=
+
+${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+
+executables: ${EXEC_BINS}
+
+install-executables: executables | ${BIN_INSTALLDIR}
+	$(COPY) ${EXEC_BINS} "$|"
+
+clean-executables:
+	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+
+DEPS+=${EXEC_DEPS}
+
+########################
+## Target "resources" ##
+########################
+
+resources: ${RESOURCES}
+
+install-resources: resources | ${RES_INSTALLDIR}
+ifneq "${sort ${RESOURCES}}" ""
+	$(COPY) ${RESOURCES} "$|"
+endif
+
+clean-resources:
+
+####################
+## Common targets ##
+####################
+
+all: executables resources
+
+install: install-executables install-resources
+
+ifeq "${sort ${DOCS}}" ""
+install-doc:
+else
+install-doc: ${DOCS} | ${DOC_INSTALLDIR}
+	$(COPY) $^ $|
+endif
+
+clean: clean-executables clean-resources
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+${filter clean-%,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif

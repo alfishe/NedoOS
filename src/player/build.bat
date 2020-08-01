@@ -1,8 +1,7 @@
-if "%settedpath%"=="" call ../_sdk/setpath.bat
-sjasmplus --nologo --msg=war player.asm
+..\..\tools\make.exe %1 %2
 
 if "%currentdir%"=="" (
  "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put player.com /bin/player.com
- pause
- if "%makeall%"=="" ..\..\us\emul.exe
+ rem pause
+ rem if "%makeall%"=="" ..\..\us\emul.exe
 )

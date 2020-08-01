@@ -4,6 +4,7 @@
 COLOR=7
 module=0x6000;0xc000
         
+		
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
