@@ -163,11 +163,21 @@ setcolor_visible
 scrolldown
 ;de=topyx, hl=hgt,wid
 ;x, wid even
+        ld b,h ;hgt
+        ld c,l ;wid
         ld hl,stdoutbuf
        push hl
         ld (hl),0x1b
         inc hl
         ld (hl),'['
+        inc hl
+        ld a,c ;wid
+        call sendchar_num
+        ld (hl),';'
+        inc hl
+        ld a,b ;hgt
+        call sendchar_num
+        ld (hl),';'
         inc hl
         ld a,e ;topx
         call sendchar_num
@@ -181,11 +191,21 @@ scrolldown
 scrollup
 ;de=topyx, hl=hgt,wid
 ;x, wid even
+        ld b,h ;hgt
+        ld c,l ;wid
         ld hl,stdoutbuf
        push hl
         ld (hl),0x1b
         inc hl
         ld (hl),'['
+        inc hl
+        ld a,c ;wid
+        call sendchar_num
+        ld (hl),';'
+        inc hl
+        ld a,b ;hgt
+        call sendchar_num
+        ld (hl),';'
         inc hl
         ld a,e ;topx
         call sendchar_num
@@ -245,6 +265,7 @@ setxy
 
 sendchar_num
 ;a=num
+        push bc
         ld c,'0'-1
         inc c
         sub 10
@@ -259,7 +280,8 @@ sendchar_num
         ;jr sendchar_byte_a
          ld (hl),a
          inc hl
-         ret
+        pop bc
+        ret
 
 sendchar
         ;cp 0x80

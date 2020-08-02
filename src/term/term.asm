@@ -5,6 +5,7 @@
 
 RECODEINPUT=1
 
+READPASTABUF_SZ=80
 STDINBUF_SZ=256
 
 HTMLTOPY=0
@@ -36,6 +37,8 @@ begin
 	pop hl
 	ld e,h
 	OS_DELPAGE
+
+        OS_SETSYSDRV
  
         ld de,tpipename
         push de
@@ -81,6 +84,15 @@ begin
         ld e,a ;id
         ld (waitpid_id),a
         OS_RUNAPP
+
+        ld hl,trecode
+        ld d,trecodeback/256
+maketrecodeback0
+        ld e,(hl)
+        ld a,l
+        ld (de),a
+        inc l
+        jr nz,maketrecodeback0
 
 execcmd_error
 mainloop_afternokey
@@ -215,7 +227,7 @@ nowheelmove
          ;cp key_pgup
          ;jr z,term_pgup
         or a
-        jr nz,term_sendchar        
+        jp nz,term_sendchar        
 ;no action? mouse coords change is also an action
 control_imer_oldmousecoords=$+1
         ld bc,0
@@ -228,7 +240,9 @@ control_imer_oldmousecoords=$+1
         ld e,a
         or d
         jr z,nomousemove
+        push hl
         call mousemove
+        pop hl
         jr sendmouseevent
 nomousemove
         ld a,l ;mouse buttons
@@ -240,9 +254,54 @@ oldmousebuttons=$+1
         jr nz,sendmouseevent
         jp mainloop_afterkey
 sendmouseevent
+        ld a,l
+        cpl
+        and 7
+        jr z,sendmouseevent_noclick
+        call getmousexy
+        ld a,d
+        or e
+        jr nz,sendmouseevent_noclicktopleft
+        ld de,tpastaname
+        OS_CREATEHANDLE
+        ld a,b
+        ld (pastahandle),a
+        
+        ld a,(pgscrbuf)
+        SETPG16K
+        ld hl,0x4040
+savepasta0
+        push hl
+        call savepastaline
+        pop hl
+        inc h
+        jp p,savepasta0        
+        ld a,(pastahandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        jp mainloop_afterkey
+sendmouseevent_noclicktopleft
+        ld a,d
+        sub 24
+        or e
+        jr nz,sendmouseevent_noclick
+        ld de,tpastaname
+        OS_OPENHANDLE
+        ld a,b
+        ld (pastahandle),a
+        ld de,readpastabuf
+        push de
+        ld hl,READPASTABUF_SZ
+        OS_READHANDLE ;hl=реально прочитано
+        pop de
+        call sendchars
+        ld a,(pastahandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        jp mainloop_afterkey
+sendmouseevent_noclick
 ;send mousemove event
         push hl
-        ;call redraw_to_base
         ld hl,stdoutbuf
         ld (hl),0x1b
         inc hl
@@ -251,7 +310,7 @@ sendmouseevent
         ld (hl),'M'
         inc hl
         pop bc
-        ld a,c
+        ld a,l ;mouse buttons
         ld b,1
         rra
         jr nc,sendmouseevent_buttons
@@ -269,18 +328,12 @@ sendmouseevent_buttons
         ld (hl),e
         inc hl
         ld (hl),d
-        ;ld a,1
-        ;out (0xfe),a
         ld de,stdoutbuf
         ld hl,6
         call sendchars
-        ;ld a,4
-        ;out (0xfe),a
         jp mainloop_afterkey
 
 term_sendchar
-        ;call redraw_to_base
-
         cp key_esc
         jr z,term_esckey
         if RECODEINPUT
@@ -384,6 +437,60 @@ quit
         OS_CLOSEHANDLE
         edup
         QUIT
+
+savepastaline
+;hl=lineaddr
+;текст лежит в 0x40, 0xc0, 0x41, 0xc1,.... 0xfe, 0x7f, 0xff
+;ищем конец строки (первый символ с конца, не равный 0/0x20)
+        ld l,0xc0+39 ;end of text
+        ld b,80
+savepastaline_findend0
+        ld a,(hl)
+        or a
+        jr z,savepastaline_findend0ok
+        cp 0x20
+        jr nz,savepastaline_findendq
+savepastaline_findend0ok
+        ld a,l
+        sub 0x80
+        sbc a,0
+        ld l,a
+        djnz savepastaline_findend0
+        jr savepastaline_skip
+savepastaline_findendq
+;hl=end of line
+;сохраняем всю строку до конца
+        ld l,0x40 ;start of text
+savepastaline0
+        ld a,(hl)
+        or a
+        jr nz,$+4
+        ld a,0x20
+        push bc
+        push hl
+        call writechar2pasta
+        pop hl
+        pop bc
+        ld a,l
+        add a,0x80
+        adc a,0
+        ld l,a
+        djnz savepastaline0
+savepastaline_skip
+        ld a,0x0d
+        call writechar2pasta
+        ld a,0x0a
+writechar2pasta
+        ld d,trecodeback/256
+        ld e,a
+        ld a,(de)
+        ld de,pastabuf
+        ld (de),a
+        ld hl,1
+pastahandle=$+1
+        ld b,0
+        OS_WRITEHANDLE
+        ret
 
 getmousexy
 mousexy=$+1
@@ -564,6 +671,8 @@ term_prfsm_nosingle
         xor a
         ld (term_prfsm_curnumber),a
         ld (term_prfsm_curnumber1),a
+        ld (term_prfsm_curnumber2),a
+        ld (term_prfsm_curnumber3),a
         ret
 term_prfsm_noafteresc
         sub '0'
@@ -583,6 +692,10 @@ term_prfsm_afterescbracket_nonumber
         add a,'0'
         cp ';'
         jr nz,term_prfsm_afterescbracket_nosemicolon
+        ld a,(term_prfsm_curnumber2)
+        ld (term_prfsm_curnumber3),a
+        ld a,(term_prfsm_curnumber1)
+        ld (term_prfsm_curnumber2),a
         ld a,(term_prfsm_curnumber)
         ld (term_prfsm_curnumber1),a
         xor a
@@ -693,7 +806,10 @@ term_prfsm_afterescbracket_scrolldown
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
         ld d,a ;ytop
-        ld hl,21*256 + 40 ;TODO передавать
+        ;ld hl,21*256 + 40 ;TODO передавать
+        ld hl,(term_prfsm_curnumber3) ;первый по счёту
+        ld a,(term_prfsm_curnumber2) ;wid
+        ld h,a ;hgt
         push de
         push hl
         OS_SCROLLDOWN
@@ -724,7 +840,10 @@ term_prfsm_afterescbracket_scrollup
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
         ld d,a ;ytop
-        ld hl,21*256 + 40 ;TODO передавать
+        ;ld hl,21*256 + 40 ;TODO передавать
+        ld hl,(term_prfsm_curnumber3) ;первый по счёту
+        ld a,(term_prfsm_curnumber2) ;wid
+        ld h,a ;hgt
         push de
         push hl
         OS_SCROLLUP
@@ -832,6 +951,7 @@ term_setvisible
 term_setinvisible
         ld a,0x5e ;"ld e,(hl)"
         ld (finvisible),a
+        ;ld a,0x4e ;"ld c,(hl)"
         ld (finvisible2),a
         ret
 
@@ -1441,15 +1561,28 @@ term_prfsm_curnumber
          db 0
 term_prfsm_curnumber1
          db 0
+term_prfsm_curnumber2
+         db 0
+term_prfsm_curnumber3
+         db 0
 
 cmd_filename
         db "cmd.com",0
+
+tpastaname
+        db "pasta.txt",0
 
 tpipename
         db "z:",0
 
 killbuf_byte
         db COLOR;0
+
+pastabuf    
+        db 0
+
+readpastabuf
+        ds READPASTABUF_SZ
 
 stdoutbuf
         ds 6
@@ -1460,6 +1593,8 @@ stdinbuf
         align 256
 trecode
 	incbin "../_sdk/codepage/866toatm"
+trecodeback
+        ds 256
         
 end
 	savebin "term.com",begin,end-begin

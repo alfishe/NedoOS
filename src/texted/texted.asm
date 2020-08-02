@@ -2,18 +2,19 @@
         include "../_sdk/sys_h.asm"
 
 ;text=#4000
-COLOR=7
+_COLOR=0x0007;7
         
         org PROGSTART
 cmd_begin
-        ld sp,#4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
-        ld e,6 ;textmode
-        OS_SETGFX
+        ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        call initstdio
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
 
         ;YIELD ;чтобы cmd мог доделать свои дела на экране
         
-        ld e,COLOR
-        OS_CLS
+        ;ld e,COLOR
+        ;OS_CLS
 
         ld hl,COMMANDLINE ;command line
         call skipword
@@ -81,20 +82,46 @@ nvview_load0
 noautoload
 
         call textview
-        jp 0
+        QUIT
 
-prtext
 ;out: hl=after terminator
+        if 1==1
+prtext
+;hl=text
+        push hl
+        call strlen ;hl=length
+        pop de ;de=text
+        push de
+        push hl
+        call sendchars
+        pop hl
+        pop de
+        add hl,de
+        inc hl ;out: hl=after terminator
+        ret
+
+strlen
+;hl=str
+;out: hl=length
+        ld bc,0 ;чтобы точно найти терминатор
+        xor a
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        ld hl,-1
+        or a
+        sbc hl,bc
+        ret
+        else
+prtext
 prtext0
         ld a,(hl)
         inc hl
         or a
         ret z
         push hl
-        PRCHAR
+        PRCHAR_
         pop hl
         jp prtext0
-        
+        endif
         
 skipword
 ;hl=string
@@ -123,7 +150,7 @@ nv_setxy
         push de
         push hl
         push ix
-        OS_SETXY
+        SETXY_
         pop ix
         pop hl
         pop de
@@ -138,9 +165,10 @@ minhl_bc_tobc
         ld c,l
         ret
 
-        include "../_sdk/prdword.asm"
+        include "prdword.asm"
         include "textview.asm"
         include "text_mem.asm"
+        include "../_sdk/stdio.asm"
 
 ;oldtimer
 ;        dw 0

@@ -2,6 +2,6 @@
 
 if "%currentdir%"=="" (
  "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put player.com /bin/player.com
- rem pause
+ pause
  rem if "%makeall%"=="" ..\..\us\emul.exe
 )

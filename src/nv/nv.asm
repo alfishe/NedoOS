@@ -1010,6 +1010,11 @@ editcmd_enter_runcmd
         OS_SETSYSDRV ;TODO каталог cmd
         ld hl,cmd_filename
         call copy_to_fcb_filename
+        
+        ld hl,cmdbuf
+loadandrun_waitpid
+;hl=cmdbuf или cmdprompt (для loadandrun_restcmd)
+        push hl
         ;---
 ;        ld de,#1800
 ;        call nv_setxy
@@ -1025,7 +1030,7 @@ editcmd_enter_runcmd
         ;---
         ;ld e,-1
         ;OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
-        ld hl,cmdbuf
+        pop hl ;hl=cmdbuf или cmdprompt
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
@@ -1078,7 +1083,7 @@ editcmd_enter_runfile_com
         ld hl,cmdbuf
         ld (hl),0
 ;hl=rest of command line
-        jp loadandrun ;nz=error, e=id
+        jp loadandrun_waitpid
 
 	;display "editcmd_enter_runfile_nocom",editcmd_enter_runfile_nocom
 editcmd_enter_runfile_nocom
@@ -1095,7 +1100,7 @@ editcmd_enter_runfile_nocom
         
         OS_SETSYSDRV ;TODO директория cmd
         ld hl,cmdprompt
-        jp loadandrun ;nz=error, e=id
+        jp loadandrun_waitpid
 
 makeprompt_filename
         call setpaneldir_makeprompt ;keeps ix
@@ -1497,7 +1502,7 @@ editcmd_4
         ;ld (hl),0
         ld hl,cmdprompt
 ;load file in fcb from system current dir with parameters in tcmd, then set curpaneldir and run
-        jp loadandrun ;nz=error, e=id
+        jp loadandrun_waitpid
         
 editcmd_9
         call ifcmdnonempty_typedigit

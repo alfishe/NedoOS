@@ -2,7 +2,7 @@
 texted_XYTOP=0x0000
 texted_HGT=24
 texted_WID=80
-texted_PANELCOLOR=#38
+_texted_PANELCOLOR=0x0700;0x38
 
 textview
         ;xor a
@@ -30,21 +30,23 @@ texted_lineredrawflag=$
 texted_redrawflag=$
         scf ;/or a
         call c,texted_prcurpage
-        ld de,(curxy)
-	call nv_setxy
-	OS_GETATTR ;a
-        push af ;color
-	ld e,#38 ;TODO зависит от регистра клавиатуры (передать его в старших битах H в GET_KEY)
-	OS_PRATTR
+        ;ld de,(curxy)
+	;call nv_setxy
+	;OS_GETATTR ;a
+        ;push af ;color
+	;ld e,0x38 ;TODO зависит от регистра клавиатуры (передать его в старших битах H в GET_KEY)
+	;OS_PRATTR
 
         if 1==0
-        YIELDGETKEYLOOP
+        call yieldgetkeyloop;YIELDGETKEYLOOP
 texted_panelredrawflag=$
         scf ;/or a
         else
-1;prwindow_waitkey_nokey
+texted_waitkey_nokey
+        ld de,(curxy)
+	call nv_setxy
 	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        GET_KEY ;OS_GETKEYNOLANG
+        GETKEY_ ;OS_GETKEYNOLANG
         or a ;cp NOKEY ;keylang==0?
         jr nz,texted_mainloop_keyq
         cp c ;keynolang==0?
@@ -54,20 +56,20 @@ texted_panelredrawflag=$
 texted_panelredrawflag=$
         scf ;/or a
         call c,texted_panel
-        jr 1b;prwindow_waitkey_nokey
+        jr texted_waitkey_nokey
 texted_mainloop_keyq
         endif
          ;push af
          ;OS_CLS
          ;pop af
         
-        pop bc ;b=color
-        push af
-        ld de,(curxy)
-	call nv_setxy
-	ld e,b;COLOR
-	OS_PRATTR
-        pop af
+        ;pop bc ;b=color
+        ;push af
+        ;ld de,(curxy)
+	;call nv_setxy
+	;ld e,b;COLOR
+	;OS_PRATTR
+        ;pop af
 
         cp key_redraw
         jr z,texted_redrawloop
@@ -802,7 +804,7 @@ clear_keyboardbuffer
         ld b,5
 clear_keyboardbuffer0
         push bc
-        GET_KEY
+        GETKEY_
         pop bc
         djnz clear_keyboardbuffer0
         pop bc
@@ -821,8 +823,8 @@ texted_panel
         ld (texted_panelredrawflag),a
         ld de,0x1800
 	call nv_setxy
-        ld e,texted_PANELCOLOR;#38
-        OS_SETCOLOR
+        ld de,_texted_PANELCOLOR
+        SETCOLOR_
         
         ld a,(texted_prline_recodepatch)
         or a
@@ -832,7 +834,7 @@ texted_panel
         call prtext
         
         ld a,' '
-        PRCHAR
+        PRCHAR_
 texted_ncurline=$+1
         ld hl,0
         exx 
@@ -840,14 +842,14 @@ texted_ncurline=$+1
         exx
         call prdword
         ld a,'/'
-        PRCHAR
+        PRCHAR_
         ld hl,(nlines)
         exx 
         ld hl,0
         exx
         call prdword
         ld a,' '
-        PRCHAR
+        PRCHAR_
         call getsize
         exx
         ;ld hl,(fcb+FCB_FSIZE+2)
@@ -856,19 +858,25 @@ texted_ncurline=$+1
         exx
         ;ld hl,(fcb+FCB_FSIZE)
         call prdword
-        ld b,43
-texted_panel0
-        ld a,' '
-        push bc
-        PRCHAR
-        pop bc
-        djnz texted_panel0
-        ld e,texted_PANELCOLOR;#38
-        OS_PRATTR
-        ld e,COLOR;#38
-        OS_SETCOLOR
+        ld hl,43
+        ld de,tspaces
+        call sendchars
+;        ld b,43
+;texted_panel0
+;        ld a,' '
+;        push bc
+;        PRCHAR_ ;TODO speedup
+;        pop bc
+;        djnz texted_panel0
+        ;ld de,_texted_PANELCOLOR;#38
+        ;OS_PRATTR
+        ld de,_COLOR
+        SETCOLOR_
         
         ret
+        
+tspaces
+        ds 80,' '
         
 twin
         db "WIN",0
@@ -1153,6 +1161,7 @@ texted_prline_shift=$+1
         ld b,c
         pop hl
 ;b=number of chars to print != 0
+        ld de,prlinebuf
         ld c,texted_WID
 texted_prline0
         ld a,(hl)
@@ -1160,23 +1169,27 @@ texted_prline0
         cp 0x0d
         jr z,texted_prline_cr
         cp 0x0a
-        jr z,texted_prline_lf
-        push bc
+        jr z,texted_prline_cr;lf
+        ;push bc
         push hl
         ld h,twinto866/256
         ld l,a
 texted_prline_recodepatch=$
         nop ;/ld a,(hl)
-        PRCHAR
+        ld (de),a ;PRCHAR_
+        inc de
         pop hl
-        pop bc
+        ;pop bc
         dec c
         djnz texted_prline0
+        call print_prlinebuf
         jr nz,texted_prline_lf
         ret
 texted_prlinespc_all
-        ld c,texted_WID
+        ld a,texted_WID
+        jr texted_prlinespc
 texted_prline_cr
+        call print_prlinebuf
 texted_prline_lf
 ;допечатать пробелы до конца строки
         ld a,c
@@ -1185,15 +1198,38 @@ texted_prlinespc
 texted_prlinespc_b
         push af
         push hl
-texted_prlinespc0
-        push bc
-        ld a,' '
-        PRCHAR
-        pop bc
-        djnz texted_prlinespc0
+        ld l,b
+        ld h,0
+        ld de,tspaces
+        call sendchars
+;texted_prlinespc0
+;        push bc
+;        ld a,' '
+;        PRCHAR_ ;TODO speedup
+;        pop bc
+;        djnz texted_prlinespc0
         pop hl
         pop af
         ret
+
+print_prlinebuf
+        push af
+        push bc
+        push hl
+;c=texted_WID-число символов
+        ld de,prlinebuf
+        ld a,texted_WID
+        sub c
+        ld l,a
+        ld h,0
+        call sendchars
+        pop hl
+        pop bc
+        pop af
+        ret
+
+prlinebuf
+        ds 80
 
 texted_pseudoprline
 ;ahl=addr
