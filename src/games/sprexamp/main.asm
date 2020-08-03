@@ -113,13 +113,37 @@ waitcls0
         ;ld (allscroll),hl
         ;ld (allscroll_lsb),a
         ld hl,-160 ;top left
+        if 1==0
+        ld hl,+80
+        ld bc,(objects+obj.y16)
+         dup 3
+         srl b
+         rr c
+         edup
+        or a
+        sbc hl,bc
+        endif
         ld (cameraym),hl
+        ld (cameraymideal),hl
+        ld (cameraymold),hl
         ld de,1024-160 ;top left
         add hl,de
         ld (yscroll),hl
         
         ld hl,-160 ;top left
+        if 1==0
+        ld hl,+80
+        ld bc,(objects+obj.x16)
+         dup 3
+         srl b
+         rr c
+         edup
+        or a
+        sbc hl,bc
+        endif
         ld (cameraxm),hl
+        ld (cameraxmideal),hl
+        ld (cameraxmold),hl
         ld de,2048-160 ;top left
         add hl,de
         ld (x2scroll),hl
@@ -133,15 +157,43 @@ mainloop_uv0
 
         call drawsprites
 
-        ;call prcoords
+        call prcoords
 
         call changescrpg ;с этого момента можем видеть, что нарисовали
 
         call getmousedelta ;de=delta (d>0: go up) (e>0: go left)
         
-        push de
+        ;push de
         push hl
         
+        if 1==1
+        ld hl,+80+24
+        ld bc,(objects+obj.x16)
+         dup 3
+         srl b
+         rr c
+         edup
+        or a
+        sbc hl,bc
+        ld bc,(objects+obj.xspeed16)
+        or a
+        sbc hl,bc
+        ld (cameraxmideal),hl
+
+        ld hl,+80+48
+        ld bc,(objects+obj.y16)
+         dup 3
+         srl b
+         rr c
+         edup
+        or a
+        sbc hl,bc
+        ld bc,(objects+obj.yspeed16)
+        or a
+        sbc hl,bc
+        ld (cameraymideal),hl
+        
+        else
         ld hl,(cameraxm) ;(in double pixels)
         ;xor a
         ;sub e
@@ -162,9 +214,94 @@ mainloop_uv0
         ld b,a
         add hl,bc
         ld (cameraym),hl
+        endif
         
+;двигаем камеру к идеалу, но не быстрее, чем на +-127
+        
+        ld hl,(cameraxm)
+cameraxmideal=$+1
+        ld de,0;(cameraxmideal)
+        or a
+        sbc hl,de
+        ld a,h
+        or a
+        jp m,xmtoideal_neg
+;hl=xm-xmideal >=0
+        ld bc,16;127
+        or a
+        sbc hl,bc
+        add hl,bc
+        jr c,xmtoideal_get ;не быстрее, чем на +127
+        ld hl,(cameraxm)
+        or a
+        sbc hl,bc
+        jr xmtoideal_negq
+xmtoideal_get
+        ex de,hl
+        jr xmtoideal_negq
+xmtoideal_neg
+;hl=xm-xmideal <0
+        ld bc,-16;127
+        or a
+        sbc hl,bc
+        add hl,bc
+        jr nc,xmtoideal_get ;не быстрее, чем на -127
+        ld hl,(cameraxm)
+        or a
+        sbc hl,bc
+xmtoideal_negq        
+        ld (cameraxm),hl
+cameraxmold=$+1
+        ld de,0
+        ld (cameraxmold),hl
+        or a
+        sbc hl,de ;camera dx
+       push hl
+
+        ld hl,(cameraym)
+cameraymideal=$+1
+        ld de,0;(cameraymideal)
+        or a
+        sbc hl,de
+        ld a,h
+        or a
+        jp m,ymtoideal_neg
+;hl=ym-ymideal >=0
+        ld bc,16;127
+        or a
+        sbc hl,bc
+        add hl,bc
+        jr c,ymtoideal_get ;не быстрее, чем на +127
+        ld hl,(cameraym)
+        or a
+        sbc hl,bc
+        jr ymtoideal_negq
+ymtoideal_get
+        ex de,hl
+        jr ymtoideal_negq
+ymtoideal_neg
+;hl=ym-ymideal <0
+        ld bc,-16;127
+        or a
+        sbc hl,bc
+        add hl,bc
+        jr nc,ymtoideal_get ;не быстрее, чем на -127
+        ld hl,(cameraym)
+        or a
+        sbc hl,bc
+ymtoideal_negq        
+        ld (cameraym),hl
+cameraymold=$+1
+        ld de,0
+        ld (cameraymold),hl
+        or a
+        sbc hl,de ;camera dy
+        
+       pop bc ;camera dx
+         ld d,l
+         ld e,c
         pop hl
-        pop de ;TODO привязать сдвиг камеры движка к сдвигу камеры для спрайтов
+        ;pop de ;TODO привязать сдвиг камеры движка к сдвигу камеры для спрайтов
         
         ld a,l ;hl=(sysmousebuttons)
         rra
@@ -186,7 +323,7 @@ mainloop_uvlogic0
         pop bc
         djnz mainloop_uvlogic0
 
-        jr mainloop_uv0
+        jp mainloop_uv0
 mainloop_uvq
 ;vertical scroll
         ld de,bgfilename
@@ -294,7 +431,7 @@ logic_nonextphase
          ld a,h
          rla
          jr c,gravityok
-         ld de,16*8
+         ld de,8*8
          or a
          sbc hl,de
          add hl,de
@@ -308,50 +445,30 @@ gravityok
         push hl
         ld l,(ix+obj.y16+0) ;*8
         ld h,(ix+obj.y16+1)
-        dup 3
-        srl h
-        rr l
-        edup
-        dup 4
-        add hl,hl
-        edup
         ld c,(ix+obj.x16+0) ;*8 (in double pixels)
         ld b,(ix+obj.x16+1)
-        dup 3
-        srl b
-        rr c
-        edup
-        dup 3
-        srl b
-        rr c
-        edup
-        ld a,c
-         sub 3
-        cpl
-        ld l,a
-        ld a,h
-         sub 1
-        cpl
-        ld h,a
-        ld a,(hl)
+         ld de,32*8
+         add hl,de ;координата прямо под ногами
+        call gettile_bycoords
         pop hl
         ld c,(ix+obj.y16+0)
         ld b,(ix+obj.y16+1)
         add hl,bc
         cp 32
+         res 0,(ix+obj.flags) ;not on floor
         jr c,nofloor
-        
+         set 0,(ix+obj.flags) ;not on floor
 ;выравнивание по y на 16(пикс)*8
         ld a,l
         and 128
         ld l,a
-        dec hl
+        ;dec hl
         push hl   
         ld hl,0
         ld (ix+obj.yspeed16+0),l
         ld (ix+obj.yspeed16+1),h
-        ld a,0
-        ld (heroair),a
+        ;ld a,0
+        ;ld (heroair),a
         pop hl
 nofloor
         ld (ix+obj.y16+0),l
@@ -427,6 +544,9 @@ nostartrunright
         ex de,hl
         jr leftq
 noright
+        ld a,h
+        or l
+        ld e,a
          bit 7,h
          jr z,$+3
          inc hl
@@ -435,12 +555,65 @@ noright
          ld a,h
          or l
          jr nz,leftq
+         ld a,e
+         or a
+         jr z,leftq ;уже стояли
          ld de,heroanim_stand
         ld (ix+obj.animaddr16+0),e
         ld (ix+obj.animaddr16+1),d
 leftq
         ld (ix+obj.xspeed16+0),l
         ld (ix+obj.xspeed16+1),h
+;проверить, что не въехали в стену в текущем направлении и отскочить
+       push bc
+        bit 7,h
+        jr nz,checkleftwall
+        ld l,(ix+obj.y16+0) ;*8
+        ld h,(ix+obj.y16+1)
+        ld c,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld b,(ix+obj.x16+1)
+         ld de,16*8
+         add hl,de ;координата на уровне пояса
+        call gettile_bycoords
+        dec l
+        ld a,(hl) ;правее центра
+        cp 64 ;beton
+        jr c,checkleftwallq ;not beton
+;врезались справа, выравниваем x = (x&0xf0) - 1
+        ld l,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld h,(ix+obj.x16+1)
+        ld a,l
+        and -8*8
+        ld l,a
+        dec hl
+        ld (ix+obj.x16+0),l ;*8 (in double pixels)
+        ld (ix+obj.x16+1),h        
+        jr checkleftwallq
+checkleftwall
+        ld l,(ix+obj.y16+0) ;*8
+        ld h,(ix+obj.y16+1)
+        ld c,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld b,(ix+obj.x16+1)
+         ld de,16*8
+         add hl,de ;координата на уровне пояса
+        call gettile_bycoords
+        inc l
+        ld a,(hl) ;левее центра
+        cp 64 ;beton
+        jr c,checkleftwallq ;not beton
+;врезались слева, выравниваем x = (x+15)&0xf0
+        ld l,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld h,(ix+obj.x16+1)
+        ld bc,8*8-1
+        add hl,bc
+        ld a,l
+        and -8*8
+        ld l,a
+        ld (ix+obj.x16+0),l ;*8 (in double pixels)
+        ld (ix+obj.x16+1),h
+
+checkleftwallq
+       pop bc
 
         ld l,(ix+obj.yspeed16+0)
         ld h,(ix+obj.yspeed16+1)
@@ -450,23 +623,57 @@ leftq
         jr z,nojump ;не изменилась кнопка
         
 ;TODO check floor
-        ld l,(ix+obj.y16+0)
-        ld h,(ix+obj.y16+1)
-        ld de,100*8
-        or a
-        sbc hl,de
-        add hl,de
-        jr c,nojump
+        bit 0,(ix+obj.flags) ;on floor
+        jr z,nojump
+        ;ld l,(ix+obj.y16+0)
+        ;ld h,(ix+obj.y16+1)
+        ;ld de,100*8
+        ;or a
+        ;sbc hl,de
+        ;add hl,de
+        ;jr c,nojump
 
         ld hl,-60
         ld (ix+obj.yspeed16+0),l
         ld (ix+obj.yspeed16+1),h
+        ld e,(ix+obj.y16+0)
+        ld d,(ix+obj.y16+1)
+        add hl,de
+        ld (ix+obj.y16+0),l
+        ld (ix+obj.y16+1),h
         
-        ld a,1
-        ld (heroair),a
+        ;ld a,1
+        ;ld (heroair),a
         
 nojump
 
+        ret
+
+gettile_bycoords
+        dup 3
+        srl h
+        rr l
+        edup
+        dup 4
+        add hl,hl
+        edup
+        dup 3
+        srl b
+        rr c
+        edup
+        dup 3
+        srl b
+        rr c
+        edup
+        ld a,c
+         sub 3
+        cpl
+        ld l,a
+        ld a,h
+         sub 3 ;проверять будем тайл в ногах, а не в голове
+        cpl
+        ld h,a
+        ld a,(hl) ;tile в ногах
         ret
 
 drawsprites
@@ -842,6 +1049,7 @@ animaddr16 WORD
 xspeed16 WORD
 yspeed16 WORD
 health  BYTE
+flags   BYTE ;b0=on ground, b1=jump not released, b2=blinking, b4=провалиться
 sz
         ENDS
 
@@ -868,6 +1076,7 @@ _y=100
         dw 1
         dw 0
         db 100
+        db 0 ;flags
 _=_+1
 _y=_y+40
         edup
@@ -875,8 +1084,8 @@ _x=_x+20
         edup
         dw -1
 
-heroair
-        db 0 ;0=not in air
+;heroair
+;        db 0 ;0=not in air
 
         include "int.asm"
         include "cls.asm"
@@ -1050,10 +1259,10 @@ bgpush_ldbmp_bytes0
 
 prcoords
         call setpgsscr40008000
-        ld hl,(cameraxm)
+        ld hl,(cameraxm);(objects+obj.y16);(cameraxm)
         ld de,0x4000 + (192*40)
         call prnum
-        ld hl,(cameraym)
+        ld hl,(cameraxmideal);(objects+obj.yspeed16);(cameraym)
         ld de,0x4008 + (192*40)
         call prnum
         ret
