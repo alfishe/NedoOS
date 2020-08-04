@@ -185,6 +185,57 @@ parsetelnetcodes
          jr mainloop
         
 will_do_off
+        ;ld a,255
+        ;call term_prfsm_prchar
+        ;ld a,253 ;will
+        ;call term_prfsm_prchar
+        ;ld a,34
+        ;call term_prfsm_prchar
+       
+        ;ld a,255
+        ;call term_prfsm_prchar
+        ;ld a,251 ;do
+        ;call term_prfsm_prchar
+        ;ld a,0x2d
+        ;call term_prfsm_prchar
+       
+        ;ld a,255
+        ;call term_prfsm_prchar
+        ;ld a,0xfd
+        ;call term_prfsm_prchar
+        ;ld a,0x2d
+        ;call term_prfsm_prchar ;disable local echo
+        
+        ld a,255
+        call term_prfsm_prchar
+        ld a,250 ;Начало субопции
+        call term_prfsm_prchar
+        ld a,34
+        call term_prfsm_prchar
+        ld a,1
+        call term_prfsm_prchar
+        ld a,0
+        call term_prfsm_prchar
+        ld a,255
+        call term_prfsm_prchar
+        ld a,240 ;Завершение согласования параметров (конец субопции)
+        call term_prfsm_prchar ;disable local line editing
+
+        ld a,255
+        call term_prfsm_prchar
+        ld a,254 ;don't
+        ;ld a,251 ;do
+        call term_prfsm_prchar
+        ld a,1 ;echo
+        call term_prfsm_prchar
+       
+        ;ld a,255
+        ;call term_prfsm_prchar
+        ;ld a,251
+        ;call term_prfsm_prchar
+        ;ld a,1
+        ;call term_prfsm_prchar
+
         ld a,55+128 ;or a
         jr will_do_onoff
 will_do_on

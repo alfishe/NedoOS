@@ -5,7 +5,7 @@
 ;поэтому напишем здесь довольно много текста кириллицей
 numlangs=3 ;including graph
 
-keyqueuemax=5
+keyqueuemax=2;5
 
 kZ=0 ;ja w e r t y
 kJ=0 ;j c u k e n

@@ -631,6 +631,21 @@ setfilecursorxy
 	;pop af ;color
 	ret
 
+prfilecursor_reprintfile
+;hl=color
+        ex de,hl
+        SETCOLOR_
+	call setfilecursorxy
+        ld ix,(curpanel)
+        call getfcbaddrundercursor
+        push hl
+        pop ix
+        call prdirfile_copyfilename
+	;ld ix,(curpanel)
+        ld de,filelinebuf
+        ld hl,8+1+3
+        jp sendchars
+
 prfilecursor
 ;hl=color
         push hl

@@ -426,13 +426,8 @@ nocomfile
 	;ld (nvcolor),de
         ret
 
-prdirfile
-;hl=fcb
-	push hl
-	pop ix
-        call colorfile ;de=color
-;	push ix
-        call nv_setcolor
+prdirfile_copyfilename
+;hl,ix(=fcb)->filelinebuf
 	inc hl
          ld de,filelinebuf
          ld bc,8
@@ -447,6 +442,18 @@ prdirfile
          inc de
          ld c,3
          ldir
+        ret
+
+prdirfile
+;hl=fcb
+	push hl
+	pop ix
+        call colorfile ;de=color
+;	push ix
+        call nv_setcolor
+        
+        call prdirfile_copyfilename ;hl,ix(=fcb)->filelinebuf
+         
 	;ld de,_PANELCOLOR
 	;call nv_setcolor
 	;ld a,0xb3 ;'|'
@@ -714,7 +721,7 @@ controlloop_noprline
         ;ld e,CURSORCOLOR;#38
         ;OS_PRATTR ;draw cursor
 	ld hl,_FILECURSORCOLOR
-	call prfilecursor
+	call prfilecursor_reprintfile
 	 ;push hl ;color under file cursor
         call cmdcalccurxy
         call nv_setxy
@@ -731,7 +738,7 @@ controlloop_nokey
         ;display $
         call colorfile
         ex de,hl ;hl=color
-	call prfilecursor ;remove file cursor
+	call prfilecursor_reprintfile ;remove file cursor
         ;call cmdcalccurxy
         ;call nv_setxy
         ;ld e,COLOR;7

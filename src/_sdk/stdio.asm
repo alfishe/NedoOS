@@ -492,6 +492,12 @@ term_prfsm_afterescbracket_tilde
         cp 2
         ld c,key_ins
         jr z,term_prfsm_keycok
+        cp 5
+        ld c,key_pgup
+        jr z,term_prfsm_keycok
+        cp 6
+        ld c,key_pgdown
+        jr z,term_prfsm_keycok
         jr term_prfsm_nokey
 
 term_prfsm_keycok

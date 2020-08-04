@@ -343,6 +343,22 @@ hddfdisk
 
 Утилита для разметки и форматирования разделов на IDE (пока только Nemo IDE Master).
 
+term
+~~~~
+
+Терминал для программ, использующих stdio.asm
+
+netterm
+~~~~
+
+Сетевой терминал (Telnet-сервер по порту 2323) для программ, использующих stdio.asm
+Telnet-клиент (на примере Putty) должен быть настроен так:
+- VT100
+- Local echo off
+- Local line editing off
+- Backspace = Control H
+
+
 Программирование
 ~~~~~~~~~~~~~~~~
 
