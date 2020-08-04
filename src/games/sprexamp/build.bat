@@ -15,13 +15,13 @@ sjasmplus --nologo --msg=war --msg=war WHUM1.asm
 sjasmplus --nologo --msg=war --msg=war music.asm
 sjasmplus --nologo --msg=war --msg=war main.asm
 
-SET releasedir=../../../release/
+SET releasedir2=../../../release/
 
 if "%currentdir%"=="" (
  "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put sprexamp.com /nedogame/sprexamp.com
 				FOR %%j IN (*.com) DO (
-					move "*.com" "%releasedir%nedogame" > nul
-					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%nedogame\%%~nj\" > nul
+					move "*.com" "%releasedir2%nedogame" > nul
+					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedogame\%%~nj\" > nul
 				)
 cd ../../../src/
 call ..\tools\chkimg.bat sd

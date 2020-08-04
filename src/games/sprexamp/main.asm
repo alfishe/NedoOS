@@ -1447,4 +1447,4 @@ end
 	
 	savebin "sprexamp.com",begin,end-begin
 	
-	LABELSLIST "..\..\..\us\user.l"
+	LABELSLIST "../../../us\user.l"
