@@ -8,6 +8,16 @@
 ;	RES_NOTRDY,		/* 3: Not Ready */
 ;	RES_PARERR		/* 4: Invalid Parameter */
 ;} DRESULT;
+
+	 ifdef KOE
+        macro NOPSDCARD
+        ds 4
+        endm
+         else
+        macro NOPSDCARD
+        nop
+        endm
+         endif
         
 device_states
         db 1
@@ -540,11 +550,11 @@ LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим
 	call outcom_hlSD
 	call read32byteswaitnoffSD
 	in h,(C)
-	nop  
+	NOPSDCARD  
 	in h,(C)
-	nop  
+	NOPSDCARD  
 	in h,(C)
-	nop  
+	NOPSDCARD  
 	in h,(C)
 	ld hl,0
 	bit 2,a
@@ -555,15 +565,16 @@ LL7c92	ld a,0x77 ;запускаем процесс внутренней инициализации
 	call read32byteswaitnoffSD
 	ld a,0x69
 	out (C),a ;бит 6 установлен для инициализации SDHC карты
-	nop  
+	NOPSDCARD  
 	out (C),h
-	nop  
+	NOPSDCARD  
 	out (C),l
-	nop  
+	NOPSDCARD  
 	out (C),l
-	nop  
+	NOPSDCARD  
 	out (C),l
-	ld a,0xff
+	NOPSDCARD
+        ld a,0xff
 	out (C),a
 	call read32byteswaitnoffSD ;ждем перевода карты в режим готовности
 	and a ;время ожидания примерно 1 секунда
@@ -585,11 +596,11 @@ LL7cbf	ld hl,cmd16SD ;SET_BLOCKEN ;команда изменения размера блока
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
 	in a,(C)
-	nop  
+	NOPSDCARD  
 	in h,(C)
-	nop  
+	NOPSDCARD  
 	in h,(C)
-	nop  
+	NOPSDCARD  
 	in h,(C)
 	and 0x40
 	ld (zsd_blsize),a
@@ -644,15 +655,17 @@ outcom_zeroparsSD
         call cs_lowSD
 	ld bc,0x0057
 	out (C),a
-	xor a
+	NOPSDCARD
+        xor a
 	out (C),a
-	nop  
+	NOPSDCARD  
 	out (C),a
-	nop  
+	NOPSDCARD  
 	out (C),a
-	nop  
+	NOPSDCARD  
 	out (C),a
-	dec a
+	NOPSDCARD
+        dec a
 	out (C),a
 	ret  
 zsd_blsize
@@ -671,11 +684,11 @@ setcmdparsSD
 ;	call outcom_zeroparsSD
 ;	call read32byteswaitnoffSD
 ;	in a,(C)
-;	nop  
+;	NOPSDCARD  
 ;	in h,(C)
-;	nop  
+;	NOPSDCARD  
 ;	in h,(C)
-;	nop  
+;	NOPSDCARD  
 ;	in h,(C)
 ;	bit 6,a ;проверяем 30 бит регистра OCR (6 бит в "А")
 ;	pop hl       ;при установленном бите умножение номера сектора
@@ -696,14 +709,15 @@ setcmdparsSD
 	ld e,0x00
 LL7d40	pop af ;заготовленный номер сектора находится в HLDE
 	out (C),a ;команда
-	nop  
+	NOPSDCARD  
 	out (C),h ;;пишем номер сектора от старшего
-	nop  
+	NOPSDCARD  
 	out (C),l
-	nop  
+	NOPSDCARD  
 	out (C),d
-	nop  
+	NOPSDCARD  
 	out (C),e ;до младшего байта
+        NOPSDCARD
 	ld a,0xff
 	out (C),a ;пишем пустой CRC7 и стоповый бит
 	pop bc
@@ -764,9 +778,9 @@ readsecSDcard
 	inir  
 	ld b,0x04
 	inir  
-	nop  
+	NOPSDCARD  
 	in a,(C)
-	nop  
+	NOPSDCARD  
 	in a,(C)
 	pop bc
 	ret
@@ -783,9 +797,10 @@ writesecSDcard
 	otir  
 	ld b,0x80
 	otir  
-	ld a,0xff
+	NOPSDCARD
+        ld a,0xff
 	out (C),a
-	nop  
+	NOPSDCARD  
 	out (C),a
 	pop bc
 	ret

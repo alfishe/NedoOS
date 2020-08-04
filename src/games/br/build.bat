@@ -195,4 +195,17 @@ rem #
 %SJASMPLUS% %SJASMPLUSFLAGS% WSTART1.asm
 %SJASMPLUS% %SJASMPLUSFLAGS% brfinal.asm --raw=%LOCALDIR%/brfinal.dat
 
-if "%currentdir%"=="" (pause)
+
+SET releasedir2=../../../release/
+if "%currentdir%"=="" (
+  FOR %%j IN (*.com) DO (
+  "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /nedogame/%%j
+  move "*.com" "%releasedir2%nedogame" > nul
+  IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedogame\%%~nj\" > nul
+  )
+cd ../../../src/
+call ..\tools\chkimg.bat sd
+ pause
+rem  if "%makeall%"=="" ..\..\..\us\emul.exe
+ if "%makeall%"=="" ..\us\emul.exe
+)

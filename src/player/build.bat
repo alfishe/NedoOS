@@ -1,7 +1,9 @@
 ..\..\tools\make.exe %1 %2
 
 if "%currentdir%"=="" (
- "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put player.com /bin/player.com
+ FOR %%j IN (*.com) DO (
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
  pause
- rem if "%makeall%"=="" ..\..\us\emul.exe
+ if "%makeall%"=="" ..\..\us\emul.exe
 )

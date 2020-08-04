@@ -17,6 +17,7 @@ nofocuskey=0xff
         org PROGSTART
 begin
         ld sp,STACK
+        OS_HIDEFROMPARENT
 
         ld e,0
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)

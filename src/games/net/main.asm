@@ -60,6 +60,7 @@ ERR_NOTCONN 	EQU 57
         org PROGSTART
 begin
         ld sp,STACK
+        OS_HIDEFROMPARENT
 
         if EGA
         ld e,0

@@ -36,7 +36,7 @@ prtext_color
         jr prtext0
 
 thello
-        db "Hello, ",6,"world!",0x0d,0x0a,0
+        db "Hello, ",3,"world!",0x0d,0x0a,0
         
         include "../_sdk/stdio.asm"
 end

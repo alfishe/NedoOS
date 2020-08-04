@@ -37,6 +37,7 @@ dir_d=key_down;cs6;#0a
         org PROGSTART
 begin
         ld sp,STACK
+        OS_HIDEFROMPARENT
 
         if EGA
         ld e,0

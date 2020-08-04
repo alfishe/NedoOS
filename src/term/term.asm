@@ -24,6 +24,7 @@ CURSORCOLOR=0x38
         org PROGSTART
 begin
         ld sp,0x4000
+        OS_HIDEFROMPARENT
         ld e,6 ;textmode
         OS_SETGFX
         ld de,ansipal

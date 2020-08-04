@@ -350,6 +350,7 @@ START   ;начало начал
         ;DI
         ;IM 1
         LD SP,0x4000;#61FE
+        OS_HIDEFROMPARENT
 
         OS_GETMAINPAGES
 ;dehl=pages in 0000,4000,8000,c000

@@ -10,6 +10,8 @@ bgcolorbyte=%11101101 ;color13
         
         org PROGSTART
 begin
+        ld sp,0x4000
+        OS_HIDEFROMPARENT
 
         ld e,0 ;EGA
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)

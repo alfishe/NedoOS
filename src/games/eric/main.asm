@@ -13,6 +13,7 @@ INTSTACK=0x3f00
         org PROGSTART
 begin
         ld sp,0x4000
+        OS_HIDEFROMPARENT
 
         if EGA
         ld e,0 ;EGA

@@ -32,6 +32,7 @@ AF_INET EQU 2
 begin
 gotostart
         ld sp,0x4000
+        OS_HIDEFROMPARENT
         ;ld e,6 ;textmode
         ;OS_SETGFX
 	OS_GETMAINPAGES ;dehl

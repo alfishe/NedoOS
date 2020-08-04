@@ -136,6 +136,7 @@ key_down_scroll=key_ssdown ;=F6!
         org PROGSTART
 cmd_begin
         ld sp,STACK ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        OS_HIDEFROMPARENT
         call init        
         
 ;curfulllink нужен для сохранения в истории и использования пути для относительных ссылок
