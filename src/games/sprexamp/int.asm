@@ -40,6 +40,10 @@ intjpaddr=$+1
         push hl
         push ix
         push iy
+
+curscrnum_int=$+1
+        ld e,0
+        OS_SETSCREEN
         
         GET_KEY
         ld a,c ;кнопка без учёта языка

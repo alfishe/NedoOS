@@ -13,7 +13,11 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3b80;0x3f00 ;чтобы не запороть стек загрузки bmp в bgpush
 
-MAXSPEED=8*8
+MAXSPEED=8*8-4
+CAMERATRACKINGSPEED_X=16 ;double pixels
+CAMERATRACKINGSPEED_Y=16
+CAMERASHIFTSPEED_X=8 ;double pixels
+CAMERASHIFTSPEED_Y=4
 
         macro RECODEBYTE
         ld a,(de)
@@ -159,14 +163,40 @@ mainloop_uv0
 
         call prcoords
 
-        call changescrpg ;с этого момента можем видеть, что нарисовали
-
-        call getmousedelta ;de=delta (d>0: go up) (e>0: go left)
+        call getmousedelta ;de=delta (d>0: go up) (e>0: go left), l=mousekey
         
-        ;push de
         push hl
-        
-        if 1==1
+
+;двигаем смещение камеры к идеалу (xspeed16;yspeed16), но не быстрее, чем на +-CAMERASHIFTSPEED
+;и находим camerax/ymideal
+cameraxshift=$+1
+        ld hl,0
+        ld de,(objects+obj.xspeed16)
+        xor a
+        sbc hl,de
+        or h
+        jp m,xshifttoideal_neg
+;hl=xshift-xshiftideal >=0
+        ld bc,CAMERASHIFTSPEED_X
+        sbc hl,bc
+        jr c,xshifttoideal_get ;не быстрее, чем на +CAMERASHIFTSPEED_X
+        jr xshifttoideal_limit
+xshifttoideal_neg
+;hl=xshift-xshiftideal <0
+        ld bc,-CAMERASHIFTSPEED_X
+        sbc hl,bc
+        jr nc,xshifttoideal_get ;не быстрее, чем на -CAMERASHIFTSPEED_X
+xshifttoideal_limit
+        ld hl,(cameraxshift)
+        or a
+        sbc hl,bc
+        ex de,hl
+xshifttoideal_get
+        ex de,hl
+xshifttoideal_negq        
+        ld (cameraxshift),hl
+        ex de,hl
+
         ld hl,+80+24
         ld bc,(objects+obj.x16)
          dup 3
@@ -175,10 +205,38 @@ mainloop_uv0
          edup
         or a
         sbc hl,bc
-        ld bc,(objects+obj.xspeed16)
+        ;ld de,(objects+obj.xspeed16)
+        or a
+        sbc hl,de
+        ld (cameraxmideal),hl
+
+camerayshift=$+1
+        ld hl,0
+        ld de,(objects+obj.yspeed16)
+        xor a
+        sbc hl,de
+        or h
+        jp m,yshifttoideal_neg
+;hl=yshift-yshiftideal >=0
+        ld bc,CAMERASHIFTSPEED_Y
+        sbc hl,bc
+        jr c,yshifttoideal_get ;не быстрее, чем на +CAMERASHIFTSPEED_Y
+        jr yshifttoideal_limit
+yshifttoideal_neg
+;hl=yshift-yshiftideal <0
+        ld bc,-CAMERASHIFTSPEED_Y
+        sbc hl,bc
+        jr nc,yshifttoideal_get ;не быстрее, чем на -CAMERASHIFTSPEED_Y
+yshifttoideal_limit
+        ld hl,(camerayshift)
         or a
         sbc hl,bc
-        ld (cameraxmideal),hl
+        ex de,hl
+yshifttoideal_get
+        ex de,hl
+yshifttoideal_negq        
+        ld (camerayshift),hl
+        ex de,hl
 
         ld hl,+80+48
         ld bc,(objects+obj.y16)
@@ -188,67 +246,36 @@ mainloop_uv0
          edup
         or a
         sbc hl,bc
-        ld bc,(objects+obj.yspeed16)
+        ;ld de,(objects+obj.yspeed16)
         or a
-        sbc hl,bc
+        sbc hl,de
         ld (cameraymideal),hl
         
-        else
-        ld hl,(cameraxm) ;(in double pixels)
-        ;xor a
-        ;sub e
-        ld a,e
-        ld c,a
-        rla
-        sbc a,a
-        ld b,a
-        add hl,bc
-        ld (cameraxm),hl
-        ld hl,(cameraym)
-        ;xor a
-        ;sub d
-        ld a,d
-        ld c,a
-        rla
-        sbc a,a
-        ld b,a
-        add hl,bc
-        ld (cameraym),hl
-        endif
-        
-;двигаем камеру к идеалу, но не быстрее, чем на +-127
-        
+;двигаем камеру к идеалу, но не быстрее, чем на +-CAMERATRACKINGSPEED
         ld hl,(cameraxm)
 cameraxmideal=$+1
         ld de,0;(cameraxmideal)
-        or a
+        xor a
         sbc hl,de
-        ld a,h
-        or a
+        or h
         jp m,xmtoideal_neg
 ;hl=xm-xmideal >=0
-        ld bc,16;127
-        or a
+        ld bc,CAMERATRACKINGSPEED_X
         sbc hl,bc
-        add hl,bc
-        jr c,xmtoideal_get ;не быстрее, чем на +127
-        ld hl,(cameraxm)
-        or a
-        sbc hl,bc
-        jr xmtoideal_negq
-xmtoideal_get
-        ex de,hl
-        jr xmtoideal_negq
+        jr c,xmtoideal_get ;не быстрее, чем на +CAMERATRACKINGSPEED_X
+        jr xmtoideal_limit
 xmtoideal_neg
 ;hl=xm-xmideal <0
-        ld bc,-16;127
-        or a
+        ld bc,-CAMERATRACKINGSPEED_X
         sbc hl,bc
-        add hl,bc
-        jr nc,xmtoideal_get ;не быстрее, чем на -127
+        jr nc,xmtoideal_get ;не быстрее, чем на -CAMERATRACKINGSPEED_X
+xmtoideal_limit
         ld hl,(cameraxm)
         or a
         sbc hl,bc
+        ex de,hl
+xmtoideal_get
+        ex de,hl
 xmtoideal_negq        
         ld (cameraxm),hl
 cameraxmold=$+1
@@ -261,34 +288,27 @@ cameraxmold=$+1
         ld hl,(cameraym)
 cameraymideal=$+1
         ld de,0;(cameraymideal)
-        or a
+        xor a
         sbc hl,de
-        ld a,h
-        or a
+        or h
         jp m,ymtoideal_neg
 ;hl=ym-ymideal >=0
-        ld bc,16;127
-        or a
+        ld bc,CAMERATRACKINGSPEED_Y
         sbc hl,bc
-        add hl,bc
-        jr c,ymtoideal_get ;не быстрее, чем на +127
-        ld hl,(cameraym)
-        or a
-        sbc hl,bc
-        jr ymtoideal_negq
-ymtoideal_get
-        ex de,hl
-        jr ymtoideal_negq
+        jr c,ymtoideal_get ;не быстрее, чем на +CAMERATRACKINGSPEED_Y
+        jr ymtoideal_limit
 ymtoideal_neg
 ;hl=ym-ymideal <0
-        ld bc,-16;127
-        or a
+        ld bc,-CAMERATRACKINGSPEED_Y
         sbc hl,bc
-        add hl,bc
-        jr nc,ymtoideal_get ;не быстрее, чем на -127
+        jr nc,ymtoideal_get ;не быстрее, чем на -CAMERATRACKINGSPEED_Y
+ymtoideal_limit
         ld hl,(cameraym)
         or a
         sbc hl,bc
+        ex de,hl
+ymtoideal_get
+        ex de,hl
 ymtoideal_negq        
         ld (cameraym),hl
 cameraymold=$+1
@@ -300,8 +320,7 @@ cameraymold=$+1
        pop bc ;camera dx
          ld d,l
          ld e,c
-        pop hl
-        ;pop de ;TODO привязать сдвиг камеры движка к сдвигу камеры для спрайтов
+        pop hl ;l=mousekey
         
         ld a,l ;hl=(sysmousebuttons)
         rra
@@ -309,6 +328,10 @@ cameraymold=$+1
         call uvscroll_scroll
         call uvscroll_scrolltiles
         
+       ld a,(timer)
+       push af
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+
 mainloop_uvwaittimer0
         ld a,(timer)
 uvoldtimer=$+1
@@ -322,6 +345,13 @@ mainloop_uvlogic0
         call logic
         pop bc
         djnz mainloop_uvlogic0
+
+;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
+       pop bc ;b=timer на момент changescrpg
+waitchangescr0
+        ld a,(timer)
+        cp b
+        jr z,waitchangescr0
 
         jp mainloop_uv0
 mainloop_uvq
@@ -349,7 +379,9 @@ mainloop
 
         call drawsprites
         
-        call changescrpg ;с этого момента можем видеть, что нарисовали
+       ld a,(timer)
+       push af
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
         
 mainloopwaittimer0
         ld a,(timer)
@@ -365,6 +397,12 @@ mainlooplogic0
         pop bc
         djnz mainlooplogic0
         
+;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
+       pop bc ;b=timer на момент changescrpg
+waitchangescr1
+        ld a,(timer)
+        cp b
+        jr z,waitchangescr1
         
 ;waitkey
         ;halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
@@ -467,8 +505,6 @@ gravityok
         ld hl,0
         ld (ix+obj.yspeed16+0),l
         ld (ix+obj.yspeed16+1),h
-        ;ld a,0
-        ;ld (heroair),a
         pop hl
 nofloor
         ld (ix+obj.y16+0),l
@@ -544,6 +580,8 @@ nostartrunright
         ex de,hl
         jr leftq
 noright
+         bit 0,(ix+obj.flags) ;on floor?
+         jr z,leftq ;не тормозим на лету
         ld a,h
         or l
         ld e,a
@@ -622,16 +660,9 @@ checkleftwallq
         bit 7,b
         jr z,nojump ;не изменилась кнопка
         
-;TODO check floor
+;check floor
         bit 0,(ix+obj.flags) ;on floor
         jr z,nojump
-        ;ld l,(ix+obj.y16+0)
-        ;ld h,(ix+obj.y16+1)
-        ;ld de,100*8
-        ;or a
-        ;sbc hl,de
-        ;add hl,de
-        ;jr c,nojump
 
         ld hl,-60
         ld (ix+obj.yspeed16+0),l
@@ -642,8 +673,6 @@ checkleftwallq
         ld (ix+obj.y16+0),l
         ld (ix+obj.y16+1),h
         
-        ;ld a,1
-        ;ld (heroair),a
         
 nojump
 
@@ -977,9 +1006,9 @@ curscrnum=$+1
 changescrpg
         ;jr $
         call changescrpg_current
-        ;ld (curscrnum_physical),a
-	ld e,a
-	OS_SETSCREEN
+        ld (curscrnum_int),a
+	;ld e,a
+	;OS_SETSCREEN
         ret
         
 setpgc000
@@ -1083,9 +1112,6 @@ _y=_y+40
 _x=_x+20
         edup
         dw -1
-
-;heroair
-;        db 0 ;0=not in air
 
         include "int.asm"
         include "cls.asm"
@@ -1259,10 +1285,10 @@ bgpush_ldbmp_bytes0
 
 prcoords
         call setpgsscr40008000
-        ld hl,(cameraxm);(objects+obj.y16);(cameraxm)
+        ld hl,(cameraxshift)
         ld de,0x4000 + (192*40)
         call prnum
-        ld hl,(cameraxmideal);(objects+obj.yspeed16);(cameraym)
+        ld hl,(objects+obj.xspeed16)
         ld de,0x4008 + (192*40)
         call prnum
         ret
