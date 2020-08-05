@@ -127,8 +127,7 @@ uvscroll_preparetilemap_remetatiles0
         call uvscroll_showtilemap
         ret
         
-uvscroll_showtilemap
-;выводим текущий tilemap в ldpush
+uvscroll_showtilemap_counthlde
         ld hl,(allscroll)
 ;округлить до целого метатайла в зависимости от yscroll&15 (в самом allscroll нет этой информации)
 ;т.е. hl-=(yscroll&15)*(UVSCROLL_WID/512)
@@ -156,8 +155,11 @@ uvscroll_showtilemap
         ld e,a
         jr nc,$+3
         inc d
-        ld a,c;(allscroll_lsb)
-        and 0xe0 ;округлить до x/64 = x2/32
+        ret
+
+uvscroll_showtilemap
+;выводим текущий tilemap в ldpush
+        call uvscroll_showtilemap_counthlde
 ;как выводим относительно TILEMAP: (сначала показаны правые знакоместа)
 ;x2scroll=0:
 ;[......][......][......][......][......][......][......][......]
@@ -172,6 +174,13 @@ uvscroll_showtilemap
 ;.][......][......][......][......][......][......][......]
 ;sSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSs
         ld b,TILEMAPHGT/2
+uvscroll_showtilemap_b
+;hl=allscroll-(yscroll&15)*(UVSCROLL_WID/512)
+;de=TILEMAP-(((x2scroll/8)&3)*2) в зависимости от x2scroll
+;b=hgt
+;c=allscroll_lsb
+        ld a,c;(allscroll_lsb)
+        and 0xe0 ;округлить до x/64 = x2/32
 uvscroll_showtilemap0
         push af
         push bc

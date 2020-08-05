@@ -671,12 +671,64 @@ leftq
 checkwall_obj
         ld (hl),0
         ex de,hl
+        push de
          ld a,3 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
          call sfxplay
+        pop de
         
         if 1==1
-        call uvscroll_filltilemap
-        call uvscroll_showtilemap
+        ;call uvscroll_filltilemap
+        call countmetatilemap ;hl=metatilemap + (yscroll/16*METATILEMAPWID) + (x2scroll/8)
+;de=тайл, который мы только что изменили
+;мы должны пропустить по y ровно столько строчек, чтобы hl пересёк тот тайл, который мы только что изменили
+
+        ld a,d
+        sub h ;a=y
+        cp TILEMAPHGT/2
+        jr nc,getobjnofill
+        
+        ;ld a,3 ;y по умолчанию
+        
+        ;push af
+        ;add a,h
+        ;ld h,a ;hl=metatilemap+
+        ;pop af
+        ld h,d
+        push af ;y
+        
+        ex de,hl
+        ld hl,TILEMAP
+        ld bc,TILEMAPWID*2
+        or a
+        jr z,getobjfill0q
+getobjfill0
+        add hl,bc
+        dec a
+        jr nz,getobjfill0
+getobjfill0q
+        ex de,hl
+        call uvscroll_filltilemap_line
+        
+        ;call uvscroll_showtilemap
+        call uvscroll_showtilemap_counthlde
+        pop af ;y
+        or a
+        jr z,getobjshow0q
+        ld b,a
+getobjshow0
+        push bc
+        ld bc,16*(UVSCROLL_WID/512)
+        add hl,bc ;y*(UVSCROLL_WID/512) ;allscroll+...
+        ex de,hl
+        ld bc,TILEMAPWID*2
+        add hl,bc ;tilemap+...
+        ex de,hl
+        pop bc
+        djnz getobjshow0
+getobjshow0q
+        ld b,1
+        call uvscroll_showtilemap_b
+getobjnofill
         else
 ;de=tilemap+
         ld a,TILEGFX/256 ;+0x10, если X=x/8 нечётное
