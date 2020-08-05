@@ -5,7 +5,7 @@ atm=1
 
 TEXBMP=1
 NTEXPGS=5
-NSPRPGS=1
+NSPRPGS=2;1
 
 tempintstack=0x4000 ;2 bytes
 SPOIL6BSTACK=0x3ffe;-2
@@ -685,7 +685,7 @@ xmid=(xleft+xright)/2
         TSPRITES 0,358,38
         TSPRITES 0,396,50 ;10
         TSPRITES 0,448,24
-        TSPRITES 0,472,26
+        TSPRITES 1,472,26
 
 MONSTAB
 ;ZOMBIEMAN stay
