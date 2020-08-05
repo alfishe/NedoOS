@@ -404,6 +404,9 @@ stdinhandle=$+1
         ld a,h
         or l
         ret z;jr z,mainloop_afterkey
+        ld de,stdinbuf
+        jr term_prfsm_prchars
+        if 1==0
         ld b,h
         ld c,l
         ld hl,stdinbuf
@@ -417,25 +420,35 @@ term_print0
         cpi
         jp pe,term_print0
         ret
+        endif
 
 term_prfsm_prchar
 ;to internet client
 ;a=char
         ld (netoutbuf),a        
-send_data0
-	LD A,(soc_client)
-send_data_addr=$+1
+;send_data_addr=$+1
 	LD DE,netoutbuf
-send_data_size=$+1
+;send_data_size=$+1
 	LD HL,1
+term_prfsm_prchars
+send_data0
+        push de
+        push hl
+	LD A,(soc_client)
 	OS_WIZNETWRITE
 	BIT 7,H
+        pop hl
+        pop de
 	JR Z,send_ok	;ошибок нет
 	CP ERR_EMSGSIZE
 	JP NZ,inet_exiterr	;обработка ошибки
+        push de
+        push hl
 	YIELD		;не обязательно. Если время не критично,
 						;то отдадим квант времени системе.
         call checkquit
+        pop hl
+        pop de
 	JR send_data0	;буфер отправки переполнен, ждём освобождения
 send_ok
 	;LD (DATA_SIZE),HL	;удачно. если требуется, то сохраняем количество отправленных данных.
