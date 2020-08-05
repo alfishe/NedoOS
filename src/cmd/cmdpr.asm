@@ -115,7 +115,7 @@ editcmd_noscrollright
         SETCOLOR_
         ;ld de,+(txtscrhgt-1)*256+0
         ld de,CMDLINEY*256+0
-        SETXY_
+        SETX_;SETXY_
         ld hl,cmdprompt
         ld c,0
         call prtext

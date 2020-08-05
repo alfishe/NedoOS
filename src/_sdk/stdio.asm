@@ -4,11 +4,12 @@
 ;receivekey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;yieldgetkeyloop - wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
-;setcolor_invisible
-;setcolor_visible
+;setcolor_invisible - NON-STANDARD
+;setcolor_visible - NON-STANDARD
 ;scrolldown ;de=topyx, hl=hgt,wid ;x, wid even
 ;scrollup ;de=topyx, hl=hgt,wid ;x, wid even
 ;setxy (macro SETXY_) - set cursor position (in: de=YX, top left is 0;0)
+;setx (macro SETX_) - set cursor X position (in: e=X, left is 0)
 ;sendchar (macro PRCHAR_) - send char to stdout (in: A=char)
 ;sendchars - send chars to stdout (in: de=buf, hl=size, out: A=error)
 ;setstdouthandle - in: A=handle
@@ -263,6 +264,20 @@ setxy
         ld (hl),'H'
         jp setcolorqq
 
+setx
+;set cursor X position (in: e=X, left is 0)
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld a,e ;x
+        inc a
+        call sendchar_num
+        ld (hl),'G'
+        jp setcolorqq
+
 sendchar_num
 ;a=num
         push bc
@@ -385,9 +400,12 @@ term_prfsm_curstate=$+1
         jr term_prfsm_nokey
 term_prfsm_nosingle
         djnz term_prfsm_noafteresc
+        cp 'O'
+        jr z,escO
         cp '['
         ld c,0x1b
         jp nz,term_prfsm_keycok ;esc esc -> esc_key
+escO ;костыль! esc O P/Q/R/S = F1..F4
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESCBRACKET
 term_prfsm_0curnumber_nokey
@@ -423,7 +441,7 @@ term_prfsm_afterescbracket_nosemicolon
         ld (hl),TERM_ST_SINGLE
         ;cp 'H'
         cp '~'
-        jr z,term_prfsm_afterescbracket_tilde
+        jp z,term_prfsm_afterescbracket_tilde
         cp 'A'
         ld c,key_up
         jr z,term_prfsm_keycok
@@ -436,12 +454,26 @@ term_prfsm_afterescbracket_nosemicolon
         cp 'D'
         ld c,key_left
         jr z,term_prfsm_keycok
+         cp 'P'
+         ld c,key_F1
+         jr z,term_prfsm_keycok
+         cp 'Q'
+         ld c,key_F2
+         jr z,term_prfsm_keycok
+         cp 'R'
+         ld c,key_F3
+         jr z,term_prfsm_keycok
+         cp 'S'
+         ld c,key_F4
+         jr z,term_prfsm_keycok
         cp 'M'
         jr z,term_prfsm_mouse
 term_prfsm_nokey
         xor a ;no key, no error
         ld c,a
         ret
+;escO
+;        jr $
 term_prfsm_noafterescbracket
         djnz term_prfsm_noaftermouse
         ld hl,term_prfsm_curstate
@@ -478,8 +510,34 @@ term_prfsm_aftermousebx
         xor a ;no key, no error
         ld c,a
         ret
+
+term_prfsm_keycok
+        ld hl,term_prfsm_curstate
+        ld (hl),TERM_ST_SINGLE
+        xor a
+        or c ;NC=no error
+        ret
+term_prfsm_mouse
+        ld hl,term_prfsm_curstate
+        ld (hl),TERM_ST_AFTERMOUSE
+        xor a ;no key, no error
+        ld c,a
+        ret
+
 term_prfsm_afterescbracket_tilde
         ld a,(term_prfsm_curnumber)
+        if 1==1
+        display $
+        cp tcontrolkeys_sz
+        jr nc,term_prfsm_nokey
+        ld hl,tcontrolkeys
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld c,(hl)
+        jr term_prfsm_keycok
+        else
         cp 3
         ld c,key_del
         jr z,term_prfsm_keycok
@@ -498,20 +556,36 @@ term_prfsm_afterescbracket_tilde
         cp 6
         ld c,key_pgdown
         jr z,term_prfsm_keycok
+        endif
         jr term_prfsm_nokey
 
-term_prfsm_keycok
-        ld hl,term_prfsm_curstate
-        ld (hl),TERM_ST_SINGLE
-        xor a
-        or c ;NC=no error
-        ret
-term_prfsm_mouse
-        ld hl,term_prfsm_curstate
-        ld (hl),TERM_ST_AFTERMOUSE
-        xor a ;no key, no error
-        ld c,a
-        ret
+tcontrolkeys
+        db 0
+        db key_home ;1
+        db key_ins ;2
+        db key_del ;3
+        db key_end ;4
+        db key_pgup ;5
+        db key_pgdown ;6
+        db 0 ;7
+        db 0 ;8
+        db 0 ;9
+        db 0 ;10
+        db key_F1 ;11
+        db key_F2 ;12
+        db key_F3 ;13
+        db key_F4 ;14
+        db key_F5 ;15
+        db 0 ;16
+        db key_F6 ;17
+        db key_F7 ;18
+        db key_F8 ;19
+        db key_F9 ;20
+        db key_F10 ;21
+        ;db 0 ;22
+        ;db key_F11 ;23
+        ;db key_F12 ;24
+tcontrolkeys_sz=$-tcontrolkeys
 
 term_prfsm_curnumber
          db 0

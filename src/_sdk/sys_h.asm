@@ -13,6 +13,10 @@
         call setxy
         endm
 
+        macro SETX_ ;set cursor X position (in: e=X, left is 0)
+        call setx
+        endm
+
         macro CLS_ ;clear visible area of terminal
         ;ld e,0
         ;OS_CLS

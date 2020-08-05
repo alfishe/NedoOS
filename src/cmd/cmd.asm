@@ -136,7 +136,7 @@ editcmd
 editcmd0
         call fixscroll_prcmd
         call cmdcalccurxy
-        SETXY_
+        SETX_;SETXY_
         ;ld e,CURSORCOLOR;0x38
         ;OS_PRATTR ;нарисовать курсор
         call yieldgetkeyloop ;YIELDGETKEYLOOP
@@ -160,6 +160,12 @@ editcmd0
         jr z,editcmd_left
         cp key_right
         jr z,editcmd_right
+        cp key_home
+        jr z,editcmd_home
+        cp key_end
+        jr z,editcmd_end
+        cp key_del
+        jr z,editcmd_del
         cp 0x20
         ret c ;jr c,editcmdok ;прочие системные кнопки не нужны
 ;type in
@@ -184,14 +190,28 @@ editcmd_backspace
         ld (curcmdx),a
         jp strdelch ;удаляет предыдущий символ
       
+editcmd_del
+        call cmdcalctextaddr ;hl=addr, a=curcmdx
+        inc hl
+        jp strdelch ;удаляет предыдущий символ
+      
 editcmd_left
         ld a,(curcmdx)
         or a
         ret z ;jr z,editcmdok ;некуда влево
         dec a
+editcmd_leftq
         ld (curcmdx),a
         ret
-      
+editcmd_home
+        xor a
+        jr editcmd_leftq
+editcmd_end
+        ld hl,cmdbuf
+        call strlen ;hl=length
+        ld a,l
+        jr editcmd_leftq
+
 editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)

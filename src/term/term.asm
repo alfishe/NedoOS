@@ -651,6 +651,7 @@ stdouthandle=$+1
 
 
 term_prfsm
+;to screen
 ;a=char
 TERM_ST_SINGLE=1 ;1: wait for single symbol
 TERM_ST_AFTERESC=2 ;2: after 0x1b
@@ -707,6 +708,8 @@ term_prfsm_afterescbracket_nosemicolon
         ld (hl),TERM_ST_SINGLE
         cp 'H'
         jr z,term_prfsm_afterescbracket_H
+        cp 'G'
+        jr z,term_prfsm_afterescbracket_G
         cp 'm'
         jr z,term_prfsm_afterescbracket_m
         cp 'd' ;NON-STANDARD!
@@ -737,6 +740,13 @@ term_prfsm_afterescbracket_tilde
         ;cp key_ins
         ;ld bc,'2'*256+'~'
         ret
+
+term_prfsm_afterescbracket_G
+        ld a,(term_prfsm_curnumber) ;column
+        dec a
+        ld e,a
+        call BDOS_setx
+        jr forcereprintcursor
 
 term_prfsm_afterescbracket_H
         ld a,(term_prfsm_curnumber1) ;row
@@ -1075,6 +1085,24 @@ redraw_scroll=$+1
          jr nc,$+4
          ld a,0x40 ;TODO prevpg
         ret
+
+BDOS_setx
+;e=x
+        ld a,e
+        or 0x80
+        rrca ;(x/2)+0x40 или 0xc0
+        ld (pr_buf_curaddr),a
+        ld hl,(pr_textmode_curaddr)
+        ld a,e ;x
+        rra
+        set 5,h
+        jr c,$+4
+        res 5,h
+        xor l
+        and 0x3f
+        xor l
+        ld l,a
+        jr BDOS_settextcuraddr
 
 BDOS_setxy
 ;de=yx
