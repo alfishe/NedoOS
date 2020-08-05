@@ -4,6 +4,8 @@
 STDINBUF_SZ=256
 NETINBUF_SZ=256
 
+STACK=0x4000
+
 PORT=2323
 
 SHUT_RDWR 		EQU 2
@@ -30,8 +32,7 @@ AF_INET EQU 2
 
         org PROGSTART
 begin
-gotostart
-        ld sp,0x4000
+        ld sp,STACK
         OS_HIDEFROMPARENT
         ;ld e,6 ;textmode
         ;OS_SETGFX
@@ -45,6 +46,54 @@ gotostart
 	OS_DELPAGE
 	pop de
 	OS_DELPAGE
+
+        ld de,tpipename
+        push de
+        OS_OPENHANDLE
+        ld a,b
+        ld (stdinhandle),a
+        pop de
+        OS_OPENHANDLE
+        ld a,b
+        ld (stdouthandle),a
+
+        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
+        ld a,(stdinhandle)
+        ld e,a
+        ld a,(stdouthandle)
+        ld d,a
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+
+;TODO запускать файл, указанный в параметре (по умолчанию cmd, искать в bin)
+        ld de,cmd_filename
+        OS_OPENHANDLE
+        or a
+        jr nz,execcmd_error
+        
+        call readapp ;делает CLOSE
+        
+        push af
+        ld b,a
+        ld a,(stdinhandle)
+        ld d,a
+        ld a,(stdouthandle)
+        ld e,a
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+        
+        pop af ;id
+
+        ld e,a ;id
+        ld (waitpid_id),a
+        OS_RUNAPP
+
+execcmd_error
+
+gotostart
+        ld sp,STACK
  
 ;1. s = OS_NETSOCKET
 	LD D,AF_INET
@@ -100,51 +149,6 @@ close_ok
 ;11. OS_NETSHUTDOWN(s1)
 ;12. goto 1
 
-        ld de,tpipename
-        push de
-        OS_OPENHANDLE
-        ld a,b
-        ld (stdinhandle),a
-        pop de
-        OS_OPENHANDLE
-        ld a,b
-        ld (stdouthandle),a
-
-        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-        ld a,(stdinhandle)
-        ld e,a
-        ld a,(stdouthandle)
-        ld d,a
-        ld h,0xff ;rnd
-;b=id, e=stdin, d=stdout, h=stderr        
-        OS_SETSTDINOUT
-
-;TODO запускать файл, указанный в параметре (по умолчанию cmd, искать в bin)
-        ld de,cmd_filename
-        OS_OPENHANDLE
-        or a
-        jr nz,execcmd_error
-        
-        call readapp ;делает CLOSE
-        
-        push af
-        ld b,a
-        ld a,(stdinhandle)
-        ld d,a
-        ld a,(stdouthandle)
-        ld e,a
-        ld h,0xff ;rnd
-;b=id, e=stdin, d=stdout, h=stderr        
-        OS_SETSTDINOUT
-        
-        pop af ;id
-
-        ld e,a ;id
-        ld (waitpid_id),a
-        OS_RUNAPP
-
-execcmd_error
-
 mainloop
         YIELD
         call checkquit
@@ -178,9 +182,9 @@ parsetelnetcodes
          jr z,subnegotiation_off
          cp 250
          jr z,subnegotiation_on
-         cp 251
+         cp 251 ;do
          jr z,will_do_on ;skip next byte
-         cp 253
+         cp 253 ;will
          jr z,will_do_on ;skip next byte
          jr mainloop
         
@@ -201,11 +205,19 @@ will_do_off
        
         ;ld a,255
         ;call term_prfsm_prchar
+        ;ld a,254 ;don't
+        ;;ld a,251 ;do
+        ;call term_prfsm_prchar
+        ;ld a,1 ;echo
+        ;call term_prfsm_prchar
+       
+        ;ld a,255
+        ;call term_prfsm_prchar
         ;ld a,0xfd
         ;call term_prfsm_prchar
         ;ld a,0x2d
         ;call term_prfsm_prchar ;disable local echo
-        
+        if 1==1
         ld a,255
         call term_prfsm_prchar
         ld a,250 ;Начало субопции
@@ -220,15 +232,8 @@ will_do_off
         call term_prfsm_prchar
         ld a,240 ;Завершение согласования параметров (конец субопции)
         call term_prfsm_prchar ;disable local line editing
+        endif
 
-        ld a,255
-        call term_prfsm_prchar
-        ld a,254 ;don't
-        ;ld a,251 ;do
-        call term_prfsm_prchar
-        ld a,1 ;echo
-        call term_prfsm_prchar
-       
         ;ld a,255
         ;call term_prfsm_prchar
         ;ld a,251
