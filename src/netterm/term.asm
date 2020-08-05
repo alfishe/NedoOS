@@ -189,35 +189,48 @@ parsetelnetcodes
          jr mainloop
         
 will_do_off
-        ;ld a,255
-        ;call term_prfsm_prchar
-        ;ld a,253 ;will
-        ;call term_prfsm_prchar
-        ;ld a,34
-        ;call term_prfsm_prchar
+;will_do_off_once_flag=$+1
+;        ld a,2
+;        dec a
+;        jp z,will_do_off_once_skip
+;        ld (will_do_off_once_flag),a
+        if 1==0
+        ld a,255
+        call term_prfsm_prchar
+        ld a,253 ;will
+        call term_prfsm_prchar
+        ld a,34 ;??? не воспринимается putty, пишет символ 34
+        call term_prfsm_prchar
+        endif
        
         ;ld a,255
         ;call term_prfsm_prchar
         ;ld a,251 ;do
         ;call term_prfsm_prchar
-        ;ld a,0x2d
-        ;call term_prfsm_prchar
-       
-        ;ld a,255
-        ;call term_prfsm_prchar
-        ;ld a,254 ;don't
-        ;;ld a,251 ;do
-        ;call term_prfsm_prchar
-        ;ld a,1 ;echo
-        ;call term_prfsm_prchar
-       
-        ;ld a,255
-        ;call term_prfsm_prchar
-        ;ld a,0xfd
-        ;call term_prfsm_prchar
-        ;ld a,0x2d
+        ;ld a,0x2d ;??? не воспринимается putty, пишет символ 2d
         ;call term_prfsm_prchar ;disable local echo
-        if 1==1
+       
+        if 1==0
+        ld a,255
+        call term_prfsm_prchar
+        ;ld a,254 ;don't
+        ld a,251 ;do
+        call term_prfsm_prchar
+        ld a,1 ;echo
+        call term_prfsm_prchar ;если делать IAC IAC_DO IAC_Echo, то клиент посылает кнопки только по ентеру, но процесс редактирования не отображает
+        endif
+
+        if 1==0
+        ld a,255
+        call term_prfsm_prchar
+        ld a,254 ;don't
+        ;ld a,251 ;do
+        call term_prfsm_prchar
+        ld a,7 ;Remote Controlled Trans and Echo
+        call term_prfsm_prchar ;ни на что не влияет
+        endif
+       
+        if 1==0
         ld a,255
         call term_prfsm_prchar
         ld a,250 ;Начало субопции
@@ -226,7 +239,7 @@ will_do_off
         call term_prfsm_prchar
         ld a,1
         call term_prfsm_prchar
-        ld a,0
+        ld a,1;0
         call term_prfsm_prchar
         ld a,255
         call term_prfsm_prchar
@@ -234,20 +247,27 @@ will_do_off
         call term_prfsm_prchar ;disable local line editing
         endif
 
-        ;ld a,255
-        ;call term_prfsm_prchar
-        ;ld a,251
-        ;call term_prfsm_prchar
-        ;ld a,1
-        ;call term_prfsm_prchar
+        ld a,255
+        call term_prfsm_prchar
+        ld a,251
+        call term_prfsm_prchar
+        ld a,1
+        call term_prfsm_prchar
 
+        ld a,255
+        call term_prfsm_prchar
+        ld a,251
+        call term_prfsm_prchar
+        ld a,3
+        call term_prfsm_prchar
+will_do_off_once_skip
         ld a,55+128 ;or a
         jr will_do_onoff
 will_do_on
         ld a,55 ;scf
 will_do_onoff
         ld (will_do_flag),a
-        jr mainloop_afterkey
+        jp mainloop_afterkey
 
 subnegotiation_off       
         ld a,55+128 ;or a
@@ -256,7 +276,7 @@ subnegotiation_on
         ld a,55 ;scf
 subnegotiation_onoff
         ld (subnegotiation_flag),a
-        jr mainloop_afterkey
+        jp mainloop_afterkey
 
 
 checkquit
