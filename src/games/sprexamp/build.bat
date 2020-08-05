@@ -13,6 +13,7 @@ sjasmplus --nologo --msg=war --msg=war WBAR.ast --raw=sprexamp/WBAR.bin
 sjasmplus --nologo --msg=war --msg=war tiles.ast --raw=sprexamp/tiles.bin
 sjasmplus --nologo --msg=war --msg=war WHUM1.asm
 sjasmplus --nologo --msg=war --msg=war music.asm
+sjasmplus --nologo --msg=war --msg=war sfx.asm
 sjasmplus --nologo --msg=war --msg=war main.asm
 
 SET releasedir2=../../../release/

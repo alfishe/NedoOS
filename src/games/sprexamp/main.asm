@@ -19,6 +19,36 @@ CAMERATRACKINGSPEED_Y=16
 CAMERASHIFTSPEED_X=4 ;double pixels
 CAMERASHIFTSPEED_Y=4
 
+FIRSTOBJTILE=111
+
+PENT=0
+
+
+uvscroll_scrbase=0x4000
+uvscroll_pushbase=0x8000
+uvscroll_callbase=0xc000
+
+
+UVSCROLL_WID=1024
+UVSCROLL_HGT=256;512
+TILEMAPWID=42 ;целые метатайлы
+TILEMAPHGT=24 ;целые метатайлы
+UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
+UVSCROLL_SCRHGT=192-16 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
+UVSCROLL_NPUSHES=UVSCROLL_WID/2/4/2 
+UVSCROLL_SCRNPUSHES=UVSCROLL_SCRWID/2/4/2 
+
+UVSCROLL_SCRSTART=uvscroll_scrbase+((UVSCROLL_SCRHGT-1)*40)
+UVSCROLL_LINESTEP=-40
+
+UVSCROLL_NCALLPGS=4
+
+UVSCROLL_TEMPSP=tempsp
+
+METATILEMAPWID=256;64
+TILEGFX=0xc000
+
+
         macro RECODEBYTE
         ld a,(de)
         ld ($+4),a
@@ -34,7 +64,8 @@ CAMERASHIFTSPEED_Y=4
 
         org PROGSTART
 begin
-        jp $+3 ;/prsprqwid (спрайты в файле подготовлены так, что выходят сюда)
+        jp GO ;/prsprqwid (спрайты в файле подготовлены так, что выходят сюда)
+GO
         ld sp,STACK
         OS_HIDEFROMPARENT
 
@@ -91,10 +122,15 @@ begin
         call loadpage
         ld (pg1),a
         call loadpage
+        ld (pgsfx),a
+        call loadpage
         ld (pgmusic),a
         SETPG16K
         push af
         call 0x4000 ;init
+        
+        ld a,(pgsfx)
+        SETPG32KLOW
         pop af
         ld hl,0x4005 ;play
         OS_SETMUSIC
@@ -411,12 +447,12 @@ curkey=$+1
         ld a,0
         cp key_esc
         jp nz,mainloop;waitkey
-        
+
         call swapimer
 pgmusic=$+1
         ld a,0
         SETPG16K
-        ld hl,0x4008 ;stop
+        ld hl,0x4008+3 ;stop
         OS_SETMUSIC
         halt
         QUIT
@@ -496,6 +532,8 @@ gravityok
         cp 32
          res 0,(ix+obj.flags) ;not on floor
         jr c,nofloor
+         cp FIRSTOBJTILE
+        jr nc,nofloor
          set 0,(ix+obj.flags) ;not on floor
 ;выравнивание по y на 16(пикс)*8
         ld a,l
@@ -617,7 +655,9 @@ leftq
         dec l
         ld a,(hl) ;правее центра
         cp 64 ;beton
-        jr c,checkleftwallq ;not beton
+        jp c,checkleftwallq ;not beton
+         cp FIRSTOBJTILE
+         jr nc,checkwall_obj
 ;врезались справа, выравниваем x = (x&0xf0) - 1
         ld l,(ix+obj.x16+0) ;*8 (in double pixels)
         ld h,(ix+obj.x16+1)
@@ -627,6 +667,53 @@ leftq
         dec hl
         ld (ix+obj.x16+0),l ;*8 (in double pixels)
         ld (ix+obj.x16+1),h        
+        jr checkleftwallq
+checkwall_obj
+        ld (hl),0
+        ex de,hl
+         ld a,3 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
+         call sfxplay
+        
+        if 1==1
+        call uvscroll_filltilemap
+        call uvscroll_showtilemap
+        else
+;de=tilemap+
+        ld a,TILEGFX/256 ;+0x10, если X=x/8 нечётное
+        ld (drawtiles_ver_block_tilegfx),a
+        ld hl,(allscroll)
+;округлить до целого метатайла в зависимости от yscroll&15 (в самом allscroll нет этой информации)
+;т.е. hl-=(yscroll&15)*(UVSCROLL_WID/512)
+        ld a,(yscroll)
+        and 15
+        cpl
+        ld c,a
+        ld b,-1
+        inc bc ;bc<=0
+        dup UVSCROLL_WID/512
+        add hl,bc
+        edup
+         ld a,h
+         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
+         ld h,a
+        ld a,(allscroll_lsb)
+        and 0xf8 ;округлили до целого метатайла
+        add a,32
+        ld bc,64*2
+        adc hl,bc
+;hla=allscroll+
+        push de
+        push hl
+        push af
+        call drawtile_toldpush
+        ld a,TILEGFX/256+0x10 ;X=x/8 нечётное
+        ld (drawtiles_ver_block_tilegfx),a
+        pop af
+        pop hl
+        pop de
+        or 4
+        call drawtile_toldpush
+        endif
         jr checkleftwallq
 checkleftwall
         ld l,(ix+obj.y16+0) ;*8
@@ -640,6 +727,8 @@ checkleftwall
         ld a,(hl) ;левее центра
         cp 64 ;beton
         jr c,checkleftwallq ;not beton
+         cp FIRSTOBJTILE
+         jr nc,checkwall_obj
 ;врезались слева, выравниваем x = (x+15)&0xf0
         ld l,(ix+obj.x16+0) ;*8 (in double pixels)
         ld h,(ix+obj.x16+1)
@@ -859,6 +948,7 @@ loadpage
 texfilename
         db "WBAR.bin",0
         db "WHUM1.bin",0
+        db "sfx.bin",0
         db "music.bin",0
 
 primgega
@@ -1113,6 +1203,14 @@ _y=_y+40
 _x=_x+20
         edup
         dw -1
+
+sfxplay
+        push af
+pgsfx=$+1
+        ld a,0
+        SETPG32KLOW
+        pop af
+        jp 0x8000 ;SFXPLAY
 
         include "int.asm"
         include "cls.asm"

@@ -1,26 +1,3 @@
-uvscroll_scrbase=0x4000
-uvscroll_pushbase=0x8000
-uvscroll_callbase=0xc000
-
-UVSCROLL_WID=1024
-UVSCROLL_HGT=256;512
-TILEMAPWID=42 ;целые метатайлы
-TILEMAPHGT=24 ;целые метатайлы
-UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
-UVSCROLL_SCRHGT=192-16 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
-UVSCROLL_NPUSHES=UVSCROLL_WID/2/4/2 
-UVSCROLL_SCRNPUSHES=UVSCROLL_SCRWID/2/4/2 
-
-UVSCROLL_SCRSTART=uvscroll_scrbase+((UVSCROLL_SCRHGT-1)*40)
-UVSCROLL_LINESTEP=-40
-
-UVSCROLL_NCALLPGS=4
-
-UVSCROLL_TEMPSP=tempsp
-
-METATILEMAPWID=256;64
-TILEGFX=0xc000
-
 uvscroll_prepare
 
         ld ix,tpushpgs
@@ -700,6 +677,13 @@ uvscrollloop_xdrawright0_nincallscroll
         jr nz,uvscrollloop_xdrawright0
 uvscrollloop_xndraw
         ret;jp uvscrollloop0
+
+drawtile_toldpush
+;de=tilemap+
+;hla=allscroll+
+        ld b,1 ;число блоков по 8 тайлов
+        call drawtiles_ver_hla_de
+        ret
 
 uvscroll_scroll_x
 ;a>0 = go left
@@ -1797,7 +1781,6 @@ drawtiles_ver_hla_de
 ;ix=tpushpgs+(Y/64*4)+layer
         pop bc ;b=число блоков по 8 тайлов
         
-;отрисовывать тайлы справа налево (по возрастанию адресов ld-push)
 drawtiles_ver_blocks0
         push bc
         call drawtiles_ver_block
