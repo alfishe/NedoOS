@@ -1850,10 +1850,11 @@ BDOS_closehandle_noFATFS
         jp trdos_fclose_hl
 
 BDOS_closehandle_pipe
-        inc a
+;B = file handle
+        inc b
         ret z ;0xff=rnd
-        ld hl,freepipes-1
-        ld c,a
+        ld hl,freepipes-1-PIPEADD80
+        ld c,b
         xor a
         ld b,a
         add hl,bc
@@ -1885,7 +1886,9 @@ BDOS_readhandle
 ;DE = Buffer address
 ;HL = Number of bytes to read
 ;out: HL = Number of bytes actually read, A=error
+        dec hl
          ld a,h
+        inc hl
          cp 0x40
          jr c,BDOS_readhandlego
         push hl

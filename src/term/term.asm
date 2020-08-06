@@ -1561,15 +1561,15 @@ skipword
 skipword0
         ld a,(hl)
         or a
-        jr z,skipwordq
+        ret z ;jr z,skipwordq
         sub ' '
-        jr z,skipwordq
+        ret z ;jr z,skipwordq
         inc hl ;ldi
-        jp skipword0
-skipwordq
+        jr skipword0
+;skipwordq
         ;xor a
         ;ld (de),a
-        ret
+        ;ret
 
 skipspaces
 ;hl=string

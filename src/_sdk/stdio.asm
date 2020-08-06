@@ -1,6 +1,7 @@
 ;EXPORT:
 ;initstdio
 ;receivechar (macro GETCHAR_) - read char from stdin (out: A=char, CY=error)
+;receivechars - read chars from stdin (de=buf, hl=size, out: bc=bytes actually read (if EOF), CY=error(EOF))
 ;receivekey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;yieldgetkeyloop - wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
@@ -307,19 +308,12 @@ sendchar
         ld de,stdoutbuf
 sendchars
 ;send chars to stdout (in: de=buf, hl=size, out: A=error)
-        ;ld a,6
-        ;out (0xfe),a
 sendchars0
         push de
         push hl
 stdouthandle=$+1
         ld b,0
         OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
-      ;push af
-      ;push hl
-      ;YIELDKEEP ;2158t
-      ;pop bc ;bytes actually written
-      ;pop af
         ld b,h
         ld c,l ;bytes actually written
         pop hl
@@ -335,12 +329,35 @@ stdouthandle=$+1
 ;de=remaining data addr
         push de
         push hl
-        ;ld a,5
-        ;out (0xfe),a
         YIELDKEEP ;2158t
         pop hl
         pop de
         jr sendchars0
+
+;receivechars - read chars from stdin
+receivechars
+;de=buf, hl=size
+;out: de=end addr in buf (if EOF), CY=error(EOF))
+receivechars0
+        push de
+        push hl
+        ld a,(stdinhandle)
+        ld b,a
+        OS_READHANDLE ;hl=size actually received
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        or a
+        scf
+        ret nz ;error
+        ex de,hl
+        add hl,bc ;addr+=readed
+        ex de,hl
+        or a
+        sbc hl,bc ;size-=readed
+        jr nz,receivechars0
+        ret
 
 receivechar
 ;read char from stdin (out: A=char, CY=error)

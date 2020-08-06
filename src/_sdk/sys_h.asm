@@ -187,7 +187,7 @@ _1=$
         ld c,CMD_HIDEFROMPARENT
 	CALLBDOS_NOPARAM_A
         endm
-        macro OS_SETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        macro OS_SETSTDINOUT ;b=id, e=stdin, d=stdout, h=stderr
         ld c,CMD_SETSTDINOUT
 	CALLBDOS_NOPARAM_A
         endm

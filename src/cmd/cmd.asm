@@ -22,6 +22,7 @@ cmd_begin
         call initstdio
 
         OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        ld a,d
         ld (stdouthandle_wasatstart),a
 
         OS_GETMAINPAGES
@@ -89,6 +90,12 @@ execcmd_maybepipes
 ;out:a!=0: no such internal command
 ;если command pars >file, то create file, перенаправить вывод в него, execcmd, close file, перенаправить вывод обратно
         ld hl,cmdbuf
+        ld a,'|'
+        ld bc,MAXCMDSZ
+        cpir
+        jr z,execcmd_pipe
+
+        ld hl,cmdbuf
         ld a,'>'
         ld bc,MAXCMDSZ
         cpir
@@ -118,6 +125,72 @@ stdouthandle_wasatstart=$+1
 ;        jp execcmd ;a!=0: no such internal command
 ;cmd_noexeccmdtofileq
 ;        ret
+
+execcmd_pipe
+;cmd |app
+        dec hl
+        ld (hl),0
+        inc hl
+        ex de,hl ;de=app filename
+
+        OS_OPENHANDLE
+        or a
+        jr nz,execcmd_pipe_error
+
+        push bc
+        ld de,tpipename
+        OS_CREATEHANDLE
+        ld a,b
+        ld (pipehandle),a
+        call setstdouthandle
+        pop bc
+        
+        call readapp ;делает CLOSE ;TODO через loadapp, чтобы дописывать .com и грузить из /bin
+        
+        push af
+        ld b,a
+        ;ld a,(stdinhandle)
+        ;ld d,a
+pipehandle=$+1
+        ld d,0
+        ld a,(stdouthandle)
+        ld e,a
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+        
+        pop af ;id
+
+        ld e,a ;id
+        ;ld (waitpid_id),a
+        push de
+        OS_RUNAPP
+        
+        call execcmd ;can show errors ;a!=0: no such internal command
+        pop de
+        push af ;a=error
+        push de
+        
+        ld a,(pipehandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        
+        pop de
+        WAITPID
+
+        ld a,(stdouthandle_wasatstart)
+        call setstdouthandle
+;закрыть пайп второй раз
+        ld a,(pipehandle)
+        ld b,a
+        OS_CLOSEHANDLE
+
+        pop af ;a=error
+execcmd_pipe_error
+        ret
+
+tpipename
+        db "z:",0
 
 ;;;;;;;;;;;;;;;;;;
         
@@ -432,7 +505,7 @@ loadapp_finddot0
         or 0x20
         cp 'b'
 ; TODO где проверка на остальные буквы?
-        jr z,strcpexec_tryrun_bat
+        jp z,strcpexec_tryrun_bat
 ;считаем, что написано .com (в принципе расширение безразлично - просто запускаем)
         jr loadapp_finddotok
 loadapp_nodot
@@ -480,7 +553,84 @@ loadapp_finddotok
         ld e,d ;e=id
         xor a
         ret ;Z
+     
+readapp
+        ld a,b
+        ld (curhandle),a
         
+        OS_NEWAPP ;для первой создаваемой задачи будут созданы первые два пайпа и подключены
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+        push bc ;b=id
+
+        ld a,d
+        SETPG32KHIGH
+        push de
+        push hl
+        ld hl,COMMANDLINE ;command line
+        call skipword
+        call skipspaces ;пропустили первое слово (там было term.com, а дальше, например, cmd.com autoexec.bat)
+        ld de,0xc080
+        ld bc,128  
+        ldir ;command line
+        pop hl
+        pop de
+
+        call readfile_pages_dehl
+
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+
+        pop af ;id
+        ret
+
+skipword
+;hl=string
+;out: hl=terminator/space addr
+skipword0
+        ld a,(hl)
+        or a
+        ret z ;jr z,skipwordq
+        sub ' '
+        ret z ;jr z,skipwordq
+        inc hl ;ldi
+        jr skipword0
+
+readfile_pages_dehl
+        ld a,d
+        SETPG32KHIGH
+        ld a,0xc100/256
+        call cmd_loadpage
+        ret nz
+        ld a,e
+        call cmd_loadfullpage
+        ret nz
+        ld a,h
+        call cmd_loadfullpage
+        ret nz
+        ld a,l
+cmd_loadfullpage
+        SETPG32KHIGH
+        ld a,0xc000/256
+cmd_loadpage
+;out: a=error
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        pop hl
+        pop de
+        or a
+        ret
+     
 strcpexec_tryrun_bat
 	;display "strcpexec_tryrun_bat",strcpexec_tryrun_bat
 ;out: nz=error, cy=end of .bat
@@ -634,33 +784,6 @@ readbyte_readbufq
         pop de
         pop bc
         ret
-
-readfile_pages_dehl
-        ld a,d
-        SETPG32KHIGH
-        ld a,+(0xc000+PROGSTART)/256
-        call cmd_loadpage
-        or a
-        ret nz
-        
-        ld a,e
-        SETPG32KHIGH
-        ld a,0xc000/256
-        call cmd_loadpage
-        or a
-        ret nz
-        
-        ld a,h
-        SETPG32KHIGH
-        ld a,0xc000/256
-        call cmd_loadpage
-        or a
-        ret nz
-        
-        ld a,l
-        SETPG32KHIGH
-        ld a,0xc000/256
-        jp cmd_loadpage
 
 cmd_dir
         ld de,fcb
@@ -1571,27 +1694,6 @@ copybuf_sz=$-copybuf
 file_buf
         ds 128
 file_buf_end=$-1
-
-cmd_loadpage
-;a=loadaddr/256
-;out: a=error, bc=bytes read
-;keeps hl,de
-        push de
-        push hl
-        ld d,a
-        xor a
-        ld l,a
-        ld e,a
-        sub d
-        ld h,a ;de=buffer, hl=size
-curhandle=$+1
-        ld b,0
-        OS_READHANDLE
-        ld b,h
-        ld c,l
-        pop hl
-        pop de
-        ret
 
         include "prdword.asm"
         include "cmdpr.asm"
