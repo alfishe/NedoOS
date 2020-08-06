@@ -303,14 +303,14 @@ setgfxpal_focus
         ;;pop iy
 
         ld hl,(focusappaddr)
-        ld bc,app.gfxmode
-        add hl,bc
-        ld a,(hl)
-        ld bc,0xbd77
-        out (c),a ;set gfx mode
+        ;ld bc,app.gfxmode
+        ;add hl,bc
+        ;ld a,(hl)
+        ;ld bc,0xbd77
+        ;out (c),a ;set gfx mode
         
         ;ld hl,(focusappaddr)
-        ld bc,app.pal+31 -app.gfxmode
+        ld bc,app.pal+31 ;-app.gfxmode
         add hl,bc
         
         ld c,0xff
@@ -541,10 +541,17 @@ muzpgc000=$+1
         ;jr $
         ld sp,INTMUZSTACK
 
+        ld ix,(focusappaddr)
+        ld a,(ix+app.gfxmode)
 muzcall=$+1
 	call sys_reter;pt3player.PLAY ;TODO call drivers
         
         ld sp,INTSTACK2-2
+
+        ld ix,(focusappaddr)
+        ld a,(ix+app.gfxmode)
+        ld bc,0xbd77
+        out (c),a ;set gfx mode
         
         ld a,pgtrdosfs;pagexor-5
         ld bc,memport4000

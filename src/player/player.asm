@@ -8,6 +8,7 @@ module=0x6000;0xc000
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
+        OS_HIDEFROMPARENT
         ld e,6 ;textmode
         OS_SETGFX
         ;call initstdio
@@ -148,13 +149,26 @@ prtext0
 wasplayer
         disp 0x4000
 player
+;a = port bd77 value
         di
+        push af
+        and 0xf7;0xa0;%10101000 ;320x200 mode noturbo
+	ld bc,0xbd77	;shadow ports and palette remain on
+        out (c),a
+
 	ld a,(module)
 	cp 'T'
         push af
+        ;push de
         call nz,PLAY
+        ;pop de
         pop af
         call z,tfm
+        
+        pop af
+	;LD A,0xa8;%10101000 ;320x200 mode
+	ld bc,0xbd77	;shadow ports and palette remain on
+        out (c),a
         ei
         ret
 muter        

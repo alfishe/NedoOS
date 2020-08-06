@@ -11,8 +11,9 @@ cmd_begin
 	ld (icmpstarttime),de
 
 	ld sp,0x8000
-	ld e,6
-	OS_SETGFX ;text mode set
+        call initstdio
+	;ld e,6
+	;OS_SETGFX ;text mode set
 
 	OS_GETMAINPAGES ;hlde
 	push de
@@ -110,12 +111,12 @@ ping_noresolve
 	ld a,(icmpdatasize)
 	call printbyte_a
 	ld a,'('
-	PRCHAR
+	PRCHAR_
 	ld a,(icmpdatasize)
 	add 8+6 ; header icmp + header ip
 	call printbyte_a
 	ld a,')'
-	PRCHAR
+	PRCHAR_
 	ld hl,txt_head4
 	call print_hl
 	xor a ; Preparing connect params
@@ -177,7 +178,9 @@ ping_loopwait
 	bit 7,h
 	jr z,ping_loopreceived
 	push bc
-	YIELDGETKEY
+	;YIELDGETKEY
+        YIELD
+        GETKEY_
 	ld a,c
 	cp key_esc
 	jr z,ping_end
@@ -237,7 +240,7 @@ ping_end
 
 
 ;------------------functions-----------
-	include "../_sdk/string.asm"
+	include "string.asm"
 
 ping_updateminmaxhl
 	push hl
@@ -377,7 +380,7 @@ ping_printstat0
 	ld hl,(icmpmin)
 	call printushort_hl
 	ld a,'/'
-	PRCHAR
+	PRCHAR_
 ;avg icmppacketstime/(icmpnum-icmperr)
 	or a
 	ld hl,(icmpnum)
@@ -395,7 +398,7 @@ ping_printstat1
 	ld l,c
 	call printushort_hl
 	ld a,'/'
-	PRCHAR
+	PRCHAR_
 ;max
 	ld hl,(icmpmax)
 	call printushort_hl
@@ -412,8 +415,10 @@ ping_printpacket_ix0
 	call bytetohexstr_atode
 	ld hl,buf
 	call print_hl
+        push ix
 	ld a,' '
-	PRCHAR
+	PRCHAR_
+        pop ix
 	inc ix
 	pop bc
 	djnz ping_printpacket_ix0
@@ -426,9 +431,9 @@ ping_printwork
 	ld hl,arg_hostname
 	call print_hl
 	ld a,' '
-	PRCHAR
+	PRCHAR_
 	ld a,'('
-	PRCHAR
+	PRCHAR_
 	ld hl,txtip
 	call print_hl
 	ld hl,txt_work2
@@ -497,7 +502,9 @@ ping_wait
 	ld bc,(icmpdelay)
 ping_wait0
 	push bc
-	YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
+	;YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
+        YIELD
+        GETKEY_
 	ld a,c
 	cp key_esc
 	jp z,ping_end
@@ -807,7 +814,10 @@ txt_tail5 db "% packet loss, time ",0
 txt_tail6 db " ms",0x0D,0x0A,"rtt min/avg/max = ",0
 txt_tail7 db " ms",0x0D,0x0A,0
 
+        include "../_sdk/stdio.asm"
+
 cmd_end
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 	savebin "ping.com",cmd_begin,cmd_end-cmd_begin
 
+	LABELSLIST "../../us/user.l"

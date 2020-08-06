@@ -1,4 +1,7 @@
-..\..\tools\make.exe %1 %2
+rem ..\..\tools\make.exe %1 %2
+
+if "%settedpath%"=="" call ../_sdk/setpath.bat
+sjasmplus --nologo --msg=war player.asm
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (
