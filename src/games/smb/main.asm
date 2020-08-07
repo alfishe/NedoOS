@@ -49,7 +49,7 @@ MUSIC=1
 MUSICONINT=0;1
 
 OSCALLS=0
-MULTITASKING=1 ;при MUSICONINT=1 влияет на прохождение 8-2 в деме (место облома зависит от числа тактов!), даже костыль мало помогает, приходится делать GOODBULLET
+MULTITASKING=0;1 ;при MUSICONINT=1 влияет на прохождение 8-2 в деме (место облома зависит от числа тактов!), даже костыль мало помогает, приходится делать GOODBULLET
 	;display "OSCALLS=",OSCALLS
 
 SWEEP=0
