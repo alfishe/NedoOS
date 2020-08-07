@@ -28,6 +28,8 @@ function main ()
 
     --local isok,adjust = mappy.doDialogue ("Export binary file", "Adjust exported values by:", "0", mappy.MMB_DIALOGUE1)
     if isok == mappy.MMB_OK then
+     L0 = 0
+     L1 = 1
 
      adjust = tonumber (adjust)
 -- open file as binary
@@ -38,12 +40,39 @@ function main ()
      while y >= 0 do
       local x = w-1
       while x >= 0 do
-       local mapval = mappy.getBlockValue (mappy.getBlock (x, y), mappy.BLKBG)
+       local mapval = mappy.getBlockValue (mappy.getBlock (x, y,L0), mappy.BLKBG)
        --mapval = mapval + adjust
        if mapval < 0 then
         mapval = 0
        end
        writeIntLSB (outas, mapval)
+       x = x - 1
+      end
+      y = y - 1
+     end
+     outas:close ()
+
+     asname = string.sub (asname, 0,string.len(asname)-4) .. ".enm"
+-- open file as binary
+     outas = io.open (asname, "wb")
+     --writeIntLSB (outas, w)
+     --writeIntLSB (outas, h)
+     y = h-1
+     while y >= 0 do
+      local x = w-1
+      while x >= 0 do
+       local mapval = mappy.getBlockValue (mappy.getBlock (x, y,L1), mappy.BLKBG)
+       --mapval = mapval + adjust
+       if mapval < 0 then
+        mapval = 0
+       end
+       --writeIntLSB (outas, mapval)
+       if mapval == 0 then
+       else
+         writeIntLSB (outas, mapval)
+         writeIntLSB (outas, x)
+         writeIntLSB (outas, y)
+       end
        x = x - 1
       end
       y = y - 1

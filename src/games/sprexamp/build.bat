@@ -8,6 +8,7 @@ if not exist sprexamp mkdir sprexamp
 copy images\bg*.bmp sprexamp
 rem copy images\tiles*.bmp sprexamp
 copy map1.map sprexamp
+copy map1.enm sprexamp
 copy tiles1.bmp sprexamp
 sjasmplus --nologo --msg=war --msg=war WBAR.ast --raw=sprexamp/WBAR.bin
 sjasmplus --nologo --msg=war --msg=war tiles.ast --raw=sprexamp/tiles.bin

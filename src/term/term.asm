@@ -136,29 +136,22 @@ waitpid_id=$+1
         or a
         jp z,quit
         
-        ;ld a,1
-        ;out (0xfe),a
-        call type_stdin ;stdin to screen
-        ;ld a,2
-        ;out (0xfe),a
+        if 1==0
+        jr mainloop_type0_go
+mainloop_type0
         YIELDKEEP
-        ;ld a,1
-        ;out (0xfe),a
+mainloop_type0_go
         call type_stdin ;stdin to screen
-        ;ld a,2
-        ;out (0xfe),a
+        jr nc,mainloop_type0 ;data present
+        else
+        call type_stdin ;stdin to screen
         YIELDKEEP
-        ;ld a,1
-        ;out (0xfe),a
         call type_stdin ;stdin to screen
-        ;ld a,2
-        ;out (0xfe),a
         YIELDKEEP
-        ;ld a,1
-        ;out (0xfe),a
         call type_stdin ;stdin to screen
-        ;ld a,2
-        ;out (0xfe),a
+        YIELDKEEP
+        call type_stdin ;stdin to screen
+        endif
        
          ld hl,(pr_buf_curaddr)
          ld (wascursorcuraddr),hl        
@@ -285,7 +278,7 @@ sendmouseevent_noclicktopleft
         ld a,d
         sub 24
         or e
-        jr nz,sendmouseevent_noclick
+        jr nz,sendmouseevent_click
         ld de,tpastaname
         OS_OPENHANDLE
         ld a,b
@@ -301,8 +294,22 @@ sendmouseevent_noclicktopleft
         OS_CLOSEHANDLE
         jp mainloop_afterkey
 sendmouseevent_noclick
+        ld b,'@' ;mouse move
+        jr sendmouseevent_ok
+sendmouseevent_click
+        ld a,l ;mouse buttons
+        ld b,1+32
+        rra
+        jr nc,sendmouseevent_ok
+        inc b
+        rra
+        jr nc,sendmouseevent_ok
+        inc b
+        rra
+        jr nc,sendmouseevent_ok
+        ld b,0+32 ;unclick
+sendmouseevent_ok
 ;send mousemove event
-        push hl
         ld hl,stdoutbuf
         ld (hl),0x1b
         inc hl
@@ -310,25 +317,16 @@ sendmouseevent_noclick
         inc hl
         ld (hl),'M'
         inc hl
-        pop bc
-        ld a,l ;mouse buttons
-        ld b,1
-        rra
-        jr nc,sendmouseevent_buttons
-        inc b
-        rra
-        jr nc,sendmouseevent_buttons
-        inc b
-        rra
-        jr nc,sendmouseevent_buttons
-        ld b,0
-sendmouseevent_buttons
         ld (hl),b
         inc hl
         call getmousexy
-        ld (hl),e
+         ld a,e
+         add a,32
+        ld (hl),a
         inc hl
-        ld (hl),d
+         ld a,e
+         add a,32
+        ld (hl),a
         ld de,stdoutbuf
         ld hl,6
         call sendchars
@@ -499,6 +497,7 @@ mousexy=$+1
         ret
 
 type_stdin
+;out: CY=no data
         ld de,stdinbuf
         ld hl,STDINBUF_SZ
 stdinhandle=$+1
@@ -508,6 +507,7 @@ stdinhandle=$+1
 ;hl=size
         ld a,h
         or l
+        scf ;out: CY=no data
         ret z ;jr z,nostdinmsg;mainloop_afterkey
 
         push hl
@@ -530,6 +530,7 @@ term_print0
         cpi
         jp pe,term_print0
 ;nostdinmsg
+        or a ;out: NC=data present
         ret
 
 sendchar_esckey

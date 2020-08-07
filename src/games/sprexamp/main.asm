@@ -13,7 +13,7 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3b80;0x3f00 ;чтобы не запороть стек загрузки bmp в bgpush
 
-MAXSPEED=8*8-4
+MAXSPEED=4*8;8*8-4
 CAMERATRACKINGSPEED_X=16 ;double pixels
 CAMERATRACKINGSPEED_Y=16
 CAMERASHIFTSPEED_X=4 ;double pixels
@@ -190,6 +190,9 @@ GO
         ld (x2scroll),hl
 
          call uvscroll_preparetilemap
+
+        call importcoords
+
         ld de,pal
         OS_SETPAL
 mainloop_uv0
@@ -571,6 +574,11 @@ oldjoystate=$+2
 ;2 - Down (6)
 ;1 - Left (5)
 ;0 - Right (8) 
+        bit 6,c
+        push bc
+        call nz,kick
+        pop bc
+
         ld ix,objects
         ld l,(ix+obj.xspeed16+0)
         ld h,(ix+obj.xspeed16+1)
@@ -659,6 +667,8 @@ leftq
          cp FIRSTOBJTILE
          jr nc,checkwall_obj
 ;врезались справа, выравниваем x = (x&0xf0) - 1
+         ld (ix+obj.xspeed16+0),0
+         ld (ix+obj.xspeed16+1),0
         ld l,(ix+obj.x16+0) ;*8 (in double pixels)
         ld h,(ix+obj.x16+1)
         ld a,l
@@ -676,7 +686,6 @@ checkwall_obj
          call sfxplay
         pop de
         
-        if 1==1
         ;call uvscroll_filltilemap
         call countmetatilemap ;hl=metatilemap + (yscroll/16*METATILEMAPWID) + (x2scroll/8)
 ;de=тайл, который мы только что изменили
@@ -729,43 +738,6 @@ getobjshow0q
         ld b,1
         call uvscroll_showtilemap_b
 getobjnofill
-        else
-;de=tilemap+
-        ld a,TILEGFX/256 ;+0x10, если X=x/8 нечётное
-        ld (drawtiles_ver_block_tilegfx),a
-        ld hl,(allscroll)
-;округлить до целого метатайла в зависимости от yscroll&15 (в самом allscroll нет этой информации)
-;т.е. hl-=(yscroll&15)*(UVSCROLL_WID/512)
-        ld a,(yscroll)
-        and 15
-        cpl
-        ld c,a
-        ld b,-1
-        inc bc ;bc<=0
-        dup UVSCROLL_WID/512
-        add hl,bc
-        edup
-         ld a,h
-         and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
-         ld h,a
-        ld a,(allscroll_lsb)
-        and 0xf8 ;округлили до целого метатайла
-        add a,32
-        ld bc,64*2
-        adc hl,bc
-;hla=allscroll+
-        push de
-        push hl
-        push af
-        call drawtile_toldpush
-        ld a,TILEGFX/256+0x10 ;X=x/8 нечётное
-        ld (drawtiles_ver_block_tilegfx),a
-        pop af
-        pop hl
-        pop de
-        or 4
-        call drawtile_toldpush
-        endif
         jr checkleftwallq
 checkleftwall
         ld l,(ix+obj.y16+0) ;*8
@@ -782,6 +754,8 @@ checkleftwall
          cp FIRSTOBJTILE
          jr nc,checkwall_obj
 ;врезались слева, выравниваем x = (x+15)&0xf0
+         ld (ix+obj.xspeed16+0),0
+         ld (ix+obj.xspeed16+1),0
         ld l,(ix+obj.x16+0) ;*8 (in double pixels)
         ld h,(ix+obj.x16+1)
         ld bc,8*8-1
@@ -819,6 +793,58 @@ checkleftwallq
 nojump
 
         ret
+
+KICKDIST_X=8*8
+KICKDIST_Y=16*16
+kick
+;герой толкает ближайшего врага
+        ld ix,objects
+        ld l,(ix+obj.x16+0)
+        ld h,(ix+obj.x16+1)
+        ld e,(ix+obj.y16+0)
+        ld d,(ix+obj.y16+1)
+        
+        ld ix,objects+OBJSIZE
+kick0
+        bit 7,(ix+obj.y16+1) ;yhigh
+        ret nz
+        push de
+        push hl
+        ld c,(ix+obj.x16+0)
+        ld b,(ix+obj.x16+1)
+        or a
+        sbc hl,bc
+        ld bc,KICKDIST_X
+        add hl,bc
+        ld bc,KICKDIST_X*2
+        or a
+        sbc hl,bc
+        jr nc,kick_xskip
+        ex de,hl
+        ld c,(ix+obj.y16+0)
+        ld b,(ix+obj.y16+1)
+        or a
+        sbc hl,bc
+        ld bc,KICKDIST_Y
+        add hl,bc
+        ld bc,KICKDIST_Y*2
+        or a
+        sbc hl,bc
+        jr nc,kick_xskip
+        pop hl
+        pop de
+        ld (ix+obj.yspeed16+0),+8
+        ld (ix+obj.yspeed16+1),0
+        ld (ix+obj.xspeed16+0),8
+        ld (ix+obj.xspeed16+1),0
+        ret
+kick_xskip
+        pop hl
+        pop de
+
+        ld bc,OBJSIZE
+        add ix,bc
+        jp kick0
 
 gettile_bycoords
         dup 3
@@ -1225,6 +1251,8 @@ flags   BYTE ;b0=on ground, b1=jump not released, b2=blinking, b4=провалиться
 sz
         ENDS
 
+MAXOBJECTS=42
+TYPE_HERO=254
 OBJSIZE=obj.sz
 objects
 ;y16 (*8)
@@ -1255,6 +1283,9 @@ _y=_y+40
 _x=_x+20
         edup
         dw -1
+        
+        ds MAXOBJECTS*OBJSIZE
+endobjects
 
 sfxplay
         push af
@@ -1263,6 +1294,96 @@ pgsfx=$+1
         SETPG32KLOW
         pop af
         jp 0x8000 ;SFXPLAY
+
+importcoords
+        ld de,enemymapfilename
+        OS_OPENHANDLE
+        ld de,objects
+        ld hl,MAXOBJECTS*3
+        push bc
+        OS_READHANDLE
+        pop bc
+        push hl ;size
+        OS_CLOSEHANDLE
+        pop bc
+;bc=size
+        ld hl,objects-1
+        add hl,bc
+        ld de,endobjects-1
+        push bc
+        lddr
+        pop bc
+        inc de
+        ex de,hl ;hl=начало данных: type, x, y
+        ld ix,objects+OBJSIZE ;героя перебросим отдельно
+importcoords0        
+        ld a,(hl) ;type
+        cp TYPE_HERO
+        jr nz,importcoords_nhero
+        push ix
+        ld ix,objects
+        ld de,heroanim_stand
+        ld (ix+obj.animaddr16),e
+        ld (ix+obj.animaddr16+1),d
+        ld (ix+obj.animtime),1
+        ld (ix+obj.health),100
+        call fillobjxy
+        pop ix
+        jr importcoords_nheroq
+importcoords_nhero
+        ;TODO anim from type
+        ld de,heroanim_runright
+        ld (ix+obj.animaddr16),e
+        ld (ix+obj.animaddr16+1),d
+        ld (ix+obj.animtime),1
+        ;TODO health from type
+        ld (ix+obj.health),19
+        call fillobjxy
+        ld de,OBJSIZE
+        add ix,de
+importcoords_nheroq
+        inc hl
+        dec bc
+        dec bc
+        dec bc
+        ld a,b
+        or c
+        jr nz,importcoords0
+        ld (ix),0xff
+        ld (ix+1),0xff
+        ret
+
+fillobjxy
+;hl=указатель на type, x, y
+;ix=obj
+        inc hl
+        ld a,(hl)
+        add a,3
+        ld d,0
+        dup 3+3
+        add a,a
+        rl d
+        edup
+        ld e,a
+        ld (ix+obj.x16),e
+        ld (ix+obj.x16+1),d
+        inc hl
+        ld a,(hl)
+        ld d,0
+        dup 4+3
+        add a,a
+        rl d
+        edup
+        ld e,a
+        ld (ix+obj.y16),e
+        ld (ix+obj.y16+1),d
+        xor a
+        ld (ix+obj.xspeed16),a
+        ld (ix+obj.xspeed16+1),a
+        ld (ix+obj.yspeed16),a
+        ld (ix+obj.yspeed16+1),a
+        ld (ix+obj.flags),a
+        ret
 
         include "int.asm"
         include "cls.asm"
@@ -1590,6 +1711,16 @@ bgfilename
         db "bg6-16c.bmp",0
 bgxyfilename
         db "bg8-16d.bmp",0
+
+tilefilename
+        db "tiles.bin",0
+tilebmpfilename
+        db "tiles1.bmp",0
+tilemapfilename
+        db "map1.map",0
+enemymapfilename
+        db "map1.enm",0
+
 
 TILEMAP
         ds TILEMAPWID*TILEMAPHGT ;снизу вверх, справа налево

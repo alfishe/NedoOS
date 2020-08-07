@@ -360,7 +360,7 @@ receivechars0
         ret
 
 receivechar
-;read char from stdin (out: A=char, CY=error)
+;read char from stdin (out: A=char(maybe 0), CY=error)
 stdindatacount=$+1
         ld a,0
         or a
@@ -396,6 +396,9 @@ receivekey
 ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
         call receivechar
         ret c ;error
+         or a
+         ld c,a
+         ret z ;NC=no error ;заглючивает - появляются [M
 ;a=char
 TERM_ST_SINGLE=1 ;1: wait for single symbol
 TERM_ST_AFTERESC=2 ;2: after 0x1b
@@ -414,14 +417,17 @@ term_prfsm_curstate=$+1
         jp nz,term_prfsm_keycok
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESC
-        jr term_prfsm_nokey
+        jp term_prfsm_nokey
 term_prfsm_nosingle
         djnz term_prfsm_noafteresc
+         ;or a
+         ;jr z,term_prfsm_nokey ;не помогает избавиться от паразитного key_esc
         cp 'O'
         jr z,escO
-        cp '['
+        ;cp '['
         ld c,0x1b
-        jp nz,term_prfsm_keycok ;esc esc -> esc_key
+        cp c
+        jp z,term_prfsm_keycok ;esc esc -> esc_key
 escO ;костыль! esc O P/Q/R/S = F1..F4
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESCBRACKET
@@ -495,6 +501,7 @@ term_prfsm_noafterescbracket
         djnz term_prfsm_noaftermouse
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEb
+         and 0x1f ;TODO как отличить движение мыши от unclick?
          ld l,0xff
          dec a
          jr nz,$+3
@@ -514,6 +521,7 @@ term_prfsm_noaftermouse
         djnz term_prfsm_aftermousebx;term_prfsm_noaftermouseb
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEbx
+         sub 32
          ld (stdio_mousex),a
         xor a ;no key, no error
         ld c,a
@@ -521,6 +529,7 @@ term_prfsm_noaftermouse
 term_prfsm_aftermousebx
         ld hl,term_prfsm_curstate
         ld (hl),TERM_ST_SINGLE
+         sub 32
          ld (stdio_mousey),a
         ld a,0xc9
         ld (wasmouseevent),a
@@ -610,7 +619,7 @@ term_prfsm_curnumber1
          db 0
 
 stdoutbuf
-        db "-[00;00m"
+        db "-[00;00;00;00m"
 
 stdinbuf
         ds STDINBUF_SZ

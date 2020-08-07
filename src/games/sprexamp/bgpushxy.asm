@@ -78,13 +78,6 @@ uvscroll_preparetiles_copycolumn0
         ld h,a
         ret
 
-tilefilename
-        db "tiles.bin",0
-tilebmpfilename
-        db "tiles1.bmp",0
-tilemapfilename
-        db "map1.map",0
-
 uvscroll_preparetilemap
 ;tilemap
         OS_NEWPAGE

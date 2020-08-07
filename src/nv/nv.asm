@@ -96,7 +96,7 @@ cmd_begin
         
         ;ld e,COLOR
         ;OS_CLS
-        CLS_
+        CLS_ ;print 25 lines of spaces except one
         
 ;        ld de,nvpal
 ;        OS_SETPAL
