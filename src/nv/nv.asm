@@ -1060,7 +1060,8 @@ execcmd_runfocusq
         CLS_
         ld hl,cmdbuf
         ld (hl),0
-        jp editcmd_reprintall
+;        jp editcmd_reprintall
+        jp editcmd_reprintall_keepcursor
 
 ;execcmd_error
 ;        jp execcmd_runfocusq;editcmd_reprintall
@@ -1562,7 +1563,7 @@ editcmd_invfiles
 
 editcmd_6 ;ren
         call ifcmdnonempty_typedigit
-        ld hl,editcmd_reprintall
+        ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl
 	call setpaneldir
         call getfcbundercursor
@@ -1606,7 +1607,7 @@ editcmd_ren_checknameq
 
 editcmd_7 ;mkdir
         call ifcmdnonempty_typedigit
-        ld hl,editcmd_reprintall
+        ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl
 	call setpaneldir
 
@@ -1641,7 +1642,7 @@ editcmd_8_0
         ld hl,windel
         call prwindow_waitkey ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
-	ld hl,editcmd_reprintall
+	ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl
 	ld hl,windel2
 	call prwindow_text
@@ -2192,7 +2193,7 @@ editcmd_quit
         call nv_setcolor
         ld hl,winquit
         call prwindow_waitkey ;CY=OK
-        jp nc,editcmd_reprintall
+        jp nc,editcmd_reprintall_keepcursor;editcmd_reprintall
         QUIT
 
 ifcmdnonempty_typedigit
