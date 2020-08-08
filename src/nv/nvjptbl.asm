@@ -23,6 +23,7 @@ tnvcmds
         db '7'
         db '8'
         db '9'
+        db key_csenter
         db ' '
         db key_pgup
         db key_pgdown
@@ -32,7 +33,7 @@ tnvcmds
         db key_end
 	db key_F10,key_F1,key_F2,key_F3,key_F4,key_F5,key_F6,key_F7,key_F8,key_F9,key_ins
 nnvcmds=$-tnvcmds
-	dw editcmd_space,editcmd_9,editcmd_8,editcmd_7,editcmd_6,editcmd_5,editcmd_4,editcmd_3,editcmd_2,editcmd_1,editcmd_0
+	dw editcmd_space,editcmd_typeword,editcmd_8,editcmd_7,editcmd_6,editcmd_5,editcmd_4,editcmd_3,editcmd_2,editcmd_1,editcmd_0
         dw editcmd_End
         dw editcmd_Home
         dw editcmd_invfiles
@@ -40,6 +41,7 @@ nnvcmds=$-tnvcmds
         dw editcmd_pageDown
         dw editcmd_pageUp
 	dw editcmd_space
+	dw editcmd_typeword
         dw editcmd_9
         dw editcmd_8
         dw editcmd_7

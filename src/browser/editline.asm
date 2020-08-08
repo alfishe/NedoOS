@@ -59,6 +59,12 @@ browser_editlinenokey
         jr z,browser_editline_right
         cp key_backspace
         jr z,browser_editline_backspace
+        cp key_del
+        jr z,browser_editline_del
+        cp key_home
+        jr z,browser_editline_home
+        cp key_end
+        jr z,browser_editline_end
         cp 0x20
         ret c ;прочие системные кнопки не нужны
         ld lx,a
@@ -73,6 +79,8 @@ browser_editlinenokey
         ld (curcmdx),de
         jp strinsch_lx ;lx=ch
 
+browser_editline_del
+        call browser_editline_right
 browser_editline_backspace
         call cmdcalctextaddr_xde ;hl=addr, de=curcmdx
         ld a,d
@@ -88,17 +96,27 @@ browser_editline_left
         or e
         ret z ;jr z,editcmdok ;некуда влево
         dec de
+browser_editline_curcmdxde
         ld (curcmdx),de
         ret
-      
+
+browser_editline_home
+        ld de,0
+        jr browser_editline_curcmdxde
+
+browser_editline_end
+        ld hl,curfulllink
+        call strlen ;hl=length
+        ex de,hl
+        jr browser_editline_curcmdxde
+
 browser_editline_right
         call cmdcalctextaddr_xde ;hl=addr, de=curcmdx
         inc (hl)
         dec (hl)
         ret z ;jr z,editcmdok ;некуда право, стоим на терминаторе
         inc de
-        ld (curcmdx),de
-        ret
+        jr browser_editline_curcmdxde
 
 strdelch
 ;delete char at (hl-1), shift string left

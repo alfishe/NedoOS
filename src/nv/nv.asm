@@ -21,7 +21,7 @@ _PANELSELECTCOLOR=0x040b;0x4e
 _CURSORCOLOR=0x0600;0x28
 _FILECURSORCOLOR=0x0600;0x28
 _COLOR_RED=0x0107;0x17
-_COLOR_DIALOG=0x0700;0x38
+_COLOR_DIALOG=0x0300;0700 не видно курсор;0x38
 _HINTCOLOR1=0x0007;7
 _HINTCOLOR0=0x0600;5*8
 
@@ -1787,16 +1787,21 @@ nv_adddirtopath_detohl ; hl=path de=dirname; out - last component of path
         endif
 
 nv_strcopy_hltode
+;out: hl,de at terminator
 	ld a,(hl)
 	ld (de),a
-	inc hl 
-	inc de
 	or a
 	ret z
+	inc hl 
+	inc de
 	jr nv_strcopy_hltode
 
-nv_addslash_de ;assumed thad DE positioned to the next char after terminator
-	dec de
+nv_makefilepath_hltode ;DE=dest HL=src BC=filename
+	call nv_strcopy_hltode
+        ;inc de
+	;call nv_addslash_de
+;nv_addslash_de ;assumed that DE is at terminator
+	;dec de
 	dec de
 	ld a,(de)
 	cp '/'
@@ -1808,17 +1813,12 @@ nv_addslash0
 	inc de
 	xor a
 	ld (de),a
-	inc de
-	ret
-
-nv_makefilepath_hltode ;DE=dest HL=src BC=filename
-	call nv_strcopy_hltode
-	call nv_addslash_de
-	dec de
+	;inc de
+	;ret
+	;dec de
 	ld h,b
 	ld l,c
-	call nv_strcopy_hltode
-	ret
+	jp nv_strcopy_hltode
 
 nv_fillpathspaces_hl
 	ld b,0
@@ -2206,6 +2206,38 @@ ifcmdnonempty_typedigit
          pop bc ;skip return to editcmdN
         jp editcmd_typein
 
+editcmd_typeword
+        call getfcbundercursor
+        ld hl,fcb_filename
+        ld de,tnewfilename
+        call cpmname_to_dotname ;de указывает на терминатор
+       
+        ld hl,cmdbuf
+        call strlen ;hl=length
+        
+        ld bc,MAXCMDSZ-11
+        or a
+        sbc hl,bc
+        ret nc ;некуда вводить
+        add hl,bc
+        ld bc,cmdbuf
+        add hl,bc
+        ex de,hl ;de=end of cmdbuf
+
+        ld a,(cmdbuf)
+        or a
+        ld hl,tnewfilename
+        jr z,editcmd_typeword_empty
+        dec hl ;с пробелом
+editcmd_typeword_empty
+        call nv_strcopy_hltode ;out: hl,de at terminator
+        ld hl,cmdbuf
+        call strlen ;hl=length
+        ld a,l
+        ld (curcmdx),a
+        ret
+        
+
 windrv
         dw 0x0003 ;de=yx
         dw 256*(3+15)+28 ;0x0809 ;bc=hgt,wid
@@ -2257,7 +2289,7 @@ wincopy
         dw dir2_buf
         db 0 ;end of window
         
-
+        db ' ' ;для typeword - перед tnewfilename
 tnewfilename
         ds 12 
 	db 0
