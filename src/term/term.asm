@@ -97,8 +97,13 @@ maketrecodeback0
 
 execcmd_error
 mainloop_afternokey
-mainloop_afterkey
         YIELD
+        jr mainloop_afterkeyq
+mainloop_afterkey
+        YIELDKEEP
+mainloop_afterkeyq
+        ;ld a,2
+        ;out (0xfe),a
         ld a,(pgscrbuf) ;ok
         SETPG16K
         call BDOS_countattraddr
@@ -136,12 +141,16 @@ waitpid_id=$+1
         or a
         jp z,quit
         
-        if 1==0
+        if 1==1
         jr mainloop_type0_go
 mainloop_type0
         YIELDKEEP
 mainloop_type0_go
+        ;ld a,3
+        ;out (0xfe),a
         call type_stdin ;stdin to screen
+        ;ld a,4
+        ;out (0xfe),a
         jr nc,mainloop_type0 ;data present
         else
         call type_stdin ;stdin to screen
@@ -246,7 +255,7 @@ oldmousebuttons=$+1
         xor h
         and 7
         jr nz,sendmouseevent
-        jp mainloop_afterkey
+        jp mainloop_afternokey
 sendmouseevent
         ld a,l
         cpl
@@ -333,6 +342,11 @@ sendmouseevent_ok
         jp mainloop_afterkey
 
 term_sendchar
+        ;push af
+        ;ld a,1
+        ;out (0xfe),a        
+        ;pop af
+
         cp key_esc
         jr z,term_esckey
         if RECODEINPUT
@@ -519,6 +533,7 @@ pgscrbuf=$+1
         ld a,0 ;ok
         SETPG16K
         pop bc
+        push bc
         ld hl,stdinbuf
 term_print0
         push bc
@@ -529,33 +544,49 @@ term_print0
         pop bc
         cpi
         jp pe,term_print0
-;nostdinmsg
-        or a ;out: NC=data present
-        ret
+        pop hl
+        ld bc,STDINBUF_SZ
+        or a
+        sbc hl,bc
+        ret z ;out: NC=data present
+        scf
+        ret ;no more data
 
 sendchar_esckey
         push bc
          ;call forcereprintcursor
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
+        ld hl,stdoutbuf
+        ld (hl),0x1b
+        inc hl
+        ;call sendchar_byte_a
+        ld (hl),'['
+        ;call sendchar_byte_a
+        ld de,stdoutbuf
+        ld hl,2
+        call sendchars
         pop bc
         jr sendchar_byte
 
 sendchar_esckey2
         push bc
-        ld a,0x1b
-        call sendchar_byte_a
-        ld a,'['
-        call sendchar_byte_a
+        ld hl,stdoutbuf
+        ld (hl),0x1b
+        inc hl
+        ;call sendchar_byte_a
+        ld (hl),'['
+        inc hl
+        ;call sendchar_byte_a
         pop bc
         push bc
-        ld a,b
-        call sendchar_byte_a
+        ld (hl),b
+        ;call sendchar_byte_a
+        ld de,stdoutbuf
+        ld hl,3
+        call sendchars
         pop bc
         jr sendchar_byte
 
+        if 1==0
 sendchar_num
 ;a=num
         ld c,'0'-1
@@ -567,6 +598,7 @@ sendchar_num
         pop af
         add a,'0'+10
         jr sendchar_byte_a
+        endif
 
 sendkey
 ;key to stdout

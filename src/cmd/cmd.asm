@@ -371,15 +371,16 @@ cmd_start
         ld de,cmdbuf
         ld bc,MAXCMDSZ+1
         ldir
-        call strcpexec_tryrun ;выполнить файл с именем cmdbuf или SYSDIR/cmdbuf и параметрами там, e=id, nz=error
+        call strcpexec_tryrun ;выполнить файл с именем cmdbuf или SYSDIR/cmdbuf и параметрами там, e=id, nz=error, cy=end of .bat
         ret z
 execcmd_error
         ld hl,tunknowncommand
         jp cmderror
         
 strcpexec_tryrun
-;выполнить файл с именем cmdbuf или SYSDIR/cmdbuf и параметрами там, e=id, nz=error
+;выполнить файл с именем cmdbuf или SYSDIR/cmdbuf и параметрами там, e=id, nz=error, cy=end of .bat
         call loadapp ;загрузить файл с именем cmdbuf, e=id, nz=error, cy=end of .bat
+        ret c ;cy=end of .bat        
         jr nz,execcmd_tryrunerror
 execcmd_tryrunok
         ret c ;cy=end of .bat
@@ -457,12 +458,13 @@ callcmd
         or a
         ret z ;command executed
         ;call loadapp ;загрузить файл с именем cmdbuf, e=id
-        call strcpexec_tryrun ;загрузить файл с именем cmdbuf или SYSDIR/cmdbuf, e=id, nz=error
+        call strcpexec_tryrun ;загрузить файл с именем cmdbuf или SYSDIR/cmdbuf, e=id, nz=error, CY=end of .bat
+        ret c
         jr nz,execcmd_error
         ;push de
         ;OS_RUNAPP
         ;pop de
-        WAITPID
+        WAITPID ;не должно быть, если команда была .bat!
         ret
 
 loadapp_keeppath
@@ -528,10 +530,10 @@ loadapp_finddotok
         ld (curhandle),a
          call loadapp_setoldpath
          pop af
-        ret nz ;jr nz,execcmd_error
+        ret nz ;jr nz,execcmd_error ;NC!
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
-        ret nz ;error
+        ret nz ;error ;NC!
 ;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
         ld a,d
@@ -641,7 +643,7 @@ strcpexec_tryrun_bat
         or a
         ld a,b
         ld (curbathandle),a	
-        ret nz ;jp nz,execcmd_error
+        ret nz ;jp nz,execcmd_error ;NC!
         
          ld a,0x3c ;"inc a"
          ld (readbyte_readbuf_last),a

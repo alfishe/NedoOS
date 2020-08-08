@@ -62,33 +62,27 @@ _1=$
         jr z,_1
         endm
 
+        if 1==1
+        macro WAITPID
+        OS_SETWAITING
+        YIELD
+        endm
+        else
         macro WAITPID ;wait task E to close
-        ;push de
-        ;YIELD ;чтобы запускаемая задача успела захватить фокус
-        ;ld e,-1
-        ;OS_SETGFX ;disable gfx, give focus (если не сделать YIELD, фокус отдаётся не тому приложению, какое мы ждём!)
-        ;ld a,e
-        ;pop de
-        ;ld d,a
         push de
         OS_SETWAITING
         pop de
 _1=$
         push de
         YIELD
-        ;call receivechar
         pop de
         push de
         OS_WAITPID
         pop de
         or a
         jr nz,_1
-        ;push de
-        ;OS_RESETWAITING
-        ;pop de
-        ;ld e,d ;ld e,6 ;textmode
-        ;OS_SETGFX ;take focus (can be random after closing cmd)
         endm
+        endif
         
 ;from CP/M (try to avoid use!) FCB = file control block (size FCB_sz)    
         macro OS_PRCHAR ;e=char
@@ -321,7 +315,7 @@ _1=$
         ld c,CMD_WAITPID
         CALLBDOS
         endm
-        macro OS_FREEZEAPP ;e=id ;disable app and make non-graphic
+        macro OS_FREEZEAPP ;e=id ;disable app and make non-graphic ;сейчас делает то же, что OS_SETWAITING делает себе
         ld c,CMD_FREEZEAPP
         CALLBDOS
         endm

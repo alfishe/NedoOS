@@ -31,26 +31,28 @@ setstdinhandle
         ld (stdinhandle),a
         ret
 
-yieldgetkeyloop
-;wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
-;в одном фрейме может прийти много кнопок (управляющий esc-код)!
-	YIELDKEEP
-        jr yieldgetkey_afteryield
-yieldgetkey_nokey
-;может быть, мы в середине esc-кода? тогда надо yieldgetkeyloop
-        ld a,(term_prfsm_curstate)
-        dec a
-        jr nz,yieldgetkeyloop
-        ;ld a,7
-        ;out (0xfe),a
-        YIELD ;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
-yieldgetkey_afteryield
-        ;ld a,5
-        ;out (0xfe),a
+getkey
+getkey0
         xor a
         ld (wasmouseevent),a
         call receivekey
          ret c ;error
+        ld hl,(term_prfsm_curstate)
+        dec l
+        jr nz,getkey0 ;пока не примем кнопку до конца
+        ret
+
+yieldgetkeyloop
+;wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
+;в одном фрейме может прийти много кнопок (управляющий esc-код)!
+        ;jr yieldgetkey_afteryield
+;yieldgetkey_nokey
+;может быть, мы в середине esc-кода? тогда надо yieldgetkeyloop
+        ;ld a,(term_prfsm_curstate)
+        ;dec a
+        ;jr nz,yieldgetkeyloop
+        YIELD ;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
+        call getkey
 ;был mouse event? считаем за нажатие, а приложение будет смотреть координаты и кнопку мыши
 stdio_mousebuttons=$+1
         ld l,0
@@ -62,10 +64,15 @@ wasmouseevent=$
         or a ;cp NOKEY ;keylang==0?
         jr nz,$+3
         cp c ;keynolang==0?
-        jr z,yieldgetkey_nokey
+        jr z,yieldgetkeyloop
          scf
          ccf ;no error
         ret
+;yieldgetkey_nokey
+;может быть, мы в середине esc-кода? тогда надо yieldgetkeyloop
+;        ld a,(term_prfsm_curstate)
+;        dec a
+;        jr nz,yieldgetkeyloop
 
 ;последовательности слать одним куском!
 

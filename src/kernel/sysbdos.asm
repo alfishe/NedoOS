@@ -892,6 +892,17 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_writehandle
 
 BDOS_hidefromparent
+        if 1==1
+;просто разбудить родителя
+activateparent
+         ld e,(iy+app.parentid)
+         ld a,e
+         dec a
+         ret z ;idle
+         call BDOS_findapp ;iy=found app
+         set factive,(iy+app.flags)
+         ret
+        else
         push iy
         call sys_findfreeid ;портит iy        
         pop iy
@@ -907,6 +918,7 @@ BDOS_hidefromparent0
         ld (hl),c ;заменили страницу
         inc hl
         djnz BDOS_hidefromparent0
+        endif
         ret
 
 BDOS_setstdinout
@@ -983,9 +995,13 @@ BDOS_gettimer
 BDOS_yieldkeep
          ld a,(sys_timer) ;ok
          dec a
-         ld (iy+app.lasttime),a
+         jr BDOS_yieldgo
+         ;ld (iy+app.lasttime),a
 ;BDOS_yieldnokeep
 BDOS_yield
+         ld a,(sys_timer) ;ok
+BDOS_yieldgo
+         ld (iy+app.lasttime),a
 ;регистры не сохраняем, т.к. нам не важно, что на выходе из yield
 ;но надо:
 ;взять адрес стека для выхода из CALLBDOS и записать его в ld sp на выходе из обработчика прерываний
@@ -1084,6 +1100,9 @@ BDOS_dropapp
         call BDOS_freezeapp_go
         pop iy
 BDOS_delapppages
+         push iy
+         call activateparent
+         pop iy
         ld hl,tsys_pages
         ld a,(iy+app.id)
         ld b,sys_npages&0xff
@@ -1152,7 +1171,8 @@ BDOS_runapp
         ret
 
 BDOS_setwaiting
-         set fwaiting,(iy+app.flags)
+         ;set fwaiting,(iy+app.flags)
+         res factive,(iy+app.flags)
         ret
 
 BDOS_waitpid

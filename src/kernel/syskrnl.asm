@@ -251,6 +251,8 @@ findnextapp0
         add iy,de
          cp (iy+app.lasttime)
          jr z,findnextappskip
+         ;bit fyield,(iy)
+         ;jr nz,findnextappq
         bit factive,(iy)
         jr nz,findnextappq
 findnextappskip

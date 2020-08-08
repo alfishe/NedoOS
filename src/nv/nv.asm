@@ -725,12 +725,18 @@ controlloop_noprline
 	 ;push hl ;color under file cursor
         call cmdcalccurxy
         call nv_setxy
+         ;ld a,6 ;cyan
+         ;out (0xfe),a
 controlloop_nokey
         call yieldgetkeyloop ;YIELDGETKEYLOOP
+        ;YIELD
+        ;call getkey
          or a
          jr z,controlloop_nokey ;TODO handle mouse events
 	 ;pop hl ;color under file cursor
         push af
+         ;ld a,5 ;magenta
+         ;out (0xfe),a
         ld ix,(curpanel)
         call getfcbaddrundercursor
         push hl

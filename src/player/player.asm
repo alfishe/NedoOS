@@ -13,15 +13,55 @@ cmd_begin
         OS_SETGFX
         ;call initstdio
 
-;TODO найти копию себя в памяти и закрыть её
+	OS_GETMAINPAGES ;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags, b=id
+	ld a,e
+	ld (musicpage),a
+        ld a,b
+        ld (myid),a
+        push hl
+        ld e,h
+        OS_DELPAGE
+        pop hl
+        ld e,l
+        OS_DELPAGE
+
+;TODO найти копию себя в памяти и послать ей 0 в COMMANDLINE
+        ld e,1 ;no id 0
+cmd_proc0
+        push de
+        ld a,e
+myid=$+1
+        cp 0
+        jr z,cmd_proc_skip
+        OS_GETAPPMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
+        or a
+        jr nz,cmd_proc_skip
+        ld a,d ;main page
+        SETPG32KHIGH
+        ld de,COMMANDLINE+0xc000
+        ld hl,ttestdata
+        ld bc,ttestdata_sz
+testdata0
+        ld a,(de)
+        or 0x20
+        cp (hl)
+        jr nz,cmd_proc_skip
+        inc de
+        cpi
+        jp pe,testdata0
+        xor a
+        ld (COMMANDLINE+0xc000),a ;ok ;"закройся"
+cmd_proc_skip
+        pop de
+        inc e
+        ld a,e
+        inc a ;no id 0xff
+        jr nz,cmd_proc0
+
 ;а как заглушить музыку, если не опрашивать клаву?
 ;если опрашивать, то нужен терминал
 ;можно было бы в nv.ext прописать cmd.com start term.com player.com, но такие конструкции пока не поддержаны ни в nv, ни в term
 ;поэтому пока без терминала
-        
-	OS_GETMAINPAGES
-	ld a,e
-	ld (musicpage),a 
         
         ld hl,wasplayer
         ld de,0x4000
@@ -89,6 +129,10 @@ mainloop
 	;di ;TODO fix player
         ;call player
 	;ei
+        ld a,(COMMANDLINE) ;ok
+        or a
+        jr z,quit
+        
         GET_KEY
       cp key_redraw
       jr z,mainloopredraw
@@ -98,13 +142,17 @@ mainloop
         ;jr z,_1;1b;prwindow_waitkey_nokey
         cp key_esc
         jr nz,mainloop
-        
+quit
 	  ld a,(musicpage)
 	  ld hl,muter
 	  OS_SETMUSIC 
           halt
 noautoload
         QUIT
+
+ttestdata
+        db "player.com"
+ttestdata_sz=$-ttestdata
 
 skipword
 ;hl=string
