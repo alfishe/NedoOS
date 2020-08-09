@@ -402,12 +402,12 @@ _1=$
         rst 0 ;close app
         endm
 
-        macro CALLBDOS ;don't use directly CALLBDOS or call 0x0005!!!
+        macro CALLBDOS ;don't use directly CALLBDOS or call BDOS!!!
         ex af,af'
-        call 0x0005 ;c=CMD
+        call BDOS ;c=CMD
         endm
-        macro CALLBDOS_NOPARAM_A ;don't use directly CALLBDOS or call 0x0005!!!
-        call 0x0005 ;c=CMD
+        macro CALLBDOS_NOPARAM_A ;don't use directly CALLBDOS or call BDOS!!!
+        call BDOS ;c=CMD
         endm
 
         macro GET_KEY

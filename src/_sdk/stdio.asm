@@ -20,7 +20,9 @@
 STDINBUF_SZ=255
 
 initstdio
-        OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+		ld c,CMD_GETSTDINOUT
+		call BDOS
         ld a,e
         ld (stdinhandle),a
         ld a,d
@@ -39,21 +41,22 @@ getkey0
          ret c ;error
         ld hl,(term_prfsm_curstate)
         dec l
-        jr nz,getkey0 ;яюър эх яЁшьхь ъэюяъє фю ъюэЎр
+        jr nz,getkey0 ;пока не примем кнопку до конца
         ret
 
 yieldgetkeyloop
 ;wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
-;т юфэюь ЇЁхщьх ьюцхЄ яЁшщЄш ьэюую ъэюяюъ (єяЁрты ■∙шщ esc-ъюф)!
+;в одном фрейме может прийти много кнопок (управляющий esc-код)!
         ;jr yieldgetkey_afteryield
 ;yieldgetkey_nokey
-;ьюцхЄ с√Є№, ь√ т ёхЁхфшэх esc-ъюфр? Єюуфр эрфю yieldgetkeyloop
+;может быть, мы в середине esc-кода? тогда надо yieldgetkeyloop
         ;ld a,(term_prfsm_curstate)
         ;dec a
         ;jr nz,yieldgetkeyloop
-        YIELD ;хёыш т яЁю°ы√щ Ёрч эшўхую эх с√ыю, Єю YIELD, р эх YIELDKEEP
+		ld c,CMD_YIELD
+        call BDOS	;YIELD ;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
         call getkey
-;с√ы mouse event? ёўшЄрхь чр эрцрЄшх, р яЁшыюцхэшх сєфхЄ ёьюЄЁхЄ№ ъююЁфшэрЄ√ ш ъэюяъє ь√°ш
+;был mouse event? считаем за нажатие, а приложение будет смотреть координаты и кнопку мыши
 stdio_mousebuttons=$+1
         ld l,0
 stdio_mousex=$+1
@@ -69,12 +72,12 @@ wasmouseevent=$
          ccf ;no error
         ret
 ;yieldgetkey_nokey
-;ьюцхЄ с√Є№, ь√ т ёхЁхфшэх esc-ъюфр? Єюуфр эрфю yieldgetkeyloop
+;может быть, мы в середине esc-кода? тогда надо yieldgetkeyloop
 ;        ld a,(term_prfsm_curstate)
 ;        dec a
 ;        jr nz,yieldgetkeyloop
 
-;яюёыхфютрЄхы№эюёЄш ёырЄ№ юфэшь ъєёъюь!
+;последовательности слать одним куском!
 
 setcolor
 ;set color attribute (in: d=paper, e=ink)
@@ -99,7 +102,7 @@ setcolor
 ;Ps = 49  Set background color to default, ECMA-48 3rd.
 ;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300.
 ;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300.
-;Assume that xtermТs resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
+;Assume that xterm's resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
 ;Ps = 90  Set foreground color to Black.
 ;Ps = 91  Set foreground color to Red.
 ;Ps = 92  Set foreground color to Green.
@@ -108,8 +111,8 @@ setcolor
 ;Ps = 95  Set foreground color to Magenta.
 ;Ps = 96  Set foreground color to Cyan.
 ;Ps = 97  Set foreground color to White.
-;TODO 1  -  BRIGHT ON: ┬ъы■ўхэшх  ЁъюёЄш INK. (Bold, VT100.)
-;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: ┬√ъы■ўхэшх  ЁъюёЄш INK. (Doubly-underlined, ECMA-48 3rd.)]
+;TODO 1  -  BRIGHT ON: Включение яркости INK. (Bold, VT100.)
+;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: Выключение яркости INK. (Doubly-underlined, ECMA-48 3rd.)]
         ld hl,stdoutbuf
        push hl
         ;push de
@@ -240,7 +243,7 @@ clearterm0
         ld de,0
         jp setxy
 clearterm_data
-        ds 80,' '
+        DEFB '                                                                                '
 
 setxy
 ;set cursor position (in: de=YX, top left is 0;0)
@@ -320,13 +323,14 @@ sendchars0
         push hl
 stdouthandle=$+1
         ld b,0
-        OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
+		ld c,CMD_WRITEHANDLE
+        call BDOS;OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
         ld b,h
         ld c,l ;bytes actually written
         pop hl
         pop de
          or a
-          ret nz ;error ;TODO юсЁрсюЄрЄ№? р Єръ яюър яЁюёЄю шчсхурхь чрЎшъыштрэш 
+          ret nz ;error ;TODO обработать? а так пока просто избегаем зацикливания
          sbc hl,bc ;datasize-byteswritten
          ret z
          ex de,hl
@@ -336,7 +340,8 @@ stdouthandle=$+1
 ;de=remaining data addr
         push de
         push hl
-        YIELDKEEP ;2158t
+		ld c,CMD_YIELDKEEP
+        call BDOS ;YIELDKEEP ;2158t
         pop hl
         pop de
         jr sendchars0
@@ -350,7 +355,8 @@ receivechars0
         push hl
         ld a,(stdinhandle)
         ld b,a
-        OS_READHANDLE ;hl=size actually received
+		ld c,CMD_READHANDLE
+        call BDOS ;OS_READHANDLE ;hl=size actually received
         ld b,h
         ld c,l
         pop hl
@@ -387,7 +393,8 @@ receivechar_doreceive
         ld (stdindatapointer),de
 stdinhandle=$+1
         ld b,0
-        OS_READHANDLE ;hl=size actually received
+		ld c,CMD_READHANDLE
+        call BDOS ;OS_READHANDLE ;hl=size actually received
         or a
         scf
         ret nz ;error
@@ -405,7 +412,7 @@ receivekey
         ret c ;error
          or a
          ld c,a
-         ret z ;NC=no error ;чруы■ўштрхЄ - яю ты ■Єё  [M
+         ret z ;NC=no error ;заглючивает - появляются [M
 ;a=char
 TERM_ST_SINGLE=1 ;1: wait for single symbol
 TERM_ST_AFTERESC=2 ;2: after 0x1b
@@ -428,14 +435,14 @@ term_prfsm_curstate=$+1
 term_prfsm_nosingle
         djnz term_prfsm_noafteresc
          ;or a
-         ;jr z,term_prfsm_nokey ;эх яюьюурхЄ шчсртшЄ№ё  юЄ ярЁрчшЄэюую key_esc
+         ;jr z,term_prfsm_nokey ;не помогает избавиться от паразитного key_esc
         cp 'O'
         jr z,escO
         ;cp '['
         ld c,0x1b
         cp c
         jp z,term_prfsm_keycok ;esc esc -> esc_key
-escO ;ъюёЄ√ы№! esc O P/Q/R/S = F1..F4
+escO ;костыль! esc O P/Q/R/S = F1..F4
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESCBRACKET
 term_prfsm_0curnumber_nokey
@@ -508,7 +515,7 @@ term_prfsm_noafterescbracket
         djnz term_prfsm_noaftermouse
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEb
-         and 0x1f ;TODO ъръ юЄышўшЄ№ фтшцхэшх ь√°ш юЄ unclick?
+         and 0x1f ;TODO как отличить движение мыши от unclick?
          ld l,0xff
          dec a
          jr nz,$+3
@@ -559,8 +566,8 @@ term_prfsm_mouse
 
 term_prfsm_afterescbracket_tilde
         ld a,(term_prfsm_curnumber)
-        if 1==1
-        display $
+;        if 1==1
+;        display $
         cp tcontrolkeys_sz
         jr nc,term_prfsm_nokey
         ld hl,tcontrolkeys
@@ -570,63 +577,65 @@ term_prfsm_afterescbracket_tilde
         inc h
         ld c,(hl)
         jr term_prfsm_keycok
-        else
-        cp 3
-        ld c,key_del
-        jr z,term_prfsm_keycok
-        cp 1
-        ld c,key_home
-        jr z,term_prfsm_keycok
-        cp 4
-        ld c,key_end
-        jr z,term_prfsm_keycok
-        cp 2
-        ld c,key_ins
-        jr z,term_prfsm_keycok
-        cp 5
-        ld c,key_pgup
-        jr z,term_prfsm_keycok
-        cp 6
-        ld c,key_pgdown
-        jr z,term_prfsm_keycok
-        endif
+;        else
+;        cp 3
+;        ld c,key_del
+;        jr z,term_prfsm_keycok
+;        cp 1
+;        ld c,key_home
+;        jr z,term_prfsm_keycok
+;        cp 4
+;        ld c,key_end
+;        jr z,term_prfsm_keycok
+;        cp 2
+;        ld c,key_ins
+;        jr z,term_prfsm_keycok
+;        cp 5
+;        ld c,key_pgup
+;        jr z,term_prfsm_keycok
+;        cp 6
+;        ld c,key_pgdown
+;        jr z,term_prfsm_keycok
+;        endif
         jr term_prfsm_nokey
 
 tcontrolkeys
-        db 0
-        db key_home ;1
-        db key_ins ;2
-        db key_del ;3
-        db key_end ;4
-        db key_pgup ;5
-        db key_pgdown ;6
-        db 0 ;7
-        db 0 ;8
-        db 0 ;9
-        db 0 ;10
-        db key_F1 ;11
-        db key_F2 ;12
-        db key_F3 ;13
-        db key_F4 ;14
-        db key_F5 ;15
-        db 0 ;16
-        db key_F6 ;17
-        db key_F7 ;18
-        db key_F8 ;19
-        db key_F9 ;20
-        db key_F10 ;21
-        ;db 0 ;22
-        ;db key_F11 ;23
-        ;db key_F12 ;24
+        DEFB 0
+        DEFB key_home ;1
+        DEFB key_ins ;2
+        DEFB key_del ;3
+        DEFB key_end ;4
+        DEFB key_pgup ;5
+        DEFB key_pgdown ;6
+        DEFB 0 ;7
+        DEFB 0 ;8
+        DEFB 0 ;9
+        DEFB 0 ;10
+        DEFB key_F1 ;11
+        DEFB key_F2 ;12
+        DEFB key_F3 ;13
+        DEFB key_F4 ;14
+        DEFB key_F5 ;15
+        DEFB 0 ;16
+        DEFB key_F6 ;17
+        DEFB key_F7 ;18
+        DEFB key_F8 ;19
+        DEFB key_F9 ;20
+        DEFB key_F10 ;21
+        ;DEFB 0 ;22
+        ;DEFB key_F11 ;23
+        ;DEFB key_F12 ;24
 tcontrolkeys_sz=$-tcontrolkeys
 
 term_prfsm_curnumber
-         db 0
+         DEFB 0
 term_prfsm_curnumber1
-         db 0
+         DEFB 0
 
 stdoutbuf
-        db "-[00;00;00;00m"
+        DEFB "-[00;00;00;00m"
 
 stdinbuf
-        ds STDINBUF_SZ
+        DEFS STDINBUF_SZ
+
+        DEFS STDINBUF_SZ

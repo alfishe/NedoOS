@@ -1,22 +1,33 @@
 
-SJASMPLUS	= ../../tools/sjasmplus
 SJASMPLUSFLAGS	= --nologo --msg=war
-WINTOP := $(dir $(abspath $(lastword $(MAKEFILE_LIST))../../../))
-INSTALLDIR	:= $(dir $(WINTOP)release/)
+BIN_INSTALLDIR	= $(INSTALLDIR)/bin
+RES_INSTALLDIR	= $(INSTALLDIR)/bin
+DOC_INSTALLDIR	= $(INSTALLDIR)/doc
+WINTOP 			:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))../../../))
+INSTALLDIR		:= $(dir $(WINTOP)release/)
+EMULIMG			= $(WINTOP)us/sd_nedo.vhd
+SJASMPLUS		= $(WINTOP)tools/sjasmplus
+DMIMG			= $(WINTOP)tools/dmimg
 
 ifeq ($(OS),Windows_NT)
 	WINSDK := $(dir $(WINTOP)src/_sdk/)
+	ISWIN = 1
 	ASPP = "../../tools/parsasm.bat"
 	DEPAS = ${ASPP}
 	DEPAFLAGS	= -E -MM -I $(WINSDK)
 	RM = @del /Q
 	COPY = @copy /Y
+	MKDIR = @mkdir
+	MOVE = @move
+	IMGUNPACK = $(WINTOP)tools/images.exe
 else
 	ASPP = ../../tools/aspp.sh
 	DEPAS = env LC_CTYPE=C ${ASPP}
 	DEPAFLAGS	= -E -MM -I .
+	MKDIR = @mkdir -p
+	MOVE = @mv
 #	DEL = @rm -f
-	COPY = @cp
+	COPY = cp
 #	BINEXT =
 endif
 
@@ -100,7 +111,7 @@ endef
 
 define copy_file_rule =
 ${1}: ${2}
-	@mkdir -p $${@D}
+	$(MKDIR) $${@D}
 	$(COPY) $$< $$@
 ifneq "${3}" ""
 ${3}+=${1}
@@ -140,7 +151,7 @@ ${BIN_INSTALLDIR} \
 ${RES_INSTALLDIR} \
 ${DOC_INSTALLDIR} \
 }:
-	mkdir -p $@
+	$(MKDIR) $@
 
 ##########################
 ## Target "executables" ##
@@ -158,6 +169,12 @@ install-executables: executables | ${BIN_INSTALLDIR}
 
 clean-executables:
 	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+
+$(EMULIMG): 
+	$(RM) b.bat *.vhd
+	$(IMGUNPACK)
+	$(MOVE) $(notdir $@) "$@"
+	$(RM) b.bat *.vhd
 
 DEPS+=${EXEC_DEPS}
 
@@ -189,7 +206,11 @@ install-doc: ${DOCS} | ${DOC_INSTALLDIR}
 	$(COPY) $^ $|
 endif
 
+
+install-unreal: ${EMULIMG}
+
 clean: clean-executables clean-resources
+
 
 ##################
 ## Dependencies ##
