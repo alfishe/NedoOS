@@ -637,5 +637,3 @@ stdoutbuf
 
 stdinbuf
         DEFS STDINBUF_SZ
-
-        DEFS STDINBUF_SZ

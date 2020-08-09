@@ -374,7 +374,7 @@ nvview_calclines0
         
 clear_keyboardbuffer
         push bc
-        ld b,5
+        ld b,20;5
 clear_keyboardbuffer0
         push bc
         GET_KEY ;GETKEY_

@@ -304,15 +304,15 @@ drawpanel_dir0
 	ld de,PANEL.dir
 	add hl,de
         ld c,0
-        call panelprtext
-	ret
+        jp panelprtext
 	
 drawpanel_with_files
 ;ix=panel
 	call setpanelcolor
         call nv_getpanelxy_de
-	call prtable ;keeps ix
-
+        bit 0,(ix+PANEL.drawtableunneeded)
+        set 0,(ix+PANEL.drawtableunneeded)
+	call z,prtable ;keeps ix
 
 	call setpaneldir_makeprompt ;keeps ix
         ld de,_COLOR
@@ -349,8 +349,8 @@ drawpanel_files
 
         ld a,b
         or a
-        ret z
-prNfiles	
+        jr z,premptyfiles
+prNfiles0
 	push bc	
 	push de
         call nv_setxy ;keeps de,hl
@@ -368,7 +368,34 @@ prNfiles
 	pop de	
 	pop bc
 	inc d
-	djnz prNfiles
+	djnz prNfiles0
+premptyfiles
+;c=files to show
+        ld a,CONST_HGT_TABLE
+        sub c
+        ret z
+        ld b,a
+premptyfiles0
+	push bc	
+	push de
+        call nv_setxy ;keeps de,hl
+	;ld e,(hl)
+	;inc hl
+	;ld d,(hl)
+	;inc hl
+        ;call getfilepointer_de_fromhl
+	;push hl
+	;ex de,hl
+        push ix
+        ld de,emptyfilelinebuf
+        ld hl,emptyfilelinebuf_sz
+        call sendchars
+        pop ix
+	;pop hl
+	pop de	
+	pop bc
+	inc d
+	djnz premptyfiles0
 	ret	
 
 fileiscom_ix;ix=fcb output: z=com
@@ -556,6 +583,9 @@ filelinebuf
         ;db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
         db "filename.ext",0x1b,"[C1234567890",0x1b,"[CYY-MM-DD hh:mm"
 filelinebuf_sz=$-filelinebuf
+emptyfilelinebuf
+        db "            ",0x1b,"[C          ",0x1b,"[C              "
+emptyfilelinebuf_sz=$-emptyfilelinebuf
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -855,7 +885,9 @@ editcmd_pageDown_nolastvisible
 	ld hl,CONST_HGT_TABLE-1
         add hl,bc ;last visible file
         call cpfiles_setdirpos
-	jp drawpanel_files      
+editcmd_clearkbddrawpanel
+	call drawpanel_files
+        jp clear_keyboardbuffer ;TODO почему не работает?
 
 editcmd_pageUp
         call count_filecursor_y
@@ -873,13 +905,13 @@ editcmd_pageUpq
         ld b,h
         ld c,l
         call nv_setdirscroll_bc
-	jp drawpanel_files      
+	jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
 editcmd_pageDown_nofirstvisible
         call nv_getdirscroll_bc
         ld h,b
         ld l,c
         call nv_setdirpos_hl
-	jp drawpanel_files    
+	jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
 
 editcmd_End
         ld hl,-1 ;>=files
@@ -890,10 +922,11 @@ editcmd_Home
         ld h,a
         ld l,a;0
         call nv_setdirpos_hl
-        ld b,h
-        ld c,l
-        call nv_setdirscroll_bc
-        jp drawpanel_files    
+        jr editcmd_pageUpq
+        ;ld b,h
+        ;ld c,l
+        ;call nv_setdirscroll_bc
+	;jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
 
         
 editcmd_up
@@ -1016,7 +1049,8 @@ editcmd_setpaneldirfromcurdir_panelhl
 	add hl,de
         ex de,hl ;de=pointer to 64 byte (MAXPATH_sz!) buf
         OS_GETPATH
-        ret
+         jp clear_keyboardbuffer
+        ;ret
 
 editcmd_enter_runcmd
 ;run "cmd <command to run>"
@@ -1029,6 +1063,7 @@ loadandrun_waitpid
 ;hl=cmdbuf или cmdprompt (для loadandrun_restcmd)
         push hl
         ;---
+        call setdrawtablesneeded
 ;        ld de,#1800
 ;        call nv_setxy
 	;call nv_copyscreen1to0
@@ -1051,7 +1086,7 @@ loadandrun_waitpid
         ;YIELD ;дать время задаче cmd захватить фокус
         WAITPID
 execcmd_error
-execcmd_runfocusq
+;execcmd_runfocusq
         ;YIELD ;дать время системе передать фокус рандомной задаче
         ;ld b,25
 ;execcmd_waitchildredraw0
@@ -2359,6 +2394,7 @@ pgadd		BYTE ;0/DIRPAGES
 catbuf		WORD ;TODO remove
 poipg		BYTE
 pointers	WORD ;TODO remove
+drawtableunneeded BYTE
 totalsize	DWORD
 files		WORD ;visible files
 filesdirs       WORD ;files+dirs (no ".", "..")

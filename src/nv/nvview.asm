@@ -11,6 +11,7 @@ editcmd_3
 	and FATTRIB_DIR;#10
         ret nz
 
+        call setdrawtablesneeded
         ld hl,editcmd_reprintall_noreaddir
         push hl
 
@@ -156,14 +157,16 @@ nvview_right
         add a,8
         ret c
         ld (nvview_prline_shift),a
-        jp nvview_prcurpage
+        call nvview_prcurpage
+        jp clear_keyboardbuffer
         
 nvview_left
         ld a,(nvview_prline_shift)
         sub 8
         ret c
         ld (nvview_prline_shift),a
-        jp nvview_prcurpage
+        call nvview_prcurpage
+        jp clear_keyboardbuffer
         
 nvview_prcurpage
         ld hl,(curtoptextaddr)
@@ -354,7 +357,7 @@ nvview_calclines0
         
 clear_keyboardbuffer
         push bc
-        ld b,5
+        ld b,50;5
 clear_keyboardbuffer0
         push bc
         GETKEY_

@@ -1139,7 +1139,6 @@ BDOS_setx
 
 BDOS_setxy
 ;de=yx
-        ;call BDOS_countxy
          call getscrbuftop_a
          add a,d ;0..24
          ld h,a
@@ -1172,7 +1171,6 @@ BDOS_prchar_controlcode
         jr z,BDOS_prchar_lf
         cp 0x0d
         jp nz,BDOS_prchar_nocontrolcode
-        ;jr z,BDOS_prchar_cr
 BDOS_prchar_cr
          ld a,0x40
          ld (pr_buf_curaddr),a ;x=0
@@ -1242,7 +1240,7 @@ cursor_left
 cursor_down
         ld a,0x0a ;lf
 BDOS_prchar_a
-;портит только 0xc000+, но сама восстанавливает там pgkillable (для быстрого вызова через rst)
+;keeps bc!
 pr_textmode_curaddr=$+1
         ld hl,0xc1c0
         cp 0x0e
@@ -1325,14 +1323,9 @@ BDOS_scrolllock0
         rra ;Caps Shift
         jr nc,BDOS_scrolllock0
 ;scroll+clear bottom line
+       push bc
         call buftopaddr_down
         call BDOS_scrollpage ;attr
-        ;ld a,(pgscrbuf_high) ;ok ;pgscr0_0 ;text
-        ;SETPG32KHIGH ;call sys_setpgc000
-        ;call BDOS_cllastline
-        ;ld a,(pgscrbuf_low) ;ok ;pgscr0_0 ;attr
-        ;SETPG32KHIGH ;call sys_setpgc000
-        ;call BDOS_cllastline
         ld a,(user_scr0_high) ;ok ;pgscr0_1 ;text
         SETPG32KHIGH ;call sys_setpgc000
         xor a
@@ -1342,13 +1335,14 @@ BDOS_scrolllock0
         ld a,COLOR
         call BDOS_cllastline
         BDOSSETPGSSCR
-BDOS_prchar_skipscroll
+       pop bc
         ld hl,0xc7c0
         jp BDOS_settextcuraddr
         
 scrollscrbuf
 ;TODO reserve page
 ;TODO unreserve very old page
+       push bc
         dec h
         push hl
         ld de,0x4000 ;0x4040 ;text ;TODO scroll attr
@@ -1382,6 +1376,7 @@ scrollscrbuf0
         ld hl,pr_buf_curtopaddr+1
         dec (hl) ;compensate shift
         pop hl
+       pop bc
         ret
 
 BDOS_scrollpage

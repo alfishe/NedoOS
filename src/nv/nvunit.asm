@@ -488,10 +488,18 @@ cmd_savepage
         ld de,fcb2
         OS_FWRITE_NBYTES
         ret
+
+setdrawtablesneeded
+        ld ix,leftpanel
+        res 0,(ix+PANEL.drawtableunneeded)
+        ld ix,rightpanel
+        res 0,(ix+PANEL.drawtableunneeded)
+        ret
         
 prwin
 ;de=yx
 ;bc=hgt,wid
+        call setdrawtablesneeded
         ld a,c
         sub 2
         ld (winbeginstroka_wid),a
