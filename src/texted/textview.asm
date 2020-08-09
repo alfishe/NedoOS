@@ -45,6 +45,10 @@ texted_panelredrawflag=$
 texted_waitkey_nokey
         ld de,(curxy)
 	call nv_setxy
+         ;push af
+         ;ld a,2
+         ;out (0xfe),a
+         ;pop af
 	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GETKEY_ ;OS_GETKEYNOLANG
         or a ;cp NOKEY ;keylang==0?
@@ -58,6 +62,10 @@ texted_panelredrawflag=$
         call c,texted_panel
         jr texted_waitkey_nokey
 texted_mainloop_keyq
+         ;push af
+         ;ld a,4
+         ;out (0xfe),a
+         ;pop af
         endif
          ;push af
          ;OS_CLS
@@ -801,7 +809,7 @@ texted_calclines0
         
 clear_keyboardbuffer
         push bc
-        ld b,5
+        ld b,50;5
 clear_keyboardbuffer0
         push bc
         GETKEY_
@@ -1198,16 +1206,16 @@ texted_prlinespc
 texted_prlinespc_b
         push af
         push hl
+;texted_prlinespc0
+;        push bc
+;        ld a,' '
+;        PRCHAR_
+;        pop bc
+;        djnz texted_prlinespc0
         ld l,b
         ld h,0
         ld de,tspaces
         call sendchars
-;texted_prlinespc0
-;        push bc
-;        ld a,' '
-;        PRCHAR_ ;TODO speedup
-;        pop bc
-;        djnz texted_prlinespc0
         pop hl
         pop af
         ret
@@ -1229,7 +1237,7 @@ print_prlinebuf
         ret
 
 prlinebuf
-        ds 80
+        ds texted_WID
 
 texted_pseudoprline
 ;ahl=addr
@@ -1282,7 +1290,7 @@ istherecr_or_lf
          push hl
         ld a,0x0d
         call istherecrlfgo
-        jr z,istherecr_or_lf_popafret;ret z
+        jr z,istherecr_or_lf_popafZret;ret z
          pop hl
         ld a,0x0a
 istherecrlfgo
@@ -1298,8 +1306,9 @@ istherecr_or_lf_fail
         dec a
         ret ;nz=not found
         
-istherecr_or_lf_popafret
+istherecr_or_lf_popafZret
         pop af
+        cp a ;Z
         ret
         
 texted_closefcb

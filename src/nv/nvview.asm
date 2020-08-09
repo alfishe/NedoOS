@@ -636,7 +636,7 @@ nvview_nextline0
         cp 0x0d
         jr z,nvview_nextline_cr
         cp 0x0a
-        jr z,nvview_nextline_lf
+        jr z,nvview_nextline_cr;lf
         ld a,b
         or c
         jr nz,nvview_nextline0
@@ -684,8 +684,8 @@ nvview_prline
 nvview_prline_shift=$+1
         ld de,0
         call istherecr_or_lf ;add hl,de
-        jr nz,$+3
-        dec hl ;hl=cr/lf address
+        ;jr nz,$+3
+        ;dec hl ;hl=cr/lf address
 
         push hl
         ld h,b
@@ -705,6 +705,7 @@ nvview_prline_shift=$+1
         ld b,c
         pop hl
 ;b=number of chars to print != 0
+        ld de,prlinebuf
         ld c,NVVIEW_WID
 nvview_prline0
         ld a,(hl)
@@ -713,22 +714,26 @@ nvview_prline0
         jr z,nvview_prline_cr
         cp 0x0a
         jr z,nvview_prline_lf
-        push bc
+        ;push bc
         push hl
         ld h,twinto866/256
         ld l,a
 nvview_prline_recodepatch=$
         nop ;/ld a,(hl)
-        PRCHAR_
+        ld (de),a ;PRCHAR_
+        inc de
         pop hl
-        pop bc
+        ;pop bc
         dec c
         djnz nvview_prline0
+        call print_prlinebuf
         jr nz,nvview_prline_lf
         ret
 nvview_prlinespc_all
-        ld c,NVVIEW_WID
+        ld a,NVVIEW_WID
+        jr nvview_prlinespc
 nvview_prline_cr
+        call print_prlinebuf
 nvview_prline_lf
 ;допечатать пробелы до конца строки
         ld a,c
@@ -737,15 +742,38 @@ nvview_prlinespc
 nvview_prlinespc_b
         push af
         push hl
-nvview_prlinespc0
-        push bc
-        ld a,' '
-        PRCHAR_
-        pop bc
-        djnz nvview_prlinespc0
+;nvview_prlinespc0
+;        push bc
+;        ld a,' '
+;        PRCHAR_
+;        pop bc
+;        djnz nvview_prlinespc0
+        ld l,b
+        ld h,0
+        ld de,tspaces
+        call sendchars
         pop hl
         pop af
         ret
+
+print_prlinebuf
+        push af
+        push bc
+        push hl
+;c=NVVIEW_WID-число символов
+        ld de,prlinebuf
+        ld a,NVVIEW_WID
+        sub c
+        ld l,a
+        ld h,0
+        call sendchars
+        pop hl
+        pop bc
+        pop af
+        ret
+
+prlinebuf
+        ds NVVIEW_WID
 
 nvview_pseudoprline
 ;ahl=addr
@@ -790,29 +818,32 @@ nvview_pseudoprline_lf
 istherecr_or_lf
 ;hl=addr
 ;de=length to search
-;out: z=found, hl=after match or after area
+;out: z=found, hl=at match or after area
         ld a,d
         or e
         jr z,istherecr_or_lf_fail
          push hl
         ld a,0x0d
         call istherecrlfgo
-        jr z,popafret;ret z
+        jr z,popafZret;ret z
          pop hl
         ld a,0x0a
 istherecrlfgo
         push bc
         ld b,d
         ld c,e
-        cpir
+        cpir ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
         pop bc
+        ret nz ;nz=not found
+         dec hl
         ret ;z=found
 istherecr_or_lf_fail
         dec a
         ret ;nz=not found
         
-popafret
+popafZret
         pop af
+        cp a ;Z
         ret
         
 nvview_closefcb

@@ -703,8 +703,8 @@ nvview_prline
 nvview_prline_shift=$+1
         ld de,0
         call istherecr_or_lf ;add hl,de
-        jr nz,$+3
-        dec hl ;hl=cr/lf address
+        ;jr nz,$+3
+        ;dec hl ;hl=cr/lf address
 
         push hl
         ld h,b
@@ -816,22 +816,25 @@ istherecr_or_lf
          push hl
         ld a,0x0d
         call istherecrlfgo
-        jr z,popafret;ret z
+        jr z,popafZret;ret z
          pop hl
         ld a,0x0a
 istherecrlfgo
         push bc
         ld b,d
         ld c,e
-        cpir
+        cpir ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
         pop bc
+        ret nz ;nz=not found
+         dec hl
         ret ;z=found
 istherecr_or_lf_fail
         dec a
         ret ;nz=not found
         
-popafret
+popafZret
         pop af
+        cp a ;Z
         ret
         
 iswrapon

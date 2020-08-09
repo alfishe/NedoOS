@@ -880,6 +880,7 @@ prendstroka
 	db 1	
 	db 0
 
+        if 1==0
 nv_copyscreen0to1
 	OS_GETMAINPAGES
 	push hl
@@ -969,3 +970,4 @@ nv_copyscreen1to0
 	ld a,h
 	SETPG32KLOW
 	ret
+        endif
