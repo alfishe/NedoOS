@@ -18,16 +18,16 @@ prsprqwid=0x0100 ;TODO прямо по какому-то адресу код, а не jp
         dw human6step
         dw human7
         dw human7step
-        dw human0hit
-        dw human1hit
+        dw bulletright
+        dw bulletleft
         dw human2hit
         dw human3hit
         dw human4hit
         dw human5hit
-        dw human6hit
-        dw human7hit
-        dw hero0
-        dw hero1
+        dw herostandright0
+        dw herostandright1
+        dw herostandleft0
+        dw herostandleft1
         dw herorunright0
         dw herorunright1
         dw herorunright2

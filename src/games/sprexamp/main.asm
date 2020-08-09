@@ -13,12 +13,17 @@ STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3b80;0x3f00 ;чтобы не запороть стек загрузки bmp в bgpush
 
-MAXSPEED=4*8;8*8-4
+XSUBPIX8=8
+YSUBPIX8=8
+
+MAXSPEED=4*XSUBPIX8
 CAMERATRACKINGSPEED_X=16 ;double pixels
 CAMERATRACKINGSPEED_Y=16
 CAMERASHIFTSPEED_X=4 ;double pixels
 CAMERASHIFTSPEED_Y=4
 
+FIRSTSOLIDTILE=32
+FIRSTBETONTILE=64
 FIRSTOBJTILE=111
 
 PENT=0
@@ -192,13 +197,18 @@ GO
          call uvscroll_preparetilemap
 
         call importcoords
+        ld iy,bullets
+        call genbullet_terminate
 
         ld de,pal
         OS_SETPAL
 mainloop_uv0
         ;halt
         call uvscroll_draw
-
+        
+        ld ix,objects
+        call drawsprites
+        ld ix,bullets
         call drawsprites
 
         call prcoords
@@ -460,9 +470,12 @@ pgmusic=$+1
         halt
         QUIT
 
-logic
+objectslogic
+        ld a,(pgmetatilemap)
+        SETPG32KHIGH
+
         ld ix,objects
-logic0
+objectslogic0
         ld l,(ix+obj.animaddr16+0)
         ld h,(ix+obj.animaddr16+1)
         ld e,(hl)
@@ -490,9 +503,6 @@ logic_nocycleanim
         ld (ix+obj.animaddr16+1),h
 logic_nonextphase
 
-        ld a,(pgmetatilemap)
-        SETPG32KHIGH
-
         ld l,(ix+obj.xspeed16+0)
         ld h,(ix+obj.xspeed16+1)
         ld e,(ix+obj.x16+0)
@@ -509,7 +519,7 @@ logic_nonextphase
          ld a,h
          rla
          jr c,gravityok
-         ld de,8*8
+         ld de,8*YSUBPIX8
          or a
          sbc hl,de
          add hl,de
@@ -521,41 +531,168 @@ gravityok
         
 ;check floor
         push hl
-        ld l,(ix+obj.y16+0) ;*8
+        ld l,(ix+obj.y16+0) ;*YSUBPIX8
         ld h,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
         ld b,(ix+obj.x16+1)
-         ld de,32*8
+         ld de,32*YSUBPIX8
          add hl,de ;координата прямо под ногами
         call gettile_bycoords
         pop hl
-        ld c,(ix+obj.y16+0)
-        ld b,(ix+obj.y16+1)
-        add hl,bc
-        cp 32
+          ld c,(ix+obj.y16+0)
+          ld b,(ix+obj.y16+1)
+          add hl,bc
+        cp FIRSTSOLIDTILE;32
          res 0,(ix+obj.flags) ;not on floor
         jr c,nofloor
          cp FIRSTOBJTILE
         jr nc,nofloor
          set 0,(ix+obj.flags) ;not on floor
-;выравнивание по y на 16(пикс)*8
+;выравнивание по y на 16(пикс)*YSUBPIX8
         ld a,l
-        and 128
+        and 16*YSUBPIX8;128
         ld l,a
-        ;dec hl
-        push hl   
-        ld hl,0
-        ld (ix+obj.yspeed16+0),l
-        ld (ix+obj.yspeed16+1),h
-        pop hl
+        ld (ix+obj.yspeed16+0),0
+        ld (ix+obj.yspeed16+1),0
+        jr floorok
 nofloor
+        push hl ;y16
+        
+        ld l,(ix+obj.y16+0) ;*YSUBPIX8
+        ld h,(ix+obj.y16+1)
+        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
+        ld b,(ix+obj.x16+1)
+         ;ld de,0
+         ;add hl,de ;координата прямо в голове
+        call gettile_bycoords
+        cp FIRSTBETONTILE;64
+        pop hl ;y16
+        jr c,noceiling
+;выравнивание по y на 16(пикс)*8 вверх
+        ld a,l
+        or 16*YSUBPIX8-1;127
+        ld l,a
+        inc hl
+        ld (ix+obj.yspeed16+0),0
+        ld (ix+obj.yspeed16+1),0        
+noceiling
+floorok
         ld (ix+obj.y16+0),l
         ld (ix+obj.y16+1),h
 
         ld bc,OBJSIZE
         add ix,bc
         bit 7,(ix+obj.y16+1) ;yhigh
-        jp z,logic0
+        jp z,objectslogic0
+        ret
+
+bulletslogic
+        ld a,(pgmetatilemap)
+        SETPG32KHIGH
+
+        ld ix,bullets
+bulletslogic0
+        bit 7,(ix+obj.y16+1) ;yhigh
+        ret nz
+        ;jr $
+
+        ld l,(ix+obj.xspeed16+0)
+        ld h,(ix+obj.xspeed16+1)
+        ld e,(ix+obj.x16+0)
+        ld d,(ix+obj.x16+1)
+        add hl,de
+        ld (ix+obj.x16+0),l
+        ld (ix+obj.x16+1),h
+        
+;check wall
+        ld l,(ix+obj.y16+0) ;*YSUBPIX8
+        ld h,(ix+obj.y16+1)
+          ld c,(ix+obj.yspeed16+0)
+          ld b,(ix+obj.yspeed16+1)
+          add hl,bc
+        push hl
+        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
+        ld b,(ix+obj.x16+1)
+         ld a,c
+         ;add a,2*XSUBPIX8
+         sub 6*XSUBPIX8
+         ld c,a
+         ;adc a,b
+         ;sub c
+         ld a,b
+         sbc a,0
+         ld b,a
+        call gettile_bycoords
+        ;inc l
+        ;ld a,(hl)
+        pop hl
+        cp FIRSTBETONTILE;32
+        jr c,bulletslogic_nocrash
+;TODO удалить
+        ld (ix+obj.xspeed16+0),0
+        ld (ix+obj.xspeed16+1),0
+        ld (ix+obj.yspeed16+0),0
+        ld (ix+obj.yspeed16+1),0
+bulletslogic_nocrash
+        ld (ix+obj.y16+0),l
+        ld (ix+obj.y16+1),h
+
+        ld bc,OBJSIZE
+        add ix,bc
+        jp bulletslogic0
+
+fire
+genbullet
+        ;jr $
+curbulletlistend=$+2
+        ld iy,bullets
+        push iy
+        ld de,-bulletlistend
+        add iy,de
+        pop iy
+        ret c ;no room
+
+         ld a,(lastdir) ;0=right
+         or a
+         ld de,4
+         jr z,$+5
+         ld de,-4
+         ld (iy+obj.xspeed16),e
+         ld (iy+obj.xspeed16+1),d
+
+         ld de,bulletanim_right
+         jr z,$+5
+         ld de,bulletanim_left
+        ld (iy+obj.animaddr16),e
+        ld (iy+obj.animaddr16+1),d
+        ld (iy+obj.animtime),1
+        ;ld (iy+obj.health),19
+        ld a,(ix+obj.x16)
+        add a,4*XSUBPIX8
+        ld (iy+obj.x16),a
+        ld a,(ix+obj.x16+1)
+        adc a,0
+        ld (iy+obj.x16+1),a
+        ld a,(ix+obj.y16)
+        add a,16*YSUBPIX8
+        ld (iy+obj.y16),a
+        ld a,(ix+obj.y16+1)
+        adc a,0
+        ld (iy+obj.y16+1),a
+        xor a
+        ld (iy+obj.yspeed16),a
+        ld (iy+obj.yspeed16+1),a
+        ld (iy+obj.flags),a
+        ld bc,OBJSIZE
+        add iy,bc
+genbullet_terminate
+        ld (curbulletlistend),iy
+        ld (iy+obj.y16+1),-1
+        ret
+
+logic
+        call objectslogic
+        call bulletslogic
 
 ;hero control 
 joystate=$+1
@@ -578,6 +715,15 @@ oldjoystate=$+2
         push bc
         call nz,kick
         pop bc
+        bit 5,c
+        jr z,nofire
+        bit 5,b
+        jr z,nofire
+        push bc
+        ld ix,objects
+        call fire
+        pop bc
+nofire
 
         ld ix,objects
         ld l,(ix+obj.xspeed16+0)
@@ -587,6 +733,8 @@ oldjoystate=$+2
         ld a,h
         or a
         jp m,nostartrunleft
+        ld a,1
+        ld (lastdir),a
          ld de,heroanim_runleft
         ld (ix+obj.animaddr16+0),e
         ld (ix+obj.animaddr16+1),d
@@ -611,6 +759,8 @@ noleft
         or l
         jr nz,nostartrunright
 startrunright
+        xor a
+        ld (lastdir),a
          ld de,heroanim_runright
         ld (ix+obj.animaddr16+0),e
         ld (ix+obj.animaddr16+1),d
@@ -643,7 +793,12 @@ noright
          ld a,e
          or a
          jr z,leftq ;уже стояли
-         ld de,heroanim_stand
+lastdir=$+1
+         ld a,0 ;/1
+         or a
+         ld de,heroanim_standright
+         jr z,$+5
+         ld de,heroanim_standleft
         ld (ix+obj.animaddr16+0),e
         ld (ix+obj.animaddr16+1),d
 leftq
@@ -652,32 +807,35 @@ leftq
 ;проверить, что не въехали в стену в текущем направлении и отскочить
        push bc
         bit 7,h
-        jr nz,checkleftwall
-        ld l,(ix+obj.y16+0) ;*8
+        jp nz,checkleftwall
+        ld l,(ix+obj.y16+0) ;*YSUBPIX8
         ld h,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
         ld b,(ix+obj.x16+1)
-         ld de,16*8
+         ld de,16*YSUBPIX8
          add hl,de ;координата на уровне пояса
         call gettile_bycoords
         dec l
         ld a,(hl) ;правее центра
-        cp 64 ;beton
+        cp FIRSTBETONTILE;64
         jp c,checkleftwallq ;not beton
          cp FIRSTOBJTILE
          jr nc,checkwall_obj
 ;врезались справа, выравниваем x = (x&0xf0) - 1
+         ld de,heroanim_standright
+        ld (ix+obj.animaddr16+0),e
+        ld (ix+obj.animaddr16+1),d
          ld (ix+obj.xspeed16+0),0
          ld (ix+obj.xspeed16+1),0
-        ld l,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld l,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
         ld h,(ix+obj.x16+1)
         ld a,l
-        and -8*8
+        and -8*XSUBPIX8
         ld l,a
         dec hl
-        ld (ix+obj.x16+0),l ;*8 (in double pixels)
+        ld (ix+obj.x16+0),l ;*XSUBPIX8 (in double pixels)
         ld (ix+obj.x16+1),h        
-        jr checkleftwallq
+        jp checkleftwallq
 checkwall_obj
         ld (hl),0
         ex de,hl
@@ -740,30 +898,33 @@ getobjshow0q
 getobjnofill
         jr checkleftwallq
 checkleftwall
-        ld l,(ix+obj.y16+0) ;*8
+        ld l,(ix+obj.y16+0) ;*YSUBPIX8
         ld h,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
         ld b,(ix+obj.x16+1)
-         ld de,16*8
+         ld de,16*YSUBPIX8
          add hl,de ;координата на уровне пояса
         call gettile_bycoords
         inc l
         ld a,(hl) ;левее центра
-        cp 64 ;beton
+        cp FIRSTBETONTILE;64
         jr c,checkleftwallq ;not beton
          cp FIRSTOBJTILE
          jr nc,checkwall_obj
 ;врезались слева, выравниваем x = (x+15)&0xf0
+         ld de,heroanim_standleft
+        ld (ix+obj.animaddr16+0),e
+        ld (ix+obj.animaddr16+1),d
          ld (ix+obj.xspeed16+0),0
          ld (ix+obj.xspeed16+1),0
-        ld l,(ix+obj.x16+0) ;*8 (in double pixels)
+        ld l,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
         ld h,(ix+obj.x16+1)
-        ld bc,8*8-1
+        ld bc,8*XSUBPIX8-1
         add hl,bc
         ld a,l
-        and -8*8
+        and -8*XSUBPIX8
         ld l,a
-        ld (ix+obj.x16+0),l ;*8 (in double pixels)
+        ld (ix+obj.x16+0),l ;*XSUBPIX8 (in double pixels)
         ld (ix+obj.x16+1),h
 
 checkleftwallq
@@ -794,8 +955,8 @@ nojump
 
         ret
 
-KICKDIST_X=8*8
-KICKDIST_Y=16*16
+KICKDIST_X=8*XSUBPIX8
+KICKDIST_Y=32*YSUBPIX8
 kick
 ;герой толкает ближайшего врага
         ld ix,objects
@@ -831,10 +992,12 @@ kick0
         or a
         sbc hl,bc
         jr nc,kick_xskip
+         ld a,11 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
+         call sfxplay
         pop hl
         pop de
-        ld (ix+obj.yspeed16+0),+8
-        ld (ix+obj.yspeed16+1),0
+        ld (ix+obj.yspeed16+0),-80
+        ld (ix+obj.yspeed16+1),-1
         ld (ix+obj.xspeed16+0),8
         ld (ix+obj.xspeed16+1),0
         ret
@@ -877,9 +1040,9 @@ drawsprites
 pg1=$+1
         ld a,0
         call setpgc000
-        
-        ld ix,objects
 drawsprites0       
+        bit 7,(ix+obj.y16+1) ;yhigh
+        jp nz,setpgsmain40008000
 
         ld l,(ix+obj.animaddr16+0)
         ld h,(ix+obj.animaddr16+1)
@@ -903,7 +1066,7 @@ drawsprites0
 drawsprites0_sprdescr=$+2
         ld iy,(0xc000);testspr
 
-;храним x*8 (in double pixels),y*8
+;храним x*XSUBPIX8 (in double pixels),y*YSUBPIX8
         ld a,(ix+obj.x16+0)
         ld d,(ix+obj.x16+1)
         srl d
@@ -959,8 +1122,7 @@ drawspr_skip
 
         ld bc,OBJSIZE
         add ix,bc
-        bit 7,(ix+obj.y16+1) ;yhigh
-        jr z,drawsprites0
+        jp drawsprites0
 ;817000(prsprega)/793000(prspr)t на всё
 
         ;ld iy,(0xc000);testspr
@@ -968,7 +1130,6 @@ drawspr_skip
         ;ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
         ;call prsprega
 
-        jp setpgsmain40008000
 
 
 getmousedelta
@@ -1185,107 +1346,7 @@ setpgc000
         SETPG32KHIGH
         ret
 
-testspr=$+4
-_hgt=16
-_wid=8 ;width/2
-        db _wid
-        db _hgt
-_=_wid
-        dup _wid
-        dup _hgt*2
-        db (0xaa+$)&0xff
-        edup
-_=_-1
-        if _ != 0
-        dw 0x4000 - ((_hgt-1)*40)
-        else
-        dw 0xffff
-        endif
-        edup
-        dw prsprqwid
-
-
-
-HERO0=0xc000+(24*2)
-HERO1=0xc000+(25*2)
-HERORUNRIGHT0=0xc000+(26*2)
-HERORUNRIGHT1=0xc000+(27*2)
-HERORUNRIGHT2=0xc000+(28*2)
-HERORUNLEFT0=0xc000+(29*2)
-HERORUNLEFT1=0xc000+(30*2)
-HERORUNLEFT2=0xc000+(31*2)
-
-heroanim_stand
-        dw HERO0
-        db 25
-        dw HERO1
-        db 25
-        dw heroanim_stand
-heroanim_runright
-        dw HERORUNRIGHT0
-        db 4
-        dw HERORUNRIGHT1
-        db 4
-        dw HERORUNRIGHT2
-        db 4
-        dw heroanim_runright
-heroanim_runleft
-        dw HERORUNLEFT0
-        db 4
-        dw HERORUNLEFT1
-        db 4
-        dw HERORUNLEFT2
-        db 4
-        dw heroanim_runleft
-
-        STRUCT obj
-y16     WORD
-x16     WORD
-;sprite16 WORD
-animtime BYTE
-animaddr16 WORD
-xspeed16 WORD
-yspeed16 WORD
-health  BYTE
-flags   BYTE ;b0=on ground, b1=jump not released, b2=blinking, b4=провалиться
-sz
-        ENDS
-
-MAXOBJECTS=42
-TYPE_HERO=254
-OBJSIZE=obj.sz
-objects
-;y16 (*8)
-;x16 (*8) (in double pixels)
-;animtime
-;animaddr16
-;xspeed16
-;yspeed16
-;health
-_=0
-_x=10
-        dup 1
-_y=100
-        dup 1;  3
-        
-        dw 8*_y ;y
-        dw 8*(_x+(sprmaxwid-1)) ;x
-        ;dw HERO0
-        db 1
-        dw heroanim_stand
-        dw 1
-        dw 0
-        db 100
-        db 0 ;flags
-_=_+1
-_y=_y+40
-        edup
-_x=_x+20
-        edup
-        dw -1
-        
-        ds MAXOBJECTS*OBJSIZE
-endobjects
+        include "sprdata.asm"
 
 sfxplay
         push af
@@ -1322,7 +1383,7 @@ importcoords0
         jr nz,importcoords_nhero
         push ix
         ld ix,objects
-        ld de,heroanim_stand
+        ld de,heroanim_standright
         ld (ix+obj.animaddr16),e
         ld (ix+obj.animaddr16+1),d
         ld (ix+obj.animtime),1
