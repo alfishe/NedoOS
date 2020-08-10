@@ -9,34 +9,36 @@ begin
         
         ld hl,thello
         call prtext
+        ld hl,thello
+        call prtext
+        ld hl,thello
+        call prtext
+        ld hl,thello
+        call prtext
         
         QUIT
 
 prtext
-prtext0
-        ld a,(hl)
+;hl=text
+        push hl
+        call strlen ;hl=length
+        pop de ;de=text
+        jp sendchars
+
+strlen
+;hl=str
+;out: hl=length
+        ld bc,0 ;чтобы точно найти терминатор
+        xor a
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        ld hl,-1
         or a
-        ret z
-        cp 8
-        jr c,prtext_color
-        push hl
-        ;PRCHAR
-        PRCHAR_
-        pop hl
-        inc hl
-        jr prtext0
-prtext_color
-        push hl
-        ld e,a
-        ;OS_SETCOLOR
-        ld d,0
-        SETCOLOR_
-        pop hl
-        inc hl
-        jr prtext0
+        sbc hl,bc
+        ret
 
 thello
-        db "Hello, ",3,"world!",0x0d,0x0a,0
+        ;db "Hello, world!",0x0d,0x0a,0
+        db "Select drive:\r\n[0] Nemo master\r\n[1] Nemo slave\r\n[2] ATM master(not tested!)\r\n[3] ATM slave(not tested!)",0
         
         include "../_sdk/stdio.asm"
 end
