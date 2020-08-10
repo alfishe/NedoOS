@@ -221,7 +221,7 @@ nvview_up
         push hl
         ld de,NVVIEW_XYTOP
         ld hl,256*NVVIEW_HGT + NVVIEW_WID
-        OS_SCROLLDOWN
+        call scrolldown ;OS_SCROLLDOWN
         ld de,NVVIEW_XYTOP
         call nv_setxy
         pop hl
@@ -244,7 +244,7 @@ curbottomtextHSB=$+1
         push hl
         ld de,NVVIEW_XYTOP
         ld hl,256*NVVIEW_HGT + NVVIEW_WID
-        OS_SCROLLUP
+        call scrollup ;OS_SCROLLUP
         ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
         call nv_setxy
         pop hl
@@ -742,16 +742,11 @@ nvview_prlinespc
 nvview_prlinespc_b
         push af
         push hl
-;nvview_prlinespc0
-;        push bc
-;        ld a,' '
-;        PRCHAR_
-;        pop bc
-;        djnz nvview_prlinespc0
-        ld l,b
-        ld h,0
-        ld de,tspaces
-        call sendchars
+        ;ld l,b
+        ;ld h,0
+        ;ld de,tspaces
+        ;call sendchars
+        call clearrestofline_crlf
         pop hl
         pop af
         ret

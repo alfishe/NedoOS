@@ -170,7 +170,7 @@ mainloop_type0_go
         ld a,(hl)
         cpl
         ld (hl),a
-        ;ld (hl),CURSORCOLOR
+         ;ld (hl),CURSORCOLOR
 
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
@@ -227,8 +227,6 @@ nowheelmove
         ;ld (mouse_scrollvalue),a ;default scrollvalue
 
         ld a,b
-         ;cp key_pgup
-         ;jr z,term_pgup
         or a
         jp nz,term_sendchar        
 ;no action? mouse coords change is also an action
@@ -745,10 +743,8 @@ term_prfsm_afterescbracket_nosemicolon
         jr z,term_prfsm_afterescbracket_G
         cp 'm'
         jr z,term_prfsm_afterescbracket_m
-        cp 'd' ;NON-STANDARD!
-        jr z,term_prfsm_afterescbracket_scrolldown
-        cp 'u' ;NON-STANDARD!
-        jr z,term_prfsm_afterescbracket_scrollup
+        cp 'K'
+        jr z,term_prfsm_afterescbracket_clearline
 ;TODO J etc.
         cp '~'
         jr z,term_prfsm_afterescbracket_tilde
@@ -759,6 +755,10 @@ term_prfsm_afterescbracket_nosemicolon
         jp z,cursor_right
         cp 'D'
         jp z,cursor_left
+        cp 'd' ;NON-STANDARD!
+        jp z,term_prfsm_afterescbracket_scrolldown
+        cp 'u' ;NON-STANDARD!
+        jp z,term_prfsm_afterescbracket_scrollup
         ret
 term_prfsm_afterescbracket_tilde
         ;cp key_del
@@ -772,6 +772,35 @@ term_prfsm_afterescbracket_tilde
         ;jr z,sendchar_esckey2
         ;cp key_ins
         ;ld bc,'2'*256+'~'
+        ret
+
+term_prfsm_afterescbracket_clearline
+;не двигает курсор
+        ld de,(pr_textmode_curaddr)
+        ld hl,(pr_buf_curaddr)
+        ld bc,0x0040
+term_prfsm_afterescbracket_clearline0
+        xor a
+        ld (de),a
+        ld a,d
+        xor 0x60 ;attr + 0x20
+        ld d,a
+        and 0x20
+        jr nz,$+3
+        inc e
+        xor a
+        ld (de),a
+        set 6,d
+        ld (hl),a
+        ld a,l
+        add a,c;0x40 ;attr
+        adc a,b;0
+        ld l,a
+        ld (hl),b;0
+        add a,c;0x40 ;text (next)
+        ld l,a
+        cp 0x40+(80/2)
+        jp nz,term_prfsm_afterescbracket_clearline0       
         ret
 
 term_prfsm_afterescbracket_G
@@ -822,8 +851,8 @@ term_prfsm_afterescbracket_m
 ;Ps = 46  Set background color to Cyan.
 ;Ps = 47  Set background color to White.
 ;Ps = 49  Set background color to default, ECMA-48 3rd.
-;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300.
-;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300.
+;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300. (не работает в Putty!!!)
+;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300. (не работает в Putty!!!)
 ;Assume that xterm's resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
 ;Ps = 90  Set foreground color to Black.
 ;Ps = 91  Set foreground color to Red.
@@ -850,7 +879,6 @@ term_prfsm_afterescbracket_scrolldown
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
         ld d,a ;ytop
-        ;ld hl,21*256 + 40 ;TODO передавать
         ld hl,(term_prfsm_curnumber3) ;первый по счёту
         ld a,(term_prfsm_curnumber2) ;wid
         ld h,a ;hgt
@@ -884,7 +912,6 @@ term_prfsm_afterescbracket_scrollup
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
         ld d,a ;ytop
-        ;ld hl,21*256 + 40 ;TODO передавать
         ld hl,(term_prfsm_curnumber3) ;первый по счёту
         ld a,(term_prfsm_curnumber2) ;wid
         ld h,a ;hgt
@@ -1298,8 +1325,9 @@ writed2=$
         ld l,a
         ld (pr_buf_curaddr),hl
 
-        and 0x3f
-        cp 80/2
+        ;and 0x3f
+        ;cp 80/2
+        cp 0x40+(80/2)
         ret nz ;нет переноса строки
         ld l,0x40
         inc h
@@ -1381,8 +1409,6 @@ scrollscrbuf0
 
 BDOS_scrollpage
 ;156046t [195810t]
-        ;ld a,40
-        ;ld (BDOS_scrollpagelinelayer_wid),a
         ld hl,0xc1c0
         ld b,24
 BDOS_scrollpage0
@@ -1425,33 +1451,6 @@ copylinelayer
         pop de
         ret
 
-        if 1==0
-BDOS_scrolldown
-;de=topyx, hl=hgt,wid
-;x, wid even
-        ld a,d
-        add a,h
-        dec a
-        ld d,a ;ybottom
-        call BDOS_scroll_prepare
-BDOS_scrolldown0
-        push bc
-        ld d,h
-        ld e,l
-        ld bc,-64
-        add hl,bc
-        call BDOS_scrollpageline
-        pop bc
-        djnz BDOS_scrolldown0
-        ret
-
-BDOS_scrollup
-;de=topyx, hl=hgt,wid
-;x, wid even
-        call BDOS_scroll_prepare
-        jp BDOS_scrollpage0
-        endif
-        
 BDOS_cllastline
         ld hl,0xc7c0
         call BDOS_scrollpage_cllinelayer
@@ -1464,7 +1463,7 @@ BDOS_scrollpage_cllinelayer
         ld (hl),a
         ldir ;clear bottom line
         ret
-        
+
 BDOS_cls
 ;e=color byte
         ;ld a,(pgscrbuf_low)
@@ -1589,15 +1588,11 @@ skipword
 skipword0
         ld a,(hl)
         or a
-        ret z ;jr z,skipwordq
+        ret z
         sub ' '
-        ret z ;jr z,skipwordq
+        ret z
         inc hl ;ldi
         jr skipword0
-;skipwordq
-        ;xor a
-        ;ld (de),a
-        ;ret
 
 skipspaces
 ;hl=string

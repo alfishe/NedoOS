@@ -1190,7 +1190,7 @@ BDOS_waitpid
         cp c ;parent id
         jp z,BDOS_fail ;existing app = fail
 BDOS_waitpid_OK
-         res fwaiting,(iy+app.flags)
+         ;res fwaiting,(iy+app.flags)
         xor a
         ret
 

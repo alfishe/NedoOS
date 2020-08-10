@@ -28,8 +28,9 @@ prtext
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;чтобы точно найти терминатор
         xor a
+        ld b,a
+        ld c,a ;чтобы точно найти терминатор
         cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         or a

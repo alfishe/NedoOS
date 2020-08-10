@@ -130,12 +130,13 @@ editcmd_noscrollright
         add hl,de
         call prtext
 ;добьём остаток строки пробелами
-        ld hl,tspaces
-        jp prtext
+        ;ld hl,tspaces
+        ;jp prtext
+        jp clearrestofline
 
-tspaces
-        ds txtscrwid-1,' '
-        db 0
+;tspaces
+;        ds txtscrwid-1,' '
+;        db 0
  
 cmdprNchars
 ;hl=buffer

@@ -622,7 +622,7 @@ texted_up
         push hl
         ld de,texted_XYTOP
         ld hl,256*texted_HGT + texted_WID
-        OS_SCROLLDOWN
+        call scrolldown ;OS_SCROLLDOWN
         ld de,texted_XYTOP
 	call nv_setxy
         pop hl
@@ -657,7 +657,7 @@ texted_down
         push hl
         ld de,texted_XYTOP
         ld hl,256*texted_HGT + texted_WID
-        OS_SCROLLUP
+        call scrollup ;OS_SCROLLUP
         ld de,texted_XYTOP+((texted_HGT-1)*256)
 	call nv_setxy
         pop hl
@@ -1206,16 +1206,11 @@ texted_prlinespc
 texted_prlinespc_b
         push af
         push hl
-;texted_prlinespc0
-;        push bc
-;        ld a,' '
-;        PRCHAR_
-;        pop bc
-;        djnz texted_prlinespc0
-        ld l,b
-        ld h,0
-        ld de,tspaces
-        call sendchars
+        ;ld l,b
+        ;ld h,0
+        ;ld de,tspaces
+        ;call sendchars
+        call clearrestofline_crlf
         pop hl
         pop af
         ret

@@ -15,6 +15,8 @@
 ;sendchars - send chars to stdout (in: de=buf, hl=size, out: A=error)
 ;setstdouthandle - in: A=handle
 ;setstdinhandle - in: A=handle
+;clearrestofline - clear line after cursor
+;clearrestofline_crlf - clear line after cursor, go to next line
 ;clearterm - print 25 lines of spaces except one
 
 STDINBUF_SZ=255
@@ -79,99 +81,6 @@ wasmouseevent=$
 
 ;последовательности слать одним куском!
 
-setcolor
-;set color attribute (in: d=paper, e=ink)
-;CSI Pm m Character Attributes (SGR)
-;Ps = 30  Set foreground color to Black.
-;Ps = 31  Set foreground color to Red.
-;Ps = 32  Set foreground color to Green.
-;Ps = 33  Set foreground color to Yellow.
-;Ps = 34  Set foreground color to Blue.
-;Ps = 35  Set foreground color to Magenta.
-;Ps = 36  Set foreground color to Cyan. (Grey?)
-;Ps = 37  Set foreground color to White.
-;Ps = 39  Set foreground color to default, ECMA-48 3rd.
-;Ps = 40  Set background color to Black.
-;Ps = 41  Set background color to Red.
-;Ps = 42  Set background color to Green.
-;Ps = 43  Set background color to Yellow.
-;Ps = 44  Set background color to Blue.
-;Ps = 45  Set background color to Magenta.
-;Ps = 46  Set background color to Cyan.
-;Ps = 47  Set background color to White.
-;Ps = 49  Set background color to default, ECMA-48 3rd.
-;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300.
-;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300.
-;Assume that xterm's resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
-;Ps = 90  Set foreground color to Black.
-;Ps = 91  Set foreground color to Red.
-;Ps = 92  Set foreground color to Green.
-;Ps = 93  Set foreground color to Yellow.
-;Ps = 94  Set foreground color to Blue.
-;Ps = 95  Set foreground color to Magenta.
-;Ps = 96  Set foreground color to Cyan.
-;Ps = 97  Set foreground color to White.
-;TODO 1  -  BRIGHT ON: Включение яркости INK. (Bold, VT100.)
-;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: Выключение яркости INK. (Doubly-underlined, ECMA-48 3rd.)]
-        ld hl,stdoutbuf
-       push hl
-        ;push de
-        ;ld a,0x1b
-        ;call sendchar_byte_a
-        ld (hl),0x1b
-        inc hl
-        ;ld a,'['
-        ;call sendchar_byte_a
-        ld (hl),'['
-        inc hl
-        ;pop de
-        ;push de
-        ld a,e ;a=ink
-        cp 8
-        jr c,$+4
-        add a,90-30-8
-        add a,30
-        call sendchar_num
-        ;ld a,';'
-        ;call sendchar_byte_a
-        ld (hl),';'
-        inc hl
-        ;pop de
-        ld a,d ;a=paper
-        and 7
-        add a,40
-setcolorq
-        call sendchar_num
-        ;ld a,'m'
-        ;call sendchar_byte_a
-        ld (hl),'m'
-setcolorqq
-        inc hl
-       pop de
-       or a
-       sbc hl,de ;de=buf, hl=size
-        jp sendchars
-
-setcolor_invisible
-        ld hl,stdoutbuf
-       push hl
-        ld (hl),0x1b
-        inc hl
-        ld (hl),'['
-        inc hl
-        ld a,8
-        jr setcolorq
-        
-setcolor_visible
-        ld hl,stdoutbuf
-       push hl
-        ld (hl),0x1b
-        inc hl
-        ld (hl),'['
-        inc hl
-        ld a,28
-        jr setcolorq
-
 scrolldown
 ;de=topyx, hl=hgt,wid
 ;x, wid even
@@ -227,23 +136,126 @@ scrollup
         call sendchar_num
         ld (hl),'u' ;NON-STANDARD!!!
         jr setcolorqq
+
+setcolor
+;set color attribute (in: d=paper, e=ink)
+;CSI Pm m Character Attributes (SGR)
+;Ps = 30  Set foreground color to Black.
+;Ps = 31  Set foreground color to Red.
+;Ps = 32  Set foreground color to Green.
+;Ps = 33  Set foreground color to Yellow.
+;Ps = 34  Set foreground color to Blue.
+;Ps = 35  Set foreground color to Magenta.
+;Ps = 36  Set foreground color to Cyan. (Grey?)
+;Ps = 37  Set foreground color to White.
+;Ps = 39  Set foreground color to default, ECMA-48 3rd.
+;Ps = 40  Set background color to Black.
+;Ps = 41  Set background color to Red.
+;Ps = 42  Set background color to Green.
+;Ps = 43  Set background color to Yellow.
+;Ps = 44  Set background color to Blue.
+;Ps = 45  Set background color to Magenta.
+;Ps = 46  Set background color to Cyan.
+;Ps = 47  Set background color to White.
+;Ps = 49  Set background color to default, ECMA-48 3rd.
+;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300. (не работает в Putty!!!)
+;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300. (не работает в Putty!!!)
+;Assume that xterm's resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
+;Ps = 90  Set foreground color to Black.
+;Ps = 91  Set foreground color to Red.
+;Ps = 92  Set foreground color to Green.
+;Ps = 93  Set foreground color to Yellow.
+;Ps = 94  Set foreground color to Blue.
+;Ps = 95  Set foreground color to Magenta.
+;Ps = 96  Set foreground color to Cyan.
+;Ps = 97  Set foreground color to White.
+;TODO 1  -  BRIGHT ON: Включение яркости INK. (Bold, VT100.)
+;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: Выключение яркости INK. (Doubly-underlined, ECMA-48 3rd.)]
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld a,e ;a=ink
+        cp 8
+        jr c,$+4
+        add a,90-30-8
+        add a,30
+        call sendchar_num
+        ld (hl),';'
+        inc hl
+        ld a,d ;a=paper
+        and 7
+        add a,40
+setcolorq
+        call sendchar_num
+        ld (hl),'m'
+setcolorqq
+        inc hl
+       pop de
+       or a
+       sbc hl,de ;de=buf, hl=size
+        jp sendchars
+
+setcolor_invisible
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld a,8
+        jr setcolorq
         
+setcolor_visible
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld a,28
+        jr setcolorq
+
+clearrestofline
+        ld hl,stdoutbuf
+       push hl
+        ld (hl),0x1b
+        inc hl
+        ld (hl),'['
+        inc hl
+        ld (hl),'K'
+        jr setcolorqq
+
 clearterm
+        ld a,0x0d ;carriage return
+        call sendchar
         ld b,24
 clearterm0
         push bc
-        ld de,clearterm_data
-        ld hl,80
-        call sendchars
+        ;ld de,clearterm_data
+        ;ld hl,80
+        ;call sendchars
+        call clearrestofline_crlf
         pop bc
         djnz clearterm0
-        ld de,clearterm_data
-        ld hl,79
-        call sendchars
+        ;ld de,clearterm_data
+        ;ld hl,79
+        ;call sendchars
+        call clearrestofline
         ld de,0
         jp setxy
-clearterm_data
-        DEFB '                                                                                '
+;clearterm_data
+;        DEFB "                                                                                "
+
+clearrestofline_crlf
+        ld de,tclearrestofline_crlf
+        ld hl,tclearrestofline_crlf_sz
+        jp sendchars
+tclearrestofline_crlf
+        DEFB 0x1b,'[','K',0x0d,0x0a
+tclearrestofline_crlf_sz=$-tclearrestofline_crlf
 
 setxy
 ;set cursor position (in: de=YX, top left is 0;0)
