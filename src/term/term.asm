@@ -14,6 +14,8 @@ HTMLHGT=25
 COLOR=7
 CURSORCOLOR=0x38
 
+REPEATNOKEY=0 ;2
+
         macro BDOSSETPGSSCR
         ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
         SETPG32KLOW
@@ -97,13 +99,39 @@ maketrecodeback0
 
 execcmd_error
 mainloop_afternokey
+;если два раза подряд, то надо делать YIELD, иначе YIELDKEEP
+;т.е. когда нет событий, идёт всё время YIELD. А если событие,пусто,событие,пусто, то всё время YIELDKEEP
+;тогда курсор исчезает - плохо
+        if REPEATNOKEY != 0
+wasnokey=$+1
+        ld a,1
+        dec a
+        jr nz,mainloop_yieldkeep
+        ;scf
+        ;ld a,55 ;"scf"
+        ;ld (wasnokey),a
+        ;jr nc,mainloop_yieldkeep
+        endif
+       ;ld a,1
+       ;out (0xfe),a
         YIELD
+       ;ld a,5
+       ;out (0xfe),a
         jr mainloop_afterkeyq
 mainloop_afterkey
+        if REPEATNOKEY != 0
+        ;ld a,55+128 ;"or a"
+        ;ld (wasnokey),a
+        ld a,REPEATNOKEY;2
+mainloop_yieldkeep
+        ld (wasnokey),a
+        endif
+       ;ld a,1
+       ;out (0xfe),a
         YIELDKEEP
+       ;ld a,5
+       ;out (0xfe),a
 mainloop_afterkeyq
-        ;ld a,2
-        ;out (0xfe),a
         ld a,(pgscrbuf) ;ok
         SETPG16K
         call BDOS_countattraddr
@@ -193,15 +221,8 @@ cursortimelimit=$+1
         call BDOS_countattraddr
         ld (hl),CURSORCOLOR
 noprintcursor
-        ;ld a,3
-        ;out (0xfe),a
 
-;mainloop_afterkey
         GET_KEY ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
-        ;push af
-        ;ld a,2
-        ;out (0xfe),a
-        ;pop af
         jp nz,mainloop_afternokey ;no focus
 
         ;or a ;cp NOKEY ;keylang==0?
@@ -340,11 +361,6 @@ sendmouseevent_ok
         jp mainloop_afterkey
 
 term_sendchar
-        ;push af
-        ;ld a,1
-        ;out (0xfe),a        
-        ;pop af
-
         cp key_esc
         jr z,term_esckey
         if RECODEINPUT
@@ -649,11 +665,6 @@ sendchars0
 stdouthandle=$+1
         ld b,0
         OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
-      ;push af
-      ;push hl
-      ;YIELDKEEP ;2158t
-      ;pop bc ;bytes actually written
-      ;pop af
         ld b,h
         ld c,l ;bytes actually written
         pop hl
@@ -755,6 +766,10 @@ term_prfsm_afterescbracket_nosemicolon
         jp z,cursor_right
         cp 'D'
         jp z,cursor_left
+        cp 's'
+        jp z,cursor_store
+        ;cp 'u'
+        ;jp z,cursor_remember
         cp 'd' ;NON-STANDARD!
         jp z,term_prfsm_afterescbracket_scrolldown
         cp 'u' ;NON-STANDARD!
@@ -884,9 +899,29 @@ term_prfsm_afterescbracket_scrolldown
         ld h,a ;hgt
         push de
         push hl
+        ld a,l
+        cp 80
+        jr nz,term_prfsm_afterescbracket_scrolldown_OS
+;de=topyx, hl=hgt,wid
+;x, wid even
+        ld a,d
+        add a,h
+        dec a
+        ld d,a ;ybottom
+        call BDOS_scroll_prepare
+BDOS_scrolldown0
+        push bc
+        ld d,h
+        ld e,l
+        ld bc,-64
+        add hl,bc
+        call BDOS_scrollpageline
+        pop bc
+        djnz BDOS_scrolldown0
+        jr term_prfsm_afterescbracket_scrolldown_OSq
+term_prfsm_afterescbracket_scrolldown_OS
         OS_SCROLLDOWN
-        ld a,(pgscrbuf)
-        SETPG16K
+term_prfsm_afterescbracket_scrolldown_OSq
         pop hl
         pop de        
         ld a,d
@@ -894,49 +929,74 @@ term_prfsm_afterescbracket_scrolldown
         dec a
         ld d,a ;ybottom
         call BDOS_scrollbuf_prepare
-BDOS_scrolldown0
+       ld (BDOS_scrolldown_call),de
+BDOS_scrolldown_buf0
         push bc
         ld d,h
         ld e,l
-        ;ld bc,-64
-        ;add hl,bc
         dec h
+BDOS_scrolldown_call=$+1
         call BDOS_scrollpageline_bufwindow
-        set 6,l ;text
         pop bc
-        djnz BDOS_scrolldown0
+        djnz BDOS_scrolldown_buf0
         ret
         
+cursor_store
+        ld hl,(pr_textmode_curaddr)
+        ld (cursor_remember_scraddr),hl
+        ld hl,(pr_buf_curaddr)
+        ld (cursor_remember_bufaddr),hl
+        ret
+cursor_remember
+cursor_remember_scraddr=$+1
+        ld hl,0xc1c0
+        ld (pr_textmode_curaddr),hl
+cursor_remember_bufaddr=$+1
+        ld hl,0x4040
+        ld (pr_buf_curaddr),hl
+        ret
+
 term_prfsm_afterescbracket_scrollup
         ld a,(term_prfsm_curnumber1)
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
         ld d,a ;ytop
-        ld hl,(term_prfsm_curnumber3) ;первый по счёту
-        ld a,(term_prfsm_curnumber2) ;wid
+        ld hl,(term_prfsm_curnumber3) ;wid ;первый по счёту
+        ld a,(term_prfsm_curnumber2)
         ld h,a ;hgt
+        ld a,l
+        or a
+        jr z,cursor_remember
         push de
         push hl
-        OS_SCROLLUP
-        ld a,(pgscrbuf)
-        SETPG16K
+        cp 80
+        jr nz,term_prfsm_afterescbracket_scrollup_OS
+;de=topyx, hl=hgt,wid
+;x, wid even
+        call BDOS_scroll_prepare
+        call BDOS_scrollpage0 ;62927 t
+        jr term_prfsm_afterescbracket_scrollup_OSq
+term_prfsm_afterescbracket_scrollup_OS
+        OS_SCROLLUP ;95597 t
+term_prfsm_afterescbracket_scrollup_OSq
         pop hl
         pop de
         call BDOS_scrollbuf_prepare
-BDOS_scrollup0
+       ld (BDOS_scrollup_call),de
+BDOS_scrollup_buf0
         push bc
         ld d,h
         ld e,l
-        ;ld bc,64
-        ;add hl,bc
         inc h
+BDOS_scrollup_call=$+1
         call BDOS_scrollpageline_bufwindow
-        set 6,l ;text
         pop bc
-        djnz BDOS_scrollup0
+        djnz BDOS_scrollup_buf0 ;62131[91221] t
         ret
 
 BDOS_scrollbuf_prepare
+        ld a,(pgscrbuf)
+        SETPG16K
         ld a,l
         srl a
         ld (BDOS_scrollpagelinelayer_wid),a
@@ -949,6 +1009,36 @@ BDOS_scrollbuf_prepare
          or 0x80
          rrca ;(x/2)+0x40 или 0xc0
          ld l,a
+        ld a,(BDOS_scrollpagelinelayer_wid)
+        cp 40
+        ld de,BDOS_scrollpageline_buf
+        ret z
+        ld de,BDOS_scrollpageline_bufwindow
+        ret
+
+BDOS_scroll_prepare
+        BDOSSETPGSSCR
+        ;ld a,l
+        ;srl a
+        ;ld (BDOS_scrollpagelinelayer_wid),a
+        ld b,h
+        dec b
+;BDOS_countxy
+;keeps bc
+        ld a,d ;y
+        sub -0x87&0xff ;0xe1c0*4=0x8700
+        rra
+        ld h,a
+         ld a,0;16
+        rra
+        sra h
+        rra
+        ld l,e ;x
+        srl l
+        jr c,$+4
+        res 5,h
+        add a,l
+        ld l,a
         ret
 
 BDOS_scrollpageline_bufwindow
@@ -957,6 +1047,9 @@ BDOS_scrollpageline_bufwindow
         res 6,l ;attr
         res 6,e ;attr
         scf
+        call BDOS_scrollpageline_bufwindowlayers ;attr
+        set 6,l ;text
+        ret
 BDOS_scrollpageline_bufwindowlayers
         push af
         push de
@@ -977,6 +1070,105 @@ BDOS_scrollpageline_bufwindowlayer
 BDOS_scrollpagelinelayer_wid=$+1
         ld bc,39;40
         ldir
+        pop hl
+        pop de
+        ret
+
+BDOS_scrollpageline_buf
+        dup 39
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
+        set 7,l
+        set 7,e        
+        dup 39
+        ldd
+        edup
+        ld a,(hl)
+        ld (de),a
+
+        res 6,l ;attr
+        res 6,e ;attr
+        
+        dup 39
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
+        res 7,l
+        res 7,e
+        inc l
+        inc e
+        dup 39
+        ldd
+        edup
+        ld a,(hl)
+        ld (de),a
+
+        ld l,0x40 ;text
+        ret
+
+BDOS_scrollpage
+;156046t [195810t]
+        BDOSSETPGSSCR
+        ld hl,0xc1c0
+        ld b,24
+BDOS_scrollpage0
+        push bc
+        ld d,h
+        ld e,l
+        ld bc,64
+        add hl,bc
+        call BDOS_scrollpageline
+        pop bc
+        djnz BDOS_scrollpage0
+        ret
+BDOS_scrollpageline
+        dup 39
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
+        set 5,h
+        set 5,d
+        dup 39
+        ldd
+        edup
+        ld a,(hl)
+        ld (de),a
+        
+        res 6,h ;attr
+        res 6,d ;attr
+        
+        dup 39
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
+        res 5,h
+        res 5,d
+        inc l
+        inc e
+        dup 39
+        ldd
+        edup
+        ld a,(hl)
+        ld (de),a
+        dec l
+        dec e
+        set 6,h
+        set 6,d
+        ret
+        
+copylinelayer
+        push de
+        push hl
+        dup 40
+        ldi
+        edup
+        ld a,(hl)
+        ld (de),a
         pop hl
         pop de
         ret
@@ -1279,10 +1471,6 @@ BDOS_prchar_nocontrolcode
         ld e,a
 pr_textmode_curcolor=$+1
         ld d,7
-        ;ld a,(user_scr0_high) ;ok ;pgscr0_1
-        ;SETPG32KHIGH
-        ;ld a,(user_scr0_low) ;ok ;pgscr0_0
-        ;SETPG32KLOW
 finvisible=$
         nop ;/ld e,(hl)
 writee1=$
@@ -1309,8 +1497,6 @@ writed1=$
 
 pr_buf_curaddr=$+1
         ld hl,0x4000+0x40 ;text0
-         ;ld a,(pgscrbuf)
-         ;SETPG16K ;вне prchar
 finvisible2=$
         nop ;/ld e,(hl)
 writee2=$
@@ -1325,8 +1511,6 @@ writed2=$
         ld l,a
         ld (pr_buf_curaddr),hl
 
-        ;and 0x3f
-        ;cp 80/2
         cp 0x40+(80/2)
         ret nz ;нет переноса строки
         ld l,0x40
@@ -1405,50 +1589,6 @@ scrollscrbuf0
         dec (hl) ;compensate shift
         pop hl
        pop bc
-        ret
-
-BDOS_scrollpage
-;156046t [195810t]
-        ld hl,0xc1c0
-        ld b,24
-BDOS_scrollpage0
-        push bc
-        ld d,h
-        ld e,l
-        ld bc,64
-        add hl,bc
-        call BDOS_scrollpageline
-        pop bc
-        djnz BDOS_scrollpage0
-        ret
-BDOS_scrollpageline
-        ld a,(user_scr0_high) ;ok ;pgscr0_1 ;text
-        ;or a
-        call BDOS_scrollpagelinelayers ;text
-        ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
-        ;scf
-BDOS_scrollpagelinelayers
-        SETPG32KHIGH ;call sys_setpgc000
-        push af
-        push de
-        push hl
-        set 5,h
-        set 5,d
-        ;or a
-        call copylinelayer
-        pop hl
-        pop de
-        pop af
-copylinelayer
-        push de
-        push hl
-        dup 40
-        ldi
-        edup
-        ld a,(hl)
-        ld (de),a
-        pop hl
-        pop de
         ret
 
 BDOS_cllastline

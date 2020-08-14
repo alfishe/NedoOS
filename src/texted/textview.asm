@@ -38,28 +38,47 @@ texted_redrawflag=$
 	;OS_PRATTR
 
         if 1==0
+        ld de,(curxy)
+	call nv_setxy
         call yieldgetkeyloop;YIELDGETKEYLOOP
 texted_panelredrawflag=$
         scf ;/or a
         else
-texted_waitkey_nokey
+;texted_waitkey_nokey
         ld de,(curxy)
 	call nv_setxy
-         ;push af
-         ;ld a,2
-         ;out (0xfe),a
-         ;pop af
-	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        ld a,2
+mainloop_yieldkeep
+        ld (wasnokey),a
+	YIELDKEEP
+        ld a,55+128 ;"or a"
+        ld (texted_wasyield),a
+texted_waitkey_nokey
         GETKEY_ ;OS_GETKEYNOLANG
-        or a ;cp NOKEY ;keylang==0?
-        jr nz,texted_mainloop_keyq
-        cp c ;keynolang==0?
+        ;or a ;cp NOKEY ;keylang==0?
+        ;jr nz,texted_mainloop_keyq
+        ;cp c ;keynolang==0?
         ;ld a,c ;keynolang
-        ;cp NOKEY ;как отличить от отсутствия фокуса? (не в фокусе клавиши не отдаются) TODO
-        jr nz,texted_mainloop_keyq
+        ;cp NOKEY ;TODO отличить от отсутствия фокуса nz? (не в фокусе клавиши не отдаются)
+        jr nz,texted_mainloop_keyq ;event
+;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
+;рисовать панельку только при отсутствии события после YIELD
+wasnokey=$+1
+        ld a,1
+        dec a
+        jr nz,mainloop_yieldkeep
+texted_wasyield=$
+        scf
+        jr nc,nopanel
 texted_panelredrawflag=$
         scf ;/or a
         call c,texted_panel
+        ld de,(curxy)
+	call nv_setxy
+nopanel
+        YIELD
+        ld a,55 ;"scf"
+        ld (texted_wasyield),a
         jr texted_waitkey_nokey
 texted_mainloop_keyq
          ;push af
@@ -307,6 +326,10 @@ texted_backspace_startline
         call deletebyte
         pop bc
         ld b,a
+         ld a,c ;deleted byte
+         cp 0x0d
+         ld a,b
+         jr z,texted_backspace_startline_onlycr ;for CR texts
         ld a,c
         cp 0x0a
         ld a,b
@@ -387,6 +410,10 @@ skipbackcrlf
         call prevbyte
         call getbyte
         ld b,a
+         ld a,c
+         cp 0x0d
+         ld a,b
+         ret z ;for CR texts
         ld a,c
         cp 0x0a
         ld a,b
@@ -1193,17 +1220,18 @@ texted_prline_recodepatch=$
         call print_prlinebuf
         jr nz,texted_prline_lf
         ret
-texted_prlinespc_all
-        ld a,texted_WID
-        jr texted_prlinespc
+;texted_prlinespc_all
+;        ld a,texted_WID
+;        jr texted_prlinespc
 texted_prline_cr
         call print_prlinebuf
 texted_prline_lf
 ;допечатать пробелы до конца строки
-        ld a,c
+        ;ld a,c
+texted_prlinespc_all
 texted_prlinespc
-        ld b,a
-texted_prlinespc_b
+        ;ld b,a
+;texted_prlinespc_b
         push af
         push hl
         ;ld l,b

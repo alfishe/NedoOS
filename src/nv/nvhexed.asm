@@ -10,8 +10,7 @@ _NVVIEW_HEXEDITOR_COLOR=0x0007;7
 nvview_hexeditor_redrawloop
         ;YIELDGETKEYLOOP
         call nvview_hexeditor_prpage
-nvview_hexeditor_prfile_mainloop
-nvview_hexeditor_prfile_mainloop0
+nvview_hexeditor_mainloop
         call nvhexed_calccursorxy
         ld hl,_NVVIEW_HEXEDITOR_CURSORCOLOR
         ld b,2
@@ -22,13 +21,27 @@ nvview_hexeditor_prfile_mainloop0
         call drawfilecursor_sizeb_colorhl
         ld de,24*256+79
         SETXY_
-	
-        YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        ld a,2
+nvview_hexeditor_yieldkeep
+        ld (hexeditor_wasnokey),a
+        YIELDKEEP
+nvview_hexeditor_waitkey_nokey
         GETKEY_ ;OS_GETKEYNOLANG
         ld a,c ;keynolang
-        push hl
-        push bc
-        push de
+        ;cp NOKEY
+        jr nz,nvview_hexeditor_keyq
+;если два раза подряд нет события, то рисуем панельку и делаем YIELD, иначе YIELDKEEP
+hexeditor_wasnokey=$+1
+        ld a,1
+        dec a
+        jr nz,nvview_hexeditor_yieldkeep
+        call nvview_hexeditor_panel
+        YIELD
+        jr nvview_hexeditor_waitkey_nokey
+nvview_hexeditor_keyq
+        ;push hl
+        ;push bc
+        ;push de
         push af
         call nvhexed_calccursorxy
         ld hl,_NVVIEW_HEXEDITOR_COLOR
@@ -39,22 +52,16 @@ nvview_hexeditor_prfile_mainloop0
         ld b,1
         call drawfilecursor_sizeb_colorhl
 	pop af
-	pop de
-	pop bc
-	pop hl
-        
-        cp NOKEY
-        jr nz,nvview_hexeditor_prfileq
-        call nvview_hexeditor_panel
-        jr nvview_hexeditor_prfile_mainloop0
-nvview_hexeditor_prfileq
+	;pop de
+	;pop bc
+	;pop hl
         cp key_redraw
         jr z,nvview_hexeditor_redrawloop
         cp key_esc
         ret z
         cp key_tab
         jp z,nvview_hexeditorq
-        ld hl,nvview_hexeditor_prfile_mainloop
+        ld hl,nvview_hexeditor_mainloop
         push hl
          cp key_up
          jp z,nvview_hexeditor_up
@@ -118,7 +125,7 @@ nvhexed_half=$
         add a,a
         add a,a;a=XXXX0000
         xor (hl)
-        and #f0
+        and 0xf0
         xor (hl)
         jr nvhexed_symbol_rightq
 nvhexed_symbol_right
@@ -172,7 +179,7 @@ nvview_hexeditor_save0
         or h
         or l
         jr z,$+5 ;de=size
-        ld de,#4000
+        ld de,0x4000
         ex de,hl ;hl=pg size
         push hl ;hl=pg size
         call cmd_savepage
@@ -308,10 +315,14 @@ nvview_hexeditor0
         ld a,b
         cp c
         jr c,nvview_hexeditor_prhex
-        push bc
-        ld b,2
-        call nvview_prlinespc_b
-        pop bc
+        ;push bc
+        ;push hl
+        ;ld b,2
+        ;call nvview_prlinespc_b
+         ld a,2
+         call hexeditor_prlinespc_a
+        ;pop hl
+        ;pop bc
         jr nvview_hexeditor_notprhex
 nvview_hexeditor_prhex        
         ld a,(hl)
@@ -324,10 +335,13 @@ nvview_hexeditor_notprhex
         ld a,b
         cp 16
         jr nz,nvview_hexeditor1        
-        pop hl
         
-        ld b,2
-        call nvview_prlinespc_b
+        ;ld b,2
+        ;call nvview_prlinespc_b
+         ld a,2
+         call hexeditor_prlinespc_a
+
+        pop hl
         
         ld b,0
 nvview_hexeditor2      
@@ -357,8 +371,18 @@ nvview_hexeditor2_sym
         add hl,bc
         adc a,b
 
-        ld b,7
-        call nvview_prlinespc_b
+        ;ld b,7
+        ;call nvview_prlinespc_b
+        ld a,7
+hexeditor_prlinespc_a
+        push bc
+        push hl
+         ld de,tspaces
+         ld l,a
+         ld h,0
+         call sendchars
+        pop hl
+        pop bc
         ret        
 
 nvview_hexeditor_prNN
@@ -402,12 +426,16 @@ pronehexdigit
 ;a=?X
         push bc
         push af
-        and #f
-        cp 10
-        jr c,prcharbit_noletter
-        add a,'a'-('0'+10)
-prcharbit_noletter
-        add a,'0'
+;        and 0xf
+;        cp 10
+;        jr c,prcharbit_noletter
+;        add a,'a'-('0'+10)
+;prcharbit_noletter
+;        add a,'0'
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
         PRCHAR_
         pop af
         pop bc
@@ -419,7 +447,7 @@ nvview_hexeditor_prevline
         call isbof ;cy=0
         ret z
         push bc
-        ld bc,#0010
+        ld bc,0x0010
         or a 
         sbc hl,bc
         sbc a,b
@@ -431,7 +459,7 @@ nvview_hexeditor_nextline
         call iseof
         ret nc
         push bc
-        ld bc,#0010
+        ld bc,0x0010
         add hl,bc
         adc a,b
         pop bc
@@ -452,7 +480,7 @@ nvview_hexeditor_up
 nvview_hexeditor_up_scroll        
         ld de,NVVIEW_HEXEDITOR_XYTOP
         ld hl,256*NVVIEW_HEXEDITOR_HGT + NVVIEW_HEXEDITOR_WID
-        OS_SCROLLDOWN
+        call scrolldown ;OS_SCROLLDOWN
         ld de,NVVIEW_HEXEDITOR_XYTOP
         SETXY_
         ld hl,(hexaddrline)
@@ -559,7 +587,7 @@ nvview_hexeditor_down_scroll
         ld (hexcuraddrx),a
         ld de,NVVIEW_HEXEDITOR_XYTOP
         ld hl,256*NVVIEW_HEXEDITOR_HGT + NVVIEW_HEXEDITOR_WID
-        OS_SCROLLUP
+        call scrollup ;OS_SCROLLUP
         ld de,NVVIEW_HEXEDITOR_XYTOP+((NVVIEW_HEXEDITOR_HGT-1)*256)
         SETXY_
         ld hl,(hexaddrline)
@@ -610,7 +638,7 @@ nvhex_calcnextcorrectxy
         ld a,(fcb+FCB_FSIZE)
         dec a   ;a=????xxxx  l=XXXXzzzz
         ;xor l   ;a=????xzxz  l=XXXXzzzz
-        and #0f ;a=0000xzxz  l=XXXXzzzz
+        and 0x0f ;a=0000xzxz  l=XXXXzzzz
         ;xor l   ;a=XXXXxxxx  l=XXXXzzzz
         ;ld l,a
         ld e,a

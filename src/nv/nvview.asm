@@ -68,14 +68,30 @@ nvview_redrawloop
 
         call nvview_prcurpage
 nvview_mainloop
-nvview_mainloop0
-	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
+        ld a,2
+nvview_yieldkeep
+        ld (nvview_wasnokey),a
+	YIELDKEEP
+        ld a,55+128 ;"or a"
+        ld (nvview_wasyield),a
+nvview_mainloop_nokey
         GETKEY_ ;OS_GETKEYNOLANG
         ld a,c ;keynolang
-        cp NOKEY
+        ;cp NOKEY
         jr nz,nvview_mainloop_keyq
-        call nvview_panel
-        jr nvview_mainloop0
+;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
+nvview_wasnokey=$+1
+        ld a,1
+        dec a
+        jr nz,nvview_yieldkeep
+;рисовать панельку только при отсутствии события после YIELD
+nvview_wasyield=$
+        scf
+        call c,nvview_panel ;97359 t
+	YIELD
+        ld a,55 ;"scf"
+        ld (nvview_wasyield),a
+        jr nvview_mainloop_nokey
 nvview_mainloop_keyq
         cp key_redraw
         jr z,nvview_redrawloop
@@ -113,7 +129,7 @@ nvview_mainloop_keyq
 
 nvview_hexeditor
         ;pop af ;снимаем адрес возврата
-        ld de,#0000
+        ld de,0x0000
         call nv_setxy
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
@@ -729,17 +745,18 @@ nvview_prline_recodepatch=$
         call print_prlinebuf
         jr nz,nvview_prline_lf
         ret
-nvview_prlinespc_all
-        ld a,NVVIEW_WID
-        jr nvview_prlinespc
+;nvview_prlinespc_all
+;        ld a,NVVIEW_WID
+;        jr nvview_prlinespc
 nvview_prline_cr
         call print_prlinebuf
 nvview_prline_lf
 ;допечатать пробелы до конца строки
-        ld a,c
+        ;ld a,c
+nvview_prlinespc_all
 nvview_prlinespc
-        ld b,a
-nvview_prlinespc_b
+        ;ld b,a
+;nvview_prlinespc_b
         push af
         push hl
         ;ld l,b

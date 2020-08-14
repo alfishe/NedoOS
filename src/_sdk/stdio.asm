@@ -36,6 +36,7 @@ setstdinhandle
         ret
 
 getkey
+;out: NC=no error, nz=event (a=key, l=mousebuttons, de=mouxexy)
 getkey0
         xor a
         ld (wasmouseevent),a
@@ -44,6 +45,16 @@ getkey0
         ld hl,(term_prfsm_curstate)
         dec l
         jr nz,getkey0 ;пока не примем кнопку до конца
+        inc l ;nz
+;был mouse event? считаем за нажатие, а приложение будет смотреть координаты и кнопку мыши
+stdio_mousebuttons=$+1
+        ld l,0
+stdio_mousex=$+1
+stdio_mousey=$+2
+        ld de,0
+wasmouseevent=$
+        ret ;NC=no error, nz=event ;/nop
+        or a
         ret
 
 yieldgetkeyloop
@@ -55,21 +66,15 @@ yieldgetkeyloop
         ;ld a,(term_prfsm_curstate)
         ;dec a
         ;jr nz,yieldgetkeyloop
-		ld c,CMD_YIELD
-        call BDOS	;YIELD ;если в прошлый раз ничего не было, то YIELD, а не YIELDKEEP
+        ld c,CMD_YIELD
+        call BDOS	;YIELD
         call getkey
-;был mouse event? считаем за нажатие, а приложение будет смотреть координаты и кнопку мыши
-stdio_mousebuttons=$+1
-        ld l,0
-stdio_mousex=$+1
-stdio_mousey=$+2
-        ld de,0
-wasmouseevent=$
-        ret ;NC=no error
-        or a ;cp NOKEY ;keylang==0?
-        jr nz,$+3
-        cp c ;keynolang==0?
-        jr z,yieldgetkeyloop
+        ret c ;error
+        ;ret nz ;event
+        ;or a ;cp NOKEY ;keylang==0?
+        ;jr nz,$+3
+        ;cp c ;keynolang==0?
+        jr z,yieldgetkeyloop ;no event
          scf
          ccf ;no error
         ret
@@ -330,12 +335,14 @@ sendchar
         ld de,stdoutbuf
 sendchars
 ;send chars to stdout (in: de=buf, hl=size, out: A=error)
+        xor a
+        ld (sendchars_yieldkeepcount),a
 sendchars0
         push de
         push hl
 stdouthandle=$+1
         ld b,0
-		ld c,CMD_WRITEHANDLE
+        ld c,CMD_WRITEHANDLE
         call BDOS;OS_WRITEHANDLE ;1436t ;[2718t (1225 before BDOS_writehandle + 195 before BDOS_writehandle_pipe + 477 ..findpipe_byhandle + 301 pipe + 192 end BDOS_writehandle + 326 end BDOS)]
         ld b,h
         ld c,l ;bytes actually written
@@ -352,7 +359,15 @@ stdouthandle=$+1
 ;de=remaining data addr
         push de
         push hl
-		ld c,CMD_YIELDKEEP
+;чтобы избежать бесконечного YIELDKEEP с постоянным попаданием прерывания в керналь
+;ограничим число YIELDKEEP, а потом будет YIELD
+sendchars_yieldkeepcount=$+1
+        ld a,0
+        sub 8
+        ld (sendchars_yieldkeepcount),a
+        ld c,CMD_YIELDKEEP
+        jr nc,$+4
+        ld c,CMD_YIELD
         call BDOS ;YIELDKEEP ;2158t
         pop hl
         pop de
@@ -367,7 +382,7 @@ receivechars0
         push hl
         ld a,(stdinhandle)
         ld b,a
-		ld c,CMD_READHANDLE
+        ld c,CMD_READHANDLE
         call BDOS ;OS_READHANDLE ;hl=size actually received
         ld b,h
         ld c,l
@@ -405,7 +420,7 @@ receivechar_doreceive
         ld (stdindatapointer),de
 stdinhandle=$+1
         ld b,0
-		ld c,CMD_READHANDLE
+        ld c,CMD_READHANDLE
         call BDOS ;OS_READHANDLE ;hl=size actually received
         or a
         scf
@@ -424,7 +439,7 @@ receivekey
         ret c ;error
          or a
          ld c,a
-         ret z ;NC=no error ;заглючивает - появляются [M
+         ret z ;NC=no error
 ;a=char
 TERM_ST_SINGLE=1 ;1: wait for single symbol
 TERM_ST_AFTERESC=2 ;2: after 0x1b
@@ -446,8 +461,6 @@ term_prfsm_curstate=$+1
         jp term_prfsm_nokey
 term_prfsm_nosingle
         djnz term_prfsm_noafteresc
-         ;or a
-         ;jr z,term_prfsm_nokey ;не помогает избавиться от паразитного key_esc
         cp 'O'
         jr z,escO
         ;cp '['

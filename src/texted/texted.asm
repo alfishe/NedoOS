@@ -183,4 +183,4 @@ cmd_end
 
 	savebin "texted.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "../us/user.l"
+	LABELSLIST "../../us/user.l"

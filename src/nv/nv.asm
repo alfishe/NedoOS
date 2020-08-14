@@ -840,6 +840,12 @@ editcmd_backspace
         dec a
         ld (curcmdx),a
         jp strdelch
+editcmd_del
+        call cmdcalctextaddr ;hl=addr, a=curcmdx
+        or a
+        ret z ;нечего удалять вправо
+        inc hl
+        jp strdelch
         
 editcmddirback
 	call setpaneldir

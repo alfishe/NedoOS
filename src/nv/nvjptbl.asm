@@ -3,6 +3,7 @@ tnvcmds
         db key_redraw
         db key_enter
         db key_backspace
+        db key_del
         db key_left
         db key_right
         db key_down
@@ -62,6 +63,7 @@ nnvcmds=$-tnvcmds
         dw editcmd_down
         dw editcmd_right
         dw editcmd_left
+        dw editcmd_del
         dw editcmd_backspace
         dw editcmd_enter
         dw editcmd_reprintall_keepcursor
