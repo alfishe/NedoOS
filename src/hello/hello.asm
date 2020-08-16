@@ -39,7 +39,7 @@ strlen
 
 thello
         ;db "Hello, world!",0x0d,0x0a,0
-        db "Select drive:\r\n[0] Nemo master\r\n[1] Nemo slave\r\n[2] ATM master(not tested!)\r\n[3] ATM slave(not tested!)",0
+        db "Sele",0x1b,'[','1','D',"ct drive:\r\n[0] Nemo master\r\n[1] Nemo slave\r\n[2] ATM master(not tested!)\r\n[3] ATM slave(not tested!)",0
         
         include "../_sdk/stdio.asm"
 end
