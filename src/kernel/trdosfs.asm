@@ -89,7 +89,7 @@ trdos_fread_b
         
 trdos_fwrite
         ld bc,128 ;bc=size
-trdos_fwrite_nbytes
+;trdos_fwrite_nbytes
         ld hl,FCB_FFSFCB
         add hl,de
         ld a,(hl)

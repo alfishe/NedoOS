@@ -116,8 +116,8 @@ incfilesize
         ld bc,1
         add hl,bc
         adc a,b;0
-        ld (fcb+FCB_FSIZE),hl
-        ld (fcb+FCB_FSIZE+2),a
+        ld (filesize),hl
+        ld (filesizeHSW),a
         ret
 
 ;unreserves page
@@ -128,8 +128,8 @@ decfilesize
         ld bc,1
         sbc hl,bc
         sbc a,b;0
-        ld (fcb+FCB_FSIZE),hl
-        ld (fcb+FCB_FSIZE+2),a
+        ld (filesize),hl
+        ld (filesizeHSW),a
 
         ld a,h
         and 0x3f

@@ -1359,8 +1359,20 @@ loadandrun
 ;out: nz=error, e=id
 ;load file in fcb from system current dir with parameters in tcmd, then set curpaneldir and run
         ld (loadandrun_restcmd),hl
-        call nv_openfcb ;autopush nv_closefcb
+        ;call nv_openfcb ;autopush nv_closefcb
+        ;ret nz ;error
+	ld hl,fcb_filename
+        ld de,filenametext
+        push de
+	call cpmname_to_dotname
+        pop de
+        OS_OPENHANDLE
+	or a
         ret nz ;error
+        ld a,b
+        ld (curhandle),a
+        ld hl,nv_closehandle
+        push hl
         ;set current drive and dir (will be copied into new app)
 	call setcurpaneldir
         
@@ -1718,8 +1730,8 @@ proc_del_file_batch
 	ld de,dir_buf
 	OS_CHDIR
 
-        ld de,filenametext ;needed for batch
 	ld hl,fcb_filename
+        ld de,filenametext ;needed for batch
 	call cpmname_to_dotname
 
 	ld de,windel2_file ;dest
@@ -2565,7 +2577,7 @@ HS_strpg
         include "nvhexed.asm"
 
         include "prdword.asm"
-        include "../_sdk/loadpage.asm"
+        ;include "../_sdk/loadpage.asm"
         include "cmdpr.asm"
         include "../_sdk/stdio.asm"
         

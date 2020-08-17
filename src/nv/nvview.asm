@@ -1,4 +1,3 @@
-
 NVVIEW_XYTOP=0x0000
 NVVIEW_HGT=24
 NVVIEW_WID=80
@@ -25,8 +24,22 @@ editcmd_3
         push hl
         
 	call setcurpaneldir
-        call nv_openfcb ;autopush nv_closefcb
+
+        ;call nv_openfcb ;autopush nv_closefcb
+        ;ret nz ;error
+	ld hl,fcb_filename
+        ld de,filenametext
+        ;display $
+        push de
+	call cpmname_to_dotname
+        pop de
+        OS_OPENHANDLE
+	or a
         ret nz ;error
+        ld a,b
+        ld (curhandle),a
+        ;ld hl,nv_closehandle
+        ;push hl
 
         ld hl,0
         ld de,0
@@ -39,18 +52,20 @@ nvview_load0
         ret nz ;no memory
         ld a,0xc000/256
         call cmd_loadpage
-        push af
+        jr nz,nvview_load0q
         ex de,hl
         add hl,bc
         ex de,hl
         jr nc,$+3
         inc hl
-        pop af
-        or a
-        jr z,nvview_load0
+        ld a,b
+        or c
+        jr nz,nvview_load0
+nvview_load0q
 ;hlde=true file size (for TRDOSFS)
-        ld (fcb+FCB_FSIZE),de
-        ld (fcb+FCB_FSIZE+2),hl
+        ld (filesize),de
+        ld (filesizeHSW),hl
+        call nv_closehandle
 
         xor a
         ld h,a
@@ -199,8 +214,8 @@ nvview_home
         jp nvview_prpage
         
 nvview_end
-        ld hl,(fcb+FCB_FSIZE)
-        ld a,(fcb+FCB_FSIZE+2)
+        ld hl,(filesize)
+        ld a,(filesizeHSW)
         ld b,NVVIEW_HGT
 nvview_end0
         push bc 
@@ -421,17 +436,20 @@ nvview_ncurline=$+1
         call prdword
         ld a,' '
         PRCHAR_
-        ld hl,(fcb+FCB_FSIZE+2)
+        ld hl,(filesizeHSW)
         exx
-        ld hl,(fcb+FCB_FSIZE)
+        ld hl,(filesize)
         call prdword
-        ld b,43
-nvview_panel0
-        ld a,' '
-        push bc
-        PRCHAR_
-        pop bc
-        djnz nvview_panel0
+;        ld b,43
+;nvview_panel0
+;        ld a,' '
+;        push bc
+;        PRCHAR_
+;        pop bc
+;        djnz nvview_panel0
+        ld de,tspaces
+        ld hl,43
+        call sendchars
         ;ld e,NVVIEW_PANELCOLOR;#38
         ;OS_PRATTR
         ld de,_COLOR;#38
@@ -457,8 +475,8 @@ iseof
         push bc
         push de
         push hl
-        ld de,(fcb+FCB_FSIZE)
-        ld bc,(fcb+FCB_FSIZE+2)
+        ld de,(filesize)
+        ld bc,(filesizeHSW)
         ld b,a
         or a
         sbc hl,de
@@ -603,9 +621,9 @@ getmaxlinesize
         push af
         push hl
         ex de,hl
-        ld hl,(fcb+FCB_FSIZE)
+        ld hl,(filesize)
         ld c,a
-        ld a,(fcb+FCB_FSIZE+2)
+        ld a,(filesizeHSW)
         or a
         sbc hl,de
         sbc a,c
@@ -858,10 +876,10 @@ popafZret
         cp a ;Z
         ret
         
-nvview_closefcb
-        ld de,fcb
-        OS_FCLOSE
-        ret
+;nvview_closefcb
+;        ld de,fcb
+;        OS_FCLOSE
+;        ret
 
 iswrapon
 ;CY = on
@@ -936,7 +954,12 @@ setpg32k
         SETPG32KHIGH
         pop hl
         ret
-        
+
+filesize
+        dw 0
+filesizeHSW
+        dw 0
+
 nlines
         dw 0
         

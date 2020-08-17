@@ -144,28 +144,21 @@ nvhexed_symbol_rightq
         call nv_setxy
         call nvview_hexeditor_prline
         ret
-;--------
-        ;ld a,(fcb+FCB_FSIZE)
-        ;dec a   ;a=????xxxx  l=XXXXzzzz
-        ;;xor l   ;a=????xzxz  l=XXXXzzzz
-        ;and #0f ;a=0000xzxz  l=XXXXzzzz
-        ;;xor l   ;a=XXXXxxxx  l=XXXXzzzz
-        ;;ld l,a
-        ;ld e,a
-        
-;--------
-        
         
 nvview_hexeditor_save
-        ;call getfcbundercursor ;->fcb
-        ld hl,fcb_filename
-        ld de,fcb2_filename
-        call copy_to_defcb_filename
-	;call setcurpaneldir
-        call nv_createfcb2 ;autopush nv_closefcb2
+        ;ld hl,fcb_filename
+        ;ld de,fcb2_filename
+        ;call copy_to_defcb_filename
+        ;call nv_createfcb2 ;autopush nv_closefcb2
+        ;ret nz ;error
+        ld de,filenametext
+        OS_CREATEHANDLE
+	or a
         ret nz ;error
-        ld de,(fcb+FCB_FSIZE)
-        ld hl,(fcb+FCB_FSIZE+2)
+        ld a,b
+        ld (curhandle),a
+        ld de,(filesize)
+        ld hl,(filesizeHSW)
         ld a,0 ;page number
 nvview_hexeditor_save0
 ;a=page number in table (0..)
@@ -175,7 +168,7 @@ nvview_hexeditor_save0
         push hl
         call setpg32k
         ld a,d
-        and #c0
+        and 0xc0
         or h
         or l
         jr z,$+5 ;de=size
@@ -201,6 +194,7 @@ nvview_hexeditor_save0
         inc a
         jr nvview_hexeditor_save0
 nvview_hexeditor_save_popq
+        call nv_closehandle
         pop af
         ret
         
@@ -635,7 +629,7 @@ nvhex_calcnextcorrectxy
         pop hl
         ret c
         push af
-        ld a,(fcb+FCB_FSIZE)
+        ld a,(filesize)
         dec a   ;a=????xxxx  l=XXXXzzzz
         ;xor l   ;a=????xzxz  l=XXXXzzzz
         and 0x0f ;a=0000xzxz  l=XXXXzzzz

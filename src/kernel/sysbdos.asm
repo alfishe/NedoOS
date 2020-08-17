@@ -791,7 +791,7 @@ tbdoscmds
         db CMD_MKDIR
         db CMD_RENAME
         db CMD_SETSYSDRV
-        db CMD_FWRITE_NBYTES
+        ;db CMD_FWRITE_NBYTES
         db CMD_SCROLLUP
         db CMD_SCROLLDOWN
         db CMD_OPENHANDLE
@@ -849,7 +849,7 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_openhandle
         dw BDOS_scrolldown
         dw BDOS_scrollup
-        dw BDOS_fwrite_nbytes
+        ;dw BDOS_fwrite_nbytes
         dw BDOS_setsysdrv
         dw BDOS_rename
         dw BDOS_mkdir
@@ -1464,6 +1464,7 @@ BDOS_fwrite_noFATFS
 ;DE = Pointer to opened FCB
         jp trdos_fwrite
 
+        if 1==0
 BDOS_fwrite_nbytes
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
@@ -1498,7 +1499,7 @@ BDOS_fwrite_nbytes_noFATFS
         ld b,h
         ld c,l
         jp trdos_fwrite_nbytes
-
+        endif
         
 count_fdir
         push iy

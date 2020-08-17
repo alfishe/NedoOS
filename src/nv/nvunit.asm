@@ -450,7 +450,8 @@ changedir_fromfcb
 	pop de
         OS_CHDIR
         ret
-      
+
+        if 1==0
 readfile_pages_dehl
         ld a,d
         SETPG32KHIGH
@@ -477,16 +478,57 @@ readfile_pages_dehl
         SETPG32KHIGH
         ld a,0xc000/256
         jp cmd_loadpage
+        endif
+
+readfile_pages_dehl
+        ld a,d
+        SETPG32KHIGH
+        ld a,0xc100/256
+        call cmd_loadpage
+        ret nz
+        ld a,e
+        call cmd_loadfullpage
+        ret nz
+        ld a,h
+        call cmd_loadfullpage
+        ret nz
+        ld a,l
+cmd_loadfullpage
+        SETPG32KHIGH
+        ld a,0xc000/256
+cmd_loadpage
+;out: a=error, bc=bytes read
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        or a
+        ret
 
 cmd_savepage
 ;hl=size
 ;out: a=error
-        push hl
+        ;push hl
         ld de,0x8000
-        OS_SETDTA
-        pop hl
-        ld de,fcb2
-        OS_FWRITE_NBYTES
+        ;OS_SETDTA
+        ;pop hl
+        ;ld de,fcb2
+        ;OS_FWRITE_NBYTES
+        ld a,(curhandle)
+        ld b,a
+        OS_WRITEHANDLE
         ret
 
 setdrawtablesneeded
@@ -773,12 +815,12 @@ nv_createfcb2
         jp (hl)
 
 nv_closefcb2
-;keep de!!!
+;keep de and flags!!!
         push de
         ld de,fcb2
         jr nv_closefcb_de_
 nv_closefcb
-;keep de!!!
+;keep de and flags!!!
         push de
         ld de,fcb
 nv_closefcb_de_
@@ -797,6 +839,17 @@ copy_to_fcb_filename
 copy_to_defcb_filename
         ld bc,11
         ldir
+        ret
+
+nv_closehandle
+;keep de and flags!!!
+        push af
+        push de
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        pop de
+        pop af
         ret
 
 winbeginstroka

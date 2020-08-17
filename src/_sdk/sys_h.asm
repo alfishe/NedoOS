@@ -220,7 +220,7 @@ _1=$
         macro OS_NETSOCKET ;D=address family (2=inet, 23=inet6), E=socket type (0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip) ;out: L=SOCKET (if L < 0 then A=error)
 	ld l,0x01
         ld c,CMD_WIZNETOPEN
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_NETSHUTDOWN;A=SOCKET ; out: if HL < 0 then A=error
 	ld l,0x02
@@ -261,139 +261,135 @@ _1=$
         endm
         macro OS_DROPAPP ;e=id
         ld c,CMD_DROPAPP
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_GETAPPMAINPAGES ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id, a=error
         ld c,CMD_GETAPPMAINPAGES
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_GETXY ;out: de=yx ;GET CURSOR POSITION
         ld c,CMD_GETXY
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_GETTIME ;out: ix=date, hl=time
         ld c,CMD_GETTIME
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_GETFILETIME ;de=Drive/path/file ASCIIZ string, out: ix=date, hl=time
         ld c,CMD_GETFILETIME
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_SETFILETIME ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
         ld c,CMD_SETFILETIME
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_TELLHANDLE ;b=file handle, out: dehl=offset ;GET POSITION IN FILE
         ld c,CMD_TELLHANDLE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_SCROLLUP ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
         ld c,CMD_SCROLLUP
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_SCROLLDOWN ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
         ld c,CMD_SCROLLDOWN
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
-        macro OS_FWRITE_NBYTES ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
-        ld c,CMD_FWRITE_NBYTES
-        CALLBDOS
-        endm
+        ;macro OS_FWRITE_NBYTES ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
+        ;ld c,CMD_FWRITE_NBYTES
+        ;CALLBDOS_NOPARAM_A
+        ;endm
         macro OS_SETMAINPAGE ;e=page for 0x0000
         ld c,CMD_SETMAINPAGE
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_SETSYSDRV ;out: a!=0 => not mounted, l=number of drives
         ld c,CMD_SETSYSDRV
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_MKDIR ;DE = Pointer to ASCIIZ string, out: a
         ld c,CMD_MKDIR
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_WAITPID ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
         ld c,CMD_WAITPID
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_FREEZEAPP ;e=id ;disable app and make non-graphic ;сейчас делает то же, что OS_SETWAITING делает себе
         ld c,CMD_FREEZEAPP
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_GETATTR ;out: a ;READ ATTR AT CURSOR POSITION
         ld c,CMD_GETATTR
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_MOUNT ;e=drive, out: a
         ld c,CMD_MOUNT
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_GETKEYMATRIX ;out: bcdehlix = halfrows cs...space
         ld c,CMD_GETKEYMATRIX
-        CALLBDOS
+        CALLBDOS_NOPARAM_A
         endm
         macro OS_GETTIMER ;out: hlde=timer
         ld c,CMD_GETTIMER
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_YIELD ;schedule to another app (use YIELD macro instead of HALT!!!)
         ld c,CMD_YIELD
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_RUNAPP ;e=id ;ACTIVATE DISABLED APP
         ld c,CMD_RUNAPP
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_NEWAPP ;out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
         ld c,CMD_NEWAPP
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_PRATTR ;e=color byte ;DRAW ATTR AT CURSOR POSITION
         ld c,CMD_PRATTR
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_CLS ;e=color byte
         ld c,CMD_CLS
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETCOLOR ;e=color byte
         ld c,CMD_SETCOLOR
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETXY ;de=yx ;SET CURSOR POSITION
         ld c,CMD_SETXY
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ld c,CMD_SETGFX
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETPAL ;de=palette (32 bytes)
         ld c,CMD_SETPAL
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld c,CMD_GETMAINPAGES
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_NEWPAGE ;out: a=0 (OK)/!=0 (fail), e=page
         ld c,CMD_NEWPAGE
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_DELPAGE ;e=page ;GIVE SOME PAGE BACK TO THE OS
         ld c,CMD_DELPAGE
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
         macro OS_SETSCREEN ;e=screen=0..1
         ld c,CMD_SETSCREEN
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
-        ;macro OS_GETSCREENPAGES ;DEPRECATED!!!! out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
-        ;ld c,CMD_GETSCREENPAGES
-	;CALLBDOS
-        ;endm
         macro OS_YIELDKEEP ;schedule to another app, can return in this frame
         ld c,CMD_YIELDKEEP
-	CALLBDOS
+	CALLBDOS_NOPARAM_A
         endm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

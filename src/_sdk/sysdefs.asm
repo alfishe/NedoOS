@@ -42,7 +42,7 @@ CMD_READHANDLE=0x48 ;B = file handle, DE = Buffer address, HL = Number of bytes 
 CMD_WRITEHANDLE=0x49 ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error(=0)
 CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
 CMD_CHDIR=0x5a ;DE = Pointer to ASCIIZ string. Out A=error
-CMD_PARSEFNAME=0x5c ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
+CMD_PARSEFNAME=0x5c ;NOT RECOMMENDED ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
 CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
@@ -55,7 +55,7 @@ CMD_SETMUSIC=0xd5 ;hl=muzaddr (0x4000..0x7fff), a=muzpg
 CMD_READSECTORS=0xd6 ;b=drive, de=buffer, ixhl=sector number, a=count
 CMD_WRITESECTORS=0xd7 ;b=drive, de=buffer, ixhl=sector number, a=count
 CMD_SETBORDER=0xd8 ;e=0..15
-CMD_SETWAITING=0xd9 ;set WAITING state for current task
+CMD_SETWAITING=0xd9 ;don't use directly! ;set WAITING state for current task
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size
 CMD_WIZNETOPEN=0xdb ;A=SOCKET, L=subfunction (see sys_h.asm)
 CMD_WIZNETCLOSE=0xdc ;A=SOCKET, E=(0 - закрыть сразу, 1 - закрыть только если буфер приёма пуст)
@@ -67,27 +67,27 @@ CMD_WIZNETWRITE=0xde 	;if TCP: A=SOCKET, de=buffer_ptr, HL=sizeof(buffer)
 						;out: HL=count if HL < 0 then A=error
 CMD_DROPAPP=0xdf ;e=id
 CMD_GETAPPMAINPAGES=0xe0 ;e=id ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
-CMD_GETXY=0xe1 ;out: de=yx ;GET CURSOR POSITION
+CMD_GETXY=0xe1 ;OBSOLETE ;out: de=yx ;GET CURSOR POSITION
 CMD_GETTIME=0xe2 ;out: ix=date, hl=time
 CMD_GETFILETIME=0xe3 ;de=Drive/path/file ASCIIZ string, out: ix=date, hl=time
 CMD_SETFILETIME=0xe4 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
 CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset ;GET POSITION IN FILE
-CMD_SCROLLUP=0xe6 ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
-CMD_SCROLLDOWN=0xe7 ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
-CMD_FWRITE_NBYTES=0xe8 ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
+CMD_SCROLLUP=0xe6 ;OBSOLETE ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
+CMD_SCROLLDOWN=0xe7 ;OBSOLETE ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
+;CMD_FWRITE_NBYTES=0xe8 ;OBSOLETE ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
 CMD_SETMAINPAGE=0xe9 ;e=page for 0x0000
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
 CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
 CMD_FREEZEAPP=0xed ;e=id ;disable app and make non-graphic
-CMD_GETATTR=0xee ;out: a ;READ ATTR AT CURSOR POSITION
+CMD_GETATTR=0xee ;OBSOLETE ;out: a ;READ ATTR AT CURSOR POSITION
 CMD_MOUNT=0xef ;e=drive, out: a
 CMD_GETKEYMATRIX=0xf0 ;out: bcdehlix = halfrows cs...space
 CMD_GETTIMER=0xf1 ;out: hlde=timer
 CMD_YIELD=0xf2 ;schedule to another app (use YIELD macro instead of HALT!!!)
 CMD_RUNAPP=0xf3 ;e=id ;ACTIVATE DISABLED APP
 CMD_NEWAPP=0xf4 ;out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
-CMD_PRATTR=0xf5 ;e=color byte ;DRAW ATTR AT CURSOR POSITION
+CMD_PRATTR=0xf5 ;OBSOLETE ;e=color byte ;DRAW ATTR AT CURSOR POSITION
 CMD_CLS=0xf6 ;e=color byte
 CMD_SETCOLOR=0xf7 ;e=color byte
 CMD_SETXY=0xf8 ;de=yx ;SET CURSOR POSITION
@@ -97,8 +97,6 @@ CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
 CMD_NEWPAGE=0xfc ;out: a=0 (OK)/!=0 (fail), e=page
 CMD_DELPAGE=0xfd ;e=page ;GIVE SOME PAGE BACK TO THE OS
 CMD_SETSCREEN=0xfe ;e=screen=0..1
-;TODO ещё установку текущего обрабатываемого экрана? и "начал рисовать", "закончил рисовать"
-;CMD_GETSCREENPAGES=0xff ;out: de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
 CMD_YIELDKEEP=0xff
 
 ;        STRUCT FCB

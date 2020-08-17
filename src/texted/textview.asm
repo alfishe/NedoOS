@@ -573,8 +573,8 @@ texted_gotobof
         jp setredrawflag;texted_prcurpage
 
 getsize
-        ld hl,(fcb+FCB_FSIZE)
-        ld a,(fcb+FCB_FSIZE+2)
+        ld hl,(filesize)
+        ld a,(filesizeHSW)
         ret
         
 texted_gotoeof
@@ -854,7 +854,7 @@ texted_changeencoding
         ;call texted_prcurpage
         ;ret
 texted_panel
-        ld a,55+#80 ;or a
+        ld a,55+0x80 ;or a
         ld (texted_panelredrawflag),a
         ld de,0x1800
 	call nv_setxy
@@ -893,8 +893,8 @@ texted_ncurline=$+1
         exx
         ;ld hl,(fcb+FCB_FSIZE)
         call prdword
-        ld hl,43
         ld de,tspaces
+        ld hl,43
         call sendchars
 ;        ld b,43
 ;texted_panel0
@@ -1334,10 +1334,10 @@ istherecr_or_lf_popafZret
         cp a ;Z
         ret
         
-texted_closefcb
-        ld de,fcb
-        OS_FCLOSE
-        ret
+;texted_closefcb
+;        ld de,fcb
+;        OS_FCLOSE
+;        ret
 
 iswrapon
 ;CY = on

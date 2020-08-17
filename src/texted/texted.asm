@@ -72,8 +72,8 @@ nvview_load0
         ;or a
         jr z,nvview_load0
 ;hlde=true file size (for TRDOSFS)
-        ld (fcb+FCB_FSIZE),de
-        ld (fcb+FCB_FSIZE+2),hl
+        ld (filesize),de
+        ld (filesizeHSW),hl
         
         OS_CLOSEHANDLE
         
@@ -170,12 +170,17 @@ minhl_bc_tobc
         include "text_mem.asm"
         include "../_sdk/stdio.asm"
 
+filesize
+        dw 0
+filesizeHSW
+        dw 0
+
 ;oldtimer
 ;        dw 0
         
-fcb
-        ds FCB_sz
-fcb_filename=fcb+FCB_FNAME        ;по умолчанию там длина 0
+;fcb
+;        ds FCB_sz
+;fcb_filename=fcb+FCB_FNAME        ;по умолчанию там длина 0
         
 cmd_end
 
