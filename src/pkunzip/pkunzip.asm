@@ -20,9 +20,9 @@ buf64k=0;0 for nopages
         org PROGSTART
 cmd_begin
         ld sp,STACK
-        
-        ld e,6 ;textmode
-        OS_SETGFX
+        call initstdio
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         
         ;OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -80,15 +80,15 @@ getpgs0
         OS_SEEKHANDLE
        
        LD IY,DISKBUF+DISKBUFsz-1
-       
+
 loop0
         ziprdbyte
         push iy
-        PRCHAR
+        PRCHAR_
         pop iy
         jp loop0
         endif
-       
+
 depack_gz_q
         call closestream_file
 openerror
@@ -463,7 +463,7 @@ prtext
         ret z
         push hl
         push iy
-        PRCHAR
+        PRCHAR_
         pop iy
         pop hl
         inc hl
@@ -475,6 +475,7 @@ tcrlf
         db 13,10,0
 
         include "../_sdk/file.asm"
+        include "../_sdk/stdio.asm"
         include "zipfile.asm"
         include "depk.asm"
         

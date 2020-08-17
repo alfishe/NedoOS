@@ -31,9 +31,9 @@ TREES_SZ=rd+(28*4)-TREES
         org PROGSTART
 cmd_begin
         ld sp,STACK
-        
-        ld e,6 ;textmode
-        OS_SETGFX
+        call initstdio
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         
         ;OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -476,7 +476,7 @@ prtext
         ret z
         push hl
         push iy
-        PRCHAR
+        PRCHAR_
         pop iy
         pop hl
         inc hl
@@ -488,6 +488,7 @@ tcrlf
         db 13,10,0
 
         include "../_sdk/file.asm"
+        include "../_sdk/stdio.asm"
         include "rarfile.asm"
         include "rardepk.asm"
         

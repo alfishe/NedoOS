@@ -295,10 +295,6 @@ _1=$
         ld c,CMD_SCROLLDOWN
         CALLBDOS_NOPARAM_A
         endm
-        ;macro OS_FWRITE_NBYTES ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
-        ;ld c,CMD_FWRITE_NBYTES
-        ;CALLBDOS_NOPARAM_A
-        ;endm
         macro OS_SETMAINPAGE ;e=page for 0x0000
         ld c,CMD_SETMAINPAGE
         CALLBDOS_NOPARAM_A
@@ -319,7 +315,7 @@ _1=$
         ld c,CMD_FREEZEAPP
         CALLBDOS_NOPARAM_A
         endm
-        macro OS_GETATTR ;out: a ;READ ATTR AT CURSOR POSITION
+        macro OS_GETATTR ;DEPRECATED!!! ;out: a ;READ ATTR AT CURSOR POSITION
         ld c,CMD_GETATTR
         CALLBDOS_NOPARAM_A
         endm

@@ -74,13 +74,13 @@ CMD_SETFILETIME=0xe4 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
 CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset ;GET POSITION IN FILE
 CMD_SCROLLUP=0xe6 ;OBSOLETE ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
 CMD_SCROLLDOWN=0xe7 ;OBSOLETE ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
-;CMD_FWRITE_NBYTES=0xe8 ;OBSOLETE ;hl=bytes, de=FCB ;don't use! ;TODO выбросить
+;0xe8 not used
 CMD_SETMAINPAGE=0xe9 ;e=page for 0x0000
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
 CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
 CMD_FREEZEAPP=0xed ;e=id ;disable app and make non-graphic
-CMD_GETATTR=0xee ;OBSOLETE ;out: a ;READ ATTR AT CURSOR POSITION
+CMD_GETATTR=0xee ;DEPRECATED!!! ;out: a ;READ ATTR AT CURSOR POSITION
 CMD_MOUNT=0xef ;e=drive, out: a
 CMD_GETKEYMATRIX=0xf0 ;out: bcdehlix = halfrows cs...space
 CMD_GETTIMER=0xf1 ;out: hlde=timer

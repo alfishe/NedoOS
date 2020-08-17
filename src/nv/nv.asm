@@ -10,6 +10,8 @@ txtscrhgt=25
 txtscrwid=80
 CMDLINEY=23;24
 
+PANELDIRCHARS37=37
+
 ;0 1 2 3 4 5 6 7 8 9 a b c d e f
 
 _COLOR=0x0007;0x07
@@ -303,8 +305,20 @@ drawpanel_dir0
 	call nv_setcolor
 	ld de,PANEL.dir
 	add hl,de
+        push hl
         ld c,0
-        jp panelprtext
+        call panelprtext
+	call setpanelcolor
+        pop hl
+        call strlen ;hl=len
+        ex de,hl
+        ld hl,PANELDIRCHARS37
+        or a
+        sbc hl,de
+        ret c
+        ret z
+        ld de,tdoublehoriz
+        jp sendchars
 	
 drawpanel_with_files
 ;ix=panel

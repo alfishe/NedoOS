@@ -23,9 +23,9 @@ namln=MAXPATH_sz;100 ;#FA
         org PROGSTART
 cmd_begin
         ld sp,STACK
-        
-        ld e,6 ;textmode
-        OS_SETGFX
+        call initstdio
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         
         ;OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -703,7 +703,7 @@ prtext
         ret z
         push hl
         push iy
-        PRCHAR
+        PRCHAR_
         pop iy
         pop hl
         inc hl
@@ -724,7 +724,7 @@ prchar
 	push ix
 	push iy
 	ex af,af'
-	PRCHAR
+	PRCHAR_
 	pop iy
 	pop ix
 	pop hl
@@ -767,13 +767,14 @@ tcrlf
         db 13,10,0
 
         include "../_sdk/file.asm"
+        include "../_sdk/stdio.asm"
         include "zxrfile.asm"
         include "rarpack.asm"
         include "rarlz.asm"
         include "rarhuff.asm"
-        
+
 defaultfilename
-        db "4:/emit.c",0
+        db "m:/emit.c",0
         ;db "4:/nv.ext",0
 
 CURFILE DS namln

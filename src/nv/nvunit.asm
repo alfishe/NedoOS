@@ -435,7 +435,7 @@ panelprtext0
         inc c
         inc hl
         ld a,c
-        cp 37
+        cp PANELDIRCHARS37
         jp nz,panelprtext0
 panelprtextq
         pop ix
@@ -851,6 +851,9 @@ nv_closehandle
         pop de
         pop af
         ret
+
+tdoublehoriz
+        ds PANELDIRCHARS37,0xcd
 
 winbeginstroka
 	db 0xc9;'£'
