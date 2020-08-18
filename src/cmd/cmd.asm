@@ -24,6 +24,8 @@ cmd_begin
         OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
         ld a,d
         ld (stdouthandle_wasatstart),a
+        ld a,e
+        ld (stdinhandle_wasatstart),a
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -96,28 +98,39 @@ execcmd_maybepipes
         jr z,execcmd_pipe
 
         ld hl,cmdbuf
+        ld a,'<'
+        ld bc,MAXCMDSZ
+        cpir
+        jr z,execcmd_changestdin ;jr nz,cmd_noexeccmdtofile
+
+        ld hl,cmdbuf
         ld a,'>'
         ld bc,MAXCMDSZ
         cpir
         jp nz,execcmd ;jr nz,cmd_noexeccmdtofile
+;change stdout
         dec hl
         ld (hl),0
         inc hl
+         call skipspaces
         ex de,hl ;de=filename
         OS_CREATEHANDLE
         ld a,b
         ld (execcmdtofile_handle),a
         call setstdouthandle
-        
+;changestdin_stdout_execcmd
         call execcmd ;can show errors ;a!=0: no such internal command
         push af
 
 execcmdtofile_handle=$+1
         ld b,0
-        OS_CLOSEHANDLE
+        OS_CLOSEHANDLE ;а программа уже запущена!!! нормально ли?
 stdouthandle_wasatstart=$+1
         ld a,0
         call setstdouthandle
+;stdinhandle_wasatstart=$+1
+;        ld a,0
+;        call setstdinhandle
 
         pop af
         ret;jr cmd_noexeccmdtofileq
@@ -126,11 +139,40 @@ stdouthandle_wasatstart=$+1
 ;cmd_noexeccmdtofileq
 ;        ret
 
+execcmd_changestdin
+        dec hl
+        ld (hl),0
+        inc hl
+         call skipspaces
+        ex de,hl ;de=filename
+        OS_OPENHANDLE
+        ld a,b
+        ld (execcmdtofile_changestdin_handle),a
+        call setstdinhandle
+        ;jr changestdin_stdout_execcmd
+        call execcmd ;can show errors ;a!=0: no such internal command
+        push af
+        WAITPID
+
+execcmdtofile_changestdin_handle=$+1
+        ld b,0
+        OS_CLOSEHANDLE ;а программа уже запущена!!! нормально ли?
+;stdouthandle_wasatstart=$+1
+;        ld a,0
+;        call setstdouthandle
+stdinhandle_wasatstart=$+1
+        ld a,0
+        call setstdinhandle
+
+        pop af
+        ret;jr cmd_noexeccmdtofileq
+
 execcmd_pipe
 ;cmd |app
         dec hl
         ld (hl),0
         inc hl
+         call skipspaces
         ex de,hl ;de=app filename
 
         OS_OPENHANDLE

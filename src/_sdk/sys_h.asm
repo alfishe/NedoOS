@@ -1,54 +1,182 @@
         include "sysdefs.asm"
         
+;*********************** QUIT **********************
+;Закрывает текущий процесс, освобождая все используемые им страницы ОЗУ, 
+;дескрипторы сокетов и файлов (кроме пайпов и TR-DOS'ных файлов), а также обработчик музыки.
+;Переключает исполнение и фокус видеовывода на следующий активный процесс.
+;    Аргументы не используются.
+;    Возвращаемых значений нет.
+;    
+;Пример использования, а также минимальный исходный код программы:
+;        DEVICE ZXSPECTRUM128
+;        include "../_sdk/sys_h.asm"
+;        ORG PROGSTART
+;        ;исходный код программы
+;        QUIT
+;        savebin "progname.com",PROGSTART,$-PROGSTART
+        macro QUIT
+        rst 0 ;close app
+        endm
+
+;*********************** CALLBDOS, CALLBDOS_NOPARAM_A **********************
+;Внутренние макросы для вызова функций системы.
+;(CALLBDOS - для функций системы, имеющих параметр в регистре A)
+;(CALLBDOS_NOPARAM_A - для функций системы, не имеющих параметра в регистре A)
+;Напрямую использовать не рекомендуется, см. макросы для каждой отдельной функции системы.
+        macro CALLBDOS ;don't use directly CALLBDOS or call BDOS!!!
+        ex af,af'
+        call BDOS ;c=CMD
+        endm
+        macro CALLBDOS_NOPARAM_A ;don't use directly CALLBDOS or call BDOS!!!
+        call BDOS ;c=CMD
+        endm
+
+;*********************** GET_KEY **********************
+;Возвращает нажатую кнопку клавиатуры, кнопки мыши и координаты мыши.
+;Фактически чтение происходит только процессом с фокусом. При отсутствии фокуса возвращается 
+;код символа NOKEY и флаг Z установлен в 0 (т.е. верно условие NZ).
+;    Аргументов нет.
+;    Возвращаемые значения в регистрах:
+;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
+;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется дляи обработки "горячих кнопок"
+;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
+;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
+;        Флаг Z - если 0(NZ), то отсутствует фокус. 
+;
+;Пример ожидания символа:
+;        ORG PROGSTART
+;        LD E,6
+;        OS_SETGFX
+;        ...
+;WAIT_LOOP:
+;        YIELD    ;отдадим квант времени системе
+;        GET_KEY
+;        OR A
+;        JR Z,WAIT_LOOP
+;        CP key_esc
+;        JP Z,CLOSE_PROC
+;        ;получили код символа в A
+;        ...
+;CLOSE_PROC:
+;        QUIT
+;        
+;        Примечание: желательна обработка кода key_esc для завершения программы
+;и кода key_redraw для перерисовки экрана при получении фокуса.
+        macro GET_KEY
+        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
+        endm
+
+;*********************** PRCHAR **********************
+;Выводит символ на экран, используется только в текстовом видеорежиме.
+;При отсутствии фокуса вывод игнорируется.
+;    Все аргументы в регистрах:
+;        A - символ (символ '\r'=0x0d = возврат каретки, символ '\n'=0x0a = перевод строки)
+;    Возвращаемых значений нет.
+;    
+;Пример печати строки "Hello Work!":
+;        DEVICE ZXSPECTRUM128
+;        include "../_sdk/sys_h.asm"
+;        ORG PROGSTART
+;        LD E,6
+;        OS_SETGFX
+;        LD HL,STR_HELLO
+;PRINT_LOOP:
+;        LD A,(HL)
+;        OR A
+;        JR Z,PRINT_LOOP_END
+;        PUSH HL
+;        PRCHAR
+;        POP HL
+;        INC HL
+;        JR PRINT_LOOP
+;PRINT_LOOP_END:
+;        QUIT
+;STR_HELLO:
+;        DEFB "Hello Work!",0
+;        savebin "progname.com",PROGSTART,$-PROGSTART
+        macro PRCHAR
+        rst 0x10 ;a=char ;spoils all registers!
+        endm
+
+;*********************** SETPG16K **********************
+;Устанавливает страницу номер A в области адресов 0x4000..0x7fff.
+;Быстрая функция (не включает контекст ядра).
+;    Все аргументы в регистрах:
+;        A - номер страницы
+;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
+;
+;Примечание: не используйте номера страниц, не полученные из системы тем или иным образом
+;(вызовы OS_NEWPAGE, OS_GETMAINPAGE, OS_GETMAINPAGES, OS_GETAPPMAINPAGES
+;или чтение номеров страниц экрана из user_scr0_low, user_scr0_high, user_scr1_low, user_scr1_high),
+;потому что на моделях памяти ATM2 и ATM3 номера страниц различаются!
+;
+;Примечание 2: для смены страницы в области адресов 0x0000..0x3fff см. OS_SETMAINPAGE
+        macro SETPG16K
+        rst 0x18 ;set page "a" in 0x4000 ;spoils BC
+        endm
+        
+;*********************** SETPG32KLOW **********************
+;Устанавливает страницу номер A в области адресов 0x8000..0xbfff.
+;Быстрая функция (не включает контекст ядра).
+;    Все аргументы в регистрах:
+;        A - номер страницы
+;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
+;
+;См. примечания к SETPG16K!
+        macro SETPG32KLOW
+        rst 0x20 ;set page "a" in 0x8000 ;spoils BC
+        endm
+        
+;*********************** SETPG32KHIGH **********************
+;Устанавливает страницу номер A в области адресов 0xc000..0xffff.
+;Быстрая функция (не включает контекст ядра).
+;    Все аргументы в регистрах:
+;        A - номер страницы
+;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
+;
+;См. примечания к SETPG16K!
+        macro SETPG32KHIGH
+        rst 0x28 ;set page "a" in 0xc000 ;spoils BC
+        endm
+
+;*********************** YIELD **********************
+;Отдаёт квант времени системе.
+;В текущем кванте 50 Гц этой задаче не будет возвращено управление.
+;    Аргументы не используются.
+;    Возвращаемых значений нет.
+;    
+;Пример использования смотрите в описании GET_KEY    
+;    
+;Примечание: обычно используется при ожидании какого-либо события, не критичного по времени отклика.
+;Использование этого вызова ускоряет общую работу системы.
         macro YIELD ;use instead of HALT
         OS_YIELD
         endm
         
+;*********************** YIELDKEEP **********************
+;Отдаёт квант времени системе.
+;В текущем кванте 50 Гц этой задаче будет возвращено управление, если останется время.
+;    Аргументы не используются.
+;    Возвращаемых значений нет.
+;    
+;Пример использования смотрите в описании GET_KEY    
+;    
+;Примечание: обычно используется при ожидании данных из очереди.
+;В остальных случаях замедляет общую работу системы.
+;Следите, чтобы при двукратном (подряд) отсутствии данных вызывался уже YIELD.
         macro YIELDKEEP ;if you want reentry in this frame
         OS_YIELDKEEP
         endm
 
-        macro SETXY_ ;set cursor position (in: de=YX, top left is 0;0)
-        ;OS_SETXY
-        call setxy
-        endm
-
-        macro SETX_ ;set cursor X position (in: e=X, left is 0)
-        call setx
-        endm
-
-        macro CLS_ ;clear visible area of terminal
-        ;ld e,0
-        ;OS_CLS
-        call clearterm
-        endm
-
-        macro PRCHAR_ ;send char to stdout (in: A=char)
-        ;PRCHAR
-        call sendchar
-        endm
-
-        macro GETCHAR_ ;read char from stdin (out: A=char, CY=error)
-        ;GET_KEY
-        call receivechar
-        endm
-
-        macro GETKEY_ ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
-        ;GET_KEY
-        call receivekey
-        endm
-
-        macro SETCOLOR_ ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
-        ;ld a,d
-        ;add a,a
-        ;add a,a
-        ;add a,a
-        ;or e
-        ;ld e,a
-        ;OS_SETCOLOR
-        call setcolor
-        endm
-
+;*********************** YIELDGETKEY **********************
+;Отдаёт квант времени системе и опрашивает клавиатуру (не рекомендуется использовать для опроса мыши).
+;    Аргументы не используются.
+;    Возвращаемые значения в регистрах:
+;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
+;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется дляи обработки "горячих кнопок"
+;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
+;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
+;        Флаг Z - если 1(Z), то клавиша не нажата
         macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
         GET_KEY
@@ -56,35 +184,87 @@
         jr nz,$+3
         cp c ;keynolang==0?
         endm
+
+;*********************** YIELDGETKEYLOOP **********************
+;Циклически опрашивает клавиатуру (не рекомендуется использовать для опроса мыши).
+;    Аргументы не используются.
+;    Возвращаемые значения в регистрах:
+;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
+;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется дляи обработки "горячих кнопок"
+;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
+;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
         macro YIELDGETKEYLOOP
 _1=$
         YIELDGETKEY
         jr z,_1
         endm
 
-        if 1==1
+;*********************** WAITPID **********************
+;Ожидание завершения дочернего процесса.
+;    Аргументы не используются.
+;    Возвращаемых значений нет.
+;Как это работает:
+;OS_SETWAITING замораживает текущий процесс, а YIELD передаёт время системе.
+;Текущий процесс получит управление только тогда, когда завершится дочерний процесс
+;(он автоматически размораживает родителя).
         macro WAITPID
         OS_SETWAITING
         YIELD
         endm
-        else
-        macro WAITPID ;wait task E to close
-        push de
-        OS_SETWAITING
-        pop de
-_1=$
-        push de
-        YIELD
-        pop de
-        push de
-        OS_WAITPID
-        pop de
-        or a
-        jr nz,_1
+
+;======================= from CP/M: =============================
+
+;*********************** OS_SETDTA **********************
+;Установить адрес передачи данных для следующей команды CP/M.
+;    Все аргументы в регистрах:
+;        DE - адрес передачи данных.
+;    Возвращаемых значений нет.
+        macro OS_SETDTA ;DE = data transfer address (DTA)
+        ld c,CMD_SETDTA
+        CALLBDOS_NOPARAM_A
         endm
-        endif
+;*********************** OS_FSEARCHFIRST **********************
+;Прочитать первый элемент текущей директории (файл или каталог).
+;Последующие элементы директории надо считывать командой OS_FSEARCHNEXT.
+;Вся информация о файле или каталоге будет записана в FCB по адресу, установленному командой SET_DTA (этот адрес меняется после выполнения команды!).
+;Полученную FCB можно будет открыть командой OS_FOPEN.
+;Если возвращена ошибка, то ничего не записывается и адрес не сдвигается.
+;    Все аргументы в регистрах:
+;        DE - адрес FCB с маской имени файла или каталога (знак '?' в ней означает любой символ в имени).
+;    Возвращаемые значения в регистрах:
+;        A - код ошибки (если 0, то ошибки нет). Окончание директории - это ошибка.
+;
+;Примечания:
+;NedoOS не проверяет номер экстента в FCB с маской.
+;В NedoOS атрибуты файла возвращаются в обычном месте (не в поле S1).
+;NedoOS не возвращает этой командой метку диска и date stamps.
+;NedoOS не пропускает скрытые и системные файлы.
+;NedoOS не возвращает коды ошибки в регистрах H,L,C.
+;В NedoOS выходное значение A = 1..3 считается ошибкой.
+        macro OS_FSEARCHFIRST ;de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
+        ld c,CMD_FSEARCHFIRST
+        CALLBDOS_NOPARAM_A
+        endm
         
-;from CP/M (try to avoid use!) FCB = file control block (size FCB_sz)    
+;*********************** OS_FSEARCHNEXT **********************
+;Прочитать очередной (не первый) элемент текущей директории (файл или каталог).
+;Вся информация о файле или каталоге будет записана в FCB по адресу, установленному командой SET_DTA (этот адрес меняется после выполнения команды!).
+;Полученную FCB можно будет открыть командой OS_FOPEN.
+;Если возвращена ошибка, то ничего не записывается и адрес не сдвигается.
+;    Все аргументы в регистрах:
+;        DE - адрес FCB с маской имени файла или каталога (знак '?' в ней означает любой символ в имени).
+;    Возвращаемые значения в регистрах:
+;        A - код ошибки (если 0, то ошибки нет). Окончание директории - это ошибка.
+;
+;Примечание: в отличие от CP/M, нужно обязательно передавать адрес маски!
+;См. также примечания к OS_FSEARCHFIRST!
+        macro OS_FSEARCHNEXT ;(NOT CP/M compatible!!!)de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
+        ld c,CMD_FSEARCHNEXT
+        CALLBDOS_NOPARAM_A
+        endm
+        
+;Нижеследующие вызовы CP/M пользовать не рекомендуется!
+;from CP/M (try to avoid use!)
         macro OS_PRCHAR ;e=char
         ld c,CMD_PRCHAR
         CALLBDOS_NOPARAM_A
@@ -99,14 +279,6 @@ _1=$
         endm
         macro OS_FCLOSE ;de = pointer to opened FCB
         ld c,CMD_FCLOSE
-        CALLBDOS_NOPARAM_A
-        endm
-        macro OS_FSEARCHFIRST ;de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
-        ld c,CMD_FSEARCHFIRST
-        CALLBDOS_NOPARAM_A
-        endm
-        macro OS_FSEARCHNEXT ;(NOT CP/M compatible!!!)de = pointer to unopened FCB (filename with ????????), read matching FCB to DTA. DTA had to set every time
-        ld c,CMD_FSEARCHNEXT
         CALLBDOS_NOPARAM_A
         endm
         macro OS_FDEL ;DEPRECATED!!!!! ;DE = Pointer to unopened FCB
@@ -125,36 +297,159 @@ _1=$
         ld c,CMD_FCREATE
         CALLBDOS_NOPARAM_A
         endm
-        macro OS_SETDTA ;DE = data transfer address (DTA)
-        ld c,CMD_SETDTA
-        CALLBDOS_NOPARAM_A
-        endm
 
-;from MSX-DOS
-        macro OS_SEEKHANDLE ;b=file handle, dehl=offset
-        ld c,CMD_SEEKHANDLE
-        CALLBDOS_NOPARAM_A
-        endm
+;======================= from MSX-DOS: =============================
+
+;*********************** OS_OPENHANDLE **********************
+;Открывает существующий файл для чтения/записи. 
+;    Все аргументы в регистрах:
+;        DE - строка с именем файла, может содержать относительный или абсолютный путь к файлу.
+;            в текущей реализации поддержан формат имен 8.3
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00, то ошибки нет. 
+;        B - хэндл файла, если нет ошибки.
+;    
+;Пример открытия файла "pyraster.txt", расположенного в директории "../fu/ckco":
+;        ...
+;        LD DE,FILE_NAME
+;        OS_OPENHANDLE
+;        OR A
+;        JP NZ,ERR_EXIT    ;обработка ошибок
+;        LD A,B
+;        LD (FILE),A    ;сохраняем дескриптор
+;        ...
+;FILE_NAME:
+;        DEFB "../fu/ckco/pyraster.txt",0
+;        ...
+;        
+;Примечания:
+;Необходимо закрывать все открытые файлы.
+;Также желательно закрыть файл, как только он становится не нужен для чтения/записи.
+;При открытии файла указатель чтения/записи этого файла устанавливается на первый байт в файле.
         macro OS_OPENHANDLE ;DE = Drive/path/file ASCIIZ string ;out: B = new file handle, A=error
         ld c,CMD_OPENHANDLE
         CALLBDOS_NOPARAM_A
         endm
+        
+;*********************** OS_CREATEHANDLE **********************
+;Создать и открыть файл для чтения/записи.
+;    Все аргументы в регистрах:
+;        DE - строка с именем файла, может содержать относительный или абсолютный путь к файлу.
+;            в текущей реализации поддержан формат имен 8.3
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00, то ошибки нет. 
+;        B - хэндл файла, если нет ошибки.
+;    
+;Пример создания файла "pyraster.txt", расположенного в директории "../fu/ckco":
+;        ...
+;        LD DE,FILE_NAME
+;        OS_CREATEHANDLE
+;        OR A
+;        JP NZ,ERR_EXIT    ;обработка ошибок
+;        LD A,B
+;        LD (FILE),A    ;сохраняем дескриптор
+;        ...
+;FILE_NAME:
+;        DEFB "../fu/ckco/pyraster.txt",0    
+;        ...
+;        
+;Примечания:
+;Необходимо закрывать все открытые файлы. 
+;Также желательно закрыть файл, как только он становится не нужен для чтения/записи.
+;При создании файла указатель чтения/записи этого файла устанавливается на первый байт в файле.
+;Не рекомендуется читать файл, открытый через OS_CREATEHANDLE! Лучше закройте его и откройте через OS_OPENHANDLE.
         macro OS_CREATEHANDLE ;DE = Drive/path/file ASCIIZ string ;out: B = new file handle, A=error
         ld c,CMD_CREATEHANDLE
         CALLBDOS_NOPARAM_A
         endm
+
+;*********************** OS_CLOSEHANDLE **********************
+;Закрывает открытый файл. 
+;    Все аргументы в регистрах:
+;        B - хэндл файла.
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00, то ошибки нет. 
+;    
+;Пример закрытия файла:
+;        ...
+;        LD A,(FILE)
+;        LD B,A
+;        OS_OPENHANDLE
+;        OR A
+;        JP NZ,ERR_EXIT    ;обработка ошибок
+;        ...
+;
+;Примечания:
+;Необходимо закрывать все открытые файлы. 
+;Также желательно закрыть файл, как только он становится не нужен для чтения/записи.
         macro OS_CLOSEHANDLE ;B = file handle, out: A=error
         ld c,CMD_CLOSEHANDLE
         CALLBDOS_NOPARAM_A
         endm
+
+;*********************** OS_READHANDLE **********************
+;Читает массив байтов из открытого файла. 
+;    Все аргументы в регистрах:
+;        B - хэндл файла.
+;        DE - указатель на буфер, куда следует прочитать массив байтов.
+;        HL - количество байтов, которые следует прочитать.
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00, то ошибки нет.
+;        HL - если ошибки нет, то содержит количество прочитанных байтов (если 0, то файл кончился).
+;    
+;Пример чтения из открытого файла:
+;        ...
+;        LD A,(FILE)
+;        LD B,A
+;        LD DE,READ_BUF
+;        LD HL,150
+;        OS_READHANDLE
+;        OR A
+;        JP NZ,ERR_EXIT    ;обработка ошибок
+;        LD A,H
+;        OR L
+;        JP Z,END_READ    ;данных для чтения нет, либо указатель чтения\записи указывает на конец файла
+;        ...
+;READ_BUF
+;        DEFS 1000
+;Примечание: при чтении сдвигается (на количество прочитанных байт) 
+;указатель на данные в файле, следующее чтение начнётся с позиции этого указателя.
         macro OS_READHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to read, out: HL = Number of bytes actually read, A=error
         ld c,CMD_READHANDLE
         CALLBDOS_NOPARAM_A
         endm
+
+;*********************** OS_WRITEHANDLE **********************
+;    Макрос вызова функции ядра.
+;    Запись массива байтов в открытый файл. 
+;    
+;    Все аргументы в регистрах:
+;        B - дескриптор файла.
+;        DE - указатель на буфер, содержащий массив байтов, которые следует записать в файл
+;        HL - количество байтов, которые следует записать
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00 то ошибки нет.
+;        HL - если ошибки нет, то содержит количество записанных байтов.
+;    
+;Пример записи в открытый файл:
+;        ...
+;        LD A,(FILE)
+;        LD B,A
+;        LD DE,BUF
+;        LD HL,BUF_SIZE
+;        OS_WRITEHANDLE
+;        OR A
+;        JP NZ,ERR_EXIT    ;обработка ошибок
+;        ...
+;BUF        DEFB "Hello Work!"
+;BUF_SIZE EQU $-BUF
+;Примечание: при записи сдвигается (на количество записанных байтов) 
+;указатель на данные в файле, следующая запись начнётся с позиции этого указателя.
         macro OS_WRITEHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error
         ld c,CMD_WRITEHANDLE
         CALLBDOS_NOPARAM_A
         endm
+
         macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
         ld c,CMD_RENAME
         CALLBDOS_NOPARAM_A
@@ -173,6 +468,10 @@ _1=$
         endm
         macro OS_DELETE ;DE = Drive/path/file ASCIIZ string, out: A = Error
         ld c,CMD_DELETE
+        CALLBDOS_NOPARAM_A
+        endm
+        macro OS_SEEKHANDLE ;b=file handle, dehl=offset
+        ld c,CMD_SEEKHANDLE
         CALLBDOS_NOPARAM_A
         endm
 
@@ -390,39 +689,51 @@ _1=$
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         
-        macro QUIT
-        rst 0 ;close app
-        endm
-
-        macro CALLBDOS ;don't use directly CALLBDOS or call BDOS!!!
-        ex af,af'
-        call BDOS ;c=CMD
-        endm
-        macro CALLBDOS_NOPARAM_A ;don't use directly CALLBDOS or call BDOS!!!
-        call BDOS ;c=CMD
-        endm
-
-        macro GET_KEY
-        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
-        endm
-
-        macro PRCHAR
-        rst 0x10 ;a=char ;spoils all registers!
-        endm
-
-        macro SETPG16K
-        rst 0x18 ;set page "a" in 0x4000 ;spoils BC
-        endm
-        
-        macro SETPG32KLOW
-        rst 0x20 ;set page "a" in 0x8000 ;spoils BC
-        endm
-        
-        macro SETPG32KHIGH
-        rst 0x28 ;set page "a" in 0xc000 ;spoils BC
-        endm
-
         macro STANDARDPAL ;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
         dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
         dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
         endm
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;последующие макросы будут убраны (они временно для переделки программ под term)
+        macro SETXY_ ;set cursor position (in: de=YX, top left is 0;0)
+        ;OS_SETXY
+        call setxy
+        endm
+
+        macro SETX_ ;set cursor X position (in: e=X, left is 0)
+        call setx
+        endm
+
+        macro CLS_ ;clear visible area of terminal
+        ;ld e,0
+        ;OS_CLS
+        call clearterm
+        endm
+
+        macro PRCHAR_ ;send char to stdout (in: A=char)
+        ;PRCHAR
+        call sendchar
+        endm
+
+        macro GETCHAR_ ;read char from stdin (out: A=char, CY=error)
+        ;GET_KEY
+        call receivechar
+        endm
+
+        macro GETKEY_ ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
+        ;GET_KEY
+        call receivekey
+        endm
+
+        macro SETCOLOR_ ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
+        ;ld a,d
+        ;add a,a
+        ;add a,a
+        ;add a,a
+        ;or e
+        ;ld e,a
+        ;OS_SETCOLOR
+        call setcolor
+        endm
+
