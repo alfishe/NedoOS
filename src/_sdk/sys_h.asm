@@ -420,15 +420,13 @@ _1=$
         endm
 
 ;*********************** OS_WRITEHANDLE **********************
-;    Макрос вызова функции ядра.
-;    Запись массива байтов в открытый файл. 
-;    
+;Запись массива байтов в открытый файл. 
 ;    Все аргументы в регистрах:
-;        B - дескриптор файла.
+;        B - хэндл файла.
 ;        DE - указатель на буфер, содержащий массив байтов, которые следует записать в файл
 ;        HL - количество байтов, которые следует записать
 ;    Возвращаемые значения в регистрах:
-;        А - ошибка. Если 0x00 то ошибки нет.
+;        А - ошибка. Если 0x00, то ошибки нет.
 ;        HL - если ошибки нет, то содержит количество записанных байтов.
 ;    
 ;Пример записи в открытый файл:
@@ -443,6 +441,7 @@ _1=$
 ;        ...
 ;BUF        DEFB "Hello Work!"
 ;BUF_SIZE EQU $-BUF
+;
 ;Примечание: при записи сдвигается (на количество записанных байтов) 
 ;указатель на данные в файле, следующая запись начнётся с позиции этого указателя.
         macro OS_WRITEHANDLE ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error
@@ -450,28 +449,90 @@ _1=$
         CALLBDOS_NOPARAM_A
         endm
 
-        macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
-        ld c,CMD_RENAME
+;*********************** OS_SEEKHANDLE **********************
+;Перемещение указателя чтения/записи в файле.
+;    Все аргументы в регистрах:
+;        B - хэндл файла.
+;        DEHL - нужное смещение относительно начала файла.
+;    Возвращаемых значений нет.
+;
+;Примечание: в отличие от MSX-DOS, смещение всегда относительно начала файла (регистр A не влияет).
+;Для чтения положения указателя см. функцию OS_TELLHANDLE.
+;Для чтения размера файла см. функцию OS_GETFILESIZE.
+        macro OS_SEEKHANDLE ;b=file handle, dehl=offset
+        ld c,CMD_SEEKHANDLE
         CALLBDOS_NOPARAM_A
         endm
+
+;*********************** OS_CHDIR **********************
+;Сменить текущую директорию (в рамках текущего процесса).
+;    Все аргументы в регистрах:
+;        DE - указатель на строку с полным или относительным путём (можно без конечной косой черты).
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00, то ошибки нет.
+;
+;Примечание: В отличие от MSX-DOS, в пути используются только прямые косые черты.
+;Например: "e:/bin/".
         macro OS_CHDIR ;DE = Pointer to ASCIIZ string. Out A=error
         ld c,CMD_CHDIR
         CALLBDOS_NOPARAM_A
         endm
-        macro OS_PARSEFNAME ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
-        ld c,CMD_PARSEFNAME
-        CALLBDOS_NOPARAM_A
-        endm
-        macro OS_GETPATH ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
+
+;*********************** OS_GETPATH **********************
+;Прочитать текущий путь (в рамках текущего процесса).
+;    Все аргументы в регистрах:
+;        DE - указатель на буфер размером MAXPATH_sz, куда будет помещён путь (ASCIIZ).
+;    Возвращаемые значения в регистрах:
+;        HL - указатель на последний элемент пути в этом буфере
+;
+;Примечания:
+;В MSX-DOS был буфер размером 64 байта, а в текущей реализации NedoOS MAXPATH_sz = 256.
+;Путь возвращается без конечной косой черты, кроме случая корня диска.
+;В отличие от MSX-DOS, в пути используются только прямые косые черты.
+        macro OS_GETPATH ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
         ld c,CMD_GETPATH
         CALLBDOS_NOPARAM_A
         endm
+
+;*********************** OS_RENAME **********************
+;Переименовать файл или директорию.
+;    Все аргументы в регистрах:
+;        DE - старое имя, возможно с полным или относительным путём (ASCIIZ).
+;        HL - новое имя, пока что требуется такой же путь, как в DE.
+;    Возвращаемые значения в регистрах:
+;        HL - указатель на последний элемент пути в этом буфере
+;
+;Примечания:
+;В отличие от MSX-DOS, в новом имени пока что требуется такой же путь, как в DE (если там не было пути, то и в новом не надо).
+        macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
+        ld c,CMD_RENAME
+        CALLBDOS_NOPARAM_A
+        endm
+
+;*********************** OS_DELETE **********************
+;Удалить файл.
+;    Все аргументы в регистрах:
+;        DE - имя файла, возможно с полным или относительным путём (ASCIIZ).
+;    Возвращаемые значения в регистрах:
+;        А - ошибка. Если 0x00, то ошибки нет.
         macro OS_DELETE ;DE = Drive/path/file ASCIIZ string, out: A = Error
         ld c,CMD_DELETE
         CALLBDOS_NOPARAM_A
         endm
-        macro OS_SEEKHANDLE ;b=file handle, dehl=offset
-        ld c,CMD_SEEKHANDLE
+
+;*********************** OS_PARSEFNAME **********************
+;Перекодировать имя файла в формат CP/M (8 байт имени, 3 байта расширения).
+;    Все аргументы в регистрах:
+;        DE - имя файла в ASCIIZ.
+;        HL - указатель на буфер под имя файла в формате CP/M.
+;    Возвращаемые значения в регистрах:
+;        DE - указатель на терминатор имени файла
+;        HL - указатель на буфер под имя файла в формате CP/M.
+;        A - всегда 0.
+;
+;Примечание: в отличие от MSX-DOS, не возвращаются флаги результата в регистре B.
+        macro OS_PARSEFNAME ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
+        ld c,CMD_PARSEFNAME
         CALLBDOS_NOPARAM_A
         endm
 
@@ -582,10 +643,20 @@ _1=$
         ld c,CMD_SETFILETIME
         CALLBDOS_NOPARAM_A
         endm
+        
+;*********************** OS_TELLHANDLE **********************
+;Чтение указателя чтения/записи в файле.
+;    Все аргументы в регистрах:
+;        B - хэндл файла.
+;    Возвращаемые значения в регистрах:
+;        DEHL - смещение относительно начала файла.
+;
+;Примечание: для чтения размера файла см. функцию OS_GETFILESIZE.
         macro OS_TELLHANDLE ;b=file handle, out: dehl=offset ;GET POSITION IN FILE
         ld c,CMD_TELLHANDLE
         CALLBDOS_NOPARAM_A
         endm
+
         macro OS_SCROLLUP ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
         ld c,CMD_SCROLLUP
         CALLBDOS_NOPARAM_A

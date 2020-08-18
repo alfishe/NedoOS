@@ -43,7 +43,7 @@ CMD_WRITEHANDLE=0x49 ;B = file handle, DE = Buffer address, HL = Number of bytes
 CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
 CMD_CHDIR=0x5a ;DE = Pointer to ASCIIZ string. Out A=error
 CMD_PARSEFNAME=0x5c ;NOT RECOMMENDED ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
-CMD_GETPATH=0x5e ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
+CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
