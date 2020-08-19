@@ -3,14 +3,14 @@
 sys_newapp_forBDOS
         ld a,(iy+app.id)
        push af ;parent id
-         push iy
+         push iy ;parent app
           di ;между findfreeid+findfreeappstruct и заполнением iy+app.id нельзя переключать задачи!!! ;TODO critical section
         call sys_findfreeid ;портит iy
          pop hl
         push af ;id
          push hl
         call sys_findfreeappstruct ;возвращает iy = адрес первой свободной структуры app ;TODO error
-         pop ix
+         pop ix ;parent app
          ld a,(ix+app.stdin)
          ld (iy+app.stdin),a
          ld a,(ix+app.stdout)

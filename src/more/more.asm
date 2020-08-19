@@ -98,6 +98,12 @@ nvview_load0
         ld (filesize),de
         ld (filesizeHSW),hl
 
+;закрываем файл сами, иначе cmd когда будет закрывать?
+        ld a,(stdinhandle)
+        ld b,a
+        OS_CLOSEHANDLE ;hl=size actually received
+
+
         xor a
         ld h,a
         ld l,a

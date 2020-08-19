@@ -82,8 +82,8 @@ cmdmainloop
         ldir
 
         call execcmd_maybepipes
-        or a
-        call nz,callcmd;strcpexec_tryrun ;запускает по фону
+        ;or a
+        ;call nz,callcmd;strcpexec_tryrun ;запускает по фону
         ld hl,cmdbuf
         ld (hl),0
         jp cmdmainloop
@@ -107,7 +107,7 @@ execcmd_maybepipes
         ld a,'>'
         ld bc,MAXCMDSZ
         cpir
-        jp nz,execcmd ;jr nz,cmd_noexeccmdtofile
+        jp nz,execcmd_or_runprog ;jr nz,cmd_noexeccmdtofile
 ;change stdout
         dec hl
         ld (hl),0
@@ -120,11 +120,13 @@ execcmd_maybepipes
         call setstdouthandle
 ;changestdin_stdout_execcmd
         call execcmd ;can show errors ;a!=0: no such internal command
-        push af
+         or a
+         call nz,callcmd
+        ;push af
 ;команда выполнилась в блокирующем режиме и вышла
 execcmdtofile_handle=$+1
         ld b,0
-        OS_CLOSEHANDLE
+        OS_CLOSEHANDLE ;закрыли выходной файл
 stdouthandle_wasatstart=$+1
         ld a,0
         call setstdouthandle
@@ -132,8 +134,9 @@ stdouthandle_wasatstart=$+1
 ;        ld a,0
 ;        call setstdinhandle
 
-        pop af
-        ret;jr cmd_noexeccmdtofileq
+        ;pop af
+        ret
+        ;jr cmd_noexeccmdtofileq
 ;cmd_noexeccmdtofile
 ;        jp execcmd ;a!=0: no such internal command
 ;cmd_noexeccmdtofileq
@@ -147,26 +150,30 @@ execcmd_changestdin
         ex de,hl ;de=filename
         OS_OPENHANDLE
         ld a,b
-        ld (execcmdtofile_changestdin_handle),a
+        ;ld (execcmdtofile_changestdin_handle),a
         call setstdinhandle
+        call setstdinout
         ;jr changestdin_stdout_execcmd
         call execcmd ;can show errors ;a!=0: no such internal command
-        push af
-;команда выполнилась в блокирующем режиме и вышла
-        ;WAITPID
+         or a
+         call nz,callcmd
+        ;push af
+;команда выполнилась в блокирующем режиме и вышла (или запустилась программа по фону)
 
-execcmdtofile_changestdin_handle=$+1
-        ld b,0
-        OS_CLOSEHANDLE ;а программа уже запущена!!! нормально ли?
+;execcmdtofile_changestdin_handle=$+1
+;        ld b,0
+;        OS_CLOSEHANDLE ;закрыли входной файл программы
 ;stdouthandle_wasatstart=$+1
 ;        ld a,0
 ;        call setstdouthandle
 stdinhandle_wasatstart=$+1
         ld a,0
         call setstdinhandle
+        call setstdinout
 
-        pop af
-        ret;jr cmd_noexeccmdtofileq
+        ;pop af
+        ret
+        ;jr cmd_noexeccmdtofileq
 
 execcmd_pipe
 ;cmd |app
@@ -212,25 +219,25 @@ pipehandle=$+1
         OS_RUNAPP
         
         call execcmd ;can show errors ;a!=0: no such internal command
+         or a
+         call nz,callcmd
         pop de
-        push af ;a=error
+        ;push af ;a=error
         push de
-        
         ld a,(pipehandle)
         ld b,a
-        OS_CLOSEHANDLE
-        
+        OS_CLOSEHANDLE ;закрыли источник данных
         pop de
         WAITPID
 
         ld a,(stdouthandle_wasatstart)
         call setstdouthandle
-;закрыть пайп второй раз
-        ld a,(pipehandle)
-        ld b,a
-        OS_CLOSEHANDLE
+;закрыть входной файл правой программы
+        ;ld a,(pipehandle)
+        ;ld b,a
+        ;OS_CLOSEHANDLE
 
-        pop af ;a=error
+        ;pop af ;a=error
 execcmd_pipe_error
         ret
 
@@ -355,6 +362,12 @@ getwordq
         ;xor a
         ld (de),a
         ret
+
+execcmd_or_runprog
+        call execcmd
+        or a
+        ret z
+        jp callcmd;strcpexec_tryrun ;запускает по фону
 
 execcmd
 ;a=0: command executed
