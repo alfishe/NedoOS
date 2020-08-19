@@ -121,10 +121,10 @@ execcmd_maybepipes
 ;changestdin_stdout_execcmd
         call execcmd ;can show errors ;a!=0: no such internal command
         push af
-
+;команда выполнилась в блокирующем режиме и вышла
 execcmdtofile_handle=$+1
         ld b,0
-        OS_CLOSEHANDLE ;а программа уже запущена!!! нормально ли?
+        OS_CLOSEHANDLE
 stdouthandle_wasatstart=$+1
         ld a,0
         call setstdouthandle
@@ -152,7 +152,8 @@ execcmd_changestdin
         ;jr changestdin_stdout_execcmd
         call execcmd ;can show errors ;a!=0: no such internal command
         push af
-        WAITPID
+;команда выполнилась в блокирующем режиме и вышла
+        ;WAITPID
 
 execcmdtofile_changestdin_handle=$+1
         ld b,0
@@ -189,6 +190,7 @@ execcmd_pipe
         
         call readapp ;делает CLOSE ;TODO через loadapp, чтобы дописывать .com и грузить из /bin
         
+        if 1==1
         push af
         ld b,a
         ;ld a,(stdinhandle)
@@ -200,6 +202,7 @@ pipehandle=$+1
         ld h,0xff ;rnd
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
+        endif
         
         pop af ;id
 

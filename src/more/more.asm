@@ -12,6 +12,7 @@ NVVIEW_PANELCOLOR=0x38
         org PROGSTART
 cmd_begin
         ld sp,0x4000
+        OS_HIDEFROMPARENT
         ;call initstdio
 
         ld e,6 ;textmode

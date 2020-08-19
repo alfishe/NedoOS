@@ -1137,3 +1137,114 @@ v0.454.1, 27.05.2020
 +wget: просмотр картинок и проигрывание музыки (DimkaM)
 +view: поддержан формат .mlt
 +browser: добавлен сайт zxart api в закладки браузера (DimkaM)
+
+v0.510.1, 08.07.2020
+
++untangle: speedup (Lord Vader) и не мигает после хода, size optimizations
+*kernel, snake, net, tetris, eric, loyd: screen protection
++kernel: оптимизирован и исправлен YIELD 	 
+-browser: исправлен скролл колесом при переключении фокуса
+-player: добавлена задержка при доступе к регистру статуса при проигрывании TFM (DimkaM)
+-browser: fix перерисовка при захвате фокуса
+-browser: fix положение ссылок после центрованных надписей 	 
++player: играет по фону, поддержано расширение *.mt3 	 
+-untangle, scratch: не портят экран не в фокусе
++browser: восстанавливает экран при получении фокуса
+-wolf3d: пофикшен излом стен в узких коридорах
++sprexamp: карта 256x64 метатайлов 16x16 из mapwin (экспортирована через исправленный плагин Export binary file)
++sprexamp: независимый скролл по карте и буферу ldpush 	 
++sprexamp: добавлено зацикливание по X и Y (точнее, зацикливается весь адрес Y*512+X)
++sprexamp: добавлен скролл по обеим осям (управлять мышкой, LMB=выход к скроллу по Y)
+*mkatm2hd.bat временно собирает версию с поддержкой HDD, но с загрузкой с дискеты
++NedoLang, NedoAsm: добавлен таргет script, в нём 8-байтные слова и тип FLOAT (см. testspt)
++NedoLang: enum позволяет запятую после последнего элемента
++NedoLang: enum {a, b=10, c, d}
+-NedoLang: неправильно работал двойной typecast, например VAR LONG l2 = (STRUCT zzz*)((UINT)&zuzu+zzz_nnn)->lb;
+-NedoLang: неправильно работали вложенные #ifdef, если внутри был #include 	 
+-убрал незакрытый #if в FatFs (DimkaM)
+*Moved all 866toatm and winto866 files to _sdk/codepage/ (baho)
++wolf3d: лампочки на потолке и аптечки 	 
++added executables 'mhmt', 'sjasmplus' and 'dmimg' to svn:ignore (Lord Vader)
+*basic, browser, cmd, emptyapp, modplay, nv, ping, pkunzip, player, reset, scratch, setfont, tar, telnet, texted, unrar, view: Modified Makefiles to use `tools/aspp.sh' on GNU/Linux (baho)
++scratch: в палитре есть режимы 444 и 222 (Sand) 	 
++scratch, wolf3d, sprexamp, eric, browser: поддержаны bmp из Linux 	 
+*New target evolution. Targets evosd and evohd deprecated - now alias of evolution (demige)
++Added aspp.sh - utility to search dependencies in asm files (baho)
+*Makefile: Removed mess with "pe26sd" target; games/br/Makefile: Fixed mess with binaries filenames;
+*fatfs4os/Makefile: Removed deletion of needed files; fatfs4os/ff_sj.asm: Added source file to be compiled with tools/sjasmplus (baho)
+
+v0.536.1, 18.07.2020
+
++scratch: оконная система
++scratch: кнопка N - new image, сделано через оконную систему - Edit, Radio Button, Flag, Label, Button
++kernel: при закрытии задачи убивается её музыка
++kernel: закрываются открытые файлы при dropapp
+*kernel: убран вызов OS_GETSCREENPAGES
++kernel: драйвер клавиатуры помещён в bdospg2
+*kernel: уменьшена задержка автоповтора клавиатуры в режиме PS/2
+*kernel: изменено апи сети (DimkaM)
++в 3ws добавлена функция запуска приложений, запуск плеера и вьювера картинок (DimkaM)
++добавлена утилита curl для заливки приложений на Speccy на лету (DimkaM), также исправлен autoexec.bat для этого - пример использования в scratch/runcurl.bat
+-smb: не игралась дема (выход из проигрывания - D, при этом включается запись новой, сохранение на диск - V)
+-nedodel, nedogift Makefile bugfix (baho)
+*переименован osevo.$C в sd_boot.$C (DimkaM)
++добавил описание некоторых вызовов ядра (DimkaM)
+-net: исправлены сетевые змейки (DimkaM)
++добавлены проекты hello и gfxtest
++wolf3d, basic, sprexamp, noise: fix screen protection
+*cmd: по умолчанию программы запускаются в блокирующем режиме (по фону запускать через start программа параметры)
++nv: Enter - исполнение командной строки в блокирующем режиме (потом кнопкой 9 можно посмотреть текстовый экран, который был на момент завершения команды)
+
+v0.611.1, 19.08.2020:
+
++kernel: файловые структуры убраны в страничку pgstructs, их теперь не 8, а 16. число задач тоже 16
++kernel: добавлены пайпы, проверяются на EOF и закрытие принимающей стороны, пайпы надо закрывать 2 раза (т.е. каждый конец отдельно); добавлен генератор случайных чисел - пайп с хэндлом 0xff
+*kernel, nv: убрана функция WRITE_NBYTES
++kernel: передаёт плейеру значение для порта bd77 (с номером видеорежима в младших битах)
++kernel: в readhandle и writehandle возвращается ошибка в A (0=OK)
++kernel: YIELDKEEP - отдать время системе, при этом разрешить вернуться в текущем фрейме
+-kernel: в yield не включался pgkillable в конце
+-kernel: в чтении PS/2 клавиатуры мог запарываться стек
+-kernel: в версиях ядра под 40key исправлена заторможенность клавиатуры (длинный буфер клавиатуры)
+-kernel: WAITPID теперь замораживает задачу (размораживается по dropapp дочерней, rst0 в дочерней или HIDEFROMPARENT в дочерней)
++kernel, scratch и др.: OS_HIDEFROMPARENT в начале приложения позволяет nv не ожидать вызода из этого приложения
++kernel: idle запускает только term с параметрами cmd.com autoexec.bat, term сам заказывает себе пайпы и запускает cmd.com с командной строкой, взятой из своих параметров (теперь он проверяет autoexec.bat не в первом слове комстроки, а во втором). из cmd можно запустить новый терминал с cmd командой start term.com cmd.com.
+*kernel: в версии для Pentagon2.666LE SD-карта с 4 нопами вместо одного между доступами к портам SD-карты
++терминал term (поддерживает управление курсором по стандарту ANSI терминала, esc передаётся как двойной esc), мышка, прокручивание терминала колёсиком, копирование экранного буфера в файл pasta.txt (клик в левый верхний угол) и вставка из этого файла до 80 символов (клик в правый нижний угол)
++библиотека stdio.asm для работы с терминалом через пайпы
++telnet-сервер netterm (порт 2323, VT-100+)
++telnet: можно писать порт (например, telnet nethack.alt.org:14321)
+-nv, nvview, more: долго залипали кнопки типа pgup при автоповторе
++nv: ускорена перепечатка панелек
++nv: CS+Enter или F9 вводит имя файла в командную строку (с пробелом перед ним, если надо)
+-nv: при запуске файлов, удалении и создании директории курсор перепрыгивал на начало
+*nv: все программы запускаются в блокирующем режиме (какая программа использует не stdio, а свой экран, может освободить nv командой OS_HIDEFROMPARENT в самом начале - см. scratch)
+-nv: не работал запуск *.$c
+*nv: при блокирующем запуске программ из командной строки освобождает фокус; фокус отдаётся перед запуском программы из комстроки
++nvview: добавлено сохранение по F2
+*nv, basic, hello, texted, ping, zxrar, unrar, unzip: переделаны под терминал (stdio.asm)
+*dmm, time, hddfdisk, wizcfg переделаны под терминал (dmm и hddfdisk наблюдаются проблемы скролла) (DimkaM)
++player при старте ищет свою копию и говорит ей закрыться
+*player: отключает турбо на время проигрывания и инициализации TFM
+*player: чистит экран для показа своих сообщений
++browser: home, end, del в строке url
++листалка more (берёт данные из stdin до EOF)
+*wolf3d: две страницы спрайтов, исправлена X-координата объектов на карте
++sprexamp: в карту добавлен слой с координатами объектов, можно толкать врагов кнопкой S, скорость бега снижена
+-sprexamp: фикс разрезания лучом
++sprexamp: управление объектами и героем, взаимодействие героя с тайлами, трекинг сдвига камеры, звуки, взятие предметов, пули
++cmd: home, end, del, не переходит всегда на 25-ю строку
+*cmd: понимает 0x0a в качестве enter в режиме RECODEINPUT
+-cmd: фикс перехода в интерактивный режим при отсутствии autoexec.bat в параметре
++cmd умеет dir >file, dir |more.com. можно писать пробел после > или |. Начато добавление < (не работает)
++3ws: проверка сокета (DimkaM)
+*browser: убрана очистка страниц в jpeg.asm
+-br: убрал OS_GETSCREENPAGES в level 2-17
++unreal: added a branch of 0.39.0 where labels loaded from user.l are now always virtual (Lord Vader)
+*убраны несовместимые с Windows мейкфайлы (DimkaM)
++сделал вторую половинку build'ов (которая отвечает за запись при отдельном запуске) везде одинаковую, кроме games, там тоже везде одинаковая
+-некоторые build.bat меняли releasedir и ломали сборку trd
++sjasm: upgraded to 1.15.1, errors should be RED now (ansi codes used); emit user.l with 'virtual' z80 addresses (Lord Vader)
+-untangle: не работали уровни, начиная с 19 (DimkaM)
+*smb: поскольку записанное прохождение 8-2 не работает с MULTITASKING=1 и вообще так медленнее, возвращаем MULTITASKING=0 (задачи переключать нельзя, пока не выйдешь из игры)
++sys_h.asm: добавлена документация на ряд вызовов

@@ -31,8 +31,17 @@ initstdio
 setstdouthandle
         ld (stdouthandle),a
         ret
+        ;jr setstdinout
 setstdinhandle
         ld (stdinhandle),a
+;setstdinout
+        ;OS_GETMAINPAGES ;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags, b=id
+        ;ld a,(stdinhandle)
+        ;ld e,a
+        ;ld a,(stdouthandle)
+        ;ld d,a
+;b=id, e=stdin, d=stdout, h=stderr (TODO)
+        ;OS_SETSTDINOUT
         ret
 
 getkey

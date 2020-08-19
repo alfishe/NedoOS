@@ -1965,7 +1965,7 @@ BDOS_readwritehandle_oldaddr=$+1
         xor a ;no error
         sbc hl,bc ;hl=processed bytes
         ;ex af,af' ;error
-        ret
+        jr BDOS_readhandle_errorfromEOF ;ret
 ;BDOS_readwritehandlego
 ;BDOS_readwritehandle_proc=$+1
 ;        jp BDOS_readhandlego
@@ -1985,7 +1985,13 @@ BDOS_readhandlego
 	pop bc
         pop bc ;fres
         ld hl,(fres) ;hl=total processed bytes
-        xor a ;no error
+BDOS_readhandle_errorfromEOF
+        ;xor a ;no error
+         ld a,h
+         or l
+         ld a,0
+         ret nz
+         dec a
         ret
 BDOS_readhandle_noFATFS
         push bc
