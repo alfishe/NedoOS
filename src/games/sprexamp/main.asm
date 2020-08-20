@@ -51,8 +51,10 @@ UVSCROLL_NCALLPGS=4
 UVSCROLL_TEMPSP=tempsp
 
 METATILEMAPWID=256;64
+METATILEMAPHGT=64
 TILEGFX=0xc000
 
+DELETEDYHIGH=0x7f
 
         macro RECODEBYTE
         ld a,(de)
@@ -211,12 +213,140 @@ mainloop_uv0
         ld ix,bullets
         call drawsprites
 
-        call prcoords
+        ;call prcoords
 
         call getmousedelta ;de=delta (d>0: go up) (e>0: go left), l=mousekey
-        
         push hl
+        ;call mousetrackcamera ;de=delta (d>0: go up) (e>0: go left) ;out: d=camera dy, e=camera dx         
+        call trackcamera ;de=delta (d>0: go up) (e>0: go left) ;out: d=camera dy, e=camera dx         
+        pop hl ;l=mousekey
+        
+;d=camera dy
+;e=camera dx
+;l=mousekey
+        
+        ld a,l ;hl=(sysmousebuttons)
+        rra
+         jr nc,mainloop_uvq ;LMB
+        call uvscroll_scroll
+        call uvscroll_scrolltiles
+        
+       ld a,(timer)
+       push af
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
 
+mainloop_uvwaittimer0
+        ld a,(timer)
+uvoldtimer=$+1
+        ld b,0
+        ld (uvoldtimer),a
+        sub b
+        ld b,a
+        jr z,mainloop_uvwaittimer0
+mainloop_uvlogic0
+        push bc
+        call logic
+        pop bc
+        djnz mainloop_uvlogic0
+
+;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
+       pop bc ;b=timer на момент changescrpg
+waitchangescr0
+        ld a,(timer)
+        cp b
+        jr z,waitchangescr0
+
+        jp mainloop_uv0
+mainloop_uvq
+;vertical scroll
+        ld de,bgfilename
+        call bgpush_prepare
+
+        call cls
+        ld de,pal;SUMMERPAL
+        OS_SETPAL
+
+pg0=$+1
+        ld a,0
+        call setpgc000;SETPG32KHIGH
+        ld hl,0x4000 ;scr
+        ld de,0xc000 ;gfx
+        ld bc,0xc020 ;hgt,wid
+        call primgega
+
+mainloop
+        ld bc,-1
+        call bgpush_inccurscroll
+
+        call bgpush_draw ;359975t
+
+        call drawsprites
+        
+       ld a,(timer)
+       push af
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+        
+mainloopwaittimer0
+        ld a,(timer)
+oldtimer=$+1
+        ld b,0
+        ld (oldtimer),a
+        sub b
+        ld b,a
+        jr z,mainloopwaittimer0
+mainlooplogic0
+        push bc
+        call logic
+        pop bc
+        djnz mainlooplogic0
+        
+;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
+       pop bc ;b=timer на момент changescrpg
+waitchangescr1
+        ld a,(timer)
+        cp b
+        jr z,waitchangescr1
+        
+;waitkey
+        ;halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
+curkey=$+1
+        ld a,0
+        cp key_esc
+        jp nz,mainloop;waitkey
+
+        call swapimer
+pgmusic=$+1
+        ld a,0
+        SETPG16K
+        ld hl,0x4008+3 ;stop
+        OS_SETMUSIC
+        halt
+        QUIT
+
+mousetrackcamera
+;de=delta (d>0: go up) (e>0: go left)
+;out: d=camera dy, e=camera dx
+        ld hl,(cameraxm)
+        ld c,e
+        ld a,c
+        rla
+        sbc a,a
+        ld b,a
+        add hl,bc
+        ld (cameraxm),hl
+        ld hl,(cameraym)
+        ld c,d
+        ld a,c
+        rla
+        sbc a,a
+        ld b,a
+        add hl,bc
+        ld (cameraym),hl
+        ret
+
+trackcamera
+;de=delta (d>0: go up) (e>0: go left)
+;out: d=camera dy, e=camera dx
 ;двигаем смещение камеры к идеалу (xspeed16;yspeed16), но не быстрее, чем на +-CAMERASHIFTSPEED
 ;и находим camerax/ymideal
 cameraxshift=$+1
@@ -370,105 +500,7 @@ cameraymold=$+1
        pop bc ;camera dx
          ld d,l
          ld e,c
-        pop hl ;l=mousekey
-        
-        ld a,l ;hl=(sysmousebuttons)
-        rra
-         jr nc,mainloop_uvq ;LMB
-        call uvscroll_scroll
-        call uvscroll_scrolltiles
-        
-       ld a,(timer)
-       push af
-        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
-
-mainloop_uvwaittimer0
-        ld a,(timer)
-uvoldtimer=$+1
-        ld b,0
-        ld (uvoldtimer),a
-        sub b
-        ld b,a
-        jr z,mainloop_uvwaittimer0
-mainloop_uvlogic0
-        push bc
-        call logic
-        pop bc
-        djnz mainloop_uvlogic0
-
-;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
-       pop bc ;b=timer на момент changescrpg
-waitchangescr0
-        ld a,(timer)
-        cp b
-        jr z,waitchangescr0
-
-        jp mainloop_uv0
-mainloop_uvq
-;vertical scroll
-        ld de,bgfilename
-        call bgpush_prepare
-
-        call cls
-        ld de,pal;SUMMERPAL
-        OS_SETPAL
-
-pg0=$+1
-        ld a,0
-        call setpgc000;SETPG32KHIGH
-        ld hl,0x4000 ;scr
-        ld de,0xc000 ;gfx
-        ld bc,0xc020 ;hgt,wid
-        call primgega
-
-mainloop
-        ld bc,-1
-        call bgpush_inccurscroll
-
-        call bgpush_draw ;359975t
-
-        call drawsprites
-        
-       ld a,(timer)
-       push af
-        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
-        
-mainloopwaittimer0
-        ld a,(timer)
-oldtimer=$+1
-        ld b,0
-        ld (oldtimer),a
-        sub b
-        ld b,a
-        jr z,mainloopwaittimer0
-mainlooplogic0
-        push bc
-        call logic
-        pop bc
-        djnz mainlooplogic0
-        
-;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
-       pop bc ;b=timer на момент changescrpg
-waitchangescr1
-        ld a,(timer)
-        cp b
-        jr z,waitchangescr1
-        
-;waitkey
-        ;halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
-curkey=$+1
-        ld a,0
-        cp key_esc
-        jp nz,mainloop;waitkey
-
-        call swapimer
-pgmusic=$+1
-        ld a,0
-        SETPG16K
-        ld hl,0x4008+3 ;stop
-        OS_SETMUSIC
-        halt
-        QUIT
+        ret
 
 objectslogic
         ld a,(pgmetatilemap)
@@ -476,6 +508,10 @@ objectslogic
 
         ld ix,objects
 objectslogic0
+        ld a,(ix+obj.y16+1)
+        cp DELETEDYHIGH
+        jp z,objectslogic0_skip
+
         ld l,(ix+obj.animaddr16+0)
         ld h,(ix+obj.animaddr16+1)
         ld e,(hl)
@@ -528,19 +564,24 @@ logic_nonextphase
 gravityok
         ld (ix+obj.yspeed16+0),l
         ld (ix+obj.yspeed16+1),h
+        ex de,hl ;de=yspeed
         
-;check floor
-        push hl
         ld l,(ix+obj.y16+0) ;*YSUBPIX8
         ld h,(ix+obj.y16+1)
+        bit 7,(ix+obj.flags)
+        jr nz,logic_nocheckfloor
+;check floor
+        push de ;yspeed
+        push hl ;y
         ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
         ld b,(ix+obj.x16+1)
          ld de,32*YSUBPIX8
          add hl,de ;координата прямо под ногами
         call gettile_bycoords
-        pop hl
-          ld c,(ix+obj.y16+0)
-          ld b,(ix+obj.y16+1)
+        pop hl ;yspeed
+        pop bc ;y
+          ;ld c,(ix+obj.y16+0)
+          ;ld b,(ix+obj.y16+1)
           add hl,bc
         cp FIRSTSOLIDTILE;32
          res 0,(ix+obj.flags) ;not on floor
@@ -557,7 +598,7 @@ gravityok
         jr floorok
 nofloor
         push hl ;y16
-        
+
         ld l,(ix+obj.y16+0) ;*YSUBPIX8
         ld h,(ix+obj.y16+1)
         ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
@@ -577,9 +618,20 @@ nofloor
         ld (ix+obj.yspeed16+1),0        
 noceiling
 floorok
+        jr logic_checkfloorq
+logic_nocheckfloor
+;hl=y
+;de=yspeed
+        add hl,de
+        ld a,h
+        cp METATILEMAPHGT*16*YSUBPIX8/256
+        jr c,logic_nofalltohell
+        ld h,DELETEDYHIGH
+logic_nofalltohell
+logic_checkfloorq
         ld (ix+obj.y16+0),l
         ld (ix+obj.y16+1),h
-
+objectslogic0_skip
         ld bc,OBJSIZE
         add ix,bc
         bit 7,(ix+obj.y16+1) ;yhigh
@@ -595,7 +647,13 @@ bulletslogic0
         bit 7,(ix+obj.y16+1) ;yhigh
         ret nz
         ;jr $
-
+;если health=1, то это мёртвая пуля, этот слот можно использовать
+        dec (ix+obj.health)
+        jr nz,bulletslogic_noremove
+        ld (ix+obj.y16+1),DELETEDYHIGH;0x7f ;yhigh
+        inc (ix+obj.health)
+        jp bulletslogic_skip        
+bulletslogic_noremove
         ld l,(ix+obj.xspeed16+0)
         ld h,(ix+obj.xspeed16+1)
         ld e,(ix+obj.x16+0)
@@ -603,6 +661,95 @@ bulletslogic0
         add hl,de
         ld (ix+obj.x16+0),l
         ld (ix+obj.x16+1),h
+
+;TODO каждый второй фрейм
+ENEMYHGT=32*YSUBPIX8
+ENEMYWID=16*XSUBPIX8 ;(in double pixels)
+BULLETWID=8*XSUBPIX8 ;(in double pixels)
+;TODO учесть размер врага
+;попали, если enemyy<=bullety<=enemyy+ENEMYHGT и enemyx-BULLETWID<=bulletx<=enemyx+ENEMYWID
+         ;<--->
+;   |------|
+
+;check enemy
+        ld e,(ix+obj.y16+0) ;*YSUBPIX8
+        ld d,(ix+obj.y16+1)
+        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
+        ld b,(ix+obj.x16+1)
+        ld a,d
+        cp DELETEDYHIGH
+        jp z,bulletslogic_checkenemy0q
+;de=bullety
+;bc=bulletx
+        exx
+        ld bc,OBJSIZE
+        exx
+        ld iy,objects+obj.sz
+bulletslogic_checkenemy0
+        bit 7,(iy+obj.y16+1) ;yhigh
+        jr nz,bulletslogic_checkenemy0q
+;enemyx-BULLETWID<=bulletx<=enemyx+ENEMYWID
+;-BULLETWID<=bulletx-enemyx<=ENEMYWID
+;-(ENEMYWID+BULLETWID)<=enemyx-bulletx-BULLETWID<=0
+        ld l,(iy+obj.x16+0) ;*XSUBPIX8 (in double pixels)
+        ld h,(iy+obj.x16+1) ;enemyx
+        ;ld a,l
+        ;sub BULLETWID
+        ;ld l,a
+        ;jr nc,$+3
+        ;dec h
+        or a
+        sbc hl,bc ;bc=bulletx
+        jr nc,bulletslogic_checkenemy_skip
+        ld a,l
+        add a,ENEMYWID;+BULLETWID
+        ld l,a
+        jr nc,bulletslogic_checkenemy_skip
+        inc h
+        jr nz,bulletslogic_checkenemy_skip
+bulletslogic_checkenemy_xok
+;enemyy<=bullety<=enemyy+ENEMYHGT?
+;0<=bullety-enemyy<=ENEMYHGT?
+;-ENEMYHGT<=enemyy-bullety<=0?
+        ld l,(iy+obj.y16+0) ;*YSUBPIX8
+        ld h,(iy+obj.y16+1) ;enemyy
+        or a
+        sbc hl,de ;de=bullety
+        jr nc,bulletslogic_checkenemy_skip
+        ld a,l
+        add a,ENEMYHGT-1
+        ld l,a
+        jr nc,bulletslogic_checkenemy_skip
+        inc h
+        jr nz,bulletslogic_checkenemy_skip
+bulletslogic_checkenemy_yok
+;попали!!!
+        ld (ix+obj.y16+1),DELETEDYHIGH ;уничтожаем пулю
+;отнимаем энергию
+        ld a,(iy+obj.health)
+        sub 10
+        ld (iy+obj.health),a
+         ld a,9
+        jr nc,bulletslogic_enemyfound_notdead
+        set 7,(iy+obj.flags) ;dead
+        ld (iy+obj.yspeed16+0),-8*YSUBPIX8
+        ld (iy+obj.yspeed16+1),-1
+        ld (iy+obj.xspeed16+0),2*XSUBPIX8
+        ld (iy+obj.xspeed16+1),0
+         ld a,10 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
+bulletslogic_enemyfound_notdead
+        push bc
+        push de
+         call sfxplay
+        pop de
+        pop bc
+bulletslogic_checkenemy_skip
+        exx
+        add iy,bc
+        exx
+        jr bulletslogic_checkenemy0
+bulletslogic_checkenemy0q
+;~check enemy
         
 ;check wall
         ld l,(ix+obj.y16+0) ;*YSUBPIX8
@@ -626,9 +773,10 @@ bulletslogic0
         ;inc l
         ;ld a,(hl)
         pop hl
-        cp FIRSTBETONTILE;32
-        jr c,bulletslogic_nocrash
-;TODO удалить
+        sub FIRSTBETONTILE;32
+        cp FIRSTOBJTILE-FIRSTBETONTILE
+        jr nc,bulletslogic_nocrash
+        ld h,DELETEDYHIGH ;удалить
         ld (ix+obj.xspeed16+0),0
         ld (ix+obj.xspeed16+1),0
         ld (ix+obj.yspeed16+0),0
@@ -636,13 +784,26 @@ bulletslogic0
 bulletslogic_nocrash
         ld (ix+obj.y16+0),l
         ld (ix+obj.y16+1),h
-
+bulletslogic_skip
         ld bc,OBJSIZE
         add ix,bc
         jp bulletslogic0
 
 fire
 genbullet
+;сначала найдём пустые места в списке пуль (т.е. где yhigh==0x7f)
+;если таких нет, то добавляем в конец
+        ld iy,bullets
+genbullet_findempty0
+        bit 7,(iy+obj.y16+1) ;yhigh
+        jr nz,genbullet_findempty0q
+        ld a,(iy+obj.y16+1) ;yhigh
+        cp DELETEDYHIGH
+        jr z,genbullet_struct
+        ld bc,OBJSIZE
+        add iy,bc
+        jr genbullet_findempty0
+genbullet_findempty0q
         ;jr $
 curbulletlistend=$+2
         ld iy,bullets
@@ -652,11 +813,24 @@ curbulletlistend=$+2
         pop iy
         ret c ;no room
 
+        call genbullet_struct
+        ld bc,OBJSIZE
+        add iy,bc
+genbullet_terminate
+        ld (curbulletlistend),iy
+        ld (iy+obj.y16+1),-1
+        ret
+
+BULLETSPEED=MAXSPEED ;(in double pixels)
+genbullet_struct
+         ld a,1 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
+         call sfxplay
+         
          ld a,(lastdir) ;0=right
          or a
-         ld de,4
+         ld de,BULLETSPEED;4
          jr z,$+5
-         ld de,-4
+         ld de,-BULLETSPEED;4
          ld (iy+obj.xspeed16),e
          ld (iy+obj.xspeed16+1),d
 
@@ -666,7 +840,7 @@ curbulletlistend=$+2
         ld (iy+obj.animaddr16),e
         ld (iy+obj.animaddr16+1),d
         ld (iy+obj.animtime),1
-        ;ld (iy+obj.health),19
+        ld (iy+obj.health),100
         ld a,(ix+obj.x16)
         add a,4*XSUBPIX8
         ld (iy+obj.x16),a
@@ -683,18 +857,17 @@ curbulletlistend=$+2
         ld (iy+obj.yspeed16),a
         ld (iy+obj.yspeed16+1),a
         ld (iy+obj.flags),a
-        ld bc,OBJSIZE
-        add iy,bc
-genbullet_terminate
-        ld (curbulletlistend),iy
-        ld (iy+obj.y16+1),-1
         ret
+        
 
 logic
         call objectslogic
         call bulletslogic
-
+        call herocontrol
+        ret
+        
 ;hero control 
+herocontrol
 joystate=$+1
 oldjoystate=$+2
         ld bc,0
@@ -1816,4 +1989,4 @@ end
 	
 	savebin "sprexamp.com",begin,end-begin
 	
-	LABELSLIST "../../../us\user.l"
+	LABELSLIST "../../../us/user.l"

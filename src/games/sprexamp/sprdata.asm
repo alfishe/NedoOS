@@ -79,7 +79,7 @@ animaddr16 WORD
 xspeed16 WORD
 yspeed16 WORD
 health  BYTE
-flags   BYTE ;b0=on ground, b1=jump not released, b2=blinking, b4=провалиться
+flags   BYTE ;b0=on ground, b1=jump not released, b2=blinking, b4=провалиться, b7=dead
 sz
         ENDS
 

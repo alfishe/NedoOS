@@ -241,7 +241,8 @@ prsprcropbottom
         
         ld a,(iy-4) ;sprwid
         cp hx ;расстояние до правого края экрана
-        jr nc,prsprcropygo_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
+        ;jr nc,$
+        jr nc,prsprcropygo;_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
         ld hx,a
         jp prsprcropygo
 
