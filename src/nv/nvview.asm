@@ -50,6 +50,7 @@ nvview_load0
         pop hl
         pop de
         ret nz ;no memory
+;nvview_load0nonewpg        
         ld a,0xc000/256
         call cmd_loadpage
         jr nz,nvview_load0q
@@ -58,6 +59,7 @@ nvview_load0
         ex de,hl
         jr nc,$+3
         inc hl
+         ;TODO nvview_load0nonewpg with new pointer if no new page
         ld a,b
         or c
         jr nz,nvview_load0
@@ -747,7 +749,7 @@ nvview_prline0
         cp 0x0d
         jr z,nvview_prline_cr
         cp 0x0a
-        jr z,nvview_prline_lf
+        jr z,nvview_prline_cr;lf
         ;push bc
         push hl
         ld h,twinto866/256
@@ -760,15 +762,15 @@ nvview_prline_recodepatch=$
         ;pop bc
         dec c
         djnz nvview_prline0
-        call print_prlinebuf
-        jr nz,nvview_prline_lf
-        ret
+        ;call print_prlinebuf
+        ;jr nz,nvview_prline_lf
+        ;ret
 ;nvview_prlinespc_all
 ;        ld a,NVVIEW_WID
 ;        jr nvview_prlinespc
 nvview_prline_cr
         call print_prlinebuf
-nvview_prline_lf
+;nvview_prline_lf
 ;допечатать пробелы до конца строки
         ;ld a,c
 nvview_prlinespc_all

@@ -492,7 +492,7 @@ fread1.
 	ld a,[de]
 	ld [hl],e ;inc [hl] ;remain
 	ret nz
-
+fread1noremain.
 	push bc
 	 ;push de
 ;read new buf (if exists)
@@ -621,7 +621,67 @@ fread
        ex de,hl
        call trdossetdrvfromtrdosfcb
        ex de,hl
-        ld (fread00size),bc
+        ;ld (fread00size),bc
+        ld (fread00addr),hl
+        if 1==1
+;read by sectors:
+       ld e,TRDOSFCB.waseof
+       ld a,[de]
+       ;ld a,[_waseof]
+       or a ;FALSE
+       jr nz,fread00q;freadbysector0q
+	ld e,TRDOSFCB.remain ;0xff = no data, 0xfe = 1 byte, ... 0x00 = 255 bytes
+	ld a,[de]
+        inc a
+        jr nz,fread00. ;not at sector margin (TODO read the beginning by bytes)
+        ld a,b
+        or a
+        jr z,fread00. ;length < 256
+       dec bc
+       inc b ;b=number of loops
+freadbysector0.
+        push de
+	push hl
+        ld h,d
+	ld e,0
+	inc d ;de=TRDOSFCB+256 (i.e. sector buffer)
+        call fread1noremain.
+	pop hl
+        pop de
+       ld e,TRDOSFCB.waseof
+       ld a,[de]
+       ;ld a,[_waseof]
+       or a ;FALSE
+       jr nz,fread00q
+        push bc
+        push de
+        ex de,hl ;data is at the end of buf
+        ld l,TRDOSFCB.remain ;0xff = 1 byte, 0xfe = 2 bytes, ... 0x00 = 256 bytes (including the returned byte that we've ignored)
+        ld l,[hl]
+        inc h ;hl=buf with data
+        ld b,a;0
+        ld a,l ;0xff..0x00
+        cpl
+        ld c,a ;0..255
+        inc bc ;1..256
+        ldir
+        ex de,hl
+        pop de
+        pop bc
+       inc a
+       jr nz,EOFfread00q ;last (short) sector in file
+        djnz freadbysector0.
+       ld e,TRDOSFCB.remain ;0xff = no data, 0xfe = 1 byte, ... 0x00 = 255 bytes
+       ld a,0xff
+       ld [de],a
+        jr fread00q
+EOFfread00q
+       ld e,TRDOSFCB.waseof
+       ld a,TRUE
+       ld [de],a
+        jr fread00q
+        endif
+;read by bytes:
 fread00.
         push de
 	push hl
@@ -649,8 +709,13 @@ fread00.
 	 ;ex de,hl ;hl = total processed bytes
 fread00q
 ;bc=size-processedbytes
-fread00size=$+1
-        ld hl,0
+;fread00size=$+1
+;        ld hl,0
+;        xor a ;a=0: no error
+;        sbc hl,bc ;hl=processedbytes
+;hl=addr+processedbytes
+fread00addr=$+1
+        ld bc,0
         xor a ;a=0: no error
         sbc hl,bc ;hl=processedbytes
 	ret
@@ -833,7 +898,8 @@ fwrite
        ex de,hl
        call trdossetdrvfromtrdosfcb
        ex de,hl
-        ld (fread00size),bc
+        ;ld (fread00size),bc
+        ld (fread00addr),hl
 fwrite00.
 	ld a,[hl]
         push de

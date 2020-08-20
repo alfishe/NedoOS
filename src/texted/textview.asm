@@ -1217,15 +1217,15 @@ texted_prline_recodepatch=$
         ;pop bc
         dec c
         djnz texted_prline0
-        call print_prlinebuf
-        jr nz,texted_prline_lf
-        ret
+        ;call print_prlinebuf
+        ;jr nz,texted_prline_lf
+        ;ret
 ;texted_prlinespc_all
 ;        ld a,texted_WID
 ;        jr texted_prlinespc
 texted_prline_cr
         call print_prlinebuf
-texted_prline_lf
+;texted_prline_lf
 ;допечатать пробелы до конца строки
         ;ld a,c
 texted_prlinespc_all
