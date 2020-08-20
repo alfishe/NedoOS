@@ -1,0 +1,100 @@
+ oder 
+Integer
+Konstante
+Variable
+Ausdruck
+Real
+Zeiger
+Datei
+Einfacher 
+String
+Datentyp
+ sind hier
+kompatibel
+ nicht 
+erlaubt
+Undefinierte
+Text
+ und 
+Bezeichner
+ Ueberlauf
+ erwartet
+en
+Fehler
+typ
+
+01';'
+02':'
+03','
+04'('
+05')'
+06'='
+07':='
+08'[''(.'
+09']''.)'
+10'.'
+11'..'
+12BEGIN
+13DO
+14END
+15OF
+17THEN
+18TO DOWNTO
+20Boolscher Begriff
+21-
+22-
+23-
+24-
+25--
+26--
+27--
+28-
+29Record-
+30
+31 
+32-
+33-
+34-
+35-
+36Typ-
+37Unisierte 
+40s Label
+41r Synataxfehler
+42r e in vorhergehder Typdefinition
+43Doppelter Label
+44
+45im Bereich
+46CASE Selector 
+47OperandOperator 
+48Ergebnis 
+49l{ngeim Bereich
+50L{nge der - 
+51Teilbereich-Basise 
+52Untere > obere Grze
+53Reserviertes Wort
+54Unerlaube Zuweisung
+55- geht ueber Zeile hinaus
+56 in -
+57 in -
+58Unes Zeich in 
+60n 
+61 
+62Strukturierte n 
+63- 
+64-lose  
+65Typlose  
+66EingabeAusgabe 
+67 muess VAR Parameter sein
+68kompont
+69Une Ordnung von Feldern
+70Mg ausserhalb des zulaessig Bereichs
+71Unes Goto
+72Labelinnerhalb des gegw{rtig Blocks
+73 Forward Prozedur()
+74INLINE 
+75Uner Gebrauch von ABSOLUTE
+90gefund
+91Unerwartetes Ende der Source
+97Zuviele geschachtelte WITHs
+98Speicher
+99Compiler
