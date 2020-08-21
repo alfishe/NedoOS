@@ -4572,6 +4572,7 @@ l133f:
 ; EXIT	Reg HL holds boolean result
 ;
 l134f:
+        jr $
 	pop	ix		; Get caller
 	ld	hl,set.len+1
 	add	hl,sp		; Get pointer to set
@@ -4992,10 +4993,10 @@ l156b:
 	ld	hl,(l00e2)	; Get FIB
 	ld	a,(l00d0)
 	or	a		; Test error
-	jr	nz,l15ed	; Force EOF if so
+	jp	nz,l15ed	; Force EOF if so
 	ld	a,(hl)
 	bit	wr.bit,a	; Test preread
-	jr	nz,l15e9	; Fetch if so
+	jp	nz,l15e9	; Fetch if so
 	and	FIBtype		; Test device
 	jr	nz,l15ab	; Yeap, standard I/O
 	inc	hl		; Point to sector buffer
@@ -5003,6 +5004,11 @@ l156b:
 	ld	a,(hl)
 	or	a		; Test filled
 	jp	p,l1597		; Not yet
+	 ;push	hl
+         ;ex de,hl
+	 ;ld	c,_setdma
+	 ;call	l19ba		; set DTA
+	 ;pop	hl        
 	ld	c,_rdseq
 	push	hl
 	call	l19ba		; Read sector
@@ -5010,6 +5016,29 @@ l156b:
 	;jr	z,l1595		; Read was successfull
          cp 128 ;EOF in NedoOS
          jr nz,l1595		; Read was successfull
+         jr $ ;lister.pas
+;by hand
+;CP/M has eofs in the end of last sector?
+;do this by hand:
+        or a
+        jr z,read_load_noaddzeros ;full sector
+;a=128+bytes loaded
+        neg
+;a=128-bytes loaded
+        ld b,a
+        ld a,l
+        add a,127
+        ld e,a
+        adc a,h
+        sub e
+        ld d,a
+	;ld de,l7957+127	;de= Point to buffer end
+        ld a,eof;-1
+        ld (de),a
+        dec de
+        djnz $-2
+read_load_noaddzeros
+
 	push	hl
 	ld	de,FIB.buff-2
 	add	hl,de		; Point to buffer
@@ -6432,6 +6461,7 @@ _l1c33:
 	;jr	z,_l1c33
          cp 128 ;EOF in NedoOS
          jr nz,_l1c33		; Read was successfull
+         ;jr $
 	jr	TPA		; Start after loading
 l0019	equ	$-_l1c33
 	ent
@@ -7350,6 +7380,7 @@ l2156:
 ; Come here after cold start
 ;
 l215e:
+        OS_HIDEFROMPARENT
         ld e,6 ;textmode
         OS_SETGFX
         
@@ -7797,16 +7828,17 @@ l257c:
 	;ret	nz		; Yeap
          cp 128
          ret z ;EOF in NedoOS
-        if 1==0
+        if 1==1
 ;CP/M has eofs in the end of last sector?
 ;do this by hand:
         or a
         jr z,load_noaddzeros ;full sector
-         jr $
-        xor 128 ;a=bytes loaded
+;a=128+bytes loaded
+        neg
+;a=128-bytes loaded
         ld b,a
 	ld de,l7957+127	; Point to buffer end
-        ld a,-1
+        ld a,eof;-1
         ld (de),a
         dec de
         djnz $-2
@@ -7815,6 +7847,8 @@ load_noaddzeros
 	ld	de,l7957	; Point to buffer
 	ld	b,RecLng
 l258d:
+         ;ld (hl),eof ;why there was not?
+         ;inc hl
 	ld	a,(de)		; Scan for EOF
 	cp	-1
          ;jr z,$
@@ -7823,6 +7857,7 @@ l258d:
 	cp	eof
          ;jr z,$
 	ret	z
+         ;dec hl
 	ld	(hl),a		; Unpack data
 	inc	hl
 	inc	de
@@ -16401,6 +16436,7 @@ s_I27:
 	LD	SP,HL
 a_L27	equ	$-s_I27
 	ret
+
 l5e84:
 	call	l6d2a		; Save environment
 	call	l5ee8
@@ -16474,6 +16510,7 @@ l5eeb:
 	ret	nz		; Nope
 	ld	a,(hl)		; Get code
 	inc	a		; Test IN
+         jr z,$
 	jr	z,l5f34		; Yeap
 	dec	a
 	push	af
@@ -19743,11 +19780,19 @@ l714a:
 	push	hl
 	push	bc
 	call	l71f3
+         push af
+         push ix
+         push iy
+         PRCHAR
+         pop iy
+         pop ix
+         pop af
 	pop	bc
 	pop	hl
 	cp	cr
 	jr	z,l7175
 	cp	eof
+         ;jr z,$ ;never
 	jr	z,l716a
 	cp	tab
 	jr	z,l7161
@@ -19767,14 +19812,14 @@ l716a:
 	call	l718f		; Test abort
 	jr	l7178
 l7175:
-	call	l717e
+	call	l717e ;compile_newline
 l7178:
 	ld	(hl),0
 	pop	hl
 	pop	de
 	pop	bc
 	ret
-l717e:
+l717e: ;compile_newline
 	push	af
 	push	hl
 	ld	hl,(l7bef)
@@ -19782,7 +19827,7 @@ l717e:
 	ld	(l7bef),hl
 	ld	a,l
 	and	0fh
-	jr	z,l7191
+	;jr	z,l7191
 	pop	hl
 	pop	af
 	ret
@@ -19872,9 +19917,35 @@ l721a:
 	pop	bc
 	;or	a
 	;jr	nz,l7237
-         cp 128 ;EOF in NedoOS
+         xor 128 ;EOF in NedoOS
          jr z,l7237
-	ld	hl,RecLng
+	;ld	hl,RecLng
+         ld l,a
+         ld h,0
+;CP/M has eofs in the end of last sector?
+;do this by hand:
+        xor 128
+        jr z,readchar_load_noaddzeros ;full sector
+;a=128+bytes loaded
+        neg
+;a=128-bytes loaded
+        push bc
+        push de
+        ld b,a
+	ld a,e
+        add a,127
+        ld e,a
+        adc a,d
+        sub e
+        ld d,a
+        ;de= Point to buffer end
+        ld a,eof;-1
+        ld (de),a
+        dec de
+        djnz $-2
+        pop de
+        pop bc
+readchar_load_noaddzeros
 	add	hl,de		; Advance buffer
 	ex	de,hl
 	djnz	l721a

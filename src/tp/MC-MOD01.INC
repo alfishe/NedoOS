@@ -32,6 +32,7 @@ var
   I: ScreenIndex;
   J: Integer;
   LastName: string[2];
+  bb: Boolean;
 begin
   for I:='A' to FXMAX do
   begin
@@ -39,7 +40,8 @@ begin
     begin
       with Screen[I,J] do
       begin
-        CellStatus:=[Txt];
+        {CellStatus:=[Txt];}
+        bb:=(Txt in [Txt]);
         Contents:='';
         Value:=0;
         DEC:=2;              { Default number of decimals        }
