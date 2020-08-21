@@ -10,6 +10,12 @@ if "%currentdir%"=="" (
  FOR %%j IN (*.msg) DO (
  "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
  )
+ FOR %%j IN (*.pas) DO (
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
+ FOR %%j IN (*.inc) DO (
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
  pause
  if "%makeall%"=="" ..\..\us\emul.exe
 )

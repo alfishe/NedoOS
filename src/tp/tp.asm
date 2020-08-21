@@ -35,8 +35,8 @@ Number	equ	005dh
 TPA	equ	0100h
 
 ;CP/M function codes:
-_resdsk	equ	13 ;TODO
-_seldsk	equ	14 ;
+;_resdsk	equ	13 ;TODO
+;_seldsk	equ	14 ;
 _open	equ	15 ;
 _close	equ	16 ;
 _srcfrs	equ	17 ;
@@ -46,7 +46,7 @@ _rdseq	equ	20 ;
 _wrseq	equ	21 ;
 _make	equ	22 ;
 _rename	equ	23 ;TODO
-_retdsk	equ	25 ;TODO (return L=A=current drive)
+_retdsk	equ	25 ;TODO (return A=current drive)
 _setdma	equ	26 ;
 _getalv	equ	27 ;TODO
 _getdpb	equ	31 ;TODO
@@ -5007,7 +5007,9 @@ l156b:
 	push	hl
 	call	l19ba		; Read sector
 	pop	hl
-	jr	z,l1595		; Read was successfull
+	;jr	z,l1595		; Read was successfull
+         cp 128 ;EOF in NedoOS
+         jr nz,l1595		; Read was successfull
 	push	hl
 	ld	de,FIB.buff-2
 	add	hl,de		; Point to buffer
@@ -6426,8 +6428,10 @@ _l1c33:
 	ld	hl,RecLng
 	add	hl,de		; Bump address
 	ex	de,hl
-	or	a		; Test more
-	jr	z,_l1c33
+	;or	a		; Test more
+	;jr	z,_l1c33
+         cp 128 ;EOF in NedoOS
+         jr nz,_l1c33		; Read was successfull
 	jr	TPA		; Start after loading
 l0019	equ	$-_l1c33
 	ent
@@ -7448,7 +7452,6 @@ l2270:
 ; Display menue
 ;
 l227a:
-         ;jr $
 	call	l023e		; Clear screen
 	call	l01fa		; Give some info
 ;
@@ -7508,7 +7511,6 @@ l232e:
 ;	Reg DE holds start address
 ;
 l2338:
-        ;jr $
 	push	hl
 	push	de
 	or	a
@@ -7763,7 +7765,7 @@ l253b:
 	ld	bc,l0024
 	ldir
 	ld	c,_open
-	call	l26d3		; Open file
+	call	BDOS_with_FCB1		; Open file
 l2560:
 	;push	af
 	;ld	de,l7957
@@ -7777,7 +7779,6 @@ l2560:
 	ld	(l7b6d),bc	; Set last memory address
 l2573:
 	ld	bc,(l7b6d)	; Get last memory address
-         ;jr $
 	dec	b
 	or	a
 	sbc	hl,bc		; Test room in memory
@@ -7790,10 +7791,27 @@ l257c:
 	 call	l7265		; Set disk buffer
          ;??? а как же de=fcb?
 	ld	c,_rdseq
-	call	l26d3		; Read record from file
+	call	BDOS_with_FCB1		; Read record from file
 	pop	hl
-	or	a		; Test end of file
-	ret	nz		; Yeap
+	;or	a		; Test end of file
+	;ret	nz		; Yeap
+         cp 128
+         ret z ;EOF in NedoOS
+        if 1==0
+;CP/M has eofs in the end of last sector?
+;do this by hand:
+        or a
+        jr z,load_noaddzeros ;full sector
+         jr $
+        xor 128 ;a=bytes loaded
+        ld b,a
+	ld de,l7957+127	; Point to buffer end
+        ld a,-1
+        ld (de),a
+        dec de
+        djnz $-2
+load_noaddzeros
+        endif
 	ld	de,l7957	; Point to buffer
 	ld	b,RecLng
 l258d:
@@ -7801,7 +7819,7 @@ l258d:
 	cp	-1
          ;jr z,$
 	ret	z
-	and	NOMSB
+	and	NOMSB ;why???
 	cp	eof
          ;jr z,$
 	ret	z
@@ -7940,7 +7958,7 @@ l2639:
 	ld	bc,DIRlen
 	ldir			; Get new file
 	ld	c,_rename
-	call	l26d3		; Rename it
+	call	BDOS_with_FCB1		; Rename it
 	ld	hl,(l4544)	; Get start of text
 l2692:
 	push	hl
@@ -7969,7 +7987,7 @@ l26af:
 	push	bc
 	push	hl
 	ld	c,_wrseq
-	call	l26d3		; Write record to file
+	call	BDOS_with_FCB1		; Write record to file
 	pop	hl
 	pop	bc
 	or	a		; Test success
@@ -7988,7 +8006,7 @@ l26c6:
 ;
 ; Do OS call with standard FCB
 ;
-l26d3:
+BDOS_with_FCB1:
 	ld	de,l005c
 	jp	l7265		; Do file call
 ;
@@ -8033,7 +8051,7 @@ l2708:
 	call	l2e76		; Get ESCape
 	call	l26d9		; Clear FCB
 	ld	c,_delete
-	call	l26d3		; Delete file
+	call	BDOS_with_FCB1		; Delete file
 	ld	a,(l44f2)	; Test to be renamed
 	or	a
 	ret	z		; Nope
@@ -8048,7 +8066,7 @@ l2708:
 	ldir			; Unpack FCB
 	call	l25f5		; Set extension .BAK
 	ld	c,_rename
-	call	l26d3		; Rename file
+	call	BDOS_with_FCB1		; Rename file
 	jp	l223b		; Enter menue
 ;
 ; ####################################
@@ -8580,10 +8598,12 @@ l2b45:
 	ld	c,_setdma
 	call	BDOS		; Set disk buffer
 	ld	c,_rdseq
-	call	l26d3		; Read record
+	call	BDOS_with_FCB1		; Read record
 	pop	de
-	or	a		; Test end of file
-	jr	z,l2b45		; Nope, loop on
+	;or	a		; Test end of file
+	;jr	z,l2b45		; Nope, loop on
+         cp 128 ;EOF in NedoOS
+         jr nz,l2b45		; Read was successfull
 	ret
 ;
 ; Execute file
@@ -8618,6 +8638,11 @@ l2b7a:
 ; ################################
 ; ### MAIN MENUE D - Directory ###
 ; ################################
+fcbmask
+        db 0
+        db "???????????"
+        ds FCB_sz-11-1
+fcbmask_filename=fcbmask+FCB_FNAME
 ;
 l2b93:
 	call	l0200
@@ -8636,20 +8661,26 @@ l2b93:
 	dec	a
 	ld	e,a
 	push	af		; Set new disk
-	ld	c,_seldsk
-	call	l7265		; Select disk
+	;ld	c,_seldsk
+	;call	l7265		; Select disk
 l2bbb:
 	pop	af
 	add	a,'A'		; Make disk ASCII
 	ld	(l2c8d),a	; Save disk
-	ld	de,l7957
-	ld	c,_setdma
-	call	l7265		; Set disk buffer
+	;ld	de,l7957
+	;ld	c,_setdma
+	;call	l7265		; Set disk buffer
 	ld	de,0		; Clear flag and count
 	ld	c,_srcfrs
 l2bce:
 	push	de
-	call	l26d3		; Search for file
+         push bc
+	 ld	de,l7957
+	 ld	c,_setdma
+	 call	l7265		; Set disk buffer
+         pop bc
+         ld de,fcbmask
+	call	BDOS_with_FCB1		; Search for file
 	pop	de
 	ld	c,a
 	inc	a		; Test valid one
@@ -8773,8 +8804,9 @@ l2c8d:
 	call	l03c9		; Put to console
 	pop	af		; Get back selected disk
 	ld	e,a
-	ld	c,_seldsk
-	jp	l7265		; Select disk
+       ret
+	;ld	c,_seldsk
+	;jp	l7265		; Select disk
 ;
 ; BC holds resulting block count
 ; DE holds allocation vector
@@ -8845,6 +8877,9 @@ l2ce8:
 	cp	'P'-'A'+1
 	ret	nc
 l2cf1:
+        if 1==1
+        ret
+        else
 	push	af
 	ld	c,_resdsk
 	call	l7265		; Reset disk system
@@ -8853,6 +8888,7 @@ l2cf1:
 	ld	e,a
 	ld	c,_seldsk
 	jp	l7265		; Select disk
+        endif
 ;
 ; Ask for YES or NO - Z set is NO
 ;
@@ -9087,7 +9123,7 @@ l2e51:
 	push	de
 	push	hl
 	ld	c,_open
-	call	l26d3		; Open file
+	call	BDOS_with_FCB1		; Open file
 	pop	hl
 	pop	de
 	inc	a		; Fix result
@@ -9136,6 +9172,7 @@ l2e8f:
 ; %%%%%%%%%%%%%%%%%%%%
 ;
 l2e91:
+        ;jr $
 	push	hl
 	ld	de,256*lf+cr
 	ld	hl,(l4546)	; Get end of text
@@ -10093,7 +10130,7 @@ l3509:
 	ret	z
 	call	l2d2a		; Prepare .PAS file
 	ld	c,_open
-	call	l26d3		; Open file
+	call	BDOS_with_FCB1		; Open file
 	inc	a		; Test file already exist
 	jr	z,l3551		; Nope
 	call	l3e07
@@ -10104,7 +10141,7 @@ l3509:
 	call	l2d01		; Ask for YES or NO
 	jr	z,l3509		; No
 	ld	c,_delete
-	call	l26d3		; Delete file
+	call	BDOS_with_FCB1		; Delete file
 l3551:
 	ld	hl,(l4462)	; Get block end pointer
 	ld	a,(hl)		; Save character
@@ -10139,7 +10176,7 @@ l3573:
 	ret	z
 	call	l2d2a		; Prepare .PAS file
 	ld	c,_open
-	call	l26d3		; Open file
+	call	BDOS_with_FCB1		; Open file
 	inc	a		; Test success
 	jr	nz,l35a8	; Yeap
 	call	l3e0d		; Set cursor
@@ -12131,12 +12168,13 @@ l423e:
 	push	hl
 	push	ix
 	push	iy
-	call	l00a0		; Test key pressed
+        YIELD
+	GET_KEY ;call	l00a0		; Test key pressed
 	pop	iy
 	pop	ix
 	pop	hl
 	ret	z		; No character available
-	call	l03e1		; Read character
+	;call	l03e1		; Read character
 	ld	(hl),a		; Store it
 	ld	(l445e),hl	; Set output queue pointer
 	ret
@@ -19832,8 +19870,10 @@ l721a:
 	call	l7265		; Read record
 	pop	de
 	pop	bc
-	or	a
-	jr	nz,l7237
+	;or	a
+	;jr	nz,l7237
+         cp 128 ;EOF in NedoOS
+         jr z,l7237
 	ld	hl,RecLng
 	add	hl,de		; Advance buffer
 	ex	de,hl
