@@ -79,7 +79,7 @@ Fext		equ	 3
 _SYS		equ	10
 _ex		equ	12
 DIRlen		equ	16
-_rrn		equ	33
+_rrn		equ	33 ;shift to random record number in FCB
 FCBlen		equ	36
 
 FIB.rec		equ	4		; Pointer #records
@@ -125,7 +125,7 @@ CtrlC	equ	'C'-'@'
 Xoff	equ	'S'-'@'
 a_CAN	equ	'U'-'@'
 CtrlX	equ	'X'-'@'
-DEL	equ	key_del;7fh
+;DEL	equ	7fh
 
 LoMask	equ	00001111b
 DPBMASK	equ	00011111b
@@ -491,18 +491,18 @@ l0128:
 ;
 l0153:
 	db	TermLen
-	db	'Schneider Joyce'
+	db	'NedoOS BDOS';'Schneider Joyce'
 TermLen	equ	$-l0153-1
 	db	'12864'
 l0168:
-	db	90		; Screen columns
+	db	80;90		; Screen columns
 l0169:
-	dw	31		; Screen lines
+	dw	25;31		; Screen lines
 ;
 ; Lead in sequence: Leave 24x80 mode
 ;
 l016b:
-	db	2,esc,'y'
+	db 0;db	2,esc,'y'
 ;
 	db	1bh,'Y  ',1,1,1dh
 	db	3,3,1bh,1bh,1bh,0d5h
@@ -510,14 +510,18 @@ l016b:
 ; Lead out sequence: Enter 24x80 mode
 ;
 l017b:
-	db	2,esc,'x'
+	db 0;db	2,esc,'x'
 ;
 	db	0,0,1ch,0,17h,17h
 	db	1dh,17h,17h,0efh,9eh,0cdh,0bdh
+;
+;setxy sequence
+;not used in NedoOS
 l018b:
 	db	4,esc,'Y',0,0
 	ds	11
 ll018b	equ	$-l018b
+
 l019b:
 	db	1		; Binary indicator (1 is binary)
 l019c:
@@ -532,35 +536,35 @@ l01a0:
 	dw	0
 ;
 ; Clear display
-;
+;not used in NedoOS
 l01a2:
 	db	2,esc,'E'
 	ds	3
 ;
 ; Home cursor
-;
+;not used in NedoOS
 l01a8:
 	db	2,esc,'H'
 	ds	3
 ;
 ; Insert line
-;
+;if zero in first byte, function not implemented in this terminal
 l01ae:
-	db	2,esc,'L'
+	db 0;db	2,esc,'L'
 	ds	3
 ;
 ; Delete line
-;
+;if zero in first byte, function not implemented in this terminal
 l01b4:
-	db	2,esc,'M'
+	db 0;db	2,esc,'M'
 	ds	3
 l01ba:
 	dw	0
 ;
 ; Clear to end of line
-;
+;if zero in first byte, function not implemented in this terminal
 l01bc:
-	db	2,esc,'K'
+	db 0;db	2,esc,'K'
 	ds	3
 ;
 ; Turn off inverse
@@ -589,8 +593,12 @@ l01d4:
 	inc	hl
 	push	af
 	push	hl
+        push ix ;TODO remove?
+        push iy
 	ld	a,(hl)		; Get character
 	PRCHAR ;call	l01e8		; Put to console
+        pop iy
+        pop ix ;TODO remove?
 	pop	hl
 	pop	af
 	dec	a
@@ -607,12 +615,14 @@ l01e1:
 ; Put character on console
 ;
 l01e8:
+        push ix ;TODO remove?
+        push iy
 	;ld	l,a
 	;push	hl		; Push onto stack
 	PRCHAR ;call	l00a6		; Put to console
+        pop iy
+        pop ix ;TODO remove?
 	ret
-
-        ;ds 0x01ee-$
 
 ;
 ; Check character for attribute
@@ -620,8 +630,8 @@ l01e8:
 ;
 l01ee:
 	cp	MSB		; Test attribute set
-	call	c,l026b		; Nope, set invers video
-	call	nc,l0284	; Yeap, set normal video
+	call	c,setlowvideo		; Nope, set invers video
+	call	nc,setnormvideo	; Yeap, set normal video
 	and	NOMSB		; Strip off attribute
 	jr	l01e8
 ;
@@ -700,8 +710,12 @@ l023e:
 	push	de
 	push	hl
        if 1==1
+        push ix ;TODO remove?
+        push iy ;needed!!!
         ld e,0
 	OS_CLS
+        pop iy
+        pop ix ;TODO remove?
        else
 	ld	hl,l01a8
 	call	l0235		; Home cursor
@@ -747,24 +761,28 @@ l0262:
 ;
 ; Set low video
 ;
-l026b:
-        if 1==1
-        push af
-        push bc
-        push de
-        push hl
-        ld e,0x07;0x38
-        OS_SETCOLOR
-        pop hl
-        pop de
-        pop bc
-        pop af
-        ret
-        else
+setlowvideo:
 	push	af
 	ld	a,(l00e0)	; Get video mode
 	or	a		; Test low mode already set
 	jr	z,l0282		; Yeap, skip
+        if 1==1
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+	xor	a
+	ld	(l00e0),a	; Set video mode	
+        ld e,0x07;0x38
+l027c:
+        OS_SETCOLOR
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        else
 	push	bc
 	push	de
 	push	hl
@@ -776,31 +794,29 @@ l027c:
 	pop	hl
 	pop	de
 	pop	bc
+        endif
 l0282:
 	pop	af
 	ret
-        endif
 ;
 ; Set normal video
 ;
-l0284:
-        if 1==1
-        push af
-        push bc
-        push de
-        push hl
-        ld e,0x47;0x07
-        OS_SETCOLOR
-        pop hl
-        pop de
-        pop bc
-        pop af
-        ret
-        else
+setnormvideo:
 	push	af
 	ld	a,(l00e0)	; Get video mode
 	cp	-1		; Test normal mode already set
 	jr	z,l0282		; Yeap, skip
+        if 1==1
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+	ld a,-1
+	ld (l00e0),a	; Set video mode	
+        ld e,0x47;0x07
+        jr l027c
+        else
 	push	bc
 	push	de
 	push	hl
@@ -841,11 +857,15 @@ l02a2:
         push bc
         push de
         push hl
+        push ix
+        push iy
         ld d,l
         ld e,h
-        dec d
-        dec e
+        ;dec d
+        ;dec e
         OS_SETXY
+        pop iy
+        pop ix
         pop hl
         pop de
         pop bc
@@ -954,7 +974,11 @@ l0320:
 	ld	de,_.conin
 l0323:
 	;call	l035f		; Get input
+        push ix ;TODO remove?
+        push iy
         GET_KEY
+        pop iy
+        pop ix ;TODO remove?
 l0326:
 	ld	l,a		; Expand result to 16 bit
 	ld	h,0
@@ -1022,10 +1046,10 @@ l033c:
 	ld	a,h
 	or	l		; Nope
 	jr	z,l035d
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 	cp	Xoff		; Test XOFF
 	jr	nz,l035d
-	call	l03e1
+	call	readfromkbd
 	cp	CtrlC		; Test abort
 	jp	z,l20d4		; Halt if so
 l035d:
@@ -1113,9 +1137,9 @@ l03bd:
 	db	0
 ll000c	equ	$-l03bd
 ;
-; Put chracater to console
+; Put character to console
 ;
-l03c9:
+puttoconsole_a:
 	push	bc
 	push	de
 	push	hl
@@ -1140,13 +1164,19 @@ l03d9:
 ;
 ; Read character from keyboard
 ;
-l03e1:
+readfromkbd:
 	push	bc
 	push	de
 	push	hl
 	push	ix
 	push	iy
+         ld e,0x78
+         OS_PRATTR
         YIELDGETKEYLOOP
+         push af
+         ld e,0x47
+         OS_PRATTR
+         pop af
 	;call	l00a3		; Read KBD
 	;ld	a,l
 	jr	l03d9
@@ -1323,7 +1353,7 @@ l04bd:
 	daa
 	adc	a,040h
 	daa
-	jp	l03c9		; Put to console
+	jp	puttoconsole_a		; Put to console
 ;
 ; Get byte from 16 bit
 ; ENTRY	Reg HL holds 16 bit signed integer
@@ -4913,13 +4943,13 @@ l14f4:
 l14fd:
 	ld	d,0		; Reset character count
 l14ff:
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 	ld	(hl),a		; Unpack it
 	ld	e,1		; Init flag
 	cp	bs		; Test backspace
 	jr	z,l153f
-	cp	DEL		; Test delete
-	jr	z,l153f
+	;cp	DEL		; Test delete
+	;jr	z,l153f
 	dec	e
 	cp	CtrlX		; Test ^X
 	jr	z,l153f
@@ -4948,7 +4978,7 @@ l1533:
 	ld	a,(hl)		; Get character
 	inc	d		; Advance counter
 	inc	hl		; Point to next storage location
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	jr	l14ff
 ;
 ; Special control detected: Backspace, DELete, ^X, ESCape
@@ -7320,6 +7350,8 @@ l20de:
 	pop	de
 	jp	(hl)		; Restart
 ;
+;end of runtime library
+
 ; %%%%%%%%%%%%%%%%%%%
 ; %%% MENUE ENTRY %%%
 ; %%%%%%%%%%%%%%%%%%%
@@ -7343,8 +7375,8 @@ l20e5:
 	ld	bc,256*0+0	; No break, no interrupt
 	call	l0364		; Init pointers
 	call	l030a		; Give lead in sequence
-	call	l026b		; Set low video
-	jp	l0284		; Set normal video
+	call	setlowvideo		; Set low video
+	jp	setnormvideo		; Set normal video
 ;
 ; Init session and load work file if defined
 ;
@@ -7404,7 +7436,7 @@ l215e:
 l217d:
 	db	'TURBO'
 	db	' Pascal system',null
-	call	l026b		; Set low video
+	call	setlowvideo		; Set low video
 	ld	b,7
 	call	l2156		; Give blanks
 	call	l0200		; Tell version
@@ -7419,7 +7451,7 @@ l217d:
 	db	cr,lf,cr,lf
 	db	'Copyright (C) 1983,84,85   '
 	db	null
-	call	l0284		; Set normal video
+	call	setnormvideo		; Set normal video
 	call	l0200
 ;
 	db	'BORLAND Inc.'
@@ -7455,7 +7487,7 @@ l223b:
 ;
 	db	cr+MSB,lf+MSB,'>'+MSB
 	db	null
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 	call	l04a6		; Convert to upper case
 	call	l01e1		; Give new line
 	ld	hl,l2460
@@ -7496,7 +7528,7 @@ l227a:
 	ld	c,_retdsk
 	call	BDOS		; Fetch disk (return L=A=current drive)
 	add	a,'A'		; Make ASCII
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	call	l01fa		; Tell work file
 ;
 	db	cr+MSB,lf+MSB,lf+MSB
@@ -7559,11 +7591,11 @@ l2338:
 	pop	hl		; Get start address
 	call	l04af		; Print hex
 	ld	a,'-'
-	call	l03c9		; Give delimiter
+	call	puttoconsole_a		; Give delimiter
 	pop	hl		; Get end address
 	call	l04af		; Print hex
 	ld	a,')'
-	call	l03c9		; Give closure
+	call	puttoconsole_a		; Give closure
 	jp	l01e1		; Give new line
 ;
 ; Display arrow if compile selected
@@ -7637,7 +7669,7 @@ l2419:
 	db	cr,lf,lf
 	db	'>'+MSB
 	db	null
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 	call	l04a6		; Convert to upper case
 	call	l01e1		; Give new line
 	ld	hl,l246b
@@ -7772,7 +7804,7 @@ l2518:
 	ld	(l4450),hl	; Set current memory pointer
 	ld	(l4454),hl	; Set block pointer
 	ld	(l4458),hl	; Set edit pointer
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	ld	bc,(l4548)	; Get top of available memory
 	call	l253b		; Load file
 	ld	(hl),cr		; Close last line
@@ -8301,8 +8333,8 @@ l287b:
 	pop	de
 	ld	hl,l20e2
 	ld	(TPA+1),hl	; Reset start address
-	or	a		; Test I/O success
-	jp	nz,l2a5a	; Error, disk full
+	;or	a		; Test I/O success
+	;jp	nz,l2a5a	; Error, disk full
 	ld	hl,RecLng
 	add	hl,de		; Advance buffer
 	ex	de,hl
@@ -8454,7 +8486,7 @@ l29d2:
 	ld	a,(de)		; Get from extended part
 	cp	cr		; Test end of line
 	jr	z,l29e9		; Yeap
-	call	l03c9		; Put substring to console
+	call	puttoconsole_a		; Put substring to console
 	inc	de
 	jr	l29d2
 l29dd:
@@ -8465,7 +8497,7 @@ l29dd:
 	inc	de
 	jr	l29c9
 l29e6:
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 l29e9:
 	inc	hl
 	jr	l29bc		; Loop on
@@ -8484,7 +8516,7 @@ l29f8:
 	or	a
 	jr	z,l2a41		; Nope
 	ld	a,'.'
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	call	l2602		; Save work file
 	ld	de,l451d
 	ld	hl,l790f
@@ -8762,16 +8794,16 @@ l2c07:
 	inc	hl
 	ld	a,(hl)
 	and	NOMSB		; Strip off offset
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	ld	a,b
 	cp	Fext+1		; Test extension
 	ld	a,' '
-	call	z,l03c9		; Put blank to console if so
+	call	z,puttoconsole_a		; Put blank to console if so
 	djnz	l2c07
 	dec	e		; Test remainder in line
 	jr	z,l2c22		; Nope
 	ld	a,' '
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	jr	l2c25
 l2c22:
 	call	l01e1		; Give new line
@@ -8841,7 +8873,7 @@ l2c8d:
 	sbc	hl,de		; Calculate free bytes
 	call	l2e61		; Print number
 	ld	a,'k'
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	pop	af		; Get back selected disk
 	ld	e,a
        ret
@@ -8938,14 +8970,14 @@ l2d01:
 	db	' (Y/N)? '
 	db	null
 l2d0d:
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 	call	l04a6		; Convert to upper case
 	cp	'Y'		; Test YES
 	jr	z,l2d1b
 	cp	'N'		; Test NO
 	jr	nz,l2d0d
 l2d1b:
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	sub	'N'
 	ret
 ;
@@ -9108,20 +9140,20 @@ l2df8:
 	ld	a,(de)		; Get drive
 	add	a,'A'-1
 	cp	'A'-1		; Test default drive
-	call	nz,l03c9	; Put to console if not
+	call	nz,puttoconsole_a	; Put to console if not
 	ld	a,':'
-	call	nz,l03c9	; Give delimiter
+	call	nz,puttoconsole_a	; Give delimiter
 	ld	b,Fname+Fext	; Set length
 l2e0c:
 	inc	de
 	ld	a,(de)		; Get character
 	and	NOMSB		; Strip off attribute
 	cp	' '		; Test blank
-	call	nz,l03c9	; Put to console if not
+	call	nz,puttoconsole_a	; Put to console if not
 	ld	a,b
 	cp	Fext+1		; Test extension follows
 	ld	a,'.'
-	call	z,l03c9		; Put delimiter to console if so
+	call	z,puttoconsole_a		; Put delimiter to console if so
 	djnz	l2e0c
 	ret
 ;
@@ -9200,7 +9232,7 @@ l2e76:
 	db	'. Press <ESC>'
 	db	null
 l2e88:
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 	jp	l0128		; &PATCH&: Test special keys
 	nop
 l2e8f:
@@ -9244,7 +9276,7 @@ l2ebd:
 	ld	b,a		; For count
 	ld	a,' '
 l2ed0:
-	call	l03c9		; Blank control characters
+	call	puttoconsole_a		; Blank control characters
 	djnz	l2ed0
 l2ed5:
 	call	l3b96
@@ -9284,7 +9316,7 @@ l2f0e:
 l2f16:
 	ld	hl,(l4452)	; Get current edit pointer
 	ld	de,l7b74+_LinLen-2
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l2ebd	; Line too long
 	bit	0,(iy+6)	; Test insert
 	push	af
@@ -9296,7 +9328,7 @@ l2f16:
 	call	l4197
 	pop	hl
 	ld	(l4452),hl	; Set current edit pointer
-	call	l3fe7
+	call	l3fe7 ;set column?
 	jp	l2ebd
 ;
 ; Get character
@@ -9314,18 +9346,19 @@ l2f44:
 	inc	hl
 	ld	(hl),a		; Save control
 l2f4b:
-	push	hl
-	ld	hl,l4482	; Point to control character count
-	ld	de,l42a1
-	ld	b,11111111b
-	call	l2fc1		; Find control
-	pop	hl
-	or	a		; Test found
-	jr	nz,l2f6b	; Yeap
+	;push	hl
+	;ld	hl,l4482	; Point to control character count
+	;ld	de,l42a1
+	;ld	b,11111111b
+	;call	l2fc1		; Find control
+	;pop	hl
+	;or	a		; Test found
+	;jr	nz,l2f6b	; Yeap
 	push	hl
 	ld	hl,l4482	; Point to control character count
 	ld	de,l4369
-	ld	b,00011111b
+	;ld	b,00011111b
+	ld	b,11111111b
 	call	l2fc1		; Find control
 	pop	hl
 	or	a		; Test found
@@ -9382,14 +9415,14 @@ l2fa8:
 	call	l3cec		; Make normal video
 	pop	af
 	cp	' '		; Test control
-	jp	nc,l03c9	; Put to console if not
+	jp	nc,puttoconsole_a	; Put to console if not
 	push	af
 	push	af
 	ld	a,'^'
-	call	l03c9		; Indicate control
+	call	puttoconsole_a		; Indicate control
 	pop	af
 	add	a,'@'
-	call	l03c9		; Put to console as ASCII
+	call	puttoconsole_a		; Put to console as ASCII
 	pop	af
 	ret
 ;
@@ -9502,7 +9535,7 @@ l3068:
 	db	'Indent'
 	db	null
 l3078:
-	ld	a,(l446c)
+	ld	a,(l446c) ;xscroll???
 	add	a,(iy+4)	; Add column
 	inc	a
 	ld	hl,(l4478)
@@ -9521,7 +9554,7 @@ l3078:
 l309b:
 	ld	de,(l4476)
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jp	z,l37a4		; Same, set edit cursor
 	call	l37a4		; Set edit cursor
 	ld	de,(l4544)	; Get start of text
@@ -9573,7 +9606,7 @@ l30ec:
 	ld	b,a
 	ld	a,' '
 l30f8:
-	call	l03c9		; Fill remainder with blanks
+	call	puttoconsole_a		; Fill remainder with blanks
 	djnz	l30f8
 	ret
 ;
@@ -9620,7 +9653,7 @@ l3127:
 	ret	z		; Suppress it
 l3131:
 	dec	b		; Fix count
-	jp	l03c9		; Put to console
+	jp	puttoconsole_a		; Put to console
 ;
 ; Type work file
 ;
@@ -9877,7 +9910,7 @@ l32df:
 	jr	nz,l32f5	; Yeap
 	ld	de,(l4546)	; Get end of text
 	dec	de
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jp	nc,l3380
 	jr	l32fb
 l32f5:
@@ -9965,14 +9998,15 @@ l3380:
 	db	'Search string not found'
 	db	null
 	jp	l3f12
+;status line???
 l33a9:
 	call	l33af
 	jp	l3d2c		; Restore line
 l33af:
 	ld	de,(l4546)	; Get end of text
 	dec	de
-	call	l3be2		; Compare HL:DE
-	jr	c,l33ba
+	call	cmp_hl_de		; Compare HL:DE
+	jr	c,l33ba ;hl<de
 	ex	de,hl
 l33ba:
 	push	hl
@@ -9986,7 +10020,7 @@ l33ba:
 	ld	de,l7b74
 	add	hl,de
 	ld	(l4452),hl	; Set current edit pointer
-	call	l3fe7
+	call	l3fe7 ;set column?
 	call	l401f
 	pop	hl
 	ret
@@ -10158,7 +10192,7 @@ l34ed:
 	call	l3d2c		; Restore line
 	ld	hl,(l4460)	; Get block start pointer
 	ld	de,(l4462)	; Get block end pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ret	nc		; Start >= end
 	call	l363c
 	call	l3d2c		; Restore line
@@ -10331,10 +10365,10 @@ l3644:
 	push	hl
 	ld	de,(l4460)	; Get block start pointer
 	inc	de
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ld	de,(l4462)	; Get block end pointer
 	jr	c,l367a		; HL < Start_Of_Block
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l367a	; HL >= End_Of_Block
 	or	a
 	jr	l3685
@@ -10380,10 +10414,10 @@ l36a1:
 	ld	hl,(l4454)	; Get block pointer
 	ld	de,(l4460)	; Get block start pointer
 	inc	de
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l36ce		; HL < Start_Of_Block
 	ld	de,(l4462)	; Get block end pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l36ce	; HL >= End_Of_Block
 	ld	hl,(l4450)	; Get current memory pointer
 	ld	(l4454),hl	; Set block pointer
@@ -10489,7 +10523,7 @@ l3768:
 l3771:
 	ld	hl,l7b74	; Set start of line
 	ld	(l4452),hl	; Set current edit pointer
-	jp	l3fe7
+	jp	l3fe7 ;set column?
 ;
 ; Control: LINE RIGHT
 ;
@@ -10497,12 +10531,12 @@ l377a:
 	call	l3e23		; Find last non blank
 	inc	hl
 	ld	de,l7b74+_LinLen
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l3789
 	ld	hl,l7b74+_LinLen-1
 l3789:
 	ld	(l4452),hl	; Set current edit pointer
-	jp	l3fe7
+	jp	l3fe7 ;set column?
 ;
 ; Control: TOGGLE INSERT/OVERWRITE
 ;
@@ -10541,11 +10575,11 @@ l37a7:
 ;
 l37ad:
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	ret	c		; Out of text
 	call	l3e40		; Sample character
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 l37bd:
 	ld	(l4450),hl	; Set current memory pointer
 	res	0,(iy+14)
@@ -10558,7 +10592,7 @@ l37bd:
 ;
 l37d2:
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	ret	c		; Below start of text
 	push	hl
 	call	l3e40		; Sample character
@@ -10568,18 +10602,18 @@ l37d2:
 ; Control: SCROLL UP
 ;
 l37e0:
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	de,(l4544)	; Get start of text
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ret	z
 	call	l3e40		; Sample character
 	ld	b,0
 	ld	hl,(l4450)	; Get current memory pointer
 l37f3:
-	ld	de,(l446a)	; Get start of screen
-	call	l3be2		; Compare HL:DE
+	ld	de,(curstartofpage)	; Get start of screen
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l3802		; Match
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	inc	b
 	jr	l37f3
 l3802:
@@ -10590,11 +10624,11 @@ l3802:
 	sub	3		; Less status
 	cp	b
 	jr	nz,l3815
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 l3815:
 	push	hl
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	call	l37bd
 	pop	hl
 l3820:
@@ -10606,30 +10640,30 @@ l3822:
 	call	l3e40		; Sample character
 	ld	hl,(l4450)	; Get current memory pointer
 	push	hl
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	a,(l0169)	; Get screen lines
 	sub	2		; Less status
 	ld	b,a
 l3832:
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	djnz	l3832
 	push	af
 	call	l37bd
 	pop	af
 	pop	hl
 	jr	c,l3820
-	ld	de,(l446a)	; Get start of screen
-	call	l3be2		; Compare HL:DE
+	ld	de,(curstartofpage)	; Get start of screen
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l3820	; HL >= Start_Of_Screen
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	jr	l3820
 ;
 ; Control: BOTTOM OF SCREEN
 ;
 l384d:
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	de,(l4450)	; Get current memory pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ret	z		; Same
 	push	hl
 	call	l3e40		; Sample character
@@ -10640,12 +10674,12 @@ l384d:
 ;
 l385f:
 	call	l3e40		; Sample character
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	a,(l0169)	; Get screen lines
 	sub	3		; Less status
 	ld	b,a
 l386b:
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	djnz	l386b
 	jr	l3820
 ;
@@ -10657,15 +10691,15 @@ l3872:
 	sub	2		; Less status
 	ld	c,a
 	ld	b,a
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 l387f:
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	djnz	l387f
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	ld	b,c
 	ld	hl,(l4450)	; Get current memory pointer
 l388b:
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	djnz	l388b
 l3890:
 	ld	(l4450),hl	; Set current memory pointer
@@ -10681,36 +10715,36 @@ l389c:
 	sub	2		; Less status
 	ld	b,a
 	ld	c,a
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 l38a9:
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	djnz	l38a9
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	ld	b,c
 	ld	hl,(l4450)	; Get current memory pointer
 l38b5:
-	call	l41d0		; Find previous line n-times
+	call	findprevline		; Find previous line n-times
 	djnz	l38b5
 	jr	l3890
 ;
 ; Control: BEGIN OF TEXT
 ;
 l38bc:
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	de,(l4544)	; Get start of text
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l38cb		; Same
 	call	l4147		; Reset row
 l38cb:
 	call	l3e40		; Sample character
 	ld	hl,(l4544)	; Get start of text
 	ld	(l4450),hl	; Set current memory pointer
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	call	l401f
 	call	l3d2c		; Restore line
 	ld	hl,l7b74
 	ld	(l4452),hl	; Init edit pointer
-	jp	l3fe7
+	jp	l3fe7 ;set column?
 ;
 ; Control: NEW LINE
 ;
@@ -10724,7 +10758,7 @@ l38f2:
 	xor	a
 	ld	(l4542),a	; Force compile
 	ld	a,lf
-	call	l03c9		; Put new line to console
+	call	puttoconsole_a		; Put new line to console
 	call	l3918
 	call	l37a4		; Set edit cursor
 	bit	0,(iy+13)	; Test auto tab
@@ -10745,12 +10779,12 @@ l3918:
 	call	l3d2c		; Restore line
 	call	l3e40		; Sample character
 	pop	hl
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	ld	(l4450),hl	; Set current memory pointer
 	ld	hl,l7b74
 l392f:
 	ld	(l4452),hl	; Set current edit pointer
-	call	l3fe7
+	call	l3fe7 ;set column?
 	call	l401f
 	jp	l3d2c		; Restore line
 ;
@@ -10761,7 +10795,7 @@ l393b::
 	call	l0200
 	db	cr,lf,null
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	call	l3c1a
 	jp	l3d2c		; Restore line
 ;
@@ -10804,7 +10838,7 @@ l3984:
 	ret	c		; Not possible
 l398b:
 	ld	(l4452),hl	; Set current edit pointer
-	jp	l3fe7
+	jp	l3fe7 ;set column?
 ;
 ; Control: CURSOR RIGHT
 ;
@@ -10845,7 +10879,7 @@ l39bf:
 ;
 l39cb:
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	jr	c,l3a05		; Below start
 	push	hl
 	call	l3e40		; Sample character
@@ -10877,7 +10911,7 @@ l3a02:
 	ld	(l4452),hl	; Set current edit pointer
 l3a05:
 	ld	hl,(l4452)	; Get current edit pointer
-	jp	l3fe7
+	jp	l3fe7 ;set column?
 ;
 ; Control: WORD RIGHT
 ;
@@ -10899,11 +10933,11 @@ l3a1e:
 	jr	c,l3a4e		; Still in limit
 l3a23:
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	ret	c		; Out of text
 	call	l3e40		; Sample character
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	ld	(l4450),hl	; Set current memory pointer
 	res	0,(iy+14)
 	call	l401f
@@ -10912,7 +10946,7 @@ l3a23:
 	ld	(l4452),hl	; Init current edit pointer
 	call	l412a		; Find delimiter
 	jr	c,l3a1d		; Yeap
-	jp	l3fe7
+	jp	l3fe7 ;set column?
 l3a4e:
 	call	l412a		; Find delimiter
 	jr	nc,l3a1e	; Nope
@@ -10936,7 +10970,7 @@ l3a64:
 ;
 l3a6b:
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	ret
 ;
 ; Control: TABULATE
@@ -10952,7 +10986,7 @@ l3a72:
 	call	l3e40		; Sample character
 	ld	hl,(l4450)	; Get current memory pointer
 	push	hl
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	ld	(l4450),hl	; Set current memory pointer
 	call	l3d2c		; Restore line
 	ld	hl,l43f2
@@ -10994,7 +11028,7 @@ l3ad2:
 	ld	de,l7b74+_LinLen-1
 l3ade:
 	ld	(hl),' '	; Clear character
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l3ae8		; Match
 	inc	hl		; Advance
 	jr	l3ade
@@ -11007,13 +11041,13 @@ l3ae8:
 l3aec::
 	ld	hl,l7b74
 	ld	(l4452),hl	; Set current edit pointer
-	call	l3fe7
+	call	l3fe7 ;set column?
 	call	l3ad2		; Delete to end of line
 	call	l3e40		; Sample character
 	ld	hl,(l4450)	; Get current memory pointer
 	push	hl
 	push	hl
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	pop	de
 	jr	c,l3b10		; Out of text
 	or	a
@@ -11029,7 +11063,7 @@ l3b10:
 l3b14:
 	call	l3e44		; Sample character
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	jp	c,l3d2c		; Restore line if out of text
 	dec	hl
 	dec	hl
@@ -11054,7 +11088,7 @@ l3b3c:
 l3b42:
 	call	l3e23		; Find last non blank
 	ld	de,(l4452)	; Get current edit pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ex	de,hl
 	jr	c,l3b14		; HL<DE
 	ld	a,(hl)
@@ -11072,7 +11106,7 @@ l3b59:
 ;
 l3b63:
 	ld	hl,(l4450)	; Get current memory pointer
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	ret	c		; Below start of text
 	call	l37d2		; Line up
 	call	l377a		; Line right
@@ -11087,14 +11121,15 @@ l3b73:
 ; Control: DELETE LEFT CHARACTER
 ;
 l3b78:
+        ;jr $
 	ld	hl,(l4452)	; Get current edit pointer
 	call	l3c02		; Move character left
-	jr	c,l3b63		; Beginning og line
+	jr	c,l3b63		; Beginning of line
 	ld	(l4452),hl	; Set current edit pointer
 l3b83:
 	call	l4173
 l3b86:
-	call	l3fe7
+	call	l3fe7 ;set column?
 	jp	l4197
 l3b8c:
 	call	l4173
@@ -11140,12 +11175,12 @@ l3bbc:
 	push	af
 	call	l02a2		; Position cursor
 	pop	af
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	b,a
 l3bc8:
 	dec	b
 	jr	z,l3bd8
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	jr	nc,l3bc8
 	call	l3cec		; Make normal video
 	call	l3c12		; Clear line
@@ -11167,7 +11202,7 @@ l3bdd:
 ; EXIT	Zero  set if HL=DE
 ;	Carry set if HL<DE
 ;
-l3be2:
+cmp_hl_de:
 	push	hl
 	or	a
 	sbc	hl,de		; Compare
@@ -11181,7 +11216,7 @@ l3be2:
 l3be8:
 	inc	hl		; Point to next
 	ld	de,l7b74+_LinLen-2
-	jr	l3be2		; Compare HL:DE
+	jr	cmp_hl_de		; Compare HL:DE
 ;
 ; Fix to start of line
 ; ENTRY	Reg HL holds text pointer
@@ -11191,7 +11226,7 @@ l3be8:
 l3bee:
 	dec	hl
 	ld	de,(l4544)	; Get start of text
-	jr	l3be2		; Compare HL:DE
+	jr	cmp_hl_de		; Compare HL:DE
 ;
 ; Find EOL of previous line
 ; ENTRY	Reg HL holds current pointer
@@ -11211,12 +11246,12 @@ l3c00:
 ;
 ; Move pointer left
 ; ENTRY	Reg HL holds pointer
-; EXIT	Carry set if pointer ou of limit
+; EXIT	Carry set if pointer out of limit
 ;
 l3c02:
 	dec	hl		; Get previous
 	ld	de,l7b74	; Init pointer
-	jr	l3be2		; Compare HL:DE
+	jr	cmp_hl_de		; Compare HL:DE
 ;
 ;
 ;
@@ -11242,7 +11277,7 @@ l3c17:
 l3c1a:
 	call	l3ca1
 	call	l3cc0
-	ld	a,(l446c)
+	ld	a,(l446c) ;xscroll???
 	ld	b,a
 	or	a
 	jr	z,l3c36
@@ -11253,7 +11288,7 @@ l3c27:
 	call	l3c08
 	cp	lf		; Test new line
 	jr	z,l3c12		; Clear line if so
-	djnz	l3c27
+	djnz	l3c27 ;skip xscroll chars???
 l3c36:
 	ld	a,(l0168)	; Get screen columns
 	dec	a
@@ -11272,13 +11307,13 @@ l3c41:
 	ld	(l4486),hl
 	ex	de,hl
 	pop	hl
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l3c89	; Clear if HL>=DE
 l3c5e:
 	call	l3ca1
 	call	l3cc0
 	ld	de,(l4486)
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l3c89		; Clear if same
 	ld	a,(hl)
 	call	l3bdd
@@ -11307,7 +11342,7 @@ l3c8b:
 	call	l3c99		; Select video
 	pop	af
 l3c96:
-	jp	l03c9		; Put to console
+	jp	puttoconsole_a		; Put to console
 ;
 ; Select video
 ;
@@ -11325,10 +11360,10 @@ l3ca1:
 	bit	0,(iy+20)	; Test block set
 	jr	nz,l3cec	; Nope, make normal video
 	ld	de,(l4464)	; Get block start address
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l3cec		; Make normal video
 	ld	de,(l4466)	; Get end of block pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l3cdf		; Set low video
 	jr	l3cec		; Make normal video
 ;
@@ -11340,10 +11375,10 @@ l3cc0:
 	bit	0,(iy+20)	; Test block set
 	jr	nz,l3cec	; Nope, make normal video
 	ld	de,(l4460)	; Get block start pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l3cec		; Make normal video
 	ld	de,(l4462)	; Get block end pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l3cec		; Make normal video
 	jr	nc,l3cec	; Make normal video
 ;
@@ -11355,7 +11390,7 @@ l3cdf:
 	ret	z		; Nope
 	bit	0,(iy+7)	; Test selected
 	ret	z		; Nope
-	jp	l026b		; Set low video
+	jp	setlowvideo		; Set low video
 ;
 ; Set normal video
 ;
@@ -11365,7 +11400,7 @@ l3cec:
 	ret	nz		; Yeap
 	bit	0,(iy+7)	; Test selected
 	ret	z		; Nope
-	jp	l0284		; Set normal video
+	jp	setnormvideo		; Set normal video
 ;
 ; Clear to end of line
 ; ENTRY	Reg B holds column position
@@ -11379,7 +11414,7 @@ l3cf9:
 	jp	nz,l0299	; Yeap
 l3d03:
 	ld	a,' '
-	call	l03c9		; Put blanks to console
+	call	puttoconsole_a		; Put blanks to console
 	djnz	l3d03
 	ret
 ;
@@ -11396,7 +11431,7 @@ l3d0b:
 	ld	h,0		; Set column
 	call	l02a2		; Position cursor
 	ld	a,lf
-	jp	l03c9		; Put new line to console
+	jp	puttoconsole_a		; Put new line to console
 l3d23:
 	ld	hl,256*0+1
 	call	l02a2		; Position cursor
@@ -11412,16 +11447,16 @@ l3d2c:
 	ld	b,_LinLen	; Set max length
 	ld	ix,l7b74	; Set base address
 	ld	(iy+1),0	; Clear block state
-l3d44:
+l3d44: ;;;;;;
 	ld	a,(hl)
 	ld	de,(l4460)	; Get block start pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nz,l3d56	; Not same addresses
 	ld	(l4464),ix	; Set start of block pointer
 	set	0,(iy+1)	; Set start block
 l3d56:
 	ld	de,(l4462)	; Get block end pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nz,l3d67	; Not same addresses
 	ld	(l4466),ix	; Set end of block pointer
 	set	1,(iy+1)	; Set end block
@@ -11436,7 +11471,7 @@ l3d67:
 	jr	nc,l3d44
 l3d79:
 	ld	de,(l4462)	; Get block end pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l3d8a	; HL>= Start_Of_Block
 	push	hl
 	ld	hl,-1
@@ -11444,11 +11479,11 @@ l3d79:
 	pop	hl
 l3d8a:
 	ld	de,(l4460)	; Get block start pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nc,l3d99	; HL>= End_Of_Block
 	ld	hl,-1
 	ld	(l4464),hl	; Set start of block pointer
-l3d99:
+l3d99: ;;;;;
 	ld	a,_LinLen
 	sub	b		; Calculate remaining length
 	ld	(l446f),a	; Save relative column
@@ -11457,7 +11492,7 @@ l3d9f:
 	inc	ix
 	djnz	l3d9f
 	ld	hl,(l4452)	; Get current edit pointer
-	call	l3fe7
+	call	l3fe7 ;set column?
 	bit	0,(iy+14)
 	set	0,(iy+14)
 	jp	nz,l374e
@@ -11517,7 +11552,7 @@ l3e2b:
 	cp	(hl)		; Test match
 	ret	nz		; Nope, got it
 	dec	hl
-	call	l3be2		; Test beginning
+	call	cmp_hl_de		; Test beginning
 	jr	nz,l3e2b	; Nope
 	ret
 ;
@@ -11529,7 +11564,7 @@ l3e2b:
 ;
 l3e34:
 	ld	de,l7b74+_LinLen
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ret	nc		; End found
 	ld	d,b
 	ld	e,c
@@ -11579,12 +11614,12 @@ l3e6d:
 l3e80:
 	ld	a,(hl)		; Get character
 	ld	de,(l4464)	; Get start of block pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nz,l3e8e	; Not the same
 	ld	(l4460),ix	; Set block start pointer
 l3e8e:
 	ld	de,(l4466)	; Get end of block pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	nz,l3e9b	; Not the same
 	ld	(l4462),ix	; Set block end pointer
 l3e9b:
@@ -11695,9 +11730,9 @@ l3f53:
 	ld	hl,(l4462)	; Get block end pointer
 	call	l3f8e
 	ld	(l4462),hl	; Set block end pointer
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	call	l3f8e
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	ld	hl,(l4450)	; Get current memory pointer
 	call	l3f8e
 	ld	(l4450),hl	; Set current memory pointer
@@ -11712,7 +11747,7 @@ l3f53:
 ;
 ;
 l3f8e:
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ret	c
 	or	a
 	sbc	hl,bc
@@ -11773,7 +11808,7 @@ l3fd6:
 	ret
 ;
 ;
-;
+;set column?
 l3fe7:
 	ld	de,l7b74	; Get base address
 	ld	a,(l0168)	; Get screen columns
@@ -11789,7 +11824,7 @@ l3fe7:
 	sub	c
 	inc	a
 	add	a,(iy+0)
-	ld	(l446c),a
+	ld	(l446c),a ;xscroll???
 	ld	a,(l0168)	; Get screen columns
 	dec	a
 	dec	a
@@ -11800,7 +11835,7 @@ l400e:
 	ret
 l4012:
 	add	a,(iy+0)
-	ld	(l446c),a
+	ld	(l446c),a ;xscroll???
 	ld	(iy+4),0	; Clear column
 	jp	l3762
 ;
@@ -11809,33 +11844,33 @@ l4012:
 l401f:
 	bit	0,(iy+7)
 	ret	z
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	de,(l4544)	; Get start of text
 	call	l4191		; Find min
 	ex	de,hl
-	ld	(l446a),hl	; Set max for start of screen
+	ld	(curstartofpage),hl	; Set max for start of screen
 	ld	bc,1
 	ld	de,(l4450)	; Get current memory pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jp	z,l40da		; Same
 	jr	c,l4086		; HL < Current_Pointer
 l4041:
 	ld	de,(l4450)	; Get current memory pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l4055		; Same
-	call	l41d0		; Find previous line
+	call	findprevline		; Find previous line
 	inc	bc
 	ld	a,c
 	or	a
 	call	z,l4232		; Poll character from input
 	jr	l4041
 l4055:
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	ld	(iy+5),1	; Init row
 	set	0,(iy+14)
 	ld	a,b
 	or	a
-	jr	nz,l4083	; Teset row
+	jr	nz,l4083	; Test row
 	ld	a,(l01ae)	; Test insert line implemented
 	or	a
 	jr	z,l4083		; Nope
@@ -11859,9 +11894,9 @@ l4083:
 	jp	l4147		; Reset row
 l4086:
 	ld	de,(l4450)	; Get current memory pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l409a		; Same
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	inc	bc
 	ld	a,c
 	or	a
@@ -11892,16 +11927,16 @@ l40b3:
 	jr	c,l40de
 	jr	z,l40de
 	ld	(l4475),a	; Set row
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	ld	b,d
 	push	de
 l40c7:
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	push	hl
 	call	l3d0b		; Delete current line
 	pop	hl
 	djnz	l40c7
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	pop	de
 l40d5:
 	dec	e
@@ -11911,7 +11946,7 @@ l40da:
 	ld	(iy+5),c	; Set row
 	ret
 l40de:
-	ld	hl,(l446a)	; Get start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
 	dec	bc
 	ld	a,(l0169)	; Get screen lines
 	sub	3
@@ -11922,12 +11957,12 @@ l40de:
 	jr	nc,l40ee
 	dec	b
 l40ee:
-	call	l41b1		; Find next end of line
+	call	findnexteol		; Find next end of line
 	dec	bc
 	ld	a,c
 	or	b
 	jr	nz,l40ee
-	ld	(l446a),hl	; Set start of screen
+	ld	(curstartofpage),hl	; Set start of screen
 	call	l4147		; Reset row
 	set	0,(iy+14)
 	jp	l401f
@@ -11943,9 +11978,9 @@ l4103:
 	jr	z,l4117
 	ld	(l4475),a	; Set row
 l4117:
-	ld	hl,(l446a)	; Get start of screen
-	call	l41b1		; Find next end of line
-	ld	(l446a),hl	; Set start of screen
+	ld	hl,(curstartofpage)	; Get start of screen
+	call	findnexteol		; Find next end of line
+	ld	(curstartofpage),hl	; Set start of screen
 	call	l3d0b		; Delete current line
 	ld	a,(l0169)	; Get screen lines
 	dec	a
@@ -11995,7 +12030,7 @@ l414c:
 	bit	0,(iy+1)	; Test start block
 	jr	z,l415f		; Nope
 	ld	hl,(l4464)	; Get start of block pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l415f		; Start_of_block < DE
 	add	hl,bc		; Add offset
 	ld	(l4464),hl	; Set start of block pointer
@@ -12003,7 +12038,7 @@ l415f:
 	bit	1,(iy+1)	; Test end block
 	jr	z,l4171		; Nope
 	ld	hl,(l4466)	; Get end of block pointer
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	jr	c,l4171		; End_of_block < DE
 	add	hl,bc		; Add offset
 	ld	(l4466),hl	; Set end of block pointer
@@ -12040,7 +12075,7 @@ l418a:
 ; EXIT	Regs swapped if 1st >= 2nd
 ;
 l4191:
-	call	l3be2		; Compare HL:DE
+	call	cmp_hl_de		; Compare HL:DE
 	ret	c		; HL < DE
 	ex	de,hl		; Swap
 	ret
@@ -12064,7 +12099,7 @@ l4197:
 ; EXIT	Reg HL holds pointer to next line
 ;	Carry set if pointer behind end address
 ;
-l41b1:
+findnexteol:
 	push	bc
 	ex	de,hl
 	ld	hl,(l4546)	; Get end of text
@@ -12095,7 +12130,7 @@ l41cc:
 ; EXIT	Reg HL holds pointer to previous line
 ;	Carry set if pointer below start address
 ;
-l41d0:
+findprevline:
 	push	bc
 	ld	c,l		; Save pointer
 	ld	b,h
@@ -12215,7 +12250,7 @@ l423e:
 	pop	hl
          or a
 	ret	z		; No character available
-	;call	l03e1		; Read character
+	;call	readfromkbd		; Read character
 	ld	(hl),a		; Store it
 	ld	(l445e),hl	; Set output queue pointer
 	ret
@@ -12251,7 +12286,7 @@ l4271:
 	ld	(l445c),hl	; Set input queue pointer
 	jr	l428c
 l4289:
-	call	l03e1		; Read character
+	call	readfromkbd		; Read character
 l428c:
 	pop	de
 	pop	hl
@@ -12274,7 +12309,11 @@ l429e:
 	dw	l7bf5		; Base of message file
 l42a0:
 	db	eof
+        
+        if 1==0
+;default key codes
 l42a1::
+; Basic movement
 	db	1,0dh
 	db	1,1
 	db	1,0ffh
@@ -12287,6 +12326,7 @@ l42a1::
 	db	1,0f4h
 	db	1,0f8h
 	db	1,0f9h
+; Extended movement
 	db	1,0f6h
 	db	1,0f7h
 	db	1,0ffh
@@ -12296,6 +12336,7 @@ l42a1::
 	db	1,0ffh
 	db	1,0ffh
 	db	1,0ffh
+; Insert and delete commands
 	db	1,0e0h
 	db	1,0ffh
 	db	1,0ffh
@@ -12304,6 +12345,7 @@ l42a1::
 	db	1,0ffh
 	db	1,0ffh
 	db	1,0ffh
+; Block commands
 	db	1,0ffh
 	db	1,0ffh
 	db	1,0ffh
@@ -12313,6 +12355,7 @@ l42a1::
 	db	1,0ffh
 	db	1,0ffh
 	db	1,0ffh
+; More commands
 	db	1,0ffh
 	db	1,0ffh
 	db	1,0ffh
@@ -12321,6 +12364,7 @@ l42a1::
 	db	1,0ffh
 	db	1,0ffh
 	db	1,0ffh
+;
 	db	0,0ffh
 	db	1,0ffh
 ;
@@ -12332,22 +12376,23 @@ l42a1::
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	db	0,0,0,0,0,0
+        endif
 l4369::
 ;
 ; Basic movement
 ;
 	db	1,'M'-'@'
-	db	1,'S'-'@'
-	db	1,'H'-'@'
-	db	1,'D'-'@'
+	db	1,key_left;'S'-'@'
+	db	1,key_left;'H'-'@'
+	db	1,key_right;'D'-'@'
 	db	1,'A'-'@'
 	db	1,'F'-'@'
-	db	1,'E'-'@'
-	db	1,'X'-'@'
+	db	1,key_up;'E'-'@'
+	db	1,key_down;'X'-'@'
 	db	1,'W'-'@'
 	db	1,'Z'-'@'
-	db	1,'R'-'@'
-	db	1,'C'-'@'
+	db	1,key_pgup;'R'-'@' ;pgup
+	db	1,key_pgdown;'C'-'@' ;pgdn
 ;
 ; Extended movement
 ;
@@ -12358,22 +12403,22 @@ l4369::
 	db	2,'Q'-'@','R'-'@'
 	db	2,'Q'-'@','C'-'@'
 	db	2,'Q'-'@','B'-'@'
-	db	2,'Q'-'@','K'-'@'
-	db	2,'Q'-'@','P'-'@'
+	db	2,'Q'-'@','K'-'@' ;to end of block
+	db	2,'Q'-'@','P'-'@' ;last cursor position
 ;
 ; Insert and delete commands
 ;
-	db	1,'V'-'@'
-	db	1,'N'-'@'
-	db	1,'Y'-'@'
-	db	2,'Q'-'@','Y'-'@'
-	db	1,'T'-'@'
-	db	1,'G'-'@'
-	db	1,DEL
+	db	1,key_ins;'V'-'@' ;insert mode on/off
+	db	1,'N'-'@' ;insert line
+	db	1,'Y'-'@' ;delete line
+	db	2,'Q'-'@','Y'-'@' ;delete to end of line
+	db	1,'T'-'@' ;delete right word
+	db	1,key_del;'G'-'@'
+	db	1,key_backspace;DEL
+	db	1,key_backspace;0ffh
 ;
 ; Block commands
 ;
-	db	1,0ffh
 	db	2,'K'-'@','B'-'@'
 	db	2,'K'-'@','K'-'@'
 	db	2,'K'-'@','T'-'@'
@@ -12386,7 +12431,7 @@ l4369::
 ;
 ; More commands
 ;
-	db	2,'K'-'@','D'-'@'
+	db 1,key_esc;db	2,'K'-'@','D'-'@'
 	db	1,'I'-'@'
 	db	2,'Q'-'@','I'-'@'
 	db	2,'Q'-'@','L'-'@'
@@ -12487,13 +12532,13 @@ l4466:
 	dw	2		; Block end pointer
 l4468:
 	dw	0		; Temporary edit pointer
-l446a:
+curstartofpage:
 	dw	0		; Start of screen
 ;
 ; The editor status block
 ;
 l446c:
-	db	0		; + 0
+	db	0		; + 0 xscroll???
 	db	0		; + 1: Block state
 				; xxxxxxx1: Start set)
 				; xxxxxx1x: End set)
@@ -14466,7 +14511,7 @@ l5210:
 	ret	nz
 	ld	a,b
 	push	af
-	cp	0ah
+	cp	0ah ;_Integ
 	call	l72c8
 	db	_IllSkalar
 	push	hl
@@ -16386,13 +16431,13 @@ l5e48:
 ; Procedure NORMVIDEO or HIGHVIDEO
 ;
 l5e4d:
-	ld	hl,l0284	; Set call to normal video
+	ld	hl,setnormvideo	; Set call to normal video
 	jr	l5e45
 ;
 ; Procedure LOWVIDEO
 ;
 l5e52:
-	ld	hl,l026b	; Set call to low video
+	ld	hl,setlowvideo	; Set call to low video
 	jr	l5e45
 ;
 ; Procedure INSLINE
@@ -19034,10 +19079,12 @@ l6d09:
 	call	l7265		; Read or write record
 	or	a
 	ret	z
-	dec	a
-	ret	z
-	cp	3
-	ret	z
+	;dec	a
+	;ret	z
+	;cp	3
+	;ret	z
+         cp 128 ;fail
+         ret nz ;not fail
 	call	l72e1
 	db	_DskFull
 l6d24:
@@ -19849,7 +19896,7 @@ l7191:
 	push	ix
 	push	iy
 	ld	a,cr
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	ld	a,(l790e)	; Test memory read
 	or	a
 	jr	z,l71a6		; Yeap
@@ -19858,9 +19905,9 @@ l7191:
 l71a6:
 	ld	a,' '
 l71a8:
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	ld	a,' '
-	call	l03c9		; Put to console
+	call	puttoconsole_a		; Put to console
 	ld	hl,(l7bef)	; Get line count
 	call	l2e61		; Print number
 	call	l00a0		; Test key pressed

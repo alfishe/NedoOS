@@ -820,7 +820,11 @@ tbdoscmds
         db CMD_GETSTDINOUT
         db CMD_SETSTDINOUT
         db CMD_HIDEFROMPARENT
+        db CMD_RNDRD
+        db CMD_RNDWR
 nbdoscmds=$-tbdoscmds
+        dw BDOS_rndwr
+        dw BDOS_rndrd
         dw BDOS_hidefromparent
         dw BDOS_setstdinout
         dw BDOS_getstdinout
@@ -1398,6 +1402,46 @@ BDOS_fdel_noFATFS
 ;DE = Pointer to unopened FCB
         jp nfdel
 
+;TODO TR-DOS???
+BDOS_rndrd
+        call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
+;DE = Pointer to opened FCB
+        call BDOS_rndrdwrseek
+        jr BDOS_fread_gofatfs
+
+;TODO TR-DOS???
+BDOS_rndwr
+        call BDOS_preparedepage
+        call BDOS_setdepage ;TODO убрать в драйвер
+;DE = Pointer to opened FCB
+        call BDOS_rndrdwrseek
+        jr BDOS_fwrite_gofatfs
+
+BDOS_rndrdwrseek
+;DE = Pointer to opened FCB
+       push de
+        ld hl,0x21
+        add hl,de
+        inc hl
+        ld c,(hl)
+        ld b,0
+        srl c
+        push bc ;HSW
+        dec hl
+        ld c,b;0
+        ld b,(hl)
+        rr b
+        rr c
+        push bc ;LSW
+        call getFILfromFCB ;hl=FIL
+        ex de,hl ;de=fil (2 words in stack = shift)
+        F_LSEEK_CURDRV        
+        pop bc
+        pop bc
+       pop de 
+        ret
+
 BDOS_fread
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
@@ -1406,6 +1450,7 @@ BDOS_fread
         ld a,(de)
         cp vol_trdos
         jr c,BDOS_fread_noFATFS
+BDOS_fread_gofatfs
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
         call BDOS_getdta ;de = disk transfer address
@@ -1425,8 +1470,8 @@ BDOS_fread_fatfsq
         pop bc
 	ld a,(bc)
          pop bc ;blocksize
-        call movedma_addr ;+bc
-	xor 0x80 ;!=, если прочитали не 128 байт
+        call movedma_addr ;+bc ;TODO remove!!!
+	xor 0x80 ;!=, если прочитали не 128 байт ;TODO remove!!!
 ;a=0: OK (прочитали 128 байт)
 ;a=128: fail (прочитали 0 байт)
 ;a=???: OK (последний блок файла меньше 128 байт)
@@ -1444,6 +1489,7 @@ BDOS_fwrite
         ld a,(de)
         cp vol_trdos
         jr c,BDOS_fwrite_noFATFS
+BDOS_fwrite_gofatfs
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
         call BDOS_getdta ;de = disk transfer address

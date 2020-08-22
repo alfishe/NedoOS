@@ -27,6 +27,8 @@ CMD_FREAD=0x14 ;DE = Pointer to opened FCB, read 128 bytes in DTA, out: a=128^by
 CMD_FWRITE=0x15 ;DE = Pointer to opened FCB, write 128 bytes from DTA
 CMD_FCREATE=0x16 ;DE = Pointer to unopened FCB
 CMD_SETDTA=0x1a ;DE = data transfer address (DTA)
+CMD_RNDRD=0x21 ;DE = Pointer to opened FCB. The file position is defined by the three byte random record number in the FCB (bytes 21h...23h). TP uses 21,22
+CMD_RNDWR=0x22 ;DE = Pointer to opened FCB. The file position is defined by the three byte random record number in the FCB (bytes 21h...23h). TP uses 21,22
 
 ;from MSX-DOS:
 CMD_SEEKHANDLE=0x4a ;b=file handle, dehl=offset [signed, a=method:0=begin,1=cur,2=end TODO]
