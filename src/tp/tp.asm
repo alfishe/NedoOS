@@ -29,7 +29,7 @@ OS	equ	0000h
 DU	equ	0004h ;TODO заменить на GETPATH и реализовать подкаталоги
 BDOS	equ	0005h
 ;TPAtop	equ	BDOS+1
-NEDOOSMEMTOP=0xff00 ;TODO 0x0000?
+NEDOOSMEMTOP=0xff00;0xdc06 ;TODO 0x0000?
 Number	equ	005dh
 
 TPA	equ	0100h
@@ -226,6 +226,7 @@ _Real		equ	 9
 _Integ		equ	10
 _Bool		equ	11
 _Char		equ	12
+;13=element of a set?
 
 _Label		equ	1
 _Const		equ	2
@@ -391,8 +392,8 @@ _Video		equ	7	; Status
 
 a_DUMMY	equ	04d2h
 
-l0300	equ	0300h
-l0800	equ	0800h
+;l0300	equ	0300h
+;l0800	equ	0800h
 l07d0	equ	07d0h
 
 l00a0	equ	00a0h		; Keypressed
@@ -435,7 +436,7 @@ l0002	equ	02h
 l0005	equ	05h
 l0008	equ	08h
 l000c	equ	0ch
-l000d	equ	0dh
+l000d	equ	0dh ;for save environment
 l0015	equ	15h
 ;l0019	equ	19h
 l0024	equ	24h
@@ -610,6 +611,9 @@ l01e8:
 	;push	hl		; Push onto stack
 	PRCHAR ;call	l00a6		; Put to console
 	ret
+
+        ;ds 0x01ee-$
+
 ;
 ; Check character for attribute
 ; MSB set for normal output
@@ -749,7 +753,7 @@ l026b:
         push bc
         push de
         push hl
-        ld e,0x38
+        ld e,0x07;0x38
         OS_SETCOLOR
         pop hl
         pop de
@@ -785,7 +789,7 @@ l0284:
         push bc
         push de
         push hl
-        ld e,0x07
+        ld e,0x47;0x07
         OS_SETCOLOR
         pop hl
         pop de
@@ -4572,7 +4576,7 @@ l133f:
 ; EXIT	Reg HL holds boolean result
 ;
 l134f:
-        jr $
+        ;jr $
 	pop	ix		; Get caller
 	ld	hl,set.len+1
 	add	hl,sp		; Get pointer to set
@@ -5016,7 +5020,7 @@ l156b:
 	;jr	z,l1595		; Read was successfull
          cp 128 ;EOF in NedoOS
          jr nz,l1595		; Read was successfull
-         jr $ ;lister.pas
+         ;jr $ ;lister.pas
 ;by hand
 ;CP/M has eofs in the end of last sector?
 ;do this by hand:
@@ -7225,6 +7229,7 @@ l2029:
 ;	Reg IX holds callers address
 ;
 l202c:
+         ;jr $
 	push	de
 	call	l037a		; Reset some things
 	pop	de
@@ -12208,6 +12213,7 @@ l423e:
 	pop	iy
 	pop	ix
 	pop	hl
+         or a
 	ret	z		; No character available
 	;call	l03e1		; Read character
 	ld	(hl),a		; Store it
@@ -12642,8 +12648,8 @@ l454a:
 	call	l718f		; Test abort
 	dec	hl
 	ld	(l7933+_rrn),hl	; Set highest record
-	ld	a,_Char+1
-	ld	(l7b93),a	; Set special type
+	ld	a,_Char+1 ;13=element of a set???
+	ld	(curtype_l7b93),a	; Set special type
 	ld	a,0xff-(__Ropt+__Uopt)
 	ld	(l7b9d),a	; Set default options
 	ld	a,2*DefWITH
@@ -13045,16 +13051,16 @@ l4884:
 ;
 l488e:
 	ld	de,256*1+0
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	ld	a,(ix+0)
 	call	l7282		; Test valid character
 	call	l6d8d		; Build label
 	ld	a,(l7b94)	; Get ???
-	call	l6d7a		; Put to label
+	call	puttolabel		; Put to label
 	ld	b,3
 l48a5:
 	ld	a,-1
-	call	l6d7a		; Set end
+	call	puttolabel		; Set end
 	djnz	l48a5
 	call	l6dc6		; Set label pointer
 	call	l6f13		; Test ,
@@ -13067,13 +13073,13 @@ l48b7:
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
 	ld	de,256*0+0
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6d87		; Get label
 	call	l6f23		; Test =
 	jr	nz,l4901	; Nope, must be : then
 	call	l6a0d		; Get constant
 	ld	a,b		; Get type
-	call	l6d7a		; Store into table
+	call	puttolabel		; Store into table
 	ld	a,b		; Get back type
 	cp	_Real		; Test real
 	jr	nz,l48e3	; Nope
@@ -13084,7 +13090,7 @@ l48b7:
 	ld	b,3		; Set word count
 l48db:
 	pop	de		; Get part of real
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	djnz	l48db
 	jr	l48fa
 l48e3:
@@ -13094,7 +13100,7 @@ l48e3:
 	ld	a,c		; Get length
 	inc	c		; Fix it
 l48ec:
-	call	l6d7a		; Put to table
+	call	puttolabel		; Put to table
 	ld	a,(hl)
 	inc	hl
 	dec	c
@@ -13102,7 +13108,7 @@ l48ec:
 	jr	l48fa
 l48f6:
 	ex	de,hl		; Get integer
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 l48fa:
 	call	l6dc6		; Set label pointer
 	ld	d,2
@@ -13110,11 +13116,11 @@ l48fa:
 l4901:
 	call	l6f40		; Verify :
 	xor	a
-	call	l6d7a		; Store zero in table
-	call	l6d72		; Store PC to table
+	call	puttolabel		; Store zero in table
+	call	puttolabel_i_y		; Store PC to table
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6dc6		; Set label pointer
 	call	l4f9b		; Get type
 	pop	hl		; Get back label pointer
@@ -13384,11 +13390,11 @@ l4aef:
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
 	ld	de,0
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6d87		; Get label
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6dc6		; Set label pointer
 	call	l6f76		; Verify =
 	call	l4f9b		; Get type
@@ -13441,7 +13447,7 @@ l4b3a:
 	call	l6ddb
 	jp	z,l4c61
 	pop	de
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6d87		; Get label
 	ld	hl,(l7b7b)	; Get current label pointer
 	push	hl
@@ -13449,14 +13455,14 @@ l4b3a:
 	ld	(l7b7b),hl
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
-	call	l6d75		; Put to table
-	call	l6d75		; Multiple
-	call	l6d75
-	call	l6d75
+	call	puttolabel_d_e		; Put to table
+	call	puttolabel_d_e		; Multiple
+	call	puttolabel_d_e
+	call	puttolabel_d_e
 	ld	de,(l7bdd)	; Get record base
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	ld	de,0
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6f1b		; Test (
 	ld	b,0		; Clear parameter count
 	jr	nz,l4bda	; Nope
@@ -13464,8 +13470,8 @@ l4b88:
 	push	bc
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
-	call	l6d75		; Put to table
-	call	l6d75		; Twice
+	call	puttolabel_d_e		; Put to table
+	call	puttolabel_d_e		; Twice
 	call	l6e76		; Find VAR
 	dw	l7595
 	ld	bc,0
@@ -13698,17 +13704,17 @@ l4ce1:
 l4cfd:
 	push	bc
 	ld	de,4*256+0
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 l4d04:
 	ld	a,(hl)
-	call	l6d7a		; Store into table
+	call	puttolabel		; Store into table
 	bit	_MB,(hl)	; Test end of table
 	dec	hl
 	jr	z,l4d04		; Nope
 	push	hl
-	call	l6d7a		; Store last byte into table
-	call	l6d75		; Put to table
-	call	l6d75
+	call	puttolabel		; Store last byte into table
+	call	puttolabel_d_e		; Put to table
+	call	puttolabel_d_e
 	call	l6dc6		; Set label pointer
 	pop	hl
 	pop	bc
@@ -13971,11 +13977,11 @@ l4ebb:
 	ld	d,_Ptr	; Set type
 	ld	a,(l7b91)	; Get ???
 	ld	e,a
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6d87		; Get label
-	call	l6d7a		; Store into table
-	call	l6d75		; Put to table
-	call	l6d75		; Twice
+	call	puttolabel		; Store into table
+	call	puttolabel_d_e		; Put to table
+	call	puttolabel_d_e		; Twice
 	call	l6dc6		; Set label pointer
 	pop	bc
 	inc	b
@@ -14345,7 +14351,7 @@ l5140:
 	call	l6f27
 	ret	nz
 	ld	de,l0000
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	ld	hl,(l7b73)	; Get label pointer
 	push	hl
 	call	l6dba
@@ -14420,22 +14426,22 @@ l51c5:
 	ld	hl,lffff
 l51cc:
 	push	hl
-	ld	de,l0200
-	call	l6d75		; Put to table
+	ld	de,2*256+0 ;l0200
+	call	puttolabel_d_e		; Put to table
 	call	l6d87		; Get label
-	ld	a,(l7b93)	; Get type
-	call	l6d7a
+	ld	a,(curtype_l7b93)	; Get type
+	call	puttolabel
 	pop	de
 	inc	de
 	push	de
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	call	l6dc6		; Set label pointer
 	pop	hl
 	call	l6f13		; Test ,
 	jr	z,l51cc		; Yeap
 	call	l6f6e		; Verify )
 	push	hl
-	ld	hl,l7b93	; Point to type
+	ld	hl,curtype_l7b93	; Point to type
 	ld	a,(hl)
 	inc	(hl)
 	pop	hl
@@ -14497,15 +14503,15 @@ l523b:
 	call	l72e1
 	db	_SimTyp
 l5254:
-	ld	de,l0800
-	call	l6d75		; Put to table
+	ld	de,8*256+0 ;l0800
+	call	puttolabel_d_e		; Put to table
 	ld	hl,(l7b73)	; Get label pointer
 	ld	(l7b5a),hl	; Save into type table
 	ld	hl,l7b5c	; Point to type
 	ld	b,8
 l5265:
 	ld	a,(hl)
-	call	l6d7a
+	call	puttolabel
 	inc	hl
 	djnz	l5265
 	call	l6dc6		; Set label pointer
@@ -15141,13 +15147,13 @@ l5626:
 	db	_IllLabel
 	ex	de,hl
 l5639:
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	ld	a,(l7b95)
-	call	l6d7a
+	call	puttolabel
 	call	l6b77		; Set JP
 	push	iy
 	pop	de
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	jp	l6b97
 ;
 ; Statement WITH
@@ -15917,7 +15923,7 @@ l5b26:
 	call	l6a5c
 	jr	nz,l5b4c
 	ld	a,b
-	cp	8
+	cp	8 ;_String???
 	jr	nz,l5b47
 	ld	a,(ix+0)
 	cp	','
@@ -15936,15 +15942,15 @@ l5b4c:
 	call	l5ee8
 l5b4f:
 	ld	a,b
-	cp	8
-	jr	c,l5b58
-	cp	0dh
-	jr	c,l5b5c
+	cp	8 ;0..7: _Array,_Record,_Set,_Ptr,_RecF,_TxtF,_UntF
+	jr	c,l5b58 ;not a scalar type???
+	cp	0dh ;element of a set???
+	jr	c,l5b5c ;8..12: (_String excluded above),_Real,_Integ,_Bool,_Char
 l5b58:
 	call	l72e1
 	db	_InvIO
 l5b5c:
-	cp	0ch
+	cp	0ch ;_Char???
 	jr	nz,l5b6a
 	call	l6f0b		; Test :
 	jr	nz,l5ba6
@@ -15959,7 +15965,7 @@ l5b72:
 	call	l5e97
 	pop	bc
 	ld	a,b
-	cp	9
+	cp	9 ;_Real???
 	jr	nz,l5ba6
 	call	l6f0b		; Test :
 	jr	nz,l5b9d
@@ -15971,13 +15977,13 @@ l5b72:
 l5b8b:
 	ld	hl,l0000
 	ld	a,b
-	cp	9
+	cp	9 ;_Real???
 	jr	nz,l5b95
 	ld	l,12h
 l5b95:
 	call	l6b92		; Set LD HL,val16
 	ld	a,b
-	cp	9
+	cp	9 ;_Real???
 	jr	nz,l5ba6
 l5b9d:
 	call	l6b6f		; Set PUSH HL
@@ -15986,16 +15992,16 @@ l5b9d:
 l5ba6:
 	ld	a,b
 	ld	hl,l17aa
-	cp	8
+	cp	8 ;_String???
 	jr	z,l5bc6
 	ld	hl,l1779
-	cp	9
+	cp	9 ;_Real???
 	jr	z,l5bc6
 	ld	hl,l1726
-	cp	0ah
+	cp	0ah ;_Integ???
 	jr	z,l5bc6
 	ld	hl,l178b
-	cp	0bh
+	cp	0bh ;_Bool???
 	jr	z,l5bc6
 	ld	hl,l1722
 l5bc6:
@@ -16510,7 +16516,6 @@ l5eeb:
 	ret	nz		; Nope
 	ld	a,(hl)		; Get code
 	inc	a		; Test IN
-         jr z,$
 	jr	z,l5f34		; Yeap
 	dec	a
 	push	af
@@ -17146,7 +17151,7 @@ l62d2:
 	ld	hl,l0581
 	call	l6b86		; Initialize a set on stack
 	call	l6ef7		; Test ]
-	ld	bc,l0300
+	ld	bc,3*256+0 ;l0300
 	ret	z		; Yeap
 l62e4:
 	push	bc
@@ -17205,10 +17210,11 @@ l6335:
 	call	l6b92		; Set LD HL,val16
 	jp	l642e
 l6345:
+         ;jr $
 	ld	bc,256*3+0
-	call	l6e54
+	call	l6e54 ; Find label with type in reg B
 	call	l72da
-	db	_Undef
+	db	_Undef ;TODO fix bb:=(Txt in [Txt]);
 	ld	d,(hl)
 	dec	hl
 	ld	e,(hl)
@@ -19094,14 +19100,14 @@ l6d67:
 ;
 ; Put current PC to table
 ;
-l6d72:
+puttolabel_i_y:
 	push	iy
 	pop	de
-l6d75:
+puttolabel_d_e:
 	ld	a,d
-	call	l6d7a
+	call	puttolabel
 	ld	a,e
-l6d7a:
+puttolabel:
 	push	hl
 	ld	hl,(l7b73)	; Get label pointer
 	ld	(hl),a
@@ -19132,7 +19138,7 @@ l6d9a:
 	jr	nc,l6da4
 	sub	'a'-'A'
 l6da4:
-	call	l6d7a
+	call	puttolabel
 	inc	ix
 	ld	a,(ix+0)
 	call	l7282		; Test valid character
@@ -19156,7 +19162,7 @@ l6dc6:
 	or	a
 	sbc	hl,de
 	ex	de,hl
-	call	l6d75		; Put to table
+	call	puttolabel_d_e		; Put to table
 	ld	hl,(l7b73)	; Get label pointer
 	ld	(l7b75),hl	; Unpack into previous
 	ret
@@ -20203,7 +20209,7 @@ _.BOOL	equ	$-ssBOOL
 ;
 	dw	_.TEXT
 ssTEXT:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	db	'T'+MSB,'XET'
 	db	0,_Type
 _.TEXT	equ	$-ssTEXT
@@ -20212,7 +20218,7 @@ _.TEXT	equ	$-ssTEXT
 ;
 	dw	_.BYTE
 ssBYTE:
-	dw	l74fb+7
+	dw	l74fb+7 ;byte type
 	db	'E'+MSB,'TYB'
 	db	0,_Type
 _.BYTE	equ	$-ssBYTE
@@ -20261,7 +20267,7 @@ _.PI	equ	$-ssPI
 ;
 	dw	_.OUTP
 ssOUTP:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00c2
 	db	0
 	db	'T'+MSB,'UPTUO'
@@ -20272,7 +20278,7 @@ _.OUTP	equ	$-ssOUTP
 ;
 	dw	_.INPT
 ssINPT:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00c2
 	db	0
 	db	'T'+MSB,'UPNI'
@@ -20283,7 +20289,7 @@ _.INPT	equ	$-ssINPT
 ;
 	dw	_.CON
 ssCON:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00b8
 	db	0
 	db	'N'+MSB,'OC'
@@ -20294,7 +20300,7 @@ _.CON	equ	$-ssCON
 ;
 	dw	_.TRM
 ssTRM:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00b8
 	db	0
 	db	'M'+MSB,'RT'
@@ -20305,7 +20311,7 @@ _.TRM	equ	$-ssTRM
 ;
 	dw	_.KBD
 ssKBD:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00ba
 	db	0
 	db	'D'+MSB,'BK'
@@ -20316,7 +20322,7 @@ _.KBD	equ	$-ssKBD
 ;
 	dw	_.LST
 ssLST:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00bc
 	db	0
 	db	'T'+MSB,'SL'
@@ -20327,7 +20333,7 @@ _.LST	equ	$-ssLST
 ;
 	dw	_.AUX
 ssAUX:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00be
 	db	0
 	db	'X'+MSB,'UA'
@@ -20338,7 +20344,7 @@ _.AUX	equ	$-ssAUX
 ;
 	dw	_.USR
 ssUSR:
-	dw	l74f3+7
+	dw	l74f3+7 ;text file type???
 	dw	l00c0
 	db	0
 	db	'R'+MSB,'SU'
@@ -20349,7 +20355,7 @@ _.USR	equ	$-ssUSR
 ;
 	dw	_.BUFL
 ssBUFL:
-	dw	l74fb+7
+	dw	l74fb+7 ;byte type
 	dw	l00d1
 	db	0
 	db	'N'+MSB,'ELFUB'
@@ -20360,7 +20366,7 @@ _.BUFL	equ	$-ssBUFL
 ;
 	dw	_.HEAP
 ssHEAP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00c4
 	db	0
 	db	'R'+MSB,'TPPAEH'
@@ -20371,7 +20377,7 @@ _.HEAP	equ	$-ssHEAP
 ;
 	dw	_.RECUR
 ssRECUR:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00c6
 	db	0
 	db	'R'+MSB,'TPRUCER'
@@ -20382,7 +20388,7 @@ _.RECUR	equ	$-ssRECUR
 ;
 	dw	_.CONSP
 ssCONSP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00a0+1
 	db	0
 	db	'R'+MSB,'TPTSNOC'
@@ -20393,7 +20399,7 @@ _.CONSP	equ	$-ssCONSP
 ;
 	dw	_.CONIP
 ssCONIP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00a3+1
 	db	0
 	db	'R'+MSB,'TPNINOC'
@@ -20404,7 +20410,7 @@ _.CONIP	equ	$-ssCONIP
 ;
 	dw	_.CONOP
 ssCONOP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00a6+1
 	db	0
 	db	'R'+MSB,'TPTUONOC'
@@ -20415,7 +20421,7 @@ _.CONOP	equ	$-ssCONOP
 ;
 	dw	_.LSTOP
 ssLSTOP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00a9+1
 	db	0
 	db	'R'+MSB,'TPTUOTSL'
@@ -20426,7 +20432,7 @@ _.LSTOP	equ	$-ssLSTOP
 ;
 	dw	_.AUXIP
 ssAUXIP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00af+1
 	db	0
 	db	'R'+MSB,'TPNIXUA'
@@ -20437,7 +20443,7 @@ _.AUXIP	equ	$-ssAUXIP
 ;
 	dw	_.AUXOP
 ssAUXOP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00ac+1
 	db	0
 	db	'R'+MSB,'TPTUOXUA'
@@ -20448,7 +20454,7 @@ _.AUXOP	equ	$-ssAUXOP
 ;
 	dw	_.USRIP
 ssUSRIP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00b5+1
 	db	0
 	db	'R'+MSB,'TPNIRSU'
@@ -20459,7 +20465,7 @@ _.USRIP	equ	$-ssUSRIP
 ;
 	dw	_.USROP
 ssUSROP:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00b2+1
 	db	0
 	db	'R'+MSB,'TPTUORSU'
@@ -20470,7 +20476,7 @@ _.USROP	equ	$-ssUSROP
 ;
 	dw	_.ERRPT
 ssERRPT:
-	dw	l74d3+7
+	dw	l74d3+7 ;integer type
 	dw	l00da
 	db	0
 	db	'R'+MSB,'TPRORRE'
@@ -20988,8 +20994,8 @@ l7b8f	equ	l7b8d+2
 l7b90	equ	l7b8f+1
 l7b91	equ	l7b90+1		; ???
 l7b92	equ	l7b91+1		; ???
-l7b93	equ	l7b92+1		; Type
-l7b94	equ	l7b93+1		; ???
+curtype_l7b93	equ	l7b92+1		; Type
+l7b94	equ	curtype_l7b93+1		; ???
 l7b95	equ	l7b94+1
 l7b96	equ	l7b95+1		; OVERLAY number
 l7b97	equ	l7b96+1		; PROCEDURE (=0) or FUNCTION (<>0)
