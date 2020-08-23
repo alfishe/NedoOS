@@ -1405,7 +1405,7 @@ BDOS_fdel_noFATFS
 ;TODO TR-DOS???
 BDOS_rndrd
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO убрать в драйвер
+        call BDOS_setdepage
 ;DE = Pointer to opened FCB
         call BDOS_rndrdwrseek
         jr BDOS_fread_gofatfs
@@ -1413,7 +1413,7 @@ BDOS_rndrd
 ;TODO TR-DOS???
 BDOS_rndwr
         call BDOS_preparedepage
-        call BDOS_setdepage ;TODO убрать в драйвер
+        call BDOS_setdepage
 ;DE = Pointer to opened FCB
         call BDOS_rndrdwrseek
         jr BDOS_fwrite_gofatfs

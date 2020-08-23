@@ -32,7 +32,7 @@ BDOS	equ	0005h
 NEDOOSMEMTOP=0xff00;0xdc06 ;TODO 0x0000?
 Number	equ	005dh
 
-TPA	equ	0100h
+;TPA	equ	0100h
 
 ;CP/M function codes:
 ;_resdsk	equ	13 ;TODO
@@ -464,6 +464,10 @@ lfffc	equ	0fffch
 lffff	equ	0ffffh
 
 l0100:
+        OS_HIDEFROMPARENT
+        ld e,6 ;textmode
+        OS_SETGFX
+progstartaddr=$+1
 	jp	l20e2		; Jump over Run Time Library
 ;
 ; %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -735,7 +739,7 @@ l024b:
 ;
 l0259:
         if 1==1
-        jr $ ;TODO
+        ;jr $ ;TODO
         else
 	push	af
 	push	bc
@@ -749,7 +753,7 @@ l0259:
 ;
 l0262:
         if 1==1
-        jr $ ;TODO
+        ;jr $ ;TODO
         else
 	push	af
 	push	bc
@@ -4606,7 +4610,6 @@ l133f:
 ; EXIT	Reg HL holds boolean result
 ;
 l134f:
-        ;jr $
 	pop	ix		; Get caller
 	ld	hl,set.len+1
 	add	hl,sp		; Get pointer to set
@@ -6465,13 +6468,13 @@ l1beb:
 	ld	de,l00b0
 	ld	bc,l0019
 	ldir			; Move loader to temporary location
-	ld	de,TPA		; Init loader address
+	ld	de,0x0100;TPA		; Init loader address
 	ld	a,(l00e8)	; Test mode
 	or	a
 	jr	nz,l1c2d
-	ld	de,(TPA+1)	; Change address for CHAIN
+	ld	de,(progstartaddr);(TPA+1)	; Change address for CHAIN
 l1c2d:
-	ld	sp,TPA		; Get local stack
+	ld	sp,0x0100;TPA		; Get local stack
 	jp	l00b0		; Go load
 ;
 ; ############### Start of loader ###############
@@ -6496,7 +6499,7 @@ _l1c33:
          cp 128 ;EOF in NedoOS
          jr nz,_l1c33		; Read was successfull
          ;jr $
-	jr	TPA		; Start after loading
+	jr	0x0100;TPA		; Start after loading
 l0019	equ	$-_l1c33
 	ent
 ;
@@ -7417,9 +7420,9 @@ l2156:
 ; Come here after cold start
 ;
 l215e:
-        OS_HIDEFROMPARENT
-        ld e,6 ;textmode
-        OS_SETGFX
+        ;OS_HIDEFROMPARENT
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
         
 	ld hl,NEDOOSMEMTOP;ld	hl,(TPAtop)	; Fetch top of memory
 	ld	bc,-MEMGAP
@@ -8311,7 +8314,7 @@ l2841:
 	inc	a		; Test success
 	jp	z,l2a5a		; Nope, error
 	pop	af		; Get back .COM or .CHN
-	ld	hl,TPA
+	ld	hl,0x0100;TPA
 	jr	z,l2877		; Got .COM
 	ld	hl,(l7904)	; Get code start address
 l2877:
@@ -8323,7 +8326,7 @@ l287b:
 	sbc	hl,de		; Test end reached
 	jr	c,l28a9		; Yeap
 	ld	hl,(l7904)	; Get code start address
-	ld	(TPA+1),hl	; Set as start address
+	ld	(progstartaddr),hl;(TPA+1),hl	; Set as start address
 	push	de
 	ld	c,_setdma
 	call	l7265		; Set disk buffer
@@ -8332,7 +8335,7 @@ l287b:
 	call	l7265		; Write record to file
 	pop	de
 	ld	hl,l20e2
-	ld	(TPA+1),hl	; Reset start address
+	ld	(progstartaddr),hl;(TPA+1),hl	; Reset start address
 	;or	a		; Test I/O success
 	;jp	nz,l2a5a	; Error, disk full
 	ld	hl,RecLng
@@ -9244,7 +9247,6 @@ l2e8f:
 ; %%%%%%%%%%%%%%%%%%%%
 ;
 l2e91:
-        ;jr $
 	push	hl
 	ld	de,256*lf+cr
 	ld	hl,(l4546)	; Get end of text
@@ -11121,7 +11123,6 @@ l3b73:
 ; Control: DELETE LEFT CHARACTER
 ;
 l3b78:
-        ;jr $
 	ld	hl,(l4452)	; Get current edit pointer
 	call	l3c02		; Move character left
 	jr	c,l3b63		; Beginning of line
@@ -12725,7 +12726,7 @@ l454a:
 	dec	a		; Test compiling to file
 	jr	nz,l45e2	; Nope
 	call	l6c96		; Fix back level
-	call	l6cfd		; Write record
+	call	writerecord_l7957		; Write record
 l45e2:
 	ld	(l7906),iy	; Save new top of code
 	xor	a
@@ -12750,7 +12751,7 @@ l4607:
 	call	l6f48		; Verify ;
 l460a:
 	ld	a,_LD.SP
-	ld	hl,TPA
+	ld	hl,0x0100;TPA
 	call	l6b94		; Set LD SP,TPA
 	ld	hl,l79d7	; Get start of source line
 	ld	a,(l7900)	; Get compile flag
@@ -12768,25 +12769,25 @@ l4621:
 l462e:
 	push	de		; Save flag
 	ld	a,_LD.BC
-	call	l6b9c		; Set LD BC,FLAG
+	call	writebyte_a_addriy		; Set LD BC,FLAG
 	push	iy		; Save PC
-	call	l6b97		; Set dummy word
+	call	writeword_hl_addriy		; Set dummy word
 	ld	hl,l0364
 	call	l6b86		; Set CALL INIPRG
 	ld	a,_LD.HL
-	call	l6b9c		; Set LD HL,1STFREE
+	call	writebyte_a_addriy		; Set LD HL,1STFREE
 	push	iy		; Save PC
-	call	l6b97		; Set dummy word
+	call	writeword_hl_addriy		; Set dummy word
 	ld	a,_LD.DE
-	call	l6b9c		; Set LD DE,LASTFREE
+	call	writebyte_a_addriy		; Set LD DE,LASTFREE
 	push	iy		; Save PC
-	call	l6b97		; Set dummy word
+	call	writeword_hl_addriy		; Set dummy word
 	ld	hl,(l790a)	; Get end of code
 	call	l6b8a		; Set LD BC,TOPRAM
 	ld	a,(l7900)	; Get compile flag
 	ld	h,a
 	ld	l,_LD.A
-	call	l6b97		; Set LD A,FLAG
+	call	writeword_hl_addriy		; Set LD A,FLAG
 	ld	hl,l04d4
 	call	l6b86		; Set CALL RANGCHK
 	call	l469e		; Do a block
@@ -12799,14 +12800,14 @@ l462e:
 	call	l6b82		; Set JP HALT
 	pop	hl		; Get back PC for LASTFREE
 	ld	de,(l7908)	; Get start of data
-	call	l6c42		; Store back
+	call	storeback_de_to_addrhl		; Store back
 	pop	hl		; Get back PC for 1STFREE
-	call	l6c3f		; Store back current PC
+	call	storeback_iy_to_addrhl		; Store back current PC
 	pop	hl		; Get back PC for FLAG
 	pop	de		; Get FLAG
 	ld	a,(l7ba0)	; Get end on break flag [option U+]
 	ld	e,a
-	jp	l6c42		; Store it back
+	jp	storeback_de_to_addrhl		; Store it back
 ;
 ; Build dummy label
 ;
@@ -12831,7 +12832,7 @@ l469e:
 	call	l6b77		; Set JP
 	push	iy		; Save PC
 	push	hl
-	call	l6b97		; Set dummy word
+	call	writeword_hl_addriy		; Set dummy word
 l46b3:
 	call	l6e5a		; Find statement
 	db	_Byte
@@ -12890,12 +12891,12 @@ l4709:
 	ld	hl,l1c59
 	call	l6b86		; Set CALL OVERLAY
 	ld	hl,-1
-	call	l6b97		; Save word
+	call	writeword_hl_addriy		; Save word
 	ld	hl,l7bb2	; Point to name
 	ld	b,Fname+Fext
 l4724:
 	ld	a,(hl)
-	call	l6b9c		; Store name and extension
+	call	writebyte_a_addriy		; Store name and extension
 	inc	hl
 	djnz	l4724
 	ld	a,(l7900)	; Get compile flag
@@ -12904,7 +12905,7 @@ l4724:
 	call	l6c96		; Fix back level
 	xor	a
 	ld	(l7be3),a	; Set back fix level
-	call	l6cfd		; Write record
+	call	writerecord_l7957		; Write record
 l473b:
 	ld	hl,(l7bdd)	; Get record base
 	push	hl
@@ -12991,6 +12992,9 @@ l47c6:
 	pop	de
 	push	de
 l47dd:
+	 ld	a,(l7900)	; Get compile flag
+	 dec	a		; Test compiling to memory
+         call z,flushunfinished ;nope
 	push	iy		; Copy code pointer
 	pop	hl
 	or	a
@@ -12999,7 +13003,7 @@ l47dd:
 	and	RecLng-1	; Test record boundary
 	jr	z,l47ee		; Yeap
 	xor	a
-	call	l6b9c		; Fill remainder with zeroes
+	call	writebyte_a_addriy		; Fill remainder with zeroes
 	jr	l47dd
 l47ee:
 	add	hl,hl		; Calculate lenght in bytes
@@ -13053,7 +13057,7 @@ l484e:
 	ld	b,RecLng
 l4850:
 	xor	a
-	call	l6b9c		; Clear record
+	call	writebyte_a_addriy		; Clear record
 	djnz	l4850
 	dec	de
 	ld	a,d		; Test all done
@@ -13079,7 +13083,7 @@ l486a:
 	sbc	hl,de		; Calculate size
 	add	hl,de
 	jr	z,l4880
-	call	l6c3f		; Store back PC
+	call	storeback_iy_to_addrhl		; Store back PC
 	jr	l4884
 l4880:
 	dec	hl
@@ -13292,7 +13296,7 @@ l49eb:
 	or	l
 	jr	z,l49f6		; Yeap
 	xor	a
-	call	l6b9c		; Fill zeroes
+	call	writebyte_a_addriy		; Fill zeroes
 	dec	hl
 	jr	l49eb
 l49f6:
@@ -13350,7 +13354,7 @@ l4a4b:
 	ld	b,a
 l4a6f:
 	ld	a,(hl)		; Get bytes
-	call	l6b9c		; Store them
+	call	writebyte_a_addriy		; Store them
 	inc	hl
 	djnz	l4a6f
 	call	l6d49		; Get back environment
@@ -13374,7 +13378,7 @@ l4a91:
 	dec	b
 	ret	z
 	xor	a
-	call	l6b9c		; Fill zeroes
+	call	writebyte_a_addriy		; Fill zeroes
 	jr	l4a91
 l4a99:
 	cp	_Real		; Test REAL constant
@@ -13396,7 +13400,7 @@ l4aaf:
 	ld	b,Real.Len/2	; Set word count
 l4ab5:
 	pop	hl
-	call	l6b97		; Save real number
+	call	writeword_hl_addriy		; Save real number
 	djnz	l4ab5
 	ret
 l4abc:
@@ -13404,8 +13408,8 @@ l4abc:
 	ld	a,(l7b62)	; Get length of type
 	dec	a
 	ld	a,l
-	jp	z,l6b9c		; Set byte
-	jp	l6b97		; Or set word
+	jp	z,writebyte_a_addriy		; Set byte
+	jp	writeword_hl_addriy		; Or set word
 ;
 ;
 ;
@@ -13686,7 +13690,7 @@ l4c84:
 	push	hl
 	ex	de,hl
 	inc	hl
-	call	l6c3f		; Store back PC
+	call	storeback_iy_to_addrhl		; Store back PC
 	pop	hl
 l4ca7:
 	ld	a,(l7b97)
@@ -13951,7 +13955,7 @@ l4e46:
 	ld	a,(l7b87)
 	cp	_String
 	ld	a,_EXX
-	call	nz,l6b9c	; Set EXX
+	call	nz,writebyte_a_addriy	; Set EXX
 l4e65:
 	call	l6b8a		; Set LD BC,val16
 	ex	de,hl
@@ -13992,9 +13996,9 @@ l4e8d:
 	ld	d,(hl)
 	add	hl,de
 	ld	a,(hl)
-	cp	6
+	cp	6 ;_TxtF???
 	jr	z,l4ea4
-	cp	5
+	cp	5 ;_RecF???
 	jr	nz,l4e8d
 l4ea4:
 	push	hl
@@ -14618,14 +14622,14 @@ l529b:
 	ld	b,(hl)
 	add	hl,bc
 	ld	a,(hl)
-	cp	8
+	cp	8 ;???
 	jr	nz,l529b
 	ld	(hl),0
 	push	hl
 	dec	hl
 	dec	hl
 	ld	a,(hl)
-	cp	4
+	cp	4 ;???
 	jr	nz,l52f8
 	dec	hl
 	ld	a,(hl)
@@ -14651,7 +14655,7 @@ l52c7:
 	ld	b,(hl)
 	add	hl,bc
 	ld	a,(hl)
-	cp	3
+	cp	3 ;???
 	jr	nz,l52c7
 	push	hl
 	push	de
@@ -14734,14 +14738,14 @@ l5340:
 	ld	a,b
 	sub	c
 	jr	nz,l534a
-	call	l6c42
+	call	storeback_de_to_addrhl
 	jr	l5360
 l534a:
 	call	l72c8
 	db	_IllGOTO
 	push	de
 	push	af
-	call	l6c3f		; Store back PC
+	call	storeback_iy_to_addrhl		; Store back PC
 	pop	af
 	ld	b,a
 l5355:
@@ -14763,7 +14767,7 @@ l5363:
 	or	a
 	sbc	hl,de
 	add	hl,de
-	jp	nz,l6c3f	; Store back PC
+	jp	nz,storeback_iy_to_addrhl	; Store back PC
 	dec	hl
 	jp	l6cc2		; Check chaining
 ;
@@ -14788,7 +14792,7 @@ l5385:
 	jr	z,l539c		; Nope
 	ld	a,RST
 	ld	(l7ba0),a	; Set end on break flag [option U+]
-	call	l6b9c		; Insert RST
+	call	writebyte_a_addriy		; Insert RST
 l539c:
 	call	l6e5a		; Find statement
 	db	2
@@ -14847,7 +14851,7 @@ s_I9:
 	db	_JPZ
 a_L9	equ	$-s_I9
 	push	iy
-	call	l6b97
+	call	writeword_hl_addriy
 	call	l6e76		; Find THEN
 	dw	l756a
 	call	l72da
@@ -14859,12 +14863,12 @@ a_L9	equ	$-s_I9
 	call	l6b77		; Set JP
 	pop	hl
 	push	iy
-	call	l6b97
-	call	l6c3f		; Store back PC
+	call	writeword_hl_addriy
+	call	storeback_iy_to_addrhl		; Store back PC
 	call	l5385		; Process a statement
 l5420:
 	pop	hl
-	jp	l6c3f		; Store back PC
+	jp	storeback_iy_to_addrhl		; Store back PC
 ;
 ; Statement WHILE
 ;
@@ -14882,14 +14886,14 @@ s_I10:
 	db	_JPZ
 a_L10	equ	$-s_I10
 	push	iy
-	call	l6b97
+	call	writeword_hl_addriy
 	call	l5385		; Process a statement
 	pop	de
 	pop	hl
 	ld	a,_JP
 	call	l6b94
 	ex	de,hl
-	jp	l6c3f		; Store back PC
+	jp	storeback_iy_to_addrhl		; Store back PC
 ;
 ; Statement REPEAT
 ;
@@ -14911,7 +14915,7 @@ s_I11:
 	db	_JPZ
 a_L11	equ	$-s_I11
 	pop	hl
-	jp	l6b97
+	jp	writeword_hl_addriy
 ;
 ; Statement FOR
 ;
@@ -14976,12 +14980,13 @@ a_L12	equ	$-s_I12
 l54d5:
 	call	l6b86		; Set CALL <loop>
 	push	iy
+         ;jr $
 	call	l6b50		; Set code sequence
 	db	a_L13
 s_I13:
 	LD	A,D
 	OR	E
-	JP	Z,$-$ ;???
+	JP	Z,$-$ ;for future patching???
 	PUSH	DE
 a_L13	equ	$-s_I13
 	call	l661b
@@ -15007,7 +15012,7 @@ s_I14:
 a_L14	equ	$-s_I14
 l550c:
 	ld	a,e		; Get byte
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 	call	l6b50		; Set code sequence
 	db	a_L15
 s_I15:
@@ -15016,11 +15021,11 @@ s_I15:
 	db	_JP
 a_L15	equ	$-s_I15
 	pop	hl
-	call	l6b97
+	call	writeword_hl_addriy
 	inc	hl
 	inc	hl
 	inc	hl
-	jp	l6c3f		; Store back PC
+	jp	storeback_iy_to_addrhl		; Store back PC
 ;
 ; Statement CASE
 ;
@@ -15098,9 +15103,9 @@ l558b:
 	pop	bc
 	jr	z,l55a5
 	ld	a,(l7b9b)	; Get byte
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 	push	iy
-	call	l6b97
+	call	writeword_hl_addriy
 	call	l6f5e		; Verify ,
 	inc	b
 	jr	l5533
@@ -15114,17 +15119,17 @@ l55ab:
 	dec	b
 	jr	z,l55b4
 	pop	hl
-	call	l6c42
+	call	storeback_de_to_addrhl
 	jr	l55ab
 l55b4:
 	ld	a,(l7b9b)	; Get byte
 	res	3,a		; Fix it
-	call	l6b9c		; Store
+	call	writebyte_a_addriy		; Store
 	pop	bc
 	push	iy
 	inc	b
 	push	bc
-	call	l6b97
+	call	writeword_hl_addriy
 	ld	a,(l7b9b)
 	push	af
 	ld	a,(l7b9c)
@@ -15150,8 +15155,8 @@ l55df:
 	push	iy
 	push	bc
 	push	de
-	call	l6b97
-	call	l6c3f		; Store back PC
+	call	writeword_hl_addriy
+	call	storeback_iy_to_addrhl		; Store back PC
 	call	l6e76		; Find ELSE
 	dw	l756e
 	pop	de
@@ -15175,7 +15180,7 @@ l561e:
 	pop	bc
 l561f:
 	pop	hl
-	call	l6c3f		; Store back PC
+	call	storeback_iy_to_addrhl		; Store back PC
 	djnz	l561f
 	ret
 ;
@@ -15199,7 +15204,7 @@ l5639:
 	push	iy
 	pop	de
 	call	puttolabel_d_e		; Put to table
-	jp	l6b97
+	jp	writeword_hl_addriy
 ;
 ; Statement WITH
 ;
@@ -15331,10 +15336,10 @@ l570a:
 	jr	nz,l572f
 l5729:
 	ld	a,l		; Get byte
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 	jr	l5732
 l572f:
-	call	l6b97
+	call	writeword_hl_addriy
 l5732:
 	ld	a,'/'
 	call	l6f29
@@ -15513,7 +15518,7 @@ s_I22:
 a_L22	equ	$-s_I22
 l584a:
 	ld	hl,(l7b65)
-	call	l6b97
+	call	writeword_hl_addriy
 	jr	l5857
 l5852:
 	call	l6b50		; Set POP DE
@@ -15881,7 +15886,7 @@ l5a7c:
 	dec	a
 	ld	h,a
 	ld	l,6
-	call	l6b97
+	call	writeword_hl_addriy
 	ld	hl,l168e
 	jr	l5aa9
 l5a8f:
@@ -16166,7 +16171,7 @@ l5c87:
 	call	l6f5e		; Verify ,
 	call	l5e97
 	pop	hl
-	call	l6b97
+	call	writeword_hl_addriy
 	ld	hl,l0920
 	jr	l5c81		; Set INSERT
 l5cad:
@@ -16223,7 +16228,7 @@ l5d02:
 	dec	a
 	ld	h,a
 	ld	l,6
-	call	l6b97
+	call	writeword_hl_addriy
 	pop	bc
 	ld	hl,l1ebe
 	ld	a,b
@@ -17116,9 +17121,9 @@ l6239:
 	ld	a,c
 	sub	10h
 	ld	c,a		; Get byte
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 	pop	hl
-	call	l6b97
+	call	writeword_hl_addriy
 	djnz	l6239
 	ld	b,9
 	ret
@@ -17185,7 +17190,7 @@ l629d:
 	db	_NoStruktVar
 	ld	h,l
 	ld	l,6
-	call	l6b97
+	call	writeword_hl_addriy
 	ld	hl,l0638
 	call	l6b86		; Set set to stack
 	ld	b,8
@@ -17393,7 +17398,7 @@ l63d7:
 	push	af
 	call	l65ef
 	pop	af		; Get byte back
-	jp	l6b9c		; Store it
+	jp	writebyte_a_addriy		; Store it
 ;
 ; Function LO(Integer)
 ;
@@ -17857,7 +17862,7 @@ l6634:
 	dec	a
 	ld	h,a
 	ld	l,6
-	call	l6b97
+	call	writeword_hl_addriy
 	ld	hl,l0601	; Assign string from stack
 	ld	de,l05e2	; Assign string from stack
 l6648:
@@ -17959,7 +17964,7 @@ s_I63:
 	EX	DE,HL
 	db	_LD_a_HL
 a_L63	equ	$-s_I63
-	call	l6b97
+	call	writeword_hl_addriy
 	jr	l66a6
 l66da:
 	ld	a,(l7b5c)	; Get type
@@ -18038,7 +18043,7 @@ l6749:
 	db	_IllConst
 	ld	l,18h
 	ld	h,c
-	call	l6b97
+	call	writeword_hl_addriy
 	ld	(l7b58),iy	; Set value
 	ld	a,_Array
 	ld	(l7b5c),a	; Set ARRAY
@@ -18702,7 +18707,7 @@ l6b50:
 	inc	hl
 l6b54:
 	ld	a,(hl)		; Get byte
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 	inc	hl
 	djnz	l6b54
 	pop	bc
@@ -18710,7 +18715,7 @@ l6b54:
 	ret
 l6b5e:
 	ld	a,c		; Get byte
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 ;
 ; Store string
 ;
@@ -18722,34 +18727,34 @@ l6b66:
 	ret	z
 	ld	a,(hl)		; Get character
 	inc	hl
-	call	l6b9c		; Store it
+	call	writebyte_a_addriy		; Store it
 	jr	l6b66
 ;
 ; Set PUSH HL
 ;
 l6b6f:
 	ld	a,_PUSH.HL
-	jr	l6b9c
+	jr	writebyte_a_addriy
 ;
 ; Set POP HL
 ;
 l6b73:
 	ld	a,_POP.HL
-	jr	l6b9c
+	jr	writebyte_a_addriy
 ;
 ; Set JP
 ;
 l6b77:
 	ld	a,_JP
-	jr	l6b9c
+	jr	writebyte_a_addriy
 ;
 ; Set word in reg DE
 ;
-l6b7b:
+writeword_de_addriy:
 	ld	a,e
-	call	l6b9c
+	call	writebyte_a_addriy
 	ld	a,d
-	jr	l6b9c
+	jr	writebyte_a_addriy
 ;
 ; Set JP WORD
 ;
@@ -18783,18 +18788,18 @@ l6b92:
 ; Insert opcodes in Accu, reg L and reg H
 ;
 l6b94:
-	call	l6b9c
+	call	writebyte_a_addriy
 ;
 ; Insert word in reg HL
 ;
-l6b97:
+writeword_hl_addriy:
 	ld	a,l
-	call	l6b9c
+	call	writebyte_a_addriy
 	ld	a,h
 ;
 ; Insert byte in Accu
 ;
-l6b9c:
+writebyte_a_addriy:
 	push	bc
 	ld	b,a
 	ld	a,(l7900)	; Get compile flag
@@ -18819,7 +18824,7 @@ l6ba7:
 	db	_FndRTerr
 	jr	l6bc4
 l6bc1:
-	call	l6c02		; Put byte to file
+	call	savebyte_b		; Put byte to file
 l6bc4:
 	pop	de
 	pop	hl
@@ -18864,14 +18869,14 @@ l6be7:
 ;
 ; Put byte in reg B to file
 ;
-l6c02:
+savebyte_b:
 	ld	hl,l7bdb	; Point to file access
 	set	1,(hl)		; Set write enabled
 	bit	0,(hl)		; Test re-read
 	jr	z,l6c12		; Nope
 	res	0,(hl)		; Clear it
 	push	bc
-	call	l6cf9		; Re-read record
+	call	readrecord_l7957		; Re-read record
 	pop	bc
 l6c12:
 	ld	a,(l7bdc)	; Get record pointer
@@ -18882,7 +18887,7 @@ l6c12:
 	ld	(hl),b		; Store byte
 	inc	a		; Advance record pointer
 	jp	p,l6c2c		; Still within limits
-	call	l6cfd		; Write record
+	call	writerecord_l7957		; Write record
 	ld	hl,(l7933+_rrn)
 	inc	hl		; Advance record count
 	ld	(l7933+_rrn),hl
@@ -18904,23 +18909,44 @@ l6c30:
 ;
 ; Store back current PC to ^HL
 ;
-l6c3f:
+storeback_iy_to_addrhl:
 	push	iy		; Get PC
 	pop	de
 ;
 ; Store back reg DE to ^HL
 ;
-l6c42:
+storeback_de_to_addrhl:
 	ld	a,(l7900)	; Get compile flag
 	dec	a		; Test compiling to memory
-	jr	z,l6c53		; Yeap
+	jr	z,l6c53		; nope
 	push	iy
 	push	hl
 	pop	iy
-	call	l6b7b		; Set word
+	call	writeword_de_addriy		; Set word
 	pop	iy
 	ret
+flushunfinished
+	ld a,(l7bdc)	; Get record pointer
+        or a
+        ret z
+         push bc
+         push de
+         push hl
+         call flushunfinishedpp
+;close, open to force flush???
+	ld de,l7933
+        ld c,_close
+	call l7265		; BDOS with keep ix,iy
+        ;jr $
+	ld de,l7933
+        ld c,_open
+	call l7265		; BDOS with keep ix,iy
+         pop hl
+         pop de
+         pop bc
+         ret
 l6c53:
+         call flushunfinished
 	push	bc
 	push	de
 	push	hl
@@ -19004,12 +19030,12 @@ l6ca3:
 	ld	b,(hl)
 	inc	hl
 	push	hl
-	call	l6c02		; Put byte to file
+	call	savebyte_b		; Put byte to file
 	pop	hl
 	ld	b,(hl)
 	inc	hl
 	push	hl
-	call	l6c02		; Put byte to file
+	call	savebyte_b		; Put byte to file
 	pop	hl
 	pop	bc
 	djnz	l6ca3
@@ -19020,11 +19046,14 @@ l6ca3:
 ; Check chaining
 ;
 l6cc2:
+	 ld	a,(l7900)	; Get compile flag
+	 dec	a		; Test compiling to memory
+         call z,flushunfinished ;nope
 	push	hl
 	pop	iy
 	ld	a,(l7900)	; Get compile flag
-	dec	a		; Test compiling to file
-	ret	nz		; Nope
+	dec	a		; Test compiling to memory
+	ret	nz		; yes
 	push	de
 	push	bc
 	ld	de,(l7902)	; Get code pointer
@@ -19046,28 +19075,31 @@ l6cc2:
 	add	hl,de
 	jr	z,l6cf6
 	push	hl
-	call	l6cfd		; Write record
+	call	writerecord_l7957		; Write record
 	pop	hl
 	ld	(l7933+_rrn),hl	; Reset record
 l6cf6:
 	pop	bc
 	pop	de
 	ret
+
 ;
 ; Read a record
 ;
-l6cf9:
+readrecord_l7957:
 	ld	c,_rndrd
 	jr	l6d09
 ;
 ; Write a record
 ;
-l6cfd:
+writerecord_l7957:
 	ld	hl,l7bdb	; Point to file access
 	set	0,(hl)		; Set re-read enabled
 	bit	1,(hl)		; Test record to be written
 	ret	z		; Nope
 	res	1,(hl)		; Reset it
+flushunfinishedpp
+;write unfinished last sector???
 	ld	c,_rndwr
 l6d09:
 	push	bc		; Save function
