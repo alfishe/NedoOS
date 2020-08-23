@@ -384,6 +384,7 @@ void CLabelTable::DumpForUnreal() {
 //		*(ep++) = ':';
 //		PrintHexAlt(ep, lvalue);
 
+		*(ep++) = ':';
 		PrintHexAlt(ep, LabelTable[i].value & 0xFFFF);
 
 		*(ep++) = ' ';
