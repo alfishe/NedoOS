@@ -7343,6 +7343,7 @@ l20d4:
 	ld	a,(l00d8)	; Test run mode
 	or	a
 	jp	z,l278e		; Enter TP menue
+        YIELDGETKEYLOOP
 	jp	OS		; Exit .COM file
 ;
 ; Restart after error
@@ -18932,15 +18933,19 @@ flushunfinished
          push bc
          push de
          push hl
+        ;ld a,h
+        ;and l
+        ;inc a ;-1=fake record number
+        ;jr z,flushunfinished_skip
          call flushunfinishedpp
+;flushunfinished_skip
 ;close, open to force flush???
-	ld de,l7933
-        ld c,_close
-	call l7265		; BDOS with keep ix,iy
-        ;jr $
-	ld de,l7933
-        ld c,_open
-	call l7265		; BDOS with keep ix,iy
+	;ld de,l7933
+        ;ld c,_close
+	;call l7265		; BDOS with keep ix,iy
+	;ld de,l7933
+        ;ld c,_open
+	;call l7265		; BDOS with keep ix,iy
          pop hl
          pop de
          pop bc
@@ -19087,6 +19092,8 @@ l6cf6:
 ; Read a record
 ;
 readrecord_l7957:
+	 ;ld hl,(l7933+_rrn)
+         ;jr $
 	ld	c,_rndrd
 	jr	l6d09
 ;

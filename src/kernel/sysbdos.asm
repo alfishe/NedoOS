@@ -1179,6 +1179,7 @@ BDOS_setwaiting
          res factive,(iy+app.flags)
         ret
 
+;TODO remove?
 BDOS_waitpid
 ;e=id
 ;check for app close (a=0 and reset waiting, or else a!=0)
@@ -1402,6 +1403,68 @@ BDOS_fdel_noFATFS
 ;DE = Pointer to unopened FCB
         jp nfdel
 
+BDOS_rndrdwrseek
+;DE = Pointer to opened FCB
+       push de
+        ld hl,0x21
+        add hl,de
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        push bc ;record number BC
+        call getFILfromFCB ;hl=FIL
+        ex de,hl ;de=fil (2 words in stack = shift)        
+        push de
+        call BDOS_getfilesize_filde
+         ;jr $
+;dehl=filesize (no more than 8M in CP/M finction)
+;highest record number = dehl/128???
+        add hl,hl
+        rl e
+        ld l,h
+        ld h,e
+;highest record number = dehl/128-1??? wrong!
+        ;add hl,hl
+        ;rl e
+        ;ld l,h
+        ;ld h,e
+        ; ld a,h
+        ; or l
+        ; jr z,$+3
+        ; dec hl
+;highest record number = (dehl-1)/128??? wrong!
+        ;ld a,h
+        ;or l
+        ;dec hl
+        ;jr nz,$+3
+        ;dec de
+        ;add hl,hl
+        ;rl e
+        ;ld l,h
+        ;ld h,e
+        ; ld a,h
+        ; and l
+        ; inc a
+        ; jr nz,$+3
+        ; inc hl
+        pop de
+        pop bc ;record number BC
+        call minhl_bc_tobc        
+        ld l,b ;HSB from BC
+        ld h,0
+        srl l
+        push hl ;HSW
+        ld b,c
+        ld c,h;0
+        rr b
+        rr c
+        push bc ;LSW
+        F_LSEEK_CURDRV        
+        pop bc
+        pop bc
+       pop de 
+        ret
+
 ;TODO TR-DOS???
 BDOS_rndrd
         call BDOS_preparedepage
@@ -1417,30 +1480,6 @@ BDOS_rndwr
 ;DE = Pointer to opened FCB
         call BDOS_rndrdwrseek
         jr BDOS_fwrite_gofatfs
-
-BDOS_rndrdwrseek
-;DE = Pointer to opened FCB
-       push de
-        ld hl,0x21
-        add hl,de
-        inc hl
-        ld c,(hl)
-        ld b,0
-        srl c
-        push bc ;HSW
-        dec hl
-        ld c,b;0
-        ld b,(hl)
-        rr b
-        rr c
-        push bc ;LSW
-        call getFILfromFCB ;hl=FIL
-        ex de,hl ;de=fil (2 words in stack = shift)
-        F_LSEEK_CURDRV        
-        pop bc
-        pop bc
-       pop de 
-        ret
 
 BDOS_fread
         call BDOS_preparedepage
@@ -1758,6 +1797,7 @@ BDOS_getfilesize
         bit 6,b
         jr nz,BDOS_getfilesize_noFATFS
         call BDOS_number_to_fil ;de=fil
+BDOS_getfilesize_filde
         ld hl,FIL.FSIZE
         jr BDOS_tellhandleq
         ;add hl,de
