@@ -464,7 +464,7 @@ BDOS_scrollpage0
         add hl,bc
         call BDOS_scrollpageline
         pop bc
-        djnz BDOS_scrollpage0
+        djp nz,BDOS_scrollpage0
         ret
 BDOS_scrollpageline
         ld a,pgscr0_1 ;text
@@ -522,7 +522,7 @@ BDOS_scrolldown0
         add hl,bc
         call BDOS_scrollpageline
         pop bc
-        djnz BDOS_scrolldown0
+        djp nz,BDOS_scrolldown0
         ret
 
 BDOS_scrollup
@@ -658,7 +658,7 @@ clsline1
         ;res 6,h
         ld de,-40-0x4000
         add hl,de ;CY=1!!!
-        djnz clsline0
+        djp nz,clsline0
 clssp=$+1
         ld sp,0
         ld hl,0x0000 + scrbase
@@ -733,7 +733,7 @@ BDOShandler
         ld hl,tbdoscmds
         push bc
         ld bc,nbdoscmds
-        cpir
+        cpr
         jp nz,BDOS_pop2fail
 ;bc=nbdoscmds-(cmdnumber+1) = 0..(nbdoscmds-1)
         add hl,bc
@@ -921,7 +921,7 @@ BDOS_hidefromparent0
         jr nz,$+4
         ld (hl),c ;заменили страницу
         inc hl
-        djnz BDOS_hidefromparent0
+        djp nz,BDOS_hidefromparent0
         endif
         ret
 
@@ -1093,7 +1093,7 @@ BDOS_findapp0
         cp (iy+app.id)
         ret z
         add iy,de
-        djnz BDOS_findapp0
+        djp nz,BDOS_findapp0
         ret ;nz
         
 BDOS_dropapp
@@ -1115,7 +1115,7 @@ sys_quit_delpages0
         jr nz,$+4
         ld (hl),0 ;освободили страницу
         inc hl
-        djnz sys_quit_delpages0
+        djp nz,sys_quit_delpages0
 		if INETDRV
 		BDOSSETPGW5300
 		call w53_drop_socs
@@ -1138,7 +1138,7 @@ BDOS_dropapp_closefiles0
         pop bc
 BDOS_dropapp_closefiles_skip
         add ix,de
-        djnz BDOS_dropapp_closefiles0
+        djp nz,BDOS_dropapp_closefiles0
         endif
         ld a,(muzpid)
         cp (iy+app.id)
@@ -1179,7 +1179,7 @@ BDOS_setwaiting
          res factive,(iy+app.flags)
         ret
 
-;TODO remove?
+;TODO relde?
 BDOS_waitpid
 ;e=id
 ;check for app close (a=0 and reset waiting, or else a!=0)
@@ -1341,7 +1341,7 @@ BDOS_newpage_iy
         ;push hl
         ld bc,sys_npages
         xor a
-        cpir
+        cpr
         ;pop de
         jr nz,BDOS_fail
         dec hl
@@ -1509,8 +1509,8 @@ BDOS_fread_fatfsq
         pop bc
 	ld a,(bc)
          pop bc ;blocksize
-        call movedma_addr ;+bc ;TODO remove!!!
-	xor 0x80 ;!=, если прочитали не 128 байт ;TODO remove!!!
+        call ldedma_addr ;+bc ;TODO relde!!!
+	xor 0x80 ;!=, если прочитали не 128 байт ;TODO relde!!!
 ;a=0: OK (прочитали 128 байт)
 ;a=128: fail (прочитали 0 байт)
 ;a=???: OK (последний блок файла меньше 128 байт)
@@ -1702,7 +1702,7 @@ fsearchnext_cp00
 fsearchnext_cpskip
 	inc hl
 	inc de
-	djnz fsearchnext_cp00
+	djp nz,fsearchnext_cp00
         
 ;если не совпало, зациклить
         ld a,c
@@ -1719,7 +1719,7 @@ fsearchnext_nofileq
          push bc
         ldir
          pop bc
-        call movedma_addr ;+bc
+        call ldedma_addr ;+bc
         xor a ;success
         ret;jp rest_exit
 
@@ -1911,7 +1911,7 @@ BDOS_openhandle_pipe
         ld hl,freepipes
         xor a
         ld bc,MAXPIPES
-        cpir
+        cpr
         jp nz,BDOS_fail
         dec hl
          inc (hl)
@@ -1935,7 +1935,7 @@ BDOS_number_to_fil
         ld de,FIL_sz
 BDOS_number_to_fil0
         add hl,de
-        djnz BDOS_number_to_fil0
+        djp nz,BDOS_number_to_fil0
         ex de,hl
         ret
         
@@ -2202,7 +2202,7 @@ findpipe_byhandle
         ld de,PIPEDESC_SZ
         ld hl,pipebufs-PIPEDESC_SZ
         add hl,de
-        djnz $-1
+        djp nz,$-1
         pop de ;user space
         pop bc ;bc=number of bytes
         ret
@@ -2699,7 +2699,7 @@ strlen
         xor a
 	ld b,a
 	ld c,a ;bc=0 ;чтобы точно найти терминатор
-        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        cpr ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         ld hl,-1
         ;or a
         sbc hl,bc
@@ -2829,12 +2829,12 @@ get_name1
 	ldi
 	cp (hl)
         jr z,get_name_skipspaces
-	djnz get_name1
+	djp nz,get_name1
         ldi
         jr get_name_findext ;скопировали 8 символов, пробел не нашли
 get_name_skipspaces
 	inc hl
-	djnz $-1;1b ;пропускаем оставшиеся пробелы
+	djp nz,$-1;1b ;пропускаем оставшиеся пробелы
 get_name_findext
 	cp (hl)
 	jr z,get_name1f ;на месте расширения пробел - не ставим точку
@@ -2878,7 +2878,7 @@ findfreeffile0
          ;or a ;nz
         ret
         
-movedma_addr
+ldedma_addr
         ld iy,(appaddr)
         ;ld hl,(dma_addr) ;оригинальный, не пересчитанный адрес
         call BDOS_getdta

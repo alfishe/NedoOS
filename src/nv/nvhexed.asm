@@ -262,7 +262,7 @@ nvview_hexeditor_prpage0
         pop de
         pop bc
         inc d
-        djnz nvview_hexeditor_prpage0
+        djp nz,nvview_hexeditor_prpage0
 ;nvview_hexeditor_setbottom
         ;ld (hexaddrline),hl
         ;ld (hexaddrlineHSB),a
@@ -545,7 +545,7 @@ nvview_hexeditor_pgup0
         push bc
         call nvview_hexeditor_prevline
         pop bc
-        djnz nvview_hexeditor_pgup0
+        djp nz,nvview_hexeditor_pgup0
         ld (hexaddrline),hl
         ld (hexaddrlineHSB),a
         call nvview_hexeditor_prpage

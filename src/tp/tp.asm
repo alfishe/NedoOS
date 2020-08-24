@@ -349,7 +349,7 @@ _NoOvl		equ	 92
 _CompDirec	equ	 93
 _INCLerr	equ	 96
 _TooManyWITH	equ	 97
-_MemOvfl	equ	 98
+_Meldfl	equ	 98
 _CompOvfl	equ	 99
 _IndxErr	equ	144
 _RngErr		equ	145
@@ -597,12 +597,12 @@ l01d4:
 	inc	hl
 	push	af
 	push	hl
-        push ix ;TODO remove?
+        push ix ;TODO relde?
         push iy
 	ld	a,(hl)		; Get character
 	PRCHAR ;call	l01e8		; Put to console
         pop iy
-        pop ix ;TODO remove?
+        pop ix ;TODO relde?
 	pop	hl
 	pop	af
 	dec	a
@@ -619,13 +619,13 @@ l01e1:
 ; Put character on console
 ;
 l01e8:
-        push ix ;TODO remove?
+        push ix ;TODO relde?
         push iy
 	;ld	l,a
 	;push	hl		; Push onto stack
 	PRCHAR ;call	l00a6		; Put to console
         pop iy
-        pop ix ;TODO remove?
+        pop ix ;TODO relde?
 	ret
 
 ;
@@ -635,7 +635,7 @@ l01e8:
 l01ee:
 	cp	MSB		; Test attribute set
 	call	c,setlowvideo		; Nope, set invers video
-	call	nc,setnormvideo	; Yeap, set normal video
+	call	nc,setnorlddeo	; Yeap, set normal video
 	and	NOMSB		; Strip off attribute
 	jr	l01e8
 ;
@@ -714,12 +714,12 @@ l023e:
 	push	de
 	push	hl
        if 1==1
-        push ix ;TODO remove?
+        push ix ;TODO relde?
         push iy ;needed!!!
         ld e,0
 	OS_CLS
         pop iy
-        pop ix ;TODO remove?
+        pop ix ;TODO relde?
        else
 	ld	hl,l01a8
 	call	l0235		; Home cursor
@@ -805,7 +805,7 @@ l0282:
 ;
 ; Set normal video
 ;
-setnormvideo:
+setnorlddeo:
 	push	af
 	ld	a,(l00e0)	; Get video mode
 	cp	-1		; Test normal mode already set
@@ -978,11 +978,11 @@ l0320:
 	ld	de,_.conin
 l0323:
 	;call	l035f		; Get input
-        push ix ;TODO remove?
+        push ix ;TODO relde?
         push iy
         GET_KEY
         pop iy
-        pop ix ;TODO remove?
+        pop ix ;TODO relde?
 l0326:
 	ld	l,a		; Expand result to 16 bit
 	ld	h,0
@@ -1111,7 +1111,7 @@ l037a:
 	ld	(l00e0),a	; Set video mode
 	ret
 ;
-; Character I/O table moved into 0x00A0
+; Character I/O table lded into 0x00A0
 ;
 l03a5:
 	jp	l0316		; 0x00A0 : Keypressed
@@ -1312,7 +1312,7 @@ l0482:
 	push	bc
 	ld	hl,l0498
 	ld	bc,ll0498
-	cpir			; Find in table
+	cpr			; Find in table
 	pop	bc
 	pop	hl
 	ret
@@ -1462,7 +1462,7 @@ l052c:
 	pop	hl
 	ret
 ;
-; Move string to stack
+; lde string to stack
 ; ENTRY	Reg HL points to string
 ;
 l053a:
@@ -1478,10 +1478,10 @@ l053a:
 	ld	sp,hl
 	ex	de,hl
 	inc	bc
-	ldir			; Move to stack
+	ldir			; lde to stack
 	jp	(ix)		; Exit
 ;
-; Move immediate string to stack
+; lde immediate string to stack
 ; ENTRY	String started with length after caller
 ;
 l054d:
@@ -1496,7 +1496,7 @@ l054d:
 	ld	sp,hl
 	ex	de,hl
 	inc	bc
-	ldir			; Move to stack
+	ldir			; lde to stack
 	jp	(hl)
 ;
 ; Push set onto stack
@@ -1748,7 +1748,7 @@ l0638:
 	ld	c,b		; Expand length
 	ld	b,0
 	ex	de,hl		; Get back source
-	ldir			; Move to stack
+	ldir			; lde to stack
 	jp	(ix)
 ;
 ; Index check on compiler directive {$R+}
@@ -2378,13 +2378,13 @@ l083d:
 	ex	de,hl
 	ld	hl,0
 	ld	b,h
-	sbc	hl,bc		; Prepare moving strings
+	sbc	hl,bc		; Prepare lding strings
 	add	hl,sp
 	ld	sp,hl
 	ex	de,hl
 	push	hl
 	inc	bc
-	ldir			; Move into right place
+	ldir			; lde into right place
 	ex	de,hl
 	pop	hl
 	dec	hl
@@ -2421,7 +2421,7 @@ l086b:
 	dec	d
 	jr	z,l0896		; Yeap, done
 	cp	d		; Compare against length
-	jr	c,l0899		; Nothing to move
+	jr	c,l0899		; Nothing to lde
 	ld	c,d		; Fix a bit
 	ld	b,0
 	ld	h,b
@@ -2435,7 +2435,7 @@ l086b:
 	ld	h,b
 	add	hl,sp
 	ld	a,c
-	lddr			; Then move down
+	lddr			; Then lde down
 	ex	de,hl
 	jr	l089f
 l0896:
@@ -2634,7 +2634,7 @@ l0951:
 	ex	de,hl
 	pop	hl
 	ld	c,a
-	lddr			; Move down
+	lddr			; lde down
 	pop	de
 	pop	bc
 	jr	l0973
@@ -2660,7 +2660,7 @@ l097a:
 	ld	hl,1
 	add	hl,sp
 	ld	c,a
-	ldir			; Move
+	ldir			; lde
 l098b:
 	ld	hl,0
 	ld	d,h
@@ -4105,7 +4105,7 @@ l10d9:
 	inc	iy
 	or	a		; Test end
 	jr	nz,l10e5	; Nope
-	dec	iy		; Fix for zero storage
+	dec	iy		; Fix for zero storge
 ;
 ; Store ASCII zero into number
 ;
@@ -4680,7 +4680,7 @@ l13a0:
 	ex	de,hl
 	ld	hl,l005c
 	ld	bc,FCBlen
-	ldir			; Move FCB to FIB
+	ldir			; lde FCB to FIB
 	ret
 ;
 ; Find standard IO device
@@ -4980,7 +4980,7 @@ l1533:
 	jr	z,l14ff		; Yeap, ignore
 	ld	a,(hl)		; Get character
 	inc	d		; Advance counter
-	inc	hl		; Point to next storage location
+	inc	hl		; Point to next storge location
 	call	puttoconsole_a		; Put to console
 	jr	l14ff
 ;
@@ -5073,7 +5073,7 @@ l156b:
         ld a,eof;-1
         ld (de),a
         dec de
-        djnz $-2
+        djp nz,$-2
 read_load_noaddzeros
 
 	push	hl
@@ -5879,7 +5879,7 @@ l194c:
 	sub	FIB.buff-2	; Reset pointer
 	call	l199a		; Swap pointer
 l195c:
-	ldi			; Move bytes
+	ldi			; lde bytes
 	jp	po,l1966	; Test done
 	inc	a		; Bump pointer
 	jp	p,l195c		; Test done
@@ -6414,7 +6414,7 @@ l1ba5:
 	ex	de,hl
 	ld	hl,l005c
 	ld	bc,Fdrv+Fname+Fext
-	ldir			; Move new name
+	ldir			; lde new name
 	pop	hl
 	ld	de,FIB.FCB
 	add	hl,de		; Point to FCB
@@ -6458,7 +6458,7 @@ l1beb:
 	add	hl,de		; Point to FCB
 	ld	de,l005c
 	ld	bc,FCBlen
-	ldir			; Move to standard FCB
+	ldir			; lde to standard FCB
 	ld	de,l005c
 	ld	c,_open
 	call	BDOS		; Open file
@@ -6467,7 +6467,7 @@ l1beb:
 	ld	hl,l1c33	; Point to loader
 	ld	de,l00b0
 	ld	bc,l0019
-	ldir			; Move loader to temporary location
+	ldir			; lde loader to temporry location
 	ld	de,0x0100;TPA		; Init loader address
 	ld	a,(l00e8)	; Test mode
 	or	a
@@ -6479,7 +6479,7 @@ l1c2d:
 ;
 ; ############### Start of loader ###############
 ;
-; Loader will be moved into 00B0H temporary loaction
+; Loader will be lded into 00B0H temporry loaction
 ;
 l1c33:
 	disp	l00b0
@@ -6550,7 +6550,7 @@ l1c59:
 	ld	(de),a		; Store into standard FCB
 	inc	de
 	ld	bc,Fname+Fext
-	ldir			; Move name to standard FCB
+	ldir			; lde name to standard FCB
 	ld	b,FCBlen-_ex
 	xor	a
 l1c82:
@@ -7008,7 +7008,7 @@ l1f3d:
 	ld	(hl),d
 	jr	l1ee9		; Exit
 ;
-; FIB for RAM storage
+; FIB for RAM storge
 ;
 l1f46:
 	db	_.in+_.out+RAMdevice
@@ -7043,12 +7043,12 @@ l1f4e:
 	ld	e,l
 	inc	de
 l1f60:
-	ldir			; Move value for fill
+	ldir			; lde value for fill
 l1f62:
 	jp	(ix)
 ;
-; Move variable to another
-; Procedure MOVE(var1,var2,len)
+; lde variable to another
+; Procedure ldE(var1,var2,len)
 ; ENTRY	Reg HL holds count
 ;	Variables pushed onto stack
 ;
@@ -7063,14 +7063,14 @@ l1f64:
 	jr	z,l1f62		; Test zero length
 	sbc	hl,de
 	add	hl,de		; Test overlapping
-	jr	nc,l1f60	; Move up if so
+	jr	nc,l1f60	; lde up if so
 	dec	bc
 	add	hl,bc		; Point to top
 	ex	de,hl
 	add	hl,bc
 	ex	de,hl
 	inc	bc
-	lddr			; Move down
+	lddr			; lde down
 	jp	(ix)
 ;
 ; Get string from OS command line
@@ -7380,7 +7380,7 @@ l20e5:
 	call	l0364		; Init pointers
 	call	l030a		; Give lead in sequence
 	call	setlowvideo		; Set low video
-	jp	setnormvideo		; Set normal video
+	jp	setnorlddeo		; Set normal video
 ;
 ; Init session and load work file if defined
 ;
@@ -7455,7 +7455,7 @@ l217d:
 	db	cr,lf,cr,lf
 	db	'Copyright (C) 1983,84,85   '
 	db	null
-	call	setnormvideo		; Set normal video
+	call	setnorlddeo		; Set normal video
 	call	l0200
 ;
 	db	'BORLAND Inc.'
@@ -7882,7 +7882,7 @@ l257c:
         ld a,eof;-1
         ld (de),a
         dec de
-        djnz $-2
+        djp nz,$-2
 load_noaddzeros
         endif
 	ld	de,l7957	; Point to buffer
@@ -9574,7 +9574,7 @@ l309b:
 l30bf:
 	ld	a,lf
 	inc	de
-	cpir			; Find new line
+	cpr			; Find new line
 	jp	po,l30d3	; Got it
 	dec	e
 	inc	e
@@ -10310,7 +10310,7 @@ l35f1:
 	call	l35e7
 	jp	l3ed9
 ;
-; Control: MOVE BLOCK
+; Control: ldE BLOCK
 ;
 l35fb:
 	call	l363c
@@ -10837,7 +10837,7 @@ l3970:
 ;
 l3984:
 	ld	hl,(l4452)	; Get current edit pointer
-	call	l3c02		; Move character left
+	call	l3c02		; lde character left
 	ret	c		; Not possible
 l398b:
 	ld	(l4452),hl	; Set current edit pointer
@@ -10847,7 +10847,7 @@ l398b:
 ;
 l3991:
 	ld	hl,(l4452)	; Get current edit pointer
-	call	l3be8		; Move character right
+	call	l3be8		; lde character right
 	ret	nc		; Out off limit
 	jr	l398b		; Save new position
 ;
@@ -10870,7 +10870,7 @@ l39ac:
 l39b5:
 	call	l412a		; Find delimiter
 	jr	c,l39bf		; Yeap
-	call	l3be8		; Move character right
+	call	l3be8		; lde character right
 	jr	c,l39b5		; Still in limit
 l39bf:
 	ld	(l4452),hl	; Set current edit pointer
@@ -10899,12 +10899,12 @@ l39cb:
 l39ea:
 	ld	hl,(l4452)	; Get current edit pointer
 l39ed:
-	call	l3c02		; Move character left
+	call	l3c02		; lde character left
 	jr	c,l39cb		; At beginning of line
 	call	l412a		; Find delimiter
 	jr	c,l39ed		; Yeap
 l39f7:
-	call	l3c02		; Move character left
+	call	l3c02		; lde character left
 	jr	c,l3a01		; At beginning of line
 	call	l412a		; Find delimiter
 	jr	nc,l39f7	; Nope
@@ -10932,7 +10932,7 @@ l3a19:
 l3a1d:
 	dec	hl
 l3a1e:
-	call	l3be8		; Move character right
+	call	l3be8		; lde character right
 	jr	c,l3a4e		; Still in limit
 l3a23:
 	ld	hl,(l4450)	; Get current memory pointer
@@ -10954,7 +10954,7 @@ l3a4e:
 	call	l412a		; Find delimiter
 	jr	nc,l3a1e	; Nope
 l3a53:
-	call	l3be8		; Move character right
+	call	l3be8		; lde character right
 	jr	c,l3a64		; Still in limit
 	ld	a,(l7b71)	; Get direction
 	or	a
@@ -11125,7 +11125,7 @@ l3b73:
 ;
 l3b78:
 	ld	hl,(l4452)	; Get current edit pointer
-	call	l3c02		; Move character left
+	call	l3c02		; lde character left
 	jr	c,l3b63		; Beginning of line
 	ld	(l4452),hl	; Set current edit pointer
 l3b83:
@@ -11211,7 +11211,7 @@ cmp_hl_de:
 	pop	hl
 	ret
 ;
-; Move pointer right
+; lde pointer right
 ; ENTRY	Reg HL holds pointer
 ; EXIT	Carry reset if pointer ou of limit
 ;
@@ -11246,7 +11246,7 @@ l3c00:
 	inc	hl		; Adjust pointer
 	ret
 ;
-; Move pointer left
+; lde pointer left
 ; ENTRY	Reg HL holds pointer
 ; EXIT	Carry set if pointer out of limit
 ;
@@ -11402,7 +11402,7 @@ l3cec:
 	ret	nz		; Yeap
 	bit	0,(iy+7)	; Test selected
 	ret	z		; Nope
-	jp	setnormvideo		; Set normal video
+	jp	setnorlddeo		; Set normal video
 ;
 ; Clear to end of line
 ; ENTRY	Reg B holds column position
@@ -11712,7 +11712,7 @@ l3f3c:
 	ld	b,a
 	push	bc
 	ld	bc,_SavLen
-	lddr			; Move down
+	lddr			; lde down
 	pop	bc
 	call	l4232		; Poll character from input
 	jr	l3f3c
@@ -11777,7 +11777,7 @@ l3fa7:
 	ld	b,a
 	push	bc
 	ld	bc,_SavLen
-	ldir			; Move up
+	ldir			; lde up
 	pop	bc
 	call	l4232		; Poll character from input
 	jr	l3fa7
@@ -12116,7 +12116,7 @@ findnexteol:
 	ld	e,l
 	jr	c,l41cc		; Out of text
 	ld	a,lf
-	cpir			; Find new line
+	cpr			; Find new line
 	jp	po,l41cc
 	or	a
 	pop	bc
@@ -12176,7 +12176,7 @@ l41eb:
 	or	b		; Test any
 	jr	z,l420c		; Nope
 	push	de
-	lddr			; Move characters
+	lddr			; lde characters
 	pop	hl
 	ld	(hl),' '	; Clear character
 l420c:
@@ -12315,7 +12315,7 @@ l42a0:
         if 1==0
 ;default key codes
 l42a1::
-; Basic movement
+; Basic ldement
 	db	1,0dh
 	db	1,1
 	db	1,0ffh
@@ -12328,7 +12328,7 @@ l42a1::
 	db	1,0f4h
 	db	1,0f8h
 	db	1,0f9h
-; Extended movement
+; Extended ldement
 	db	1,0f6h
 	db	1,0f7h
 	db	1,0ffh
@@ -12381,7 +12381,7 @@ l42a1::
         endif
 l4369::
 ;
-; Basic movement
+; Basic ldement
 ;
 	db	1,'M'-'@'
 	db	1,key_left;'S'-'@'
@@ -12396,7 +12396,7 @@ l4369::
 	db	1,key_pgup;'R'-'@' ;pgup
 	db	1,key_pgdown;'C'-'@' ;pgdn
 ;
-; Extended movement
+; Extended ldement
 ;
 	db	2,'Q'-'@','S'-'@'
 	db	2,'Q'-'@','D'-'@'
@@ -12448,7 +12448,7 @@ l43f2::
 	db	' ',null
 l43f4::
 ;
-; Basic movement
+; Basic ldement
 ;
 	dw	l38e6		; NEW LINE
 	dw	l3984		; CURSOR LEFT
@@ -12463,7 +12463,7 @@ l43f4::
 	dw	l389c		; PAGE UP
 	dw	l3872		; PAGE DOWN
 ;
-; Extended movement
+; Extended ldement
 ;
 	dw	l3771		; LINE LEFT
 	dw	l377a		; LINE RIGHT
@@ -12493,7 +12493,7 @@ l43f4::
 	dw	l39ac		; MARK SINGLE WORD
 	dw	l36f9		; TOGGLE BLOCK DISPLAY
 	dw	MMSB+l3620	; COPY BLOCK
-	dw	MMSB+l35fb	; MOVE BLOCK
+	dw	MMSB+l35fb	; ldE BLOCK
 	dw	MMSB+l36a1	; DELETE BLOCK
 	dw	MMSB+l3573	; READ BLOCK FROM FILE
 	dw	l34ed		; WRITE BLOCK TO FILE
@@ -12533,7 +12533,7 @@ l4464:
 l4466:
 	dw	2		; Block end pointer
 l4468:
-	dw	0		; Temporary edit pointer
+	dw	0		; Temporry edit pointer
 curstartofpage:
 	dw	0		; Start of screen
 ;
@@ -13916,7 +13916,7 @@ a_L5	equ	$-s_I5
 	ld	a,_LD.HL
 	call	l6b94		; Set LD HL,val16
 	ld	hl,l053a
-	call	l6b86		; Move string to stack
+	call	l6b86		; lde string to stack
 	call	l6b50
 	db	a_L6
 s_I6:
@@ -14230,7 +14230,7 @@ l4fe6:
 	ld	a,h
 	or	l
 	call	l72d4		; Verify not same
-	db	_MemOvfl
+	db	_Meldfl
 	push	hl
 	inc	b
 	call	l6f13		; Test ,
@@ -14248,7 +14248,7 @@ l5012:
 	push	bc
 	call	l729a		; Multiply numbers
 	call	l72c8		; Check compiler overflow
-	db	_MemOvfl
+	db	_Meldfl
 	pop	bc
 	ld	(l7b62),hl	; Set length of type
 	pop	hl
@@ -16384,7 +16384,7 @@ l5df9:
 	ld	hl,l1cdb
 	jp	l5960
 ;
-; Procedure MOVE(Integer,Integer,Integer)
+; Procedure ldE(Integer,Integer,Integer)
 ;
 l5e05:
 	call	l6f66		; Verify (
@@ -16434,10 +16434,10 @@ l5e48:
 	ld	hl,l0299	; Set call to clear to end of line
 	jr	l5e45
 ;
-; Procedure NORMVIDEO or HIGHVIDEO
+; Procedure NORldDEO or HIGHVIDEO
 ;
 l5e4d:
-	ld	hl,setnormvideo	; Set call to normal video
+	ld	hl,setnorlddeo	; Set call to normal video
 	jr	l5e45
 ;
 ; Procedure LOWVIDEO
@@ -17132,7 +17132,7 @@ l6249:
 	cp	8
 	jp	nz,l6b92	; Set LD HL,val16
 	ld	hl,l054d
-	call	l6b86		; Move immediate string to stack
+	call	l6b86		; lde immediate string to stack
 	jp	l6b5e
 l6257:
 	ld	bc,256*6+0
@@ -17979,7 +17979,7 @@ l66da:
 	ld	hl,l052c	; Set load real
 	cp	_Real
 	jr	z,l66fe
-	ld	hl,l053a	; Move string to stack
+	ld	hl,l053a	; lde string to stack
 	cp	_String
 	jr	z,l66fe
 	call	l6734
@@ -18863,7 +18863,7 @@ l6be7:
 	dec	h
 	sbc	hl,de
 	call	l72c8
-	db	_MemOvfl
+	db	_Meldfl
 	pop	de
 	pop	hl
 	ret
@@ -18904,7 +18904,7 @@ l6c30:
 	or	a
 	sbc	hl,de
 	call	l72c8
-	db	_MemOvfl
+	db	_Meldfl
 	ld	(l7908),hl	; Set start of data
 	jr	l6bc7		; Check enough memory
 ;
@@ -20034,7 +20034,7 @@ l721a:
         ld a,eof;-1
         ld (de),a
         dec de
-        djnz $-2
+        djp nz,$-2
         pop de
         pop bc
 readchar_load_noaddzeros
@@ -20845,7 +20845,7 @@ l7638:
 	dw	l5e42
 	dc	'CLREOL'
 	dw	l5e48
-	dc	'NORMVIDEO'
+	dc	'NORldDEO'
 	dw	l5e4d
 	dc	'HIGHVIDEO'
 	dw	l5e4d
@@ -20863,7 +20863,7 @@ l7638:
 	dw	l5c1e
 	dc	'RANDOMIZE'
 	dw	l5d83
-	dc	'MOVE'
+	dc	'ldE'
 	dw	l5e05
 	dc	'FILLCHAR'
 	dw	l5e1a
@@ -21137,4 +21137,4 @@ l7bf5	equ	l7bef+6		; Start of text
 end
 	savebin "tp.com",begin,end-begin
 	
-	LABELSLIST "..\..\us\user.l"
+	LABELSLIST "../../us/user.l"

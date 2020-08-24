@@ -382,7 +382,7 @@ prNfiles0
 	pop de	
 	pop bc
 	inc d
-	djnz prNfiles0
+	djp nz,prNfiles0
 premptyfiles
 ;c=files to show
         ld a,CONST_HGT_TABLE
@@ -409,7 +409,7 @@ premptyfiles0
 	pop de	
 	pop bc
 	inc d
-	djnz premptyfiles0
+	djp nz,premptyfiles0
 	ret	
 
 fileiscom_ix;ix=fcb output: z=com
@@ -761,7 +761,7 @@ controlloop_noprline
         ld ix,(curpanel)
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
-        call z,nv_setdirpos_zero ;can't move cursor if 0 files
+        call z,nv_setdirpos_zero ;can't lde cursor if 0 files
         ;ld e,CURSORCOLOR;#38
         ;OS_PRATTR ;draw cursor
 	ld hl,_FILECURSORCOLOR
@@ -788,17 +788,17 @@ controlloop_nokey
         ;display $
         call colorfile
         ex de,hl ;hl=color
-	call prfilecursor_reprintfile ;remove file cursor
+	call prfilecursor_reprintfile ;relde file cursor
         ;call cmdcalccurxy
         ;call nv_setxy
         ;ld e,COLOR;7
-        ;OS_PRATTR ;remove cursor
+        ;OS_PRATTR ;relde cursor
          ld de,_COLOR
          call nv_setcolor ;even if we didn't reprint command line, draw windows with its color
         pop af
         ld hl,tnvcmds
         ld bc,nnvcmds
-        cpir
+        cpr
         jp nz,editcmd_keyfail
 ;bc=nnvcmds-(#команды+1) = 0..(nnvcmds-1)
         add hl,bc
@@ -1113,7 +1113,7 @@ execcmd_error
         ;push bc
         ;YIELD ;дать время задаче scratch захватить фокус и перерисовать (но загрузить картинку и перерисовать не успеет)
         ;pop bc
-        ;djnz execcmd_waitchildredraw0
+        ;djp nz,execcmd_waitchildredraw0
         ;ld e,6 ;textmode
         ;OS_SETGFX ;take focus (can be random after closing cmd)
 	;call nv_copyscreen0to1
@@ -1176,7 +1176,7 @@ makeprompt_filename
         call getfcbundercursor ;->fcb
         ld hl,cmdprompt
         xor a
-        cpir
+        cpr
         dec hl ;hl=адрес терминатора
         ld a,'/'
         dec hl
@@ -1202,7 +1202,7 @@ runfile_nocom_recodeext0
         ld (de),a
         inc hl
         inc de
-        djnz runfile_nocom_recodeext0
+        djp nz,runfile_nocom_recodeext0
         OS_SETSYSDRV ;TODO директория nv
         ld hl,ext_filename
         call copy_to_fcb_filename
@@ -1258,7 +1258,7 @@ checkoneext0
         inc hl
         or c
         ld c,a
-        djnz checkoneext0
+        djp nz,checkoneext0
 ;c=ошибки, z=нет ошибок
         ret
 
@@ -1476,7 +1476,7 @@ seldrv_mainloop_nokey
         push af
         ld hl,_COLOR_DIALOG
         ld b,22
-        call drawfilecursor_sizeb_colorhl ;remove cursor
+        call drawfilecursor_sizeb_colorhl ;relde cursor
         pop af
         cp key_redraw
         jr z,seldrv_redraw_mainloop
@@ -1652,7 +1652,7 @@ editcmd_6 ;ren
 	ld de,_COLOR_DIALOG
 	call nv_setcolor	
 
-        ld hl,winrename
+        ld hl,wincename
 	ld de,tnewfilename
 	ld c,13
         call prwindow_edit ;CY=OK
@@ -1767,7 +1767,7 @@ proc_del_file_batch
 	push af
 	call nz,nv_copydir_add
 	pop af
-	jp nz,nv_copydir_add ;twice to remove empty dirs
+	jp nz,nv_copydir_add ;twice to relde empty dirs
 
         ret
 
@@ -2200,7 +2200,7 @@ proceditcmd_copy_q_progress0
         pop bc
         pop de
         inc e
-        djnz proceditcmd_copy_q_progress0
+        djp nz,proceditcmd_copy_q_progress0
          endif
         ret 
         
@@ -2210,7 +2210,7 @@ mulbcde_ahl
         ld h,a
         ld l,a
         dup 8
-        rlc b
+        rlca b
         jr nc,$+5 ; c - был перенос, nc - не было переноса    
         add hl,de
         adc a,0
@@ -2218,14 +2218,14 @@ mulbcde_ahl
         rla
         edup
         dup 7
-        rlc c
+        rlca c
         jr nc,$+5 ; c - был перенос, nc - не было переноса    
         add hl,de
         adc a,0
         add hl,hl
         rla
         edup
-        rlc c
+        rlca c
         ret nc
         add hl,de
         adc a,0
@@ -2249,7 +2249,7 @@ _DIV0.
 	jr nc,$+3
 	add hl,de
 ;carry = inverted bit of result
-	djnz _DIV0.
+	djp nz,_DIV0.
 	rla
 	cpl
 	ld l,a
@@ -2342,7 +2342,7 @@ winmkdir
         dw tnewfilename
         db 0 ;end of window
 
-winrename
+wincename
         dw 0x0a0f ;de=yx
         dw 0x0520 ;bc=hgt,wid
         db "Rename file:",0
@@ -2418,14 +2418,14 @@ tdotdot
 
 
         STRUCT PANEL
-;sorterjp	BYTE ;TODO remove
-;sorter		WORD ;TODO remove
+;sorterjp	BYTE ;TODO relde
+;sorter		WORD ;TODO relde
 xy		WORD
-;pg		BYTE ;TODO remove
+;pg		BYTE ;TODO relde
 pgadd		BYTE ;0/DIRPAGES
-catbuf		WORD ;TODO remove
+catbuf		WORD ;TODO relde
 poipg		BYTE
-pointers	WORD ;TODO remove
+pointers	WORD ;TODO relde
 drawtableunneeded BYTE
 totalsize	DWORD
 files		WORD ;visible files

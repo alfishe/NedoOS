@@ -31,51 +31,51 @@ HERORUNLEFT0=0xc000+(29*2)
 HERORUNLEFT1=0xc000+(30*2)
 HERORUNLEFT2=0xc000+(31*2)
 
-heroanim_standright
+heroandm_standright
         dw HEROSTANDRIGHT0
         db 25
         dw HEROSTANDRIGHT1
         db 25
-        dw heroanim_standright
-heroanim_standleft
+        dw heroandm_standright
+heroandm_standleft
         dw HEROSTANDLEFT0
         db 25
         dw HEROSTANDLEFT1
         db 25
-        dw heroanim_standleft
-heroanim_runright
+        dw heroandm_standleft
+heroandm_runright
         dw HERORUNRIGHT0
         db 4
         dw HERORUNRIGHT1
         db 4
         dw HERORUNRIGHT2
         db 4
-        dw heroanim_runright
-heroanim_runleft
+        dw heroandm_runright
+heroandm_runleft
         dw HERORUNLEFT0
         db 4
         dw HERORUNLEFT1
         db 4
         dw HERORUNLEFT2
         db 4
-        dw heroanim_runleft
+        dw heroandm_runleft
 
-bulletanim_right
+bulletandm_right
         dw BULLETRIGHT
         db 50
-        dw bulletanim_right
+        dw bulletandm_right
 
-bulletanim_left
+bulletandm_left
         dw BULLETLEFT
         db 50
-        dw bulletanim_left
+        dw bulletandm_left
 
         STRUCT obj
 y16     WORD
 x16     WORD
 ;sprite16 WORD
-animtime BYTE
-animaddr16 WORD
+andmtime BYTE
+andmaddr16 WORD
 xspeed16 WORD
 yspeed16 WORD
 health  BYTE
@@ -91,8 +91,8 @@ OBJSIZE=obj.sz
 objects
 ;y16 (*8)
 ;x16 (*8) (in double pixels)
-;animtime
-;animaddr16
+;andmtime
+;andmaddr16
 ;xspeed16
 ;yspeed16
 ;health
@@ -106,7 +106,7 @@ _y=100
         dw 8*(_x+(sprmaxwid-1)) ;x
         ;dw HERO0
         db 1
-        dw heroanim_standright
+        dw heroandm_standright
         dw 1
         dw 0
         db 100

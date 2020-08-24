@@ -121,7 +121,7 @@ nfdelcp00.
 	ld c,a ;errors
 	inc hl
 	inc de
-	djnz nfdelcp00.
+	djp nz,nfdelcp00.
         pop hl ;DOSBUF+
         pop de ;filename
 	pop bc
@@ -150,7 +150,7 @@ nfdelcp_notthatfile
         pop de
         pop bc
 nfdelcp_nodeletedinthissector
-	djnz nfdelsectors0. ;next sector
+	djp nz,nfdelsectors0. ;next sector
         xor a
         cp lx
         jr nz,nfdel_correctsystemsector
@@ -237,12 +237,12 @@ nfopenfn0.
 	jr z,nfopenfndot.
 	ld [hl],a
 	inc hl
-	djnz nfopenfn0.
+	djp nz,nfopenfn0.
 ;9 bytes in filename, no dot (9th byte goes to extension)
 	jr nfopenfnq.
 nfopenfndot.
 	inc hl
-	djnz $-1 ;hl points to extension in TRDOSFCB
+	djp nz,$-1 ;hl points to extension in TRDOSFCB
 	dec hl
 	ld a,[de] ;extension in string
 	ld [hl],a ;extension in TRDOSFCB
@@ -389,7 +389,7 @@ comparedesc0.
 	cp [hl] ;descriptor
 	jr nz,comparedescfalse.
 	inc hl
-	djnz comparedesc0.
+	djp nz,comparedesc0.
 	ld a,[de] ;filename
 	inc de
 	cp '.'
@@ -403,7 +403,7 @@ comparedesctrue.
 	ret
 comparedescdot.
 	inc hl
-	djnz $-1 ;hl = descriptor ext
+	djp nz,$-1 ;hl = descriptor ext
 comparedescdot8.
 	ld a,[de] ;filename ext
 	cp [hl] ;descriptor ext
@@ -446,7 +446,7 @@ findfilecp00.
 	ld c,a ;errors
 	inc hl
 	inc de
-	djnz findfilecp00.
+	djp nz,findfilecp00.
 	pop bc
 	ret z ;found (carry = off, a = 0, hl,de = after filename)
 findfile_continue
@@ -463,7 +463,7 @@ findfile_continue
 	ld e,a
         inc e
 	jr nz,findfilecp0. ;next descriptor
-	djnz findfile0. ;next sector
+	djp nz,findfile0. ;next sector
 ;not found
         xor a
         dec a ;nz=fail
@@ -670,7 +670,7 @@ freadbysector0.
         pop bc
        inc a
        jr nz,EOFfread00q ;last (short) sector in file
-        djnz freadbysector0.
+        djp nz,freadbysector0.
        ld e,TRDOSFCB.remain ;0xff = no data, 0xfe = 1 byte, ... 0x00 = 255 bytes
        ld a,0xff
        ld [de],a
@@ -698,12 +698,12 @@ fread00.
        ;ld a,[_waseof]
        or a ;FALSE
        jr nz,fread00q ;jr nz,freadpopret.
-	;cpi
+	;cp
 	db 0xed,0xa1
 	jp pe,fread00.
 	;pop bc
 	;dec hl
-	;cpi
+	;cp
 	;db 0xed,0xa1
 	;jp pe,fread0.
 	 ;ex de,hl ;hl = total processed bytes
@@ -912,12 +912,12 @@ fwrite00.
 	 ;inc de
 	pop hl
         pop de
-	;cpi
+	;cp
 	db 0xed,0xa1
 	jp pe,fwrite00.
 	;pop bc
 	;dec hl
-	;cpi
+	;cp
 	;db 0xed,0xa1
 	;jp pe,fwrite0.
 	 ;ex de,hl ;hl = total processed bytes

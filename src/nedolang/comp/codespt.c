@@ -339,6 +339,26 @@ PROC asm_inttofloat_eol()
   asmstr( "\tDW CMD_INTTOFLOAT" ); endasm();
 }
 
+PROC asm_readconstvar()
+{
+  asmstr( "\tDW CMD_READCONSTVAR," );
+}
+
+PROC asm_writeconstvar()
+{
+  asmstr( "\tDW CMD_WRITECONSTVAR," );
+}
+
+PROC asm_incconstvar()
+{
+  asmstr( "\tDW CMD_INCCONSTVAR," );
+}
+
+PROC asm_decconstvar()
+{
+  asmstr( "\tDW CMD_DECCONSTVAR," );
+}
+
 PROC emitinc()
 {
   asm_1_eol();
@@ -719,37 +739,45 @@ PROC emitloadb() //аккумулятор уже занят через getfreea
 
 PROC emitgetrg(BOOL high) //регистр уже занят через getrfree
 {
-  asm_const(); asmstr(_joined);
+//  asm_const(); asmstr(_joined);
   //IF (high) {asmc('+'); asmc('1');
   //};
-  endasm();
-  asm_readvar_eol();
+//  endasm();
+//  asm_readvar_eol();
+  asm_readconstvar();
+  asmstr(_joined); endasm();
 }
 
 PROC emitgetb() //аккумулятор уже занят через getfreea
 {
-  asm_const(); asmstr(_joined); endasm();
-  asm_readvar_eol();
+//  asm_const(); asmstr(_joined); endasm();
+//  asm_readvar_eol();
+  asm_readconstvar();
+  asmstr(_joined); endasm();
 }
 
 PROC emitputrg(BOOL high) //ld [],new
 {
   //_jpflag = 0x00;
-  asm_const(); asmstr(_joined);
+//  asm_const(); asmstr(_joined);
   //IF (high) {asmc('+'); asmc('1');
   //};
-  endasm();
-  asm_swap_eol();
-  asm_writevar_eol();
+//  endasm();
+//  asm_swap_eol();
+//  asm_writevar_eol();
+  asm_writeconstvar();
+  asmstr(_joined); endasm();
   _fused = +FALSE; //конец вычисления
 }
 
 PROC emitputb()
 {
   //_jpflag = 0x00;
-  asm_const(); asmstr(_joined); endasm();
-  asm_swap_eol();
-  asm_writevar_eol();
+//  asm_const(); asmstr(_joined); endasm();
+//  asm_swap_eol();
+//  asm_writevar_eol();
+  asm_writeconstvar();
+  asmstr(_joined); endasm();
   _fused = +FALSE; //конец вычисления
 }
 
@@ -1040,11 +1068,13 @@ PROC emitfloattoint()
 
 PROC emitincrg_byname()
 {
-  asm_const(); asmstr(_joined); endasm();
-  asm_dup_eol();
-  asm_readvar_eol();
-  emitinc();
-  asm_writevar_eol();
+//  asm_const(); asmstr(_joined); endasm();
+//  asm_dup_eol();
+//  asm_readvar_eol();
+//  emitinc();
+//  asm_writevar_eol();
+  asm_incconstvar();
+  asmstr(_joined); endasm();
   _fused = +FALSE; //конец вычисления
 }
 
@@ -1065,11 +1095,13 @@ PROC emitinclong() //todo
 */
 PROC emitdecrg_byname()
 {
-  asm_const(); asmstr(_joined); endasm();
-  asm_dup_eol();
-  asm_readvar_eol();
-  emitdec();
-  asm_writevar_eol();
+//  asm_const(); asmstr(_joined); endasm();
+//  asm_dup_eol();
+//  asm_readvar_eol();
+//  emitdec();
+//  asm_writevar_eol();
+  asm_decconstvar();
+  asmstr(_joined); endasm();
   _fused = +FALSE; //конец вычисления
 }
 

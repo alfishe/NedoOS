@@ -223,7 +223,7 @@ nvview_end0
         push bc 
         call nvview_prevline
         pop bc
-        djnz nvview_end0
+        djp nz,nvview_end0
         call nvview_calccurline
         jp nvview_prpage
 
@@ -305,7 +305,7 @@ nvview_pgup0
         call nvview_prevline
          call nc,deccurline
         pop bc
-        djnz nvview_pgup0
+        djp nz,nvview_pgup0
         call nvview_prpage
         jp clear_keyboardbuffer
         
@@ -323,7 +323,7 @@ nvview_pgdown0
         call nvview_nextline
          call nc,inccurline
         pop bc
-        djnz nvview_pgdown0
+        djp nz,nvview_pgdown0
         jr nvview_pgup_go
         if 1==0
         ld b,NVVIEW_HGT
@@ -332,7 +332,7 @@ nvview_pgdown1
         call nvview_prevline
          call nc,deccurline
         pop bc
-        djnz nvview_pgdown1
+        djp nz,nvview_pgdown1
         call nvview_prpage
         jp clear_keyboardbuffer
         endif
@@ -395,7 +395,7 @@ clear_keyboardbuffer0
         push bc
         GETKEY_
         pop bc
-        djnz clear_keyboardbuffer0
+        djp nz,clear_keyboardbuffer0
         pop bc
         ret
         
@@ -448,7 +448,7 @@ nvview_ncurline=$+1
 ;        push bc
 ;        PRCHAR_
 ;        pop bc
-;        djnz nvview_panel0
+;        djp nz,nvview_panel0
         ld de,tspaces
         ld hl,43
         call sendchars
@@ -507,7 +507,7 @@ nvview_prpage0
         pop de
         pop bc
         inc d
-        djnz nvview_prpage0
+        djp nz,nvview_prpage0
 nvview_setbottom
         ld (curbottomtextaddr),hl
         ld (curbottomtextHSB),a
@@ -761,7 +761,7 @@ nvview_prline_recodepatch=$
         pop hl
         ;pop bc
         dec c
-        djnz nvview_prline0
+        djp nz,nvview_prline0
         ;call print_prlinebuf
         ;jr nz,nvview_prline_lf
         ;ret
@@ -837,7 +837,7 @@ nvview_pseudoprline0
         cp 0x0a
         jr z,nvview_pseudoprline_lf
         dec c
-        djnz nvview_pseudoprline0
+        djp nz,nvview_pseudoprline0
          ld a,(hl)
          inc hl
          cp 0x0d
@@ -874,7 +874,7 @@ istherecrlfgo
         push bc
         ld b,d
         ld c,e
-        cpir ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
+        cpr ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
         pop bc
         ret nz ;nz=not found
          dec hl

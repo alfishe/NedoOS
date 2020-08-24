@@ -1480,7 +1480,6 @@ PROC eatasm()
 PROC eatenum()
 //enum{<constname0>[=<num>],<constname1>...[,]}
 {
-//VAR UINT i = 0;
   //rdword(); //'{'
 _lenncells = strcopy("-1", 2, _ncells);
   WHILE (!_waseof) {
@@ -1506,7 +1505,38 @@ _lenncells = strcopy(_tword, _lentword, _ncells);
     endvar();
     rdword(); //',' или '}'
     IF (*(PCHAR)_tword!=',') BREAK; //}
-    //INC i;
+  };
+  rdword(); //слово после }
+}
+
+PROC eatevar()
+//evar{<type><varname0>[=<addr>],<type><varname1>...[,]}
+{
+  //rdword(); //'{'
+_lenncells = strcopy("-1", 2, _ncells);
+  WHILE (!_waseof) {
+    rdword(); //type
+    IF (*(PCHAR)_tword=='}') BREAK; //BREAK работает, а goto qqq не работает ('}' не съедена)
+    eattype(); //_t //делает rdword(); //метка
+    varequ(_tword); /**varstr(_tword); varc('=');*/
+//создаЄм переменную типа _t с адресом, как текущее число в evar:
+    _lenname = strcopy(_tword, _lentword, _name);
+    addlbl(_t/**_T_UINT*/, /**isloc*/+FALSE, /**varsz*/0/**, "0", _lenncells*/); //отметили в таблице, что не выдел€ть пам€ть
+//    rdword(); //',' или '}'
+//    IF (*(PCHAR)_tword=='=') {
+    IF (_cnext=='=') {
+      rdword(); //съели =
+      rdword(); //первое слово expr
+      //eatexpr(); //parentheses not included
+      //rdword(); //',' или '}'
+      varstr(_tword);
+    }ELSE {
+      varstr(_ncells); varc('+'); varc('1'); /**varuint(i);*/
+    };
+_lenncells = strcopy(_tword, _lentword, _ncells);
+    endvar();
+    rdword(); //',' или '}'
+    IF (*(PCHAR)_tword!=',') BREAK; //}
   };
   rdword(); //слово после }
 }
@@ -1626,6 +1656,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
 {
  //начальна€ часть имени переменной уже прочитана
   adddots(); //дочитать им€
+//чтобы реализовать объ€влени€ без VAR и FUNC, надо уже сейчас проверить тип метки TODO FAST!!!
   _c0 = *(PCHAR)_tword;
   IF ((_c0=='}') || _waseof) {
     rdword();
@@ -1655,11 +1686,13 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
         IF       (_c0=='v') { //var
           rdword(); eatvar(/**ispar*/+FALSE, /**body*/+TRUE);
           _isexp = +FALSE; //нельз€ внутрь, иначе не экспортируютс€ параметры процедуры
-        }ELSE IF (_c0=='e') { //enum //extern //export
+        }ELSE IF (_c0=='e') { //enum //extern //export //evar
           IF (_c2=='t') { //extern
             rdword(); eatextern();
           }ELSE IF (_c2=='p') { //export
             rdword(); _isexp = +TRUE;
+          }ELSE IF (_c2=='a') { //evar
+            rdword(); eatevar();
           }ELSE { //enum
             rdword(); eatenum();
           };

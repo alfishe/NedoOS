@@ -151,7 +151,7 @@ changemark_hl
         ld h,(ix+PANEL.markedfiles+1)
         inc hl
         jr nz,changemark_hlq ;set mark
-;remove mark
+;relde mark
         dec hl
         dec hl
         xor a
@@ -555,7 +555,7 @@ winlineN_0
 	inc d 
 	ld hl,winmidstroka
 	call prtableline
-	djnz winlineN_0 	
+	djp nz,winlineN_0 	
 	inc d
 	ld hl,winendstroka
 	jr prtableline
@@ -569,7 +569,7 @@ prtable0
 	inc d 
 	ld hl,prmidstroka
 	call prtableline
-	djnz prtable0
+	djp nz,prtable0
 	inc d
 	ld hl,prendstroka
 prtableline
@@ -604,7 +604,7 @@ prNsymbol0
         ld a,c
 	PRCHAR_
 	pop bc
-	djnz prNsymbol0
+	djp nz,prNsymbol0
         pop ix
 	pop hl
 	pop de 
@@ -779,7 +779,7 @@ drawfilecursor_color=$+1
 ;	pop de
 ;	pop bc
 ;	inc e
-;	djnz drawfilecursor0
+;	djp nz,drawfilecursor0
 
         call setcolor_visible 
          ;pop af ;oldcolor

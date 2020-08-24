@@ -1,4 +1,4 @@
-#define _STRLEN 80 /**including terminator*/
+#define _STRLEN 255 /**including terminator*/
 #define _STRMAX (UINT)(_STRLEN-1) /**without terminator*/
 
 /*FUNC UINT strlen FORWARD(PCHAR s);*/

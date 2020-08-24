@@ -81,7 +81,7 @@ GO
 ;        push bc
 ;        YIELD
 ;        pop bc
-;        djnz waitcls0 ;чтобы nv не перехватил фокус при вызове через комстроку
+;        djp nz,waitcls0 ;чтобы nv не перехватил фокус при вызове через комстроку
 
         ld e,0
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
@@ -247,7 +247,7 @@ mainloop_uvlogic0
         push bc
         call logic
         pop bc
-        djnz mainloop_uvlogic0
+        djp nz,mainloop_uvlogic0
 
 ;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
        pop bc ;b=timer на момент changescrpg
@@ -298,7 +298,7 @@ mainlooplogic0
         push bc
         call logic
         pop bc
-        djnz mainlooplogic0
+        djp nz,mainlooplogic0
         
 ;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
        pop bc ;b=timer на момент changescrpg
@@ -512,31 +512,31 @@ objectslogic0
         cp DELETEDYHIGH
         jp z,objectslogic0_skip
 
-        ld l,(ix+obj.animaddr16+0)
-        ld h,(ix+obj.animaddr16+1)
+        ld l,(ix+obj.andmaddr16+0)
+        ld h,(ix+obj.andmaddr16+1)
         ld e,(hl)
         inc hl
         ld d,(hl) ;de = phase
         inc hl
-        dec (ix+obj.animtime)
+        dec (ix+obj.andmtime)
         jr nz,logic_nonextphase
-        ld a,(hl) ;new animtime
+        ld a,(hl) ;new andmtime
         inc hl
-        ld (ix+obj.animtime),a
+        ld (ix+obj.andmtime),a
         ld e,(hl)
         inc hl
         ld d,(hl) ;de = phase
         ld a,d
         cp 0xc0
-        jr nc,logic_nocycleanim
+        jr nc,logic_nocycleandm
         ex de,hl 
         ;ld e,(hl)
         inc hl
-        ;ld d,(hl) ;de = phase (>=0xc000) or new animaddr (<0xc000)
-logic_nocycleanim
+        ;ld d,(hl) ;de = phase (>=0xc000) or new andmaddr (<0xc000)
+logic_nocycleandm
         dec hl
-        ld (ix+obj.animaddr16+0),l
-        ld (ix+obj.animaddr16+1),h
+        ld (ix+obj.andmaddr16+0),l
+        ld (ix+obj.andmaddr16+1),h
 logic_nonextphase
 
         ld l,(ix+obj.xspeed16+0)
@@ -649,11 +649,11 @@ bulletslogic0
         ;jr $
 ;если health=1, то это мёртвая пуля, этот слот можно использовать
         dec (ix+obj.health)
-        jr nz,bulletslogic_noremove
+        jr nz,bulletslogic_norelde
         ld (ix+obj.y16+1),DELETEDYHIGH;0x7f ;yhigh
         inc (ix+obj.health)
         jp bulletslogic_skip        
-bulletslogic_noremove
+bulletslogic_norelde
         ld l,(ix+obj.xspeed16+0)
         ld h,(ix+obj.xspeed16+1)
         ld e,(ix+obj.x16+0)
@@ -834,12 +834,12 @@ genbullet_struct
          ld (iy+obj.xspeed16),e
          ld (iy+obj.xspeed16+1),d
 
-         ld de,bulletanim_right
+         ld de,bulletandm_right
          jr z,$+5
-         ld de,bulletanim_left
-        ld (iy+obj.animaddr16),e
-        ld (iy+obj.animaddr16+1),d
-        ld (iy+obj.animtime),1
+         ld de,bulletandm_left
+        ld (iy+obj.andmaddr16),e
+        ld (iy+obj.andmaddr16+1),d
+        ld (iy+obj.andmtime),1
         ld (iy+obj.health),100
         ld a,(ix+obj.x16)
         add a,4*XSUBPIX8
@@ -908,9 +908,9 @@ nofire
         jp m,nostartrunleft
         ld a,1
         ld (lastdir),a
-         ld de,heroanim_runleft
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
+         ld de,heroandm_runleft
+        ld (ix+obj.andmaddr16+0),e
+        ld (ix+obj.andmaddr16+1),d
 nostartrunleft
         ld de,-1
         add hl,de
@@ -934,9 +934,9 @@ noleft
 startrunright
         xor a
         ld (lastdir),a
-         ld de,heroanim_runright
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
+         ld de,heroandm_runright
+        ld (ix+obj.andmaddr16+0),e
+        ld (ix+obj.andmaddr16+1),d
 nostartrunright
         ld de,1
         add hl,de
@@ -969,11 +969,11 @@ noright
 lastdir=$+1
          ld a,0 ;/1
          or a
-         ld de,heroanim_standright
+         ld de,heroandm_standright
          jr z,$+5
-         ld de,heroanim_standleft
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
+         ld de,heroandm_standleft
+        ld (ix+obj.andmaddr16+0),e
+        ld (ix+obj.andmaddr16+1),d
 leftq
         ld (ix+obj.xspeed16+0),l
         ld (ix+obj.xspeed16+1),h
@@ -995,9 +995,9 @@ leftq
          cp FIRSTOBJTILE
          jr nc,checkwall_obj
 ;врезались справа, выравниваем x = (x&0xf0) - 1
-         ld de,heroanim_standright
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
+         ld de,heroandm_standright
+        ld (ix+obj.andmaddr16+0),e
+        ld (ix+obj.andmaddr16+1),d
          ld (ix+obj.xspeed16+0),0
          ld (ix+obj.xspeed16+1),0
         ld l,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
@@ -1064,7 +1064,7 @@ getobjshow0
         add hl,bc ;tilemap+...
         ex de,hl
         pop bc
-        djnz getobjshow0
+        djp nz,getobjshow0
 getobjshow0q
         ld b,1
         call uvscroll_showtilemap_b
@@ -1085,9 +1085,9 @@ checkleftwall
          cp FIRSTOBJTILE
          jr nc,checkwall_obj
 ;врезались слева, выравниваем x = (x+15)&0xf0
-         ld de,heroanim_standleft
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
+         ld de,heroandm_standleft
+        ld (ix+obj.andmaddr16+0),e
+        ld (ix+obj.andmaddr16+1),d
          ld (ix+obj.xspeed16+0),0
          ld (ix+obj.xspeed16+1),0
         ld l,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
@@ -1217,8 +1217,8 @@ drawsprites0
         bit 7,(ix+obj.y16+1) ;yhigh
         jp nz,setpgsmain40008000
 
-        ld l,(ix+obj.animaddr16+0)
-        ld h,(ix+obj.animaddr16+1)
+        ld l,(ix+obj.andmaddr16+0)
+        ld h,(ix+obj.andmaddr16+1)
         ld e,(hl)
         inc hl
         ld d,(hl) ;de = phase
@@ -1344,7 +1344,7 @@ loadpage
         pop hl
         ld b,1
         xor a
-        cpir ;after 0
+        cpr ;after 0
         pop af ;pg
         ret
 
@@ -1556,20 +1556,20 @@ importcoords0
         jr nz,importcoords_nhero
         push ix
         ld ix,objects
-        ld de,heroanim_standright
-        ld (ix+obj.animaddr16),e
-        ld (ix+obj.animaddr16+1),d
-        ld (ix+obj.animtime),1
+        ld de,heroandm_standright
+        ld (ix+obj.andmaddr16),e
+        ld (ix+obj.andmaddr16+1),d
+        ld (ix+obj.andmtime),1
         ld (ix+obj.health),100
         call fillobjxy
         pop ix
         jr importcoords_nheroq
 importcoords_nhero
-        ;TODO anim from type
-        ld de,heroanim_runright
-        ld (ix+obj.animaddr16),e
-        ld (ix+obj.animaddr16+1),d
-        ld (ix+obj.animtime),1
+        ;TODO andm from type
+        ld de,heroandm_runright
+        ld (ix+obj.andmaddr16),e
+        ld (ix+obj.andmaddr16+1),d
+        ld (ix+obj.andmtime),1
         ;TODO health from type
         ld (ix+obj.health),19
         call fillobjxy
@@ -1659,7 +1659,7 @@ recodepal0
         pop hl
         inc hl
         inc hl
-        djnz recodepal0
+        djp nz,recodepal0
         ret
 
 readfile_rgbtopal
@@ -1783,7 +1783,7 @@ bgpush_ldbmp_bytes0
          dec de
         inc hl
         inc hl
-        djnz bgpush_ldbmp_bytes0
+        djp nz,bgpush_ldbmp_bytes0
         pop hl
         pop de
         pop bc
