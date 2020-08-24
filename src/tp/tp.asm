@@ -26,7 +26,7 @@ FALSE	equ	0
 _TRUE	equ	1
 
 OS	equ	0000h
-DU	equ	0004h ;TODO заменить на GETPATH и реализовать подкаталоги
+DU	equ	0004h ;TODO change to GETPATH and subdirs
 BDOS	equ	0005h
 ;TPAtop	equ	BDOS+1
 NEDOOSMEMTOP=0xff00;0xdc06 ;TODO 0x0000?

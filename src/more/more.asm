@@ -802,10 +802,18 @@ nvview_pseudoprline0
         jr z,nvview_pseudoprline_lf
         dec c
         djnz nvview_pseudoprline0
+         ld a,(hl)
+         inc hl
+         cp 0x0d
+         jr z,nvview_pseudoprline_crok
+         cp 0x0a
+         jr z,nvview_pseudoprline_lf
+         dec hl
         jp nvview_nextlineq
 nvview_pseudoprline_cr
         dec b
         jp z,nvview_nextlineq
+nvview_pseudoprline_crok
         ld a,(hl)
         cp 0x0a
         jr nz,nvview_pseudoprline_lf

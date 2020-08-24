@@ -1238,7 +1238,9 @@ texted_prlinespc
         ;ld h,0
         ;ld de,tspaces
         ;call sendchars
-        call clearrestofline_crlf
+         ld a,c
+         or a
+        call nz,clearrestofline_crlf
         pop hl
         pop af
         ret
@@ -1291,10 +1293,18 @@ texted_pseudoprline0
         jr z,texted_pseudoprline_lf
         dec c
         djnz texted_pseudoprline0
+         ld a,(hl)
+         inc hl
+         cp 0x0d
+         jr z,texted_pseudoprline_crok
+         cp 0x0a
+         jr z,texted_pseudoprline_lf
+         dec hl
         jp texted_nextlineq
 texted_pseudoprline_cr
         dec b
         jp z,texted_nextlineq
+texted_pseudoprline_crok
         ld a,(hl)
         cp 0x0a
         jr nz,texted_pseudoprline_lf
