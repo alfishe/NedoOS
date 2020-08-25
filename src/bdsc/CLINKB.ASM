@@ -447,18 +447,18 @@ gfncp2:	push de		;save pointer to working fcb
 	ex (sp),hl		;pop old text pointer off stack
 	pop hl
 
-	push de		;save DE
-	ld e,b		;set the user number to the given value
-	ld c,sguser
-	lda nouser
-	or a
-	push hl		;save pointer to slash in text
-	IF NOT ALPHA
-	call z,bdos
-	ENDIF
-	pop hl		;get back text pointer
+	;push de		;save DE
+	;ld e,b		;set the user number to the given value
+	;ld c,sguser
+	;lda nouser
+	;or a
+	;push hl		;save pointer to slash in text
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
+	;pop hl		;get back text pointer
 
-	pop de		;restore DE
+	;pop de		;restore DE
 	inc hl		;bump text ptr past the slash
 	push hl		;push back so we can fall through to next section
 	xor a		;disable default disk searching
@@ -640,15 +640,15 @@ abort:
 	ld (hl),0ffh
 
 	IF NOT ALPHA
-	ld e,0		;switch to user 0 to erase submit file under ZSYSTEM
-	ld c,sguser
-	lda nouser
-	or a
-	jp nz,abort2
+	;ld e,0		;switch to user 0 to erase submit file under ZSYSTEM
+	;ld c,sguser
+	;lda nouser
+	;or a
+	;jp nz,abort2
 
-	lda zenvf	;zsystems?
-	or a
-	call nz,bdos	;if so, change to user 0
+	;lda zenvf	;zsystems?
+	;or a
+	;call nz,bdos	;if so, change to user 0
 abort2:
 	ENDIF
 
@@ -656,14 +656,14 @@ abort2:
 	ld c,delete
 	call bdos
 
-	lda curusr	;restore to current user area
-	ld e,a
-	ld c,sguser
-	lda nouser
-	or a
-	IF NOT ALPHA
-	call z,bdos
-	ENDIF
+	;lda curusr	;restore to current user area
+	;ld e,a
+	;ld c,sguser
+	;lda nouser
+	;or a
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
 
 	ld de,stgabt	;abort message
 	call pstg
@@ -770,14 +770,14 @@ gfld3f:	ld hl,deff3s
 	call setdu	;set library user area to be current
 	ret
 
-setdu:	lda defusr
-	ld e,a
-	ld c,sguser
-	lda nouser
-	or a
-	IF NOT ALPHA
-	call z,bdos
-	ENDIF
+setdu:	;lda defusr
+	;ld e,a
+	;ld c,sguser
+	;lda nouser
+	;or a
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
 	ret
 ;	ENDIF
 
@@ -864,7 +864,7 @@ rdc1:	call reads
 
 	IF NOT CPM
 	lda marcfd	;figure out how big c.ccall c,really is
-	ld c,(hl)$fsize
+	ld c,m$fsize
 	call msys
 	ex de,hl		;put length into DE (from HL)
 	lhld cda	;get load address into HL
@@ -1739,7 +1739,6 @@ stack:	equ $
 
 tab1:	equ $		;reference table begins here
 
-	IF LASM
-	end
-	ENDIF
-
+	;IF LASM
+	;end
+	;ENDIF

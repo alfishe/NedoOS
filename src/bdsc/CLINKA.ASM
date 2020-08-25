@@ -20,7 +20,7 @@
 ;	Changed -m to cause NON-maxmem. I.e., replaced "call marc" with "nop"s.
 
 
- 	org tpa
+ 	;org tpa
 
 	jp clink
 
@@ -50,12 +50,17 @@ nouser:	db 0		;true to disable usage of set user area calls
 patch:	ds 19		;reserved for future expansion (adjust when adding
 			;		bytes above)
 
-clink:	shld zenvad	;save Z environment pointer (if in HL)
-	ld hl,0		;save system SP
-	add hl,sp
-	shld spsav	;save system SP
-	ld sp,stack	;set up own stack
-	call zsetup
+clink:
+        OS_HIDEFROMPARENT
+        ld e,6 ;textmode
+        OS_SETGFX
+        
+	;shld zenvad	;save Z environment pointer (if in HL)
+	;ld hl,0		;save system SP
+	;add hl,sp
+	;shld spsav	;save system SP
+	ld sp,0;stack	;set up own stack
+	;call zsetup
 
 	lhld errbyt
 	ld (hl),0		;no error by default
@@ -116,9 +121,9 @@ c4:	ld (hl),0		;clear tab1
 	call setdu	;set up default library file user areas
 	ENDIF
 
-	call readc	;read in c.ccall c,(if not a segment)
+	call readc	;read in c.ccc (if not a segment)
 
-	;IF ZSYS ;had no endif!!!
+	IF ZSYS ;had no endif!!!
 	lhld cda	;check load address for consistency
 	ld de,0bh	;offset for load addr in header
 	add hl,de
@@ -137,17 +142,17 @@ c4:	ld (hl),0		;clear tab1
 c400:
 
 ;	IF CPM
-	lda curusr	;go back to current user area
-	ld e,a
-	ld c,sguser
-	lda nouser
-	or a
+	;lda curusr	;go back to current user area
+	;ld e,a
+	;ld c,sguser
+	;lda nouser
+	;or a
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
+	;ENDIF
 
-	IF NOT ALPHA
-	call z,bdos
 	ENDIF
-
-;	ENDIF
 
 	IF MARC
 	ld hl,fcbt	;put crl extension on main filename
@@ -168,6 +173,11 @@ c40:
 	call crlf
 	pop af
 	ENDIF
+
+;TODO options before filename?
+        ld de,cline
+        ld hl,fcb+1
+        OS_PARSEFNAME
 
 	call gnfl	;open main file and read in directory
 	jp c,abort	;abort if can't find it
@@ -240,26 +250,24 @@ link4:
 	ld a,1
 	sta search	;search default path unless otherwise set by getfn
 
-	ld c,sguser	;set user area back to current
-	lda curusr
-	ld e,a
+	;ld c,sguser	;set user area back to current
+	;lda curusr
+	;ld e,a
+	;lda nouser
+	;or a
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
 
-	lda nouser
-	or a
-
-	IF NOT ALPHA
-	call z,bdos
-	ENDIF
-
-	lda savdrv	;any drive number saved?
-	or a
-	jp z,link5
-	dec a		;if so, change back to it
-	ld e,a
-	ld c,select
-	call bdos	
-	xor a
-	sta savdrv	;and clear saved drive byte
+	;lda savdrv	;any drive number saved?
+	;or a
+	;jp z,link5
+	;dec a		;if so, change back to it
+	;ld e,a
+	;ld c,select
+	;call bdos	
+	;xor a
+	;sta savdrv	;and clear saved drive byte
 ;	ENDIF
 
 link5:	call fungt	;are there any functions missing?
@@ -376,6 +384,8 @@ skip1:
 	or a
 	jp nz,linke
 
+        if 1==0
+        
 	lda nflag	;noboot option given?
 	or a
 	jp z,linkd2	;if not, go handle normally
@@ -411,6 +421,7 @@ skip1:
 	ENDIF
 
 linkd2:			;no -n given.
+        endif
 
 	;ld (hl),2ah	;no. generate initial "lhld ram+6, ld sp,hl"
 	;inc hl
@@ -506,28 +517,28 @@ linkf2:
 	call writf	;write out file or execute directly
 
 	IF CPM
-exit:	lda wboote	;need to do warm boot?
-	or a
-	jp nz,ram		;if so, go do it
-	lhld spsav	;put saved CCP stack pointer in SP
-	ld sp,hl
-	lda ccpok	;CCP still intact?
-	or a
-	ret nz		;if so, return
-	lda oktort	;ok to return despite ccpok being false?
-	or a
-	ret nz		;if so, return
-	jp ram		;otherwise warm-boot
+exit:	QUIT ;lda wboote	;need to do warm boot?
+	;or a
+	;jp nz,ram		;if so, go do it
+	;lhld spsav	;put saved CCP stack pointer in SP
+	;ld sp,hl
+	;lda ccpok	;CCP still intact?
+	;or a
+	;ret nz		;if so, return
+	;lda oktort	;ok to return despite ccpok being false?
+	;or a
+	;ret nz		;if so, return
+	;jp ram		;otherwise warm-boot
 
 subfile: db 1,'$$$     SUB',0,0,0,0
 	ENDIF
 
 	IF MARC
 	ld hl,0		;return code: A OK
-exit:	ld c,(hl)$exit
+exit:	ld c,m$exit
 	jp msys
 
-ferror:	ld c,(hl)$error
+ferror:	ld c,m$error
 	call msys
 	ld hl,-1
 	jp exit
@@ -549,11 +560,10 @@ putxt3:	ld a,(de)
 	pchl	
 	ENDIF
 
+        if 1==0
 ;
 ; Set up ZCPR3 environment:
 ;
-
-	
 zsetup:	xor a
 	sta zenvf
 	inc a		;ok to return, by default 
@@ -625,11 +635,11 @@ setup3:	xor a		;clear 'ccp volatile' flag
 setup4:	shld curtop
 	ret
 
-
 envtyp:	ds 1
 zenvf:	ds 1	;true if running under ZCPR3
 zenvad:	ds 2
 ccpad:	ds 2 	;address of CCP for type 80h ZCPR3
+        endif
 oktort:	ds 1	;ok to return despite ccpok being false?
 errbyt:	dw errdum	;address of Z3 error byte
 errdum:	ds 1	;if CP/M, errbyt points here
@@ -795,22 +805,22 @@ stgtmf:	db 'Sorry; 255 funcs max',0
 ; Initialize linker:
 ;
 
-linit:	ld c,sguser	;get current user area
-	ld e,0ffh
-	lda nouser
-	or a
+linit:	;ld c,sguser	;get current user area
+	;ld e,0ffh
+	;lda nouser
+	;or a
 
-	IF NOT ALPHA
-	call z,bdos
-	ENDIF
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
 
-	IF ALPHA
-	nop
-	nop
-	nop
-	ENDIF
+	;IF ALPHA
+	;nop
+	;nop
+	;nop
+	;ENDIF
 
-	sta curusr	;save current user area number
+	;sta curusr	;save current user area number
 	lda defsub
 	inc a
 	sta subfile
@@ -824,17 +834,17 @@ linit:	ld c,sguser	;get current user area
 	ld hl,0
 	shld noffst	;search /libC by default for deff*.crl & c.ccc
 
-	ld c,(hl)$memory	;get top of memory value before doing maxmem call
+	ld c,m$memory	;get top of memory value before doing maxmem call
 	call msys
 	ex de,hl
 	shld taddr	;taddr before maxmem call
 
-	ld c,(hl)$maxmem	;do a maxmem call
+	ld c,m$maxmem	;do a maxmem call
 	call msys
 	ld a,1
 	sta maxmd	;note that we've done the maxmem call (once only)
 
-	ld c,(hl)$memory	;get top of memory AFTER maxmem call has been done
+	ld c,m$memory	;get top of memory AFTER maxmem call has been done
 	call msys
 	ex de,hl
 	shld curtop	;and as physical top of memory for linkage
@@ -961,29 +971,39 @@ linit:	ld c,sguser	;get current user area
 
 comlin:
 	IF CPM
-	ld hl,fcb+1	;see if user area given as part of filename
-	call gdec
-	jp c,clink0	;if not, OK
-	ld a,(hl)		;else, followed by slash?
-	cp '/'
-	jp nz,clink0	;if not, no problem
-	ld de,stgnua	;else abort with "no user number allowed" message
-	jp stgab
+	;ld hl,fcb+1	;see if user area given as part of filename
+	;call gdec
+	;jp c,clink0	;if not, OK
+	;ld a,(hl)		;else, followed by slash?
+	;cp '/'
+	;jp nz,clink0	;if not, no problem
+	;ld de,stgnua	;else abort with "no user number allowed" message
+	;jp stgab
 
 clink0:	ld hl,cline	;copy command line from tbuff to area at cline
 	shld cptr	;under CP/M
 	ld hl,tbuff
-	ld b,(hl)
-	inc b
+comlin_fspac:
+	ld a,(hl)
+        or a
+	jr z,comlin_fspac_skip
 	inc hl
+	cp ' '
+	jr nz,comlin_fspac
+comlin_fspac_skip
+        
+	;ld b,(hl)
+	;inc b
+	;inc hl
 	ld de,cline
-c0:	dec b
-	jp z,c0a
+c0:	;dec b
+	;jp z,c0a
 	ld a,(hl)
 	ld (de),a
+        or a
 	inc hl
 	inc de
-	jp c0
+	jr nz,c0
 	ENDIF
 
 	IF NOT CPM
@@ -1185,7 +1205,7 @@ lopt:	call gtaddd	;get argument
 
 ;
 ; Check for user abortion:
-;
+;TODO
 
 ckabrt:	push af
 	push hl
@@ -1193,26 +1213,26 @@ ckabrt:	push af
 	push bc
 
 	IF CPM
-	lda conpol	;are we polling for interrupts?
-	or a
-	jp z,noabrt	;if not, ignore console...
+	;lda conpol	;are we polling for interrupts?
+	;or a
+	;jp z,noabrt	;if not, ignore console...
 
-	ld c,intcon	;interrogate console status
-	call bdos
-	or a
-	jp z,noabrt
-	ld c,coninp
-	call bdos
-	cp 3		;control-C aborts
-	jp nz,noabrt
+	;ld c,intcon	;interrogate console status
+	;call bdos
+	;or a
+	;jp z,noabrt
+	;ld c,coninp
+	;call bdos
+	;cp 3		;control-C aborts
+	;jp nz,noabrt
 
-	ld de,stgabo	;abort.
-	jp stgab
+	;ld de,stgabo	;abort.
+	;jp stgab
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$ichec
-	call msys
+	;ld c,m$ichec
+	;call msys
 	ENDIF
 
 noabrt:	pop bc
@@ -1327,13 +1347,14 @@ pfnam:
 	lda fcb
 	or a		;if no special disk, don't print a letter
 	jp nz,pfnam1
-	push de
-	push hl
-	ld c,gdisk
-	call bdos
-	inc a	
-	pop hl
-	pop de
+	;push de
+	;push hl
+	;ld c,gdisk
+	;call bdos
+	;inc a	
+	;pop hl
+	;pop de
+         xor a ;TODO getpath
 pfnam1:	add a,'@'		;make it into the disk letter
 	call outch
 	ld a,':'
@@ -2345,9 +2366,9 @@ reads:
 	pop hl
 	or a
 	ret z		;error?
-	dec a		;maybe.
+	;dec a		;maybe.
 	scf
-	ret z		;return carry if EOF
+	ret ;z		;return carry if EOF
 	ENDIF		;else fall through to error reporting routine
 
 
@@ -2393,7 +2414,7 @@ writs:
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$write
+	ld c,m$write
 	lda marcfd
 	call msys
 	ret z
@@ -2411,15 +2432,16 @@ inch:
 	IF CPM
 	push bc
 	push hl
-	ld c,coninp
-	call bdos
+	;ld c,coninp
+	;call bdos
+        YIELDGETKEYLOOP
 	pop hl
 	pop bc
 	ENDIF
 
 	IF NOT CPM
 	xor a		;standard input under MARC
-	ld c,(hl)$getcf
+	ld c,m$getcf
 	call msys
 	jp nz,ferror
 	ENDIF
@@ -2428,7 +2450,7 @@ inch:
 	call mapuc
 	ENDIF
 
-	cp 3
+	cp key_esc;3
 	jp z,abort
 	ret
 
@@ -2483,9 +2505,10 @@ outc1a: pop af
 outch2:
 	IF CPM
 	push bc
-	ld c,conout
-	ld e,a
-	call bdos
+	;ld c,conout
+	;ld e,a
+	;call bdos
+        PRCHAR
 	pop bc
 	ret
 	ENDIF
@@ -2493,7 +2516,7 @@ outch2:
 	IF NOT CPM	; for MARC:
 	ld b,a		;put character in B
 	lda consfd	;stdout or stderr under MARC	
-	ld c,(hl)$putcf
+	ld c,m$putcf
 	call msys
 	jp nz,ferror
 	ret
@@ -2572,31 +2595,31 @@ gnfl:
 	or a
 	jp z,cmpln	;if not, go complain
 
-	lda defusr	;now try default disk and user area
-	ld e,a
-	inc a		;default user area is current user area?
-	jp z,gnfl2	;if so, don't change
-	ld c,sguser
-
-	lda nouser
-	or a
-	IF NOT ALPHA
-	call z,bdos
-	ENDIF
+	;lda defusr	;now try default disk and user area
+	;ld e,a
+	;inc a		;default user area is current user area?
+	;jp z,gnfl2	;if so, don't change
+	;ld c,sguser
+	;lda nouser
+	;or a
+	;IF NOT ALPHA
+	;call z,bdos
+	;ENDIF
 
 gnfl2:	lda defdsk	;default disk current disk?
 	ld e,a
 	cp 0ffh	;if so, don't switch
 	jp z,gnfl3
 
-	push de
-	ld c,gdisk	;first get and save currently logged drive
-	call bdos
-	inc a		;add 1 so A == 1, and 0 can mean "unused"
+	;push de
+	;ld c,gdisk	;first get and save currently logged drive
+	;call bdos
+	;inc a		;add 1 so A == 1, and 0 can mean "unused"
+         xor a ;TODO getpath
 	sta savdrv
-	pop de		;get back drive to switch to in E
-	ld c,select
-	call bdos
+	;pop de		;get back drive to switch to in E
+	;ld c,select
+	;call bdos
 
 gnfl3:	xor a		;now try to open in new directory
 	call open

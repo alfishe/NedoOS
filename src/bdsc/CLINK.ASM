@@ -22,7 +22,7 @@ TESTING3: equ 0		;enables fcbs printout diagnostic for obscure debugging
 
 MARC:	equ false	;true if MARC version
 CPM:	equ true	;true for CP/M version
-ZSYS:	equ true	;true if assembling for Z-SYSTEMS version
+ZSYS:	equ false;true	;true if assembling for Z-SYSTEMS version
 ALPHA:	equ false	;true for Alpha-C
 
 	IF NOT CPM
@@ -43,9 +43,9 @@ update: equ  '0'	;'y' in v1.xy
 trs80:	equ 0		;true if 4200h version of compiler
 
 codend:	equ 19h		;The following 4 addresses are relative
-freram:	equ 1bh		; to the start of C.Ccall c,(** NOT "ram" **):
+freram:	equ 1bh		; to the start of C.CCC (** NOT "ram" **):
 extrns:	equ 0015h	;Where address of externals is stored
-cccsiz:	equ 0017h	;Where size of C.Ccall c,is stored within C.CCC
+cccsiz:	equ 0017h	;Where size of C.CCC is stored within C.CCC
 clrex:	equ 0041h	;Jump vector to external clearing subroutine
 
 ;			offsets for key bytes in runtime package:
@@ -64,20 +64,20 @@ thackl:	equ 35dh	;where "-t" sequence (ld hl,xxxx nop nop) goes
 	;ENDIF
 
 	IF CPM
-coninp:		equ 1
-conout:		equ 2
+;coninp:		equ 1
+;conout:		equ 2
 readbuf:	equ 10
-intcon:		equ 11
-select:		equ 14
+;intcon:		equ 11
+;select:		equ 14
 openfil:	equ 15
 closefil:	equ 16
 delete:		equ 19
 rsequen:	equ 20
 wsequen:	equ 21
 makfil:		equ 22
-gdisk:		equ 25
+;gdisk:		equ 25
 sdma:		equ 26
-sguser:		equ 32
+;sguser:		equ 32
 	ENDIF
 
 
