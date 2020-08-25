@@ -922,7 +922,7 @@ subst7:	ld a,(hl)
 	ld a,(hl)
 	inc hl
 	or a 
-	jp subst7	;keep copying till b7 is high on last char
+	jp p,subst7	;keep copying till b7 is high on last char
 	pop hl
 	jp subst5
 
@@ -968,7 +968,7 @@ substs:	push hl		;save ->new text
 subs2:	ld a,(hl)		;compute length of new text
 	inc hl
 	or a
-	jp subs2
+	jp p,subs2
 	pop bc		;get -(new addr) in BC
 	add hl,bc		;HL = length
 	ex (sp),hl		;push lengh, HL = id length (in L)
@@ -1253,7 +1253,7 @@ ps1e:	ld (de),a
 ps1f:	ld a,(hl)		;go to next table entry
 	inc hl
 	or a
-	jp ps1f
+	jp p,ps1f
 	inc hl
 	jp ps1d
 
@@ -1921,7 +1921,7 @@ flbl2:	ld a,(hl)
 flbl3:	ld a,(hl)		
 	or a
 	inc hl
-	jp flbl3
+	jp p,flbl3
 	inc hl
 	inc hl
 	jp flbl2

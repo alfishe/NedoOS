@@ -131,7 +131,7 @@ genb2:
 	push hl
 	call nudge	;lde code up a bit
 
-	lhld bdosp
+	ld hl,NEDOOSMEMTOP;lhld bdosp
 	ld l,0
 	shld curtop	;new current top of memory
 	pop hl
@@ -160,7 +160,7 @@ nudge:	lhld cdp	;compute size of block to be lded
 	ld b,h		;lde to BC
 	ld c,l
 
-	lhld bdosp	;put destination address in DE
+	ld hl,NEDOOSMEMTOP;lhld bdosp	;put destination address in DE
 	ld l,0
 
 	dec hl
@@ -701,7 +701,7 @@ pnamlp:	ld a,(hl)
 	ld a,(hl)
 	inc hl
 	or a
-	jp pnamlp
+	jp p,pnamlp
 
 pnam2:
 	ld de,stgtb2	;print rest of message
@@ -769,7 +769,7 @@ idir1:	ld a,(de)
 	inc hl
 	inc de
 	or a
-	jp idir1
+	jp p,idir1
 
 	push hl
 	lhld codp
@@ -814,7 +814,7 @@ ifntf:	ld c,(hl)
 ifnf2:	ld a,(hl)
 	inc hl
 	or a
-	jp ifnf2
+	jp p,ifnf2
 	jp ifntf
 
 ;
@@ -898,7 +898,7 @@ ifuni2:	ld a,(de)
 	inc hl
 	inc de
 	or a
-	jp ifuni2
+	jp p,ifuni2
 	shld relp
 ifuni3:	pop bc
 	inc b
@@ -1471,7 +1471,22 @@ insd1:	ld a,h
 	dec hl
 	jp insd1
 
+        if 1==1
+;
+; Initialize operator stack and operand
+; information stack:
+;
 
+opsin:	push hl
+	ld hl,opstk
+	shld opstp
+	ld (hl),0ffh
+	ld hl,infstk
+	shld infsp
+	pop hl
+	ret
+        endif
+        
 ;
 ; Data Area:
 ;
@@ -1811,7 +1826,7 @@ clrdr2:	ld (hl),0
 	ret
 
 
-
+        if 1==0 ;killed by a bug!!!
 ;
 ; Initialize operator stack and operand
 ; information stack:
@@ -1825,7 +1840,7 @@ opsin:	push hl
 	shld infsp
 	pop hl
 	ret
-
+        endif
 
 ;
 ; Read in the CCI file from disk, or lde it down from high
@@ -1991,21 +2006,23 @@ fstg2:	pop af
 ; The following data storge is overlayed on pass 2 initialization code:
 ;
 
-	org c2init
+	;org c2init
 
-opstk:	ds 40		;operator stack for expression evaluation
-infstk:	ds 250		;info stack for expression evaluation (where
+opstk=c2init ;:	ds 40		;operator stack for expression evaluation
+infstk=opstk+40;:	ds 250		;info stack for expression evaluation (where
 			;info on each value is pushed and popped as
 			;needed.)
 
-relt:	ds 1600		;relocation table
+relt=infstk+250;:	ds 1600		;relocation table
+
+        ds relt+1600-$
 
 lblt:	ds 1700		;label table
 
 lbrt: 	ds 1600		;label reference table
 
-	ds 300
-stack:	equ $
+;	ds 300
+;stack:	equ $
 
 strsz:	equ 200
 

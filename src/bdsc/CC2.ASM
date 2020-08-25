@@ -51,7 +51,7 @@ lf:	equ 0ah
 
 	IF CPM
 bdos:	equ ram+5
-bdosp:	equ ram+6
+NEDOOSMEMTOP=0xff00;bdosp:	equ ram+6
 fcb:	equ ram+5ch
 nr:	equ fcb+32
 	ENDIF
@@ -64,20 +64,20 @@ nestmax: equ 5
 
 
 	IF CPM
-coninp:		equ 1
-conout:		equ 2
-readbuf:	equ 10
-intcon:		equ 11
-select:		equ 14
+;coninp:		equ 1
+;conout:		equ 2
+;readbuf:	equ 10
+;intcon:		equ 11
+;select:		equ 14
 openfil:	equ 15
 closefil:	equ 16
 delete:		equ 19
 rsequen:	equ 20
 wsequen:	equ 21
 makfil:		equ 22
-gdisk:		equ 25
+;gdisk:		equ 25
 sdma:		equ 26
-sguser:		equ 32
+;sguser:		equ 32
 	ENDIF
 
 	org PROGSTART;ram+100h	;start of TPA
@@ -97,4 +97,4 @@ begin
 end
 	savebin "cc2.com",begin,end-begin
 	
-	;LABELSLIST "../../us/user.l"
+	LABELSLIST "../../us/user.l"

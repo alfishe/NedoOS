@@ -77,11 +77,11 @@ cc1:
         ld e,6 ;textmode
         OS_SETGFX
         
-        shld zenvad ;TODO remove	;save Z environment pointer
-	ld hl,0		;save current SP for possible use in returning to CCP
-	add hl,sp
-	shld spsav
-	ld sp,stack	;set up private stack
+        ;shld zenvad ;TODO remove	;save Z environment pointer
+	;ld hl,0		;save current SP for possible use in returning to CCP
+	;add hl,sp
+	;shld spsav
+	;ld sp,stack	;set up private stack
 
 	call ccinit	;perform general initializations
 
@@ -115,7 +115,7 @@ cc1:
 ;
 
 	IF CPM
-spsav:	ds 2	;save stack pointer for non-booting return
+;spsav:	ds 2	;save stack pointer for non-booting return
 ccpok:	ds 1	;true if CCP still intact
 erasub:	ds 1	;true if erasing submit files
 curusr:	ds 1		;current disk (CP/M)
@@ -241,10 +241,10 @@ ascb:	ds 4
 	db ': ',0
 
 	ds 10
-stkchk:	ds 2	;if this ever gets clobbered, stack has overflowed
+;stkchk:	ds 2	;if this ever gets clobbered, stack has overflowed
 
-	ds 320
-stack:	equ $
+;	ds 320
+;stack:	equ $
 
 stg2:	db 'Close error+'
 stg3:	db 'File output error; dir or disk full?+'
@@ -318,7 +318,7 @@ stgddf:	db 'Can''t have more than one `default:''',cr,lf,0
 
 ccinit:	call zsetup
 
-	lhld protm
+	lhld protm ;0 there!!! who must write there???
 	shld curtop
 
 	lhld errbyt
@@ -327,17 +327,19 @@ ccinit:	call zsetup
 	ld hl,stg0	;print sign-on message
 	call pstgco	;print to console only
 
-	ld c,gdisk	;get current disk and user area
-	call bdos
+	;ld c,gdisk	;get current disk and user area
+	;call bdos
+         xor a ;TODO getpath
 	sta curdsk	;store current disk
 	sta origdsk	;and save as original disk upon invokation of CC
 
 	IF NOT ALPHA
-	ld c,sguser	;set/get user area
-	ld e,0ffh
-	lda nouser
-	or a
-	call z, bdos
+	;ld c,sguser	;set/get user area
+	;ld e,0ffh
+	;lda nouser
+	;or a
+	;call z, bdos
+         xor a
 	sta curusr	;store current user area
 	sta origusr	;and save as original user area upon invoking CC
 	ENDIF
@@ -489,7 +491,7 @@ setp2a:	lhld ram+1	;else calculate the old way
 setup3:	xor a		;clear 'ccp volatile' flag
 	sta ccpok	;and CCP INTACT flag
 	ex de,hl		;put ccp address in DE
-	lhld bdosp
+	ld hl,NEDOOSMEMTOP;lhld bdosp
 	ld l,0		;zero out low-order byte
 	call cmphd	;set Cy if [BASE+6,7] < CCP
 	jp c,setup4	;if BASE+6 < CCP, use BASE+6 as end of prot mem
@@ -823,7 +825,7 @@ usage:	ld hl,ascb+4
 	ld (hl),'K'
 
 	IF CPM
-	lhld bdosp	;get pointer to top of memory
+	ld hl,NEDOOSMEMTOP;lhld bdosp	;get pointer to top of memory
 	ld l,0
 	ENDIF
 
@@ -1584,7 +1586,7 @@ ccas3a:	ex de,hl
 	dec de
 	ld a,c
 	add a,2
-	jp ccas3c
+	jp p,ccas3c
 	and 7fh
 	ld c,a
 	ld a,nlcd

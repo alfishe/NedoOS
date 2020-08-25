@@ -819,7 +819,7 @@ lst2:	ld a,(hl)
 	pop af
 	or a
 	inc hl
-	jp lst2
+	jp p,lst2
 	dec b
 	jp nz,lst3
 	call crlf
@@ -978,7 +978,7 @@ rdf0b:	ld de,stgom	;if so, print message and abort
 rdf00a:
 	IF CPM
 	push hl		;save HL
-	lhld bdosp	;get protected memory address
+	ld hl,NEDOOSMEMTOP;lhld bdosp	;get protected memory address
 	ld l,0
 	shld curtop	;make it new top of memory
 	pop hl		;restore HL
@@ -1074,7 +1074,7 @@ setdat:	ld h,b
 	and 3
 	ld hl,12
 	add hl,de
-	cp m
+	cp (hl)
 	ret z
 	push af
 	push hl
@@ -1229,7 +1229,7 @@ rlv2:	ld a,(hl)
 	or a
 	ret z
 	inc hl
-	jp rlv2
+	jp p,rlv2
 	ld a,(hl)
 	and 7fh
 	ld b,a
@@ -1329,7 +1329,7 @@ et1c:	ld a,(de)
 	inc de
 	inc hl
 	or a
-	jp et1c
+	jp p,et1c
 	ld (hl),0
 	inc hl
 	ld (hl),0
@@ -1351,7 +1351,7 @@ et1d:	lda gotf
 	inc hl		;has the function just been read in?
 	jp nz,et1e
 	or a		;no. has it been read in previously?
-	jp et1d2
+	jp p,et1d2
 
 
 	lda fcnt2	;yes. fix reference immediately. first
@@ -1403,7 +1403,7 @@ et1e:	lda rdngsm	;has new symbol been previously defined?
 	ld a,(hl)
 	or a
 	inc hl
-	jp et1e2	;if bit 7 was set on that byte, it was defined...
+	jp p,et1e2	;if bit 7 was set on that byte, it was defined...
 			; so was it?
 	ld de,stgdps	;yes...complain
 	ld hl,sname
@@ -1506,7 +1506,7 @@ tb1ex:	push hl
 
 	ld a,2		;if on 8080, do it the hard way
 	inc a
-	jpo z80exp
+	jp po,z80exp
 
 ex8080:	ld a,(hl)
 	ld (de),a
@@ -1561,7 +1561,7 @@ stcm1:	ld a,(hl)
 	cp b
 	jp nz,stcm3
 	or a
-	jm stcm2
+	jp m,stcm2
 	inc de
 	inc hl
 	jp stcm1
@@ -1590,7 +1590,7 @@ mapuc2:	push bc
 	pop af
 	ld a,b
 	pop bc
-	rp
+	ret p
 	or 80h
 	ret
 

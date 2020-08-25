@@ -36,7 +36,7 @@ lf:	equ 0ah
 
 	IF CPM
 bdos:	equ ram+5
-bdosp:	equ ram+6
+NEDOOSMEMTOP=0xff00;bdosp:	equ ram+6
 fcb:	equ ram+5ch
 nr:	equ fcb+32
 	ENDIF

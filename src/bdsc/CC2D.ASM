@@ -920,7 +920,7 @@ ltabfd:	push hl
 	dec hl
 	ld a,(hl)
 	or a
-	jp ltbfd1
+	jp p,ltbfd1
 ltbfd0:	dec hl
 	ld d,(hl)
 	dec hl

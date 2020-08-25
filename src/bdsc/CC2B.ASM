@@ -381,7 +381,7 @@ sgen5:	cp notcd	;logical negation?
 	jp nz,sgen5z	;if not, go handle normally
 	lda val
 	or a
-	jp sgen5z	;if don't need value, also go handle normally
+	jp p,sgen5z	;if don't need value, also go handle normally
 	ld a,81h
 ;	sta val		;turn into high force factor 
 	sta notklg	;set "notkludge" flag
@@ -520,7 +520,7 @@ ltbflp:	push hl		;hack routine to flip the true and false ltab
 
 flpa:	ld b,0
 	or a		;is bit 7 on?
-	jp flpa2
+	jp p,flpa2
 	inc b
 flpa2:	and 1		;is bit 0 on?
 	ld a,b
@@ -1077,7 +1077,7 @@ ntstr0:	ld e,(hl)		;get next label # from table into DE
 	ld a,h
 	pop hl
 	or a		;overflow?
-	jp ntstr1
+	jp p,ntstr1
 	pop hl		;yes.
 	scf		;return carry
 	ret
@@ -2721,7 +2721,7 @@ dad1:	ld a,c
 divs1a:	lhld svv1
 	ld a,h
 	or a
-	jp divpos	;svv1 positive? if so, do simple unsigned divide
+	jp p,divpos	;svv1 positive? if so, do simple unsigned divide
 	call cmh	;else negate to make it positive,
 	call divpos	;do the divide
 	lhld svv1	;and negate the result
@@ -2740,7 +2740,7 @@ divpos:	ld bc,-1	;quotient result
 	ex de,hl		;put -asize in DE
 divtst:	ld a,h
 	or a		;if HL negative, all done
-	jp keepon
+	jp p,keepon
 	ld h,b
 	ld l,c
 	shld svv1	;store quotient

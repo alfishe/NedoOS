@@ -33,7 +33,8 @@ fnam:	ds 2		;pointer to filename for use in writing out crl file
 	ENDIF
 
 	IF CPM
-spsav:	ds 2		;saved CCP stack pointer under CP/M (10Ah)
+;spsav:	ds 2		;saved CCP stack pointer under CP/M (10Ah)
+        ds 2 ;NU (constant addresses!!!)
 	ENDIF
 
 curtop:	ds 2		;current top of memory (10Ch)
@@ -75,9 +76,9 @@ zenvf:	db 0		;extracted from ccpok b3 on startup
 errdum:	ds 1		;dummy zcpr3 error flag
 
 
-cc2:	ld hl,0		;save current SP in HL
-	add hl,sp
-	ld sp,stack	;set up new stack
+cc2:	;ld hl,0		;save current SP in HL
+	;add hl,sp
+	ld sp,0;stack	;set up new stack
 
 	IF CPM
 	lda defsub
@@ -124,8 +125,8 @@ cc20a:	ld de,s00	;print CR-LF if being chained to from cc1
 	call pstgco	;if chaining, print CR-LF before sign-on message
 	jp cc2b
 
-cc2a:	shld spsav	;save CCP stack pointer
-	lhld ram+6
+cc2a:	;shld spsav	;save CCP stack pointer
+	ld hl,NEDOOSMEMTOP;lhld ram+6
 	shld curtop	;set up current top of memory below CCP
 	ld a,1
 	sta ccpok	;set CCP not bashed flag
@@ -158,7 +159,7 @@ cc2c:	call dofun	;process a function
 	ld (hl),'K'	;but first give a usage report
 
 	IF CPM
-	lhld bdosp	;this is as high as free memory can ever get
+	ld hl,NEDOOSMEMTOP;lhld bdosp	;this is as high as free memory can ever get
 	ld l,0
 	ENDIF
 
@@ -181,26 +182,26 @@ cc2c:	call dofun	;process a function
 	call writf	;write out the CRL file
 
 	IF CPM
-exit:	lda wboote	;do warm boot on exit?
-	or a
-	jp nz,ram		;if so, go boot
+exit:	QUIT ;lda wboote	;do warm boot on exit?
+	;or a
+	;jp nz,ram		;if so, go boot
 
-	lda chainf	;did we chain?
-	or a
-	jp z,ram		;if not, do warm boot in case we're SID-ing
+	;lda chainf	;did we chain?
+	;or a
+	;jp z,ram		;if not, do warm boot in case we're SID-ing
 
-	lhld spsav	;get possibly saved CCP SP
-	ld sp,hl
+	;lhld spsav	;get possibly saved CCP SP
+	;ld sp,hl
 
-	lda ccpok	;CCP intact?
-	or a
-	ret nz		;return if so
+	;lda ccpok	;CCP intact?
+	;or a
+	;ret nz		;return if so
 
-	lda oktort	;ok to return DESPITE ccpok's value?
-	or a
-	ret nz		;if so, return
+	;lda oktort	;ok to return DESPITE ccpok's value?
+	;or a
+	;ret nz		;if so, return
 
-	jp ram		;else warm-boot
+	;jp ram		;else warm-boot
 	
 	ENDIF
 
@@ -458,24 +459,24 @@ errab2:
 	or a
 	jp z,exit		;if not, all done
 
-	ld c,sguser	;get current user
-	ld e,0ffh
+	;ld c,sguser	;get current user
+	;ld e,0ffh
 
-	push af	;save current user
+	;push af	;save current user
 
-	ld c,sguser	;select user 0
-	ld e,0
-	lda zenvf	;but only under ZSYSTMS!
-	or a
-	call nz,bdos
+	;ld c,sguser	;select user 0
+	;ld e,0
+	;lda zenvf	;but only under ZSYSTMS!
+	;or a
+	;call nz,bdos
 
 	ld de,subfile	;erase pending submit files
 	call delf2
 
-	pop af		;get original user
-	ld e,a
-	ld c,sguser	;select original user
-	call bdos
+	;pop af		;get original user
+	;ld e,a
+	;ld c,sguser	;select original user
+	;call bdos
 
 	jp exit	;all done
 
@@ -1027,8 +1028,10 @@ outch:	push de
 
 outch1:	call redout	;write char to red output file
 
-outch3:	ld c,conout
-	call bdos
+outch3:	;ld c,conout
+	;call bdos
+        ld a,e
+        PRCHAR
 
 	pop af
 	pop hl
@@ -1241,7 +1244,7 @@ writs2:	push hl
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$write
+	ld c,m$write
 	lda marcfd
 	call msys
 	ret z
@@ -1268,7 +1271,7 @@ reads:	push hl
 
 	IF NOT CPM
 	lda marcfd
-	ld c,(hl)$read
+	ld c,m$read
 	ld hl,tbuff
 	ld de,128
 	call msys
@@ -1449,34 +1452,34 @@ nambuf:	ds 40	;just write into something we don't need...
 ;
 ; This routine sees if anything has been typed at the console,
 ; and if so, if it is a ^C then the compilation is aborted:
-;
+;TODO
 
 ckabrt:	push hl
 	push de
 	push bc
 	push af
 	
-	IF CPM
-	lda conpol	;if not polling console, don't so it.
-	or a
-	jp z,noabrt
-	ld c,intcon
-	call bdos
-	or a
-	jp z,noabrt
-	ld c,coninp
-	call bdos
-	cp 3
-	jp nz,noabrt
+	;IF CPM
+	;lda conpol	;if not polling console, don't so it.
+	;or a
+	;jp z,noabrt
+	;ld c,intcon
+	;call bdos
+	;or a
+	;jp z,noabrt
+	;ld c,coninp
+	;call bdos
+	;cp 3
+	;jp nz,noabrt
 
-	ld de,stgabo
-	call pstg
-	jp errab	
-	ENDIF
+	;ld de,stgabo
+	;call pstg
+	;jp errab	
+	;ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$ichec
-	call msys
+	;ld c,(hl)$ichec
+	;call msys
 	ENDIF
 
 noabrt:	pop af

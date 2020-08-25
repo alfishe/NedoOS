@@ -50,8 +50,8 @@ _retdsk	equ	25 ;TODO (return A=current drive)
 _setdma	equ	26 ;
 _getalv	equ	27 ;TODO
 _getdpb	equ	31 ;TODO
-_rndrd	equ	33 ;TODO (lib?)
-_rndwr	equ	34 ;TODO (lib?)
+_rndrd	equ	33 ;
+_rndwr	equ	34 ;
 _filsiz	equ	35 ;TODO (lib?)
 
 RecLng		equ	128	; Standard record length
@@ -5054,11 +5054,10 @@ l156b:
          cp 128 ;EOF in NedoOS
          jr nz,l1595		; Read was successfull
          ;jr $ ;lister.pas
-;by hand
 ;CP/M has eofs in the end of last sector?
 ;do this by hand:
         or a
-        jr z,read_load_noaddzeros ;full sector
+        jr z,read_load_noaddeofs ;full sector
 ;a=128+bytes loaded
         neg
 ;a=128-bytes loaded
@@ -5074,7 +5073,7 @@ l156b:
         ld (de),a
         dec de
         djnz $-2
-read_load_noaddzeros
+read_load_noaddeofs
 
 	push	hl
 	ld	de,FIB.buff-2
@@ -7873,7 +7872,7 @@ l257c:
 ;CP/M has eofs in the end of last sector?
 ;do this by hand:
         or a
-        jr z,load_noaddzeros ;full sector
+        jr z,load_noaddeofs ;full sector
 ;a=128+bytes loaded
         neg
 ;a=128-bytes loaded
@@ -7883,7 +7882,7 @@ l257c:
         ld (de),a
         dec de
         djnz $-2
-load_noaddzeros
+load_noaddeofs
         endif
 	ld	de,l7957	; Point to buffer
 	ld	b,RecLng

@@ -80,7 +80,7 @@ dt1siz:	equ 1500	;default ref table (tab1) size
 
 	IF CPM
 bdos:	equ ram+5	;entry point to bdos
-bdosp:	equ ram+6	;pointer to bdos
+NEDOOSMEMTOP=0xff00;bdosp:	equ ram+6
 fcb:	equ ram+5ch
 nr:	equ fcb+32
 	ENDIF

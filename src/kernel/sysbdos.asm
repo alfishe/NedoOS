@@ -1509,7 +1509,7 @@ BDOS_fread_fatfsq
         pop bc
 	ld a,(bc)
          pop bc ;blocksize
-        call movedma_addr ;+bc ;TODO remove!!!
+        ;call movedma_addr ;+bc ;TODO remove!!!
 	xor 0x80 ;!=, если прочитали не 128 байт ;TODO remove!!!
 ;a=0: OK (прочитали 128 байт)
 ;a=128: fail (прочитали 0 байт)

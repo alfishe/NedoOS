@@ -173,7 +173,7 @@ spgo1:	pop hl
 	jp z,spgo2
 	ld a,c		;yes. if in DE, set b6 of reg B accordingly
 	or a
-	jp spgo2
+	jp p,spgo2
 	ld b,40h
 
 spgo2:	ld a,c
@@ -1572,7 +1572,7 @@ bxpr90:	pop af
 	sta sval1	;yes--set constant flag
 	push hl
 	ld hl,0		;constant value of zero?
-	jp bxpr9a	;if so, go store
+	jp p,bxpr9a	;if so, go store
 	inc hl		;else make it 1
 bxpr9a:	shld svv1
 	pop hl

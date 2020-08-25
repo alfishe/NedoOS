@@ -335,7 +335,7 @@ drawpanelfilesandsize
         inc e
         inc e
         call nv_setxy
-        ld de,_PANELFILECOLOR
+        ld de,_PANELDIRCOLOR;_PANELFILECOLOR
         call nv_setcolor
         call getmarkedfiles
         ld a,h

@@ -1393,11 +1393,27 @@ readf:	ld hl,st	;initialize code address to follow
 
 ;gen fcb from filename
 filenameaddr=$+1
-        ld hl,0
-        ld hl,fcbwas
-        ld de,fcb
-        ld bc,FCB_sz
-        ldir
+        ld de,0
+        push de
+readf_fspac:
+	ld a,(de)
+	or a
+	jr z,readf_fspac_skip
+	inc de
+	cp ' '
+	jr nz,readf_fspac
+        dec de
+        xor a
+        ld (de),a
+readf_fspac_skip
+        pop de
+        ld hl,fcb+1;fcb_filename ;Pointer to 11 byte buffer
+        OS_PARSEFNAME
+
+        ;ld hl,fcbwas
+        ;ld de,fcb
+        ;ld bc,FCB_sz
+        ;ldir
 
 	call readm
 	or a		;successful?
@@ -1409,10 +1425,11 @@ filenameaddr=$+1
 	shld meofad
 	ret
 
-fcbwas
-        db 0
-        db "ex      c  "
-        ds fcbwas+FCB_sz-$
+;fcbwas
+;        db 0
+;fcbwas_filename
+;        db "ex      c  "
+;        ds fcbwas+FCB_sz-$
 
 ;
 ; Read in a source module from disk. Filename and user number have
@@ -1885,13 +1902,13 @@ doin3d:	lda fcb		;see if explicit disk given in #include op
 	
 doin3e:	lda newdsk	;if no disk designator given, set disk byte
 	inc a		;with appropriately offset new disk value
-	sta fcb	
+	sta fcb	;TODO remove?
 
 doin3c:	dec a		;change fcb-based disk code to BDOS call disk code
 	sta newdsk
-doin4:	ld e,a
-	ld c,select
-	call bdos	;select disk
+doin4:	;ld e,a
+	;ld c,select
+	;call bdos	;select disk
 
 	lda curdsk	;save current disk and user area on stack
 	push af
@@ -1906,11 +1923,11 @@ doin4:	ld e,a
 	ld e,a		;select new user area
 
 	IF NOT ALPHA
-	lda nouser
-	or a
-	jp nz,doin40	;skip setting user area if 'nouser' true
-	ld c,sguser 
-	call bdos
+	;lda nouser
+	;or a
+	;jp nz,doin40	;skip setting user area if 'nouser' true
+	;ld c,sguser 
+	;call bdos
 	ENDIF
 
 	IF NOT CPM
@@ -1941,21 +1958,21 @@ doin40:	lhld nlcnt	;save line count
 	ld e,a
 
 	IF NOT ALPHA
-	lda nouser
-	or a
-	jp nz,doin5a	;skip setting user area if 'nouser' true
-	ld c,sguser
-	call bdos
+	;lda nouser
+	;or a
+	;jp nz,doin5a	;skip setting user area if 'nouser' true
+	;ld c,sguser
+	;call bdos
 	ENDIF
 
 doin5a:	pop hl		;pop HL so we can get at pushed psw...
 	pop af		;and then set the current disk:
 	sta curdsk
-	push hl		;save HL for BDOS call
-	ld e,a
-	ld c,select
-	call bdos	
-	pop hl		;restore HL after BDOS futzing
+	;push hl		;save HL for BDOS call
+	;ld e,a
+	;ld c,select
+	;call bdos	;select disk
+	;pop hl		;restore HL after BDOS futzing
 
 	call popf	
 	lda okflag	;was the readm successful?
@@ -2158,10 +2175,28 @@ reads:
 	or a
 	pop de
 	pop hl
-	ret z
-	cp 1
-	jp nz,rds2
-	scf
+	ret z ;ok, full sector
+         cp 128 ;EOF in NedoOS
+         jr z,reads_eof
+;CP/M has eofs in the end of last sector?
+;do this by hand:
+;a=128+bytes loaded
+        neg
+;a=128-bytes loaded
+        push de
+        ld b,a
+	ld de,0x0080+127	; Point to buffer end
+        ld a,0x1a
+        ld (de),a
+        dec de
+        djnz $-2
+        pop de
+        or a
+        ret ;ok, not full sector
+reads_eof
+	;cp 1
+	;jp nz,rds2 ;???
+	scf ;error
 	ret
 	ENDIF
 

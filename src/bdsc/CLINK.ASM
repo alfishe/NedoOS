@@ -1,3 +1,7 @@
+        DEVICE ZXSPECTRUM128
+        include "../_sdk/sys_h.asm"
+        include "8080.asm"
+
 ;
 ; Main driver file for CLINK.ASM
 ; (for use with LASM.COM)
@@ -8,24 +12,24 @@
 true:	equ 0ffffh
 false:	equ not true
 
-slrmac:	equ false
-lasm:	equ not slrmac
+SLRMAC:	equ true;false
+LASM:	equ not SLRMAC
 
-prerel:	equ 0		;'pre-release', uses current drive/user area
-testing: equ 0		;enables printf hack debugging statements
-testing2: equ 0		;enables the "test" stack-stuffing routine at end
-testing3: equ 0		;enables fcbs printout diagnostic for obscure debugging
+PREREL:	equ 0		;'pre-release', uses current drive/user area
+TESTING: equ 0		;enables printf hack debugging statements
+TESTING2: equ 0		;enables the "test" stack-stuffing routine at end
+TESTING3: equ 0		;enables fcbs printout diagnostic for obscure debugging
 
 MARC:	equ false	;true if MARC version
 CPM:	equ true	;true for CP/M version
 ZSYS:	equ true	;true if assembling for Z-SYSTEMS version
-alpha:	equ false	;true for Alpha-C
+ALPHA:	equ false	;true for Alpha-C
 
 	IF NOT CPM
 ;	Assembling NON-CPM version !=
 	ENDIF
 
-force:	equ 1		;have it work like L2, forcing loading of all funcs
+FORCE:	equ 1		;have it work like L2, forcing loading of all funcs
 version: equ '2'	;'x' in v1.xy
 
 	IF NOT ZSYS
@@ -55,9 +59,9 @@ mhackl:	equ 258h	;where "call marc" goes if -m given
 thackl:	equ 35dh	;where "-t" sequence (ld hl,xxxx nop nop) goes
 	ENDIF
 
-	IF LASM
-	sym
-	ENDIF
+	;IF LASM
+	;sym
+	;ENDIF
 
 	IF CPM
 coninp:		equ 1
@@ -82,12 +86,12 @@ dt1siz:	equ 1500	;default ref table (tab1) size
 
 	IF CPM
 bdos:	equ ram+5	;entry point to bdos
-bdosp:	equ ram+6	;pointer to bdos
+NEDOOSMEMTOP=0xff00;bdosp:	equ ram+6
 fcb:	equ ram+5ch
 nr:	equ fcb+32
 	ENDIF
 
-tpa:	equ ram+100h
+tpa:	equ PROGSTART;ram+100h
 tbuff:	equ ram+80h
 cr:	equ 0dh
 lf:	equ 0ah
@@ -116,14 +120,18 @@ msys:	  equ 50h
 	ENDIF
 
 
-	IF LASM
-	link clinka
-	ENDIF
+	;IF LASM
+	;link clinka
+	;ENDIF
 
-	IF SLRMAC
+	org PROGSTART;ram+100h	;start of TPA
+begin	
+	;IF SLRMAC
 	include clinka.asm
 	include clinkb.asm
-	ENDIF
+	;ENDIF
 
-	end
-
+end
+	savebin "clink.com",begin,end-begin
+	
+	LABELSLIST "../../us/user.l"

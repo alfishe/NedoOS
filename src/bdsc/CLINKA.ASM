@@ -27,12 +27,12 @@
 ;
 ; Configuration block:
 ;
-	if not prerel
+	if not PREREL
 defdsk:	db 0ffh		;default disk for library files (0=A, etc., FF=current)
 defusr:	db 0ffh		;default user area for lib files, FF = current
 	endif
 
-	if prerel
+	if PREREL
 defdsk:	db 0ffh
 defusr:	db 0ffh
 	endif
@@ -118,7 +118,7 @@ c4:	ld (hl),0		;clear tab1
 
 	call readc	;read in c.ccall c,(if not a segment)
 
-	IF ZSYS
+	;IF ZSYS ;had no endif!!!
 	lhld cda	;check load address for consistency
 	ld de,0bh	;offset for load addr in header
 	add hl,de
@@ -412,15 +412,15 @@ skip1:
 
 linkd2:			;no -n given.
 
-	ld (hl),2ah	;no. generate initial "lhld ram+6, ld sp,hl"
-	inc hl
+	;ld (hl),2ah	;no. generate initial "lhld ram+6, ld sp,hl"
+	;inc hl
 
-	ld de,bdosp	;at run time, ram+6 points to base of bdos
-	ld (hl),e
-	inc hl
-	ld (hl),d
-	inc hl
-	ld (hl),0f9h	; ld sp,hl to set SP to top of TPA
+	;ld de,bdosp	;at run time, ram+6 points to base of bdos
+	;ld (hl),e
+	;inc hl
+	;ld (hl),d
+	;inc hl
+	;ld (hl),0f9h	; ld sp,hl to set SP to top of TPA
 	jp linkf
 
 linke:
@@ -467,7 +467,7 @@ linkf2:
 	ld de,stgok	;print completion message
 	call pstg	;and free-ram diagnostic
 
-	lhld bdosp	;protected memory highest available tpa addr
+	ld hl,NEDOOSMEMTOP;lhld bdosp	;protected memory highest available tpa addr
 	ld l,0
 
 	ex de,hl
@@ -613,7 +613,7 @@ setp2a:	lhld 0001h	;else calculate the old way
 setup3:	xor a		;clear 'ccp volatile' flag
 	sta ccpok	
 	ex de,hl		;put ccp address in DE
-	lhld bdosp
+	ld hl,NEDOOSMEMTOP;lhld bdosp
 	ld l,0		;zero out low-order byte
 	call cmphd	;set Cy if [BASE+6,7] < CCP
 	jp c,setup4	;if BASE+6 < CCP, use BASE+6 as end of prot mem
@@ -1737,7 +1737,7 @@ setw4:	ld a,l
 setw5:	ld a,(hl)		;pass over symbol text
 	inc hl	
 	or a
-	jp setw5
+	jp p,setw5
 
 	ld a,(hl)		;and references (if any)
 	and 7fh	
@@ -1779,17 +1779,17 @@ cmpt2:	ld a,(bc)		;get char
 	ret nz		;if not same, all done
 	ld a,(de)		;else...is 2nd symbol ended?
 	or a
-	jp cmpt3
+	jp p,cmpt3
 	ld a,(bc)		;yes..result depends on whether
 	or a		;1st symbol is ended...
 	scf
-	rp
+	ret p
 	ccf
 	ret
 
 cmpt3:	ld a,(bc)		;is 1st symbol ended?
 	or a
-	rm		;if so, it must be smaller than second.
+	ret m		;if so, it must be smaller than second.
 	inc bc		;else check next character...
 	inc de
 	jp cmpt2
@@ -1809,7 +1809,7 @@ pfnm1:	inc b
 	call outch
 	pop af
 	or a
-	jp pfnm1
+	jp p,pfnm1
 	ld a,b
 	pop bc
 	cp 3		;if >= 3 characters, ignore
@@ -2765,7 +2765,7 @@ fng22:	call pb7hi	;pass function name
 	ld a,(hl)		;next byte a zero?
 	or a
 	pop hl
-	jm fung2
+	jp m,fung2
 	ret		;no...so 
 
 
@@ -2787,7 +2787,7 @@ past1e:	call pb7hi
 pb7hi:	ld a,(hl)
 	inc hl
 	or a
-	jp pb7hi
+	jp p,pb7hi
 	ret
 
 
@@ -2842,8 +2842,6 @@ ft24:	call pb7hi	;no match. go on to next entry
 	inc hl
 	jp ft21
 
-	IF LASM
-	link clinkb
-	ENDIF
-
-
+	;IF LASM
+	;link clinkb
+	;ENDIF

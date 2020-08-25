@@ -416,7 +416,7 @@ agbu:	ld	a,h	;return C if DE > HL, unsigned
 blas:	ex de,hl		;return C if HL < DE, signed
 albs:	ld	a,h	;return C if DE < HL, signed
 	xor	d
-	jp	albu	;if same sign, do unsigned compare
+	jp	p,albu	;if same sign, do unsigned compare
 	ld	a,d
 	or	a
 	rp		;else return NC if DE is positive and HL is negative
@@ -426,7 +426,7 @@ albs:	ld	a,h	;return C if DE < HL, signed
 bgas:	ex de,hl		;return C if HL > DE, signed
 agbs:	ld	a,h	;return C if DE > HL, signed
 	xor	d
-	jp	agbu	;if same sign, go do unsigned compare
+	jp	p,agbu	;if same sign, go do unsigned compare
 	ld	a,h
 	or	a
 	rp		;else return NC is HL is positive and DE is negative

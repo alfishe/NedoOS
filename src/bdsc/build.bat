@@ -3,6 +3,7 @@ echo build cc
 if "%settedpath%"=="" call ../_sdk/setpath.bat
 sjasmplus --nologo --msg=war cc.asm
 sjasmplus --nologo --msg=war cc2.asm
+sjasmplus --nologo --msg=war clink.asm
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (

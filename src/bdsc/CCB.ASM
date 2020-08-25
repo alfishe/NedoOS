@@ -694,50 +694,50 @@ errab2:	ld a,7		;ring a bell for errors having occurred
 	or a
 	jp z,exit
 
-	ld e,0		;go to user 0 for submit file erasure
-	ld c,sguser
+	;ld e,0		;go to user 0 for submit file erasure
+	;ld c,sguser
 
 	IF NOT ALPHA
-	lda nouser
-	or a
-	jp nz,errab3	;if no user areas, don't do it
+	;lda nouser
+	;or a
+	;jp nz,errab3	;if no user areas, don't do it
 
-	lda zenvf	;if not ZSYSTEMS, don't do it
-	or a
-	call nz,bdos
-errab3:
+	;lda zenvf	;if not ZSYSTEMS, don't do it
+	;or a
+	;call nz,bdos
+;errab3:
 	ENDIF
 
 	ld de,subfile	;erase pending submit files and abort
 	call delf2
 
-exit:	call resetu	;reset to original user drive/ user area
+exit:	;call resetu	;reset to original user drive/ user area
+        QUIT
+	;lda wboote	;need to perform warm-boot?
+	;or a
+	;jp nz,ram		;if so, go do it.
+	;lhld spsav	;get (possibly valid) saved stack pointer
+	;ld sp,hl		;put into SP
+	;lda ccpok	;CCP intact?
+	;or a
+	;ret nz		;if so, return to CCP
+	;jp ram		;otherwise do a warm boot
 
-	lda wboote	;need to perform warm-boot?
-	or a
-	jp nz,ram		;if so, go do it.
-	lhld spsav	;get (possibly valid) saved stack pointer
-	ld sp,hl		;put into SP
-	lda ccpok	;CCP intact?
-	or a
-	ret nz		;if so, return to CCP
-	jp ram		;otherwise do a warm boot
+;resetu:	;lda origdsk	;reset disk and user area to original
+	;ld e,a
+	;ld c,select
+	;call bdos
+	;lda origusr
+	;ld e,a
+	;ld c,sguser
 
-resetu:	lda origdsk	;reset disk and user area to original
-	ld e,a
-	ld c,select
-	call bdos
-	lda origusr
-	ld e,a
-	ld c,sguser
+	;IF NOT ALPHA
+	;lda nouser
+	;or a
+	;call z,bdos	
+	;ENDIF
 
-	IF NOT ALPHA
-	lda nouser
-	or a
-	call z,bdos	
-	ENDIF
-
-	ret
+	;ret
 
 
 
@@ -759,7 +759,7 @@ crlf:	push af
 
 ;
 ; Check for abortion:
-;
+;TODO
 
 ckabrt:
 	push hl
@@ -767,18 +767,18 @@ ckabrt:
 	push bc
 	push af
 
-	lda conpol	;are we polling the console?
-	or a
-	jp z,nohit	;if not, don't do anything
+	;lda conpol	;are we polling the console?
+	;or a
+	;jp z,nohit	;if not, don't do anything
 
-	ld c,intcon	;interrogate console status
-	call bdos
-	or a
-	jp z,nohit
-	ld c,coninp
-	call bdos	;if something hit, see if a ^C
-	cp 3
-	jp z,intrpt	
+	;ld c,intcon	;interrogate console status
+	;call bdos
+	;or a
+	;jp z,nohit
+	;ld c,coninp
+	;call bdos	;if something hit, see if a ^C
+	;cp 3
+	;jp z,intrpt	
 nohit:	pop af		;if not, don't interrupt
 	pop bc
 	pop de
@@ -922,7 +922,7 @@ ckov0:	lda curtop+1	;high order byte of top of mem addr
 ckov1:
 	IF CPM
 	push hl
-	lhld bdosp	;change curtop to reflect BDOS address now
+	ld hl,NEDOOSMEMTOP;lhld bdosp	;change curtop to reflect BDOS address now
 	ld l,0		;zero out low order byte
 	shld curtop
 	pop hl
@@ -953,7 +953,7 @@ TESTM:	EQU 0
 
 mvtxt:	or a		;check for zero
 	ret z		;return if so
-	jp sqish	;if positive, go squish
+	jp p,sqish	;if positive, go squish
 
 	cpl		;otherwise negate
 	inc a
@@ -1793,7 +1793,7 @@ mkft4:	ld a,(de)
 	inc de
 	inc hl
 	or a
-	jp mkft4
+	jp p,mkft4
 	shld fntp
 	ret
 
@@ -1930,37 +1930,37 @@ chain:
 	sta cfcb	;set as first byte of fcb
 
 	IF NOT ALPHA
-	lda nouser	;don't futz with user areas?
-	or a
-	jp nz,chain0	;if not, skip chandng user area
+	;lda nouser	;don't futz with user areas?
+	;or a
+	;jp nz,chain0	;if not, skip chandng user area
 
-	lda cc2usr	;get cc2 default user area
-	ld e,a
+	;lda cc2usr	;get cc2 default user area
+	;ld e,a
 
-	ld c,sguser
-	call bdos	;change to that user area
+	;ld c,sguser
+	;call bdos	;change to that user area
 	ENDIF
 
 chain0:	call occ2	;try to open in default user area and disk
 
-	push af	;save condition
-	lda curdsk	;switch back to current disk and user area
-	inc a
-	sta cfcb
+	;push af	;save condition
+	;lda curdsk	;switch back to current disk and user area
+	;inc a
+	;sta cfcb
 
-	IF NOT ALPHA
-	lda nouser
-	or a
-	jp nz,chain1
+	;IF NOT ALPHA
+	;lda nouser
+	;or a
+	;jp nz,chain1
 
-	lda curusr	;change back to current user area
-	ld e,a
+	;lda curusr	;change back to current user area
+	;ld e,a
 
-	ld c,sguser
-	call bdos
-	ENDIF
+	;ld c,sguser
+	;call bdos
+	;ENDIF
 
-chain1:	pop af		;get back condition of first cc2 open attempt
+;chain1:	pop af		;get back condition of first cc2 open attempt
 	jp nz,ch3		;go read in if prior open succeeded
 
 	call occ2	;else try to read in current disk and user area...
@@ -2077,8 +2077,8 @@ bt002:	add b
 
 	push af	;save combination of (b0 b1 b2 b3)
 
-	lhld spsav	;save CCP's stack pointer
-	push hl
+	;lhld spsav	;save CCP's stack pointer
+	;push hl
 
 	lda werrs	;if werrs false, just push erasub
 	or a
@@ -2140,8 +2140,8 @@ postld:  equ tbuff + $ - bootcode
 	sta ram+10fh
 	ENDIF
 
-	pop hl		;pop filename under MARC or saved SP under CP/M
-	shld ram+010ah	
+	;pop hl		;pop filename under MARC or saved SP under CP/M
+	;shld ram+010ah	
 
 	pop af		;pop ccpok/maxmd flag
 	sta ram+010eh

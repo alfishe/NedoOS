@@ -71,11 +71,14 @@ dfstsz:	equ 10*1024
 	  endif
 
 tbuff:	equ ram+80h	;used under both CP/M and MARC
-tpa:	equ ram+100h	;TPA under both CP/M and MARC
+tpa:	equ PROGSTART;ram+100h	;TPA under both CP/M and MARC
+
+ztack=0
+stkchk=ztack-322
 
 	IF CPM
 bdos:	equ ram+5
-bdosp:	equ ram+6
+NEDOOSMEMTOP=stkchk;bdosp:	equ ram+6
 fcb:	equ ram+5ch
 fcbnr:	equ fcb+32
 fcbex:	equ fcb+12
@@ -86,20 +89,20 @@ secsiz:	equ 128
 negone	equ 0ffh	;negative one, 8 bit 2's complement
 
 	IF CPM
-coninp:		equ 1
-conout:		equ 2
+;coninp:		equ 1
+;conout:		equ 2
 readbuf:	equ 10
-intcon:		equ 11
-select:		equ 14
+;intcon:		equ 11
+;select:		equ 14
 openfil:	equ 15
 closefil:	equ 16
 delete:		equ 19
 rsequen:	equ 20
 wsequen:	equ 21
 makfil:		equ 22
-gdisk:		equ 25
+;gdisk:		equ 25
 sdma:		equ 26
-sguser:		equ 32
+;sguser:		equ 32
 	ENDIF
 
 ;
