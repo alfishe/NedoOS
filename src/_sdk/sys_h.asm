@@ -504,7 +504,7 @@ _1=$
 ;
 ;Примечания:
 ;В отличие от MSX-DOS, в новом имени пока что требуется такой же путь, как в DE (если там не было пути, то и в новом не надо).
-        macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR ldE FILE
+        macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
         ld c,CMD_RENAME
         CALLBDOS_NOPARAM_A
         endm

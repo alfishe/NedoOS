@@ -240,10 +240,10 @@ control_imer_oldmousewheel=$+2
         ld (control_imer_oldmousewheel),a
         sub hx
         ;ld (mouse_scrollvalue),a
-        jr z,nowheellde
+        jr z,nowheelmove
         jp m,term_pgdown
         jp term_pgup
-nowheellde
+nowheelmove
         ;ld a,0
         ;ld (mouse_scrollvalue),a ;default scrollvalue
 
@@ -261,12 +261,12 @@ control_imer_oldmousecoords=$+1
         sub c
         ld e,a
         or d
-        jr z,nomouselde
+        jr z,nomousemove
         push hl
-        call mouselde
+        call mousemove
         pop hl
         jr sendmouseevent
-nomouselde
+nomousemove
         ld a,l ;mouse buttons
 oldmousebuttons=$+1
         ld h,0
@@ -322,7 +322,7 @@ sendmouseevent_noclicktopleft
         OS_CLOSEHANDLE
         jp mainloop_afterkey
 sendmouseevent_noclick
-        ld b,'@' ;mouse lde
+        ld b,'@' ;mouse move
         jr sendmouseevent_ok
 sendmouseevent_click
         ld a,l ;mouse buttons
@@ -337,7 +337,7 @@ sendmouseevent_click
         jr nc,sendmouseevent_ok
         ld b,0+32 ;unclick
 sendmouseevent_ok
-;send mouselde event
+;send mousemove event
         ld hl,stdoutbuf
         ld (hl),0x1b
         inc hl
@@ -449,7 +449,7 @@ redrawlines0
         ex de,hl
         inc h ;TODO nextpg
         pop bc
-        djp nz,redrawlines0
+        djnz redrawlines0
         ret
         
 quit
@@ -482,7 +482,7 @@ savepastaline_findend0ok
         sub 0x80
         sbc a,0
         ld l,a
-        djp nz,savepastaline_findend0
+        djnz savepastaline_findend0
         jr savepastaline_skip
 savepastaline_findendq
 ;hl=end of line
@@ -502,7 +502,7 @@ savepastaline0
         add a,0x80
         adc a,0
         ld l,a
-        djp nz,savepastaline0
+        djnz savepastaline0
 savepastaline_skip
         ld a,0x0d
         call writechar2pasta
@@ -556,7 +556,7 @@ term_print0
         call term_prfsm ;520/521t
         pop hl
         pop bc
-        cp
+        cpi
         jp pe,term_print0
         pop hl
         ld bc,STDINBUF_SZ
@@ -687,7 +687,7 @@ stdouthandle=$+1
         pop hl
         pop de
         pop bc
-        djp nz,sendchars0
+        djnz sendchars0
         xor a ;z=no error
         ret ;клиент завис, но не сдох
 
@@ -700,14 +700,14 @@ TERM_ST_AFTERESC=2 ;2: after 0x1b
 TERM_ST_AFTERESCBRACKET=2 ;3: after 0x1b [ [number] (might be more digits)
 term_prfsm_curstate=$+1
         ld b,TERM_ST_SINGLE
-        djp nz,term_prfsm_nosingle
+        djnz term_prfsm_nosingle
         cp 0x1b
         jp nz,BDOS_prchar_a
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERESC
         ret
 term_prfsm_nosingle
-        djp nz,term_prfsm_noafteresc
+        djnz term_prfsm_noafteresc
         ;cp '['
         ;jr nz,term_prfsm_prchar ;считаем, что после esc всегда [
         ld hl,term_prfsm_curstate
@@ -917,7 +917,7 @@ BDOS_scrolldown0
         add hl,bc
         call BDOS_scrollpageline
         pop bc
-        djp nz,BDOS_scrolldown0
+        djnz BDOS_scrolldown0
         jr term_prfsm_afterescbracket_scrolldown_OSq
 term_prfsm_afterescbracket_scrolldown_OS
         OS_SCROLLDOWN
@@ -938,7 +938,7 @@ BDOS_scrolldown_buf0
 BDOS_scrolldown_call=$+1
         call BDOS_scrollpageline_bufwindow
         pop bc
-        djp nz,BDOS_scrolldown_buf0
+        djnz BDOS_scrolldown_buf0
         ret
         
 cursor_store
@@ -991,7 +991,7 @@ BDOS_scrollup_buf0
 BDOS_scrollup_call=$+1
         call BDOS_scrollpageline_bufwindow
         pop bc
-        djp nz,BDOS_scrollup_buf0 ;62131[91221] t
+        djnz BDOS_scrollup_buf0 ;62131[91221] t
         ret
 
 BDOS_scrollbuf_prepare
@@ -1122,7 +1122,7 @@ BDOS_scrollpage0
         add hl,bc
         call BDOS_scrollpageline
         pop bc
-        djp nz,BDOS_scrollpage0
+        djnz BDOS_scrollpage0
         ret
 BDOS_scrollpageline
         dup 39
@@ -1219,7 +1219,7 @@ term_setinvisible
         ret
 
 MOUSEFACTOR=8
-mouselde
+mousemove
 ;de=mouse delta
 ;чтобы двигать не резко, надо отдельно хранить младшие части x,y (не отображаемые на экране)
         ld hl,(mousexy)
@@ -1232,20 +1232,20 @@ htmlcursorxylow=$+1
         ld a,h
         add a,d
         bit 7,d
-        jr z,html_mouselde_yplus
-        jr nc,html_mouselde_yminus_overflow
+        jr z,html_mousemove_yplus
+        jr nc,html_mousemove_yminus_overflow
         cp HTMLTOPY*MOUSEFACTOR
-        jr nc,html_mouselde_yq
-html_mouselde_yminus_overflow
+        jr nc,html_mousemove_yq
+html_mousemove_yminus_overflow
         ld a,HTMLTOPY*MOUSEFACTOR
-        jr html_mouselde_yq
-html_mouselde_yplus
-        jr c,html_mouselde_yplus_overflow
+        jr html_mousemove_yq
+html_mousemove_yplus
+        jr c,html_mousemove_yplus_overflow
         cp MOUSEFACTOR*(HTMLTOPY+HTMLHGT-1)
-        jr c,html_mouselde_yq
-html_mouselde_yplus_overflow
+        jr c,html_mousemove_yq
+html_mousemove_yplus_overflow
         ld a,MOUSEFACTOR*(HTMLTOPY+HTMLHGT-1)
-html_mouselde_yq  
+html_mousemove_yq  
         srl a
         rr b
         rra
@@ -1265,20 +1265,20 @@ html_mouselde_yq
         ld d,a
         add hl,de
         bit 7,e
-        jr z,html_mouselde_xplus
-        jr c,html_mouselde_xq
+        jr z,html_mousemove_xplus
+        jr c,html_mousemove_xq
         ld hl,0 ;ld a,HTMLTOPY*MOUSEFACTOR
-        jr html_mouselde_xq
-html_mouselde_xplus
+        jr html_mousemove_xq
+html_mousemove_xplus
         ld de,MOUSEFACTOR/2*(80-1)
-        jr c,html_mouselde_xplus_overflow
+        jr c,html_mousemove_xplus_overflow
         ;or a
         sbc hl,de
         add hl,de
-        jr c,html_mouselde_xq
-html_mouselde_xplus_overflow
+        jr c,html_mousemove_xq
+html_mousemove_xplus_overflow
         ex de,hl
-html_mouselde_xq
+html_mousemove_xq
         ld a,l
         rr h
         rra

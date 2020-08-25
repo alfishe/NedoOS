@@ -151,7 +151,7 @@ changemark_hl
         ld h,(ix+PANEL.markedfiles+1)
         inc hl
         jr nz,changemark_hlq ;set mark
-;relde mark
+;remove mark
         dec hl
         dec hl
         xor a
@@ -507,14 +507,18 @@ cmd_loadpage
         ld e,a
         sub d
         ld h,a ;de=buffer, hl=size
-curhandle=$+1
-        ld b,0
-        OS_READHANDLE
+        call readcurhandle
         ld b,h
         ld c,l
         pop hl
         pop de
         or a
+        ret
+
+readcurhandle
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
         ret
 
 cmd_savepage
@@ -555,7 +559,7 @@ winlineN_0
 	inc d 
 	ld hl,winmidstroka
 	call prtableline
-	djp nz,winlineN_0 	
+	djnz winlineN_0 	
 	inc d
 	ld hl,winendstroka
 	jr prtableline
@@ -569,7 +573,7 @@ prtable0
 	inc d 
 	ld hl,prmidstroka
 	call prtableline
-	djp nz,prtable0
+	djnz prtable0
 	inc d
 	ld hl,prendstroka
 prtableline
@@ -604,7 +608,7 @@ prNsymbol0
         ld a,c
 	PRCHAR_
 	pop bc
-	djp nz,prNsymbol0
+	djnz prNsymbol0
         pop ix
 	pop hl
 	pop de 
@@ -779,7 +783,7 @@ drawfilecursor_color=$+1
 ;	pop de
 ;	pop bc
 ;	inc e
-;	djp nz,drawfilecursor0
+;	djnz drawfilecursor0
 
         call setcolor_visible 
          ;pop af ;oldcolor
@@ -788,6 +792,7 @@ drawfilecursor_color=$+1
          ;ld h,4 ;blue
 	ret
 
+        if 1==0
 nv_openfcb
 ;if success, autopush nv_closefcb
 ;out: nz=error
@@ -833,6 +838,7 @@ nv_closefcb_de_
         pop de
         ;or a
         ret
+        endif
 
 copy_to_fcb_filename
         ld de,fcb_filename

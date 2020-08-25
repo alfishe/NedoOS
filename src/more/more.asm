@@ -214,7 +214,7 @@ nvview_end0
         push bc 
         call nvview_prevline
         pop bc
-        djp nz,nvview_end0
+        djnz nvview_end0
         call nvview_calccurline
         jp nvview_prpage
 
@@ -296,7 +296,7 @@ nvview_pgup0
         call nvview_prevline
          call nc,deccurline
         pop bc
-        djp nz,nvview_pgup0
+        djnz nvview_pgup0
         call nvview_prpage
         jp clear_keyboardbuffer
         
@@ -314,7 +314,7 @@ nvview_pgdown0
         call nvview_nextline
          call nc,inccurline
         pop bc
-        djp nz,nvview_pgdown0
+        djnz nvview_pgdown0
         jr nvview_pgup_go
         if 1==0
         ld b,NVVIEW_HGT
@@ -323,7 +323,7 @@ nvview_pgdown1
         call nvview_prevline
          call nc,deccurline
         pop bc
-        djp nz,nvview_pgdown1
+        djnz nvview_pgdown1
         call nvview_prpage
         jp clear_keyboardbuffer
         endif
@@ -386,7 +386,7 @@ clear_keyboardbuffer0
         push bc
         GET_KEY ;GETKEY_
         pop bc
-        djp nz,clear_keyboardbuffer0
+        djnz clear_keyboardbuffer0
         pop bc
         ret
         
@@ -441,7 +441,7 @@ nvview_panel0
         push bc
         PRCHAR
         pop bc
-        djp nz,nvview_panel0
+        djnz nvview_panel0
         ;ld e,NVVIEW_PANELCOLOR;#38
         ;OS_PRATTR
         ld de,_COLOR;#38
@@ -497,7 +497,7 @@ nvview_prpage0
         pop de
         pop bc
         inc d
-        djp nz,nvview_prpage0
+        djnz nvview_prpage0
 nvview_setbottom
         ld (curbottomtextaddr),hl
         ld (curbottomtextHSB),a
@@ -749,7 +749,7 @@ nvview_prline_recodepatch=$
         pop hl
         pop bc
         dec c
-        djp nz,nvview_prline0
+        djnz nvview_prline0
         jr nz,nvview_prline_lf
         ret
 nvview_prlinespc_all
@@ -768,7 +768,7 @@ nvview_prlinespc0
         ld a,' '
         PRCHAR
         pop bc
-        djp nz,nvview_prlinespc0
+        djnz nvview_prlinespc0
         pop hl
         pop af
         ret
@@ -801,7 +801,7 @@ nvview_pseudoprline0
         cp 0x0a
         jr z,nvview_pseudoprline_lf
         dec c
-        djp nz,nvview_pseudoprline0
+        djnz nvview_pseudoprline0
          ld a,(hl)
          inc hl
          cp 0x0d
@@ -838,7 +838,7 @@ istherecrlfgo
         push bc
         ld b,d
         ld c,e
-        cpr ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
+        cpir ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
         pop bc
         ret nz ;nz=not found
          dec hl
@@ -947,7 +947,7 @@ sendchars0
         PRCHAR
         pop hl
         pop bc
-        cp
+        cpi
         jp pe,sendchars0
         ret
 

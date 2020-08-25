@@ -33,17 +33,17 @@ logo_loop1
 		ld c,a
 		jr z,logo_end
 logo_pix_loop
-		ld e,0xdb
+		ld a,0xdb
 		sla c
 		jr c,logo_no_pix
-		ld e,' '
+		ld a,' '
 logo_no_pix
 		push hl
 		push bc
-		push de
-		OS_PRCHAR
-		pop de
-		OS_PRCHAR
+		push af
+		PRCHAR
+		pop af
+		PRCHAR
 		pop bc
 		pop hl
 		dec b

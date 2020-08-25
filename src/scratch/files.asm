@@ -94,17 +94,25 @@ isfilename_scr
         cp 's'
         ret
 
+readcurhandle
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ret
+
 readfile_scr
 ;0xc000=pgtemp
         ld de,scrbuf
-        OS_SETDTA ;set disk transfer address = de
-        ld b,0x1b00/128
-readfile_scr0
-        push bc
-        ld de,fcb
-        OS_FREAD
-        pop bc
-        djnz readfile_scr0
+;        OS_SETDTA ;set disk transfer address = de
+;        ld b,0x1b00/128
+;readfile_scr0
+;        push bc
+;        ld de,fcb
+;        OS_FREAD
+;        pop bc
+;        djnz readfile_scr0
+        ld hl,0x1b00
+        call readcurhandle
         
         call delbitmap ;удалить текущую картинку и освободить странички
         ld hl,256
@@ -523,9 +531,11 @@ readbyte_readbuf
         push ix
         ld de,file_buf
         push de
-        OS_SETDTA ;set disk transfer address = de
-        ld de,fcb
-        OS_FREAD ;TODO handles!
+        ;OS_SETDTA ;set disk transfer address = de
+        ;ld de,fcb
+        ;OS_FREAD ;TODO handles!
+        ld hl,128
+        call readcurhandle
         pop iy
         pop ix
         pop hl
@@ -563,9 +573,13 @@ writebyte_writebuf
         push ix
         ld de,file_buf
         push de
-        OS_SETDTA ;set disk transfer address = de
-        ld de,fcb
-        OS_FWRITE ;TODO handles!
+        ;OS_SETDTA ;set disk transfer address = de
+        ;ld de,fcb
+        ;OS_FWRITE ;TODO handles!
+        ld hl,128
+        ld a,(curhandle)
+        ld b,a
+        OS_WRITEHANDLE
         pop iy
         pop ix
         pop hl
@@ -715,6 +729,15 @@ file_control_keys_up
         ld de,+(filelisty)*40 + filelistx8 + scrbase ;de=scr (начало строки)
         ld b,0 ;b=номер видимого файла
         jp prdirfile
+
+fcbtoname_temppicname
+        ld de,temppicname
+fcbtoname_de
+	ld hl,fcb_filename
+        push de
+	call cpmname_to_dotname
+        pop de
+        ret
         
 filemenu_fire
         call isitclick
@@ -736,36 +759,46 @@ filemenu_fire
         call file_findvisiblefile_a
         call setpgtemp
         ld de,fcb
-        push de ;FCB
+        ;push de ;FCB
         ld bc,32;FCB_sz
         ldir
-        pop de ;FCB
+        ;pop de ;FCB
+        call fcbtoname_temppicname ;de=temppicname
 	ld a,(fcb+FCB_FATTRIB)
 	cp FATTRIB_DIR;0x10
 	jr nz,filemenu_fire_not_dir
 	pop af ;снимаем адрес возврата
-        ld hl,fcb_filename
-        ld de,temppicname
-        push de
-        call cpmname_to_dotname
-        pop de ;DE = Pointer to ASCIIZ string
+        ;ld hl,fcb_filename
+        ;ld de,temppicname
+        ;push de
+        ;call cpmname_to_dotname
+        ;pop de ;DE = Pointer to ASCIIZ string
 	OS_CHDIR
 	jp filemenu_restart
 filemenu_fire_not_dir
-        OS_FOPEN
+        ;OS_FOPEN
+	;ld hl,fcb_filename
+        ;ld de,temppicname
+        ;push de
+	;call cpmname_to_dotname
+        ;pop de
+        OS_OPENHANDLE
         or a
         jr nz,filemenu_fire_finish;error
+        ld a,b
+        ld (curhandle),a
 
         call readbmp ;nz=ошибка (тогда не менять имя файла)
 
         push af
 
         call setpgtemp ;т.к. после чтения bmp может быть любая страница там
-        ld de,fcb
-        push de
-        OS_FCLOSE
-        pop hl ;fcb
-        inc hl ;имя в формате CP/M
+        ;ld de,fcb
+        ;push de
+        ;OS_FCLOSE
+        ;pop hl ;fcb
+        ;inc hl ;имя в формате CP/M
+        call closecurhandle
 
         pop af
         jr nz,filemenu_fire_finish;error
@@ -774,7 +807,7 @@ filemenu_fire_not_dir
         jr z,filemenu_fire_finish ;если загрузили файл палитры, то не меняем имя текущей картинки
 
         ld de,curpicname
-        call cpmname_to_dotname
+        call fcbtoname_de
 filemenu_fire_finish
         ;call clearwindowstate ;a=0
         call kill_unfinished_shapes
@@ -1320,8 +1353,14 @@ savefile
         pop de ;ASCIIZ string for parsing (в 0xc000...)
         ld hl,fcb_filename ;Pointer to 11 byte buffer
         OS_PARSEFNAME
-        ld de,fcb
-        OS_FCREATE
+        call fcbtoname_temppicname ;de=temppicname
+        ;ld de,fcb
+        ;OS_FCREATE
+        OS_CREATEHANDLE
+        ;or a
+        ;jr nz,error ;TODO
+        ld a,b
+        ld (curhandle),a
 
         ld iy,file_buf
 
@@ -1456,11 +1495,18 @@ savebmp4_pic00_widHSB=$+1
         jr z,savebmp4_pic0
 savefile_close_quit
         call writebyte_writebuf_ifneeded
-        ld de,fcb
-        OS_FCLOSE
+        ;ld de,fcb
+        ;OS_FCLOSE
+        call closecurhandle
         ; pop af ;снимаем адрес возврата (т.к. вызывали call filemenu_fire)
         ;jp filemenu
         jp filemenu_exit
+
+closecurhandle
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        ret
 
 savefile_pal
         ld ix,workpal

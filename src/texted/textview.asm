@@ -145,7 +145,7 @@ typein
         ld c,a
         call linesize_minus_x ;sz<x = error
         call c,insert_minushl_spaces
-        call calccursorddr
+        call calccursoraddr
         call insertbyte
         
         call setlineredrawflag;texted_prcurpage
@@ -168,7 +168,7 @@ insert_minushl_spaces
 textinsertsymbol_pseudospace0
         push hl ;sz-x < 0
         call texted_end
-        call calccursorddr
+        call calccursoraddr
         ld c,' '
         call insertbyte
         pop hl ;sz-x < 0
@@ -185,7 +185,7 @@ texted_enter
         ;jr nc,texted_enter_nopseudospaces
         call c,texted_end
 ;texted_enter_nopseudospaces
-        call calccursorddr
+        call calccursoraddr
         ld c,0x0d
         call insertbyte
         ld c,0x0a
@@ -290,7 +290,7 @@ calccurlinex
         inc h
         ret
         
-calccursorddr
+calccursoraddr
 ;TODO учитывать ширину строки (правее строки простое сложение бессмысленно)
         call calccurlinex
         ex de,hl
@@ -309,7 +309,7 @@ texted_backspace
         call linesize_minus_x ;sz<x = error
         jp c,texted_left
 
-        call calccursorddr
+        call calccursoraddr
         call prevbyte
         ;call isbof
         ;ret z
@@ -317,7 +317,7 @@ texted_backspace
         call setlineredrawflag
         jp texted_left
 texted_backspace_startline
-        call calccursorddr
+        call calccursoraddr
         call isbof
         ret z
         call prevbyte
@@ -383,7 +383,7 @@ texted_home
         jp setredrawflag
 
 texted_end
-        ;call calccursorddr
+        ;call calccursoraddr
         ld hl,(curlineaddr)
         ld a,(curlineaddrHSB)
         call calclinesz ;hl=sz
@@ -458,7 +458,7 @@ texted_del_newline
 ;hl=sz-x
         call c,insert_minushl_spaces
         call setredrawflag
-        call calccursorddr
+        call calccursoraddr
         call iseof
         ret z
         call decnlines
@@ -584,7 +584,7 @@ texted_end0
         push bc 
         call texted_prevline
         pop bc
-        djp nz,texted_end0
+        djnz texted_end0
 ;ahl=curtextline (kept)
         call texted_calccurline
         ;push hl
@@ -714,7 +714,7 @@ texted_pgup_gotop0
          call nc,deccurline
          call nc,deccury
         pop bc
-        djp nz,texted_pgup_gotop0
+        djnz texted_pgup_gotop0
         ld (curlineaddr),hl
         ld (curlineaddrHSB),a
         ret
@@ -725,7 +725,7 @@ texted_pgup0
         call texted_prevline
          call nc,deccurline
         pop bc
-        djp nz,texted_pgup0
+        djnz texted_pgup0
         call texted_settop
         ld (curlineaddr),hl
         ld (curlineaddrHSB),a
@@ -747,7 +747,7 @@ texted_pgdown_gobottom0
          call nc,inccurline
          call nc,inccury
         pop bc
-        djp nz,texted_pgdown_gobottom0
+        djnz texted_pgdown_gobottom0
         ld (curlineaddr),hl
         ld (curlineaddrHSB),a
         ret
@@ -764,7 +764,7 @@ texted_pgdown0
          call nc,inccurline
          call nc,inccury
         pop bc
-        djp nz,texted_pgdown0
+        djnz texted_pgdown0
         ld (curlineaddr),hl
         ld (curlineaddrHSB),a
         jp setredrawflag
@@ -841,7 +841,7 @@ clear_keyboardbuffer0
         push bc
         GETKEY_
         pop bc
-        djp nz,clear_keyboardbuffer0
+        djnz clear_keyboardbuffer0
         pop bc
         ret
         
@@ -902,7 +902,7 @@ texted_ncurline=$+1
 ;        push bc
 ;        PRCHAR_ ;TODO speedup
 ;        pop bc
-;        djp nz,texted_panel0
+;        djnz texted_panel0
         ;ld de,_texted_PANELCOLOR;#38
         ;OS_PRATTR
         ld de,_COLOR
@@ -971,7 +971,7 @@ texted_prpage0
         pop de
         pop bc
         inc d
-        djp nz,texted_prpage0
+        djnz texted_prpage0
         ;call clear_keyboardbuffer
         ret
         
@@ -1216,7 +1216,7 @@ texted_prline_recodepatch=$
         pop hl
         ;pop bc
         dec c
-        djp nz,texted_prline0
+        djnz texted_prline0
         ;call print_prlinebuf
         ;jr nz,texted_prline_lf
         ;ret
@@ -1292,7 +1292,7 @@ texted_pseudoprline0
         cp 0x0a
         jr z,texted_pseudoprline_lf
         dec c
-        djp nz,texted_pseudoprline0
+        djnz texted_pseudoprline0
          ld a,(hl)
          inc hl
          cp 0x0d
@@ -1330,7 +1330,7 @@ istherecrlfgo
         push bc
         ld b,d
         ld c,e
-        cpr ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
+        cpir ;TODO несколько раз через все блоки, если заканчиваются блоки, то их переключать
         pop bc
         ret nz ;nz=not found
          dec hl

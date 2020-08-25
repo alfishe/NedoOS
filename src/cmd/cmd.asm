@@ -94,19 +94,19 @@ execcmd_maybepipes
         ld hl,cmdbuf
         ld a,'|'
         ld bc,MAXCMDSZ
-        cpr
+        cpir
         jr z,execcmd_pipe
 
         ld hl,cmdbuf
         ld a,'<'
         ld bc,MAXCMDSZ
-        cpr
+        cpir
         jr z,execcmd_changestdin ;jr nz,cmd_noexeccmdtofile
 
         ld hl,cmdbuf
         ld a,'>'
         ld bc,MAXCMDSZ
-        cpr
+        cpir
         jp nz,execcmd_or_runprog ;jr nz,cmd_noexeccmdtofile
 ;change stdout
         dec hl
@@ -414,7 +414,7 @@ jphl
 strcpexec_fail
         ld b,-1 ;чтобы точно найти терминатор
         xor a
-        cpr ;найдём обязательно
+        cpir ;найдём обязательно
         jr strcpexec0
 
 cmd_start
@@ -471,7 +471,7 @@ execcmd_tryrunerror
         xor a
         ld b,a
         ld c,a;0
-        cpr ;найдём обязательно, если длина=0, то bc=-1 и т.д.
+        cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
         dec hl ;на терминаторе
         dec hl ;перед терминатором
         ld a,'/'
@@ -764,7 +764,7 @@ readstr0
 readstr0go
         ld (hl),a
         inc hl
-        djp nz,readstr0
+        djnz readstr0
 readstrq
         xor a ;Z
         ld (hl),a
@@ -1184,7 +1184,7 @@ cmd_mem_del0
         push bc
         OS_DELPAGE
         pop bc
-        djp nz,cmd_mem_del0
+        djnz cmd_mem_del0
 cmd_mem_q
 ;c=free pages
         ld l,c
@@ -1512,7 +1512,7 @@ cmd_copydir0_recursive
         ld hl,wordbuf
         ld bc,0
         xor a
-        cpr
+        cpir
         dec hl ;hl=terminator addr
         ld (hl),'/'
         inc hl
@@ -1524,7 +1524,7 @@ cmd_copydir0_recursive
         ld hl,wordbuf2
         ld bc,0
         xor a
-        cpr
+        cpir
         dec hl ;hl=terminator addr
         ld (hl),'/'
         inc hl

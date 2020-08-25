@@ -650,7 +650,7 @@ sys_getchar_fail
          ;ld b,a
          ld c,a ;no keynolang
         ld d,a;0
-        ld e,a;0 ;no mouse ldement
+        ld e,a;0 ;no mouse movement
         ld l,0xff ;no buttons
         jr endsys_result_a ;ret ;nz ;jp endsys_result_a
 
@@ -768,7 +768,7 @@ sys_findfreeappstruct0
         cp (iy+app.id)
         ret z ;iy = free app struct
         add iy,de
-        djp nz,sys_findfreeappstruct0
+        djnz sys_findfreeappstruct0
 ;too many apps!!!
         ret ;nz
         
@@ -783,7 +783,7 @@ sys_findfreeid0
         cp (iy+app.id)
         jr z,sys_findfreeid_next
         add iy,de
-        djp nz,sys_findfreeid0
+        djnz sys_findfreeid0
 ;a=free id
         ret
 		

@@ -1312,7 +1312,7 @@ l0482:
 	push	bc
 	ld	hl,l0498
 	ld	bc,ll0498
-	cpr			; Find in table
+	cpir			; Find in table
 	pop	bc
 	pop	hl
 	ret
@@ -5073,7 +5073,7 @@ l156b:
         ld a,eof;-1
         ld (de),a
         dec de
-        djp nz,$-2
+        djnz $-2
 read_load_noaddzeros
 
 	push	hl
@@ -7882,7 +7882,7 @@ l257c:
         ld a,eof;-1
         ld (de),a
         dec de
-        djp nz,$-2
+        djnz $-2
 load_noaddzeros
         endif
 	ld	de,l7957	; Point to buffer
@@ -9574,7 +9574,7 @@ l309b:
 l30bf:
 	ld	a,lf
 	inc	de
-	cpr			; Find new line
+	cpir			; Find new line
 	jp	po,l30d3	; Got it
 	dec	e
 	inc	e
@@ -12116,7 +12116,7 @@ findnexteol:
 	ld	e,l
 	jr	c,l41cc		; Out of text
 	ld	a,lf
-	cpr			; Find new line
+	cpir			; Find new line
 	jp	po,l41cc
 	or	a
 	pop	bc
@@ -20034,7 +20034,7 @@ l721a:
         ld a,eof;-1
         ld (de),a
         dec de
-        djp nz,$-2
+        djnz $-2
         pop de
         pop bc
 readchar_load_noaddzeros

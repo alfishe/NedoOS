@@ -154,10 +154,14 @@ autoload_nopath
         
         ld hl,fcb_filename ;Pointer to 11 byte buffer
         OS_PARSEFNAME
-        ld de,fcb
-        OS_FOPEN
+        call fcbtoname_temppicname ;de=temppicname
+        ;ld de,fcb
+        ;OS_FOPEN
+        OS_OPENHANDLE
         or a
         jr nz,noautoload;error
+        ld a,b
+        ld (curhandle),a
         call readbmp ;nz=ошибка (тогда не менять имя файла)
         jr nz,autoloaderror
         

@@ -7,6 +7,7 @@ cmd_begin
         
         ld e,3 ;6912
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        YIELD ;set palette
 
         ;OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)

@@ -42,7 +42,7 @@ CMD_CREATEHANDLE=0x44 ;DE = Drive/path/file ASCIIZ string
 CMD_CLOSEHANDLE=0x45 ;B = file handle, out: A=error
 CMD_READHANDLE=0x48 ;B = file handle, DE = Buffer address, HL = Number of bytes to read, out: HL = Number of bytes actually read, A=error(=0)
 CMD_WRITEHANDLE=0x49 ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error(=0)
-CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR ldE FILE
+CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
 CMD_CHDIR=0x5a ;DE = Pointer to ASCIIZ string. Out A=error
 CMD_PARSEFNAME=0x5c ;NOT RECOMMENDED ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
 CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
@@ -131,16 +131,16 @@ fwaiting=7 ;app is waiting for another app, can't take focus by hand
 
 ;Internal keyboard values:
 
-extbase=0xb0 ;with H=1 ;can't mix with 32..127 ;temporry internal code
-csbase=0xf3 ;temporry internal code
-extenter=csbase+12 ;temporry internal code
-graphlock=extenter ;temporry internal code
-csnoshifts=0;NOKEY ;cs release result for AltGr ;temporry internal code
-csspace=27 ;temporry internal code
-csss=9 ;Tab ;temporry internal code
+extbase=0xb0 ;with H=1 ;can't mix with 32..127 ;temporary internal code
+csbase=0xf3 ;temporary internal code
+extenter=csbase+12 ;temporary internal code
+graphlock=extenter ;temporary internal code
+csnoshifts=0;NOKEY ;cs release result for AltGr ;temporary internal code
+csspace=27 ;temporary internal code
+csss=9 ;Tab ;temporary internal code
 key_extspace=0;NOKEY ;extbase+14 ;unusable because happens simultaneously with extZ because of keyboard matrix
-cssspress=csss ;temporry internal code (impossible to type without AltGr before language recoding)
-ssnoshifts=0xd1 ;temporry internal code (impossible to type without AltGr before language recoding)
+cssspress=csss ;temporary internal code (impossible to type without AltGr before language recoding)
+ssnoshifts=0xd1 ;temporary internal code (impossible to type without AltGr before language recoding)
 ext0=extbase+0
 ext1=extbase+1
 ext2=extbase+2

@@ -254,7 +254,7 @@ clearterm0
         ;call sendchars
         call clearrestofline_crlf
         pop bc
-        djp nz,clearterm0
+        djnz clearterm0
         ;ld de,clearterm_data
         ;ld hl,79
         ;call sendchars
@@ -459,7 +459,7 @@ TERM_ST_AFTERMOUSEb=5
 TERM_ST_AFTERMOUSEbx=6
 term_prfsm_curstate=$+1
         ld b,TERM_ST_SINGLE
-        djp nz,term_prfsm_nosingle
+        djnz term_prfsm_nosingle
          ;cp 0x0a
          ;ld c,0x0d
          ;jp z,term_prfsm_keycok
@@ -470,7 +470,7 @@ term_prfsm_curstate=$+1
         inc (hl) ;TERM_ST_AFTERESC
         jp term_prfsm_nokey
 term_prfsm_nosingle
-        djp nz,term_prfsm_noafteresc
+        djnz term_prfsm_noafteresc
         cp 'O'
         jr z,escO
         ;cp '['
@@ -487,7 +487,7 @@ term_prfsm_0curnumber_nokey
         ld c,a
         ret
 term_prfsm_noafteresc
-        djp nz,term_prfsm_noafterescbracket
+        djnz term_prfsm_noafterescbracket
         sub '0'
         cp 10
         jr nc,term_prfsm_afterescbracket_nonumber
@@ -547,7 +547,7 @@ term_prfsm_nokey
 ;escO
 ;        jr $
 term_prfsm_noafterescbracket
-        djp nz,term_prfsm_noaftermouse
+        djnz term_prfsm_noaftermouse
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEb
          and 0x1f ;TODO как отличить движение мыши от unclick?
@@ -567,7 +567,7 @@ term_prfsm_noafterescbracket
         ld c,a
         ret
 term_prfsm_noaftermouse
-        djp nz,term_prfsm_aftermousebx;term_prfsm_noaftermouseb
+        djnz term_prfsm_aftermousebx;term_prfsm_noaftermouseb
         ld hl,term_prfsm_curstate
         inc (hl) ;TERM_ST_AFTERMOUSEbx
          sub 32
