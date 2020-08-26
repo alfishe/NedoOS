@@ -1298,7 +1298,7 @@ fls1a:	ld a,b		;flag setting?
 	and 4
 	jp z,fls1b
 
-fls1v:	call cvtlvh	;yes. turn it into a value in HL (if
+fls1v:	call cvtlvh	;yes. turn it into a value in HL (if ;???
 	jp fls00
 
 fls1b:	ld a,b		;value in DE ?
@@ -2097,7 +2097,7 @@ maca9:	ld (hl),e
 
 ;
 ; Here are some macros to generate calls to routines
-; within the C.Ccall c,runtime utility package:
+; within the C.CCC runtime utility package:
 ;
 
 macf1:	db 0cdh		;call pzinh

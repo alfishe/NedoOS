@@ -37,6 +37,10 @@ enum {
         CMD_INTTOFLOAT,
         CMD_EQFLOAT,
         CMD_MOREEQFLOAT,
+        CMD_READCONSTVAR,
+        CMD_WRITECONSTVAR,
+        CMD_INCCONSTVAR,
+        CMD_DECCONSTVAR,
         CMDS
 };
 

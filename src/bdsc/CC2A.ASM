@@ -1201,7 +1201,7 @@ fopen2:	push de
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$open
+	ld c,m$open
 	call msys
 	sta marcfd
 	ret z
@@ -1222,7 +1222,7 @@ fclose2:
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$close
+	ld c,m$close
 	lda marcfd
 	call msys
 	jp nz,ferrab
@@ -1444,7 +1444,7 @@ copy7:	scf
 	ENDIF
 
 	IF MARC	;put this here so if the name overshoots, it'll
-endnmp:	ds 2		;temporries used in file renaming routine
+endnmp:	ds 2		;temporaries used in file renaming routine
 dotflg:	ds 1
 nambuf:	ds 40	;just write into something we don't need...
 	ENDIF
@@ -1478,7 +1478,7 @@ ckabrt:	push hl
 	;ENDIF
 
 	IF NOT CPM
-	;ld c,(hl)$ichec
+	;ld c,m$ichec
 	;call msys
 	ENDIF
 

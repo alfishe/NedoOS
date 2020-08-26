@@ -104,6 +104,7 @@ genb1a:	lda cdp+1	;get high byte of CCI text ptr
 	cp l		;less than CCI pointer?
 	jp c,genb3
 
+        if 1==0
 	IF MARC
 	lda maxmd	;maxmem call done?
 	or a 
@@ -115,10 +116,12 @@ genb1a:	lda cdp+1	;get high byte of CCI text ptr
 	or a
 	jp nz,genb2	;if so, go get rid of it
 	ENDIF
+        endif
 
 genb1b:	ld de,stgom	;if all that can be done has been done, error...
 	jp perrab
 	
+        if 1==0
 ;
 ; Now get more memory by calling maxmem (MARC) or overwriting the shell (CP/M):
 ;
@@ -137,12 +140,14 @@ genb2:
 	pop hl
 	pop de
 	ENDIF
+        endif
 
 genb3:	pop bc		;wrap up and return
 	pop hl
 	ld a,b
 	ret
 
+        if 1==0
 ;
 ; lde cci text up into the memory space just vacated by making
 ; the shell go away:
@@ -198,7 +203,7 @@ nudge2: pop de		;pop curtop-1 into DE
 	add hl,de
 	shld stgad
 	ret		;all done
-	
+	endif
 
 
 ;
@@ -353,6 +358,7 @@ cnvsr:	push de
 
 entr:	push hl
 	push de
+        ;jr $
 	lhld cdstrt
 	call cmh
 	ex de,hl

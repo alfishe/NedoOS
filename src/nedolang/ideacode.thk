@@ -1,3 +1,13 @@
+BDS C will simplify constant expressions at compile-time only when the constant expressions
+appear immediately after one of the following keywords:
+left square brackets,
+the case keyword,
+assignment operators,
+commas,
+left parentheses,
+and the return keyword.
+Any constant expression that doesnТt follow one of the aforementioned keywords is guaranteed to not be simplified at compile-time.
+
 
 оптимизации размера бинарника:
 
@@ -7,6 +17,14 @@
 то сохранить в спецячейке, которую сгенерить для этой процедуры - и далее ссылаться на неё как на параметр. Проблема с jp!!! при первом же jp надо предсказуемость - то есть надо уже сохранить регистр в спецячейке!
 только с hl,ix работать неудобно! сделать только один параметр в регистре bc?
 
+#
+	LD HL,[_fn]
+	LD DE,[_lenfn]
+	ADD HL,DE
+	LD A,'\0'
+	LD [HL],A
+	LD HL,[_fn]
+	LD [openwrite.A.],HL 
 
 #   plbl = &plbl[+sizeof(UINT)+1]; //skip string size
 	LD HL,[dellbl.plbl]
@@ -213,6 +231,7 @@ IF ( (partype==_T_INT)||(partype==_T_UINT)||((partype&_T_POINTER)!=0x00) )
 СДЕЛАНО через длину типа
 
 # как ещё сделать передачу через регистры? для этого процедура должна уметь скидывать регистры в переменные, если регистров не хватает
+но не складывать, если они потом не нужны - а это нужен второй проход!
 
 # jr вместо jp, а асм будет расширять jr до jp, если не лезет???
 

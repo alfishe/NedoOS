@@ -1,4 +1,8 @@
+#ifdef BIGMEM
 #define _STRLEN 255 /**including terminator*/
+#else
+#define _STRLEN 80 /**including terminator*/
+#endif
 #define _STRMAX (UINT)(_STRLEN-1) /**without terminator*/
 
 /*FUNC UINT strlen FORWARD(PCHAR s);*/

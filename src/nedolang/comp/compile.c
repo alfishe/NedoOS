@@ -1488,8 +1488,8 @@ _lenncells = strcopy("-1", 2, _ncells);
     varequ(_tword); /**varstr(_tword); varc('=');*/
 
 //костыль для script: создаём переменную UINT с адресом, как текущее число в enum:
-    _lenname = strcopy(_tword, _lentword, _name);
-    addlbl(_T_UINT, /**isloc*/+FALSE, /**varsz*/0/**, "0", _lenncells*/); //отметили в таблице, что не выделять память
+//    _lenname = strcopy(_tword, _lentword, _name);
+//    addlbl(_T_UINT, /**isloc*/+FALSE, /**varsz*/0/**, "0", _lenncells*/); //отметили в таблице, что не выделять память
 //    rdword(); //',' или '}'
 //    IF (*(PCHAR)_tword=='=') {
     IF (_cnext=='=') {

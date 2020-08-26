@@ -65,6 +65,29 @@ clink:
 	lhld errbyt
 	ld (hl),0		;no error by default
 
+         call copycline
+;TODO options before filename? but the example is "clink $1 -s"
+        ld de,cline
+        ld hl,fcb+1
+        ;OS_PARSEFNAME
+        ld b,8
+parsefn0
+        ld a,(de)
+        ld (hl),a
+        cp '.'
+        jr z,parsefn1
+        cp ' '+1
+        jr c,parsefn1
+        inc hl
+        inc de        
+        djnz parsefn0
+        jr parsefnq
+parsefn1
+        ld (hl),' '
+        inc hl
+        djnz parsefn1
+parsefnq
+
 	call linit	;initialize linker
 
 	ld de,stg0	;print opening message
@@ -173,11 +196,6 @@ c40:
 	call crlf
 	pop af
 	ENDIF
-
-;TODO options before filename?
-        ld de,cline
-        ld hl,fcb+1
-        OS_PARSEFNAME
 
 	call gnfl	;open main file and read in directory
 	jp c,abort	;abort if can't find it
@@ -969,7 +987,7 @@ linit:	;ld c,sguser	;get current user area
 ; Process immediate command line options:
 ;
 
-comlin:
+copycline
 	IF CPM
 	;ld hl,fcb+1	;see if user area given as part of filename
 	;call gdec
@@ -1005,7 +1023,6 @@ c0:	;dec b
 	inc de
 	jr nz,c0
 	ENDIF
-
 	IF NOT CPM
 	ld a,2
 	sta consfd	;future msgs to go stderr
@@ -1037,6 +1054,10 @@ c00a:	lda argc	;get arg count
 
 c0a:	xor a		;OK, command line has been copied
 	ld (de),a		;terminate with null byte
+        ret
+
+comlin:
+
 	ld hl,cline	;find first non-space char
 	call igsp
 	or a		;if end of line,
@@ -2172,13 +2193,16 @@ open:	push bc		;save registers
 	ENDIF
 
 	IF CPM
+         xor a
+	 sta fcb+_rrn
+	 sta fcb+_rrn+1
 	ld de,fcb
 	ld c,openfil
 	call bdos
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$open
+	ld c,m$open
 	call msys
 	ENDIF
 
@@ -2331,6 +2355,10 @@ create:
 	ld (hl),0
 	ld hl,fcb+32
 	ld (hl),0
+         inc hl
+	 ld (hl),0 ;_rrn
+         inc hl
+	 ld (hl),0 ;_rrn+1
 	ld c,makfil
 	call bdos
 	cp 255
@@ -2360,8 +2388,11 @@ reads:
 	push hl		;under CP/M
 	push de
 	ld de,fcb
-	ld c,rsequen
+	ld c,CMD_RNDRD;rsequen
 	call bdos	;read a sector
+         ld hl,(fcb+_rrn) ;ok
+         inc hl
+         ld (fcb+_rrn),hl ;ok
 	pop de
 	pop hl
 	or a
@@ -2374,7 +2405,7 @@ reads:
 
 	IF MARC		;under MARC:
 	lda marcfd
-	ld c,(hl)$read
+	ld c,m$read
 	push de		;save byte count
 	call msys	;read data
 	pop bc		;get back byte count in BC

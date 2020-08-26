@@ -1,19 +1,28 @@
-//CONST PCHAR str = "123";
-//VAR INT a=+5;
+CONST PCHAR str = "123""456";
+VAR INT a=+5;
 //VAR UINT bb=4;
+
+evar {
+ INT var0 = 0,
+ UINT var1,
+ FLOAT var2,
+}
 
 CONST UINT ma[10] = {
 1,1,2,3,4,5,6,7,8,9
 }
 
-//VAR FLOAT ffa;
+VAR FLOAT ffa;
+ffa = var2;
 VAR INT fia;
 //ffa = 3.1415926536e-4+(FLOAT)fia;
 //fia = (INT)ffa;
 
+/**
 FUNC INT f(UINT p) {
   RETURN (INT)(((FLOAT)(INT)p+1.0+(FLOAT)(+1)));
 }
+*/
 /**
 FUNC INT f(UINT p) {
   RETURN (INT)((BYTE)(INT)p+0x02+(BYTE)(1));

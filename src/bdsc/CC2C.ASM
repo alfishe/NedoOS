@@ -1851,7 +1851,7 @@ lg5b:	ld de,macac3
 	jp lg5a
 
 ;
-; Come here after all assignemnts have been done
+; Come here after all assignments have been done
 ;
 
 lgdone:	call tslv
@@ -2093,7 +2093,7 @@ qxpr2a:	pop af
 	call rpshp
 	pop af	
 
-;	call 	expr1	;evaluate e3
+;	call 	expr1	;evaluate e3 ;??? why comment out???
 
 	push af	;like the call above, except comma operator
 	call expr2	;recognition is not allowed due to precedence

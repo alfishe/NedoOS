@@ -11,16 +11,17 @@ EXTERN UINT arr[5];
 CONST PCHAR str = "123";
 
 FUNC UINT main(UINT par) {
-/**
 VAR UINT a;
 VAR UINT b;
-VAR PUINT arr = (PUINT)&Gotov1;
-arr[25] = (UINT)f(0x12345678abcdef0);
-if (Gotov1 != 0) {
+//VAR PUINT arr = (PUINT)&Gotov1;
+//arr[25] = (UINT)f(0x12345678abcdef0);
+/**if (Gotov1 != 0) {
   Gotov2 = Pusk;
   state = 2;
-};
-b = a;*/
+};*/
+  b = a;
+  INC a;
+  DEC b;
   state = arr[0];
   RETURN (UINT)f(2);
 }

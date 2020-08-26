@@ -492,20 +492,23 @@ nvview_prpage
 ;ahl=addr
         ld (curtoptextaddr),hl
         ld (curtoptextHSB),a
+        push af
         ld de,NVVIEW_XYTOP
+        call nv_setxy
+        pop af
         ld b,NVVIEW_HGT
 nvview_prpage0
         push bc
-        push de
-        push af
+        ;push de
+        ;push af
         ;push hl
-        call nv_setxy
+        ;call nv_setxy
         ;pop hl
-        pop af
+        ;pop af
         call nvview_prline_nextline
-        pop de
+        ;pop de
         pop bc
-        inc d
+        ;inc d
         djnz nvview_prpage0
 nvview_setbottom
         ld (curbottomtextaddr),hl
@@ -764,18 +767,14 @@ nvview_prline_recodepatch=$
         ;call print_prlinebuf
         ;jr nz,nvview_prline_lf
         ;ret
-;nvview_prlinespc_all
-;        ld a,NVVIEW_WID
-;        jr nvview_prlinespc
 nvview_prline_cr
         call print_prlinebuf
 ;nvview_prline_lf
 ;допечатать пробелы до конца строки
-        ;ld a,c
+        jr nvview_prlinespc
 nvview_prlinespc_all
+        ld c,NVVIEW_WID
 nvview_prlinespc
-        ;ld b,a
-;nvview_prlinespc_b
         push af
         push hl
         ;ld l,b

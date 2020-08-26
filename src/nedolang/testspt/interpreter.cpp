@@ -16,7 +16,7 @@ uint8_t callstackindex = 0; //растёт вверх
 
 data64bit datastack[STACKSIZE];
 uint64_t callstack[STACKSIZE];
-uint64_t locals[LOCALSSIZE];
+data64bit locals[LOCALSSIZE];
 
     uint64_t *pc;
     uint64_t *prog;
@@ -32,7 +32,11 @@ uint64_t locals[LOCALSSIZE];
     }
 
 #ifdef FOR_DEBUGGER
-    int interpret(uint64_t progpar) {
+    void pushpar(uint64_t progpar){
+        PUSH(progpar);
+    }
+
+    int interpret() {
 #else //FOR_DEBUGGER
     int interpret(uint64_t *prog, uint64_t progpar) {
         uint64_t *pc = prog;
@@ -41,11 +45,11 @@ uint8_t callstackindex = 0; //растёт вверх
 
 data64bit datastack[STACKSIZE];
 uint64_t callstack[STACKSIZE];
-uint64_t locals[LOCALSSIZE];
+data64bit locals[LOCALSSIZE];
         PUSH(progpar);
 #endif //FOR_DEBUGGER
 
-    const void *labels[CMDS] = {
+    const void *labels[] = {
         &&op_nop, /* !!! НЕ ГЕНЕРИТСЯ !!! */
         &&op_add, /* OK */
         &&op_sub, /* OK */
@@ -83,7 +87,11 @@ uint64_t locals[LOCALSSIZE];
         &&op_floattoint, /* OK */
         &&op_inttofloat, /* OK */
         &&op_eqfloat,
-        &&op_moreeqfloat /* OK */
+        &&op_moreeqfloat, /* OK */
+        &&op_readconstvar,
+        &&op_writeconstvar,
+        &&op_incconstvar,
+        &&op_decconstvar
     };
     MAINDISPATCH;/*!*/
 op_nop: {
@@ -201,7 +209,7 @@ op_readvar: {
         }else if ((TOS.u < 0x80000000)/*&&((TOS.u&0x3fffffff) < progsize)*/) {
             TOS.u = prog[TOS.u&0x3fffffff];
         }else if ((TOS.u&0x3fffffff) < LOCALSSIZE) {
-            TOS.u = locals[TOS.u&0x3fffffff];
+            TOS.u = locals[TOS.u&0x3fffffff].u;
         }
         DISPATCH;
     }
@@ -213,7 +221,7 @@ op_writevar: {
         }else if ((varaddr < 0x80000000)/*&&((varaddr&0x3fffffff) < progsize)*/) {
             prog[varaddr&0x3fffffff] = vardata; //по идее не нужно
         }else if ((varaddr&0x3fffffff) < LOCALSSIZE) {
-            locals[varaddr&0x3fffffff] = vardata;
+            locals[varaddr&0x3fffffff].u = vardata;
         }
         DISPATCH;
     }
@@ -272,8 +280,8 @@ op_inttofloat: {
         DISPATCH;
     }
 op_eqfloat: {
-        double par2 = POP.d;
-        TOS.i = (TOS.d==par2)?-1:0;
+        uint64_t par2 = POP.u; //.u - чтобы не получать warning о сравнении 2х double
+        TOS.i = (TOS.u==par2)?-1:0;
         DISPATCH;
     }
 op_moreeqfloat: {
@@ -284,6 +292,51 @@ op_moreeqfloat: {
 op_done: {
         return static_cast<int>(stcSMData[0].current_value.i);
     }
+op_readconstvar:{
+        uint64_t addr=GETPAR;
+        if (addr < static_cast<uint64_t>(N)) {
+            PUSH(VAL(addr));
+        }else if ((addr < 0x80000000)/*&&((TOS.u&0x3fffffff) < progsize)*/) {
+            PUSH(prog[addr]);
+        }else if ((addr&0x3fffffff) < LOCALSSIZE) {
+            PUSH(locals[addr].u);
+        }
+        DISPATCH;
+    }
+op_writeconstvar:{
+    uint64_t vardata = POP.u;
+    uint64_t varaddr = GETPAR;
+    if (varaddr < static_cast<uint64_t>(N)) {
+        POKEVAL(varaddr, vardata);
+    }else if ((varaddr < 0x80000000)/*&&((varaddr&0x3fffffff) < progsize)*/) {
+        prog[varaddr&0x3fffffff] = vardata; //по идее не нужно
+    }else if ((varaddr&0x3fffffff) < LOCALSSIZE) {
+        locals[varaddr&0x3fffffff].u = vardata;
+    }
+    DISPATCH;
+}
+op_incconstvar:{
+    uint64_t addr = GETPAR;
+    if (addr < static_cast<uint64_t>(N)) {
+        POKEVAL(addr, VAL(addr)+1);
+    }else if ((addr < 0x80000000)/*&&((varaddr&0x3fffffff) < progsize)*/) {
+        prog[addr&0x3fffffff]++; //по идее не нужно
+    }else if ((addr&0x3fffffff) < LOCALSSIZE) {
+        locals[addr&0x3fffffff].u++;
+    }
+    DISPATCH;
+}
+op_decconstvar:{
+    uint64_t addr = GETPAR;
+    if (addr < static_cast<uint64_t>(N)) {
+        POKEVAL(addr, VAL(addr)-1);
+    }else if ((addr < 0x80000000)/*&&((varaddr&0x3fffffff) < progsize)*/) {
+        prog[addr&0x3fffffff]--; //по идее не нужно
+    }else if ((addr&0x3fffffff) < LOCALSSIZE) {
+        locals[addr&0x3fffffff].u--;
+    }
+    DISPATCH;
+}
 op_rst: {
     uint64_t op = GETPAR;
     double par1;

@@ -81,6 +81,9 @@ sdma:		equ 26
 	ENDIF
 
 
+_rrn=0x21 ;shift to random record number in FCB (outsize FCB_sz!!!)
+
+        
 ram:	equ 0000h	;where CLINK resides while running
 dt1siz:	equ 1500	;default ref table (tab1) size
 

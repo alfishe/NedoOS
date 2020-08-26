@@ -16,7 +16,8 @@ using namespace std;
     extern uint64_t *prog;
     #define MAINDISPATCH goto *labels[*pc++]
     #define DISPATCH return -1
-    int interpret(uint64_t progpar);
+    int interpret();
+    void pushpar(uint64_t progpar);
 #else
     #define MAINDISPATCH DISPATCH
     #define DISPATCH goto *labels[*pc++]
@@ -45,6 +46,7 @@ extern uint8_t datastackindex;
 extern uint8_t callstackindex;
 extern data64bit datastack[STACKSIZE];
 extern uint64_t callstack[STACKSIZE];
+extern data64bit locals[LOCALSSIZE];
 
 uint64_t *loadscript(int state_index, char *waspath);
 

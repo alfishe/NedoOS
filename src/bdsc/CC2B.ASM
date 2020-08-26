@@ -383,7 +383,7 @@ sgen5:	cp notcd	;logical negation?
 	or a
 	jp p,sgen5z	;if don't need value, also go handle normally
 	ld a,81h
-;	sta val		;turn into high force factor 
+;	sta val		;turn into high force factor ;???why comment out???
 	sta notklg	;set "notkludge" flag
 
 sgen5z:	lda val		;get result-type-needed flag
@@ -553,7 +553,7 @@ sgen6a:	call flshh1
 	ld de,mac1b
 	jp nz,mcrog
 	ld de,mac1a
-	jp mcrog	;was 'jp sgen5a'...why?
+	jp mcrog	;was 'jp sgen5a'...why? ;???
 
 sgen7:	cp sizcd	;sizeof?
 	jp nz,sgen7b
@@ -708,7 +708,7 @@ sgen8g:	lda sval1	;if we have abs external object, always use lhld
 	and 1
 	jp nz,sgn8d9
 
-	lda optimf	;not abs external; ok to do c.ccall c,fetch optimization?
+	lda optimf	;not abs external; ok to do c.ccc fetch optimization?
 	or a
 	jp z,sgn8g0	;if so, go deal with it
 
@@ -1033,7 +1033,7 @@ sprms3:	push hl		;found string. check for folding potential and
 	ret		;all done
 
 sprms4:	push hl		;generate ld hl,foo - jp bar - foo: <text>,0 - bar:
-	call glbl	;set up some symolic labels
+	call glbl	;set up some symbolic labels
 	shld sr0
 	call glbl
 	shld sr1
@@ -1140,7 +1140,7 @@ ntstr6:	inc bc		;keep on comparing the two strings
 
 
 ;
-; If numeric consant, generate "ld hl,whatever"
+; If numeric constant, generate "ld hl,whatever"
 ;
 
 sprmc:	cp concd	;constant?
@@ -1649,7 +1649,7 @@ badxch:	cp semi	;semicolon no good
 srgs6:	pop af
 	sta simpf
 	lhld savcnt	;get line count for end of list
-	shld nlcnt	;resotre as current count
+	shld nlcnt	;restore as current count
 	pop hl
 	shld svv1
 	pop hl
@@ -1851,9 +1851,9 @@ primap:	lda typ1
 ;	and 20h
 ;	ret nz
 
-	nop
-        nop
-        nop
+	;nop
+        ;nop
+        ;nop ;???
 
 	lda indc1
 	inc a

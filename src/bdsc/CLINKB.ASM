@@ -851,10 +851,10 @@ readc:	lda segf	;if segment, don't read in C.CCC
 	ENDIF
 
 	xor a
-	call open	;open c.ccall c,for reading
+	call open	;open c.ccc for reading
 	jp c,abort	;abort if can't find it
 
-	IF CPM		;read in c.ccall c,under CP/M
+	IF CPM		;read in c.ccc under CP/M
 	lhld cda
 rdc1:	call reads
 	jp c,rdc2
@@ -863,7 +863,7 @@ rdc1:	call reads
 	ENDIF
 
 	IF NOT CPM
-	lda marcfd	;figure out how big c.ccall c,really is
+	lda marcfd	;figure out how big c.ccc really is
 	ld c,m$fsize
 	call msys
 	ex de,hl		;put length into DE (from HL)
@@ -896,7 +896,7 @@ rdc2a:	sta zsysf
 
 	IF TESTING
 	call printf
-	   db 'c.ccall c,loaded correctly',0
+	   db 'c.ccc loaded correctly',0
 	ENDIF
 
 	ret		;end of readc routine
@@ -963,8 +963,8 @@ rdf0a:	lda curtop+1	;to see if it overflows memory
 	ld l,a
 	ld a,h
 	cp l
-	jp c,rdf1		;overflow?
-			;yes....
+	jp c,rdf1		;no overflow
+			;yes.... overflow
 
 	IF CPM
 	lda ccpok	;CCP intact?
@@ -1002,7 +1002,7 @@ rdf1:
 	IF NOT CPM
 	lhld enst	;get starting position of function in CRL file
 	ld b,0		;absolute seek
-	ld c,(hl)$seek
+	ld c,m$seek
 	lda marcfd
 	call msys	;seek to correct position in file
 	jp nz,ferror
@@ -1058,7 +1058,8 @@ rdb2:	call reads
 ; Routine used under CP/M to set the extent and record fields
 ; of the default fcb to the first sector of the function to be read in:
 ;
-
+;bc=
+;de=fcb
 setdat:	ld h,b
 	ld l,c
 	add hl,hl
@@ -1072,20 +1073,20 @@ setdat:	ld h,b
 	rlca
 	rlca
 	and 3
-	ld hl,12
-	add hl,de
-	cp (hl)
-	ret z
-	push af
-	push hl
-	call close
-	pop hl
-	pop af
-	ld (hl),a
-	call open
-	jp c,abort
+	;ld hl,12
+	;add hl,de
+	;cp (hl)
+	;ret z
+	;push af
+	;push hl
+	;call close
+	;pop hl
+	;pop af
+	;ld (hl),a
+	;call open
+	;jp c,abort
 	lda tmpnr
-	sta fcb+32
+	sta fcb+_rrn;32
 	ret
 	ENDIF		;end of this section of CP/M-only kludgery
 

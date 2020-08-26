@@ -958,19 +958,19 @@ texted_prpage
 ;ahl=addr
         ld (curtoptextaddr),hl
         ld (curtoptextHSB),a
+        push af
         ld de,texted_XYTOP
+	call nv_setxy
+        pop af
         ld b,texted_HGT
 texted_prpage0
         push bc
-        push de
-        push af
-	call nv_setxy
-        pop af
+        ;push de
         call texted_prline_nextline
         call c,getsize
-        pop de
+        ;pop de
         pop bc
-        inc d
+        ;inc d
         djnz texted_prpage0
         ;call clear_keyboardbuffer
         ret
@@ -1220,18 +1220,14 @@ texted_prline_recodepatch=$
         ;call print_prlinebuf
         ;jr nz,texted_prline_lf
         ;ret
-;texted_prlinespc_all
-;        ld a,texted_WID
-;        jr texted_prlinespc
 texted_prline_cr
         call print_prlinebuf
 ;texted_prline_lf
 ;допечатать пробелы до конца строки
-        ;ld a,c
+        jr texted_prlinespc
 texted_prlinespc_all
+        ld c,texted_WID
 texted_prlinespc
-        ;ld b,a
-;texted_prlinespc_b
         push af
         push hl
         ;ld l,b

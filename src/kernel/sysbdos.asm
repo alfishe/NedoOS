@@ -1406,7 +1406,7 @@ BDOS_fdel_noFATFS
 BDOS_rndrdwrseek
 ;DE = Pointer to opened FCB
        push de
-        ld hl,0x21
+        ld hl,0x21 ;outsize FCB_sz!!!
         add hl,de
         ld c,(hl)
         inc hl
