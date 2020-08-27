@@ -115,7 +115,7 @@
           };
         }ELSE IF (_curdir == +_CMDORG) {
           asmemitblock();
-          _curaddr = +(UINT)asmpopvalue();
+          _curaddr = (UINT)asmpopvalue();
           _curbegin = _curaddr;
 #ifdef TARGET_THUMB
         }ELSE IF (_curdir == +_CMDALIGN) {
@@ -128,16 +128,16 @@
           };
 #endif
         }ELSE IF (_curdir == +_CMDDISP) {
-          _curshift = +(UINT)asmpopvalue() - _curaddr; //todo вложенно
+          _curshift = (UINT)asmpopvalue() - _curaddr; //todo вложенно
         }ELSE IF (_curdir == +_CMDENT) {
           _curshift = 0; //todo вложенно
         }ELSE IF (_curdir == +_CMDDB) {
         }ELSE IF (_curdir == +_CMDDW) {
         }ELSE IF (_curdir == +_CMDDL) {
         }ELSE IF (_curdir == +_CMDDS) {
-          IF (_nvalues==0x02) {_token = +(BYTE)asmpopvalue();
+          IF (_nvalues==0x02) {_token = (BYTE)asmpopvalue();
           }ELSE _token=0x00;
-          i = +(UINT)asmpopvalue();
+          i = (UINT)asmpopvalue();
           WHILE (i != 0) {
             asmbyte(_token);
             DEC i;
@@ -146,7 +146,7 @@
           //_curaddr = _curaddr + i;
           //todo while для ds группы байт, но трудно будет достать из стека
         }ELSE IF (_curdir == +_CMDEXPORT) {
-          i = +(UINT)asmpopvalue();
+          i = (UINT)asmpopvalue();
           IF (_asms) { //сгенерировать <_curlabeltext>=<?modname?>+<i-?base?>
             decltoken(+_CMDLABEL);
             decltoken(+_TOKTEXT);
@@ -167,7 +167,7 @@
             decltoken(+_FMTREEQU);
             decltoken(+_TOKEOL);
           }; //
-        ;;}ELSE {err(+(CHAR)_token); enderr();
+        ;;}ELSE {err((CHAR)_token); enderr();
         };
         goto loop;
       }
@@ -192,10 +192,10 @@
       case _OPSHR:   {tempvalue=asmpopvalue();   asmpushvalue(asmpopvalue()>>tempvalue); goto loop;}
       //case _OPEQ:    {                           asmpushbool((asmpopvalue()==asmpopvalue())); goto loop;} //иначе нельзя в лог.выражениях использовать константу TRUE (-1 или 1 непредсказуемо)
       //case _OPNOTEQ: {                           asmpushbool((asmpopvalue()!=asmpopvalue())); goto loop;}
-      //case _OPLESS:  {tempvalue=asmpopvalue();   asmpushbool(+(UINT)asmpopvalue() <  +(UINT)tempvalue); goto loop;}
-      //case _OPLESSEQ:{tempvalue=asmpopvalue();   asmpushbool(+(UINT)asmpopvalue() <= +(UINT)tempvalue); goto loop;}
-      //case _OPMORE:  {tempvalue=asmpopvalue();   asmpushbool(+(UINT)asmpopvalue() >  +(UINT)tempvalue); goto loop;}
-      //case _OPMOREEQ:{tempvalue=asmpopvalue();   asmpushbool(+(UINT)asmpopvalue() >= +(UINT)tempvalue); goto loop;}
+      //case _OPLESS:  {tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() <  (UINT)tempvalue); goto loop;}
+      //case _OPLESSEQ:{tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() <= (UINT)tempvalue); goto loop;}
+      //case _OPMORE:  {tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() >  (UINT)tempvalue); goto loop;}
+      //case _OPMOREEQ:{tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() >= (UINT)tempvalue); goto loop;}
       case _OPINV:   {                           asmpushvalue(~asmpopvalue()); goto loop;} //==invbool
       //case _OPPEEK:{/**asmpopvalue();*/ errstr("PEEK not supported"); enderr(); goto loop;}
 
@@ -237,12 +237,12 @@
       case _TOKPRIME: {
         readfin(); //text
         asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
-        asmpushvalue(+(LONG)_prefixedtoken);
+        asmpushvalue((LONG)_prefixedtoken);
         readfin(); //endtext
         readfin(); //закрывающий апостроф
         goto loop;
       }
-      case _TOKDOLLAR: {asmpushvalue(+(LONG)(_curaddr+_curshift)); _isaddr = +_ASMLABEL_ISADDR; goto loop;}
+      case _TOKDOLLAR: {asmpushvalue((LONG)(_curaddr+_curshift)); _isaddr = +_ASMLABEL_ISADDR; goto loop;}
 
       case _TOKCOMMENT: { /**skip cmt text*/
         REPEAT {
@@ -255,20 +255,20 @@
         _token = readfin(); //first digit or prefix (0x, 0b, 0)
         tempvalue = 0L;
         scale = 10;
-        IF (+(CHAR)_token=='0'){
+        IF ((CHAR)_token=='0'){
           _token=readfin(); //'x' (hex), 'b' (bin), 'o' (oct), else oct with error
-          IF       (+(CHAR)_token=='x') {
+          IF       ((CHAR)_token=='x') {
             scale=16;
             rdbase:
             IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF (+(CHAR)_token=='b') {
+          }ELSE IF ((CHAR)_token=='b') {
             scale=2;
             goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF (+(CHAR)_token=='o') {
+          }ELSE IF ((CHAR)_token=='o') {
             scale=8;
             goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF (+(CHAR)_token=='L') { //0L
-          }ELSE IF (+(CHAR)_token=='.') { //0.
+          }ELSE IF ((CHAR)_token=='L') { //0L
+          }ELSE IF ((CHAR)_token=='.') { //0.
           }ELSE IF (_token!=+_TOKENDTEXT) {
             scale=8;
             errstr("Use 0o oct"); enderr();
@@ -279,11 +279,11 @@
           { //первая цифра числа уже прочитана
             IF ((_token==+_TOKENDTEXT)||_waseof) goto rdnumend; //BREAK;
             //IF (_waseof) goto rdnumend; //BREAK; //на всякий случай
-            IF (+(CHAR)_token!='L') {
-              IF (_token>=+(BYTE)'a') {_token = _token - 0x27/**- +(BYTE)'a' + 0x0a + +(BYTE)'0'*/; //todo error
-              }ELSE IF (_token>=+(BYTE)'A') {_token = _token - 0x07/**- +(BYTE)'A' + 0x0a + +(BYTE)'0'*/; //todo error
+            IF ((CHAR)_token!='L') {
+              IF (_token>=(BYTE)'a') {_token = _token - 0x27/**- (BYTE)'a' + 0x0a + (BYTE)'0'*/; //todo error
+              }ELSE IF (_token>=(BYTE)'A') {_token = _token - 0x07/**- (BYTE)'A' + 0x0a + (BYTE)'0'*/; //todo error
 #ifdef TARGET_SCRIPT
-              }ELSE IF (_token==+(BYTE)'.') { //float
+              }ELSE IF (_token==(BYTE)'.') { //float
                 fexp = 0L;
                 fexpminus = +FALSE;
                 ffraction = 0L;
@@ -295,8 +295,8 @@
                     //printf("ffraction = %lf\n",(double)ffraction);
                     IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
                     //IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
-                    IF (+(CHAR)_token!='f') {
-                      IF (_token==+(BYTE)'e') { //TODO e12/e-12
+                    IF ((CHAR)_token!='f') {
+                      IF (_token==(BYTE)'e') { //TODO e12/e-12
                         _token = readfin();
                         IF (_token==+_TOKENDTEXT) goto rdfloatend; //BREAK;
                         IF (_token=='-') { //TODO
@@ -309,7 +309,7 @@
                           { //первая цифра экспоненты уже прочитана
                             //printf("fexp = %u\n",(unsigned int)fexp);
                             IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
-                            fexp = fexp*10L + (LONG)(_token - +(BYTE)'0');
+                            fexp = fexp*10L + (LONG)(_token - (BYTE)'0');
                             _token = readfin();
                             goto rdexploop;
                           }
@@ -317,9 +317,9 @@
                         goto rdfloatend; //BREAK;
                       };
                     };
-                    ffraction = ffraction*10L + (LONG)(_token - +(BYTE)'0');
+                    ffraction = ffraction*10L + (LONG)(_token - (BYTE)'0');
                     ffractionscale = ffractionscale*10L;
-                    //ffraction += (float)(_token - +(BYTE)'0')*ffractionscale;
+                    //ffraction += (float)(_token - (BYTE)'0')*ffractionscale;
                     _token = readfin();
                     goto rdfloatloop;
                   };
@@ -338,8 +338,8 @@
                 tempvalue = *(LONG*)(&fvalue);
                 goto rdnumend;
 #endif
-              };//ELSE _token = _token - +(BYTE)'0';
-              tempvalue = (LONG)scale*tempvalue + (LONG)(_token - +(BYTE)'0');
+              };//ELSE _token = _token - (BYTE)'0';
+              tempvalue = (LONG)scale*tempvalue + (LONG)(_token - (BYTE)'0');
             };
             _token = readfin();
             goto rdnumloop;
@@ -387,7 +387,7 @@
       case _OPWRVAL: { //стоит после выражения
         IF       (_curdir==+_CMDDB) {asmbytepopvalue();
         }ELSE IF (_curdir==+_CMDDW) {asmwordpopvalue();
-        }ELSE IF (_curdir==+_CMDDL) {asmlong(+(LONG)asmpopvalue());
+        }ELSE IF (_curdir==+_CMDDL) {asmlong((LONG)asmpopvalue());
         };
         goto loop;
       }

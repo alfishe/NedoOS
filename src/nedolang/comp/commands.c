@@ -82,7 +82,7 @@ PROC cmdshl1 FORWARD();
 
 PROC errtype(PCHAR msg, TYPE t)
 {
-  errstr("operation "); errstr(msg); errstr(" bad type="); erruint(+(UINT)t); enderr();
+  errstr("operation "); errstr(msg); errstr(" bad type="); erruint((UINT)t); enderr();
 }
 
 EXPORT PROC strpush(PCHAR s, UINT len) //joined или callee
@@ -92,7 +92,7 @@ EXPORT PROC strpush(PCHAR s, UINT len) //joined или callee
   }ELSE {
     strcopy(s, len, &_strstk[_lenstrstk]);
     _lenstrstk = _lenstrstk + len + 1;
-    _strstk[_lenstrstk] = +(CHAR)(+(BYTE)len);
+    _strstk[_lenstrstk] = (CHAR)((BYTE)len);
     INC _lenstrstk;
   };
 }
@@ -101,7 +101,7 @@ EXPORT FUNC UINT strpop(PCHAR s)
 { //str1+<len>+str2+<len>...+strN+<len> (с терминаторами)
 VAR UINT len;
   DEC _lenstrstk;
-  len = +(UINT)(+(BYTE)(_strstk[_lenstrstk]));
+  len = (UINT)((BYTE)(_strstk[_lenstrstk]));
   _lenstrstk = _lenstrstk - len - 1;
   strcopy((PCHAR)(&_strstk[_lenstrstk]), len, s);
 RETURN len;
@@ -133,7 +133,7 @@ VAR PBYTE plbl; //метка в таблице заканчивается нулём
 VAR TYPE t;
 VAR UINT plbl_idx;
   t = _T_UNKNOWN;
-  _lblhash = +(BYTE)hash((PBYTE)_name);
+  _lblhash = (BYTE)hash((PBYTE)_name);
   plbl_idx = _lblshift[_lblhash];
   WHILE (plbl_idx != _LBLBUFEOF) { //пока цепочка меток не закончилась
     plbl = &_lbls[plbl_idx];
@@ -159,7 +159,7 @@ EXPORT PROC dellbl() //для undef
 {
 VAR PBYTE plbl; //метка в таблице заканчивается нулём
 VAR UINT plbl_idx;
-  _lblhash = +(BYTE)hash((PBYTE)_name);
+  _lblhash = (BYTE)hash((PBYTE)_name);
   plbl_idx = _lblshift[_lblhash];
   WHILE (plbl_idx != _LBLBUFEOF) { //пока цепочка меток не закончилась
     plbl = &_lbls[plbl_idx];
@@ -198,7 +198,7 @@ VAR TYPE oldt;
       plbl = &plbl[+sizeof(UINT)];
       _varszaddr = (UINT)(plbl - _lbls); //чтобы потом можно было менять
       POKE *(PUINT)(plbl) = varsz;
-      _lblbuffreeidx = +(UINT)(plbl - _lbls) + +sizeof(UINT); //указатель конец создаваемой метки
+      _lblbuffreeidx = (UINT)(plbl - _lbls) + +sizeof(UINT); //указатель конец создаваемой метки
       _lblshift[_lblhash] = freeidx; //новый указатель на начало цепочки
     }ELSE {errstr("nomem"); enderr();
     };
@@ -240,13 +240,13 @@ VAR BYTE sz = _typesz[t];
     var_db(); varstr(s); endvar();
   }ELSE IF (sz==_SZ_LONG/**tmasked==_T_LONG*/) {
     var_dl(); varstr(s); endvar();
-  }ELSE { errstr( "const bad type " ); erruint(+(UINT)t); enderr(); };
+  }ELSE { errstr( "const bad type " ); erruint((UINT)t); enderr(); };
 }
 
 PROC pushconst() //сохраняет число, которое не сохранили при pushnum
 { //нельзя затирать joined
 #ifdef USE_COMMENTS
-;;  cmtstr( ";PUSHCONST " ); cmtstr( _const ); endcmt();
+;;  cmtstr( ";pushconst " ); cmtstr( _const ); endcmt();
 #endif
   //_lenwastword = strcopy(_joined, _lenjoined, _wastword);
   //_lenjoined = strcopy(_const, _lenconst, _joined);
@@ -329,7 +329,7 @@ EXPORT PROC cmdcastto(TYPE t2)
 VAR BYTE tsz;
 VAR BYTE t2sz;
 #ifdef USE_COMMENTS
-;;  cmtstr(";OPERATION cast "); cmtuint(+(UINT)_t); cmt('>'); cmtuint(+(UINT)t2); endcmt();
+;;  cmtstr(";OPERATION cast "); cmtuint((UINT)_t); cmt('>'); cmtuint((UINT)t2); endcmt();
 #endif
   tsz = _typesz[_t];
   t2sz = _typesz[t2];
@@ -388,7 +388,7 @@ VAR BYTE t2sz;
         emitrgtob();
 /**      }ELSE { //LONG<=>FLOAT
         goto bad;
-        errstr("bad cast: "); erruint(+(UINT)_t); err('>'); erruint(+(UINT)t2); enderr();*/
+        errstr("bad cast: "); erruint((UINT)_t); err('>'); erruint((UINT)t2); enderr();*/
       };
     //}ELSE IF ( (_t==_T_CHAR) && (t2==_T_BYTE) ) { //CHAR => BYTE
     //}ELSE IF ( (_t==_T_BOOL) && (t2==_T_BYTE) ) { //BOOL => BYTE (for serialization)
@@ -396,7 +396,7 @@ VAR BYTE t2sz;
     //}ELSE IF ((t2&_T_POI)!=0x00) { // anything (i.e. array) => POINTER
     }ELSE { //по идее никогда не произойдёт
       bad:
-      errstr("bad cast: "); erruint(+(UINT)_t); err('>'); erruint(+(UINT)t2); enderr();
+      errstr("bad cast: "); erruint((UINT)_t); err('>'); erruint((UINT)t2); enderr();
     };
   };
   _t = t2;
@@ -409,10 +409,16 @@ EXPORT PROC cmdadd()
 #endif
   IF (_t==_T_BYTE) {
     IF (_wasconst) {
+#ifdef USE_COMMENTS
+;;  cmtstr(";cmdadd _wasconst"); endcmt();
+#endif
       getrnew();
       emitaddbconst();
       _wasconst = +FALSE;
     }ELSE {
+#ifdef USE_COMMENTS
+;;  cmtstr(";cmdadd !_wasconst"); endcmt();
+#endif
       getrnew();
       getrold();
       emitaddb();
@@ -1252,7 +1258,7 @@ EXPORT PROC cmdfunc()
 ;;  cmtstr( ";FUNC" ); endcmt();
 #endif
   //IF (_wasconst) pushconst();
-  _funcstkdepth = +(INT)0;
+  _funcstkdepth = +0;
   emitfunchead();
 }
 
@@ -1352,7 +1358,7 @@ EXPORT PROC cmdret(BOOL isfunc)
     };//ELSE errtype("endfunc",_t); //по идее никогда
   };
   emitret();
-  IF (+(UINT)_funcstkdepth!=0) { errstr("funcstkdepth=" ); erruint(+(UINT)_funcstkdepth); enderr(); };
+  IF ((UINT)_funcstkdepth!=0) { errstr("funcstkdepth=" ); erruint((UINT)_funcstkdepth); enderr(); };
   initrgs();
 }
 

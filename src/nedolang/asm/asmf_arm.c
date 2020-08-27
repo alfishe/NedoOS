@@ -10,7 +10,7 @@ PROC asmbytepopvalue()
 {
   DEC _nvalues;
   IF (_asms) {
-    ;;writefout((BYTE)_value[_nvalues]/**+(BYTE)asmpopvalue()*/); //compatible version
+    ;;writefout((BYTE)_value[_nvalues]/**(BYTE)asmpopvalue()*/); //compatible version
     /*writefout(*(PBYTE)&_value[_nvalues]);*/ //fast version (little endian)
   };
   INC _curaddr;
@@ -26,11 +26,11 @@ VAR UINT uinttempvalue;
       uinttempvalue = _curaddr+_curshift-_curbegin; //_curaddr+_curshift-_BASEADDR;
       fwrite((PBYTE)&uinttempvalue, 4, 1, _forg);
     }; //
-    ;;uinttempvalue = +(UINT)_value[_nvalues]; //+(UINT)asmpopvalue()
-    ;;writefout(+(BYTE)uinttempvalue); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
-    ;;writefout(+(BYTE)(uinttempvalue>>8)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
-    ;;writefout(+(BYTE)(uinttempvalue>>16)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
-    ;;writefout(+(BYTE)(uinttempvalue>>24)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+    ;;uinttempvalue = (UINT)_value[_nvalues]; //(UINT)asmpopvalue()
+    ;;writefout((BYTE)uinttempvalue); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+    ;;writefout((BYTE)(uinttempvalue>>8)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+    ;;writefout((BYTE)(uinttempvalue>>16)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+    ;;writefout((BYTE)(uinttempvalue>>24)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
     /*fwrite((PBYTE)&_value[_nvalues], 4, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
   };
   _curaddr = _curaddr + 4; //не _SIZEOF_UINT, т.к. тут надо размер для таргета!
@@ -38,14 +38,14 @@ VAR UINT uinttempvalue;
 
 PROC asmlong(LONG value) //разная разрядность LONG/DL
 {
-  asmbyte(+(BYTE)value); //compatible version
-  asmbyte(+(BYTE)(+(UINT)value>>8)); //compatible version
-  asmbyte(+(BYTE)(value>>16L)); //compatible version
-  asmbyte(+(BYTE)(value>>24L)); //compatible version
-  asmbyte(+(BYTE)(value>>32L)); //compatible version
-  asmbyte(+(BYTE)(value>>40L)); //compatible version
-  asmbyte(+(BYTE)(value>>48L)); //compatible version
-  asmbyte(+(BYTE)(value>>56L)); //compatible version
+  asmbyte((BYTE)value); //compatible version
+  asmbyte((BYTE)((UINT)value>>8)); //compatible version
+  asmbyte((BYTE)(value>>16L)); //compatible version
+  asmbyte((BYTE)(value>>24L)); //compatible version
+  asmbyte((BYTE)(value>>32L)); //compatible version
+  asmbyte((BYTE)(value>>40L)); //compatible version
+  asmbyte((BYTE)(value>>48L)); //compatible version
+  asmbyte((BYTE)(value>>56L)); //compatible version
 }
 
 PROC asmorgword(LONG addr) //разная разрядность POINTER
@@ -58,7 +58,7 @@ PROC asmdispbshort(INT ivalue) //для коротких переходов (-100..+100?) //ivalue =
 //%1101 cccc LLLL LLLL
 //L домножается до 2 и прибавляется к PC+4!!! (без округления до 4)
 {
-  IF (+(UINT)(ivalue + +(INT)0x0100) >= 0x0200) { //todo test
+  IF ((UINT)(ivalue + (INT)0x0100) >= 0x0200) { //todo test
     errstr("far bcc +d"); enderr();
   };
   asmbyte((BYTE)(ivalue>>1)); //обязательно записать, иначе поедут адреса!
@@ -71,7 +71,7 @@ PROC asmdispb(INT ivalue) //для коротких переходов (-800..+800) //ivalue = смеще
 //L домножается до 2 и прибавляется к PC+4!!! (без округления до 4)
 {
 VAR UINT uvalue;
-  IF (+(UINT)(ivalue + +(INT)0x0800) >= 0x1000) {
+  IF ((UINT)(ivalue + (INT)0x0800) >= 0x1000) {
     errstr("far b +d"); enderr();
   };
   uvalue = (UINT)ivalue>>1;
@@ -84,7 +84,7 @@ PROC asmdispbl(LONG ivalue) //для длинных переходов (-400000..+400000) //ivalue 
 //%1111 1LLL LLLL LLLL
 //HL домножается до 2 и прибавляется к PC после конца команды, т.е. PC+4 (без округления до 4)
 {
-  IF (+(UINT)(ivalue + +(INT)0x400000) >= 0x800000) {
+  IF ((UINT)(ivalue + (INT)0x400000) >= 0x800000) {
     errstr("far bl +d"); enderr();
   };
   asmbyte((BYTE)(ivalue>>12L));
@@ -103,7 +103,7 @@ PROC asmdispconst(UINT uvalue) //для ссылки на константы (0..+400) //uvalue = см
 
 PROC asmdispconstpopvalue()
 {
-  asmdispconst(+(INT)asmpopvalue());
+  asmdispconst((INT)asmpopvalue());
 }
 
 PROC err_onlylowregs()

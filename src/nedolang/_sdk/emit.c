@@ -28,15 +28,15 @@ VAR UINT _num;
 EXPORT PROC emitdig(UINT d)
 {
 VAR BYTE dig;
-  dig = +(BYTE)'0';
+  dig = (BYTE)'0';
   WHILE (_num >= d) {
     _num = _num - d;
     INC dig;
     _wasdig = +TRUE;
   };
   IF (_wasdig) {
-    //_lennbuf = stradd(_nbuf, _lennbuf, +(CHAR)dig);
-    _nbuf[_lennbuf] = +(CHAR)dig;
+    //_lennbuf = stradd(_nbuf, _lennbuf, (CHAR)dig);
+    _nbuf[_lennbuf] = (CHAR)dig;
     INC _lennbuf;
   };
 }
@@ -68,7 +68,7 @@ EXPORT PROC emituint(UINT i, PBYTE f)
 
 EXPORT PROC asmc(CHAR c)
 {
-  writefout(+(BYTE)c);
+  writefout((BYTE)c);
 }
 
 EXPORT PROC asmstr(PCHAR s)
@@ -83,7 +83,7 @@ EXPORT PROC asmuint(UINT i)
 
 EXPORT PROC endasm()
 {
-  writefout(+(BYTE)'\n');
+  writefout((BYTE)'\n');
 }
 
 /////////////////////////////////////
@@ -91,7 +91,7 @@ EXPORT PROC endasm()
 
 #ifdef USE_COMMENTS
 ;;EXPORT PROC cmt(CHAR c) {
-;;  IF (_cmts) writefout(+(BYTE)c);
+;;  IF (_cmts) writefout((BYTE)c);
 ;;}
 
 ;;EXPORT PROC cmtstr(PCHAR s) {
@@ -113,7 +113,7 @@ EXPORT PROC endasm()
 
 #ifdef USE_HINTS
 ;;EXPORT PROC hint(CHAR c) {
-;;  IF (_hints) writefout(+(BYTE)c);
+;;  IF (_hints) writefout((BYTE)c);
 ;;}
 
 ;;EXPORT PROC hintstr(PCHAR s) {
@@ -133,13 +133,13 @@ EXPORT PROC endasm()
 ;;}
 
 ;;EXPORT PROC hinttype(PCHAR msg, BYTE t) {
-;;  hintstr("//"); hintstr(msg); hintstr(" type="); hintuint(+(UINT)t); endhint();
+;;  hintstr("//"); hintstr(msg); hintstr(" type="); hintuint((UINT)t); endhint();
 ;;}
 #endif //USE_HINTS
 
 EXPORT PROC err(CHAR c)
 {
-  IF (_errs) writebyte(_ferr, +(BYTE)c);
+  IF (_errs) writebyte(_ferr, (BYTE)c);
 }
 
 EXPORT PROC errstr(PCHAR s)
@@ -155,15 +155,15 @@ EXPORT PROC erruint(UINT i)
 EXPORT PROC enderr()
 {
   IF (_errs) {
-    writebyte(_ferr, +(BYTE)';'); fputs(_fn, _ferr);
+    writebyte(_ferr, (BYTE)';'); fputs(_fn, _ferr);
     fputs(" line=", _ferr); emituint(_curlnbeg, _ferr);
-    writebyte(_ferr, +(BYTE)'\n');
+    writebyte(_ferr, (BYTE)'\n');
   };
 }
 
 EXPORT PROC varc(CHAR c)
 {
-  writebyte(_fvar, +(BYTE)c);
+  writebyte(_fvar, (BYTE)c);
 }
 
 EXPORT PROC varstr(PCHAR s)
@@ -178,6 +178,6 @@ EXPORT PROC varuint(UINT i)
 
 EXPORT PROC endvar()
 {
-  writebyte(_fvar, +(BYTE)'\n');
+  writebyte(_fvar, (BYTE)'\n');
 }
 

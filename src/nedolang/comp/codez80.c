@@ -139,7 +139,7 @@ PROC asm_close()
 
 PROC asm_rname(BYTE r)
 {
-  asmstr( _RNAME[+(UINT)r] );
+  asmstr( _RNAME[(UINT)r] );
 }
 
 PROC asm_mrgname(BYTE r)
@@ -149,20 +149,14 @@ PROC asm_mrgname(BYTE r)
 
 PROC asm_rlow(BYTE r)
 {
-  asmstr( _RLOW[+(UINT)r] );
+  asmstr( _RLOW[(UINT)r] );
 }
 
 PROC asm_rhigh(BYTE r)
 {
-  asmstr( _RHIGH[+(UINT)r] );
+  asmstr( _RHIGH[(UINT)r] );
 }
-/**
-PROC asm_raname(BYTE r)
-{
-  asmstr( _RLOW[+(UINT)r] );
-  //asmstr( _RGANAME[+(UINT)r] );
-}
-*/
+
 PROC asm_close_eol()
 {
   asm_close(); endasm();
@@ -923,13 +917,7 @@ PROC emitsubrg() //old-new => old
   IF ((_rold==0x01)&&(_rnew!=0x04)) {
     asm_or(); asm_a(); endasm();
     asm_sbc(); asm_hl(); asm_comma(); asm_rname(_rnew); endasm();
-/**  }ELSE IF ((_rold==0x02)&&(_rnew!=0x04)) {
-    asmstr("\tOR A"); endasm();
-    emitexd(); //todo через swaprgs?
-    asmstr("\tSBC HL,"); asm_rname(rnew); endasm();
-    emitexd(); //todo через swaprgs?
-    //невыгодно 27 тактов (если через перенумерацию регистров, то будет 23)
-*/
+//exd..exd невыгодно 27 тактов (если через перенумерацию регистров, то будет 23)
   }ELSE {
     unproxy();
     asm_lda_comma(); asm_rlow(_rold); endasm();

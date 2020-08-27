@@ -35,7 +35,7 @@ PROC asmbytepopvalue()
 #ifdef TARGET_SCRIPT
     fwrite((PBYTE)&_value[_nvalues], +sizeof(LONG), 1, _fout);
 #else
-    ;;writefout((BYTE)_value[_nvalues]/**+(BYTE)asmpopvalue()*/); //compatible version
+    ;;writefout((BYTE)_value[_nvalues]/**(BYTE)asmpopvalue()*/); //compatible version
     /*writefout(*(PBYTE)&_value[_nvalues]);*/ //fast version (little endian)
 #endif
   };
@@ -55,9 +55,9 @@ VAR UINT uinttempvalue;
 #ifdef TARGET_SCRIPT
     fwrite((PBYTE)&_value[_nvalues], +sizeof(LONG), 1, _fout);
 #else
-    ;;uinttempvalue = +(UINT)_value[_nvalues]; //+(UINT)asmpopvalue()
-    ;;writefout(+(BYTE)uinttempvalue); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
-    ;;writefout(+(BYTE)(uinttempvalue>>8)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+    ;;uinttempvalue = (UINT)_value[_nvalues]; //(UINT)asmpopvalue()
+    ;;writefout((BYTE)uinttempvalue); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
+    ;;writefout((BYTE)(uinttempvalue>>8)); //compatible version (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
     /*fwrite((PBYTE)&_value[_nvalues], 2, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
 #endif
   };
@@ -70,11 +70,11 @@ VAR UINT uinttempvalue;
 
 PROC asmlong(LONG value) //разная разрядность LONG/DL
 {
-  ;;asmbyte(+(BYTE)value); //compatible version
-  ;;asmbyte(+(BYTE)(+(UINT)value>>8)); //compatible version
-  ;;asmbyte(+(BYTE)(value>>16L)); //compatible version
-  ;;asmbyte(+(BYTE)(value>>24L)); //compatible version
-  /*fwrite(+(PBYTE)&value, 4, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_LONG, т.к. тут надо размер для таргета!)
+  ;;asmbyte((BYTE)value); //compatible version
+  ;;asmbyte((BYTE)((UINT)value>>8)); //compatible version
+  ;;asmbyte((BYTE)(value>>16L)); //compatible version
+  ;;asmbyte((BYTE)(value>>24L)); //compatible version
+  /*fwrite((PBYTE)&value, 4, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_LONG, т.к. тут надо размер для таргета!)
   /*_curaddr = _curaddr + 4;*/ //fast version (little endian) (не _SIZEOF_LONG, т.к. тут надо размер для таргета!)
 }
 
@@ -82,23 +82,23 @@ PROC asmorgword(LONG addr) //разная разрядность POINTER
 {
 //todo ORG
 //  IF (_asms) {
-//    ;;writebyte(_forg, +(BYTE)addr); //compatible version
-//    ;;writebyte(_forg, +(BYTE)(+(UINT)addr>>8)); //compatible version
+//    ;;writebyte(_forg, (BYTE)addr); //compatible version
+//    ;;writebyte(_forg, (BYTE)((UINT)addr>>8)); //compatible version
 //    /*fwrite(+(PBYTE)&addr, 2, 1, _forg);*/ //fast version (little endian) (не _SIZEOF_UINT, т.к. тут надо размер для таргета!)
 //  };
 }
 
 PROC asmdisp(INT ivalue) //для $+d и ix+d
 {
-  IF (+(UINT)(ivalue + +(INT)0x0080) >= 0x0100) {
+  IF ((UINT)(ivalue + (INT)0x0080) >= 0x0100) {
     errstr("far +d"); enderr();
   };
-  asmbyte(+(BYTE)ivalue); //обязательно записать, иначе поедут адреса!
+  asmbyte((BYTE)ivalue); //обязательно записать, иначе поедут адреса!
 }
 
 PROC asmdisppopvalue() //для jr и ix+d
 {
-  asmdisp(+(INT)asmpopvalue());
+  asmdisp((INT)asmpopvalue());
 }
 
 PROC asmrb_ixiyprefix() //сгенерировать префикс dd/fd и привести _reg к h/l

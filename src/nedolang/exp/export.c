@@ -24,15 +24,15 @@ VAR PCHAR pintoken;
     //pin=pin+1;
     token = readfin();
     IF (_waseof) BREAK;
-    IF (token == +(BYTE)(+_TOKTEXT)) { //anytext
+    IF (token == (BYTE)(+_TOKTEXT)) { //anytext
       WHILE (+TRUE) {
         //c=*pin;
         //pin=pin+1;
-        c = +(CHAR)readfin();
-        IF (c == +(CHAR)(+(BYTE)(+_TOKENDTEXT))) BREAK;
+        c = (CHAR)readfin();
+        IF (c == (CHAR)((BYTE)(+_TOKENDTEXT))) BREAK;
         //*pout=c;
         //pout=pout+1;
-        writefout(+(BYTE)c);
+        writefout((BYTE)c);
       };
     }ELSE {          //token
       fputs(_texttoken[token], _fout);
@@ -43,10 +43,10 @@ VAR PCHAR pintoken;
         INC pintoken;
         //*pout=*pintoken;
         //pout=pout+1;
-        writebyte(_fexp, +(BYTE)c);
+        writebyte(_fexp, (BYTE)c);
       };*/
     };
-    IF (token == +(BYTE)(+_TOKEOL)) BREAK;
+    IF (token == (BYTE)(+_TOKEOL)) BREAK;
   };
 }
 

@@ -38,8 +38,13 @@ cmd_begin
         pop hl
         ld e,l
         OS_DELPAGE
-        
+
         ld hl,COMMANDLINE ;command line
+        push hl
+        ld de,params
+        call strcopy
+        
+        pop hl ;ld hl,COMMANDLINE ;command line
         ld de,wordbuf
         call getword
         call skipspaces
@@ -512,13 +517,69 @@ execcmd_tryrunerror
         
 callcmd
 ;call command (cmdbuf) with waiting
+;TODO open %0 (progname), %1...
+        ld hl,cmdbuf
+        call strlen
+        ld b,h
+        ld c,l ;bc=len (without terminator)
+        ld hl,cmdbuf
+        add hl,bc ;at terminator
+        ld de,cmdbuf+MAXCMDSZ ;at last byte of buffer
+        inc bc ;bc=len (with terminator)
+        lddr
+        ex de,hl
+        inc hl
+        ld de,cmdbuf
+chgparams0
+        ld a,(hl)
+        ld (de),a
+        or a
+        jr z,chgparams0q
+        inc hl
+        cp '%'
+        jr nz,chgparams0skip
+        ld a,(hl)
+        ld (de),a
+        or a
+        jr z,chgparams0q
+        inc hl
+        sub '0' ;a=param
+        cp 10
+        jr nc,chgparams0skip ;%%
+        push hl
+        ld hl,params
+        inc a
+        ld b,a
+chgparams1
+        call skipword ;doesn't move at terminator
+        call skipspaces ;doesn't move at terminator
+        djnz chgparams1
+;hl=param text (end=space or terminator)        
+chgparams2
+        ld a,(hl)
+        or a
+        jr z,chgparams2q
+        cp ' '
+        jr z,chgparams2q
+        ld (de),a
+        inc hl
+        inc de
+        djnz chgparams2
+chgparams2q
+        pop hl
+        dec de
+chgparams0skip
+        inc de
+        jr chgparams0
+chgparams0q
+
         call execcmd ;a!=0: no such internal command
         or a
         ret z ;command executed
         ;call loadapp ;загрузить файл с именем cmdbuf, e=id
         call strcpexec_tryrun ;загрузить файл с именем cmdbuf или SYSDIR/cmdbuf, e=id, nz=error, CY=end of .bat
         ret c
-        jr nz,execcmd_error
+        jp nz,execcmd_error
         ;push de
         ;OS_RUNAPP
         ;pop de
@@ -1747,12 +1808,15 @@ oldcmd
         ds MAXCMDSZ+1
         
 copybuf
-        ds 128
+        ds 128 ;можно сколько угодно
 copybuf_sz=$-copybuf
+
+params
+        ds MAXCMDSZ+1
 
         align 256
 file_buf
-        ds 128
+        ds 128 ;buf for reading .bat
 file_buf_end=$-1
 
         include "prdword.asm"

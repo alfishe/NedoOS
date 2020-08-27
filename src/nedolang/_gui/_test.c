@@ -1,5 +1,4 @@
-CONST PCHAR str = "123""456";
-VAR INT a=+5;
+//VAR INT a=+5;
 //VAR UINT bb=4;
 
 evar {
@@ -12,9 +11,15 @@ CONST UINT ma[10] = {
 1,1,2,3,4,5,6,7,8,9
 }
 
+VAR BYTE ab = (BYTE)2++(0x2+0x3+0x4)+0x6;
+VAR BYTE ab1 = ab+0x3;
+VAR BYTE ab2 = 0x2+ab;
+
 VAR FLOAT ffa;
 ffa = var2;
-VAR INT fia;
+VAR INT fia = (INT)ab;
+VAR INT fib = +4;
+ab = +(0x4+0x5);
 //ffa = 3.1415926536e-4+(FLOAT)fia;
 //fia = (INT)ffa;
 
@@ -28,6 +33,7 @@ FUNC INT f(UINT p) {
   RETURN (INT)((BYTE)(INT)p+0x02+(BYTE)(1));
 }
 */
+CONST PCHAR str = "123""456";
 enum {
         CMD_NOP,
         CMD_ADD,
@@ -60,18 +66,6 @@ enum {
         CMD_DONE, //end
 };
 
-enum {
-  Gotov1 = 100,
-  Gotov2,
-  Pusk,
-};
-
-//if (*(PUINT)Gotov1 == 0) {
-if (*(PUINT)Gotov1 == 0) {
-  //POKE *(PUINT)Gotov2 = *(PUINT)Pusk;
-  Gotov2 = Pusk;
-};
-
 
 VAR INT iia[5];
 VAR LONG la[5];
@@ -83,7 +77,7 @@ _c, //23423
 _d, //1231243
 _e, //dsfdfg
 }
-VAR INT asa;
+VAR INT asa = +(_a);
 
 #define X 1
 
@@ -373,14 +367,14 @@ VAR UINT _genn;
 PROC gendig(UINT d)
 {
 VAR BYTE dig;
-  dig = +(BYTE)'A';
+  dig = (BYTE)'A';
   WHILE (_genn >= d) {
     _genn = _genn - d;
     INC dig;
     _wasdig = +TRUE;
   };
   IF (_wasdig) {
-    _lenjoined = stradd(_joined, _lenjoined, +(CHAR)dig);
+    _lenjoined = stradd(_joined, _lenjoined, (CHAR)dig);
   };
 }
 
@@ -529,7 +523,7 @@ PROC eatidx() //для idxarray и switch
   eatexpr(); //сравнения нельзя без скобок!!!
   DEC _exprlvl;
   IF (_t==_T_BYTE) cmdcastto(_T_UINT);
-  IF (_t!=_T_UINT) {errstr("idx bad type "); erruint(+(UINT)_t); enderr(); };
+  IF (_t!=_T_UINT) {errstr("idx bad type "); erruint((UINT)_t); enderr(); };
 }
 
 FUNC BYTE idxarray RECURSIVE(BYTE t)
@@ -541,7 +535,7 @@ FUNC BYTE idxarray RECURSIVE(BYTE t)
   }ELSE IF ((t&_T_POI) != 0x00) { //указатель
     _t = t; cmdpushvar(); //использование указателя в качестве массива - читаем его значение
     t = t&(~_T_POI);
-  }ELSE {errstr("[] not in array "); erruint(+(UINT)t); enderr(); };
+  }ELSE {errstr("[] not in array "); erruint((UINT)t); enderr(); };
   eatidx();
   _t = t; //тип элемента массива
   cmdaddpoi();
@@ -562,7 +556,7 @@ PROC numtype()
     _t = _T_INT;
   }ELSE IF (_tword[_lentword-1]=='L') {
     _t = _T_LONG;
-  }ELSE IF (+(BYTE)_tword[1] > +(BYTE)'9') { //ускорение проверки числового формата
+  }ELSE IF ((BYTE)_tword[1] > (BYTE)'9') { //ускорение проверки числового формата
     IF ((_lentword<=4)&&(_tword[1]=='x')) {
       _t = _T_BYTE;
     }ELSE IF ((_lentword<=10)&&(_tword[1]=='b')) {
@@ -627,7 +621,7 @@ VAR BYTE t; //cast,peek
         /**t=*/joinvarname(/**iscall*/+FALSE);
         _lenjoined = strcopy(_name, _lenname, _joined); //глобальная
         _t = _T_BYTE; cmdpushnum();
-      }ELSE IF (+(BYTE)(+(BYTE)_opsym - +(BYTE)'0') < 0x0a) { //+num
+      }ELSE IF ((BYTE)((BYTE)_opsym - (BYTE)'0') < 0x0a) { //+num
         IF (!_waseof) val(); //рекурсивный вызов val
         IF (_t == _T_UINT) cmdcastto(_T_INT); //для знаковых констант типа +15
       }ELSE IF (_opsym!='(') { //+TRUE/+FALSE (BOOL) //+sizeof
@@ -663,11 +657,11 @@ VAR BYTE t; //cast,peek
         IF (!_waseof) val(); //рекурсивный вызов val
         //IF (_t == _T_UINT) cmdcastto(_T_INT); //для знаковых констант типа +15 (мешает делать +(type)val)
       };
-    }ELSE IF (+(BYTE)(+(BYTE)_opsym - +(BYTE)'0') < 0x0a) { //num
+    }ELSE IF ((BYTE)((BYTE)_opsym - (BYTE)'0') < 0x0a) { //num
       numtype(); //_t
       _lenjoined = strcopy(_tword, _lentword, _joined);
       cmdpushnum();
-    }ELSE IF (_isalphanum[+(BYTE)_opsym] /**|| (_opsym=='.')*/) { //<var> //было isalpha
+    }ELSE IF (_isalphanum[(BYTE)_opsym] /**|| (_opsym=='.')*/) { //<var> //было isalpha
       adddots();
      //если вызов функции, то do_variable надо делать с namespclvl-1!!!
       IF (_cnext == '(') { //call
@@ -706,7 +700,7 @@ VAR BYTE t; //cast,peek
         cmdcastto(t);
       };
     }ELSE IF (_opsym == '-') {
-      IF (/**isnum(_cnext)*/+(BYTE)(+(BYTE)_cnext - +(BYTE)'0') < 0x0a) { //-<const>
+      IF (/**isnum(_cnext)*/(BYTE)((BYTE)_cnext - (BYTE)'0') < 0x0a) { //-<const>
         rdaddword();
         //todo float
         _t = _T_INT;
@@ -793,7 +787,7 @@ VAR BYTE t1;
 #ifdef USE_HINTS
 ;;    hintstr("//mulval after val2"); hint_tword();
 #endif
-    IF (t1 != _t) {errstr("opsym "); err(opsym); errstr(" type "); erruint(+(UINT)t1); errstr("!="); erruint(+(UINT)_t); enderr(); };
+    IF (t1 != _t) {errstr("opsym "); err(opsym); errstr(" type "); erruint((UINT)t1); errstr("!="); erruint((UINT)_t); enderr(); };
     IF       (opsym=='&') {cmdand();
     }ELSE IF (opsym=='*') {cmdmul();
     }ELSE /**IF (opsym=='/')*/ {cmddiv();
@@ -846,7 +840,7 @@ VAR BYTE t1;
           rdword(); //use '|' or '^' //C compatibility
       eatmulval();
       _t = _t&_TYPEMASK; //&(~_T_CONST);
-      IF (t1 != _t) /**&& ((t&_T_POI)!=0x00)*/ {errstr("opsym "); err(opsym); errstr(" type "); erruint(+(UINT)t1); errstr("!="); erruint(+(UINT)_t); enderr(); };
+      IF (t1 != _t) /**&& ((t&_T_POI)!=0x00)*/ {errstr("opsym "); err(opsym); errstr(" type "); erruint((UINT)t1); errstr("!="); erruint((UINT)_t); enderr(); };
       //todo addpointer
       IF       (opsym == '+') {cmdadd();
       }ELSE IF (opsym == '-') {cmdsub(); //из старого вычесть новое!
@@ -890,7 +884,7 @@ VAR BOOL dbl;
     IF ( modified||dbl ) rdword(); //use '=' or '>' or '<'
     eatsumval();
     _t = _t&_TYPEMASK; //&(~_T_CONST);
-    IF (t1 != _t) {errstr("opsym "); err(opsym); errstr(" type "); erruint(+(UINT)t1); errstr("!="); erruint(+(UINT)_t); enderr(); };
+    IF (t1 != _t) {errstr("opsym "); err(opsym); errstr(" type "); erruint((UINT)t1); errstr("!="); erruint((UINT)_t); enderr(); };
     IF (opsym == '=') {
       IF (!dbl) {errstr( "assign in expr" ); enderr(); };
       cmdeq(); //делает _t = _T_BOOL
@@ -937,7 +931,7 @@ VAR BYTE t;
   eat(')'); //'=' может быть в выражении
   eat('=');
   eatexpr();
-  IF (t != _t) {errstr("poke variable type="); erruint(+(UINT)t); errstr(", but expr type="); erruint(+(UINT)_t); enderr(); };
+  IF (t != _t) {errstr("poke variable type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
   cmdpoke();
 #ifdef USE_HINTS
 ;;  hintstr("//end poke"); endhint();
@@ -990,7 +984,7 @@ VAR BOOL ispoke;
   eatexpr(); //получает тип _t
  _lenjoined = strpop(_joined);
   IF (t!=_t) {
-    errstr("let variable type="); erruint(+(UINT)t); errstr(", but expr type="); erruint(+(UINT)_t); enderr();
+    errstr("let variable type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr();
   };
   IF (ispoke) {
     cmdpoke();
@@ -1065,7 +1059,7 @@ VAR UINT wasendlbl;
   _tmpendlbl = _curlbl; INC _curlbl;
   genjplbl(beglbl); cmdlabel();
   eatcmd(); //тело repeat
-  IF ( +(CHAR)(+(BYTE)(*(PCHAR)_tword)|0x20)!='u'/**"until"*/ ) err_tword("UNTIL");
+  IF ( (CHAR)((BYTE)(*(PCHAR)_tword)|0x20)!='u'/**"until"*/ ) err_tword("UNTIL");
   rdword();
   eat('(');
   _exprlvl = 0x00; //jump optimization possible
@@ -1117,7 +1111,7 @@ VAR UINT endiflbl;
   eat(')'); //rdword();
   eatcmd(); //тело then
   IF (*(PCHAR)_tword/**_cnext*/ != ';'/**"endif"*/) {
-    IF ( +(CHAR)(+(BYTE)(*(PCHAR)_tword)|0x20)!='e'/**"else"*/ ) err_tword("ELSE or \';\'");
+    IF ( (CHAR)((BYTE)(*(PCHAR)_tword)|0x20)!='e'/**"else"*/ ) err_tword("ELSE or \';\'");
     genjplbl(endiflbl); cmdjp();
     genjplbl(elselbl); cmdlabel();
     rdword();
@@ -1157,7 +1151,7 @@ PROC eatreturn() //todo inline
 #endif
   _exprlvl = 0x01; //no jump optimization
   eatexpr(); //сравнения нельзя без скобок!!!
-  IF ( _t != (_curfunct&(~_T_RECURSIVE)) ) {errstr("return type="); erruint(+(UINT)_curfunct); errstr(", but expr type="); erruint(+(UINT)_t); enderr(); };
+  IF ( _t != (_curfunct&(~_T_RECURSIVE)) ) {errstr("return type="); erruint((UINT)_curfunct); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
   cmdresult();
 #ifdef USE_HINTS
 ;;  hintstr("//end return"); endhint();
@@ -1302,7 +1296,7 @@ VAR BYTE t;
   IF (body) {
     IF ((t&_T_ARRAY)!=0x00) {
       varstr(_joined); /**varc( ':' );*/ endvar();
-      varstr( "\tDS " ); varuint(+(UINT)_typesz[t&_TYPEMASK]); varc('*'); varstr(_ncells); endvar();
+      varstr( "\tDS " ); varuint((UINT)_typesz[t&_TYPEMASK]); varc('*'); varstr(_ncells); endvar();
     }ELSE {
       var_num(t, "0");
     };
@@ -1314,7 +1308,7 @@ VAR BYTE t;
    strpush(_joined,_lenjoined);
     eatexpr();
    _lenjoined = strpop(_joined);
-    IF ( (t!=_t) && !( ((t&_T_POI)!=0x00) && (/**(texpr==_T_UINT)||*/((_t&_T_POI)!=0x00)) ) ) {errstr("let variable="); errstr(_joined); errstr(" type="); erruint(+(UINT)t); errstr(", but expr type="); erruint(+(UINT)_t); enderr(); };
+    IF ( (t!=_t) && !( ((t&_T_POI)!=0x00) && (/**(texpr==_T_UINT)||*/((_t&_T_POI)!=0x00)) ) ) {errstr("let variable="); errstr(_joined); errstr(" type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
     //_t = t; //todo проверить
     cmdpopvar();
   };
@@ -1435,12 +1429,12 @@ VAR BOOL isforward;
   _lenname = strcopy(_tword, _lentword, _name);
   jtitletword();
   rdword(); //'(' or "recursive" or "forward"
-  IF (+(CHAR)(+(BYTE)(*(PCHAR)_tword)|0x20) == 'r') {
+  IF ((CHAR)((BYTE)(*(PCHAR)_tword)|0x20) == 'r') {
     _curfunct = _curfunct|_T_RECURSIVE;
     _isrecursive = +TRUE;
     rdword(); //'('
   }ELSE _isrecursive = +FALSE;
-  IF (+(CHAR)(+(BYTE)(*(PCHAR)_tword)|0x20) == 'f') {
+  IF ((CHAR)((BYTE)(*(PCHAR)_tword)|0x20) == 'f') {
     isforward = +TRUE;
     rdword(); //'('
   }ELSE isforward = +FALSE;
@@ -1507,7 +1501,7 @@ VAR BYTE t;
     INC _exprlvl; //no jump optimization
     eatexpr(); //может рекурсивно вызвать do_call и затереть callee (если он глобальный)! //сравнения нельзя без скобок!!!
     DEC _exprlvl;
-    IF (t != _t) {errstr("callpar type="); erruint(+(UINT)t); errstr(", but expr type="); erruint(+(UINT)_t); enderr(); };
+    IF (t != _t) {errstr("callpar type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
     _lenjoined = strpop(_joined);
     cmdpopvar(); //(_joined)
     IF (*(PCHAR)_tword == ',') rdword(); //parameter or ')'
@@ -1705,8 +1699,8 @@ VAR UINT wastmpendlbl;
   varstr(_title); varc('J'); endvar();
   ib = 0x00;
   REPEAT {
-    asmstr(_title); asmuint(+(UINT)ib); asmc('='); asmstr(_title); asmstr("default"); endasm(); //до кода! поэтому asm
-    var_dw(); varstr(_title); varuint(+(UINT)ib); endvar(); //TODO "DP", т.е. на ширину POINTER?
+    asmstr(_title); asmuint((UINT)ib); asmc('='); asmstr(_title); asmstr("default"); endasm(); //до кода! поэтому asm
+    var_dw(); varstr(_title); varuint((UINT)ib); endvar(); //TODO "DP", т.е. на ширину POINTER?
     INC ib;
   }UNTIL (ib == 0x00);
 
@@ -1758,8 +1752,8 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
       }ELSE IF (_c0=='{') {
         rdword(); WHILE (eatcmd()) {};
       }ELSE {
-        _c0 = +(CHAR)(+(BYTE)_c0|0x20);
-        _c2 = +(CHAR)(+(BYTE)_tword[2]|0x20);
+        _c0 = (CHAR)((BYTE)_c0|0x20);
+        _c2 = (CHAR)((BYTE)_tword[2]|0x20);
         IF       (_c0=='v') { //var
           rdword(); eatvar(/**ispar*/+FALSE, /**body*/+TRUE);
           _isexp = +FALSE; //нельзя внутрь, иначе не экспортируются параметры процедуры
@@ -1901,7 +1895,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
             rdchcmt(); //пропускает все ентеры
           };
           _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
-          IF (+(BYTE)_cnext < +(BYTE)'!') {
+          IF ((BYTE)_cnext < (BYTE)'!') {
             rdch(); //используем последний символ комментария, читаем следующий символ (TODO унифицировать как /* */)
           };
           rdword();

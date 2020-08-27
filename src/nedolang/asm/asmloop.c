@@ -97,7 +97,7 @@ VAR UINT i;
 #include "asmj_z80.c" //// машиннозависимые ветки
 #endif
 
-      default : {err(+(CHAR)_token); enderr(); goto loop;}
+      default : {err((CHAR)_token); enderr(); goto loop;}
     };
   endloop:;
 }

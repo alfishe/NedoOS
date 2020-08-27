@@ -63,11 +63,11 @@ PROC skiplines() //пропускать строки до # (на выходе _cnext == '#')
     INC _curline;
     INC _waseols;
     loop:
-    _cnext = +(CHAR)readfin();
-    IF ((+(BYTE)_cnext != 0x0a)&&(!_waseof)) {
+    _cnext = (CHAR)readfin();
+    IF (((BYTE)_cnext != 0x0a)&&(!_waseof)) {
       goto loop;
     };
-    _cnext = +(CHAR)readfin();
+    _cnext = (CHAR)readfin();
     //сейчас _cnext == первый символ строки
   };
  //_curline = _curline; //сейчас _cnext == '#' или EOF
@@ -85,10 +85,10 @@ PROC rdch()
     INC _lentword;
   };
   loop:
-    _cnext = +(CHAR)readfin();
-    IF (+(BYTE)_cnext < +(BYTE)'!') { //ускорение выхода
+    _cnext = (CHAR)readfin();
+    IF ((BYTE)_cnext < (BYTE)'!') { //ускорение выхода
       INC _spcsize; //spaces after tword
-      IF (+(BYTE)_cnext == 0x0a) {
+      IF ((BYTE)_cnext == 0x0a) {
         INC _curline;
         _spcsize = 0;
         INC _waseols;
@@ -116,13 +116,13 @@ PROC rdchcmt()
     INC _lentword;
   };
   loop:
-    _cnext = +(CHAR)readfin();
-    IF (+(BYTE)_cnext == 0x0a) {
+    _cnext = (CHAR)readfin();
+    IF ((BYTE)_cnext == 0x0a) {
       INC _curline;
       _spcsize = 0;
       INC _waseols;
       IF (!_waseof) goto loop;
-    }ELSE IF (+(BYTE)_cnext == 0x0d) {
+    }ELSE IF ((BYTE)_cnext == 0x0d) {
       IF (!_waseof) goto loop;
     };
   IF (_doskip) //todo надо ли тут?
@@ -143,21 +143,21 @@ PROC rdaddword() //подклеить следующую команду к текущей
   _spcsize = 0; //число пробелов после прочитанной команды
   _waseols = 0;
   _curlnbeg = _curline;
-  IF (_isalphanum[+(BYTE)_cnext] ) {
+  IF (_isalphanum[(BYTE)_cnext] ) {
     loop1: //REPEAT { //ждём нецифробукву (EOF не цифробуква)
       IF (_lentword < _STRMAX) {
         _tword[_lentword] = _cnext;
         INC _lentword;
       };
-      _cnext = +(CHAR)readfin();
-    IF (_isalphanum[+(BYTE)_cnext]) goto loop1; //}UNTIL (!_isalphanum[+(BYTE)_cnext]/** || _waseof*/ );
+      _cnext = (CHAR)readfin();
+    IF (_isalphanum[(BYTE)_cnext]) goto loop1; //}UNTIL (!_isalphanum[+(BYTE)_cnext]/** || _waseof*/ );
     goto loopgo;
     loop2: //REPEAT { //ждём недиерезис или EOF
-      _cnext = +(CHAR)readfin();
+      _cnext = (CHAR)readfin();
     loopgo:
-      IF (+(BYTE)_cnext < +(BYTE)'!') { //ускорение выхода
+      IF ((BYTE)_cnext < (BYTE)'!') { //ускорение выхода
         INC _spcsize; //spaces after tword
-        IF (+(BYTE)_cnext == 0x0a) {
+        IF ((BYTE)_cnext == 0x0a) {
           INC _curline;
           _spcsize = 0;
           INC _waseols;
@@ -169,11 +169,11 @@ PROC rdaddword() //подклеить следующую команду к текущей
     rdch(); //читаем всю группу диерезисов + символ как один символ
   }; //нельзя подклеить это условие к циклу, т.к. оно для изначального cnext и один раз
 
-  _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword); //todo нарушена парность clear..close
+  _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
 
   IF (_lentword==1) {
     _c = *(PCHAR)_tword;
-    IF (+(BYTE)_c < +(BYTE)'<') { //ускорение
+    IF ((BYTE)_c < (BYTE)'<') { //ускорение
       IF (
           (
            ((_c=='/')&&(_cnext=='*'))
@@ -188,10 +188,10 @@ PROC rdaddword() //подклеить следующую команду к текущей
             rdchcmt(); //пропускает все ентеры
           };
           rdch(); //используем последний символ комментария, читаем следующий символ после пробелов
-          _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword); //todo нарушена парность clear..close
+          _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
   //#ifdef USE_COMMENTS
   ;;        //cmt(';'); cmtstr(_tword); endcmt();
-  ;;        IF (_cmts) {writebyte(_fout, +(BYTE)';'); fputs(_tword, _fout); writebyte(_fout, +(BYTE)'\n'); };
+  ;;        IF (_cmts) {writebyte(_fout, (BYTE)';'); fputs(_tword, _fout); writebyte(_fout, (BYTE)'\n'); };
   //#endif
         };
         //читаем слово после комментария или недокомментария /* или */
@@ -209,12 +209,12 @@ PROC rdaddword() //подклеить следующую команду к текущей
         WHILE (_waseols==0/** && !_waseof*/ ) {
           rdchcmt(); //пропускает все ентеры
         };
-        _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword); //todo нарушена парность clear..close
+        _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
   //#ifdef USE_COMMENTS
   ;;        //cmt(';'); cmtstr(_tword); endcmt();
-  ;;        IF (_cmts) {writebyte(_fout, +(BYTE)';'); fputs(_tword, _fout); writebyte(_fout, +(BYTE)'\n'); };
+  ;;        IF (_cmts) {writebyte(_fout, (BYTE)';'); fputs(_tword, _fout); writebyte(_fout, (BYTE)'\n'); };
   //#endif
-        IF (+(BYTE)_cnext < +(BYTE)'!') {
+        IF ((BYTE)_cnext < (BYTE)'!') {
           rdch(); //используем последний символ комментария, читаем следующий символ (TODO унифицировать как выше)
         };
         //читаем слово после комментария
@@ -242,12 +242,12 @@ PROC rdquotes(CHAR eol) //считывает до кавычки невключительно
   WHILE ( (_cnext!=eol) && !_waseof) {
     IF ( _cnext=='\\' ) {
       _lentword = stradd(_tword, _lentword, _cnext);
-      _cnext = +(CHAR)readfin();
+      _cnext = (CHAR)readfin();
     };
     _lentword = stradd(_tword, _lentword, _cnext);
-    _cnext = +(CHAR)readfin();
+    _cnext = (CHAR)readfin();
   };
-  _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword);
+  _tword[_lentword] = '\0'; //strclose(_tword, _lentword);
 }
 
 PROC initrd()

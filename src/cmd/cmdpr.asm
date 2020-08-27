@@ -222,9 +222,9 @@ curcmdx ;не на экране, а внутри команды
         db 0
 cmdprompt
         ds MAXPATH_sz;MAXCMDSZ+1
-tcmd
-        db "cmd "
-tcmd_sz=$-tcmd
+;tcmd
+;        db "cmd "
+;tcmd_sz=$-tcmd
 cmdbuf
         db 0
         ds cmdbuf+MAXCMDSZ+1-$

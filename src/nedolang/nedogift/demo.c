@@ -308,22 +308,22 @@ CONST PCHAR _text =
 /**
 PROC pokenet(BYTE _row, BYTE _col, BYTE data)
 {
-  POKE *(PBYTE)(_netaddr + (+(UINT)_row<<8) + +(UINT)_col) = data;
+  POKE *(PBYTE)(_netaddr + ((UINT)_row<<8) + (UINT)_col) = data;
 }
 
 FUNC BYTE peeknet(BYTE _row, BYTE _col)
 {
-  RETURN *(PBYTE)(_netaddr + (+(UINT)_row<<8) + +(UINT)_col);
+  RETURN *(PBYTE)(_netaddr + ((UINT)_row<<8) + (UINT)_col);
 }
 
 PROC pokenetcolor(BYTE _row, BYTE _col, BYTE data)
 {
-  POKE *(PBYTE)(_netcoloraddr + (+(UINT)_row<<8) + +(UINT)_col) = data;
+  POKE *(PBYTE)(_netcoloraddr + ((UINT)_row<<8) + (UINT)_col) = data;
 }
 
 FUNC BYTE peeknetcolor(BYTE _row, BYTE _col)
 {
-  RETURN *(PBYTE)(_netcoloraddr + (+(UINT)_row<<8) + +(UINT)_col);
+  RETURN *(PBYTE)(_netcoloraddr + ((UINT)_row<<8) + (UINT)_col);
 }
 */
 /**
@@ -396,7 +396,7 @@ PROC cubecolumn()
 {
 VAR BYTE b;
     _curhgt = 0x00;
-    _backslash = ((+(BYTE)_addr&0x02)==0x00); //_backslash - пересечение _row
+    _backslash = (((BYTE)_addr&0x02)==0x00); //_backslash - пересечение _row
     _rowstep = _backslash;
     _oldcolor = 0x07;
     _y = _hgt;
@@ -423,7 +423,7 @@ PROC fillworm()
       _picrow = 0x04/**0x00*/;
       WHILE (_row < 0x15) {
 	pokenet(_row, _col, 0x01);
-	pokenetcolor(_row, _col, _net[(+(UINT)_picrow<<5)+ +(UINT)_col + 31]);
+	pokenetcolor(_row, _col, _net[((UINT)_picrow<<5)+ (UINT)_col + 31]);
         INC _row;
 	INC _picrow;
       };
@@ -434,7 +434,7 @@ PROC fillwormforth()
       _picrow = 0x00;
       WHILE (_row < 0x15) {
 	pokenet(_row, _col, 0x01);
-	pokenetcolor(_row, _col, _net[(+(UINT)_picrow<<5)+ +(UINT)_col + 31]);
+	pokenetcolor(_row, _col, _net[((UINT)_picrow<<5)+ (UINT)_col + 31]);
         INC _row;
 	INC _picrow;
       };
@@ -445,7 +445,7 @@ PROC fillwormback()
       _picrow = 0x13;
       WHILE (_row != 0xff) {
 	pokenet(_row, _col, 0x01);
-	pokenetcolor(_row, _col, _net[(+(UINT)_picrow<<5)+ +(UINT)_col + 31]);
+	pokenetcolor(_row, _col, _net[((UINT)_picrow<<5)+ (UINT)_col + 31]);
         DEC _row;
 	DEC _picrow;
       };
@@ -508,7 +508,7 @@ VAR BYTE vol;
 VAR INT x;
 VAR BYTE y;
 VAR BYTE hgt;
-  frq = +(UINT)getayreg(tonereg) + (+(UINT)getayreg(tonereg+0x01)<<8);
+  frq = (UINT)getayreg(tonereg) + ((UINT)getayreg(tonereg+0x01)<<8);
   IF ((getayreg(0x07)&mask)!=mask) {
     vol = getayreg(volreg);
     IF       (vol>=0x10) {vol = 0x04;
@@ -528,13 +528,13 @@ VAR BYTE hgt;
     INC y;
   };
   IF (volreg == 0x08) {
-    x = - +(INT)(y>>0x02);
+    x = - (INT)(y>>0x02);
   }ELSE IF (volreg == 0x0a) {
-    x = +(INT)(y>>0x02);
+    x = (INT)(y>>0x02);
   }ELSE x = -0;
-  _row = +(BYTE)(+(INT)y + x);
+  _row = (BYTE)((INT)y + x);
   //IF ((_row<0x02)||(_row>=0x40)) _row = 0x02;
-  _col = 0x19 - +(BYTE)(+(INT)y - x);
+  _col = 0x19 - (BYTE)((INT)y - x);
   //IF ((_col<0x02)||(_col>=0x40)) _col = 0x02;
   hgt = peeknet(_row, _col);
   IF (hgt < vol) {
@@ -567,7 +567,7 @@ VAR BOOL cleared;
   WHILE (y < _scrhgt) {
     x = 0x00;
     WHILE (x < _wid) {
-      addr = _attrbuf + (+(UINT)y<<5) + +(UINT)x;
+      addr = _attrbuf + ((UINT)y<<5) + (UINT)x;
       POKE *(PBYTE)(addr) = 0x00;
       INC x;
     };
@@ -576,7 +576,7 @@ VAR BOOL cleared;
   WHILE (y < _hgt) {
     x = 0x00;
     WHILE (x < _wid) {
-      addr = _attrbuf + (+(UINT)y<<5) + +(UINT)x;
+      addr = _attrbuf + ((UINT)y<<5) + (UINT)x;
       POKE *(PBYTE)(addr) = 0x07;
       INC x;
     };
@@ -602,16 +602,16 @@ VAR BOOL cleared;
   addr = 0x4000;
   y = 0x00;
   WHILE (y < _scrhgt) {
-    addry = 0x4000 + (+(UINT)y<<5)&0x00e0 + (+(UINT)y<<8)&0x1800;
+    addry = 0x4000 + ((UINT)y<<5)&0x00e0 + ((UINT)y<<8)&0x1800;
     x = 0x00;
     WHILE (x < _wid) {
-      addr = addry + +(UINT)x;
+      addr = addry + (UINT)x;
       IF ((((x>>0x01)^y)&0x01) == 0x00) {
         w = 0x0001;
         suby = 0x00;
         WHILE (suby < 0x08) {
-          POKE *(PBYTE)(addr) = +(BYTE)(w>>8);
-          POKE *(PBYTE)(addr+1) = +(BYTE)w;
+          POKE *(PBYTE)(addr) = (BYTE)(w>>8);
+          POKE *(PBYTE)(addr+1) = (BYTE)w;
           w = (w<<2) + 0x0003;
           addr = addr + 0x0100;
           INC suby;
@@ -620,8 +620,8 @@ VAR BOOL cleared;
         w = 0x8000;
         suby = 0x00;
         WHILE (suby < 0x08) {
-          POKE *(PBYTE)(addr) = +(BYTE)(w>>8);
-          POKE *(PBYTE)(addr+1) = +(BYTE)w;
+          POKE *(PBYTE)(addr) = (BYTE)(w>>8);
+          POKE *(PBYTE)(addr+1) = (BYTE)w;
           w = (w>>2) + 0xc000;
           addr = addr + 0x0100;
           INC suby;
@@ -653,13 +653,13 @@ loop:
   IF (!_frameready) {
     x = 0x00;
     _curattrbuf = _attrbuf + _attrbuf2 - _readyattrbuf;
-    addrbase = _curattrbuf + (+(UINT)(_scrhgt-0x01)<<5);
+    addrbase = _curattrbuf + ((UINT)(_scrhgt-0x01)<<5);
     IF (_jumptime!=0x00) {_jump = 0x01;
     }ELSE _jump = 0x00;
     WHILE (x < _wid) {
       _col = 0x12 + (x>>0x02) + _jump;
       _row = (x>>0x02) - _jump; //0
-      _addr = addrbase + +(UINT)x;
+      _addr = addrbase + (UINT)x;
       cubecolumn();
       x = x + 0x02;
     };
@@ -676,9 +676,9 @@ loop:
     _quarter = _wastimer / 12;
     _tact = _quarter >> 2;
     _position = _tact >> 2;
-    _stage = +(BYTE)(_position - (_position/18)*18);//(_tact >> 2)&0x0f; //song = 18 positions
-    _noteintact = +(BYTE)(_wastimer - (_tact * 48)); //max 47
-    _noteinquarter = +(BYTE)(_wastimer - (_quarter * 12)); //max 11
+    _stage = (BYTE)(_position - (_position/18)*18);//(_tact >> 2)&0x0f; //song = 18 positions
+    _noteintact = (BYTE)(_wastimer - (_tact * 48)); //max 47
+    _noteinquarter = (BYTE)(_wastimer - (_quarter * 12)); //max 11
     IF (_stage == 0x00) { //очистка колбасками
 
       IF (cleared) {
@@ -699,7 +699,7 @@ loop:
         IF (_net == _net35) {_net = _nettort;
         }ELSE _net = _net35;
       };
-      _col = 0x08 + (+(BYTE)_quarter & 0x0f); 
+      _col = 0x08 + ((BYTE)_quarter & 0x0f); 
       IF ((_col&0x01)==0x00) {
         _row = 0x0b - (_noteinquarter & 0x0f);
         unfillworm();
@@ -715,7 +715,7 @@ loop:
         clearnet();
         cleared = +TRUE;
       };
-      IF ((_noteinquarter == 0x00)&&((+(BYTE)_quarter&0x01)==0x00)) {
+      IF ((_noteinquarter == 0x00)&&(((BYTE)_quarter&0x01)==0x00)) {
         badrnd:
         x = (random()&0x07) + 0x01;// + 0x01; // + (random()&0x01); //0x00..0x10
         y = (random()&0x07) + 0x01;// + 0x08; //0x08..0x18
@@ -731,7 +731,7 @@ loop:
       };
     }ELSE IF (_stage == 0x04) { //медленное заполнение колбасками
       //pokenet(0x0a, 0x07, 0x01); //top left
-      //pokenetcolor(0x0a, 0x07, _netpic[(+(UINT)0x0a<<5)+ +(UINT)0x07]);
+      //pokenetcolor(0x0a, 0x07, _netpic[((UINT)0x0a<<5)+ (UINT)0x07]);
       IF (_wasstage != _stage) {
         _col = 0x06; 
         _row = 0x04/**0x00*/;
@@ -740,11 +740,11 @@ loop:
         _row = 0x04/**0x00*/;
         fillworm();
       };
-      _col = 0x08 + (+(BYTE)_tact & 0x03); 
+      _col = 0x08 + ((BYTE)_tact & 0x03); 
       _row = 0x0f/**0x0b*/ - ((_noteintact>>0x2) & 0x0f);
       fillworm();
     }ELSE IF (_stage == 0x05) { //быстрое дозаполнение колбасками
-      _col = 0x08 + 0x04 + (+(BYTE)_quarter & 0x0f); 
+      _col = 0x08 + 0x04 + ((BYTE)_quarter & 0x0f); 
       IF ((_col&0x01)==0x00) {
         _row = 0x0b - (_noteinquarter & 0x0f);
         fillwormforth();
@@ -767,7 +767,7 @@ loop:
         };
         cleared = +FALSE;
       };
-      IF ((_noteinquarter == 0x00)&&((+(BYTE)_quarter&0x01)==0x00)) {
+      IF ((_noteinquarter == 0x00)&&(((BYTE)_quarter&0x01)==0x00)) {
         _jumptime = 0x04;
       };
     }ELSE IF (_stage < 0x0a) { //заваливание квадратами

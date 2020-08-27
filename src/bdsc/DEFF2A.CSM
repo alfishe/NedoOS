@@ -333,7 +333,8 @@ _1=$+1
 getit:
 	push 	bc
 	ld hl,chmode	;get address of chmode flag
-	ld	a,(hl)
+	;ld	a,(hl)
+         xor a
 	or	a
 _2=$+1
 	jp z,single		;jump if single mode
@@ -383,28 +384,29 @@ _12=$+1
 	jp	gotit
 
 single:
-	ld	c,conin		;get single char from bdos
-	call	bdos
+	;ld	c,conin		;get single char from bdos
+	;call	bdos
+        YIELDGETKEYLOOP
 	cp	cr		;carriage return?
 _13=$+1
 	jp nz,gotit
-	ld	c,conout	;if so, echo linefeed
-	ld	e,lf
-	call	bdos
-	ld	a,newlin	;and return newline (linefeed)..
+	;ld	c,conout	;if so, echo linefeed
+	;ld	e,lf
+	;call	bdos
+	;ld	a,newlin	;and return newline (linefeed)..
 
-gotit:	ld	b,a		;save char in B
-	lda	iobrf		;checking for BREAK character?
-	or	a
-	ld	a,b		;restore char into A
+gotit:	;ld	b,a		;save char in B
+	;lda	iobrf		;checking for BREAK character?
+	;or	a
+	;ld	a,b		;restore char into A
 	pop bc		;restore BC
 _14=$+1
 	jp z,gotit2		;if not checking for BREAK, skip test
-	cp	cntrlc		;control-C ?
-	jp z,exit		;if so, exit the program.
-gotit2:	cp	1ah		;control-Z ?
-	ld hl,-1		;if so, return -1.
-	ret z
+	;cp	cntrlc		;control-C ?
+	;jp z,exit		;if so, exit the program.
+gotit2:	;cp	1ah		;control-Z ?
+	;ld hl,-1		;if so, return -1.
+	;ret z
 	ld	l,a		;else return char in HL
 	ld	h,0
 	ret

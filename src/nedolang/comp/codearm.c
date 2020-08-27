@@ -296,7 +296,7 @@ PROC asm_clcurl()
 
 PROC asm_rname(BYTE r)
 {
-  asmstr( _RNAME[+(UINT)r] );
+  asmstr( _RNAME[(UINT)r] );
 }
 
 PROC asm_mrname(BYTE r)

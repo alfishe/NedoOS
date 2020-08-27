@@ -69,34 +69,34 @@ PROC rdaddwordall() //подклеить следующую команду к текущей
   _waseols = 0;
   _curlnbeg = _curline;
 
-  IF (_isalphanum[+(BYTE)_cnext] ) { //слово с цифробуквы
+  IF (_isalphanum[(BYTE)_cnext] ) { //слово с цифробуквы
     REPEAT { //ждём нецифробукву (EOF не цифробуква)
       IF (_lentword < _STRMAX) { //в асме из компилятора все слова короче, но не в ручном асме
         _tword[_lentword] = _cnext;
         INC _lentword;
       };
-      _cnext = +(CHAR)readfin();
-    }UNTIL (!_isalphanum[+(BYTE)_cnext]/** || _waseof*/ );
+      _cnext = (CHAR)readfin();
+    }UNTIL (!_isalphanum[(BYTE)_cnext]/** || _waseof*/ );
   }ELSE { //слово из нецифробуквенного символа - читаем одну нецифробукву (иначе бы не читали)
     //rdch(); //читаем всю группу диерезисов + символ как один символ
     IF (_lentword < _STRMAX) { //в асме из компилятора все слова короче, но не в ручном асме
       _tword[_lentword] = _cnext;
       INC _lentword;
     };
-    _cnext = +(CHAR)readfin();
+    _cnext = (CHAR)readfin();
   }; //нельзя подклеить это условие к циклу, т.к. оно для изначального cnext и один раз
 
   goto loopgo;
   loop: //REPEAT { //ждём недиерезис или EOF
-    _cnext = +(CHAR)readfin();
+    _cnext = (CHAR)readfin();
   loopgo:
-    IF (+(BYTE)_cnext < +(BYTE)'!') { //ускорение выхода
+    IF ((BYTE)_cnext < (BYTE)'!') { //ускорение выхода
       INC _spcsize; //spaces after tword
-      IF (+(BYTE)_cnext == 0x0a) {
+      IF ((BYTE)_cnext == 0x0a) {
         INC _curline;
         _spcsize = 0;
         INC _waseols;
-      }ELSE IF (+(BYTE)_cnext == 0x09) {
+      }ELSE IF ((BYTE)_cnext == 0x09) {
         _spcsize = _spcsize + 7;
       };
       IF (!_waseof) goto loop;
@@ -123,11 +123,11 @@ PROC asmtoken(BYTE token)
 PROC tokspc()
 {
 //IF (!_waseol) { //глюк на командах из одного слова
-  WHILE (_asmspcsize > +(UINT)_ASMMAXSPC) { //число пробелов после прочитанной команды
+  WHILE (_asmspcsize > (UINT)_ASMMAXSPC) { //число пробелов после прочитанной команды
     asmtoken(+_TOKSPC0+_ASMMAXSPC);
-    _asmspcsize = _asmspcsize - +(UINT)_ASMMAXSPC;
+    _asmspcsize = _asmspcsize - (UINT)_ASMMAXSPC;
   };
-  IF (_asmspcsize!=0) asmtoken(+_TOKSPC0 + +(BYTE)_asmspcsize);
+  IF (_asmspcsize!=0) asmtoken(+_TOKSPC0 + (BYTE)_asmspcsize);
 //};
 }
 
@@ -141,8 +141,8 @@ PROC asmrdword_tokspc() //токенизирует пробелы после прошлой команды и читает но
   //rdwordall();
   _lentword = 0/**strclear(_tword)*/; //todo нарушена парность clear..close
   rdaddwordall();
-  _c1small = +(CHAR)(+(BYTE)(*(PCHAR)_tword)|0x20);
-  _c2small = +(CHAR)(+(BYTE)_tword[1]|0x20);
+  _c1small = (CHAR)((BYTE)(*(PCHAR)_tword)|0x20);
+  _c2small = (CHAR)((BYTE)_tword[1]|0x20);
 }
 
 PROC toktext() //генерирует <text>text<endtext>
@@ -195,7 +195,7 @@ VAR PBYTE plbl; //метка в таблице заканчивается нулём
 VAR UINT plbl_idx;
 VAR PBYTE calladdr;
   //res = +FALSE;
-  _toklblhash = +(BYTE)hash((PBYTE)_tword);
+  _toklblhash = (BYTE)hash((PBYTE)_tword);
 
   plbl_idx = _toklblshift[_toklblhash];
   WHILE (plbl_idx != _TOKLBLBUFEOF) { //пока цепочка меток не закончилась
@@ -224,7 +224,7 @@ PROC tokaddlbl1(PCHAR txt, PBYTE proc, BYTE data)
 VAR PBYTE plbl;
 //VAR UINT freestart_idx;
 //VAR UINT plbl_idx;
-  _toklblhash = +(BYTE)hash((PBYTE)txt);
+  _toklblhash = (BYTE)hash((PBYTE)txt);
 
   //метки нет: пишем в начало цепочки адрес конца страницы и создаём метку там со ссылкой на старое начало цепочки
   //freestart_idx = _toklblbuffreestart; //[0] //начало свободного места
@@ -242,10 +242,10 @@ VAR PBYTE plbl;
   plbl = &plbl[+sizeof(LONG)]; //todo POI
   POKE *(PBYTE)(plbl) = data;
   //INC plbl;
-  //plbl_idx = +(UINT)(plbl - _toklbls); //указатель конец создаваемой метки
+  //plbl_idx = (UINT)(plbl - _toklbls); //указатель конец создаваемой метки
   //_toklblshift[_toklblhash] = freestart_idx; //новый указатель на начало цепочки
   //_toklblbuflen = _toklblbuflen + plbl_idx - freestart_idx;
-  _toklblbuffreestart = +(UINT)(plbl - _toklbls) + 1; //указатель конец создаваемой метки //plbl_idx; /**[0]*/
+  _toklblbuffreestart = (UINT)(plbl - _toklbls) + 1; //указатель конец создаваемой метки //plbl_idx; /**[0]*/
   //INC _toklblcount;
 }
 
@@ -360,7 +360,7 @@ PROC eatlabel(BYTE token)
   WHILE ((_cnext=='.')||(_cnext=='#')) {
     rdaddwordall(); //приклеить точку
     IF (_spcsize==0)
-      IF (_isalphanum[+(BYTE)_cnext]) //было isalpha
+      IF (_isalphanum[(BYTE)_cnext]) //было isalpha
         IF (_waseols==0)
           //IF (!_waseof)
             rdaddwordall(); //приклеить следующее слово
@@ -390,7 +390,7 @@ VAR CHAR opsym;
 {
   opsym = *(PCHAR)_tword;
   IF (!_asmwaseof) { //защита от зацикливания в конце ошибочного файла
-    IF (+(BYTE)(+(BYTE)opsym - +(BYTE)'0') < 0x0a) { //<num> //выдаёт <num><text>digits<endtext>
+    IF ((BYTE)((BYTE)opsym - (BYTE)'0') < 0x0a) { //<num> //выдаёт <num><text>digits<endtext> //extra BYTE for C bug
       asmtoken(+_TOKNUM);
       asmtoken(+_TOKTEXT);
 //for float:
@@ -409,7 +409,7 @@ VAR CHAR opsym;
       asmtoken(+_TOKENDTEXT);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       //если число было последним словом в строке, тогда этой токенизацией мы забыли бы про ентер (он теперь в _asmwaseol)
-    }ELSE IF (_isalphanum[+(BYTE)opsym] || (opsym=='.') ) { //todo убрать '.', если запретить начинать метки с точки //было isalpha
+    }ELSE IF (_isalphanum[(BYTE)opsym] || (opsym=='.') ) { //todo убрать '.', если запретить начинать метки с точки //было isalpha
       eatlabel(+_TOKLABEL);
     }ELSE IF ( opsym=='$' ) {
       asmtoken(+_TOKDOLLAR);
@@ -712,7 +712,7 @@ PROC tokcomment()
   _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword); //todo нарушена парность clear..close
   toktext(); //генерирует <text>text<endtext>
   asmtoken(+_TOKENDCOMMENT);
-  IF (+(BYTE)_cnext < +(BYTE)'!') {
+  IF ((BYTE)_cnext < (BYTE)'!') {
     IF (_cnext == '\t') {
       _spcsize = _spcsize + 8;
     }ELSE {
