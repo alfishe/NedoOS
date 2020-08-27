@@ -35,8 +35,10 @@
 igsp:	ld	a,(hl)
 	inc hl
 	cp	' '
+_1=$+1
 	jp z,igsp
 	cp	tab
+_2=$+1
 	jp z,igsp
 	dec hl
 	ex de,hl		;set DE pointing to 1st non-space char
@@ -45,7 +47,7 @@ igsp:	ld	a,(hl)
 	ld hl,0	;all OK.
 	pop bc
 	ret
-	ENDFUNC setfcbsz
+	ENDFUNC setfcbsz,2
 
 
 ;
@@ -62,6 +64,7 @@ igsp:	ld	a,(hl)
 	call	arghak
 	xor	a
 	call	fgfcb	;any fcb's free?
+_1=$+1
 	jp nc,open2	;if not, error
 	ld	a,10	;"no more file slots"
 	jp	error
@@ -81,6 +84,7 @@ open2:	sta	tmp
 	pop bc
 
 	ld	a,11	; set error code in case of error
+_2=$+1
 	jp z,oerror	;if error, go abort
 
 	lda	tmp
@@ -88,12 +92,15 @@ open2:	sta	tmp
 	lda	arg2
 	or	a	;open for read?
 	ld	d,3
+_3=$+1
 	jp z,open4
 	dec	a
 	ld	d,5
+_4=$+1
 	jp z,open4	;write?
 	dec	a
 	ld	a,12	;"bad mode" for open operation...
+_5=$+1
 	jp nz,oerror	;...if not mode 2
 	ld	d,7	;else must be mode 2.
 open4:	lda	usrnum	;get user number for the file
@@ -113,7 +120,7 @@ open4:	lda	usrnum	;get user number for the file
 oerror:	call	rstusr	;reset user number
 	sta	errnum	;store error code number
 	jp	error	;and return general error condition
-	ENDFUNC opensz
+	ENDFUNC opensz,5
 
 
 ;
@@ -126,7 +133,7 @@ oerror:	call	rstusr	;reset user number
 	FUNCTION "CLOSE"
         FUNCHEAD closesz
 	jp	close	;jump to the close routine in C.CCC
-	ENDFUNC closesz
+	ENDFUNC closesz,0
 
 
 ;
@@ -141,13 +148,20 @@ oerror:	call	rstusr	;reset user number
 	EXTERNAL "UNLINK"
 	EXTERNAL "OPEN"
         FUNCHEAD creatsz
+_1=$+1
+        jp (2 +1)*3
+_unlink=$
+        jp 0
+_open=$
+        jp 0
 
 	call	arghak
 	lhld	arg1
 	push bc
 
 	push hl
-	call	unlink	;erase any old versions of file
+_2=$+1
+	call	_unlink	;erase any old versions of file
 	pop de
 
 	lda	usrnum	;set to appropriate user area computed by "unlink"
@@ -158,6 +172,7 @@ oerror:	call	rstusr	;reset user number
 	call	rstusr	;restore previous user number
 	cp	errorv
 	pop bc
+_3=$+1
 	jp nz,creat0	;if no error, go open
 	ld	a,13	;"can't create file" error code
 	sta	errnum
@@ -167,11 +182,12 @@ creat0:	ld hl,2	;now open for read/write
 	push hl
 	lhld	arg1
 	push hl
-	call	open
+_4=$+1
+	call	_open
 	pop de
 	pop de
 	ret
-	ENDFUNC creatsz
+	ENDFUNC creatsz,4
 
 
 ;
@@ -202,7 +218,7 @@ creat0:	ld hl,2	;now open for read/write
 	sta	errnum
 	dec hl	;return -1
 	ret
-	ENDFUNC unlinksz
+	ENDFUNC unlinksz,0
 
 
 ;
@@ -218,16 +234,20 @@ creat0:	ld hl,2	;now open for read/write
         FUNCHEAD renamesz
 	call	arghak
 	push bc
-renam:	lhld	arg1	;get old name
+;renam:
+	lhld	arg1	;get old name
 	ex de,hl
+_1=$+1
 	ld hl,wfcb
 	call	setfcu	;compute user number and set fcb
 	lda	usrnum
 	call	setusr	;set to user number of first name
 	lhld	arg2
 	ex de,hl
+_2=$+1
 	ld hl,wfcb+16
 	call	setfcu	;parse second name, but ignore user number
+_3=$+1
 	ld de,wfcb
 	ld	c,renc	;perform rename operation
 	call	bdos
@@ -242,7 +262,7 @@ renam:	lhld	arg1	;get old name
 	ret
 
 wfcb:	ds 53		;space for working fcb's
-	ENDFUNC renamesz
+	ENDFUNC renamesz,3
 
 
 ;
@@ -255,6 +275,7 @@ wfcb:	ds 53		;space for working fcb's
         FUNCHEAD fabortsz
 	call	ma1toh
 	call	fgfd
+_1=$+1
 	jp nc,abrt2	;legal fd?
 	ld	a,7
 	sta	errnum	;set "bad fd" error code
@@ -267,7 +288,7 @@ abrt2:
 
 	ld hl,0
 	ret
-	ENDFUNC fabortsz
+	ENDFUNC fabortsz,1
 
 
 ;
@@ -282,6 +303,7 @@ abrt2:
         FUNCHEAD fcbaddrsz
 	call	ma1toh
 	call	fgfd	;is it an open file?
+_1=$+1
 	jp nc,fcbad2	;if so, go do it
 	ld	a,7
 	sta	errnum	;"bad fd" error code
@@ -290,123 +312,8 @@ abrt2:
 fcbad2:	call	ma1toh
 	call	fgfcb	;get fcb addr in HL
 	ret
-	ENDFUNC fcbaddrsz
+	ENDFUNC fcbaddrsz,1
 
-;
-; Read:
-;
-;	i = read(fd, buf, n);
-;
-; Read a number of sectors using random-record I/O.
-;
-; The return value is either the number of sectors successfully
-; read, 0 for EOF, or -1 on error with errno() returning the error
-; code (or errmsg(errno()) returning a pointer to an error message).
-; 
-; The Random Record Field is incremented following each successful
-; sector is read, just as if the normal (sequential) read function
-; were being used. "seek" must be used to go back to a previous 
-; sector.
-;
-
-	FUNCTION "READ"
-        FUNCHEAD readsz
-
-	call	arghak
-	lda	arg1
-	call	fgfd
-	ld	d,(hl)	;save fdt entry in D
-	ld	a,7	;prepare for possible "bad fd"
-	jp c,rerror
-
-	ld	a,d
-	and	2
-	ld	a,8	;prepare for possible "no read permission"
-	jp z,rerror
-
-	push bc
-	ld	a,d	;get fd table entry
-	call	setusr	;set user area to that of the file
-
-	lda	arg1	;get fd
-	call	fgfcb
-	shld	tmp2	;save fcb address
-	ld hl,0
-	shld	tmp2a
-r2:	lhld	arg3	;get countdown
-	ld	a,h
-	or	l	;done?
-r2aa:	lhld	tmp2a
-	jp nz,r2a
-r2done:	call	rstusr	;reset user number
-	pop bc	;yes. return with success count in HL
-	ret
-
-r2a:	lhld	arg2	;get transfer addr in DE
-	ex de,hl
-	ld	c,sdma	;set DMA there
-	call	bdos
-
-	lhld	tmp2
-	ex de,hl
-	ld	c,readr	;code for BDOS random read
-	push de	;save DE so we can fudge nr field if
-	call	bdos	;we stop reading on extent boundary...
-	pop de
-	or	a
-	jp z,r4	;go to r4 if no problem
-
-	cp	1	;ok, we have SOME kind of hangup...
-	jp z,r2b	;check for EOF condition:
-	cp	4	;  error codes 1 and 4 both indicate reading
-	jp z,r2b	;  unwritten data..treat as EOF
-
-	ld	b,a	;have we successfully read anything yet?
-	lda	tmp2a
-	or 	a
-	ld	b,a	;get error code back in A	
-	jp nz,r2c	;if we have read something in, don't set errnum
-	sta	errnum	;otherwise nothing read, so set error code.
-
-r2c:	ld hl,-1	;put ERROR value in HL
-	jp	r2done
-
-r2b:	lhld	tmp2a	;return count
-	jp	r2done
-
-r4:	lhld	arg3	;decrement countdown
-	dec hl
-	shld	arg3
-	lhld	arg2	;bump DMA address
-	ld de,128
-	add hl,de
-	shld	arg2
-	lhld	tmp2a	;bump success count
-	inc hl
-	shld	tmp2a
-	lhld	tmp2	;get address of fcb
-	ld bc,33	;get addr of random record field
-	add hl,bc
-	ld	c,(hl)	;bump
-	inc hl	;    value
-	ld	b,(hl)	;	  of 
-	inc bc	;	    random
-	ld	(hl),b	;		  field
-	dec hl	;			by one
-	ld	(hl),c
-	ld	a,b	;overflow past 16-bit record count?
-	or	c
-	jp nz,r2	; go for next sector if no overflow
-	inc hl	;else set 3rd byte of random sector count
-	inc hl
-	ld	(hl),1
-	ld	a,14	;"seek past 65536th record of file"
-	sta	errnum
-	jp	r2aa	;and don't read any more.
-
-rerror:	sta	errnum
-	jp	error
-	ENDFUNC readsz
 
 ;
 ; Write:
@@ -428,11 +335,13 @@ rerror:	sta	errnum
 	shld	arg5	;save pointer to fd table entry
 	ld	d,(hl)	;save fd table entry in D
 	ld	a,7	;prepare for possible "bad fd"
+_1=$+1
 	jp c,werror
 
 	ld	a,d
 	and	4
 	ld	a,9	;prepare for possible "no write permission"
+_2=$+1
 	jp z,werror
 
 	push bc
@@ -447,6 +356,7 @@ rerror:	sta	errnum
 writ1:	lhld	arg3	;done yet?
 	ld	a,h
 	or	l
+_3=$+1
 	jp nz,writ2
 
 			;take care of maximum sector count for cfsize:
@@ -466,6 +376,7 @@ writ1:	lhld	arg3	;done yet?
 	ex de,hl		;HL = old max, DE = current sector
 	call	cmphd	;is  old max less than current sector?
 	pop hl	;get tab ptr in HL
+_4=$+1
 	jp nc,writ1a	;if old max not < current sector, don't update max
 	ld	(hl),d	;else update max value with new sector number
 	dec hl
@@ -493,9 +404,11 @@ writ2:	lhld	arg2	;else get transfer address
 	call	bdos
 	lhld	tmp2a	;get success count in HL
 	or	a	;error?
+_5=$+1
 	jp z,writ3	;if not, go do bookkeeping
 	
 	sta	errnum	;else save error code
+_6=$+1
 	jp	wrdone
 		
 writ3:	inc hl	; else bump successful sector count,
@@ -518,18 +431,20 @@ writ3:	inc hl	; else bump successful sector count,
 
 	ld	a,b	;overflow past 16-bit record count?
 	or	c
+_7=$+1
 	jp nz,writ1	; go for next sector if no overflow
 	inc hl	;else set 3rd byte of random sector count
 	inc hl
 	ld	(hl),1
 	ld	a,14	;set "past 65536th sector" error code
 	sta	errnum
+_8=$+1
 	jp	writ1a	;and don't read any more.
 
 werror:	sta	errnum
 	jp	error
 
-	ENDFUNC writesz
+	ENDFUNC writesz,8
 
 ;
 ; Seek:
@@ -550,12 +465,17 @@ werror:	sta	errnum
 	FUNCTION "SEEK"
 	EXTERNAL "CFSIZE"
         FUNCHEAD seeksz
+_1=$+1
+        jp (1 +1)*3
+_cfsize=$
+        jp 0
 
 	call	arghak
 	push bc	;save BC
 	lda	arg1
 	call	fgfcb	;figure addr of fcb
 	ld	a,7	;prepare for possible "bad fd" error code
+_2=$+1
 	jp nc,seek0
 	sta	errnum	;set the error code
 	pop bc	;restore BC
@@ -570,17 +490,21 @@ seek0:	push hl	;save addr of fcb
 	lhld	arg2	;get offset in HL
 	lda	arg3	;is origin == 0?
 	or	a
+_3=$+1
 	jp z,rseek2	;if so, HL holds new position
 	dec	a	;no. is origin == 1?
+_4=$+1
 	jp nz,rseek1
 	add hl,de	;yes. add offset to current position
+_5=$+1
 	jp	rseek2	;and result is in HL
 
 rseek1:			;else origin must be 2...
 	lhld	arg1	;compute file size
 	push de	;save current position
 	push hl
-	call	cfsize
+_6=$+1
+	call	_cfsize
 	pop de	;pop argument
 	pop de	;pop useless current position
 	ex de,hl		;place file size in DE
@@ -618,7 +542,7 @@ rseek2:	ex (sp),hl		;get fcb, push	new position
 ;	ld	d,(hl)
 ;	ret
 
-	ENDFUNC seeksz
+	ENDFUNC seeksz,6
 
 ;
 ; Tell:
@@ -633,6 +557,7 @@ rseek2:	ex (sp),hl		;get fcb, push	new position
 
 	call	ma1toh	;get fd in A
 	call	fgfcb
+_1=$+1
 	jp nc,tell0
 	ld	a,7	; "bad fd" error
 	sta	errnum
@@ -646,7 +571,7 @@ tell0:	ld de,33	;go to random record field
 	ld	l,a
 	ret
 
-	ENDFUNC tellsz
+	ENDFUNC tellsz,1
 
 
 ;
@@ -670,20 +595,24 @@ tell0:	ld de,33	;go to random record field
 	lda	arg1
 	call	fgfcb	;figure addr of fcb
 	ld	a,7	;prepare for possible "bad fd" error code
+_1=$+1
 	jp nc,hseek0
 	sta	errnum	;set the error code
 	pop bc	;restore BC
 	jp	error
 
 hseek0:	push hl	;save addr of fcb
+_2=$+1
 	call	hseek3	; CDE = current position
 	lhld	arg3	; BHL = offset value
 	lda	arg2
 	ld	b,a
 	lda	arg4	;is origin == 0?
 	or	a
+_3=$+1
 	jp z,hseek2	;if so, BHL holds new position
 	dec	a	;no. is origin == 1?
+_4=$+1
 	jp z,hseek1a	;if so, go add offset to current position
 
 hseek1:	lda	arg1
@@ -697,6 +626,7 @@ hseek1:	lda	arg1
 	call	rstusr	;reset user number
 	pop hl	;get fcb addr in HL again
 	push hl
+_5=$+1
 	call	hseek3	;get CDE = EOF record number
 	lhld	arg3	;BHL contains offset
 hseek1a:
@@ -725,7 +655,7 @@ hseek3:	ld de,33
 	inc hl
 	ld	c,(hl)
 	ret
-	ENDFUNC hseeksz
+	ENDFUNC hseeksz,5
 
 ;
 ; Htell:
@@ -740,6 +670,7 @@ hseek3:	ld de,33
 
 	call	ma1toh	;get fd in A
 	call	fgfcb
+_1=$+1
 	jp nc,htell0
 	ld	a,7	; "bad fd" error
 	sta	errnum
@@ -751,7 +682,7 @@ htell0:	ld de,35	;go to random record field
 	ld	h,0	;zero H register.
 	ret
 
-	ENDFUNC htellsz
+	ENDFUNC htellsz,1
 
 
 ;
@@ -770,6 +701,7 @@ htell0:	ld de,35	;go to random record field
 ;cfsize
 	call	ma1toh
 	call	fgfcb
+_1=$+1
 	jp nc,cfsiz2
 	ld	a,7	;"bad fd" error
 	sta	errnum
@@ -816,6 +748,7 @@ cfsiz2:	push bc	;save BC
 	ld	h,(hl)
 	ld	l,a	;now old max in HL, fsize value in DE
 	call	cmphd	;is old max < current fsize?
+_2=$+1
 	jp nc,cfsiz3	;if not, just return old max as current max
 	ex (sp),hl		;get back pointer to old max value
 	ld	(hl),e	;update with new fsize value
@@ -827,7 +760,7 @@ cfsiz3:	pop de	;clean up stack
 	call	rstusr	;reset user area
 	pop bc
 	ret
-	ENDFUNC cfsizesz
+	ENDFUNC cfsizesz,2
 
 ;
 ; Oflow:
@@ -841,6 +774,7 @@ cfsiz3:	pop de	;clean up stack
         FUNCHEAD oflowsz
 	call	ma1toh
 	call	fgfcb
+_1=$+1
 	jp nc,oflow0
 	ld	a,7	;"bad fd" error
 	sta	errnum
@@ -854,7 +788,7 @@ oflow0:	ld de,35	;look at high byte of sector position
 	ret z		;if so, no overflow
 	inc hl	;else overflow.
 	ret
-	ENDFUNC oflowsz
+	ENDFUNC oflowsz,1
 
 
 ;
@@ -872,7 +806,7 @@ oflow0:	ld de,35	;look at high byte of sector position
 	ld	h,0
 	ret
 
-	ENDFUNC errnosz
+	ENDFUNC errnosz,0
 
 ;
 ; Errmsg:
@@ -889,9 +823,11 @@ nerrs:	equ	14	;highest legal error code
 
 	call	ma1toh	;get the number
 	cp	nerrs+1
+_1=$+1
 	jp c,errms2
 	ld hl,nerrs+1 ;get the error error message
 errms2:	add hl,hl	;double to get table offset
+_2=$+1
 	ld de,txtab	;get base of text pointer table
 	add hl,de	;add to get appropriate pointer
 	ld	a,(hl)	;return pointer in HL
@@ -900,21 +836,37 @@ errms2:	add hl,hl	;double to get table offset
 	ld	l,a	
 	ret
 
+_3=$
 txtab:	dw	err0
+_4=$
 	dw	err1
+_5=$
 	dw	err2
+_6=$
 	dw	err3
+_7=$
 	dw	err4
+_8=$
 	dw	err5
+_9=$
 	dw	err6
+_10=$
 	dw	err7
+_11=$
 	dw	err8
+_12=$
 	dw	err9
+_13=$
 	dw	err10
+_14=$
 	dw	err11
+_15=$
 	dw	err12
+_16=$
 	dw	err13
+_17=$
 	dw	err14
+_18=$
 	dw	errerr
 	
 
@@ -935,7 +887,7 @@ err13:	db	'Can''t create the file',0
 err14:	db	'Seek past 65535th record',0
 
 errerr:	db 	'Errmsg: error number out of range',0
-	ENDFUNC errmsgsz
+	ENDFUNC errmsgsz,18
 
 
 ;
@@ -969,6 +921,7 @@ errerr:	db 	'Errmsg: error number out of range',0
 	ld	c,openc	;open the file for reading
 	call	bdos
 	cp	errorv
+_1=$+1
 	jp nz,noerrr
 err:	pop hl
 	pop bc
@@ -978,12 +931,14 @@ err:	pop hl
 noerrr:	lhld	arg2	;any first parameter?
 	ld	a,h
 	or	l
+_2=$+1
 	jp nz,excl0
 	ld de,arg2	;no...null out first default fcb slot
 	push de
 	ld hl,fcb
 	call	setfcb
 	pop hl
+_3=$+1
 	jp	excl0a	;and go null out 2nd fcb slot
 
 excl0:	ex de,hl		;yes.. place into first default fcb slot
@@ -992,6 +947,7 @@ excl0:	ex de,hl		;yes.. place into first default fcb slot
 	lhld	arg3	;any second parameter given?
 	ld	a,h
 	or	l
+_4=$+1
 	jp nz,excl0a
 	ld hl,arg3
 
@@ -1010,30 +966,38 @@ excl1:	push hl	;and construct command line
 	ld	h,(hl)
 	ld	l,a	;0000 indicates end of list.
 	or	h	;end of list?
+_5=$+1
 	jp z,excl3
 
 	ld	a,' '	;no. install next string
 	dec hl
-excl2:	call	mpuc	;convert to upper case for command line buffer
+excl2:
+_6=$+1
+        call	mpuc	;convert to upper case for command line buffer
 	ld (de),a
 	inc de
 	inc	b
 	inc hl
 	ld	a,(hl)
 	or	a	;end of string?
+_7=$+1
 	jp nz,excl2
 	pop hl	;yes.
 	inc hl	;bump param pointer
 	inc hl	
+_8=$+1
 	jp	excl1	;and go do next string
 
 excl3:	pop hl	;clean up stack
 	ld	a,b	;check for command buffer overflow
 	cp	46h
+_9=$+1
 	jp c,excl30	;if no overflow, go load file
+_10=$+1
 	ld de,errmsg
 	ld	c,9	;else comlain and abort...
 	call	bdos
+_11=$+1
 	jp	err
 
 errmsg:	db	7,'EXECL: Command line overflow',cr,lf,'$'
@@ -1041,7 +1005,9 @@ errmsg:	db	7,'EXECL: Command line overflow',cr,lf,'$'
 excl30:	ld hl,tbuff	;set length of command line
 	ld	(hl),b	;at location tbuff
 
-excl3a:	ld de,code0	;copy loader down to end of tbuff
+excl3a:
+_12=$+1
+	ld de,code0	;copy loader down to end of tbuff
 	ld hl,tpa-55
 	ld	b,55	;length of loader
 excl4:	ld a,(de)
@@ -1049,6 +1015,7 @@ excl4:	ld a,(de)
 	inc de
 	inc hl
 	dec	b
+_13=$+1
 	jp nz,excl4
 
 	pop bc	;get fcb pointer in BC
@@ -1056,11 +1023,14 @@ excl4:	ld a,(de)
 	lhld	base+6	;get BDOS pointer in HL
 	lda	tpa	;look at first op byte of run-time pkg
 	cp	31h	;begin with "lxi sp,"?
+_14=$+1
 	jp nz,go0	;if so, use the same value now...
 	lhld	tpa+1	;else get special SP value
+_15=$+1
 	jp	go1
 
 go0:	cp	21h	;begin with "ld hl" (the NOBOOT sequence?)
+_16=$+1
 	jp nz,go1	;if not, just use the BDOS addr as top of memory
 	ld de,-2050	;for NOBOOT, subtract 2100 from BDOS addr
 	add hl,de	;and make that the new SP
@@ -1121,5 +1091,5 @@ code2:	ld hl,80h	;bump dma address
 	ex de,hl
 	jp	tpa-52 	;and go loop (at code1)
 
-	ENDFUNC execlsz
+	ENDFUNC execlsz,16
 

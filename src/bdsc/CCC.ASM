@@ -644,6 +644,10 @@ arghk2:	ld	a,(hl)	;copy loop
 init:	pop hl	;store return address
 	shld	tmp2	; somewhere safe for the time being
 
+        OS_HIDEFROMPARENT
+        ld e,6 ;textmode
+        OS_SETGFX 
+        
 	IF	CPM
 	ld hl,arglst-2	;set up "argv" for the C main program
 	ENDIF
@@ -691,22 +695,23 @@ init:	pop hl	;store return address
 
 initzz:	ld hl,tbuff		;if arguments given, process them.
 	ld de,comlin	;get ready to copy command line
-	ld	b,(hl)		;first get length of it from loc. base+80h
-	inc hl
-	ld	a,b
-	or	a	;if no arguments, don't parse for argv
-	jp nz,initl
-	ld de,1	;set argc to 1 in such a case.
-	jp	i5
+	;ld	b,(hl)		;first get length of it from loc. base+80h
+	;inc hl
+	;ld	a,b
+	;or	a	;if no arguments, don't parse for argv
+	;jp nz,initl
+	;ld de,1	;set argc to 1 in such a case.
+	;jp	i5
 
 initl:	ld	a,(hl)	;ok, there are arguments. parse...
 	ld (de),a	;first copy command line to comlin
+         or a
 	inc hl
 	inc de
-	dec	b
+	;dec	b
 	jp nz,initl
-	xor	a	;place zero following line
-	ld (de),a
+	;xor	a	;place zero following line
+	;ld (de),a
 
 	ld hl,comlin	;now compute pointers to each arg
 	ld de,1		;arg count

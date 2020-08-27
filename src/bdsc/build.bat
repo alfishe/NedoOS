@@ -20,6 +20,9 @@ if "%currentdir%"=="" (
  FOR %%j IN (*.ccc) DO (
  "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
  )
+ FOR %%j IN (*.crl) DO (
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
  pause
  if "%makeall%"=="" ..\..\us\emul.exe
 )

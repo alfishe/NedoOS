@@ -21,23 +21,32 @@ temp	equ  mq+4	;temporary storage byte used by div'n routine
 
 ; long is main routine which dispatches to the various functions
 ; of the package according to the value of its first argument
-
-long:	push bc		;save for benefit of caller
+;long:
+	push bc		;save for benefit of caller
 	call ma2toh	;get 1st arg (function code) into HL and A
 	ld  d,h
 	ld  e,l
 	add hl,hl
 	add hl,de		;HL now has triple the function code
+_1=$+1
 	ld de,jtab	;base of jump table
 	add hl,de
 	jp (hl)		;dispatch to appropriate function
 
-jtab:	jp  lmake	;jump table for quad functions
+jtab:
+_2=$+1
+	jp  lmake	;jump table for quad functions
+_3=$+1
 	jp  lcomp
+_4=$+1
 	jp  ladd
+_5=$+1
 	jp  lsub
+_6=$+1
 	jp  lmul
+_7=$+1
 	jp  ldiv
+_8=$+1
 	jp  lmod
 
 
@@ -51,7 +60,9 @@ lmake:	call ma4toh	;get arg3 into HL
 	ex de,hl		;into (DE)
 	ld bc,0	;zero out high word
 	pop  af
+_9=$+1
 	call m,qneg	;complement if necessary
+_10=$+1
 	jp  putarg	;copy result into arg2 and return
 
 ;all other routines copy their arguments into the quad register (BCDE)
@@ -62,13 +73,18 @@ lmake:	call ma4toh	;get arg3 into HL
 ;lcomp compares arg2 with arg3, returns -1, 0, 1 for <, =, >, resp
 
 lcomp:  call ma3toh	;get pointer to arg2
+_11=$+1
 	call qld	
 	ld hl,u
+_12=$+1
 	call qst	;arg2 now in u
 	call ma4toh	;get pointer to arg3
+_13=$+1
 	call qld	;arg3 now in (BCDE)
 	ld hl,-1	;presume <
+_14=$+1
 	call qsub
+_15=$+1
 	call qtst
 	pop bc		;restore bc for caller
 	ret m
@@ -79,24 +95,44 @@ lcomp:  call ma3toh	;get pointer to arg2
 
 ; long addition
 
-ladd:	call getargs	;get args into (BCDE) and u
+ladd:
+_16=$+1
+	call getargs	;get args into (BCDE) and u
+_17=$+1
 	call qadd	;do the addition
+_18=$+1
 	jp  putarg	;copy result into arg2 and return
 
-lsub:	call getargs
+lsub:
+_19=$+1
+	call getargs
+_20=$+1
 	call qsub
+_21=$+1
 	jp  putarg
 
-lmul:	call getargs
+lmul:
+_22=$+1
+	call getargs
+_23=$+1
 	call qmul
+_24=$+1
 	jp  putarg
 
-ldiv:	call getargs
+ldiv:
+_25=$+1
+	call getargs
+_26=$+1
 	call qdiv
+_27=$+1
 	jp  putarg
 
-lmod:	call getargs
+lmod:
+_28=$+1
+	call getargs
+_29=$+1
 	call qmod
+_30=$+1
 	jp  putarg
 
 ;getargs gets arg3 into u, arg4 into (BCDE)
@@ -104,16 +140,20 @@ lmod:	call getargs
 getargs:
 	call ma5toh		;get ptr to arg3 (note use ma5 cause of 
 				;return addr on stack)
+_31=$+1
 	call qld		;arg3 now in (BCDE)
 	ld hl,u
+_32=$+1
 	call qst		;now in u
 	call ma6toh		;get ptr to arg4
+_33=$+1
 	jp  qld		;arg4 now in (BCDE)
 
 
 ; putarg copies (BCDE) into result arg (arg2) and cleans up
 
 putarg:	call ma3toh		;get pointer to arg2
+_34=$+1
 	call qst		;copy (BCDE) into it
 	pop bc			;restore BC for caller
 	ret
@@ -122,7 +162,9 @@ putarg:	call ma3toh		;get pointer to arg2
 
 ; quad subtraction  u - (BCDE) -> (BCDE)
 
-qsub:	call qneg  	;complement (BCDE) and fall thru to add
+qsub:
+_35=$+1
+	call qneg  	;complement (BCDE) and fall thru to add
 
 ; quad addition     u + (BCDE) -> (BCDE)
 
@@ -169,8 +211,11 @@ qneg:	push hl
 
 qneghl: push bc
 	push de
+_36=$+1
 	call qld
+_37=$+1
 	call qneg
+_38=$+1
 	call qst
 	pop de
 	pop bc
@@ -179,10 +224,14 @@ qneghl: push bc
 ; signed quad multiplication
 ; u * (BCDE) --> (BCDE)
 
-qmul:	call csign			;take abs values and compute signs
+qmul:
+_39=$+1
+	call csign			;take abs values and compute signs
 	push af			;save result sign
+_40=$+1
 	call uqmul			;compute product
 qmul1:	pop  af
+_41=$+1
 	jp m,qneg			;complement product if needed
 	ret
 
@@ -191,11 +240,14 @@ qmul1:	pop  af
 csign:	ld  a,b			;look at (BCDE) first
 	or  a
 	push af			;save flags
+_42=$+1
 	call m,qneg			;complement if needed
 	ld hl,u			;now look at u
 	ld  a,(hl)
 	or  a
-	jp   csign1
+_43=$+1
+	jp p,csign1
+_44=$+1
 	call qneghl
 	pop  af
 	xor  80h			;flip sign
@@ -209,41 +261,60 @@ csign1:	pop af
 uqmul:	ld hl,u
 	push hl				;put pointer to u on stack
 	ld hl,mq
+_45=$+1
 	call qst			;(BCDE) -> mq
 	ld bc,0			;init product to 0
 	ld de,0
-uqmul1:	call qtsthl			;test if mq is 0
+uqmul1:
+_46=$+1
+	call qtsthl			;test if mq is 0
+_47=$+1
 	jp z,uqmul2			;if so, done
 	xor  a				;clear carry
+_48=$+1
 	call qrarhl			;shift mq over
+_49=$+1
 	call c,qadd			;add u to (BCDE) if lsb=1
 	ex (sp),hl				;get pointer to u
 	xor  a				;clear carry
+_50=$+1
 	call qralhl			;double u
 	ex (sp),hl				;get back pointer to mq
+_51=$+1
 	jp  uqmul1
 uqmul2:	pop hl				;restore stack
 	ret
 
 ; signed division  u / (BCDE) --> (BCDE)
 
-qdiv:	call qtst			;first test for zero divisor
+qdiv:
+_52=$+1
+	call qtst			;first test for zero divisor
 	ret z
+_53=$+1
 	call csign			;take care of signs
 	push af			;save quotient sign
+_54=$+1
 	call uqdiv
+_55=$+1
 	call qld			;get quotient in (BCDE)
+_56=$+1
 	jp  qmul1			;adjust sign of result
 
 ;  signed remainder  u mod (BCDE) --> (BCDE)
 
-qmod:	call qtst			;test for zero modulus
+qmod:
+_57=$+1
+	call qtst			;test for zero modulus
 	ret z
 	lda u				;sign of u is that of result
 	or  a
 	push af			;save flags
+_58=$+1
 	call csign			;get abs val of args
+_59=$+1
 	call uqdiv			;remainder in (BCDE)
+_60=$+1
 	jp  qmul1
 
 
@@ -252,34 +323,45 @@ qmod:	call qtst			;test for zero modulus
 
 
 uqdiv:	ld hl,mq			;mq will contain quotient
+_61=$+1
 	call qclrhl			;clear it
 	push hl				;save it on the stack
 
 	ld  l,1			;now normalize divisor
 uqdiv1:	ld  a,b			;look at most signif non-sign bit
 	and  40h
+_62=$+1
 	jp nz,uqdiv2
+_63=$+1
 	call qral			;if not 1, shift left
 	inc  l
+_64=$+1
 	jp  uqdiv1
 uqdiv2:	ld  a,l
 	sta  temp			;save normalization count
 	ld hl,u			
+_65=$+1
 	call qxchg			;want divid in (BCDE), divisor in u
 	ex (sp),hl				;pointer to mq in (HL), u on stack
 
 ;main loop
 
-uqdiv3: call trial			;trial subtraction of divisor
+uqdiv3:
+_66=$+1
+        call trial			;trial subtraction of divisor
+_67=$+1
 	call qralhl			;shift in the carry
 	lda  temp			;get the count
 	dec  a
+_68=$+1
 	jp z,uqdiv4			;done
 	sta  temp			;save count again
 	ex (sp),hl				;divisor in (HL)
 	xor  a
+_69=$+1
 	call qrarhl			;shift it right one
 	ex (sp),hl				;quotient in (HL)
+_70=$+1
 	jp  uqdiv3
 
 uqdiv4: inc sp
@@ -287,10 +369,14 @@ uqdiv4: inc sp
 	ret
 
 
-trial:	call qsub			;subtract divid from divisor
+trial:
+_71=$+1
+	call qsub			;subtract divid from divisor
+_72=$+1
 	call qneg			;actually want divisor from divid
 	scf				;assume was positive
 	ret p
+_73=$+1
 	call qadd			;else must restore dividend
 	xor  a				;clear carry
 	ret
@@ -443,6 +529,7 @@ qtsthl:	ld  a,(hl)
 	inc hl
 	or  (hl)
 	pop hl
+_74=$+1
 	jp  qtst1
 
 ; swap (BCDE) with thing pointed to by HL
@@ -466,4 +553,4 @@ qxchg:	push hl
 	pop hl
 	ret
 
-	ENDFUNC longsz
+	ENDFUNC longsz,74

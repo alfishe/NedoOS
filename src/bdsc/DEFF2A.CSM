@@ -46,10 +46,235 @@ _=$
         db 0
         dw sz
 __=$
+        disp 0
         endm
 
-        macro ENDFUNC sz
+        macro ENDFUNC sz,npars
+        ent
 sz=$-__
+        dw npars
+        if npars >= 1
+        dw _1
+        endif
+        if npars >= 2
+        dw _2
+        endif
+        if npars >= 3
+        dw _3
+        endif
+        if npars >= 4
+        dw _4
+        endif
+        if npars >= 5
+        dw _5
+        endif
+        if npars >= 6
+        dw _6
+        endif
+        if npars >= 7
+        dw _7
+        endif
+        if npars >= 8
+        dw _8
+        endif
+        if npars >= 9
+        dw _9
+        endif
+        if npars >= 10
+        dw _10
+        endif
+        if npars >= 11
+        dw _11
+        endif
+        if npars >= 12
+        dw _12
+        endif
+        if npars >= 13
+        dw _13
+        endif
+        if npars >= 14
+        dw _14
+        endif
+        if npars >= 15
+        dw _15
+        endif
+        if npars >= 16
+        dw _16
+        endif
+        if npars >= 17
+        dw _17
+        endif
+        if npars >= 18
+        dw _18
+        endif
+        if npars >= 19
+        dw _19
+        endif
+        if npars >= 20
+        dw _20
+        endif
+        if npars >= 21
+        dw _21
+        endif
+        if npars >= 22
+        dw _22
+        endif
+        if npars >= 23
+        dw _23
+        endif
+        if npars >= 24
+        dw _24
+        endif
+        if npars >= 25
+        dw _25
+        endif
+        if npars >= 26
+        dw _26
+        endif
+        if npars >= 27
+        dw _27
+        endif
+        if npars >= 28
+        dw _28
+        endif
+        if npars >= 29
+        dw _29
+        endif
+        if npars >= 30
+        dw _30
+        endif
+        if npars >= 31
+        dw _31
+        endif
+        if npars >= 32
+        dw _32
+        endif
+        if npars >= 33
+        dw _33
+        endif
+        if npars >= 34
+        dw _34
+        endif
+        if npars >= 35
+        dw _35
+        endif
+        if npars >= 36
+        dw _36
+        endif
+        if npars >= 37
+        dw _37
+        endif
+        if npars >= 38
+        dw _38
+        endif
+        if npars >= 39
+        dw _39
+        endif
+        if npars >= 40
+        dw _40
+        endif
+        if npars >= 41
+        dw _41
+        endif
+        if npars >= 42
+        dw _42
+        endif
+        if npars >= 43
+        dw _43
+        endif
+        if npars >= 44
+        dw _44
+        endif
+        if npars >= 45
+        dw _45
+        endif
+        if npars >= 46
+        dw _46
+        endif
+        if npars >= 47
+        dw _47
+        endif
+        if npars >= 48
+        dw _48
+        endif
+        if npars >= 49
+        dw _49
+        endif
+        if npars >= 50
+        dw _50
+        endif
+        if npars >= 51
+        dw _51
+        endif
+        if npars >= 52
+        dw _52
+        endif
+        if npars >= 53
+        dw _53
+        endif
+        if npars >= 54
+        dw _54
+        endif
+        if npars >= 55
+        dw _55
+        endif
+        if npars >= 56
+        dw _56
+        endif
+        if npars >= 57
+        dw _57
+        endif
+        if npars >= 58
+        dw _58
+        endif
+        if npars >= 59
+        dw _59
+        endif
+        if npars >= 60
+        dw _60
+        endif
+        if npars >= 61
+        dw _61
+        endif
+        if npars >= 62
+        dw _62
+        endif
+        if npars >= 63
+        dw _63
+        endif
+        if npars >= 64
+        dw _64
+        endif
+        if npars >= 65
+        dw _65
+        endif
+        if npars >= 66
+        dw _66
+        endif
+        if npars >= 67
+        dw _67
+        endif
+        if npars >= 68
+        dw _68
+        endif
+        if npars >= 69
+        dw _69
+        endif
+        if npars >= 70
+        dw _70
+        endif
+        if npars >= 71
+        dw _71
+        endif
+        if npars >= 72
+        dw _72
+        endif
+        if npars >= 73
+        dw _73
+        endif
+        if npars >= 74
+        dw _74
+        endif
         endm
 
         macro EXTERNAL name
@@ -63,7 +288,7 @@ sz=$-__
 
 begin
 _=$
-        ds 512
+        ds 512,0x80 ;end=0x80
         db 0x80
         dw 0x0205
         dw 0x4646
@@ -82,20 +307,19 @@ _=$
 	ld	l,d		;return old value of chmode
 	ld	h,0
 	ret
-	ENDFUNC cmodesz
-        dw 0 ;no reloc pars
+	ENDFUNC cmodesz,0
+        ;dw 0 ;no reloc pars
 
 	FUNCTION "IOBREAK"
         FUNCHEAD iobreaksz
 	call	ma1toh		;get arg
 	sta	iobrf
 	ret
-	ENDFUNC iobreaksz
-        dw 0 ;no reloc pars
+	ENDFUNC iobreaksz,0
+        ;dw 0 ;no reloc pars
 
 	FUNCTION "GETCHAR"
         FUNCHEAD getcharsz
-        disp 0
 	lda	ungetl	;any character pushed back?
 	ld	l,a
 	or	a
@@ -190,8 +414,8 @@ gcptr	ds	2	;pointer into line where first char is
 gcbuff	db	maxl	;max line length fro BDOS 10
 gcnum	db	0	;number of characters just read by BDOS 10
 gcline	ds	maxl+1	;buffer for characters, in case BDOS 10 is used
-        ent
-	ENDFUNC getcharsz
+	ENDFUNC getcharsz,14
+        if 1==0
         dw getcharnpars
 _p=$
         dw _1
@@ -209,6 +433,7 @@ _p=$
         dw _13
         dw _14
 getcharnpars=($-_p)/2
+        endif
 
 	FUNCTION "KBHIT"
         FUNCHEAD kbhitsz
@@ -232,8 +457,8 @@ getcharnpars=($-_p)/2
 	ret z		;return 0 in HL if no character ready
 	inc	l	;otherwise return 1 in HL
 	ret
-	ENDFUNC kbhitsz
-        dw 0 ;no reloc pars
+	ENDFUNC kbhitsz,0
+        ;dw 0 ;no reloc pars
 
 	FUNCTION "UNGETCH"
         FUNCHEAD ungetchsz
@@ -245,43 +470,64 @@ getcharnpars=($-_p)/2
 	pop hl
 	ld	h,0
 	ret
-	ENDFUNC ungetchsz
-        dw 0 ;no reloc pars
+	ENDFUNC ungetchsz,0
+        ;dw 0 ;no reloc pars
 
 	FUNCTION "PUTCHAR"
         FUNCHEAD putcharsz
 	call	ma1toh	;get character in A
 	push bc
-	ld	c,conout
+	;ld	c,conout
+       ds 2
 	cp	newlin	;newline?
+_1=$+1
 	jp nz,put1	;if not, just go put out the character
-	ld	e,cr	;else...put out CR-LF
-	call	bdos
-	ld	c,conout
+	;ld	e,cr	;else...put out CR-LF
+       ld a,cr
+	;call	bdos
+       PRCHAR
+       ds 2
+	;ld	c,conout
+       ds 2
 	ld	a,lf
 
-put1:	ld	e,a
-	call	bdos
+put1:	;ld	e,a
+       nop
+	;call	bdos
+       PRCHAR
+       ds 2
 
-put2:	lda	iobrf	;checking for BREAK characters on keyboard?
+put2:	;lda	iobrf	;checking for BREAK characters on keyboard?
+       xor a
+       ds 2
 	or	a
+_2=$+1
 	jp z,put4	;if not, all done
 	
-	ld	c,cstat	;now, is input present at the console?
-	call	bdos
-	or	a
-	jp nz,put3
-	pop bc	;no...all done.
-	ret
+	 ld	c,cstat	;now, is input present at the console?
+	 call	bdos
+	 or	a
+_3=$+1
+	 jp nz,put3
+	 pop bc	;no...all done.
+	 ret
 
-put3:	ld	c,conin	;yes. sample it (this will always echo the
-	call	bdos	;	character to the screen, alas)
-	cp	cntrlc	;is it control-C?
-	jp z,exit	;if so, abort and reboot
+put3:	 ld	c,conin	;yes. sample it (this will always echo the
+	 call	bdos	;	character to the screen, alas)
+	 cp	cntrlc	;is it control-C?
+	 jp z,exit	;if so, abort and reboot
+
 put4:	pop bc	;else ignore it.
 	ret
-	ENDFUNC putcharsz
-        dw 0 ;no reloc pars
+	ENDFUNC putcharsz,3
+        if 1==0
+        dw putcharnpars
+_p=$
+        dw _1
+        dw _2
+        dw _3
+putcharnpars=($-_p)/2
+        endif
 
 	FUNCTION "GETS"
         FUNCHEAD getssz
@@ -306,12 +552,14 @@ put4:	pop bc	;else ignore it.
 	pop de	;DE points to start destination area
 copyls:	ld	a,b	;copy line to start of buffer
 	or	a
+_1=$+1
 	jp z,gets2s
 	ld	a,(hl)
 	ld (de),a
 	inc hl
 	inc de
 	dec	b
+_2=$+1
 	jp	copyls
 	
 gets2s:	xor	a	;store terminating null
@@ -319,8 +567,14 @@ gets2s:	xor	a	;store terminating null
 	pop hl	;return buffer address in HL
 	pop bc
 	ret
-	ENDFUNC getssz
-        dw 0 ;no reloc pars
+	ENDFUNC getssz,2
+        if 1==0
+        dw getsnpars
+_p=$
+        dw _1
+        dw _2
+getsnpars=($-_p)/2
+        endif
 
 ;
 ; Getline(str,lim)
@@ -358,12 +612,14 @@ gets2s:	xor	a	;store terminating null
 	ld	c,b	;save char count in C
 copylln:	ld	a,b	;copy line to start of buffer
 	or	a
+_1=$+1
 	jp z,gets2ln
 	ld	a,(hl)
 	ld (de),a
 	inc hl
 	inc de
 	dec	b
+_2=$+1
 	jp	copylln
 	
 gets2ln:	xor	a	;store terminating null
@@ -372,7 +628,15 @@ gets2ln:	xor	a	;store terminating null
 	ld	h,0
 	pop bc
 	ret
-	ENDFUNC getlinesz
+	ENDFUNC getlinesz,2
+        if 1==0
+        dw getlinenpars
+_p=$
+        dw _1
+        dw _2
+getlinenpars=($-_p)/2
+        ;display "getlinenpars=",getlinenpars
+        endif
 
 	FUNCTION "RAND"
         FUNCHEAD randsz
@@ -380,7 +644,9 @@ gets2ln:	xor	a	;store terminating null
 	ex de,hl
 	ld	a,48h
 	and	e
+_1=$+1
 	jp z,rand1
+_2=$+1
 	jp pe,rand1
 	scf
 rand1:	lhld	rseed+2
@@ -402,19 +668,29 @@ rand1:	lhld	rseed+2
 	and	7fh
 	ld	h,a
 	ret
-	ENDFUNC randsz
+	ENDFUNC randsz,2
+        if 1==0
+        dw randnpars
+_p=$
+        dw _1
+        dw _2
+randnpars=($-_p)/2
+        endif
 
 	FUNCTION "SRAND"
         FUNCHEAD srandsz
 	call	ma1toh
 	ld	a,h
 	or	l
+_1=$+1
 	jp z,srand2
 	shld	rseed
 	shld	rseed+2
 	ret
 
-srand2:	ld de,stg1
+srand2:
+_2=$+1
+	ld de,stg1
 	push bc
 	ld	c,9
 	call	bdos
@@ -427,6 +703,7 @@ srand3:	push hl
 	inc hl
 	inc hl
 	and	1
+_3=$+1
 	jp z,srand3
 	shld	rseed
 	shld	rseed+2
@@ -441,16 +718,29 @@ srand3:	push hl
 	pop bc
 	ret
 stg1:	db 'Wait a few seconds, and type a CR: $'
-	ENDFUNC srandsz
+	ENDFUNC srandsz,3
+        if 1==0
+        dw srandnpars
+_p=$
+        dw _1
+        dw _2
+        dw _3
+srandnpars=($-_p)/2
+        endif
+
 
 
 	FUNCTION "SRAND1"
 	EXTERNAL "PUTS"
         FUNCHEAD srand1sz
+_1=$+1
+        jp (1 +1)*3
+_puts=$
+        jp 0
 	call	ma1toh
 	push hl
-	;call	puts	;print prompt string
-        db 0xcd,0x01,0x00 ;???
+_2=$+1
+	call	_puts	;print prompt string
 	pop hl
 	push bc
 	ld hl,5678h
@@ -462,37 +752,48 @@ sr1a:	push hl
 	inc hl
 	inc hl
 	or	a
+_3=$+1
 	jp z,sr1a
 	shld	rseed
 	shld	rseed+2
 	pop bc
 	ret
-	ENDFUNC srand1sz
+	ENDFUNC srand1sz,3
 
 	FUNCTION "NRAND"
 	EXTERNAL "PUTS"
         FUNCHEAD nrandsz
+_1=$+1
+        jp (1 +1)*3
+_puts=$
+        jp 0
 	call	arghak
 	lhld	arg1	;get n (1st arg)
 	ld	a,h
 	and	l
 	cp	255	;was it -1 (set seed) ?
+_2=$+1
 	jp nz,nrand1
 	lhld	arg2	;copy seed
+_3=$+1
 	shld	seed
 	lhld	arg3
+_4=$+1
 	shld	seed+2
 	lhld	arg4
+_5=$+1
 	shld	seed+4	
 	ret		;all done
 
 nrand1:	push bc
 	ld	a,h	;look at first arg again
 	or	l
+_6=$+1
 	jp nz,nrand3	;is it 0 (randomize)?
 	lhld	arg2
 	push hl	;yes. print out string
-	call	puts	;call	puts
+_7=$+1
+	call	_puts	;call	puts
 	pop de
 	ld hl,5a97h	;yes. start w/something odd
 nrand2:	push hl
@@ -502,32 +803,44 @@ nrand2:	push hl
 	inc hl	;and keep it odd
 	inc hl	;and growing
 	or	a
+_8=$+1
 	jp z,nrand2	;until user types something.
+_9=$+1
 	shld	seed	;then plaster the value all over the
+_10=$+1
 	shld	seed+2	;seed.
+_11=$+1
 	shld	seed+4
 	pop bc
 	ret
 
-nrand3:	lda	seed	;now compute next random number. from this
+nrand3:
+_12=$+1
+	lda	seed	;now compute next random number. from this
 	or	1	; point on, the code is that of Prof. Paul Gans
+_13=$+1
 	sta	seed	;lsb of SEED must be 1
 	
 	ld	b,6	;clear 6 PROD bytes to 0
+_14=$+1
 	ld hl,prod
 randm1:	ld	(hl),0
 	inc hl
 	dec	b
+_15=$+1
 	jp nz,randm1
 
 	ld bc,6	;set byte counter
-randm2:	ld hl,plier-1
+randm2:
+_16=$+1
+	ld hl,plier-1
 	add hl,bc	;make addr of lsb of PLIER
 	ld	a,(hl)	;PLIER byte
 	push bc	;save byte counter
 	ld	b,8	;set bit counter
 
 randm3:	ld	d,a	;save PLIER byte
+_17=$+1
 	ld hl,prod	;shift whole PROD left one bit
 	ld	c,6
 	xor	a
@@ -536,16 +849,20 @@ randm4:	ld	a,(hl)	;get byte
 	ld	(hl),a	;put byte
 	inc hl
 	dec	c
+_18=$+1
 	jp nz,randm4
 
 	ld	a,d	;recover PLIER byte
 	rla		;look at current high bit
+_19=$+1
 	jp nc,randm6	;0 means no add cycle
 
 	push	af	;add SEED to PROD
 	xor	a
 	ld	c,6
+_20=$+1
 	ld hl,prod
+_21=$+1
 	ld de,seed
 randm5:	ld a,(de)
 	adc	(hl)
@@ -553,17 +870,22 @@ randm5:	ld a,(de)
 	inc hl
 	inc de
 	dec	c
+_22=$+1
 	jp nz,randm5
 	pop	af
 
 randm6:	dec	b	;test bit counter
+_23=$+1
 	jp nz,randm3	;go cycle more bits
 	pop bc	;recover byte counter
 	dec	c	;test it
+_24=$+1
 	jp nz,randm2	;go process more bytes
 
 	ld	b,6	;complement PROD, add 1 to it,
+_25=$+1
 	ld hl,seed	;and transfer it to SEED.
+_26=$+1
 	ld de,prod
 	xor	a
 	ccf
@@ -574,12 +896,14 @@ randm7:	ld a,(de)
 	inc hl
 	inc de
 	dec	b
+_27=$+1
 	jp nz,randm7
 
 	dec hl	;put the two high order bytes
 	ld	a,(hl)	;into HL for return to C, not
 	and	7fh	;neglecting to zero the high
 	ld	h,a	;order bit so a positive int
+_28=$+1
 	lda	seed+4	;is returned
 	ld	l,a
 	pop bc
@@ -591,7 +915,7 @@ plier:	db	0c5h,87h,1
 seed:	db	1,0,0,0,0,0
 
 prod:	db	0,0,0,0,0,0
-	ENDFUNC nrandsz
+	ENDFUNC nrandsz,28
 
 	FUNCTION "CSW"
         FUNCHEAD cswsz
@@ -599,7 +923,7 @@ prod:	db	0,0,0,0,0,0
 	ld	l,a
 	ld	h,0
 	ret
-	ENDFUNC cswsz
+	ENDFUNC cswsz,0
 
 	FUNCTION "SETMEM"
         FUNCHEAD setmemsz
@@ -614,14 +938,16 @@ prod:	db	0,0,0,0,0,0
 setm2:	dec de
 	ld	a,d
 	or	e
+_1=$+1
 	jp nz,setm3
 	pop bc
 	ret
 
 setm3:	ld	(hl),c
 	inc hl
+_2=$+1
 	jp	setm2
-	ENDFUNC setmemsz
+	ENDFUNC setmemsz,2
 
 	FUNCTION "MOVMEM"
         FUNCHEAD movmemsz
@@ -636,11 +962,13 @@ setm3:	ld	(hl),c
 	lhld	arg2	;get dest addr
 	ex de,hl		;put in DE
 	lhld	arg1	;get source addr in HL
-	call	movmcmphd	;if source < dest, do tail-first
+	call	cmphd;movmcmphd	;if source < dest, do tail-first
+_1=$+1
 	jp c,tailf	;else do head-first
 
 headf:	ld	a,2	;test for Z-80
 	inc	a
+_2=$+1
 	jp pe,m8080h	;Z80?
 	db	0edh,0b0h	;yes. do block move.
 	pop bc
@@ -653,6 +981,7 @@ m8080h:	ld	a,(hl)
 	dec bc
 	ld	a,b
 	or	c
+_3=$+1
 	jp nz,m8080h
 	pop bc
 	ret
@@ -665,6 +994,7 @@ tailf:	dec bc	;tail first. Compute new source
 	inc bc
 	ld	a,2	;test for Z80
 	inc	a
+_4=$+1
 	jp pe,m8080t	;Z80?
 	db	0edh,0b8h	;yes. do block move.
 	pop bc
@@ -677,17 +1007,18 @@ m8080t:	ld	a,(hl)
 	dec bc
 	ld	a,b
 	or	c
+_5=$+1
 	jp nz,m8080t
 	pop bc
 	ret
-
+;NU
 movmcmphd:	ld	a,h
 	cp	d
 	ret nz
 	ld	a,l
 	cp	e
 	ret
-	ENDFUNC movmemsz
+	ENDFUNC movmemsz,5
 
 	FUNCTION "MEMCMP"
         FUNCHEAD memcmpsz
@@ -700,6 +1031,7 @@ movmcmphd:	ld	a,h
 	call	ma2toh	;get block1 address in HL
 loop:	ld	a,b	;all done?
 	or	c
+_1=$+1
 	jp nz,loop1
 	ld hl,1	;if so, return TRUE, for perfect match
 	pop bc
@@ -710,11 +1042,12 @@ loop1:	dec bc	;decrement count
 	cp	(hl)	;compare to block1 byte
 	inc de	;bump pointers
 	inc hl
+_2=$+1
 	jp z,loop	;if so far so good, go on comparing
 	ld hl,0	;else a mismatch
 	pop bc
 	ret
-	ENDFUNC memcmpsz
+	ENDFUNC memcmpsz,2
 
 	FUNCTION "CALL"
         FUNCHEAD callsz
@@ -726,6 +1059,7 @@ loop1:	dec bc	;decrement count
 	ld	b,h
 	ld	c,l
 	lda	arg2
+_1=$+1
 	ld hl,call2
 	push hl
 	lhld	arg1
@@ -735,7 +1069,7 @@ loop1:	dec bc	;decrement count
 
 call2:	pop bc
 	ret
-	ENDFUNC callsz
+	ENDFUNC callsz,1
 
 	FUNCTION "CALLA"
         FUNCHEAD callasz
@@ -747,6 +1081,7 @@ call2:	pop bc
 	ld	b,h
 	ld	c,l
 	lda	arg2	;get a value
+_1=$+1
 	ld hl,calla2  ;get return address
 	push hl	;push	it
 	lhld	arg1	;get address of routine
@@ -758,7 +1093,7 @@ calla2:	ld	l,a	;put A value in HL
 	ld	h,0	;clear high byte
 	pop bc
 	ret
-	ENDFUNC callasz
+	ENDFUNC callasz,1
 
 	FUNCTION "INP"
         FUNCHEAD inpsz
@@ -768,7 +1103,7 @@ calla2:	ld	l,a	;put A value in HL
 	ld	l,a		;and put into HL
 	ld	h,0
 	ret
-	ENDFUNC inpsz
+	ENDFUNC inpsz,0
 
 	FUNCTION "OUTP"
         FUNCHEAD outpsz
@@ -777,15 +1112,15 @@ calla2:	ld	l,a	;put A value in HL
 	call	ma2toh		;get data byte
 	call	iohack+3	;output it
 	ret
-	ENDFUNC outpsz
+	ENDFUNC outpsz,0
 
 	FUNCTION "PEEK"
         FUNCHEAD peeksz
-peek:	call	ma1toh
+        call	ma1toh
 	ld	l,(hl)
 	ld	h,0
 	ret
-	ENDFUNC peeksz
+	ENDFUNC peeksz,0
 
 
 	FUNCTION "POKE"
@@ -795,7 +1130,7 @@ peek:	call	ma1toh
 	lda	arg2
 	ld	(hl),a
 	ret
-	ENDFUNC pokesz
+	ENDFUNC pokesz,0
 
 	FUNCTION "SLEEP"
         FUNCHEAD sleepsz
@@ -805,6 +1140,7 @@ peek:	call	ma1toh
 sl1:	dec hl
 	ld	a,h
 	or	l
+_1=$+1
 	jp nz,sl1a
 	pop bc
 	ret
@@ -813,12 +1149,14 @@ sl1a:	ld de,10000
 sl2:	dec de
 	ld	a,d
 	or	e
+_2=$+1
 	jp nz,sl2
 	push hl
 	ld	c,cstat
 	call	bdos
 	or	a
 	pop hl
+_3=$+1
 	jp z,sl1
 	push hl
 	ld	c,conin
@@ -826,8 +1164,9 @@ sl2:	dec de
 	cp	cntrlc
 	jp z,exit
 	pop hl
+_4=$+1
 	jp	sl1
-	ENDFUNC sleepsz
+	ENDFUNC sleepsz,4
 
 	FUNCTION "PAUSE"
         FUNCHEAD pausesz
@@ -835,16 +1174,17 @@ sl2:	dec de
 paus1:	ld	c,cstat
 	call	bdos
 	or	a
+_1=$+1
 	jp z,paus1
 	pop bc
 	ret
-	ENDFUNC pausesz
+	ENDFUNC pausesz,1
 
 
 	FUNCTION "EXIT"
         FUNCHEAD exitsz
 	jp	exit
-	ENDFUNC exitsz
+	ENDFUNC exitsz,0
 
 	FUNCTION "BDOS"
         FUNCHEAD bdossz
@@ -857,7 +1197,7 @@ paus1:	ld	c,cstat
 	call	bdos	;make the bdos call
 	pop bc
 	ret		;and return to caller
-	ENDFUNC bdossz
+	ENDFUNC bdossz,0
 
 	FUNCTION "BIOS"
         FUNCHEAD biossz
@@ -878,14 +1218,15 @@ paus1:	ld	c,cstat
 	lhld	arg2	;get value to be put in BC
 	ld	b,h	;and put it there
 	ld	c,l
-	ld hl,retadd	;where call to bios will return to
+_1=$+1
+	ld hl,biosretadd	;where call to bios will return to
 	ex (sp),hl		;get address of vector in HL
 	jp (hl)		;and go to it...
-retadd:	ld	l,a	;all done. now put return value in HL
+biosretadd:	ld	l,a	;all done. now put return value in HL
 	ld	h,0
 	pop bc
 	ret		;and return to caller
-	ENDFUNC biossz
+	ENDFUNC biossz,1
 
 	FUNCTION "BIOSH"
         FUNCHEAD bioshsz
@@ -912,30 +1253,31 @@ retadd:	ld	l,a	;all done. now put return value in HL
 	ld	d,h	;adn put it there
 	ld	e,l
 
+_1=$+1
 	ld hl,bioshretadd	;where call to bios will return to
 	ex (sp),hl		;get address of vector in HL
 	jp (hl)		;and go to it...
 bioshretadd:	pop bc	;all done. Leave return value in HL
 	ret		;and return to caller
-	ENDFUNC bioshsz
+	ENDFUNC bioshsz,1
 
 	FUNCTION "CODEND"
         FUNCHEAD codendsz
 	lhld	codend
 	ret
-	ENDFUNC codendsz
+	ENDFUNC codendsz,0
 
 	FUNCTION "EXTERNS"
         FUNCHEAD externssz
 	lhld	extrns
 	ret
-	ENDFUNC externssz
+	ENDFUNC externssz,0
 
 	FUNCTION "ENDEXT"
         FUNCHEAD endextsz
 	lhld	freram
 	ret
-	ENDFUNC endextsz
+	ENDFUNC endextsz,0
 
 	FUNCTION "TOPOFMEM"
         FUNCHEAD topofmemsz
@@ -947,25 +1289,34 @@ bioshretadd:	pop bc	;all done. Leave return value in HL
 	ld de,-2100	;else subtract CCP size (plus little more for good
 	add hl,de	;measure) and return that as top of memory.
 	ret
-	ENDFUNC topofmemsz
+	ENDFUNC topofmemsz,0
 
 	FUNCTION "EXEC"
 	EXTERNAL "EXECL"
         FUNCHEAD execsz
+_1=$+1
+        jp (1 +1)*3
+_execl=$
+        jp 0
 	call ma1toh	;get filename
 	ld de,0		;load null parameter in DE
 	push de		;push null parameter
 	push hl		;push filename
-	call execl	;do an execl
+_2=$+1
+	call _execl	;do an execl
 	pop de		;clean up stack
 	pop de
 	ret
-	ENDFUNC execsz
+	ENDFUNC execsz,2
 
 
 	FUNCTION "EXECV"
 	EXTERNAL "EXECL"
         FUNCHEAD execvsz
+_1=$+1
+        jp (1 +1)*3
+_execl=$
+        jp 0
 	call	arghak
 	push bc	;save BC
 	lhld	arg2	;get -> arg list
@@ -977,9 +1328,11 @@ execv1:	inc	b	;bump arg count
 	inc hl
 	ld	a,d
 	or	e	;last arg?
+_2=$+1
 	jp nz,execv1	;if not, keep looking for last one
 
 	ld	a,b	;save arg count in case of error
+_3=$+1
 	sta	savcnt
 
 	dec hl	;HL -> next to last arg
@@ -989,11 +1342,14 @@ execv2:	ld	d,(hl)	;now push args on stack
 	dec hl
 	dec 	b
 	push de
+_4=$+1
 	jp nz,execv2
 
 execv3:	lhld	arg1	;get program name
 	push hl	;save as first arg to execl
-	call	execl	;go do it; shouldn't come back.
+_5=$+1
+	call	_execl	;go do it; shouldn't come back.
+_6=$+1
 	lda	savcnt	;woops, we're back. Must've been an error...
 	inc 	a	;bump to take prog name into consideration
 	add 	a
@@ -1006,14 +1362,14 @@ execv3:	lhld	arg1	;get program name
 	ret
 
 savcnt:	ds 	1	;save arg count here
-	ENDFUNC execvsz
+	ENDFUNC execvsz,6
 
 
 	FUNCTION "RBRK"
         FUNCHEAD rbrksz
 	lhld	freram
 	shld	allocp
-	ENDFUNC rbrksz
+	ENDFUNC rbrksz,0
 	
 
 	FUNCTION "SBRK"
@@ -1022,6 +1378,7 @@ savcnt:	ds 	1	;save arg count here
 	ld	a,h	;check for -1
 	and	l
 	inc	a
+_1=$+1
 	jp nz,sbrk2	;go to sbrk2 if HL wasn't FFFF
 
 	lhld	freram	;it WAS ffff: reset sbrk to base of free ram
@@ -1032,6 +1389,7 @@ sbrk2:	ex de,hl		;put into DE
 	lhld	allocp	;get current allocation pointer
 	push hl	;save it
 	add hl,de	;get tentative last address of new segment
+_2=$+1
 	jp c,brkerr	;better not allow it to go over the top!
 	dec hl
 	ex de,hl		; now last addr is in DE
@@ -1045,7 +1403,9 @@ sbrk2:	ex de,hl		;put into DE
 	inc hl
 	add hl,sp	;get HL = (SP - alocmx)
 
+_3=$+1
 	call	cmpdh	;is DE less than HL?
+_4=$+1
 	jp nc,brkerr	;if not, can't provide the needed memory.
 	ex de,hl		;else OK.
 	inc hl
@@ -1063,14 +1423,14 @@ cmpdh:	ld	a,d
 	ld	a,e
 	cp	l
 	ret
-	ENDFUNC sbrksz
+	ENDFUNC sbrksz,4
 
 	FUNCTION "RSVSTK"
         FUNCHEAD rsvstksz
 	call	ma1toh	;get the value to reserve
 	shld	alocmx	;and set new safety factor
 	ret
-	ENDFUNC rsvstksz
+	ENDFUNC rsvstksz,0
 
 ;
 ; Index(str,substr)
@@ -1089,10 +1449,12 @@ cmpdh:	ld	a,d
 index1:	inc de
 	ld a,(de)	;end of str?
 	or	a
+_1=$+1
 	jp nz,index2
 	ld hl,-1	;yes. not found.
 	ret
 index2:	cp	(hl)	;quick check for dissimilarity
+_2=$+1
 	jp nz,index1	;loop if not same right here
 	push de	;else do long compare
 	push hl
@@ -1100,6 +1462,7 @@ index3:	inc hl
 	inc de
 	ld	a,(hl)	;end of substr?
 	or	a
+_3=$+1
 	jp nz,index4	;if not, go on testing
 	pop de	;else matches
 	pop de	;get starting address of substr in DE
@@ -1110,11 +1473,13 @@ index3:	inc hl
 
 index4:	ld a,(de)	;current char match?
 	cp	(hl)
+_4=$+1
 	jp z,index3	;if so, keep testing
 	pop hl	;else go on to next char in str
 	pop de
+_5=$+1
 	jp	index1
-	ENDFUNC indexsz
+	ENDFUNC indexsz,5
 
 	FUNCTION "SETJMP"
         FUNCHEAD setjmpsz
@@ -1138,7 +1503,7 @@ index4:	ld a,(de)	;current char match?
 	ld	(hl),d
 	ld hl,0	;and return 0
 	ret
-	ENDFUNC setjmpsz
+	ENDFUNC setjmpsz,0
 
 	FUNCTION "LONGJMP"
         FUNCHEAD longjmpsz
@@ -1164,11 +1529,185 @@ index4:	ld a,(de)	;current char match?
 	ex de,hl		;put ret addr in DE, get return value in HL
 	push de	;push return address on stack
 	ret		;and return...
-	ENDFUNC longjmpsz
+	ENDFUNC longjmpsz,0
 
         include "deff2b.csm"
         include "deff2c.csm"
 
+       	FUNCTION "PUTS"
+	EXTERNAL "PUTCHAR"
+        FUNCHEAD putssz
+_1=$+1
+        jp (1 +1)*3
+_putchar=$
+        jp 0
+        push bc
+        ld hl,0
+        add hl,sp
+        ld b,h
+        ld c,l
+puts0:
+        call sdli ;short-displacement, double-byte local indirection
+        db 4 ;shift from bc
+        ld l,(hl)
+        ld a,l
+        or a
+_2=$+1
+        jp z,putsq
+        ld hl,4
+        add hl,bc
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc de
+        ld (hl),d
+        dec hl
+        ld (hl),e
+        dec de
+        ex de,hl
+        ld l,(hl)
+        ld h,0
+        push hl
+_3=$+1
+        call _putchar
+        pop de
+_4=$+1
+        jp puts0
+putsq:
+        pop bc
+	ret
+	ENDFUNC putssz,4
+
+;
+; Read:
+;
+;	i = read(fd, buf, n);
+;
+; Read a number of sectors using random-record I/O.
+;
+; The return value is either the number of sectors successfully
+; read, 0 for EOF, or -1 on error with errno() returning the error
+; code (or errmsg(errno()) returning a pointer to an error message).
+; 
+; The Random Record Field is incremented following each successful
+; sector is read, just as if the normal (sequential) read function
+; were being used. "seek" must be used to go back to a previous 
+; sector.
+;
+
+	FUNCTION "READ"
+        FUNCHEAD readsz
+
+	call	arghak
+	lda	arg1
+	call	fgfd
+	ld	d,(hl)	;save fdt entry in D
+	ld	a,7	;prepare for possible "bad fd"
+_1=$+1
+	jp c,rerror
+
+	ld	a,d
+	and	2 ;4wr
+	ld	a,8 ;9wr	;prepare for possible "no read permission"
+_2=$+1
+	jp z,rerror
+
+	push bc
+	ld	a,d	;get fd table entry
+	call	setusr	;set user area to that of the file
+
+	lda	arg1	;get fd
+	call	fgfcb
+	shld	tmp2	;save fcb address
+	ld hl,0
+	shld	tmp2a
+r2:	lhld	arg3	;get countdown
+	ld	a,h
+	or	l	;done?
+
+r2aa:	lhld	tmp2a
+_3=$+1
+	jp nz,r2a
+r2done:	call	rstusr	;reset user number
+	pop bc	;yes. return with success count in HL
+	ret
+
+r2a:	lhld	arg2	;get transfer addr in DE
+	ex de,hl
+	ld	c,sdma	;set DMA there
+	call	bdos
+
+	lhld	tmp2
+	ex de,hl
+	ld	c,readr	;code for BDOS random read
+	push de	;save DE so we can fudge nr field if
+	call	bdos	;we stop reading on extent boundary...
+	pop de
+	or	a
+_4=$+1
+	jp z,r4	;go to r4 if no problem
+
+	cp	1	;ok, we have SOME kind of hangup...
+_5=$+1
+	jp z,r2b	;check for EOF condition:
+	cp	4	;  error codes 1 and 4 both indicate reading
+_6=$+1
+	jp z,r2b	;  unwritten data..treat as EOF
+
+	ld	b,a	;have we successfully read anything yet?
+	lda	tmp2a
+	or 	a
+	ld	b,a	;get error code back in A	
+_7=$+1
+	jp nz,r2c	;if we have read something in, don't set errnum
+	sta	errnum	;otherwise nothing read, so set error code.
+
+r2c:	ld hl,-1	;put ERROR value in HL
+_8=$+1
+	jp	r2done
+
+r2b:	lhld	tmp2a	;return count
+_9=$+1
+	jp	r2done
+
+r4:	lhld	arg3	;decrement countdown
+	dec hl
+	shld	arg3
+	lhld	arg2	;bump DMA address
+	ld de,128
+	add hl,de
+	shld	arg2
+	lhld	tmp2a	;bump success count
+	inc hl
+	shld	tmp2a
+        
+	lhld	tmp2	;get address of fcb
+	ld bc,33	;get addr of random record field
+	add hl,bc
+	ld	c,(hl)	;bump
+	inc hl	;    value
+	ld	b,(hl)	;	  of 
+	inc bc	;	    random
+	ld	(hl),b	;		  field
+	dec hl	;			by one
+	ld	(hl),c
+	ld	a,b	;overflow past 16-bit record count?
+	or	c
+_10=$+1
+	jp nz,r2	; go for next sector if no overflow
+	inc hl	;else set 3rd byte of random sector count
+	inc hl
+	ld	(hl),1
+	ld	a,14	;"seek past 65536th record of file"
+	sta	errnum
+_11=$+1
+	jp	r2aa	;and don't read any more.
+
+rerror:	sta	errnum
+	jp	error
+	ENDFUNC readsz,11
+
+        
 end
 	savebin "deff2.crl",begin,end-begin
 	
