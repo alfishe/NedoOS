@@ -14,7 +14,7 @@ HTMLHGT=25
 COLOR=7
 CURSORCOLOR=0x38
 
-REPEATNOKEY=0 ;2
+REPEATNOKEY=2 ;0
 
         macro BDOSSETPGSSCR
         ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
@@ -537,6 +537,8 @@ stdinhandle=$+1
         or l
         scf ;out: CY=no data
         ret z ;jr z,nostdinmsg;mainloop_afterkey
+         ld a,REPEATNOKEY;2
+         ld (wasnokey),a
 
         push hl
         call redraw_to_base
@@ -549,15 +551,93 @@ pgscrbuf=$+1
         pop bc
         push bc
         ld hl,stdinbuf
+TERM_ST_SINGLE=1 ;wait for single symbol
+TERM_ST_AFTERESC=2 ;after 0x1b
+TERM_ST_AFTERESCBRACKET=3 ;after 0x1b [ [number] (might be more digits)
+term_prfsmcurstate=$+1
+         ld b,TERM_ST_SINGLE
+         djnz term_prfsm
 term_print0
-        push bc
-        push hl
         ld a,(hl)
-        call term_prfsm ;520/521t
+        cp 0x1b+1
+        jr c,term_print0_maybecontrolcode
+        push hl
+        call BDOS_prchar_a_nocrlf ;226/227t
+        ;call term_prfsm ;520/521t
         pop hl
-        pop bc
-        cpi
-        jp pe,term_print0
+term_print0_maybecontrolcodeq
+        inc hl
+        dec c
+        jp nz,term_print0
+         ld a,TERM_ST_SINGLE
+        jp term_print0q
+term_print0_maybecontrolcode
+        cp 0x1b
+        jr z,term_prfsm_afteresc ;next state
+        push hl
+        call BDOS_prchar_a
+        pop hl
+        jp term_print0_maybecontrolcodeq
+        
+term_prfsm
+         djnz term_prfsm_afterescbracket
+term_prfsm_afteresc0
+        xor a
+        ld (term_prfsm_curnumber),a
+        ld (term_prfsm_curnumber1),a
+        ld (term_prfsm_curnumber2),a
+        ld (term_prfsm_curnumber3),a
+        ;ld a,(hl) ;todo check bracket
+        jp term_prfsm_afterescbracket_ok ;next state
+term_prfsm_afteresc
+        inc hl
+        dec c
+        jp nz,term_prfsm_afteresc0
+         ld a,TERM_ST_AFTERESC
+        jp term_print0q
+
+term_prfsm_afterescbracket_nosemicolon
+        push hl
+        call term_prfsm_letter
+        pop hl
+        jp term_print0_maybecontrolcodeq ;initial state
+term_prfsm_afterescbracket
+term_prfsm_afterescbracket0
+        ld a,(hl)
+        sub '0'
+        cp 10
+        jr nc,term_prfsm_afterescbracket_nonumber
+        ;push de
+        ld e,a
+        ld a,(term_prfsm_curnumber)
+        ld d,a
+        add a,a
+        add a,a
+        add a,d
+        add a,a ;*10
+        add a,e
+        ld (term_prfsm_curnumber),a
+        ;pop de
+        jp term_prfsm_afterescbracket_ok
+term_prfsm_afterescbracket_nonumber
+        add a,'0'
+        cp ';'
+        jr nz,term_prfsm_afterescbracket_nosemicolon
+        ld a,(term_prfsm_curnumber2)
+        ld (term_prfsm_curnumber3),a
+        ld a,(term_prfsm_curnumber1)
+        ld (term_prfsm_curnumber2),a
+        ld a,(term_prfsm_curnumber)
+        ld (term_prfsm_curnumber1),a
+        xor a
+        ld (term_prfsm_curnumber),a
+term_prfsm_afterescbracket_ok
+        inc hl
+        dec c
+        jp nz,term_prfsm_afterescbracket0
+         ld a,TERM_ST_AFTERESCBRACKET
+term_print0q
+         ld (term_prfsmcurstate),a
         pop hl
         ld bc,STDINBUF_SZ
         or a
@@ -691,63 +771,10 @@ stdouthandle=$+1
         xor a ;z=no error
         ret ;клиент завис, но не сдох
 
-
-term_prfsm
-;to screen
-;a=char
-TERM_ST_SINGLE=1 ;1: wait for single symbol
-TERM_ST_AFTERESC=2 ;2: after 0x1b
-TERM_ST_AFTERESCBRACKET=2 ;3: after 0x1b [ [number] (might be more digits)
-term_prfsm_curstate=$+1
-        ld b,TERM_ST_SINGLE
-        djnz term_prfsm_nosingle
-        cp 0x1b
-        jp nz,BDOS_prchar_a
-        ld hl,term_prfsm_curstate
-        inc (hl) ;TERM_ST_AFTERESC
-        ret
-term_prfsm_nosingle
-        djnz term_prfsm_noafteresc
-        ;cp '['
-        ;jr nz,term_prfsm_prchar ;считаем, что после esc всегда [
-        ld hl,term_prfsm_curstate
-        inc (hl) ;TERM_ST_AFTERESCBRACKET
-        xor a
-        ld (term_prfsm_curnumber),a
-        ld (term_prfsm_curnumber1),a
-        ld (term_prfsm_curnumber2),a
-        ld (term_prfsm_curnumber3),a
-        ret
-term_prfsm_noafteresc
-        sub '0'
-        cp 10
-        jr nc,term_prfsm_afterescbracket_nonumber
-        ld e,a
-        ld hl,term_prfsm_curnumber
-        ld a,(hl)
-        add a,a
-        add a,a
-        add a,(hl)
-        add a,a ;*10
-        add a,e
-        ld (hl),a
-        ret
-term_prfsm_afterescbracket_nonumber
-        add a,'0'
-        cp ';'
-        jr nz,term_prfsm_afterescbracket_nosemicolon
-        ld a,(term_prfsm_curnumber2)
-        ld (term_prfsm_curnumber3),a
-        ld a,(term_prfsm_curnumber1)
-        ld (term_prfsm_curnumber2),a
-        ld a,(term_prfsm_curnumber)
-        ld (term_prfsm_curnumber1),a
-        xor a
-        ld (term_prfsm_curnumber),a
-        ret
-term_prfsm_afterescbracket_nosemicolon
-        ld hl,term_prfsm_curstate
-        ld (hl),TERM_ST_SINGLE
+term_prfsm_letter
+        ;ld hl,term_prfsm_curstate
+        ;ld (hl),TERM_ST_SINGLE
+         ;ld b,TERM_ST_SINGLE
         cp 'H'
         jr z,term_prfsm_afterescbracket_H
         cp 'G'
@@ -757,9 +784,7 @@ term_prfsm_afterescbracket_nosemicolon
         cp 'K'
         jr z,term_prfsm_afterescbracket_clearline
 ;TODO J etc.
-        cp '~'
-        jr z,term_prfsm_afterescbracket_tilde
-        ;cp 'A' ;A..D = up, down, right, left
+        ;cp 'A' ;cursor_up
         cp 'B'
         jp z,cursor_down
         cp 'C'
@@ -768,29 +793,19 @@ term_prfsm_afterescbracket_nosemicolon
         jp z,cursor_left
         cp 's'
         jp z,cursor_store
-        ;cp 'u'
-        ;jp z,cursor_remember
         cp 'd' ;NON-STANDARD!
         jp z,term_prfsm_afterescbracket_scrolldown
         cp 'u' ;NON-STANDARD!
-        jp z,term_prfsm_afterescbracket_scrollup
+        jp z,term_prfsm_afterescbracket_scrollup ;+cursor remember
+        ;cp '~'
+        ;jr z,term_prfsm_afterescbracket_tilde
         ret
-term_prfsm_afterescbracket_tilde
-        ;cp key_del
-        ;ld bc,'3'*256+'~'
-        ;jr z,sendchar_esckey2
-        ;cp key_home
-        ;ld bc,'1'*256+'~'
-        ;jr z,sendchar_esckey2
-        ;cp key_end
-        ;ld bc,'4'*256+'~'
-        ;jr z,sendchar_esckey2
-        ;cp key_ins
-        ;ld bc,'2'*256+'~'
-        ret
+;term_prfsm_afterescbracket_tilde
+;        ret
 
 term_prfsm_afterescbracket_clearline
 ;не двигает курсор
+        push bc
         ld de,(pr_textmode_curaddr)
         ld hl,(pr_buf_curaddr)
         ld bc,0x0040
@@ -815,7 +830,8 @@ term_prfsm_afterescbracket_clearline0
         add a,c;0x40 ;text (next)
         ld l,a
         cp 0x40+(80/2)
-        jp nz,term_prfsm_afterescbracket_clearline0       
+        jp nz,term_prfsm_afterescbracket_clearline0
+        pop bc
         ret
 
 term_prfsm_afterescbracket_G
@@ -866,8 +882,8 @@ term_prfsm_afterescbracket_m
 ;Ps = 46  Set background color to Cyan.
 ;Ps = 47  Set background color to White.
 ;Ps = 49  Set background color to default, ECMA-48 3rd.
-;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300. (не работает в Putty!!!)
-;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300. (не работает в Putty!!!)
+ ;Ps = 8   Invisible, i.e., hidden, ECMA-48 2nd, VT300. (не работает в Putty!!!)
+ ;Ps = 28  Visible, i.e., not hidden, ECMA-48 3rd, VT300. (не работает в Putty!!!)
 ;Assume that xterm's resources are set so that the ISO color codes are the first 8 of a set of 16. Then the aixterm colors are the bright versions of the ISO colors:
 ;Ps = 90  Set foreground color to Black.
 ;Ps = 91  Set foreground color to Red.
@@ -877,8 +893,8 @@ term_prfsm_afterescbracket_m
 ;Ps = 95  Set foreground color to Magenta.
 ;Ps = 96  Set foreground color to Cyan.
 ;Ps = 97  Set foreground color to White.
-;TODO 1  -  BRIGHT ON: Включение яркости INK. (Bold, VT100.)
-;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: Выключение яркости INK. (Doubly-underlined, ECMA-48 3rd.)]
+ ;TODO 1  -  BRIGHT ON: Включение яркости INK. (Bold, VT100.)
+ ;TODO 22 - Normal (neither bold nor faint), ECMA-48 3rd. [21  -  BRIGHT OFF: Выключение яркости INK. (Doubly-underlined, ECMA-48 3rd.)]
         ld a,(pr_textmode_curcolor)
         ld e,a
         ld a,(term_prfsm_curnumber)
@@ -890,6 +906,7 @@ term_prfsm_afterescbracket_m
         ret
 
 term_prfsm_afterescbracket_scrolldown
+        push bc
         ld a,(term_prfsm_curnumber1)
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
@@ -939,6 +956,7 @@ BDOS_scrolldown_call=$+1
         call BDOS_scrollpageline_bufwindow
         pop bc
         djnz BDOS_scrolldown_buf0
+        pop bc
         ret
         
 cursor_store
@@ -957,6 +975,7 @@ cursor_remember_bufaddr=$+1
         ret
 
 term_prfsm_afterescbracket_scrollup
+        push bc
         ld a,(term_prfsm_curnumber1)
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
@@ -992,6 +1011,7 @@ BDOS_scrollup_call=$+1
         call BDOS_scrollpageline_bufwindow
         pop bc
         djnz BDOS_scrollup_buf0 ;62131[91221] t
+        pop bc
         ret
 
 BDOS_scrollbuf_prepare
@@ -1386,6 +1406,7 @@ BDOS_settextcuraddr
         ret
         
 BDOS_prchar_controlcode
+         ld hl,(pr_textmode_curaddr)
         cp 0x0a
         jr z,BDOS_prchar_lf
         cp 0x0d
@@ -1428,7 +1449,7 @@ cursor_right
         ld (writee1),a
         ld (writee2),a
         ld a,' '
-        call BDOS_prchar_a
+        call BDOS_prchar_a_nocrlf
         ld a,0x72 ;"ld (hl),d"
         ld (writed1),a
         ld (writed2),a
@@ -1460,10 +1481,11 @@ cursor_down
         ld a,0x0a ;lf
 BDOS_prchar_a
 ;keeps bc!
-pr_textmode_curaddr=$+1
-        ld hl,0xc1c0
         cp 0x0e
         jr c,BDOS_prchar_controlcode
+BDOS_prchar_a_nocrlf
+pr_textmode_curaddr=$+1
+        ld hl,0xc1c0
 	ld d,trecode/256
 	ld e,a
 	ld a,(de)

@@ -373,7 +373,7 @@ stdouthandle=$+1
 ;ограничим число YIELDKEEP, а потом будет YIELD
 sendchars_yieldkeepcount=$+1
         ld a,0
-        sub 8
+        add a,128
         ld (sendchars_yieldkeepcount),a
         ld c,CMD_YIELDKEEP
         jr nc,$+4
