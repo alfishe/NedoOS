@@ -910,13 +910,20 @@ EXPORT PROC cmdless() //старое меньше нового
 #else
   IF (_t==_T_BYTE) {
     getrnew();
-    getrold();
-    emitsubbflags(_rnew, _rold); //old-new
-    freernew();
+    //IF (_wasconst) {
+    //  emitsubbzconst(); //new-<const> //Z80 only??? or else add emitsubbflagsconst
+    //  _wasconst = +FALSE;
+    //}ELSE {
+      getrold();
+      emitsubbflags(_rnew, _rold); //old-new
+      freernew();
+    //};
     freernew();
     getrfree(); //_rnew
     emitcytob();
-  }ELSE IF (_t==_T_UINT) {
+  }ELSE {
+  //IF (_wasconst) pushconst();
+  IF (_t==_T_UINT) {
     getrnew();
     getrold();
     emitsubflags(_rnew, _rold); //old-new
@@ -935,6 +942,7 @@ EXPORT PROC cmdless() //старое меньше нового
   //}ELSE IF (_t==_T_LONG) {
 #endif
   }ELSE errtype("<",_t);
+  };
   _t = _T_BOOL;
 }
 
@@ -1083,23 +1091,22 @@ EXPORT PROC cmdeq()
 #endif
   _sz = _typesz[_t];
 #ifdef TARGET_SCRIPT
+  IF (_wasconst) pushconst();
   IF (_t==_T_FLOAT) {
     emiteqfloat();
   }ELSE
 #endif
   IF (_sz==_SZ_BYTE) {
+    getrnew();
     IF (_wasconst) {
-      getrnew();
       emitsubbzconst(); //new-<const>
       _wasconst = +FALSE;
-      freernew();
     }ELSE {
-      getrnew();
       getrold();
       emitsubbz(); //old-new
       freernew();
-      freernew();
     };
+    freernew();
     getrfree(); //_rnew
     emitztob();
   }ELSE {
@@ -1136,23 +1143,22 @@ EXPORT PROC cmdnoteq()
 #endif
   _sz = _typesz[_t];
 #ifdef TARGET_SCRIPT
+  IF (_wasconst) pushconst();
   IF (_t==_T_FLOAT) {
     emitneqfloat();
   }ELSE
 #endif
   IF (_sz==_SZ_BYTE) {
+    getrnew();
     IF (_wasconst) {
-      getrnew();
       emitsubbzconst(); //new-<const>
       _wasconst = +FALSE;
-      freernew();
     }ELSE {
-      getrnew();
       getrold();
       emitsubbz(); //old-new
       freernew();
-      freernew();
     };
+    freernew();
     getrfree(); //_rnew
     emitinvztob();
   }ELSE {

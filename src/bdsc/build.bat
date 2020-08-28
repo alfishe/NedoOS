@@ -6,6 +6,7 @@ sjasmplus --nologo --msg=war cc2.asm
 sjasmplus --nologo --msg=war clink.asm
 sjasmplus --nologo --msg=war mkccc.asm
 sjasmplus --nologo --msg=war deff2a.csm
+sjasmplus --nologo --msg=war deffgfx.csm
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (

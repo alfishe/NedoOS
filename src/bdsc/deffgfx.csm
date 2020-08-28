@@ -1,0 +1,111 @@
+        DEVICE ZXSPECTRUM128
+        include "../_sdk/sys_h.asm"
+        include "8080.asm"
+
+        include "liblib.asm"
+
+	FUNCTION "SETGFX"
+        FUNCHEAD setgfxsz
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+	ret
+	ENDFUNC setgfxsz,0
+
+	FUNCTION "CLS"
+        FUNCHEAD clssz
+        ld e,0
+        OS_CLS
+	ret
+	ENDFUNC clssz,0
+
+	FUNCTION "PUTPIXEL"
+        FUNCHEAD putpixelsz
+	call arghak
+        ld a,(CURPG32KLOW) ;ok
+        push af
+        ld a,(arg3) ;color
+        ld e,a
+        and 7
+        ld d,a
+        ld a,e
+        and 15
+        add a,a
+        add a,a
+        add a,a
+        or d ;%.3210210
+        rlca
+        rlca ;%210210.3, CY=3
+        rra  ;%3210210., CY=3
+        rra  ;%33210210
+        ld lx,a
+        ld bc,(arg1)
+;bc=x (не портится)
+        ld de,(arg2)
+;e=y (de не портится)
+;lx=color = %33210210
+        ld l,e
+        ld h,0x8000/256/32;scrbase/256/32
+        add hl,hl
+        add hl,hl
+        add hl,de
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40 + scrbase
+        ld a,b
+        rra
+        ld a,c
+        rra
+        jr c,prpixel_r
+        rra
+        push af
+         ld a,(user_scr0_low) ;ok
+         jr nc,$+4
+         ld a,(user_scr0_high) ;ok
+         SETPG32KLOW
+        pop af
+        rra
+         jr nc,$+4
+         set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,lx
+        xor (hl)
+        and %01000111 ;keep left pixel
+        jr prpixelq
+prpixel_r
+        rra
+        push af
+         ld a,(user_scr0_low) ;ok
+         jr nc,$+4
+         ld a,(user_scr0_high) ;ok
+         SETPG32KLOW
+        pop af
+        rra
+         jr nc,$+4
+         set 5,h
+        and %00111111
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,lx
+        xor (hl)
+        and %10111000 ;keep right pixel
+prpixelq
+        xor (hl) ;left pixel from screen
+        ld (hl),a
+        pop af
+        SETPG32KLOW
+        
+        ret
+	ENDFUNC putpixelsz,0
+
+end
+	savebin "deffgfx.crl",begin,end-begin
+	
+	LABELSLIST "../../us/user.l"

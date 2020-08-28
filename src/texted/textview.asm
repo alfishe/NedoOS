@@ -30,20 +30,7 @@ texted_lineredrawflag=$
 texted_redrawflag=$
         scf ;/or a
         call c,texted_prcurpage
-        ;ld de,(curxy)
-	;call nv_setxy
-	;OS_GETATTR ;a
-        ;push af ;color
-	;ld e,0x38 ;TODO зависит от регистра клавиатуры (передать его в старших битах H в GET_KEY)
-	;OS_PRATTR
 
-        if 1==0
-        ld de,(curxy)
-	call nv_setxy
-        call yieldgetkeyloop;YIELDGETKEYLOOP
-texted_panelredrawflag=$
-        scf ;/or a
-        else
 ;texted_waitkey_nokey
         ld de,(curxy)
 	call nv_setxy
@@ -60,6 +47,8 @@ texted_waitkey_nokey
         ;cp c ;keynolang==0?
         ;ld a,c ;keynolang
         ;cp NOKEY ;TODO отличить от отсутствия фокуса nz? (не в фокусе клавиши не отдаются)
+        jr nz,texted_mainloop_keyq ;event
+        GETKEY_
         jr nz,texted_mainloop_keyq ;event
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 ;рисовать панельку только при отсутствии события после YIELD
@@ -80,23 +69,7 @@ nopanel
         ld a,55 ;"scf"
         ld (texted_wasyield),a
         jr texted_waitkey_nokey
-texted_mainloop_keyq
-         ;push af
-         ;ld a,4
-         ;out (0xfe),a
-         ;pop af
-        endif
-         ;push af
-         ;OS_CLS
-         ;pop af
-        
-        ;pop bc ;b=color
-        ;push af
-        ;ld de,(curxy)
-	;call nv_setxy
-	;ld e,b;COLOR
-	;OS_PRATTR
-        ;pop af
+texted_mainloop_keyq      
 
         cp key_redraw
         jr z,texted_redrawloop
@@ -129,6 +102,8 @@ texted_mainloop_keyq
         jp z,texted_gotoeof;end
         cp extW
         jp z,texted_wrap
+         cp key_ins
+         jp z,texted_wrap
         cp key_backspace
         jp z,texted_backspace
         cp key_del
@@ -147,7 +122,7 @@ typein
         call c,insert_minushl_spaces
         call calccursoraddr
         call insertbyte
-        
+;TODO wrap (reprint screen if needed)        
         call setlineredrawflag;texted_prcurpage
         jp texted_right
 
@@ -226,7 +201,7 @@ texted_save0
         push hl ;remaining HSW
         call setpg32k
         ld a,d
-        and #c0
+        and 0xc0
         or h
         or l
         jr z,$+5 ;de=size
@@ -301,6 +276,7 @@ calccursoraddr
         ret
         
 texted_backspace
+;TODO wrap (set y, reprint screen if needed)
         call calccurlinex
         ld a,h
         or l
@@ -378,11 +354,13 @@ incnlines
         ret
 
 texted_home
+;TODO wrap (set y)
         ld hl,0
         call setxshift_hl
         jp setredrawflag
 
 texted_end
+;TODO wrap (set y)
         ;call calccursoraddr
         ld hl,(curlineaddr)
         ld a,(curlineaddrHSB)
@@ -448,6 +426,7 @@ setxshift_hl
         ret
         
 texted_del
+;TODO wrap (set y, reprint screen if needed)
         call linesize_minus_x ;sz<x = error
         jr c,texted_del_newline
         jr z,texted_del_newline
@@ -506,6 +485,8 @@ texted_right
         cp texted_WID
         ld (curx),a
         ret c
+         call iswrapon ;CY=on
+         jr c,texted_right_wrap
 	ld hl,(texted_prline_shift)
         ld bc,8
         add hl,bc
@@ -514,6 +495,11 @@ texted_right
         sub c;8
         ld (curx),a
         jp setredrawflag;texted_prcurpage
+        
+texted_right_wrap
+        xor a
+        ld (curx),a
+        jp texted_down
         
 texted_left
         call setpanelredrawflag
@@ -537,20 +523,42 @@ texted_left
         jp setredrawflag;texted_prcurpage
         
 texted_prcurline
-        ld a,55+#80 ;or a
+        ld a,55+0x80 ;or a
         ld (texted_lineredrawflag),a
         ;TODO
         ld de,(curxy)
         ld e,0
+        push de
 	call nv_setxy
+        pop de
         ld hl,(curlineaddr)
         ld a,(curlineaddrHSB)
-        jp texted_prline
+texted_prcurline_continue0
+        push de
+        call texted_prline_nextline
+        call iseof
+        pop de
+        ret z
+        call prevbyte
+        call getbyte
+        ld b,a
+        ld a,c
+        cp 0x0d
+        ret z
+        cp 0x0a
+        ret z
+        inc d
+        ld a,d
+        cp texted_HGT
+        ret z
+        ld a,b
+        call nextbyte
+        jr texted_prcurline_continue0
 
 texted_prcurpage
          ;ld e,0
          ;OS_CLS
-        ld a,55+#80 ;or a
+        ld a,55+0x80 ;or a
         ld (texted_redrawflag),a
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
@@ -870,12 +878,14 @@ texted_panel
         
         ld a,' '
         PRCHAR_
+        call calccurlinex
+        inc hl
+        call prword
+        ld a,','
+        PRCHAR_
 texted_ncurline=$+1
         ld hl,0
-        exx 
-        ld hl,0
-        exx
-        call prdword
+        call prword
         ld a,'/'
         PRCHAR_
         ld hl,(nlines)
@@ -894,7 +904,7 @@ texted_ncurline=$+1
         ;ld hl,(fcb+FCB_FSIZE)
         call prdword
         ld de,tspaces
-        ld hl,43
+        ld hl,42;43
         call sendchars
 ;        ld b,43
 ;texted_panel0

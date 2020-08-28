@@ -1608,14 +1608,14 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
 //    };
     IF (_cnext=='=') { //let
       eatlet();
+    }ELSE IF ( (((BYTE)_cnext-0x28/**'('*/) | ((BYTE)_spcsize/**==0x00*/)) == 0x00) { //call
+      do_call(/**isfunc*/+FALSE); rdword();
     }ELSE IF (_cnext=='[') { //let []
       eatlet();
-    }ELSE IF (_cnext=='-') { //let ->
-      eatlet();
-    }ELSE IF ( (_cnext=='(') && (_spcsize==0) ) { //call
-      do_call(/**isfunc*/+FALSE); rdword();
     }ELSE IF ( _cnext==':' ) { //lbl
       eatlbl();
+    }ELSE IF (_cnext=='-') { //let ->
+      eatlet();
     }ELSE {
       IF (_c0==';') {
         rdword(); //C compatibility
@@ -1623,21 +1623,18 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
         rdword(); WHILE (eatcmd()) {};
       }ELSE {
         _c0 = (CHAR)((BYTE)_c0|0x20);
-        _c2 = (CHAR)((BYTE)_tword[2]|0x20);
         IF       (_c0=='v') { //var
           rdword(); eatvar(/**ispar*/+FALSE, /**body*/+TRUE);
           _isexp = +FALSE; //нельзя внутрь, иначе не экспортируются параметры процедуры
-        }ELSE IF (_c0=='e') { //enum //extern //export //evar
-          IF (_c2=='t') { //extern
-            rdword(); eatextern();
-          }ELSE IF (_c2=='p') { //export
-            rdword(); _isexp = +TRUE;
-          }ELSE IF (_c2=='a') { //evar
-            rdword(); eatevar();
-          }ELSE { //enum
-            rdword(); eatenum();
-          };
-        }ELSE IF (_c0=='c') { //const //case //call
+        }ELSE IF (_c0=='f') { //func
+          rdword(); eatfunc(+TRUE, _curfunct, _wasreturn);
+        }ELSE IF ( _c0=='w' ) { //while
+          rdword(); eatwhile();
+        }ELSE IF ( _c0=='b' ) { //break
+          rdword(); eatbreak(); //no parameters (rds nothing)
+        }ELSE {
+        _c2 = (CHAR)((BYTE)_tword[2]|0x20);
+        IF (_c0=='c') { //const //case //call
           IF (_c2=='n') { //const
             rdword(); eatconst();
           }ELSE IF (_c2=='l') { //call
@@ -1645,8 +1642,6 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
           }ELSE { //case
             rdword(); eatcase();
           };
-        }ELSE IF (_c0=='f') { //func
-          rdword(); eatfunc(+TRUE, _curfunct, _wasreturn);
         }ELSE IF (_c0=='p') { //proc //poke
           IF (_c2=='o') { //proc
             rdword(); eatfunc(+FALSE, _curfunct, _wasreturn);
@@ -1659,10 +1654,6 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
           }ELSE { //repeat
             rdword(); eatrepeat();
           };
-        }ELSE IF ( _c0=='w' ) { //while
-          rdword(); eatwhile();
-        }ELSE IF ( _c0=='b' ) { //break
-          rdword(); eatbreak(); //no parameters (rds nothing)
         }ELSE IF ( _c0=='d' ) { //dec
           rdword(); eatdec();
         }ELSE IF ( _c0=='i' ) { //inc //if
@@ -1670,6 +1661,16 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
             rdword(); eatinc();
           }ELSE { //if
             rdword(); eatif();
+          };
+        }ELSE IF (_c0=='e') { //enum //extern //export //evar
+          IF (_c2=='t') { //extern
+            rdword(); eatextern();
+          }ELSE IF (_c2=='p') { //export
+            rdword(); _isexp = +TRUE;
+          }ELSE IF (_c2=='a') { //evar
+            rdword(); eatevar();
+          }ELSE { //enum
+            rdword(); eatenum();
           };
         }ELSE IF ( _c0=='g' ) { //goto
           rdword(); eatgoto();
@@ -1787,6 +1788,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
         }ELSE {
           errstr("WRONG COMMAND "); errstr(_tword); enderr();
           rdword();
+        };
         };
       };
     }; //not a headless cmd

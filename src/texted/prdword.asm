@@ -3,6 +3,15 @@ prword
         exx
         ld hl,0
         exx
+        ld de,prdwordbuf
+        push de
+        ld a,' '
+        ld (prnumdwordcmd_zero),a
+        call prword_de
+        pop de
+        ld hl,5
+        jp sendchars
+        
 prdword
 ;hl'hl=num
         ld de,prdwordbuf
@@ -41,6 +50,7 @@ prdword_de
         exx
         ld bc,100000&0xffff
         call prnumdwordcmd0
+prword_de
         exx
         ld bc,0
         exx

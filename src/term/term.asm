@@ -114,6 +114,7 @@ wasnokey=$+1
         endif
        ;ld a,1
        ;out (0xfe),a
+       call printcursor
         YIELD
        ;ld a,5
        ;out (0xfe),a
@@ -132,8 +133,11 @@ mainloop_yieldkeep
        ;ld a,5
        ;out (0xfe),a
 mainloop_afterkeyq
+
         ld a,(pgscrbuf) ;ok
         SETPG16K
+;wascursorattraddr=$+1
+;        ld hl,0xc1c0
         call BDOS_countattraddr
 wascursorcuraddr=$+1
         ld de,killbuf_byte
@@ -144,6 +148,9 @@ wascursorcuraddr=$+1
         ld a,(de) ;из pgscrbuf
         ld (hl),a;COLOR
 
+        ;ld a,1
+        ;out (0xfe),a
+        
 mousecursor_wasxy=$+1
         ld de,0
          call getscrbuftop_a
@@ -169,26 +176,18 @@ waitpid_id=$+1
         or a
         jp z,quit
         
-        if 1==1
         jr mainloop_type0_go
 mainloop_type0
         YIELDKEEP
+
 mainloop_type0_go
+        
         ;ld a,3
         ;out (0xfe),a
         call type_stdin ;stdin to screen
         ;ld a,4
         ;out (0xfe),a
         jr nc,mainloop_type0 ;data present
-        else
-        call type_stdin ;stdin to screen
-        YIELDKEEP
-        call type_stdin ;stdin to screen
-        YIELDKEEP
-        call type_stdin ;stdin to screen
-        YIELDKEEP
-        call type_stdin ;stdin to screen
-        endif
        
          ld hl,(pr_buf_curaddr)
          ld (wascursorcuraddr),hl        
@@ -200,6 +199,7 @@ mainloop_type0_go
         ld (hl),a
          ;ld (hl),CURSORCOLOR
 
+        if 1==0
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
         push de
@@ -216,10 +216,10 @@ cursortimelimit=$+1
         pop hl
         jr c,noprintcursor
          ;ld (lastsdtinmsgtimer),hl
-         ld hl,4
-         ld (cursortimelimit),hl
-        call BDOS_countattraddr
-        ld (hl),CURSORCOLOR
+        endif
+        
+        call printcursor
+        
 noprintcursor
 
         GET_KEY ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
@@ -359,6 +359,17 @@ sendmouseevent_ok
         ld hl,6
         call sendchars
         jp mainloop_afterkey
+        
+printcursor
+         ;ld hl,4
+         ;ld (cursortimelimit),hl
+        call BDOS_countattraddr
+        ;ld (wascursorattraddr),hl        
+        ld (hl),CURSORCOLOR
+        
+        ;ld a,7
+        ;out (0xfe),a
+        ret
 
 term_sendchar
         cp key_esc
@@ -542,21 +553,23 @@ stdinhandle=$+1
 
         push hl
         call redraw_to_base
-         OS_GETTIMER ;hlde=timer
-         ld (lastsdtinmsgtimer),de
+         ;OS_GETTIMER ;hlde=timer
+         ;ld (lastsdtinmsgtimer),de
         BDOSSETPGSSCR
 pgscrbuf=$+1
         ld a,0 ;ok
         SETPG16K
         pop bc
         push bc
+        ld b,c
         ld hl,stdinbuf
 TERM_ST_SINGLE=1 ;wait for single symbol
 TERM_ST_AFTERESC=2 ;after 0x1b
 TERM_ST_AFTERESCBRACKET=3 ;after 0x1b [ [number] (might be more digits)
 term_prfsmcurstate=$+1
-         ld b,TERM_ST_SINGLE
-         djnz term_prfsm
+         ld a,TERM_ST_SINGLE
+         dec a
+         jr nz,term_prfsm
 term_print0
         ld a,(hl)
         cp 0x1b+1
@@ -567,8 +580,7 @@ term_print0
         pop hl
 term_print0_maybecontrolcodeq
         inc hl
-        dec c
-        jp nz,term_print0
+        djnz term_print0
          ld a,TERM_ST_SINGLE
         jp term_print0q
 term_print0_maybecontrolcode
@@ -580,7 +592,8 @@ term_print0_maybecontrolcode
         jp term_print0_maybecontrolcodeq
         
 term_prfsm
-         djnz term_prfsm_afterescbracket
+         dec a
+         jr nz,term_prfsm_afterescbracket
 term_prfsm_afteresc0
         xor a
         ld (term_prfsm_curnumber),a
@@ -591,8 +604,7 @@ term_prfsm_afteresc0
         jp term_prfsm_afterescbracket_ok ;next state
 term_prfsm_afteresc
         inc hl
-        dec c
-        jp nz,term_prfsm_afteresc0
+        djnz term_prfsm_afteresc0
          ld a,TERM_ST_AFTERESC
         jp term_print0q
 
@@ -633,8 +645,7 @@ term_prfsm_afterescbracket_nonumber
         ld (term_prfsm_curnumber),a
 term_prfsm_afterescbracket_ok
         inc hl
-        dec c
-        jp nz,term_prfsm_afterescbracket0
+        djnz term_prfsm_afterescbracket0
          ld a,TERM_ST_AFTERESCBRACKET
 term_print0q
          ld (term_prfsmcurstate),a
@@ -856,8 +867,8 @@ forcereprintcursor
         ;OS_GETTIMER ;hlde=timer
         ;dec d
         ;ld (lastsdtinmsgtimer),de
-         ld hl,0;2
-         ld (cursortimelimit),hl
+         ;ld hl,0;2
+         ;ld (cursortimelimit),hl
         ;pop hl
         ;pop de
         ret
@@ -1340,6 +1351,7 @@ BDOS_countattraddr
         ld a,(user_scr0_low) ;ok
         SETPG32KLOW ;attr ;TODO убрать? считывать из scrbuf!
         ld hl,(pr_textmode_curaddr)
+textaddrtoattraddr
         ld a,h
         xor 0x60 ;attr + 0x20
         ld h,a
