@@ -1,12 +1,10 @@
 //// imported
 #include "../_sdk/str.h"
+#define _BYTESTRMAX (BYTE)(_STRLEN-1)
 
 VAR PCHAR _tword; //текущее слово
 VAR UINT _lentword;
 VAR CHAR _s0[_STRLEN]; //текущее слово
-//VAR PCHAR _tstr; //текущая строка
-//VAR UINT _lentstr;
-//VAR CHAR _ss[_STRLEN]; //текущая строка
 
 EXTERN PBYTE _fin;
 EXTERN BOOL _waseof;
@@ -14,13 +12,12 @@ EXTERN BOOL _waseof;
 EXTERN UINT  _curlnbeg; //номер строки на момент начала токена
 
 FUNC BYTE readfin FORWARD();
-//FUNC UINT readfinstr FORWARD(PBYTE pstr);
 
 ////
 
 VAR UINT  _curline; //текущий номер строки
 VAR CHAR _cnext; //следующий символ
-VAR CHAR _c; //текущий символ (глобальный, чтобы не сохранять в рекурсии)
+VAR CHAR _c; //текущий символ (глобальный, хотя уже не используется в рекурсии или в других модулях)
 VAR UINT _spcsize; //число пробелов после прочитанной команды
 VAR UINT _waseols; //сколько было EOL с прошлого раза
 
@@ -54,7 +51,7 @@ CONST BOOL _isalphanum[256]={
 
 PROC skiplines() //пропускать строки до # (на выходе _cnext == '#')
 {
- //_curline = _curline; //сейчас _cnext = первый символ строки, а _waseols!=0
+//сейчас _cnext = первый символ строки, а _waseols!=0
   skipline:
  //пропустить строку, если она не начинается с # (иначе на выходе _cnext == '#')
  //сейчас _cnext == первый символ строки
@@ -70,7 +67,7 @@ PROC skiplines() //пропускать строки до # (на выходе _cnext == '#')
     _cnext = (CHAR)readfin();
     //сейчас _cnext == первый символ строки
   };
- //_curline = _curline; //сейчас _cnext == '#' или EOF
+//сейчас _cnext == '#' или EOF
 }
 
 //пропускает пробелы и ентеры
@@ -79,8 +76,7 @@ PROC rdch()
 //добавляет cnext в tword
 //и читает всю группу диерезисов + символ как один символ cnext
 {
-//  _lentword = stradd(_tword, _lentword, _cnext);
-  IF (_lentword < _STRMAX) {
+  IF ((BYTE)_lentword < _BYTESTRMAX) {
     _tword[_lentword] = _cnext;
     INC _lentword;
   };
@@ -95,7 +91,6 @@ PROC rdch()
       }ELSE IF (_cnext == '\t') {
         _spcsize = _spcsize + 7; //TODO связать с X
       };
-      //_wasdieresis = +TRUE;
       IF (!_waseof) goto loop; //todo в ветке 0a
     };
   IF (_doskip)
@@ -110,8 +105,7 @@ PROC rdchcmt()
 //добавляет cnext в tword
 //и читает всю группу диерезисов + символ как один символ cnext
 {
-//  _lentword = stradd(_tword, _lentword, _cnext);
-  IF (_lentword < _STRMAX) {
+  IF ((BYTE)_lentword < _BYTESTRMAX) {
     _tword[_lentword] = _cnext;
     INC _lentword;
   };
@@ -144,18 +138,18 @@ PROC rdaddword() //подклеить следующую команду к текущей
   _waseols = 0;
   _curlnbeg = _curline;
   IF (_isalphanum[(BYTE)_cnext] ) {
-    loop1: //REPEAT { //ждём нецифробукву (EOF не цифробуква)
-      IF (_lentword < _STRMAX) {
+    loop1: //ждём нецифробукву (EOF не цифробуква)
+      IF ((BYTE)_lentword < _BYTESTRMAX) {
         _tword[_lentword] = _cnext;
         INC _lentword;
       };
       _cnext = (CHAR)readfin();
-    IF (_isalphanum[(BYTE)_cnext]) goto loop1; //}UNTIL (!_isalphanum[+(BYTE)_cnext]/** || _waseof*/ );
+    IF (_isalphanum[(BYTE)_cnext]) goto loop1;
     goto loopgo;
-    loop2: //REPEAT { //ждём недиерезис или EOF
+    loop2: //ждём недиерезис или EOF
       _cnext = (CHAR)readfin();
     loopgo:
-      IF ((BYTE)_cnext < (BYTE)'!') { //ускорение выхода
+      IF ((BYTE)_cnext < 0x21/**'!'*/) { //ускорение выхода
         INC _spcsize; //spaces after tword
         IF ((BYTE)_cnext == 0x0a) {
           INC _curline;
@@ -164,16 +158,15 @@ PROC rdaddword() //подклеить следующую команду к текущей
         };
         IF (!_waseof) goto loop2;
       };
-    //}UNTIL (_wasdieresis || _waseof );
   }ELSE { //слово из нецифробуквенного символа
     rdch(); //читаем всю группу диерезисов + символ как один символ
   }; //нельзя подклеить это условие к циклу, т.к. оно для изначального cnext и один раз
 
-  _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
+  _tword[_lentword] = '\0';
 
-  IF (_lentword==1) {
-    _c = *(PCHAR)_tword;
-    IF ((BYTE)_c < (BYTE)'<') { //ускорение
+  IF ((BYTE)_cnext < 0x3c/**';'+1*/) { //обычно _cnext буква, а _tword[0] = 0x28'(',0x29')',0x3b';'
+    IF ((BYTE)_lentword == 0x01) {
+      _c = *(PCHAR)_tword;
       IF (
           (
            ((_c=='/')&&(_cnext=='*'))
@@ -188,19 +181,15 @@ PROC rdaddword() //подклеить следующую команду к текущей
             rdchcmt(); //пропускает все ентеры
           };
           rdch(); //используем последний символ комментария, читаем следующий символ после пробелов
-          _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
-  //#ifdef USE_COMMENTS
-  ;;        //cmt(';'); cmtstr(_tword); endcmt();
+          _tword[_lentword] = '\0';
   ;;        IF (_cmts) {writebyte(_fout, (BYTE)';'); fputs(_tword, _fout); writebyte(_fout, (BYTE)'\n'); };
-  //#endif
         };
         //читаем слово после комментария или недокомментария /* или */
-        _lentword = 0/**strclear(_tword)*/; //todo нарушена парность clear..close
+        _lentword = 0;
         goto beg; //rdaddword();
       }ELSE IF ( //(_lentword==1)&&
                 (
                  (_c=='/')&&(_cnext=='/')
-//               ||(_c=='#')
                ||(_c==';')&&(_cnext==';')
                 )
                ) { //
@@ -209,16 +198,13 @@ PROC rdaddword() //подклеить следующую команду к текущей
         WHILE (_waseols==0/** && !_waseof*/ ) {
           rdchcmt(); //пропускает все ентеры
         };
-        _tword[_lentword] = '\0'; //strclose(_tword, _lentword); //todo нарушена парность clear..close
-  //#ifdef USE_COMMENTS
-  ;;        //cmt(';'); cmtstr(_tword); endcmt();
+        _tword[_lentword] = '\0';
   ;;        IF (_cmts) {writebyte(_fout, (BYTE)';'); fputs(_tword, _fout); writebyte(_fout, (BYTE)'\n'); };
-  //#endif
         IF ((BYTE)_cnext < (BYTE)'!') {
           rdch(); //используем последний символ комментария, читаем следующий символ (TODO унифицировать как выше)
         };
         //читаем слово после комментария
-        _lentword = 0/**strclear(_tword)*/; //todo нарушена парность clear..close
+        _lentword = 0;
         goto beg; //rdaddword();
       };
     }; //ускорение
@@ -229,7 +215,7 @@ PROC rdword()
 //читаем слово _tword (из текста с диерезисами вместо пробелов, ентеров, табуляций)
 //слово заканчивается, когда диерезис или нецифробуквенный символ (он попадёт в cnext, а курсор в файле после него)
 {
-  _lentword = 0/**strclear(_tword)*/; //todo нарушена парность clear..close
+  _lentword = 0;
   rdaddword();
 }
 
@@ -247,17 +233,16 @@ PROC rdquotes(CHAR eol) //считывает до кавычки невключительно
     _lentword = stradd(_tword, _lentword, _cnext);
     _cnext = (CHAR)readfin();
   };
-  _tword[_lentword] = '\0'; //strclose(_tword, _lentword);
+  _tword[_lentword] = '\0';
 }
 
 PROC initrd()
 {
   _doskip = +FALSE;
   _tword = (PCHAR)_s0;
-//  _tstr = (PCHAR)_ss;
   _waseols = 0;
   _spcsize = 0;
-  _lentword = 0/**strclear(_tword)*/; //todo нарушена парность clear..close
+  _lentword = 0;
   rdch(); //читаем всю группу диерезисов + символ как один символ
 }
 
