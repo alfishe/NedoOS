@@ -114,10 +114,15 @@ GETKEY
 		cp 27
 		ld a,.KEY_MODE_SHIFT
 		jr nc,.base_noneed_caps
+		bit .bKEY_MODE_ALT,l
+		jr z,.no_alt_mod
+		ld a,b
+		jr .retsymb
+.no_alt_mod
 		ld a,.KEY_MODE_SHIFT|.KEY_MODE_CAPS
 .base_noneed_caps
 		and l
-		ld a,0
+		xor a
 		jp pe,.base_not_sh
 		ld a,.mod_sh-.mod_base
 .base_not_sh
