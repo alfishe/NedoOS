@@ -63,12 +63,12 @@ tablcall:
   DEFW f_readdir
   DEFW f_stat
   DEFW f_write
-  DEFW f_getfree
-  DEFW f_truncate
+  DEFW 0	;f_getfree
+  DEFW 0	;f_truncate
   DEFW f_sync
   DEFW f_unlink
   DEFW f_mkdir
-  DEFW f_chmod
+  DEFW 0	;f_chmod
   DEFW f_utime
   DEFW f_rename
   DEFW f_chdrive

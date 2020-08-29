@@ -524,7 +524,7 @@ WCHAR ff_convert (	/* Converted character, Returns zero on error */
 	return c;
 }
 
-
+#if 0
 WCHAR ff_wtoupper (	/* Upper converted character */
 	WCHAR chr		/* Input character */
 )
@@ -538,3 +538,4 @@ WCHAR ff_wtoupper (	/* Upper converted character */
 
 	return tbl_lower[i] ? tbl_upper[i] : chr;
 }
+#endif

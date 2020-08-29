@@ -99,14 +99,16 @@ FATFS_sz=51+512
 	STRUCT DIR
 FS		WORD	;/* POINTER TO THE OWNER FILE SYSTEM OBJECT */
 ID		WORD	;/* OWNER FILE SYSTEM MOUNT ID */
-INDEX	        WORD	;/* CURRENT READ/WRITE INDEX NUMBER */
-SCLUST	        DWORD	;/* TABLE START CLUSTER (0:ROOT DIR) */ ;видимо, в том же формате, что FATFS.cdir
-CLUST	        DWORD	;/* CURRENT CLUSTER */
-SECT	        DWORD	;/* CURRENT SECTOR */
+INDEX	WORD	;/* CURRENT READ/WRITE INDEX NUMBER */
+SCLUST	DWORD	;/* TABLE START CLUSTER (0:ROOT DIR) */ ;видимо, в том же формате, что FATFS.cdir
+CLUST	DWORD	;/* CURRENT CLUSTER */
+SECT	DWORD	;/* CURRENT SECTOR */
 DIR		WORD	;/* POINTER TO THE CURRENT SFN ENTRY IN THE WIN[] */
 FN		WORD	;/* POINTER TO THE SFN (IN/OUT) {FILE[8],EXT[3],STATUS[1]} */
+lfn		WORD	;/* Pointer to the LFN working buffer */
+lfn_idx	WORD	;/* Last matched LFN index number (0xFFFF:No LFN) */
 	ENDS
-DIR_sz=22
+DIR_sz=22+4
 
 /* FILE STATUS STRUCTURE (FILINFO) */
 	STRUCT FILINFO
@@ -115,12 +117,7 @@ FDATE	        WORD		;/* LAST MODIFIED DATE */
 FTIME	        WORD		;/* LAST MODIFIED TIME */
 FATTRIB	        BYTE		;/* ATTRIBUTE */
 FNAME	        BLOCK 13,0	;/* SHORT FILE NAME (8.3 FORMAT) */
-;MARK	        byte		;marking
-;NEXT	        WORD
-;NEXTP	        BYTE
-;PREV	        WORD
-;PREVP	        BYTE
-;RESERV	        dw
+LNAME	        BLOCK 64,0	;/* LONG FILE NAME (8.3 FORMAT) */
 	ENDS
 
 /* File object structure (FIL) */

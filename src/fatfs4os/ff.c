@@ -502,7 +502,9 @@ static WCHAR LfnBuf[_MAX_LFN+1];
 #error Wrong LFN configuration.
 #endif
 
-no_init unsigned char pathbuf[256];
+//no_init unsigned char pathbuf[256];
+#define pathbuf ((unsigned char *) 0x3a00)
+
 
 /*--------------------------------------------------------------------------
 
@@ -776,7 +778,7 @@ DWORD get_fat (	/* 0xFFFFFFFF:Disk error, 1:Internal error, Else:Cluster status 
 	DWORD clst	/* Cluster# to get the link information */
 )
 {
-	UINT wc, bc;
+//	UINT wc, bc;
 	BYTE *p;
 
 
@@ -784,6 +786,7 @@ DWORD get_fat (	/* 0xFFFFFFFF:Disk error, 1:Internal error, Else:Cluster status 
 		return 1;
 
 	switch (fs->fs_type) {
+#if 0
 	case FS_FAT12 :
 		bc = (UINT)clst; bc += bc / 2;
 		if (move_window(fs, fs->fatbase + (bc / SS(fs)))) break;
@@ -791,7 +794,7 @@ DWORD get_fat (	/* 0xFFFFFFFF:Disk error, 1:Internal error, Else:Cluster status 
 		if (move_window(fs, fs->fatbase + (bc / SS(fs)))) break;
 		wc |= fs->win[bc % SS(fs)] << 8;
 		return (clst & 1) ? (wc >> 4) : (wc & 0xFFF);
-
+#endif
 	case FS_FAT16 :
 		if (move_window(fs, fs->fatbase + (clst / (SS(fs) / 2)))) break;
 		p = &fs->win[clst * 2 % SS(fs)];
@@ -820,7 +823,7 @@ FRESULT put_fat (
 	DWORD val	/* New value to mark the cluster */
 )
 {
-	UINT bc;
+//	UINT bc;
 	BYTE *p;
 	FRESULT res;
 
@@ -830,6 +833,7 @@ FRESULT put_fat (
 
 	} else {
 		switch (fs->fs_type) {
+#if 0
 		case FS_FAT12 :
 			bc = clst; bc += bc / 2;
 			res = move_window(fs, fs->fatbase + (bc / SS(fs)));
@@ -843,7 +847,7 @@ FRESULT put_fat (
 			p = &fs->win[bc % SS(fs)];
 			*p = (clst & 1) ? (BYTE)(val >> 4) : ((*p & 0xF0) | ((BYTE)(val >> 8) & 0x0F));
 			break;
-
+#endif
 		case FS_FAT16 :
 			res = move_window(fs, fs->fatbase + (clst / (SS(fs) / 2)));
 			if (res != FR_OK) break;
@@ -1034,7 +1038,7 @@ FRESULT dir_sdi (
 		clst = dj->fs->dirbase;
 
 	if (clst == 0) {	/* Static table (root-dir in FAT12/16) */
-		dj->clust = clst;
+		dj->clust = 0; //clst;
 		if (idx >= dj->fs->n_rootdir)		/* Index is out of range */
 			return FR_INT_ERR;
 		dj->sect = dj->fs->dirbase + idx / (SS(dj->fs) / SZ_DIR);	/* Sector# */
@@ -1150,8 +1154,10 @@ int cmp_lfn (			/* 1:Matched, 0:Not matched */
 	do {
 		uc = LD_WORD(dir+LfnOfs[s]);	/* Pick an LFN character from the entry */
 		if (wc) {	/* Last char has not been processed */
-			wc = ff_wtoupper(uc);		/* Convert it to upper case */
-			if (i >= _MAX_LFN || wc != ff_wtoupper(lfnbuf[i++]))	/* Compare it */
+			//wc = ff_wtoupper(uc);		/* Convert it to upper case */
+			//if (i >= _MAX_LFN || wc != ff_wtoupper(lfnbuf[i++]))	/* Compare it */
+			wc = uc;		/* Convert it to upper case */
+			if (i >= _MAX_LFN || wc != lfnbuf[i++])	/* Compare it */
 				return 0;				/* Not matched */
 		} else {
 			if (uc != 0xFFFF) return 0;	/* Check filler */
@@ -1580,7 +1586,7 @@ FRESULT create_name (
 )
 {
 #ifdef _EXCVT
-	static const BYTE excvt[] = _EXCVT;	/* Upper conversion table for extended chars */
+//	static const BYTE excvt[] = _EXCVT;	/* Upper conversion table for extended chars */
 #endif
 
 #if _USE_LFN	/* LFN configuration */
@@ -1661,19 +1667,21 @@ FRESULT create_name (
 		if (w >= 0x80) {				/* Non ASCII char */
 #ifdef _EXCVT
 			w = ff_convert(w, 0);		/* Unicode -> OEM code */
-			if (w) w = excvt[w - 0x80];	/* Convert extended char to upper (SBCS) */
+			//if (w) w = excvt[w - 0x80];	/* Convert extended char to upper (SBCS) */
 #else
 			w = ff_convert(ff_wtoupper(w), 0);	/* Upper converted Unicode -> OEM code */
 #endif
 			cf |= NS_LFN;				/* Force create LFN entry */
 		}
-
+#if 0
 		if (_DF1S && w >= 0x100) {		/* Double byte char (always false on SBCS cfg) */
 			if (i >= ni - 1) {
 				cf |= NS_LOSS | NS_LFN; i = ni; continue;
 			}
 			dj->fn[i++] = (BYTE)(w >> 8);
-		} else {						/* Single byte char */
+		} else 
+#endif
+		{						/* Single byte char */
 			if (!w || strchr("+,;=[]", w)) {	/* Replace illegal chars for SFN */
 				w = '_'; cf |= NS_LOSS | NS_LFN;/* Lossy conversion */
 			} else {
@@ -1838,7 +1846,7 @@ void get_fileinfo (		/* No return code */
 	*p = 0;		/* Terminate SFN str by a \0 */
 
 #if _USE_LFN
-	if (fno->lfname && fno->lfsize) {
+/*	if (fno->lfname && fno->lfsize)*/ {
 		TCHAR *tp = fno->lfname;
 		WCHAR w, *lfn;
 
@@ -1852,7 +1860,7 @@ void get_fileinfo (		/* No return code */
 				if (_DF1S && w >= 0x100)		/* Put 1st byte if it is a DBC (always false on SBCS cfg) */
 					tp[i++] = (TCHAR)(w >> 8);
 #endif
-				if (i >= fno->lfsize - 1) { i = 0; break; }	/* Buffer overflow, no LFN */
+				if (i >= 64 /*fno->lfsize*/ - 1) { i = 0; break; }	/* Buffer overflow, no LFN */
 				tp[i++] = (TCHAR)w;
 			}
 		}
@@ -2053,8 +2061,9 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (tsect < sysect) return FR_NO_FILESYSTEM;		/* (Invalid volume size) */
 	nclst = (tsect - sysect) / fs->csize;				/* Number of clusters */
 	if (!nclst) return FR_NO_FILESYSTEM;				/* (Invalid volume size) */
-	fmt = FS_FAT12;
-	if (nclst >= MIN_FAT16) fmt = FS_FAT16;
+	//fmt = FS_FAT12;
+	//if (nclst >= MIN_FAT16) fmt = FS_FAT16;
+	fmt = FS_FAT16;
 	if (nclst >= MIN_FAT32) fmt = FS_FAT32;
 
 	/* Boundaries and Limits */
@@ -2728,16 +2737,21 @@ FRESULT f_getcwd (
 			} while (res == FR_OK);
 			if (res == FR_NO_FILE) res = FR_INT_ERR;/* It cannot be 'not found'. */
 			if (res != FR_OK) break;
+/*
 #if _USE_LFN
 			fno.lfname = pathbuf;
 			fno.lfsize = i;
 #endif
+*/
 			get_fileinfo(&djo, &fno);		/* Get the dir name and push it to the buffer */
 			tp = fno.fname;
-			if (_USE_LFN && *pathbuf) tp = pathbuf;
+#if _USE_LFN
+			if (fno.lfname[0]) tp = fno.lfname;
+#endif
 			for (n = 0; tp[n]; n++) ;
 			if (i < n + 3) {
-				res = FR_NOT_ENOUGH_CORE; break;
+				res = FR_NOT_ENOUGH_CORE; 
+				break;
 			}
 			pathbuf[--i] = '/';
 			while (n) pathbuf[--i] = tp[--n];
@@ -3047,6 +3061,7 @@ FRESULT f_stat (
 
 
 #if !_FS_READONLY
+#if 0
 /*-----------------------------------------------------------------------*/
 /* Get Number of Free Clusters                                           */
 /*-----------------------------------------------------------------------*/
@@ -3119,7 +3134,6 @@ FRESULT f_getfree (
 /*-----------------------------------------------------------------------*/
 /* Truncate File                                                         */
 /*-----------------------------------------------------------------------*/
-
 FRESULT f_truncate (
 	FIL *fp		/* Pointer to the file object */
 )
@@ -3160,9 +3174,7 @@ FRESULT f_truncate (
 
 	LEAVE_FF(fp->fs, res);
 }
-
-
-
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Delete a File or Directory                                            */
@@ -3315,7 +3327,7 @@ FRESULT f_mkdir (
 /*-----------------------------------------------------------------------*/
 /* Change Attribute                                                      */
 /*-----------------------------------------------------------------------*/
-
+#if 0
 FRESULT f_chmod (
 	const TCHAR *path,	/* Pointer to the file path */
 	BYTE value,			/* Attribute bits */
@@ -3352,7 +3364,7 @@ FRESULT f_chmod (
 	LEAVE_FF(djo.fs, res);
 }
 
-
+#endif
 
 
 /*-----------------------------------------------------------------------*/

@@ -166,8 +166,9 @@ typedef struct {
 	BYTE	fattrib;		/* Attribute */
 	TCHAR	fname[13];		/* Short file name (8.3 format) */
 #if _USE_LFN
-	TCHAR*	lfname;			/* Pointer to the LFN buffer */
-	UINT 	lfsize;			/* Size of LFN buffer in TCHAR */
+	TCHAR	lfname[64];			/* Pointer to the LFN buffer */
+//	TCHAR*	lfname;			/* Pointer to the LFN buffer */
+//	UINT 	lfsize;			/* Size of LFN buffer in TCHAR */
 #endif
 } FILINFO;
 
