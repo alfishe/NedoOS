@@ -907,6 +907,55 @@ readbyte_readbufq
         ret
 
 cmd_dir
+        ld de,emptypath
+        OS_OPENDIR
+        or a
+        ld bc,0 ;nfiles
+        jp nz,loaddir2_error
+cmd_dir2_0
+       push bc
+        ld de,filinfo
+        OS_READDIR
+       pop bc
+        or a
+        jr nz,loaddir2q
+        ld a,(filinfo+FILINFO_FNAME)
+        or a
+        jr z,loaddir2q
+       push bc
+        ld hl,filinfo+FILINFO_LNAME
+        ld a,(hl)
+        or a
+        jr nz,$+5
+        ld hl,filinfo+FILINFO_FNAME
+        call prtext
+        ld a,' '
+        PRCHAR_
+        ld hl,(filinfo+FILINFO_FSIZE+2)
+        exx
+        ld hl,(filinfo+FILINFO_FSIZE)
+        call prdword
+        ld a,' '
+        PRCHAR_
+        ld ix,(filinfo+FILINFO_FDATE)
+        ld hl,(filinfo+FILINFO_FTIME)
+        call prdate_time
+        call prcrlf
+       pop bc ;nfiles
+        inc bc ;nfiles
+        or a
+        jr cmd_dir2_0
+loaddir2_error
+loaddir2q
+;bc=nfiles
+        ld h,b
+        ld l,c
+        call prword
+        ld hl,t_files_crlf
+        jp prtext
+
+        if 1==0
+cmd_dir
         ld de,fcb
         OS_SETDTA ;set disk transfer address = de
         ;call makeemptymask
@@ -979,6 +1028,7 @@ loaddirq
 
 dirfnbuf
         db "filename.ext "
+        endif
 
 prdate_time
 ;ix=date, hl=time
@@ -1685,7 +1735,7 @@ nfopenfnslashq.
 commandslist
         dw cmd_dir
         db "ls",0
-        dw cmd_dir
+        dw cmd_dir2
         db "dir",0
         dw cmd_del
         db "del",0
@@ -1813,6 +1863,12 @@ copybuf_sz=$-copybuf
 
 params
         ds MAXCMDSZ+1
+
+filinfo
+        ds FILINFO_sz
+
+emptypath
+        db 0
 
         align 256
 file_buf

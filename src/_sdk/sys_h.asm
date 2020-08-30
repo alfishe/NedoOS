@@ -541,7 +541,7 @@ __1=$
         ld c,CMD_OPENDIR
 	CALLBDOS_NOPARAM_A
         endm
-        macro OS_READDIR ;de=buf for FILINFO, 0x00 in FILINFO_FNAME = end dir
+        macro OS_READDIR ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
         ld c,CMD_READDIR
 	CALLBDOS_NOPARAM_A
         endm

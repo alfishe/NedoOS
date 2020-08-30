@@ -50,7 +50,7 @@ CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
 CMD_OPENDIR=0xcf ;de=path
-CMD_READDIR=0xd0 ;de=buf for FILINFO
+CMD_READDIR=0xd0 ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
 CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling
 CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
