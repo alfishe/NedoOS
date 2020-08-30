@@ -923,23 +923,29 @@ cmd_dir2_0
         or a
         jr z,loaddir2q
        push bc
-        ld hl,filinfo+FILINFO_LNAME
-        ld a,(hl)
-        or a
-        jr nz,$+5
-        ld hl,filinfo+FILINFO_FNAME
-        call prtext
+        ld ix,(filinfo+FILINFO_FDATE)
+        ld hl,(filinfo+FILINFO_FTIME)
+        call prdate_time
+
         ld a,' '
         PRCHAR_
+
         ld hl,(filinfo+FILINFO_FSIZE+2)
         exx
         ld hl,(filinfo+FILINFO_FSIZE)
         call prdword
         ld a,' '
         PRCHAR_
-        ld ix,(filinfo+FILINFO_FDATE)
-        ld hl,(filinfo+FILINFO_FTIME)
-        call prdate_time
+
+        ld hl,filinfo+FILINFO_LNAME
+        ld a,(hl)
+        or a
+        jr nz,$+5
+        ld hl,filinfo+FILINFO_FNAME
+        ;ld c,0 ;c=x
+        call prtext
+;c=x
+        
         call prcrlf
        pop bc ;nfiles
         inc bc ;nfiles
@@ -1735,7 +1741,7 @@ nfopenfnslashq.
 commandslist
         dw cmd_dir
         db "ls",0
-        dw cmd_dir2
+        dw cmd_dir
         db "dir",0
         dw cmd_del
         db "del",0
