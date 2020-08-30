@@ -774,6 +774,8 @@ tbdoscmds
 	db CMD_FWRITE;0x15
         db CMD_FSEARCHFIRST;0x11
         db CMD_FSEARCHNEXT;0x12
+        db CMD_OPENDIR
+        db CMD_READDIR
         db CMD_SETDRV
 	db CMD_PARSEFNAME;0x5c
         db CMD_CHDIR
@@ -871,6 +873,8 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_chdir
         dw BDOS_parse_filename
         dw BDOS_setdrv
+        dw BDOS_readdir
+        dw BDOS_opendir
         dw BDOS_fsearchnext
         dw BDOS_fsearchfirst
 	dw BDOS_fwrite
@@ -1594,9 +1598,30 @@ count_fdir
         ex de,hl
         ret
 
+;TODO TR-DOS
+;de=path
+BDOS_opendir
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld b,d
+        ld c,e
+        ;jr opendir_curdrv
+
 BDOS_opencurdir
+opendir_curdrv
         call count_fdir ;LD de,fdir
-		F_OPDIR_CURDRV
+        F_OPDIR_CURDRV
+        ret
+
+;TODO TR-DOS
+;de=buf for FILINFO, 0x00 in FILINFO_FNAME = end dir
+BDOS_readdir
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld b,d
+        ld c,e
+        call count_fdir ;LD de,fdir
+	F_RDIR_CURDRV
         ret
 
 ;SEARCH FOR FIRST [FCB] (11H)
@@ -1665,7 +1690,7 @@ BDOS_fsearch_loadloop
         ;ret nz;jp nz,fexit
 
 ;переделать структуру FILINFO (которую мы сейчас считали) в структуру FCB
-        ld de,mfilinfo+FILINFO.FNAME
+        ld de,mfilinfo+FILINFO_FNAME
         ld a,(de)
         or a
         jp z,BDOS_fail ;fsearchnext_nofile
@@ -2993,7 +3018,7 @@ ffilearray=fatfsarray+(13*FATFS_sz)
         
 mfil    db "12345678.123",0 ;нужно только на время операции, которая принимает имя файла (может быть с путём?)
 
-mfilinfo FILINFO ;нужно только на время findnext
+mfilinfo ds FILINFO_sz ;FILINFO ;нужно только на время findnext
 
 fcb2    ds FCB_sz ;нужно только на время findnext
 

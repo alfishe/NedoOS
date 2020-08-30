@@ -49,6 +49,8 @@ CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in wi
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_OPENDIR=0xcf ;de=path
+CMD_READDIR=0xd0 ;de=buf for FILINFO
 CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling
 CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
@@ -100,6 +102,15 @@ CMD_NEWPAGE=0xfc ;out: a=0 (OK)/!=0 (fail), e=page
 CMD_DELPAGE=0xfd ;e=page ;GIVE SOME PAGE BACK TO THE OS
 CMD_SETSCREEN=0xfe ;e=screen=0..1
 CMD_YIELDKEEP=0xff
+
+;	STRUCT FILINFO
+FILINFO_FSIZE=0;	        DWORD		;/* FILE SIZE */
+FILINFO_FDATE=4;	        WORD		;/* LAST MODIFIED DATE */
+FILINFO_FTIME=6;	        WORD		;/* LAST MODIFIED TIME */
+FILINFO_FATTRIB=8;	        BYTE		;/* ATTRIBUTE */
+FILINFO_FNAME=9;	        BLOCK 13,0	;/* SHORT FILE NAME (8.3 FORMAT with dot and terminator) */
+FILINFO_LNAME=22;	        BLOCK 64,0	;/* LONG FILE NAME (ASCIIZ) */
+FILINFO_sz=FILINFO_LNAME+64
 
 ;        STRUCT FCB
 FCB_drv=0 ;drv             BYTE; /* drive number */

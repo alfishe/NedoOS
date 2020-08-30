@@ -69,7 +69,7 @@ FA_CREATE_ALWAYS=0x08	;Creates a new file. If the file is existing, it is trunca
 
 
 
-/* File system object structure (FATFS) */
+;/* File system object structure (FATFS) */
 
 	STRUCT FATFS
 fs_type		BYTE;		/* FAT sub-type (0:Not mounted) */
@@ -110,17 +110,17 @@ lfn_idx	WORD	;/* Last matched LFN index number (0xFFFF:No LFN) */
 	ENDS
 DIR_sz=22+4
 
-/* FILE STATUS STRUCTURE (FILINFO) */
-	STRUCT FILINFO
-FSIZE	        DWORD		;/* FILE SIZE */
-FDATE	        WORD		;/* LAST MODIFIED DATE */
-FTIME	        WORD		;/* LAST MODIFIED TIME */
-FATTRIB	        BYTE		;/* ATTRIBUTE */
-FNAME	        BLOCK 13,0	;/* SHORT FILE NAME (8.3 FORMAT) */
-LNAME	        BLOCK 64,0	;/* LONG FILE NAME (8.3 FORMAT) */
-	ENDS
+;/* FILE STATUS STRUCTURE (FILINFO) */
+;	STRUCT FILINFO
+;FSIZE	        DWORD		;/* FILE SIZE */
+;FDATE	        WORD		;/* LAST MODIFIED DATE */
+;FTIME	        WORD		;/* LAST MODIFIED TIME */
+;FATTRIB	        BYTE		;/* ATTRIBUTE */
+;FNAME	        BLOCK 13,0	;/* SHORT FILE NAME (8.3 FORMAT with dot and terminator) */
+;LNAME	        BLOCK 64,0	;/* LONG FILE NAME (ASCIIZ) */
+;	ENDS
 
-/* File object structure (FIL) */
+;/* File object structure (FIL) */
 
 	struct FIL
 FS		WORD	;/* Pointer to the owner file system object */
@@ -155,7 +155,7 @@ FIL_sz=32+512
 	F_MNT
 	ENDM
 	MACRO F_MNT
-		call ffsfunc.f_mount
+	call ffsfunc.f_mount
 	ENDM
 
 
@@ -175,7 +175,7 @@ FIL_sz=32+512
 	POP BC
 	ENDM
 	
-    MACRO F_OPEN_CURDRV
+        MACRO F_OPEN_CURDRV
         call open_keeppid
 	PUSH HL
 	LD hl,ffsfunc.f_open
@@ -228,17 +228,17 @@ FIL_sz=32+512
 ; /*-----------------------------------------------------------------------*/
 ; FRESULT f_close (
 	; FIL *fp		/* Pointer to the file object to be closed */)
-    MACRO F_CLOS_CURDRV ;de=fil
-    push de
-    call BDOS_setpgstructs
-    inc de
-    inc de
-    inc de
-    inc de
-    inc de
-    xor a
-    ld (de),a
-    pop de
+        MACRO F_CLOS_CURDRV ;de=fil
+        push de
+        call BDOS_setpgstructs
+        inc de
+        inc de
+        inc de
+        inc de
+        inc de
+        xor a
+        ld (de),a
+        pop de
 	ld hl,ffsfunc.f_close
 	call call_ffs_curvol
 	ENDM

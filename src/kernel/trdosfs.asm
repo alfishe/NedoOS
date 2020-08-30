@@ -1,15 +1,15 @@
 trdosgetdirfcb
         ld hl,fcb2+FCB_FNAME
         call dotname_to_cpmname ;de -> hl
-        ld hl,mfilinfo+FILINFO.FSIZE
+        ld hl,mfilinfo+FILINFO_FSIZE
         ld de,fcb2+FCB_FSIZE
         ld bc,4
         ldir
-        ld hl,(mfilinfo+FILINFO.FDATE)
+        ld hl,(mfilinfo+FILINFO_FDATE)
         ld (fcb2+FCB_FDATE),hl
-        ld hl,(mfilinfo+FILINFO.FTIME)
+        ld hl,(mfilinfo+FILINFO_FTIME)
         ld (fcb2+FCB_FTIME),hl       
-     	ld a,(mfilinfo+FILINFO.FATTRIB)
+     	ld a,(mfilinfo+FILINFO_FATTRIB)
 	;and 0x10
 	ld (fcb2+FCB_FATTRIB),a
         ret

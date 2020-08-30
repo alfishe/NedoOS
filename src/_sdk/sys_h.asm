@@ -537,6 +537,14 @@ __1=$
         endm
 
 ;invented  
+        macro OS_OPENDIR ;de=path
+        ld c,CMD_OPENDIR
+	CALLBDOS_NOPARAM_A
+        endm
+        macro OS_READDIR ;de=buf for FILINFO, 0x00 in FILINFO_FNAME = end dir
+        ld c,CMD_READDIR
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_HIDEFROMPARENT ;for tasks with their own screen handling
         ld c,CMD_HIDEFROMPARENT
 	CALLBDOS_NOPARAM_A
