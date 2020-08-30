@@ -13,6 +13,7 @@ user_scr1_low=0x0032
 user_scr1_high=0x0033
 
 MAXPATH_sz=256;64
+DIRMAXFILENAME64=64
 
 ;------------------------ëíêìäíìêõ CP/M --------------------------------------
 ;from CP/M (try to avoid use!):
@@ -109,8 +110,8 @@ FILINFO_FDATE=4;	        WORD		;/* LAST MODIFIED DATE */
 FILINFO_FTIME=6;	        WORD		;/* LAST MODIFIED TIME */
 FILINFO_FATTRIB=8;	        BYTE		;/* ATTRIBUTE */
 FILINFO_FNAME=9;	        BLOCK 13,0	;/* SHORT FILE NAME (8.3 FORMAT with dot and terminator) */
-FILINFO_LNAME=22;	        BLOCK 64,0	;/* LONG FILE NAME (ASCIIZ) */
-FILINFO_sz=FILINFO_LNAME+64
+FILINFO_LNAME=22;	        BLOCK DIRMAXFILENAME64,0	;/* LONG FILE NAME (ASCIIZ) */
+FILINFO_sz=FILINFO_LNAME+DIRMAXFILENAME64
 
 ;        STRUCT FCB
 FCB_drv=0 ;drv             BYTE; /* drive number */

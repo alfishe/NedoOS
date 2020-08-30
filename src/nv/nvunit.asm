@@ -687,18 +687,24 @@ setfilecursorxy
 
 prfilecursor_reprintfile
 ;hl=color
-        ex de,hl
-        SETCOLOR_
+        push hl
+        ;ex de,hl
+        ;SETCOLOR_
 	call setfilecursorxy
         ld ix,(curpanel)
-        call getfcbaddrundercursor
-        push hl
-        pop ix
-        call prdirfile_copyfilename
-	;ld ix,(curpanel)
-        ld de,filelinebuf
-        ld hl,8+1+3
-        jp sendchars
+        ;call getfcbaddrundercursor
+        ;jp prdirfile
+        call getfcbundercursor
+        ld ix,fcb
+        pop de
+        jp prdirfile_ix_decolor
+        ;push hl
+        ;pop ix
+        ;call prdirfile_copyfilename
+	;;ld ix,(curpanel)
+        ;ld de,filelinebuf
+        ;ld hl,8+1+3
+        ;jp sendchars
 
 prfilecursor
 ;hl=color
@@ -913,7 +919,7 @@ prmidstroka
 	db 1
 	db ' '
 	db 12;wdtcolumn1 
-	db 0xb3;'³'
+	db ' ';0xb3;'³'
 	db 1
 	db ' '
 	db 10;wdtcolumn2

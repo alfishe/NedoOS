@@ -537,7 +537,7 @@ __1=$
         endm
 
 ;invented  
-        macro OS_OPENDIR ;de=path
+        macro OS_OPENDIR ;de=path (must be empty ASCIIZ for now)
         ld c,CMD_OPENDIR
 	CALLBDOS_NOPARAM_A
         endm

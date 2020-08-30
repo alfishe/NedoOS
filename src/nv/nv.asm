@@ -34,6 +34,7 @@ CONST_HGT_TABLE=21
 
 ;8192fcbs*32bytes*2panels = 32 pages
 DIRPAGES=16
+FIRSTDIRPAGEFORRIGHTPANEL=128
 
 catbuf_left=0xc000
 catbuf_right=0xc000
@@ -125,15 +126,23 @@ cmd_begin
         ld hl,HS_strpg
         ld (hl),e
 	inc hl
-	xor a
-	ld (hl),a ;маркер конца списка страниц
-
-	OS_NEWPAGE
-	ld hl, HS_strpg+DIRPAGES+1
+	ld (hl),0 ;маркер конца списка страниц
+	OS_NEWPAGE ;выделяем по одной страничке для длинных имён
+        ld hl,HS_strpg+DIRPAGES+1
         ld (hl),e
 	inc hl
-	xor a
-	ld (hl),a ;маркер конца списка страниц
+	ld (hl),0 ;маркер конца списка страниц        
+
+	OS_NEWPAGE
+	ld hl,HS_strpg+FIRSTDIRPAGEFORRIGHTPANEL;DIRPAGES+1
+        ld (hl),e
+	inc hl
+	ld (hl),0 ;маркер конца списка страниц
+	OS_NEWPAGE ;выделяем по одной страничке для длинных имён
+        ld hl,HS_strpg+FIRSTDIRPAGEFORRIGHTPANEL+DIRPAGES+1
+        ld (hl),e
+	inc hl
+	ld (hl),0 ;маркер конца списка страниц        
         
 	ld hl,left_panel_xy
 	ld (leftpanel+PANEL.xy),hl
@@ -156,7 +165,7 @@ cmd_begin
 	ld (rightpanel+PANEL.pointers),hl
         ld hl,catbuf_right
 	ld (rightpanel+PANEL.catbuf),hl
-	ld a,DIRPAGES+1
+	ld a,FIRSTDIRPAGEFORRIGHTPANEL;DIRPAGES+1
 	ld (leftpanel+PANEL.pgadd),a
 
 	ld hl,compareext
@@ -191,7 +200,19 @@ strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
 	ld hl, HS_strpg
 	ld e, (ix+PANEL.pgadd)
 	ld d, (ix+PANEL.pgadd+1)
-	adc hl, de
+	add hl,de
+        ld (ix+PANEL.curpgfcbpoi),l
+        ld (ix+PANEL.curpgfcbpoi+1),h
+        call strdelpages_next
+strdelpages_lname
+	ld hl, HS_strpg+DIRPAGES+1 ;HS_lnamepg
+	ld e, (ix+PANEL.pgadd)
+	ld d, (ix+PANEL.pgadd+1)
+	add hl,de
+        ld (ix+PANEL.curpglnamepoi),l
+        ld (ix+PANEL.curpglnamepoi+1),h
+        ;jp strdelpages_next
+
 strdelpages_next
         inc hl
         ld a, (hl)
@@ -199,30 +220,44 @@ strdelpages_next
         ret z
         ld e, a
         push hl
+        push ix
 	OS_DELPAGE
+        pop ix
 	pop hl
         xor a
         ld (hl), a
         jr strdelpages_next
 
-strnewpage ;выделяем новую страничку IX - панель, E номер странички в HS_strpg
+lnamenewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
 	push hl
 	push de
-
-	push de
+        push ix
 	OS_NEWPAGE
-	ld a, e
-	ld hl, HS_strpg
-	pop de
-	adc hl, de
-	ld e, (ix+PANEL.pgadd)
-	ld d, (ix+PANEL.pgadd+1)
-	adc hl, de
-	ld (hl), a
-	xor a
+        pop ix
+        ld l,(ix+PANEL.curpglnamepoi)
+        ld h,(ix+PANEL.curpglnamepoi+1)
+	ld (hl),e
 	inc hl
-	ld (hl),a ; маркер конца списка
-
+	ld (hl),0 ; маркер конца списка
+        ld (ix+PANEL.curpglnamepoi),l
+        ld (ix+PANEL.curpglnamepoi+1),h
+	pop de
+	pop hl
+	ret
+        
+strnewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
+	push hl
+	push de
+        push ix
+	OS_NEWPAGE
+        pop ix
+        ld l,(ix+PANEL.curpgfcbpoi)
+        ld h,(ix+PANEL.curpgfcbpoi+1)
+	ld (hl),e
+	inc hl
+	ld (hl),0 ; маркер конца списка
+        ld (ix+PANEL.curpgfcbpoi),l
+        ld (ix+PANEL.curpgfcbpoi+1),h
 	pop de
 	pop hl
 	ret
@@ -487,24 +522,42 @@ prdirfile_copyfilename
 
 prdirfile
 ;hl=fcb
-	push hl
-	pop ix
+	;push hl
+        call getfcbfromhl
+
+	;pop ix
+        ld ix,fcb
         call colorfile ;de=color
+prdirfile_ix_decolor        
 ;	push ix
         call nv_setcolor
         
-        call prdirfile_copyfilename ;hl,ix(=fcb)->filelinebuf
-         
-	;ld de,_PANELCOLOR
-	;call nv_setcolor
-	;ld a,0xb3 ;'|'
-        ;PRCHAR_
-         inc de
-         inc de
-         inc de
-	;ld de,(nvcolor)
-	;call nv_setcolor
+        ;call prdirfile_copyfilename ;hl,ix(=fcb)->filelinebuf
+        ld a,(ix+FCB_EXTENTNUMBERLO)
+        SETPG32KHIGH
+        ld l,(ix+FCB_EXTENTNUMBERHI)
+        ld h,(ix+FCB_EXTENTNUMBERHI+1)
+        ld de,filelinebuf
+        ld b,23
+prdirfile_fn0
+        ld a,(hl)
+        or a
+        jr z,prdirfile_fn0q
+        ld (de),a
+        inc hl
+        inc de
+        djnz prdirfile_fn0
+        jr prdirfile_fn0qq
+prdirfile_fn0q
+        ld a,' '
+prdirfile_fn1
+        ld (de),a
+        inc de
+        djnz prdirfile_fn1         
+         ;inc de
 ;        pop ix
+prdirfile_fn0qq
+        ld de,filelinebuf+13
         exx
         ld l,(ix+FCB_FSIZE+2)
         ld h,(ix+FCB_FSIZE+3)
@@ -595,10 +648,10 @@ prNNcmd
 
 filelinebuf
         ;db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
-        db "filename.ext",0x1b,"[C1234567890",0x1b,"[CYY-MM-DD hh:mm"
+        db "filename.ext 1234567890",0x1b,"[CYY-MM-DD hh:mm"
 filelinebuf_sz=$-filelinebuf
 emptyfilelinebuf
-        db "            ",0x1b,"[C          ",0x1b,"[C              "
+        db "                       ",0x1b,"[C              "
 emptyfilelinebuf_sz=$-emptyfilelinebuf
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -628,13 +681,18 @@ readdir_keepcursor
 	push ix
 	call setpaneldir
 	call strdelpages
-	ld de,fcb
-        OS_SETDTA ;set disk transfer address = de
+	;ld de,fcb
+        ;OS_SETDTA ;set disk transfer address = de
         ;call makeemptymask
-        ld de,fcbmask
-        OS_FSEARCHFIRST
+        ;ld de,fcbmask
+        ;OS_FSEARCHFIRST
+        ld de,emptypath
+        OS_OPENDIR
 	pop ix
         or a
+
+        ld hl,0xc000
+        ld (loaddir_curlnameaddr),hl
 
 	ld e,(ix+PANEL.catbuf)     ;00
 	ld d,(ix+PANEL.catbuf+1)   ;c0
@@ -642,14 +700,42 @@ readdir_keepcursor
 	ld h,(ix+PANEL.pointers+1) ;c0  номер файла
         ld bc,0 ;nfiles
         jp nz,loaddir_error
-		ld a,(fcb+1)
-		cp '.'
-		jp z,loaddir_onedot
+		;ld a,(fcb+1)
+		;cp '.'
+		;jp z,loaddir_onedot
 loaddir0
         push bc
 
 	push de
 	push hl
+        
+        ld de,filinfo
+        OS_READDIR
+        pop hl
+        pop de
+        pop bc
+        or a
+        jp nz,loaddirq
+        ld a,(filinfo+FILINFO_FNAME)
+        or a
+        jp z,loaddirq
+	ld a,(filinfo+FILINFO_FNAME+1)
+	cp '.'
+	jr z,loaddir_noonedot
+	ld a,(filinfo+FILINFO_FNAME)
+	cp '.'
+	jp z,loaddir_onedot
+loaddir_noonedot
+
+        push bc
+
+	push de
+	push hl
+        
+        ;ld l,(ix+PANEL.curpgfcbpoi)
+        ;ld h,(ix+PANEL.curpgfcbpoi+1)
+        ;ld a,(hl)
+        ;SETPG32KHIGH
 	ld a,e
 	and 31
 	add a,(ix+PANEL.pgadd)
@@ -660,9 +746,98 @@ loaddir0
 	xor a
 	ld (de),a ;mark
 	inc de
-        ld hl,fcb+1
-        ld bc,31;FCB_sz 
-        ldir ; копируем fcb в catbuf
+        ;ld hl,fcb+1
+        ;ld bc,31;FCB_sz 
+        ;ldir ; копируем fcb в catbuf
+        ld hl,filinfo+FILINFO_FNAME
+        ;ld bc,8
+        ;ldir
+        ;inc hl
+        ;ld c,3
+        ;ldir
+        ex de,hl
+        push hl
+        call dotname_to_cpmname ;de -> hl
+        pop hl
+        ld bc,11
+        add hl,bc
+        ex de,hl
+        ld (loaddir_fcb_lnamepgpoi),de
+        inc de ;extent number - NU
+        ld hl,filinfo+FILINFO_FATTRIB
+        ldi
+        ld (loaddir_fcb_lnameaddrpoi),de
+        inc de ;record count - NU
+        inc de ;extent number hi - NU
+        ld hl,filinfo+FILINFO_FSIZE
+        ;TODO через процедуру
+	push hl
+        push ix
+        ld a,(hl)
+        add a,(ix+PANEL.totalsize)
+        ld (ix+PANEL.totalsize),a
+        inc hl
+        ld a,(hl)
+        adc a,(ix+PANEL.totalsize+1)
+        ld (ix+PANEL.totalsize+1),a
+        inc hl
+        ld a,(hl)
+        adc a,(ix+PANEL.totalsize+2)
+        ld (ix+PANEL.totalsize+2),a
+        inc hl
+        ld a,(hl)
+        adc a,(ix+PANEL.totalsize+3)
+        ld (ix+PANEL.totalsize+3),a
+        pop ix
+	pop hl
+        ld bc,4
+        ldir
+        ld hl,filinfo+FILINFO_FTIME
+        ld c,2
+        ldir
+        ex de,hl
+        ld c,8
+        add hl,bc
+        ex de,hl
+        ld hl,filinfo+FILINFO_FDATE
+        ld c,2
+        ldir
+
+loaddir_curlnameaddr=$+1
+        ld de,0
+        
+        if 1==1
+        
+;если нету места под длинное имя в текущей странице, заказать новую и сдвинуть указатель
+        ld a,d
+        inc a
+        jr nz,loaddirlname_nonewpg
+        ld a,e
+        cp -DIRMAXFILENAME64
+        jr c,loaddirlname_nonewpg
+	call lnamenewpage
+        ld de,0xc000        
+loaddirlname_nonewpg
+;записать текущий указатель на длинное имя в fcb
+;записать длинное имя по указателю
+        ld l,(ix+PANEL.curpglnamepoi)
+        ld h,(ix+PANEL.curpglnamepoi+1)
+        ld a,(hl)
+loaddir_fcb_lnamepgpoi=$+1
+        ld (0),a
+loaddir_fcb_lnameaddrpoi=$+2
+        ld (0),de
+        SETPG32KHIGH
+        ld hl,filinfo+FILINFO_LNAME
+        ld a,(hl)
+        or a
+        jr nz,$+5
+        ld hl,filinfo+FILINFO_FNAME
+        call strcopy ;out: hl,de after terminator
+        ld (loaddir_curlnameaddr),de
+        
+        endif
+        
 	pop hl
 	pop de
         call putfilepointer_de_tohl ; возвращает в верхнее окно страницу poipg и в pointers заносит de
@@ -670,77 +845,37 @@ loaddir0
 	ld bc,32
 	add hl,bc
 	ex hl,de ; увеличили на 32 catbuf
-	jr nc,nonewpg ; всё ещё убираемся в страницу
+	jr nc,nonewpg ; всё ещё умещаемся в страницу
 	inc de ;next page de
 	call strnewpage
-	set 7,d 
-	set 6,d ;de=c0pg
+        set 7,d
+        set 6,d
 nonewpg:
-        ;TODO через процедуру
-	push hl
-        ld l,(ix+PANEL.totalsize)
-        ld h,(ix+PANEL.totalsize+1)
-        ld bc,(fcb+FCB_FSIZE)
-        add hl,bc
-        ld (ix+PANEL.totalsize),l
-        ld (ix+PANEL.totalsize+1),h
-        ld l,(ix+PANEL.totalsize+2)
-        ld h,(ix+PANEL.totalsize+3)
-        ld bc,(fcb+FCB_FSIZE+2)
-        adc hl,bc
-        ld (ix+PANEL.totalsize+2),l
-        ld (ix+PANEL.totalsize+3),h
-	pop hl
         
         pop bc
         inc bc ;nfiles
         bit 5,b;1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
         jr nz,loaddirq
 loaddir_onedot
-        push bc
-        push de ;catbuf
-	push hl
-        push ix
-        ld de,fcb
-        OS_SETDTA ;set disk transfer address = de
-         ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
-        OS_FSEARCHNEXT
-        pop ix
-	pop hl
-        pop de ;catbuf
-        pop bc ;nfiles
-        or a
-        jr z,loaddir0
+        ;push bc
+        ;push de ;catbuf
+	;push hl
+        ;push ix
+        ;ld de,fcb
+        ;OS_SETDTA ;set disk transfer address = de
+        ; ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
+        ;OS_FSEARCHNEXT
+        ;pop ix
+	;pop hl
+        ;pop de ;catbuf
+        ;pop bc ;nfiles
+        ;or a
+        jp loaddir0
 loaddir_error
 loaddirq
 ;bc=nfiles
 	ld (ix+PANEL.files),c
 	ld (ix+PANEL.files+1),b
-
-	if 1==0
-	ld l,(ix+PANEL.pointers)
-	ld h,(ix+PANEL.pointers+1)
-	ld e,(ix+PANEL.catbuf)
-	ld d,(ix+PANEL.catbuf+1)
-sortfiles_0
-	push bc
-	;ld (hl),e	
-	;inc hl
-	;ld (hl),d
-	;inc hl
-        call putfilepointer_de_tohl
-	ex hl,de
-	ld bc,32
-	add hl,bc
-	ex hl,de
-	 jr nc,$+3
-	 inc de ;next page
-	pop bc
-	dec bc	
-	ld a,b
-	or c
-	jr nz,sortfiles_0
-	endif
 
         call countfiles
         ld (ix+PANEL.filesdirs),l
@@ -752,6 +887,9 @@ sortfiles_0
         sbc hl,de ;dirpos<files?
         ret c ;OK
 	jp nv_setcursor_zero
+
+emptypath
+        db 0
 
 controlloop
         call fixscroll_prcmd
@@ -1762,7 +1900,7 @@ proc_del_file
 	push ix
 	pop hl
 	ld de,dir_buf
-	call nv_strcopy_hltode
+	call strcopy;nv_strcopy_hltode
 
 	ld hl,proc_del_file_batch
 	ld (nv_batch_proc),hl
@@ -1817,7 +1955,7 @@ editcmd_5_0
 	push ix
 	pop hl
 	ld de,dir2_buf
-	call nv_strcopy_hltode
+	call strcopy;nv_strcopy_hltode
 
 	ld ix,(curpanel)
 	ld de,PANEL.dir
@@ -1825,7 +1963,7 @@ editcmd_5_0
 	push ix
 	pop hl
 	ld de,dir_buf
-	call nv_strcopy_hltode
+	call strcopy;nv_strcopy_hltode
 
 	ld de,_COLOR_DIALOG
 	call nv_setcolor
@@ -1886,6 +2024,7 @@ nv_adddirtopath_detohl ; hl=path de=dirname; out - last component of path
 	ret
         endif
 
+        if 1==0
 nv_strcopy_hltode
 ;out: hl,de at terminator
 	ld a,(hl)
@@ -1895,13 +2034,24 @@ nv_strcopy_hltode
 	inc hl 
 	inc de
 	jr nv_strcopy_hltode
+        endif
+strcopy
+;hl->de
+;out: hl,de after terminator
+strcopy0
+        ld a,(hl)
+        ldi
+        or a
+        jp nz,strcopy0
+        ret
 
 nv_makefilepath_hltode ;DE=dest HL=src BC=filename
-	call nv_strcopy_hltode
+	call strcopy;nv_strcopy_hltode
         ;inc de
 	;call nv_addslash_de
-;nv_addslash_de ;assumed that DE is at terminator
-	;dec de
+;nv_addslash_de
+;assumed that DE is after terminator
+	dec de
 	dec de
 	ld a,(de)
 	cp '/'
@@ -1918,7 +2068,7 @@ nv_addslash0
 	;dec de
 	ld h,b
 	ld l,c
-	jp nv_strcopy_hltode
+	jp strcopy;nv_strcopy_hltode
 
 nv_fillpathspaces_hl
 	ld b,0
@@ -2330,7 +2480,7 @@ editcmd_typeword
         jr z,editcmd_typeword_empty
         dec hl ;с пробелом
 editcmd_typeword_empty
-        call nv_strcopy_hltode ;out: hl,de at terminator
+        call strcopy;nv_strcopy_hltode ;out: hl,de at terminator
         ld hl,cmdbuf
         call strlen ;hl=length
         ld a,l
@@ -2449,10 +2599,12 @@ tdotdot
 ;sorter		WORD ;TODO remove
 xy		WORD
 ;pg		BYTE ;TODO remove
-pgadd		BYTE ;0/DIRPAGES
 catbuf		WORD ;TODO remove
 poipg		BYTE
 pointers	WORD ;TODO remove
+pgadd		BYTE ;0/DIRPAGES
+curpgfcbpoi     WORD
+curpglnamepoi   WORD
 drawtableunneeded BYTE
 totalsize	DWORD
 files		WORD ;visible files
@@ -2602,11 +2754,14 @@ wordfiles
 wordbytes
         db " bytes ",0
 
+filinfo
+        ds FILINFO_sz
+
 ;HS_elpg ;2 pages
 ;        ds 2
         align 256
 HS_strpg
-        ds DIRPAGES*2+2 ;по 1 байту на маркеры "0"
+        ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
         
         include "nvsort.asm"
         include "heapsort.asm"
