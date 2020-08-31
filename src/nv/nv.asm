@@ -199,7 +199,7 @@ mainloop
 strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
 	ld hl, HS_strpg
 	ld e, (ix+PANEL.pgadd)
-	ld d, (ix+PANEL.pgadd+1)
+	ld d,0; (ix+PANEL.pgadd+1)
 	add hl,de
         ld (ix+PANEL.curpgfcbpoi),l
         ld (ix+PANEL.curpgfcbpoi+1),h
@@ -207,7 +207,7 @@ strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
 strdelpages_lname
 	ld hl, HS_strpg+DIRPAGES+1 ;HS_lnamepg
 	ld e, (ix+PANEL.pgadd)
-	ld d, (ix+PANEL.pgadd+1)
+	ld d,0; (ix+PANEL.pgadd+1)
 	add hl,de
         ld (ix+PANEL.curpglnamepoi),l
         ld (ix+PANEL.curpglnamepoi+1),h

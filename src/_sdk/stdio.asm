@@ -668,7 +668,7 @@ term_prfsm_curnumber1
          DEFB 0
 
 stdoutbuf
-        DEFB "-[00;00;00;00m"
+        DEFB "-[00;00;00;00u"
 
 stdinbuf
         DEFS STDINBUF_SZ
