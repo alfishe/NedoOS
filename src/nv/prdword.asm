@@ -7,6 +7,8 @@ prdword
 ;hl'hl=num
         ld de,prdwordbuf
         push de
+        ld a,' '
+        ld (prnumdwordcmd_zero),a
         call prdword_de
         pop hl
         ld de,10
@@ -14,8 +16,6 @@ prdword
 prdword_de
 ;hl'hl=num
 ;de=buf
-        ld a,' '
-        ld (prnumdwordcmd_zero),a
         exx
         ld bc,1000000000/65536
         exx
@@ -77,6 +77,8 @@ prnumdwordcmd1
         jr nz,prnumdwordcmd_nozero
 prnumdwordcmd_zero=$+1
         ld a,' '
+        or a
+        jr z,prnumdwordcmd_skip
         jr prnumdwordcmd_nozeroq
 prnumdwordcmd_nozero
         ld hl,prnumdwordcmd_zero
@@ -89,8 +91,9 @@ prnumdwordcmd_nozeroq
         ;pop hl
         ;pop bc
         ;exx
-        pop hl
         ld (de),a
+prnumdwordcmd_skip
+        pop hl
         inc de
         ;pop de
         ;pop bc

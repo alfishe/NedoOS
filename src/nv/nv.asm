@@ -557,7 +557,7 @@ prdirfile_fn1
          ;inc de
 ;        pop ix
 prdirfile_fn0qq
-        ld de,filelinebuf+13
+        ld de,filelinebuf+14
         exx
         ld l,(ix+FCB_FSIZE+2)
         ld h,(ix+FCB_FSIZE+3)
@@ -565,6 +565,8 @@ prdirfile_fn0qq
         ld l,(ix+FCB_FSIZE)
 	ld h,(ix+FCB_FSIZE+1)
 ;        push ix
+        xor a
+        ld (prnumdwordcmd_zero),a
         call prdword_de
 	;ld de,_PANELCOLOR
 	;call nv_setcolor
@@ -578,36 +580,37 @@ prdirfile_fn0qq
 ;        pop ix
 	ld l,(ix+FCB_FDATE)
         ld h,(ix+FCB_FDATE+1)
-;	push ix 
+;	push ix
+
         push hl
-        ld a,h
-        srl a
-        sub 20
-        jr nc,$+4
-        add a,100 ;XX century
-        call prNNcmd ;year
-        ;ld a,'-'	
-        ;PRCHAR_
-         inc de
-        pop hl
         ld a,l
-        push af
+        and 0x1f
+        call prNNcmd ;day
+        pop hl 
+        push hl
         add hl,hl
         add hl,hl
         add hl,hl
         ld a,h
         and 0x0f
-        call prNNcmd ;month
-        ;ld a,'-'
-        ;PRCHAR_
+        ;call prNNcmd ;month
+        ld l,a
+        add a,a
+        add a,l
+        ld l,a
+        ld h,0
+        ld bc,tmonth-3
+        add hl,bc
+        ld bc,3
+        ldir
+        pop hl
+        ld a,h
+        srl a
+        sub 20
+        jr nc,$+4
+        add a,100 ;XX century
+        call prNNcmd ;year        
          inc de
-        pop af
-        and 0x1f
-        call prNNcmd ;day
-        ;ld a,' '
-        ;PRCHAR_
-         inc de
-;	pop ix
         ld l,(ix+FCB_FTIME)
         ld h,(ix+FCB_FTIME+1)
         push hl
@@ -648,11 +651,25 @@ prNNcmd
 
 filelinebuf
         ;db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
-        db "filename.ext 1234567890",0x1b,"[CYY-MM-DD hh:mm"
+        db "filename.ext  1234567890",0x1b,"[CDDmmmYY hh:mm"
 filelinebuf_sz=$-filelinebuf
 emptyfilelinebuf
-        db "                       ",0x1b,"[C              "
+        db "                        ",0x1b,"[C             "
 emptyfilelinebuf_sz=$-emptyfilelinebuf
+        
+tmonth
+        db "jan"
+        db "feb"
+        db "mar"
+        db "apr"
+        db "may"
+        db "jun"
+        db "jul"
+        db "aug"
+        db "sep"
+        db "oct"
+        db "nov"
+        db "dec"
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
