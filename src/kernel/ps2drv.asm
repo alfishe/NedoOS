@@ -61,7 +61,7 @@ GETKEY
 		ld a,1;3
 		ld (KEYSCAN.rep_wait),a
 		ld a,b
-		jr nz,.retsymb1
+		jp nz,.retsymb1
 .zero_ret
 		xor a
 		ld h,a
@@ -122,7 +122,7 @@ GETKEY
 		ld a,.KEY_MODE_SHIFT|.KEY_MODE_CAPS
 .base_noneed_caps
 		and l
-		xor a
+		ld a,0
 		jp pe,.base_not_sh
 		ld a,.mod_sh-.mod_base
 .base_not_sh
