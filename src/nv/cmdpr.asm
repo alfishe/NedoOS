@@ -134,10 +134,11 @@ makeprompt
 cmdcalctextaddr
 ;out: hl=addr, a=curcmdx
 ;keeps ix
+        ld hl,cmdbuf
         ld a,(curcmdx)
+cmdcalctextaddr_hlbase_ax
         ld c,a
         ld b,0
-        ld hl,cmdbuf
         add hl,bc
         ret
 

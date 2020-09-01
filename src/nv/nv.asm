@@ -721,29 +721,10 @@ readdir_keepcursor
 		;cp '.'
 		;jp z,loaddir_onedot
 loaddir0
-        push bc
-
-	push de
-	push hl
+        call loaddir_filinfo
+        jp c,loaddirq
+        jr z,loaddir0
         
-        ld de,filinfo
-        OS_READDIR
-        pop hl
-        pop de
-        pop bc
-        or a
-        jp nz,loaddirq
-        ld a,(filinfo+FILINFO_FNAME)
-        or a
-        jp z,loaddirq
-	ld a,(filinfo+FILINFO_FNAME+1)
-	cp '.'
-	jr z,loaddir_noonedot
-	ld a,(filinfo+FILINFO_FNAME)
-	cp '.'
-	jp z,loaddir_onedot
-loaddir_noonedot
-
         push bc
 
 	push de
@@ -823,8 +804,6 @@ loaddir_noonedot
 loaddir_curlnameaddr=$+1
         ld de,0
         
-        if 1==1
-        
 ;если нету места под длинное имя в текущей странице, заказать новую и сдвинуть указатель
         ld a,d
         inc a
@@ -853,8 +832,6 @@ loaddir_fcb_lnameaddrpoi=$+2
         call strcopy ;out: hl,de after terminator
         ld (loaddir_curlnameaddr),de
         
-        endif
-        
 	pop hl
 	pop de
         call putfilepointer_de_tohl ; возвращает в верхнее окно страницу poipg и в pointers заносит de
@@ -872,22 +849,7 @@ nonewpg:
         pop bc
         inc bc ;nfiles
         bit 5,b;1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
-        jr nz,loaddirq
-loaddir_onedot
-        ;push bc
-        ;push de ;catbuf
-	;push hl
-        ;push ix
-        ;ld de,fcb
-        ;OS_SETDTA ;set disk transfer address = de
-        ; ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
-        ;OS_FSEARCHNEXT
-        ;pop ix
-	;pop hl
-        ;pop de ;catbuf
-        ;pop bc ;nfiles
-        ;or a
-        jp loaddir0
+        jp z,loaddir0
 loaddir_error
 loaddirq
 ;bc=nfiles
@@ -904,6 +866,31 @@ loaddirq
         sbc hl,de ;dirpos<files?
         ret c ;OK
 	jp nv_setcursor_zero
+
+loaddir_filinfo
+        push bc
+	push de
+	push hl        
+        ld de,filinfo
+        OS_READDIR
+        pop hl
+        pop de
+        pop bc
+        or a
+         scf
+        ret nz ;CY
+        ld a,(filinfo+FILINFO_FNAME)
+        or a
+         scf
+        ret z ;CY
+	ld a,(filinfo+FILINFO_FNAME+1)
+	or a
+	ret nz ;not one dot ;NC
+	ld a,(filinfo+FILINFO_FNAME)
+	cp '.'
+	ret z ;Z,NC ;one dot
+        or a ;NZ,NC
+        ret
 
 emptypath
         db 0
