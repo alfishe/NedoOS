@@ -1606,11 +1606,26 @@ BDOS_opendir
         ld b,d
         ld c,e
         ;jr opendir_curdrv
+        CHECKVOLUMETRDOS
+        jr c,BDOS_opendir_noFATFS
 
 BDOS_opencurdir
 opendir_curdrv
         call count_fdir ;LD de,fdir
         F_OPDIR_CURDRV
+        ret
+
+BDOS_opendir_noFATFS
+       push af
+        BDOSSETPGTRDOSFS
+       pop af
+       ld (trdoscurdrive),a
+        ld hl,trdos_catbuf
+        call writedircluster_hl        
+        ld de,0x0000 ;track,sector
+        ld bc,0x0905 ;read 9 sectors
+        call iodos.
+        xor a ;no error
         ret
 
 ;TODO TR-DOS
@@ -1620,9 +1635,52 @@ BDOS_readdir
         call BDOS_setdepage
         ld b,d
         ld c,e
+        CHECKVOLUMETRDOS
+        jr c,BDOS_readdir_noFATFS
         call count_fdir ;LD de,fdir
 	F_RDIR_CURDRV
         ret
+        
+BDOS_readdir_noFATFS
+;bc=addrto
+        push bc
+        BDOSSETPGTRDOSFS
+        ld l,(iy+app.dircluster)
+        ld h,(iy+app.dircluster+1)
+        ld de,fcb2+FCB_FNAME
+        call trdos_searchnext
+        jp z,BDOS_popfail ;fsearchnext_nofile;BDOS_fsearch_loadloop_noFATFS_empty
+        call writedircluster_hl
+        pop de
+;de=addrto
+        ld hl,fcb2+FCB_FSIZE
+        ld bc,4
+        ldir
+        ld hl,fcb2+FCB_FDATE
+        ld c,2
+        ldir
+        ld hl,fcb2+FCB_FTIME
+        ld c,2
+        ldir
+        ld hl,fcb2+FCB_FATTRIB
+        ldi
+        ld hl,fcb2+FCB_FNAME
+        call get_name_hltode
+        ld h,d
+        ld l,e
+        ld bc,12
+        xor a ;no error
+        ld (hl),a
+        ldir
+        ret
+;FILINFO_FSIZE=0;	        DWORD		;/* FILE SIZE */
+;FILINFO_FDATE=4;	        WORD		;/* LAST MODIFIED DATE */
+;FILINFO_FTIME=6;	        WORD		;/* LAST MODIFIED TIME */
+;FILINFO_FATTRIB=8;	        BYTE		;/* ATTRIBUTE */
+;FILINFO_FNAME=9;	        BLOCK 13,0	;/* SHORT FILE NAME (8.3 FORMAT with dot and terminator) */
+;FILINFO_LNAME=22;	        BLOCK DIRMAXFILENAME64,0	;/* LONG FILE NAME (ASCIIZ) */
+;FILINFO_sz=FILINFO_LNAME+DIRMAXFILENAME64
+
 
 ;SEARCH FOR FIRST [FCB] (11H)
 ;     Parameters:    C = 11H (_SFIRST)
@@ -1700,14 +1758,11 @@ BDOS_fsearch_loadloop
 BDOS_fsearch_loadloop_noFATFS
 ;TR-DOS
         BDOSSETPGTRDOSFS
-;BDOS_fsearch_loadloop_trdosaddr=$+1
-        ;ld hl,0
         ld l,(iy+app.dircluster)
         ld h,(iy+app.dircluster+1)
         ld de,fcb2+FCB_FNAME
         call trdos_searchnext
         jp z,BDOS_fail ;fsearchnext_nofile;BDOS_fsearch_loadloop_noFATFS_empty
-        ;ld (BDOS_fsearch_loadloop_trdosaddr),hl
         call writedircluster_hl
         jr BDOS_fsearch_loadloop_FATFSq
 BDOS_fsearch_loadloop_FATFSq
@@ -2844,11 +2899,12 @@ BDOS_parse_filename
 
 get_name
 ;делает из имени без точки имя с точкой (для FATFS и для печати)
-;hl->de
+;de(FCB)->hl
 	inc de
 	ex hl,de
-	ld b,7
 	ld de,mfil
+get_name_hltode
+	ld b,7
 	ld a,' '
 get_name1
 	ldi

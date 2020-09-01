@@ -5,6 +5,7 @@ _NVVIEW_PANELCOLOR=0x0700;0x38
 
 editcmd_3
         call ifcmdnonempty_typedigit
+editcmd_F3
         call getfcbundercursor ;->fcb
 	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10

@@ -293,7 +293,7 @@ prhint_color
         call nv_setcolor
         jr prhint0
 thint
-        db "{1}Left  { 2}Right { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}Screen{ 0}Quit  ",0
+        db "{1}Drive { 2}Find  { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}InsNam{ 0}Quit  ",0
         
 readpanels_reprint
 	;ld e,COLOR
@@ -940,7 +940,6 @@ controlloop_nokey
         call getfcbaddrundercursor
         push hl
         pop ix
-        ;display $
         call colorfile
         ex de,hl ;hl=color
 	call prfilecursor_reprintfile ;remove file cursor
@@ -1613,18 +1612,18 @@ loadandrun_noparams
 
 editcmd_1
         call ifcmdnonempty_typedigit
-        ld hl,leftpanel
-        ld a,10
-        jr editcmd_drvselector
-editcmd_2
-        call ifcmdnonempty_typedigit
-        ld hl,rightpanel
-        ld a,50
-editcmd_drvselector
+editcmd_F1
+        ;ld hl,leftpanel
+        ld ix,(curpanel)
+        ;ld a,10
+	ld a,(ix+PANEL.xy)
+        add a,10
+        ;jr editcmd_drvselector
+;editcmd_drvselector
         ld (windrv),a ;x
 	add 5
 	ld (windrverr),a
-        ld (curpanel),hl
+        ;ld (curpanel),hl
         ld hl,editcmd_reprintcurpanel;editcmd_reprintall_onlyreadcurdir
         push hl
 
@@ -1739,6 +1738,7 @@ seldrv_up
 
 editcmd_4
         call ifcmdnonempty_typedigit
+editcmd_F4
         call getfcbundercursor ;->fcb
 	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10
@@ -1818,6 +1818,7 @@ editcmd_invfiles
 
 editcmd_6 ;ren
         call ifcmdnonempty_typedigit
+editcmd_F6
         ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl
 	call setpaneldir
@@ -1862,6 +1863,7 @@ editcmd_ren_checknameq
 
 editcmd_7 ;mkdir
         call ifcmdnonempty_typedigit
+editcmd_F7
         ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl
 	call setpaneldir
@@ -1882,6 +1884,7 @@ editcmd_7 ;mkdir
 
 editcmd_8 ;del
         call ifcmdnonempty_typedigit
+editcmd_F8
         ;ld ix,(curpanel)
         call getmarkedfiles;countmarkedfiles
         ld a,h
@@ -1955,6 +1958,7 @@ proc_del_file_batch
 
 editcmd_5 ;copy
         call ifcmdnonempty_typedigit
+editcmd_F5
         ;ld ix,(curpanel)
         call getmarkedfiles ;countmarkedfiles
         ld a,h
@@ -2788,9 +2792,9 @@ HS_strpg
         include "nveditln.asm"
         include "nvview.asm"
         include "nvhexed.asm"
+        include "nvfind.asm"
 
         include "prdword.asm"
-        ;include "../_sdk/loadpage.asm"
         include "cmdpr.asm"
         include "../_sdk/stdio.asm"
         
