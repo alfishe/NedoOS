@@ -907,7 +907,8 @@ readbyte_readbufq
         ret
 
 cmd_dir
-        ld de,emptypath
+        ld de,(execcmd_pars)
+        ;ld de,emptypath
         OS_OPENDIR
         or a
         ld bc,0 ;nfiles

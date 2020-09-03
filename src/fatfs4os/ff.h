@@ -209,7 +209,7 @@ FRESULT f_open (FIL*, const TCHAR*, BYTE);			/* Open or create a file */
 FRESULT f_read (FIL*, void*, UINT, UINT*);			/* Read data from a file */
 FRESULT f_lseek (FIL*, DWORD);						/* Move file pointer of a file object */
 FRESULT f_close (FIL*);								/* Close an open file object */
-FRESULT f_opendir (DIR*);				/* Open an existing directory */
+FRESULT f_opendir (DIR*, const TCHAR*);				/* Open an existing directory */
 FRESULT f_readdir (DIR*, FILINFO*);					/* Read a directory item */
 FRESULT f_stat (const TCHAR*, FILINFO*);			/* Get file status */
 FRESULT f_write (FIL*, const void*, UINT, UINT*);	/* Write data to a file */

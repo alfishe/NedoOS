@@ -2151,7 +2151,7 @@ FRESULT validate (	/* FR_OK(0): The object is valid, !=0: Invalid */
 --------------------------------------------------------------------------*/
 
 
-const TCHAR nullstring[]="";
+//const TCHAR nullstring[]="";
 static DIR djo, djn;
 
 /*-----------------------------------------------------------------------*/
@@ -2947,18 +2947,21 @@ FRESULT f_lseek (
 /*-----------------------------------------------------------------------*/
 FRESULT f_opendir (
 	DIR *dj			/* Pointer to directory object to create */
-	//,const TCHAR *path	/* Pointer to the directory path */
+	,const TCHAR *path	/* Pointer to the directory path */
 )
 {
 	FRESULT res;
-	static TCHAR *path;
 	DEF_NAMEBUF;
-	path = (TCHAR *)nullstring;
+	if(path == 0){
+		pathbuf[0] = 0; //(TCHAR *)nullstring;
+	}else{
+		drv_calls.strcpy_usp2lib(pathbuf,path);
+	}
 
 	res = chk_mounted(&dj->fs, 0);	//(&path, &dj->fs, 0);
 	if (res == FR_OK) {
 		INIT_BUF(*dj);
-		res = follow_path(dj, path);			/* Follow the path to the directory */
+		res = follow_path(dj, pathbuf);			/* Follow the path to the directory */
 		FREE_BUF();
 		if (res == FR_OK) {						/* Follow completed */
 			if (dj->dir) {						/* It is not the root dir */

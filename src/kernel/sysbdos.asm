@@ -1603,14 +1603,12 @@ count_fdir
 BDOS_opendir
         call BDOS_preparedepage
         call BDOS_setdepage
+		call countfiledrive
+        jr c,BDOS_opendir_noFATFS
         ld b,d
         ld c,e
-        ;jr opendir_curdrv
-        CHECKVOLUMETRDOS
-        jr c,BDOS_opendir_noFATFS
-
+        ;CHECKVOLUMETRDOS
 BDOS_opencurdir
-opendir_curdrv
         call count_fdir ;LD de,fdir
         F_OPDIR_CURDRV
         ret
@@ -1703,6 +1701,7 @@ BDOS_fsearchfirst
          push de ;DE = Pointer to unopened FCB (0x8000+/0xc000+)
         CHECKVOLUMETRDOS
         jr c,BDOS_fsearchfirst_noFATFS
+		ld bc,0 ; TCHAR *path	/* Pointer to the directory path */
         call BDOS_opencurdir
 
          pop de ;DE = Pointer to unopened FCB (0x8000+/0xc000+)
@@ -2641,6 +2640,7 @@ BDOS_setdrv
         push de
         ;sbc a,a; ld a,0
         jr c,BDOS_setrootdir_trdos ;ret c ;NC=no error, A=0
+		ld bc,0 ; TCHAR *path	/* Pointer to the directory path */
         call BDOS_opencurdir ;эта операция нужна для определения смонтированности (F_MNT всегда возвращает 0)
 BDOS_setrootdir_q
         pop de

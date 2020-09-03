@@ -696,15 +696,21 @@ readdir_keepcursor
         ld (ix+PANEL.markedfiles+1),a
 
 	push ix
-	call setpaneldir
+	;call setpaneldir
 	call strdelpages
 	;ld de,fcb
         ;OS_SETDTA ;set disk transfer address = de
         ;call makeemptymask
         ;ld de,fcbmask
         ;OS_FSEARCHFIRST
-        ld de,emptypath
-        OS_OPENDIR
+	display $
+	pop hl	;get IX
+	push hl
+	ld de,PANEL.dir
+	add hl,de
+	ex de,hl ;de=path
+	;ld de,emptypath
+	OS_OPENDIR
 	pop ix
         or a
 
