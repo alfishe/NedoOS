@@ -7,6 +7,8 @@ PROC asmorgword FORWARD(LONG addr);
 PROC asmloop FORWARD();
 PROC initmemmodel FORWARD();
 
+FUNC UINT findlabel FORWARD(PBYTE labeltext);
+
 ////
 ///////переменные, сохран€емые в post (состо€ние ассемблера в середине строки):
 
@@ -113,7 +115,6 @@ CONST BYTE _ASMLABEL_ACCESSED= 0x02;
 CONST BYTE _ASMLABEL_MACRO   = 0x04;
 CONST BYTE _ASMLABEL_ISADDR  = 0x08;
 
-PROC findlabel FORWARD(PBYTE labeltext);
 FUNC LONG getlabel FORWARD();
 
 //как сохран€ть post labels?
@@ -271,10 +272,10 @@ VAR UINT labellen;
         POKE *(PBYTE)(pevalstr) = cstr; //метка в строке заканчиваетс€ TOK_ENDTEXT
         INC pevalstr;
       }UNTIL (cstr == +_TOKENDTEXT);
-      _labellen = (UINT)(pevalstr - _evallabeltext); //включа€ 0
+      ;;_labellen = (UINT)(pevalstr - _evallabeltext); //включа€ 0
       //вычислить evallabel
       //errstr("readevallabel "); errstr(_evallabeltext); enderr();
-      findlabel(_evallabeltext);
+      _plabel_index = findlabel(_evallabeltext);
       emitn((UINT)getlabel());
       labellen = strjoin((PCHAR)_curlabeltext, labellen, _nbuf); //глобальна€
       //cstr == +_TOKENDTEXT
@@ -285,8 +286,8 @@ VAR UINT labellen;
   _labellen = labellen; //включа€ +_TOKENDTEXT
   //errstr("readlabel "); errstr(_curlabeltext); enderr();
 }
-
-PROC findlabel(PBYTE labeltext)
+/**
+FUNC UINT findlabel(PBYTE labeltext)
 {
 //VAR PBYTE _labelN; //указатель на текущую таблицу меток
 VAR PBYTE plabel; //метка в таблице заканчиваетс€ нулЄм
@@ -316,8 +317,9 @@ VAR PBYTE plabel; //метка в таблице заканчиваетс€ нулЄм
     };
     //_plabel_index = pnext_index;
   }; //если не найдено, то _plabel_index==_LABELPAGEEOF
+RETURN _plabel_index;
 }
-
+*/
 PROC addlabel(LONG labelvalue) //вызывать непосредственно после findlabel!!!
 {
 //VAR PBYTE _labelN; //указатель на текущую таблицу меток
@@ -415,9 +417,9 @@ VAR LONG labelvalue; //=0L; //= 0xDEADBEEFL;
 PROC asmdir_label() //неизвестно, просто метка или reequ
 {
   readlabel();
-  findlabel(_curlabeltext);
+  _plabel_index = findlabel(_curlabeltext);
   //нельз€ сейчас переопредел€ть! иначе нельз€ label=label+1
-  addlabel((LONG)(_curaddr+_curshift)); //установит _labelchanged, если изменили
+  addlabel((LONG)(_curaddr+_curshift)); //юзает _plabel_index //установит _labelchanged, если изменили
   _curplabel_index = _plabel_index; //запомнить указатель данных метки дл€ REEQU
   _curhash = _hash;
 }

@@ -901,7 +901,7 @@ prbeginstroka
 	db 0xc9;'£'
 	db 1
 	db 0xcd;'='
-	db 13;wdtcolumn1 
+	db 14;wdtcolumn1 
 	db 0xcd;0xd1;'T'
 	db 1
 	db 0xcd;'='
@@ -909,7 +909,7 @@ prbeginstroka
 	db 0xd1;'T'
 	db 1
 	db 0xcd;'='
-	db 13;wdtcolumn3 
+	db 12;wdtcolumn3 
 	db 0xbb;'¿'
 	db 1
 	db 0
@@ -918,7 +918,7 @@ prmidstroka
 	db 0xba;'³'
 	db 1
 	db ' '
-	db 13;wdtcolumn1 
+	db 14;wdtcolumn1 
 	db ' ';0xb3;'³'
 	db 1
 	db ' '
@@ -926,7 +926,7 @@ prmidstroka
 	db 0xb3;'³'
 	db 1
 	db ' '
-	db 13;wdtcolumn3 
+	db 12;wdtcolumn3 
 	db 0xba;'³'
 	db 1	
 	db 0
@@ -935,7 +935,7 @@ prendstroka
 	db 0xc8;'L'
 	db 1
 	db 0xcd;;'='
-	db 13;wdtcolumn1 
+	db 14;wdtcolumn1 
 	db 0xcd;0xcf;'³'
 	db 1
 	db 0xcd;'='
@@ -943,7 +943,7 @@ prendstroka
 	db 0xcf;'³'
 	db 1
 	db 0xcd;'='
-	db 13;wdtcolumn3 
+	db 12;wdtcolumn3 
 	db 0xbc;'-'
 	db 1	
 	db 0

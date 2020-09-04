@@ -1,19 +1,16 @@
-;_STRLEN=80
-;_STRMAX=79
-
 strlen
 	EXPORT strlen
 strlen.A.=$+1
 	EXPORT strlen.A.
 	ld hl,0
-        xor a
-        ld b,a
-        ld c,a
-        cpir ;terminator will be found certainly; len=0 gives bc=-1 etc down
-        ld hl,-1
-        ;or a
-        sbc hl,bc
-        ret
+	xor a
+	ld b,a
+	ld c,a
+	cpir ;terminator will be found certainly; len=0 gives bc=-1 etc down
+	ld hl,-1
+	;or a
+	sbc hl,bc
+	ret
 
 strcopy
 	EXPORT strcopy
@@ -147,7 +144,7 @@ strcp0.
 	inc de
 	or a
 	jp nz,strcp0.
-	cpl ;TRUE
+	dec a ;TRUE
 	ret
 strcpbad.
 	xor a ;FALSE
@@ -158,17 +155,16 @@ hash
 	EXPORT hash
 hash.A.=$+1
 	EXPORT hash.A.
-        ld de,0
-        xor a
-        ld h,a
-        ld l,a
+	ld de,0
+	xor a
+	ld h,a
+	ld l,a
 hash0.
-        xor l
-        add hl,hl
-        add a,l
-        ld l,a
-        ld a,[de]
-        inc de
-        or a
-        jp nz,hash0.
-        ret
+	add hl,hl
+	add a,l
+	ld l,a
+	ld a,[de]
+	inc de
+	or a
+	jp nz,hash0.
+	ret

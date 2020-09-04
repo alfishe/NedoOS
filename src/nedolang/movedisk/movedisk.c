@@ -11,6 +11,10 @@ FUNC UINT copybody(UINT from, UINT to, BYTE count) // TODO копирование на то же 
 VAR UINT nextrdsector;
 VAR UINT nextwrsector;
 VAR BYTE wrsectors;
+IF (from==to) {
+  nextwrsector = ((to&0xff00) >> 4) + (UINT)((BYTE)to&0x0f) + (UINT)count;
+  nextwrsector = ((nextwrsector << 4)&0xff00) + (UINT)((BYTE)nextwrsector&0x0f);
+}ELSE {
   nextrdsector = from;
   nextwrsector = to;
   WHILE (count > 0x00) {
@@ -23,6 +27,7 @@ VAR BYTE wrsectors;
     nextwrsector = writesectors((PBYTE)buf, nextwrsector, wrsectors);
     count = count - wrsectors;
   };
+};
 RETURN nextwrsector;
 }
 

@@ -2,7 +2,7 @@
 if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
 nedolang ../_sdk/emit.c ../_sdk/io.c commands.c
 type err.f
-nedotok compcode.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.i
+nedotok compcode.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.i lbltype.i
 nedodel emit.ast
 nedodel emit.var
 nedodel commands.ast

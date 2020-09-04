@@ -19,3 +19,4 @@ DOSBUF=0xff00 ;aligned
 	;include "regs.var"
 	;include "codez80.var"
 	include "commands.var"
+	include "lbltype.i"

@@ -14,6 +14,8 @@
 #include "commands.c"
 #include "compile.c"
 
+#include "lbltype.c"
+
 //#include "fmttg.h" //нужно для token, asm, export
 /**
 struct zzz{

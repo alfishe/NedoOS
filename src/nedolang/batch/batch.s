@@ -16,6 +16,8 @@ start.
 	 ld hl,PARADDR-1
 	 ld (hl),0xea ;REM
 	 ld (CH_ADD),hl
+        ld hl,0
+        ld (23672),hl
 	;ld hl,fn
 	;ld (batch.fn),hl
         call batch

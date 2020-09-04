@@ -37,6 +37,7 @@ l0.
 	include "../_sdk/emit.ast"
 	include "asm.ast"
 	include "asmloop.ast"
+	include "findlabel.i"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i"
 	;include "../_sdk/io.ast"

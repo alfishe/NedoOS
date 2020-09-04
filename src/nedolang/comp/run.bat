@@ -37,6 +37,7 @@ nedotrd test.trd -a commands.c
 nedotrd test.trd -a compile.c
 nedotrd test.trd -a compcode.s
 nedotrd test.trd -a comp.s
+nedotrd test.trd -a lbltype.i
 nedotrd test.trd -a ..\_sdk\lib.i
 nedotrd test.trd -a ..\_sdk\str.i
 nedotrd test.trd -a ..\_sdk\iofast.i

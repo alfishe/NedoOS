@@ -44,7 +44,7 @@ FUNC LONG asmpopvalue FORWARD();
 //PROC asmwritestate FORWARD();
 //PROC asmreadstate FORWARD();
 PROC readlabel FORWARD();
-PROC findlabel FORWARD(PBYTE labeltext);
+FUNC UINT findlabel FORWARD(PBYTE labeltext);
 FUNC LONG getlabel FORWARD(); //вызывать непосредственно после findlabel!!!
 PROC errwrongreg FORWARD();
 PROC errwrongpar FORWARD();
@@ -66,6 +66,8 @@ EXTERN PBYTE _forg;
 EXTERN PBYTE _fdecl;
 
 EXTERN BYTE _isaddr; //маска "в выражении использовался адрес"
+
+EXTERN UINT _plabel_index; //после findlabel содержит указатель на начало данных метки
 
 #ifdef TARGET_THUMB
 #include "asmf_arm.c" //// машиннозависимые процедуры и объявления

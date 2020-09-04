@@ -351,7 +351,7 @@
       }
       case _TOKLABEL: { //найти и прочитать метку
         readlabel();
-        findlabel(_curlabeltext);
+        _plabel_index = findlabel(_curlabeltext);
         asmpushvalue(getlabel());
         goto loop;
       }

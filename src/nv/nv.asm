@@ -538,7 +538,7 @@ prdirfile_ix_decolor
         ld l,(ix+FCB_EXTENTNUMBERHI)
         ld h,(ix+FCB_EXTENTNUMBERHI+1)
         ld de,filelinebuf
-        ld b,23
+        ld b,24
 prdirfile_fn0
         ld a,(hl)
         or a
@@ -557,7 +557,7 @@ prdirfile_fn1
          ;inc de
 ;        pop ix
 prdirfile_fn0qq
-        ld de,filelinebuf+14
+        ld de,filelinebuf+15
         exx
         ld l,(ix+FCB_FSIZE+2)
         ld h,(ix+FCB_FSIZE+3)
@@ -593,16 +593,13 @@ prdirfile_fn0qq
         add hl,hl
         ld a,h
         and 0x0f
-        ;call prNNcmd ;month
-        ld l,a
         add a,a
-        add a,l
         ld l,a
         ld h,0
-        ld bc,tmonth-3
+        ld bc,tmonth-2
         add hl,bc
-        ld bc,3
-        ldir
+        ldi
+        ldi
         pop hl
         ld a,h
         srl a
@@ -651,25 +648,26 @@ prNNcmd
 
 filelinebuf
         ;db "filename.ext",0xb3,"1234567890",0xb3,"YY-MM-DD hh:mm"
-        db "filename.ext  1234567890",0x1b,"[CDDmmmYY hh:mm"
+        db "filename.ext   1234567890",0x1b,"[CDDmmYY hh:mm"
 filelinebuf_sz=$-filelinebuf
 emptyfilelinebuf
-        db "                        ",0x1b,"[C             "
+        db "                         ",0x1b,"[C            "
 emptyfilelinebuf_sz=$-emptyfilelinebuf
         
 tmonth
-        db "jan"
-        db "feb"
-        db "mar"
-        db "apr"
-        db "may"
-        db "jun"
-        db "jul"
-        db "aug"
-        db "sep"
-        db "oct"
-        db "nov"
-        db "dec"
+        ;db "jan"
+        ;db "feb"
+        ;db "mar"
+        ;db "apr"
+        ;db "may"
+        ;db "jun"
+        ;db "jul"
+        ;db "aug"
+        ;db "sep"
+        ;db "oct"
+        ;db "nov"
+        ;db "dec"
+        db "ja","fe","mr","ap","my","jn","jl","au","se","oc","no","de"
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -2674,12 +2672,15 @@ copybuf=0x4000 ;нельзя 0xc000 - поверх какой-нибудь директории (а она использует
 copybuf_sz=0x4000 ;$-copybuf
 
         align 256
+searchbuf
+SEARCHBUF_SZ=128 ;2 таких
 file_buf
 dir_buf
         ds 128
 file_buf_end=$-1
 dir2_buf
-        ds 128
+        ds 128        
+        
 dir_batch_pointer db 0,0
 savepg db 0,0
 dirpg db 0,0

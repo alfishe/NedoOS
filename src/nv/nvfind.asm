@@ -22,12 +22,12 @@ nvfind_mainloop_nokey
         ld a,c ;keynolang
         ;cp NOKEY
         jr nz,nvfind_mainloop_keyq
-;–µ—Å–ª–∏ –¥–≤–∞ —Ä–∞–∑–∞ –ø–æ–¥—Ä—è–¥ –Ω–µ—Ç —Å–æ–±—ã—Ç–∏—è, —Ç–æ –¥–µ–ª–∞–µ–º YIELD, –∏–Ω–∞—á–µ YIELDKEEP
+;•·´® §¢† ‡†ß† ØÆ§‡Ô§ ≠•‚ ·Æ°Î‚®Ô, ‚Æ §•´†•¨ YIELD, ®≠†Á• YIELDKEEP
 nvfind_wasnokey=$+1
         ld a,1
         dec a
         jr nz,nvfind_yieldkeep
-;—Ä–∏—Å–æ–≤–∞—Ç—å –ø–∞–Ω–µ–ª—å–∫—É —Ç–æ–ª—å–∫–æ –ø—Ä–∏ –æ—Ç—Å—É—Ç—Å—Ç–≤–∏–∏ —Å–æ–±—ã—Ç–∏—è –ø–æ—Å–ª–µ YIELD
+;‡®·Æ¢†‚Ï Ø†≠•´Ï™„ ‚Æ´Ï™Æ Ø‡® Æ‚·„‚·‚¢®® ·Æ°Î‚®Ô ØÆ·´• YIELD
 nvfind_wasyield=$
         scf
         call c,nvfind_panel
@@ -54,7 +54,7 @@ nvfind_mainloop_keyq
         jp z,nvfind_backspace
 
         cp 0x20
-        ret c ;–ø—Ä–æ—á–∏–µ —Å–∏—Å—Ç–µ–º–Ω—ã–µ –∫–Ω–æ–ø–∫–∏ –Ω–µ –Ω—É–∂–Ω—ã
+        ret c ;Ø‡ÆÁ®• ·®·‚•¨≠Î• ™≠ÆØ™® ≠• ≠„¶≠Î
 nvfind_typein
 ;keeps ix
         ld e,a
@@ -68,7 +68,7 @@ nvfind_typein_cursearchfilename
         ld bc,MAXSEARCHFILENAME
         or a
         sbc hl,bc
-        ret nc ;–Ω–µ–∫—É–¥–∞ –≤–≤–æ–¥–∏—Ç—å
+        ret nc ;≠•™„§† ¢¢Æ§®‚Ï
         call nvfind_calctextaddr ;hl=addr, a=curx
         inc a
         ld (nvfind_curx),a
@@ -80,7 +80,7 @@ nvfind_typein_cursearchtext
         ld bc,MAXSEARCHTEXT
         or a
         sbc hl,bc
-        ret nc ;–Ω–µ–∫—É–¥–∞ –≤–≤–æ–¥–∏—Ç—å
+        ret nc ;≠•™„§† ¢¢Æ§®‚Ï
         call nvfind_calctextaddr ;hl=addr, a=curx
         inc a
         ld (nvfind_curtextx),a
@@ -97,11 +97,23 @@ nvfind_backspace
         call nvfind_calctextaddr ;hl=addr, a=curx
         or a
         ret z
+        ld a,(nvfind_curtab)
+        or a
+        jr nz,nvfind_backspace_cursearchtext
+        ld de,nvfind_curx
+        ld a,(de)
         dec a
-        ld (nvfind_curx),a
+        ld (de),a
+        jp strdelch
+nvfind_backspace_cursearchtext
+        ld de,nvfind_curtextx
+        ld a,(de)
+        dec a
+        ld (de),a
         jp strdelch
 
 nvfind_enter
+        ld (nvfind_sp),sp
         call nvfind_reprintmenu
 
         ld de,0x0500
@@ -110,11 +122,15 @@ nvfind_enter
         ld de,emptypath
         OS_OPENDIR
         
+        ld bc,0 ;file#
 nvfind_loaddir0
+        push bc
         call loaddir_filinfo
+        pop bc
         jp c,nvfind_loaddirq
         jr z,nvfind_loaddir0
         
+        push bc
         ld de,cursearchfilename
         ld hl,filinfo+FILINFO_FNAME
         call nvfind_compare
@@ -124,14 +140,105 @@ nvfind_loaddir0
         call nvfind_compare
         jr nz,nvfind_loaddir_fail
 nvfind_loaddir_ok
+        ld a,(cursearchtext)
+        or a
+        jr z,nvfind_found
+
+;open file with name=HL
+        ld (nvfind_curfilename),hl
+        ex de,hl
+        OS_OPENHANDLE
+        ld a,b
+        ld (nvfind_curhandle),a
+        
+        call nvfind_searchinfile
+        push af
+nvfind_curhandle=$+1
+        ld b,0
+        OS_CLOSEHANDLE
+        pop af
+        jr nz,nvfind_loaddir_fail
+        
+nvfind_found
+nvfind_curfilename=$+1
+        ld hl,0
         ld c,0 ;x
         call prtext
         call clearrestofline_crlf
         
+        GETKEY_
+        cp key_esc
+        jp z,nvfind_break
+        
 nvfind_loaddir_fail
+        pop bc ;file#
+        inc bc
         jr nvfind_loaddir0
-nvfind_loaddirq     
+nvfind_loaddirq
 
+nvfind_break
+nvfind_sp=$+1
+        ld sp,0
+;TODO select from list
+
+        ret
+
+nvfind_searchinfile
+;out: NZ=not found, Z=found, hl=place after
+;·≠†Á†´† cursearchbuf=searchbuf, £‡„ß®¨ ‚„§† §¢† ·•£¨•≠‚†
+        call nvfind_loadsegment
+nvfind_searchinfile0
+        call nvfind_loadsegment ;ß†Ø†·≠Æ© ·•£¨•≠‚ ¢Ø•‡•§®
+        call nvfind_searchinsegment
+        jr c,nvfind_searchinfileq
+        jr nz,nvfind_searchinfile0
+nvfind_searchinfileq
+        ret
+
+nvfind_searchinsegment
+;out: CY=end of file(NZ); else NZ=not found, Z=found, hl=place after
+cursearchbuf=$+1
+        ld hl,searchbuf
+nvfind_cursize=$+1
+        ld bc,128
+        ld a,b
+        or c
+        jr z,nvfind_searchinsegment_eof
+        ld de,cursearchtext
+        ld a,(de)
+        cpir
+         scf
+         ccf
+        ret nz ;NZ,NC
+        dec hl ;for use inc l later
+nvfind_searchinsegment0
+        inc l
+        inc de
+        ld a,(de)
+        or a
+        ret z ;Z,NC
+        xor (hl)
+        jr z,nvfind_searchinsegment0
+        ret ;NZ,NC
+nvfind_searchinsegment_eof
+        sub 1
+        ret ;CY,NZ
+
+nvfind_loadsegment
+nvfind_nextsize=$+1
+        ld hl,0
+        ld (nvfind_cursize),hl
+        ld a,(nvfind_curhandle)
+        ld b,a
+        ld hl,SEARCHBUF_SZ
+        ld de,(cursearchbuf)
+        OS_READHANDLE
+;hl=true size
+        ld (nvfind_nextsize),hl
+        ld hl,cursearchbuf
+        ld a,(hl)
+        xor 128
+        ld (hl),a
         ret
 
 nvfind_compare
@@ -239,4 +346,5 @@ tresults
 
 cursearchtext
         ds MAXSEARCHTEXT+1
+
 

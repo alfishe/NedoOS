@@ -102,7 +102,7 @@ PROC rdaddwordall() //подклеить следующую команду к текущей
       IF (!_waseof) goto loop;
     };
   //}UNTIL (_wasdieresis || _waseof );
-  _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword); //todo нарушена парность clear..close
+  _tword[_lentword] = '\0';
 }
 /**
 PROC rdwordall()
@@ -260,7 +260,7 @@ VAR CHAR c;
     POKE *(PCHAR)(s2) = c;
     INC s1;
     INC s2;
-    IF (c != (CHAR)0x00) goto loop;
+    IF (c != '\0') goto loop;
 }
 
 PROC tokaddlbl(PCHAR txt, PBYTE proc, BYTE data)
@@ -681,7 +681,7 @@ VAR BOOL dbl;
 FUNC BOOL tokexpr_close() //после него ничего больше нельзя проверять, т.к. курсор мог сдвинуться
 {
 VAR BOOL ok;
-  ok =             tokexpr();
+  ok = tokexpr();
   IF (ok) ok = matchclose();
   RETURN ok;
 }
@@ -709,7 +709,7 @@ PROC tokcomment()
       rdchcmt(); //пропускает все ентеры
     };
   };
-  _tword[_lentword] = (CHAR)0x00; //strclose(_tword, _lentword); //todo нарушена парность clear..close
+  _tword[_lentword] = '\0';
   toktext(); //генерирует <text>text<endtext>
   asmtoken(+_TOKENDCOMMENT);
   IF ((BYTE)_cnext < (BYTE)'!') {
@@ -998,7 +998,7 @@ VAR UINT i;
 
     _lentokfn = 0;
     i = 0;
-    WHILE (fn[_lentokfn] != (CHAR)0x00) {
+    WHILE (fn[_lentokfn] != '\0') {
       _tokfn[_lentokfn] = fn[_lentokfn];
       IF (fn[_lentokfn] == '.') i = _lentokfn;
       INC _lentokfn;
@@ -1008,7 +1008,7 @@ VAR UINT i;
     _lentokfn = i+1; //after last dot
     _lentokfn = stradd(_tokfn, _lentokfn, (CHAR)((BYTE)fn[_lentokfn]&0xdf));
     _lentokfn = stradd(_tokfn, _lentokfn, '_');
-    _tokfn[_lentokfn] = (CHAR)0x00;
+    _tokfn[_lentokfn] = '\0';
     _fout = openwrite(_tokfn);
 
     _asmwaseols = 0;

@@ -16,3 +16,4 @@ DOSBUF=0xfe00 ;aligned
 
 	include "../_sdk/emit.var"
 	include "commands.var"
+	include "lbltype.i"
