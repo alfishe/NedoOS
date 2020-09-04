@@ -1,15 +1,28 @@
 MAXSEARCHFILENAME=64
 MAXSEARCHTEXT=64
 
+FOUNDFILESFNSZ=80
+FOUNDFILESMAX=20
+FOUNDFILESTABLE=0x8000
+FOUNDFILESTABLE_END=0x8000+(FOUNDFILESMAX*FOUNDFILESFNSZ)
+
 editcmd_2
         call ifcmdnonempty_typedigit
 editcmd_F2
         call setdrawtablesneeded
         ld hl,editcmd_reprintall_noreaddir
         push hl
+        OS_NEWPAGE
+        ld a,e
+        ld (findpg),a
+        ld hl,nvfind_freepg
+        push hl
 nvfind_redrawloop
+        ld a,(findpg)
+        ld e,a
+        SETPG32KLOW
         call nvfind_reprintmenu
-        
+
 nvfind_mainloop
         ld a,2
 nvfind_yieldkeep
@@ -40,16 +53,22 @@ nvfind_mainloop_keyq
         jr z,nvfind_redrawloop
         cp key_esc
         ret z
+        cp key_F3
+        jp z,nvfind_view
         ld hl,nvfind_mainloop
         push hl
         cp key_enter
         jp z,nvfind_enter
         cp key_tab
         jp z,nvfind_tab
-        ;cp key_left
-        ;jp z,nvfind_left
-        ;cp key_right
-        ;jp z,nvfind_right
+        cp key_up
+        jp z,nvfind_up
+        cp key_down
+        jp z,nvfind_down
+        cp key_left
+        jp z,nvfind_left
+        cp key_right
+        jp z,nvfind_right
         cp key_backspace
         jp z,nvfind_backspace
 
@@ -61,9 +80,9 @@ nvfind_typein
         ld a,(nvfind_curtab)
         or a
         jr nz,nvfind_typein_cursearchtext
-        
+
 nvfind_typein_cursearchfilename
-        ld hl,cursearchfilename
+        call nvfind_gettext
         call strlen ;hl=length
         ld bc,MAXSEARCHFILENAME
         or a
@@ -71,11 +90,11 @@ nvfind_typein_cursearchfilename
         ret nc ;некуда вводить
         call nvfind_calctextaddr ;hl=addr, a=curx
         inc a
-        ld (nvfind_curx),a
+        call nvfind_setx
         jp strinsch
 
 nvfind_typein_cursearchtext
-        ld hl,cursearchtext
+        call nvfind_gettext
         call strlen ;hl=length
         ld bc,MAXSEARCHTEXT
         or a
@@ -83,8 +102,84 @@ nvfind_typein_cursearchtext
         ret nc ;некуда вводить
         call nvfind_calctextaddr ;hl=addr, a=curx
         inc a
-        ld (nvfind_curtextx),a
+        call nvfind_setx
         jp strinsch
+
+nvfind_gettext
+        ld a,(nvfind_curtab)
+        or a
+        ld hl,cursearchtext
+        jr nz,nvfind_gettext_cursearchtext
+        ld hl,cursearchfilename
+nvfind_gettext_cursearchtext
+        ret
+
+nvfind_getx
+        ld a,(nvfind_curtab)
+        or a
+        ld a,(nvfind_curtextx)
+        jr nz,nvfind_getx_cursearchtext
+        ld a,(nvfind_curx)
+nvfind_getx_cursearchtext
+        ret
+
+nvfind_setx
+        ld c,a
+        ld a,(nvfind_curtab)
+        or a
+        ld a,c
+        jr nz,nvfind_setx_cursearchtext
+        ld (nvfind_curx),a
+        ret
+nvfind_setx_cursearchtext
+        ld (nvfind_curtextx),a
+        ret
+
+nvfind_view
+        ld a,(nvfind_curfoundfiles)
+        or a
+        ret z
+        call nvfind_findselectedname
+        ex de,hl
+        call nvview
+        jp nvfind_redrawloop
+
+nvfind_left
+        call nvfind_getx
+        or a
+        ret z
+        dec a
+        jp nvfind_setx
+
+nvfind_right
+        call nvfind_gettext
+        call strlen ;hl=length
+        call nvfind_getx
+        cp l
+        ret z
+        inc a
+        jp nvfind_setx
+
+nvfind_up
+        ld de,_COLOR
+        call nvfind_printbigcursor
+        ld a,(nvfind_curfoundfile)
+        or a
+        ret z
+        dec a
+        ld (nvfind_curfoundfile),a
+        ret
+
+nvfind_down
+        ld de,_COLOR
+        call nvfind_printbigcursor
+        ld a,(nvfind_curfoundfile)
+        ld hl,nvfind_curfoundfiles
+        inc a
+        cp (hl)
+        ret z
+        ld (nvfind_curfoundfile),a
+        ret
 
 nvfind_tab
         ld hl,nvfind_curtab
@@ -115,8 +210,14 @@ nvfind_backspace_cursearchtext
 nvfind_enter
         ld (nvfind_sp),sp
         call nvfind_reprintmenu
+        
+        xor a
+        ld (nvfind_curfoundfiles),a
+        ld (nvfind_curfoundfile),a
+        ld hl,FOUNDFILESTABLE
+        ld (nvfind_curfoundnameaddr),hl
 
-        ld de,0x0500
+        ld de,0x0400
         SETXY_
 
         ld de,emptypath
@@ -140,12 +241,12 @@ nvfind_loaddir0
         call nvfind_compare
         jr nz,nvfind_loaddir_fail
 nvfind_loaddir_ok
+        ld (nvfind_curfilename),hl
         ld a,(cursearchtext)
         or a
         jr z,nvfind_found
 
 ;open file with name=HL
-        ld (nvfind_curfilename),hl
         ex de,hl
         OS_OPENHANDLE
         ld a,b
@@ -160,11 +261,25 @@ nvfind_curhandle=$+1
         jr nz,nvfind_loaddir_fail
         
 nvfind_found
+nvfind_curfoundnameaddr=$+1
+        ld de,0
+        ld hl,FOUNDFILESTABLE_END
+        or a
+        sbc hl,de
+        jr z,nvfind_break
+        ld hl,(nvfind_curfilename)
+        ld bc,FOUNDFILESFNSZ
+        ldir
+        ld (nvfind_curfoundnameaddr),de
+        ld hl,nvfind_curfoundfiles
+        inc (hl)
+
+        call prcrlf
 nvfind_curfilename=$+1
         ld hl,0
         ld c,0 ;x
         call prtext
-        call clearrestofline_crlf
+        call clearrestofline
         
         GETKEY_
         cp key_esc
@@ -179,7 +294,7 @@ nvfind_loaddirq
 nvfind_break
 nvfind_sp=$+1
         ld sp,0
-;TODO select from list
+;select from list
 
         ret
 
@@ -283,7 +398,40 @@ nvfind_curx=$+1
         ld a,0
         jp cmdcalctextaddr_hlbase_ax ;hl=addr, a=x
 
+nvfind_findselectedname
+        ld hl,FOUNDFILESTABLE
+        ld de,FOUNDFILESFNSZ
+nvfind_curfoundfile=$+1
+        ld b,0
+        inc b
+        dec b
+        ret z ;hl=name
+        add hl,de
+        djnz $-1
+;hl=name
+        ret
+
+nvfind_printbigcursor
+;de=color
+nvfind_curfoundfiles=$+1
+        ld a,0
+        or a
+        ret z
+        call nv_setcolor
+        ld a,(nvfind_curfoundfile)
+        add a,5
+        ld d,a
+        ld e,0
+        SETXY_
+        call nvfind_findselectedname
+        ld c,0 ;x
+        call prtext
+        ld de,_COLOR
+        jp nv_setcolor
+
 nvfind_panel
+        ld de,_CURSORCOLOR
+        call nvfind_printbigcursor
 nvfind_curtab=$+1
         ld a,0
         or a
@@ -292,19 +440,31 @@ nvfind_curtab=$+1
 
 nvfind_prcursearchfilename
         ld de,0x0100
+        push de
         SETXY_
         ld c,0 ;x
         ld hl,cursearchfilename
         call prtext
-        jp clearrestofline
+        call clearrestofline
+        call nvfind_getx
+        pop de
+        ld e,a
+        SETXY_
+        ret
 
 nvfind_prcursearchtext
         ld de,0x0300
+        push de
         SETXY_
         ld c,0 ;x
         ld hl,cursearchtext
         call prtext
-        jp clearrestofline
+        call clearrestofline
+        call nvfind_getx
+        pop de
+        ld e,a
+        SETXY_
+        ret
 
 nvfind_reprintmenu
         ld de,0
@@ -330,6 +490,30 @@ nvfind_reprintmenu
         ld c,0 ;x
         ld hl,tresults
         call prtext
+        
+        ld hl,FOUNDFILESTABLE
+        ld a,(nvfind_curfoundfiles)
+nvfind_reprintmenu_files0
+        or a
+        ret z
+        push af
+        push hl
+        call prcrlf
+        pop hl
+        push hl
+        ld c,0 ;x
+        call prtext
+        pop hl
+        ld bc,FOUNDFILESFNSZ
+        add hl,bc
+        pop af
+        dec a
+        jr nvfind_reprintmenu_files0
+
+nvfind_freepg
+findpg=$+1
+        ld e,0
+        OS_DELPAGE
         ret
 
 tsearchfilename

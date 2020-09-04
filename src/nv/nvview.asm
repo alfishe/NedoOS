@@ -11,9 +11,27 @@ editcmd_F3
 	and FATTRIB_DIR;#10
         ret nz
 
+        ;call nv_openfcb ;autopush nv_closefcb
+        ;ret nz ;error
+	ld hl,fcb_filename
+        ld de,filenametext
+	call cpmname_to_dotname
+
+	call setcurpaneldir
+
         call setdrawtablesneeded
         ld hl,editcmd_reprintall_noreaddir
         push hl
+        ld de,filenametext
+nvview
+;de=filename
+        OS_OPENHANDLE
+	or a
+        ret nz ;error
+        ld a,b
+        ld (curhandle),a
+        ;ld hl,nv_closehandle
+        ;push hl
 
         ;ld e,COLOR
         ;OS_CLS
@@ -24,23 +42,6 @@ editcmd_F3
         ld hl,unreservepages
         push hl
         
-	call setcurpaneldir
-
-        ;call nv_openfcb ;autopush nv_closefcb
-        ;ret nz ;error
-	ld hl,fcb_filename
-        ld de,filenametext
-        push de
-	call cpmname_to_dotname
-        pop de
-        OS_OPENHANDLE
-	or a
-        ret nz ;error
-        ld a,b
-        ld (curhandle),a
-        ;ld hl,nv_closehandle
-        ;push hl
-
         ld hl,0
         ld de,0
 nvview_load0

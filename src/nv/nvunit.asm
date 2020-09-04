@@ -947,6 +947,13 @@ prendstroka
 	db 0xbc;'-'
 	db 1	
 	db 0
+        
+prcrlf
+        ld de,tcrlf
+        ld hl,2
+        jp sendchars
+tcrlf
+        db 0x0d,0x0a
 
         if 1==0
 nv_copyscreen0to1
