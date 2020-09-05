@@ -316,6 +316,7 @@ cursearchbuf=$+1
         ld hl,searchbuf
 nvfind_cursize=$+1
         ld bc,128
+nvfind_searchinsegment_retry
         ld a,b
         or c
         jr z,nvfind_searchinsegment_eof
@@ -325,6 +326,7 @@ nvfind_cursize=$+1
          scf
          ccf
         ret nz ;NZ,NC
+         ld (nvfind_searchinsegment_tempaddr),hl
         dec hl ;for use inc l later
 nvfind_searchinsegment0
         inc l
@@ -334,7 +336,10 @@ nvfind_searchinsegment0
         ret z ;Z,NC
         xor (hl)
         jr z,nvfind_searchinsegment0
-        ret ;NZ,NC
+nvfind_searchinsegment_tempaddr=$+1
+         ld hl,0
+         jr nvfind_searchinsegment_retry
+        ;ret ;NZ,NC
 nvfind_searchinsegment_eof
         sub 1
         ret ;CY,NZ
