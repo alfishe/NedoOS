@@ -2050,10 +2050,10 @@ nv_strcopy_hltode
 strcopy
 ;hl->de
 ;out: hl,de after terminator
+        xor a
 strcopy0
-        ld a,(hl)
+        cp (hl)
         ldi
-        or a
         jp nz,strcopy0
         ret
 

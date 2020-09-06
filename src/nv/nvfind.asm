@@ -220,7 +220,71 @@ nvfind_enter
         ld de,0x0400
         SETXY_
 
-        ld de,emptypath
+        ld hl,emptypath
+        ld de,nvfind_curpath
+        call strcopy
+
+        call nvfind_loaddir
+nvfind_break
+nvfind_sp=$+1
+        ld sp,0
+;select from list
+
+        ret
+
+        macro STRPUSH
+;hl=string addr
+        xor a
+        push af
+         ld a,(hl)
+         inc hl
+         or a
+         push af
+        jr nz,$-4
+        pop af
+;в стеке лежит \0, текст (без терминатора)
+        endm
+        
+        macro STRPOP
+;hl=string addr
+        ld d,h
+        ld e,l
+         pop af
+         ld (hl),a
+         inc hl
+         or a
+        jr nz,$-4
+        ex de,hl
+        call strmirror
+        endm
+        
+strmirror
+;hl=string addr
+        ld d,h
+        ld e,l
+        call strlen
+        ld b,h
+        ld c,l
+	 ld a,b
+	 or c
+	 ret z
+;de=начало, bc=hl=длина
+        ;ld h,b
+        ;ld l,c
+        add hl,de ;hl=конец+1
+        srl b
+        rr c ;bc=wid/2
+mirrorbytes0
+        dec hl
+        ld a,(de)
+        ldi
+        dec hl
+        ld (hl),a
+        jp pe,mirrorbytes0
+        ret       
+
+nvfind_loaddir
+        ld de,emptypath;nvfind_curpath
         OS_OPENDIR
         
         ld bc,0 ;file#
@@ -228,9 +292,65 @@ nvfind_loaddir0
         push bc
         call loaddir_filinfo
         pop bc
+        inc bc
         jp c,nvfind_loaddirq
         jr z,nvfind_loaddir0
+        ld hl,filinfo+FILINFO_FATTRIB
+        ld a,(hl)
+        and FATTRIB_DIR
+        jr z,nvfind_loaddir_ndir
+         ld hl,filinfo+FILINFO_FNAME
+         ld a,'.'
+         cp (hl)
+         jr nz,nvfind_loaddir_subdir
+         inc hl
+         cp (hl)
+         jr z,nvfind_loaddir0
+nvfind_loaddir_subdir
+        push bc
+;open subdir
+        ld hl,nvfind_curpath
+        STRPUSH
+        ld hl,nvfind_curpath
+        call strfindeol
+        ex de,hl
+        ld hl,filinfo+FILINFO_FNAME
+        call strcopy ;out: hl,de after terminator
+        ex de,hl
+        dec hl
+        ld (hl),'/'
+        inc hl ;curpath = oldcurpath+dir+'/'
+        ld (hl),0
+        ;ld de,nvfind_curpath
+        ;OS_OPENDIR
+        ;jr $
         
+        ld de,filinfo+FILINFO_FNAME
+        OS_CHDIR
+
+        call nvfind_loaddir
+
+        ld de,tdotdot
+        OS_CHDIR
+
+;reopen dir
+        ld hl,nvfind_curpath
+        STRPOP
+        ld de,nvfind_curpath
+        OS_OPENDIR
+        pop bc
+        push bc
+nvfind_loaddir_recreread0
+        push bc
+        call loaddir_filinfo
+        pop bc
+        dec bc
+        ld a,b
+        or c
+        jr nz,nvfind_loaddir_recreread0
+        pop bc
+        jr nvfind_loaddir0
+nvfind_loaddir_ndir
         push bc
         ld de,cursearchfilename
         ld hl,filinfo+FILINFO_FNAME
@@ -241,10 +361,31 @@ nvfind_loaddir0
         call nvfind_compare
         jr nz,nvfind_loaddir_fail
 nvfind_loaddir_ok
+        call nvfind_found
+        
+nvfind_loaddir_fail
+        pop bc ;file#
+        jp nvfind_loaddir0
+nvfind_loaddirq
+        ret
+
+
+nvfind_found
+;TODO generate curpath/hlname
+        push hl
+        ld hl,nvfind_curpath
+        call strfindeol
+        pop de
+        push hl
+        ;ld (hl),'/'
+        ;inc hl
+        ex de,hl
+        call strcopy
+        ld hl,nvfind_curpath
         ld (nvfind_curfilename),hl
         ld a,(cursearchtext)
         or a
-        jr z,nvfind_found
+        jr z,nvfind_foundnosearchinfile
 
 ;open file with name=HL
         ex de,hl
@@ -258,15 +399,15 @@ nvfind_curhandle=$+1
         ld b,0
         OS_CLOSEHANDLE
         pop af
-        jr nz,nvfind_loaddir_fail
+        jr nz,nvfind_found_q
         
-nvfind_found
+nvfind_foundnosearchinfile
 nvfind_curfoundnameaddr=$+1
         ld de,0
         ld hl,FOUNDFILESTABLE_END
         or a
         sbc hl,de
-        jr z,nvfind_break
+        jp z,nvfind_break
         ld hl,(nvfind_curfilename)
         ld bc,FOUNDFILESFNSZ
         ldir
@@ -284,18 +425,9 @@ nvfind_curfilename=$+1
         GETKEY_
         cp key_esc
         jp z,nvfind_break
-        
-nvfind_loaddir_fail
-        pop bc ;file#
-        inc bc
-        jr nvfind_loaddir0
-nvfind_loaddirq
-
-nvfind_break
-nvfind_sp=$+1
-        ld sp,0
-;select from list
-
+nvfind_found_q
+        pop hl
+        ld (hl),0
         ret
 
 nvfind_searchinfile
@@ -521,6 +653,14 @@ findpg=$+1
         OS_DELPAGE
         ret
 
+strfindeol
+        xor a
+        ld b,a
+        ld c,a
+        cpir
+        dec hl
+        ret
+
 tsearchfilename
         db "Search filename:",0
 
@@ -536,4 +676,6 @@ tresults
 cursearchtext
         ds MAXSEARCHTEXT+1
 
+nvfind_curpath
+        ds MAXPATH_sz
 
