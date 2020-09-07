@@ -1005,25 +1005,27 @@ nfopenfnslash0.
 	jr nfopenfnslash.
         
 editcmddirback
+editcmddirback_go
 	call setpaneldir
 	ld de,tdotdot
 	OS_CHDIR
 ;взять имя директории из последнего элемента paneldir
         ld hl,(curpanel)
+        push hl
 	ld de,PANEL.dir
 	add hl,de
         call findlastslash. ;out: de = after last slash
         ex de,hl
         ld de,filenametext
         call strcopy
-        ;jr $
-        ld hl,(curpanel)
+        pop hl ;ld hl,(curpanel)
+        push hl
         call editcmd_setpaneldirfromcurdir_panelhl
-	ld ix,(curpanel)
+	pop ix ;ld ix,(curpanel)
 	call readdir
 	call sortfiles
 ;найти имя директории
-        ld ix,(curpanel)
+        ;ld ix,(curpanel)
         call getfiles
         ld b,h
         ld c,l
@@ -1244,6 +1246,15 @@ editcmd_enter
 	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10
 	jp z,editcmd_enter_run
+         ld hl,fcb+FCB_FNAME
+         ld a,(hl)
+         cp '.'
+         jr nz,editcmd_enter_nodotdot
+         inc hl
+         ld a,(hl)
+         cp '.'
+         jp z,editcmddirback_go
+editcmd_enter_nodotdot
         call changedir_fromfcb
 ;editcmd_setpaneldirfromcurdir
         ld hl,editcmd_reprintcurpanel
