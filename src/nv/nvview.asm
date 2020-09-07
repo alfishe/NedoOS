@@ -6,6 +6,7 @@ _NVVIEW_PANELCOLOR=0x0700;0x38
 editcmd_3
         call ifcmdnonempty_typedigit
 editcmd_F3
+        ;jr $
         call getfcbundercursor ;->fcb
 	ld a,(fcb+FCB_FATTRIB)
 	and FATTRIB_DIR;#10
@@ -974,9 +975,3 @@ filesizeHSW
 
 nlines
         dw 0
-        
-        align 256
-textpages
-        ds 256
-twinto866
-        incbin "../_sdk/codepage/winto866"

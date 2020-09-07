@@ -7,7 +7,6 @@ prwindow_edit
 	pop bc
 	pop hl
         push hl
-;        ld hl,de ;hl=textaddr
         ld a,c ;a=maxsz
         call editline
         pop de ;de=filename
@@ -132,7 +131,6 @@ getmarkedfiles
         ret
 
 changemark_hl
-        ;jr $
         push hl
 	ld a,(hl)
 	xor 1
@@ -270,32 +268,29 @@ getfilepointer_de_fromhl
 ;out: hl=next pointer
 	ld a,(ix+PANEL.poipg)
 	SETPG32KHIGH
-	ld e,(hl)
+	ld a,(hl)
+	and 0xe0
+	ld e,a
+        xor (hl)
 	inc hl
 	ld d,(hl)
 	inc hl
-         ;push bc
-	;ld a,(ix+PANEL.pg) ;TODO from de
-	;SETPG32KHIGH
-	ld a,e
-	and 31
+	;ld a,e
+	;and 31
 	add a,(ix+PANEL.pgadd)
 	PGW3strpg
-	push af
-	ld a,e
-	and 0xe0
-	ld e,a
-	pop af
-         ;pop bc
+	;push af
+	;ld a,e
+	;and 0xe0
+	;ld e,a
+	;pop af
         ret
 
 putfilepointer_de_tohl
 ;out: hl=next pointer
-         ;push bc
 	ld a,(ix+PANEL.poipg)
 	SETPG32KHIGH
-         ;pop bc
-	ld (hl),e	
+	ld (hl),e
 	inc hl
 	ld (hl),d
 	inc hl
@@ -325,7 +320,6 @@ isthisdotdir_hl
         dec hl
         ret
 
-
 drawpanelfilesandsize
 ;ix=panel
         call nv_getpanelxy_de
@@ -343,15 +337,16 @@ drawpanelfilesandsize
         push af ;z = no marked
         call z,getfiles
 	pop af
+	push af
 	ld de,_PANELSELECTCOLOR
 	call nz,nv_setcolor
-	push af
-        push ix
-        call prdword
-        ld hl,wordfiles
-         ld c,0
-        call prtext
-        pop ix
+        ;push ix
+        ld de,wordfiles
+        call prdword_de_withspaces
+        ;ld hl,wordfiles
+        ; ld c,0
+        ;call prtext
+        ;pop ix
         pop af ;z = no marked
         jr nz,drawpanelfilesandsize_markedsize
         call getfilessize
@@ -359,9 +354,10 @@ drawpanelfilesandsize
 drawpanelfilesandsize_markedsize
         call getmarkedfilessize
 drawpanelfilesandsize_markedsizeq
+        ld de,wordbytes
+        call prdword_de_withspaces
         push ix
-        call prdword
-        ld hl,wordbytes
+        ld hl,wordfiles;bytes
          ld c,0
         call prtext
         pop ix
@@ -734,7 +730,7 @@ curpanel=$+1
         push hl
         pop ix
         ret
-        
+
 setanotherpaneldir
         call getanotherpanel_ix
         jr setpaneldir
@@ -750,7 +746,7 @@ setpaneldir
         ex de,hl ;de=path
 	OS_CHDIR
 	ret
-	
+
 drawfilecursor_sizeb_colorhl
 ;de=yx
 ;hl=color

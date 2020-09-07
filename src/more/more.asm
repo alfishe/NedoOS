@@ -483,20 +483,20 @@ nvview_prpage
 ;ahl=addr
         ld (curtoptextaddr),hl
         ld (curtoptextHSB),a
-        ld de,NVVIEW_XYTOP
-        ld b,NVVIEW_HGT
-nvview_prpage0
-        push bc
-        push de
         push af
         push hl
+        ld de,NVVIEW_XYTOP
         OS_SETXY
         pop hl
         pop af
+        ld b,NVVIEW_HGT
+nvview_prpage0
+        push bc
+        ;push de
         call nvview_prline_nextline
-        pop de
+        ;pop de
         pop bc
-        inc d
+        ;inc d
         djnz nvview_prpage0
 nvview_setbottom
         ld (curbottomtextaddr),hl

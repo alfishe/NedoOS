@@ -48,6 +48,9 @@ parse_filename0.
 	inc de
 	cp '.'
 	jr z,parse_filenamedot. ;можем уже быть на терминаторе
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a
 	inc hl
 	djnz parse_filename0.
@@ -72,18 +75,27 @@ parse_filenameLONGnamedot.
 	ld a,[de] ;extension in string
         or a
         ret z ;jr z,parse_filenameq. ;a=0
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a ;extension in FCB
         inc hl
         inc de
 	ld a,[de] ;extension in string
         or a
         ret z ;jr z,parse_filenameq. ;a=0
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a ;extension in FCB
         inc hl
         inc de
 	ld a,[de] ;extension in string
         or a
         ret z ;jr z,parse_filenameq. ;a=0
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a ;extension in FCB
 parse_filenameq_findterminator.
         inc de

@@ -7,10 +7,10 @@ compareattrib
 	ex de,hl
 	add hl,bc
 	ld a,(hl)
-	and #10
+	and FATTRIB_DIR;0x10
 	ld c,a
-	ld a,(de)	
-	and #10
+	ld a,(de)
+	and FATTRIB_DIR;0x10
 	cp c
 findmin_ccf=$
 	ccf
@@ -104,33 +104,52 @@ compareext0
 	inc de
 	ld a,(de)
 	cp (hl)
-	ret nz
+	jr nz,casecompareext;ret nz
+casecompareextq
 	djnz compareext0
 	ld bc,-11
 	ex de,hl
 	add hl,bc
 	ex de,hl
 	add hl,bc
-	;jr $
 	ld b,8
 	jp comparefilename0
 
+casecompareext
+        ld a,(de)
+        ld c,(hl)
+        or 0x20
+        set 5,c
+        cp c
+        jr z,casecompareextq
+        ret
+
 comparefilename
 ;hl=fcb1
-;de=fcb2	
+;de=fcb2
 ;out: NC = *de>=*hl 
 	call compareattrib
-	ret nz	
+	ret nz
 	ld b,11
 comparefilename0
 	inc hl
 	inc de
 	ld a,(de)
 	cp (hl)
-	ret nz
+	jr nz,casecompare;ret nz
+casecompareq
 	djnz comparefilename0
 	ret
-        
+
+casecompare
+        ld a,(de)
+        ld c,(hl)
+        or 0x20
+        set 5,c
+        cp c
+        jr z,casecompareq
+        ret
+
 compareempty
         scf
         ret
@@ -152,9 +171,9 @@ sortfiles
         
         ld a,(ix+PANEL.dirsortmode)
         or a
-        ld bc,#3f38
+        ld bc,0x3f38
         jr z,$+5
-        ld bc,#0030
+        ld bc,0x0030
         ;ld a,c
         ;ld (findmin_jrc),a
         ld a,b
@@ -165,7 +184,7 @@ sortfiles
 
 sorter2
 	;jr $
-	call	HPSRT_init
+	call HPSRT_init
 	
 	ld c,(ix+PANEL.files)
 	ld b,(ix+PANEL.files+1)
@@ -196,7 +215,7 @@ sorter2_add0
 	;ld	de,0
 ;hl=addr to add
 	;exd
-	call	HPSRT_add
+	call HPSRT_add
 	;pop hl
 	pop de
 	ex de,hl

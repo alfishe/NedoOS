@@ -2,8 +2,8 @@
         include "../_sdk/sys_h.asm"
 
 HEAPSORT_LH=1 ;byte order in poiters: LSB,HSB
-	
-NVOLUMES=8;5
+
+;NVOLUMES=8;5
         
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
 txtscrhgt=25
@@ -11,8 +11,6 @@ txtscrwid=80
 CMDLINEY=23;24
 
 PANELDIRCHARS37=37
-
-;0 1 2 3 4 5 6 7 8 9 a b c d e f
 
 _COLOR=0x0007;0x07
 _PANELCOLOR=0x040f;0x4f
@@ -185,10 +183,6 @@ cmd_begin
         ld hl,leftpanel
         call editcmd_setpaneldirfromcurdir_panelhl
 
-        ;ld e,0
-        ;OS_SETDRV
-;l=NVOLUMES
-        
 	call readpanels_reprint
 	
 mainloop
@@ -262,11 +256,6 @@ strnewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
 	pop hl
 	ret
 
-;nvpal
-;	dw 0xffff,0x1f1f,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec ;NB color 1
-;	dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
-
-        
 printhint
         ld de,24*256
         call nv_setxy
@@ -400,21 +389,21 @@ drawpanel_files
         or a
         jr z,premptyfiles
 prNfiles0
-	push bc	
+	push bc
 	push de
         call nv_setxy ;keeps de,hl
 	;ld e,(hl)
 	;inc hl
 	;ld d,(hl)
 	;inc hl
-        call getfilepointer_de_fromhl
+        call getfilepointer_de_fromhl ;uses ix
 	push hl
 	ex de,hl
         push ix
 	call prdirfile
         pop ix
 	pop hl
-	pop de	
+	pop de
 	pop bc
 	inc d
 	djnz prNfiles0
@@ -423,9 +412,10 @@ premptyfiles
         ld a,CONST_HGT_TABLE
         sub c
         ret z
+        push ix
         ld b,a
 premptyfiles0
-	push bc	
+	push bc
 	push de
         call nv_setxy ;keeps de,hl
 	;ld e,(hl)
@@ -435,110 +425,104 @@ premptyfiles0
         ;call getfilepointer_de_fromhl
 	;push hl
 	;ex de,hl
-        push ix
+        ;push ix
         ld de,emptyfilelinebuf
         ld hl,emptyfilelinebuf_sz
         call sendchars
-        pop ix
+        ;pop ix
 	;pop hl
-	pop de	
+	pop de
 	pop bc
 	inc d
 	djnz premptyfiles0
-	ret	
+        pop ix
+	ret
 
-fileiscom_ix;ix=fcb output: z=com
-	ld a,(ix+9)
+fileiscom ;fcb ;output: z=com
+	ld a,(fcb+9);(ix+9)
          or 0x20
 	 cp 'c'
-	jr nz,fileiscom_ix_nocom
-	ld a,(ix+10)
+	jr nz,fileiscom_ix_nocom_a
+	ld a,(fcb+10);(ix+10)
          or 0x20
 	 cp 'o'
 	jr nz,fileiscom_ix_nocom
-	ld a,(ix+11)
+	ld a,(fcb+11);(ix+11)
          or 0x20
 	 cp 'm'
-	jr nz,fileiscom_ix_nocom
-	xor a
-	ret
+        ret z
+	;jr nz,fileiscom_ix_nocom
+	;xor a
+	;ret
 fileiscom_ix_nocom
+	ld a,(fcb+9);(ix+9)
+fileiscom_ix_nocom_a
 	cp '$'
-	jr nz,fileiscom_ix_nohobeta
-	ld a,(ix+10)
-	cp 'C'
-	jr nz,fileiscom_ix_nohobeta
-	ld a,(ix+11)
-	cp ' '
-	jr nz,fileiscom_ix_nohobeta
-	xor a
+	ret nz ;jr nz,fileiscom_ix_nohobeta
+	ld a,(fcb+10);(ix+10)
+         or 0x20
+	 cp 'c'
+	;ret nz ;jr nz,fileiscom_ix_nohobeta
+	;ld a,(fcb+11);(ix+11)
+	;cp ' '
+	;ret nz ;jr nz,fileiscom_ix_nohobeta
+	;xor a
 	ret
-fileiscom_ix_nohobeta
-	ld a,1
-	or a
-	ret
+;fileiscom_ix_nohobeta
+	;ld a,1
+	;or a
+	;ret
 
 colorfile
 ;ix=fcb
 ;out: de=color
-	ld de,_PANELFILECOLOR
-	;ld (nvcolor),de
-        ld a,(ix+FCB_FATTRIB)
-        and FATTRIB_DIR
-	jr z,regfile
-	ld de,_PANELDIRCOLOR
-	;ld (nvcolor),de
-regfile
-	call fileiscom_ix
-	jr nz,nocomfile
-	ld de,_PANELEXECOLOR
-	;ld (nvcolor),de
-nocomfile
-	ld a,(ix) ;mark
-	and 1
-	ret z ;jr z,nomarkfile
+	ld a,(fcb);(ix) ;mark
+	rra
         ld de,_PANELSELECTCOLOR
-;nomarkfile
-	;ld (nvcolor),de
+        ret c
+        ld a,(fcb+FCB_FATTRIB);(ix+FCB_FATTRIB)
+        and FATTRIB_DIR
+	ld de,_PANELDIRCOLOR
+	ret nz
+	call fileiscom
+	ld de,_PANELEXECOLOR
+        ret z
+	ld de,_PANELFILECOLOR
         ret
 
+        if 1==0
 prdirfile_copyfilename
 ;hl,ix(=fcb)->filelinebuf
 	inc hl
          ld de,filelinebuf
          ld bc,8
          ldir
-;	pop ix
-;	push ix
         ld a,(ix+FCB_FATTRIB)
         and FATTRIB_DIR
         xor '.'
-        ;call cmdprchar
          ld (de),a
          inc de
          ld c,3
          ldir
         ret
+        endif
 
 prdirfile
 ;hl=fcb
-	;push hl
         call getfcbfromhl
-
-	;pop ix
-        ld ix,fcb
+        ;ld ix,fcb
         call colorfile ;de=color
-prdirfile_ix_decolor        
-;	push ix
+prdirfile_ix_decolor
         call nv_setcolor
         
         ;call prdirfile_copyfilename ;hl,ix(=fcb)->filelinebuf
-        ld a,(ix+FCB_EXTENTNUMBERLO)
+        ld a,(fcb+FCB_EXTENTNUMBERLO);(ix+FCB_EXTENTNUMBERLO)
         SETPG32KHIGH
-        ld l,(ix+FCB_EXTENTNUMBERHI)
-        ld h,(ix+FCB_EXTENTNUMBERHI+1)
+        ;ld l,(ix+FCB_EXTENTNUMBERHI)
+        ;ld h,(ix+FCB_EXTENTNUMBERHI+1)
+        ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filelinebuf
-        ld b,24
+        ld b,25
 prdirfile_fn0
         ld a,(hl)
         or a
@@ -554,33 +538,25 @@ prdirfile_fn1
         ld (de),a
         inc de
         djnz prdirfile_fn1         
-         ;inc de
-;        pop ix
 prdirfile_fn0qq
         ld de,filelinebuf+15
         exx
-        ld l,(ix+FCB_FSIZE+2)
-        ld h,(ix+FCB_FSIZE+3)
+        ;ld l,(ix+FCB_FSIZE+2)
+        ;ld h,(ix+FCB_FSIZE+3)
+        ld hl,(fcb+FCB_FSIZE+2)
 	exx
-        ld l,(ix+FCB_FSIZE)
-	ld h,(ix+FCB_FSIZE+1)
-;        push ix
-        xor a
-        ld (prnumdwordcmd_zero),a
-        call prdword_de
-	;ld de,_PANELCOLOR
-	;call nv_setcolor
-	;ld a,0xb3 ;'|'
-        ;PRCHAR_
-         inc de
-         inc de
-         inc de
-	;ld de,(nvcolor)
-	;call nv_setcolor
-;        pop ix
-	ld l,(ix+FCB_FDATE)
-        ld h,(ix+FCB_FDATE+1)
-;	push ix
+        ;ld l,(ix+FCB_FSIZE)
+	;ld h,(ix+FCB_FSIZE+1)
+        ld hl,(fcb+FCB_FSIZE)
+        ld a,(fcb+FCB_FATTRIB);(ix+FCB_FATTRIB)
+        and FATTRIB_DIR
+        call z,prdword_de
+         ;inc de
+         ;inc de
+         ld de,filelinebuf+28 ;inc de ;skip "cursor right" over | (which has different color)
+	;ld l,(ix+FCB_FDATE)
+        ;ld h,(ix+FCB_FDATE+1)
+        ld hl,(fcb+FCB_FDATE)
 
         push hl
         ld a,l
@@ -608,8 +584,9 @@ prdirfile_fn0qq
         add a,100 ;XX century
         call prNNcmd ;year        
          inc de
-        ld l,(ix+FCB_FTIME)
-        ld h,(ix+FCB_FTIME+1)
+        ;ld l,(ix+FCB_FTIME)
+        ;ld h,(ix+FCB_FTIME+1)
+        ld hl,(fcb+FCB_FTIME)
         push hl
         ld a,h
         rra
@@ -617,9 +594,7 @@ prdirfile_fn0qq
         rra
         and 0x1f
         call prNNcmd ;hour
-        ;ld a,':'
-        ;PRCHAR_
-         inc de
+         inc de ;skip ':'
         pop hl
         add hl,hl
         add hl,hl
@@ -679,6 +654,18 @@ nv_setcursor_zero
         call nv_setdirscroll_bc
         jp nv_setdirpos_zero
 
+nv_setcursor_hl
+        call nv_setdirpos_hl
+	ld bc,CONST_HGT_TABLE*2/3;CONST_HGT_TABLE-1
+        xor a
+        sbc hl,bc
+        jr nc,$+4
+         ld h,a
+         ld l,a
+        ld b,h
+        ld c,l
+        jp nv_setdirscroll_bc
+
 readdir_keepcursor
 ;ix=panel
         xor a
@@ -701,8 +688,7 @@ readdir_keepcursor
         ;call makeemptymask
         ;ld de,fcbmask
         ;OS_FSEARCHFIRST
-	display $
-	pop hl	;get IX
+	pop hl ;get IX
 	push hl
 	ld de,PANEL.dir
 	add hl,de
@@ -896,9 +882,6 @@ loaddir_filinfo
         or a ;NZ,NC
         ret
 
-emptypath
-        db 0
-
 controlloop
         call fixscroll_prcmd
 controlloop_noprline
@@ -1005,12 +988,74 @@ editcmd_del
         ret z ;нечего удалять вправо
         inc hl
         jp strdelch
+         
+;hl = poi to filename in string
+;out: de = after last slash
+findlastslash.
+nfopenfnslash.
+	ld d,h
+	ld e,l ;de = after last slash
+nfopenfnslash0.
+	ld a,[hl]
+	inc hl
+	or a
+	ret z
+	cp '/'
+	jr nz,nfopenfnslash0.
+	jr nfopenfnslash.
         
 editcmddirback
 	call setpaneldir
 	ld de,tdotdot
 	OS_CHDIR
-	jp editcmd_setpaneldirfromcurdir
+;взять имя директории из последнего элемента paneldir
+        ld hl,(curpanel)
+	ld de,PANEL.dir
+	add hl,de
+        call findlastslash. ;out: de = after last slash
+        ex de,hl
+        ld de,filenametext
+        call strcopy
+        ;jr $
+        ld hl,(curpanel)
+        call editcmd_setpaneldirfromcurdir_panelhl
+	ld ix,(curpanel)
+	call readdir
+	call sortfiles
+;найти имя директории
+        ld ix,(curpanel)
+        call getfiles
+        ld b,h
+        ld c,l
+        ld hl,0
+editcmddirbackfind0
+        push bc
+        push hl
+        call getfcbaddrunderhl
+        ld de,FCB_EXTENTNUMBERLO
+        add hl,de
+        ld a,(hl)
+        inc hl
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        SETPG32KHIGH
+        ld hl,filenametext
+        call strcp
+        pop hl
+        pop bc
+        jr z,editcmddirback_ok
+        cpi
+        jp pe,editcmddirbackfind0
+        ld h,b
+        ld l,c ;error!!! not found!!!
+editcmddirback_ok
+;hl=номер элемента директории
+        call nv_setcursor_hl ;установить на него курсор
+        
+	call drawpanel_with_files
+        jp editcmd_readprompt_setendcmdx
 
 editcmd_left
         ld a,(curcmdx)
@@ -1088,12 +1133,7 @@ editcmd_Home
         ld l,a;0
         call nv_setdirpos_hl
         jr editcmd_pageUpq
-        ;ld b,h
-        ;ld c,l
-        ;call nv_setdirscroll_bc
-	;jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
 
-        
 editcmd_up
          ld hl,controlloop_noprline
          ex (sp),hl
@@ -1205,7 +1245,7 @@ editcmd_enter
 	and FATTRIB_DIR;#10
 	jp z,editcmd_enter_run
         call changedir_fromfcb
-editcmd_setpaneldirfromcurdir
+;editcmd_setpaneldirfromcurdir
         ld hl,editcmd_reprintcurpanel
         push hl
 	ld hl,(curpanel)
@@ -1332,8 +1372,7 @@ makeprompt_filename
          inc hl
         ex de,hl ;de=prompt = "d:/path/" без терминатора
         ld hl,fcb_filename
-        call cpmname_to_dotname ;prompt = "d:/path/filename"
-        ret
+        jp cpmname_to_dotname ;prompt = "d:/path/filename"
         
 runfile_findhandler
 ;find fcb_filename ext (spoiled) in "nv.ext"
@@ -1612,7 +1651,7 @@ editcmd_F1
         ;jr editcmd_drvselector
 ;editcmd_drvselector
         ld (windrv),a ;x
-	add 5
+	add a,5
 	ld (windrverr),a
         ;ld (curpanel),hl
         ld hl,editcmd_reprintcurpanel;editcmd_reprintall_onlyreadcurdir
@@ -1660,8 +1699,8 @@ seldrv_mainloop_nokey
 	cp 'a'
 	jr c,seldrv_cursor
 	cp 'p'
-	jr nc,seldrv_cursor
-	jr seldrv_selletter
+	;jr nc,seldrv_cursor
+	jr c,seldrv_selletter
 seldrv_cursor
         ld bc,seldrv_mainloop
         push bc
@@ -1814,6 +1853,20 @@ editcmd_F6
         push hl
 	call setpaneldir
         call getfcbundercursor
+        
+        if 1==1
+        ld a,(fcb+FCB_EXTENTNUMBERLO)
+        SETPG32KHIGH
+        ld hl,(fcb+FCB_EXTENTNUMBERHI)
+        ld de,filenametext
+        push hl
+        call strcopy
+        pop hl
+        ld de,tnewfilename
+        call strcopy
+        ;ld bc,64 ;max filename size+terminator
+        ;ldir
+        else
         ld hl,fcb_filename
         ld de,tnewfilename
         push de
@@ -1822,13 +1875,14 @@ editcmd_F6
         ld de,filenametext
         ld bc,12
         ldir
+        endif
 
 	ld de,_COLOR_DIALOG
-	call nv_setcolor	
+	call nv_setcolor
 
         ld hl,winrename
 	ld de,tnewfilename
-	ld c,13
+	ld c,63;13 ;max filename size
         call prwindow_edit ;CY=OK
         ret nc ;cancel
 ;если в имени есть символы :,/,\, то выйти с ошибкой
@@ -1858,7 +1912,6 @@ editcmd_F7
         ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl
 	call setpaneldir
-
 
 	ld de,_COLOR_DIALOG
 	call nv_setcolor
@@ -1900,8 +1953,7 @@ editcmd_8_0
 	jp processfiles
         
 proc_del_file
-	bit 0,(hl)
- ;marked?
+	bit 0,(hl) ;marked?
 	ret z
 	call getfcbfromhl
 
@@ -2181,8 +2233,7 @@ nv_batch_popsrecordq
 	ret
 
 nv_copydir_add
-	call nv_batch_pushrecord
-	ret
+	jp nv_batch_pushrecord
 
 nv_batch
 	call nv_batch_poprecord
@@ -2498,7 +2549,6 @@ editcmd_typeword_empty
         ld a,l
         ld (curcmdx),a
         ret
-        
 
 windrv
         dw 0x0003 ;de=yx
@@ -2532,8 +2582,8 @@ winmkdir
         db 0 ;end of window
 
 winrename
-        dw 0x0a0f ;de=yx
-        dw 0x0520 ;bc=hgt,wid
+        dw 0x0a07 ;de=yx
+        dw 0x0544 ;bc=hgt,wid
         db "Rename file:",0
         db 3 ;next line
         db 2 ;print outer text
@@ -2553,9 +2603,10 @@ wincopy
         
         db ' ' ;для typeword - перед tnewfilename
 tnewfilename
-        ds 12 
-	db 0
-tnewfilename_sz=12
+        ds 64 ;max filename size+terminator
+;        ds 12
+;        db 0
+;tnewfilename_sz=12
 
 winquit
         dw 0x0a1f ;de=yx
@@ -2604,7 +2655,6 @@ windrverr
 
 tdotdot
 	dw "..",0
-
 
         STRUCT PANEL
 ;sorterjp	BYTE ;TODO remove
@@ -2662,7 +2712,7 @@ texted_filename
         db "texted  com"
 
 filenametext ;for change dir, rename
-        db "prince  .   ",0 ;ds 64
+        ds 64 ;max filename size+terminator
 
 ext
         ds 3 ;TODO объединить с filenametext
@@ -2757,7 +2807,6 @@ washobetarunner
 	ld bc,0xff77 ;shadow ports off, palette off
         out (c),a
 	ld sp,0x6000
-         ;jr $
 	ei
 hobetarunner_jp=$+1
 	jp 0x6000
@@ -2765,18 +2814,14 @@ hobetarunner_jp=$+1
 hobetarunner_sz=$-washobetarunner
 
 wordfiles
-        db " files",0
+        db "1234567890 files ";,0
 wordbytes
-        db " bytes ",0
+        db "1234567890 bytes ",0
+emptypath=$-1
+        ;db 0
 
 filinfo
         ds FILINFO_sz
-
-;HS_elpg ;2 pages
-;        ds 2
-        align 256
-HS_strpg
-        ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
         
         include "nvsort.asm"
         include "heapsort.asm"
@@ -2791,11 +2836,19 @@ HS_strpg
         include "prdword.asm"
         include "cmdpr.asm"
         include "../_sdk/stdio.asm"
-        
+
+        align 256
+HS_strpg
+        ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
+        align 256
+textpages
+        ds 256
+twinto866
+        incbin "../_sdk/codepage/winto866"
 cmd_end
 
 	display "nv size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "nv.com",cmd_begin,cmd_end-cmd_begin
 	
-	LABELSLIST "..\..\us\user.l"
+	LABELSLIST "../../us/user.l"
