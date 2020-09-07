@@ -65,7 +65,7 @@ TOOL_FILL=4
 TOOL_TEXT=5
 NTOOLS=6
 
-backcolor=0x3f;%00111111
+;backcolor=0x3f;%00111111
 
 bmpmaxpages=251
 maxbitmaps=4
@@ -97,9 +97,9 @@ name
         org PROGSTART
 gfxeditor_begin
 main_go
-        jp main_go2
-        ds 256
-main_go2
+;        jp main_go2
+;        ds 256
+;main_go2
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         OS_HIDEFROMPARENT
         ld e,0 ;EGA
@@ -120,10 +120,11 @@ main_go2
         ld a,l
         ld (curpgtemp),a
 
-        call setpgs_scr
-        call setpgshapes
-        xor a
-        call shapes_cls
+        call cls
+        ;call setpgs_scr
+        ;call setpgshapes
+        ;xor a
+        ;call shapes_cls
         
         ld hl,COMMANDLINE ;command line
         call skipword
@@ -238,7 +239,7 @@ mainloop
         call control_keys
 
         jp mainloop
-	
+
 ahl_coords
         ld a,(arry)
         ld hl,(arrx)
@@ -315,6 +316,7 @@ invarrzone
         ld c,0 ;x/8
         ld de,0x1004 ;d=hgt ;e=wid
         call setpgshapes
+        call getcontrastcolors
         jp shapes_invbox
         
 control_mousebuttons
@@ -373,7 +375,7 @@ mmb
         call editpal
 mmb_setpal_coloraddr=$+1
         ld (0),hl
-        jp showworkscreen        
+        jp showworkscreen
 mmb_work
 ;рисование сеткой
 ;bc=x в bitmap, de=y в bitmap
@@ -797,6 +799,9 @@ control_keys_new
         ret
         
 getcontrastcolors
+        push bc
+        push de
+        push hl
         ld hl,workpal
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
 ;high B, high b, low B, low b
@@ -815,24 +820,21 @@ getcontrastcolors0
 ;d=0xRR
 ;e=0xGG
         ld a,b
-        cp d
-        jr nc,$+3
+        and 0x0f
+        ld b,a
         ld a,d
-        cp e
-        jr nc,$+3
+        and 0x0f
+        ld d,a
         ld a,e
+        and 0x0f
+        ld e,a
+        add a,b
+        add a,d
         cp hx ;current max
         jr c,getcontrastcolors_nmax
         ld hx,a
         ld hy,c
 getcontrastcolors_nmax
-        ld a,b
-        cp d
-        jr c,$+3
-        ld a,d
-        cp e
-        jr c,$+3
-        ld a,e
         cp lx ;current min
         jr nc,getcontrastcolors_nmin
         ld lx,a
@@ -855,8 +857,21 @@ getcontrastcolors_nmin
         ld hx,a
         ;ld lx,0b00111111 ;background fill color byte 0bRLrrrlll
         ;ld hx,0b00000000 ;11111111 ;brush color byte 0bRLrrrlll
+        pop hl
+        pop de
+        pop bc
         ret
-       
+
+getgreycolor
+        ld a,0b00111111
+        ret
+
+getblackongrey
+        call getcontrastcolors
+        call getgreycolor
+        ld lx,a
+        ret
+
 buttoncancel_unclick
         jp window_close
 buttonok_unclick
@@ -1259,7 +1274,7 @@ checkfirezone_right
 showworkscreen
         call setpgs_scr
         call setpgshapes
-        ld a,backcolor
+        call getgreycolor ;ld a,backcolor
         call shapes_cls
 
         call showtitle
@@ -1301,7 +1316,7 @@ calccurtool
 
 setcurtool
         call isitclick
-	ret nz ;кнопку уже держали
+        ret nz ;кнопку уже держали
         xor a
         ld (curlinestate),a ;отменить недоопределённую линию
 curmousebutton=$+1 ;0=LMB
@@ -1334,7 +1349,7 @@ showcurtool
         ld (de),a
         dec de
         dec de
-        ld ix,0xff00+backcolor
+        call getcontrastcolors ;ld ix,0xff00+backcolor
         jp shapes_prtext48ega;_oncolor
 
 text_ntool
@@ -1342,14 +1357,16 @@ text_ntool
         
 showtools
         call setpgshapes
-        ld ix,0x0000+backcolor
+        call getcontrastcolors ;ld ix,0x0000+backcolor
+        call getgreycolor ;ld a,backcolor
+        ld lx,a
         ld de,ttools
         ld bc,256*workzoney+0
 showtools0
         push bc
         push de
         ld de,0x1004
-        ld a,backcolor
+        call getgreycolor ;ld a,backcolor
         call shapes_prbox
         pop de
         pop bc
@@ -1407,11 +1424,16 @@ showtitle
 
         ld bc,0 ;b=y ;c=x/8
         ld de,titlehgt*256 + scrwid8 ;d=hgt ;e=wid8
-        xor a ;a=%33210210
+        ;xor a ;a=%33210210
+        call getcontrastcolors
+         ld a,hx
         call shapes_fillbox
         ;ld hl,prchar48ega_whiteoncolor
         ;ld (prchar48ega_colorproc),hl
-        ld ix,0xff00 ;lx=фоновый цвет
+        ;call getcontrastcolors ;ld ix,0xff00 ;lx=фоновый цвет
+         ld a,lx
+         ld lx,hx
+         ld hx,a
         ld hl,scrbase ;scr
         ld a,(curbmp)
         add a,'1'
@@ -1738,4 +1760,4 @@ gfxeditor_end
 
 	savebin "scratch.com",gfxeditor_begin,gfxeditor_end-gfxeditor_begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "../../us/user.l"

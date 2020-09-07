@@ -533,7 +533,7 @@ readbyte_readbuf
         push de
         ;OS_SETDTA ;set disk transfer address = de
         ;ld de,fcb
-        ;OS_FREAD ;TODO handles!
+        ;OS_FREAD
         ld hl,128
         call readcurhandle
         pop iy
@@ -575,7 +575,7 @@ writebyte_writebuf
         push de
         ;OS_SETDTA ;set disk transfer address = de
         ;ld de,fcb
-        ;OS_FWRITE ;TODO handles!
+        ;OS_FWRITE
         ld hl,128
         ld a,(curhandle)
         ld b,a
@@ -589,7 +589,7 @@ writebyte_writebuf
         
 filemenu
         call isitclick
-	ret nz ;кнопку уже держали
+        ret nz ;кнопку уже держали
 
         ld hl,curpicname
         ld de,savepicname
@@ -654,24 +654,24 @@ file_control_keys
         jr z,file_control_keys_up
         cp key_redraw
         jp z,prfilemenu
-        cp '1'
-        jr z,file_control_keys_drive1
-        cp '2'
-        jr z,file_control_keys_drive2
-        cp '3'
-        jr z,file_control_keys_drive3
-        cp '4'
-        jr z,file_control_keys_drive4 ;TODO more drives
-        sub '5'
-        jr z,file_control_keys_drive0 ;a=0
+        ;cp '1'
+        ;jr z,file_control_keys_drive1
+        ;cp '2'
+        ;jr z,file_control_keys_drive2
+        ;cp '3'
+        ;jr z,file_control_keys_drive3
+        ;cp '4'
+        ;jr z,file_control_keys_drive4 ;TODO more drives
+        ;sub '5'
+        ;jr z,file_control_keys_drive0 ;a=0
         ret
         
-file_control_keys_drive1
-file_control_keys_drive2
-file_control_keys_drive3
-file_control_keys_drive4
-        sub '0'
-file_control_keys_drive0
+;file_control_keys_drive1
+;file_control_keys_drive2
+;file_control_keys_drive3
+;file_control_keys_drive4
+;        sub '0'
+;file_control_keys_drive0
 file_control_keys_drive_fail0
 filemenu_setdrive
         ld e,a
@@ -817,7 +817,89 @@ filemenu_fire_finish
         ld (curbitmapxscroll),hl
         ld (curbitmapyscroll),hl
         jp filemenu_exit
+
+dotname_to_cpmname
+;de -> hl
+;out: de=pointer to termination character
+        ;push hl ;buffer
         
+        push de ;ASCIIZ string for parsing
+        push hl ;Pointer to 11 byte buffer
+	ld d,h
+	ld e,l
+	inc de
+	ld [hl],' '
+	ld bc,11-1
+	ldir ;empty filename
+        pop hl ;Pointer to 11 byte buffer
+        pop de ;ASCIIZ string for parsing
+
+        ld b,9
+	
+	ld a,(de)
+	cp '.'
+	jr nz,parse_filename0.
+	ld (hl),a
+	inc de
+	ld a,(de)
+	cp '.'
+	jr nz,parse_filenameq_findterminator.
+	inc hl
+	ld (hl),a
+	jr parse_filenameq_findterminator.
+parse_filename0.
+	ld a,[de]
+	or a
+	ret z ;jr z,parse_filenameq. ;no extension in string
+	inc de
+	cp '.'
+	jr z,parse_filenamedot. ;можем уже быть на терминаторе
+	ld [hl],a
+	inc hl
+	djnz parse_filename0.
+;9 bytes in filename, no dot (9th byte goes to extension)
+;возможно, длинное имя, надо найти, что раньше - точка или терминатор
+;можем уже быть на терминаторе или на точке
+        dec hl
+        ld [hl],' '
+parse_filenamelongname0.
+        ld a,[de]
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+        inc de
+        cp '.'
+        jr z,parse_filenameLONGnamedot. ;можем уже быть на терминаторе
+        jr parse_filenamelongname0.
+parse_filenamedot.
+	inc hl
+	djnz $-1 ;hl points to extension in FCB
+	dec hl
+parse_filenameLONGnamedot.
+	ld a,[de] ;extension in string
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+	ld [hl],a ;extension in FCB
+        inc hl
+        inc de
+	ld a,[de] ;extension in string
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+	ld [hl],a ;extension in FCB
+        inc hl
+        inc de
+	ld a,[de] ;extension in string
+        or a
+        ret z ;jr z,parse_filenameq. ;a=0
+	ld [hl],a ;extension in FCB
+parse_filenameq_findterminator.
+        inc de
+        ld a,[de]
+        or a
+        jr nz,parse_filenameq_findterminator.
+;parse_filenameq. ;de на терминаторе
+        ;pop hl ;buffer
+        ret ;a=0
+
 cpmname_to_dotname
         push hl
         ld b,8
@@ -872,7 +954,7 @@ filemenu_invarrzone
         ld de,8*256 + filelistwid8 ;d=hgt ;e=wid/8
 filemenu_invarrzone_invert
         call setpgshapes
-        ld ix,0xff00
+        call getcontrastcolors ;ld ix,0xff00
         jp shapes_invbox
         
 filemenu_isitfilename
@@ -1057,43 +1139,90 @@ prfilemenu_drives0
         
         call setpgtemp
 
-        ld de,fcb
-        OS_SETDTA ;set disk transfer address = de
-        call makeemptymask
-        ld de,fcbmask
-        OS_FSEARCHFIRST
+        ;ld de,fcb
+        ;OS_SETDTA ;set disk transfer address = de
+        ;call makeemptymask
+        ;ld de,fcbmask
+        ;OS_FSEARCHFIRST
+        ld de,emptypath
+        OS_OPENDIR
         or a
         
         ld de,catbuf
         ld bc,0 ;nfiles
         ;ld a,' '
         ;ld (de),a
-        jr nz,loaddir_error
+        ;jr nz,loaddir_error
 loaddir0
+        ;jr $
         ;ld a,(fcb+FCB_FNAME)
         ;cp ' ' 
         ;jr z,loaddirq
         push bc
-        ld hl,fcb
-        ld bc,32;FCB_sz
+        push de
+filinfo=0x3e00
+        ld de,filinfo
+        OS_READDIR
+        pop de
+        pop bc
+        or a
+        jr nz,loaddirq
+        ld hl,filinfo+FILINFO_FNAME
+        ld a,(hl)
+        or a
+        jr z,loaddirq
+        inc de
+        push bc
+        ex de,hl
+        push hl
+        call dotname_to_cpmname ;de -> hl
+        pop hl
+        ld bc,11
+        add hl,bc
+        ex de,hl
+        inc de ;extent number - NU
+        ld hl,filinfo+FILINFO_FATTRIB
+        ldi
+        inc de ;record count - NU
+        inc de ;extent number hi - NU
+        ld hl,filinfo+FILINFO_FSIZE
+        ld c,4
         ldir
+        ld hl,filinfo+FILINFO_FTIME
+        ld c,2
+        ldir
+        ex de,hl
+        ld c,8
+        add hl,bc
+        ex de,hl
+        ld hl,filinfo+FILINFO_FDATE
+        ld c,2
+        ldir
+
+        ;ld hl,fcb
+        ;ld bc,32;FCB_sz
+        ;ldir
         pop bc
         inc bc ;nfiles
+         ;ld a,d
+         ;inc a
+         ;jr nz,loaddir0 ;страничка pgtemp закончилась? max 512-8 файлов по 32 байта
          ;inc bc
         bit 1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
          ;dec bc
-        jr nz,loaddirq
-        push bc
-        push de ;catbuf
-        ld de,fcb
-        OS_SETDTA ;set disk transfer address = de
-         ;call makeemptymask ;в CP/M не нужно, но отсутствие вредит многозадачности
-         ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
-        OS_FSEARCHNEXT
-        pop de ;catbuf
-        pop bc ;nfiles
-        or a
         jr z,loaddir0
+        ;jr nz,loaddirq
+        ;push bc
+        ;push de ;catbuf
+        ;ld de,fcb
+        ;OS_SETDTA ;set disk transfer address = de
+        ; ;call makeemptymask ;в CP/M не нужно, но отсутствие вредит многозадачности
+        ; ld de,fcbmask ;в CP/M не нужно, но отсутствие вредит многозадачности
+        ;OS_FSEARCHNEXT
+        ;pop de ;catbuf
+        ;pop bc ;nfiles
+        ;or a
+        ;jr z,loaddir0
 loaddir_error
 loaddirq
 ;bc=nfiles
@@ -1134,6 +1263,7 @@ prdir0
         jr nz,prdir0
         ret
 
+        if 1==0
 makeemptymask
         ld hl,fcbmask_filename
         ld d,h
@@ -1143,7 +1273,8 @@ makeemptymask
         ld (hl),'?'
         ldir
         ret
-        
+        endif
+
 prdirfile
 ;de=scr (начало строки)
 ;b=номер видимого файла
@@ -1161,7 +1292,7 @@ prdirfile
 	ld (prdirfile_dot_or_dir),a
         ld  c,32-FCB_FATTRIB ;FCB_sz-FCB_FATTRIB
         ldir
-        ld ix,0xff00 ;lx=фоновый цвет
+        ld ix,0xff00 ;lx=background color
         call setpgshapes
         call setpgs_scr
         ;ld de,filinfo+FILINFO.FNAME
@@ -1369,7 +1500,20 @@ savefile
         call isfilename_act
         jp z,savefile_pal
         
+        ld a,(fcb_filename+8)
+        cp 'B'
+        ld d,4-1
+        ld a,savebmp4_8_jrdata
+        jr z,savefile_bmp8
+;savefile_bmp4
+        ld d,8-1
+        xor a
+savefile_bmp8
+        ld (savebmp4_8_jr),a
+
+;SAVEBIT4=0
 ;если bmp
+       push de
         ld hl,savepicname
         ld de,curpicname
         ld bc,12+1
@@ -1379,27 +1523,40 @@ savefile
         call writebyte
         ld a,'M'
         call writebyte
+       pop de
+       push de
         
         ld bc,(curbitmapwid_edit)
         dec bc
         ld a,c
-        or 8-1
+       ;if SAVEBIT4
+       ; or 8-1
+       ;else
+       ; or 4-1
+       ;endif
+       or d ;7(4bit)/3(8bit)
         ld c,a
         inc bc ;округлённая вверх до 4 байт (8 пикселей)
         ld a,c
         ld (savebmp4_pic00_widLSB),a
         ld a,b
         ld (savebmp4_pic00_widHSB),a
+       ;if SAVEBIT4
+       bit 2,d
+       jr z,$+2+4 ;bmp8
         srl b
         rr c
+       ;endif
         ld de,(curbitmaphgt)
         call mulbcde_ahl
         ex de,hl
-        ld bc,118
+        ld bc,118 ;???
         ld l,a
         ld h,b;0
+       pop af
         push hl
         push de
+       push af
         ex de,hl
         add hl,bc
         ex de,hl
@@ -1419,7 +1576,15 @@ savefile
         call writelong ;высота
         ld  l,1
         call writeword ;количество цветовых плоскостей
-        ld  l,4
+       pop af ;7(4bit)/3(8bit)
+       xor 4 ;3(4bit)/7(8bit)
+       inc a
+       ld l,a ;4/8
+       ;if SAVEBIT4
+       ; ld  l,4
+       ;else
+       ; ld  l,8
+       ;endif
         call writeword ;количество бит на пиксел
         ld  e,0
         ld l,e;0
@@ -1473,6 +1638,9 @@ savebmp4_pic00
         inc bc ;x
         inc l
         call z,savebmp_inch
+       ;if SAVEBIT4
+       jr savebmp4_8
+savebmp4_8_jr=$-1
         rlca
         rlca
         rlca
@@ -1481,6 +1649,9 @@ savebmp4_pic00
         inc bc
         inc l
         call z,savebmp_inch
+savebmp4_8
+savebmp4_8_jrdata=$-(savebmp4_8_jr+1)
+       ;endif
         WRITEBYTE_A
 savebmp4_pic00_widLSB=$+1
         ld a,0
@@ -1671,6 +1842,7 @@ tquit
         db "  Quit to OS",0
 tsave
         db "  Save",0
+emptypath=$-1
 
 temppicname=0xfe00 ;выше 0xc000
 savepicname

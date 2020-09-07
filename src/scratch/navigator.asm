@@ -1,6 +1,6 @@
 fire_or_rmb_navigator
         call isitclick
-	ret nz ;кнопку уже держали
+        ret nz ;кнопку уже держали
         ld hl,(arrx)
         ld bc,-navigatorx
         add hl,bc
@@ -108,12 +108,18 @@ shownavigator
         push bc
         push de
         push hl
-        ld lx,backcolor ;lx=color
+        ;ld lx,backcolor ;lx=color
+        ;call getcontrastcolors
+        call getblackongrey
+        ;call getgreycolor ;ld a,backcolor
+        ;ld lx,a
         call shapes_prpixelbox
         pop hl
         pop de
         pop bc
-        ld lx,0 ;lx=color
+        ;ld lx,0 ;lx=color
+        call getcontrastcolors
+        ld lx,hx
         call shapes_prpixelframe
 
 ;shapes_prpixelframe(navigatorx+xleft, navigatory+ytop, xright-xleft, ybottom-ytop)
@@ -265,7 +271,10 @@ showbitmapcoords
         ret nz ;вне рабочей зоны
 ;bc=x в bitmap, de=y в bitmap
         call setpgshapes
-        ld ix,0xff3f;%00111111 ;lx=фоновый цвет
+        call getblackongrey
+        ;call getcontrastcolors;ld ix,0xff3f;%00111111 ;lx=фоновый цвет
+        ;call getgreycolor
+        ;ld lx,a
 
         push de ;y
         ;push bc ;x
@@ -281,7 +290,11 @@ showwindowcoords
 ;bc=x
 ;de=y
         call setpgshapes
-        ld ix,0xff3f;%00111111 ;lx=фоновый цвет
+        ;ld ix,0xff3f;%00111111 ;lx=фоновый цвет
+        call getblackongrey
+        ;call getcontrastcolors
+        ;call getgreycolor
+        ;ld lx,a
 
         push de ;y
         ;push bc ;x

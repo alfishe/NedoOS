@@ -461,7 +461,9 @@ showbitmaprightbox
         ld c,b;30 ;c=y
         ;ld de,50 ;de=x
         ld b,hy;10 ;b=hgt (последний пиксель = y+hgt-1)
-        ld lx,backcolor ;lx=color
+        ;ld lx,backcolor ;lx=color
+        call getgreycolor
+        ld lx,a
         jp shapes_prpixelbox
 
 showbitmapbox_scrlinedown

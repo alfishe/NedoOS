@@ -446,6 +446,8 @@ prpixelhorline_patch=$+1
         ret
         
         SHAPESPROC shapes_invbox
+;hx=color1
+;lx=color2
 ;b=y
 ;c=x/8
 ;d=hgt

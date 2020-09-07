@@ -62,9 +62,9 @@
 prnumdword0
 ;bc=digit
         ld a,'0'-1
+        or a
 prnumdword1
         inc a
-        or a
         sbc hl,bc
         exx
         sbc hl,bc
@@ -176,9 +176,9 @@ prchar48ega_hxoncolor0
 prdig
 ;bc=digit
         ld a,'0'-1
+        or a
 prdig0
         inc a
-        or a
         sbc hl,bc
         jr nc,prdig0
         add hl,bc
@@ -202,9 +202,9 @@ prdig0
 prdigNN
 ;bc=digit
         ld a,'0'-1
+        or a
 prdigNN0
         inc a
-        or a
         sbc hl,bc
         jr nc,prdigNN0
         add hl,bc
@@ -258,12 +258,16 @@ pronehexdigit
 ;a=?X
         push bc
         push af
-        and 0xf
-        cp 10
-        jr c,prcharbit_noletter
-        add a,'a'-('0'+10)
-prcharbit_noletter
-        add a,'0'
+;        and 0xf
+;        cp 10
+;        jr c,prcharbit_noletter
+;        add a,'a'-('0'+10)
+;prcharbit_noletter
+;        add a,'0'
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
         call shapes_prchar48ega
         pop af
         pop bc
