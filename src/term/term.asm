@@ -99,7 +99,7 @@ maketrecodeback0
 
 execcmd_error
 mainloop_afternokey
-;если два раза подряд, то надо делать YIELD, иначе YIELDKEEP
+;если два раза подряд нет событий, то надо делать YIELD, иначе YIELDKEEP
 ;т.е. когда нет событий, идёт всё время YIELD. А если событие,пусто,событие,пусто, то всё время YIELDKEEP
 ;тогда курсор исчезает - плохо
         if REPEATNOKEY != 0
@@ -112,32 +112,10 @@ wasnokey=$+1
         ;ld (wasnokey),a
         ;jr nc,mainloop_yieldkeep
         endif
-       ;ld a,1
-       ;out (0xfe),a
        call printcursor
         YIELD
-       ;ld a,5
-       ;out (0xfe),a
-        jr mainloop_afterkeyq
-mainloop_afterkey
-        if REPEATNOKEY != 0
-        ;ld a,55+128 ;"or a"
-        ;ld (wasnokey),a
-        ld a,REPEATNOKEY;2
-mainloop_yieldkeep
-        ld (wasnokey),a
-        endif
-       ;ld a,1
-       ;out (0xfe),a
-        YIELDKEEP
-       ;ld a,5
-       ;out (0xfe),a
-mainloop_afterkeyq
-
         ld a,(pgscrbuf) ;ok
         SETPG16K
-;wascursorattraddr=$+1
-;        ld hl,0xc1c0
         call BDOS_countattraddr
 wascursorcuraddr=$+1
         ld de,killbuf_byte
@@ -148,9 +126,17 @@ wascursorcuraddr=$+1
         ld a,(de) ;из pgscrbuf
         ld (hl),a;COLOR
 
-        ;ld a,1
-        ;out (0xfe),a
-        
+        jr mainloop_afterkeyq
+mainloop_afterkey
+        if REPEATNOKEY != 0
+        ;ld a,55+128 ;"or a"
+        ;ld (wasnokey),a
+        ld a,REPEATNOKEY;2
+mainloop_yieldkeep
+        ld (wasnokey),a
+        endif
+        YIELDKEEP
+mainloop_afterkeyq
 mousecursor_wasxy=$+1
         ld de,0
          call getscrbuftop_a
@@ -181,12 +167,7 @@ mainloop_type0
         YIELDKEEP
 
 mainloop_type0_go
-        
-        ;ld a,3
-        ;out (0xfe),a
         call type_stdin ;stdin to screen
-        ;ld a,4
-        ;out (0xfe),a
         jr nc,mainloop_type0 ;data present
        
          ld hl,(pr_buf_curaddr)
@@ -209,18 +190,28 @@ lastsdtinmsgtimer=$+1
          ;ld (lastsdtinmsgtimer),hl
         or a
         sbc hl,de ;hl=timer-oldtimer
-cursortimelimit=$+1        
-        ld bc,0;2
+cursortimelimit=$+1
+        ld bc,1
         or a
         sbc hl,bc
         pop hl
         jr c,noprintcursor
          ;ld (lastsdtinmsgtimer),hl
-        endif
         
+        ld a,4
+        out (0xfe),a
         call printcursor
-        
+        ld a,1
+        ld (cursortimelimit),a
+
+        ld a,2
+        out (0xfe),a
+        jr noprintcursorq
 noprintcursor
+        ld a,7
+        out (0xfe),a
+noprintcursorq
+        endif
 
         GET_KEY ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
         jp nz,mainloop_afternokey ;no focus
@@ -364,11 +355,7 @@ printcursor
          ;ld hl,4
          ;ld (cursortimelimit),hl
         call BDOS_countattraddr
-        ;ld (wascursorattraddr),hl        
         ld (hl),CURSORCOLOR
-        
-        ;ld a,7
-        ;out (0xfe),a
         ret
 
 term_sendchar
@@ -548,8 +535,10 @@ stdinhandle=$+1
         or l
         scf ;out: CY=no data
         ret z ;jr z,nostdinmsg;mainloop_afterkey
+        if REPEATNOKEY != 0
          ld a,REPEATNOKEY;2
          ld (wasnokey),a
+        endif
 
         push hl
         call redraw_to_base
@@ -849,8 +838,7 @@ term_prfsm_afterescbracket_G
         ld a,(term_prfsm_curnumber) ;column
         dec a
         ld e,a
-        call BDOS_setx
-        jr forcereprintcursor
+        jp BDOS_setx
 
 term_prfsm_afterescbracket_H
         ld a,(term_prfsm_curnumber1) ;row
@@ -859,7 +847,9 @@ term_prfsm_afterescbracket_H
         ld a,(term_prfsm_curnumber) ;column
         dec a
         ld e,a
-        call BDOS_setxy
+        jp BDOS_setxy
+        
+        if 1==0
         ;jp forcereprintcursor ;не прокатит? в начале печати cmd тоже setxy
 forcereprintcursor
         ;push de
@@ -867,11 +857,12 @@ forcereprintcursor
         ;OS_GETTIMER ;hlde=timer
         ;dec d
         ;ld (lastsdtinmsgtimer),de
-         ;ld hl,0;2
-         ;ld (cursortimelimit),hl
+         ld hl,0;2
+         ld (cursortimelimit),hl
         ;pop hl
         ;pop de
         ret
+        endif
         
 term_prfsm_afterescbracket_m
 ;CSI Pm m Character Attributes (SGR)

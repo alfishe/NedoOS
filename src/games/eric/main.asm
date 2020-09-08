@@ -122,7 +122,8 @@ recodegfx0bmpline
 ;        dw 0
 quiter
         halt
-        ld a,(pgmuznum)
+pgmuznum=$+1
+        ld a,0
         SETPG32KHIGH
         ;ld a,(pgmuznum)
 	  ld hl,muz
@@ -135,8 +136,6 @@ quiter
 
 swapimer
 	di
-         ld hl,(0x0038+3) ;адрес intjp
-         ld (intjpaddr),hl        
         ld de,0x0038
         ld hl,oldimer
         ld bc,3
@@ -151,6 +150,7 @@ swapimer0
         ret
 oldimer
         jp on_int ;заменится на код из 0x0038
+        jp 0x0038+3
 
 on_int
 ;restore stack with de
@@ -158,11 +158,8 @@ on_int
 	ld (on_int_sp),sp
 	pop hl
 	ld (on_int_sp2),sp
-intjpaddr=$+1
-	ld (0),hl ;ok ;(on_int_jp),hl
-	
+	ld (on_int_jp),hl
 	ld sp,INTSTACK
-	
 	push af
 	push bc
 	push de
@@ -190,19 +187,12 @@ on_int_sp=$+1
 ;curpalette=$+1
         ;ld de,wolfpal
         ;OS_SETPAL
+        
+        call oldimer ;ei
+        
         GET_KEY
         ld (curkey),a
 
-        ld a,(CURPG32KHIGH) ;ok
-        push af
-pgmuznum=$+1
-        ld a,0
-        SETPG32KHIGH
-        ;call muzplay
-;pgc000=$+1
-        pop af
-        SETPG32KHIGH
-        
         pop hl
         pop de
         pop bc
@@ -219,31 +209,13 @@ pgmuznum=$+1
 	pop de
 	pop bc
 	pop af
-	
 on_int_hl=$+1
 	ld hl,0
 on_int_sp2=$+1
 	ld sp,0
-;        ei
-;on_int_jp=$+1
-;	jp 0
-
-        push de
-        ex de,hl
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        jp 0x0038+5
-
-;вход в стандартный обработчик:
-        ;ex de,hl ;de="hl", hl="de"
-        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        ;ld l,a
-;user_fdvalue6=$+1
-        ;ld a,fd_system
-        ;out (0xfd),a ;10 b
+        ;ei
+on_int_jp=$+1
+	jp 0
 
 
         if EGA

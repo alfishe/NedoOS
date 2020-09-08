@@ -7,8 +7,7 @@ TEXBMP=1
 NTEXPGS=5
 NSPRPGS=2;1
 
-tempintstack=0x4000 ;2 bytes
-SPOIL6BSTACK=0x3ffe;-2
+SPOIL6BSTACK=0x4000
 STACK=SPOIL6BSTACK-6
 INTSTACK=0x3e80
 ;scrbase=0x8000
@@ -428,8 +427,6 @@ pgmapnum=$+1
 
 swapimer
 	di
-         ld hl,(0x0038+3) ;адрес intjp
-         ld (intjpaddr),hl        
          ld hl,(0x0026) ;ok
          ld (on_int_0026),hl
         ld de,0x0038
@@ -446,6 +443,7 @@ swapimer0
         ret
 oldimer
         jp on_int ;заменится на код из 0x0038
+        jp 0x0038+3
 
 on_int
 ;restore stack with de
@@ -454,15 +452,11 @@ on_int
 	pop hl
 	ld (on_int_sp2),sp
         ld (on_int_jp),hl
-;intjpaddr=$+1
-;	ld (0),hl ;(on_int_jp),hl
-	
 	ld sp,INTSTACK
-	
 	push af
 	push bc
 	push de
-	
+
 ;imer_curscreen_value=$+1
 ;         ld a,0
 ;         ld bc,0x7ffd
@@ -476,10 +470,6 @@ on_int_0026=$+1
         ld hl,0
         ld (0x0026),hl ;восстановили запоротый стек 0x0028 (=40)
 
-        ld hl,on_int_q
-intjpaddr=$+1
-	ld (0),hl
-        
         push ix
         push iy
         ex af,af'
@@ -498,7 +488,7 @@ curpalette=$+1
         ld de,wolfpal
         OS_SETPAL
         
-        ld a,(CURPG32KLOW) ;ok
+        ld a,(curpg32klow) ;ok
         push af
 pgmuznum=$+1
         ld a,0
@@ -507,6 +497,8 @@ pgmuznum=$+1
         ;TODO music + sound effects in OS_SETMUSIC
         pop af
         SETPG32KLOW
+        
+        call oldimer ;ei
         
         GET_KEY
         or a
@@ -538,35 +530,9 @@ curpg=$+1
 	
 on_int_hl=$+1
 	ld hl,0
-;on_int_sp2=$+1
-;	ld sp,0
-;        ei
-;on_int_jp=$+1
-;	jp 0
-
-        ld sp,tempintstack
-        push de
-        ex de,hl
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        jp 0x0038+5
-
-;вход в стандартный обработчик:
-        ;ex de,hl ;de="hl", hl="de"
-        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        ;ld l,a
-;user_fdvalue6=$+1
-        ;ld a,fd_system
-        ;out (0xfd),a ;10 b
-
-on_int_q
-;на выходе из стандартного обработчика в стеке "de"
-;восстановим как надо
 on_int_sp2=$+1
 	ld sp,0
+        ;ei
 on_int_jp=$+1
 	jp 0
 

@@ -1,10 +1,17 @@
+после смены обработчика прерываний не работают:
+noise - fixed
+eric - fixed
+wolf3d - fixed
+sprexamp - fixed
+smb - fixed
+br - fixed
+cardgame - fixed
+evsummer - ?
+
+
 nv запуск хобеты при MEMFROMTOP?
 
-147f 4d
 
-scratch выделение на левой панельке неправильно
-scratch верхняя панель, левая, правая тоже должны быть контрастными цветами
-scratch ярко-жёлтый почему-то выбирается как более контрастный чёрному, чем белый
 
 nvview надо стримить из файла (сделать виртуальное резервирование страниц, реально занимать не больше 64 K)
 
@@ -16,7 +23,7 @@ todo no keyroll "s." (сейчас выдаёт "s./")
 удалить fdel - нигде не используется
 
 
-в драйверы передавать адрес в юзерспейсе (не пересчитанный), пересчитывать внутри
+в драйверы дисковых устройств передавать адрес в юзерспейсе (не пересчитанный), пересчитывать внутри
 а как в trdosio перегонять байты туда?
 
 драйвер фдд наравне с прочими?
@@ -54,7 +61,7 @@ cmd: переоткрывать bat-файл на каждой строке, чтобы не отнимать файловые записи?
 
 
 
-
+вместо скролла терминала в nv:
 The technology is called The Alternate Screen Buffer. Terminal emulator provides two modes: primary and alternate. Alternate screen buffer has no scroll back, when you switch between these buffers the contents in them is preserved. To switch between them use smcup and rmcup ANSI Escape Sequences. In binary form they are:
 
 $ tput smcup|hexdump -C 

@@ -898,6 +898,7 @@ controlloop_noprline
 	 ;push hl ;color under file cursor
         call cmdcalccurxy
         call nv_setxy
+        ;SETX_ ;force reprint cursor
          ;ld a,6 ;cyan
          ;out (0xfe),a
 controlloop_nokey

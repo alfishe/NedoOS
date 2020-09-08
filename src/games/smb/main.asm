@@ -278,7 +278,7 @@ mirspriteshor00
 	cpi
 	jp pe,mirspriteshor0
 	ret
-	
+
 mirspritesver
         ld de,0x2000
 ;sprite gfx: 256 tiles *2 (high, low bitchars)
@@ -300,7 +300,7 @@ mirspritesver00
 	bit 4,d ;<0x3000
         jr z,mirspritesver0
 	ret
-	
+
 recodesprites
         ld hl,0x2000
         ld de,0x4000
@@ -529,7 +529,7 @@ genaddrstack_line0
 	;inc hl
 ;выравнивание на 64*4 = 256
 	inc h
-	
+
 	pop de
 	ex de,hl
 	ld bc,40*8
@@ -537,7 +537,7 @@ genaddrstack_line0
 	ex de,hl
 	pop bc
 	djnz genaddrstack_lines0
-	
+
 	ret
 
 copytilesgfx
@@ -992,8 +992,8 @@ prerr0
 swapimer
 	di
          if MULTITASKING
-         ld hl,(0x0038+3) ;адрес intjp
-         ld (intjpaddr),hl
+         ;ld hl,(0x0038+3) ;адрес intjp
+         ;ld (intjpaddr),hl
          endif
         ld de,0x0038
         ld hl,oldimer
@@ -1005,13 +1005,12 @@ swapimer0
         ld (hl),a ;[0x0038] -> [oldimer]
         inc hl
         jp pe,swapimer0
-        ;jr $
 	ei
         ret
 oldimer
         jp on_int ;заменится на код из 0x0038
+        jp 0x0038+3
 
-        
 setpgs_code
 codepage4000=$+1
         ld a,0
@@ -1744,18 +1743,16 @@ on_int
 	pop hl
 	ld (on_int_sp2),sp
         ld (on_int_jp),hl
-	
 	ld sp,INTSTACK
-	
 	push af
 	push bc
 	push de
 
         if RESTOREPG16K
-        ld a,(CURPG16K) ;ok
+        ld a,(curpg16k) ;ok
         push af
         endif
-	
+
 imer_curscreen_value=$+1
          ld a,0
          ld bc,0x7ffd
@@ -1780,9 +1777,9 @@ on_int_sp=$+1
 	ld (0),hl ;восстановили запоротый стек
 
         if MULTITASKING
-        ld hl,on_int_q
-intjpaddr=$+1
-	ld (0),hl
+;        ld hl,on_int_q
+;intjpaddr=$+1
+;	ld (0),hl
         push ix
         push iy
         ex af,af'
@@ -1962,14 +1959,14 @@ sweep2shift0
         djnz sweep2shift0
 sweep2noshift
 	endif
-	
+
 	ld hl,SND_SQUARE2_REG+3
 	ld a,(hl)
         dec hl
         ld l,(hl)
 	and 7
         ld h,a
-	
+
 	if SWEEP
         ld a,(SND_SQUARE2_REG+1)
         or a
@@ -2278,8 +2275,11 @@ noisedecaycounter=$+1
 noisenoenddecay
 	 ld (SND_DECAYVOL+12),a
 noisenodecay
-	
 	endif
+
+        if MULTITASKING
+        call oldimer
+        endif
 
         if RESTOREPG16K
 ;curpg4000=$+1
@@ -2291,48 +2291,14 @@ noisenodecay
 	pop de
 	pop bc
 	pop af
-	
+
 on_int_hl=$+1
 	ld hl,0
-        if MULTITASKING==0
 on_int_sp2=$+1
 	ld sp,0
         ei
 on_int_jp=$+1
         jp 0
-        
-        else
-
-        ld sp,tempintstack
-        push de
-        ex de,hl
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        jp 0x0038+5
-
-;        dw 0
-;tempintstack=$ ;нельзя тут (ниже 0x3b00)
-
-;вход в стандартный обработчик:
-        ;ex de,hl ;de="hl", hl="de"
-        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        ;ld l,a
-;user_fdvalue6=$+1
-        ;ld a,fd_system
-        ;out (0xfd),a ;10 b
-
-on_int_q
-;на выходе из стандартного обработчика в стеке "de"
-;восстановим как надо
-on_int_sp2=$+1
-	ld sp,0
-on_int_jp=$+1
-	jp 0
-
-        endif
 
 SND_COUNTER
 SND_DECAYVOL=$+1

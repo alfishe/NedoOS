@@ -4,13 +4,13 @@ COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 
 ;from userkrnl.asm:
-CURPG16K=0x0045
-CURPG32KLOW=0x0048
-CURPG32KHIGH=0x004b
-user_scr0_low=0x0004
-user_scr0_high=0x0017
-user_scr1_low=0x0032
-user_scr1_high=0x0033
+curpg16k=0x0042
+curpg32klow=0x0048
+curpg32khigh=0x004e
+user_scr0_low=0x0017
+user_scr0_high=0x0035
+user_scr1_low=0x0036
+user_scr1_high=0x0037
 
 MAXPATH_sz=256;64
 DIRMAXFILENAME64=64

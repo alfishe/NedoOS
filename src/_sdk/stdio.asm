@@ -371,10 +371,14 @@ stdouthandle=$+1
         push hl
 ;чтобы избежать бесконечного YIELDKEEP с постоянным попаданием прерывания в керналь
 ;ограничим число YIELDKEEP, а потом будет YIELD
+         ld a,b
+         or c
+         jr z,sendchars_nofail ;NC
 sendchars_yieldkeepcount=$+1
         ld a,0
         add a,128
         ld (sendchars_yieldkeepcount),a
+sendchars_nofail ;NC
         ld c,CMD_YIELDKEEP
         jr nc,$+4
         ld c,CMD_YIELD

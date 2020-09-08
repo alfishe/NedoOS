@@ -6,11 +6,11 @@
 ;	ret m
 ;	ld (.rep_wait),a
 ;	ret
-		
-		
+
+
 ;--------------------------------------------------
 keyqueueput_codenolang
-	
+
 GETKEY
 .KEY_MODE_NONE		= 0x00
 .KEY_MODE_SHIFT		= 0x01
@@ -66,9 +66,9 @@ GETKEY
 		xor a
 		ld h,a
 		ld b,h
-		ld c,a	
+		ld c,a
 		ret
-		
+
 .not_zero
 		ld de,0
 		ld (KEY_PUTREDRAW.rep_key),de
@@ -90,16 +90,16 @@ GETKEY
 		cp 0xe0
 		jr c,.iskeycode
 		jr z,.isE0
-		ld a,.KEY_MODE_UP	
-.savemode_or				
-		or l				
-.savemode					
-		ld (.mode),a		
-		jr .noredraw		
+		ld a,.KEY_MODE_UP
+.savemode_or
+		or l
+.savemode
+		ld (.mode),a
+		jr .noredraw
 .isE0		
 		ld a,.KEY_MODE_E0
 		jr .savemode_or
-.iskeycode		
+.iskeycode
 		add 0xff&.scodes
 		ld e,a
 		ld a,0
@@ -108,6 +108,8 @@ GETKEY
 		ld a,(de)
 		or a
 		jr z,.zero_ret	;кнопка не поддерживается
+		 ;bit .bKEY_MODE_CTRL,l
+		 ;jr nz,.zero_ret ;Ctrl+F1 - это не F1
 		cp 64
 		jr nc,.not_simbol
 		ld b,a
@@ -150,7 +152,7 @@ GETKEY
 		ld h,b
 		res .bKEY_MODE_E0,l
 		ld (.mode),hl
-		ret	
+		ret
 .rus_decode
 		ld a,b
 		cp 33
@@ -164,13 +166,13 @@ GETKEY
 		ld a,.mod_sh-.mod_base
 .rus_not_sh
 		add a,b
-		add 0xff&.char_decode_ru
+		add a,0xff&.char_decode_ru
 		ld e,a
 		ld a,0
-		adc 0xff&(.char_decode_ru>>8)
+		adc a,0xff&(.char_decode_ru>>8)
 		ld d,a
 		ld a,(de)
-		jr .retsymb	
+		jr .retsymb
 .not_simbol
 		ld b,a
 		cp 128
@@ -183,15 +185,17 @@ GETKEY
 		jr nz,.unmod_no_lock
 		add .unmod_sh-.unmod
 .unmod_no_lock
-		add 0xff&.unmod_decode
+		add a,0xff&.unmod_decode
 		ld e,a
 		ld a,0
-		adc 0xff&(.unmod_decode>>8)
+		adc a,0xff&(.unmod_decode>>8)
 		ld d,a
 		ld a,(de)
 		ld c,a
-		jr .retsymb		
-.is_mode_key		
+		 bit .bKEY_MODE_SHIFT,l
+		 jp nz,.zero_ret ;Shift+F1 - это не F1
+		jr .retsymb
+.is_mode_key
 		cp 64
 		jr nz,.not_shift_key
 		ld a,l
@@ -215,7 +219,7 @@ GETKEY
 		ld a,l
 		and ~.KEY_MODE_E0
 		jp .savemode
-			
+
 .keypressmode
 		cp 0xe0
 		jp z,.noredraw

@@ -21,7 +21,7 @@
 	FUNCTION "PUTPIXEL"
         FUNCHEAD putpixelsz
 	call arghak
-        ld a,(CURPG32KLOW) ;ok
+        ld a,(curpg32klow) ;ok
         push af
         ld a,(arg3) ;color
         ld e,a

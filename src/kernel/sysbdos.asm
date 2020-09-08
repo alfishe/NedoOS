@@ -1011,6 +1011,7 @@ BDOS_yield
 BDOS_yieldgo
          ld (iy+app.lasttime),a
 ;регистры не сохраняем, т.к. нам не важно, что на выходе из yield
+        if 1==1
 ;но надо:
 ;взять адрес стека для выхода из CALLBDOS и записать его в ld sp на выходе из обработчика прерываний
 ;взять адрес возврата из CALLBDOS и записать его в jp на выходе из обработчика прерываний
@@ -1025,24 +1026,28 @@ BDOS_yieldgo
         exx
         endif
 
-        call setmainpg_c000
+        ;call setmainpg_c000
          ;halt ;проверка на вшивость
-        ld (intsp+0xc000),hl
+        ;ld (intsp+0xc000),hl
 
-        ex de,hl
-        call BDOS_preparedepage
-        call BDOS_setdepage ;включается сразу 2 страницы на случай sp на границе страниц
-        ex de,hl
+        ;ex de,hl
+        ld de,-6
+        add hl,de ;место в стеке под 3 рег.пары (а потом адрес возврата из bdos)
+        ld (iy-2),l
+        ld (iy-1),h ;sp в описателе текущей задачи
+        ;call BDOS_preparedepage
+        ;call BDOS_setdepage ;включается сразу 2 страницы на случай sp на границе страниц
+        ;ex de,hl
+         ;halt ;проверка на вшивость        
+        ;ld e,(hl)
+        ;inc hl
+        ;ld d,(hl) ;вместо адреса возврата из bdos
+
+        ;call setmainpg_c000
          ;halt ;проверка на вшивость
+        ;ld (intjp+0xc000),de ;TODO при многозадачности в кернале это надо делать атомарно вместе с записью sp!
+        endif
         
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-
-        call setmainpg_c000
-         ;halt ;проверка на вшивость
-        ld (intjp+0xc000),de ;TODO при многозадачности в кернале это надо делать атомарно вместе с записью sp!
-
         ;ld a,pgkillable
         ;call sys_setpgc000
         ;call sys_setpg8000
@@ -1056,7 +1061,6 @@ BDOS_yieldgo
 ;не выходим из CALLBDOS, взамен шедулим и выходим через конец обработчика прерываний
 
 BDOS_yield_q
-        ;di ;TODO critical section
 
 ;        push iy
         call schedule ;out: iy=app ;можно с включенными прерываниями, пока системный обработчик не умеет шедулить
@@ -1070,14 +1074,7 @@ BDOS_yield_q
 ;        ld (appaddr),iy
 ;BDOS_yield_nosame
         
-        di ;TODO critical section
-
-;если сейчас не поставить палитру второй задаче, то она никогда не поставится, если первая задача в цикле делает yield
-;потому что все прерывания будут ставить первую задачу
-        ;ld hl,(appaddr)
-        ;ld iy,(appaddr)
-        ;call iffocus_setgfx ;могут быть проблемы с выставлением палитры, если yield вызывать в случайных местах или если все задачи неактивны
-;поэтому обработчик прерываний должен выставлять палитру задачи, которая в фокусе, независимо от её активности
+        ;di ;TODO critical section
         
         jp sys_int_popregs ;там ei
         

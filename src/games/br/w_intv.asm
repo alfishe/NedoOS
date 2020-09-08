@@ -170,9 +170,9 @@ INAR0	;Обр прерываний
 	LD A,(R128)
 	LD (IR128),A
         if EGA
-        ld a,(curpg4000)
+        ld a,(curpg16k) ;ok
         push af
-        ld a,(curpg8000)
+        ld a,(curpg32klow) ;ok
         push af
         ld a,(pgmain4000)
         SETPG16K
@@ -261,10 +261,10 @@ IR128=$+1
          ;pop af
          ;ld (curscrnum),a
         pop af ;ld a,(curpg8000)
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
         pop af ;ld a,(curpg4000)
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
         endif
 	POP IY

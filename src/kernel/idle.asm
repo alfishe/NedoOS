@@ -140,11 +140,11 @@ idle_runcmd
         
         ;push af
         ;ld b,a
-pipehandles=$+1
-pipe1handle=$+1
-pipe2handle=$+2
-        ld de,0
-        ld h,0xff ;rnd
+;pipehandles=$+1
+;pipe1handle=$+1
+;pipe2handle=$+2
+         ;ld de,0
+         ;ld h,0xff ;rnd
 ;b=id, e=stdin, d=stdout, h=stderr        
         ;OS_SETSTDINOUT
         
@@ -160,16 +160,16 @@ pipe2handle=$+2
         
         call idle_readapp ;делает CLOSE
         
-        push af
-        ld b,a
-        ld hl,(pipehandles)
-        ld d,l
-        ld e,h
-        ld h,0xff ;rnd
+         ;push af
+         ;ld b,a
+         ;ld hl,(pipehandles)
+         ;ld d,l
+         ;ld e,h
+         ;ld h,0xff ;rnd
 ;b=id, e=stdin, d=stdout, h=stderr        
-        OS_SETSTDINOUT
-        
-        pop af ;id
+         ;OS_SETSTDINOUT
+         ;pop af ;id
+
         ld e,a
         ;jr $
         OS_RUNAPP

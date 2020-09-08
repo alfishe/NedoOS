@@ -44,7 +44,6 @@ sys_newapp_forBDOS2
          add hl,bc
          ex de,hl
          ld bc,5;DIR_sz
-         ;jr $
          ldir ;копировать текущий vol и dircluster
         call BDOS_getmainpages_iy
         pop bc ;b=id
@@ -70,11 +69,10 @@ sys_newapp
         ;TODO next
         ld a,e
         inc a
+       push af
         call z,BDOS_newpage_iy
         ld (iy+app.mainpg),e
 
-        ;ld bc,memportc000
-        ;out (c),e
         ld a,e
         call sys_setpgc000
 
@@ -82,8 +80,11 @@ sys_newapp
         ld de,0+0xc000
         ld bc,userkernel_sz
         ldir
+       pop af
+       jr nz,sys_newapp_nokillcmdline ;for idle
         xor a
         ld (0xc000+COMMANDLINE),a ;command line
+sys_newapp_nokillcmdline
         call disablescreeninapp
         
         call BDOS_newpage_iy
@@ -95,6 +96,10 @@ sys_newapp
         call BDOS_newpage_iy
         ld a,e
         ld (curpg32khigh+0xc000),a
+
+        call sys_setpgc000
+        ld hl,0x0100
+        ld (0xfffe),hl ;адрес выхода
         
         ld (iy+app.curcolor),7
         ld (iy+app.screen),fd_user
@@ -117,19 +122,20 @@ sys_newapp
         ;call BDOS_setvol_rootdir ;требует PGFATFS
 		ld a,(SYSDRV_VAL)
          ld (iy+app.vol),a	;SYSDRV ;TODO брать драйв от текущего app
-         ;xor a
-         ld (iy+app.dircluster),b;a
-         ld (iy+app.dircluster+1),b;a
-         ld (iy+app.dircluster+2),b;a
-         ld (iy+app.dircluster+3),b;a
+         ld (iy+app.dircluster),b;0
+         ld (iy+app.dircluster+1),b;0
+         ld (iy+app.dircluster+2),b;0
+         ld (iy+app.dircluster+3),b;0
 
-        ld (iy+app.border),b;a
+        ld (iy+app.border),b;0
 
-        ld a,(iy+app.mainpg)
-        ld (iy-safestack_sz+1),a
-        ld a,(iy+app.screen)
-        ld (iy-safestack_sz+7),a
-        
+        ;ld a,(iy+app.mainpg)
+        ;ld (iy-safestack_sz+1),a
+        ;ld a,(iy+app.screen)
+        ;ld (iy-safestack_sz+7),a
+        ld (iy-2),0xf8
+        ld (iy-1),0xff ;sp=-8 в описателе задачи (там 3 рег.пары и адрес выхода)
+        ;jr $
         ret
         
 makeidle
@@ -139,8 +145,8 @@ makeidle
         ld e,pgtrdosfs ;pgidle
         ld hl,0xc1c0
         call sys_newapp
-        ld a,'i' ;idle
-        ld (0xc000+COMMANDLINE),a ;command line
+        ;ld a,'i' ;idle
+        ;ld (0xc000+COMMANDLINE),a ;command line
          ;ld (iy+app.vol),SYSDRV ;есть в самом idle
         set factive,(iy+app.flags)
         ret

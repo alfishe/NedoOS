@@ -14,8 +14,8 @@ Capabilities
   May open up to 8 files on FAT, up to 8 files on TR-DOS, and up to 8 pipes between tasks at the same time.
 * программе пользователя доступна вся память 0x0100..0xffff, причём все 16K окна можно щёлкать через вызовы ОС (см. ниже). Файловые операции и передача данных в BDOS могут вестись по любому адресу в userspace.
   User program can access the whole memory 0x0100..0xffff, any 16K window can be switched via OS calls (see below). File operations and BDOS data transfer can be done at any address in userspace.
-* системный обработчик прерываний не портит стек, восстанавливает 2 байта из DE. Программа пользователя может легко переставлять стек.
-  System interrupt handler doesn't spoil stack, the two bytes spoiled by hardware are restored from DE. User programs can move stack pointer.
+* программа пользователя может заменить обработчик прерываний (например, для восстановления содержимого стека) и переставлять стек.
+  User programs can change interrupt handler (for example, to restore stack data) and move stack pointer.
 * графический редактор Scratch, плейеры NedoPlayer и modplay, текстовый редактор texted, монтировщик образов дисков dmm, запускатель/переключатель снапшотов nmisvc, компилятор NedoLang, ассемблер NedoAsm, бейсик NedoBasic, просмотрщик картинок NedoView, разархиваторы *.zip, *gz, *.rar, *.tar, архиваторы *.rar и *.tar, сетевые утилиты (NedoBrowser, dmirc, dmftp, netterm и др.), игры...
   Gfx editor Scratch, music players NedoPlayer and modplay, text editor texted, disk image mounter dmm, snapshot runner/switcher nmisvc, compiler NedoLang, assembler NedoAsm, basic interpreter NedoBasic, picture viewer NedoView, decompressors for *.zip, *gz, *.rar, *.tar, archivers for *.rar and *.tar, network utilities (NedoBrowser, dmirc, dmftp, netterm etc.), games...
 
@@ -448,10 +448,9 @@ SETPG32KHIGH (0x0028) - включить страницу A в 0xc000 (портит регистр BC). Номер 
 см. sys_h.asm
 
 Вход в стандартный обработчик прерываний выглядит так:
-        ex de,hl ;de="hl", hl="de"
-        ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-        ld (intjp),hl
-Потом сохраняется sp, а дальнейшая работа идёт в другом стеке. Так получается не запороть стек программы, кроме 2 байт, в которые кладётся de.
+        push af
+        push bc
+        push de
 
 Как перехватывать обработчик прерываний в вашей программе:
 - замените 3 байта по адресу 0x0038 на jp <адрес вашего обработчика>, а адрес intjp возьмите из 0x0038+3 и скопируйте к себе.
@@ -474,20 +473,31 @@ swapimer0
         ret
 oldimer
         jp on_int ;заменится на код из 0x0038
-- ваш обработчик прерываний должен начинаться так же, как стандартный, а заканчиваться jp 0x0038+5.
+        jp 0x0038+3
+- ваш обработчик прерываний должен вызывать oldimer.
 Например:
 on_int
         ex de,hl ;de="hl", hl="de"
         ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-intjpaddr=$+1
-	ld (0),hl
+	ld (on_int_jp),hl
         ld (on_int_sp),SP
 	ld sp,INTSTACK ;чтобы не запортить стек
+        push af
+        push bc
+        push de ;"hl"
 	...
+        call oldimer ;ei
+        ...
+        pop de ;"hl"
+        pop bc
+        pop af
 on_int_sp=$+1
 	ld sp,0
 ;de="hl", в стеке "de"
-        jp 0x0038+5
+        pop de
+        ;ei
+on_int_jp=$+1
+        jp 0
 - не пользуйтесь YIELD, пользуйтесь вместо него HALT. Иначе прерывание уйдёт в другую задачу, а там другой обработчик прерываний.
 - функции NedoOS (кроме переключения страниц) вызывайте либо в обработчике прерываний, либо непосредственно после HALT.
 - если вы просто устанавливаете свой проигрыватель музыки, используйте OS_SETMUSIC, при этом можно игнорировать предыдущие два пункта (музыка будет работать всё равно).

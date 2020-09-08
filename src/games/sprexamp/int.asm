@@ -1,7 +1,5 @@
 swapimer
 	di
-         ld hl,(0x0038+3) ;адрес intjp
-         ld (intjpaddr),hl        
         ld de,0x0038
         ld hl,oldimer
         ld bc,3
@@ -16,22 +14,18 @@ swapimer0
         ret
 oldimer
         jp on_int ;заменится на код из 0x0038
+        jp 0x0038+3
 
 on_int
 ;restore stack with de
         EX DE,HL
 	EX (SP),HL ;de="hl", в стеке "de"
-intjpaddr=$+1
-	LD (0),hl ;(on_int_jp),HL
-	;EX DE,HL
-	;POP DE
+	LD (on_int_jp),HL
 	LD (on_int_sp),SP
 	LD SP,INTSTACK
-        
         push af
         push bc
-        push de
-        push hl
+        push de ;"hl"
         exx
         ex af,af'
         push af
@@ -44,6 +38,8 @@ intjpaddr=$+1
 curscrnum_int=$+1
         ld e,0
         OS_SETSCREEN
+        
+        call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!
         
         GET_KEY
         ld a,c ;кнопка без учёта языка
@@ -90,18 +86,16 @@ curscrnum_int=$+1
 ;1 - Left (5)
 ;0 - Right (8) 
 	;CALL .. ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
-        ld a,(CURPG16K) ;ok ;(curpg4000)
+        ld a,(curpg16k) ;ok
         SETPG16K
-        ld a,(CURPG32KLOW) ;ok ;(curpg8000)
+        ld a,(curpg32klow) ;ok
         SETPG32KLOW
-;curpgc000=$+1
-;        ld a,0
-        ld a,(CURPG32KHIGH) ;ok
+        ld a,(curpg32khigh) ;ok
         SETPG32KHIGH
 
         ld hl,timer
         inc (hl)
-        
+
         pop iy
         pop ix
         pop hl
@@ -111,31 +105,14 @@ curscrnum_int=$+1
         ex af,af'
         exx
         pop hl
-        pop de
         pop bc
-        pop af
-        
+        pop af        
 on_int_sp=$+1
 	ld sp,0
-;	EI
-;on_int_jp=$+1
-;	jp 0
-        ;push de
-        ;ex de,hl
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        jp 0x0038+5
-
-;вход в стандартный обработчик:
-        ;ex de,hl ;de="hl", hl="de"
-        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        ;ld l,a
-;user_fdvalue6=$+1
-        ;ld a,fd_system
-        ;out (0xfd),a ;10 b
+        pop de
+	ei
+on_int_jp=$+1
+	jp 0
 
 timer
         db 0

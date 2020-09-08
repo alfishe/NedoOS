@@ -475,7 +475,7 @@ INIT_setpg_c000
         LD BC,memportc000 ;page for 0xc000..0xffff
         OUT (C),A
         ret
-		
+
 		ifn atm==1
 findpgdos
 ;если не найти страницу текущего доса, то на старых версиях ПЗУ ZX Evo не будет работать (в странице 0x83 почему-то не дос по умолчанию)
@@ -652,7 +652,7 @@ dos3d13_resident  ;=$-wasresident+resident
 	exx	;pop hl,de,bc
 	ex af,af'
 	jp      0x3D13
-	
+
 ONERR
 	ex      (sp),hl
 	push    af
@@ -670,7 +670,7 @@ em3d13_error
 	ld      a,0xff
 	ld (0x5d0f),a
 em3d13pp_ret
-	
+
 em3d13_de_st=$+1
     ld de,0	;e=gfxmode
 	di
@@ -681,7 +681,7 @@ dos3d13_sp_st=$+1	;-wasresident+resident
 	ld sp,0
 	ld a,(0x5d0f)	;возврат ошибки
 	ret
-		
+
 	ifn atm==1
 NVRAM_REG=0xdf
 NVRAM_VAL=0xbf
@@ -745,13 +745,13 @@ readtime  ;=$-wasresident+resident
     call bcd2bin
     ld l,a
     
-    ld a,8		;mes
+    ld a,8		;month
     call bcd2bin
     call minmes
     add a,l
     ld l,a
     
-    ld a,9		;god
+    ld a,9		;year
     call bcd2bin
     add a,20
     add a,a

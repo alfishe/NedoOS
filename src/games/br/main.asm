@@ -76,8 +76,8 @@ R128
 
 swapimer
 	di
-         ld hl,(0x0038+3) ;адрес intjp
-         ld (intjpaddr),hl        
+         ;ld hl,(0x0038+3) ;адрес intjp
+         ;ld (intjpaddr),hl        
         ld de,0x0038
         ld hl,oldimer
         ld bc,3
@@ -92,39 +92,24 @@ swapimer0
         ret
 oldimer
         jp on_int ;заменится на код из 0x0038
+        jp 0x0038+3
 
 on_int
 ;restore stack with de
         EX DE,HL
 	EX (SP),HL
-intjpaddr=$+1
-	LD (0),hl ;(on_int_jp),HL
-	;EX DE,HL
-	;POP DE
+	LD (on_int_jp),HL
+	EX DE,HL
 	LD (on_int_sp2),SP
 	LD SP,DBL_SP
 	CALL INAR0
+        call oldimer ;ei
 on_int_sp2=$+1
 	ld sp,0
-;	EI
-;on_int_jp=$+1
-;	jp 0
-        ;push de
-        ;ex de,hl
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        jp 0x0038+5
-
-;вход в стандартный обработчик:
-        ;ex de,hl ;de="hl", hl="de"
-        ;ex (sp),hl ;hl=адрес выхода, de="hl", в стеке "de"
-        ;ld (intjp),hl ;TODO писать не прямо в intjp, а в промежуточную локацию (иначе хвост обработчика нельзя с ei - он сам не может сменить режим обработки прерывания после jp)
-;(intjp)=адрес выхода
-;de="hl", в стеке "de"
-        ;ld l,a
-;user_fdvalue6=$+1
-        ;ld a,fd_system
-        ;out (0xfd),a ;10 b
+        pop de
+	EI
+on_int_jp=$+1
+	jp 0
 
 
         align 256 ;0x200
@@ -136,7 +121,7 @@ ttexpgs
         include "wlid.asm"
         include "wmisc_4.asm"
 br_path
-		defb "br",0
+	defb "br",0
 begingo
         ld sp,STACK
         OS_HIDEFROMPARENT
@@ -197,6 +182,7 @@ waitcls0
         OS_NEWPAGE
         ld a,e
         ld (pgfake),a
+        ld (pgfake2),a
         endif
 
         if 1==1
@@ -528,29 +514,29 @@ noprspr
 setpgsmain40008000
 pgmain4000=$+1
         ld a,0
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
 pgmain8000=$+1
         ld a,0
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
         ret
 
 setpgsscr40008000_current
         call getuser_scr_low_cur
-        ld (curpg4000),a ;TODO kill
+        ;ld (curpg4000),a ;TODO kill
         SETPG16K
         call getuser_scr_high_cur
-        ld (curpg8000),a ;TODO kill
+        ;ld (curpg8000),a ;TODO kill
         SETPG32KLOW
         ret
 
 setpgsscr40008000
         call getuser_scr_low
-        ld (curpg4000),a ;TODO kill
+        ;ld (curpg4000),a ;TODO kill
         SETPG16K
         call getuser_scr_high
-        ld (curpg8000),a ;TODO kill
+        ;ld (curpg8000),a ;TODO kill
         SETPG32KLOW
         ret
 
@@ -607,22 +593,19 @@ curscrnum=$+1
         ret
         
 changescrpg
-        ;jr $
         call changescrpg_current
-        ;ld (curscrnum_physical),a
 	ld e,a
 	OS_SETSCREEN
         ret
         
 copyscreen
-        display "-",$
         call setpgsscr40008000
         ;ld a,(setpgs_scr_scrxor)
         ;ld hl,setpgs_scr_low
         ;xor (hl)
         ;push af
          call getuser_scr_low_cur
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
         ld hl,0x8000
         ld de,0x4000
@@ -633,7 +616,7 @@ copyscreen
         ;ld a,(setpgs_scr_pgxor)
         ;xor b
          call getuser_scr_high_cur
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
         ld hl,0x4000
         ld de,0x8000
@@ -641,8 +624,6 @@ copyscreen
         ldir
         jp setpgsmain40008000
         
-;curscrnum_physical
-;        db 0
         endif
 
         if EGA
@@ -775,7 +756,6 @@ MDIVB	RLA
         
         if EGA
 prspr
-        ;jr $
 ;в 4000,8000 уже включен экран (setpgsscr40008000)
 ;найти адрес, ширину, высоту спрайта по ID, phase + включить страницу в 0xc000
 ;...
@@ -812,9 +792,9 @@ prspr
         ld hx,a ;число отрезанных слева столбцов
         push bc
         ld a,(pgfake)
-        ld (curpg4000),a
+        ;ld (curpg4000),a
         SETPG16K
-        ld (curpg8000),a
+        ;ld (curpg8000),a
         SETPG32KLOW
 ;hl будет вычислен с ошибкой +64
         pop bc
@@ -954,8 +934,8 @@ prsprcolumnpatch2=$-2
          ;выход по границе экрана
 ;10+11+15+14 = 40t (+5+9)
 ;это может быть граница фальшивого экрана! надо иметь возможность продолжить (с hl-64 из-за ошибки адреса при отрицательных x?)
-        ld a,(pgfake)
-curpg4000=$+1
+        ld a,(curpg16k) ;ok
+pgfake2=$+1
         cp 0
         jp nz,prsprqright ;действительно выход по правой границе
 ;был фальшивый экран для клипирования по левой границе, продолжаем на настоящем экране
@@ -1007,7 +987,6 @@ prsprcropbottom
         
         ld a,(iy-4) ;sprwid
         cp hx ;расстояние до правого края экрана
-        ;display "---",$
         jr nc,prsprcropygo;_cropx ;берём меньшее из sprwid и расстояния до правой границы экрана
         ld hx,a ;столько столбцов выведем
         jp prsprcropygo
@@ -1236,8 +1215,7 @@ prsprNpatch=$+1
         jp PRSPR24
         
 prsprNmaybeqright
-curpg8000=$+1
-        ld a,0
+        ld a,(curpg32klow) ;ok
 pgfake=$+1
         cp 0
         jp nz,prsprqright ;действительно выход

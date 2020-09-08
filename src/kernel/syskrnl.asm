@@ -95,29 +95,31 @@ sys_timer
         ds 0x0038-$
         jp sys_sysint
 
-        ds 0x0038+9-$ -4
+        ds 0x0038+7-$ -2
 sys_intq
-;di
+;[di]
 ;bc=memport0000
 ;d=pgmain
-;e=значение для аккумулятора
+;[e=значение для аккумулятора]
 ;a=screenpg
 ;iy="iy"
-        ld sp,INTMICROSTACK
+        ;ld sp,INTMICROSTACK
         out (0xfd),a ;дальше попадаем в init_resident
 ;sp=INTMICROSTACK
 ;bc=memport0000
 ;d=pgmain
-;e=значение для аккумулятора
-;di
+;[e=значение для аккумулятора]
+;[di]
+;выход в конец юзерского обработчика прерываний
 
-        ds 0x0038+14-$ -4
+;вход из начала юзерского обработчика прерываний
+        ;ds 0x0038+14-$ -4
         ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
         jp sys_intgo ;нужно, чтобы можно было ставить точку останова на 0x0100
 
-        ds 0x0100 ;stack for CP/M programs
+        ds 0x0100-$ ;stack for CP/M programs
         
-safestack_sz=18
+safestack_sz=16;18
         STRUCT app
 flags           BYTE ;флаги (всегда в начале структуры)
 ;priority        BYTE ;TODO приоритет (0=конец списка)
@@ -162,80 +164,59 @@ app_last=app_afterlast-app_sz
         display "app_last=",/h,app_last
 
 sys_intgo
-        ld (sys_int_iy),iy
-appaddr=$+2
-        ld iy,app1
-         ld (sys_intsp),sp
-        ld sp,iy ;safestack_end
-         push af ;skipped
+        ex de,hl
+        ld hl,0
+        add hl,sp
+appaddr=$+1
+        ld sp,app1 ;safestack_end
+        push hl ;"sp"
+        push de ;"hl"
+        push iy
         exx
         push bc
         push de
         push hl
-	push ix
-        ;ld a,(iy+app.screen)
-        push af ;f, [a=screenpg]
-	ex af,af'
-	push af
-         exx
-        ld h,(iy+app.mainpg)
-	push de ;"hl"
-        push hl ;[h=mainpg,]l="a"
+        push ix
+        ex af,af'
+        push af
 
-        ld sp,iy
-sys_int_iy=$+1
-        ld de,0
-        push de
-
-        ld d,b
-         ld e,c
         ld bc,memport4000
-         out (c),h
-         ld (INTMICROSTACK+0x4000),de ;"bc"
-sys_intsp=$+1
-         ld hl,0
-         ld (intsp+0x4000),hl ;"sp"
         ld a,pgtrdosfs;pagexor-5
         out (c),a ;там INTSTACK
-
-;sys_int_schedule_and_go
         ld sp,INTSTACK2
-
         call setgfxpal_focus
-
         call on_int ;тикает таймер
-
         call schedule ;out: iy=app
-
-sys_int_popregs
         ld a,pgkillable
         ld bc,memport4000
         ld (sys_curpg4000),a ;не надо? (если di)
         out (c),a
 
-;sys_int_popregs
+sys_int_popregs ;только для выхода из yield
+;iy=app
         ld de,-safestack_sz
         add iy,de
-        ld sp,iy
+        ld sp,iy ;di!!!
 
-	pop de ;[d=mainpg,]e="a"
-        ld d,(iy+app.mainpg+safestack_sz)
-	pop hl ;"hl"
-        ld bc,memport0000
-         exx
-	pop af
-	ex af,af'
-        pop af ;f, [a=screenpg]
-         ld ix,(focusappaddr) ;здесь снова, т.к. возможен вход из yield в sys_int_popregs (или надо дублировать там и гарантировать, что schedule и on_int не портят ix)
-         ld a,(ix+app.screen)
-	pop ix
+        pop af
+        ex af,af'
+        pop ix
         pop hl
         pop de
         pop bc
         exx
+        ld d,(iy+app.mainpg+safestack_sz)
+        ld iy,(focusappaddr)
+        ld a,(iy+app.screen)
         pop iy
+        pop bc ;"hl"
+        pop hl ;"sp"
+        ld sp,hl
+        ld h,b
+        ld l,c
+        ld bc,memport0000
         ;TODO освободить мьютекс, можно включить прерывания
-        jp sys_intq
+        jp sys_intq ;out (0xfd),a ;дальше попадаем в init_resident
 
 schedule
 ;find next app, set iy
@@ -289,30 +270,8 @@ setgfxpal_focus
 ;потому что все прерывания будут ставить первую задачу
 ;если же палитру ставить в самом yield, то могут быть проблемы с выставлением палитры, если yield вызывать в случайных местах или если все задачи неактивны
 ;поэтому обработчик прерываний должен выставлять палитру и видеорежим задачи, которая в фокусе, независимо от её активности
-
-        ;ld de,(focusappaddr)
-        ;or a
-        ;sbc hl,de
-        ;jp nz,sys_int_nofocus
-        ;add hl,de ;appaddr
-        ;ld a,(iy+app.gfxmode)
-        ;ld (sys_curgfxmode),a
-;sys_int_nofocus
-        
-        ;TODO в момент переключения на focusapp (т.е. на предыдущем фрейме не было фокуса)
-        ;;push iy
-        ;;ld iy,(focusappaddr)
-        ;call restoretextmode
-        ;;pop iy
-
+;TODO менять палитру только после смены фокуса или записи палитры
         ld hl,(focusappaddr)
-        ;ld bc,app.gfxmode
-        ;add hl,bc
-        ;ld a,(hl)
-        ;ld bc,0xbd77
-        ;out (c),a ;set gfx mode
-        
-        ;ld hl,(focusappaddr)
         ld bc,app.pal+31 ;-app.gfxmode
         add hl,bc
         
@@ -527,7 +486,6 @@ findnextgfxappq
         ;pop iy
         
 sys_int_noselectapp
-
 muzpg=$+1
         ld a,pgkillable
         ld bc,memport4000
@@ -749,11 +707,12 @@ setkernelpages_go
 ;setkernelpages_go_iy
         ;ld sp,BDOSSTACK
         call setpgs_killable
+        ld sp,-8
 
         ;ld iy,(appaddr)
         ld d,(iy+app.mainpg)
 ;d=pgmain
-;e=значение для аккумулятора
+;[e=значение для аккумулятора]
         ld bc,memport0000
         ld a,(iy+app.screen)
         jp sys_intq ;там ei
