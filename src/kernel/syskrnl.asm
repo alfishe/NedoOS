@@ -270,11 +270,17 @@ setgfxpal_focus
 ;потому что все прерывания будут ставить первую задачу
 ;если же палитру ставить в самом yield, то могут быть проблемы с выставлением палитры, если yield вызывать в случайных местах или если все задачи неактивны
 ;поэтому обработчик прерываний должен выставлять палитру и видеорежим задачи, которая в фокусе, независимо от её активности
-;TODO менять палитру только после смены фокуса или записи палитры
+;менять палитру только после смены фокуса или записи палитры
+palettechanged=$
+        or a
+        jp c,focusappborder
+        ld a,55 ;"scf"
+        ld (palettechanged),a
+
         ld hl,(focusappaddr)
         ld bc,app.pal+31 ;-app.gfxmode
         add hl,bc
-        
+
         ld c,0xff
         ld a,7
         dup 8
@@ -301,7 +307,7 @@ setgfxpal_focus
         dec hl
         ld b,(hl) ;DDp palette low bits
         OUT (c),d;(0xFF),A
-;focusappborder
+focusappborder
          ld ix,(focusappaddr)
          ld a,(ix+app.border)
          cp 8
@@ -477,6 +483,7 @@ findnextgfxappskip
         ld hl,app1
 findnextgfxappq
         ld (focusappaddr),hl
+        call setpalettechanged
         ;включить страницы экрана этой задаче
         ;push iy
         push hl

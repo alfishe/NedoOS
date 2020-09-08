@@ -223,7 +223,12 @@ BDOS_setpal
         ex de,hl
         ld bc,32
         ldir
-        xor a
+        ;call setpalettechanged
+        ;xor a
+        ;ret
+setpalettechanged
+        ld a,55+128 ;"or a"
+        ld (palettechanged),a
         ret
         
 BDOS_scroll_prepare
@@ -1236,6 +1241,7 @@ BDOS_setgfx
         ld hl,(focusappaddr)
         ld (oldfocusappaddr),hl ;TODO стек фокусов (чтобы после закрытия задачи вернуть фокус вызвавшей)
         ld (focusappaddr),iy
+        call setpalettechanged
 BDOS_setgfx_nopushfocus        
         set fgfx,(iy+app.flags)
         ld e,(iy+app.gfxmode)
@@ -1307,6 +1313,7 @@ sys_quit_findgfxapp0
         jr z,sys_quit_findgfxapp0
 sys_quit_findgfxappq
         ld (focusappaddr),hl
+        call setpalettechanged
         push hl
         pop iy
         call enablescreeninapp_setc000 ;включить экран в переменные этой задачи

@@ -641,11 +641,11 @@ filemenu_exitsp=$+1
         ;ld hl,workpalend
         ;call setpalhl
         jp showworkscreen
-        
+
 filemenu_quit
 ;TODO проверить, сохранены ли картинки
         QUIT
-        
+
 file_control_keys
         ld a,(key)
         cp cs6
@@ -954,7 +954,8 @@ filemenu_invarrzone
         ld de,8*256 + filelistwid8 ;d=hgt ;e=wid/8
 filemenu_invarrzone_invert
         call setpgshapes
-        call getcontrastcolors ;ld ix,0xff00
+        ;call getcontrastcolors
+        ld ix,0xff00
         jp shapes_invbox
         
 filemenu_isitfilename
