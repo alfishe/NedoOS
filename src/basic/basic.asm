@@ -533,6 +533,12 @@ editcmd0
         jr z,editcmd_left
         cp key_right
         jr z,editcmd_right
+        cp key_home
+        jr z,editcmd_home
+        cp key_end
+        jr z,editcmd_end
+        cp key_del
+        jr z,editcmd_del
         ;cp key_up
         ;jr z,editcmd_up
         cp 0x20
@@ -561,6 +567,12 @@ editcmd_backspace
         call strdelch ;удаляет предыдущий символ
         jr editcmdok
       
+editcmd_del
+        call cmdcalctextaddr ;hl=addr, a=curcmdx
+        inc hl
+        call strdelch ;удаляет предыдущий символ
+        jr editcmdok
+
 editcmd_left
         ld a,(curcmdx)
         or a
@@ -568,15 +580,25 @@ editcmd_left
         dec a
         ld (curcmdx),a
         jr editcmdok
-      
+
 editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
         jr z,editcmdok ;некуда право, стоим на терминаторе
         inc a
+editcmd_leftq
         ld (curcmdx),a
         jr editcmdok
+
+editcmd_home
+        xor a
+        jr editcmd_leftq
+editcmd_end
+        ld hl,cmdbuf
+        call strlen ;hl=length
+        ld a,l
+        jr editcmd_leftq
 
 ;editcmd_up
 ;        ld de,cmdbuf
