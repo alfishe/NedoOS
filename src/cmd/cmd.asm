@@ -59,8 +59,8 @@ cmd_begin
         call makeprompt ;иначе запустится из неправильной директории
         
         call execcmd_maybepipes ;can show errors ;a!=0: no such internal command
-        or a
-        call nz,callcmd;strcpexec_tryrun ;запускает по фону
+        ;or a
+        ;call nz,callcmd;strcpexec_tryrun ;запускает по фону
         YIELD ;чтобы запущенная задача успела захватить фокус ;???
 ;если командная строка была со словом autoexec.bat в параметре, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
         ld hl,tautoexecbat
