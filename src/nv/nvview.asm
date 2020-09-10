@@ -159,7 +159,7 @@ nvview_hexeditor
         ld (hexaddrline),hl
         ld hl,0
         ld (hexcuraddrxy),hl
-        jp nvview_hexeditor_redrawloop
+        jp hexeditor_redrawloop
 nvview_hexeditorq
         call nvview_calclines
         ld hl,(hexaddrline)
@@ -262,6 +262,8 @@ nvview_up
         pop hl
         pop af
         call nvview_prline
+         ld de,24*256+79
+         call nv_setxy ;avoid cursor at 0x0100
         call deccurline
         ld hl,(curbottomtextaddr)
         ld a,(curbottomtextHSB)
@@ -941,7 +943,7 @@ unreservepage_fail
         ret ;nz
         
 ahl_to_pgaddr
-;keeps bc
+;keeps bc,de
 ;counts physical hl
         rl h
         rla

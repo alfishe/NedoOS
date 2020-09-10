@@ -15,7 +15,6 @@ prwindow_edit
         scf
         ret
 
-
 prwindow_waitkey
 ;hl=window
 ;out: CY=OK
@@ -45,7 +44,6 @@ prwindow_waitkey0
 prwindow_waitkey_keyyes
         scf
         ret
-
 
 upwindow_text
 	ld a,0
@@ -223,8 +221,6 @@ processfiles
 ;hl = procedure address (uses hl=fcb, hl'iy = accumulator)
 ;out: hl'hl = result
 	ld (processfiles_proc),hl
-	;ld a,(ix+PANEL.pg)
-	;SETPG32KHIGH
 
         call nv_getpanelfiles_bc
 
@@ -374,7 +370,7 @@ nv_setxy
         pop hl
         pop de
         ret
-        
+
 setpanelcolor
 	ld de,_PANELCOLOR
 nv_setcolor
@@ -385,7 +381,7 @@ nv_setcolor
         pop ix
         pop hl
         ret
-        
+
 getfcbaddrundercursor
         call nv_getdirpos_hl
 getfcbaddrunderhl
@@ -393,11 +389,7 @@ getfcbaddrunderhl
 	;ld a,(ix+PANEL.pg)
 	;SETPG32KHIGH
         ex de,hl
-        ;ld l,(ix+PANEL.pointers)
-        ;ld h,(ix+PANEL.pointers+1)
-	;add hl,de
-	;add hl,de
-        call gotofilepointer_numberde
+        call gotofilepointer_numberde ;hl=file pointer
 	;ld a,(hl)
 	;inc hl
 	;ld h,(hl)
@@ -405,7 +397,7 @@ getfcbaddrunderhl
         call getfilepointer_de_fromhl
         ex de,hl ;hl=FCB
 	ret
-        
+
 getfcbundercursor
 	call getfcbaddrundercursor
 getfcbfromhl
@@ -413,7 +405,7 @@ getfcbfromhl
         ld bc,FCB_sz
         ldir
         ret
-        
+
 panelprtext
 ;print max 37 chars (dir)
 ;hl = text
@@ -537,7 +529,7 @@ setdrawtablesneeded
         ld ix,rightpanel
         res 0,(ix+PANEL.drawtableunneeded)
         ret
-        
+
 prwin
 ;de=yx
 ;bc=hgt,wid
@@ -551,21 +543,21 @@ prwin
 	call prtableline
 	dec b
         dec b
-winlineN_0	
+winlineN_0
 	inc d 
 	ld hl,winmidstroka
 	call prtableline
-	djnz winlineN_0 	
+	djnz winlineN_0
 	inc d
 	ld hl,winendstroka
 	jr prtableline
-        
+
 prtable
 ;de=yx
 	ld hl,prbeginstroka
 	call prtableline
-	ld b,CONST_HGT_TABLE	
-prtable0	
+	ld b,CONST_HGT_TABLE
+prtable0
 	inc d 
 	ld hl,prmidstroka
 	call prtableline
@@ -579,7 +571,7 @@ prtableline
 ;keeps bc,de,ix
         push bc
         call nv_setxy ;keeps de,hl
-prtableline0	
+prtableline0
 	ld a,(hl)
 	or a
 	jr z,prtablelineq
@@ -751,22 +743,10 @@ drawfilecursor_sizeb_colorhl
 ;de=yx
 ;hl=color
 ;b=size
-;out: hl=oldcolor
-	ld (drawfilecursor_color),hl
 	push bc
-	;push de
-        push de
+        push hl
 	call nv_setxy
         pop de
-        ;OS_SETXY
-	;OS_GETATTR
-	;pop de
-        pop bc
-         ;jr $
-	 ;push af ;oldcolor
-        push bc
-drawfilecursor_color=$+1
-	ld de,_FILECURSORCOLOR
         SETCOLOR_
         call setcolor_invisible 
         pop bc
@@ -774,25 +754,7 @@ drawfilecursor_color=$+1
         ld h,0
         ld l,b
         call sendchars
-        
-;drawfilecursor0
-;	push bc
-;	push de
-;	call nv_setxy
-;drawfilecursor_color=$+1
-;	ld de,_FILECURSORCOLOR
-;	OS_PRATTR
-;	pop de
-;	pop bc
-;	inc e
-;	djnz drawfilecursor0
-
-        call setcolor_visible 
-         ;pop af ;oldcolor
-         ;and 7
-         ;ld l,a
-         ;ld h,4 ;blue
-	ret
+        jp setcolor_visible 
 
         if 1==0
 nv_openfcb
@@ -880,7 +842,7 @@ winmidstroka
 winmidstroka_wid=$
 	db 12;wdtcolumn1 
 	db 0xba;'³'
-	db 1	
+	db 1
 	db 0
 
 winendstroka
@@ -890,7 +852,7 @@ winendstroka
 winendstroka_wid=$
 	db 12;wdtcolumn1 
 	db 0xbc;'-'
-	db 1	
+	db 1
 	db 0
 
 prbeginstroka
@@ -924,7 +886,7 @@ prmidstroka
 	db ' '
 	db 12;wdtcolumn3 
 	db 0xba;'³'
-	db 1	
+	db 1
 	db 0
 
 prendstroka
@@ -941,7 +903,7 @@ prendstroka
 	db 0xcd;'='
 	db 12;wdtcolumn3 
 	db 0xbc;'-'
-	db 1	
+	db 1
 	db 0
         
 prcrlf

@@ -113,6 +113,16 @@ wasnokey=$+1
         ;jr nc,mainloop_yieldkeep
         endif
        call printcursor
+         ld hl,(pr_buf_curaddr)
+         ld (wascursorcuraddr),hl        
+        call getmousexy
+        ld (mousecursor_wasxy),de
+        call BDOS_countattraddr_mousecursor
+        ld a,(hl)
+        cpl
+        ld (hl),a
+         ;ld (hl),CURSORCOLOR
+
         YIELD
         ld a,(pgscrbuf) ;ok
         SETPG16K
@@ -170,16 +180,6 @@ mainloop_type0_go
         call type_stdin ;stdin to screen
         jr nc,mainloop_type0 ;data present
        
-         ld hl,(pr_buf_curaddr)
-         ld (wascursorcuraddr),hl        
-        call getmousexy
-        ld (mousecursor_wasxy),de
-        call BDOS_countattraddr_mousecursor
-        ld a,(hl)
-        cpl
-        ld (hl),a
-         ;ld (hl),CURSORCOLOR
-
         if 1==0
 ;if long time no message from stdin, print cursor
         OS_GETTIMER ;hlde=timer
@@ -1361,6 +1361,49 @@ redraw_scroll=$+1
          ld a,0x40 ;TODO prevpg
         ret
 
+cursor_left
+;TODO с переходом на предыдущую строку
+        ld hl,(pr_textmode_curaddr)
+        ld a,h
+        xor 0x20 ;attr + 0x20
+        ld h,a
+        and 0x20
+        jr z,$+3
+        dec l
+        ld (pr_textmode_curaddr),hl
+        ld hl,(pr_buf_curaddr)
+        ld a,l
+        sub 0x40
+        sub 0x40
+        sbc a,0
+        ld l,a
+        ld (pr_buf_curaddr),hl
+        ret
+
+cursor_right
+        xor a
+        ld (writed1),a
+        ld (writed2),a
+        ld (writee1),a
+        ld (writee2),a
+        push bc
+        ld a,(term_prfsm_curnumber)
+        sub 1
+        adc a,1 ;0->1
+        ld b,a
+cursor_right0
+        ld a,' '
+        call BDOS_prchar_a_nocrlf
+        djnz cursor_right0
+        pop bc
+        ld a,0x72 ;"ld (hl),d"
+        ld (writed1),a
+        ld (writed2),a
+        ld a,0x73 ;"ld (hl),e"
+        ld (writee1),a
+        ld (writee2),a
+        ret
+
 BDOS_setx
 ;e=x
         ld a,e
@@ -1444,41 +1487,6 @@ BDOS_prchar_lf
         ld l,a
         jr nc,BDOS_settextcuraddr
         jp BDOS_prchar_lf_q
-
-cursor_right
-        xor a
-        ld (writed1),a
-        ld (writed2),a
-        ld (writee1),a
-        ld (writee2),a
-        ld a,' '
-        call BDOS_prchar_a_nocrlf
-        ld a,0x72 ;"ld (hl),d"
-        ld (writed1),a
-        ld (writed2),a
-        ld a,0x73 ;"ld (hl),e"
-        ld (writee1),a
-        ld (writee2),a
-        ret
-
-cursor_left
-;TODO с переходом на предыдущую строку
-        ld hl,(pr_textmode_curaddr)
-        ld a,h
-        xor 0x20 ;attr + 0x20
-        ld h,a
-        and 0x20
-        jr z,$+3
-        dec l
-        ld (pr_textmode_curaddr),hl
-        ld hl,(pr_buf_curaddr)
-        ld a,l
-        sub 0x40
-        sub 0x40
-        sbc a,0
-        ld l,a
-        ld (pr_buf_curaddr),hl
-        ret
 
 cursor_down
         ld a,0x0a ;lf

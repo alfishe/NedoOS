@@ -1,105 +1,114 @@
-NVVIEW_HEXEDITOR_XYTOP=0x0000
-NVVIEW_HEXEDITOR_HGT=24
-NVVIEW_HEXEDITOR_WID=80
-NVVIEW_HEXEDITOR_MAXX=15
-NVVIEW_HEXEDITOR_PAGESIZE=16*NVVIEW_HEXEDITOR_HGT
+hexeditor_XYTOP=0x0000
+hexeditor_HGT=24
+hexeditor_WID=80
+hexeditor_MAXX=15
+hexeditor_PAGESIZE=16*hexeditor_HGT
 
-_NVVIEW_HEXEDITOR_CURSORCOLOR=0x0700;0x38
-_NVVIEW_HEXEDITOR_COLOR=0x0007;7
+_hexeditor_CURSORCOLOR=0x0700;0x38
+_hexeditor_COLOR=0x0007;7
 
-nvview_hexeditor_redrawloop
+hexeditor_redrawloop
         ;YIELDGETKEYLOOP
-        call nvview_hexeditor_prpage
-nvview_hexeditor_mainloop
-        call nvhexed_calccursorxy
-        ld hl,_NVVIEW_HEXEDITOR_CURSORCOLOR
+        call hexeditor_prpage
+hexeditor_mainloop
+        call hexeditor_calccursorxy
+        ld hl,_hexeditor_CURSORCOLOR
         ld b,2
         call drawfilecursor_sizeb_colorhl
-        call nvhexed_calctextcursorxy
-        ld hl,_NVVIEW_HEXEDITOR_CURSORCOLOR
-        ld b,1
-        call drawfilecursor_sizeb_colorhl
-        ld de,24*256+79
+        call hexeditor_calctextcursorxy
+        ;ld hl,_hexeditor_CURSORCOLOR
+        ;ld b,1
+        ;call drawfilecursor_sizeb_colorhl
+        ;ld de,24*256+79
         SETXY_
+;hexeditor_yieldkeep
         ld a,2
-nvview_hexeditor_yieldkeep
+hexeditor_yieldkeep
         ld (hexeditor_wasnokey),a
-        YIELDKEEP
-nvview_hexeditor_waitkey_nokey
+	YIELDKEEP
+        ld a,55+128 ;"or a"
+        ld (hexeditor_wasyield),a
+hexeditor_mainloop_nokey
         GETKEY_ ;OS_GETKEYNOLANG
         ld a,c ;keynolang
         ;cp NOKEY
-        jr nz,nvview_hexeditor_keyq
+        jr nz,hexeditor_keyq
 ;если два раза подряд нет события, то рисуем панельку и делаем YIELD, иначе YIELDKEEP
 hexeditor_wasnokey=$+1
         ld a,1
         dec a
-        jr nz,nvview_hexeditor_yieldkeep
-        call nvview_hexeditor_panel
-        YIELD
-        jr nvview_hexeditor_waitkey_nokey
-nvview_hexeditor_keyq
+        jr nz,hexeditor_yieldkeep
+;рисовать панельку только при отсутствии события после YIELD
+hexeditor_wasyield=$
+        scf
+        ;jr nc,hexeditor_nopanel
+        ;call hexeditor_panel
+        ;call hexeditor_calctextcursorxy
+        ;SETXY_
+;hexeditor_nopanel
+	YIELD
+        ld a,55 ;"scf"
+        ld (hexeditor_wasyield),a
+        jr hexeditor_mainloop_nokey
+hexeditor_keyq
         ;push hl
         ;push bc
         ;push de
         push af
-        call nvhexed_calccursorxy
-        ld hl,_NVVIEW_HEXEDITOR_COLOR
+        call hexeditor_calccursorxy
+        ld hl,_hexeditor_COLOR
         ld b,2
         call drawfilecursor_sizeb_colorhl
-        call nvhexed_calctextcursorxy
-        ld hl,_NVVIEW_HEXEDITOR_COLOR
-        ld b,1
-        call drawfilecursor_sizeb_colorhl
+        ;call hexeditor_calctextcursorxy
+        ;ld hl,_hexeditor_COLOR
+        ;ld b,1
+        ;call drawfilecursor_sizeb_colorhl
 	pop af
 	;pop de
 	;pop bc
 	;pop hl
         cp key_redraw
-        jr z,nvview_hexeditor_redrawloop
+        jr z,hexeditor_redrawloop
         cp key_esc
         ret z
         cp key_tab
         jp z,nvview_hexeditorq
-        ld hl,nvview_hexeditor_mainloop
+        ld hl,hexeditor_mainloop
         push hl
          cp key_up
-         jp z,nvview_hexeditor_up
+         jp z,hexeditor_up
          cp key_down
-         jp z,nvview_hexeditor_down
+         jp z,hexeditor_down
          cp key_pgup
-         jp z,nvview_hexeditor_pgup
+         jp z,hexeditor_pgup
          cp key_pgdown
-         jp z,nvview_hexeditor_pgdown
+         jp z,hexeditor_pgdown
         ;cp key_home
-        ;jp z,nvview_hexeditor_home
+        ;jp z,hexeditor_home
         ;cp key_sspgup;ext3
-        ;jp z,nvview_hexeditor_home
+        ;jp z,hexeditor_home
         ;cp key_end
-        ;jp z,nvview_hexeditor_end
+        ;jp z,hexeditor_end
         ;cp key_sspgdown;ext4
-        ;jp z,nvview_hexeditor_end
+        ;jp z,hexeditor_end
         cp key_left
-        jp z,nvview_hexeditor_left
+        jp z,hexeditor_left
         cp key_right
-        jp z,nvview_hexeditor_right
+        jp z,hexeditor_right
          cp key_csenter
-         jp z,nvview_hexeditor_save
+         jp z,hexeditor_save
          cp key_F2
-         jp z,nvview_hexeditor_save
-        ;cp 'w'
-        ;jp z,nvview_wrap
+         jp z,hexeditor_save
         cp '0'
         ret c
         cp '9'+1
-        jp c,nvview_hexeditor_symbol
+        jr c,hexeditor_symbol
         cp 'a'
         ret c
         cp 'f'+1
-        jp c,nvview_hexeditor_symbol
-        ret 
-
-nvview_hexeditor_symbol
+        ret nc ;jp c,hexeditor_symbol
+        ;ret
+hexeditor_symbol
         push af
         call nvhex_calccuraddrline ;addr cur line
         ld de,(hexcuraddrxy)
@@ -109,17 +118,17 @@ nvview_hexeditor_symbol
         pop af
         ;0   a-10
         cp 'a'
-        jr nc,nvview_hexeditor_symbol_af
+        jr nc,hexeditor_symbol_af
         ld b,-0x30
-        jr nvview_hexeditor_symbol_pr
-nvview_hexeditor_symbol_af        
+        jr hexeditor_symbol_pr
+hexeditor_symbol_af        
         ld b,-0x61+0x0a;0x56
-nvview_hexeditor_symbol_pr        
+hexeditor_symbol_pr        
         add a,b
         
-nvhexed_half=$
+hexeditor_half=$
         or a ;/scf
-        jr c,nvhexed_symbol_right
+        jr c,hexeditor_symbol_right
         add a,a
         add a,a
         add a,a
@@ -127,14 +136,14 @@ nvhexed_half=$
         xor (hl)
         and 0xf0
         xor (hl)
-        jr nvhexed_symbol_rightq
-nvhexed_symbol_right
+        jr hexeditor_symbol_rightq
+hexeditor_symbol_right
         xor (hl)
         and 0x0f
         xor (hl)
-nvhexed_symbol_rightq
+hexeditor_symbol_rightq
         ld (hl),a
-        ld hl,nvhexed_half
+        ld hl,hexeditor_half
         ld a,(hl)
         xor 0x80
         ld (hl),a
@@ -142,10 +151,9 @@ nvhexed_symbol_rightq
         ld de,(hexcuraddrxy)
         ld e,0 
         call nv_setxy
-        call nvview_hexeditor_prline
-        ret
-        
-nvview_hexeditor_save
+        jp hexeditor_prline
+
+hexeditor_save
         ;ld hl,fcb_filename
         ;ld de,fcb2_filename
         ;call copy_to_defcb_filename
@@ -160,7 +168,7 @@ nvview_hexeditor_save
         ld de,(filesize)
         ld hl,(filesizeHSW)
         ld a,0 ;page number
-nvview_hexeditor_save0
+hexeditor_save0
 ;a=page number in table (0..)
 ;hlde=remaining size
         push af
@@ -172,7 +180,7 @@ nvview_hexeditor_save0
         or h
         or l
         jr z,$+5 ;de=size
-        ld de,0x4000
+         ld de,0x4000
         ex de,hl ;hl=pg size
         push hl ;hl=pg size
         call cmd_savepage
@@ -184,21 +192,21 @@ nvview_hexeditor_save0
         sbc hl,bc
         ex de,hl
         jr nc,$+3
-        dec hl ;size = size-pgsize
+         dec hl ;size = size-pgsize
         ld a,h
         or l
         or d
         or e
-        jr z,nvview_hexeditor_save_popq
+        jr z,hexeditor_save_popq
         pop af
         inc a
-        jr nvview_hexeditor_save0
-nvview_hexeditor_save_popq
+        jr hexeditor_save0
+hexeditor_save_popq
         call nv_closehandle
         pop af
         ret
-        
-nvview_hexeditor_left
+
+hexeditor_left
         ld de,(hexcuraddrxy)
         ld a,e
         cp 0
@@ -206,11 +214,11 @@ nvview_hexeditor_left
         dec e
         ld (hexcuraddrxy),de
         ret
-        
-nvview_hexeditor_right
+
+hexeditor_right
         ld de,(hexcuraddrxy)
         ld a,e
-        cp NVVIEW_HEXEDITOR_MAXX
+        cp hexeditor_MAXX
         ret z
         inc e
         push de
@@ -225,8 +233,8 @@ nvview_hexeditor_right
         ret nc
         ld (hexcuraddrxy),de
         ret
-        
-nvhexed_calccursorxy
+
+hexeditor_calccursorxy
         ld de,(hexcuraddrxy)
         ld a,e
         add a,a
@@ -234,23 +242,23 @@ nvhexed_calccursorxy
         add a,8
         ld e,a
         ret
-        
-nvhexed_calctextcursorxy
+
+hexeditor_calctextcursorxy
         ld de,(hexcuraddrxy)
         ld a,e
         add a,57
         ld e,a
+        ;ret ;no ret because panel is empty
+
+hexeditor_panel
         ret
-        
-nvview_hexeditor_panel
-        ret
-        
-nvview_hexeditor_prpage
+
+hexeditor_prpage
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
-        ld de,NVVIEW_HEXEDITOR_XYTOP
-        ld b,NVVIEW_HEXEDITOR_HGT
-nvview_hexeditor_prpage0
+        ld de,hexeditor_XYTOP
+        ld b,hexeditor_HGT
+hexeditor_prpage0
         push bc
         push de
         push af
@@ -258,188 +266,155 @@ nvview_hexeditor_prpage0
         SETXY_
         pop hl
         pop af
-        call nvview_hexeditor_prline
+        call hexeditor_prline
         pop de
         pop bc
         inc d
-        djnz nvview_hexeditor_prpage0
-;nvview_hexeditor_setbottom
+        djnz hexeditor_prpage0
+;hexeditor_setbottom
         ;ld (hexaddrline),hl
         ;ld (hexaddrlineHSB),a
         ret
-        
 
-nvview_hexeditor_prline
+hexeditor_prline
 ;ahl =  addr line      
-        ;jr $
-        push hl
         push af
-        
+        push hl
         push hl
         call getmaxlinesize ;bc=max line size before eof, z=(bc==0)
         ld hl,16
         call minhl_bc_tobc ;bc = min(16, max line size before eof) 
         pop hl
-                 
-        push bc
-        call nvview_hexeditor_praddrline
-        call ahl_to_pgaddr
-        
-        push hl
-        ld a,':'
-        PRCHAR_
-        pop hl
-        
-        pop bc;ld b,0
-        
-        push hl
-nvview_hexeditor1        
-        ld a,b
-        cp 8
-        ld a,' '
-        jr nz,nvview_hexeditor0
-        ld a,'|'
-nvview_hexeditor0
-        push hl 
-        push bc
-        PRCHAR_
-        pop bc
-        pop hl
-        
-        ld a,b
-        cp c
-        jr c,nvview_hexeditor_prhex
         ;push bc
-        ;push hl
-        ;ld b,2
-        ;call nvview_prlinespc_b
-         ld a,2
-         call hexeditor_prlinespc_a
-        ;pop hl
-        ;pop bc
-        jr nvview_hexeditor_notprhex
-nvview_hexeditor_prhex        
-        ld a,(hl)
-        push bc
-        call nvview_hexeditor_prNN
-        pop bc
-nvview_hexeditor_notprhex
-        inc hl
-        inc b
-        ld a,b
-        cp 16
-        jr nz,nvview_hexeditor1        
-        
-        ;ld b,2
-        ;call nvview_prlinespc_b
-         ld a,2
-         call hexeditor_prlinespc_a
+         ld de,thexedline
+        call hexeditor_praddrline
+        call ahl_to_pgaddr
+         inc de      
+        ;pop bc ;bc = min(16, max line size before eof)
 
-        pop hl
-        
-        ld b,0
-nvview_hexeditor2      
-        ld a,b
-        cp c
-        ld a,' '
-        jr nc,nvview_hexeditor2_sym   
-nvview_hexeditor2_prtext        
-        ld a,(hl)
-        cp 32 
-        jr nc,nvview_hexeditor2_sym
-        ld a,'.'
-nvview_hexeditor2_sym        
+         push bc
         push hl
-        push bc
-        PRCHAR_
-        pop bc
-        pop hl
-        inc hl
-        inc b
-        ld a,b
-        cp 16
-        jr nz,nvview_hexeditor2        
-        pop af
-        pop hl
-        ld b,0
-        add hl,bc
-        adc a,b
-
-        ;ld b,7
-        ;call nvview_prlinespc_b
-        ld a,7
-hexeditor_prlinespc_a
-        push bc
-        push hl
-         ld de,tspaces
-         ld l,a
-         ld h,0
-         call sendchars
-        pop hl
-        pop bc
-        ret        
-
-nvview_hexeditor_prNN
-        push af
-        push hl 
-        call nvview_prhexbyte
-        pop hl
-        pop af
-        ret
-        
-nvview_hexeditor_praddrline
-;ahl = addr line
-        push af
-        call nvview_hexeditor_prNN
-        ld a,h
-        call nvview_hexeditor_prNN      
-        ld a,l        
-        call nvview_hexeditor_prNN
-        pop af
-        ret
-        
-nvview_prhexbyte
-;ld a,#30;a=#30 - 0,1,2..9 #41 - A,B,C,D,E,F #61 - a,b,c..
-;a=XX 
-        ;push hl
-        ;push af
+        ld a,c
+        or a
+        jr z,hexeditor_prlhex0q
+        ld b,a
+hexeditor_prlhex0
+         inc de
+        ld a,(hl)
         rrca
         rrca
         rrca
         rrca
-        call pronehexdigit
-        rlca
-        rlca
-        rlca
-        rlca
-        ;call pronehexdigit
-        ;pop af
-        ;pop hl
-        ;ret
-pronehexdigit
-;a=?X
-        push bc
-        push af
-;        and 0xf
-;        cp 10
-;        jr c,prcharbit_noletter
-;        add a,'a'-('0'+10)
-;prcharbit_noletter
-;        add a,'0'
         or 0xf0
         daa
         add a,0xa0
         adc a,0x40
-        PRCHAR_
+         ld (de),a
+         inc de
+        ld a,(hl)
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
+         ld (de),a
+         inc de
+        inc  l
+        djnz hexeditor_prlhex0
+hexeditor_prlhex0q
+        ld a,16
+        sub c
+        jp z,hexeditor_prlhex1q
+        ld b,a
+         ld a,' '
+hexeditor_prlhex1
+         inc de
+         ld (de),a
+         inc de
+         ld (de),a
+         inc de
+        djnz hexeditor_prlhex1
+hexeditor_prlhex1q
+
+        pop hl
+         inc de
+         inc de
+        ld a,c
+        or a
+        jr z,hexeditor_prlsym0q
+        ld b,a
+hexeditor_prlsym0
+        ld a,(hl)
+        cp 32 
+        jr nc,$+4
+          ld a,'.'
+         ld (de),a
+         inc de
+        inc  l
+        djnz hexeditor_prlsym0
+hexeditor_prlsym0q
+        ld a,16
+        sub c
+        jp z,hexeditor_prlsym1q
+        ld b,a
+         ld a,' '
+hexeditor_prlsym1
+         ld (de),a
+         inc de
+        djnz hexeditor_prlsym1
+hexeditor_prlsym1q
+         ld de,thexedline
+         ld hl,80
+         call sendchars
+         pop bc ;bc=bytes shown in line
+        pop hl
         pop af
-        pop bc
+        ;ld b,0
+        add hl,bc
+        adc a,b
         ret
 
-nvview_hexeditor_prevline
+hexeditor_praddrline
+;ahl = addr line
+        push af
+        call hexeditor_prNN
+        ld a,h
+        call hexeditor_prNN      
+        ld a,l        
+        call hexeditor_prNN
+        pop af
+        ret
+
+hexeditor_prNN
+;#30 - 0,1,2..9 #41 - A,B,C,D,E,F #61 - a,b,c..
+;a=XX 
+        push af
+        rrca
+        rrca
+        rrca
+        rrca
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
+         ld (de),a
+         inc de
+        pop af
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
+         ld (de),a
+         inc de
+        ret
+
+thexedline
+        db "000000: 00 00 00 00 00 00 00 00|00 00 00 00 00 00 00 00  ................       "
+
+hexeditor_prevline
 ;ahl =addr line  
-;out: ahl =addr line, nc=error      
-        call isbof ;cy=0
-        ret z
+;out: ahl =addr line, NC=error      
+        call isbof ;CY=0
+        ret z ;NC
         push bc
         ld bc,0x0010
         or a 
@@ -447,9 +422,10 @@ nvview_hexeditor_prevline
         sbc a,b
         scf
         pop bc
-        ret ;c         
-        
-nvview_hexeditor_nextline
+        ret ;CY
+
+        if 1==0
+hexeditor_nextline
         call iseof
         ret nc
         push bc
@@ -457,143 +433,134 @@ nvview_hexeditor_nextline
         add hl,bc
         adc a,b
         pop bc
-        ret         
-                
+        ret
+        endif
 
-nvview_hexeditor_up
+hexeditor_pgup
         call nvhex_calccuraddrline 
-        call nvview_hexeditor_prevline
-        ret nc
         ld de,(hexcuraddrxy)
+        ld c,a
         ld a,d
         or a
-        jp z,nvview_hexeditor_up_scroll
-        dec d
-        ld (hexcuraddrxy),de
-        ret
-nvview_hexeditor_up_scroll        
-        ld de,NVVIEW_HEXEDITOR_XYTOP
-        ld hl,256*NVVIEW_HEXEDITOR_HGT + NVVIEW_HEXEDITOR_WID
-        call scrolldown ;OS_SCROLLDOWN
-        ld de,NVVIEW_HEXEDITOR_XYTOP
-        SETXY_
-        ld hl,(hexaddrline)
-        ld a,(hexaddrlineHSB)
-        call nvview_hexeditor_prevline
+        ld a,c
+        jr nz,hexeditor_pgupq
+        ld b,hexeditor_HGT-1
+hexeditor_pgup0
+        push bc
+        call hexeditor_prevline
+        pop bc
+        djnz hexeditor_pgup0
         ld (hexaddrline),hl
         ld (hexaddrlineHSB),a
-        
-        call nvview_hexeditor_prline
-        ;call nvview_prline
-        ;call deccurline
-        ;ld hl,(curbottomtextaddrhex)
-        ;ld a,(curbottomtextHSBhex)
-        ;call nvview_prevline
-        ;jp nvview_hexeditor_setbottom
+        call hexeditor_prpage
+        jp clear_keyboardbuffer 
+hexeditor_pgupq
+        ld d,0
+        ld (hexcuraddrxy),de
         ret
-        
-nvview_hexeditor_pgdown
+
+hexeditor_pgdown
         call nvhex_calccuraddrline 
         ld de,(hexcuraddrxy)
         ld c,a
         ld a,d
-        cp NVVIEW_HEXEDITOR_HGT-1
+        cp hexeditor_HGT-1
         ld a,c
-        jp z,nvview_hexeditor_pgdown_do
-nvview_hexeditor_pgdown0
+        jr z,hexeditor_pgdown_do
+hexeditor_pgdown0
         ld c,a
         ld a,d
-        cp NVVIEW_HEXEDITOR_HGT-1
+        cp hexeditor_HGT-1
         ld a,c
-        jp z,nvview_hexeditor_pgdownq
+        jr z,hexeditor_pgdownq
         call nvhex_calcnextcorrectxy
-        jp c,nvview_hexeditor_pgdown0
-nvview_hexeditor_pgdownq
+        jr c,hexeditor_pgdown0
+hexeditor_pgdownq
         ld (hexcuraddrxy),de
         ret
-nvview_hexeditor_pgdown_do
+hexeditor_pgdown_do
         ld (hexaddrline),hl
         ld (hexaddrlineHSB),a
         push de
-        call nvview_hexeditor_prpage
+        call hexeditor_prpage
         pop de
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         ld d,0
-nvview_hexeditor_pgdown_do0
+hexeditor_pgdown_do0
         ld c,a
         ld a,d
-        cp NVVIEW_HEXEDITOR_HGT-1
+        cp hexeditor_HGT-1
         ld a,c
-        jp z,nvview_hexeditor_pgdown_doq
+        jr z,hexeditor_pgdown_doq
         call nvhex_calcnextcorrectxy
-        jp c,nvview_hexeditor_pgdown_do0
-nvview_hexeditor_pgdown_doq
+        jr c,hexeditor_pgdown_do0
+hexeditor_pgdown_doq
         ld (hexcuraddrxy),de
         jp clear_keyboardbuffer 
 
-nvview_hexeditor_pgup
+hexeditor_up
         call nvhex_calccuraddrline 
+        call hexeditor_prevline
+        ret nc ;bof
         ld de,(hexcuraddrxy)
-        ld c,a
         ld a,d
         or a
-        ld a,c
-        jp nz,nvview_hexeditor_pgupq
-        ld b,NVVIEW_HEXEDITOR_HGT-1
-nvview_hexeditor_pgup0
-        push bc
-        call nvview_hexeditor_prevline
-        pop bc
-        djnz nvview_hexeditor_pgup0
-        ld (hexaddrline),hl
-        ld (hexaddrlineHSB),a
-        call nvview_hexeditor_prpage
-        jp clear_keyboardbuffer 
-nvview_hexeditor_pgupq
-        ld d,0
+        jr z,hexeditor_up_scroll
+        dec d
         ld (hexcuraddrxy),de
         ret
-        
-        
-        
-nvview_hexeditor_down
+hexeditor_up_scroll        
+        ld de,hexeditor_XYTOP
+        ld hl,256*hexeditor_HGT + hexeditor_WID
+        call scrolldown ;OS_SCROLLDOWN
+        ld de,hexeditor_XYTOP
+        SETXY_
+        ld hl,(hexaddrline)
+        ld a,(hexaddrlineHSB)
+        call hexeditor_prevline
+        ld (hexaddrline),hl
+        ld (hexaddrlineHSB),a
+        jp hexeditor_prline
+
+hexeditor_down
         call nvhex_calccuraddrline 
         ld de,(hexcuraddrxy)
         call nvhex_calcnextcorrectxy
         ret nc
         ld c,a
         ld a,d
-        cp NVVIEW_HEXEDITOR_HGT
+        cp hexeditor_HGT
         ld a,c
-        jr z,nvview_hexeditor_down_scroll
+        jr z,hexeditor_down_scroll
         ld (hexcuraddrxy),de
         ret
-nvview_hexeditor_down_scroll
+hexeditor_down_scroll
         ;ld hl,(hexaddrline)
         ;ld a,(hexaddrlineHSB)
-        ;ld bc,NVVIEW_HEXEDITOR_PAGESIZE
+        ;ld bc,hexeditor_PAGESIZE
         ;add hl,bc
         ;adc a,0
         push af
         push hl
-	ld a,e
+        ld a,e
         ld (hexcuraddrx),a
-        ld de,NVVIEW_HEXEDITOR_XYTOP
-        ld hl,256*NVVIEW_HEXEDITOR_HGT + NVVIEW_HEXEDITOR_WID
+        ld de,hexeditor_XYTOP
+        ld hl,256*hexeditor_HGT + hexeditor_WID
         call scrollup ;OS_SCROLLUP
-        ld de,NVVIEW_HEXEDITOR_XYTOP+((NVVIEW_HEXEDITOR_HGT-1)*256)
+        ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
         SETXY_
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         ld bc,16
         add hl,bc
+        adc a,b;0
         ld (hexaddrline),hl
         ld (hexaddrlineHSB),a
         pop hl
         pop af
-        jp nvview_hexeditor_prline
-        
+        jp hexeditor_prline
+
 nvhex_calccuraddrline
 ;out: ahl = addr cur line
         ld hl,(hexaddrline)
@@ -630,19 +597,16 @@ nvhex_calcnextcorrectxy
         ret c
         push af
         ld a,(filesize)
-        dec a   ;a=????xxxx  l=XXXXzzzz
-        ;xor l   ;a=????xzxz  l=XXXXzzzz
-        and 0x0f ;a=0000xzxz  l=XXXXzzzz
-        ;xor l   ;a=XXXXxxxx  l=XXXXzzzz
-        ;ld l,a
+        dec a
+        and 0x0f
         ld e,a
         pop af 
         scf
-        ret ;c
+        ret ;CY
 nvhex_calcnextcorrectxy_error
-        call nvview_hexeditor_prevline
+        call hexeditor_prevline
         or a
-        ret ;nc
+        ret ;NC
         
 hexcuraddrxy
 hexcuraddrx
