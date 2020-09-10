@@ -144,7 +144,7 @@ readpng_chunk_IDAT
         or a
         sbc hl,bc
         jr nc,$+3
-        dec de
+         dec de
         ld (pngIDATremained),hl
         ld (pngIDATremainedHSW),de
 
@@ -252,11 +252,6 @@ renderpng_lines0
         push bc
         call readbyte ;subfilter byte
          ld lx,c
-         ;ld b,a
-         ;ld a,c
-         ;cp 5
-         ;ld a,b
-         ;jr nc,$
 
         ld de,LINEPNG
 png_bytesperline=$+1
@@ -353,10 +348,9 @@ renderpng_average0
         jp pe,renderpng_average0
         
 pngfilterq
-        
         call islinevisible
         jp nz,renderpng_lineinvisible
-        
+
 ;конвертировать составляющие из 16bit в 8bit:
         ld hl,LINEPNG
         ld de,LINEPNGPRIOR ;result of recolor
@@ -368,7 +362,6 @@ pngfilterq
         push de
         ld de,LINEPNGTEMP ;TODO в конце PRIOR
         push de
-        ;jr $
         ld bc,(png_bytesperline)
         srl b
         rr c
@@ -383,7 +376,6 @@ pngrecolor16q
 ;hl=from
 ;de=to
 ;a=число цветовых составляющих(1..4)
-         ;jr $
         ld bc,(curpicwid)
         dec a
         jr z,pngrecolor1
@@ -409,7 +401,6 @@ pngrecolorRGBA0
         jp pe,pngrecolorRGBA0
         jp pngrecolorq
 pngrecolor1
-        ;jr $
 ;8bpp: Y -> BGR
 readpng_palflag_bit0=$+1
         ld a,0
@@ -587,13 +578,13 @@ paethpredictor
         ld hx,a;?b
         sub (hl);?c
         jr nc,$+4
-        neg
+          neg
          ld ly,a;?pa,a ;pa=abs(b-c)
          
         ld a,(de);?a
         sub (hl);?c
         jr nc,$+4
-        neg
+          neg
          ld hy,a;?pb,a ;pb=abs(a-c)
          
         ld a,(de);?a
@@ -602,18 +593,18 @@ paethpredictor
         jr c,paeth1
         sub (hl);?c ;a=(a+b-2c)/2
         jr nc,$+4
-        neg
+          neg
         add a,a
         jp paethpredok
 paeth1
         sub (hl);?c ;a=(a+b-2c)/2 - 1/2 ;1 вместо 1.5, -1 вместо -0.5
         jr nc,$+3
-        cpl ;-1 (означает -0.5) => 0 (означает 0.5)
+          cpl ;-1 (означает -0.5) => 0 (означает 0.5)
         scf
         rla
 paethpredok
         jr nc,$+3
-        sbc a,a
+          sbc a,a
          ld lx,a;?pc,a ;pc=abs(a+b-2c) ;если >255, то 255
          
         ld a,hy;?pb
@@ -659,4 +650,3 @@ pngrepal
         dec h
         ldi ;R
         ret
-

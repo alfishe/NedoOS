@@ -23,21 +23,6 @@ cmd_begin
         ld (stdinhandle),a
         ;ld a,d
         ;ld (stdouthandle),a
-        
-	;call nv_copyscreen0to1
-        ;GET_KEY ;съедаем key_redraw
-        
-        ;ld e,COLOR
-        ;OS_CLS
-        ;CLS_
-        
-;        ld de,nvpal
-;        OS_SETPAL
-        
-        ;OS_GETSCREENPAGES
-;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
-        ;ld a,e
-        ;ld (cmdpgscreen0_0),a
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
@@ -47,15 +32,15 @@ cmd_begin
         pop hl
         ld e,l
         OS_DELPAGE
-      
+
         call lister
-      
+
         QUIT
 
 lister
         ld hl,unreservepages
         push hl
-        
+
         ld hl,0
         ld de,0
 nvview_load0
@@ -251,6 +236,8 @@ nvview_up
         pop hl
         pop af
         call nvview_prline
+         ;ld de,24*256+79
+         ;call nv_setxy ;avoid cursor at 0x0100
         call deccurline
         ld hl,(curbottomtextaddr)
         ld a,(curbottomtextHSB)
@@ -976,7 +963,7 @@ stdinhandle=$+1
         sbc hl,bc ;size-=readed
         jr nz,receivechars0
         ret
-        
+
 nlines
         dw 0
 
@@ -984,7 +971,7 @@ filesize
         dw 0
 filesizeHSW
         dw 0
-        
+
         align 256
 textpages
         ds 256
@@ -993,11 +980,10 @@ twinto866
 
         include "prdword.asm"
         ;include "../_sdk/stdio.asm"
-        
-cmd_end
 
+cmd_end
 	display "more size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "more.com",cmd_begin,cmd_end-cmd_begin
-	
+
 	LABELSLIST "../../us/user.l"

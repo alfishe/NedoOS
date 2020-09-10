@@ -272,7 +272,7 @@ prhint_color
         jr prhint0
 thint
         db "{1}Drive { 2}Find  { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}InsNam{ 0}Quit  ",0
-        
+
 readpanels_reprint
         call printhint
 	ld ix,leftpanel
@@ -623,7 +623,8 @@ readdir_keepcursor
 	ld de,PANEL.dir
 	add hl,de
 	ex de,hl ;de=path
-	;ld de,emptypath
+	OS_CHDIR
+	ld de,emptypath
 	OS_OPENDIR
 	pop ix
         or a
@@ -1205,14 +1206,17 @@ loadandrun_waitpid
         SETXY_
         ld de,_COLOR
         SETCOLOR_
+        CLS_
+        ld de,0
+        SETXY_
         pop hl ;hl=cmdbuf или cmdprompt
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch в текущем терминале
         WAITPID
+        CLS_ ;scroll what was printed
 execcmd_error
-        CLS_
         ld hl,cmdbuf
         ld (hl),0
         jp editcmd_reprintall_keepcursor
@@ -1416,7 +1420,6 @@ readbyte_readbuf
         pop de
         pop bc
         ret
-        
 
 editcmd_enter_runfile_hobeta
 hobetarunner=0x4100
@@ -1443,7 +1446,6 @@ hobetarunner=0x4100
 
         call loadhobeta
         ret nz ;error
-         ;jr $
         ld hl,0x6000
         ld bc,(0x6000-17+11) ;len
         add hl,bc
@@ -1505,7 +1507,7 @@ loadandrun
         push hl
         ;set current drive and dir (will be copied into new app)
 	call setcurpaneldir
-        
+
         OS_NEWAPP
         or a
         ret nz ;error
@@ -1548,17 +1550,12 @@ loadandrun_noparams
 editcmd_1
         call ifcmdnonempty_typedigit
 editcmd_F1
-        ;ld hl,leftpanel
         ld ix,(curpanel)
-        ;ld a,10
 	ld a,(ix+PANEL.xy)
         add a,10
-        ;jr editcmd_drvselector
-;editcmd_drvselector
         ld (windrv),a ;x
 	add a,5
 	ld (windrverr),a
-        ;ld (curpanel),hl
         ld hl,editcmd_reprintcurpanel;editcmd_reprintall_onlyreadcurdir
         push hl
 
@@ -1683,7 +1680,7 @@ editcmd_F4
         push hl
 
         call makeprompt_filename
-        
+
         ;call runfile_findhandler ;find fcb_filename ext (spoiled) in "nv.ext"
         ;ret nz ;jp nz,execcmd_error
 
@@ -1695,7 +1692,7 @@ editcmd_F4
         
         ld hl,texted_filename
         call copy_to_fcb_filename
-        
+
         ;ld hl,cmdbuf
         ;ld (hl),0
         ld hl,cmdprompt
@@ -1744,7 +1741,7 @@ editcmd_reprintall_noreaddir
 ;       call getanotherpanel_ix
 ;	call drawpanel_with_files
 ;       jp editcmd_reprintcurpanel
-        
+
 editcmd_invfiles
 ;ix=curpanel
         ld hl,changemark_hl
@@ -1758,7 +1755,7 @@ editcmd_F6
         push hl
 	call setpaneldir
         call getfcbundercursor
-        
+
         if 1==1
         ld a,(fcb+FCB_EXTENTNUMBERLO)
         SETPG32KHIGH
@@ -1824,7 +1821,7 @@ editcmd_F7
         ld hl,winmkdir
 	ld de,tnewfilename
 	ld (de),a
-	ld c,13
+	ld c,63;13 ;max filename size
         call prwindow_edit ;CY=OK, de=filename
         ret nc ;cancel
         OS_MKDIR
@@ -2015,7 +2012,9 @@ strcopy0
         ret
 
 nv_makefilepath_hltode ;DE=dest HL=src BC=filename
+        push bc
 	call strcopy;nv_strcopy_hltode
+        pop bc
 ;assumed that DE is after terminator
 	dec de
 	dec de
@@ -2119,13 +2118,13 @@ nv_batch_popsrecordend
 	ld bc,128
 	ldir
 	ld de,dir2_buf
-	ld bc,128
+	ld  c,128
 	ldir
 	ld bc,(dir_batch_pointer)
 	dec bc
 	ld (dir_batch_pointer),bc
 	ld a,1
-	or a
+	or a ;NZ
 nv_batch_popsrecordq
 	ld a,(savepg)
 	SETPG32KLOW
@@ -2256,7 +2255,7 @@ proceditcmd_copy_fcb
 
 	ld de,dir2_buf
 	OS_CHDIR
-        
+
         ld de,filenametext;swordbuf2 ;de=drive/path/file
         OS_CREATEHANDLE
         or a
@@ -2289,7 +2288,7 @@ cmd_copy_close_file1_handle=$+1
         ld b,0
         OS_CLOSEHANDLE
         ret
-        
+
 cmd_copy_close_file2
 cmd_copy_close_file2_handle=$+1
         ld b,0
@@ -2301,7 +2300,7 @@ proceditcmd_copy_date=$+2
         ld de,filenametext
         OS_SETFILETIME
         ret
-        
+
 proceditcmd_copy_q
 filescopied=$+1
         ld hl,0
@@ -2469,8 +2468,8 @@ windrv
         db 0 ;end of window
 
 winmkdir
-        dw 0x0a0f ;de=yx
-        dw 0x0520 ;bc=hgt,wid
+        dw 0x0a07 ;de=yx
+        dw 0x0544 ;bc=hgt,wid
         db "Create new directory:",0
         db 3 ;next line
         db 2 ;print outer text
@@ -2487,8 +2486,8 @@ winrename
         db 0 ;end of window
 
 wincopy
-        dw 0x0a08 ;de=yx
-        dw 0x0540 ;bc=hgt,wid
+        dw 0x0a07 ;de=yx
+        dw 0x0544 ;bc=hgt,wid
         db "Copy ",0
 	db 1
 	db " file(s)/dir(s) to:",0
@@ -2522,7 +2521,7 @@ windel
 
 wincopy2
 	dw 0x0706 ;de=yx
-        db 68,8 ;bc=wid,hgt
+        db 68,8 ;wid,hgt
         db 3 ;next line
 	db " Copying",0,3
 wincopy_src

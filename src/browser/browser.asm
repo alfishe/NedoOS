@@ -13,8 +13,9 @@ DISKBUFsz=0x800;0x1000
 
 LINEPIXELS=0x3d00 ;,wid8*2 (макс. размер = 512 для wid=2048) ;TODO раньше и поверх LINEGIF (чтобы pixels шли раньше, а attr затирал её в процессе конверсии)
 
-STACK=0x3ffc
 SPOIL4B=0x4000 ;микростек на 4 байта, нельзя ниже 0x3b00 ;раньше было в невидимой части страницы экрана, но сейчас мы переключаем экран с этим стеком
+INTSTACK=0x3ffc
+STACK=0x3fc0
 
 end2=0x7e00
 
@@ -136,9 +137,8 @@ key_down_scroll=key_ssdown ;=F6!
         org PROGSTART
 cmd_begin
         ld sp,STACK ;не должен опускаться ниже #3b00! иначе возможна порча OS
-        OS_HIDEFROMPARENT
-        call init        
-        
+        call init
+
 ;curfulllink нужен для сохранения в истории и использования пути для относительных ссылок
 ;linkbuf содержит ссылку (может быть относительная)
         if 1==0
@@ -149,7 +149,6 @@ cmd_begin
         ld de,curfulllink;COMMANDLINE
         call prtextmc
         call setpgtemp8000
-        ;jr $
         endif
 
         ;call keepcurlink
@@ -214,7 +213,7 @@ recodelinkamp0dec1
 recodelinkamp0q
 
         call keepcurlink
-        
+
         call makefulllink
 ;curfulllink содержит полный url, собранный из старого curfullink и ссылки linkbuf
 
@@ -226,11 +225,10 @@ recodelinkamp0q
         ld de,curfulllink;COMMANDLINE
         call prtextmc
         call setpgtemp8000
-        jr $
         endif
-	
+
 browser_go_curfulllink
-	
+
         jr browser_backspaceq
 keepcurlink
 ;для backspace: запомнить полный путь с протоколом и именем
@@ -265,9 +263,7 @@ remembercurlink
          dec h
 	ld (histaddr),hl
 	call setpghist
-         ;jr $
         ld de,curfulllink;linkbuf
-        ;call strcopy
 	 ld bc,256+254
 	ldir
         ld de,html_curtopy
@@ -358,11 +354,10 @@ downloadflag=$+1
 	jp nz,downloadfile
 	
         call initframes_time_scroll
-        
+
        LD IY,DISKBUF+DISKBUFsz-1
 
         call RDBYTE
-         ;jr $
         ;cp '<'
         ;jp z,loadhtml
          ;cp 0x0a ;speccy.info
@@ -405,7 +400,6 @@ loadbmp
 ;дальше идёт палитра (B, G, R, 0)
 
 ;дальше идёт картинка (длины строк в байтах кратны 4)
-        ;jr $
 
         ld b,18-2 -4+1
 ;loadbmp_skipheader0
@@ -464,7 +458,7 @@ nvview_loadbmp0go
         xor a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
         jr z,nvview_loadbmp0
-        
+
         ld h,a
         ld l,a ;0
         ld a,(npages)
@@ -474,7 +468,7 @@ nvview_loadbmp0go
         rr h
         ld (freemem_hl),hl
         ld (freemem_a),a ;костыль (TODO заказывать память под bmp нормально)
-        
+
         call reservefirstframeaddr
         call initframe ;один раз на картинку после setpicwid, setpichgt и после установки gifframetime ;заказывает память под конверченный кадр
 ;ahl=адрес памяти под конверченный кадр
@@ -535,25 +529,24 @@ bmpgetline_ifvisibleq
         cpi
         jp pe,fill0
         jp showgif ;jp closequit
-        
+
 downloadfile
         call reservepage
         ret nz ;no memory
-	
+
 	ld de,downloadfilename ;TODO сгенерировать из урла или HTTP ответа + запросить редактирование
 ;de=filename
         OS_CREATEHANDLE
 ;b=new file handle
         ld a,b
         ld (downloadfilehandle),a
-	
+
 downloadfile0
         ld de,0xc000
         ld hl,0x4000
 ;DE = Buffer address, HL = Number of bytes to read
          push hl
         call readstream
-        ;jr $
 ;HL = Number of bytes actually read, A=error
 
 	push hl
@@ -569,14 +562,13 @@ downloadfilehandle=$+1
         or a
         sbc hl,bc ;NZ = bytes to read != bytes actually read
         jr z,downloadfile0
-	
+
 	ld a,(downloadfilehandle)
 	ld b,a
 	OS_CLOSEHANDLE
-	
+
 	ld hl,downloadfilename
 	inc (hl) ;TODO ввод имени
-
 	jp closequit
 
 DOCTYPEsz=9
@@ -595,7 +587,7 @@ loadxml;svg
         cp 's'
          ld a,e ;ld a,(iy) ;first char
         jp nz,loadhtml
-        
+
         push af
         push iy
         ld e,3 ;6912
@@ -614,7 +606,6 @@ loadxml;svg
         pop iy
         pop af ;a=(iy)=first char
         call readsvg
-        ;jr $
          call setpgcode4000
 loadsvgq0
         call yieldgetkeynolang ;z=nokey
@@ -678,7 +669,7 @@ firstframeaddrHSB=$+1
 ;bc=число кадров-1
 showgif_frames0
         push bc
-        
+
 	push hl
 	push af
         OS_GETTIMER ;hlde=timer
@@ -686,12 +677,12 @@ showgif_frames0
 	ex de,hl
 	ex (sp),hl
         call showframe ;читает showframetime из кадра
-	
+
 	pop de ;timer
-	
+
 	push af
 	push hl
-	
+
 showframetime=$+1
 	ld hl,0 ;in 1/100 s
 	inc hl
@@ -809,8 +800,6 @@ showframe_updownq
         ld (yscroll),hl
         jr showframe_nokey
 
-
-        
 loadbmp_fail
 closequit
         call closestream
@@ -834,11 +823,8 @@ TYPE_ERROR
         call prtextmc
 
 ERROR ;for jpeg
-        ;jr $
 ERROR2
-        ;jr $
 ERROR4
-        ;jr $
 getkeyquit
 getkeyquit0
 	;YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
@@ -955,7 +941,7 @@ tconnerr
         db "conn.err",0
 tloaderr
         db "load err",0
-        
+
 showtime
          call setpgcode4000
         ld a,STATUSCOLOR
@@ -971,7 +957,7 @@ timebegin=$+1
 ;d=y, e=x8
 ;hl=time (frames)
          jp prnumfrac
-         
+
 showmem
         ld a,(npages)
 npages_old=$+1
@@ -987,7 +973,7 @@ npages_old=$+1
         pop hl
          ld de,0xc046
         jp prnum123
-        
+
 cleanstatusline
         call setpgs_scr
         call setpgcode4000
@@ -998,7 +984,7 @@ cleanstatusline
         call cleanlinemc
         ;ld a,STATUSCOLOR
         jp initprcharmc
-         
+
 ;hl = poi to filename in string
 ;out: de = after last slash
 findlastslash.
@@ -1016,10 +1002,11 @@ nfopenfnslash0.
 
 strcopy
 ;hl->de
+;out: hl,de after terminator
+        xor a
 strcopy0
-        ld a,(hl)
+        cp (hl)
         ldi
-        or a
         jr nz,strcopy0
         ret
 
@@ -1030,7 +1017,7 @@ makefulllink
         ld a,(hl)
         cp '/'
         jr z,browser_go_rootlink ;"/Timex"
-        
+
         call isprotocolpresent
 ;nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
         jr z,browser_go_protocolpresent ;протокол есть - linkbuf содержит полную ссылку (к ней только добавить / в случае http://ser.ver)
@@ -1072,7 +1059,6 @@ browser_go_chdir
 ;hl=linkbuf+... (path/file without ../)
 ;de=curfulllink+...=end of curdir (after slash)
 ;remove last element of curdir = move de to previous slash
-         ;jr $
         dec de ;at slash
         dec de
         ld a,(de)
@@ -1153,7 +1139,7 @@ adddefaultprotocol
         or a
         ld hl,tfileprotocol
         jr z,$+5
-        ld hl,thttpprotocol        
+         ld hl,thttpprotocol
         ld de,curfulllink
         call strcopy
         dec de
@@ -1168,9 +1154,6 @@ addslashafterserver
 ;add / after http://ser.ver
 ;hl=after "//"
         call findslash
-        ;call strlen_tobc_keephl
-        ;ld a,'/'
-        ;cpir
         ret z ;слеш уже есть
          ld (hl),c;0
          dec hl
@@ -1178,7 +1161,7 @@ addslashafterserver
         ret
 
 findslash
-        call strlen_tobc_keephl
+        call strlen_tobc_keephl ;out: bc=len (Z: len==0)
          ret z
         ld a,'/'
         cpir
@@ -1186,6 +1169,7 @@ findslash
 
 strlen_tobc_keephl
 ;hl=string
+;out: bc=len (Z: len==0)
         push hl
         xor a
         ld b,-1
@@ -1247,7 +1231,7 @@ drawscreenline_frombuf_scr=$+1
         ;ret nz ;jr nz,drawscreenline_frombufq ;end of screen, current line doesn't fit
         ld (drawscreenline_frombuf_scr),hl
         ret
-       
+
 drawscreenline_frombuf
 ;hl=from
         exx
@@ -1287,14 +1271,14 @@ readchr_patch=$+1
         cpi ;делает inc hl
         jp pe,drawscreenline_frombuf0
         pop af
-        
+
         dec ix
         dec ix
         ld (drawscreenline_frombuf_ixaddr),ix
         dec iy
         dec iy
         ld (drawscreenline_frombuf_iyaddr),iy
-        
+
          ;call setpgs_scr
         exx
         pop bc ;screen
@@ -1310,7 +1294,7 @@ readchr_patch=$+1
         pop iy
         pop ix
         ret;jp setpgtemp8000
-        
+
 read_b_bytes
 read_b_bytes0
         call RDBYTE
@@ -1399,7 +1383,7 @@ ZIPRDBYH
         push bc
         push de
         push hl
-        
+
 pngIDATremainedHSW=$+1
         ld de,0
 pngIDATremained=$+1
@@ -1470,7 +1454,7 @@ ZIPRDBYHn0
          push de
 ZIPRDBYHq
          pop iy ;addr = DISKBUF+
-        
+
         pop hl
         pop de
         pop bc
@@ -1484,10 +1468,7 @@ ZIPRDBYHq
        LD A,(IY)
        or a ;CY=0: OK
         ret
-        
-        
-        
-        
+
 readstream
 readstream_patch=$+1
         jp readstream_file
@@ -1505,7 +1486,6 @@ getCS
         RRA 
         RET        
 
-;читать быстро, а потом откатывать указатель файла
 GETDWORD_slow
 ;hlde
         ;call RDBYTE
@@ -1551,7 +1531,7 @@ _=_+1
         ldi ;r
 _=_+1
         edup
-        
+
         endif
         ret
 
@@ -1590,7 +1570,7 @@ _=_+1
         ldi ;r
 _=_+2
         edup
-        
+
         endif
         ret
         
@@ -1840,29 +1820,28 @@ colorlace1
 ;h=maxdistdiv
 ;в диферинге ходим только по одной составляющей, остальные не читаем:
         jp (ix) ;dithermcy0/1/2/3
-        
+
  ;0 бессмысленно (всегда NC), поэтому все значения увеличены на 1:
         dw dithermcy2
 dithermcy3
         DITHERMC1B 0x1, 0xd, 0x3, 0xf
         ret;jp convertchrq
-        
+
         dw dithermcy1
 dithermcy2
         DITHERMC1B 0x9, 0x5, 0xb, 0x7
         ret;jp convertchrq
-        
+
         dw dithermcy0
 dithermcy1
         DITHERMC1B 0x4, 0x10, 0x2, 0xe
         ret;jp convertchrq
-        
+
         dw dithermcy3
 dithermcy0
         DITHERMC1B 0xc, 0x8, 0xa, 0x6
         ret;jp convertchrq
-        
-        
+
 skipword
 ;hl=string
 ;out: hl=terminator/space addr
@@ -1892,7 +1871,6 @@ minhl_bc_tobc
         ld b,h
         ld c,l
         ret
-
 
 MULWORD
 ;out: HLBC=DE*BC
@@ -1967,14 +1945,49 @@ getline_frommem
         ld hl,(putchar_hl)
         ld a,(putchar_a)
         jp getfrommem
-        
+
+swapimer
+	di
+        ld de,0x0038
+        ld hl,oldimer
+        ld bc,3
+swapimer0
+        ld a,(de)
+        ldi ;[oldimer] -> [0x0038]
+        dec hl
+        ld (hl),a ;[0x0038] -> [oldimer]
+        inc hl
+        jp pe,swapimer0
+	ei
+        ret
+oldimer
+        jp on_int ;заменится на код из 0x0038
+        jp 0x0038+3
+
+on_int
+;restore stack with de
+        EX DE,HL
+	EX (SP),HL ;de="hl", в стеке "de"
+	LD (on_int_jp),HL
+	LD (on_int_sp),SP
+	LD SP,INTSTACK
+        ex de,hl ;hl="hl"
+
+        call oldimer ;ei
+
+on_int_sp=$+1
+	ld sp,0
+        pop de
+	;ei
+on_int_jp=$+1
+	jp 0
+
 curpicwid
         dw 0
 curpichgt
         dw 0
 curpichgt_visible
         dw 0
-
 
 downloadfilename
 	db "download.fil",0
@@ -2000,14 +2013,10 @@ curfulllink
 	include "mempgs.asm"
         include "dynmem.asm"
         include "../_sdk/file.asm"
-        ;include "http.asm"
         include "gif.asm"
         include "drawmc.asm"
         include "editline.asm"
-        
-;oldtimer
-;        dw 0
-        
+
         align 256
 textpages
         ds 256
@@ -2016,7 +2025,7 @@ textpages
         align 256
 tmaxaxis ;maxdistdiv_fromattr[256], min_fromattr[256], maxaxis_fromattr[256]
         incbin "tmaxaxis"
-        
+
         ;align 256 ;непосредственно после tmaxaxis
 t64to16ink
         incbin "t64to16i"
@@ -2031,9 +2040,9 @@ t64to16paper
         
 twinto866
         incbin "../_sdk/codepage/winto866"
-        
+
 endcode=$
-        
+
         ds end1-$
         display "free for code=",$-endcode
 
@@ -2064,7 +2073,6 @@ pngdepktoaddrHSB=$+1
         ld bc,(Z6546) ;сколько байт сохранить
         ld (TD198),bc ;сколько байт сохраняли 
 
-
         inc bc
         jr saveblock0_go
 ;адрес 0x7e00..0xffff
@@ -2086,7 +2094,7 @@ saveblock0_go
         ld (pngdepktoaddr),hl
         ld (pngdepktoaddrHSB),a
          call gifsetpgLZW
-        
+
         ld hl,0
         ld (Z6546),hl
         pop hl
@@ -2098,7 +2106,7 @@ depkqerror=ERROR
 ziptrees
         ds 0xa60 + 2*288
         include "../pkunzip/depk.asm"
-        
+
         ;display "depk size=",$-depkbeg
 
 wgetfilename
@@ -2109,17 +2117,15 @@ wgetfilename
 free2=end2-$;0x8000-$
         display "free for code in 0x4000=",free2
         ds 0x8000-$
-        
+
         incbin "tdiv"
 ;0xc000
         include "svg.asm"
         display "end=",$
-        
-cmd_end
 
+cmd_end
 	;display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "browser.com",cmd_begin,cmd_end-cmd_begin
-	
-	;LABELSLIST "user.l"
+
 	LABELSLIST "../../us/user.l"

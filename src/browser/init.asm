@@ -1,18 +1,8 @@
 init
+        OS_HIDEFROMPARENT
         ld e,2 ;MC hires mode
         OS_SETGFX
-        
-        ;YIELD ;чтобы cmd мог доделать свои дела на экране
 
-        ;OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ;ld a,e
-        ;ld (setpgs_scr_low),a
-        ;ld (setpgs_scr_attr),a
-        ;ld a,d
-        ;ld (setpgs_scr_high),a
-        ;ld (setpgs_scr_pixels),a
-        
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
@@ -21,7 +11,7 @@ init
         ld (codepg8000),a ;pgdiv
         ld a,l
         ld (codepg_svg),a
-        
+
         OS_NEWPAGE
         ld a,e
         ld (curpgLZW),a
@@ -54,6 +44,7 @@ init
         ld de,zxpal
         OS_SETPAL
 
+        call swapimer
         call yieldgetkeynolang ;get mouse coords
 
         ;call setpgcode4000
@@ -85,7 +76,7 @@ init
         cp ':'
         ld a,1
         jr nz,$+3
-        xor a
+         xor a
         call adddefaultprotocol
 browser_recodefull_protocolpresent
 ;curfulllink OK
@@ -101,4 +92,3 @@ defaultfilename
 
 zxpal
         incbin "zxpal"
-
