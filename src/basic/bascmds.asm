@@ -195,6 +195,9 @@ cmd_gfx
         and 7
         ld e,a
          ld (curgfx),a
+         cp 6
+         jr nz,$+4
+          ld e,-1 ;disable gfx (out: e=old gfxmode)
         OS_SETGFX
         pop hl
         exx

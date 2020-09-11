@@ -1,10 +1,3 @@
-pushbase=0x8000;c000
-        macro SETPGPUSHBASE
-         ;ld (curpgc000),a
-         ;SETPG32KHIGH
-        ;ld (curpg8000),a
-        SETPG32KLOW
-        endm
 pushscrtop=scrbase+0;10
 pushwid=40;20
 pushhgt=512;200 ;сколько строк графики разложено в ldpush (не менее scrhgt)
@@ -195,23 +188,6 @@ genpush_nextpg
         pop bc        
         ;ld hl,pushbase
         pop hl ;pushbase+
-        ret
-
-genpush_newpage
-;заказывает страницу, заносит в tpushpgs, a=pg
-        push bc
-        push de
-        push hl
-        push ix
-        OS_NEWPAGE
-        pop ix
-        ld a,e
-        ld (ix),a
-        ld de,4
-        add ix,de
-        pop hl
-        pop de
-        pop bc
         ret
 
 bgpush_inccurscroll

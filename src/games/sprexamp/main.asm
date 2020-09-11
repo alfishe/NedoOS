@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
+OLDDRAWSPR=1
+
 scrbase=0x4000
 sprmaxwid=32
 sprmaxhgt=32
@@ -55,6 +57,14 @@ METATILEMAPHGT=64
 TILEGFX=0xc000
 
 DELETEDYHIGH=0x7f
+
+pushbase=0x8000;c000
+        macro SETPGPUSHBASE
+         ;ld (curpgc000),a
+         ;SETPG32KHIGH
+        ;ld (curpg8000),a
+        SETPG32KLOW
+        endm
 
         macro RECODEBYTE
         ld a,(de)
@@ -124,8 +134,8 @@ GO
         call getmousedelta ;prepare mouse
 
         ld hl,texfilename
-        call loadpage
-        ld (pg0),a
+        ;call loadpage
+        ;ld (pg0),a
         call loadpage
         ld (pg1),a
         call loadpage
@@ -208,18 +218,38 @@ mainloop_uv0
         ;halt
         call uvscroll_draw
         
+        if OLDDRAWSPR==1
         ld ix,objects
         call drawsprites
         ld ix,bullets
         call drawsprites
+        
+        else
+        ld de,spritesA+1
+        ld ix,objects
+        call preparedrawsprites
+        ld ix,bullets
+        call preparedrawsprites
+        dec de
+        ld (drawsprites_data),de
+        call drawsprites
+        endif
 
         ;call prcoords
 
         call getmousedelta ;de=delta (d>0: go up) (e>0: go left), l=mousekey
         push hl
+trackcamera_addr=$+1
         ;call mousetrackcamera ;de=delta (d>0: go up) (e>0: go left) ;out: d=camera dy, e=camera dx         
         call trackcamera ;de=delta (d>0: go up) (e>0: go left) ;out: d=camera dy, e=camera dx         
         pop hl ;l=mousekey
+        
+        ld a,l
+        bit 1,a
+        jr nz,nocamoff
+        ld bc,notrackcamera
+        ld (trackcamera_addr),bc
+nocamoff
         
 ;d=camera dy
 ;e=camera dx
@@ -227,7 +257,7 @@ mainloop_uv0
         
         ld a,l ;hl=(sysmousebuttons)
         rra
-         jr nc,mainloop_uvq ;LMB
+         ;jr nc,mainloop_uvq ;LMB
         call uvscroll_scroll
         call uvscroll_scrolltiles
         
@@ -256,8 +286,13 @@ waitchangescr0
         cp b
         jr z,waitchangescr0
 
-        jp mainloop_uv0
+        ld a,(curkey)
+        cp key_esc
+        jp nz,mainloop_uv0
 mainloop_uvq
+
+        if 1==0
+
 ;vertical scroll
         ld de,bgfilename
         call bgpush_prepare
@@ -266,6 +301,7 @@ mainloop_uvq
         ld de,pal;SUMMERPAL
         OS_SETPAL
 
+        if 1==0
 pg0=$+1
         ld a,0
         call setpgc000;SETPG32KHIGH
@@ -273,6 +309,7 @@ pg0=$+1
         ld de,0xc000 ;gfx
         ld bc,0xc020 ;hgt,wid
         call primgega
+        endif
 
 mainloop
         ld bc,-1
@@ -280,6 +317,10 @@ mainloop
 
         call bgpush_draw ;359975t
 
+        ld de,spritesA+1
+        call preparedrawsprites
+        dec de
+        ld (drawsprites_data),de
         call drawsprites
         
        ld a,(timer)
@@ -309,10 +350,11 @@ waitchangescr1
         
 ;waitkey
         ;halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
-curkey=$+1
-        ld a,0
+        ld a,(curkey)
         cp key_esc
         jp nz,mainloop;waitkey
+
+        endif
 
         call swapimer
 pgmusic=$+1
@@ -322,6 +364,9 @@ pgmusic=$+1
         OS_SETMUSIC
         halt
         QUIT
+
+curkey
+        db 0
 
 mousetrackcamera
 ;de=delta (d>0: go up) (e>0: go left)
@@ -342,6 +387,11 @@ mousetrackcamera
         ld b,a
         add hl,bc
         ld (cameraym),hl
+        ret
+
+notrackcamera
+;out: d=camera dy, e=camera dx
+        ld de,0
         ret
 
 trackcamera
@@ -1209,6 +1259,7 @@ gettile_bycoords
         ld a,(hl) ;tile в ногах
         ret
 
+        if OLDDRAWSPR==1
 drawsprites
 pg1=$+1
         ld a,0
@@ -1297,13 +1348,133 @@ drawspr_skip
         add ix,bc
         jp drawsprites0
 ;817000(prsprega)/793000(prspr)t на всё
+        endif
+
+        if OLDDRAWSPR==0
+preparedrawsprites
+;pg1=$+1
+        ld a,(pg1) ;страница описателей спрайтов
+        call setpgc000
+preparedrawsprites0
+        bit 7,(ix+obj.y16+1) ;yhigh
+        ret nz ;jp nz,preparedrawspritesq ;setpgsmain40008000
+
+;храним x*XSUBPIX8 (in double pixels),y*YSUBPIX8
+        ld a,(ix+obj.x16+0)
+        ld b,(ix+obj.x16+1)
+        srl b
+        rra
+        srl b
+        rra
+        srl b
+        rra
+        ld c,a
+cameraxm=$+1
+        ld hl,0;+160;-2048+160
+        add hl,bc
+        ld a,h
+        or a
+        jr nz,preparedrawspr_skip
+        ld a,l
+        cp 159+sprmaxwid
+        jr nc,preparedrawspr_skip
+        ;ld e,a
+         ld (de),a ;x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+        
+        ld a,(ix+obj.y16+0)
+        ld b,(ix+obj.y16+1)
+        srl b
+        rra
+        srl b
+        rra
+        srl b
+        rra
+        ld c,a
+cameraym=$+1
+        ld hl,0;+160;-1024+160
+        add hl,bc
+        ld a,h
+        or a
+        jr nz,preparedrawspr_skip
+        ld a,l
+        cp 199+sprmaxhgt
+        jr nc,preparedrawspr_skip
+        sub sprmaxhgt-1
+        ;ld c,a
+         inc de
+         ld (de),a ;y = -(sprmaxhgt-1)..199 (кодируется как есть)
+         inc de
+        ld l,(ix+obj.animaddr16+0)
+        ld h,(ix+obj.animaddr16+1)
+        ld a,(hl) ;phase LSB
+        inc hl
+        ld h,(hl) ;phase HSB
+        ld l,a
+         ldi
+         ldi
+
+        ld a,(ix+obj.animaddr16+0) ;TODO
+pg1=$+1
+        ld a,0
+         ld (de),a ;pg
+         inc de
+preparedrawspr_skip
+        ld bc,OBJSIZE
+        add ix,bc
+        jp preparedrawsprites0
+;817000(prsprega)/793000(prspr)t на всё
+;preparedrawspritesq
+;        dec de
+;        ld (drawsprites_data),de
+;        ret ;jp setpgsmain40008000
 
         ;ld iy,(0xc000);testspr
         ;ld e,110+(sprmaxwid-1) ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
         ;ld c,120 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
         ;call prsprega
 
+        align 256
+spritesA
+        ds 1+5*51
+;        align 256
+;spritesB
+;        ds 1+5*51
+;        align 256
+;spritesC
+;        ds 1+5*51
 
+drawsprites
+;y,x,addr,pg - читаем с конца
+drawsprites_data=$+1
+        ld hl,0;sprlistA/B/C
+        ;jr $
+        inc l
+        dec l
+        ret z ;no sprites
+drawsprites0
+        call setpgsscr40008000 ;предыдущий спрайт мог выключить, если был левее экрана и вообще не попал на экран? ;TODO если спрайт в границах экрана
+        ld a,(hl)
+        dec hl
+        call setpgc000
+        ld a,(hl)
+        ld hy,a
+        dec hl
+        ld a,(hl)
+        ld ly,a
+        dec hl
+        ld c,(hl) ;y
+        dec hl
+        ld e,(hl) ;x
+        push hl
+;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        call prspr ;(без включения экранных страниц и без проверки попадания спрайта в экран) один спрайт 16x16 = 6408t (из них 4224t само мясо)
+        pop hl
+        dec l
+        jp nz,drawsprites0
+        jp setpgsmain40008000
+
+        endif
 
 getmousedelta
         GET_KEY ;OS_GETKEYNOLANG
@@ -1358,7 +1529,7 @@ loadpage
 
 
 texfilename
-        db "WBAR.bin",0
+        ;db "WBAR.bin",0
         db "WHUM1.bin",0
         db "sfx.bin",0
         db "music.bin",0
@@ -1622,7 +1793,7 @@ fillobjxy
         include "int.asm"
         include "cls.asm"
         include "prspr.asm"
-        include "bgpush.asm"
+        ;include "bgpush.asm"
         include "bgpushxy.asm"
         include "../../_sdk/file.asm"
 
@@ -1933,6 +2104,23 @@ prcharin_go
         inc de
         add hl,bc
         edup        
+        ret
+
+genpush_newpage
+;заказывает страницу, заносит в tpushpgs, a=pg
+        push bc
+        push de
+        push hl
+        push ix
+        OS_NEWPAGE
+        pop ix
+        ld a,e
+        ld (ix),a
+        ld de,4
+        add ix,de
+        pop hl
+        pop de
+        pop bc
         ret
 
         align 256
