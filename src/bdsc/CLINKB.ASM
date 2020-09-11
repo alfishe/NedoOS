@@ -117,7 +117,7 @@ setm:	push hl		;insert a "call marc" instruction at mhackl in c.ccc:
 	add hl,de		;HL --> where "call marc" will go
 	ld (hl),0cdh	;"call" op
 	inc hl
-	ld (hl),msys and 0ffh
+	ld (hl),msys&0ffh
 	inc hl
 	ld (hl),msys/256
 	
@@ -614,7 +614,7 @@ gfl1:	ld hl,tbuff	;get a line of user input at tbuff
 gfl1a:	call inch	;get a character from console
 	ld (hl),a		;save it
 	inc hl		;bump pointer
-	cp newlin	;newline?		
+	cp newlin	;newline?
 	jp nz,gfl1a
 	dec hl
 	ld (hl),0		;if so, change it to a null
@@ -1432,7 +1432,7 @@ et1e:	lda rdngsm	;has new symbol been previously defined?
 	jp nz,et1e00
 	inc hl
 	ld a,(hl)
-	cp 'N'+80h		
+	cp 'N'+80h
 	jp nz,et1e00
 	pop hl
 	ret
@@ -1536,7 +1536,7 @@ ckov2:	push hl
 	
 ckovok:	pop bc
 	pop hl
-	ret	
+	ret
 
 ;
 ; Test the strings at DE (b7 high on last char) and

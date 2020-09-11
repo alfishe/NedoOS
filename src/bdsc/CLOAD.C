@@ -153,7 +153,10 @@ badfile()
 die(msg)
 char *msg;
 {
-    puts(msg ? msg : errmsg(errno()));  putchar('\n');  exit();
+    /*puts(msg ? msg : errmsg(errno()));  putchar('\n');*/
+    if (msg) {
+        puts(msg);
+        putchar('\n');
+    }else printf("Error #%d\n",errno());
+    exit();
 }
-
-

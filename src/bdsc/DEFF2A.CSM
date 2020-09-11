@@ -12,15 +12,15 @@
 ; 
 ; Functions appearing in this file:
 ;
-; 	cmode	iobreak getchar	kbhit	ungetch	putchar
+; 	[cmode]	[iobreak] getchar	kbhit	ungetch	putchar
 ;	gets	getline
 ;	rand	srand 	srand1	nrand
-;	csw	setmem	movmem	memcmp
+;	[csw]	setmem	movmem	memcmp
 ;	call	calla
 ;	inp 	outp	peek	poke
 ;	sleep	pause 	exit
 ;	bdos	bios	biosh
-;	codend	externs	endext	topofmem
+;	codend	[externs]	endext	topofmem
 ;	exec	execv
 ; 	rbrk	sbrk	rsvstk
 ;	index
@@ -28,6 +28,7 @@
 ;
         include "liblib.asm"
 
+        if 1==1
 	FUNCTION "CMODE"
         FUNCHEAD cmodesz
 	call	ma1toh		;get arg
@@ -44,7 +45,9 @@
 	ret
 	ENDFUNC cmodesz,0
         ;dw 0 ;no reloc pars
+        endif
 
+        if 1==1
 	FUNCTION "IOBREAK"
         FUNCHEAD iobreaksz
 	call	ma1toh		;get arg
@@ -52,6 +55,7 @@
 	ret
 	ENDFUNC iobreaksz,0
         ;dw 0 ;no reloc pars
+        endif
 
 	FUNCTION "GETCHAR"
         FUNCHEAD getcharsz
@@ -152,25 +156,6 @@ gcbuff	db	maxl	;max line length fro BDOS 10
 gcnum	db	0	;number of characters just read by BDOS 10
 gcline	ds	maxl+1	;buffer for characters, in case BDOS 10 is used
 	ENDFUNC getcharsz,14
-        if 1==0
-        dw getcharnpars
-_p=$
-        dw _1
-        dw _2
-        dw _3
-        dw _4
-        dw _5
-        dw _6
-        dw _7
-        dw _8
-        dw _9
-        dw _10
-        dw _11
-        dw _12
-        dw _13
-        dw _14
-getcharnpars=($-_p)/2
-        endif
 
 	FUNCTION "KBHIT"
         FUNCHEAD kbhitsz
@@ -257,14 +242,6 @@ put3:	 ld	c,conin	;yes. sample it (this will always echo the
 put4:	pop bc	;else ignore it.
 	ret
 	ENDFUNC putcharsz,3
-        if 1==0
-        dw putcharnpars
-_p=$
-        dw _1
-        dw _2
-        dw _3
-putcharnpars=($-_p)/2
-        endif
 
 	FUNCTION "GETS"
         FUNCHEAD getssz
@@ -305,13 +282,6 @@ gets2s:	xor	a	;store terminating null
 	pop bc
 	ret
 	ENDFUNC getssz,2
-        if 1==0
-        dw getsnpars
-_p=$
-        dw _1
-        dw _2
-getsnpars=($-_p)/2
-        endif
 
 ;
 ; Getline(str,lim)
@@ -366,14 +336,6 @@ gets2ln:	xor	a	;store terminating null
 	pop bc
 	ret
 	ENDFUNC getlinesz,2
-        if 1==0
-        dw getlinenpars
-_p=$
-        dw _1
-        dw _2
-getlinenpars=($-_p)/2
-        ;display "getlinenpars=",getlinenpars
-        endif
 
 	FUNCTION "RAND"
         FUNCHEAD randsz
@@ -406,13 +368,6 @@ rand1:	lhld	rseed+2
 	ld	h,a
 	ret
 	ENDFUNC randsz,2
-        if 1==0
-        dw randnpars
-_p=$
-        dw _1
-        dw _2
-randnpars=($-_p)/2
-        endif
 
 	FUNCTION "SRAND"
         FUNCHEAD srandsz
@@ -456,14 +411,6 @@ _3=$+1
 	ret
 stg1:	db 'Wait a few seconds, and type a CR: $'
 	ENDFUNC srandsz,3
-        if 1==0
-        dw srandnpars
-_p=$
-        dw _1
-        dw _2
-        dw _3
-srandnpars=($-_p)/2
-        endif
 
 
 
@@ -654,6 +601,7 @@ seed:	db	1,0,0,0,0,0
 prod:	db	0,0,0,0,0,0
 	ENDFUNC nrandsz,28
 
+        if 1==1
 	FUNCTION "CSW"
         FUNCHEAD cswsz
 	in a,(255) ;???
@@ -661,6 +609,7 @@ prod:	db	0,0,0,0,0,0
 	ld	h,0
 	ret
 	ENDFUNC cswsz,0
+        endif
 
 	FUNCTION "SETMEM"
         FUNCHEAD setmemsz
@@ -1004,11 +953,13 @@ bioshretadd:	pop bc	;all done. Leave return value in HL
 	ret
 	ENDFUNC codendsz,0
 
+        if 1==1
 	FUNCTION "EXTERNS"
         FUNCHEAD externssz
 	lhld	extrns
 	ret
 	ENDFUNC externssz,0
+        endif
 
 	FUNCTION "ENDEXT"
         FUNCHEAD endextsz
@@ -1218,55 +1169,6 @@ _5=$+1
 	jp	index1
 	ENDFUNC indexsz,5
 
-	FUNCTION "SETJMP"
-        FUNCHEAD setjmpsz
-	call	ma1toh
-	ld	(hl),c	;save BC
-	inc hl
-	ld	(hl),b
-	inc hl
-	ex de,hl
-	ld hl,0
-	add hl,sp
-	ex de,hl
-	ld	(hl),e	;save SP
-	inc hl
-	ld	(hl),d
-	inc hl
-	pop de	;save return address
-	push de
-	ld	(hl),e
-	inc hl
-	ld	(hl),d
-	ld hl,0	;and return 0
-	ret
-	ENDFUNC setjmpsz,0
-
-	FUNCTION "LONGJMP"
-        FUNCHEAD longjmpsz
-	call	ma1toh	;get buffer address
-	ld	c,(hl)	;restore BC
-	inc hl
-	ld	b,(hl)
-	inc hl
-	ld	e,(hl)	;restore SP...first put it in DE
-	inc hl
-	ld	d,(hl)
-	inc hl
-	shld	tmp2	;save pointer to return address
-	call	ma2toh	;get return value
-	ex de,hl		;put return val in DE, old SP in HL
-	ld sp,hl		;restore SP with old value
-	pop hl	;pop retur address off stack
-	lhld	tmp2	;get back ptr to return address
-	ld	a,(hl)
-	inc hl
-	ld	h,(hl)
-	ld	l,a	;HL holds return address
-	ex de,hl		;put ret addr in DE, get return value in HL
-	push de	;push return address on stack
-	ret		;and return...
-	ENDFUNC longjmpsz,0
 
         include "deff2b.csm"
         include "deff2c.csm"
@@ -1332,26 +1234,29 @@ putsq:
 ; sector.
 ;
 
+        ;ds 61
 	FUNCTION "READ"
         FUNCHEAD readsz
-
+         ;jr $
 	call	arghak
 	lda	arg1
 	call	fgfd
 	ld	d,(hl)	;save fdt entry in D
 	ld	a,7	;prepare for possible "bad fd"
+         or a
 _1=$+1
 	jp c,rerror
 
-	ld	a,d
-	and	2 ;4wr
+	;ld	a,d
+	;and	2 ;4wr
 	ld	a,8 ;9wr	;prepare for possible "no read permission"
+         or a
 _2=$+1
 	jp z,rerror
 
 	push bc
-	ld	a,d	;get fd table entry
-	call	setusr	;set user area to that of the file
+	;ld	a,d	;get fd table entry
+	;call	setusr	;set user area to that of the file
 
 	lda	arg1	;get fd
 	call	fgfcb
@@ -1365,7 +1270,7 @@ r2:	lhld	arg3	;get countdown
 r2aa:	lhld	tmp2a
 _3=$+1
 	jp nz,r2a
-r2done:	call	rstusr	;reset user number
+r2done:	;call	rstusr	;reset user number
 	pop bc	;yes. return with success count in HL
 	ret
 
@@ -1376,17 +1281,18 @@ r2a:	lhld	arg2	;get transfer addr in DE
 
 	lhld	tmp2
 	ex de,hl
-	ld	c,readr	;code for BDOS random read
+	;ld	c,readr	;code for BDOS random read
 	push de	;save DE so we can fudge nr field if
-	call	bdos	;we stop reading on extent boundary...
+	;call	bdos	;we stop reading on extent boundary...
+         OS_FREAD
 	pop de
 	or	a
 _4=$+1
 	jp z,r4	;go to r4 if no problem
 
-	cp	1	;ok, we have SOME kind of hangup...
+	cp 128 ;0 bytes read in NedoOS ;cp	1	;ok, we have SOME kind of hangup...
 _5=$+1
-	jp z,r2b	;check for EOF condition:
+	jp nz,r2b ;jp z,r2b	;check for EOF condition:
 	cp	4	;  error codes 1 and 4 both indicate reading
 _6=$+1
 	jp z,r2b	;  unwritten data..treat as EOF
@@ -1404,6 +1310,7 @@ _8=$+1
 	jp	r2done
 
 r2b:	lhld	tmp2a	;return count
+         inc hl ;for NedoOS: we have read at least 1 byte in the last sector
 _9=$+1
 	jp	r2done
 
@@ -1445,7 +1352,65 @@ rerror:	sta	errnum
 	ENDFUNC readsz,11
 
         ;include "deffgfx.csm"
-        
+;zzz
+        if 1==1
+	FUNCTION "SETJMP"
+        FUNCHEAD setjmpsz
+	call	ma1toh
+	ld	(hl),c	;save BC
+	inc hl
+	ld	(hl),b
+	inc hl
+	ex de,hl
+	ld hl,0
+	add hl,sp
+	ex de,hl
+	ld	(hl),e	;save SP
+	inc hl
+	ld	(hl),d
+	inc hl
+	pop de	;save return address
+	push de
+	ld	(hl),e
+	inc hl
+	ld	(hl),d
+	ld hl,0	;and return 0
+	ret
+	ENDFUNC setjmpsz,0
+        endif
+
+        if 1==1
+	FUNCTION "LONGJMP"
+        FUNCHEAD longjmpsz
+	call	ma1toh	;get buffer address
+	ld	c,(hl)	;restore BC
+	inc hl
+	ld	b,(hl)
+	inc hl
+	ld	e,(hl)	;restore SP...first put it in DE
+	inc hl
+	ld	d,(hl)
+	inc hl
+	shld	tmp2	;save pointer to return address
+	call	ma2toh	;get return value
+	ex de,hl		;put return val in DE, old SP in HL
+	ld sp,hl		;restore SP with old value
+	pop hl	;pop return address off stack
+	lhld	tmp2	;get back ptr to return address
+	ld	a,(hl)
+	inc hl
+	ld	h,(hl)
+	ld	l,a	;HL holds return address
+	ex de,hl		;put ret addr in DE, get return value in HL
+	push de	;push return address on stack
+	ret		;and return...
+	ENDFUNC longjmpsz,0
+        endif
+        ;display $-zzz
+        ;ds 0;66
+
+        ;align 128 ;doesn't help
+
 end
 	savebin "deff2.crl",begin,end-begin
 	

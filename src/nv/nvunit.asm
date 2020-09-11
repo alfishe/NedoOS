@@ -556,12 +556,22 @@ prtable
 ;de=yx
 	ld hl,prbeginstroka
 	call prtableline
+        push ix
 	ld b,CONST_HGT_TABLE
 prtable0
 	inc d 
-	ld hl,prmidstroka
-	call prtableline
+	;ld hl,prmidstroka
+	;call prtableline
+        push bc
+        push de
+        call nv_setxy ;keeps de,hl
+        ld de,tmidstroka
+        ld hl,tmidstroka_sz
+        call sendchars
+        pop de
+        pop bc
 	djnz prtable0
+        pop ix
 	inc d
 	ld hl,prendstroka
 prtableline
@@ -603,7 +613,7 @@ prNsymbol0
 	ret
 
 ;;;;;;;;;;;;;;;;;;
-        
+
 cmdprchar
         push hl
 	push ix
@@ -872,6 +882,14 @@ prbeginstroka
 	db 1
 	db 0
 
+tmidstroka
+	db 0xba;'³'
+        db 0x1b,"[25C"
+	db 0xb3;'³'
+        db 0x1b,"[12C"
+	db 0xba;'³'
+tmidstroka_sz=$-tmidstroka
+        if 1==0
 prmidstroka
 	db 0xba;'³'
 	db 1
@@ -888,6 +906,7 @@ prmidstroka
 	db 0xba;'³'
 	db 1
 	db 0
+        endif
 
 prendstroka
 	db 0xc8;'L'

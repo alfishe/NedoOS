@@ -10,7 +10,7 @@
 ;
 ;	setfcb	open	close	creat	unlink	rename	fabort
 ;	fcbaddr	read	write	seek	tell	hseek	htell
-;	cfsize	oflow	errno	errmsg	execl
+;	cfsize	oflow	errno	[errmsg]	execl
 ;
 
 
@@ -75,9 +75,11 @@ open2:	sta	tmp
 	ex de,hl
 	push bc
 	call	setfcu	;parse name and set usenum
-	lda	usrnum
-	call	setusr	;set new user number
+	;lda	usrnum
+	;call	setusr	;set new user number
 
+         ;jr $
+         ;jr $
 	ld	c,openc
 	call	bdos
 	cp	errorv	;successful open?
@@ -114,10 +116,11 @@ open4:	lda	usrnum	;get user number for the file
 	lda	tmp	;get back fd
 	ld	l,a
 	ld	h,0
-	call	rstusr	;reset user number
+	;call	rstusr	;reset user number
 	ret
 
-oerror:	call	rstusr	;reset user number
+oerror:	;call	rstusr	;reset user number
+         ;jr $
 	sta	errnum	;store error code number
 	jp	error	;and return general error condition
 	ENDFUNC opensz,5
@@ -164,12 +167,29 @@ _2=$+1
 	call	_unlink	;erase any old versions of file
 	pop de
 
-	lda	usrnum	;set to appropriate user area computed by "unlink"
-	call	setusr
+	;lda	usrnum	;set to appropriate user area computed by "unlink"
+	;call	setusr
+         ;jr $
+
+;;;from "open"         
+	xor	a
+	call	fgfcb	;any fcb's free?
+	jr nc,cropen2	;if not, error
+	ld	a,10	;"no more file slots"
+	jp	error
+cropen2:
+	sta	tmp
+	ex de,hl
+	lhld	arg1
+	ex de,hl
+	call	setfcu	;parse name and set usenum
+	;lda	usrnum
+	;call	setusr	;set new user number
+;;;        
 	ld	c,creatc	;create the file
-	ld de,fcb	;assume fcb has been set by "unlink"
+	;ld de,fcb	;assume fcb has been set by "unlink"
 	call	bdos
-	call	rstusr	;restore previous user number
+	;call	rstusr	;restore previous user number
 	cp	errorv
 	pop bc
 _3=$+1
@@ -178,14 +198,29 @@ _3=$+1
 	sta	errnum
 	jp	error
 
-creat0:	ld hl,2	;now open for read/write
-	push hl
-	lhld	arg1
-	push hl
+creat0:	
+       lda tmp ;fd
+       ld l,a
+       ld h,0
+        ;ld hl,2	;now open for read/write
+	;push hl
+	;lhld	arg1
+	;push hl
 _4=$+1
-	call	_open
-	pop de
-	pop de
+	ld de,_open
+        ;call	_open
+	;pop de
+	;pop de
+        ;push bc
+        ;push hl
+	;ld de,fcb	;assume fcb has been set by "unlink"
+        ;push de
+        ;OS_FWRITE
+        ;pop de
+        ;OS_FWRITE
+        ;pop hl
+        ;pop bc ;keep bc!!!
+         ;jr $
 	ret
 	ENDFUNC creatsz,4
 
@@ -205,11 +240,11 @@ _4=$+1
 	ex de,hl	
 	ld hl,fcb
 	call	setfcu	;parse for fcb and compute user number
-	lda	usrnum
-	call	setusr	;set to correct user number
+	;lda	usrnum
+	;call	setusr	;set to correct user number
 	ld	c,delc	;delete
 	call	bdos
-	call	rstusr	;restore original user number
+	;call	rstusr	;restore original user number
 	ld hl,0
 	pop bc	;restore BC
 	cp	errorv	;was BDOS able to find the file?
@@ -251,7 +286,7 @@ _3=$+1
 	ld de,wfcb
 	ld	c,renc	;perform rename operation
 	call	bdos
-	call	rstusr	;reset user number
+	;call	rstusr	;reset user number
 	ld hl,0
 	pop bc	;restore BC
 	cp	errorv	;was BDOS able to find the file?
@@ -328,26 +363,30 @@ fcbad2:	call	ma1toh
 
 	FUNCTION "WRITE"
         FUNCHEAD writesz
-
 	call	arghak
 	lda	arg1
 	call	fgfd
 	shld	arg5	;save pointer to fd table entry
 	ld	d,(hl)	;save fd table entry in D
 	ld	a,7	;prepare for possible "bad fd"
+         or a
 _1=$+1
 	jp c,werror
 
-	ld	a,d
-	and	4
+	;ld	a,d
+	;and	4
 	ld	a,9	;prepare for possible "no write permission"
+         or a
 _2=$+1
 	jp z,werror
 
 	push bc
-	ld	a,d	;set user number
-	call	setusr
+	;ld	a,d	;set user number
+	;call	setusr
 	lda	arg1	;get fd
+         ;jr $
+         ;jr $
+         ;jr $
 	call	fgfcb	;compute fcb address
 	shld	tmp2	;save it away
 	ld hl,0	;clear success count
@@ -383,7 +422,7 @@ _4=$+1
 	ld	(hl),e
 	
 writ1a:	lhld	tmp2a	;if so, return count
-wrdone:	call	rstusr	;reset user number
+wrdone:	;call	rstusr	;reset user number
 	pop bc
 	ret
 
@@ -400,8 +439,10 @@ writ2:	lhld	arg2	;else get transfer address
 
 	lhld	tmp2	;get addr of fcb
 	ex de,hl
-	ld	c,writr	;write random sector
-	call	bdos
+	;ld	c,writr	;write random sector
+	;call	bdos
+         ;jr $
+         OS_FWRITE
 	lhld	tmp2a	;get success count in HL
 	or	a	;error?
 _5=$+1
@@ -617,13 +658,13 @@ _4=$+1
 
 hseek1:	lda	arg1
 	call	fgfd	;origin == 2.
-	ld	a,(hl)
-	call	setusr	;set the file's native user number
+	;ld	a,(hl)
+	;call	setusr	;set the file's native user number
 	pop de	;get fcb pointer back in DE
 	push de
 	ld	c,cfsizc ;compute end of file position
 	call	bdos
-	call	rstusr	;reset user number
+	;call	rstusr	;reset user number
 	pop hl	;get fcb addr in HL again
 	push hl
 _5=$+1
@@ -757,7 +798,7 @@ _2=$+1
 	ex de,hl		;put end-of-file sector number in HL for return
 
 cfsiz3:	pop de	;clean up stack
-	call	rstusr	;reset user area
+	;call	rstusr	;reset user area
 	pop bc
 	ret
 	ENDFUNC cfsizesz,2
@@ -815,6 +856,7 @@ oflow0:	ld de,35	;look at high byte of sector position
 ; by the "errno()" function.
 ;
 
+        if 1==1
 	FUNCTION "ERRMSG"
         FUNCHEAD errmsgsz
 
@@ -888,7 +930,7 @@ err14:	db	'Seek past 65535th record',0
 
 errerr:	db 	'Errmsg: error number out of range',0
 	ENDFUNC errmsgsz,18
-
+        endif
 
 ;
 ; Execl modified 1/16/84 to work across user areas for programs > 16K long
@@ -907,8 +949,8 @@ errerr:	db 	'Errmsg: error number out of range',0
   	push hl	;make a few copies for local use below
 	push hl
 	call	setfcu	;set up COM file for execl-ing
-	lda	usrnum
-	call	setusr	;set destination user area
+	;lda	usrnum
+	;call	setusr	;set destination user area
 	pop hl	;get new fcb addr
 	ld bc,9	;set extension to COM
 	add hl,bc
@@ -925,7 +967,7 @@ _1=$+1
 	jp nz,noerrr
 err:	pop hl
 	pop bc
-	call	rstusr
+	;call	rstusr
 	jp	error
 
 noerrr:	lhld	arg2	;any first parameter?
@@ -1092,4 +1134,3 @@ code2:	ld hl,80h	;bump dma address
 	jp	tpa-52 	;and go loop (at code1)
 
 	ENDFUNC execlsz,16
-

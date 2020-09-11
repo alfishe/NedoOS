@@ -3,7 +3,7 @@ PRESRV	EQU	TRUE	;True to preserve CRL-file address compatibility
 			;(changing to FALSE will shorten run-time pkg., but
 			;will require re-CASM-ing .CSM files for new DEFF2.CRL)
 
-USAREA	EQU	TRUE	;True if "user areas" are implemented on target system
+USAREA	EQU	FALSE;TRUE	;True if "user areas" are implemented on target system
 
 USERST	EQU	FALSE	;True to use a restart vector for CDB interfacing
 RSTNUM	EQU	6	;Use "RST n" as default CDB vector (if USERST true)
@@ -1012,15 +1012,15 @@ exit2:	pop	af
 vclose:
 	call	ma1toh	;get fd in A
 	call	vfgfd	;see if it is open
-	jp c,verror	;if not, complain
-	ld	a,(hl)
-	call	setusr	;set user area to match current fd
-	and	4	;check if open for writing
+	;jp c,verror	;if not, complain ;TODO why fail?
+	;ld	a,(hl)
+	;call	setusr	;set user area to match current fd
+	;and	4	;check if open for writing
 
 	ENDIF
 
 	IF CPM AND NOT MPM2	;if not MP/M, and
-	jp z,close2	;the file isn't open for write, don't bother to close
+	;jp z,close2	;the file isn't open for write, don't bother to close
 	ENDIF
 
 	IF CPM AND MPM2	AND PRESRV  ;always close all files under MP/M
@@ -1039,7 +1039,7 @@ vclose:
 	call	bdos	;and do it!
 	pop bc
 	pop hl
-close2:	call	rstusr	;reset user number to original state
+close2:	;call	rstusr	;reset user number to original state
 	ld	(hl),0	;close the file logically
 	cp	255	;if 255 came back from bdos, we got problems
 	ld hl,0	
@@ -1176,12 +1176,13 @@ vstfcu: push bc	;save BC
 	jp nc,setfc2	;if so, go process
 
 setfc0:	push de	;save text pointer
-	ld	c,gsuser  ;else get current effective user number
-	ld	e,0ffh
+	;ld	c,gsuser  ;else get current effective user number
+	;ld	e,0ffh
 	ENDIF
 
 	IF	CPM AND USAREA
-	call	bdos	;get current user area if implemented
+	;call	bdos	;get current user area if implemented
+         xor a
 	ENDIF
 
 	IF	CPM AND NOT USAREA
@@ -1212,7 +1213,7 @@ setfc3:	sub	'0'	;save next digit value
 	add	c	;add new digit
 	ld	b,a	;put sum in B
 	inc de	;look at next char in text
-	ld a,(de)	;is it a digit?	
+	ld a,(de)	;is it a digit?
 	call	isdec
 	jp nc,setfc3	;if so, go on looping and summing digits
 	cp	'/'	;make sure number is terminated by a slash
@@ -1321,7 +1322,7 @@ fgfc1b:	scf
 	ret		;return C if no more free slots
 
 fgfc2:	call	vfgfd	;compute fcb address for fd in A:
-	jp c,fgfc1b	;return C if file isn't open
+	;jp c,fgfc1b	;return C if file isn't open ;TODO why fail?
 
 	sub	8
 	ld	l,a	;put (fd-8) in HL

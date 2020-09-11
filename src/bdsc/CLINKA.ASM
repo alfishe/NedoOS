@@ -160,10 +160,8 @@ c4:	ld (hl),0		;clear tab1
 	ld de,stglde
 	call pstg
 	jp abort
-
-
 c400:
-
+	ENDIF
 ;	IF CPM
 	;lda curusr	;go back to current user area
 	;ld e,a
@@ -174,8 +172,6 @@ c400:
 	;call z,bdos
 	;ENDIF
 	;ENDIF
-
-	ENDIF
 
 	IF MARC
 	ld hl,fcbt	;put crl extension on main filename
@@ -356,7 +352,7 @@ linkd1:	push hl		;save as external starting address in C.CCC
 	inc hl
 	ld (hl),d
 
-lnkd1a:	ex de,hl	
+lnkd1a:	ex de,hl
 
 	shld extadd
 	ex de,hl
@@ -386,7 +382,7 @@ lnkd1b:
 	add hl,de		;jump vector from C3 into C9.
 	ld (hl),0c9h
 
-skip1:	
+skip1:
 	lda segf	;if segment, don't do rest of this kludgery
 	or a
 	jp nz,linkf
@@ -575,7 +571,7 @@ putxt3:	ld a,(de)
 	or a
 	jp nz,putxt3	;copy to (HL) until zero encountered
 	ex de,hl		;then jump to byte after the zero byte to return
-	pchl	
+	pchl
 	ENDIF
 
         if 1==0
@@ -1078,7 +1074,6 @@ c1:	shld cptr	;save text pointer for getfn routine
 ; also handle new -c option for MARC
 ; Also handle new -m option to call MEXMEM under MARC...
 ;
-	
 	dec hl
 prep0:	inc hl
 prep:	ld a,(hl)
@@ -1095,7 +1090,7 @@ prep2:	inc hl		;if so, skip it totally
 	jp nz,prep2
 	jp prep0	;then continue scanning for useful options
 
-prep3:	cp '-'		;no. dashed option?	
+prep3:	cp '-'		;no. dashed option?
 	jp nz,prep0	;if not, ignore it
 	shld fargb	;else save first arg byte
 	inc hl
@@ -1104,7 +1099,7 @@ prep3:	cp '-'		;no. dashed option?
 	sta opletr	;save for error msg
 	inc hl
 
-	cp 'C'		;set disk to get c.ccall c,and deff*.crl from
+	cp 'C'		;set disk to get c.ccc and deff*.crl from
 	jp z,copt
 
 	IF CPM
@@ -1145,7 +1140,7 @@ ropt:	call gtaddd	;get argument
 copt:
 	IF CPM
 	call igsp
-	call cnvtd	;get source disk for C.Ccall c,and DEFF*.CRL
+	call cnvtd	;get source disk for C.CCC and DEFF*.CRL
 	sta defdsk	;(under CP/M only; MARC version assumes
 			;all this stuff is in /etc)
 	inc hl		;bump text pointer to possible user area
@@ -1199,7 +1194,7 @@ legdd:	call mapuc
 	IF NOT CPM
 	ex de,hl		;put text pointer in DE
 	ld hl,6		;set noffst to 6 so current directory is
-	shld noffst	;searched for deff*.crl & c.ccall c,instead of /libC
+	shld noffst	;searched for deff*.crl & c.ccc instead of /libC
 	jp purge1
 	ENDIF
 
@@ -1291,7 +1286,7 @@ cnvtd2:	sub 'A'		;else return 0 for A, 2 for B, etc.
 
 getcdf:	lhld runsat
 	push de
-	ex de,hl	
+	ex de,hl
 	lhld cda
 	call cmh
 	add hl,de
@@ -1908,7 +1903,7 @@ prhd:	and 15
 	jp outch
 
 writf:
-	IF CPM		;don't bother with debugging kludge under MARC yet
+	IF 1==0;CPM		;don't bother with debugging kludge under MARC yet
 	lda debugf	;debugging before output?
 	or a
 	jp z,writf0	;if not, go write out CRL file
@@ -1980,7 +1975,7 @@ boots1:	ld a,(de)		;copy a byte
 	ld a,e
 	cp c
 	jp nz,bootsa+12
-	jp tpa		;yes. Go execute code	
+	jp tpa		;yes. Go execute code
 
 bbytes:	equ $-boots
 	ENDIF		;end of CP/M-only debugging hack, 4 the time being
@@ -2285,7 +2280,7 @@ close:
 
 	IF NOT CPM
 	lda marcfd
-	ld c,(hl)$close
+	ld c,m$close
 	call msys
 	jp nz,ferror
 	ld a,0
@@ -2309,7 +2304,7 @@ delfil:
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$unlink
+	ld c,m$unlink
 	call msys
 	jp nz,ferror
 	ret
@@ -2368,7 +2363,7 @@ create:
 	ENDIF
 
 	IF NOT CPM
-	ld c,(hl)$creat
+	ld c,m$creat
 	call msys
 	jp nz,ferror
 	sta marcfd	;save the fd if it got created OK

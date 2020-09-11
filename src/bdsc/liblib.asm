@@ -258,6 +258,7 @@ sz=$-__
 
 	INCLUDE "bds.lib"
 
+        ;align 128 ;doesn't help
 begin
 _=$
         ds 512,0x80 ;end=0x80

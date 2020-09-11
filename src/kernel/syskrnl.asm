@@ -604,7 +604,7 @@ endsys_result_a
          ld iy,(focusappaddr)
         ex af,af'
         ld a,(iy+app.screen)
-        ld iy,(appaddr)
+        ;ld iy,(appaddr)
         jp endsys_result_aq
 
 ;TODO брать номер экрана у задачи с фокусом и при шедулинге ставить этот номер в userkernel новой задачи

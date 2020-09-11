@@ -1501,6 +1501,7 @@ BDOS_fread_gofatfs
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
         call BDOS_getdta ;de = disk transfer address
+       push de
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
         ld b,d
@@ -1517,11 +1518,37 @@ BDOS_fread_fatfsq
         pop bc
 	ld a,(bc)
          pop bc ;blocksize
+       pop de ;de = disk transfer address
         ;call movedma_addr ;+bc ;TODO remove!!!
 	xor 0x80 ;!=, если прочитали не 128 байт ;TODO remove!!!
 ;a=0: OK (прочитали 128 байт)
 ;a=128: fail (прочитали 0 байт)
 ;a=???: OK (последний блок файла меньше 128 байт)
+        ret z
+        cp 0x80
+        ret z ;fail
+;for CP/M compatibility: fill unused part of sector with 0x1a
+        push af
+        ;call BDOS_getdta ;de = disk transfer address
+        call BDOS_preparedepage
+        call BDOS_setdepage ;нельзя надеяться на включение выше, если будет убрано в драйвер (т.к. это могло быть не последнее включение страницы)
+        pop af
+        push af
+;a=128+bytes loaded
+        neg
+;a=128-bytes loaded
+        ld b,a
+        ld a,e
+        add a,127
+        ld e,a
+        adc a,d
+        sub e
+        ld d,a ;de= Point to buffer end
+        ld a,0x1a
+        ld (de),a
+        dec de
+        djnz $-2
+        pop af
 	ret;jp fexit
 BDOS_fread_noFATFS
         BDOSSETPGTRDOSFS
@@ -1540,6 +1567,7 @@ BDOS_fwrite_gofatfs
 ;достать из него адрес ffile
         call getFILfromFCB ;hl=FIL
         call BDOS_getdta ;de = disk transfer address
+       push de
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
         ld b,d

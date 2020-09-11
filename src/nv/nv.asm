@@ -558,8 +558,7 @@ filelinebuf_sz=$-filelinebuf
 emptyfilelinebuf
         db "                         ",0x1b,"[C            "
 emptyfilelinebuf_sz=$-emptyfilelinebuf
-        
-tmonth
+tmonth ;month=0 is at tmonth-2 (spaces)
         ;db "jan"
         ;db "feb"
         ;db "mar"
