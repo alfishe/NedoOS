@@ -3008,14 +3008,15 @@ FRESULT f_readdir (
 			res = dir_read(dj);				/* Read an directory item */
 			if (res == FR_NO_FILE) {		/* Reached end of dir */
 				dj->sect = 0;
-				res = FR_OK;
+				//res = FR_OK;
 			}
 			if (res == FR_OK) {				/* A valid entry is found */
+				fno_rddir.fname[0] = 0x00;
 				get_fileinfo(dj, &fno_rddir);		/* Get the object information */
 				res = dir_next(dj, 0);		/* Increment index for next */
 				if (res == FR_NO_FILE) {
 					dj->sect = 0;
-					res = FR_OK;
+					//res = FR_OK;
 				}
 			}
 			FREE_BUF();

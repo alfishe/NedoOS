@@ -541,9 +541,9 @@ __1=$
         ld c,CMD_OPENDIR
 	CALLBDOS_NOPARAM_A
         endm
-        macro OS_READDIR ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
+        macro OS_READDIR 	;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
         ld c,CMD_READDIR
-	CALLBDOS_NOPARAM_A
+	CALLBDOS_NOPARAM_A		;out in A=error(0 - no error, 4 - no more files, other - critical error)
         endm
         macro OS_HIDEFROMPARENT ;for tasks with their own screen handling
         ld c,CMD_HIDEFROMPARENT

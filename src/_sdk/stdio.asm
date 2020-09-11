@@ -36,13 +36,17 @@ setstdinhandle
         ret
 
 setstdinout
-        OS_GETMAINPAGES ;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags, b=id
-        ld a,(stdinhandle)
+        ;OS_GETMAINPAGES ;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags, b=id
+        ld c,CMD_GETMAINPAGES
+		call BDOS
+		ld a,(stdinhandle)
         ld e,a
         ld a,(stdouthandle)
         ld d,a
 ;b=id, e=stdin, d=stdout, h=stderr (TODO)
-        OS_SETSTDINOUT
+        ;OS_SETSTDINOUT
+		ld c,CMD_SETSTDINOUT
+		call BDOS
         ret
 
 getkey
