@@ -37,6 +37,10 @@ function unlink(dirPath){
 	document.getElementById('log').innerHTML=myGet(ss);
 	rddir(window.curDir);
 }
+function runprog(dirPath){ 
+	var ss = '?s='+dirPath;
+	document.getElementById('log').innerHTML=myGet(ss);
+}
 function compareFileInfo(finfoA, finfoB) {
 	if(finfoA.isdir==3 || finfoB.isdir==3) return 0;
 	return finfoA.fn.localeCompare(finfoB.fn);
@@ -61,36 +65,58 @@ function rddir(dirPath){
 	j.fno.forEach(function(item, i, arr) {
 		var n,pn;
 		if(item.isdir==1){
-			if(item.ln!='')n=item.ln;
-			else {
-				n=item.fn.replace(/([^ ]{0,8}) */,'$1');
-			}
+			n=item.fn;
 			if(n=='..')pn=dirPath.substr(0,dirPath.lastIndexOf('/'));
 			else pn=((dirPath=='')?(''):(dirPath+'/'))+n;
 			if(n!="."){
 				window.s+='<tr>';
 				
-					window.s+='<td><a href="javascript:rddir(\''+pn+'\')">'+n+'</a></td><td></td><td>';
+				window.s+='<td><a href="javascript:rddir(\''+pn+'\')">'+n+'</a></td><td></td><td></td><td>';
 				
-				window.s+='</td><td><a href="javascript:unlink(\''+n+'\')"><img src="fdel.png" alt="del"></a><td>';
+				window.s+='</td><td><a href="javascript:unlink(\''+n+'\')">Remove</a><td>';
 				window.s+='</tr>';
 			}
 		}
 	});	
 	j.fno.forEach(function(item, i, arr) {
-		var n,pn;
+		var n,pn,iof;
 		if(item.isdir==0){
-			if(item.ln!='')n=item.ln;
-			else {
-				n=item.fn.replace(/([^ ]{0,8}) *()/,'$1.$2');
-			}
-			pn=((dirPath=='')?(''):(dirPath+'/'))+n;
+			n=item.fn;
+			pn=((dirPath=='/')?(''):(dirPath+'/'))+n;
 			window.s+='<tr>';
 			
-				window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+'<a href="?g='+pn+'"><img src="dload.png" alt="download"></a>';
-				//if(n.toLowerCase().substring(n.length-4)=='.pt3')s+='<a href="?p='+pn+'">Play</a>';
-			
-			window.s+='</td><td><a href="javascript:unlink(\''+n+'\')"><img src="fdel.png" alt="del"></a><td>';
+			window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+'<a href="?g='+pn+'">Download</a></td>';
+			iof=n.lastIndexOf('.');
+			if(iof != -1){
+				switch(n.toLowerCase().substring(iof)){
+					case '.com':
+						window.s+='<td><a href="javascript:runprog(\''+pn+'\')">Run</a></td>';
+						break;
+					case '.pt3':	
+					case '.pt2':
+					case '.tfc':
+					case '.m':
+						window.s+='<td><a href="javascript:runprog(\'bin/player.com%20/'+pn+'\')">Play</a></td>';
+						break;
+					case '.scr':
+						window.s+='<td><a href="javascript:runprog(\'bin/view.com%20/'+pn+'\')">View</a></td>';
+						break;
+					default:
+						window.s+='<td></td>';
+						break;
+				}
+			}else 
+				window.s+='<td></td>';
+			/*
+			if(n.toLowerCase().substring(n.length-4)=='.com')
+				window.s+='<td><a href="javascript:runprog(\''+pn+'\')">Run</a></td>';	
+			else if(n.toLowerCase().substring(n.length-4)=='.pt3'){
+				window.s+='<td><a href="javascript:runprog(\'bin/player.com%20/'+pn+'\')">Play</a></td>';	
+			}
+			else 
+				window.s+='<td></td>';
+			*/
+			window.s+='</td><td><a href="javascript:unlink(\''+n+'\')">Remove</a></td>';
 			window.s+='</tr>';
 		}
 	});
