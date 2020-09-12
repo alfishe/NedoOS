@@ -23,6 +23,8 @@ bgpush_prepare
 
         call readbmphead_pal
 
+        ld (bgpush_ldbmp_sp),sp
+        ld sp,bgpush_loadbmplinestack+(pushhgt*2)+32
 ;загрузить графику bmp в ld-push
         ld ix,tpushpgs
         ld hl,pushbase
@@ -62,9 +64,9 @@ bgpush_ldbmp1_noprevpg
         ld a,b
         or c
         jr nz,bgpush_ldbmp1
-
-        call closestream_file
-        ret
+bgpush_ldbmp_sp=$+1
+        ld sp,0
+        jp closestream_file
 
 
 ;делаем push для одного слоя (в одной страничке помещается pushwid*pushpghgt = 38*200 или 40*192 байт пуша)

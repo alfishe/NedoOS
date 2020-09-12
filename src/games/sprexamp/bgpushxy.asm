@@ -2,14 +2,11 @@ uvscroll_prepare
 
         ld ix,tpushpgs
         call uvscroll_genpush
-
-        ld ix,tpushpgs+1
+        ;ld ix,tpushpgs+1
         call uvscroll_genpush
-
-        ld ix,tpushpgs+2
+        ;ld ix,tpushpgs+2
         call uvscroll_genpush
-
-        ld ix,tpushpgs+3
+        ;ld ix,tpushpgs+3
         call uvscroll_genpush
 
 ;зациклим страницы (UVSCROLL_HGT/64 страниц в каждом слое)
@@ -18,8 +15,7 @@ uvscroll_prepare
         ld bc,UVSCROLL_HGT/64*4 ;4*4 ;на высоту экрана
         ldir
 
-        call uvscroll_gencall
-        ret
+        jp uvscroll_gencall
 
 uvscroll_preparetiles
 ;tile gfx
@@ -58,8 +54,7 @@ uvscroll_preparetiles0
         inc l
         jr nz,uvscroll_preparetiles0
 
-        call closestream_file
-        ret
+        jp closestream_file
 
 uvscroll_preparetiles_copy4columns
         call uvscroll_preparetiles_copy2columns
@@ -117,8 +112,7 @@ uvscroll_preparetilemap_remetatiles0
         endif
 
         call uvscroll_filltilemap
-        call uvscroll_showtilemap
-        ret
+        jp uvscroll_showtilemap
         
 uvscroll_showtilemap_counthlde
         ld hl,(allscroll)
@@ -309,8 +303,7 @@ uvscroll_ldbmp0_nonextpg
         or c
         jr nz,uvscroll_ldbmp0
 
-        call closestream_file
-        ret
+        jp closestream_file
 
 uvscroll_scroll       
 ;de=delta (d>0: go up) (e>0: go left)
@@ -318,8 +311,8 @@ uvscroll_scroll
         ld a,e
         call uvscroll_scroll_x
         pop af
-        call uvscroll_scroll_y
-        ret
+        jp uvscroll_scroll_y
+
 uvscroll_scrolltiles
 ;scroll by metatile
 ;hx=delta y (>0: go up)
@@ -684,8 +677,7 @@ drawtile_toldpush
 ;de=tilemap+
 ;hla=allscroll+
         ld b,1 ;число блоков по 8 тайлов
-        call drawtiles_ver_hla_de
-        ret
+        jp drawtiles_ver_hla_de
 
 uvscroll_scroll_x
 ;a>0 = go left
@@ -1045,6 +1037,7 @@ uvscroll_nextgfxpg
 ;в каждых 256 байтах такой код:
 ;ld bc:push bc *UVSCROLL_NPUSHES ;de=0!!!
 uvscroll_genpush
+       push ix
         call genpush_newpage ;заказывает страницу, заносит в tpushpgs, a=pg
         SETPG32KLOW
         ld hl,uvscroll_pushbase
@@ -1058,11 +1051,11 @@ uvscroll_genpush0
 uvscroll_genpush1
         ld (hl),1 ;ld bc
         inc hl
-        ld a,r
-        ld (hl),a
+        ;ld a,r
+        ;ld (hl),a
         inc hl
-        ld a,r
-        ld (hl),a
+        ;ld a,r
+        ;ld (hl),a
         inc hl
         ld (hl),0xc5 ;push bc
         inc hl
@@ -1072,6 +1065,8 @@ uvscroll_genpush1
         ld a,b
         or c
         jr nz,uvscroll_genpush0
+       pop ix
+       inc ix
         ret
 uvscroll_genpush_nextpg
         call genpush_newpage ;заказывает страницу, заносит в tpushpgs, a=pg
@@ -1920,4 +1915,3 @@ pgtilegfx
         db 0 ;TODO по зонам
 pgtilegfx2
         db 0 ;TODO по зонам
-

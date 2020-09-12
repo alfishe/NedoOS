@@ -1,7 +1,7 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
-OLDDRAWSPR=1
+OLDDRAWSPR=0;1
 
 scrbase=0x4000
 sprmaxwid=32
@@ -13,7 +13,7 @@ clshgt=200
 
 STACK=0x3ff0 ;место для вылетания за экран
 tempsp=0x3f06 ;6 bytes for prspr
-INTSTACK=0x3b80;0x3f00 ;чтобы не запороть стек загрузки bmp в bgpush
+INTSTACK=0x3f00;0x3b80 ;чтобы не запороть стек загрузки bmp в bgpush (теперь он в 0x4000+)
 
 XSUBPIX8=8
 YSUBPIX8=8
@@ -216,7 +216,7 @@ GO
         OS_SETPAL
 mainloop_uv0
         ;halt
-        call uvscroll_draw
+        call uvscroll_draw ;367574/391621
         
         if OLDDRAWSPR==1
         ld ix,objects
@@ -227,12 +227,12 @@ mainloop_uv0
         else
         ld de,spritesA+1
         ld ix,objects
-        call preparedrawsprites
+        call preparedrawsprites ;1720
         ld ix,bullets
-        call preparedrawsprites
+        call preparedrawsprites ;1110
         dec de
         ld (drawsprites_data),de
-        call drawsprites
+        call drawsprites ;24040 (только герой)
         endif
 
         ;call prcoords
@@ -259,7 +259,7 @@ nocamoff
         rra
          ;jr nc,mainloop_uvq ;LMB
         call uvscroll_scroll
-        call uvscroll_scrolltiles
+        call uvscroll_scrolltiles ;23099(21121 ldir)/46220
         
        ld a,(timer)
        push af
@@ -291,7 +291,7 @@ waitchangescr0
         jp nz,mainloop_uv0
 mainloop_uvq
 
-        if 1==0
+        if 1==1
 
 ;vertical scroll
         ld de,bgfilename
@@ -1436,12 +1436,12 @@ preparedrawspr_skip
         align 256
 spritesA
         ds 1+5*51
-;        align 256
-;spritesB
-;        ds 1+5*51
-;        align 256
-;spritesC
-;        ds 1+5*51
+        align 256
+spritesB
+        ds 1+5*51
+        align 256
+spritesC
+        ds 1+5*51
 
 drawsprites
 ;y,x,addr,pg - читаем с конца
@@ -1793,8 +1793,9 @@ fillobjxy
         include "int.asm"
         include "cls.asm"
         include "prspr.asm"
-        ;include "bgpush.asm"
+        include "bgpush.asm"
         include "bgpushxy.asm"
+        
         include "../../_sdk/file.asm"
 
 readbmphead_pal
@@ -2167,8 +2168,9 @@ _210=$&7
         db (_3*0x10) + (_210*0x08)
         edup
 
-bgpush_bmpbuf
-        ds 1024;320 ;заголовок bmp или одна строка
+bgpush_bmpbuf=0x4000 ;ds 1024;320 ;заголовок bmp или одна строка
+bgpush_loadbmplinestack=bgpush_bmpbuf+1024 ;ds pushhgt*2+32
+        
 end        
 
 	display "begin=",begin
