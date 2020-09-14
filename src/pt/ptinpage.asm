@@ -324,18 +324,18 @@ INITV1  LD A,L
         INC B
         DJNZ INITV2
        ENDIF 
-        LD HL,#48E1
-        ld BC,#4810
+        LD HL,0x48a1;#48E1
+        ld BC,0x5810;#4810
         CALL VlN
-        LD L,#E5
+        LD L,0xa5;#E5
         CALL VlN
-        LD L,#E7
+        LD L,0xa7;#E7
         CALL VlN
-        LD L,#EF
+        LD L,0xaf;#EF
         CALL VlN
-        LD L,#F7
+        LD L,0xb7;#F7
         CALL VlN
-        LD L,#FF
+        LD L,0xbf;#FF
         CALL VlN
         LD HL,#4715
         ld BC,#2281
@@ -360,16 +360,16 @@ PRFONSCRL
         BIT 0,H
         LD HL,#40B1
         jr NZ,PRFONSCRL
-        LD HL,#4FC0
+        LD HL,0x4f80;#4FC0
         ld B,31
-        LD (HL),C
-        INC L
+         LD (HL),C
+         INC L
         DJNZ $-2
         LD (HL),#F0
-        LD DE,#1A06
+        LD DE,0x1a06;0x1806;#1A06
         CALL pRSprRR
         call pRSprRR
-        LD E,10
+        LD de,0x1a09;e,10
         CALL pRSprRR
         LD DE,#700
         ld C,8;10
@@ -377,16 +377,20 @@ PRFONSCR0
         CALL pRSprPM
         DEC C
         jr NZ,PRFONSCR0
-        LD DE,#1806
+        LD DE,0x1806;0x1606;#1806
         CALL pRSprPM2
-        INC E
+        ;INC E
+         ;inc d
+         ;inc d
         CALL pRSprPM2
         call pRSprPM2
-        LD DE,#1D0D
+        LD DE,0x1009;#1D0D
         CALL pRSprPM
-        LD E,6
+        LD de,0x1d06;0x1b06;E,6
         CALL pRSprPM2
-        INC E
+        ;INC E
+         ;inc d
+         ;inc d
         CALL pRSprPM
 pRSprPM2
         CALL pRSprPM
@@ -430,26 +434,59 @@ SprPM
 SprRRR
         db 0x00,0x00,0x22,0x20,0x33,0x30,0x3B,0xB8,0x33,0x30,0x22,0x20
 Tfonscr
-        DB "Tempo       04      Disk Options",6,0,1
-        DB "Position    00         Clears",6,0,2
-        DB "Pattern     00        Compiler",6,0,3
-        DB "Length      01       Decompiler",6,0,4
-        DB "Loop to     00      Play  Melody",6,0,5
-        DB "Volume      0F      Play Pattern",6,0,6
- DB "Edit patt.  00        About Me         Sample 01        01"
- DB 6,0,7
- DB "Patt length 64      Edit  Melody       Ornam. 01        01"
- DB 6,2,8
- DB "Octave    04         Set_up"
- DB 6,2,9
- DB "Edit step 00",6,38,9,"Pattern 00    Home00",6,0,10
- DB "Edit data OFF ----",6,38,10,"Channel 01        01",6,0,11
- DB "Auto env. OFF  1:1",6,38,11,"Begin   00        00"
- DB 6,23,11,"Chip 01"
- DB 6,0,12
- DB "Music:",6,38,12,"End     63      Exchange"
- DB "   by:",6,39,13,"Volume  Tone   +00 ",6,0,14
- DB "      ---- ---- ----            ----            ----",#A0
+ DB        "Tempo       04      Disk Options       Octave 04   Step 00"
+ DB 6,0, 1,"Position    00         Clears"
+ DB 6,0, 2,"Pattern     00        Compiler"
+ DB 6,0, 3,"Length      01         Set_up"
+ DB 6,0, 4,"Loop to     00      Play  Melody"
+ DB 6,0, 5,"Volume      0F      Play Pattern"
+ DB 6,0, 6,"Edit patt.  00        About Me         Sample 01        01"
+ DB 6,0, 7,"Patt length 64      Edit  Melody       Ornam. 01        01"
+ DB 6,0, 8,"Edit data OFF ----     Chip 01        Pattern 00        00"
+ DB 6,0, 9,"Auto env. OFF  1:1  Vol Tone +00      Channel 01        01"
+ DB 6,0,10,"Music:",6,38,10,"Begin   00    Home00"
+ DB 6,0,11,"   by:",6,38,11,"End     63      Exchange"
+ DB 6,0,12,"      ---- ---- ----            ----            ----"
+ db #A0
 FONATRS
-        INCBIN "fonatrs.bin"
+        ;INCBIN "fonatrs.bin"
+        ds 16,0x45 ;0
+       ds 16,0x07
+        ds 16,0x44 ;1
+       db 0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07
+        ds 16,0x45 ;2
+       db 0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07
+        ds 16,0x44 ;3
+       db 0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07
+        ds 9,0x45  ;4
+       ds 7,0x47
+       db 0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07,0x47,0x47,0x47,0x47,0x07
+        ds 16,0x44 ;5
+       ds 16,0x07
+        ds 31,0x45 ;6
+       db 0x07
+        ds 31,0x44 ;7
+       db 0x07
+        ds 9,0x45  ;8
+       ds 10,0x07
+       ds 12,0x45
+       db 0x07
+        ds 31,0x44 ;9
+       db 0x07
+        ds 3,0x45  ;10
+       ds 16,0x47
+       ds 7,0x45
+       ds 2,0x07
+       ds 3,0x45
+       db 0x07
+        ds 3,0x44  ;11
+       ds 16,0x47
+       ds 12,0x44
+       db 0x07
+        ds 32,0x07 ;12
+        
+        ds 32*6,0x07
+        db 0x4f,0x4d,0x4f,0x4f,0x4f,0x4f,0x4e,0x4f,0x4f,0x4f,0x4f,0x4f,0x4f,0x4e,0x4e,0x4d
+        db 0x4f,0x4f,0x4f,0x4f,0x4f,0x4e,0x4e,0x4d,0x4f,0x4f,0x4f,0x4f,0x4f,0x4e,0x4e,0x4d
+        ds 32*4,0x07
 ;end
