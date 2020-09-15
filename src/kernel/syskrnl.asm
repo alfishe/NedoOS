@@ -138,6 +138,11 @@ lasttime        BYTE
 border          BYTE ;текущий цвет бордера 0..15
 screen          BYTE ;текущий номер экрана ;fd_user + 8*screen
 gfxmode         BYTE ;текущий видеорежим ;значение для 0xbd77
+gfxkeep         BYTE ;b7 = keep gfx pages
+scr0low         BYTE ;pages
+scr0high        BYTE ;pages
+scr1low         BYTE ;pages
+scr1high        BYTE ;pages
 textcuraddr     WORD ;адрес курсора на экране
 curcolor        BYTE ;текущий атрибут при печати
 dta             WORD ;data transfer address
@@ -454,12 +459,38 @@ on_int_oldssEnter=$+1
         jr c,sys_int_noselectapp
          call KEY_PUTREDRAW
 
+        if 1==1
+        ld iy,(focusappaddr)
+        call disablescrpgs_setc000
+        ld bc,-app_last;app_afterlast
+        ld de,app_last+app_sz;app_sz
+        ld l,MAXAPPS
+findnextgfxapp0
+        add iy,bc
+        jr nc,$+6
+        ld iy,app1 -(app_last+app_sz)
+        add iy,de
+        ld a,(iy+app.flags)
+        bit fgfx,a
+        jr z,findnextgfxappskip
+         bit fwaiting,a
+         jr z,findnextgfxappq
+findnextgfxappskip
+        dec l
+        jr nz,findnextgfxapp0
+;no active apps (или каждая в данном фрейме уже вызывалась)
+        ld iy,app1 ;idle
+findnextgfxappq
+        ld (focusappaddr),iy
+        call setpalettechanged
+
+        else
+        
         ld hl,(focusappaddr)
         ;отключить страницы экрана этой задаче и выключить их в памяти задачи
         push hl
         pop iy
         call disablescrpgs_setc000
-        
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
         ld a,MAXAPPS
@@ -488,6 +519,8 @@ findnextgfxappq
         ;push iy
         push hl
         pop iy
+        endif
+        
         call enablescreeninapp_setc000
         
         ;pop iy
@@ -533,8 +566,33 @@ sys_curpgc000=$+1
          ld b,memportc000_hi
          out (c),a
         ret
-        
+
+copypage_a_to_e
+        call sys_setpg8000
+        ld a,e
+        call sys_setpgc000
+        ld hl,0x8000
+        ld de,0xc000
+        ld bc,0x4000
+        ldir
+        ret
+
 disablescrpgs_setc000
+        bit 7,(iy+app.gfxkeep)
+        jr z,disablescrpgs_nokeep
+        ld a,pgscr0_0
+        ld e,(iy+app.scr0low)
+        call copypage_a_to_e
+        ld a,pgscr0_1
+        ld e,(iy+app.scr0high)
+        call copypage_a_to_e
+        ld a,pgscr1_0
+        ld e,(iy+app.scr1low)
+        call copypage_a_to_e
+        ld a,pgscr1_1
+        ld e,(iy+app.scr1high)
+        call copypage_a_to_e
+disablescrpgs_nokeep
         call disablescreeninapp_setc000
         ld de,curpg16k+0xc000
         call disablescrpg
@@ -703,7 +761,7 @@ sys_quit
        ld (muzcall),hl ;есть в delapppages тоже!!! TODO выбросить?
 sys_quit_nomuzcall
         call BDOS_delapppages
-        jp BDOS_yield_q ;переходим на какую-нибудь задачу
+        jp BDOS_yield_q ;переходим на какую-нибудь задачу (там же ставим pgkillable в 4000,8000,c000)
         
 setkernelpages_go
 ;di!!!

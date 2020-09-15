@@ -1212,6 +1212,21 @@ BDOS_setgfx
         ld a,e
         cp -1
         jr z,BDOS_setgfx_gfxoff;BDOS_gfxoff_givefocus
+        ld (iy+app.gfxkeep),a
+        push af
+        rla
+        jr nc,BDOS_setgfx_nokeep
+;TODO return error if error
+        call BDOS_newpage_iy ;out: a=0 (OK)/0xff (fail), e=page
+        ld (iy+app.scr0low),e
+        call BDOS_newpage_iy ;out: a=0 (OK)/0xff (fail), e=page
+        ld (iy+app.scr0high),e
+        call BDOS_newpage_iy ;out: a=0 (OK)/0xff (fail), e=page
+        ld (iy+app.scr1low),e
+        call BDOS_newpage_iy ;out: a=0 (OK)/0xff (fail), e=page
+        ld (iy+app.scr1high),e        
+BDOS_setgfx_nokeep
+        pop af
 		IFDEF NOTURBO
         or 0xa0;%10100000
 		ELSE
@@ -1264,6 +1279,21 @@ disablescreeninapp
         ld (0xc000+user_scr1_high),a
         ret
 enablescreeninapp_setc000
+        bit 7,(iy+app.gfxkeep)
+        jr z,enablescreeninapp_nokeep
+        ld e,pgscr0_0
+        ld a,(iy+app.scr0low)
+        call copypage_a_to_e
+        ld e,pgscr0_1
+        ld a,(iy+app.scr0high)
+        call copypage_a_to_e
+        ld e,pgscr1_0
+        ld a,(iy+app.scr1low)
+        call copypage_a_to_e
+        ld e,pgscr1_1
+        ld a,(iy+app.scr1high)
+        call copypage_a_to_e
+enablescreeninapp_nokeep
         call setmainpg_c000
         ld a,pgscr0_0
         ld (0xc000+user_scr0_low),a
