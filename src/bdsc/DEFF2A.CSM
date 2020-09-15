@@ -1233,6 +1233,7 @@ putsq:
 ; were being used. "seek" must be used to go back to a previous 
 ; sector.
 ;
+;NOW RETURNS NUMBER OF BYTES, NOT SECTORS!!!
 
         ;ds 61
 	FUNCTION "READ"
@@ -1263,6 +1264,11 @@ _2=$+1
 	shld	tmp2	;save fcb address
 	ld hl,0
 	shld	tmp2a
+         lhld	arg3
+         add hl,hl
+         ld l,h
+         ld h,0
+         shld arg3 ;size/128
 r2:	lhld	arg3	;get countdown
 	ld	a,h
 	or	l	;done?
@@ -1270,6 +1276,13 @@ r2:	lhld	arg3	;get countdown
 r2aa:	lhld	tmp2a
 _3=$+1
 	jp nz,r2a
+r2done128:
+         xor a
+         srl h
+         rr l
+         rra
+         ld h,l
+         ld l,a ;count*128
 r2done:	;call	rstusr	;reset user number
 	pop bc	;yes. return with success count in HL
 	ret
@@ -1312,7 +1325,7 @@ _8=$+1
 r2b:	lhld	tmp2a	;return count
          inc hl ;for NedoOS: we have read at least 1 byte in the last sector
 _9=$+1
-	jp	r2done
+	jp	r2done128
 
 r4:	lhld	arg3	;decrement countdown
 	dec hl

@@ -360,6 +360,7 @@ fcbad2:	call	ma1toh
 ; after which errno() can tell you the error condition and errmsg(errno()) 
 ; can return a pointer to an appropriate error message text.
 ;
+;NOW RETURNS NUMBER OF BYTES, NOT SECTORS!!!
 
 	FUNCTION "WRITE"
         FUNCHEAD writesz
@@ -391,6 +392,11 @@ _2=$+1
 	shld	tmp2	;save it away
 	ld hl,0	;clear success count
 	shld	tmp2a
+         lhld	arg3
+         add hl,hl
+         ld l,h
+         ld h,0
+         shld arg3 ;size/128
 
 writ1:	lhld	arg3	;done yet?
 	ld	a,h
@@ -422,6 +428,12 @@ _4=$+1
 	ld	(hl),e
 	
 writ1a:	lhld	tmp2a	;if so, return count
+         xor a
+         srl h
+         rr l
+         rra
+         ld h,l
+         ld l,a ;count*128
 wrdone:	;call	rstusr	;reset user number
 	pop bc
 	ret
@@ -449,6 +461,7 @@ _5=$+1
 	jp z,writ3	;if not, go do bookkeeping
 	
 	sta	errnum	;else save error code
+         ld hl,-1
 _6=$+1
 	jp	wrdone
 		

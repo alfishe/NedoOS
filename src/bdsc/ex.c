@@ -72,7 +72,7 @@ FILE *fp;
 		return OK;
 
 	i = NSECTS - (fp->_nleft / SECSIZ);
-	if (write(fp->_fd, fp->_buff, i) != i)
+	if (write(fp->_fd, fp->_buff, i*SECSIZ) != i*SECSIZ)
 	{
 		fp->_flags |= _ERR;
 		return ERROR;
@@ -113,12 +113,12 @@ FILE *fp;
 		n_read += cnt;
 		if (n_togo) /* we need more bytes */
 		{
-                        if ((cnt = read(fp->_fd, fp->_buff, NSECTS)) <=0)
+                        if ((cnt = read(fp->_fd, fp->_buff, NSECTS*SECSIZ)) <=0)
 			{
 				fp->_flags |= _EOF;
 				goto text_test;
 			}
-			fp->_nleft = cnt * SECSIZ;
+			fp->_nleft = cnt;
 			fp->_nextp = fp->_buff;
 		}
 	}
@@ -160,7 +160,7 @@ FILE *fp;
 		n_done += cnt;
 		if (n_togo)
 		{
-			if ((cnt = write(fp->_fd, fp->_buff, NSECTS)) <= 0)
+			if ((cnt = write(fp->_fd, fp->_buff, NSECTS*SECSIZ)) <= 0)
 			{
 				fp->_flags |= _ERR;
 				return ERROR;
