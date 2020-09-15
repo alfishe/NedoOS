@@ -96,7 +96,7 @@ CMD_PRATTR=0xf5 ;OBSOLETE ;e=color byte ;DRAW ATTR AT CURSOR POSITION
 CMD_CLS=0xf6 ;e=color byte
 CMD_SETCOLOR=0xf7 ;e=color byte
 CMD_SETXY=0xf8 ;de=yx ;SET CURSOR POSITION
-CMD_SETGFX=0xf9 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+CMD_SETGFX=0xf9 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+0x80 for auto screen pages keeping ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 CMD_SETPAL=0xfa ;de=palette (32 bytes)
 CMD_GETMAINPAGES=0xfb ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
 CMD_NEWPAGE=0xfc ;out: a=0 (OK)/!=0 (fail), e=page
