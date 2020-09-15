@@ -1,4 +1,3 @@
-;TODO в батнике %0 (параметры запуска), %1 ...
 ;TODO %~dp0 (драйв и путь запуска)
 ;TODO %~t1 (дата-время 1-го параметра)
 ;TODO goto и метки :label
@@ -112,7 +111,7 @@ execcmd_maybepipes
         ld a,'>'
         ld bc,MAXCMDSZ
         cpir
-        jp nz,execcmd_or_runprog ;jr nz,cmd_noexeccmdtofile
+        jp nz,callcmd ;exec or run ;execcmd_or_runprog ;jr nz,cmd_noexeccmdtofile
 ;change stdout
         dec hl
         ld (hl),0
@@ -124,9 +123,10 @@ execcmd_maybepipes
         ld (execcmdtofile_handle),a
         call setstdouthandle
 ;changestdin_stdout_execcmd
-        call execcmd ;can show errors ;a!=0: no such internal command
-         or a
-         call nz,callcmd
+        ;call execcmd ;can show errors ;a!=0: no such internal command
+        ; or a
+        ; call nz,callcmd
+         call callcmd ;exec or run
         ;push af
 ;команда выполнилась в блокирующем режиме и вышла
 execcmdtofile_handle=$+1
@@ -159,9 +159,10 @@ execcmd_changestdin
         call setstdinhandle
         call setstdinout
         ;jr changestdin_stdout_execcmd
-        call execcmd ;can show errors ;a!=0: no such internal command
-         or a
-         call nz,callcmd
+        ;call execcmd ;can show errors ;a!=0: no such internal command
+        ; or a
+        ; call nz,callcmd
+         call callcmd ;exec or run
         ;push af
 ;команда выполнилась в блокирующем режиме и вышла (или запустилась программа по фону)
 
@@ -223,9 +224,10 @@ pipehandle=$+1
         push de
         OS_RUNAPP
         
-        call execcmd ;can show errors ;a!=0: no such internal command
-         or a
-         call nz,callcmd
+        ;call execcmd ;can show errors ;a!=0: no such internal command
+        ; or a
+        ; call nz,callcmd
+         call callcmd ;exec or run
         pop de
         ;push af ;a=error
         push de
@@ -368,12 +370,6 @@ getwordq
         ld (de),a
         ret
 
-execcmd_or_runprog
-        call execcmd
-        or a
-        ret z
-        jp callcmd;strcpexec_tryrun ;запускает по фону
-
 execcmd
 ;a=0: command executed
 ;a!=0: no such internal command
@@ -515,9 +511,8 @@ execcmd_tryrunerror
         jr z,execcmd_tryrunok
         ret ;nz=error
         
-callcmd
-;call command (cmdbuf) with waiting
-;TODO open %0 (progname), %1...
+openparams
+;open %0 (progname), %1...
         ld hl,cmdbuf
         call strlen
         ld b,h
@@ -572,7 +567,16 @@ chgparams0skip
         inc de
         jr chgparams0
 chgparams0q
+        ret
 
+;execcmd_or_runprog
+;        call execcmd
+;        or a
+;        ret z
+;        jp callcmd;strcpexec_tryrun ;запускает по фону
+
+callcmd
+;call command (cmdbuf) with waiting
         call execcmd ;a!=0: no such internal command
         or a
         ret z ;command executed
@@ -782,7 +786,8 @@ strcpexec_tryrun_bat0
         
 ;call command in cmdbuf
         push iy
-        call callcmd
+        call openparams
+        call execcmd_maybepipes ;callcmd
         pop iy
         
         pop af

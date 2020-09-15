@@ -2,6 +2,8 @@
         include "../_sdk/sys_h.asm"
         include "8080.asm"
 
+NEDOOS=1
+
 ;
 ;	BD Software C Compiler v1.6
 ;	Standard Library Machine Language Functions (part A)
@@ -1217,6 +1219,7 @@ putsq:
 	ret
 	ENDFUNC putssz,4
 
+
 ;
 ; Read:
 ;
@@ -1235,10 +1238,28 @@ putsq:
 ;
 ;NOW RETURNS NUMBER OF BYTES, NOT SECTORS!!!
 
-        ;ds 61
+        if NEDOOS
 	FUNCTION "READ"
         FUNCHEAD readsz
-         ;jr $
+	call arghak
+	lda	arg1
+	call	fgfd ;compute fd address for fd in A: ;return hl=fd addr
+        push bc
+        ld b,(hl)
+	ld de,(arg2)
+	ld hl,(arg3)
+        OS_READHANDLE
+        pop bc
+        or a
+        ret z
+        ld hl,-1
+        ret
+	ENDFUNC readsz,0
+        
+        else
+
+	FUNCTION "READ"
+        FUNCHEAD readsz
 	call	arghak
 	lda	arg1
 	call	fgfd
@@ -1363,8 +1384,8 @@ _11=$+1
 rerror:	sta	errnum
 	jp	error
 	ENDFUNC readsz,11
+        endif
 
-        ;include "deffgfx.csm"
 ;zzz
         if 1==1
 	FUNCTION "SETJMP"
@@ -1422,6 +1443,7 @@ rerror:	sta	errnum
         ;display $-zzz
         ;ds 0;66
 
+        ;include "deffgfx.csm"
         ;align 128 ;doesn't help
 
 end

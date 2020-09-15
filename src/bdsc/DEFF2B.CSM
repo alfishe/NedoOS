@@ -16,6 +16,7 @@
 
 	;INCLUDE "bds.lib"
 
+        if 1==0
 ;
 ; Setfcb:
 ;	setfcb(fcbaddr, filename)
@@ -48,7 +49,7 @@ _2=$+1
 	pop bc
 	ret
 	ENDFUNC setfcbsz,2
-
+        endif
 
 ;
 ; Open:
@@ -58,7 +59,32 @@ _2=$+1
 ; Open a file for read (mode == 0), write (mode == 1) or both (mode = 2),
 ; and detect a user-number prefix. Returns a file descriptor.
 ;
-
+        if NEDOOS==1
+	FUNCTION "OPEN"
+        FUNCHEAD opensz
+	call arghak
+	xor a
+	call fgfcb	;any fcb's free? ;return A=fd, DE=fd addr
+	jr nc,open2	;if not, error
+	ld a,10	;"no more file slots"
+	jp error
+open2:
+        push bc
+        push af ;fd
+        push de ;fd addr
+	lhld arg1
+	ex de,hl
+        OS_OPENHANDLE
+        pop hl ;fd addr
+        ld (hl),b
+        pop af ;fd
+        ld l,a
+        ld h,0
+        pop bc
+        ret
+	ENDFUNC opensz,0
+        
+        else ;CP/M
 	FUNCTION "OPEN"
         FUNCHEAD opensz
 	call	arghak
@@ -124,7 +150,7 @@ oerror:	;call	rstusr	;reset user number
 	sta	errnum	;store error code number
 	jp	error	;and return general error condition
 	ENDFUNC opensz,5
-
+        endif
 
 ;
 ; Close:
@@ -146,6 +172,32 @@ oerror:	;call	rstusr	;reset user number
 ; Creates the named file, first deleting any old versions, and opens it
 ; for both read and write. Returns a file descriptor.
 ;
+        if NEDOOS
+	FUNCTION "CREAT"
+        FUNCHEAD creatsz
+	call arghak
+	xor a
+	call fgfcb	;any fcb's free? ;return A=fd, DE=fd addr
+	jr nc,creat2	;if not, error
+	ld a,10	;"no more file slots"
+	jp error
+creat2:
+        push bc
+        push af ;fd
+        push de ;fd addr
+	lhld arg1
+	ex de,hl
+        OS_CREATEHANDLE
+        pop hl ;fd addr
+        ld (hl),b
+        pop af ;fd
+        ld l,a
+        ld h,0
+        pop bc
+        ret
+	ENDFUNC creatsz,0
+        
+        else
 
 	FUNCTION "CREAT"
 	EXTERNAL "UNLINK"
@@ -223,7 +275,7 @@ _4=$+1
          ;jr $
 	ret
 	ENDFUNC creatsz,4
-
+        endif
 
 ;
 ; Unlink:
@@ -232,7 +284,7 @@ _4=$+1
 ;
 ; Deletes the named file. User number prefixes are recognized:
 ;
-
+;TODO
 	FUNCTION "UNLINK"
         FUNCHEAD unlinksz
 	call	ma1toh
@@ -264,7 +316,7 @@ _4=$+1
 ; Renames the given file. User number prefixes are allowed, but only
 ; the one on the first filename (if specified) effects the operation.
 ;
- 
+;TODO 
 	FUNCTION "RENAME"
         FUNCHEAD renamesz
 	call	arghak
@@ -361,6 +413,26 @@ fcbad2:	call	ma1toh
 ; can return a pointer to an appropriate error message text.
 ;
 ;NOW RETURNS NUMBER OF BYTES, NOT SECTORS!!!
+
+        if NEDOOS
+	FUNCTION "WRITE"
+        FUNCHEAD writesz
+	call arghak
+	lda	arg1
+	call	fgfd ;compute fd address for fd in A: ;return hl=fd addr
+        push bc
+        ld b,(hl)
+	ld de,(arg2)
+	ld hl,(arg3)
+        OS_WRITEHANDLE
+        pop bc
+        or a
+        ret z
+        ld hl,-1
+        ret
+	ENDFUNC writesz,0
+        
+        else
 
 	FUNCTION "WRITE"
         FUNCHEAD writesz
@@ -499,6 +571,7 @@ werror:	sta	errnum
 	jp	error
 
 	ENDFUNC writesz,8
+        endif
 
 ;
 ; Seek:

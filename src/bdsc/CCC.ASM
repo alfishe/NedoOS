@@ -625,7 +625,7 @@ arghk2:	ld	a,(hl)	;copy loop
 	inc hl
 	inc de
 	dec	b
-	jp nz,arghk2	
+	jp nz,arghk2
 	pop bc	;restore BC
 	ret
 
@@ -649,7 +649,7 @@ init:	pop hl	;store return address
         OS_SETGFX 
         
 	IF	CPM
-	ld hl,arglst-2	;set up "argv" for the C main program
+	ld hl,arglst;-2	;set up "argv" for the C main program
 	ENDIF
 	
 	IF	NOT CPM
@@ -714,7 +714,7 @@ initl:	ld	a,(hl)	;ok, there are arguments. parse...
 	;ld (de),a
 
 	ld hl,comlin	;now compute pointers to each arg
-	ld de,1		;arg count
+	ld de,0;1		;arg count
 	ld bc,arglst	;where pointers will all go
 	xor	a		;clear "in a string" flag
 	sta	tmp1
@@ -1007,6 +1007,19 @@ exit2:	pop	af
 ;
 ; Close the file whose fd is 1st arg:
 ;
+       if NEDOOS != 0
+vclose:
+	call	ma1toh	;get fd in A
+	call	vfgfd	;see if it is open ;return hl=fd addr
+	;jp c,verror	;if not, complain
+        push bc
+        ld b,(hl)
+        ld (hl),0 ;fd closed
+        OS_CLOSEHANDLE
+        ld hl,0 ;OK
+        pop bc
+        ret
+       else
 
 	IF	CPM	;here comes a lot of CP/M stuff...
 vclose:
@@ -1046,6 +1059,9 @@ close2:	;call	rstusr	;reset user number to original state
 	ret nz		;return 0 if OK
 	dec hl	;return -1 on error
 	ret
+	ENDIF
+
+       endif
 
 ;
 ; Determine status of file whose fd is in A...if the file
@@ -1068,21 +1084,29 @@ vfgfd:	ld	d,a
 	add hl,de
 	add hl,de
 	ld	a,(hl)
+	pop de
+       if NEDOOS != 0        
+        sub 1
+        ret ;CY if not open
+       else
 	and	1	;bit 0 is high if file is open
 	scf
-	pop de
 	ld	a,d
 	ret z		;return C set if not open
 	ccf
 	ret		;else reset C and return
+       endif
 
+       if NEDOOS != 0
+vsetfcb=0
+       else
 ;
 ; Set up a CP/M file control block at HL with the file whose
 ; simple null-terminated name is pointed to by DE:
 ; Format for filename must be: "[white space][d:]filename.ext"
 ; The user number prefix hack is NOT recognized by this subroutine.
 ;
-
+       IF CPM
 vsetfcb: push bc
 	call	igwsp	;ignore blanks and tabs	
 	push hl	;save fcb ptr
@@ -1122,13 +1146,16 @@ setf2:	ld	b,3
 	pop de
 	pop bc
 	ret
-
+       ENDIF
+       endif
 ;
 ; This routine copies up to B characters from (DE) to (HL),
 ; padding with blanks on the right. An asterisk causes the rest
 ; of the field to be padded with '?' characters:
 ;
 
+       if NEDOOS == 0
+       if CPM
 setnm:	push bc
 setnm1:	ld a,(de)
 	cp	'*'	;wild card?
@@ -1157,8 +1184,12 @@ pad2:	ld	(hl),a	;pad with B instances of char in A
 	jp nz,pad2
 	pop bc
 	ret
+       endif
+       endif
 
-;
+       if NEDOOS != 0
+vstfcu=0
+       else
 ; Process filename having optional user area number prefix of form "<u#>/",
 ; return the effective user area number of the given filename in the upper
 ; 5 bits of A, and also store this value at "usrnum". Note that if no user
@@ -1169,6 +1200,7 @@ pad2:	ld	(hl),a	;pad with B instances of char in A
 ; 	in the name is a decimal digit and the first non-decimal-digit
 ;	character in the name is a slash (/).
 
+        if CPM
 vstfcu: push bc	;save BC
 	push hl	;save vcb pointer
 	call	igwsp	;ignore blanks and tabs	
@@ -1277,7 +1309,8 @@ isdec:	cp	'0'
 	cp	'9'+1
 	ccf
 	ret
-
+       endif
+       endif
 
 ;
 ; This routine does one of two things, depending
@@ -1287,7 +1320,7 @@ isdec:	cp	'0'
 ;  (if possible), else returns C set.
 ;
 ; If A is non-zero, then it returns the address
-; of the fcb corresponding to an open file whose
+; of the fcb (fd in NEDOOS) corresponding to an open file whose
 ; fd happens to be the value in A, or C set if there
 ; is no file associated with fd.
 ;
@@ -1298,19 +1331,23 @@ vfgfcb:	push bc
 	jp nz,fgfc2	;if not, go away
 	ld	b,nfcbs	;yes. do it...
 	ld de,fdt
+        if NEDOOS == 0
 	ld hl,fcbt
+        endif
 	ld	c,8
 fgfc1:	ld a,(de)
 	and	1
 	ld	a,c
 	jp nz,fgfc1a	;found free slot?
 	pop bc	;yes. all done.
-	ret
-
-fgfc1a:	push de
+	ret ;return DE=fd addr, A=fd
+fgfc1a:
+        if NEDOOS == 0
+	push de
 	ld de,36	;fcb length to accommodate random I/O
 	add hl,de
 	pop de
+        endif
 	inc de	;bump to next 3-byte table entry
 	inc de
 	inc de
@@ -1320,10 +1357,13 @@ fgfc1a:	push de
 fgfc1b:	scf
 	pop bc
 	ret		;return C if no more free slots
-
-fgfc2:	call	vfgfd	;compute fcb address for fd in A:
+fgfc2:
+        if NEDOOS != 0
+	call	vfgfd	;compute fd address for fd in A: ;return hl=fd addr
+	;jp c,fgfc1b	;return C if file isn't open        
+        else
+        call	vfgfd	;compute fd address for fd in A:
 	;jp c,fgfc1b	;return C if file isn't open ;TODO why fail?
-
 	sub	8
 	ld	l,a	;put (fd-8) in HL
 	ld	h,0
@@ -1338,15 +1378,21 @@ fgfc2:	call	vfgfd	;compute fcb address for fd in A:
 	ex de,hl		;put 36*a in DE
 	ld hl,fcbt	;add to base of table
 	add hl,de	;result in HL
+        endif
 	ld	a,c	;and return original fd in A
 	pop bc
 	ret
 
+        if NEDOOS != 0
+vsetusr=0
+vrstusr=0
+        else
 ;
 ; The following two subroutines change the current CP/M user area for
 ; use with file I/O:
 ;
 
+        IF CPM
 vsetusr:
 	push bc	;SET user number to upper bits of A, save current:
 	push hl
@@ -1404,6 +1450,7 @@ vrstusr:
 
 	ENDIF		;end of CP/M-related file I/O routines
 
+        endif
 
 ;	IF	NOT CPM
 ;main:	equ	$	;where main program resides when not under CP/M
@@ -1464,8 +1511,9 @@ spsav	ds	2	;BDOS's saved SP value upon entry from CCP
 ; The fcb table (fcbt): 36 bytes per file control block
 ;
 
+        if NEDOOS == 0
 fcbt:	ds	36*nfcbs	;reserve room for fcb's (extra byte for IMDOS)
-
+        endif
 
 ;
 ; The fd table: three bytes per file specifying r/w/open as follows:
@@ -1492,8 +1540,8 @@ comlin:	ds	131	;copy of the command line pointed to by entries
 ; This is where "init" places the array of argument pointers:
 ;
 
-arglst:	ds	40	;the "argv" paramater points here (well,
-			;actually to 2 bytes before arglst). Thus,
+arglst:	ds	40	;the "argv" paramater points here ([well,
+			;actually to 2 bytes before arglst]). Thus,
 			;up to 20 parameters may be passed to "main"
 	ENDIF
 

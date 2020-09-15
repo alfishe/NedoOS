@@ -3,6 +3,7 @@ TRUE	equ	not FALSE
 
 CPM:	EQU 1		;true if running under CP/M or MP/M II; else 0
 MPM2:	EQU 0		;true only if running under MP/M II
+NEDOOS EQU 1
 
 
         macro FUNCTION name

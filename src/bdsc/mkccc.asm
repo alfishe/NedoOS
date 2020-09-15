@@ -61,7 +61,7 @@ TRUE	equ	not FALSE
 
 CPM	EQU	TRUE	;True if to be run under any CP/M- or MP/M-like system
 MPM2	EQU	FALSE	;True ONLY if running MP/M II (forces R/O file closes)
-
+NEDOOS EQU 1
 
 ;
 ;	Use this section to configure run-time package
