@@ -567,7 +567,19 @@ outch:	push de
 	push af
 
         if 1==1
-        PRCHAR
+        ;exx
+        ;push bc
+        ;push de
+        ;push hl
+        ;push ix
+        ;push iy
+        PRCHAR_
+        ;pop iy
+        ;pop ix
+        ;pop hl
+        ;pop de
+        ;pop bc
+        ;exx
         else
 	ld e,a
 	lda werrs

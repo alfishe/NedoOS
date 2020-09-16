@@ -16,6 +16,7 @@ false:	equ not true
 SLRMAC:	equ true;false
 LASM:	equ not SLRMAC
 CPM:	equ true	;if true, for cp/m
+TERM equ 1
 
 ZSYSTEM	equ true
 
@@ -181,10 +182,45 @@ lf:	equ 0ah
 	org PROGSTART;tpa		;start of CP/M TPA
 begin
 	;IF SLRMAC
-	include cca.asm
-	include ccb.asm
-	include cccomp.asm
-	include ccd.asm
+	include "cca.asm"
+	include "ccb.asm"
+        include "../_sdk/stdio.asm"
+	include "cccomp.asm" ;внутри есть org, начинается запарываемая часть
+	include "ccd.asm"
+	;ENDIF
+
+;
+; Data storage used by "readf":
+;
+
+datarea: equ $
+
+secbuf:	ds 256		;sector buffer for reading in file
+fsp:	ds 2
+sptr:	ds 2
+incf:	ds 1		; true if in an include file
+pndsav:	ds 2
+fnbuf:	ds 50		;file name buffer for reading in files
+textp:	ds 2
+lastc:	ds 1
+lastc2:	ds 1
+quotf:	ds 1		;true if in a quoted string
+newusr:	ds 1		;new disk for #includes (CP/M)
+newdsk:	ds 1		;new user area for #includes (CP/M)
+atcnt:	ds 2		;last active line count for comment diagnostics
+inclstk: equ $		;"include" stack
+
+;
+; Data used by "lblpr":
+;
+
+	org datarea	;overlap readf's data area with lblpr's data area
+
+lblp:	ds 2
+lblt:	equ $
+
+	;IF LASM
+	;end
 	;ENDIF
 
 end

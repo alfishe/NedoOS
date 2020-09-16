@@ -51,9 +51,10 @@ patch:	ds 19		;reserved for future expansion (adjust when adding
 			;		bytes above)
 
 clink:
-        OS_HIDEFROMPARENT
-        ld e,6 ;textmode
-        OS_SETGFX
+        ;OS_HIDEFROMPARENT
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
+        call initstdio
         
 	;shld zenvad	;save Z environment pointer (if in HL)
 	;ld hl,0		;save system SP
@@ -785,7 +786,7 @@ stgdo2:	db lf,'Warning! Externals overlap code!',lf,0
 	ENDIF
 
 stgom:	db 'Out of memory',0
-stglo:	db 'K link space remaining',cr,0
+stglo:	db 'K link space remaining',cr,lf,0;cr,0
 stgok:	db 'Writing output...',cr,lf,0
 stgserr: db 'Bad symbols',0
 stgdeb:	db lf,'Executing:',cr,lf,0
@@ -2460,7 +2461,7 @@ inch:
 	push hl
 	;ld c,coninp
 	;call bdos
-        YIELDGETKEYLOOP
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
 	pop hl
 	pop bc
 	ENDIF
@@ -2534,7 +2535,7 @@ outch2:
 	;ld c,conout
 	;ld e,a
 	;call bdos
-        PRCHAR
+        PRCHAR_
 	pop bc
 	ret
 	ENDIF

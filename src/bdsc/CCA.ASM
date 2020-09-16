@@ -73,9 +73,10 @@ patch3: dw 0,0,0,0,0,0,0
 	;
 
 cc1:
-        OS_HIDEFROMPARENT
-        ld e,6 ;textmode
-        OS_SETGFX
+        ;OS_HIDEFROMPARENT
+        ;ld e,6 ;textmode
+        ;OS_SETGFX
+        call initstdio
         
         ;shld zenvad ;TODO remove	;save Z environment pointer
 	;ld hl,0		;save current SP for possible use in returning to CCP
@@ -280,8 +281,8 @@ stgom:	db 'Out of symbol table space; specify more...+'
 stgtmf:	db 'Too many functions (63 max)',0
 stgmq:	db 'String too long (or missing quote)+'
 stgbsd:	db 'Attribute mismatch from previous declaration+'
-stgelb:	db 'elbowroom',cr,0
-stgunu:	db 'unused',cr,0
+stgelb:	db 'elbowroom',cr,lf,0;cr,0
+stgunu:	db 'unused',cr,lf,0;cr,0
 oshit:	db 'Internal Error...Call BDS+'
 
 stgcce:	db cr,lf

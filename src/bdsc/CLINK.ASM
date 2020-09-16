@@ -130,8 +130,9 @@ msys:	  equ 50h
 	org PROGSTART;ram+100h	;start of TPA
 begin	
 	;IF SLRMAC
-	include clinka.asm
-	include clinkb.asm
+	include "clinka.asm"
+        include "../_sdk/stdio.asm"
+	include "clinkb.asm" ;killable?
 	;ENDIF
 
 end

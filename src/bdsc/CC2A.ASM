@@ -79,6 +79,7 @@ errdum:	ds 1		;dummy zcpr3 error flag
 cc2:	;ld hl,0		;save current SP in HL
 	;add hl,sp
 	ld sp,0;stack	;set up new stack
+        call initstdio
 
 	IF CPM
 	lda defsub
@@ -368,7 +369,7 @@ stgbbo:	db 'Expecting binary op+'
 stgeop:	db 'Missing "("+'
 stgecp:	db 'Missing ")"+'
 
-stgtsp:	db 'to spare',cr
+stgtsp:	db 'to spare',cr,lf;cr
 	IF MARC
 	   db lf
 	ENDIF
@@ -1031,7 +1032,7 @@ outch1:	call redout	;write char to red output file
 outch3:	;ld c,conout
 	;call bdos
         ld a,e
-        PRCHAR
+        PRCHAR_
 
 	pop af
 	pop hl

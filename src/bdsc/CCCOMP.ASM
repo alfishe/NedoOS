@@ -1337,7 +1337,7 @@ savadr:	equ $		;this is where readf will go....
 
 
 ;
-; The following storge is for routines in the expendable portion of 
+; The following storage is for routines in the expendable portion of 
 ; the program. The sections for each (independent) pass are org-ed to
 ; start at "stg4", to conserve memory
 ;
