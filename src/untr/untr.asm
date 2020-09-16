@@ -21,14 +21,26 @@ envfrq  WORD
 envtype BYTE
         ENDS
 
+;+-96 semitone shift
+;masks (T,N,E,hole,outerenv)
+;+-96 env semitone shift (fair tone ratio guaranteed for 1:1, 3:4, 1:2, 1:4, 3:1, 5:2, 2:1, 3:2 + 4:1)
+;+-4095 tonefrq shift
+;+-15 volume shift
+;retrigtone
+;31 noisefrq
+;16 envtype
+;retrigenv
+;в этой структуре накопления запрещены!
         STRUCT chnout
+note_in BYTE
+keepme_in BYTE ;priority for keep on top (bigger is more priority)
 tonefrq WORD
-masks   BYTE ;T,N,E,hole ;дырка управляется отдельно!!! т.к. уровень для !T!N отличается от T vol 0
+masks   BYTE ;T,N,E,hole,outerenv ;дырка управляется отдельно!!! т.к. уровень для !T!N отличается от T vol 0
 keepme  BYTE ;priority for keep on top (bigger is more priority)
 volume  BYTE ;volume = +-127 (cut to 0..15)
 noisefrq BYTE ;noise = 0..255 (cut to 0..31)
 envtype BYTE
-retrigenv BYTE ;retrigger envelope ;bit 3
+retrigenv BYTE ;retrigger envelope ;retrigenvbit
 retrigtone BYTE ;retrigger tone ;0=off/0xff=on
 envfrq  WORD
         ENDS
@@ -37,6 +49,9 @@ MASKBIT_T=0
 MASKBIT_N=1
 MASKBIT_E=2
 MASKBIT_HOLE=3
+MASKBIT_OUTERENV=4
+
+retrigenvbit=7
 
 filtervolume
 ;ix=from=to
@@ -65,13 +80,14 @@ filternoise
 mixchn
 ;ix=from1=to
 ;iy=from2
-;если в from1 есть огибающая, то игнорируем from2, если его KEEPME <= чем у from1
-;TODO или тихую огибающую должен перекрывать тональник?
+;в release должен быть понижен приоритет канала
+;если в from1 есть огибающая, то игнорируем from1, если его KEEPME <= чем у from2
+;т.к. огибающую должен перекрывать тональник!!!
         bit MASKBIT_E,(ix+chnout.masks)
-        jr nz,mixchn_keep1
+        jr nz,mixchn_keep2
 ;если в from1 есть шум, то игнорируем from2, если его KEEPME <= чем у from1
-        bit MASKBIT_N,(ix+chnout.masks)
-        jr nz,mixchn_keep1
+        ;bit MASKBIT_N,(ix+chnout.masks)
+        ;jr nz,mixchn_keep1
 ;если в from2 дырка, то берём from1
         bit MASKBIT_HOLE,(iy+chnout.masks)
         jr nz,mixchn_keep1
@@ -88,11 +104,15 @@ mixchn
         cp e
         jr c,mixchn_keep2
 mixchn_keep1
+        bit MASKBIT_OUTERENV,(iy+chnout.masks)
+        jr nz,mixchn_keep2outerenv
         ld a,(ix+chnout.keepme)
         cp (iy+chnout.keepme)
         ret nc ;при равенстве keepme оставляем from1
         jr mixchn_keep2_ok
 mixchn_keep2
+        bit MASKBIT_OUTERENV,(iy+chnout.masks)
+        jr nz,mixchn_keep1outerenv
         ld a,(iy+chnout.keepme)
         cp (ix+chnout.keepme)
         jr c,mixchn_keep1 ;при равенстве keepme оставляем from2
@@ -103,6 +123,24 @@ mixchn_keep2_ok
         pop de
         ld bc,chnout
         ldir
+        ret
+mixchn_keep1outerenv
+        ld a,(iy+chnout.envfrq)
+        ld (ix+chnout.envfrq),a
+        ld a,(iy+chnout.envfrq+1)
+        ld (ix+chnout.envfrq+1),a
+        ret
+mixchn_keep2outerenv
+        push iy
+        pop hl
+        push ix
+        pop de
+        ld bc,chnout
+        ldir
+        ld a,(ix+chnout.envfrq)
+        ld (iy+chnout.envfrq),a
+        ld a,(ix+chnout.envfrq+1)
+        ld (iy+chnout.envfrq+1),a
         ret
 
 ;надо в дырке такое поведение:
@@ -274,7 +312,7 @@ rendchip_Cnonoise
         ld a,(iy+chip.envtype)
         cp h
         jr z,$+4
-        set 3,b
+        set retrigenvbit,b
         ld (iy+chip.retriggers),b
         
         ld (iy+chip.masks),c
@@ -331,13 +369,149 @@ OUTAY0
         inc a
         cp 13
         jr NZ,OUTAY0
-        bit 3,d
+        bit retrigenvbit,d
         ret z ;no env retrigger
         LD B,0xff
         OUT (C),a
         LD B,E
         OUTI
         ret
+
+;Sample:
+;256 masks (T,N,E,hole,outerenv, retrigtone,semitoneshiftpresent,tonefrqshiftpresent), одна из комбинаций означает loop (например, E=0 и envsemitoneshiftpresent=1)
+noisefrqpresent=1
+envtypepresent=2
+semitoneshiftpresent=6
+tonefrqshiftpresent=7
+;+-96 semitone shift (в потоке при наличии semitoneshiftpresent)
+;+-96 env semitone shift (fair tone ratio guaranteed for 1:1, 3:4, 1:2, 1:4, 3:1, 5:2, 2:1, 3:2 + 4:1) (в потоке при наличии E)
+;8*2 envtype + retrigenv (в потоке при наличии E)
+;16 volume (в потоке при отсутствии E)
+;+-4095 tonefrq shift (в потоке при наличии tonefrqshiftpresent)
+;31 noisefrq (в потоке при наличии N)
+;>1 >256 loop addrshift
+
+playsample_loop
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        add hl,de
+playsample
+;ix=chnout
+;в любом случае полностью определяет текущие значения полей chnout:
+ ;(берутся из потока:)
+;masks   BYTE ;T,N,E,hole,outerenv, retrigtone,semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
+;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N)
+;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenv + outerenv, иначе volume)
+;retrigenv BYTE ;retrigger envelope ;bit 3 (берётся из envtype)
+;retrigtone BYTE ;retrigger tone ;0=off/0xff=on (берётся из маски)
+;volume  BYTE ;volume = 0..15
+ ;(вычисляются:)
+;keepme  BYTE ;priority for keep on top (bigger is more priority)
+;envfrq  WORD
+;tonefrq WORD
+        ld b,(hl) ;masks
+        inc hl
+        inc b
+        jr z,playsample_loop
+        dec b
+        ld (ix+chnout.masks),b ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone,semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
+        ld a,(ix+chnout.note)
+        bit semitoneshiftpresent,b
+        jr z,playsample_nosemitoneshift
+        add a,(hl)
+        inc hl
+        jp po,playsample_nosemitoneshift ;no signed overflow
+        rla
+        sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
+playsample_nosemitoneshift
+        bit envtypepresent,b
+        jr z,playsample_noenvsemitoneshift
+        add a,(hl) ;envsemitoneshift
+        ld e,a
+        ld d,tfrq/256
+;cout env frq (use frq table)
+        ld a,(de)
+        ld c,a
+        inc d
+        ld a,(de)
+        ;ld d,a
+        ld (ix+chnout.envfrq),c
+        ld (ix+chnout.envfrq+1),a;d
+;count tone frq (TODO use ratio)
+;временная затычка - частота тона по частотной таблице без envsemitoneshift
+        ld a,e
+        sub (hl)
+        ld e,a
+        ld a,(de)
+        ld c,a
+        dec d
+        ld a,(de)
+        ld e,a
+        ld d,c
+        ;ld a,(hl) ;envsemitoneshift
+
+        inc hl
+        jr playsample_noenvsemitoneshiftq
+playsample_noenvsemitoneshift
+;count tone frq (use frq table)
+        ld e,a
+        ld d,tfrq/256
+;cout env frq (use frq table)
+        ld a,(de)
+        ld c,a
+        inc d
+        ld a,(de)
+        ld d,a
+        ld e,c
+playsample_noenvsemitoneshiftq
+
+        bit envtypepresent,b
+        jr z,playsample_noenvtype
+        ld a,(hl)
+        inc hl
+        ld (ix+chnout.retrigenv),a ;retrigenv BYTE ;retrigger envelope ;retrigenvbit
+        and 0x0f
+        ld (ix+chnout.envtype),a ;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenvbit, иначе volume) ;тип огибающей без E не важен
+        ;ld a,16 ;volume НЕ ВАЖНО
+        ;ld (ix+chnout.volume),a ;volume  BYTE ;volume = 0..15
+        jr playsample_noenvtypeq
+playsample_noenvtype
+        ld a,(hl) ;volume
+        inc hl
+        ld (ix+chnout.volume),a ;volume  BYTE ;volume = 0..15
+playsample_noenvtypeq
+        bit noisefrqpresent,b
+        jr z,playsample_nonoisefrq
+        ld a,(hl)
+        inc hl
+        ld (ix+chnout.noisefrq),a ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N) ;noisefrq без N не важен
+playsample_nonoisefrq
+        bit tonefrqshiftpresent,b
+        jr z,playsample_notonefrqshift
+        ld a,(hl)
+        add a,e
+        ld e,a
+        inc hl
+        ld a,(hl)
+        adc a,d
+        ld d,a ;correct tone frq
+        inc hl
+playsample_notonefrqshift
+        ld (ix+chnout.tonefrq),e
+        ld (ix+chnout.tonefrq+1),d
+        ld a,b
+        and 32 ;retrigtone
+        add a,-32
+        sbc a,a
+        ld (ix+chnout.retrigtone),a ;retrigtone BYTE ;retrigger tone ;0=off/0xff=on (берётся из маски)
+ (берётся из envtype)
+        ld a,(ix+chnout.keepme_in)
+        ld (ix+chnout.keepme),a ;keepme  BYTE ;priority for keep on top (bigger is more priority)
+
+;out: hl=next line in sample
+        ret
+
 
 cmd_end
 
