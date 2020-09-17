@@ -47,12 +47,12 @@ begin
              S:=chr($FF); { abort editing }
              Ch:=^M;
            end;
-       ^D: begin { Move cursor right }
+       #251{^D}: begin { Move cursor right }
              X:=X+1;
              if (X>length(S)+1) or (X>MAX) then X:=X-1;
              GotoX;
            end;
-       ^G: begin { Delete right char }
+       #252{^G}: begin { Delete right char }
              if X<=Length(S) then
              begin
                Delete(S,X,1);
@@ -60,20 +60,20 @@ begin
                GotoX;
              end;
            end;
-    ^S,^H: begin { Move cursor left }
+    #248{^S,^H}: begin { Move cursor left }
              X:=X-1;
              if X<1 then X:=1;
              GotoX;
            end;
-       ^F: begin { Move cursor to end of line }
+       #30{^F}: begin { Move cursor to end of line }
               X:=Length(S)+1;
               GotoX;
            end;
-       ^A: begin { Move cursor to beginning of line }
+       #28{^A}: begin { Move cursor to beginning of line }
              X:=1;
              GotoX;
            end;
-     #127: begin { Delete left char }
+     #8{#127}: begin { Delete left char }
              X:=X-1;
              if (Length(S)>0) and (X>0)  then
              begin
@@ -83,7 +83,7 @@ begin
                if X<1 then X:=1;
              end else X:=1;
            end;
-       ^V: InsertOn:= not InsertOn;
+       #29{^V}: InsertOn:= not InsertOn;
 
 {.PA}
 

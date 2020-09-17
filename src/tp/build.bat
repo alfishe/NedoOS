@@ -20,6 +20,14 @@ if "%currentdir%"=="" (
  copy /Y %%j "../../release/bin/" > nul
  "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
  )
+ FOR %%j IN (*.hlp) DO (
+ copy /Y %%j "../../release/bin/" > nul
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
+ FOR %%j IN (*.mcs) DO (
+ copy /Y %%j "../../release/bin/" > nul
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
  pause
  if "%makeall%"=="" ..\..\us\emul.exe
 )

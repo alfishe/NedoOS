@@ -25,6 +25,8 @@ begin
 FALSE	equ	0
 _TRUE	equ	1
 
+TERM equ _TRUE;FALSE
+
 OS	equ	0000h
 DU	equ	0004h ;TODO change to GETPATH and subdirs
 BDOS	equ	0005h
@@ -464,9 +466,13 @@ lfffc	equ	0fffch
 lffff	equ	0ffffh
 
 l0100:
+        if TERM
+        call initstdio
+        else
         OS_HIDEFROMPARENT
         ld e,6 ;textmode
         OS_SETGFX
+        endif
 progstartaddr=$+1
 	jp	l20e2		; Jump over Run Time Library
 ;
@@ -568,7 +574,11 @@ l01ba:
 ; Clear to end of line
 ;if zero in first byte, function not implemented in this terminal
 l01bc:
-	db 0;db	2,esc,'K'
+        if TERM
+	db 1
+        else
+        db 0;db	2,esc,'K'
+        endif
 	ds	3
 ;
 ; Turn off inverse
@@ -600,7 +610,11 @@ l01d4:
         push ix ;TODO remove?
         push iy
 	ld	a,(hl)		; Get character
+        if TERM
+	PRCHAR_ ;call	l01e8		; Put to console
+        else
 	PRCHAR ;call	l01e8		; Put to console
+        endif
         pop iy
         pop ix ;TODO remove?
 	pop	hl
@@ -623,7 +637,11 @@ l01e8:
         push iy
 	;ld	l,a
 	;push	hl		; Push onto stack
+        if TERM
+	PRCHAR_ ;call	l00a6		; Put to console
+        else
 	PRCHAR ;call	l00a6		; Put to console
+        endif
         pop iy
         pop ix ;TODO remove?
 	ret
@@ -716,8 +734,14 @@ l023e:
        if 1==1
         push ix ;TODO remove?
         push iy ;needed!!!
+        if TERM
+        ld de,0
+        SETXY_
+        CLS_ ;print 25 lines of spaces except one
+        else
         ld e,0
 	OS_CLS
+        endif
         pop iy
         pop ix ;TODO remove?
        else
@@ -777,10 +801,18 @@ setlowvideo:
         push ix
         push iy
 	xor	a
-	ld	(l00e0),a	; Set video mode	
+	ld	(l00e0),a	; Set video mode
+        if TERM
+        ld de,0x0007
+        else
         ld e,0x07;0x38
+        endif
 l027c:
+        if TERM
+        SETCOLOR_
+        else
         OS_SETCOLOR
+        endif
         pop iy
         pop ix
         pop hl
@@ -791,7 +823,7 @@ l027c:
 	push	de
 	push	hl
 	xor	a
-	ld	(l00e0),a	; Set video mode	
+	ld	(l00e0),a	; Set video mode
 	ld	hl,l01c8	; Set attribute
 l027c:
 	call	l0235		; Give control
@@ -817,8 +849,12 @@ setnormvideo:
         push ix
         push iy
 	ld a,-1
-	ld (l00e0),a	; Set video mode	
+	ld (l00e0),a	; Set video mode
+        if TERM
+        ld de,0x000f
+        else
         ld e,0x47;0x07
+        endif
         jr l027c
         else
 	push	bc
@@ -838,7 +874,13 @@ l0299:
         push bc
         push de
         push hl
-;TODO
+        if TERM
+         push ix
+         push iy
+        call clearrestofline
+         pop iy
+         pop ix
+        endif
         pop hl
         pop de
         pop bc
@@ -867,7 +909,11 @@ l02a2:
         ld e,h
         ;dec d
         ;dec e
+        if TERM
+        SETXY_
+        else
         OS_SETXY
+        endif
         pop iy
         pop ix
         pop hl
@@ -980,7 +1026,14 @@ l0323:
 	;call	l035f		; Get input
         push ix ;TODO remove?
         push iy
+        if TERM
+l0323_nokey
+        GETKEY_
+        or a
+        jr z,l0323_nokey
+        else
         GET_KEY
+        endif
         pop iy
         pop ix ;TODO remove?
 l0326:
@@ -1026,7 +1079,11 @@ l0339:
         push hl
         push ix
         push iy
+        if TERM
+        PRCHAR_
+        else
         PRCHAR
+        endif
         pop iy
         pop ix
         pop hl
@@ -1034,6 +1091,10 @@ l0339:
         pop bc
         pop af
         ret
+
+        if TERM
+        include "../_sdk/stdio.asm"
+        endif
 
         if 1==0
 	;ld	de,_.conout	; Set function
@@ -1151,7 +1212,11 @@ puttoconsole_a:
 	push	iy
         
 	push	af
+        if TERM
+        PRCHAR_
+        else
         PRCHAR
+        endif
 	;ld	l,a
 	;ld	h,0
 	;push	hl
@@ -1174,13 +1239,20 @@ readfromkbd:
 	push	hl
 	push	ix
 	push	iy
+         if TERM
+readfromkbd_nokey
+        call yieldgetkeyloop ;YIELDGETKEYLOOP
+        or a
+        jr z,readfromkbd_nokey
+         else
          ld e,0x78
          OS_PRATTR
-        YIELDGETKEYLOOP
+         YIELDGETKEYLOOP
          push af
          ld e,0x47
          OS_PRATTR
          pop af
+         endif
 	;call	l00a3		; Read KBD
 	;ld	a,l
 	jr	l03d9
@@ -5862,8 +5934,8 @@ l1935:
 	ld	hl,(l00e2)	; Get back FIB
 l1943:
 	ld	a,(l00e9)	; Get mode
-	bit	Rec.Wr.bit,a	; Test write allowed
-	jr	z,l194c		; Nope
+	;bit	Rec.Wr.bit,a	; Test write allowed
+	;jr	z,l194c		; Nope ;TODO why fail???
 	set	wr.bit,(hl)	; Set bit
 l194c:
 	inc	hl
@@ -7342,7 +7414,9 @@ l20d4:
 	ld	a,(l00d8)	; Test run mode
 	or	a
 	jp	z,l278e		; Enter TP menue
+        if TERM == 0
         YIELDGETKEYLOOP
+        endif
 	jp	OS		; Exit .COM file
 ;
 ; Restart after error
@@ -9266,7 +9340,7 @@ l2e91:
 	inc	de		; Fix it
 	ld	hl,(l4544)	; Get start of text
 	add	hl,de		; Add to offset
-	call	l33a9
+	call	l33a9 ;status line?
 l2ebd:
 	ld	a,(l4482)	; Get control character count
 	dec	a
@@ -9276,12 +9350,12 @@ l2ebd:
 	ld	a,(l4482)	; Get control character count
 	add	a,a		; Double it
 	ld	b,a		; For count
-	ld	a,' '
+	ld	a,' ' ;TODO speedup spaces
 l2ed0:
 	call	puttoconsole_a		; Blank control characters
 	djnz	l2ed0
 l2ed5:
-	call	l3b96
+	call	l3b96 ;set edit cursor?
 	call	l2ff7		; Give status
 	call	l2f3a		; Get character
 	jr	nc,l2f0e	; No control
@@ -11195,6 +11269,7 @@ l3bd8:
 ;
 ;
 l3bdd:
+;gotonextchar,check eof
 	inc	hl
 	ld	de,(l4546)	; Get end of text
 ;
@@ -11257,11 +11332,12 @@ l3c02:
 ;
 ;
 l3c08:
+;nextline
 	cp	cr		; Test return
 	ret	nz		; Nope
 	ld	a,(hl)
-	call	l3bdd
-	ret	nc
+	call	l3bdd ;gotonextchar,check eof
+	ret	nc ;eof
 	jr	l3c08
 ;
 ; Clear line
@@ -11286,7 +11362,7 @@ l3c27:
 	ld	a,(hl)
 	call	l3bdd
 	jr	nc,l3c12	; Clear line
-	call	l3c08
+	call	l3c08 ;nextline (hl after cr)
 	cp	lf		; Test new line
 	jr	z,l3c12		; Clear line if so
 	djnz	l3c27 ;skip xscroll chars???
@@ -11317,9 +11393,9 @@ l3c5e:
 	call	cmp_hl_de		; Compare HL:DE
 	jr	z,l3c89		; Clear if same
 	ld	a,(hl)
-	call	l3bdd
+	call	l3bdd ;gotonextchar,check eof
 	jr	nc,l3c17	; Clear line
-	call	l3c08
+	call	l3c08 ;nextline (hl after cr)
 	cp	lf		; Test end of line
 	jr	z,l3c17		; Clear on new line
 	call	l3c8b		; Process control character
@@ -11343,7 +11419,7 @@ l3c8b:
 	call	l3c99		; Select video
 	pop	af
 l3c96:
-	jp	puttoconsole_a		; Put to console
+	jp	puttoconsole_a		; Put to console ;TODO speedup
 ;
 ; Select video
 ;
@@ -12245,7 +12321,11 @@ l423e:
 	push	ix
 	push	iy
         YIELD
+        if TERM
+	GETKEY_ ;call	l00a0		; Test key pressed
+        else
 	GET_KEY ;call	l00a0		; Test key pressed
+        endif
 	pop	iy
 	pop	ix
 	pop	hl
@@ -19871,13 +19951,23 @@ l714a:
 	push	hl
 	push	bc
 	call	l71f3
-         push af
-         push ix
-         push iy
-         PRCHAR
-         pop iy
-         pop ix
-         pop af
+         if TERM
+         ;push af
+         ;push ix
+         ;push iy
+         ;PRCHAR_
+         ;pop iy
+         ;pop ix
+         ;pop af
+         else
+         ;push af
+         ;push ix
+         ;push iy
+         ;PRCHAR
+         ;pop iy
+         ;pop ix
+         ;pop af
+         endif
 	pop	bc
 	pop	hl
 	cp	cr
@@ -20249,6 +20339,7 @@ l730c:
 l731a:
 	ld	sp,(l7b71)	; Get back stack
 	ret			; Exit compiler
+
 ;
 ; Compiler tables
 ; Internal label table

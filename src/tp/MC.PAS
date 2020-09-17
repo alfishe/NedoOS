@@ -126,10 +126,10 @@ begin
   repeat
     Read(Kbd,Ch);
     case Ch of
-      ^E:       MoveUp;
-      ^X,^J:    MoveDown;
-      ^D,^M,^F: MoveRight;
-      ^S,^A:    MoveLeft;
+      #250{^E}:       MoveUp;
+      #249{^X,^J}:    MoveDown;
+      #251{^D,^M,^F}: MoveRight;
+      #248{^S,^A}:    MoveLeft;
       '/':      Commands;
       ^[:       GetCell(FX,FY);
     else
