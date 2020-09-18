@@ -977,7 +977,6 @@ cursor_remember_bufaddr=$+1
         ret
 
 term_prfsm_afterescbracket_scrollup
-        push bc
         ld a,(term_prfsm_curnumber1)
         ld e,a ;xtop
         ld a,(term_prfsm_curnumber)
@@ -988,6 +987,7 @@ term_prfsm_afterescbracket_scrollup
         ld a,l
         or a
         jr z,cursor_remember
+        push bc
         push de
         push hl
         cp 80
