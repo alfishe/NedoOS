@@ -1,14 +1,394 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+
+tracks=0x8000
+MAXTIME=1000
+tracks_sz=MAXTIME*14
+SCRNTRACKS=14
+TRACKX=8
+SCRTRACKWID=64-TRACKX
+
         org PROGSTART
 cmd_begin
+        ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
+        OS_HIDEFROMPARENT
+        ld e,3+0x80 ;6912 + keep gfx pages
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
+        ld e,0
+        OS_CLS
+        
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
+        
+        ld hl,0x5800
+        ld de,0x5801
+        ld bc,0x2ff
+        ld (hl),7
+        ldir
+
+        ld hl,tracks
+        ld de,tracks+1
+        ld bc,tracks_sz-1
+        ld (hl),'a';0
+        ldir
+
+        ld hl,wasfrq
+        ld de,tfrq
+        ld b,96
+refrq0
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc d
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        dec d
+        inc e
+        djnz refrq0
+        ld a,e
+        sub 3*12
+        ld l,a
+        ld h,d
+refrq1
+        ld a,(hl)
+        add a,3
+        srl a
+        srl a
+        srl a
+        ld (de),a
+        inc l
+        inc d
+        xor a
+        ld (de),a
+        dec d
+        inc e
+        jr nz,refrq1
+
+        call setneedredraw
+mainloop
+        call updatescr
+        call prcurcur
+mainloop_nokey
+        YIELDGETKEYLOOP
+        or a
+        jr z,mainloop_nokey
+        push af
+        call prcurcur
+        pop af
+        ld hl,mainloop
+        push hl
+        cp key_left
+        jp z,untr_left
+        cp key_right
+        jp z,untr_right
+        cp key_up
+        jp z,untr_up
+        cp key_down
+        jp z,untr_down
+        push af
+        call getcuraddr
+        pop af
+        ld (hl),a
+        jr setneedredraw
         
         QUIT
 
+untr_up
+        ld hl,curtrack
+        ld a,(hl)
+        or a
+        ret z
+        dec (hl)
+        ld a,(hl)
+        ld hl,toptrack
+        cp (hl)
+        ret nc
+        dec (hl)
+setneedredraw
+        ld a,1
+        ld (untr_needredraw),a
+        ret
+
+untr_down
+        ld hl,curtrack
+        ld a,(ntracks)
+        dec a
+        cp (hl)
+        ret z
+        inc (hl)
+        ld c,(hl)
+        ld hl,toptrack
+        ld a,(hl)
+        add a,SCRNTRACKS
+        ld b,a
+        ld a,c
+        cp b
+        ret c
+        inc (hl)
+        jr setneedredraw
+
+untr_right
+        ld hl,(curtime)
+        ld de,MAXTIME-1
+        or a
+        sbc hl,de
+        add hl,de
+        ret nc
+        inc hl
+        ld (curtime),hl
+        ex de,hl
+        ld hl,(lefttime)
+        ld bc,SCRTRACKWID
+        add hl,bc
+        ex de,hl ;de=lefttime+SCRTRACKWID
+        or a
+        sbc hl,de
+        add hl,de
+        ret c
+        ld hl,(lefttime)
+        inc hl
+        ld (lefttime),hl
+        jr setneedredraw
+
+untr_left
+        ld hl,(curtime)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld (curtime),hl
+        ld de,(lefttime)
+        or a
+        sbc hl,de
+        add hl,de
+        ret nc
+        dec de
+        ld (lefttime),de
+        jr setneedredraw
+
+getcuraddr
+        ld hl,(curtime)
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,de
+        add hl,hl ;*6
+        add hl,de ;*7
+        add hl,hl ;*14
+        ld de,tracks
+        add hl,de
+        ld a,(curtrack)
+        ld e,a
+        ld d,0
+        add hl,de
+;hl=addr
+        ret
+
+prtext
+prtext0keepde
+        ld (prtext_cr_de),de
+        ld a,c
+        ld (prtext_cr_c),a
+prtext0
+        ld a,(hl)
+        or a
+        ret z
+        inc hl
+        cp 13
+        jr z,prtext_cr
+        call prchar
+        jr prtext0
+prtext_cr
+prtext_cr_c=$+1
+        ld c,0
+prtext_cr_de=$+1
+        ld de,0
+        ld a,e
+        add a,32
+        ld e,a
+        jr nc,prtext0keepde
+        ld a,d
+        add a,8
+        ld d,a
+        jr prtext0keepde
+
+ttypes
+        db "Master",13
+        db "Adrum",13
+        db "Atone",13
+        db "Apad",13
+        db "Avol",13
+        db "Avib 1",13
+        db "Bdrum",13
+        db "Btone",13
+        db "Bbass",13
+        db "Bvol",13
+        db "Cdrum",13
+        db "Ctone",13
+        db "Cpad",13
+        db "Cvol",13
+        db 0
+
+prchar
+        push de
+        push hl
+        ld h,font/256
+        ld l,a
+        dup 7
+        ld a,(de)
+        xor (hl)
+        and c
+        xor (hl)
+        ld (de),a
+        inc h
+        inc d
+        edup
+        ld a,(de)
+        xor (hl)
+        and c
+        xor (hl)
+        ld (de),a
+        pop hl
+        pop de
+        ld a,c
+        xor 0xff
+        ld c,a
+        ret m
+        inc e
+        ret
+
+ntracks
+        db 14
+lefttime
+        dw 0
+curtime
+        dw 0
+curtrack
+        db 0
+toptrack
+        db 0
+
+getcurx
+        push bc
+        ld hl,(curtime)
+        ld bc,(lefttime)
+        or a
+        sbc hl,bc
+        ld a,l
+        add a,TRACKX
+        pop bc
+;a=x
+        ret
+
+getcury
+        ld a,(curtrack)
+        ld hl,toptrack
+        sub (hl)
+;a=y
+        ret
+
+prcurcur
+        call getcurx
+        ld c,a
+        call getcury
+        ld b,a
+
+prcur
+;bc=YX
+;0b000YYyyy 0b00XXXXXx
+;0b010YY000 0byyyXXXXX
+        ld a,b
+        and 0x18
+        add a,0x40
+        ld d,a
+        ld a,c
+        add a,a
+        add a,a ;0bXXXXXx00
+        rr b
+        rra
+        rr b
+        rra
+        rr b
+        rra ;0xbyyyXXXXX, CY=x
+        ld e,a
+        sbc a,a
+        xor 0xf0
+        ld c,a
+        dup 7
+        ld a,(de)
+        xor c
+        ld (de),a
+        inc d
+        edup
+        ld a,(de)
+        xor c
+        ld (de),a
+        ret
+
+updatescr
+;TODO по модели вьювера
+untr_needredraw=$+1
+        ld a,0
+        or a
+        ret z
+        xor a
+        ld (untr_needredraw),a
+        ld de,0x4000
+        ld c,0x0f
+        ld hl,ttypes
+        call prtext
+        ;jr $
+        ld hl,(lefttime)
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,de
+        add hl,hl ;*6
+        add hl,de ;*7
+        add hl,hl ;*14
+        ld de,tracks
+        add hl,de
+        ld de,0x4000+(TRACKX/2)
+        ld b,SCRNTRACKS
+updatescr_tracks0
+        push bc
+        push de
+        push hl
+        ld c,0x0f
+        call prtrack
+        pop hl
+        inc hl
+        pop de
+        ld a,e
+        add a,32
+        ld e,a
+        jr nc,$+6
+         ld a,d
+         add a,8
+         ld d,a
+        pop bc
+        djnz updatescr_tracks0
+        ret
+
+prtrack
+;hl=addr
+;de=scr
+        ld b,SCRTRACKWID
+prtrack0
+        ld a,(hl)
+        call prchar
+        push bc
+        ld bc,SCRNTRACKS
+        add hl,bc
+        pop bc
+        djnz prtrack0
+        ret
+
         STRUCT chip
-retriggers BYTE ;A,B,C,E
+retriggers BYTE ;A,B,C
 Atonefrq WORD
 Btonefrq WORD
 Ctonefrq WORD
@@ -18,30 +398,26 @@ Avolume BYTE
 Bvolume BYTE
 Cvolume BYTE
 envfrq  WORD
-envtype BYTE
+envtype BYTE ;+retrigenvbit
         ENDS
 
+;masks (T,N,E,hole,outerenv,retrigtone)
 ;+-96 semitone shift
-;masks (T,N,E,hole,outerenv)
 ;+-96 env semitone shift (fair tone ratio guaranteed for 1:1, 3:4, 1:2, 1:4, 3:1, 5:2, 2:1, 3:2 + 4:1)
 ;+-4095 tonefrq shift
-;+-15 volume shift
-;retrigtone
-;31 noisefrq
-;16 envtype
-;retrigenv
+;16 volume
+;32 noisefrq
+;16*2 envtype +retrigenvbit
 ;в этой структуре накопления запрещены!
         STRUCT chnout
 note_in BYTE
 keepme_in BYTE ;priority for keep on top (bigger is more priority)
-tonefrq WORD
-masks   BYTE ;T,N,E,hole,outerenv ;дырка управляется отдельно!!! т.к. уровень для !T!N отличается от T vol 0
+tonefrq WORD ;0..32767 (cut to 0..4095)
+masks   BYTE ;T,N,E,hole,outerenv,retrigtone ;дырка управляется отдельно!!! т.к. уровень для !T!N отличается от T vol 0
 keepme  BYTE ;priority for keep on top (bigger is more priority)
 volume  BYTE ;volume = +-127 (cut to 0..15)
 noisefrq BYTE ;noise = 0..255 (cut to 0..31)
-envtype BYTE
-retrigenv BYTE ;retrigger envelope ;retrigenvbit
-retrigtone BYTE ;retrigger tone ;0=off/0xff=on
+envtype BYTE ;+retrigenvbit
 envfrq  WORD
         ENDS
 
@@ -50,6 +426,7 @@ MASKBIT_N=1
 MASKBIT_E=2
 MASKBIT_HOLE=3
 MASKBIT_OUTERENV=4
+MASKBIT_RETRIGTONE=5
 
 retrigenvbit=7
 
@@ -75,6 +452,36 @@ filternoise
         rla
         sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
         xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
+        ret
+
+filtertone
+;ix=from=to
+;de=tone shift (+-4095)
+        ld a,(ix+chnout.tonefrq)
+        add a,e
+        ld e,a
+        ld a,(ix+chnout.tonefrq+1)
+        adc a,d
+        ld d,a
+        jp p,$+6
+         ld de,0
+        ld (ix+chnout.tonefrq),e
+        ld (ix+chnout.tonefrq+1),d
+        ret
+
+filterenv
+;ix=from=to
+;de=env shift
+        ld a,(ix+chnout.envfrq)
+        add a,e
+        ld e,a
+        ld a,(ix+chnout.envfrq+1)
+        adc a,d
+        ld d,a
+        jp p,$+6
+         ld de,0
+        ld (ix+chnout.envfrq),e
+        ld (ix+chnout.envfrq+1),d
         ret
 
 mixchn
@@ -155,98 +562,102 @@ rendchip
 ;iy=chip
         push de ;fromC
         push hl ;fromB
-        ld bc,0x00ff ;b=ретриггеры A,B,C,E ;c=masks: все выключены
-        ld d,b
-        ld e,c ;d=текущий приоритет шума, e=текущий приоритет огибающей
+        ld bc,0x00ff ;b=ретриггеры A,B,C ;c=masks: все выключены
+        ld d,b ;текущий приоритет шума
+        ld e,b ;текущий приоритет огибающей
         ld h,(iy+chip.envtype) ;бывший тип огибающей
+        res retrigenvbit,h
 
-        ld a,(ix+chnout.volume)
-        or a
-        jp p,$+4
         xor a
-        cp 15
-        jr c,$+4
-        ld a,15
-        bit MASKBIT_E,(ix+chnout.masks)
-        jr z,$+4
-        ld a,16
-        ld (iy+chip.Avolume),a
+        bit MASKBIT_HOLE,(ix+chnout.masks)
         jr z,rendchip_Anoenv
-        ld a,(ix+chnout.keepme)
-        cp e ;текущий приоритет огибающей
-        jr c,rendchip_Anoenv
-        ld e,a
+        ld a,(ix+chnout.volume)
+        cp 16
+        jr c,$+7
+         rla
+         sbc a,a
+         cpl
+         and 15
+        bit MASKBIT_E,(ix+chnout.masks)
+        jr z,rendchip_Anoenv
+        ld e,(ix+chnout.keepme) ;текущий приоритет огибающей
         ld a,(ix+chnout.envfrq)
         ld (iy+chip.envfrq),a
         ld a,(ix+chnout.envfrq+1)
         ld (iy+chip.envfrq+1),a
-        ld a,(ix+chnout.envtype)
-        ld (iy+chip.envtype),a
-        ld a,(ix+chnout.retrigenv)
-        or b
-        ld b,a ;сумма ретриггеров
+        ld l,(ix+chnout.envtype) ;текущий тип огибающей
+        ld a,16
 rendchip_Anoenv
+        ld (iy+chip.Avolume),a
         bit MASKBIT_T,(ix+chnout.masks)
         jr z,rendchip_Anotone
-        res 0,c
-        ld a,(ix+chnout.tonefrq)
-        ld (iy+chip.Atonefrq),a
+        dec c ;res 0,c
         ld a,(ix+chnout.tonefrq+1)
+        cp 4096/256
+        jr c,$+4
+         ld a,-1 ;overflow
         ld (iy+chip.Atonefrq+1),a
-        ld a,(ix+chnout.retrigtone)
-        and 1
-        or b
-        ld b,a ;сумма ретриггеров
+        jr nc,$+5 ;overflow
+         ld a,(ix+chnout.tonefrq)
+        ld (iy+chip.Atonefrq),a
+        bit MASKBIT_RETRIGTONE,(ix+chnout.masks)
+        jr z,$+3
+        inc b ;set 0,b сумма ретриггеров
 rendchip_Anotone
         bit MASKBIT_N,(ix+chnout.masks)
         jr z,rendchip_Anonoise
         res 3,c
-        ld a,(ix+chnout.keepme)
-        cp d ;текущий приоритет шума
-        jr c,rendchip_Anonoise
-        ld d,a
+        ld d,(ix+chnout.keepme) ;текущий приоритет шума
         ld a,(ix+chnout.noisefrq)
+        cp 32
+        jr c,$+5;7
+         rla
+         sbc a,a
+         cpl
+         ;and 31
         ld (iy+chip.noisefrq),a
 rendchip_Anonoise
 
         pop ix ;fromB
-        ld a,(ix+chnout.volume)
-        or a
-        jp p,$+4
         xor a
-        cp 15
-        jr c,$+4
-        ld a,15
+        bit MASKBIT_HOLE,(ix+chnout.masks)
+        jr z,rendchip_Bnoenv
+        ld a,(ix+chnout.volume)
+        cp 16
+        jr c,$+7
+         rla
+         sbc a,a
+         cpl
+         and 15
         bit MASKBIT_E,(ix+chnout.masks)
-        jr z,$+4
-        ld a,16
-        ld (iy+chip.Bvolume),a
         jr z,rendchip_Bnoenv
         ld a,(ix+chnout.keepme)
         cp e ;текущий приоритет огибающей
-        jr c,rendchip_Bnoenv
+        jr c,rendchip_Buseenv
         ld e,a
         ld a,(ix+chnout.envfrq)
         ld (iy+chip.envfrq),a
         ld a,(ix+chnout.envfrq+1)
         ld (iy+chip.envfrq+1),a
-        ld a,(ix+chnout.envtype)
-        ld (iy+chip.envtype),a
-        ld a,(ix+chnout.retrigenv)
-        or b
-        ld b,a ;сумма ретриггеров
+        ld l,(ix+chnout.envtype) ;текущий тип огибающей
+rendchip_Buseenv
+        ld a,16
 rendchip_Bnoenv
+        ld (iy+chip.Bvolume),a
         bit MASKBIT_T,(ix+chnout.masks)
         jr z,rendchip_Bnotone
         res 1,c
-        ld a,(ix+chnout.tonefrq)
-        ld (iy+chip.Btonefrq),a
         ld a,(ix+chnout.tonefrq+1)
+        cp 4096/256
+        jr c,$+4
+         ld a,-1 ;overflow
         ld (iy+chip.Btonefrq+1),a
-        ld a,(ix+chnout.retrigtone)
-        and 2
-        or b
-        ld b,a ;сумма ретриггеров
+        jr nc,$+5 ;overflow
+         ld a,(ix+chnout.tonefrq)
+        ld (iy+chip.Btonefrq),a
+        bit MASKBIT_RETRIGTONE,(ix+chnout.masks)
+        jr z,$+4
+         set 1,b ;сумма ретриггеров
 rendchip_Bnotone
         bit MASKBIT_N,(ix+chnout.masks)
         jr z,rendchip_Bnonoise
@@ -256,47 +667,55 @@ rendchip_Bnotone
         jr c,rendchip_Bnonoise
         ld d,a
         ld a,(ix+chnout.noisefrq)
+        cp 32
+        jr c,$+5;7
+         rla
+         sbc a,a
+         cpl
+         ;and 31
         ld (iy+chip.noisefrq),a
 rendchip_Bnonoise
         
         pop ix ;fromC
-        ld a,(ix+chnout.volume)
-        or a
-        jp p,$+4
         xor a
-        cp 15
-        jr c,$+4
-        ld a,15
+        bit MASKBIT_HOLE,(ix+chnout.masks)
+        jr z,rendchip_Cnoenv
+        ld a,(ix+chnout.volume)
+        cp 16
+        jr c,$+7
+         rla
+         sbc a,a
+         cpl
+         and 15
         bit MASKBIT_E,(ix+chnout.masks)
-        jr z,$+4
-        ld a,16
-        ld (iy+chip.Cvolume),a
         jr z,rendchip_Cnoenv
         ld a,(ix+chnout.keepme)
         cp e ;текущий приоритет огибающей
-        jr c,rendchip_Cnoenv
-        ld e,a
+        jr c,rendchip_Cuseenv
+        ;ld e,a
         ld a,(ix+chnout.envfrq)
         ld (iy+chip.envfrq),a
         ld a,(ix+chnout.envfrq+1)
         ld (iy+chip.envfrq+1),a
-        ld a,(ix+chnout.envtype)
-        ld (iy+chip.envtype),a
-        ld a,(ix+chnout.retrigenv)
-        or b
-        ld b,a ;сумма ретриггеров
+        ld l,(ix+chnout.envtype) ;текущий тип огибающей
+rendchip_Cuseenv
+        ld a,16
 rendchip_Cnoenv
+        ld (iy+chip.Cvolume),a
         bit MASKBIT_T,(ix+chnout.masks)
         jr z,rendchip_Cnotone
         res 2,c
-        ld a,(ix+chnout.tonefrq)
-        ld (iy+chip.Ctonefrq),a
         ld a,(ix+chnout.tonefrq+1)
+        cp 4096/256
+        jr c,$+4
+         ld a,-1 ;overflow
         ld (iy+chip.Ctonefrq+1),a
-        ld a,(ix+chnout.retrigtone)
-        and 4
-        or b
-        ld b,a ;сумма ретриггеров
+        jr nc,$+5 ;overflow
+         ld a,(ix+chnout.tonefrq)
+        ld (iy+chip.Ctonefrq),a
+        bit MASKBIT_RETRIGTONE,(ix+chnout.masks)
+        jr z,$+4
+         set 2,b ;сумма ретриггеров
 rendchip_Cnotone
         bit MASKBIT_N,(ix+chnout.masks)
         jr z,rendchip_Cnonoise
@@ -304,22 +723,28 @@ rendchip_Cnotone
         ld a,(ix+chnout.keepme)
         cp d ;текущий приоритет шума
         jr c,rendchip_Cnonoise
-        ld d,a
+        ;ld d,a
         ld a,(ix+chnout.noisefrq)
+        cp 32
+        jr c,$+5;7
+         rla
+         sbc a,a
+         cpl
+         ;and 31
         ld (iy+chip.noisefrq),a
 rendchip_Cnonoise
 
-        ld a,(iy+chip.envtype)
-        cp h
-        jr z,$+4
-        set retrigenvbit,b
         ld (iy+chip.retriggers),b
-        
         ld (iy+chip.masks),c
+        ld a,l
+        cp h ;несовпадение в том числе при retrigenvbit (в h он сброшен)
+        ret z
+         set retrigenvbit,a
+         ld (iy+chip.envtype),a ;текущий тип огибающей
         ret
 
 outchip
-;hl=chip (байт флагов ретриггера (ABCE) + 13 байт данных AY)
+;hl=chip (байт флагов ретриггера (ABC) + 13 байт данных AY)
         xor a
         LD C,0xfd
         LD E,0xBF
@@ -331,6 +756,7 @@ outchip
         ld b,e
         out (c),a
         inc d
+        ld b,0xff
         out (c),d
         ld b,e
         out (c),a
@@ -343,6 +769,7 @@ outchip_noretrigA
         ld b,e
         out (c),a
         inc d
+        ld b,0xff
         out (c),d
         ld b,e
         out (c),a
@@ -355,30 +782,35 @@ outchip_noretrigB
         ld b,e
         out (c),a
         inc d
+        ld b,0xff
         out (c),d
         ld b,e
         out (c),a
 outchip_noretrigC
         ;xor a
-        ld d,(hl)
-OUTAY0
-        ld b,0xff
+        ld d,0xff
+       dup 12
+        ld b,d;0xff
         OUT (C),a
         LD B,E
         OUTI
         inc a
-        cp 13
-        jr NZ,OUTAY0
-        bit retrigenvbit,d
+       edup
+        ld b,d;0xff
+        OUT (C),a
+        LD B,E
+        OUTI
+        bit retrigenvbit,(hl)
         ret z ;no env retrigger
-        LD B,0xff
+        inc a
+        ld b,d;0xff
         OUT (C),a
         LD B,E
         OUTI
         ret
 
 ;Sample:
-;256 masks (T,N,E,hole,outerenv, retrigtone,semitoneshiftpresent,tonefrqshiftpresent), одна из комбинаций означает loop (например, E=0 и envsemitoneshiftpresent=1)
+;256 masks (T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent), одна из комбинаций означает loop (например, -1)
 noisefrqpresent=1
 envtypepresent=2
 semitoneshiftpresent=6
@@ -399,14 +831,11 @@ playsample_loop
 playsample
 ;ix=chnout
 ;в любом случае полностью определяет текущие значения полей chnout:
- ;(берутся из потока:)
-;masks   BYTE ;T,N,E,hole,outerenv, retrigtone,semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
+;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
 ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N)
-;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenv + outerenv, иначе volume)
+;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenv)
 ;retrigenv BYTE ;retrigger envelope ;bit 3 (берётся из envtype)
-;retrigtone BYTE ;retrigger tone ;0=off/0xff=on (берётся из маски)
-;volume  BYTE ;volume = 0..15
- ;(вычисляются:)
+;volume  BYTE ;volume = 0..15 (в потоке при отсутствии E)
 ;keepme  BYTE ;priority for keep on top (bigger is more priority)
 ;envfrq  WORD
 ;tonefrq WORD
@@ -415,8 +844,8 @@ playsample
         inc b
         jr z,playsample_loop
         dec b
-        ld (ix+chnout.masks),b ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone,semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
-        ld a,(ix+chnout.note)
+        ld (ix+chnout.masks),b ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
+        ld a,(ix+chnout.note_in)
         bit semitoneshiftpresent,b
         jr z,playsample_nosemitoneshift
         add a,(hl)
@@ -466,26 +895,20 @@ playsample_noenvsemitoneshift
         ld e,c
 playsample_noenvsemitoneshiftq
 
-        bit envtypepresent,b
-        jr z,playsample_noenvtype
         ld a,(hl)
         inc hl
-        ld (ix+chnout.retrigenv),a ;retrigenv BYTE ;retrigger envelope ;retrigenvbit
-        and 0x0f
-        ld (ix+chnout.envtype),a ;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenvbit, иначе volume) ;тип огибающей без E не важен
-        ;ld a,16 ;volume НЕ ВАЖНО
-        ;ld (ix+chnout.volume),a ;volume  BYTE ;volume = 0..15
-        jr playsample_noenvtypeq
+        bit envtypepresent,b
+        jr z,playsample_noenvtype
+        ld (ix+chnout.envtype),a ;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenvbit) ;тип огибающей без E не используется
+        jr playsample_noenvtypeq ;можно убрать, т.к. громкость при E не используется
 playsample_noenvtype
-        ld a,(hl) ;volume
-        inc hl
         ld (ix+chnout.volume),a ;volume  BYTE ;volume = 0..15
 playsample_noenvtypeq
         bit noisefrqpresent,b
         jr z,playsample_nonoisefrq
         ld a,(hl)
         inc hl
-        ld (ix+chnout.noisefrq),a ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N) ;noisefrq без N не важен
+        ld (ix+chnout.noisefrq),a ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N) ;noisefrq без N не используется
 playsample_nonoisefrq
         bit tonefrqshiftpresent,b
         jr z,playsample_notonefrqshift
@@ -500,20 +923,135 @@ playsample_nonoisefrq
 playsample_notonefrqshift
         ld (ix+chnout.tonefrq),e
         ld (ix+chnout.tonefrq+1),d
-        ld a,b
-        and 32 ;retrigtone
-        add a,-32
-        sbc a,a
-        ld (ix+chnout.retrigtone),a ;retrigtone BYTE ;retrigger tone ;0=off/0xff=on (берётся из маски)
- (берётся из envtype)
         ld a,(ix+chnout.keepme_in)
         ld (ix+chnout.keepme),a ;keepme  BYTE ;priority for keep on top (bigger is more priority)
 
 ;out: hl=next line in sample
         ret
 
+        if 1==0
+;lx=background color %33210210
+;hx=color %33210210
+;de=font char
+;hl=screen
+prchar48ega_hxoncolor0
+        ld b,hx
+        ld a,(de)
+        ld c,a
+        ld a,lx
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0xb8;%10111000
+         xor b
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0x47;%01000111
+         xor b
+        ld (hl),a
+        set 6,h
+        ld a,lx
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0xb8;%10111000
+         xor b
+        rl c
+        jr nc,$+2+4
+         xor b
+         and 0x47;%01000111
+         xor b
+        ld (hl),a
+        inc d
+        ld bc,+(40-0x4000)
+        add hl,bc
+        dec hy
+        jp nz,prchar48ega_hxoncolor0
+
+;c=ink (IIiiiiii)
+;b=paper (PPpppppp)
+        ld a,(hl)
+        rla
+        sbc a,a
+        ld e,a ;RRRRRRRR
+        ld a,(hl)
+        rla
+        rla
+        sbc a,a ;LLLLLLLL
+        xor e
+        and 0b01000111
+        xor e
+        ld d,a
+;a=%RLRRRLLL        
+        and c ;ink (IIiiiiii)
+        ld e,a
+        ld a,d
+        cpl
+        and b ;paper (PPpppppp)
+        or e
+        ld (hl),a 
+        
+;несколько шрифтов в зависимости от цвета:
+;один шрифт = 2(столбца)*8(высота)*2(байта)*256(символов) = 0x2000
+;с версией, сдвинутой на 1 пикс. вправо, он даже не поместится в страницу
+        pop de
+        ld a,(hl)
+        and e
+        or d
+        ld (hl),a
+        add hl,bc
+;43t/b (последний add не нужен, так что 41.625t/b)
+;но неудобно вычислять начальный адрес (+33t) и сохранять стек (+36t или 16t всегда на одной глубине), причём первое слово надо брать не из стека (+12t), итого 51.75t/b
+        
+;или
+        ld a,(de)
+        and (hl)
+        inc d
+        ex de,hl
+        or (hl)
+        ex de,hl
+        ld (hl),a
+        inc d
+        add hl,bc
+;55t/b (последний inc d и add не нужны, так что 53.125t/b)
+
+;или
+        ld a,(de)
+        and (hl)
+        inc h
+        or (hl)
+        ld (de),a
+        inc h
+        ld a,e
+        add a,c
+        ld e,a
+        jp nc,$+3 ;10.625t
+         inc d
+;10.625+28+20 = 58.625t/b (последний inc h и пересчёт не нужны, так что 55.3t/b)
+
+;или (с огромной таблицей перехода по стеку для всех случаев)
+        pop de
+        ld a,(de)
+        and (hl)
+        inc h
+        or (hl)
+        ld (de),a
+        inc h
+;46t/b (45.5 без последнего inc h), но надо сохранять стек (+36t/8) = 50t/b
+        endif
+        
+        align 256
+tfrq
+        ds 512
+        align 256
+font
+        incbin "64qua.fnt"
+wasfrq
+        incbin "tb_st.bin"  
 
 cmd_end
+
 
 	;display "Size ",/d,cmd_end-cmd_begin," bytes"
 
