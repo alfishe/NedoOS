@@ -183,30 +183,22 @@ mainloop_nokey
         ret nz
         ld a,c
         push af
-        add a,2*12
+        call getcuraddr
+        pop af
+        ld (hl),a
         
         ld ix,Adrum
-        ld (ix+chnout.note_in),a;3*12 ;C-4
+        ld a,1
+        call initchnnote
         ld ix,Atone
-        ld (ix+chnout.note_in),a;3*12 ;C-4
-        ;ld b,50
-        ld hl,smp_snare
-        ld de,smp_tone
+        ld a,2
+        call initchnnote
 testsmp0
-        ;push bc
         halt
-        push hl
-        ex de,hl
         ld ix,Atone
         call playsample
-        ex de,hl
-        pop hl
-        push de
         ld ix,Adrum
         call playsample
-        pop de
-        push de
-        push hl
         ld iy,Atone
         ld ix,Adrum
         call mixchn
@@ -221,31 +213,36 @@ testsmp0
         call rendchip
         ld hl,chip0
         call outchip
-        pop hl
-        pop de
         call checknotekeys_pressed
         
-        ;pop bc
-        ;djnz testsmp0
         jr nz,testsmp0
         
         call shutay
         
-        call getcuraddr
-        pop af
-        ld (hl),a
+untr_afternotekey
         call setneedredraw
         jp untr_right
+
+initchnnote
+;a=track
+        call getcuraddr_tracka
+        ld a,(hl)
+        ld (ix+chnout.note_in),a;3*12 ;C-4
+        ld e,(ix+chnout.smp_in)
+        ld (ix+chnout.smpcuraddr),e
+        ld e,(ix+chnout.smp_in+1)
+        ld (ix+chnout.smpcuraddr+1),e
+        ret
 
 untr_pause
         call getcuraddr
         ld (hl),NOTE_PAUSE
-        jp setneedredraw
+        jp untr_afternotekey
       
 untr_space
         call getcuraddr
         ld (hl),NOTE_SPACE
-        jp setneedredraw
+        jp untr_afternotekey
       
 untr_backspace
         ld hl,(curtime)
@@ -440,6 +437,8 @@ untr_play
         ret
 
 getcuraddr
+        ld a,(curtrack)
+getcuraddr_tracka
         ld hl,(curtime)
         ld d,h
         ld e,l
@@ -450,7 +449,6 @@ getcuraddr
         add hl,hl ;*14
         ld de,tracks
         add hl,de
-        ld a,(curtrack)
         ld e,a
         ld d,0
         add hl,de
@@ -763,41 +761,45 @@ smp_snare
         db -1
         dw -2-2 ;loop to line with hole
 
+        macro t4 msk,vol
+        db msk|0b01000000,2*12,vol
+        endm
+
 smp_tone
-        db 0b00000001,15
-        db 0b00000001,14
-        db 0b00000001,14
-        db 0b00000001,14
-        db 0b00000001,14
-        db 0b00000001,13
-        db 0b00000001,13
-        db 0b00000001,13
-        db 0b00000001,13
-        db 0b00000001,12
-        db 0b00000001,12
-        db 0b00000001,12
-        db 0b00000001,12
-        db 0b00000001,11
-        db 0b00000001,11
-        db 0b00000001,11
-        db 0b00000001,11
-        db 0b00000001,10
-        db 0b00000001,10
-        db 0b00000001,10
-        db 0b00000001,10
-        db 0b00000001,9
-        db 0b00000001,9
-        db 0b00000001,9
-        db 0b00000001,9
-        db 0b00000001,8
-        db 0b00000001,8
-        db 0b00000001,8
-        db 0b00000001,8
-        db 0b00000001,7
-        db 0b00000001,7
-        db 0b00000001,7
-        db 0b00000001,7
-        db 0b00001000,0
+        t4 0b00000001,15
+        t4 0b00000001,14
+        t4 0b00000001,14
+        t4 0b00000001,14
+        t4 0b00000001,14
+        t4 0b00000001,13
+        t4 0b00000001,13
+        t4 0b00000001,13
+        t4 0b00000001,13
+        t4 0b00000001,12
+        t4 0b00000001,12
+        t4 0b00000001,12
+        t4 0b00000001,12
+        t4 0b00000001,11
+        t4 0b00000001,11
+        t4 0b00000001,11
+        t4 0b00000001,11
+        t4 0b00000001,10
+        t4 0b00000001,10
+        t4 0b00000001,10
+        t4 0b00000001,10
+        t4 0b00000001,9
+        t4 0b00000001,9
+        t4 0b00000001,9
+        t4 0b00000001,9
+        t4 0b00000001,8
+        t4 0b00000001,8
+        t4 0b00000001,8
+        t4 0b00000001,8
+        t4 0b00000001,7
+        t4 0b00000001,7
+        t4 0b00000001,7
+        t4 0b00000001,7
+        t4 0b00001000,0
         db -1
         dw -2-2 ;loop to line with hole
 

@@ -395,12 +395,16 @@ tonefrqshiftpresent=7
 ;32 noisefrq (в потоке при наличии N)
 ;>1 >256 loop addrshift
 
+playsample
+        ld l,(ix+chnout.smpcuraddr)
+        ld h,(ix+chnout.smpcuraddr+1)
+        jr playsample_go
 playsample_loop
         ld e,(hl)
         inc hl
         ld d,(hl)
         add hl,de
-playsample
+playsample_go
 ;ix=chnout
 ;в любом случае полностью определяет текущие значения полей chnout:
 ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
@@ -499,5 +503,7 @@ playsample_nonoisefrq
         ld (ix+chnout.keepme),a ;keepme  BYTE ;priority for keep on top (bigger is more priority)
 
 ;out: hl=next line in sample
+        ld (ix+chnout.smpcuraddr),l
+        ld (ix+chnout.smpcuraddr+1),h
         ret
 
