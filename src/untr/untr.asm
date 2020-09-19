@@ -65,7 +65,20 @@ refrq1
         ld (de),a
         dec d
         inc e
-        jr nz,refrq1
+        jp p,refrq1
+        ld l,0
+;notes -128..-1 equal to 0
+refrq2
+        ld a,(hl)
+        ld (de),a
+        inc d
+        inc h
+        ld a,(hl)
+        ld (de),a
+        dec h
+        dec d
+        inc e
+        jr nz,refrq2
 
         call setneedredraw
 mainloop
@@ -89,6 +102,33 @@ mainloop_nokey
         cp key_down
         jp z,untr_down
         push af
+        
+        ld ix,chnA
+        ld (ix+chnout.note_in),3*12 ;C-4
+        ld (ix+chnout.keepme_in),2 ;for example: 0=bass/pad, 1=tone, 2=drum
+        ld b,20
+        ld hl,smp_snare
+testsmp0
+        push bc
+        halt
+        ld ix,chnA
+        call playsample
+        push hl
+        ld ix,chnA
+        ld hl,chnB
+        ld de,chnC
+        ld iy,chip0
+;ix=fromA
+;hl=fromB
+;de=fromC
+;iy=chip
+        call rendchip
+        ld hl,chip0
+        call outchip
+        pop hl
+        pop bc
+        djnz testsmp0
+        
         call getcuraddr
         pop af
         ld (hl),a
@@ -570,7 +610,7 @@ rendchip
 
         xor a
         bit MASKBIT_HOLE,(ix+chnout.masks)
-        jr z,rendchip_Anoenv
+        jr nz,rendchip_Anoenv
         ld a,(ix+chnout.volume)
         cp 16
         jr c,$+7
@@ -621,7 +661,7 @@ rendchip_Anonoise
         pop ix ;fromB
         xor a
         bit MASKBIT_HOLE,(ix+chnout.masks)
-        jr z,rendchip_Bnoenv
+        jr nz,rendchip_Bnoenv
         ld a,(ix+chnout.volume)
         cp 16
         jr c,$+7
@@ -679,7 +719,7 @@ rendchip_Bnonoise
         pop ix ;fromC
         xor a
         bit MASKBIT_HOLE,(ix+chnout.masks)
-        jr z,rendchip_Cnoenv
+        jr nz,rendchip_Cnoenv
         ld a,(ix+chnout.volume)
         cp 16
         jr c,$+7
@@ -787,6 +827,7 @@ outchip_noretrigB
         ld b,e
         out (c),a
 outchip_noretrigC
+        inc hl
         ;xor a
         ld d,0xff
        dup 12
@@ -809,6 +850,45 @@ outchip_noretrigC
         OUTI
         ret
 
+        macro tn msk,semi,vol,frq,noi
+        db msk,semi,vol
+        dw frq
+        db noi
+        endm
+
+C4ADD=-3353
+smp_snare
+;-0288 00 TN- F (+3353 для орнамента -96)
+;+0202 06 TN- C
+;-0512 06 TN- B
+;-0970 06 TN- A
+;      06 -N- 9
+;      06 -N- 8
+;      05 -N- 7
+;      05 -N- 6
+;      05 -N- 5
+;      05 -N- 4
+;      05 -N- 3
+;      05 -N- 2
+;      05 -N- 1
+            ;fsrohENT  ;s ;v ;f       ;n
+        tn 0b11000011,-96,15,C4ADD+288,0
+        tn 0b11000011,-96,12,C4ADD-202,6
+        tn 0b11000011,-96,11,C4ADD+512,6
+        tn 0b11000011,-96,10,C4ADD+970,6
+        db 0b00000010,     9,          6
+        db 0b00000010,     8,          6
+        db 0b00000010,     7,          5
+        db 0b00000010,     6,          5
+        db 0b00000010,     5,          5
+        db 0b00000010,     4,          5
+        db 0b00000010,     3,          5
+        db 0b00000010,     2,          5
+        db 0b00000010,     1,          5
+        db 0b00001000,     0
+        db -1
+        dw -2-2 ;loop to line with hole
+
 ;Sample:
 ;256 masks (T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent), одна из комбинаций означает loop (например, -1)
 noisefrqpresent=1
@@ -820,7 +900,7 @@ tonefrqshiftpresent=7
 ;8*2 envtype + retrigenv (в потоке при наличии E)
 ;16 volume (в потоке при отсутствии E)
 ;+-4095 tonefrq shift (в потоке при наличии tonefrqshiftpresent)
-;31 noisefrq (в потоке при наличии N)
+;32 noisefrq (в потоке при наличии N)
 ;>1 >256 loop addrshift
 
 playsample_loop
@@ -832,10 +912,9 @@ playsample
 ;ix=chnout
 ;в любом случае полностью определяет текущие значения полей chnout:
 ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
-;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N)
 ;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenv)
-;retrigenv BYTE ;retrigger envelope ;bit 3 (берётся из envtype)
 ;volume  BYTE ;volume = 0..15 (в потоке при отсутствии E)
+;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N)
 ;keepme  BYTE ;priority for keep on top (bigger is more priority)
 ;envfrq  WORD
 ;tonefrq WORD
@@ -846,6 +925,7 @@ playsample
         dec b
         ld (ix+chnout.masks),b ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
         ld a,(ix+chnout.note_in)
+
         bit semitoneshiftpresent,b
         jr z,playsample_nosemitoneshift
         add a,(hl)
@@ -853,7 +933,9 @@ playsample
         jp po,playsample_nosemitoneshift ;no signed overflow
         rla
         sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
+        xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
 playsample_nosemitoneshift
+
         bit envtypepresent,b
         jr z,playsample_noenvsemitoneshift
         add a,(hl) ;envsemitoneshift
@@ -881,6 +963,9 @@ playsample_nosemitoneshift
         ;ld a,(hl) ;envsemitoneshift
 
         inc hl
+        ld a,(hl)
+        inc hl
+        ld (ix+chnout.envtype),a ;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenvbit) ;тип огибающей без E не используется
         jr playsample_noenvsemitoneshiftq
 playsample_noenvsemitoneshift
 ;count tone frq (use frq table)
@@ -893,23 +978,11 @@ playsample_noenvsemitoneshift
         ld a,(de)
         ld d,a
         ld e,c
+        ld a,(hl)
+        inc hl
+        ld (ix+chnout.volume),a ;volume  BYTE ;volume = 0..15 ;громкость при E не используется
 playsample_noenvsemitoneshiftq
 
-        ld a,(hl)
-        inc hl
-        bit envtypepresent,b
-        jr z,playsample_noenvtype
-        ld (ix+chnout.envtype),a ;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenvbit) ;тип огибающей без E не используется
-        jr playsample_noenvtypeq ;можно убрать, т.к. громкость при E не используется
-playsample_noenvtype
-        ld (ix+chnout.volume),a ;volume  BYTE ;volume = 0..15
-playsample_noenvtypeq
-        bit noisefrqpresent,b
-        jr z,playsample_nonoisefrq
-        ld a,(hl)
-        inc hl
-        ld (ix+chnout.noisefrq),a ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N) ;noisefrq без N не используется
-playsample_nonoisefrq
         bit tonefrqshiftpresent,b
         jr z,playsample_notonefrqshift
         ld a,(hl)
@@ -923,6 +996,13 @@ playsample_nonoisefrq
 playsample_notonefrqshift
         ld (ix+chnout.tonefrq),e
         ld (ix+chnout.tonefrq+1),d
+        
+        bit noisefrqpresent,b
+        jr z,playsample_nonoisefrq
+        ld a,(hl)
+        inc hl
+        ld (ix+chnout.noisefrq),a ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N) ;noisefrq без N не используется
+playsample_nonoisefrq
         ld a,(ix+chnout.keepme_in)
         ld (ix+chnout.keepme),a ;keepme  BYTE ;priority for keep on top (bigger is more priority)
 
@@ -1040,6 +1120,17 @@ prchar48ega_hxoncolor0
         inc h
 ;46t/b (45.5 без последнего inc h), но надо сохранять стек (+36t/8) = 50t/b
         endif
+
+chnA
+        chnout
+chnB
+        chnout
+chnC
+        chnout
+chip0
+        chip
+        
+
         
         align 256
 tfrq
