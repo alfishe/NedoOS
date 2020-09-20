@@ -103,43 +103,52 @@ testprnote0
 
 ;for example: 0=bass/pad, 2=tone, 5=drum
         ld ix,Adrum
-        ld (ix+chnout.keepme_in),5
+        ld (ix+chn.keepme_in),5
         ld de,smp_snare
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),0
         ld ix,Bdrum
-        ld (ix+chnout.keepme_in),5
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),5
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),1
         ld ix,Cdrum
-        ld (ix+chnout.keepme_in),5
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),5
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),2
         ld ix,Atone
-        ld (ix+chnout.keepme_in),2
+        ld (ix+chn.keepme_in),2
         ld de,smp_tone
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),0
         ld ix,Btone
-        ld (ix+chnout.keepme_in),2
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),2
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),1
         ld ix,Ctone
-        ld (ix+chnout.keepme_in),2
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),2
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),2
         ld ix,Apad
-        ld (ix+chnout.keepme_in),0
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),0
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),0
         ld ix,Bbass
-        ld (ix+chnout.keepme_in),0
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),0
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),1
         ld ix,Cpad
-        ld (ix+chnout.keepme_in),0
-        ld (ix+chnout.smp_in),e
-        ld (ix+chnout.smp_in+1),d
+        ld (ix+chn.keepme_in),0
+        ld (ix+chn.smp_in),e
+        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),2
 
 ;;;;;;;;;;;;;;;;;;;;;
         call setneedredraw
@@ -227,11 +236,11 @@ initchnnote
 ;a=track
         call getcuraddr_tracka
         ld a,(hl)
-        ld (ix+chnout.note_in),a;3*12 ;C-4
-        ld e,(ix+chnout.smp_in)
-        ld (ix+chnout.smpcuraddr),e
-        ld e,(ix+chnout.smp_in+1)
-        ld (ix+chnout.smpcuraddr+1),e
+        ld (ix+chn.note_in),a;3*12 ;C-4
+        ld e,(ix+chn.smp_in)
+        ld (ix+chn.smpcuraddr),e
+        ld e,(ix+chn.smp_in+1)
+        ld (ix+chn.smpcuraddr+1),e
         ret
 
 untr_pause
@@ -523,39 +532,56 @@ prtext_cr_de=$+1
 
 ttypes
         db "Master",13
-        db "Adrum",13
-        db "Atone",13
-        db "Apad",13
-        db "Avol",13
-        db "Avib 1",13
-        db "Bdrum",13
-        db "Btone",13
-        db "Bbass",13
-        db "Bvol",13
-        db "Cdrum",13
-        db "Ctone",13
-        db "Cpad",13
-        db "Cvol",13
+        db "drum  ",13
+        db "tone  ",13
+        db "pad   ",13
+        db "vol   ",13
+        db "vib 1 ",13
+        db "drum  ",13
+        db "tone  ",13
+        db "bass  ",13
+        db "vol   ",13
+        db "drum  ",13
+        db "tone  ",13
+        db "pad   ",13
+        db "vol   "
         db 0
 
+tchannels
+        dw -1
+        dw Adrum
+        dw Atone
+        dw Apad
+        dw -1
+        dw -1
+        dw Bdrum
+        dw Btone
+        dw Bbass
+        dw -1
+        dw Cdrum
+        dw Ctone
+        dw Cpad
+        dw -1
+        dw 0
+
 Adrum
-        chnout
+        chn
 Atone
-        chnout
+        chn
 Apad
-        chnout
+        chn
 Bdrum
-        chnout
+        chn
 Btone
-        chnout
+        chn
 Bbass
-        chnout
+        chn
 Cdrum
-        chnout
+        chn
 Ctone
-        chnout
+        chn
 Cpad
-        chnout
+        chn
 chip0
         chip
         
@@ -669,11 +695,49 @@ untr_needredraw=$+1
         ret z
         xor a
         ld (untr_needredraw),a
-        ld de,0x4000
+        ld de,0x4001
         ld c,0x0f
         ld hl,ttypes
         call prtext
-        ;jr $
+
+        ld hl,tchannels
+        ld de,0x4000
+prchannels0
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld a,b
+        or c
+        jr z,prchannels0q
+        inc hl
+        ld a,b
+        and c
+        inc a
+        jr z,prchannels0skip
+        push de
+        push hl
+        ld hx,b
+        ld lx,c
+        ld c,0x0f
+        ld a,(ix+chn.channel_in)
+        add a,'A'
+        call prchar
+        ld a,(ix+chn.keepme_in)
+        add a,'0'
+        call prchar
+        pop hl
+        pop de
+prchannels0skip
+        ld a,e
+        add a,32
+        ld e,a
+        jr nc,$+6
+         ld a,d
+         add a,8
+         ld d,a
+        jr prchannels0
+prchannels0q
+
         ld hl,(lefttime)
         ld d,h
         ld e,l
@@ -709,6 +773,7 @@ updatescr_tracks0
 prtrack
 ;hl=addr
 ;de=scr
+        push de
         ld b,SCRTRACKWID
 prtrack0
         ld a,(hl)
@@ -718,6 +783,113 @@ prtrack0
         add hl,bc
         pop bc
         djnz prtrack0
+        pop de
+        ld hl,(lefttime)
+        ld c,0x01
+        dec e
+        push hl
+        ld a,l
+        sub 8
+        ld l,a
+        ld a,l
+        and 7
+        push de
+        call z,prbar
+        pop de
+        pop hl
+        inc e
+        ld a,l
+        cpl
+        and 7 ;если l&7=0, то прибавляем 3... если 7, то прибавляем 0
+        rra
+        add a,e
+        ld e,a
+        bit 0,l
+        jr z,$+4
+         ld c,0x10
+         
+        ld b,SCRTRACKWID/8
+prtrack_bars0
+        push de
+        call prbar
+        pop de
+        ld a,e
+        add a,4
+        ld e,a
+        djnz prtrack_bars0
+
+        ret
+
+prbar
+        ld a,l
+        add a,8
+        ld l,a
+        and 3*8
+        jr z,prbar_lined
+prbar_dotted
+;c=0x10/0x01
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        ret
+
+prbar_lined
+        ld a,l
+        and 3*16
+        jr z,prbar_solid
+;c=0x10/0x01
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        ld a,(de)
+        or c
+        ld (de),a
+        ret
+
+prbar_solid
+;c=0x10/0x01
+        dup 7
+        ld a,(de)
+        or c
+        ld (de),a
+        inc d
+        edup
+        ld a,(de)
+        or c
+        ld (de),a
         ret
 
         include "mix.asm"

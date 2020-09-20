@@ -20,7 +20,7 @@ envtype BYTE ;+retrigenvbit
 ;32 noisefrq
 ;16*2 envtype +retrigenvbit
 ;в этой структуре накопления запрещены!
-        STRUCT chnout
+        STRUCT chn
 tonefrq WORD ;0..32767 (cut to 0..4095)
 masks   BYTE ;T,N,E,hole,outerenv,retrigtone ;дырка управляется отдельно!!! т.к. уровень для !T!N отличается от T vol 0
 keepme  BYTE ;priority for keep on top (bigger is more priority)
@@ -29,6 +29,7 @@ noisefrq BYTE ;noise = 0..255 (cut to 0..31)
 envtype BYTE ;+retrigenvbit
 envfrq  WORD
 ;эти не копировать!!!
+channel_in BYTE
 note_in BYTE
 keepme_in BYTE ;priority for keep on top (bigger is more priority)
 smp_in  WORD

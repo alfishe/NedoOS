@@ -64,6 +64,11 @@ if not "%1"=="noneedtrd" (
         del %releasedir%\bin\forest.dat > nul
         del %releasedir%\bin\*.zip > nul
         del %releasedir%\bin\*.fm2 > nul
+        del %releasedir%\bin\*.pas > nul
+        del %releasedir%\bin\*.inc > nul
+        del %releasedir%\bin\*.ccc > nul
+        del %releasedir%\bin\*.c > nul
+        del %releasedir%\bin\*.h > nul
         md %releasedir%\br
         ren %releasedir%\bin\browser.com mowser.com
         move %releasedir%\bin\evsummer.com %releasedir%\br\
@@ -93,7 +98,7 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a nedolang/_sdk/str.h
 	rem nedotrd test.trd -a nedolang/_sdk/io.h
 	rem nedotrd test.trd -a nedolang/_sdk/emit.h
-	nedotrd test.trd -a nedolang/_sdk/emit.c
+	rem nedotrd test.trd -a nedolang/_sdk/emit.c
 	rem nedotrd test.trd -a nedolang/_sdk/read.c
 	rem nedotrd test.trd -a nedolang/_sdk/typecode.h
 	rem nedotrd test.trd -a nedolang/_sdk/lib.i
@@ -104,8 +109,8 @@ if not "%1"=="noneedtrd" (
 	rem nedotrd test.trd -a basic/example.bas
 	rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
 	rem nedotrd test.trd -a player/coco.pt2
-	nedotrd test.trd -a browser/browser/nos.htm
-	nedotrd test.trd -a browser/house.svg
+	rem nedotrd test.trd -a browser/browser/nos.htm
+	rem nedotrd test.trd -a browser/house.svg
         rem nedotrd test.trd -a _sdk/logo-louisa.svg
 	rem nedotrd test.trd -a browser/test/zajchik.gif
 	rem nedotrd test.trd -a browser/test/girl.jpg
