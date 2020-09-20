@@ -72,10 +72,16 @@ mixchn
 ;берём самый громкий по тональнику
 ;TODO низкие ноты не считать громкими
         ld a,(iy+chn.volume)
+         bit MASKBIT_E,(iy+chn.masks)
+         jr z,$+4
+         ld a,12 ;E играет на уровне 11, C на уровне 13, T-E играет громко!!! TODO
         add a,(iy+chn.keepme)
         add a,0x80
         ld e,a
         ld a,(ix+chn.volume)
+         bit MASKBIT_E,(ix+chn.masks)
+         jr z,$+4
+         ld a,12 ;E играет на уровне 11, C на уровне 13, T-E играет громко!!! TODO
         add a,(ix+chn.keepme)
         add a,0x80
         cp e
@@ -138,6 +144,7 @@ rendchip
         ld e,b ;текущий приоритет огибающей
         ld h,(iy+chip.envtype) ;бывший тип огибающей
         res retrigenvbit,h
+        ld l,h
 
         xor a
         bit MASKBIT_HOLE,(ix+chn.masks)
@@ -309,9 +316,9 @@ rendchip_Cnonoise
         ld (iy+chip.masks),c
         ld a,l
         cp h ;несовпадение в том числе при retrigenvbit (в h он сброшен)
-        ret z
+        jr z,$+4
          set retrigenvbit,a
-         ld (iy+chip.envtype),a ;текущий тип огибающей
+        ld (iy+chip.envtype),a ;текущий тип огибающей
         ret
 
 outchip

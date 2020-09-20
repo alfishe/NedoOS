@@ -87,19 +87,6 @@ refrq2
         jr nz,refrq2
 
         call gennotefont
-        if 1==0
-        ld de,0x4000
-        ld c,0xf
-        ld a,0
-testprnote0
-        push af
-        call prcharnote
-        pop af
-        inc a
-        cp 3*12
-        jr nz,testprnote0
-        jr $
-        endif
 
 ;for example: 0=bass/pad, 2=tone, 5=drum
         ld ix,Adrum
@@ -142,14 +129,14 @@ testprnote0
         call initchnnote_pause
         ld ix,Apad
         ld (ix+chn.keepme_in),0
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.smp_in),smp_maj&0xff
+        ld (ix+chn.smp_in+1),smp_maj/256
         ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Bbass
         ld (ix+chn.keepme_in),0
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ld (ix+chn.smp_in),smp_bass&0xff
+        ld (ix+chn.smp_in+1),smp_bass/256
         ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Cpad
@@ -205,6 +192,21 @@ mainloop_nokey
         pop af
         ld (hl),a
 
+        call playnote_initchannels
+
+playnote0
+        halt
+        call playnote
+        call checknotekeys_pressed
+        jr nz,playnote0
+        
+        call shutay
+        
+untr_afternotekey
+        call setneedredraw
+        jp untr_right
+
+playnote_initchannels
         ld hl,tchannels
         ld hy,0 ;track
 playnote_initchannels0
@@ -239,13 +241,43 @@ playnote_initchannels0pause
         jr playnote_initchannels0skip
 playnote_initchannels0q
 
-playnote0
-        halt
-        ;ld ix,Atone
-        ;call playsample
-        ;ld ix,Adrum
-        ;call playsample
-        
+        ld a,0x80 ;точно не совпадёт
+        ld (chip0+chip.envtype),a
+        ret
+
+playenter_initchannels
+;инициализирует ноты в каналах в процессе проигрывания
+        ld hl,tchannels
+        ld hy,0 ;track
+playenter_initchannels0
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld a,b
+        or c
+        jr z,playenter_initchannels0q
+        inc hl
+        ld a,b
+        and c
+        inc a
+        jr z,playenter_initchannels0skip
+        ld hx,b
+        ld lx,c
+        push hl
+        ld a,hy
+;a=track
+        ;ld a,(ix+chn.channel_in)
+        call getcuraddr_tracka
+        ld a,(hl)
+        pop hl
+        call initchnnote ;устанавливает сэмпл, как указано в канале
+playenter_initchannels0skip
+        inc hy ;track
+        jr playenter_initchannels0
+playenter_initchannels0q
+        ret
+
+playnote
         ld hl,tchannels
 playnote_playsamplechannels0
         ld c,(hl)
@@ -297,15 +329,26 @@ playnote_playsamplechannels0q
         call rendchip
         ld hl,chip0
         call outchip
+        ret
+
+untr_play
+        call playnote_initchannels
+
+playenter0
+        halt
+        call playenter_initchannels
+        call playnote
+        halt
+        call playnote
+        halt
+        call playnote
+        call untr_right ;TODO check end and loop
         call checknotekeys_pressed
-        
-        jr nz,playnote0
+        jr nz,playenter0
         
         call shutay
         
-untr_afternotekey
-        call setneedredraw
-        jp untr_right
+        jp untr_afternotekey
 
 mixchn_all_channela
 ;a=channel=0..2
@@ -460,7 +503,7 @@ untr_ins0
         jr nz,untr_ins0
         jr setneedredraw
 
-untr_quit        
+untr_quit
         QUIT
 
 shutay
@@ -565,8 +608,6 @@ untr_left
         ld (lefttime),de
         jr setneedredraw
 
-untr_play
-        ret
 
 getcuraddr
         ld a,(curtrack)
@@ -1056,6 +1097,18 @@ smp_pause
         db 0b00001000,     0
         db -1
         dw -2-2 ;loop to line with hole
+
+smp_bass
+        db 0b00000100,+5*12,0x0e
+        db -1
+        dw -2-3 ;loop to first line
+
+smp_maj
+        db 0b01000001,2*12+0,11
+        db 0b01000001,2*12+4,11
+        db 0b01000001,2*12+7,11
+        db -1
+        dw smp_maj-($+1) ;loop to first line
 
         macro t4 msk,vol
         db msk|0b01000000,2*12,vol
