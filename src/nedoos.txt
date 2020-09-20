@@ -6,7 +6,7 @@ Multitasking operating system for ZX Spectrum
 Capabilities
 ~~~~~~~~~~~
 
-* работа с дискетами TR-DOS, SD-картой, IDE HDD (FAT12/16/32). Номера устройств: "E".."H" - IDE HDD (Master), "I".."L" - IDE HDD (Slave), "M" - SD-карта (Z-controller), "N" - SD-карта (NeoGS), "O" - USB flash, "A".."D" - дискета TR-DOS. IDE-контроллер (ATM или Nemo) зависит от того, каким батником собрать. Поддержаны сегментированные файлы в TR-DOS произвольного размера (по стандарту файлов последовательного доступа TR-DOS).
+* работа с дискетами TR-DOS, SD-картой, IDE HDD (FAT12/16/32). Номера устройств: "E".."H" - IDE HDD (Master), "I".."L" - IDE HDD (Slave), "M" - SD-карта (Z-controller), "N" - SD-карта (NeoGS), "O" - USB flash, "A".."D" - дискета TR-DOS. IDE-контроллер (ATM или Nemo) зависит от того, каким батником собрать. Поддержаны сегментированные файлы в TR-DOS произвольного размера (по стандарту файлов последовательного доступа TR-DOS). Длинные имена в FAT.
   Works with TR-DOS floppies, SD card, IDE HDD (FAT12/16/32). Device letters: "E".."H" - IDE HDD (Master), "I".."L" - IDE HDD (Slave), "M" - SD-карта (Z-controller), "N" - SD-карта (NeoGS), "O" - USB flash, "A".."D" - TR-DOS floppies. IDE controller (ATM or Nemo IDE) depends on the batch file you run. Includes support for segmented TR-DOS files of any size (according to TR-DOS sequential access files standard).
 * до 16 задач одновременно. Задачи могут быть активными (одна из них имеет фокус, то есть может читать устройства ввода и печатать на видимый экран терминала) и замороженными. Задачи могут отдавать свой квант времени системе с помощью YIELD, но не обязаны это делать.
   Up to 16 tasks at the same time. Tasks may be active (one of them has the focus, so it can read input devices and print on visible terminal screen) or frozen. Tasks may give away their times slot to system with using YIELD, but don't have to.
@@ -311,6 +311,17 @@ dmm
 
 Утилита монтирования образов TRD, SCL, FDI, TAP через Evo Service.
 
+time
+~~~~
+
+Утилита обновления времени с импользованием интернета. Ключи:
+-H help
+-T set time(-T17:59:38)
+-D set date(-D21-06-2019)
+-N ntp-server default: -N2.ru.pool.ntp.org
+-Z time-zone default: -Z3
+-i get datetime from internet
+
 dmirc
 ~~~~~
 
@@ -402,6 +413,30 @@ Telnet-клиент (на примере Putty) должен быть настроен так:
 - Local line editing off
 - Backspace = Control H
 
+pt
+~~
+
+Pro Tracker 3.x с увеличенным окном и с поддержкой жёсткого диска (см. описание в отдельном файле)
+
+tp
+~~
+
+Turbo Pascal. Может редактировать, компилировать в память и на диск. Описание есть на английском: http://www.retroarchive.org/docs/software/turbodoc.html
+Примеры - t.pas ("Hello" в цикле), mc.pas (электронная таблица)
+
+cc, cc2, clink
+~~~~~~~~~~~~~~
+BSDC - компилятор Си от Brain Damage Software. Работать так:
+cc filename.c
+(cc2 - второй проход компилятора, запускается автоматически)
+Объектные файлы и библиотеки имеют расширение .crl (deff2.crl линкер подключает автоматически). Примеры библиотек - deff2a.csm, deffgfx.csm.
+Слинковать исполняемый файл:
+clink filename
+clink filename deffgfx (см. cc.bat и пример ex.c)
+
+Как собрать утилиту склейки файлов (concat outfile infile1 infile2):
+cc concat.c
+clink concat
 
 Программирование (подробнее см. api_base.txt)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
