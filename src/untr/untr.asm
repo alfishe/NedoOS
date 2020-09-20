@@ -37,7 +37,7 @@ cmd_begin
         ld hl,tracks
         ld de,tracks+1
         ld bc,tracks_sz-1
-        ld (hl),'a';0
+        ld (hl),NOTE_SPACE;0
         ldir
 
         ld hl,wasfrq
@@ -108,47 +108,56 @@ testprnote0
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),0
+        call initchnnote_pause
         ld ix,Bdrum
         ld (ix+chn.keepme_in),5
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),1
+        call initchnnote_pause
         ld ix,Cdrum
         ld (ix+chn.keepme_in),5
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),2
+        call initchnnote_pause
         ld ix,Atone
         ld (ix+chn.keepme_in),2
         ld de,smp_tone
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),0
+        call initchnnote_pause
         ld ix,Btone
         ld (ix+chn.keepme_in),2
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),1
+        call initchnnote_pause
         ld ix,Ctone
         ld (ix+chn.keepme_in),2
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),2
+        call initchnnote_pause
         ld ix,Apad
         ld (ix+chn.keepme_in),0
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),0
+        call initchnnote_pause
         ld ix,Bbass
         ld (ix+chn.keepme_in),0
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),1
+        call initchnnote_pause
         ld ix,Cpad
         ld (ix+chn.keepme_in),0
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),2
+        call initchnnote_pause
 
 ;;;;;;;;;;;;;;;;;;;;;
         call setneedredraw
@@ -195,25 +204,91 @@ mainloop_nokey
         call getcuraddr
         pop af
         ld (hl),a
-        
-        ld ix,Adrum
-        ld a,1
-        call initchnnote
-        ld ix,Atone
-        ld a,2
-        call initchnnote
-testsmp0
+
+        ld hl,tchannels
+        ld hy,0 ;track
+playnote_initchannels0
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld a,b
+        or c
+        jr z,playnote_initchannels0q
+        inc hl
+        ld a,b
+        and c
+        inc a
+        jr z,playnote_initchannels0skip
+        ld hx,b
+        ld lx,c
+        push hl
+        ld a,hy
+;a=track
+        ;ld a,(ix+chn.channel_in)
+        call getcuraddr_tracka
+        ld a,(hl)
+        pop hl
+         cp 128
+         jr nc,playnote_initchannels0pause
+        call initchnnote ;устанавливает сэмпл, как указано в канале
+playnote_initchannels0skip
+        inc hy ;track
+        jr playnote_initchannels0
+playnote_initchannels0pause
+        call initchnnote_pause ;устанавливает сэмпл паузы
+        jr playnote_initchannels0skip
+playnote_initchannels0q
+
+playnote0
         halt
-        ld ix,Atone
+        ;ld ix,Atone
+        ;call playsample
+        ;ld ix,Adrum
+        ;call playsample
+        
+        ld hl,tchannels
+playnote_playsamplechannels0
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld a,b
+        or c
+        jr z,playnote_playsamplechannels0q
+        inc hl
+        ld a,b
+        and c
+        inc a
+        jr z,playnote_playsamplechannels0skip
+        push hl
+        ld hx,b
+        ld lx,c
         call playsample
-        ld ix,Adrum
-        call playsample
-        ld iy,Atone
-        ld ix,Adrum
-        call mixchn
-        ld ix,Adrum
-        ld hl,Btone;drum
-        ld de,Ctone;drum
+        pop hl
+playnote_playsamplechannels0skip
+        jr playnote_playsamplechannels0
+playnote_playsamplechannels0q
+
+        ld a,2
+        call mixchn_all_channela
+        push ix ;chn для C
+        ld a,1
+        call mixchn_all_channela
+        push ix ;chn для B
+        ld a,0
+        call mixchn_all_channela
+        ;push ix ;chn для A
+        
+        ;ld iy,Atone
+        ;ld ix,Adrum
+        ;call mixchn
+        
+;TODO что делать, если нет ни одного подканала для какого-то канала?
+        ;ld ix,Adrum
+        ;ld hl,Btone;drum
+        ;ld de,Ctone;drum
+        ;pop ix ;chn для A
+        pop hl ;chn для B
+        pop de ;chn для C
         ld iy,chip0
 ;ix=fromA
 ;hl=fromB
@@ -224,7 +299,7 @@ testsmp0
         call outchip
         call checknotekeys_pressed
         
-        jr nz,testsmp0
+        jr nz,playnote0
         
         call shutay
         
@@ -232,15 +307,63 @@ untr_afternotekey
         call setneedredraw
         jp untr_right
 
+mixchn_all_channela
+;a=channel=0..2
+;out: ix=chn, куда всё смикшировалось
+;микшируем сверху вниз все подканалы, у которых канал == a
+         ld (mixchn_all_channela_a),a
+        ld ix,0
+        ld hl,tchannels
+mixchn_all_channela0
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld a,b
+        or c
+        ret z;jr z,mixchn_all_channela0q
+        inc hl
+        ld a,b
+        and c
+        inc a
+        jr z,mixchn_all_channela0skip
+        ld hy,b
+        ld ly,c ;подходящий подканал попадает в iy
+mixchn_all_channela_a=$+1
+        ld a,0
+        cp (iy+chn.channel_in)
+        jr nz,mixchn_all_channela0skip
+        ld a,hx
+        or lx
+        jr z,mixchn_all_channela0_first ;первый подходящий подканал попадает в ix
+        push hl
+        call mixchn
+        pop hl
+        jr mixchn_all_channela0_firstq
+mixchn_all_channela0_first
+        ld hx,b
+        ld lx,c
+mixchn_all_channela0_firstq
+mixchn_all_channela0skip
+        jr mixchn_all_channela0
+;mixchn_all_channela0q
+;        ret
+        
 initchnnote
-;a=track
-        call getcuraddr_tracka
-        ld a,(hl)
+;a=note
+        cp NOTE_SPACE
+        ret z
+        cp NOTE_PAUSE
+        jr z,initchnnote_pause
         ld (ix+chn.note_in),a;3*12 ;C-4
         ld e,(ix+chn.smp_in)
         ld (ix+chn.smpcuraddr),e
         ld e,(ix+chn.smp_in+1)
         ld (ix+chn.smpcuraddr+1),e
+        ret
+initchnnote_pause
+        ld (ix+chn.note_in),NOTE_PAUSE
+        ld (ix+chn.smpcuraddr),smp_pause&0xff
+        ld (ix+chn.smpcuraddr+1),smp_pause/256
         ret
 
 untr_pause
@@ -929,6 +1052,7 @@ smp_snare
         db 0b00000010,     3,          5
         db 0b00000010,     2,          5
         db 0b00000010,     1,          5
+smp_pause
         db 0b00001000,     0
         db -1
         dw -2-2 ;loop to line with hole
