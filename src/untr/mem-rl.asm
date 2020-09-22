@@ -9,11 +9,10 @@ pokeaddr
         ;ld (hl),c
         ;ld c,a
         ;ret
-        push hl
         ex de,hl
         ld hl,0x8000 ;root
         call writetopoi
-        pop hl
+        ex de,hl
         ret
 
 getaddr_tracka
@@ -29,11 +28,10 @@ peekaddr_tracka
 peekaddr
         ;ld a,(hl)
         ;ret
-        push hl
         ex de,hl
         ld hl,0x8000 ;root
         call readfrompoi
-        pop hl
+        ex de,hl
         ret
 
 tracktime_toaddr
@@ -67,10 +65,7 @@ getendaddr
 ;адрес делится на 4, поэтому 2 байтами можно адресовать 256K (16 страниц)
 ;но так будет медленно, поэтому выделим 32K для каждого (канал & 7)
 
-readfrompoi
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
-        dup 8
+        macro READFROMPOI_D
         rlc d
         jr nc,$+4
          inc l
@@ -80,9 +75,9 @@ readfrompoi
         ld h,(hl)
         ld l,a
         or h
-        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
-        edup
-        dup 6
+        endm
+
+        macro READFROMPOI_E
         rlc e
         jr nc,$+4
          inc l
@@ -92,8 +87,58 @@ readfrompoi
         ld h,(hl)
         ld l,a
         or h
-        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
-        edup
+        endm
+
+readfrompoi_ret13
+        rrc d
+readfrompoi_ret14
+        rrc d
+readfrompoi_ret15
+        rrc d
+        ret
+
+readfrompoi_ret12
+        rlc d
+readfrompoi_ret11
+        rlc d
+readfrompoi_ret10
+        rlc d
+readfrompoi_ret9
+        rlc d
+readfrompoi_ret8
+        ret
+
+readfrompoi
+;hl=track pointer (4 bytes: left poi, right poi)
+;de=timeshift
+        READFROMPOI_D
+        jr z,readfrompoi_ret15 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        jr z,readfrompoi_ret14 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        jr z,readfrompoi_ret13 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        jr z,readfrompoi_ret12 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        jr z,readfrompoi_ret11 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        jr z,readfrompoi_ret10 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        jr z,readfrompoi_ret9 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_D
+        ret z ;jp z,readfrompoi_ret8 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_E
+        jr z,readfrompoi_ret7 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_E
+        jr z,readfrompoi_ret6 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_E
+        jr z,readfrompoi_ret5 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_E
+        jr z,readfrompoi_ret4 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_E
+        jr z,readfrompoi_ret3 ;пусто, возвращает 0=NOTE_SPACE
+        READFROMPOI_E
+        jr z,readfrompoi_ret2 ;пусто, возвращает 0=NOTE_SPACE
         rlc e
         jr nc,$+4
          inc l
@@ -102,6 +147,23 @@ readfrompoi
         jr nc,$+3
          inc l
         ld a,(hl)
+        ret
+
+readfrompoi_ret5
+        rrc e
+readfrompoi_ret6
+        rrc e
+readfrompoi_ret7
+        rrc e
+        ret
+
+readfrompoi_ret4
+        rlc e
+readfrompoi_ret3
+        rlc e
+readfrompoi_ret2
+        rlc e
+        rlc e
         ret
 
         macro WRITETOPOI_D addr
@@ -275,21 +337,20 @@ writetopoi_space
 ;hl=track pointer (4 bytes: left poi, right poi)
 ;de=timeshift
 ;умеет удалять пустое поддерево
-        WRITETOPOI_SPACE_D writetopoi_space_nodel15
-        WRITETOPOI_SPACE_D writetopoi_space_nodel14
-        WRITETOPOI_SPACE_D writetopoi_space_nodel13
-        WRITETOPOI_SPACE_D writetopoi_space_nodel12
-        WRITETOPOI_SPACE_D writetopoi_space_nodel11
-        WRITETOPOI_SPACE_D writetopoi_space_nodel10
-        WRITETOPOI_SPACE_D writetopoi_space_nodel9
-        WRITETOPOI_SPACE_D writetopoi_space_nodel8
-        WRITETOPOI_SPACE_E writetopoi_space_nodel7
-        WRITETOPOI_SPACE_E writetopoi_space_nodel6
-        WRITETOPOI_SPACE_E writetopoi_space_nodel5
-        WRITETOPOI_SPACE_E writetopoi_space_nodel4
-        WRITETOPOI_SPACE_E writetopoi_space_nodel3
-        WRITETOPOI_SPACE_E writetopoi_space_nodel2
-
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel15
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel14
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel13
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel12
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel11
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel10
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel9
+        WRITETOPOI_SPACE_D writetopoi_space_rrnodel8
+        WRITETOPOI_SPACE_E writetopoi_space_rrnodel7
+        WRITETOPOI_SPACE_E writetopoi_space_rrnodel6
+        WRITETOPOI_SPACE_E writetopoi_space_rrnodel5
+        WRITETOPOI_SPACE_E writetopoi_space_rrnodel4
+        WRITETOPOI_SPACE_E writetopoi_space_rrnodel3
+        WRITETOPOI_SPACE_E writetopoi_space_rrnodel2
         push hl
         rlc e
         jr nc,$+4
@@ -341,6 +402,56 @@ writetopoi_space
         ld (hl),a
         inc l
         ld (hl),a
+        ret
+
+;снять со стека все уровни
+writetopoi_space_rrnodel2
+        rrc e
+        pop hl
+writetopoi_space_rrnodel3
+        rrc e
+        pop hl
+writetopoi_space_rrnodel4
+        rrc e
+        pop hl
+writetopoi_space_rrnodel5
+        rrc e
+        pop hl
+writetopoi_space_rrnodel6
+        rrc e
+        pop hl
+writetopoi_space_rrnodel7
+        rrc e
+        pop hl
+        dup 8
+        pop hl
+        edup
+        ret
+
+writetopoi_space_rrnodel8
+        rrc d
+        pop hl
+writetopoi_space_rrnodel9
+        rrc d
+        pop hl
+writetopoi_space_rrnodel10
+        rrc d
+        pop hl
+writetopoi_space_rrnodel11
+        rrc d
+        pop hl
+writetopoi_space_rrnodel12
+        rrc d
+        pop hl
+writetopoi_space_rrnodel13
+        rrc d
+        pop hl
+writetopoi_space_rrnodel14
+        rrc d
+        pop hl
+writetopoi_space_rrnodel15
+        rrc d
+        pop hl
         ret
 
 ;снять со стека все уровни

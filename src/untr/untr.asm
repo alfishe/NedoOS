@@ -462,9 +462,9 @@ untr_del0
         ;ld (hl),c
         ;ld c,a
         push de
-        push hl
+        ;push hl
         call pokeaddr
-        pop hl
+        ;pop hl
         pop de
         add hl,de
         djnz untr_del0
@@ -507,9 +507,9 @@ untr_ins0
         ;ld (hl),c
         ;ld c,a
         push de
-        push hl
+        ;push hl
         call pokeaddr
-        pop hl
+        ;pop hl
         pop de
         add hl,de
         djnz untr_ins0

@@ -301,9 +301,7 @@ prtrack
         ld b,SCRTRACKWID
 prtrack0
         push de
-        push hl
         call peekaddr
-        pop hl
         pop de
         ;ld a,(hl)
         call prcharnote
