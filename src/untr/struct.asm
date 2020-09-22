@@ -19,16 +19,16 @@ envtype BYTE ;+retrigenvbit
 ;16 volume
 ;32 noisefrq
 ;16*2 envtype +retrigenvbit
-;╨▓ ╤Н╤В╨╛╨╣ ╤Б╤В╤А╤Г╨║╤В╤Г╤А╨╡ ╨╜╨░╨║╨╛╨┐╨╗╨╡╨╜╨╕╤П ╨╖╨░╨┐╤А╨╡╤Й╨╡╨╜╤Л!
+;в этой структуре накопления запрещены!
         STRUCT chn
 tonefrq WORD ;0..32767 (cut to 0..4095)
-masks   BYTE ;T,N,E,hole,outerenv,retrigtone ;╨┤╤Л╤А╨║╨░ ╤Г╨┐╤А╨░╨▓╨╗╤П╨╡╤В╤Б╤П ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛!!! ╤В.╨║. ╤Г╤А╨╛╨▓╨╡╨╜╤М ╨┤╨╗╤П !T!N ╨╛╤В╨╗╨╕╤З╨░╨╡╤В╤Б╤П ╨╛╤В T vol 0
+masks   BYTE ;T,N,E,hole,outerenv,retrigtone ;дырка управляется отдельно!!! т.к. уровень для !T!N отличается от T vol 0
 keepme  BYTE ;priority for keep on top (bigger is more priority)
 volume  BYTE ;volume = +-127 (cut to 0..15)
 noisefrq BYTE ;noise = 0..255 (cut to 0..31)
 envtype BYTE ;+retrigenvbit
 envfrq  WORD
-;╤Н╤В╨╕ ╨╜╨╡ ╨║╨╛╨┐╨╕╤А╨╛╨▓╨░╤В╤М!!!
+;эти не копировать!!!
 channel_in BYTE
 note_in BYTE
 keepme_in BYTE ;priority for keep on top (bigger is more priority)
@@ -44,4 +44,3 @@ MASKBIT_OUTERENV=4
 MASKBIT_RETRIGTONE=5
 
 retrigenvbit=7
-
