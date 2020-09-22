@@ -300,7 +300,12 @@ prtrack
         push de
         ld b,SCRTRACKWID
 prtrack0
-        ld a,(hl)
+        push de
+        push hl
+        call peekaddr
+        pop hl
+        pop de
+        ;ld a,(hl)
         call prcharnote
         push bc
         ld bc,SCRNTRACKS

@@ -1,13 +1,38 @@
 BIGENDIAN=0 ;0=LSB,HSB
 
 pokeaddr_c_tracka
-        call getaddr_tracka
-        ld (hl),c
+        ld hl,(curtime)
+        call tracktime_toaddr
+;hl=addr
+pokeaddr
+        ;ld a,(hl)
+        ;ld (hl),c
+        ;ld c,a
+        ;ret
+        ex de,hl
+        ld hl,0x8000 ;root
+        call writetopoi
         ret
 
 getaddr_tracka
         ld hl,(curtime)
-getaddr_tracka_timehl
+        call tracktime_toaddr
+        ret
+
+peekaddr_tracka
+        ld hl,(curtime)
+;getaddr_tracka_timehl
+        call tracktime_toaddr
+;hl=addr
+peekaddr
+        ;ld a,(hl)
+        ;ret
+        ex de,hl
+        ld hl,0x8000 ;root
+        call readfrompoi
+        ret
+
+tracktime_toaddr
         ld d,h
         ld e,l
         add hl,hl
@@ -20,8 +45,6 @@ getaddr_tracka_timehl
         ld e,a
         ld d,0
         add hl,de
-;hl=addr
-        ld a,(hl)
         ret
 
 getendaddr
@@ -82,14 +105,15 @@ readfrompoi
         jr nc,$+4
          inc l
          inc l
-        ld a,(hl)
         inc l
+        ld a,(hl)
+        dec l
         or (hl)
         jp z,addr ;пусто
         ld a,(hl)
-        dec l
-        ld l,(hl)
-        ld h,a
+        inc l
+        ld h,(hl)
+        ld l,a
         endm
 
         macro WRITETOPOI_E addr
@@ -97,14 +121,15 @@ readfrompoi
         jr nc,$+4
          inc l
          inc l
-        ld a,(hl)
         inc l
+        ld a,(hl)
+        dec l
         or (hl)
         jp z,addr ;пусто
         ld a,(hl)
-        dec l
-        ld l,(hl)
-        ld h,a
+        inc l
+        ld h,(hl)
+        ld l,a
         endm
 
 writetopoi
@@ -114,7 +139,6 @@ writetopoi
         ld a,c
         or a
         jp z,writetopoi_space
-        WRITETOPOI_D writetopoi_create15
         WRITETOPOI_D writetopoi_create14
         WRITETOPOI_D writetopoi_create13
         WRITETOPOI_D writetopoi_create12
@@ -122,12 +146,13 @@ writetopoi
         WRITETOPOI_D writetopoi_create10
         WRITETOPOI_D writetopoi_create9
         WRITETOPOI_D writetopoi_create8
-        WRITETOPOI_E writetopoi_create7
+        WRITETOPOI_D writetopoi_create7
         WRITETOPOI_E writetopoi_create6
         WRITETOPOI_E writetopoi_create5
         WRITETOPOI_E writetopoi_create4
         WRITETOPOI_E writetopoi_create3
         WRITETOPOI_E writetopoi_create2
+        WRITETOPOI_E writetopoi_create1
         rlc e
         jr nc,$+4
          inc l
@@ -135,7 +160,9 @@ writetopoi
         rlc e
         jr nc,$+3
          inc l
+        ld a,(hl)
         ld (hl),c
+        ld c,a
         ret
 
         macro WRITETOPOI_CREATE_D
@@ -144,9 +171,9 @@ writetopoi
         call newmem
         ex de,hl
         pop hl
-        ld (hl),d
-        dec l
         ld (hl),e
+        inc l
+        ld (hl),d
         ex de,hl
         pop de
         rlc d
@@ -161,9 +188,9 @@ writetopoi
         call newmem
         ex de,hl
         pop hl
-        ld (hl),d
-        dec l
         ld (hl),e
+        inc l
+        ld (hl),d
         ex de,hl
         pop de
         rlc e
@@ -172,8 +199,6 @@ writetopoi
          inc l
         endm
 
-writetopoi_create15
-        WRITETOPOI_CREATE_D
 writetopoi_create14
         WRITETOPOI_CREATE_D
 writetopoi_create13
@@ -200,14 +225,14 @@ writetopoi_create3
         WRITETOPOI_CREATE_E
 writetopoi_create2
         WRITETOPOI_CREATE_E
-        rlc e
-        jr nc,$+4
-         inc l
-         inc l
+writetopoi_create1
+        WRITETOPOI_CREATE_E
         rlc e
         jr nc,$+3
          inc l
+        ld a,(hl)
         ld (hl),c
+        ld c,a
         ret
 
         macro WRITETOPOI_SPACE_D addr
@@ -261,7 +286,7 @@ writetopoi_space
         WRITETOPOI_SPACE_E writetopoi_space_nodel3
         WRITETOPOI_SPACE_E writetopoi_space_nodel2
 
-        ld c,l
+        push hl
         rlc e
         jr nc,$+4
          inc l
@@ -269,9 +294,9 @@ writetopoi_space
         rlc e
         jr nc,$+3
          inc l
-        xor a
-        ld (hl),a
-        ld l,c
+        ld c,(hl)
+        ld (hl),0
+        pop hl
         ld a,(hl)
         inc l
         or (hl)
@@ -398,6 +423,17 @@ firstfree=$+1
         ld (FreeMem_value),hl
        endif
         pop hl
+        xor a
+        ld (hl),a
+        inc l
+        ld (hl),a
+        inc l
+        ld (hl),a
+        inc l
+        ld (hl),a
+        dec l
+        dec l
+        dec l
         ret
 
 delmem
@@ -479,6 +515,16 @@ initmem0
         or a
         jr nz,initmem0
         ld (0xfffe),hl ;у последнего next=0
+
+        call newmem
+        xor a
+        ld (hl),a
+        inc l
+        ld (hl),a
+        inc l
+        ld (hl),a
+        inc l
+        ld (hl),a ;root
         ret
 
 FreeMem_value

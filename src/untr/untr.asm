@@ -41,6 +41,8 @@ cmd_begin
         ld (hl),NOTE_SPACE;0
         ldir
 
+        call initmem
+
         ld hl,wasfrq
         ld de,tfrq
         ld b,96
@@ -226,7 +228,7 @@ playnote_initchannels0
         ld a,hy
 ;a=track
         ;ld a,(ix+chn.channel_in)
-        call getaddr_tracka
+        call peekaddr_tracka
         pop hl
          cp NOTE_SPACE
          jr z,playnote_initchannels0pause
@@ -265,7 +267,7 @@ playenter_initchannels0
         ld a,hy
 ;a=track
         ;ld a,(ix+chn.channel_in)
-        call getaddr_tracka
+        call peekaddr_tracka
         pop hl
         call initchnnote ;устанавливает сэмпл, как указано в канале
 playenter_initchannels0skip
@@ -456,9 +458,14 @@ untr_del
         ld de,-NTRACKS
         ld c,NOTE_SPACE
 untr_del0
-        ld a,c
-        ld c,(hl)
-        ld (hl),a
+        ;ld a,(hl)
+        ;ld (hl),c
+        ;ld c,a
+        push de
+        push hl
+        call pokeaddr
+        pop hl
+        pop de
         add hl,de
         djnz untr_del0
         dec hx
@@ -496,9 +503,14 @@ untr_ins
         ld de,NTRACKS
         ld c,NOTE_SPACE
 untr_ins0
-        ld a,c
-        ld c,(hl)
-        ld (hl),a
+        ;ld a,(hl)
+        ;ld (hl),c
+        ;ld c,a
+        push de
+        push hl
+        call pokeaddr
+        pop hl
+        pop de
         add hl,de
         djnz untr_ins0
         dec hx
