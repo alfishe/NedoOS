@@ -9,11 +9,10 @@ pokeaddr
         ;ld (hl),c
         ;ld c,a
         ;ret
-        push hl
         ex de,hl
         ld hl,0x8000 ;root
-        call writetopoi
-        pop hl
+        call writetopoi ;keeps de
+        ex de,hl
         ret
 
 getaddr_tracka
@@ -29,14 +28,24 @@ peekaddr_tracka
 peekaddr
         ;ld a,(hl)
         ;ret
-        push hl
         ex de,hl
         ld hl,0x8000 ;root
-        call readfrompoi
-        pop hl
+        call readfrompoi ;keeps de
+        ex de,hl
         ret
 
 tracktime_toaddr
+;a=track
+;hl=time
+        if 1==1
+;пусть пока треки лежат с 0x8000,0x8800,... (это смещения, а не физ.адреса)
+        add a,a
+        add a,a
+        add a,a
+        add a,0x80
+        add a,h
+        ld h,a
+        else
         ld d,h
         ld e,l
         add hl,hl
@@ -49,87 +58,135 @@ tracktime_toaddr
         ld e,a
         ld d,0
         add hl,de
+        endif
+;hl=addr
         ret
 
 getendaddr
+;TODO хранить длину трека и корректировать её при вводе, удалении символов, ins, del
+        if 1==1
+;пусть пока треки лежат с 0x8000,0x8800,... (это смещения, а не физ.адреса)
+        ld a,(curtrack)
+        add a,a
+        add a,a
+        add a,a
+        add a,0x80+7
+        ld h,a
+        ld l,0xff
+        else
         ld hl,tracks+(MAXTIME-1)*NTRACKS
         ld a,(curtrack)
         ld e,a
         ld d,0
         add hl,de
-;hl=addr ;яюёыхфэшщ срщЄ ЄЁхър
+        endif
+;hl=addr ;последний байт трека
         ret
 
-;яєёЄ№ эюьхЁ ЄЁхър ш ёьх∙хэшх т ЄЁхъх - ¤Єю ЇєэъЎш  юЄ эюьхЁр ърэрыр ш тЁхьхэш (чртшёшЄ юЄ юЁфхЁр, хёыш ърэры яЁшт чрэ ъ юЁфхЁє). тёхую 64 ърэрыр * 64 яючшЎшш = 4096 ЄЁхъют (юфэр ёЄЁрэшЎр рфЁхёют)
-;рфЁхё т ЄЁхъх - ЇєэъЎш  эюьхЁр ЄЁхър ш ёьх∙хэш  т ЄЁхъх
-;фы  ¤Єюую ърцф√щ ЄЁхъ (фышэющ 64K) їЁрэшь ъръ сшэрЁэюх фхЁхтю: рфЁхё ыхтющ ўрёЄш, рфЁхё яЁртющ ўрёЄш
-;ш Єръ фю ьшэшьры№эюую ¤ыхьхэЄр (4 срщЄр, ъюЄюЁ√х ёьюЄЁшь эхяюёЁхфёЄтхээю)
-;рфЁхё фхышЄё  эр 4, яю¤Єюьє 2 срщЄрьш ьюцэю рфЁхёютрЄ№ 256K (16 ёЄЁрэшЎ)
-;эю Єръ сєфхЄ ьхфыхээю, яю¤Єюьє т√фхышь 32K фы  ърцфюую (ърэры & 7)
+;пусть номер трека и смещение в треке - это функция от номера канала и времени (зависит от ордера, если канал привязан к ордеру). всего 64 канала * 64 позиции = 4096 треков (одна страница адресов)
+;адрес в треке - функция номера трека и смещения в треке
+;для этого каждый трек (длиной 64K) храним как бинарное дерево: адрес левой части, адрес правой части
+;и так до минимального элемента (4 байта, которые смотрим непосредственно)
+;адрес делится на 4, поэтому 2 байтами можно адресовать 256K (16 страниц)
+;но так будет медленно, поэтому выделим 32K для каждого (канал & 7)
+
+        macro BITINC_D nbit
+        bit nbit,d
+        jr z,$+4
+         inc l
+         inc l
+        endm
+        macro BITINC_E nbit
+        bit nbit,e
+        jr z,$+4
+         inc l
+         inc l
+        endm
+
+        macro HLFROMHL
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        or h
+        endm
 
 readfrompoi
 ;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
-        dup 8
-        rlc d
-        jr nc,$+4
-         inc l
-         inc l
-        ld a,(hl)
-        inc l
-        ld h,(hl)
-        ld l,a
-        or h
-        ret z ;яєёЄю, тючтЁр∙рхЄ 0=NOTE_SPACE (Єюы№ъю фы  ўЄхэш !!!)
-        edup
-        dup 6
-        rlc e
-        jr nc,$+4
-         inc l
-         inc l
-        ld a,(hl)
-        inc l
-        ld h,(hl)
-        ld l,a
-        or h
-        ret z ;яєёЄю, тючтЁр∙рхЄ 0=NOTE_SPACE (Єюы№ъю фы  ўЄхэш !!!)
-        edup
-        rlc e
-        jr nc,$+4
-         inc l
-         inc l
-        rlc e
+;de=timeshift (kept)
+        BITINC_D 7
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 6
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 5
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 4
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 3
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 2
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 1
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_D 0
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_E 7
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_E 6
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_E 5
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_E 4
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_E 3
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        BITINC_E 2
+        HLFROMHL
+        ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
+        ld a,e
+        rra
         jr nc,$+3
+         inc l
+        rra
+        jr nc,$+4
+         inc l
          inc l
         ld a,(hl)
         ret
 
-        macro WRITETOPOI_D addr
-        rlc d
-        jr nc,$+4
-         inc l
-         inc l
+        macro WRITETOPOI_D nbit,addr
+        BITINC_D nbit
         inc l
         ld a,(hl)
         dec l
         or (hl)
-        jp z,addr ;яєёЄю
+        jp z,addr ;пусто
         ld a,(hl)
         inc l
         ld h,(hl)
         ld l,a
         endm
 
-        macro WRITETOPOI_E addr
-        rlc e
-        jr nc,$+4
-         inc l
-         inc l
+        macro WRITETOPOI_E nbit,addr
+        BITINC_E nbit
         inc l
         ld a,(hl)
         dec l
         or (hl)
-        jp z,addr ;яєёЄю
+        jp z,addr ;пусто
         ld a,(hl)
         inc l
         ld h,(hl)
@@ -138,165 +195,154 @@ readfrompoi
 
 writetopoi
 ;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
+;de=timeshift (kept)
 ;c=byte
         ld a,c
         or a
         jp z,writetopoi_space
-        WRITETOPOI_D writetopoi_create14
-        WRITETOPOI_D writetopoi_create13
-        WRITETOPOI_D writetopoi_create12
-        WRITETOPOI_D writetopoi_create11
-        WRITETOPOI_D writetopoi_create10
-        WRITETOPOI_D writetopoi_create9
-        WRITETOPOI_D writetopoi_create8
-        WRITETOPOI_D writetopoi_create7
-        WRITETOPOI_E writetopoi_create6
-        WRITETOPOI_E writetopoi_create5
-        WRITETOPOI_E writetopoi_create4
-        WRITETOPOI_E writetopoi_create3
-        WRITETOPOI_E writetopoi_create2
-        WRITETOPOI_E writetopoi_create1
-        rlc e
+        WRITETOPOI_D 7,writetopoi_create15 ;если надо, создать узел из 32768 байт
+        WRITETOPOI_D 6,writetopoi_create14
+        WRITETOPOI_D 5,writetopoi_create13
+        WRITETOPOI_D 4,writetopoi_create12
+        WRITETOPOI_D 3,writetopoi_create11
+        WRITETOPOI_D 2,writetopoi_create10
+        WRITETOPOI_D 1,writetopoi_create9
+        WRITETOPOI_D 0,writetopoi_create8
+        WRITETOPOI_E 7,writetopoi_create7
+        WRITETOPOI_E 6,writetopoi_create6
+        WRITETOPOI_E 5,writetopoi_create5
+        WRITETOPOI_E 4,writetopoi_create4
+        WRITETOPOI_E 3,writetopoi_create3
+        WRITETOPOI_E 2,writetopoi_create2 ;если надо, создать узел из 4 байт
+        ld a,e
+        rra
+        jr nc,$+3
+         inc l
+        rra
         jr nc,$+4
          inc l
-         inc l
-        rlc e
-        jr nc,$+3
          inc l
         ld a,(hl)
         ld (hl),c
         ld c,a
         ret
 
-        macro WRITETOPOI_CREATE_D
+        macro WRITETOPOI_CREATE_D nbit
         push de
-        push hl
-        call newmem
         ex de,hl
-        pop hl
+        call newmem ;keep de
+        ex de,hl
         ld (hl),e
         inc l
         ld (hl),d
         ex de,hl
         pop de
-        rlc d
-        jr nc,$+4
-         inc l
-         inc l
+        BITINC_D nbit
         endm
 
-        macro WRITETOPOI_CREATE_E
+        macro WRITETOPOI_CREATE_E nbit
         push de
-        push hl
-        call newmem
         ex de,hl
-        pop hl
+        call newmem ;keep de
+        ex de,hl
         ld (hl),e
         inc l
         ld (hl),d
         ex de,hl
         pop de
-        rlc e
-        jr nc,$+4
-         inc l
-         inc l
+        BITINC_E nbit
         endm
 
-writetopoi_create14
-        WRITETOPOI_CREATE_D
-writetopoi_create13
-        WRITETOPOI_CREATE_D
-writetopoi_create12
-        WRITETOPOI_CREATE_D
-writetopoi_create11
-        WRITETOPOI_CREATE_D
-writetopoi_create10
-        WRITETOPOI_CREATE_D
-writetopoi_create9
-        WRITETOPOI_CREATE_D
-writetopoi_create8
-        WRITETOPOI_CREATE_D
-writetopoi_create7
-        WRITETOPOI_CREATE_E
-writetopoi_create6
-        WRITETOPOI_CREATE_E
-writetopoi_create5
-        WRITETOPOI_CREATE_E
-writetopoi_create4
-        WRITETOPOI_CREATE_E
-writetopoi_create3
-        WRITETOPOI_CREATE_E
-writetopoi_create2
-        WRITETOPOI_CREATE_E
-writetopoi_create1
-        WRITETOPOI_CREATE_E
-        rlc e
+writetopoi_create15 ;создать узел из 32768 байт
+        WRITETOPOI_CREATE_D 6
+writetopoi_create14 ;создать узел из 16384 байт
+        WRITETOPOI_CREATE_D 5
+writetopoi_create13 ;создать узел из 8192 байт
+        WRITETOPOI_CREATE_D 4
+writetopoi_create12 ;создать узел из 4096 байт
+        WRITETOPOI_CREATE_D 3
+writetopoi_create11 ;создать узел из 2048 байт
+        WRITETOPOI_CREATE_D 2
+writetopoi_create10 ;создать узел из 1024 байт
+        WRITETOPOI_CREATE_D 1
+writetopoi_create9 ;создать узел из 512 байт
+        WRITETOPOI_CREATE_D 0
+writetopoi_create8 ;создать узел из 256 байт
+        WRITETOPOI_CREATE_E 7
+writetopoi_create7 ;создать узел из 128 байт
+        WRITETOPOI_CREATE_E 6
+writetopoi_create6 ;создать узел из 64 байт
+        WRITETOPOI_CREATE_E 5
+writetopoi_create5 ;создать узел из 32 байт
+        WRITETOPOI_CREATE_E 4
+writetopoi_create4 ;создать узел из 16 байт
+        WRITETOPOI_CREATE_E 3
+writetopoi_create3 ;создать узел из 8 байт
+        WRITETOPOI_CREATE_E 2
+writetopoi_create2 ;создать узел из 4 байт
+        push de
+        ex de,hl
+        call newmem ;keep de
+        ex de,hl
+        ld (hl),e
+        inc l
+        ld (hl),d
+        ex de,hl
+        pop de
+        ld a,e
+        rra
         jr nc,$+3
+         inc l
+        rra
+        jr nc,$+4
+         inc l
          inc l
         ld a,(hl)
         ld (hl),c
         ld c,a
         ret
 
-        macro WRITETOPOI_SPACE_D addr
-        rlc d
-        jr nc,$+4
-         inc l
-         inc l
-        push hl ;ъырёЄ№ т ёЄхъ рфЁхё єърчрЄхы , ъюЄюЁ√щ ь√ єфры хь (тё■ Ўхяюўъє)
-        ld a,(hl)
-        inc l
-        or (hl)
-        jp z,addr ;єцх яєёЄю
-        ld a,(hl)
-        dec l
-        ld l,(hl)
-        ld h,a
+        macro WRITETOPOI_SPACE_D nbit,addr
+        BITINC_D nbit
+        push hl ;класть в стек адрес указателя, который мы удаляем (всю цепочку)
+        HLFROMHL
+        jp z,addr ;уже пусто
         endm
         
-        macro WRITETOPOI_SPACE_E addr
-        rlc e
-        jr nc,$+4
-         inc l
-         inc l
-        push hl ;ъырёЄ№ т ёЄхъ рфЁхё єърчрЄхы , ъюЄюЁ√щ ь√ єфры хь (тё■ Ўхяюўъє)
-        ld a,(hl)
-        inc l
-        or (hl)
-        jp z,addr ;єцх яєёЄю
-        ld a,(hl)
-        dec l
-        ld l,(hl)
-        ld h,a
+        macro WRITETOPOI_SPACE_E nbit,addr
+        BITINC_E nbit
+        push hl ;класть в стек адрес указателя, который мы удаляем (всю цепочку)
+        HLFROMHL
+        jp z,addr ;уже пусто
         endm
         
 writetopoi_space
 ;hl=track pointer (4 bytes: left poi, right poi)
 ;de=timeshift
-;єьххЄ єфры Є№ яєёЄюх яюффхЁхтю
-        WRITETOPOI_SPACE_D writetopoi_space_nodel15
-        WRITETOPOI_SPACE_D writetopoi_space_nodel14
-        WRITETOPOI_SPACE_D writetopoi_space_nodel13
-        WRITETOPOI_SPACE_D writetopoi_space_nodel12
-        WRITETOPOI_SPACE_D writetopoi_space_nodel11
-        WRITETOPOI_SPACE_D writetopoi_space_nodel10
-        WRITETOPOI_SPACE_D writetopoi_space_nodel9
-        WRITETOPOI_SPACE_D writetopoi_space_nodel8
-        WRITETOPOI_SPACE_E writetopoi_space_nodel7
-        WRITETOPOI_SPACE_E writetopoi_space_nodel6
-        WRITETOPOI_SPACE_E writetopoi_space_nodel5
-        WRITETOPOI_SPACE_E writetopoi_space_nodel4
-        WRITETOPOI_SPACE_E writetopoi_space_nodel3
-        WRITETOPOI_SPACE_E writetopoi_space_nodel2
+;умеет удалять пустое поддерево
+        WRITETOPOI_SPACE_D 7,writetopoi_space_nodel15
+        WRITETOPOI_SPACE_D 6,writetopoi_space_nodel14
+        WRITETOPOI_SPACE_D 5,writetopoi_space_nodel13
+        WRITETOPOI_SPACE_D 4,writetopoi_space_nodel12
+        WRITETOPOI_SPACE_D 3,writetopoi_space_nodel11
+        WRITETOPOI_SPACE_D 2,writetopoi_space_nodel10
+        WRITETOPOI_SPACE_D 1,writetopoi_space_nodel9
+        WRITETOPOI_SPACE_D 0,writetopoi_space_nodel8
+        WRITETOPOI_SPACE_E 7,writetopoi_space_nodel7
+        WRITETOPOI_SPACE_E 6,writetopoi_space_nodel6
+        WRITETOPOI_SPACE_E 5,writetopoi_space_nodel5
+        WRITETOPOI_SPACE_E 4,writetopoi_space_nodel4
+        WRITETOPOI_SPACE_E 3,writetopoi_space_nodel3
+        WRITETOPOI_SPACE_E 2,writetopoi_space_nodel2
 
         push hl
-        rlc e
+        ld a,e
+        rra
+        jr nc,$+3
+         inc l
+        rra
         jr nc,$+4
          inc l
-         inc l
-        rlc e
-        jr nc,$+3
          inc l
         ld c,(hl)
         ld (hl),0
@@ -308,42 +354,42 @@ writetopoi_space
         or (hl)
         inc l
         or (hl)
-        jp nz,writetopoi_space_nodel2 ;эхяєёЄю - эх єфры хь
+        jp nz,writetopoi_space_nodel2 ;непусто - не удаляем
 
-;єфры Є№ яєёЄюх яюффхЁхтю, яюър т єчых т√°х тЄюЁр  ёё√ыър NULL
+;удалять пустое поддерево, пока в узле выше вторая ссылка NULL
         macro WRITETOPOI_SPACE_DEL nodeladdr
-        pop hl ;рфЁхё єърчрЄхы  эр єчхы єЁютэ  N (єЁютхэ№ 2 = яЁюёЄю ёшьтюы√)
+        pop hl ;адрес указателя на узел уровня N
         ld (hl),a
         inc l
         ld (hl),a
         ld a,l
         xor 2
-        ld l,a ;хую сЁрЄ
+        ld l,a ;его брат
         ld a,(hl)
         dec l
         or (hl)
         jp nz,nodeladdr
         endm
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel3
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel4
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel5
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel6
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel7
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel8
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel9
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel10
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel11
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel12
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel13
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel14
-        WRITETOPOI_SPACE_DEL writetopoi_space_nodel15
-        pop hl ;рфЁхё єърчрЄхы  эр єчхы єЁютэ  15
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel3 ;удалили узел из 4 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel4 ;удалили узел из 8 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel5 ;удалили узел из 16 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel6 ;удалили узел из 32 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel7 ;удалили узел из 64 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel8 ;удалили узел из 128 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel9 ;удалили узел из 256 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel10 ;удалили узел из 512 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel11 ;удалили узел из 1024 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel12 ;удалили узел из 2048 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel13 ;удалили узел из 4096 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel14 ;удалили узел из 8192 байт
+        WRITETOPOI_SPACE_DEL writetopoi_space_nodel15 ;удалили узел из 16384 байт
+        pop hl ;адрес указателя на узел уровня 15 в корне
         ld (hl),a
         inc l
-        ld (hl),a
+        ld (hl),a ;удалили узел из 32768 байт
         ret
 
-;ёэ Є№ ёю ёЄхър тёх єЁютэш
+;снять со стека все уровни
 writetopoi_space_nodel2
         pop hl
 writetopoi_space_nodel3
@@ -374,11 +420,302 @@ writetopoi_space_nodel15
         pop hl
         ret
 
+;найти ближайший непустой байт на месте или слева (для ордера)
+findleft
+;hl=track pointer (4 bytes: left poi, right poi)
+;de=timeshift
+;out: de=nonempty shift (or 0), a=data
+;если на месте непустой байт, то выходим
+;иначе (мы на пустом поддереве):
+;если мы на правом поддереве, то проверить левое, иначе подняться выше (если мы уже на корне, вернуть 0)
+        BITINC_D 7
+findleft_findleft15 ;мы в нужном месте узла из 65536 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft14 ;мы в пустом узле из 32768 байт, искать левее или выйти (а не выше)
+        BITINC_D 6
+findleft_findleft14 ;мы в нужном месте узла из 32768 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft13 ;мы в пустом узле из 16384 байт, искать левее или выше
+        BITINC_D 5
+findleft_findleft13 ;мы в нужном месте узла из 16384 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft12 ;мы в пустом узле из 8192 байт, искать левее или выше
+        BITINC_D 4
+findleft_findleft12 ;мы в нужном месте узла из 8192 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft11 ;мы в пустом узле из 4096 байт, искать левее или выше
+        BITINC_D 3
+findleft_findleft11 ;мы в нужном месте узла из 4096 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft10 ;мы в пустом узле из 2048 байт, искать левее или выше
+        BITINC_D 2
+findleft_findleft10 ;мы в нужном месте узла из 2048 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft9 ;мы в пустом узле из 1024 байт, искать левее или выше
+        BITINC_D 1
+findleft_findleft9 ;мы в нужном месте узла из 1024 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft8 ;мы в пустом узле из 512 байт, искать левее или выше
+        BITINC_D 0
+findleft_findleft8 ;мы в нужном месте узла из 512 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft7 ;мы в пустом узле из 256 байт, искать левее или выше
+        BITINC_E 7
+findleft_findleft7 ;мы в нужном месте узла из 256 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft6 ;мы в пустом узле из 128 байт, искать левее или выше
+        BITINC_E 6
+findleft_findleft6 ;мы в нужном месте узла из 128 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft5 ;мы в пустом узле из 128 байт, искать левее или выше
+        BITINC_E 5
+findleft_findleft5 ;мы в нужном месте узла из 64 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findleft_noleft4 ;мы в пустом узле из 128 байт, искать левее или выше
+        BITINC_E 4
+findleft_findleft4 ;мы в нужном месте узла из 32 байт ;найти de
+        push hl
+        HLFROMHL
+        jr z,findleft_noleft3 ;мы в пустом узле из 16 байт, искать левее или выше
+        BITINC_E 3
+findleft_findleft3 ;мы в нужном месте узла из 16 байт ;найти de
+        push hl
+        HLFROMHL
+        jr z,findleft_noleft2 ;мы в пустом узле из 8 байт, искать левее или выше
+        BITINC_E 2
+findleft_findleft2 ;мы в нужном месте узла из 8 байт ;найти de
+        push hl
+        HLFROMHL
+        jr z,findleft_noleft1 ;мы в пустом узле из 4 байт, искать левее или выше
+;мы в узле из 4 байт ;найти de
+        ld a,e
+        rra
+        jr nc,$+3
+         inc l
+        rra
+        jr nc,$+4
+         inc l
+         inc l
+;мы в нужном месте узла из 4 байт
+        ld a,(hl)
+        or a
+        jp nz,findleft_ret2 ;return de, a
+        bit 0,e
+        jr z,findleft_noleft0
+;мы в правой половине узла из 2 байт
+        dec e ;res 0,e
+        dec l
+        or (hl)
+        jp nz,findleft_ret2 ;return de, a
+findleft_noleft0 ;мы уже в левой половине узла из 2 байт ;подняться выше
+        bit 1,e
+        jr z,findleft_noleft1
+;мы в правой половине узла из 4 байт
+        dec e
+        dec l
+        or (hl)
+        jp nz,findleft_ret2 ;return de, a
+        dec e
+        dec l
+        or (hl)
+        jp nz,findleft_ret2 ;return de, a
+
+;на месте не найдено - поднимаемся и ищем левее и выше
+
+        macro FINDLEFTDECE addr,nbit
+;мы в правой половине узла из N байт
+        dec e
+        dec l
+        ld a,(hl)
+        dec l
+        or (hl)
+        jp nz,addr ;поиск de в узле из N байт (левой половине)
+        ;inc e
+        ;res nbit,e
+        endm
+        macro FINDLEFTDECDE addr,nbit
+;мы в правой половине узла из N байт
+        dec de
+        dec l
+        ld a,(hl)
+        dec l
+        or (hl)
+        jp nz,addr ;поиск de в узле из N байт (левой половине)
+        ;inc de
+        ;res nbit,d
+        endm
+
+findleft_noleft1 ;мы уже в левой половине узла из 4 байт ;подняться выше
+         ld a,e
+         and 0xfc
+         ld e,a
+        pop hl ;узел из 8 байт ;адрес указателя на пустой узел из 4 байт ;искать левее или выше
+        and 4 ;bit 2,e
+        jr z,findleft_noleft2
+        FINDLEFTDECE findleft_findleft2,2 ;мы в правой половине узла из 8 байт ;поиск de в левой половине, если она есть
+findleft_noleft2 ;мы уже в левой половине узла из 8 байт ;подняться выше
+         ld a,e
+         and 0xf8
+         ld e,a
+        pop hl ;узел из 16 байт ;адрес указателя на пустой узел из 8 байт ;искать левее или выше
+        and 8 ;bit 3,e
+        jr z,findleft_noleft3
+        FINDLEFTDECE findleft_findleft3,3 ;мы в правой половине узла из 16 байт ;поиск de в левой половине, если она есть
+findleft_noleft3 ;мы уже в левой половине узла из 16 байт ;подняться выше
+         ld a,e
+         and 0xf0
+         ld e,a
+        pop hl ;узел из 32 байт ;адрес указателя на пустой узел из 16 байт ;искать левее или выше
+        and 0x10 ;bit 4,e
+        jr z,findleft_noleft4
+        FINDLEFTDECE findleft_findleft4,4 ;мы в правой половине узла из 32 байт ;поиск de в левой половине, если она есть
+findleft_noleft4 ;мы уже в левой половине узла из 32 байт ;подняться выше
+         ld a,e
+         and 0xe0
+         ld e,a
+        pop hl ;узел из 64 байт ;адрес указателя на пустой узел из 32 байт ;искать левее или выше
+        and 0x20 ;bit 5,e
+        jr z,findleft_noleft5
+        FINDLEFTDECE findleft_findleft5,5 ;мы в правой половине узла из 64 байт ;поиск de в левой половине, если она есть
+findleft_noleft5 ;мы уже в левой половине узла из 64 байт ;подняться выше
+         ld a,e
+         and 0xc0
+         ld e,a
+        pop hl ;узел из 128 байт ;адрес указателя на пустой узел из 64 байт ;искать левее или выше
+        and 0x40 ;bit 6,e
+        jr z,findleft_noleft6
+        FINDLEFTDECE findleft_findleft6,6 ;мы в правой половине узла из 128 байт ;поиск de в левой половине, если она есть
+findleft_noleft6 ;мы уже в левой половине узла из 128 байт ;подняться выше
+         ld a,e
+         and 0x80
+         ld e,a
+        pop hl ;узел из 256 байт ;адрес указателя на пустой узел из 128 байт ;искать левее или выше
+        ;bit 7,e
+        jr z,findleft_noleft7
+        FINDLEFTDECE findleft_findleft7,7 ;мы в правой половине узла из 256 байт ;поиск de в левой половине, если она есть
+findleft_noleft7 ;мы уже в левой половине узла из 256 байт ;подняться выше
+         ld e,a;0
+        pop hl ;узел из 512 байт ;адрес указателя на пустой узел из 256 байт ;искать левее или выше
+        bit 0,d
+        jr z,findleft_noleft8
+        FINDLEFTDECDE findleft_findleft8,0 ;мы в правой половине узла из 512 байт ;поиск de в левой половине, если она есть
+findleft_noleft8 ;мы уже в левой половине узла из 512 байт ;подняться выше
+         ld e,a;0
+         res 0,d
+        pop hl ;узел из 1024 байт ;адрес указателя на пустой узел из 512 байт ;искать левее или выше
+        bit 1,d
+        jr z,findleft_noleft9
+        FINDLEFTDECDE findleft_findleft9,1 ;мы в правой половине узла из 1024 байт ;поиск de в левой половине, если она есть
+findleft_noleft9 ;мы уже в левой половине узла из 1024 байт ;подняться выше
+         ld e,a;0
+         ld a,d
+         and 0xfc
+         ld d,a
+        pop hl ;узел из 2048 байт ;адрес указателя на пустой узел из 1024 байт ;искать левее или выше
+        and 4 ;bit 2,d
+        jr z,findleft_noleft10
+        FINDLEFTDECDE findleft_findleft10,2 ;мы в правой половине узла из 2048 байт ;поиск de в левой половине, если она есть
+findleft_noleft10 ;мы уже в левой половине узла из 2048 байт ;подняться выше
+         ld e,a;0
+         ld a,d
+         and 0xf8
+         ld d,a
+        pop hl ;узел из 4096 байт ;адрес указателя на пустой узел из 2048 байт ;искать левее или выше
+        and 8 ;bit 3,d
+        jr z,findleft_noleft11
+        FINDLEFTDECDE findleft_findleft11,3 ;мы в правой половине узла из 4096 байт ;поиск de в левой половине, если она есть
+findleft_noleft11 ;мы уже в левой половине узла из 4096 байт ;подняться выше
+         ld e,a;0
+         ld a,d
+         and 0xf0
+         ld d,a
+        pop hl ;узел из 8192 байт ;адрес указателя на пустой узел из 4096 байт ;искать левее или выше
+        and 0x10 ;bit 4,d
+        jr z,findleft_noleft12
+        FINDLEFTDECDE findleft_findleft12,4 ;мы в правой половине узла из 8192 байт ;поиск de в левой половине, если она есть
+findleft_noleft12 ;мы уже в левой половине узла из 8192 байт ;подняться выше
+         ld e,a;0
+         ld a,d
+         and 0xe0
+         ld d,a
+        pop hl ;узел из 16384 байт ;адрес указателя на пустой узел из 8192 байт ;искать левее или выше
+        and 0x20 ;bit 5,d
+        jr z,findleft_noleft13
+        FINDLEFTDECDE findleft_findleft13,5 ;мы в правой половине узла из 16384 байт ;поиск de в левой половине, если она есть
+findleft_noleft13 ;мы уже в левой половине узла из 16384 байт ;подняться выше
+         ld e,a;0
+         ld a,d
+         and 0xc0
+         ld d,a
+        pop hl ;узел из 32768 байт ;адрес указателя на пустой узел из 16384 байт ;искать левее или выше
+        and 0x40 ;bit 6,d
+        jr z,findleft_noleft14
+        FINDLEFTDECDE findleft_findleft14,6 ;мы в правой половине узла из 32768 байт ;поиск de в левой половине, если она есть
+findleft_noleft14 ;мы уже в левой половине узла из 32768 байт ;подняться выше
+         ;ld e,a;0
+         ;ld a,d
+         ;and 0x80
+         ;ld d,a
+        pop hl ;узел из 65536 байт ;адрес указателя на пустой узел из 32768 байт ;искать левее или выйти (а не выше)
+        ;bit 7,d
+        jr z,findleft_0 ;ret z ;дальше некуда левее, de=0, a=0
+;мы в правой половине узла из 65536 байт
+        ld de,0x7fff;dec de
+        dec l
+        ld a,(hl)
+        dec l
+        or (hl)
+        jp nz,findleft_findleft15 ;поиск de в узле из 65536 байт (левой половине)
+        ;inc de
+        ;res 7,d
+findleft_0
+        ld d,a
+        ld e,a
+        ret ;дальше некуда выше, de=0, a=0
+
+findleft_ret2
+        ;pop hl ;адрес указателя на узел из 4 байт
+        ;pop hl ;адрес указателя на узел из 8 байт
+        ;pop hl ;адрес указателя на узел из 16 байт
+        ;pop hl ;адрес указателя на узел из 32 байт
+        ;pop hl ;адрес указателя на узел из 64 байт
+        ;pop hl ;адрес указателя на узел из 128 байт
+        ;pop hl ;адрес указателя на узел из 256 байт
+        ;pop hl ;адрес указателя на узел из 512 байт
+        ;pop hl ;адрес указателя на узел из 1024 байт
+        ;pop hl ;адрес указателя на узел из 2048 байт
+        ;pop hl ;адрес указателя на узел из 4096 байт
+        ;pop hl ;адрес указателя на узел из 8192 байт
+        ;pop hl ;адрес указателя на узел из 16384 байт
+        ;pop hl ;адрес указателя на узел из 32768 байт
+        ld hl,14*2
+        add hl,sp
+        ld sp,hl
+        ret
+
+;найти ближайший непустой байт справа (для громкости и т.п.)
+findright
+;hl=track pointer (4 bytes: left poi, right poi)
+;de=timeshift
+        
+        ret
+
 newmem
-;тч Є№ яхЁт√щ ¤ыхьхэЄ ёяшёър ётюсюфэ√ї
-;тхЁэєЄ№ хую т hl
-;ёфтшэєЄ№ єърчрЄхы№ эр яхЁт√щ ¤ыхьхэЄ ёяшёър ётюсюфэ√ї (хёыш NIL, Єю яютшёэєЄ№)
-;out: hl=рфЁхё 4 срщЄ ётюсюфэ√ї
+;взять первый элемент списка свободных
+;вернуть его в hl
+;сдвинуть указатель на первый элемент списка свободных (если NIL, то повиснуть)
+;out: hl=адрес 4 байт свободных
 firstfree=$+1
         ld hl,freemem_start
         push hl
@@ -388,19 +725,19 @@ firstfree=$+1
         ld a,(hl)
         inc l
         ld l,(hl)
-        ld h,a ;эют√щ єърчрЄхы№ эр яхЁт√щ ¤ыхьхэЄ ёяшёър ётюсюфэ√ї
+        ld h,a ;новый указатель на первый элемент списка свободных
          or l
-         jr z,$ ;хёыш NIL, Єю яютшёэєЄ№ (TODO чрърчрЄ№ эют√щ 256-срщЄэ√щ сыюъ)
+         jr z,$ ;если NIL, то повиснуть (TODO заказать новый 256-байтный блок)
        else
         ld a,(hl)
         inc l
         ld h,(hl)
-        ld l,a ;эют√щ єърчрЄхы№ эр яхЁт√щ ¤ыхьхэЄ ёяшёър ётюсюфэ√ї
+        ld l,a ;новый указатель на первый элемент списка свободных
          or h
-         jr z,$ ;хёыш NIL, Єю яютшёэєЄ№ (TODO чрърчрЄ№ эют√щ 256-срщЄэ√щ сыюъ)
+         jr z,$ ;если NIL, то повиснуть (TODO заказать новый 256-байтный блок)
        endif
         ld (firstfree),hl
-;т value ¤Єюую ¤ыхьхэЄр чряшёрЄ№ NIL (ўЄюс√ с√ы фтєёт чэ√щ ёяшёюъ ётюсюфэ√ї - т сєфє∙хь ьюцэю сєфхЄ юётюсюцфрЄ№ 256-срщЄэ√х сыюъш)
+;в value этого элемента записать NIL (чтобы был двусвязный список свободных - в будущем можно будет освобождать 256-байтные блоки)
          xor a
          ld (hl),a
          inc l
@@ -441,17 +778,17 @@ firstfree=$+1
         ret
 
 delmem
-;de=рфЁхё 4 срщЄ, ъюЄюЁ√х юётюсюфшЄ№
-;фюсртшЄ№ т ёяшёюъ ётюсюфэ√ї (value с√т°хую яхЁтюую ¤ыхьхэЄр яєёЄ№ єърч√трхЄ эр эхую, р є эхую эр NIL, ўЄюс√ с√ы фтєёт чэ√щ ёяшёюъ ётюсюфэ√ї - т сєфє∙хь ьюцэю сєфхЄ юётюсюцфрЄ№ 256-срщЄэ√х сыюъш)
-        ld hl,(firstfree) ;TODO яЁютхЁшЄ№, ўЄю ¤Єю яюёыхфэшщ чрэ Є√щ т 256-срщЄэюь сыюъх ш юётюсюфшЄ№ сыюъ
+;de=адрес 4 байт, которые освободить
+;добавить в список свободных (value бывшего первого элемента пусть указывает на него, а у него на NIL, чтобы был двусвязный список свободных - в будущем можно будет освобождать 256-байтные блоки)
+        ld hl,(firstfree) ;TODO проверить, что это последний занятый в 256-байтном блоке и освободить блок
        if BIGENDIAN
          ld (hl),d
          inc l
-         ld (hl),e ;value с√т°хую яхЁтюую ¤ыхьхэЄр
+         ld (hl),e ;value бывшего первого элемента
        else
          ld (hl),e
          inc l
-         ld (hl),d ;value с√т°хую яхЁтюую ¤ыхьхэЄр
+         ld (hl),d ;value бывшего первого элемента
         endif
          dec l
         ex de,hl
@@ -464,11 +801,11 @@ delmem
        if BIGENDIAN
         ld (hl),d
         inc l
-        ld (hl),e ;next = с√т°шщ яхЁт√щ ¤ыхьхэЄ
+        ld (hl),e ;next = бывший первый элемент
        else
         ld (hl),e
         inc l
-        ld (hl),d ;next = с√т°шщ яхЁт√щ ¤ыхьхэЄ
+        ld (hl),d ;next = бывший первый элемент
        endif
        if BIGENDIAN
         ld hl,FreeMem_value
@@ -492,8 +829,8 @@ delmem
         ret
 
 initmem
-;шэшЄ юфэюую сыюър 32K
-;4-срщЄэ√х сыюъш prev.next, є яхЁтюую prev=0, є яюёыхфэхую next=0
+;инит одного блока 32K
+;4-байтные блоки prev.next, у первого prev=0, у последнего next=0
         ld hl,freemem_start
         ld b,h
         ld c,l
@@ -518,7 +855,7 @@ initmem0
         ld a,h
         or a
         jr nz,initmem0
-        ld (0xfffe),hl ;є яюёыхфэхую next=0
+        ld (0xfffe),hl ;у последнего next=0
 
         call newmem
         xor a

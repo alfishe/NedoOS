@@ -155,19 +155,19 @@ prchar48ega_hxoncolor0
         or e
         ld (hl),a 
 
-;эхёъюы№ъю °ЁшЇЄют т чртшёшьюёЄш юЄ ЎтхЄр:
-;юфшэ °ЁшЇЄ = 2(ёЄюысЎр)*8(т√ёюЄр)*2(срщЄр)*256(ёшьтюыют) = 0x2000
-;ё тхЁёшхщ, ёфтшэєЄющ эр 1 яшъё. тяЁртю, юэ фрцх эх яюьхёЄшЄё  т ёЄЁрэшЎє
+;несколько шрифтов в зависимости от цвета:
+;один шрифт = 2(столбца)*8(высота)*2(байта)*256(символов) = 0x2000
+;с версией, сдвинутой на 1 пикс. вправо, он даже не поместится в страницу
         pop de
         ld a,(hl)
         and e
         or d
         ld (hl),a
         add hl,bc
-;43t/b (яюёыхфэшщ add эх эєцхэ, Єръ ўЄю 41.625t/b)
-;эю эхєфюсэю т√ўшёы Є№ эрўры№э√щ рфЁхё (+33t) ш ёюїЁрэ Є№ ёЄхъ (+36t шыш 16t тёхуфр эр юфэющ уыєсшэх), яЁшў╕ь яхЁтюх ёыютю эрфю сЁрЄ№ эх шч ёЄхър (+12t), шЄюую 51.75t/b
+;43t/b (последний add не нужен, так что 41.625t/b)
+;но неудобно вычислять начальный адрес (+33t) и сохранять стек (+36t или 16t всегда на одной глубине), причём первое слово надо брать не из стека (+12t), итого 51.75t/b
 
-;шыш
+;или
         ld a,(de)
         and (hl)
         inc d
@@ -177,9 +177,9 @@ prchar48ega_hxoncolor0
         ld (hl),a
         inc d
         add hl,bc
-;55t/b (яюёыхфэшщ inc d ш add эх эєцэ√, Єръ ўЄю 53.125t/b)
+;55t/b (последний inc d и add не нужны, так что 53.125t/b)
 
-;шыш
+;или
         ld a,(de)
         and (hl)
         inc h
@@ -191,9 +191,9 @@ prchar48ega_hxoncolor0
         ld e,a
         jp nc,$+3 ;10.625t
          inc d
-;10.625+28+20 = 58.625t/b (яюёыхфэшщ inc h ш яхЁхёў╕Є эх эєцэ√, Єръ ўЄю 55.3t/b)
+;10.625+28+20 = 58.625t/b (последний inc h и пересчёт не нужны, так что 55.3t/b)
 
-;шыш (ё юуЁюьэющ ЄрсышЎхщ яхЁхїюфр яю ёЄхъє фы  тёхї ёыєўрхт)
+;или (с огромной таблицей перехода по стеку для всех случаев)
         pop de
         ld a,(de)
         and (hl)
@@ -201,7 +201,7 @@ prchar48ega_hxoncolor0
         or (hl)
         ld (de),a
         inc h
-;46t/b (45.5 схч яюёыхфэхую inc h), эю эрфю ёюїЁрэ Є№ ёЄхъ (+36t/8) = 50t/b
+;46t/b (45.5 без последнего inc h), но надо сохранять стек (+36t/8) = 50t/b
         endif
 
         align 256
@@ -212,7 +212,7 @@ notefont
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; high level view ;;;;;;;;;;;;;;;;;;;;;;;;
 updatescr
-;TODO яю ьюфхыш т№■тхЁр
+;TODO по модели вьювера
 untr_needredraw=$+1
         ld a,0
         or a
@@ -262,26 +262,18 @@ prchannels0skip
         jr prchannels0
 prchannels0q
 
-        ld hl,(lefttime)
-        ld d,h
-        ld e,l
-        add hl,hl
-        add hl,de
-        add hl,hl ;*6
-        add hl,de ;*7
-        add hl,hl ;*14
-        ld de,tracks
-        add hl,de
+;TODO обновлять только треки, которые изменились
         ld de,0x4000+(TRACKX/2)
         ld b,SCRNTRACKS
+        ld c,0
 updatescr_tracks0
         push bc
         push de
-        push hl
+        ld a,c ;track
+        ld hl,(lefttime)
+        call tracktime_toaddr
         ld c,0x0f
         call prtrack
-        pop hl
-        inc hl
         pop de
         ld a,e
         add a,32
@@ -291,6 +283,7 @@ updatescr_tracks0
          add a,8
          ld d,a
         pop bc
+        inc c
         djnz updatescr_tracks0
         ret
 
@@ -303,12 +296,8 @@ prtrack0
         push de
         call peekaddr
         pop de
-        ;ld a,(hl)
         call prcharnote
-        push bc
-        ld bc,SCRNTRACKS
-        add hl,bc
-        pop bc
+         inc hl
         djnz prtrack0
         pop de
         ld hl,(lefttime)
@@ -327,7 +316,7 @@ prtrack0
         inc e
         ld a,l
         cpl
-        and 7 ;хёыш l&7=0, Єю яЁшсрты хь 3... хёыш 7, Єю яЁшсрты хь 0
+        and 7 ;если l&7=0, то прибавляем 3... если 7, то прибавляем 0
         rra
         add a,e
         ld e,a
@@ -431,7 +420,7 @@ gennotefont
         ld c,7
         ld hx,font/256
         ld d,notefont/256+1
-        call gennotefont12 ;эюЄ√ ёфтшэєЄ√ тэшч
+        call gennotefont12 ;ноты сдвинуты вниз
         ld c,8
         ld hx,font/256
         ld d,notefont/256
@@ -439,7 +428,7 @@ gennotefont
         ld c,7
         ld hx,font/256+1
         ld d,notefont/256
-        ;call gennotefont12 ;эюЄ√ ёфтшэєЄ√ ттхЁї
+        ;call gennotefont12 ;ноты сдвинуты вверх
         ;ret
 
 gennotefont12

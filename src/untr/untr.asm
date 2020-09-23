@@ -171,6 +171,8 @@ mainloop_nokey
         jp z,untr_up
         cp key_down
         jp z,untr_down
+        cp key_home
+        jp z,untr_home
         cp key_enter
         jp z,untr_play
         cp key_del
@@ -432,16 +434,16 @@ untr_del
         ld a,(curtrack)
         call getaddr_tracka
         push hl
-        call getendaddr ;TODO переделать всё на работу побайтно
+        call getendaddr
         pop de ;de=curaddr
         push hl ;hl=endaddr
         or a
         sbc hl,de
-        ld de,NTRACKS
-        call _DIV. ;hl = hl/de
+        ;ld de,NTRACKS
+        ;call _DIV. ;hl = hl/de
         ex de,hl
         inc de
-;de=число нот до конца трека        
+;de=число нот до конца трека включительно        
 ;0x0101 - 1 проход
 ;0x0102 - 2 прохода
 ;0x0100 - 256 проходов
@@ -455,18 +457,16 @@ untr_del
         
         pop hl
         
-        ld de,-NTRACKS
+        ;ld de,-NTRACKS
         ld c,NOTE_SPACE
 untr_del0
         ;ld a,(hl)
         ;ld (hl),c
         ;ld c,a
         push de
-        ;push hl
-        call pokeaddr
-        ;pop hl
+        call pokeaddr ;c<->mem(hl)
         pop de
-        add hl,de
+         dec hl ;add hl,de
         djnz untr_del0
         dec hx
         jr nz,untr_del0
@@ -478,15 +478,15 @@ untr_ins
         call getaddr_tracka
         push hl ;hl=endaddr
         push hl
-        call getendaddr ;TODO fix - копировать побайтно
+        call getendaddr
         pop de ;de=curaddr
         or a
         sbc hl,de
-        ld de,NTRACKS
-        call _DIV. ;hl = hl/de
+        ;ld de,NTRACKS
+        ;call _DIV. ;hl = hl/de
         ex de,hl
         inc de
-;de=число нот до конца трека        
+;de=число нот до конца трека включительно
 ;0x0101 - 1 проход
 ;0x0102 - 2 прохода
 ;0x0100 - 256 проходов
@@ -500,18 +500,16 @@ untr_ins
 
         pop hl
 
-        ld de,NTRACKS
+        ;ld de,NTRACKS
         ld c,NOTE_SPACE
 untr_ins0
         ;ld a,(hl)
         ;ld (hl),c
         ;ld c,a
         push de
-        ;push hl
-        call pokeaddr
-        ;pop hl
+        call pokeaddr ;c<->mem(hl)
         pop de
-        add hl,de
+         inc hl ;add hl,de
         djnz untr_ins0
         dec hx
         jr nz,untr_ins0
@@ -537,6 +535,25 @@ checknotekeys_pressed
         cpl
         and 0x1e
         ret
+
+untr_home
+;FIXME: пока тут костыль - тест поиска непустого на месте или влево
+        ld a,(curtrack)
+        ld hl,(curtime)
+        call tracktime_toaddr
+        ex de,hl
+        ld hl,0x8000 ;root
+;hl=track pointer (4 bytes: left poi, right poi)
+;de=timeshift
+        call findleft
+;out: de=nonempty shift (or 0), a=data
+        ex de,hl
+        ld a,h
+        and 7
+        ld h,a
+        ld (curtime),hl
+        ld (lefttime),hl
+        jr setneedredraw
 
 untr_up
         ld hl,curtrack

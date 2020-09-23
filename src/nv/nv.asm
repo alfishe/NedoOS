@@ -293,18 +293,17 @@ readsortdrawpanel_keepcursor
 	call sortfiles
 	jp drawpanel_with_files
 
-drawpanel_head ;ix=panel
+drawpanel_head ;ix=panel (keep!!!)
         call nv_getpanelxy_de
         inc e
 	inc e
         call nv_setxy
 	push ix
-	or a
+	pop hl
 	ld de,(curpanel)
-	pop hl
-	push hl
+	or a
 	sbc hl,de
-	pop hl
+	add hl,de
 	jr nz,drawpanel_dir
 	ld de,_FILECURSORCOLOR
 	jr drawpanel_dir0
@@ -327,7 +326,10 @@ drawpanel_dir0
         ret c
         ret z
         ld de,tdoublehoriz
-        jp sendchars
+        push ix
+        call sendchars
+        pop ix
+        ret
 
 drawpanel_with_files
 ;ix=panel
@@ -367,7 +369,7 @@ drawpanel_files
 prNfiles0
 	push bc
 	push de
-        call nv_setxy ;keeps de,hl
+        call nv_setxy ;keeps de,hl,ix
 	;ld e,(hl)
 	;inc hl
 	;ld d,(hl)
@@ -460,6 +462,12 @@ prdirfile
         call colorfile ;de=color
 prdirfile_ix_decolor
         call nv_setcolor
+       if 1==0
+        ld hl,fcb+1
+        ld de,filelinebuf
+        ld bc,11
+        ldir
+       else
         ld a,(fcb+FCB_EXTENTNUMBERLO)
         SETPG32KHIGH
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
@@ -481,6 +489,7 @@ prdirfile_fn1
         inc de
         djnz prdirfile_fn1         
 prdirfile_fn0qq
+       endif
         ld de,filelinebuf+15
         exx
         ld hl,(fcb+FCB_FSIZE+2)
@@ -535,7 +544,7 @@ prdirfile_fn0qq
         call prNNcmd ;minute
         ld de,filelinebuf
         ld hl,filelinebuf_sz
-        jp sendchars
+        jp sendchars ;kills ix!!!
 prNNcmd
 ;a=NN
 ;de=buf
@@ -690,7 +699,6 @@ loaddir0
         ld hl,filinfo+FILINFO_FSIZE
         ;TODO через процедуру
 	push hl
-        push ix
         ld a,(hl)
         add a,(ix+PANEL.totalsize)
         ld (ix+PANEL.totalsize),a
@@ -706,9 +714,8 @@ loaddir0
         ld a,(hl)
         adc a,(ix+PANEL.totalsize+3)
         ld (ix+PANEL.totalsize+3),a
-        pop ix
 	pop hl
-        ld bc,4
+        ld  c,4
         ldir
         ld hl,filinfo+FILINFO_FTIME
         ld c,2
