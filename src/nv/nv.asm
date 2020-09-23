@@ -1877,8 +1877,9 @@ proc_del_file
 	ld (nv_batch_proc),hl
 
 proc_del_file_batch
-	ld de,dir_buf
-	OS_CHDIR
+;нельзя CHDIR, потому что это вызывается в цикле чтения директории в nv_batch1!
+	;ld de,dir_buf
+	;OS_CHDIR
 
 	ld hl,fcb_filename
         ld de,filenametext ;needed for batch
@@ -1887,13 +1888,19 @@ proc_del_file_batch
 	ld de,windel2_file ;dest
 	ld bc,filenametext ;add
 	ld hl,dir_buf ;src
-	call nv_makefilepath_hltode ;result :  de=hl'/'bc
+	call nv_makefilepath_hltode ;result :  dest=hl'/'bc (de указывает после терминатора)
 	ld hl,windel2_file
 	call nv_fillpathspaces_hl ;fill to 64bytes spaces
 	ld hl,windel2
 	call upwindow_text ;update window
 
-        ld de,filenametext
+	ld de,windel2_file ;dest
+        push de
+	ld bc,filenametext ;add
+	ld hl,dir_buf ;src
+	call nv_makefilepath_hltode ;result :  dest=hl'/'bc (de указывает после терминатора)
+        pop de
+        ;ld de,filenametext
         OS_DELETE
 	or a
 	ret z ;if success return
@@ -2136,8 +2143,8 @@ nv_batch_popsrecordq
 	SETPG32KLOW
 	ret
 
-nv_copydir_add
-	jp nv_batch_pushrecord
+nv_copydir_add=nv_batch_pushrecord
+;	jp nv_batch_pushrecord
 
 nv_batch
 	call nv_batch_poprecord
@@ -2181,14 +2188,48 @@ nv_batch1
 	or a
 	jr nz,nv_batch_nofiles
 nv_batch_proc=$+1
-	call 0
+	call proceditcmd_copy_fcb
 	jr nv_batch1
+        
+        if 1==0
+nv_batch_nocopydir
+;цикл удаления всех файлов внутри директории. После каждого файла перезапускать сканирование каталога, иначе зацикливается?
+	ld de,dir_buf
+	OS_CHDIR ;;
+	or a
+	jr nz,nv_batch ;can't open src dir
+;        display "nv_batchdel1 ",$
+;nv_batchdel1
+	ld de,fcb
+	OS_SETDTA
+	ld de,fcbmask
+	OS_FSEARCHFIRST
+	or a
+	jp nz,nv_batch
+	ld de,fcb
+	OS_SETDTA
+	ld de,fcbmask
+	OS_FSEARCHNEXT
+	or a
+	jp nz,nv_batch ;skip . and ..
+        display "nv_batchdel1 ",$
+nv_batchdel1
+	ld de,fcb
+	OS_SETDTA
+	ld de,fcbmask
+	OS_FSEARCHNEXT
+	or a
+	jr nz,nv_batch_nofiles
+	call proc_del_file_batch
+	jr nv_batchdel1
+        endif
+        
 nv_batch_nofiles
 	or a
 	ld hl,(processfiles_proc)
 	ld de,proc_del_file
 	sbc hl,de
-	jr nz,nv_batch ;if not del
+	jp nz,nv_batch ;if not del
 	ld a,'/'
 	ld (dir2_buf),a
 	xor a
@@ -2217,10 +2258,11 @@ proceditcmd_copy
 	ld (nv_batch_proc),hl
 
 proceditcmd_copy_fcb
+;нельзя CHDIR, потому что это вызывается в цикле чтения директории в nv_batch1!
         ld hl,proceditcmd_copy_q
         push hl
-	ld de,dir_buf
-	OS_CHDIR
+	;ld de,dir_buf
+	;OS_CHDIR
 
         ld de,filenametext ;wordbuf ;de=drive/path/file
 	ld hl,fcb_filename
@@ -2245,8 +2287,16 @@ proceditcmd_copy_fcb
 	ld hl,wincopy2
 	call upwindow_text
 
-	ld de,filenametext
+	ld de,wincopy_dest
+        push de
+	ld bc,filenametext
+	ld hl,dir_buf
+	call nv_makefilepath_hltode
+        pop de
+	;ld de,filenametext
+        push de
         OS_OPENHANDLE
+        pop de
         or a
         ret nz ;jp nz,cmd_error_wrongfile
         ld a,b
@@ -2254,15 +2304,20 @@ proceditcmd_copy_fcb
         ld hl,cmd_copy_close_file1
         push hl
 
-        ld de,filenametext
+        ;ld de,filenametext
         OS_GETFILETIME ;ix=date, hl=time
         ld (proceditcmd_copy_time),hl
         ld (proceditcmd_copy_date),ix
 
-	ld de,dir2_buf
-	OS_CHDIR
-
-        ld de,filenametext;swordbuf2 ;de=drive/path/file
+	;ld de,dir2_buf
+	;OS_CHDIR
+	ld de,wincopy_dest
+        push de
+	ld bc,filenametext
+	ld hl,dir2_buf
+	call nv_makefilepath_hltode
+        pop de
+        ;ld de,filenametext;swordbuf2 ;de=drive/path/file
         OS_CREATEHANDLE
         or a
         ret nz ;jp nz,cmd_error_cant_copy
@@ -2303,7 +2358,7 @@ proceditcmd_copy_time=$+1
         ld hl,0
 proceditcmd_copy_date=$+2
         ld ix,0
-        ld de,filenametext
+        ld de,wincopy_dest;filenametext
         OS_SETFILETIME
         ret
 

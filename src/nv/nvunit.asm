@@ -240,6 +240,7 @@ processfiles0
 	push ix
 	ex de,hl
         call isthisdotdir_hl
+        display "processfiles_proc ",$
 processfiles_proc=$+1
 	call nz,0 ;copy может переключать страницу (сейчас не переключает)
 	pop ix
@@ -249,7 +250,9 @@ processfiles_proc=$+1
 	jp processfiles0
 processfilesq
         push iy
-	call nv_batch
+       push ix
+	call nv_batch ;исполнить всё, что запомнили в nv_batch_pushrecord?
+       pop ix
 	pop hl
         ret
 

@@ -1805,8 +1805,8 @@ BDOS_fsearch_loadloop
         call count_fdir ;LD de,fdir
 	LD bc,mfilinfo
 	F_RDIR_CURDRV
-        ;or a
-        ;ret nz;jp nz,fexit
+         or a
+         jp nz,BDOS_fail ;fsearchnext_nofile ;иначе после удаления файла каталог не заканчивается
 
 ;переделать структуру FILINFO (которую мы сейчас считали) в структуру FCB
         ld de,mfilinfo+FILINFO_FNAME
