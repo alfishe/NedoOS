@@ -1207,12 +1207,16 @@ BDOS_waitpid_OK
 
 BDOS_setgfx
         ;ld iy,(appaddr)
-;e=0:EGA, e=2:MC, e=3:6912, e=6:text
+;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+8 = noturbo ;+128=keep screen
 ;e=-1: disable gfx (out: e=old gfxmode)
         ld a,e
         cp -1
         jr z,BDOS_setgfx_gfxoff;BDOS_gfxoff_givefocus
-        ld (iy+app.gfxkeep),a
+		IFDEF NOTURBO
+		ELSE
+        xor 0x08;%00001000 ;+8 = noturbo
+		ENDIF
+        ld (iy+app.gfxkeep),a ;b7 = keep gfx pages
         push af
         rla
         jr nc,BDOS_setgfx_nokeep
@@ -1227,11 +1231,7 @@ BDOS_setgfx
         ld (iy+app.scr1high),e        
 BDOS_setgfx_nokeep
         pop af
-		IFDEF NOTURBO
         or 0xa0;%10100000
-		ELSE
-        or 0xa8;%10101000
-		ENDIF
         ld (iy+app.gfxmode),a
 
         call enablescreeninapp_setc000
