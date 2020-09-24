@@ -1660,7 +1660,6 @@ count_fdir
         ex de,hl
         ret
 
-;TODO TR-DOS
 ;de=path
 BDOS_opendir
         call BDOS_preparedepage
@@ -1688,7 +1687,6 @@ BDOS_opendir_noFATFS
         xor a ;no error
         ret
 
-;TODO TR-DOS
 ;de=buf for FILINFO, 0x00 in FILINFO_FNAME = end dir
 BDOS_readdir
         call BDOS_preparedepage

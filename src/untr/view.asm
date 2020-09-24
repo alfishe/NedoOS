@@ -285,6 +285,42 @@ updatescr_tracks0
         pop bc
         inc c
         djnz updatescr_tracks0
+        
+;TODO показывать время только при скролле (по одной цифре)
+        ld de,0x48c0+(TRACKX/2)
+        ld b,SCRTRACKWID
+        ld c,0x0f
+        ld hl,(lefttime)
+        inc hl
+        inc hl
+updatescr_time0
+;печатаем только на барах (32), 2 цифры слева и 2 справа
+        ld a,l
+        and 31
+        cp 4
+        ld a,'.'
+        jr nc,updatescr_time0_skip
+        ld a,l
+        and 0xfc
+        bit 1,l
+        jr nz,$+3
+         ld a,h
+        bit 0,l
+        jr nz,$+6
+         rra
+         rra
+         rra
+         rra
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
+updatescr_time0_skip
+        call prchar
+        inc hl
+        inc c
+        djnz updatescr_time0
+        
         ret
 
 prtrack
