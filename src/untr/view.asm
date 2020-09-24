@@ -334,6 +334,16 @@ prtrack
 ;hl=addr
 ;de=scr
 ;hx=track
+        push hl
+        ld a,hx
+        call getchntype
+        ld hl,prcharnote
+        cp CHNTYPE_NOTES
+        jr z,$+5
+         ld hl,prchar
+        ld (prtrack_prproc),hl
+        pop hl
+
         push de
         ld b,SCRTRACKWID
 prtrack0
@@ -341,6 +351,7 @@ prtrack0
         ld a,hx
         call peekaddr
         pop de
+prtrack_prproc=$+1
         call prcharnote
          inc hl
         djnz prtrack0

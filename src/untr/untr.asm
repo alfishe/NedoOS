@@ -189,6 +189,22 @@ mainloop_nokey
         jp z,untr_pause
         cp key_esc
         jp z,untr_quit
+        
+        push af
+;смотрим тип текущего канала
+        ld a,(curtrack)
+        call getchntype
+        cp CHNTYPE_NOTES
+        jr z,enternote        
+        pop af
+        ld c,a
+        ld a,(curtrack)
+        call pokeaddr_c_tracka
+        jr untr_afternotekey
+        
+enternote
+        pop af
+        
         ld hl,tnotekeys
         ld bc,3*12
         cpir
@@ -492,7 +508,6 @@ untr_del0
         jp setneedredraw
 
 untr_ins
-        display $
         ld a,(curtrack)
         call getaddr_tracka
         push hl ;hl=curaddr
@@ -716,6 +731,18 @@ ttypes
         db "pad   ",13
         db "vol   "
         db 0
+
+;смотрим тип текущего канала
+getchntype
+        add a,a
+        add a,a
+        ld hl,channels
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld a,(hl)
+        ret
 
 CHNTYPE_ORDER=0 ;цифры, которые означают начало i-го фрагмента (для привязанных к ордеру каналов)
 CHNTYPE_FILTER=1 ;цифры, между которыми эффект плавно изменяется. эффект влияет на предыдущий канал
