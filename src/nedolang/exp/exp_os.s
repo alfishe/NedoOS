@@ -14,10 +14,6 @@ _STRMAX=(_STRLEN-1)
         ld [hl],0
         ldir
 
-        ld e,6 ;textmode
-        ;OS_SETGFX
-        ld c,CMD_SETGFX;0xf9
-        call BDOS;0x0005
 	ld hl,COMMANDLINE
 skipword0
         ld a,(hl)
@@ -29,13 +25,10 @@ skipword0
 skipwordq
         
 	ld de,fn1.
-	ld (diff.fn1),de
-	call copyfn.
-	ld de,fn2.
-	ld (diff.fn2),de
+	ld (asmexport.fn),de
 	call copyfn.
 
-        call diff
+        call asmexport
 cmdquit
         rst 0x00 ;QUIT
 
@@ -52,19 +45,18 @@ l0.
 	ld (de),a ;'\0'
 	ret
 
-	include "diff.ast"
+	include "export.ast"
+	include "exporttg.ast"
 	include "../_sdk/lib.i"
-	include "../_sdk/print_os.i"
-	include "../_sdk/str.i"
+	include "../_sdk/str.i" ;for io
 	include "../_sdk/io_os.i"
+	;include "../_sdk/print.i"
 
 fn1.
-	db "nedoasm"
-	db 0
-        ds 50 ;for long filenames
-fn2.
-	db "bin.f"
+	db "tok.f"
 	db 0
         ds 50 ;for long filenames
 
-	include "diff.var"
+	include "../_sdk/fmttg.var"
+	include "export.var"
+	include "exporttg.var"
