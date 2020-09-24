@@ -1,16 +1,15 @@
 BIGENDIAN=0 ;0=LSB,HSB
 
 pokeaddr_c_tracka
+        push af
         ld hl,(curtime)
         call tracktime_toaddr
+        pop af
 ;hl=addr
+;a=track
 pokeaddr
-        ;ld a,(hl)
-        ;ld (hl),c
-        ;ld c,a
-        ;ret
         ex de,hl
-        ld hl,0x8000 ;root
+        call getroot ;ld hl,0x8000 ;root
         call writetopoi ;keeps de
         ex de,hl
         ret
@@ -21,15 +20,15 @@ getaddr_tracka
         ret
 
 peekaddr_tracka
+        push af
         ld hl,(curtime)
-;getaddr_tracka_timehl
         call tracktime_toaddr
+        pop af
 ;hl=addr
+;a=track
 peekaddr
-        ;ld a,(hl)
-        ;ret
         ex de,hl
-        ld hl,0x8000 ;root
+        call getroot ;ld hl,0x8000 ;root
         call readfrompoi ;keeps de
         ex de,hl
         ret
@@ -39,12 +38,12 @@ tracktime_toaddr
 ;hl=time
         if 1==1
 ;пусть пока треки лежат с 0x8000,0x8800,... (это смещения, а не физ.адреса)
-        add a,a
-        add a,a
-        add a,a
-        add a,0x80
-        add a,h
-        ld h,a
+        ;add a,a
+        ;add a,a
+        ;add a,a
+        ;add a,0x80
+        ;add a,h
+        ;ld h,a
         else
         ld d,h
         ld e,l
@@ -62,25 +61,44 @@ tracktime_toaddr
 ;hl=addr
         ret
 
+getroot
+        add a,a
+        add a,a
+        ld hl,trackroots
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ;ld hl,0x8000
+        ret
+
+        align 4
+trackroots
+        ds NTRACKS*4
+
 getendaddr
 ;TODO хранить длину трека и корректировать её при вводе, удалении символов, ins, del
         if 1==1
 ;пусть пока треки лежат с 0x8000,0x8800,... (это смещения, а не физ.адреса)
-        ld a,(curtrack)
-        add a,a
-        add a,a
-        add a,a
-        add a,0x80+7
-        ld h,a
-        ld l,0xff
+        ;ld a,(curtrack)
+        ;add a,a
+        ;add a,a
+        ;add a,a
+        ;add a,0x80+7
+        ;ld d,a
+        ;ld e,0xff
+        call getroot ;ld hl,0x8000 ;root
+        ld de,0xffff
+        call findleft ;out: de=nonempty shift (or 0), a=data
         else
         ld hl,tracks+(MAXTIME-1)*NTRACKS
         ld a,(curtrack)
         ld e,a
         ld d,0
         add hl,de
+        ex de,hl
         endif
-;hl=addr ;последний байт трека
+;de=addr ;последний байт трека
         ret
 
 ;пусть номер трека и смещение в треке - это функция от номера канала и времени (зависит от ордера, если канал привязан к ордеру). всего 64 канала * 64 позиции = 4096 треков (одна страница адресов)

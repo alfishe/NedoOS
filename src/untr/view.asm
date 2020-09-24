@@ -233,6 +233,7 @@ untr_needredraw=$+1
 updatescr_tracks0
         push bc
         push de
+        ld hx,c ;track
         ld a,c ;track
         ld hl,(lefttime)
         call tracktime_toaddr
@@ -332,10 +333,12 @@ prchannels0skip
 prtrack
 ;hl=addr
 ;de=scr
+;hx=track
         push de
         ld b,SCRTRACKWID
 prtrack0
         push de
+        ld a,hx
         call peekaddr
         pop de
         call prcharnote

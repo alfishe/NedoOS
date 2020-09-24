@@ -442,17 +442,22 @@ untr_backspace
         ret z
         call untr_left
 
+untr_del_popret
+        pop hl
+        ret
+
 untr_del
         ld a,(curtrack)
         call getaddr_tracka
-        push hl
-        call getendaddr
+        push hl ;hl=curaddr
+        ld a,(curtrack)
+        call getendaddr ;de=end or 0
+        ex de,hl
         pop de ;de=curaddr
         push hl ;hl=endaddr
-        or a
-        sbc hl,de
-        ;ld de,NTRACKS
-        ;call _DIV. ;hl = hl/de
+        xor a
+        sbc hl,de ;endaddr-curaddr
+        jr c,untr_del_popret
         ex de,hl
         inc de
 ;de=число нот до конца трека включительно        
@@ -467,7 +472,7 @@ untr_del
         inc d
         ld hx,d
         
-        pop hl
+        pop hl ;hl=endaddr
         
         ;ld de,-NTRACKS
         ld c,NOTE_SPACE
@@ -476,6 +481,7 @@ untr_del0
         ;ld (hl),c
         ;ld c,a
         push de
+        ld a,(curtrack)
         call pokeaddr ;c<->mem(hl)
         pop de
          dec hl ;add hl,de
@@ -486,17 +492,19 @@ untr_del0
         jp setneedredraw
 
 untr_ins
+        display $
         ld a,(curtrack)
         call getaddr_tracka
-        push hl ;hl=endaddr
-        push hl
-        call getendaddr
+        push hl ;hl=curaddr
+        push hl ;hl=curaddr
+        ld a,(curtrack)
+        call getendaddr ;de=end or 0
+        ex de,hl
         pop de ;de=curaddr
         or a
-        sbc hl,de
-        ;ld de,NTRACKS
-        ;call _DIV. ;hl = hl/de
+        sbc hl,de ;endaddr-curaddr
         ex de,hl
+        inc de
         inc de
 ;de=число нот до конца трека включительно
 ;0x0101 - 1 проход
@@ -510,7 +518,7 @@ untr_ins
         inc d
         ld hx,d
 
-        pop hl
+        pop hl ;hl=curaddr
 
         ;ld de,NTRACKS
         ld c,NOTE_SPACE
@@ -519,6 +527,7 @@ untr_ins0
         ;ld (hl),c
         ;ld c,a
         push de
+        ld a,(curtrack)
         call pokeaddr ;c<->mem(hl)
         pop de
          inc hl ;add hl,de
@@ -554,7 +563,8 @@ untr_home
         ld hl,(curtime)
         call tracktime_toaddr
         ex de,hl
-        ld hl,0x8000 ;root
+        ld a,(curtrack)
+        call getroot ;ld hl,0x8000 ;root
 ;hl=track pointer (4 bytes: left poi, right poi)
 ;de=timeshift
         call findleft
@@ -573,7 +583,8 @@ untr_end
         ld hl,(curtime)
         call tracktime_toaddr
         ex de,hl
-        ld hl,0x8000 ;root
+        ld a,(curtrack)
+        call getroot ;ld hl,0x8000 ;root
 ;hl=track pointer (4 bytes: left poi, right poi)
 ;de=timeshift
         call findright
