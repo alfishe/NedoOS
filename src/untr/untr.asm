@@ -173,6 +173,8 @@ mainloop_nokey
         jp z,untr_down
         cp key_home
         jp z,untr_home
+        cp key_end
+        jp z,untr_end
         cp key_enter
         jp z,untr_play
         cp key_del
@@ -471,7 +473,7 @@ untr_del0
         dec hx
         jr nz,untr_del0
 
-        jr setneedredraw
+        jp setneedredraw
 
 untr_ins
         ld a,(curtrack)
@@ -547,6 +549,25 @@ untr_home
 ;de=timeshift
         call findleft
 ;out: de=nonempty shift (or 0), a=data
+        ex de,hl
+        ld a,h
+        and 7
+        ld h,a
+        ld (curtime),hl
+        ld (lefttime),hl
+        jr setneedredraw
+
+untr_end
+;FIXME: пока тут костыль - тест поиска непустого на месте или вправо
+        ld a,(curtrack)
+        ld hl,(curtime)
+        call tracktime_toaddr
+        ex de,hl
+        ld hl,0x8000 ;root
+;hl=track pointer (4 bytes: left poi, right poi)
+;de=timeshift
+        call findright
+;out: de=nonempty shift (or 0xffff), a=data
         ex de,hl
         ld a,h
         and 7

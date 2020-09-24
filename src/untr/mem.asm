@@ -541,8 +541,6 @@ findleft_noleft0 ;мы уже в левой половине узла из 2 байт ;подняться выше
         dec l
         or (hl)
         jp nz,addr ;поиск de в узле из N байт (левой половине)
-        ;inc e
-        ;res nbit,e
         endm
         macro FINDLEFTDECDE addr,nbit
 ;мы в правой половине узла из N байт
@@ -552,8 +550,6 @@ findleft_noleft0 ;мы уже в левой половине узла из 2 байт ;подняться выше
         dec l
         or (hl)
         jp nz,addr ;поиск de в узле из N байт (левой половине)
-        ;inc de
-        ;res nbit,d
         endm
 
 findleft_noleft1 ;мы уже в левой половине узла из 4 байт ;подняться выше
@@ -668,7 +664,7 @@ findleft_noleft14 ;мы уже в левой половине узла из 32768 байт ;подняться выше
          ;and 0x80
          ;ld d,a
         pop hl ;узел из 65536 байт ;адрес указателя на пустой узел из 32768 байт ;искать левее или выйти (а не выше)
-        ;bit 7,d
+        bit 7,d
         jr z,findleft_0 ;ret z ;дальше некуда левее, de=0, a=0
 ;мы в правой половине узла из 65536 байт
         ld de,0x7fff;dec de
@@ -677,8 +673,6 @@ findleft_noleft14 ;мы уже в левой половине узла из 32768 байт ;подняться выше
         dec l
         or (hl)
         jp nz,findleft_findleft15 ;поиск de в узле из 65536 байт (левой половине)
-        ;inc de
-        ;res 7,d
 findleft_0
         ld d,a
         ld e,a
@@ -704,12 +698,290 @@ findleft_ret2
         ld sp,hl
         ret
 
-;найти ближайший непустой байт справа (для громкости и т.п.)
+;найти ближайший непустой байт на месте или справа (для громкости и т.п.)
 findright
 ;hl=track pointer (4 bytes: left poi, right poi)
 ;de=timeshift
-        
+;out: de=nonempty shift (or 0xffff), a=data
+;если на месте непустой байт, то выходим
+;иначе (мы на пустом поддереве):
+;если мы на левом поддереве, то проверить правое, иначе подняться выше (если мы уже на корне, вернуть 0xffff)
+;TODO переделать с inc l,l,l вначале и зеркально? не получится - ссылки в памяти лежат на начало
+        BITINC_D 7
+findright_findright15 ;мы в нужном месте узла из 65536 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright14 ;мы в пустом узле из 32768 байт, искать правее или выйти (а не выше)
+        BITINC_D 6
+findright_findright14 ;мы в нужном месте узла из 32768 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright13 ;мы в пустом узле из 16384 байт, искать правее или выше
+        BITINC_D 5
+findright_findright13 ;мы в нужном месте узла из 16384 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright12 ;мы в пустом узле из 8192 байт, искать правее или выше
+        BITINC_D 4
+findright_findright12 ;мы в нужном месте узла из 8192 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright11 ;мы в пустом узле из 4096 байт, искать правее или выше
+        BITINC_D 3
+findright_findright11 ;мы в нужном месте узла из 4096 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright10 ;мы в пустом узле из 2048 байт, искать правее или выше
+        BITINC_D 2
+findright_findright10 ;мы в нужном месте узла из 2048 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright9 ;мы в пустом узле из 1024 байт, искать правее или выше
+        BITINC_D 1
+findright_findright9 ;мы в нужном месте узла из 1024 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright8 ;мы в пустом узле из 512 байт, искать правее или выше
+        BITINC_D 0
+findright_findright8 ;мы в нужном месте узла из 512 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright7 ;мы в пустом узле из 256 байт, искать правее или выше
+        BITINC_E 7
+findright_findright7 ;мы в нужном месте узла из 256 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright6 ;мы в пустом узле из 128 байт, искать правее или выше
+        BITINC_E 6
+findright_findright6 ;мы в нужном месте узла из 128 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright5 ;мы в пустом узле из 128 байт, искать правее или выше
+        BITINC_E 5
+findright_findright5 ;мы в нужном месте узла из 64 байт ;найти de
+        push hl
+        HLFROMHL
+        jp z,findright_noright4 ;мы в пустом узле из 128 байт, искать правее или выше
+        BITINC_E 4
+findright_findright4 ;мы в нужном месте узла из 32 байт ;найти de
+        push hl
+        HLFROMHL
+        jr z,findright_noright3 ;мы в пустом узле из 16 байт, искать правее или выше
+        BITINC_E 3
+findright_findright3 ;мы в нужном месте узла из 16 байт ;найти de
+        push hl
+        HLFROMHL
+        jr z,findright_noright2 ;мы в пустом узле из 8 байт, искать правее или выше
+        BITINC_E 2
+findright_findright2 ;мы в нужном месте узла из 8 байт ;найти de
+        push hl
+        HLFROMHL
+        jr z,findright_noright1 ;мы в пустом узле из 4 байт, искать правее или выше
+;мы в узле из 4 байт ;найти de
+        ld a,e
+        rra
+        jr nc,$+3
+         inc l
+        rra
+        jr nc,$+4
+         inc l
+         inc l
+;мы в нужном месте узла из 4 байт
+        ld a,(hl)
+        or a
+        jp nz,findright_ret2 ;return de, a
+        bit 0,e
+        jr nz,findright_noright0
+;мы в левой половине узла из 2 байт
+        inc e ;set 0,e
+        inc l
+        or (hl)
+        jp nz,findright_ret2 ;return de, a
+findright_noright0 ;мы уже в правой половине узла из 2 байт ;подняться выше
+        bit 1,e
+        jr nz,findright_noright1
+;мы в левой половине узла из 4 байт
+        inc e
+        inc l
+        or (hl)
+        jp nz,findright_ret2 ;return de, a
+        inc e
+        inc l
+        or (hl)
+        jp nz,findright_ret2 ;return de, a
+
+;на месте не найдено - поднимаемся и ищем правее и выше
+
+        macro FINDRIGHTINCE addr,nbit
+;мы в левой половине узла из N байт
+        inc e
+        inc l
+        inc l
+        inc l
+        ld a,(hl)
+        dec l
+        or (hl)
+        jp nz,addr ;поиск de в узле из N байт (правой половине)
+        endm
+        macro FINDRIGHTINCDE addr,nbit
+;мы в левой половине узла из N байт
+        inc de
+        inc l
+        inc l
+        inc l
+        ld a,(hl)
+        dec l
+        or (hl)
+        jp nz,addr ;поиск de в узле из N байт (правой половине)
+        endm
+
+findright_noright1 ;мы уже в правой половине узла из 4 байт ;подняться выше
+         ld a,e
+         or 0x03
+         ld e,a
+        pop hl ;узел из 8 байт ;адрес указателя на пустой узел из 4 байт ;искать правее или выше
+        and 4 ;bit 2,e
+        jr nz,findright_noright2
+        FINDRIGHTINCE findright_findright2,2 ;мы в левой половине узла из 8 байт ;поиск de в правой половине, если она есть
+findright_noright2 ;мы уже в правой половине узла из 8 байт ;подняться выше
+         ld a,e
+         or 0x07
+         ld e,a
+        pop hl ;узел из 16 байт ;адрес указателя на пустой узел из 8 байт ;искать правее или выше
+        and 8 ;bit 3,e
+        jr nz,findright_noright3
+        FINDRIGHTINCE findright_findright3,3 ;мы в левой половине узла из 16 байт ;поиск de в правой половине, если она есть
+findright_noright3 ;мы уже в правой половине узла из 16 байт ;подняться выше
+         ld a,e
+         or 0x0f
+         ld e,a
+        pop hl ;узел из 32 байт ;адрес указателя на пустой узел из 16 байт ;искать правее или выше
+        and 0x10 ;bit 4,e
+        jr nz,findright_noright4
+        FINDRIGHTINCE findright_findright4,4 ;мы в левой половине узла из 32 байт ;поиск de в правой половине, если она есть
+findright_noright4 ;мы уже в правой половине узла из 32 байт ;подняться выше
+         ld a,e
+         or 0x1f
+         ld e,a
+        pop hl ;узел из 64 байт ;адрес указателя на пустой узел из 32 байт ;искать правее или выше
+        and 0x20 ;bit 5,e
+        jr nz,findright_noright5
+        FINDRIGHTINCE findright_findright5,5 ;мы в левой половине узла из 64 байт ;поиск de в правой половине, если она есть
+findright_noright5 ;мы уже в правой половине узла из 64 байт ;подняться выше
+         ld a,e
+         or 0x3f
+         ld e,a
+        pop hl ;узел из 128 байт ;адрес указателя на пустой узел из 64 байт ;искать правее или выше
+        and 0x40 ;bit 6,e
+        jr nz,findright_noright6
+        FINDRIGHTINCE findright_findright6,6 ;мы в левой половине узла из 128 байт ;поиск de в правой половине, если она есть
+findright_noright6 ;мы уже в правой половине узла из 128 байт ;подняться выше
+         ld a,e
+         or 0x7f
+         ld e,a
+        pop hl ;узел из 256 байт ;адрес указателя на пустой узел из 128 байт ;искать правее или выше
+        ;bit 7,e
+        jp m,findright_noright7
+        FINDRIGHTINCE findright_findright7,7 ;мы в левой половине узла из 256 байт ;поиск de в правой половине, если она есть
+findright_noright7 ;мы уже в правой половине узла из 256 байт ;подняться выше
+         ld e,0xff
+        pop hl ;узел из 512 байт ;адрес указателя на пустой узел из 256 байт ;искать правее или выше
+        bit 0,d
+        jr nz,findright_noright8
+        FINDRIGHTINCDE findright_findright8,0 ;мы в левой половине узла из 512 байт ;поиск de в правой половине, если она есть
+findright_noright8 ;мы уже в правой половине узла из 512 байт ;подняться выше
+         ld e,0xff
+         set 0,d
+        pop hl ;узел из 1024 байт ;адрес указателя на пустой узел из 512 байт ;искать правее или выше
+        bit 1,d
+        jr nz,findright_noright9
+        FINDRIGHTINCDE findright_findright9,1 ;мы в левой половине узла из 1024 байт ;поиск de в правой половине, если она есть
+findright_noright9 ;мы уже в правой половине узла из 1024 байт ;подняться выше
+         ld e,0xff
+         ld a,d
+         or 0x03
+         ld d,a
+        pop hl ;узел из 2048 байт ;адрес указателя на пустой узел из 1024 байт ;искать правее или выше
+        and 4 ;bit 2,d
+        jr nz,findright_noright10
+        FINDRIGHTINCDE findright_findright10,2 ;мы в левой половине узла из 2048 байт ;поиск de в правой половине, если она есть
+findright_noright10 ;мы уже в правой половине узла из 2048 байт ;подняться выше
+         ld e,0xff
+         ld a,d
+         or 0x07
+         ld d,a
+        pop hl ;узел из 4096 байт ;адрес указателя на пустой узел из 2048 байт ;искать правее или выше
+        and 8 ;bit 3,d
+        jr nz,findright_noright11
+        FINDRIGHTINCDE findright_findright11,3 ;мы в левой половине узла из 4096 байт ;поиск de в правой половине, если она есть
+findright_noright11 ;мы уже в правой половине узла из 4096 байт ;подняться выше
+         ld e,0xff
+         ld a,d
+         or 0x0f
+         ld d,a
+        pop hl ;узел из 8192 байт ;адрес указателя на пустой узел из 4096 байт ;искать правее или выше
+        and 0x10 ;bit 4,d
+        jr nz,findright_noright12
+        FINDRIGHTINCDE findright_findright12,4 ;мы в левой половине узла из 8192 байт ;поиск de в правой половине, если она есть
+findright_noright12 ;мы уже в правой половине узла из 8192 байт ;подняться выше
+         ld e,0xff
+         ld a,d
+         or 0x1f
+         ld d,a
+        pop hl ;узел из 16384 байт ;адрес указателя на пустой узел из 8192 байт ;искать правее или выше
+        and 0x20 ;bit 5,d
+        jr nz,findright_noright13
+        FINDRIGHTINCDE findright_findright13,5 ;мы в левой половине узла из 16384 байт ;поиск de в правой половине, если она есть
+findright_noright13 ;мы уже в правой половине узла из 16384 байт ;подняться выше
+         ld e,0xff
+         ld a,d
+         or 0x3f
+         ld d,a
+        pop hl ;узел из 32768 байт ;адрес указателя на пустой узел из 16384 байт ;искать правее или выше
+        and 0x40 ;bit 6,d
+        jr nz,findright_noright14
+        FINDRIGHTINCDE findright_findright14,6 ;мы в левой половине узла из 32768 байт ;поиск de в правой половине, если она есть
+findright_noright14 ;мы уже в правой половине узла из 32768 байт ;подняться выше
+         ;ld e,0xff
+         ;ld a,d
+         ;or 0x7f
+         ;ld d,a
+        pop hl ;узел из 65536 байт ;адрес указателя на пустой узел из 32768 байт ;искать правее или выйти (а не выше)
+        bit 7,d
+        jr nz,findright_0 ;ret z ;дальше некуда правее, de=0xffff, a=0
+;мы в правой половине узла из 65536 байт
+        ld de,0x8000;inc de
+        inc l
+        inc l
+        inc l
+        ld a,(hl)
+        dec l
+        or (hl)
+        jp nz,findright_findright15 ;поиск de в узле из 65536 байт (правой половине)
+findright_0
+        ld de,0xffff
+        ret ;дальше некуда выше, de=0xffff, a=0
+
+findright_ret2
+        ;pop hl ;адрес указателя на узел из 4 байт
+        ;pop hl ;адрес указателя на узел из 8 байт
+        ;pop hl ;адрес указателя на узел из 16 байт
+        ;pop hl ;адрес указателя на узел из 32 байт
+        ;pop hl ;адрес указателя на узел из 64 байт
+        ;pop hl ;адрес указателя на узел из 128 байт
+        ;pop hl ;адрес указателя на узел из 256 байт
+        ;pop hl ;адрес указателя на узел из 512 байт
+        ;pop hl ;адрес указателя на узел из 1024 байт
+        ;pop hl ;адрес указателя на узел из 2048 байт
+        ;pop hl ;адрес указателя на узел из 4096 байт
+        ;pop hl ;адрес указателя на узел из 8192 байт
+        ;pop hl ;адрес указателя на узел из 16384 байт
+        ;pop hl ;адрес указателя на узел из 32768 байт
+        ld hl,14*2
+        add hl,sp
+        ld sp,hl
         ret
+
 
 newmem
 ;взять первый элемент списка свободных
