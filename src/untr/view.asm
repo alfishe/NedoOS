@@ -224,43 +224,7 @@ untr_needredraw=$+1
         ld hl,ttypes
         call prtext
 
-        ld hl,tchannels
-        ld de,0x4000
-prchannels0
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
-        ld a,b
-        or c
-        jr z,prchannels0q
-        inc hl
-        ld a,b
-        and c
-        inc a
-        jr z,prchannels0skip
-        push de
-        push hl
-        ld hx,b
-        ld lx,c
-        ld c,0x0f
-        ld a,(ix+chn.channel_in)
-        add a,'A'
-        call prchar
-        ld a,(ix+chn.keepme_in)
-        add a,'0'
-        call prchar
-        pop hl
-        pop de
-prchannels0skip
-        ld a,e
-        add a,32
-        ld e,a
-        jr nc,$+6
-         ld a,d
-         add a,8
-         ld d,a
-        jr prchannels0
-prchannels0q
+        call prchannels
 
 ;TODO обновлять только треки, которые изменились
         ld de,0x4000+(TRACKX/2)
@@ -322,6 +286,48 @@ updatescr_time0_skip
         djnz updatescr_time0
         
         ret
+
+prchannels
+        ld hl,channels
+        ld de,0x4000
+prchannels0
+        ld a,(hl) ;chntype
+        inc a
+        ret z
+        inc hl
+        ;ld a,(hl) ;order
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        inc hl
+        ;cp CHNTYPE_...-1
+        ld a,b
+        and c
+        inc a
+        jr z,prchannels0skip
+        push de
+        push hl
+        ld hx,b
+        ld lx,c
+        ld c,0x0f
+        ld a,(ix+chn.channel_in)
+        add a,'A'
+        call prchar
+        ld a,(ix+chn.keepme_in)
+        add a,'0'
+        call prchar
+        pop hl
+        pop de
+prchannels0skip
+        ld a,e
+        add a,32
+        ld e,a
+        jr nc,$+6
+         ld a,d
+         add a,8
+         ld d,a
+        jr prchannels0
 
 prtrack
 ;hl=addr

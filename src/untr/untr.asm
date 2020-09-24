@@ -212,16 +212,22 @@ untr_afternotekey
         jp untr_right
 
 playnote_initchannels
-        ld hl,tchannels
+        ld a,0x80 ;точно не совпадёт, так что будет retrigenv
+        ld (chip0+chip.envtype),a
+        ld hl,channels
         ld hy,0 ;track
 playnote_initchannels0
+        ld a,(hl) ;chntype
+        inc a
+        ret z
+        inc hl
+        ;ld a,(hl) ;order
+        inc hl
         ld c,(hl)
         inc hl
         ld b,(hl)
-        ld a,b
-        or c
-        jr z,playnote_initchannels0q
         inc hl
+        ;cp CHNTYPE_...-1
         ld a,b
         and c
         inc a
@@ -243,24 +249,23 @@ playnote_initchannels0skip
 playnote_initchannels0pause
         call initchnnote_pause ;устанавливает сэмпл паузы
         jr playnote_initchannels0skip
-playnote_initchannels0q
-
-        ld a,0x80 ;точно не совпадёт, так что будет retrigenv
-        ld (chip0+chip.envtype),a
-        ret
 
 playenter_initchannels
 ;инициализирует ноты в каналах в процессе проигрывания
-        ld hl,tchannels
+        ld hl,channels
         ld hy,0 ;track
 playenter_initchannels0
+        ld a,(hl) ;chntype
+        inc a
+        ret z
+        inc hl
+        ;ld a,(hl) ;order
+        inc hl
         ld c,(hl)
         inc hl
         ld b,(hl)
-        ld a,b
-        or c
-        jr z,playenter_initchannels0q
         inc hl
+        ;cp CHNTYPE_...-1
         ld a,b
         and c
         inc a
@@ -277,19 +282,21 @@ playenter_initchannels0
 playenter_initchannels0skip
         inc hy ;track
         jr playenter_initchannels0
-playenter_initchannels0q
-        ret
 
-playnote
-        ld hl,tchannels
+playnote_playsamplechannels
+        ld hl,channels
 playnote_playsamplechannels0
+        ld a,(hl) ;chntype
+        inc a
+        ret z
+        inc hl
+        ;ld a,(hl) ;order
+        inc hl
         ld c,(hl)
         inc hl
         ld b,(hl)
-        ld a,b
-        or c
-        jr z,playnote_playsamplechannels0q
         inc hl
+        ;cp CHNTYPE_...-1
         ld a,b
         and c
         inc a
@@ -301,8 +308,9 @@ playnote_playsamplechannels0
         pop hl
 playnote_playsamplechannels0skip
         jr playnote_playsamplechannels0
-playnote_playsamplechannels0q
 
+playnote
+        call playnote_playsamplechannels
         ld a,2
         call mixchn_all_channela
         push ix ;chn для C
@@ -359,15 +367,19 @@ mixchn_all_channela
 ;микшируем сверху вниз все подканалы, у которых канал == a
          ld (mixchn_all_channela_a),a
         ld ix,0
-        ld hl,tchannels
+        ld hl,channels
 mixchn_all_channela0
+        ld a,(hl) ;chntype
+        inc a
+        ret z
+        inc hl
+        ;ld a,(hl) ;order
+        inc hl
         ld c,(hl)
         inc hl
         ld b,(hl)
-        ld a,b
-        or c
-        ret z;jr z,mixchn_all_channela0q
         inc hl
+        ;cp CHNTYPE_...-1
         ld a,b
         and c
         inc a
@@ -391,8 +403,6 @@ mixchn_all_channela0_first
 mixchn_all_channela0_firstq
 mixchn_all_channela0skip
         jr mixchn_all_channela0
-;mixchn_all_channela0q
-;        ret
         
 initchnnote
 ;a=note
@@ -696,22 +706,32 @@ ttypes
         db "vol   "
         db 0
 
-tchannels
-        dw -1
-        dw Adrum
-        dw Atone
-        dw Apad
-        dw -1
-        dw -1
-        dw Bdrum
-        dw Btone
-        dw Bbass
-        dw -1
-        dw Cdrum
-        dw Ctone
-        dw Cpad
-        dw -1
-        dw 0
+CHNTYPE_ORDER=0 ;цифры, которые означают начало i-го фрагмента (для привязанных к ордеру каналов)
+CHNTYPE_FILTER=1 ;цифры, между которыми эффект плавно изменяется. эффект влияет на предыдущий канал
+CHNTYPE_NOTES=2 ;буквы нот (3 октавы)
+CHNTYPE_SAMPLES=3 ;буквы сэмплов
+;CHNTYPE_CHORDS=4
+        macro CHNTYPE chntype,usedorder,addr
+        db chntype
+        db usedorder ;0=не привязан к ордеру
+        dw addr ;описатель канала
+        endm
+channels
+        CHNTYPE CHNTYPE_ORDER  ,0,-1
+        CHNTYPE CHNTYPE_SAMPLES,0,Adrum
+        CHNTYPE CHNTYPE_NOTES  ,0,Atone
+        CHNTYPE CHNTYPE_NOTES  ,0,Apad
+        CHNTYPE CHNTYPE_FILTER ,0,-1
+        CHNTYPE CHNTYPE_FILTER ,0,-1
+        CHNTYPE CHNTYPE_SAMPLES,0,Bdrum
+        CHNTYPE CHNTYPE_NOTES  ,0,Btone
+        CHNTYPE CHNTYPE_NOTES  ,0,Bbass
+        CHNTYPE CHNTYPE_FILTER ,0,-1
+        CHNTYPE CHNTYPE_SAMPLES,0,Cdrum
+        CHNTYPE CHNTYPE_NOTES  ,0,Ctone
+        CHNTYPE CHNTYPE_NOTES  ,0,Cpad
+        CHNTYPE CHNTYPE_FILTER ,0,-1
+        db -1
 
 Adrum
         chn
