@@ -438,6 +438,10 @@ clink filename deffgfx (см. cc.bat и пример ex.c)
 cc concat.c
 clink concat
 
+playtap
+~~~~~~~
+Плейер файлов .tap. Играемый файл должен называться tilt.tap.
+
 Программирование (подробнее см. api_base.txt)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
