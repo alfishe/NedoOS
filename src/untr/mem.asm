@@ -1,5 +1,15 @@
 BIGENDIAN=0 ;0=LSB,HSB
 
+setscrpg
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
+        ret
+setpgroots
+pgroots=$+1
+        ld a,0
+        SETPG16K
+        ret
+
 pokeaddr_c_tracka
         push af
         ld hl,(curtime)
@@ -62,6 +72,13 @@ tracktime_toaddr
         ret
 
 getroot
+;a=track
+        if 1==1
+;берём root в зависимости от номера канала и номера позиции
+        add a,0x40
+        ld h,a ;номер канала
+        ld l,0*4 ;TODO номер позиции (пока 0)
+        else
         add a,a
         add a,a
         ld hl,trackroots
@@ -69,7 +86,7 @@ getroot
         ld l,a
         jr nc,$+3
         inc h
-        ;ld hl,0x8000
+        endif
         ret
 
         align 4

@@ -22,18 +22,29 @@ cmd_begin
         OS_HIDEFROMPARENT
         ld e,3+0x80 ;6912 + keep gfx pages
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-
         ld e,0
         OS_CLS
-        
-        ld a,(user_scr0_high) ;ok
-        SETPG16K
-        
+
+        OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000,8000,c000
+        ld a,e
+        ld (pgroots),a
+        ;ld a,l
+        ;ld (pgdynmem),a
+
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x3fff
+        ld (hl),l;0
+        ldir ;чистим roots
+
+        call setscrpg
         ld hl,0x5800
         ld de,0x5801
         ld bc,0x2ff
         ld (hl),7
         ldir
+        call setpgroots
 
         ld hl,tracks
         ld de,tracks+1

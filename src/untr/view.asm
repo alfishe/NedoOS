@@ -9,6 +9,9 @@ prchar
         ld h,font/256
 prchar_h
         ld l,a
+        push bc
+        call setscrpg
+        pop bc
         dup 7
         ld a,(de)
         xor (hl)
@@ -25,6 +28,9 @@ prchar_h
         ld (de),a
         pop hl
         pop de
+        push bc
+        call setpgroots
+        pop bc
         ld a,c
         xor 0xff
         ld c,a
@@ -36,6 +42,9 @@ prcur
 ;bc=YX
 ;0b000YYyyy 0b00XXXXXx
 ;0b010YY000 0byyyXXXXX
+        push bc
+        call setscrpg
+        pop bc
         ld a,b
         and 0x18
         add a,0x40
@@ -62,6 +71,7 @@ prcur
         ld a,(de)
         xor c
         ld (de),a
+        call setpgroots
         ret
 
 prtext
@@ -356,6 +366,9 @@ prtrack_prproc=$+1
          inc hl
         djnz prtrack0
         pop de
+        
+        call setscrpg
+
         ld hl,(lefttime)
         ld c,0x01
         dec e
@@ -378,8 +391,7 @@ prtrack_prproc=$+1
         ld e,a
         bit 0,l
         jr z,$+4
-         ld c,0x10
-         
+         ld c,0x10         
         ld b,SCRTRACKWID/8
 prtrack_bars0
         push de
@@ -390,6 +402,7 @@ prtrack_bars0
         ld e,a
         djnz prtrack_bars0
 
+        call setpgroots
         ret
 
 prbar
