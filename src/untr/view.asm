@@ -23,6 +23,16 @@ nextchrline_de
          ld d,a
         ret
 
+nextchrline_hl
+        ld a,l
+        add a,32
+        ld l,a
+        ret nc;jr nc,$+6
+         ld a,h
+         add a,8
+         ld h,a
+        ret
+
 prchardig
         push de
         ;push hl
@@ -240,6 +250,167 @@ prchar48ega_hxoncolor0
 ;46t/b (45.5 без последнего inc h), но надо сохранять стек (+36t/8) = 50t/b
         endif
 
+scrollleft
+;hl=linestart
+;c=scroll amount
+;c=1: scrollleft_rld с c=0
+;c=2: scrollleft_ld с c=1
+;c=3: scrollleft_rld с c=1
+        srl c
+        jp c,scrollleft_rld
+scrollleft_ld
+;hl=linestart
+;c=scroll amount
+        ld d,h
+        ld a,l
+        add a,c
+        ld e,a
+        ex de,hl
+;hl=from
+;de=to
+        ld a,SCRTRACKWID/2
+        sub c
+        ld c,a
+;c=SCRTRACKWID/2-scrollamount
+        ld b,8
+scrollleft_ld0
+        push bc
+        push de
+        push hl
+        ld b,0
+        ldir
+        pop hl
+        pop de
+        pop bc
+        inc d
+        inc h
+        djnz scrollleft_ld0
+        ret
+
+scrollright
+;hl=linestart
+;c=scroll amount
+;c=1: scrollright_rrd с c=0
+;c=2: scrollright_ld с c=1
+;c=3: scrollright_rrd с c=1
+        srl c
+        jp c,scrollright_rrd
+scrollright_ld
+;hl=linestart
+;c=scroll amount
+        ld a,l
+        add a,SCRTRACKWID/2-1
+        ld l,a
+        ld d,h
+        sub c
+        ld e,a
+        ex de,hl
+;hl=from
+;de=to
+        ld a,SCRTRACKWID/2
+        sub c
+        ld c,a
+;c=SCRTRACKWID/2-scrollamount
+        ld b,8
+scrollright_ld0
+        push bc
+        push de
+        push hl
+        ld b,0
+        lddr
+        pop hl
+        pop de
+        pop bc
+        inc d
+        inc h
+        djnz scrollright_ld0
+        ret
+
+scrollleft_rld
+;hl=linestart
+        ;ld c,0
+;c=scroll amount
+        ld d,h
+        ld a,l
+        add a,c
+        ld e,a
+        ex de,hl
+;hl=from
+;de=to
+        ld a,SCRTRACKWID/2
+        sub c
+        ld c,a
+;c=SCRTRACKWID/2-scrollamount
+        ld b,8
+scrollleft0p
+        push bc
+        push de
+        push hl
+        ld b,0
+        ld a,l
+        cp e
+        jr z,scrollleft_noldir
+        ldir
+scrollleft_noldir
+        add hl,bc
+        dec hl
+        xor a
+       dup SCRTRACKWID/2-1
+        rld
+        dec l
+       edup
+        rld
+        pop hl
+        pop de
+        pop bc
+        inc d
+        inc h
+        djnz scrollleft0p
+        ret
+
+scrollright_rrd
+;hl=linestart
+        ;ld c,0
+;c=scroll amount
+        ld a,l
+        add a,SCRTRACKWID/2-1
+        ld l,a
+        ld d,h
+        sub c
+        ld e,a
+        ex de,hl
+        ld a,SCRTRACKWID/2
+        sub c
+        ld c,a
+;c=SCRTRACKWID/2-scrollamount
+        ld b,8
+scrollright0p
+        push bc
+        push de
+        push hl
+        ld b,0
+        ld a,l
+        cp e
+        jr z,scrollright_nolddr
+        lddr
+scrollright_nolddr
+        or a
+        sbc hl,bc
+        inc hl
+        xor a
+        dup SCRTRACKWID/2-1
+        rrd
+        inc l
+        edup
+        rrd
+        pop hl
+        pop de
+        pop bc
+        inc d
+        inc h
+        djnz scrollright0p
+        ret
+
         align 256
 font
         incbin "64qua.fnt"
@@ -264,51 +435,47 @@ oldlefttime=$+1
         or a
         sbc hl,de
         jr nz,updatescr_scroll
-;иначе обновляем только при наличии needredraw? TODO убрать этот флаг?
-;untr_needredraw=$+1
-;        ld a,0
-;        or a
-;        ret z
         jp updatescr_scrollq
 updatescr_scroll
 ;hl=lefttime-oldlefttime
 ;если скролл на 1 символ, то реально скроллим, иначе перепечатываем?
-        ld a,l
-        and h
-        inc a
-        jp z,updatescr_scroll_right
-        ld a,l
-        dec a
-        or h
-        jp nz,updatescr_scroll_prall
+        bit 7,h
+        jp nz,updatescr_scroll_right
+        ;ld a,l
+        ;and h
+        ;inc a
+        ;jp z,updatescr_scroll_right
+        ;ld a,l
+        ;dec a
+        ;or h
+        ;jp nz,updatescr_scroll_prall
         
-;updatescr_scroll_left
+updatescr_scroll_left
+        ld bc,9
+        or a
+        sbc hl,bc
+        jp nc,updatescr_scroll_prall
+        add hl,bc
+        ld c,l;1
+;c=scroll amount (in chars)
+        ld a,c
+        ld (scrollleft_Nchars),a
+        push bc
         call setscrpg
-        ld hl,0x4000+(TRACKX/2)+(SCRTRACKWID/2)-1
+        pop bc
+        ld hl,0x4000+(TRACKX/2);+(SCRTRACKWID/2)-1
         ld b,SCRNTRACKS
         ld hx,0 ;track
 scrollleft0
         push bc
-        ld b,8
-scrollleft0p
         push hl
-        xor a
-        dup SCRTRACKWID/2-1
-        rld
-        dec l
-        edup
-        rld
+        call scrollleft ;scrollleft_rld
         pop hl
-        inc h
-        djnz scrollleft0p
 ;обновить бар слева
         push hl
-        ld a,h
-        sub 8
-        ld d,a
-        ld a,l
-        sub SCRTRACKWID/2
-        ld e,a
+        ld d,h
+        ld e,l
+        dec e
         ld c,0x01
         ld a,(lefttime)
         sub 8
@@ -320,31 +487,65 @@ scrollleft0p
         call prtrack_gettype ;uses hx
         pop hl
         push hl
-        ld a,h
-        sub 8
-        ld d,a
-        ld e,l
+        ld d,h
+        ld a,l
+        add a,SCRTRACKWID/2-1
+        ld e,a
         ld hl,(lefttime)
         ld bc,SCRTRACKWID-1
         add hl,bc
+scrollleft_Nchars=$+2
         ld bc,1*256+0xf0
 ;de=scr
 ;hx=track
 ;c=0x0f/0xf0
 ;b=SCRTRACKWID
 ;hl=time
+        push bc
         push de
+        push bc
+        ;jr $
+        ld a,c
+        dec b
+        jr z,scrollleft_beforeprtrack0q
+scrollleft_beforeprtrack0
+        dec hl
+        rlca
+        rlca
+        rlca
+        rlca
+        jr c,$+3
+        dec e
+        djnz scrollleft_beforeprtrack0
+scrollleft_beforeprtrack0q
+        pop bc
+        ld c,a
         call prtrack_Nchars
         pop de
         call setscrpg
-        ld c,0x01
         ld a,(lefttime)
         add a,SCRTRACKWID-8
         ld l,a
+        pop bc ;ld b,1
+        ld c,0x01
+scrollleft_prbars0
+        push de
+        ld a,l
         and 7
-        call prbar_or_nobar        
+        call prbar_or_nobar
+        pop de
+        dec l
+        ld a,c
+        rlca
+        rlca
+        rlca
+        rlca
+        ld c,a
+        jr nc,$+3
+        dec e
+        djnz scrollleft_prbars0
         pop hl
-        call downhl_afterinch
+        call nextchrline_hl
         pop bc
         inc hx ;track
         dec b
@@ -353,29 +554,35 @@ scrollleft0p
         jp updatescr_scroll_noprall
 
 updatescr_scroll_right
+        xor a
+        sub l
+        ld l,a
+        sbc a,h
+        sub l
+        ld h,a ;hl=-hl
+        ld bc,9
+        or a
+        sbc hl,bc
+        jp nc,updatescr_scroll_prall
+        add hl,bc
+        ld c,l;1
+;c=scroll amount (in chars)
+        ld a,c
+        ld (scrollright_Nchars),a
+        push bc
         call setscrpg
+        pop bc
         ld hl,0x4000+(TRACKX/2)
         ld b,SCRNTRACKS
         ld hx,0 ;track
 scrollright0
         push bc
-        ld b,8
-scrollright0p
         push hl
-        xor a
-        dup SCRTRACKWID/2-1
-        rrd
-        inc l
-        edup
-        rrd
+        call scrollright ;scrollright_rrd
         pop hl
-        inc h
-        djnz scrollright0p
 ;обновить бар слева (вне поля скролла)
         push hl
-        ld a,h
-        sub 8
-        ld d,a
+        ld d,h
         ld e,l
         push de
         dec e
@@ -390,24 +597,42 @@ scrollright0p
         call prtrack_gettype ;uses hx
         pop de
         ld hl,(lefttime)
+scrollright_Nchars=$+2
         ld bc,1*256+0x0f
 ;de=scr
 ;hx=track
 ;c=0x0f/0xf0
 ;b=SCRTRACKWID
 ;hl=time
+        push bc
         push de
         call prtrack_Nchars
         pop de
         call setscrpg
-        ld c,0x10
         ld a,(lefttime)
         add a,1-8
         ld l,a
+        pop bc;ld b,1
+        ld c,0x10
+scrollright_prbars0
+        push de
+        ld a,l
         and 7
         call prbar_or_nobar
+        pop de
+        inc l
+        ld a,c
+        rlca
+        rlca
+        rlca
+        rlca
+        ld c,a
+        jr c,$+3
+        inc e
+        djnz scrollright_prbars0
+        
         pop hl
-        call downhl_afterinch
+        call nextchrline_hl
         pop bc
         inc hx ;track
         dec b

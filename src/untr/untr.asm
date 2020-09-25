@@ -3,7 +3,7 @@
 
 freemem_start=0x8000
 ;tracks=freemem_start
-MAXTIME=4096
+MAXTIME=65536;4096
 NTRACKS=14
 ;tracks_sz=MAXTIME*NTRACKS
 SCRNTRACKS=14
@@ -737,6 +737,11 @@ checkeof
 
 untr_pgdown
         ld hl,(curtime)
+         ;inc hl
+         ;inc hl
+         ;inc hl
+         ;inc hl
+         ;inc hl
         ld a,l
         and 0xf8
         ld l,a
@@ -788,6 +793,10 @@ untr_pgup
         or l
         ret z
         dec hl
+         ;dec hl
+         ;dec hl
+         ;dec hl
+         ;dec hl
         ld a,l
         and 0xf8
         ld l,a
