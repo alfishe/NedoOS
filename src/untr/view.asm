@@ -1,11 +1,16 @@
+prchardig
+        push de
+        ;push hl
+        ld h,digfont/256
+        jr prchar_h
 prcharnote
         push de
-        push hl
+        ;push hl
         ld h,notefont/256
         jr prchar_h
 prchar
         push de
-        push hl
+        ;push hl
         ld h,font/256
 prchar_h
         ld l,a
@@ -26,7 +31,7 @@ prchar_h
         and c
         xor (hl)
         ld (de),a
-        pop hl
+        ;pop hl
         pop de
         push bc
         call setpgroots
@@ -86,7 +91,9 @@ prtext0
         inc hl
         cp 13
         jr z,prtext_cr
+        push hl
         call prchar
+        pop hl
         jr prtext0
 prtext_cr
 prtext_cr_c=$+1
@@ -217,8 +224,10 @@ prchar48ega_hxoncolor0
         align 256
 font
         incbin "64qua.fnt"
-notefont
-        ds 2048
+notefont=0x6000
+        ;ds 2048
+digfont=0x6800
+        ;ds 2048
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; high level view ;;;;;;;;;;;;;;;;;;;;;;;;
 updatescr
@@ -239,14 +248,13 @@ untr_needredraw=$+1
 ;TODO обновлять только треки, которые изменились
         ld de,0x4000+(TRACKX/2)
         ld b,SCRNTRACKS
-        ld c,0
+        ld hx,0 ;track
 updatescr_tracks0
         push bc
         push de
-        ld hx,c ;track
-        ld a,c ;track
         ld hl,(lefttime)
-        call tracktime_toaddr
+        ;ld a,c ;track
+        ;call time_totrackshift
         ld c,0x0f
         call prtrack
         pop de
@@ -258,9 +266,9 @@ updatescr_tracks0
          add a,8
          ld d,a
         pop bc
-        inc c
+        inc hx ;track
         djnz updatescr_tracks0
-        
+
 ;TODO показывать время только при скролле (по одной цифре)
         ld de,0x48c0+(TRACKX/2)
         ld b,SCRTRACKWID
@@ -291,11 +299,13 @@ updatescr_time0
         add a,0xa0
         adc a,0x40
 updatescr_time0_skip
+        push hl
         call prchar
+        pop hl
         inc hl
         inc c
         djnz updatescr_time0
-        
+
         ret
 
 prchannels
@@ -350,19 +360,22 @@ prtrack
         ld hl,prcharnote
         cp CHNTYPE_NOTES
         jr z,$+5
-         ld hl,prchar
+         ld hl,prchardig
         ld (prtrack_prproc),hl
         pop hl
 
         push de
         ld b,SCRTRACKWID
 prtrack0
+        push hl
         push de
-        ld a,hx
-        call peekaddr
+        ld a,hx ;track
+        call tracktime_totrackpartindex ;out: a=track, hl=index, lx=part
+        call peektrackpartindex
         pop de
 prtrack_prproc=$+1
         call prcharnote
+        pop hl
          inc hl
         djnz prtrack0
         pop de
@@ -481,9 +494,15 @@ prbar_solid
 gennotefont
         ld hl,notefont
         ld de,notefont+1
-        ld bc,2048-1
+        ld bc,2*2048-1 ;digfont тоже
         ld (hl),l;0
         ldir
+        
+        ld hx,font/256
+        ld de,digfont+1
+        ld hl,tdigfont
+        ld bc,62*256+8
+        call gennotefont120
         
         ld e,NOTE_LOWEST
         ld c,7
@@ -529,4 +548,8 @@ gennotefont121
         ret
 
 tnotefont
+;в шрифте начиная с кода 1
         db "CcDdEFfGgAaB"
+tdigfont
+;в шрифте начиная с кода 1
+        db "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"

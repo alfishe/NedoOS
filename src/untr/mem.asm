@@ -1,3 +1,6 @@
+;4000: 64 канала(H) * 64 позиции(L) = 4096 треков
+;8000..ffff: dynamic memory
+
 BIGENDIAN=0 ;0=LSB,HSB
 
 setscrpg
@@ -10,112 +13,89 @@ pgroots=$+1
         SETPG16K
         ret
 
-pokeaddr_c_tracka
-        push af
-        ld hl,(curtime)
-        call tracktime_toaddr
-        pop af
-;hl=addr
+pokecurtime_curtrack_c
+;c=data
+        ld a,(curtrack)
+;pokecurtime_tracka_c
 ;a=track
-pokeaddr
+;c=data
+        ld hl,(curtime)
+        call tracktime_totrackpartindex
+poketrackpartindex_c
+;hl=index
+;lx=part
+;a=track
+;c=data
         ex de,hl
-        call getroot ;ld hl,0x8000 ;root
-        call writetopoi ;keeps de
+        call getroot ;out: hl=root
+        call writetopoi_c ;keeps de ;c<->mem
         ex de,hl
+;c<->mem
         ret
 
-getaddr_tracka
-        ld hl,(curtime)
-        call tracktime_toaddr
-        ret
-
-peekaddr_tracka
-        push af
-        ld hl,(curtime)
-        call tracktime_toaddr
-        pop af
-;hl=addr
+peekcurtime_tracka
 ;a=track
-peekaddr
+        ld hl,(curtime)
+        call tracktime_totrackpartindex
+peektrackpartindex
+;hl=index
+;lx=part
+;a=track
         ex de,hl
-        call getroot ;ld hl,0x8000 ;root
+        call getroot ;out: hl=root
         call readfrompoi ;keeps de
         ex de,hl
         ret
 
-tracktime_toaddr
-;a=track
-;hl=time
-        if 1==1
-;пусть пока треки лежат с 0x8000,0x8800,... (это смещения, а не физ.адреса)
-        ;add a,a
-        ;add a,a
-        ;add a,a
-        ;add a,0x80
-        ;add a,h
-        ;ld h,a
-        else
-        ld d,h
-        ld e,l
-        add hl,hl
-        add hl,de
-        add hl,hl ;*6
-        add hl,de ;*7
-        add hl,hl ;*14
-        ld de,tracks
-        add hl,de
-        ld e,a
-        ld d,0
-        add hl,de
-        endif
-;hl=addr
-        ret
-
 getroot
+;lx=part
 ;a=track
-        if 1==1
-;берём root в зависимости от номера канала и номера позиции
         add a,0x40
         ld h,a ;номер канала
-        ld l,0*4 ;TODO номер позиции (пока 0)
-        else
+        ;ld l,0*4
+        ld a,lx ;part
         add a,a
         add a,a
-        ld hl,trackroots
-        add a,l
         ld l,a
-        jr nc,$+3
-        inc h
-        endif
+;hl=root
         ret
 
-        align 4
-trackroots
-        ds NTRACKS*4
-
 getendaddr
-;TODO хранить длину трека и корректировать её при вводе, удалении символов, ins, del
-        if 1==1
-;пусть пока треки лежат с 0x8000,0x8800,... (это смещения, а не физ.адреса)
-        ;ld a,(curtrack)
-        ;add a,a
-        ;add a,a
-        ;add a,a
-        ;add a,0x80+7
-        ;ld d,a
-        ;ld e,0xff
-        call getroot ;ld hl,0x8000 ;root
+;lx=part
+;a=track
+        call getroot ;out: hl=root
         ld de,0xffff
-        call findleft ;out: de=nonempty shift (or 0), a=data
-        else
-        ld hl,tracks+(MAXTIME-1)*NTRACKS
-        ld a,(curtrack)
-        ld e,a
-        ld d,0
-        add hl,de
-        ex de,hl
-        endif
+        call findleft ;out: de=nonempty index (or 0), a=data
 ;de=addr ;последний байт трека
+        ret
+
+tracktime_totrackpartindex
+;a=track
+;hl=time
+;если канал подписан на ордер, то найти на месте или влево цифру ордера, index=(time-digittime)
+;иначе index=time
+        push af
+        or a ;TODO канал подписан на ордер?
+        jr z,tracktime_toindexpart_noorder ;part=a=0
+        ;push af
+         push de
+        push hl
+        ex de,hl
+        xor a ;TODO номер канала ордера
+        ld lx,0 ;у ордера всегда берём дефолтную часть (part=0), т.к. ордер не подчиняется ордерам
+        call getroot
+        call findleft ;out: de=nonempty index (or 0), a=data (1..62 or 0)
+        pop hl ;time
+        or a
+        sbc hl,de ;time-digittime
+         pop de
+        ;pop af
+tracktime_toindexpart_noorder
+        ld lx,a
+        pop af
+;hl=index
+;lx=part
+;a=track
         ret
 
 ;пусть номер трека и смещение в треке - это функция от номера канала и времени (зависит от ордера, если канал привязан к ордеру). всего 64 канала * 64 позиции = 4096 треков (одна страница адресов)
@@ -147,8 +127,8 @@ getendaddr
         endm
 
 readfrompoi
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift (kept)
+;hl=track root (4 bytes: left poi, right poi)
+;de=index (kept)
         BITINC_D 7
         HLFROMHL
         ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)
@@ -228,10 +208,11 @@ readfrompoi
         ld l,a
         endm
 
-writetopoi
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift (kept)
-;c=byte
+writetopoi_c
+;hl=track root (4 bytes: left poi, right poi)
+;de=index (kept)
+;c=data
+;out: c<->mem
         ld a,c
         or a
         jp z,writetopoi_space
@@ -352,8 +333,8 @@ writetopoi_create2 ;создать узел из 4 байт
         endm
         
 writetopoi_space
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
 ;умеет удалять пустое поддерево
         WRITETOPOI_SPACE_D 7,writetopoi_space_nodel15
         WRITETOPOI_SPACE_D 6,writetopoi_space_nodel14
@@ -457,9 +438,9 @@ writetopoi_space_nodel15
 
 ;найти ближайший непустой байт на месте или слева (для ордера)
 findleft
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
-;out: de=nonempty shift (or 0), a=data
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+;out: de=nonempty index (or 0), a=data
 ;если на месте непустой байт, то выходим
 ;иначе (мы на пустом поддереве):
 ;если мы на правом поддереве, то проверить левое, иначе подняться выше (если мы уже на корне, вернуть 0)
@@ -735,13 +716,12 @@ findleft_ret2
 
 ;найти ближайший непустой байт на месте или справа (для громкости и т.п.)
 findright
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
-;out: de=nonempty shift (or 0xffff), a=data
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+;out: de=nonempty index (or 0xffff), a=data
 ;если на месте непустой байт, то выходим
 ;иначе (мы на пустом поддереве):
 ;если мы на левом поддереве, то проверить правое, иначе подняться выше (если мы уже на корне, вернуть 0xffff)
-;TODO переделать с inc l,l,l вначале и зеркально? не получится - ссылки в памяти лежат на начало
         BITINC_D 7
 findright_findright15 ;мы в нужном месте узла из 65536 байт ;найти de
         push hl
@@ -1016,7 +996,6 @@ findright_ret2
         add hl,sp
         ld sp,hl
         ret
-
 
 newmem
 ;взять первый элемент списка свободных

@@ -44,6 +44,7 @@ cmd_begin
         ld bc,0x2ff
         ld (hl),7
         ldir
+        call gennotefont
         call setpgroots
 
         ld hl,tracks
@@ -99,8 +100,6 @@ refrq2
         dec d
         inc e
         jr nz,refrq2
-
-        call gennotefont
 
 ;for example: 0=bass/pad, 2=tone, 5=drum
         ld ix,Adrum
@@ -196,8 +195,6 @@ mainloop_nokey
         jp z,untr_backspace
         cp ' '
         jp z,untr_space
-        cp 'a'
-        jp z,untr_pause
         cp key_esc
         jp z,untr_quit
         
@@ -208,21 +205,36 @@ mainloop_nokey
         cp CHNTYPE_NOTES
         jr z,enternote        
         pop af
+;ввод цифры 0..9A..Za..z -> 1..62
+        sub '0'
+        cp 10
+        ld c,1
+        jr c,enterdigok
+        sub 'A'-'0'
+        cp 26
+        ld c,1+10
+        jr c,enterdigok
+        sub 'a'-'A'
+        cp 26
+        ld c,1+10+26
+        ret nc ;wrong digit!
+enterdigok
+        add a,c
         ld c,a
-        ld a,(curtrack)
-        call pokeaddr_c_tracka
+        call pokecurtime_curtrack_c
         jr untr_afternotekey
         
 enternote
         pop af
+        cp 'a'
+        jp z,untr_pause
         
         ld hl,tnotekeys
         ld bc,3*12
         cpir
         ret nz
          inc c ;add c,NOTE_LOWEST
-        ld a,(curtrack)
-        call pokeaddr_c_tracka
+        call pokecurtime_curtrack_c
 
         call playnote_initchannels
 
@@ -265,7 +277,9 @@ playnote_initchannels0
         ld a,hy
 ;a=track
         ;ld a,(ix+chn.channel_in)
-        call peekaddr_tracka
+        push ix
+        call peekcurtime_tracka
+        pop ix
         pop hl
          cp NOTE_SPACE
          jr z,playnote_initchannels0pause
@@ -303,7 +317,9 @@ playenter_initchannels0
         ld a,hy
 ;a=track
         ;ld a,(ix+chn.channel_in)
-        call peekaddr_tracka
+        push ix
+        call peekcurtime_tracka
+        pop ix
         pop hl
         call initchnnote ;устанавливает сэмпл, как указано в канале
 playenter_initchannels0skip
@@ -452,15 +468,17 @@ initchnnote_pause
 
 untr_pause
         ld c,NOTE_PAUSE
-        ld a,(curtrack)
-        call pokeaddr_c_tracka
+        call pokecurtime_curtrack_c
         jp untr_afternotekey
 
 untr_space
         ld c,NOTE_SPACE
-        ld a,(curtrack)
-        call pokeaddr_c_tracka
+        call pokecurtime_curtrack_c
         jp untr_afternotekey
+
+untr_del_popret
+        pop hl
+        ret
 
 untr_backspace
         ld hl,(curtime)
@@ -468,16 +486,15 @@ untr_backspace
         or l
         ret z
         call untr_left
-
-untr_del_popret
-        pop hl
-        ret
-
+        ;jp untr_del
 untr_del
         ld a,(curtrack)
-        call getaddr_tracka
+        ld hl,(curtime)
+        call tracktime_totrackpartindex
+;hl=index
+;lx=part
+;a=track
         push hl ;hl=curaddr
-        ld a,(curtrack)
         call getendaddr ;de=end or 0
         ex de,hl
         pop de ;de=curaddr
@@ -503,13 +520,12 @@ untr_del
         
         ;ld de,-NTRACKS
         ld c,NOTE_SPACE
+;hl=index
+;lx=part
 untr_del0
-        ;ld a,(hl)
-        ;ld (hl),c
-        ;ld c,a
         push de
         ld a,(curtrack)
-        call pokeaddr ;c<->mem(hl)
+        call poketrackpartindex_c ;c<->mem(hl)
         pop de
          dec hl ;add hl,de
         djnz untr_del0
@@ -520,10 +536,13 @@ untr_del0
 
 untr_ins
         ld a,(curtrack)
-        call getaddr_tracka
+        ld hl,(curtime)
+        call tracktime_totrackpartindex
+;hl=index
+;lx=part
+;a=track
         push hl ;hl=curaddr
         push hl ;hl=curaddr
-        ld a,(curtrack)
         call getendaddr ;de=end or 0
         ex de,hl
         pop de ;de=curaddr
@@ -548,13 +567,12 @@ untr_ins
 
         ;ld de,NTRACKS
         ld c,NOTE_SPACE
+;hl=index
+;lx=part
 untr_ins0
-        ;ld a,(hl)
-        ;ld (hl),c
-        ;ld c,a
         push de
         ld a,(curtrack)
-        call pokeaddr ;c<->mem(hl)
+        call poketrackpartindex_c ;c<->mem(hl)
         pop de
          inc hl ;add hl,de
         djnz untr_ins0
@@ -564,7 +582,6 @@ untr_ins0
 
 untr_quit
         QUIT
-
 
 checknotekeys_pressed
         ld a,0x81
@@ -587,14 +604,13 @@ untr_home
 ;FIXME: пока тут костыль - тест поиска непустого на месте или влево
         ld a,(curtrack)
         ld hl,(curtime)
-        call tracktime_toaddr
-        ex de,hl
+        call tracktime_totrackpartindex
+        ex de,hl ;de=index
         ld a,(curtrack)
-        call getroot ;ld hl,0x8000 ;root
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
-        call findleft
-;out: de=nonempty shift (or 0), a=data
+        call getroot ;out: hl=root
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+        call findleft ;out: de=nonempty index (or 0), a=data
         ex de,hl
         ld a,h
         and 7
@@ -607,14 +623,14 @@ untr_end
 ;FIXME: пока тут костыль - тест поиска непустого на месте или вправо
         ld a,(curtrack)
         ld hl,(curtime)
-        call tracktime_toaddr
+        call tracktime_totrackpartindex
         ex de,hl
         ld a,(curtrack)
         call getroot ;ld hl,0x8000 ;root
-;hl=track pointer (4 bytes: left poi, right poi)
-;de=timeshift
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
         call findright
-;out: de=nonempty shift (or 0xffff), a=data
+;out: de=nonempty index (or 0xffff), a=data
         ex de,hl
         ld a,h
         and 7

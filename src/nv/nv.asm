@@ -22,6 +22,8 @@ _HINTCOLOR0=0x0600;5*8
 DIRPAGES=16
 FIRSTDIRPAGEFORRIGHTPANEL=128
 
+NDRIVES=15
+
 catbuf_left=0xc000
 catbuf_right=0xc000
 FILES_POINTERS_left=0xc000;0x3700
@@ -650,7 +652,7 @@ readdir_keepcursor
 		;cp '.'
 		;jp z,loaddir_onedot
 loaddir0
-        call loaddir_filinfo
+        call loaddir_filinfo ;keep ix!!!
         jp c,loaddirq
         jr z,loaddir0
         
@@ -794,11 +796,14 @@ loaddirq
 	jp nv_setcursor_zero
 
 loaddir_filinfo
+;keep ix!!!
         push bc
 	push de
-	push hl        
+	push hl
+        push ix
         ld de,filinfo
         OS_READDIR
+        pop ix
         pop hl
         pop de
         pop bc
@@ -984,7 +989,7 @@ editcmddirbackfind0
 editcmddirback_ok
 ;hl=номер элемента директории
         call nv_setcursor_hl ;установить на него курсор
-        
+
 	call drawpanel_with_files
         jp editcmd_readprompt_setendcmdx
 
@@ -995,7 +1000,7 @@ editcmd_left
         dec a
         ld (curcmdx),a
         ret
-      
+
 editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
@@ -1004,7 +1009,7 @@ editcmd_right
         inc a
         ld (curcmdx),a
         ret
-      
+
 editcmd_pageDown
 	call count_filecursor_y
 	cp CONST_HGT_TABLE-1+firstfiley -1 ;???
@@ -1202,7 +1207,7 @@ editcmd_enter_runcmd
         OS_SETSYSDRV ;TODO каталог cmd
         ld hl,cmd_filename
         call copy_to_fcb_filename
-        
+
         ld hl,cmdbuf
 loadandrun_waitpid
 ;hl=cmdbuf или cmdprompt (для loadandrun_restcmd)
@@ -1254,7 +1259,6 @@ editcmd_enter_runfile_com
 ;hl=rest of command line
         jp loadandrun_waitpid
 
-	;display "editcmd_enter_runfile_nocom",editcmd_enter_runfile_nocom
 editcmd_enter_runfile_nocom
         ld hl,runfile_nocomq
         push hl
@@ -1313,9 +1317,6 @@ runfile_nocom_recodeext0
         ret nz ;error
         ld a,b
         ld (curhandle),a
-        ;call copy_to_fcb_filename
-        ;call nv_openfcb ;autopush nv_closefcb
-        ;ret nz ;error
         ld iy,file_buf_end
 runfile_nocom_extloop
         call checkoneext ;c=ошибки, z=нет ошибок
@@ -1338,7 +1339,7 @@ runfile_nocom_extok
         call nv_closehandle
         xor a
         ret ;z
-        
+
 runfile_nocomq
         ld hl,cmdbuf
         ld (hl),0
@@ -1382,7 +1383,7 @@ checkcomma
         READBYTE_A
         cp ','
         ret ;TODO проверить EOF
-        
+
 loadtoendline
 ;hl=buf
         READBYTE_A
@@ -1412,10 +1413,6 @@ readbyte_readbuf
         push ix
         ld de,file_buf
         push de
-        ;OS_SETDTA ;set disk transfer address = de
-        ;ld de,fcb
-        ;OS_FREAD
-        ;cp 128 ;128=no bytes read
         ld hl,128
         call readcurhandle
         ld a,h
@@ -1431,27 +1428,38 @@ editcmd_enter_runfile_hobeta
 hobetarunner=0x4100
         ld e,6 ;textmode
         OS_SETGFX
-        ld a,(user_scr0_low) ;ok
-	sub 4-1 ;ld a,#ff-4 ;pgkillable
-	SETPG16K
 
-        ld hl,washobetarunner
-        ld de,hobetarunner
-        ld bc,hobetarunner_sz
-        ldir
-        
-;cmdpgscreen0_0=$+1
-;	ld a,#ff-1
         ld a,(user_scr0_low) ;ok
 	SETPG32KLOW
         inc a ;ld a,#ff-0
 	SETPG32KHIGH
-;0x4000 : pg4
+;0x4000 : pgcode4000 ;(pg4 может запортиться от стека!!! причём не только этой задачи!!!)
 ;0x8000 : pg1
 ;0xc000 : pg0
-
         call loadhobeta
         ret nz ;error
+
+        di
+        ld a,(user_scr0_low) ;ok
+	sub 4-1 ;ld a,#ff-4 ;pgkillable
+	SETPG32KLOW
+        ld hl,0x4000
+        ld de,0x8000
+        ld bc,0x4000
+        ldir ;copy pgcode4000 -> pg4
+
+        ld a,(user_scr0_low) ;ok
+	SETPG32KLOW
+        ;ld a,(user_scr0_low) ;ok
+	sub 4-1 ;ld a,#ff-4 ;pgkillable
+	SETPG16K
+        ld hl,washobetarunner
+        ld de,hobetarunner
+        ld bc,hobetarunner_sz
+        ldir
+;0x4000 : pg4 (может запортиться от стека!!! причём не только этой задачи!!!)
+;0x8000 : pg1
+;0xc000 : pg0
         ld hl,0x6000
         ld bc,(0x6000-17+11) ;len
         add hl,bc
@@ -1465,9 +1473,7 @@ hobetarunner=0x4100
         lddr
 	jp hobetarunner
 
-loadhobeta        
-        ;call nv_openfcb ;autopush nv_closefcb
-        ;ret nz ;error
+loadhobeta
 	ld hl,fcb_filename
         ld de,filenametext
         push de
@@ -1481,13 +1487,6 @@ loadhobeta
         ld de,0x6000-17
         ld hl,-(0x6000-17)
         OS_READHANDLE
-        ;OS_SETDTA
-;editcmd_enter_runfile_hobeta_fcb0      
-        ;ld de,fcb
-        ;OS_FREAD
-        ;or a
-        ;jr z,editcmd_enter_runfile_hobeta_fcb0
-;editcmd_enter_runfile_hobeta_fcbq
         call nv_closehandle
         xor a ;no error
         ret ;call nv_closefcb
@@ -1497,8 +1496,6 @@ loadandrun
 ;out: nz=error, e=id
 ;load file in fcb from system current dir with parameters in tcmd, then set curpaneldir and run
         ld (loadandrun_restcmd),hl
-        ;call nv_openfcb ;autopush nv_closefcb
-        ;ret nz ;error
 	ld hl,fcb_filename
         ld de,filenametext
         push de
@@ -1606,8 +1603,7 @@ seldrv_mainloop_nokey
         ret z
 	cp 'a'
 	jr c,seldrv_cursor
-	cp 'p'
-	;jr nc,seldrv_cursor
+	cp 'a'+NDRIVES;'p'
 	jr c,seldrv_selletter
 seldrv_cursor
         ld bc,seldrv_mainloop
@@ -1644,26 +1640,12 @@ seldrv_ok0
         ld (ix+PANEL.dir+1),':'
         ld (ix+PANEL.dir+2),'/'
         ld (ix+PANEL.dir+3),0
-;	ld hl,ix
-;	ld de,PANEL.dir
-;	add hl,de
-;	ex hl,de
-;	OS_CHDIR
-;	or a
-;        ret z
-;	ld de,_COLOR_RED
-;	call nv_setcolor
-;	ld hl,windrverr
-;	call prwindow_waitkey
-;	ld de,_COLOR
-;	call nv_setcolor
-;	jp seldrv_redraw_mainloop
 	ret
 
 seldrv_down
         ld a,(hl)
         inc a
-        cp 15; drives
+        cp NDRIVES;15
         ret z
         ld (hl),a
         ret
@@ -1693,9 +1675,9 @@ editcmd_F4
         ;ld de,cmdbuf
         ;ld hl,fcb_filename
         ;OS_PARSEFNAME ;de->hl
-        
+
         OS_SETSYSDRV ;TODO директория texted
-        
+
         ld hl,texted_filename
         call copy_to_fcb_filename
 
@@ -1704,7 +1686,7 @@ editcmd_F4
         ld hl,cmdprompt
 ;load file in fcb from system current dir with parameters in tcmd, then set curpaneldir and run
         jp loadandrun_waitpid
-        
+
 editcmd_9
         call ifcmdnonempty_typedigit
 	;ld e,1
@@ -1859,7 +1841,7 @@ editcmd_8_0
 	ld hl,proc_del_file
 	ld ix,(curpanel)
 	jp processfiles
-        
+
 proc_del_file
 	bit 0,(hl) ;marked?
 	ret z
@@ -1911,7 +1893,6 @@ proc_del_file_batch
 	call nz,nv_copydir_add
 	pop af
 	jp nz,nv_copydir_add ;twice to remove empty dirs
-
         ret
 
 editcmd_5 ;copy
@@ -1959,7 +1940,7 @@ editcmd_5_0
 
         ld hl,0
         ld (filescopied),hl
-        
+
 ;        ld de,PROGRESBARWINXY
 ;        ld bc,PROGRESBARWINHGTWID
 ;        call prwin
@@ -2003,17 +1984,6 @@ nv_adddirtopath_detohl ; hl=path de=dirname; out - last component of path
 	ret
         endif
 
-        if 1==0
-nv_strcopy_hltode
-;out: hl,de at terminator
-	ld a,(hl)
-	ld (de),a
-	or a
-	ret z
-	inc hl 
-	inc de
-	jr nv_strcopy_hltode
-        endif
 strcopy
 ;hl->de
 ;out: hl,de after terminator
@@ -2190,40 +2160,7 @@ nv_batch1
 nv_batch_proc=$+1
 	call proceditcmd_copy_fcb
 	jr nv_batch1
-        
-        if 1==0
-nv_batch_nocopydir
-;цикл удаления всех файлов внутри директории. После каждого файла перезапускать сканирование каталога, иначе зацикливается?
-	ld de,dir_buf
-	OS_CHDIR ;;
-	or a
-	jr nz,nv_batch ;can't open src dir
-;        display "nv_batchdel1 ",$
-;nv_batchdel1
-	ld de,fcb
-	OS_SETDTA
-	ld de,fcbmask
-	OS_FSEARCHFIRST
-	or a
-	jp nz,nv_batch
-	ld de,fcb
-	OS_SETDTA
-	ld de,fcbmask
-	OS_FSEARCHNEXT
-	or a
-	jp nz,nv_batch ;skip . and ..
-        display "nv_batchdel1 ",$
-nv_batchdel1
-	ld de,fcb
-	OS_SETDTA
-	ld de,fcbmask
-	OS_FSEARCHNEXT
-	or a
-	jr nz,nv_batch_nofiles
-	call proc_del_file_batch
-	jr nv_batchdel1
-        endif
-        
+
 nv_batch_nofiles
 	or a
 	ld hl,(processfiles_proc)
@@ -2343,7 +2280,7 @@ cmd_copy0
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         OS_WRITEHANDLE
         jr cmd_copy0
-        
+
 cmd_copy_close_file1
 cmd_copy_close_file1_handle=$+1
         ld b,0
@@ -2457,7 +2394,7 @@ _DIV0.
 	cpl
 	ld h,a
         ret
-        
+
 editcmd_0
         call ifcmdnonempty_typedigit
 editcmd_quit
@@ -2508,7 +2445,7 @@ editcmd_typeword_empty
 
 windrv
         dw 0x0003 ;de=yx
-        dw 256*(3+15)+28 ;0x0809 ;bc=hgt,wid
+        dw 256*(3+NDRIVES)+28 ;0x0809 ;bc=hgt,wid
         db "Drive",0
         db 3 ;next line
         db "  A: - 1st Floppy",0,3
@@ -2560,9 +2497,6 @@ wincopy
         db ' ' ;для typeword - перед tnewfilename
 tnewfilename
         ds 64 ;max filename size+terminator
-;        ds 12
-;        db 0
-;tnewfilename_sz=12
 
 winquit
         dw 0x0a1f ;de=yx
@@ -2682,12 +2616,12 @@ washobetarunner
 	disp hobetarunner ;in pgkillable
 ;$c loaded in pages 4,1,0
 ;only ATM2 ports here!
-	di
+	;di ;было выше
 	ld a,0x7f-5
         ld bc,0xbff7
 	out (c),a ;4,5,0
 	ld a,0x7f-4
-        ld bc,0xfff7
+        ld b,0xff;f7
 	out (c),a ;4,5,4
         ld hl,0xc000
         ld de,0x8000
@@ -2704,7 +2638,7 @@ washobetarunner
         ld bc,0xbff7
 	out (c),a
 	ld a,0x7f-1
-        ld bc,0xfff7
+        ld b,0xff;f7
 	out (c),a
         ld hl,0xc000
         ld de,0x8000
@@ -2713,38 +2647,41 @@ washobetarunner
 	ld a,0x7f-0+0x80
 	ld bc,0xfff7
 	out (c),a
-	ld a,0x00
+	xor a;ld a,0x00
 	ld bc,0x7ffd
 	out (c),a
 	ld a,0x81 ;128 basic (with 7ffd)
 	ld bc,0x3ff7
 	out (c),a
 	ld a,0x7f-5
-	ld bc,0x7ff7
+	ld b,0x7f;f7
 	out (c),a
 ;128: pages DOS,5,2,0(7ffd)
 	ld a,0x10
 	ld bc,0x7ffd
 	out (c),a
-;48: pages 2,4,4,4
+;48: pages A,4,4,4
 	ld a,0x7f-5
 	ld bc,0x7ff7
 	out (c),a
 	ld a,0x7f-2
-        ld bc,0xbff7
+        ld b,0xbf;f7
 	out (c),a
 	ld a,0x7f-0+0x80
-        ld bc,0xfff7
+        ld b,0xff;f7
 	out (c),a
 	ld a,0x83 ;48 basic switchable to DOS
-	ld bc,0x3ff7
+	ld b,0x3f;f7
 	out (c),a
 ;48: pages DOS,5,2,0(7ffd)
-        
+
         LD A,0b10101011 ;6912
 	ld bc,0xff77 ;shadow ports off, palette off
         out (c),a
 	ld sp,0x6000
+        ld iy,23610
+        ld a,0xc9
+        ld (0x5cc2),a
 	ei
 hobetarunner_jp=$+1
 	jp 0x6000
@@ -2760,7 +2697,7 @@ emptypath=$-1
 
 filinfo
         ds FILINFO_sz
-        
+
         include "nvsort.asm"
         include "heapsort.asm"
 
