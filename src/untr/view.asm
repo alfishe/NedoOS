@@ -256,6 +256,7 @@ setneedprtypes
 
 updatescr
 ;обновляем, если изменился lefttime или toptrack(TODO)
+;при смене toptrack также перерисовать описатели треков
         ld hl,(lefttime)
 oldlefttime=$+1
         ld de,0x8000
@@ -264,10 +265,10 @@ oldlefttime=$+1
         sbc hl,de
         jr nz,updatescr_scroll
 ;иначе обновляем только при наличии needredraw? TODO убрать этот флаг?
-untr_needredraw=$+1
-        ld a,0
-        or a
-        ret z
+;untr_needredraw=$+1
+;        ld a,0
+;        or a
+;        ret z
         jp updatescr_scrollq
 updatescr_scroll
 ;hl=lefttime-oldlefttime
@@ -404,7 +405,7 @@ scrollright0p
         add a,1-8
         ld l,a
         and 7
-        call prbar_or_nobar        
+        call prbar_or_nobar
         pop hl
         call downhl_afterinch
         pop bc
@@ -453,9 +454,10 @@ updatescr_time0_skip
         inc hl
         inc c
         djnz updatescr_time0
+
 updatescr_scrollq
-        xor a
-        ld (untr_needredraw),a
+        ;xor a
+        ;ld (untr_needredraw),a
         ld de,0x4001
         ld c,0x0f
         ld hl,ttypes
@@ -492,7 +494,6 @@ updatescr_tracks0
 ;        ld c,0x0f
 ;        call prtrack
 ;updatescr_prcurtrackq
-
 
         ret
 

@@ -156,7 +156,7 @@ refrq2
         call initchnnote_pause
 
 ;;;;;;;;;;;;;;;;;;;;;
-        call setneedredraw
+        ;call setneedredraw
 mainloop
         call updatescr
         call prcurcur
@@ -225,7 +225,7 @@ enterdigok
         call pokecurtime_curtrack_c
 untr_afternotekey_alltracksiforder
         call setneedredraw_alltracksiforder
-        jp untr_right
+        jp untr_afternotekey;untr_right
         
 enternote
         pop af
@@ -239,7 +239,11 @@ enternote
          inc c ;add c,NOTE_LOWEST
         call pokecurtime_curtrack_c
 
+untr_afternotekey
         call playnote_inittracks
+
+        call setneedredraw_curtrack
+        call updatescr
 
 playnote0
         halt
@@ -249,8 +253,7 @@ playnote0
         
         call shutay
         
-untr_afternotekey
-        call setneedredraw
+        ;call setneedredraw
         jp untr_right
 
 playnote_inittracks
@@ -676,15 +679,15 @@ untr_up
         cp (hl)
         ret nc
         dec (hl)
-        jr setneedredraw
+        jp setneedprtypes ;setneedredraw
 
 setneedredraw_alltracksiforder
         ld a,(curtrack)
         or a
         call z,setneedpralltracks ;keep a!
-setneedredraw
-        ld a,1
-        ld (untr_needredraw),a ;forced redraw (even if lefttime has not changed)
+setneedredraw_curtrack
+        ;ld a,1
+        ;ld (untr_needredraw),a ;forced redraw (even if lefttime has not changed)
         ld a,(curtrack)
         call gettracktype
         set 7,(hl)
@@ -720,7 +723,7 @@ untr_down
         cp b
         ret c
         inc (hl)
-        jr setneedredraw
+        jp setneedprtypes;setneedredraw
 
 checkeof
         ld de,MAXTIME-1
