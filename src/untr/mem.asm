@@ -75,7 +75,12 @@ tracktime_totrackpartindex
 ;если канал подписан на ордер, то найти на месте или влево цифру ордера, index=(time-digittime)
 ;иначе index=time
         push af
-        or a ;TODO канал подписан на ордер?
+        push hl
+        call gettracktype
+        inc hl
+        ld a,(hl) ;номер ордера (0=нет)
+        pop hl
+        or a ;канал подписан на ордер?
         jr z,tracktime_toindexpart_noorder ;part=a=0
         ;push af
          push de

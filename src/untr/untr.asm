@@ -2,10 +2,10 @@
         include "../_sdk/sys_h.asm"
 
 freemem_start=0x8000
-tracks=freemem_start
-MAXTIME=1000
+;tracks=freemem_start
+MAXTIME=4096
 NTRACKS=14
-tracks_sz=MAXTIME*NTRACKS
+;tracks_sz=MAXTIME*NTRACKS
 SCRNTRACKS=14
 TRACKX=8
 SCRTRACKWID=64-TRACKX
@@ -47,13 +47,9 @@ cmd_begin
         call gennotefont
         call setpgroots
 
-        ld hl,tracks
-        ld de,tracks+1
-        ld bc,tracks_sz-1
-        ld (hl),NOTE_SPACE;0
-        ldir
-
         call initmem
+        ld c,1
+        call pokecurtime_curtrack_c ;set part 0 in the beginning
 
         ld hl,wasfrq
         ld de,tfrq
@@ -181,6 +177,10 @@ mainloop_nokey
         jp z,untr_up
         cp key_down
         jp z,untr_down
+        cp key_pgup
+        jp z,untr_pgup
+        cp key_pgdown
+        jp z,untr_pgdown
         cp key_home
         jp z,untr_home
         cp key_end
@@ -201,7 +201,8 @@ mainloop_nokey
         push af
 ;смотрим тип текущего канала
         ld a,(curtrack)
-        call getchntype
+        call gettracktype
+        and CHNTYPEMASK
         cp CHNTYPE_NOTES
         jr z,enternote        
         pop af
@@ -222,7 +223,9 @@ enterdigok
         add a,c
         ld c,a
         call pokecurtime_curtrack_c
-        jr untr_afternotekey
+untr_afternotekey_alltracksiforder
+        call setneedredraw_alltracksiforder
+        jp untr_right
         
 enternote
         pop af
@@ -236,7 +239,7 @@ enternote
          inc c ;add c,NOTE_LOWEST
         call pokecurtime_curtrack_c
 
-        call playnote_initchannels
+        call playnote_inittracks
 
 playnote0
         halt
@@ -250,12 +253,12 @@ untr_afternotekey
         call setneedredraw
         jp untr_right
 
-playnote_initchannels
+playnote_inittracks
         ld a,0x80 ;точно не совпадёт, так что будет retrigenv
         ld (chip0+chip.envtype),a
-        ld hl,channels
+        ld hl,tracks
         ld hy,0 ;track
-playnote_initchannels0
+playnote_inittracks0
         ld a,(hl) ;chntype
         inc a
         ret z
@@ -270,7 +273,7 @@ playnote_initchannels0
         ld a,b
         and c
         inc a
-        jr z,playnote_initchannels0skip
+        jr z,playnote_inittracks0skip
         ld hx,b
         ld lx,c
         push hl
@@ -282,20 +285,20 @@ playnote_initchannels0
         pop ix
         pop hl
          cp NOTE_SPACE
-         jr z,playnote_initchannels0pause
+         jr z,playnote_inittracks0pause
         call initchnnote ;устанавливает сэмпл, как указано в канале
-playnote_initchannels0skip
+playnote_inittracks0skip
         inc hy ;track
-        jr playnote_initchannels0
-playnote_initchannels0pause
+        jr playnote_inittracks0
+playnote_inittracks0pause
         call initchnnote_pause ;устанавливает сэмпл паузы
-        jr playnote_initchannels0skip
+        jr playnote_inittracks0skip
 
-playenter_initchannels
+playenter_inittracks
 ;инициализирует ноты в каналах в процессе проигрывания
-        ld hl,channels
+        ld hl,tracks
         ld hy,0 ;track
-playenter_initchannels0
+playenter_inittracks0
         ld a,(hl) ;chntype
         inc a
         ret z
@@ -310,7 +313,7 @@ playenter_initchannels0
         ld a,b
         and c
         inc a
-        jr z,playenter_initchannels0skip
+        jr z,playenter_inittracks0skip
         ld hx,b
         ld lx,c
         push hl
@@ -322,13 +325,13 @@ playenter_initchannels0
         pop ix
         pop hl
         call initchnnote ;устанавливает сэмпл, как указано в канале
-playenter_initchannels0skip
+playenter_inittracks0skip
         inc hy ;track
-        jr playenter_initchannels0
+        jr playenter_inittracks0
 
-playnote_playsamplechannels
-        ld hl,channels
-playnote_playsamplechannels0
+playnote_tracksplaysample
+        ld hl,tracks
+playnote_tracksplaysample0
         ld a,(hl) ;chntype
         inc a
         ret z
@@ -343,17 +346,17 @@ playnote_playsamplechannels0
         ld a,b
         and c
         inc a
-        jr z,playnote_playsamplechannels0skip
+        jr z,playnote_tracksplaysample0skip
         push hl
         ld hx,b
         ld lx,c
         call playsample
         pop hl
-playnote_playsamplechannels0skip
-        jr playnote_playsamplechannels0
+playnote_tracksplaysample0skip
+        jr playnote_tracksplaysample0
 
 playnote
-        call playnote_playsamplechannels
+        call playnote_tracksplaysample
         ld a,2
         call mixchn_all_channela
         push ix ;chn для C
@@ -386,11 +389,11 @@ playnote
         ret
 
 untr_play
-        call playnote_initchannels
+        call playnote_inittracks
 
 playenter0
         halt
-        call playenter_initchannels
+        call playenter_inittracks
         call playnote
         halt
         call playnote
@@ -410,7 +413,7 @@ mixchn_all_channela
 ;микшируем сверху вниз все подканалы, у которых канал == a
          ld (mixchn_all_channela_a),a
         ld ix,0
-        ld hl,channels
+        ld hl,tracks
 mixchn_all_channela0
         ld a,(hl) ;chntype
         inc a
@@ -474,7 +477,7 @@ untr_pause
 untr_space
         ld c,NOTE_SPACE
         call pokecurtime_curtrack_c
-        jp untr_afternotekey
+        jp untr_afternotekey_alltracksiforder
 
 untr_del_popret
         pop hl
@@ -532,7 +535,7 @@ untr_del0
         dec hx
         jr nz,untr_del0
 
-        jp setneedredraw
+        jp setneedredraw_alltracksiforder
 
 untr_ins
         ld a,(curtrack)
@@ -548,6 +551,7 @@ untr_ins
         pop de ;de=curaddr
         or a
         sbc hl,de ;endaddr-curaddr
+        jr c,untr_del_popret
         ex de,hl
         inc de
         inc de
@@ -578,7 +582,7 @@ untr_ins0
         djnz untr_ins0
         dec hx
         jr nz,untr_ins0
-        jr setneedredraw
+        jr setneedredraw_alltracksiforder
 
 untr_quit
         QUIT
@@ -601,10 +605,19 @@ checknotekeys_pressed
         ret
 
 untr_home
-;FIXME: пока тут костыль - тест поиска непустого на месте или влево
+;переход на начало текущей части
         ld a,(curtrack)
         ld hl,(curtime)
-        call tracktime_totrackpartindex
+       if 1==1
+        push hl
+        call tracktime_totrackpartindex ;hl=index
+        ex de,hl ;de=index
+        pop hl
+        or a
+        sbc hl,de ;beg=time-index (index=time-beg)
+       else
+;тест поиска непустого на месте или влево
+        call tracktime_totrackpartindex ;hl=index
         ex de,hl ;de=index
         ld a,(curtrack)
         call getroot ;out: hl=root
@@ -615,29 +628,42 @@ untr_home
         ld a,h
         and 7
         ld h,a
-        ld (curtime),hl
-        ld (lefttime),hl
-        jr setneedredraw
+       endif
+        jp untr_pgdown_ok
 
 untr_end
-;FIXME: пока тут костыль - тест поиска непустого на месте или вправо
+;переход на конец текущей части в текущем канале
         ld a,(curtrack)
         ld hl,(curtime)
-        call tracktime_totrackpartindex
-        ex de,hl
-        ld a,(curtrack)
-        call getroot ;ld hl,0x8000 ;root
+       if 1==1
+        push hl
+        call tracktime_totrackpartindex ;hl=index
+        ex de,hl ;de=index
+        pop hl
+        or a
+        sbc hl,de ;beg=time-index (index=time-beg)
+        push hl ;beg
+        call getroot ;out: hl=root
+        ld de,0xffff
 ;hl=track root (4 bytes: left poi, right poi)
 ;de=index
-        call findright
-;out: de=nonempty index (or 0xffff), a=data
+        call findleft ;de=end index
+        pop hl ;beg
+        add hl,de ;time=index+beg (beg=time-index)
+       else
+;тест поиска непустого на месте или вправо
+        call tracktime_totrackpartindex ;hl=index
+        ex de,hl ;de=index
+        call getroot ;out: hl=root
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+        call findright ;out: de=nonempty index (or 0xffff), a=data
         ex de,hl
         ld a,h
         and 7
         ld h,a
-        ld (curtime),hl
-        ld (lefttime),hl
-        jr setneedredraw
+       endif
+        jp untr_pgdown_ok
 
 untr_up
         ld hl,curtrack
@@ -650,9 +676,32 @@ untr_up
         cp (hl)
         ret nc
         dec (hl)
+        jr setneedredraw
+
+setneedredraw_alltracksiforder
+        ld a,(curtrack)
+        or a
+        call z,setneedpralltracks ;keep a!
 setneedredraw
         ld a,1
-        ld (untr_needredraw),a
+        ld (untr_needredraw),a ;forced redraw (even if lefttime has not changed)
+        ld a,(curtrack)
+        call gettracktype
+        set 7,(hl)
+        ret
+setneedpralltracks
+;keep a!
+        ld hl,tracks
+        ld b,NTRACKS
+setneedpralltracks0
+        set 7,(hl)
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+        djnz setneedpralltracks0
+        ;ld a,55 ;"scf"
+        ;ld (needpralltracks),a
         ret
 
 untr_down
@@ -673,14 +722,48 @@ untr_down
         inc (hl)
         jr setneedredraw
 
-untr_right
-        ld hl,(curtime)
+checkeof
         ld de,MAXTIME-1
         or a
         sbc hl,de
         add hl,de
+        ret c
+        ld h,d
+        ld l,e
+        ret ;nc=eof, hl=eof time
+
+untr_pgdown
+        ld hl,(curtime)
+        ld a,l
+        and 0xf8
+        ld l,a
+        ld bc,8
+        add hl,bc
+        ret c
+        call checkeof
+untr_pgdown_ok
+        ld (curtime),hl
+;установим курсор в центр, если это возможно
+        ld bc,SCRTRACKWID/2
+        xor a
+        sbc hl,bc
+        jr nc,$+4
+         ld h,a
+         ld l,a
+        push hl
+        add hl,bc
+        pop hl
+        jr nc,$+5
+         ld hl,0x10000-(SCRTRACKWID/2)
+        ld (lefttime),hl
+        ret
+
+untr_right
+        ld hl,(curtime)
+        call checkeof ;nc=eof
         ret nc
         inc hl
+;untr_right_ok
         ld (curtime),hl
         ex de,hl
         ld hl,(lefttime)
@@ -694,7 +777,18 @@ untr_right
         ld hl,(lefttime)
         inc hl
         ld (lefttime),hl
-        jr setneedredraw
+        ret
+
+untr_pgup
+        ld hl,(curtime)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld a,l
+        and 0xf8
+        ld l,a
+        jr untr_pgdown_ok
 
 untr_left
         ld hl,(curtime)
@@ -710,8 +804,7 @@ untr_left
         ret nc
         dec de
         ld (lefttime),de
-        jr setneedredraw
-
+        ret
 
 ;hl / de
 ;out: hl
@@ -743,27 +836,27 @@ _DIV0.
 	ret
 
 ttypes
-        db "Master",13
-        db "drum  ",13
-        db "tone  ",13
-        db "pad   ",13
+        db "ORDER ",13
+        db "drum *",13
+        db "tone *",13
+        db "vib 1*",13
+        db "pad  *",13
         db "vol   ",13
-        db "vib 1 ",13
-        db "drum  ",13
-        db "tone  ",13
-        db "bass  ",13
+        db "drum *",13
+        db "tone *",13
+        db "bass *",13
         db "vol   ",13
-        db "drum  ",13
-        db "tone  ",13
-        db "pad   ",13
+        db "drum *",13
+        db "tone *",13
+        db "pad  *",13
         db "vol   "
         db 0
 
 ;смотрим тип текущего канала
-getchntype
+gettracktype
         add a,a
         add a,a
-        ld hl,channels
+        ld hl,tracks
         add a,l
         ld l,a
         jr nc,$+3
@@ -771,31 +864,32 @@ getchntype
         ld a,(hl)
         ret
 
+CHNTYPEMASK=0x7f
 CHNTYPE_ORDER=0 ;цифры, которые означают начало i-го фрагмента (для привязанных к ордеру каналов)
 CHNTYPE_FILTER=1 ;цифры, между которыми эффект плавно изменяется. эффект влияет на предыдущий канал
 CHNTYPE_NOTES=2 ;буквы нот (3 октавы)
 CHNTYPE_SAMPLES=3 ;буквы сэмплов
 ;CHNTYPE_CHORDS=4
         macro CHNTYPE chntype,usedorder,addr
-        db chntype
+        db chntype ;+0x80=надо перерисовать
         db usedorder ;0=не привязан к ордеру
         dw addr ;описатель канала
         endm
-channels
-        CHNTYPE CHNTYPE_ORDER  ,0,-1
-        CHNTYPE CHNTYPE_SAMPLES,0,Adrum
-        CHNTYPE CHNTYPE_NOTES  ,0,Atone
-        CHNTYPE CHNTYPE_NOTES  ,0,Apad
-        CHNTYPE CHNTYPE_FILTER ,0,-1
-        CHNTYPE CHNTYPE_FILTER ,0,-1
-        CHNTYPE CHNTYPE_SAMPLES,0,Bdrum
-        CHNTYPE CHNTYPE_NOTES  ,0,Btone
-        CHNTYPE CHNTYPE_NOTES  ,0,Bbass
-        CHNTYPE CHNTYPE_FILTER ,0,-1
-        CHNTYPE CHNTYPE_SAMPLES,0,Cdrum
-        CHNTYPE CHNTYPE_NOTES  ,0,Ctone
-        CHNTYPE CHNTYPE_NOTES  ,0,Cpad
-        CHNTYPE CHNTYPE_FILTER ,0,-1
+tracks
+        CHNTYPE 0x80+CHNTYPE_ORDER  ,0,-1
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Adrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Atone
+        CHNTYPE 0x80+CHNTYPE_FILTER ,1,-1
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Apad
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0,-1
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Bdrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Btone
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Bbass
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0,-1
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Cdrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Ctone
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Cpad
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0,-1
         db -1
 
 Adrum

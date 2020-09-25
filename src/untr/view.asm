@@ -1,3 +1,28 @@
+downhl
+        inc h
+downhl_afterinch
+        ld a,h
+        and 7
+        ret nz
+        ld a,l
+        add a,32
+        ld l,a
+        ret c
+        ld a,h
+        sub 8
+        ld h,a
+        ret
+
+nextchrline_de
+        ld a,e
+        add a,32
+        ld e,a
+        ret nc;jr nc,$+6
+         ld a,d
+         add a,8
+         ld d,a
+        ret
+
 prchardig
         push de
         ;push hl
@@ -100,13 +125,7 @@ prtext_cr_c=$+1
         ld c,0
 prtext_cr_de=$+1
         ld de,0
-        ld a,e
-        add a,32
-        ld e,a
-        jr nc,prtext0keepde
-        ld a,d
-        add a,8
-        ld d,a
+        call nextchrline_de
         jr prtext0keepde
 
         if 1==0
@@ -230,46 +249,175 @@ digfont=0x6800
         ;ds 2048
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; high level view ;;;;;;;;;;;;;;;;;;;;;;;;
+setneedprtypes
+        ld a,55 ;"scf"
+        ld (needprtypes),a
+        ret
+
 updatescr
-;TODO по модели вьювера
+;обновляем, если изменился lefttime или toptrack(TODO)
+        ld hl,(lefttime)
+oldlefttime=$+1
+        ld de,0x8000
+        ld (oldlefttime),hl
+        or a
+        sbc hl,de
+        jr nz,updatescr_scroll
+;иначе обновляем только при наличии needredraw? TODO убрать этот флаг?
 untr_needredraw=$+1
         ld a,0
         or a
         ret z
-        xor a
-        ld (untr_needredraw),a
-        ld de,0x4001
-        ld c,0x0f
-        ld hl,ttypes
-        call prtext
-
-        call prchannels
-
-;TODO обновлять только треки, которые изменились
-        ld de,0x4000+(TRACKX/2)
+        jp updatescr_scrollq
+updatescr_scroll
+;hl=lefttime-oldlefttime
+;если скролл на 1 символ, то реально скроллим, иначе перепечатываем?
+        ld a,l
+        and h
+        inc a
+        jp z,updatescr_scroll_right
+        ld a,l
+        dec a
+        or h
+        jp nz,updatescr_scroll_prall
+        
+;updatescr_scroll_left
+        call setscrpg
+        ld hl,0x4000+(TRACKX/2)+(SCRTRACKWID/2)-1
         ld b,SCRNTRACKS
         ld hx,0 ;track
-updatescr_tracks0
+scrollleft0
         push bc
-        push de
-        ld hl,(lefttime)
-        ;ld a,c ;track
-        ;call time_totrackshift
-        ld c,0x0f
-        call prtrack
-        pop de
-        ld a,e
-        add a,32
+        ld b,8
+scrollleft0p
+        push hl
+        xor a
+        dup SCRTRACKWID/2-1
+        rld
+        dec l
+        edup
+        rld
+        pop hl
+        inc h
+        djnz scrollleft0p
+;обновить бар слева
+        push hl
+        ld a,h
+        sub 8
+        ld d,a
+        ld a,l
+        sub SCRTRACKWID/2
         ld e,a
-        jr nc,$+6
-         ld a,d
-         add a,8
-         ld d,a
+        ld c,0x01
+        ld a,(lefttime)
+        sub 8
+        ld l,a
+        and 7
+        call prbar_or_nobar
+        call setpgroots
+;допечатать столбик справа и его бар
+        call prtrack_gettype ;uses hx
+        pop hl
+        push hl
+        ld a,h
+        sub 8
+        ld d,a
+        ld e,l
+        ld hl,(lefttime)
+        ld bc,SCRTRACKWID-1
+        add hl,bc
+        ld bc,1*256+0xf0
+;de=scr
+;hx=track
+;c=0x0f/0xf0
+;b=SCRTRACKWID
+;hl=time
+        push de
+        call prtrack_Nchars
+        pop de
+        call setscrpg
+        ld c,0x01
+        ld a,(lefttime)
+        add a,SCRTRACKWID-8
+        ld l,a
+        and 7
+        call prbar_or_nobar        
+        pop hl
+        call downhl_afterinch
         pop bc
         inc hx ;track
-        djnz updatescr_tracks0
+        dec b
+        jp nz,scrollleft0
+        call setpgroots
+        jp updatescr_scroll_noprall
 
-;TODO показывать время только при скролле (по одной цифре)
+updatescr_scroll_right
+        call setscrpg
+        ld hl,0x4000+(TRACKX/2)
+        ld b,SCRNTRACKS
+        ld hx,0 ;track
+scrollright0
+        push bc
+        ld b,8
+scrollright0p
+        push hl
+        xor a
+        dup SCRTRACKWID/2-1
+        rrd
+        inc l
+        edup
+        rrd
+        pop hl
+        inc h
+        djnz scrollright0p
+;обновить бар слева (вне поля скролла)
+        push hl
+        ld a,h
+        sub 8
+        ld d,a
+        ld e,l
+        push de
+        dec e
+        ld c,0x01
+        ld a,(lefttime)
+        sub 8
+        ld l,a
+        and 7
+        call prbar_or_nobar
+        call setpgroots
+;допечатать столбик слева и его бар
+        call prtrack_gettype ;uses hx
+        pop de
+        ld hl,(lefttime)
+        ld bc,1*256+0x0f
+;de=scr
+;hx=track
+;c=0x0f/0xf0
+;b=SCRTRACKWID
+;hl=time
+        push de
+        call prtrack_Nchars
+        pop de
+        call setscrpg
+        ld c,0x10
+        ld a,(lefttime)
+        add a,1-8
+        ld l,a
+        and 7
+        call prbar_or_nobar        
+        pop hl
+        call downhl_afterinch
+        pop bc
+        inc hx ;track
+        dec b
+        jp nz,scrollright0
+        call setpgroots
+        jp updatescr_scroll_noprall
+
+updatescr_scroll_prall
+        call setneedpralltracks
+updatescr_scroll_noprall        
+;показывать время только при скролле (TODO по одной цифре)
         ld de,0x48c0+(TRACKX/2)
         ld b,SCRTRACKWID
         ld c,0x0f
@@ -305,13 +453,57 @@ updatescr_time0_skip
         inc hl
         inc c
         djnz updatescr_time0
+updatescr_scrollq
+        xor a
+        ld (untr_needredraw),a
+        ld de,0x4001
+        ld c,0x0f
+        ld hl,ttypes
+needprtypes=$
+        scf
+        call c,prtypes
+        ld a,55+128 ;"or a"
+        ld (needprtypes),a
+
+;needpralltracks=$
+;        scf
+        ;jr nc,updatescr_prcurtrack
+;обновлять только треки, которые изменились (обновление одного не прокатит при асинхронном рисовании!!!)
+        ld de,0x4000+(TRACKX/2)
+        ld b,SCRNTRACKS
+        ld hx,0 ;track
+updatescr_tracks0
+        push bc
+        push de
+        ld c,0x0f
+        ld b,SCRTRACKWID
+        call prtrack
+        pop de
+        call nextchrline_de
+        pop bc
+        inc hx ;track
+        djnz updatescr_tracks0
+;        ld a,55+128 ;"or a"
+;        ld (needpralltracks),a
+;        jr updatescr_prcurtrackq
+;updatescr_prcurtrack
+;        ld a,(curtrack)
+;        ld hx,a
+;        ld c,0x0f
+;        call prtrack
+;updatescr_prcurtrackq
+
 
         ret
 
-prchannels
-        ld hl,channels
+prtypes
+        ld de,0x4001
+        ld c,0x0f
+        ld hl,ttypes
+        call prtext
+        ld hl,tracks
         ld de,0x4000
-prchannels0
+prtypes0
         ld a,(hl) ;chntype
         inc a
         ret z
@@ -326,7 +518,7 @@ prchannels0
         ld a,b
         and c
         inc a
-        jr z,prchannels0skip
+        jr z,prtypes0skip
         push de
         push hl
         ld hx,b
@@ -340,32 +532,29 @@ prchannels0
         call prchar
         pop hl
         pop de
-prchannels0skip
-        ld a,e
-        add a,32
-        ld e,a
-        jr nc,$+6
-         ld a,d
-         add a,8
-         ld d,a
-        jr prchannels0
+prtypes0skip
+        call nextchrline_de
+        jr prtypes0
 
-prtrack
-;hl=addr
-;de=scr
-;hx=track
-        push hl
+prtrack_gettype
         ld a,hx
-        call getchntype
+        call gettracktype
+prtrack_gettype_go
+        and CHNTYPEMASK
         ld hl,prcharnote
         cp CHNTYPE_NOTES
         jr z,$+5
          ld hl,prchardig
         ld (prtrack_prproc),hl
-        pop hl
+        ret
 
-        push de
-        ld b,SCRTRACKWID
+prtrack_Nchars
+;(after prtrack_gettype)
+;de=scr
+;hx=track
+;c=0x0f/0xf0
+;b=SCRTRACKWID
+;hl=time
 prtrack0
         push hl
         push de
@@ -378,6 +567,23 @@ prtrack_prproc=$+1
         pop hl
          inc hl
         djnz prtrack0
+        ret
+
+prtrack
+;de=scr
+;hx=track
+;c=0x0f/0xf0
+;b=SCRTRACKWID
+        ld a,hx
+        call gettracktype
+        or a
+        ret p ;трек не обновился
+         res 7,(hl)
+        call prtrack_gettype_go
+
+        ld hl,(lefttime)
+        push de
+        call prtrack_Nchars
         pop de
         
         call setscrpg
@@ -389,10 +595,9 @@ prtrack_prproc=$+1
         ld a,l
         sub 8
         ld l,a
-        ld a,l
         and 7
         push de
-        call z,prbar
+        call prbar_or_nobar
         pop de
         pop hl
         inc e
@@ -418,7 +623,33 @@ prtrack_bars0
         call setpgroots
         ret
 
+        macro BARPIXEL
+        ld a,(de)
+        or c
+        ld (de),a
+        endm
+        
+        macro NOBARPIXEL
+        ld a,(de)
+        cpl
+        or c
+        cpl
+        ld (de),a
+        endm
+        
+nobar
+;c=0x10/0x01
+        dup 7
+        NOBARPIXEL
+        inc d
+        edup
+        NOBARPIXEL
+        ret
+
+prbar_or_nobar
+        jr nz,nobar
 prbar
+;l=lefttime
         ld a,l
         add a,8
         ld l,a
@@ -426,24 +657,21 @@ prbar
         jr z,prbar_lined
 prbar_dotted
 ;c=0x10/0x01
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
+        NOBARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
+        NOBARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
+        NOBARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
+        inc d
+        NOBARPIXEL
         ret
 
 prbar_lined
@@ -451,43 +679,30 @@ prbar_lined
         and 3*16
         jr z,prbar_solid
 ;c=0x10/0x01
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
+        NOBARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
+        inc d
+        NOBARPIXEL
         ret
 
 prbar_solid
 ;c=0x10/0x01
         dup 7
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         inc d
         edup
-        ld a,(de)
-        or c
-        ld (de),a
+        BARPIXEL
         ret
 
 ;========================== init =====================
