@@ -121,6 +121,18 @@ GETKEY
 		ld a,b
 		jr .retsymb
 .no_alt_mod
+		bit .bKEY_MODE_CTRL,l
+		jr z,.no_ctrl_mod
+		ld a,b
+		add a,0xff&.ctrl_decode
+		ld e,a
+		ld a,0
+		adc a,0xff&(.ctrl_decode>>8)
+		ld d,a
+		ld a,(de)
+		ld c,a
+		jr .retsymb
+.no_ctrl_mod
 		ld a,.KEY_MODE_SHIFT|.KEY_MODE_CAPS
 .base_noneed_caps
 		and l
@@ -216,6 +228,13 @@ GETKEY
 		jp z,.savemode
 		jr .chruslat
 .not_alt_key
+		cp 68
+		jr nz,.not_ctrl_key
+		ld a,l
+		or .KEY_MODE_CTRL
+		and ~.KEY_MODE_E0
+		jp .savemode
+.not_ctrl_key		
 		ld a,l
 		and ~.KEY_MODE_E0
 		jp .savemode
@@ -230,6 +249,9 @@ GETKEY
 		jr z,.keypressend
 		ld h,~(.KEY_MODE_UP|.KEY_MODE_E0|.KEY_MODE_ALT)
 		cp 0x11
+		jr z,.keypressend
+		ld h,~(.KEY_MODE_UP|.KEY_MODE_E0|.KEY_MODE_CTRL)
+		cp 0x14
 		jr z,.keypressend
 		ld h,~(.KEY_MODE_UP|.KEY_MODE_E0)
 		ld e,.KEY_MODE_CAPS
@@ -295,3 +317,6 @@ GETKEY
 .unmod_sh
 	defb "4682930.715"
 	
+.ctrl_decode=$-1
+	defb ssA,ssB,ssC,ssD,ssE,ssF,ssG,ssH,ssI,ssJ,ssK,ssL,ssM
+	defb ssN,ssO,ssP,ssQ,ssR,ssS,ssT,ssU,ssV,ssW,ssX,ssY,ssZ
