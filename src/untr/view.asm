@@ -740,7 +740,7 @@ prtypes0
         inc hl
         ld b,(hl)
         inc hl
-        ;cp CHNTYPE_...-1
+        ;cp CHNTYPE_...+1
         ld a,b
         and c
         inc a
@@ -993,4 +993,4 @@ tnotefont
         db "CcDdEFfGgAaB"
 tdigfont
 ;в шрифте начиная с кода 1
-        db "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        db "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

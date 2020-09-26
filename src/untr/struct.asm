@@ -12,6 +12,14 @@ envfrq  WORD
 envtype BYTE ;+retrigenvbit
         ENDS
 
+        STRUCT filter
+handler WORD
+par1    BYTE
+par2    BYTE
+par3    BYTE
+curvalue BYTE ;рассчитано интерполяцией
+        ENDS
+
 ;masks (T,N,E,hole,outerenv,retrigtone)
 ;+-96 semitone shift
 ;+-96 env semitone shift (fair tone ratio guaranteed for 1:1, 3:4, 1:2, 1:4, 3:1, 5:2, 2:1, 3:2 + 4:1)

@@ -32,6 +32,19 @@ cmd_begin
         ;ld a,l
         ;ld (pgdynmem),a
 
+        ;ld hl,100
+        ;ld de,1000
+        ;call divlessthan1
+        ;jr $
+        ;ld hl,9999
+        ;ld de,10000
+        ;call divlessthan1
+        ;jr $
+        ;ld bc,65529 ;9999/10000
+        ;ld a,15
+        ;call mulsigned8bylessthan1
+        ;jr $
+
         ld hl,0x4000
         ld de,0x4001
         ld bc,0x3fff
@@ -155,6 +168,21 @@ refrq2
         ld (ix+chn.channel_in),2
         call initchnnote_pause
 
+        ld ix,Filter_Avib
+        ld (ix+filter.handler),filterhandler_vib&0xff
+        ld (ix+filter.handler+1),filterhandler_vib/256
+        ld (ix+filter.par1),50
+        ld (ix+filter.par2),5
+        ld ix,Filter_Avol
+        ld (ix+filter.handler),filterhandler_vol&0xff
+        ld (ix+filter.handler+1),filterhandler_vol/256
+        ld ix,Filter_Bvol
+        ld (ix+filter.handler),filterhandler_vol&0xff
+        ld (ix+filter.handler+1),filterhandler_vol/256
+        ld ix,Filter_Cvol
+        ld (ix+filter.handler),filterhandler_vol&0xff
+        ld (ix+filter.handler+1),filterhandler_vol/256
+
 ;;;;;;;;;;;;;;;;;;;;;
         ;call setneedredraw
 mainloop
@@ -206,16 +234,16 @@ mainloop_nokey
         cp CHNTYPE_NOTES
         jr z,enternote        
         pop af
-;ввод цифры 0..9A..Za..z -> 1..62
+;ввод цифры 0..9a..zA..Z -> 1..62
         sub '0'
         cp 10
         ld c,1
         jr c,enterdigok
-        sub 'A'-'0'
+        sub 'a'-'0'
         cp 26
         ld c,1+10
         jr c,enterdigok
-        sub 'a'-'A'
+        sub 'A'-'a'
         cp 26
         ld c,1+10+26
         ret nc ;wrong digit!
@@ -272,7 +300,8 @@ playnote_inittracks0
         inc hl
         ld b,(hl)
         inc hl
-        ;cp CHNTYPE_...-1
+         cp CHNTYPE_FILTER+1
+         jr z,playnote_inittracks0skip
         ld a,b
         and c
         inc a
@@ -312,7 +341,8 @@ playenter_inittracks0
         inc hl
         ld b,(hl)
         inc hl
-        ;cp CHNTYPE_...-1
+         cp CHNTYPE_FILTER+1
+         jr z,playenter_filter;inittracks0skip
         ld a,b
         and c
         inc a
@@ -331,6 +361,110 @@ playenter_inittracks0
 playenter_inittracks0skip
         inc hy ;track
         jr playenter_inittracks0
+playenter_filter
+        if 1==1
+        push hl
+        push ix
+        push bc ;filter
+;ищем ближайшее число слева (или на месте) и ближайшее число справа
+;текущее значение для фильтра - это линейная интерполяция между ними
+;k = (curtime-lefttime)/(righttime-lefttime)
+;val = leftval + k*(rightval-leftval)
+
+        ;jr $
+        ld a,hy;(curtrack)
+        ld hl,(curtime)
+        push hl
+        call tracktime_totrackpartindex ;hl=index
+        ex de,hl ;de=index
+        pop hl
+        or a
+        sbc hl,de ;beg=time-index (index=time-beg)
+       push hl ;beg
+       push hl ;beg
+        ld a,hy;(curtrack)
+        call getroot ;out: hl=root
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+        call findleft ;out: de=nonempty index (or 0), a=data
+       pop hl ;beg
+        add hl,de ;time=index+beg (beg=time-index)
+;hl=lefttime
+;a=leftval
+        ld (lefttime),hl
+        or a
+        jr nz,$+4
+        ld a,16 ;"f"
+        ld (leftval),a
+
+        ld a,hy;(curtrack)
+        ld hl,(curtime)
+        call tracktime_totrackpartindex ;hl=index
+        ex de,hl ;de=index
+        ld a,hy;(curtrack)
+        call getroot ;out: hl=root
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+        inc de ;не на месте, а только вправо
+        call findright ;out: de=nonempty index (or 0), a=data
+       pop hl ;beg
+        add hl,de ;time=index+beg (beg=time-index)
+;hl=righttime
+;a=rightval
+        ;ld (righttime),hl
+        or a
+        jr nz,$+4
+        ld a,16 ;"f"
+        push af ;ld (rightval),a
+;k = (curtime-lefttime)/(righttime-lefttime)
+        ;ld hl,(righttime)
+        ld de,(lefttime)
+        or a
+        sbc hl,de
+        ex de,hl
+        ld hl,(curtime)
+        ld bc,(lefttime)
+        or a
+        sbc hl,bc
+        call divlessthan1 ;out: bc = hl / de (.16)
+        ;ld (k),bc
+;val = leftval + k*(rightval-leftval)
+;rightval=$+1
+;        ld a,0
+        pop af ;rightval
+leftval=$+1
+        ld e,0
+        sub e
+        call mulsigned8bylessthan1
+        add a,e
+        pop ix ;filter
+        ld (ix+filter.curvalue),a
+        pop ix
+        pop hl
+        endif
+
+        jr playenter_inittracks0skip
+
+mulsigned8bylessthan1
+;a = +-a*bc
+        rla
+        jr nc,mul8bylessthan1
+        neg
+        call mul8bylessthan1
+        neg
+        ret
+mul8bylessthan1
+        ld hl,0
+        dup 7
+        srl b
+        rr c
+        rla
+        jr nc,$+3
+        add hl,bc
+        edup
+        ld a,h
+        srl a
+        ret
 
 playnote_tracksplaysample
         ld hl,tracks
@@ -345,7 +479,8 @@ playnote_tracksplaysample0
         inc hl
         ld b,(hl)
         inc hl
-        ;cp CHNTYPE_...-1
+         cp CHNTYPE_FILTER+1
+         jr z,playnote_filter;playnote_tracksplaysample0skip
         ld a,b
         and c
         inc a
@@ -357,9 +492,33 @@ playnote_tracksplaysample0
         pop hl
 playnote_tracksplaysample0skip
         jr playnote_tracksplaysample0
+playnote_filter
+;bc=filter addr
+        push hl
+        push ix
+        ld hx,b
+        ld lx,c
+        ld l,(ix+filter.handler)
+        ld h,(ix+filter.handler+1)
+        ld b,(ix+filter.par1)
+        ld c,(ix+filter.par2)
+        ld d,(ix+filter.par3)
+        ld e,(ix+filter.curvalue)
+        pop ix
+        push ix
+        pop iy
+        call jphl
+        pop hl
+        jr playnote_tracksplaysample0skip
+
+jphl
+        jp (hl)
 
 playnote
         call playnote_tracksplaysample
+        
+        ;call filter_all_tracks
+        
         ld a,2
         call mixchn_all_channela
         push ix ;chn для C
@@ -428,7 +587,8 @@ mixchn_all_channela0
         inc hl
         ld b,(hl)
         inc hl
-        ;cp CHNTYPE_...-1
+         cp CHNTYPE_FILTER+1
+         jr z,mixchn_all_channela0skip
         ld a,b
         and c
         inc a
@@ -818,8 +978,43 @@ untr_left
         ld (lefttime),de
         ret
 
+divlessthan1
+;out: bc = hl / de (0.16)
+	ld b,8
+divlessthan10.
+;shift left hlca
+	add hl,hl
+;no carry
+;try sub
+	sbc hl,de
+	jr nc,$+3
+	add hl,de
+;carry = inverted bit of result
+        rla
+	djnz divlessthan10.
+        cpl
+        ld c,a
+	ld b,8
+divlessthan11.
+;shift left hlca
+	add hl,hl
+;no carry
+;try sub
+	sbc hl,de
+	jr nc,$+3
+	add hl,de
+;carry = inverted bit of result
+        rla
+	djnz divlessthan11.
+        ld b,c
+        cpl
+	ld c,a
+        ret
+
+
 ;hl / de
 ;out: hl
+;работает так: hl.ca - de и т.д.
 _DIV.
 	ld c,h
 	ld a,l
@@ -856,8 +1051,8 @@ ttypes
         db "vol   ",13
         db "drum *",13
         db "tone *",13
-        db "bass *",13
         db "vol   ",13
+        db "bass *",13
         db "drum *",13
         db "tone *",13
         db "pad  *",13
@@ -891,17 +1086,17 @@ tracks
         CHNTYPE 0x80+CHNTYPE_ORDER  ,0,-1
         CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Adrum
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Atone
-        CHNTYPE 0x80+CHNTYPE_FILTER ,1,-1
+        CHNTYPE 0x80+CHNTYPE_FILTER ,1,Filter_Avib
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Apad
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0,-1
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Avol
         CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Bdrum
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Btone
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Bvol
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Bbass
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0,-1
         CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Cdrum
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Ctone
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Cpad
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0,-1
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Cvol
         db -1
 
 Adrum
@@ -924,6 +1119,15 @@ Cpad
         chn
 chip0
         chip
+        
+Filter_Avib
+        filter
+Filter_Avol
+        filter
+Filter_Bvol
+        filter
+Filter_Cvol
+        filter
 
 ntracks
         db 14

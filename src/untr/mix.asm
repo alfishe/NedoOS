@@ -1,3 +1,7 @@
+filterhandler_vol
+        ld a,e
+        sub 16 ;"f" (1="0", 2="1"...)
+        ld e,a ;vol "f" = +0, "g" = +1...
 filtervolume
 ;ix=from=to
 ;e=volume shift (+-15)
@@ -22,6 +26,8 @@ filternoise
         xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
         ret
 
+filterhandler_vib
+;TODO
 filtertone
 ;ix=from=to
 ;de=tone shift (+-4095)
