@@ -7,23 +7,27 @@ filtervolume
 ;e=volume shift (+-15)
         ld a,(ix+chn.volume)
         add a,e
-        ld (ix+chn.volume),a
-        ret po ;no signed overflow
+        jp po,filtervolumeq ;no signed overflow
         rla
         sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
         xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
+filtervolumeq        
+        ld (ix+chn.volume),a
         ret
 
+filterhandler_noise
+;TODO
 filternoise
 ;ix=from=to
 ;e=noise shift (+-15)
         ld a,(ix+chn.noisefrq)
         add a,e
-        ld (ix+chn.noisefrq),a
-        ret po ;no signed overflow
+        jp po,filternoiseq ;no signed overflow
         rla
         sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
         xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
+filternoiseq
+        ld (ix+chn.noisefrq),a
         ret
 
 filterhandler_vib
@@ -43,6 +47,8 @@ filtertone
         ld (ix+chn.tonefrq+1),d
         ret
 
+filterhandler_env
+;TODO
 filterenv
 ;ix=from=to
 ;de=env shift
@@ -480,15 +486,15 @@ playsample_noenvsemitoneshift
 ;count tone frq (use frq table)
         ld e,a
         ld d,tfrq/256
-;cout env frq (use frq table)
         ld a,(de)
         ld c,a
         inc d
         ld a,(de)
         ld d,a
-        ld e,c
+        ld e,c ;de=tonefrq
         ld a,(hl)
         inc hl
+         add a,(ix+chn.volume_in)
         ld (ix+chn.volume),a ;volume  BYTE ;volume = 0..15 ;громкость при E не используется
 playsample_noenvsemitoneshiftq
 

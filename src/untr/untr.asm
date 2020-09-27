@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
+OLDTTYPES=0
+
 freemem_start=0x8000
 ;tracks=freemem_start
 MAXTIME=65536;4096
@@ -31,19 +33,6 @@ cmd_begin
         ld (pgroots),a
         ;ld a,l
         ;ld (pgdynmem),a
-
-        ;ld hl,100
-        ;ld de,1000
-        ;call divlessthan1
-        ;jr $
-        ;ld hl,9999
-        ;ld de,10000
-        ;call divlessthan1
-        ;jr $
-        ;ld bc,65529 ;9999/10000
-        ;ld a,15
-        ;call mulsigned8bylessthan1
-        ;jr $
 
         ld hl,0x4000
         ld de,0x4001
@@ -195,6 +184,8 @@ mainloop_nokey
         push af
         call prcurcur
         pop af
+         cp key_tab
+         jp z,tracksloop
         ld hl,mainloop
         push hl
         cp key_left
@@ -234,8 +225,19 @@ mainloop_nokey
         cp CHNTYPE_NOTES
         jr z,enternote        
         pop af
-;ввод цифры 0..9a..zA..Z -> 1..62
-        sub '0'
+        call keytodigit
+        call pokecurtime_curtrack_c
+untr_afternotekey_alltracksiforder
+        call setneedredraw_alltracksiforder
+        jp untr_afternotekey;untr_right
+
+keytodigit
+;ввод цифры 0..9a..zA..Z -> 1..62 (пробел -> 0)
+;out: CY=error
+        sub ' '
+        ld c,a;0
+        jr z,enterdigok
+        sub '0'-' '
         cp 10
         ld c,1
         jr c,enterdigok
@@ -246,14 +248,12 @@ mainloop_nokey
         sub 'A'-'a'
         cp 26
         ld c,1+10+26
-        ret nc ;wrong digit!
+        ccf
+        ret c ;wrong digit!
 enterdigok
         add a,c
         ld c,a
-        call pokecurtime_curtrack_c
-untr_afternotekey_alltracksiforder
-        call setneedredraw_alltracksiforder
-        jp untr_afternotekey;untr_right
+        ret
         
 enternote
         pop af
@@ -268,7 +268,8 @@ enternote
         call pokecurtime_curtrack_c
 
 untr_afternotekey
-        call playnote_inittracks
+        call playnote_inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
+        call playenter_inittracks
 
         call setneedredraw_curtrack
         call updatescr
@@ -284,235 +285,75 @@ playnote0
         ;call setneedredraw
         jp untr_right
 
-playnote_inittracks
-        ld a,0x80 ;точно не совпадёт, так что будет retrigenv
-        ld (chip0+chip.envtype),a
-        ld hl,tracks
-        ld hy,0 ;track
-playnote_inittracks0
-        ld a,(hl) ;chntype
-        inc a
-        ret z
-        inc hl
-        ;ld a,(hl) ;order
-        inc hl
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
-        inc hl
-         cp CHNTYPE_FILTER+1
-         jr z,playnote_inittracks0skip
-        ld a,b
-        and c
-        inc a
-        jr z,playnote_inittracks0skip
-        ld hx,b
-        ld lx,c
+tracksloop
+        call updatescr
+        call prtrackscur
+tracksloop_nokey
+        YIELDGETKEYLOOP
+        or a
+        jr z,tracksloop_nokey
+        push af
+        call prtrackscur
+        pop af
+         cp key_tab
+         jp z,mainloop
+        ld hl,tracksloop
         push hl
-        ld a,hy
-;a=track
-        ;ld a,(ix+chn.channel_in)
-        push ix
-        call peekcurtime_tracka
-        pop ix
-        pop hl
-         cp NOTE_SPACE
-         jr z,playnote_inittracks0pause
-        call initchnnote ;устанавливает сэмпл, как указано в канале
-playnote_inittracks0skip
-        inc hy ;track
-        jr playnote_inittracks0
-playnote_inittracks0pause
-        call initchnnote_pause ;устанавливает сэмпл паузы
-        jr playnote_inittracks0skip
-
-playenter_inittracks
-;инициализирует ноты в каналах в процессе проигрывания
-        ld hl,tracks
-        ld hy,0 ;track
-playenter_inittracks0
-        ld a,(hl) ;chntype
-        inc a
-        ret z
-        inc hl
-        ;ld a,(hl) ;order
-        inc hl
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
-        inc hl
-         cp CHNTYPE_FILTER+1
-         jr z,playenter_filter;inittracks0skip
-        ld a,b
-        and c
-        inc a
-        jr z,playenter_inittracks0skip
-        ld hx,b
-        ld lx,c
-        push hl
-        ld a,hy
-;a=track
-        ;ld a,(ix+chn.channel_in)
-        push ix
-        call peekcurtime_tracka
-        pop ix
-        pop hl
-        call initchnnote ;устанавливает сэмпл, как указано в канале
-playenter_inittracks0skip
-        inc hy ;track
-        jr playenter_inittracks0
-playenter_filter
-        if 1==1
-        push hl
-        push ix
-        push bc ;filter
-;ищем ближайшее число слева (или на месте) и ближайшее число справа
-;текущее значение для фильтра - это линейная интерполяция между ними
-;k = (curtime-lefttime)/(righttime-lefttime)
-;val = leftval + k*(rightval-leftval)
-
-        ;jr $
-        ld a,hy;(curtrack)
-        ld hl,(curtime)
-        push hl
-        call tracktime_totrackpartindex ;hl=index
-        ex de,hl ;de=index
-        pop hl
-        or a
-        sbc hl,de ;beg=time-index (index=time-beg)
-       push hl ;beg
-       push hl ;beg
-        ld a,hy;(curtrack)
-        call getroot ;out: hl=root
-;hl=track root (4 bytes: left poi, right poi)
-;de=index
-        call findleft ;out: de=nonempty index (or 0), a=data
-       pop hl ;beg
-        add hl,de ;time=index+beg (beg=time-index)
-;hl=lefttime
-;a=leftval
-        ld (lefttime),hl
-        or a
-        jr nz,$+4
-        ld a,16 ;"f"
-        ld (leftval),a
-
-        ld a,hy;(curtrack)
-        ld hl,(curtime)
-        call tracktime_totrackpartindex ;hl=index
-        ex de,hl ;de=index
-        ld a,hy;(curtrack)
-        call getroot ;out: hl=root
-;hl=track root (4 bytes: left poi, right poi)
-;de=index
-        inc de ;не на месте, а только вправо
-        call findright ;out: de=nonempty index (or 0), a=data
-       pop hl ;beg
-        add hl,de ;time=index+beg (beg=time-index)
-;hl=righttime
-;a=rightval
-        ;ld (righttime),hl
-        or a
-        jr nz,$+4
-        ld a,16 ;"f"
-        push af ;ld (rightval),a
-;k = (curtime-lefttime)/(righttime-lefttime)
-        ;ld hl,(righttime)
-        ld de,(lefttime)
-        or a
-        sbc hl,de
-        ex de,hl
-        ld hl,(curtime)
-        ld bc,(lefttime)
-        or a
-        sbc hl,bc
-        call divlessthan1 ;out: bc = hl / de (.16)
-        ;ld (k),bc
-;val = leftval + k*(rightval-leftval)
-;rightval=$+1
-;        ld a,0
-        pop af ;rightval
-leftval=$+1
-        ld e,0
-        sub e
-        call mulsigned8bylessthan1
-        add a,e
-        pop ix ;filter
-        ld (ix+filter.curvalue),a
-        pop ix
-        pop hl
-        endif
-
-        jr playenter_inittracks0skip
-
-mulsigned8bylessthan1
-;a = +-a*bc
-        rla
-        jr nc,mul8bylessthan1
-        neg
-        call mul8bylessthan1
-        neg
-        ret
-mul8bylessthan1
-        ld hl,0
-        dup 7
-        srl b
-        rr c
-        rla
-        jr nc,$+3
+        cp key_left
+        jp z,tracks_left
+        cp key_right
+        jp z,tracks_right
+        cp key_up
+        jp z,untr_up
+        cp key_down
+        jp z,untr_down
+        ;push af
+        ld hl,(curtrack)
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl ;*8
+tracks_curx=$+1
+        ld bc,0
         add hl,bc
-        edup
-        ld a,h
-        srl a
+        ld bc,ttypes
+        add hl,bc
+        ;pop af
+        ;jr $
+        call keytodigit ;out: CY=error, a=digit
+        ret c
+        ld (hl),a
+        jp setneedprtypes
+        
+tracks_left
+        ld hl,tracks_curx
+        ld a,(hl)
+        or a
+        ret z
+        dec (hl)
         ret
 
-playnote_tracksplaysample
-        ld hl,tracks
-playnote_tracksplaysample0
-        ld a,(hl) ;chntype
-        inc a
+tracks_right
+        ld hl,tracks_curx
+        ld a,(hl)
+        cp 6;7
         ret z
-        inc hl
-        ;ld a,(hl) ;order
-        inc hl
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
-        inc hl
-         cp CHNTYPE_FILTER+1
-         jr z,playnote_filter;playnote_tracksplaysample0skip
-        ld a,b
-        and c
-        inc a
-        jr z,playnote_tracksplaysample0skip
-        push hl
-        ld hx,b
-        ld lx,c
-        call playsample
-        pop hl
-playnote_tracksplaysample0skip
-        jr playnote_tracksplaysample0
-playnote_filter
-;bc=filter addr
-        push hl
-        push ix
-        ld hx,b
-        ld lx,c
-        ld l,(ix+filter.handler)
-        ld h,(ix+filter.handler+1)
-        ld b,(ix+filter.par1)
-        ld c,(ix+filter.par2)
-        ld d,(ix+filter.par3)
-        ld e,(ix+filter.curvalue)
-        pop ix
-        push ix
-        pop iy
-        call jphl
-        pop hl
-        jr playnote_tracksplaysample0skip
+        inc (hl)
+        ret
 
-jphl
-        jp (hl)
+;A0gO123
+
+;bass, pad и tone имеют параметры:
+;сэмпл
+;громкость
+;смещение в сэмпле
+;рабочая октава
+
+;фильтр имеет параметры:
+;тип фильтра (g=gain, Vv=vib/gliss up/down, Ee=env(vib/gliss up/down), n=noise down)
+;для вибрато: глубина (0=бесконечность, т.е. gliss)
+;для вибрато: период
+;для вибрато и глисса: скорость изменения
 
 playnote
         call playnote_tracksplaysample
@@ -533,7 +374,7 @@ playnote
         ;ld ix,Adrum
         ;call mixchn
         
-;TODO что делать, если нет ни одного подканала для какого-то канала?
+;TODO что делать, если нет ни одного трека для какого-то канала?
         ;ld ix,Adrum
         ;ld hl,Btone;drum
         ;ld de,Ctone;drum
@@ -551,7 +392,7 @@ playnote
         ret
 
 untr_play
-        call playnote_inittracks
+        call playnote_inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
 
 playenter0
         halt
@@ -568,69 +409,6 @@ playenter0
         call shutay
         
         jp untr_afternotekey
-
-mixchn_all_channela
-;a=channel=0..2
-;out: ix=chn, куда всё смикшировалось
-;микшируем сверху вниз все подканалы, у которых канал == a
-         ld (mixchn_all_channela_a),a
-        ld ix,0
-        ld hl,tracks
-mixchn_all_channela0
-        ld a,(hl) ;chntype
-        inc a
-        ret z
-        inc hl
-        ;ld a,(hl) ;order
-        inc hl
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
-        inc hl
-         cp CHNTYPE_FILTER+1
-         jr z,mixchn_all_channela0skip
-        ld a,b
-        and c
-        inc a
-        jr z,mixchn_all_channela0skip
-        ld hy,b
-        ld ly,c ;подходящий подканал попадает в iy
-mixchn_all_channela_a=$+1
-        ld a,0
-        cp (iy+chn.channel_in)
-        jr nz,mixchn_all_channela0skip
-        ld a,hx
-        or lx
-        jr z,mixchn_all_channela0_first ;первый подходящий подканал попадает в ix
-        push hl
-        call mixchn
-        pop hl
-        jr mixchn_all_channela0_firstq
-mixchn_all_channela0_first
-        ld hx,b
-        ld lx,c
-mixchn_all_channela0_firstq
-mixchn_all_channela0skip
-        jr mixchn_all_channela0
-        
-initchnnote
-;a=note
-        cp NOTE_SPACE
-        ret z
-        cp NOTE_PAUSE
-        jr z,initchnnote_pause
-        dec a ;sub NOTE_LOWEST
-        ld (ix+chn.note_in),a;3*12 ;C-4
-        ld e,(ix+chn.smp_in)
-        ld (ix+chn.smpcuraddr),e
-        ld e,(ix+chn.smp_in+1)
-        ld (ix+chn.smpcuraddr+1),e
-        ret
-initchnnote_pause
-        ld (ix+chn.note_in),NOTE_PAUSE
-        ld (ix+chn.smpcuraddr),smp_pause&0xff
-        ld (ix+chn.smpcuraddr+1),smp_pause/256
-        ret
 
 untr_pause
         ld c,NOTE_PAUSE
@@ -978,40 +756,7 @@ untr_left
         ld (lefttime),de
         ret
 
-divlessthan1
-;out: bc = hl / de (0.16)
-	ld b,8
-divlessthan10.
-;shift left hlca
-	add hl,hl
-;no carry
-;try sub
-	sbc hl,de
-	jr nc,$+3
-	add hl,de
-;carry = inverted bit of result
-        rla
-	djnz divlessthan10.
-        cpl
-        ld c,a
-	ld b,8
-divlessthan11.
-;shift left hlca
-	add hl,hl
-;no carry
-;try sub
-	sbc hl,de
-	jr nc,$+3
-	add hl,de
-;carry = inverted bit of result
-        rla
-	djnz divlessthan11.
-        ld b,c
-        cpl
-	ld c,a
-        ret
-
-
+        if 1==0
 ;hl / de
 ;out: hl
 ;работает так: hl.ca - de и т.д.
@@ -1041,14 +786,17 @@ _DIV0.
 	cpl
 	ld h,a
 	ret
+        endif
 
 ttypes
+        if OLDTTYPES
         db "ORDER ",13
         db "drum *",13
         db "tone *",13
         db "vib 1*",13
         db "pad  *",13
         db "vol   ",13
+         ;db "vol   ",13
         db "drum *",13
         db "tone *",13
         db "vol   ",13
@@ -1058,6 +806,93 @@ ttypes
         db "pad  *",13
         db "vol   "
         db 0
+
+        else
+;A0g1234*
+        db  0, 0,_O, 0, 0, 0, 0, 0;"  O     "
+        db _A,_5,_d,_O, 0, 0, 0, 0;"A5dO    "
+        db _A,_2,_t,_O,_t, 0, 0, 0;"A2tOt   "
+        db  0, 0,_V,_O,_3,_1,_1, 0;"  VO311 "
+        db _A,_0,_t,_O,_p,_1, 0, 0;"A0tOp1  "
+        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        db _B,_5,_d,_O, 0, 0, 0, 0;"B5dO    "
+        db _B,_2,_t,_O, 0, 0, 0, 0;"B2tO    "
+        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        db _B,_0,_t,_O,_b, 0, 0, 0;"B0tOb   "
+        db _C,_5,_d,_O, 0, 0, 0, 0;"C5dO    "
+        db _C,_5,_t,_O,_t, 0, 0, 0;"C2tOt   "
+        db _C,_0,_t,_O,_p,_1, 0, 0;"C0tOp1  "
+        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        endif
+
+tsamples
+;0
+        dw smp_pause
+;1 '0'
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause
+        dw smp_pause ;10 '9'
+;11 'a'
+        dw smp_pause ;a
+        dw smp_bass ;b
+        dw smp_pause ;c
+        dw smp_pause ;d
+        dw smp_pause ;e
+        dw smp_pause ;f
+        dw smp_pause ;g
+        dw smp_pause ;h
+        dw smp_pause ;i
+        dw smp_pause ;j
+        dw smp_pause ;k
+        dw smp_pause ;l
+        dw smp_pause ;m
+        dw smp_pause ;n
+        dw smp_pause ;o
+        dw smp_maj ;p
+        dw smp_pause ;q
+        dw smp_pause ;r
+        dw smp_snare ;s
+        dw smp_tone ;t
+        dw smp_pause ;u
+        dw smp_pause ;v
+        dw smp_pause ;w
+        dw smp_pause ;x
+        dw smp_pause ;y
+        dw smp_pause ;36 'z'
+;37 'A'
+        dw smp_pause ;A
+        dw smp_pause ;B
+        dw smp_pause ;C
+        dw smp_pause ;D
+        dw smp_pause ;E
+        dw smp_pause ;F
+        dw smp_pause ;G
+        dw smp_pause ;H
+        dw smp_pause ;I
+        dw smp_pause ;J
+        dw smp_pause ;K
+        dw smp_pause ;L
+        dw smp_pause ;M
+        dw smp_pause ;N
+        dw smp_pause ;O
+        dw smp_pause ;P
+        dw smp_pause ;Q
+        dw smp_pause ;R
+        dw smp_pause ;S
+        dw smp_pause ;T
+        dw smp_pause ;U
+        dw smp_pause ;V
+        dw smp_pause ;W
+        dw smp_pause ;X
+        dw smp_pause ;Y
+        dw smp_pause ;62 'Z'
 
 ;смотрим тип текущего канала
 gettracktype
@@ -1071,17 +906,6 @@ gettracktype
         ld a,(hl)
         ret
 
-CHNTYPEMASK=0x7f
-CHNTYPE_ORDER=0 ;цифры, которые означают начало i-го фрагмента (для привязанных к ордеру каналов)
-CHNTYPE_FILTER=1 ;цифры, между которыми эффект плавно изменяется. эффект влияет на предыдущий канал
-CHNTYPE_NOTES=2 ;буквы нот (3 октавы)
-CHNTYPE_SAMPLES=3 ;буквы сэмплов
-;CHNTYPE_CHORDS=4
-        macro CHNTYPE chntype,usedorder,addr
-        db chntype ;+0x80=надо перерисовать
-        db usedorder ;0=не привязан к ордеру
-        dw addr ;описатель канала
-        endm
 tracks
         CHNTYPE 0x80+CHNTYPE_ORDER  ,0,-1
         CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Adrum
@@ -1089,6 +913,7 @@ tracks
         CHNTYPE 0x80+CHNTYPE_FILTER ,1,Filter_Avib
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Apad
         CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Avol
+         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Bvol
         CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Bdrum
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Btone
         CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Bvol
@@ -1157,6 +982,7 @@ getcury
         ld hl,toptrack
         sub (hl)
 ;a=y
+reter
         ret
 
 prcurcur
@@ -1166,9 +992,17 @@ prcurcur
         ld b,a
         jp prcur
 
+prtrackscur
+        ld a,(tracks_curx)
+        ld c,a
+        call getcury
+        ld b,a
+        jp prcur
+
         include "mix.asm"
         include "view.asm"
         include "mem.asm"
+        include "play.asm"
 
         macro tn msk,semi,vol,frq,noi
         db msk,semi,vol
@@ -1263,6 +1097,31 @@ smp_tone
         t4 0b00001000,0
         db -1
         dw -2-2 ;loop to line with hole
+
+;A0gO123
+
+;bass, pad и tone имеют параметры:
+;сэмпл
+;громкость
+;смещение в сэмпле
+ ;канал [рабочая октава не нужна, она в сэмпле]
+ ;приоритет
+
+;drum имеет параметры:
+;
+;громкость
+;[смещение в сэмпле не нужно?]
+ ;канал [рабочая октава]
+ ;приоритет
+
+;фильтр имеет параметры:
+;тип фильтра (d=drum channel, t=tone channel(bass/pad/tone), g=gain, Vv=vib/gliss up/down, Ee=env(vib/gliss up/down), n=noise down)
+;для вибрато и глисса: скорость изменения
+;для вибрато: глубина (0=бесконечность, т.е. gliss)
+;для вибрато: период
+
+;0,0,0,0,1,0,0,0,0,-1
+;0,0,0,1,1,0,0,0,-1,-1
 
 tnotekeys
         db "MJNHBGVCDXSZ"

@@ -683,9 +683,9 @@ updatescr_time0_skip
 updatescr_scrollq
         ;xor a
         ;ld (untr_needredraw),a
-        ld de,0x4001
-        ld c,0x0f
-        ld hl,ttypes
+        ;ld de,0x4001
+        ;ld c,0x0f
+        ;ld hl,ttypes
 needprtypes=$
         scf
         call c,prtypes
@@ -723,6 +723,7 @@ updatescr_tracks0
         ret
 
 prtypes
+         if OLDTTYPES
         ld de,0x4001
         ld c,0x0f
         ld hl,ttypes
@@ -740,7 +741,9 @@ prtypes0
         inc hl
         ld b,(hl)
         inc hl
-        ;cp CHNTYPE_...+1
+         and CHNTYPEMASK
+         cp CHNTYPE_FILTER+1
+         jr z,prtypes0skip
         ld a,b
         and c
         inc a
@@ -761,6 +764,30 @@ prtypes0
 prtypes0skip
         call nextchrline_de
         jr prtypes0
+
+         else
+        ld hl,ttypes
+        ld de,0x4000
+        ld a,(ntracks)
+prtypes0
+        push af
+        push de
+        ld bc,0x070f
+prtypes0new0
+        ld a,(hl)
+        push hl
+        call prchardig
+        pop hl
+        inc hl
+        djnz prtypes0new0
+        inc hl
+        pop de
+        call nextchrline_de
+        pop af
+        dec a
+        jr nz,prtypes0
+        ret
+         endif
 
 prtrack_gettype
         ld a,hx
