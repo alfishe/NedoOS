@@ -442,7 +442,6 @@ fileiscom_ix_nocom_a
 	ret
 
 colorfile
-;ix=fcb
 ;out: de=color
 	ld a,(fcb);(ix) ;mark
 	rra
@@ -831,11 +830,13 @@ controlloop_noprline
         ld ix,(curpanel)
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
+       push af
         call z,nv_setdirpos_zero ;can't move cursor if 0 files
+       pop af
         ;ld e,CURSORCOLOR;#38
         ;OS_PRATTR ;draw cursor
 	ld hl,_FILECURSORCOLOR
-	call prfilecursor_reprintfile
+	call nz,prfilecursor_reprintfile ;more than 0 files
         call cmdcalccurxy
         call nv_setxy
         ;SETX_ ;force reprint cursor
@@ -846,11 +847,13 @@ controlloop_nokey
         push af
         ld ix,(curpanel)
         call getfcbaddrundercursor
-        push hl
-        pop ix
+        ;push hl
+        ;pop ix
         call colorfile
         ex de,hl ;hl=color
-	call prfilecursor_reprintfile ;remove file cursor
+        ld a,(ix+PANEL.files)
+        or (ix+PANEL.files+1)
+	call nz,prfilecursor_reprintfile ;remove file cursor if more than 0 files
         ;call cmdcalccurxy
         ;call nv_setxy
         ;ld e,COLOR;7

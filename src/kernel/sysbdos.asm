@@ -1682,6 +1682,7 @@ BDOS_opendir_noFATFS
         ld hl,trdos_catbuf
         call writedircluster_hl        
         ld de,0x0000 ;track,sector
+       ld (hl),e;0
         ld bc,0x0905 ;read 9 sectors
         call iodos.
         xor a ;no error
@@ -1779,6 +1780,7 @@ BDOS_fsearchfirst_noFATFS
         call writedircluster_hl
         
         ld de,0x0000 ;track,sector
+       ld (hl),e;0
         ld bc,0x0905 ;read 9 sectors
         call iodos.
          pop de ;DE = Pointer to unopened FCB (0x8000+/0xc000+)
