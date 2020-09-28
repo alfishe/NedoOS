@@ -563,6 +563,8 @@ LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим
 LL7c92	ld a,0x77 ;запускаем процесс внутренней инициализации
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
+	in f,(c)
+	in f,(c)
 	ld a,0x69
 	out (C),a ;бит 6 установлен для инициализации SDHC карты
 	NOPSDCARD  
@@ -644,7 +646,7 @@ cs_lowSD
 ;запись в карту команды с неизменяемым параметром из памяти
 ;адрес команды в HL
 outcom_hlSD
-        call cs_lowSD
+    call cs_lowSD
 	ld bc,0x0657
 	otir  
 	ret  
@@ -652,11 +654,13 @@ outcom_hlSD
 ;запись в карту команды с нулевыми аргументами
 ;А=код команды, аргумент команды равен 0 
 outcom_zeroparsSD
-        call cs_lowSD
+    call cs_lowSD
 	ld bc,0x0057
+	in f,(c)
+	in f,(c)
 	out (C),a
 	NOPSDCARD
-        xor a
+    xor a
 	out (C),a
 	NOPSDCARD  
 	out (C),a
@@ -698,7 +702,7 @@ setcmdparsSD
 	ld bc,0x0057
 	ld a,(zsd_blsize)
 	or a
-	jr nz,LL7d40 ;не требуется
+	jr nz,SECN200 ;не требуется
 	ex de,hl       ;при сброшенном бите соответственно
 	add hl,hl ;умножаем номер сектора на 512 (0x200)
 	ex de,hl  
@@ -707,7 +711,9 @@ setcmdparsSD
 	ld l,d
 	ld d,e
 	ld e,0x00
-LL7d40	pop af ;заготовленный номер сектора находится в HLDE
+SECN200	pop af ;заготовленный номер сектора находится в HLDE
+	in f,(c)
+	in f,(c)
 	out (C),a ;команда
 	NOPSDCARD  
 	out (C),h ;;пишем номер сектора от старшего
@@ -836,17 +842,17 @@ writesectorsSD
 ;	inc a
 ;	jr nz,LL7ddf
 	call read32byteswaitnoffSD_loopnoff
-	exa  
-LL7de6	exa  
+	EX AF,AF'  
+WRMULT1	EX AF,AF'  
 	ld a,0xfc
 	call writesecSDcard
 ;LL7dec	call read32byteswaitnoffSD
 ;	inc a
 ;	jr nz,LL7dec
 	call read32byteswaitnoffSD_loopnoff
-	exa  
+	EX AF,AF'  
 	dec a
-	jr nz,LL7de6
+	jr nz,WRMULT1
 	ld c,0x57
 	ld a,0xfd
 	out (C),a
