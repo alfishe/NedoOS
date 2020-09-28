@@ -577,6 +577,10 @@ __1=$
         ld c,CMD_GETFILESIZE
 	CALLBDOS_NOPARAM_A
         endm
+        macro OS_GETFILINFO ;de=filename, hl=buf[FILINFO_sz] to get FILINFO
+        ld c,CMD_GETFILINFO
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_SETBORDER ;e=0..15
         ld c,CMD_SETBORDER
 	CALLBDOS_NOPARAM_A

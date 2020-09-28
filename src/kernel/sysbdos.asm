@@ -829,7 +829,9 @@ tbdoscmds
         db CMD_HIDEFROMPARENT
         db CMD_RNDRD
         db CMD_RNDWR
+        db CMD_GETFILINFO
 nbdoscmds=$-tbdoscmds
+        dw BDOS_getfilinfo
         dw BDOS_rndwr
         dw BDOS_rndrd
         dw BDOS_hidefromparent
@@ -1651,6 +1653,29 @@ BDOS_fwrite_nbytes_noFATFS
         ld c,l
         jp trdos_fwrite_nbytes
         endif
+
+;de=path
+;hl=FILINFO buffer
+BDOS_getfilinfo
+        push hl ;FILINFO buffer
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ;call countfiledrive
+        ;CHECKVOLUMETRDOS
+        ;jr c,BDOS_getfilinfo_noFATFS ;не имеет смысла вне FAT
+        ld bc,mfilinfo
+        push bc
+        F_STAT
+        pop hl ;mfilinfo
+        pop de ;FILINFO buffer
+        or a
+        ret nz ;fail
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld bc,FILINFO_sz
+        ldir
+        xor a ;OK
+        ret
         
 count_fdir
         push iy
@@ -1664,11 +1689,11 @@ count_fdir
 BDOS_opendir
         call BDOS_preparedepage
         call BDOS_setdepage
-		call countfiledrive
-        jr c,BDOS_opendir_noFATFS
+	call countfiledrive
         ld b,d
         ld c,e
-        ;CHECKVOLUMETRDOS
+        CHECKVOLUMETRDOS
+        jr c,BDOS_opendir_noFATFS
 BDOS_opencurdir
         call count_fdir ;LD de,fdir
         F_OPDIR_CURDRV

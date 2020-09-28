@@ -345,6 +345,14 @@ FIL_sz=32+512
 	;call ffs
 	;endm
 
+;FRESULT f_stat (const TCHAR*, FILINFO*);			/* Get file status */
+;	DE=TCHAR *path,
+;	BC=FILINFO* буфер 
+	MACRO F_STAT
+	ld hl,ffsfunc.f_stat
+	call call_ffs
+	ENDM
+
 
 ;FRESULT f_utime (const TCHAR*, WORD fdate, WORD ftime); /* Change timestamp of the file/dir */
 ;de=name

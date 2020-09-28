@@ -79,7 +79,7 @@ CMD_SETFILETIME=0xe4 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
 CMD_TELLHANDLE=0xe5 ;b=file handle, out: dehl=offset ;GET POSITION IN FILE
 CMD_SCROLLUP=0xe6 ;OBSOLETE ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
 CMD_SCROLLDOWN=0xe7 ;OBSOLETE ;de=topyx, hl=hgt,wid ;x, wid even ;TEXTMODE ONLY
-;0xe8 not used
+CMD_GETFILINFO=0xe8 ;de=filename, hl=buf[FILINFO_sz] to get FILINFO
 CMD_SETMAINPAGE=0xe9 ;e=page for 0x0000
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
