@@ -4,16 +4,18 @@
 OLDTTYPES=0
 
 freemem_start=0x8000
-;tracks=freemem_start
+
 MAXTIME=65536;4096
-NTRACKS=14
-;tracks_sz=MAXTIME*NTRACKS
-SCRNTRACKS=14
+
+MAXNTRACKS=64
+
+SCRNTRACKS=23;8
 TRACKX=8
 SCRTRACKWID=64-TRACKX
 
-NOTE_SPACE=0;-2 ;надо удобно на уровне mem! на уровне mem упаковывать
-NOTE_PAUSE=-1
+NOTE_SPACE=0 ;надо удобно на уровне mem! на уровне mem упаковывать
+NOTE_GLISS=0xfe
+NOTE_PAUSE=0xff
 NOTE_LOWEST=1;0
 
         include "struct.asm"
@@ -216,14 +218,14 @@ mainloop_nokey
         jp z,untr_space
         cp key_esc
         jp z,untr_quit
-        
+
         push af
 ;смотрим тип текущего канала
         ld a,(curtrack)
         call gettracktype
         and CHNTYPEMASK
         cp CHNTYPE_NOTES
-        jr z,enternote        
+        jr z,enternote
         pop af
         call keytodigit
         call pokecurtime_curtrack_c
@@ -254,12 +256,14 @@ enterdigok
         add a,c
         ld c,a
         ret
-        
+
 enternote
         pop af
         cp 'a'
         jp z,untr_pause
-        
+        cp 'f'
+        jp z,untr_keygliss
+
         ld hl,tnotekeys
         ld bc,3*12
         cpir
@@ -279,11 +283,25 @@ playnote0
         call playnote
         call checknotekeys_pressed
         jr nz,playnote0
-        
+
         call shutay
-        
+
         ;call setneedredraw
         jp untr_right
+
+untr_keygliss
+        ld c,NOTE_GLISS
+        jr untr_pauseq
+untr_pause
+        ld c,NOTE_PAUSE
+untr_pauseq
+        call pokecurtime_curtrack_c
+        jp untr_afternotekey
+
+untr_space
+        ld c,NOTE_SPACE
+        call pokecurtime_curtrack_c
+        jp untr_afternotekey_alltracksiforder
 
 tracksloop
         call updatescr
@@ -307,6 +325,10 @@ tracksloop_nokey
         jp z,untr_up
         cp key_down
         jp z,untr_down
+        cp key_ins
+        jp z,tracks_ins
+        cp key_del
+        jp z,tracks_del
         ;push af
         ld hl,(curtrack)
         ld h,0
@@ -319,12 +341,156 @@ tracks_curx=$+1
         ld bc,ttypes
         add hl,bc
         ;pop af
-        ;jr $
         call keytodigit ;out: CY=error, a=digit
         ret c
         ld (hl),a
         jp setneedprtypes
+
+tracks_ins
+        ld hl,ntracks
+        ld a,(hl)
+        cp MAXNTRACKS
+        ret z
+        inc (hl)
+;вставить трек в tracks
+        ld hl,tracks_end-1-4
+        ld de,tracks_end-1
+;если мы на треке a=MAXNTRACKS-2, то надо сдвинуть 4 байта (1 строчку)
+;если мы на треке a=MAXNTRACKS-3, то надо сдвинуть 4*2 байта (2 строчки)
+;значит, надо сдвинуть MAXNTRACKS-a-1 строчек
+        ld a,(curtrack)
+        cpl
+        add a,MAXNTRACKS
+        add a,a
+        add a,a
+        ld c,a
+        ld b,0
+        lddr
+;вставить трек в ttypes
+        ld hl,ttypes_end-1-8
+        ld de,ttypes_end-1
+        add a,a
+        ld c,a
+        ;ld b,0
+        rl b
+        lddr
+;сдвинуть roots треков, начиная с curtrack
+        ld a,(curtrack)
+        ld hl,0x4000+0x3eff
+        ld de,0x4000+0x3fff
+        cpl
+        add a,64;MAXNTRACKS
+        ld b,a
+        ;ld c,0
+        lddr
+        inc hl
+        ld d,h
+        ld e,l
+        inc de
+        ld (hl),l;0
+        dec c ;bc=0x00ff
+        ldir
+
+        jp setneedprtracks
+
+tracks_del
+        ld hl,ntracks
+        ld a,(hl)
+        dec a
+        ret z
+        dec (hl)
+;очистить трек
+        ld hl,0
+        ld lx,0 ;part=0..63
+tracks_del0
+        ld a,(curtrack)
+;lx=part
+;a=track
+        call getendaddr
+        ex de,hl
+tracks_del1
+        ld a,(curtrack)
+        ld c,0 ;c=data
+;hl=index
+;lx=part
+;a=track
+;c=data
+        call poketrackpartindex_c
+        ld a,h
+        or l
+        dec hl
+        jr nz,tracks_del1
+        inc lx
+        ld a,lx
+        cp 64
+        jr nz,tracks_del0
         
+;удалить трек в tracks
+        ld a,(curtrack)
+        or a
+        ret z ;don't delete order
+        add a,a
+        add a,a
+        ld e,a
+        ld d,0
+        ld hl,tracks
+        add hl,de
+        ld d,h
+        ld e,l
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+;если мы на треке a=MAXNTRACKS-2, то надо сдвинуть 4 байта (1 строчку)
+;если мы на треке a=MAXNTRACKS-3, то надо сдвинуть 4*2 байта (2 строчки)
+;значит, надо сдвинуть MAXNTRACKS-a-1 строчек
+        ld a,(curtrack)
+        cpl
+        add a,MAXNTRACKS
+        add a,a
+        add a,a
+        push af
+        ld c,a
+        ld b,0
+        ldir
+;удалить трек в ttypes
+        ld a,(curtrack)
+        add a,a
+        add a,a
+        add a,a
+        ld e,a
+        ld d,b;0
+        ld hl,ttypes
+        add hl,de
+        ld d,h
+        ld e,l
+        ld c,8
+        add hl,bc
+        pop af
+        add a,a
+        ld c,a
+        ;ld b,0
+        rl b
+        ldir
+
+;сдвинуть roots треков, начиная с curtrack
+        ld a,(curtrack)
+        add a,0x40
+        ld d,a
+        inc a
+        ld h,a
+        ld l,0
+        ld e,l;0
+        ld a,(curtrack)
+        cpl
+        add a,64;MAXNTRACKS
+        ld b,a
+        ;ld c,0
+        ldir
+        
+        call cls
+        jp setneedprtracks
+
 tracks_left
         ld hl,tracks_curx
         ld a,(hl)
@@ -357,9 +523,9 @@ tracks_right
 
 playnote
         call playnote_tracksplaysample
-        
+
         ;call filter_all_tracks
-        
+
         ld a,2
         call mixchn_all_channela
         push ix ;chn для C
@@ -369,11 +535,11 @@ playnote
         ld a,0
         call mixchn_all_channela
         ;push ix ;chn для A
-        
+
         ;ld iy,Atone
         ;ld ix,Adrum
         ;call mixchn
-        
+
 ;TODO что делать, если нет ни одного трека для какого-то канала?
         ;ld ix,Adrum
         ;ld hl,Btone;drum
@@ -405,20 +571,10 @@ playenter0
         call untr_right ;TODO check end and loop
         call checknotekeys_pressed
         jr nz,playenter0
-        
+
         call shutay
-        
-        jp untr_afternotekey
 
-untr_pause
-        ld c,NOTE_PAUSE
-        call pokecurtime_curtrack_c
         jp untr_afternotekey
-
-untr_space
-        ld c,NOTE_SPACE
-        call pokecurtime_curtrack_c
-        jp untr_afternotekey_alltracksiforder
 
 untr_del_popret
         pop hl
@@ -448,7 +604,7 @@ untr_del
         jr c,untr_del_popret
         ex de,hl
         inc de
-;de=число нот до конца трека включительно        
+;de=число нот до конца трека включительно
 ;0x0101 - 1 проход
 ;0x0102 - 2 прохода
 ;0x0100 - 256 проходов
@@ -459,9 +615,9 @@ untr_del
         dec de
         inc d
         ld hx,d
-        
+
         pop hl ;hl=endaddr
-        
+
         ;ld de,-NTRACKS
         ld c,NOTE_SPACE
 ;hl=index
@@ -617,7 +773,7 @@ untr_up
         cp (hl)
         ret nc
         dec (hl)
-        jp setneedprtypes ;setneedredraw
+        ret;jp setneedprtypes ;setneedredraw
 
 setneedredraw_alltracksiforder
         ld a,(curtrack)
@@ -633,7 +789,8 @@ setneedredraw_curtrack
 setneedpralltracks
 ;keep a!
         ld hl,tracks
-        ld b,NTRACKS
+        ld a,(ntracks)
+        ld b,a
 setneedpralltracks0
         set 7,(hl)
         inc hl
@@ -661,7 +818,7 @@ untr_down
         cp b
         ret c
         inc (hl)
-        jp setneedprtypes;setneedredraw
+        ret;jp setneedprtypes;setneedredraw
 
 checkeof
         ld de,MAXTIME-1
@@ -808,21 +965,23 @@ ttypes
         db 0
 
         else
-;A0g1234*
+;A0gOS2v*
         db  0, 0,_O, 0, 0, 0, 0, 0;"  O     "
-        db _A,_5,_d,_O, 0, 0, 0, 0;"A5dO    "
-        db _A,_2,_t,_O,_t, 0, 0, 0;"A2tOt   "
+        db _A,_5,_d,_O, 0, 0,_f, 0;"A5dO  f "
+        db _A,_2,_t,_O,_t, 0,_f, 0;"A2tOt f "
         db  0, 0,_V,_O,_3,_1,_1, 0;"  VO311 "
-        db _A,_0,_t,_O,_p,_1, 0, 0;"A0tOp1  "
+        db _A,_0,_t,_O,_p,_1,_f, 0;"A0tOp1f "
         db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
-        db _B,_5,_d,_O, 0, 0, 0, 0;"B5dO    "
-        db _B,_2,_t,_O, 0, 0, 0, 0;"B2tO    "
+        db _B,_5,_d,_O, 0, 0,_f, 0;"B5dO  f "
+        db _B,_2,_t,_O,_t, 0,_f, 0;"B2tOt f "
         db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
-        db _B,_0,_t,_O,_b, 0, 0, 0;"B0tOb   "
-        db _C,_5,_d,_O, 0, 0, 0, 0;"C5dO    "
-        db _C,_5,_t,_O,_t, 0, 0, 0;"C2tOt   "
-        db _C,_0,_t,_O,_p,_1, 0, 0;"C0tOp1  "
+        db _B,_0,_t,_O,_b, 0,_f, 0;"B0tOb f "
+        db _C,_5,_d,_O, 0, 0,_f, 0;"C5dO  f "
+        db _C,_5,_t,_O,_t, 0,_f, 0;"C2tOt f "
+        db _C,_0,_t,_O,_p,_1,_f, 0;"C0tOp1f "
         db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        ds ttypes+(MAXNTRACKS*8)-$
+ttypes_end
         endif
 
 tsamples
@@ -922,6 +1081,9 @@ tracks
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Ctone
         CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Cpad
         CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Cvol
+         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Cvol
+        ds tracks+(4*MAXNTRACKS)-$,-1
+tracks_end
         db -1
 
 Adrum
@@ -944,7 +1106,7 @@ Cpad
         chn
 chip0
         chip
-        
+
 Filter_Avib
         filter
 Filter_Avol
@@ -981,6 +1143,7 @@ getcury
         ld a,(curtrack)
         ld hl,toptrack
         sub (hl)
+        inc a
 ;a=y
 reter
         ret
@@ -1131,7 +1294,7 @@ tnotekeys
 tfrq
         ds 512
 wasfrq
-        incbin "tb_st.bin"  
+        incbin "tb_st.bin"
 
 cmd_end
 

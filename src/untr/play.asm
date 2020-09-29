@@ -61,7 +61,9 @@ playnote_inittrackspars_typeok
         ld a,(iy+5) ;par2
         ld (ix+chn.par2_in),a
         ld a,(iy+6) ;par3
-        ld (ix+chn.par3_in),a
+        ;ld (ix+chn.par3_in),a
+         sub 1+15
+        ld (ix+chn.volume_in),a
         pop hl
 playnote_inittrackspars0ok
         ld bc,8
@@ -162,16 +164,18 @@ playenter_inittracks0
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
          jr z,playenter_filter;inittracks0skip
-        ld a,b
-        and c
-        inc a
-        jr z,playenter_inittracks0skip
+         cp CHNTYPE_SAMPLES+1
+         jr z,playenter_samples;inittracks0skip
+         cp CHNTYPE_ORDER+1
+         jr z,playenter_inittracks0skip
+        ;ld a,b
+        ;and c
+        ;inc a
+        ;jr z,playenter_inittracks0skip
         ld hx,b
         ld lx,c
         push hl
-        ld a,hy
-;a=track
-        ;ld a,(ix+chn.channel_in)
+        ld a,hy ;a=track
         push ix
         call peekcurtime_tracka
         pop ix
@@ -180,6 +184,22 @@ playenter_inittracks0
 playenter_inittracks0skip
         inc hy ;track
         jr playenter_inittracks0
+playenter_samples
+        ld hx,b
+        ld lx,c
+        push hl
+        ld a,hy ;a=track
+        push ix
+        call peekcurtime_tracka
+        pop ix
+        pop hl
+        or a
+        jr z,playenter_inittracks0skip ;SPACE
+        ld (ix+chn.note_in),3*12 ;C-4
+        ld de,smp_snare ;TODO в зависимости от A
+        ld (ix+chn.smpcuraddr),e
+        ld (ix+chn.smpcuraddr+1),d
+        jr playenter_inittracks0skip
 playenter_filter
          ld a,hx
          or a
@@ -193,8 +213,6 @@ playenter_filter
 ;текущее значение для фильтра - это линейная интерполяция между ними
 ;k = (curtime-lefttime)/(righttime-lefttime)
 ;val = leftval + k*(rightval-leftval)
-
-        ;jr $
         ld a,hy;(curtrack)
         ld hl,(curtime)
         push hl
@@ -267,8 +285,7 @@ leftval=$+1
         pop ix
         pop hl
         endif
-
-        jr playenter_inittracks0skip
+        jp playenter_inittracks0skip
 
 mulsigned8bylessthan1
 ;a = +-a*bc

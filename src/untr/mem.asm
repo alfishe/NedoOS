@@ -51,7 +51,7 @@ getroot
 ;lx=part
 ;a=track
         add a,0x40
-        ld h,a ;номер канала
+        ld h,a ;номер трека
         ;ld l,0*4
         ld a,lx ;part
         add a,a

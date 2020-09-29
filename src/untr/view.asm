@@ -1,3 +1,13 @@
+cls
+        call setscrpg
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x17ff
+        ld (hl),l;0
+        ldir
+        call setpgroots
+        ret
+
 downhl
         inc h
 downhl_afterinch
@@ -420,14 +430,32 @@ digfont=0x6800
         ;ds 2048
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; high level view ;;;;;;;;;;;;;;;;;;;;;;;;
+getscrntracks
+        ld a,(ntracks)
+        ld b,SCRNTRACKS
+        cp b
+        ret nc
+        ld b,a
+        ret
+
 setneedprtypes
         ld a,55 ;"scf"
         ld (needprtypes),a
+        ret
+setneedprtracks
+        ld a,-1
+        ld (oldtoptrack),a
         ret
 
 updatescr
 ;обновляем, если изменился lefttime или toptrack(TODO)
 ;при смене toptrack также перерисовать описатели треков
+        ld a,(toptrack)
+oldtoptrack=$+1
+        ld c,-1
+        ld (oldtoptrack),a
+        cp c
+        jp nz,updatescr_scrollupdown
         ld hl,(lefttime)
 oldlefttime=$+1
         ld de,0x8000
@@ -436,6 +464,11 @@ oldlefttime=$+1
         sbc hl,de
         jr nz,updatescr_scroll
         jp updatescr_scrollq
+updatescr_scrollupdown
+        call setneedpralltracks
+        call setneedprtypes
+        jp updatescr_scroll_noprall
+
 updatescr_scroll
 ;hl=lefttime-oldlefttime
 ;если скролл на 1 символ, то реально скроллим, иначе перепечатываем?
@@ -463,9 +496,10 @@ updatescr_scroll_left
         push bc
         call setscrpg
         pop bc
-        ld hl,0x4000+(TRACKX/2);+(SCRTRACKWID/2)-1
-        ld b,SCRNTRACKS
-        ld hx,0 ;track
+        ld hl,0x4020+(TRACKX/2);+(SCRTRACKWID/2)-1
+        call getscrntracks;ld b,SCRNTRACKS
+        ld a,(toptrack)
+        ld hx,a;0 ;track
 scrollleft0
         push bc
         push hl
@@ -504,7 +538,6 @@ scrollleft_Nchars=$+2
         push bc
         push de
         push bc
-        ;jr $
         ld a,c
         dec b
         jr z,scrollleft_beforeprtrack0q
@@ -572,9 +605,10 @@ updatescr_scroll_right
         push bc
         call setscrpg
         pop bc
-        ld hl,0x4000+(TRACKX/2)
-        ld b,SCRNTRACKS
-        ld hx,0 ;track
+        ld hl,0x4020+(TRACKX/2)
+        call getscrntracks;ld b,SCRNTRACKS
+        ld a,(toptrack)
+        ld hx,a;0 ;track
 scrollright0
         push bc
         push hl
@@ -642,9 +676,9 @@ scrollright_prbars0
 
 updatescr_scroll_prall
         call setneedpralltracks
-updatescr_scroll_noprall        
+updatescr_scroll_noprall
 ;показывать время только при скролле (TODO по одной цифре)
-        ld de,0x48c0+(TRACKX/2)
+        ld de,0x4000+(TRACKX/2)
         ld b,SCRTRACKWID
         ld c,0x0f
         ld hl,(lefttime)
@@ -696,9 +730,10 @@ needprtypes=$
 ;        scf
         ;jr nc,updatescr_prcurtrack
 ;обновлять только треки, которые изменились (обновление одного не прокатит при асинхронном рисовании!!!)
-        ld de,0x4000+(TRACKX/2)
-        ld b,SCRNTRACKS
-        ld hx,0 ;track
+        ld de,0x4020+(TRACKX/2)
+        call getscrntracks;ld b,SCRNTRACKS
+        ld a,(toptrack)
+        ld hx,a;0 ;track
 updatescr_tracks0
         push bc
         push de
@@ -723,54 +758,18 @@ updatescr_tracks0
         ret
 
 prtypes
-         if OLDTTYPES
-        ld de,0x4001
-        ld c,0x0f
         ld hl,ttypes
-        call prtext
-        ld hl,tracks
-        ld de,0x4000
+        ld a,(toptrack)
+        add a,a
+        add a,a
+        add a,a
+        ld e,a
+        ld d,0
+        add hl,de
+        ld de,0x4020
+        call getscrntracks;ld b,SCRNTRACKS
 prtypes0
-        ld a,(hl) ;chntype
-        inc a
-        ret z
-        inc hl
-        ;ld a,(hl) ;order
-        inc hl
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
-        inc hl
-         and CHNTYPEMASK
-         cp CHNTYPE_FILTER+1
-         jr z,prtypes0skip
-        ld a,b
-        and c
-        inc a
-        jr z,prtypes0skip
-        push de
-        push hl
-        ld hx,b
-        ld lx,c
-        ld c,0x0f
-        ld a,(ix+chn.channel_in)
-        add a,'A'
-        call prchar
-        ld a,(ix+chn.keepme_in)
-        add a,'0'
-        call prchar
-        pop hl
-        pop de
-prtypes0skip
-        call nextchrline_de
-        jr prtypes0
-
-         else
-        ld hl,ttypes
-        ld de,0x4000
-        ld a,(ntracks)
-prtypes0
-        push af
+        push bc
         push de
         ld bc,0x070f
 prtypes0new0
@@ -783,11 +782,9 @@ prtypes0new0
         inc hl
         pop de
         call nextchrline_de
-        pop af
-        dec a
-        jr nz,prtypes0
+        pop bc
+        djnz prtypes0
         ret
-         endif
 
 prtrack_gettype
         ld a,hx
@@ -972,6 +969,12 @@ gennotefont
         ld bc,62*256+8
         call gennotefont120
         
+        ld hl,tpausefont
+        ld de,notefont+(NOTE_GLISS&0xff)
+        ld bc,2*256+8
+        ld hx,font/256
+        call gennotefont120
+
         ld e,NOTE_LOWEST
         ld c,7
         ld hx,font/256
@@ -1015,6 +1018,8 @@ gennotefont121
         djnz gennotefont120
         ret
 
+tpausefont
+        db "-|"
 tnotefont
 ;в шрифте начиная с кода 1
         db "CcDdEFfGgAaB"
