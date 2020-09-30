@@ -55,7 +55,7 @@ playnote_inittrackspars_typeok
         add hl,bc
         ld c,(hl)
         inc hl
-        ld b,(hl)
+        ld b,(hl) ;TODO add sample offset (par2?)
         ld (ix+chn.smp_in),c
         ld (ix+chn.smp_in+1),b
         ld a,(iy+5) ;par2
@@ -103,7 +103,8 @@ playnote_inittrackspars_filtertypeok
 playnote_inittrackspars0q
 
         ld a,0x80 ;точно не совпадёт, так что будет retrigenv
-        ld (chip0+chip.envtype),a ;TODO TurboSound
+        ld (chip0+chip.envtype),a
+        ld (chip1+chip.envtype),a
 
         ld hl,tracks
         ld hy,0 ;track
@@ -180,6 +181,8 @@ playenter_inittracks0
         call peekcurtime_tracka
         pop ix
         pop hl
+;TODO включить глисс (и рассчитать скорость glissspeed_in), если a=NOTE_GLISS, иначе выключить
+;TODO если ближайшая нота слева - глисс, то не переинициализировать сэмпл
         call initchnnote ;устанавливает сэмпл, как указано в канале
 playenter_inittracks0skip
         inc hy ;track
@@ -196,15 +199,23 @@ playenter_samples
         or a
         jr z,playenter_inittracks0skip ;SPACE
         ld (ix+chn.note_in),3*12 ;C-4
-        ld de,smp_snare ;TODO в зависимости от A
-        ld (ix+chn.smpcuraddr),e
-        ld (ix+chn.smpcuraddr+1),d
+        ;ld bc,smp_snare
+        add a,a
+        ld l,a
+        ld h,0
+        ld bc,tsamples
+        add hl,bc
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (ix+chn.smpcuraddr),c
+        ld (ix+chn.smpcuraddr+1),b
         jr playenter_inittracks0skip
 playenter_filter
          ld a,hx
          or a
-         jr z,playenter_inittracks0skip ;т.е. фильтр по ошибке стоит выше любого канала
-        if 1==1
+         jr z,playenter_inittracks0skip ;когда фильтр по ошибке стоит выше любого канала
+
         push hl
         push ix
         push bc ;filter
@@ -235,7 +246,7 @@ playenter_filter
         ld (lefttime),hl
         or a
         jr nz,$+4
-        ld a,16 ;"f"
+         ld a,1+15 ;"f"
         ld (leftval),a
 
         ld a,hy;(curtrack)
@@ -252,39 +263,32 @@ playenter_filter
         add hl,de ;time=index+beg (beg=time-index)
 ;hl=righttime
 ;a=rightval
-        ;ld (righttime),hl
         or a
-        ;jr nz,$+4
-        ;ld a,16 ;"f"
          jr nz,$+5
          ld a,(leftval)
         push af ;ld (rightval),a
 ;k = (curtime-lefttime)/(righttime-lefttime)
-        ;ld hl,(righttime)
         ld de,(lefttime)
         or a
-        sbc hl,de
+        sbc hl,de ;righttime-lefttime
         ex de,hl
         ld hl,(curtime)
         ld bc,(lefttime)
         or a
         sbc hl,bc
-        call divlessthan1 ;out: bc = hl / de (.16)
-        ;ld (k),bc
+        call divlessthan1 ;out: k = bc = hl / de (.16)
 ;val = leftval + k*(rightval-leftval)
-;rightval=$+1
-;        ld a,0
         pop af ;rightval
 leftval=$+1
         ld e,0
         sub e
-        call mulsigned8bylessthan1
+        call mulsigned8bylessthan1 ;a = +-a*bc
         add a,e
         pop ix ;filter
         ld (ix+filter.curvalue),a
         pop ix
         pop hl
-        endif
+
         jp playenter_inittracks0skip
 
 mulsigned8bylessthan1

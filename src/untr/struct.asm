@@ -87,6 +87,8 @@ par2_in BYTE
 par3_in BYTE
 smp_in  WORD
 smpcuraddr  WORD
+curgliss WORD
+glissspeed_in WORD
         ENDS
 
 MASKBIT_T=0

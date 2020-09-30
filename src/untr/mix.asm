@@ -1,6 +1,6 @@
 filterhandler_vol
         ld a,e
-        sub 16 ;"f" (1="0", 2="1"...)
+        sub 1+15 ;"f" (1="0", 2="1"...)
         ld e,a ;vol "f" = +0, "g" = +1...
 filtervolume
 ;ix=from=to
@@ -400,6 +400,16 @@ outchip_noretrigC
         OUTI
         ret
 
+setchip1
+        ld a,0xff
+        jr setchip_a
+setchip0
+        ld a,0xfe
+setchip_a
+        ld bc,0xfffd
+        out (c),a
+        ret
+        
 ;Sample:
 ;256 masks (T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent), одна из комбинаций означает loop (например, -1)
 noisefrqpresent=1
@@ -509,6 +519,7 @@ playsample_noenvsemitoneshiftq
         ld d,a ;correct tone frq
         inc hl
 playsample_notonefrqshift
+        ;TODO накапливать глисс и прибавить его к tonefrq (в будущем считать глисс и пр. параметры от времени?)
         ld (ix+chn.tonefrq),e
         ld (ix+chn.tonefrq+1),d
         

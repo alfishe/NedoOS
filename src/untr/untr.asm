@@ -102,23 +102,30 @@ refrq2
         jr nz,refrq2
 
 ;for example: 0=bass/pad, 2=tone, 5=drum
-        ld ix,Adrum
-        ld (ix+chn.keepme_in),5
-        ld de,smp_snare
+        ld ix,emptychn
+        ;ld (ix+chn.keepme_in),5
+        ld de,smp_pause
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
+        ld (ix+chn.channel_in),0
+        ;call initchnnote_pause
+        ld ix,Adrum
+        ld (ix+chn.keepme_in),5
+        ;ld de,smp_snare
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Bdrum
         ld (ix+chn.keepme_in),5
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Cdrum
         ld (ix+chn.keepme_in),5
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),2
         call initchnnote_pause
         ld ix,Atone
@@ -1086,6 +1093,8 @@ tracks
 tracks_end
         db -1
 
+emptychn
+        chn
 Adrum
         chn
 Atone
@@ -1105,6 +1114,8 @@ Ctone
 Cpad
         chn
 chip0
+        chip
+chip1
         chip
 
 Filter_Avib
