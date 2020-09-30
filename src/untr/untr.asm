@@ -131,38 +131,38 @@ refrq2
         ld ix,Atone
         ld (ix+chn.keepme_in),2
         ld de,smp_tone
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Btone
         ld (ix+chn.keepme_in),2
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Ctone
         ld (ix+chn.keepme_in),2
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),2
         call initchnnote_pause
         ld ix,Apad
         ld (ix+chn.keepme_in),0
-        ld (ix+chn.smp_in),smp_maj&0xff
-        ld (ix+chn.smp_in+1),smp_maj/256
+        ;ld (ix+chn.smp_in),smp_maj&0xff
+        ;ld (ix+chn.smp_in+1),smp_maj/256
         ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Bbass
         ld (ix+chn.keepme_in),0
-        ld (ix+chn.smp_in),smp_bass&0xff
-        ld (ix+chn.smp_in+1),smp_bass/256
+        ;ld (ix+chn.smp_in),smp_bass&0xff
+        ;ld (ix+chn.smp_in+1),smp_bass/256
         ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Cpad
         ld (ix+chn.keepme_in),0
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
+        ;ld (ix+chn.smp_in),e
+        ;ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),2
         call initchnnote_pause
 
@@ -920,38 +920,6 @@ untr_left
         ld (lefttime),de
         ret
 
-        if 1==0
-;hl / de
-;out: hl
-;работает так: hl.ca - de и т.д.
-_DIV.
-	ld c,h
-	ld a,l
-	ld hl,0
-	ld b,16
-;don't mind carry
-_DIV0.
-;shift left hlca
-	rla
-	rl c
-	adc hl,hl
-;no carry
-;try sub
-	sbc hl,de
-	jr nc,$+3
-	add hl,de
-;carry = inverted bit of result
-	djnz _DIV0.
-	rla
-	cpl
-	ld l,a
-	ld a,c
-	rla
-	cpl
-	ld h,a
-	ret
-        endif
-
 ttypes
         if OLDTTYPES
         db "ORDER ",13
@@ -1179,7 +1147,13 @@ prtrackscur
         include "play.asm"
 
         macro tn msk,semi,vol,frq,noi
-        db msk,semi,vol
+        db msk,semi,0,vol
+        dw frq
+        db noi
+        endm
+
+        macro tne msk,semi,envsemi,vol,frq,noi
+        db msk,semi,envsemi,vol
         dw frq
         db noi
         endm
@@ -1199,39 +1173,39 @@ smp_snare
 ;      05 -N- 3
 ;      05 -N- 2
 ;      05 -N- 1
-            ;fsrohENT  ;s ;v ;f       ;n
+            ;fsrohENT  ;s ;v ;f       ;n (o=outerenv)
         tn 0b11000011,-96,15,C4ADD+288,0
         tn 0b11000011,-96,12,C4ADD-202,6
         tn 0b11000011,-96,11,C4ADD+512,6
         tn 0b11000011,-96,10,C4ADD+970,6
-        db 0b00000010,     9,          6
-        db 0b00000010,     8,          6
-        db 0b00000010,     7,          5
-        db 0b00000010,     6,          5
-        db 0b00000010,     5,          5
-        db 0b00000010,     4,          5
-        db 0b00000010,     3,          5
-        db 0b00000010,     2,          5
-        db 0b00000010,     1,          5
+        tn 0b00000010,  0, 9,        0,6
+        tn 0b00000010,  0, 8,        0,6
+        tn 0b00000010,  0, 7,        0,5
+        tn 0b00000010,  0, 6,        0,5
+        tn 0b00000010,  0, 5,        0,5
+        tn 0b00000010,  0, 4,        0,5
+        tn 0b00000010,  0, 3,        0,5
+        tn 0b00000010,  0, 2,        0,5
+        tn 0b00000010,  0, 1,        0,5
 smp_pause
-        db 0b00001000,     0
+        tn 0b11001000,  0, 0,        0,0
         db -1
-        dw -2-2 ;loop to line with hole
+        dw -2-SMPLINE ;loop to line with hole
 
 smp_bass
-        db 0b00000100,+5*12,0x0e
+        tne 0b11000100,0,+5*12,0x0e,    0,0
         db -1
-        dw -2-3 ;loop to first line
+        dw -2-SMPLINE ;loop to first line
 
 smp_maj
-        db 0b01000001,2*12+0,11
-        db 0b01000001,2*12+4,11
-        db 0b01000001,2*12+7,11
+        tn 0b11000001,2*12+0,11,     0,0
+        tn 0b11000001,2*12+4,11,     0,0
+        tn 0b11000001,2*12+7,11,     0,0
         db -1
         dw smp_maj-($+1) ;loop to first line
 
         macro t4 msk,vol
-        db msk|0b01000000,2*12,vol
+        db msk|0b11000000,2*12,0,vol,  0,0,0
         endm
 
 smp_tone
@@ -1270,7 +1244,7 @@ smp_tone
         t4 0b00000001,7
         t4 0b00001000,0
         db -1
-        dw -2-2 ;loop to line with hole
+        dw -2-SMPLINE ;loop to line with hole
 
 ;A0gO123
 

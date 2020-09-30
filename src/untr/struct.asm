@@ -1,3 +1,5 @@
+SMPLINE=7
+
 _O=1+10+26+'O'-'A'
 _A=1+10+26+'A'-'A'
 _B=1+10+26+'B'-'A'
@@ -80,6 +82,7 @@ envfrq  WORD
 ;эти не копировать!!!
 channel_in BYTE ;0..2
 note_in BYTE
+oldnote_in BYTE
 keepme_in BYTE ;priority for keep on top (bigger is more priority)
 volume_in BYTE ;громкость из параметров трека
 par1_in BYTE

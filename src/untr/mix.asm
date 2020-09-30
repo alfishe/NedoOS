@@ -17,6 +17,7 @@ filtervolumeq
 
 filterhandler_noise
 ;TODO
+        ret
 filternoise
 ;ix=from=to
 ;e=noise shift (+-15)
@@ -32,6 +33,7 @@ filternoiseq
 
 filterhandler_vib
 ;TODO
+        ret
 filtertone
 ;ix=from=to
 ;de=tone shift (+-4095)
@@ -427,32 +429,22 @@ tonefrqshiftpresent=7
 playsample
         ld l,(ix+chn.smpcuraddr)
         ld h,(ix+chn.smpcuraddr+1)
-        jr playsample_go
-playsample_loop
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-        add hl,de
-playsample_go
+;playsample_go
 ;ix=chn
 ;в любом случае полностью определяет текущие значения полей chn:
 ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
-;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenv)
-;volume  BYTE ;volume = 0..15 (в потоке при отсутствии E)
+;envtype BYTE (в потоке при наличии E, значения 8..15 (15 как 4, 9 как 1) + retrigenv) ;или volume  BYTE ;volume = 0..15 (в потоке при отсутствии E)
 ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N)
-;keepme  BYTE ;priority for keep on top (bigger is more priority)
-;envfrq  WORD
-;tonefrq WORD
+    ;keepme  BYTE ;priority for keep on top (bigger is more priority)
+    ;envfrq  WORD
+    ;tonefrq WORD
         ld b,(hl) ;masks
         inc hl
-        inc b
-        jr z,playsample_loop
-        dec b
         ld (ix+chn.masks),b ;masks   BYTE ;T,N,E,hole,outerenv,retrigtone, semitoneshiftpresent,tonefrqshiftpresent (должен быть первым байтом строки в потоке)
         ld a,(ix+chn.note_in)
 
-        bit semitoneshiftpresent,b
-        jr z,playsample_nosemitoneshift
+        ;bit semitoneshiftpresent,b
+        ;jr z,playsample_nosemitoneshift
         add a,(hl)
         inc hl
         jp po,playsample_nosemitoneshift ;no signed overflow
@@ -502,14 +494,16 @@ playsample_noenvsemitoneshift
         ld a,(de)
         ld d,a
         ld e,c ;de=tonefrq
+        
+         inc hl ;skip envsemitoneshift
         ld a,(hl)
         inc hl
          add a,(ix+chn.volume_in)
         ld (ix+chn.volume),a ;volume  BYTE ;volume = 0..15 ;громкость при E не используется
 playsample_noenvsemitoneshiftq
 
-        bit tonefrqshiftpresent,b
-        jr z,playsample_notonefrqshift
+        ;bit tonefrqshiftpresent,b
+        ;jr z,playsample_notonefrqshift
         ld a,(hl)
         add a,e
         ld e,a
@@ -518,23 +512,54 @@ playsample_noenvsemitoneshiftq
         adc a,d
         ld d,a ;correct tone frq
         inc hl
-playsample_notonefrqshift
-        ;TODO накапливать глисс и прибавить его к tonefrq (в будущем считать глисс и пр. параметры от времени?)
-        ld (ix+chn.tonefrq),e
-        ld (ix+chn.tonefrq+1),d
+;playsample_notonefrqshift
         
-        bit noisefrqpresent,b
-        jr z,playsample_nonoisefrq
+        ;bit noisefrqpresent,b
+        ;jr z,playsample_nonoisefrq
         ld a,(hl)
         inc hl
         ld (ix+chn.noisefrq),a ;noisefrq BYTE ;noise = 0..31 (в потоке при наличии N) ;noisefrq без N не используется
-playsample_nonoisefrq
+;playsample_nonoisefrq
         ld a,(ix+chn.keepme_in)
         ld (ix+chn.keepme),a ;keepme  BYTE ;priority for keep on top (bigger is more priority)
 
 ;out: hl=next line in sample
+        ld a,(hl)
+        inc a
+        jr nz,playsample_noloop
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        add hl,bc
+playsample_noloop
         ld (ix+chn.smpcuraddr),l
         ld (ix+chn.smpcuraddr+1),h
+
+;накапливать глисс и прибавить его к tonefrq (в будущем считать глисс и пр. параметры от времени?)
+        ld a,(ix+chn.curgliss)
+        add a,(ix+chn.glissspeed_in)
+        ld (ix+chn.curgliss),a
+        ld l,a
+        ld a,(ix+chn.curgliss+1)
+        adc a,(ix+chn.glissspeed_in+1)
+        ld (ix+chn.curgliss+1),a
+        ld h,a
+        sra h
+        rr l
+        sra h
+        rr l
+        sra h
+        rr l ;+-12.3
+        add hl,de
+        ld (ix+chn.tonefrq),l
+        ld (ix+chn.tonefrq+1),h
+
+        ;ld de,0x03ef
+        ;or a
+        ;sbc hl,de
+        ;jr z,$
+
         ret
 
 shutay

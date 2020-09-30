@@ -40,6 +40,8 @@ playnote_inittrackspars_typeok
          jr z,playnote_inittrackspars0ok
          cp CHNTYPE_FILTER
          jr z,playnote_inittrackspars0filter
+        ld (ix+chn.oldnote_in),0
+        ;ld (ix+chn.note_in),0
         ld a,(iy+0) ;channel
         sub _A
         ld (ix+chn.channel_in),a
@@ -164,9 +166,9 @@ playenter_inittracks0
         inc hl
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
-         jr z,playenter_filter;inittracks0skip
+         jp z,playenter_filter;inittracks0skip
          cp CHNTYPE_SAMPLES+1
-         jr z,playenter_samples;inittracks0skip
+         jp z,playenter_samples;inittracks0skip
          cp CHNTYPE_ORDER+1
          jr z,playenter_inittracks0skip
         ;ld a,b
@@ -181,12 +183,114 @@ playenter_inittracks0
         call peekcurtime_tracka
         pop ix
         pop hl
-;TODO включить глисс (и рассчитать скорость glissspeed_in), если a=NOTE_GLISS, иначе выключить
-;TODO если ближайшая нота слева - глисс, то не переинициализировать сэмпл
-        call initchnnote ;устанавливает сэмпл, как указано в канале
+        cp NOTE_SPACE
+        jr z,playenter_inittracks0skip
+        cp NOTE_GLISS
+        ld c,(ix+chn.oldnote_in)
+        ld (ix+chn.oldnote_in),a
+        jr z,playenter_inittracksgliss
+;если ближайшая нота слева - глисс, то не переинициализировать сэмпл
+        dec a
+        ld (ix+chn.note_in),a
+        ld (ix+chn.curgliss),0
+        ld (ix+chn.curgliss+1),0
+        ld (ix+chn.glissspeed_in),0
+        ld (ix+chn.glissspeed_in+1),0
+        inc c
+        inc c
+        ;jr z,playenter_inittrackslegato
+        call nz,initchnnote ;устанавливает сэмпл, как указано в канале, выключает глисс
 playenter_inittracks0skip
         inc hy ;track
         jr playenter_inittracks0
+;playenter_inittrackslegato
+;        jr playenter_inittracks0skip
+playenter_inittracksgliss
+;найти ближайшую ноту справа - цель глисса
+        ;jr $
+       push hl
+       push ix
+        ld a,hy;(curtrack)
+        ld hl,(curtime)
+        push hl
+        call tracktime_totrackpartindex ;hl=index ;lx=part ;a=track
+        ex de,hl ;de=index
+        pop hl
+        or a
+        sbc hl,de ;beg=time-index (index=time-beg)
+       push hl ;beg
+        call getroot ;out: hl=root
+;hl=track root (4 bytes: left poi, right poi)
+;de=index
+        inc de ;не на месте, а только вправо
+        call findright ;out: de=nonempty index (or ffff), a=data
+       pop hl ;beg
+        add hl,de ;time=index+beg (beg=time-index)
+;hl=righttime
+;a=rightval
+       pop ix
+        or a
+        ld d,a
+        ld e,a
+        jr z,playenter_inittracksgliss_nogliss ;de=0
+        ld de,(curtime)
+        ;or a
+        sbc hl,de ;hl=glisstime
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,de ;*3 ;TODO умножить на темп
+       push hl ;hl=glisstime
+;где взять glisshgt, она же зависит от рабочей октавы!!!??? рабочая октава в параметрах канала? (нельзя брать из первого фрейма сэмпла, т.к. там может быть всплеск! можно из текущего?)
+;и как делать глисс на огибающей? отдельные поля chn? но где взять glisshgt, он же зависит от envsemitoneshift? (нельзя брать из первого фрейма сэмпла, т.к. там может быть всплеск! можно из текущего?)
+        ;jr $
+        ld l,(ix+chn.smpcuraddr)
+        ld h,(ix+chn.smpcuraddr+1)
+        inc hl ;skip mask
+;вычисляем частоту будущей ноты
+       dec a
+        add a,(hl) ;semitone shift
+        jp po,playenter_inittracksgliss_nosemitoneshift2 ;no signed overflow
+        rla
+        sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
+        xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
+playenter_inittracksgliss_nosemitoneshift2
+        ld c,a
+        ld b,tfrq/256
+        ld a,(bc)
+        ld e,a
+        inc b
+        ld a,(bc)
+        ld d,a ;hl=частота будущей ноты
+;вычисляем частоту текущей ноты
+        ld a,(ix+chn.note_in)
+        add a,(hl) ;semitone shift
+        jp po,playenter_inittracksgliss_nosemitoneshift ;no signed overflow
+        rla
+        sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
+        xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
+playenter_inittracksgliss_nosemitoneshift
+        ld c,a
+        ld a,(bc)
+        ld h,a
+        dec b
+        ld a,(bc)
+        ld l,a ;hl=частота текущей ноты
+        ex de,hl
+        or a
+        sbc hl,de ;hl=частота будущей ноты - частота текущей ноты
+       pop de ;de=glisstime
+        call divsignedfixedpoint3 ;hl = hl/de = +-12./16. = +-12.3
+        ex de,hl ;de = glissspeed_in = glisshgt/glisstime = +-12./16. = +-12.3
+playenter_inittracksgliss_nogliss
+        xor a
+        ld (ix+chn.curgliss),a
+        ld (ix+chn.curgliss+1),a
+         ;ld de,10
+        ld (ix+chn.glissspeed_in),e
+        ld (ix+chn.glissspeed_in+1),d
+       pop hl
+        jr playenter_inittracks0skip
 playenter_samples
         ld hx,b
         ld lx,c
@@ -197,9 +301,8 @@ playenter_samples
         pop ix
         pop hl
         or a
-        jr z,playenter_inittracks0skip ;SPACE
+        jp z,playenter_inittracks0skip ;SPACE
         ld (ix+chn.note_in),3*12 ;C-4
-        ;ld bc,smp_snare
         add a,a
         ld l,a
         ld h,0
@@ -210,11 +313,11 @@ playenter_samples
         ld b,(hl)
         ld (ix+chn.smpcuraddr),c
         ld (ix+chn.smpcuraddr+1),b
-        jr playenter_inittracks0skip
+        jp playenter_inittracks0skip
 playenter_filter
          ld a,hx
          or a
-         jr z,playenter_inittracks0skip ;когда фильтр по ошибке стоит выше любого канала
+         jp z,playenter_inittracks0skip ;когда фильтр по ошибке стоит выше любого канала
 
         push hl
         push ix
@@ -233,6 +336,7 @@ playenter_filter
         or a
         sbc hl,de ;beg=time-index (index=time-beg)
        push hl ;beg
+       push de ;index
        push hl ;beg
         ld a,hy;(curtrack)
         call getroot ;out: hl=root
@@ -249,10 +353,12 @@ playenter_filter
          ld a,1+15 ;"f"
         ld (leftval),a
 
-        ld a,hy;(curtrack)
-        ld hl,(curtime)
-        call tracktime_totrackpartindex ;hl=index
-        ex de,hl ;de=index
+        ;ld a,hy;(curtrack)
+        ;ld hl,(curtime)
+        ;call tracktime_totrackpartindex ;hl=index
+        ;ex de,hl
+       pop de ;index
+;de=index
         ld a,hy;(curtrack)
         call getroot ;out: hl=root
 ;hl=track root (4 bytes: left poi, right poi)
@@ -412,22 +518,30 @@ mixchn_all_channela0skip
         
 initchnnote
 ;a=note
-        cp NOTE_SPACE
-        ret z
-        cp NOTE_PAUSE
+        ;cp NOTE_SPACE-1
+        ;ret z
+        cp NOTE_PAUSE-1
         jr z,initchnnote_pause
-        dec a ;sub NOTE_LOWEST
+        ;dec a ;sub NOTE_LOWEST
         ld (ix+chn.note_in),a;3*12 ;C-4
         ld e,(ix+chn.smp_in)
+        ld d,(ix+chn.smp_in+1)
+initchnnote_setsmpde_nogliss
         ld (ix+chn.smpcuraddr),e
-        ld e,(ix+chn.smp_in+1)
-        ld (ix+chn.smpcuraddr+1),e
+        ld (ix+chn.smpcuraddr+1),d
+initchnnote_nogliss
+        xor a
+        ld (ix+chn.curgliss),a
+        ld (ix+chn.curgliss+1),a
+        ld (ix+chn.glissspeed_in),a
+        ld (ix+chn.glissspeed_in+1),a
         ret
 initchnnote_pause
-        ld (ix+chn.note_in),NOTE_PAUSE
-        ld (ix+chn.smpcuraddr),smp_pause&0xff
-        ld (ix+chn.smpcuraddr+1),smp_pause/256
-        ret
+        ;ld (ix+chn.note_in),NOTE_PAUSE
+        ;ld (ix+chn.smpcuraddr),smp_pause&0xff
+        ;ld (ix+chn.smpcuraddr+1),smp_pause/256
+        ld de,smp_pause
+        jr initchnnote_setsmpde_nogliss
 
 divlessthan1
 ;out: bc = hl / de (0.16)
@@ -461,3 +575,58 @@ divlessthan11.
         cpl
 	ld c,a
         ret
+
+divsignedfixedpoint3
+;hl / de
+;out: hl
+;+-12./16. = +-12.3
+;домножаем делимое на 8 и делим нацело
+        add hl,hl
+        add hl,hl
+        add hl,hl
+;divsignedhl_de
+        bit 7,h
+        jr z,_DIV.
+        xor a
+        sub l
+        ld l,a
+        sbc a,h
+        sub l
+        ld h,a
+        call _DIV.
+        xor a
+        sub l
+        ld l,a
+        sbc a,h
+        sub l
+        ld h,a
+        ret
+;hl / de
+;out: hl
+;работает так: hl.ca - de и т.д.
+_DIV.
+	ld c,h
+	ld a,l
+	ld hl,0
+	ld b,16
+;don't mind carry
+_DIV0.
+;shift left hlca
+	rla
+	rl c
+	adc hl,hl
+;no carry
+;try sub
+	sbc hl,de
+	jr nc,$+3
+	add hl,de
+;carry = inverted bit of result
+	djnz _DIV0.
+	rla
+	cpl
+	ld l,a
+	ld a,c
+	rla
+	cpl
+	ld h,a
+	ret
