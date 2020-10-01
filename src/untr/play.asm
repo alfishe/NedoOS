@@ -1,24 +1,24 @@
-playnote_inittracks
+inittracks
 ;настраивает треки по заданным параметрам
 ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
         ld iy,ttypes
         ld hl,tracks
-playnote_inittrackspars0
+inittrackspars0
         ld a,(hl) ;chntype
         inc a
-        jp z,playnote_inittrackspars0q
+        jp z,inittrackspars0q
         ld a,(iy+2) ;track type
         ld c,CHNTYPE_ORDER
         cp _O
-        jr z,playnote_inittrackspars_typeok
+        jr z,inittrackspars_typeok
         ld c,CHNTYPE_NOTES
         cp _t
-        jr z,playnote_inittrackspars_typeok
+        jr z,inittrackspars_typeok
         ld c,CHNTYPE_SAMPLES
         cp _d
-        jr z,playnote_inittrackspars_typeok
+        jr z,inittrackspars_typeok
         ld c,CHNTYPE_FILTER
-playnote_inittrackspars_typeok
+inittrackspars_typeok
         ld a,(hl)
         xor c
         and 0x80
@@ -37,11 +37,10 @@ playnote_inittrackspars_typeok
         ld lx,c
          and CHNTYPEMASK
          cp CHNTYPE_ORDER
-         jr z,playnote_inittrackspars0ok
+         jr z,inittrackspars0ok
          cp CHNTYPE_FILTER
-         jr z,playnote_inittrackspars0filter
-        ld (ix+chn.oldnote_in),0
-        ;ld (ix+chn.note_in),0
+         jr z,inittrackspars0filter
+        ld (ix+chn.oldnote_in),0 ;for gliss
         ld a,(iy+0) ;channel
         sub _A
         ld (ix+chn.channel_in),a
@@ -67,31 +66,31 @@ playnote_inittrackspars_typeok
          sub 1+15
         ld (ix+chn.volume_in),a
         pop hl
-playnote_inittrackspars0ok
+inittrackspars0ok
         ld bc,8
         add iy,bc
-        jr playnote_inittrackspars0
-playnote_inittrackspars0filter
+        jr inittrackspars0
+inittrackspars0filter
         push hl
         ld a,(iy+2) ;track type (filter type)
         ld bc,filterhandler_vol
         cp _g
-        jr z,playnote_inittrackspars_filtertypeok
+        jr z,inittrackspars_filtertypeok
         ld bc,filterhandler_vib
         cp _v
-        jr z,playnote_inittrackspars_filtertypeok
+        jr z,inittrackspars_filtertypeok
         cp _V
-        jr z,playnote_inittrackspars_filtertypeok
+        jr z,inittrackspars_filtertypeok
         ld bc,filterhandler_env
         cp _e
-        jr z,playnote_inittrackspars_filtertypeok
+        jr z,inittrackspars_filtertypeok
         cp _E
-        jr z,playnote_inittrackspars_filtertypeok
+        jr z,inittrackspars_filtertypeok
         ld bc,filterhandler_noise
         cp _n
-        jr z,playnote_inittrackspars_filtertypeok
+        jr z,inittrackspars_filtertypeok
         ld bc,reter
-playnote_inittrackspars_filtertypeok
+inittrackspars_filtertypeok
         ld (ix+filter.handler),c
         ld (ix+filter.handler+1),b
         ld a,(iy+4) ;par1
@@ -101,8 +100,8 @@ playnote_inittrackspars_filtertypeok
         ld a,(iy+6) ;par3
         ld (ix+filter.par3),a
         pop hl
-        jr playnote_inittrackspars0ok
-playnote_inittrackspars0q
+        jr inittrackspars0ok
+inittrackspars0q
 
         ld a,0x80 ;точно не совпадёт, так что будет retrigenv
         ld (chip0+chip.envtype),a
@@ -110,7 +109,7 @@ playnote_inittrackspars0q
 
         ld hl,tracks
         ld hy,0 ;track
-playnote_inittracks0
+inittracks0
         ld a,(hl) ;chntype
         inc a
         ret z
@@ -123,11 +122,11 @@ playnote_inittracks0
         inc hl
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
-         jr z,playnote_inittracks0skip
+         jr z,inittracks0skip
         ld a,b
         and c
         inc a
-        jr z,playnote_inittracks0skip
+        jr z,inittracks0skip
         ld hx,b
         ld lx,c
         push hl
@@ -139,21 +138,17 @@ playnote_inittracks0
         pop ix
         pop hl
          cp NOTE_SPACE
-;         jr z,playnote_inittracks0pause
-;        call initchnnote ;устанавливает сэмпл, как указано в канале
-;        jr playnote_inittracks0skip
-;playnote_inittracks0pause
-        call z,initchnnote_pause ;устанавливает сэмпл паузы
-playnote_inittracks0skip
+        call z,initchnnote_pause ;устанавливает сэмпл паузы, выключает глисс
+inittracks0skip
         inc hy ;track
-        jr playnote_inittracks0
+        jr inittracks0
 
-playenter_inittracks
+initnote
 ;инициализирует ноты в каналах в процессе проигрывания
         ld hl,tracks
         ld ix,0 ;no channel for filter
         ld hy,0 ;track
-playenter_inittracks0
+initnote0
         ld a,(hl) ;chntype
         inc a
         ret z
@@ -166,15 +161,15 @@ playenter_inittracks0
         inc hl
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
-         jp z,playenter_filter;inittracks0skip
+         jp z,initnotefilter;inittracks0skip
          cp CHNTYPE_SAMPLES+1
-         jp z,playenter_samples;inittracks0skip
+         jp z,initnotesamples;inittracks0skip
          cp CHNTYPE_ORDER+1
-         jr z,playenter_inittracks0skip
+         jr z,initnote0skip
         ;ld a,b
         ;and c
         ;inc a
-        ;jr z,playenter_inittracks0skip
+        ;jr z,initnote0skip
         ld hx,b
         ld lx,c
         push hl
@@ -184,30 +179,37 @@ playenter_inittracks0
         pop ix
         pop hl
         cp NOTE_SPACE
-        jr z,playenter_inittracks0skip
+        jr z,initnote0skip
         cp NOTE_GLISS
         ld c,(ix+chn.oldnote_in)
         ld (ix+chn.oldnote_in),a
-        jr z,playenter_inittracksgliss
+        jr z,initnotegliss
 ;если ближайшая нота слева - глисс, то не переинициализировать сэмпл
         dec a
         ld (ix+chn.note_in),a
-        ld (ix+chn.curgliss),0
-        ld (ix+chn.curgliss+1),0
-        ld (ix+chn.glissspeed_in),0
-        ld (ix+chn.glissspeed_in+1),0
+        ;ld (ix+chn.curgliss),0
+        ;ld (ix+chn.curgliss+1),0
+        ;ld (ix+chn.glissspeed_in),0
+        ;ld (ix+chn.glissspeed_in+1),0
         inc c
-        inc c
-        ;jr z,playenter_inittrackslegato
-        call nz,initchnnote ;устанавливает сэмпл, как указано в канале, выключает глисс
-playenter_inittracks0skip
+        inc c ;cp NOTE_GLISS
+        ld d,c
+        ld e,c
+        jp z,initnoteglissq_de;initnotelegato ;de=0
+        ld de,smp_pause
+        cp NOTE_PAUSE-1
+        jr z,initnote0_pause
+        ld e,(ix+chn.smp_in)
+        ld d,(ix+chn.smp_in+1)
+initnote0_pause
+        call initchnnote_setsmpde_nogliss ;устанавливает сэмпл, как указано в канале, выключает глисс
+initnote0skip
         inc hy ;track
-        jr playenter_inittracks0
-;playenter_inittrackslegato
-;        jr playenter_inittracks0skip
-playenter_inittracksgliss
+        jr initnote0
+;initnotelegato
+;        jr initnote0skip
+initnotegliss
 ;найти ближайшую ноту справа - цель глисса
-        ;jr $
        push hl
        push ix
         ld a,hy;(curtrack)
@@ -232,7 +234,7 @@ playenter_inittracksgliss
         or a
         ld d,a
         ld e,a
-        jr z,playenter_inittracksgliss_nogliss ;de=0
+        jr z,initnoteglissq ;de=0
         ld de,(curtime)
         ;or a
         sbc hl,de ;hl=glisstime
@@ -243,18 +245,17 @@ playenter_inittracksgliss
        push hl ;hl=glisstime
 ;где взять glisshgt, она же зависит от рабочей октавы!!!??? рабочая октава в параметрах канала? (нельзя брать из первого фрейма сэмпла, т.к. там может быть всплеск! можно из текущего?)
 ;и как делать глисс на огибающей? отдельные поля chn? но где взять glisshgt, он же зависит от envsemitoneshift? (нельзя брать из первого фрейма сэмпла, т.к. там может быть всплеск! можно из текущего?)
-        ;jr $
         ld l,(ix+chn.smpcuraddr)
         ld h,(ix+chn.smpcuraddr+1)
         inc hl ;skip mask
 ;вычисляем частоту будущей ноты
        dec a
         add a,(hl) ;semitone shift
-        jp po,playenter_inittracksgliss_nosemitoneshift2 ;no signed overflow
+        jp po,initnotegliss_nosemitoneshift2 ;no signed overflow
         rla
         sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
         xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
-playenter_inittracksgliss_nosemitoneshift2
+initnotegliss_nosemitoneshift2
         ld c,a
         ld b,tfrq/256
         ld a,(bc)
@@ -265,11 +266,11 @@ playenter_inittracksgliss_nosemitoneshift2
 ;вычисляем частоту текущей ноты
         ld a,(ix+chn.note_in)
         add a,(hl) ;semitone shift
-        jp po,playenter_inittracksgliss_nosemitoneshift ;no signed overflow
+        jp po,initnotegliss_nosemitoneshift ;no signed overflow
         rla
         sbc a,a ;a=0 for negative overflow, a=255 for positive overflow
         xor 0x80 ;a=-128 for negative overflow, a=127 for positive overflow
-playenter_inittracksgliss_nosemitoneshift
+initnotegliss_nosemitoneshift
         ld c,a
         ld a,(bc)
         ld h,a
@@ -282,16 +283,16 @@ playenter_inittracksgliss_nosemitoneshift
        pop de ;de=glisstime
         call divsignedfixedpoint3 ;hl = hl/de = +-12./16. = +-12.3
         ex de,hl ;de = glissspeed_in = glisshgt/glisstime = +-12./16. = +-12.3
-playenter_inittracksgliss_nogliss
+initnoteglissq
+       pop hl
+initnoteglissq_de
         xor a
         ld (ix+chn.curgliss),a
         ld (ix+chn.curgliss+1),a
-         ;ld de,10
         ld (ix+chn.glissspeed_in),e
         ld (ix+chn.glissspeed_in+1),d
-       pop hl
-        jr playenter_inittracks0skip
-playenter_samples
+        jr initnote0skip
+initnotesamples
         ld hx,b
         ld lx,c
         push hl
@@ -301,7 +302,7 @@ playenter_samples
         pop ix
         pop hl
         or a
-        jp z,playenter_inittracks0skip ;SPACE
+        jp z,initnote0skip ;SPACE
         ld (ix+chn.note_in),3*12 ;C-4
         add a,a
         ld l,a
@@ -313,11 +314,11 @@ playenter_samples
         ld b,(hl)
         ld (ix+chn.smpcuraddr),c
         ld (ix+chn.smpcuraddr+1),b
-        jp playenter_inittracks0skip
-playenter_filter
+        jp initnote0skip
+initnotefilter
          ld a,hx
          or a
-         jp z,playenter_inittracks0skip ;когда фильтр по ошибке стоит выше любого канала
+         jp z,initnote0skip ;когда фильтр по ошибке стоит выше любого канала
 
         push hl
         push ix
@@ -347,11 +348,11 @@ playenter_filter
         add hl,de ;time=index+beg (beg=time-index)
 ;hl=lefttime
 ;a=leftval
-        ld (lefttime),hl
+        ld (initnotefilter_lefttime),hl
         or a
         jr nz,$+4
          ld a,1+15 ;"f"
-        ld (leftval),a
+        ld (initnotefilter_leftval),a
 
         ;ld a,hy;(curtrack)
         ;ld hl,(curtime)
@@ -371,21 +372,21 @@ playenter_filter
 ;a=rightval
         or a
          jr nz,$+5
-         ld a,(leftval)
+         ld a,(initnotefilter_leftval)
         push af ;ld (rightval),a
 ;k = (curtime-lefttime)/(righttime-lefttime)
-        ld de,(lefttime)
+initnotefilter_lefttime=$+1
+        ld bc,0
         or a
-        sbc hl,de ;righttime-lefttime
-        ex de,hl
+        sbc hl,bc ;righttime-lefttime
+        ex de,hl ;de=righttime-lefttime
         ld hl,(curtime)
-        ld bc,(lefttime)
         or a
-        sbc hl,bc
+        sbc hl,bc ;hl=curtime-lefttime
         call divlessthan1 ;out: k = bc = hl / de (.16)
 ;val = leftval + k*(rightval-leftval)
         pop af ;rightval
-leftval=$+1
+initnotefilter_leftval=$+1
         ld e,0
         sub e
         call mulsigned8bylessthan1 ;a = +-a*bc
@@ -394,8 +395,7 @@ leftval=$+1
         ld (ix+filter.curvalue),a
         pop ix
         pop hl
-
-        jp playenter_inittracks0skip
+        jp initnote0skip
 
 mulsigned8bylessthan1
 ;a = +-a*bc
@@ -516,32 +516,17 @@ mixchn_all_channela0_firstq
 mixchn_all_channela0skip
         jr mixchn_all_channela0
         
-initchnnote
-;a=note
-        ;cp NOTE_SPACE-1
-        ;ret z
-        cp NOTE_PAUSE-1
-        jr z,initchnnote_pause
-        ;dec a ;sub NOTE_LOWEST
-        ld (ix+chn.note_in),a;3*12 ;C-4
-        ld e,(ix+chn.smp_in)
-        ld d,(ix+chn.smp_in+1)
+initchnnote_pause
+        ld de,smp_pause
 initchnnote_setsmpde_nogliss
         ld (ix+chn.smpcuraddr),e
         ld (ix+chn.smpcuraddr+1),d
-initchnnote_nogliss
         xor a
         ld (ix+chn.curgliss),a
         ld (ix+chn.curgliss+1),a
         ld (ix+chn.glissspeed_in),a
         ld (ix+chn.glissspeed_in+1),a
         ret
-initchnnote_pause
-        ;ld (ix+chn.note_in),NOTE_PAUSE
-        ;ld (ix+chn.smpcuraddr),smp_pause&0xff
-        ;ld (ix+chn.smpcuraddr+1),smp_pause/256
-        ld de,smp_pause
-        jr initchnnote_setsmpde_nogliss
 
 divlessthan1
 ;out: bc = hl / de (0.16)

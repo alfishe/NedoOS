@@ -18,6 +18,10 @@ NOTE_GLISS=0xfe
 NOTE_PAUSE=0xff
 NOTE_LOWEST=1;0
 
+COLOR=7
+TIMECOLOR=0x04
+TYPESCOLOR=0x06
+
         include "struct.asm"
 
         org PROGSTART
@@ -26,8 +30,8 @@ cmd_begin
         OS_HIDEFROMPARENT
         ld e,3+0x80 ;6912 + keep gfx pages
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        ld e,0
-        OS_CLS
+        ;ld e,0
+        ;OS_CLS
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -36,20 +40,31 @@ cmd_begin
         ;ld a,l
         ;ld (pgdynmem),a
 
+        call cls
+        call setscrpg
+        ld hl,0x5800
+        ld de,0x5801
+        ld bc,0x0020
+        ld (hl),TIMECOLOR
+        ldir
+        push hl
+        ld bc,4
+        ld (hl),TYPESCOLOR
+        ldir
+        ld bc,31-4
+        ld (hl),COLOR
+        ldir
+        pop hl
+        ld bc,0x02c0
+        ldir
+        call gennotefont
+        call setpgroots
+
         ld hl,0x4000
         ld de,0x4001
         ld bc,0x3fff
         ld (hl),l;0
         ldir ;чистим roots
-
-        call setscrpg
-        ld hl,0x5800
-        ld de,0x5801
-        ld bc,0x2ff
-        ld (hl),7
-        ldir
-        call gennotefont
-        call setpgroots
 
         call initmem
         ld c,1
@@ -76,9 +91,10 @@ refrq0
 refrq1
         ld a,(hl)
         add a,3
-        srl a
-        srl a
-        srl a
+        rra
+        rra
+        rra
+        and 0x1f
         ld (de),a
         inc l
         inc d
@@ -108,78 +124,80 @@ refrq2
         ld (ix+chn.smp_in),e
         ld (ix+chn.smp_in+1),d
         ld (ix+chn.channel_in),0
-        ;call initchnnote_pause
+        ;call initchnnote_pause ;делает nogliss
+       if 1==0
         ld ix,Adrum
-        ld (ix+chn.keepme_in),5
+        ;ld (ix+chn.keepme_in),5
         ;ld de,smp_snare
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),0
+        ;ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Bdrum
-        ld (ix+chn.keepme_in),5
+        ;ld (ix+chn.keepme_in),5
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),1
+        ;ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Cdrum
-        ld (ix+chn.keepme_in),5
+        ;ld (ix+chn.keepme_in),5
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),2
+        ;ld (ix+chn.channel_in),2
         call initchnnote_pause
         ld ix,Atone
-        ld (ix+chn.keepme_in),2
-        ld de,smp_tone
+        ;ld (ix+chn.keepme_in),2
+        ;ld de,smp_tone
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),0
+        ;ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Btone
-        ld (ix+chn.keepme_in),2
+        ;ld (ix+chn.keepme_in),2
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),1
+        ;ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Ctone
-        ld (ix+chn.keepme_in),2
+        ;ld (ix+chn.keepme_in),2
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),2
+        ;ld (ix+chn.channel_in),2
         call initchnnote_pause
         ld ix,Apad
-        ld (ix+chn.keepme_in),0
+        ;ld (ix+chn.keepme_in),0
         ;ld (ix+chn.smp_in),smp_maj&0xff
         ;ld (ix+chn.smp_in+1),smp_maj/256
-        ld (ix+chn.channel_in),0
+        ;ld (ix+chn.channel_in),0
         call initchnnote_pause
         ld ix,Bbass
-        ld (ix+chn.keepme_in),0
+        ;ld (ix+chn.keepme_in),0
         ;ld (ix+chn.smp_in),smp_bass&0xff
         ;ld (ix+chn.smp_in+1),smp_bass/256
-        ld (ix+chn.channel_in),1
+        ;ld (ix+chn.channel_in),1
         call initchnnote_pause
         ld ix,Cpad
-        ld (ix+chn.keepme_in),0
+        ;ld (ix+chn.keepme_in),0
         ;ld (ix+chn.smp_in),e
         ;ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),2
+        ;ld (ix+chn.channel_in),2
         call initchnnote_pause
 
-        ld ix,Filter_Avib
-        ld (ix+filter.handler),filterhandler_vib&0xff
-        ld (ix+filter.handler+1),filterhandler_vib/256
-        ld (ix+filter.par1),50
-        ld (ix+filter.par2),5
-        ld ix,Filter_Avol
-        ld (ix+filter.handler),filterhandler_vol&0xff
-        ld (ix+filter.handler+1),filterhandler_vol/256
-        ld ix,Filter_Bvol
-        ld (ix+filter.handler),filterhandler_vol&0xff
-        ld (ix+filter.handler+1),filterhandler_vol/256
-        ld ix,Filter_Cvol
-        ld (ix+filter.handler),filterhandler_vol&0xff
-        ld (ix+filter.handler+1),filterhandler_vol/256
+        ;ld ix,Filter_Avib
+        ;ld (ix+filter.handler),filterhandler_vib&0xff
+        ;ld (ix+filter.handler+1),filterhandler_vib/256
+        ;ld (ix+filter.par1),50
+        ;ld (ix+filter.par2),5
+        ;ld ix,Filter_Avol
+        ;ld (ix+filter.handler),filterhandler_vol&0xff
+        ;ld (ix+filter.handler+1),filterhandler_vol/256
+        ;ld ix,Filter_Bvol
+        ;ld (ix+filter.handler),filterhandler_vol&0xff
+        ;ld (ix+filter.handler+1),filterhandler_vol/256
+        ;ld ix,Filter_Cvol
+        ;ld (ix+filter.handler),filterhandler_vol&0xff
+        ;ld (ix+filter.handler+1),filterhandler_vol/256
+       endif
 
 ;;;;;;;;;;;;;;;;;;;;;
         ;call setneedredraw
@@ -279,8 +297,8 @@ enternote
         call pokecurtime_curtrack_c
 
 untr_afternotekey
-        call playnote_inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
-        call playenter_inittracks
+        call inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
+        call initnote
 
         call setneedredraw_curtrack
         call updatescr
@@ -548,6 +566,7 @@ playnote
         ;call mixchn
 
 ;TODO что делать, если нет ни одного трека для какого-то канала?
+;надо как-то использовать chnempty
         ;ld ix,Adrum
         ;ld hl,Btone;drum
         ;ld de,Ctone;drum
@@ -565,17 +584,22 @@ playnote
         ret
 
 untr_play
-        call playnote_inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
-
+        call inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
+        jr playenter0go
 playenter0
         halt
-        call playenter_inittracks
+          call prcurcur
+playenter0go
+        call initnote
         call playnote
         halt
         call playnote
         halt
         call playnote
         call untr_right ;TODO check end and loop
+         call updatescr
+          call prcurcur
+          ;jr playenter0
         call checknotekeys_pressed
         jr nz,playenter0
 
@@ -882,7 +906,7 @@ untr_right
         ex de,hl ;de=lefttime+SCRTRACKWID
         or a
         sbc hl,de
-        add hl,de
+        add hl,de ;curtime < (lefttime+SCRTRACKWID)?
         ret c
         ld hl,(lefttime)
         inc hl

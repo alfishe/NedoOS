@@ -5,9 +5,9 @@ cls
         ld bc,0x17ff
         ld (hl),l;0
         ldir
-        call setpgroots
-        ret
+        jp setpgroots
 
+        if 1==0
 downhl
         inc h
 downhl_afterinch
@@ -22,6 +22,7 @@ downhl_afterinch
         sub 8
         ld h,a
         ret
+        endif
 
 nextchrline_de
         ld a,e
@@ -448,7 +449,7 @@ setneedprtracks
         ret
 
 updatescr
-;обновляем, если изменился lefttime или toptrack(TODO)
+;обновляем, если изменился lefttime или toptrack
 ;при смене toptrack также перерисовать описатели треков
         ld a,(toptrack)
 oldtoptrack=$+1
