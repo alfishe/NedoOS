@@ -1279,7 +1279,7 @@ l03fe:
 	call	l047b		; Blank extension
 l0406:
 	ld	a,(de)		; Get character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	'A'		; Test posible drive
 	jr	c,l0420
 	cp	'P'+1
@@ -1377,7 +1377,7 @@ l047d:
 ; Z set says yes
 ;
 l0482:
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	' '		; Test control
 	jr	c,l0496		; Yeap, it's a delimiter
 	push	hl
@@ -1398,7 +1398,7 @@ ll0498	equ	$-l0498
 ;
 ; Convert character to UPPER case
 ;
-l04a6:
+doupcase:
 	cp	'a'		; Test range
 	ret	c
 	cp	'z'+1
@@ -2378,7 +2378,7 @@ l07ef:
 ; EXIT	Reg HL holds integer
 ;	Carry set on overflow
 ;
-l07f7:
+cnv_int:
 	ld	a,(ix+0)
 	sub	'$'		; Test hex indicator
 	ld	c,a		; Save flag
@@ -2388,7 +2388,7 @@ l0802:
 	inc	ix		; Skip indicator
 l0804:
 	ld	a,(ix+0)
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	sub	'0'		; Strip off offset
 	jr	c,l0837		; Out of range
 	cp	9+1		; Test decimal
@@ -4331,14 +4331,14 @@ l119c:
 ; EXIT	Regs HL,DE,BC hold real
 ;	Carry set indicates conversion error
 ;
-l11a3:
+cnv_flp:
 	exx
 	ld	bc,0		; Reset flags
 	exx
 	call	l0b72		; Init 0.0
 l11ab:
 	ld	a,(ix)		; Get character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	'.'		; Test decimal point
 	jr	nz,l11c1
 	exx
@@ -4775,7 +4775,7 @@ l13c3:
 	jr	z,l13c3
 l13c9:
 	ld	a,(de)		; Get character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	sub	(hl)		; Compare
 	jr	z,l13da		; Maybe a hit
 	pop	hl
@@ -5142,7 +5142,7 @@ l156b:
         adc a,h
         sub e
         ld d,a
-	;ld de,l7957+127	;de= Point to buffer end
+	;ld de,TmpBuff+127	;de= Point to buffer end
         ld a,eof;-1
         ld (de),a
         dec de
@@ -5170,6 +5170,10 @@ l1597:
 	inc	hl
 	inc	hl
 	dec	(hl)		; Fix pointer if eof found
+       push hl
+        ld c,_close
+        call BDOS_with_FCB1
+       pop hl
 	jr	l15e0
 l15ab:
 	dec	a		; Test CON:
@@ -5325,7 +5329,7 @@ l164e:
 	ret	z		; Empty number, exit
 	push	bc
 	push	hl
-	call	l07f7		; Convert ASCII to integer
+	call	cnv_int		; Convert ASCII to integer
 	pop	de
 	pop	bc
 	call	l1636		; Test error
@@ -5352,7 +5356,7 @@ l1672:
 	ret	z		; Empty number, exit
 	push	bc
 	push	hl
-	call	l11a3		; Convert to real
+	call	cnv_flp		; Convert to real
 	exx
 	pop	hl
 	pop	bc
@@ -6552,7 +6556,7 @@ l1c2d:
 ;
 ; ############### Start of loader ###############
 ;
-; Loader will be moved into 00B0H temporry loaction
+; Loader will be moved into 00B0H temporary location
 ;
 l1c33:
 	disp	l00b0
@@ -7257,7 +7261,7 @@ l1fdb:
 ;
 l1fe4:
 	ld	a,l		; Get into accu
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	ld	l,a		; Bring it back
 	ret
 ;
@@ -7567,7 +7571,7 @@ l223b:
 	db	cr+MSB,lf+MSB,'>'+MSB
 	db	null
 	call	readfromkbd		; Read character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	call	l01e1		; Give new line
 	ld	hl,l2460
 	ld	de,l2472
@@ -7749,7 +7753,7 @@ l2419:
 	db	'>'+MSB
 	db	null
 	call	readfromkbd		; Read character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	call	l01e1		; Give new line
 	ld	hl,l246b
 	ld	de,l2488
@@ -7920,9 +7924,9 @@ l253b: ;once
 	call	BDOS_with_FCB1		; Open file
 l2560:
 	;push	af
-	;ld	de,l7957
+	;ld	de,TmpBuff
 	;ld	c,_setdma
-	;call	l7265		; Set disk buffer
+	;call	_BDOS		; Set disk buffer
 	;pop	af
 	pop	bc
 	pop	hl
@@ -7938,9 +7942,9 @@ l2573:
 l257c:
 	jp	nc,a_DUMMY	; Nope
 	push	hl
-	 ld	de,l7957
+	 ld	de,TmpBuff
 	 ld	c,_setdma
-	 call	l7265		; Set disk buffer
+	 call	_BDOS		; Set disk buffer
 	ld	c,_rdseq
 	call	BDOS_with_FCB1		; Read record from file
 	pop	hl
@@ -7957,14 +7961,14 @@ l257c:
         neg
 ;a=128-bytes loaded
         ld b,a
-	ld de,l7957+127	; Point to buffer end
+	ld de,TmpBuff+127	; Point to buffer end
         ld a,eof;-1
         ld (de),a
         dec de
         djnz $-2
 load_noaddeofs
         endif
-	ld	de,l7957	; Point to buffer
+	ld	de,TmpBuff	; Point to buffer
 	ld	b,RecLng
 l258d:
          ;ld (hl),eof ;why there was not?
@@ -8097,7 +8101,7 @@ l2639:
 	call	l25f5		; Set extension .BAK
 	call	l26d9		; Clear FCB
 	ld	c,_delete
-	call	l7265		; Delete file
+	call	_BDOS		; Delete file
 	ld	hl,l005c+Fdrv
 	ld	de,l005c+DIRlen
 	xor	a
@@ -8119,15 +8123,15 @@ l2692:
 	push	hl
 	call	l26d9		; Clear FCB
 	ld	c,_make
-	call	l7265		; Create new file
+	call	_BDOS		; Create new file
 	pop	hl
 	inc	a
 	jr	z,l26ed		; Error creating file
 	push	hl
-	ld	de,l7957
+	ld	de,TmpBuff
 	push	de
 	ld	c,_setdma
-	call	l7265		; Set disk buffer
+	call	_BDOS		; Set disk buffer
 	pop	de
 	pop	hl
 	ld	b,RecLng	; Set length of buffer
@@ -8147,7 +8151,7 @@ l26af:
 	pop	bc
 	or	a		; Test success
 	jr	nz,l26fe	; Nope, write error
-	ld	de,l7957	; Reset pointer
+	ld	de,TmpBuff	; Reset pointer
 	ld	a,b		; Get back last character
 	ld	b,RecLng	; Reset buffer length
 l26c6:
@@ -8163,7 +8167,7 @@ l26c6:
 ;
 BDOS_with_FCB1:
 	ld	de,l005c
-	jp	l7265		; Do file call
+	jp	_BDOS		; Do file call
 ;
 ; Clear FCB
 ;
@@ -8308,7 +8312,7 @@ l27b1:
 	ld	hl,0
 	ld	(l7904),hl	; Clear address
 	ld	a,2
-	ld	(l7900),a	; Set searching
+	ld	(CmpTyp),a	; Set searching
 	call	l0200		; Tell searching
 	db	cr,lf
 	db	'Searching'
@@ -8337,16 +8341,16 @@ l27ea:
 	ld	(l259d+1),hl	; Set vector for read error
 	ld	de,l44f9	; Point to main file
 	push	de
-	call	l2518		; Load text file
+	call	l2518		; Load text file ;closes automatically
 	ld	a,1
 	pop	hl
 l2808:
 	ld	(l44f1),a	; Re/Set file flag
-	ld	de,l7933
+	ld	de,FFCB
 	ld	bc,FCBlen
 	ldir			; Unpack file
 	xor	a
-	ld	(l7900),a	; Set compile to memory
+	ld	(CmpTyp),a	; Set compile to memory
 	ld hl,NEDOOSMEMTOP;ld	hl,(TPAtop)
 	ld	(l790a),hl	; Set end of code
 l281d:
@@ -8375,22 +8379,22 @@ l283c:
 	ld	a,'C'		; Load .CHN
 	ld	hl,'H'+'N'*256
 l2841:
-	ld	(l7933+Fdrv+Fname),a
-	ld	(l7933+Fdrv+Fname+1),hl
+	ld	(FFCB+Fdrv+Fname),a
+	ld	(FFCB+Fdrv+Fname+1),hl
 	ld	a,1
-	ld	(l7900),a	; Set compile to file
+	ld	(CmpTyp),a	; Set compile to file
 	ld	hl,(l44f4)	; Get start address of compiler
 	ld	(l7904),hl	; Save
 	ld	hl,(l44f6)	; Get top of available memory
 	ld	(l790a),hl	; Save also
-	ld	de,l7933
+	ld	de,FFCB
 	push	de
 	call	l26dc		; Clear FCB
 	ld	c,_delete
-	call	l7265		; Delete file
+	call	_BDOS		; Delete file
 	pop	de
 	ld	c,_make
-	call	l7265		; Create new file
+	call	_BDOS		; Create new file
 	inc	a		; Test success
 	jp	z,l2a5a		; Nope, error
 	pop	af		; Get back .COM or .CHN
@@ -8398,7 +8402,7 @@ l2841:
 	jr	z,l2877		; Got .COM
 	ld	hl,(l7904)	; Get code start address
 l2877:
-	ld	(l7902),hl	; Save for current PC
+	ld	(CodePC),hl	; Save for current PC
 	ex	de,hl
 l287b:
 	ld	hl,(l7904)	; Get code start address
@@ -8409,10 +8413,10 @@ l287b:
 	ld	(progstartaddr),hl;(TPA+1),hl	; Set as start address
 	push	de
 	ld	c,_setdma
-	call	l7265		; Set disk buffer
+	call	_BDOS		; Set disk buffer
 	ld	c,_wrseq
-	ld	de,l7933
-	call	l7265		; Write record to file
+	ld	de,FFCB
+	call	_BDOS		; Write record to file
 	pop	de
 	ld	hl,l20e2
 	ld	(progstartaddr),hl;(TPA+1),hl	; Reset start address
@@ -8431,7 +8435,7 @@ l28aa:
 	db	cr,lf
 	db	'Compiling '
 	db	null
-	ld	de,l7933
+	ld	de,FFCB
 	or	a		; Test compile to memory
 	jr	z,l28cd		; Yeap
 	call	l0200		; Indicate file
@@ -8460,7 +8464,7 @@ l28fa:
 	ld	a,(l7901)	; Get error code
 	or	a		; Test any error
 	jp	nz,l2970	; Yeap
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	cp	2		; Test searching
 	jr	nz,l292a	; Nope
 	call	l2a7a		; Tell error position
@@ -8487,7 +8491,7 @@ l293a:
 	dec	hl
 	call	l2338		; Tell free bytes
 	pop	de
-	ld	hl,(l7908)	; Get start of data
+	ld	hl,(DataBeg)	; Get start of data
 	push	hl
 	call	l232e		; Tell free
 	pop	de
@@ -8595,7 +8599,7 @@ l29ec:
 l29f8:
 	xor	a
 	ld	(l44f1),a	; Clear file flag
-	ld	a,(l790e)	; Test read from memory
+	ld	a,(IncFlg)	; Test read from memory
 	or	a
 	jr	z,l2a41		; Nope
 	ld	a,'.'
@@ -8661,18 +8665,18 @@ l2a97:
 	jr	z,l2ab5		; Nope
 	ld	hl,l44f9	; Point to main file
 l2ab5:
-	ld	de,l7933
+	ld	de,FFCB
 	ld	bc,Fdrv+Fname+Fext
 	ldir			; Unpack FCB
 	ld	a,'C'		; Set .COM
 	ld	hl,'O'+'M'*256
-	ld	(l7933+Fdrv+Fname),a
-	ld	(l7933+Fdrv+Fname+1),hl
-	ld	de,l7933
+	ld	(FFCB+Fdrv+Fname),a
+	ld	(FFCB+Fdrv+Fname+1),hl
+	ld	de,FFCB
 	call	l26dc		; Clear FCB
 	push	de
 	ld	c,_open
-	call	l7265		; Open file ;WHERE IS CLOSE???
+	call	_BDOS		; Open file ;WHERE IS CLOSE???
 	pop	hl
 	inc	a		; Test file here
 	jp	z,l2104		; Nope, init session
@@ -8806,7 +8810,7 @@ l2b93:
 	call	l2261		; Input string
 	call	l03ee		; Parse file
 	ld	c,_retdsk
-	call	l7265		; Return current disk (return L=A=current drive)
+	call	_BDOS		; Return current disk (return L=A=current drive)
 	push	af
 	push	af
 	ld	a,(l005c)	; Get disk
@@ -8817,22 +8821,22 @@ l2b93:
 	ld	e,a
 	push	af		; Set new disk
 	;ld	c,_seldsk
-	;call	l7265		; Select disk
+	;call	_BDOS		; Select disk
 l2bbb:
 	pop	af
 	add	a,'A'		; Make disk ASCII
 	ld	(l2c8d),a	; Save disk
-	;ld	de,l7957
+	;ld	de,TmpBuff
 	;ld	c,_setdma
-	;call	l7265		; Set disk buffer
+	;call	_BDOS		; Set disk buffer
 	ld	de,0		; Clear flag and count
 	ld	c,_srcfrs
 l2bce:
 	push	de
          push bc
-	 ld	de,l7957
+	 ld	de,TmpBuff
 	 ld	c,_setdma
-	 call	l7265		; Set disk buffer
+	 call	_BDOS		; Set disk buffer
          pop bc
          ld de,fcbmask
 	call	BDOS_with_FCB1		; Search for file
@@ -8848,12 +8852,12 @@ l2bce:
 	add	a,a
 	ld	c,a
 	ld	b,0
-	ld	hl,l7957+_SYS
+	ld	hl,TmpBuff+_SYS
 	add	hl,bc		; Point to SYS bit
 	bit	7,(hl)		; Test set
 	jr	nz,l2c25	; Yeap, skip display
 	ld	d,-1		; Set any found flag
-	ld	hl,l7957
+	ld	hl,TmpBuff
 	add	hl,bc		; Point to entry
 	inc	e		; Test first file
 	dec	e
@@ -8961,7 +8965,7 @@ l2c8d:
 	ld	e,a
        ret
 	;ld	c,_seldsk
-	;jp	l7265		; Select disk
+	;jp	_BDOS		; Select disk
 ;
 ; BC holds resulting block count
 ; DE holds allocation vector
@@ -9026,7 +9030,7 @@ l2cce:
 	ld	a,(DU)		; Get from caller
 	jr	l2cf1
 l2ce8:
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	sub	'A'		; Verify in range
 	ret	c
 	cp	'P'-'A'+1
@@ -9037,12 +9041,12 @@ l2cf1:
         else
 	push	af
 	ld	c,_resdsk
-	call	l7265		; Reset disk system
+	call	_BDOS		; Reset disk system
 	pop	af
 	ld	(DU),a		; Set new disk
 	ld	e,a
 	ld	c,_seldsk
-	jp	l7265		; Select disk
+	jp	_BDOS		; Select disk
         endif
 ;
 ; Ask for YES or NO - Z set is NO
@@ -9054,7 +9058,7 @@ l2d01:
 	db	null
 l2d0d:
 	call	readfromkbd		; Read character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	'Y'		; Test YES
 	jr	z,l2d1b
 	cp	'N'		; Test NO
@@ -9088,7 +9092,7 @@ l2d2f:
 	ret	nz		; Yeap
 	push	de
 	ld	c,_retdsk
-	call	l7265		; Return current disk (return L=A=current drive)
+	call	_BDOS		; Return current disk (return L=A=current drive)
 	inc	a
 	ld	(l005c),a	; Set disk
 	pop	de
@@ -9178,7 +9182,7 @@ l2da4:
 	ld	hl,l25d4
 	ld	(l257c+1),hl	; Set vector for file too big
 	ld	de,l005c
-	call	l2518		; Load text file
+	call	l2518		; Load text file ;closes automatically
 l2dcf:
 	ld	hl,(l4546)	; Get end of text
 	ld	(hl),eof
@@ -9192,7 +9196,7 @@ l2dd9:
 	ld	hl,0		; Init result
 l2ddc:
 	ld	a,(de)		; Get character
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	sub	'0'		; Strip off offset
 	ret	c		; Out of range
 	cp	9+1		; Test decimal
@@ -9948,7 +9952,7 @@ l327d:
 	inc	d		; Remember carry
 	jr	l32be
 l3293:
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	'W'		; Test whole word search
 	jr	nz,l329e
 	set	_W,(iy+17)
@@ -10209,7 +10213,7 @@ l347d:
 l348c:
 	call	l4271		; Get character
 	call	l3ef6		; Test function cancelled
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	'Y'
 	jr	z,l349d
 	cp	19h
@@ -10307,6 +10311,8 @@ l3551:
 	call	l3e0d		; Set cursor
 	ld	hl,(l4460)	; Get block start pointer
 	call	l2692		; Save block to file
+	 ld	c,_close
+	 call	BDOS_with_FCB1
 	pop	hl
 	pop	af
 	ld	(hl),a		; Restore character
@@ -12755,14 +12761,14 @@ l454a:
 	ld	(l7b71),sp	; Save stack
 	ld	hl,(l4546)	; Get end of text
 	inc	hl
-	ld	(l7bdf),hl	; Save for memory top
+	ld	(MemsTop),hl	; Save for memory top
 	inc	h		; Allow a gap of 1024 bytes
 	inc	h
 	inc	h
 	inc	h
-	ld	(l7be1),hl	; Save for top of .COM file
+	ld	(COMsTop),hl	; Save for top of .COM file
 	ld	hl,(l790a)	; Get end of code
-	ld	(l7908),hl	; Save for start of data
+	ld	(DataBeg),hl	; Save for start of data
 	xor	a
 	ld	h,a
 	ld	l,a
@@ -12771,15 +12777,15 @@ l454a:
 	ld	(l7b94),a	; Clear ????
 	ld	(l7ba2),a	; Clear end of file
 	ld	(l7ba0),a	; Clear end on break [option U+]
-	ld	(l7be3),a	; Clear back fix level
-	ld	(l790e),a	; Enable memory read
+	ld	(BackLevel),a	; Clear back fix level
+	ld	(IncFlg),a	; Enable memory read
 	ld	(l7b96),a	; Clear OVERLAY number
-	ld	(l7bdb),a	; Clear file access
-	ld	(l7bdd),hl	; Clear record base
+	ld	(RRN_stat ),a	; Clear file access
+	ld	(RRN_off),hl	; Clear record base
 	ld	(l7bef),hl	; Clear line count
 	call	l718f		; Test abort
 	dec	hl
-	ld	(l7933+_rrn),hl	; Set highest record
+	ld	(FFCB+_rrn),hl	; Set highest record
 	ld	a,_Char+1 ;13=element of a set???
 	ld	(curtype_l7b93),a	; Set special type
 	ld	a,0xff-(__Ropt+__Uopt)
@@ -12792,7 +12798,7 @@ l454a:
 	ld	ix,l79d7	; Init start of line
 	ld	(ix+0),null	; Set line empty
 	ld	hl,(l7904)	; Get code start address
-	call	l6cc2		; Check chaining
+	call	ChkChn		; Check chaining
 	ld	hl,(l4548)	; Get top of available memory
 	dec	hl
 	ld	(l7b77),hl	; Save
@@ -12801,18 +12807,18 @@ l454a:
 	ld	bc,LenLab	; Get length of internal table
 	or	a
 	sbc	hl,bc
-	ld	(l7b73),hl	; Init label pointers
-	ld	(l7b75),hl
-	ld	(l7b7b),hl
-	call	l6bc7		; Check enough memory
+	ld	(LabPtr),hl	; Init label pointers
+	ld	(PrevLabPtr),hl
+	ld	(CurLab),hl
+	call	ChkOvfl		; Check enough memory
 	ld	hl,l731f+LenLab-1
 	lddr			; Unpack symbol table
 	call	l45ea		; Go compile
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
 	jr	nz,l45e2	; Nope
-	call	l6c96		; Fix back level
-	call	writerecord_l7957		; Write record
+	call	FixBack		; Fix back level
+	call	writerecord_TmpBuff		; Write record
 l45e2:
 	ld	(l7906),iy	; Save new top of code
 	xor	a
@@ -12821,8 +12827,8 @@ l45e2:
 ; Do the compiler task
 ;
 l45ea:
-	call	l6f95		; Process line
-	call	l6e76		; Find PROGRAM
+	call	GetLine		; Process line
+	call	FindStr		; Find PROGRAM
 	dw	l7529
 	jr	nz,l460a	; Nope
 	call	l4692		; Build dummy label
@@ -12838,15 +12844,15 @@ l4607:
 l460a:
 	ld	a,_LD.SP
 	ld	hl,0x0100;TPA
-	call	l6b94		; Set LD SP,TPA
+	call	StCode		; Set LD SP,TPA
 	ld	hl,l79d7	; Get start of source line
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	or	a		; Test compile to memory
 	jr	z,l4621		; Yeap
 	ld	de,l0080
-	call	l6c30		; Allow space for loader
+	call	VarAlloc		; Allow space for loader
 l4621:
-	call	l6b92		; Set LD HL,L79D7
+	call	StLD.HL		; Set LD HL,L79D7
 	ld	a,(l7b9d)	; Get options
 	bit	_Copt,a		; Test $C+
 	ld	d,0
@@ -12859,7 +12865,7 @@ l462e:
 	push	iy		; Save PC
 	call	writeword_hl_addriy		; Set dummy word
 	ld	hl,l0364
-	call	l6b86		; Set CALL INIPRG
+	call	StCALL_		; Set CALL INIPRG
 	ld	a,_LD.HL
 	call	writebyte_a_addriy		; Set LD HL,1STFREE
 	push	iy		; Save PC
@@ -12869,23 +12875,23 @@ l462e:
 	push	iy		; Save PC
 	call	writeword_hl_addriy		; Set dummy word
 	ld	hl,(l790a)	; Get end of code
-	call	l6b8a		; Set LD BC,TOPRAM
-	ld	a,(l7900)	; Get compile flag
+	call	StLD.BC		; Set LD BC,TOPRAM
+	ld	a,(CmpTyp)	; Get compile flag
 	ld	h,a
 	ld	l,_LD.A
 	call	writeword_hl_addriy		; Set LD A,FLAG
 	ld	hl,l04d4
-	call	l6b86		; Set CALL RANGCHK
+	call	StCALL_		; Set CALL RANGCHK
 	call	l469e		; Do a block
 	call	l52fc
 	ld	a,(ix+0)
 	cp	'.'		; Verify closing .
-	call	l72da
+	call	ErrNZ
 	db	_DotExp
 	ld	hl,l20d4
-	call	l6b82		; Set JP HALT
+	call	StJP_		; Set JP HALT
 	pop	hl		; Get back PC for LASTFREE
-	ld	de,(l7908)	; Get start of data
+	ld	de,(DataBeg)	; Get start of data
 	call	storeback_de_to_addrhl		; Store back
 	pop	hl		; Get back PC for 1STFREE
 	call	storeback_iy_to_addrhl		; Store back current PC
@@ -12898,11 +12904,11 @@ l462e:
 ; Build dummy label
 ;
 l4692:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl		; Save it
-	call	l6d87		; Get label
+	call	GetLabel		; Get label
 	pop	hl
-	ld	(l7b73),hl	; Restore label pointer
+	ld	(LabPtr),hl	; Restore label pointer
 	ret
 ;
 ; Perform a block
@@ -12913,17 +12919,17 @@ l469e:
 	add	a,a		; Double it
 	ld	e,a
 	ld	d,0
-	call	l6c30		; Allocate space for it
+	call	VarAlloc		; Allocate space for it
 	push	hl
-	call	l6b77		; Set JP
+	call	StJP		; Set JP
 	push	iy		; Save PC
 	push	hl
 	call	writeword_hl_addriy		; Set dummy word
 l46b3:
-	call	l6e5a		; Find statement
+	call	FndTabStr		; Find statement
 	db	_Byte
 	dw	l7584
-	call	l72da		; Must be
+	call	ErrNZ		; Must be
 	db	_BEGINexp
 	ld	a,(hl)		; Get type
 l46be:
@@ -12945,17 +12951,17 @@ l46d9:
 	cp	_Var		; Test VAR
 	jr	nz,l46e6	; Nope
 	call	l4b2a		; Process it
-	ld	hl,(l7908)	; Get start of data
+	ld	hl,(DataBeg)	; Get start of data
 	ex	(sp),hl
 	jr	l46be
 l46e6:
 	cp	_Overly		; Test OVERLAY
 	jp	nz,l485e
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	or	a
-	call	l72d4		; Must not be compiled to memory
+	call	ErrZ		; Must not be compiled to memory
 	db	_OvlDirErr
-	ld	hl,l7933+Fdrv
+	ld	hl,FFCB+Fdrv
 	ld	de,l7bb2
 	ld	bc,Fname
 	ldir			; Copy name of file
@@ -12975,7 +12981,7 @@ l4709:
 	add	a,'9'+1		; Calculate units
 	ld	(hl),a		; Save it
 	ld	hl,l1c59
-	call	l6b86		; Set CALL OVERLAY
+	call	StCALL_		; Set CALL OVERLAY
 	ld	hl,-1
 	call	writeword_hl_addriy		; Save word
 	ld	hl,l7bb2	; Point to name
@@ -12985,35 +12991,35 @@ l4724:
 	call	writebyte_a_addriy		; Store name and extension
 	inc	hl
 	djnz	l4724
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
 	jr	nz,l473b	; Nope
-	call	l6c96		; Fix back level
+	call	FixBack		; Fix back level
 	xor	a
-	ld	(l7be3),a	; Set back fix level
-	call	writerecord_l7957		; Write record
+	ld	(BackLevel),a	; Set back fix level
+	call	writerecord_TmpBuff		; Write record
 l473b:
-	ld	hl,(l7bdd)	; Get record base
+	ld	hl,(RRN_off)	; Get record base
 	push	hl
-	ld	hl,(l7902)	; Get code pointer
+	ld	hl,(CodePC)	; Get code pointer
 	push	hl
 	ld	hl,(l7bb0)	; Get length of overlay
 	push	hl
-	ld	(l7902),iy	; Set code pointer
+	ld	(CodePC),iy	; Set code pointer
 	ld	hl,0
 	ld	(l7bb0),hl	; Clear length of overlay
 	ld	hl,-FCBlen
 	add	hl,sp		; Let some space on stack for FCB
 	ld	sp,hl
 	ex	de,hl
-	ld	hl,l7933
+	ld	hl,FFCB
 	ld	bc,FCBlen
 	ldir			; Unpack current FCB
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
 	jr	nz,l478c	; Nope
 	ld	hl,l7bb2
-	ld	de,l7933+Fdrv
+	ld	de,FFCB+Fdrv
 	ld	bc,Fname+Fext
 	ldir			; Copy overlay FCB to .COM FCB
 	ex	de,hl
@@ -13022,33 +13028,33 @@ l4773:
 	ld	(hl),0		; Clear remainder of FCB
 	inc	hl
 	djnz	l4773
-	ld	de,l7933
+	ld	de,FFCB
 	push	de
 	ld	c,_delete
-	call	l7265		; Delete file
+	call	_BDOS		; Delete file
 	pop	de
 	ld	c,_make
-	call	l7265		; Create new one
+	call	_BDOS		; Create new one
 	inc	a
-	call	l72d4		; Must be success
+	call	ErrZ		; Must be success
 	db	_NoOvl
 l478c:
 	xor	a
-	ld	(l7bdb),a	; Clear file access
-	ld	(l7bdc),a	; Clear record pointer
-	ld	hl,(l7908)	; Get start of data
+	ld	(RRN_stat ),a	; Clear file access
+	ld	(RecPtr),a	; Clear record pointer
+	ld	hl,(DataBeg)	; Get start of data
 	ld	(l7bab),hl	; Set for overlay
 l4799:
-	call	l6e5a		; Find PROCEDURE or FUNCTION
+	call	FndTabStr		; Find PROCEDURE or FUNCTION
 	db	1
 	dw	l75a7
-	call	l72da		; Must be either
+	call	ErrNZ		; Must be either
 	db	_SUBexp
 	ld	a,(hl)		; Get type
 	push	iy
-	ld	hl,(l7933+_rrn)	; Get current record
-	ld	(l7bdd),hl	; Set record base
-	ld	hl,(l7908)	; Get start of data
+	ld	hl,(FFCB+_rrn)	; Get current record
+	ld	(RRN_off),hl	; Set record base
+	ld	hl,(DataBeg)	; Get start of data
 	push	hl
 	ld	hl,(l7bab)	; Get address of overlay data
 	push	hl
@@ -13057,7 +13063,7 @@ l4799:
 	ld	b,h
 	ld	c,l
 	pop	de		; Get back overlay data
-	ld	hl,(l7908)	; Get start of data
+	ld	hl,(DataBeg)	; Get start of data
 	or	a
 	sbc	hl,de		; Test min
 	add	hl,de
@@ -13066,19 +13072,19 @@ l4799:
 l47c6:
 	ld	(l7bab),hl	; Set address of overlay data
 	pop	hl
-	ld	(l7908),hl	; Set start of data
+	ld	(DataBeg),hl	; Set start of data
 	pop	de
 	push	bc
 	push	de
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
-	call	z,l6c96		; Yeap, fix back level
+	call	z,FixBack		; Yeap, fix back level
 	xor	a
-	ld	(l7be3),a	; Reset back fix level
+	ld	(BackLevel),a	; Reset back fix level
 	pop	de
 	push	de
 l47dd:
-	 ld	a,(l7900)	; Get compile flag
+	 ld	a,(CmpTyp)	; Get compile flag
 	 dec	a		; Test compiling to memory
          call z,flushunfinished ;nope
 	push	iy		; Copy code pointer
@@ -13107,21 +13113,21 @@ l47ff:
 	ld	(hl),e		; Save record
 	inc	hl
 	ld	(hl),d
-	call	l6e76		; Find more OVERLAY
+	call	FindStr		; Find more OVERLAY
 	dw	l759f
 	jr	z,l4799		; Yeap
 	ld	hl,(l7bab)	; Get address of overlay data
-	ld	(l7908),hl	; Set start of data
-	ld	a,(l7900)	; Get compile flag
+	ld	(DataBeg),hl	; Set start of data
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
 	jr	nz,l4821	; Nope
-	ld	de,l7933
+	ld	de,FFCB
 	ld	c,_close
-	call	l7265		; Close file
+	call	_BDOS		; Close file
 l4821:
 	ld	hl,0
 	add	hl,sp		; Copy stack
-	ld	de,l7933
+	ld	de,FFCB
 	ld	bc,FCBlen
 	ldir			; Get back original .COM FCB
 	ld	sp,hl
@@ -13129,16 +13135,16 @@ l4821:
 	pop	hl
 	ld	(l7bb0),hl	; Set new length
 	pop	hl
-	ld	(l7902),hl	; Set code pointer
+	ld	(CodePC),hl	; Set code pointer
 	pop	hl
-	ld	(l7bdd),hl	; Set record base
+	ld	(RRN_off),hl	; Set record base
 	xor	a
-	ld	(l7bdb),a	; Clear file access
+	ld	(RRN_stat ),a	; Clear file access
 	ld	hl,-1
-	ld	(l7933+_rrn),hl	; Set highest record number
+	ld	(FFCB+_rrn),hl	; Set highest record number
 	push	iy
 	pop	hl
-	call	l6cc2		; Check chaining
+	call	ChkChn		; Check chaining
 l484e:
 	ld	b,RecLng
 l4850:
@@ -13173,7 +13179,7 @@ l486a:
 	jr	l4884
 l4880:
 	dec	hl
-	call	l6cc2		; Check chaining
+	call	ChkChn		; Check chaining
 l4884:
 	pop	de
 	pop	hl
@@ -13188,8 +13194,8 @@ l488e:
 	ld	de,256*1+0
 	call	puttolabel_d_e		; Put to table
 	ld	a,(ix+0)
-	call	l7282		; Test valid character
-	call	l6d8d		; Build label
+	call	IsItValid		; Test valid character
+	call	SampLabel		; Build label
 	ld	a,(l7b94)	; Get ???
 	call	puttolabel		; Put to label
 	ld	b,3
@@ -13197,7 +13203,7 @@ l48a5:
 	ld	a,-1
 	call	puttolabel		; Set end
 	djnz	l48a5
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	call	l6f13		; Test ,
 	jr	z,l488e		; Yeap
 	jp	l6f48		; Verify ;
@@ -13205,14 +13211,14 @@ l48a5:
 ; Process CONST
 ;
 l48b7:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	ld	de,256*0+0
 	call	puttolabel_d_e		; Put to table
-	call	l6d87		; Get label
+	call	GetLabel		; Get label
 	call	l6f23		; Test =
 	jr	nz,l4901	; Nope, must be : then
-	call	l6a0d		; Get constant
+	call	GetConst		; Get constant
 	ld	a,b		; Get type
 	call	puttolabel		; Store into table
 	ld	a,b		; Get back type
@@ -13245,7 +13251,7 @@ l48f6:
 	ex	de,hl		; Get integer
 	call	puttolabel_d_e		; Put to table
 l48fa:
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	ld	d,2
 	jr	l4928
 l4901:
@@ -13253,10 +13259,10 @@ l4901:
 	xor	a
 	call	puttolabel		; Store zero in table
 	call	puttolabel_i_y		; Store PC to table
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	call	puttolabel_d_e		; Put to table
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	call	l4f9b		; Get type
 	pop	hl		; Get back label pointer
 	ld	de,(l7b5a)	; Get type table
@@ -13270,7 +13276,7 @@ l4928:
 	pop	hl		; Get back label pointer
 	ld	(hl),d		; Put into
 	call	l6f48		; Verify ;
-	call	l6e5a		; Find statement
+	call	FndTabStr		; Find statement
 	db	1
 	dw	l7584
 	jr	nz,l48b7	; Nope
@@ -13285,7 +13291,7 @@ l4937:
 	jr	c,l4946		; May not be a file
 	cp	_String
 	jr	nc,l4946
-	call	l72e1
+	call	ERROR
 	db	_InvFilPtr
 l4946:
 	cp	_Array		; Test ARRAY constant
@@ -13325,18 +13331,18 @@ l497b:
 	jr	l497b
 l498a:
 	push	de
-	call	l69fd		; Get string constant
+	call	_GetStrC		; Get string constant
 	pop	de
 	ld	a,c		; Get length
 	cp	e
-	call	l72da		; Verify valid length
+	call	ErrNZ		; Verify valid length
 	db	_StrConst
-	call	l6b62		; Store string
+	call	StConst		; Store string
 	jr	l499d
 l499a:
 	call	l6f6e		; Verify )
 l499d:
-	call	l6d49		; Get back environment
+	call	RestEnv1		; Get back environment
 	ret
 l49a1:
 	cp	_Record		; Test RECORD constant
@@ -13352,8 +13358,8 @@ l49b6:
 	push	bc
 	push	hl
 	ld	b,_Ptr
-	call	l6e54		; Get pointer label
-	call	l72da		; Should be found
+	call	FndLABEL		; Get pointer label
+	call	ErrNZ		; Should be found
 	db	_Undef
 	call	l5276		; Get values and name
 	pop	de
@@ -13361,7 +13367,7 @@ l49b6:
 	or	a
 	sbc	hl,de
 	add	hl,de
-	call	l72da		; Verify valid size
+	call	ErrNZ		; Verify valid size
 	db	_InvSetOrder
 	ld	de,(l7b62)	; Get length of type
 	add	hl,de
@@ -13386,7 +13392,7 @@ l49eb:
 	dec	hl
 	jr	l49eb
 l49f6:
-	call	l6d49		; Get back environment
+	call	RestEnv1		; Get back environment
 	ret
 l49fa:
 	cp	_Set		; Test SET constant
@@ -13405,7 +13411,7 @@ l49fa:
 l4a20:
 	call	l4aca
 	push	hl
-	call	l6e76		; Find ..
+	call	FindStr		; Find ..
 	dw	l7580
 	jr	nz,l4a37	; Nope
 	call	l4aca
@@ -13443,12 +13449,12 @@ l4a6f:
 	call	writebyte_a_addriy		; Store them
 	inc	hl
 	djnz	l4a6f
-	call	l6d49		; Get back environment
+	call	RestEnv1		; Get back environment
 	ret
 l4a7a:
 	cp	_String		; Test STRING constant
 	jr	nz,l4a99	; Nope
-	call	l69fd		; Get string constant
+	call	_GetStrC		; Get string constant
 	ld	a,(l7b62)	; Get length of string
 	dec	a
 	sub	c
@@ -13458,7 +13464,7 @@ l4a7a:
 	ld	c,a		; Set length
 	ld	b,0
 l4a8d:
-	call	l6b5e		; Put string
+	call	StLen		; Put string
 	inc	b
 l4a91:
 	dec	b
@@ -13469,12 +13475,12 @@ l4a91:
 l4a99:
 	cp	_Real		; Test REAL constant
 	jr	nz,l4abc	; Nope
-	call	l69ea		; Get constant
+	call	_GetConst		; Get constant
 	ld	a,b		; Get type
 	cp	_Real		; Test real
 	jr	z,l4aaf		; Yeap
 	cp	_Integ		; Test integer
-	call	l72da		; Should be
+	call	ErrNZ		; Should be
 	db	_IntRealCexp
 	call	l1008		; Convert to real
 	exx
@@ -13500,10 +13506,10 @@ l4abc:
 ;
 ;
 l4aca:
-	call	l69ea		; Get constant
+	call	_GetConst		; Get constant
 	ld	a,(l7b5c)	; Get type
 	cp	b		; Verify same types
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 	ld	de,(l7b5e)	; Get lo set limit
 	call	l728d		; Compare
@@ -13513,24 +13519,24 @@ l4aca:
 	ret	c
 	ret	z
 l4ae7:
-	call	l72e1
+	call	ERROR
 	db	_ConstRange
 ;
 ; Process TYPE
 ;
 l4aeb:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 l4aef:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	ld	de,0
 	call	puttolabel_d_e		; Put to table
-	call	l6d87		; Get label
-	ld	hl,(l7b73)	; Get label pointer
+	call	GetLabel		; Get label
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	call	puttolabel_d_e		; Put to table
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	call	l6f76		; Verify =
 	call	l4f9b		; Get type
 	pop	hl
@@ -13541,7 +13547,7 @@ l4aef:
 	pop	hl
 	ld	(hl),3
 	call	l6f48		; Verify ;
-	call	l6e5a		; Find statement
+	call	FndTabStr		; Find statement
 	db	_Byte
 	dw	l7584
 	jr	nz,l4aef	; Nope
@@ -13557,7 +13563,7 @@ l4aef:
 l4b2a:
 	call	l4f35
 	call	l6f48		; Verify ;
-	call	l6e5a		; Find statement
+	call	FndTabStr		; Find statement
 	db	_Byte
 	dw	l7584
 	jr	nz,l4b2a	; Nope
@@ -13583,18 +13589,18 @@ l4b3a:
 	jp	z,l4c61
 	pop	de
 	call	puttolabel_d_e		; Put to table
-	call	l6d87		; Get label
-	ld	hl,(l7b7b)	; Get current label pointer
+	call	GetLabel		; Get label
+	ld	hl,(CurLab)	; Get current label pointer
 	push	hl
-	ld	hl,(l7b75)	; Get previous label pointer
-	ld	(l7b7b),hl
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(PrevLabPtr)	; Get previous label pointer
+	ld	(CurLab),hl
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	call	puttolabel_d_e		; Put to table
 	call	puttolabel_d_e		; Multiple
 	call	puttolabel_d_e
 	call	puttolabel_d_e
-	ld	de,(l7bdd)	; Get record base
+	ld	de,(RRN_off)	; Get record base
 	call	puttolabel_d_e		; Put to table
 	ld	de,0
 	call	puttolabel_d_e		; Put to table
@@ -13603,18 +13609,18 @@ l4b3a:
 	jr	nz,l4bda	; Nope
 l4b88:
 	push	bc
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	call	puttolabel_d_e		; Put to table
 	call	puttolabel_d_e		; Twice
-	call	l6e76		; Find VAR
+	call	FindStr		; Find VAR
 	dw	l7595
 	ld	bc,0
 	jr	nz,l4b9e	; Nope
 	dec	c		; Indicate VAR
 l4b9e:
 	push	bc
-	call	l6d87		; Get label
+	call	GetLabel		; Get label
 	pop	bc
 	inc	b		; Count parameters
 	call	l6f13		; Test ,
@@ -13628,7 +13634,7 @@ l4b9e:
 	jr	l4bc3
 l4bb8:
 	inc	c		; Verify not VAR
-	call	l72da
+	call	ErrNZ
 	db	_SemiExp
 	ld	hl,l750b+7
 	ld	(l7b5a),hl	; Init type table
@@ -13661,7 +13667,7 @@ l4bda:
 	cp	_String		; Test range
 	jr	nc,l4bf8
 	cp	_Ptr		; Should be pointer
-	call	l72da
+	call	ErrNZ
 	db	_InvResult
 l4bf8:
 	pop	bc
@@ -13678,27 +13684,27 @@ l4c07:
 	pop	bc
 	pop	de
 	pop	hl
-	ld	(l7b7b),hl	; Restore current label pointer
+	ld	(CurLab),hl	; Restore current label pointer
 	push	de
 	push	bc
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	call	l6f48		; Verify ;
 	ld	a,(l7b99)
 	or	a		; Test overlay
 	jr	nz,l4c44	; Yeap
-	call	l6e76		; Find FORWARD
+	call	FindStr		; Find FORWARD
 	dw	l7533
 	jr	nz,l4c2c	; Nope
 	push	iy		; Copy PC
 	pop	de
-	call	l6b82		; Set JP <addr>
+	call	StJP_		; Set JP <addr>
 	ld	a,-1
 	jr	l4c38
 l4c2c:
-	call	l6e76		; Find EXTERNAL
+	call	FindStr		; Find EXTERNAL
 	dw	l753a
 	jr	nz,l4c44	; Nope
-	call	l69f2		; Get integer constant
+	call	_GetIntC		; Get integer constant
 	ex	de,hl
 	xor	a
 l4c38:
@@ -13738,28 +13744,28 @@ l4c5b:
 l4c61:
 	ld	a,(hl)
 	or	a
-	call	l72d4		; Verify label not found
+	call	ErrZ		; Verify label not found
 	db	_DoubleLab
 	ld	a,(l7b99)
 	or	a		; Test overlay (0 is not)
-	call	l72da		; Verify not FORWARD overlay
+	call	ErrNZ		; Verify not FORWARD overlay
 	db	_OvlFORW
-	call	l6e96		; Set new pointer
+	call	SetLine		; Set new pointer
 	pop	de
 	call	l6f48		; Verify ;
 l4c76:
 	ex	de,hl
 	ld	a,(l7b9d)	; Get option
-	ld	hl,(l7908)	; Get start of data
+	ld	hl,(DataBeg)	; Get start of data
 	bit	_Aopt,a		; Test $A+ - absolute code for recursion
 	jr	z,l4c84		; Yeap
 	ld	hl,0
 l4c84:
 	ld	(l7b83),hl
-	ld	hl,(l7b7b)	; Get current label pointer
+	ld	hl,(CurLab)	; Get current label pointer
 	push	hl
-	ld	hl,(l7b73)	; Get label pointer
-	ld	(l7b7b),hl	; Into current
+	ld	hl,(LabPtr)	; Get label pointer
+	ld	(CurLab),hl	; Into current
 	push	hl
 	ex	de,hl
 	ld	a,(hl)
@@ -13795,7 +13801,7 @@ l4ca7:
 	ld	a,l
 	ld	(l7b88),a	; save lo
 	ex	de,hl
-	call	l6c30		; Allocate space
+	call	VarAlloc		; Allocate space
 	ld	(l7b89),hl
 	ex	de,hl
 	pop	hl
@@ -13833,7 +13839,7 @@ l4ce1:
 	ex	de,hl
 	ld	(l7b5a),hl	; Save type table
 	call	l5287		; Get name
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	ex	(sp),hl
 	push	bc
 l4cfd:
@@ -13850,7 +13856,7 @@ l4d04:
 	call	puttolabel		; Store last byte into table
 	call	puttolabel_d_e		; Put to table
 	call	puttolabel_d_e
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	pop	hl
 	pop	bc
 	djnz	l4cfd
@@ -13865,7 +13871,7 @@ l4d04:
 l4d2b:
 	ld	b,c
 	push	bc
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	ld	hl,(l7b83)
 	push	hl
@@ -13896,18 +13902,18 @@ l4d2b:
 	jr	z,l4d79
 	sbc	hl,de
 	jr	z,l4d79
-	call	l6b8a		; Set LD BC,val16
+	call	StLD.BC		; Set LD BC,val16
 	ex	de,hl
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 	ld	hl,l0508	; Set recursion routine
-	call	l6b86		; Set CALL RECUR
+	call	StCALL_		; Set CALL RECUR
 l4d79:
 	pop	hl
 	pop	bc
 	inc	b
 	dec	b
 	jp	z,l4df3
-	call	l6b50		; Set POP IY
+	call	StImm		; Set POP IY
 	db	a_L1
 s_I1:
 	POP	IY
@@ -13927,7 +13933,7 @@ l4d8f:
 	dec	hl
 	jr	z,l4d8f		; Nope
 	call	l5276		; Get values and name
-	ld	a,(l7b57)
+	ld	a,(Envir1)
 	or	a
 	jr	nz,l4dd4
 	ld	a,(l7b5c)	; Get type
@@ -13941,7 +13947,7 @@ l4d8f:
 	jr	z,l4de6
 	cp	_Integ
 	jr	nc,l4de3
-	call	l6b50		; Set POP sequence
+	call	StImm		; Set POP sequence
 	db	a_L2
 s_I2:
 	POP	HL
@@ -13950,12 +13956,12 @@ s_I2:
 a_L2	equ	$-s_I2
 	jr	l4de6
 l4dbd:
-	call	l6b73		; Set POP HL
+	call	StPOP		; Set POP HL
 	ld	hl,(l7b58)	; Get value
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	ld	hl,(l7b62)	; Get length of type
-	call	l6b8a		; Set LD BC,val16
-	call	l6b50		; Set LDIR
+	call	StLD.BC		; Set LD BC,val16
+	call	StImm		; Set LDIR
 	db	a_L3
 s_I3:
 	LDIR
@@ -13963,20 +13969,20 @@ a_L3	equ	$-s_I3
 	jr	l4de9
 l4dd4:
 	xor	a
-	ld	(l7b57),a
+	ld	(Envir1),a
 	ld	a,_Ptr
 	ld	(l7b5c),a	; Set POINTER
 	ld	hl,2
 	ld	(l7b62),hl	; Set length of pointer type
 l4de3:
-	call	l6b73		; Set POP HL
+	call	StPOP		; Set POP HL
 l4de6:
 	call	l661b
 l4de9:
 	pop	hl
 	pop	bc
 	djnz	l4d86
-	call	l6b50		; Set PUSH IY
+	call	StImm		; Set PUSH IY
 	db	a_L4
 s_I4:
 	PUSH	IY
@@ -13993,16 +13999,16 @@ l4df3:
 	cp	_String
 	jr	nz,l4e24
 	ld	b,a
-	call	l6b50		; Set POP IY
+	call	StImm		; Set POP IY
 	db	a_L5
 s_I5:
 	POP	IY
 a_L5	equ	$-s_I5
 	ld	a,_LD.HL
-	call	l6b94		; Set LD HL,val16
+	call	StCode		; Set LD HL,val16
 	ld	hl,l053a
-	call	l6b86		; move string to stack
-	call	l6b50
+	call	StCALL_		; move string to stack
+	call	StImm
 	db	a_L6
 s_I6:
 	PUSH	IY
@@ -14012,17 +14018,17 @@ l4e24:
 	cp	_Real
 	jr	nz,l4e35
 	ld	a,_LD.HL
-	call	l6b94		; Set LD HL,val16
+	call	StCode		; Set LD HL,val16
 	ld	hl,l052c
-	call	l6b86		; Set load real
+	call	StCALL_		; Set load real
 	jr	l4e46
 l4e35:
 	ld	a,_LD_a_HL
-	call	l6b94		; Set LD HL,(adr16)
+	call	StCode		; Set LD HL,(adr16)
 	ld	a,(l7b88)
 	dec	a
 	jr	nz,l4e46
-	call	l6b50		; Set LD H,0
+	call	StImm		; Set LD H,0
 	db	a_L7
 s_I7:
 	LD	H,0
@@ -14043,14 +14049,14 @@ l4e46:
 	ld	a,_EXX
 	call	nz,writebyte_a_addriy	; Set EXX
 l4e65:
-	call	l6b8a		; Set LD BC,val16
+	call	StLD.BC		; Set LD BC,val16
 	ex	de,hl
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	ld	hl,l0522
-	call	l6b82		; Set end of recursive routine
+	call	StJP_		; Set end of recursive routine
 	jr	l4e79
 l4e74:
-	call	l6b50		; Set RET
+	call	StImm		; Set RET
 	db	a_L8
 s_I8:
 	RET
@@ -14059,19 +14065,19 @@ l4e79:
 	call	l6f48		; Verify ;
 	pop	de
 	pop	hl
-	ld	(l7b73),hl	; Set label pointers
-	ld	(l7b75),hl
+	ld	(LabPtr),hl	; Set label pointers
+	ld	(PrevLabPtr),hl
 	pop	hl
-	ld	(l7b7b),hl	; Restore current label pointer
+	ld	(CurLab),hl	; Restore current label pointer
 	ex	de,hl
 	ret
 ;
 ; Process BEGIN
 ;
 l4e8a:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 l4e8d:
-	ld	de,(l7b7b)	; Get current label pointer
+	ld	de,(CurLab)	; Get current label pointer
 	or	a
 	sbc	hl,de
 	add	hl,de
@@ -14096,7 +14102,7 @@ l4ea7:
 	jr	z,l4ea7
 	ld	a,(hl)		; Get type
 	or	a
-	call	l72da		; Maybe undefined FORWARD
+	call	ErrNZ		; Maybe undefined FORWARD
 	db	_UndefFORW
 	pop	hl
 	jr	l4e8d
@@ -14104,7 +14110,7 @@ l4ea7:
 ;
 ;
 l4eb5:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	ld	b,0
 l4ebb:
@@ -14113,11 +14119,11 @@ l4ebb:
 	ld	a,(l7b91)	; Get ???
 	ld	e,a
 	call	puttolabel_d_e		; Put to table
-	call	l6d87		; Get label
+	call	GetLabel		; Get label
 	call	puttolabel		; Store into table
 	call	puttolabel_d_e		; Put to table
 	call	puttolabel_d_e		; Twice
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	pop	bc
 	inc	b
 	call	l6f13		; Test ,
@@ -14128,21 +14134,21 @@ l4ebb:
 ;
 ;
 l4edd:
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	call	l4f9b		; Get type
 	pop	hl
 	call	l5295
-	call	l6e76		; Test ABSOLUTE
+	call	FindStr		; Test ABSOLUTE
 	dw	l7562
 	ld	a,0
 	jr	nz,l4f14	; Nope
 	ld	a,(l7b91)	; Get ???
 	or	a
-	call	l72da
+	call	ErrNZ
 	db	_InvalABS
 	ld	bc,256*_Ptr+0
-	call	l6e54		; Find label
+	call	FndLABEL		; Find label
 	jr	nz,l4f0c	; Nope
 	ld	a,(hl)
 	ld	(l7b8f),a
@@ -14153,7 +14159,7 @@ l4edd:
 	ex	de,hl
 	jr	l4f0f
 l4f0c:
-	call	l69f2		; Get integer constant
+	call	_GetIntC		; Get integer constant
 l4f0f:
 	ld	(l7b7f),hl	; Store value
 	ld	a,-1
@@ -14165,7 +14171,7 @@ l4f14:
 ;
 l4f18:
 	call	l4fc8		; Get simple type
-	call	l72da		; Verify ok
+	call	ErrNZ		; Verify ok
 	db	_TypeExp
 	xor	a
 	ld	(l7b90),a
@@ -14177,7 +14183,7 @@ l4f18:
 	ret	c
 	cp	_String
 	ret	nc
-	call	l72e1		; Files must be VAR
+	call	ERROR		; Files must be VAR
 	db	_VarFile
 ;
 ;
@@ -14196,7 +14202,7 @@ l4f35:
 	jr	z,l4f51
 	ld	a,b
 	dec	a
-	call	l72da		; Invalid ABSOLUTE
+	call	ErrNZ		; Invalid ABSOLUTE
 	db	_InvalABS
 l4f51:
 	pop	hl
@@ -14216,7 +14222,7 @@ l4f60:
 	ld	a,(l7b90)
 	or	a
 	jr	nz,l4f72
-	call	l6c30		; Allocate space
+	call	VarAlloc		; Allocate space
 	jr	l4f7b
 l4f72:
 	ld	hl,(l7b7f)
@@ -14256,7 +14262,7 @@ l4f7e:
 l4f9b:
 	call	l4fc8		; Test simple type
 	ret	z
-	call	l6e76		; Skip possible PACKED
+	call	FindStr		; Skip possible PACKED
 	dw	l7542
 	call	l4fdb		; Check ARRAY
 	ret	z
@@ -14274,7 +14280,7 @@ l4f9b:
 	ret	z
 	call	l5210		; Test RANGE ..
 	ret	z
-	call	l72e1		; Type declaration expected
+	call	ERROR		; Type declaration expected
 	db	_TypeExp
 ;
 ; Get SIMPLE TYPE
@@ -14282,7 +14288,7 @@ l4f9b:
 ;
 l4fc8:
 	ld	bc,256*3+0
-	call	l6e54		; Get from table
+	call	FndLABEL		; Get from table
 	ret	nz		; Not found
 	ld	d,(hl)		; Fetch type table
 	dec	hl
@@ -14296,7 +14302,7 @@ l4fc8:
 ; Look for ARRAY
 ;
 l4fdb:
-	call	l6e76		; Test ARRAY
+	call	FindStr		; Test ARRAY
 	dw	l7548
 	ret	nz		; Nope
 	call	l6f30		; Verify [
@@ -14314,7 +14320,7 @@ l4fe6:
 	inc	hl
 	ld	a,h
 	or	l
-	call	l72d4		; Verify not same
+	call	ErrZ		; Verify not same
 	db	_MemOvfl
 	push	hl
 	inc	b
@@ -14332,7 +14338,7 @@ l5012:
 	pop	de
 	push	bc
 	call	l729a		; Multiply numbers
-	call	l72c8		; Check compiler overflow
+	call	ErrCY		; Check compiler overflow
 	db	_MemOvfl
 	pop	bc
 	ld	(l7b62),hl	; Set length of type
@@ -14349,7 +14355,7 @@ l5012:
 ; Look for RECORD
 ;
 l5039:
-	call	l6e76		; Test RECORD
+	call	FindStr		; Test RECORD
 	dw	l7554
 	ret	nz		; Nope
 	ld	a,(l7b9a)
@@ -14391,7 +14397,7 @@ l5039:
 l508b:
 	call	l50f9
 	ret	z
-	call	l6e76		; Test CASE
+	call	FindStr		; Test CASE
 	dw	l75da
 	jr	z,l50b0		; Yeap
 	call	l4f35
@@ -14416,7 +14422,7 @@ l50b9:
 	ld	hl,(l7b7f)
 	push	hl
 l50c1:
-	call	l69ea		; Get constant
+	call	_GetConst		; Get constant
 	call	l6f13		; Test ,
 	jr	z,l50c1		; Yeap
 	call	l6f40		; Verify :
@@ -14436,23 +14442,23 @@ l50e8:
 	ld	a,(l7b9a)
 	or	a
 	jp	nz,l6f6e	; Verify )
-	call	l6e76		; Find END
+	call	FindStr		; Find END
 	dw	l7530
 	ret	z		; Yeap
-	call	l72e1
+	call	ERROR
 	db	_End
 l50f9:
 	ld	a,(l7b9a)
 	or	a
 	jp	nz,l6f1f
-	call	l6e76		; Find END
+	call	FindStr		; Find END
 	dw	l7530
 	ret
 ;
 ; Check SET
 ;
 l5106:
-	call	l6e76		; Test SET
+	call	FindStr		; Test SET
 	dw	l7551
 	ret	nz		; Nope
 	call	l6f88
@@ -14461,7 +14467,7 @@ l5106:
 	ld	de,(l7b5e)	; Get lo set limit
 	ld	a,h
 	or	d
-	call	l72da
+	call	ErrNZ
 	db	_IllSetRange
 	srl	l
 	srl	l
@@ -14487,10 +14493,10 @@ l5140:
 	ret	nz
 	ld	de,l0000
 	call	puttolabel_d_e		; Put to table
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	push	hl
 	call	l6dba
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	pop	hl
 	ld	(l7b5e),hl	; Set lo set limit
 	ld	a,_Ptr
@@ -14504,10 +14510,10 @@ l5140:
 ; Check FILE
 ;
 l516b:
-	call	l6e76		; Find FILE
+	call	FindStr		; Find FILE
 	dw	l754d
 	ret	nz		; Nope
-	call	l6e76		; Find OF
+	call	FindStr		; Find OF
 	dw	l7560
 	jr	nz,l5197	; Nope
 	call	l4f9b		; Get type
@@ -14516,7 +14522,7 @@ l516b:
 	jr	c,l518a
 	cp	_String
 	jr	nc,l518a
-	call	l72e1
+	call	ERROR
 	db	_FileF
 l518a:
 	ld	hl,(l7b5a)	; Get type table
@@ -14535,18 +14541,18 @@ l519c:
 ; Check STRING
 ;
 l51a5:
-	call	l6e76		; Find STRING
+	call	FindStr		; Find STRING
 	dw	l755a
 	ret	nz		; Nope
 	call	l6f30		; Verify [
-	call	l69f2		; Get integer constant
+	call	_GetIntC		; Get integer constant
 	inc	h
 	dec	h
-	call	l72da
+	call	ErrNZ
 	db	_IllStrgLen
 	inc	l
 	dec	l
-	call	l72d4
+	call	ErrZ
 	db	_IllStrgLen
 	call	l6f38		; Verify ]
 	inc	hl
@@ -14563,14 +14569,14 @@ l51cc:
 	push	hl
 	ld	de,2*256+0 ;l0200
 	call	puttolabel_d_e		; Put to table
-	call	l6d87		; Get label
+	call	GetLabel		; Get label
 	ld	a,(curtype_l7b93)	; Get type
 	call	puttolabel
 	pop	de
 	inc	de
 	push	de
 	call	puttolabel_d_e		; Put to table
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	pop	hl
 	call	l6f13		; Test ,
 	jr	z,l51cc		; Yeap
@@ -14597,27 +14603,27 @@ l520a:
 ; Test RANGE ..
 ;
 l5210:
-	call	l6a0d		; Get constant
+	call	GetConst		; Get constant
 	ret	nz
 	ld	a,b
 	push	af
 	cp	0ah ;_Integ
-	call	l72c8
+	call	ErrCY
 	db	_IllSkalar
 	push	hl
-	call	l6e76		; Find ..
+	call	FindStr		; Find ..
 	dw	l7580
-	call	l72da
+	call	ErrNZ
 	db	_TwoDots
-	call	l69ea		; Get constant
+	call	_GetConst		; Get constant
 	pop	de
 	pop	af
 	push	af
 	cp	b
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 	call	l728d		; Compare
-	call	l72c8		; Verify upper > lower
+	call	ErrCY		; Verify upper > lower
 	db	_IllLimit
 	pop	af
 	jr	l51f8
@@ -14630,17 +14636,17 @@ l523b:
 	call	l51c5
 	ret	z
 	call	l4fc8
-	call	l72da
+	call	ErrNZ
 	db	_SimTyp
 	ld	a,(l7b5c)	; Get type
 	cp	_Integ
 	ret	nc
-	call	l72e1
+	call	ERROR
 	db	_SimTyp
 l5254:
 	ld	de,8*256+0 ;l0800
 	call	puttolabel_d_e		; Put to table
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	ld	(l7b5a),hl	; Save into type table
 	ld	hl,l7b5c	; Point to type
 	ld	b,8
@@ -14649,7 +14655,7 @@ l5265:
 	call	puttolabel
 	inc	hl
 	djnz	l5265
-	call	l6dc6		; Set label pointer
+	call	SetLabPtr		; Set label pointer
 	xor	a
 	ret
 ;
@@ -14664,7 +14670,7 @@ l5271:
 l5276:
 	ld	a,(hl)
 	dec	hl
-	ld	(l7b57),a
+	ld	(Envir1),a
 	ld	d,(hl)
 	dec	hl
 	ld	e,(hl)
@@ -14695,7 +14701,7 @@ l528d:
 ;
 l5295:
 	ld	(l7b79),hl
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 l529b:
 	ld	bc,(l7b79)
 	or	a
@@ -14727,13 +14733,13 @@ l529b:
 	ld	e,(hl)
 	dec	hl
 	ld	d,(hl)
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 l52c7:
 	ld	bc,(l7b77)	; Get top of available memory
 	or	a
 	sbc	hl,bc
 	add	hl,bc
-	call	l72d4
+	call	ErrZ
 	db	_InkPointer
 	inc	hl
 	ld	c,(hl)
@@ -14780,10 +14786,10 @@ l52fc:
 	ld	(l7bc9),a
 	call	l5377
 	ld	(l7ba4),iy
-	call	l6b82
-	ld	hl,(l7b73)	; Get label pointer
+	call	StJP_
+	ld	hl,(LabPtr)	; Get label pointer
 l5310:
-	ld	de,(l7b75)	; Get previous label pointer
+	ld	de,(PrevLabPtr)	; Get previous label pointer
 	or	a
 	sbc	hl,de
 	add	hl,de
@@ -14809,7 +14815,7 @@ l5310:
 	ld	a,(hl)
 	ld	c,a
 	inc	a
-	call	l72d4
+	call	ErrZ
 	db	_UnkLabel
 	dec	hl
 	ld	d,(hl)
@@ -14827,7 +14833,7 @@ l5340:
 	call	storeback_de_to_addrhl
 	jr	l5360
 l534a:
-	call	l72c8
+	call	ErrCY
 	db	_IllGOTO
 	push	de
 	push	af
@@ -14835,11 +14841,11 @@ l534a:
 	pop	af
 	ld	b,a
 l5355:
-	call	l6b73		; Set POP HL
+	call	StPOP		; Set POP HL
 	djnz	l5355
 	ld	a,_JP
 	pop	hl
-	call	l6b94
+	call	StCode
 l5360:
 	pop	hl
 	jr	l5310
@@ -14855,13 +14861,13 @@ l5363:
 	add	hl,de
 	jp	nz,storeback_iy_to_addrhl	; Store back PC
 	dec	hl
-	jp	l6cc2		; Check chaining
+	jp	ChkChn		; Check chaining
 ;
 ; Statement BEGIN
 ;
 l5377:
 	call	l5385		; Process a statement
-	call	l6e76		; Find END
+	call	FindStr		; Find END
 	dw	l7530
 	ret	z
 	call	l6f50
@@ -14880,22 +14886,22 @@ l5385:
 	ld	(l7ba0),a	; Set end on break flag [option U+]
 	call	writebyte_a_addriy		; Insert RST
 l539c:
-	call	l6e5a		; Find statement
+	call	FndTabStr		; Find statement
 	db	2
 	dw	l75bb
 	jr	z,l53cb		; Yeap
 	call	l67b2
 	jp	z,l57ea
 	ld	bc,256*5+0
-	call	l6e54
+	call	FndLABEL
 	jp	z,l573d
 	ld	bc,256*1+0
-	call	l6e54
+	call	FndLABEL
 	jr	z,l53d0
 	ld	bc,256*6+0
-	call	l6e54
+	call	FndLABEL
 	jp	z,l591f
-	call	l6e5a		; Find procedure
+	call	FndTabStr		; Find procedure
 	db	2
 	dw	l7638
 	ret	nz		; Nope
@@ -14909,12 +14915,12 @@ l53d0:
 	call	l6f40		; Verify :
 	ld	a,(l7b94)	; Get ???
 	cp	(hl)
-	call	l72da
+	call	ErrNZ
 	db	_IllLabel
 	dec	hl
 	ld	a,(hl)
 	inc	a
-	call	l72da
+	call	ErrNZ
 	db	_DoubleLab
 	ld	a,(l7b95)
 	ld	(hl),a
@@ -14930,7 +14936,7 @@ l53d0:
 ;
 l53ef:
 	call	l5eb0
-	call	l6b50		; Set BIT 0,L ! JP Z,addr
+	call	StImm		; Set BIT 0,L ! JP Z,addr
 	db	a_L9
 s_I9:
 	BIT	_LB,L
@@ -14938,15 +14944,15 @@ s_I9:
 a_L9	equ	$-s_I9
 	push	iy
 	call	writeword_hl_addriy
-	call	l6e76		; Find THEN
+	call	FindStr		; Find THEN
 	dw	l756a
-	call	l72da
+	call	ErrNZ
 	db	_StrIdx
 	call	l5385		; Process a statement
-	call	l6e76		; Find ELSE
+	call	FindStr		; Find ELSE
 	dw	l756e
 	jr	nz,l5420	; Nope
-	call	l6b77		; Set JP
+	call	StJP		; Set JP
 	pop	hl
 	push	iy
 	call	writeword_hl_addriy
@@ -14961,11 +14967,11 @@ l5420:
 l5424:
 	push	iy
 	call	l5eb0
-	call	l6e76		; Find DO
+	call	FindStr		; Find DO
 	dw	l7572
-	call	l72da
+	call	ErrNZ
 	db	_NoDO
-	call	l6b50		; Set BIT 0,L ! JP Z,addr
+	call	StImm		; Set BIT 0,L ! JP Z,addr
 	db	a_L10
 s_I10:
 	BIT	_LB,L
@@ -14977,7 +14983,7 @@ a_L10	equ	$-s_I10
 	pop	de
 	pop	hl
 	ld	a,_JP
-	call	l6b94
+	call	StCode
 	ex	de,hl
 	jp	storeback_iy_to_addrhl		; Store back PC
 ;
@@ -14987,14 +14993,14 @@ l544c:
 	push	iy
 l544e:
 	call	l5385		; Process a statement
-	call	l6e76		; Find UNTIL
+	call	FindStr		; Find UNTIL
 	dw	l7574
 	jr	z,l545d		; Yeap
 	call	l6f50
 	jr	l544e
 l545d:
 	call	l5eb0
-	call	l6b50
+	call	StImm
 	db	a_L11
 s_I11:
 	BIT	_LB,L
@@ -15007,18 +15013,18 @@ a_L11	equ	$-s_I11
 ;
 l546b:
 	ld	bc,256*4+0
-	call	l6e54
-	call	l72da
+	call	FndLABEL
+	call	ErrNZ
 	db	_Undef
 	call	l5276
-	ld	a,(l7b57)
+	ld	a,(Envir1)
 	or	a
 	jr	nz,l5485
 	ld	a,(l7b5c)	; Get type
 	cp	_Integ
 	jr	nc,l5489
 l5485:
-	call	l72e1
+	call	ERROR
 	db	_SimTyp
 l5489:
 	call	l6d2a		; Save environment
@@ -15026,16 +15032,16 @@ l5489:
 	push	af
 	call	l6f7e
 	call	l5ee8
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	pop	af
 	push	af
 	cp	b
-	call	l72da
+	call	ErrNZ
 	db	_InvType
-	call	l6e5a		; Find TO or DOWNTO
+	call	FndTabStr		; Find TO or DOWNTO
 	db	1
 	dw	l75f5
-	call	l72da
+	call	ErrNZ
 	db	_NoDOWN_TO
 	ld	e,(hl)		; Get instruction
 	push	de
@@ -15044,13 +15050,13 @@ l5489:
 	pop	af
 	push	de
 	cp	b
-	call	l72da
+	call	ErrNZ
 	db	_InvType
-	call	l6e76		; Find DO
+	call	FindStr		; Find DO
 	dw	l7572
-	call	l72da
+	call	ErrNZ
 	db	_NoDO
-	call	l6b50		; Set POP DE
+	call	StImm		; Set POP DE
 	db	a_L12
 s_I12:
 	POP	DE
@@ -15064,10 +15070,10 @@ a_L12	equ	$-s_I12
 	jr	z,l54d5
 	ld	hl,l0676	; Set up FOR .. DOWNTO loop
 l54d5:
-	call	l6b86		; Set CALL <loop>
+	call	StCALL_		; Set CALL <loop>
 	push	iy
          ;jr $
-	call	l6b50		; Set code sequence
+	call	StImm		; Set code sequence
 	db	a_L13
 s_I13:
 	LD	A,D
@@ -15083,15 +15089,15 @@ a_L13	equ	$-s_I13
 	dec	(hl)
 	pop	hl
 	pop	de
-	call	l6d49		; Get back environment
+	call	RestEnv1		; Get back environment
 	push	hl
 	ld	hl,(l7b58)	; Get value
 	ld	a,_LD_a_HL
-	call	l6b94
+	call	StCode
 	ld	a,(l7b62)	; Get length of type
 	dec	a
 	jr	nz,l550c
-	call	l6b50		; Set LD H,0
+	call	StImm		; Set LD H,0
 	db	a_L14
 s_I14:
 	LD	H,0
@@ -15099,7 +15105,7 @@ a_L14	equ	$-s_I14
 l550c:
 	ld	a,e		; Get byte
 	call	writebyte_a_addriy		; Store it
-	call	l6b50		; Set code sequence
+	call	StImm		; Set code sequence
 	db	a_L15
 s_I15:
 	POP	DE
@@ -15130,42 +15136,42 @@ l5533:
 	ld	hl,l7b9b
 	bit	7,(hl)
 	jr	z,l5549
-	call	l6b50		; Set ADD HL,DE
+	call	StImm		; Set ADD HL,DE
 	db	a_L16
 s_I16:
 	ADD	HL,DE
 a_L16	equ	$-s_I16
 	bit	4,(hl)
 	jr	z,l5549
-	call	l6b50		; Set ADD HL,BC
+	call	StImm		; Set ADD HL,BC
 	db	a_L17
 s_I17:
 	ADD	HL,BC
 a_L17	equ	$-s_I17
 l5549:
-	call	l69ea		; Get constant
+	call	_GetConst		; Get constant
 	ld	a,(l7b9c)
 	cp	b
-	call	l72da
+	call	ErrNZ
 	db	_IllCASE
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	push	hl
-	call	l6e76		; Find ..
+	call	FindStr		; Find ..
 	dw	l7580
 	pop	hl
 	jr	nz,l5582	; Nope
 	push	hl
-	call	l69ea		; Get constant
+	call	_GetConst		; Get constant
 	ld	a,(l7b9c)
 	cp	b
-	call	l72da
+	call	ErrNZ
 	db	_IllCASE
 	pop	de
 	or	a
 	sbc	hl,de
 	inc	hl
-	call	l6b8a
-	call	l6b50		; Set sequence
+	call	StLD.BC
+	call	StImm		; Set sequence
 	db	a_L18
 s_I18:
 	OR	A
@@ -15176,7 +15182,7 @@ a_L18	equ	$-s_I18
 	ld	a,0dah
 	jr	l558b
 l5582:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L19
 s_I19:
 	OR	A
@@ -15231,11 +15237,11 @@ l55b4:
 	dec	e
 l55df:
 	push	de
-	call	l6e76		; Find END
+	call	FindStr		; Find END
 	dw	l7530
 	pop	de
 	jr	z,l561e
-	call	l6b77		; Set JP
+	call	StJP		; Set JP
 	pop	bc
 	pop	hl
 	push	iy
@@ -15243,7 +15249,7 @@ l55df:
 	push	de
 	call	writeword_hl_addriy
 	call	storeback_iy_to_addrhl		; Store back PC
-	call	l6e76		; Find ELSE
+	call	FindStr		; Find ELSE
 	dw	l756e
 	pop	de
 	jr	z,l560f		; Yeap
@@ -15251,13 +15257,13 @@ l55df:
 	jp	z,l5531
 	ld	a,(l7b98)
 	or	a
-	call	l72d4
+	call	ErrZ
 	db	_End
-	call	l72e1
+	call	ERROR
 	db	_Undef
 l560f:
 	call	l5385		; Process a statement
-	call	l6e76		; Find END
+	call	FindStr		; Find END
 	dw	l7530
 	jr	z,l561e		; Yeap
 	call	l6f50
@@ -15274,19 +15280,19 @@ l561f:
 ;
 l5626:
 	ld	bc,256*1+0
-	call	l6e54
-	call	l72da
+	call	FndLABEL
+	call	ErrNZ
 	db	_UnkLabel
 	ld	a,(l7b94)
 	cp	(hl)
-	call	l72da
+	call	ErrNZ
 	db	_IllLabel
 	ex	de,hl
 l5639:
 	call	puttolabel_d_e		; Put to table
 	ld	a,(l7b95)
 	call	puttolabel
-	call	l6b77		; Set JP
+	call	StJP		; Set JP
 	push	iy
 	pop	de
 	call	puttolabel_d_e		; Put to table
@@ -15301,12 +15307,12 @@ l5652:
 	ld	a,(l7bc6)
 	ld	hl,l7bc9
 	cp	(hl)
-	call	l72d4
+	call	ErrZ
 	db	_TooManyWITH
 	call	l677f
 	ld	a,(l7b5c)	; Get type
 	cp	_Record
-	call	l72da
+	call	ErrNZ
 	db	_RecVarExp
 	ld	hl,l7bc9
 	ld	e,(hl)
@@ -15320,12 +15326,12 @@ l5652:
 	add	hl,de
 	add	hl,de
 	ld	a,_LDHL_a
-	call	l6b94
+	call	StCode
 	call	l6f13		; Test ,
 	jr	z,l5652		; Yeap
-	call	l6e76		; Find DO
+	call	FindStr		; Find DO
 	dw	l7572
-	call	l72da
+	call	ErrNZ
 	db	_NoDO
 	call	l5385		; Process a statement
 	pop	af
@@ -15355,12 +15361,12 @@ l56ae:
 l56b5:
 	push	bc
 	push	hl
-	call	l6a0d		; Get constant
+	call	GetConst		; Get constant
 	jr	nz,l56c5
 	ld	a,b
 	cp	0ah
 	jr	z,l5702
-	call	l72e1
+	call	ERROR
 	db	_IntConst
 l56c5:
 	ld	hl,l7ba6
@@ -15377,18 +15383,18 @@ l56ce:
 	jr	l5702
 l56da:
 	ld	bc,256*4+0
-	call	l6e54
+	call	FndLABEL
 	jr	nz,l56ea
 	call	l5276
 	ld	hl,(l7b58)	; Get value
 	jr	l5702
 l56ea:
 	ld	bc,256*5+0
-	call	l6e54
+	call	FndLABEL
 	jr	z,l56fc
 	ld	bc,256*6+0
-	call	l6e54
-	call	l72da
+	call	FndLABEL
+	call	ErrNZ
 	db	_IllINLINE
 l56fc:
 	dec	hl
@@ -15402,7 +15408,7 @@ l5702:
 	pop	bc
 	dec	b
 	jr	nz,l570a
-	call	l6a30
+	call	NegateInt
 l570a:
 	add	hl,de
 	ld	b,0
@@ -15467,7 +15473,7 @@ l575e:
 	dec	hl
 	ld	a,(hl)
 	dec	hl
-	ld	(l7b57),a
+	ld	(Envir1),a
 	ld	d,(hl)
 	dec	hl
 	ld	e,(hl)
@@ -15484,7 +15490,7 @@ l576b:
 	call	l5287		; Get name
 l5778:
 	push	bc
-	ld	a,(l7b57)
+	ld	a,(Envir1)
 	or	a
 	jr	nz,l57a9
 	ld	a,(l7b5c)	; Get type
@@ -15498,7 +15504,7 @@ l5778:
 	cp	_Real
 	jr	c,l57c0
 	jr	nz,l57bd
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L20
 s_I20:
 	PUSH	BC
@@ -15513,13 +15519,13 @@ l57a9:
 	call	l6d2a		; Save environment
 	call	l677f
 l57af:
-	call	l6d5d
+	call	CpyEnv2
 	ld	a,(l7b69)
 	cp	0
 	call	nz,l58c5
-	call	l6d49		; Get back environment
+	call	RestEnv1		; Get back environment
 l57bd:
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 l57c0:
 	pop	bc
 	dec	b
@@ -15541,14 +15547,14 @@ l57d6:
 	ld	a,d
 	or	e
 	jr	z,l57e3
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 	ex	de,hl
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 l57e3:
 	pop	de
 	pop	hl
 	ld	a,_CALL
-	jp	l6b94
+	jp	StCode
 l57ea:
 	ld	a,(l7b5c)	; Get type
 	cp	0
@@ -15558,7 +15564,7 @@ l57ea:
 	cp	_String
 	jr	nc,l57fd
 l57f9:
-	call	l72e1
+	call	ERROR
 	db	_IllAss
 l57fd:
 	ld	a,(l7bbd)
@@ -15573,31 +15579,31 @@ l580a:
 	jr	l581a
 l5812:
 	call	l678b
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	ld	a,1
 l581a:
-	ld	(l7b57),a
+	ld	(Envir1),a
 	call	l6f7e
 	ld	a,(l7b5c)	; Get type
 	cp	_Set
 	jp	nc,l593a
 	call	l6d2a		; Save environment
 	call	l6749
-	call	l6d43
+	call	RestEnv2
 	call	l58c5
-	ld	a,(l7b64)
+	ld	a,(Envir2)
 	dec	a
 	jr	z,l5852
 	inc	a
 	jr	z,l5845
-	call	l6b50		; Set LD DE,(adr)
+	call	StImm		; Set LD DE,(adr)
 	db	a_L21
 s_I21:
 	dw	_LD_a_DE
 a_L21	equ	$-s_I21
 	jr	l584a
 l5845:
-	call	l6b50
+	call	StImm
 	db	a_L22
 s_I22:
 	db	_LD.DE		; Set LD DE,adr
@@ -15607,15 +15613,15 @@ l584a:
 	call	writeword_hl_addriy
 	jr	l5857
 l5852:
-	call	l6b50		; Set POP DE
+	call	StImm		; Set POP DE
 	db	a_L23
 s_I23:
 	pop	de
 a_L23	equ	$-s_I23
 l5857:
 	ld	hl,(l7b6f)
-	call	l6b8a
-	call	l6b50		; Set LDIR
+	call	StLD.BC
+	call	StImm		; Set LDIR
 	db	a_L24
 s_I24:
 	LDIR
@@ -15638,7 +15644,7 @@ l5877:
 	cp	_Char
 	jr	nz,l589d
 	ld	b,8
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L25
 s_I25:
 	LD	H,L
@@ -15655,7 +15661,7 @@ l588c:
 	ld	b,0ch
 	ld	hl,l0996	; Set check assignment
 l589a:
-	call	l6b86		; Set CALL <check>
+	call	StCALL_		; Set CALL <check>
 l589d:
 	ld	a,(l7b5c)	; Get type
 	cp	b
@@ -15680,7 +15686,7 @@ l58b1:
 	sbc	hl,de
 	ret	z
 l58c1:
-	call	l72e1
+	call	ERROR
 	db	_InvType
 l58c5:
 	ld	a,(l7b5c)	; Get type
@@ -15732,7 +15738,7 @@ l5916:
 	djnz	l590e
 	ret
 l591b:
-	call	l72e1
+	call	ERROR
 	db	_InvType
 l591f:
 	ld	de,lfffc
@@ -15749,7 +15755,7 @@ l591f:
 	pop	hl
 	call	l5287		; Get name
 	xor	a
-	ld	(l7b57),a
+	ld	(Envir1),a
 	call	l6f7e
 l593a:
 	call	l5e84
@@ -15768,13 +15774,13 @@ l5943:
 	jr	l5989
 l5955:
 	push	hl
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5ed0
 	pop	hl
 l5960:
 	call	l6f6e		; Verify )
-	jp	l6b86		; Set CALL <...>
+	jp	StCALL_		; Set CALL <...>
 ;
 ; Procedure RENAME(FileVar,String)
 ;
@@ -15816,7 +15822,7 @@ l5989:
 l598c:
 	call	l5a0c
 	cp	6
-	call	l72d4
+	call	ErrZ
 	db	_IllTxtFile
 	ld	hl,l19d5
 	cp	5
@@ -15824,7 +15830,7 @@ l598c:
 	ld	hl,l1b6f
 l599f:
 	push	hl
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5e97
 	jr	l5985
@@ -15834,7 +15840,7 @@ l599f:
 l59ab:
 	call	l5a0c
 	cp	5
-	call	l72da
+	call	ErrNZ
 	db	_IllFileType
 	ld	hl,l19a5
 	jr	l5986
@@ -15858,7 +15864,7 @@ l59c1:
 	ld	hl,(l7b5e)	; Get lo set limit
 	call	l5271		; Load name
 	ld	hl,(l7b6f)
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 l59d8:
 	pop	hl
 	jr	l59e1
@@ -15883,7 +15889,7 @@ l59e9:
 	inc	hl
 	ld	d,(hl)
 	ex	de,hl
-	jp	l6b86		; Set CALL <...>
+	jp	StCALL_		; Set CALL <...>
 l59fa: ;reset procedures
 	dw	l1811		; Record file
 	dw	l13ff		; Text file
@@ -15900,7 +15906,7 @@ l5a0c:
 	call	l6f66		; Verify (
 	call	l5a17
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_FileVarExp
 l5a17:
 	call	l67b2
@@ -15941,10 +15947,10 @@ l5a41:
 	cp	5 ;_RecF???
 	jp	z,l5bd8
 	cp	6 ;_TxtF???
-	call	l72da
+	call	ErrNZ
 	db	_NoUntypeFile
 	ld	hl,l14a9
-	call	l6b86		; Set CALL FILECHECK
+	call	StCALL_		; Set CALL FILECHECK
 	jr	l5aac
 l5a5b:
 	call	l678b
@@ -15963,7 +15969,7 @@ l5a69:
 	cp	_Char+1
 	jr	c,l5a7c
 l5a78:
-	call	l72e1
+	call	ERROR
 	db	_InvIO
 l5a7c:
 	cp	_String
@@ -15988,7 +15994,7 @@ l5a8f:
 	jr	nz,l5aa9
 	ld	hl,l164d
 l5aa9:
-	call	l6b86		; Set CALL <read>
+	call	StCALL_		; Set CALL <read>
 l5aac:
 	call	l6f13		; Test ,
 	jr	z,l5a66		; Yeap
@@ -15998,13 +16004,13 @@ l5ab4:
 l5ab7:
 	ld	a,(l7ba3)
 	or	a
-	call	nz,l6b86	; Set CALL NEWLINE
+	call	nz,StCALL_	; Set CALL NEWLINE
 l5abe:
 	ld	a,(l7b9e)	; Get local options
 	bit	_Iopt,a		; Test $I+
 	ret	z		; Nope
 	ld	hl,l201b
-	jp	l6b86		; Set CALL CHECKIO
+	jp	StCALL_		; Set CALL CHECKIO
 l5aca:
 	ld	hl,l149b
 	ld	a,(l7b9e)	; Get local options
@@ -16018,7 +16024,7 @@ l5aca:
 	xor	a
 	ld	(l7ba3),a
 l5ae4:
-	jp	l6b86		; Set CALL <read>
+	jp	StCALL_		; Set CALL <read>
 ;
 ; Procedure WRITELN(FileVar,Variables)
 ;
@@ -16033,7 +16039,7 @@ l5ae8:
 	call	l6f1b		; Test (
 	jr	z,l5afa		; Yeap
 	ld	hl,l149b
-	call	l6b86		; Set CALL STDIO
+	call	StCALL_		; Set CALL STDIO
 	jp	l5bd2
 l5afa:
 	call	l5a17
@@ -16042,21 +16048,21 @@ l5afa:
 	cp	5
 	jp	z,l5bdd
 	cp	6
-	call	l72da
+	call	ErrNZ
 	db	_NoUntypeFile
 	ld	hl,l14ba
-	call	l6b86		; Set CALL CHECKWRFILE
+	call	StCALL_		; Set CALL CHECKWRFILE
 	jp	l5bc9
 l5b15:
 	call	l620f
 	ld	hl,l149b
-	call	l6b86		; Set CALL STDIO
+	call	StCALL_		; Set CALL STDIO
 	jr	l5b4f
 l5b20:
 	ld	hl,l149b
-	call	l6b86		; Set CALL STDIO
+	call	StCALL_		; Set CALL STDIO
 l5b26:
-	call	l6a5c
+	call	GetLabType
 	jr	nz,l5b4c
 	ld	a,b
 	cp	8 ;_String???
@@ -16068,8 +16074,8 @@ l5b26:
 	jr	nz,l5b47
 l5b3b:
 	ld	hl,l17ba
-	call	l6b86		; Set CALL IMSTRG
-	call	l6b5e
+	call	StCALL_		; Set CALL IMSTRG
+	call	StLen
 	jp	l5bc9
 l5b47:
 	call	l6201
@@ -16083,7 +16089,7 @@ l5b4f:
 	cp	0dh ;element of a set???
 	jr	c,l5b5c ;8..12: (_String excluded above),_Real,_Integ,_Bool,_Char
 l5b58:
-	call	l72e1
+	call	ERROR
 	db	_InvIO
 l5b5c:
 	cp	0ch ;_Char???
@@ -16106,7 +16112,7 @@ l5b72:
 	call	l6f0b		; Test :
 	jr	nz,l5b9d
 	push	bc
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l5e97
 	pop	bc
 	jr	l5ba6
@@ -16117,14 +16123,14 @@ l5b8b:
 	jr	nz,l5b95
 	ld	l,12h
 l5b95:
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 	ld	a,b
 	cp	9 ;_Real???
 	jr	nz,l5ba6
 l5b9d:
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	ld	hl,lffff
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 l5ba6:
 	ld	a,b
 	ld	hl,l17aa
@@ -16141,7 +16147,7 @@ l5ba6:
 	jr	z,l5bc6
 	ld	hl,l1722
 l5bc6:
-	call	l6b86		; Set CALL <wrtype>
+	call	StCALL_		; Set CALL <wrtype>
 l5bc9:
 	call	l6f13		; Test ,
 	jp	z,l5b26		; Yeap
@@ -16158,21 +16164,21 @@ l5be0:
 	ld	(l7ba7),hl
 	ld	a,(l7ba3)
 	or	a
-	call	l72da
+	call	ErrNZ
 	db	_MustTextFile
 	ld	hl,l18a4
-	call	l6b86		; Set CALL PREPRECWR
+	call	StCALL_		; Set CALL PREPRECWR
 	ld	hl,(l7b5e)	; Get lo set limit
 	call	l5271		; Load name
 l5bf7:
 	call	l6f13		; Test ,
 	jr	nz,l5c10	; Nope
-	call	l6d24
+	call	SavEnv2
 	call	l677f
-	call	l6d43
+	call	RestEnv2
 	call	l58c5
 	ld	hl,(l7ba7)
-	call	l6b86		; Set CALL <write>
+	call	StCALL_		; Set CALL <write>
 	jr	l5bf7
 l5c10:
 	call	l6f6e		; Verify )
@@ -16195,12 +16201,12 @@ l5c24:
 	push	de
 	call	l5a0c
 	cp	7
-	call	l72da
+	call	ErrNZ
 	db	_UntFileExp
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l677f
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5e97
 	call	l6f13		; Test ,
@@ -16211,7 +16217,7 @@ l5c24:
 	jr	l5c63
 l5c4b:
 	push	hl
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l677f
 	ld	a,(l7b5c)	; Get type
 	cp	_Integ
@@ -16220,7 +16226,7 @@ l5c4b:
 	dec	a
 	jr	nz,l5c63
 l5c5f:
-	call	l72e1
+	call	ERROR
 	db	_IntVarExp
 l5c63:
 	jp	l5985
@@ -16230,16 +16236,16 @@ l5c63:
 l5c66:
 	call	l6f66		; Verify (
 	call	l5cad
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5e97
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5e97
 	ld	hl,l08f3	; Set DELETE
 l5c81:
 	call	l6f6e		; Verify )
-	jp	l6b86		; Set CALL <string_procedure>
+	jp	StCALL_		; Set CALL <string_procedure>
 ;
 ; Procedure INSERT(String,String,Integer)
 ;
@@ -16248,7 +16254,7 @@ l5c87:
 	call	l5ed0
 	call	l6f5e		; Verify ,
 	call	l5cad
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	ld	a,(l7b62)	; Get length of type
 	dec	a
 	ld	h,a
@@ -16265,7 +16271,7 @@ l5cad:
 	ld	a,(l7b5c)	; Get type
 	cp	_String
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_StrgVarExp
 ;
 ; Procedure STR(Num,String)
@@ -16278,7 +16284,7 @@ l5cba:
 	jr	nz,l5ce4
 	push	bc
 	call	l5e97
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	pop	bc
 	ld	a,b
 	cp	0ah
@@ -16287,7 +16293,7 @@ l5cba:
 	jr	nz,l5cf9
 	push	bc
 	call	l5e97
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	pop	bc
 	jr	l5d02
 l5ce4:
@@ -16297,15 +16303,15 @@ l5ce4:
 	jr	z,l5cee
 	ld	l,12h
 l5cee:
-	call	l6b92		; Set LD HL,val16
-	call	l6b6f		; Set PUSH HL
+	call	StLD.HL		; Set LD HL,val16
+	call	StPUSH		; Set PUSH HL
 	ld	a,b
 	cp	0ah
 	jr	z,l5d02
 l5cf9:
 	ld	hl,lffff
-	call	l6b92		; Set LD HL,val16
-	call	l6b6f		; Set PUSH HL
+	call	StLD.HL		; Set LD HL,val16
+	call	StPUSH		; Set PUSH HL
 l5d02:
 	call	l6f5e		; Verify ,
 	push	bc
@@ -16341,11 +16347,11 @@ l5d22:
 	ld	a,0ah
 	jr	nz,l5d45
 l5d41:
-	call	l72e1
+	call	ERROR
 	db	_NumVarExp
 l5d45:
 	push	af
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l677f
 	ld	a,(l7b5c)	; Get type
@@ -16355,7 +16361,7 @@ l5d45:
 	dec	a
 	jr	nz,l5d60
 l5d5c:
-	call	l72e1
+	call	ERROR
 	db	_IntVarExp
 l5d60:
 	pop	af
@@ -16373,7 +16379,7 @@ l5d6d:
 	ld	hl,l1fdb
 l5d76:
 	push	hl
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5e97
 	pop	hl
@@ -16383,7 +16389,7 @@ l5d76:
 ;
 l5d83:
 	ld	hl,l1f48
-	jp	l6b86		; Set CALL RANDOMIZE
+	jp	StCALL_		; Set CALL RANDOMIZE
 ;
 ; Procedure DELAY(Integer)
 ;
@@ -16408,7 +16414,7 @@ l5d9f:
 	ld	hl,(l7b5e)	; Get lo set limit
 	call	l5271		; Load name
 	ld	hl,(l7b6f)
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 l5dae:
 	ld	hl,l1ce5
 l5db1:
@@ -16429,7 +16435,7 @@ l5dbf:
 	ld	hl,(l7b5e)	; Get lo set limit
 	call	l5271		; Load name
 	ld	hl,(l7b6f)
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 l5dce:
 	ld	hl,l1d7a
 	jp	l5960
@@ -16451,14 +16457,14 @@ l5ddc:
 	jr	l5db1
 l5de3:
 	call	l5de9
-	jp	l6b6f		; Set PUSH HL
+	jp	StPUSH		; Set PUSH HL
 l5de9:
 	call	l6f66		; Verify (
 	call	l677f
 	ld	a,(l7b5c)	; Get type
 	cp	_Ptr
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_PtrVarExp
 ;
 ; Procedure OVRDRIVE(Integer)
@@ -16474,7 +16480,7 @@ l5df9:
 l5e05:
 	call	l6f66		; Verify (
 	call	l677f
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l677f
 	ld	hl,l1f64
@@ -16485,10 +16491,10 @@ l5e05:
 l5e1a:
 	call	l6f66		; Verify (
 	call	l677f
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5e97
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f5e		; Verify ,
 	call	l5ebb
 	ld	hl,l1f4e
@@ -16511,7 +16517,7 @@ l5e3d:
 l5e42:
 	ld	hl,l023e	; Set call to clear screen
 l5e45:
-	jp	l6b86		; Set CALL <crt_procedure>
+	jp	StCALL_		; Set CALL <crt_procedure>
 ;
 ; Procedure CLREOL
 ;
@@ -16553,13 +16559,13 @@ l5e61:
 ;
 l5e67:
 	ld	hl,l20d4
-	jp	l6b82		; Set call to HALT program
+	jp	StJP_		; Set call to HALT program
 ;
 ; Procedure PORT(Integer,Integer)
 ;
 l5e6d:
 	call	l5e8e
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L26
 s_I26:
 	POP	BC
@@ -16572,7 +16578,7 @@ a_L26	equ	$-s_I26
 l5e78:
 	call	l6f7e
 	call	l5e97
-	call	l6b50	; Set LD SP,HL
+	call	StImm	; Set LD SP,HL
 	db	a_L27
 s_I27:
 	LD	SP,HL
@@ -16582,18 +16588,18 @@ a_L27	equ	$-s_I27
 l5e84:
 	call	l6d2a		; Save environment
 	call	l5ee8
-	call	l6d49		; Get back environment
+	call	RestEnv1		; Get back environment
 	ret
 l5e8e:
 	call	l65d5
 	call	l6f7e
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 l5e97:
 	call	l5ee8
 	ld	a,b
 	cp	0ah
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_IntExpr
 l5ea2:
 	call	l5ee8
@@ -16602,14 +16608,14 @@ l5ea2:
 	ret	z
 	cp	9
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_NumExprExp
 l5eb0:
 	call	l5ee8
 	ld	a,b
 	cp	0bh
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_BoolExp
 l5ebb:
 	call	l5ee8
@@ -16618,22 +16624,22 @@ l5ebe:
 	cp	0ah
 	ret	nc
 	cp	8
-	call	l72da
+	call	ErrNZ
 	db	_SimpExpr
 	ld	b,0ch
 	ld	hl,l0996
-	jp	l6b86		; Set CALL CHECKASSIGNMENT
+	jp	StCALL_		; Set CALL CHECKASSIGNMENT
 l5ed0:
 	call	l5ee8
 	ld	a,b
 	cp	8
 	ret	z
 	cp	0ch
-	call	l72da
+	call	ErrNZ
 	db	_StrgExpExp
 l5edd:
 	ld	b,8
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L28
 s_I28:
 	LD	H,L
@@ -16645,7 +16651,7 @@ l5ee8:
 	call	l5f98
 l5eeb:
 	push	bc
-	call	l6e5a		; Find relation
+	call	FndTabStr		; Find relation
 	db	1
 	dw	l7625
 	pop	bc
@@ -16688,7 +16694,7 @@ l5f28:
 	ld	d,(hl)
 	ld	a,d
 	or	e
-	call	l72d4
+	call	ErrZ
 	db	_IllOps
 	ex	de,hl
 	jr	l5f62
@@ -16697,30 +16703,30 @@ l5f34:
 	cp	0ah
 	jr	nc,l5f47
 	cp	8
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
 	ld	hl,l0996
-	call	l6b86		; Set CALL CHECKASSIGNMENT
+	call	StCALL_		; Set CALL CHECKASSIGNMENT
 	ld	b,0ch
 l5f47:
 	push	bc
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l5f98
 	pop	de
 	ld	a,b
 	cp	3
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
 	ld	a,c
 	or	a
 	jr	z,l5f5f
 	cp	d
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 l5f5f:
 	ld	hl,l134f
 l5f62:
-	call	l6b86		; Set CALL <set>
+	call	StCALL_		; Set CALL <set>
 	ld	b,0bh
 	ret
 l5f68:
@@ -16752,14 +16758,14 @@ l5f98:
 	call	l6054
 l5f9b:
 	push	bc
-	call	l6e5a		; Find operator
+	call	FndTabStr		; Find operator
 	db	1
 	dw	l7619
 	pop	bc
 	ret	nz		; Nope
 	ld	a,b
 	cp	4
-	call	l72d4
+	call	ErrZ
 	db	_IllOps
 	ld	a,(hl)		; Get operator
 	push	af
@@ -16774,7 +16780,7 @@ l5f9b:
 	ld	a,b
 	cp	0ch
 	jr	nz,l5fc9
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L29
 s_I29:
 	LD	H,L
@@ -16800,19 +16806,19 @@ l5fc9:
 	cp	8
 	jr	z,l6010
 	cp	0ah
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
 	pop	af
 	dec	a
 	jr	z,l5ffc
-	call	l6b50		; Set ADD HL,DE
+	call	StImm		; Set ADD HL,DE
 	db	a_L30
 s_I30:
 	ADD	HL,DE
 a_L30	equ	$-s_I30
 	jr	l5f9b
 l5ffc:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L31
 s_I31:
 	EX	DE,HL
@@ -16826,12 +16832,12 @@ l6006:
 	jr	nz,l600b
 	ex	de,hl
 l600b:
-	call	l6b86		; Set CALL <string>
+	call	StCALL_		; Set CALL <string>
 	jr	l5f9b
 l6010:
 	pop	af
 	dec	a
-	call	l72d4
+	call	ErrZ
 	db	_IllOps
 	ld	hl,l083d
 	jr	l600b		; Set add two strings
@@ -16841,9 +16847,9 @@ l601b:
 	cp	0bh
 	jr	z,l602f
 	cp	0ah
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
-	call	l6b50		; Set OR
+	call	StImm		; Set OR
 	db	a_L32
 s_I32:
 	LD	A,H
@@ -16851,7 +16857,7 @@ s_I32:
 	LD	H,A
 a_L32	equ	$-s_I32
 l602f:
-	call	l6b50		; Set OR
+	call	StImm		; Set OR
 	db	a_L33
 s_I33:
 	LD	A,L
@@ -16863,9 +16869,9 @@ l6039:
 	cp	0bh
 	jr	z,l604a
 	cp	0ah
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
-	call	l6b50		; Set XOR
+	call	StImm		; Set XOR
 	db	a_L34
 s_I34:
 	LD	A,H
@@ -16873,7 +16879,7 @@ s_I34:
 	LD	H,A
 a_L34	equ	$-s_I34
 l604a:
-	call	l6b50		; Set XOR
+	call	StImm		; Set XOR
 	db	a_L35
 s_I35:
 	LD	A,L
@@ -16885,14 +16891,14 @@ l6054:
 	call	l60e9
 l6057:
 	push	bc
-	call	l6e5a		; Find operator
+	call	FndTabStr		; Find operator
 	db	1
 	dw	l7600
 	pop	bc
 	ret	nz		; Nope
 	ld	a,b
 	cp	4
-	call	l72d4
+	call	ErrZ
 	db	_IllOps
 	ld	a,(hl)		; Get operator
 	push	af
@@ -16908,7 +16914,7 @@ l6057:
 	cp	0ah
 	jr	nz,l6083
 	ld	hl,l1008
-	call	l6b86		; Set CALL INT_TO_FLP
+	call	StCALL_		; Set CALL INT_TO_FLP
 	ld	b,9
 l6083:
 	call	l6160
@@ -16927,10 +16933,10 @@ l6083:
 	ld	hl,l09fa	; Set real multiply
 l609e:
 	cp	9
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
 l60a4:
-	call	l6b86		; Set CALL <real>
+	call	StCALL_		; Set CALL <real>
 	jr	l6057
 l60a9:
 	ld	hl,l09ff	; Set real division
@@ -16941,9 +16947,9 @@ l60a9:
 	cp	0bh
 	jr	z,l60c3
 	cp	0ah
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
-	call	l6b50		; Set AND
+	call	StImm		; Set AND
 	db	a_L36
 s_I36:
 	LD	A,H
@@ -16951,7 +16957,7 @@ s_I36:
 	LD	H,A
 a_L36	equ	$-s_I36
 l60c3:
-	call	l6b50		; Set AND
+	call	StImm		; Set AND
 	db	a_L37
 s_I37:
 	LD	A,L
@@ -16961,7 +16967,7 @@ a_L37	equ	$-s_I37
 	jr	l6057
 l60cc:
 	cp	0ah
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
 	ld	hl,l070f	; Set integer DIV
 	dec	e		; Test DIV
@@ -16975,7 +16981,7 @@ l60cc:
 	ld	hl,l0756	; Set SHR
 	jr	l60a4
 l60e9:
-	call	l6e76		; Find NOT
+	call	FindStr		; Find NOT
 	dw	l7579
 	jr	nz,l6112	; Nope
 	call	l6112
@@ -16983,9 +16989,9 @@ l60e9:
 	cp	0ah
 	jr	z,l6107
 	cp	0bh
-	call	l72da
+	call	ErrNZ
 	db	_IllOps
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L38
 s_I38:
 	LD	A,L
@@ -16994,7 +17000,7 @@ s_I38:
 a_L38	equ	$-s_I38
 	ret
 l6107:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L39
 s_I39:
 	LD	A,L
@@ -17008,18 +17014,18 @@ a_L39	equ	$-s_I39
 l6112:
 	ld	a,(l7ba1)
 	push	af
-	call	l6a39
+	call	GetSign
 	ld	a,e
 	ld	(l7ba1),a
 	call	l621d
 	ld	a,(l7ba1)
 	ld	e,a
-	call	l6a4a
+	call	ChkNumSign
 	jr	z,l6143
 	ld	a,b
 	cp	0ah
 	jr	nz,l613b
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L40
 s_I40:
 	LD	A,L
@@ -17032,7 +17038,7 @@ s_I40:
 a_L40	equ	$-s_I40
 	jr	l6143
 l613b:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L41
 s_I41:
 	LD	A,B
@@ -17053,14 +17059,14 @@ l6148:
 	ret	z
 	cp	3
 	ret	z
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L42
 s_I42:
 	PUSH	BC
 	PUSH	DE
 a_L42	equ	$-s_I42
 l615d:
-	jp	l6b6f		; Set PUSH HL
+	jp	StPUSH		; Set PUSH HL
 l6160:
 	ld	a,d
 	cp	9
@@ -17069,7 +17075,7 @@ l6160:
 	cp	0ah
 	jr	nz,l6187
 	ld	hl,l1008
-	call	l6b86		; Set CALL INT_TO_FLP
+	call	StCALL_		; Set CALL INT_TO_FLP
 	ld	b,9
 	jr	l6187
 l6174:
@@ -17078,7 +17084,7 @@ l6174:
 	ld	a,b
 	cp	0ch
 	jr	nz,l6187
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L43
 s_I43:
 	LD	H,L
@@ -17090,7 +17096,7 @@ l6187:
 	ld	a,b
 	cp	9
 	jr	nz,l6193
-	call	l6b50		; Set EXX
+	call	StImm		; Set EXX
 	db	a_L44
 s_I44:
 	EXX
@@ -17103,7 +17109,7 @@ l6193:
 	cp	0ch
 	jr	nz,l61a4
 	ld	hl,l09a2
-	call	l6b86		; Set CALL CHR_TO_STRG
+	call	StCALL_		; Set CALL CHR_TO_STRG
 	ld	d,8
 l61a4:
 	ld	a,d
@@ -17114,7 +17120,7 @@ l61a4:
 	jr	z,l61ce
 	cp	9
 	jr	c,l61d3
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L45
 s_I45:
 	POP	HL
@@ -17126,13 +17132,13 @@ l61bc:
 	ld	a,b
 	cp	9
 	jr	nz,l61ce
-	call	l6b73		; Set POP HL
+	call	StPOP		; Set POP HL
 	ld	hl,l1008
-	call	l6b86		; Set CALL INT_TO_FLP
+	call	StCALL_		; Set CALL INT_TO_FLP
 	ld	d,9
 	jr	l61d3
 l61ce:
-	call	l6b50		; Set POP DE
+	call	StImm		; Set POP DE
 	db	a_L46
 s_I46:
 	POP	DE
@@ -17140,7 +17146,7 @@ a_L46	equ	$-s_I46
 l61d3:
 	ld	a,b
 	cp	d
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 	cp	3
 	jr	nz,l61ea
@@ -17153,7 +17159,7 @@ l61d3:
 	ld	c,e
 	or	a
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_InvType
 l61ea:
 	cp	4
@@ -17168,7 +17174,7 @@ l61ea:
 	ret	z
 	sbc	hl,de
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_InvType
 l6201:
 	ld	de,l5eeb
@@ -17187,11 +17193,11 @@ l620f:
 	push	de
 	jr	l6276
 l621d:
-	call	l6a5c
+	call	GetLabType
 	jr	nz,l6257
 	ld	a,(l7ba1)
 	ld	e,a
-	call	l6a1f
+	call	NegateNum
 	xor	a
 	ld	(l7ba1),a
 l622d:
@@ -17215,13 +17221,13 @@ l6239:
 	ret
 l6249:
 	cp	8
-	jp	nz,l6b92	; Set LD HL,val16
+	jp	nz,StLD.HL	; Set LD HL,val16
 	ld	hl,l054d
-	call	l6b86		; move immediate string to stack
-	jp	l6b5e
+	call	StCALL_		; move immediate string to stack
+	jp	StLen
 l6257:
 	ld	bc,256*6+0
-	call	l6e54
+	call	FndLABEL
 	jr	nz,l6271
 	call	l573d
 	ex	de,hl
@@ -17256,36 +17262,36 @@ l6285:
 	ret
 l629d:
 	cp	_Array
-	call	l72da
+	call	ErrNZ
 	db	_NoStruktVar
 	call	l678b
 	ld	hl,(l7b5e)	; Get lo set limit
 	ld	a,(hl)
 	cp	0ch
-	call	l72da
+	call	ErrNZ
 	db	_NoStruktVar
 	ld	hl,(l7b60)	; Get hi set limit
 	ld	a,(hl)
 	cp	0ah
-	call	l72da
+	call	ErrNZ
 	db	_NoStruktVar
 	ld	hl,(l7b62)	; Get length of type
 	ld	a,h
 	or	a
-	call	l72da
+	call	ErrNZ
 	db	_NoStruktVar
 	ld	h,l
 	ld	l,6
 	call	writeword_hl_addriy
 	ld	hl,l0638
-	call	l6b86		; Set set to stack
+	call	StCALL_		; Set set to stack
 	ld	b,8
 	ret
 l62d2:
 	call	l6ee0
 	jr	nz,l631c
 	ld	hl,l0581
-	call	l6b86		; Initialize a set on stack
+	call	StCALL_		; Initialize a set on stack
 	call	l6ef7		; Test ]
 	ld	bc,3*256+0 ;l0300
 	ret	z		; Yeap
@@ -17300,24 +17306,24 @@ l62e4:
 	ld	c,a
 l62ef:
 	cp	c
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 	push	bc
-	call	l6e76		; Find ..
+	call	FindStr		; Find ..
 	dw	l7580
 	ld	hl,l0591
 	jr	nz,l6310	; Nope, init one set element
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l5ebb
 	ld	a,b
 	pop	bc
 	push	bc
 	cp	c
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 	ld	hl,l059b	; Init a contiguous set value
 l6310:
-	call	l6b86		; Set CALL <set>
+	call	StCALL_		; Set CALL <set>
 	pop	bc
 	call	l6f13		; Test ,
 	jr	z,l62e4		; Yeap
@@ -17328,7 +17334,7 @@ l631c:
 	call	l5ee8
 	jp	l6f6e		; Verify )
 l6327:
-	call	l6e5a		; Find function
+	call	FndTabStr		; Find function
 	db	2
 	dw	l77b1
 	jr	nz,l6335	; Nope
@@ -17339,24 +17345,24 @@ l6327:
 	xor	a
 	jp	(hl)
 l6335:
-	call	l6e76		; Find NIL
+	call	FindStr		; Find NIL
 	dw	l757c
 	jr	nz,l6345	; Nope
 	ld	hl,l0000
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 	jp	l642e
 l6345:
          ;jr $
 	ld	bc,256*3+0
-	call	l6e54 ; Find label with type in reg B
-	call	l72da
+	call	FndLABEL ; Find label with type in reg B
+	call	ErrNZ
 	db	_Undef ;TODO fix bb:=(Txt in [Txt]);
 	ld	d,(hl)
 	dec	hl
 	ld	e,(hl)
 	ld	a,(de)
 	cp	0ah
-	call	l72c8
+	call	ErrCY
 	db	_SimTyp
 	push	af
 	call	l65ef
@@ -17374,7 +17380,7 @@ l6360:
 	jr	z,l636e
 	ld	hl,l09f7	; Set real SQR
 l636e:
-	jp	l6b86		; Set CALL <real>
+	jp	StCALL_		; Set CALL <real>
 ;
 ; Function ABS(Num)
 ;
@@ -17383,7 +17389,7 @@ l6371:
 	ld	a,b
 	cp	0ah
 	jr	z,l6380
-	call	l6b50		; Set RES 7,B
+	call	StImm		; Set RES 7,B
 	db	a_L47
 s_I47:
 	RES	7,B
@@ -17445,10 +17451,10 @@ l63ab:
 	ld	hl,l1008
 	ld	a,b
 	cp	0ah
-	call	z,l6b86		; Set CALL INT_TO_FLP
+	call	z,StCALL_		; Set CALL INT_TO_FLP
 	pop	hl
 	ld	b,9
-	jp	l6b86		; Set CALL <real>
+	jp	StCALL_		; Set CALL <real>
 ;
 ; Function TRUNC(Num)
 ;
@@ -17469,7 +17475,7 @@ l63c6:
 	ret	z
 l63cf:
 	ld	b,0ah
-	jp	l6b86		; Set CALL <real>
+	jp	StCALL_		; Set CALL <real>
 ;
 ; Function SUCC(Num)
 ;
@@ -17490,7 +17496,7 @@ l63d7:
 ;
 l63e1:
 	call	l65de
-	call	l6b50		; Set LD H,0
+	call	StImm		; Set LD H,0
 	db	a_L48
 s_I48:
 	LD	H,0
@@ -17501,7 +17507,7 @@ a_L48	equ	$-s_I48
 ;
 l63eb:
 	call	l65de
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L49
 s_I49:
 	LD	L,H
@@ -17513,7 +17519,7 @@ a_L49	equ	$-s_I49
 ;
 l63f6:
 	call	l65de
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L50
 s_I50:
 	LD	A,L
@@ -17530,7 +17536,7 @@ l6401:
 l6407:
 	ld	b,0bh
 l6409:
-	jp	l6b86		; Set CALL ODD
+	jp	StCALL_		; Set CALL ODD
 ;
 ; Function KEYPRESSED
 ;
@@ -17606,11 +17612,11 @@ l6460:
 	call	l6f5e		; Verify ,
 	call	l5e97
 	call	l6f5e		; Verify ,
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l5e97
 	call	l6f6e		; Verify )
 	ld	hl,l086b
-	call	l6b86		; Set CALL COPY
+	call	StCALL_		; Set CALL COPY
 l647e:
 	ld	b,8
 	ret
@@ -17625,7 +17631,7 @@ l6487:
 	jr	nz,l6497	; Nope
 	call	l5ed0
 	ld	hl,l083d
-	call	l6b86		; Set add two strings
+	call	StCALL_		; Set add two strings
 	jr	l6487
 l6497:
 	call	l6f6e		; Verify )
@@ -17643,7 +17649,7 @@ l64a1:
 	call	l65de
 	ld	hl,l1f7d
 	ld	b,8
-	jp	l6b86		; Set CALL PARAMSTR
+	jp	StCALL_		; Set CALL PARAMSTR
 ;
 ; Function RANDOM(Integer)
 ;
@@ -17658,7 +17664,7 @@ l64ac:
 l64bf:
 	ld	b,0ah
 l64c1:
-	jp	l6b86		; Set CALL RANDOM
+	jp	StCALL_		; Set CALL RANDOM
 ;
 ; Function IORESULT
 ;
@@ -17696,10 +17702,10 @@ l64e2:
 	push	hl
 	call	l65f7
 	cp	6
-	call	l72da
+	call	ErrNZ
 	db	_MustTextFile
 	pop	hl
-	call	l6b86		; Set CALL <eoln>
+	call	StCALL_		; Set CALL <eoln>
 	jr	l64d2
 ;
 ; Function FILEPOS(FileVar)
@@ -17721,7 +17727,7 @@ l6500:
 	pop	de
 	pop	hl
 	cp	6
-	call	l72d4
+	call	ErrZ
 	db	_IllTxtFile
 	cp	5
 	jr	z,l64bf
@@ -17753,18 +17759,18 @@ l651f:
 	push	af
 	call	l6f66		; Verify (
 	call	l5e97
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f13		; Test ,
 	jr	nz,l6538	; Nope
 	call	l5e97
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L51
 s_I51:
 	LD	B,H
 	LD	C,L
 a_L51	equ	$-s_I51
 l6538:
-	call	l6b50		; Set POP DE
+	call	StImm		; Set POP DE
 	db	a_L52
 s_I52:
 	POP	DE
@@ -17772,12 +17778,12 @@ a_L52	equ	$-s_I52
 	ld	hl,l1fea
 l6540:
 	call	l6f6e		; Verify )
-	call	l6b86		; Set CALL BIOS
+	call	StCALL_		; Set CALL BIOS
 	pop	af
 	ld	b,0ah
 	or	a
 	ret	nz
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L53
 s_I53:
 	LD	L,A
@@ -17798,17 +17804,17 @@ l6554:
 	push	af
 	call	l6f66		; Verify (
 	call	l5e97
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l6f13		; Test ,
 	jr	nz,l656c	; Nope
 	call	l5e97
-	call	l6b50		; Set EX DE,HL
+	call	StImm		; Set EX DE,HL
 	db	a_L54
 s_I54:
 	EX	DE,HL
 a_L54	equ	$-s_I54
 l656c:
-	call	l6b50		; Set POP BC
+	call	StImm		; Set POP BC
 	db	a_L55
 s_I55:
 	POP	BC
@@ -17821,10 +17827,10 @@ a_L55	equ	$-s_I55
 l6576:
 	call	l6f66		; Verify (
 	ld	bc,256*5+0
-	call	l6e54
+	call	FndLABEL
 	jr	z,l6589
 	ld	bc,256*6+0
-	call	l6e54
+	call	FndLABEL
 	jr	nz,l6594
 l6589:
 	dec	hl
@@ -17834,7 +17840,7 @@ l6589:
 	ld	e,(hl)
 	ex	de,hl
 l658f:
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 	jr	l6597
 l6594:
 	call	l677f
@@ -17848,7 +17854,7 @@ l6597:
 l659d:
 	call	l6f66		; Verify (
 	ld	bc,256*3+0
-	call	l6e54
+	call	FndLABEL
 	jr	nz,l65b1
 	ld	d,(hl)
 	dec	hl
@@ -17860,7 +17866,7 @@ l65b1:
 	push	iy
 	call	l677f
 	pop	hl
-	call	l6cc2		; Check chaining
+	call	ChkChn		; Check chaining
 l65ba:
 	ld	hl,(l7b62)	; Get length of type
 	jr	l658f
@@ -17869,7 +17875,7 @@ l65ba:
 ;
 l65bf:
 	call	l65d5
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L56
 s_I56:
 	LD	C,L
@@ -17880,7 +17886,7 @@ a_L56	equ	$-s_I56
 ; Function STACKPTR
 ;
 l65ca:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L57
 s_I57:
 	LD	HL,0
@@ -17909,13 +17915,13 @@ l65f7:
 	call	l6f1b		; Test (
 	jr	z,l6608		; Yeap
 	ld	hl,l00c2
-	call	l6b92		; Set LD HL,val16
+	call	StLD.HL		; Set LD HL,val16
 	ld	a,_TxtF
 	ld	(l7b5c),a	; Set TEXT
 	ret
 l6608:
 	call	l5a17
-	call	l72da
+	call	ErrNZ
 	db	_FileVarExp
 	push	af
 	call	l6f6e		; Verify )
@@ -17934,7 +17940,7 @@ l6615: ;eof procedures
 ;
 ;
 l661b:
-	ld	a,(l7b57)
+	ld	a,(Envir1)
 	ld	c,a
 	ld	hl,(l7b58)	; Get value
 	ld	a,(l7b5c)	; Get type
@@ -17966,14 +17972,14 @@ l664c:
 l6653:
 	push	hl
 	ld	hl,(l7b58)	; Get value
-	call	l6b94
+	call	StCode
 	pop	hl
 l665b:
-	jp	l6b86		; Set CALL <call>
+	jp	StCALL_		; Set CALL <call>
 l665e:
 	cp	_Real
 	jr	nz,l6672
-	call	l6b50		; Set EXX
+	call	StImm		; Set EXX
 	db	a_L58
 s_I58:
 	EXX
@@ -17981,7 +17987,7 @@ a_L58	equ	$-s_I58
 	ld	hl,l05d1	; Save real number
 	dec	c
 	jr	nz,l664c
-	call	l6b73		; Set POP HL
+	call	StPOP		; Set POP HL
 	jr	l665b
 l6672:
 	cp	_Ptr
@@ -17997,25 +18003,25 @@ l6672:
 	add	hl,de
 	jr	z,l669d
 	dec	de
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	ex	de,hl
 	or	a
 	sbc	hl,de
 	inc	hl
-	call	l6b8a
+	call	StLD.BC
 	ld	hl,l0656
-	call	l6b86		; Index check on compiler directive {$R+}
+	call	StCALL_		; Index check on compiler directive {$R+}
 l669d:
 	dec	c
 	jr	nz,l66b7
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L59
 s_I59:
 	EX	DE,HL
 	POP	HL
 a_L59	equ	$-s_I59
 l66a6:
-	call	l6b50		; Set LD (HL),E
+	call	StImm		; Set LD (HL),E
 	db	a_L60
 s_I60:
 	LD	(HL),E
@@ -18023,7 +18029,7 @@ a_L60	equ	$-s_I60
 	ld	a,(l7b62)	; Get length of type
 	dec	a
 	ret	z
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L61
 s_I61:
 	INC	HL
@@ -18038,16 +18044,16 @@ l66b7:
 	dec	a
 	ld	a,_LDHL_a
 	jr	nz,l66cc
-	call	l6b50		; Set LD A,L
+	call	StImm		; Set LD A,L
 	db	a_L62
 s_I62:
 	LD	A,L
 a_L62	equ	$-s_I62
 	ld	a,_LDA_a
 l66cc:
-	jp	l6b94
+	jp	StCode
 l66cf:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L63
 s_I63:
 	EX	DE,HL
@@ -18073,19 +18079,19 @@ l66da:
 	call	l6734
 	ld	hl,l055d	; Push set onto stack
 l66fe:
-	jp	l6b86		; Set CALL <set>
+	jp	StCALL_		; Set CALL <set>
 l6701:
 	ld	a,(l7bbd)
 	or	a
 	jr	nz,l671b
 	ld	a,_LD_a_HL
 	ld	hl,(l7bbe)
-	call	l6b94
+	call	StCode
 	ld	a,(l7b62)	; Get length of type
 	dec	a
 	ret	nz
 l6714:
-	call	l6b50		; Set LD H,0
+	call	StImm		; Set LD H,0
 	db	a_L64
 s_I64:
 	LD	H,0
@@ -18096,14 +18102,14 @@ l671b:
 	ld	a,(l7b62)	; Get length of type
 	dec	a
 	jr	nz,l672b
-	call	l6b50		; Set LD L,(HL)
+	call	StImm		; Set LD L,(HL)
 	db	a_L65
 s_I65:
 	LD	L,(HL)
 a_L65	equ	$-s_I65
 	jr	l6714
 l672b:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L66
 s_I66:
 	LD	E,(HL)
@@ -18122,13 +18128,13 @@ l6734:
 	rra
 	and	1fh
 	ld	h,a
-	jp	l6b8a
+	jp	StLD.BC
 l6749:
-	call	l6a0d		; Get constant
+	call	GetConst		; Get constant
 	jr	nz,l677f
 	ld	a,b
 	cp	8
-	call	l72da
+	call	ErrNZ
 	db	_IllConst
 	ld	l,18h
 	ld	h,c
@@ -18142,14 +18148,14 @@ l6749:
 	ld	(l7b60),hl	; Reset hi set limit
 	ld	l,c
 	ld	(l7b62),hl	; Set length of type
-	call	l6b62		; Store string
+	call	StConst		; Store string
 	ld	a,_LD.HL
 	ld	hl,(l7b58)	; Get value
-	jp	l6b94
+	jp	StCode
 l677f:
 	call	l6787
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_Undef
 l6787:
 	call	l67b2
@@ -18164,14 +18170,14 @@ l678b:
 	jr	z,l679d
 	ld	a,_LD_a_HL
 l679d:
-	call	l6b94
+	call	StCode
 	jr	l67b0
 l67a2:
 	bit	0,a
 	jr	nz,l67b0
 	ld	a,_LD.DE
-	call	l6b94
-	call	l6b50		; Set ADD HL,DE
+	call	StCode
+	call	StImm		; Set ADD HL,DE
 	db	a_L67
 s_I67:
 	ADD	HL,DE
@@ -18183,10 +18189,10 @@ l67b2:
 	call	l680c
 	jr	z,l67d9
 	ld	bc,256*4+0
-	call	l6e54
+	call	FndLABEL
 	jr	nz,l67ed
 	call	l5276
-	ld	a,(l7b57)
+	ld	a,(Envir1)
 	or	a
 	ld	a,'!'
 	ld	b,0
@@ -18209,7 +18215,7 @@ l67d9:
 	xor	a
 	ret
 l67ed:
-	call	l6e76		; Find MEM
+	call	FindStr		; Find MEM
 	dw	l78fa
 	ret	nz		; Nope
 	call	l65d5
@@ -18236,7 +18242,7 @@ l6810:
 	ld	a,(hl)
 	ld	c,a
 	ld	b,4
-	call	l6e54
+	call	FndLABEL
 	pop	bc
 	jr	nz,l6810
 	push	hl
@@ -18259,13 +18265,13 @@ l683a:
 	ret	nz
 	call	l678b
 l6847:
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	call	l5e84
 	ld	hl,(l7b60)	; Get hi set limit
 	call	l5271		; Load name
 	ld	a,(l7b69)
 	cp	b
-	call	l72da
+	call	ErrNZ
 	db	_InvType
 	ld	hl,(l7b6b)
 	ld	a,h
@@ -18278,7 +18284,7 @@ l6867:
 	or	a
 	jr	z,l6893
 	push	af
-	call	l6b50		; Set DEC HL
+	call	StImm		; Set DEC HL
 	db	a_L68
 s_I68:
 	DEC	HL
@@ -18294,7 +18300,7 @@ l6874:
 	jr	c,l6888
 l687c:
 	push	af
-	call	l6b50		; Set INC HL
+	call	StImm		; Set INC HL
 	db	a_L69
 s_I69:
 	INC	HL
@@ -18304,9 +18310,9 @@ a_L69	equ	$-s_I69
 	jr	nz,l687c
 	jr	l6893
 l6888:
-	call	l6a30
-	call	l6b8e		; Set LD DE,val16
-	call	l6b50		; Set ADD HL,DE
+	call	NegateInt
+	call	StLD.DE		; Set LD DE,val16
+	call	StImm		; Set ADD HL,DE
 	db	a_L70
 s_I70:
 	ADD	HL,DE
@@ -18320,9 +18326,9 @@ l6893:
 	or	a
 	sbc	hl,de
 	inc	hl
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	ld	hl,l064c
-	call	l6b86		; Index check on compiler directive {$R+}
+	call	StCALL_		; Index check on compiler directive {$R+}
 l68ae:
 	ld	hl,(l7b5e)	; Get lo set limit
 	call	l5287		; Get name
@@ -18335,7 +18341,7 @@ l68ae:
 	jr	z,l68ed
 	dec	a
 	jr	nz,l68c9
-	call	l6b50		; Set ADD HL,HL
+	call	StImm		; Set ADD HL,HL
 	db	a_L71
 s_I71:
 	ADD	HL,HL
@@ -18344,7 +18350,7 @@ a_L71	equ	$-s_I71
 l68c9:
 	cp	4
 	jr	nz,l68d8
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L72
 s_I72:
 	ADD	HL,HL
@@ -18358,14 +18364,14 @@ l68d8:
 	ld	a,(l7b9e)	; Get local options
 	bit	_Xopt,a		; Test $X+
 	jr	nz,l68ea	; Yeap
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	ld	hl,l06f5	; Set integer multiply
-	call	l6b86
+	call	StCALL_
 	jr	l68ed
 l68ea:
 	call	l690a
 l68ed:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L73
 s_I73:
 	POP	DE
@@ -18395,10 +18401,10 @@ l690c:
 l6914:
 	bit	0,l
 	jr	z,l691c
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	inc	b
 l691c:
-	call	l6b50		; Set ADD HL,HL
+	call	StImm		; Set ADD HL,HL
 	db	a_L74
 s_I74:
 	ADD	HL,HL
@@ -18409,7 +18415,7 @@ a_L74	equ	$-s_I74
 l6927:
 	dec	b
 	ret	z
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L75
 s_I75:
 	POP	DE
@@ -18425,8 +18431,8 @@ l6931:
 	ld	a,(l7b5d)
 	ld	c,a
 	ld	b,4
-	call	l6e54
-	call	l72da
+	call	FndLABEL
+	call	ErrNZ
 	db	_Undef
 l6948:
 	call	l5276
@@ -18469,7 +18475,7 @@ l6988:
 	call	l678b
 	pop	hl
 	ld	(hl),3
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L76
 s_I76:
 	LD	E,(HL)
@@ -18489,7 +18495,7 @@ l699f:
 	call	l6ee0
 	ret	nz
 	call	l678b
-	call	l6b6f		; Set PUSH HL
+	call	StPUSH		; Set PUSH HL
 	ld	hl,(l7b62)	; Get length of type
 	push	hl
 	call	l5e97
@@ -18497,11 +18503,11 @@ l699f:
 	ld	a,(l7b9e)	; Get local options
 	bit	_Ropt,a		; Test $R+
 	jr	z,l69c7		; Nope
-	call	l6b8e		; Set LD DE,val16
+	call	StLD.DE		; Set LD DE,val16
 	ld	hl,l064c
-	call	l6b86		; Index check on compiler directive {$R+}
+	call	StCALL_		; Index check on compiler directive {$R+}
 l69c7:
-	call	l6b50		; Set sequence
+	call	StImm		; Set sequence
 	db	a_L77
 s_I77:
 	POP	DE
@@ -18523,55 +18529,55 @@ a_L77	equ	$-s_I77
 ;
 ; Get constant
 ;
-l69ea:
-	call	l6a0d		; Get constant
+_GetConst:
+	call	GetConst		; Get constant
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_Undef
 ;
 ; Get integer constant
 ;
-l69f2:
-	call	l69ea		; Get constant
+_GetIntC:
+	call	_GetConst		; Get constant
 	ld	a,b
-	cp	0ah
+	cp	0ah ;_Integ
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_IntConst
 ;
 ; Get string constant
 ;
-l69fd:
-	call	l69ea		; Get constant
+_GetStrC:
+	call	_GetConst		; Get constant
 	ld	a,b
-	cp	8
+	cp	8 ;_String
 	ret	z
-	cp	0ch
-	call	l72da
+	cp	0ch ;_Char
+	call	ErrNZ
 	db	_StrgConExp
-	ld	b,8
+	ld	b,8 ;_String
 	ret
 ;
 ; Get constant
 ;
-l6a0d:
-	call	l6a39
+GetConst:
+	call	GetSign
 	push	de
-	call	l6a5c
+	call	GetLabType
 	pop	de
-	jr	z,l6a1f
+	jr	z,NegateNum
 	inc	e
 	dec	e
-	call	l72da
+	call	ErrNZ
 	db	_IntRealCexp
 	dec	e
 	ret
-l6a1f:
-	call	l6a4a
+NegateNum:
+	call	ChkNumSign
 	ret	z
 	ld	a,b
-	cp	9
-	jr	nz,l6a30
+	cp	9 ;_Real
+	jr	nz,NegateInt
 	exx
 	ld	a,b
 	xor	80h
@@ -18579,7 +18585,7 @@ l6a1f:
 	exx
 	xor	a
 	ret
-l6a30:
+NegateInt:
 	ld	a,h
 	cpl
 	ld	h,a
@@ -18589,7 +18595,7 @@ l6a30:
 	inc	hl
 	xor	a
 	ret
-l6a39:
+GetSign:
 	ld	e,0ffh
 	ld	a,(ix+0)
 	cp	'-'
@@ -18599,42 +18605,42 @@ l6a39:
 	ret	nz
 	inc	e
 l6a47:
-	jp	l6f92		; Process line
-l6a4a:
+	jp	NewLine		; Process line
+ChkNumSign:
 	inc	e
 	dec	e
 	ret	z
 	ld	a,b
-	cp	0ah
-	jr	z,l6a56
-	cp	9
-	jr	nz,l6a58
-l6a56:
+	cp	0ah ;_Integ
+	jr	z,ChkNumSign_valid
+	cp	9 ;_Real
+	jr	nz,ChkNumSign_bad
+ChkNumSign_valid:
 	dec	e
 	ret
-l6a58:
-	call	l72e1
+ChkNumSign_bad:
+	call	ERROR
 	db	_IntRealCexp
-l6a5c:
-	call	l6a99		; Sample constant
+GetLabType:
+	call	GetConstType		; Sample constant
 	ret	z		; Got one
 	ld	bc,256*2+0
-	call	l6e54
+	call	FndLABEL
 	ret	nz
 	ld	b,(hl)
 	ld	a,b
 	dec	hl
-	cp	0ah
-	jr	c,l6a74
+	cp	0ah ;_Integ
+	jr	c,GetLabType_noOrd
 	ld	d,(hl)
 	dec	hl
 	ld	e,(hl)
 	ex	de,hl
 	xor	a
 	ret
-l6a74:
-	cp	9
-	jr	nz,l6a88
+GetLabType_noOrd:
+	cp	9 ;_Real
+	jr	nz,GetLabType_noReal
 	push	bc
 	ld	b,(hl)
 	dec	hl
@@ -18651,20 +18657,20 @@ l6a74:
 	exx
 	pop	bc
 	ret
-l6a88:
+GetLabType_noReal:
 	ld	c,(hl)
 	ld	de,l7a57
 	push	bc
 	inc	c
-l6a8e:
+GetLabType_cpyStr:
 	dec	c
-	jr	z,l6a97
+	jr	z,GetLabType_ex
 	dec	hl
 	ld	a,(hl)
 	ld	(de),a
 	inc	de
-	jr	l6a8e
-l6a97:
+	jr	GetLabType_cpyStr
+GetLabType_ex:
 	pop	bc
 	ret
 ;
@@ -18673,171 +18679,173 @@ l6a97:
 ; Reg B holds type of constant
 ; Reg C holds length of constant
 ;
-l6a99:
+GetConstType:
 	ld	a,(ix+0)	; Get character
 	cp	''''		; Test string
-	jr	z,l6aa8
+	jr	z,GetConstType_strg
 	cp	'^'		; Test control character prefix
-	jr	z,l6aa8
+	jr	z,GetConstType_strg
 	cp	'#'		; Test character prefix
-	jr	nz,l6b0e
-l6aa8:
+	jr	nz,GetConstType_noStrg
+GetConstType_strg:
 	ld	hl,l7a57	; Init parameter buffer
 	ld	c,0		; Init length
-l6aad:
+GetConstType_chkMore:
 	ld	a,(ix+0)
 	cp	'^'		; Test control character prefix
-	jr	z,l6ad8
+	jr	z,GetConstType_ctrChr
 	cp	'#'		; Test character prefix
-	jr	z,l6aee
+	jr	z,GetConstType_chrPrfx
 	cp	''''		; Test string
-	jr	nz,l6afe
-l6abc:
+	jr	nz,GetConstType_ex
+GetConstType_cpyStrg:
 	inc	ix
-	ld	a,(ix+0)
+	ld	a,(ix+0) ;Get character
 	or	a
-	call	l72d4
+	call	ErrZ
 	db	_StrConLong
 	cp	''''
-	jr	nz,l6ad3
+	jr	nz,GetConstType_unp
 	inc	ix
-	ld	a,(ix+0)
+	ld	a,(ix+0) ;Get character
 	cp	''''
-	jr	nz,l6aad
-l6ad3:
+	jr	nz,GetConstType_chkMore
+GetConstType_unp:
 	ld	(hl),a
 	inc	hl
 	inc	c
-	jr	l6abc
-l6ad8:
+	jr	GetConstType_cpyStrg
+GetConstType_ctrChr:
 	inc	ix
-	ld	a,(ix+0)
-	call	l04a6		; Convert to upper case
+	ld	a,(ix+0) ;Get character
+	call	doupcase		; Convert to upper case
 	or	a
-	call	l72d4
+	call	ErrZ
 	db	_StrConLong
 	xor	'@'
 	inc	ix
-l6ae9:
+GetConstType_sav:
 	ld	(hl),a
 	inc	hl
 	inc	c
-	jr	l6aad
-l6aee:
+	jr	GetConstType_chkMore
+GetConstType_chrPrfx:
 	inc	ix
 	push	bc
 	push	hl
-	call	l07f7		; Convert ASCII to integer
+	call	cnv_int		; Convert ASCII to integer
 	ld	a,l
 	pop	hl
 	pop	bc
-	call	l72c8
+	call	ErrCY
 	db	_IntegErr
-	jr	l6ae9
-l6afe:
-	ld	b,8
-	ld	a,c
-	dec	a
-	jr	nz,l6b0b
-	ld	h,a
-	ld	a,(l7a57)
+	jr	GetConstType_sav
+GetConstType_ex:
+	ld	b,8 ;_String
+	ld	a,c ; Get count 
+	dec	a   ; Test character 
+	jr	nz,GetConstType_getLine ; .. nope 
+	ld	h,a                ; .. clear HI 
+	ld	a,(l7a57)          ; .. get LO 
 	ld	l,a
-	ld	b,0ch
-l6b0b:
-	jp	l6f95		; Process line
-l6b0e:
+	ld	b,0ch ;_Char    ; Change mode 
+GetConstType_getLine:
+	jp	GetLine		; Process line
+GetConstType_noStrg:
 	cp	'$'
-	jr	z,l6b45
-	call	l7286		; Test digit
-	jr	nc,l6b1a
+	jr	z,GetConstType_hex
+	call	IsItDigit	; Test digit
+	jr	nc,GetConstType_numb
 	xor	a
 	dec	a
 	ret
-l6b1a:
+GetConstType_numb:
 	push	ix
 	pop	de
-l6b1d:
+GetConstType_wtNoNum:
 	inc	de
 	ld	a,(de)
-	call	l7286		; Test digit
-	jr	nc,l6b1d
-	call	l04a6		; Convert to upper case
+	call	IsItDigit		; Test digit
+	jr	nc,GetConstType_wtNoNum
+	call	doupcase		; Convert to upper case
 	cp	'E'
-	jr	z,l6b39
+	jr	z,GetConstType_real
 	cp	'.'
-	jr	nz,l6b45
+	jr	nz,GetConstType_hex
 	inc	de
 	ld	a,(de)
 	cp	'.'
-	jr	z,l6b45
+	jr	z,GetConstType_hex
 	cp	')'
-	jr	z,l6b45
-l6b39:
-	call	l11a3
-	call	l72c8
+	jr	z,GetConstType_hex
+GetConstType_real:
+	call	cnv_flp ; Convert to real 
+	call	ErrCY   ; Real constant error 
 	db	_RealErr
-	exx
-	ld	b,9
-	jr	l6b0b
-l6b45:
-	call	l07f7		; Convert ASCII to integer
-	call	l72c8
+	exx              ; Real into alternate set 
+	ld	b,9 ;_Real ; .. set mode
+	jr	GetConstType_getLine
+GetConstType_hex:
+	call	cnv_int		; Convert ASCII to integer
+	call	ErrCY
 	db	_IntegErr
 	ld	b,0ah
-	jr	l6b0b
+	jr	GetConstType_getLine
 ;
 ; Transfer immediate opcodes
 ; Sequence starts with length
 ;
-l6b50:
+StImm:
 	ex	(sp),hl
 	push	bc
 	ld	b,(hl)		; Get length
 	inc	hl
-l6b54:
+StI_loop:
 	ld	a,(hl)		; Get byte
 	call	writebyte_a_addriy		; Store it
 	inc	hl
-	djnz	l6b54
+	djnz	StI_loop
 	pop	bc
 	ex	(sp),hl
 	ret
-l6b5e:
+StLen:
 	ld	a,c		; Get byte
 	call	writebyte_a_addriy		; Store it
 ;
 ; Store string
 ;
-l6b62:
+StConst:
 	ld	hl,l7a57
 	inc	c
-l6b66:
+StC_loop:
 	dec	c
 	ret	z
 	ld	a,(hl)		; Get character
 	inc	hl
 	call	writebyte_a_addriy		; Store it
-	jr	l6b66
+	jr	StC_loop
 ;
 ; Set PUSH HL
 ;
-l6b6f:
+StPUSH:
 	ld	a,_PUSH.HL
 	jr	writebyte_a_addriy
 ;
 ; Set POP HL
 ;
-l6b73:
+StPOP:
 	ld	a,_POP.HL
 	jr	writebyte_a_addriy
 ;
 ; Set JP
 ;
-l6b77:
+StJP:
 	ld	a,_JP
 	jr	writebyte_a_addriy
 ;
-; Set word in reg DE
+; Insert operand
+; ENTRY	Reg DE holds operand
+; (Set word in reg DE)
 ;
 writeword_de_addriy:
 	ld	a,e
@@ -18847,36 +18855,36 @@ writeword_de_addriy:
 ;
 ; Set JP WORD
 ;
-l6b82:
+StJP_:
 	ld	a,_JP
-	jr	l6b94
+	jr	StCode
 ;
 ; Set CALL WORD
 ;
-l6b86:
+StCALL_:
 	ld	a,_CALL
-	jr	l6b94
+	jr	StCode
 ;
 ; Set LD BC,WORD
 ;
-l6b8a:
+StLD.BC:
 	ld	a,_LD.BC
-	jr	l6b94
+	jr	StCode
 ;
 ; Set LD DE,WORD
 ;
-l6b8e:
+StLD.DE:
 	ld	a,_LD.DE
-	jr	l6b94
+	jr	StCode
 ;
 ; Set LD HL,WORD
 ;
-l6b92:
+StLD.HL:
 	ld	a,_LD.HL
 ;
 ; Insert opcodes in Accu, reg L and reg H
 ;
-l6b94:
+StCode:
 	call	writebyte_a_addriy
 ;
 ; Insert word in reg HL
@@ -18891,66 +18899,66 @@ writeword_hl_addriy:
 writebyte_a_addriy:
 	push	bc
 	ld	b,a
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	or	a		; Test mode
-	jr	nz,l6ba7	; Searching or compiling	
+	jr	nz,St__noSt	; Searching or compiling	
 	ld	(iy+0),b	; Store byte into memory
-l6ba7:
+St__noSt:
 	inc	iy		; Update PC
 	or	a		; Test compile to memory
-	jr	z,l6bc6		; Yeap
+	jr	z,St__skp		; Yeap
 	push	hl
 	push	de
 	dec	a		; Test search
-	jr	z,l6bc1		; Nope
+	jr	z,St__St		; Nope ; .. compile to file 
 	push	iy
 	pop	de
 	dec	de
 	ld	hl,(l00ce)	; Get current PC
 	or	a
 	sbc	hl,de
-	call	l72d4
+	call	ErrZ
 	db	_FndRTerr
-	jr	l6bc4
-l6bc1:
+	jr	St__pop
+St__St:
 	call	savebyte_b		; Put byte to file
-l6bc4:
+St__pop:
 	pop	de
 	pop	hl
-l6bc6:
+St__skp:
 	pop	bc
 ;
 ; Check enough memory
 ;
-l6bc7:
+ChkOvfl:
 	push	hl
 	push	de
 	push	iy
 	pop	de
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	or	a
-	jr	z,l6be7		; Skip if compiling to memory
-	ld	de,(l7bdf)	; Get memory top
+	jr	z,ChkOv.mem		; Skip if compiling to memory
+	ld	de,(MemsTop)	; Get memory top
 	dec	a
-	jr	nz,l6be7
-	ld	de,(l7be1)	; Get top of .COM file
-	ld	a,(l790e)	; Test memory read
+	jr	nz,ChkOv.mem
+	ld	de,(COMsTop)	; Get top of .COM file
+	ld	a,(IncFlg)	; Test memory read
 	or	a
-	jr	z,l6be7		; Yeap
-	ld	de,(l7be6)
-l6be7:
-	ld	hl,(l7b73)	; Get label pointer
+	jr	z,ChkOv.mem		; Yeap
+	ld	de,(INCsTop)
+ChkOv.mem:
+	ld	hl,(LabPtr)	; Get label pointer
 	scf
 	sbc	hl,de
-	call	l72c8
+	call	ErrCY
 	db	_CompOvfl
 	push	iy
 	pop	de
-	ld	hl,(l7908)	; Get start of data
+	ld	hl,(DataBeg)	; Get start of data
 	dec	h
 	dec	h
 	sbc	hl,de
-	call	l72c8
+	call	ErrCY
 	db	_MemOvfl
 	pop	de
 	pop	hl
@@ -18959,42 +18967,42 @@ l6be7:
 ; Put byte in reg B to file
 ;
 savebyte_b:
-	ld	hl,l7bdb	; Point to file access
+	ld	hl,RRN_stat 	; Point to file access
 	set	1,(hl)		; Set write enabled
 	bit	0,(hl)		; Test re-read
-	jr	z,l6c12		; Nope
+	jr	z,SkpRdRRN		; Nope
 	res	0,(hl)		; Clear it
 	push	bc
-	call	readrecord_l7957		; Re-read record
+	call	readrecord_TmpBuff		; Re-read record
 	pop	bc
-l6c12:
-	ld	a,(l7bdc)	; Get record pointer
+SkpRdRRN:
+	ld	a,(RecPtr)	; Get record pointer
 	ld	e,a
 	ld	d,0
-	ld	hl,l7957
+	ld	hl,TmpBuff
 	add	hl,de		; Build buffer address
 	ld	(hl),b		; Store byte
 	inc	a		; Advance record pointer
-	jp	p,l6c2c		; Still within limits
-	call	writerecord_l7957		; Write record
-	ld	hl,(l7933+_rrn)
+	jp	p,StToF__ex		; Still within limits
+	call	writerecord_TmpBuff		; Write record
+	ld	hl,(FFCB+_rrn)
 	inc	hl		; Advance record count
-	ld	(l7933+_rrn),hl
+	ld	(FFCB+_rrn),hl
 	xor	a
-l6c2c:
-	ld	(l7bdc),a	; Set record pointer
+StToF__ex:
+	ld	(RecPtr),a	; Set record pointer
 	ret
 ;
 ; Allocate space in reg DE
 ;
-l6c30:
-	ld	hl,(l7908)	; Get start of data
+VarAlloc:
+	ld	hl,(DataBeg)	; Get start of data
 	or	a
 	sbc	hl,de
-	call	l72c8
+	call	ErrCY
 	db	_MemOvfl
-	ld	(l7908),hl	; Set start of data
-	jr	l6bc7		; Check enough memory
+	ld	(DataBeg),hl	; Set start of data
+	jr	ChkOvfl		; Check enough memory
 ;
 ; Store back current PC to ^HL
 ;
@@ -19005,9 +19013,9 @@ storeback_iy_to_addrhl:
 ; Store back reg DE to ^HL
 ;
 storeback_de_to_addrhl:
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to memory
-	jr	z,l6c53		; nope
+	jr	z,StBackMem		; nope
 	push	iy
 	push	hl
 	pop	iy
@@ -19015,7 +19023,7 @@ storeback_de_to_addrhl:
 	pop	iy
 	ret
 flushunfinished
-	ld a,(l7bdc)	; Get record pointer
+	ld a,(RecPtr)	; Get record pointer
         or a
         ret z
          push bc
@@ -19028,23 +19036,23 @@ flushunfinished
          call flushunfinishedpp
 ;flushunfinished_skip
 ;close, open to force flush???
-	;ld de,l7933
+	;ld de,FFCB
         ;ld c,_close
-	;call l7265		; BDOS with keep ix,iy
-	;ld de,l7933
+	;call _BDOS		; BDOS with keep ix,iy
+	;ld de,FFCB
         ;ld c,_open
-	;call l7265		; BDOS with keep ix,iy
+	;call _BDOS		; BDOS with keep ix,iy
          pop hl
          pop de
          pop bc
          ret
-l6c53:
+StBackMem:
          call flushunfinished
 	push	bc
 	push	de
 	push	hl
-	ld	hl,(l7bdf)	; Get memory top
-	ld	a,(l7be3)	; Get back fix level
+	ld	hl,(MemsTop)	; Get memory top
+	ld	a,(BackLevel)	; Get back fix level
 	ld	b,a
 	inc	b
 l6c5e:
@@ -19092,25 +19100,25 @@ l6c84:
 	inc	hl
 	ld	(hl),d
 	pop	bc
-	ld	hl,l7be3	; Point to back fix level
+	ld	hl,BackLevel	; Point to back fix level
 	inc	(hl)
 	ret	nz
 	xor	a
-	jr	l6c9b
+	jr	ForceBack
 ;
 ; Fix back level
 ;
-l6c96:
-	ld	a,(l7be3)	; Get back fix level
+FixBack:
+	ld	a,(BackLevel)	; Get back fix level
 	or	a
 	ret	z
-l6c9b:
+ForceBack:
 	push	bc
 	push	de
 	push	iy
 	ld	b,a
-	ld	hl,(l7bdf)	; Get memory top
-l6ca3:
+	ld	hl,(MemsTop)	; Get memory top
+Back_Loop:
 	push	bc
 	ld	e,(hl)
 	inc	hl
@@ -19118,7 +19126,7 @@ l6ca3:
 	inc	hl
 	push	hl
 	ex	de,hl
-	call	l6cc2		; Check chaining
+	call	ChkChn		; Check chaining
 	pop	hl
 	ld	b,(hl)
 	inc	hl
@@ -19131,64 +19139,65 @@ l6ca3:
 	call	savebyte_b		; Put byte to file
 	pop	hl
 	pop	bc
-	djnz	l6ca3
+	djnz	Back_Loop
 	pop	hl
 	pop	de
 	pop	bc
 ;
 ; Check chaining
 ;
-l6cc2:
-	 ld	a,(l7900)	; Get compile flag
+ChkChn:
+	 ld	a,(CmpTyp)	; Get compile flag
 	 dec	a		; Test compiling to memory
          call z,flushunfinished ;nope
 	push	hl
 	pop	iy
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to memory
 	ret	nz		; yes
 	push	de
 	push	bc
-	ld	de,(l7902)	; Get code pointer
+	ld	de,(CodePC)	; Get code pointer
 	or	a
 	sbc	hl,de
 	ld	a,l
 	and	7fh
-	ld	(l7bdc),a	; Set record pointer
+	ld	(RecPtr),a	; Set record pointer
 	add	hl,hl
 	ld	l,h
 	rla
 	and	1
 	ld	h,a
-	ld	de,(l7bdd)	; Get record base
+	ld	de,(RRN_off)	; Get record base
 	add	hl,de		; Calculate new record
-	ld	de,(l7933+_rrn)
+	ld	de,(FFCB+_rrn)
 	or	a
 	sbc	hl,de
 	add	hl,de
-	jr	z,l6cf6
+	jr	z,Chk_sameRRN
 	push	hl
-	call	writerecord_l7957		; Write record
+	call	writerecord_TmpBuff		; Write record
 	pop	hl
-	ld	(l7933+_rrn),hl	; Reset record
-l6cf6:
+	ld	(FFCB+_rrn),hl	; Reset record
+Chk_sameRRN:
 	pop	bc
 	pop	de
 	ret
 
 ;
+; Read random record from file
 ; Read a record
 ;
-readrecord_l7957:
-	 ;ld hl,(l7933+_rrn)
+readrecord_TmpBuff:
+	 ;ld hl,(FFCB+_rrn)
          ;jr $
-	ld	c,_rndrd
-	jr	l6d09
+	ld	c,_rndrd ; .. load read function 
+	jr	l6d09    ; .. fall in read 
 ;
 ; Write a record
 ;
-writerecord_l7957:
-	ld	hl,l7bdb	; Point to file access
+writerecord_TmpBuff:
+	ld	hl,RRN_stat 	; Point to file access
 	set	0,(hl)		; Set re-read enabled
 	bit	1,(hl)		; Test record to be written
 	ret	z		; Nope
@@ -19198,12 +19207,12 @@ flushunfinishedpp
 	ld	c,_rndwr
 l6d09:
 	push	bc		; Save function
-	ld	de,l7957
+	ld	de,TmpBuff
 	ld	c,_setdma
-	call	l7265		; Set disk buffer
+	call	_BDOS		; Set disk buffer
 	pop	bc
-	ld	de,l7933
-	call	l7265		; Read or write record
+	ld	de,FFCB
+	call	_BDOS		; Read or write record
 	or	a
 	ret	z
 	;dec	a
@@ -19212,67 +19221,73 @@ l6d09:
 	;ret	z
          cp 128 ;fail
          ret nz ;not fail
-	call	l72e1
+	call	ERROR
 	db	_DskFull
-l6d24:
+;
+; Save environment to stack
+; 
+SavEnv2:
 	exx
-	ld	de,l7b64
-	jr	l6d2e
+	ld	de,Envir2
+	jr	SavEnv7
 ;
-; Save environment
-;
+; Save environment to stack
+; 
 l6d2a:
 	exx
-	ld	de,l7b57
-l6d2e:
+	ld	de,Envir1
+SavEnv7:
 	pop	hl
-	ld	(l7bd5),hl
-	ld	hl,lfff3
+	ld	(Env_PC),hl
+	ld	hl,-l000d;lfff3
 	add	hl,sp
 	ld	sp,hl
 	ex	de,hl
 	ld	bc,l000d
 	ldir
-l6d3d:
-	ld	hl,(l7bd5)
+BackEnv_PC:
+	ld	hl,(Env_PC)
 	push	hl
 	exx
 	ret
-l6d43:
+RestEnv2:
 	exx
-	ld	de,l7b64
-	jr	l6d4d
+	ld	de,Envir2
+	jr	RestEnv7
 ;
 ; Get back environment
 ;
-l6d49:
+RestEnv1:
 	exx
-	ld	de,l7b57
-l6d4d:
+	ld	de,Envir1
+RestEnv7:
 	pop	hl
-	ld	(l7bd5),hl
-	ld	hl,l0000
+	ld	(Env_PC),hl
+	ld	hl,0;l0000
 	add	hl,sp
 	ld	bc,l000d
 	ldir
 	ld	sp,hl
-	jr	l6d3d
-l6d5d:
+	jr	BackEnv_PC
+;
+; Restore environment from stack, leave stack intact
+; 
+CpyEnv2:
 	exx
-	ld	de,l7b64
-	jr	l6d67
+	ld	de,Envir2
+	jr	CpyEnv7
 l6d63:
 	exx
-	ld	de,l7b57
-l6d67:
-	ld	hl,l0002
+	ld	de,Envir1
+CpyEnv7:
+	ld	hl,2;l0002
 	add	hl,sp
 	ld	bc,l000d
 	ldir
 	exx
 	ret
 ;
-; Put current PC to table
+; Store current PC into label table 
 ;
 puttolabel_i_y:
 	push	iy
@@ -19283,27 +19298,27 @@ puttolabel_d_e:
 	ld	a,e
 puttolabel:
 	push	hl
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	ld	(hl),a
 	dec	hl
-	ld	(l7b73),hl	; Set label pointer
+	ld	(LabPtr),hl	; Set label pointer
 	pop	hl
-	jp	l6bc7		; Check enough memory
+	jp	ChkOvfl		; Check enough memory
 ;
 ; Get label
 ;
-l6d87:
-	ld	a,(ix+0)
-	call	l7271		; Test label character
+GetLabel:
+	ld	a,(ix+0)   ; Get 1st character 
+	call	IsItLab		; Test label character
 ;
 ; Build label
 ;
-l6d8d:
-	call	l72c8
+SampLabel:
+	call	ErrCY
 	db	_IllChar
-	call	l6ed0
+	call	DoubleLabel  ; Verify no double label 
 l6d94:
-	call	l6eb8
+	call	Reserved ; Verify no reserved word 
 	ld	a,(ix+0)
 l6d9a:
 	cp	'a'
@@ -19315,51 +19330,62 @@ l6da4:
 	call	puttolabel
 	inc	ix
 	ld	a,(ix+0)
-	call	l7282		; Test valid character
+	call	IsItValid		; Test valid character
 	jr	nc,l6d9a	; Yeap
-	ld	hl,(l7b73)	; Get label pointer
+	ld	hl,(LabPtr)	; Get label pointer
 	inc	hl
 	set	7,(hl)
-	jp	l6f95		; Process line
+	jp	GetLine		; Process line
 l6dba:
 	ld	a,(ix+0)
-	call	l7271		; Test label character
-	call	l72c8
+	call	IsItLab		; Test label character
+	call	ErrCY
 	db	_IllChar
 	jr	l6d94
 ;
 ; Set label pointer
 ;
-l6dc6:
-	ld	hl,(l7b75)	; Get previous label pointer
-	ld	de,(l7b73)	; Get label pointer
+SetLabPtr:
+	ld	hl,(PrevLabPtr)	; Get previous label pointer
+	ld	de,(LabPtr)	; Get label pointer
 	or	a
 	sbc	hl,de
 	ex	de,hl
 	call	puttolabel_d_e		; Put to table
-	ld	hl,(l7b73)	; Get label pointer
-	ld	(l7b75),hl	; Unpack into previous
+	ld	hl,(LabPtr)	; Get label pointer
+	ld	(PrevLabPtr),hl	; Unpack into previous
 	ret
 l6ddb:
-	ld	hl,(l7b7b)	; Get current label pointer
+	ld	hl,(CurLab)	; Get current label pointer
 	jr	l6de3
 ;
 ;
-;
-l6de0:
+; Find label from table
+; ENTRY	Reg B holds selected TYPE
+;	Reg C holds item flag
+;		 0 if 1st item in line
+;		-1 if not 1st one
+; EXIT	Zero set if label found
+;;
+;; l7bc1 = 00, A = -1, NZ ---->>> Not found
+;; l7bc1 = type, NZ       ---->>> Not same type as B
+;;                Z       ---->>> Same type
+;;		HL, DE hold pointers
+; 
+FndItem:
 	ld	hl,(l7b77)	; Get top of available memory
 l6de3:
 	ld	(l7b7d),hl
-	ld	a,(l7bc0)
+	ld	a,(FirstVAR)
 	cp	c
 	jr	z,l6e48
 	ld	a,c
-	ld	(l7bc0),a
-	ld	hl,(l7b75)	; Get previous label pointer
+	ld	(FirstVAR),a
+	ld	hl,(PrevLabPtr)	; Get previous label pointer
 l6df3:
 	ld	de,(l7b7d)
 	xor	a
-	sbc	hl,de
+	sbc	hl,de          ; Test pointer reached 
 	add	hl,de
 	jr	nz,l6e03
 	xor	a
@@ -19368,73 +19394,82 @@ l6df3:
 	ret
 l6e03:
 	inc	hl
-	ld	e,(hl)
+	ld	e,(hl)		; Get length of entry ?????????
 	inc	hl
 	ld	d,(hl)
-	add	hl,de
-	ld	a,(hl)
+	add	hl,de		; Point to end
+	ld	a,(hl)		; Test more
 	or	a
-	jr	z,l6df3
+	jr	z,l6df3		; .. end of table ??????????????
 	dec	hl
-	ld	a,(hl)
+	ld	a,(hl)		; Get type
 	inc	hl
 	cp	c
-	jr	nz,l6df3
+	jr	nz,l6df3	; .. not what we expect 
 	push	ix
-	pop	de
+	pop	de   ; Copy pointer 
 	push	bc
 	push	hl
-	dec	hl
+	dec	hl   ; Fix to lable 
 	dec	hl
 l6e19:
-	ld	b,(hl)
+	ld	b,(hl) ; Get characters 
 	ld	a,(de)
 	dec	hl
 	inc	de
-	ld	c,b
-	res	7,b
-	cp	'a'
+	ld	c,b       ; Save label 
+	res	7,b       ; Clear MSB 
+	cp	'a'       ; Check a..z 
 	jr	c,l6e2a
 	cp	'z'+1
 	jr	nc,l6e2a
-	sub	'a'-'A'
+	sub	'a'-'A'   ; .. map to a..z 
 l6e2a:
-	cp	b
+	cp	b         ; Compare 
 	jr	nz,l6e37
-	bit	7,c
-	jr	z,l6e19
-	ld	a,(de)
-	call	l7282		; Test valid character
+	bit	7,c        ; Test last character 
+	jr	z,l6e19    ; .. nope 
+	ld	a,(de)     ; Verify end of label 
+	call	IsItValid		; Test valid character
 	jr	c,l6e3b		; Nope
 l6e37:
 	pop	hl
 	pop	bc
 	jr	l6df3
 l6e3b:
-	ld	(l7bc2),hl
+	ld	(l7bc2),hl     ; Save pointers 
 	ld	(l7bc4),de
 	pop	hl
 	pop	bc
-	ld	a,(hl)
+	ld	a,(hl)         ; Save type 
 	ld	(l7bc1),a
 l6e48:
 	ld	hl,(l7bc2)
 	ld	de,(l7bc4)
 	ld	a,(l7bc1)
-	cp	b
+	cp	b              ; Fix result 
 	ret
 ;
-; Find label with type in reg B
+; Get TYPE from table
+; ENTRY	Reg B holds TYPE searched for
+;	Reg C holds flag ???????
+; EXIT	Zero set if TYPE found
+;	Reg HL points to TYPE
+; (Find label with type in reg B)
 ;
-l6e54:
-	call	l6de0
-	ret	nz
-	jr	l6e96
+FndLABEL:
+	call	FndItem    ; Find it 
+	ret	nz         ; .. nope 
+	jr	SetLine    ; .. set source pointer 
 ;
-; Find constant string list ^PC
+; Find string
+; ENTRY	<SP> points to length of code
+;	followed by address of string
+; EXIT	Zero flag set indicates found 
+; (Find constant string list ^PC)
 ; Z set says found
 ;
-l6e5a:
+FndTabStr:
 	ex	(sp),hl
 	ld	c,(hl)		; Get length of data following string
 	inc	hl
@@ -19444,26 +19479,26 @@ l6e5a:
 	inc	hl
 	ex	(sp),hl
 	ex	de,hl
-l6e63:
-	call	l6e7d		; Find string
+FndDirStr:
+	call	FndStr		; Find string
 	ret	z		; Got it
 	dec	hl		; Postion to previous character
-l6e68:
+FndDirStr_fix:
 	bit	_MB,(hl)	; Find end of string
 	inc	hl
-	jr	z,l6e68
+	jr	z,FndDirStr_fix
 	ld	b,0
 	add	hl,bc		; Position to next string in list
 	ld	a,(hl)
 	or	a		; Test more in list
-	jr	nz,l6e63	; Yeap
+	jr	nz,FndDirStr	; Yeap
 	dec	a		; Set string not found
 	ret
 ;
 ; Find constant string ^PC
 ; Z set says found
 ;
-l6e76:
+FindStr:
 	ex	(sp),hl
 	ld	e,(hl)		; Get address of string
 	inc	hl
@@ -19474,26 +19509,26 @@ l6e76:
 ;
 ; Find string ^HL
 ;
-l6e7d:
+FndStr:
 	push	ix		; Copy source pointer
 	pop	de
 	ld	a,(hl)		; Get character from searched string
-	call	l7271		; Test label character
+	call	IsItLab		; Test label character
 	jr	c,l6e92		; Nope
 	call	l6e9c		; Compare
 	ret	nz		; Not found
 	ld	a,(de)		; Get character from source
-	call	l7282		; Test valid character
-	jr	c,l6e96		; Nope
+	call	IsItValid		; Test valid character
+	jr	c,SetLine		; Nope
 	or	a
 	ret
 l6e92:
 	call	l6e9c		; Compare
 	ret	nz		; Not found
-l6e96:
+SetLine:
 	push	de		; Set resulting source pointer
 	pop	ix
-	jp	l6f95		; Process line
+	jp	GetLine		; Process line
 ;
 ; Compare reference ^HL: source ^DE
 ; Z set says match
@@ -19521,7 +19556,10 @@ l6eae:
 l6eb6:
 	pop	bc
 	ret
-l6eb8:
+;
+; Verify no reserved word
+; 
+Reserved:
 	ld	hl,l7513
 l6ebb:
 	ld	c,(hl)
@@ -19535,19 +19573,19 @@ l6ebb:
 	inc	hl
 	push	hl
 	ex	de,hl
-	call	l6e63
+	call	FndDirStr
 	pop	hl
 	jr	nz,l6ebb
-	call	l72e1
+	call	ERROR
 	db	_ResWord
-l6ed0:
+DoubleLabel:
 	ld	a,(l7b91)	; Get ???
 	ld	c,a
 	call	l6ddb
 	ld	a,(l7bc1)
 	or	a
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_DoubleLab
 l6ee0:
 	ld	a,'['
@@ -19561,7 +19599,7 @@ l6ee0:
 	ret	nz
 l6ef2:
 	inc	ix
-	jp	l6f92		; Process line
+	jp	NewLine		; Process line
 ;
 ; Test ] - Z set says found
 ;
@@ -19618,14 +19656,14 @@ l6f27:
 l6f29:
 	cp	(ix+0)
 	ret	nz
-	jp	l6f92		; Process line
+	jp	NewLine		; Process line
 ;
 ; Verify [
 ;
 l6f30:
 	call	l6ee0
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_LftBrExp
 ;
 ; Verify ]
@@ -19633,7 +19671,7 @@ l6f30:
 l6f38:
 	call	l6ef7		; Test ]
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_RgtBrExp
 ;
 ; Verify :
@@ -19641,7 +19679,7 @@ l6f38:
 l6f40:
 	call	l6f0b		; Test :
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_SemiExp
 ;
 ; Verify ;
@@ -19650,7 +19688,7 @@ l6f48:
 	call	l6f0f		; Test ;
 	ret	z		; Yeap
 l6f4c:
-	call	l72e1
+	call	ERROR
 	db	_ColExp
 l6f50:
 	call	l6f0f		; Test ;
@@ -19658,7 +19696,7 @@ l6f50:
 	ld	a,(l7b98)
 	or	a
 	jr	z,l6f4c
-	call	l72e1
+	call	ERROR
 	db	_Undef
 ;
 ; Verify ,
@@ -19666,7 +19704,7 @@ l6f50:
 l6f5e:
 	call	l6f13		; Test ,
 	ret	z		; Yeap
-	call	l72e1
+	call	ERROR
 	db	_CommaExp
 ;
 ; Verify (
@@ -19674,7 +19712,7 @@ l6f5e:
 l6f66:
 	call	l6f1b		; Test (
 	ret	z		; Yeap
-	call	l72e1
+	call	ERROR
 	db	_LftPar
 ;
 ; Verify )
@@ -19682,7 +19720,7 @@ l6f66:
 l6f6e:
 	call	l6f1f
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_RgtPar
 ;
 ; Verify =
@@ -19690,37 +19728,37 @@ l6f6e:
 l6f76:
 	call	l6f23		; Find =
 	ret	z
-	call	l72e1
+	call	ERROR
 	db	_EquExp
 l6f7e:
-	call	l6e76		; Find :=
+	call	FindStr		; Find :=
 	dw	l7582
 	ret	z		; Yeap
-	call	l72e1
+	call	ERROR
 	db	_AssigExp
 l6f88:
-	call	l6e76		; Find OF
+	call	FindStr		; Find OF
 	dw	l7560
 	ret	z		; Yeap
-	call	l72e1
+	call	ERROR
 	db	_NoOF
 ;
 ; Process source line
 ;
-l6f92:
+NewLine:
 	call	l7124		; Get character from file
-l6f95:
+GetLine:
 	xor	a
 	ld	(l7b98),a
 	dec	a
-	ld	(l7bc0),a
+	ld	(FirstVAR),a
 	ld	a,(ix+0)	; Get a character
 	or	a		; Test empty
-	jr	z,l6f92		; Yeap, so get next
+	jr	z,NewLine		; Yeap, so get next
 	cp	' '		; Skip blanks
-	jr	z,l6f92
+	jr	z,NewLine
 	cp	tab		; Skip tabs
-	jr	z,l6f92
+	jr	z,NewLine
 	cp	'('		; Test possible comment
 	jr	z,l6fb5
 	cp	'{'		; Test real comment
@@ -19758,7 +19796,7 @@ l6fe4:
 	jr	nz,l6fca	; Nope, wait for 
 l6fe8:
 	pop	bc
-	jr	l6f92
+	jr	NewLine
 l6feb:
 	push	bc
 	push	de
@@ -19767,7 +19805,7 @@ l6feb:
 l6ff1:
 	call	l7124		; Get character from file
 	ld	a,(ix+0)
-	call	l04a6		; Convert to upper case
+	call	doupcase		; Convert to upper case
 	cp	'I'		; Test include or I/O error
 	ld	b,00000001b
 	jr	z,l704d
@@ -19809,7 +19847,7 @@ l6ff1:
 	jr	z,l708e
 	cp	'P'		; Test output buffer ([$Pnum])
 	jr	z,l708e
-	call	l72e1		; Invalid directive
+	call	ERROR		; Invalid directive
 	db	_CompDirec
 l7048:
 	pop	hl
@@ -19831,7 +19869,7 @@ l704d:
 	cp	'-'
 	jr	z,l7065
 	dec	b		; Remember $I is 00000001b - used multiple
-	call	l72da		; Else error
+	call	ErrNZ		; Else error
 	db	_CompDirec
 	jr	l709b		; Now process include
 l7065:
@@ -19851,8 +19889,8 @@ l7070:
 l707a:
 	call	l7124		; Get character from file
 	ld	a,(ix+0)
-	call	l7286		; Test digit
-	call	l72c8
+	call	IsItDigit		; Test digit
+	call	ErrCY
 	db	_CompDirec
 	sub	'0'
 	ld	(l7bc7),a	; Change depth for WITH
@@ -19863,7 +19901,7 @@ l707a:
 l708e:
 	call	l7124		; Get character from file
 	ld	a,(ix+0)
-	call	l7286		; Test digit
+	call	IsItDigit		; Test digit
 	jr	nc,l708e	; Yeap, skip over
 	jr	l7070
 l709b:
@@ -19873,9 +19911,9 @@ l709b:
 	ld	a,(ix+0)
 	jr	l709b
 l70a7: ;include???
-	ld	a,(l790e)	; Get memory read flag
+	ld	a,(IncFlg)	; Get memory read flag
 	or	a
-	call	l72da		; Should be memory read
+	call	ErrNZ		; Should be memory read
 	db	_INCLerr
 	push	ix
 	pop	de
@@ -19884,26 +19922,27 @@ l70a7: ;include???
 	pop	ix
 	ld	de,l005c
 	push	de
+         ;jr $
 	ld	c,_open
-	call	l7265		; Open file ;WHERE IS CLOSE???
+	call	_BDOS		; Open file ;WHERE IS CLOSE???
 	pop	hl
 	inc	a
-	call	l72d4
+	call	ErrZ
 	db	_NoFileErr
 	ld	de,l790f
 	ld	bc,FCBlen
 	ldir			; Unpack file
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
 	jr	z,l70e2		; Yeap
-	ld	hl,l7957
+	ld	hl,TmpBuff
 	ld	(l7be4),hl	; Save top of .COM file
 	ld	hl,l79d7	; Get start of source line
 	ld	a,1
 	jr	l7103
 l70e2:
-	ld	hl,(l7b73)	; Get label pointer
-	ld	de,(l7be1)	; Get top of .COM file
+	ld	hl,(LabPtr)	; Get label pointer
+	ld	de,(COMsTop)	; Get top of .COM file
 	ld	(l7be4),de	; Save it
 	or	a
 	sbc	hl,de		; Calculate difference
@@ -19911,7 +19950,7 @@ l70e2:
 	rr	l
 	ld	a,h
 	or	a
-	call	l72d4		; If hi zero, no memory
+	call	ErrZ		; If hi zero, no memory
 	db	_CompOvfl
 	ld	a,l
 	and	RecLng
@@ -19922,10 +19961,10 @@ l70e2:
 	pop	hl
 	add	hl,de
 l7103:
-	ld	(l7be6),hl
+	ld	(INCsTop),hl
 	ld	(l7be9),hl
 	ld	(l7be8),a
-	ld	(l790e),a	; Re/Set memory read flag
+	ld	(IncFlg),a	; Re/Set memory read flag
 	ld	hl,l0000
 	ld	(l7beb),hl
 	ld	a,(l7b9d)	; Get options
@@ -19946,7 +19985,7 @@ l7124:
 	push	hl
 	ld	a,(l7ba2)	; Get end of file
 	or	a
-	call	l72da
+	call	ErrNZ
 	db	_IllSrcEnd
 	ld	hl,(l7bd7)	; Get source pointer
 	ld	(l7bd9),hl	; Unpack it
@@ -20034,7 +20073,7 @@ l7191:
 	push	iy
 	ld	a,cr
 	call	puttoconsole_a		; Put to console
-	ld	a,(l790e)	; Test memory read
+	ld	a,(IncFlg)	; Test memory read
 	or	a
 	jr	z,l71a6		; Yeap
 	ld	a,'I'
@@ -20054,7 +20093,7 @@ l71a8:
 	db	'   *** Abort compilation'
 	db	null
 	call	l2d01		; Ask for YES or NO
-	call	l72da
+	call	ErrNZ
 	db	_ABORT
 	ld	b,32
 l71e1:
@@ -20074,7 +20113,7 @@ l71ea:
 ; Read character from file
 ;
 l71f3:
-	ld	a,(l790e)	; Test memory read
+	ld	a,(IncFlg)	; Test memory read
 	or	a
 	jr	nz,l7205	; Nope
 l71f9:
@@ -20087,7 +20126,7 @@ l71f9:
 	ret
 l7205:
 	ld	hl,(l7be9)
-	ld	de,(l7be6)
+	ld	de,(INCsTop)
 	or	a
 	sbc	hl,de
 	add	hl,de
@@ -20099,10 +20138,10 @@ l721a:
 	push	bc
 	push	de
 	ld	c,_setdma
-	call	l7265		; Set disk buffer
+	call	_BDOS		; Set disk buffer
 	ld	de,l790f
 	ld	c,_rdseq
-	call	l7265		; Read record
+	call	_BDOS		; Read record
 	pop	de
 	pop	bc
 	;or	a
@@ -20144,7 +20183,7 @@ l7237:
 	ld	a,eof		; Set end of file
 	ld	(de),a
 	inc	de
-	ld	(l7be6),de
+	ld	(INCsTop),de
 l723f:
 	ld	hl,(l7be4)	; Get top of .COM file
 l7242:
@@ -20153,13 +20192,15 @@ l7242:
 	ld	(l7be9),hl
 	cp	eof
 	jr	nz,l725d
+         ld c,_close
+         call BDOS_with_FCB1
 	xor	a
-	ld	(l790e),a	; Enable memory read
+	ld	(IncFlg),a	; Enable memory read
 	ld	a,(l7b9f)
 	ld	(l7b9d),a	; Reset options
 	ld	a,(l7bc8)
 	ld	(l7bc7),a	; Set depth for WITH
-	jr	l71f9
+	jp	l71f9
 l725d:
 	ld	hl,(l7beb)
 	inc	hl
@@ -20168,7 +20209,7 @@ l725d:
 ;
 ; Perform OS call
 ;
-l7265:
+_BDOS:
 	push	ix		; Preserve index registers
 	push	iy
 	call	BDOS		; Call system
@@ -20179,7 +20220,7 @@ l7265:
 ; Test label character
 ; C set says no
 ;
-l7271:
+IsItLab:
 	cp	'A'
 	ret	c
 	cp	'Z'+1
@@ -20196,14 +20237,14 @@ l7271:
 ; Test valid character
 ; C set says no
 ;
-l7282:
-	call	l7271		; Test label character
+IsItValid:
+	call	IsItLab		; Test label character
 	ret	nc		; Yeap
 ;
 ; Test character a digit
 ; C set says no
 ;
-l7286:
+IsItDigit:
 	cp	'0'		; Test digit
 	ret	c
 	cp	'9'+1
@@ -20277,7 +20318,7 @@ l72be:
 ;
 ; Process error if entry C
 ;
-l72c8:
+ErrCY:
 	ex	(sp),hl
 	inc	hl		; Fix caller's address
 	ex	(sp),hl
@@ -20292,7 +20333,7 @@ l72ce::	;;**
 ;
 ; Process error if entry Z
 ;
-l72d4:
+ErrZ:
 	ex	(sp),hl
 	inc	hl		; Fix caller's address
 	ex	(sp),hl
@@ -20301,7 +20342,7 @@ l72d4:
 ;
 ; Process error if entry NZ
 ;
-l72da:
+ErrNZ:
 	ex	(sp),hl
 	inc	hl		; Fix caller's address
 	ex	(sp),hl
@@ -20316,7 +20357,7 @@ l72de:
 ;
 ; Process error
 ;
-l72e1:
+ERROR:
 	pop	hl		; Get pointer
 	ld	a,(hl)		; Fetch error number
 l72e3:
@@ -20329,7 +20370,7 @@ l72e3:
 	ld	de,l79d7	; Get start of source line
 	sbc	hl,de
 	ld	de,(l7bed)
-	ld	a,(l790e)	; Test memory read
+	ld	a,(IncFlg)	; Test memory read
 	or	a
 	jr	nz,l7308	; Nope
 	ld	de,(l4544)	; Get start of text
@@ -20339,12 +20380,12 @@ l7308:
 	add	hl,de
 	ld	(l790c),hl	; Save current editor address
 l730c:
-	ld	a,(l7900)	; Get compile flag
+	ld	a,(CmpTyp)	; Get compile flag
 	dec	a		; Test compiling to file
 	jr	nz,l731a	; Nope
-	ld	de,l7933
+	ld	de,FFCB
 	ld	c,_close
-	call	l7265		; Close file
+	call	_BDOS		; Close file
 l731a:
 	ld	sp,(l7b71)	; Get back stack
 	ret			; Exit compiler
@@ -21095,26 +21136,26 @@ l78fa:
 ;
 ; Dynamic data area starts - shared by editor and compiler most
 ;
-l7900:
+CmpTyp:
 	db	1ah		; Compile flag:
 				; 0: Compile to memory
 				; 1: Compile to .COM/.CHN file
 				; 2: Searching
 l7901:
 	db	'd'		; Error code
-l7902:
+CodePC:
 	db	'SE'		; Code pointer
 l7904:
 	db	'EK'		; Code start address
 l7906:
 	db	'EO'		; Code end address
-l7908:
+DataBeg:
 	db	'L',0ceh	; Start of data
 l790a:
 	db	0dah,'d'	; End of code address
 l790c:
 	db	'FI'		; Current editor address
-l790e:
+IncFlg:
 	db	'L'		; Memory read flag (0 is read)
 l790f:
 	db	'ESIZ',0c5h,0fah,'dFILEPO',0d3h,0f2h
@@ -21122,7 +21163,7 @@ l790f:
 ;
 ; FCB of source file
 ;
-l7933:
+FFCB:
 	db	14h
 	db	'eMAXAVAI'
 	db	0cch
@@ -21132,18 +21173,18 @@ l7933:
 ;
 ; DISK BUFFER
 ;
-l7957:
+TmpBuff:
 	db	'ZEO',0c6h,9dh,'eBDOS'
 	db	'H',0cch,'SeBDO',0d3h,'TeBIOSH'
 	db	0cch,1eh,'eBIO',0d3h,1fh,'e'
 	db	0,'ME',0cdh,0,0,0
 l7980::	;;**
 
-l79d7	equ	l7957+RecLng	; Start of source line
+l79d7	equ	TmpBuff+RecLng	; Start of source line
 l7a57	equ	l79d7+RecLng
 l7ad7	equ	l7a57+RecLng	; Top of used memory on start
-l7b57	equ	l7ad7+RecLng
-l7b58	equ	l7b57+1		; Value of symbol
+Envir1	equ	l7ad7+RecLng
+l7b58	equ	Envir1+1		; Value of symbol
 l7b59	equ	l7b58+1
 l7b5a	equ	l7b59+1		; Type table
 l7b5c	equ	l7b5a+2		; Type
@@ -21151,21 +21192,21 @@ l7b5d	equ	l7b5c+1
 l7b5e	equ	l7b5d+1		; Lo set limit
 l7b60	equ	l7b5e+2		; Hi set limit
 l7b62	equ	l7b60+2		; Length of type
-l7b64	equ	l7b62+2
-l7b65	equ	l7b64+1
+Envir2	equ	l7b62+2
+l7b65	equ	Envir2+1
 l7b69	equ	l7b65+4
 l7b6b	equ	l7b69+2
 l7b6d	equ	l7b6b+2		; Last memory address
 l7b6f	equ	l7b6d+2		; TEMP
 l7b71	equ	l7b6f+2		; TEMP
 l7b72	equ	l7b71+1		; EDT: Pointer to delimters
-l7b73	equ	l7b72+1		; Label pointer
-l7b74	equ	l7b73+1		; EDT: Edited line
-l7b75	equ	l7b74+1		; Previous label pointer
-l7b77	equ	l7b75+2		; Top of available memory
+LabPtr	equ	l7b72+1		; Label pointer
+l7b74	equ	LabPtr+1		; EDT: Edited line
+PrevLabPtr	equ	l7b74+1		; Previous label pointer
+l7b77	equ	PrevLabPtr+2		; Top of available memory
 l7b79	equ	l7b77+2
-l7b7b	equ	l7b79+2		; Current label pointer
-l7b7d	equ	l7b7b+2
+CurLab	equ	l7b79+2		; Current label pointer
+l7b7d	equ	CurLab+2
 l7b7f	equ	l7b7d+2
 l7b81	equ	l7b7f+2
 l7b83	equ	l7b81+2
@@ -21205,8 +21246,8 @@ l7bb0	equ	l7bab+5		; Length of overlay
 l7bb2	equ	l7bb0+2		; OVERLAY file name
 l7bbd	equ	l7bb2+11
 l7bbe	equ	l7bbd+1
-l7bc0	equ	l7bbe+2
-l7bc1	equ	l7bc0+1
+FirstVAR	equ	l7bbe+2
+l7bc1	equ	FirstVAR+1
 l7bc2	equ	l7bc1+1
 l7bc4	equ	l7bc2+2
 l7bc6	equ	l7bc4+2
@@ -21215,18 +21256,18 @@ l7bc8	equ	l7bc7+1
 l7bc9	equ	l7bc8+1
 l7bca	equ	l7bc9+1
 l7bcc	equ	l7bca+2
-l7bd5	equ	l7bcc+9
-l7bd7	equ	l7bd5+2		; Source pointer
+Env_PC	equ	l7bcc+9
+l7bd7	equ	Env_PC+2		; Source pointer
 l7bd9	equ	l7bd7+2		; Dtto.
-l7bdb	equ	l7bd9+2		; File access
-l7bdc	equ	l7bdb+1		; Record pointer
-l7bdd	equ	l7bdc+1		; Record base
-l7bdf	equ	l7bdd+2
-l7be1	equ	l7bdf+2		; Top of .COM file
-l7be3	equ	l7be1+2		; Back fix level
-l7be4	equ	l7be3+1		; Saved top of .COM file
-l7be6	equ	l7be4+2
-l7be8	equ	l7be6+2
+RRN_stat 	equ	l7bd9+2		; File access
+RecPtr	equ	RRN_stat +1		; Record pointer
+RRN_off	equ	RecPtr+1		; Record base
+MemsTop	equ	RRN_off+2
+COMsTop	equ	MemsTop+2		; Top of .COM file
+BackLevel	equ	COMsTop+2		; Back fix level
+l7be4	equ	BackLevel+1		; Saved top of .COM file
+INCsTop	equ	l7be4+2
+l7be8	equ	INCsTop+2
 l7be9	equ	l7be8+1
 l7beb	equ	l7be9+2
 l7bed	equ	l7beb+2
