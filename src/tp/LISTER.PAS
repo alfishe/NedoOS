@@ -80,13 +80,14 @@ Var
   begin
     If ParamCount = 0 then
     begin
-      Write('Enter filename: ');
-      readln(MainFileName);
+      {Write('Enter filename: ');
+      readln(MainFileName);}
     end
     else
     begin
       MainFileName := ParamStr(1);
     end;
+    MainFileName := 'lister.pas';
     If Not Open(MainFile,MainFileName) Then
     begin
       Writeln('ERROR -- File not found:  ',MainFileName);

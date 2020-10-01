@@ -4875,8 +4875,10 @@ l144e:
 	push	bc
 	call	BDOS		; Now open or make file
 	pop	bc
-	inc	a		; Test success
-	ret	nz		; Yeap
+	;inc	a		; Test success
+	;ret	nz		; Yeap
+         or a
+         ret z
 	ld	a,b
 	ld	(l00d0),a	; Set error if not
 	ret
@@ -5104,7 +5106,7 @@ l156b:
 	or	a		; Test error
 	jp	nz,l15ed	; Force EOF if so
 	ld	a,(hl)
-	bit	wr.bit,a	; Test preread
+	bit	wr.bit,a	; Test preread char
 	jp	nz,l15e9	; Fetch if so
 	and	FIBtype		; Test device
 	jr	nz,l15ab	; Yeap, standard I/O
@@ -5113,11 +5115,11 @@ l156b:
 	ld	a,(hl)
 	or	a		; Test filled
 	jp	p,l1597		; Not yet
-	 ;push	hl
-         ;ex de,hl
-	 ;ld	c,_setdma
-	 ;call	l19ba		; set DTA
-	 ;pop	hl        
+	 push	hl
+         ex de,hl
+	 ld	c,_setdma
+	 call	l19ba		; set DTA
+	 pop	hl        
 	ld	c,_rdseq
 	push	hl
 	call	l19ba		; Read sector
@@ -5172,7 +5174,7 @@ l1597:
 l15ab:
 	dec	a		; Test CON:
 	jr	nz,l15c9
-	ld	hl,(l00d4)	; Get current ppinter
+	ld	hl,(l00d4)	; Get current pointer
 	ld	de,(l00d6)	; Get top pointer
 	or	a
 	sbc	hl,de		; Test more in buffer
@@ -5672,7 +5674,7 @@ l17e1:
 ;
 ; Function EOF(device):boolean
 ;
-l17e6::
+l17e6: ;???
 	ld	de,eof
 l17e9:
 	ld	(l00e2),hl	; Set device
@@ -6532,7 +6534,7 @@ l1beb:
 	ldir			; move to standard FCB
 	ld	de,l005c
 	ld	c,_open
-	call	BDOS		; Open file
+	call	BDOS		; Open file ;WHERE IS CLOSE???
 	inc	a
 	jr	z,l1be4		; File not found
 	ld	hl,l1c33	; Point to loader
@@ -7887,6 +7889,10 @@ l2518:
 	ld	(hl),cr		; Close last line
 	inc	hl
 	ld	(l4546),hl	; Set end of text
+         push hl
+	 ld c,_close
+	 call BDOS_with_FCB1 ;WHY DOESN'T HELP???
+         pop hl
 	ret
 ;
 ; Load a file
@@ -7895,7 +7901,8 @@ l2518:
 ;	Reg HL holds start address
 ; EXIT	Reg HL holds end address
 ;
-l253b:
+
+l253b: ;once
 	push	hl
 	push	bc
 	push	de
@@ -7934,7 +7941,6 @@ l257c:
 	 ld	de,l7957
 	 ld	c,_setdma
 	 call	l7265		; Set disk buffer
-         ;??? а как же de=fcb?
 	ld	c,_rdseq
 	call	BDOS_with_FCB1		; Read record from file
 	pop	hl
@@ -8666,7 +8672,7 @@ l2ab5:
 	call	l26dc		; Clear FCB
 	push	de
 	ld	c,_open
-	call	l7265		; Open file
+	call	l7265		; Open file ;WHERE IS CLOSE???
 	pop	hl
 	inc	a		; Test file here
 	jp	z,l2104		; Nope, init session
@@ -10280,7 +10286,7 @@ l3509:
 	ret	z
 	call	l2d2a		; Prepare .PAS file
 	ld	c,_open
-	call	BDOS_with_FCB1		; Open file
+	call	BDOS_with_FCB1		; Open file ;WHERE IS CLOSE???
 	inc	a		; Test file already exist
 	jr	z,l3551		; Nope
 	call	l3e07
@@ -10326,7 +10332,7 @@ l3573:
 	ret	z
 	call	l2d2a		; Prepare .PAS file
 	ld	c,_open
-	call	BDOS_with_FCB1		; Open file
+	call	BDOS_with_FCB1		; Open file ;WHERE IS CLOSE???
 	inc	a		; Test success
 	jr	nz,l35a8	; Yeap
 	call	l3e0d		; Set cursor
@@ -15878,15 +15884,15 @@ l59e9:
 	ld	d,(hl)
 	ex	de,hl
 	jp	l6b86		; Set CALL <...>
-l59fa:
+l59fa: ;reset procedures
 	dw	l1811		; Record file
 	dw	l13ff		; Text file
 	dw	l1a70		; Untyped file
-l5a00:
+l5a00: ;rewrite procedures
 	dw	l1810
 	dw	l13fe
 	dw	l1a6f
-l5a06:
+l5a06: ;close procedures
 	dw	l187a
 	dw	l1469
 	dw	l1ab0
@@ -15929,12 +15935,12 @@ l5a33:
 	call	l5aca
 	jr	l5ab4
 l5a41:
-	call	l5a17
+	call	l5a17 ;get type???
 	jr	c,l5a63
 	jr	nz,l5a5b
-	cp	5
+	cp	5 ;_RecF???
 	jp	z,l5bd8
-	cp	6
+	cp	6 ;_TxtF???
 	call	l72da
 	db	_NoUntypeFile
 	ld	hl,l14a9
@@ -17915,12 +17921,15 @@ l6608:
 	call	l6f6e		; Verify )
 	pop	af
 	ret
-l6615:
-	ld	c,c
-	ld	a,(de)
-	and	17h
-	ld	c,c
-	ld	a,(de)
+l6615: ;eof procedures
+	dw	l1a49		; Record file
+	dw	l17e6		; Text file
+	dw	l1a49		; Untyped file 
+	;ld	c,c
+	;ld	a,(de)
+	;and	17h
+	;ld	c,c
+	;ld	a,(de)
 ;
 ;
 ;
@@ -19863,7 +19872,7 @@ l709b:
 	call	l7124		; Get character from file
 	ld	a,(ix+0)
 	jr	l709b
-l70a7:
+l70a7: ;include???
 	ld	a,(l790e)	; Get memory read flag
 	or	a
 	call	l72da		; Should be memory read
@@ -19876,7 +19885,7 @@ l70a7:
 	ld	de,l005c
 	push	de
 	ld	c,_open
-	call	l7265		; Open file
+	call	l7265		; Open file ;WHERE IS CLOSE???
 	pop	hl
 	inc	a
 	call	l72d4
