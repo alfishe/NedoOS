@@ -5170,10 +5170,10 @@ l1597:
 	inc	hl
 	inc	hl
 	dec	(hl)		; Fix pointer if eof found
-       push hl
-        ld c,_close
-        call BDOS_with_FCB1
-       pop hl
+       ;push hl
+       ; ld c,_close
+       ; call BDOS_with_FCB1 ;á íâ¨¬ ¢¨á­¥â lister ¢ ª®­æ¥!!!
+       ;pop hl
 	jr	l15e0
 l15ab:
 	dec	a		; Test CON:
@@ -5724,7 +5724,7 @@ l1811:
 	ld	a,(l00d0)	; Test error
 	or	a
 	ret	nz		; End if so
-	call	l1430		; Set up FIB
+	call	l1430		; Set up FIB ;opens/creates file!!!
 	ld	a,(l00d0)	; Test error
 	or	a
 	ret	nz		; End if so
@@ -5936,12 +5936,13 @@ l1935:
 	call	l19ba		; Read record
 	pop	de
 	pop	bc
+        ;jr nz,$
 	jr	nz,l1991	; Error return
 	ld	hl,(l00e2)	; Get back FIB
 l1943:
 	ld	a,(l00e9)	; Get mode
-	;bit	Rec.Wr.bit,a	; Test write allowed
-	;jr	z,l194c		; Nope ;TODO why fail???
+	bit	Rec.Wr.bit,a	; Test write allowed
+	jr	z,l194c		; Nope
 	set	wr.bit,(hl)	; Set bit
 l194c:
 	inc	hl
@@ -6325,7 +6326,7 @@ l1aed:
 	ld	a,_rndwr	; Set function
 	jr	l1af3
 ;
-; Rad block from untyped file
+; Read block from untyped file
 ; Procedure BLOCKREAD(file,buffer,count,result)
 ; ENTRY	Reg HL points to result
 ;	On stack FIB, buffer and number of records
@@ -8447,7 +8448,7 @@ l28cd:
 	call	l2d9f		; Force compile
 l28d0:
 	call	l01e1		; Give new line
-	call	l454a		; Compile
+	call	COMPILE		; Compile             ;must close output file!!!
 	ld	a,(l7901)	; Get error code
 	cp	_ABORT		; Test abort
 	jr	nz,l28fa	; Nope
@@ -10361,6 +10362,8 @@ l35a8:
 	ld	hl,(l448c)
 	scf
 	call	l3f18
+	 ld	c,_close
+	 call	BDOS_with_FCB1
 	pop	de
 	ld	hl,l35dd	; Set return address
 	push	hl
@@ -12757,7 +12760,7 @@ l4548:
 ; %%% COMPILER ENTRY %%%
 ; %%%%%%%%%%%%%%%%%%%%%%
 ;
-l454a:
+COMPILE:
 	ld	(l7b71),sp	; Save stack
 	ld	hl,(l4546)	; Get end of text
 	inc	hl
@@ -12819,6 +12822,9 @@ l454a:
 	jr	nz,l45e2	; Nope
 	call	FixBack		; Fix back level
 	call	writerecord_TmpBuff		; Write record
+	 ld c,_close
+	 ld de,FFCB
+	 call _BDOS		; must close output file!!!
 l45e2:
 	ld	(l7906),iy	; Save new top of code
 	xor	a
@@ -19213,6 +19219,7 @@ l6d09:
 	pop	bc
 	ld	de,FFCB
 	call	_BDOS		; Read or write record
+      ret ;ŠŽ‘’›‹œ!!!
 	or	a
 	ret	z
 	;dec	a
@@ -19221,6 +19228,7 @@ l6d09:
 	;ret	z
          cp 128 ;fail
          ret nz ;not fail
+         ;jr $ ;hangs here trying to read 48th record!!!
 	call	ERROR
 	db	_DskFull
 ;
@@ -21163,7 +21171,7 @@ l790f:
 ;
 ; FCB of source file
 ;
-FFCB:
+FFCB: ;36 bytes???
 	db	14h
 	db	'eMAXAVAI'
 	db	0cch

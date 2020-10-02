@@ -53,7 +53,7 @@ begin
     Assign(MCFile,FileName);
     Rewrite(MCFile);
     for I:='A' to FXmax do
-    begin
+    begin {WriteLn('I=',I);}
       for J:=1 to FYmax do
       write(MCfile,Screen[I,J]);
     end;

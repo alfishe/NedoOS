@@ -1511,6 +1511,7 @@ BDOS_rndrd
         call BDOS_setdepage
 ;DE = Pointer to opened FCB
         call BDOS_rndrdwrseek
+         call BDOS_setdepage
         jr BDOS_fread_gofatfs
 
 ;TODO TR-DOS???
@@ -1519,6 +1520,7 @@ BDOS_rndwr
         call BDOS_setdepage
 ;DE = Pointer to opened FCB
         call BDOS_rndrdwrseek
+         call BDOS_setdepage
         jr BDOS_fwrite_gofatfs
 
 BDOS_fread

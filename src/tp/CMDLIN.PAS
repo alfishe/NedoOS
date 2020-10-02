@@ -20,14 +20,16 @@ program CommandLine;
 
 var
   i : integer;
-  F: Text;
+  a : integer;
+  F: file of integer{Text};
 
 begin
   for i := 1 to ParamCount do
     writeln(ParamSTR(i));
   assign(F,'pastest.dat');
   Rewrite(F);
-  write(F,'asd');
+  a := 5;
+  write(F,a);
   Close(F);
 end.
 
