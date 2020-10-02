@@ -23,7 +23,7 @@ pokecurtime_curtrack_c
         call tracktime_totrackpartindex
 poketrackpartindex_c
 ;hl=index
-;lx=part
+;ly=part
 ;a=track
 ;c=data
         ex de,hl
@@ -39,7 +39,7 @@ peekcurtime_tracka
         call tracktime_totrackpartindex
 peektrackpartindex
 ;hl=index
-;lx=part
+;ly=part
 ;a=track
         ex de,hl
         call getroot ;out: hl=root
@@ -48,12 +48,12 @@ peektrackpartindex
         ret
 
 getroot
-;lx=part
+;ly=part
 ;a=track
         add a,0x40
         ld h,a ;номер трека
         ;ld l,0*4
-        ld a,lx ;part
+        ld a,ly ;part
         add a,a
         add a,a
         ld l,a
@@ -61,13 +61,12 @@ getroot
         ret
 
 getendaddr
-;lx=part
+;ly=part
 ;a=track
         call getroot ;out: hl=root
         ld de,0xffff
-        call findleft ;out: de=nonempty index (or 0), a=data
+        jp findleft ;out: de=nonempty index (or 0), a=data
 ;de=addr ;последний байт трека
-        ret
 
 tracktime_totrackpartindex
 ;a=track
@@ -87,7 +86,7 @@ tracktime_totrackpartindex
         push hl
         ex de,hl
         xor a ;TODO номер канала ордера
-        ld lx,0 ;у ордера всегда берём дефолтную часть (part=0), т.к. ордер не подчиняется ордерам
+        ld ly,0 ;у ордера всегда берём дефолтную часть (part=0), т.к. ордер не подчиняется ордерам
         call getroot
         call findleft ;out: de=nonempty index (or 0), a=data (1..62 or 0)
         pop hl ;time
@@ -96,10 +95,10 @@ tracktime_totrackpartindex
          pop de
         ;pop af
 tracktime_toindexpart_noorder
-        ld lx,a
+        ld ly,a
         pop af
 ;hl=index
-;lx=part
+;ly=part
 ;a=track
         ret
 

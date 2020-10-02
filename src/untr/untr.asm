@@ -120,84 +120,9 @@ refrq2
 ;for example: 0=bass/pad, 2=tone, 5=drum
         ld ix,emptychn
         ;ld (ix+chn.keepme_in),5
-        ld de,smp_pause
-        ld (ix+chn.smp_in),e
-        ld (ix+chn.smp_in+1),d
-        ld (ix+chn.channel_in),0
-        ;call initchnnote_pause ;делает nogliss
-       if 1==0
-        ld ix,Adrum
-        ;ld (ix+chn.keepme_in),5
-        ;ld de,smp_snare
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
         ;ld (ix+chn.channel_in),0
-        call initchnnote_pause
-        ld ix,Bdrum
-        ;ld (ix+chn.keepme_in),5
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
-        ;ld (ix+chn.channel_in),1
-        call initchnnote_pause
-        ld ix,Cdrum
-        ;ld (ix+chn.keepme_in),5
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
-        ;ld (ix+chn.channel_in),2
-        call initchnnote_pause
-        ld ix,Atone
-        ;ld (ix+chn.keepme_in),2
-        ;ld de,smp_tone
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
-        ;ld (ix+chn.channel_in),0
-        call initchnnote_pause
-        ld ix,Btone
-        ;ld (ix+chn.keepme_in),2
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
-        ;ld (ix+chn.channel_in),1
-        call initchnnote_pause
-        ld ix,Ctone
-        ;ld (ix+chn.keepme_in),2
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
-        ;ld (ix+chn.channel_in),2
-        call initchnnote_pause
-        ld ix,Apad
-        ;ld (ix+chn.keepme_in),0
-        ;ld (ix+chn.smp_in),smp_maj&0xff
-        ;ld (ix+chn.smp_in+1),smp_maj/256
-        ;ld (ix+chn.channel_in),0
-        call initchnnote_pause
-        ld ix,Bbass
-        ;ld (ix+chn.keepme_in),0
-        ;ld (ix+chn.smp_in),smp_bass&0xff
-        ;ld (ix+chn.smp_in+1),smp_bass/256
-        ;ld (ix+chn.channel_in),1
-        call initchnnote_pause
-        ld ix,Cpad
-        ;ld (ix+chn.keepme_in),0
-        ;ld (ix+chn.smp_in),e
-        ;ld (ix+chn.smp_in+1),d
-        ;ld (ix+chn.channel_in),2
-        call initchnnote_pause
-
-        ;ld ix,Filter_Avib
-        ;ld (ix+filter.handler),filterhandler_vib&0xff
-        ;ld (ix+filter.handler+1),filterhandler_vib/256
-        ;ld (ix+filter.par1),50
-        ;ld (ix+filter.par2),5
-        ;ld ix,Filter_Avol
-        ;ld (ix+filter.handler),filterhandler_vol&0xff
-        ;ld (ix+filter.handler+1),filterhandler_vol/256
-        ;ld ix,Filter_Bvol
-        ;ld (ix+filter.handler),filterhandler_vol&0xff
-        ;ld (ix+filter.handler+1),filterhandler_vol/256
-        ;ld ix,Filter_Cvol
-        ;ld (ix+filter.handler),filterhandler_vol&0xff
-        ;ld (ix+filter.handler+1),filterhandler_vol/256
-       endif
+        call initchnnote_pause ;делает smpcuraddr=smp_pause и nogliss
+        call playsample ;после этого канал можно микшировать
 
 ;;;;;;;;;;;;;;;;;;;;;
         ;call setneedredraw
@@ -378,22 +303,30 @@ tracks_ins
         ret z
         inc (hl)
 ;вставить трек в tracks
-        ld hl,tracks_end-1-4
-        ld de,tracks_end-1
 ;если мы на треке a=MAXNTRACKS-2, то надо сдвинуть 4 байта (1 строчку)
 ;если мы на треке a=MAXNTRACKS-3, то надо сдвинуть 4*2 байта (2 строчки)
 ;значит, надо сдвинуть MAXNTRACKS-a-1 строчек
         ld a,(curtrack)
         cpl
         add a,MAXNTRACKS
-        add a,a
-        add a,a
-        ld c,a
-        ld b,0
+        call amulchnsstep_tohl
+        ld b,h
+        ld c,l
+        ;add a,a
+        ;add a,a
+        ;ld c,a
+        ;ld b,0
+        ld hl,tracks_end-1-chnsstep;4
+        ld de,tracks_end-1
         lddr
 ;вставить трек в ttypes
         ld hl,ttypes_end-1-8
         ld de,ttypes_end-1
+        ld a,(curtrack)
+        cpl
+        add a,MAXNTRACKS
+        add a,a
+        add a,a
         add a,a
         ld c,a
         ;ld b,0
@@ -426,10 +359,10 @@ tracks_del
         dec (hl)
 ;очистить трек
         ld hl,0
-        ld lx,0 ;part=0..63
+        ld ly,0 ;part=0..63
 tracks_del0
         ld a,(curtrack)
-;lx=part
+;ly=part
 ;a=track
         call getendaddr
         ex de,hl
@@ -437,7 +370,7 @@ tracks_del1
         ld a,(curtrack)
         ld c,0 ;c=data
 ;hl=index
-;lx=part
+;ly=part
 ;a=track
 ;c=data
         call poketrackpartindex_c
@@ -445,8 +378,8 @@ tracks_del1
         or l
         dec hl
         jr nz,tracks_del1
-        inc lx
-        ld a,lx
+        inc ly
+        ld a,ly
         cp 64
         jr nz,tracks_del0
         
@@ -454,29 +387,34 @@ tracks_del1
         ld a,(curtrack)
         or a
         ret z ;don't delete order
-        add a,a
-        add a,a
-        ld e,a
-        ld d,0
-        ld hl,tracks
+        ;add a,a
+        ;add a,a
+        ;ld e,a
+        ;ld d,0
+        call amulchnsstep_tohl
+        ld de,tracks
         add hl,de
         ld d,h
         ld e,l
-        inc hl
-        inc hl
-        inc hl
-        inc hl
-;если мы на треке a=MAXNTRACKS-2, то надо сдвинуть 4 байта (1 строчку)
-;если мы на треке a=MAXNTRACKS-3, то надо сдвинуть 4*2 байта (2 строчки)
+        ld bc,chnsstep
+        add hl,bc
+;если мы на треке a=MAXNTRACKS-2, то надо сдвинуть chnsstep байт (1 строчку)
+;если мы на треке a=MAXNTRACKS-3, то надо сдвинуть chnsstep*2 байт (2 строчки)
 ;значит, надо сдвинуть MAXNTRACKS-a-1 строчек
         ld a,(curtrack)
         cpl
         add a,MAXNTRACKS
-        add a,a
-        add a,a
-        push af
-        ld c,a
-        ld b,0
+        ;add a,a
+        ;add a,a
+        ;ld c,a
+        ;ld b,0
+        push de
+        push hl
+        call amulchnsstep_tohl
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
         ldir
 ;удалить трек в ttypes
         ld a,(curtrack)
@@ -491,7 +429,11 @@ tracks_del1
         ld e,l
         ld c,8
         add hl,bc
-        pop af
+        ld a,(curtrack)
+        cpl
+        add a,MAXNTRACKS
+        add a,a
+        add a,a
         add a,a
         ld c,a
         ;ld b,0
@@ -561,15 +503,7 @@ playnote
         call mixchn_all_channela
         ;push ix ;chn для A
 
-        ;ld iy,Atone
-        ;ld ix,Adrum
-        ;call mixchn
-
-;TODO что делать, если нет ни одного трека для какого-то канала?
-;надо как-то использовать chnempty
-        ;ld ix,Adrum
-        ;ld hl,Btone;drum
-        ;ld de,Ctone;drum
+;если нет ни одного трека для какого-то канала, то нам вернули emptychn
         ;pop ix ;chn для A
         pop hl ;chn для B
         pop de ;chn для C
@@ -623,7 +557,7 @@ untr_del
         ld hl,(curtime)
         call tracktime_totrackpartindex
 ;hl=index
-;lx=part
+;ly=part
 ;a=track
         push hl ;hl=curaddr
         call getendaddr ;de=end or 0
@@ -652,7 +586,7 @@ untr_del
         ;ld de,-NTRACKS
         ld c,NOTE_SPACE
 ;hl=index
-;lx=part
+;ly=part
 untr_del0
         push de
         ld a,(curtrack)
@@ -670,7 +604,7 @@ untr_ins
         ld hl,(curtime)
         call tracktime_totrackpartindex
 ;hl=index
-;lx=part
+;ly=part
 ;a=track
         push hl ;hl=curaddr
         push hl ;hl=curaddr
@@ -700,7 +634,7 @@ untr_ins
         ;ld de,NTRACKS
         ld c,NOTE_SPACE
 ;hl=index
-;lx=part
+;ly=part
 untr_ins0
         push de
         ld a,(curtrack)
@@ -736,34 +670,18 @@ untr_home
 ;переход на начало текущей части
         ld a,(curtrack)
         ld hl,(curtime)
-       if 1==1
         push hl
         call tracktime_totrackpartindex ;hl=index
         ex de,hl ;de=index
         pop hl
         or a
         sbc hl,de ;beg=time-index (index=time-beg)
-       else
-;тест поиска непустого на месте или влево
-        call tracktime_totrackpartindex ;hl=index
-        ex de,hl ;de=index
-        ld a,(curtrack)
-        call getroot ;out: hl=root
-;hl=track root (4 bytes: left poi, right poi)
-;de=index
-        call findleft ;out: de=nonempty index (or 0), a=data
-        ex de,hl
-        ld a,h
-        and 7
-        ld h,a
-       endif
         jp untr_pgdown_ok
 
 untr_end
-;переход на конец текущей части в текущем канале
+;переход на конец текущей части в текущем треке
         ld a,(curtrack)
         ld hl,(curtime)
-       if 1==1
         push hl
         call tracktime_totrackpartindex ;hl=index
         ex de,hl ;de=index
@@ -778,19 +696,6 @@ untr_end
         call findleft ;de=end index
         pop hl ;beg
         add hl,de ;time=index+beg (beg=time-index)
-       else
-;тест поиска непустого на месте или вправо
-        call tracktime_totrackpartindex ;hl=index
-        ex de,hl ;de=index
-        call getroot ;out: hl=root
-;hl=track root (4 bytes: left poi, right poi)
-;de=index
-        call findright ;out: de=nonempty index (or 0xffff), a=data
-        ex de,hl
-        ld a,h
-        and 7
-        ld h,a
-       endif
         jp untr_pgdown_ok
 
 untr_up
@@ -819,15 +724,17 @@ setneedredraw_curtrack
         ret
 setneedpralltracks
 ;keep a!
-        ld hl,tracks
+        ld ix,chns;tracks
         ld a,(ntracks)
         ld b,a
+        ld de,chnsstep
 setneedpralltracks0
-        set 7,(hl)
-        inc hl
-        inc hl
-        inc hl
-        inc hl
+        set 7,(ix-2);(hl)
+        add ix,de
+        ;inc hl
+        ;inc hl
+        ;inc hl
+        ;inc hl
         djnz setneedpralltracks0
         ;ld a,55 ;"scf"
         ;ld (needpralltracks),a
@@ -1054,70 +961,85 @@ tsamples
 
 ;смотрим тип текущего канала
 gettracktype
-        add a,a
-        add a,a
-        ld hl,tracks
-        add a,l
-        ld l,a
-        jr nc,$+3
-        inc h
+        push de
+        ;add a,a
+        ;add a,a
+        call amulchnsstep_tohl
+
+        ld de,chns-2;tracks
+        add hl,de
+        ;add a,l
+        ;ld l,a
+        ;jr nc,$+3
+        ;inc h
         ld a,(hl)
+        pop de
+        ret
+
+amulchnsstep_tohl
+_=chnsstep
+        ld e,a
+        ld d,0
+        if _&0x80
+        ;ld h,d
+        ;ld l,e
+__=1
+        else
+        ;ld h,d
+        ;ld l,d
+__=0
+        endif
+_=_*2
+        dup 7
+        if __ != 0
+        add hl,hl
+__=__*2
+        endif
+        if _&0x80
+        if __ != 0
+        add hl,de
+        else
+        ld h,d
+        ld l,e
+        endif
+__=__+1
+        endif
+_=_*2
+        edup
         ret
 
 tracks
-        CHNTYPE 0x80+CHNTYPE_ORDER  ,0,-1
-        CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Adrum
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Atone
-        CHNTYPE 0x80+CHNTYPE_FILTER ,1,Filter_Avib
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Apad
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Avol
-         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Bvol
-        CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Bdrum
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Btone
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Bvol
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Bbass
-        CHNTYPE 0x80+CHNTYPE_SAMPLES,1,Cdrum
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Ctone
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1,Cpad
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Cvol
-         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,Filter_Cvol
-        ds tracks+(4*MAXNTRACKS)-$,-1
-tracks_end
+chns=tracks+2
+        CHNTYPE 0x80+CHNTYPE_ORDER  ,0;,0;-1
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Adrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Atone
+        CHNTYPE 0x80+CHNTYPE_FILTER ,1;,0;Filter_Avib
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Apad
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Avol
+         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,0;Filter_Bvol
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Bdrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Btone
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Bvol
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Bbass
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Cdrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Ctone
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Cpad
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
+         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
+        ds tracks+(chnsstep*MAXNTRACKS)-$,-1
+tracks_end ;TODO kill
         db -1
 
 emptychn
         chn
-Adrum
-        chn
-Atone
-        chn
-Apad
-        chn
-Bdrum
-        chn
-Btone
-        chn
-Bbass
-        chn
-Cdrum
-        chn
-Ctone
-        chn
-Cpad
-        chn
+;chns
+;        ds 64*chn
+
 chip0
         chip
 chip1
         chip
 
-Filter_Avib
-        filter
-Filter_Avol
-        filter
-Filter_Bvol
-        filter
-Filter_Cvol
-        filter
 
 ntracks
         db 14

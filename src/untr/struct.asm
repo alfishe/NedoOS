@@ -43,24 +43,17 @@ envfrq  WORD
 envtype BYTE ;+retrigenvbit
         ENDS
 
-        STRUCT filter
-handler WORD
-par1    BYTE
-par2    BYTE
-par3    BYTE
-curvalue BYTE ;рассчитано интерполяцией
-        ENDS
-
 CHNTYPEMASK=0x7f
 CHNTYPE_ORDER=0 ;цифры, которые означают начало i-го фрагмента (для привязанных к ордеру каналов)
 CHNTYPE_FILTER=1 ;цифры, между которыми эффект плавно изменяется. эффект влияет на предыдущий канал
 CHNTYPE_NOTES=2 ;буквы нот (3 октавы)
 CHNTYPE_SAMPLES=3 ;буквы сэмплов
 
-        macro CHNTYPE chntype,usedorder,addr
+        macro CHNTYPE chntype,usedorder;,addr
         db chntype ;+0x80=надо перерисовать
         db usedorder ;0=не привязан к ордеру
-        dw addr ;описатель канала
+        ;dw addr ;описатель канала
+        chn
         endm
 
 ;masks (T,N,E,hole,outerenv,retrigtone)
@@ -92,6 +85,8 @@ smp_in  WORD
 smpcuraddr  WORD
 curgliss WORD
 glissspeed_in WORD
+handler WORD ;для фильтра
+curvalue BYTE ;для фильтра. рассчитано интерполяцией
         ENDS
 
 MASKBIT_T=0
@@ -102,3 +97,5 @@ MASKBIT_OUTERENV=4
 MASKBIT_RETRIGTONE=5
 
 retrigenvbit=7
+
+chnsstep=2+chn

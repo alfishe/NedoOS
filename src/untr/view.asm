@@ -810,7 +810,7 @@ prtrack0
         push hl
         push de
         ld a,hx ;track
-        call tracktime_totrackpartindex ;out: a=track, hl=index, lx=part
+        call tracktime_totrackpartindex ;out: a=track, hl=index, ly=part
         call peektrackpartindex
         pop de
 prtrack_prproc=$+1

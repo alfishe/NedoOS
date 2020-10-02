@@ -31,6 +31,10 @@ filternoiseq
         ld (ix+chn.noisefrq),a
         ret
 
+filterhandler_echo
+;TODO
+        ret
+
 filterhandler_vib
 ;TODO
         ret
@@ -67,78 +71,78 @@ filterenv
         ret
 
 mixchn
-;ix=from1=to
-;iy=from2
+;iy=from1=to
+;ix=from2
 ;в release должен быть понижен приоритет канала
 ;если в from1 есть огибающая, то игнорируем from1, если его KEEPME <= чем у from2
 ;т.к. огибающую должен перекрывать тональник!!!
-        ;bit MASKBIT_E,(ix+chn.masks)
+        ;bit MASKBIT_E,(iy+chn.masks)
         ;jr nz,mixchn_keep2
 ;если в from1 есть шум, то игнорируем from2, если его KEEPME <= чем у from1
-        ;bit MASKBIT_N,(ix+chn.masks)
+        ;bit MASKBIT_N,(iy+chn.masks)
         ;jr nz,mixchn_keep1
 ;если в from2 дырка, то берём from1
-        bit MASKBIT_HOLE,(iy+chn.masks)
+        bit MASKBIT_HOLE,(ix+chn.masks)
         ret nz;jr nz,mixchn_keep1_ok
 ;если в from1 дырка, то берём from2
-        bit MASKBIT_HOLE,(ix+chn.masks)
+        bit MASKBIT_HOLE,(iy+chn.masks)
         jr nz,mixchn_keep2_ok
 ;берём самый громкий по тональнику
 ;TODO низкие ноты не считать громкими
-        ld a,(iy+chn.volume)
-         bit MASKBIT_E,(iy+chn.masks)
-         jr z,$+4
-         ld a,12 ;E играет на уровне 11, C на уровне 13, T-E играет громко!!! TODO
-        add a,(iy+chn.keepme)
-        add a,0x80
-        ld e,a
         ld a,(ix+chn.volume)
          bit MASKBIT_E,(ix+chn.masks)
          jr z,$+4
          ld a,12 ;E играет на уровне 11, C на уровне 13, T-E играет громко!!! TODO
         add a,(ix+chn.keepme)
         add a,0x80
+        ld e,a
+        ld a,(iy+chn.volume)
+         bit MASKBIT_E,(iy+chn.masks)
+         jr z,$+4
+         ld a,12 ;E играет на уровне 11, C на уровне 13, T-E играет громко!!! TODO
+        add a,(iy+chn.keepme)
+        add a,0x80
         cp e
         jr c,mixchn_keep2_ok
 mixchn_keep1
-        ;ld a,(ix+chn.keepme)
-        ;cp (iy+chn.keepme)
+        ;ld a,(iy+chn.keepme)
+        ;cp (ix+chn.keepme)
         ;ret nc ;при равенстве keepme оставляем from1
         ;jr c,mixchn_keep2_ok
-        bit MASKBIT_OUTERENV,(iy+chn.masks)
+        bit MASKBIT_OUTERENV,(ix+chn.masks)
         jr nz,mixchn_keep2outerenv
         ret
 mixchn_keep2
-        ;ld a,(iy+chn.keepme)
-        ;cp (ix+chn.keepme)
+        ;ld a,(ix+chn.keepme)
+        ;cp (iy+chn.keepme)
         ;jr c,mixchn_keep1 ;при равенстве keepme оставляем from2
-        bit MASKBIT_OUTERENV,(iy+chn.masks)
+        bit MASKBIT_OUTERENV,(ix+chn.masks)
         jr nz,mixchn_keep1outerenv
 mixchn_keep2_ok
-        push iy
-        pop hl
         push ix
+        pop hl
+        push iy
         pop de
         ld bc,chn.note_in;chn
         ldir
         ret
 mixchn_keep1outerenv
-        ld a,(iy+chn.envfrq)
-        ld (ix+chn.envfrq),a
-        ld a,(iy+chn.envfrq+1)
-        ld (ix+chn.envfrq+1),a
-        ret
-mixchn_keep2outerenv
-        push iy
-        pop hl
-        push ix
-        pop de
-        ld bc,chn.note_in;chn
-        ldir
         ld a,(ix+chn.envfrq)
         ld (iy+chn.envfrq),a
         ld a,(ix+chn.envfrq+1)
         ld (iy+chn.envfrq+1),a
+        ret
+mixchn_keep2outerenv
+        push ix
+        pop hl
+        push iy
+        pop de
+        ld bc,chn.note_in;chn
+        ldir
+        ld a,(iy+chn.envfrq)
+        ld (ix+chn.envfrq),a
+        ld a,(iy+chn.envfrq+1)
+        ld (ix+chn.envfrq+1),a
         ret
 
 ;надо в дырке такое поведение:
