@@ -16,6 +16,7 @@ SCRTRACKWID=64-TRACKX
 NOTE_SPACE=0 ;надо удобно на уровне mem! на уровне mem упаковывать
 NOTE_GLISS=0xfe
 NOTE_PAUSE=0xff
+NOTE_RLE=0xe0
 NOTE_LOWEST=1;0
 
 COLOR=7
@@ -140,6 +141,8 @@ mainloop_nokey
          jp z,tracksloop
         ld hl,mainloop
         push hl
+        cp key_F2
+        jp z,untr_save
         cp key_left
         jp z,untr_left
         cp key_right
@@ -905,7 +908,7 @@ ttypes_end
 tsamples
 ;0
         dw smp_pause
-;1 '0'
+;1 '0' - the first sample to save
         dw smp_pause
         dw smp_pause
         dw smp_pause
@@ -970,6 +973,8 @@ tsamples
         dw smp_pause ;X
         dw smp_pause ;Y
         dw smp_pause ;62 'Z'
+        dw smp_pause ;63
+        dw smp_pause ;64
 
 ;смотрим тип текущего канала
 gettracktype
@@ -1051,8 +1056,6 @@ chip1
         chip
 
 
-ntracks
-        db 14
 lefttime
         dw 0
 curtime
@@ -1097,10 +1100,38 @@ prtrackscur
         ld b,a
         jp prcur
 
+findsamplelengthandloop
+;find sample length and loop line
+;hl=sample
+;out: e=length, d=loopsize
+        ld de,0 ;e=length, d=loopsize
+        ld bc,7
+findsamplelength0
+        inc e ;length = 1..
+        add hl,bc
+        ld a,(hl)
+        inc a
+        jr nz,findsamplelength0
+        inc hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        add hl,bc
+;hl=sampleloop
+        ld bc,7
+findsampleloop0
+        inc d ;loopsize = 1..
+        add hl,bc
+        ld a,(hl)
+        inc a
+        jr nz,findsampleloop0
+        ret
+
         include "mix.asm"
         include "view.asm"
         include "mem.asm"
         include "play.asm"
+        include "save.asm"
 
         macro tn msk,semi,vol,frq,noi
         db msk,semi,0,vol
