@@ -1,12 +1,9 @@
-
-
 ;TODO микшировать трек в фильтр
 
 inittracks
 ;настраивает треки по заданным параметрам
 ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
         ld iy,ttypes
-        ;ld hl,tracks
         ld ix,chns
 inittrackspars0
         ld a,(ix-2);(hl) ;chntype
@@ -29,17 +26,8 @@ inittrackspars_typeok
         and 0x80
         xor c
         ld (ix-2),a;(hl),a        
-        ;inc hl
          ld c,(iy+3) ;order (_O/0)
          ld (ix-1),c;(hl),c
-        ;ld a,(hl) ;order
-        ;inc hl
-        ;ld c,(hl)
-        ;inc hl
-        ;ld b,(hl)
-        ;inc hl
-        ;ld hx,b
-        ;ld lx,c
          and CHNTYPEMASK
          cp CHNTYPE_ORDER
          jr z,inittrackspars0ok
@@ -52,7 +40,6 @@ inittrackspars_typeok
         ld a,(iy+1) ;priority
         sub _0
         ld (ix+chn.keepme_in),a
-        ;push hl
         ld a,(iy+4) ;sample
         add a,a
         ld l,a
@@ -70,7 +57,6 @@ inittrackspars_typeok
         ;ld (ix+chn.par3_in),a
          sub 1+15
         ld (ix+chn.volume_in),a
-        ;pop hl
 inittrackspars0ok
         ld bc,8
         add iy,bc
@@ -78,7 +64,6 @@ inittrackspars0ok
         add ix,bc
         jr inittrackspars0
 inittrackspars0filter
-        ;push hl
         ld a,(iy+2) ;track type (filter type)
         ld bc,filterhandler_vol
         cp _g
@@ -106,7 +91,6 @@ inittrackspars_filtertypeok
         ld (ix+chn.par2_in),a
         ld a,(iy+6) ;par3
         ld (ix+chn.par3_in),a
-        ;pop hl
         jr inittrackspars0ok
 inittrackspars0q
 
@@ -114,22 +98,11 @@ inittrackspars0q
         ld (chip0+chip.envtype),a
         ld (chip1+chip.envtype),a
 
-        ;ld hl,tracks
         ld ix,chns
-        ;ld hy,0 ;track
 inittracks0
         ld a,(ix-2);(hl) ;chntype
         inc a
         ret z
-        ;inc hl
-        ;ld a,(hl) ;order
-        ;inc hl
-        ;ld c,(hl)
-        ;inc hl
-        ;ld b,(hl)
-        ;inc hl
-        ;ld hx,b
-        ;ld lx,c
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
          jr z,inittracks0skip
@@ -137,28 +110,18 @@ inittracks0
         ;jr z,inittracks0skip
         call nz,initchnnote_pause ;устанавливает сэмпл паузы, выключает глисс
 inittracks0skip
-        ;inc hy ;track
         ld bc,chnsstep
         add ix,bc
         jr inittracks0
 
 initnote
 ;инициализирует ноты в каналах в процессе проигрывания
-        ;ld hl,tracks
-        ;ld ix,0 ;no channel for filter
         ld ix,chns
         ld hy,0 ;track
 initnote0
         ld a,(ix-2);(hl) ;chntype
         inc a
         ret z
-        ;inc hl
-        ;ld a,(hl) ;order
-        ;inc hl
-        ;ld c,(hl)
-        ;inc hl
-        ;ld b,(hl)
-        ;inc hl
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
          jp z,initnotefilter;inittracks0skip
@@ -166,14 +129,8 @@ initnote0
          jp z,initnotesamples;inittracks0skip
          cp CHNTYPE_ORDER+1
          jr z,initnote0skip
-        ;ld hx,b
-        ;ld lx,c
-        ;push hl
         ld a,hy ;a=track
-        ;push ix
         call peekcurtime_tracka
-        ;pop ix
-        ;pop hl
         cp NOTE_SPACE
         jr z,initnote0skip
         cp NOTE_GLISS
@@ -183,10 +140,6 @@ initnote0
 ;если ближайшая нота слева - глисс, то не переинициализировать сэмпл
         dec a
         ld (ix+chn.note_in),a
-        ;ld (ix+chn.curgliss),0
-        ;ld (ix+chn.curgliss+1),0
-        ;ld (ix+chn.glissspeed_in),0
-        ;ld (ix+chn.glissspeed_in+1),0
         inc c
         inc c ;cp NOTE_GLISS
         ld d,c
@@ -204,16 +157,8 @@ initnote0skip
         add ix,bc
         inc hy ;track
         jr initnote0
-;initnotelegato
-;        jr initnote0skip
 initnotegliss
 ;найти ближайшую ноту справа - цель глисса
-        ;push ix
-        ;ld bc,-chnstep
-        ;add ix,bc
-
-       ;push hl
-       ;push ix
         ld a,hy;(curtrack)
         ld hl,(curtime)
         push hl
@@ -229,11 +174,8 @@ initnotegliss
         inc de ;не на месте, а только вправо
         call findright ;out: de=nonempty index (or ffff), a=data
        pop hl ;beg
-        add hl,de ;time=index+beg (beg=time-index)
-;hl=righttime
-;a=rightval
-       ;pop ix
-        or a
+        add hl,de ;hl=righttime=index+beg (beg=time-index)
+        or a ;a=rightval
         ld d,a
         ld e,a
         jr z,initnoteglissq ;de=0
@@ -286,13 +228,6 @@ initnotegliss_nosemitoneshift
         call divsignedfixedpoint3 ;hl = hl/de = +-12./16. = +-12.3
         ex de,hl ;de = glissspeed_in = glisshgt/glisstime = +-12./16. = +-12.3
 initnoteglissq
-       ;pop hl
-
-        ;call setgliss_de
-       
-       ;pop ix
-        ;jr initnote0skip
-       
 initnoteglissq_de
         xor a
         ld (ix+chn.curgliss),a
@@ -300,20 +235,12 @@ initnoteglissq_de
         ld (ix+chn.glissspeed_in),e
         ld (ix+chn.glissspeed_in+1),d
         jr initnote0skip
-
         
 initnotesamples
-        ;ld hx,b
-        ;ld lx,c
-        ;push hl
         ld a,hy ;a=track
-        ;push ix
         call peekcurtime_tracka
-        ;pop ix
-        ;pop hl
         or a
         jp z,initnote0skip ;SPACE
-        ;push hl
         ld (ix+chn.note_in),3*12 ;C-4
         add a,a
         ld l,a
@@ -325,16 +252,12 @@ initnotesamples
         ld b,(hl)
         ld (ix+chn.smpcuraddr),c
         ld (ix+chn.smpcuraddr+1),b
-        ;pop hl
         jp initnote0skip
         
 initnotefilter
          ;ld a,hx
          ;or a
          ;jp z,initnote0skip ;когда фильтр по ошибке стоит выше любого канала
-       ;push hl
-       ;push ix
-        ;push ix ;filter
 ;ищем ближайшее число слева (или на месте) и ближайшее число справа
 ;(если справа ничего нет, то такое же число, как слева)
 ;текущее значение для фильтра - это линейная интерполяция между ними
@@ -349,29 +272,19 @@ initnotefilter
         or a
         sbc hl,de ;beg=time-index (index=time-beg)
        push hl ;beg
-       push de ;index
+       push de ;de=index
        push hl ;beg
         ld a,hy;(curtrack)
-        call getroot ;out: hl=root
-;hl=track root (4 bytes: left poi, right poi)
-;de=index
-        call findleft ;out: de=nonempty index (or 0), a=data
+        call getroot ;out: hl=track root (4 bytes: left poi, right poi)
+        call findleft ;de=index ;out: de=nonempty index (or 0), a=data
        pop hl ;beg
-        add hl,de ;time=index+beg (beg=time-index)
-;hl=lefttime
-;a=leftval
+        add hl,de ;hl=lefttime=index+beg (beg=time-index)
         ld (initnotefilter_lefttime),hl
-        or a
+        or a ;a=leftval
         jr nz,$+4
          ld a,1+15 ;"f"
         ld (initnotefilter_leftval),a
-
-        ;ld a,hy;(curtrack)
-        ;ld hl,(curtime)
-        ;call tracktime_totrackpartindex ;hl=index
-        ;ex de,hl
-       pop de ;index
-;de=index
+       pop de ;de=index
         ld a,hy;(curtrack)
         call getroot ;out: hl=root
 ;hl=track root (4 bytes: left poi, right poi)
@@ -379,34 +292,27 @@ initnotefilter
         inc de ;не на месте, а только вправо
         call findright ;out: de=nonempty index (or ffff), a=data
        pop hl ;beg
-        add hl,de ;time=index+beg (beg=time-index)
-;hl=righttime
-;a=rightval
-        or a
+        add hl,de ;hl=righttime=index+beg (beg=time-index)
+        or a ;a=rightval
          jr nz,$+5
          ld a,(initnotefilter_leftval)
         push af ;ld (rightval),a
-;k = (curtime-lefttime)/(righttime-lefttime)
 initnotefilter_lefttime=$+1
         ld bc,0
-        or a
+        ;or a
         sbc hl,bc ;righttime-lefttime
         ex de,hl ;de=righttime-lefttime
         ld hl,(curtime)
         or a
         sbc hl,bc ;hl=curtime-lefttime
-        call divlessthan1 ;out: k = bc = hl / de (.16)
-;val = leftval + k*(rightval-leftval)
+        call divlessthan1 ;out: k = bc = hl / de (.16) = (curtime-lefttime)/(righttime-lefttime)
         pop af ;rightval
 initnotefilter_leftval=$+1
         ld e,0
         sub e
-        call mulsigned8bylessthan1 ;a = +-a*bc
-        add a,e
-        ;pop ix ;filter
+        call mulsigned8bylessthan1 ;a = +-a*bc = k*(rightval-leftval)
+        add a,e ;a = val = leftval + k*(rightval-leftval)
         ld (ix+chn.curvalue),a
-       ;pop ix
-       ;pop hl
         jp initnote0skip
 
 mulsigned8bylessthan1
@@ -431,29 +337,17 @@ mul8bylessthan1
         ret
 
 playnote_tracksplaysample
-        ;ld hl,tracks
         ld ix,chns
 playnote_tracksplaysample0
         ld a,(ix-2);(hl) ;chntype
         inc a
         ret z
-        ;inc hl
-        ;ld a,(hl) ;order
-        ;inc hl
-        ;ld c,(hl)
-        ;inc hl
-        ;ld b,(hl)
-        ;inc hl
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
          jr z,playnote_filter
-        ;ld hx,b
-        ;ld lx,c
          cp CHNTYPE_ORDER+1
-        jr z,playnote_tracksplaysample0skip
-        ;push hl
-        call playsample
-        ;pop hl
+        ;jr z,playnote_tracksplaysample0skip
+        call nz,playsample
 playnote_tracksplaysample0skip
         ld bc,chnsstep
         add ix,bc
@@ -463,10 +357,7 @@ playnote_filter
          ;ld a,hx
          ;or a
          ;jr z,playnote_tracksplaysample0skip ;т.е. фильтр по ошибке стоит выше любого канала
-        ;push hl
         push ix
-        ;ld hx,b
-        ;ld lx,c
         ld l,(ix+chn.handler)
         ld h,(ix+chn.handler+1)
         ld b,(ix+chn.par1_in)
@@ -477,37 +368,24 @@ playnote_filter
         ld bc,-chnsstep
         add ix,bc
         pop bc
-        ;push ix
-        ;pop iy
         call jphl
         pop ix
-        ;pop hl
         jr playnote_tracksplaysample0skip
 
 jphl
         jp (hl)
 
 mixchn_all_channela
-;a=channel=0..2
-;out: ix=chn, куда всё смикшировалось
+;a=channel=0..5
+;out: iy=chn, куда всё смикшировалось
 ;микшируем сверху вниз все подканалы, у которых канал == a
          ld (mixchn_all_channela_a),a
         ld iy,0
         ld ix,chns
-        ;ld hl,tracks
 mixchn_all_channela0
         ld a,(ix-2);(hl) ;chntype
         inc a
         jr z,mixchn_all_channelaq
-        ;inc hl
-        ;ld a,(hl) ;order
-        ;inc hl
-        ;ld c,(hl)
-        ;inc hl
-        ;ld b,(hl)
-        ;inc hl
-        ;ld hx,b
-        ;ld lx,c ;текущий трек попадает в ix
          and CHNTYPEMASK
          cp CHNTYPE_FILTER+1
          jr z,mixchn_all_channela0skip
@@ -520,9 +398,7 @@ mixchn_all_channela_a=$+1
         ld a,hy
         or ly
         jr z,mixchn_all_channela0_first ;первый подходящий трек попадает в first
-        ;push hl
         call mixchn ;iy+ix микшируем в iy
-        ;pop hl
         jr mixchn_all_channela0_firstq
 mixchn_all_channela0_first
         push ix
@@ -533,12 +409,10 @@ mixchn_all_channela0skip
         add ix,bc
         jr mixchn_all_channela0
 mixchn_all_channelaq
-        push iy
-        pop ix
-        ld a,hx
-        or lx
+        ld a,hy
+        or ly
         ret nz
-        ld ix,emptychn ;не найдено ни одного трека для этого канала
+        ld iy,emptychn ;не найдено ни одного трека для этого канала
         ret
 
 initchnnote_pause
@@ -557,10 +431,7 @@ divlessthan1
 ;out: bc = hl / de (0.16)
 	ld b,8
 divlessthan10.
-;shift left hlca
-	add hl,hl
-;no carry
-;try sub
+	add hl,hl ;no carry
 	sbc hl,de
 	jr nc,$+3
 	add hl,de
@@ -571,10 +442,7 @@ divlessthan10.
         ld c,a
 	ld b,8
 divlessthan11.
-;shift left hlca
-	add hl,hl
-;no carry
-;try sub
+	add hl,hl ;no carry
 	sbc hl,de
 	jr nc,$+3
 	add hl,de
@@ -624,9 +492,7 @@ _DIV0.
 ;shift left hlca
 	rla
 	rl c
-	adc hl,hl
-;no carry
-;try sub
+	adc hl,hl ;no carry
 	sbc hl,de
 	jr nc,$+3
 	add hl,de

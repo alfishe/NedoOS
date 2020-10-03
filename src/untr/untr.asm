@@ -483,38 +483,50 @@ tracks_right
 ;рабочая октава
 
 ;фильтр имеет параметры:
-;тип фильтра (g=gain, Vv=vib/gliss up/down, Ee=env(vib/gliss up/down), n=noise down)
+;тип фильтра (g=gain, Vv=vib, Ee=env(vib/gliss up/down), n=noise down)
 ;для вибрато: глубина (0=бесконечность, т.е. gliss)
 ;для вибрато: период
-;для вибрато и глисса: скорость изменения
+;для вибрато: скорость изменения
 
 playnote
         call playnote_tracksplaysample
 
-        ;call filter_all_tracks
-
         ld a,2
         call mixchn_all_channela
-        push ix ;chn для C
+        push iy ;chn для C ;если нет ни одного трека для канала, то нам вернули emptychn
         ld a,1
         call mixchn_all_channela
-        push ix ;chn для B
+        push iy ;chn для B ;если нет ни одного трека для канала, то нам вернули emptychn
         ld a,0
         call mixchn_all_channela
-        ;push ix ;chn для A
-
-;если нет ни одного трека для какого-то канала, то нам вернули emptychn
-        ;pop ix ;chn для A
+        push iy ;chn для A ;если нет ни одного трека для канала, то нам вернули emptychn
+        pop ix ;chn для A
         pop hl ;chn для B
         pop de ;chn для C
-        ld iy,chip0
-;ix=fromA
-;hl=fromB
-;de=fromC
-;iy=chip
+        ld iy,chip0 ;ix=fromA ;hl=fromB ;de=fromC ;iy=chip
         call rendchip
+        call setchip0
         ld hl,chip0
         call outchip
+
+        ld a,3+2
+        call mixchn_all_channela
+        push iy ;chn для C ;если нет ни одного трека для канала, то нам вернули emptychn
+        ld a,3+1
+        call mixchn_all_channela
+        push iy ;chn для B ;если нет ни одного трека для канала, то нам вернули emptychn
+        ld a,3+0
+        call mixchn_all_channela
+        push iy ;chn для A ;если нет ни одного трека для канала, то нам вернули emptychn
+        pop ix ;chn для A
+        pop hl ;chn для B
+        pop de ;chn для C
+        ld iy,chip1 ;ix=fromA ;hl=fromB ;de=fromC ;iy=chip
+        call rendchip
+        call setchip1
+        ld hl,chip1
+        call outchip
+        
         ret
 
 untr_play
@@ -876,7 +888,7 @@ ttypes
         db _A,_5,_d,_O, 0, 0,_f, 0;"A5dO  f "
         db _A,_2,_t,_O,_t, 0,_f, 0;"A2tOt f "
         db  0, 0,_V,_O,_3,_1,_1, 0;"  VO311 "
-        db _A,_0,_t,_O,_p,_1,_f, 0;"A0tOp1f "
+        db _D,_0,_t,_O,_p,_1,_f, 0;"D0tOp1f "
         db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
         db _B,_5,_d,_O, 0, 0,_f, 0;"B5dO  f "
         db _B,_2,_t,_O,_t, 0,_f, 0;"B2tOt f "
@@ -1032,8 +1044,6 @@ tracks_end ;TODO kill
 
 emptychn
         chn
-;chns
-;        ds 64*chn
 
 chip0
         chip

@@ -19219,7 +19219,7 @@ l6d09:
 	pop	bc
 	ld	de,FFCB
 	call	_BDOS		; Read or write record
-      ret ;КОСТЫЛЬ!!!
+      ret ;КОСТЫЛЬ!!! иначе lister не компилируется на диск (читает сектор за границей файла перед патчем и записью?)
 	or	a
 	ret	z
 	;dec	a
@@ -19228,7 +19228,6 @@ l6d09:
 	;ret	z
          cp 128 ;fail
          ret nz ;not fail
-         ;jr $ ;hangs here trying to read 48th record!!!
 	call	ERROR
 	db	_DskFull
 ;

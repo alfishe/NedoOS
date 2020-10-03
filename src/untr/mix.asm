@@ -558,15 +558,13 @@ playsample_noloop
         add hl,de
         ld (ix+chn.tonefrq),l
         ld (ix+chn.tonefrq+1),h
-
-        ;ld de,0x03ef
-        ;or a
-        ;sbc hl,de
-        ;jr z,$
-
         ret
 
 shutay
+        call setchip0
+        call shut1ay
+        call setchip1
+shut1ay
         ld de,0x0e00
 shutay0
         dec d
