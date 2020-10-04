@@ -3,12 +3,18 @@
 inittracks
 ;настраивает треки по заданным параметрам
 ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
+        ld a,0x80 ;точно не совпадёт, так что будет retrigenv
+        ld (chip0+chip.envtype),a
+        ld (chip1+chip.envtype),a
+
         ld iy,ttypes
         ld ix,chns
+        ld a,(ntracks)
 inittrackspars0
-        ld a,(ix-2);(hl) ;chntype
-        inc a
-        jp z,inittrackspars0q
+        ex af,af' ;'
+        ;ld a,(ix-2);(hl) ;chntype
+        ;inc a
+        ;jp z,inittrackspars0q
         ld a,(iy+2) ;track type
         ld c,CHNTYPE_ORDER
         cp _O
@@ -41,14 +47,17 @@ inittrackspars_typeok
         sub _0
         ld (ix+chn.keepme_in),a
         ld a,(iy+4) ;sample
-        add a,a
-        ld l,a
-        ld h,0
-        ld bc,tsamples
-        add hl,bc
-        ld c,(hl)
-        inc hl
-        ld b,(hl) ;TODO add sample offset (par2?)
+        ;add a,a
+        ;ld l,a
+        ;ld h,0
+        ;ld bc,tsamples
+        ;add hl,bc
+        ;ld c,(hl)
+        ;inc hl
+        ;ld b,(hl) ;TODO add sample offset (par2?)
+        add a,0x40
+        ld b,a
+        ld c,0 ;TODO add sample offset (par2?)
         ld (ix+chn.smp_in),c
         ld (ix+chn.smp_in+1),b
         ld a,(iy+5) ;par2
@@ -57,12 +66,16 @@ inittrackspars_typeok
         ;ld (ix+chn.par3_in),a
          sub 1+15
         ld (ix+chn.volume_in),a
+        call initchnnote_pause ;устанавливает smpcuraddr паузы, выключает глисс
 inittrackspars0ok
         ld bc,8
         add iy,bc
         ld bc,chnsstep
         add ix,bc
-        jr inittrackspars0
+        ex af,af' ;'
+        dec a
+        jr nz,inittrackspars0
+        ret
 inittrackspars0filter
         ld a,(iy+2) ;track type (filter type)
         ld bc,filterhandler_vol
@@ -92,27 +105,6 @@ inittrackspars_filtertypeok
         ld a,(iy+6) ;par3
         ld (ix+chn.par3_in),a
         jr inittrackspars0ok
-inittrackspars0q
-
-        ld a,0x80 ;точно не совпадёт, так что будет retrigenv
-        ld (chip0+chip.envtype),a
-        ld (chip1+chip.envtype),a
-
-        ld ix,chns
-inittracks0
-        ld a,(ix-2);(hl) ;chntype
-        inc a
-        ret z
-         and CHNTYPEMASK
-         cp CHNTYPE_FILTER+1
-         jr z,inittracks0skip
-         cp CHNTYPE_ORDER+1
-        ;jr z,inittracks0skip
-        call nz,initchnnote_pause ;устанавливает сэмпл паузы, выключает глисс
-inittracks0skip
-        ld bc,chnsstep
-        add ix,bc
-        jr inittracks0
 
 initnote
 ;инициализирует ноты в каналах в процессе проигрывания
@@ -120,14 +112,14 @@ initnote
         ld hy,0 ;track
 initnote0
         ld a,(ix-2);(hl) ;chntype
-        inc a
-        ret z
+        ;inc a
+        ;ret z
          and CHNTYPEMASK
-         cp CHNTYPE_FILTER+1
+         cp CHNTYPE_FILTER;+1
          jp z,initnotefilter;inittracks0skip
-         cp CHNTYPE_SAMPLES+1
+         cp CHNTYPE_SAMPLES;+1
          jp z,initnotesamples;inittracks0skip
-         cp CHNTYPE_ORDER+1
+         cp CHNTYPE_ORDER;+1
          jr z,initnote0skip
         ld a,hy ;a=track
         call peekcurtime_tracka
@@ -156,7 +148,10 @@ initnote0skip
         ld bc,chnsstep
         add ix,bc
         inc hy ;track
-        jr initnote0
+        ld a,(ntracks)
+        cp hy
+        jr nz,initnote0
+        ret
 initnotegliss
 ;найти ближайшую ноту справа - цель глисса
         ld a,hy;(curtrack)
@@ -246,14 +241,17 @@ initnotesamples
         or a
         jp z,initnote0skip ;SPACE
         ld (ix+chn.note_in),3*12 ;C-4
-        add a,a
-        ld l,a
-        ld h,0
-        ld bc,tsamples
-        add hl,bc
-        ld c,(hl)
-        inc hl
-        ld b,(hl)
+        ;add a,a
+        ;ld l,a
+        ;ld h,0
+        ;ld bc,tsamples
+        ;add hl,bc
+        ;ld c,(hl)
+        ;inc hl
+        ;ld b,(hl)
+        add a,0x40
+        ld b,a
+        ld c,0
         ld (ix+chn.smpcuraddr),c
         ld (ix+chn.smpcuraddr+1),b
         jp initnote0skip
@@ -342,20 +340,25 @@ mul8bylessthan1
 
 playnote_tracksplaysample
         ld ix,chns
+        ld hy,0
 playnote_tracksplaysample0
         ld a,(ix-2);(hl) ;chntype
-        inc a
-        ret z
+        ;inc a
+        ;ret z
          and CHNTYPEMASK
-         cp CHNTYPE_FILTER+1
+         cp CHNTYPE_FILTER;+1
          jr z,playnote_filter
-         cp CHNTYPE_ORDER+1
+         cp CHNTYPE_ORDER;+1
         ;jr z,playnote_tracksplaysample0skip
         call nz,playsample
 playnote_tracksplaysample0skip
         ld bc,chnsstep
         add ix,bc
-        jr playnote_tracksplaysample0
+        inc hy
+        ld a,(ntracks)
+        cp hy
+        jr nz,playnote_tracksplaysample0
+        ret
 playnote_filter
 ;bc=filter addr
          ;ld a,hx
@@ -386,14 +389,16 @@ mixchn_all_channela
          ld (mixchn_all_channela_a),a
         ld iy,0
         ld ix,chns
+        ld a,(ntracks)
 mixchn_all_channela0
+        ex af,af' ;'
         ld a,(ix-2);(hl) ;chntype
-        inc a
-        jr z,mixchn_all_channelaq
+        ;inc a
+        ;jr z,mixchn_all_channelaq
          and CHNTYPEMASK
-         cp CHNTYPE_FILTER+1
+         cp CHNTYPE_FILTER;+1
          jr z,mixchn_all_channela0skip
-         cp CHNTYPE_ORDER+1
+         cp CHNTYPE_ORDER;+1
         jr z,mixchn_all_channela0skip
 mixchn_all_channela_a=$+1
         ld a,0
@@ -411,8 +416,10 @@ mixchn_all_channela0_firstq
 mixchn_all_channela0skip
         ld bc,chnsstep
         add ix,bc
-        jr mixchn_all_channela0
-mixchn_all_channelaq
+        ex af,af' ;'
+        dec a
+        jr nz,mixchn_all_channela0
+;mixchn_all_channelaq
         ld a,hy
         or ly
         ret nz

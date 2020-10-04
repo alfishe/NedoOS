@@ -25,7 +25,15 @@ TYPESCOLOR=0x06
 
 MAXSONGNAME=64
 
+;pgsamples содержит 256 байт на сэмпл (там все, кроме smp_pause), т.е. 32 строчки + зацикливание
+
         include "struct.asm"
+
+smp_pause=0x4000
+smp_snare=0x4000+(_s*256)
+smp_tone=0x4000+(_t*256)
+smp_maj=0x4000+(_p*256)
+smp_bass=0x4000+(_b*256)
 
         org PROGSTART
 cmd_begin
@@ -63,6 +71,33 @@ cmd_begin
         ld bc,0x02c0
         ldir
         call gennotefont
+        
+        call setpgsamples
+        ld de,0x4000;smp_pause
+        ld a,0x40
+killsamples0
+        ld hl,wassmp_pause
+        ld bc,256;szsmp_pause
+        ldir
+        dec a
+        jr nz,killsamples0
+        ld hl,wassmp_snare
+        ld de,smp_snare
+        ld bc,szsmp_snare
+        ldir
+        ld hl,wassmp_bass
+        ld de,smp_bass
+        ld bc,szsmp_bass
+        ldir
+        ld hl,wassmp_maj
+        ld de,smp_maj
+        ld bc,szsmp_maj
+        ldir
+        ld hl,wassmp_tone
+        ld de,smp_tone
+        ld bc,szsmp_tone
+        ldir
+        
         call setpgroots
 
         ld hl,0x4000
@@ -127,7 +162,9 @@ refrq2
         ;ld (ix+chn.keepme_in),5
         ;ld (ix+chn.channel_in),0
         call initchnnote_pause ;делает smpcuraddr=smp_pause и nogliss
+        call setpgsamples
         call playsample ;после этого канал можно микшировать
+        call setpgroots
 
 ;;;;;;;;;;;;;;;;;;;;;
         ;call setneedredraw
@@ -913,6 +950,7 @@ ttypes
 ttypes_end
         endif
 
+        if 1==0
 tsamples
 ;0
         dw smp_pause
@@ -983,6 +1021,7 @@ tsamples
         dw smp_pause ;62 'Z'
         dw smp_pause ;63
         dw smp_pause ;64
+        endif
 
 ;смотрим тип текущего канала
 gettracktype
@@ -1052,8 +1091,8 @@ chns=tracks+2
         CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
          ;CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
         ds tracks+(chnsstep*MAXNTRACKS)-$,-1
-tracks_end ;TODO kill
-        db -1
+tracks_end
+        ;db -1
 
 emptychn
         chn
@@ -1154,7 +1193,7 @@ findsampleloop0
         endm
 
 C4ADD=-3353
-smp_snare
+wassmp_snare
 ;-0288 00 TN- F (+3353 для орнамента -96)
 ;+0202 06 TN- C
 ;-0512 06 TN- B
@@ -1182,28 +1221,32 @@ smp_snare
         tn 0b00000010,  0, 3,        0,5
         tn 0b00000010,  0, 2,        0,5
         tn 0b00000010,  0, 1,        0,5
-smp_pause
+wassmp_pause
         tn 0b11001000,  0, 0,        0,0
         db -1
         dw -2-SMPLINE ;loop to line with hole
+szsmp_pause=$-wassmp_pause
+szsmp_snare=$-wassmp_snare
 
-smp_bass
+wassmp_bass
         tne 0b11000100,0,+5*12,0x0e,    0,0
         db -1
         dw -2-SMPLINE ;loop to first line
+szsmp_bass=$-wassmp_bass
 
-smp_maj
+wassmp_maj
         tn 0b11000001,2*12+0,11,     0,0
         tn 0b11000001,2*12+4,11,     0,0
         tn 0b11000001,2*12+7,11,     0,0
         db -1
-        dw smp_maj-($+1) ;loop to first line
+        dw wassmp_maj-($+1) ;loop to first line
+szsmp_maj=$-wassmp_maj
 
         macro t4 msk,vol
         db msk|0b11000000,2*12,0,vol,  0,0,0
         endm
 
-smp_tone
+wassmp_tone
         t4 0b00000001,15
         t4 0b00000001,14
         t4 0b00000001,14
@@ -1240,6 +1283,7 @@ smp_tone
         t4 0b00001000,0
         db -1
         dw -2-SMPLINE ;loop to line with hole
+szsmp_tone=$-wassmp_tone
 
 ;A0gO123
 
