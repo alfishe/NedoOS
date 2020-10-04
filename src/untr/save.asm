@@ -4,18 +4,85 @@ untr_save
         ld a,b
         ld (curhandle),a
         
+        ld hl,tsongname
+        push hl
+        xor a
+        ld b,-1
+        cpir ;hl=after song name
+        cpir ;hl=after author name
+        pop de
+        or a
+        sbc hl,de
+        ld de,szheader
+        add hl,de
+        ld (theader_size),hl
         ld de,theader
-        ld hl,szheader
         call save_hlbytes_fromde
         
+        call setpgsamples
         call savesamples
+        call setpgroots
         call savefragments ;includes track info
         call savetracks
-
+untr_saveclose
 curhandle=$+1
         ld b,0
         OS_CLOSEHANDLE
         
+        ret
+
+untr_load
+        ld de,tfilename
+        OS_OPENHANDLE
+        ld a,b
+        ld (curhandle),a
+        
+        ld de,theader
+        ld hl,szheaderstart
+        call load_hlbytes_fromde
+        ld hl,(theader_size)
+        ld de,-szheaderstart
+        add hl,de
+        ld de,theaderpart2
+        call load_hlbytes_fromde
+        
+        call setpgsamples
+        call loadsamples
+        call setpgroots
+        call loadfragments ;includes track info
+        call loadtracks
+
+        call setneedpralltracks
+        call setneedprtypes
+        jr untr_saveclose
+
+loadsamples
+        ld hy,0
+loadsamples0
+        ld de,save_sampleheader
+        ld hl,sz_sampleheader
+        call load_hlbytes_fromde
+        ;db длина в строчках
+        ;db длина зацикливания
+        ;dw 0 ;reserved
+        ;строчки по 8 байт (для возможности расширения)
+        ld de,(save_sampleheader)
+loadsamplelines0
+       push de
+        ld de,save_sampleline
+        ld hl,sz_sampleline
+        call load_hlbytes_fromde
+       pop de
+        dec e
+        jr nz,loadsamplelines0        
+        inc hy
+        ld a,(nsamples)
+        cp hy
+        jr nz,loadsamples0
+        ret
+
+loadfragments
+loadtracks
         ret
 
 savesamples
@@ -143,6 +210,16 @@ save_hlbytes_fromde
         pop ix
         ret
 
+load_hlbytes_fromde
+        push ix
+        push iy
+        ld a,(curhandle)
+        ld b,a
+        OS_READHANDLE
+        pop iy
+        pop ix
+        ret
+
 save_byte
         db 0
 
@@ -175,11 +252,11 @@ theader
         db 0 ;ver
         db 0 ;subver
 
-        db "song name",0
-        db "author",0
+theader_size
+        dw 0 ;смещение до сэмплов от начала файла
+szheaderstart=$-theader
 
-        dw 8 ;смещение до сэмплов (сейчас =8)
-
+theaderpart2
 songlength
         dw 65536&0xffff ;length =1..65536
 songloop
@@ -193,7 +270,16 @@ ntracks
         db 14 ;числотреков N
 nparts
         db 64 ;числочастей (сейчас =64)
+szheaderpart2=$-theaderpart2
 szheader=$-theader
+
+tsongname
+        db "song name"
+        db 0
+        db "author"
+        db 0
+        ds tsongname+((MAXSONGNAME+1)*2)-$
 
 tfilename
         db "muz.unt",0
+        ds tfilename+DIRMAXFILENAME64-$

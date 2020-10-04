@@ -455,12 +455,12 @@ updatescr
 oldtoptrack=$+1
         ld c,-1
         ld (oldtoptrack),a
-        cp c
-        jp nz,updatescr_scrollupdown
         ld hl,(lefttime)
 oldlefttime=$+1
         ld de,0x8000
         ld (oldlefttime),hl
+        cp c
+        jp nz,updatescr_scrollupdown
         or a
         sbc hl,de
         jr nz,updatescr_scroll

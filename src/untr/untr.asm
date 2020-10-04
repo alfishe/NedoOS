@@ -23,6 +23,8 @@ COLOR=7
 TIMECOLOR=0x04
 TYPESCOLOR=0x06
 
+MAXSONGNAME=64
+
         include "struct.asm"
 
         org PROGSTART
@@ -38,8 +40,10 @@ cmd_begin
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         ld (pgroots),a
-        ;ld a,l
-        ;ld (pgdynmem),a
+
+        OS_NEWPAGE
+        ld a,e
+        ld (pgsamples),a
 
         call cls
         call setscrpg
@@ -143,6 +147,8 @@ mainloop_nokey
         push hl
         cp key_F2
         jp z,untr_save
+        cp key_F3
+        jp z,untr_load
         cp key_left
         jp z,untr_left
         cp key_right
@@ -492,7 +498,9 @@ tracks_right
 ;для вибрато: скорость изменения
 
 playnote
+        call setpgsamples
         call playnote_tracksplaysample
+        call setpgroots
 
         ld a,2
         call mixchn_all_channela

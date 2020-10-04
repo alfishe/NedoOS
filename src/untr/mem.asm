@@ -12,6 +12,11 @@ pgroots=$+1
         ld a,0
         SETPG16K
         ret
+setpgsamples
+pgsamples=$+1
+        ld a,0
+        SETPG16K
+        ret
 
 pokecurtime_curtrack_c
 ;c=data

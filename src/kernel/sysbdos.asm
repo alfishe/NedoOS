@@ -86,7 +86,7 @@ muzpid=$+1
         ld a,0
         or a
         call z,killmuz
-        ex af,af'
+        ex af,af' ;'
         ld (muzpg),a
         ld (muzcall),hl
         ld a,(iy+app.id)
@@ -105,7 +105,12 @@ killmuz
         ld (muzpid),a
         ld de,sys_reter
         ld (muzcall),de
-        ld c,0xfd
+        ld a,0xfe
+        call shut1ay
+        ld a,0xff
+shut1ay
+        ld bc,0xfffd
+        out (c),a
         ld de,0x0e00
 shutay0
         dec d

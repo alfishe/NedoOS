@@ -189,6 +189,9 @@ initnotegliss
        push hl ;hl=glisstime
 ;где взять glisshgt, она же зависит от рабочей октавы!!!??? рабочая октава в параметрах канала? (нельзя брать из первого фрейма сэмпла, т.к. там может быть всплеск! можно из текущего?)
 ;и как делать глисс на огибающей? отдельные поля chn? но где взять glisshgt, он же зависит от envsemitoneshift? (нельзя брать из первого фрейма сэмпла, т.к. там может быть всплеск! можно из текущего?)
+        push af
+        call setpgsamples
+        pop af
         ld l,(ix+chn.smpcuraddr)
         ld h,(ix+chn.smpcuraddr+1)
         inc hl ;skip mask
@@ -224,6 +227,7 @@ initnotegliss_nosemitoneshift
         ex de,hl
         or a
         sbc hl,de ;hl=частота будущей ноты - частота текущей ноты
+        call setpgroots
        pop de ;de=glisstime
         call divsignedfixedpoint3 ;hl = hl/de = +-12./16. = +-12.3
         ex de,hl ;de = glissspeed_in = glisshgt/glisstime = +-12./16. = +-12.3
