@@ -46,6 +46,7 @@ peektrackpartindex
 ;hl=index
 ;ly=part
 ;a=track
+;out: a=data
         ex de,hl
         call getroot ;out: hl=root
         call readfrompoi ;keeps de
@@ -80,9 +81,7 @@ tracktime_totrackpartindex
 ;иначе index=time
         push af
         push hl
-        call gettracktype
-        inc hl
-        ld a,(hl) ;номер ордера (0=нет)
+        call gettrackorder ;номер ордера (0=нет)
         pop hl
         or a ;канал подписан на ордер?
         jr z,tracktime_toindexpart_noorder ;part=a=0
@@ -138,6 +137,7 @@ tracktime_toindexpart_noorder
 readfrompoi
 ;hl=track root (4 bytes: left poi, right poi)
 ;de=index (kept)
+;out: a=data
         BITINC_D 7
         HLFROMHL
         ret z ;пусто, возвращает 0=NOTE_SPACE (только для чтения!!!)

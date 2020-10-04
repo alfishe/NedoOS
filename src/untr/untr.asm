@@ -207,10 +207,31 @@ mainloop_nokey
          jp z,tracksloop
         ld hl,mainloop
         push hl
+        ld c,0
         cp key_F2
         jp z,untr_save
         cp key_F3
         jp z,untr_load
+        cp ss0
+        jp z,untr_step0
+        cp ss1
+        jp z,untr_step1
+        cp ss2
+        jp z,untr_step2
+        cp ss3
+        jp z,untr_step3
+        cp ss4
+        jp z,untr_step4
+        cp ss5
+        jp z,untr_step5
+        cp ss6
+        jp z,untr_step6
+        cp ss7
+        jp z,untr_step7
+        cp ss8
+        jp z,untr_step8
+        cp 'Y'
+        jp z,untr_copy
         cp key_left
         jp z,untr_left
         cp key_right
@@ -244,15 +265,51 @@ mainloop_nokey
 ;смотрим тип текущего канала
         ld a,(curtrack)
         call gettracktype
-        and CHNTYPEMASK
-        cp CHNTYPE_NOTES
+        cp _t;CHNTYPE_NOTES
         jr z,enternote
         pop af
         call keytodigit
+        jr c,untr_afternotekey_alltracksiforder
+        push af
+        ld a,(newdigit)
+        ld (olddigit),a
+        pop af
+        ld (newdigit),a
         call pokecurtime_curtrack_c
 untr_afternotekey_alltracksiforder
         call setneedredraw_alltracksiforder
         jp untr_afternotekey;untr_right
+
+untr_copy
+;fromdigit,todigit,csY
+        ld hy,0 ;track
+untr_copy0
+        ld a,(olddigit)
+        ld ly,a ;part
+;ly=part
+        ld a,hy ;a=track
+        call getendaddr ;de=end or 0
+        ex de,hl
+untr_copybytes0
+;hl=index
+olddigit=$+2
+        ld ly,0 ;part
+        ld a,hy ;a=track
+        call peektrackpartindex
+        ld c,a
+newdigit=$+2
+        ld ly,0 ;part
+        ld a,hy ;a=track
+        call poketrackpartindex_c
+        ld a,h
+        or l
+        dec hl
+        jr nz,untr_copybytes0
+        inc hy
+        ld a,(ntracks)
+        cp hy
+        jr nz,untr_copy0
+        jp setneedpralltracks
 
 keytodigit
 ;ввод цифры 0..9a..zA..Z -> 1..62 (пробел -> 0)
@@ -308,7 +365,17 @@ playnote0
         call shutay
 
         ;call setneedredraw
-        jp untr_right
+curstep=$+1
+        ld b,0
+        ld a,b
+        or a
+        ret z
+step0
+        push bc
+        call untr_right
+        pop bc
+        djnz step0
+        ret
 
 untr_keygliss
         ld c,NOTE_GLISS
@@ -323,6 +390,27 @@ untr_space
         ld c,NOTE_SPACE
         call pokecurtime_curtrack_c
         jp untr_afternotekey_alltracksiforder
+
+untr_step8
+        inc c
+untr_step7
+        inc c
+untr_step6
+        inc c
+untr_step5
+        inc c
+untr_step4
+        inc c
+untr_step3
+        inc c
+untr_step2
+        inc c
+untr_step1
+        inc c
+untr_step0
+        ld a,c
+        ld (curstep),a
+        ret
 
 tracksloop
         call updatescr
@@ -607,7 +695,7 @@ untr_play
         jr playenter0go
 playenter0
         halt
-          call prcurcur
+          ;call prcurcur
 playenter0go
         call initnote
         call playnote
@@ -616,8 +704,8 @@ playenter0go
         halt
         call playnote
         call untr_right ;TODO check end and loop
-         call updatescr
-          call prcurcur
+         ;call updatescr
+          ;call prcurcur
           ;jr playenter0
         call checknotekeys_pressed
         jr nz,playenter0
@@ -804,7 +892,9 @@ setneedredraw_curtrack
         ;ld a,1
         ;ld (untr_needredraw),a ;forced redraw (even if lefttime has not changed)
         ld a,(curtrack)
-        call gettracktype
+        call amulchnsstep_tohl
+        ld de,chns-2;tracks
+        add hl,de
         set 7,(hl)
         ret
 setneedpralltracks
@@ -978,16 +1068,26 @@ ttypes_end
 ;смотрим тип текущего канала
 gettracktype
         push de
-        ;add a,a
-        ;add a,a
-        call amulchnsstep_tohl
-
-        ld de,chns-2;tracks
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld de,ttypes+2
         add hl,de
-        ;add a,l
-        ;ld l,a
-        ;jr nc,$+3
-        ;inc h
+        ld a,(hl)
+        pop de
+        ret
+
+gettrackorder
+        push de
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld de,ttypes+3
+        add hl,de
         ld a,(hl)
         pop de
         ret

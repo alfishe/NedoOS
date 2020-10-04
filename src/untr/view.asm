@@ -790,10 +790,8 @@ prtypes0new0
 prtrack_gettype
         ld a,hx
         call gettracktype
-prtrack_gettype_go
-        and CHNTYPEMASK
         ld hl,prcharnote
-        cp CHNTYPE_NOTES
+        cp _t;CHNTYPE_NOTES
         jr z,$+5
          ld hl,prchardig
         ld (prtrack_prproc),hl
@@ -825,12 +823,17 @@ prtrack
 ;hx=track
 ;c=0x0f/0xf0
 ;b=SCRTRACKWID
+        push de
         ld a,hx
-        call gettracktype
+        call amulchnsstep_tohl
+        ld de,chns-2;tracks
+        add hl,de
+        pop de
+        ld a,(hl)
         or a
         ret p ;трек не обновился
          res 7,(hl)
-        call prtrack_gettype_go
+        call prtrack_gettype
 
         ld hl,(lefttime)
         push de
