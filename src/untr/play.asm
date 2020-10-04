@@ -57,11 +57,20 @@ inittrackspars_typeok
         ;ld b,(hl) ;TODO add sample offset (par2?)
         add a,0x40
         ld b,a
-        ld c,0 ;TODO add sample offset (par2?)
+        ld a,(iy+5) ;par2 ;sample offset
+        sub 1
+        adc a,0 ;space == '0'
+        ld c,a
+         ;jr nz,$
+        add a,a
+        add a,a
+        add a,a
+        sub c
+        ld c,a;0
         ld (ix+chn.smp_in),c
         ld (ix+chn.smp_in+1),b
-        ld a,(iy+5) ;par2
-        ld (ix+chn.par2_in),a
+        ;ld a,(iy+5) ;par2
+        ;ld (ix+chn.par2_in),a
         ld a,(iy+6) ;par3
         ;ld (ix+chn.par3_in),a
          sub 1+15

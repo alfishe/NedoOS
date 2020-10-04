@@ -25,7 +25,7 @@ TYPESCOLOR=0x06
 
 MAXSONGNAME=64
 
-;pgsamples содержит 256 байт на сэмпл (там все, кроме smp_pause), т.е. 32 строчки + зацикливание
+;pgsamples содержит 256 байт на сэмпл (там все, кроме smp_pause), т.е. 37 строчек + зацикливание
 
         include "struct.asm"
 
@@ -34,6 +34,11 @@ smp_snare=0x4000+(_s*256)
 smp_tone=0x4000+(_t*256)
 smp_maj=0x4000+(_p*256)
 smp_bass=0x4000+(_b*256)
+smp_crash=0x4000+(_c*256)
+smp_drum=0x4000+(_d*256)
+smp_hihat=0x4000+(_h*256)
+smp_orn1of3=0x4000+(_1*256)
+smp_orn2of6=0x4000+(_2*256)
 
         org PROGSTART
 cmd_begin
@@ -96,6 +101,26 @@ killsamples0
         ld hl,wassmp_tone
         ld de,smp_tone
         ld bc,szsmp_tone
+        ldir
+        ld hl,wassmp_crash
+        ld de,smp_crash
+        ld bc,szsmp_crash
+        ldir
+        ld hl,wassmp_drum
+        ld de,smp_drum
+        ld bc,szsmp_drum
+        ldir
+        ld hl,wassmp_hihat
+        ld de,smp_hihat
+        ld bc,szsmp_hihat
+        ldir
+        ld hl,wassmp_orn1of3
+        ld de,smp_orn1of3
+        ld bc,szsmp_orn1of3
+        ldir
+        ld hl,wassmp_orn2of6
+        ld de,smp_orn2of6
+        ld bc,szsmp_orn2of6
         ldir
         
         call setpgroots
@@ -936,7 +961,7 @@ ttypes
         db _A,_5,_d,_O, 0, 0,_f, 0;"A5dO  f "
         db _A,_2,_t,_O,_t, 0,_f, 0;"A2tOt f "
         db  0, 0,_V,_O,_3,_1,_1, 0;"  VO311 "
-        db _D,_0,_t,_O,_p,_1,_f, 0;"D0tOp1f "
+        db _D,_0,_t,_O,_p, 0,_f, 0;"D0tOp1f "
         db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
         db _B,_5,_d,_O, 0, 0,_f, 0;"B5dO  f "
         db _B,_2,_t,_O,_t, 0,_f, 0;"B2tOt f "
@@ -944,83 +969,10 @@ ttypes
         db _B,_0,_t,_O,_b, 0,_f, 0;"B0tOb f "
         db _C,_5,_d,_O, 0, 0,_f, 0;"C5dO  f "
         db _C,_5,_t,_O,_t, 0,_f, 0;"C2tOt f "
-        db _C,_0,_t,_O,_p,_1,_f, 0;"C0tOp1f "
+        db _C,_0,_t,_O,_p, 0,_f, 0;"C0tOp1f "
         db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
         ds ttypes+(MAXNTRACKS*8)-$
 ttypes_end
-        endif
-
-        if 1==0
-tsamples
-;0
-        dw smp_pause
-;1 '0' - the first sample to save
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause
-        dw smp_pause ;10 '9'
-;11 'a'
-        dw smp_pause ;a
-        dw smp_bass ;b
-        dw smp_pause ;c
-        dw smp_pause ;d
-        dw smp_pause ;e
-        dw smp_pause ;f
-        dw smp_pause ;g
-        dw smp_pause ;h
-        dw smp_pause ;i
-        dw smp_pause ;j
-        dw smp_pause ;k
-        dw smp_pause ;l
-        dw smp_pause ;m
-        dw smp_pause ;n
-        dw smp_pause ;o
-        dw smp_maj ;p
-        dw smp_pause ;q
-        dw smp_pause ;r
-        dw smp_snare ;s
-        dw smp_tone ;t
-        dw smp_pause ;u
-        dw smp_pause ;v
-        dw smp_pause ;w
-        dw smp_pause ;x
-        dw smp_pause ;y
-        dw smp_pause ;36 'z'
-;37 'A'
-        dw smp_pause ;A
-        dw smp_pause ;B
-        dw smp_pause ;C
-        dw smp_pause ;D
-        dw smp_pause ;E
-        dw smp_pause ;F
-        dw smp_pause ;G
-        dw smp_pause ;H
-        dw smp_pause ;I
-        dw smp_pause ;J
-        dw smp_pause ;K
-        dw smp_pause ;L
-        dw smp_pause ;M
-        dw smp_pause ;N
-        dw smp_pause ;O
-        dw smp_pause ;P
-        dw smp_pause ;Q
-        dw smp_pause ;R
-        dw smp_pause ;S
-        dw smp_pause ;T
-        dw smp_pause ;U
-        dw smp_pause ;V
-        dw smp_pause ;W
-        dw smp_pause ;X
-        dw smp_pause ;Y
-        dw smp_pause ;62 'Z'
-        dw smp_pause ;63
-        dw smp_pause ;64
         endif
 
 ;смотрим тип текущего канала
@@ -1193,6 +1145,122 @@ findsampleloop0
         endm
 
 C4ADD=-3353
+
+C8ADD=0x000f-0x0ef8
+
+wassmp_drum
+;-0187 01 TN- F (+3353 для орнамента -96)
+;-0352 00 T-- E
+;-0608 00 T-- D
+            ;fsrohENT  ;s ;v ;f       ;n (o=outerenv)
+        tn 0b11000011,-96,15,C4ADD+187,1
+        tn 0b11000001,-96,15,C4ADD+352,0
+        tn 0b11000001,-96,15,C4ADD+608,0
+        tn 0b11001000,  0, 0,        0,0
+        db -1
+        dw -2-SMPLINE ;loop to line with hole
+szsmp_drum=$-wassmp_drum
+
+wassmp_hihat
+;+0471 05 TN- F (+3353 для орнамента -96)
+;+0471 04 TN- D
+;+0471 04 -N- C
+;+0471 03 -N- B
+;+0471 03 -N- A
+;+0471 02 -N- 9
+;+0471 02 -N- 8
+;+0471 01 -N- 7
+;+0471 01 -N- 5
+;+0471 01 -N- 5
+;+0471 01 -N- 4
+;+0471 01 -N- 4
+;+0471 01 -N- 3
+;+0471 01 -N- 3
+;+0471 01 -N- 2
+;+0471 01 -N- 2
+;+0471 01 -N- 1
+;+0471 01 -N- 1
+            ;fsrohENT  ;s ;v ;f       ;n (o=outerenv)
+        tn 0b11000011,-96,15,C4ADD-471,5
+        tn 0b11000011,-96,13,C4ADD-471,4
+        tn 0b11000010,-96,12,C4ADD-471,4
+        tn 0b11000010,-96,11,C4ADD-471,3
+        tn 0b11000010,-96,10,C4ADD-471,3
+        tn 0b11000010,-96, 9,C4ADD-471,2
+        tn 0b11000010,-96, 8,C4ADD-471,2
+        tn 0b11000010,-96, 7,C4ADD-471,1
+        tn 0b11000010,-96, 5,C4ADD-471,1
+        tn 0b11000010,-96, 5,C4ADD-471,1
+        tn 0b11000010,-96, 4,C4ADD-471,1
+        tn 0b11000010,-96, 4,C4ADD-471,1
+        tn 0b11000010,-96, 3,C4ADD-471,1
+        tn 0b11000010,-96, 3,C4ADD-471,1
+        tn 0b11000010,-96, 2,C4ADD-471,1
+        tn 0b11000010,-96, 2,C4ADD-471,1
+        tn 0b11000010,-96, 1,C4ADD-471,1
+        tn 0b11000010,-96, 1,C4ADD-471,1
+        tn 0b11001000,  0, 0,        0,0
+        db -1
+        dw -2-SMPLINE ;loop to line with hole
+szsmp_hihat=$-wassmp_hihat
+
+wassmp_crash ;B-8!!!
+;-0000 07 TN- F
+;-0000 10 -N- E
+;-0000 10 TN- E
+;-0000 14 -N- D
+;-0000 14 -N- C
+;-0000 14 -N- C
+;-0000 14 -N- C
+;-0000 14 -N- B
+;-0000 14 -N- B
+;-0000 14 -N- B etc
+            ;fsrohENT  ;s ;v ;f       ;n (o=outerenv)
+        tn 0b11000011,-96,15,C8ADD+0,7
+        tn 0b11000010,-96,14,C8ADD+0,10
+        tn 0b11000011,-96,14,C8ADD+0,10
+        tn 0b11000010,-96,13,C8ADD+0,14
+        tn 0b11000011,-96,12,C8ADD+0,14
+        tn 0b11000011,-96,12,C8ADD+0,14
+        tn 0b11000011,-96,12,C8ADD+0,14
+        tn 0b11000011,-96,11,C8ADD+0,14
+        tn 0b11000011,-96,11,C8ADD+0,14
+        tn 0b11000011,-96,11,C8ADD+0,14
+        tn 0b11000011,-96,10,C8ADD+0,14
+        tn 0b11000011,-96,10,C8ADD+0,14
+        tn 0b11000011,-96,10,C8ADD+0,14
+        tn 0b11000011,-96, 9,C8ADD+0,14
+        tn 0b11000011,-96, 9,C8ADD+0,14
+        tn 0b11000011,-96, 9,C8ADD+0,14
+        tn 0b11000011,-96, 8,C8ADD+0,14
+        tn 0b11000011,-96, 8,C8ADD+0,14
+        tn 0b11000011,-96, 8,C8ADD+0,14
+        tn 0b11000011,-96, 7,C8ADD+0,14
+        tn 0b11000011,-96, 7,C8ADD+0,14
+        tn 0b11000011,-96, 7,C8ADD+0,14
+        tn 0b11000011,-96, 6,C8ADD+0,14
+        tn 0b11000011,-96, 6,C8ADD+0,14
+        tn 0b11000011,-96, 6,C8ADD+0,14
+        tn 0b11000011,-96, 5,C8ADD+0,14
+        tn 0b11000011,-96, 5,C8ADD+0,14
+        tn 0b11000011,-96, 5,C8ADD+0,14
+        tn 0b11000011,-96, 4,C8ADD+0,14
+        tn 0b11000011,-96, 4,C8ADD+0,14
+        tn 0b11000011,-96, 4,C8ADD+0,14
+        tn 0b11000011,-96, 3,C8ADD+0,14
+        tn 0b11000011,-96, 3,C8ADD+0,14
+        tn 0b11000011,-96, 3,C8ADD+0,14
+        tn 0b11000011,-96, 2,C8ADD+0,14
+        ;tn 0b11000011,-96, 2,C8ADD+0,14
+        ;tn 0b11000011,-96, 2,C8ADD+0,14
+        ;tn 0b11000011,-96, 1,C8ADD+0,14
+        ;tn 0b11000011,-96, 1,C8ADD+0,14
+        ;tn 0b11000011,-96, 1,C8ADD+0,14
+        tn 0b11001000,  0, 0,        0,0
+        db -1
+        dw -2-SMPLINE ;loop to line with hole
+szsmp_crash=$-wassmp_crash
+
 wassmp_snare
 ;-0288 00 TN- F (+3353 для орнамента -96)
 ;+0202 06 TN- C
@@ -1245,6 +1313,25 @@ szsmp_maj=$-wassmp_maj
         macro t4 msk,vol
         db msk|0b11000000,2*12,0,vol,  0,0,0
         endm
+
+wassmp_orn2of6
+        tn 0b11001000,  0, 0,        0,0
+        tn 0b11001000,  0, 0,        0,0
+        tn 0b11001000,  0, 0,        0,0
+        tn 0b11001000,  0, 0,        0,0
+        tn 0b11000001,2*12+0,15,     0,0
+        tn 0b11000001,2*12+0,15,     0,0
+        db -1
+        dw wassmp_orn2of6-($+1) ;loop to first line
+szsmp_orn2of6=$-wassmp_orn2of6
+
+wassmp_orn1of3
+        tn 0b11001000,  0, 0,        0,0
+        tn 0b11001000,  0, 0,        0,0
+        tn 0b11000001,2*12+0,15,     0,0
+        db -1
+        dw wassmp_orn1of3-($+1) ;loop to first line
+szsmp_orn1of3=$-wassmp_orn1of3
 
 wassmp_tone
         t4 0b00000001,15
