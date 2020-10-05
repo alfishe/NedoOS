@@ -282,8 +282,10 @@ untr_afternotekey_alltracksiforder
 
 untr_copy
 ;fromdigit,todigit,csY
-        ld hy,0 ;track
-untr_copy0
+        ;ld hy,0 ;track
+        ld a,(curtrack)
+        ld hy,a
+;untr_copy0
         ld a,(olddigit)
         ld ly,a ;part
 ;ly=part
@@ -305,10 +307,10 @@ newdigit=$+2
         or l
         dec hl
         jr nz,untr_copybytes0
-        inc hy
-        ld a,(ntracks)
-        cp hy
-        jr nz,untr_copy0
+        ;inc hy
+        ;ld a,(ntracks)
+        ;cp hy
+        ;jr nz,untr_copy0
         jp setneedpralltracks
 
 keytodigit
