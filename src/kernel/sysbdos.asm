@@ -1756,14 +1756,14 @@ BDOS_readdir_noFATFS
         ld hl,fcb2+FCB_FATTRIB
         ldi
         ld hl,fcb2+FCB_FNAME
-        call get_name_hltode
+        call get_name_hltode ;делает из имени без точки имя с точкой
         ld h,d
         ld l,e
         ld bc,12
         xor a ;no error
         ld (hl),a
 		inc de
-        ldir
+        ldir ;независимо от длины короткого имени он длинное затирает
         ret
 ;FILINFO_FSIZE=0;	        DWORD		;/* FILE SIZE */
 ;FILINFO_FDATE=4;	        WORD		;/* LAST MODIFIED DATE */
