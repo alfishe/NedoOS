@@ -374,7 +374,7 @@ __1=$
 ;        ...
 ;        LD A,(FILE)
 ;        LD B,A
-;        OS_OPENHANDLE
+;        OS_CLOSEHANDLE
 ;        OR A
 ;        JP NZ,ERR_EXIT    ;обработка ошибок
 ;        ...
