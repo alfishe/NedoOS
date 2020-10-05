@@ -1762,6 +1762,7 @@ BDOS_readdir_noFATFS
         ld bc,12
         xor a ;no error
         ld (hl),a
+		inc de
         ldir
         ret
 ;FILINFO_FSIZE=0;	        DWORD		;/* FILE SIZE */
