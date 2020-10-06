@@ -2664,7 +2664,7 @@ BDOS_preparereadwritesectors_TRDOSFS
         ex de,hl ;hl=buffer, d=track
         and 0x0f
         ld e,a ;e=sector
-        ex af,af'
+        ex af,af' ;'
         ld b,a ;count
 ;hl=buffer
 ;d=track
@@ -2677,6 +2677,7 @@ BDOS_readsectors
 ;передавать логический volume (букву) и пересчитать в номер драйвера (в смещение раздела, наверно, бессмысленно)?
         push bc
         call BDOS_preparedepage
+        call BDOS_setdepage
         pop af
         cp vol_trdos
         jr c,BDOS_readsectors_TRDOS
@@ -2684,13 +2685,14 @@ BDOS_readsectors
         jp devices_read_go_regs
 BDOS_readsectors_TRDOS
         call BDOS_preparereadwritesectors_TRDOSFS
-        jp wrsectors. ;out: a=error?
+        jp rdsectors. ;out: a=error?
 
 BDOS_writesectors
 ;b=drive(0..), de=buffer, ixhl=sector number, a'=count
 ;передавать логический volume (букву) и пересчитать в номер драйвера (в смещение раздела, наверно, бессмысленно)?
         push bc
         call BDOS_preparedepage
+        call BDOS_setdepage
         pop af
         cp vol_trdos
         jr c,BDOS_writesectors_TRDOS
@@ -2698,7 +2700,7 @@ BDOS_writesectors
         jp devices_write_go_regs
 BDOS_writesectors_TRDOS
         call BDOS_preparereadwritesectors_TRDOSFS
-        jp rdsectors. ;out: a=error?
+        jp wrsectors. ;out: a=error?
  
 BDOS_setdrv
 ;e=volume
