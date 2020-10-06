@@ -937,6 +937,24 @@ htmlskipspaces_go
         jr z,htmlskipspaces0
         ld (executetag_endchar),a
         ret
+
+tag_COMMENT
+        call RDBYTE
+        or a
+        ret z
+        cp '-'
+        jr nz,tag_COMMENT
+        call RDBYTE
+        or a
+        ret z
+        cp '-'
+        jr nz,tag_COMMENT
+        call RDBYTE
+        or a
+        ret z
+        cp '>'
+        jr nz,tag_COMMENT
+        ret
         
 tag_font
 ;TODO push old font/pop old font
@@ -946,7 +964,6 @@ tag_link
 
 tag_dl
 tag_dt
-tag_COMMENT
 tag_doctype
 tag_span
 tag_html
