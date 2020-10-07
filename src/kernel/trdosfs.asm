@@ -506,7 +506,7 @@ trdos_rename_q
 
 dotname_to_cpmname
 ;de -> hl
-;out: de=pointer to termination character, hl=buffer filled in
+;out: de=pointer to termination character
         ;push hl ;buffer
         
         push de ;ASCIIZ string for parsing
@@ -519,6 +519,33 @@ dotname_to_cpmname
 	ldir ;empty filename
         pop hl ;Pointer to 11 byte buffer
         pop de ;ASCIIZ string for parsing
+
+;change dots to 1, except the last
+        ld a,(de)
+        cp '.'
+        jr z,parse_filename_changedots
+        push de
+        jr parse_filename_changedots0getgo
+parse_filename_changedots0get
+         ld a,1
+         ld (de),a
+parse_filename_changedots0getgo
+        ld b,d
+        ld c,e
+parse_filename_changedots0
+        ld a,(de)
+        cp '.'
+        jr z,parse_filename_changedots0get
+        inc de
+        or a
+        jr nz,parse_filename_changedots0
+        ld a,(bc)
+        cp 1
+        jr nz,$+5
+         ld a,'.'
+         ld (bc),a
+        pop de
+parse_filename_changedots
 
         ld b,9
 	
@@ -537,10 +564,17 @@ parse_filename0.
 	ld a,[de]
 	or a
 	ret z ;jr z,parse_filenameq. ;no extension in string
-	inc de
 	cp '.'
 	jr z,parse_filenamedot. ;можем уже быть на терминаторе
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
+         cp 1
+         jr nz,$+5
+          ld a,'.'
+	  ld [de],a
 	ld [hl],a
+	inc de
 	inc hl
 	djnz parse_filename0.
 ;9 bytes in filename, no dot (9th byte goes to extension)
@@ -557,6 +591,7 @@ parse_filenamelongname0.
         jr z,parse_filenameLONGnamedot. ;можем уже быть на терминаторе
         jr parse_filenamelongname0.
 parse_filenamedot.
+	inc de
 	inc hl
 	djnz $-1 ;hl points to extension in FCB
 	dec hl
@@ -564,18 +599,27 @@ parse_filenameLONGnamedot.
 	ld a,[de] ;extension in string
         or a
         ret z ;jr z,parse_filenameq. ;a=0
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a ;extension in FCB
         inc hl
         inc de
 	ld a,[de] ;extension in string
         or a
         ret z ;jr z,parse_filenameq. ;a=0
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a ;extension in FCB
         inc hl
         inc de
 	ld a,[de] ;extension in string
         or a
         ret z ;jr z,parse_filenameq. ;a=0
+         ;cp 0x80
+         ;jr nc,$+4
+         ;or 0x20
 	ld [hl],a ;extension in FCB
 parse_filenameq_findterminator.
         inc de
