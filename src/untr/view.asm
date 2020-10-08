@@ -456,6 +456,7 @@ oldtoptrack=$+1
         ld c,-1
         ld (oldtoptrack),a
         ld hl,(lefttime)
+        ld (curlefttime),hl
 oldlefttime=$+1
         ld de,0x8000
         ld (oldlefttime),hl
@@ -512,7 +513,7 @@ scrollleft0
         ld e,l
         dec e
         ld c,0x01
-        ld a,(lefttime)
+        ld a,(curlefttime)
         sub 8
         ld l,a
         and 7
@@ -526,7 +527,8 @@ scrollleft0
         ld a,l
         add a,SCRTRACKWID/2-1
         ld e,a
-        ld hl,(lefttime)
+curlefttime=$+1
+        ld hl,0;(curlefttime)
         ld bc,SCRTRACKWID-1
         add hl,bc
 scrollleft_Nchars=$+2
@@ -557,7 +559,7 @@ scrollleft_beforeprtrack0q
         call prtrack_Nchars
         pop de
         call setscrpg
-        ld a,(lefttime)
+        ld a,(curlefttime)
         add a,SCRTRACKWID-8
         ld l,a
         pop bc ;ld b,1
@@ -622,7 +624,7 @@ scrollright0
         push de
         dec e
         ld c,0x01
-        ld a,(lefttime)
+        ld a,(curlefttime)
         sub 8
         ld l,a
         and 7
@@ -631,7 +633,7 @@ scrollright0
 ;допечатать столбик слева и его бар
         call prtrack_gettype ;uses hx
         pop de
-        ld hl,(lefttime)
+        ld hl,(curlefttime)
 scrollright_Nchars=$+2
         ld bc,1*256+0x0f
 ;de=scr
@@ -644,7 +646,7 @@ scrollright_Nchars=$+2
         call prtrack_Nchars
         pop de
         call setscrpg
-        ld a,(lefttime)
+        ld a,(curlefttime)
         add a,1-8
         ld l,a
         pop bc;ld b,1
@@ -682,7 +684,7 @@ updatescr_scroll_noprall
         ld de,0x4000+(TRACKX/2)
         ld b,SCRTRACKWID
         ld c,0x0f
-        ld hl,(lefttime)
+        ld hl,(curlefttime)
         inc hl
         inc hl
 updatescr_time0
@@ -756,6 +758,31 @@ updatescr_tracks0
 ;        call prtrack
 ;updatescr_prcurtrackq
 
+        ld hl,(FreeMem_value)
+        ld de,0x4000
+        ld c,0x0f
+        push hl
+        ld a,h
+        call prhex
+        pop hl
+        ld a,l
+        call prhex
+
+        ret
+prhex
+        call prhexdig
+prhexdig
+        rrca
+        rrca
+        rrca
+        rrca
+        push af
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
+        call prchar
+        pop af
         ret
 
 prtypes
@@ -835,14 +862,14 @@ prtrack
          res 7,(hl)
         call prtrack_gettype
 
-        ld hl,(lefttime)
+        ld hl,(curlefttime)
         push de
         call prtrack_Nchars
         pop de
         
         call setscrpg
 
-        ld hl,(lefttime)
+        ld hl,(curlefttime)
         ld c,0x01
         dec e
         push hl

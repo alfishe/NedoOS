@@ -37,6 +37,15 @@ begin
 ;   23          ab          23 ;high+0x0000
 ;      45          cd          ;low+0x2000
 ;         67          ef       ;high+0x2000
+
+        ;ld hl,0x8000
+        ;ld b,10
+        ;ld c,0xff        
+;hl=scraddr
+;c=color byte 0bRLrrrlll
+;b=wid/2
+        ;call drawhorline
+        ;jr $
         
         ld l,1
         ld e,10

@@ -54,37 +54,25 @@ endsys_result_aq
         out (0xfd),a
         display "kernel_result_a=",$
         ds 0x0010+5-$
-;e=char
-        if bdosstack_sz==0
-        ld (sys_prchar_sp),sp
-        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
-        else
-        exx
-        ld hl,0
-        add hl,sp
-        ld iy,(appaddr)
-        ;ld (iy+app.callbdos_sp),l
-        ;ld (iy+app.callbdos_sp+1),h
-        ld bc,app.bdosstack+bdosstack_sz
-        add iy,bc
-        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
-        exx
-        endif
-        
-        ld iy,(appaddr)
-        call BDOS_prchar ;портит только 0xc000+, но сама восстанавливает pgkillable
-        if bdosstack_sz==0
-sys_prchar_sp=$+1
-        ld sp,0
-        else
-        exx
-        ;ld iy,(appaddr)
-        ;ld l,(iy+app.callbdos_sp)
-        ;ld h,(iy+app.callbdos_sp+1)
-        ld sp,hl
-        exx
-        endif
-        jp endsys_result_a
+        jp fastprchar
+
+        ds 0x0018-$
+;setpg4000=0x0018
+        ld bc,memport4000
+        out (c),a
+        ret
+
+        ds 0x0020-$
+;setpg8000=0x0020
+        ld bc,memport8000
+        out (c),a
+        ret
+
+        ds 0x0028-$
+;setpgc000=0x0028
+        ld bc,memportc000
+        out (c),a
+        ret
 
 sys_timer
         ds 4
@@ -116,6 +104,39 @@ sys_intq
         ;ds 0x0038+14-$ -4
         ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
         jp sys_intgo ;нужно, чтобы можно было ставить точку останова на 0x0100
+
+fastprchar
+;e=char
+        if bdosstack_sz==0
+        ld (sys_prchar_sp),sp
+        ld sp,BDOSSTACK ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
+        else
+        exx
+        ld hl,0
+        add hl,sp
+        ld iy,(appaddr)
+        ;ld (iy+app.callbdos_sp),l
+        ;ld (iy+app.callbdos_sp+1),h
+        ld bc,app.bdosstack+bdosstack_sz
+        add iy,bc
+        ld sp,iy ;до этого момента прерывание может запороть любое место памяти (user sp >=0x3b00)
+        exx
+        endif
+        
+        ld iy,(appaddr)
+        call BDOS_prchar ;портит только 0xc000+, но сама восстанавливает pgkillable
+        if bdosstack_sz==0
+sys_prchar_sp=$+1
+        ld sp,0
+        else
+        exx
+        ;ld iy,(appaddr)
+        ;ld l,(iy+app.callbdos_sp)
+        ;ld h,(iy+app.callbdos_sp+1)
+        ld sp,hl
+        exx
+        endif
+        jp endsys_result_a
 
         ds 0x0100-$ ;stack for CP/M programs
         
@@ -336,7 +357,7 @@ sys_sysint
         push de ;"hl"
         ;push hl
         exx
-        ex af,af'
+        ex af,af' ;'
         push af
         push bc
         push de
@@ -364,7 +385,7 @@ sys_curpg4000=$+1
         pop de
         pop bc
         pop af
-        ex af,af'
+        ex af,af' ;'
         exx
         pop hl ;"hl"
         ;pop de
@@ -542,6 +563,7 @@ muzpgc000=$+1
         ;jr $
         ld sp,INTMUZSTACK
 
+         ld e,pgsys
         ld ix,(focusappaddr)
         ld a,(ix+app.gfxmode)
 muzcall=$+1
@@ -660,7 +682,7 @@ sys_mousebuttons=$+1
         ;jp endsys_result_a
 endsys_result_a
          ld iy,(focusappaddr)
-        ex af,af'
+        ex af,af' ;'
         ld a,(iy+app.screen)
         ;ld iy,(appaddr)
         jp endsys_result_aq
@@ -760,7 +782,7 @@ sys_quit
        ld hl,sys_reter
        ld (muzcall),hl ;есть в delapppages тоже!!! TODO выбросить?
 sys_quit_nomuzcall
-        call BDOS_delapppages
+        call BDOS_delapppages ;глушит сокеты и музыку
         jp BDOS_yield_q ;переходим на какую-нибудь задачу (там же ставим pgkillable в 4000,8000,c000)
         
 setkernelpages_go

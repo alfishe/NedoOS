@@ -1,4 +1,6 @@
 untr_save
+        ld a,(ntracks)
+        ld (save_ntracks),a
         ld de,tfilename
         OS_CREATEHANDLE
         ld a,b
@@ -54,6 +56,8 @@ untr_load
         call loadfragments ;includes track info
         call loadtracks
 
+        ld a,(save_ntracks)
+        ld (ntracks),a
         call setneedpralltracks
         call setneedprtypes
         jr untr_saveclose
@@ -139,7 +143,7 @@ loadtracktypes0
         ld bc,8
         ldir
         inc hy
-        ld a,(ntracks)
+        ld a,(save_ntracks)
         cp hy
         jr nz,loadtracktypes0
         ret
@@ -176,7 +180,7 @@ loadtrackbytes0
         cp ly
         jr nz,loadtrackparts0
         inc hy
-        ld a,(ntracks)
+        ld a,(save_ntracks)
         cp hy
         jr nz,loadtracks0
         ret
@@ -252,7 +256,7 @@ savetracktypes0
         call save_hlbytes_fromde
        pop hl
         inc hy
-        ld a,(ntracks)
+        ld a,(save_ntracks)
         cp hy
         jr nz,savetracktypes0
 
@@ -295,7 +299,7 @@ savetrackbytes0
         jr nz,savetrackparts0
         
         inc hy
-        ld a,(ntracks)
+        ld a,(save_ntracks)
         cp hy
         jr nz,savetracks0
         ret
@@ -344,7 +348,7 @@ cleartrackbytes0
         cp ly
         jr nz,cleartrackparts0
         inc hy
-        ld a,(ntracks)
+        ld a,(save_ntracks)
         cp hy
         jr nz,cleartracks0
         ret
@@ -395,7 +399,7 @@ nsamples
         db 64 ;числосэмплов (сейчас =64)
 nfragments
         db 1 ;числофрагментов F
-ntracks
+save_ntracks
         db 14 ;числотреков N
 nparts
         db 64 ;числочастей (сейчас =64)

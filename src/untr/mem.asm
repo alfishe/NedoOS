@@ -380,6 +380,13 @@ writetopoi_space
         inc l
         or (hl)
         jp nz,writetopoi_space_nodel2 ;непусто - не удаляем
+        push de
+        ld a,l
+        and 0xfc
+        ld e,a
+        ld d,h
+        call delmem
+        pop de
 
 ;удалять пустое поддерево, пока в узле выше вторая ссылка NULL
         macro WRITETOPOI_SPACE_DEL nodeladdr
@@ -394,6 +401,13 @@ writetopoi_space
         dec l
         or (hl)
         jp nz,nodeladdr
+        push de
+        ld a,l
+        and 0xfc
+        ld e,a
+        ld d,h
+        call delmem
+        pop de
         endm
         WRITETOPOI_SPACE_DEL writetopoi_space_nodel3 ;удалили узел из 4 байт
         WRITETOPOI_SPACE_DEL writetopoi_space_nodel4 ;удалили узел из 8 байт
@@ -1164,4 +1178,4 @@ initmem0
         ret
 
 FreeMem_value
-        dw 32768
+        dw 0-freemem_start;32768

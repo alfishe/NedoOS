@@ -1,5 +1,113 @@
 ;TODO микшировать трек в фильтр
 
+initplayer
+        ld a,1
+        ld (player_state),a
+        ret
+
+player
+        ;di
+        ;jr $
+player_state=$+1
+        ld a,1
+        dec a
+        jr nz,player_playnote
+        call initnote
+        call untr_right
+        ld a,3
+player_playnote
+        ld (player_state),a        
+        jp playnote
+
+checkeof
+        ld de,MAXTIME-1
+        or a
+        sbc hl,de
+        add hl,de
+        ret c
+        ld h,d
+        ld l,e
+        ret ;nc=eof, hl=eof time
+
+untr_right
+        ld hl,(curtime)
+        call checkeof ;nc=eof
+        ret nc
+        inc hl
+;untr_right_ok
+        ld (curtime),hl
+        ex de,hl
+        ld hl,(lefttime)
+        ld bc,SCRTRACKWID
+        add hl,bc
+        ex de,hl ;de=lefttime+SCRTRACKWID
+        or a
+        sbc hl,de
+        add hl,de ;curtime < (lefttime+SCRTRACKWID)?
+        ret c
+        ld hl,(lefttime)
+        inc hl
+        ld (lefttime),hl
+        ret
+
+;A0gO123
+
+;bass, pad и tone имеют параметры:
+;сэмпл
+;громкость
+;смещение в сэмпле
+;рабочая октава
+
+;фильтр имеет параметры:
+;тип фильтра (g=gain, Vv=vib, Ee=env(vib/gliss up/down), n=noise down)
+;для вибрато: глубина (0=бесконечность, т.е. gliss)
+;для вибрато: период
+;для вибрато: скорость изменения
+
+playnote
+        call setpgsamples
+        call playnote_tracksplaysample
+        call setpgroots
+
+        ld a,2
+        call mixchn_all_channela
+        push iy ;chn для C ;если нет ни одного трека для канала, то нам вернули emptychn
+        ld a,1
+        call mixchn_all_channela
+        push iy ;chn для B ;если нет ни одного трека для канала, то нам вернули emptychn
+        ld a,0
+        call mixchn_all_channela
+        push iy ;chn для A ;если нет ни одного трека для канала, то нам вернули emptychn
+        pop ix ;chn для A
+        pop hl ;chn для B
+        pop de ;chn для C
+        ld iy,chip0 ;ix=fromA ;hl=fromB ;de=fromC ;iy=chip
+        call rendchip
+        call setchip0
+        ld hl,chip0
+        call outchip
+
+        ld a,3+2
+        call mixchn_all_channela
+        push iy ;chn для C ;если нет ни одного трека для канала, то нам вернули emptychn
+        ld a,3+1
+        call mixchn_all_channela
+        push iy ;chn для B ;если нет ни одного трека для канала, то нам вернули emptychn
+        ld a,3+0
+        call mixchn_all_channela
+        push iy ;chn для A ;если нет ни одного трека для канала, то нам вернули emptychn
+        pop ix ;chn для A
+        pop hl ;chn для B
+        pop de ;chn для C
+        ld iy,chip1 ;ix=fromA ;hl=fromB ;de=fromC ;iy=chip
+        call rendchip
+        call setchip1
+        ld hl,chip1
+        call outchip
+        
+        ret
+
+
 inittracks
 ;настраивает треки по заданным параметрам
 ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
@@ -103,7 +211,7 @@ inittrackspars0filter
         ld bc,filterhandler_noise
         cp _n
         jr z,inittrackspars_filtertypeok
-        ld bc,reter
+        ld bc,play_reter
 inittrackspars_filtertypeok
         ld (ix+chn.handler),c
         ld (ix+chn.handler+1),b
@@ -525,4 +633,5 @@ _DIV0.
 	rla
 	cpl
 	ld h,a
+play_reter
 	ret

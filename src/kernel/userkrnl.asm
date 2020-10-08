@@ -29,7 +29,7 @@ user_fdvalue4=$+1
         out (0xfd),a
         display "kernel_result_a=",$
 kernel_result_a
-        ex af,af'
+        ex af,af' ;'
         ret ;можно перенести вместо kernel_setpg
 user_scr0_low=0x0017
         nop

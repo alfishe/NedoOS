@@ -3,7 +3,7 @@
 
 OLDTTYPES=0
 
-freemem_start=0x8000
+;freemem_start=0x8000
 
 MAXTIME=65536;4096
 
@@ -53,6 +53,8 @@ cmd_begin
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         ld (pgroots),a
+        ;ld a,h
+        ld (player4000page),a
 
         OS_NEWPAGE
         ld a,e
@@ -635,82 +637,45 @@ tracks_right
         inc (hl)
         ret
 
-;A0gO123
-
-;bass, pad и tone имеют параметры:
-;сэмпл
-;громкость
-;смещение в сэмпле
-;рабочая октава
-
-;фильтр имеет параметры:
-;тип фильтра (g=gain, Vv=vib, Ee=env(vib/gliss up/down), n=noise down)
-;для вибрато: глубина (0=бесконечность, т.е. gliss)
-;для вибрато: период
-;для вибрато: скорость изменения
-
-playnote
-        call setpgsamples
-        call playnote_tracksplaysample
-        call setpgroots
-
-        ld a,2
-        call mixchn_all_channela
-        push iy ;chn для C ;если нет ни одного трека для канала, то нам вернули emptychn
-        ld a,1
-        call mixchn_all_channela
-        push iy ;chn для B ;если нет ни одного трека для канала, то нам вернули emptychn
-        ld a,0
-        call mixchn_all_channela
-        push iy ;chn для A ;если нет ни одного трека для канала, то нам вернули emptychn
-        pop ix ;chn для A
-        pop hl ;chn для B
-        pop de ;chn для C
-        ld iy,chip0 ;ix=fromA ;hl=fromB ;de=fromC ;iy=chip
-        call rendchip
-        call setchip0
-        ld hl,chip0
-        call outchip
-
-        ld a,3+2
-        call mixchn_all_channela
-        push iy ;chn для C ;если нет ни одного трека для канала, то нам вернули emptychn
-        ld a,3+1
-        call mixchn_all_channela
-        push iy ;chn для B ;если нет ни одного трека для канала, то нам вернули emptychn
-        ld a,3+0
-        call mixchn_all_channela
-        push iy ;chn для A ;если нет ни одного трека для канала, то нам вернули emptychn
-        pop ix ;chn для A
-        pop hl ;chn для B
-        pop de ;chn для C
-        ld iy,chip1 ;ix=fromA ;hl=fromB ;de=fromC ;iy=chip
-        call rendchip
-        call setchip1
-        ld hl,chip1
-        call outchip
-        
-        ret
-
 untr_play
+        call initplayer
         call inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
-        jr playenter0go
+        
+player4000page=$+1
+	 ld a,0
+         ld hl,player
+         OS_SETMUSIC 
+
+        jr playenter0_go
+        ;OS_GETTIMER ;out: hlde=timer
+        ;ld (playenter_oldtimer),de
 playenter0
+;        OS_GETTIMER ;out: hlde=timer
+;        ex de,hl
+;playenter_oldtimer=$+1
+;        ld de,0
+;        ld (playenter_oldtimer),hl
+        
+        ;call untr_right ;TODO check end and loop
         halt
-          ;call prcurcur
-playenter0go
-        call initnote
-        call playnote
-        halt
-        call playnote
-        halt
-        call playnote
-        call untr_right ;TODO check end and loop
-         ;call updatescr
-          ;call prcurcur
+playenter_curxy=$+1
+        ld bc,0
+          call prcur
+playenter0_go
+        call updatescr
+        call getcurx
+        ld c,a
+        call getcury
+        ld b,a
+        ld (playenter_curxy),bc
+          call prcur
           ;jr playenter0
         call checknotekeys_pressed
         jr nz,playenter0
+
+	 ld a,(player4000page)
+         ld hl,play_reter
+         OS_SETMUSIC 
 
         call shutay
 
@@ -819,7 +784,7 @@ untr_ins0
         djnz untr_ins0
         dec hx
         jr nz,untr_ins0
-        jr setneedredraw_alltracksiforder
+        jp setneedredraw_alltracksiforder
 
 untr_quit
         QUIT
@@ -843,20 +808,37 @@ checknotekeys_pressed
 
 untr_home
 ;переход на начало текущей части
-        ld a,(curtrack)
         ld hl,(curtime)
+        ld a,(curtrack)
         push hl
         call tracktime_totrackpartindex ;hl=index
         ex de,hl ;de=index
         pop hl
+       ld a,d
+       or e
+       jr z,untr_home_left
+untr_home_ok
         or a
         sbc hl,de ;beg=time-index (index=time-beg)
         jp untr_pgdown_ok
+untr_home_left
+;уже в начале текущей части, пытаемся найти предыдущую
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld a,(curtrack)
+        push hl
+        call tracktime_totrackpartindex ;hl=index
+        ex de,hl ;de=index
+        pop hl
+        jr untr_home_ok
 
 untr_end
 ;переход на конец текущей части в текущем треке
         ld a,(curtrack)
         ld hl,(curtime)
+       push hl ;curtime
         push hl
         call tracktime_totrackpartindex ;hl=index
         ex de,hl ;de=index
@@ -864,13 +846,36 @@ untr_end
         or a
         sbc hl,de ;beg=time-index (index=time-beg)
         push hl ;beg
-        call getroot ;out: hl=root
-        ld de,0xffff
-;hl=track root (4 bytes: left poi, right poi)
-;de=index
-        call findleft ;de=end index
+        call getendaddr ;de=end index
         pop hl ;beg
         add hl,de ;time=index+beg (beg=time-index)
+       pop de ;curtime
+        or a
+        sbc hl,de ;time>curtime?
+        add hl,de
+        jr c,untr_end_findnext
+        jp nz,untr_pgdown_ok
+untr_end_findnext
+        ex de,hl ;hl=curtime
+;уже на конце текущей части в текущем треке
+;пытаемся найти следующую часть
+        ld a,(curtrack)
+        inc hl
+        push hl
+        call gettrackorder ;номер ордера (0=нет)
+        pop hl
+        or a ;канал подписан на ордер?
+        ret z ;не подписан
+        ex de,hl
+        xor a ;TODO номер канала ордера
+        ld ly,0 ;у ордера всегда берём дефолтную часть (part=0), т.к. ордер не подчиняется ордерам
+        call getroot
+        call findright ;out: de=nonempty index (or 0xffff), a=data (1..62 or 0)
+         ld a,d
+         and e
+         inc a
+         ret z
+        ex de,hl
         jp untr_pgdown_ok
 
 untr_up
@@ -935,16 +940,6 @@ untr_down
         inc (hl)
         ret;jp setneedprtypes;setneedredraw
 
-checkeof
-        ld de,MAXTIME-1
-        or a
-        sbc hl,de
-        add hl,de
-        ret c
-        ld h,d
-        ld l,e
-        ret ;nc=eof, hl=eof time
-
 untr_pgdown
         ld hl,(curtime)
          ;inc hl
@@ -973,27 +968,6 @@ untr_pgdown_ok
         pop hl
         jr nc,$+5
          ld hl,0x10000-(SCRTRACKWID/2)
-        ld (lefttime),hl
-        ret
-
-untr_right
-        ld hl,(curtime)
-        call checkeof ;nc=eof
-        ret nc
-        inc hl
-;untr_right_ok
-        ld (curtime),hl
-        ex de,hl
-        ld hl,(lefttime)
-        ld bc,SCRTRACKWID
-        add hl,bc
-        ex de,hl ;de=lefttime+SCRTRACKWID
-        or a
-        sbc hl,de
-        add hl,de ;curtime < (lefttime+SCRTRACKWID)?
-        ret c
-        ld hl,(lefttime)
-        inc hl
         ld (lefttime),hl
         ret
 
@@ -1028,72 +1002,6 @@ untr_left
         ld (lefttime),de
         ret
 
-ttypes
-        if OLDTTYPES
-        db "ORDER ",13
-        db "drum *",13
-        db "tone *",13
-        db "vib 1*",13
-        db "pad  *",13
-        db "vol   ",13
-         ;db "vol   ",13
-        db "drum *",13
-        db "tone *",13
-        db "vol   ",13
-        db "bass *",13
-        db "drum *",13
-        db "tone *",13
-        db "pad  *",13
-        db "vol   "
-        db 0
-
-        else
-;A0gOS2v*
-        db  0, 0,_O, 0, 0, 0, 0, 0;"  O     "
-        db _A,_5,_d,_O, 0, 0,_f, 0;"A5dO  f "
-        db _A,_2,_t,_O,_t, 0,_f, 0;"A2tOt f "
-        db  0, 0,_V,_O,_3,_1,_1, 0;"  VO311 "
-        db _D,_0,_t,_O,_p, 0,_f, 0;"D0tOp1f "
-        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
-        db _B,_5,_d,_O, 0, 0,_f, 0;"B5dO  f "
-        db _B,_2,_t,_O,_t, 0,_f, 0;"B2tOt f "
-        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
-        db _B,_0,_t,_O,_b, 0,_f, 0;"B0tOb f "
-        db _C,_5,_d,_O, 0, 0,_f, 0;"C5dO  f "
-        db _C,_5,_t,_O,_t, 0,_f, 0;"C2tOt f "
-        db _C,_0,_t,_O,_p, 0,_f, 0;"C0tOp1f "
-        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
-        ds ttypes+(MAXNTRACKS*8)-$
-ttypes_end
-        endif
-
-;смотрим тип текущего канала
-gettracktype
-        push de
-        ld l,a
-        ld h,0
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        ld de,ttypes+2
-        add hl,de
-        ld a,(hl)
-        pop de
-        ret
-
-gettrackorder
-        push de
-        ld l,a
-        ld h,0
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        ld de,ttypes+3
-        add hl,de
-        ld a,(hl)
-        pop de
-        ret
-
 amulchnsstep_tohl
 _=chnsstep
         ld e,a
@@ -1126,46 +1034,6 @@ _=_*2
         edup
         ret
 
-tracks
-chns=tracks+2
-        CHNTYPE 0x80+CHNTYPE_ORDER  ,0;,0;-1
-        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Adrum
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Atone
-        CHNTYPE 0x80+CHNTYPE_FILTER ,1;,0;Filter_Avib
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Apad
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Avol
-         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,0;Filter_Bvol
-        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Bdrum
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Btone
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Bvol
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Bbass
-        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Cdrum
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Ctone
-        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Cpad
-        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
-         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
-        ds tracks+(chnsstep*MAXNTRACKS)-$,-1
-tracks_end
-        ;db -1
-
-emptychn
-        chn
-
-chip0
-        chip
-chip1
-        chip
-
-
-lefttime
-        dw 0
-curtime
-        dw 0
-curtrack
-        db 0
-toptrack
-        db 0
-
 getcurx
         push bc
         ld hl,(curtime)
@@ -1184,7 +1052,6 @@ getcury
         sub (hl)
         inc a
 ;a=y
-reter
         ret
 
 prcurcur
@@ -1228,10 +1095,7 @@ findsampleloop0
         jr nz,findsampleloop0
         ret
 
-        include "mix.asm"
         include "view.asm"
-        include "mem.asm"
-        include "play.asm"
         include "save.asm"
 
         macro tn msk,semi,vol,frq,noi
@@ -1504,11 +1368,126 @@ tnotekeys
         db "mjnhbgvcdxsz"
         db ssM,ssJ,ssN,ssH,ssB,ssG,ssV,ssC,ssD,ssX,ssS,ssZ
         align 256
-tfrq
-        ds 512
 wasfrq
         incbin "tb_st.bin"
 
+        ds 0x8000-$
+tfrq
+        ds 512
+        include "mem.asm"
+        include "play.asm"
+        include "mix.asm"
+
+ttypes
+        if OLDTTYPES
+        db "ORDER ",13
+        db "drum *",13
+        db "tone *",13
+        db "vib 1*",13
+        db "pad  *",13
+        db "vol   ",13
+         ;db "vol   ",13
+        db "drum *",13
+        db "tone *",13
+        db "vol   ",13
+        db "bass *",13
+        db "drum *",13
+        db "tone *",13
+        db "pad  *",13
+        db "vol   "
+        db 0
+
+        else
+;A0gOS2v*
+        db  0, 0,_O, 0, 0, 0, 0, 0;"  O     "
+        db _A,_5,_d,_O, 0, 0,_f, 0;"A5dO  f "
+        db _A,_2,_t,_O,_t, 0,_f, 0;"A2tOt f "
+        db  0, 0,_V,_O,_3,_1,_1, 0;"  VO311 "
+        db _D,_0,_t,_O,_p, 0,_f, 0;"D0tOp1f "
+        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        db _B,_5,_d,_O, 0, 0,_f, 0;"B5dO  f "
+        db _B,_2,_t,_O,_t, 0,_f, 0;"B2tOt f "
+        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        db _B,_0,_t,_O,_b, 0,_f, 0;"B0tOb f "
+        db _C,_5,_d,_O, 0, 0,_f, 0;"C5dO  f "
+        db _C,_5,_t,_O,_t, 0,_f, 0;"C2tOt f "
+        db _C,_0,_t,_O,_p, 0,_f, 0;"C0tOp1f "
+        db  0, 0,_g, 0, 0, 0, 0, 0;"  g     "
+        ds ttypes+(MAXNTRACKS*8)-$
+ttypes_end
+        endif
+
+;смотрим тип текущего канала
+gettracktype
+        push de
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld de,ttypes+2
+        add hl,de
+        ld a,(hl)
+        pop de
+        ret
+
+gettrackorder
+        push de
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld de,ttypes+3
+        add hl,de
+        ld a,(hl)
+        pop de
+        ret
+
+tracks
+chns=tracks+2
+        CHNTYPE 0x80+CHNTYPE_ORDER  ,0;,0;-1
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Adrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Atone
+        CHNTYPE 0x80+CHNTYPE_FILTER ,1;,0;Filter_Avib
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Apad
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Avol
+         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0,0;Filter_Bvol
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Bdrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Btone
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Bvol
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Bbass
+        CHNTYPE 0x80+CHNTYPE_SAMPLES,1;,0;Cdrum
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Ctone
+        CHNTYPE 0x80+CHNTYPE_NOTES  ,1;,0;Cpad
+        CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
+         ;CHNTYPE 0x80+CHNTYPE_FILTER ,0;,0;Filter_Cvol
+        ds tracks+(chnsstep*MAXNTRACKS)-$,-1
+tracks_end
+        ;db -1
+
+emptychn
+        chn
+
+chip0
+        chip
+chip1
+        chip
+
+
+lefttime
+        dw 0
+curtime
+        dw 0
+curtrack
+        db 0
+toptrack
+        db 0
+ntracks
+        db 14 ;числотреков N
+
+        align 4
+freemem_start
 cmd_end
 
 
