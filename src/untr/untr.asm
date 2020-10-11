@@ -195,16 +195,20 @@ refrq2
 
 ;;;;;;;;;;;;;;;;;;;;;
         ;call setneedredraw
-mainloop
-        call updatescr
         call prcurcur
+mainloop
+        xor a
+        ld (tracksmode),a
 mainloop_nokey
-        YIELDGETKEYLOOP
+        YIELD
+        call updatescr
+        ;call prcurcur
+        GET_KEY
         or a
         jr z,mainloop_nokey
-        push af
-        call prcurcur
-        pop af
+        ;push af
+        ;call prcurcur
+        ;pop af
          cp key_tab
          jp z,tracksloop
         ld hl,mainloop
@@ -434,15 +438,18 @@ untr_step0
         ret
 
 tracksloop
-        call updatescr
-        call prtrackscur
+        ld a,1
+        ld (tracksmode),a
 tracksloop_nokey
-        YIELDGETKEYLOOP
+        YIELD
+        call updatescr
+        ;call prtrackscur
+        GET_KEY
         or a
         jr z,tracksloop_nokey
-        push af
-        call prtrackscur
-        pop af
+        ;push af
+        ;call prtrackscur
+        ;pop af
          cp key_tab
          jp z,mainloop
         ld hl,tracksloop
@@ -665,7 +672,8 @@ untr_setplayend
         ret
 
 untr_setplayall
-        ld hl,0xffff
+        ld hl,0
+        ld (playbegin),hl
         ld (playend),hl
         ret
 
@@ -711,7 +719,7 @@ playenter0
         halt
 playenter_curxy=$+1
         ld bc,0
-          call prcur
+          ;call prcur
 playenter0_go
         call updatescr
         call getcurplayx
@@ -719,7 +727,7 @@ playenter0_go
         call getcury
         ld b,a
         ld (playenter_curxy),bc
-          call prcur
+          ;call prcur
           ;jr playenter0
         call checknotekeys_pressed
         jr nz,playenter0
@@ -1083,6 +1091,29 @@ _=_*2
         edup
         ret
 
+getcurplayxonscreen
+;out: a=0=offscreen
+        call isplayxonscreen
+        ld a,0
+        ret c
+        add hl,bc
+        ld a,l
+        add a,TRACKX
+        ret
+
+isplayxonscreen
+;CY=offscreen
+        ld hl,(playtime)
+        ld bc,(lefttime)
+        or a
+        sbc hl,bc
+        ret c
+        ld bc,SCRTRACKWID
+        ;or a
+        sbc hl,bc
+        ccf
+        ret
+
 getcurplayx
         push bc
         ld hl,(playtime)
@@ -1120,14 +1151,18 @@ prcurcur
         ld c,a
         call getcury
         ld b,a
+        ld (oldcurxonscreen),bc
         jp prcur
 
+        if 1==0
 prtrackscur
         ld a,(tracks_curx)
         ld c,a
         call getcury
         ld b,a
+        ld (oldcurxonscreen),bc
         jp prcur
+        endif
 
 findsamplelengthandloop
 ;find sample length and loop line

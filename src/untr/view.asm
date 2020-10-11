@@ -449,8 +449,38 @@ setneedprtracks
         ret
 
 updatescr
+;сейчас виден курсор
+
 ;обновляем, если изменился lefttime или toptrack
 ;при смене toptrack также перерисовать описатели треков
+        call getcurplayxonscreen
+        ld (curplayxonscreen),a
+oldcurplayxonscreen=$+1
+oldcurplayyonscreen=$+2
+        ld bc,0
+        ;cp c
+        ;jr z,updatescr_noplaycur
+        ld a,c
+        or a
+        call nz,prcur
+updatescr_noplaycur
+
+        call getcurx
+tracksmode=$+1
+        ld c,0
+        dec c
+        jr nz,$+5
+         ld a,(tracks_curx) ;edit tracks mode
+        ld (curxonscreen),a
+oldcurxonscreen=$+1
+oldcuryonscreen=$+2
+        ld bc,0
+        ;cp c
+        ;jr z,updatescr_nocur
+        call prcur
+updatescr_nocur
+
+;теперь курсор не виден
         ld a,(toptrack)
 oldtoptrack=$+1
         ld c,-1
@@ -767,6 +797,27 @@ updatescr_tracks0
         pop hl
         ld a,l
         call prhex
+
+;draw cursors
+curplayxonscreen=$+1
+        ld a,0
+        ld (oldcurplayxonscreen),a
+        ld c,a
+        xor a ;call getcury
+        ld (oldcurplayyonscreen),a
+        ld b,a
+        ld a,c
+        or a
+        call nz,prcur
+
+curxonscreen=$+1
+        ld a,0
+        ld (oldcurxonscreen),a
+        ld c,a
+        call getcury
+        ld (oldcuryonscreen),a
+        ld b,a
+        call prcur
 
         ret
 prhex
