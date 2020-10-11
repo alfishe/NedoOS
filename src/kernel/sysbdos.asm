@@ -1663,25 +1663,14 @@ BDOS_fwrite_nbytes_noFATFS
 
 ;de=path
 ;hl=FILINFO buffer
+		display "BDOS_getfilinfo ",BDOS_getfilinfo
 BDOS_getfilinfo
         push hl ;FILINFO buffer
         call BDOS_preparedepage
         call BDOS_setdepage
-        ;call countfiledrive
-        ;CHECKVOLUMETRDOS
-        ;jr c,BDOS_getfilinfo_noFATFS ;не имеет смысла вне FAT
-        ld bc,mfilinfo
-        push bc
+        call countfiledrive
+        pop bc
         F_STAT
-        pop hl ;mfilinfo
-        pop de ;FILINFO buffer
-        or a
-        ret nz ;fail
-        call BDOS_preparedepage
-        call BDOS_setdepage
-        ld bc,FILINFO_sz
-        ldir
-        xor a ;OK
         ret
         
 count_fdir

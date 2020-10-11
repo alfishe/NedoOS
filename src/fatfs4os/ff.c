@@ -482,7 +482,8 @@ static BYTE sfn[12];
 
 #elif _USE_LFN == 1			/* LFN with static LFN working buffer */
 static WCHAR LfnBuf[_MAX_LFN+1];
-#define	DEF_NAMEBUF			BYTE sfn[12]
+static BYTE sfn[12];
+#define	DEF_NAMEBUF
 #define INIT_BUF(dobj)		{ (dobj).fn = sfn; (dobj).lfn = LfnBuf; }
 #define	FREE_BUF()
 
@@ -3058,7 +3059,7 @@ FRESULT f_stat (
 		FREE_BUF();
 	}
 
-	drv_calls.memcpy_lib2usp(fno,&fno_rddir,sizeof(fno));
+	drv_calls.memcpy_lib2usp(fno,&fno_rddir,sizeof(FILINFO));
 	LEAVE_FF(djo.fs, res);
 }
 
