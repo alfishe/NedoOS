@@ -26,10 +26,10 @@ nvfind_redrawloop
 nvfind_mainloop
         ld a,2
 nvfind_yieldkeep
-        ld (nvview_wasnokey),a
+        ld (nvfind_wasnokey),a
 	YIELDKEEP
         ld a,55+128 ;"or a"
-        ld (nvview_wasyield),a
+        ld (nvfind_wasyield),a
 nvfind_mainloop_nokey
         GETKEY_ ;OS_GETKEYNOLANG
         ld a,c ;keynolang

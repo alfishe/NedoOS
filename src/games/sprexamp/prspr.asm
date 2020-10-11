@@ -493,6 +493,9 @@ copyboxscrtoscr
 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
 ;(iy-3)=sprhgt
 ;(iy-4)=sprwid
+       ;ld e,1+(sprmaxwid-1)
+       ;ld c,0
+        
         ld l,(iy-4) ;sprwid
         ld a,e ;x
         sub sprmaxwid-1
@@ -541,19 +544,22 @@ copyboxscrtoscr_nocroptop
          ret z
 copyboxscrtoscr_nocropbottom
 ;h=hgt,l=wid (/2) != 0
+         ;ld l,32
         ld a,c
         add a,h
         dec a
         ld c,a
 ;c=y, e=xleft (/2)
+        ld lx,c ;lx=y
        push hl ;h=hgt,l=wid (/2) != 0
-        ld a,e ;x
+        ld a,e ;xleft (/2)
+        add a,l ;wid (/2)
+        dec a
+        ld e,a ;xright (/2)
         ld b,0
         ld l,c ;y
-        srl a ;CY=x bit 0
-        srl a ;CY=x bit 1
-         ;ld h,0xc0/64
-         ;rl h
+        ;srl a ;CY=x bit 0
+        ;srl a ;CY=x bit 1
          ld h,0xc0/32
         add hl,hl
         add hl,hl
@@ -561,6 +567,67 @@ copyboxscrtoscr_nocropbottom
         add hl,hl
         add hl,hl
         add hl,hl ;y*40+scrbase
+        ; if scrbase&0xff
+        ; add a,scrbase&0xff
+        ; endif
+        ;add a,l
+        ;ld l,a
+        ;adc a,h
+        ;sub l
+        ;ld h,a ;hl=scr
+       pop bc ;b=hgt,c=wid (/2) != 0
+;c=wid (/2)
+;b=hgt
+;e=xright (/2)
+;lx=y
+        push bc
+        push de
+        push hl
+        call copyboxscrtoscr_page ;rightmost layer
+        pop hl
+        pop de
+        pop bc
+        dec e ;xright (/2)
+        dec c ;wid (/2)
+       ret z
+        push bc
+        push de
+        push hl
+        call copyboxscrtoscr_page ;next layer
+        pop hl
+        pop de
+        pop bc
+        dec e ;xright (/2)
+        dec c ;wid (/2)
+       ret z
+        push bc
+        push de
+        push hl
+        call copyboxscrtoscr_page ;next layer
+        pop hl
+        pop de
+        pop bc
+        dec e ;xright (/2)
+        dec c ;wid (/2)
+       ret z
+copyboxscrtoscr_page
+;lx=y
+;e=xright (/2)
+;c=wid (/2)
+;b=hgt
+;hl=scrright = 0xc000+
+        push bc
+        ld a,e ;xright (/2)
+        rra
+        call nc,getuser_scr_low
+        call c,getuser_scr_high
+        SETPG32KHIGH ;kills bc
+        ld a,e ;xright (/2)
+        rra
+        rra
+        jr nc,$+4
+         set 5,h
+        and 0x3f
          if scrbase&0xff
          add a,scrbase&0xff
          endif
@@ -569,126 +636,101 @@ copyboxscrtoscr_nocropbottom
         adc a,h
         sub l
         ld h,a ;hl=scr
-
-;hl=scr
-        xor a
-        add a,tpushpgs&0xff
-        ld ly,a
-        ld a,0
-        adc a,tpushpgs/256
-        ld hy,a
-
-        call getuser_scr_high
-        SETPG32KHIGH
-        ld a,(iy+3)
-        SETPG16K
-        ld a,(iy+3+4)
-        SETPG32KLOW
-       pop bc ;b=hgt,c=wid (/2) != 0
-;c=wid (/2)
-;b=hgt
-        push bc
-        push de
-        push hl
-;012301230123
-;...SSSSSSSS..
-         ld a,e
-         and 3
-         cp 3
-         jr c,$+3
-         inc hl
-         set 5,h
-        call copyboxscrtoscr_page ;layer 3
-        call getuser_scr_low
-        SETPG32KHIGH
-        ld a,(iy+2)
-        SETPG16K
-        ld a,(iy+2+4)
-        SETPG32KLOW
-        pop hl
-        pop de
         pop bc
-         ld a,e
-         dec a
-        inc e
-        push bc
-        push de
-        push hl
-;012301230123
-;...SSSSSSSS..
-         and 3
-         cp 2
-         jr c,$+3
-         inc hl
-         set 5,h
-        call copyboxscrtoscr_page ;layer 2
-        call getuser_scr_high
-        SETPG32KHIGH
-        ld a,(iy+1)
-        SETPG16K
-        ld a,(iy+1+4)
-        SETPG32KLOW
-        pop hl
-        pop de
-        pop bc
-        inc e
-        push bc
-        push de
-        push hl
-;012301230123
-;...SSSSSSSS..
-         ld a,e
-         inc a
-         and 3
-         cp 1
-         jr c,$+3
-         inc hl
-        call copyboxscrtoscr_page ;layer 1
-        call getuser_scr_low
-        SETPG32KHIGH
-        ld a,(iy+0)
-        SETPG16K
-        ld a,(iy+0+4)
-        SETPG32KLOW
-        pop hl
-        pop de
-        pop bc
-        inc e
-;012301230123
-;...SSSSSSSS..
-         ;ld a,e
-         ;inc a
-         ;and 3
-         ;cp 2
-         ;jr c,$+3
-         inc hl
-        call copyboxscrtoscr_page ;layer 0
-        jp setpgsmain40008000
-copyboxscrtoscr_page
-;count c/2 = ((xleft+c+K)/4) - ((xleft+K)/4):
-;lhlh
-;SS -> 1
- ;SS -> 1
-;S -> 0
- ;S -> 1
-        ld a,e ;xleft
-        add a,c ;xleft+c
+;widbytes = 1 + (xright)/4 - (xright-wid+1+(3-layer))/4 (layer = xright&3)
+        ld a,e ;xright
+        cpl
+        and 3 ;3-layer
+        add a,e ;xright
+        sub c ;wid
+        inc a
         srl a
-        srl a ;/4
-        srl e
-        srl e ;xleft/2
-        sub e
+        srl a
+        ld c,e
+        srl c
+        srl c
+        sub c
+        dec a ;a=-widbytes
        ret z
+        neg
         ld c,a
 ;c=wid (bytes in this page)
 ;b=hgt
+
+       push bc
+       push hl
+
+        ;ld a,e ;xright
+        ;cpl
+        ld a,+(UVSCROLL_SCRWID/2)-1
+        sub e
+;[a=layer 0..3]
+         ;add a,+(UVSCROLL_SCRNPUSHES-1)*8
+        ld hl,allscroll_lsb
+        add a,(hl)
+;hlc = allscroll = yscroll*512+x2scroll
+        ld c,a
+          ld hl,(allscroll)
+          jr nc,$+3
+          inc hl ;hlc = allscroll = yscroll*512+x2scroll
+        ld a,UVSCROLL_SCRHGT-1
+        sub lx ;y
+        ld e,a
+        ld d,0
+        add hl,de
+        add hl,de
         ld a,c
-        dec a
+         ld e,l ;yscroll*2
+        add hl,hl
+        if 1==1
+         rr e ;yscroll (corrected для зацикливания)
+         rra
+         ;or 3 ;a=0xff-(((x2scroll+layer[+4])/2)&0xfc)
+         set 0,a
+          bit 1,a
+         res 1,a
+         jr nz,$+3
+         inc a
+        else 
+         rr e ;yscroll (corrected для зацикливания)
+         rra
+          ;ld b,a
+         and 0xfc ;a=0xfc-(((x2scroll+layer[+4]+((UVSCROLL_SCRNPUSHES-1)*8))/2)&0xfc)
+        endif
+         ld (copyboxscrtoscr_page_e),a
+         ld a,h
+         rla
+         rla ;a=(x2scroll+layer)&3 + ((yscroll/64)*4)
+         xor c
+         and 0xfc
+         xor c
+          xor 3
+
+        ld hl,tpushpgs
         add a,l
         ld l,a
-        jr nc,$+3
-        inc h
-         ld de,0x4001
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(hl) ;gfx pages
+        SETPG16K
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+        ld a,(hl)
+        SETPG32KLOW
+
+        ld a,e ;yscroll (corrected для зацикливания)
+        and 63
+        add a,0x40
+        ld d,a
+copyboxscrtoscr_page_e=$+1
+        ld e,0
+         ;ld de,0x4001 ;de=ldpush = 0x4000+
+         
+       pop hl
+       pop bc
 ;рисуем справа налево!
 copyboxscrtoscr0
         push bc ;b = hgt

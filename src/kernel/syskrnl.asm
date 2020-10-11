@@ -140,7 +140,7 @@ sys_prchar_sp=$+1
 
         ds 0x0100-$ ;stack for CP/M programs
         
-safestack_sz=16;18
+safestack_sz=16 +2 ;на запарывание прерыванием
         STRUCT app
 flags           BYTE ;флаги (всегда в начале структуры)
 ;priority        BYTE ;TODO приоритет (0=конец списка)
@@ -203,7 +203,7 @@ appaddr=$+1
         push de
         push hl
         push ix
-        ex af,af'
+        ex af,af' ;'
         push af
 
         ld bc,memport4000
@@ -220,18 +220,18 @@ appaddr=$+1
 
 sys_int_popregs ;только для выхода из yield
 ;iy=app
-        ld de,-safestack_sz
+        ld de,-(safestack_sz-2) ;2 на запарывание прерыванием
         add iy,de
         ld sp,iy ;di!!!
 
         pop af
-        ex af,af'
+        ex af,af' ;'
         pop ix
         pop hl
         pop de
         pop bc
         exx
-        ld d,(iy+app.mainpg+safestack_sz)
+        ld d,(iy+app.mainpg+safestack_sz-2) ;2 на запарывание прерыванием
         ld iy,(focusappaddr)
         ld a,(iy+app.screen)
         pop iy

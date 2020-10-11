@@ -30,8 +30,9 @@ hexeditor_yieldkeep
         ld (hexeditor_wasyield),a
 hexeditor_mainloop_nokey
         GETKEY_ ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
+        ;ld a,c ;keynolang
         ;cp NOKEY
+         or a
         jr nz,hexeditor_keyq
 ;если два раза подряд нет события, то рисуем панельку и делаем YIELD, иначе YIELDKEEP
 hexeditor_wasnokey=$+1

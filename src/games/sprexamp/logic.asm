@@ -506,11 +506,17 @@ leftq
         ld (ix+obj.x16+1),h        
         jp checkleftwallq
 checkwall_obj
+;берём объект!!!
         ld (hl),0
         ex de,hl
         push de
          ld a,3 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
          call sfxplay
+         
+;нельзя восстанавливать графику в течение 2 следующих отрисовок
+        ld a,2+1
+        ld (skipfastredraws),a
+         
         pop de
         
         ;call uvscroll_filltilemap

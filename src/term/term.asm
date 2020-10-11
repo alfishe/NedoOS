@@ -754,6 +754,8 @@ stdouthandle=$+1
           ret nz ;error ;TODO обработать? а так пока просто избегаем зацикливания
          sbc hl,bc ;datasize-byteswritten
          ret z
+       ;ld a,5 ;m
+       ;out (-2),a
          ex de,hl
          add hl,bc ;dataaddr+byteswritten
          ex de,hl

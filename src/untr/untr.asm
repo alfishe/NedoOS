@@ -732,7 +732,7 @@ playenter0_go
         call checknotekeys_pressed
         jr nz,playenter0
          ld hl,(playtime)
-         ld (curtime),hl
+         call untr_pgdown_ok
 
         call stopplay
 

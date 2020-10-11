@@ -90,26 +90,59 @@ nvview_mainloop
         ld a,2
 nvview_yieldkeep
         ld (nvview_wasnokey),a
+       ;ld a,4 ;b
+       ;out (-2),a
 	YIELDKEEP
-        ld a,55+128 ;"or a"
-        ld (nvview_wasyield),a
+        ;ld a,55+128 ;"or a"
+        ;ld (nvview_wasyield),a
 nvview_mainloop_nokey
+       ;ld a,2 ;g
+       ;out (-2),a
         GETKEY_ ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
+         ;jr c,$
+        jr z,nvview_mainloop_nokeygo
+;есть событие (a=0: от мыши)
+        ;ld a,c ;keynolang
         ;cp NOKEY
+         or a
         jr nz,nvview_mainloop_keyq
+       ;ld a,3 ;y
+       ;out (-2),a
+         ;jr nvview_mainloop_nokey
+nvview_mainloop_nokeygo
+        ld a,(nvview_wasnokey)
+        out (-2),a        
+       ld a,(stdindatacount)
+       or a
+       jr nz,nvview_mainloop;_nokey
+        xor a
+        out (-2),a        
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 nvview_wasnokey=$+1
         ld a,1
         dec a
         jr nz,nvview_yieldkeep
+       ;jr nvview_yieldkeep
 ;рисовать панельку только при отсутствии события после YIELD
-nvview_wasyield=$
-        scf
-        call c,nvview_panel ;97359 t
+;nvview_wasyield=$
+        ;scf
+        ;call c,nvview_panel ;97359 t
 	YIELD
-        ld a,55 ;"scf"
-        ld (nvview_wasyield),a
+        ;ld a,55 ;"scf"
+        ;ld (nvview_wasyield),a
+        GETKEY_ ;OS_GETKEYNOLANG
+         ;jr c,$
+        jr z,nvview_mainloop_yieldnokeygo
+;есть событие (a=0: от мыши)
+        ;ld a,c ;keynolang
+        ;cp NOKEY
+         or a
+        jr nz,nvview_mainloop_keyq
+        jr nvview_mainloop_nokey
+nvview_mainloop_yieldnokeygo
+       ;ld a,6 ;c
+       ;out (-2),a
+        call nvview_panel ;97359 t
         jr nvview_mainloop_nokey
 nvview_mainloop_keyq
         cp key_redraw

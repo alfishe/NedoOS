@@ -1297,7 +1297,7 @@ uvscroll_unpatch
         jr uvscroll_patch_d
 
 uvscroll_patch
-;a=layer 0..3 + 4
+;a=layer 0..3 [+ 4]
         ld d,0xe9 ;d=patch byte jp (hl)
 uvscroll_patch_d
 allscroll=$+1

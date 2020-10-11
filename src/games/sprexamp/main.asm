@@ -107,6 +107,11 @@ allscroll_lsb_scr0=$+1
         ld c,-1
         ld (allscroll_lsb_scr0),a
 mainloop_uv_getcurscrollok
+
+skipfastredraws=$+1
+        ld b,1
+        dec b
+        jr nz,mainloop_uv_dodrawbg
         cp c
         jr nz,mainloop_uv_dodrawbg
         or a
@@ -114,11 +119,22 @@ mainloop_uv_getcurscrollok
         ;jr nz,mainloop_uv_dodrawbg
         jr z,mainloop_uv_nodrawbg
 mainloop_uv_dodrawbg
+         ld a,b
+         ld (skipfastredraws),a
         call uvscroll_draw ;367574/391621
         jr mainloop_uv_drawbgq
 mainloop_uv_nodrawbg
 ;copy scr behind sprites
-        ld hl,spritesA+5;/B/C
+        ;ld hl,spritesA+5;/B/C
+        ld a,(curspritesN)
+        inc a
+        cp 3
+        jr nz,$+3
+        xor a ;берём спрайты на 2 отрисовки раньше (т.е. буфер следующий из 3)
+        call getspritesN_a_tode
+        ex de,hl
+         ld l,0
+         ld l,(hl)        
         inc l
         dec l
         jr z,undrawsprites0q
@@ -139,7 +155,7 @@ undrawsprites0
 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
         push hl
-        jr $
+        ;jr $
         call copyboxscrtoscr
         pop hl
         dec l
@@ -155,14 +171,25 @@ mainloop_uv_drawbgq
         ld ix,bullets
         call drawsprites
        else
-        ld de,spritesA+1
+curspritesN=$+1
+        ld a,0
+        call getspritesN_a_tode
         ld ix,objects
         call preparedrawsprites ;1720
         ld ix,bullets
         call preparedrawsprites ;1110
         dec de
         ld (drawsprites_data),de
+         ld a,e
+         ld e,0
+         ld (de),a
         call drawsprites ;24040 (только герой)
+        ld a,(curspritesN)
+        inc a
+        cp 3
+        jr nz,$+3
+        xor a
+        ld (curspritesN),a
        endif
 
         call usetrackcamera
@@ -272,6 +299,15 @@ pgmusic=$+1
 curkey
         db 0
 
+getspritesN_a_tode
+        or a
+        ld de,spritesA+1
+        ret z
+        dec a
+        ld de,spritesB+1
+        ret z
+        ld de,spritesC+1
+        ret
 
         if OLDDRAWSPR==1
 drawsprites
@@ -460,7 +496,7 @@ spritesC
 drawsprites
 ;y,x,addr,pg - читаем с конца
 drawsprites_data=$+1
-        ld hl,0;sprlistA/B/C
+        ld hl,0;sprlistA/B/C + ...
         ;jr $
         inc l
         dec l
