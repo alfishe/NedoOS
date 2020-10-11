@@ -31,18 +31,6 @@ HERORUNLEFT0=0xc000+(29*2)
 HERORUNLEFT1=0xc000+(30*2)
 HERORUNLEFT2=0xc000+(31*2)
 
-heroanim_standright
-        dw HEROSTANDRIGHT0
-        db 25
-        dw HEROSTANDRIGHT1
-        db 25
-        dw heroanim_standright
-heroanim_standleft
-        dw HEROSTANDLEFT0
-        db 25
-        dw HEROSTANDLEFT1
-        db 25
-        dw heroanim_standleft
 heroanim_runright
         dw HERORUNRIGHT0
         db 4
@@ -59,6 +47,18 @@ heroanim_runleft
         dw HERORUNLEFT2
         db 4
         dw heroanim_runleft
+heroanim_standright=heroanim_runright
+        dw HEROSTANDRIGHT0
+        db 25
+        dw HEROSTANDRIGHT1
+        db 25
+        dw heroanim_standright
+heroanim_standleft=heroanim_runleft
+        dw HEROSTANDLEFT0
+        db 25
+        dw HEROSTANDLEFT1
+        db 25
+        dw heroanim_standleft
 
 bulletanim_right
         dw BULLETRIGHT

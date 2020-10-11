@@ -38,9 +38,9 @@ poketrackpartindex_c
 ;c<->mem
         ret
 
-peekcurtime_tracka
+peekplaytime_tracka
 ;a=track
-        ld hl,(curtime)
+        ld hl,(playtime)
         call tracktime_totrackpartindex
 peektrackpartindex
 ;hl=index

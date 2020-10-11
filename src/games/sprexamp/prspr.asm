@@ -486,3 +486,237 @@ pgfake=$+1
         ;ld bc,40
         ;ld lx,b;0 ;второй раз будет действительно выход
         jp prsprNcolumnqq
+
+copyboxscrtoscr
+;iy=sprite data+2 = spraddr+4
+;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+;(iy-3)=sprhgt
+;(iy-4)=sprwid
+        ld l,(iy-4) ;sprwid
+        ld a,e ;x
+        sub sprmaxwid-1
+        ld e,a
+        jr nc,copyboxscrtoscr_nocropleft
+        add a,l
+        ld l,a ;new sprwid
+;если <=0, то спрайта нет на экране!!! выходим!!!
+         ret m
+         ret z
+        xor a
+        ld e,a ;new x        
+copyboxscrtoscr_nocropleft
+        add a,l
+        sub scrwid
+        jr c,copyboxscrtoscr_nocropright
+;a=число столбцов, откушенных справа
+        neg
+        add a,l
+        ld l,a ;new sprwid
+;если <=0, то спрайта нет на экране!!! выходим!!!
+         ret m
+         ret z
+copyboxscrtoscr_nocropright
+        ld h,(iy-3) ;sprhgt
+        ld a,c ;y
+        cp -(sprmaxhgt-1)
+        jr c,copyboxscrtoscr_nocroptop
+        add a,h
+        ld h,a ;new sprhgt
+;если <=0, то спрайта нет на экране!!! выходим!!!
+         ret m
+         ret z
+        xor a
+        ld c,a ;new y
+copyboxscrtoscr_nocroptop
+        add a,h
+        sub scrhgt
+        jr c,copyboxscrtoscr_nocropbottom
+;a=число столбцов, откушенных справа
+        neg
+        add a,h
+        ld h,a ;new sprhgt
+;если <=0, то спрайта нет на экране!!! выходим!!!
+         ret m
+         ret z
+copyboxscrtoscr_nocropbottom
+;h=hgt,l=wid (/2) != 0
+        ld a,c
+        add a,h
+        dec a
+        ld c,a
+;c=y, e=xleft (/2)
+       push hl ;h=hgt,l=wid (/2) != 0
+        ld a,e ;x
+        ld b,0
+        ld l,c ;y
+        srl a ;CY=x bit 0
+        srl a ;CY=x bit 1
+         ;ld h,0xc0/64
+         ;rl h
+         ld h,0xc0/32
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40+scrbase
+         if scrbase&0xff
+         add a,scrbase&0xff
+         endif
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a ;hl=scr
+
+;hl=scr
+        xor a
+        add a,tpushpgs&0xff
+        ld ly,a
+        ld a,0
+        adc a,tpushpgs/256
+        ld hy,a
+
+        call getuser_scr_high
+        SETPG32KHIGH
+        ld a,(iy+3)
+        SETPG16K
+        ld a,(iy+3+4)
+        SETPG32KLOW
+       pop bc ;b=hgt,c=wid (/2) != 0
+;c=wid (/2)
+;b=hgt
+        push bc
+        push de
+        push hl
+;012301230123
+;...SSSSSSSS..
+         ld a,e
+         and 3
+         cp 3
+         jr c,$+3
+         inc hl
+         set 5,h
+        call copyboxscrtoscr_page ;layer 3
+        call getuser_scr_low
+        SETPG32KHIGH
+        ld a,(iy+2)
+        SETPG16K
+        ld a,(iy+2+4)
+        SETPG32KLOW
+        pop hl
+        pop de
+        pop bc
+         ld a,e
+         dec a
+        inc e
+        push bc
+        push de
+        push hl
+;012301230123
+;...SSSSSSSS..
+         and 3
+         cp 2
+         jr c,$+3
+         inc hl
+         set 5,h
+        call copyboxscrtoscr_page ;layer 2
+        call getuser_scr_high
+        SETPG32KHIGH
+        ld a,(iy+1)
+        SETPG16K
+        ld a,(iy+1+4)
+        SETPG32KLOW
+        pop hl
+        pop de
+        pop bc
+        inc e
+        push bc
+        push de
+        push hl
+;012301230123
+;...SSSSSSSS..
+         ld a,e
+         inc a
+         and 3
+         cp 1
+         jr c,$+3
+         inc hl
+        call copyboxscrtoscr_page ;layer 1
+        call getuser_scr_low
+        SETPG32KHIGH
+        ld a,(iy+0)
+        SETPG16K
+        ld a,(iy+0+4)
+        SETPG32KLOW
+        pop hl
+        pop de
+        pop bc
+        inc e
+;012301230123
+;...SSSSSSSS..
+         ;ld a,e
+         ;inc a
+         ;and 3
+         ;cp 2
+         ;jr c,$+3
+         inc hl
+        call copyboxscrtoscr_page ;layer 0
+        jp setpgsmain40008000
+copyboxscrtoscr_page
+;count c/2 = ((xleft+c+K)/4) - ((xleft+K)/4):
+;lhlh
+;SS -> 1
+ ;SS -> 1
+;S -> 0
+ ;S -> 1
+        ld a,e ;xleft
+        add a,c ;xleft+c
+        srl a
+        srl a ;/4
+        srl e
+        srl e ;xleft/2
+        sub e
+       ret z
+        ld c,a
+;c=wid (bytes in this page)
+;b=hgt
+        ld a,c
+        dec a
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+         ld de,0x4001
+;рисуем справа налево!
+copyboxscrtoscr0
+        push bc ;b = hgt
+        ld hx,b
+        push de
+        push hl
+;hl=scr = 0xc000+
+;de=ldpush = 0x4000+
+;11 LL RR pp 11 LL RR pp
+        ld bc,-40
+copyboxscrtoscrcolumn0
+        ld a,(de)
+        inc d
+        ld (hl),a
+        add hl,bc
+        dec hx
+        jp nz,copyboxscrtoscrcolumn0
+        pop hl
+        dec hl
+        pop de
+        bit 1,e
+        dec de
+        jr nz,$+2+3+3
+         ld bc,6
+         ex de,hl
+         add hl,bc
+         ex de,hl
+        pop bc
+        dec c
+        jr nz,copyboxscrtoscr0
+        ret

@@ -3,6 +3,8 @@
 
 OLDDRAWSPR=0;1
 
+DEBUGPRINT=0
+
 scrbase=0x4000
 sprmaxwid=32
 sprmaxhgt=32
@@ -82,149 +84,77 @@ pushbase=0x8000;c000
         org PROGSTART
 begin
         jp GO ;/prsprqwid (спрайты в файле подготовлены так, что выходят сюда)
-GO
-        ld sp,STACK
-        OS_HIDEFROMPARENT
-
-;        ld b,25
-;waitcls0
-;        push bc
-;        YIELD
-;        pop bc
-;        djnz waitcls0 ;чтобы nv не перехватил фокус при вызове через комстроку
-
-        ld e,0
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-	ld e,0
-	OS_SETSCREEN
-        ld e,0 ;color byte
-        OS_CLS
-	ld e,1
-	OS_SETSCREEN
-        ld e,0 ;color byte
-        OS_CLS
         
-        OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000,8000,c000
-        ld a,e
-        LD (pgmain4000),A
-        ld a,h
-        LD (pgmain8000),A
-        call setpgsmain40008000 ;записать в curpg...
+mainloop_uv0
 
-        ;OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ;ld a,l
-        ;ld (setpgs_scr_low),a
-	;xor e
-        ;ld (setpgs_scr_scrxor),a
-        ;ld a,h
-         ;ld (ttexpgs+31),a ;ld (IR128),a ;на всякой случай, для прерывания
-        ;xor l
-        ;ld (setpgs_scr_pgxor),a
-
-        OS_NEWPAGE
-        ld a,e
-        ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
-        ld (pgfake2),a
-        
-	ld de,res_path
-	OS_CHDIR
-
-        call getmousedelta ;prepare mouse
-
-        ld hl,texfilename
-        ;call loadpage
-        ;ld (pg0),a
-        call loadpage
-        ld (pg1),a
-        call loadpage
-        ld (pgsfx),a
-        call loadpage
-        ld (pgmusic),a
-        SETPG16K
-        push af
-        call 0x4000 ;init
-        
-        ld a,(pgsfx)
-        SETPG32KLOW
-        pop af
-        ld hl,0x4005 ;play
-        OS_SETMUSIC
+        ld a,(curscrnum)
+        or a
+        ld hl,(allscroll)
+        ld a,(allscroll_lsb)
+        jr z,mainloop_uv_getcurscroll0
+allscroll_scr1=$+1
+        ld de,-1
+        ld (allscroll_scr1),hl
+allscroll_lsb_scr1=$+1
+        ld c,-1
+        ld (allscroll_lsb_scr1),a
+        jr mainloop_uv_getcurscrollok
+mainloop_uv_getcurscroll0
+allscroll_scr0=$+1
+        ld de,-1
+        ld (allscroll_scr0),hl
+allscroll_lsb_scr0=$+1
+        ld c,-1
+        ld (allscroll_lsb_scr0),a
+mainloop_uv_getcurscrollok
+        cp c
+        jr nz,mainloop_uv_dodrawbg
+        or a
+        sbc hl,de
+        ;jr nz,mainloop_uv_dodrawbg
+        jr z,mainloop_uv_nodrawbg
+mainloop_uv_dodrawbg
+        call uvscroll_draw ;367574/391621
+        jr mainloop_uv_drawbgq
+mainloop_uv_nodrawbg
+;copy scr behind sprites
+        ld hl,spritesA+5;/B/C
+        inc l
+        dec l
+        jr z,undrawsprites0q
+undrawsprites0
+        ld a,(hl)
+        dec hl
+        SETPG32KHIGH
+        ld a,(hl)
+       ;sub 0x80
+        ld hy,a
+        dec hl
+        ld a,(hl)
+        ld ly,a
+        dec hl
+        ld c,(hl) ;y
+        dec hl
+        ld e,(hl) ;x
+;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        push hl
+        jr $
+        call copyboxscrtoscr
+        pop hl
+        dec l
+        jp nz,undrawsprites0
+undrawsprites0q
         call setpgsmain40008000
         
-        ld hl,prsprqwid
-        ld (0x0101),hl ;спрайты в файле подготовлены так, что выходят в 0x0100
-      
-        call swapimer
+mainloop_uv_drawbgq
 
-;UV scroll
-        call uvscroll_prepare
-        ;ld de,bgxyfilename
-        ;call uvscroll_preparebmp
-         call uvscroll_preparetiles
-;TODO обновить allscroll
-;allscroll=yscroll*(UVSCROLL_WID/512)+xscroll
-        ;jr $
-        ;ld hl,1;+(511*2)+(1023/256)
-        ;ld a,1023&0xff
-        ;ld (allscroll),hl
-        ;ld (allscroll_lsb),a
-        ld hl,-160 ;top left
-        if 1==0
-        ld hl,+80
-        ld bc,(objects+obj.y16)
-         dup 3
-         srl b
-         rr c
-         edup
-        or a
-        sbc hl,bc
-        endif
-        ld (cameraym),hl
-        ld (cameraymideal),hl
-        ld (cameraymold),hl
-        ld de,1024-160 ;top left
-        add hl,de
-        ld (yscroll),hl
-        
-        ld hl,-160 ;top left
-        if 1==0
-        ld hl,+80
-        ld bc,(objects+obj.x16)
-         dup 3
-         srl b
-         rr c
-         edup
-        or a
-        sbc hl,bc
-        endif
-        ld (cameraxm),hl
-        ld (cameraxmideal),hl
-        ld (cameraxmold),hl
-        ld de,2048-160 ;top left
-        add hl,de
-        ld (x2scroll),hl
-
-         call uvscroll_preparetilemap
-
-        call importcoords
-        ld iy,bullets
-        call genbullet_terminate
-
-        ld de,pal
-        OS_SETPAL
-mainloop_uv0
-        ;halt
-        call uvscroll_draw ;367574/391621
-        
-        if OLDDRAWSPR==1
+       if OLDDRAWSPR==1
         ld ix,objects
         call drawsprites
         ld ix,bullets
         call drawsprites
-        
-        else
+       else
         ld de,spritesA+1
         ld ix,objects
         call preparedrawsprites ;1720
@@ -233,28 +163,12 @@ mainloop_uv0
         dec de
         ld (drawsprites_data),de
         call drawsprites ;24040 (только герой)
-        endif
+       endif
 
-        ;call prcoords
-
-        call getmousedelta ;de=delta (d>0: go up) (e>0: go left), l=mousekey
-        push hl
-trackcamera_addr=$+1
-        ;call mousetrackcamera ;de=delta (d>0: go up) (e>0: go left) ;out: d=camera dy, e=camera dx         
-        call trackcamera ;de=delta (d>0: go up) (e>0: go left) ;out: d=camera dy, e=camera dx         
-        pop hl ;l=mousekey
-        
-        ld a,l
-        bit 1,a
-        jr nz,nocamoff
-        ld bc,notrackcamera
-        ld (trackcamera_addr),bc
-nocamoff
-        
+        call usetrackcamera
 ;d=camera dy
 ;e=camera dx
 ;l=mousekey
-        
         ld a,l ;hl=(sysmousebuttons)
         rra
          ;jr nc,mainloop_uvq ;LMB
@@ -264,7 +178,6 @@ nocamoff
        ld a,(timer)
        push af
         call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
-
 mainloop_uvwaittimer0
         ld a,(timer)
 uvoldtimer=$+1
@@ -289,6 +202,7 @@ waitchangescr0
         ld a,(curkey)
         cp key_esc
         jp nz,mainloop_uv0
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 mainloop_uvq
 
         if 1==1
@@ -300,16 +214,6 @@ mainloop_uvq
         call cls
         ld de,pal;SUMMERPAL
         OS_SETPAL
-
-        if 1==0
-pg0=$+1
-        ld a,0
-        call setpgc000;SETPG32KHIGH
-        ld hl,0x4000 ;scr
-        ld de,0xc000 ;gfx
-        ld bc,0xc020 ;hgt,wid
-        call primgega
-        endif
 
 mainloop
         ld bc,-1
@@ -368,896 +272,6 @@ pgmusic=$+1
 curkey
         db 0
 
-mousetrackcamera
-;de=delta (d>0: go up) (e>0: go left)
-;out: d=camera dy, e=camera dx
-        ld hl,(cameraxm)
-        ld c,e
-        ld a,c
-        rla
-        sbc a,a
-        ld b,a
-        add hl,bc
-        ld (cameraxm),hl
-        ld hl,(cameraym)
-        ld c,d
-        ld a,c
-        rla
-        sbc a,a
-        ld b,a
-        add hl,bc
-        ld (cameraym),hl
-        ret
-
-notrackcamera
-;out: d=camera dy, e=camera dx
-        ld de,0
-        ret
-
-trackcamera
-;de=delta (d>0: go up) (e>0: go left)
-;out: d=camera dy, e=camera dx
-;двигаем смещение камеры к идеалу (xspeed16;yspeed16), но не быстрее, чем на +-CAMERASHIFTSPEED
-;и находим camerax/ymideal
-cameraxshift=$+1
-        ld hl,0
-        ld de,(objects+obj.xspeed16)
-        xor a
-        sbc hl,de
-        or h
-        jp m,xshifttoideal_neg
-;hl=xshift-xshiftideal >=0
-        ld bc,CAMERASHIFTSPEED_X
-        sbc hl,bc
-        jr c,xshifttoideal_get ;не быстрее, чем на +CAMERASHIFTSPEED_X
-        jr xshifttoideal_limit
-xshifttoideal_neg
-;hl=xshift-xshiftideal <0
-        ld bc,-CAMERASHIFTSPEED_X
-        sbc hl,bc
-        jr nc,xshifttoideal_get ;не быстрее, чем на -CAMERASHIFTSPEED_X
-xshifttoideal_limit
-        ld hl,(cameraxshift)
-        or a
-        sbc hl,bc
-        ex de,hl
-xshifttoideal_get
-        ex de,hl
-xshifttoideal_negq        
-        ld (cameraxshift),hl
-        ex de,hl
-
-        ld hl,+80+24
-        ld bc,(objects+obj.x16)
-         dup 3
-         srl b
-         rr c
-         edup
-        or a
-        sbc hl,bc
-        ;ld de,(objects+obj.xspeed16)
-        or a
-        sbc hl,de
-        ld (cameraxmideal),hl
-
-camerayshift=$+1
-        ld hl,0
-        ld de,(objects+obj.yspeed16)
-        xor a
-        sbc hl,de
-        or h
-        jp m,yshifttoideal_neg
-;hl=yshift-yshiftideal >=0
-        ld bc,CAMERASHIFTSPEED_Y
-        sbc hl,bc
-        jr c,yshifttoideal_get ;не быстрее, чем на +CAMERASHIFTSPEED_Y
-        jr yshifttoideal_limit
-yshifttoideal_neg
-;hl=yshift-yshiftideal <0
-        ld bc,-CAMERASHIFTSPEED_Y
-        sbc hl,bc
-        jr nc,yshifttoideal_get ;не быстрее, чем на -CAMERASHIFTSPEED_Y
-yshifttoideal_limit
-        ld hl,(camerayshift)
-        or a
-        sbc hl,bc
-        ex de,hl
-yshifttoideal_get
-        ex de,hl
-yshifttoideal_negq        
-        ld (camerayshift),hl
-        ex de,hl
-
-        ld hl,+80+48
-        ld bc,(objects+obj.y16)
-         dup 3
-         srl b
-         rr c
-         edup
-        or a
-        sbc hl,bc
-        ;ld de,(objects+obj.yspeed16)
-        or a
-        sbc hl,de
-        ld (cameraymideal),hl
-        
-;двигаем камеру к идеалу, но не быстрее, чем на +-CAMERATRACKINGSPEED
-        ld hl,(cameraxm)
-cameraxmideal=$+1
-        ld de,0;(cameraxmideal)
-        xor a
-        sbc hl,de
-        or h
-        jp m,xmtoideal_neg
-;hl=xm-xmideal >=0
-        ld bc,CAMERATRACKINGSPEED_X
-        sbc hl,bc
-        jr c,xmtoideal_get ;не быстрее, чем на +CAMERATRACKINGSPEED_X
-        jr xmtoideal_limit
-xmtoideal_neg
-;hl=xm-xmideal <0
-        ld bc,-CAMERATRACKINGSPEED_X
-        sbc hl,bc
-        jr nc,xmtoideal_get ;не быстрее, чем на -CAMERATRACKINGSPEED_X
-xmtoideal_limit
-        ld hl,(cameraxm)
-        or a
-        sbc hl,bc
-        ex de,hl
-xmtoideal_get
-        ex de,hl
-xmtoideal_negq        
-        ld (cameraxm),hl
-cameraxmold=$+1
-        ld de,0
-        ld (cameraxmold),hl
-        or a
-        sbc hl,de ;camera dx
-       push hl
-
-        ld hl,(cameraym)
-cameraymideal=$+1
-        ld de,0;(cameraymideal)
-        xor a
-        sbc hl,de
-        or h
-        jp m,ymtoideal_neg
-;hl=ym-ymideal >=0
-        ld bc,CAMERATRACKINGSPEED_Y
-        sbc hl,bc
-        jr c,ymtoideal_get ;не быстрее, чем на +CAMERATRACKINGSPEED_Y
-        jr ymtoideal_limit
-ymtoideal_neg
-;hl=ym-ymideal <0
-        ld bc,-CAMERATRACKINGSPEED_Y
-        sbc hl,bc
-        jr nc,ymtoideal_get ;не быстрее, чем на -CAMERATRACKINGSPEED_Y
-ymtoideal_limit
-        ld hl,(cameraym)
-        or a
-        sbc hl,bc
-        ex de,hl
-ymtoideal_get
-        ex de,hl
-ymtoideal_negq        
-        ld (cameraym),hl
-cameraymold=$+1
-        ld de,0
-        ld (cameraymold),hl
-        or a
-        sbc hl,de ;camera dy
-        
-       pop bc ;camera dx
-         ld d,l
-         ld e,c
-        ret
-
-objectslogic
-        ld a,(pgmetatilemap)
-        SETPG32KHIGH
-
-        ld ix,objects
-objectslogic0
-        ld a,(ix+obj.y16+1)
-        cp DELETEDYHIGH
-        jp z,objectslogic0_skip
-
-        ld l,(ix+obj.animaddr16+0)
-        ld h,(ix+obj.animaddr16+1)
-        ld e,(hl)
-        inc hl
-        ld d,(hl) ;de = phase
-        inc hl
-        dec (ix+obj.animtime)
-        jr nz,logic_nonextphase
-        ld a,(hl) ;new animtime
-        inc hl
-        ld (ix+obj.animtime),a
-        ld e,(hl)
-        inc hl
-        ld d,(hl) ;de = phase
-        ld a,d
-        cp 0xc0
-        jr nc,logic_nocycleanim
-        ex de,hl 
-        ;ld e,(hl)
-        inc hl
-        ;ld d,(hl) ;de = phase (>=0xc000) or new animaddr (<0xc000)
-logic_nocycleanim
-        dec hl
-        ld (ix+obj.animaddr16+0),l
-        ld (ix+obj.animaddr16+1),h
-logic_nonextphase
-
-        ld l,(ix+obj.xspeed16+0)
-        ld h,(ix+obj.xspeed16+1)
-        ld e,(ix+obj.x16+0)
-        ld d,(ix+obj.x16+1)
-        add hl,de
-        ld (ix+obj.x16+0),l
-        ld (ix+obj.x16+1),h
-        ld l,(ix+obj.yspeed16+0)
-        ld h,(ix+obj.yspeed16+1)
-        inc hl
-        inc hl
-        inc hl
-        inc hl ;gravity
-         ld a,h
-         rla
-         jr c,gravityok
-         ld de,8*YSUBPIX8
-         or a
-         sbc hl,de
-         add hl,de
-         jr c,gravityok
-         ex de,hl
-gravityok
-        ld (ix+obj.yspeed16+0),l
-        ld (ix+obj.yspeed16+1),h
-        ex de,hl ;de=yspeed
-        
-        ld l,(ix+obj.y16+0) ;*YSUBPIX8
-        ld h,(ix+obj.y16+1)
-        bit 7,(ix+obj.flags)
-        jr nz,logic_nocheckfloor
-;check floor
-        push de ;yspeed
-        push hl ;y
-        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld b,(ix+obj.x16+1)
-         ld de,32*YSUBPIX8
-         add hl,de ;координата прямо под ногами
-        call gettile_bycoords
-        pop hl ;yspeed
-        pop bc ;y
-          ;ld c,(ix+obj.y16+0)
-          ;ld b,(ix+obj.y16+1)
-          add hl,bc
-        cp FIRSTSOLIDTILE;32
-         res 0,(ix+obj.flags) ;not on floor
-        jr c,nofloor
-         cp FIRSTOBJTILE
-        jr nc,nofloor
-         set 0,(ix+obj.flags) ;not on floor
-;выравнивание по y на 16(пикс)*YSUBPIX8
-        ld a,l
-        and 16*YSUBPIX8;128
-        ld l,a
-        ld (ix+obj.yspeed16+0),0
-        ld (ix+obj.yspeed16+1),0
-        jr floorok
-nofloor
-        push hl ;y16
-
-        ld l,(ix+obj.y16+0) ;*YSUBPIX8
-        ld h,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld b,(ix+obj.x16+1)
-         ;ld de,0
-         ;add hl,de ;координата прямо в голове
-        call gettile_bycoords
-        cp FIRSTBETONTILE;64
-        pop hl ;y16
-        jr c,noceiling
-;выравнивание по y на 16(пикс)*8 вверх
-        ld a,l
-        or 16*YSUBPIX8-1;127
-        ld l,a
-        inc hl
-        ld (ix+obj.yspeed16+0),0
-        ld (ix+obj.yspeed16+1),0        
-noceiling
-floorok
-        jr logic_checkfloorq
-logic_nocheckfloor
-;hl=y
-;de=yspeed
-        add hl,de
-        ld a,h
-        cp METATILEMAPHGT*16*YSUBPIX8/256
-        jr c,logic_nofalltohell
-        ld h,DELETEDYHIGH
-logic_nofalltohell
-logic_checkfloorq
-        ld (ix+obj.y16+0),l
-        ld (ix+obj.y16+1),h
-objectslogic0_skip
-        ld bc,OBJSIZE
-        add ix,bc
-        bit 7,(ix+obj.y16+1) ;yhigh
-        jp z,objectslogic0
-        ret
-
-bulletslogic
-        ld a,(pgmetatilemap)
-        SETPG32KHIGH
-
-        ld ix,bullets
-bulletslogic0
-        bit 7,(ix+obj.y16+1) ;yhigh
-        ret nz
-        ;jr $
-;если health=1, то это мёртвая пуля, этот слот можно использовать
-        dec (ix+obj.health)
-        jr nz,bulletslogic_noremove
-        ld (ix+obj.y16+1),DELETEDYHIGH;0x7f ;yhigh
-        inc (ix+obj.health)
-        jp bulletslogic_skip        
-bulletslogic_noremove
-        ld l,(ix+obj.xspeed16+0)
-        ld h,(ix+obj.xspeed16+1)
-        ld e,(ix+obj.x16+0)
-        ld d,(ix+obj.x16+1)
-        add hl,de
-        ld (ix+obj.x16+0),l
-        ld (ix+obj.x16+1),h
-
-;TODO каждый второй фрейм
-ENEMYHGT=32*YSUBPIX8
-ENEMYWID=16*XSUBPIX8 ;(in double pixels)
-BULLETWID=8*XSUBPIX8 ;(in double pixels)
-;TODO учесть размер врага
-;попали, если enemyy<=bullety<=enemyy+ENEMYHGT и enemyx-BULLETWID<=bulletx<=enemyx+ENEMYWID
-         ;<--->
-;   |------|
-
-;check enemy
-        ld e,(ix+obj.y16+0) ;*YSUBPIX8
-        ld d,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld b,(ix+obj.x16+1)
-        ld a,d
-        cp DELETEDYHIGH
-        jp z,bulletslogic_checkenemy0q
-;de=bullety
-;bc=bulletx
-        exx
-        ld bc,OBJSIZE
-        exx
-        ld iy,objects+obj.sz
-bulletslogic_checkenemy0
-        bit 7,(iy+obj.y16+1) ;yhigh
-        jr nz,bulletslogic_checkenemy0q
-;enemyx-BULLETWID<=bulletx<=enemyx+ENEMYWID
-;-BULLETWID<=bulletx-enemyx<=ENEMYWID
-;-(ENEMYWID+BULLETWID)<=enemyx-bulletx-BULLETWID<=0
-        ld l,(iy+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld h,(iy+obj.x16+1) ;enemyx
-        ;ld a,l
-        ;sub BULLETWID
-        ;ld l,a
-        ;jr nc,$+3
-        ;dec h
-        or a
-        sbc hl,bc ;bc=bulletx
-        jr nc,bulletslogic_checkenemy_skip
-        ld a,l
-        add a,ENEMYWID;+BULLETWID
-        ld l,a
-        jr nc,bulletslogic_checkenemy_skip
-        inc h
-        jr nz,bulletslogic_checkenemy_skip
-bulletslogic_checkenemy_xok
-;enemyy<=bullety<=enemyy+ENEMYHGT?
-;0<=bullety-enemyy<=ENEMYHGT?
-;-ENEMYHGT<=enemyy-bullety<=0?
-        ld l,(iy+obj.y16+0) ;*YSUBPIX8
-        ld h,(iy+obj.y16+1) ;enemyy
-        or a
-        sbc hl,de ;de=bullety
-        jr nc,bulletslogic_checkenemy_skip
-        ld a,l
-        add a,ENEMYHGT-1
-        ld l,a
-        jr nc,bulletslogic_checkenemy_skip
-        inc h
-        jr nz,bulletslogic_checkenemy_skip
-bulletslogic_checkenemy_yok
-;попали!!!
-        ld (ix+obj.y16+1),DELETEDYHIGH ;уничтожаем пулю
-;отнимаем энергию
-        ld a,(iy+obj.health)
-        sub 10
-        ld (iy+obj.health),a
-         ld a,9
-        jr nc,bulletslogic_enemyfound_notdead
-        set 7,(iy+obj.flags) ;dead
-        ld (iy+obj.yspeed16+0),-8*YSUBPIX8
-        ld (iy+obj.yspeed16+1),-1
-        ld (iy+obj.xspeed16+0),2*XSUBPIX8
-        ld (iy+obj.xspeed16+1),0
-         ld a,10 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
-bulletslogic_enemyfound_notdead
-        push bc
-        push de
-         call sfxplay
-        pop de
-        pop bc
-bulletslogic_checkenemy_skip
-        exx
-        add iy,bc
-        exx
-        jr bulletslogic_checkenemy0
-bulletslogic_checkenemy0q
-;~check enemy
-        
-;check wall
-        ld l,(ix+obj.y16+0) ;*YSUBPIX8
-        ld h,(ix+obj.y16+1)
-          ld c,(ix+obj.yspeed16+0)
-          ld b,(ix+obj.yspeed16+1)
-          add hl,bc
-        push hl
-        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld b,(ix+obj.x16+1)
-         ld a,c
-         ;add a,2*XSUBPIX8
-         sub 6*XSUBPIX8
-         ld c,a
-         ;adc a,b
-         ;sub c
-         ld a,b
-         sbc a,0
-         ld b,a
-        call gettile_bycoords
-        ;inc l
-        ;ld a,(hl)
-        pop hl
-        sub FIRSTBETONTILE;32
-        cp FIRSTOBJTILE-FIRSTBETONTILE
-        jr nc,bulletslogic_nocrash
-        ld h,DELETEDYHIGH ;удалить
-        ld (ix+obj.xspeed16+0),0
-        ld (ix+obj.xspeed16+1),0
-        ld (ix+obj.yspeed16+0),0
-        ld (ix+obj.yspeed16+1),0
-bulletslogic_nocrash
-        ld (ix+obj.y16+0),l
-        ld (ix+obj.y16+1),h
-bulletslogic_skip
-        ld bc,OBJSIZE
-        add ix,bc
-        jp bulletslogic0
-
-fire
-genbullet
-;сначала найдём пустые места в списке пуль (т.е. где yhigh==0x7f)
-;если таких нет, то добавляем в конец
-        ld iy,bullets
-genbullet_findempty0
-        bit 7,(iy+obj.y16+1) ;yhigh
-        jr nz,genbullet_findempty0q
-        ld a,(iy+obj.y16+1) ;yhigh
-        cp DELETEDYHIGH
-        jr z,genbullet_struct
-        ld bc,OBJSIZE
-        add iy,bc
-        jr genbullet_findempty0
-genbullet_findempty0q
-        ;jr $
-curbulletlistend=$+2
-        ld iy,bullets
-        push iy
-        ld de,-bulletlistend
-        add iy,de
-        pop iy
-        ret c ;no room
-
-        call genbullet_struct
-        ld bc,OBJSIZE
-        add iy,bc
-genbullet_terminate
-        ld (curbulletlistend),iy
-        ld (iy+obj.y16+1),-1
-        ret
-
-BULLETSPEED=MAXSPEED ;(in double pixels)
-genbullet_struct
-         ld a,1 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
-         call sfxplay
-         
-         ld a,(lastdir) ;0=right
-         or a
-         ld de,BULLETSPEED;4
-         jr z,$+5
-         ld de,-BULLETSPEED;4
-         ld (iy+obj.xspeed16),e
-         ld (iy+obj.xspeed16+1),d
-
-         ld de,bulletanim_right
-         jr z,$+5
-         ld de,bulletanim_left
-        ld (iy+obj.animaddr16),e
-        ld (iy+obj.animaddr16+1),d
-        ld (iy+obj.animtime),1
-        ld (iy+obj.health),100
-        ld a,(ix+obj.x16)
-        add a,4*XSUBPIX8
-        ld (iy+obj.x16),a
-        ld a,(ix+obj.x16+1)
-        adc a,0
-        ld (iy+obj.x16+1),a
-        ld a,(ix+obj.y16)
-        add a,16*YSUBPIX8
-        ld (iy+obj.y16),a
-        ld a,(ix+obj.y16+1)
-        adc a,0
-        ld (iy+obj.y16+1),a
-        xor a
-        ld (iy+obj.yspeed16),a
-        ld (iy+obj.yspeed16+1),a
-        ld (iy+obj.flags),a
-        ret
-        
-
-logic
-        call objectslogic
-        call bulletslogic
-        call herocontrol
-        ret
-        
-;hero control 
-herocontrol
-joystate=$+1
-oldjoystate=$+2
-        ld bc,0
-        ld a,c
-        ld (oldjoystate),a
-        xor b
-        ld b,a
-;bit - button (ZX key)
-;7 - A (A)
-;6 - B (S)
-;5 - Select (Space)
-;4 - Start (Enter)
-;3 - Up (7)
-;2 - Down (6)
-;1 - Left (5)
-;0 - Right (8) 
-        bit 6,c
-        push bc
-        call nz,kick
-        pop bc
-        bit 5,c
-        jr z,nofire
-        bit 5,b
-        jr z,nofire
-        push bc
-        ld ix,objects
-        call fire
-        pop bc
-nofire
-
-        ld ix,objects
-        ld l,(ix+obj.xspeed16+0)
-        ld h,(ix+obj.xspeed16+1)
-        bit 1,c
-        jr z,noleft
-        ld a,h
-        or a
-        jp m,nostartrunleft
-        ld a,1
-        ld (lastdir),a
-         ld de,heroanim_runleft
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
-nostartrunleft
-        ld de,-1
-        add hl,de
-        ld de,-MAXSPEED
-        or a
-        sbc hl,de
-        ld a,h
-        add hl,de
-        or a
-        jr z,leftq
-        ex de,hl
-        jr leftq
-noleft
-        bit 0,c
-        jr z,noright
-        ld a,h
-        or a
-        jp m,startrunright
-        or l
-        jr nz,nostartrunright
-startrunright
-        xor a
-        ld (lastdir),a
-         ld de,heroanim_runright
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
-nostartrunright
-        ld de,1
-        add hl,de
-        ld de,MAXSPEED
-        or a
-        sbc hl,de
-        ld a,h
-        add hl,de
-        or a
-        jr nz,leftq
-        ex de,hl
-        jr leftq
-noright
-         bit 0,(ix+obj.flags) ;on floor?
-         jr z,leftq ;не тормозим на лету
-        ld a,h
-        or l
-        ld e,a
-         bit 7,h
-         jr z,$+3
-         inc hl
-         sra h
-         rr l
-         ld a,h
-         or l
-         jr nz,leftq
-         ld a,e
-         or a
-         jr z,leftq ;уже стояли
-lastdir=$+1
-         ld a,0 ;/1
-         or a
-         ld de,heroanim_standright
-         jr z,$+5
-         ld de,heroanim_standleft
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
-leftq
-        ld (ix+obj.xspeed16+0),l
-        ld (ix+obj.xspeed16+1),h
-;проверить, что не въехали в стену в текущем направлении и отскочить
-       push bc
-        bit 7,h
-        jp nz,checkleftwall
-        ld l,(ix+obj.y16+0) ;*YSUBPIX8
-        ld h,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld b,(ix+obj.x16+1)
-         ld de,16*YSUBPIX8
-         add hl,de ;координата на уровне пояса
-        call gettile_bycoords
-        dec l
-        ld a,(hl) ;правее центра
-        cp FIRSTBETONTILE;64
-        jp c,checkleftwallq ;not beton
-         cp FIRSTOBJTILE
-         jr nc,checkwall_obj
-;врезались справа, выравниваем x = (x&0xf0) - 1
-         ld de,heroanim_standright
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
-         ld (ix+obj.xspeed16+0),0
-         ld (ix+obj.xspeed16+1),0
-        ld l,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld h,(ix+obj.x16+1)
-        ld a,l
-        and -8*XSUBPIX8
-        ld l,a
-        dec hl
-        ld (ix+obj.x16+0),l ;*XSUBPIX8 (in double pixels)
-        ld (ix+obj.x16+1),h        
-        jp checkleftwallq
-checkwall_obj
-        ld (hl),0
-        ex de,hl
-        push de
-         ld a,3 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
-         call sfxplay
-        pop de
-        
-        ;call uvscroll_filltilemap
-        call countmetatilemap ;hl=metatilemap + (yscroll/16*METATILEMAPWID) + (x2scroll/8)
-;de=тайл, который мы только что изменили
-;мы должны пропустить по y ровно столько строчек, чтобы hl пересёк тот тайл, который мы только что изменили
-
-        ld a,d
-        sub h ;a=y
-        cp TILEMAPHGT/2
-        jr nc,getobjnofill
-        
-        ;ld a,3 ;y по умолчанию
-        
-        ;push af
-        ;add a,h
-        ;ld h,a ;hl=metatilemap+
-        ;pop af
-        ld h,d
-        push af ;y
-        
-        ex de,hl
-        ld hl,TILEMAP
-        ld bc,TILEMAPWID*2
-        or a
-        jr z,getobjfill0q
-getobjfill0
-        add hl,bc
-        dec a
-        jr nz,getobjfill0
-getobjfill0q
-        ex de,hl
-        call uvscroll_filltilemap_line
-        
-        ;call uvscroll_showtilemap
-        call uvscroll_showtilemap_counthlde
-        pop af ;y
-        or a
-        jr z,getobjshow0q
-        ld b,a
-getobjshow0
-        push bc
-        ld bc,16*(UVSCROLL_WID/512)
-        add hl,bc ;y*(UVSCROLL_WID/512) ;allscroll+...
-        ex de,hl
-        ld bc,TILEMAPWID*2
-        add hl,bc ;tilemap+...
-        ex de,hl
-        pop bc
-        djnz getobjshow0
-getobjshow0q
-        ld b,1
-        call uvscroll_showtilemap_b
-getobjnofill
-        jr checkleftwallq
-checkleftwall
-        ld l,(ix+obj.y16+0) ;*YSUBPIX8
-        ld h,(ix+obj.y16+1)
-        ld c,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld b,(ix+obj.x16+1)
-         ld de,16*YSUBPIX8
-         add hl,de ;координата на уровне пояса
-        call gettile_bycoords
-        inc l
-        ld a,(hl) ;левее центра
-        cp FIRSTBETONTILE;64
-        jr c,checkleftwallq ;not beton
-         cp FIRSTOBJTILE
-         jr nc,checkwall_obj
-;врезались слева, выравниваем x = (x+15)&0xf0
-         ld de,heroanim_standleft
-        ld (ix+obj.animaddr16+0),e
-        ld (ix+obj.animaddr16+1),d
-         ld (ix+obj.xspeed16+0),0
-         ld (ix+obj.xspeed16+1),0
-        ld l,(ix+obj.x16+0) ;*XSUBPIX8 (in double pixels)
-        ld h,(ix+obj.x16+1)
-        ld bc,8*XSUBPIX8-1
-        add hl,bc
-        ld a,l
-        and -8*XSUBPIX8
-        ld l,a
-        ld (ix+obj.x16+0),l ;*XSUBPIX8 (in double pixels)
-        ld (ix+obj.x16+1),h
-
-checkleftwallq
-       pop bc
-
-        ld l,(ix+obj.yspeed16+0)
-        ld h,(ix+obj.yspeed16+1)
-        bit 7,c
-        jr z,nojump
-        bit 7,b
-        jr z,nojump ;не изменилась кнопка
-        
-;check floor
-        bit 0,(ix+obj.flags) ;on floor
-        jr z,nojump
-
-        ld hl,-60
-        ld (ix+obj.yspeed16+0),l
-        ld (ix+obj.yspeed16+1),h
-        ld e,(ix+obj.y16+0)
-        ld d,(ix+obj.y16+1)
-        add hl,de
-        ld (ix+obj.y16+0),l
-        ld (ix+obj.y16+1),h
-        
-        
-nojump
-
-        ret
-
-KICKDIST_X=8*XSUBPIX8
-KICKDIST_Y=32*YSUBPIX8
-kick
-;герой толкает ближайшего врага
-        ld ix,objects
-        ld l,(ix+obj.x16+0)
-        ld h,(ix+obj.x16+1)
-        ld e,(ix+obj.y16+0)
-        ld d,(ix+obj.y16+1)
-        
-        ld ix,objects+OBJSIZE
-kick0
-        bit 7,(ix+obj.y16+1) ;yhigh
-        ret nz
-        push de
-        push hl
-        ld c,(ix+obj.x16+0)
-        ld b,(ix+obj.x16+1)
-        or a
-        sbc hl,bc
-        ld bc,KICKDIST_X
-        add hl,bc
-        ld bc,KICKDIST_X*2
-        or a
-        sbc hl,bc
-        jr nc,kick_xskip
-        ex de,hl
-        ld c,(ix+obj.y16+0)
-        ld b,(ix+obj.y16+1)
-        or a
-        sbc hl,bc
-        ld bc,KICKDIST_Y
-        add hl,bc
-        ld bc,KICKDIST_Y*2
-        or a
-        sbc hl,bc
-        jr nc,kick_xskip
-         ld a,11 ;3 перезвяк, 5 диньк, 7 тормоз, 9 миниприз, 10 приз, 11 бум
-         call sfxplay
-        pop hl
-        pop de
-        ld (ix+obj.yspeed16+0),-80
-        ld (ix+obj.yspeed16+1),-1
-        ld (ix+obj.xspeed16+0),8
-        ld (ix+obj.xspeed16+1),0
-        ret
-kick_xskip
-        pop hl
-        pop de
-
-        ld bc,OBJSIZE
-        add ix,bc
-        jp kick0
-
-gettile_bycoords
-        dup 3
-        srl h
-        rr l
-        edup
-        dup 4
-        add hl,hl
-        edup
-        dup 3
-        srl b
-        rr c
-        edup
-        dup 3
-        srl b
-        rr c
-        edup
-        ld a,c
-         sub 3
-        cpl
-        ld l,a
-        ld a,h
-         sub 3 ;проверять будем тайл в ногах, а не в голове
-        cpl
-        ld h,a
-        ld a,(hl) ;tile в ногах
-        ret
 
         if OLDDRAWSPR==1
 drawsprites
@@ -1528,12 +542,6 @@ loadpage
 ;        STANDARDPAL
 
 
-texfilename
-        ;db "WBAR.bin",0
-        db "WHUM1.bin",0
-        db "sfx.bin",0
-        db "music.bin",0
-
 primgega
 ;b=hgt,c=wid (/2)
 ;de=gfx
@@ -1584,113 +592,7 @@ prsprega
         cp scrhgt+(sprmaxhgt-1)
         call c,prspr
 noprspr
-        ;jp setpgsmain40008000
-
-setpgsmain40008000
-pgmain4000=$+1
-        ld a,0
-        ;ld (curpg4000),a
-        SETPG16K
-pgmain8000=$+1
-        ld a,0
-        ;ld (curpg8000),a
-        SETPG32KLOW
-        ret
-
-setpgsscr40008000_current
-        call getuser_scr_low_cur
-        ;ld (curpg4000),a ;TODO kill
-        SETPG16K
-        call getuser_scr_high_cur
-        ;ld (curpg8000),a ;TODO kill
-        SETPG32KLOW
-        ret
-
-setpgsscr40008000
-        call getuser_scr_low
-        ;ld (curpg4000),a ;TODO kill
-        SETPG16K
-        call getuser_scr_high
-        ;ld (curpg8000),a ;TODO kill
-        SETPG32KLOW
-        ret
-
-setpgscrlow4000
-        call getuser_scr_low
-        SETPG16K
-        ret
-
-setpgscrhigh4000
-        call getuser_scr_high
-        SETPG16K
-        ret
-
-getuser_scr_low
-getuser_scr_low_patch=$+1
-getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr1_low) ;ok
-        ret
-
-getuser_scr_high
-getuser_scr_high_patch=$+1
-getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr1_high) ;ok
-        ret
-
-getuser_scr_low_cur
-getuser_scr_low_cur_patch=$+1
-getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
-        ld a,(user_scr0_low) ;ok
-        ret
-
-getuser_scr_high_cur
-getuser_scr_high_cur_patch=$+1
-getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
-        ld a,(user_scr0_high) ;ok
-        ret
-
-changescrpg_current
-;        ld a,(setpgs_scr_low)
-;setpgs_scr_scrxor=$+1
-;        xor 0
-;        ld (setpgs_scr_low),a
-        ld hl,getuser_scr_low_patch
-        ld a,(hl)
-        xor getuser_scr_low_patchN
-        ld (hl),a
-        ld hl,getuser_scr_high_patch
-        ld a,(hl)
-        xor getuser_scr_high_patchN
-        ld (hl),a
-        ld hl,getuser_scr_low_cur_patch
-        ld a,(hl)
-        xor getuser_scr_low_cur_patchN
-        ld (hl),a
-        ld hl,getuser_scr_high_cur_patch
-        ld a,(hl)
-        xor getuser_scr_high_cur_patchN
-        ld (hl),a
-
-        ld a,1
-curscrnum=$+1
-        xor 0
-        ld ($-1),a
-        ret
-        
-changescrpg
-        ;jr $
-        call changescrpg_current
-        ld (curscrnum_int),a
-	;ld e,a
-	;OS_SETSCREEN
-        ret
-        
-setpgc000
-        ;ld (curpgc000),a
-        SETPG32KHIGH
-        ret
-
-        include "sprdata.asm"
+        jp setpgsmain40008000
 
 sfxplay
         push af
@@ -1700,267 +602,21 @@ pgsfx=$+1
         pop af
         jp 0x8000 ;SFXPLAY
 
-importcoords
-        ld de,enemymapfilename
-        OS_OPENHANDLE
-        ld de,objects
-        ld hl,MAXOBJECTS*3
-        push bc
-        OS_READHANDLE
-        pop bc
-        push hl ;size
-        OS_CLOSEHANDLE
-        pop bc
-;bc=size
-        ld hl,objects-1
-        add hl,bc
-        ld de,endobjects-1
-        push bc
-        lddr
-        pop bc
-        inc de
-        ex de,hl ;hl=начало данных: type, x, y
-        ld ix,objects+OBJSIZE ;героя перебросим отдельно
-importcoords0        
-        ld a,(hl) ;type
-        cp TYPE_HERO
-        jr nz,importcoords_nhero
-        push ix
-        ld ix,objects
-        ld de,heroanim_standright
-        ld (ix+obj.animaddr16),e
-        ld (ix+obj.animaddr16+1),d
-        ld (ix+obj.animtime),1
-        ld (ix+obj.health),100
-        call fillobjxy
-        pop ix
-        jr importcoords_nheroq
-importcoords_nhero
-        ;TODO anim from type
-        ld de,heroanim_runright
-        ld (ix+obj.animaddr16),e
-        ld (ix+obj.animaddr16+1),d
-        ld (ix+obj.animtime),1
-        ;TODO health from type
-        ld (ix+obj.health),19
-        call fillobjxy
-        ld de,OBJSIZE
-        add ix,de
-importcoords_nheroq
-        inc hl
-        dec bc
-        dec bc
-        dec bc
-        ld a,b
-        or c
-        jr nz,importcoords0
-        ld (ix),0xff
-        ld (ix+1),0xff
-        ret
-
-fillobjxy
-;hl=указатель на type, x, y
-;ix=obj
-        inc hl
-        ld a,(hl)
-        add a,3
-        ld d,0
-        dup 3+3
-        add a,a
-        rl d
-        edup
-        ld e,a
-        ld (ix+obj.x16),e
-        ld (ix+obj.x16+1),d
-        inc hl
-        ld a,(hl)
-        ld d,0
-        dup 4+3
-        add a,a
-        rl d
-        edup
-        ld e,a
-        ld (ix+obj.y16),e
-        ld (ix+obj.y16+1),d
-        xor a
-        ld (ix+obj.xspeed16),a
-        ld (ix+obj.xspeed16+1),a
-        ld (ix+obj.yspeed16),a
-        ld (ix+obj.yspeed16+1),a
-        ld (ix+obj.flags),a
-        ret
-
         include "int.asm"
         include "cls.asm"
         include "prspr.asm"
         include "bgpush.asm"
         include "bgpushxy.asm"
+        include "mem.asm"
+        include "bmp.asm"
+        include "logic.asm"
+        include "camera.asm"
+
+        include "sprdata.asm"
         
         include "../../_sdk/file.asm"
 
-readbmphead_pal
-        ld de,bgpush_bmpbuf
-        ld hl,14+2;54+(4*16)
-;de=buf
-;hl=size
-        call readstream_file
-        ld de,bgpush_bmpbuf
-        ld hl,(bgpush_bmpbuf+14)
-        dec hl
-        dec hl
-;de=buf
-;hl=size
-        call readstream_file
-        ld de,bgpush_bmpbuf
-        ld hl,+(4*16)
-;de=buf
-;hl=size
-        call readstream_file
-
-        ld hl,bgpush_bmpbuf;+54
-        ld ix,pal
-        ld b,16
-recodepal0
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-        inc hl
-        push hl
-        ld l,(hl) ;e=B, d=G, l=R
-        call readfile_rgbtopal
-        pop hl
-        inc hl
-        inc hl
-        djnz recodepal0
-        ret
-
-readfile_rgbtopal
-;e=B, d=G, l=R
-        call calcRGBtopal_pp
-        ld (ix+1),a
-        call calcRGBtopal_pp
-        ld (ix),a
-        inc ix
-        inc ix
-        ret
-
-calcRGBtopal_pp
-;e=B, d=G, l=R
-;DDp palette: %grbG11RB(low),%grbG11RB(high), ??oN????N
-        xor a
-        rl e  ;B
-        rra
-        rl l  ;R
-        rra
-        rrca
-        rrca
-        rl d  ;G
-        rra
-        rl e  ;b
-        rra
-        rl l  ;r
-        rra
-        rl d  ;g
-        rra
-        cpl
-        ret 
-
-bgpush_ldbmp_line
-;hl=начало строки ld-push
-;a=pushwid/2
-        push bc
-        ;push de
-
-         push af
-        ;push de
-        push hl
-        push ix
-        ld de,bgpush_bmpbuf
-        ld h,0
-        ld l,a
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        add hl,hl
-        ;ld hl,320
-;de=buf
-;hl=size
-        push hl
-        push de
-        call readstream_file
-        pop de
-        pop hl
-        add hl,de
-        ex de,hl ;de=gfx end addr
-        pop ix
-        pop hl
-        ;pop de
-         pop bc
-        ;pop af
-        ;ld b,a
-        dec de ;gfx addr
-        ld a,(ix+3)
-        call bgpush_ldbmp_layerline
-        dec de
-        dec de
-        ld a,(ix+2);(ix+1)
-        call bgpush_ldbmp_layerline
-        dec de
-        dec de
-        ld a,(ix+1);(ix+2)
-        call bgpush_ldbmp_layerline        
-        dec de
-        dec de
-        ld a,(ix+0)
-        call bgpush_ldbmp_layerline        
-        ;pop de
-        pop bc
-        ret
-
-bgpush_ldbmp_layerline
-;пишем каждый четвёртый байт с конца в ld-push
-;de=gfx
-;hl=начало строки ld-push
-;a=pg
-;b=pushwid/2
-        ;ld b,pushwid/2
-        push bc
-        SETPG32KLOW;SETPGPUSHBASE
-        pop bc
-        push bc
-        push de
-        push hl
-        ;inc hl
-        ;inc hl ;мы на втором байте первого слова данных в ld bc
-bgpush_ldbmp_bytes0
-        inc hl
-        inc hl
-        RECODEBYTE
-        ld (hl),a
-        dec hl
-         dec de
-         dec de
-         dec de
-         dec de
-         dec de
-         dec de
-        RECODEBYTE
-        ld (hl),a
-        inc hl
-         dec de
-         dec de
-         dec de
-         dec de
-         dec de
-         dec de
-        inc hl
-        inc hl
-        djnz bgpush_ldbmp_bytes0
-        pop hl
-        pop de
-        pop bc
-        ret
-
+        if DEBUGPRINT
 prcoords
         call setpgsscr40008000
         ld hl,(cameraxshift)
@@ -2106,6 +762,7 @@ prcharin_go
         add hl,bc
         edup        
         ret
+        endif
 
 genpush_newpage
 ;заказывает страницу, заносит в tpushpgs, a=pg
@@ -2124,9 +781,11 @@ genpush_newpage
         pop bc
         ret
 
+        if DEBUGPRINT
         align 256
 font
         incbin "fontgfx"
+        endif
         
 res_path
         db "sprexamp",0 ;в этом относительном пути будут лежать все загружаемые данные игры
@@ -2170,7 +829,9 @@ _210=$&7
 
 bgpush_bmpbuf=0x4000 ;ds 1024;320 ;заголовок bmp или одна строка
 bgpush_loadbmplinestack=bgpush_bmpbuf+1024 ;ds pushhgt*2+32
-        
+
+        include "init.asm"
+
 end        
 
 	display "begin=",begin

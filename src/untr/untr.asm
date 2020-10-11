@@ -234,6 +234,16 @@ mainloop_nokey
         jp z,untr_step8
         cp 'Y'
         jp z,untr_copy
+        cp 'Q'
+        jp z,untr_setplayall
+        cp 'W'
+        jp z,untr_setplaybegin
+        cp 'E'
+        jp z,untr_setplayend
+        cp 'R'
+        jp z,untr_startplay
+        cp 'T'
+        jp z,untr_stopplay
         cp key_left
         jp z,untr_left
         cp key_right
@@ -354,11 +364,18 @@ enternote
         call pokecurtime_curtrack_c
 
 untr_afternotekey
-        call inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
-        call initnote
 
         call setneedredraw_curtrack
         call updatescr
+
+       ld a,(nowplaying)
+        or a
+        jr nz,untr_afternotekey_noplay
+
+       ld hl,(curtime)
+       ld (playtime),hl
+        call inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
+        call initnote
 
 playnote0
         halt
@@ -367,7 +384,7 @@ playnote0
         jr nz,playnote0
 
         call shutay
-
+untr_afternotekey_noplay
         ;call setneedredraw
 curstep=$+1
         ld b,0
@@ -637,14 +654,48 @@ tracks_right
         inc (hl)
         ret
 
-untr_play
+untr_setplaybegin
+        ld hl,(curtime)
+        ld (playbegin),hl
+        ret
+
+untr_setplayend
+        ld hl,(curtime)
+        ld (playend),hl
+        ret
+
+untr_setplayall
+        ld hl,0xffff
+        ld (playend),hl
+        ret
+
+untr_startplay
+startplay
+        ld a,1
+        ld (nowplaying),a
+         ld hl,(curtime)
+         ld (playtime),hl
         call initplayer
         call inittracks ;в каналах с пустышкой включает паузу, форсирует ретриггер огибающей
-        
 player4000page=$+1
 	 ld a,0
          ld hl,player
          OS_SETMUSIC 
+        ret
+        
+untr_stopplay
+stopplay
+        xor a
+        ld (nowplaying),a
+	 ld a,(player4000page)
+         ld hl,play_reter
+         OS_SETMUSIC 
+
+        call shutay
+        ret
+
+untr_play
+        call startplay
 
         jr playenter0_go
         ;OS_GETTIMER ;out: hlde=timer
@@ -663,7 +714,7 @@ playenter_curxy=$+1
           call prcur
 playenter0_go
         call updatescr
-        call getcurx
+        call getcurplayx
         ld c,a
         call getcury
         ld b,a
@@ -672,12 +723,10 @@ playenter0_go
           ;jr playenter0
         call checknotekeys_pressed
         jr nz,playenter0
+         ld hl,(playtime)
+         ld (curtime),hl
 
-	 ld a,(player4000page)
-         ld hl,play_reter
-         OS_SETMUSIC 
-
-        call shutay
+        call stopplay
 
         jp untr_afternotekey
 
@@ -1032,6 +1081,18 @@ __=__+1
         endif
 _=_*2
         edup
+        ret
+
+getcurplayx
+        push bc
+        ld hl,(playtime)
+        ld bc,(lefttime)
+        or a
+        sbc hl,bc
+        ld a,l
+        add a,TRACKX
+        pop bc
+;a=x
         ret
 
 getcurx
@@ -1476,6 +1537,8 @@ chip1
 
 
 lefttime
+        dw 0
+playtime
         dw 0
 curtime
         dw 0

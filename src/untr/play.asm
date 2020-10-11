@@ -13,7 +13,7 @@ player_state=$+1
         dec a
         jr nz,player_playnote
         call initnote
-        call untr_right
+        call untr_play_right
         ld a,3
 player_playnote
         ld (player_state),a        
@@ -29,13 +29,33 @@ checkeof
         ld l,e
         ret ;nc=eof, hl=eof time
 
+untr_play_right
+        ld hl,(playtime)
+        call checkeof ;nc=eof
+        ret nc
+        inc hl
+playend=$+1
+        ld de,0
+        or a
+        sbc hl,de
+        add hl,de
+        jr nz,untr_play_right_noloop
+playbegin=$+1
+        ld hl,0
+untr_play_right_noloop
+        ld (playtime),hl
+nowplaying=$+1
+        ld a,0
+       or a
+       ret nz ;включено фоновое проигрывание
+        jr untr_right_ok ;только при проигрывании по Enter
 untr_right
         ld hl,(curtime)
         call checkeof ;nc=eof
         ret nc
         inc hl
-;untr_right_ok
         ld (curtime),hl
+untr_right_ok
         ex de,hl
         ld hl,(lefttime)
         ld bc,SCRTRACKWID
@@ -239,7 +259,7 @@ initnote0
          cp CHNTYPE_ORDER;+1
          jr z,initnote0skip
         ld a,hy ;a=track
-        call peekcurtime_tracka
+        call peekplaytime_tracka
         cp NOTE_SPACE
         jr z,initnote0skip
         cp NOTE_GLISS
@@ -272,7 +292,7 @@ initnote0skip
 initnotegliss
 ;найти ближайшую ноту справа - цель глисса
         ld a,hy;(curtrack)
-        ld hl,(curtime)
+        ld hl,(playtime)
         push hl
         call tracktime_totrackpartindex ;hl=index ;lx=part ;a=track
         ex de,hl ;de=index
@@ -291,7 +311,7 @@ initnotegliss
         ld d,a
         ld e,a
         jr z,initnoteglissq ;de=0
-        ld de,(curtime)
+        ld de,(playtime)
         ;or a
         sbc hl,de ;hl=glisstime
         ld d,h
@@ -354,7 +374,7 @@ initnoteglissq_de
         
 initnotesamples
         ld a,hy ;a=track
-        call peekcurtime_tracka
+        call peekplaytime_tracka
         or a
         jp z,initnote0skip ;SPACE
         ld (ix+chn.note_in),3*12 ;C-4
@@ -380,10 +400,10 @@ initnotefilter
 ;ищем ближайшее число слева (или на месте) и ближайшее число справа
 ;(если справа ничего нет, то такое же число, как слева)
 ;текущее значение для фильтра - это линейная интерполяция между ними
-;k = (curtime-lefttime)/(righttime-lefttime)
+;k = (playtime-lefttime)/(righttime-lefttime)
 ;val = leftval + k*(rightval-leftval)
         ld a,hy;(curtrack)
-        ld hl,(curtime)
+        ld hl,(playtime)
         push hl
         call tracktime_totrackpartindex ;hl=index
         ex de,hl ;de=index
@@ -421,10 +441,10 @@ initnotefilter_lefttime=$+1
         ;or a
         sbc hl,bc ;righttime-lefttime
         ex de,hl ;de=righttime-lefttime
-        ld hl,(curtime)
+        ld hl,(playtime)
         or a
-        sbc hl,bc ;hl=curtime-lefttime
-        call divlessthan1 ;out: k = bc = hl / de (.16) = (curtime-lefttime)/(righttime-lefttime)
+        sbc hl,bc ;hl=playtime-lefttime
+        call divlessthan1 ;out: k = bc = hl / de (.16) = (playtime-lefttime)/(righttime-lefttime)
         pop af ;rightval
 initnotefilter_leftval=$+1
         ld e,0
