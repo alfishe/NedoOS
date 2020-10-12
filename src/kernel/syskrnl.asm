@@ -83,21 +83,13 @@ sys_timer
         ds 0x0038-$
         jp sys_sysint
 
-        ds 0x0038+7-$ -2
+        ds 0x0038+7-$ -3
 sys_intq
-;[di]
 ;bc=memport0000
 ;d=pgmain
-;[e=значение для аккумулятора]
 ;a=screenpg
-;iy="iy"
-        ;ld sp,INTMICROSTACK
+       di ;на время до включения нужной pg0000, чтобы не запороть чужой стек
         out (0xfd),a ;дальше попадаем в init_resident
-;sp=INTMICROSTACK
-;bc=memport0000
-;d=pgmain
-;[e=значение для аккумулятора]
-;[di]
 ;выход в конец юзерского обработчика прерываний
 
 ;вход из начала юзерского обработчика прерываний

@@ -50,6 +50,9 @@ texted_waitkey_nokey
         jr nz,texted_mainloop_keyq ;event
         GETKEY_
         jr nz,texted_mainloop_keyq ;event
+       ld a,(stdindatacount)
+       or a
+       jr nz,texted_mainloop
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 ;рисовать панельку только при отсутствии события после YIELD
 wasnokey=$+1

@@ -4,9 +4,9 @@ COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 
 ;from userkrnl.asm:
-curpg16k=0x0042
-curpg32klow=0x0048
-curpg32khigh=0x004e
+curpg16k=0x0043
+curpg32klow=0x0049
+curpg32khigh=0x004f
 user_scr0_low=0x0017
 user_scr0_high=0x0035
 user_scr1_low=0x0036

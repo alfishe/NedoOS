@@ -1086,7 +1086,7 @@ BDOS_yield_q
 ;        ld (appaddr),iy
 ;BDOS_yield_nosame
         
-        di ;TODO critical section
+        ;di ;TODO critical section
         
         jp sys_int_popregs ;⠬ ei
         
