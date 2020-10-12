@@ -983,11 +983,15 @@ trdoscurdrive=$+1
 	call dos3d13.
         ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret
-		
+
+iodos_setdrive_okq
+        xor a
+        ret
 iodos_setdrive
+        display "iodos_setdrive=",iodos_setdrive
 trdosolddrive=$+1
         cp 0xff
-        ret z 
+        jr z,iodos_setdrive_okq
         ld (trdoscurdrive),a
         push bc
         push de

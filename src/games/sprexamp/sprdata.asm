@@ -47,13 +47,13 @@ heroanim_runleft
         dw HERORUNLEFT2
         db 4
         dw heroanim_runleft
-heroanim_standright=heroanim_runright
+heroanim_standright;=heroanim_runright
         dw HEROSTANDRIGHT0
         db 25
         dw HEROSTANDRIGHT1
         db 25
         dw heroanim_standright
-heroanim_standleft=heroanim_runleft
+heroanim_standleft;=heroanim_runleft
         dw HEROSTANDLEFT0
         db 25
         dw HEROSTANDLEFT1
