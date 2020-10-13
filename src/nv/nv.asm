@@ -100,13 +100,63 @@ cmd_begin
         
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
+        push de
         push hl
         ld e,h
         OS_DELPAGE
         pop hl
         ld e,l
         OS_DELPAGE
+        pop de ;e
+        OS_DELPAGE
 
+        call assignpages
+
+	ld hl,left_panel_xy
+	ld (leftpanel+PANEL.xy),hl
+
+	ld hl,right_panel_xy
+	ld (rightpanel+PANEL.xy),hl
+
+	ld hl,FILES_POINTERS_left
+	ld (leftpanel+PANEL.pointers),hl
+        ld hl,catbuf_left
+	ld (leftpanel+PANEL.catbuf),hl
+	xor a
+	ld (leftpanel+PANEL.pgadd),a
+
+	ld hl,FILES_POINTERS_right
+	ld (rightpanel+PANEL.pointers),hl
+        ld hl,catbuf_right
+	ld (rightpanel+PANEL.catbuf),hl
+	ld a,FIRSTDIRPAGEFORRIGHTPANEL;DIRPAGES+1
+	ld (leftpanel+PANEL.pgadd),a
+
+	ld hl,compareext
+	ld (leftpanel+PANEL.dirsortproc),hl
+	ld (rightpanel+PANEL.dirsortproc),hl
+
+	;ld a,0xc3
+	;ld (leftpanel+PANEL.sorterjp),a
+	;ld (rightpanel+PANEL.sorterjp),a
+	;ld hl,sorter1
+	;ld (leftpanel+PANEL.sorter),hl
+	;ld hl,sorter2
+	;ld (rightpanel+PANEL.sorter),hl
+	
+        ld hl,rightpanel
+        call editcmd_setpaneldirfromcurdir_panelhl
+        ld hl,leftpanel
+        call editcmd_setpaneldirfromcurdir_panelhl
+
+	call readpanels_reprint
+
+mainloop
+        call editcmd_readprompt_setendcmdx
+        call controlloop
+        jp mainloop
+
+assignpages
 	OS_NEWPAGE ; for dircopy batch
 	ld hl,dirpg
 	ld (hl),e
@@ -138,48 +188,40 @@ cmd_begin
 	OS_NEWPAGE
 	ld a,e
 	ld (leftpanel+PANEL.poipg),a
-	ld hl,FILES_POINTERS_left
-	ld (leftpanel+PANEL.pointers),hl
-        ld hl,catbuf_left
-	ld (leftpanel+PANEL.catbuf),hl
-	xor a
-	ld (leftpanel+PANEL.pgadd),a
 
 	ld hl,right_panel_xy
 	ld (rightpanel+PANEL.xy),hl
 	OS_NEWPAGE
 	ld a,e
 	ld (rightpanel+PANEL.poipg),a
-	ld hl,FILES_POINTERS_right
-	ld (rightpanel+PANEL.pointers),hl
-        ld hl,catbuf_right
-	ld (rightpanel+PANEL.catbuf),hl
-	ld a,FIRSTDIRPAGEFORRIGHTPANEL;DIRPAGES+1
-	ld (leftpanel+PANEL.pgadd),a
 
-	ld hl,compareext
-	ld (leftpanel+PANEL.dirsortproc),hl
-	ld (rightpanel+PANEL.dirsortproc),hl
+	OS_NEWPAGE
+	ld a,e
+        SETPG16K ;copybuf
+        ret
 
-	;ld a,0xc3
-	;ld (leftpanel+PANEL.sorterjp),a
-	;ld (rightpanel+PANEL.sorterjp),a
-	;ld hl,sorter1
-	;ld (leftpanel+PANEL.sorter),hl
-	;ld hl,sorter2
-	;ld (rightpanel+PANEL.sorter),hl
-	
-        ld hl,rightpanel
-        call editcmd_setpaneldirfromcurdir_panelhl
-        ld hl,leftpanel
-        call editcmd_setpaneldirfromcurdir_panelhl
-
-	call readpanels_reprint
-
-mainloop
-        call editcmd_readprompt_setendcmdx
-        call controlloop
-        jp mainloop
+deletepages
+        ld a,(dirpg)
+        call delpage_a ;for dircopy batch
+        ld a,(HS_strpg)
+        call delpage_a ;по одной страничке для каталогов
+        ld a,(HS_strpg+DIRPAGES+1)
+        call delpage_a ;по одной страничке для длинных имён
+	ld a,(HS_strpg+FIRSTDIRPAGEFORRIGHTPANEL)
+        call delpage_a ;по одной страничке для каталогов
+        ld a,(HS_strpg+FIRSTDIRPAGEFORRIGHTPANEL+DIRPAGES+1)
+        call delpage_a ;по одной страничке для длинных имён       
+	ld a,(leftpanel+PANEL.poipg)
+        call delpage_a
+	ld a,(rightpanel+PANEL.poipg)
+        call delpage_a
+        OS_GETMAINPAGES
+;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
+        ld a,e
+delpage_a
+        ld e,a
+	OS_DELPAGE
+        ret
 
 strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
 	ld hl, HS_strpg
@@ -457,6 +499,30 @@ colorfile
 	ld de,_PANELFILECOLOR
         ret
 
+prdirfile_copyfn
+;pgc000=(fcb+FCB_EXTENTNUMBERLO)
+;hl=(fcb+FCB_EXTENTNUMBERHI)
+;de=filelinebuf
+;b=maxlen
+;c=pad char
+prdirfile_fn0
+        ld a,(hl)
+        or a
+        jr z,prdirfile_fn0q
+        ld (de),a
+        inc hl
+        inc de
+        djnz prdirfile_fn0
+        jr prdirfile_fn0qq
+prdirfile_fn0q
+        ld a,c;' '
+prdirfile_fn1
+        ld (de),a
+        inc de
+        djnz prdirfile_fn1         
+prdirfile_fn0qq
+        ret
+
 prdirfile
 ;hl=fcb
         call getfcbfromhl
@@ -473,23 +539,8 @@ prdirfile_ix_decolor
         SETPG32KHIGH
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filelinebuf
-        ld b,25
-prdirfile_fn0
-        ld a,(hl)
-        or a
-        jr z,prdirfile_fn0q
-        ld (de),a
-        inc hl
-        inc de
-        djnz prdirfile_fn0
-        jr prdirfile_fn0qq
-prdirfile_fn0q
-        ld a,' '
-prdirfile_fn1
-        ld (de),a
-        inc de
-        djnz prdirfile_fn1         
-prdirfile_fn0qq
+        ld bc,25*256+' '
+        call prdirfile_copyfn
        endif
         ld de,filelinebuf+15
         exx
@@ -651,7 +702,7 @@ readdir_keepcursor
 		;cp '.'
 		;jp z,loaddir_onedot
 loaddir0
-        call loaddir_filinfo ;keep ix!!!
+        call loaddir_filinfo ;keep ix!!! ;out: CY=end dir, or else Z="." or ".."
         jp c,loaddirq
         jr z,loaddir0
         
@@ -796,6 +847,7 @@ loaddirq
 
 loaddir_filinfo
 ;keep ix!!!
+;out: CY=end dir, or else Z="." or ".."
         push bc
 	push de
 	push hl
@@ -1223,14 +1275,30 @@ loadandrun_waitpid
         CLS_
         ld de,0
         SETXY_
+         ;jr $
+        ld ix,leftpanel
+	call strdelpages
+        ld ix,rightpanel
+	call strdelpages
+        call deletepages
         pop hl ;hl=cmdbuf или cmdprompt
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch в текущем терминале
         WAITPID
+;wait for focus
+        if 1==0
+execcmd_waitfocus0
+         YIELD
+         ld a,(user_scr0_low)
+         ld hl,user_scr0_high
+         cp (hl)
+         jr z,execcmd_waitfocus0
+        endif
         CLS_ ;scroll what was printed
 execcmd_error
+        call assignpages
         ld hl,cmdbuf
         ld (hl),0
         jp editcmd_reprintall_keepcursor
@@ -1953,40 +2021,6 @@ editcmd_5_0
         ld ix,(curpanel)
 	jp processfiles
 
-        if 1==0
-nv_addslashtopath_hl ; out=terminator
-	push hl
-	call skipword_hl
-	dec hl
-	ld a,(hl)
-	cp '/'
-	jr z,nv_addslashtopath_hl0
-	inc hl
-	ld a,'/'
-	ld (hl),a
-nv_addslashtopath_hl0
-	inc hl
-	xor a
-	ld (hl),a
-	pop hl
-	ret
-
-nv_adddirtopath_detohl ; hl=path de=dirname; out - last component of path
-	push hl
-	call skipword_hl
-	ex hl,de
-	push hl
-	call strlen
-	ld b,h
-	ld c,l
-	pop hl
-	ldir
-	xor a
-	ld (de),a
-	pop hl
-	ret
-        endif
-
 strcopy
 ;hl->de
 ;out: hl,de after terminator
@@ -2130,6 +2164,7 @@ nv_label
 	jr nz,nv_batch_nocopydir ;if it's not copy
 
 	ld de,dir2_buf
+        jr $
 	OS_MKDIR
 	ld de,dir2_buf
 	OS_CHDIR ;de
@@ -2141,25 +2176,49 @@ nv_batch_nocopydir
 	or a
 	jr nz,nv_batch ;can't open src dir
 
-	ld de,fcb
-	OS_SETDTA
-	ld de,fcbmask
-	OS_FSEARCHFIRST
+	ld de,emptypath
+	OS_OPENDIR
+	;ld de,fcb
+	;OS_SETDTA
+	;ld de,fcbmask
+	;OS_FSEARCHFIRST
 	or a
 	jr nz,nv_batch
-	ld de,fcb
-	OS_SETDTA
-	ld de,fcbmask
-	OS_FSEARCHNEXT
-	or a
-	jr nz,nv_batch ;skip . and ..
+        
+	;ld de,fcb
+	;OS_SETDTA
+	;ld de,fcbmask
+	;OS_FSEARCHNEXT
+	;or a
+	;jr nz,nv_batch ;skip . and ..
+        call loaddir_filinfo ;out: CY=end dir, or else Z="." or ".."
+        call loaddir_filinfo ;out: CY=end dir, or else Z="." or ".."
 nv_batch1
-	ld de,fcb
-	OS_SETDTA
-	ld de,fcbmask
-	OS_FSEARCHNEXT
-	or a
-	jr nz,nv_batch_nofiles
+	;ld de,fcb
+	;OS_SETDTA
+	;ld de,fcbmask
+	;OS_FSEARCHNEXT
+	;or a
+	;jr nz,nv_batch_nofiles
+        call loaddir_filinfo ;out: CY=end dir, or else Z="." or ".."
+        jr c,nv_batch_nofiles
+        ;jr z,nv_batch1
+
+        ld hl,filinfo+FILINFO_LNAME
+        ld a,(hl)
+        or a
+        jr nz,$+5
+        ld hl,filinfo+FILINFO_FNAME
+        ld (fcb+FCB_EXTENTNUMBERHI),hl
+        ;ex de,hl
+        ;ld hl,fcb_filename
+        ;call dotname_to_cpmname ;de -> hl
+
+        ld a,(filinfo+FILINFO_FATTRIB)
+	ld (fcb_attrib),a
+         ld a,(dirpg)
+         ld (fcb+FCB_EXTENTNUMBERLO),a ;NU
+
 nv_batch_proc=$+1
 	call proceditcmd_copy_fcb
 	jr nv_batch1
@@ -2204,9 +2263,18 @@ proceditcmd_copy_fcb
 	;ld de,dir_buf
 	;OS_CHDIR
 
+       if 1==0
         ld de,filenametext ;wordbuf ;de=drive/path/file
 	ld hl,fcb_filename
 	call cpmname_to_dotname
+       else
+        ld a,(fcb+FCB_EXTENTNUMBERLO)
+        SETPG32KHIGH
+        ld hl,(fcb+FCB_EXTENTNUMBERHI)
+        ld de,filenametext
+        ld bc,63*256+0
+        call prdirfile_copyfn
+       endif
 
 	ld a,(fcb_attrib)
 	and FATTRIB_DIR
