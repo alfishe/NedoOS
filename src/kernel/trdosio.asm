@@ -990,37 +990,24 @@ iodos_setdrive_okq
 iodos_setdrive
         display "iodos_setdrive=",iodos_setdrive
 trdosolddrive=$+1
-        cp 0xff
-        jr z,iodos_setdrive_okq
-        ld (trdoscurdrive),a
-        push bc
-        push de
-        push hl
-	if atm == 1
-			ld bc,0xfd77
-			ld a,0xa6
-			out (c),a
-			ld a,(trdoscurdrive)
-			or 0x04
-			out (0xff),a
-			ld bc,0xbd77
-			ld a,0xae
-			out (c),a
-			ld c,0x00
-			call dos3d13nopg.
-	endif
-			ld a,(trdoscurdrive)
-			ld c,1
-			call dos3d13nopg.
-			;call iodos_chd_cherr
-			ld c,0x18
-			call dos3d13nopg.
-			call iodos_chd_cherr
-			;ld bc,0x0105
-			;ld hl,trdos_sectorbuf
-			;ld de,0x0008
-			;call dos3d13nopg.
-			;call iodos_chd_cherr
+		cp 0xff
+		jr z,iodos_setdrive_okq
+		ld (trdoscurdrive),a
+		push bc
+		push de
+		push hl
+		ld a,(trdoscurdrive)
+		ld c,1
+		call dos3d13nopg.
+		;call iodos_chd_cherr
+		ld c,0x18
+		call dos3d13nopg.
+		call iodos_chd_cherr
+		;ld bc,0x0105
+		;ld hl,trdos_sectorbuf
+		;ld de,0x0008
+		;call dos3d13nopg.
+		;call iodos_chd_cherr
 		ld a,(trdoscurdrive)
 		ld (trdosolddrive),a
 		xor a
