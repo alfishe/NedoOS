@@ -113,6 +113,8 @@ GETKEY
 		cp 64
 		jr nc,.not_simbol
 		ld b,a
+		 bit .bKEY_MODE_CTRL,l
+		 jr nz,.ctrl_mod
 		cp 27
 		ld a,.KEY_MODE_SHIFT
 		jr nc,.base_noneed_caps
@@ -120,9 +122,10 @@ GETKEY
 		jr z,.no_alt_mod
 		ld a,b
 		jr .retsymb
-.no_alt_mod
-		bit .bKEY_MODE_CTRL,l
-		jr z,.no_ctrl_mod
+;.no_alt_mod
+		;bit .bKEY_MODE_CTRL,l
+		;jr z,.no_ctrl_mod
+.ctrl_mod
 		ld a,b
 		add a,0xff&.ctrl_decode
 		ld e,a
@@ -132,6 +135,7 @@ GETKEY
 		ld a,(de)
 		ld c,a
 		jr .retsymb
+.no_alt_mod
 .no_ctrl_mod
 		ld a,.KEY_MODE_SHIFT|.KEY_MODE_CAPS
 .base_noneed_caps
@@ -155,10 +159,10 @@ GETKEY
 .retsymb
 		ld b,a
 		ld (KEY_PUTREDRAW.rep_key),bc
-		ex af,af'
+		ex af,af' ;'
 		ld a,35
 		ld (KEYSCAN.rep_wait),a
-		ex af,af'
+		ex af,af' ;'
 .retsymb1
 		ld b,0
 		ld h,b
@@ -273,24 +277,24 @@ GETKEY
         jp .noredraw
 
 .scodes
-;		  0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
-;			0, F9,  0, F5, F3, F1, F2,F12,  0,F10, F8, F6, F4,TAB,'`',  0
+                ;0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
+                ;0, F9,  0, F5, F3, F1, F2,F12,  0,F10, F8, F6, F4,TAB,'`',  0
 	defb	0,151,  0,147,145,143,144,  0,  0,152,150,148,146,140, 33,  0	;0x00
-;			0,LAl,LSh,  0,LCt,'q','1',  0,  0,  0,'z','s','a','w','2',  0 
+                ;0,LAl,LSh,  0,LCt,'q','1',  0,  0,  0,'z','s','a','w','2',  0 
 	defb	0, 66, 64,  0, 68, 17, 34,  0,  0,  0, 26, 19,  1, 23, 35,  0 	;0x10
-;	  		0,'c','x','d','e','4','3',  0,  0,' ','v','f','t','r','5',  0 
+                ;0,'c','x','d','e','4','3',  0,  0,' ','v','f','t','r','5',  0 
 	defb	0,  3, 24,  4,  5, 37, 36,  0,  0,142, 22,  6, 20, 18, 38,  0 	;0x20
-;	  		0,'n','b','h','g','y','6',  0,  0,  0,'m','j','u','7','8',  0 
+                ;0,'n','b','h','g','y','6',  0,  0,  0,'m','j','u','7','8',  0 
 	defb	0, 14,  2,  8,  7, 25, 39,  0,  0,  0, 13, 10, 21, 40, 41,  0 	;0x30
-;	  		0,',','k','i','o','0','9',  0,  0,'.','/','l',';','p','-',  0 
+                ;0,',','k','i','o','0','9',  0,  0,'.','/','l',';','p','-',  0 
 	defb	0, 31, 11,  9, 15, 43, 42,  0,  0, 32, 47, 12, 29, 16, 44,  0 	;0x40
-;	  		0,  0,  ',  0,'[','=',  0,  0,  0,RSh,ENT,']',  0,  \,  0,  0
+                ;0,  0,  ',  0,'[','=',  0,  0,  0,RSh,ENT,']',  0,  \,  0,  0
 	defb	0,  0, 30,  0, 27, 45,  0,  0,  0, 64,156, 28,  0, 46,  0,  0 	;0x50
-;	  		0,  0,  0,  0,  0,  0, BS,  0,  0,'1',  0,'4','7',  0,  0,  0
+                ;0,  0,  0,  0,  0,  0, BS,  0,  0,'1',  0,'4','7',  0,  0,  0
 	defb	0,  0,  0,  0,  0,  0,139,  0,  0,137,  0,128,136,  0,  0,  0 	;0x60
-;		  '0','.','2','5','6','8',ESC,  0,F11,'+','3','-','*','9',  0,  0
+                ;'0','.','2','5','6','8',ESC,  0,F11,'+','3','-','*','9',  0,  0
 	defb  134,135,131,138,129,130,141,  0,  0,155,133,154,153,132,  0,  0 	;0x70
-;			0,  0,  0, F7	 								
+                ;0,  0,  0, F7	 								
 	defb	0,  0,  0,149
 	
 .mod_base
@@ -320,3 +324,4 @@ GETKEY
 .ctrl_decode=$-1
 	defb ssA,ssB,ssC,ssD,ssE,ssF,ssG,ssH,ssI,ssJ,ssK,ssL,ssM
 	defb ssN,ssO,ssP,ssQ,ssR,ssS,ssT,ssU,ssV,ssW,ssX,ssY,ssZ
+        db "{}:\"<>~",ss1,ss2,ss3,ss4,ss5,ss6,ss7,ss8,ss9,ss0,"_+|?"
