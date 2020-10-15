@@ -2164,7 +2164,6 @@ nv_label
 	jr nz,nv_batch_nocopydir ;if it's not copy
 
 	ld de,dir2_buf
-        jr $
 	OS_MKDIR
 	ld de,dir2_buf
 	OS_CHDIR ;de
