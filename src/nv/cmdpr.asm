@@ -191,6 +191,9 @@ cmdcalcpromptsz
         call strlen
         ld a,l
         inc a
+         cp 64
+         ret c
+         ld a,64
         ret
 
 cmdcalccurxy
@@ -243,9 +246,14 @@ editcmd_noscrollright
         ;ld de,+(txtscrhgt-1)*256+0
         ld de,CMDLINEY*256+0
         SETXY_
+        call cmdcalcpromptsz
+        dec a
+        ld e,a ;!=0, т.к. буква дисковода
+        ld d,0
         ld hl,cmdprompt
         ld c,0
-        call prtext
+        ;call prtext
+        call cmdprNchars
         push bc
         ld a,'>'
         PRCHAR_
