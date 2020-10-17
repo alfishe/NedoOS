@@ -2097,7 +2097,7 @@ nv_batch_pushsrecordend
 	ld bc,filenametext
 	call nv_makefilepath_hltode
 	pop hl
-	ld de,128
+	ld de,128 ;128 bytes for source, 128 bytes for dest???
 	add hl,de
 ;dir2
 	ld de,dir2_buf
