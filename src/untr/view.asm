@@ -425,6 +425,8 @@ scrollright_nolddr
         align 256
 font
         incbin "64qua.fnt"
+fnotes
+        incbin "fnotes.fnt"
 notefont=0x6000
         ;ds 2048
 digfont=0x6800
@@ -1059,18 +1061,58 @@ gennotefont
 
         ld e,NOTE_LOWEST
         ld c,7
-        ld hx,font/256
+        ld hx,0 ;ld hx,font/256
         ld d,notefont/256+1
-        call gennotefont12 ;ноты сдвинуты вниз
+        call gennotefont12768 ;ноты сдвинуты вниз
         ld c,8
-        ld hx,font/256
+        ld hx,0 ;ld hx,font/256
         ld d,notefont/256
-        call gennotefont12
+        call gennotefont12768
         ld c,7
-        ld hx,font/256+1
+        ld hx,1 ;ld hx,font/256+1
         ld d,notefont/256
         ;call gennotefont12 ;ноты сдвинуты вверх
         ;ret
+
+gennotefont12768
+;c=nlines
+;hx=font/256+
+;d=notefont/256+
+        ld hl,tnotefont
+        ld b,12
+gennotefont127680
+        push bc
+        push hl
+        ;ld l,(hl)
+        ;ld a,hx
+        ;ld h,a;font/256
+        ;jr $
+        ld l,(hl)
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld a,h
+        add a,fnotes/256-1
+        ld h,a
+        ld a,l
+        add a,hx
+        ld l,a
+        push de
+        ld b,c
+gennotefont127681
+        ld a,(hl)
+        inc hl
+        ld (de),a
+        inc d
+        djnz gennotefont127681
+        pop de
+        pop hl
+        pop bc
+        inc hl
+        inc e ;next symbol in notefont
+        djnz gennotefont127680
+        ret
 
 gennotefont12
 ;c=nlines
