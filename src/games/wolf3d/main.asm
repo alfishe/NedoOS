@@ -472,7 +472,7 @@ on_int_0026=$+1
 
         push ix
         push iy
-        ex af,af'
+        ex af,af' ;'
         exx
         push af
         push bc
@@ -516,7 +516,7 @@ curpg=$+1
         pop bc
         pop af
         exx
-        ex af,af'
+        ex af,af' ;'
         pop iy
         pop ix
         
@@ -806,6 +806,7 @@ bmpbuf
         ;ds 0xc000-$
         ;INCBIN "scalers"
 wasmuz
+        ;ds 9,201
         incbin "DOOM-MUS" ;TODO load
 wasmuz_sz=$-wasmuz
 
