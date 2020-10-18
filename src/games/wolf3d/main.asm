@@ -190,6 +190,10 @@ REtID0  LD A,(HL)
         INC L
         INC L
         jr NZ,REtID0
+         ld hl,tID+128
+         ld de,tID
+         ld bc,128
+         ldir ;ID_DOOR < 128
 
         ld ix,tscales
         ld hl,tscales_rev
