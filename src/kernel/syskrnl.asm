@@ -921,7 +921,10 @@ KEY_PUTREDRAW
 		else
 			include "syskey1.asm"
 		endif
-        
+                
+        ds 50  
+INTSTACK1;!=0x3f00 ;kernelspace (для входа в обработчик без порчи стека) (не пересекается с возможным стеком задачи!!!)
+
         include "fatfsdrv.asm"
         include "sysbdos.asm" ;в конце есть align 256
         ent
