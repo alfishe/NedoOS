@@ -1098,6 +1098,7 @@ gennotefont127680
         ld a,l
         add a,hx
         ld l,a
+         dec hl
         push de
         ld b,c
 gennotefont127681
