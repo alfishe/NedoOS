@@ -1125,14 +1125,14 @@ soc
 port_ia:
 	defb 0
         db 100,53 ;port (big endian)
-        db 127,0,0,1 ;ip (big endian)
+        db 192,168,0,7;127,0,0,1 ;ip (big endian)
 ;port_iarecv:
 ;	defb 0
 ;        db 100,53 ;port (big endian)
 ;        db 192,168,1,177 ;ip (big endian)
 
         else
-
+;server?
 ;slave(net2): from 192.168.1.177 to 192.168.1.2
 port_ia:
 	defb 0
