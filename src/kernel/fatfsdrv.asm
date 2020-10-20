@@ -91,13 +91,13 @@ devices_init_noIDEslave
 	dec a
 	jr nz,devices_init_noSD
 	ifdef KOE
-	 ifdef KOEDI
+         ifdef KOEDI
 		di
-     endif
+         endif
 		call SD_INIT
-	 ifdef KOEDI
+         ifdef KOEDI
 		ei
-     endif
+         endif
 	else
     if (atm==3) || (atm==1)
 		call SD_INIT
