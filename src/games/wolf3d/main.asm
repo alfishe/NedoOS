@@ -3,6 +3,8 @@
 
 atm=1
 
+OLDMUZ=0
+
 TEXBMP=1
 NTEXPGS=5
 NSPRPGS=2;1
@@ -38,11 +40,16 @@ begin
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
+        ld a,e
+        LD (pgmain4000),A
+        ld a,h
+        LD (pgmain8000),A
         ld a,l
         LD (pgscalersnum),A
+       if 1==0 ; OLDMUZ
         ld a,h
-        ;push af;LD (pg8000),A
         ld (pgmuznum),a
+       endif
 
         ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
@@ -54,6 +61,15 @@ begin
 	;xor e
         ;ld (setpgs_scr_high_xor_low),a
 
+       if OLDMUZ
+        ;ld hl,muzfilename
+        ;call loadpage
+        ;ld (pgsfx),a
+        ;call loadpage
+        ;ld (pgmusic),a
+        ;call setpgsmain40008000
+        ;ld a,(pgscalersnum)
+        ;SETPG32KHIGH
         ;OS_NEWPAGE
         ;ld a,e
         ;ld (pgmuznum),a
@@ -63,6 +79,27 @@ begin
         ld bc,wasmuz_sz
         ldir
         call muz
+       else
+        ld hl,muzfilename
+        call loadpage
+        ld (pgsfx),a
+        call loadpage
+        ld (pgmusic),a
+        SETPG16K
+        
+;это относится к загрузке уровня
+        push af
+        call 0x4000 ;init
+        
+        ld a,(pgsfx)
+        SETPG32KLOW
+        pop af
+        ld hl,0x4005 ;play
+        OS_SETMUSIC
+        call setpgsmain40008000
+        ld a,(pgscalersnum)
+        SETPG32KHIGH
+       endif
         
         ;pop af ;LD a,(pg8000)
         ;SETPG32KLOW
@@ -240,8 +277,23 @@ retlogd2sca0
         
         call swapimer
         
-        call shutay        
+        ;call shutay        
+pgmusic=$+1
+        ld a,0
+        SETPG16K
+        ld hl,0x4008+3 ;stop
+        OS_SETMUSIC
+        halt
         QUIT
+
+setpgsmain40008000
+pgmain4000=$+1
+        ld a,0
+        SETPG16K
+pgmain8000=$+1
+        ld a,0
+        SETPG32KLOW
+        ret
 
         if 1==0
 setpgsscr40008000_current
@@ -492,6 +544,7 @@ curpalette=$+1
         ld de,wolfpal
         OS_SETPAL
         
+       if 1==0
         ld a,(curpg32klow) ;ok
         push af
 pgmuznum=$+1
@@ -501,6 +554,7 @@ pgmuznum=$+1
         ;TODO music + sound effects in OS_SETMUSIC
         pop af
         SETPG32KLOW
+       endif
         
         call oldimer ;ei
         
@@ -539,6 +593,43 @@ on_int_sp2=$+1
         ;ei
 on_int_jp=$+1
 	jp 0
+
+sfxplay
+        push af
+pgsfx=$+1
+        ld a,0
+        SETPG32KLOW
+        pop af
+        jp 0x8000 ;SFXPLAY
+
+loadpage
+;заказывает страничку и грузит туда файл (имя файла в hl)
+;out: hl=после имени файла, a=pg
+        push hl
+        OS_NEWPAGE
+        pop hl
+        ld a,e
+        push af ;pg
+        SETPG32KHIGH
+        push hl
+        ex de,hl
+        OS_OPENHANDLE
+        push bc
+        ld de,0xc000 ;addr
+        ld hl,0x4000 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE                
+        pop hl
+        ld b,1
+        xor a
+        cpir ;after 0
+        pop af ;pg
+        ret
+
+muzfilename
+        db "sfx.bin",0
+        db "music.bin",0
 
 wolfpal
         dw 0xffff,0x0c0c,0x3f3f,0xdede,0xfefe,0xdfdf,0x4c4c,0xaeae

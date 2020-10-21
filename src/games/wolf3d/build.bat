@@ -2,6 +2,8 @@ if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 nedotrd WOLF484.TRD -e mapatm.E
 sjasmplus --nologo --msg=war main.asm
+sjasmplus --nologo --msg=war sfx.asm
+sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
