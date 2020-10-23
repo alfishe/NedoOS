@@ -15,7 +15,6 @@
         endm
          else
         macro NOPSDCARD
-        nop
         endm
          endif
         
@@ -563,10 +562,12 @@ LL7c64	ld hl,cmd00SD ;GO_IDLE_STATE ;команда сброса и перевода карты в SPI режим
 LL7c92	ld a,0x77 ;запускаем процесс внутренней инициализации
 	call outcom_zeroparsSD
 	call read32byteswaitnoffSD
-       ifndef KOE
+       ;ifndef KOE
 	in f,(c)
+	NOPSDCARD
 	in f,(c)
-       endif
+	NOPSDCARD
+       ;endif
 	ld a,0x69
 	out (C),a ;бит 6 установлен для инициализации SDHC карты
 	NOPSDCARD  
@@ -658,10 +659,12 @@ outcom_hlSD
 outcom_zeroparsSD
     call cs_lowSD
 	ld bc,0x0057
-       ifndef KOE
+       ;ifndef KOE
 	in f,(c)
+	NOPSDCARD
 	in f,(c)
-       endif
+	NOPSDCARD
+       ;endif
 	out (C),a
 	NOPSDCARD
     xor a
@@ -716,10 +719,12 @@ setcmdparsSD
 	ld d,e
 	ld e,0x00
 SECN200	pop af ;заготовленный номер сектора находится в HLDE
-       ifndef KOE
+       ;ifndef KOE
 	in f,(c)
+	NOPSDCARD
 	in f,(c)
-       endif
+	NOPSDCARD
+       ;endif
 	out (C),a ;команда
 	NOPSDCARD  
 	out (C),h ;;пишем номер сектора от старшего

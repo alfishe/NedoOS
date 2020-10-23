@@ -154,6 +154,7 @@ begin
         ;ld (init_oldmousecoords),hl
 
 ;;;;;;;;;;;;;;;;;;; set gfx mode ;;;;;;;;;;;;;;;;;
+		ei
         halt
         ;LD A,0xaa;%10101010 ;640x200 mode
         ;LD A,0xae;%10101110 ;textmode
