@@ -472,6 +472,11 @@ sprfilename
         db "wolfspr.bmp",0
 
         align 256
+t1x
+        db 255
+        dup 255
+        db (255*2/($&0xff)+1)/2
+        edup
 ttexpgs
         ds NTEXPGS+NSPRPGS
 
@@ -944,4 +949,4 @@ end
 	
 	savebin "wolf3d.com",begin,end-begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "../../../us/user.l"

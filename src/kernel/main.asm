@@ -133,7 +133,7 @@ begin
        ; LD (23747),HL
        ;ENDIF 
        LD A,(23833)
-       ADD A,"A
+       ADD A,'A'
        LD (src),A
        LD (dst),A
        XOR A
@@ -187,7 +187,7 @@ init_rst_buf=0x4000
 			ld d,b
 			ld e,c
 			ld a,2
-			ex af,af'
+			ex af,af' ;'
 			ld a,1
 			rst 0x08
 			defb 0x50,0x04,0x02
@@ -552,7 +552,12 @@ INIT_setpal0 LD A,E
         JP P,INIT_setpal0
         ret
 
+        ifdef NOPAL
+        dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+        dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+        else
         ds 32,0xf3
+        endif
 blackpalend=$-1
 
         include "unmegalz.asm" ;DEC40
@@ -565,12 +570,17 @@ readmouse  ;=$-wasresident+resident
 ;e=gfxmode
 ;out: hl=mousecoords, d=mousebuttons
 			call sys_SHADOFF
+                       ;ifdef NOMOUSE
+                       ; ld hl,0
+                       ; ld d,0x0f ;buttons
+                       ;else
 			ld bc,0xfadf ;buttons
 			in d,(c)
 			inc b ;ld bc,0xfbdf ;x
 			in l,(c)
 			ld b,0xff ;y
 			in h,(c)
+                       ;endif
 		endif
 shadon_pgsys  ;=$-wasresident+resident
         LD A,e;0xa8;%10101000 ;320x200 mode

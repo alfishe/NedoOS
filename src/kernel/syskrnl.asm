@@ -294,7 +294,7 @@ palettechanged=$
         jp c,focusappborder
         ld a,55 ;"scf"
         ld (palettechanged),a
-
+       ifndef NOPAL
         ld hl,(focusappaddr)
         ld bc,app.pal+31 ;-app.gfxmode
         add hl,bc
@@ -325,14 +325,17 @@ palettechanged=$
         dec hl
         ld b,(hl) ;DDp palette low bits
         OUT (c),d;(0xFF),A
+       endif
 focusappborder
          ld ix,(focusappaddr)
+       ifndef NOPAL
          ld a,(ix+app.border)
          cp 8
          res 3,a ;tapeout sound
          out (0xfe),a
          ret c
          out (0xf6),a
+       endif
         ret
 
 sys_sysint
@@ -408,18 +411,26 @@ focusappaddr=$+1
 			ld b,0xff ;y
 			in h,(c)
 		else
+                        ifdef NOMOUSE
+                        ld hl,0
+                        ld d,0x0f
+                        else
 			call readmouse ;resident >=0x4000
+                        endif
 		endif
         ld (sys_mousecoords),hl
         ld a,d
-		ld (sys_mousebuttons),a
+        ld (sys_mousebuttons),a
 		if atm != 1
 			ld a,(sys_timer) ;ok
 			and 7
 			jr nz,on_int_noreadtime
+                        ifdef NOCMOS
+                        else
 			call readtime ;hl=date, de=time
 			ld (sys_time_date),de
 			ld (sys_time_date+2),hl
+                        endif
 on_int_noreadtime
 		endif
         ld hl,sys_timer
