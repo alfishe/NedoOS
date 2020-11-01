@@ -1663,7 +1663,6 @@ BDOS_fwrite_nbytes_noFATFS
 
 ;de=path
 ;hl=FILINFO buffer
-		display "BDOS_getfilinfo ",BDOS_getfilinfo
 BDOS_getfilinfo
         push hl ;FILINFO buffer
         call BDOS_preparedepage
@@ -2617,7 +2616,6 @@ BDOS_mount
 .noFATFS
         xor a ;xor a ;NC:success, CY:fail
         ret;jr rest_exit
-			display "BDOS_setsysdrv ",BDOS_setsysdrv
 BDOS_setsysdrv
 SYSDRV_VAL=$+1
         ld e,SYSDRV

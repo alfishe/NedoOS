@@ -71,7 +71,6 @@ SDWRSN2		OUTI
 
 ;—’…ˆ… "A" ‘…Š’‚
 ;SDRDMUL		EX AF,AF'
-	display "readsectorsGS=",$
 readsectorsGS
 		LD A,_DEV_READ
 		CALL COMM2SD

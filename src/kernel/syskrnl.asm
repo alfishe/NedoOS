@@ -289,6 +289,7 @@ setgfxpal_focus
 ;если же палитру ставить в самом yield, то могут быть проблемы с выставлением палитры, если yield вызывать в случайных местах или если все задачи неактивны
 ;поэтому обработчик прерываний должен выставлять палитру и видеорежим задачи, которая в фокусе, независимо от её активности
 ;менять палитру только после смены фокуса или записи палитры
+		display "setgfxpal_focus ",setgfxpal_focus
 palettechanged=$
         or a
         jp c,focusappborder
@@ -298,6 +299,25 @@ palettechanged=$
         ld hl,(focusappaddr)
         ld bc,app.pal+31 ;-app.gfxmode
         add hl,bc
+	if atm==1
+		ld bc,0x07ff
+		dup 8
+		ld a,b
+		out (0xf6),a
+		outd
+		dec hl
+		edup
+		ld b,0x07
+		dup 7
+		ld a,b
+		out (0xfe),a
+		outd
+		dec hl
+		edup
+		ld a,b
+		out (0xfe),a
+		outd
+	else
 
         ld c,0xff
         ld a,7
@@ -325,6 +345,7 @@ palettechanged=$
         dec hl
         ld b,(hl) ;DDp palette low bits
         OUT (c),d;(0xFF),A
+	endif
        endif
 focusappborder
          ld ix,(focusappaddr)
@@ -405,7 +426,8 @@ focusappaddr=$+1
         ;ld e,%10101000 ;320x200 mode
 		if atm==1
 			ld bc,0xfadf ;buttons
-			in d,(c)
+			in a,(c)
+			ld (sys_mousebuttons),a
 			inc b ;ld bc,0xfbdf ;x
 			in l,(c)
 			ld b,0xff ;y
@@ -417,10 +439,10 @@ focusappaddr=$+1
                         else
 			call readmouse ;resident >=0x4000
                         endif
-		endif
-        ld (sys_mousecoords),hl
         ld a,d
         ld (sys_mousebuttons),a
+		endif
+        ld (sys_mousecoords),hl
 		if atm != 1
 			ld a,(sys_timer) ;ok
 			and 7

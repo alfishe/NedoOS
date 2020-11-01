@@ -988,7 +988,6 @@ iodos_setdrive_okq
         xor a
         ret
 iodos_setdrive
-        display "iodos_setdrive=",iodos_setdrive
 trdosolddrive=$+1
 		cp 0xff
 		jr z,iodos_setdrive_okq

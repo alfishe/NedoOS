@@ -27,7 +27,6 @@ kernel_setpg
 user_fdvalue4=$+1
         ld a,fd_system
         out (0xfd),a
-        display "kernel_result_a=",$
 kernel_result_a
         ex af,af' ;'
         ret ;можно перенести вместо kernel_setpg

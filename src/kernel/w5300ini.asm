@@ -475,7 +475,6 @@ w53_read_new2:
 		jp w53_read_min
 
 wiznet_close:
-		display "w53_write ",$
 wiznet_write:	;a'-сокет, de-Буфер, hl-количество
 		call w53_valid_socket
 		jp z,w53_invalid_socked0
