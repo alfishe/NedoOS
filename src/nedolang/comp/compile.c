@@ -12,7 +12,11 @@ CONST BYTE _typesz[32];
 #ifdef TARGET_SCRIPT
 #include "sizesspt.h"
 #else
+#ifdef TARGET_386
+#include "sizes386.h"
+#else
 #include "sizesz80.h"
+#endif
 #endif
 #endif
 

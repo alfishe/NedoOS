@@ -819,8 +819,11 @@ PROC emitSxorVtob() //после subflags (less), разрезервирует A
 
 PROC emitinvSxorVtob() //после subflags (moreeq), разрезервирует A
 { //todo проверить
-  emit0(_rnew); //без установки флагов
-  asm_blt(); asm_pc4_eol();
+  //emit0(_rnew); //без установки флагов
+  //asm_blt(); asm_pc4_eol();
+  //asm_eors(); asm_rname(_rnew); asm_comma(); asm_rff(); endasmcmd();
+  asm_mov(); asm_rname(_rnew); asm_comma(); asm_rff(); endasmcmd();
+  asm_bgt(); asm_pc4_eol();
   asm_eors(); asm_rname(_rnew); asm_comma(); asm_rff(); endasmcmd();
   asm_endpc4();
 }

@@ -90,6 +90,7 @@
 ;        INC HL
 ;        JR PRINT_LOOP
 ;PRINT_LOOP_END:
+;<wait something to see the screen...>
 ;        QUIT
 ;STR_HELLO:
 ;        DEFB "Hello Work!",0

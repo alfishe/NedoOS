@@ -131,6 +131,9 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
   case 1:
     s="..\\_sdk\\nedolarm.exe";
     break;
+  case 2:
+    s="..\\_sdk\\nedol386.exe";
+    break;
   default:
     s="..\\_sdk\\nedolspt.exe";
   };

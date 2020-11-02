@@ -111,6 +111,7 @@ object Form1: TForm1
     Items.Strings = (
       'Z80'
       'ARM Thumb'
+      '80386'
       'script')
     TabOrder = 7
   end
