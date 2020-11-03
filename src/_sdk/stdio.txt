@@ -11,7 +11,7 @@
 4. все GET_KEY заменить на GETKEY_
 5. все OS_SETXY заменить на SETXY_
 6. все YIELDGETKEYLOOP заменить не call yieldgetkeyloop
-7. все OS_SETCOLOR заменить на SETCOLOR_, но цвета давать не в E, а в DE (paper0..7, ink0..16)
+7. все OS_SETCOLOR заменить на SETCOLOR_, но цвета давать не в E, а в DE (paper0..7, ink0..15)
 8. все OS_SCROLLUP заменить на call scrollup, все OS_SCROLLDOWN заменить на call scrolldown
 
 Для большинства программ этого дожно хватить. Проблемы могут быть:

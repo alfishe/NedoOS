@@ -4,7 +4,7 @@
 ;receivechars - read chars from stdin (de=buf, hl=size, out: bc=bytes actually read (if EOF), CY=error(EOF))
 ;receivekey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;yieldgetkeyloop - wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
-;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)
+;setcolor (macro SETCOLOR_) - set color attribute (in: D=paper0..7, E=ink0..15)
 ;setcolor_invisible - NON-STANDARD
 ;setcolor_visible - NON-STANDARD
 ;scrolldown ;de=topyx, hl=hgt,wid ;x, wid even
