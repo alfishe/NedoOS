@@ -874,12 +874,17 @@ L00D5
 ;Address  : #00D5
 ;Function : Returns the joystick status
 ;Input    : A  - Joystick number to test (0 = cursors, 1 = port 1, 2 = port 2)
-;Output   : A  - Direction (1 up, 3 right, 5 down, 7 left)
+;Output   : A  - Direction (1 up, 3 right, 5 down, 7 left, 8 up-left)
 ;Registers: All
         or a
         jr nz,GTSTCK2
+       ld a,0xf7
+       in a,(0xfe)
+       bit 4,a
         ld a,0xef
         in a,(0xfe)
+       jr nz,$+4
+       res 1,a
         rra
         and 0x0f
         ld hl,tstick
@@ -890,10 +895,16 @@ L00D5
         ld a,(hl)
         ret
 tstick
+;sinclair joystick 6789
+        ;db 0,0,0,0
+        ;db 0,6,8,7
+        ;db 0,4,2,3
+        ;db 0,5,1,0
+;cursor joystick 6785
         db 0,0,0,0
-        db 0,6,8,7
-        db 0,4,2,3
-        db 0,5,1,0
+        db 0,4,6,5
+        db 0,2,8,1
+        db 0,3,7,0
 GTSTCK2
         xor a
         ret
@@ -913,10 +924,16 @@ L00D8
 ;Registers: AF
         or a
         jr nz,GTTRIG2
+        ld a,0x7f
+        in a,(0xfe)
+        cpl
+        rra
+        jr c,GTTRIGOK
         ld a,0xef
         in a,(0xfe)
         cpl
         rra
+GTTRIGOK
         sbc a,a
         ret
 GTTRIG2
