@@ -646,7 +646,7 @@ L_88C5	LD	HL,L_B56E
         
 L_8969	LD	A,#01
 	OR	A
-	JP	Z,L_8DAB ;changemusic,ret
+	JP	Z,L_8DAB ;musicoff,ret
          call emulVDP
 	LD	HL,L_B15A
 	PUSH	HL
@@ -1227,7 +1227,7 @@ L_8D43	LD	A,#07
 	OR	A
 	JP	NZ,L_8D54
 	CALL	L0156
-	JP	L_8DAB ;changemusic,ret?
+	JP	L_8DAB ;musicoff,ret?
 
 L_8D54	LD	HL,L_B17F
 	LD	A,(HL)
@@ -1281,7 +1281,7 @@ L_8D88	LD	HL,L_B17F
 	INC	SP
 L_8DA8	JP	L_8969
 
-L_8DAB	CALL	L_B048 ;changemusic?
+L_8DAB	CALL	L_B048 ;musicoff
 	RET
 
 L_8DAF	LD	HL,L_B18B
@@ -2394,7 +2394,7 @@ L_94CB	LD	HL,L_B16F
 	LD	A,(HL)
 	OR	A
 	JP	Z,L_94D6
-	;JP	L_94CB ;wait end music???
+	JP	L_94CB ;wait end music???
 
 L_94D6	LD	HL,L_B185
 	LD	BC,#0000
@@ -6655,15 +6655,15 @@ L_AFBD	LD	HL,#0002
 	EX	DE,HL
 	LD	(L_AFE4),HL
 	PUSH	BC
-	LD	HL,#FD9F
+	LD	HL,MUZHOOK;#FD9F
 	LD	DE,L_AFE6
 	LD	BC,#0005
 	LDIR
 	POP	HL
 	DI
 	LD	A,#C3
-	LD	(#FD9F),A
-	LD	(#FDA0),HL
+	LD	(MUZHOOK),a ;(#FD9F),A
+	LD	(MUZHOOK+1),hl ;(#FDA0),HL
 	EI
 	RET
 
@@ -6736,10 +6736,10 @@ L_B038	LD	HL,(L_AEA8)
 	LD	(L_AEA8),HL
 	RET
 
-;changemusic?
+;musicoff
 L_B048	DI
 	LD	HL,L_AFE6
-	LD	DE,#FD9F
+	LD	DE,MUZHOOK;#FD9F
 	LD	BC,#0005
 	LDIR
 	EI

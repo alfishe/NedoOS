@@ -549,8 +549,9 @@ emulVDPsprites0
         ld b,(hl) ;y
         or a
         jp z,emulVDPsprites0_skip ;colour 0
+          inc b
         ld a,b
-        cp 0xd1 ;???
+        cp 0xd1+1 ;???
         jp nc,emulVDPsprites0_skip
          srl c
          srl c
@@ -929,8 +930,11 @@ L0141
 ;Input    : A  - for the specified line
 ;Output   : A  - for data (the bit corresponding to the pressed key will be 0)
 ;Registers: AF
-        ;cp 8
-        ;jr nz,SNSMAT_no
+        cp 5
+        jr z,SNSMAT_5
+        cp 2
+        jr z,SNSMAT_2
+       if 1==0
         push bc
         ld a,0x7f
         in a,(0xfe)
@@ -944,6 +948,37 @@ L0141
         and 0x1f
         or c
         pop bc
+       else
+;7:matrix RET,SELECT,BS,STOP,TAB,ESC,F5,F4 (SELECT,ESC needed)
+        ld a,(curkey)
+        cp key_enter
+        ld a,0xff-64 ;SELECT
+        ret z
+        ld a,(curkey)
+        cp key_esc
+        jr nz,SNSMAT_no
+        ld a,0xff-4 ;ESC
+       endif
+        ret
+SNSMAT_2
+;matrix BA /.,`' (A needed)
+        ld a,0xfd
+        in a,(0xfe)
+        rrca
+        rrca
+        or 0xbf ;'A'
+        ret
+SNSMAT_5
+;matrix ZYXWVUTS (Z,X needed)
+        ld a,0xfe
+        in a,(0xfe)
+        rra
+        rra ;'Z'
+        bit 0,a ;'X'
+        ld a,0xff
+        rra ;'Z'
+        ret nz
+        res 5,a ;'X'
         ret
 SNSMAT_no
         ld a,0xff
