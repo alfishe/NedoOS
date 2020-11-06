@@ -78,7 +78,7 @@ begin
         OS_CLS
 
         if EGA == 0
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG16K
         xor a
         ;out (0xfe),a
@@ -281,9 +281,9 @@ raytrace_lines0
 raytrace_pixels0
        push af ;X
         and 2
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         jr nz,$+5
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         SETPG16K
        pop af
        push af

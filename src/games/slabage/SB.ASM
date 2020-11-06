@@ -5807,6 +5807,32 @@ GO
 	;CALL	SetInt
 	CALL	L_BDD0
 	CALL	DepackSplashScreen
+
+	if 1==0
+	CALL	SlowClearScreen
+	xor a
+	ld d,a
+	ld e,a
+prtiles0
+	push af
+	push de
+	;call DrawTile_A_X2Y2DE
+        call DrawSprite_A_DExy
+	pop de
+        ld a,d
+        add a,16
+	ld d,a ;x
+	jr nz,$+6
+         ld a,e
+         add a,16
+	 ld e,a ;y
+	pop af
+	inc a
+	cp 192
+	jr nz,prtiles0
+	jr $
+	endif
+
 	CALL	WaitAnyKey
 L_DBD4
 	CALL	SlowClearScreen

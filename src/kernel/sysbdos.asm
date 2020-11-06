@@ -1216,6 +1216,19 @@ BDOS_setgfx
         ;ld iy,(appaddr)
 ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+8 = noturbo ;+128=keep screen
 ;e=-1: disable gfx (out: e=old gfxmode)
+        push de
+        bit 7,(iy+app.gfxkeep)
+        jr z,BDOS_setgfx_nkept
+        ld e,(iy+app.scr0low)
+        call BDOS_delpage
+        ld e,(iy+app.scr0high)
+        call BDOS_delpage
+        ld e,(iy+app.scr1low)
+        call BDOS_delpage
+        ld e,(iy+app.scr1high)
+        call BDOS_delpage        
+BDOS_setgfx_nkept
+        pop de
         ld a,e
         cp -1
         jr z,BDOS_setgfx_gfxoff;BDOS_gfxoff_givefocus
