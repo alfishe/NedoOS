@@ -6,33 +6,52 @@ GAMESTACK=0x4000;0xFFFF
 L_FDFD=0xfdfd
 L_FE00=0xfe00
 
+scrbase=0x4000+4
+sprmaxwid=32
+sprmaxhgt=32
+scrwid=160 ;double pixels
+scrhgt=192;200
+INTSTACK=0x3f00
+tempsp=0x3f06 ;6 bytes for prspr
+;UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
+;UVSCROLL_SCRHGT=192 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
+
+EGA=0;1
+
         org PROGSTART
 begin
+        jp begin2 ;/prsprqwid (sprites in file are made so that they return here)
+begin2
         ld sp,STACK
         OS_HIDEFROMPARENT
 
         ld e,3+0x80 ;6912+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
-	;ld e,0
+	;ld e,1
 	;OS_SETSCREEN
         ld e,0 ;color byte
         OS_CLS
-	;ld e,1
+	;ld e,0
 	;OS_SETSCREEN
         ;ld e,0 ;color byte
         ;OS_CLS
 
         OS_GETMAINPAGES
 ;dehl=pages in 0000,4000,8000,c000 
-        ;ld a,e
-        ;ld (pgcode4000),a
+        ld a,e
+        ld (pggfx),a
         ld a,h
         ld (pgcode8000),a
-        ;ld a,l
-        ;ld (pgcodec000),a 
+        ld a,l
+        ld (pgcodec000),a 
+        ;jr $
 
+        OS_NEWPAGE
+        ld a,e
+        ld (pgmain4000),a
 
+        if 1==0
         ld a,(user_scr0_high) ;ok
         SETPG32KLOW
         ld hl,0x6000
@@ -41,11 +60,85 @@ begin
         ldir
         ;ld a,(user_scr0_high)
         SETPG16K
-pgcode8000=$+1
-        ld a,0
+        ld a,(pgcode8000)
         SETPG32KLOW
+        endif
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
         
-        call swapimer 
+        call swapimer
+
+        if EGA
+        ld hl,prsprqwid
+        ld (0x0101),hl ;sprites in file are made so that they return in 0x0100
+        endif
+        
+        if 1==0
+        ld e,0+0x80 ;EGA+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        
+        call setpggfxc000
+
+        ;call setpgsscr40008000
+
+        call clsega
+        ld bc,0x1880 ;b=hgt,c=wid (/2)
+        ld de,panelgfx ;de=gfx
+        ld hl,0x4000+((192-24)*40)+4 ;hl=scr
+        call primgega
+
+	xor a
+	ld d,a
+	ld e,a
+prtiles0
+	push af
+	push de
+	call DrawTile_A_X2Y2DE
+        ;call DrawSprite_A_DExy
+	pop de
+        ld a,d
+        add a,1;16
+	ld d,a ;x
+        cp 16
+	jr nz,prtilesny
+         ld d,0
+         ld a,e
+         add a,1;16
+	 ld e,a ;y
+prtilesny
+	pop af
+	inc a
+	cp 192
+	jr nz,prtiles0
+
+	xor a
+	ld d,a
+	ld e,a
+prsprites0
+	push af
+	push de
+	;call DrawTile_A_X2Y2DE
+        call DrawSprite_A_DExy
+	pop de
+        ld a,d
+        add a,16
+	ld d,a ;x
+	jr nz,prspritesny
+         ld d,0
+         ld a,e
+         add a,16
+	 ld e,a ;y
+prspritesny
+	pop af
+	inc a
+	cp 13
+	jr nz,prsprites0
+
+        ;call setpgsmain40008000
+        call setpgcodec000
+        
+        jr $
+        endif
         jp GO
 
 quiter
@@ -60,6 +153,20 @@ pgmuznum=$+1
 	endif
         call swapimer
 	QUIT
+
+L_5B00 ;= #5b00
+        db 0
+
+setpggfxc000
+pggfx=$+1
+        ld a,0
+        SETPG32KHIGH
+        ret
+setpgcodec000
+pgcodec000=$+1
+        ld a,0
+        SETPG32KHIGH
+        ret
 
 swapimer
 	di
@@ -81,6 +188,198 @@ oldimer
 
 reter
         ret
+
+tstarttime       DB       #00,#00,#00
+curgametimer       DB       #00,#00,#00
+stoptimer       DB       #00
+curtimerlow       DB       #00
+;
+on_int
+;restore stack with de
+        EX DE,HL
+	EX (SP),HL ;de="hl", stack contains "de"
+	LD (on_int_jp),HL
+	LD (on_int_sp),SP
+	LD SP,INTSTACK
+        push af
+        push bc
+        push de ;"hl"
+        exx
+        ex af,af' ;'
+        push af
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+	;DI
+;curscrnum_int=$+1
+;        ld e,0
+;        OS_SETSCREEN
+	call oldimer ;ei
+         GET_KEY
+         jr nz,Imer_nofocus
+         ;ld a,(user_scr0_high) ;ok
+         ;SETPG16K ;TODO redraw screen when retake focus???
+Imer_nofocus
+	LD	A,(stoptimer)
+	OR	A
+	CALL	Z,DecTimer
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ex af,af' ;'
+        exx
+        pop hl
+        pop bc
+        pop af        
+on_int_sp=$+1
+	ld sp,0
+        pop de
+	ei
+on_int_jp=$+1
+	jp 0
+;
+        if 1==0
+       DB       #21,#31,#BD,#35,#F0,#36,#19,#CD       ;!1=5p6.M
+       DB       #67,#BD,#CD,#9E,#BD,#C9,#21,#2F       ;g=M.=I!/
+       DB       #BD,#06,#03,#3E,#0A,#34,#BE,#C0       ;=..>.4>@
+       DB       #36,#00,#2B,#10,#F8,#C9       ;6.+.xI
+        endif
+;
+DecTimer
+	LD	HL,curtimerlow
+	DEC	(HL)
+	RET	P
+	LD	(HL),#19
+	CALL	L_BD89
+	LD	A,(stoptimer)
+	OR	A
+	CALL	Z,L_BD9E
+	RET
+;
+L_BD89	LD	HL,curgametimer+2
+	DEC	(HL)
+	RET	P
+	LD	(HL),#09
+	DEC	HL
+	DEC	(HL)
+	RET	P
+	LD	(HL),#09
+	DEC	HL
+	DEC	(HL)
+	RET	P
+	LD	HL,stoptimer
+	LD	(HL),#FF
+	RET
+;
+L_BD9E	LD	HL,curgametimer
+	LD	B,#03
+	LD	DE,L_BDB8
+L_BDA6	LD	A,(HL)
+	ADD	A,#30
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	DJNZ	L_BDA6
+	LD	HL,L_BDB5
+	CALL	PrintStringHL
+	RET
+;
+L_BDB5       DB       #16,#16,#0F
+;
+L_BDB8       DM       "000"
+;
+       DB       #00
+;
+L_BDBC	LD	A,(curnkeys)
+	ADD	A,#30
+	LD	(L_BDCE),A
+	LD	HL,L_BDCB
+	CALL	PrintStringHL
+	RET
+;
+L_BDCB       DB       #16,#16,#15
+;
+L_BDCE       DM       "0"
+;
+       DB       #00
+;
+
+PrintCharA
+	PUSH	DE
+	PUSH	HL
+	PUSH	BC
+	PUSH	AF
+	LD	DE,(curprintyx)
+	LD	A,E
+	AND	#18
+	OR	#40
+	LD	H,A
+	LD	A,E
+	AND	#07
+	OR	A
+	RRA
+	RRA
+	RRA
+	RRA
+	ADD	A,D
+	LD	L,A
+	POP	AF
+	PUSH	HL
+	LD	DE,font-256;L_BE02
+	LD	H,#00
+	LD	L,A
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,DE
+	EX	DE,HL
+	POP	HL
+	LD	B,#08
+L_C6EB	LD	A,(DE)
+	LD	(HL),A
+	INC	H
+	INC	DE
+	DJNZ	L_C6EB
+	LD	DE,(curprintyx)
+	INC	D
+	LD	A,D
+	CP	#20
+	JR	NZ,L_C705
+	INC	E
+	LD	D,#00
+	LD	A,E
+	CP	#18
+	JR	NZ,L_C705
+	LD	E,#00
+L_C705	LD	(curprintyx),DE
+	POP	BC
+	POP	HL
+	POP	DE
+	RET
+;
+curprintyx       DW       #0000
+;
+PrintStringHL	LD	A,(HL)
+	OR	A
+	RET	Z
+	CP	#16
+	JR	Z,L_C71C
+	CALL	PrintCharA
+	INC	HL
+	JR	PrintStringHL
+L_C71C	INC	HL
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	(curprintyx),DE
+	JR	PrintStringHL
+;
 
 L_61AB
 ;L=?
@@ -152,7 +451,7 @@ L_622F	PUSH	BC
 	LD	(L_625A),HL
 	POP	BC
 	DJNZ	L_622F
-	LD	IY,L_5C3A
+	LD	IY,L_5B00;L_5C3A ;???
 	RET
 
 DrawImgLine
@@ -287,13 +586,13 @@ DepackAuthorsScreen
 	LD	DE,#4000
 	PUSH	DE
 	EXX
-	EX	AF,AF'
+	EX	AF,AF' ;'
 	LD	A,#03
 	OR	A
 	LD	B,#08
 	LD	C,B
 	POP	HL
-	EX	AF,AF'
+	EX	AF,AF' ;'
 	EXX
 L_648B	LD	A,(HL)
 	BIT	7,A
@@ -527,13 +826,13 @@ DepackSplashScreen
 	LD	DE,#4000
 	PUSH	DE
 	EXX
-	EX	AF,AF'
+	EX	AF,AF' ;'
 	LD	A,#03
 	OR	A
 	LD	B,#08
 	LD	C,B
 	POP	HL
-	EX	AF,AF'
+	EX	AF,AF' ;'
 	EXX
 L_69AB	LD	A,(HL)
 	BIT	7,A
@@ -1642,7 +1941,215 @@ L_7E8E	EXX
        DB       #45,#FF,#45,#FF,#45,#FF,#45,#FF       ;E.E.E.E.
        DB       #45,#D7,#45,#80       ;EWE.
 
+setpgsmain40008000
+pgmain4000=$+1
+        ld a,0
+        SETPG16K
+pgcode8000=$+1
+        ld a,0
+        SETPG32KLOW
+        ret
+
+setpgsscr40008000;_current
+        call getuser_scr_low_cur
+        SETPG16K
+        call getuser_scr_high_cur
+        SETPG32KLOW
+        ret
+
+        if 1==0
+setpgsscr40008000
+        call getuser_scr_low
+        SETPG16K
+        call getuser_scr_high
+        SETPG32KLOW
+        ret
+        endif
+
+getuser_scr_low
+getuser_scr_low_patch=$+1
+getuser_scr_low_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr1_low) ;ok
+        ret
+
+getuser_scr_high
+getuser_scr_high_patch=$+1
+getuser_scr_high_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr1_high) ;ok
+        ret
+
+getuser_scr_low_cur
+getuser_scr_low_cur_patch=$+1
+getuser_scr_low_cur_patchN=0xff&(user_scr0_low^user_scr1_low)
+        ld a,(user_scr0_low) ;ok
+        ret
+
+getuser_scr_high_cur
+getuser_scr_high_cur_patch=$+1
+getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
+        ld a,(user_scr0_high) ;ok
+        ret
+
+changescrpg_current
+        ld hl,getuser_scr_low_patch
+        ld a,(hl)
+        xor getuser_scr_low_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_patch
+        ld a,(hl)
+        xor getuser_scr_high_patchN
+        ld (hl),a
+        ld hl,getuser_scr_low_cur_patch
+        ld a,(hl)
+        xor getuser_scr_low_cur_patchN
+        ld (hl),a
+        ld hl,getuser_scr_high_cur_patch
+        ld a,(hl)
+        xor getuser_scr_high_cur_patchN
+        ld (hl),a
+
+        ld a,1
+curscrnum=$+1
+        xor 0
+        ld ($-1),a
+        ret
+        
+        if 1==0
+changescrpg
+        call changescrpg_current
+        ld (curscrnum_int),a
+        ret
+        endif
+
+primgega
+;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+        push bc
+        call setpgsscr40008000
+        call setpggfxc000
+        pop bc
+primgega0
+        push bc
+        ld hx,b
+        push hl
+        ld bc,40
+primgegacolumn0
+        ld a,(de)
+        inc de
+        ld (hl),a
+        add hl,bc
+        dec hx
+        jr nz,primgegacolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,primgegacolumn0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+primgegacolumn0q
+        pop bc
+        dec c
+        jr nz,primgega0
+        call setpgcodec000
+        jp setpgsmain40008000
+
+clsega
+        call setpgsscr40008000
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x7fff
+        ld (hl),l;0
+        ldir
+        jp setpgsmain40008000
+
+        if EGA
+DrawTile_A_X2Y2DE
+	sla	D
+	sla	E
+DrawTile_A_XYDE
+	LD	H,a
+	LD	L,0
+        srl h
+        rr l
+	LD	bc,tilegfx
+	ADD	HL,bc
+        ex de,hl
+;hl=xy
+        ld a,h ;x
+         add a,4
+        ;ld l,l ;y
+        ld h,0
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+         add hl,hl
+         add hl,hl
+         add hl,hl
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        ld bc,0x1008 ;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+        jp primgega
+        endif
+
+       if EGA
+DrawSprite_Akeep_DExy
+	LD	(cursprite),A
+DrawSprite_A_DExy
+;A=sprnum
+;DE=xy
+        push bc
+        push de
+        push iy
+        add a,a
+        ld l,a
+        ld h,0xc0
+        call setpggfxc000
+        ld a,(hl)
+        ld ly,a
+        inc l
+        ld a,(hl)
+        ld hy,a
+        call setpgsscr40008000
+        ld c,e ;y
+        ld a,d ;x
+        srl a
+        add a,sprmaxwid-1
+        ld e,a
+;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        call prspr
+        pop iy
+        call setpgcodec000
+        call setpgsmain40008000
+        pop de
+        pop bc
+        ret
+       endif
+
+        include "prspr.asm"
+
         ds 0x3f00-$
+        ds 0x4000-$
+        incbin "slabage/sprdata.bin"
+tilegfx=$+0x8000
+        incbin "slabage/tiles.bin"
+panelgfx=$+0x8000
+        incbin "slabage/panel.bin"
 
         ds 0x8000-$
         include "SB.ASM"

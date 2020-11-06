@@ -1254,7 +1254,7 @@ BDOS_setgfx_nokeep
         or 0xa0;%10100000
         ld (iy+app.gfxmode),a
 
-        call enablescreeninapp_setc000
+        call enablescreeninapp_nokeep ;enablescreeninapp_setc000
         
 ;кладём фокус в стек, только если не два раза setgfx в одной задаче:
         ld hl,(focusappaddr)
