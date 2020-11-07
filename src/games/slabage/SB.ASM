@@ -3,7 +3,7 @@
 L_FF32=0xFF32 ;jp 61ab
 ;
 DepackCastle
-	DI
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -320,7 +320,8 @@ L_8135	EXX
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00       ;..
 ;
-DepackMenu	DI
+DepackMenu
+	halt;DI
 	LD	HL,L_8837
 	LD	DE,#4000
 	PUSH	DE
@@ -587,7 +588,8 @@ L_8837       DB       #FF,#00,#FB,#00,#89,#FF,#80,#80       ;..{.....
        DB       #47,#78,#F6,#EB,#47,#49,#ED,#39       ;GxvkGIm9
        DB       #36,#80       ;6.
 ;
-DepackHelp1	DI
+DepackHelp1
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -883,7 +885,8 @@ L_8D75	EXX
        DB       #80,#FF,#42,#FF,#42,#FB,#42,#61       ;..B.B{Ba
        DB       #FD,#80       ;}.
 ;
-DepackHelp2	DI
+DepackHelp2
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -1165,7 +1168,8 @@ L_93C2	EXX
        DB       #79,#80,#D9,#46,#FD,#44,#7A,#00       ;y.YF}Dz.
        DB       #7A,#00,#D9,#46,#80       ;z.YF.
 ;
-DepackHelp3	DI
+DepackHelp3
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -1453,7 +1457,8 @@ L_99A2	EXX
        DB       #C3,#06,#20,#0A,#08,#10,#60,#20       ;C. ...` 
        DB       #D0,#07,#20,#58,#81,#05,#80       ;P. X...
 ;
-DepackHelp4	DI
+DepackHelp4
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -3073,6 +3078,7 @@ L_BBE0	RET
        DB       #00,#40,#11,#01,#40,#01,#FF,#1A       ;.@..@...
        DB       #75,#ED,#B0,#C9       ;um0I
 ;
+        if EGA == 0
 Clear2Bytes_ADyx
 ;A=y
 ;D=x
@@ -3095,6 +3101,7 @@ Clear2Bytes_ADyx
 	LD	(HL),#00
 	POP	BC
 	RET
+        endif
 ;
         if EGA == 0
 DrawTile_A_X2Y2DE
@@ -3206,8 +3213,8 @@ L_BCF1	XOR	A
 	LDIR
 	LD	A,#19
 	LD	(curtimerlow),A
-	CALL	L_BD9E
-	CALL	L_BDBC
+	CALL	PrintGameTimer
+	CALL	PrintNKeys
 SetInt
 	if 1==0
 	DI
@@ -3288,7 +3295,8 @@ L_BEB3       DB       #00
 ;
 curleveladdr       DB       #60,#EA
 ;
-DrawLevel	DI
+DrawLevel
+	;DI
 	RES	1,(IY+#00)
 	LD	HL,unpackedlevel
 	LD	E,#00
@@ -3310,106 +3318,9 @@ L_BEEE	PUSH	BC
 	POP	BC
 	INC	E
 	DJNZ	L_BEE9
-	EI
+	;EI
 	RET
 ;
-font
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#18,#3C,#18,#00,#18,#18,#00       ;..<.....
-       DB       #00,#36,#36,#6C,#00,#00,#00,#00       ;.66l....
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#1C,#38,#00,#00,#00,#00,#00       ;..8.....
-       DB       #00,#0E,#1C,#1C,#1C,#1C,#0E,#00       ;........
-       DB       #00,#70,#38,#38,#38,#38,#70,#00       ;.p8888p.
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#18,#18,#30       ;.......0
-       DB       #00,#00,#00,#3C,#3C,#00,#00,#00       ;...<<...
-       DB       #00,#00,#00,#00,#00,#18,#18,#00       ;........
-       DB       #00,#06,#0E,#1C,#38,#70,#60,#00       ;....8p`.
-       DB       #00,#3C,#72,#76,#7A,#72,#3C,#00       ;.<rvzr<.
-       DB       #00,#1C,#3C,#1C,#1C,#1C,#7E,#00       ;..<...~.
-       DB       #00,#7C,#0E,#0E,#3C,#70,#7E,#00       ;.|..<p~.
-       DB       #00,#7C,#0E,#3C,#0E,#0E,#7C,#00       ;.|.<..|.
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#0E,#00       ;.NNN>...
-       DB       #00,#7C,#60,#7C,#0E,#0E,#7C,#00       ;.|`|..|.
-       DB       #00,#3C,#70,#7C,#72,#72,#3C,#00       ;.<p|rr<.
-       DB       #00,#7E,#06,#0E,#1C,#18,#18,#00       ;.~......
-       DB       #00,#3C,#72,#3C,#72,#72,#3C,#00       ;.<r<rr<.
-       DB       #00,#3C,#4E,#4E,#3E,#0E,#3C,#00       ;.<NN>.<.
-       DB       #00,#18,#18,#00,#00,#18,#18,#00       ;........
-       DB       #00,#18,#18,#00,#00,#18,#18,#30       ;.......0
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #7C,#0E,#0E,#0E,#1C,#00,#18,#00       ;|.......
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#3C,#72,#72,#7E,#72,#72,#00       ;.<rr~rr.
-       DB       #00,#7C,#72,#7C,#72,#72,#7C,#00       ;.|r|rr|.
-       DB       #00,#3E,#70,#70,#70,#70,#3E,#00       ;.>pppp>.
-       DB       #00,#7C,#72,#72,#72,#72,#7C,#00       ;.|rrrr|.
-       DB       #00,#3E,#70,#7C,#70,#70,#3E,#00       ;.>p|pp>.
-       DB       #00,#3E,#70,#7C,#70,#70,#70,#00       ;.>p|ppp.
-       DB       #00,#3E,#70,#70,#76,#72,#3C,#00       ;.>ppvr<.
-       DB       #00,#72,#72,#7E,#72,#72,#72,#00       ;.rr~rrr.
-       DB       #00,#7F,#1C,#1C,#1C,#1C,#7F,#00       ;........
-       DB       #00,#0E,#0E,#0E,#4E,#4E,#3C,#00       ;....NN<.
-       DB       #00,#72,#72,#7C,#72,#72,#72,#00       ;.rr|rrr.
-       DB       #00,#70,#70,#70,#70,#70,#3E,#00       ;.ppppp>.
-       DB       #00,#3E,#75,#75,#75,#75,#75,#00       ;.>uuuuu.
-       DB       #00,#7C,#72,#72,#72,#72,#72,#00       ;.|rrrrr.
-       DB       #00,#3C,#72,#72,#72,#72,#3C,#00       ;.<rrrr<.
-       DB       #00,#7C,#72,#72,#7C,#70,#70,#00       ;.|rr|pp.
-       DB       #00,#3C,#72,#72,#72,#7A,#3C,#08       ;.<rrrz<.
-       DB       #00,#7C,#72,#72,#7C,#72,#72,#00       ;.|rr|rr.
-       DB       #00,#3C,#70,#3C,#0E,#0E,#7C,#00       ;.<p<..|.
-       DB       #00,#7F,#1C,#1C,#1C,#1C,#1C,#00       ;........
-       DB       #00,#72,#72,#72,#72,#72,#3C,#00       ;.rrrrr<.
-       DB       #00,#72,#72,#72,#72,#34,#18,#00       ;.rrrr4..
-       DB       #00,#71,#71,#75,#75,#75,#3E,#00       ;.qquuu>.
-       DB       #00,#72,#72,#3C,#72,#72,#72,#00       ;.rr<rrr.
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#3C,#00       ;.NNN>.<.
-       DB       #00,#7E,#0E,#1C,#38,#70,#7E,#00       ;.~..8p~.
-       DB       #00,#1E,#1C,#1C,#1C,#1C,#1E,#00       ;........
-       DB       #00,#60,#70,#38,#1C,#0E,#06,#00       ;.`p8....
-       DB       #00,#78,#38,#38,#38,#38,#78,#00       ;.x8888x.
-       DB       #00,#08,#1C,#3E,#5D,#1C,#1C,#00       ;...>]...
-       DB       #00,#78,#38,#3C,#3A,#3A,#3C,#00       ;.x8<::<.
-       DB       #00,#76,#79,#79,#79,#79,#76,#00       ;.vyyyyv.
-       DB       #00,#3C,#72,#72,#7E,#72,#72,#00       ;.<rr~rr.
-       DB       #00,#7C,#70,#7C,#72,#72,#7C,#00       ;.|p|rr|.
-       DB       #00,#4E,#4E,#4E,#4E,#4E,#3E,#02       ;.NNNNN>.
-       DB       #00,#1E,#2E,#2E,#2E,#2E,#7E,#42       ;......~B
-       DB       #00,#3E,#70,#7C,#70,#70,#3E,#00       ;.>p|pp>.
-       DB       #00,#3E,#5D,#5D,#3E,#1C,#1C,#00       ;.>]]>...
-       DB       #00,#3E,#70,#70,#70,#70,#70,#00       ;.>ppppp.
-       DB       #00,#72,#72,#3C,#72,#72,#72,#00       ;.rr<rrr.
-       DB       #00,#72,#72,#76,#7A,#72,#72,#00       ;.rrvzrr.
-       DB       #08,#72,#72,#76,#7A,#72,#72,#00       ;.rrvzrr.
-       DB       #00,#72,#72,#7C,#72,#72,#72,#00       ;.rr|rrr.
-       DB       #00,#3E,#4E,#4E,#4E,#4E,#4E,#00       ;.>NNNNN.
-       DB       #00,#71,#7B,#75,#71,#71,#71,#00       ;.q{uqqq.
-       DB       #00,#72,#72,#7E,#72,#72,#72,#00       ;.rr~rrr.
-       DB       #00,#3C,#72,#72,#72,#72,#3C,#00       ;.<rrrr<.
-       DB       #00,#7E,#4E,#4E,#4E,#4E,#4E,#00       ;.~NNNNN.
-       DB       #00,#3E,#4E,#4E,#3E,#4E,#4E,#00       ;.>NN>NN.
-       DB       #00,#7C,#72,#72,#7C,#70,#70,#00       ;.|rr|pp.
-       DB       #00,#3E,#70,#70,#70,#70,#3E,#00       ;.>pppp>.
-       DB       #00,#7F,#1C,#1C,#1C,#1C,#1C,#00       ;........
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#3C,#00       ;.NNN>.<.
-       DB       #00,#5D,#5D,#3E,#5D,#5D,#5D,#00       ;.]]>]]].
-       DB       #00,#7C,#72,#7C,#72,#72,#7C,#00       ;.|r|rr|.
-       DB       #00,#70,#70,#7C,#72,#72,#7C,#00       ;.pp|rr|.
-       DB       #00,#72,#72,#7C,#72,#72,#7C,#00       ;.rr|rr|.
-       DB       #00,#7C,#0E,#3C,#0E,#0E,#7C,#00       ;.|.<..|.
-       DB       #00,#75,#75,#75,#75,#75,#3E,#00       ;.uuuuu>.
-       DB       #00,#7C,#0E,#3E,#0E,#0E,#7C,#00       ;.|.>..|.
-       DB       #00,#75,#75,#75,#75,#75,#3F,#01       ;.uuuuu?.
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#0E,#00       ;.NNN>...
-       DB       #00,#00,#3E,#70,#70,#3E,#00,#00       ;..>pp>..
 tilegfxbw       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
@@ -3744,14 +3655,15 @@ sprites ;64 bytes (2b spr, 2b mask)
        DB       #80,#02,#7F,#FD,#80,#02,#7F,#FD       ;...}...}
        DB       #E3,#FE,#00,#01,#00,#00,#FF,#FF       ;c~......
 ;
-UnpackGamePanel	LD	HL,#5800
+UnpackGamePanel
+	LD	HL,#5800
 	PUSH	HL
 	POP	DE
 	INC	E
 	LD	BC,#02FF
 	LD	(HL),L
 	LDIR
-	DI
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -3942,7 +3854,7 @@ L_CB87	EXX
        DB       #20,#58,#81,#05,#80       ; X...
 ;
 UnpackLevel
-	DI
+	;DI
 	LD	DE,(curleveladdr)
 	LD	HL,unpackedlevel
 	LD	B,#50
@@ -3967,7 +3879,7 @@ L_CDFD	LD	A,(DE)
 	INC	DE
 	LD	A,(DE)
 	LD	(HL),A
-	EI
+	;EI
 	RET
 ;y
 curyx       DB       #78       ;x
@@ -3998,7 +3910,11 @@ L_CE39	LD	HL,buf24x16
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
 	LD	HL,tdrakon
+       if EGA
+	CALL	PrintStringHL_EGA
+       else
 	CALL	PrintStringHL
+       endif
 GoLoop
 	CALL	RecodeCurTile
 	LD	HL,(curtileaddr)
@@ -4416,7 +4332,7 @@ GoLeftKey
 	CALL	GoLeftAnim
 	LD	HL,curnkeys
 	INC	(HL)
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	JP	GoLoop
 ;
 GoLeftClosedDoor
@@ -4426,7 +4342,7 @@ GoLeftClosedDoor
 	DEC	A
 	LD	(curnkeys),A
 	LD	(HL),#0F
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	LD	DE,(curyx)
 	DEC	D
 	LD	A,#0F
@@ -4594,7 +4510,8 @@ GoRightHourglass
 	CALL	GoRightAnim
 	JP	GoLoop
 ;
-GoRightKey	LD	(HL),#0F
+GoRightKey
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	INC	D
 	LD	A,#0F
@@ -4602,7 +4519,7 @@ GoRightKey	LD	(HL),#0F
 	CALL	GoRightAnim
 	LD	HL,curnkeys
 	INC	(HL)
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	JP	GoLoop
 ;
 GoRightClosedDoor
@@ -4612,7 +4529,7 @@ GoRightClosedDoor
 	DEC	A
 	LD	(curnkeys),A
 	LD	(HL),#0F
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	LD	DE,(curyx)
 	INC	D
 	LD	A,#0F
@@ -4784,7 +4701,7 @@ GoUpKey
 	CALL	GoUpAnim
 	LD	HL,curnkeys
 	INC	(HL)
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	JP	GoLoop
 ;
 GoUpLevelExit
@@ -4798,7 +4715,7 @@ GoUpClosedDoor
 	DEC	A
 	LD	(curnkeys),A
 	LD	(HL),#0F
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	LD	DE,(curyx)
 	DEC	E
 	LD	A,#0F
@@ -4985,7 +4902,7 @@ GoDownKey
 	CALL	GoDownAnim
 	LD	HL,curnkeys
 	INC	(HL)
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	JP	GoLoop
 ;
 GoDownClosedDoor
@@ -4995,7 +4912,7 @@ GoDownClosedDoor
 	DEC	A
 	LD	(curnkeys),A
 	LD	(HL),#0F
-	CALL	L_BDBC
+	CALL	PrintNKeys
 	LD	DE,(curyx)
 	INC	E
 	LD	A,#0F
@@ -5021,7 +4938,11 @@ L_D61C       DB       #0A,#0B,#09,#0A,#0B,#09,#0A,#09
 GoToCursorMode
 	CALL	WaitNoKey
 	LD	HL,tkursor
+       if EGA
+	CALL	PrintStringHL_EGA
+       else
 	CALL	PrintStringHL
+       endif
 	LD	HL,(curyx)
 	LD	(L_D70E),HL
 	LD	DE,buf24x16_2
@@ -5098,7 +5019,8 @@ CursorLeft	LD	A,(L_D70F)
 	CALL	GetBuf24x16_DExy
 	JP	L_D63D
 ;
-CursorFire	CALL	L_D710
+CursorFire
+	CALL	L_D710
 	PUSH	HL
 	LD	DE,(curtileaddr)
 	AND	A
@@ -5684,12 +5606,12 @@ tkursor
        DB       #00
 ;
 Setstoptimer255
-	DI
+	;DI
 	XOR	A
 	DEC	A
 	LD	HL,stoptimer
 	LD	(HL),A
-	EI
+	;EI
 	RET
 ;
 GetHourglass
@@ -5699,7 +5621,7 @@ GetHourglass
 	LD	(HL),#01
 	LD	HL,stoptimer
 	LD	(HL),#00
-	CALL	L_BD9E
+	CALL	PrintGameTimer
 	RET
 ;
 Halter5	HALT
@@ -5713,7 +5635,21 @@ Halter	HALT
 	RET
 ;
 GO
-	DI
+        if EGA
+        push iy
+        ld de,emptypal
+        OS_SETPAL
+        call Halter
+        call clsega
+        ld e,3+0x80 ;6912+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld de,standardpal
+        OS_SETPAL
+        pop iy
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
+        endif
+	;DI
 	IN	A,(#1F)
 	CPL
 	LD	(kempstonon),A
@@ -5786,6 +5722,8 @@ CheckBreak
 	 ret
 WaitMenuKey;L_DBF3
 ;out: A=1..5
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
 	 call CheckBreak
 	 jp nc,quiter
 	LD	A,#F7
@@ -6203,7 +6141,10 @@ PrintPassCode
 	CALL	PrintStringHL
 	RET
 ;
-L_DF32	CALL	L_DF4E
+L_DF32
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
+	CALL	L_DF4E
 	LD	A,#30
 	ADD	A,D
 	LD	(HL),A
@@ -6332,18 +6273,18 @@ L_E008	LD	A,(HL)
 	DJNZ	L_E006
 	RET
 ;
-L_E025	DI
+L_E025	;DI
 	PUSH	IY
 	CALL	jphl;#006F
 	POP	IY
-	EI
+	;EI
 	RET
 ;
-L_E02F	DI
+L_E02F	;DI
 	LD	HL,DepackSmallDragon
 	CALL	L_E025
 	LD	B,#96
-	EI
+	;EI
 L_E039	HALT
 	DJNZ	L_E039
 	LD	A,#01

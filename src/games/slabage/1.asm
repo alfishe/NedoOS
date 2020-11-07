@@ -260,6 +260,13 @@ on_int_jp=$+1
         endif
 ;
 DecTimer
+       ld a,0xfe
+       in a,(0xfe)
+       and 8
+       jr nz,nocheat
+       ld a,0xc9
+       ld (DecTimer),a
+nocheat
 	LD	HL,curtimerlow
 	DEC	(HL)
 	RET	P
@@ -267,7 +274,7 @@ DecTimer
 	CALL	L_BD89
 	LD	A,(stoptimer)
 	OR	A
-	CALL	Z,L_BD9E
+	CALL	Z,PrintGameTimer
 	RET
 ;
 L_BD89	LD	HL,curgametimer+2
@@ -285,7 +292,8 @@ L_BD89	LD	HL,curgametimer+2
 	LD	(HL),#FF
 	RET
 ;
-L_BD9E	LD	HL,curgametimer
+PrintGameTimer
+	LD	HL,curgametimer
 	LD	B,#03
 	LD	DE,L_BDB8
 L_BDA6	LD	A,(HL)
@@ -295,29 +303,148 @@ L_BDA6	LD	A,(HL)
 	INC	DE
 	DJNZ	L_BDA6
 	LD	HL,L_BDB5
+       if EGA
+	CALL	PrintStringHL_EGA
+       else
 	CALL	PrintStringHL
+       endif
 	RET
 ;
 L_BDB5       DB       #16,#16,#0F
-;
 L_BDB8       DM       "000"
-;
        DB       #00
 ;
-L_BDBC	LD	A,(curnkeys)
+PrintNKeys
+	LD	A,(curnkeys)
 	ADD	A,#30
 	LD	(L_BDCE),A
 	LD	HL,L_BDCB
+       if EGA
+	CALL	PrintStringHL_EGA
+       else
 	CALL	PrintStringHL
+       endif
 	RET
 ;
 L_BDCB       DB       #16,#16,#15
-;
 L_BDCE       DM       "0"
-;
        DB       #00
 ;
+RIGHTPIX=0x38;0xb8;%10111000
+LEFTPIX=0x07;0x47;%01000111
+        macro FONTBYTE
+        ld a,(de)
+        ld c,a
+        xor a
+        rl c
+        jr nc,$+4
+         or LEFTPIX
+        rl c
+        jr nc,$+4
+         or RIGHTPIX
+        ld (hl),a
+        ld a,h
+        add a,0x40
+        ld h,a
+        xor a
+        rl c
+        jr nc,$+4
+         or LEFTPIX
+        rl c
+        jr nc,$+4
+         or RIGHTPIX
+        ld (hl),a
+        ld a,h
+        add a,0x20-0x40
+        ld h,a
+        xor a
+        rl c
+        jr nc,$+4
+         or LEFTPIX
+        rl c
+        jr nc,$+4
+         or RIGHTPIX
+        ld (hl),a
+        ld a,h
+        add a,0x40
+        ld h,a
+        xor a
+        rl c
+        jr nc,$+4
+         or LEFTPIX
+        rl c
+        jr nc,$+4
+         or RIGHTPIX
+        ld (hl),a
+        endm
 
+PrintCharA_EGA
+        push bc
+        push de
+        push hl
+       push af
+        call setpgsscr40008000
+	LD	DE,(curprintyx)
+        sla e
+        sla e
+        sla e
+        ld a,d ;x
+         add a,4
+        ld l,e ;y
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+       pop af
+	PUSH	HL
+	LD	DE,font-256;L_BE02
+	LD	H,#00
+	LD	L,A
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,DE
+	EX	DE,HL
+	POP	HL
+	LD	hx,#08
+
+PrintCharA_EGA0
+        FONTBYTE
+        ld bc,40-0x6000
+        add hl,bc
+	INC	DE
+        dec hx
+	jr nz,PrintCharA_EGA0
+        
+	LD	DE,(curprintyx)
+	INC	D
+	LD	A,D
+	CP	#20
+	JR	NZ,PrintCharA_EGAq
+	INC	E
+	LD	D,#00
+	LD	A,E
+	CP	#18
+	JR	NZ,PrintCharA_EGAq
+	LD	E,#00
+PrintCharA_EGAq
+	LD	(curprintyx),DE
+        call setpgsmain40008000
+        pop hl
+        pop de
+        pop bc
+        ret
+       
 PrintCharA
 	PUSH	DE
 	PUSH	HL
@@ -373,7 +500,8 @@ L_C705	LD	(curprintyx),DE
 ;
 curprintyx       DW       #0000
 ;
-PrintStringHL	LD	A,(HL)
+PrintStringHL
+	LD	A,(HL)
 	OR	A
 	RET	Z
 	CP	#16
@@ -389,6 +517,122 @@ L_C71C	INC	HL
 	LD	(curprintyx),DE
 	JR	PrintStringHL
 ;
+PrintStringHL_EGA
+	LD	A,(HL)
+	OR	A
+	RET	Z
+	CP	#16
+	JR	Z,L_C71C_EGA
+	CALL	PrintCharA_EGA
+	INC	HL
+	JR	PrintStringHL_EGA
+L_C71C_EGA
+	INC	HL
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	(curprintyx),DE
+	JR	PrintStringHL_EGA
+
+font
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#18,#3C,#18,#00,#18,#18,#00       ;..<.....
+       DB       #00,#36,#36,#6C,#00,#00,#00,#00       ;.66l....
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#1C,#38,#00,#00,#00,#00,#00       ;..8.....
+       DB       #00,#0E,#1C,#1C,#1C,#1C,#0E,#00       ;........
+       DB       #00,#70,#38,#38,#38,#38,#70,#00       ;.p8888p.
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#18,#18,#30       ;.......0
+       DB       #00,#00,#00,#3C,#3C,#00,#00,#00       ;...<<...
+       DB       #00,#00,#00,#00,#00,#18,#18,#00       ;........
+       DB       #00,#06,#0E,#1C,#38,#70,#60,#00       ;....8p`.
+       DB       #00,#3C,#72,#76,#7A,#72,#3C,#00       ;.<rvzr<.
+       DB       #00,#1C,#3C,#1C,#1C,#1C,#7E,#00       ;..<...~.
+       DB       #00,#7C,#0E,#0E,#3C,#70,#7E,#00       ;.|..<p~.
+       DB       #00,#7C,#0E,#3C,#0E,#0E,#7C,#00       ;.|.<..|.
+       DB       #00,#4E,#4E,#4E,#3E,#0E,#0E,#00       ;.NNN>...
+       DB       #00,#7C,#60,#7C,#0E,#0E,#7C,#00       ;.|`|..|.
+       DB       #00,#3C,#70,#7C,#72,#72,#3C,#00       ;.<p|rr<.
+       DB       #00,#7E,#06,#0E,#1C,#18,#18,#00       ;.~......
+       DB       #00,#3C,#72,#3C,#72,#72,#3C,#00       ;.<r<rr<.
+       DB       #00,#3C,#4E,#4E,#3E,#0E,#3C,#00       ;.<NN>.<.
+       DB       #00,#18,#18,#00,#00,#18,#18,#00       ;........
+       DB       #00,#18,#18,#00,#00,#18,#18,#30       ;.......0
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #7C,#0E,#0E,#0E,#1C,#00,#18,#00       ;|.......
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#3C,#72,#72,#7E,#72,#72,#00       ;.<rr~rr.
+       DB       #00,#7C,#72,#7C,#72,#72,#7C,#00       ;.|r|rr|.
+       DB       #00,#3E,#70,#70,#70,#70,#3E,#00       ;.>pppp>.
+       DB       #00,#7C,#72,#72,#72,#72,#7C,#00       ;.|rrrr|.
+       DB       #00,#3E,#70,#7C,#70,#70,#3E,#00       ;.>p|pp>.
+       DB       #00,#3E,#70,#7C,#70,#70,#70,#00       ;.>p|ppp.
+       DB       #00,#3E,#70,#70,#76,#72,#3C,#00       ;.>ppvr<.
+       DB       #00,#72,#72,#7E,#72,#72,#72,#00       ;.rr~rrr.
+       DB       #00,#7F,#1C,#1C,#1C,#1C,#7F,#00       ;........
+       DB       #00,#0E,#0E,#0E,#4E,#4E,#3C,#00       ;....NN<.
+       DB       #00,#72,#72,#7C,#72,#72,#72,#00       ;.rr|rrr.
+       DB       #00,#70,#70,#70,#70,#70,#3E,#00       ;.ppppp>.
+       DB       #00,#3E,#75,#75,#75,#75,#75,#00       ;.>uuuuu.
+       DB       #00,#7C,#72,#72,#72,#72,#72,#00       ;.|rrrrr.
+       DB       #00,#3C,#72,#72,#72,#72,#3C,#00       ;.<rrrr<.
+       DB       #00,#7C,#72,#72,#7C,#70,#70,#00       ;.|rr|pp.
+       DB       #00,#3C,#72,#72,#72,#7A,#3C,#08       ;.<rrrz<.
+       DB       #00,#7C,#72,#72,#7C,#72,#72,#00       ;.|rr|rr.
+       DB       #00,#3C,#70,#3C,#0E,#0E,#7C,#00       ;.<p<..|.
+       DB       #00,#7F,#1C,#1C,#1C,#1C,#1C,#00       ;........
+       DB       #00,#72,#72,#72,#72,#72,#3C,#00       ;.rrrrr<.
+       DB       #00,#72,#72,#72,#72,#34,#18,#00       ;.rrrr4..
+       DB       #00,#71,#71,#75,#75,#75,#3E,#00       ;.qquuu>.
+       DB       #00,#72,#72,#3C,#72,#72,#72,#00       ;.rr<rrr.
+       DB       #00,#4E,#4E,#4E,#3E,#0E,#3C,#00       ;.NNN>.<.
+       DB       #00,#7E,#0E,#1C,#38,#70,#7E,#00       ;.~..8p~.
+       DB       #00,#1E,#1C,#1C,#1C,#1C,#1E,#00       ;........
+       DB       #00,#60,#70,#38,#1C,#0E,#06,#00       ;.`p8....
+       DB       #00,#78,#38,#38,#38,#38,#78,#00       ;.x8888x.
+       DB       #00,#08,#1C,#3E,#5D,#1C,#1C,#00       ;...>]...
+       DB       #00,#78,#38,#3C,#3A,#3A,#3C,#00       ;.x8<::<.
+       DB       #00,#76,#79,#79,#79,#79,#76,#00       ;.vyyyyv.
+       DB       #00,#3C,#72,#72,#7E,#72,#72,#00       ;.<rr~rr.
+       DB       #00,#7C,#70,#7C,#72,#72,#7C,#00       ;.|p|rr|.
+       DB       #00,#4E,#4E,#4E,#4E,#4E,#3E,#02       ;.NNNNN>.
+       DB       #00,#1E,#2E,#2E,#2E,#2E,#7E,#42       ;......~B
+       DB       #00,#3E,#70,#7C,#70,#70,#3E,#00       ;.>p|pp>.
+       DB       #00,#3E,#5D,#5D,#3E,#1C,#1C,#00       ;.>]]>...
+       DB       #00,#3E,#70,#70,#70,#70,#70,#00       ;.>ppppp.
+       DB       #00,#72,#72,#3C,#72,#72,#72,#00       ;.rr<rrr.
+       DB       #00,#72,#72,#76,#7A,#72,#72,#00       ;.rrvzrr.
+       DB       #08,#72,#72,#76,#7A,#72,#72,#00       ;.rrvzrr.
+       DB       #00,#72,#72,#7C,#72,#72,#72,#00       ;.rr|rrr.
+       DB       #00,#3E,#4E,#4E,#4E,#4E,#4E,#00       ;.>NNNNN.
+       DB       #00,#71,#7B,#75,#71,#71,#71,#00       ;.q{uqqq.
+       DB       #00,#72,#72,#7E,#72,#72,#72,#00       ;.rr~rrr.
+       DB       #00,#3C,#72,#72,#72,#72,#3C,#00       ;.<rrrr<.
+       DB       #00,#7E,#4E,#4E,#4E,#4E,#4E,#00       ;.~NNNNN.
+       DB       #00,#3E,#4E,#4E,#3E,#4E,#4E,#00       ;.>NN>NN.
+       DB       #00,#7C,#72,#72,#7C,#70,#70,#00       ;.|rr|pp.
+       DB       #00,#3E,#70,#70,#70,#70,#3E,#00       ;.>pppp>.
+       DB       #00,#7F,#1C,#1C,#1C,#1C,#1C,#00       ;........
+       DB       #00,#4E,#4E,#4E,#3E,#0E,#3C,#00       ;.NNN>.<.
+       DB       #00,#5D,#5D,#3E,#5D,#5D,#5D,#00       ;.]]>]]].
+       DB       #00,#7C,#72,#7C,#72,#72,#7C,#00       ;.|r|rr|.
+       DB       #00,#70,#70,#7C,#72,#72,#7C,#00       ;.pp|rr|.
+       DB       #00,#72,#72,#7C,#72,#72,#7C,#00       ;.rr|rr|.
+       DB       #00,#7C,#0E,#3C,#0E,#0E,#7C,#00       ;.|.<..|.
+       DB       #00,#75,#75,#75,#75,#75,#3E,#00       ;.uuuuu>.
+       DB       #00,#7C,#0E,#3E,#0E,#0E,#7C,#00       ;.|.>..|.
+       DB       #00,#75,#75,#75,#75,#75,#3F,#01       ;.uuuuu?.
+       DB       #00,#4E,#4E,#4E,#3E,#0E,#0E,#00       ;.NNN>...
+       DB       #00,#00,#3E,#70,#70,#3E,#00,#00       ;..>pp>..
+
 
 L_61AB
 ;L=?
@@ -567,13 +811,14 @@ DepackSmallDragon	CALL	reter;#007C
        DB       #42,#42,#42,#42,#47,#47,#42,#42       ;BBBBGGBB
 ;
 DepackAuthorsScreen
-	DI
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
 	POP	BC
 	LD	HL,#0097
 	ADD	HL,BC
+       ;ld hl,authorsscreen
 	EX	DE,HL
 	LD	HL,#0066
 	ADD	HL,BC
@@ -668,7 +913,7 @@ L_64DD	AND	#3F
 	ADD	A,#03
 	LD	B,A
 	LD	A,(HL)
-L_64E3	CALL	L_74A6
+L_64E3	CALL	L_74A6 ;???
 	DJNZ	L_64E3
 	INC	HL
 	JR	L_648B
@@ -679,6 +924,7 @@ L_64EB	EXX
 	EI
 	RET
 ;
+authorsscreen
        DB       #13,#D9,#77,#08,#28,#19,#24,#10       ;.Yw.(.$.
        DB       #1B,#11,#20,#F8,#19,#0D,#20,#12       ;.. x.. .
        DB       #11,#01,#FF,#19,#C6,#08,#30,#08       ;....F.0.
@@ -830,7 +1076,7 @@ L_64EB	EXX
        DB       #00,#00,#00,#00,#00,#00       ;......
 ;
 DepackSplashScreen
-	DI
+	halt;DI
 	LD	HL,L_6A39
 	LD	DE,#4000
 	PUSH	DE
@@ -946,7 +1192,8 @@ L_6A36	EX	AF,AF' ;'
 	EXX
 	RET
 ;
-L_6A39       DB       #8B,#FF,#80,#AA,#9F,#BF,#9F,#BC       ;...*.?.<
+L_6A39
+       DB       #8B,#FF,#80,#AA,#9F,#BF,#9F,#BC       ;...*.?.<
        DB       #9D,#BD,#9D,#BD,#08,#04,#84,#9D       ;.=.=....
        DB       #BD,#9C,#BD,#00,#10,#82,#80,#FF       ;=.=.....
        DB       #C5,#00,#18,#20,#38,#10,#CD,#00       ;E.. 8.M.
@@ -1342,7 +1589,7 @@ L_74A6       DB       #DE,#F5,#AE,#04,#F0,#BF,#15,#0D       ;^u..p?..
        DB       #78,#A4,#78,#AE,#D9,#42,#80       ;x$x.YB.
 ;
 DepackInputLevelCodeScreen
-	DI
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -1547,7 +1794,7 @@ L_7719	EXX
        DB       #42,#80       ;B.
 ;
 DepackControlInformationScreen
-	DI
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -1770,7 +2017,8 @@ L_7A86	EXX
        DB       #FF,#47,#FF,#47,#FF,#47,#FF,#47       ;.G.G.G.G
        DB       #FF,#47,#D5,#47,#80       ;.GUG.
 ;
-L_7DFA	DI
+L_7DFA
+	halt;DI
 	CALL	reter;#0052
 	DEC	SP
 	DEC	SP
@@ -2397,9 +2645,56 @@ GetCurTileTobuf24x16
 	LD DE,buf24x16
         ld bc,8*16
         ldir
-        ;jp GetTileToHL_DEXY
         ret
        endif
+
+        if EGA
+Clear2Bytes_ADyx
+;A=y
+;D=x
+        push bc
+        ld l,a ;y
+        ld a,d ;x
+        srl a
+        srl a
+        srl a
+         add a,4
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        call setpgsscr40008000
+        ld (hl),d;0
+        set 5,h
+        ld (hl),d;0
+        set 7,h
+        res 6,h
+        ld (hl),d;0
+        res 5,h
+        ld (hl),d;0
+        inc hl
+        ld (hl),d;0
+        set 5,h
+        ld (hl),d;0
+        res 7,h
+        set 6,h
+        ld (hl),d;0
+        res 5,h
+        ld (hl),d;0
+        call setpgsmain40008000
+        pop bc
+        ret
+        endif
 
         ds 0x3f00-$
         ds 0x4000-$
