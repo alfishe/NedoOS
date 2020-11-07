@@ -16,7 +16,7 @@ tempsp=0x3f06 ;6 bytes for prspr
 ;UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
 ;UVSCROLL_SCRHGT=192 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
 
-EGA=0;1
+EGA=1
 
         org PROGSTART
 begin
@@ -140,6 +140,15 @@ prspritesny
         jr $
         endif
         jp GO
+
+        include "pal.ast" ;slabpal
+standardpal
+        STANDARDPAL
+emptypal
+        ds 32,0xff
+
+jphl
+        jp (hl)
 
 quiter
 	if 1==0
@@ -2142,6 +2151,255 @@ DrawSprite_A_DExy
        endif
 
         include "prspr.asm"
+
+        if EGA
+gettilebuf
+       ds 128
+        endif
+       if EGA
+GetTileToHL_DEXY
+;hl=addr
+;e=Y
+;d=X
+        push bc
+        push de
+        sla d
+        sla d
+        sla d
+        sla e
+        sla e
+        sla e        
+        ld bc,0x1008 ;b=hgt,c=wid (/2)
+        jr GetBuf2CxB_DExy_ToHL
+       if 1==0
+       ld b,12*8
+gettilefake0
+       ld a,r
+       ld (hl),a
+       inc hl
+       djnz gettilefake0
+       pop de
+       pop bc
+       ret
+       endif
+GetBuf24x16_DExy
+;e=y
+;d=x
+        push bc
+        push de
+        ld bc,0x100c ;b=hgt,c=wid (/2)
+        ld hl,rebuf24x16
+GetBuf2CxB_DExy_ToHL
+        push hl ;gfx
+        ld a,d ;x
+        srl a
+        srl a
+        srl a
+         add a,4
+        ld l,e ;y
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        pop de ;gfx
+;de=gfx
+;hl=scr
+        push bc
+        call setpgsscr40008000
+        pop bc
+getimgega0
+        push bc
+        ld hx,b
+        push hl
+        ld bc,40
+getimgegacolumn0
+        ld a,(hl)
+        ld (de),a
+        inc de
+        add hl,bc
+        dec hx
+        jr nz,getimgegacolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,getimgegacolumn0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+getimgegacolumn0q
+        pop bc
+        dec c
+        jr nz,getimgega0
+        call setpgsmain40008000
+        pop de
+        pop bc
+        ret
+
+ReBuf24x16_DExy
+;e=y
+;d=x (width 16 if multiple of 8)
+        push bc
+        push de
+        ld bc,0x1008 ;b=hgt,c=wid (/2)
+        ld a,d
+        and 7
+        jr z,$+4
+         ld c,0x0c
+        ld a,d ;x
+        srl a
+        srl a
+        srl a
+         add a,4
+        ld l,e ;y
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        ld de,rebuf24x16
+;de=gfx
+;hl=scr
+        call primgega
+        pop de
+        pop bc
+        ret
+
+buf24x16
+        ds 12*16
+buf24x16_2
+        ds 12*16
+gettilebuf2
+        ds 8*16
+rebuf24x16
+        ds 12*16
+       endif
+
+       if EGA
+DrawSprite16x16_HL_DExy
+;hl=gfx
+;e=y
+;d=x (pixel perfect!)
+        push bc
+        push de
+        ex de,hl
+        ld b,0
+        ld a,h ;x
+        srl a
+        ;ld l,l ;y
+        ld c,l
+        srl a ;x bit 0
+        ;ld h,0x40/32/2
+        ;jr nc,$+4 ;x bit 0
+        ; ld h,0x80/32/2
+         ld h,b;0
+         rl h
+         inc h ;0x40/32/2 или 0x80/32/2
+        srl a ;x bit 1
+         rl h
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40+scrbase
+         if scrbase&0xff
+         add a,scrbase&0xff
+         endif
+;a=x/4
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a ;hl=scr
+;de=gfx
+;hl=scr
+        ld bc,0x1008 ;b=hgt,c=wid (/2)
+        call primgega
+        pop de
+        pop bc
+        ret
+       endif
+
+       if EGA
+ClearTile_DExy
+        ;ret
+;E=y
+;D=x (width 24 if not multiple of 8)
+        push bc
+        push de
+        ld bc,0x1008 ;b=hgt,c=wid (/2)
+        ld a,d ;x
+        and 7
+        jr z,$+4
+         ld c,0x0c ;wid (/2)
+        ld a,d
+        srl a
+        srl a
+        srl a
+         add a,4
+        ld l,e ;y
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        ld de,zeros24x16
+;de=gfx
+;hl=scr
+        call primgega
+        pop de
+        pop bc
+        ret
+zeros24x16
+        ds 12*16
+       endif
+
+       if EGA 
+GetCurTileTobuf24x16
+	CALL	countcurtileaddr
+	LD	H,(hl)
+	LD	L,0
+        srl h
+        rr l
+	LD	bc,tilegfx
+	ADD	HL,bc       
+	LD DE,buf24x16
+        ld bc,8*16
+        ldir
+        ;jp GetTileToHL_DEXY
+        ret
+       endif
 
         ds 0x3f00-$
         ds 0x4000-$

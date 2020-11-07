@@ -2446,9 +2446,10 @@ ClearScreen
 	LDIR
 	RET
 ;
+       if EGA == 0
 ClearTile_DExy
 ;E=y
-;D=x
+;D=x (width 24 if not multiple of 8)
 	PUSH	BC
 	PUSH	DE
 	LD	BC,ScreenTable
@@ -2485,6 +2486,8 @@ L_B7DA	DJNZ	L_B7C4
 	POP	DE
 	POP	BC
 	RET
+       endif
+        
 ;
 L_B7DF	PUSH	DE
 	LD	HL,L_B7F3
@@ -2836,6 +2839,7 @@ DownHL
 	LD	H,A
 	RET
 
+        if EGA == 0
 ;
 GetBuf24x16_DExy
 ;e=y
@@ -2864,7 +2868,7 @@ L_BA57	ADD	A,L
 	SRL	A
 	OR	L
 	LD	L,A
-	LD	DE,rebuf24x16
+	LD	DE,ReBuf24x16_DExy
 	LD	A,#10
 L_BA6F	EX	AF,AF' ;'
 	LDI
@@ -2881,8 +2885,12 @@ L_BA6F	EX	AF,AF' ;'
 	POP	BC
 	POP	DE
 	RET
+        
 ;
-L_BA85	CALL	L_BBE0
+ReBuf24x16_DExy
+;e=y
+;d=x (width 16 if multiple of 8)
+	CALL	L_BBE0 ;ret
 	PUSH	DE
 	PUSH	BC
 	PUSH	DE
@@ -2910,7 +2918,7 @@ L_BA93	ADD	A,L
 	LD	A,D
 	AND	#07
 	LD	(L_BAB8),A
-	LD	DE,rebuf24x16
+	LD	DE,ReBuf24x16_DExy
 	EX	DE,HL
 	LD	A,#10
 L_BAB2	EX	AF,AF' ;'
@@ -2934,8 +2942,11 @@ L_BAC2	DEC	DE
 	POP	BC
 	POP	DE
 	RET
+        
+        endif
 ;
-GetTileToHL_DExy
+       if EGA == 0
+GetTileToHL_DEXY
 	PUSH	HL
 	CALL	XYDEToScr
 	POP	DE
@@ -2949,33 +2960,40 @@ L_BAD9	LDI
 	CALL	DownHL
 	DJNZ	L_BAD9
 	RET
+       endif
 ;
-buf24x16       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       if EGA == 0
+buf24x16
        DB       #00,#00,#00,#00,#00,#00,#00,#00
-       DB       #00,#00,#00,#00,#00,#00,#00,#00
-       DB       #00,#00,#00,#00,#00,#00,#00,#00
-       DB       #00,#00,#00,#00,#00,#00,#00,#00
-       DB       #00,#00,#00,#00,#00,#00,#00,#00
-       DB       #00,#00
-L_BB18       DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00
-rebuf24x16       DB       #00,#00,#00,#00,#00,#00,#00,#00
+gettilebuf2
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
+       DB       #00,#00      
+ReBuf24x16_DExy
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00
+       endif
 ;
+       if EGA == 0
 DrawSprite16x16_HL_DExy
 ;hl=gfx
 ;e=y
-;d=x
+;d=x (pixel perfect!)
 	LD	(L_BBA0),HL
 	PUSH	BC
 	PUSH	DE
@@ -3039,6 +3057,7 @@ L_BBDB	DJNZ	L_BBA5
 	POP	DE
 	POP	BC
 	RET
+       endif
 ;
 L_BBE0	RET
 ;
@@ -3964,32 +3983,6 @@ GameProcess
 	RES	1,(IY+#00)
 	CALL	DrawLevel
 
-       if 1==0
-        jr $
-	xor a
-	ld d,a
-	ld e,a
-prsprites0
-	push af
-	push de
-	;call DrawTile_A_X2Y2DE
-        call DrawSprite_A_DExy
-	pop de
-        ld a,d
-        add a,16
-	ld d,a ;x
-	jr nz,prspritesny
-         ld d,0
-         ld a,e
-         add a,16
-	 ld e,a ;y
-prspritesny
-	pop af
-	inc a
-	cp 13
-	jr nz,prsprites0
-       endif
-
 	XOR	A
 	LD	(curnkeys),A
 	CALL	L_BCF1
@@ -4004,9 +3997,10 @@ L_CE39	LD	HL,buf24x16
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
-	LD	HL,L_DB6D
+	LD	HL,tdrakon
 	CALL	PrintStringHL
-L_CE56	CALL	RecodeCurTile
+GoLoop
+	CALL	RecodeCurTile
 	LD	HL,(curtileaddr)
 	LD	A,(HL) ;current tile?
 	LD	D,#1B
@@ -4019,7 +4013,7 @@ L_CE56	CALL	RecodeCurTile
 	CALL	DrawTile_A_XYDE ;no attr, XY (no X2Y2)
        endif
 ;dragon control
-GoBlock	CALL	L_D0FF
+GoBlock	CALL	GetCurTileTobuf24x16
 	LD	A,(stoptimer)
 	OR	A
 	JP	M,Setstoptimer255
@@ -4129,23 +4123,23 @@ GoLeft	LD	HL,(curtileaddr)
 	DEC	HL
 	LD	A,(HL)
 	OR	A
-	JP	Z,GoEmptyTile
+	JP	Z,GoLeftEmptyTile
 	CP	#01 ;block
 	JP	Z,GoBlock
 	CP	#03 ;teleport
-	JP	Z,GoTeleport
+	JP	Z,GoLeftTeleport
 	CP	#02 ;exit
-	JP	Z,GoLevelExit
+	JP	Z,GoLeftLevelExit
 	CP	#05 ;closed door
-	JP	Z,GoClosedDoor
+	JP	Z,GoLeftClosedDoor
 	CP	#06 ;hourglass
-	JP	Z,GoHourglass
+	JP	Z,GoLeftHourglass
 	CP	#07 ;key
-	JP	Z,GoKey
-	CALL	L_CFD5
-	JP	L_CE56
+	JP	Z,GoLeftKey
+	CALL	GoLeftAnim
+	JP	GoLoop
 ;
-GoEmptyTile
+GoLeftEmptyTile
 	LD	HL,recodedcurtile
 	LD	A,(HL)
 	BIT	1,A
@@ -4164,17 +4158,17 @@ L_CF6A	DEC	HL
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	A,#03
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
 	LD	DE,(curyx)
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -4187,7 +4181,7 @@ L_CF6A	DEC	HL
 	HALT
 L_CFAE	CALL	ClearTile_DExy
 	DEC	D
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	CALL	DrawSprite16x16_HL_DExy
 	CALL	Halter
 	DJNZ	L_CFAE
@@ -4206,14 +4200,15 @@ L_CFAE	CALL	ClearTile_DExy
 ;
 L_CFD4       DB       #00
 ;
-L_CFD5	LD	A,(curx)
+GoLeftAnim
+	LD	A,(curx)
 	DEC	A
 	LD	(curx),A
 	LD	DE,(curyx)
 	INC	D
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	DE,(curyx)
 	INC	D
 	PUSH	DE
@@ -4232,7 +4227,7 @@ L_CFD5	LD	A,(curx)
 L_D006	PUSH	BC
 	PUSH	BC
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	DEC	D
 	DEC	D
 	LD	HL,buf24x16
@@ -4244,10 +4239,10 @@ L_D006	PUSH	BC
 	CALL	L_B7DF
 	POP	DE
 	CALL	DrawSprite_Akeep_DExy
-	CALL	L_DABE
+	CALL	Halter5_
 	POP	BC
 	DJNZ	L_D006
-	CALL	L_D0FF
+	CALL	GetCurTileTobuf24x16
 	POP	DE
 	LD	HL,(curtileaddr)
 	INC	HL
@@ -4274,8 +4269,10 @@ L_D02F	LD	A,(HL)
 	CALL	DrawTile_A_X2Y2DE
 	RET
 ;
-GoTeleport	CALL	L_CFD5
-L_D05B	LD	HL,unpackedlevel
+GoLeftTeleport
+	CALL	GoLeftAnim
+GoTeleport
+	LD	HL,unpackedlevel
 	LD	E,#00
 	LD	D,#00
 L_D062	LD	A,(HL)
@@ -4342,7 +4339,7 @@ L_D08A	PUSH	HL
 	LD	A,(cursprite)
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
-	JP	L_CE56
+	JP	GoLoop
 ;
 cursprite       DB       #00
 curnkeys       DB       #00
@@ -4353,7 +4350,9 @@ curnkeys       DB       #00
        DB       #B2,#CE,#3E,#03,#CD,#AC,#B9,#C3       ;2N>.M,9C
        DB       #6C,#CE       ;lN
 ;
-L_D0FF	CALL	countcurtileaddr
+       if EGA == 0
+GetCurTileTobuf24x16
+	CALL	countcurtileaddr
 	LD	DE,tilegfxbw
 	LD	L,(HL)
 	LD	H,#00
@@ -4388,6 +4387,7 @@ L_D123	LD	A,(IX+#00)
 	INC	IX
 	DJNZ	L_D123
 	RET
+       endif
 ;
 Halter6	HALT
 	HALT
@@ -4397,28 +4397,29 @@ Halter6	HALT
 	HALT
 	RET
 ;
-GoHourglass
+GoLeftHourglass
 	LD	(HL),#0F
 	LD	DE,(curyx)
 	DEC	D
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DB8A
-	CALL	L_CFD5
-	JP	L_CE56
+	CALL	GetHourglass
+	CALL	GoLeftAnim
+	JP	GoLoop
 ;
-GoKey	LD	(HL),#0F
+GoLeftKey
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	DEC	D
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_CFD5
+	CALL	GoLeftAnim
 	LD	HL,curnkeys
 	INC	(HL)
 	CALL	L_BDBC
-	JP	L_CE56
+	JP	GoLoop
 ;
-GoClosedDoor
+GoLeftClosedDoor
 	LD	A,(curnkeys)
 	OR	A
 	JP	Z,GoBlock
@@ -4430,34 +4431,36 @@ GoClosedDoor
 	DEC	D
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_CFD5
-	JP	L_CE56
+	CALL	GoLeftAnim
+	JP	GoLoop
 ;
-GoLevelExit
-	CALL	L_CFD5
+GoLeftLevelExit
+	CALL	GoLeftAnim
 	JP	LevelExit
 ;
-GoRight	LD	HL,(curtileaddr)
+GoRight
+	LD	HL,(curtileaddr)
 	INC	HL
 	LD	A,(HL)
 	OR	A
-	JP	Z,L_D1C3
+	JP	Z,GoRightEmptyTile
 	CP	#01
 	JP	Z,GoBlock
 	CP	#03
-	JP	Z,L_D298
+	JP	Z,GoRightTeleport
 	CP	#05
-	JP	Z,L_D2E7
+	JP	Z,GoRightClosedDoor
 	CP	#06
-	JP	Z,L_D2B9
+	JP	Z,GoRightHourglass
 	CP	#07
-	JP	Z,L_D2CE
+	JP	Z,GoRightKey
 	CP	#02
-	JP	Z,L_D307
-	CALL	L_D23B
-	JP	L_CE56
+	JP	Z,GoRightLevelExit
+	CALL	GoRightAnim
+	JP	GoLoop
 ;
-L_D1C3	LD	HL,recodedcurtile
+GoRightEmptyTile
+	LD	HL,recodedcurtile
 	BIT	2,(HL)
 	JP	Z,GoBlock
 	LD	HL,(curtileaddr)
@@ -4474,17 +4477,17 @@ L_D1D1	INC	HL
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	A,#00
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
 	LD	DE,(curyx)
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -4497,7 +4500,7 @@ L_D1D1	INC	HL
 	HALT
 L_D215	CALL	ClearTile_DExy
 	INC	D
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	CALL	DrawSprite16x16_HL_DExy
 	CALL	Halter
 	DJNZ	L_D215
@@ -4514,14 +4517,15 @@ L_D215	CALL	ClearTile_DExy
 	LD	(curx),A
 	JP	GoBlock
 ;
-L_D23B	LD	A,(curx)
+GoRightAnim
+	LD	A,(curx)
 	INC	A
 	LD	(curx),A
 	LD	DE,(curyx)
 	DEC	D
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	DE,(curyx)
 	DEC	D
 	PUSH	DE
@@ -4540,7 +4544,7 @@ L_D23B	LD	A,(curx)
 L_D26C	PUSH	BC
 	PUSH	BC
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	INC	D
 	INC	D
 	LD	HL,buf24x16
@@ -4552,17 +4556,18 @@ L_D26C	PUSH	BC
 	CALL	L_D29E
 	POP	DE
 	CALL	DrawSprite_Akeep_DExy
-	CALL	L_DABE
+	CALL	Halter5_
 	POP	BC
 	DJNZ	L_D26C
-	CALL	L_D0FF
+	CALL	GetCurTileTobuf24x16
 	POP	DE
 	LD	HL,(curtileaddr)
 	DEC	HL
 	JP	L_D02F
 ;
-L_D298	CALL	L_D23B
-	JP	L_D05B
+GoRightTeleport
+	CALL	GoRightAnim
+	JP	GoTeleport
 ;
 L_D29E	PUSH	DE
 	LD	A,#08
@@ -4579,27 +4584,29 @@ L_D2AA	LD	A,(HL)
 ;
 L_D2B1       DB       #01,#02,#00,#01,#02,#00,#01,#00
 ;
-L_D2B9	LD	(HL),#0F
+GoRightHourglass
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	INC	D
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DB8A
-	CALL	L_D23B
-	JP	L_CE56
+	CALL	GetHourglass
+	CALL	GoRightAnim
+	JP	GoLoop
 ;
-L_D2CE	LD	(HL),#0F
+GoRightKey	LD	(HL),#0F
 	LD	DE,(curyx)
 	INC	D
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_D23B
+	CALL	GoRightAnim
 	LD	HL,curnkeys
 	INC	(HL)
 	CALL	L_BDBC
-	JP	L_CE56
+	JP	GoLoop
 ;
-L_D2E7	LD	A,(curnkeys)
+GoRightClosedDoor
+	LD	A,(curnkeys)
 	OR	A
 	JP	Z,GoBlock
 	DEC	A
@@ -4610,35 +4617,38 @@ L_D2E7	LD	A,(curnkeys)
 	INC	D
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_D23B
-	JP	L_CE56
+	CALL	GoRightAnim
+	JP	GoLoop
 ;
-L_D307	CALL	L_D23B
+GoRightLevelExit
+	CALL	GoRightAnim
 	JP	LevelExit
 ;
-GoUp	LD	HL,(curtileaddr)
+GoUp
+	LD	HL,(curtileaddr)
 	AND	A
 	LD	BC,#0010
 	SBC	HL,BC
 	LD	A,(HL)
 	OR	A
-	JP	Z,L_D33F
+	JP	Z,GoUpEmptyTile
 	CP	#01
 	JP	Z,GoBlock
 	CP	#02
-	JP	Z,L_D458
+	JP	Z,GoUpLevelExit
 	CP	#03
-	JP	Z,L_D424
+	JP	Z,GoUpTeleport
 	CP	#05
-	JP	Z,L_D45E
+	JP	Z,GoUpClosedDoor
 	CP	#06
-	JP	Z,L_D42A
+	JP	Z,GoUpHourglass
 	CP	#07
-	JP	Z,L_D43F
-	CALL	L_D3C4
-	JP	L_CE56
+	JP	Z,GoUpKey
+	CALL	GoUpAnim
+	JP	GoLoop
 ;
-L_D33F	LD	HL,recodedcurtile
+GoUpEmptyTile
+	LD	HL,recodedcurtile
 	BIT	0,(HL)
 	JP	Z,GoBlock
 	LD	HL,(curtileaddr)
@@ -4657,17 +4667,17 @@ L_D34D	AND	A
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	A,#06
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
 	LD	DE,(curyx)
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -4680,7 +4690,7 @@ L_D34D	AND	A
 	HALT
 L_D396	CALL	Halter
 	DEC	E
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	CALL	DrawSprite16x16_HL_DExy
 	PUSH	DE
 	LD	A,#10
@@ -4702,14 +4712,15 @@ L_D396	CALL	Halter
 	LD	(curyx),A
 	JP	GoBlock
 ;
-L_D3C4	LD	A,(curyx)
+GoUpAnim
+	LD	A,(curyx)
 	DEC	A
 	LD	(curyx),A
 	LD	DE,(curyx)
 	INC	E
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	DE,(curyx)
 	INC	E
 	PUSH	DE
@@ -4728,7 +4739,7 @@ L_D3C4	LD	A,(curyx)
 L_D3F5	PUSH	BC
 	PUSH	BC
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	DEC	E
 	DEC	E
 	LD	HL,buf24x16
@@ -4740,43 +4751,48 @@ L_D3F5	PUSH	BC
 	CALL	L_D47E
 	POP	DE
 	CALL	DrawSprite_Akeep_DExy
-	CALL	L_DABE
+	CALL	Halter5_
 	POP	BC
 	DJNZ	L_D3F5
-	CALL	L_D0FF
+	CALL	GetCurTileTobuf24x16
 	POP	DE
 	LD	HL,(curtileaddr)
 	LD	BC,#0010
 	ADD	HL,BC
 	JP	L_D02F
 ;
-L_D424	CALL	L_D3C4
-	JP	L_D05B
+GoUpTeleport
+	CALL	GoUpAnim
+	JP	GoTeleport
 ;
-L_D42A	LD	(HL),#0F
+GoUpHourglass
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	DEC	E
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DB8A
-	CALL	L_D3C4
-	JP	L_CE56
+	CALL	GetHourglass
+	CALL	GoUpAnim
+	JP	GoLoop
 ;
-L_D43F	LD	(HL),#0F
+GoUpKey
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	DEC	E
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_D3C4
+	CALL	GoUpAnim
 	LD	HL,curnkeys
 	INC	(HL)
 	CALL	L_BDBC
-	JP	L_CE56
+	JP	GoLoop
 ;
-L_D458	CALL	L_D3C4
+GoUpLevelExit
+	CALL	GoUpAnim
 	JP	LevelExit
 ;
-L_D45E	LD	A,(curnkeys)
+GoUpClosedDoor
+	LD	A,(curnkeys)
 	OR	A
 	JP	Z,GoBlock
 	DEC	A
@@ -4787,8 +4803,8 @@ L_D45E	LD	A,(curnkeys)
 	DEC	E
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_D3C4
-	JP	L_CE56
+	CALL	GoUpAnim
+	JP	GoLoop
 ;
 L_D47E	PUSH	DE
 	LD	A,#08
@@ -4803,32 +4819,33 @@ L_D48A	LD	A,(HL)
 	POP	DE
 	RET
 ;
-L_D491	RLCA
+L_D491
+       DB       #07,#08,#06,#07,#08,#06,#07,#06
 ;
-       DB       #08,#06,#07,#08,#06,#07,#06
-;
-GoDown	LD	HL,(curtileaddr)
+GoDown
+	LD	HL,(curtileaddr)
 	LD	BC,#0010
 	ADD	HL,BC
 	LD	A,(HL)
 	OR	A
-	JP	Z,L_D4C9
+	JP	Z,GoDownEmptyTile
 	CP	#01
 	JP	Z,GoBlock
 	CP	#02
-	JP	Z,L_D5B5
+	JP	Z,GoDownLevelExit
 	CP	#03
-	JP	Z,L_D5AF
+	JP	Z,GoDownTeleport
 	CP	#05
-	JP	Z,L_D5E9
+	JP	Z,GoDownClosedDoor
 	CP	#06
-	JP	Z,L_D5BB
+	JP	Z,GoDownHourglass
 	CP	#07
-	JP	Z,L_D5D0
-	CALL	L_D54D
-	JP	L_CE56
+	JP	Z,GoDownKey
+	CALL	GoDownAnim
+	JP	GoLoop
 ;
-L_D4C9	LD	HL,recodedcurtile
+GoDownEmptyTile
+	LD	HL,recodedcurtile
 	BIT	3,(HL)
 	JP	Z,GoBlock
 	LD	HL,(curtileaddr)
@@ -4846,17 +4863,17 @@ L_D4DA	ADD	HL,DE
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	A,#09
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	CALL	DrawSprite_Akeep_DExy
 	LD	DE,(curyx)
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(curyx)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -4869,7 +4886,7 @@ L_D4DA	ADD	HL,DE
 	HALT
 L_D51E	CALL	Halter
 	INC	E
-	LD	HL,L_BB18
+	LD	HL,gettilebuf2
 	CALL	DrawSprite16x16_HL_DExy
 	PUSH	DE
 	DEC	E
@@ -4892,14 +4909,14 @@ L_D51E	CALL	Halter
 	LD	(curyx),A
 	JP	GoBlock
 ;
-L_D54D	LD	A,(curyx)
+GoDownAnim	LD	A,(curyx)
 	INC	A
 	LD	(curyx),A
 	LD	DE,(curyx)
 	DEC	E
 	CALL	X2Y2toxy_DE
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	LD	DE,(curyx)
 	DEC	E
 	PUSH	DE
@@ -4918,7 +4935,7 @@ L_D54D	LD	A,(curyx)
 L_D57E	PUSH	BC
 	PUSH	BC
 	LD	HL,buf24x16
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	INC	E
 	INC	E
 	LD	HL,buf24x16
@@ -4930,10 +4947,10 @@ L_D57E	PUSH	BC
 	CALL	L_D609
 	POP	DE
 	CALL	DrawSprite_Akeep_DExy
-	CALL	L_DABE
+	CALL	Halter5_
 	POP	BC
 	DJNZ	L_D57E
-	CALL	L_D0FF
+	CALL	GetCurTileTobuf24x16
 	POP	DE
 	AND	A
 	LD	BC,#0010
@@ -4941,33 +4958,38 @@ L_D57E	PUSH	BC
 	SBC	HL,BC
 	JP	L_D02F
 ;
-L_D5AF	CALL	L_D54D
-	JP	L_D05B
+GoDownTeleport
+	CALL	GoDownAnim
+	JP	GoTeleport
 ;
-L_D5B5	CALL	L_D54D
+GoDownLevelExit
+	CALL	GoDownAnim
 	JP	LevelExit
 ;
-L_D5BB	LD	(HL),#0F
+GoDownHourglass
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	INC	E
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DB8A
-	CALL	L_D54D
-	JP	L_CE56
+	CALL	GetHourglass
+	CALL	GoDownAnim
+	JP	GoLoop
 ;
-L_D5D0	LD	(HL),#0F
+GoDownKey
+	LD	(HL),#0F
 	LD	DE,(curyx)
 	INC	E
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_D54D
+	CALL	GoDownAnim
 	LD	HL,curnkeys
 	INC	(HL)
 	CALL	L_BDBC
-	JP	L_CE56
+	JP	GoLoop
 ;
-L_D5E9	LD	A,(curnkeys)
+GoDownClosedDoor
+	LD	A,(curnkeys)
 	OR	A
 	JP	Z,GoBlock
 	DEC	A
@@ -4978,8 +5000,8 @@ L_D5E9	LD	A,(curnkeys)
 	INC	E
 	LD	A,#0F
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_D54D
-	JP	L_CE56
+	CALL	GoDownAnim
+	JP	GoLoop
 ;
 L_D609	PUSH	DE
 	LD	A,#08
@@ -4998,37 +5020,36 @@ L_D61C       DB       #0A,#0B,#09,#0A,#0B,#09,#0A,#09
 ;
 GoToCursorMode
 	CALL	WaitNoKey
-        ;jr $
-	LD	HL,L_DB77
+	LD	HL,tkursor
 	CALL	PrintStringHL
 	LD	HL,(curyx)
 	LD	(L_D70E),HL
-	LD	DE,L_D874
+	LD	DE,buf24x16_2
 	EX	DE,HL
 	CALL	X2Y2toxy_DE
 L_D63A	CALL	GetBuf24x16_DExy
 L_D63D	CALL	L_D68A
-	CALL	L_D0FF
+	CALL	GetCurTileTobuf24x16
 	LD	A,(stoptimer)
 	OR	A
 	JP	M,Setstoptimer255
 	;LD	HL,#32C8
 	;CALL	PauseHL
-        call Halter
+         call Halter5 ;fix for turbo
 	CALL	ReadJoy ;A=0b111lrduf
 	BIT	0,A
-	JP	Z,L_D6D4
+	JP	Z,CursorFire
 	BIT	1,A
-	JP	Z,L_D8FF
+	JP	Z,CursorUp
 	BIT	2,A
-	JP	Z,L_D928
+	JP	Z,CursorDown
 	BIT	3,A
-	JP	Z,L_D8D5
+	JP	Z,CursorRight
 	BIT	4,A
-	JP	Z,L_D6AB
+	JP	Z,CursorLeft
 	LD	A,#7F
 	IN	A,(#FE)
-	BIT	0,A
+	BIT	0,A ;Space
 	JP	Z,L_D8B7
 	LD	BC,#FEFE
 	IN	A,(C)
@@ -5051,33 +5072,33 @@ L_D693	LD	(L_D68B),A ;cursor tile
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
 	PUSH	DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	POP	DE
 	POP	AF
 	CALL	DrawSprite_A_DExy
 	RET
 ;
-L_D6AB	LD	A,(L_D70F)
+CursorLeft	LD	A,(L_D70F)
 	OR	A
 	JP	Z,L_D63D
 	PUSH	AF
 	LD	DE,(L_D70E)
 	PUSH	DE
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	POP	DE
 	POP	AF
 	DEC	A
 	LD	(L_D70F),A
 	DEC	D
-	LD	HL,L_D874
+	LD	HL,buf24x16_2
 	CALL	X2Y2toxy_DE
 	CALL	GetBuf24x16_DExy
 	JP	L_D63D
 ;
-L_D6D4	CALL	L_D710
+CursorFire	CALL	L_D710
 	PUSH	HL
 	LD	DE,(curtileaddr)
 	AND	A
@@ -5088,19 +5109,19 @@ L_D6D4	CALL	L_D710
 	JP	Z,L_D63D
 	LD	A,(HL)
 	CP	#08
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	CP	#09
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	CP	#0A
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	CP	#0B
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	CP	#0C
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	CP	#0D
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	CP	#0E
-	JP	Z,L_D8A6
+	JP	Z,CursorFireOK
 	JP	L_D63D
 ;
 L_D70C       DB       #00,#00
@@ -5124,12 +5145,13 @@ L_D710	LD	DE,(L_D70E)
 	LD	(L_D70C),HL
 	RET
 ;
-L_D72C	LD	HL,L_D874
+CursorFireOK2
+	LD	HL,buf24x16_2
 	LD	DE,(L_D70E)
 	CALL	WaitNoKey
 	CALL	X2Y2toxy_DE
 	PUSH	DE
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	POP	DE
 L_D73E	DB	#00
 	DB	#00
@@ -5139,29 +5161,29 @@ L_D740	CALL	L_D78A
 	JP	M,Setstoptimer255
 	CALL	ReadJoy ;A=0b111lrduf
 	BIT	3,A
-	JP	Z,L_D952
+	JP	Z,CursorFireRight
 	BIT	1,A
-	JP	Z,L_D9C6
+	JP	Z,CursorFireUp
 	BIT	2,A
-	JP	Z,L_DA42
+	JP	Z,CursorFireDown
 	BIT	4,A
-	JP	Z,L_D7C7
+	JP	Z,CursorFireLeft
 	BIT	0,A
-	JP	Z,L_D772
+	JP	Z,CursorFireFire
 	LD	A,#7F
 	IN	A,(#FE)
 	BIT	0,A
 	JP	Z,L_D8B7
 	JP	L_D740
 ;
-L_D772	CALL	WaitNoKey
-	LD	HL,L_D874
+CursorFireFire	CALL	WaitNoKey
+	LD	HL,buf24x16_2
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
 	PUSH	DE
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	POP	DE
-	LD	HL,L_D874
+	LD	HL,buf24x16_2
 	JP	L_D63A
 ;
 L_D78A	CALL	L_D710
@@ -5196,7 +5218,8 @@ L_D7C1	CP	#0D
 	SET	3,(HL)
 	RET
 ;
-L_D7C7	LD	HL,L_D83B
+CursorFireLeft
+	LD	HL,L_D83B
 	BIT	1,(HL)
 	JP	Z,L_D740
 	LD	HL,(L_D70C)
@@ -5214,14 +5237,14 @@ L_D7D5	DEC	HL
 	PUSH	BC
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	LD	DE,(L_D70E)
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -5233,7 +5256,7 @@ L_D7D5	DEC	HL
 	EI
 L_D810	CALL	ClearTile_DExy
 	DEC	D
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	CALL	DrawSprite16x16_HL_DExy
 	HALT
 	DJNZ	L_D810
@@ -5252,33 +5275,45 @@ L_D810	CALL	ClearTile_DExy
 	CALL	X2Y2toxy_DE
 	JP	L_D73E
 ;
-L_D83B       DB       #00
-L_D83C       DB       #00,#00,#00,#00,#00,#00,#00,#00
+L_D83B
+       DB       #00
+
+        if EGA == 0
+gettilebuf
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00
+        endif
 ;
+        if 1==0
 PauseHL	DEC	HL
 	LD	A,H
 	OR	L
 	RET	Z
 	JR	PauseHL
+        endif
 ;
-L_D874       DB       #00,#00,#00,#00,#00,#00,#00,#00
+        if EGA == 0
+buf24x16_2
+       DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00,#00,#00,#00,#00,#00,#00
        DB       #00,#00
+        endif
 ;
-L_D8A6	CALL	WaitNoKey
-	JP	L_D72C
+CursorFireOK
+	CALL	WaitNoKey
+	JP	CursorFireOK2
 ;
-WaitNoKey	XOR	A
+WaitNoKey
+	XOR	A
 	IN	A,(#FE)
 	AND	#1F
 	CP	#1F
@@ -5286,10 +5321,11 @@ WaitNoKey	XOR	A
 	RET	Z
 	JR	WaitNoKey
 ;
-L_D8B7	LD	DE,(L_D70E)
-	LD	HL,L_D874
+L_D8B7
+	LD	DE,(L_D70E)
+	LD	HL,buf24x16_2
 	CALL	X2Y2toxy_DE
-	CALL	L_BA85
+	CALL	ReBuf24x16_DExy
 	CALL	WaitNoKey
 	LD	DE,(curyx)
 	LD	HL,(curtileaddr)
@@ -5297,64 +5333,68 @@ L_D8B7	LD	DE,(L_D70E)
 	CALL	DrawTile_A_X2Y2DE
 	JP	L_CE39
 ;
-L_D8D5	LD	A,(L_D70F)
+CursorRight
+	LD	A,(L_D70F)
 	CP	#0F
 	JP	Z,L_D63D
 	PUSH	AF
 	LD	DE,(L_D70E)
 	PUSH	DE
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	POP	DE
 	POP	AF
 	INC	A
 	LD	(L_D70F),A
 	INC	D
-	LD	HL,L_D874
+	LD	HL,buf24x16_2
 	CALL	X2Y2toxy_DE
 	CALL	GetBuf24x16_DExy
 	JP	L_D63D
 ;
-L_D8FF	LD	A,(L_D70E)
+CursorUp
+	LD	A,(L_D70E)
 	OR	A
 	JP	Z,L_D63D
 	PUSH	AF
 	LD	DE,(L_D70E)
 	PUSH	DE
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	POP	DE
 	POP	AF
 	DEC	A
 	LD	(L_D70E),A
 	DEC	E
-	LD	HL,L_D874
+	LD	HL,buf24x16_2
 	CALL	X2Y2toxy_DE
 	CALL	GetBuf24x16_DExy
 	JP	L_D63D
 ;
-L_D928	LD	A,(L_D70E)
+CursorDown
+	LD	A,(L_D70E)
 	CP	#09
 	JP	Z,L_D63D
 	PUSH	AF
 	LD	DE,(L_D70E)
 	PUSH	DE
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	POP	DE
 	POP	AF
 	INC	A
 	LD	(L_D70E),A
 	INC	E
-	LD	HL,L_D874
+	LD	HL,buf24x16_2
 	CALL	X2Y2toxy_DE
 	CALL	GetBuf24x16_DExy
 	JP	L_D63D
 ;
-L_D952	LD	HL,L_D83B
+CursorFireRight
+	LD	HL,L_D83B
 	BIT	2,(HL)
 	JP	Z,L_D740
 	LD	HL,(L_D70C)
@@ -5372,14 +5412,14 @@ L_D960	INC	HL
 	PUSH	BC
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	LD	DE,(L_D70E)
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -5391,7 +5431,7 @@ L_D960	INC	HL
 	EI
 L_D99B	CALL	ClearTile_DExy
 	INC	D
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	CALL	DrawSprite16x16_HL_DExy
 	HALT
 	DJNZ	L_D99B
@@ -5410,7 +5450,8 @@ L_D99B	CALL	ClearTile_DExy
 	CALL	X2Y2toxy_DE
 	JP	L_D73E
 ;
-L_D9C6	LD	HL,L_D83B
+CursorFireUp
+	LD	HL,L_D83B
 	BIT	0,(HL)
 	JP	Z,L_D740
 	LD	HL,(L_D70C)
@@ -5430,14 +5471,14 @@ L_D9D7	AND	A
 	PUSH	BC
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	LD	DE,(L_D70E)
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -5449,7 +5490,7 @@ L_D9D7	AND	A
 	EI
 L_DA14	CALL	ClearTile_DExy
 	DEC	E
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	CALL	DrawSprite16x16_HL_DExy
 	HALT
 	DJNZ	L_DA14
@@ -5469,7 +5510,8 @@ L_DA14	CALL	ClearTile_DExy
 	CALL	X2Y2toxy_DE
 	JP	L_D73E
 ;
-L_DA42	LD	HL,L_D83B
+CursorFireDown
+	LD	HL,L_D83B
 	BIT	3,(HL)
 	JP	Z,L_D740
 	LD	HL,(L_D70C)
@@ -5488,14 +5530,14 @@ L_DA53	ADD	HL,DE
 	PUSH	BC
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
-	LD	HL,L_D874
-	CALL	L_BA85
+	LD	HL,buf24x16_2
+	CALL	ReBuf24x16_DExy
 	LD	DE,(L_D70E)
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	AND	A
 	RL	D
 	RL	E
-	CALL	GetTileToHL_DExy
+	CALL	GetTileToHL_DEXY
 	LD	DE,(L_D70E)
 	CALL	X2Y2toxy_DE
 	LD	A,(L_CFD4)
@@ -5507,7 +5549,7 @@ L_DA53	ADD	HL,DE
 	EI
 L_DA8E	CALL	ClearTile_DExy
 	INC	E
-	LD	HL,L_D83C
+	LD	HL,gettilebuf
 	CALL	DrawSprite16x16_HL_DExy
 	HALT
 	DJNZ	L_DA8E
@@ -5528,7 +5570,8 @@ L_DA8E	CALL	ClearTile_DExy
 	CALL	X2Y2toxy_DE
 	JP	L_D73E
 ;
-L_DABE	HALT
+Halter5_
+	HALT
 	HALT
 	HALT
 	HALT
@@ -5546,7 +5589,7 @@ L_DAD3	PUSH	BC
 	LD	DE,(curyx)
 	LD	A,(HL)
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DABE
+	CALL	Halter5_
 	HALT
 	HALT
 	HALT
@@ -5567,11 +5610,11 @@ LevelExit
 	DEC	(HL)
 	CALL	AnimateExit
 	CALL	Setstoptimer255
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
 	XOR	A ;return with OK
 	RET
 ;
@@ -5583,7 +5626,7 @@ L_DB1A	PUSH	BC
 	LD	DE,(curyx)
 	LD	A,(HL)
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DABE
+	CALL	Halter5_
 	HALT
 	HALT
 	HALT
@@ -5601,43 +5644,43 @@ L_DB3C	LD	B,#10
 	LD	D,#00
 L_DB40	LD	A,(HL)
 	CP	#02
-	JR	Z,L_DB4C
+	JR	Z,BlinkLevelExit
 	INC	HL
 	INC	D
 	DJNZ	L_DB40
 	INC	E
 	JR	L_DB3C
 ;
-L_DB4C	LD	B,#08
+BlinkLevelExit
+	LD	B,#08
 L_DB4E	PUSH	BC
 	PUSH	DE
 	PUSH	DE
 	LD	A,#10
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DB67
+	CALL	Halter15
 	POP	DE
 	LD	A,#02
 	CALL	DrawTile_A_X2Y2DE
-	CALL	L_DB67
+	CALL	Halter15
 	POP	DE
 	POP	BC
 	DJNZ	L_DB4E
 	RET
 ;
-L_DB67	LD	B,#0F
+Halter15
+	LD	B,#0F
 L_DB69	HALT
 	DJNZ	L_DB69
 	RET
 ;
-L_DB6D       DB       #16,#16,#05
-;
+tdrakon
+       DB       #16,#16,#05
        DM       "drakon"
-;
        DB       #00
-L_DB77       DB       #16,#16,#05
-;
+tkursor
+       DB       #16,#16,#05
        DM       "kursor"
-;
        DB       #00
 ;
 Setstoptimer255
@@ -5649,7 +5692,8 @@ Setstoptimer255
 	EI
 	RET
 ;
-L_DB8A	LD	HL,curgametimer
+GetHourglass
+	LD	HL,curgametimer
 	INC	(HL)
 	LD	HL,curtimerlow
 	LD	(HL),#01
@@ -5830,12 +5874,16 @@ StartLevel_A
 	CALL	SlowClearScreen
         
         if EGA
-;TODO setgfx
         push iy
+        ld de,emptypal
+        OS_SETPAL
+        call Halter
+        call clsega
         ld e,0+0x80 ;EGA+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld de,slabpal
+        OS_SETPAL
         pop iy
-        call clsega
         ld bc,0x1880 ;b=hgt,c=wid (/2)
         ld de,panelgfx ;de=gfx
         ld hl,0x4000+((192-24)*40)+4 ;hl=scr
@@ -5848,22 +5896,27 @@ StartLevel_A
 	PUSH	AF
         
         if EGA
-;TODO setgfx
         push iy
+        ld de,emptypal
+        OS_SETPAL
+        call Halter
+        call clsega
         ld e,3+0x80 ;6912+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld de,standardpal
+        OS_SETPAL
         pop iy
         ld a,(user_scr0_high) ;ok
         SETPG16K
-
         endif
         
         if EGA == 0
 	CALL	SlowClearScreen
         endif
+
 	POP	AF
 	OR	A
-	JP	M,L_DFBE
+	JP	M,EndOfGame
 	CP	#01
 	JP	Z,L_DE9E
        if 1==0
@@ -5881,7 +5934,7 @@ StartLevel_A
 	LD	A,(curlevel)
 	CP	#37
 	JP	Z,L_DFDD
-	JR	NextLevel_A
+	jp	NextLevel_A
 ;
 L_DC9E	LD	A,(curlevel)
 	LD	C,#00
@@ -5911,7 +5964,7 @@ ShowLevelData
 	LD	H,#00
 	ADD	HL,HL
 	ADD	HL,HL
-	LD	DE,L_DCE6
+	LD	DE,passcodes
 	ADD	HL,DE
 	LD	BC,#0004
 	LD	DE,L_DCE0
@@ -5927,7 +5980,8 @@ L_DCE0       DM       "0000"
        DB       #00
 curlevel       DB       #00
 ;
-L_DCE6       DM       "1111"
+passcodes
+       DM       "1111"
        DM       "3627"
        DM       "5789"
        DM       "3423"
@@ -6093,11 +6147,11 @@ L_DEB9	PUSH	BC
 	CALL	L_DF32
 	CALL	PrintPassCode
 	EI
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
 	POP	HL
 	POP	BC
 	INC	HL
@@ -6105,7 +6159,7 @@ L_DEB9	PUSH	BC
 	LD	IX,curpasscode
 	LD	C,#01
 	PUSH	IY
-	LD	IY,L_DCE6
+	LD	IY,passcodes
 L_DEE2	LD	A,(IX+#00)
 	CP	(IY+#00)
 	JR	NZ,L_DF02
@@ -6138,13 +6192,14 @@ L_DF13	PUSH	BC
 L_DF1E	POP	IY
 	JP	L_DBD4
 ;
-atpasscode       DB       #16,#09,#11
-;
-curpasscode       DM       "    "
-;
+atpasscode
+       DB       #16,#09,#11
+curpasscode
+       DM       "    "
        DB       #00
 ;
-PrintPassCode	LD	HL,atpasscode
+PrintPassCode
+	LD	HL,atpasscode
 	CALL	PrintStringHL
 	RET
 ;
@@ -6202,7 +6257,8 @@ L_DF4E	LD	D,#00
 	RET	Z
 	JR	L_DF4E
 ;
-ShowAuthors	CALL	DepackAuthorsScreen
+ShowAuthors
+	CALL	DepackAuthorsScreen
 	CALL	WaitAnyKey
 	JP	L_DBD4
 ;
@@ -6220,21 +6276,22 @@ ShowInstructions
 	CALL	WaitAnyKey
 	JP	L_DBD4
 ;
-ShowControls	CALL	DepackControlInformationScreen
+ShowControls
+	CALL	DepackControlInformationScreen
 	CALL	WaitAnyKey
 	JP	L_DBD4
 ;
-L_DFBE	LD	A,#47
+EndOfGame
+	LD	A,#47
 	CALL	L_B781
-	LD	HL,L_DFCF
+	LD	HL,tendofgame
 	CALL	PrintStringHL
 	CALL	WaitAnyKey
 	JP	L_DBD4
 ;
-L_DFCF       DB       #16,#08,#0B
-;
+tendofgame
+       DB       #16,#08,#0B
        DM       "konec igry"
-;
        DB       #00
 ;
 L_DFDD	CALL	DepackCastle
@@ -6250,7 +6307,7 @@ L_DFDD	CALL	DepackCastle
 	CALL	L_E004
 	CALL	WaitAnyKey
 	CALL	SlowClearScreen
-	JP	L_DFBE
+	JP	EndOfGame
 ;
 L_E004	LD	B,#06
 L_E006	PUSH	BC
@@ -6268,16 +6325,16 @@ L_E008	LD	A,(HL)
 	JR	NZ,L_E008
 	POP	HL
 	EI
-	CALL	L_DABE
-	CALL	L_DABE
-	CALL	L_DABE
+	CALL	Halter5_
+	CALL	Halter5_
+	CALL	Halter5_
 	POP	BC
 	DJNZ	L_E006
 	RET
 ;
 L_E025	DI
 	PUSH	IY
-	CALL	#006F
+	CALL	jphl;#006F
 	POP	IY
 	EI
 	RET
