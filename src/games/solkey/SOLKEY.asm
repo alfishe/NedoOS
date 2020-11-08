@@ -162,7 +162,8 @@ L_949A	PUSH	BC
 ;
 L_94A5	LD	A,#FB
 	IN	A,(#FE)
-	AND	#1F ;qwert
+	;AND	#1F ;qwert
+        and 0x15 ;q+e+t
 	JP	Z,L_9300
 	RET
 ;
