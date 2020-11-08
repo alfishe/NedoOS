@@ -27,7 +27,7 @@ begin2
         ld sp,STACK
         OS_HIDEFROMPARENT
 
-        ld e,3+8+0x80 ;6912+noturbo+keep
+        ld e,0 ;EGA
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
 	;ld e,1
@@ -52,6 +52,35 @@ begin2
         OS_NEWPAGE
         ld a,e
         ld (pgmain4000),a
+
+	ld de,res_path
+	OS_CHDIR
+
+        call setpgsscr40008000
+
+        ld de,emptypal
+        OS_SETPAL
+        ld de,bmpfilename
+        call openstream_file
+        call readbmphead_pal
+        call readbmpscr
+        call closestream_file
+        ld de,pal
+        OS_SETPAL
+        
+        call setpgsmain40008000
+
+        ld b,50
+        halt
+        djnz $-1
+
+        ld e,3+8+0x80 ;6912+noturbo+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,0 ;color byte
+        OS_CLS
+        ld de,standardpal
+        OS_SETPAL
+        YIELD
 
         if 1==0
         ld a,(user_scr0_high) ;ok
@@ -146,6 +175,8 @@ prspritesny
         ;include "pal.ast" ;slabpal
 standardpal
         STANDARDPAL
+pal
+        ds 32,0xff
 emptypal
         ds 32,0xff
 
@@ -1005,6 +1036,142 @@ ClearTile_DExy
 zeros24x16
         ds 12*16
        endif
+
+readbmphead_pal
+        ld de,bgpush_bmpbuf
+        ld hl,14+2;54+(4*16)
+;de=buf
+;hl=size
+        call readstream_file
+        ld de,bgpush_bmpbuf
+        ld hl,(bgpush_bmpbuf+14)
+        dec hl
+        dec hl
+;de=buf
+;hl=size
+        call readstream_file
+        ld de,bgpush_bmpbuf
+        ld hl,+(4*16)
+;de=buf
+;hl=size
+        call readstream_file
+
+        ld hl,bgpush_bmpbuf;+54
+        ld ix,pal
+        ld b,16
+recodepal0
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        push hl
+        ld l,(hl) ;e=B, d=G, l=R
+        call readfile_rgbtopal
+        pop hl
+        inc hl
+        inc hl
+        djnz recodepal0
+        ret
+
+        macro RECOLOR
+        ld a,(de)
+        inc de
+        ld ($+4),a
+        ld a,(trecolor)
+        ld (hl),a
+        endm
+readbmpscr
+        ld hl,0x4000+(199*40)
+        ld b,200
+readbmpscr0
+        push bc
+        push hl
+        ld de,bgpush_bmpbuf
+        ld hl,320/2
+;de=buf
+;hl=size
+        push de
+        call readstream_file
+        pop de
+        pop hl
+        push hl
+        ld b,40
+readbmpscr00        
+        RECOLOR
+        ld a,h
+        add a,0x40
+        ld h,a
+        RECOLOR
+        ld a,h
+        add a,0x20-0x40
+        ld h,a
+        RECOLOR
+        ld a,h
+        add a,0x40
+        ld h,a
+        RECOLOR
+        ld a,h
+        sub 0x60
+        ld h,a
+        inc hl
+        djnz readbmpscr00
+        pop hl
+        ld bc,-40
+        add hl,bc
+        pop bc
+        djnz readbmpscr0
+        ret
+
+readfile_rgbtopal
+;e=B, d=G, l=R
+        call calcRGBtopal_pp
+        ld (ix+1),a
+        call calcRGBtopal_pp
+        ld (ix),a
+        inc ix
+        inc ix
+        ret
+
+calcRGBtopal_pp
+;e=B, d=G, l=R
+;DDp palette: %grbG11RB(low),%grbG11RB(high), ??oN????N
+        xor a
+        rl e  ;B
+        rra
+        rl l  ;R
+        rra
+        rrca
+        rrca
+        rl d  ;G
+        rra
+        rl e  ;b
+        rra
+        rl l  ;r
+        rra
+        rl d  ;g
+        rra
+        cpl
+        ret 
+
+        align 256
+trecolor
+;%00003210 => %.3...210
+        dup 256
+_3=$&8
+_210=$&7
+_3L=($>>4)&8
+_210L=($>>4)&7
+        db (_3L*0x08) + (_210L*0x01) + (_3*0x10) + (_210*0x08)
+        edup
+
+bgpush_bmpbuf
+        ds 320
+
+res_path
+        db "solkey",0
+bmpfilename
+        db "solkey.bmp",0
+        include "../../_sdk/file.asm"
 
         ds 0x3f00-$
         ds 0x4000-$
