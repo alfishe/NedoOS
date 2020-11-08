@@ -70,9 +70,10 @@ begin2
         
         call setpgsmain40008000
 
-        ld b,50
-        halt
-        djnz $-1
+        ;ld b,50
+        ;halt
+        ;djnz $-1
+        YIELDGETKEYLOOP
 
         ld e,3+8+0x80 ;6912+noturbo+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)

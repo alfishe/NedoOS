@@ -18,12 +18,12 @@ cmd_begin
 	ld (musicpage),a
         ld a,b
         ld (myid),a
-        push hl
-        ld e,h
-        OS_DELPAGE
-        pop hl
-        ld e,l
-        OS_DELPAGE
+        ;push hl
+        ;ld e,h
+        ;OS_DELPAGE
+        ;pop hl
+        ;ld e,l
+        ;OS_DELPAGE
 
 ;TODO найти копию себя в памяти и послать ей 0 в COMMANDLINE
         ld e,1 ;no id 0
@@ -39,16 +39,16 @@ myid=$+1
         ld a,d ;main page
         SETPG32KHIGH
         ld de,COMMANDLINE+0xc000
+        ld hl,ttestdatacom
+        ld bc,ttestdatacom_sz
+        call teststr
+        jr z,cmd_proc_found
+        ld de,COMMANDLINE+0xc000
         ld hl,ttestdata
         ld bc,ttestdata_sz
-testdata0
-        ld a,(de)
-        or 0x20
-        cp (hl)
+        call teststr
         jr nz,cmd_proc_skip
-        inc de
-        cpi
-        jp pe,testdata0
+cmd_proc_found
         xor a
         ld (COMMANDLINE+0xc000),a ;ok ;"закройся"
 cmd_proc_skip
@@ -150,8 +150,24 @@ quit
 noautoload
         QUIT
 
-ttestdata
+teststr
+testdata0
+        ld a,(de)
+        or 0x20
+        cp (hl)
+        ret nz ;jr nz,cmd_proc_skip
+        inc de
+        cpi
+        jp pe,testdata0
+        xor a
+        ret
+
+ttestdatacom
         db "player.com"
+ttestdatacom_sz=$-ttestdatacom
+
+ttestdata
+        db "player "
 ttestdata_sz=$-ttestdata
 
 skipword
