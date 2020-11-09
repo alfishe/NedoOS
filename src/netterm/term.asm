@@ -67,6 +67,12 @@ begin
         OS_SETSTDINOUT
 
 ;TODO запускать файл, указанный в параметре (по умолчанию cmd, искать в bin)
+;TODO здесь не надо запускать CMD, запускать надо после коннекта клиента
+		ld a,(waitpid_id)
+		inc a
+		jr z,nul_id
+		;TODO тут надо закрыть cmd
+nul_id
         ld de,cmd_filename
         OS_OPENHANDLE
         or a
@@ -91,10 +97,25 @@ begin
         OS_RUNAPP
 
 execcmd_error
-
+	display $
 gotostart
-        ld sp,STACK
- 
+	ld sp,STACK
+	ld a,(soc)
+	or a
+	jr z,nul_soc
+	ld e,0
+	OS_NETSHUTDOWN
+	xor a
+	ld (soc),a
+nul_soc
+	ld a,(soc_client)
+	or a
+	jr z,nul_soc_client
+	ld e,0
+	OS_NETSHUTDOWN
+	xor a
+	ld (soc_client),a
+nul_soc_client
 ;1. s = OS_NETSOCKET
 	LD D,AF_INET
 	LD E,SOCK_STREAM
@@ -134,6 +155,8 @@ ESTABLISHED
 	LD A,(soc)
 	LD E,0 ;0 - закрыть немедленно, 1 - закрыть только если буфер отправки пуст
 	OS_NETSHUTDOWN
+	xor a
+	ld (soc),a
 	;BIT 7,L
 	;jp z,close_ok       ;сокет закрылся
 	;CP ERR_EAGAIN
@@ -142,6 +165,7 @@ ESTABLISHED
 					;то отдадим квант времени системе.
 	;JR close_wait ;ожидаем отправки данных
 close_ok
+	;TODO тут надо запустить CMD
 ;7. если надо то OS_WIZNETWRITE(s1)
 ;8. hl = OS_WIZNETREAD(s1)           
 ;9. if hl > 0 then обработаем и goto 7
@@ -281,12 +305,13 @@ subnegotiation_onoff
 
 checkquit
 waitpid_id=$+1
-        ld e,0
+        ld e,0xff
         OS_WAITPID
         or a
-        jp z,quit
-        ret
-
+        ret nz ;jp z,quit
+        ;ret
+		dec a
+		ld (waitpid_id),a
 quit
 ;cmd closed!!!
 	LD A,(soc_client)
@@ -302,7 +327,7 @@ quit
         OS_CLOSEHANDLE
         edup
 inet_exiterr
-        jp gotostart
+        jp gotostart 
 
         QUIT
 
