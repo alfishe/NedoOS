@@ -55,7 +55,8 @@ SL811
 	ld a,1
 	ret
 
-.DBUF=0x8000-1024
+.DBUF
+	defs 64
 ; 17.	void USBReset(void)   
 ; 18.	{
 .USBReset:
