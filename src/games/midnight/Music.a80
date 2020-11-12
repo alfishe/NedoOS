@@ -1,0 +1,2771 @@
+;****************************************************************************
+;** SPECTRUM AY SOUND CHIP MUSIC DRIVER                                    **
+;****************************************************************************
+
+;                IF MUSICALSO=1
+;                OCMD "K7"
+
+;                ORG $E000
+
+;****************************************************************************
+;** INITIALIZE TUNE                                                        **
+;****************************************************************************
+
+E000            JP RESETSOUND
+E003            JP DOMUSIC
+E006            JP INITTUNE
+E009            JP MUSICDEMO
+
+INITTUNE        PUSH AF:CALL RESETSOUND:LD A,$3F:LD (ENABLE),A:POP AF
+                LD HL,TUNES:LD DE,6:CALL MULT0
+                LD IX,CHANADAT:LD (IX+CHANNEL),0:CALL INITCHAN
+                LD IX,CHANBDAT:LD (IX+CHANNEL),1:CALL INITCHAN
+                LD IX,CHANCDAT:LD (IX+CHANNEL),2:JP INITCHAN
+
+;                ENT
+
+MUSICDEMO       XOR A:OUT (254),A:LD R,A
+                CALL RESETSOUND:XOR A:CALL INITTUNE
+MUSICDEMOLOOP   LD A,127:IN A,(254):RRA:JR NC,NOHALT
+                EI:HALT:DI
+NOHALT          CALL DOMUSIC
+                LD HL,ONETOFIVE:LD A,%11110111:CALL INA
+                LD HL,SIXTOZERO:LD A,%11101111:CALL INA
+                JP MUSICDEMOLOOP
+
+INA             IN A,(254):LD C,A
+                RR C:JR NC,GOTU:INC HL
+                RR C:JR NC,GOTU:INC HL
+                RR C:JR NC,GOTU:INC HL
+                RR C:JR NC,GOTU:INC HL
+                RR C:RET C
+GOTU            LD A,(HL):JP INITTUNE
+
+ONETOFIVE       DB 1,2,3,4,5
+SIXTOZERO       DB 0,9,8,7,6
+
+MULT0           OR A:RET Z:RRA :JR NC,MULT1:ADD HL,DE
+MULT1           EX DE,HL:ADD HL,HL:EX DE,HL:JP MULT0
+
+INITCHAN        XOR A:LD (IX+TRNS),A
+                LD E,(HL):INC HL:LD D,(HL):INC HL
+INITCHAN1       LD A,(DE):INC DE:CP TRANSPOSE:JR NZ,NITRNS
+                LD A,(DE):INC DE:LD (IX+TRNS),A:JR INITCHAN1
+NITRNS          LD (IX+SEQ),E:LD (IX+SEQ+1),D:ADD A,A
+                LD DE,SEQTABLE:ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):INC DE:LD (IX+POSI),A
+                LD A,(DE):LD (IX+POSI+1),A
+                XOR A
+                LD (IX+ADSRNUM),A:LD (IX+ADSRADD),A
+                LD (IX+ADSRDIR),A:LD (IX+ADSRCNT),A
+                LD (IX+SLIDDIR),A:LD (IX+SLIDOF),A
+                LD (IX+ARPNUM),A:LD (IX+ARPADD),A:LD (ARPOF),A
+                LD (IX+VIBNUM),A:LD (IX+VIBADD),A
+                LD (IX+VIBDEL),A:LD (IX+VIBOF),A
+                LD (IX+DRMON),A
+                INC A:LD (IX+SLIDDEL),A:LD (IX+SLIDDELAY),A
+                LD (IX+ADSRDEL),A:LD (IX+ADSRDELAY),A
+                LD (IX+VIBTIM),A:LD (IX+VIBTIMER),A
+                LD (IX+DEL),A
+                LD (IX+MASTERVOLUME),15:LD (IX+MASTERVOLDIR),0
+                LD (IX+MASTERVOLDEL),1:LD (IX+MASTERVDELAY),1:RET
+
+;***************************************************************************
+;** AY CHANNEL HANDLER                                                    **
+;***************************************************************************
+
+DRUMBITS        CALL DODRUM:LD E,(IX+DRMPIT):LD A,6:CALL SEND1
+                LD A,(IX+CHANNEL):ADD A,3:JP SENDVOLBITS
+
+DOMUSIC         LD IX,CHANADAT:CALL DOCHAN
+                LD IX,CHANBDAT:CALL DOCHAN
+                LD IX,CHANCDAT
+DOCHAN          CALL GOFORNOTE
+                CALL DOADSR:CALL DOMASTERVOL
+                LD A,(IX+DRMON):OR A:JR NZ,DRUMBITS
+                CALL DOSLIDE:CALL DOARPEGIO:CALL DOVIBRATO
+SENONOTE        LD A,(IX+NOTE):ADD A,(IX+ARPOF):ADD A,(IX+TRNS)
+                LD L,A:LD H,0:ADD HL,HL:ADD HL,HL
+                LD A,(IX+SLIDOF):CALL ADDHLAS
+                LD A,(IX+VIBOF):CALL ADDHLAS
+                LD A,L:SRL H:RR L:RES 0,L:AND 3:PUSH AF
+                LD DE,OCT0:ADD HL,DE:LD E,(HL):INC HL:LD D,(HL)
+                LD BC,ST0-OCT0:ADD HL,BC:LD B,(HL):DEC HL:LD C,(HL)
+                EX DE,HL:LD E,C:LD D,B:POP AF:JR Z,NODDY:LD B,A
+NADDY           ADD HL,DE:DJNZ NADDY
+NODDY           LD A,(IX+CHANNEL):ADD A,A:CALL SEND2
+                LD A,(IX+CHANNEL)
+SENDVOLBITS     CALL ENABLER:LD E,A:LD A,7:CALL SEND1
+                LD A,15:SUB (IX+MASTERVOLUME):LD E,A
+                LD A,(IX+VOL):SUB E:JR NC,NOTLESSTHAN:XOR A
+NOTLESSTHAN     LD E,A:LD A,(IX+CHANNEL):ADD A,8:JP SEND1
+
+ADDHLAS         OR A:JP M,HLMA
+HLPA            ADD A,L:LD L,A:ADC A,H:SUB L:LD H,A:RET
+HLMA            PUSH BC:NEG:LD C,A:LD A,L:SUB C:LD L,A
+                LD A,H:SBC A,0:LD H,A:POP BC:RET
+
+GOFORNOTE       DEC (IX+DEL):RET NZ
+GETNOTE         LD L,(IX+POSI):LD H,(IX+POSI+1)
+ANOTHERNOTE     LD A,(HL):INC HL:OR A:JP P,GOTNOTE
+                ADD A,A:LD DE,CHANFUNCTIONS
+                ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):LD C,A:INC DE:LD A,(DE):LD B,A:PUSH BC:RET
+
+GOTNOTE         LD (IX+NOTE),A:LD E,(HL):INC HL:LD (IX+DEL),E
+                LD A,(IX+SLIDDELAY):LD (IX+SLIDDEL),A
+                XOR A:LD (IX+SLIDOF),A:LD (IX+DRMON),A
+                LD (IX+VIBADD),A:LD (IX+VIBOF),A
+                LD (IX+VOL),A:LD (IX+ARPADD),A
+                LD (IX+ADSRADD), A: LD (IX+ADSRCNT),A
+                INC A:LD (IX+VIBDEL),A
+                LD (IX+ADSRDEL),A: LD (IX+ADSRDELAY),A
+                LD (IX+POSI),L:LD (IX+POSI+1),H:RET
+
+CHANFUNCTIONS   DW SETEND                ; 128
+                DW SETREST               ; 129
+                DW SETADSR               ; 130
+                DW SETSLIDE              ; 131
+                DW SETARPEG              ; 132
+                DW SETVIBRATO            ; 133
+                DW SETDRUM               ; 134
+                DW SETVOLUME             ; 135
+
+SETEND          LD L,(IX+SEQ):LD H,(IX+SEQ+1)
+GETEND          LD A,(HL):INC HL
+                CP TRANSPOSE:JR Z,OKTRNS
+                CP STOP:RET Z
+                CP GOTO:JR Z,OKGOTO
+OKEND           LD (IX+SEQ),L:LD (IX+SEQ+1),H:ADD A,A
+                LD DE,SEQTABLE:ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):LD (IX+POSI),A:INC DE:LD L,A
+                LD A,(DE):LD (IX+POSI+1),A:LD H,A:JP ANOTHERNOTE
+OKGOTO          LD A,(HL):INC HL:LD H,(HL):LD L,A:JR GETEND
+OKTRNS          LD A, (HL): INC HL:LD (IX+TRNS),A:JR GETEND
+
+SETREST         LD A,(HL):INC HL:LD (IX+DEL),A
+                LD (IX+POSI),L:LD (IX+POSI+1),H:RET
+
+SETADSR         LD A,(HL):INC HL:LD (IX+ADSRNUM),A:LD (IX+ADSRADD),0
+                LD (IX+VOL),0
+                LD (IX+ADSRDEL),1:LD (IX+ADSRDELAY),1:LD (IX+ADSRCNT),0
+                LD (IX+POSI),L:LD (IX+POSI+1),H:JP ANOTHERNOTE
+
+SETSLIDE        LD A,(HL):INC HL:LD (IX+SLIDDIR),A:LD (IX+SLIDOF),0
+                LD A,(HL):INC HL:LD (IX+SLIDDEL),A:LD (IX+SLIDDELAY),A
+                LD (IX+POSI),L:LD (IX+POSI+1),H:JP ANOTHERNOTE
+
+SETARPEG        LD A,(HL):INC HL:LD (IX+ARPNUM),A
+                LD (IX+ARPADD),0:LD (IX+ARPOF),0
+                LD (IX+POSI),L:LD (IX+POSI+1),H:JP ANOTHERNOTE
+
+SETVIBRATO      LD A,(HL):INC HL:LD (IX+VIBNUM),A
+                XOR A:LD (IX+VIBADD),A:LD (IX+VIBOF),A
+                INC A:LD (IX+VIBDEL),A
+                LD (IX+VIBTIM),A:LD (IX+VIBTIMER), A
+                LD (IX+POSI),L:LD (IX+POSI+1),H:JP ANOTHERNOTE
+
+SETDRUM         LD A,(HL):INC HL:LD (IX+DRMNUM),A:LD (IX+DRMON),1
+
+                LD DE,DRUMADSR:ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):LD (IX+ADSRNUM),A:LD (IX+ADSRADD),0
+                LD (IX+ADSRDEL),1:LD (IX+ADSRDELAY),1:LD (IX+ADSRCNT),0
+
+                LD (IX+VOL),0
+
+                LD A, (HL):INC HL:LD (IX+DEL),A
+                LD (IX+DRMADD),0:LD (IX+DRMCNT),0
+                LD (IX+DRMDEL),1:LD (IX+DRMDELAY),1
+                LD (IX+DRMPIT),0
+                LD (IX+POSI),L:LD (IX+POSI+1),H:RET
+
+SETVOLUME       LD A,(HL):INC HL:LD (IX+MASTERVOLUME),A
+                LD A,(HL):INC HL:LD (IX+MASTERVOLDIR),A
+                LD A,(HL):INC HL:LD (IX+MASTERVOLDEL),A
+                LD (IX+MASTERVDELAY),A
+                LD (IX+POSI),L:LD (IX+POSI+1),H:JP ANOTHERNOTE
+
+;**************************************
+
+ENABLER         LD HL,SWITCHOFS:ADD A,L:LD L,A:ADC A,H:SUB L:LD H,A
+                LD DE,ENABLE:LD A,(DE):AND (HL):LD (DE),A
+                LD A,L:ADD A,6:LD L,A:ADC A,H:SUB L:LD H,A
+                LD A,(DE):OR (HL):LD (DE),A:RET
+
+;**************************************
+
+DOMASTERVOL     LD A, (IX+MASTERVOLDIR):OR A: RET Z
+                DEC (IX+MASTERVOLDEL):RET NZ
+                LD A,(IX+MASTERVDELAY):LD (IX+MASTERVOLDEL),A
+                LD A,(IX+MASTERVOLUME):ADD A,(IX+MASTERVOLDIR)
+                CP 16:RET Z:CP 255:RET Z
+                LD (IX+MASTERVOLUME), A:RET
+
+DOADSR          DEC (IX+ADSRDEL):RET NZ
+                LD A,(IX+ADSRDELAY):LD (IX+ADSRDEL),A
+                DEC (IX+ADSRCNT):JP M,SETNEWADSR
+                LD A,(IX+VOL):ADD A,(IX+ADSRDIR):LD (IX+VOL),A
+                CP 15:RET C:LD (IX+VOL),0:RET M:LD (IX+VOL),15:RET
+
+SETNEWADSR      LD A,(IX+ADSRNUM):ADD A,A:LD HL,ADSRTAB:ADD A,L:LD L,A
+                ADC A,H:SUB L:LD H,A
+                LD E,(HL):INC HL:LD D,(HL)
+                LD A,(IX+ADSRADD):ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):CP END:JR Z,KILLADSR
+                INC DE:LD (IX+ADSRDIR),A
+                LD A,(DE):INC DE:LD (IX+ADSRDEL),A:LD (IX+ADSRDELAY),A
+                LD A,(DE):LD (IX+ADSRCNT),A
+                LD A,(IX+ADSRADD):ADD A,3:LD (IX+ADSRADD),A:RET
+KILLADSR        LD (IX+VOL),0:LD (IX+ADSRDELAY),255:LD (IX+ADSRDEL),255
+                LD (IX+ADSRDIR),0
+                LD (IX+ADSRCNT),0:RET
+
+DOSLIDE         DEC (IX+SLIDDEL):RET NZ
+                LD A,(IX+SLIDDELAY):LD (IX+SLIDDEL),A
+                LD A,(IX+SLIDOF):ADD A,(IX+SLIDDIR):LD (IX+SLIDOF),A
+                RET
+
+DOARPEGIO       LD A,(IX+ARPNUM):ADD A,A:LD HL,ARPTAB:ADD A,L:LD L,A
+                ADC A,H:SUB L:LD H,A
+                LD E,(HL):INC HL:LD D,(HL)
+                LD A,(IX+ARPADD):ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):CP LOP:JR Z,LOPARP
+                LD A,(DE):CP END:RET Z
+                LD (IX+ARPOF),A:INC (IX+ARPADD):RET
+LOPARP          LD (IX+ARPOF),0:LD (IX+ARPADD),0:JR DOARPEGIO
+
+DOVIBRATO       DEC (IX+VIBDEL):RET NZ:INC (IX+VIBDEL)
+
+                DEC (IX+VIBTIM):RET NZ
+                LD A,(IX+VIBTIMER):LD (IX+VIBTIM),A
+
+                LD A,(IX+VIBNUM):ADD A,A:LD HL,VIBTAB:ADD A,L:LD L,A
+                ADC A,H:SUB L:LD H, A
+                LD E,(HL):INC HL:LD D,(HL)
+                LD A,(IX+VIBADD):ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(IX+VIBADD):OR A:JR Z,SETVIBDEL
+                LD A,(DE):CP LOP:JR Z,LOPVIB
+                LD A,(DE):CP END:RET Z
+                LD (IX+VIBOF),A:INC (IX+VIBADD):RET
+LOPVIB          LD (IX+VIBOF),0:LD (IX+VIBADD),2:JR DOVIBRATO
+SETVIBDEL       LD A,(DE):LD (IX+VIBDEL),A:INC DE
+                LD A,(DE):LD (IX+VIBTIM),A:LD (IX+VIBTIMER),A
+                LD (IX+VIBOF),0:LD (IX+VIBADD),2:RET
+
+DODRUM          DEC (IX+DRMDEL):RET NZ
+                LD A,(IX+DRMDELAY):LD (IX+DRMDEL),A
+                DEC (IX+DRMCNT):JP M,SETNEWDRUM
+                LD A,(IX+DRMPIT):ADD A,(IX+DRMDIR):LD (IX+DRMPIT),A
+                CP 31:RET C
+                LD (IX+DRMPIT),0:RET M
+                LD (IX+DRMPIT),31:RET
+
+SETNEWDRUM      LD A,(IX+DRMNUM):ADD A,A:LD HL,DRUMTAB:ADD A,L:LD L,A
+                ADC A,H:SUB L:LD H,A
+                LD E,(HL):INC HL:LD D,(HL)
+                LD A,(IX+DRMADD):ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):CP END:JR Z,KILLDRUM
+                LD A,(DE):INC DE:LD (IX+DRMDIR),A
+                LD A,(DE):INC DE:LD (IX+DRMDEL),A:LD (IX+DRMDELAY),A
+                LD A,(DE):LD (IX+DRMCNT),A
+                LD A,(IX+DRMADD):ADD A,3:LD (IX+DRMADD),A:RET
+
+KILLDRUM
+                LD (IX+VOL),0
+                LD (IX+DRMDELAY),1:LD (IX+DRMDEL),1
+                LD (IX+DRMDIR),0:LD (IX+DRMCNT),0:RET
+
+;****************************************************************************
+;** RESET SOUND CHIP                                                       **
+;****************************************************************************
+
+RESETSOUND      XOR A:LD HL,0:CALL SEND2
+                INC A:CALL SEND2:INC A:CALL SEND2
+                LD A,07:LD E,%00111111:CALL SEND1
+                INC A:CALL SEND2:INC A:CALL SEND2:INC A
+SEND2           LD E,L:CALL SEND1:LD E,H:INC A
+SEND1           LD BC,$FFFD:OUT (C),A:LD BC,$BFFD:OUT (C),E:RET
+
+;****************************************************************************
+;** FREQUENCY TABLE FOR EACH NOTE                                          **
+;****************************************************************************
+
+OCT0            DW $DD5,$C9C,$BE7,$B3C,$A9B,$A02
+                DW $973,$8EB,$86B,$7F2,$780,$714
+OCT1            DW $6AE,$64E,$5F4,$59E,$54D,$501
+                DW $4B9,$475,$435,$3F9,$3C0,$38A
+OCT2            DW $357,$327,$2FA,$2CF,$2A7,$281
+                DW $25D,$23B,$21B,$1FC,$1E0,$1C5
+OCT3            DW $1AC,$194,$17D,$168,$153,$140
+                DW $12E,$11D,$10D,$0FE,$0F0,$0E2
+OCT4            DW $0D6,$0CA,$0BE,$0B4,$0AA,$0A0
+                DW $097,$08F,$087,$07F,$078,$071
+OCT5            DW $06B,$065,$05F,$05A,$055,$050
+                DW $04C,$047,$043,$040,$03C,$039
+OCT6            DW $035,$032,$030,$02D,$02A,$028
+                DW $026,$024,$022,$020,$01E,$01C
+OCT7            DW $01B,$019,$018,$016,$015,$014
+                DW $013,$012,$011,$010,$00F,$00E
+
+;****************************************************************************
+;** SLIDE TABLE FOR EACH NOTE                                              **
+;****************************************************************************
+
+ST0             DW 0-78,0-45,0-42,0-40,0-38,0-35
+                DW 0-34,0-32,0-30,0-28,0-27,0-25
+ST1             DW 0-24,0-22,0-21,0-20,0-19,0-18
+                DW 0-17,0-16,0-15,0-14,0-13,0-12
+ST2             DW 0-12,0-11,0-10,0-10,0-09,0-09
+                DW 0-08,0-08,0-07,0-07,0-06,0-06
+ST3             DW 0-06,0-05,0-05,0-05,0-04,0-04
+                DW 0-04,0-04,0-03,0-03,0-03,0-03
+ST4             DW 0-03,0-02,0-02,0-02,0-02,0-02
+                DW 0-02,0-02,0-01,0-01,0-01,0-01
+ST5             DW 0-01,0-01,0-01,0-01,0-01,0-01
+                DW 0-01,0-01,0-01,0-00,0-00,0-00
+ST6             DW 0-00,0-00,0-00,0-00,0-00,0-00
+                DW 0-00,0-00,0-00,0-00,0-00,0-00
+ST7             DW 0-00,0-00,0-00,0-00,0-00,0-00
+                DW 0-00,0-00,0-00,0-00,0-00,0-00
+
+;****************************************************************************
+;** AY DRIVER EQUATES                                                      **
+;**************************************************************************** ¦
+
+GOTO            EQU 128
+REPEAT          EQU 128
+STOP            EQU 129
+TRANSPOSE       EQU 130
+
+;***************************************
+
+END             EQU 128
+REST            EQU 129
+ADSR            EQU 130
+SLIDE           EQU 131
+ARPEG           EQU 132
+VIBRATO         EQU 133
+DRUM            EQU 134
+VOLUME          EQU 135
+
+;*****************************************************************************
+;** (ARPEG ETC...) SPECIAL DATA EQUATES                                     **
+;*****************************************************************************
+
+;END             EQU 128
+LOP             EQU 129
+
+;*****************************************************************************
+;** CHANNEL DATA INFORMATION EQUATES                                        **
+;*****************************************************************************
+
+POSI            EQU 00
+SEQ             EQU 02
+DEL             EQU 04
+NOTE            EQU 05
+VOL             EQU 06
+CHANNEL         EQU 07
+ARPOF           EQU 08
+VIBOF           EQU 09
+SLIDOF          EQU 10
+TRNS            EQU 11
+ADSRNUM         EQU 12
+ADSRADD         EQU 13
+ADSRDIR         EQU 14
+ADSRDELAY       EQU 15
+ADSRDEL         EQU 16
+ADSRCNT         EQU 17
+SLIDDIR         EQU 18
+SLIDDELAY       EQU 19
+SLIDDEL         EQU 20
+ARPNUM          EQU 21
+ARPADD          EQU 22
+VIBNUM          EQU 23
+VIBADD          EQU 24
+VIBDEL          EQU 25
+VIBTIM          EQU 26
+VIBTIMER        EQU 27
+DRMNUM          EQU 28
+DRMADD          EQU 29
+DRMDIR          EQU 30
+DRMDELAY        EQU 31
+DRMDEL          EQU 32
+DRMCNT          EQU 33
+DRMON           EQU 34
+DRMPIT          EQU 35
+MASTERVOLUME    EQU 36
+MASTERVOLDIR    EQU 37
+MASTERVOLDEL    EQU 38
+MASTERVDELAY    EQU 39
+
+DATLEN          EQU 40
+
+;****************************************************************************
+;** MUSIC NOTE EQUATES                                                     **
+;****************************************************************************
+
+C0              EQU 0
+C_0             EQU 1
+D0              EQU 2
+D_0             EQU 3
+E0              EQU 4
+F0              EQU 5
+F_0             EQU 6
+G0              EQU 7
+G_0             EQU 8
+A0              EQU 9
+A_0             EQU 10
+B0              EQU 11
+Cl              EQU 12
+C_1             EQU 13
+D1              EQU 14
+D_1             EQU 15
+El              EQU 16
+F1              EQU 17
+F_1             EQU 18
+G1              EQU 19
+G_1             EQU 20
+A1              EQU 21
+A_1             EQU 22
+B1              EQU 23
+C2              EQU 24
+C_2             EQU 25
+D2              EQU 26
+D_2             EQU 27
+E2              EQU 28
+F2              EQU 29
+F_2             EQU 30
+G2              EQU 31
+G_2             EQU 32
+A2              EQU 33
+A_2             EQU 34
+B2              EQU 35
+C3              EQU 36
+C_3             EQU 37
+D3              EQU 38
+D_3             EQU 39
+E3              EQU 40
+F3              EQU 41
+F_3             EQU 42
+G3              EQU 43
+G_3             EQU 44
+A3              EQU 45
+A_3             EQU 46
+B3              EQU 47
+C4              EQU 48
+C_4             EQU 49
+D4              EQU 50
+D_4             EQU 51
+E4              EQU 52
+F4              EQU 53
+F_4             EQU 54
+G4              EQU 55
+G_4             EQU 56
+A4              EQU 57
+A_4             EQU 58
+B4              EQU 59
+C5              EQU 60
+C_5             EQU 61
+D5              EQU 62
+D_5             EQU 63
+E5              EQU 64
+F5              EQU 65
+F_5             EQU 66
+G5              EQU 67
+G_5             EQU 68
+A5              EQU 69
+A_5             EQU 70
+B5              EQU 71
+C6              EQU 72
+C_6             EQU 73
+D6              EQU 74
+D_6             EQU 75
+E6              EQU 76
+F6              EQU 77
+F_6             EQU 78
+G6              EQU 79
+G_6             EQU 80
+A6              EQU 81
+A_6             EQU 82
+B6              EQU 83
+C7              EQU 84
+C_7             EQU 85
+D7              EQU 86
+D_7             EQU 87
+E7              EQU 88
+F7              EQU 89
+F_7             EQU 90
+G7              EQU 91
+G_7             EQU 92
+A7              EQU 93
+A_7             EQU 94
+B7              EQU 95
+
+;****************************************************************************
+;** DRIVER PAGE DATA                                                       **
+;****************************************************************************
+
+ENABLE          DB 0         ; SM - DB #3F
+
+SWITCHOFS       DB %11110110
+                DB %11101101
+                DB %11011011
+                DB %11110110
+                DB %11101101
+                DB %11011011
+
+TONESETTINGS    DB %00001000
+                DB %00010000
+                DB %00100000
+DRUMSETTINGS    DB %00000001
+                DB %00000010
+                DB %00000100
+
+CHANADAT        DS DATLEN,0
+                ;SM - DB #58,#E9,#57,#E9,#01,#00,#00,#00,#00,#00
+                ;SM - DB #00,#00,#00,#00,#00,#01,#01,#00,#00,#01
+                ;SM - DB #01,#00,#00,#00,#00,#00,#01,#01,#00,#00
+                ;SM - DB #00,#00,#00,#00,#00,#00,#0F,#00,#01,#01
+
+CHANBDAT        DS DATLEN,0
+                ;SM - DB #58,#E9,#57,#E9,#01,#00,#00,#01,#00,#00
+                ;SM - DB #00,#00,#00,#00,#00,#01,#01,#00,#00,#01
+                ;SM - DB #01,#00,#00,#00,#00,#00,#01,#01,#00,#00
+                ;SM - DB #00,#00,#00,#00,#00,#00,#0F,#00,#01,#01
+
+CHANCDAT        DS DATLEN,0
+                ;SM - DB #58,#E9,#57,#E9,#01,#00,#00,#02,#00,#00
+                ;SM - DB #00,#00,#00,#00,#00,#01,#01,#00,#00,#01
+                ;SM - DB #01,#00,#00,#00,#00,#00,#01,#01,#00,#00
+                ;SM - DB #00,#00,#00,#00,#00,#00,#0F,#00,#01,#01
+
+;***************************************
+; DIRECTION,DELAY,NO OF TIMES
+
+ADSRTAB         DW ADSR00,ADSR01,ADSR02,ADSR03
+                DW ADSR04,ADSR05,ADSR06,ADSR07
+                DW ADSR08,ADSR09,ADSR10,ADSR11
+                DW ADSR12
+
+ADSR00          DB 0,1,1              ; OFF
+                DB END
+ADSR01          DB 12,1,1             ; ON 12
+                DB -1,2,12            ; SLOWISH RELEASE
+                DB END
+ADSR02          DB 4,4,3              ; ATTACK SLOWLY TO 15
+                DB -1,4,4             ; DECAY SLOWLY TO 11
+                DB 0,15,1             ; SUSTAIN FOR 11
+                DB -1,5,8             ; RELEASE SLOWLY
+                DB END
+ADSR03          DB 15,1,1             ; ON 15
+                DB -1,1,15            ; RELEASE
+                DB END
+ADSR04          DB 15,1,1             ; ON 15
+                DB -5,1,3             ; RELEASE QUICKLY
+                DB END
+ADSR05          DB 12,1,1             ; ON 12
+                DB -1,1,12            ; RELEASE
+                DB END
+ADSR06          DB 15,1,1             ; ON 15
+                DB 0,25,1             ; SUSTAIN FOR 25
+                DB -1,1,15            ; RELEASE
+                DB END
+ADSR07          DB 15,1,1             ; ON 15
+                DB -1,4,15            ; SLOWISH RELEASE
+                DB END
+ADSR08          DB 15,1,1             ; ON 15
+                DB 0,30,1             ; SUSTAIN 30 FRAMES
+                DB -1,2,15            ; SLOW FADE OFF
+                DB END
+
+ADSR09          DB 14,1,1             ; BASS DRUM
+                DB -3,1,1
+                DB -15,1,1
+                DB END
+
+ADSR10          DB 13,1,1             ; SNARE
+                DB -3,1,1
+                DB -15,1,1
+                DB END
+
+ADSR11          DB 13,1,1             ; HI HAT
+                DB -15,1,1
+                DB END
+
+ADSR12          DB 5,1,3              ; ATTACK TO 15
+                DB 0,10,1             ; SUSTAIN 10 FRAMES
+                DB -1,3,15            ; SLOW FADE OFF
+                DB END
+
+;***************************************
+
+ARPTAB          DW ARP00,ARP01,ARP02,ARP03
+                DW ARP04,ARP05,ARP06,ARP07
+                DW ARP08,ARP09,ARP10,ARP11
+                DW ARP12,ARP13,ARP14,ARP15
+
+ARP00           DB 00,END
+ARP01           DB 00,07,12,05,LOP
+ARP02           DB 00,07,12,04,LOP
+ARP03           DB 00,12,LOP
+ARP04           DB 00,03,07,LOP
+ARP05           DB 00,03,07,LOP
+ARP06           DB 00,04,08,LOP
+ARP07           DB 00,04,07,LOP
+ARP08           DB 00,03,08,LOP
+ARP09           DB 00,05,08,LOP
+ARP10           DB 00,02,07,LOP
+ARP11           DB 00,-12,12,24,LOP
+ARP12           DB 00,-5,12,LOP
+ARP13           DB 00,05,09,LOP
+ARP14           DB 00,03,08,LOP
+ARP15           DB 00,04,07,LOP
+
+;***************************************
+
+VIBTAB          DW VIB0,VIB1,VIB2,VIB3,VIB4
+
+VIB0            DB 255,000,00,END
+VIB1            DB 024,003,01,00,-1,LOP
+
+VIB2            DB 048,002,01,00,-1,LOP
+
+VIB3            DB 009,003,01,00,-1,LOP
+
+VIB4            DB 027,003,01,02,01,00,-1,-2,-1,0,LOP
+
+;***************************************
+
+DRUMADSR        DB 00,00,00,09
+                DB 10,00,00,11
+
+DRUMTAB         DW 0,0,0,BASS
+                DW SNARE,0,0,HIHAT
+
+; DIRECTION,DELAY,NO OF TIMES
+BASS
+                DB $1F,01,1
+                DB $1B,01,1
+                DB $18,01,1
+                DB END
+SNARE           DB $00,01,1
+                DB $02,01,1
+                DB $04,01,1
+                DB END
+HIHAT           DB $00,01,1
+                DB END
+
+;****************************************************************************
+;** TUNE DATA                                                              **
+;****************************************************************************
+
+;**************************************
+;INITFADEIN     DB VOLUME,00,+1,12,END
+;INITFADEOUT    DB VOLUME,15,-1,12,END
+;**************************************
+
+;----------------------------------------------------------------------------
+;-----------TUNE DATA--------------------------------------------------------
+;----------------------------------------------------------------------------
+
+TUNES           DW ALLOFF,ALLOFF,ALLOFF    ; 00
+                DW NIGHT1,NIGHT2,NIGHT3    ; 01
+                DW HAHAA1,HAHAA2,HAHAA3    ; 02
+                DW EGYPT1,EGYPT2,EGYPT3    ; 03
+                DW LELLY1,LELLY2,LELLY3    ; 04
+                DW COMTU1,COMTU2,COMTU3    ; 05
+                DW PIGEON1,PIGEON2,PIGEON3 ; 06
+                DW HICORE1,HICORE2,HICORE3 ; 07
+                DW JUMP1,JUMP2,JUMP3       ; 08
+                DW TITLE1,TITLE2,TITLE3    ; 09
+
+SEQTABLE        DW SEQ00,SEQ01,SEQ02,SEQ03,SEQ04,SEQ05,SEQ06,SEQ07
+                DW SEQ08,SEQ09,SEQ10,SEQ11,SEQ12,SEQ13,SEQ14,SEQ15
+                DW SEQ16,SEQ17,SEQ18,SEQ19,SEQ20,SEQ21,SEQ22,SEQ23
+                DW SEQ24,SEQ25,SEQ26,SEQ27,SEQ28,SEQ29,SEQ30,SEQ31
+                DW SEQ32,SEQ33,SEQ34,SEQ35,SEQ36,SEQ37,SEQ38,SEQ39
+                DW SEQ40,SEQ41,SEQ42,SEQ43,SEQ44,SEQ45,SEQ46,SEQ47
+                DW SEQ48,SEQ49,SEQ50,SEQ51,SEQ52,SEQ53,SEQ54,SEQ55
+                DW SEQ56,SEQ57,SEQ58,SEQ59,SEQ60,SEQ61,SEQ62,SEQ63
+                DW SEQ64,SEQ65,SEQ66,SEQ67
+                DW OFF68
+
+;***************************************
+
+ALLOFF          DB 68,STOP
+OFF68           DB ADSR,0,REST,2,END
+
+;***************************************
+
+
+NIGHT1          DB TRANSPOSE,12
+                DB 08,08
+                DB TRANSPOSE,-12
+                DB 02
+                DB 03
+                DB TRANSPOSE,12
+                DB 08,08
+                DB 08,08
+                DB REPEAT
+                DW NIGHT1
+
+NIGHT2          DB TRANSPOSE,-12
+                DB 01
+                DB TRANSPOSE,-12
+                DB 09
+                DB TRANSPOSE,00
+                DB 05
+                DB 07,07,07,07
+                DB REPEAT
+                DW NIGHT2
+
+NIGHT3          DB 04
+                DB REPEAT
+                DW NIGHT3
+
+SEQ00
+
+SEQ01           DB ADSR,08
+                DB VIBRATO,1
+                DB G4,12
+                DB A_4,12
+                DB F5,12
+                DB E5,156
+                DB D_5,96
+                DB D5,96
+                DB VIBRATO,0
+                DB END
+
+SEQ02           DB ADSR,7
+                DB VIBRATO,1
+                DB G4,12
+                DB A_4,12
+                DB F5,12
+                DB E5,60
+                DB G4,12
+                DB A_4,12
+                DB D5,12
+                DB C_5,48
+                DB F5,06
+
+                DB G5,12
+                DB REST,90
+                DB A_5,24
+                DB A5,24
+                DB A_5,06
+                DB C6,12
+                DB D6,12
+                DB C6,06
+                DB A_5,12
+                DB VIBRATO,0
+                DB END
+
+SEQ03           DB ADSR,7
+                DB VIBRATO,1
+                DB G3,12
+                DB A_3,12
+                DB F4,12
+                DB E4,156
+                DB E4,48
+                DB F4,48
+                DB F_4,48
+                DB G4,48
+                DB VIBRATO,0
+                DB END
+
+SEQ04           DB ADSR,07
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB F1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB A_1,06
+                DB G1,06
+                DB G1,06
+                DB G1,06
+                DB END
+
+SEQ05           DB ADSR,7
+                DB VIBRATO,1
+                DB G3,12
+                DB A_3,12
+                DB F4,12
+                DB E4,60
+                DB G4,12
+                DB A_4,12
+                DB D5,12
+                DB C_5,60
+
+                DB A4,48
+                DB A_4,48
+                DB B4,48
+                DB C5,48
+                DB VIBRATO,0
+                DB END
+
+SEQ06           DB ADSR,7
+                DB VIBRATO,1
+                DB G4,18
+                DB G4,18
+                DB G4,12
+                DB F4,06
+                DB G4,30
+                DB F4,12
+
+                DB G4,18
+                DB G4,18
+                DB G4,12
+                DB F4,06
+                DB G4,30
+                DB F4,12
+
+                DB G4,18
+                DB G4,18
+                DB G4,12
+                DB F4,06
+                DB G4,30
+                DB F4,12
+
+                DB G4,36
+                DB G4,12
+                DB F4,06
+                DB G4,12
+                DB G4,18
+                DB F4,12
+                DB VIBRATO,0
+                DB END
+
+SEQ07           DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,4,12
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB END
+
+SEQ08           DB ADSR,7
+                DB ARPEG,3
+                DB G3,12
+                DB G3,12
+                DB G3,12
+                DB G3,24
+                DB G3,03
+                DB G3,03
+                DB G3,06
+                DB G3,12
+                DB G3,12
+                DB G3,12
+                DB G3,12
+                DB G3,24
+                DB G3,03
+                DB G3,03
+                DB G3,06
+                DB G3,12
+                DB G3,12
+                DB G3,03
+                DB G3,03
+                DB G3,03
+                DB G3,03
+                DB ARPEG,0
+                DB END
+
+SEQ09           DB ADSR,7
+                DB VIBRATO,1
+                DB REST,03
+                DB G3,12
+                DB A_3,12
+                DB F4,12
+                DB E4,60
+                DB G3,12
+                DB A_3,12-3
+                DB D4,12
+                DB C_4,48
+                DB F4,06
+                DB G4,12+12
+                DB REST,90-12
+
+                DB ADSR,1
+                DB A_3,24
+                DB A3,24
+                DB A_3,06
+                DB C4,12
+                DB D4,12
+                DB C4,06
+                DB A_3,12
+                DB VIBRATO,0
+                DB END
+
+;***************************************
+
+HAHAA1
+                DB 11
+KT              DB TRANSPOSE,00
+                DB 12
+                DB 12
+                DB REPEAT
+                DW KT
+HAHAA2
+                DB TRANSPOSE,00
+                DB 10
+LC              DB TRANSPOSE,0
+                DB 14,14
+                DB REPEAT
+                DW LC
+HAHAA3          DB TRANSPOSE,-12
+                DB 11
+RT              DB TRANSPOSE,0
+                DB 13,13
+                DB REPEAT
+                DW RT
+
+SEQ10           DB ADSR,7
+                DB C3,18
+                DB C3,06
+                DB C3,30
+                DB C3,06
+                DB C3,12
+                DB C3,12
+                DB C3,12
+                DB C_3,18
+                DB C_3,06
+                DB C_3,30
+                DB C_3,06
+                DB C_3,12
+                DB C_3,12
+                DB C_3,12
+                DB C3,18
+                DB C3,06
+                DB C3,30
+                DB C3,06
+                DB C3,12
+                DB C3,12
+                DB C3,12
+                DB C_3,18
+                DB C_3,06
+                DB C_3,30
+                DB C_3,06
+                DB C_3,12
+                DB C_3,12
+                DB C_3,12
+                DB END
+
+SEQ11           DB ADSR,8
+                DB G3,60
+                DB C4,12
+                DB D4,12
+                DB D_4,12
+                DB C_4,60
+                DB F4,12
+                DB C_4,06
+                DB G_3,06
+                DB F4,12
+                DB C4,12
+                DB D4,12
+                DB D_4,12
+                DB G3,24
+                DB C4,12
+                DB D4,12
+                DB D_4,12
+                DB C_4,06
+                DB D_4,06
+                DB F4,48
+                DB C_4,12
+                DB G_3,06
+                DB C_4,06
+                DB F4,12
+                DB END
+
+SEQ12           DB ADSR,7
+                DB ARPEG,5
+                DB E4,18
+                DB E4,06
+                DB E4,30
+                DB E4,06
+                DB E4,12
+                DB E4,24
+                DB ARPEG,6
+                DB D_4,18
+                DB D_4,06
+                DB D_4,30
+                DB D_4,06
+                DB D_4,12
+                DB D_4,24
+                DB ARPEG,7
+                DB D4,18
+                DB D4,06
+                DB D4,30
+                DB D4,06
+                DB D4,12
+                DB D4,24
+                DB ARPEG,8
+                DB C_4,18
+                DB C_4,06
+                DB C_4,30
+                DB C_4,06
+                DB C_4,12
+                DB C_4,24
+                DB ARPEG,7
+                DB C4,18
+                DB C4,06
+                DB C4,30
+                DB C4,06
+                DB C4,12
+                DB C4,24
+                DB ARPEG,9
+                DB B3,18
+                DB B3,06
+                DB B3,30
+                DB B3,06
+                DB B3,12
+                DB B3,24
+                DB ARPEG,10
+                DB B3,18
+                DB B3,06
+                DB B3,30
+                DB B3,06
+                DB B3,12
+                DB B3,24
+                DB B3,18
+                DB B3,06
+                DB B3,30
+                DB B3,06
+                DB B3,12
+                DB B3,24
+                DB ARPEG,0
+                DB END
+
+SEQ13           DB ADSR,07
+                DB E2,18
+                DB E2,06
+                DB E2,30
+                DB E2,06
+                DB E2,12
+                DB E2,24
+                DB D_2,18
+                DB D_2,06
+                DB D_2,30
+                DB D_2,06
+                DB D_2,12
+                DB D_2,24
+                DB D2,18
+                DB D2,06
+                DB D2,30
+                DB D2,06
+                DB D2,12
+                DB D2,24
+                DB C_2,18
+                DB C_2,06
+                DB C_2,30
+                DB C_2,06
+                DB C_2,12
+                DB C_2,24
+                DB C2,18
+                DB C2,06
+                DB C2,30
+                DB C2,06
+                DB C2,12
+                DB C2,24
+                DB B1,18
+                DB B1,06
+                DB B1,30
+                DB B1,06
+                DB B1,12
+                DB B1,24
+                DB A_1,18
+                DB A_1,06
+                DB A_1,30
+                DB A_1,06
+                DB A_1,12
+                DB A_1,24
+                DB B1,18
+                DB B1,06
+                DB B1,30
+                DB D_2,06
+                DB D_2,12
+                DB D_2,24
+                DB END
+
+SEQ14           DB ADSR,08
+                DB VIBRATO,2
+                DB B4,72
+                DB G4,08
+                DB A4,08
+                DB B4,08
+                DB B4,48
+                DB F_4,48
+                DB A4,72
+                DB F_4,08
+                DB G4,08
+                DB A4,08
+                DB A4,48
+                DB E4,48
+                DB G4,72
+                DB E4,08
+                DB F_4,08
+                DB G4,08
+                DB G4,48
+                DB D4,36
+                DB D4,12
+                DB F_4,72
+                DB E4,12
+                DB F_4,12
+                DB E4,32
+                DB F_4,08
+                DB E4,08
+                DB D_4,28
+                DB F_4,04
+                DB G4,04
+                DB G_4,04
+                DB A4,04
+                DB A_4,04
+                DB ADSR,00
+                DB VIBRATO,0
+                DB END
+
+SEQ15           DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB END
+
+SEQ16           DB REST,192
+                DB REST,192
+                DB END
+
+;**************************************
+
+EGYPT1          DB TRANSPOSE,-12
+                DB 18
+                DB TRANSPOSE,-12+5
+                DB 19
+                DB TRANSPOSE,-12
+                DB 22
+                DB REPEAT
+                DW EGYPT1
+
+EGYPT2          DB TRANSPOSE,0
+                DB 17
+                DB 20,20
+                DB 21
+                DB TRANSPOSE,-3
+                DB 21
+                DB REPEAT
+                DW EGYPT2
+
+EGYPT3          DB 23
+                DB REPEAT
+                DW EGYPT3
+
+SEQ17           DB ADSR,0
+                DB REST,24
+                DB ADSR,1
+                DB G_3,06
+                DB A_3,06
+                DB C_4,06
+                DB D_4,06
+                DB G_4,24
+                DB ADSR,5
+                DB ARPEG,3
+                DB G_3,48
+                DB G_3,48
+                DB G_3,48
+                DB ARPEG,0
+                DB ADSR,1
+                DB G_3,06
+                DB A_3,06
+                DB C_4,06
+                DB D_4,06
+                DB G_4,24
+                DB ADSR,5
+                DB ARPEG,3
+                DB G_3,48
+                DB G_3,42
+                DB G_3,06
+                DB G_3,06
+                DB G_4,06
+                DB G_3,12
+                DB ARPEG,0
+                DB END
+
+SEQ18           DB ADSR,08
+                DB VIBRATO,1
+                DB G_4,60
+                DB G_4,12
+                DB F_4,12
+                DB G_4,12
+                DB A4,18
+                DB B4,18
+                DB A4,12
+                DB G_4,18
+                DB F_4,18
+                DB D_4,12
+                DB G_4,60
+                DB G_4,12
+                DB F_4,12
+                DB G_4,12
+                DB A4,18
+                DB B4,18
+                DB A4,12
+                DB G_4,18
+                DB F_4,18
+                DB D_4,12
+                DB END
+
+SEQ19           DB ADSR,8
+                DB G_4,60
+                DB G_4,12
+                DB F_4,12
+                DB G_4,12
+                DB A4,18
+                DB B4,18
+                DB A4,12
+                DB G_4,18
+                DB F_4,18
+                DB D_4,12
+                DB G_4,60
+                DB G_4,12
+                DB F_4,12
+                DB G_4,12
+                DB A4,18
+                DB B4,18
+                DB A4,12
+                DB G_4,18
+                DB A4,18
+                DB B4,12
+                DB END
+
+SEQ20           DB ADSR,1
+                DB C_2,18
+                DB C_2,06
+                DB C_3,06
+                DB C_2,06
+                DB C_3,12
+                DB C_2,18
+                DB C_2,06
+                DB C_3,06
+                DB C_2,06
+                DB C_3,12
+                DB C_2,18
+                DB C_2,06
+                DB C_3,06
+                DB C_2,06
+                DB C_3,12
+                DB C_2,18
+                DB C_2,06
+                DB C_3,06
+                DB C_2,06
+                DB C_3,12
+                DB END
+
+SEQ21           DB ADSR,4
+                DB F_2,06
+                DB F_3,06
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,06
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,06
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,06
+                DB F_2,06
+                DB F_3,12
+                DB F_2,06
+                DB F_3,12
+                DB END
+
+SEQ22           DB ADSR,8
+                DB F_4,60
+                DB F_4,12
+                DB E4,12
+                DB F_4,12
+                DB G4,18
+                DB A4,18
+                DB G4,12
+                DB F_4,18
+                DB E4,18
+                DB C_4,12
+                DB D_4,48
+                DB E4,48
+                DB F4,48
+                DB F_4,48
+                DB END
+
+SEQ23           DB ARPEG,3
+                DB DRUM,3,24
+                DB ARPEG,4
+                DB DRUM,4,24
+                DB ARPEG,3
+                DB DRUM,3,24
+                DB ARPEG,4
+                DB DRUM,4,24
+                DB ARPEG,3
+                DB DRUM,3,24
+                DB ARPEG,4
+                DB DRUM,4,24
+                DB ARPEG,3
+                DB DRUM,3,24
+                DB ARPEG,4
+                DB DRUM,4,24
+                DB ARPEG,0
+                DB END
+
+;***************************************
+
+LELLY1          DB TRANSPOSE,-12
+                DB 24,27,28
+                DB 29
+                DB REPEAT
+                DW LELLY1
+
+LELLY2          DB 26,26,26,26
+                DB 26,26,26,30
+                DB 31,31,31,31
+                DB 31,31,31,31
+                DB 31,31,31,30
+                DB REPEAT
+                DW LELLY2
+
+LELLY3          DB TRANSPOSE,00
+                DB 25
+                DB TRANSPOSE, 3
+                DB 25
+                DB TRANSPOSE, 2
+                DB 25
+                DB TRANSPOSE,1
+                DB 25
+                DB TRANSPOSE,00
+                DB 25
+                DB TRANSPOSE,3
+                DB 25
+                DB TRANSPOSE,2
+                DB 25
+                DB TRANSPOSE,7
+                DB 25
+
+                DB TRANSPOSE,-4
+                DB 25
+                DB TRANSPOSE,-5
+                DB 25
+                DB TRANSPOSE,-9
+                DB 25
+                DB TRANSPOSE,-10
+                DB 25
+                DB TRANSPOSE,-4
+                DB 25
+                DB TRANSPOSE,-5
+                DB 25
+                DB TRANSPOSE,-9
+                DB 25
+                DB TRANSPOSE,-10
+                DB 25
+
+                DB TRANSPOSE,-5
+                DB 25
+                DB TRANSPOSE,-2
+                DB 25
+                DB TRANSPOSE,-6
+                DB 25
+                DB TRANSPOSE,-5
+                DB 25
+
+                DB TRANSPOSE,-05
+                DB 25
+                DB TRANSPOSE,-02
+                DB 25
+                DB TRANSPOSE,-06
+                DB 25
+                DB TRANSPOSE,-05
+                DB 25
+                DB TRANSPOSE,-02
+                DB 25
+                DB TRANSPOSE,-09
+                DB 25
+                DB TRANSPOSE,-10
+                DB 25
+                DB TRANSPOSE,-05
+                DB 25
+                DB TRANSPOSE,-02
+                DB 25
+                DB TRANSPOSE,-09
+                DB 25
+                DB TRANSPOSE,-07
+                DB 25
+                DB REPEAT
+                DW LELLY3
+
+SEQ24           DB ADSR,7
+                DB VIBRATO,3
+                DB D_4,6
+                DB E4,6
+                DB F4,6
+                DB F_4,6
+                DB G4,48
+                DB G4,6
+                DB F_4,6
+                DB F4,6
+                DB E4,6
+                DB D_4,72
+                DB D_4,06
+                DB E4,06
+                DB F4,06
+                DB F_4,06
+                DB D4,72
+                DB D4,06
+                DB D_4,06
+                DB E4,06
+                DB F4,06
+                DB C_4,72
+                DB D_4,06
+                DB E4,06
+                DB F4,06
+                DB F_4,06
+                DB G4,72
+                DB G4,06
+                DB F_4,06
+                DB F4,06
+                DB E4,06
+                DB D_4,72
+                DB D_4,06
+                DB E4,06
+                DB F4,06
+                DB F_4,06
+                DB D4,72
+                DB D4,06
+                DB D_4,06
+                DB E4,06
+                DB F4,06
+                DB G4,96
+                DB END
+
+SEQ25           DB ADSR,9
+                DB C2,12
+                DB C3,06
+                DB C3,06
+                DB C2,12
+                DB C3,06
+                DB C3,06
+                DB C2,12
+                DB C3,06
+                DB C3,06
+                DB C2,12
+                DB C3,06
+                DB C3,06
+                DB END
+
+SEQ26           DB DRUM,3,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB DRUM,4,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB DRUM,3,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB DRUM,4,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB END
+
+SEQ30           DB DRUM,3,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB DRUM,3,12
+                DB DRUM,4,06
+                DB DRUM,7,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,3,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB END
+
+SEQ31           DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB END
+
+SEQ27           DB G_4,24
+                DB D_4,24
+                DB C4,24
+                DB G_4,24
+                DB A4,24
+                DB D4,24
+                DB B3,24
+                DB G3,24
+                DB F4,06
+                DB F_4,06
+                DB G4,24
+                DB A4,12
+                DB A_4,12
+                DB C5,12
+                DB D5,12
+                DB D_5,12
+                DB D5,24
+                DB A4,24
+                DB F_4,24
+                DB D4,24
+                DB G_4,24
+                DB D_4,24
+                DB C4,24
+                DB G_4,24
+                DB A4,24
+                DB D4,24
+                DB B3,24
+                DB G3,24
+                DB F4,06
+                DB F_4,06
+                DB G4,24
+                DB A4,12
+                DB A_4,12
+                DB C5,12
+                DB D5,12
+                DB D_5,12
+                DB D5,48
+                DB F_5,24
+                DB A5,24
+                DB END
+
+SEQ28           DB A_5,72
+                DB A5,12
+                DB A_5,12
+                DB A_5,72
+                DB A5,12
+                DB A_5,12
+                DB C6,36
+                DB A_5,36
+
+                DB D5,24
+                DB A5,36
+                DB G5,36
+                DB D5,24
+                DB END
+
+SEQ29           DB A_5,72
+                DB A5,12
+                DB A_5,12
+                DB A_5,72
+
+                DB A5,12
+                DB A_5,12
+                DB C6,36
+                DB A_5,36
+
+                DB D_6,24
+                DB D6,72
+                DB C6,12
+                DB D6,12
+
+                DB D6,72
+                DB C6,12
+                DB D6,12
+                DB F6,36
+
+                DB D_6,36
+                DB C6,24
+                DB C_6,36
+                DB A5,36
+
+                DB D5,24
+                DB D6,72
+                DB C6,12
+                DB D6,12
+
+                DB D6,72
+                DB C6,12
+                DB D6,12
+                DB D_6,36
+
+                DB F6,36
+                DB G6,24
+                DB A_6,48
+                DB A6,48
+                DB END
+
+;***************************************
+
+COMTU1          DB 32
+                DB TRANSPOSE,-12
+                DB 34
+                DB STOP
+
+COMTU2          DB TRANSPOSE,-07+12
+                DB 32
+                DB TRANSPOSE,-00
+                DB 35
+                DB STOP
+
+COMTU3          DB TRANSPOSE,-10
+                DB 32
+                DB TRANSPOSE,00
+                DB 33
+                DB STOP
+
+SEQ32           DB ADSR,7
+                DB VIBRATO,3
+                DB G3,6
+                DB G_3,6
+                DB A3,6
+                DB A_3,6
+                DB B3,6
+                DB C4,6
+                DB C_4,6
+                DB D4,6
+                DB D_4,6
+                DB E4,6
+                DB F4,7
+                DB G4,7
+                DB G_4,8
+                DB A4,8
+                DB A_4,8
+                DB B4,8
+                DB C5,9
+                DB C_5,9
+                DB D5,9
+                DB D_5,9
+                DB E5,10
+                DB F5,10
+                DB REST,02
+                DB END
+
+SEQ33           DB ADSR,7
+                DB VIBRATO,3
+                DB A2,24+(24/6)
+                DB G_2,24+(24/6)
+                DB F_2,24+(24/6)
+                DB E2,12+(12/6)
+
+                DB A1,12+(12/6)
+                DB E2,24+(24/6)
+                DB D2,24+(24/6)
+                DB C_2,24+(24/6)
+
+                DB C_2,12+(12/6)
+                DB A1,12+(12/6)
+                DB E2,24+(24/6)
+                DB E2,12+(12/6)
+
+                DB A1,12+(12/6)
+                DB F_2,24+(24/6)
+                DB F_2,24+(24/6)
+                DB B1,24+(24/6)
+
+                DB A1,24+(24/6)
+                DB G_1,24+(24/6)
+                DB F_1,24+(24/6)
+                DB A1,24+(24/6)
+
+                DB C_2,24+(24/6)
+                DB D2,24+(24/6)
+                DB C_2,12+(12/6)
+                DB A1,12+(12/6)
+
+                DB B1,24+(24/6)
+                DB E2,24+(24/6)
+                DB A2,24+(24/6)
+                DB G_2,12+(12/6)
+
+                DB A2,12+(12/6)
+                DB B2,24+3+(24/6)
+                DB B2,24+4+(24/6)
+                DB E3,24+5+(24/6)
+
+                DB E3,24+6+(24/6)
+
+                DB D3,24+8+(24/6)
+                DB C_3,12+8+(12/6)
+                DB B2,12+8+(12/6)
+
+                DB A2,48+48+(48/6)
+                DB END
+
+SEQ34           DB ADSR, 7
+                DB VIBRATO,3
+                DB C_5,24+(24/6)
+                DB E5,24+(24/6)
+                DB D5,12+(12/6)
+                DB C_5,12+(12/6)
+
+                DB B4,12+(12/6)
+                DB C_5,12+(12/6)
+                DB B4,24+(24/6)
+                DB F_4,12+(12/6)
+
+                DB A4,12+(12/6)
+                DB G_4,24+(24/6)
+                DB F_5,24+(24/6)
+                DB E5,72+(72/6)
+
+                DB F_5,24+(24/6)
+                DB B4,24+(24/6)
+                DB A4,24+(24/6)
+                DB G_4,24+(24/6)
+
+                DB E5,24+(24/6)
+                DB C_5,36+(36/6)
+                DB A4,12+(12/6)
+                DB D5,12+(12/6)
+
+                DB C_5,12+(12/6)
+                DB B4,12+(12/6)
+                DB C_5,12+(12/6)
+                DB B4,24+(24/6)
+
+                DB G_4,12+(12/6)
+                DB E5,12+(12/6)
+                DB C_5,24+(24/6)
+                DB B4,12+(12/6)
+
+                DB C_5,12+3+(12/6)
+                DB D5,48+9+(48/6)
+                DB E5,48+6+(48/6)
+                DB F_5,24+8+(24/6)
+
+                DB E5,12+8+(12/6)
+                DB D5,12+8+(12/6)
+                DB C_5,48+48+(48/6)
+                DB END
+
+SEQ35           DB ADSR,7
+                DB VIBRATO,3
+                DB C_5,24+(24/6)
+                DB E5,24+(24/6)
+                DB D5,12+(12/6)
+                DB C_5,12+(12/6)
+
+                DB B4,12+(12/6)
+                DB C_5,12+(12/6)
+                DB B4,24+(24/6)
+                DB F_4,12+(12/6)
+
+                DB A4,12+(12/6)
+                DB G_4,24+(24/6)
+                DB F_5,24+(24/6)
+                DB E5,36+(36/6)
+
+                DB A4,12+(12/6)
+                DB D5,12+(12/6)
+                DB C_5,12+(12/6)
+                DB B4,12+(12/6)
+
+                DB C_5,12+(12/6)
+                DB B4,72+(72/6)
+                DB E5,24+(24/6)
+                DB C_5,36+(36/6)
+
+                DB A4,12+(12/6)
+                DB D5,12+(12/6)
+                DB C_5,12+(12/6)
+                DB B4,12+(12/6)
+
+                DB C_5,12+(12/6)
+                DB B4,24+(24/6)
+                DB G_4,12+(12/6)
+                DB E5,12+(12/6)
+
+                DB C_5,24+(24/6)
+                DB B4,12+(12/6)
+                DB C_5,12+(12/6)
+                DB D5,24+(24/6)
+
+                DB A5,12+5+(12/6)
+                DB F_5,12+2+(12/6)
+                DB C_5,24+5+(24/6)
+                DB B4,24+6+(24/6)
+
+                DB A4,24+8+(24/6)
+                DB E4,12+8+(12/6)
+                DB D4,12+8+(12/6)
+                DB C_4,48+48+(48/6)
+                DB END
+
+;***************************************
+
+PIGEON1         DB TRANSPOSE,00
+                DB 37
+                DB TRANSPOSE,01
+                DB 37
+                DB TRANSPOSE,03
+                DB 37
+                DB TRANSPOSE,01
+                DB 37
+                DB TRANSPOSE,00
+                DB 41
+
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+
+                DB TRANSPOSE,00
+                DB 44
+                DB 44
+                DB TRANSPOSE,03
+                DB 44
+                DB 44
+                DB TRANSPOSE,05
+                DB 44
+                DB 44
+                DB TRANSPOSE,03
+                DB 44
+                DB 44
+                DB TRANSPOSE,00
+                DB 44
+                DB 44
+                DB TRANSPOSE,03
+                DB 44
+                DB 44
+                DB TRANSPOSE,05
+                DB 44
+                DB 44
+                DB TRANSPOSE,03
+                DB 44
+                DB 44
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB TRANSPOSE,00
+                DB 42,42
+                DB TRANSPOSE,07
+                DB 42
+                DB TRANSPOSE,05
+                DB 42
+                DB REPEAT
+                DW PIGEON1
+
+PIGEON2         DB TRANSPOSE,0
+                DB 36
+                DB 38
+                DB 38
+                DB TRANSPOSE,-4
+                DB 38
+                DB TRANSPOSE,-4
+                DB 38
+                DB TRANSPOSE,-2
+                DB 38
+                DB TRANSPOSE,-2
+                DB 38
+                DB TRANSPOSE,0
+                DB 38
+                DB TRANSPOSE,02
+                DB 38
+                DB TRANSPOSE,00
+                DB 43
+                DB TRANSPOSE,12
+                DB 45
+                DB TRANSPOSE,12
+                DB 45
+                DB 43
+                DB REPEAT
+                DW PIGEON2
+
+PIGEON3         DB TRANSPOSE,12
+                DB 36
+                DB TRANSPOSE,00
+                DB 40,40,40,40
+                DB 40,40,40,40
+                DB 40,40,40,40
+                DB 40,40,40,40
+                DB 40,40,40,40
+                DB 40,40,40,40
+                DB 40,40,40,40
+                DB REPEAT
+                DW PIGEON3
+
+SEQ36           DB REST,24
+                DB ADSR,7
+                DB Cl,48
+                DB Cl,48
+                DB Cl,48
+                DB Cl,24
+                DB END
+
+SEQ37           DB ADSR,6
+                DB ARPEG,3
+                DB G3,06
+                DB G3,06
+                DB G3,06
+                DB G3,06
+                DB G3,18
+                DB G3,06
+                DB ARPEG,0
+                DB END
+
+SEQ38           DB ADSR,7
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB C2,06
+                DB END
+
+SEQ39           DB REST,192
+                DB REST,192
+                DB END
+
+SEQ40           DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,4,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB END
+
+SEQ41           DB ADSR,7
+                DB VIBRATO,3
+                DB D_4,144
+                DB D4,24
+                DB D_4,24
+                DB D_4,144
+                DB D4,24
+                DB D_4,24
+                DB D4,144
+                DB D_4,24
+                DB D4,24
+                DB C4,72
+                DB C4,06
+                DB D4,06
+                DB D_4,06
+                DB G_4,06
+                DB D4,96
+                DB END
+
+SEQ42           DB ADSR,8
+                DB F1,12
+                DB F1,06
+                DB F1,06
+                DB F2,06
+                DB F1,06
+                DB F1,06
+                DB F1,12
+
+                DB F1,06
+                DB F1,06
+                DB F1,06
+
+                DB F2,06
+
+                DB F1,06
+                DB F1,06
+                DB F1,06
+                DB END
+
+SEQ43
+                DB ADSR,8             ;DER
+                DB VIBRATO,1
+                DB F3,192
+                DB D_4,96
+                DB D4,48
+                DB ARPEG,3
+                DB ADSR,6
+                DB D4,12
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB ARPEG,0
+                DB ADSR,8
+                DB F3,192
+                DB D_4,96
+                DB D4,48
+                DB ARPEG,3
+                DB ADSR,6
+                DB D4,12
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB D4,06
+                DB ARPEG,0
+
+                DB ADSR,8
+                DB F3,192
+                DB D_4,96
+                DB D4,96
+                DB F3,192
+                DB D_4,96
+                DB D4,48
+                DB D_4,48
+                DB VIBRATO,0
+                DB END
+
+SEQ44           DB ADSR,7
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C3,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB C3,6
+                DB C2,6
+                DB C2,6
+                DB C2,6
+                DB END
+
+SEQ45           DB ADSR,8
+                DB VIBRATO,3
+                DB G_3,36
+                DB G3,12
+                DB G3,96
+                DB D_3,24
+                DB F3,24
+                DB G_3,36
+                DB G3,12
+                DB G3,144
+                DB G3,36
+                DB F3,12
+                DB C3,120
+                DB D3,24
+                DB F3,36
+                DB D_3,12
+                DB A_2,144
+                DB VIBRATO,0
+                DB END
+
+;***************************************
+
+HICORE1         DB TRANSPOSE,0
+                DB 48,48,48,48
+                DB TRANSPOSE,-12
+                DB 49,49
+                DB 49,49
+                DB STOP
+HICORE2
+                DB 46,46,46,46,46,46,46,46,46
+                DB STOP
+
+HICORE3
+                DB 47,47,47,47,47,47
+                DB STOP
+
+SEQ46
+                DB ADSR,3
+                DB D_1,36-12
+
+                DB ARPEG,3
+                DB ADSR,5
+                DB D_3,12
+                DB ARPEG,0
+
+                DB ADSR,3
+                DB D_1,12
+                DB D_1,36-12
+
+                DB ARPEG,3
+                DB ADSR,5
+                DB D_3,12
+                DB ARPEG,0
+
+                DB ADSR,3
+                DB D_1,12
+                DB D_1,24
+
+                DB ARPEG,3
+                DB ADSR,5
+                DB D_3,12
+                DB ARPEG,0
+
+                DB ADSR,3
+                DB D_1,24
+                DB D_1,24-12
+
+                DB ARPEG,3
+                DB ADSR,5
+                DB D_3,12
+                DB ARPEG,0
+                DB REST,12
+                DB END
+
+SEQ47           DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,12
+                DB DRUM,3,12
+
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,18
+                DB DRUM,3,18
+
+                DB DRUM,3,12
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+
+                DB DRUM,3,12
+                DB DRUM,3,12
+                DB DRUM,4,36
+                DB DRUM,4,06
+                DB DRUM,4,06
+
+                DB DRUM,4,06
+                DB DRUM,4,12
+                DB DRUM,3,06
+                DB DRUM,4,12
+
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,3,06
+                DB DRUM,4,06
+                DB DRUM,4,12
+                DB END
+
+SEQ48           DB REST,12
+                DB ADSR,4
+                DB ARPEG,3
+                DB G_4,12
+                DB D_5,12
+                DB G_4,12
+                DB G_5,12
+                DB G_4,12
+                DB D_5,12
+                DB G_4,12
+                DB ARPEG,0
+                DB END
+
+SEQ49
+                DB ADSR,8
+                DB VIBRATO,2
+                DB C5,6
+                DB C_5,6
+                DB C5,6
+                DB G_4,6
+                DB D_4,86
+
+                DB ADSR,5
+
+                DB ARPEG,3
+
+                DB C_5,12
+                DB C5,12
+                DB G_4,12
+                DB D_4,12
+                DB G_4,12
+                DB C5,12
+                DB A_4,12
+
+                DB ARPEG,0
+
+                DB ADSR,8
+
+                DB A_4,6
+                DB B4,6
+                DB A_4,6
+                DB F_4,6
+                DB C_4,82
+
+                DB ADSR,5
+
+                DB ARPEG,3
+
+                DB B4,12
+                DB A_4,12
+                DB G_4,12
+                DB C_5,12
+                DB C5,12
+                DB A_4,12
+                DB G_4,12
+
+                DB ARPEG,0
+
+                DB END
+
+;***************************************
+
+JUMP1           DB TRANSPOSE,00
+                DB 50,50
+                DB 52
+                DB TRANSPOSE,03
+                DB 52
+                DB REPEAT
+                DW JUMP1
+
+JUMP2           DB TRANSPOSE,00
+                DB 51,51,51,51
+                DB 51,51
+                DB TRANSPOSE,03
+                DB 51
+                DB TRANSPOSE,03
+                DB 51
+                DB REPEAT
+                DW JUMP2
+
+JUMP3           DB 53
+                DB REPEAT
+                DW JUMP3
+
+SEQ50           DB ADSR,7
+                DB ARPEG,3
+                DB G3,60
+                DB G3,12
+                DB A3,12
+                DB G3,12
+                DB F_3,24
+                DB C_4,72
+                DB G_3,60
+                DB G_3,12
+                DB A_3,12
+                DB G_3,12
+                DB G3,24+72
+                ;DB D4,72
+                DB ARPEG,0
+                DB END
+
+SEQ51           DB ADSR,8
+                DB Cl,12
+                DB Cl,12
+                DB C2,12
+                DB C2,12
+
+                DB Cl,12
+                DB Cl,12
+                DB C2,12
+                DB C2,12
+
+                DB Cl,12
+                DB Cl,12
+                DB C2,12
+                DB C2,12
+
+                DB Cl,12
+                DB Cl,12
+                DB C2,12
+                DB C2,12
+                DB END
+
+SEQ52           DB ADSR,7
+                DB ARPEG,12
+                DB G4,48
+                DB D_4,18
+                DB F4,24
+                DB F_4,06
+                DB G4,48
+                DB D_4,18
+                DB F4,24
+                DB F_4,06
+                DB G4,48
+                DB D_4,18
+                DB F4,24
+                DB F_4,06
+                DB G4,48
+                DB D_4,06
+                DB F4,06
+                DB F_4,06
+
+                DB G4,06
+                DB D_4,06
+                DB F4,06
+                DB F_4,06
+                DB G4,06
+                DB ARPEG,0
+                DB END
+SEQ53
+                DB DRUM,3,24
+                DB DRUM,4,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,4,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB DRUM,3,24
+                DB DRUM,4,30
+                DB DRUM,3,06
+                DB DRUM,3,12
+                DB DRUM,4,12
+                DB DRUM,7,06
+                DB DRUM,7,06
+                DB END
+
+;***************************************
+
+TITLE1          DB 65,65,65,65
+TIT1            DB 54,54,54,54
+                DB 54,54,55
+                DB 54,54,55
+                DB TRANSPOSE,-3
+                DB 54
+                DB TRANSPOSE,-3
+                DB 54
+                DB TRANSPOSE,-7
+                DB 54
+                DB TRANSPOSE,-5
+                DB 54
+                DB TRANSPOSE,-3
+                DB 54
+                DB TRANSPOSE,-3
+                DB 54
+                DB TRANSPOSE,-7
+                DB 54
+                DB TRANSPOSE,-5
+                DB 54
+                DB 59,59
+                DB TRANSPOSE,+5
+                DB 59
+                DB TRANSPOSE,+5
+                DB 59
+                DB TRANSPOSE,+7
+                DB 59
+                DB TRANSPOSE,+8
+                DB 59
+                DB TRANSPOSE,+9
+                DB 59
+                DB TRANSPOSE,+10
+                DB 59
+                DB TRANSPOSE,-3
+                DB 54
+                DB TRANSPOSE,-2
+                DB 54
+                DB TRANSPOSE,-8
+                DB 54
+                DB TRANSPOSE,00
+                DB 61
+                DB 62
+                DB REPEAT
+                DW TIT1
+
+TITLE2          DB 54,54,54,54
+TIT2            DB 56
+                DB 57
+                DB 57
+                DB 58,60
+                DB 63
+                DB REPEAT
+                DW TIT2
+
+TITLE3          DB 66,66,66,67
+TIT3            DB 23,23,23,64,23,64
+                DB 23,23,23,23,23,23,23,23
+                DB 23
+                DB REPEAT
+                DW TIT3
+
+;***************************************
+
+SEQ54           DB ADSR,6
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+                DB END
+SEQ55
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB Cl,06
+                DB Cl,06
+                DB C2,06
+                DB C2,06
+
+                DB G_1,06
+                DB G_1,06
+                DB G_2,06
+                DB G_2,06
+
+                DB G_1,06
+                DB G_1,06
+                DB G_2,06
+                DB G_2,06
+
+                DB A_1,06
+                DB A_1,06
+                DB A_2,06
+                DB A_2,06
+
+                DB A_1,06
+                DB A_1,06
+                DB A_2,06
+                DB A_2,06
+                DB END
+
+SEQ56           DB ADSR,7
+                DB ARPEG,13
+                DB G3,60
+                DB G3,6
+                DB G3,6
+                DB G3,6
+                DB G3,18
+                DB F3,48
+                DB F3,24
+                DB F3,24
+                DB ARPEG,14
+                DB A3,60
+                DB A3,06
+                DB A3,06
+                DB A3,06
+                DB A3,18
+                DB ARPEG,15
+                DB G_3,48
+                DB G_3,24
+                DB G_3,24
+                DB ARPEG,0
+                DB END
+
+SEQ57           DB DRUM,3,12
+                DB ADSR,8
+                DB VIBRATO,2
+                DB F4,12
+                DB E4,12
+                DB C4,12
+                DB G3,12
+                DB C4,12
+                DB E4,12
+                DB D4,84
+
+                DB E4,6
+                DB F4,6
+                DB E4,6
+                DB C4,6
+                DB G3,12
+
+                DB F4,12
+                DB E4,12
+                DB C4,12
+                DB F3,12
+                DB A3,12
+                DB C4,24
+                DB ARPEG,3
+                DB ADSR,6
+                DB D_3,06             ;CHORDS
+                DB D_3,06
+                DB D_3,06
+                DB D_3,06
+                DB D_3,18
+                DB D_3,06
+                DB D3,06
+                DB D3,06
+                DB D3,06
+                DB D3,06
+                DB D3,24
+                DB ARPEG,0
+                DB END
+
+SEQ58           DB ADSR,8
+                DB VIBRATO,2
+                DB C4,01
+                DB C_4,01
+                DB D4,01
+                DB D_4,02
+                DB E4,48-05
+                DB A3,96
+                DB A3,18
+                DB B3,18
+                DB C4,12
+                DB D4,144
+                DB C4,18
+                DB B3,18
+                DB A3,6
+                DB A_3,6
+                DB B3,24
+                DB A3,12
+                DB E3,108
+                DB A3,18
+                DB B3,18
+                DB C4,12
+                DB E4,96
+                DB D4,60
+                DB C4,18
+                DB B3,18
+                DB END
+
+SEQ59           DB ADSR,7
+                DB F_1,12
+                DB F_2,06
+                DB F_1,12
+                DB F_1,06
+                DB F_2,12
+                DB END
+
+SEQ60           DB ADSR,7
+                DB VIBRATO,2
+                DB A3,54
+                DB E3,06
+                DB A3,06
+                DB B3,06
+                DB C4,06
+                DB A3,06
+                DB B3,06
+                DB C4,06
+                DB E4,36
+                DB E4,06
+                DB D_4,6
+                DB D4,36
+                DB D4,06
+                DB D_4,6
+                DB E4,36
+                DB D_4,06
+                DB E4,06
+                DB F_4,36
+                DB E4,06
+                DB F_4,06
+                DB G4,36
+                DB F_4,06
+                DB G4,06
+                DB G_4,48
+                DB END
+
+SEQ61           DB ADSR,5
+                DB El,6
+                DB El,6
+                DB E2,6
+                DB E2,6
+                DB El,6
+                DB El,6
+                DB E2,12
+                DB C2,12
+                DB C2,12
+                DB D2,24
+                DB END
+
+SEQ62           DB ADSR,5
+                DB E2,84
+                DB E2,06
+                DB E2,06
+                DB D_2,48
+                DB D_2,06
+                DB D_2,06
+                DB D_2,12
+                DB D2,24
+                DB END
+
+SEQ63           DB ADSR,8
+                DB E4,78
+                DB C4,06
+                DB C_4,06
+                DB D4,06
+                DB E4,78
+                DB C4,06
+                DB C_4,06
+                DB D4,06
+                DB E4,84
+                DB E4,24
+                DB E4,12
+                DB E4,24
+                DB ADSR,5
+                DB ARPEG,3
+                DB C3,06
+                DB C3,06
+                DB C3,12
+                DB D3,06
+                DB D3,06
+                DB D3,12
+                DB E3,84
+                DB E3,06
+                DB E3,06
+                DB D_3,48
+                DB D_3,06
+                DB D_3,06
+                DB D_3,12
+                DB D3,06
+                DB D3,06
+                DB D3,06
+                DB D3,06
+                DB ARPEG,0
+                DB END
+
+SEQ64           DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,24
+                DB DRUM,4,24
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB DRUM,3,12
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB END
+
+SEQ65
+                DB ADSR,8
+                DB Cl,24
+                DB Cl,24
+                DB Cl,24
+                DB Cl,24
+                DB END
+
+SEQ66           DB ADSR,4
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB C2,06
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB C2,06
+                DB END
+
+SEQ67           DB DRUM,3,06
+                DB ADSR,4
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB DRUM,3,06
+                DB ADSR,4
+                DB C2,06
+                DB C2,06
+                DB C3,06
+                DB DRUM,3,06
+                DB DRUM,3,06
+                DB ADSR,4
+                DB C2,06
+                DB C3,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB DRUM,4,06
+                DB END
+
+;****************************************************************************
+;** END OF MUSIC FILE                                                      **
+;****************************************************************************
+
+MUSICEND
+                ;ENDIF
+
+

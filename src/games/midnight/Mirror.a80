@@ -1,0 +1,299 @@
+;****************************************************************************
+;** MENU AND CHEAT ROUTINES                                                **
+;****************************************************************************
+
+                IF MUSICALSO=0
+
+                ;ORG MENUSTART
+
+;**************************************
+;** CHEATS FOR OCEAN’S GAMES TESTERS **
+;**************************************
+
+RJO             LD (POL+1),HL
+YYU             LD A,30:LD (TIM1+1),A
+TIM1            LD A,30:DEC A:LD (TIM1+1),A:JP Z,HEREW
+                EI:HALT:CALL KEYS
+POL             LD HL,0:LD A,(HL):INC A:JR Z,GOTCHEAT
+                INC C:CP C:JR NZ,TIM1:INC HL:LD (POL+1),HL:JR YYU
+GOTCHEAT        LD A,7:OUT (254),A:EI:HALT:XOR A:OUT (254),A
+                INC HL:JP (HL)
+
+CHEAT1          DB "I AM AN OCEAN GAMES TESTER",$FF
+                CALL SPRINT:DB PRINK,7,PRCLS,PRSIZE,1
+                DB PRAT,10,11,"HELLO....CHEAT",PRPAUSE,PRCLS
+                DB PRINK,#45,PRAT,06,00,"MIDNIGHT  RESISTANCE"
+                DB PRINK,#46,PRAT,08,04,"OCEAN CHEAT MODE"
+                DB PRAT,08,08,"1 INFINITE LIVES"
+                DB PRAT,08,10,"2 INFINITE  AMMO"
+                DB PRAT,08,12,"3 WEAPON  SELECT"
+                DB PRAT,08,14,"4 KILLER   SPACE",PRINK,#45
+                DB PRAT,08,18,"0 EXIT     CHEAT",PRINK,#44
+                DB PRAT,05,22,"CHEATS DON'T USE DRUGS",PREOF
+INFLOOP         LD A,(INFLIVES):LD HL,$5800+(08*32)+8:CALL SHOWLIGHT
+                LD A,(INFAMMO):LD HL,$5800+(10*32)+8:CALL SHOWLIGHT
+                LD A,(WEPSELECT):LD HL,$5800+(12*32)+8:CALL SHOWLIGHT
+                LD A,(SPACEBARCHEAT):LD HL,$5800+(14*32)+8:CALL SHOWLIGHT
+SHWLOP          LD A,$EF:IN A,(254):RRA :RET NC
+                LD C,0
+                LD A,$F7:IN A,(254):RRA :JR NC,SHW1
+                INC C:RRA :JR NC,SHW1
+                INC C:RRA :JR NC,SHW1
+                INC C:RRA :JR C,SHWLOP
+SHW1            LD HL,INFLIVES:ADD HL,BC:LD A,(HL):CPL:LD (HL),A
+                CALL WAITNOKEY:JR INFLOOP
+
+SHOWLIGHT       LD DE,16:LD B,E:OR A:LD A,#42:JR Z,SHOWLIGINV
+                LD A,#56
+SHOWLIGINV      LD (HL),A:INC L:DJNZ SHOWLIGINV:LD B,E:ADD HL,DE
+SHOWLIGIN1      LD (HL),A:INC L:DJNZ SHOWLIGIN1:RET
+
+CHEAT2          DB "WE WANT TO HEAR MUSIC",$FF
+                CALL SPRINT:DB PRINK,7,PRCLS,PRSIZE,1
+                DB PRINK,#45,PRAT,06,00,"MIDNIGHT  RESISTANCE"
+                DB PRINK,#46
+                DB PRAT,06,03,"0.QUIET...  5.COMTU..."
+                DB PRAT,06,05,"1.NIGHT...  6.PIGEON.."
+                DB PRAT,06,07,"2.HAHAA...  7.HISCORE."
+                DB PRAT,06,09,"3.EGYPT...  8.JUMP...."
+                DB PRAT,06,11,"4.LELLY...  9.TITLE..."
+                DB PRINK,#44
+                DB PRAT,11,22,"Q.QUIT....",PRSIZE,0,PREOF
+
+                LD A,1:LD (MUSCONT+1),A
+
+MUSLOOP         CALL KEYS:CP "Q":JR Z,XITEM
+                CP "0":JR C,MUSLOOP:CP "9"+1:JR NC,MUSLOOP
+                SUB "0":CALL PLAYMUSIC:JR MUSLOOP
+XITEM           XOR A:JP PLAYMUSIC
+CHEAT3          DB "HELLO JIMMY BAGLEY",$FF
+                CALL SPRINT:DB PRINK,7,PRCLS,PRSIZE,1
+                DB PRAT,11,10,"HELLO JIM.",PRPAUSE,PREOF
+                LD HL,HELLOS:LD (MASSAGE+1),HL:RET
+
+;**************************************
+
+;RETURNS C=ASCI VAL OF KEY PRES/NC
+;NO KEY CARRY SET
+
+KEYS            CALL KEYFET:LD A,C:RET
+
+KEYFET          XOR A:LD (KEYV),A:LD L,0:LD DE,5:LD B,8:LD C,254
+KF1             LD A,C:IN A,(254):AND 31:CP 31:PUSH BC:CALL NZ,KPRESD1
+                POP BC:ADD HL,DE:RLC C:DJNZ KF1:LD A,(KEYV)
+                LD C,A:OR A:JR Z,NKY:LD HL,MKEYTABL
+NSHF            LD A,C:ADD A,L:LD L,A:JR NC,JJ:INC H
+JJ              LD C,(HL):LD A,C:OR A:RET
+NKY             SCF :RET
+KPRESD1         OR %11100000:LD H,L:LD B,5
+KPRESD          SRL A:JR NC,KP1:INC H:DJNZ KPRESD:RET
+KP2             LD A,C:INC H:JR KPRESD
+KP1             LD C,A:LD A,H:CP $24:JR Z,KP2:OR A:JR Z,KP2
+                LD (KEYV),A:RET
+KEYV            DB 0
+CSH             EQU 0
+EN              EQU 13
+SSH             EQU 0
+MKEYTABL        DB CSH, "ZXCVASDFGQWERT"
+                DB "1234509876POIUY"
+                DB EN, "LKJH ",SSH,"MNB"
+
+;***************************************
+
+GOMENU          DI:LD A,$3F:LD I,A:XOR A:LD R,A:OUT (254),A
+                CALL INTER
+
+MENU            CALL SPRINT
+                DB PRINK,#46,PRINK2,#47
+                DB PRCLS,PRSIZE,1,PRAT,06,00,"MIDNIGHT  RESISTANCE"
+                DB PRAT,11,03,"1 KEYBOARD"
+                DB PRAT,11,05,"2 KEMPSTON"
+                DB PRAT,11,07,"3 SINCLAIR"
+                DB PRAT,11,09,"4 CURSOR  "
+                DB PRAT,11,11,"5 REDEFINE"
+                DB PRAT,04,14,"WINNERS DON'T USE DRUGS.",PRSIZE,0
+                DB PREOF
+
+                CALL RESETSCROLL
+OPTDELBOY       EI:HALT:LD A,(POS):INC A:LD (POS),A
+                CALL FLD:CALL SCROLL
+                LD A,%11110111:IN A,(254):LD C,A
+                RR C:JR NC,OPT1
+                RR C:JR NC,OPT2
+                RR C:JR NC,OPT3
+                RR C:JR NC,OPT4
+                RR C:JR NC,OPT5
+                JP OPTDELBOY
+
+OPT1            XOR A:LD (READKEYS+1),A:RET
+OPT2            LD A,1:LD (READKEYS+1),A:RET
+OPT3            LD A,2:LD (READKEYS+1),A:RET
+OPT4            LD A,3:LD (READKEYS+1),A:RET
+OPT5            CALL REDEFINE:JP MENU
+
+;***************************************
+
+REDEFINE        LD IX,XTRAKEYS:CALL SPRINT
+                DB PRINK,#46,PRINK2,#47,PRCLS,PRSIZE,1
+                DB PRAT,08,02,"PRESS KEY FOR :-"
+                DB PRINK,#45,PRINK2,#44
+                DB PRAT,10,06,"HOLD       ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRAT,10,08,"FIRE PACK  ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRAT,10,10,"FIRE GUN   ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRAT,10,12,"UP         ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRAT,10,14,"DOWN       ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRAT,10,16,"LEFT       ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRAT,10,18,"RIGHT      ",PREOF
+                CALL GETDEF:CALL SPRINT
+                DB PRINK,#46,PRINK2,#47
+                DB PRAT,08,22,"KEYS OK ?  (Y/N)",PREOF
+                CALL WAITNOKEY:CALL WAITKEY
+
+HEREW           CALL KEYS:JR C,HEREW
+                LD A,C:CP "N":JP Z,REDEFINE
+                LD A,C:CP "Y":RET Z
+                LD HL,CHEAT1:LD A,(HL):CP C:JP Z,RJO
+                LD HL,CHEAT2:LD A,(HL):CP C:JP Z,RJO
+                LD HL,CHEAT3:LD A,(HL):CP C:JP Z,RJO
+                JR HEREW
+
+GETDEF          CALL WAITNOKEY:CALL WAITKEY: LD C,%01111111
+GDCLP           LD B, %00001
+GDBLP           LD A,C:IN A,(254):AND B:JR Z,GOT
+                RLC B:BIT 5,B:JR Z,GDBLP:RRC C:JR C,GDCLP:JR GETDEF
+GOT             LD (IX+00),C:INC IX:LD (IX+00),B:INC IX
+                PUSH BC:PUSH DE:CALL KEYS
+                LD A,C:POP DE:POP BC:CALL PRTCELL
+                JP WAITNOKEY
+
+;****************************************************************************
+
+BIGAD           EQU $5020
+SMALLAD         EQU $5B00
+
+FLD             LD IX,FLDTAB:LD DE,BIGAD
+                LD HL,SMALLAD:LD C,6
+FLDCLP          LD A,(IX+00):INC IX:OR A:JR Z,PAMBY:LD B,A
+FLDBLP          PUSH HL:PUSH DE:PUSH BC
+                LD BC,32:LDIR:POP BC:POP DE:POP HL
+                CALL PIXDNDE:DJNZ FLDBLP
+PAMBY           LD A,L:ADD A,32:LD L,A
+                DEC C:JP NZ,FLDCLP
+                LD B,5
+CLR             PUSH DE:PUSH BC:LD HL,$4000:LD BC,32:LDIR
+                POP BC:POP DE:CALL PIXDNDE:DJNZ CLR
+
+                LD HL,FLDTAB+6:LD DE,FLDTAB+7:LD BC,7:LDDR
+
+FLDCNT          LD A,0:INC A:LD (FLDCNT+1),A
+HANDY           LD A,(FLDCNT+1)
+                RRA:RRA:RRA:RRA
+                AND %1100
+                LD C,A:LD B,0:LD HL,FLIDS:ADD HL,BC
+                LD C,(HL):INC HL:LD B,(HL):INC HL:LD (FLIDDY),BC
+                LD A,(FLDCNT+1)
+FLIDDY          RRA:RRA:AND 15:LD C,A:LD B,0
+                LD HL,FLDS:ADD HL,BC:LD A,(HL):LD (DE),A:RET
+
+FLIDS           RRA:RRA:RRA:NOP:RRA:NOP:NOP:NOP
+                NOP:NOP:RRA:NOP:RRA:NOP:RRA:RRA
+
+FLDTAB          DS 8,0
+LETTER          DS 8,0
+
+FLDS            DB 1,1,1,2,3,4,5,6,6,5,4,3,2,1,1,1
+
+RESETSCROLL     XOR A:LD (FLDCNT+1),A
+                LD HL,FLDTAB:LD DE,FLDTAB+1:LD BC,7+8:LD (HL),A:LDIR
+                LD HL,SMALLAD:LD DE,SMALLAD+1:LD BC,255:LD (HL),A:LDIR
+                LD A,7:LD (SCROLL+1),A
+MASSAGE         LD HL,MESSAGE:LD (MESSADDR+1),HL
+                LD HL,MESSAGE:LD (MASSAGE+1),HL:RET
+
+SCROLL          LD A,7:INC A:AND 7:LD (SCROLL+1),A:JR NZ,NOLETTER
+MESSADDR        LD HL,MESSAGE:LD A,(HL):INC HL:LD (MESSADDR+1),HL
+                CP 255:JR NZ,NOTEOF
+                LD HL,MESSAGE:LD (MESSADDR+1),HL:JR MESSADDR
+NOTEOF          OR 128:LD L,A:LD H,7
+                ADD HL,HL:ADD HL,HL:ADD HL,HL
+                LD DE,LETTER:LD BC,8:LDIR
+
+                LD HL,LETTER:LD A,(HL):LD (HL),0
+                INC HL:OR (HL):LD (HL),A
+                LD HL,LETTER+7:LD A,(HL):DEC HL:OR (HL):LD (HL),A
+
+NOLETTER        LD HL,SMALLAD+$1F:LD DE,LETTER+1:LD C,6
+LETCLP          EX DE,HL:RL (HL):EX DE,HL:LD B,32
+LETBLP          RL (HL):DEC L:DJNZ LETBLP
+                INC DE:LD A,L:ADD A,32+32:LD L,A
+                DEC C:JP NZ,LETCLP:RET
+
+MESSAGE         DB "SPECIAL FX PRESENTS 'MIDNIGHT RESISTANCE'...   "
+                DB "CODE BY JIMMY BAGLEY...   "
+                DB "GRAFIX BY CHAS DAVIES...   "
+                DB "MUSIC BY KEITH TINMAN...   "
+                DB "ALL CODE, GRAPHICS AND MUSIC...   "
+                DB 127,"'90 OCEAN SOFTWARE...   "
+                DB "                               ",255
+
+HELLOS          DB "HELLO FIRST OF ALL TO JIMMY AND JACQUI...   "
+                DB "MUM,   "
+                DB "PAT AND NIGE, CRAIG, DONNA,   "
+                DB "DAVE AND CAROLE AND KIDS,   "
+                DB "KATHY AND JOHN AND FAMILY,   "
+                DB "CHRIS WEBSTER, LEE, NIBS,   "
+                DB "DAVE WORTON,  PAUL GRIFFITHS,  CHRIS WORTON,   "
+                DB "                               ",255
+EOF
+
+;****************************************************************************
+;** SET UP PAGES WITH SPRITES + ROUTINES FOR OTHER LEVELS                  **
+;****************************************************************************
+
+SETUPPAGES      DI:LD A,$3F:LD I,A:XOR A:LD R,A:OUT (254),A
+                LD SP,THESTACK
+                CALL INTER:XOR A:CALL PLAYMUSIC
+
+                LD A,R:LD (RND1),A:DB #10,#FE
+                LD A,R:LD (RND2),A:DB #10,#FE
+                LD A,R:LD (RND3),A
+
+                LD A,STARTLEV-1:LD DE,LLDATLEN:LD HL,LLDAT:CALL MULT
+                LD A,(HL):INC HL:LD H,(HL):LD L,0
+                LD DE,LEVELDATA:LD BC,$2000:ds 3;CALL CAGE
+
+                LD A,AUTO:OR A:JP NZ,REENTRY
+
+                DI:LD A,$3F:LD I,A
+                XOR A:LD R,A:OUT (254),A
+                IM 1:EI
+STOPNOW         INC A:AND 7:OUT (254),A:JP STOPNOW
+
+CAGE
+                ex de,hl
+                ld lx,a
+                ld hx,0
+                di
+                call copypage
+                ei
+                ret
+                ;PUSH DE:EXX :POP HL:LD D,A:LD E,$10:LD BC,$7FFD:EXX
+                DI:LD A,$3F
+                ;LD I,A
+BCCOPYPAGE      EXX:OUT (C),E:LD A,(HL):INC HL
+                OUT (C),D:EXX:LD (HL),A:INC HL
+                DEC BC:LD A,B:OR C:JP NZ,BCCOPYPAGE
+                EXX:OUT (C),E:EXX:LD A,$FE:LD I,A:EI:RET
+
+;****************************************************************************
+;** END OF FILE                                                            **
+;****************************************************************************
+
+ENDOFBACK
+                ENDIF

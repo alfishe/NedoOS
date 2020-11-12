@@ -1,0 +1,819 @@
+;*****************************************************************************
+;** LEVEL 4 STUFF (DATA, SPRITES AND PROGRAMMING)                           **
+;*****************************************************************************
+
+;                IF STARTLEV=4
+
+                PHASE LEVELDATA
+
+LEVEL4DATA      DB $20,$40+FLOROF     ; HERO X,Y
+                DB $00                ; MAPX
+                DB $10                ; MAPY
+                DB 0                  ; 0=SCROLL L/R - l=SCROLL U/D
+                DB $DE,$00            ; WEAPON ROOM X,Y INIT
+                DW $48D8              ; DOOR XY
+                DB $DE,$10            ; RIGHTMAX,DOWNMAX
+                DB $AE,$00            ; SETUD,SETLR
+                DW FLOOR4             ; FLOOR BLOCKS
+                DW WALL4              ; WALL BLOCKS
+                DB $17,$FF            ; LADDER BLOCKS - $16,$17 - $FF,$FF
+                DB $FF                ; CRAWL ON BLOCK
+                DB $2B,$29            ; SLIDE UP
+                DB $04,$0D            ; SLIDE DOWN
+                DW LEV4BADX,LEV4BADX2 ; LEVEL BADDY INITS X,EXTRA X
+                DW LEV4BADY           ; LEVEL BADDY INITS Y
+                DW L4CHRS             ; CHRS
+                DW L4ATRS             ; ATRS
+                DW L4BLOX             ; BLOX
+                DW L4MAPX             ; MAPX
+                DW L4MAPY             ; MAPY
+                DB 128                ; MAPXMAXSIZE
+
+                CALL PRTPLANES
+                CALL PRTWATER:CALL L4PRTTANK:RET
+                JP RESETLEV4BAD
+                JP SMODWATER
+WAPTABLE4       DB $02,3,$03,3,$04,3,$06,3,$09,3,$0A,2
+                JP KILLPLANE          ; KILL BIG
+                JP INITTANK4          ; INIT BIG 1
+                JP INITPLANES         ; INIT BIG 2
+                JP INITWATER          ; INIT BIG 3
+                JP RETURN             ; INIT BIG 4
+
+;**************************************
+
+RESETLEV4BAD    XOR A:LD (ISBIGON),A
+                LD (PRTWATER+1),A:LD (PRTPLANES+1),A
+                LD (L4PRTTANK+1),A
+                LD HL,L4TANKATRS1:LD (TANKATRS+1),HL
+                LD HL,L4KILLTANK:LD (KILLBIG+1),HL
+                LD HL,L4TANKTURRET1:LD (TUR1),HL
+                LD HL,L4TANKTURRET2:LD (TUR2),HL
+                LD HL,L4TANKTURRET3:LD (TUR3),HL
+
+                RET
+
+;**************************************
+
+FLOOR4          DB 3+2+3+2+3+1+1+1+2+2+3
+                DB #01,#02,#15
+                DB #04,#0D
+                DB #06,#07,#0C
+                DB #2B,#29
+                DB #11,#08,#09
+                DB #0E
+                DB #10
+                DB #0B
+                DB #1C,#1D
+                DB #18,#19
+                DB #1B,#1A,#14
+WALL4           DB 1
+                DB #FF
+
+;**************************************
+
+LEV4BADX        DB $04,$FD,$00             ; WATER
+                DB $0E,$01,$44,KEY         ; BADDY
+                DB $18,$01,$54,KEY         ; BADDY
+                DB $20,$01,$54,KEY         ; BADDY
+                DB $28,$01,$64,KEY         ; BADDY
+                DB $30,$01,$54,KEY         ; BADDY
+                DB $3C,$01,$64,KEY         ; BADDY
+                DB $40,$FF,$28             ; TANK
+                DB $50,$01,$54,KEY         ; BADDY
+                DB $54,$FD,$01             ; WATER
+                DB $64,$01,$64,KEY         ; BADDY
+                DB $8C,$FF,$28             ; TANK
+                DB $90,$FD,$02             ; WATER
+                DB $A4,$01,$64,KEY         ; BADDY
+                DB $A8,$01,$64,KEY         ; BADDY
+                DB $AA,$05,$E0,$68         ; TANK TOP
+                DB $FF,$FF                 ; END OF DATA
+LEV4BADY        DB $06,$FB,$06             ; SCROLL
+                DB $00,$FE                 ; PLANES
+                DB $FF,$FF                 ; END OF DATA
+LEV4BADX2       DB $FF,$FF                 ; END OF DATA
+
+;****************************************************************************
+;** PRT PLANES ON SCREEN                                                   **
+;****************************************************************************
+
+SMODWATER       LD A,(PRTWATER+1):OR A:RET Z
+                LD A,(WATERX+1):ADD A,L:LD (WATERX+1),A:CP $E8:RET C
+                XOR A:LD (PRTWATER+1),A:RET
+
+INITWATER       CALL GETDATA:LD (WATERNUM+1),A
+                LD A,1:LD (PRTWATER+1),A: LD (FISHON+1),A
+                LD DE,$00E8:LD (WATERX+1),DE
+                LD A,63:LD (FISHY+1),A
+                RET
+
+PRTWATER        LD A,1:OR A: RET Z
+                LD A,(POS):AND 3:JR Z, FISHON
+                LD DE,128:LD HL,WATERSPR-128:CALL MULT
+WATERX          LD DE,$0088
+WATERNUM        LD A,2:OR A:JR Z,WATER1
+WATER2          CALL WATER:CALL WATER:CALL WATER
+                LD A,D:ADD A,$18:LD D,A:LD A,L:ADD A,$20:LD L,A
+                ADC A,H:SUB L:LD H,A:LD BC,$0404:CALL BAXIT:JP FISHON
+WATER1          CALL WATER:CALL WATER:LD BC,$0408:CALL WATER+3
+                LD A,D:ADD A,$08:LD D,A:LD A,L:ADD A,$20:LD L,A
+                ADC A,H:SUB L:LD H,A:LD BC,$040C:CALL BAXIT
+FISHON          LD A,0:OR A:RET Z
+FISHY           LD A,63:DEC A:AND 31:LD (FISHY+1),A:RRA:CP 4:RET NC
+                LD HL,FISHSPR:LD DE,1+2+16+2:CALL MULT
+                LD A,(WATERX+1):ADD A,8:LD E,A:LD D,(HL):INC HL
+                PUSH DE:CALL BAXITA:POP DE:LD IX,FISHON-1:LD BC,$0810
+                CALL ISBULINBOX:LD A,(FISHON+1):OR A:RET NZ
+                LD A,(LIVES):INC A:LD (LIVES),A:RET
+
+WATER           LD BC,$0410:PUSH HL:PUSH DE:CALL BAXIT:POP DE:POP HL
+                LD A,D:ADD A,$20:LD D,A:RET
+
+FISHSPR
+                DB $30,1,2*8
+                DB #08,#00,#08,#00,#02,#80,#E2,#F7,#7F,#3E,#18,#18,#18,#92,#44,#39
+                DB #47,#47
+
+                DB $28,1,2*8
+                DB #40,#61,#73,#3F,#1E,#1C,#39,#78,#FC,#FC,#FE,#FE,#DA,#7A,#34,#00
+                DB #47,#47
+
+                DB $20,1,2*8
+                DB #10,#42,#E6,#7E,#3C,#18,#38,#3C,#1E,#3F,#7F,#D6,#F6,#54,#28,#00
+                DB #47,#47
+
+                DB $20,1,2*8
+                DB #5C,#82,#B9,#7D,#55,#74,#2A,#01,#0A,#04,#A3,#81,#A8,#36,#67,#42
+                DB #47,#45
+
+WATERSPR
+                DB #FB,#16,#A8,#93,#07,#1D,#5B,#F5,#FA,#63,#6D,#27,#07,#26,#16,#FC
+                DB #FA,#1A,#B5,#03,#41,#9A,#29,#F4,#E8,#2D,#56,#00,#00,#4D,#AD,#30
+                DB #00,#D2,#10,#01,#03,#02,#55,#C2,#E1,#20,#40,#07,#05,#10,#29,#A0
+                DB #62,#4A,#A3,#07,#03,#A9,#54,#C2,#04,#54,#00,#10,#20,#40,#A5,#04
+                DB #00,#CA,#42,#20,#10,#68,#24,#02,#C0,#A3,#20,#01,#23,#92,#C1,#F0
+                DB #FA,#68,#A9,#47,#07,#D6,#36,#FD,#FE,#27,#5B,#0F,#0F,#12,#42,#FC
+                DB #EA,#AD,#30,#9F,#5F,#69,#44,#FF,#FB,#06,#4C,#1F,#4F,#A4,#96,#FF
+                DB #FF,#B0,#B4,#0F,#27,#D1,#99,#FF,#ED,#29,#D4,#17,#53,#A8,#56,#F6
+
+                DB #FB,#AD,#30,#81,#05,#6A,#44,#F5,#FA,#06,#4D,#01,#0B,#A4,#96,#FC
+                DB #FA,#B0,#B5,#03,#21,#D0,#99,#F4,#E8,#29,#D4,#00,#00,#A8,#16,#30
+                DB #01,#56,#AA,#01,#03,#1C,#2B,#C1,#E0,#A3,#6D,#07,#85,#26,#86,#A0
+                DB #60,#4A,#B5,#07,#03,#9A,#19,#C2,#00,#8D,#56,#80,#40,#4D,#AD,#00
+                DB #00,#52,#14,#00,#00,#06,#D5,#00,#C1,#20,#42,#81,#03,#11,#29,#F1
+                DB #F8,#0A,#A3,#87,#27,#A9,#94,#FC,#FE,#14,#00,#8F,#4F,#40,#25,#FC
+                DB #EA,#0A,#42,#9F,#1F,#68,#04,#FF,#FB,#A3,#20,#1F,#1F,#92,#81,#FF
+                DB #FF,#A8,#A9,#8F,#8F,#D6,#36,#FF,#EE,#67,#5C,#CF,#4F,#16,#C2,#F6
+
+                DB #FB,#2A,#42,#87,#47,#68,#24,#F5,#FA,#33,#20,#0F,#07,#92,#11,#FC
+                DB #FA,#28,#A9,#13,#01,#D6,#36,#F4,#E8,#67,#5C,#20,#00,#16,#42,#32
+                DB #00,#AD,#30,#09,#03,#6A,#44,#C5,#E1,#86,#4D,#07,#85,#A4,#96,#B2
+                DB #62,#30,#B5,#07,#03,#D0,#19,#C1,#05,#29,#D4,#00,#40,#A8,#96,#00
+                DB #02,#D6,#A8,#20,#00,#1D,#5B,#00,#C2,#23,#6C,#91,#03,#26,#56,#F1
+                DB #F8,#1A,#B4,#87,#C7,#99,#49,#FC,#FE,#6D,#54,#8F,#0F,#4D,#AD,#FC
+                DB #EA,#92,#10,#9F,#DF,#02,#15,#FF,#FB,#20,#40,#5F,#0F,#10,#29,#FF
+                DB #FF,#8A,#A3,#A7,#93,#A9,#14,#FF,#EE,#54,#00,#9B,#0B,#40,#A5,#F4
+
+;***************************************
+
+INITPLANES      LD HL,PLANESB:LD DE,PLANES:LD BC,10*4:LDIR
+                LD HL,TRAINSB:LD DE,TRAINS:LD BC,10*3:LDIR
+                LD A,10:LD (PLANENUM),A
+                XOR A:LD (CNTP+1),A
+                INC A:LD (NOSCROLL+1),A:LD (PRTPLANES+1),A
+                LD A, (PLANESB+3):LD (BIGHITS),A
+                LD HL,KILLPLANE:LD (KILLBIG+1),HL
+                LD A,8:JP PLAYMUSIC
+
+GOSMALLPLANES   LD A,(POS):AND 1:LD DE,6:LD HL,TRAILSPR:CALL MULT
+                LD (TRAILAD+1),HL
+                LD IY,PLANES:LD IX,TRAINS:LD B,10
+TRAINBLP        PUSH BC:LD A,(IY+03):OR A:JR Z,SKPTRAIN
+                LD A,(IX+00):ADD A,(IX+02):LD (IX+00),A:LD E,A
+                LD D,(IX+01):LD HL,SMALLPLANESPR
+                LD BC,$0208:LD A,(IX+02):OR A:JP P,RIT
+LIT             PUSH DE:CALL MASKCXB:POP DE
+                LD A,E:ADD A,$10:LD E,A:LD A,D:ADD A,$07:LD D,A
+TRAILAD         LD HL,0:LD BC,$0301:CALL MASKCXB:JR SKPTRAIN
+RIT             PUSH DE:CALL MASKCXBMIR:POP DE
+                LD A,E:SUB $18:LD E,A:LD A,D:ADD A,$07:LD D,A
+                LD HL,(TRAILAD+1):LD BC,$0301:CALL MASKCXB
+SKPTRAIN        POP BC:LD DE,3:ADD IX,DE:INC E:ADD IY,DE:DJNZ TRAINBLP
+CNTP            LD A,0:INC A:AND 31:LD (CNTP+1),A:JP Z,CHBLB
+                XOR A:LD (ISBIGON),A:RET
+
+PRTPLANES       LD A,1:OR A:RET Z:LD (NOSCROLL+1),A
+                CALL PRTSMOKE
+                LD A,(PLANENUM):CP 10:JP Z,GOSMALLPLANES
+                LD IX,PLANES:LD B,10
+PRTPLANEBLP     PUSH BC:LD A,(IX+03):OR A:JP Z,SKPPLANE
+                LD A,(IX+02):OR A:JP Z,SKPPLANE
+                OR A:JP P,PLANERIGHT
+PLANELEFT       LD E,(IX+00):LD D,(IX+01):PUSH DE
+                PUSH DE:LD HL,PLANEATR:LD BC,$0705:CALL BAXATR:POP DE
+                PUSH DE:LD A,D:ADD A,$08:LD D,A:LD HL,PLANETIP
+                LD BC,$0308:CALL MASKCXB:POP DE
+                LD A,E:ADD A,$18:LD E,A:PUSH DE:LD HL,PLANETOP
+                LD BC,$0404:CALL MASKCXB:POP DE
+                LD A,D:ADD A,8:LD D,A:PUSH DE:LD HL,PLANEMID
+                LD BC,$040C:CALL BAXIT:POP DE
+                LD A,E:ADD A,8:LD E,A:LD A,D:ADD A,$18:LD D,A
+                LD HL,PLANEBOT:LD BC,$0304:CALL BAXIT
+                POP DE:LD A,E:ADD A,$28:LD E,A
+                CP $18:JR NC,TRYSMOKE:JR MOVEPLANE
+
+PLANERIGHT      LD E,(IX+00):LD D,(IX+01):PUSH DE
+                PUSH DE:LD HL,PLANEATRMIR:LD BC,$0705:CALL BAXATR:POP DE
+                PUSH DE:LD HL,PLANETOP:LD BC,$0404:CALL MASKCXBMIR:POP DE
+
+                LD A,D:ADD A,8:LD D,A:PUSH DE:LD HL,PLANEMID
+                LD BC,$040C:CALL BAXITMIR:POP DE
+
+                PUSH DE:LD A,D:ADD A,$18:LD D,A:LD HL,PLANEBOT
+                LD BC,$0304:CALL BAXITMIR:POP DE
+
+                LD A,E:ADD A,$20:LD E,A:LD HL,PLANETIP
+                LD BC,$0308:CALL MASKCXBMIR
+
+                POP DE
+
+TRYSMOKE        LD A,E:AND $08:JR NZ,MOVEPLANE
+                LD IY,SMOKES:LD B,8
+TRYSBLP         LD A,(IY+02):CP 6:JR NC,GOTSMOKE:INC IY:INC IY:INC IY
+                DJNZ TRYSBLP:JR MOVEPLANE
+GOTSMOKE        LD A,E:LD (IY+00),A:LD A,D:LD (IY+01),A:LD (IY+02),0
+MOVEPLANE
+
+DROP            LD A,0:OR A:JR NZ,NAMI
+
+                LD A,(IX+02):ADD A,A:ADD A,A:ADD A,A
+                ADD A,(IX+00):ADD A,$10:LD E,A:LD D,$07
+                LD A,(HEROX+1):ADD A,8:LD L,A:LD H,$0F
+                CALL HITA:JR NC,NUMI
+
+                LD A,(IX+00):ADD A,$10:LD E,A
+                CALL HITA:JR C,NAMI
+                LD A,8:JR AMK
+
+NUMI            LD A,(IX+00):ADD A,$10:LD E,A
+                LD A,(IX+02):OR A:LD A,6:JP P,AMK:LD A,10
+AMK             LD (DROP+1),A:LD D,(IX+01):LD B,4
+                PUSH IX:CALL INITMIS:POP IX
+NAMI
+                LD A,(IX+00):ADD A,(IX+02):LD (IX+00),A
+                AND $F0:CP $E0:JR Z,NEXTPLANE
+                LD L,(IX+00):LD H,$38:LD (BIGX1),HL
+                LD L,(IX+01):LD H,$18:LD (BIGY1),HL
+                LD A,1:LD (ISBIGON),A:JR SKPPLANE
+
+NEXTPLANE       LD A,(IX+00):ADD A,(IX+02):LD (IX+00),A
+                LD (IX+02),0:CALL CHANGEPLANE
+SKPPLANE        POP BC:LD DE,4:ADD IX,DE:DEC B:JP NZ,PRTPLANEBLP:RET
+
+KILLPLANE       LD A,(PLANENUM):LD DE,4:LD HL,PLANES+3:CALL MULT
+                XOR A:LD (HL),A:DEC HL:LD (HL),A:LD (ISBIGON),A
+                DEC HL:LD D,(HL):DEC HL:LD E,(HL):PUSH IX
+                PUSH DE:LD A,E:ADD A,$20:LD E,A:CALL INITEXPNORND:POP DE
+                PUSH DE:LD A,D:ADD A,$18:LD D,A:CALL INITEXPNORND:POP DE
+                CALL INITEXPNORND:POP IX
+
+CHANGEPLANE     LD A,(BIGHITS):LD (IX+03),A
+CHBLB           LD B,10
+CHBL            LD A,(PLANENUM):INC A:CP 11:JR C,CHPL:XOR A
+CHPL            LD (PLANENUM),A:LD C,A:CP 10:JR Z,NOBION
+                LD HL,PLANES+3:LD DE,4:CALL MULT
+                LD A,(HL):OR A:JR NZ,SHBL:DJNZ CHBL
+KILPLAN         XOR A:LD (NOSCROLL+1),A:LD (PRTPLANES+1),A:RET
+SHBL            LD (BIGHITS),A:DEC HL:LD A,C:CPL :AND 1
+                ADD A,A:ADD A,A:ADD A,A:ADD A,A
+                SUB 8
+;                ADD A,A:SUB 16
+                LD (HL),A
+                XOR A:LD (DROP+1),A:RET
+NOBION          XOR A:LD (ISBIGON),A:LD (CNTP+1),A
+                LD HL,PLANES+3:LD DE,4:LD B,10
+NALD            LD A,(HL):OR A:RET NZ:ADD HL,DE:DJNZ NALD:JR KILPLAN
+PRTSMOKE        LD IX,SMOKES:LD B,8
+PRTSMOKEBLP     LD A,(IX+02):CP 6:JR NC,NOSMOKE
+                LD HL,SMOKECLOUD:LD DE,$40:CALL MULT
+                PUSH BC:LD E,(IX+00):LD D,(IX+01)
+                PUSH HL:PUSH DE:LD BC,$0208:CALL MASKCXB:POP DE:POP HL
+                LD A,D:ADD A,$18:LD D,A:LD BC,$0208:CALL MASKCXB
+                POP BC:LD A,(POS):AND 1:JR NZ,NOSMOKE:INC (IX+02)
+NOSMOKE         LD DE,3:ADD IX,DE:DJNZ PRTSMOKEBLP:RET
+
+SMOKES          DS 8*3,$FF
+
+TRAINS          DS 10*3,0
+TRAINSB         DB $F0,$10,-8
+                DB $00,$18,08
+                DB $E8,$20,-8
+                DB $08,$28,08
+                DB $E0,$30,-8
+                DB $10,$38,08
+                DB $E8,$40,-8
+                DB $08,$48,08
+                DB $F0,$50,-8
+                DB $00,$58,08
+
+PLANENUM        DB 0
+PLANES          DS 10*4,0
+PLANESB         DW $08E8,$1008
+                DW $10E0,$1000
+                DW $20E8,$1000
+                DW $10E0,$1000
+                DW $20E8,$1000
+                DW $10E0,$1000
+                DW $08E8,$1000
+                DW $10E0,$1000
+                DW $20E8,$1000
+                DW $10E0,$1000
+
+PLANETIP
+                DB #FF,#00,#FF,#00,#81,#00,#00,#7E,#FE,#00,#FF,#00,#FF,#00,#04,#01
+                DB #00,#81,#00,#60,#00,#FA,#F8,#00,#E0,#07,#00,#04,#00,#40,#00,#00
+                DB #00,#F4,#C0,#18,#80,#27,#00,#F4,#00,#00,#00,#00,#00,#FA,#00,#57
+                DB #00,#4A,#00,#FD,#00,#81,#00,#7E,#00,#54,#80,#21,#C0,#18,#00,#0A
+                DB #00,#81,#00,#54,#00,#00,#E0,#06,#F8,#01,#00,#E0,#00,#00,#00,#00
+                DB #00,#1F,#FE,#00,#FF,#00,#E0,#00,#00,#FF,#00,#00,#FF,#00,#FF,#00
+PLANETOP
+                DB #FF,#00,#FF,#00,#00,#7B,#03,#7C,#01,#82,#00,#84,#FE,#00,#FF,#00
+                DB #E0,#00,#00,#01,#00,#53,#01,#3A,#01,#62,#00,#A7,#00,#FF,#C0,#1F
+                DB #80,#20,#00,#00,#00,#0F,#00,#1D,#00,#5D,#00,#9F,#00,#2F,#00,#4F
+                DB #00,#55,#00,#2A,#00,#3F,#00,#7D,#00,#4D,#00,#7F,#00,#00,#80,#00
+PLANEMID
+                DB #40,#00,#FF,#1D,#02,#7E,#9E,#9C,#24,#9F,#FC,#7D,#01,#F8,#4F,#AA
+                DB #54,#00,#01,#F9,#05,#F0,#FF,#41,#40,#00,#00,#01,#02,#03,#00,#B4
+                DB #75,#FF,#F4,#FD,#01,#03,#00,#E8,#D0,#20,#07,#79,#01,#CF,#4F,#C2
+                DB #64,#9F,#9F,#31,#05,#3F,#9F,#3C,#19,#3E,#7F,#01,#02,#FF,#3C,#89
+                DB #40,#00,#00,#1D,#DD,#FF,#2F,#8F,#95,#2A,#AA,#BD,#0D,#00,#00,#80
+                DB #C0,#00,#00,#1D,#C1,#FF,#FF,#47,#40,#00,#3F,#E1,#E1,#1F,#FF,#3F
+PLANEBOT
+                DB #40,#8F,#F2,#F1,#47,#80,#9A,#23,#F9,#F9,#11,#8D,#8E,#0C,#05,#FD,#03,#98,#C0,#80,#03,#FE,#7F,#7F
+
+PLANEATR
+                DB #00,#00,#00,#05,#05,#07,#05
+                DB #47,#47,#07,#07,#07,#07,#06
+                DB #47,#47,#07,#07,#07,#07,#06
+                DB #00,#00,#00,#45,#45,#45,#05
+                DB #00,#00,#00,#00,#05,#45,#45
+PLANEATRMIR
+                DB #05,#07,#05,#05,#00,#00,#00
+                DB #06,#07,#07,#07,#07,#47,#47
+                DB #06,#07,#07,#07,#07,#47,#47
+                DB #05,#45,#45,#45,#00,#00,#00
+                DB #45,#45,#05,#00,#00,#00,#00
+
+SMALLPLANESPR
+                DB #FF,#00,#E7,#00,#C3,#18,#FF,#00,#FF,#00,#01,#24,#00,#E6,#FA,#00
+                DB #F0,#05,#01,#04,#00,#02,#E0,#02,#80,#1C,#01,#04,#00,#02,#00,#60
+                DB #00,#1C,#00,#02,#01,#04,#E0,#02,#F8,#01,#00,#02,#01,#04,#F0,#05
+                DB #F8,#00,#00,#82,#01,#74,#FF,#00,#FF,#00,#81,#1C,#E3,#00,#FF,#00
+
+SMOKECLOUD
+                DB #FF,#00,#FF,#00,#FF,#00,#F6,#00,#E0,#09,#5F,#00,#07,#A0,#C0,#13
+                DB #E0,#07,#03,#D8,#07,#F0,#C0,#03,#80,#2E,#03,#28,#01,#9C,#C0,#0D
+                DB #C0,#1A,#03,#D8,#01,#5C,#C0,#19,#C0,#14,#03,#B0,#03,#68,#E0,#0A
+                DB #F0,#04,#01,#D4,#2B,#00,#E0,#0B,#F4,#00,#FF,#00,#FF,#00,#FF,#00
+
+                DB #B7,#00,#E5,#00,#40,#1A,#01,#48,#A0,#16,#01,#BC,#03,#28,#C0,#03
+                DB #80,#10,#01,#1C,#00,#AE,#00,#59,#80,#32,#00,#C6,#01,#6C,#80,#24
+                DB #00,#54,#03,#A0,#01,#2C,#80,#32,#80,#29,#00,#4E,#01,#1C,#C0,#18
+                DB #80,#04,#01,#24,#03,#58,#00,#57,#A8,#02,#27,#80,#7F,#00,#FD,#00
+
+                DB #D9,#00,#E3,#00,#81,#1C,#88,#26,#80,#13,#00,#4A,#01,#24,#04,#40
+                DB #8F,#20,#00,#0A,#00,#C2,#82,#30,#03,#64,#00,#22,#C1,#14,#03,#48
+                DB #83,#00,#E3,#00,#D1,#00,#81,#24,#08,#62,#80,#22,#01,#4C,#1D,#40
+                DB #88,#34,#80,#02,#01,#28,#C0,#0F,#80,#26,#07,#60,#9F,#00,#D9,#00
+
+                DB #E9,#00,#F3,#00,#E1,#0C,#C0,#16,#80,#21,#40,#02,#81,#20,#80,#10
+                DB #00,#46,#C1,#1A,#E1,#0C,#81,#0C,#83,#20,#F1,#04,#E3,#08,#8F,#20
+                DB #C7,#10,#F7,#00,#F5,#00,#C3,#08,#83,#28,#E0,#0A,#C1,#00,#C1,#0C
+                DB #C1,#14,#81,#34,#00,#62,#83,#38,#C0,#16,#81,#28,#D7,#00,#E9,#00
+
+                DB #AF,#00,#BF,#00,#17,#40,#07,#50,#8F,#20,#A3,#08,#D1,#04,#DF,#00
+                DB #EF,#00,#89,#20,#D8,#02,#C7,#10,#CF,#00,#FD,#00,#F8,#02,#8F,#20
+                DB #DF,#00,#F1,#04,#F9,#00,#EF,#00,#C7,#10,#F8,#02,#FD,#00,#CF,#00
+                DB #8F,#20,#EB,#00,#C1,#14,#D7,#00,#E3,#08,#E3,#08,#F7,#00,#F7,#00
+
+                DB #DF,#00,#F7,#00,#E3,#08,#8F,#20,#DF,#00,#F7,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FD,#00,#F8,#02,#BF,#00,#1F,#40,#FD,#00,#FF,#00,#BF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FD,#00,#FF,#00
+                DB #BF,#00,#F8,#02,#F9,#00,#1F,#40,#8F,#20,#F1,#04,#FB,#00,#DF,#00
+
+TRAILSPR
+                DB #2E,#FB,#B0
+                DB #DC,#6D,#17
+
+                DB #D5,#6F,#E8
+                DB #F5,#B7,#2B
+
+;****************************************************************************
+;** PRT TANK                                                               **
+;****************************************************************************
+
+L4KILLTANK      XOR A:LD (NOSCROLL+1), A: LD (L4PRTTANK+1),A
+                LD (ISBIGON),A:PUSH BC:PUSH IX
+                LD DE,(L4TANKX+1):LD A,D:ADD A,$10:LD D,A
+                PUSH DE:LD A,E:ADD A,$10:LD E,A:CALL INITEXPNORND:POP DE
+                PUSH DE:LD A,D:ADD A,$20:LD D,A:CALL INITEXPNORND:POP DE
+                LD A,E:ADD A,$20:LD E,A:CALL INITEXPNORND
+                POP IX:POP BC:RET
+
+L4CHTD          LD A,(L4TANKD+1):NEG :LD (L4TANKD+1),A:JR L4GTNK
+
+INITTANK4       LD A,1:LD (L4PRTTANK+1),A:LD A,-4:LD (L4TANKD+1),A
+                LD A,$20:LD (BIGHITS),A:LD A,13:LD (L4TNM+1),A
+                CALL GETDATA:LD D,A:LD E,$D8:LD (L4TANKX+1),DE:RET
+
+L4PRTTANK       LD A,0:OR A:RET Z
+                LD (ISBIGON),A:LD (NOSCROLL+1),A
+
+L4TANKX         LD DE,$FFFF:LD A,E
+L4TANKD         ADD A,0:CP $D8:JP NC,L4CHTD:CP $70:JP C,L4CHTD
+                LD E,A: LD (L4TANKX+1),DE
+L4GTNK
+                LD A,(POS):AND $13:JR NZ,L4TANKZ
+
+                LD DE,(L4TANKX+1):LD A,E:ADD A,$18:LD E,A
+                PUSH DE:LD A,D:ADD A,$18:LD D,A
+                LD A,(HEROX+2):ADD A,$10:CP D:LD L,13:JR C,L4FHU
+                SUB $10:CP D:LD L,12:JR C,L4FHU:LD L,11
+L4FHU           LD A,L:LD (L4TNM+1),A:POP DE:LD A,D:ADD A,$08:LD D,A
+                LD A,L:LD B,4:CALL INITBAL
+
+L4TANKZ         LD DE,(L4TANKX+1)
+                LD A,3*4:LD (PRTSPRBLP-1),A
+                PUSH DE:LD A,E:ADD A,$10:LD E,A:PUSH DE
+L4TNM           LD A,0:SUB 12:NEG :INC A:LD DE,192
+                LD HL,L4TANKTURRET1:CALL MULT:POP DE:CALL NC,PRTSPR:POP DE
+
+                PUSH DE:LD A,E:ADD A,$10:LD E,A:LD HL,L4TANKATRS1
+                LD BC,$0403:CALL BAXATR:POP DE
+                LD A,D:ADD A,$18:LD D,A:PUSH DE:LD HL,L4TANKATRS2
+                LD BC,$0904:CALL BAXATR:POP DE
+
+                PUSH DE:LD A,E:ADD A,$18:LD E,A:LD HL,L4TANKMID2
+                LD BC,$0308:CALL NC,BAXIT:POP DE
+
+                PUSH DE:LD HL,L4TANKMID1
+                LD BC,$0308:CALL MASKCXB:POP DE
+
+                PUSH DE:LD A,E:ADD A,$30:LD E,A:LD HL,L4TANKMID1
+                LD BC,$0308:CALL NC,MASKCXBMIR:POP DE
+                LD A,D:ADD A,$0F:LD D,A
+                PUSH DE:CALL L4PRTWHEEL:POP DE
+                LD A,E:ADD A,$18:LD E,A:JR C,L4FKJ
+                PUSH DE:CALL L4PRTWHEEL:POP DE
+                LD A,E:ADD A,$18:LD E,A:JR C,L4FKJ
+L4PRTWHEEL      LD A,(POS):AND 2:LD HL,L4TANKWHEEL1:JR Z,L4WEEL
+                LD HL,L4TANKWHEEL2
+L4WEEL          PUSH DE:LD BC,$0304:CALL BAXIT:EX DE,HL:POP DE
+                LD A,D:ADD A,8:LD D,A:LD BC,$0308:CALL MASKCXB
+L4FKJ           LD A,(L4TANKX+1):ADD 16:LD L,A:LD H,31:LD (BIGX1),HL
+                LD HL,(L4TANKX+2):LD H,$37:LD (BIGY1),HL:RET
+
+L4TANKMID1
+                DB #FF,#00,#FF,#00,#00,#01,#00,#7E,#FC,#00,#FF,#00,#FF,#00,#E0,#03
+                DB #00,#80,#00,#60,#00,#1C,#FF,#00,#FC,#00,#00,#E3,#00,#80,#00,#80
+                DB #00,#1F,#F8,#03,#F0,#04,#00,#7C,#00,#60,#00,#F6,#00,#63,#E0,#09
+                DB #E0,#0B,#00,#1F,#00,#86,#00,#4E,#00,#FC,#C0,#12,#C0,#16,#00,#E3
+                DB #00,#BC,#00,#6A,#00,#1F,#80,#25,#80,#2C,#00,#F5,#00,#7C,#00,#6A
+                DB #00,#AB,#00,#43,#00,#7D,#00,#55,#00,#74,#00,#00,#00,#00,#00,#40
+L4TANKMID2
+                DB #C4,#00,#46,#01,#00,#00,#1F,#FF,#FE,#00,#00,#00,#1F,#FF,#FE,#56
+                DB #6B,#3D,#7F,#FF,#FE,#46,#20,#55,#80,#64,#CC,#C6,#60,#00,#27,#66
+                DB #CC,#FC,#FF,#53,#25,#5A,#A8,#54,#F5,#53,#25,#5A,#A8,#00,#00,#00
+L4TANKWHEEL1
+                DB #00,#00,#00,#FC,#FF,#3F,#7F,#FF,#FE,#0E,#00,#70,#70,#36,#0E,#8E,#80,#74,#7A,#00,#1E,#2C,#2A,#30
+                DB #C0,#00,#00,#81,#03,#00,#01,#14,#00,#2A,#80,#20,#80,#21,#00,#76
+                DB #01,#84,#00,#02,#00,#7F,#00,#40,#00,#41,#00,#3E,#00,#82,#00,#02
+                DB #00,#6D,#00,#40,#00,#41,#00,#56,#00,#82,#00,#02,#00,#81,#00,#40
+                DB #80,#20,#00,#2A,#01,#04,#01,#04,#00,#00,#80,#20,#C0,#10,#00,#00
+                DB #03,#08,#07,#10,#00,#00,#E0,#08,#F0,#06,#00,#00,#0F,#60,#1F,#80
+                DB #00,#81,#F8,#01,#FE,#00,#00,#7E,#7F,#00,#FF,#00,#81,#00,#FF,#00
+L4TANKWHEEL2
+                DB #00,#00,#00,#FC,#FF,#3F,#7F,#FF,#FE,#0E,#00,#70,#70,#36,#0E,#8E,#B6,#74,#7A,#B6,#9E,#AC,#80,#32
+                DB #E0,#02,#00,#00,#07,#20,#03,#28,#00,#2A,#C0,#10,#80,#20,#00,#80
+                DB #01,#0C,#01,#94,#00,#3C,#80,#21,#00,#40,#00,#5A,#00,#02,#00,#42
+                DB #00,#BD,#00,#42,#00,#40,#00,#BD,#00,#02,#00,#42,#00,#5A,#00,#42
+                DB #00,#40,#00,#24,#00,#82,#00,#02,#00,#01,#00,#41,#80,#20,#00,#54
+                DB #01,#04,#01,#04,#00,#00,#80,#20,#C0,#18,#00,#00,#03,#18,#07,#E0
+                DB #00,#00,#E0,#07,#F8,#00,#00,#FF,#1F,#00,#FF,#00,#00,#00,#FF,#00
+L4TANKTURRET1
+                DB #FF,#00,#C0,#00,#83,#00,#83,#00,#01,#7C,#00,#7C,#80,#3F,#FF,#00
+                DB #FF,#00,#80,#21,#00,#83,#00,#86,#00,#12,#00,#79,#80,#2E,#FF,#00
+                DB #FF,#00,#00,#4E,#00,#E4,#00,#8A,#00,#0A,#00,#06,#00,#5C,#FF,#00
+                DB #FF,#00,#00,#58,#00,#66,#00,#2A,#00,#CA,#00,#0D,#00,#00,#C0,#00
+                DB #80,#3F,#00,#98,#00,#39,#00,#E2,#00,#E2,#00,#03,#00,#CB,#00,#5F
+                DB #00,#5F,#00,#99,#00,#C7,#01,#B4,#01,#14,#00,#DF,#00,#0B,#00,#55
+                DB #00,#4A,#00,#18,#00,#6E,#00,#32,#00,#52,#00,#BC,#00,#0B,#00,#50
+                DB #00,#40,#00,#18,#00,#58,#00,#22,#00,#0A,#00,#20,#00,#88,#80,#3F
+                DB #C0,#00,#00,#18,#00,#00,#00,#52,#00,#22,#00,#FE,#00,#58,#FF,#00
+                DB #FF,#00,#00,#58,#00,#FF,#01,#04,#01,#0C,#00,#83,#00,#5A,#FF,#00
+                DB #FF,#00,#00,#58,#00,#9B,#00,#72,#00,#0A,#00,#AB,#00,#42,#FF,#00
+                DB #FF,#00,#00,#7C,#00,#9B,#00,#76,#09,#00,#00,#00,#80,#00,#FF,#00
+L4TANKTURRET2
+                DB #FF,#00,#81,#00,#83,#00,#83,#00,#01,#7C,#00,#7C,#00,#7E,#FF,#00
+                DB #FF,#00,#00,#43,#00,#83,#00,#86,#00,#12,#00,#79,#00,#59,#FF,#00
+                DB #FF,#00,#00,#5C,#00,#E4,#00,#8A,#00,#0A,#00,#06,#00,#4C,#FF,#00
+                DB #FF,#00,#00,#4E,#00,#26,#00,#2A,#00,#CA,#00,#0D,#00,#10,#C0,#00
+                DB #80,#3F,#00,#D6,#00,#39,#00,#E2,#00,#E2,#00,#43,#00,#E2,#00,#6F
+                DB #00,#47,#00,#F6,#00,#67,#01,#B4,#01,#94,#00,#77,#00,#42,#00,#45
+                DB #00,#46,#00,#86,#00,#1B,#00,#32,#00,#52,#00,#6F,#00,#02,#00,#44
+                DB #00,#68,#00,#06,#00,#16,#00,#22,#00,#0A,#00,#08,#00,#C2,#80,#3F
+                DB #C0,#00,#00,#06,#00,#00,#00,#52,#00,#22,#00,#FE,#00,#56,#FF,#00
+                DB #FF,#00,#00,#56,#00,#FF,#01,#04,#01,#0C,#00,#83,#00,#56,#FF,#00
+                DB #FF,#00,#00,#56,#00,#9B,#00,#72,#00,#0A,#00,#AB,#00,#60,#FF,#00
+                DB #FF,#00,#80,#3E,#00,#9B,#00,#76,#09,#00,#00,#00,#C0,#00,#FF,#00
+L4TANKTURRET3
+                DB #FF,#00,#01,#00,#83,#00,#83,#00,#01,#7C,#00,#7C,#00,#FE,#FE,#00
+                DB #FE,#00,#00,#83,#00,#83,#00,#86,#00,#12,#00,#79,#00,#B9,#FE,#00
+                DB #FE,#00,#00,#9E,#00,#24,#00,#8A,#00,#0A,#00,#86,#00,#A7,#FE,#00
+                DB #FE,#00,#00,#99,#00,#C6,#00,#2A,#00,#CA,#00,#0D,#00,#06,#E0,#00
+                DB #C0,#1F,#00,#E2,#00,#D9,#00,#E2,#00,#E2,#00,#43,#00,#F2,#80,#33
+                DB #80,#21,#00,#F8,#00,#C3,#01,#F4,#01,#D4,#00,#5B,#00,#50,#80,#21
+                DB #80,#21,#00,#A0,#00,#DD,#00,#B2,#00,#92,#00,#47,#00,#00,#80,#21
+                DB #80,#32,#00,#00,#00,#D3,#00,#22,#00,#0A,#00,#48,#00,#F0,#C0,#1F
+                DB #E0,#00,#00,#00,#00,#00,#00,#52,#00,#22,#00,#FE,#00,#82,#FE,#00
+                DB #FE,#00,#00,#82,#00,#FF,#01,#04,#01,#0C,#00,#83,#00,#B2,#FE,#00
+                DB #FE,#00,#00,#8E,#00,#9B,#00,#72,#00,#0A,#00,#AB,#00,#E0,#FE,#00
+                DB #FF,#00,#00,#3E,#00,#9B,#00,#76,#09,#00,#00,#00,#C0,#00,#FF,#00
+L4TANKATRS1
+                DB #00,#44,#45,#45
+                DB #44,#04,#45,#45
+                DB #00,#04,#04,#45
+
+                DB #45,#45,#44,#00
+                DB #45,#45,#04,#44
+                DB #45,#04,#04,#00
+L4TANKATRS2
+                DB #00,#00,#07,#44,#44,#44,#07,#00,#00
+                DB #00,#07,#07,#04,#04,#04,#07,#07,#00
+                DB #05,#05,#05,#05,#05,#05,#05,#05,#05
+                DB #00,#46,#00,#00,#46,#00,#00,#46,#00
+LEVEL4END
+
+;*****************************************
+
+L4CHRS
+                DB #55,#2B,#82,#45,#A0,#50,#B2,#71,#FF,#FF,#FF,#D7,#AB,#15,#83,#C8
+                DB #A3,#67,#CB,#D7,#8B,#97,#0B,#05,#F7,#FF,#FF,#FF,#F7,#FF,#B5,#CA
+                DB #FB,#F5,#FA,#FC,#FA,#F4,#E8,#32,#84,#00,#2E,#57,#BE,#7F,#7F,#FF
+                DB #81,#30,#6B,#65,#79,#BC,#D8,#00,#C3,#1D,#2E,#86,#D6,#8C,#11,#C0
+                DB #05,#83,#45,#8A,#15,#8B,#15,#0A,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF
+                DB #42,#99,#BC,#5E,#4A,#24,#18,#42,#12,#AB,#56,#AB,#7D,#AE,#DB,#FF
+                DB #03,#0B,#15,#23,#09,#13,#05,#0F,#40,#8F,#1D,#3F,#37,#1E,#37,#39
+                DB #23,#AA,#D5,#AB,#DD,#FB,#BF,#F7,#20,#8D,#DF,#CF,#EE,#FF,#F7,#00
+                DB #02,#79,#DC,#EE,#7A,#EE,#BE,#6C,#B5,#5A,#B4,#7A,#F4,#5A,#F4,#E8
+                DB #9C,#3E,#1F,#4E,#A6,#C4,#A4,#CC,#02,#59,#3C,#7D,#FA,#F1,#ED,#3C
+                DB #9C,#BA,#36,#7E,#7C,#78,#70,#38,#7E,#3E,#3C,#1A,#1C,#1A,#0C,#1E
+                DB #00,#7C,#FA,#FD,#FA,#F4,#E8,#F2,#E0,#00,#02,#15,#2F,#5F,#2F,#DF
+                DB #E5,#D3,#E5,#CA,#85,#CB,#95,#0A,#52,#01,#C2,#F5,#F8,#FC,#FE,#FC
+                DB #FA,#D4,#A0,#47,#8B,#15,#0F,#1F,#EA,#FF,#FB,#FF,#FF,#FF,#ED,#F7
+                DB #17,#2F,#1F,#2F,#17,#8F,#95,#8A,#17,#2B,#15,#2F,#15,#0F,#17,#2B
+                DB #2E,#34,#3A,#1E,#3E,#2C,#1A,#1C,#1E,#0C,#3C,#1A,#2C,#3C,#3A,#1C
+                DB #FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#02,#79,#DC,#EA,#7E,#EE,#BE,#6C
+                DB #F4,#EA,#F4,#58,#F4,#68,#F4,#D8,#3E,#7C,#7C,#69,#31,#1D,#3C,#BE
+                DB #BE,#9C,#5D,#CD,#A9,#C4,#A2,#58,#A3,#67,#CB,#D7,#8B,#17,#0B,#05
+                DB #3B,#1F,#2D,#33,#3D,#1B,#0E,#80,#B5,#5A,#B4,#7A,#F4,#5A,#F4,#EA
+                DB #7C,#FA,#FC,#EE,#F6,#FC,#E8,#01,#F4,#5A,#F4,#68,#F4,#D8,#B4,#58
+                DB #FF,#BF,#DB,#EE,#FB,#75,#20,#00,#02,#28,#54,#AA,#54,#AA,#55,#08
+                DB #03,#08,#27,#4F,#5D,#DF,#9F,#31,#0B,#80,#C9,#77,#FB,#F7,#FF,#A3
+                DB #00,#D4,#2A,#54,#2A,#14,#20,#00,#40,#09,#54,#A8,#54,#AA,#44,#00
+                DB #00,#7C,#FA,#FD,#FA,#F4,#E8,#F2,#50,#81,#43,#07,#01,#0E,#1F,#3F
+                DB #1E,#CB,#E4,#F1,#D3,#87,#0F,#03,#AF,#07,#0A,#E5,#F0,#F0,#F1,#E3
+                DB #FF,#FF,#FF,#5F,#2B,#15,#C2,#E1,#E1,#F4,#D8,#A1,#C3,#96,#2C,#51
+                DB #00,#00,#00,#00,#00,#00,#60,#F0,#3F,#1F,#0E,#00,#00,#00,#80,#C0
+                DB #3D,#7E,#7F,#7F,#3E,#1C,#00,#00,#00,#80,#C0,#E4,#FE,#FF,#B5,#CA
+                DB #46,#8D,#07,#3A,#7D,#FE,#FE,#FE,#F0,#F0,#C7,#8F,#1F,#3E,#7C,#08
+                DB #7C,#39,#01,#01,#01,#00,#00,#C0,#F0,#F9,#FB,#FB,#FB,#F3,#01,#00
+                DB #14,#00,#83,#C7,#4F,#1F,#3E,#7C,#3B,#14,#C0,#E3,#A7,#0F,#1E,#3C
+                DB #18,#E8,#F1,#F3,#F3,#F3,#E3,#01,#78,#11,#E3,#F3,#F3,#F3,#F1,#E0
+                DB #A2,#50,#07,#8F,#DF,#3F,#7E,#FC,#14,#00,#C0,#E7,#8F,#1F,#3E,#7C
+                DB #18,#E0,#F1,#F3,#F3,#F3,#E3,#01,#F8,#09,#E3,#F3,#F3,#F3,#F1,#E0
+                DB #B5,#4B,#15,#82,#C1,#1C,#3E,#7E,#38,#D1,#E3,#E7,#E1,#EE,#DF,#3F
+                DB #00,#10,#79,#F3,#47,#AF,#1E,#3C,#06,#6C,#D8,#B3,#47,#27,#F7,#FB
+                DB #78,#31,#C3,#E3,#F3,#F1,#E0,#C0,#00,#05,#CA,#94,#2B,#67,#CF,#0F
+                DB #89,#3D,#7E,#7E,#7F,#BE,#DC,#C0,#EF,#F7,#F8,#F8,#F8,#F0,#E0,#00
+                DB #C0,#80,#00,#02,#16,#2C,#78,#38,#00,#00,#00,#00,#80,#14,#0F,#1F
+                DB #3F,#1F,#0E,#00,#00,#00,#60,#F0,#80,#C0,#E4,#F8,#FC,#FE,#FF,#FF
+                DB #7C,#39,#01,#01,#01,#00,#88,#F6,#C0,#81,#01,#03,#27,#1F,#1F,#3F
+                DB #F8,#F0,#E0,#00,#00,#01,#05,#3A,#00,#00,#00,#07,#8B,#15,#0F,#1F
+                DB #00,#04,#29,#54,#E0,#F0,#E1,#83,#64,#00,#23,#07,#6F,#DF,#BE,#7C
+                DB #F8,#F0,#E0,#00,#00,#00,#00,#00,#80,#80,#80,#40,#42,#23,#15,#13
+                DB #00,#0A,#05,#83,#01,#40,#80,#80,#08,#10,#20,#40,#40,#81,#83,#81
+                DB #80,#02,#05,#42,#E7,#42,#80,#00,#00,#C0,#80,#80,#02,#03,#05,#03
+                DB #00,#00,#00,#80,#40,#81,#03,#01,#40,#70,#4C,#53,#5C,#5F,#5F,#5F
+                DB #5F,#5F,#5F,#5F,#5F,#5F,#5F,#5F,#3F,#3F,#3F,#3F,#3F,#3F,#3F,#3F
+                DB #67,#99,#46,#A1,#B0,#78,#FE,#FF,#3F,#3F,#3F,#4F,#33,#0C,#13,#00
+                DB #80,#40,#A0,#10,#08,#A4,#12,#00,#00,#6F,#FC,#F3,#C7,#BF,#7F,#C3
+                DB #02,#79,#DC,#EE,#7A,#EE,#BE,#6C,#C5,#CD,#C5,#CD,#C4,#CC,#C4,#CD
+                DB #FF,#FF,#FF,#FF,#00,#55,#00,#FF,#04,#0C,#04,#CD,#C5,#CD,#C5,#CD
+                DB #00,#00,#00,#FF,#FF,#FF,#FF,#FF,#C3,#C3,#C3,#C3,#00,#55,#00,#C3
+                DB #C5,#CD,#C5,#CD,#05,#0D,#05,#CD,#03,#03,#03,#C3,#C3,#C3,#C3,#C3
+                DB #C5,#CD,#C5,#CD,#C5,#CD,#C5,#CD,#A3,#67,#CB,#D7,#8B,#97,#0B,#05
+                DB #F7,#FF,#FF,#FF,#F7,#FF,#B5,#CA,#00,#7C,#FA,#FD,#FA,#F4,#E8,#F2
+                DB #E0,#00,#02,#15,#2F,#5F,#2F,#DF,#05,#83,#45,#8A,#15,#8B,#15,#0A
+                DB #84,#00,#2E,#57,#BE,#7D,#7E,#FD,#52,#01,#C2,#E5,#F0,#F9,#F9,#FD
+                DB #FA,#FD,#FA,#F5,#FA,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#BF
+                DB #57,#83,#61,#14,#0A,#00,#00,#00,#E9,#FC,#F8,#FC,#FC,#FE,#EC,#F6
+                DB #FA,#D4,#A0,#47,#8A,#15,#0E,#1D,#FA,#F4,#FA,#7C,#AA,#54,#08,#02
+                DB #16,#2D,#1F,#2F,#17,#8F,#95,#8A,#5C,#3E,#5E,#2E,#5C,#28,#00,#18
+                DB #00,#00,#00,#00,#00,#00,#00,#00,#2C,#5E,#3E,#5C,#3C,#5C,#38,#00
+                DB #00,#34,#5A,#2D,#56,#2F,#56,#2F,#5E,#AD,#5E,#BB,#5F,#BB,#70,#00
+                DB #C3,#C3,#C3,#C3,#83,#03,#83,#C3,#C0,#C0,#C0,#C3,#C3,#C3,#83,#C3
+                DB #C3,#03,#03,#03,#03,#43,#03,#C3,#C0,#C0,#C0,#C3,#C3,#C3,#C3,#C3
+                DB #84,#0D,#44,#E3,#FE,#F7,#FF,#87,#00,#00,#00,#00,#00,#22,#44,#2A
+                DB #04,#0C,#04,#0C,#04,#0C,#04,#0C,#00,#00,#00,#00,#00,#55,#00,#FF
+                DB #04,#0C,#04,#0C,#04,#0C,#04,#CC,#FC,#08,#E0,#F0,#F0,#F0,#F4,#E8
+                DB #A2,#50,#06,#9D,#DB,#3D,#7E,#FC,#18,#80,#41,#A3,#43,#23,#43,#01
+                DB #02,#01,#02,#05,#00,#0C,#3E,#7C,#50,#28,#80,#40,#A0,#50,#B8,#78
+                DB #8D,#9D,#8D,#9D,#8D,#9D,#8D,#9D,#B9,#71,#D1,#D1,#91,#A1,#31,#18
+                DB #8D,#00,#1E,#2E,#1E,#00,#81,#85,#00,#78,#F8,#F8,#F8,#F8,#E8,#F8
+                DB #B9,#D1,#F1,#F1,#B1,#D1,#99,#08,#F9,#F4,#F8,#FC,#F9,#F5,#E8,#30
+                DB #52,#D5,#A0,#A9,#CA,#54,#94,#25,#01,#C2,#E0,#A0,#65,#D5,#08,#09
+                DB #0A,#04,#A3,#81,#A8,#36,#67,#42,#10,#02,#40,#10,#A3,#A9,#00,#40
+                DB #07,#4F,#07,#87,#43,#01,#20,#80,#42,#68,#20,#92,#A9,#D6,#5C,#16
+                DB #81,#43,#07,#05,#17,#43,#00,#20,#02,#04,#C1,#F2,#F8,#FC,#FE,#FC
+                DB #AD,#44,#06,#96,#B0,#99,#A9,#96,#56,#5B,#63,#56,#1A,#A9,#AD,#AD
+                DB #30,#6A,#4D,#A4,#B5,#D0,#D4,#A9,#00,#40,#21,#03,#07,#07,#2F,#0F
+                DB #A8,#1D,#6D,#26,#B5,#9A,#56,#4D,#9F,#8F,#47,#97,#87,#67,#A3,#33
+                DB #00,#07,#1F,#7F,#FF,#5B,#2E,#07,#00,#06,#8F,#F7,#83,#05,#03,#07
+                DB #00,#00,#22,#55,#2B,#99,#60,#80,#00,#00,#00,#50,#B8,#CC,#86,#01
+                DB #00,#00,#80,#C0,#E0,#F0,#F8,#F8,#FC,#47,#8F,#10,#00,#00,#08,#46
+                DB #00,#00,#F0,#F8,#1C,#0E,#02,#04,#00,#00,#02,#00,#00,#00,#40,#01
+                DB #00,#00,#00,#00,#00,#06,#08,#20,#00,#00,#01,#02,#04,#04,#08,#08
+                DB #41,#82,#00,#08,#00,#00,#20,#02,#00,#00,#07,#3E,#62,#01,#06,#29
+                DB #00,#00,#E0,#3E,#9E,#4F,#9B,#75,#19,#37,#0C,#9A,#7D,#67,#47,#EF
+                DB #FB,#DD,#BA,#F5,#FA,#FF,#FE,#DF,#00,#00,#00,#00,#40,#30,#FC,#6A
+                DB #00,#00,#00,#03,#0F,#1E,#3F,#7C,#B6,#EA,#FD,#7A,#FA,#3D,#1E,#2F
+                DB #F2,#A8,#40,#00,#10,#EF,#00,#D0,#06,#07,#CE,#FD,#FA,#B4,#10,#00
+                DB #00,#00,#00,#00,#00,#00,#E0,#1F,#40,#00,#00,#01,#00,#00,#00,#00
+                DB #02,#00,#80,#00,#00,#00,#00,#20,#00,#00,#00,#40,#84,#0E,#04,#00
+                DB #08,#10,#10,#10,#10,#20,#20,#21,#45,#0B,#3D,#47,#B3,#41,#90,#68
+                DB #21,#21,#21,#10,#10,#10,#10,#08,#20,#60,#20,#50,#20,#50,#81,#43
+                DB #BF,#1D,#BE,#FD,#5F,#EF,#EF,#D7,#EF,#FF,#FF,#FB,#F5,#7A,#B5,#DB
+                DB #67,#77,#73,#6D,#46,#C4,#88,#52,#BF,#DF,#FF,#CE,#07,#43,#C3,#83
+                DB #9F,#FF,#FF,#FF,#FF,#FE,#FE,#FE,#A0,#D0,#E8,#90,#08,#24,#70,#74
+                DB #FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#28,#94,#E8,#F0,#E8,#F0,#E8,#D0
+                DB #80,#70,#0C,#06,#04,#03,#00,#00,#00,#00,#00,#18,#F2,#7D,#00,#00
+                DB #00,#00,#00,#00,#80,#41,#E2,#3C,#00,#00,#00,#00,#00,#00,#E0,#1F
+                DB #00,#78,#FF,#7D,#FE,#7D,#25,#01,#08,#08,#04,#04,#02,#02,#01,#00
+                DB #7C,#4F,#26,#0D,#0D,#16,#0B,#81,#42,#20,#10,#0C,#03,#00,#00,#00
+                DB #2A,#76,#BD,#1E,#1B,#1F,#3A,#ED,#83,#07,#0E,#FE,#FF,#FD,#EF,#FE
+                DB #52,#29,#04,#00,#00,#05,#00,#00,#77,#DD,#B6,#03,#1E,#E0,#00,#00
+                DB #BF,#77,#2B,#37,#6E,#F7,#FE,#ED,#E0,#50,#A0,#40,#80,#40,#80,#00
+                DB #7E,#FC,#B0,#C0,#00,#00,#00,#00,#40,#20,#18,#07,#00,#00,#00,#00
+                DB #00,#00,#00,#B8,#74,#0E,#03,#00,#00,#00,#00,#00,#01,#0E,#70,#80
+                DB #00,#00,#00,#00,#40,#A0,#44,#3B,#00,#00,#20,#54,#3E,#71,#80,#00
+                DB #80,#F0,#F8,#FC,#BF,#13,#24,#00,#00,#00,#00,#00,#80,#CF,#F0,#00
+                DB #00,#08,#17,#0C,#78,#80,#00,#00,#00,#00,#00,#E0,#F0,#B8,#58,#0C
+                DB #04,#04,#18,#E0,#00,#00,#00,#00,#00,#00,#00,#11,#3B,#6E,#F5,#C0
+                DB #03,#06,#1F,#1F,#3E,#78,#F0,#F0,#00,#00,#00,#01,#0F,#1F,#3D,#3A
+                DB #47,#F7,#E3,#D1,#A0,#80,#03,#3C,#00,#00,#00,#00,#0C,#1A,#3D,#FC
+                DB #FA,#F4,#A0,#40,#00,#02,#27,#DE,#20,#00,#00,#00,#80,#41,#E2,#3C
+                DB #70,#61,#22,#1C,#00,#00,#00,#00,#3F,#4F,#73,#3C,#4F,#23,#08,#02
+                DB #FF,#FF,#FF,#FF,#3F,#CF,#F3,#3C,#8F,#22,#08,#02,#C0,#30,#0C,#30
+L4ATRS
+                DB #06,#46,#46,#46,#46,#46,#04,#44,#46,#46,#07,#05,#05,#47,#05,#47
+                DB #47,#05,#44,#44,#04,#44,#46,#46,#46,#46,#46,#46,#46,#05,#07,#47
+                DB #45,#47,#05,#44,#44,#46,#47,#05,#47,#05,#05,#05,#47,#47,#05,#05
+                DB #47,#47,#07,#07,#46,#07,#46,#47,#47,#46,#47,#07,#47,#47,#07,#07
+                DB #47,#47,#07,#07,#47,#47,#07,#47,#07,#47,#47,#47,#47,#47,#46,#46
+                DB #47,#46,#47,#46,#47,#46,#07,#07,#47,#47,#07,#47,#07,#05,#05,#47
+                DB #47,#47,#47,#47,#05,#47,#07,#47,#46,#47,#46,#46,#47,#46,#47,#07
+                DB #07,#07,#07,#06,#06,#07,#06,#07,#07,#07,#06,#07,#06,#47,#47,#47
+                DB #06,#06,#07,#07,#07,#07,#47,#05,#47,#46,#47,#47,#47,#07,#46,#06
+                DB #47,#46,#47,#46,#46,#46,#05,#06,#05,#45,#46,#45,#06,#46,#05,#05
+                DB #45,#46,#45,#46,#45,#45,#47,#47,#45,#45,#45,#46,#05,#05,#05,#07
+                DB #47,#47,#47,#47,#45,#47,#47,#45,#07,#46,#46,#46,#05,#05,#05,#05
+                DB #47,#47,#47,#47,#47,#47,#47,#47,#07,#07,#47,#47,#07,#05,#05,#05
+                DB #07,#47,#07,#07,#47,#47,#47,#47,#47,#47,#47,#47,#45,#47,#47,#07
+                DB #47,#45,#47,#47,#45,#45,#47,#47,#47,#47,#47,#47
+L4BLOX
+                DB #7D,#7E,#7F,#7E,#7D,#4F,#7F,#2B,#2C,#2D,#2E,#2F,#30,#17,#31,#32
+                DB #37,#38,#02,#39,#19,#1A,#33,#34,#3A,#3B,#3C,#3D,#3E,#3F,#40,#41
+                DB #42,#43,#44,#45,#46,#01,#47,#32,#04,#05,#33,#34,#04,#48,#49,#4A
+                DB #4B,#4C,#4D,#4E,#50,#38,#18,#51,#3A,#3B,#52,#3D,#27,#1E,#0F,#28
+                DB #4B,#4C,#4D,#53,#56,#57,#49,#4A,#E9,#EA,#5F,#EB,#60,#61,#60,#61
+                DB #62,#63,#2E,#64,#65,#2D,#2E,#2B,#6B,#6C,#6D,#6E,#67,#68,#69,#6A
+                DB #86,#2D,#2E,#2F,#65,#86,#2E,#2B,#2C,#2D,#2E,#88,#2C,#2D,#88,#2F
+                DB #42,#43,#44,#8B,#8C,#43,#8D,#45,#95,#96,#97,#98,#99,#9A,#9B,#9C
+                DB #9D,#9E,#1B,#9F,#A0,#A1,#A2,#A3,#7E,#7E,#97,#98,#7E,#7E,#9B,#9C
+                DB #88,#89,#69,#6A,#89,#8A,#6D,#6E,#00,#01,#25,#03,#1D,#1E,#0C,#26
+                DB #29,#01,#27,#03,#54,#55,#1B,#1C,#0A,#2A,#18,#09,#58,#36,#08,#09
+                DB #59,#5A,#5B,#5C,#5D,#5A,#5E,#5C,#6F,#70,#71,#72,#2A,#2A,#1B,#1C
+                DB #0A,#17,#18,#09,#04,#05,#08,#09,#0E,#0B,#0F,#10,#0E,#0B,#66,#20
+                DB #1D,#22,#0C,#0D,#1F,#20,#0F,#66,#1D,#20,#0C,#0D,#20,#20,#0F,#28
+                DB #1D,#20,#0C,#11,#22,#1F,#0F,#21,#16,#17,#18,#35,#0A,#01,#11,#03
+                DB #1D,#20,#0C,#26,#0E,#0B,#20,#20,#21,#20,#0F,#21,#1F,#20,#1E,#20
+                DB #1D,#22,#0C,#22,#73,#74,#75,#76,#6F,#77,#7F,#78,#79,#7A,#7B,#7C
+                DB #00,#01,#02,#03,#7E,#80,#7E,#81,#04,#05,#06,#07,#22,#1F,#22,#1F
+                DB #00,#82,#02,#83,#16,#84,#18,#85,#36,#36,#02,#03,#7E,#36,#08,#09
+                DB #36,#7E,#08,#85,#87,#87,#0C,#0D,#87,#87,#0F,#10,#87,#36,#11,#03
+                DB #0A,#0B,#0C,#0D,#12,#13,#14,#15,#36,#36,#18,#09,#36,#36,#1B,#1C
+                DB #7E,#7E,#7E,#7E,#16,#17,#18,#09,#19,#1A,#1B,#1C,#8E,#1A,#1B,#1C
+                DB #8F,#90,#91,#92,#93,#90,#94,#92,#36,#36,#94,#92,#1D,#1E,#0C,#1F
+                DB #20,#20,#0F,#21,#22,#17,#11,#09,#00,#01,#02,#35,#16,#23,#1B,#24
+                DB #19,#4F,#1B,#1C,#A4,#A5,#A6,#A7,#A8,#7E,#A9,#AA,#7E,#7E,#AB,#7E
+                DB #7E,#AC,#AD,#AE,#AF,#B0,#B1,#B2,#B3,#B4,#B5,#B6,#B7,#7E,#B8,#7E
+                DB #7E,#7E,#AB,#B9,#BA,#7E,#7E,#7E,#7E,#BB,#B9,#7E,#BC,#BD,#BE,#BF
+                DB #C0,#C1,#C2,#C3,#C4,#C5,#C6,#C7,#7E,#C8,#7E,#BA,#C9,#CA,#7E,#B4
+                DB #CB,#7E,#B7,#7E,#A4,#A5,#7E,#7E,#A8,#7E,#A9,#CC,#B9,#7E,#A8,#7E
+                DB #7E,#B9,#7E,#7E,#7E,#BB,#7E,#7E,#CD,#CE,#7E,#CF,#D0,#D1,#D2,#D3
+
+;                DB #D4,#D5,#D6,#BB,#AB,#D7,#7E,#B9,#D8,#CA,#7E,#FF,#CB,#CA,#7E,#7E
+                DB #D4,#D5,#D6,#BB,#AB,#D7,#7E,#B9,#D8,#CA,#7E,#7E,#CB,#CA,#7E,#7E
+
+                DB #CB,#D9,#7E,#B9,#7E,#7E,#A6,#DA,#7E,#7E,#DB,#DA,#A9,#DC,#DD,#DE
+                DB #DF,#7E,#E0,#7E,#7E,#7E,#E1,#E2,#7E,#7E,#E3,#E4,#E5,#E2,#E6,#E7
+                DB #7E,#7E,#CB,#D9,#E8,#7E,#7E,#7E
+L4MAPX
+                DB #2E,#41,#44,#46,#58,#31,#50,#32,#3B,#51,#44,#31,#44,#46,#44,#1E
+                DB #1F,#46,#44,#31,#50,#32,#3B,#51,#44,#31,#44,#46,#58,#31,#44,#46
+                DB #44,#31,#50,#3D,#3B,#51,#44,#31,#44,#46,#44,#31,#44,#46,#44,#31
+                DB #50,#32,#3B,#51,#44,#31,#44,#1E,#1F,#31,#44,#46,#44,#31,#50,#32
+                DB #3B,#51,#44,#31,#44,#46,#44,#31,#44,#46,#59,#31,#50,#33,#3B,#51
+                DB #44,#31,#44,#46,#44,#1E,#1F,#4A,#4B,#4A,#4D,#4E,#4F,#4A,#4B,#4A
+                DB #4C,#24,#25,#4A,#61,#62,#54,#54,#63,#64,#65,#66,#67,#54,#54,#54
+                DB #54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#2D,#54,#54,#54,#54
+                DB #42,#43,#55,#56,#59,#56,#5B,#5C,#5D,#5F,#55,#56,#55,#56,#55,#20
+                DB #21,#56,#55,#56,#27,#5C,#5D,#5F,#55,#56,#55,#56,#59,#56,#55,#56
+                DB #55,#56,#27,#3E,#5D,#5F,#55,#56,#55,#56,#55,#56,#55,#56,#55,#56
+                DB #38,#39,#5D,#5F,#55,#56,#55,#20,#21,#56,#55,#56,#55,#56,#36,#39
+                DB #5D,#5F,#55,#56,#55,#56,#55,#56,#55,#56,#58,#56,#40,#3F,#5D,#5F
+                DB #55,#56,#55,#56,#55,#20,#21,#56,#55,#5F,#5B,#47,#5D,#56,#55,#56
+                DB #49,#17,#16,#56,#54,#68,#69,#6A,#69,#6B,#6C,#6D,#6E,#6F,#70,#54
+                DB #54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#2D,#54,#54,#54,#54
+                DB #00,#45,#26,#31,#58,#31,#27,#0F,#28,#31,#44,#31,#44,#31,#44,#1E
+                DB #1F,#31,#44,#31,#3C,#0F,#28,#31,#44,#31,#44,#31,#58,#31,#26,#31
+                DB #44,#31,#40,#3F,#28,#31,#44,#31,#44,#31,#44,#31,#26,#31,#44,#31
+                DB #3C,#0F,#28,#31,#44,#31,#44,#1E,#1F,#31,#26,#31,#44,#31,#27,#37
+                DB #28,#31,#44,#31,#44,#31,#44,#31,#26,#31,#59,#31,#34,#35,#28,#31
+                DB #44,#31,#44,#31,#26,#1E,#1F,#31,#44,#31,#27,#0F,#28,#31,#44,#31
+                DB #48,#17,#16,#31,#71,#72,#73,#74,#75,#76,#77,#78,#68,#79,#7A,#7B
+                DB #7C,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#2D,#54,#54,#54,#54
+                DB #00,#45,#55,#56,#59,#56,#2A,#2F,#30,#56,#55,#56,#55,#56,#55,#20
+                DB #21,#56,#55,#56,#2A,#2F,#30,#56,#55,#56,#55,#56,#59,#56,#55,#56
+                DB #55,#56,#2A,#2F,#30,#56,#55,#56,#55,#56,#55,#56,#55,#56,#55,#56
+                DB #2A,#2F,#30,#56,#55,#56,#55,#20,#21,#56,#55,#56,#55,#56,#2A,#2F
+                DB #30,#56,#55,#56,#55,#56,#55,#56,#55,#56,#58,#56,#2A,#2F,#30,#56
+                DB #55,#56,#55,#56,#55,#20,#21,#56,#55,#56,#2A,#2F,#30,#56,#55,#56
+                DB #49,#17,#16,#56,#7D,#7E,#7F,#80,#54,#54,#54,#54,#54,#54,#54,#54
+                DB #81,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#2D,#54,#54,#54,#54
+                DB #00,#45,#44,#31,#58,#31,#44,#31,#44,#31,#44,#31,#44,#31,#44,#1E
+                DB #1F,#31,#44,#31,#44,#31,#44,#31,#44,#31,#44,#31,#58,#31,#44,#31
+                DB #44,#31,#44,#31,#44,#31,#44,#31,#44,#31,#44,#31,#44,#31,#44,#31
+                DB #44,#31,#44,#31,#44,#31,#44,#1E,#1F,#31,#44,#31,#44,#31,#44,#31
+                DB #44,#31,#44,#31,#44,#31,#44,#31,#44,#31,#59,#31,#44,#31,#44,#31
+                DB #44,#31,#44,#31,#44,#1E,#1F,#31,#44,#31,#44,#31,#44,#31,#44,#31
+                DB #48,#17,#16,#31,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#82,#83
+                DB #84,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#12,#54,#54,#54,#54
+                DB #01,#02,#15,#02,#15,#02,#15,#02,#15,#03,#05,#56,#3A,#11,#07,#08
+                DB #07,#09,#0A,#56,#55,#56,#55,#56,#55,#56,#3A,#11,#07,#08,#09,#05
+                DB #55,#56,#55,#56,#55,#56,#55,#56,#55,#56,#55,#56,#55,#56,#55,#56
+                DB #55,#56,#55,#56,#55,#56,#55,#20,#21,#55,#56,#55,#55,#56,#55,#56
+                DB #55,#56,#55,#56,#3A,#11,#07,#08,#09,#05,#58,#56,#55,#56,#55,#56
+                DB #55,#56,#55,#56,#55,#20,#21,#56,#55,#56,#55,#56,#55,#56,#55,#56
+                DB #49,#17,#16,#56,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#85,#54
+                DB #54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#13,#54,#54,#54,#54
+                DB #4A,#4B,#4A,#4B,#5A,#4B,#4A,#4B,#4A,#04,#06,#07,#0C,#2B,#4A,#22
+                DB #23,#0D,#0E,#08,#09,#0A,#44,#31,#5E,#0B,#0C,#2B,#5A,#4B,#04,#06
+                DB #07,#1C,#02,#15,#02,#15,#02,#15,#02,#15,#02,#15,#02,#15,#02,#1D
+                DB #09,#05,#44,#31,#5E,#0B,#07,#08,#07,#08,#07,#08,#07,#08,#09,#0A
+                DB #44,#31,#5E,#0B,#0C,#2B,#53,#52,#0D,#02,#15,#02,#15,#02,#15,#02
+                DB #15,#15,#02,#15,#02,#1D,#07,#09,#05,#31,#44,#31,#44,#31,#44,#31
+                DB #48,#17,#16,#31,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54
+                DB #54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#2C,#13,#54,#54,#54,#54
+                DB #55,#56,#55,#55,#59,#55,#56,#55,#56,#55,#60,#4B,#57,#56,#55,#20
+                DB #21,#56,#55,#53,#0D,#0E,#07,#08,#10,#29,#55,#56,#59,#56,#55,#60
+                DB #52,#53,#52,#4B,#52,#53,#4B,#52,#4B,#52,#4B,#52,#4B,#52,#52,#4B
+                DB #0D,#0E,#07,#08,#10,#29,#52,#22,#23,#52,#53,#52,#52,#53,#0D,#0E
+                DB #07,#08,#10,#29,#55,#56,#55,#56,#55,#60,#5A,#53,#52,#53,#52,#53
+                DB #52,#52,#52,#53,#52,#22,#23,#0D,#02,#02,#15,#02,#15,#02,#15,#02
+                DB #15,#18,#19,#02,#15,#02,#15,#02,#15,#02,#15,#02,#15,#15,#1B,#1A
+                DB #02,#15,#02,#15,#02,#15,#02,#15,#02,#15,#15,#14,#54,#54,#54,#54
+L4MAPY
+                DB #61,#62,#54,#54,#63,#64,#65,#66,#67,#54,#54,#54,#54,#54,#68,#69
+                DB #6A,#69,#6B,#6C,#6D,#6E,#6F,#70,#54,#54,#71,#72,#73,#74,#75,#76
+                DB #77,#78,#68,#79,#7A,#7B,#7C,#7D,#7E,#7F,#80,#54,#54,#54,#54,#54
+                DB #54,#54,#54,#81,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#82,#83
+                DB #84,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#85,#54,#54,#54,#54
+                DB #54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#54,#15,#02,#15,#02,#15
+                DB #02,#15,#02,#15,#15,#1B,#1A,#02,#4A,#4B,#4A,#4D,#4E,#4F,#4A,#4B
+                DB #4A,#4C,#24,#25,#4A,#56,#55,#5F,#5B,#47,#5D,#56,#55,#56,#49,#17
+                DB #16,#56,#31,#44,#31,#27,#0F,#28,#31,#44,#31,#48,#17,#16,#31,#56
+                DB #55,#56,#2A,#2F,#30,#56,#55,#56,#49,#17,#16,#56,#31,#44,#31,#44
+                DB #31,#44,#31,#44,#31,#48,#17,#16,#31,#56,#55,#56,#55,#56,#55,#56
+                DB #55,#56,#49,#17,#16,#56,#09,#05,#31,#44,#31,#44,#31,#44,#31,#48
+                DB #17,#16,#31,#0D,#02,#02,#15,#02,#15,#02,#15,#02,#15,#18,#19,#02
+L4END
+                ;ENDIF
+
+                UNPHASE
+
+;****************************************************************************
+;•* END OF FILE                                                            **
+;****************************************************************************

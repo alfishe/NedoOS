@@ -1,0 +1,3773 @@
+;***************************************
+;** MAIN CODE                         **
+;***************************************
+
+                IF MUSICALSO=0
+
+                ;ORG CODE
+
+;                ENTR
+
+START           CALL SETUPPAGES
+
+REENTRY         LD SP,THESTACK:CALL GOMENU
+INTROLOOP       CALL HIGHSCORES:CALL GAMECLS
+
+                LD HL,0:LD (AMMOLEFT+1),HL:LD (PRTBARRIER+1),HL
+                XOR A:LD (BACKLEFT+1),A:LD (KEYSCOLLECTED+1),A
+                LD (SAVEDPEOPLE+1),A:LD (SAVORS),A:LD (WEPPOWER),A
+                LD (WEPTYPE+1),A:LD (PAKTYPE+1),A
+                INC A:CALL PLAYMUSIC
+
+                LD A,(INFLIVES)
+                OR A:LD A,STARTLIVES:JR Z,JOEY:LD A,12
+JOEY            LD (LIVES),A
+
+                LD HL,"00":LD (SCORE+0),HL:LD (SCORE+2),HL
+                LD (SCORE+4),HL:LD (SCORE+6),HL
+        ;jp FIB
+SAMELEVEL       CALL GAME
+                LD A,(RETMODE):DEC A:ADD A,A:LD E,A:LD D,0
+                LD HL,RETMODES:ADD HL,DE
+                LD E,(HL):INC HL:LD D,(HL):EX DE,HL:JP (HL)
+
+;***************************************
+
+GAMEOVER
+REALGAMEOVER    LD B,65:CALL BFLY:CALL SPRINT
+                DB PRINK,$47,PRGAMECLS,PRSIZE,1
+                DB PRAT, 11,10, "GAME  OVER",PREOF
+                LD B,50:CALL BFLY
+TESTLOADLEV1    LD HL,SCORE:LD DE,LASTSCORE:LD BC,8:LDIR
+                CALL TESTHIGH:DB 62
+LEVEL           DB STARTLEV
+                CP STARTLEV:JP Z,INTROLOOP
+                LD A,STARTLEV:LD (LEVEL),A:CALL LOADLEVEL:JP INTROLOOP
+
+NEXTLEVEL       LD A,(LEVEL):INC A:LD (LEVEL),A:CP 10:JP NZ,FIB
+                CALL SPRINT:DB PRGAMECLS,PRINK,$47,PRSIZE,1
+                DB PRAT,07,04,"CONGRATULATIONS!!!"
+                DB PRAT,08,07,"YOU'VE ESCAPED!!",PREOF
+SAVEDPEOPLE     LD A,0:OR A:JR Z,NO_l_SAVED:ADD A,"0":LD (SAVED+13),A
+                CALL SPRINT
+SAVED           DB PRAT,01,10,"AND SAVED 1 OF YOUR RELATIVES.",PREOF
+                JR SAVED_SOME
+NO_l_SAVED      CALL SPRINT
+                DB PRAT,02,10,"BUT YOU DIDN'T SAVE ANYONE!!",PREOF
+SAVED_SOME      LD B,0:CALL BFLY:CALL BFLY:JP REALGAMEOVER
+
+FIB             CALL LOADLEVEL:JP SAMELEVEL
+
+LOADLEVEL
+;               LD A,(LEVEL):ADD A,"0":LD (LEVNM),A:CALL GAMECLS
+;               CALL SPRINT:DB PRINK,7,PRSIZE,1,PRAT,10,10,"LOAD LEVEL "
+;LEVNM          DB "l",PREOF
+
+                CALL KILLSOUND
+
+                LD A,(LEVEL):DEC A:LD DE,LLDATLEN:LD HL,LLDAT:CALL MULT
+                LD A,(HL):INC HL
+                LD D,(HL):INC HL:LD E,0
+                LD BC,$2000
+                PUSH HL:LD HL,LEVELDATA:CALL PAGECOPY:POP HL
+                LD A,(HL):JP PLAYMUSIC
+
+LLDATLEN        EQU 3
+LLDAT           DB $11,$E0,6             ; 1
+                DB $11,$C0,1             ; 2
+                DB $13,$C0,1             ; 3
+                DB $13,$E0,6             ; 4
+                DB $14,$C0,3             ; 5
+                DB $14,$E0,1             ; 6
+                DB $16,$C0,3             ; 7
+                DB $16,$E0,6             ; 8
+                DB $17,$C0,4             ; 9
+
+BFLY            PUSH BC:CALL BEEPER:POP BC:DJNZ BFLY:RET
+
+;****************************************
+;** MISC ROUTINES                      **
+;****************************************
+
+BAXITA          LD B,(HL):INC HL:LD C,(HL):INC HL
+                LD A,D:AND $F8:LD D,A:PUSH DE:PUSH BC
+                SRL C:CALL BAXIT:EX DE,HL:POP BC:POP DE
+ATRIT           SRL C:SRL C:SRL C
+BAXATR          PUSH HL:CALL BATAD:POP DE
+BAXITALP        PUSH BC:PUSH HL
+BAXITALP1       LD A,(DE):INC DE:OR A:JR Z,DENO:LD (HL),A
+DENO            INC L:LD A,L:AND 31:JR NZ,NAG
+                LD A,L:SUB 32:LD L,A
+NAG             DJNZ BAXITALP1:POP HL:LD BC,32:ADD HL,BC
+                POP BC:DEC C:JP NZ,BAXITALP:RET
+
+BAXITFLIP       LD A,C:ADD A,A:ADD A,D:DEC A:LD D,A:PUSH HL:LD HL,-32
+                LD (BAXDIR1+1),HL:LD (BAXDIR2+1),HL:POP HL:CALL BAXIT
+                LD HL,32:LD (BAXDIR1+1),HL:LD (BAXDIR2+1),HL:RET
+BAXIT           PUSH HL:CALL BIXAD:POP DE
+BAXITCLP        PUSH BC
+BAXITBLP1       LD A,(DE):INC DE:LD (HL),A:INC HL:DJNZ BAXITBLP1:DEC HL
+BAXDIR1         LD BC,32:ADD HL,BC:POP BC:PUSH BC
+BAXITBLP2       LD A,(DE):INC DE:LD (HL),A:DEC HL:DJNZ BAXITBLP2:INC HL
+BAXDIR2         LD BC,32:ADD HL,BC:POP BC:DEC C:JP NZ,BAXITCLP:RET
+
+BAXITMIRFLIP    LD A,C:ADD A,A:ADD A,D:DEC A:LD D,A:PUSH HL:LD HL,-32
+                LD (MAXDIR1+1),HL:LD (MAXDIR2+1),HL:POP HL:CALL BAXITMIR
+                LD HL,32:LD (MAXDIR1+1),HL:LD (MAXDIR2+1),HL:RET
+BAXITMIR        LD A,B:DEC A:ADD A,A:ADD A,A:ADD A,A:ADD A,E:LD E,A
+                PUSH HL:CALL BIXAD:POP DE:EXX:LD B,MIRPAGE/256:EXX
+MAXITCLP        PUSH BC
+MAXITBLP1       LD A,(DE):INC DE:EXX :LD C,A:LD A,(BC):EXX
+                LD (HL),A:DEC HL:DJNZ MAXITBLP1:INC HL
+MAXDIR1         LD BC,32:ADD HL,BC:POP BC:PUSH BC
+MAXITBLP2       LD A,(DE):INC DE:EXX :LD C,A:LD A,(BC):EXX
+                LD (HL),A:INC HL:DJNZ MAXITBLP2:DEC HL
+MAXDIR2         LD BC,32:ADD HL,BC:POP BC:DEC C:JP NZ,MAXITCLP:RET
+
+DELAYBC         DEC BC:LD A,B:OR C:JP NZ,DELAYBC
+RETURN          RET ; L=X,H=XLEN,E=X1,D=X1LEN,NC=HIT
+HITA            LD A,L:ADD A,H:JR C,HITAX:CP E:RET C
+HITA2           LD A,E:ADD A,D:JR C,HITAY:CP L:RET
+HITAX           CP E:JR C,HITA2:SUB H:CP E:CCF :RET C:JR HITA2
+HITAY           CP L:CCF :RET NC:SUB D:CP L:CCF :RET
+RAND            PUSH HL:PUSH BC:LD HL,RND1:LD C,(HL):INC HL:LD A,(HL)
+                SRL C:SRL C:SRL C:XOR C:INC HL:RRA
+                RL (HL):DEC HL:RL (HL):DEC HL:RL (HL):POP BC:POP HL
+                RET
+
+RND1            DB #58 ; SRC = DB 128
+RND2            DB #5a ; SRC = DB 255
+RND3            DB #5d ; SRC = DB 63
+
+SATAD2          SRL E:SRL E:SRL E:SRL D:SRL D:SRL D
+                LD HL,BACKATR2:LD A,D:LD D,0:ADD HL,DE:LD E,26
+                JP MULT
+BIXAD2          SRL E:SRL E:SRL E
+BAXAD2          LD HL,BACKSCR2:LD A,D:LD D,0:ADD HL,DE:LD E,26
+                JP MULT
+
+BATAD           SRL E:SRL E:SRL E:SRL D:SRL D:SRL D
+                LD HL,BACKATR:LD A,D:LD D,0:ADD HL,DE:LD E,32
+                JP MULT
+BIXAD           SRL E:SRL E:SRL E
+BAXAD           LD HL,BACKSCR:LD A,D:LD D,0:ADD HL,DE:LD E,32
+MULT            OR A:RET Z:RRA :JR NC,MULTI:ADD HL,DE
+MULTI           EX DE,HL:ADD HL,HL:EX DE,HL:JP MULT
+DIXAD           RES 0,D
+PIXAD           LD A,D:ADD A,64:OR A:RRA:SCF:RRA:OR A:RRA
+                XOR D:AND $F8:XOR D:SUB 8:LD H,A
+                LD A,E:RLCA:RLCA:RLCA:XOR D:AND $C7:XOR D
+                RLCA:RLCA:LD L,A:RET
+
+PIXDN           INC H:LD A,H:AND 7:RET NZ
+                LD A,L:ADD A,32:LD L,A:RET C
+                LD A,H:SUB 8:LD H,A:RET
+
+PIXDNDE         INC D:LD A,D:AND 7:RET NZ
+                LD A,E:ADD A,32:LD E,A:RET C
+                LD A,D:SUB 8:LD D,A:RET
+CHRAD           LD A,D:AND 7:RRCA :RRCA :RRCA :OR E:LD E,A
+                LD A,D:AND 24:OR 64:LD D,A:RET
+PIXATRAD        SRL E:SRL E:SRL E:SRL D:SRL D:SRL D
+ATRAD           LD HL,BACKATR:LD A,D:LD D,0:ADD HL,DE
+                LD E,32:JP MULT
+
+;***************************************
+;** INTERRUPT ROUTINES                **
+;***************************************
+
+PLAYMUSIC       CP $FF
+		RET Z:LD (PLAYMUSIC+1),A:LD (TUNENUM+1),A
+                DI
+                LD A,$3F:LD I,A
+                ds 2;IM 1
+                LD A,$17:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
+TUNENUM         LD A,0:CALL MUSINITTUNE
+                LD A,$10:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
+                LD A,$FE:LD I,A
+                ds 2;IM 2
+                EI:RET
+
+KILLSOUND       LD A,$FF:LD (PLAYMUSIC+1),A
+                DI:LD A,$3F:LD I,A
+                ds 2;IM 1
+                LD A,$17:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
+                CALL MUSRESETSOUND
+                LD A,$10:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
+                LD A,$FE:LD I,A
+                ds 2;IM 2
+                EI:RET
+
+INTER           DI:LD HL,INTPAGE: LD DE,INTPAGE+1:LD BC,$100
+                LD (HL),$FF:LDIR
+                LD HL,INTRUP:LD DE,INTJP:LD BC,12:LDIR
+                LD A,INTPAGE/256:LD I,A
+                ds 2;IM 2
+                EI:RET
+
+INTRUP          JP INTS
+                DB "J.BAGLEY",24
+
+INTS            DI:PUSH AF
+MUSCONT         LD A,1:OR A:JR Z,HERE
+                PUSH BC
+                LD A,$17:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
+                PUSH IX:PUSH HL:PUSH DE
+                CALL MUSDOMUSIC
+                POP DE:POP HL:POP IX
+PAGEON          LD A,$10:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
+                POP BC
+HERE            LD A,255:LD R,A
+FRAME           LD A,0:INC A:LD (FRAME+1),A
+                POP AF:EI:RET
+
+;***************************************
+;** PRINT ROUTINES                    **
+;***************************************
+
+UDGS
+HEARTCHR_80     DB #00,#76,#EF,#EF,#F7,#7E,#3C,#18
+KEYCHR1_81      DB #07,#CF,#1F,#9C,#1C,#9F,#0F,#87,#E0,#F3,#F9,#39,#38,#D9,#F0,#E1
+KEYCHRZ_83      DB #00,#81,#01,#81,#01,#81,#A9,#00,#00,#81,#C0,#C1,#C0,#C1,#D5,#80
+KEYCHR3_85      DB #00,#D5,#00,#80,#00,#80,#00,#80,#00,#53,#01,#01,#00,#01,#00,#01
+KEYCHR4_87      DB #00,#80,#00,#80,#00,#80,#A9,#00,#00,#01,#00,#01,#00,#01,#55,#00
+PAKCHR_89       DB #05,#68,#00,#F1,#E9,#00,#68,#05,#E0,#F6,#00,#DF,#DF,#00,#F6,#E0
+GUNCHR_8B       DB #F8,#87,#B0,#A0,#83,#84,#88,#F0,#EF,#90,#47,#00,#90,#8F,#84,#FC,#FC,#06,#A9,#09,#06,#FC,#00,#00
+
+BOXUDGS         DB %11111111,%00000111
+                DB %11111000,%00011000
+                DB %11100000,%00100000
+                DB %11000000,%01000000
+                DB %11000000,%01000000
+                DB %10000000,%10000000
+                DB %10000000,%10000000
+                DB %10000000,%10000000
+                DB %11111111,%11100000
+                DB %00011111,%00011000
+                DB %00000111,%00000100
+                DB %00000011,%00000010
+                DB %00000011,%00000010
+                DB %00000001,%00000001
+                DB %00000001,%00000001
+                DB %00000001,%00000001
+                DB %00000001,%00000001
+                DB %00000001,%00000001
+                DB %00000001,%00000001
+                DB %00000011,%00000010
+                DB %00000011,%00000010
+                DB %00000111,%00000100
+                DB %00011111,%00011000
+                DB %11111111,%11100000
+                DB %10000000,%10000000
+                DB %10000000,%10000000
+                DB %10000000,%10000000
+                DB %11000000,%01000000
+                DB %11000000,%01000000
+                DB %11100000,%00100000
+                DB %11111000,%00011000
+                DB %11111111,%00000111
+                DB %00000000,%10000001
+                DB %00000001,%10000010
+                DB %00000011,%10000100
+                DB %10000111,%01000100
+                DB %10000111,%01000100
+                DB %11000011,%00100010
+                DB %11110001,%00011001
+                DB %11111100,%00000111
+
+;***************************************
+
+SPRINT          POP HL:CALL PRINT:JP (HL)
+
+PRINT           LD A,(HL):INC HL:CP PREOF: RET Z
+                CP 32:JP C,PRTCODES:CALL PRTCELL:JP PRINT
+
+PRTUDG          LD L,A:LD H,0:ADD HL,HL:ADD HL,HL:ADD HL,HL
+                LD BC,UDGS:ADD HL,BC:LD (UDGHL+1),HL
+                POP BC:POP DE:POP HL
+                LD BC,(FONT):PUSH BC
+;                LD A,(FONT+2):PUSH AF
+
+                LD BC,UDGRET:PUSH BC:PUSH HL:PUSH DE:PUSH BC
+                XOR A:LD L,A:LD H,A:LD (FONT),HL
+;                LD (FONT+2),A
+;                LD (FONT+3),HL
+
+UDGHL           LD HL,$0000:JR PRTCHR
+UDGRET
+;               POP AF:LD (FONT+2),A
+                POP BC:LD (FONT),BC
+;                DB 1
+;                RRCA:OR (HL):LD (FONT+3),BC
+                RET
+
+PRTCELL         PUSH HL:PUSH DE:PUSH BC:XOR 128:JP P,PRTUDG
+                LD L,A:LD H,7:ADD HL,HL:ADD HL,HL:ADD HL,HL
+PRTCHR          LD A,D:AND 7:RRCA:RRCA:RRCA:OR E:LD E,A
+                LD A,D:AND 24:OR 64:LD D,A:PUSH DE:LD B,8
+CHRBLP          LD A,(HL)
+FONT            RRCA:OR (HL)
+;                INC HL:OR (HL):DEC HL
+;                RRCA:OR (HL)
+CHRSIZE         NOP:NOP
+                LD (DE),A
+                INC D:LD A,D:AND 7:JR NZ,PSKP
+                LD A,E:ADD A,32:LD E,A:JR C,PSKP
+                LD A,D:SUB 8:LD D,A
+PSKP            INC HL:DJNZ CHRBLP:POP DE
+                LD A,D:RRA:RRA:RRA:AND 3:OR 88:LD D,A:DB 62
+ATTR            DB 7+64
+                OR A:JP M,NOMORE+1:JR NOMORE
+FROM            LD (DE),A:LD A,E:ADD A,32:LD E,A
+                ADC A,D:SUB E:LD D,A:DB 62
+ATTR2           DB 7+64
+NOMORE          LD (DE),A:POP BC:POP DE:POP HL
+                INC E:LD A,E:CP 32:RET C
+DOWNLINE        LD E,0:INC D:LD A,D:CP 24:RET C:LD D,0:RET
+
+PRTCODES        CP PRKEY:     JP Z,PRTKEY
+                CP PRAT:      JP Z,PRTAT
+                CP PRINK:     JP Z,PRTINK
+                CP PRINK2:    JP Z,PRTINK2
+                CP PRCLS:     JP Z,PRTCLS
+                CP PRSIZE:    JP Z,PRTSIZE
+                CP PRMULTY:   JP Z,PRTMULTY
+                CP PRGAMECLS: JP Z,PRTGAMECLS
+                CP PRPAUSE:   JP Z,PRTPAUSE
+                JP PRINT
+
+;DEC5            LD BC,10000:CALL DEC0
+;DEC4            LD BC,1000:CALL DEC0
+DEC3            LD BC,100:CALL DEC0
+DEC2            LD BC,10:CALL DEC0
+DEC1            LD BC,1
+DEC0            LD A,"0"-1
+DECL            INC A:OR A:SBC HL,BC:JR NC,DECL
+                ADD HL,BC:JP PRTCELL
+
+PRTPAUSE        CALL PAUSE0:JP PRINT
+
+PRTGAMECLS      PUSH HL:CALL GAMECLS:POP HL:LD DE,0:JP PRINT
+
+PRTSIZE         LD A,(HL):INC HL:OR A:JR Z,NAMO
+                DEC A:JR Z,EDZ:INC A
+                LD C,A:LD B,(HL):INC HL:XOR A:JR SETSIZE
+EDZ             DB 1
+                LD (DE),A:INC D
+SETSIZE         LD (CHRSIZE),BC:LD (FROM-1),A:JP PRINT
+NAMO            LD C,A:LD B,A:LD A,NOMORE-FROM:JR SETSIZE
+
+PRTMULTY        LD B,(HL):INC HL:LD C,(HL):INC HL
+                LD A,B:OR A:JP Z,PRINT
+PRTM1           PUSH BC:LD A,C:CALL PRTCELL:POP BC:DJNZ PRTM1:JP PRINT
+
+PRTKEY          LD A,(HL):INC HL:LD (ATTR),A
+                LD A,(HL):INC HL:PUSH AF:CALL PRTCELL
+                LD A,(ATTR):XOR $40:LD (ATTR),A:POP AF:INC A
+                CALL PRTCELL:LD A,E:SUB 2:LD E,A:INC D:JP PRINT
+
+PRTCLS          PUSH HL:CALL CLS:POP HL:JP PRINT
+
+PRTAT           LD E,(HL):INC HL:LD D,(HL):INC HL:JP PRINT
+
+PRTINK          LD A,(HL):INC HL:LD (ATTR),A:LD (ATTR2),A:JP PRINT
+PRTINK2         LD A,(HL):INC HL:LD (ATTR2),A:JP PRINT
+
+CLS             LD A,(ATTR)
+                LD HL,$5800:LD DE,$5801:LD BC,$02FF:LD (HL),A:LDIR
+                LD HL,$4000:LD DE,$4001:LD BC,$17FF:LD (HL),L:LDIR
+                LD DE,$0000:RET
+
+GAMECLS         LD HL,$5800:LD DE,$5801:LD BC,$01FF:LD (HL),L:LDIR
+                LD HL,$4000:LD DE,$4001:LD BC,$0FFF:LD (HL),L:LDIR
+                RET
+
+;***************************************
+;** KEYBOARD ROUTINES                 **
+;***************************************
+
+XTRAKEYS        DB %10111111,%10000 ; H     (PAUSE GAME..)
+                DB %01111111,%00001 ; SPACE (NITRO ETC...)
+
+KEYBOARD        DB %01111111,%00100 ; M
+                DB %11111011,%00001 ; Q
+                DB %11111101,%00001 ; A
+                DB %11011111,%00010 ; O
+                DB %11011111,%00001 ; P
+
+FACEII          DB %11101111,%00001 ; 0
+                DB %11101111,%00010 ; 9
+                DB %11101111,%00100 ; 8
+                DB %11101111,%10000 ; 6
+                DB %11101111,%01000 ; 7
+
+CURSORS         DB %11101111,%00001 ; 0
+                DB %11101111,%01000 ; 7
+                DB %11101111,%10000 ; 6
+                DB %11110111,%10000 ; 5
+                DB %11101111,%00100 ; 8
+
+READKEYS        LD A,CONT
+                PUSH AF:LD HL,XTRAKEYS:LD BC,$0200:CALL CONTLOP:POP AF
+                LD HL,KEYBOARD:OR A:JR Z,GOTCONT:DEC A:JR Z,KEMPSTON
+                LD HL,FACEII:DEC A:JR Z,GOTCONT:LD HL,CURSORS
+GOTCONT         LD B,5:CALL CONTLOP:LD A,C:LD (FUDLR),A:RET
+CONTLOP         LD A,(HL):INC HL:IN A,(254)
+                AND (HL):INC HL:JR NZ,NOSCF:SCF
+NOSCF           RL C:DJNZ CONTLOP:LD A,C:LD (FUDLR),A:RET
+
+KEMPSTON        RRC C:RRC C:RRC C
+                LD A,1:IN A,(31):AND 31:OR C:LD (FUDLR),A
+                RET
+
+PAUSE           LD BC,$F000:JP DELAYBC
+
+PAUSE0          CALL WAITNOKEY:CALL WAITKEY
+WAITNOKEY       PUSH HL:PUSH BC:CALL READKEYS:POP BC:POP HL
+                OR A:JR NZ,WAITNOKEY
+                XOR A:IN A,($FE):CPL:AND 31:JR NZ,WAITNOKEY:RET
+WAITKEY         PUSH HL:PUSH BC:CALL READKEYS:POP BC:POP HL
+                OR A: RET NZ
+                XOR A:IN A,($FE):CPL:AND 31:JR Z,WAITKEY:RET
+
+;***************************************
+;** BEEPER ROUTINES                   **
+;***************************************
+
+GOBEEP          LD E,A:LD A,(BEEPNUM):OR A:JR Z,ISBEEP
+                CP E:JR Z,ISBEEP:RET NC
+ISBEEP          LD A,E:LD (BEEPNUM),A:ADD A,A:LD E,A:LD D,0
+                LD HL,BEEPTAB-2:ADD HL,DE:LD E,(HL):INC HL:LD D,(HL)
+                LD (BEEPOS),DE
+                RET
+
+BEEPER          EI:XOR A:LD R,A:DB 62
+BEEPNUM         DB 0
+                OR A:JR Z,NOBEEP:DB 33
+BEEPOS          DW 0
+                LD A,(HL):INC HL:CP FIN:JR Z,ENDBEEP
+                LD (BEEPOS),HL:LD C,A:SRL A:JR C,WHITE
+DOBEEP          LD A,24:OUT (254),A:LD B,C
+Z0              LD A,R:RET M:DJNZ Z0
+                LD A,0:OUT (254),A:LD B,C
+Z1              LD A,R:RET M:DJNZ Z1
+                INC C:JR DOBEEP
+
+ENDBEEP         XOR A:LD (BEEPNUM),A
+NOBEEP          LD A,R:RET M:JR NOBEEP
+DODRM           LD A,24:OUT (254),A:LD A,(RND1):LD B,A
+BE0             LD A,R:RET M:DJNZ BE0
+                LD A,0:OUT (254),A
+BEAT
+                LD B,0
+BE1             LD A,R:RET M:DJNZ BE1
+                CALL RAND:DJNZ DODRM
+
+WHITE           LD A,(BEAT+1):PUSH AF
+                LD A,C:LD (BEAT+1),A:CALL DODRM
+                POP AF:LD (BEAT+1),A:RET
+
+;****************************************
+;** SOUND FX                           **
+;****************************************
+
+BEEPTAB         DW WALKFX
+                DW SHOOTFX
+                DW FLAMEFX
+                DW EXPLODEFX
+                DW GETKEYFX
+                DW KILLBADFX
+
+WALKFX          DB 200,FIN
+SHOOTFX         DB 010,200,FIN
+FLAMEFX         DB 250,100,200,050,150,FIN
+EXPLODEFX       DB 200,100,050,120,120,050,FIN
+GETKEYFX        DB 100,200,150,150,200,100,FIN
+KILLBADFX       DB 200,050,FIN
+
+;***************************************
+
+;***************************************
+;** HIGH SCORE PAGE                   **
+;***************************************
+
+NAMEADD         EQU 6
+SCOREADD        EQU 17
+HILEN           EQU 25
+
+TESTHIGH        CALL KILLSOUND:CALL WAITNOKEY
+                LD HL,HI1+SCOREADD:LD C,10
+TSTHICLP        PUSH HL:LD DE,SCORE:LD B,8
+TSTHIBLP        LD A,(DE):CP (HL):JR C,LOWERHIGH:JR NZ,GOTHIGH
+SAMEHIGH        INC HL:INC DE:DJNZ TSTHIBLP
+LOWERHIGH       POP HL:LD DE,HILEN:ADD HL,DE:DEC C:JP NZ,TSTHICLP:RET
+GOTHIGH         POP HL:LD DE,HI10+NAMEADD:LD A,C:LD (NAMENUM),A
+                DEC A:JR Z,NOSCRO:LD HL,HI9+NAMEADD
+SCROHI          PUSH HL:PUSH DE:PUSH BC:LD BC,10+1+8:LDIR
+                POP BC:POP DE:POP HL:LD BC,0-HILEN:ADD HL,BC
+                EX DE,HL:ADD HL,BC:EX DE,HL:DEC A:JR NZ,SCROHI
+NOSCRO          PUSH DE:LD HL,11:ADD HL,DE:EX DE,HL
+                LD HL,SCORE:LD BC,8:LDIR
+
+                LD HL,NAMETEXT:LD DE,NAMETEXT+1:LD BC,10:LD (HL)," "
+                LDIR
+
+                LD HL,HIGHSCORETEXT:CALL PRINT:CALL SPRINT
+                DB PRINK,$4E,PRSIZE,1,PRAT,05,14,"   STICK YA NAME IN   "
+                DB PRINK,$07,PRSIZE,0,PREOF
+
+                LD A,7:CALL PLAYMUSIC
+                XOR A:LD (NAMEX),A
+
+NAMELOOPZ       LD A,31:LD (ALPHANUM),A
+NAMELOOP        LD B,8:PUSH BC:CALL BEEPER:POP BC:DJNZ NAMELOOP+2
+                LD A,(NAMENUM):NEG:ADD A,14:LD D,A:LD E,8
+                LD HL,NAMETEXT:CALL PRINT:LD A,(ALPHANUM)
+                LD HL,ALPHABET:CALL ADDHLA
+                LD DE,NAMETEXT:LD A,(NAMEX):ADD A,E:LD E,A
+                ADC A,D:SUB E:LD D,A:LD A,(HL):LD (DE),A
+                LD A,(NAMEX):ADD A,8:LD E,A
+                LD A,(NAMENUM):NEG:ADD A,14:LD D,A
+                LD A,$38:LD (ATTR),A
+                LD A,(HL):CALL PRTCELL:LD A,$07:LD (ATTR),A
+
+                CALL READKEYS:LD C,A:LD A,(ALPHANUM)
+                RR C:JR NC,NOTRT
+                INC A:PUSH AF:LD A,2:CALL GOBEEP:POP AF
+NOTRT           RR C:JR NC,NOTLT
+                DEC A:PUSH AF:LD A,2:CALL GOBEEP:POP AF
+NOTLT           AND 31:LD (ALPHANUM),A:BIT 4-2,C:JR Z,NAMELOOP
+
+                CP 31:JR Z,ENTER
+                CP 30:JR Z,DELETE
+
+                LD A,(NAMEX):CP 10:JP Z,NAMELOOP
+                PUSH AF:LD A,3:CALL GOBEEP:POP AF
+                INC A:LD (NAMEX),A:CP 10:JP Z,NAMELOOPZ
+                JP NAMELOOP
+
+DELETE          LD A,(NAMEX):OR A:JP Z,NAMELOOP
+                PUSH AF:LD A,1:CALL GOBEEP:POP AF
+                LD HL,NAMETEXT:LD DE,(NAMEX):LD D,0:ADD HL,DE
+                LD (HL)," ":DEC A:LD (NAMEX),A:JP NAMELOOP
+
+ENTER           LD HL,NAMETEXT:LD DE,(NAMEX):LD D,0:ADD HL,DE
+                LD (HL)," ":POP DE:LD HL,NAMETEXT:LD BC,10:LDIR
+                JP CLS
+
+ALPHANUM        DB 0
+ALPHABET        DB "ABCDEFGHIJKLMNOPQRSTUVWXYZ .<>re"
+
+NAMEX           DB 0
+NAMENUM         DB 10                   ; 10 = HIGH 1
+NAMETEXT        DB "           ",PREOF
+
+HIGHSCORES      LD A,HIGHTUNE:CALL PLAYMUSIC
+                XOR A:LD (ATTR),A:CALL CLS:CALL SPRINT
+HIGHSCORETEXT   DB PRINK,$45,PRINK2,$44,PRGAMECLS,PRSIZE,1
+                DB PRAT,06,00,"MIDNIGHT  RESISTANCE"
+                DB PRSIZE,0,PRAT,09,03,"TOP 10 PLAYERS"
+HI1             DB PRAT,05,04,"01 JAMES B.   00010000"
+HI2             DB PRAT,05,05,"02 JACQUI H.  00009000"
+HI3             DB PRAT,05,06,"03 PAT W.     00008000"
+HI4             DB PRAT,05,07,"04 NIGE W.    00007000"
+HIS             DB PRAT,05,08,"05 CRAIG W.   00006000"
+HI6             DB PRAT,05,09,"06 DONNA W.   00005000"
+HI7             DB PRAT,05,10,"07 DAVE B.    00004000"
+HI8             DB PRAT,05,11,"08 KATHY H.   00003000"
+HI9             DB PRAT,05,12,"09 HELLO MUM. 00002000"
+HI10            DB PRAT,05,13,"10 THATS ALL! 00001000"
+                DB PRAT,05,15,"LAST PLAYER.. "
+LASTSCORE       DB "00000000",PREOF
+                CALL SPRINT:DB PRSIZE,1
+                DB PRAT,10,17,"FIRE TO PLAY"
+                DB PRAT,06,19,"'S' TOGGLE MUSIC OFF"
+                DB PRAT,04,22,"WINNERS DON'T USE DRUGS.",PREOF
+                CALL SHOWTOG
+
+HIGHLOOP
+                LD A,$FD:IN A,(254):AND 2:JR NZ,NOTOG
+                LD A,(MUSCONT+1):XOR 1:LD (MUSCONT+1),A
+                OR A:PUSH AF:CALL Z,KILLSOUND
+                POP AF:LD A,(TUNENUM+1):CALL NZ,PLAYMUSIC
+                CALL SHOWTOG:CALL WAITNOKEY
+NOTOG           CALL READKEYS:DB 62
+FUDLR           DB 0
+                AND $10:JR Z,HIGHLOOP:JP CLS
+
+SHOWTOG         LD A,(MUSCONT+1):OR A:LD HL,"FF":JR Z,MOF:LD HL," N"
+MOF             LD (HABBY-2),HL
+                CALL SPRINT:DB PRSIZE,1,PRAT,24,19,"FF"
+HABBY           DB PRSIZE,0,PREOF
+                RET
+
+
+;***************************************
+;** DUMP BACK SCREEN ROUTINE          **
+;***************************************
+
+DUMPBACK        LD HL,BACKATR+3:LD DE,$5803:EXX:LD HL,BACKSCR+3
+                LD DE,$4003:CALL PLINE:LD DE,$4023:CALL PLINE
+                LD DE,$4043:CALL PLINE:LD DE,$4063:CALL PLINE
+                LD DE,$4083:CALL PLINE:LD DE,$40A3:CALL PLINE
+                LD DE,$40C3:CALL PLINE:LD DE,$40E3:CALL PLINE
+                LD DE,$4803:CALL PLINE:LD DE,$4823:CALL PLINE
+                LD DE,$4843:CALL PLINE:LD DE,$4863:CALL PLINE
+                LD DE,$4883:CALL PLINE:LD DE,$48A3:CALL PLINE
+                LD DE,$48C3:CALL PLINE:LD DE,$48E3
+PLINE           LD C,H:LD A,8
+PLIN1           LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI
+                LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI
+                LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI
+                LDI:LDI:LD BC,$0006:ADD HL,BC
+                EX DE,HL:LD C,$E6:ADD HL,BC:EX DE,HL
+                DEC A:JP NZ,PLIN1
+                EXX:LD C,H:LDI:LDI:LDI:LDI:LDI:LDI
+                LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI
+                LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI:LDI
+                LDI:LDI:LD BC,$0006:ADD HL,BC
+                EX DE,HL:ADD HL,BC:EX DE,HL:EXX:RET
+
+COPYBACK        LD HL,COPYLINE:PUSH HL:PUSH HL:PUSH HL
+                PUSH HL:PUSH HL:PUSH HL:PUSH HL:PUSH HL:PUSH HL
+                PUSH HL:PUSH HL:PUSH HL:PUSH HL:PUSH HL:PUSH HL
+                LD HL,BACKATR2:LD DE,BACKATR+3:EXX
+                LD HL,BACKSCR2:LD DE,BACKSCR+3
+COPYLINE        LD A,8
+CLIN1           LD BC,26:LDIR:INC E:INC E:INC DE:INC E:INC E:INC E
+                DEC A:JP NZ,CLIN1:EXX:LD BC,26:LDIR
+                INC E:INC E:INC DE:INC E:INC E:INC E:EXX:RET
+
+;****************************************************************************
+;** COPY DATA FROM 'DE' PAGE 'A' TO 'HL' PAGE 0 FOR 'BC' BYTES             **
+;****************************************************************************
+
+PAGECOPY        
+                ex de,hl
+                ld hx,a
+                ld lx,0
+                di
+                call copypage
+                ei
+                ret
+                ;PUSH DE:EXX:POP HL:LD D,A:LD E,$10:LD BC,$7FFD:EXX
+                DI
+                LD A,$3F:LD I,A
+                ;IM 1
+BCPAGECOPY      EXX:OUT (C),D:LD A,(HL):INC HL
+                OUT (C),E:EXX:LD (HL),A:INC HL
+                DEC BC:LD A,B:OR C:JP NZ,BCPAGECOPY
+                LD A,$FE:LD I,A
+                ds 2;IM 2
+                EI:RET
+
+;****************************************************************************
+;** THE GAME CODE                                                          **
+;****************************************************************************
+
+GAME            LD HL,(LEVELSTARTUP):LD (HEROX+1),HL
+                LD A,H:SUB $10:LD H,A:LD (GUNX+1),HL
+
+                LD HL,(MAPXS):LD (MAPX),HL
+                LD A,(MAPDIRS):LD (MAPDIR),A
+                LD A,(RM):LD (RIGHTMAX+1),A
+                LD A,(RDM):LD (DOWNMAX+1),A
+                LD A,(UD):LD (SETUD+1),A
+                LD A,(LR):LD (SETLR+1),A
+
+                LD A,(LD1):LD (LAD1+1),A
+                LD A,(LD2):LD (LAD2+1),A
+                LD A,(CR1):LD (CRAWLPLAT+1),A
+                LD A,(SL1):LD (SLID1+1),A
+                LD A,(SL2):LD (SLID2+1),A
+                LD A,(SL3):LD (SLID3+1),A
+                LD A,(SL4):LD (SLID4+1),A
+
+                LD HL,(CHRS):LD (DMPCHRAD+1),HL
+                LD HL,(ATRS):LD (DMPATRAD+1),HL
+                LD HL,(BLOX):LD (BLOXAD1+1),HL:LD (BLOXAD2+1),HL
+
+                DB 62
+MAPDIR          DB 0
+                OR A:PUSH AF:CALL Z,SETLEFTRIGHT:POP AF
+                PUSH AF:CALL NZ,SETUPDOWN:POP AF:JR NZ,SETU
+                LD DE,$0018
+UPDATLOP1       PUSH DE:CALL UPDATEX:POP DE:DEC E:DEC E
+                JP P,UPDATLOP1:JR SETL
+SETU            LD DE,$0F00
+UPDATL0P2       PUSH DE:CALL UPDATEY:POP DE:DEC D:JP P,UPDATL0P2
+SETL
+                LD A,18:LD (HEROP+1),A:LD A,2:LD (GUNDIR+1),A
+                XOR A:LD (NOSCROLL+1),A:LD (HEROF+1),A
+                LD (ONLADDER+1),A:DEC A:LD (HEROG+1),A
+                CALL RESETBAD:CALL PRTSTATUS
+
+                XOR A:LD (FRAME+1),A
+
+GAMELOOP        XOR A:LD (RETMODE),A
+
+                CALL DOALLBACKBITS
+                CALL MOVEBAD:CALL DODGYCOLISH
+                CALL READKEYS:CALL DECODE
+
+                LD DE,(WEPROOMX)
+                LD A,(MAPX):CP E:JR NZ,NOGOWEPROOM
+                LD A,(MAPY):CP D:JR NZ,NOGOWEPROOM
+                LD HL,(DOORXY):LD A,(DOORSIZE):LD H,A
+                LD DE,(HEROX+1):LD D,$1F:CALL HITA:JR C,NOGOWEPROOM
+                LD HL,(DOORXY+1):LD A,(DOORSIZE+1):LD H,A
+                LD DE,(HEROX+2):LD D,$1F:CALL HITA:JR C,NOGOWEPROOM
+                LD A,(PRTDOOR+1):OR A:JP Z,WEAPONROOM
+NOGOWEPROOM     LD A,(FUDLR):AND $40:CALL NZ,PAUSE0
+                LD A,(RETMODE):OR A:RET NZ
+                JP GAMELOOP
+;               LD A,BREAK:LD (RETMODE),A
+;               LD A,127:IN A,(254):RRA :JP C,GAMELOOP
+;               LD A,254:IN A,(254):RRA :JP C,GAMELOOP:RET
+
+;****************************************************************************
+;** DO ALL BACK BITS (EG. PRINT ALL SCREENS)                               **
+;****************************************************************************
+
+DOALLBACKBITS   XOR A:LD (BAGE+1),A
+                CALL CONTSCROLL:CALL SCRCNT:CALL COPYBACK:CALL PRTDOOR
+                CALL PRTLEVELBACK
+                LD A,(STH+1):OR A:JR Z,SNF2
+                LD A,(SHIM+1):LD (HEROX+2),A:SUB $10:LD (GUNX+2),A
+                XOR A:LD (STH+1),A
+SNF2
+                CALL PRTWAPS:CALL PRTKEYS
+                CALL PRTBADDIES:CALL PRTHERO:CALL PRTBARRIER:CALL PRTBULLETS
+                CALL PRTFLAMES:CALL PRTEXP
+
+                LD A,$FD:IN A,(254):AND 2
+MAZ             JR NZ,NOMOG
+                LD A,(MAZ):XOR 8:LD (MAZ),A:AND 8:JR Z,NOMOG
+                LD A,(MUSCONT+1):XOR 1:LD (MUSCONT+1),A
+                OR A:PUSH AF:CALL Z,KILLSOUND
+                POP AF:LD A,(TUNENUM+1):CALL NZ,PLAYMUSIC
+NOMOG
+                CALL BEEPER:DB 62
+POS             DB 0
+                INC A:LD (POS),A:CALL RAND
+
+                LD HL,SCORETEXT:CALL PRINT
+                LD A,$47:LD (ATTR),A
+                LD HL,(AMMOLEFT+1):LD DE,$110C:CALL DEC3
+                LD HL,(BACKLEFT+1):LD H,0:LD DE,$1114:CALL DEC2
+
+;               LD A,(MAPX):LD DE,$1610:CALL HEX8
+;               LD A,(MAPY):LD DE,$1710:CALL HEX8
+
+                LD A,(POS):AND 7:LD C,A:CP 6:CALL C,PRTCOL
+
+                DB #06,#00,#10,#FE,#10,#FE
+
+                LD HL,$5A63
+                LD B,26:LD A,B
+LIMP            SUB 0:LD C,A
+LIVES           EQU LIMP+1
+PLATELP         LD A,C:CP B:LD A,#42:JR C,PRTLF:XOR A
+PRTLF           LD (HL),A:INC HL:DJNZ PLATELP
+
+                LD A, (BLAD+1): XOR 3:LD (BLAD+1),A
+                AND 1:LD (MISSILEANI+1),A
+
+                JP DUMPBACK
+
+PRTCOL          ADD A,A:ADD A,3:LD E,A:LD D,20:LD A,C
+KEYSCOLLECTED   CP 6:LD HL,NOKEYCEL:JR NC,NUS:LD HL,KEYCEL
+NUS             JP PRINT
+
+KEYCEL          DB PRSIZE,0,PRKEY,#0B,$81,PRKEY,#0E,$83,PREOF
+NOKEYCEL        DB PRSIZE,0,PRKEY,#0B,$85,PRKEY,#0E,$87,PREOF
+
+;****************************************************************************
+
+; E=TENS TO ADD TO SCORE
+; D=HUNDREDS TO ADD TO SCORE
+
+ADDSCORE        PUSH BC:PUSH HL:LD HL,SCORE+7-1:LD B,7
+ADDSCOREBLP     LD A,(HL):ADD A,E:LD (HL),A:CP "9"+1:JR C,NOTOVER
+                SUB 10:LD (HL),A
+                LD A,B:CP 5:JR NZ,NOEXTRA        ; EVERY 10 THOUSAND POINTS
+                LD A,(LIVES):CP 3:JR NC,NOEXTRA:INC A:LD (LIVES),A
+NOEXTRA         INC D:LD A,D:CP 10:JR C,NOTOVER
+                DEC HL:SUB 10:LD E,A:LD D,1:DJNZ ADDSCOREBLP
+XITADDSCORE     POP HL:POP BC:RET
+NOTOVER         LD A,D:OR A:JR Z,XITADDSCORE
+                DEC HL:LD E,D:LD D,0:DJNZ ADDSCOREBLP:JR XITADDSCORE
+
+;****************************************************************************
+
+PRTSTATUS       LD A,(LEVEL):CP STARTLEV:RET NZ
+                CALL SPRINT:DB PRSIZE,0
+                DB PRINK,0,PRAT,03,19,PRMULTY,26,$80
+                DB PRAT,09,17,PRKEY,5,$8B,PRAT,11,17,$8D
+                DB PRAT,18,17,PRKEY,6,$89,PREOF
+
+                LD BC,$0600
+WAZS            PUSH BC:LD A,C:CALL PRTCOL:POP BC:INC C:DJNZ WAZS:RET
+
+;****************************************************************************
+;** SCROLL ROUTINES                                                        **
+;****************************************************************************
+
+CONTSCROLL      LD A,0:OR A:RET Z:DEC A:LD (CONTSCROLL+1),A:PUSH AF
+                XOR A:LD (NOSCROLL+1),A:CALL SCROLLUP
+                CALL SCRDIR
+;                CALL SCROLLRIGHT
+                POP AF:RET Z:LD A,1:LD (NOSCROLL+1),A:RET
+
+RETLR           LD A,(MAPY)
+SETLR           CP $10:JP Z,SETLEFTRIGHT:OR A:RET
+
+SETUPDOWN       LD A,13:LD (MAPXSIZE),A:LD HL,(MAP2):LD (MAP),HL
+                LD HL,(BADDYINITSY):LD (BADDATA+1),HL
+                LD A,1:LD (MAPDIR),A:XOR A:RET
+
+SCROLLUP        LD A,(NOSCROLL+1):CP 1:RET NC
+                LD A,(LEVEL):CP 5:JR NZ,NOAE
+                LD A,(MAPX):OR A:RET Z
+NOAE            LD A,(MAPDIR):OR A:RET Z
+                LD A,(MAPY):OR A:JR Z,RETLR:DEC A:LD (MAPY),A
+                LD HL,BACKATR2-$D0-1:LD DE,BACKATR2-1:LD BC,15*$D0:LDDR
+                LD HL,BACKEND2-26-1:LD DE,BACKEND2-1:LD BC,15*26:LDDR
+                LD HL,$0800:CALL SMODALLX:LD DE,$0000
+                JP UPDATEY
+SCROLLDOWN
+NOSCROLL        LD A,0:CP 1:RET NC
+                LD A,(MAPDIR):OR A:RET Z
+                LD A,(MAPY)
+DOWNMAX         CP $10:JR NC,RETLR:INC A:LD (MAPY),A
+                LD HL,BACKSCR2+$D0:LD DE,BACKSCR2:LD BC,15*$D0:LDIR
+                LD HL,BACKATR2+26:LD DE,BACKATR2:LD BC,15*26:LDIR
+                LD HL,$F800:CALL SMODALLX:LD DE,$0F00
+UPDATEY         PUSH DE:LD A,(MAPY):ADD A,D:LD D,A
+                RRA
+BLOXAD1         LD HL,0:JR NC,SEFDY:INC HL:INC HL
+SEFDY           LD (BLXAD+1),HL:DB 33
+MAP             DW 0
+                LD A,D:SRL A:LD D,0:ADD HL,DE
+                PUSH AF:LD A,(MAPXSIZE):LD E,A:POP AF
+                CALL MULT:POP DE:LD B,13
+BLPER           PUSH BC:LD A,(HL):INC HL:PUSH HL
+                LD L,A:LD H,0:ADD HL,HL:ADD HL,HL
+BLXAD           LD BC,$FFFF:ADD HL,BC:LD A,(HL):INC HL:CALL DMPCHR
+                LD A,(HL):CALL DMPCHR:POP HL:POP BC:DJNZ BLPER
+                LD A,(MAPY):CALL TRYINITBAD
+                CALL RETLR:CCF:RET
+
+;****************************************************************************
+
+RETUD           LD A,(MAPX)
+SETUD           CP $E6:JP Z,SETUPDOWN:OR A:RET
+SETLEFTRIGHT    LD A,(MAXMAP):LD (MAPXSIZE),A:LD HL,(MAP1):LD (MAP),HL
+                XOR A:LD (MAPDIR),A
+                LD HL,(BADDYINITSX):LD (BADDATA+1),HL:LD A,(MAPX)
+                OR A:RET Z:CP $E6:RET Z:ADD A,26:LD (MAPX),A
+                LD HL,(BADDYINITSX2):LD (BADDATA+1),HL:RET
+
+SCROLLLEFT      LD A,(LEVEL):OR A:JR Z,DOSCLEFT
+                CP 9:JR Z,FOR9
+                CP 5:SCF:CCF:RET NZ
+FOR9            LD A,(NOSCROLL+1):CP 1:RET NC
+                LD A,(MAPDIR):OR A:RET NZ
+DOSCLEFT        LD A,(MAPX):SUB 2:CCF:JR NC,RETUD:LD (MAPX),A
+                LD HL,BACKATR2-3:LD DE,BACKATR2-1:LD BC,16*$D0-2:LDDR
+                LD HL,BACKEND2-3:LD DE,BACKEND2-1:LD BC,16*26-2:LDDR
+                LD HL,$0010:CALL SMODALLX:LD DE,$0000:JP UPDATEX
+
+SCROLLRIGHT     LD A,(LEVEL):OR A:JR Z,DOSCRIGHT
+                CP 9:SCF:CCF:RET Z
+                CP 5:SCF:CCF:RET Z
+                LD A,(NOSCROLL+1):CP 1:RET NC
+                LD A,(MAPDIR):OR A:RET NZ
+
+                LD A,(LEVEL):CP 4:JR NZ,DOSCRIGHT
+                LD A,(MAPX):CP $AE:JR C,DOSCRIGHT
+                CP $DE-4:JR NC,DOSCRIGHT:ADD A,2:LD (MAPX),A
+                LD HL,BACKSCR2+$B62:LD DE,BACKSCR2+$B60:LD BC,$19E:LDIR
+                LD HL,BACKATR2+$16E:LD DE,BACKATR2+$16C:LD BC,$032:LDIR
+                LD HL,$00F0:CALL SMODALLX:LD A,1:LD (BLPER2-1),A
+                LD HL,(MAP):PUSH HL:LD A,(MAPXSIZE):LD DE,7:CALL MULT
+                LD (MAP),HL:LD DE,$0E18:CALL UPDATEX
+                POP HL:LD (MAP),HL:LD A,8:LD (BLPER2-1),A:RET
+
+DOSCRIGHT       LD A,(MAPX)
+RIGHTMAX        CP $E6:JP NC,RETUD:ADD A,2:LD (MAPX),A
+                LD HL,BACKSCR2+2:LD DE,BACKSCR2:LD BC,16*$D0-2:LDIR
+                LD HL,BACKATR2+2:LD DE,BACKATR2:LD BC,16*26-2:LDIR
+                LD HL,$00F0:CALL SMODALLX:LD DE,$0018
+UPDATEX         PUSH DE:LD A,(MAPX):ADD A,E:LD E,A
+BLOXAD2         LD HL,0
+SEFDX           LD (BLXAD2+1),HL:LD HL,(MAP):SRL E
+                LD D,0:ADD HL,DE:POP DE:LD B,8
+BLPER2          PUSH BC:LD A,(HL):DB 1
+MAPXSIZE        DW 0
+                ADD HL,BC:PUSH HL:LD L,A:LD H,0:ADD HL,HL:ADD HL,HL
+BLXAD2          LD BC,$FFFF:ADD HL,BC
+                LD A,(HL):INC HL:CALL DMPCHR
+                LD A,(HL):INC HL:CALL DMPCHR:DEC E:DEC E:INC D
+                LD A,(HL):INC HL:CALL DMPCHR
+                LD A,(HL):INC HL:CALL DMPCHR:DEC E:DEC E:INC D
+                POP HL:POP BC:DJNZ BLPER2
+                LD A,(MAPX):CALL TRYINITBAD
+                CALL RETUD:CCF:RET
+
+;***************************************
+
+DMPCHR          PUSH HL:PUSH DE:PUSH BC:PUSH DE
+                PUSH AF:LD HL,BACKSCR2:LD A,D:LD D,0:ADD HL,DE
+                LD E,$D0:CALL MULT:POP AF:PUSH AF
+                LD E,A:LD D,0:EX DE,HL:ADD HL,HL:ADD HL,HL:ADD HL,HL
+DMPCHRAD        LD BC,0:ADD HL,BC:EX DE,HL
+                LD BC,26:LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:INC DE:ADD HL,BC
+                LD A,(DE):LD (HL),A:POP AF
+DMPATRAD        LD BC,0:ADD A,C:LD C,A:ADC A,B:SUB C:LD B,A
+                POP DE:LD HL,BACKATR2:LD A,D:LD D,0:ADD HL,DE
+                LD E,26:CALL MULT:LD A,(BC):LD (HL),A
+                POP BC:POP DE:POP HL:INC E:RET
+
+;***************************************
+
+SMODALLX
+SMODHERO        LD A,1:OR A:RET Z
+                LD IX,BADDAT:LD DE,BADLEN:LD B,NOBAD
+SMODALLXBLP     LD A,(IX+ACTION):OR A:JR Z,OKDD:CP 6:JR Z,OKDD
+                LD A,(IX+XPOS):ADD A,L:LD (IX+XPOS),A
+                CP $E8:JR C,OKDE:LD (IX+ACTION),0
+OKDE            LD A,(IX+YPOS):ADD A,H:LD (IX+YPOS),A
+                OR A:JP P,OKDD:CP $B0:JR C,OKDD:CP $D0:JR NC,OKDD
+                LD (IX+ACTION),0
+OKDD            ADD IX,DE:DJNZ SMODALLXBLP
+
+                LD IX,WAPXYS:LD DE,5:LD B,6
+SMWP            LD A,(IX+02):CP $FF:JR Z,SKWP
+                LD A,(IX+01):ADD A,H:LD (IX+01),A
+                CP $B0: JR C,SKWP: CP $D0:JR NC,SKWP:LD (IX+02),$FF
+SKWP            ADD IX,DE:DJNZ SMWP
+
+                LD IX,KEYDAT:LD DE,KEYLEN:LD B,KEYNOKEY
+SMODALLXBLP2    LD A,(IX+KEYX):OR A:JR Z,OKKD:ADD A,L:LD (IX+KEYX),A
+                CP $E8:JR C,OKKE:LD (IX+KEYX),0
+OKKE            LD A,H:OR A:JR Z,OKKD
+                LD A,(IX+KEYY):ADD A,H:LD (IX+KEYY),A
+                CP $B0:JR C,OKKD:CP $D0:JR NC,OKKD
+                LD (IX+KEYX),0
+OKKD            ADD IX,DE:DJNZ SMODALLXBLP2
+
+                LD IX,BULDAT:LD DE,BULLEN:LD B,NOBUL
+SMODALLXBLP3    LD A,(IX+BULT):AND 7:CP 4:JR C,OKBD
+                LD A,(IX+BULX):OR A:JR Z,OKBD:ADD A,L:LD (IX+BULX),A
+                CP $E8:JR C,OKBE:LD (IX+BULX),0
+OKBE            LD A,(IX+BULY):ADD A,H:LD (IX+BULY),A
+                OR A:JP P,OKBD:LD (IX+BULX),0
+OKBD            ADD IX,DE:DJNZ SMODALLXBLP3
+
+                LD IX,EXPDAT:LD DE,EXPLEN:LD B,NOEXP
+SMODALLXBLP3A   LD A,(IX+EXPP):CP EXPDEAD:JR NC,OSET
+                LD A,(IX+EXPX):ADD A,L:LD (IX+EXPX),A
+                CP $E8:JR C,OSED:LD (IX+EXPP),EXPDEAD
+OSED            LD A,(IX+EXPY): ADD A,H:LD (IX+EXPY),A
+                OR A:JP P,OSET:LD (IX+EXPP),EXPDEAD
+OSET            ADD IX,DE:DJNZ SMODALLXBLP3A
+
+                CALL SMODLEVEL
+
+                LD A,(HEROX+2):ADD A,H
+                LD (HEROX+2),A:SUB $10:LD (GUNX+2),A
+                LD A,(HEROX+1):ADD A,L:CP $10:RET C:CP $D0:RET NC
+                LD (HEROX+1),A:LD (GUNX+1),A:RET
+
+;****************************************************************************
+;** DECODE JOYSTICK ROUTINE                                                **
+;****************************************************************************
+
+DYING           LD DE,(HEROX+1):LD HL,(GUNX+1):LD A,(HEROG+1)
+                LD C,A:ADD A,D:OR A:JP M,FEST
+SNA             LD D,A:LD A,C:ADD A,H:OR A:JP M,JPUZ
+                LD H,A:LD A,C:OR A:JP M,JPUS
+                PUSH DE:LD DE,(HEROX+1):CALL HESTFLOOR:POP DE:JR NC,JPUS
+
+FEST            LD A,(INFLIVES):OR A:JR NZ,CHT
+                LD A,(LIVES):OR A:JR Z,LOSEGAME
+                nop ;DEC A
+                LD (LIVES),A
+CHT             LD A,48:LD (HEROFLASH+1),A:LD A,18:LD (HEROP+1),A
+                LD A,2:LD (GUNDIR+1),A:RET
+LOSEGAME        LD A,LOSELIFE:LD (RETMODE),A:RET
+
+JPUZ            LD A,D:SUB C:LD D,A
+JPUS            LD (HEROX+1),DE:LD (GUNX+1),HL
+                LD A,(HEROG+1):INC A:CP 7:RET P:LD (HEROG+1),A:RET
+
+DECODE
+                LD A,(GUNDIR+1):INC A:JR Z,DYING
+                LD A,(ONLADDER+1):OR A:JR NZ,YONL
+
+                LD A,(GUNDIR+1):AND 7:LD (GUNDIR+1),A
+                LD A,(HEROP+1):AND 7:ADD A,24:LD (HEROP+1),A
+                LD A,$10:LD (XYSUB+1),A
+
+                LD A,(HEROF+1):OR A:JR NZ,JOD
+HEROCRAWL       LD A,0:OR A:JR Z,JOD
+NADU            LD A,4:LD (BXAD+1),A
+                JR NODU
+JOD             LD A,8:LD (BXAD+1),A
+                LD A,(HEROX+1):AND $F8:LD (HEROX+1),A
+NODU
+YONL            LD A,(WEPSELECT):OR A:JR Z,NOWEPSEL
+                LD A,(POS):AND 3: JR NZ,NOWEPSEL
+
+                LD A, %11111011:IN A,(254):AND %00010:JR NZ,NOWEPSEL1
+                LD A,(WEPTYPE+1):INC A:AND 7:LD (WEPTYPE+1),A
+
+NOWEPSEL1
+                LD A,%01111111:IN A,(254):AND %10000:JR NZ,NOWEPSEL2
+                LD A,(PAKTYPE+1):INC A:AND 3:LD (PAKTYPE+1),A
+NOWEPSEL2
+NOWEPSEL        LD A,(GUNDIR+1):LD (OLDDIR+1),A
+
+                LD A,(FUDLR):AND 15:LD C,A:LD B,0
+                LD HL,TURNUM:ADD HL,BC:LD A,(HL):OR A: LD C,A
+                CALL P,TURNERTO
+
+                LD A,(FUDLR)
+                RRA:PUSH AF:CALL C,HERORIGHT:POP AF
+                RRA:PUSH AF:CALL C,HEROLEFT:POP AF
+                RRA:PUSH AF:CALL C,HERODOWN:POP AF
+                RRA:PUSH AF:CALL C,HEROUP
+
+STH             LD A,0:OR A:JR Z,SNF
+SHIM            LD A,0:LD (HEROX+2),A:SUB $10:LD (GUNX+2),A
+                XOR A:LD (STH+1),A
+SNF             CALL TOEN:POP AF
+
+                PUSH AF:CALL NOFIRE:POP AF
+                RRA:PUSH AF:CALL C,FIREWEAPON:POP AF
+                RRA:PUSH AF:CALL C,FIREPAK:POP AF
+
+                LD HL,WEPTIMER+1:CALL INCTIM:LD HL,PAKTIMER+1
+INCTIM          LD A,(HL):CP 32:RET NC:INC (HL):RET
+
+TOEN            LD A,(MAPDIR):OR A:RET Z:LD DE,(HEROX+1):LD A,D
+                CP $58+1:JP NC,SCROLLDOWN:CP $40:JP C,SCROLLUP
+                RET
+
+TU              EQU 0
+UR              EQU 1
+TR              EQU 2
+DR              EQU 3
+TD              EQU 4
+DL              EQU 5
+TL              EQU 6
+UL              EQU 7
+FF              EQU 255
+
+TURNUM          DB FF,TR,TL,FF
+                DB TD,DR,DL,TD
+                DB TU,UR,UL,TU
+                DB FF,FF,FF,FF
+
+FIREWEAPON      LD HL,FIREWEPJUMPS
+WEPTYPE         LD A,0:AND 7
+WEPJUMP         ADD A,A:LD E,A:LD D,0:ADD HL,DE
+                LD E,(HL):INC HL:LD D,(HL):EX DE,HL:JP (HL)
+FIREPAK         LD HL,FIREPAKJUMPS
+PAKTYPE         LD A,0:AND 3:JR WEPJUMP
+
+FIREWEPJUMPS
+                DW NORMAL
+                DW FLAME
+                DW THREEWAY
+                DW FULLAUTO
+                DW SHOTGUN
+                DW NORMAL
+                DW NORMAL
+
+FIREPAKJUMPS    DW RETURN
+                DW NITRO
+                DW HOMINGMISSILE
+                DW SHOWER
+
+PAKTIMER        CP 0:JR C,AKFIR:POP HL:RET
+AKFIR           XOR A:LD (PAKTIMER+1),A:RET
+WEPTIMER        CP 0:JR C,EPFIR:POP HL:RET
+EPFIR           XOR A:LD (WEPTIMER+1),A:RET
+NITRO           LD A,7:CALL PAKTIMER
+                CALL DECBACK:RET Z
+                LD DE,(GUNX+1):LD A,E:ADD A,$10:LD E,A:LD D,16
+                LD B,5:LD A,04+16
+NITBLP          PUSH DE:PUSH BC:PUSH AF:LD B,5:CALL INITBIL
+                POP AF:POP BC:POP DE:ADD A,2:DJNZ NITBLP:RET
+
+HOMINGMISSILE   LD A,7:CALL PAKTIMER
+                CALL DECBACK:RET Z
+                LD DE,(GUNX+1):LD A,D:ADD A,$0C:LD D,A:CALL GETXYOFHERO
+                LD B,5:LD A,14+16
+HOMBLP          PUSH DE:PUSH BC:PUSH AF:LD B,7:OR 16:CALL INITBUL
+                POP AF:POP BC:POP DE:INC A:DJNZ HOMBLP:RET
+
+SHOWER          LD A,7:CALL PAKTIMER
+                CALL DECBACK:RET Z
+                LD DE,$0028:LD B,8
+SHOBLP          PUSH DE:PUSH BC:LD A,8+16:LD B,6:CALL INITBIL
+                POP BC:POP DE:LD A,E:ADD A,$18:LD E,A:DJNZ SHOBLP:RET
+
+FLAME           LD A,(PRTFLAMES+1):ADD A,2:CP NOFLAMES+1:JR C,SKPFL
+                LD A,NOFLAMES+1
+SKPFL           LD (PRTFLAMES+1),A:LD A,3:JP GOBEEP
+
+FULLAUTO        CALL DECAMMO:RET Z
+                LD L,1:LD B,1:JR FIREBUL
+
+THREEWAY        LD A,3:CALL WEPTIMER
+                CALL DECAMMO:RET Z
+                LD DE,(GUNX+1):LD A,E:AND $F8:ADD A,$0F:LD E,A
+                LD A,D:ADD A,$0E:LD D,A:PUSH HL:CALL GETXYOFHERO:POP HL
+                LD A,(GUNDIR+1):AND 7:ADD A,A:PUSH DE:PUSH AF:OR 16
+                LD B,3:CALL INITBIL:POP AF:POP DE:DEC A:AND 15
+                PUSH DE:PUSH AF:OR 16:LD B,3:CALL INITBIL:POP AF:POP DE
+                ADD A,2:AND 15:OR 16:LD B,3:JP INITBIL
+
+SHOTGUN         LD A,3:CALL WEPTIMER
+                CALL DECAMMO:RET Z
+                LD L,1:LD B,2:JR FIREBUL
+
+NORMAL          LD A,1:CALL WEPTIMER
+                LD L,1:LD B,0
+
+FIREBUL         LD DE,(GUNX+1):LD A,E:AND $F8:ADD A,$0F:LD E,A
+                LD A,D:ADD A,$0E:LD D,A
+FIRE1           PUSH HL:CALL GETXYOFHERO:POP HL
+                LD A,(GUNDIR+1):AND 7:ADD A,A
+FIRE2           PUSH BC:PUSH HL:PUSH DE:PUSH AF:CALL INITBUL:POP AF:POP DE
+                POP HL:DEC L:POP BC:RET Z:DEC A:AND 15:PUSH BC
+                PUSH DE:PUSH AF:CALL INITBUL:POP AF:POP DE:ADD A,2:AND 15
+                POP BC:PUSH DE:PUSH AF:CALL INITBUL:POP AF:POP DE:RET
+
+GETXYOFHERO     LD A,(GUNDIR+1):CP $FF:RET Z:CP 56:JR C,FKD:SUB 40
+FKD             PUSH DE:ADD A,A:LD E,A:LD D,0:LD HL,XYOFSETS
+                ADD HL,DE:POP DE:LD A,E:ADD A,(HL):LD E,A:INC HL
+                LD A,D:ADD A,(HL):LD D,A:RET
+
+XYOFSETS        DW $F408,$F808,$FA10,$0008    ; RUN
+                DW $0008,$0000,$FAF8,$F800
+
+                DW $EC08,$F408,$F810,$FA10    ; CLIMB
+                DW $0810,$FAF8,$F8F8,$F400
+
+                DW $F810,$0610,$0418,$0810    ; CRAWL
+                DW $1410,$0A00,$0400,$FE00
+
+NOFIRE          LD A,(ONLADDER+1):OR A:RET NZ:CALL DOFALL
+GODU            LD A,(BXAD+1):CP 8:RET Z
+                LD A,(HEROP+1):AND $07:ADD A,40:LD (HEROP+1),A
+                LD A,(GUNDIR+1):AND $07:ADD A,56:LD (GUNDIR+1),A
+                JR NOSTEP
+
+DOFALL          LD A,(ONLADDER+1):OR A:RET NZ
+                LD A,(HEROG+1):OR A:JP M,JAFT
+                LD DE,(HEROX+1):CALL HESTFLOOR
+                LD A,(ONLADDER+1):LD C,A:INC C:DEC C:RET NZ
+                CALL C,SETFLOOR
+JAFT            LD DE,(HEROX+1):LD HL,(GUNX+1):LD A,(HEROG+1)
+                LD C,A:ADD A,D:OR A:JP M,NOFT:LD D,A
+                LD A,H:ADD A,C:LD H,A
+NOFT            LD A,C:OR A:JP M,JPUP
+                CALL HESTFLOOR
+                LD A,(ONLADDER+1):LD C,A:INC C:DEC C:RET NZ
+                JP C,SETFLOOR
+JPUP            LD (HEROX+1),DE:LD (GUNX+1),HL
+                XOR A:LD (HEROCRAWL+1),A
+                LD A,(HEROP+1):AND 7:ADD A,32:LD (HEROP+1),A
+HEROG           LD A,0:INC A:CP 9:JP P,SMOG:LD (HEROG+1),A
+SMOG
+
+NOSTEP          LD A,(XYSUB+1):LD E,A
+                LD A,(GUNX+2):ADD A,E:SUB $10:LD (GUNX+2),A
+                LD A,(BEEPNUM):CP 1:RET NZ:XOR A:LD (BEEPNUM),A:RET
+
+GETMAPBYTE      DB 1
+MAPX            DB 0
+MAPY            DB 0
+
+                PUSH HL:PUSH DE
+                LD A,(MAPDIR):OR A:JR Z,NGD
+                LD A,E:SUB $10:SRL A:SRL A:SRL A:SRL A:LD E,A
+                LD H,0:LD L,B
+                RES 0,L:SLA L:RL H:SLA L:RL H:SLA L:RL H
+
+                LD A,B:AND 1:ADD A,A:ADD A,A:ADD A,A:NEG:ADD A,D
+                ADD A,$10:CP $C0:JR C,AHA
+                NEG:LD C,A:LD A,L:SUB C:LD L,A
+                LD A,H:SBC A,0:LD H,A:JR ALA
+AHA             CALL ADDHLA
+ALA             SRL H:RR L:SRL H:RR L:SRL H:RR L:SRL H:RR L
+                LD A,L: JR GETTHEBYTE
+NGD             LD A,E:SUB 16:SRL A:SRL A:SRL A:ADD C:SRL A:LD E,A
+                LD A,D:AND $F0:ADD A,$10:SRL A:SRL A:SRL A:SRL A
+                CP 8:JR NC,NOFLORPOP
+GETTHEBYTE      LD HL,(MAP):LD D,0:ADD HL,DE:LD DE,(MAPXSIZE)
+                CALL MULT:LD A,(HL):POP DE:POP HL:SCF:RET
+NOFLORPOP       POP DE:POP HL:XOR A:RET
+
+HEX8            PUSH AF:RRA:RRA:RRA:RRA:CALL HEX4:POP AF
+HEX4            PUSH AF:AND $0F:ADD A,"0":CP "9"+1:JR C,HEX1:ADD A,7
+HEX1            CALL PRTCELL:POP AF:RET
+
+TESTWALL        LD A,(WEPFLRCOL+1):OR A:RET NZ
+                CALL GETMAPBYTE:PUSH IX:PUSH BC:LD IX,(FLOORWALLBYTES)
+                LD B,(IX+00):INC IX
+BLPTW           CP (IX+00):JR Z,TESTYESWAL:INC IX:DJNZ BLPTW
+TESTNOWAL       POP BC:POP IX:OR A:RET
+TESTYESWAL      POP BC:POP IX:SCF:RET
+ERSC            LD A,D:CP $60:CCF:RET
+
+HESTFLOOR       LD C,0:CALL TESTFLOOR:RET NC
+TRYSLIDE        PUSH AF
+SLID1           CP $FF:JR Z,ONSLIDU
+SLID2           CP $FF:JR Z,ONSLIDU
+SLID3           CP $FF:JR Z,ONSLIDD
+SLID4           CP $FF:JR Z,ONSLIDD
+CRAWLPLAT       CP $FF:JR Z,ONCRAWLPLAT:POP AF:RET
+
+ONCRAWLPLAT     LD A,2:LD (HEROCRAWL+1),A:POP AF:RET
+
+PX              DW 0
+
+ONSLIDU         PUSH DE:LD DE,(HEROX+1):SRL E:SRL E:SRL E
+                LD A,(MAPX):ADD A,E:CPL:JR SMILE
+ONSLIDD         PUSH DE:LD DE,(HEROX+1):SRL E:SRL E:SRL E
+                LD A,(MAPX):ADD A,E
+SMILE           AND 1:ADD A,A:ADD A,A:ADD A,A:LD E,A
+                LD A,D:AND $F0:ADD A,E:SUB 8:LD (SHIM+1),A
+                POP DE:LD A,1:LD (STH+1),A:POP AF:RET
+
+TESTFLOOR       XOR A:LD (ONLADDER+1),A
+TASTEFLOOR
+WEPFLRCOL       LD A,0:OR A:JP NZ,ERSC
+                PUSH BC:CALL GETMAPBYTE:POP BC
+LAD1            CP $B8:JR Z,TESTYESLAD
+LAD2            CP $B9:JR Z,TESTYESLAD
+                PUSH IX:PUSH BC:LD IX,(FLOORTESTBYTES)
+                LD B,(IX+00):INC IX
+BLPTF           CP (IX+00):JR Z,TESTYESFLR:INC IX:DJNZ BLPTF
+TESTNOFLR       POP BC:POP IX:OR A:RET
+TESTYESFLR      POP BC:POP IX:SCF:RET
+
+TESTYESLAD      LD A,C:OR A:SCF:RET NZ
+
+                LD A,(HEROX+1):AND $F0:OR 8
+                LD (HEROX+1),A:LD (GUNX+1),A
+
+                LD A,(HEROP+1):AND 7:ADD A,48:LD (HEROP+1),A
+                LD A,(GUNDIR+1):AND 7:ADD A,8:LD (GUNDIR+1),A
+                XOR A:LD (HEROG+1),A:LD (HEROF+1),A
+                INC A:LD (ONLADDER+1),A:SCF:RET
+
+FLOROF          EQU 4
+
+SETFLOOR        LD A,(MAPY):AND $01:ADD A,A:ADD A,A:ADD A,A:NEG
+                LD B,A:LD A,D:AND $F0:ADD A,B
+                ADD A,FLOROF:LD (HEROX+2),A:LD D,A
+XYSUB           SUB $10:LD (GUNX+2),A
+                XOR A:LD (HEROF+1),A:LD (HEROG+1),A:RET
+
+HERODOWN
+ONLADDER        LD A,0:OR A:JR NZ,LADDOWN
+                LD A,(HEROF+1):OR A:RET NZ
+                LD A,1:LD (HEROCRAWL+1),A
+                RET
+
+LADDOWN         LD A,0:LD (HEROCRAWL+1),A
+                LD A,(POS):AND 1:RET NZ
+                LD A,(HEROX+2):ADD A,8:CP $60+FLOROF:LD (HEROX+2),A
+                PUSH AF:SUB $10:LD (GUNX+2),A
+                LD A,(GUNDIR+1): AND 7:CP 5:LD E,0:JR C,KOED:LD E,4
+KOED            LD A,(HEROP+1):DEC A:AND 3:ADD A,E
+                ADD A,48:LD (HEROP+1),A
+
+                LD DE,(HEROX+1):CALL HESTFLOOR:POP HL
+                LD A,(ONLADDER+1):OR A:JR Z,SETOFFLAD:PUSH HL
+
+                POP AF:RET C
+
+                LD A,$50+FLOROF:LD (HEROX+2),A
+                SUB $10:LD (GUNX+2),A
+
+                LD A,(ONLADDER+1):OR A:JP NZ,SCROLLDOWN
+
+SETOFFLAD       LD A,(HEROP+1):AND 3:ADD A,16:LD (HEROP+1),A
+                LD A,(GUNDIR+1):AND 7:LD (GUNDIR+1),A
+                RET
+
+LADUP
+                LD A,(POS):AND 1:RET NZ
+                LD A,(HEROX+2):SUB 8:CP $21:LD (HEROX+2),A
+                PUSH AF:SUB $10:LD (GUNX+2),A
+                LD A,(GUNDIR+1):AND 7:CP 5:LD E,0:JR C,KOEU:LD E,4
+KOEU            LD A,(HEROP+1):DEC A:AND 3:ADD A,E
+                ADD A,48:LD (HEROP+1),A
+
+                LD DE,(HEROX+1):CALL HESTFLOOR:POP HL
+                LD A,(ONLADDER+1):OR A:JR Z,SETOFFLAD:PUSH HL
+
+                POP AF:RET NC
+                LD A,$20:LD (HEROX+2),A
+                SUB $10:LD (GUNX+2),A
+                CALL SCROLLUP
+                LD DE,(HEROX+1):CALL HESTFLOOR:RET C
+                CALL SETOFFLAD:JR HEROF
+
+HEROUP          LD A, (HEROCRAWL+1):CP 2:RET Z
+                OR A:JR Z,NAFL
+                LD A,(FUDLR):AND $10:RET NZ
+NAFL            XOR A:LD (HEROCRAWL+1),A
+                LD A,(ONLADDER+1):OR A:JR NZ,LADUP
+                LD A,(FUDLR):AND $10:JP NZ,FIREPAK
+HEROF           LD A,0:OR A:RET NZ
+                LD A,(HEROG+1):OR A:RET NZ
+                LD (HEROCRAWL+1),A:INC A:LD (HEROF+1),A
+                LD A,-7:LD (HEROG+1),A:RET
+DOSTEPS         LD A,(HEROP+1):CP 16:RET C:CP 24:RET NC
+                AND 3:CP 1:PUSH DE:LD A,1:CALL Z,GOBEEP:POP DE:RET
+
+NOWALK          LD A,(HEROP+1):AND 7:ADD A,16:LD (HEROP+1),A:RET
+
+HERORIGHT       LD A,(ONLADDER+1):OR A:RET NZ
+
+                LD DE,(HEROX+1)
+                LD A,E:ADD A,$10:LD E,A:CALL TESTWALL:RET C
+OLDDIR          LD A,0:AND 7: CP 1:RET C:CP 3+1:RET NC
+BXAD            LD A,0:CP 8:JR Z,HE1
+                LD A,(POS):AND 1:RET NZ
+HE1             LD A,(HEROX+1):ADD 8:CP $D0:JR NC,NFOR:LD (HEROX+1),A
+
+NFOR            CP $B0:CALL NC,SETSCRRIGHT
+                LD A,(HEROP+1):INC A:AND 3:ADD 16:LD (HEROP+1),A
+                CALL DOSTEPS
+ESR
+WALKTOP         PUSH DE:LD DE,(HEROX+1):LD A,$10:LD (XYSUB+1),A
+                LD A,D:SUB $10:LD D,A
+                LD A,(HEROP+1):AND 3:CP 1:JR NZ,ESD
+                LD A,$0E:LD (XYSUB+1),A:LD A,D:ADD A,2:LD D,A
+ESD             LD (GUNX+1),DE:POP DE:RET
+ASR             LD A,(HEROP+1):AND 7:ADD 16:LD (HEROP+1),A
+                JR WALKTOP
+
+HEROLEFT        LD A,(ONLADDER+1):OR A:RET NZ
+
+                LD DE,(HEROX+1)
+                LD A,E:SUB $08:LD E,A:CALL TESTWALL:RET C
+                LD A,(OLDDIR+1):AND 7:CP 5:RET C
+                LD A,(BXAD+1):CP 8:JR Z,HEZ
+                LD A,(POS):AND 1:RET NZ
+
+HEZ             LD A,(HEROX+1):SUB 8:CP $18:JR C,NFOL:LD (HEROX+1),A
+
+NFOL            CP $40:CALL C,SETSCRLEFT
+                LD A,(HEROP+1):DEC A:AND 3:ADD 20:LD (HEROP+1),A
+                CALL DOSTEPS
+ESL             JP WALKTOP
+
+SETSCRLEFT      LD A,8:LD (SCRCNT+1),A:LD A,255:LD (SCRDIR+1),A:RET
+SETSCRRIGHT     LD A,8:LD (SCRCNT+1),A:LD A,1:LD (SCRDIR+1),A:RET
+
+SCRCNT          LD A,0:OR A: RET Z:DEC A:LD (SCRCNT+1),A
+SCRDIR          LD A,0:OR A:JP P,SCROLLRIGHT:JP SCROLLLEFT
+
+TURNERTO        LD A,(GUNDIR+1):AND 7:CP C:RET Z
+                LD A,(GUNDIR+1):LD B,A:SUB C:AND 7:CP 4:CCF
+                LD A,0:RLA:ADD A,A:DEC A:ADD A,B:AND 7:LD L,A
+                LD A,B:AND $F8:OR L:LD (GUNDIR+1),A
+                AND 7
+                CP 5:LD A,1:SBC A,0:ADD A,A:ADD A,A:LD C,A
+                LD A,(HEROP+1):AND $FB:OR C:LD (HEROP+1),A
+                OR 128:RET
+
+;*********************************************************************
+;** DUMP KEYS ONTO BACKGROUND                                       **
+;*********************************************************************
+
+KEYNOKEY           EQU 6
+KEYX            EQU 0
+KEYY            EQU 1
+KEYG            EQU 2
+KEYP            EQU 3
+KEYLEN          EQU 4
+
+KEYDAT          DS KEYNOKEY*KEYLEN,0
+
+INITKEY         LD IX,KEYDAT:LD B,KEYNOKEY
+                PUSH DE:LD DE,KEYLEN
+FINDKEYLP       LD A,(IX+KEYX):OR A:JR Z,GOTKEY
+                ADD IX,DE:DJNZ FINDKEYLP
+                POP DE:RET
+
+GOTKEY          POP DE:LD (IX+KEYX),E:LD (IX+KEYY),D
+                LD (IX+KEYG),-6
+                LD (IX+KEYP),0
+                RET
+
+PRTKEYS         LD IX,KEYDAT:LD B,KEYNOKEY
+PRTKEYBLP       LD A,(IX+KEYX):OR A:JP Z,GONEXTKEY
+
+                INC (IX+KEYG):LD E,(IX+KEYX)
+                LD A,(IX+KEYY):ADD A,(IX+KEYG):LD (IX+KEYY),A:LD D,A
+
+                OR A:JP P,SKZD
+                CP $A0:JR NC,SKZD
+                CP $90:JR C,SKZD
+                LD (IX+KEYX),0:JR GONEXTKEY
+SKZD            PUSH BC:LD C,1:CALL TASTEFLOOR:POP BC:JR NC,SKTD
+
+                LD (IX+KEYG),-1
+                LD A,(MAPY):AND 1:ADD A,A:ADD A,A:ADD A,A:NEG:ADD A,D
+                LD A,D:AND $F0:LD D,A
+                LD A,(MAPY):AND 1:ADD A,A:ADD A,A:ADD A,A:ADD A,D
+NAR             LD (IX+KEYY),A
+SKTD
+                INC (IX+KEYP):LD E,(IX+KEYX)
+                LD A,(IX+KEYY):CP $70:LD D,A
+                LD A,(IX+KEYP):CALL C,PRT1KEY
+                LD E,(IX+KEYX):LD D,8
+                LD HL,(HEROX+1):LD H,16:CALL HITA:JR C,GONEXTKEY
+                LD E,(IX+KEYY):LD D,16
+                LD HL,(HEROX+2):LD H,16:CALL HITA:JR C,GONEXTKEY
+
+                LD DE,0*256+2:CALL ADDSCORE
+                LD A,5:CALL GOBEEP
+
+                LD (IX+KEYX),0
+                LD A,(KEYSCOLLECTED+1):CP 6:JR NC,GONEXTKEY
+                INC A:LD (KEYSCOLLECTED+1),A
+
+GONEXTKEY       LD DE,KEYLEN:ADD IX,DE:DEC B:JP NZ,PRTKEYBLP:RET
+
+PRT1KEY         PUSH DE:AND 3:LD DE,64:LD HL,KEYSPRS:CALL MULT
+                POP DE:PUSH DE:PUSH BC:LD BC,$0208:CALL MASKCXB
+                POP BC:POP DE:RET
+
+MASKCXBINVADD   LD A,C:ADD A,A:ADD A,D:LD D,A:DEC D
+MASKCXBINV      PUSH HL:LD HL,-32:LD (SZ1+2),HL:LD (SZ2+2),HL:POP HL
+                CALL MASKCXB:LD HL,32:LD (SZ1+2),HL:LD (SZ2+2),HL:RET
+MASKCXBMINVADD  LD A,C:ADD A,A:ADD A,D:LD D,A:DEC D
+MASKCXBMINV     PUSH HL:LD HL,-32:LD (MZ1+2),HL:LD (MZ2+2),HL:POP HL
+                CALL MASKCXBMIR:LD HL,32:LD (MZ1+2),HL:LD (MZ2+2),HL:RET
+
+MASKCXB         LD A,D:OR A:RET M
+                PUSH HL:CALL BIXAD:EX DE,HL:POP HL
+MASKCXBCLP      PUSH BC
+MASKCXBBLP1     LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                INC DE:DJNZ MASKCXBBLP1:DEC DE
+SZ1             EX DE,HL:LD BC,32:ADD HL,BC:EX DE,HL
+                POP BC:PUSH BC
+MASKCXBBLP2     LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                DEC DE:DJNZ MASKCXBBLP2:INC DE
+SZ2             EX DE,HL:LD BC,32:ADD HL,BC:EX DE,HL
+                POP BC:DEC C:JP NZ,MASKCXBCLP:RET
+MASKCXBMIR      LD A,D:OR A:RET M
+                LD A,B:DEC A:ADD A,A:ADD A,A:ADD A,A:ADD A,E:LD E,A
+                PUSH HL:CALL BIXAD:EX DE,HL:POP HL
+                PUSH BC:LD B,MIRPAGE/256:EXX:POP BC
+MASKCXBMIRCLP   PUSH BC
+MASKCXBMIRBLP1  EXX:LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+                OR (HL):LD C,A:LD A,(BC):INC HL:LD (DE),A:DEC DE
+                EXX:DJNZ MASKCXBMIRBLP1:POP BC:PUSH BC:EXX:INC DE
+MZ1             EX DE,HL:LD BC,32:ADD HL,BC:EX DE,HL:LD B,MIRPAGE/256
+                EXX
+MASKCXBMIRBLP2  EXX :LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+                OR (HL):LD C,A:LD A,(BC):INC HL:LD (DE),A:INC DE
+                EXX:DJNZ MASKCXBMIRBLP2:POP BC:EXX:DEC DE
+MZ2             EX DE,HL:LD BC,32:ADD HL,BC:EX DE,HL:LD B,MIRPAGE/256
+                EXX:DEC C:JP NZ,MASKCXBMIRCLP:EXX:RET
+
+;****************************************************************************
+;** DUMP SPRITES ONTO BACKGROUND                                           **
+;****************************************************************************
+
+BULDAT          DS NOBUL*BULLEN,0
+
+INITBLD         SET 6,B:JR INITBIL
+INITMIS         SET 6,B:JR INITBUL
+INITBAL         SET 5,B:JR INITBUL
+INITLAS         SET 5,B
+INITBIL         SET 3,B:JR INITBUL+2
+INITBUL         RES 3,B:LD C,A:PUSH BC:CALL FINDBUL:POP BC:RET NZ
+                LD A,C:LD (IX+BULP),A:AND 15:LD HL,XADS:ADD A,L
+                LD L,A:LD A,(HL):ADD A,E:LD (IX+BULX),E:LD A,L
+                ADD A,16:LD L,A:LD A,(HL):ADD A,D:LD (IX+BULY),D
+                LD (IX+BULT),B:LD A,2:CALL GOBEEP
+
+FINDBUL         LD IX,BULDAT:LD B,NOBUL
+FINDBLP         LD A,(IX+BULX):OR A:JR NZ,FINDNXT
+                OR (IX+BULY):RET Z
+FINDNXT         PUSH DE:LD DE,BULLEN:ADD IX,DE:POP DE
+                DJNZ FINDBLP:INC B:RET
+
+PRTBULLETS      LD HL,(BIGX1):LD A,H:SRL A:ADD A,L:LD E,A
+                LD HL,(BIGY1):LD A,H:SRL A:ADD A,L:LD D,A
+                LD A,(ISBIGON):OR A:JR NZ,GOTHOME
+
+                LD HL,(XSI+1):LD A,H:SRL A:ADD A,L:LD E,A
+                LD HL,(YSI+1):LD A,H:SRL A:ADD A,L:LD D,A
+BAGE            LD A,0:OR A:JR NZ,GOTHOME
+
+                LD IX,BADDAT:LD B,NOBAD:LD DE,BADLEN
+FINDH           LD A,(IX+ACTION):OR A:JR Z,TRYH:CP 3:JR Z,TRYH
+                LD E,(IX+XPOS):LD D,(IX+YPOS):JR GOTHOME
+TRYH            ADD IX,DE:DJNZ FINDH
+
+                LD DE,$0000
+
+GOTHOME         LD IX,BULDAT:LD B,NOBUL
+PRTBULBLP       PUSH BC:PUSH DE
+                LD A,(IX+BULX):OR (IX+BULY):JP Z,NEXT1
+
+                LD A,D:OR E:JR Z,NOTHOME
+
+                LD A, (IX+BULT): AND 7: CP 7:JR NZ, NOTHOME
+                LD A,(IX+BULX):CP E
+                LD A,(IX+BULY):JR C,HRT
+HLT             CP D:LD A,0:CCF:ADC A,0:ADD A,A:ADD A,A
+                ADD A,10+16:LD C,A:JR HOTO
+HRT             CP D:LD A,0:ADC A,0:ADD A,A:ADD A,A
+                ADD A,2+16:LD C,A
+HOTO            LD A,(IX+BULP):CP C:JR Z,NOTHOME
+
+                PUSH BC:LD B,A:SUB C:AND 15:CP 8:CCF
+                LD A,0:RLA:ADD A,A:DEC A:ADD A,B:AND 15:LD L,A
+                LD A,B:AND $F0:OR L:LD (IX+BULP),A:POP BC
+
+NOTHOME
+                LD A,(IX+BULP):AND 15:LD HL,XADS:ADD A,L:LD L,A
+
+                LD A,(IX+BULX):ADD A,(HL):LD E,A
+                LD A,L:ADD A,16:LD L,A
+                LD A,(IX+BULY):ADD A,(HL):LD D,A:OR A:CALL M,KILLITZ
+                LD A,E
+;               CP $18:CALL C,KILLIT
+                CP $E8:CALL NC,KILLIT
+
+                LD (IX+BULX),E:LD (IX+BULY),D:LD A,E:OR D:JP Z,NEXT1
+
+                LD A,(IX+BULT):CP 8:JR NC,NEXT0
+
+                PUSH DE:LD A,(IX+BULP):SRL A:AND 3
+                LD HL,BULMASK:LD DE,16:CALL MULT:POP DE
+                LD A,D:CP $79:LD BC,$0104:CALL C,MASKCXB:JP NEXT1
+
+NEXT0           BIT 6,A:JR NZ,BALZSP
+                BIT 5,A:JP Z,BILZSP
+                BIT 3,A:JR Z,BLOBALL
+                LD HL,BULLET3X1:LD A,D:CP $79:CALL C,BAXITA:JP NEXT1
+
+COLTAB          DB #04,#05,#06,#07,#07,#06,#05,#04
+
+BLOBALL         LD A,(POS):AND 7:LD HL,COLTAB:ADD A,L:LD L,A
+                ADC A,H:SUB L:LD H,A:LD A,(HL):LD (BLOBATR),A
+                LD HL,BLOB1X1:LD A,D:CP $79:CALL C,BAXITA:JP NEXT1
+
+BALZSP          BIT 3,A:JP NZ,INITBIG3
+                LD HL,MISSILE:LD A,(IX+BULP):OR A:JR Z,MISUP
+
+MISDN           LD A,D:ADD A,$0F:LD D,A:OR A:JP M,NEXT1
+                CP $1F:JP C,NEXT1
+                PUSH DE:LD BC,$0208:CALL MASKCXBINV
+                CALL MISSILEANI:POP DE:LD A,D:SUB $10:LD D,A
+                LD BC,$0208:CALL MASKCXBINV:JR NEXT1
+
+MISSILEANI      LD A,0:LD HL,MISS1:OR A:RET Z:LD HL,MISS2:RET
+
+MISUP           LD HL,MISSILE:LD A,D:SUB 8:LD D,A:JP M,NEXT1
+                CP $71:PUSH DE:LD BC,$0208:CALL C,MASKCXB:POP DE
+                CALL MISSILEANI:LD A,D:ADD A,$10:LD D,A:CP $71
+                LD BC,$0208:CALL C,MASKCXB:JR NEXT1
+
+BILZSP          LD HL,BULLET3X2:LD A,D:AND $F8:SUB 4:LD D,A
+                CP $71:JR NC,NEXT1:LD A,E:SUB 4:LD E,A
+                PUSH DE:LD BC,$0308:CALL MASKCXB:POP DE
+                LD A,E:ADD A,8:LD E,A:LD A,D:ADD A,8:LD D,A
+                CALL PIXATRAD
+BLAD            LD (HL),$45
+
+NEXT1           LD DE,BULLEN:ADD IX,DE:POP DE
+                POP BC:DEC B:JP NZ,PRTBULBLP:RET
+
+KILLITZ         BIT 6,(IX+BULT):JR Z,KILLIT
+                CP $C0: JR C, EXPLIT
+                LD A,(LEVEL):CP 7:JR NZ,KILLIT
+                LD D,0:LD (IX+BULP),8:RET
+
+EXPLIT          LD A,(IX+BULX):SUB 8:LD E,A:LD D,$60
+                PUSH IX:CALL INITEXPNORND:POP IX
+
+KILLIT          LD DE,0
+                RET
+
+;****************************************************************************
+;** PRINT SPRITES                                                          **
+;****************************************************************************
+
+SPRTAB
+;  00 -  07 = GUN ROTATE (RUN,STAND,JUMP)
+                DB #00,#01,#02,#03
+                DB #04,#83,#82,#81
+;  08 -  15 = GUN ROTATE (CLIMB)
+                DB #05,#06,#07,#08
+                DB #09,#88,#87,#86
+;  16 -  23 = LEG RIGHT+1EFT
+                DB #0A,#0B,#0C,#0D
+                DB #8D,#8C,#8B,#8A
+;  24 -  31 = LEG STAND RIGHT+1EFT
+                DB #0E,#0E,#0E,#0E
+                DB #8E,#8E,#8E,#8E
+;  32 -  39 = LEG JUMP RIGHT+1EFT
+                DB #0F,#0F,#0F,#0F
+                DB #8F,#8F,#8F,#8F
+;  40 -  47 = LEG CRAWL
+                DB #14,#15,#16,#15
+                DB #14,#15,#16,#15
+;  48 -  55 = LEG (CLIMB)
+                DB #10,#11,#12,#13
+                DB #90,#91,#92,#93
+;  56 -  63 = GUN ROTATE (CRAWL)
+                DB #17,#18,#19,#1A
+                DB #1B,#1C,#1D,#1E
+;  64 -  75 = BAD1 RUN LEFT
+                DB #8A,#8B,#8C,#8D
+                DB #8F
+                DB #24,#25,#26,#27,#28
+                DB #27
+                DB #2A
+;  76 -  87 = BAD1 RUN RIGHT
+                DB #0A,#0B,#0C,#0D
+                DB #0F
+                DB #A4,#A5,#A6,#A7,#A8
+                DB #A7
+                DB #AA
+;  88 -  89 = BAD2 GUN TURRET
+                DB #2B,#AB
+;  90 -  91 = HERO DIE PHASE
+                DB #2E,#AE
+;  92 -  93 = BAD3 BEE PHASE
+                DB #2F,#AF
+;  94 -  97 = BAD4 GUN TURRET2+3
+                DB #2C,#AC,#2D,#AD
+;  98 - 101 = BAD5 CLIMB LADDERS
+                DB #30,#31,#32,#33
+; 102 - 110 = BAD6 CRAWL
+                DB #94,#95,#96
+                DB #B4,#B5,#B6
+                DB #34,#35,#36
+; 111 -     =
+
+;********************************************
+
+;                ADDRESS OF SPR    YSIZ,XOF,YOF
+
+SPRINF
+                DW HEROWALK1:DB    12,0,-2    ; WALKTURN
+                DW HEROWALK2:DB    12,0,-2
+                DW HEROWALK3:DB    12,0,-2
+                DW HEROWALK4:DB    12,0,-2
+                DW HEROWALK5:DB    12,0,-2
+;05
+                DW HEROCLIMBl:DB   12,08,-06  ; CLIMB TURN
+                DW HEROCLIMB2:DB   10,08,-02
+                DW HEROCLIMB3:DB   11,08,-02
+                DW HEROCLIMB4:DB   13,08,-02
+                DW HEROCLIMB5:DB   18,08,-02
+;10
+                DW HEROLEG1:DB     2*4,0,0    ; WALK
+                DW HEROLEG2:DB     2*4,0,0
+                DW HEROLEG3:DB     2*4,0,0
+                DW HEROLEG4:DB     2*4,0,0
+;14
+                DW HEROLEGSTAND:DB 2*4,0,0    ; STAND
+;15
+                DW HEROLEGJUMP:DB  2*4,0,0    ; JUMP
+;16
+                DW HEROLEGCL1:DB   2*4,0,0    ; CLIMB 1
+                DW HEROLEGCL2:DB   2*4,0,0
+                DW HEROLEGCL3:DB   2*4,0,0
+                DW HEROLEGCL4:DB   2*4,0,0
+; 20
+                DW HEROLEGCR1:DB   2*4,-8,4   ; CRAWL
+                DW HEROLEGCR2:DB   2*4,-8,4
+                DW HEROLEGCR3:DB   2*4,-8,4
+;23
+                DW HEROCRAWL1:DB   12,08,08   ; CRAWL TURN
+                DW HEROCRAWL2:DB   11,08,12
+                DW HEROCRAWL3:DB   10,08,12
+                DW HEROCRAWL4:DB   15,08,10
+                DW HEROCRAWL5:DB   16,08,12
+                DW HEROCRAWL6:DB   13,08,12
+                DW HEROCRAWL7:DB   11,08,10
+                DW HEROCRAWL8:DB   11,08,10
+;31
+                DW HEROLEG1:DB     2*4,0,0    ; BAD1 LEGS WALK
+                DW HEROLEG2:DB     2*4,0,0
+                DW HEROLEG3:DB     2*4,0,0
+                DW HEROLEG4:DB     2*4,0,0
+;35
+                DW HEROLEGJUMP:DB  2*4,0,0    ; BAD1 LEG JUMP
+;36
+                DW BADWALK1:DB     3*4,0,0    ; BAD1 BODY WALK
+                DW BADWALK2:DB     3*4,0,0
+                DW BADWALK3:DB     3*4,0,0
+                DW BADWALK4:DB     3*4,0,0
+                DW BADWALK5:DB     3*4,0,0
+;41
+                DW BADWALK5:DB     3*4,0,0    ; BAD1 JUMP
+;42
+                DW BAD1FALL:DB     5*4,0,0    ; BAD1 FALL
+;43
+TUR1            DW 0:DB            3*4,0,0    ; BAD GUN TURRET
+TUR2            DW 0:DB            3*4,0,0
+TUR3            DW 0:DB            3*4,0,0
+;46
+                DW HEROFALL:DB  4*4,0,0-16    ; HERO DIE PHASE
+;47
+BEE1            DW 0:DB            5*4,0,0    ; BEE PHASE
+;48
+BC1             DW 0:DB            11,0,-6    ; BAD CLIMB
+BC2             DW 0:DB            10,0,-4
+BC3             DW 0:DB            11,0,-6
+BC4             DW 0:DB            10,0,-4
+;52
+BCR1            DW 0:DB           12,16,12    ; BAD CRAWL
+BCR2            DW 0:DB           12,16,12    ; BAD CRAWL
+BCR3            DW 0:DB           12,16,12    ; BAD CRAWL
+
+;********************************************************************************
+
+DECAMMO         LD A,(INFAMMO):OR A:RET NZ
+AMMOLEFT        LD HL,999:LD A,H:OR L:RET Z
+                DEC HL:LD (AMMOLEFT+1),HL:LD A,H:OR L:RET NZ
+                LD (WEPTYPE+1),A:RET
+
+DECBACK         LD A,(INFAMMO):OR A:RET NZ
+BACKLEFT        LD A,50:OR A:JR Z,SETMFO
+                DEC A:LD (BACKLEFT+1),A:INC A:RET
+SETMFO          LD (PAKTYPE+1),A:RET
+
+PRTFLAMES       LD A,0:PUSH AF
+FANNY           LD A,0:XOR 1:LD (FANNY+1),A:LD (FLMCNT+1),A
+                PUSH BC:LD HL,FLAMEXYS:LD B,NOFLAMES*2
+FFFF            LD (HL),0:INC HL:DJNZ FFFF:POP BC
+                POP AF:OR A:RET Z
+                DEC A:LD (PRTFLAMES+1),A:RET Z:LD B,A
+                CALL DECAMMO:RET Z
+                LD IY,FLAMEXYS:LD IX,FLAMEDIR
+                LD DE,(HEROX+1):LD A,D:SUB 8:LD D,A:CALL GETXYOFHERO
+                LD A,(GUNDIR+1):AND 7:LD HL,JADDS:ADD A,L:LD L,A
+                LD A,E:ADD A,(HL):LD E,A:LD A,L:ADD A,8:LD L,A
+                LD A,D:ADD A,(HL):LD D,A
+PRTFLAMBLP      PUSH BC:LD A,(IX+00):INC IX:LD HL,XADDS:ADD A,L:LD L,A
+                LD A,(HL):ADD A,E:LD E,A
+                LD A,L:ADD A,8:LD L,A
+                LD A,(HL):ADD A,D:AND $F8:LD D,A
+
+                LD A,E:CP $E8:JR NC,POPDER
+                LD A,D:CP $70:JR NC,POPDER
+
+                PUSH DE:LD HL,FLAMESPR
+FLMCNT          LD A,0:XOR 1:LD (FLMCNT+1),A::JR Z,SDX:LD HL,FLAMESPR2
+SDX             PUSH DE:LD BC,$030C:CALL MASKCXB:POP DE
+                LD A,E:ADD A,8:LD E,A:LD A,D:ADD A,08:LD D,A
+                CALL PIXATRAD
+FLAMECOL        LD (HL),#72
+DEO             POP DE:LD (IY+0),E:LD (IY+1),D:INC IY:INC IY
+                POP BC:DJNZ PRTFLAMBLP
+
+ANIFLA          LD HL,FLAMEDIR+NOFLAMES-2:LD DE,FLAMEDIR+NOFLAMES-1
+                LD BC,NOFLAMES-1:LDDR
+                LD A,(GUNDIR+1):AND 7:LD (FLAMEDIR),A:RET
+
+POPDER          POP BC:LD A,NOFLAMES:SUB B:SUB 2:OR A:JP P,OKF:XOR A
+OKF             LD (PRTFLAMES+1),A:JR ANIFLA
+
+;****************************************************************************
+
+PRTHERO
+HEROFLASH       LD A,0:OR A:JR Z,HERK:DEC A:LD (HEROFLASH+1),A
+EFSSS           LD A,$00:XOR $B6:LD (EFSSS+1),A
+HERK            XOR $B6:CALL SMODSPR
+
+                LD A,(GUNDIR+1):AND $F8:CP 8:JR NZ,SKPARM
+                LD A,(HEROP+1):AND 3:LD HL,HEROARMS:LD DE,48:CALL MULT
+                LD DE,(GUNX+1):LD A,(GUNDIR+1):AND 7:CP 5:JR C,OKSS
+                LD A,E:ADD A,$18:LD E,A
+                LD A,D:SUB $06:LD D,A:OR A
+                LD BC,$010C:CALL P,MASKCXBMIR
+                JR SKPARM
+OKSS            LD A,D:SUB $06:LD D,A:OR A
+                LD BC,$010C:CALL P,MASKCXB
+SKPARM
+
+HEROX           LD DE,$5870
+HEROP           LD A, 18:CALL PRTSPRITE
+GUNX            LD DE,$4870
+GUNDIR          LD A,2:CALL PRTSPRITE
+
+                LD A,$B6  ; OR (HL)
+SMODSPR         LD (S1+3),A:LD (S2+3),A:LD (S3+3),A:LD (S4+3),A
+                LD (S5+3),A:LD (S6+3),A:LD (S7+3),A:LD (S8+3),A
+                LD (M1+0),A:LD (M2+0),A:LD (M3+0),A:LD (M4+0),A
+                LD (M5+0),A:LD (M6+0),A:LD (M7+0),A:LD (M8+0),A:RET
+
+PRTSPRITE       CP $FF:RET Z
+                LD C,A:LD B,0:LD HL,SPRTAB:ADD HL,BC:LD A,(HL)
+                PUSH AF:AND 127:LD C,A:LD B,0:LD HL,SPRINF
+                ADD HL,BC:ADD HL,BC:ADD HL,BC:ADD HL,BC:ADD HL,BC
+                LD C,(HL):INC HL:LD B,(HL):INC HL:LD A,(HL):INC HL
+                LD (PRTSPRBLP-1),A:LD (PRTMIRBLP-1),A:POP AF
+                PUSH AF:OR A:JP M,BACKWARD
+                LD A,E:ADD A,(HL):LD E,A:INC HL
+                LD A,D:ADD A,(HL):LD D,A:JR GOFIT
+BACKWARD        LD A,E:SUB (HL):LD E,A:INC HL
+                LD A,D:ADD A,(HL):LD D,A
+GOFIT           RES 0,D:LD A,D:OR A:JP M,TRYTOP
+                EXX:LD A,(PRTSPRBLP-1):SLA A:LD B,A
+                LD A,$80:SUB B:LD B,A:EXX
+                LD A,D:EXX:CP B:EXX :JR C,OKI:OR A:JP M,RETPOP
+                LD A,$80:SUB D:SRL A:JR Z,RETPOP:JP M,RETPOP
+                LD (PRTSPRBLP-1),A:LD (PRTMIRBLP-1),A:JR OKI
+RETPOP2         POP AF
+RETPOP          POP AF:RET
+TRYTOP          EXX:LD A,(PRTSPRBLP-1):ADD A,A:NEG:LD B,A:EXX
+                LD A,D:EXX:SUB B:LD B,A:EXX:JR C,RETPOP
+                JR Z,RETPOP:LD A,D:PUSH AF
+                LD A,(PRTSPRBLP-1):SLA A:ADD A,D:NEG:LD D,A
+                EXX:LD A,B:EXX:OR A:JP M,RETPOP2
+                SRL A:JP Z,RETPOP2
+                LD (PRTSPRBLP-1),A:LD (PRTMIRBLP-1),A
+                POP AF:NEG:ADD A,A:ADD A,A:ADD A,A
+                ADD A,C:LD C,A:ADC A,B:SUB C:LD B,A:LD D,0
+OKI             LD L,C:LD H,B:POP AF:OR A:JP M,PRTMIR
+
+PRTSPR          PUSH HL:CALL BIXAD:EX DE,HL:POP HL
+                LD B,5*4
+PRTSPRBLP
+S1              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                INC DE
+S2              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                INC DE
+S3              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                INC DE
+S4              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                PUSH BC
+SD1             LD BC,32:EX DE,HL:ADD HL,BC:EX DE,HL:POP BC
+S5              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                DEC DE
+S6              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                DEC DE
+S7              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                DEC DE
+S8              LD A,(DE):AND (HL):INC HL:OR (HL):INC HL:LD (DE),A
+                PUSH BC
+SD2             LD BC,32:EX DE,HL:ADD HL,BC:EX DE,HL:POP BC
+                DJNZ PRTSPRBLP:RET
+
+PRTMIR          PUSH HL:LD A,E:ADD A,$18:LD E,A
+                CALL BIXAD:EX DE,HL:POP HL
+                LD B,MIRPAGE/256:EXX:LD B,5*4
+PRTMIRBLP       EXX
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M1              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A:DEC DE
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M2              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A:DEC DE
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M3              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A:DEC DE
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M4              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A
+                PUSH BC
+MD1             LD BC,32:EX DE,HL:ADD HL,BC:EX DE,HL:POP BC
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M5              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A:INC DE
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M6              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A:INC DE
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M7              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A:INC DE
+                LD A,(DE):LD C,A:LD A,(BC):AND (HL):INC HL
+M8              OR (HL):INC HL:LD C,A:LD A,(BC):LD (DE),A
+                PUSH BC
+MD2             LD BC,32:EX DE,HL:ADD HL,BC:EX DE,HL:POP BC
+                EXX:DJNZ PRTMIRBLP:EXX:RET
+
+;********************************************************************
+
+PRTDOOR         LD E,$10
+                LD HL,(WEPROOMX)
+                LD A,(MAPX):CP L:RET NZ
+                LD A,(MAPY):CP H:RET NZ
+                LD A,(LEVEL):CP 8:JP Z,INITBIG4
+                LD A,E:OR A
+                LD HL,DOORSPR:LD BC,$0218:LD DE,(DOORXY):JP Z,BAXIT
+
+                LD IX,PRTDOOR-1:LD DE,(DOORXY):DB 1
+DOORSIZE        DW $3020
+                CALL ISBULINBOX:LD A,(PRTDOOR+1):OR A:RET NZ
+                LD DE,(DOORXY):LD A,D:SUB $08:LD D,A
+                LD A,E:SUB 8:LD E,A:PUSH DE:CALL INITEXPNORND:POP DE
+                PUSH DE:LD A,D:ADD A,$18:LD D,A:CALL INITEXPNORND:POP DE
+                LD A,D:ADD A,$30:LD D,A:JP INITEXPNORND
+
+;****************************************************************************
+
+EXPDAT          DS NOEXP*3,8
+
+EXPDEAD         EQU 4
+
+PRTEXP          LD IX,EXPDAT:LD B,NOEXP
+PRTEXPLP        PUSH BC:LD E,(IX+EXPX):LD D,(IX+EXPY)
+                LD A,D:CP $68:JP NC,NXTEXP
+                LD A,(IX+EXPP):CP EXPDEAD:JR NC,EXLF
+                PUSH DE:LD HL,SHOTEXP1:LD DE,$C0+16:CALL MULT:POP DE
+
+                PUSH DE:LD BC,$0404:CALL MASKCXB:POP DE
+                LD A,D:ADD A,8:LD D,A
+                PUSH DE:LD BC,$0408:CALL BAXIT:EX DE,HL:POP DE
+                LD A,D:ADD A,16:LD D,A
+                PUSH DE:LD BC,$0404:CALL MASKCXB:POP DE
+
+                LD A,D:SUB $18:LD D,A:LD BC,$0404:CALL BAXATR
+
+                INC (IX+EXPP)
+NXTEXP          POP BC:INC IX:INC IX:INC IX:DJNZ PRTEXPLP:RET
+EXLF            LD (IX+EXPY),$FF:LD (IX+EXPX),0:JR NXTEXP
+
+INITEXP         CALL RAND:LD A,(RND1):AND 24:SUB 24:ADD A,E:LD E,A
+                LD A,(RND2):AND 24:SUB 16:ADD A,D:LD D,A
+INITEXPNORND    LD A,D:AND $F8:CP $60:JR C,OKINZ
+                CP $C0:LD A,$60:JR C,OKINZ:XOR A
+OKINZ           LD D,A:PUSH BC:LD IX,EXPDAT:LD B,NOEXP
+INEX            LD A,(IX+EXPP):CP EXPDEAD:JR NC,GOT1
+                INC IX:INC IX:INC IX:DJNZ INEX:POP BC:RET
+GOT1            LD (IX+EXPX),E:LD (IX+EXPY),D:LD (IX+EXPP),0
+                LD A,4:CALL GOBEEP:POP BC:RET
+
+;************************************************************************
+
+PRTBARRIER      LD HL,1000:LD A,H:OR L:RET Z
+                DEC HL:LD (PRTBARRIER+1),HL
+
+BARO            LD A,0:INC A:LD C,A:AND 3:CP 2:JR NZ,MFE:INC C
+MFE             LD A,C:LD (BARO+1),A
+                LD DE,(HEROX+1):PUSH AF:CALL PRT1BARRIER:LD (BARIER1),DE
+                LD DE,(HEROX+1):POP AF:ADD A,8
+PRT1BARRIER     AND 15:LD C,A:LD B,0
+                LD HL,XADS:ADD HL,BC
+                LD A,(HL):ADD A,A:ADD A,A:ADD A,E:ADD A,8:LD E,A
+                LD HL,YADS:ADD HL,BC
+                LD A,(HL):ADD A,A:ADD A,A:ADD A,D:SUB 8:LD D,A
+                CP $71:RET NC
+                PUSH DE:LD A,(POS):AND 3:LD DE,64:LD HL,BARRIERSPR
+                CALL MULT:POP DE
+                PUSH DE:LD BC,$0208:CALL MASKCXB:POP DE:LD (BARIER2),DE
+                RET
+
+BARIER1         DW 0
+BARIER2         DW 0
+
+;****************************************************************************
+;** BADDIES PRINT AND MOVE ROUTINES                                        **
+;****************************************************************************
+; TOP LINE LEGS
+; BOTTOM LINE BODY
+
+BADTYPES
+;BAD1 LEFT
+                DB #40,#41,#42,#43,#40,#41,#42,#43
+                DB #45,#46,#47,#48,#49,#48,#47,#46
+;BAD1 RIGHT
+                DB #4C,#4D,#4E,#4F,#4C,#4D,#4E,#4F
+                DB #51,#52,#53,#54,#55,#54,#53,#52
+;BAD1 JUMP LEFT
+                DB #44,#FF,#FF,#FF,#FF,#FF,#FF,#FF
+                DB #4A,#FF,#FF,#FF,#4B,#4B,#4B,#4B
+;BAD1 JUMP RIGHT
+                DB #50,#FF,#FF,#FF,#FF,#FF,#FF,#FF
+                DB #56,#FF,#FF,#FF,#57,#57,#57,#57
+;BAD2 GUN PLACEMENT
+                DB #FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF
+                DB #58,#5E,#60,#FF,#61,#5F,#59,#FF
+;BEE RIGHT+LEFT
+                DB #FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF
+                DB #5C,#5C,#5C,#5D,#5D,#5D,#5D,#5C
+;BAD3 CLIMB
+                DB #30,#31,#32,#33,#30,#31,#32,#33
+                DB #62,#63,#64,#65,#62,#63,#64,#65
+;BAD4 CRAWL
+                DB #28,#29,#2A,#2B,#66,#67,#68,#67
+                DB #6C,#6D,#6E,#6D,#69,#6A,#6B,#6A
+
+ACTIONTAB       DW DEAD                              ; $00
+                DW RUNRIGHT                          ; $01
+                DW RUNLEFT                           ; $02
+                DW DIE                               ; $03
+                DW FALLON                            ; $04
+                DW GUNTURRET                         ; $05
+                DW BEE                               ; $06
+                DW CLIMBER                           ; $07
+                DW CRAWLER                           ; $08
+
+;***************************************
+
+CRAWLER         LD A,(IX+XPOS):ADD A,(IX+COUNT):LD (IX+XPOS),A
+                CP $E8:JP NC,SETDEAD
+                LD A,(IX+PHASE):LD E,A:AND 4:LD D,A
+                LD A,E:INC A:AND 3:OR D:LD (IX+PHASE),A
+                RET
+
+;***************************************
+
+CLIMBER         LD A,(MAPY):CP $10:JR NC,MAYO:LD (IX+COUNT),4
+MAYO            LD A,(IX+YPOS):ADD A,(IX+COUNT):LD (IX+YPOS),A
+                CP $B0:JR C,EHA:CP $D0:JP C,SETDEAD
+EHA             LD A,(IX+PHASE):INC A:AND 7:LD (IX+PHASE),A
+                RET P:CP $B0:RET C:CP $D0:RET NC:JP SETDEAD
+
+;***************************************
+
+GUNTURRET       LD A,(HEROX+1):CP (IX+XPOS):LD A,0:CCF :ADC A,0
+                ADD A,A:ADD A,A:LD (IX+PHASE),A:LD HL,YBOUNCE
+                LD A,(POS)
+                RRA:RRA:RRA:RRA
+                AND 3:ADD A,L:LD L,A
+
+                LD A,(IX+PHASE):INC A:ADD A,(HL):LD (IX+PHASE),A
+
+                LD A,(POS):AND %00001111:RET NZ
+                LD A,(IX+PHASE):AND 4:JR Z,QED:LD A,$18
+QED             ADD A,(IX+XPOS):LD E,A
+                LD A,(IX+YPOS):AND $F8:SUB 8:LD D,A
+
+                LD A,(IX+PHASE):RRA:RRA:CPL:AND 1
+                ADD A,A:ADD A,A:ADD A,A:ADD A,4:SUB (HL)
+                PUSH IX:LD B,4:CALL INITBAL:POP IX:RET
+
+;***************************************
+
+RESETBAD        CALL RESETLEVELBAD
+                XOR A:LD (PRTFLAMES+1),A:LD (STH+1),A
+                LD (SCRCNT+1),A:LD (NOSCROLL+1),A
+                INC A:LD (SMODHERO+1),A
+                LD A,16:LD (PRTDOOR+1),A
+                XOR A:LD IX,BADDAT:LD DE,BADLEN:LD B,NOBAD
+RESBAD          LD (IX+ACTION),A:ADD IX,DE:DJNZ RESBAD
+                LD IX,BULDAT:LD DE,BULLEN:LD B,NOBUL
+RESBUL          LD (IX+BULX),A:LD (IX+BULY),A:ADD IX,DE:DJNZ RESBUL
+                LD IX,EXPDAT:LD DE,EXPLEN:LD B,NOEXP
+RESEXP          LD (IX+EXPP),EXPDEAD:ADD IX,DE:DJNZ RESEXP
+                LD IX,KEYDAT:LD DE,KEYLEN:LD B,KEYNOKEY
+RESKEY          LD (IX+KEYX),A:ADD IX,DE:DJNZ RESKEY
+                LD IX,WAPXYS:LD DE,5:LD B,6
+RESWEP          LD (IX+02),$FF:ADD IX,DE:DJNZ RESWEP
+                RET
+
+;***************************************
+
+MOVEBAD         LD IX,BADDAT:LD B,NOBAD
+MOVEBADBLP      PUSH BC:CALL RAND:LD A,(IX+ACTION)
+                ADD A,A:LD E,A:LD D,0:LD HL,ACTIONTAB:ADD HL,DE
+                LD E,(HL):INC HL:LD D,(HL):EX DE,HL:CALL JPHL
+                POP BC:LD DE,BADLEN:ADD IX,DE:DJNZ MOVEBADBLP:RET
+
+JPHL            JP (HL)
+
+DEAD            RET
+
+;***************************************
+
+RUNRIGHT        LD A,(IX+XPOS):ADD A,8:LD (IX+XPOS),A:JP C,SETDEAD
+                LD B,02
+TESTAGAINSTMAP  LD E,(IX+XPOS):LD D,(IX+YPOS)
+                PUSH BC:LD C,2:CALL TESTFLOOR:POP BC:JR NC,SETJUMP
+                LD E,(IX+XPOS):LD D,(IX+YPOS)
+                LD A,(MAPX):ADD A,B:LD (MAPX),A
+                PUSH BC:LD C,2:CALL TESTWALL:POP BC
+                PUSH AF:LD A,(MAPX):SUB B:LD (MAPX),A:POP AF
+                JR NC,OKRUN
+SETJUMP         LD (IX+COUNT),-8
+JUMPSET         LD (IX+ACTION),4:SET 1,(IX+TYPE):LD (IX+PHASE),0
+                RES JUMPBIT,(IX+TEMP):RET
+SETDROP         LD (IX+COUNT),0:JR JUMPSET
+OKRUN           LD A,(IX+PHASE):INC A:AND 7:LD (IX+PHASE),A:RET
+
+RUNLEFT         LD A,(IX+XPOS):SUB 8:LD (IX+XPOS),A:JP C,SETDEAD
+                LD B,-2:JP TESTAGAINSTMAP
+
+;***************************************
+
+FALLON          LD A,(IX+YPOS):ADD A,(IX+COUNT):JP M,SKPFON
+                LD (IX+YPOS),A
+SKPFON          BIT JUMPBIT,(IX+TEMP):JR NZ,JOSEFAT
+                LD A,(IX+COUNT):OR A:JP M,NESCAFE
+JOSEFAT         LD A,(IX+TYPE):AND 1:ADD A,A:DEC A
+                ADD A,A:ADD A,A:ADD A,A:ADD A,(IX+XPOS)
+                CP $E8:JP NC,SETDEAD
+                LD E,(IX+XPOS):PUSH DE
+                LD (IX+XPOS),A:LD E,A:LD D,(IX+YPOS)
+                LD C,2:CALL TESTWALL:POP DE:JR NC,NESCAFE
+                LD (IX+XPOS),E
+NESCAFE         INC (IX+COUNT):RET M
+                LD E,(IX+XPOS):LD D,(IX+YPOS)
+                LD C,2:CALL TESTFLOOR:RET NC
+                LD A,(IX+YPOS):AND $F0:ADD A,FLOROF:LD (IX+YPOS),A
+                LD A,(IX+TYPE):DEC A:AND 1:INC A:LD (IX+ACTION),A
+                RES 1,(IX+TYPE):LD (IX+PHASE),4
+                LD A,1:JP GOBEEP
+
+;***************************************
+
+BEE             LD A,(IX+PHASE):LD HL,XADDS:ADD A,L:LD L,A:LD E,(HL)
+                ADD A,8:LD L,A:LD D,(HL)
+                LD A,(IX+XPOS):ADD A,E:LD (IX+XPOS),A:LD E,A
+                LD A,(IX+YPOS):ADD A,D:LD (IX+YPOS),A:LD D,A
+                LD A,(RND2):AND %10101010:JR NZ,FNES
+
+                LD A,(IX+PHASE):ADD A,2:ADD A,A
+                PUSH IX:LD B,4:CALL INITBAL:POP IX
+
+FNES            DEC (IX+COUNT):RET NZ:LD (IX+COUNT),5
+                LD A,(IX+PHASE):INC A:AND 7:LD (IX+PHASE),A:RET
+
+;***************************************
+
+SETBANGDEAD     LD E,(IX+XPOS):LD A,(IX+YPOS):SUB $10:LD D,A
+                PUSH IX:PUSH BC:CALL INITEXPNORND:POP BC:POP IX
+SETDEAD         LD (IX+ACTION),0:LD (IX+XPOS),$FF:LD (IX+YPOS),$FF:RET
+
+;***************************************
+
+SETFALL         PUSH HL:PUSH DE:LD A,6:CALL GOBEEP:POP DE:POP HL
+
+                BIT KEYBIT,(IX+TEMP):JR Z,NOKEYIZ
+                PUSH IX:PUSH DE:PUSH BC:LD DE,0*256+5:CALL ADDSCORE
+                LD E,(IX+XPOS):LD D,(IX+YPOS):CALL INITKEY
+                POP BC:POP DE:POP IX
+NOKEYIZ
+                LD A,(IX+ACTION):CP 5:JR C,NOTBANGDEAD
+                CP 8+1:JR C,SETBANGDEAD
+NOTBANGDEAD     LD (IX+ACTION),3:LD (IX+COUNT),-3
+                LD A,(IX+TYPE):CP 4:RET Z
+                SET 2,(IX+PHASE):RET NC:SET 1,(IX+TYPE):RET
+
+;***************************************
+
+DIE             LD A, (IX+YPOS): ADD A, (IX+COUNT): LD (IX+YPOS), A
+                CP $C0:JR NC,NOSD
+                CP $90:JP NC, SETDEAD
+NOSD            INC (IX+COUNT):RET
+
+;***************************************
+
+PRTBADDIES      LD IX,BADDAT:LD B,NOBAD
+PRTBADBLP       PUSH BC:LD A,(IX+ACTION):OR A:JP Z,PRTNXTBAD
+                LD A,(IX+XPOS):CP $E8:JR NC,PRTNXTBAD
+
+                LD A,(IX+TYPE):ADD A,A:ADD A,A:ADD A,A:ADD A,A
+                ADD A,(IX+PHASE):LD E,A:LD D,0:LD HL,BADTYPES
+                ADD HL,DE:LD A,(HL):PUSH HL
+                LD E,(IX+XPOS):LD D,(IX+YPOS):CALL PRTSPRITE
+                POP HL:LD DE,8:ADD HL,DE
+                LD E,(IX+XPOS):LD A,(IX+YPOS):SUB $10:LD D,A
+                LD A,(HL):CALL PRTSPRITE
+
+                LD A,(IX+ACTION):CP 6:CALL Z,INITBIG4
+
+                LD A,(IX+ACTION):CP 5:JR NZ,PRTNXTBAD
+TANKATRS        LD HL,0:LD E,(IX+XPOS):LD A,(IX+YPOS)
+                SUB $10:LD D,A:CP $70:JR NC,PRTNXTBAD
+OKT2            LD A,(IX+PHASE):AND 4:JR Z,ARTS:LD BC,12:ADD HL,BC
+ARTS            LD BC,$0403:CALL BAXATR
+PRTNXTBAD       POP BC:LD DE,BADLEN:ADD IX,DE:DEC B:JP NZ,PRTBADBLP
+                XOR A:LD ($5AFF),A
+                RET
+
+;***************************************
+
+TRYINITBAD      LD E,A
+BADDATA         LD HL,0
+                CP (HL):RET NZ
+                INC HL:LD A,(HL):INC HL:LD (BADDATA+1),HL
+GOINITBADA      OR A:JP M,INITBIG
+                LD C,A:CALL FINDDEAD:RET NZ:LD A,C:JP INITBADA
+
+INITBIG         CP POKE:JR NZ,NOTPOKE
+                CALL GETDATA:LD E,A:CALL GETDATA:LD D,A:CALL GETDATA
+                LD (DE),A:RET
+NOTPOKE         CPL :ADD A,A:LD E,A:LD D,0
+                LD HL,BIGINITS:ADD HL,DE:LD E,(HL):INC HL:LD D,(HL)
+                EX DE,HL:JP (HL)
+
+BIGINITS        DW INITBIG1             ; $FF
+                DW INITBIG2             ; $FE
+                DW INITBIG3             ; $FD
+                DW INITBIG4             ; $FC
+                DW SETCONTSCR           ; $FB
+
+SETCONTSCR      CALL GETDATA:LD (CONTSCROLL+1),A:LD (NOSCROLL+1),A:RET
+
+FINDDEAD        LD IX,BADDAT:LD DE,BADLEN:LD B,NOBAD:XOR A
+SEARCH          CP (IX+ACTION):RET Z:ADD IX,DE:DJNZ SEARCH:INC B:RET
+
+INITBADA        ADD A,A:LD E,A:LD D,0
+                LD HL,BADINITS:ADD HL,DE:LD E,(HL):INC HL:LD D,(HL)
+                EX DE,HL:JP (HL)
+
+BADINITS        DW JMPINLEFT            ; $00
+                DW INLEFT               ; $01
+                DW JMPINRIGHT           ; $02
+                DW INRIGHT              ; $03
+                DW INGUNR               ; $04
+                DW INGUNL               ; $05
+                DW INBEER               ; $06
+                DW INBEEL               ; $07
+                DW CLIMBS               ; $08
+                DW CLIMB1               ; $09
+                DW CRAWLS               ; $0A
+
+CRAWLS          CALL GETDATA:LD (IX+XPOS),A
+                CALL GETDATA:LD (IX+YPOS),A
+                CALL GETDATA:LD (IX+COUNT),A
+                LD (IX+TEMP),0:LD (IX+PHASE),0
+                OR A:JP P,AFTER:LD (IX+PHASE),4
+AFTER           LD (IX+TYPE),7:LD (IX+ACTION),8:RET
+
+CLIMB1          CALL GETDATA
+                LD C,A:LD B,1:LD DE,$90A8:JR CDS
+CLIMBS          CALL GETDATA:LD C,A
+                LD B,4:LD DE,$0028:OR A:JP P,CDS:LD D,$90
+CDS             CALL GETDATA
+CLIMBDOWN       LD (IX+XPOS),E:LD (IX+YPOS),D
+                LD (IX+COUNT),C:LD (IX+TEMP),A
+                LD (IX+TYPE),6:LD (IX+PHASE),0
+                LD (IX+ACTION),7
+
+                PUSH AF:LD A,E:ADD A,$30:LD E,A
+                PUSH DE:PUSH BC:CALL FINDDEAD:POP BC:POP DE:JR NZ,NCD
+                POP AF:DJNZ CLIMBDOWN:RET
+NCD             POP AF:RET
+
+INBEER          LD DE,$88F0:LD A,6:JR INBEE
+INBEEL          LD DE,$10F0:LD A,2
+INBEE           LD (IX+XPOS),E:LD (IX+YPOS),D
+                LD (IX+TYPE),5:LD (IX+PHASE),A:LD (IX+TEMP),0
+                LD (IX+ACTION),6:LD (IX+COUNT),16+(5/2):RET
+
+GETDATA         LD HL,(BADDATA+1):LD A,(HL):INC HL:LD (BADDATA+1),HL
+                RET
+
+INGUNL          CALL GETDATA:LD (IX+XPOS),A:CALL GETDATA:LD (IX+YPOS),A
+                LD (IX+TEMP),0
+                LD (IX+ACTION),5:LD (IX+TYPE),4:LD (IX+PHASE),4:RET
+INGUNR          CALL GETDATA:LD (IX+XPOS),A:CALL GETDATA:LD (IX+YPOS),A
+                LD (IX+TEMP),0
+                LD (IX+ACTION),5:LD (IX+TYPE),4:LD (IX+PHASE),0:RET
+
+JMPINLEFT       CALL GETDATA:LD (IX+YPOS),A:LD (IX+XPOS),$E0
+                CALL GETDATA:LD (IX+TEMP),A
+                LD (IX+ACTION),4:LD (IX+TYPE),2:LD (IX+PHASE),0
+                LD (IX+COUNT),-4:SET JUMPBIT,(IX+TEMP):RET
+INLEFT          CALL GETDATA:LD (IX+YPOS),A
+                CALL GETDATA:LD (IX+TEMP),A
+                LD (IX+XPOS), $E0:LD (IX+ACTION), 2
+                LD (IX+TYPE),0:LD (IX+PHASE),0:RET
+
+JMPINRIGHT      CALL GETDATA:LD (IX+YPOS),A:LD (IX+XPOS),$08
+                CALL GETDATA:LD (IX+TEMP),A
+                LD (IX+ACTION),4:LD (IX+TYPE),3:LD (IX+PHASE),0
+                LD (IX+COUNT),-4:SET JUMPBIT,(IX+TEMP):RET
+INRIGHT         CALL GETDATA:LD (IX+YPOS),A:LD (IX+XPOS),$08
+                CALL GETDATA:LD (IX+TEMP),A
+                LD (IX+ACTION),1:LD (IX+TYPE),1:LD (IX+PHASE),0:RET
+
+;***************************************************************************
+;** DODGY COLISH ROUTINES                                                 **
+;***************************************************************************
+
+ISHEROINBOX     LD H,C:LD L,E:LD (XSI+1),HL
+                LD H,B:LD L,D:LD (YSI+1),HL:JR ISHEROINBOX2
+
+ISBULORHERO     CALL ISBULINBOX
+
+ISHEROINBOX2    LD A,(HEROFLASH+1):OR A:RET NZ
+                LD A,(GUNDIR+1):CP $FF:RET Z
+                LD DE,(HEROOFSET):LD A,(HEROSIZE):LD D,A
+                LD HL,(XSI+1):CALL HITA:RET C
+                LD DE,(HEROOFSET+1):LD A,(HEROSIZE+1):LD D,A
+                LD HL,(YSI+1):CALL HITA:RET C
+                PUSH IX:CALL SETHERODIE:POP IX:RET
+
+ISBULINBOX      LD IY,BULDAT
+                LD A,(SPACEBARCHEAT):OR A:JR Z,NOSPACEBAR
+                LD A,127:IN A,(254):RRA:JR C,NOSPACEBAR
+                LD A,254:IN A,(254):RRA:JR NC,NOSPACEBAR
+                LD (IX+02),0:RET
+NOSPACEBAR      LD A,1:LD (BAGE+1),A
+                LD H,C:LD L,E:LD (XSI+1),HL
+                LD H,B:LD L,D:LD (YSI+1),HL
+                LD B,NOBUL
+ISBULBLP        LD A,(IY+BULT):AND 7:CP 4:JR Z,NEXTIS
+                LD E,(IY+BULX):LD D,$07
+                LD A,(IY+BULY):OR E:JR Z,NEXTIS
+XSI             LD HL,$001F:CALL HITA:JR C,NEXTIS
+                LD E,(IY+BULY):LD D,$07
+YSI             LD HL,$000F:CALL HITA:JR C,NEXTIS
+                LD A,(IY+BULT):AND 7:LD L,A:DB 62
+WEPPOWER        DB 0
+                OR A:JR Z,NOSUPER:SLA L
+NOSUPER         LD A,L:CALL BULISINBOX
+NEXTIS          LD DE,BULLEN:ADD IY,DE:DJNZ ISBULBLP
+
+                LD HL,(PRTBARRIER+1):LD A,H:OR L:JR Z,NOTBAR2
+                LD IY,BARIER1:LD C,2
+BARDODGE2       LD E,(IY+00):LD D,$0F
+                LD HL,(XSI+1):CALL HITA:JR C,NEXTDZDGCY
+                LD E,(IY+01):LD D,$0F
+                LD HL,(YSI+1):CALL HITA:JR C,NEXTDZDGCY
+                LD A,16:CALL BULISINBOX
+NEXTDZDGCY      INC IY:INC IY:DEC C:JP NZ,BARDODGE2
+NOTBAR2
+
+                LD IY,FLAMEXYS:LD B,NOFLAMES
+DAGGEBLP3       LD E,(IY+0):LD D,$0F
+                LD A,(IY+1):OR E:OR A:JR Z,FAN2
+                LD HL,(XSI+1):CALL HITA:JR C,NEXTDAGGEB3
+                LD E,(IY+1):LD D,$0F
+                LD HL,(YSI+1):CALL HITA:JR C,NEXTDAGGEB3
+                LD A,NOFLAMES+1:SUB B:LD (PRTFLAMES+1),A
+                LD A,17:CALL BULISINBOX
+                JR FAN2
+NEXTDAGGEB3     LD DE,2:ADD IY,DE:DJNZ DAGGEBLP3
+FAN2            RET
+
+BULISINBOX      PUSH AF
+                PUSH IX:PUSH BC:LD E,(IY+BULX):LD D,(IY+BULY):CALL INITEXP
+                POP BC:POP IX:LD DE,0*256+1:CALL ADDSCORE
+                POP AF
+                LD HL,DAMAGETAB:CALL ADDHLA
+                LD A,(IX+02):OR A:RET Z
+                LD A,(IX+02):SUB (HL):JR NC,NOCAR:XOR A
+NOCAR           LD (IX+02),A
+                LD (IY+XPOS),0:LD (IY+YPOS),0:RET
+ADDHLA          ADD A,L:LD L,A:ADC A,H:SUB L:LD H,A:RET
+
+;***************************************
+
+DODGYCOLISH     LD IX,BADDAT:LD B,NOBAD
+DODGYBLP        LD A,(IX+ACTION):OR A:JP Z,NEXTDODGYBA
+                CP 3:JP Z,NEXTDODGYBA
+
+                LD L,(IX+XPOS):LD H,$1F:LD (BAX+1),HL
+                CP 5:JR Z,NAZ
+                CP 8:JR Z,NUZ
+                LD A,(IX+YPOS):SUB $10:LD L,A:LD H,$1F:LD (BAY+1),HL
+                JR NAY
+NAZ             LD A,(IX+YPOS):SUB $10:LD L,A:LD H,$0F:LD (BAY+1),HL
+                JR NAY
+NUZ             LD L,(IX+YPOS):LD H,$0F:LD (BAY+1),HL
+NAY
+
+                LD HL,(PRTBARRIER+1):LD A,H:OR L:JR Z,NOTBARI
+                LD IY,BARIER1:LD C,2
+BARDODGE        LD E,(IY+00):LD D,$0F
+BAX             LD HL,0:CALL HITA:JR C,NEXTDODGCY
+                LD E,(IY+01):LD D,$0F
+BAY             LD HL,0:CALL HITA:JR C,NEXTDODGCY
+                LD DE,0*256+5:CALL ADDSCORE
+                CALL SETFALL
+NEXTDODGCY      INC IY:INC IY:DEC C:JP NZ,BARDODGE
+NOTBARI
+
+                LD IY,BULDAT:LD C,NOBUL
+DODGYCLP        LD A,(IY+BULT):AND 7:CP 4:JR Z,NEXTDODGYC
+                LD E,(IY+BULX):LD A,E:OR (IY+BULY):JR Z,NEXTDODGYC
+                LD D,7:LD HL,(BAX+1):CALL HITA:JR C,NEXTDODGYC
+                LD E,(IY+BULY):LD D,$07
+                LD HL,(BAY+1):CALL HITA:JR C,NEXTDODGYC
+                LD (IY+BULX),0:LD (IY+BULY),0
+                LD DE,0*256+5:CALL ADDSCORE:CALL SETFALL
+                LD A,(WEPTYPE+1):CP 4:JR NZ,NEXTDODGYB
+                LD E,(IX+XPOS):LD D,(IX+YPOS)
+                PUSH IX:PUSH BC:CALL INITEXP:POP BC:POP IX:JR NEXTDODGYB
+NEXTDODGYC      LD DE,BULLEN:ADD IY,DE:DEC C:JP NZ,DODGYCLP
+NEXTDODGYB
+
+                LD IY,FLAMEXYS:LD C,NOFLAMES
+                LD A,(PRTFLAMES+1):OR A:JR Z,NEXTDADGYB
+DADGYCLP        LD A,(IY+0):OR (IY+1):JR Z,NEXTDADGYB
+                LD E,(IY+0):LD D,8
+                LD HL,(BAX+1):CALL HITA:JR C,NEXTDADGYC
+                LD E,(IY+1):LD D,8
+                LD HL,(BAY+1):CALL HITA:JR C,NEXTDADGYC
+                LD DE,0*256+5:CALL ADDSCORE
+                CALL SETFALL
+                LD A,NOFLAMES:SUB C:LD (PRTFLAMES+1),A
+                JR NEXTDADGYB
+NEXTDADGYC      LD DE,2:ADD IY,DE:DEC C:JP NZ,DADGYCLP
+NEXTDADGYB
+
+NEXTDODGYBA     LD DE,BADLEN:ADD IX,DE:DEC B:JP NZ,DODGYBLP
+
+;***************************************
+
+DODGEBIG        DB 62
+ISBIGON         DB 0
+                OR A:JP Z,HAR1:DB 17
+BIGX1           DW 0
+                LD C, D: DB 33
+BIGY1           DW 0
+                LD B,H:LD D,L:PUSH IX:LD IX,BIGHITS-2
+                CALL ISBULINBOX:POP IX:DB 62
+BIGHITS         DB 0
+                OR A:CALL Z,KILLBIG
+HAR1
+
+;***************************************
+
+NEXTYDODGE
+                LD A,(HEROFLASH+1):OR A:JP NZ,NEXTDUDGE
+                LD A,(GUNDIR+1):CP $FF:JP Z,NEXTDUDGE
+
+                LD HL,$1C0F:LD A,(GUNDIR+1):CP 56:LD A,$F0:JR C,ONE
+                LD HL,$0F1F:XOR A
+ONE             LD (HEROSIZE),HL
+                LD HL,(HEROX+1):ADD A,H:LD H,A
+                LD A,L:ADD A,8:LD L,A
+                LD (HEROOFSET),HL
+                LD IY,BULDAT:LD B,NOBUL
+EFJM            LD A,(IY+BULT):AND 7:CP 4:JR NZ,NEXTDIDGYH
+                LD E,(IY+BULX):LD D,$08
+                LD A,E:OR (IY+BULY):JR Z,NEXTDIDGYH
+                LD HL,(HEROOFSET):LD A,(HEROSIZE):LD H,A
+                CALL HITA:JR C,NEXTDIDGYH
+                LD E,(IY+BULY):LD D,$08
+                LD HL,(HEROOFSET+1):LD A,(HEROSIZE+1):LD H,A
+                CALL HITA:JR C,NEXTDIDGYH
+                LD (IY+BULX),0:LD (IY+BULY),0
+                CALL SETHERODIE:JR NEXTDUDGE
+NEXTDIDGYH      LD DE,BULLEN:ADD IY,DE:DJNZ EFJM
+
+                LD IY,BADDAT:LD B,NOBAD
+EFKM            LD A,(IY+ACTION):OR A:JR Z,NXTDIDGEH
+                CP 3:JR Z,NXTDIDGEH
+                LD E,(IY+XPOS):LD D,$1F
+                LD HL,(HEROOFSET):LD A,(HEROSIZE):LD H,A
+                CALL HITA:JR C,NXTDIDGEH
+                LD E,(IY+YPOS):LD D,$0F
+                LD HL,(HEROOFSET+1):LD A,(HEROSIZE+1):LD H,A
+                CALL HITA:JR C,NXTDIDGEH
+                CALL SETHERODIE:JR NEXTDUDGE
+NXTDIDGEH       LD DE,BADLEN:ADD IY,DE:DJNZ EFKM
+
+;*************************************
+
+HERODODGEBIG    LD A,(ISBIGON):OR A:JR Z,HAR2
+                LD DE,(BIGX1)
+                LD HL,(HEROOFSET):LD A,(HEROSIZE):LD H,A
+                CALL HITA:JR C,HAR2
+                LD DE,(BIGY1)
+                LD HL,(HEROOFSET+1):LD A,(HEROSIZE+1):LD H,A
+                CALL HITA:JR C,HAR2
+                CALL SETHERODIE
+HAR2
+
+;***************************************************************************
+
+NEXTDUDGE
+                RET
+
+;***************************************************************************
+
+HEROOFSET       DW 0
+HEROSIZE        DW 0
+
+SETHERODIE
+;                LD A,(INFLIVES):OR A:RET NZ
+                LD A,(GUNDIR+1):INC A:RET Z
+
+                LD A,$FF:LD (GUNDIR+1),A
+                LD A,(HEROP+1):AND 4:RRA :RRA :ADD A,90:LD (HEROP+1),A
+                LD A,-9:LD (HEROG+1),A
+
+                LD A,(KEYSCOLLECTED+1):LD B,A:LD HL,OKFES
+                OR A:JR Z,NODROPKEY
+KDEIFTH         LD A,(HL):INC HL:PUSH HL:PUSH BC
+                LD DE,(HEROX+1):ADD A,E:LD E,A:CALL INITKEY
+                POP BC:POP HL:DJNZ KDEIFTH
+                XOR A:LD (KEYSCOLLECTED+1),A
+
+NODROPKEY       LD IX,WAPXYS
+                LD A,(WEPTYPE+1):OR A:JR Z,NOWEPE
+
+                LD DE,WAPT-1:CALL STIT
+                LD DE,(AMMOLEFT+1):LD (WEPAMOUNT),DE
+                LD DE,0:LD (AMMOLEFT+1),DE:XOR A:LD (WEPTYPE+1),A
+NOWEPE
+                INC HL
+                LD A,(PAKTYPE+1):OR A:JR Z,NOPEPE
+
+                LD DE,BAPT-1:CALL STIT
+                LD A,(BACKLEFT+1):LD (PAKAMOUNT),A
+                XOR A:LD (BACKLEFT+1),A:LD (PAKTYPE+1),A
+
+NOPEPE          XOR A:LD (WEPPOWER),A
+                LD L,A:LD H,A:LD (PRTBARRIER+1),HL:RET
+
+STIT            PUSH DE:PUSH AF
+                LD DE,(HEROX+1):LD A,D:SUB 16:LD (IX+01),A
+                LD A, (HL): ADD A,E:RRA:RRA:RRA:AND 31:LD E,A
+                LD A,(LEVEL):CP 7:JR NZ,ZZ1
+                LD A,(HEROX+1):ADD A,(HL):LD (IX+00),A:JR ZZ2
+ZZ1             LD A,(MAPX):ADD A,E:LD (IX+00),A
+ZZ2             POP AF:POP DE:ADD A,E:LD E,A:ADC A,D:SUB E:LD D,A
+                LD A,(DE):LD (IX+02),A
+                LD (IX+03),-6
+                LD (IX+04),0
+                LD DE,5:ADD IX,DE:RET
+
+OKFES           DB $20, $F0,$28,$E8,$30,$E0,$38,$D8
+WAPT            DB 2,1,0,3
+BAPT            DB 5,7,6
+
+;****************************************************************************
+;** GRAFIX                                                                 **
+;**************************************************«•************************
+
+KEYSPRS         DB #F8,#00,#1F,#00,#0F,#00,#F0,#00,#E0,#07,#07,#E0,#03,#10,#C0,#08
+                DB #80,#10,#01,#28,#00,#94,#00,#21,#00,#23,#00,#C4,#00,#84,#00,#21
+                DB #80,#10,#01,#08,#03,#90,#C0,#08,#E0,#04,#07,#20,#07,#A0,#E0,#04
+                DB #E0,#04,#07,#A0,#0F,#40,#F0,#02,#F8,#01,#1F,#80,#3F,#00,#FC,#00
+                DB #FC,#00,#3F,#00,#1F,#00,#F8,#00,#F0,#03,#0F,#C0,#07,#20,#E0,#04
+                DB #C0,#08,#03,#50,#01,#28,#80,#11,#80,#11,#01,#88,#01,#88,#80,#10
+                DB #C0,#08,#03,#10,#07,#A0,#E0,#04,#E0,#04,#07,#20,#07,#A0,#E0,#04
+                DB #E0,#04,#07,#A0,#0F,#40,#F0,#02,#F8,#01,#1F,#80,#3F,#00,#FC,#00
+                DB #FE,#00,#7F,#00,#3F,#00,#FC,#00,#F8,#01,#1F,#80,#0F,#40,#F0,#02
+                DB #E0,#04,#07,#A0,#07,#A0,#E0,#04,#E0,#04,#07,#20,#07,#20,#E0,#04
+                DB #E0,#04,#07,#20,#07,#A0,#E0,#04,#E0,#04,#07,#20,#07,#A0,#E0,#04
+                DB #E0,#04,#07,#A0,#0F,#40,#F0,#02,#F8,#01,#1F,#80,#3F,#00,#FC,#00
+                DB #FC,#00,#3F,#00,#1F,#00,#F8,#00,#F0,#03,#0F,#C0,#07,#20,#E0,#04
+                DB #C0,#08,#03,#50,#01,#A8,#80,#10,#80,#11,#01,#88,#01,#08,#80,#11
+                DB #C0,#08,#03,#10,#07,#A0,#E0,#04,#E0,#04,#07,#20,#07,#A0,#E0,#04
+                DB #E0,#04,#07,#A0,#0F,#40,#F0,#02,#F8,#01,#1F,#80,#3F,#00,#FC,#00
+
+DOORSPR         DB #40,#8F,#22,#70,#7C,#08,#02,#7F,#7F,#40,#20,#7F,#7F,#54,#2A,#7F
+                DB #7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F
+                DB #7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F
+                DB #7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F
+                DB #7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F,#7F,#55,#2A,#7F
+                DB #1F,#55,#2A,#8F,#53,#55,#2A,#A8,#84,#00,#00,#42,#C0,#00,#00,#00
+
+BULMASK         DB #87,#00,#03,#00,#03,#30,#03,#30,#03,#30,#03,#30,#03,#00,#87,#00
+                DB #FF,#00,#E3,#00,#C1,#08,#81,#1C,#01,#38,#03,#70,#07,#20,#8F,#00
+                DB #FF,#00,#81,#00,#00,#00,#00,#3C,#00,#3C,#00,#00,#81,#00,#FF,#00
+                DB #FF,#00,#C7,#00,#83,#10,#81,#38,#80,#1C,#C0,#0E,#E0,#04,#F1,#00
+
+BLOB1X1         DB 1,1*8
+                DB %10000001
+                DB %00111100
+                DB %01111110
+                DB %01111110
+                DB %01111110
+                DB %01111110
+                DB %00111100
+                DB %10000001
+BLOBATR         DB #43
+
+MISSILE         DB #FE,#00,#7F,#00,#3F,#80,#FC,#01,#F8,#02,#1F,#40,#0F,#A0,#F0,#04
+                DB #F0,#04,#0F,#20,#07,#50,#E0,#08,#E0,#08,#07,#50,#07,#50,#E0,#08
+                DB #E0,#08,#07,#50,#07,#50,#E0,#08,#E0,#08,#07,#50,#07,#50,#E0,#08
+                DB #E0,#08,#07,#10,#03,#A8,#C0,#10,#80,#28,#01,#14,#00,#0A,#00,#50
+
+MISS1           DB #00,#50,#00,#0A,#00,#02,#00,#40,#80,#38,#01,#3C,#03,#C0,#C0,#17
+                DB #80,#2F,#03,#E8,#01,#F4,#00,#53,#00,#A7,#00,#DA,#00,#E2,#00,#4F
+                DB #80,#37,#01,#D4,#03,#E8,#C0,#0B,#E0,#0B,#07,#D0,#07,#D0,#F0,#05
+                DB #F0,#05,#0F,#A0,#1F,#40,#F8,#02,#FC,#01,#3F,#80,#7F,#00,#FE,#00
+
+MISS2           DB #00,#50,#00,#0A,#00,#02,#00,#40,#80,#38,#01,#3C,#03,#20,#C0,#0B
+                DB #C0,#17,#07,#D0,#0F,#A0,#E0,#0B,#E0,#0B,#0F,#A0,#1F,#40,#F0,#05
+                DB #F8,#02,#3F,#80,#7F,#00,#FC,#01,#FE,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+
+BULLET3X2       DB #FF,#00,#C3,#00,#FF,#00,#FF,#00,#00,#3C,#FF,#00,#FE,#00,#00,#C3
+                DB #7F,#00,#3F,#80,#00,#1C,#FC,#01,#F8,#02,#00,#7F,#1F,#40,#1F,#40
+                DB #00,#BF,#F8,#02,#F0,#04,#00,#7F,#0F,#A0,#0F,#A0,#00,#3F,#F0,#04
+                DB #F0,#04,#00,#5F,#0F,#A0,#0F,#A0,#00,#2A,#F0,#04,#F8,#02,#00,#14
+                DB #1F,#40,#1F,#40,#00,#00,#F8,#02,#FC,#01,#00,#00,#3F,#80,#7F,#00
+                DB #00,#C3,#FE,#00,#FF,#00,#00,#3C,#FF,#00,#FF,#00,#C3,#00,#FF,#00
+
+BULLET3X1       DB 3,1*8
+                DB #7F,#FF,#FE,#03,#00,#C0,#9F,#FF,#F9,#AD,#AA,#AA,#95,#55,#51,#01,#00,#80,#C0,#00,#03,#FE,#FF,#7F
+                DB #46,#46,#46
+
+FLAMESPR        DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#DD,#00,#FF,#00,#FF,#00,#88,#22
+                DB #FF,#00,#FF,#00,#DD,#00,#FE,#00,#F8,#01,#45,#20,#DF,#00,#8F,#20
+                DB #00,#0A,#F0,#04,#F8,#00,#00,#81,#1F,#00,#17,#00,#00,#28,#E0,#00
+                DB #C0,#12,#00,#7D,#03,#48,#17,#00,#00,#BE,#E0,#00,#C0,#01,#00,#FF
+                DB #0B,#20,#11,#84,#00,#FF,#80,#24,#C0,#01,#00,#FF,#0B,#20,#1B,#80
+                DB #00,#7F,#E0,#04,#E0,#00,#00,#FE,#31,#04,#1B,#40,#00,#5B,#C0,#12
+                DB #EC,#00,#00,#12,#3F,#00,#6F,#00,#00,#81,#F8,#00,#F0,#04,#00,#14
+                DB #C7,#10,#AF,#00,#01,#00,#FA,#00,#FC,#01,#09,#00,#1F,#40,#BF,#00
+                DB #88,#22,#FE,#00,#FF,#00,#DD,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+
+FLAMESPR2       DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#F7,#00,#FF,#00,#FF,#00,#63,#08,#7F,#00,#3F,#80
+                DB #34,#80,#FE,#00,#FD,#00,#18,#42,#7F,#00,#6F,#00,#80,#2D,#F8,#02
+                DB #FD,#00,#80,#A5,#07,#90,#2F,#00,#00,#42,#F6,#00,#E0,#09,#00,#1D
+                DB #1F,#40,#37,#80,#00,#BE,#F6,#00,#F4,#01,#00,#3E,#23,#08,#77,#40
+                DB #00,#5C,#E2,#08,#F6,#00,#00,#A2,#7F,#80,#DF,#00,#00,#49,#FD,#00
+                DB #F8,#02,#C5,#14,#8F,#20,#DF,#00,#E6,#00,#FD,#00,#FF,#00,#C0,#09
+                DB #7F,#00,#FF,#00,#86,#20,#FF,#00,#FF,#00,#DF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+
+SHOTEXP1        DB #F6,#00,#40,#15,#40,#1B,#3F,#00,#17,#80,#00,#2E,#00,#A9,#E0,#00
+                DB #C0,#08,#00,#1B,#00,#85,#03,#40,#01,#88,#00,#A0,#00,#23,#C0,#04
+                DB #80,#10,#00,#83,#00,#82,#03,#30,#03,#70,#00,#88,#00,#27,#C0,#0C
+                DB #80,#17,#00,#87,#00,#C0,#01,#D0,#00,#94,#00,#DD,#00,#EC,#00,#2E
+
+                DB #C7,#7B,#23,#C2,#E6,#DD,#87,#63,#33,#3F,#BE,#CC,#42,#FF,#7F,#96
+                DB #42,#F3,#FF,#57,#8A,#3E,#E1,#64,#14,#F0,#1C,#A5,#CA,#1E,#79,#4C
+
+                DB #3E,#7B,#BF,#70,#7E,#3E,#31,#FF,#1F,#9C,#3E,#FF,#F8,#9D,#9E,#07
+                DB #A1,#3F,#FA,#E1,#81,#FE,#3F,#55,#60,#9A,#7D,#06,#4A,#BA,#45,#30
+
+                DB #00,#22,#00,#EF,#00,#46,#03,#40,#01,#28,#00,#1E,#00,#F0,#80,#10
+                DB #C0,#05,#00,#E2,#00,#0F,#03,#10,#07,#40,#00,#07,#00,#C0,#80,#11
+                DB #C0,#0B,#00,#09,#00,#43,#07,#20,#0F,#00,#00,#11,#00,#13,#E0,#02
+                DB #F0,#00,#00,#2B,#00,#C8,#5F,#00,#FF,#00,#08,#74,#94,#01,#FD,#00
+
+                DB #00,#46,#46,#00
+                DB #06,#57,#57,#46
+                DB #06,#57,#57,#46
+                DB #00,#06,#46,#00
+
+SHOTEXP2        DB #E0,#00,#12,#2D,#0C,#20,#BF,#00,#0F,#00,#00,#82,#00,#76,#C0,#05
+                DB #80,#13,#00,#8D,#00,#09,#07,#40,#03,#10,#00,#84,#00,#46,#C0,#01
+                DB #80,#15,#00,#30,#00,#70,#01,#28,#00,#90,#00,#F9,#00,#7C,#00,#20
+                DB #00,#04,#00,#BE,#00,#FF,#00,#EA,#00,#D0,#00,#FF,#00,#FF,#00,#40
+
+                DB #21,#FF,#FF,#E1,#F2,#EF,#BF,#44,#A7,#DD,#9F,#F4,#FA,#8F,#E0,#4F
+                DB #1F,#B0,#05,#FC,#FA,#93,#E4,#1B,#9F,#62,#A3,#B0,#C0,#C3,#C1,#0F
+
+                DB #4F,#87,#F5,#C2,#E8,#C1,#61,#A7,#DF,#F3,#60,#F5,#F2,#33,#F6,#5E
+                DB #97,#F8,#0E,#F9,#FA,#D7,#F0,#6F,#AF,#DD,#EF,#F0,#E2,#FE,#BF,#4F
+
+                DB #C0,#04,#00,#FE,#00,#FF,#03,#E0,#01,#C8,#00,#7F,#00,#7F,#80,#01
+                DB #00,#22,#00,#FA,#00,#FF,#00,#04,#01,#80,#00,#6B,#00,#FD,#80,#00
+                DB #80,#12,#00,#79,#00,#E7,#01,#28,#03,#90,#00,#D8,#00,#30,#C0,#05
+                DB #E0,#00,#00,#02,#00,#3F,#07,#80,#2F,#00,#00,#97,#18,#23,#FA,#00
+
+                DB #00,#46,#46,#00
+                DB #06,#56,#56,#46
+                DB #06,#16,#56,#46
+                DB #00,#06,#46,#00
+
+SHOTEXP3        DB #F4,#00,#00,#C2,#00,#92,#3F,#00,#0F,#80,#00,#2F,#00,#E9,#E0,#01
+                DB #C0,#09,#00,#9C,#00,#77,#07,#C0,#03,#90,#00,#FF,#00,#7B,#E0,#02
+                DB #E0,#06,#00,#FF,#00,#F7,#01,#28,#00,#BC,#00,#FF,#00,#7F,#C0,#0A
+                DB #C0,#0D,#00,#FF,#00,#FF,#00,#78,#00,#B6,#00,#DD,#00,#F2,#80,#13
+
+                DB #3B,#61,#58,#7F,#BF,#01,#01,#5F,#8B,#43,#83,#FE,#FE,#8D,#B3,#5F
+                DB #3E,#9F,#D9,#3C,#7E,#70,#8C,#3F,#1F,#0B,#B0,#FF,#FF,#D8,#34,#AE
+
+                DB #1C,#F6,#5E,#FF,#7F,#B8,#1B,#2E,#7F,#0C,#60,#3E,#FC,#E0,#06,#7F
+                DB #FA,#0C,#61,#F8,#FC,#31,#18,#FC,#7D,#10,#02,#FC,#F8,#C2,#01,#2E
+
+                DB #80,#16,#00,#23,#00,#F1,#07,#E0,#07,#40,#00,#FB,#00,#CE,#00,#39
+                DB #80,#16,#00,#FD,#00,#FE,#03,#D0,#07,#E0,#00,#FF,#00,#5F,#C0,#0E
+
+                DB #C0,#0C,#00,#AF,#00,#0E,#07,#A0,#0F,#C0,#00,#5E,#00,#5E,#E0,#03
+                DB #F0,#01,#00,#FC,#00,#ED,#1F,#00,#3F,#00,#12,#40,#03,#38,#FC,#00
+
+                DB #00,#46,#46,#00
+                DB #06,#57,#57,#46
+                DB #06,#17,#57,#46
+                DB #00,#06,#06,#00
+
+SHOTEXP4        DB #F8,#00,#98,#64,#02,#98,#1F,#00,#0F,#80,#00,#7D,#00,#BB,#F0,#02
+                DB #E0,#06,#00,#7D,#00,#FB,#07,#A0,#03,#70,#00,#30,#00,#A2,#C0,#0C
+                DB #80,#1C,#00,#03,#00,#00,#01,#38,#00,#5C,#00,#04,#00,#03,#80,#19
+                DB #00,#28,#00,#27,#00,#90,#00,#AC,#00,#5C,#00,#81,#00,#57,#80,#10
+
+                DB #38,#27,#84,#0E,#36,#C0,#86,#1D,#4F,#AF,#C1,#EF,#CD,#77,#FC,#2D
+                DB #78,#F3,#9F,#9E,#3C,#6F,#67,#70,#E2,#4F,#EE,#3C,#1A,#74,#CE,#50
+
+                DB #F3,#CD,#24,#1C,#9E,#77,#C4,#67,#DF,#63,#EF,#EF,#1B,#CE,#E6,#61
+                DB #30,#71,#10,#9D,#1E,#F0,#3F,#5A,#2C,#3F,#E2,#2E,#7E,#F0,#5C,#1C
+
+                DB #80,#18,#00,#78,#00,#70,#00,#74,#01,#38,#00,#39,#00,#72,#00,#2A
+                DB #80,#14,#00,#E0,#00,#18,#01,#38,#01,#58,#00,#0C,#00,#CD,#80,#10
+                DB #80,#1A,#00,#BF,#00,#85,#03,#B0,#07,#E0,#00,#E3,#00,#3D,#C0,#0F
+                DB #E0,#07,#00,#F8,#00,#F7,#0F,#80,#1F,#00,#00,#3C,#02,#E0,#F0,#00
+
+                DB #00,#46,#46,#00
+                DB #46,#57,#47,#46
+                DB #46,#57,#47,#46
+                DB #00,#46,#46,#00
+
+;****************************************************************************
+
+WEAPONSPRITE5
+
+SHOTGUNSPRT     DB #FE,#00,#7F,#00,#3F,#00,#FC,#00,#F8,#01,#1F,#80,#0F,#40,#F0,#02
+                DB #E0,#06,#0F,#40,#07,#E0,#E0,#04,#E0,#05,#07,#20,#07,#20,#E0,#05
+                DB #E0,#05,#07,#20,#07,#20,#E0,#05,#C0,#04,#07,#20,#03,#20,#80,#19
+                DB #00,#26,#01,#58,#00,#B4,#00,#2A,#00,#2A,#00,#94,#00,#24,#00,#2A
+                DB #00,#2A,#00,#24,#00,#04,#00,#2A,#00,#2E,#00,#04,#00,#54,#00,#20
+                DB #80,#11,#00,#6C,#01,#40,#C0,#0A,#E0,#04,#03,#40,#07,#60,#C0,#0C
+                DB #80,#10,#03,#10,#01,#08,#00,#20,#00,#20,#01,#08,#01,#08,#00,#21
+                DB #80,#12,#03,#90,#07,#60,#C0,#0C,#E1,#00,#0F,#00,#9F,#00,#F3,#00
+
+THREEWAYSPRT    DB #F0,#00,#0F,#00,#07,#00,#E0,#00,#C0,#0F,#03,#F0,#01,#18,#80,#18
+                DB #80,#14,#01,#28,#01,#C8,#80,#13,#C0,#08,#03,#10,#01,#18,#80,#18
+                DB #00,#22,#00,#44,#00,#B4,#00,#2D,#00,#26,#00,#74,#00,#24,#00,#24
+                DB #00,#20,#00,#04,#00,#44,#00,#22,#00,#25,#00,#24,#00,#94,#00,#2B
+                DB #80,#15,#01,#48,#01,#10,#C0,#08,#C0,#08,#00,#3C,#00,#44,#80,#15
+                DB #80,#15,#00,#54,#00,#44,#80,#15,#80,#15,#00,#44,#01,#18,#80,#10
+                DB #C0,#0A,#03,#B0,#07,#40,#E0,#04,#C0,#0A,#07,#A0,#03,#90,#C0,#0A
+                DB #E0,#04,#03,#10,#07,#E0,#F0,#03,#F8,#00,#0F,#00,#1F,#00,#FC,#00
+
+FLAMESPRT       DB #FE,#00,#FF,#00,#6F,#00,#EC,#00,#C0,#01,#07,#00,#03,#90,#80,#12
+                DB #00,#2C,#01,#68,#00,#44,#00,#20,#00,#24,#00,#A4,#01,#08,#80,#10
+                DB #00,#24,#00,#A4,#00,#A4,#00,#24,#80,#10,#01,#08,#00,#A4,#00,#24
+                DB #00,#24,#00,#A4,#01,#08,#80,#10,#00,#24,#00,#A4,#00,#A4,#00,#24
+                DB #00,#20,#01,#08,#01,#68,#80,#16,#00,#26,#01,#68,#01,#08,#00,#20
+                DB #00,#20,#03,#10,#01,#68,#00,#26,#00,#26,#01,#68,#01,#10,#00,#20
+                DB #00,#20,#00,#9C,#00,#44,#00,#28,#00,#28,#00,#74,#00,#84,#00,#24
+                DB #80,#10,#00,#FC,#01,#80,#C0,#0F,#E0,#00,#03,#00,#7F,#00,#F0,#00
+
+POWERUPSPRT     DB #F2,#00,#4F,#00,#07,#00,#E0,#00,#C0,#0D,#03,#B0,#01,#48,#80,#12
+                DB #80,#12,#01,#48,#01,#D8,#80,#16,#80,#12,#01,#48,#01,#F8,#80,#1F
+                DB #C0,#00,#03,#00,#03,#00,#C0,#00,#C0,#0D,#03,#B0,#01,#48,#80,#12
+                DB #80,#12,#01,#48,#01,#D8,#80,#16,#80,#12,#01,#48,#01,#F8,#80,#1F
+                DB #C0,#00,#03,#00,#03,#00,#C0,#00,#C0,#0D,#03,#B0,#01,#48,#80,#12
+                DB #80,#12,#01,#48,#01,#D8,#80,#16,#80,#12,#01,#48,#01,#F8,#80,#1F
+                DB #00,#3D,#01,#F8,#00,#04,#00,#22,#00,#2E,#00,#94,#00,#94,#00,#22
+                DB #80,#1A,#00,#94,#00,#04,#00,#22,#80,#1D,#01,#F8,#03,#00,#C2,#00
+
+FULLAUTOSPRT    DB #F8,#00,#7F,#00,#3F,#00,#F0,#00,#E0,#07,#1F,#80,#0F,#80,#E0,#04
+                DB #C0,#0D,#07,#E0,#07,#20,#C0,#08,#80,#1D,#03,#70,#01,#08,#00,#20
+                DB #00,#20,#01,#08,#03,#90,#80,#13,#00,#20,#01,#08,#01,#08,#00,#20
+                DB #80,#13,#03,#90,#01,#08,#00,#20,#00,#20,#01,#08,#01,#50,#80,#10
+                DB #C0,#0E,#00,#3C,#00,#44,#80,#10,#00,#20,#00,#34,#00,#24,#00,#2B
+                DB #00,#24,#00,#84,#01,#88,#00,#24,#00,#23,#03,#70,#07,#40,#80,#10
+                DB #C0,#0C,#0F,#C0,#0F,#40,#C0,#08,#80,#16,#07,#20,#07,#20,#80,#14
+                DB #80,#10,#07,#20,#07,#E0,#80,#1F,#C0,#00,#0F,#00,#1F,#00,#E0,#00
+
+SCHARGESPRT1    DB #FB,#00,#1F,#00,#0F,#40,#D0,#00,#80,#04,#07,#A0,#07,#40,#00,#2A
+                DB #80,#04,#03,#10,#07,#80,#80,#00,#00,#21,#0F,#40,#17,#80,#80,#00
+                DB #C0,#04,#23,#00,#41,#08,#C0,#0A,#E0,#04,#83,#00,#07,#20,#E1,#00
+                DB #C0,#08,#03,#50,#01,#50,#80,#14,#C0,#09,#00,#8C,#00,#02,#E0,#02
+                DB #F0,#01,#00,#8C,#01,#50,#FC,#00,#EE,#00,#03,#50,#07,#20,#C6,#00
+                DB #80,#10,#0B,#80,#11,#00,#00,#28,#00,#44,#60,#04,#C1,#00,#01,#28
+                DB #83,#10,#83,#10,#01,#28,#C1,#08,#80,#14,#00,#44,#01,#28,#00,#22
+                DB #80,#14,#83,#10,#C7,#00,#C1,#08,#E3,#00,#EF,#00,#FF,#00,#F7,#00
+
+SCHARGESPRT2    DB #DF,#00,#BF,#00,#0F,#00,#8B,#00,#00,#20,#07,#40,#03,#10,#00,#54
+                DB #00,#20,#01,#28,#03,#10,#00,#20,#00,#50,#03,#80,#01,#08,#00,#24
+                DB #80,#0A,#00,#14,#00,#22,#80,#11,#C0,#0A,#00,#14,#81,#08,#80,#14
+                DB #00,#22,#03,#00,#07,#20,#00,#41,#00,#22,#03,#50,#01,#88,#80,#14
+                DB #C0,#08,#03,#50,#07,#20,#E3,#00,#F6,#00,#0F,#00,#1B,#80,#EC,#00
+                DB #C8,#01,#01,#40,#00,#84,#84,#10,#02,#28,#00,#0A,#00,#14,#83,#10
+                DB #C1,#08,#01,#28,#00,#44,#80,#14,#00,#22,#00,#82,#00,#44,#00,#41
+                DB #00,#22,#01,#28,#83,#10,#80,#14,#C1,#08,#C7,#00,#EF,#00,#E3,#00
+
+BARRIERSPR      DB #F8,#00,#0F,#00,#07,#00,#F0,#00,#E0,#07,#03,#F0,#01,#08,#C0,#08
+                DB #80,#11,#00,#C4,#00,#20,#80,#02,#00,#34,#00,#16,#00,#16,#00,#34
+                DB #00,#34,#00,#16,#00,#16,#00,#34,#80,#02,#00,#20,#00,#C4,#80,#11
+                DB #C0,#08,#01,#08,#03,#F0,#E0,#07,#F0,#00,#07,#00,#0F,#00,#F8,#00
+                DB #FC,#00,#1F,#00,#0F,#00,#F8,#00,#F0,#03,#07,#E0,#03,#30,#E0,#06
+                DB #E0,#04,#03,#90,#03,#80,#E0,#00,#C0,#0C,#01,#58,#01,#58,#C0,#0C
+                DB #C0,#0C,#01,#58,#01,#58,#C0,#0C,#E0,#00,#03,#80,#03,#90,#E0,#04
+                DB #E0,#06,#03,#30,#07,#E0,#F0,#03,#F8,#00,#0F,#00,#1F,#00,#FC,#00
+                DB #FE,#00,#3F,#00,#1F,#00,#FC,#00,#F8,#01,#0F,#C0,#07,#20,#F0,#02
+                DB #F0,#02,#07,#20,#0F,#00,#F8,#00,#F0,#03,#07,#E0,#07,#E0,#F0,#03
+                DB #F0,#03,#07,#E0,#07,#E0,#F0,#03,#F8,#00,#0F,#00,#07,#20,#F0,#02
+                DB #F0,#02,#07,#20,#0F,#C0,#F8,#01,#FC,#00,#1F,#00,#3F,#00,#FE,#00
+                DB #FC,#00,#1F,#00,#0F,#00,#F8,#00,#F0,#03,#07,#E0,#03,#30,#E0,#06
+                DB #E0,#04,#03,#90,#03,#80,#E0,#00,#C0,#0D,#01,#18,#01,#18,#C0,#0D
+                DB #C0,#0D,#01,#18,#01,#18,#C0,#0D,#E0,#00,#03,#80,#03,#90,#E0,#04
+                DB #E0,#06,#03,#30,#07,#E0,#F0,#03,#F8,#00,#0F,#00,#1F,#00,#FC,#00
+
+BACKPACKSPR     DB #F8,#00,#1F,#00,#0F,#00,#F0,#00,#C0,#07,#03,#E0,#01,#10,#80,#08
+                DB #00,#33,#00,#CC,#00,#44,#00,#22,#00,#2B,#00,#D4,#01,#28,#80,#14
+                DB #80,#12,#01,#48,#01,#18,#80,#18,#00,#22,#00,#44,#00,#C4,#00,#23
+                DB #00,#22,#00,#44,#01,#38,#80,#1C,#C1,#00,#83,#00,#C7,#00,#E3,#00
+
+EXTRALIFESPRT   DB #00,#00,#00,#00,#00,#FE,#00,#7F,#00,#40,#00,#02,#00,#FA,#00,#5F
+                DB #00,#40,#00,#02,#00,#D2,#00,#5D,#00,#5A,#00,#52,#00,#52,#00,#54
+                DB #00,#57,#00,#52,#00,#52,#00,#52,#00,#5A,#00,#52,#00,#42,#00,#52
+                DB #00,#54,#00,#22,#00,#22,#00,#44,#00,#57,#00,#E2,#00,#02,#00,#40
+                DB #00,#40,#00,#02,#00,#FE,#00,#7F,#00,#00,#00,#00,#FF,#00,#FF,#00
+
+;*******************************************************************************
+
+GMX             EQU 25
+
+WEAPONROOM      XOR A:LD (MAPX),A:LD (MAPDIR),A
+                LD (ONLADDER+1),A
+                LD A,$FF:LD (SETUD+1),A
+                LD A,GMX*2-26:LD (RIGHTMAX+1),A
+                LD A,GMX:LD (MAPXSIZE),A
+                LD HL,GRCHRS:LD (DMPCHRAD+1),HL
+                LD HL,GRATRS:LD (DMPATRAD+1),HL
+                LD HL,GRBLOX:LD (BLOXAD1+1),HL:LD (BLOXAD2+1),HL
+                LD HL,GRMAP:LD (MAP),HL
+                LD A,$F0:LD (MAPY),A
+
+                LD DE,$0018
+SHOWEPRM        PUSH DE:CALL UPDATEX:POP DE:DEC E:DEC E:JP P,SHOWEPRM
+
+                LD HL,500:LD (WEPAMOUNT),HL:LD A,50:LD (PAKAMOUNT),A
+
+                LD DE,$6820:LD (HEROX+1),DE
+                LD A,D:SUB $10:LD D,A:LD (GUNX+1),DE
+                XOR A:LD (HEROF+1),A:LD (HEROG+1),A
+                CALL RESETBAD
+
+WAPINITAD       LD HL,WAPTABLE
+                LD IX,WAPXYS:LD DE,5:LD BC,$060C
+SETWAPS         LD (IX+00),C:LD A,C:ADD A,6:LD C,A:LD (IX+01),$30
+                LD A,(HL):INC HL:LD (IX+02),A:LD (IX+03),$80
+                LD A,(HL):INC HL:LD (IX+04),A:ADD IX,DE:DJNZ SETWAPS
+
+                LD A,1:LD (NOSCROLL+1),A
+WEAPONROOMLOOP  XOR A:LD (RETMODE),A
+
+                LD A,(LEVEL):PUSH AF:XOR A:LD (LEVEL),A
+                LD A,1:LD (WEPFLRCOL+1),A:CALL DOALLBACKBITS
+                CALL READKEYS:CALL DECODE:XOR A:LD (WEPFLRCOL+1),A
+                POP AF:LD (LEVEL),A
+
+                LD A,(RETMODE):OR A:RET NZ
+                LD A,NXTLEV:LD (RETMODE),A
+                LD A,(HEROX+1):CP $C8:RET Z
+
+                LD A,(FUDLR):AND $40:CALL NZ,PAUSE0
+                JP WEAPONROOMLOOP
+;               LD A,BREAK:LD (RETMODE),A
+;               LD A,1Z7:IN A,(254):RRA :JP C,WEAPONROOMLOOP
+;               LD A,254:IN A,(254):RRA :JP C,WEAPONROOMLOOP:RET
+
+;***************************************
+
+PRTWAPS         LD A,(POS):AND 3:LD DE,64:LD HL,BARRIERSPR:CALL MULT
+                LD (BARANI),HL
+                LD A,(POS):AND 1:LD DE,128:LD HL,SCHARGESPRT1:CALL MULT
+                LD (SCHANI),HL
+
+                LD IX,WAPXYS:LD B,6
+PRTWAPBLP       PUSH BC:LD A,(IX+02):CP $FF:JP Z,NOPWAP:LD D,(IX+01)
+                LD A,(IX+03):CP $80:JR Z,NOPWAPS
+                CP 20:JR Z,NOPWAPS
+                INC A:CP 10:JR Z,NOPWAPZ:LD (IX+03),A
+NOPWAPZ         ADD A,(IX+01):LD D,A
+                JP P,NOPWAPS:CP $90:JR NC,NOPWAPS
+                LD (IX+02),$FF:JP NOPWAP
+NOPWAPS
+                LD E,(IX+00):LD A,(MAPY):CP $F0:JR Z,MASDA
+                LD A,(LEVEL):CP 7:JR Z,MAZDA
+MASDA           LD HL,(MAPX):LD A,E:SUB L
+                ADD A,A:ADD A,A:ADD A,A:LD E,A
+MAZDA
+                LD C,1:CALL TASTEFLOOR:JR NC,NSTFLS
+                LD (IX+03),20
+
+                LD A,(IX+02):SUB 11:JR C,NSTFLS
+                ADD A,A:ADD A,A:ADD A,A:ADD A,199:LD (SETEE+1),A
+                DB 62
+SAVORS          DB 0
+SETEE           SET 0,A:LD (SAVORS),A
+                LD HL,SAVEDPEOPLE+1:INC (HL)
+                LD A,(RND1):AND 15:CP 11:JR C,ARR:SUB 11
+ARR             LD (IX+02),A
+
+NSTFLS          LD (IX+01),D:LD A,(MAPY):CP $F0:JR Z,ESRA
+                LD A,(LEVEL):CP 7:JR Z,EZRA
+ESRA            LD DE,(MAPX):LD A,(IX+00)
+                SUB E:JP C,NOPWAP:CP 30:JP NC,NOPWAP
+                ADD A,A:ADD A,A:ADD A,A:LD E,A
+EZRA
+                LD D,(IX+01)
+                LD HL,WAPTYPES+3:LD A,(IX+02):ADD A,A:ADD A,A
+                CALL ADDHLA
+                LD (HEREXY+1),DE
+                LD A,D:ADD A,(HL):LD D,A:DEC HL:LD B,(HL):DEC HL
+                LD A,(HL):DEC HL:LD L,(HL):LD H,A
+                LD A,D:ADD A,B:ADD A,B:OR A:JP M,NOPWAP
+                LD C,B:LD B,2:CALL MASKCXB
+HEREXY          LD DE,0
+                LD A,(IX+3):CP $80:LD B,(IX+4):CALL Z,PRTNUMKEY
+
+                LD D,8:LD HL,(HEROX+1):LD H,32:CALL HITA:JR C,NOPWAP
+                LD E,(IX+01):LD D,32:LD A,(HEROX+2):SUB $10:LD L,A
+                LD H,32:CALL HITA:JR C,NOPWAP
+
+                LD A,(KEYSCOLLECTED+1):SUB (IX+04):JR C,NOPWAP
+                LD (KEYSCOLLECTED+1),A
+
+                LD A,(IX+03):CP $80:JR Z,JUMPWAP
+                CP 20:JR NZ,NOPWAP
+
+                LD DE,0*256+2:CALL ADDSCORE
+
+                LD A,(IX+02):ADD A,A:LD E,A:LD D,0:LD HL,FNI
+                ADD HL,DE:LD E,(HL):INC HL:LD D,(HL):EX DE,HL
+                CALL JPHL:LD (IX+02),$FF:JR NOPWAP
+JUMPWAP         LD (IX+03),-8:LD (IX+04),0
+NOPWAP          POP BC:LD DE,5:ADD IX,DE:DEC B:JP NZ,PRTWAPBLP:RET
+PRTNUMKEY       DEC B:RET M
+                PUSH BC:PUSH DE
+                LD HL,SMOFDE:LD A,B:ADD A,A:ADD A,B:ADD A,L:LD L,A
+                ADC A,H:SUB L:LD H,A:LD A,D:ADD A,$18:LD D,A:LD B,3
+PRTNUMKEYBLP    LD A,(HL):INC HL:SUB 8:PUSH HL:JR C,NOKEYCH
+                LD HL,KEYCHRS:CALL ADDHLA
+                CALL DMPHLCHR
+NOKEYCH         LD A,E:ADD 8:LD E,A:POP HL:DJNZ PRTNUMKEYBLP
+DEK
+                LD A,(IX+02):ADD A,A:LD HL,WEPNAMESAD:LD E,A:LD D,0
+                ADD HL,DE:LD E,(HL):INC HL:LD D,(HL):EX DE,HL
+                POP DE:PUSH DE:LD A,D:SUB $20:LD D,A
+                LD A,E:SUB 8:LD E,A:LD BC,$0503:CALL BAXIT:POP DE
+
+                POP BC:INC B:LD A,(KEYSCOLLECTED+1):CP B:RET C
+
+                PUSH DE:LD A,(POS):AND 1:JR Z,NOF
+                LD D,$18:LD A,(HEROX+1):ADD A,8:LD L,A:LD H,$10
+                CALL HITA:JR C,NOF:POP DE:PUSH DE:LD A,D:ADD A,$18
+                LD D,A:LD A,E:SUB 8:LD E,A:CALL BATAD
+                LD A,#46:LD (HL),A:INC L:LD (HL),A:INC L
+                LD (HL),A:INC L:LD (HL),A:INC L:LD (HL),A
+NOF             POP DE:RET
+
+SMOFDE          DB #00,#18,#00
+                DB #00,#10,#00
+                DB #08,#10,#00
+                DB #08,#10,#18
+                DB #10,#10,#18
+                DB #10,#10,#10
+
+KEYCHRS
+                DB %00000000
+                DB %11111111
+                DB %11111000
+                DB %11111000
+                DB %11111101
+                DB %11111101
+                DB %11111111
+                DB %00000000
+
+                DB %00000000
+                DB %11111111
+                DB %10001000
+                DB %10001000
+                DB %11011101
+                DB %11011101
+                DB %11111111
+                DB %00000000
+
+                DB %00000000
+                DB %11111111
+                DB %10001111
+                DB %10001111
+                DB %11011111
+                DB %11011111
+                DB %11111111
+                DB %00000000
+
+WEPNAMESAD      DW WEPNAMES+00*30
+                DW WEPNAMES+01*30
+                DW WEPNAMES+02*30
+                DW WEPNAMES+03*30
+                DW WEPNAMES+04*30
+                DW WEPNAMES+05*30
+                DW WEPNAMES+06*30
+                DW WEPNAMES+07*30
+                DW WEPNAMES+08*30
+                DW WEPNAMES+09*30
+                DW WEPNAMES+10*30
+                DW WEPNAMES+11*30
+                DW WEPNAMES+11*30
+                DW WEPNAMES+11*30
+                DW WEPNAMES+11*30
+                DW WEPNAMES+11*30
+                DW WEPNAMES+11*30
+
+WEPNAMES
+                DB #0E,#A8,#82,#57,#20,#50,#52,#85,#A8,#08,#0C,#A8,#87,#52,#50,#50
+                DB #52,#85,#A8,#08,#08,#6E,#E5,#32,#20,#00,#00,#00,#00,#00
+                DB #00,#30,#44,#94,#00,#00,#54,#45,#08,#00,#00,#13,#45,#C8,#00,#00
+                DB #48,#55,#08,#00,#00,#30,#29,#48,#00,#00,#00,#00,#00,#00
+                DB #00,#03,#AC,#E0,#00,#00,#80,#2A,#02,#00,#00,#03,#2C,#C0,#00,#00
+                DB #80,#2A,#02,#00,#00,#02,#2A,#E0,#00,#00,#00,#00,#00,#00
+                DB #01,#A9,#38,#95,#40,#C0,#55,#91,#2A,#02,#01,#3A,#91,#15,#C0,#C0
+                DB #55,#91,#AA,#00,#03,#29,#10,#CD,#40,#00,#00,#00,#00,#00
+                DB #01,#95,#11,#DC,#C0,#00,#09,#11,#55,#01,#01,#95,#11,#88,#80,#40
+                DB #08,#11,#55,#01,#01,#CD,#DD,#C9,#80,#00,#00,#00,#00,#00
+                DB #00,#0A,#BB,#10,#00,#00,#A8,#92,#0E,#00,#00,#0E,#93,#28,#00,#00
+                DB #A8,#92,#0E,#00,#00,#0A,#92,#90,#00,#00,#00,#00,#00,#00
+                DB #00,#6A,#48,#BB,#00,#80,#A2,#A8,#8A,#00,#00,#4E,#A8,#B3,#00,#80
+                DB #A2,#AA,#2A,#00,#00,#CA,#45,#3A,#80,#00,#00,#00,#00,#00
+                DB #00,#52,#29,#52,#00,#00,#75,#55,#55,#00,#00,#75,#45,#74,#00,#00
+                DB #75,#45,#55,#00,#00,#52,#45,#53,#00,#00,#00,#00,#00,#00
+                DB #01,#89,#99,#76,#00,#00,#45,#55,#55,#01,#01,#9D,#99,#66,#00,#00
+                DB #45,#55,#55,#01,#01,#D5,#55,#75,#00,#00,#00,#00,#00,#00
+                DB #03,#0D,#49,#8D,#C0,#00,#51,#55,#11,#04,#02,#11,#DD,#95,#80,#00
+                DB #55,#55,#11,#01,#06,#4D,#55,#4D,#C0,#00,#00,#00,#00,#00
+                DB #00,#00,#42,#B0,#00,#00,#A8,#C2,#00,#00,#00,#00,#42,#B0,#00,#00
+                DB #A0,#42,#00,#00,#00,#00,#E3,#A0,#00,#00,#00,#00,#00,#00
+                DB #00,#00,#04,#00,#00,#00,#00,#0A,#00,#00,#00,#00,#02,#00,#00,#00
+                DB #00,#04,#00,#00,#00,#00,#00,#00,#00,#00,#00,#04,#00,#00
+
+DMPHLCHR        PUSH DE:PUSH BC:PUSH HL:CALL BIXAD:POP DE:LD BC,32:LD A,7
+AFLP            EX AF,AF:LD A,(DE):LD (HL),A:ADD HL,BC:INC DE
+                EX AF,AF:DEC A:JP NZ,AFLP:LD A,(DE):LD (HL),A
+                POP BC:POP DE:RET
+
+FNI             DW SETSHOT            ; 00
+                DW SETTHREE           ; 01
+                DW SETFLAME           ; 02
+                DW SETFULL            ; 03
+                DW ADDAMMO            ; 04
+                DW SETNITRO           ; 05
+                DW SETSHOWER          ; 06
+                DW SETHOMING          ; 07
+                DW SETBARRIER         ; 08
+                DW SETSUPER           ; 09
+                DW SET1UP             ; 10
+;                DW RETURN             ; 11
+;                DW RETURN             ; 12
+;                DW RETURN             ; 13
+;                DW RETURN             ; 14
+;                DW RETURN             ; 15
+;                DW RETURN             ; 16
+
+WEPAMOUNT       DW 500
+PAKAMOUNT       DB 50
+
+SETSUPER        LD A,(WEPTYPE+1):OR A:RET Z
+                LD A,1:LD (WEPPOWER),A:RET
+
+SET1UP          LD A,(LIVES):INC A:LD (LIVES),A:RET
+
+SETFULL         XOR A:LD (WEPPOWER),A
+                LD A,4:LD (WEPTYPE+1),A
+                LD HL,(WEPAMOUNT):LD (AMMOLEFT+1),HL:RET
+SETFLAME        XOR A:LD (WEPPOWER),A
+                LD A,1:LD (WEPTYPE+1),A
+                LD HL,(WEPAMOUNT):LD (AMMOLEFT+1),HL:RET
+SETTHREE        XOR A:LD (WEPPOWER),A
+                LD A,2:LD (WEPTYPE+1),A
+                LD HL,(WEPAMOUNT):LD (AMMOLEFT+1),HL:RET
+SETSHOT         XOR A:LD (WEPPOWER),A
+                LD A,3:LD (WEPTYPE+1),A
+                LD HL,(WEPAMOUNT):LD (AMMOLEFT+1),HL:RET
+ADDAMMO         LD A,(WEPTYPE+1):OR A:RET Z
+                LD DE,(AMMOLEFT+1):LD HL,499:OR A:SBC HL,DE
+                JR NC,FJE:LD DE,499
+FJE             LD HL,500:ADD HL,DE:LD (AMMOLEFT+1),HL:RET
+
+SETNITRO        LD A,1:LD (PAKTYPE+1),A
+                LD A,(PAKAMOUNT):LD (BACKLEFT+1),A:RET
+SETHOMING       LD A,2:LD (PAKTYPE+1),A
+                LD A,(PAKAMOUNT):LD (BACKLEFT+1),A:RET
+SETSHOWER       LD A,3:LD (PAKTYPE+1),A
+                LD A,(PAKAMOUNT):LD (BACKLEFT+1),A:RET
+
+SETBARRIER      LD HL,500:LD (PRTBARRIER+1),HL:RET
+
+WAPXYS          DB $FF,$FF,$00,$80,$01
+                DB $FF,$FF,$01,$80,$02
+                DB $FF,$FF,$02,$80,$03
+                DB $FF,$FF,$03,$80,$04
+                DB $FF,$FF,$04,$80,$05
+                DB $FF,$FF,$05,$80,$06
+
+WAPTYPES        DW SHOTGUNSPRT         ; SHOT GUN
+                DB 4*4,0-16
+                DW THREEWAYSPRT        ; 3 WAY
+                DB 4*4,0-16
+                DW FLAMESPRT           ; FLAME
+                DB 4*4,0-16
+                DW FULLAUTOSPRT        ; FULL AUTO
+                DB 4*4,0-16
+                DW POWERUPSPRT         ; AMMO
+                DB 4*4,0-16
+                DW BACKPACKSPR         ; NITRO
+                DB 2*4,0-08
+                DW BACKPACKSPR         ; SHOWER
+                DB 2*4,0-08
+                DW BACKPACKSPR         ; HOMING
+                DB 2*4,0-08
+BARANI          DW BARRIERSPR          ; BARRIER
+                DB 2*4,0-08
+SCHANI          DW SCHARGESPRT1        ; S.CHARGE
+                DB 4*4,0-16
+                DW EXTRALIFESPRT       ; 1 UP
+                DB 010,0-10
+
+SP1             DS 6*4,0
+
+;****************************************
+;** GUN ROOM STUFF + ROUTINES          **
+;****************************************
+
+GRCHRS          DB #AA,#55,#AA,#55,#AA,#55,#AA,#55,#00,#00,#00,#00,#00,#00,#00,#00
+                DB #41,#42,#41,#42,#41,#42,#41,#42,#5E,#9E,#5E,#9E,#5E,#9E,#5E,#9E
+                DB #00,#EF,#D0,#A7,#4F,#5D,#5C,#58,#00,#FF,#00,#FF,#FF,#54,#00,#A9
+                DB #5D,#58,#5D,#58,#5D,#58,#5C,#59,#53,#A7,#4F,#9E,#3D,#7A,#F5,#EA
+                DB #02,#F6,#0A,#E4,#F2,#FA,#FA,#FA,#FF,#FF,#F8,#F0,#F0,#F0,#F0,#F8
+                DB #DA,#BA,#1A,#BA,#1A,#BA,#1A,#BA,#FC,#FC,#F8,#F8,#F8,#F8,#F8,#FC
+                DB #BD,#42,#89,#9D,#9D,#9D,#4A,#4A,#50,#83,#00,#42,#05,#42,#85,#42
+                DB #00,#7F,#80,#17,#0F,#17,#0E,#01,#85,#42,#85,#42,#01,#42,#A0,#50
+                DB #00,#FF,#00,#A0,#5F,#A0,#4F,#47,#00,#FF,#00,#02,#FD,#06,#F3,#FA
+                DB #44,#40,#20,#9F,#40,#AA,#00,#00,#13,#02,#05,#FA,#05,#AA,#00,#00
+                DB #03,#FD,#06,#F2,#7A,#FA,#7A,#BA,#5A,#BA,#5A,#AA,#5A,#A6,#0D,#03
+                DB #41,#42,#41,#42,#41,#42,#41,#00,#5E,#9E,#5E,#9E,#5E,#9E,#5E,#00
+                DB #5F,#5F,#5F,#4F,#A7,#D0,#EF,#00,#D5,#80,#2A,#FF,#FF,#00,#FF,#00
+                DB #BF,#40,#8C,#9C,#9C,#8C,#40,#7F,#FF,#00,#FF,#00,#BD,#BD,#00,#FF
+                DB #1A,#3A,#BA,#F2,#E4,#0A,#F6,#00,#FE,#FC,#F8,#F0,#00,#E8,#00,#00
+                DB #FA,#04,#3A,#7A,#7A,#3A,#04,#F8,#F0,#F0,#F0,#F0,#00,#E8,#00,#00
+                DB #00,#07,#37,#37,#27,#17,#27,#40,#00,#FF,#FF,#FF,#FF,#FF,#FF,#00
+                DB #01,#02,#02,#06,#0A,#12,#2A,#5A,#FF,#00,#00,#00,#00,#00,#FF,#FF
+                DB #FF,#01,#01,#01,#01,#01,#C1,#C1,#00,#F6,#0A,#E4,#F2,#FA,#FA,#FA
+                DB #BA,#7A,#7A,#76,#6A,#52,#22,#42,#82,#02,#02,#06,#0A,#12,#2A,#5A
+                DB #FF,#FF,#FF,#FF,#FF,#FF,#FF,#FF,#C1,#C1,#C1,#C1,#C1,#C1,#C1,#C1
+                DB #00,#1F,#1F,#1F,#1F,#1F,#1F,#00,#FF,#FF,#FF,#FF,#FF,#FF,#00,#FF
+                DB #C1,#C1,#C1,#C1,#C1,#C1,#01,#FF,#FD,#FE,#FE,#FE,#00,#54,#A8,#51
+                DB #FD,#FE,#FE,#FE,#00,#55,#A8,#51,#F0,#F0,#F0,#F8,#FC,#FC,#FC,#00
+                DB #00,#00,#00,#5C,#1E,#5E,#5E,#00,#03,#07,#0F,#5F,#1F,#5F,#5F,#00
+                DB #A8,#51,#A8,#00,#88,#88,#88,#88,#00,#00,#E3,#F1,#F8,#FC,#FE,#FF
+                DB #00,#00,#FF,#FF,#FF,#7F,#3F,#1F,#FF,#FF,#FF,#FF,#00,#00,#55,#AA
+                DB #8F,#C7,#E3,#F1,#00,#00,#54,#A8,#55,#AA,#00,#00,#00,#AA,#55,#AA
+                DB #54,#A8,#00,#00,#00,#AA,#55,#AA,#01,#E4,#E2,#E2,#E6,#EA,#E2,#02
+                DB #42,#82,#02,#06,#0A,#12,#2A,#5A,#82,#FA,#FA,#FA,#FA,#FA,#FA,#04
+GRATRS
+                DB #05,#47,#05,#47,#45,#05,#45,#05,#05,#07,#05,#07,#56,#07,#4E,#07
+                DB #4E,#4E,#0E,#0E,#47,#47,#05,#47,#45,#05,#4E,#4E,#05,#07,#4E,#07
+                DB #45,#45,#46,#47,#47,#05,#46,#46,#47,#47,#45,#47,#47,#47,#47,#07
+                DB #07,#07,#07,#07,#07,#07,#07,#05,#05,#45,#46,#45
+GRBLOX
+                DB #00,#01,#00,#01,#02,#03,#02,#03,#04,#05,#06,#07,#08,#09,#0A,#0B
+                DB #0C,#0D,#0E,#0F,#10,#11,#12,#13,#14,#09,#15,#0B,#02,#03,#16,#17
+                DB #18,#19,#1A,#1B,#1C,#1D,#1E,#1F,#20,#21,#22,#23,#21,#21,#23,#24
+                DB #25,#1F,#0A,#1F,#26,#28,#27,#28,#28,#29,#28,#29,#26,#1F,#27,#1F
+                DB #1C,#1F,#1E,#1F,#26,#2B,#2A,#21,#2B,#2C,#21,#21,#00,#01,#2D,#01
+                DB #18,#19,#2D,#2E,#1C,#2F,#2D,#2E,#30,#30,#2D,#2E,#31,#2F,#2D,#2E
+                DB #32,#01,#33,#34,#02,#03,#33,#34,#32,#32,#33,#34,#35,#36,#37,#38
+                DB #14,#04,#15,#06,#05,#08,#07,#0A,#26,#04,#27,#06,#26,#04,#3B,#06
+                DB #31,#18,#2D,#2D,#19,#1C,#2E,#2D,#00,#01,#33,#34,#39,#18,#3A,#1A
+                DB #19,#1C,#1B,#1E,#26,#18,#27,#1A,#39,#1D,#3A,#1F,#26,#1F,#3B,#1F
+GRMAP
+                DB #00,#01,#02,#03,#04,#05,#06,#04,#05,#06,#04,#05,#06,#04,#05,#06
+                DB #04,#05,#06,#04,#05,#1C,#1D,#00,#01
+                DB #00,#07,#08,#09,#0A,#0B,#26,#0A,#0B,#26,#0A,#0B,#26,#0A,#0B,#26
+                DB #0A,#0B,#26,#0A,#0B,#23,#24,#00,#07
+                DB #00,#01,#02,#0C,#0D,#0E,#0F,#0D,#0E,#0F,#0D,#0E,#0F,#0D,#0E,#0F
+                DB #0D,#0E,#0F,#0D,#0E,#1E,#1D,#00,#01
+                DB #00,#07,#08,#10,#0D,#0E,#0F,#0D,#0E,#0F,#0D,#0E,#0F,#0D,#0E,#0F
+                DB #0D,#0E,#0F,#0D,#0E,#25,#24,#00,#07
+                DB #00,#01,#02,#0C,#11,#12,#27,#11,#12,#27,#11,#12,#27,#11,#12,#27
+                DB #11,#12,#27,#11,#12,#1F,#1D,#00,#01
+                DB #13,#07,#14,#15,#16,#16,#17,#16,#16,#17,#16,#16,#17,#16,#16,#17
+                DB #16,#16,#17,#16,#16,#20,#21,#00,#07
+                DB #18,#19,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A,#1A
+                DB #1A,#1A,#1A,#1A,#1A,#1A,#1A,#22,#19
+                DB #1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B
+                DB #1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B,#1B
+
+;***************************************
+;** SPRITES                           **
+;***************************************
+
+HEROARMS        DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#F8,#00,#F0,#00,#E0,#07,#C0,#08,#80,#13,#00,#27,#00,#27
+                DB #00,#23,#80,#10,#00,#2C,#00,#50,#00,#59,#00,#22,#80,#1C,#C1,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#F3,#00,#C1,#00,#80,#0C
+                DB #00,#34,#00,#50,#80,#27,#00,#48,#00,#13,#00,#27,#00,#27,#00,#23
+                DB #80,#10,#C0,#0C,#E0,#02,#F0,#02,#F8,#01,#FC,#00,#F8,#01,#F0,#02
+                DB #E7,#00,#80,#00,#00,#18,#00,#6B,#80,#25,#00,#42,#80,#20,#00,#4C
+                DB #00,#21,#80,#17,#00,#28,#80,#13,#00,#27,#00,#27,#00,#23,#80,#10
+                DB #C0,#0C,#E0,#02,#F0,#01,#F8,#01,#FC,#00,#FE,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#F1,#00,#E0,#00,#C0,#0E
+                DB #80,#11,#00,#21,#00,#26,#80,#08,#80,#13,#00,#27,#00,#27,#00,#23
+                DB #80,#10,#C0,#0E,#E0,#01,#F0,#01,#FC,#00,#FE,#00,#FC,#00,#F8,#01
+
+SPRITES
+
+HEROWALK1
+                DB #FF,#00,#83,#00,#CF,#00,#FF,#00,#FF,#00,#87,#00,#01,#00,#FF,#00
+                DB #FE,#00,#00,#7C,#03,#30,#FF,#00,#FF,#00,#01,#48,#00,#82,#F4,#00
+                DB #E0,#01,#00,#38,#01,#A8,#FF,#00,#FF,#00,#01,#A8,#00,#40,#C0,#09
+                DB #80,#16,#00,#0C,#00,#AC,#FF,#00,#7F,#00,#00,#92,#00,#30,#C0,#09
+                DB #80,#11,#00,#12,#00,#B9,#3F,#00,#1F,#80,#00,#92,#00,#8C,#C0,#0B
+                DB #E0,#04,#00,#20,#00,#87,#0F,#40,#0F,#40,#00,#A3,#00,#90,#C0,#09
+                DB #80,#13,#00,#C8,#00,#A8,#1F,#80,#3F,#00,#00,#A1,#00,#C0,#80,#13
+                DB #80,#11,#00,#A4,#00,#18,#1F,#80,#1F,#80,#00,#7A,#00,#C0,#C0,#08
+                DB #C0,#0B,#00,#F6,#00,#32,#1F,#80,#1F,#80,#00,#00,#00,#7C,#C0,#09
+                DB #C0,#08,#00,#C0,#00,#CF,#3F,#00,#7F,#00,#00,#08,#00,#1F,#E0,#04
+                DB #F0,#03,#00,#E0,#00,#48,#FF,#00,#FF,#00,#00,#84,#00,#00,#F8,#00
+                DB #FC,#00,#1C,#00,#00,#FC,#FF,#00,#FF,#00,#01,#00,#FE,#00,#FF,#00
+HEROWALK2
+                DB #FF,#00,#F0,#00,#3F,#00,#FF,#00,#FF,#00,#1F,#80,#E0,#03,#FF,#00
+                DB #FF,#00,#C0,#0C,#09,#40,#9F,#00,#0F,#00,#00,#A0,#80,#10,#FE,#00
+                DB #FC,#00,#00,#13,#00,#16,#07,#60,#03,#90,#00,#68,#00,#64,#F8,#01
+                DB #F0,#02,#00,#92,#00,#95,#03,#50,#07,#A0,#00,#12,#00,#25,#F0,#02
+                DB #F8,#01,#00,#03,#00,#64,#0F,#40,#0F,#40,#00,#89,#00,#C0,#F8,#01
+                DB #F0,#02,#00,#18,#00,#13,#0F,#40,#0F,#40,#00,#AB,#00,#CD,#E0,#04
+                DB #C0,#09,#00,#E5,#00,#54,#1F,#80,#3F,#00,#00,#0B,#00,#CA,#C0,#09
+                DB #C0,#08,#00,#84,#00,#B0,#7F,#00,#FF,#00,#00,#D0,#00,#01,#E0,#05
+                DB #C0,#0B,#00,#FD,#01,#A8,#FF,#00,#FF,#00,#01,#08,#00,#E2,#C0,#09
+                DB #C0,#08,#00,#8D,#03,#90,#FF,#00,#FF,#00,#07,#60,#00,#72,#E0,#04
+                DB #F0,#03,#00,#94,#0F,#00,#FF,#00,#FF,#00,#9F,#00,#01,#08,#F8,#00
+                DB #FC,#00,#63,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#F7,#00,#FF,#00
+HEROWALK3
+                DB #FF,#00,#FE,#00,#0F,#00,#FF,#00,#FF,#00,#07,#00,#FC,#00,#FF,#00
+                DB #FF,#00,#E0,#01,#03,#F0,#FF,#00,#FF,#00,#01,#08,#C0,#02,#FF,#00
+                DB #FF,#00,#80,#1C,#00,#04,#FF,#00,#7F,#00,#00,#FA,#00,#22,#FF,#00
+                DB #FE,#00,#00,#40,#00,#02,#7F,#00,#3F,#00,#00,#AD,#00,#08,#FC,#00
+                DB #F8,#01,#00,#E1,#00,#52,#7F,#00,#3F,#00,#00,#67,#00,#14,#F0,#02
+                DB #E0,#04,#00,#C6,#00,#38,#03,#80,#01,#40,#00,#03,#00,#E3,#C0,#09
+                DB #C0,#09,#00,#E3,#00,#C7,#00,#BC,#00,#02,#00,#00,#00,#D4,#C0,#08
+                DB #E0,#04,#00,#82,#00,#AD,#00,#7A,#00,#84,#00,#03,#00,#E0,#C0,#09
+                DB #C0,#08,#00,#FA,#00,#E1,#01,#B8,#03,#40,#00,#CC,#00,#6D,#C0,#09
+                DB #E0,#04,#00,#10,#00,#13,#07,#80,#3F,#00,#00,#D0,#00,#EE,#F0,#03
+                DB #F8,#00,#00,#01,#00,#10,#7F,#00,#FF,#00,#07,#E0,#10,#00,#FC,#00
+                DB #FF,#00,#FE,#00,#0F,#00,#FF,#00,#FF,#00,#1F,#00,#FF,#00,#FF,#00
+HEROWALK4
+                DB #FF,#00,#FE,#00,#1F,#00,#FF,#00,#FF,#00,#0F,#00,#A8,#00,#FF,#00
+                DB #FF,#00,#00,#01,#07,#E0,#FF,#00,#FF,#00,#03,#10,#00,#56,#FE,#00
+                DB #FC,#00,#00,#A8,#01,#48,#FF,#00,#FF,#00,#00,#24,#00,#80,#FC,#00
+                DB #F8,#01,#00,#C9,#00,#1A,#7F,#00,#7F,#00,#00,#42,#00,#24,#F0,#02
+                DB #E0,#04,#00,#C9,#00,#54,#FF,#00,#FF,#00,#00,#E0,#00,#E0,#C0,#09
+                DB #C0,#09,#00,#E4,#00,#9A,#7F,#00,#3F,#00,#00,#41,#00,#CA,#C0,#08
+                DB #E0,#04,#00,#12,#00,#24,#1F,#80,#1F,#80,#00,#0E,#00,#82,#C0,#09
+                DB #C0,#08,#00,#C6,#00,#A4,#1F,#80,#1F,#80,#00,#08,#00,#F3,#C0,#08
+                DB #E0,#04,#00,#51,#00,#E5,#3F,#00,#7F,#00,#00,#92,#00,#08,#F0,#03
+                DB #F8,#00,#00,#C6,#00,#0A,#7F,#00,#FF,#00,#00,#24,#00,#2F,#FC,#00
+                DB #FF,#00,#00,#16,#00,#72,#7F,#00,#3F,#00,#00,#B9,#C0,#09,#FF,#00
+                DB #FF,#00,#E0,#06,#00,#44,#1F,#80,#1F,#80,#84,#3B,#F1,#00,#FF,#00
+HEROWALK5
+                DB #FF,#00,#95,#00,#FF,#00,#FF,#00,#FF,#00,#1F,#00,#00,#00,#FF,#00
+                DB #FE,#00,#00,#6A,#0F,#00,#FF,#00,#FF,#00,#07,#E0,#00,#97,#FC,#00
+                DB #FC,#00,#00,#68,#03,#10,#FF,#00,#FF,#00,#01,#08,#00,#C0,#F8,#01
+                DB #F0,#02,#00,#20,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#40,#E0,#04
+                DB #C0,#09,#00,#E8,#01,#08,#FF,#00,#FF,#00,#00,#10,#00,#E8,#C0,#09
+                DB #C0,#08,#00,#C4,#00,#24,#7F,#00,#3F,#00,#00,#C7,#00,#13,#E0,#04
+                DB #C0,#08,#00,#18,#00,#00,#1F,#80,#0F,#40,#00,#06,#00,#AC,#C0,#09
+                DB #C0,#08,#00,#D4,#00,#6F,#0F,#40,#0F,#40,#00,#26,#00,#49,#E0,#04
+                DB #F0,#02,#00,#60,#00,#28,#0F,#40,#1F,#80,#00,#24,#00,#31,#F8,#01
+                DB #FC,#00,#00,#B4,#00,#26,#1F,#80,#1F,#80,#00,#2A,#00,#4E,#FE,#00
+                DB #FE,#00,#00,#6E,#00,#28,#1F,#80,#3F,#00,#00,#23,#00,#45,#FE,#00
+                DB #FE,#00,#00,#7A,#00,#CC,#7F,#00,#FF,#00,#00,#70,#00,#00,#FF,#00
+
+;********************************************
+
+HEROCLIMBl
+                DB #FF,#00,#0F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#60,#FE,#00
+                DB #F0,#00,#03,#90,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#01,#A8,#C0,#00
+                DB #80,#0E,#01,#A8,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#01,#28,#00,#31
+                DB #00,#40,#00,#88,#7F,#00,#FF,#00,#FF,#00,#3F,#00,#00,#48,#00,#81
+                DB #00,#81,#00,#4B,#1F,#80,#FF,#00,#FF,#00,#0F,#40,#00,#84,#00,#42
+                DB #00,#A4,#00,#63,#07,#A0,#FF,#00,#FF,#00,#07,#A0,#00,#1D,#00,#10
+                DB #00,#A9,#00,#C2,#07,#60,#FF,#00,#FF,#00,#0F,#40,#00,#B9,#00,#6B
+                DB #00,#F7,#00,#FD,#0F,#40,#FF,#00,#FF,#00,#1F,#80,#00,#FD,#00,#7F
+                DB #00,#7F,#00,#B8,#0F,#40,#FF,#00,#FF,#00,#0F,#40,#00,#C3,#00,#EE
+                DB #00,#1F,#00,#07,#0F,#40,#FF,#00,#FF,#00,#1F,#80,#00,#C8,#00,#7F
+                DB #80,#7F,#00,#C7,#3F,#00,#FF,#00,#FF,#00,#7F,#00,#00,#80,#FE,#3F
+                DB #FF,#00,#00,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#C7,#00,#FF,#00
+HEROCLIMB2
+                DB #C0,#00,#7F,#00,#E7,#00,#FF,#00,#FF,#00,#C3,#00,#3F,#00,#80,#0F
+                DB #00,#30,#1F,#80,#81,#18,#FF,#00,#FF,#00,#00,#24,#0F,#40,#00,#41
+                DB #00,#8E,#06,#A0,#00,#54,#FF,#00,#FF,#00,#01,#A8,#04,#A0,#00,#90
+                DB #00,#61,#00,#21,#03,#50,#FF,#00,#FF,#00,#07,#A0,#00,#C2,#00,#A0
+                DB #00,#28,#00,#38,#0F,#40,#FF,#00,#FF,#00,#07,#A0,#00,#84,#00,#AF
+                DB #00,#5F,#00,#72,#03,#50,#FF,#00,#FF,#00,#01,#28,#00,#FA,#00,#FF
+                DB #00,#7F,#00,#FB,#01,#68,#FF,#00,#FF,#00,#01,#28,#00,#70,#00,#7F
+                DB #00,#ED,#00,#84,#03,#90,#FF,#00,#FF,#00,#01,#68,#00,#0F,#00,#1E
+                DB #00,#7F,#00,#7E,#03,#90,#FF,#00,#FF,#00,#07,#A0,#00,#9E,#80,#3F
+                DB #FF,#00,#80,#21,#0F,#00,#FF,#00,#FF,#00,#5F,#00,#C0,#1E,#FF,#00
+HEROCLIMB3
+                DB #80,#00,#7F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#3F,#00,#00,#2F
+                DB #00,#50,#1F,#80,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#0F,#40,#00,#80
+                DB #00,#AF,#07,#A0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#20,#00,#80
+                DB #00,#42,#03,#D0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#03,#10,#00,#81
+                DB #00,#60,#03,#70,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#01,#08,#00,#BF
+                DB #00,#7E,#00,#E4,#00,#00,#1F,#00,#0F,#00,#00,#00,#00,#F4,#00,#FF
+                DB #00,#7F,#00,#F5,#00,#FF,#07,#E0,#03,#10,#00,#00,#00,#E8,#00,#7E
+                DB #00,#ED,#00,#15,#00,#5F,#03,#D0,#07,#20,#00,#00,#00,#38,#00,#1E
+                DB #00,#7E,#00,#FB,#00,#77,#0F,#C0,#1F,#00,#00,#B4,#00,#7F,#80,#3F
+                DB #FF,#00,#00,#00,#00,#04,#3F,#00,#FF,#00,#00,#B4,#80,#1F,#FF,#00
+                DB #FF,#00,#C0,#00,#01,#48,#FF,#00,#FF,#00,#03,#00,#E0,#00,#FF,#00
+HEROCLIMB4
+                DB #00,#00,#7F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#3F,#00,#00,#6F
+                DB #00,#90,#1F,#80,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#0F,#40,#00,#AC
+                DB #00,#83,#07,#A0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#20,#00,#40
+                DB #00,#42,#03,#D0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#03,#90,#00,#81
+                DB #00,#60,#07,#60,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#02,#10,#00,#BE
+                DB #00,#7D,#00,#C8,#3F,#00,#FF,#00,#FF,#00,#1F,#80,#00,#E9,#00,#FF
+                DB #00,#7F,#00,#EA,#0F,#40,#FF,#00,#FF,#00,#07,#20,#00,#D1,#00,#7D
+                DB #00,#DA,#00,#11,#03,#50,#FF,#00,#FF,#00,#01,#08,#00,#2E,#00,#3C
+                DB #00,#7D,#00,#F2,#00,#14,#FF,#00,#7F,#00,#00,#0A,#00,#F8,#80,#3C
+                DB #FF,#00,#00,#3C,#00,#85,#3F,#00,#1F,#80,#00,#42,#00,#0D,#FF,#00
+                DB #FF,#00,#80,#00,#00,#ED,#0F,#40,#07,#A0,#00,#CA,#80,#1C,#FF,#00
+                DB #FF,#00,#C0,#02,#00,#91,#07,#20,#07,#E0,#04,#20,#E0,#02,#FF,#00
+                DB #FF,#00,#F8,#01,#0E,#C0,#0F,#00,#1F,#00,#1F,#00,#FC,#00,#FF,#00
+HEROCLIMB5
+                DB #08,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#00,#60
+                DB #00,#97,#3F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#1F,#80,#00,#88
+                DB #00,#46,#0F,#40,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#20,#00,#81
+                DB #00,#80,#07,#A0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#03,#50,#00,#41
+                DB #00,#81,#03,#90,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#60,#00,#60
+                DB #00,#BC,#07,#20,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#03,#90,#00,#7B
+                DB #00,#FF,#03,#D0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#03,#D0,#00,#7F
+                DB #00,#7B,#07,#A0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#03,#50,#00,#B4
+                DB #00,#79,#01,#C8,#1F,#00,#FF,#00,#FF,#00,#0F,#00,#00,#B4,#80,#7C
+                DB #FC,#00,#00,#74,#07,#E0,#FF,#00,#FF,#00,#03,#10,#00,#3B,#FC,#00
+                DB #FE,#01,#00,#08,#03,#50,#FF,#00,#FF,#00,#03,#50,#00,#F0,#FE,#00
+                DB #FF,#00,#00,#12,#03,#10,#FF,#00,#FF,#00,#03,#50,#00,#26,#FF,#00
+                DB #FF,#00,#80,#2F,#03,#10,#FF,#00,#FF,#00,#03,#50,#80,#26,#FF,#00
+                DB #FF,#00,#80,#10,#03,#50,#FF,#00,#FF,#00,#03,#50,#C0,#0F,#FF,#00
+                DB #FF,#00,#E0,#01,#03,#50,#FF,#00,#FF,#00,#03,#50,#F0,#01,#FF,#00
+                DB #FF,#00,#F8,#01,#03,#50,#FF,#00,#FF,#00,#03,#50,#F8,#01,#FF,#00
+                DB #FF,#00,#F8,#01,#03,#50,#FF,#00,#FF,#00,#03,#90,#FC,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#07,#60,#FF,#00,#FF,#00,#0F,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+
+;********************************************
+
+HEROCRAWL1
+                DB #FF,#00,#FF,#00,#9F,#00,#FF,#00,#FF,#00,#0F,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#07,#60,#FF,#00,#FF,#00,#03,#90,#FC,#00,#FF,#00
+                DB #FF,#00,#F8,#01,#03,#50,#FF,#00,#FF,#00,#01,#50,#F8,#01,#FF,#00
+                DB #FF,#00,#F8,#01,#00,#50,#FF,#00,#7F,#00,#00,#16,#F8,#01,#FF,#00
+                DB #FF,#00,#F8,#01,#00,#55,#3F,#00,#1F,#80,#00,#80,#E0,#00,#FF,#00
+                DB #FF,#00,#80,#01,#00,#70,#1F,#80,#0F,#40,#00,#4A,#00,#1D,#FF,#00
+                DB #FF,#00,#00,#65,#00,#4A,#0F,#40,#1F,#80,#00,#B4,#00,#A9,#FF,#00
+                DB #FF,#00,#00,#56,#00,#C0,#1F,#80,#0F,#40,#00,#21,#00,#D6,#FF,#00
+                DB #FF,#00,#00,#52,#00,#A6,#07,#A0,#03,#A0,#00,#A6,#00,#69,#FF,#00
+                DB #FF,#00,#00,#29,#00,#16,#01,#B8,#00,#24,#00,#15,#00,#45,#FF,#00
+                DB #FF,#00,#00,#04,#00,#92,#00,#C2,#00,#52,#00,#14,#00,#14,#FF,#00
+                DB #FF,#00,#08,#E2,#01,#20,#00,#2C,#81,#00,#0B,#C0,#1C,#01,#FF,#00
+HEROCRAWL2
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#03,#00,#FF,#00,#E7,#00,#01,#F8,#EC,#00,#FF,#00
+                DB #FF,#00,#C0,#01,#00,#04,#C3,#00,#01,#18,#00,#3A,#80,#12,#FF,#00
+                DB #FF,#00,#00,#2A,#00,#C2,#00,#24,#00,#54,#00,#2C,#00,#44,#FF,#00
+                DB #FF,#00,#80,#20,#00,#10,#01,#A8,#03,#50,#00,#65,#00,#54,#FF,#00
+                DB #FF,#00,#00,#AB,#00,#1A,#07,#A0,#07,#20,#00,#84,#00,#57,#FF,#00
+                DB #FF,#00,#00,#D7,#00,#88,#03,#D0,#03,#D0,#00,#01,#00,#53,#FF,#00
+                DB #FF,#00,#00,#48,#00,#E4,#03,#B0,#01,#08,#00,#EE,#00,#04,#FF,#00
+                DB #FF,#00,#00,#42,#00,#58,#00,#04,#00,#24,#00,#33,#00,#01,#FF,#00
+                DB #FF,#00,#00,#10,#00,#84,#01,#D8,#03,#00,#00,#48,#06,#E0,#FF,#00
+                DB #FF,#00,#0F,#00,#03,#30,#27,#00,#FF,#00,#87,#00,#1F,#00,#FF,#00
+HEROCRAWL3
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#03,#00,#FF,#00,#FF,#00,#01,#F8,#E4,#00,#FF,#00
+                DB #FF,#00,#C0,#01,#00,#04,#FF,#00,#7F,#00,#00,#02,#80,#1A,#FF,#00
+                DB #FF,#00,#00,#25,#00,#7D,#3F,#00,#3F,#00,#00,#01,#00,#20,#FF,#00
+                DB #FF,#00,#00,#38,#00,#6A,#01,#80,#00,#00,#00,#00,#00,#44,#FF,#00
+                DB #FF,#00,#00,#AB,#00,#7F,#00,#FE,#00,#02,#00,#80,#00,#57,#FF,#00
+                DB #FF,#00,#00,#53,#00,#07,#00,#C4,#01,#38,#00,#A0,#00,#68,#FF,#00
+                DB #FF,#00,#00,#2B,#00,#87,#01,#40,#01,#A8,#00,#76,#00,#52,#FF,#00
+                DB #FF,#00,#00,#11,#00,#F6,#03,#90,#07,#80,#00,#88,#00,#12,#FF,#00
+                DB #FF,#00,#00,#E8,#00,#77,#0F,#80,#3F,#00,#00,#90,#00,#07,#FF,#00
+HEROCRAWL4
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#87,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#F9,#00,#03,#00,#FF,#00,#FF,#00,#01,#78,#F0,#00,#FF,#00
+                DB #FF,#00,#E0,#06,#00,#84,#FF,#00,#7F,#00,#00,#02,#C0,#05,#FF,#00
+                DB #FF,#00,#C0,#08,#00,#21,#3F,#00,#3F,#00,#00,#11,#80,#08,#FF,#00
+                DB #FF,#00,#00,#34,#00,#8E,#1F,#80,#1F,#80,#00,#30,#00,#48,#FF,#00
+                DB #FF,#00,#00,#93,#00,#2D,#3F,#00,#7F,#00,#00,#92,#00,#57,#FF,#00
+                DB #FF,#00,#00,#D7,#00,#A8,#7F,#00,#3F,#00,#00,#00,#00,#53,#FF,#00
+                DB #FF,#00,#00,#68,#00,#31,#1F,#80,#0F,#40,#00,#B4,#00,#13,#FF,#00
+                DB #FF,#00,#00,#57,#00,#AA,#07,#20,#07,#20,#00,#01,#00,#13,#FF,#00
+                DB #FF,#00,#00,#15,#00,#C2,#07,#80,#0F,#40,#00,#F0,#00,#D0,#FF,#00
+                DB #FF,#00,#00,#08,#00,#36,#07,#A0,#03,#50,#00,#0F,#00,#06,#FF,#00
+                DB #FF,#00,#F0,#01,#00,#F6,#01,#28,#00,#54,#00,#11,#F8,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#00,#08,#00,#AA,#00,#12,#E0,#07,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#F0,#00,#40,#0E,#E0,#00,#F8,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#F1,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+HEROCRAWL5
+                DB #FF,#00,#FF,#00,#81,#00,#FF,#00,#FF,#00,#00,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#00,#7E,#7F,#00,#3F,#00,#00,#81,#FC,#00,#FF,#00
+                DB #FF,#00,#F0,#01,#00,#02,#1F,#80,#1F,#80,#00,#02,#C0,#01,#FF,#00
+                DB #FF,#00,#80,#0E,#00,#7C,#0F,#40,#1F,#80,#00,#80,#00,#36,#FF,#00
+                DB #FF,#00,#00,#48,#00,#56,#0F,#40,#1F,#80,#00,#2C,#00,#93,#FF,#00
+                DB #FF,#00,#00,#57,#00,#91,#3F,#00,#1F,#00,#00,#A3,#00,#D7,#FF,#00
+                DB #FF,#00,#00,#53,#00,#77,#0F,#00,#07,#60,#00,#3D,#00,#20,#FF,#00
+                DB #FF,#00,#00,#27,#00,#3D,#03,#10,#01,#08,#00,#0A,#00,#2F,#FF,#00
+                DB #FF,#00,#00,#16,#00,#E5,#01,#48,#03,#B0,#00,#10,#00,#15,#FF,#00
+                DB #FF,#00,#00,#D5,#02,#50,#07,#00,#4F,#00,#03,#10,#00,#09,#FF,#00
+                DB #FF,#00,#00,#06,#03,#50,#FF,#00,#FF,#00,#03,#10,#C0,#0D,#FF,#00
+                DB #FF,#00,#E0,#05,#03,#50,#FF,#00,#FF,#00,#03,#50,#E0,#05,#FF,#00
+                DB #FF,#00,#F0,#01,#03,#50,#FF,#00,#FF,#00,#03,#10,#F8,#01,#FF,#00
+                DB #FF,#00,#F8,#01,#03,#D0,#FF,#00,#FF,#00,#03,#30,#F8,#01,#FF,#00
+                DB #FF,#00,#FC,#00,#07,#E0,#FF,#00,#FF,#00,#0F,#00,#FE,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#1F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+HEROCRAWL6
+                DB #FF,#00,#FF,#00,#C1,#00,#FF,#00,#FF,#00,#80,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#00,#3E,#7F,#00,#1F,#00,#00,#41,#FE,#00,#FF,#00
+                DB #FF,#00,#F0,#00,#00,#80,#0F,#80,#07,#60,#00,#BE,#C0,#00,#FF,#00
+                DB #FF,#00,#80,#0C,#00,#80,#03,#50,#03,#10,#00,#24,#00,#33,#FF,#00
+                DB #FE,#00,#00,#44,#00,#9A,#07,#20,#0F,#C0,#00,#44,#00,#AB,#FC,#00
+                DB #FC,#00,#00,#D7,#00,#9D,#1F,#00,#1F,#80,#00,#A1,#00,#27,#F8,#01
+                DB #F0,#02,#00,#A3,#00,#3B,#0F,#40,#07,#00,#00,#3F,#00,#2C,#E0,#04
+                DB #C0,#09,#00,#47,#00,#3D,#03,#70,#01,#48,#00,#7D,#00,#93,#80,#10
+                DB #00,#24,#00,#3A,#00,#7A,#00,#04,#00,#A4,#00,#84,#00,#20,#00,#48
+                DB #00,#52,#00,#80,#00,#B8,#01,#D8,#03,#00,#02,#00,#00,#89,#00,#6C
+                DB #00,#3A,#00,#DA,#47,#00,#27,#00,#FF,#00,#FF,#00,#00,#20,#80,#01
+                DB #C0,#01,#05,#20,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#0F,#C0,#F8,#01
+                DB #FC,#00,#1F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#3F,#00,#FE,#00
+HEROCRAWL7
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#C1,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#80,#00,#FF,#00,#7F,#00,#00,#3E,#FF,#00,#FF,#00
+                DB #FF,#00,#FE,#00,#00,#41,#3F,#00,#0F,#80,#00,#BC,#F0,#00,#FF,#00
+                DB #FF,#00,#C0,#01,#00,#03,#07,#40,#03,#50,#00,#3C,#80,#0D,#FF,#00
+                DB #E0,#00,#00,#33,#00,#5A,#01,#28,#01,#08,#00,#AC,#00,#44,#C0,#00
+                DB #80,#1F,#00,#FB,#00,#44,#03,#10,#07,#20,#00,#A8,#00,#05,#00,#20
+                DB #00,#5F,#00,#55,#00,#A0,#0F,#C0,#07,#20,#00,#3B,#00,#03,#00,#40
+                DB #00,#3E,#00,#04,#00,#3F,#03,#70,#03,#60,#00,#3D,#00,#0F,#80,#04
+                DB #C0,#05,#00,#37,#00,#7D,#01,#18,#00,#A4,#00,#5A,#00,#76,#E0,#05
+                DB #E0,#04,#00,#C0,#00,#C5,#00,#42,#00,#52,#00,#B8,#00,#38,#F0,#03
+                DB #F8,#00,#00,#07,#02,#00,#00,#2C,#81,#00,#47,#00,#C0,#00,#FC,#00
+HEROCRAWL8
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#CF,#00
+                DB #87,#00,#FF,#00,#C1,#00,#FF,#00,#FF,#00,#80,#00,#FF,#00,#03,#30
+                DB #01,#48,#FF,#00,#00,#3E,#7F,#00,#3F,#00,#00,#41,#FE,#00,#00,#54
+                DB #00,#4A,#70,#00,#00,#B0,#1F,#80,#0F,#40,#00,#0E,#20,#01,#00,#31
+                DB #80,#0C,#00,#8D,#00,#50,#0F,#40,#0F,#40,#00,#34,#00,#53,#C0,#00
+                DB #80,#17,#00,#24,#00,#88,#07,#20,#03,#10,#00,#52,#00,#0B,#80,#1A
+                DB #C0,#00,#00,#B7,#00,#82,#03,#10,#03,#B0,#00,#99,#00,#27,#80,#11
+                DB #C0,#0E,#00,#09,#00,#1D,#07,#80,#03,#B0,#00,#3F,#00,#EE,#E0,#00
+                DB #F0,#01,#00,#76,#00,#7D,#01,#38,#00,#24,#00,#7D,#00,#34,#F8,#01
+                DB #FC,#00,#00,#88,#00,#BA,#00,#5C,#00,#A2,#00,#85,#00,#41,#FE,#00
+                DB #FF,#00,#00,#22,#00,#00,#00,#52,#00,#6C,#7A,#00,#80,#1C,#FF,#00
+                DB #FF,#00,#C1,#00,#FF,#00,#01,#00,#93,#00,#FF,#00,#E3,#00,#FF,#00
+
+;********************************************
+
+HEROFALL        ; 1 FALL $100 256 BYTES
+
+                DB #FF,#00,#C9,#00,#FF,#00,#FF,#00,#3F,#00,#FF,#00,#80,#00,#F9,#00
+                DB #F0,#00,#00,#36,#7E,#00,#0F,#00,#07,#C0,#20,#00,#00,#49,#E0,#06
+                DB #C0,#09,#00,#82,#00,#81,#03,#30,#01,#48,#00,#5D,#00,#4C,#E0,#05
+                DB #C0,#08,#00,#11,#00,#A3,#00,#34,#00,#94,#00,#5D,#00,#0A,#E0,#06
+                DB #C0,#08,#00,#14,#00,#5E,#00,#44,#01,#E8,#00,#BE,#00,#0D,#80,#15
+                DB #00,#2B,#00,#02,#00,#74,#01,#E8,#03,#50,#00,#E7,#00,#31,#00,#26
+                DB #00,#2D,#00,#7F,#00,#F3,#03,#D0,#07,#A0,#00,#F0,#00,#DF,#80,#13
+                DB #80,#17,#00,#EE,#00,#E3,#0F,#40,#1F,#80,#00,#0C,#00,#41,#80,#13
+                DB #C0,#08,#00,#33,#00,#D0,#0F,#40,#0F,#40,#00,#80,#00,#07,#E0,#06
+                DB #E0,#04,#00,#00,#00,#00,#0F,#40,#0F,#40,#00,#00,#00,#00,#C0,#08
+                DB #C0,#08,#00,#21,#00,#88,#0F,#40,#07,#80,#00,#70,#00,#3E,#C0,#08
+                DB #E0,#04,#00,#10,#00,#08,#03,#80,#01,#98,#80,#08,#01,#20,#F0,#02
+                DB #F8,#01,#03,#10,#E0,#04,#00,#E4,#00,#44,#E0,#04,#01,#08,#F8,#01
+                DB #F0,#02,#01,#08,#C0,#08,#01,#08,#03,#30,#C0,#08,#03,#50,#E0,#04
+                DB #E0,#04,#07,#60,#C0,#0F,#07,#C0,#0F,#00,#E0,#00,#0F,#C0,#E0,#07
+                DB #F0,#00,#1F,#00,#F0,#00,#3F,#00,#FF,#00,#FF,#00,#3F,#00,#F8,#00
+
+;********************************************
+
+HEROLEG1
+                DB #FF,#00,#20,#04,#00,#02,#7F,#00,#3F,#00,#00,#01,#00,#08,#FC,#00
+                DB #F8,#00,#00,#C8,#00,#00,#1F,#80,#0F,#40,#00,#00,#00,#34,#F0,#03
+                DB #F0,#02,#00,#08,#00,#20,#07,#20,#07,#20,#00,#30,#00,#10,#F0,#02
+                DB #F0,#02,#00,#30,#00,#48,#07,#20,#07,#20,#00,#44,#00,#58,#E0,#04
+                DB #E0,#04,#00,#47,#10,#82,#07,#20,#07,#E0,#30,#02,#00,#40,#E0,#04
+                DB #E0,#04,#18,#80,#78,#01,#03,#20,#01,#20,#F8,#01,#3F,#00,#F0,#03
+                DB #F8,#00,#7F,#00,#F0,#02,#00,#5C,#00,#22,#F0,#02,#FF,#00,#FC,#00
+                DB #FF,#00,#FF,#00,#E0,#04,#00,#02,#00,#FE,#E0,#07,#FF,#00,#FF,#00
+HEROLEG2
+                DB #FF,#00,#80,#10,#03,#10,#FF,#00,#FF,#00,#03,#10,#00,#20,#FF,#00
+                DB #FF,#00,#00,#20,#03,#10,#FF,#00,#FF,#00,#03,#10,#00,#20,#FF,#00
+                DB #FF,#00,#00,#10,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#70,#FE,#00
+                DB #FC,#00,#00,#80,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#80,#FC,#00
+                DB #FC,#00,#00,#86,#03,#10,#FF,#00,#FF,#00,#07,#E0,#00,#09,#F8,#01
+                DB #F8,#01,#00,#09,#03,#20,#FF,#00,#FF,#00,#01,#20,#00,#12,#F8,#01
+                DB #FC,#00,#00,#92,#00,#5C,#FF,#00,#7F,#00,#00,#22,#00,#64,#FE,#00
+                DB #FF,#00,#00,#04,#00,#02,#7F,#00,#7F,#00,#00,#FE,#80,#07,#FF,#00
+HEROLEG3
+                DB #FF,#00,#00,#20,#07,#20,#FF,#00,#FF,#00,#03,#10,#00,#40,#FE,#00
+                DB #FE,#00,#00,#40,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#40,#FE,#00
+                DB #FE,#00,#00,#40,#03,#10,#FF,#00,#FF,#00,#07,#20,#00,#40,#FE,#00
+                DB #FF,#00,#00,#20,#0F,#40,#FF,#00,#FF,#00,#1F,#80,#00,#20,#FF,#00
+                DB #FE,#00,#00,#43,#3F,#00,#FF,#00,#FF,#00,#1F,#80,#00,#E0,#FC,#00
+                DB #F8,#01,#00,#00,#0F,#40,#FF,#00,#FF,#00,#0F,#40,#00,#00,#F0,#02
+                DB #F0,#02,#00,#1D,#1F,#80,#FF,#00,#FF,#00,#3F,#00,#00,#22,#E0,#04
+                DB #E0,#04,#00,#02,#7F,#00,#FF,#00,#FF,#00,#7F,#00,#00,#FE,#E0,#07
+HEROLEG4
+                DB #FE,#00,#00,#40,#01,#08,#FF,#00,#FF,#00,#00,#04,#00,#80,#FC,#00
+                DB #FC,#00,#00,#80,#00,#04,#FF,#00,#FF,#00,#01,#08,#00,#00,#F8,#01
+                DB #F8,#01,#00,#02,#01,#08,#FF,#00,#FF,#00,#03,#10,#00,#05,#F8,#01
+                DB #F0,#02,#00,#09,#01,#20,#FF,#00,#FF,#00,#00,#1C,#00,#12,#80,#02
+                DB #00,#0C,#00,#22,#00,#02,#7F,#00,#7F,#00,#00,#82,#08,#C1,#00,#70
+                DB #00,#43,#1C,#00,#00,#7C,#FF,#00,#FF,#00,#01,#00,#3E,#00,#00,#44
+                DB #00,#44,#FF,#00,#83,#00,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#00,#42
+                DB #00,#61,#3F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#3F,#00,#80,#3F
+
+;********************************************
+
+HEROLEGSTAND
+                DB #FC,#00,#00,#80,#07,#20,#FF,#00,#FF,#00,#03,#10,#00,#00,#F8,#01
+                DB #F8,#01,#00,#00,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#00,#F8,#01
+                DB #F8,#01,#00,#02,#00,#04,#FF,#00,#FF,#00,#00,#CC,#00,#85,#FC,#00
+                DB #F8,#01,#00,#1C,#00,#82,#7F,#00,#7F,#00,#00,#82,#00,#08,#F0,#02
+                DB #F0,#02,#00,#08,#00,#42,#7F,#00,#7F,#00,#00,#2E,#03,#90,#F8,#01
+                DB #F8,#01,#07,#20,#00,#32,#3F,#00,#1F,#00,#00,#22,#03,#10,#F0,#02
+                DB #F0,#03,#03,#D0,#00,#25,#0F,#C0,#07,#20,#00,#22,#07,#20,#E0,#04
+                DB #C0,#08,#02,#10,#00,#40,#07,#20,#07,#E0,#00,#7F,#02,#F0,#C0,#0F
+HEROLEGJUMP
+                DB #F8,#01,#00,#00,#00,#0C,#FF,#00,#7F,#00,#00,#02,#00,#00,#F0,#02
+                DB #F0,#02,#00,#00,#00,#01,#3F,#00,#1F,#80,#00,#80,#00,#00,#F8,#01
+                DB #FC,#00,#00,#E0,#00,#40,#1F,#80,#3F,#00,#00,#21,#00,#20,#FE,#00
+                DB #FE,#00,#00,#40,#00,#43,#1F,#80,#0F,#40,#00,#8E,#00,#83,#FC,#00
+                DB #F8,#01,#00,#0C,#00,#40,#0F,#40,#1F,#80,#00,#40,#00,#30,#F0,#02
+                DB #F0,#02,#00,#1C,#00,#47,#3F,#00,#7F,#00,#00,#38,#00,#02,#F0,#02
+                DB #F8,#01,#00,#82,#00,#00,#FF,#00,#FF,#00,#C7,#00,#00,#7C,#FC,#00
+                DB #FE,#00,#01,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#83,#00,#FF,#00
+
+;**************************************
+
+HEROLEGCL1
+                DB #F8,#00,#00,#17,#07,#A0,#FF,#00,#FF,#00,#07,#20,#00,#00,#F0,#02
+                DB #F0,#02,#00,#00,#03,#10,#FF,#00,#FF,#00,#03,#10,#00,#44,#F8,#01
+                DB #F8,#01,#00,#38,#03,#10,#FF,#00,#FF,#00,#07,#20,#00,#88,#F0,#02
+                DB #F0,#02,#00,#A5,#03,#10,#FF,#00,#FF,#00,#01,#08,#00,#FA,#F0,#03
+                DB #F8,#00,#00,#02,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#01,#FC,#00
+                DB #FF,#00,#FC,#00,#03,#90,#FF,#00,#FF,#00,#03,#50,#FE,#00,#FF,#00
+                DB #FF,#00,#FC,#00,#01,#D8,#FF,#00,#FF,#00,#00,#54,#F8,#01,#FF,#00
+                DB #FF,#00,#F8,#01,#00,#54,#FF,#00,#FF,#00,#00,#FC,#F8,#01,#FF,#00
+HEROLEGCL2
+                DB #FC,#00,#00,#97,#07,#A0,#FF,#00,#FF,#00,#03,#10,#00,#00,#F8,#01
+                DB #F0,#02,#00,#00,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#00,#F0,#02
+                DB #F0,#02,#00,#06,#00,#04,#FF,#00,#FF,#00,#00,#04,#00,#29,#F0,#02
+                DB #F8,#01,#00,#12,#01,#08,#FF,#00,#FF,#00,#03,#10,#00,#12,#F8,#01
+                DB #F8,#01,#00,#B1,#07,#20,#FF,#00,#FF,#00,#03,#F0,#00,#A9,#F0,#02
+                DB #F0,#02,#00,#AA,#01,#28,#FF,#00,#FF,#00,#00,#14,#00,#FA,#F0,#03
+                DB #F8,#00,#00,#01,#00,#0C,#FF,#00,#FF,#00,#00,#84,#04,#00,#FC,#00
+                DB #FF,#00,#FE,#00,#01,#78,#FF,#00,#FF,#00,#03,#00,#FF,#00,#FF,#00
+HEROLEGCL3
+                DB #FE,#00,#00,#57,#01,#80,#FF,#00,#FF,#00,#00,#04,#00,#40,#FE,#00
+                DB #FC,#00,#00,#80,#01,#08,#FF,#00,#FF,#00,#03,#D0,#00,#83,#FC,#00
+                DB #FC,#00,#00,#82,#01,#18,#FF,#00,#FF,#00,#00,#54,#00,#44,#FE,#00
+                DB #FC,#00,#00,#89,#00,#54,#FF,#00,#FF,#00,#00,#FC,#00,#05,#F8,#01
+                DB #F8,#01,#00,#04,#01,#00,#FF,#00,#FF,#00,#03,#00,#00,#08,#F8,#01
+                DB #FC,#00,#03,#90,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#A0,#FC,#00
+                DB #F8,#01,#03,#B0,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#01,#A8,#F0,#02
+                DB #F0,#02,#01,#A8,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#01,#F8,#F0,#03
+HEROLEGCL4
+                DB #FE,#00,#00,#57,#03,#90,#FF,#00,#FF,#00,#01,#08,#00,#80,#FC,#00
+                DB #F8,#01,#00,#00,#00,#04,#FF,#00,#FF,#00,#00,#44,#00,#02,#F0,#02
+                DB #F0,#02,#00,#05,#00,#84,#FF,#00,#FF,#00,#01,#08,#00,#18,#F8,#01
+                DB #F8,#01,#00,#08,#01,#88,#FF,#00,#FF,#00,#03,#50,#00,#88,#FC,#00
+                DB #FE,#00,#00,#48,#01,#D8,#FF,#00,#FF,#00,#00,#54,#00,#65,#FE,#00
+                DB #FC,#00,#00,#BD,#00,#54,#FF,#00,#FF,#00,#00,#FC,#00,#45,#F8,#01
+                DB #F0,#02,#00,#84,#01,#00,#FF,#00,#FF,#00,#03,#00,#00,#08,#F0,#03
+                DB #F0,#02,#03,#10,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#07,#E0,#F8,#01
+
+;********************************************
+
+HEROLEGCR1
+                DB #FC,#00,#7C,#00,#F0,#00,#FF,#00,#FF,#00,#60,#06,#00,#00,#F8,#00
+                DB #F0,#03,#00,#83,#00,#09,#FF,#00,#FF,#00,#00,#91,#00,#64,#F0,#02
+                DB #F0,#02,#00,#04,#00,#E1,#FF,#00,#FF,#00,#00,#20,#00,#08,#F0,#02
+                DB #E0,#04,#00,#50,#00,#10,#FF,#00,#FF,#00,#00,#00,#00,#A3,#E0,#04
+                DB #E0,#04,#00,#A2,#00,#80,#FF,#00,#FF,#00,#00,#40,#00,#AC,#E0,#04
+                DB #F0,#03,#01,#98,#00,#21,#FF,#00,#FF,#00,#80,#12,#03,#00,#F8,#00
+                DB #FC,#00,#67,#00,#C0,#0C,#FF,#00,#FF,#00,#E1,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#F3,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+HEROLEGCR2
+                DB #FF,#00,#87,#00,#F3,#00,#FF,#00,#FF,#00,#E0,#00,#03,#00,#FF,#00
+                DB #FE,#00,#00,#68,#C0,#0C,#FF,#00,#FF,#00,#00,#13,#00,#94,#FC,#00
+                DB #FC,#00,#00,#8F,#00,#22,#FF,#00,#FF,#00,#00,#C2,#00,#80,#FC,#00
+                DB #FC,#00,#00,#80,#00,#40,#FF,#00,#FF,#00,#00,#00,#00,#18,#F8,#01
+                DB #F8,#01,#00,#24,#00,#00,#FF,#00,#FF,#00,#00,#00,#00,#23,#F8,#01
+                DB #F8,#01,#00,#C8,#00,#E3,#FF,#00,#FF,#00,#00,#1C,#00,#00,#FC,#00
+                DB #FE,#00,#37,#00,#00,#00,#FF,#00,#FF,#00,#E3,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+HEROLEGCR3
+                DB #FE,#00,#31,#00,#E0,#00,#FF,#00,#FF,#00,#C0,#0C,#00,#00,#FC,#00
+                DB #F8,#01,#00,#CE,#00,#13,#FF,#00,#FF,#00,#00,#23,#00,#69,#F8,#01
+                DB #F8,#01,#00,#1C,#00,#C2,#FF,#00,#FF,#00,#00,#80,#00,#03,#F8,#01
+                DB #F0,#03,#00,#00,#00,#80,#FF,#00,#FF,#00,#00,#00,#00,#30,#F0,#02
+                DB #F0,#02,#00,#4C,#00,#00,#FF,#00,#FF,#00,#00,#02,#00,#47,#F0,#02
+                DB #F0,#03,#10,#80,#00,#FD,#FF,#00,#FF,#00,#00,#00,#38,#00,#F8,#00
+                DB #FC,#00,#7F,#00,#02,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+
+;********************************************
+
+BADWALK1        ; 5 RUN LEFT $3C0 1152 BYTES
+
+                DB #FE,#00,#00,#00,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#00,#FE,#F0,#00
+                DB #E0,#01,#00,#01,#3F,#00,#FF,#00,#FF,#00,#10,#80,#00,#00,#C0,#0F
+                DB #80,#10,#00,#80,#00,#80,#7F,#00,#3F,#00,#00,#8F,#00,#B4,#80,#10
+                DB #00,#21,#00,#41,#00,#70,#1F,#80,#1F,#80,#00,#8E,#00,#01,#00,#22
+                DB #80,#14,#00,#00,#00,#7F,#0F,#40,#0F,#40,#00,#F7,#00,#26,#80,#14
+                DB #80,#16,#00,#DE,#00,#F7,#07,#A0,#03,#A0,#00,#E3,#00,#3F,#80,#16
+                DB #80,#15,#00,#3F,#00,#8D,#01,#A8,#00,#14,#00,#EA,#00,#3F,#80,#15
+                DB #80,#17,#00,#1F,#00,#D2,#00,#04,#00,#04,#00,#11,#00,#0E,#C0,#08
+                DB #E0,#07,#00,#E0,#00,#38,#01,#F8,#03,#00,#02,#00,#00,#00,#F0,#00
+                DB #F8,#00,#1F,#00,#C7,#00,#07,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+BADWALK2
+                DB #FF,#00,#80,#00,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#00,#00,#FF,#00
+                DB #FE,#00,#00,#7F,#3F,#00,#FF,#00,#FF,#00,#1F,#80,#00,#80,#FC,#00
+                DB #F8,#01,#00,#40,#0F,#40,#FF,#00,#FF,#00,#0F,#40,#00,#00,#F8,#01
+                DB #F8,#01,#00,#7A,#0F,#40,#FF,#00,#FF,#00,#1F,#80,#00,#60,#F0,#01
+                DB #E0,#01,#00,#00,#07,#80,#FF,#00,#FF,#00,#01,#60,#00,#00,#C0,#0D
+                DB #80,#19,#00,#10,#00,#18,#7F,#00,#3F,#00,#00,#E6,#00,#E6,#80,#10
+                DB #80,#10,#00,#0D,#00,#F9,#1F,#80,#0F,#40,#00,#FE,#00,#1D,#C0,#0E
+                DB #E0,#04,#00,#5F,#00,#EF,#07,#A0,#07,#A0,#00,#9F,#00,#9F,#E0,#05
+                DB #E0,#05,#00,#CF,#00,#EF,#0F,#40,#1F,#80,#00,#86,#00,#CF,#F0,#02
+                DB #F8,#01,#00,#07,#00,#61,#3F,#00,#7F,#00,#00,#46,#00,#F0,#FC,#00
+                DB #FE,#00,#00,#00,#00,#42,#7F,#00,#7F,#00,#00,#22,#0F,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#80,#1C,#FF,#00,#FF,#00,#C1,#00,#FF,#00,#FF,#00
+BADWALK3
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#80,#00,#FF,#00
+                DB #FF,#00,#00,#00,#7F,#00,#FF,#00,#FF,#00,#3F,#00,#00,#7F,#FE,#00
+                DB #FC,#00,#00,#80,#1F,#80,#FF,#00,#FF,#00,#0F,#40,#00,#40,#F8,#01
+                DB #F8,#01,#00,#00,#0F,#40,#FF,#00,#FF,#00,#0F,#40,#00,#7A,#F8,#01
+                DB #F8,#01,#00,#60,#1F,#80,#FF,#00,#FF,#00,#1F,#80,#00,#00,#F8,#01
+                DB #F8,#01,#00,#00,#0F,#40,#FF,#00,#FF,#00,#07,#A0,#00,#13,#F8,#01
+                DB #FC,#00,#00,#EF,#03,#D0,#FF,#00,#FF,#00,#03,#D0,#00,#1F,#FC,#00
+                DB #F8,#00,#00,#5B,#01,#A8,#FF,#00,#FF,#00,#01,#E8,#00,#AD,#F0,#03
+                DB #E0,#04,#00,#0D,#00,#F4,#FF,#00,#FF,#00,#00,#74,#00,#36,#E0,#04
+                DB #F0,#02,#00,#C9,#00,#FA,#FF,#00,#FF,#00,#00,#E4,#00,#23,#F8,#01
+                DB #F8,#01,#00,#03,#01,#08,#FF,#00,#FF,#00,#03,#00,#00,#8C,#FC,#00
+                DB #FE,#00,#00,#70,#F7,#00,#FF,#00,#FF,#00,#FF,#00,#03,#00,#FF,#00
+BADWALK4
+                DB #FF,#00,#80,#00,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#00,#00,#FF,#00
+                DB #FE,#00,#00,#7F,#3F,#00,#FF,#00,#FF,#00,#1F,#80,#00,#80,#FC,#00
+                DB #F8,#01,#00,#40,#0F,#40,#FF,#00,#FF,#00,#0F,#40,#00,#00,#F8,#01
+                DB #F8,#01,#00,#7A,#0F,#40,#FF,#00,#FF,#00,#1F,#80,#00,#60,#F8,#01
+                DB #F8,#01,#00,#00,#0F,#80,#FF,#00,#FF,#00,#03,#40,#00,#01,#F8,#01
+                DB #F8,#01,#00,#00,#00,#B0,#FF,#00,#7F,#00,#00,#4C,#00,#D7,#F8,#00
+                DB #F0,#00,#00,#2F,#00,#E3,#3F,#00,#1F,#80,#00,#E4,#00,#2F,#E0,#07
+                DB #C0,#08,#00,#A7,#00,#73,#0F,#40,#0F,#40,#00,#F3,#00,#DC,#C0,#08
+                DB #C0,#09,#00,#3E,#00,#F2,#1F,#80,#3F,#00,#00,#F1,#00,#7C,#C0,#08
+                DB #E0,#06,#00,#71,#00,#C2,#7F,#00,#FF,#00,#00,#00,#00,#08,#F0,#01
+                DB #F8,#00,#00,#F0,#3D,#00,#FF,#00,#FF,#00,#FF,#00,#07,#00,#FE,#00
+                DB #FF,#00,#0F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+BADWALK5
+                DB #FE,#00,#00,#00,#FF,#00,#FF,#00,#FF,#00,#7F,#00,#00,#FE,#F4,#00
+                DB #E0,#01,#00,#01,#3F,#00,#FF,#00,#FF,#00,#1F,#80,#00,#80,#C0,#0A
+                DB #80,#12,#00,#00,#19,#80,#FF,#00,#FF,#00,#00,#80,#00,#F4,#00,#22
+                DB #00,#22,#00,#C1,#00,#06,#7F,#00,#3F,#00,#00,#19,#00,#01,#00,#22
+                DB #80,#12,#00,#02,#00,#66,#1F,#80,#0F,#40,#00,#9F,#00,#01,#C0,#0A
+                DB #C0,#09,#00,#03,#00,#CF,#03,#A0,#01,#D0,#00,#E3,#00,#3B,#C0,#0A
+                DB #C0,#0B,#00,#7F,#00,#E0,#00,#D4,#00,#0A,#00,#EB,#00,#7F,#C0,#09
+                DB #C0,#0B,#00,#FB,#00,#F4,#00,#C2,#00,#24,#00,#F4,#00,#C5,#C0,#0B
+                DB #C0,#09,#00,#DB,#00,#02,#01,#18,#C3,#00,#08,#00,#00,#20,#E0,#04
+                DB #F0,#03,#04,#C0,#FD,#00,#E7,#00,#FF,#00,#FF,#00,#1F,#00,#F8,#00
+                DB #FC,#00,#3F,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+                DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00,#FF,#00
+
+;********************************************
+
+BAD1FALL        ;1FALL RIGHT $140 320 BYTES
+
+                DB #FF,#00,#FC,#00,#1F,#00,#FF,#00,#FF,#00,#0F,#C0,#F8,#01,#FF,#00
+                DB #FF,#00,#F0,#02,#0F,#40,#FF,#00,#07,#00,#04,#20,#E0,#04,#FF,#00
+                DB #FF,#00,#E0,#04,#00,#20,#03,#00,#01,#F8,#00,#43,#C0,#0B,#FF,#00
+                DB #FF,#00,#80,#15,#00,#84,#00,#04,#00,#6A,#00,#08,#00,#2D,#FF,#00
+                DB #FF,#00,#00,#2E,#00,#48,#00,#62,#00,#22,#00,#B4,#00,#5D,#FE,#00
+                DB #FC,#00,#00,#0F,#00,#C0,#00,#22,#00,#02,#00,#BE,#00,#A7,#F8,#01
+                DB #F0,#02,#00,#53,#00,#7F,#00,#02,#00,#02,#00,#FF,#00,#10,#F0,#02
+                DB #F0,#02,#00,#3D,#00,#FB,#00,#44,#01,#B8,#00,#FA,#00,#3D,#F8,#01
+                DB #F8,#01,#00,#DD,#00,#F5,#03,#00,#47,#00,#00,#EA,#00,#2F,#FC,#00
+                DB #F8,#00,#00,#C7,#00,#9A,#7F,#00,#FF,#00,#00,#34,#00,#00,#F0,#03
+                DB #E0,#04,#00,#00,#00,#14,#FF,#00,#FF,#00,#01,#08,#00,#00,#E0,#04
+                DB #E0,#04,#00,#00,#01,#08,#FF,#00,#FF,#00,#01,#08,#00,#00,#C0,#04
+                DB #80,#04,#00,#50,#01,#08,#FF,#00,#FF,#00,#03,#70,#00,#30,#00,#34
+                DB #00,#4C,#00,#50,#07,#20,#FF,#00,#FF,#00,#0F,#40,#00,#50,#00,#44
+                DB #00,#44,#00,#90,#0F,#C0,#FF,#00,#FF,#00,#0F,#40,#00,#90,#00,#20
+                DB #00,#21,#00,#08,#07,#20,#FF,#00,#FF,#00,#03,#10,#60,#04,#80,#12
+                DB #C0,#0C,#F0,#02,#03,#10,#FF,#00,#FF,#00,#01,#08,#F8,#01,#E1,#00
+                DB #F3,#00,#FC,#00,#00,#C4,#FF,#00,#7F,#00,#00,#02,#F8,#01,#FF,#00
+                DB #FF,#00,#F0,#02,#00,#04,#FF,#00,#FF,#00,#01,#08,#F0,#02,#FF,#00
+                DB #FF,#00,#F8,#01,#03,#F0,#FF,#00,#FF,#00,#07,#00,#FC,#00,#FF,#00
+
+;*******************************
+
+STAR1           DB #FF,#00,#7F,#00,#3F,#00,#FE,#00,#FC,#00,#1F,#80,#3F,#00,#FE,#00
+                DB #FC,#00,#1F,#80,#0F,#40,#F8,#01,#D0,#01,#05,#40,#00,#30,#80,#06
+                DB #00,#28,#00,#8A,#00,#30,#80,#06,#D0,#01,#05,#40,#0F,#40,#F8,#01
+                DB #FC,#00,#1F,#80,#3F,#00,#FE,#00,#FC,#00,#1F,#80,#3F,#00,#FE,#00
+STAR2           DB #FF,#00,#FF,#00,#FF,#00,#FF,#00,#F7,#00,#F7,#00,#C3,#00,#E1,#00
+                DB #C0,#08,#81,#08,#03,#20,#E0,#02,#E0,#05,#03,#50,#07,#A0,#F0,#02
+                DB #F8,#01,#0F,#C0,#07,#A0,#F0,#02,#E0,#05,#03,#50,#03,#20,#E0,#02
+                DB #C0,#08,#81,#08,#C3,#00,#E1,#00,#F7,#00,#F7,#00,#FF,#00,#FF,#00
+
+;***************************************
+;** CODE END LABEL                    **
+;***************************************
+
+CODEEND
+
+;**************************************************************************
+;** LEVEL STUFF                                                          **
+;**************************************************************************
+
+LEVELDATA
+LEVELEND        EQU LEVELDATA+$2000
+
+LEVELSTARTUP    DB $FF,$FF         ; HERO X,Y
+MAPXS           DB $FF             ; MAPX
+MAPYS           DB $FF             ; MAPY
+MAPDIRS         DB 0               ; 0=SCROLL L/R - 1=SCR0LL U/D
+WEPROOMX        DB $FF             ; WEAPON ROOM X INIT
+WEPROOMY        DB $FF             ; WEAPON ROOM Y INIT
+DOORXY          DW $FFFF           ; DOOR XY
+RM              DB $FF             ; RIGHTMAX
+RDM             DB $FF             ; DOWNMAX
+UD              DB $FF             ; SETUD
+LR              DB $FF             ; SETLR
+FLOORTESTBYTES  DW $FFFF           ; FLOOR BLOCKS
+FLOORWALLBYTES  DW $FFFF           ; WALL BLOCKS
+LD1             DB $FF             ; LADDER BLOCKS - $FF,$FF
+LD2             DB $FF             ; LADDER BLOCKS - $FF,$FF
+CR1             DB $FF             ; CRAWL ON BLOCK
+SL1             DB $FF             ; SLIDE UP
+SL2             DB $FF             ; SLIDE UP
+SL3             DB $FF             ; SLIDE DOWN
+SL4             DB $FF             ; SLIDE DOWN
+BADDYINITSX     DW $FFFF           ; LEVEL BADDY INITS X
+BADDYINITSX2    DW $FFFF           ; LEVEL BADDY INITS X2
+BADDYINITSY     DW $FFFF           ; LEVEL BADDY INITS Y
+CHRS            DW $FFFF           ; CHRS
+ATRS            DW $FFFF           ; ATRS
+BLOX            DW $FFFF           ; BLOX
+MAP1            DW $FFFF           ; MAPX
+MAP2            DW $FFFF           ; MAPY
+MAXMAP          DB 0               ; MAPXMAXSIZE
+
+PRTLEVELBACK    LD HL,0:LD HL,0:LD HL,0:RET
+RESETLEVELBAD   JP RETURN
+SMODLEVEL       JP RETURN
+WAPTABLE        DB $00,0,$00,0,$00,0,$00,0,$00,0,$00,0
+KILLBIG         JP RETURN
+INITBIG1        JP RETURN
+INITBIG2        JP RETURN
+INITBIG3        JP RETURN
+INITBIG4        JP RETURN
+
+		        ENDIF
+
+;*****************************************************************************
+;** END OF FILE                                                             **
+;*****************************************************************************
