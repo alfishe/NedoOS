@@ -18,19 +18,22 @@ BufferScreen = #c000
 GO;STARD
 	JP	GO2
 ;
-L_61C4	DB #00,#00,#00
+therosprites
+	DB #00,#00,#00
 L_61C7	DB #12
 L_61C8	DB #10,#00,#12,#10
 L_61CC	DB #00,#12,#10
 	dw MJ_sprites-#60 ;#B0,#B3
 
-L_61D1	DB #01,#00,#00
+taliensprites
+	DB #01,#00,#00
 	db #02
 	db #08,#00,#02,#08
 	db #00,#02,#08
 	dw Alien1_sprite-#60
 
-L_61DE	DB #02,#00,#00
+talien2sprites
+	DB #02,#00,#00
 	db #06
 	db #5A,#00,#06,#5A
 	db #00,#06,#5A
@@ -90,7 +93,8 @@ L_626C       DW       L_6382
        DW       L_6540
        DW       L_635B
 ;
-L_628C	LD	IX,L_61C4
+parseherosprites
+	LD	IX,therosprites
 	LD	A,(IX+#02)
 	OR	A
 	JR	NZ,L_62A5
@@ -109,7 +113,7 @@ L_62A5	LD	A,(IX+#01)
 	CALL	L_6C3A
 	JP	L_6830
 ;
-L_62BC	LD	IX,L_61D1
+L_62BC	LD	IX,taliensprites
 	LD	A,(IX+#01)
 	CP	#10
 	JR	C,L_62CD
@@ -135,7 +139,7 @@ L_62EE	JP	L_6C3A
 L_62F1	CALL	L_6DC1
 	JP	L_6883
 ;
-L_62F7	LD	IX,L_61DE
+L_62F7	LD	IX,talien2sprites
 	LD	A,(IX+#01)
 	CP	#10
 	JR	C,L_6308
@@ -713,14 +717,14 @@ L_66E0	LD	BC,#1719
 	CALL	L_707F
 	LD	A,(L_624C)
 	CALL	L_701C
-	LD	IX,L_61C4
+	LD	IX,therosprites
 	INC	HL
 	LD	A,(HL)
 	LD	(L_6251),A
 	CALL	L_6765
-	LD	IX,L_61D1
+	LD	IX,taliensprites
 	CALL	L_6765
-	LD	IX,L_61DE
+	LD	IX,talien2sprites
 	CALL	L_6765
 	LD	A,(L_6252)
 	OR	A
@@ -732,7 +736,7 @@ L_672A	LD	A,(L_6256)
 	CALL	L_6C08
 	XOR	A
 L_6736	LD	(L_6256),A
-	CALL	L_628C
+	CALL	parseherosprites
 	LD	A,(L_624E)
 	CP	#01
 	JP	NC,L_6757
@@ -885,11 +889,11 @@ L_6869	LD	A,(L_6249)
 	LD	(L_624E),A
 	RET
 ;
-L_6883	LD	IX,L_61D1
+L_6883	LD	IX,taliensprites
 	CALL	L_6D9A
-	LD	IX,L_61DE
+	LD	IX,talien2sprites
 	CALL	L_6D9A
-	LD	IX,L_61C4
+	LD	IX,therosprites
 	LD	(IX+#05),#08
 	LD	A,(IX+#04)
 L_689C	DEC	(IX+#04)
@@ -985,7 +989,7 @@ L_6944	LDI
 	JR	NC,L_6951
 	INC	D
 L_6951	DJNZ	L_6942
-L_6953	LD	IX,L_61C4
+L_6953	LD	IX,therosprites
 	LD	A,#F7
 	IN	A,(#FE)
 	BIT	0,A

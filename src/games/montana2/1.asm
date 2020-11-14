@@ -148,7 +148,25 @@ pgmuznum=$+1
 	endif
         call swapimer
         im 1
+        call killmuz ;because we played music not by OS
 	QUIT
+
+killmuz
+        ld a,0xfe
+        call shut1ay
+        ld a,0xff
+shut1ay
+        ld bc,0xfffd
+        out (c),a
+        ld de,0x0e00
+shutay0
+        dec d
+        ld b,0xff
+        out (c),d
+        ld b,0xbf
+        out (c),e
+        jr nz,shutay0
+        ret
 
 redattr_killable2b
         dw 0
