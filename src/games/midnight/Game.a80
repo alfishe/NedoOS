@@ -708,7 +708,8 @@ GAMELOOP        XOR A:LD (RETMODE),A
 
                 CALL DOALLBACKBITS
                 CALL MOVEBAD:CALL DODGYCOLISH
-                CALL READKEYS:CALL DECODE
+                CALL ReadKeysCheckQuit;READKEYS
+                CALL DECODE
 
                 LD DE,(WEPROOMX)
                 LD A,(MAPX):CP E:JR NZ,NOGOWEPROOM
@@ -998,7 +999,7 @@ SNA             LD D,A:LD A,C:ADD A,H:OR A:JP M,JPUZ
 
 FEST            LD A,(INFLIVES):OR A:JR NZ,CHT
                 LD A,(LIVES):OR A:JR Z,LOSEGAME
-                nop ;DEC A
+                DEC A
                 LD (LIVES),A
 CHT             LD A,48:LD (HEROFLASH+1),A:LD A,18:LD (HEROP+1),A
                 LD A,2:LD (GUNDIR+1),A:RET
