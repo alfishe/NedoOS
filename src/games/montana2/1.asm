@@ -130,11 +130,57 @@ showtiles0
 	JR	showtiles0
         endif
 
+        if 1==0
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x1800
+        ld (hl),-1;l;0
+        ldir
+        ld bc,0x2ff
+        ld (hl),7
+        ldir
+        ld hl,0x4000
+        ld de,0xc000
+        ld bc,0x1800
+        ldir
+
+        ld a,24
+        ld (spritehgt),a
+        
+        di
+        xor a
+        ld ix,therosprites
+        call showspritespp
+        ld a,32
+        ld ix,talien1sprites
+        call showspritespp
+        ld a,64
+        ld ix,talien2sprites
+        call showspritespp
+        ei
+        endif
 
         YIELDGETKEYLOOP
         
         ;jr $
         jp GO
+
+        if 1==0
+showspritespp
+        ld (spritey),a
+        ld (ix+5),0 ;phase
+        xor a
+showsprites0
+        push af
+        ld (spriteX),a
+        call L_6C53
+        pop af
+        inc (ix+5)
+        add a,3
+        cp 9*3
+        jr nz,showsprites0
+        ret
+        endif
 
         ;include "pal.ast" ;slabpal
 standardpal

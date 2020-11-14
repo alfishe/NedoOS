@@ -20,6 +20,7 @@ GO;STARD
 ;
 therosprites
 ;+1: state (direction) for state machine?
+;+5: phase
 	DB #00,#00,#00
 L_61C7	DB #12
 L_61C8	DB #10,#00,#12,#10
@@ -4859,7 +4860,7 @@ tscreenaddrs4040
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       dup 64;24+16
+       dup 24+16
        dw killablescraddr
        edup
 ;skoree vsego adresa dlya starih procedur
@@ -4872,7 +4873,7 @@ tscreenaddrs4040
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
 
-
+        ds 0xc000-$ ;shadow screen
 
 	ds #1800
 
