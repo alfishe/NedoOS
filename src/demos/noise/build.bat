@@ -2,10 +2,11 @@ if "%settedpath%"=="" call ../../_sdk/setpath.bat
 sjasmplus --nologo --msg=war noise.asm
 
 if "%currentdir%"=="" (
- FOR %%j IN (*.com) DO (
- copy /Y %%j "../../release/bin/" > nul
- "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /bin/%%j
- )
+  @FOR %%j IN (*.com) DO (
+  @"../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /bin/%%j
+  @move "*.com" "%releasedir2%bin" > nul
+  @IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%bin\%%~nj\" > nul
+  )
  rem pause
  if "%makeall%"=="" ..\..\..\us\emul.exe
 )

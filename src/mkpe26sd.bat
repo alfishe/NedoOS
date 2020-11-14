@@ -1,6 +1,6 @@
 @echo off
-echo atm=2 > _sdk\syssets.asm
-echo sys_npages=64 >> _sdk\syssets.asm
+echo atm=3 > _sdk\syssets.asm
+echo sys_npages=128 >> _sdk\syssets.asm
 echo NEMOIDE=1 >> _sdk\syssets.asm
 echo SYSDRV=12 >> _sdk\syssets.asm
 echo INETDRV=0x01 >> _sdk\syssets.asm

@@ -3193,8 +3193,24 @@ tsys_pages
         endif
         db 0,0,0,0 ;0x08..0x0f
         db 0,0,0,0,0,0,0,0 ;0x10..0x17
-        db 0,0,0,0xff,0xff,0xff,0xff,0xff ;0x18..0x1f for resident
-        ds sys_npages-32-4 ;0=empty, or else process number
+        db 0,0,0 ;0x18..0x1a
+        ifdef KOE
+        db 0,0,0,0,0 ;0x1b..0x1f
+        else
+        db 0xff,0xff,0xff,0xff,0xff ;0x1b..0x1f for resident
+        endif
+       dup sys_npages-32-4
+       ifdef KOE
+_=$-tsys_pages
+        if (_ >= (64+8)) && (_ <= (64+12))
+        db 0xff
+        else
+        db 0
+        endif
+       else
+        db 0 ;0=empty, or else process number
+       endif
+       edup
         if TOPDOWNMEM
         db 0xff,0xff,0xff,0xff ;системные страницы
         else
