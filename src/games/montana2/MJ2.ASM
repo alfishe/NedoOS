@@ -19,13 +19,14 @@ GO;STARD
 	JP	GO2
 ;
 therosprites
+;+1: state (direction) for state machine?
 	DB #00,#00,#00
 L_61C7	DB #12
 L_61C8	DB #10,#00,#12,#10
 L_61CC	DB #00,#12,#10
 	dw MJ_sprites-#60 ;#B0,#B3
 
-taliensprites
+talien1sprites
 	DB #01,#00,#00
 	db #02
 	db #08,#00,#02,#08
@@ -54,17 +55,17 @@ L_6220       DM       "SCORE              LEVEL  "
 ;
 L_623B       DB       #84,#20,#85,#06,#87,#08,#06,#06       ;. ......
        DB       #85,#09,#07,#07,#FF       ;.....
-L_6248       DB       #00       ;.
+curdirection       DB       #00       ;.
 L_6249       DB       #00       ;.
 L_624A       DB       #00,#00       ;..
-L_624C       DB       #00       ;.
+curlevel       DB       #00       ;.
 L_624D       DB       #00       ;.
 L_624E       DB       #00       ;.
 L_624F       DB       #00       ;.
 L_6250       DB       #00       ;.
 L_6251       DB       #00       ;.
-L_6252       DB       #00       ;.
-L_6253       DB       #00,#00       ;..
+demoon       DB       #00       ;.
+curdemoaddr       DB       #00,#00       ;..
 L_6255       DB       #08       ;.
 L_6256       DB       #00       ;.
 ;
@@ -76,13 +77,14 @@ L_6264       DM       "LEVEL"
 ;
 L_626A       DB       #00,#00       ;..
 ;
-L_626C       DW       L_6382
-       DW       L_6322
-       DW       L_6322
-       DW       L_6382
-       DW       L_6382
-       DW       L_635B
-       DW       L_6322
+tdirectionjumps
+       DW       L_6382 ;no move?
+       DW       L_6322 ;left?
+       DW       L_6322 ;right?
+       DW       L_6382 ;down?
+       DW       L_6382 ;up?
+       DW       L_635B ;up-left?
+       DW       L_6322 ;up-right?
        DW       L_635B
        DW       L_651F
        DW       L_6322
@@ -98,10 +100,10 @@ parseherosprites
 	LD	A,(IX+#02)
 	OR	A
 	JR	NZ,L_62A5
-	CALL	L_65DD
-	LD	D,(IX+#01)
-	CALL	L_6313
-	LD	(IX+#01),D
+	CALL	Control
+	LD	D,(IX+#01) ;state (direction)
+	CALL	JumpDirectionHander
+	LD	(IX+#01),D ;state (direction)
 	CALL	L_68B4
 L_62A5	LD	A,(IX+#01)
 	OR	A
@@ -113,7 +115,8 @@ L_62A5	LD	A,(IX+#01)
 	CALL	L_6C3A
 	JP	L_6830
 ;
-L_62BC	LD	IX,taliensprites
+parsealien1sprites
+	LD	IX,talien1sprites
 	LD	A,(IX+#01)
 	CP	#10
 	JR	C,L_62CD
@@ -136,10 +139,11 @@ L_62D9	LD	A,(IX+#01)
 	CALL	L_6830
 L_62EE	JP	L_6C3A
 ;
-L_62F1	CALL	L_6DC1
+L_62F1	CALL	PlaySFXL_6E0B
 	JP	L_6883
 ;
-L_62F7	LD	IX,talien2sprites
+parsealien2sprites
+	LD	IX,talien2sprites
 	LD	A,(IX+#01)
 	CP	#10
 	JR	C,L_6308
@@ -152,7 +156,8 @@ L_6308	LD	A,(IX+#02)
 	CALL	L_6A68
 	JR	L_62D6
 ;
-L_6313	LD	HL,L_626C
+JumpDirectionHander
+	LD	HL,tdirectionjumps
 	LD	A,D
 	RLCA
 	ADD	A,L
@@ -161,7 +166,7 @@ L_6313	LD	HL,L_626C
 	INC	H
 L_631D	LD	C,(HL)
 	INC	HL
-	LD	B,(HL)
+	LD	B,(HL) ;proc addr
 	PUSH	BC
 	RET
 ;
@@ -227,20 +232,20 @@ L_6382	LD	A,D
 ;
 L_6399	CALL	ShutSFX
 L_639C	LD	D,#00
-	LD	A,(L_6248)
+	LD	A,(curdirection)
 	OR	A
-	RET	Z
-	CP	#01
+	RET	Z ;no move
+	CP	#01 ;left
 	JR	Z,L_63BB
-	CP	#02
+	CP	#02 ;right
 	JR	Z,L_63CE
-	CP	#03
+	CP	#03 ;down
 	JR	Z,L_63E1
-	CP	#04
+	CP	#04 ;up
 	JR	Z,L_6403
-	CP	#05
+	CP	#05 ;up-left
 	JP	Z,L_6430
-	JP	L_645A
+	JP	L_645A ;up-right?
 ;
 L_63BB	LD	A,#04
 	CALL	L_6599
@@ -356,14 +361,14 @@ L_645A	LD	A,#02
 	RET
 ;
 L_6485	LD	D,#07
-	LD	A,(L_6248)
-	CP	#01
+	LD	A,(curdirection)
+	CP	#01 ;left
 	JR	Z,L_649B
-	CP	#02
+	CP	#02 ;right
 	JR	Z,L_64B3
-	CP	#05
+	CP	#05 ;up-left
 	JR	Z,L_649B
-	CP	#06
+	CP	#06 ;up-right
 	JR	Z,L_64B3
 	RET
 ;
@@ -397,13 +402,14 @@ L_64C7	RET	NZ
 	LD	D,#02
 	RET
 ;
-L_64CB	LD	A,(L_6248)
-	CP	#01
+L_64CB	LD	A,(curdirection)
+	CP	#01 ;left
 	JR	NZ,L_64D4
-	JR	L_64D8
+	JR	L_64D8 ;left
 ;
-L_64D4	CP	#05
+L_64D4	CP	#05 ;up-left
 	JR	NZ,L_651F
+;left, up-left
 L_64D8	LD	A,#08
 	CALL	L_6599
 	CP	#05
@@ -422,13 +428,14 @@ L_64F0	JR	Z,L_64EA
 	LD	D,#07
 	RET
 ;
-L_64F5	LD	A,(L_6248)
-	CP	#02
+L_64F5	LD	A,(curdirection)
+	CP	#02 ;right
 	JR	NZ,L_64FE
-	JR	L_6502
+	JR	L_6502 ;right
 ;
-L_64FE	CP	#06
+L_64FE	CP	#06 ;up-right
 	JR	NZ,L_6540
+;right, up-right
 L_6502	LD	A,#0B
 	CALL	L_6599
 	CP	#05
@@ -564,75 +571,78 @@ L_65CF	ADD	HL,BC
 	XOR	A
 	RET
 ;
-L_65DD	LD	A,(L_6252)
+Control
+	LD	A,(demoon)
 	OR	A
-	JP	NZ,L_727E
-	LD	A,(L_710F)
+	JP	NZ,ControlDemo
+	LD	A,(curcontroldevice)
 	LD	B,#1F
 	OR	A
-	JP	Z,L_6673
+	JP	Z,ControlKempstonJoy
 	CP	#01
-	JR	Z,L_662E
+	JR	Z,ControlQAOP
 	CP	#03
-	JR	Z,L_6651
+	JR	Z,ControlCursorJoy
 	LD	A,#EF
 	IN	A,(#FE)
-L_65F9	BIT	1,A
+L_65F9	BIT	1,A ;'9'
 	JR	NZ,L_6611
-	BIT	4,A
+	BIT	4,A ;'6'
 	JR	NZ,L_6605
-	LD	A,#05
+	LD	A,#05 ;up-left
 	JR	L_662A
 ;
-L_6605	BIT	3,A
+L_6605	BIT	3,A ;'7'
 	JR	NZ,L_660D
-	LD	A,#06
+	LD	A,#06 ;up-right
 	JR	L_662A
 ;
-L_660D	LD	A,#04
+L_660D	LD	A,#04 ;up
 	JR	L_662A
 ;
-L_6611	BIT	4,A
+L_6611	BIT	4,A ;'6'
 	JR	NZ,L_6619
-	LD	A,#01
+	LD	A,#01 ;left
 	JR	L_662A
 ;
-L_6619	BIT	3,A
+L_6619	BIT	3,A ;'7'
 	JR	NZ,L_6621
-	LD	A,#02
+	LD	A,#02 ;right
 	JR	L_662A
 ;
-L_6621	BIT	2,A
+L_6621	BIT	2,A ;'8'
 	JR	NZ,L_6629
-	LD	A,#03
+	LD	A,#03 ;down
 	JR	L_662A
 ;
-L_6629	XOR	A
-L_662A	LD	(L_6248),A
+L_6629	XOR	A ;no move
+L_662A	LD	(curdirection),A
 	RET
 ;
-L_662E	LD	A,#FB
+ControlQAOP
+	LD	A,#FB
 	IN	A,(#FE)
-	RRA
+	RRA ;'q'
 	JR	C,L_6637
 	RES	1,B
 L_6637	LD	A,#FD
 	IN	A,(#FE)
-	RRA
+	RRA ;'a'
 	JR	C,L_6640
 	RES	2,B
 L_6640	LD	A,#DF
 	IN	A,(#FE)
-	RRA
+	RRA ;'p'
 	JR	C,L_6649
 	RES	3,B
-L_6649	RRA
+L_6649	RRA ;'o'
 	JR	C,L_664E
 	RES	4,B
 L_664E	LD	A,B
 	JR	L_65F9
 ;
-L_6651	LD	A,#EF
+ControlCursorJoy
+	LD	A,#EF
 	IN	A,(#FE)
 	BIT	3,A
 	JR	NZ,L_665B
@@ -650,7 +660,8 @@ L_6667	LD	A,#F7
 	RES	4,B
 L_6671	JR	L_664E
 ;
-L_6673	IN	A,(#1F)
+ControlKempstonJoy
+	IN	A,(#1F)
 	RRA
 	JR	NC,L_667A
 	RES	4,B
@@ -665,13 +676,14 @@ L_6684	RRA
 	RES	2,B
 L_6689	JR	L_664E
 ;
-L_668B	DI
-	LD	A,(L_710E)
-	LD	(L_624C),A
+MenuStartGame
+	DI ;???
+	LD	A,(startlevel)
+	LD	(curlevel),A
 	CALL	L_EEEC
 	CALL	L_6B1C
 	XOR	A
-	LD	(L_6252),A
+	LD	(demoon),A
 L_669C	AND	#00
 	SET	2,A
 	LD	(L_6249),A
@@ -715,18 +727,18 @@ L_66E0	LD	BC,#1719
 	LD	A,#20
 	LD	BC,#170F
 	CALL	L_707F
-	LD	A,(L_624C)
+	LD	A,(curlevel)
 	CALL	L_701C
 	LD	IX,therosprites
 	INC	HL
 	LD	A,(HL)
 	LD	(L_6251),A
 	CALL	L_6765
-	LD	IX,taliensprites
+	LD	IX,talien1sprites
 	CALL	L_6765
 	LD	IX,talien2sprites
 	CALL	L_6765
-	LD	A,(L_6252)
+	LD	A,(demoon)
 	OR	A
 	CALL	Z,WaitKey
 L_672A	LD	A,(L_6256)
@@ -740,10 +752,10 @@ L_6736	LD	(L_6256),A
 	LD	A,(L_624E)
 	CP	#01
 	JP	NC,L_6757
-	CALL	L_62BC
-	CALL	L_62F7
+	CALL	parsealien1sprites
+	CALL	parsealien2sprites
 	CALL	L_690D
-	CALL	L_6B3E
+	CALL	CheckLevelExit
 	LD	A,(L_624E)
 	CP	#01
 	JR	C,L_672A
@@ -806,7 +818,7 @@ L_67A8	LD	A,#05
 	RET
 ;
 L_67D1	LD	(HL),#00
-	CALL	L_6DBC
+	CALL	PlaySFXL_6DE1
 	LD	HL,L_6251
 	DEC	(HL)
 	LD	A,(HL)
@@ -866,7 +878,7 @@ L_6830	LD	A,#05
 	JR	Z,L_6855
 	RET
 ;
-L_6855	CALL	L_6DC6
+L_6855	CALL	PlaySFXL_6DEF
 	LD	A,(IX+#00)
 	OR	A
 	JR	Z,L_6883
@@ -889,7 +901,7 @@ L_6869	LD	A,(L_6249)
 	LD	(L_624E),A
 	RET
 ;
-L_6883	LD	IX,taliensprites
+L_6883	LD	IX,talien1sprites
 	CALL	L_6D9A
 	LD	IX,talien2sprites
 	CALL	L_6D9A
@@ -911,10 +923,10 @@ L_68AE	LD	A,#03
 L_68B4	LD	A,(L_624D)
 	OR	A
 	RET	Z
-	LD	A,(L_6248)
-	CP	#02
+	LD	A,(curdirection)
+	CP	#02 ;right
 	JR	Z,L_68C7
-	CP	#01
+	CP	#01 ;left
 	RET	NZ
 	LD	A,#04
 	JR	L_68C9
@@ -926,7 +938,7 @@ L_68C9	CALL	L_6599
 	LD	(HL),#00
 	LD	BC,#0032
 	CALL	L_67E8
-	CALL	L_6DB7
+	CALL	PlaySFXL_6DFD
 L_68DA	LD	A,(L_624F)
 	BIT	0,(IX+#08)
 	JR	Z,L_68E5
@@ -943,15 +955,15 @@ L_68F1	LD	B,A
 L_68F7	LD	DE,0xFACB ; 0xCB,0xFA = set 7,d
 	LD	(L_6EBA),DE
 	PUSH	AF
-	CALL	L_6E9D
+	CALL	DrawTile
 	POP	AF
 	LD	DE,#0000
 	LD	(L_6EBA),DE
-	JP	L_6E9D
+	JP	DrawTile
 ;
 L_690D	LD	A,#FE
 	IN	A,(#FE)
-	RRCA
+	RRCA ;caps shift
 	JR	NC,L_6924
 L_6914	LD	A,(L_7110)
 	INC	A
@@ -1038,27 +1050,27 @@ L_69A5	LD	A,#0F
 	CALL	L_6599
 	CP	#02
 	JR	Z,L_69BB
-	LD	A,#02
+	LD	A,#02 ;right
 	JR	L_69BD
 ;
 L_69BB	LD	A,#06
-L_69BD	LD	(L_6248),A
-	CALL	L_6313
+L_69BD	LD	(curdirection),A
+	CALL	JumpDirectionHander
 	LD	A,D
 	OR	A
 	RET	NZ
-	LD	A,#04
-L_69C8	LD	(L_6248),A
-	CALL	L_6313
+	LD	A,#04 ;up
+L_69C8	LD	(curdirection),A
+	CALL	JumpDirectionHander
 	RET
 ;
 L_69CF	LD	A,(L_61C7)
 	LD	B,(IX+#03)
 	CP	B
 	JR	NZ,L_69F1
-	LD	A,#04
-L_69DA	LD	(L_6248),A
-	CALL	L_6313
+	LD	A,#04 ;up
+L_69DA	LD	(curdirection),A
+	CALL	JumpDirectionHander
 	LD	A,D
 	OR	A
 	RET	NZ
@@ -1079,9 +1091,9 @@ L_69F1	LD	A,#09
 	CALL	L_6599
 	CP	#05
 	JP	NZ,L_6982
-	LD	A,#04
-	LD	(L_6248),A
-	CALL	L_6313
+	LD	A,#04 ;up
+	LD	(curdirection),A
+	CALL	JumpDirectionHander
 	LD	A,D
 	OR	A
 	RET	NZ
@@ -1090,9 +1102,9 @@ L_69F1	LD	A,#09
 L_6A12	LD	A,D
 	CP	#06
 	JR	NC,L_6A22
-	LD	A,#03
-	LD	(L_6248),A
-	CALL	L_6313
+	LD	A,#03 ;down
+	LD	(curdirection),A
+	CALL	JumpDirectionHander
 	LD	A,D
 	OR	A
 	RET	NZ
@@ -1179,8 +1191,8 @@ L_6AA6	LD	A,#0F
 	JR	L_6ABE
 ;
 L_6ABC	LD	A,#06
-L_6ABE	LD	(L_6248),A
-	CALL	L_6313
+L_6ABE	LD	(curdirection),A
+	CALL	JumpDirectionHander
 	LD	A,D
 	OR	A
 	RET	NZ
@@ -1190,12 +1202,12 @@ L_6ABE	LD	(L_6248),A
 	LD	B,(IX+#04)
 	CP	B
 	JR	C,L_6AD6
-	LD	A,#03
+	LD	A,#03 ;down
 	JR	L_6AD8
 ;
-L_6AD6	LD	A,#04
-L_6AD8	LD	(L_6248),A
-	JP	L_6313
+L_6AD6	LD	A,#04 ;up
+L_6AD8	LD	(curdirection),A
+	JP	JumpDirectionHander
 ;
 L_6ADE	LD	A,(IX+#08)
 	CP	#01
@@ -1221,7 +1233,7 @@ L_6B00	LD	A,(IX+#08)
 	LD	(IX+#08),A
 	DEC	(IX+#04)
 	ADD	A,#04
-	LD	(L_6DB4),A
+	LD	(spritehgt),A
 	JP	L_6C46
 ;
 L_6B17	LD	(IX+#01),#00
@@ -1240,12 +1252,13 @@ L_6B1C	CALL	L_7102
 	LD	(L_7111),A
 	JP	WaitKey
 ;
-L_6B3E	LD	A,(L_61C8)
+CheckLevelExit
+	LD	A,(L_61C8)
 	OR	A
 	RET	NZ
 	LD	BC,#01F4
 	CALL	L_67E8
-	LD	HL,L_624C
+	LD	HL,curlevel
 	INC	(HL)
 	LD	A,#1F
 	CP	(HL)
@@ -1267,7 +1280,7 @@ L_6B65	PUSH	BC
 	DJNZ	L_6B65
 	JP	L_6B1C
 ;
-L_6B75	LD	A,(L_624C)
+L_6B75	LD	A,(curlevel)
 L_6B78	LD	DE,0xFF0A ;???highly likely is NOT address
 L_6B7B	SUB	E
 	INC	D
@@ -1389,37 +1402,37 @@ L_6C19	LD	A,#02
        DB       #C9       ;I
 ;
 L_6C3A	LD	A,#18
-	LD	(L_6DB4),A
+	LD	(spritehgt),A
 	LD	A,(IX+#00)
 	OR	A
 	CALL	Z,L_6C84
 L_6C46	CALL	L_6C5C
-	LD	A,(L_6DB3)
+	LD	A,(spritey)
 	CP	#F8
 	JR	NC,L_6C53
 	CP	#59
 	RET	NC
-L_6C53	CALL	L_6CEC
-	CALL	L_6D36
-	JP	L_6D68
+L_6C53	CALL	KeepSpriteToL_D800
+	CALL	BlitSpriteInL_D800
+	JP	DrawSpriteFromL_D800
 ;
 L_6C5C	LD	HL,L_61CC
 	LD	A,(IX+#03)
 	BIT	0,(HL)
 	JR	Z,L_6C68
 	SUB	#1C
-L_6C68	LD	(L_6DB2),A
+L_6C68	LD	(spriteX),A
 	LD	A,(IX+#04)
 	BIT	1,(HL)
 	JR	Z,L_6C74
 	SUB	#48
-L_6C74	LD	(L_6DB3),A
+L_6C74	LD	(spritey),A
 	LD	A,(IX+#05)
 	OR	A
 	RET	NZ
-	LD	A,(L_6DB2)
+	LD	A,(spriteX)
 	DEC	A
-	LD	(L_6DB2),A
+	LD	(spriteX),A
 	RET
 ;
 L_6C84	LD	A,(IX+#04)
@@ -1465,35 +1478,36 @@ L_6CDF	BIT	1,(IX+#08)
 	JR	Z,L_6CE9
 	LD	BC,#010E
 	ADD	HL,BC
-L_6CE9	JP	L_6E70
+L_6CE9	JP	DrawTileMap
 ;
-L_6CEC	LD	A,(L_6DB3)
+KeepSpriteToL_D800
+	LD	A,(spritey) ;y
 	LD	C,A
 	LD	B,#00
 	LD	A,#08
 	ADD	A,C
-	LD	C,A
+	LD	C,A ;in case of negative y?
 	SLA	C
 	RL	B
 	SLA	C
 	RL	B
-	LD	HL,L_BE28
+	LD	HL,tscreenaddrs
 	ADD	HL,BC
-	LD	(L_6DB5),HL
+	LD	(curspritescraddr),HL
 	LD	(L_626A),SP
-	LD	SP,HL
+	LD	SP,HL ;TODO fix in int???
 	LD	DE,L_D800
-	LD	A,(L_6DB4)
+	LD	A,(spritehgt) ;hgt
 	LD	B,A
-L_6D11	POP	HL
+L_6D11	POP	HL ;screen address
 	SET	7,H       ;find addr in buffer screen
-	LD	A,(L_6DB2)
+	LD	A,(spriteX) ;x?
 	LD	C,A
 	CP	#20
 	JR	NC,L_6D1E
 	ADD	A,L
 	LD	L,A
-L_6D1E	LD	A,#03
+L_6D1E	LD	A,#03 ;wid
 L_6D20	EX	AF,AF' ;'
 	LD	A,C
 	CP	#20
@@ -1510,25 +1524,26 @@ L_6D29	INC	DE
 	LD	SP,(L_626A)
 	RET
 ;
-L_6D36	LD	DE,L_D80C
-	LD	A,(IX+#05)
+BlitSpriteInL_D800
+	LD	DE,L_D800+0x0C
+	LD	A,(IX+#05) ;phase
 	INC	A
 	LD	HL,#0000
-	LD	BC,#0060
+	LD	BC,#0060 ;sprite size
 L_6D43	ADD	HL,BC
 	DEC	A
 	JR	NZ,L_6D43
-	LD	C,(IX+#0B)
-	LD	B,(IX+#0C)
+	LD	C,(IX+#0B) ;
+	LD	B,(IX+#0C) ;sprites base
 	ADD	HL,BC
-	PUSH	HL
+	PUSH	HL ;mask addr
 	POP	IY
 	LD	BC,#0030
-	ADD	IY,BC
-	LD	B,C
+	ADD	IY,BC ;gfx addr
+	LD	B,C ;0x30
 L_6D57	LD	A,(DE)
-	AND	(HL)
-	OR	(IY+#00)
+	AND	(HL) ;mask
+	OR	(IY+#00) ;gfx
 	LD	(DE),A
 	INC	HL
 	INC	DE
@@ -1537,14 +1552,15 @@ L_6D57	LD	A,(DE)
 	LD	IY,#5C3A
 	RET
 ;
-L_6D68	LD	HL,(L_6DB5)
+DrawSpriteFromL_D800
+	LD	HL,(curspritescraddr)
 	LD	(L_626A),SP
 	LD	SP,HL
 	LD	HL,L_D800
-	LD	A,(L_6DB4)
+	LD	A,(spritehgt)
 	LD	B,A
 L_6D77	POP	DE
-	LD	A,(L_6DB2)
+	LD	A,(spriteX)
 	LD	C,A
 	CP	#20
 	JR	NC,L_6D82
@@ -1568,31 +1584,35 @@ L_6D8D	INC	HL
 	RET
 ;
 L_6D9A	LD	A,#18
-	LD	(L_6DB4),A
+	LD	(spritehgt),A
 	CALL	L_6C5C
-	LD	A,(L_6DB3)
+	LD	A,(spritey)
 	CP	#F8
 	JR	NC,L_6DAC
 	CP	#59
 	RET	NC
-L_6DAC	CALL	L_6CEC
-	JP	L_6D68
+L_6DAC	CALL	KeepSpriteToL_D800
+	JP	DrawSpriteFromL_D800
 ;
-L_6DB2       DB       #00
-L_6DB3       DB       #00
-L_6DB4       DB       #00
-L_6DB5       DB       #00,#00
+spriteX       DB       #00
+spritey       DB       #00
+spritehgt       DB       #00
+curspritescraddr       DB       #00,#00
 ;
-L_6DB7	LD	HL,L_6DFD
+PlaySFXL_6DFD
+	LD	HL,L_6DFD
 	JR	L_6DC9
 ;
-L_6DBC	LD	HL,L_6DE1
+PlaySFXL_6DE1
+	LD	HL,L_6DE1
 	JR	L_6DC9
 ;
-L_6DC1	LD	HL,L_6E0B
+PlaySFXL_6E0B
+	LD	HL,L_6E0B
 	JR	L_6DC9
 ;
-L_6DC6	LD	HL,L_6DEF
+PlaySFXL_6DEF
+	LD	HL,L_6DEF
 L_6DC9	LD	D,#00
 	LD	A,#0E
 L_6DCD	LD	E,(HL)
@@ -1668,11 +1688,13 @@ L_6E68       DB       #00,#01,#02,#03,#08,#09
 ;
 L_6E6E       DW       #0000
 ;
-L_6E70	CALL	PlaySFX
+DrawTileMap
+;to screen and to BufferScreen
+	CALL	PlaySFX
 	LD	BC,#0000
 L_6E76	LD	A,(HL)
 	INC	HL
-	CALL	L_6E9D
+	CALL	DrawTile
 	INC	C
 	INC	C
 	LD	A,#20
@@ -1682,19 +1704,21 @@ L_6E76	LD	A,(HL)
 	INC	B
 	LD	A,#16
 	CP	B
-	JR	Z,L_6E91
+	JR	Z,CopyScreenToBufferScreen
 	LD	DE,#000E
 	ADD	HL,DE
 	LD	C,#00
 	JR	L_6E76
 ;
-L_6E91	LD	HL,#4000
+CopyScreenToBufferScreen
+	LD	HL,#4000
 	LD	DE,BufferScreen
 	LD	BC,#1800
 	LDIR
 	RET
 ;
-L_6E9D	PUSH	BC
+DrawTile
+	PUSH	BC
 	PUSH	HL
 	PUSH	BC
 	OR	A
@@ -1711,7 +1735,7 @@ L_6E9D	PUSH	BC
 	LD	E,A
 	JR	NC,L_6EB3
 	INC	D
-L_6EB3	LD	HL,GameFieldSprites
+L_6EB3	LD	HL,tileset
 	ADD	HL,DE
 	CALL	L_70B0
 L_6EBA	DB	#00
@@ -1759,10 +1783,10 @@ L_6EF2	LDI
 ;
 GO2
 	LD	A,#02
-	LD	(L_710F),A
+	LD	(curcontroldevice),A
 	LD	A,#01
 	LD	(L_7110),A
-	LD	(L_710E),A
+	LD	(startlevel),A
 L_6F06	XOR	A
 	OUT	(#FE),A
 	CALL	L_7102
@@ -1778,18 +1802,18 @@ L_6F06	XOR	A
 L_6F27	call WaitKeyCheckQuit ;CALL	WaitKey
 	LD	A,#EF
 	IN	A,(#FE)
-	RRA
-	JP	NC,L_668B
+	RRA ;'0'
+	JP	NC,MenuStartGame
 	LD	A,#F7
 	IN	A,(#FE)
-	RRA
-	JP	NC,L_6FCE
-	RRA
-	JP	NC,L_6FE7
-	RRA
-	JP	NC,L_7000
-	RRA
-	JP	NC,L_7264
+	RRA ;'1'
+	JP	NC,MenuControl
+	RRA ;'2'
+	JP	NC,MenuSpeed
+	RRA ;'3'
+	JP	NC,MenuLevel
+	RRA ;'4'
+	JP	NC,MenuDemo
 	JR	L_6F27
 ;
 WaitKey	LD	BC,0xFEFE
@@ -1804,7 +1828,7 @@ L_6F4B	IN	A,(C)
 L_6F5A	LD	(L_626A),SP
 	LD	HL,MontanaJones2_logo
 	DI
-	LD	SP,L_BE70
+	LD	SP,tscreenaddrs4040
 	LD	B,#14
 L_6F67	POP	DE
 	LD	A,#03
@@ -1837,7 +1861,7 @@ L_6F8F	INC	B
 	LD	C,#02
 	JP	L_7071
 ;
-L_6F99	LD	A,(L_710F)
+L_6F99	LD	A,(curcontroldevice)
 	LD	B,A
 	RLCA
 	RLCA
@@ -1865,11 +1889,11 @@ L_6FAF	LD	A,(L_7110)
 L_6FBF	LD	BC,#0910
 	JP	L_7071
 ;
-L_6FC5	LD	A,(L_710E)
+L_6FC5	LD	A,(startlevel)
 	LD	BC,#0B10
 	JP	L_6B78
 ;
-L_6FCE	LD	HL,L_710F
+MenuControl	LD	HL,curcontroldevice
 	LD	A,#03
 	CP	(HL)
 	JR	NZ,L_6FD8
@@ -1882,7 +1906,7 @@ L_6FDC	LD	A,#F7
 	JR	Z,L_6FDC
 	JP	L_6F27
 ;
-L_6FE7	LD	HL,L_7110
+MenuSpeed	LD	HL,L_7110
 	LD	A,#02
 	CP	(HL)
 	JR	NZ,L_6FF1
@@ -1895,7 +1919,8 @@ L_6FF5	LD	A,#F7
 	JR	Z,L_6FF5
 	JP	L_6F27
 ;
-L_7000	LD	HL,L_710E
+MenuLevel
+	LD	HL,startlevel
 	LD	A,#1A
 	CP	(HL)
 	JR	NZ,L_700A
@@ -2066,8 +2091,8 @@ L_7105	LD	(HL),#00
 	JR	NZ,L_7105
 	RET
 ;
-L_710E       DB       #00       ;.
-L_710F       DB       #00       ;.
+startlevel       DB       #00       ;.
+curcontroldevice       DB       #00       ;.
 ;
 L_7110       DB       #00       ;.
 L_7111       DB       #01       ;.
@@ -2121,22 +2146,24 @@ L_722D	CALL	L_7102
 	CALL	WaitKey
 	JP	L_6F06
 ;
-L_7264	DI
+MenuDemo
+	DI
 	CALL	L_EEEC
 	CALL	L_7102
-	LD	HL,L_8CA0
-	LD	(L_6253),HL
+	LD	HL,demo
+	LD	(curdemoaddr),HL
 	LD	A,#0D
-	LD	(L_624C),A
+	LD	(curlevel),A
 	LD	A,#01
-	LD	(L_6252),A
+	LD	(demoon),A
 	JP	L_669C
 ;
-L_727E	LD	HL,(L_6253)
+ControlDemo
+	LD	HL,(curdemoaddr)
 	LD	A,(HL)
-	LD	(L_6248),A
+	LD	(curdirection),A
 	INC	HL
-	LD	(L_6253),HL
+	LD	(curdemoaddr),HL
 	LD	BC,L_8E94
 	OR	A
 	SBC	HL,BC
@@ -3036,7 +3063,7 @@ L_7D00       DB       #DB,#6D,#B0,#BB,#6D,#B5,#DB,#6B       ;[m0;m5[k
        DB       #E0,#7D,#24,#83,#FE,#3E,#C0,#51       ;`}$.~>@Q
        DB       #C7,#1C,#0E,#3F,#FF,#60,#07,#02       ;G..?.`..
        DB       #41,#B0,#FE,#8E,#38,#E3,#80,#00       ;A0~.8c..
-L_8CA0       DB       #03,#03,#03,#03,#00,#00,#00,#00       ;........
+demo       DB       #03,#03,#03,#03,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#01,#01,#01,#01,#00,#00       ;........
        DB       #02,#02,#02,#02,#02,#02,#02,#02       ;........
@@ -4091,7 +4118,8 @@ L_ACB4       DB       #FF,#00,#04,#01,#00,#00,#05,#02       ;........
        DB       #00,#00,#01,#01,#00,#01,#02,#02       ;........
        DB       #01,#01,#00,#00,#00,#02,#01,#01       ;........
        DB       #00,#02,#02,#02,#01,#02,#00,#00       ;........
-MontanaJones2_logo       DB       #1F,#80,#03,#F0,#00,#00,#00,#08       ;...p....
+MontanaJones2_logo
+       DB       #1F,#80,#03,#F0,#00,#00,#00,#08       ;...p....
        DB       #00,#00,#00,#00,#00,#00,#01,#FE       ;.......~
        DB       #00,#00,#00,#00,#00,#00,#00,#07       ;........
        DB       #FB,#FC,#07,#80,#03,#C0,#00,#00       ;{|...@..
@@ -4157,7 +4185,7 @@ MontanaJones2_logo       DB       #1F,#80,#03,#F0,#00,#00,#00,#08       ;...p...
        DB       #F9,#F0,#71,#80,#07,#C0,#0F,#03       ;ypq..@..
        DB       #E7,#C0,#F0,#07,#E0,#07,#FB,#FC       ;g@p.`.{|
 Font
-    DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #08,#1C,#0C,#1C,#14,#08,#1C,#08       ;........
        DB       #00,#24,#6C,#90,#90,#48,#00,#00       ;.$l..H..
        DB       #00,#C0,#E0,#E0,#FC,#62,#9C,#00       ;.@``|b..
@@ -4254,7 +4282,7 @@ Font
        DB       #00,#14,#28,#00,#00,#00,#00,#00       ;..(.....
        DB       #3C,#42,#99,#A1,#A1,#99,#42,#3C       ;<B.!!.B<
 
-GameFieldSprites
+tileset
        DB       #4A,#4A,#00,#00,#20,#00,#00,#00       ;JJ.. ...
        DB       #A4,#A4,#00,#00,#02,#02,#00,#00       ;$$......
        DB       #92,#92,#00,#00,#08,#00,#00,#00       ;........
@@ -4305,6 +4333,7 @@ GameFieldSprites
        DB       #08,#60,#40,#C4,#48,#8D,#12,#A0       ;.`@DH.. 
        DB       #7B,#C4,#F7,#55,#E6,#B7,#FF,#FF       ;{DwUf7..
        DB       #02,#02,#16,#16
+       ;display $-tileset ;11 tiles of 36 bytes
 MJ_sprites
 	db #FF,#FC,#3F,#FF       ;.....|?.
        DB       #E0,#07,#FF,#C0,#03,#FF,#80,#01       ;`..@....
@@ -4415,7 +4444,7 @@ MJ_sprites
        DB       #12,#00,#58,#1A,#00,#68,#16,#00       ;..X..h..
        DB       #09,#90,#00,#0A,#50,#00,#12,#48       ;....P..H
        DB       #00,#1C,#38,#00
- 
+       ;display $-MJ_sprites ;9 sprites of 96 bytes
 Alien1_sprite
 	db	#FF,#FC,#3F,#FF       ;..8..|?.
        DB       #F0,#0F,#FF,#E0,#07,#FF,#F0,#0F       ;p..`..p.
@@ -4526,8 +4555,9 @@ Alien1_sprite
        DB       #04,#00,#28,#14,#00,#28,#14,#00       ;..(..(..
        DB       #39,#9C,#00,#0A,#50,#00,#0A,#50       ;9...P..P
        DB       #00,#1E,#78,#00
+       ;display $-Alien1_sprite ;9 sprites of 96 bytes
 Alien2_sprite
- db #FF,#F8,#1F,#FF       ;..x..x..
+        db #FF,#F8,#1F,#FF       ;..x..x..
        DB       #F0,#0F,#FF,#E0,#07,#FF,#E0,#07       ;p..`..`.
        DB       #FF,#C0,#03,#FF,#80,#01,#FF,#00       ;.@......
        DB       #01,#FF,#00,#01,#FF,#00,#01,#FF       ;........
@@ -4635,29 +4665,34 @@ Alien2_sprite
        DB       #00,#40,#02,#00,#48,#12,#00,#48       ;.@..H..H
        DB       #12,#00,#24,#24,#00,#18,#18,#00       ;..$$....
        DB       #04,#20,#00,#0C       ;. ..
-L_BE28       DB       #30,#00,#11,#88,#00,#1E,#78,#00       ;0.....x.
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-
- dw #4000
- dw #4100
- dw #4200
- dw #4300
- dw #4400
- dw #4500
- dw #4600
- dw #4700
- dw #4020
- dw #4120
- dw #4220
- dw #4320
- dw #4420
- dw #4520
- dw #4620
- dw #4720
-L_BE70       DW       #4040
+       DB       #30,#00,#11,#88,#00,#1E,#78,#00       ;0.....x.
+       ;display $-Alien2_sprite ;9 sprites of 96 bytes
+tscreenaddrs=$-8
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       dup 16
+       dw killablescraddr
+       edup
+        dw #4000
+        dw #4100
+        dw #4200
+        dw #4300
+        dw #4400
+        dw #4500
+        dw #4600
+        dw #4700
+        dw #4020
+        dw #4120
+        dw #4220
+        dw #4320
+        dw #4420
+        dw #4520
+        dw #4620
+        dw #4720
+tscreenaddrs4040
+       DW       #4040
        DW       #4140
        DW       #4240
        DW       #4340
@@ -4818,29 +4853,34 @@ L_BE70       DW       #4040
        DW       #56A0
        DW       #57A0
 ;
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       dup 64;24+16
+       dw killablescraddr
+       edup
 ;skoree vsego adresa dlya starih procedur
 ;       DB       #C0,#50,#C0,#51,#C0,#52,#C0,#53       ;@P@Q@R@S
 ;       DB       #C0,#54,#C0,#55,#C0,#56,#C0,#57       ;@T@U@V@W
 ;       DB       #E0,#50,#E0,#51,#E0,#52,#E0,#53       ;`P`Q`R`S
 ;       DB       #E0,#54,#E0,#55,#E0,#56,#E0,#57       ;`T`U`V`W
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
 
 
 
 	ds #1800
 
-L_D800       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+L_D800
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00       ;....
-L_D80C       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+;L_D80C
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........

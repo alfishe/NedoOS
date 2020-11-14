@@ -107,6 +107,30 @@ begin2
         ld (0x0101),hl ;sprites in file are made so that they return in 0x0100
         endif
 
+        if 1==0
+        ld l,0
+	LD	BC,#0000
+showtiles0
+	LD	A,l;(HL)
+	INC	HL
+	CALL	DrawTile
+	INC	C
+	INC	C
+	LD	A,#20
+	CP	C
+	JR	NZ,showtiles0
+	INC	B
+	INC	B
+	LD	A,#16
+	CP	B
+	JR	Z,$;CopyScreenToBufferScreen
+	LD	DE,48;#000E
+	ADD	HL,DE
+	LD	C,#00
+	JR	showtiles0
+        endif
+
+
         YIELDGETKEYLOOP
         
         ;jr $
@@ -1204,10 +1228,13 @@ bgpush_bmpbuf
         ds 320
 
 res_path
-        db "solkey",0
+        db "montana2",0
 bmpfilename
-        db "solkey.bmp",0
+        db "montana2.bmp",0
         include "../../_sdk/file.asm"
+
+killablescraddr
+        ds 3
 
         ds 0x3f00-$
         ds 0x4000-$
