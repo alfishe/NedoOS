@@ -1,9 +1,9 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
-rem "../../_sdk/nedores.exe" slabtile.bmp tiles.dat tiles.ast
+"../../_sdk/nedores.exe" tiles.bmp tiles.dat tiles.ast
 rem "../../_sdk/nedores.exe" slabpane.bmp panel.dat panel.ast
-rem "../../_sdk/nedores.exe" slabspr.bmp sprites.dat sprites.ast
-rem "../../_sdk/nedores.exe" slabspr.bmp pal.dat pal.ast
+"../../_sdk/nedores.exe" sprites.bmp sprites.dat sprites.ast
+"../../_sdk/nedores.exe" sprites.bmp pal.dat pal.ast
 rem sjasmplus --nologo --msg=war sprdata.asm
 rem sjasmplus --nologo --msg=war tiles.ast --raw=slabage/tiles.bin
 rem sjasmplus --nologo --msg=war panel.ast --raw=slabage/panel.bin

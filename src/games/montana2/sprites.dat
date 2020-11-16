@@ -1,0 +1,39 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;P: DDp palette
+
+hero_r0=x,0,16,24,16
+hero_r1=x,24,16,24,16
+hero_r2=x,48,16,24,16
+hero_l0=x,72,16,24,16
+hero_l1=x,96,16,24,16
+hero_l2=x,120,16,24,16
+hero_climb0=x,144,16,24,16
+hero_climb1=x,168,16,24,16
+hero_dead=x,192,16,24,16
+alien1_r0=x,0,48,24,16
+alien1_r1=x,24,48,24,16
+alien1_r2=x,48,48,24,16
+alien1_l0=x,72,48,24,16
+alien1_l1=x,96,48,24,16
+alien1_l2=x,120,48,24,16
+alien1_climb0=x,144,48,24,16
+alien1_climb1=x,168,48,24,16
+alien1_dead=x,192,48,24,16
+alien2_r0=x,0,80,24,16
+alien2_r1=x,24,80,24,16
+alien2_r2=x,48,80,24,16
+alien2_l0=x,72,80,24,16
+alien2_l1=x,96,80,24,16
+alien2_l2=x,120,80,24,16
+alien2_climb0=x,144,80,24,16
+alien2_climb1=x,168,80,24,16
+alien2_dead=x,192,80,24,16

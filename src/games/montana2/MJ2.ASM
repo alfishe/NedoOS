@@ -1,6 +1,10 @@
+        if USEINT == 0
 IntTable = 0xFD00
 IntAddr = 0xFEFE
+        endif
+        if EGA == 0
 BufferScreen = #c000
+        endif
 
 ;	ORG	#61A8
 ;
@@ -15,8 +19,8 @@ BufferScreen = #c000
 ;	LDDR
 
 	;ORG #61C1
-GO;STARD
-	JP	GO2
+;GO;STARD
+	;JP	GO2
 ;
 therosprites
 ;+1: state (direction) for state machine?
@@ -25,33 +29,51 @@ therosprites
 L_61C7	DB #12
 L_61C8	DB #10,#00,#12,#10
 L_61CC	DB #00,#12,#10
+       if EGA
+        dw hero_r0-412
+       else
 	dw MJ_sprites-#60 ;#B0,#B3
+       endif
+       
+       display hero_r1-hero_r0
 
 talien1sprites
 	DB #01,#00,#00
 	db #02
 	db #08,#00,#02,#08
 	db #00,#02,#08
+       if EGA
+        ;dw hero_r0-412
+        dw alien1_r0-412
+       else
 	dw Alien1_sprite-#60
+       endif
 
 talien2sprites
 	DB #02,#00,#00
 	db #06
 	db #5A,#00,#06,#5A
 	db #00,#06,#5A
+       if EGA
+        ;dw hero_r0-412
+        dw alien2_r0-412
+       else
 	dw Alien2_sprite-#60
+       endif
 
-L_61EB       DB       #00,#0C,#18,#28,#38,#40,#58,#68       ;...(8@Xh
+L_61EB
+       DB       #00,#0C,#18,#28,#38,#40,#58,#68       ;...(8@Xh
        DB       #74,#80,#8C,#98,#A4,#B0,#BC       ;t...$0<
 
-L_61FA       DB       #FC,#FF,#FC,#00,#FC,#01,#FC,#02       ;|.|.|.|.
+tdelta2yXatdirection
+       DB       #FC,#FF,#FC,#00,#FC,#01,#FC,#02       ;|.|.|.|.
        DB       #00,#FF,#00,#00,#00,#01,#00,#02       ;........
        DB       #04,#FF,#04,#00,#04,#01,#04,#02       ;........
        DB       #08,#FF,#08,#00,#08,#01,#08,#02       ;........
 L_621A       DB       #40,#23,#00       ;@#.
 L_621D       DB       #20,#20,#00       ;  .
 
-L_6220       DM       "SCORE              LEVEL  "
+tscore_level       DM       "SCORE              LEVEL  "
        DB       #00       ;.
 ;
 L_623B       DB       #84,#20,#85,#06,#87,#08,#06,#06       ;. ......
@@ -71,7 +93,7 @@ L_6255       DB       #08       ;.
 L_6256       DB       #00       ;.
 ;
 L_6257       DB       #00,#00       ;..
-L_6259       DM       "GAME  OVER"
+tgameover       DM       "GAME  OVER"
        DB       #00       ;.
 L_6264       DM       "LEVEL"
        DB       #00       ;.
@@ -172,19 +194,19 @@ L_631D	LD	C,(HL)
 	RET
 ;
 L_6322	LD	A,#09
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	Z,L_6382
 	LD	A,#0A
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	Z,L_6382
 	LD	A,#0D
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	JR	NC,L_6382
 	LD	A,#0E
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	JR	NC,L_6382
 	LD	A,D
@@ -200,19 +222,19 @@ L_634E	CP	#06
 	JP	L_64F5
 ;
 L_635B	LD	A,#09
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	Z,L_6382
 	LD	A,#0A
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	Z,L_6382
 	LD	A,#0D
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NC,L_6382
 	LD	A,#0E
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NC,L_6382
 	LD	D,#05
@@ -249,33 +271,33 @@ L_639C	LD	D,#00
 	JP	L_645A ;up-right?
 ;
 L_63BB	LD	A,#04
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#08
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	D,#01
 	RET
 ;
 L_63CE	LD	A,#07
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#0B
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	D,#02
 	RET
 ;
 L_63E1	LD	A,#0D
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NZ,L_63F5
 	LD	A,#0E
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	RET	NZ
 	LD	D,#03
@@ -284,78 +306,78 @@ L_63E1	LD	A,#0D
 L_63F5	CP	#04
 	RET	NC
 	LD	A,#0E
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	RET	NC
 	LD	D,#05
 	RET
 ;
 L_6403	LD	A,#01
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#02
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#09
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	LD	A,#0A
 	JR	NZ,L_6427
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	RET	NZ
 	LD	D,#04
 	RET
 ;
-L_6427	CALL	L_6599
+L_6427	CALL	CheckTileAtDirection
 	CP	#05
 	RET	Z
 	LD	D,#06
 	RET
 ;
 L_6430	LD	A,#01
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#04
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#09
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	RET	Z
 	LD	A,#0A
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	RET	Z
 	XOR	A
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	D,#08
 	RET
 ;
 L_645A	LD	A,#02
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#07
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	A,#09
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	RET	Z
 	LD	A,#0A
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	RET	Z
 	LD	A,#03
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
 	LD	D,#0C
@@ -374,11 +396,11 @@ L_6485	LD	D,#07
 	RET
 ;
 L_649B	LD	A,#08
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NC,L_64AF
 	LD	A,#0C
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	RET	C
 	LD	D,#01
@@ -389,18 +411,18 @@ L_64AF	RET	NZ
 	RET
 ;
 L_64B3	LD	A,#0B
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NC,L_64C7
 	LD	A,#0F
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	RET	C
-	LD	D,#02
+	LD	D,#02 ;right?
 	RET
 ;
 L_64C7	RET	NZ
-	LD	D,#02
+	LD	D,#02 ;right?
 	RET
 ;
 L_64CB	LD	A,(curdirection)
@@ -412,21 +434,21 @@ L_64D4	CP	#05 ;up-left
 	JR	NZ,L_651F
 ;left, up-left
 L_64D8	LD	A,#08
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NC,L_64F0
 	LD	A,#0C
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
-	JR	C,L_64ED
-L_64EA	LD	D,#01
+	JR	C,L_64ED ;???
+L_64EA	LD	D,#01 ;left?
 	RET
 ;
-L_64ED	LD	D,#0A
+L_64ED	LD	D,#0A ;???
 	RET
 ;
-L_64F0	JR	Z,L_64EA
-	LD	D,#07
+L_64F0	JR	Z,L_64EA ;left?
+	LD	D,#07 ;???
 	RET
 ;
 L_64F5	LD	A,(curdirection)
@@ -438,59 +460,59 @@ L_64FE	CP	#06 ;up-right
 	JR	NZ,L_6540
 ;right, up-right
 L_6502	LD	A,#0B
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NC,L_651A
 	LD	A,#0F
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
-	JR	C,L_6517
-L_6514	LD	D,#02
+	JR	C,L_6517 ;???
+L_6514	LD	D,#02 ;right?
 	RET
 ;
-L_6517	LD	D,#0E
+L_6517	LD	D,#0E ;???
 	RET
 ;
-L_651A	JR	Z,L_6514
-	LD	D,#07
+L_651A	JR	Z,L_6514 ;right?
+	LD	D,#07 ;???
 	RET
 ;
 L_651F	INC	D
 	LD	A,#08
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	JR	NC,L_6531
 	LD	A,#0C
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	C
 L_6531	LD	A,D
-	CP	#0A
-	JR	Z,L_653D
-	LD	D,#05
+	CP	#0A ;???
+	JR	Z,L_653D ;???
+	LD	D,#05 ;up-left?
 	LD	(IX+#02),#01
 	RET
 ;
-L_653D	LD	D,#07
+L_653D	LD	D,#07 ;???
 	RET
 ;
 L_6540	INC	D
 	LD	A,#0B
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	JR	NC,L_6552
 	LD	A,#0F
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#06
 	RET	C
 L_6552	LD	A,D
-	CP	#0E
-	JR	Z,L_655E
-	LD	D,#05
+	CP	#0E ;???
+	JR	Z,L_655E ;???
+	LD	D,#05 ;up-left?
 	LD	(IX+#02),#01
 	RET
 ;
-L_655E	LD	D,#07
+L_655E	LD	D,#07 ;???
 	RET
 ;
 L_6561	DEC	A
@@ -528,9 +550,15 @@ L_6593	INC	HL
 	LD	(IX+#02),A
 	RET
 ;
-L_6599	PUSH	DE
+CheckTileAtDirection
+;a=direction (5=center)
+;0 1 2 3
+;4<5>6 7
+;7 8 9 10
+;11 12 13 14
+	PUSH	DE
 	RLCA
-	LD	HL,L_61FA
+	LD	HL,tdelta2yXatdirection
 	ADD	A,L
 	LD	L,A
 	JR	NC,L_65A3
@@ -538,10 +566,10 @@ L_6599	PUSH	DE
 L_65A3	LD	B,(HL)
 	INC	HL
 	LD	C,(HL)
-	LD	A,(IX+#04)
+	LD	A,(IX+#04) ;y2?
 	ADD	A,B
 	LD	B,A
-	LD	A,(IX+#03)
+	LD	A,(IX+#03) ;X?
 	ADD	A,C
 	LD	C,A
 	SRL	C
@@ -561,12 +589,12 @@ L_65A3	LD	B,(HL)
 L_65CC	ADD	HL,DE
 	DJNZ	L_65CC
 L_65CF	ADD	HL,BC
-	LD	BC,L_7D00
+	LD	BC,unpackedlevel
 	ADD	HL,BC
 	POP	AF
 	LD	A,(HL)
 	POP	DE
-	RET	NC
+	RET	NC ;???
 	CP	#04
 	RET	NZ
 	XOR	A
@@ -678,7 +706,11 @@ L_6684	RRA
 L_6689	JR	L_664E
 ;
 MenuStartGame
-	DI ;???
+        if USEINT
+        call SetGameInt
+        else
+	DI
+        endif
 	LD	A,(startlevel)
 	LD	(curlevel),A
 	CALL	L_EEEC
@@ -697,9 +729,9 @@ L_66AF	LD	DE,#0601
 	LD	HL,L_623B
 	LD	DE,#5AC0
 	CALL	L_705A
-	LD	HL,L_6220
+	LD	HL,tscore_level
 	LD	BC,#1700
-	CALL	L_7071
+	CALL	PrintString
 	CALL	L_66CC
 	JR	L_66E0
 ;
@@ -709,27 +741,27 @@ L_66CC	LD	A,(L_6249)
 	LD	BC,#1600
 L_66D4	PUSH	AF
 	LD	HL,L_621A
-	CALL	L_7071
+	CALL	PrintString
 	POP	AF
 	DEC	A
 	JR	NZ,L_66D4
 	RET
 ;
 L_66E0	LD	BC,#1719
-	CALL	L_6B75
+	CALL	PrintLevelNumber
 	LD	BC,#0000
-	CALL	L_67E8
+	CALL	AddScoreBC ;print score
 	XOR	A
 	LD	(L_624D),A
 	LD	(L_624E),A
 	LD	A,#20
 	LD	BC,#170E
-	CALL	L_707F
+	CALL	PrintCharYScaleL_7111
 	LD	A,#20
 	LD	BC,#170F
-	CALL	L_707F
+	CALL	PrintCharYScaleL_7111
 	LD	A,(curlevel)
-	CALL	L_701C
+	CALL	UnpackLevel_A
 	LD	IX,therosprites
 	INC	HL
 	LD	A,(HL)
@@ -746,7 +778,7 @@ L_672A	LD	A,(L_6256)
 	INC	A
 	CP	#03
 	JR	NZ,L_6736
-	CALL	L_6C08
+	CALL	AnimFire
 	XOR	A
 L_6736	LD	(L_6256),A
 	CALL	parseherosprites
@@ -762,8 +794,8 @@ L_6736	LD	(L_6256),A
 	JR	C,L_672A
 L_6757	JP	Z,L_66AF
 	CP	#04
-	JP	Z,L_722D
-	CALL	L_6B92
+	JP	Z,Victory
+	CALL	GameOver
 	JP	L_6F06
 ;
 L_6765	INC	HL
@@ -800,20 +832,20 @@ L_679E	LD	(IX+#08),#00
 L_67A6	POP	HL
 	RET
 ;
-L_67A8	LD	A,#05
-	CALL	L_6599
+L_67A8	LD	A,#05 ;"middle tile"
+	CALL	CheckTileAtDirection
 	CP	#01
 	CALL	Z,L_67D1
-	LD	A,#06
-	CALL	L_6599
+	LD	A,#06 ;"middle right tile"
+	CALL	CheckTileAtDirection
 	CP	#01
 	CALL	Z,L_67D1
-	LD	A,#09
-	CALL	L_6599
+	LD	A,#09 ;"middle bottom tile"
+	CALL	CheckTileAtDirection
 	CP	#01
 	CALL	Z,L_67D1
-	LD	A,#0A
-	CALL	L_6599
+	LD	A,#0A ;"middle right bottom tile"
+	CALL	CheckTileAtDirection
 	CP	#01
 	CALL	Z,L_67D1
 	RET
@@ -826,14 +858,15 @@ L_67D1	LD	(HL),#00
 	OR	A
 	CALL	Z,L_6815
 	LD	BC,#000A
-	CALL	L_67E8
+	CALL	AddScoreBC
 	JP	L_68DA
 ;
-L_67E8	LD	HL,(L_624A)
+AddScoreBC
+	LD	HL,(L_624A)
 	ADD	HL,BC
 	LD	(L_624A),HL
 	LD	BC,#1706
-	CALL	L_70BF
+	CALL	PrNum
 	LD	HL,(L_624A)
 	LD	DE,(L_6257)
 	OR	A
@@ -851,30 +884,30 @@ L_67E8	LD	HL,(L_624A)
 	JP	L_66CC
 ;
 L_6815	LD	BC,#0064
-	CALL	L_67E8
+	CALL	AddScoreBC
 	LD	A,#01
 	LD	(L_624D),A
 	LD	A,#5B
 	LD	BC,#170E
-	CALL	L_707F
+	CALL	PrintCharYScaleL_7111
 	LD	A,#5D
 	LD	BC,#170F
-	JP	L_707F
+	JP	PrintCharYScaleL_7111
 ;
-L_6830	LD	A,#05
-	CALL	L_6599
+L_6830	LD	A,#05 ;"middle tile"
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6855
-	LD	A,#06
-	CALL	L_6599
+	LD	A,#06 ;"middle right tile"
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6855
-	LD	A,#09
-	CALL	L_6599
+	LD	A,#09 ;"middle bottom tile"
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6855
-	LD	A,#0A
-	CALL	L_6599
+	LD	A,#0A ;"middle right bottom tile"
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6855
 	RET
@@ -897,7 +930,7 @@ L_6869	LD	A,(L_6249)
 	LD	C,A
 	LD	B,#16
 	LD	HL,L_621D
-	CALL	L_7071
+	CALL	PrintString
 	LD	A,#01
 	LD	(L_624E),A
 	RET
@@ -929,16 +962,16 @@ L_68B4	LD	A,(L_624D)
 	JR	Z,L_68C7
 	CP	#01 ;left
 	RET	NZ
-	LD	A,#04
+	LD	A,#04 ;"left tile"
 	JR	L_68C9
 ;
-L_68C7	LD	A,#07
-L_68C9	CALL	L_6599
+L_68C7	LD	A,#07 ;"right tile"
+L_68C9	CALL	CheckTileAtDirection
 	CP	#07
 	RET	NZ
 	LD	(HL),#00
 	LD	BC,#0032
-	CALL	L_67E8
+	CALL	AddScoreBC
 	CALL	PlaySFXL_6DFD
 L_68DA	LD	A,(L_624F)
 	BIT	0,(IX+#08)
@@ -969,20 +1002,25 @@ L_690D	LD	A,#FE
 L_6914	LD	A,(L_7110)
 	INC	A
 	CALL	PlaySFX
-	LD	C,#00
-	RLCA
-	RLCA
-	RLCA
+	;LD	C,#00
+	;RLCA
+	;RLCA
+	;RLCA
 	LD	B,A
-	JP	PauseBC
+         halt
+         djnz $-1
+	;JP	PauseBC
+         ret
 ;
-L_6924	CALL	PlaySFX
+L_6924
+        ;jr $
+	CALL	PlaySFX
 	LD	BC,#080A
 	LD	HL,L_AC05
 	LD	A,#07
 L_692F	PUSH	BC
 	PUSH	AF
-	CALL	L_7071
+	CALL	PrintString
 	POP	AF
 	POP	BC
 	INC	B
@@ -1030,11 +1068,11 @@ L_6982	LD	A,(L_61C7)
 	CP	B
 	JR	NC,L_69A5
 	LD	A,#0C
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	JR	C,L_69A1
 	LD	A,#04
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_69A1
 	LD	A,#01
@@ -1044,11 +1082,11 @@ L_69A1	LD	A,#05
 	JR	L_69BD
 ;
 L_69A5	LD	A,#0F
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	JR	C,L_69BB
 	LD	A,#07
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_69BB
 	LD	A,#02 ;right
@@ -1085,11 +1123,11 @@ L_69ED	LD	A,#02
 	JR	L_69C8
 ;
 L_69F1	LD	A,#09
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JR	NZ,L_6982
 	LD	A,#0A
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#05
 	JP	NZ,L_6982
 	LD	A,#04 ;up
@@ -1115,7 +1153,7 @@ L_6A22	LD	A,(L_61C7)
 	JR	Z,L_69E3
 	JR	NC,L_6A3E
 	LD	A,#04
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6A3A
 	LD	A,#01
@@ -1125,7 +1163,7 @@ L_6A3A	LD	A,#05
 	JR	L_69C8
 ;
 L_6A3E	LD	A,#07
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6A4C
 	LD	A,#02
@@ -1167,11 +1205,11 @@ L_6A87	LD	A,#04
 	JP	L_69DA
 ;
 L_6A8C	LD	A,#0C
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	JR	C,L_6AA2
 	LD	A,#04
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6AA2
 	LD	A,#01
@@ -1181,11 +1219,11 @@ L_6AA2	LD	A,#05
 	JR	L_6ABE
 ;
 L_6AA6	LD	A,#0F
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#04
 	JR	C,L_6ABC
 	LD	A,#07
-	CALL	L_6599
+	CALL	CheckTileAtDirection
 	CP	#02
 	JR	Z,L_6ABC
 	LD	A,#02
@@ -1240,15 +1278,17 @@ L_6B00	LD	A,(IX+#08)
 L_6B17	LD	(IX+#01),#00
 	RET
 ;
-L_6B1C	CALL	L_7102
-	CALL	L_6BB7
+L_6B1C
+        ;call Set6912
+	CALL	ClsZeroAttr
+	CALL	SetSomeAttrs
 	LD	BC,#0A0B
 	LD	HL,L_6264
 	LD	A,#03
 	LD	(L_7111),A
-	CALL	L_7071
+	CALL	PrintString
 	LD	BC,#0A12
-	CALL	L_6B75
+	CALL	PrintLevelNumber
 	LD	A,#01
 	LD	(L_7111),A
 	JP	WaitKey
@@ -1258,7 +1298,7 @@ CheckLevelExit
 	OR	A
 	RET	NZ
 	LD	BC,#01F4
-	CALL	L_67E8
+	CALL	AddScoreBC
 	LD	HL,curlevel
 	INC	(HL)
 	LD	A,#1F
@@ -1274,15 +1314,18 @@ L_6B58	LD	A,#01
 	LD	(L_6E6E),HL
 	LD	B,#56
 L_6B65	PUSH	BC
-	CALL	L_6E47
-	LD	BC,#07D0
-	CALL	PauseBC
+	CALL	PlaySFXL_6E68
+	;LD	BC,#07D0
+	;CALL	PauseBC
+         halt
 	POP	BC
 	DJNZ	L_6B65
 	JP	L_6B1C
 ;
-L_6B75	LD	A,(curlevel)
-L_6B78	LD	DE,0xFF0A ;???highly likely is NOT address
+PrintLevelNumber
+	LD	A,(curlevel)
+PrintNN_A
+	LD	DE,0xFF0A ;???highly likely is NOT address
 L_6B7B	SUB	E
 	INC	D
 	JR	NC,L_6B7B
@@ -1292,30 +1335,32 @@ L_6B7B	SUB	E
 	ADD	A,#30
 	PUSH	DE
 	PUSH	BC
-	CALL	L_707F
+	CALL	PrintCharYScaleL_7111
 	POP	BC
 	POP	DE
 	INC	C
 	LD	A,E
 	ADD	A,#30
-	JP	L_707F
+	JP	PrintCharYScaleL_7111
 ;
-L_6B92	CALL	L_6BCC
-	CALL	L_7102
+GameOver
+	CALL	FadeOut
+	CALL	ClsZeroAttr
 	LD	A,(L_624E)
 	CP	#02
 	RET	Z
-	CALL	L_6BB7
+	CALL	SetSomeAttrs
 	LD	A,#03
 	LD	(L_7111),A
-	LD	HL,L_6259
+	LD	HL,tgameover
 	LD	BC,#0A0B
-	CALL	L_7071
+	CALL	PrintString
 	LD	A,#01
 	LD	(L_7111),A
 	JP	WaitKey
 ;
-L_6BB7	LD	HL,#5940
+SetSomeAttrs
+	LD	HL,#5940
 	LD	C,#07
 	CALL	L_6BC5
 	LD	C,#05
@@ -1327,7 +1372,8 @@ L_6BC7	LD	(HL),C
 	DJNZ	L_6BC7
 	RET
 ;
-L_6BCC	LD	BC,#0003
+FadeOut
+	LD	BC,#0003
 	LD	HL,#5800
 	LD	E,B
 L_6BD3	LD	A,(HL)
@@ -1354,11 +1400,15 @@ L_6BEE	INC	HL
 	DJNZ	L_6BD3
 	DEC	C
 	JR	NZ,L_6BD3
-	LD	BC,#2EE0
-	CALL	PauseBC
+	;LD	BC,#2EE0
+	;CALL	PauseBC
+         halt
+         halt
+         halt
+         halt
 	DEC	E
 	RET	NZ
-	JR	L_6BCC
+	JR	FadeOut
 ;
 PauseBC
 	PUSH	BC
@@ -1371,7 +1421,9 @@ L_6C00	DEC	BC
 	POP	BC
 	RET
 ;
-L_6C08	LD	HL,L_6255
+AnimFire
+;TODO
+	LD	HL,L_6255
 	LD	A,(HL)
 	CP	#0A
 	JR	NZ,L_6C12
@@ -1409,13 +1461,18 @@ L_6C3A	LD	A,#18
 	CALL	Z,L_6C84
 L_6C46	CALL	L_6C5C
 	LD	A,(spritey)
-	CP	#F8
+	CP	-8;#F8
 	JR	NC,L_6C53
 	CP	#59
 	RET	NC
-L_6C53	CALL	KeepSpriteToL_D800
+L_6C53
+       if EGA
+        jp DrawSpriteEGA
+       else
+	CALL	KeepSpriteToL_D800
 	CALL	BlitSpriteInL_D800
 	JP	DrawSpriteFromL_D800
+       endif
 ;
 L_6C5C	LD	HL,L_61CC
 	LD	A,(IX+#03)
@@ -1470,7 +1527,7 @@ L_6CC4	LD	A,(IX+#03)
 	BIT	0,(IX+#08)
 	RET	Z
 	DEC	(IX+#08)
-L_6CD2	LD	HL,L_7D00
+L_6CD2	LD	HL,unpackedlevel
 	BIT	0,(IX+#08)
 	JR	Z,L_6CDF
 	LD	BC,#000E
@@ -1482,6 +1539,12 @@ L_6CDF	BIT	1,(IX+#08)
 L_6CE9	JP	DrawTileMap
 ;
 KeepSpriteToL_D800
+         if EGA
+         ret
+         endif
+         ;if USEINT
+         ;di
+         ;endif
 	LD	A,(spritey) ;y
 	LD	C,A
 	LD	B,#00
@@ -1492,15 +1555,29 @@ KeepSpriteToL_D800
 	RL	B
 	SLA	C
 	RL	B
-	LD	HL,tscreenaddrs
-	ADD	HL,BC
-	LD	(curspritescraddr),HL
+        if USEINT == 0
+	LD	hl,tscreenaddrs
+	ADD	hl,BC
+	LD	(curspritescraddr),hl
 	LD	(L_626A),SP
 	LD	SP,HL ;TODO fix in int???
+        else
+	LD	iy,tscreenaddrs
+	ADD	iy,BC
+	LD	(curspritescraddr),iy
+        endif
 	LD	DE,L_D800
 	LD	A,(spritehgt) ;hgt
 	LD	B,A
-L_6D11	POP	HL ;screen address
+L_6D11
+        if USEINT == 0
+        POP	HL ;screen address
+        else
+        ld l,(iy)
+        inc iy
+        ld h,(iy)
+        inc iy
+        endif
 	SET	7,H       ;find addr in buffer screen
 	LD	A,(spriteX) ;x?
 	LD	C,A
@@ -1522,10 +1599,22 @@ L_6D29	INC	DE
 	DEC	A
 	JR	NZ,L_6D20
 	DJNZ	L_6D11
+        if USEINT == 0
 	LD	SP,(L_626A)
+	;LD	IY,#5C3A
+        endif
+         ;if USEINT
+         ;ei
+         ;endif
 	RET
 ;
 BlitSpriteInL_D800
+         if EGA
+         ret
+         endif
+         ;if USEINT
+         ;di
+         ;endif
 	LD	DE,L_D800+0x0C
 	LD	A,(IX+#05) ;phase
 	INC	A
@@ -1550,17 +1639,40 @@ L_6D57	LD	A,(DE)
 	INC	DE
 	INC	IY
 	DJNZ	L_6D57
+        if USEINT == 0
 	LD	IY,#5C3A
+        endif
+         ;if USEINT
+         ;ei
+         ;endif
 	RET
 ;
 DrawSpriteFromL_D800
-	LD	HL,(curspritescraddr)
+         if EGA
+         ret
+         endif
+         ;if USEINT
+         ;di
+         ;endif
+        if USEINT == 0
+	LD	hl,(curspritescraddr)
 	LD	(L_626A),SP
 	LD	SP,HL
+        else
+	LD	iy,(curspritescraddr)
+        endif
 	LD	HL,L_D800
 	LD	A,(spritehgt)
 	LD	B,A
-L_6D77	POP	DE
+L_6D77
+        if USEINT == 0
+        POP	DE
+        else
+        ld e,(iy)
+        inc iy
+        ld d,(iy)
+        inc iy
+        endif
 	LD	A,(spriteX)
 	LD	C,A
 	CP	#20
@@ -1581,7 +1693,13 @@ L_6D8D	INC	HL
 	DEC	A
 	JR	NZ,L_6D84
 	DJNZ	L_6D77
+        if USEINT == 0
 	LD	SP,(L_626A)
+	;LD	IY,#5C3A
+        endif
+         ;if USEINT
+         ;ei
+         ;endif
 	RET
 ;
 L_6D9A	LD	A,#18
@@ -1592,8 +1710,13 @@ L_6D9A	LD	A,#18
 	JR	NC,L_6DAC
 	CP	#59
 	RET	NC
-L_6DAC	CALL	KeepSpriteToL_D800
+L_6DAC
+       if EGA
+        jp RestoreSpriteEGA
+       else
+        CALL	KeepSpriteToL_D800
 	JP	DrawSpriteFromL_D800
+       endif
 ;
 spriteX       DB       #00
 spritey       DB       #00
@@ -1668,7 +1791,8 @@ PlaySFX
 	POP	AF
 	RET
 ;
-L_6E47	LD	DE,#07DC
+PlaySFXL_6E68
+	LD	DE,#07DC
 	CALL	OutAY_Dreg_E
 	LD	HL,(L_6E6E)
 	LD	B,#06
@@ -1685,9 +1809,9 @@ L_6E55	LD	A,(DE)
 	LD	(L_6E6E),HL
 	RET
 ;
-L_6E68       DB       #00,#01,#02,#03,#08,#09
+L_6E68       DB       #00,#01,#02,#03,#08,#09 ;reg numbers
 ;
-L_6E6E       DW       #0000
+L_6E6E       DW       #0000 ;sfx cur addr
 ;
 DrawTileMap
 ;to screen and to BufferScreen
@@ -1695,7 +1819,13 @@ DrawTileMap
 	LD	BC,#0000
 L_6E76	LD	A,(HL)
 	INC	HL
+        if EGA
+        ;di
+        ;halt
+        call DrawTileEGA
+        else
 	CALL	DrawTile
+        endif
 	INC	C
 	INC	C
 	LD	A,#20
@@ -1712,16 +1842,20 @@ L_6E76	LD	A,(HL)
 	JR	L_6E76
 ;
 CopyScreenToBufferScreen
+        if EGA == 0
 	LD	HL,#4000
 	LD	DE,BufferScreen
 	LD	BC,#1800
 	LDIR
+        endif
 	RET
 ;
 DrawTile
-	PUSH	BC
-	PUSH	HL
-	PUSH	BC
+;a=tile
+;bc=YX
+      PUSH	BC
+      PUSH	HL
+       PUSH	BC
 	OR	A
 	LD	DE,#0000
 	JR	Z,L_6EB3
@@ -1738,9 +1872,8 @@ DrawTile
 	INC	D
 L_6EB3	LD	HL,tileset
 	ADD	HL,DE
-	CALL	L_70B0
-L_6EBA	DB	#00
-	DB	#00
+	CALL	XYCBtoDEscr
+L_6EBA	ds 2 ;/set 7,d
 	LD	BC,#08FF
 L_6EBF	LDI
 	LDI
@@ -1748,7 +1881,7 @@ L_6EBF	LDI
 	DEC	DE
 	INC	D
 	DJNZ	L_6EBF
-	CALL	L_70A6
+	CALL	DownDEChr
 	LD	B,#08
 L_6ECD	LDI
 	LDI
@@ -1756,7 +1889,7 @@ L_6ECD	LDI
 	DEC	DE
 	INC	D
 	DJNZ	L_6ECD
-	POP	BC
+       POP	BC
 	XOR	A
 	RR	B
 	RRA
@@ -1778,20 +1911,22 @@ L_6ECD	LDI
 	INC	D
 L_6EF2	LDI
 	LDI
-	POP	HL
-	POP	BC
+      POP	HL
+      POP	BC
 	RET
 ;
-GO2
+GO
 	LD	A,#02
 	LD	(curcontroldevice),A
 	LD	A,#01
 	LD	(L_7110),A
 	LD	(startlevel),A
-L_6F06	XOR	A
+L_6F06
+        call Set6912
+	XOR	A
 	OUT	(#FE),A
-	CALL	L_7102
-	CALL	L_6F5A
+	CALL	ClsZeroAttr
+	CALL	PrintLogo
 	CALL	L_6F7B
 	CALL	L_6F99
 	CALL	L_6FAF
@@ -1800,7 +1935,8 @@ L_6F06	XOR	A
 	LD	DE,#5800
 	LD	HL,L_719A
 	CALL	L_705A
-L_6F27	call WaitKeyCheckQuit ;CALL	WaitKey
+MenuLoop
+	call WaitKeyCheckQuit ;CALL	WaitKey
 	LD	A,#EF
 	IN	A,(#FE)
 	RRA ;'0'
@@ -1815,23 +1951,47 @@ L_6F27	call WaitKeyCheckQuit ;CALL	WaitKey
 	JP	NC,MenuLevel
 	RRA ;'4'
 	JP	NC,MenuDemo
-	JR	L_6F27
+	JR	MenuLoop
 ;
-WaitKey	LD	BC,0xFEFE
+WaitKey
+	LD	BC,0xFEFE
 L_6F4B	IN	A,(C)
 	RRC	B
 	CPL
 	AND	#1F
 	JR	Z,L_6F4B
-	LD	BC,#2710
-	JP	PauseBC
+	;LD	BC,#2710
+	;JP	PauseBC
+         halt
+         halt
+         halt
+         halt
+         ret
 ;
-L_6F5A	LD	(L_626A),SP
+PrintLogo
+         ;if USEINT
+         ;di
+         ;endif
+        if USEINT == 0
+	LD	(L_626A),SP
+        endif
 	LD	HL,MontanaJones2_logo
+        if USEINT == 0
 	DI
-	LD	SP,tscreenaddrs4040
+	LD sp,tscreenaddrs4040
+        else
+	LD iy,tscreenaddrs4040
+        endif
 	LD	B,#14
-L_6F67	POP	DE
+L_6F67
+        if USEINT == 0
+	POP	DE
+        else
+        ld e,(iy)
+        inc iy
+        ld d,(iy)
+        inc iy
+        endif
 	LD	A,#03
 	ADD	A,E
 	LD	E,A
@@ -1841,7 +2001,12 @@ L_6F6E	LDI
 	DEC	A
 	JR	NZ,L_6F6E
 	DJNZ	L_6F67
+        if USEINT == 0
 	LD	SP,(L_626A)
+        endif
+         ;if USEINT
+         ;ei
+         ;endif
 	RET
 ;
 L_6F7B	LD	HL,L_714B
@@ -1849,7 +2014,7 @@ L_6F7B	LD	HL,L_714B
 	LD	A,#05
 L_6F83	PUSH	AF
 	PUSH	BC
-	CALL	L_7071
+	CALL	PrintString
 	POP	BC
 	POP	AF
 	CP	#02
@@ -1860,7 +2025,7 @@ L_6F8F	INC	B
 	DEC	A
 	JR	NZ,L_6F83
 	LD	C,#02
-	JP	L_7071
+	JP	PrintString
 ;
 L_6F99	LD	A,(curcontroldevice)
 	LD	B,A
@@ -1874,7 +2039,7 @@ L_6F99	LD	A,(curcontroldevice)
 	JR	NC,L_6FA9
 	INC	H
 L_6FA9	LD	BC,#0712
-	JP	L_7071
+	JP	PrintString
 ;
 L_6FAF	LD	A,(L_7110)
 	LD	B,A
@@ -1888,13 +2053,14 @@ L_6FAF	LD	A,(L_7110)
 	JR	NC,L_6FBF
 	INC	H
 L_6FBF	LD	BC,#0910
-	JP	L_7071
+	JP	PrintString
 ;
 L_6FC5	LD	A,(startlevel)
 	LD	BC,#0B10
-	JP	L_6B78
+	JP	PrintNN_A
 ;
-MenuControl	LD	HL,curcontroldevice
+MenuControl
+	LD	HL,curcontroldevice
 	LD	A,#03
 	CP	(HL)
 	JR	NZ,L_6FD8
@@ -1905,9 +2071,10 @@ L_6FDC	LD	A,#F7
 	IN	A,(#FE)
 	BIT	0,A
 	JR	Z,L_6FDC
-	JP	L_6F27
+	JP	MenuLoop
 ;
-MenuSpeed	LD	HL,L_7110
+MenuSpeed
+	LD	HL,L_7110
 	LD	A,#02
 	CP	(HL)
 	JR	NZ,L_6FF1
@@ -1918,7 +2085,7 @@ L_6FF5	LD	A,#F7
 	IN	A,(#FE)
 	BIT	1,A
 	JR	Z,L_6FF5
-	JP	L_6F27
+	JP	MenuLoop
 ;
 MenuLevel
 	LD	HL,startlevel
@@ -1934,16 +2101,18 @@ L_7011	LD	A,#F7
 	IN	A,(#FE)
 	BIT	2,A
 	JR	Z,L_7011
-	JP	L_6F27
+	JP	MenuLoop
 ;
-L_701C	LD	DE,#00E9
+UnpackLevel_A
+;a=1..NN
+	LD	DE,#00E9
 	LD	HL,#0000
 L_7022	ADD	HL,DE
 	DEC	A
 	JR	NZ,L_7022
-	LD	DE,L_8FCE
+	LD	DE,levels-#00E9;L_8FCE
 	ADD	HL,DE
-	LD	IX,L_7D00
+	LD	IX,unpackedlevel
 	LD	B,#4B
 L_7030	PUSH	BC
 	LD	B,#08
@@ -1980,7 +2149,6 @@ L_705A	LD	A,(HL)
 	JR	NZ,L_7066
 	LDI
 	JR	L_705A
-;
 L_7066	RES	7,A
 	INC	HL
 	LD	B,(HL)
@@ -1990,45 +2158,51 @@ L_706A	LD	(DE),A
 	INC	HL
 	JR	L_705A
 ;
-L_7071	LD	A,(HL)
+PrintString
+	LD	A,(HL)
 	INC	HL
 	OR	A
 	RET	Z
 	PUSH	HL
 	PUSH	BC
-	CALL	L_707F
+	CALL	PrintCharYScaleL_7111
 	POP	BC
 	POP	HL
 	INC	C
-	JR	L_7071
+	JR	PrintString
 ;
-L_707F	LD	H,#00
+PrintCharYScaleL_7111
+        if EGA
+        ret
+        endif
+	LD	H,#00
 	LD	L,A
 	ADD	HL,HL
 	ADD	HL,HL
 	ADD	HL,HL
-	CALL	L_70B0
+	CALL	XYCBtoDEscr
 	LD	BC,Font-256
 	ADD	HL,BC
 	LD	B,#08
 	LD	A,(L_7111)
-L_7091	LD	C,A
-	EX	AF,AF'
+L_7091	LD	C,A ;y scale
+	EX	AF,AF' ;'
 L_7093	LD	A,(HL)
 	LD	(DE),A
-	CALL	L_70A1
+	CALL	DownDE
 	DEC	C
 	JP	NZ,L_7093
-	EX	AF,AF'
+	EX	AF,AF' ;'
 	INC	HL
 	DJNZ	L_7091
 	RET
 ;
-L_70A1	INC	D
+DownDE	INC	D
 	LD	A,D
 	AND	#07
 	RET	NZ
-L_70A6	LD	A,E
+DownDEChr
+	LD	A,E
 	ADD	A,#20
 	LD	E,A
 	RET	C
@@ -2037,7 +2211,8 @@ L_70A6	LD	A,E
 	LD	D,A
 	RET
 ;
-L_70B0	LD	A,B
+XYCBtoDEscr
+	LD	A,B
 	RRCA
 	RRCA
 	RRCA
@@ -2050,20 +2225,21 @@ L_70B0	LD	A,B
 	LD	D,A
 	RET
 ;
-L_70BF	LD	(L_71E1),BC
+PrNum
+	LD	(L_71E1),BC
 	LD	C,#00
-	LD	DE,#2710
+	LD	DE,10000;#2710
 	CALL	L_70E6
-	LD	DE,#03E8
+	LD	DE,1000;#03E8
 	CALL	L_70E6
-	LD	DE,#0064
+	LD	DE,100;#0064
 	CALL	L_70E6
-	LD	DE,#000A
+	LD	DE,10;#000A
 	CALL	L_70E6
 	LD	A,L
 	ADD	A,#30
 	LD	BC,(L_71E1)
-	JR	L_707F
+	JR	PrintCharYScaleL_7111
 ;
 L_70E6	XOR	A
 L_70E7	INC	A
@@ -2079,12 +2255,22 @@ L_70E7	INC	A
 	LD	BC,(L_71E1)
 	LD	HL,L_71E1
 	INC	(HL)
-	CALL	L_707F
+	CALL	PrintCharYScaleL_7111
 	POP	HL
 	POP	BC
 	RET
 ;
-L_7102	LD	HL,#5AFF
+Set6912
+        if EGA
+        ld e,3+0x80 ;6912+[8noturbo]+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
+        endif
+        ret
+
+ClsZeroAttr
+	LD	HL,#5AFF
 L_7105	LD	(HL),#00
 	DEC	HL
 	LD	A,H
@@ -2122,25 +2308,26 @@ L_719A       DB       #80,#43,#83,#1A,#80,#06,#83,#1A       ;.C......
        DB       #80,#66,#87,#20,#80,#20,#FF       ;.f. . .
 ;
 L_71E1       DB       #00,#00
-L_71E3       DM       "CONGRATULATIONS !!!",#00
-L_71F7       DM       "SEE YOU LATER !",#00
-L_7207       DM       "WAIT NEW GAMES BY HOME MASTERS",#00
+tcongratulations       DM       "CONGRATULATIONS !!!",#00
+tseeyoulater       DM       "SEE YOU LATER !",#00
+twaitnewgames       DM       "WAIT NEW GAMES BY HOME MASTERS",#00
 L_7226       DB       #86,#20,#83,#80,#85,#80,#FF       ;. .....
 ;
-L_722D	CALL	L_7102
+Victory
+	CALL	ClsZeroAttr
 	LD	BC,#0707
 	LD	A,#02
 	LD	(L_7111),A
-	LD	HL,L_71E3
-	CALL	L_7071
+	LD	HL,tcongratulations
+	CALL	PrintString
 	LD	A,#01
 	LD	(L_7111),A
 	LD	BC,#0C09
-	LD	HL,L_71F7
-	CALL	L_7071
+	LD	HL,tseeyoulater
+	CALL	PrintString
 	LD	BC,#0E01
-	LD	HL,L_7207
-	CALL	L_7071
+	LD	HL,twaitnewgames
+	CALL	PrintString
 	LD	DE,#58E0
 	LD	HL,L_7226
 	CALL	L_705A
@@ -2148,9 +2335,15 @@ L_722D	CALL	L_7102
 	JP	L_6F06
 ;
 MenuDemo
+        if USEINT == 0
 	DI
+        else
+        ;di
+        ;halt
+        call SetGameInt
+        endif
 	CALL	L_EEEC
-	CALL	L_7102
+	CALL	ClsZeroAttr
 	LD	HL,demo
 	LD	(curdemoaddr),HL
 	LD	A,#0D
@@ -2173,7 +2366,23 @@ ControlDemo
 	LD	(L_624E),A
 	RET
 ;
-SetInt	DI
+        if USEINT
+SetGameInt
+        ld hl,reter
+        ld (imer_addr),hl
+	if EGA
+        ld e,0+0x80 ;EGA+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,0
+        OS_CLS
+	endif
+        ;di
+        ret
+        endif
+
+SetInt
+        if USEINT==0
+        DI
 	LD	HL,IntTable
 	LD	BC,#00FE
 L_729D	LD	(HL),C
@@ -2187,10 +2396,16 @@ L_729D	LD	(HL),C
 	LD	A,high IntTable
 	LD	I,A
 	IM	2
+        else
+        ld hl,L_72BE
+        ld (imer_addr),hl
+        endif
 	CALL	L_EEEC
 	LD	HL,L_732A
 	LD	(L_7327),HL
+        if USEINT==0
 	EI
+        endif
 	RET
 ;
 L_72BE	PUSH	AF
@@ -2259,7 +2474,9 @@ L_730D	RL	(HL)
 	POP	DE
 	POP	BC
 	POP	AF
+        if USEINT == 0
 	EI
+        endif
 	RET
 ;
 L_7327       DB       #00,#00
@@ -2564,7 +2781,8 @@ L_732A       DM       " HOME MASTERS PRESENTS  'MONTANA"
        DB       #B6,#D0,#00,#30,#A3,#08,#2E,#BB       ;6P.0#..;
        DB       #09,#B0,#00,#00,#00,#DA,#ED,#B6       ;.0...Zm6
        DB       #C2,#0D,#AE,#D0,#6C,#00       ;B..Pl.
-L_7D00       DB       #DB,#6D,#B0,#BB,#6D,#B5,#DB,#6B       ;[m0;m5[k
+unpackedlevel
+       DB       #DB,#6D,#B0,#BB,#6D,#B5,#DB,#6B       ;[m0;m5[k
        DB       #B0,#9B,#00,#00,#00,#00,#2E,#24       ;0......$
        DB       #9D,#70,#1A,#9D,#06,#DB,#6D,#64       ;.p...[md
        DB       #BB,#6D,#B6,#D7,#5C,#06,#A7,#09       ;;m6W\.'.
@@ -3064,7 +3282,8 @@ L_7D00       DB       #DB,#6D,#B0,#BB,#6D,#B5,#DB,#6B       ;[m0;m5[k
        DB       #E0,#7D,#24,#83,#FE,#3E,#C0,#51       ;`}$.~>@Q
        DB       #C7,#1C,#0E,#3F,#FF,#60,#07,#02       ;G..?.`..
        DB       #41,#B0,#FE,#8E,#38,#E3,#80,#00       ;A0~.8c..
-demo       DB       #03,#03,#03,#03,#00,#00,#00,#00       ;........
+demo
+       DB       #03,#03,#03,#03,#00,#00,#00,#00       ;........
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#00,#01,#01,#01,#01,#00,#00       ;........
        DB       #02,#02,#02,#02,#02,#02,#02,#02       ;........
@@ -3169,7 +3388,8 @@ L_8EB3       DB       #8E,#01,#79,#01,#0C,#00,#CA,#01       ;..y...J.
        DB       #5E,#02,#D3,#00,#0A,#0C,#9A,#02       ;^.S.....
        DB       #BE,#00,#09,#0C,#D6,#02,#C0,#00       ;>...V.@.
        DB       #08,#0C,#12       ;...
-L_8FCE       DB       #03,#BE,#00,#07,#0C,#36,#02,#BC       ;.>...6.<
+;levels=$+#00E9;L_8FCE
+       DB       #03,#BE,#00,#07,#0C,#36,#02,#BC       ;.>...6.<
        DB       #00,#0C,#0C,#72,#02,#BE,#00,#0B       ;...r.>..
        DB       #0C,#AE,#02,#D7,#00,#0A,#0C,#EA       ;...W...j
        DB       #02,#D5,#00,#09,#0C,#26,#03,#D3       ;.U...&.S
@@ -3198,7 +3418,9 @@ L_8FCE       DB       #03,#BE,#00,#07,#0C,#36,#02,#BC       ;.>...6.<
        DB       #0B,#A4,#02,#81,#00,#00,#0B,#A4       ;.$.....$
        DB       #02,#7F,#00,#00,#0B,#A4,#02,#7D       ;.....$.}
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#D7,#6D,#B6,#DB,#6D,#B6,#DB       ;.Wm6[m6[
+       DB       #00
+levels
+	db #D7,#6D,#B6,#DB,#6D,#B6,#DB       ;.Wm6[m6[
        DB       #6D,#B6,#DB,#6D,#B5,#1C,#00,#05       ;m6[m5...
        DB       #00,#03,#B6,#DB,#6D,#B6,#DB,#6D       ;..6[m6[m
        DB       #B6,#D4,#01,#40,#07,#6D,#B6,#DB       ;6T.@.m6[
@@ -4668,12 +4890,12 @@ Alien2_sprite
        DB       #04,#20,#00,#0C       ;. ..
        DB       #30,#00,#11,#88,#00,#1E,#78,#00       ;0.....x.
        ;display $-Alien2_sprite ;9 sprites of 96 bytes
-tscreenaddrs=$-8
+tscreenaddrs;=$-8
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       dup 16
+       dup 20;16
        dw killablescraddr
        edup
         dw #4000
@@ -4873,9 +5095,11 @@ tscreenaddrs4040
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        ;DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
 
+        if EGA == 0
         ds 0xc000-$ ;shadow screen
 
 	ds #1800
+        endif
 
 L_D800
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
@@ -5604,7 +5828,8 @@ L_EDCD       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
 L_EE61       DB       #01       ;.
 ;
 ;	ds 128
-L_EE62	LD	BC,0xFFFD
+OutAYportHdataL
+	LD	BC,0xFFFD
 	OUT	(C),H
 	LD	B,#BF
 	OUT	(C),L
@@ -5698,7 +5923,7 @@ L_EF61       EQU       $-2
 	LD	(L_EE61),A
 	LD	H,#07
 	LD	L,#F8
-	CALL	L_EE62
+	CALL	OutAYportHdataL
 	LD	A,(L_EDBA)
 	CP	#01
 	POP	IX
@@ -5727,7 +5952,7 @@ L_EFAC	CALL	L_EFB4
 ;
 L_EFB4	LD	H,#07
 	LD	L,#FF
-	CALL	L_EE62
+	CALL	OutAYportHdataL
 	LD	HL,L_EE6C
 	LD	DE,L_EE6D
 	LD	BC,#000A
@@ -5741,7 +5966,7 @@ L_EFCD	LD	B,#0B
 L_EFD4	LD	A,(DE)
 	LD	L,A
 	PUSH	BC
-	CALL	L_EE62
+	CALL	OutAYportHdataL
 	POP	BC
 	INC	H
 	INC	DE

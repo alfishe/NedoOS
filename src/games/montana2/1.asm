@@ -18,7 +18,8 @@ tempsp=0x3f06 ;6 bytes for prspr
 
 screenYtable=0x8b00
 
-EGA=1
+USEINT=1
+EGA=0;1
 
         org PROGSTART
 begin
@@ -27,7 +28,7 @@ begin2
         ld sp,STACK
         OS_HIDEFROMPARENT
 
-        ld e,3+8+0x80 ;6912+noturbo+keep
+        ld e,3+0x80 ;6912+[8noturbo]+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
 	;ld e,1
@@ -76,7 +77,7 @@ begin2
         ;djnz $-1
         YIELDGETKEYLOOP
 
-        ld e,3+8+0x80 ;6912+noturbo+keep
+        ld e,3+0x80 ;6912+[noturbo]+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ld e,0 ;color byte
         OS_CLS
@@ -162,6 +163,12 @@ showtiles0
 
         YIELDGETKEYLOOP
         
+        if EGA
+        ld de,pal
+        OS_SETPAL
+        halt
+	endif
+
         ;jr $
         jp GO
 
@@ -182,11 +189,9 @@ showsprites0
         ret
         endif
 
-        ;include "pal.ast" ;slabpal
+        include "pal.ast" ;pal
 standardpal
         STANDARDPAL
-pal
-        ds 32,0xff
 emptypal
         ds 32,0xff
 
@@ -299,6 +304,8 @@ on_int
         push hl
         push ix
         push iy
+imer_addr=$+1
+        call reter
 	;DI
 ;curscrnum_int=$+1
 ;        ld e,0
@@ -536,105 +543,6 @@ L_C71C_EGA
 	LD	(curprintyx),DE
 	JR	PrintStringHL_EGA
 
-font
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#18,#3C,#18,#00,#18,#18,#00       ;..<.....
-       DB       #00,#36,#36,#6C,#00,#00,#00,#00       ;.66l....
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#1C,#38,#00,#00,#00,#00,#00       ;..8.....
-       DB       #00,#0E,#1C,#1C,#1C,#1C,#0E,#00       ;........
-       DB       #00,#70,#38,#38,#38,#38,#70,#00       ;.p8888p.
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#18,#18,#30       ;.......0
-       DB       #00,#00,#00,#3C,#3C,#00,#00,#00       ;...<<...
-       DB       #00,#00,#00,#00,#00,#18,#18,#00       ;........
-       DB       #00,#06,#0E,#1C,#38,#70,#60,#00       ;....8p`.
-       DB       #00,#3C,#72,#76,#7A,#72,#3C,#00       ;.<rvzr<.
-       DB       #00,#1C,#3C,#1C,#1C,#1C,#7E,#00       ;..<...~.
-       DB       #00,#7C,#0E,#0E,#3C,#70,#7E,#00       ;.|..<p~.
-       DB       #00,#7C,#0E,#3C,#0E,#0E,#7C,#00       ;.|.<..|.
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#0E,#00       ;.NNN>...
-       DB       #00,#7C,#60,#7C,#0E,#0E,#7C,#00       ;.|`|..|.
-       DB       #00,#3C,#70,#7C,#72,#72,#3C,#00       ;.<p|rr<.
-       DB       #00,#7E,#06,#0E,#1C,#18,#18,#00       ;.~......
-       DB       #00,#3C,#72,#3C,#72,#72,#3C,#00       ;.<r<rr<.
-       DB       #00,#3C,#4E,#4E,#3E,#0E,#3C,#00       ;.<NN>.<.
-       DB       #00,#18,#18,#00,#00,#18,#18,#00       ;........
-       DB       #00,#18,#18,#00,#00,#18,#18,#30       ;.......0
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #7C,#0E,#0E,#0E,#1C,#00,#18,#00       ;|.......
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #00,#3C,#72,#72,#7E,#72,#72,#00       ;.<rr~rr.
-       DB       #00,#7C,#72,#7C,#72,#72,#7C,#00       ;.|r|rr|.
-       DB       #00,#3E,#70,#70,#70,#70,#3E,#00       ;.>pppp>.
-       DB       #00,#7C,#72,#72,#72,#72,#7C,#00       ;.|rrrr|.
-       DB       #00,#3E,#70,#7C,#70,#70,#3E,#00       ;.>p|pp>.
-       DB       #00,#3E,#70,#7C,#70,#70,#70,#00       ;.>p|ppp.
-       DB       #00,#3E,#70,#70,#76,#72,#3C,#00       ;.>ppvr<.
-       DB       #00,#72,#72,#7E,#72,#72,#72,#00       ;.rr~rrr.
-       DB       #00,#7F,#1C,#1C,#1C,#1C,#7F,#00       ;........
-       DB       #00,#0E,#0E,#0E,#4E,#4E,#3C,#00       ;....NN<.
-       DB       #00,#72,#72,#7C,#72,#72,#72,#00       ;.rr|rrr.
-       DB       #00,#70,#70,#70,#70,#70,#3E,#00       ;.ppppp>.
-       DB       #00,#3E,#75,#75,#75,#75,#75,#00       ;.>uuuuu.
-       DB       #00,#7C,#72,#72,#72,#72,#72,#00       ;.|rrrrr.
-       DB       #00,#3C,#72,#72,#72,#72,#3C,#00       ;.<rrrr<.
-       DB       #00,#7C,#72,#72,#7C,#70,#70,#00       ;.|rr|pp.
-       DB       #00,#3C,#72,#72,#72,#7A,#3C,#08       ;.<rrrz<.
-       DB       #00,#7C,#72,#72,#7C,#72,#72,#00       ;.|rr|rr.
-       DB       #00,#3C,#70,#3C,#0E,#0E,#7C,#00       ;.<p<..|.
-       DB       #00,#7F,#1C,#1C,#1C,#1C,#1C,#00       ;........
-       DB       #00,#72,#72,#72,#72,#72,#3C,#00       ;.rrrrr<.
-       DB       #00,#72,#72,#72,#72,#34,#18,#00       ;.rrrr4..
-       DB       #00,#71,#71,#75,#75,#75,#3E,#00       ;.qquuu>.
-       DB       #00,#72,#72,#3C,#72,#72,#72,#00       ;.rr<rrr.
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#3C,#00       ;.NNN>.<.
-       DB       #00,#7E,#0E,#1C,#38,#70,#7E,#00       ;.~..8p~.
-       DB       #00,#1E,#1C,#1C,#1C,#1C,#1E,#00       ;........
-       DB       #00,#60,#70,#38,#1C,#0E,#06,#00       ;.`p8....
-       DB       #00,#78,#38,#38,#38,#38,#78,#00       ;.x8888x.
-       DB       #00,#08,#1C,#3E,#5D,#1C,#1C,#00       ;...>]...
-       DB       #00,#78,#38,#3C,#3A,#3A,#3C,#00       ;.x8<::<.
-       DB       #00,#76,#79,#79,#79,#79,#76,#00       ;.vyyyyv.
-       DB       #00,#3C,#72,#72,#7E,#72,#72,#00       ;.<rr~rr.
-       DB       #00,#7C,#70,#7C,#72,#72,#7C,#00       ;.|p|rr|.
-       DB       #00,#4E,#4E,#4E,#4E,#4E,#3E,#02       ;.NNNNN>.
-       DB       #00,#1E,#2E,#2E,#2E,#2E,#7E,#42       ;......~B
-       DB       #00,#3E,#70,#7C,#70,#70,#3E,#00       ;.>p|pp>.
-       DB       #00,#3E,#5D,#5D,#3E,#1C,#1C,#00       ;.>]]>...
-       DB       #00,#3E,#70,#70,#70,#70,#70,#00       ;.>ppppp.
-       DB       #00,#72,#72,#3C,#72,#72,#72,#00       ;.rr<rrr.
-       DB       #00,#72,#72,#76,#7A,#72,#72,#00       ;.rrvzrr.
-       DB       #08,#72,#72,#76,#7A,#72,#72,#00       ;.rrvzrr.
-       DB       #00,#72,#72,#7C,#72,#72,#72,#00       ;.rr|rrr.
-       DB       #00,#3E,#4E,#4E,#4E,#4E,#4E,#00       ;.>NNNNN.
-       DB       #00,#71,#7B,#75,#71,#71,#71,#00       ;.q{uqqq.
-       DB       #00,#72,#72,#7E,#72,#72,#72,#00       ;.rr~rrr.
-       DB       #00,#3C,#72,#72,#72,#72,#3C,#00       ;.<rrrr<.
-       DB       #00,#7E,#4E,#4E,#4E,#4E,#4E,#00       ;.~NNNNN.
-       DB       #00,#3E,#4E,#4E,#3E,#4E,#4E,#00       ;.>NN>NN.
-       DB       #00,#7C,#72,#72,#7C,#70,#70,#00       ;.|rr|pp.
-       DB       #00,#3E,#70,#70,#70,#70,#3E,#00       ;.>pppp>.
-       DB       #00,#7F,#1C,#1C,#1C,#1C,#1C,#00       ;........
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#3C,#00       ;.NNN>.<.
-       DB       #00,#5D,#5D,#3E,#5D,#5D,#5D,#00       ;.]]>]]].
-       DB       #00,#7C,#72,#7C,#72,#72,#7C,#00       ;.|r|rr|.
-       DB       #00,#70,#70,#7C,#72,#72,#7C,#00       ;.pp|rr|.
-       DB       #00,#72,#72,#7C,#72,#72,#7C,#00       ;.rr|rr|.
-       DB       #00,#7C,#0E,#3C,#0E,#0E,#7C,#00       ;.|.<..|.
-       DB       #00,#75,#75,#75,#75,#75,#3E,#00       ;.uuuuu>.
-       DB       #00,#7C,#0E,#3E,#0E,#0E,#7C,#00       ;.|.>..|.
-       DB       #00,#75,#75,#75,#75,#75,#3F,#01       ;.uuuuu?.
-       DB       #00,#4E,#4E,#4E,#3E,#0E,#0E,#00       ;.NNN>...
-       DB       #00,#00,#3E,#70,#70,#3E,#00,#00       ;..>pp>..
-
-
 setpgsmain40008000
 pgmain4000=$+1
         ld a,0
@@ -762,6 +670,25 @@ clsega
         jp setpgsmain40008000
 
         if EGA
+RestoreSpriteEGA
+
+        ret
+        endif
+
+        if EGA
+DrawTileEGA
+;a=tile
+;bc=YX
+        push bc
+        push de
+        push hl
+        ld e,b
+        ld d,c
+        call DrawTile_A_XYDE
+        pop hl
+        pop de
+        pop bc
+        ret
 DrawTile_A_X2Y2DE
 	sla	D
 	sla	E
@@ -801,23 +728,79 @@ DrawTile_A_XYDE
         endif
 
        if EGA
-;DrawSprite_Akeep_DExy
-	;LD	(cursprite),A
-DrawSprite_A_DExy
-;A=sprnum
-;DE=xy
+DrawSpriteEGA
+        ld a,hx
+        or lx
+        ret z
+        ;ret
         push bc
         push de
+        push hl
+        push ix
         push iy
+        
+        if 1==0
+        push ix
+        pop de
+        ld hl,therosprites
+        or a
+        sbc hl,de
+        jr z,dsok
+        ld hl,talien1sprites
+        or a
+        sbc hl,de
+        jr z,dsok
+        ld hl,talien2sprites
+        or a
+        sbc hl,de
+        jr z,dsok
+        jr $
+dsok
+        endif
+        
+	LD	A,(IX+#05) ;phase
+	INC	A
+       ;cp 2
+       ;jr c,$+4
+       ;ld a,2
+	LD	iy,#0000
+	LD	BC,412;#0060 ;sprite size
+L_6D43_	ADD	iy,BC
+	DEC	A
+	JR	NZ,L_6D43_
+	LD	C,(IX+#0B) ;
+	LD	B,(IX+#0C) ;sprites base
+	ADD	iy,BC
+        ;ld iy,hero_r0
+
+	;LD	A,(spritehgt) ;hgt
+	LD	A,(spriteX) ;x?
         add a,a
-        ld l,a
-        ld h,0xc0
-        call setpggfxc000
-        ld a,(hl)
-        ld ly,a
-        inc l
-        ld a,(hl)
-        ld hy,a
+        add a,a
+        add a,a
+        ld d,a
+	LD	A,(spritey) ;y
+        add a,a
+        ;add a,8
+        ld e,a
+
+;DrawSprite_Akeep_DExy
+	;LD	(cursprite),A
+;DrawSprite_A_DExy
+;A=sprnum
+;DE=xy
+        ;push bc
+        ;push de
+        ;push iy
+        ;add a,a
+        ;ld l,a
+        ;ld h,0xc0
+        ;call setpggfxc000
+        ;ld a,(hl)
+        ;ld ly,a
+        ;inc l
+        ;ld a,(hl)
+        ;ld hy,a
         call setpgsscr40008000
         ld c,e ;y
         ld a,d ;x
@@ -827,9 +810,11 @@ DrawSprite_A_DExy
 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
         call prspr
-        pop iy
         call setpgcodec000
         call setpgsmain40008000
+        pop iy
+        pop ix
+        pop hl
         pop de
         pop bc
         ret
@@ -837,36 +822,7 @@ DrawSprite_A_DExy
 
         include "prspr.asm"
 
-        if EGA
-gettilebuf
-       ds 128
-        endif
        if EGA
-GetTileToHL_DEXY
-;hl=addr
-;e=Y
-;d=X
-        push bc
-        push de
-        sla d
-        sla d
-        sla d
-        sla e
-        sla e
-        sla e        
-        ld bc,0x1008 ;b=hgt,c=wid (/2)
-        jr GetBuf2CxB_DExy_ToHL
-       if 1==0
-       ld b,12*8
-gettilefake0
-       ld a,r
-       ld (hl),a
-       inc hl
-       djnz gettilefake0
-       pop de
-       pop bc
-       ret
-       endif
 GetBuf24x16_DExy
 ;e=y
 ;d=x
@@ -1027,271 +983,31 @@ DrawSprite16x16_HL_DExy
         ret
        endif
 
-       if EGA
-ClearTile_DExy
-        ;ret
-;E=y
-;D=x (width 24 if not multiple of 8)
-        push bc
-        push de
-        ld bc,0x1008 ;b=hgt,c=wid (/2)
-        ld a,d ;x
-        and 7
-        jr z,$+4
-         ld c,0x0c ;wid (/2)
-        ld a,d
-        srl a
-        srl a
-        srl a
-         add a,4
-        ld l,e ;y
-        ld h,0
-        ld d,h
-        ld e,l
-        add hl,hl
-        add hl,hl
-        add hl,de ;*5
-         add hl,hl
-         add hl,hl
-         add hl,hl ;*40
-        add a,l
-        ld l,a
-        ld a,h
-        adc a,0x40
-        ld h,a
-        ld de,zeros24x16
-;de=gfx
-;hl=scr
-        call primgega
-        pop de
-        pop bc
-        ret
-zeros24x16
-        ds 12*16
-       endif
-
-readbmphead_pal
-        ld de,bgpush_bmpbuf
-        ld hl,14+2;54+(4*16)
-;de=buf
-;hl=size
-        call readstream_file
-        ld de,bgpush_bmpbuf
-        ld hl,(bgpush_bmpbuf+14)
-        dec hl
-        dec hl
-;de=buf
-;hl=size
-        call readstream_file
-        ld de,bgpush_bmpbuf
-        ld hl,+(4*16)
-;de=buf
-;hl=size
-        call readstream_file
-
-        ld hl,bgpush_bmpbuf;+54
-        ld ix,pal
-        ld b,16
-recodepal0
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-        inc hl
-        push hl
-        ld l,(hl) ;e=B, d=G, l=R
-        call readfile_rgbtopal
-        pop hl
-        inc hl
-        inc hl
-        djnz recodepal0
-        ret
-
-        macro RECOLOR
-        ld a,(de)
-        inc de
-        ld ($+4),a
-        ld a,(trecolor)
-        ld (hl),a
-        endm
-readbmpscr
-        ld hl,0x4000+(199*40)
-        ld b,200
-readbmpscr0
-        push bc
-        push hl
-        ld de,bgpush_bmpbuf
-        ld hl,320/2
-;de=buf
-;hl=size
-        push de
-        call readstream_file
-        pop de
-        pop hl
-        push hl
-        ld b,40
-readbmpscr00        
-        RECOLOR
-        ld a,h
-        add a,0x40
-        ld h,a
-        RECOLOR
-        ld a,h
-        add a,0x20-0x40
-        ld h,a
-        RECOLOR
-        ld a,h
-        add a,0x40
-        ld h,a
-        RECOLOR
-        ld a,h
-        sub 0x60
-        ld h,a
-        inc hl
-        djnz readbmpscr00
-        pop hl
-        ld bc,-40
-        add hl,bc
-        pop bc
-        djnz readbmpscr0
-        ret
-
-readfile_rgbtopal
-;e=B, d=G, l=R
-        call calcRGBtopal_pp
-        ld (ix+1),a
-        call calcRGBtopal_pp
-        ld (ix),a
-        inc ix
-        inc ix
-        ret
-
-calcRGBtopal_pp
-;e=B, d=G, l=R
-;DDp palette: %grbG11RB(low),%grbG11RB(high), ??oN????N
-        xor a
-        rl e  ;B
-        rra
-        rl l  ;R
-        rra
-        rrca
-        rrca
-        rl d  ;G
-        rra
-        rl e  ;b
-        rra
-        rl l  ;r
-        rra
-        rl d  ;g
-        rra
-        cpl
-        ret 
-
-;------------------
-; Keyboard scanning
-;------------------
-; from keyboard and s-inkey$
-; returns 1 or 2 keys in DE, most significant shift first if any
-; key values 0-39 else 255
-
-;; KEY-SCAN
-L028E   LD      L,$2F           ; initial key value
-                                ; valid values are obtained by subtracting
-                                ; eight five times.
-        LD      DE,$FFFF        ; a buffer for 2 keys.
-
-        LD      BC,$FEFE        ; the commencing port address
-                                ; B holds 11111110 initially and is also
-                                ; used to count the 8 half-rows
-;; KEY-LINE
-L0296   IN      A,(C)           ; read the port to A - bits will be reset
-                                ; if a key is pressed else set.
-        CPL                     ; complement - pressed key-bits are now set
-        AND     $1F             ; apply 00011111 mask to pick up the
-                                ; relevant set bits.
-
-        JR      Z,L02AB         ; forward to KEY-DONE if zero and therefore
-                                ; no keys pressed in row at all.
-
-        LD      H,A             ; transfer row bits to H
-        LD      A,L             ; load the initial key value to A
-
-;; KEY-3KEYS
-L029F   INC     D               ; now test the key buffer
-        RET     NZ              ; if we have collected 2 keys already
-                                ; then too many so quit.
-
-;; KEY-BITS
-L02A1   SUB     $08             ; subtract 8 from the key value
-                                ; cycling through key values (top = $27)
-                                ; e.g. 2F>   27>1F>17>0F>07
-                                ;      2E>   26>1E>16>0E>06
-        SRL     H               ; shift key bits right into carry.
-        JR      NC,L02A1        ; back to KEY-BITS if not pressed
-                                ; but if pressed we have a value (0-39d)
-
-        LD      D,E             ; transfer a possible previous key to D
-        LD      E,A             ; transfer the new key to E
-        JR      NZ,L029F        ; back to KEY-3KEYS if there were more
-                                ; set bits - H was not yet zero.
-
-;; KEY-DONE
-L02AB   DEC     L               ; cycles 2F>2E>2D>2C>2B>2A>29>28 for
-                                ; each half-row.
-        RLC     B               ; form next port address e.g. FEFE > FDFE
-        JR      C,L0296         ; back to KEY-LINE if still more rows to do.
-
-        LD      A,D             ; now test if D is still FF ?
-        INC     A               ; if it is zero we have at most 1 key
-                                ; range now $01-$28  (1-40d)
-        RET     Z               ; return if one key or no key.
-
-        CP      $28             ; is it capsshift (was $27) ?
-        RET     Z               ; return if so.
-
-        CP      $19             ; is it symbol shift (was $18) ?
-        RET     Z               ; return also
-
-        LD      A,E             ; now test E
-        LD      E,D             ; but first switch
-        LD      D,A             ; the two keys.
-        CP      $18             ; is it symbol shift ?
-        RET                     ; return (with zero set if it was).
-                                ; but with symbol shift now in D
-
-
-        align 256
-trecolor
-;%00003210 => %.3...210
-        dup 256
-_3=$&8
-_210=$&7
-_3L=($>>4)&8
-_210L=($>>4)&7
-        db (_3L*0x08) + (_210L*0x01) + (_3*0x10) + (_210*0x08)
-        edup
-
-bgpush_bmpbuf
-        ds 320
-
 res_path
         db "montana2",0
 bmpfilename
         db "montana2.bmp",0
         include "../../_sdk/file.asm"
 
+        include "sprites.ast"
+        include "tiles.ast"
+        display "xxx=",$
 killablescraddr
         ds 3
 
         ds 0x3f00-$
         ds 0x4000-$
         incbin "montana2.scr"
-        ;incbin "slabage/sprdata.bin"
-;tilegfx=$+0x8000
-        ;incbin "slabage/tiles.bin"
-;panelgfx=$+0x8000
-        ;incbin "slabage/panel.bin"
 
-        ds 0x61C1-$
+        if USEINT
+        if EGA
+        ds 0x8000-$
+        else
+        ds 0x6000-$
+        endif
+        else
+        ds 0x6000-$;0x61C1+3-$
+        endif
         include "MJ2.ASM"
 end
 

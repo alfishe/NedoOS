@@ -1,0 +1,13 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;P: DDp palette
+
+pal=P,0,0,16,16
