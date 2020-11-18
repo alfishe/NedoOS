@@ -70,13 +70,14 @@ tdelta2yXatdirection
        DB       #00,#FF,#00,#00,#00,#01,#00,#02       ;........
        DB       #04,#FF,#04,#00,#04,#01,#04,#02       ;........
        DB       #08,#FF,#08,#00,#08,#01,#08,#02       ;........
-L_621A       DB       #40,#23,#00       ;@#.
+tlifechars       DB       #40,#23,#00       ;@#.
 L_621D       DB       #20,#20,#00       ;  .
 
 tscore_level       DM       "SCORE              LEVEL  "
        DB       #00       ;.
 ;
-L_623B       DB       #84,#20,#85,#06,#87,#08,#06,#06       ;. ......
+panelattrs
+       DB       #84,#20,#85,#06,#87,#08,#06,#06       ;. ......
        DB       #85,#09,#07,#07,#FF       ;.....
 curdirection       DB       #00       ;.
 L_6249       DB       #00       ;.
@@ -88,9 +89,9 @@ L_624F       DB       #00       ;.
 L_6250       DB       #00       ;.
 L_6251       DB       #00       ;.
 demoon       DB       #00       ;.
-curdemoaddr       DB       #00,#00       ;..
+curdemoaddr       dw 0;DB       #00,#00       ;..
 L_6255       DB       #08       ;.
-L_6256       DB       #00       ;.
+firephase       DB       #00       ;.
 ;
 L_6257       DB       #00,#00       ;..
 tgameover       DM       "GAME  OVER"
@@ -134,7 +135,7 @@ L_62A5	LD	A,(IX+#01)
 	LD	A,(IX+#02)
 	OR	A
 	JP	NZ,L_6C3A
-	CALL	L_67A8
+	 CALL	L_67A8
 	CALL	L_6C3A
 	JP	L_6830
 ;
@@ -162,7 +163,9 @@ L_62D9	LD	A,(IX+#01)
 	CALL	L_6830
 L_62EE	JP	L_6C3A
 ;
-L_62F1	CALL	PlaySFXL_6E0B
+L_62F1
+;very rare!
+	CALL	PlaySFXL_6E0B
 	JP	L_6883
 ;
 parsealien2sprites
@@ -193,7 +196,8 @@ L_631D	LD	C,(HL)
 	PUSH	BC
 	RET
 ;
-L_6322	LD	A,#09
+L_6322
+	LD	A,#09
 	CALL	CheckTileAtDirection
 	CP	#05
 	JR	Z,L_6382
@@ -537,9 +541,9 @@ L_6579	LD	B,(HL)
 	LD	(IX+#03),A
 	INC	HL
 	LD	B,(HL)
-	LD	A,(IX+#04)
+	LD	A,(IX+#04) ;y?
 	ADD	A,B
-	LD	(IX+#04),A
+	LD	(IX+#04),A ;y?
 	INC	HL
 	LD	A,(HL)
 	CP	#FF
@@ -714,10 +718,11 @@ MenuStartGame
 	LD	A,(startlevel)
 	LD	(curlevel),A
 	CALL	L_EEEC
-	CALL	L_6B1C
+	CALL	ShowLevelPrepare
 	XOR	A
 	LD	(demoon),A
-L_669C	AND	#00
+GameOrDemo
+	AND	#00
 	SET	2,A
 	LD	(L_6249),A
 	LD	HL,#0000
@@ -726,12 +731,18 @@ L_669C	AND	#00
 	LD	(L_6257),HL
 L_66AF	LD	DE,#0601
 	CALL	OutAY_Dreg_E
-	LD	HL,L_623B
+        if EGA == 0
+	LD	HL,panelattrs
 	LD	DE,#5AC0
 	CALL	L_705A
+        endif
 	LD	HL,tscore_level
 	LD	BC,#1700
+        if EGA
+	CALL	PrintString_EGA
+        else
 	CALL	PrintString
+        endif
 	CALL	L_66CC
 	JR	L_66E0
 ;
@@ -740,8 +751,12 @@ L_66CC	LD	A,(L_6249)
 	RET	Z
 	LD	BC,#1600
 L_66D4	PUSH	AF
-	LD	HL,L_621A
+	LD	HL,tlifechars
+        if EGA
+	CALL	PrintString_EGA
+        else
 	CALL	PrintString
+        endif
 	POP	AF
 	DEC	A
 	JR	NZ,L_66D4
@@ -756,10 +771,18 @@ L_66E0	LD	BC,#1719
 	LD	(L_624E),A
 	LD	A,#20
 	LD	BC,#170E
+        if EGA
+        call PrintCharA_EGA
+        else
 	CALL	PrintCharYScaleL_7111
+        endif
 	LD	A,#20
 	LD	BC,#170F
+        if EGA
+        call PrintCharA_EGA
+        else
 	CALL	PrintCharYScaleL_7111
+        endif
 	LD	A,(curlevel)
 	CALL	UnpackLevel_A
 	LD	IX,therosprites
@@ -774,13 +797,13 @@ L_66E0	LD	BC,#1719
 	LD	A,(demoon)
 	OR	A
 	CALL	Z,WaitKey
-L_672A	LD	A,(L_6256)
+L_672A	LD	A,(firephase)
 	INC	A
 	CP	#03
 	JR	NZ,L_6736
 	CALL	AnimFire
 	XOR	A
-L_6736	LD	(L_6256),A
+L_6736	LD	(firephase),A
 	CALL	parseherosprites
 	LD	A,(L_624E)
 	CP	#01
@@ -808,7 +831,7 @@ L_6765	INC	HL
 	INC	B
 L_6774	INC	HL
 	LD	A,(HL)
-	LD	(IX+#04),A
+	LD	(IX+#04),A ;y?
 	LD	(IX+#0A),A
 	CP	#4D
 	JR	C,L_6782
@@ -889,10 +912,18 @@ L_6815	LD	BC,#0064
 	LD	(L_624D),A
 	LD	A,#5B
 	LD	BC,#170E
+        if EGA
+        call PrintCharA_EGA
+        else
 	CALL	PrintCharYScaleL_7111
+        endif
 	LD	A,#5D
 	LD	BC,#170F
+        if EGA
+        jp PrintCharA_EGA
+        else
 	JP	PrintCharYScaleL_7111
+        endif
 ;
 L_6830	LD	A,#05 ;"middle tile"
 	CALL	CheckTileAtDirection
@@ -917,7 +948,7 @@ L_6855	CALL	PlaySFXL_6DEF
 	OR	A
 	JR	Z,L_6883
 	LD	(IX+#01),#10
-	LD	A,(IX+#04)
+	LD	A,(IX+#04) ;y?
 	LD	(IX+#08),A
 	RET
 ;
@@ -935,17 +966,19 @@ L_6869	LD	A,(L_6249)
 	LD	(L_624E),A
 	RET
 ;
-L_6883	LD	IX,talien1sprites
+L_6883
+;very rare! fly dead?
+	LD	IX,talien1sprites
 	CALL	L_6D9A
 	LD	IX,talien2sprites
 	CALL	L_6D9A
 	LD	IX,therosprites
 	LD	(IX+#05),#08
-	LD	A,(IX+#04)
-L_689C	DEC	(IX+#04)
+	LD	A,(IX+#04) ;y?
+L_689C	DEC	(IX+#04) ;y?
 	CALL	L_6C3A
 	CALL	L_6914
-	LD	A,(IX+#04)
+	LD	A,(IX+#04) ;y?
 	CP	#01
 	JR	NZ,L_689C
 	JR	L_6869
@@ -986,14 +1019,27 @@ L_68F1	LD	B,A
 	XOR	A
 	SLA	C
 	SLA	B
-L_68F7	LD	DE,0xFACB ; 0xCB,0xFA = set 7,d
+L_68F7
+        if EGA == 0
+	LD	DE,0xFACB ; 0xCB,0xFA = set 7,d
 	LD	(L_6EBA),DE
+        endif
 	PUSH	AF
+        if EGA
+	CALL	DrawTileEGA
+        else
 	CALL	DrawTile
+        endif
 	POP	AF
+        if EGA == 0
 	LD	DE,#0000
 	LD	(L_6EBA),DE
+        endif
+        if EGA
+	jp DrawTileEGA
+        else
 	JP	DrawTile
+        endif
 ;
 L_690D	LD	A,#FE
 	IN	A,(#FE)
@@ -1179,7 +1225,7 @@ L_6A51	LD	A,(L_61C7)
 	CP	#03
 	RET	NC
 	LD	A,(L_61C8)
-	LD	B,(IX+#04)
+	LD	B,(IX+#04) ;y?
 	SUB	B
 	ADD	A,#04
 	CP	#09
@@ -1194,7 +1240,7 @@ L_6A68	LD	D,(IX+#01)
 	JR	L_6AA6
 ;
 L_6A78	LD	A,(L_61C8)
-	LD	B,(IX+#04)
+	LD	B,(IX+#04) ;y?
 	DEC	A
 	CP	B
 	JR	C,L_6A87
@@ -1238,7 +1284,7 @@ L_6ABE	LD	(curdirection),A
 	JR	L_6A78
 ;
 	LD	A,(L_61C8)
-	LD	B,(IX+#04)
+	LD	B,(IX+#04) ;y?
 	CP	B
 	JR	C,L_6AD6
 	LD	A,#03 ;down
@@ -1253,7 +1299,7 @@ L_6ADE	LD	A,(IX+#08)
 	JR	Z,L_6AF3
 	DEC	A
 	LD	(IX+#08),A
-	DEC	(IX+#04)
+	DEC	(IX+#04) ;y?
 	LD	(IX+#05),#08
 	JP	L_6C3A
 ;
@@ -1270,7 +1316,7 @@ L_6B00	LD	A,(IX+#08)
 	INC	A
 	INC	A
 	LD	(IX+#08),A
-	DEC	(IX+#04)
+	DEC	(IX+#04) ;y?
 	ADD	A,#04
 	LD	(spritehgt),A
 	JP	L_6C46
@@ -1278,8 +1324,10 @@ L_6B00	LD	A,(IX+#08)
 L_6B17	LD	(IX+#01),#00
 	RET
 ;
-L_6B1C
-        ;call Set6912
+ShowLevelPrepare
+        if EGA
+        call Set6912
+        endif
 	CALL	ClsZeroAttr
 	CALL	SetSomeAttrs
 	LD	BC,#0A0B
@@ -1288,10 +1336,16 @@ L_6B1C
 	LD	(L_7111),A
 	CALL	PrintString
 	LD	BC,#0A12
-	CALL	PrintLevelNumber
+	;CALL	PrintLevelNumber
+	 LD A,(curlevel)
+         call PrintNN_A
 	LD	A,#01
 	LD	(L_7111),A
-	JP	WaitKey
+	call	WaitKey
+        if EGA
+        call SetEGA
+        endif
+        ret
 ;
 CheckLevelExit
 	LD	A,(L_61C8)
@@ -1320,12 +1374,32 @@ L_6B65	PUSH	BC
          halt
 	POP	BC
 	DJNZ	L_6B65
-	JP	L_6B1C
+	JP	ShowLevelPrepare
 ;
 PrintLevelNumber
 	LD	A,(curlevel)
+        if EGA
+	LD	DE,0xFF0A
+L_6B7BEGA	SUB	E
+	INC	D
+	JR	NC,L_6B7BEGA
+	ADD	A,E
+	LD	E,A
+	LD	A,D
+	ADD	A,#30
+	PUSH	DE
+	PUSH	BC
+	CALL	PrintCharA_EGA
+	POP	BC
+	POP	DE
+	INC	C
+	LD	A,E
+	ADD	A,#30
+	JP	PrintCharA_EGA
+        endif
+        
 PrintNN_A
-	LD	DE,0xFF0A ;???highly likely is NOT address
+	LD	DE,0xFF0A
 L_6B7B	SUB	E
 	INC	D
 	JR	NC,L_6B7B
@@ -1454,7 +1528,8 @@ L_6C19	LD	A,#02
 ;
        DB       #C9       ;I
 ;
-L_6C3A	LD	A,#18
+L_6C3A
+	LD	A,#18
 	LD	(spritehgt),A
 	LD	A,(IX+#00)
 	OR	A
@@ -1480,7 +1555,7 @@ L_6C5C	LD	HL,L_61CC
 	JR	Z,L_6C68
 	SUB	#1C
 L_6C68	LD	(spriteX),A
-	LD	A,(IX+#04)
+	LD	A,(IX+#04) ;y?
 	BIT	1,(HL)
 	JR	Z,L_6C74
 	SUB	#48
@@ -1493,7 +1568,7 @@ L_6C74	LD	(spritey),A
 	LD	(spriteX),A
 	RET
 ;
-L_6C84	LD	A,(IX+#04)
+L_6C84	LD	A,(IX+#04) ;y?
 	CP	#4D
 	JR	C,L_6C99
 	BIT	1,(IX+#08)
@@ -1560,7 +1635,7 @@ KeepSpriteToL_D800
 	ADD	hl,BC
 	LD	(curspritescraddr),hl
 	LD	(L_626A),SP
-	LD	SP,HL ;TODO fix in int???
+	LD	SP,HL
         else
 	LD	iy,tscreenaddrs
 	ADD	iy,BC
@@ -1615,6 +1690,13 @@ BlitSpriteInL_D800
          ;if USEINT
          ;di
          ;endif
+         ;ld a,hx
+         ;or lx
+         ;jr z,$
+         ;ld a,lx
+         ;cp talien1sprites&0xff
+         ;jr z,$
+         
 	LD	DE,L_D800+0x0C
 	LD	A,(IX+#05) ;phase
 	INC	A
@@ -1702,7 +1784,9 @@ L_6D8D	INC	HL
          ;endif
 	RET
 ;
-L_6D9A	LD	A,#18
+L_6D9A
+;very rare!
+	LD	A,#18
 	LD	(spritehgt),A
 	CALL	L_6C5C
 	LD	A,(spritey)
@@ -1842,14 +1926,19 @@ L_6E76	LD	A,(HL)
 	JR	L_6E76
 ;
 CopyScreenToBufferScreen
-        if EGA == 0
+        if EGA
+        ld hl,scrbase
+        ld de,scrhgt*256+(scrwid/4);d=hgt,e=wid (/8)
+        jp copyimgega_curtodefault ;before swapscr
+        else
 	LD	HL,#4000
 	LD	DE,BufferScreen
 	LD	BC,#1800
 	LDIR
-        endif
 	RET
+        endif
 ;
+        if EGA == 0
 DrawTile
 ;a=tile
 ;bc=YX
@@ -1914,6 +2003,7 @@ L_6EF2	LDI
       POP	HL
       POP	BC
 	RET
+        endif
 ;
 GO
 	LD	A,#02
@@ -2170,11 +2260,23 @@ PrintString
 	POP	HL
 	INC	C
 	JR	PrintString
+
+        if EGA
+PrintString_EGA
+	LD	A,(HL)
+	INC	HL
+	OR	A
+	RET	Z
+	PUSH	HL
+	PUSH	BC
+	CALL	PrintCharA_EGA ;PrintCharYScaleL_7111
+	POP	BC
+	POP	HL
+	INC	C
+	JR	PrintString_EGA
+        endif
 ;
 PrintCharYScaleL_7111
-        if EGA
-        ret
-        endif
 	LD	H,#00
 	LD	L,A
 	ADD	HL,HL
@@ -2239,7 +2341,11 @@ PrNum
 	LD	A,L
 	ADD	A,#30
 	LD	BC,(L_71E1)
+        if EGA
+        jp PrintCharA_EGA
+        else
 	JR	PrintCharYScaleL_7111
+        endif
 ;
 L_70E6	XOR	A
 L_70E7	INC	A
@@ -2255,17 +2361,25 @@ L_70E7	INC	A
 	LD	BC,(L_71E1)
 	LD	HL,L_71E1
 	INC	(HL)
+        if EGA
+        call PrintCharA_EGA
+        else
 	CALL	PrintCharYScaleL_7111
+        endif
 	POP	HL
 	POP	BC
 	RET
 ;
 Set6912
         if EGA
+        push ix
         ld e,3+0x80 ;6912+[8noturbo]+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ld a,(user_scr0_high) ;ok
         SETPG16K
+        ld de,standardpal
+        OS_SETPAL
+        pop ix
         endif
         ret
 
@@ -2342,6 +2456,9 @@ MenuDemo
         ;halt
         call SetGameInt
         endif
+        if EGA
+        call SetEGA
+        endif
 	CALL	L_EEEC
 	CALL	ClsZeroAttr
 	LD	HL,demo
@@ -2350,7 +2467,7 @@ MenuDemo
 	LD	(curlevel),A
 	LD	A,#01
 	LD	(demoon),A
-	JP	L_669C
+	JP	GameOrDemo
 ;
 ControlDemo
 	LD	HL,(curdemoaddr)
@@ -2366,16 +2483,23 @@ ControlDemo
 	LD	(L_624E),A
 	RET
 ;
-        if USEINT
-SetGameInt
-        ld hl,reter
-        ld (imer_addr),hl
 	if EGA
+SetEGA
+        push ix
         ld e,0+0x80 ;EGA+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ld e,0
         OS_CLS
+        ld de,pal
+        OS_SETPAL
+        pop ix
+        ret
 	endif
+
+        if USEINT
+SetGameInt
+        ld hl,reter
+        ld (imer_addr),hl
         ;di
         ret
         endif
@@ -2401,8 +2525,8 @@ L_729D	LD	(HL),C
         ld (imer_addr),hl
         endif
 	CALL	L_EEEC
-	LD	HL,L_732A
-	LD	(L_7327),HL
+	LD	HL,tscroll
+	LD	(curscrolladdr),HL
         if USEINT==0
 	EI
         endif
@@ -2421,18 +2545,18 @@ L_72BE	PUSH	AF
 	PUSH	IX
 	PUSH	IY
 	CALL	L_EFE0
-	LD	HL,L_7329
+	LD	HL,curscrollphase
 	DEC	(HL)
 	JR	NZ,L_7304
 	LD	(HL),#08
-	LD	HL,(L_7327)
+	LD	HL,(curscrolladdr)
 	LD	A,(HL)
 	OR	A
 	JR	NZ,L_72E2
-	LD	HL,L_732A
+	LD	HL,tscroll
 	LD	A,(HL)
 L_72E2	INC	HL
-	LD	(L_7327),HL
+	LD	(curscrolladdr),HL
 	LD	D,#00
 	SLA	A
 	RL	D
@@ -2479,10 +2603,10 @@ L_730D	RL	(HL)
         endif
 	RET
 ;
-L_7327       DB       #00,#00
-L_7329       DB       #01
+curscrolladdr       dw 0 ;DB       #00,#00
+curscrollphase       DB       #01
 ;
-L_732A       DM       " HOME MASTERS PRESENTS  'MONTANA"
+tscroll       DM       " HOME MASTERS PRESENTS  'MONTANA"
        DM       " JONES 2'  ALL CODE, GRAPHICS AN"
        DM       "D SOUND BY PAVEL, SERGEY AND ALE"
        DM       "XEY  MUSIC FROM 'TASK FORCE'  MA"
@@ -4407,103 +4531,8 @@ MontanaJones2_logo
        DB       #0F,#F0,#78,#1F,#3E,#0E,#07,#18       ;.px.>...
        DB       #F9,#F0,#71,#80,#07,#C0,#0F,#03       ;ypq..@..
        DB       #E7,#C0,#F0,#07,#E0,#07,#FB,#FC       ;g@p.`.{|
-Font
-       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
-       DB       #08,#1C,#0C,#1C,#14,#08,#1C,#08       ;........
-       DB       #00,#24,#6C,#90,#90,#48,#00,#00       ;.$l..H..
-       DB       #00,#C0,#E0,#E0,#FC,#62,#9C,#00       ;.@``|b..
-       DB       #00,#04,#04,#24,#64,#F8,#60,#20       ;...$dx` 
-       DB       #4E,#E6,#4C,#18,#30,#62,#C7,#C2       ;NfL.0bGB
-       DB       #38,#44,#92,#AA,#A2,#9C,#41,#3E       ;8D.*".A>
-       DB       #00,#18,#38,#20,#10,#00,#00,#00       ;..8 ....
-       DB       #02,#0C,#18,#18,#18,#18,#0C,#02       ;........
-       DB       #40,#30,#18,#18,#18,#18,#30,#40       ;@0....0@
-       DB       #00,#22,#1C,#3A,#FF,#3A,#1C,#22       ;.".:.:."
-       DB       #04,#18,#08,#00,#7F,#00,#08,#1C       ;........
-       DB       #00,#00,#00,#18,#3C,#34,#08,#10       ;....<4..
-       DB       #00,#00,#00,#7F,#FE,#00,#00,#00       ;....~...
-       DB       #00,#00,#00,#00,#18,#24,#3C,#18       ;.....$<.
-       DB       #01,#03,#05,#0C,#18,#30,#A0,#C0       ;.....0 @
-       DB       #3D,#4A,#85,#8B,#93,#A3,#42,#BC       ;=J...#B<
-       DB       #0C,#14,#3C,#0C,#0C,#0C,#0C,#36       ;..<....6
-       DB       #7C,#C6,#83,#86,#3C,#61,#DF,#FF       ;|F..<a_.
-       DB       #1C,#26,#43,#0E,#03,#43,#26,#1C       ;.&C..C&.
-       DB       #08,#18,#30,#60,#EC,#6F,#0C,#0C       ;..0`lo..
-       DB       #02,#7E,#42,#38,#06,#E6,#44,#38       ;.~B8.fD8
-       DB       #3C,#46,#80,#DC,#E2,#C3,#7D,#36       ;<F.\bC}6
-       DB       #7F,#FA,#86,#0C,#18,#30,#30,#20       ;.z...00 
-       DB       #3C,#66,#C3,#5E,#F3,#C3,#66,#3C       ;<fC^sCf<
-       DB       #1C,#2E,#63,#47,#39,#03,#06,#1C       ;..cG9...
-       DB       #10,#38,#10,#00,#10,#38,#10,#00       ;.8...8..
-       DB       #00,#08,#1C,#08,#00,#0C,#9C,#60       ;.......`
-       DB       #10,#10,#28,#28,#44,#44,#82,#FE       ;..((DD.~
-       DB       #00,#00,#FE,#F2,#00,#3E,#FF,#00       ;..~r.>..
-       DB       #7F,#7F,#3E,#3E,#1C,#1C,#08,#08       ;..>>....
-       DB       #7C,#86,#C2,#46,#0C,#18,#00,#18       ;|.BF....
-       DB       #00,#03,#07,#01,#3E,#7F,#3F,#00       ;....>.?.
-       DB       #18,#34,#66,#64,#6E,#42,#26,#E7       ;.4fdnB&g
-       DB       #F8,#54,#46,#6C,#46,#42,#4C,#F8       ;xTFlFBLx
-       DB       #3C,#62,#C6,#80,#C0,#C2,#46,#3C       ;<bF.@BF<
-       DB       #F8,#46,#63,#62,#43,#63,#66,#F8       ;xFcbCcfx
-       DB       #BC,#66,#42,#78,#44,#41,#63,#EF       ;<fBxDAco
-       DB       #BC,#46,#42,#70,#48,#40,#60,#30       ;<FBpH@`0
-       DB       #3C,#66,#C2,#80,#8A,#C6,#6A,#3C       ;<fB..Fj<
-       DB       #C0,#9C,#EE,#C6,#84,#88,#0C,#06       ;@.nF....
-       DB       #70,#28,#10,#08,#18,#18,#14,#3C       ;p(.....<
-       DB       #05,#03,#03,#03,#03,#81,#46,#3C       ;......F<
-       DB       #80,#C7,#4C,#D8,#F4,#AE,#C5,#E3       ;.GLXt.Ec
-       DB       #C0,#60,#60,#60,#60,#61,#53,#7F       ;@````aS.
-       DB       #83,#46,#6C,#51,#49,#43,#42,#A3       ;.FlQICB#
-       DB       #EE,#5B,#61,#41,#43,#66,#A6,#03       ;n[aACf&.
-       DB       #3C,#46,#83,#83,#83,#83,#46,#3C       ;<F....F<
-       DB       #78,#CC,#82,#C4,#78,#C0,#C0,#80       ;xL.Dx@@.
-       DB       #3C,#42,#83,#83,#92,#9B,#C4,#7B       ;<B....D{
-       DB       #BC,#46,#63,#63,#46,#3C,#66,#F3       ;<FccF<fs
-       DB       #3C,#7A,#40,#36,#03,#C3,#6E,#3C       ;<z@6.Cn<
-       DB       #FF,#C2,#99,#10,#18,#18,#28,#70       ;.B....(p
-       DB       #20,#41,#83,#83,#C1,#A7,#6D,#39       ; A..A'm9
-       DB       #81,#81,#C3,#C2,#A7,#62,#3C,#18       ;..CB'b<.
-       DB       #81,#C3,#D3,#D1,#DB,#CB,#F7,#62       ;.CSQ[Kwb
-       DB       #C3,#E3,#50,#28,#1C,#6E,#E7,#C2       ;CcP(.ngB
-       DB       #00,#81,#C3,#C6,#7D,#01,#62,#3C       ;..CF}.b<
-       DB       #7D,#F6,#84,#08,#10,#21,#5D,#FF       ;}v...!].
-       DB       #18,#3C,#66,#67,#67,#66,#3C,#18       ;.<fggf<.
-       DB       #00,#00,#40,#20,#10,#08,#04,#00       ;..@ ....
-       DB       #00,#00,#00,#FF,#FF,#0E,#0E,#0A       ;........
-       DB       #00,#10,#38,#54,#10,#10,#10,#00       ;..8T....
-       DB       #00,#00,#00,#00,#00,#00,#00,#FF       ;........
-       DB       #00,#1C,#22,#78,#20,#20,#7E,#00       ;.."x  ~.
-       DB       #FF,#84,#87,#84,#88,#F0,#A0,#A0       ;.....p  
-       DB       #FF,#00,#FF,#00,#00,#00,#00,#00       ;........
-       DB       #FF,#21,#E1,#21,#11,#0F,#05,#05       ;.!a!....
-       DB       #05,#05,#05,#05,#05,#05,#05,#05       ;........
-       DB       #05,#05,#0F,#11,#21,#E1,#21,#FF       ;....!a!.
-       DB       #00,#00,#00,#00,#00,#FF,#00,#FF       ;........
-       DB       #A0,#A0,#F0,#88,#84,#87,#84,#FF       ;  p.....
-       DB       #A0,#A0,#A0,#A0,#A0,#A0,#A0,#A0       ;        
-       DB       #00,#46,#A8,#84,#82,#AA,#44,#00       ;.F(..*D.
-       DB       #00,#66,#88,#44,#22,#AA,#44,#00       ;.f.D"*D.
-       DB       #00,#EA,#8A,#CE,#8A,#8A,#EA,#00       ;.j.N..j.
-       DB       #00,#6C,#8A,#4A,#2C,#A8,#48,#00       ;.l.J,(H.
-       DB       #00,#C8,#A8,#A8,#A8,#A8,#CE,#00       ;.H((((N.
-       DB       #00,#00,#30,#38,#3C,#00,#00,#00       ;..08<...
-       DB       #00,#00,#38,#44,#44,#44,#38,#00       ;..8DDD8.
-       DB       #00,#00,#78,#44,#44,#78,#40,#40       ;..xDDx@@
-       DB       #00,#00,#3C,#44,#44,#3C,#04,#06       ;..<DD<..
-       DB       #00,#00,#1C,#20,#20,#20,#20,#00       ;...    .
-       DB       #00,#00,#38,#40,#38,#04,#78,#00       ;..8@8.x.
-       DB       #00,#10,#38,#10,#10,#10,#0C,#00       ;..8.....
-       DB       #00,#00,#44,#44,#44,#44,#38,#00       ;..DDDD8.
-       DB       #00,#00,#44,#44,#28,#28,#10,#00       ;..DD((..
-       DB       #00,#00,#44,#54,#54,#54,#28,#00       ;..DTTT(.
-       DB       #00,#00,#44,#28,#10,#28,#44,#00       ;..D(.(D.
-       DB       #00,#00,#44,#44,#44,#3C,#04,#38       ;..DDD<.8
-       DB       #00,#00,#7C,#08,#10,#20,#7C,#00       ;..|.. |.
-       DB       #00,#0E,#08,#30,#08,#08,#0E,#00       ;...0....
-       DB       #00,#08,#08,#08,#08,#08,#08,#00       ;........
-       DB       #00,#70,#10,#0C,#10,#10,#70,#00       ;.p....p.
-       DB       #00,#14,#28,#00,#00,#00,#00,#00       ;..(.....
-       DB       #3C,#42,#99,#A1,#A1,#99,#42,#3C       ;<B.!!.B<
+
+;Font
 
 tileset
        DB       #4A,#4A,#00,#00,#20,#00,#00,#00       ;JJ.. ...
@@ -5942,7 +5971,7 @@ L_EF86	LD	(IX+#20),L
 	LD	(IX+#02),#01
 	RES	7,(IX+#0C)
 	LD	(IX+#05),#00
-	LD	(IX+#04),#00
+	LD	(IX+#04),#00 ;y?
 	RET
 ;
 L_EFAC	CALL	L_EFB4
@@ -6022,10 +6051,10 @@ L_F040	BIT	0,(IX+#0C)
 	DEC	(IX+#0B)
 	JR	L_F0B4
 ;
-L_F057	LD	A,(IX+#04)
+L_F057	LD	A,(IX+#04) ;y?
 	LD	B,(IX+#08)
 	ADD	A,B
-	LD	(IX+#04),A
+	LD	(IX+#04),A ;y?
 	LD	B,(IX+#05)
 	CP	B
 	JR	Z,L_F077
@@ -6035,7 +6064,7 @@ L_F057	LD	A,(IX+#04)
 	JR	L_F0B4
 ;
 L_F071	LD	A,(IX+#05)
-	LD	(IX+#04),A
+	LD	(IX+#04),A ;y?
 L_F077	LD	A,(IX+#0C)
 	AND	#FC
 	OR	#02
@@ -6048,24 +6077,24 @@ L_F083	LD	A,(IX+#0B)
 	DEC	(IX+#0B)
 	JR	L_F0B4
 ;
-L_F08E	LD	A,(IX+#04)
+L_F08E	LD	A,(IX+#04) ;y?
 	LD	B,(IX+#0A)
 	ADD	A,B
-	LD	(IX+#04),A
+	LD	(IX+#04),A ;y?
 	BIT	7,A
 	JR	NZ,L_F0A4
 	LD	A,(IX+#09)
 	LD	(IX+#0B),A
 	JR	L_F0B4
 ;
-L_F0A4	LD	(IX+#04),#00
+L_F0A4	LD	(IX+#04),#00 ;y?
 	LD	A,(IX+#0C)
 	AND	#FC
 	OR	#02
 	LD	(IX+#0C),A
 	JR	L_F0B4
 ;
-L_F0B4	LD	A,(IX+#04)
+L_F0B4	LD	A,(IX+#04) ;y?
 	LD	HL,L_EE6C
 	LD	D,#00
 	LD	E,(IX+#0F)
@@ -6606,3 +6635,101 @@ L_F66E       DB       #61,#01,#62,#01,#25,#08,#28,#01       ;a.b.%.(.
        DB       #25,#08,#28,#01,#2A,#01,#28,#08       ;%.(.*.(.
        DB       #2A,#01,#2D,#01,#2A,#08,#23,#01       ;*.-.*.#.
        DB       #28,#01,#25,#09,#FE
+
+Font
+       DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+       DB       #08,#1C,#0C,#1C,#14,#08,#1C,#08       ;........
+       DB       #00,#24,#6C,#90,#90,#48,#00,#00       ;.$l..H..
+       DB       #00,#C0,#E0,#E0,#FC,#62,#9C,#00       ;.@``|b..
+       DB       #00,#04,#04,#24,#64,#F8,#60,#20       ;...$dx` 
+       DB       #4E,#E6,#4C,#18,#30,#62,#C7,#C2       ;NfL.0bGB
+       DB       #38,#44,#92,#AA,#A2,#9C,#41,#3E       ;8D.*".A>
+       DB       #00,#18,#38,#20,#10,#00,#00,#00       ;..8 ....
+       DB       #02,#0C,#18,#18,#18,#18,#0C,#02       ;........
+       DB       #40,#30,#18,#18,#18,#18,#30,#40       ;@0....0@
+       DB       #00,#22,#1C,#3A,#FF,#3A,#1C,#22       ;.".:.:."
+       DB       #04,#18,#08,#00,#7F,#00,#08,#1C       ;........
+       DB       #00,#00,#00,#18,#3C,#34,#08,#10       ;....<4..
+       DB       #00,#00,#00,#7F,#FE,#00,#00,#00       ;....~...
+       DB       #00,#00,#00,#00,#18,#24,#3C,#18       ;.....$<.
+       DB       #01,#03,#05,#0C,#18,#30,#A0,#C0       ;.....0 @
+       DB       #3D,#4A,#85,#8B,#93,#A3,#42,#BC       ;=J...#B<
+       DB       #0C,#14,#3C,#0C,#0C,#0C,#0C,#36       ;..<....6
+       DB       #7C,#C6,#83,#86,#3C,#61,#DF,#FF       ;|F..<a_.
+       DB       #1C,#26,#43,#0E,#03,#43,#26,#1C       ;.&C..C&.
+       DB       #08,#18,#30,#60,#EC,#6F,#0C,#0C       ;..0`lo..
+       DB       #02,#7E,#42,#38,#06,#E6,#44,#38       ;.~B8.fD8
+       DB       #3C,#46,#80,#DC,#E2,#C3,#7D,#36       ;<F.\bC}6
+       DB       #7F,#FA,#86,#0C,#18,#30,#30,#20       ;.z...00 
+       DB       #3C,#66,#C3,#5E,#F3,#C3,#66,#3C       ;<fC^sCf<
+       DB       #1C,#2E,#63,#47,#39,#03,#06,#1C       ;..cG9...
+       DB       #10,#38,#10,#00,#10,#38,#10,#00       ;.8...8..
+       DB       #00,#08,#1C,#08,#00,#0C,#9C,#60       ;.......`
+       DB       #10,#10,#28,#28,#44,#44,#82,#FE       ;..((DD.~
+       DB       #00,#00,#FE,#F2,#00,#3E,#FF,#00       ;..~r.>..
+       DB       #7F,#7F,#3E,#3E,#1C,#1C,#08,#08       ;..>>....
+       DB       #7C,#86,#C2,#46,#0C,#18,#00,#18       ;|.BF....
+       DB       #00,#03,#07,#01,#3E,#7F,#3F,#00       ;....>.?.
+       DB       #18,#34,#66,#64,#6E,#42,#26,#E7       ;.4fdnB&g
+       DB       #F8,#54,#46,#6C,#46,#42,#4C,#F8       ;xTFlFBLx
+       DB       #3C,#62,#C6,#80,#C0,#C2,#46,#3C       ;<bF.@BF<
+       DB       #F8,#46,#63,#62,#43,#63,#66,#F8       ;xFcbCcfx
+       DB       #BC,#66,#42,#78,#44,#41,#63,#EF       ;<fBxDAco
+       DB       #BC,#46,#42,#70,#48,#40,#60,#30       ;<FBpH@`0
+       DB       #3C,#66,#C2,#80,#8A,#C6,#6A,#3C       ;<fB..Fj<
+       DB       #C0,#9C,#EE,#C6,#84,#88,#0C,#06       ;@.nF....
+       DB       #70,#28,#10,#08,#18,#18,#14,#3C       ;p(.....<
+       DB       #05,#03,#03,#03,#03,#81,#46,#3C       ;......F<
+       DB       #80,#C7,#4C,#D8,#F4,#AE,#C5,#E3       ;.GLXt.Ec
+       DB       #C0,#60,#60,#60,#60,#61,#53,#7F       ;@````aS.
+       DB       #83,#46,#6C,#51,#49,#43,#42,#A3       ;.FlQICB#
+       DB       #EE,#5B,#61,#41,#43,#66,#A6,#03       ;n[aACf&.
+       DB       #3C,#46,#83,#83,#83,#83,#46,#3C       ;<F....F<
+       DB       #78,#CC,#82,#C4,#78,#C0,#C0,#80       ;xL.Dx@@.
+       DB       #3C,#42,#83,#83,#92,#9B,#C4,#7B       ;<B....D{
+       DB       #BC,#46,#63,#63,#46,#3C,#66,#F3       ;<FccF<fs
+       DB       #3C,#7A,#40,#36,#03,#C3,#6E,#3C       ;<z@6.Cn<
+       DB       #FF,#C2,#99,#10,#18,#18,#28,#70       ;.B....(p
+       DB       #20,#41,#83,#83,#C1,#A7,#6D,#39       ; A..A'm9
+       DB       #81,#81,#C3,#C2,#A7,#62,#3C,#18       ;..CB'b<.
+       DB       #81,#C3,#D3,#D1,#DB,#CB,#F7,#62       ;.CSQ[Kwb
+       DB       #C3,#E3,#50,#28,#1C,#6E,#E7,#C2       ;CcP(.ngB
+       DB       #00,#81,#C3,#C6,#7D,#01,#62,#3C       ;..CF}.b<
+       DB       #7D,#F6,#84,#08,#10,#21,#5D,#FF       ;}v...!].
+       DB       #18,#3C,#66,#67,#67,#66,#3C,#18       ;.<fggf<.
+       DB       #00,#00,#40,#20,#10,#08,#04,#00       ;..@ ....
+       DB       #00,#00,#00,#FF,#FF,#0E,#0E,#0A       ;........
+       DB       #00,#10,#38,#54,#10,#10,#10,#00       ;..8T....
+       DB       #00,#00,#00,#00,#00,#00,#00,#FF       ;........
+       DB       #00,#1C,#22,#78,#20,#20,#7E,#00       ;.."x  ~.
+       DB       #FF,#84,#87,#84,#88,#F0,#A0,#A0       ;.....p  
+       DB       #FF,#00,#FF,#00,#00,#00,#00,#00       ;........
+       DB       #FF,#21,#E1,#21,#11,#0F,#05,#05       ;.!a!....
+       DB       #05,#05,#05,#05,#05,#05,#05,#05       ;........
+       DB       #05,#05,#0F,#11,#21,#E1,#21,#FF       ;....!a!.
+       DB       #00,#00,#00,#00,#00,#FF,#00,#FF       ;........
+       DB       #A0,#A0,#F0,#88,#84,#87,#84,#FF       ;  p.....
+       DB       #A0,#A0,#A0,#A0,#A0,#A0,#A0,#A0       ;        
+       DB       #00,#46,#A8,#84,#82,#AA,#44,#00       ;.F(..*D.
+       DB       #00,#66,#88,#44,#22,#AA,#44,#00       ;.f.D"*D.
+       DB       #00,#EA,#8A,#CE,#8A,#8A,#EA,#00       ;.j.N..j.
+       DB       #00,#6C,#8A,#4A,#2C,#A8,#48,#00       ;.l.J,(H.
+       DB       #00,#C8,#A8,#A8,#A8,#A8,#CE,#00       ;.H((((N.
+       DB       #00,#00,#30,#38,#3C,#00,#00,#00       ;..08<...
+       DB       #00,#00,#38,#44,#44,#44,#38,#00       ;..8DDD8.
+       DB       #00,#00,#78,#44,#44,#78,#40,#40       ;..xDDx@@
+       DB       #00,#00,#3C,#44,#44,#3C,#04,#06       ;..<DD<..
+       DB       #00,#00,#1C,#20,#20,#20,#20,#00       ;...    .
+       DB       #00,#00,#38,#40,#38,#04,#78,#00       ;..8@8.x.
+       DB       #00,#10,#38,#10,#10,#10,#0C,#00       ;..8.....
+       DB       #00,#00,#44,#44,#44,#44,#38,#00       ;..DDDD8.
+       DB       #00,#00,#44,#44,#28,#28,#10,#00       ;..DD((..
+       DB       #00,#00,#44,#54,#54,#54,#28,#00       ;..DTTT(.
+       DB       #00,#00,#44,#28,#10,#28,#44,#00       ;..D(.(D.
+       DB       #00,#00,#44,#44,#44,#3C,#04,#38       ;..DDD<.8
+       DB       #00,#00,#7C,#08,#10,#20,#7C,#00       ;..|.. |.
+       DB       #00,#0E,#08,#30,#08,#08,#0E,#00       ;...0....
+       DB       #00,#08,#08,#08,#08,#08,#08,#00       ;........
+       DB       #00,#70,#10,#0C,#10,#10,#70,#00       ;.p....p.
+       DB       #00,#14,#28,#00,#00,#00,#00,#00       ;..(.....
+       DB       #3C,#42,#99,#A1,#A1,#99,#42,#3C       ;<B.!!.B<

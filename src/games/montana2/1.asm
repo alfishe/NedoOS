@@ -9,12 +9,10 @@ L_FE00=0xfe00
 scrbase=0x4000+4
 sprmaxwid=32
 sprmaxhgt=32
-scrwid=160 ;double pixels
-scrhgt=192;200
+scrwid=128;160 ;double pixels
+scrhgt=176;192;200
 INTSTACK=0x3f00
 tempsp=0x3f06 ;6 bytes for prspr
-;UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
-;UVSCROLL_SCRHGT=192 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
 
 screenYtable=0x8b00
 
@@ -163,12 +161,6 @@ showtiles0
 
         YIELDGETKEYLOOP
         
-        if EGA
-        ld de,pal
-        OS_SETPAL
-        halt
-	endif
-
         ;jr $
         jp GO
 
@@ -390,9 +382,12 @@ PrintCharA_EGA
         push bc
         push de
         push hl
+        push ix
        push af
+        ld d,c
+        ld e,b
         call setpgsscr40008000
-	LD	DE,(curprintyx)
+	;LD	DE,(curprintyx)
         sla e
         sla e
         sla e
@@ -415,7 +410,7 @@ PrintCharA_EGA
         ld h,a
        pop af
 	PUSH	HL
-	LD	DE,font-256;L_BE02
+	LD	DE,Font-256;L_BE02
 	LD	H,#00
 	LD	L,A
 	ADD	HL,HL
@@ -425,7 +420,6 @@ PrintCharA_EGA
 	EX	DE,HL
 	POP	HL
 	LD	hx,#08
-
 PrintCharA_EGA0
         FONTBYTE
         ld bc,40-0x6000
@@ -433,7 +427,7 @@ PrintCharA_EGA0
 	INC	DE
         dec hx
 	jr nz,PrintCharA_EGA0
-        
+        if 1==0
 	LD	DE,(curprintyx)
 	INC	D
 	LD	A,D
@@ -447,12 +441,15 @@ PrintCharA_EGA0
 	LD	E,#00
 PrintCharA_EGAq
 	LD	(curprintyx),DE
+        endif
         call setpgsmain40008000
+        pop ix
         pop hl
         pop de
         pop bc
         ret
        
+        if 1==0
 PrintCharA
 	PUSH	DE
 	PUSH	HL
@@ -474,7 +471,7 @@ PrintCharA
 	LD	L,A
 	POP	AF
 	PUSH	HL
-	LD	DE,font-256;L_BE02
+	LD	DE,Font-256;L_BE02
 	LD	H,#00
 	LD	L,A
 	ADD	HL,HL
@@ -489,6 +486,7 @@ L_C6EB	LD	A,(DE)
 	INC	H
 	INC	DE
 	DJNZ	L_C6EB
+        if 1==1
 	LD	DE,(curprintyx)
 	INC	D
 	LD	A,D
@@ -501,6 +499,7 @@ L_C6EB	LD	A,(DE)
 	JR	NZ,L_C705
 	LD	E,#00
 L_C705	LD	(curprintyx),DE
+        endif
 	POP	BC
 	POP	HL
 	POP	DE
@@ -542,6 +541,7 @@ L_C71C_EGA
 	INC	HL
 	LD	(curprintyx),DE
 	JR	PrintStringHL_EGA
+        endif
 
 setpgsmain40008000
 pgmain4000=$+1
@@ -660,6 +660,62 @@ primgegacolumn0q
         call setpgcodec000
         jp setpgsmain40008000
 
+copyimgega_curtodefault
+;d=hgt,e=wid (/8)
+;hl=scr
+        call getuser_scr_low_cur
+        SETPG16K ;set "from" page in 4000
+        call getuser_scr_low
+        SETPG32KHIGH ;set "to" page in c000
+        call copyimgegalayer
+        call getuser_scr_high_cur
+        SETPG16K ;set "from" page in 4000
+        call getuser_scr_high
+copyimgegaq
+        SETPG32KHIGH ;set "to" page in c000
+        call copyimgegalayer
+        call setpgcodec000
+        jp setpgsmain40008000
+
+copyimgega_defaulttocur
+;d=hgt,e=wid (/8)
+;hl=scr
+        call getuser_scr_low
+        SETPG16K ;set "from" page in 4000
+        call getuser_scr_low_cur
+        SETPG32KHIGH ;set "to" page in c000
+        call copyimgegalayer
+        call getuser_scr_high
+        SETPG16K ;set "from" page in 4000
+        call getuser_scr_high_cur
+        jr copyimgegaq ;set "to" page in c000, copy
+
+copyimgegalayer
+        push hl
+        ld hx,e ;wid/8
+copyimgega0
+        push de
+        push hl
+        ld b,d ;hgt
+        ld de,40-0x8000
+copyimgegacolumn0
+        ld a,(hl)
+        set 5,h
+        ld c,(hl)
+        set 7,h
+        ld (hl),c
+        res 5,h
+        ld (hl),a
+        add hl,de
+        djnz copyimgegacolumn0
+        pop hl
+        pop de
+        inc hl
+        dec hx
+        jr nz,copyimgega0
+        pop hl
+        ret
+
 clsega
         call setpgsscr40008000
         ld hl,0x4000
@@ -671,7 +727,35 @@ clsega
 
         if EGA
 RestoreSpriteEGA
-
+        jr $
+        push ix
+	LD	A,(spritey)
+        cp -16
+        jr c,$+3
+         xor a
+        ld l,a ;y
+	LD	A,(spriteX)
+         add a,4 ;x
+        ld h,0
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+         add hl,hl
+         add hl,hl
+         add hl,hl
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,0x40
+        ld h,a
+        ld de,0x1003 ;hgt,wid/8
+        call copyimgega_defaulttocur
+        pop ix
         ret
         endif
 
@@ -682,9 +766,11 @@ DrawTileEGA
         push bc
         push de
         push hl
+        push ix
         ld e,b
         ld d,c
         call DrawTile_A_XYDE
+        pop ix
         pop hl
         pop de
         pop bc
@@ -729,9 +815,12 @@ DrawTile_A_XYDE
 
        if EGA
 DrawSpriteEGA
-        ld a,hx
-        or lx
-        ret z
+        ;ld a,hx
+        ;or lx
+        ;jr z,$ ;ret z
+        ;ld a,lx
+        ;cp talien1sprites&0xff
+        ;jr z,$
         ;ret
         push bc
         push de
@@ -777,7 +866,7 @@ L_6D43_	ADD	iy,BC
 	LD	A,(spriteX) ;x?
         add a,a
         add a,a
-        add a,a
+        ;add a,a
         ld d,a
 	LD	A,(spritey) ;y
         add a,a
@@ -804,12 +893,13 @@ L_6D43_	ADD	iy,BC
         call setpgsscr40008000
         ld c,e ;y
         ld a,d ;x
-        srl a
+        ;srl a
         add a,sprmaxwid-1
         ld e,a
 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        call prspr
+        cp scrwid+sprmaxwid-1
+        call c,prspr
         call setpgcodec000
         call setpgsmain40008000
         pop iy
@@ -822,7 +912,7 @@ L_6D43_	ADD	iy,BC
 
         include "prspr.asm"
 
-       if EGA
+       if 1==0;EGA
 GetBuf24x16_DExy
 ;e=y
 ;d=x
@@ -888,7 +978,9 @@ getimgegacolumn0q
         pop de
         pop bc
         ret
+       endif
 
+       if 1==0;EGA
 ReBuf24x16_DExy
 ;e=y
 ;d=x (width 16 if multiple of 8)
@@ -937,7 +1029,7 @@ rebuf24x16
         ds 12*16
        endif
 
-       if EGA
+       if 1==0;EGA
 DrawSprite16x16_HL_DExy
 ;hl=gfx
 ;e=y
