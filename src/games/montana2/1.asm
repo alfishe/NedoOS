@@ -14,10 +14,10 @@ scrhgt=176;192;200
 INTSTACK=0x3f00
 tempsp=0x3f06 ;6 bytes for prspr
 
-screenYtable=0x8b00
+;screenYtable=0x8b00
 
 USEINT=1
-EGA=0;1
+EGA=1
 
         org PROGSTART
 begin
@@ -559,14 +559,12 @@ setpgsscr40008000;_current
         SETPG32KLOW
         ret
 
-        if 1==0
-setpgsscr40008000
+setpgsscr40008000_buf
         call getuser_scr_low
         SETPG16K
         call getuser_scr_high
         SETPG32KLOW
         ret
-        endif
 
 getuser_scr_low
 getuser_scr_low_patch=$+1
@@ -623,12 +621,21 @@ changescrpg
         ret
         endif
 
+primgega_buf
+;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+        push bc
+        call setpgsscr40008000_buf
+        jr primgega_go
+
 primgega
 ;b=hgt,c=wid (/2)
 ;de=gfx
 ;hl=scr
         push bc
         call setpgsscr40008000
+primgega_go
         call setpggfxc000
         pop bc
 primgega0
@@ -727,15 +734,22 @@ clsega
 
         if EGA
 RestoreSpriteEGA
-        jr $
         push ix
-	LD	A,(spritey)
+	;LD	A,(spritey)
+        ld a,(ix+14) ;y2
         cp -16
         jr c,$+3
          xor a
+        cp (scrhgt-16)/2
+        jr c,$+4
+         ld a,(scrhgt-16)/2
         ld l,a ;y
-	LD	A,(spriteX)
+	;LD	A,(spriteX)
+        ld a,(ix+13) ;X
          add a,4 ;x
+         cp 40
+         jr c,$+4
+         ld a,40
         ld h,0
         ld b,h
         ld c,l
@@ -745,8 +759,8 @@ RestoreSpriteEGA
          add hl,hl
          add hl,hl
          add hl,hl ;*40
-         add hl,hl
-         add hl,hl
+         ;add hl,hl
+         ;add hl,hl
          add hl,hl
         add a,l
         ld l,a
@@ -770,14 +784,34 @@ DrawTileEGA
         ld e,b
         ld d,c
         call DrawTile_A_XYDE
+        jr DrawTileEGA_go
+DrawTileEGA_twoscr
+;a=tile
+;bc=YX
+        push bc
+        push de
+        push hl
+        push ix
+        ld e,b
+        ld d,c
+        call DrawTile_A_XYDE
+        push bc
+        push de
+        push hl
+        call primgega_buf
+        pop hl
+        pop de
+        pop bc
+DrawTileEGA_go
+        call primgega
         pop ix
         pop hl
         pop de
         pop bc
         ret
-DrawTile_A_X2Y2DE
-	sla	D
-	sla	E
+;DrawTile_A_X2Y2DE
+	;sla	D
+	;sla	E
 DrawTile_A_XYDE
 	LD	H,a
 	LD	L,0
@@ -810,48 +844,19 @@ DrawTile_A_XYDE
         ld bc,0x1008 ;b=hgt,c=wid (/2)
 ;de=gfx
 ;hl=scr
-        jp primgega
+        ret
         endif
 
        if EGA
 DrawSpriteEGA
-        ;ld a,hx
-        ;or lx
-        ;jr z,$ ;ret z
-        ;ld a,lx
-        ;cp talien1sprites&0xff
-        ;jr z,$
-        ;ret
         push bc
         push de
         push hl
         push ix
         push iy
         
-        if 1==0
-        push ix
-        pop de
-        ld hl,therosprites
-        or a
-        sbc hl,de
-        jr z,dsok
-        ld hl,talien1sprites
-        or a
-        sbc hl,de
-        jr z,dsok
-        ld hl,talien2sprites
-        or a
-        sbc hl,de
-        jr z,dsok
-        jr $
-dsok
-        endif
-        
 	LD	A,(IX+#05) ;phase
 	INC	A
-       ;cp 2
-       ;jr c,$+4
-       ;ld a,2
 	LD	iy,#0000
 	LD	BC,412;#0060 ;sprite size
 L_6D43_	ADD	iy,BC
@@ -860,15 +865,15 @@ L_6D43_	ADD	iy,BC
 	LD	C,(IX+#0B) ;
 	LD	B,(IX+#0C) ;sprites base
 	ADD	iy,BC
-        ;ld iy,hero_r0
 
-	;LD	A,(spritehgt) ;hgt
 	LD	A,(spriteX) ;x?
+         ld (ix+13),a ;X
         add a,a
         add a,a
         ;add a,a
         ld d,a
 	LD	A,(spritey) ;y
+         ld (ix+14),a ;y2
         add a,a
         ;add a,8
         ld e,a

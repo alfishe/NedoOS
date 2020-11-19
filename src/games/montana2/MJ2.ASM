@@ -34,8 +34,7 @@ L_61CC	DB #00,#12,#10
        else
 	dw MJ_sprites-#60 ;#B0,#B3
        endif
-       
-       display hero_r1-hero_r0
+         dw 0 ;old xy
 
 talien1sprites
 	DB #01,#00,#00
@@ -48,6 +47,7 @@ talien1sprites
        else
 	dw Alien1_sprite-#60
        endif
+         dw 0 ;old xy
 
 talien2sprites
 	DB #02,#00,#00
@@ -60,6 +60,7 @@ talien2sprites
        else
 	dw Alien2_sprite-#60
        endif
+         dw 0 ;old xy
 
 L_61EB
        DB       #00,#0C,#18,#28,#38,#40,#58,#68       ;...(8@Xh
@@ -316,7 +317,9 @@ L_63F5	CP	#04
 	LD	D,#05
 	RET
 ;
-L_6403	LD	A,#01
+L_6403
+;called at jump, result d=6
+	LD	A,#01
 	CALL	CheckTileAtDirection
 	CP	#06
 	RET	NC
@@ -761,6 +764,16 @@ L_66D4	PUSH	AF
 	DEC	A
 	JR	NZ,L_66D4
 	RET
+
+         if EGA
+restoresprites
+	LD	IX,therosprites
+        call RestoreSpriteEGA
+	LD	IX,talien1sprites
+        call RestoreSpriteEGA
+	LD	IX,talien2sprites
+        jp RestoreSpriteEGA
+         endif
 ;
 L_66E0	LD	BC,#1719
 	CALL	PrintLevelNumber
@@ -804,6 +817,9 @@ L_672A	LD	A,(firephase)
 	CALL	AnimFire
 	XOR	A
 L_6736	LD	(firephase),A
+         if EGA
+         call restoresprites
+         endif
 	CALL	parseherosprites
 	LD	A,(L_624E)
 	CP	#01
@@ -1020,31 +1036,23 @@ L_68F1	LD	B,A
 	SLA	C
 	SLA	B
 L_68F7
-        if EGA == 0
+        if EGA
+	jp DrawTileEGA_twoscr
+        else
 	LD	DE,0xFACB ; 0xCB,0xFA = set 7,d
 	LD	(L_6EBA),DE
-        endif
 	PUSH	AF
-        if EGA
-	CALL	DrawTileEGA
-        else
 	CALL	DrawTile
-        endif
 	POP	AF
-        if EGA == 0
 	LD	DE,#0000
 	LD	(L_6EBA),DE
-        endif
-        if EGA
-	jp DrawTileEGA
-        else
 	JP	DrawTile
         endif
 ;
 L_690D	LD	A,#FE
 	IN	A,(#FE)
 	RRCA ;caps shift
-	JR	NC,L_6924
+	JR	NC,PauseMenu
 L_6914	LD	A,(L_7110)
 	INC	A
 	CALL	PlaySFX
@@ -1058,15 +1066,14 @@ L_6914	LD	A,(L_7110)
 	;JP	PauseBC
          ret
 ;
-L_6924
-        ;jr $
+PauseMenu
 	CALL	PlaySFX
 	LD	BC,#080A
 	LD	HL,L_AC05
 	LD	A,#07
 L_692F	PUSH	BC
 	PUSH	AF
-	CALL	PrintString
+	CALL	PrintString_EGA
 	POP	AF
 	POP	BC
 	INC	B
@@ -1927,9 +1934,12 @@ L_6E76	LD	A,(HL)
 ;
 CopyScreenToBufferScreen
         if EGA
+        push ix
         ld hl,scrbase
         ld de,scrhgt*256+(scrwid/4);d=hgt,e=wid (/8)
-        jp copyimgega_curtodefault ;before swapscr
+        call copyimgega_curtodefault ;before swapscr
+        pop ix
+        ret
         else
 	LD	HL,#4000
 	LD	DE,BufferScreen
