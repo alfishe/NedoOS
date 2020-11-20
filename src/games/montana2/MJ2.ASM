@@ -984,6 +984,9 @@ L_6869	LD	A,(L_6249)
 ;
 L_6883
 ;very rare! fly dead?
+         if EGA
+         call restoresprites
+         endif
 	LD	IX,talien1sprites
 	CALL	L_6D9A
 	LD	IX,talien2sprites
@@ -991,7 +994,13 @@ L_6883
 	LD	IX,therosprites
 	LD	(IX+#05),#08
 	LD	A,(IX+#04) ;y?
-L_689C	DEC	(IX+#04) ;y?
+L_689C
+         if EGA
+         push ix
+         call restoresprites
+         pop ix
+         endif
+	DEC	(IX+#04) ;y?
 	CALL	L_6C3A
 	CALL	L_6914
 	LD	A,(IX+#04) ;y?
@@ -1624,9 +1633,6 @@ KeepSpriteToL_D800
          if EGA
          ret
          endif
-         ;if USEINT
-         ;di
-         ;endif
 	LD	A,(spritey) ;y
 	LD	C,A
 	LD	B,#00
@@ -1685,25 +1691,12 @@ L_6D29	INC	DE
 	LD	SP,(L_626A)
 	;LD	IY,#5C3A
         endif
-         ;if USEINT
-         ;ei
-         ;endif
 	RET
 ;
 BlitSpriteInL_D800
          if EGA
          ret
-         endif
-         ;if USEINT
-         ;di
-         ;endif
-         ;ld a,hx
-         ;or lx
-         ;jr z,$
-         ;ld a,lx
-         ;cp talien1sprites&0xff
-         ;jr z,$
-         
+         endif        
 	LD	DE,L_D800+0x0C
 	LD	A,(IX+#05) ;phase
 	INC	A
@@ -1731,18 +1724,12 @@ L_6D57	LD	A,(DE)
         if USEINT == 0
 	LD	IY,#5C3A
         endif
-         ;if USEINT
-         ;ei
-         ;endif
 	RET
 ;
 DrawSpriteFromL_D800
          if EGA
          ret
          endif
-         ;if USEINT
-         ;di
-         ;endif
         if USEINT == 0
 	LD	hl,(curspritescraddr)
 	LD	(L_626A),SP
@@ -1786,9 +1773,6 @@ L_6D8D	INC	HL
 	LD	SP,(L_626A)
 	;LD	IY,#5C3A
         endif
-         ;if USEINT
-         ;ei
-         ;endif
 	RET
 ;
 L_6D9A
