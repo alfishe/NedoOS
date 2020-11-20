@@ -72,7 +72,7 @@ tdelta2yXatdirection
        DB       #04,#FF,#04,#00,#04,#01,#04,#02       ;........
        DB       #08,#FF,#08,#00,#08,#01,#08,#02       ;........
 tlifechars       DB       #40,#23,#00       ;@#.
-L_621D       DB       #20,#20,#00       ;  .
+tnolifechars     DB       #20,#20,#00       ;  .
 
 tscore_level       DM       "SCORE              LEVEL  "
        DB       #00       ;.
@@ -835,7 +835,7 @@ L_6757	JP	Z,L_66AF
 	CP	#04
 	JP	Z,Victory
 	CALL	GameOver
-	JP	L_6F06
+	JP	GoMenu
 ;
 L_6765	INC	HL
 	LD	A,(HL)
@@ -976,8 +976,12 @@ L_6869	LD	A,(L_6249)
 	RLCA
 	LD	C,A
 	LD	B,#16
-	LD	HL,L_621D
+	LD	HL,tnolifechars
+        if EGA
+	CALL	PrintString_EGA
+        else
 	CALL	PrintString
+        endif
 	LD	A,#01
 	LD	(L_624E),A
 	RET
@@ -1434,7 +1438,11 @@ L_6B7B	SUB	E
 	JP	PrintCharYScaleL_7111
 ;
 GameOver
+         if EGA
+         call Set6912
+         else
 	CALL	FadeOut
+         endif
 	CALL	ClsZeroAttr
 	LD	A,(L_624E)
 	CP	#02
@@ -1512,13 +1520,49 @@ L_6C00	DEC	BC
 	RET
 ;
 AnimFire
-;TODO
 	LD	HL,L_6255
 	LD	A,(HL)
 	CP	#0A
 	JR	NZ,L_6C12
 	LD	(HL),#07
 L_6C12	INC	(HL)
+       if EGA
+        ld ix,therosprites
+	LD	HL,unpackedlevel
+	BIT	0,(IX+#08)
+	JR	Z,animfire_noRscreen
+	LD	BC,#000E
+	ADD	HL,BC
+animfire_noRscreen
+	BIT	1,(IX+#08)
+	JR	Z,animfire_noDscreen
+	LD	BC,#010E
+	ADD	HL,BC
+animfire_noDscreen
+;to screen and to BufferScreen
+	LD	BC,#0000
+animfire_0
+	LD	A,(HL)
+	INC	HL
+        cp 2
+	LD	A,(L_6255)
+        call z,DrawTileEGA_twoscr
+	INC	C
+	INC	C
+	LD	A,#20
+	CP	C
+	JR	NZ,animfire_0
+	INC	B
+	INC	B
+	LD	A,#16
+	CP	B
+	ret z
+	LD	DE,#000E
+	ADD	HL,DE
+	LD	C,#00
+	JR animfire_0
+        
+       else ;~EGA
 	LD	HL,#5800
 	LD	BC,#0000
 L_6C19	LD	A,#02
@@ -1543,6 +1587,7 @@ L_6C19	LD	A,#02
 	JR	L_6C19
 ;
        DB       #C9       ;I
+       endif ;~EGA
 ;
 L_6C3A
 	LD	A,#18
@@ -1895,8 +1940,6 @@ DrawTileMap
 L_6E76	LD	A,(HL)
 	INC	HL
         if EGA
-        ;di
-        ;halt
         call DrawTileEGA
         else
 	CALL	DrawTile
@@ -2005,7 +2048,7 @@ GO
 	LD	A,#01
 	LD	(L_7110),A
 	LD	(startlevel),A
-L_6F06
+GoMenu
         call Set6912
 	XOR	A
 	OUT	(#FE),A
@@ -2422,6 +2465,9 @@ twaitnewgames       DM       "WAIT NEW GAMES BY HOME MASTERS",#00
 L_7226       DB       #86,#20,#83,#80,#85,#80,#FF       ;. .....
 ;
 Victory
+         if EGA
+         call Set6912
+         endif
 	CALL	ClsZeroAttr
 	LD	BC,#0707
 	LD	A,#02
@@ -2440,7 +2486,7 @@ Victory
 	LD	HL,L_7226
 	CALL	L_705A
 	CALL	WaitKey
-	JP	L_6F06
+	JP	GoMenu
 ;
 MenuDemo
         if USEINT == 0
