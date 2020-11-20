@@ -81,11 +81,11 @@ panelattrs
        DB       #84,#20,#85,#06,#87,#08,#06,#06       ;. ......
        DB       #85,#09,#07,#07,#FF       ;.....
 curdirection       DB       #00       ;.
-L_6249       DB       #00       ;.
+curlives       DB       #00       ;.
 L_624A       DB       #00,#00       ;..
 curlevel       DB       #00       ;.
 L_624D       DB       #00       ;.
-L_624E       DB       #00       ;.
+isdead       DB       #00       ;.
 L_624F       DB       #00       ;.
 L_6250       DB       #00       ;.
 L_6251       DB       #00       ;.
@@ -142,6 +142,9 @@ L_62A5	LD	A,(IX+#01)
 ;
 parsealien1sprites
 	LD	IX,talien1sprites
+       ld a,(timer) ;phase
+       and 3
+       jr z,skipalienmove
 	LD	A,(IX+#01)
 	CP	#10
 	JR	C,L_62CD
@@ -162,7 +165,8 @@ L_62D9	LD	A,(IX+#01)
 	CALL	L_6A51
 	JR	C,L_62F1
 	CALL	L_6830
-L_62EE	JP	L_6C3A
+skipalienmove
+L_62EE	JP	L_6C3A ;draw
 ;
 L_62F1
 ;very rare!
@@ -171,6 +175,9 @@ L_62F1
 ;
 parsealien2sprites
 	LD	IX,talien2sprites
+       ld a,(timer) ;phase
+       and 3
+       jr z,skipalienmove
 	LD	A,(IX+#01)
 	CP	#10
 	JR	C,L_6308
@@ -727,7 +734,7 @@ MenuStartGame
 GameOrDemo
 	AND	#00
 	SET	2,A
-	LD	(L_6249),A
+	LD	(curlives),A
 	LD	HL,#0000
 	LD	(L_624A),HL
 	LD	HL,#03E8
@@ -749,7 +756,7 @@ L_66AF	LD	DE,#0601
 	CALL	L_66CC
 	JR	L_66E0
 ;
-L_66CC	LD	A,(L_6249)
+L_66CC	LD	A,(curlives)
 	OR	A
 	RET	Z
 	LD	BC,#1600
@@ -781,7 +788,7 @@ L_66E0	LD	BC,#1719
 	CALL	AddScoreBC ;print score
 	XOR	A
 	LD	(L_624D),A
-	LD	(L_624E),A
+	LD	(isdead),A
 	LD	A,#20
 	LD	BC,#170E
         if EGA
@@ -817,18 +824,27 @@ L_672A	LD	A,(firephase)
 	CALL	AnimFire
 	XOR	A
 L_6736	LD	(firephase),A
+         ld hl,timer
+         inc (hl)
+         ld a,0xfe
+         in a,(0xfe)
+         bit 3,a ;'c'
+         jr nz,nocheat
+         xor a
+         ld (cheatpatch),a
+nocheat
          if EGA
          call restoresprites
          endif
 	CALL	parseherosprites
-	LD	A,(L_624E)
+	LD	A,(isdead)
 	CP	#01
 	JP	NC,L_6757
 	CALL	parsealien1sprites
 	CALL	parsealien2sprites
 	CALL	L_690D
 	CALL	CheckLevelExit
-	LD	A,(L_624E)
+	LD	A,(isdead)
 	CP	#01
 	JR	C,L_672A
 L_6757	JP	Z,L_66AF
@@ -914,7 +930,7 @@ AddScoreBC
 	LD	HL,#03E8
 	ADD	HL,DE
 	LD	(L_6257),HL
-	LD	HL,L_6249
+	LD	HL,curlives
 	INC	(HL)
 	LD	A,#11
 	CP	(HL)
@@ -968,11 +984,12 @@ L_6855	CALL	PlaySFXL_6DEF
 	LD	(IX+#08),A
 	RET
 ;
-L_6869	LD	A,(L_6249)
+L_6869	LD	A,(curlives)
 	OR	A
 	JR	Z,L_68AE
-	DEC	A
-	LD	(L_6249),A
+cheatpatch=$
+	DEC	A ;/nop
+	LD	(curlives),A
 	RLCA
 	LD	C,A
 	LD	B,#16
@@ -983,7 +1000,7 @@ L_6869	LD	A,(L_6249)
 	CALL	PrintString
         endif
 	LD	A,#01
-	LD	(L_624E),A
+	LD	(isdead),A
 	RET
 ;
 L_6883
@@ -1013,7 +1030,7 @@ L_689C
 	JR	L_6869
 ;
 L_68AE	LD	A,#03
-	LD	(L_624E),A
+	LD	(isdead),A
 	RET
 ;
 L_68B4	LD	A,(L_624D)
@@ -1118,7 +1135,7 @@ L_6953	LD	IX,therosprites
 L_6967	BIT	2,A
 	JR	NZ,L_6953
 	LD	A,#02
-	LD	(L_624E),A
+	LD	(isdead),A
 	RET
 ;
 L_6971	LD	D,(IX+#01)
@@ -1379,11 +1396,11 @@ CheckLevelExit
 	CP	(HL)
 	JR	NZ,L_6B58
 	LD	A,#04
-	LD	(L_624E),A
+	LD	(isdead),A
 	RET
 ;
 L_6B58	LD	A,#01
-	LD	(L_624E),A
+	LD	(isdead),A
 	LD	HL,L_8EB3
 	LD	(L_6E6E),HL
 	LD	B,#56
@@ -1444,7 +1461,7 @@ GameOver
 	CALL	FadeOut
          endif
 	CALL	ClsZeroAttr
-	LD	A,(L_624E)
+	LD	A,(isdead)
 	CP	#02
 	RET	Z
 	CALL	SetSomeAttrs
@@ -2485,6 +2502,13 @@ Victory
 	LD	DE,#58E0
 	LD	HL,L_7226
 	CALL	L_705A
+victorynokey0
+         halt
+         xor a
+         in a,(0xfe)
+         cpl
+         and 0x1f
+         jr nz,victorynokey0
 	CALL	WaitKey
 	JP	GoMenu
 ;
@@ -2520,7 +2544,7 @@ ControlDemo
 	SBC	HL,BC
 	RET	C
 	LD	A,#02
-	LD	(L_624E),A
+	LD	(isdead),A
 	RET
 ;
 	if EGA

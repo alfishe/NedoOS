@@ -1091,6 +1091,8 @@ bmpfilename
         display "xxx=",$
 killablescraddr
         ds 3
+timer
+        db 0
 
         ds 0x3f00-$
         ds 0x4000-$
