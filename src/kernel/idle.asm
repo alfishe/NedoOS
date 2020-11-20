@@ -179,6 +179,7 @@ idle_runcmd
         OS_FREEZEAPP
         
 idleloop
+        halt ;читаем клавиатуру не слишком часто
         ;ld a,1
         ;out (0xfe),a
         
