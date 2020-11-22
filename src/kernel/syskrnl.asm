@@ -938,7 +938,16 @@ KEY_PUTREDRAW
 		out (c),c
 		ld b,0xbe
 		in a,(c)
+		jr z,.buf_empty
+		inc a
 		jr nz,KEY_PUTREDRAW
+		ld b,0xde		;переполнено
+		ld a,0x0c		;сбросить буфер
+		out (c),a
+		ld b,0xbe
+		ld a,1
+		out (c),a
+.buf_empty		
 		xor a
 		ld (KEYSCAN.rep_wait),a
 		ld b,a

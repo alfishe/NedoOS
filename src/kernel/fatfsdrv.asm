@@ -658,7 +658,7 @@ outcom_hlSD
 ;А=код команды, аргумент команды равен 0 
 outcom_zeroparsSD
     call cs_lowSD
-	ld bc,0x0057
+	ld b,0x0057
        ifndef KOE
 	in f,(c)
 	NOPSDCARD
@@ -783,8 +783,17 @@ cmd16SD
         db 0x00
         db 0xff
 
+readsectorsSD
+        ld a,0x52
+	call setcmdparsSD
+	exa  
+LL7dbd	exa  
+LL7dbe	call read32byteswaitnoffSD
+	cp 0xfe
+	jr nz,LL7dbe
+	;call readsecSDcard
 readsecSDcard	
-        push bc
+    ;push bc
 	ld bc,0x7f57
 	inir  
 	ld b,0x7f
@@ -799,38 +808,8 @@ readsecSDcard
 	in a,(C)
 	NOPSDCARD  
 	in a,(C)
-	pop bc
-	ret
-
-writesecSDcard	
-        push bc
-	ld bc,0x0057
-	out (C),a
-	ld b,0x80
-	otir  
-	ld b,0x80
-	otir  
-	ld b,0x80
-	otir  
-	ld b,0x80
-	otir  
-	NOPSDCARD
-        ld a,0xff
-	out (C),a
-	NOPSDCARD  
-	out (C),a
-	pop bc
-	ret
-
-readsectorsSD
-        ld a,0x52
-	call setcmdparsSD
-	exa  
-LL7dbd	exa  
-LL7dbe	call read32byteswaitnoffSD
-	cp 0xfe
-	jr nz,LL7dbe
-	call readsecSDcard
+	;pop bc
+	
 	exa  
 	dec a
 	jr nz,LL7dbd
@@ -856,7 +835,25 @@ writesectorsSD
 	EX AF,AF'  
 WRMULT1	EX AF,AF'  
 	ld a,0xfc
-	call writesecSDcard
+;	call writesecSDcard
+writesecSDcard	
+    ;push bc
+	ld bc,0x0057
+	out (C),a
+	ld b,0x80
+	otir  
+	ld b,0x80
+	otir  
+	ld b,0x80
+	otir  
+	ld b,0x80
+	otir  
+	NOPSDCARD
+        ld a,0xff
+	out (C),a
+	NOPSDCARD  
+	out (C),a
+	;pop bc
 ;LL7dec	call read32byteswaitnoffSD
 ;	inc a
 ;	jr nz,LL7dec

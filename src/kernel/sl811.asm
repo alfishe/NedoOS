@@ -55,23 +55,23 @@ SL811
 	ld a,1
 	ret
 
-.DBUF
-	defs 64
+.DBUF	;=0x8000-1024
+	defs 256
 ; 17.	void USBReset(void)   
 ; 18.	{
 .USBReset:
 	PUSH	BC
 	PUSH	DE
-	PUSH	AF
+;	PUSH	AF
 ; 19.	        BYTE tmp;
 ; 20.	        tmp =  SL811Read(CtrlReg);
 	LD	A,.CtrlReg	;0x05
 	LD	BC,0x80ab
 	OUT	(C),A
 	in a,(0xab)
-	LD	HL,0
-	ADD	HL,SP
-	LD	(HL),a
+;	LD	HL,0
+;	ADD	HL,SP
+	LD	(.USBReset_a),a
 ; 21.	        SL811Write(CtrlReg,0x08);
 	WRITE_REG .CtrlReg,0x08
 ; 22.	        .delayms(100);
@@ -90,13 +90,14 @@ SL811
 ; 27.	        SL811Write(CtrlReg,tmp);
 	LD	A,.CtrlReg	;0x05
 	OUT	(C),A
-	LD	HL,0
-	ADD	HL,SP
-	LD	A,(HL)
+;	LD	HL,0
+;	ADD	HL,SP
+.USBReset_a=$+1
+	LD	A,0x00
 	dec B
 	OUT	(C),A
 ; 28.	}   
-	POP	HL
+;	POP	HL
 	POP	DE
 	POP	BC
 	RET
@@ -255,14 +256,15 @@ SL811
 ; 88.	            SL811BufWrite(data0,.usbstack.buffer,xferLen);   // data to transfer on USB  
 	PUSH	DE
 	LD	HL,.usbstack+5
-	LD	C,(HL)
+	LD	a,(HL)
 	INC	HL
-	LD	B,(HL)
-	PUSH	BC
+	LD	h,(HL)
+	;PUSH	BC
+	ld l,a
 	LD	C,IXL
 	LD	E,16
 	CALL	SL811BUFWRITE
-	POP	HL
+	;POP	HL
 	POP	DE
 .lo024:
 ; 89.	                }
@@ -298,11 +300,11 @@ SL811
 ; 100.	            SL811BufWrite(data0,&.usbstack.setup.bmRequest,xferLen); 
 	PUSH	DE
 	LD	HL,.usbstack+7
-	PUSH	HL
+	;PUSH	HL
 	LD	C,IXL
 	LD	E,16
 	CALL	SL811BUFWRITE
-	POP	HL
+	;POP	HL
 	POP	DE
 .lo027:
 ; 101.	        }   
@@ -564,16 +566,27 @@ SL811
 ; 190.	                    SL811BufRead(dataX^0x40, .usbstack.buffer, bufLen);   
 	PUSH	DE
 	LD	HL,.usbstack+5
-	LD	C,(HL)
+	LD	A,(HL)
 	INC	HL
-	LD	B,(HL)
-	PUSH	BC
-	LD	C,IXH
+	LD	H,(HL)
+	ld l,a
 	LD	A,E
 	XOR	64
 	LD	E,A
-	CALL	SL811BUFREAD
-	POP	HL
+	LD	a,IXH
+;***	CALL	SL811BUFREAD
+	;HL-buf,E-reg, A-count
+	;ld a,c
+.rdloop
+	ld bc,0x80ab
+	out (c),e
+	inc e
+	ld b,a
+	ini
+	ld a,b
+	jp nz,.rdloop
+;***
+	;POP	HL
 	POP	DE
 ; 191.	                    .usbstack.buffer += bufLen;                                 
 	LD	HL,.usbstack+5
@@ -924,10 +937,10 @@ SL811
 ; 325.	{   
 .epBulkRcv:
 	PUSH	IX
-	LD	IX,0
-	ADD	IX,SP
-	PUSH	BC
-	PUSH	DE
+;	LD	IX,0
+;	ADD	IX,SP
+;	PUSH	BC
+;	PUSH	DE
 ; 326.	    .usbstack.usbaddr=myusbaddr;   
 	LD	A,1
 	LD	(.usbstack),A
@@ -946,29 +959,25 @@ SL811
 	LD	H,B
 	OR	H
 	JR	Z,.lo106
-.lo104:
 ; 332.	    {    
 ; 333.	        disable_interrupt();  
 	DI
-.lo107:
 ; 334.	        while(!.usbXfer()){
 	CALL	.usbXfer
 	OR	A
 	EI
 	JR	Z,.lo109
-.lo108:
 ; 335.	                enable_interrupt(); 
 ; 336.	            return FALSE; 
 ; 337.	        } 
 .lo106:
-; 338.	        enable_interrupt();    
-.lo105:
+; 338.	        enable_interrupt();
 ; 339.	    }   
 ; 340.	    return TRUE;   
 	LD	A,1
 ; 341.	}   
 .lo109:
-	LD	SP,IX
+;	LD	SP,IX
 	POP	IX
 	RET
 ; 342.	   
@@ -1064,8 +1073,8 @@ SL811
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	PUSH	AF
-	PUSH	AF
+;	PUSH	AF
+;	PUSH	AF
 ; 388.	    unsigned char i;                                    // always reset USB transfer address    
 ; 389.	    unsigned char uAddr = 0;                            // for enumeration to Address #0   
 ; 390.	    unsigned char epLen;
@@ -1075,10 +1084,8 @@ SL811
 ; 394.	    //------------------------------------------------   
 ; 395.	    //.uDev.wPayLoad[0] = 64;  // default 64-byte payload of Endpoint 0, address #0   
 ; 396.	    if(myusbaddr == 1)        // bus reset for the device attached to SL811HS only   
-.lo110:
 ; 397.	        USBReset();     // that will always have the USB address = 0x01 (for a hub)
 	CALL	.USBReset
-.lo111:
 ; 398.	    //------------------------------------------------   
 ; 399.	    // Set Slave USB Device Address   
 ; 400.	    //------------------------------------------------
@@ -1087,9 +1094,7 @@ SL811
 	CALL	.SetAddress
 	OR	A
 	JR	Z,.lo198
-.lo112:
-; 402.	        return FALSE;                               //   
-.lo113:
+; 402.	        return FALSE; 
 ; 403.	    uAddr = myusbaddr;                                // transfer using this new address   
 ; 404.	
 ; 405.	    //------------------------------------------------   
@@ -1116,9 +1121,7 @@ SL811
 	CALL	.GetDesc
 	OR	A
 	JR	Z,.lo198
-.lo114:
-; 414.	        return FALSE;        
-.lo115:
+; 414.	        return FALSE;  
 ; 415.	    .uDev.bNumOfEPs = (.DBUF[9+4] <= MAX_EP) ? .DBUF[9+4] : MAX_EP;   
 	LD	A,(.DBUF+13)
 	LD	B,A
@@ -1132,7 +1135,6 @@ SL811
 	LD	A,(.DBUF+14)
 	CP	8
 	JR	NZ,.lo120
-.lo119:
 ; 417.	        .bFlags.bits.bMassDevice=TRUE;   
 	LD	A,1
 	LD	(.bFlags),A
@@ -1151,7 +1153,6 @@ SL811
 	CALL	.Set_Configuration
 	OR	A
 	JR	NZ,.lo122
-.lo121:
 ; 425.	                return FALSE;   
 .lo198:
 	XOR	A
@@ -1171,7 +1172,6 @@ SL811
 	LD	A,(.uDev)
 	CP	IXL
 	JR	C,.lo123
-.lo125:
 ; 434.	    {
 ; 435.	        unsigned char bEPAddr  = .DBUF[9 + 9 + epLen+2];    // Ep address and direction  
 	LD	HL,.DBUF+20
@@ -1186,13 +1186,11 @@ SL811
 	DEC	B
 	DEC	B
 	JR	NZ,.lo131
-.lo127:
 ; 437.	        {
 ; 438.	            if(bEPAddr&0x80)
 	BIT	7,D
 	LD	A,D
 	JR	Z,.lo130
-.lo129:
 ; 439.	                .usbstack.epbulkin=bEPAddr;
 	LD	(.usbstack+15),A
 ; 440.	            else   
@@ -1201,7 +1199,6 @@ SL811
 ; 441.	                .usbstack.epbulkout=bEPAddr;
 	LD	(.usbstack+16),A
 .lo131:
-.lo128:
 ; 442.	        }           
 ; 443.	        .uDev.bData1[i] = 0;                     // init data toggle   
 	LD	HL,.uDev+1
@@ -1223,8 +1220,8 @@ SL811
 	LD	A,1
 ; 449.	}
 .lo132:
-	POP	HL
-	POP	HL
+;	POP	HL
+;	POP	HL
 	POP	IX
 	POP	DE
 	POP	BC
@@ -1765,10 +1762,10 @@ SL811
 		
 	
 SL811BUFWRITE	
-	pop af
-	pop hl
-	push hl
-	push af
+	;pop af
+	;pop hl
+	;push hl
+	;push af
 	;HL-buf,E-reg, C-count
 	ld a,c
 .wrloop
@@ -1781,19 +1778,3 @@ SL811BUFWRITE
 	jp nz,.wrloop
 	ret
 	
-SL811BUFREAD	
-	pop af
-	pop hl
-	push hl
-	push af
-	;HL-buf,E-reg, C-count
-	ld a,c
-.rdloop
-	ld bc,0x80ab
-	out (c),e
-	inc e
-	ld b,a
-	ini
-	ld a,b
-	jp nz,.rdloop
-	ret
