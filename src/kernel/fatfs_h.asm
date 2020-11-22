@@ -360,7 +360,7 @@ FIL_sz=32+512
 ;stack=time
 	MACRO F_UTIME_CURDRV
 	ld hl,ffsfunc.f_utime
-	call call_ffs_curvol
+	call call_ffs;_curvol
 	ENDM
 
 ;FRESULT f_getutime (const TCHAR*, WORD *ftimedate); /* Get timestamp of the file/dir */
@@ -368,7 +368,7 @@ FIL_sz=32+512
 ;bc=pointer to time,date
 	MACRO F_GETUTIME
 	ld hl,ffsfunc.f_getutime
-	call call_ffs_curvol
+	call call_ffs;_curvol
 	ENDM
 
 

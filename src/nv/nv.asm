@@ -1918,11 +1918,11 @@ proc_del_file
 	ret z
 	call getfcbfromhl
 
-	ld ix,(curpanel)
+	 ld ix,(curpanel)
 	ld de,PANEL.dir
-	add ix,de
-	push ix
-	pop hl
+	 add ix,de
+	 push ix
+	 pop hl
 	ld de,dir_buf
 	call strcopy;nv_strcopy_hltode
 
@@ -1934,20 +1934,37 @@ proc_del_file_batch
 	;ld de,dir_buf
 	;OS_CHDIR
 
+       if 1==0
+        ld de,filenametext ;wordbuf ;de=drive/path/file
 	ld hl,fcb_filename
-        ld de,filenametext ;needed for batch
 	call cpmname_to_dotname
+       else
+        ld a,(fcb+FCB_EXTENTNUMBERLO)
+        SETPG32KHIGH
+        ld hl,(fcb+FCB_EXTENTNUMBERHI)
+        ld de,filenametext
+        ld bc,63*256+0
+        call prdirfile_copyfn
+       endif
 
-	ld de,windel2_file ;dest
+	ld de,dir3_buf;windel2_file ;dest
+        push de
 	ld bc,filenametext ;add
 	ld hl,dir_buf ;src
 	call nv_makefilepath_hltode ;result :  dest=hl'/'bc (de указывает после терминатора)
-	ld hl,windel2_file
+        pop hl
+         ;ld hl,dir3_buf
+         ld de,windel2_file
+         push de
+         ld bc,64
+         ldir
+         pop hl
+	;ld hl,windel2_file
 	call nv_fillpathspaces_hl ;fill to 64bytes spaces
 	ld hl,windel2
 	call upwindow_text ;update window
 
-	ld de,windel2_file ;dest
+	ld de,dir3_buf;windel2_file ;dest
         push de
 	ld bc,filenametext ;add
 	ld hl,dir_buf ;src
@@ -1982,23 +1999,23 @@ editcmd_5_0
 
 	call getanotherpanel_ix
 	ld de,PANEL.dir
-	add ix,de
-	push ix
-	pop hl
+	 add ix,de
+	 push ix
+	 pop hl
 	ld de,dir2_buf
 	call strcopy;nv_strcopy_hltode
 
-	ld ix,(curpanel)
+	 ld ix,(curpanel)
 	ld de,PANEL.dir
-	add ix,de
-	push ix
-	pop hl
+	 add ix,de
+	 push ix
+	 pop hl
 	ld de,dir_buf
 	call strcopy;nv_strcopy_hltode
 
 	ld de,_COLOR_DIALOG
 	call nv_setcolor
-	ld ix,(curpanel)
+	 ld ix,(curpanel)
 
         ld hl,wincopy
 	ld de,dir2_buf
@@ -2055,6 +2072,11 @@ nv_addslash0
 nv_fillpathspaces_hl
 	ld b,0
 nv_fillpathspaces_hl0
+         ;ld a,b
+         ;cp 64
+         ;ret z
+         bit 6,b
+         ret nz
 	ld a,(hl)
 	inc b
 	inc hl
@@ -2072,7 +2094,9 @@ nv_fillpathspaces_hl1
 	jr c,nv_fillpathspaces_hl1
 	ret
 
-nv_batch_pushrecord
+nv_copydir_add;=nv_batch_pushrecord
+;	jp nv_batch_pushrecord
+;nv_batch_pushrecord
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
@@ -2149,9 +2173,6 @@ nv_batch_popsrecordq
 	ld a,(savepg)
 	SETPG32KLOW
 	ret
-
-nv_copydir_add=nv_batch_pushrecord
-;	jp nv_batch_pushrecord
 
 nv_batch
 	call nv_batch_poprecord
@@ -2279,28 +2300,44 @@ proceditcmd_copy_fcb
 	and FATTRIB_DIR
 	jp nz,nv_copydir_add
 
-	ld de,wincopy_src ;update copy window
-	ld bc,filenametext
-	ld hl,dir_buf
-	call nv_makefilepath_hltode
-	ld hl,wincopy_src
-	call nv_fillpathspaces_hl
-	ld de,wincopy_dest
+	ld de,dir3_buf;wincopy_dest
+        push de
 	ld bc,filenametext
 	ld hl,dir2_buf
 	call nv_makefilepath_hltode
-	ld hl,wincopy_dest
+        pop hl
+         ;ld hl,dir3_buf
+         ld de,wincopy_dest
+         push de
+         ld bc,64
+         ldir
+         pop hl
+	;ld hl,wincopy_dest
 	call nv_fillpathspaces_hl
 	ld hl,wincopy2
 	call upwindow_text
 
-	ld de,wincopy_dest
+	ld de,dir3_buf;wincopy_src ;update copy window
         push de
 	ld bc,filenametext
 	ld hl,dir_buf
 	call nv_makefilepath_hltode
-        pop de
-	;ld de,filenametext
+        pop hl
+         ;ld hl,dir3_buf
+         ld de,wincopy_src
+         push de
+         ld bc,64
+         ldir
+         pop hl
+	;ld hl,wincopy_src
+	call nv_fillpathspaces_hl
+
+	ld de,dir3_buf
+        ;push de
+	;ld bc,filenametext
+	;ld hl,dir_buf
+	;call nv_makefilepath_hltode
+        ;pop de
         push de
         OS_OPENHANDLE
         pop de
@@ -2318,12 +2355,12 @@ proceditcmd_copy_fcb
 
 	;ld de,dir2_buf
 	;OS_CHDIR
-	ld de,wincopy_dest
-        push de
-	ld bc,filenametext
-	ld hl,dir2_buf
-	call nv_makefilepath_hltode
-        pop de
+	ld de,dir3_buf;wincopy_dest ;256 bytes
+         push de
+	 ld bc,filenametext
+	 ld hl,dir2_buf
+	 call nv_makefilepath_hltode
+         pop de
         ;ld de,filenametext;swordbuf2 ;de=drive/path/file
         OS_CREATEHANDLE
         or a
@@ -2365,7 +2402,7 @@ proceditcmd_copy_time=$+1
         ld hl,0
 proceditcmd_copy_date=$+2
         ld ix,0
-        ld de,wincopy_dest;filenametext
+        ld de,dir3_buf;wincopy_dest;filenametext
         OS_SETFILETIME
         ret
 
@@ -2791,6 +2828,8 @@ dir_buf
 file_buf_end=$-1
 dir2_buf
         ds 128        
+dir3_buf
+        ds 256 ;max size for no bugs
 
         align 256
 HS_strpg

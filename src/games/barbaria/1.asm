@@ -673,7 +673,7 @@ clsega
         ldir
         jp setpgsmain40008000
 
-        if EGA
+        if 1==0;EGA
 DrawTile_A_X2Y2DE
 	sla	D
 	sla	E

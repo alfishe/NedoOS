@@ -1794,7 +1794,7 @@ oldcmd
         ds MAXCMDSZ+1
         
 copybuf
-        ds 128 ;можно сколько угодно
+        ds 4096;128 ;можно сколько угодно
 copybuf_sz=$-copybuf
 
 params

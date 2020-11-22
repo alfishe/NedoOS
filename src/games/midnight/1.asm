@@ -804,7 +804,7 @@ copypage
 setpgsmain40008000
 pgmain4000=$+1
         ld a,0
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         SETPG16K
 pgcode8000=$+1
         ld a,0

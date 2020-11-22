@@ -1936,6 +1936,8 @@ BDOS_setfiletime
 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time
         call BDOS_preparedepage
         call BDOS_setdepage ;TODO убрать в драйвер
+         call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
+         jr c,BDOS_getfiletime_zero
         push hl ;time
         push ix ;date
         pop bc ;date
