@@ -835,7 +835,10 @@ tbdoscmds
         db CMD_RNDRD
         db CMD_RNDWR
         db CMD_GETFILINFO
+        db CMD_RESERV_1
+        display CMD_RESERV_1
 nbdoscmds=$-tbdoscmds
+        dw BDOS_reserv_1
         dw BDOS_getfilinfo
         dw BDOS_rndwr
         dw BDOS_rndrd
@@ -3076,6 +3079,15 @@ BDOS_getdta
         ld e,(iy+app.dta)
         ld d,(iy+app.dta+1)
         ret
+
+;*****************НЕДОКУМЕНТИРОВАННЫЕ*********************
+;вызов функции DE с картой керналя.
+BDOS_reserv_1
+    di
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ex de,hl
+        jp (hl)
 
 ;***********************ЗАГЛУШКИ**************************	
 

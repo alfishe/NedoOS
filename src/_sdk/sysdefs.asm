@@ -50,6 +50,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in wi
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_RESERV_1=0xce
 CMD_OPENDIR=0xcf ;de=path
 CMD_READDIR=0xd0 ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
 CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling
