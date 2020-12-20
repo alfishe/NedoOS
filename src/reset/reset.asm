@@ -115,10 +115,22 @@ washobetarunner
 	ld bc,#ff77 ;shadow ports off, palette off
         out (c),a
 	ld sp,#6000
-	ei
+    
+    
+    ld a,0x10
+    ld bc,#7ffd
+    out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+    ld a,(0x3CBC)
+    cp 0x87
+    call z,0x3C9E   ;переключить в vtrdos
+    ld bc,0x0001    ;хотресет втрдоса, на всякий случай, может и ненадо
+    call 0x3D42
+    
+    
          ld a,0
          ld bc,#7ffd
          out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+	ei
 hobetarunner_jp=$+1
 	jp 0;#6000
         ent
