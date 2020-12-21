@@ -80,7 +80,7 @@ if not "%1"=="noneedtrd" (
         del %releasedir%\bin\emptyapp.com > nul
         rem del %releasedir%\bin\raytrace.com > nul
         rem del %releasedir%\bin\gfxtest.com > nul
-        del %releasedir%\bin\dmm.com > nul
+        rem del %releasedir%\bin\dmm.com > nul
         rem del %releasedir%\bin\cc.bat > nul
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
