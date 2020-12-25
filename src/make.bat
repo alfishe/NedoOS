@@ -74,12 +74,15 @@ if not "%1"=="noneedtrd" (
         move %releasedir%\bin\evsummer.com %releasedir%\br\
         move %releasedir%\bin\br*.* %releasedir%\br\
         ren %releasedir%\bin\mowser.com browser.com
-        rem del %releasedir%\bin\hello.com > nul
-        del %releasedir%\bin\gf.com > nul
-        rem del %releasedir%\bin\reset.com > nul
+        del %releasedir%\bin\hello.com > nul
+        del %releasedir%\bin\reset.com > nul
         del %releasedir%\bin\emptyapp.com > nul
-        rem del %releasedir%\bin\raytrace.com > nul
-        rem del %releasedir%\bin\gfxtest.com > nul
+        del %releasedir%\bin\mcdemo.mcs > nul
+        del %releasedir%\bin\turbo.msg > nul
+        del %releasedir%\bin\raytrace.com > nul
+        del %releasedir%\bin\gfxtest.com > nul
+        del %releasedir%\bin\setfont.com > nul
+        del %releasedir%\bin\noise.com > nul
         rem del %releasedir%\bin\dmm.com > nul
         rem del %releasedir%\bin\cc.bat > nul
 	nedotrd test.trd -n

@@ -92,9 +92,10 @@ nfdel
         inc de ;filename
 nfdel_filename
         ld lx,0 ;number of files just deleted
+;TODO extra buffer for tr0sec8 and read number of files
 	ld b,8 ;sectors
 nfdelsectors0.
-        ld hx,0
+        ld hx,0 ;number of files just deleted in this sector
 	push bc
 	push de ;filename
         push ix
@@ -126,9 +127,39 @@ nfdelcp00.
         pop de ;filename
 	pop bc
         jr nz,nfdelcp_notthatfile
-        inc lx ;number of files just deleted
         inc hx ;number of files just deleted in this sector
+       ;how to check last file? quick fix: if next file is 0 or end of dir ((b==1) && (l==0xf0))
+       push de
+       push hl
+	ld a,l
+	add a,13
+	ld l,a
+        ld a,(hl) ;sectors in deleted file
+        ld (nfdel_addfree),a
+        inc l
+        ld e,(hl)
+        inc l
+        ld d,(hl) ;trsec of deleted file
+        ld (nfdel_firstfree),de
+        inc l
+        jr nz,nfdelcp_delnolastinsector
+        ld a,b
+        dec a
+        jr z,nfdelcp_delchecklastq
+nfdelcp_delnolastinsector
+        ld a,(hl)
+        or a
+nfdelcp_delchecklastq
+       pop hl
+       pop de
+       ld (hl),a;0 if last file (once!!!)
+       ld a,128 ;add flag for number of files just deleted (once!!!)
+       jr z,nfdelcp_notdel1 ;set flag "last file deleted"
+       ld a,1 ;add for number of files just deleted
         ld (hl),1 ;deleted
+nfdelcp_notdel1
+        add a,lx
+        ld lx,a ;number of files just deleted
 nfdelcp_notthatfile
 	ld a,l
 	add a,16
@@ -164,6 +195,25 @@ nfdel_correctsystemsector
         call rdsecDOSBUF
         pop de
         pop ix
+;lx=1..127: deletion with 1
+;lx=128..255: last deletion with 0
+       ld a,lx
+       add a,a
+       jr nc,nfdel_correctsystemsector_nodelwith0
+;if deletion with 0:
+       rrca
+       ld lx,a ;files just deleted 0..127
+        ld hl,DOSBUF+0xe4 ;total files (including deleted ones)
+        dec (hl)
+nfdel_firstfree=$+1
+        ld hl,0
+        ld (DOSBUF+0xe1),hl ;first free sector
+nfdel_addfree=$+1
+        ld bc,0
+        ld hl,(DOSBUF+0xe5) ;free sectors
+        add hl,bc
+        ld (DOSBUF+0xe5),hl ;free sectors
+nfdel_correctsystemsector_nodelwith0
 	ld hl,DOSBUF+0xf4 ;del files
         ld a,(hl)
         add a,lx
@@ -629,7 +679,7 @@ fread
        ld a,[de]
        ;ld a,[_waseof]
        or a ;FALSE
-       jr nz,fread00q;freadbysector0q
+       jp nz,fread00q;freadbysector0q
 	ld e,TRDOSFCB.remain ;0xff = no data, 0xfe = 1 byte, ... 0x00 = 255 bytes
 	ld a,[de]
         inc a
@@ -639,6 +689,61 @@ fread
         jr z,fread00. ;length < 256
        dec bc
        inc b ;b=number of loops
+
+;TODO if full block, read it with one dos call
+;de=poi to TRDOSFCB
+;hl=read addr
+;bc="remaining size" (not quite)
+
+;if secinblk-1 < b, read secinblk-1 sectors, b-=(secinblk-1), secinblk = 1
+	ld e,TRDOSFCB.secinblk
+        ld a,[de] ;sectors remained in block
+        dec a
+	jr z,fread1nfulblock.
+         cp 63
+         jr nc,fread1nfulblock.
+        sub b
+	jr nc,fread1nfulblock. ;secinblk-1 >= b, a = (secinblk-1) - b
+        neg ;a = b - (secinblk-1)
+        ld b,a
+        push bc
+        ex de,hl
+        ld b,[hl] ;secinblk
+        dec b ;secinblk-1
+        ld [hl],1 ;secinblk
+	ld l,TRDOSFCB.cursector
+	push hl ;poi to cursector
+;de=read addr
+	ld a,[hl]
+	inc hl
+	ld h,[hl] ;trsec
+        ld l,a
+        ex de,hl
+;hl=read addr
+;de=trsec
+       push bc
+       push hl
+	call rdsectors. ;b = secinblk-1 sectors
+	ld b,h
+        ld c,l ;ld bc,[0x5cf4] ;bc=next sector
+       pop de
+       pop af ;"b"
+       add a,d
+       ld d,a
+;de=read addr
+	pop hl ;poi to cursector
+	ld [hl],c
+	inc hl
+	ld [hl],b
+        ex de,hl
+;de=poi to TRDOSFCB
+;hl=read addr
+        pop bc
+fread1nfulblock.
+
+;de=poi to TRDOSFCB
+;hl=read addr
+;bc=remaining size
 freadbysector0.
         push de
 	push hl
@@ -671,6 +776,7 @@ freadbysector0.
        inc a
        jr nz,EOFfread00q ;last (short) sector in file
         djnz freadbysector0.
+;bc=remaining size < 256
        ld e,TRDOSFCB.remain ;0xff = no data, 0xfe = 1 byte, ... 0x00 = 255 bytes
        ld a,0xff
        ld [de],a
@@ -681,6 +787,9 @@ EOFfread00q
        ld [de],a
         jr fread00q
         endif
+;de=poi to TRDOSFCB
+;hl=read addr
+;bc=remaining size
 ;read by bytes:
 fread00.
         push de
