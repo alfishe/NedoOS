@@ -14,9 +14,9 @@ cmd_begin
         ld a,(user_scr0_low) ;ok
         ld (cmdpgscreen0_0),a
 
-hobetarunner=#4100
+hobetarunner=0x4100
         ld a,(cmdpgscreen0_0)
-	sub 4-1 ;ld a,#ff-4 ;pgkillable
+	sub 4-1 ;ld a,0xff-4 ;pgkillable
 	SETPG16K
 
         ld hl,washobetarunner
@@ -24,19 +24,19 @@ hobetarunner=#4100
         ld bc,hobetarunner_sz
         ldir
 cmdpgscreen0_0=$+1
-	ld a,#ff-1
+	ld a,0xff-1
 	SETPG32KLOW
-        inc a ;ld a,#ff-0
+        inc a ;ld a,0xff-0
 	SETPG32KHIGH
 
         ;call loadhobeta
         ;ret nz ;error
-        ;ld hl,#6000
-        ;ld bc,(#6000-17+11) ;len
+        ;ld hl,0x6000
+        ;ld bc,(0x6000-17+11) ;len
         ;add hl,bc
         ;dec hl ;hl=load end
         ;ex de,hl
-        ;ld hl,(#6000-17+9) ;start
+        ;ld hl,(0x6000-17+9) ;start
         ;ld (hobetarunner_jp),hl
         ;add hl,bc
         ;dec hl
@@ -53,72 +53,72 @@ washobetarunner
 ;$c loaded in pages 4,1,0
 ;only ATM2 ports here!
 	di
-	ld a,#7f-5
-        ld bc,#bff7
+	ld a,0x7f-5
+        ld bc,0xbff7
 	out (c),a
-	ld a,#7f-4
-        ld bc,#fff7
+	ld a,0x7f-4
+        ld bc,0xfff7
 	out (c),a
-        ld hl,#c000
-        ld de,#8000
-        ld bc,#4000
+        ld hl,0xc000
+        ld de,0x8000
+        ld bc,0x4000
         ldir ;pg4 -> pg5
-	ld a,#7f-8;pgtrdosfs
-        ld bc,#fff7
+	ld a,0x7f-8;pgtrdosfs
+        ld bc,0xfff7
 	out (c),a
-        ld hl,#1c00+#c000
-        ld de,#1c00+#8000
-        ld bc,#400
+        ld hl,0x1c00+0xc000
+        ld de,0x1c00+0x8000
+        ld bc,0x400
         ldir ;restore sysvars
-	ld a,#7f-2
-        ld bc,#bff7
+	ld a,0x7f-2
+        ld bc,0xbff7
 	out (c),a
-	ld a,#7f-1
-        ld bc,#fff7
+	ld a,0x7f-1
+        ld bc,0xfff7
 	out (c),a
-        ld hl,#c000
-        ld de,#8000
-        ld bc,#4000
+        ld hl,0xc000
+        ld de,0x8000
+        ld bc,0x4000
         ldir ;pg1 -> pg2
-	ld a,#7f-0+#80
-	ld bc,#fff7
+	ld a,0x7f-0+0x80
+	ld bc,0xfff7
 	out (c),a
-	ld a,#00
-	ld bc,#7ffd
+	ld a,0x00
+	ld bc,0x7ffd
 	out (c),a
-	ld a,#81 ;128 basic (with 7ffd)
-	ld bc,#3ff7
+	ld a,0x01 ;128 basic (with 7ffd)
+	ld bc,0x3ff7
 	out (c),a
-	ld a,#7f-5
-	ld bc,#7ff7
+	ld a,0x7f-5
+	ld bc,0x7ff7
 	out (c),a
 ;128: pages 128/DOS,5,2,0(7ffd)
-	ld a,#10
-	ld bc,#7ffd
+	ld a,0x10
+	ld bc,0x7ffd
 	out (c),a
 ;48: pages 2,4,4,4
-	ld a,#7f-5
-	ld bc,#7ff7
+	ld a,0x7f-5
+	ld bc,0x7ff7
 	out (c),a
-	ld a,#7f-2
-        ld bc,#bff7
+	ld a,0x7f-2
+        ld bc,0xbff7
 	out (c),a
-	ld a,#7f-0+#80
-        ld bc,#fff7
+	ld a,0x7f-0+0x80
+        ld bc,0xfff7
 	out (c),a
-	ld a,#83 ;48 basic switchable to DOS
-	ld bc,#3ff7
+	ld a,0x83 ;48 basic switchable to DOS
+	ld bc,0x3ff7
 	out (c),a
 ;48: pages 48/DOS,5,2,0(7ffd)
         
         LD A,%10101011 ;6912
-	ld bc,#ff77 ;shadow ports off, palette off
+	ld bc,0xff77 ;shadow ports off, palette off
         out (c),a
-	ld sp,#6000
+	ld sp,0x6000
     
     
     ld a,0x10
-    ld bc,#7ffd
+    ld bc,0x7ffd
     out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
     ld a,(0x3CBC)
     cp 0x87
@@ -130,11 +130,11 @@ washobetarunner
     
     
          ld a,0
-         ld bc,#7ffd
+         ld bc,0x7ffd
          out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
 	ei
 hobetarunner_jp=$+1
-	jp 0;#6000
+	jp 0;0x6000
         ent
 hobetarunner_sz=$-washobetarunner
 
