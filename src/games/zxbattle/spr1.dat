@@ -1,0 +1,70 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;P: DDp palette
+
+bulletr0=x,416,0,16,16
+bulletu0=x,432,0,16,16
+bulletl0=x,416,64,16,16
+bulletd0=x,432,64,16,16
+boom0=x,448,64,16,16
+boom1=x,464,64,16,16
+boom2=x,480,64,16,16
+drop0=x,272,32,16,16
+megatank0=x,288,32,16,16
+megatank1=x,304,32,16,16
+megatank2=x,288,48,16,16
+megatank3=x,304,48,16,16
+gameover0=x,320,32,16,16
+gameover1=x,336,32,16,16
+pause0=x,320,48,16,16
+pause1=x,336,48,16,16
+pause2=x,352,48,16,16
+cloud0=x,352,32,16,16
+cloud1=x,368,32,16,16
+star0=x,384,32,16,16
+star1=x,400,32,16,16
+star2=x,416,32,16,16
+star3=x,432,32,16,16
+score10=x,368,48,16,16
+score20=x,384,48,16,16
+score30=x,400,48,16,16
+score40=x,416,48,16,16
+score50=x,432,48,16,16
+megaboom0=x,448,32,32,32
+;megaboom01=x,464,32,16,16
+;megaboom02=x,448,48,16,16
+;megaboom03=x,464,48,16,16
+megaboom2=x,480,32,32,32
+;megaboom21=x,496,32,16,16
+;megaboom22=x,480,48,16,16
+;megaboom23=x,496,48,16,16
+bonus8=x,256,48,16,16
+bonus9=x,272,48,16,16
+;
+megaship=x,288,32,32,32
+tree=x,192,0,16,16
+;
+bonus0=x,128,48,16,16
+bonus1=x,144,48,16,16
+bonus2=x,160,48,16,16
+bonus3=x,176,48,16,16
+bonus4=x,192,48,16,16
+bonus5=x,208,48,16,16
+bonus6=x,224,48,16,16
+bonus7=x,240,48,16,16
+;
+tile9=x,144,0,16,16
+tile10=x,160,0,16,16
+tile11=x,176,0,16,16
+tile12=x,192,0,16,16
+tile13=x,208,0,16,16
+tile14=x,224,0,16,16
+tile0=x,0,0,2,8

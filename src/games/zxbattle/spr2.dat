@@ -1,0 +1,86 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;P: DDp palette
+
+tankY2u0=x,128,160,16,16
+tankY2u1=x,144,160,16,16
+tankY2r0=x,160,160,16,16
+tankY2r1=x,176,160,16,16
+tankG2u0=x,192,160,16,16
+tankG2u1=x,208,160,16,16
+tankG2r0=x,224,160,16,16
+tankG2r1=x,240,160,16,16
+tankY3u0=x,128,176,16,16
+tankY3u1=x,144,176,16,16
+tankY3r0=x,160,176,16,16
+tankY3r1=x,176,176,16,16
+tankG3u0=x,192,176,16,16
+tankG3u1=x,208,176,16,16
+tankG3r0=x,224,176,16,16
+tankG3r1=x,240,176,16,16
+tankw2u0=x,0,160,16,16
+tankw2u1=x,16,160,16,16
+tankw2r0=x,32,160,16,16
+tankw2r1=x,48,160,16,16
+tankr2u0=x,64,160,16,16
+tankr2u1=x,80,160,16,16
+tankr2r0=x,96,160,16,16
+tankr2r1=x,112,160,16,16
+;
+;tankY2u0=x,128,224,16,16
+;tankY2u1=x,144,224,16,16
+tankY2l0=x,160,224,16,16
+tankY2l1=x,176,224,16,16
+;tankG2u0=x,192,224,16,16
+;tankG2u1=x,208,224,16,16
+tankG2l0=x,224,224,16,16
+tankG2l1=x,240,224,16,16
+;tankY3u0=x,128,240,16,16
+;tankY3u1=x,144,240,16,16
+tankY3l0=x,160,240,16,16
+tankY3l1=x,176,240,16,16
+;tankG3u0=x,192,240,16,16
+;tankG3u1=x,208,240,16,16
+tankG3l0=x,224,240,16,16
+tankG3l1=x,240,240,16,16
+;tankw2u0=x,0,224,16,16
+;tankw2u1=x,16,224,16,16
+tankw2l0=x,32,224,16,16
+tankw2l1=x,48,224,16,16
+;tankr2u0=x,64,224,16,16
+;tankr2u1=x,80,224,16,16
+tankr2l0=x,96,224,16,16
+tankr2l1=x,112,224,16,16
+;
+tankY2d0=x,128,288,16,16
+tankY2d1=x,144,288,16,16
+;tankY2r0=x,160,288,16,16
+;tankY2r1=x,176,288,16,16
+tankG2d0=x,192,288,16,16
+tankG2d1=x,208,288,16,16
+;tankG2r0=x,224,288,16,16
+;tankG2r1=x,240,288,16,16
+tankY3d0=x,128,304,16,16
+tankY3d1=x,144,304,16,16
+;tankY3r0=x,160,304,16,16
+;tankY3r1=x,176,304,16,16
+tankG3d0=x,192,304,16,16
+tankG3d1=x,208,304,16,16
+;tankG3r0=x,224,304,16,16
+;tankG3r1=x,240,304,16,16
+tankw2d0=x,0,288,16,16
+tankw2d1=x,16,288,16,16
+;tankw2r0=x,32,288,16,16
+;tankw2r1=x,48,288,16,16
+tankr2d0=x,64,288,16,16
+tankr2d1=x,80,288,16,16
+;tankr2r0=x,96,288,16,16
+;tankr2r1=x,112,288,16,16

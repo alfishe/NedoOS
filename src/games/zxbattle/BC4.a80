@@ -1,0 +1,909 @@
+PRPUB	LD	HL,UP1
+	LD	A,(HL)
+	CP	129 ;'0' inverted?
+	RET	NZ
+	LD	HL,UP2
+	LD	A,(HL)
+	CP	129 ;'0' inverted?
+	RET	NZ
+	LD	A,1
+	LD	(ENDG),A
+	XOR	A
+	LD	(MAP),A
+	LD	HL,TEXT17
+	LD	A,129 ;'0' inverted?
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	LD	HL,LEVEL
+	LD	A,129 ;'0' inverted?
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	RET
+
+
+
+T1	DEFW	0
+T2	DEFW	0
+T3	DEFW	0
+T4	DEFW	0
+T12	DEFW	0
+T22	DEFW	0
+T32	DEFW	0
+T42	DEFW	0
+	DEFW	0
+	DEFW	0
+	DEFW	0
+	DEFW	0
+T5	DEFM	"00"
+	DEFB	255
+	DEFB	255
+	DEFW	0
+	DEFW	0
+T55	DEFM	"0000"
+	DEFB	255
+	DEFB	255
+TOTAL	DEFM	"TOTAL"
+	DEFB	255
+T555	DEFM	"00000"
+	DEFB	255
+
+PAUSE	DEFB	0
+PAU1	DEFB	0
+POONE
+;for CHEKPOINT
+	LD	A,(PAU1)
+	CP	1
+	CALL	Z,POO1
+	LD	A,(PAU1)
+	CP	2
+	CALL	Z,POO2
+	LD	A,(PAU1)
+	CP	3
+	CALL	Z,POO3
+	LD	A,(PAU1)
+	CP	4
+	CALL	Z,POO4
+	LD	A,(PAU1)
+	CP	5
+	CALL	Z,POO5
+	EI
+	HALT
+	LD	A,(PAUSE)
+	INC	A
+	CP	50
+	CALL	Z,P255
+	LD	(PAUSE),A
+	RET
+P255	LD	A,(PAU1)
+	INC	A
+	CP	5
+	JP	Z,P88 ;sound, ld (PAU1),a
+	CP	6
+	JR	Z,P2555
+	LD	(PAU1),A
+	LD	A,1
+	CALL	AFXPLAY
+	CALL	PLAYSA
+
+P2555
+	XOR	A
+	RET
+P88	PUSH	AF
+	LD	A,8
+	CALL	AFXPLAY
+	CALL	PLAYSA2 ;play #17 sound frames
+	POP	AF
+	LD	(PAU1),A
+	XOR	A
+	RET
+PLAYSA
+	LD	B,4
+PLAYSAA
+	PUSH	BC
+	CALL	AFXFRAME
+	POP	BC
+	HALT
+	DJNZ	PLAYSAA
+	LD	HL,48000
+	CALL	AFXINIT
+	RET
+PLAYSA2
+	LD	B,#17
+PLAYSA3	PUSH	BC
+	CALL	AFXFRAME
+	POP	BC
+	HALT
+	DJNZ	PLAYSA3
+afxinit
+	LD	HL,48000
+	CALL	AFXINIT ;stop sound
+	RET
+POO1
+	LD	HL,(T1)
+	LD	B,L
+	LD	A,L
+	or a;CP	0
+	JR	Z,Q11
+	LD	HL,0
+	LD	DE,10
+Q1	ADD	HL,DE
+	DJNZ	Q1
+Q11	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68
+	LD	BC,108-72
+	CALL	TEXT
+
+	LD	HL,(T1)
+	LD	DE,T5 ;"000"
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68
+	LD	BC,108
+	CALL	TEXT
+        jp doscreenifpause
+
+POO2	LD	HL,(T2)
+	LD	B,L
+	LD	A,L
+	CP	0
+	JR	Z,Q22
+	LD	HL,0
+	LD	DE,20
+Q2	ADD	HL,DE
+	DJNZ	Q2
+Q22	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68+32
+	LD	BC,108-72
+	CALL	TEXT
+
+	LD	HL,(T2)
+	LD	DE,T5 ;"00"
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5 ;"00"
+	LD	(TEXTW),HL
+	LD	HL,68+32
+	LD	BC,108
+	CALL	TEXT
+        jp doscreenifpause
+
+POO3	LD	HL,(T3)
+	LD	B,L
+	LD	A,L
+	or a;CP	0
+	JR	Z,Q33
+	LD	HL,0
+	LD	DE,30
+Q3	ADD	HL,DE
+	DJNZ	Q3
+Q33	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68+64
+	LD	BC,108-72
+	CALL	TEXT
+
+	LD	HL,(T3)
+	LD	DE,T5
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68+64
+	LD	BC,108
+	CALL	TEXT
+        jp doscreenifpause
+
+POO4	LD	HL,(T4)
+	LD	B,L
+	LD	A,L
+	or a;CP	0
+	JR	Z,Q44
+	LD	HL,0
+	LD	DE,40
+Q4	ADD	HL,DE
+	DJNZ	Q4
+Q44	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68+96
+	LD	BC,108-72
+	CALL	TEXT
+
+	LD	HL,(T4)
+	LD	DE,T5
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68+64+32
+	LD	BC,108
+	CALL	TEXT
+        jp doscreenifpause
+
+POO6
+;стрелочки для первого игрока?
+       if 1==1
+        ld hl,tilemap+(8*BYTESPERTILELINE)+16
+        ld a,56 ;left arrow
+        call prchar_tilemap_hl
+        ld hl,tilemap+(12*BYTESPERTILELINE)+16
+        call prchar_tilemap_hl
+        ld hl,tilemap+(16*BYTESPERTILELINE)+16
+        call prchar_tilemap_hl
+        ld hl,tilemap+(20*BYTESPERTILELINE)+16
+        call prchar_tilemap_hl
+        
+        ld hl,tilemap+(22*BYTESPERTILELINE)+13
+        ld a,60 ;bold underline
+        dup 11
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        edup
+        
+BONUSTANKY=60
+BONUSTANKX=18*8-4
+        ld hl,sprlist
+;+0: y
+;+1: 2(ysize:SPSIZ16) +0x20(SPACT) +0x40(deact) +0x80(mirrorvert) +1(SPSIZBS)
+;+2: x
+;+3: 2(xsize:SPSIZ16) +1(SPSIZBS) +0x80(mirrorhor)
+;+4,5: pattern number
+        ld (hl),BONUSTANKY
+        inc hl
+        ld (hl),0x20
+        inc hl
+        ld (hl),BONUSTANKX
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),SPRENEMY1&0xff
+        inc hl
+        ld (hl),SPRENEMY1/256
+        inc hl
+
+        ld (hl),BONUSTANKY+32
+        inc hl
+        ld (hl),0x20
+        inc hl
+        ld (hl),BONUSTANKX
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),SPRENEMY2&0xff
+        inc hl
+        ld (hl),SPRENEMY2/256
+        inc hl
+
+        ld (hl),BONUSTANKY+32+32
+        inc hl
+        ld (hl),0x20
+        inc hl
+        ld (hl),BONUSTANKX
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),SPRENEMY3&0xff
+        inc hl
+        ld (hl),SPRENEMY3/256
+        inc hl
+
+        ld (hl),BONUSTANKY+32+32+32
+        inc hl
+        ld (hl),0x20
+        inc hl
+        ld (hl),BONUSTANKX
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),SPRENEMY4&0xff
+        inc hl
+        ld (hl),SPRENEMY4/256
+       else
+	LD	DE,72-10
+	LD	HL,#C000+128+32
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#11
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192-10
+	LD	HL,#C000+128+32
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#11
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72-10
+	LD	HL,#C000+128+32
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192-10
+	LD	HL,#C000+128+32
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+       endif
+	RET
+
+POO62
+;стрелочки для второго игрока?
+	LD	A,(PLAYER)
+	CP	0
+	RET	Z
+       if 1==1
+        ld hl,tilemap+(8*BYTESPERTILELINE)+20
+        ld a,58 ;right arrow
+        call prchar_tilemap_hl
+        ld hl,tilemap+(12*BYTESPERTILELINE)+20
+        call prchar_tilemap_hl
+        ld hl,tilemap+(16*BYTESPERTILELINE)+20
+        call prchar_tilemap_hl
+        ld hl,tilemap+(20*BYTESPERTILELINE)+20
+        call prchar_tilemap_hl
+       else
+	LD	DE,72+10
+	LD	HL,#C000+128+40
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#11
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192+10
+	LD	HL,#C000+128+40
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#11
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+10
+	LD	HL,#C000+128+40
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192+10
+	LD	HL,#C000+128+40
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+       endif
+	RET
+
+
+POO5	LD	HL,(JOINTP1)
+	LD	DE,T555 ;"00000"
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T555 ;"00000"
+	LD	(TEXTW),HL
+	LD	HL,196
+	LD	BC,134-64
+	CALL	TEXT
+        jp doscreenifpause
+
+POTWO
+;for CHEKPOINT
+	LD	A,(PLAYER)
+	CP	0
+	RET	Z
+	LD	A,(PAU1)
+	CP	1
+	CALL	Z,POO12
+	LD	A,(PAU1)
+	CP	2
+	CALL	Z,POO22
+	LD	A,(PAU1)
+	CP	3
+	CALL	Z,POO32
+	LD	A,(PAU1)
+	CP	4
+	CALL	Z,POO42
+	LD	A,(PAU1)
+	CP	5
+	CALL	Z,POO52
+	RET
+
+
+POO12	LD	HL,(T12)
+	LD	B,L
+	LD	A,L
+	CP	0
+	JR	Z,Q11A
+	LD	HL,0
+	LD	DE,10
+Q1A	ADD	HL,DE
+	DJNZ	Q1A
+Q11A	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68
+	LD	BC,108+144-16
+	CALL	TEXT
+	LD	HL,(T12)
+	LD	DE,T5
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68
+	LD	BC,108+72
+	CALL	TEXT
+        jp doscreenifpause
+
+POO22	LD	HL,(T22)
+	LD	B,L
+	LD	A,L
+	or a;CP	0
+	JR	Z,Q22A
+	LD	HL,0
+	LD	DE,20
+Q2A	ADD	HL,DE
+	DJNZ	Q2A
+Q22A	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68+32
+	LD	BC,108+144-16
+	CALL	TEXT
+	LD	HL,(T22)
+	LD	DE,T5
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68+32
+	LD	BC,108+72
+	CALL	TEXT
+        jp doscreenifpause
+
+POO32	LD	HL,(T32)
+	LD	B,L
+	LD	A,L
+	or a;CP	0
+	JR	Z,Q33A
+	LD	HL,0
+	LD	DE,30
+Q3A	ADD	HL,DE
+	DJNZ	Q3A
+Q33A	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68+64
+	LD	BC,108+144-16
+	CALL	TEXT
+	LD	HL,(T32)
+	LD	DE,T5
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68+64
+	LD	BC,108+72
+	CALL	TEXT
+        jp doscreenifpause
+
+POO42	LD	HL,(T42)
+	LD	B,L
+	LD	A,L
+	or a;CP	0
+	JR	Z,Q44A
+	LD	HL,0
+	LD	DE,40
+Q4A	ADD	HL,DE
+	DJNZ	Q4A
+Q44A	LD	DE,T55 ;"0000"
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T55 ;"0000"
+	LD	(TEXTW),HL
+	LD	HL,68+96
+	LD	BC,108+144-16
+	CALL	TEXT
+
+	LD	HL,(T42)
+	LD	DE,T5
+	DEC	DE
+	DEC	DE
+	DEC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T5
+	LD	(TEXTW),HL
+	LD	HL,68+64+32
+	LD	BC,108+72
+	CALL	TEXT
+        jp doscreenifpause
+
+POO52	LD	HL,(JOINTP2)
+	LD	DE,T555 ;"00000"
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,T555 ;"00000"
+	LD	(TEXTW),HL
+	LD	HL,196
+	LD	BC,134+64
+	CALL	TEXT
+doscreenifpause
+        ld a,(PAUSE)
+        or a
+        ret nz
+       call doscreen
+       call doscreen
+	RET
+TEXSTA	DEFM	"STAGE"
+	DEFB	255
+TEXPTS	DEFM	"PTS"
+	DEFB	255
+
+RETZ	LD	HL,0
+	LD	(POINTP1),HL
+	LD	(POINTP2),HL
+	RET
+HISTO		LD				DE,(POINTP1)
+			LD				HL,(HISTORE)
+			SBC				HL,DE
+			CALL			C,HISTO3
+			RET
+HISTO3		LD				HL,(POINTP1)
+			LD				(HISTORE),HL
+			;LD				DE,(DiskAddrHiStore)
+			;TRDWriteFromDE 	HISTORE,#01
+			;RET
+        ld de,fn_hiscore
+        ld hl,HISTORE
+        ld bc,0x0100
+        jp savefile
+HISTO2		LD				DE,(POINTP2)
+			LD				HL,(HISTORE)
+			SBC				HL,DE
+			CALL			C,HISTO4
+			RET
+HISTO4		LD				HL,(POINTP2)
+			LD				(HISTORE),HL
+			;LD				DE,(DiskAddrHiStore)
+			;TRDWriteFromDE 	HISTORE,#01
+			;RET
+        ld de,fn_hiscore
+        ld hl,HISTORE
+        ld bc,0x0100
+        jp savefile
+
+DA
+	LD	A,(HL)
+	SBC	A,81
+	JR	DAA1
+
+CHEKPOINT
+	LD	A,(MAP)
+	or a;CP	0
+	JP	Z,RETZ
+	CP	255
+	JP	Z,RETZ
+	LD	HL,48000
+	CALL	AFXINIT
+	AND	A
+	LD	DE,(POINTP1)
+	LD	HL,(POINTP2)
+	SBC	HL,DE
+	CALL	C,HISTO
+	CALL	HISTO2
+	;LD	BC,BORDER
+	;LD	A,1
+	;OUT	(C),A
+        call border1
+
+	CALL	CLSSTART ;???
+	CALL	POINTHI ;формирует в TEXT4 строку со счётом
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,TEXT4
+	LD	(TEXTW),HL
+	LD	HL,0+8
+	LD	BC,58
+	CALL	TEXT
+	LD	HL,TEXSTA
+	LD	(TEXTW),HL
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	BC,128-8 ;а то было слитно
+	LD	HL,16+8
+	CALL	TEXT
+	LD	A,(MAP)
+	DEC	A
+	LD	(MAP),A
+	LD	HL,LEVEL
+	CALL	TEXR
+	LD	HL,LEVEL
+	LD	A,(MAP)
+	CP	10
+	JR	Z,DA
+	;XOR	A
+	LD	A,(HL)
+	sub 81 ;SBC	A,81
+DAA1	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	SBC	A,81 ;???
+	LD	(HL),A
+	LD	HL,LEVEL
+	LD	(TEXTW),HL
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	BC,118+54
+	LD	HL,16+8
+	CALL	TEXT
+	LD	HL,LEVEL
+	LD	A,(HL)
+	ADD	A,81 ;???
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	ADD	A,81 ;???
+	LD	(HL),A
+	LD	A,(MAP)
+	INC	A
+	LD	(MAP),A
+       if 1==0 ;???
+	LD	DE,72
+	LD	HL,#C000+128
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#11
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192
+	LD	HL,#C000+128+8
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#11
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72
+	LD	HL,#C000+128+16
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192
+	LD	HL,#C000+128+24
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192+4096
+	LD	HL,#C000+128+48
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192+4096+8
+	LD	HL,#C000+128+48
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+	LD	DE,72+8192+4096-8
+	LD	HL,#C000+128+48
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C1
+	LD	(PAGEFR),A
+	LD	A,#12
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+	HALT
+       endif
+         xor a
+         ld (sprlist+1),a ;disable sprite #0
+       call doscreen
+       call doscreen
+	CALL	POO6 ;стрелочки для первого игрока
+	CALL	POO62 ;стрелочки для второго игрока
+
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,TOTAL
+	LD	(TEXTW),HL
+	LD	HL,196
+	LD	BC,134
+	CALL	TEXT
+
+	LD	HL,68
+	LD	BC,92-16
+	LD	(CBC),BC
+	CALL	PTS
+	LD	A,(PLAYER)
+	or a;CP	0
+	JP	Z,UP222
+	LD	HL,68
+	LD	BC,92+96+16
+	LD	(CBC),BC
+	CALL	PTS
+UP222
+CHEK2	CALL	PRINT1 ;POONE,POTWO
+        ;jr $ ;на этот момент видно STAGE01
+       ;ld a,(PAUSE)
+       ;cp 49;or a
+       ;jr nz,CHEK2noscreen
+       ;call doscreen
+       ;call doscreen ;теперь видно PTS...TOTAL (без цифр), примерно на 60-м проходе появляются первые цифры
+;CHEK2noscreen
+		;LD		BC,TSCONFIG; SPRITE PRINT
+		;LD		A,%11000000
+		;OUT		(C),A
+	LD      HL,(Keys1PlFr)	;LD HL,Keys1PlFr+2
+	LD      B,H		;LD BC,(Keys1PlFr)
+	LD      C,#FE		;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	RET	Z
+	LD      HL,(Keys2PlFr)	;LD HL,Keys2PlFr+2
+	LD      B,H		;LD BC,(Keys2PlFr)
+	LD      C,#FE	        ;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	RET	Z
+	LD      HL,(Keys1PlStart)	;LD HL,Keys1PlStart+2
+	LD      B,H			;LD BC,(Keys1PlStart)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	RET	Z
+	JR	CHEK2

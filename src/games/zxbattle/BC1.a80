@@ -1,0 +1,2707 @@
+DEAT77	LD	A,129
+	LD	(UP1),A
+	JP	DEATH
+
+DEAT88	LD	A,129
+	LD	(UP2),A
+	JP	DEATH
+ENDGAME
+	LD	A,(ENDG)
+	CP	100
+	JP	Z,END4
+	CP	1
+	RET	NZ
+	LD	IX,UNITS
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_ANIMATION),0
+	LD	DE,4*UNITSZ;96
+	ADD	IX,DE
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_ANIMATION),0
+	LD	IX,SLU
+	LD	(IX+UNIT_YESORNOT),0
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	(IX+UNIT_YESORNOT),0
+	LD	IX,BRONITS
+	;LD	DE,24
+	ADD	IX,DE
+	LD	(IX+UNIT_YESORNOT),7 ;P500
+	LD	HL,SPRGAMEOVER0;256+40
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+
+	LD	L,128-8
+	LD	H,0
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	L,MAXY;224
+	LD	H,0
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	;LD	DE,24
+	ADD	IX,DE
+	LD	(IX+UNIT_YESORNOT),8 ;LAYERS2
+	LD	HL,SPRGAMEOVER1;256+42
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	L,128+8
+	LD	H,0
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	L,MAXY;224
+	LD	H,0
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	A,2
+	LD	(ENDG),A
+	XOR	A
+	LD	(MAP),A
+	RET
+END1
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	DEC	HL
+	LD	A,L
+	CP	128-24
+	RET	Z
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	RET
+
+END2
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	DEC	HL
+	LD	A,L
+	CP	128-24
+	JR	Z,END3
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	RET
+END3	LD	A,(ENDG)
+	INC	A
+	LD	(ENDG),A
+	RET
+
+ENN	DEFB	0 ;1=resources loaded
+END4
+	LD	A,1
+	LD	(ENN),A ;resources loaded
+	POP	HL
+
+END55	XOR	A
+	LD	(STAKEY),A ;start not unpressed
+	LD	(STR6),A ;time in startmusic
+	LD	A,#13
+	LD	(STR),A ;scroll page?
+	LD	HL,65535-228
+	LD	(STR2),HL ;scroll position in page?
+	LD	HL,126
+	LD	(KORM2),HL ;Y
+	;EI
+	;IM	1
+	CALL	CLSSTART ;???
+	LD	HL,WAR
+	LD	B,20
+NHF	LD	DE,5
+	LD	A,1
+	LD	(HL),A
+	ADD	HL,DE
+	DJNZ	NHF
+	LD	A,20
+	LD	(WARTAN),A;-------------------------------
+	LD	A,(NEWLEVEL)
+	CP	1
+	JR	Z,NNNNN
+	LD	HL,UP1
+	LD	A,132
+	LD	(HL),A
+	LD	HL,UP2
+	LD	A,132
+	LD	(HL),A
+NNNNN
+	LD	A,#10
+	LD	(SM1),A
+	LD	A,#13
+	LD	(SM2),A
+	LD	HL,#C001-4096
+	LD	(WERH),HL
+	LD	HL,65536-512
+	LD	(WERH2),HL
+	LD	A,(NEWLEVEL)
+	CP	1
+	JR	Z,NJNA
+	XOR	A
+	LD	(MAP),A
+NJNA
+	XOR	A
+	LD	(ENDG),A
+	LD	(BOM1X),A
+	LD	(BOM1Y),A
+	LD	(BOMIX),A
+	LD	(COM1X),A
+	LD	(COM1Y),A
+	LD	(COMIX),A
+	LD	(COMA),A
+	LD	(MMM),A
+	LD	(MMM2),A
+	LD	HL,(KORM);---X
+	LD	BC,(KORM2);----Y
+	LD	D,2
+	CALL	PRINT
+	CALL	CLS
+
+SSSD	LD	IX,UNITS
+	LD	DE,8*UNITSZ;192
+	ADD	IX,DE
+SSS	LD	A,(IX+UNIT_YESORNOT)
+	CP	255 ;PEXIT
+	JP	Z,ST2
+	LD	(IX+UNIT_YESORNOT),0
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	JR	SSS
+ST2	LD	IX,BRONITS
+SSS2	LD	A,(IX+UNIT_YESORNOT)
+	CP	255 ;PEXIT
+	JP	Z,ST3
+	LD	(IX+UNIT_YESORNOT),0
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	JR	SSS2
+ST3	LD	IX,UNITS
+	LD	(IX+UNIT_DIRECTION),1
+	LD	(IX+UNIT_COUNTER),0
+	ld (ix+(UNITSZ+UNIT_YESORNOT)),0 ;(IX+24),0
+	ld (ix+(2*UNITSZ+UNIT_YESORNOT)),0 ;(IX+48),0
+	ld (ix+(3*UNITSZ+UNIT_YESORNOT)),0 ;(IX+72),0
+	LD	DE,4*UNITSZ;96
+	ADD	IX,DE
+	LD	(IX+UNIT_DIRECTION),1
+	LD	(IX+UNIT_COUNTER),0
+	ld (ix+(UNITSZ+UNIT_YESORNOT)),0 ;(IX+24),0
+	ld (ix+(2*UNITSZ+UNIT_YESORNOT)),0 ;(IX+48),0
+	ld (ix+(3*UNITSZ+UNIT_YESORNOT)),0 ;(IX+72),0
+	XOR	A
+	LD	(TANKB),A
+	LD	(BOS),A
+	LD	A,32
+	LD	(BOSTART),A
+	LD	A,(NEWLEVEL)
+	CP	1
+	JP	Z,STARTM
+	JP	STARTS
+ENDG	DEFB	0
+
+EXITKK	POP	HL				;снимаем адрес возврата
+	XOR	A				;
+	LD	(STAKEY),A ;start not unpressed
+	LD	(STR6),A ;time in startmusic
+	LD	A,#13
+	LD	(STR),A ;scroll page?
+	LD	HL,65535-228
+	LD	(STR2),HL ;scroll position in page?
+	LD	HL,126
+	LD	(KORM2),HL ;Y
+	JP	STARTS			;выводим главное меню
+
+TESTKEY
+	LD	HL,TABL
+LOOP	LD	A,(HL)
+	CP	255
+	RET	Z
+	LD	C,A
+	INC	HL
+	LD	A,(HL)
+	LD	B,A
+	INC	HL
+	CALL	CHBIT
+	JP	Z,CHLOOP
+	INC	HL
+	JP	LOOP
+CHLOOP
+	CALL	CHBIT
+	JP	Z,CHLOOP
+	LD	A,(CHTEX)
+	CP	0
+	JP	Z,TUP
+	CP	1
+	JP	Z,TDOWN
+	CP	2
+	JP	Z,TLEFT
+	CP	3
+	JP	Z,TRIGHT
+	CP	4
+	JP	Z,TFIRE
+	CP	5
+	JP	Z,TFIREA
+	CP	6
+	JP	Z,TSTART
+
+;Задаем полученную клавишу, как клавишу ВВЕРХ
+TUP		LD	A,(P1)			;проверка номера игрока
+		AND	A				;если задается управление второго игрока
+		JR	NZ,TUP2			;то переходим на соотв. участок
+
+		LD	(Keys1PlUp),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys1PlUp),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+TUP2	LD	(Keys2PlUp),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys2PlUp),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+
+;Задаем полученную клавишу, как клавишу ВНИЗ
+TDOWN	LD	A,(P1)			;проверка номера игрока
+		AND	A				;если задается управление второго игрока
+		JR	NZ,TDOWN2		;то переходим на соотв. участок
+
+		LD	(Keys1PlDn),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys1PlDn),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+TDOWN2	LD	(Keys2PlDn),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys2PlDn),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+
+;Задаем полученную клавишу, как клавишу ВЛЕВО
+TLEFT	LD	A,(P1)			;проверка номера игрока
+		AND	A				;если задается управление второго игрока
+		JR	NZ,TLEFT2		;то переходим на соотв. участок
+		
+		LD	(Keys1PlLt),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита	
+		LD	(Keys1PlLt),a;+2),A	
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A			
+		LD	(CHTEX),A
+		RET
+TLEFT2	LD	(Keys2PlLt),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита	
+		LD	(Keys2PlLt),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+
+;Задаем полученную клавишу, как клавишу ВПРАВО
+TRIGHT	LD	A,(P1)			;проверка номера игрока
+		AND	A				;если задается управление второго игрока
+		JR	NZ,TRIGHT2		;то переходим на соотв. участок
+
+		LD	(Keys1PlRt),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys1PlRt),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+TRIGHT2	LD	(Keys2PlRt),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys2PlRt),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+
+;Задаем полученную клавишу, как клавишу ОГОНЬ
+TFIRE 	LD	A,(P1)			;проверка номера игрока
+		AND	A				;если задается управление второго игрока
+		JR	NZ,TFIRE2		;то переходим на соотв. участок
+	
+		LD	(Keys1PlFr),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys1PlFr),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+TFIRE2	LD	(Keys2PlFr),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys2PlFr),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		JP	TSTARTP			;для второго игрока ОГОНЬ - последняя задаваемая клавиша
+
+;Задаем полученную клавишу, как клавишу ОГОНЬ2
+TFIREA	LD	A,(P1)			;проверка номера игрока
+		AND	A				;для второго игрока ОГОНЬ - последняя задаваемая клавиша
+		JR	NZ,TSTARTP
+
+		LD	(Keys1PlFr2),BC ;сохраняем адрес порта
+		LD	A,(CHBITP)		;сохраняем номер бита
+		LD	(Keys1PlFr2),a;+2),A
+		LD	A,(CHTEX)		;увеличиваем номер стринга (UP/DOWN/LEFT/...)
+		INC	A
+		LD	(CHTEX),A
+		RET
+
+;Задаем полученную клавишу, как клавишу СТАРТ
+TSTART	LD	(Keys1PlStart),BC	;сохраняем адрес порта
+		LD	A,(CHBITP)			;сохраняем номер бита
+		LD	(Keys1PlStart),a;+2),A
+		XOR	A					;обнуляем номер стринга (UP/DOWN/LEFT/...)
+		LD	(CHTEX),A
+		INC	A					;переходим к заданию управления второго игрока
+		LD	(P1),A
+		RET
+
+;выход задания клавиш управления (после второго игрока)
+TSTARTP	XOR	A					;обнуляем номер игрока
+		LD	(P1),A
+		LD	(CHTEX),A			;обнуляем номер стринга (UP/DOWN/LEFT/...)
+		POP	HL					;снимаем ЛИШНИЙ адрес возврата
+		JP	EXITKK				;переходим на выход из REDEFINE KEYS
+
+RedefineKeys
+
+ReadKey		LD	HL,KbdTbl		;keyboadrd symbols
+ReadKey3	LD	BC,#FEFE		;port addr - right bottom row
+ReadKey2	LD	D,%00000001		;edge row key
+ReadKey4	IN	A,(C)
+			AND	D
+			JR	NZ,RdAntiFr		;клавиша нажата - идем на антидребезг,
+								;а у нас в HL-символ нажатой кнопки, в BC - адрес порта нажатой кнопки, в A - маска нажатой кнопки
+			INC	HL				;если клавиша не нажата, переходим к след. кнопке в таблице,
+			INC	HL
+			SLA	D				;переходим к следующей клавише ряда
+			LD	A,D				;проверим не проверили ли весь полуряд
+			SUB	%00100000
+			JR	Z,RdNextRow		;если прошли, переходим к проверке след. ряда
+			JR	ReadKey4
+RdNextRow	SLL	B				;адрес порта на адрес след. порта
+			LD	A,B				;проверим, не проверили ли все полуряды
+			CP	%11111111		;если еще не все ряды перебрали
+			JR	NZ,ReadKey2		;читаем след. ряд
+			JR	ReadKey3		;если ряды кончились, а клавиша не нажата перебираем порты снова
+RdAntiFr	IN	A,(C)			;устранение антидребезга
+			AND	D				;ждем пока клавиша не отпущена
+			JR	Z,RdAntiFr		;клавиша нажата - продолжаем ждать
+			LD	A,(HL)			;проверим, не является ли клавиша CAPS SHIFT. Его исключаем, чтобы не было срабатывания на стрелках
+			AND	A				;если нажата недопустимая клавиша,
+			JR	Z,ReadKey		;начинаем опрос с самого начала
+
+KbdTbl		DEFB	'CS','Z ','X ','C ','V '
+			DEFB	'A ','S ','D ','F ','G '
+			DEFB	'Q ','W ','E ','R ','T '
+			DEFB	'1 ','2 ','3 ','4 ','5 '
+			DEFB	'0 ','9 ','8 ','7 ','6 '
+			DEFB	'P ','O ','I ','U ','Y '
+			DEFB	'EN','L ','K ','J ','H '
+			DEFB	'SP','SS','M ','N ','B '	
+
+TABL	DEFW	32766
+	DEFB	1;0
+	DEFW	32766
+	DEFB	2;1
+	DEFW	32766
+	DEFB	4;2
+	DEFW	32766
+	DEFB	8;3
+	DEFW	32766
+	DEFB	16;4
+	DEFW	49150
+	DEFB	1;0
+	DEFW	49150
+	DEFB	2;1
+	DEFW	49150
+	DEFB	4;2
+	DEFW	49150
+	DEFB	8;3
+	DEFW	49150
+	DEFB	16;4
+	DEFW	57342
+	DEFB	1;0
+	DEFW	57342
+	DEFB	2;1
+	DEFW	57342
+	DEFB	4;2
+	DEFW	57342
+	DEFB	8;3
+	DEFW	57342
+	DEFB	16;4
+	DEFW	61438
+	DEFB	1;0
+	DEFW	61438
+	DEFB	2;1
+	DEFW	61438
+	DEFB	4;2
+	DEFW	61438
+	DEFB	8;3
+	DEFW	61438
+	DEFB	16;4
+	DEFW	63486
+	DEFB	1;0
+	DEFW	63486
+	DEFB	2;1
+	DEFW	63486
+	DEFB	4;2
+	DEFW	63486
+	DEFB	8;3
+	DEFW	63486
+	DEFB	16;4
+	DEFW	64510
+	DEFB	1;0
+	DEFW	64510
+	DEFB	2;1
+	DEFW	64510
+	DEFB	4;2
+	DEFW	64510
+	DEFB	8;3
+	DEFW	64510
+	DEFB	16;4
+	DEFW	65022
+	DEFB	1;0
+	DEFW	65022
+	DEFB	2;1
+	DEFW	65022
+	DEFB	4;2
+	DEFW	65022
+	DEFB	8;3
+	DEFW	65022
+	DEFB	16;4
+        DW      65278
+        DB      1;0
+	DEFW	65278
+	DEFB	2;1
+	DEFW	65278
+	DEFB	4;2
+	DEFW	65278
+	DEFB	8;3
+	DEFW	65278
+	DEFB	16;4
+	DEFB	255
+	DEFB	255
+	DEFB	255
+REDIFIN
+		LD      HL,(Keys1PlStart)	;ждем отпускания клавиши START
+		LD      B,H					
+		LD      C,#FE				
+		IN      A,(C)
+        AND     L
+		JR		Z,REDIFIN
+		LD		A,8					;проигрываем звуковой эффект
+		CALL	AFXPLAY
+		CALL	PLAYSA
+		CALL	CLSR				;очищаем экран и выводим надписи
+REDIFI2
+	CALL	TESTKEY
+	LD	HL,TEX1
+	LD	A,(P1)
+	CP	0
+	JR	Z,NOL2
+	LD	DE,19
+	ADD	HL,DE
+NOL2	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	(TEXTW),HL
+	LD	HL,52
+	LD	BC,64
+	CALL	TEXT
+	LD	HL,TEX2
+	LD	A,(CHTEX)
+	CP	0
+	JR	Z,CHLOOP2
+	LD	B,A
+CHLOOP3	LD	DE,6
+	ADD	HL,DE
+	DJNZ	CHLOOP3
+CHLOOP2	LD	(TEXTW),HL
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,52
+	LD	BC,64+156
+	CALL	TEXT
+	;HALT
+       call doscreen
+	;LD	BC,TSCONFIG; SPRITE PRINT
+	;LD	A,%10000000
+	;OUT	(C),A
+	JP	REDIFI2
+
+TEX1	DEFM	"1 PLAYER PRESS KEY"
+		DEFB	255
+TEX1A	DEFM	"2 PLAYER PRESS KEY"
+		DEFB	255
+P1		DEFB	0
+CHTEX	DEFB	0		;номер текущего выводимого стринга (UP/DOWN/LEFT/...)
+TEX2	DEFM	"UP   "
+		DEFB	255
+		DEFM	"DOWN "
+		DEFB	255
+		DEFM	"LEFT "
+		DEFB	255
+		DEFM	"RIGHT"
+		DEFB	255
+		DEFM	"FIRE1"
+		DEFB	255
+		DEFM	"FIRE2"
+		DEFB	255
+		DEFM	"START"
+		DEFB	255
+
+CLSR
+       if 1==1 ;???
+        call clstiles
+       else
+	LD	HL,25998
+	LD	A,%00010001
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C000
+	LD	B,95 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00110100
+	CALL	DMASTART
+       endif
+	HALT
+	HALT
+	XOR	A
+	LD	HL,(KORM);---X
+	LD	BC,(KORM2);----Y
+	LD	D,2
+	;CALL	PRINT ;зачем???
+         xor a
+         ld (sprlist+1),a ;disable sprite #0
+	RET
+
+
+TANKP2 ;when TANKP==4
+	PUSH	AF
+	LD	A,(TANK)
+	INC	A
+	INC	A
+	LD	(TANK),A ;next sprite phase
+	POP	AF
+	RET
+TANKP3 ;when TANKP==8
+	PUSH	AF
+	LD	A,(TANK)
+	DEC	A
+	DEC	A
+	LD	(TANK),A ;prev sprite phase
+	POP	AF
+	XOR	A
+	RET
+TANK	DEFB	0
+TANKP	DEFB	0 ;sprite phase
+KORM	DEFW	104
+KORM2	DEFW	126
+KEYDD2	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
+		LD      B,H					;LD		BC,(Keys1PlDn)
+		LD      C,#FE				;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,KEYDD2
+		LD		A,1
+		CALL	AFXPLAY
+		CALL	PLAYSA
+
+	LD	HL,(KORM2)
+	LD	DE,10
+	ADD	HL,DE
+	LD	A,L
+	CP	166
+	CALL	Z,KEYDD3
+	LD	(KORM2),HL
+	RET
+
+KEYDD3	LD	HL,126
+	RET
+KEYUU2	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
+		LD      B,H					;LD		BC,(Keys1PlUp)
+		LD      C,#FE				;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,KEYUU2
+		LD		A,1
+		CALL	AFXPLAY
+		CALL	PLAYSA
+	LD	HL,(KORM2)
+	LD	DE,10
+	SBC	HL,DE
+	LD	A,L
+	CP	116
+	CALL	Z,KEYUU3
+	LD	(KORM2),HL
+	RET
+KEYUU3	LD	HL,156
+
+	RET
+        
+
+STR7	PUSH	AF
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,TEXT3	;адрес строки ;copyrights
+	LD	(TEXTW),HL	;заносим в переменную
+       if TILES87
+	LD	HL,208;240-24	;Y
+       else
+        ld hl,184 ;Y
+       endif
+	LD	BC,56		;X
+	CALL	TEXT	;вывод текста
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,TEXT4 ;hiscores
+	LD	(TEXTW),HL
+	LD	HL,8;0
+	LD	BC,58
+	CALL	TEXT
+	POP	AF
+	RET
+
+
+
+
+EDITOR;START
+	POP HL
+	LD	A,8
+	CALL	AFXPLAY
+	CALL	PLAYSA2 ;play #17 sound frames
+STA	LD      HL,(Keys1PlStart)	;LD HL,Keys1PlStart+2
+	LD      B,H			;LD BC,(Keys1PlStart)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	JR	Z,STA ;wait START unpress
+		;LD		BC,BORDER
+		;LD		A,8
+		;OUT		(C),A
+        call border8
+
+	CALL	CLS
+
+         ld a,255
+         ld (MAP),a
+         call LOADAREA
+
+	CALL	TILL;               PRINT TILES ;set tilemode
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+;   CALL    TEXTLEF
+
+	XOR	A
+	LD	(TANK),A
+	LD	(TANKP),A
+
+KERN
+;editor
+        call doscreen;_and_logic
+
+	LD	A,(NOTILL)
+	CP	1
+	JR	Z,NOT22
+	LD	D,2
+	LD	A,(CURSOR)
+ if 1==1
+       and 127
+       jr nz,$+4
+        ld a,2*15
+       add a,78;80
+       cp 96
+       jr c,$+4
+        add a,176-96
+         ld hl,CURSOR
+         bit 7,(hl)
+         ;ld hl,(NOTILL)
+         ;inc l
+         ;dec l
+ else
+	BIT	7,A
+ endif
+	LD	HL,(XCUR);---X
+	LD	BC,(YCUR);----Y
+	CALL	NZ,FLICKER ;"ld a,40:ret"
+	CALL	PRINT;              PRINT SPRITES
+	HALT
+	HALT
+NOT222	HALT
+	;LD	BC,TSCONFIG; SPRITE PRINT
+	;LD	A,(NOTILL)
+	;CP	1
+	;JR	Z,NOT2
+	;LD	A,%10100000
+;NOT1	;OUT	(C),A
+	CALL	KEY ;editor keys
+	JR	KERN
+;NOT2
+	;LD	A,%10000000
+	;JP	NOT1
+
+NOT22
+;меню едитора
+	LD	A,(TANK)
+	LD	L,SPRMYTANKLEVEL0+4;44
+	ADD	A,L
+	LD	HL,(KORM);---X
+	LD	BC,(KORM2);----Y
+       if TILES87
+       dup 7
+       dec bc ;костыль!!!
+       edup
+       else
+       dup 6
+       dec bc ;костыль!!!
+       edup
+       endif
+	LD	D,2
+	CALL	PRINT
+    ;то же в KERFFF!!!???    
+	LD	A,(TANKP)
+	INC	A
+	CP	4
+	CALL	Z,TANKP2
+	CP	8
+	CALL	Z,TANKP3
+	LD	(TANKP),A ;фаза анимации танка
+	CALL	KEY2 ;editor menu keys
+	JP	NOT222
+
+STEN	DEFB	0 ;brick/beton
+INSSTEN
+	LD	A,250
+	LD	(BETONARM),A
+	RET
+
+INSTAL
+	LD	A,(STEN)
+	CP	12 ;beton
+	CALL	Z,INSSTEN ;(BETONARM)=250
+	;LD	BC,PAGE3
+	;LD	A,#08
+	;OUT	(C),A
+        call setpg8
+	LD	A,(STEN)
+       if 1==1
+       if TILES87
+        ld hl,tilemap+15+(29*BYTESPERTILELINE)
+       else
+        ld hl,tilemap+15+((MAXY/8+1)*BYTESPERTILELINE)
+       endif
+        call prchar_tilemap_hl
+        TILEMAPLINEUP
+        call prchar_tilemap_hl
+        TILEMAPLINEUP
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+        TILEMAPLEFT
+        ld a,95 ;eagle bottom-right tile
+        call prchar_tilemap_hl
+        TILEMAPLEFT
+        ld a,94 ;eagle bottom-left tile
+        call prchar_tilemap_hl
+        TILEMAPLINEUP
+        ld a,30 ;eagle top-left tile
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        ld a,31 ;eagle top-right tile
+        call prchar_tilemap_hl
+       else
+	LD	HL,49152+32+5120+2048
+	LD	(HL),30 ;eagle top-left tile
+	INC	HL
+	INC	HL
+	LD	(HL),31 ;eagle top-right tile
+	LD	DE,254
+	ADD	HL,DE
+	LD	(HL),94 ;eagle bottom-left tile
+	INC	HL
+	INC	HL
+	LD	(HL),95 ;eagle bottom-right tile
+	LD	HL,49152+30+5120+2048+256
+	LD	(HL),A ;bottom wall left of eagle
+	LD	DE,6
+	ADD	HL,DE
+	LD	(HL),A ;bottom wall right of eagle
+	LD	HL,49152+30+5120+2048
+	LD	(HL),A ;wall left of eagle
+	LD	DE,6
+	ADD	HL,DE
+	LD	(HL),A ;wall right of eagle
+	LD	HL,49152+30+5120+2048-256
+	LD	(HL),A ;walls atop of eagle
+	INC	HL
+	INC	HL
+	LD	(HL),A
+	INC	HL
+	INC	HL
+	LD	(HL),A
+	INC	HL
+	INC	HL
+	LD	(HL),A
+       endif
+	RET
+
+KEYDDD2	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
+		LD      B,H				;LD		BC,(Keys1PlDn)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,KEYDDD2
+		LD		HL,(KORM2)
+		LD		DE,8
+		ADD		HL,DE
+		LD		A,L
+		CP		122-16
+		CALL	Z,KEYDDD3
+		LD		(KORM2),HL
+		RET
+KEYDDD3	LD	HL,90
+	RET
+KEYUUU2	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
+		LD      B,H				;LD		BC,(Keys1PlUp)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,KEYUUU2
+		LD		HL,(KORM2)
+		LD		DE,8
+		SBC		HL,DE
+		LD		A,L
+		CP		82
+		CALL	Z,KEYUUU3
+		LD		(KORM2),HL
+		RET
+KEYUUU3	LD	HL,98
+	RET
+
+KEY2
+;editor menu keys
+	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
+		LD      B,H				;LD		BC,(Keys1PlDn)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		CALL	Z,KEYDDD2
+		LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
+		LD      B,H				;LD		BC,(Keys1PlUp)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		CALL	Z,KEYUUU2
+		RET
+
+FLICKER	LD	A,SPRMYTANKLEVEL0;40
+	RET
+
+KEY
+;editor keys
+	 LD A,(NOTILL)
+	 CP 1
+	 JR Z,KEYinmenu
+	CALL	KEYR;   UPRAVLENIE
+	CALL	KEYL
+	CALL	KEYD
+	CALL	KEYU
+	CALL	KEYX ;fire 2 (change tile)
+	CALL	SPACE ;fire (draw)
+KEYinmenu
+	CALL	ENTER
+	LD	A,(SPFLIC)
+	CP	8
+	CALL	Z,SPFLIC2
+	LD	A,(SPFLIC)
+	CP	16
+	CALL	Z,SPFLIC3
+	LD	A,(SPFLIC)
+	INC	A
+	LD	(SPFLIC),A
+	RET
+EXITM	POP	HL
+	;LD	BC,TSCONFIG; SPRITE PRINT
+	;LD	A,%00000000
+	;OUT	(C),A
+	LD	A,255
+	LD	(MAP),A
+	CALL	SAVEAREA
+	JP	EXITKK
+
+
+ENTER	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+		LD      B,H				;LD		BC,(Keys1PlStart)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		RET	NZ
+ENTER2	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+		LD      B,H				;LD		BC,(Keys1PlStart)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR	Z,ENTER2
+
+       if 1==1 ;???
+	LD	A,(NOTILL)
+	or a
+        jr nz,editor_skipkeep
+        call setpg8
+        ld hl,tilemap
+        if TILES87
+	LD de,#C000
+        ld bc,0x800
+        else
+	LD de,#C000+(TOPYLOAD/8*BYTESPERTILELINE)
+        ld bc,0x800-(TOPYLOAD/8*BYTESPERTILELINE)
+        endif
+        ldir
+editor_skipkeep
+        call clstiles
+       else
+	LD	HL,25998
+	LD	A,%00010001
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C000
+	LD	B,95 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00110100
+	CALL	DMASTART
+       endif
+	HALT
+	HALT
+
+	LD	A,(NOTILL)
+	or a ;CP	0
+	JP	Z,ENTER3
+;---------------------------------------------------MENU
+	XOR	A
+	LD	(NOTILL),A
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+	;LD	BC,BORDER
+	;LD	A,8
+	;OUT	(C),A
+        call border8
+	LD	HL,(KORM2)
+	LD	A,L
+	CP	98
+	JP	Z,EXITM
+        
+       if 1==1 ;???
+        call clstiles_field
+        call setpg8
+        ld de,tilemap
+        if TILES87
+	LD HL,#C000
+        ld bc,0x800
+        else
+	LD HL,#C000+(TOPYLOAD/8*BYTESPERTILELINE)
+        ld bc,0x800-(TOPYLOAD/8*BYTESPERTILELINE)
+        endif
+        ldir
+        
+       else
+	LD	HL,25998
+	LD	A,%00010001
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C000
+	LD	B,63 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00010100
+	CALL	DMASTART
+	HALT
+	LD	HL,25994
+	LD	A,%10001000
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C088
+	LD	B,13 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00010100
+	CALL	DMASTART
+	HALT
+       endif
+        
+;  CALL    TEXTLEF
+
+	RET
+
+ENTER3	CALL	TEXTP
+	LD	HL,96
+	LD	BC,90
+	LD	(KORM),HL;---X
+	LD	(KORM2),BC;----Y
+	LD	A,1
+	LD	(NOTILL),A
+	RET
+
+
+SPFLIC2	LD	A,(CURSOR)
+	SET	7,A
+	LD	(CURSOR),A
+	RET
+SPFLIC3	XOR	A
+	LD	(SPFLIC),A
+	LD	A,(CURSOR)
+	RES	7,A
+	LD	(CURSOR),A
+	RET
+SPFLIC	DEFB	0
+SPMETKA	DEFB	0
+CHBITP	DEFB	0
+CHBIT
+	LD	A,(HL)
+	LD	(CHBITP),A
+	CP	1;0
+	JP	Z,CHBIT0
+	CP	2;1
+	JP	Z,CHBIT1
+	CP	4;2
+	JP	Z,CHBIT2
+	CP	8;3
+	JP	Z,CHBIT3
+	CP	16;4
+	JP	Z,CHBIT4
+	RET
+CHBIT0	IN	A,(C)
+	BIT	0,A
+	RET
+CHBIT1	IN	A,(C)
+	BIT	1,A
+	RET
+CHBIT2	IN	A,(C)
+	BIT	2,A
+	RET
+CHBIT3	IN	A,(C)
+	BIT	3,A
+	RET
+CHBIT4	IN	A,(C)
+	BIT	4,A
+	RET
+
+SPACE
+	LD      HL,(Keys1PlFr)	;LD HL,Keys1PlFr+2
+	LD      B,H		;LD BC,(Keys1PlFr)
+	LD      C,#FE		;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	RET	NZ ;fire not pressed
+	;LD	BC,PAGE3
+	;LD	A,#08
+	;OUT	(C),A
+        call setpg8
+	LD	HL,(XCUR)
+	LD	A,H
+	;LD	(SPMETKA),A
+         rra
+	LD	A,L
+	 rra ;RRCA
+	RRCA
+        if BYTESPERTILE == 1
+         rrca
+        endif
+	;LD	L,A
+	;PUSH	HL
+	;POP	DE
+         ld e,a
+         ld d,0
+	LD	HL,(YCUR)
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+        if BYTESPERTILE == 2
+	 ADD	HL,HL ;
+        endif
+        if BYTESPERTILELINE == 256
+	 ADD	HL,HL ;
+        endif
+	PUSH	HL
+	POP	BC
+	;LD	HL,#C000
+        ld hl,tilemap
+	ADD	HL,DE
+	;LD	A,(SPMETKA)
+	;CP	1
+	;CALL	Z,SPADD
+	ADD	HL,BC
+	LD	A,(CURSOR)
+	RES	7,A
+	CP	4
+	JP	Z,S4
+	CP	6
+	JP	Z,S6
+	CP	8
+	JP	Z,S8
+	CP	10
+	JP	Z,S10
+	CP	14
+	JP	Z,S14
+	CP	16
+	JP	Z,S16
+	CP	18
+	JP	Z,S18
+	CP	20
+	JP	Z,S20
+       if 1==1
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+        TILEMAPLEFTLINEDOWN
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+       else
+	LD	(HL),A
+	INC	HL
+	INC	HL
+	LD	(HL),A
+	LD	BC,254
+	ADD	HL,BC
+	LD	(HL),A
+	INC	HL
+	INC	HL
+	LD	(HL),A
+       endif
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+
+S4
+       if 1==1
+	LD	A,2 ;brick
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+       else
+	INC	HL
+	INC	HL
+	LD	(HL),2 ;brick
+	LD	BC,254
+	ADD	HL,BC
+	INC	HL
+	INC	HL
+	LD	(HL),2 ;brick
+	LD	A,2 ;brick
+       endif
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S6
+       if 1==1
+	LD	A,2 ;brick
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+       else
+	LD	BC,254
+	ADD	HL,BC
+	INC	HL
+	INC	HL
+	LD	(HL),2 ;brick
+	INC	HL
+	INC	HL
+	LD	(HL),2 ;brick
+	LD	A,2 ;brick
+       endif
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S8
+       if 1==1
+	LD	A,2 ;brick
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+       else
+	LD	(HL),2 ;brick
+	LD	BC,254
+	ADD	HL,BC
+	INC	HL
+	INC	HL
+	LD	(HL),2 ;brick
+	LD	A,2 ;brick
+       endif
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S10
+       if 1==1
+	LD	A,2 ;brick
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+       else
+	LD	(HL),2 ;brick
+	INC	HL
+	INC	HL
+	LD	(HL),2 ;brick
+	LD	A,2 ;brick
+       endif
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S14
+       if 1==1
+	LD	A,12 ;beton
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+       else
+	INC	HL
+	INC	HL
+	LD	(HL),12 ;beton
+	LD	BC,254
+	ADD	HL,BC
+	;INC	HL
+	;INC	HL ;???
+	LD	(HL),12 ;beton
+       endif
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S16
+       if 1==1
+	LD	A,12 ;beton
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+       else
+	LD	BC,254
+	ADD	HL,BC
+	INC	HL
+	INC	HL
+	LD	(HL),12 ;beton
+	INC	HL
+	INC	HL
+	LD	(HL),12 ;beton
+       endif
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S18
+       if 1==1
+	LD	A,12 ;beton
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        call prchar_tilemap_hl
+       else
+	LD	(HL),12 ;beton
+	LD	BC,254
+	ADD	HL,BC
+	INC	HL
+	INC	HL
+	LD	(HL),12 ;beton
+       endif
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+S20
+       if 1==1
+	LD	A,12 ;beton
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        call prchar_tilemap_hl
+       else
+	LD	(HL),12 ;beton
+	INC	HL
+	INC	HL
+	LD	(HL),12 ;beton
+       endif
+	LD	A,2 ;brick
+	LD	(STEN),A
+	CALL	INSTAL
+	RET
+
+        if 1==0
+SPADD
+;usage:
+	;LD	HL,#C000
+	;ADD	HL,DE
+	;LD	A,(SPMETKA)
+	;CP	1
+	;CALL	Z,SPADD
+	;ADD	HL,BC ;???
+
+	LD	DE,256-64
+	SBC	HL,DE
+	RET
+        endif
+
+KEYX	LD      HL,(Keys1PlFr2)	;LD HL,Keys1PlFr2+2
+	LD      B,H		;LD BC,(Keys1PlFr2)
+	LD      C,#FE		;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	RET	NZ ;fire2 not pressed
+KEYX2	LD      HL,(Keys1PlFr2)	;LD HL,Keys1PlFr2+2
+	LD      B,H		;LD BC,(Keys1PlFr2)
+	LD      C,#FE		;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	JR	Z,KEYX2 ;wait fire2 unpress
+
+		LD		A,(CURSOR)
+		RES		7,A
+		CP		28
+		JR		Z,NOL
+		INC		A
+		INC		A
+		LD		(CURSOR),A
+		RET
+NOL	XOR	A
+	LD	(CURSOR),A
+	RET
+
+KEYR	LD      HL,(Keys1PlRt)	;LD		HL,Keys1PlRt+2
+		LD      B,H				;LD		BC,(Keys1PlRt)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR	Z,KEYR2
+		RET
+KEYL	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
+		LD      B,H				;LD		BC,(Keys1PlLt)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JP		Z,KEYL2
+		RET
+KEYD	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
+		LD      B,H				;LD		BC,(Keys1PlDn)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JP		Z,KEYD2
+		RET
+KEYU	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
+		LD      B,H				;LD		BC,(Keys1PlUp)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JP		Z,KEYU2
+		RET
+KEYR2	LD		A,(NOTILL)
+		CP		1
+		JP		Z,KEYR3
+		LD		HL,(XCUR)
+		LD		A,1
+		CP		H
+		RET		Z
+		LD		DE,16
+		ADD		HL,DE
+		LD		(XCUR),HL
+		RET
+
+KEYL33	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
+		LD      B,H				;LD		BC,(Keys1PlLt)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,KEYL33
+		LD		HL,(KORM2)
+		LD		A,L
+;		CP		90
+;		JR      Z,KEYL333
+;		CP	98
+;		JR      Z,KEYL333
+		RET
+
+;KEYL333	LD	HL,TEXT1
+;	LD	DE,30
+;	ADD	HL,DE
+;	LD	A,(HL)
+;	DEC	A
+;	CP	47
+;	CALL	Z,KN2
+;	LD	(HL),A
+;	CALL	TEXTP
+;	RET
+;KN2	DEC	HL
+;	LD	A,(HL)
+;	DEC	A
+;	CP	47
+;	JP	Z,KN22
+;	LD	(HL),A
+;	INC	HL
+;	LD	A,57
+;	RET
+;KN22	XOR	A
+;	LD	(MAP),A
+;	LD	A,48
+;	LD	(HL),A
+;	INC	HL
+;	RET
+
+
+
+KEYR3	LD      HL,(Keys1PlRt)	;LD		HL,Keys1PlRt+2
+		LD      B,H				;LD		BC,(Keys1PlRt)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,KEYR3
+		LD		HL,(KORM2)
+		LD		A,L
+		CP		90
+		JR		Z,KEYR33
+		CP		98
+		JR		Z,KEYR33
+		RET
+KEYR33	LD	HL,TEXT1
+	LD	DE,30
+	ADD	HL,DE
+	LD	A,(HL)
+	INC	A
+	CP	58
+	CALL	Z,KN
+	LD	(HL),A
+	CALL	TEXTP
+	RET
+KN	DEC	HL
+	LD	A,(HL)
+	INC	A
+	LD	(HL),A
+	INC	HL
+	LD	A,48
+	RET
+KEYL2	LD	A,(NOTILL)
+	CP	1
+	JP	Z,KEYL33
+	LD	HL,(XCUR)
+	LD	A,0
+	CP	H
+	CALL	Z,KEYL3
+	LD	DE,15
+	SBC	HL,DE
+	LD	(XCUR),HL
+	RET
+KEYL3	LD	A,0
+	CP	L
+	RET	NZ
+	POP	HL
+	RET
+
+KEYD2	LD	HL,(YCUR)
+	LD	A,MAXY;224
+	CP	L
+	RET	Z
+	LD	DE,16
+	ADD	HL,DE
+	LD	(YCUR),HL
+	RET
+KEYU2	LD	HL,(YCUR)
+	LD	A,0
+	CP	L
+	RET	Z
+	LD	DE,15
+	SBC	HL,DE
+	LD	(YCUR),HL
+	RET
+
+
+
+XCUR	DEFW	0
+YCUR	DEFW	0
+CURSOR	DEFB	0
+
+
+CLS
+       if 1==0
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	;LD	A,#16
+	;OUT	(C),A
+        call setpg16
+	LD	HL,49152
+	XOR	A
+	LD	(HL),A
+	LD	DE,49153
+	LD	BC,16384 -1
+        LDIR         ;-------------- CLS ALL LEVEL
+       endif
+       if 1==1 ;???
+        call clstiles_field
+       else
+	LD	HL,25996
+	LD	(HL),0
+	LD	DE,#C000
+	LD	B,127 ;wid/8-1?
+	LD	C,40 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#08
+	LD	(PAGETO),A
+	LD	A,%00000100
+	CALL	DMASTART
+	HALT
+	HALT
+	LD	HL,25998
+	LD	A,%00010001
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C000
+	LD	B,95 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00110100
+	CALL	DMASTART
+	HALT
+	HALT
+	LD	HL,25994
+	LD	A,%10001000
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C088
+	LD	B,13 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00010100
+	CALL	DMASTART
+
+	HALT
+	HALT
+       endif
+	CALL	CLST
+	RET
+
+CLST	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	;LD	A,#08
+	;OUT	(C),A
+        call setpg8
+	LD	HL,49152; CUSTOM TILES
+	LD	B,30
+LTIL2	PUSH	BC
+	LD	B,34;32
+LTIL	XOR	A; NUMBER OF TILES
+	LD	(HL),A
+	;INC	HL
+	;INC	HL
+        TILEMAPRIGHT
+	DJNZ	LTIL
+	LD	DE,BYTESPERTILELINE-34;192
+	ADD	HL,DE
+	POP	BC
+	DJNZ	LTIL2
+	RET
+
+        if 1==0
+DMASTART
+;b=wid/8-1?
+;c=hgt-1?
+        LD	(SIZEBC),BC
+	LD	(CLSDATA),A
+	LD	BC,DMASADH; FROM
+	LD	A,H
+	OUT	(C),A
+	LD	BC,DMASADL
+	LD	A,L
+	OUT	(C),A
+	LD	BC,DMASADX; PAGE FROM
+	LD	A,(PAGEFR)
+	OUT	(C),A
+
+	LD	BC,DMADADH; TO
+	LD	A,D
+	OUT	(C),A
+	LD	BC,DMADADL
+	LD	A,E
+	OUT	(C),A
+	LD	BC,DMADADX; PAGE TO
+	LD	A,(PAGETO)
+	OUT	(C),A
+
+	LD	BC,DMALEN; LEN
+	LD	HL,(SIZEBC)
+	LD	A,H
+	OUT	(C),A
+	LD	BC,DMANUM
+	LD	A,L
+	OUT	(C),A
+
+	LD	BC,DMACTR; PRINT
+	LD	A,(CLSDATA)
+	OUT	(C),A
+	RET
+        endif
+
+TEXTP
+	LD	A,2
+	LD	(STEN),A
+	CALL	INSTAL
+	LD	HL,TEXT1
+	LD	DE,29
+	ADD	HL,DE
+	LD	B,(HL)
+	INC	HL
+	LD	C,(HL)
+	LD	DE,16
+	ADD	HL,DE
+	LD	(HL),B
+	INC	HL
+	LD	(HL),C
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,TEXT1
+	LD	(TEXTW),HL
+	LD	HL,86
+	LD	BC,96
+	CALL	TEXT
+	;LD	BC,BORDER
+	;LD	A,1
+	;OUT	(C),A
+	;RET
+        jp border1
+
+TEXT
+;hl=Y
+;bc=X
+	CALL	PERECHET	;производим пересчет координат
+	LD	HL,(TEXTW)	;берем адрес строки
+;de=scr
+;hl=text
+TEXTC	LD	(PAGETO),A
+	LD	B,0
+	LD	A,(HL)		;берем байт строки
+	CP	255		;255 - заканчиваем печать (конец текста)
+	RET	Z
+	CP	254		;254 - переходим на следующую экранную строку
+	JP	Z,NEXTPR
+	
+        if 1==1
+        push hl
+         add a,128-32
+        call prchar_tilemap
+        dup BYTESPERTILE
+        inc de
+        edup
+        pop hl
+        else
+		LD		C,A			;берем байт строки
+		LD		A,(PAGETO)
+		PUSH	HL,AF
+		LD	HL,#C000+4096+4-256+124
+                ;LD	HL,#C000+4096+4-512+124+2048
+		LD		A,C			;берем байт строки
+		CP		96			;если >= (С), соответственно меняем HL
+		CALL	NC,REGUP
+		ADD		HL,BC
+		ADD		HL,BC
+		ADD		HL,BC
+		ADD		HL,BC
+
+		LD		B,1
+		LD		C,7
+		LD		A,#C0
+		LD		(PAGEFR),A
+		LD		A,%00110001
+		PUSH	DE
+		CALL	DMASTART
+		POP		DE
+		POP		AF,HL
+	INC	DE
+	INC	DE
+	INC	DE
+	INC	DE ;screen addr???
+        endif
+	INC	HL
+	JR	TEXTC
+
+NEXTPR
+	PUSH	HL,BC
+	LD	HL,(SAVEY)
+	LD	DE,8
+       ;ld a,l
+       ;cp 192
+       ;jr nc,$+3
+	 ADD	HL,DE
+	LD	BC,(SAVEX)
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	CALL	PERECHET
+	POP	BC,HL
+	INC	HL
+	JR	TEXTC
+		
+REGUP	LD	HL,#C000+4096+4-512+124+2048
+	RET
+
+PERECHET
+;hl=Y
+;bc=X
+;out: de=scr
+       ;ld a,l
+       ;cp 192
+       ;jr c,$+4
+       ;ld l,192
+	LD	(SAVEY),HL	;сохраняем Y
+	LD	(SAVEX),BC	;сохраняем X
+       if 1==1
+       if 1==1
+        ld a,l
+        and 0xf8
+        ld l,a
+        ;add hl,hl
+        ;add hl,hl
+        ;add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl ;*64
+        if BYTESPERTILE == 2
+         add hl,hl ;*128
+        endif
+        push bc
+        srl b
+        rr c
+        srl b
+        rr c
+        if BYTESPERTILE == 1
+         srl b
+         rr c
+        endif
+        add hl,bc
+        ld bc,tilemap
+        add hl,bc
+        pop bc
+        ex de,hl
+       else
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de
+        add hl,hl
+        add hl,hl
+        add hl,hl ;*40
+        srl b
+        rr c
+        srl b
+        rr c
+        srl b
+        rr c
+        add hl,bc
+        ld a,h
+        add a,0x40
+        ld h,a
+        ex de,hl
+       endif
+       else
+	LD	A,L		;берем младшую байт от Y
+	AND	%00111111	;отбрасываем 2 старших бита
+	OR	D		;OR 11000000
+	LD	D,A		;в D получем новую младшую часть Y
+	ADD	HL,HL		;Y*4
+	ADD	HL,HL
+	LD	A,H		;берем старшую часть Y*4
+	ADD	A,E		;прибавляем к ней #10 (00010000)
+	SRL	B		;X/2
+	RR	C
+	LD	E,C		;в E - младшпя часть X/2
+       endif
+	RET
+
+CLSSTART
+        if 1==1 ;???
+        call clstiles
+        else
+	LD	HL,25998
+	LD	A,%00010001
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C000
+	LD	B,95 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00110100
+	CALL	DMASTART
+	HALT
+	HALT
+        endif
+	RET
+
+TEXTLEF
+       if 1==1 ;???
+        ld hl,tilemap+(22*BYTESPERTILELINE)+35
+        ld a,50
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        ld a,51
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        ld a,64+51
+        call prchar_tilemap_hl
+        TILEMAPLEFT
+        ld a,64+50
+        call prchar_tilemap_hl
+       else
+	LD	HL,49152+128+64+8
+	LD	DE,49152+128+12
+	LD	B,3 ;wid/8-1?
+	LD	C,15 ;hgt-1?
+	LD	A,#C0
+	LD	(PAGEFR),A
+	LD	A,#13
+	LD	(PAGETO),A
+	LD	A,%00110001
+	CALL	DMASTART
+       endif
+
+	LD	HL,TEXT6
+	LD	(TEXTW),HL
+	LD	D,#C0
+	LD	E,#10
+	LD	BC,256+24
+	LD	HL,128
+	CALL	TEXT
+
+	LD	A,(PLAYER)
+	CP	0
+	JP	Z,PKS
+	LD	HL,TEXT7
+	LD	(TEXTW),HL
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	BC,256+24
+	LD	HL,128+24
+	CALL	TEXT
+PKS
+	LD	HL,LEVEL
+	CALL	TEXR ;write 2 bytes map number INVERTED DIGITS in (HL)
+
+	LD	HL,LEVEL
+	LD	(TEXTW),HL
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	BC,256+30
+	LD	HL,192;128+64+12 ;???
+	CALL	TEXT
+
+	LD	HL,WAR
+CIKL	LD	A,(HL)
+	CP	0
+	RET	Z
+	PUSH	HL
+	LD	HL,TEXT5 ;символ 40 - маленький чёрный танк???
+	LD	(TEXTW),HL
+	POP	BC
+	PUSH	BC
+	INC	BC
+	LD	A,(BC)
+	LD	L,A
+	INC	BC
+	LD	A,(BC)
+	LD	H,A ;hl=Y
+	POP	DE
+	PUSH	DE
+	INC	DE
+	INC	DE
+	INC	DE
+	LD	A,(DE)
+	LD	C,A
+	INC	DE
+	LD	A,(DE)
+	LD	B,A ;bc=X
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	CALL	TEXT
+	POP	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	JR	CIKL
+	;RET ;???
+
+PAGE=setpg17
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	;LD	A,#17
+	;OUT	(C),A
+	;RET
+PAGE2AA=setpg18
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	;LD	A,#18
+	;OUT	(C),A
+	;RET
+PAGE2A
+	SBC	A,16
+	RET
+;LAR
+	;RET
+LOADAREA
+        ld a,(levelsloaded)
+        or a
+        jr z,loadarea_00notloaded
+;в принципе, всё загружено, но если карта 00, то надо загрузить
+        ld a,(MAP)
+        cp 255
+        jr nz,loadarea_skip00
+loadarea_00notloaded
+			;LD		BC,PAGE3		;Loading 0 (user) mission
+			;LD		A,#18
+			;OUT		(C),A
+        call setpg18
+			;TRDReadFromHere	#C000,#04
+        ld de,fn_lvl00us
+        ld hl,0xc000
+        call loadfile
+loadarea_skip00
+levelsloaded=$+1
+        ld a,0
+        or a
+        jr nz,loadarea_loaded
+	        ;LD		BC,PAGE3		;Loading 1-16 missions
+			;LD		A,#16
+			;OUT		(C),A
+        call setpg16
+			;LD		DE,(DiskAddrLevels)
+			;TRDReadFromDE	#C000,#40
+        ld de,fn_lvl0116
+        ld hl,0xc000
+        call loadfile
+
+			;LD		BC,PAGE3		;Loading 17-32 missions
+			;LD		A,#17
+			;OUT		(C),A
+        call setpg17
+			;TRDReadFromHere	#C000,#40
+			;LD      HL,(#5CF4)				;Save position of 0 (user) mission on disk
+			;LD		(DiskAddrUsrLev),HL
+        ld de,fn_lvl1732
+        ld hl,0xc000
+        call loadfile
+        
+        ld a,1
+        ld (levelsloaded),a
+loadarea_loaded
+
+			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
+			;LD		A,#16
+			;OUT		(C),A
+        call setpg16
+
+			LD		A,(MAP)
+			CP		16
+			CALL	NC,PAGE ;setpg17
+
+			LD		A,(MAP)
+			CP		255
+			CALL	Z,PAGE2AA
+
+			LD		HL,#C000
+			LD		(SAVEBUF),HL
+        ld de,tilemap;0x4000
+        ld (prmappos),de
+
+        if TILES87
+		LD HL,#C000
+        else
+		LD HL,#C000+(TOPYLOAD/8*34)
+        endif
+			LD		A,(MAP)
+			CP		255
+			JR		Z,SSSS
+
+		LD	A,(MAP)
+		CP	16
+		CALL	NC,PAGE2A
+		LD	B,A
+LOP		LD	DE,1024
+		ADD	HL,DE
+		DJNZ	LOP
+SSSS
+        if TILES87
+		LD	B,30
+        else
+		LD	B,26
+        endif
+LOLOOP2		PUSH	BC
+		LD	B,34
+LOLOOP		LD	A,(HL)
+		CALL	LOAD1
+		INC	HL
+		DJNZ	LOLOOP
+		POP	BC
+		DJNZ	LOLOOP2
+        call setpg8
+		RET
+LOAD1		PUSH	HL,DE,BC
+			PUSH	AF
+			;LD		BC,PAGE3
+			;LD		A,#08
+			;OUT		(C),A
+        call setpg8
+			POP		AF
+			LD		HL,(SAVEBUF)
+			LD		(HL),A
+        push hl
+prmappos=$+1
+        ld de,0
+        call prchar_tilemap
+        dup BYTESPERTILE
+        inc de
+        edup
+        ld (prmappos),de
+        pop hl
+                        
+			INC		HL
+			INC		HL
+			LD		A,(LOADBUF) ;X in map
+			INC		A
+			CP		34
+			CALL	Z,NEXTLOAD
+			LD		(LOADBUF),A ;X in map
+			LD		(SAVEBUF),HL
+			;LD		BC,PAGE3
+			;LD		A,#16
+			;OUT		(C),A
+                        call setpg16
+			LD		A,(MAP)
+			CP		16
+			CALL	NC,PAGE
+			LD		A,(MAP)
+			CP		255
+			CALL	NC,PAGE2AA
+			POP		BC,DE,HL
+			RET
+NEXTLOAD
+        push hl
+        ld hl,(prmappos)
+        ld de,BYTESPERTILELINE-(BYTESPERTILE*34);40*7-34
+        add hl,de
+        ld (prmappos),hl
+        pop hl
+	LD	DE,256-68
+	ADD	HL,DE
+	XOR	A ;X in map
+	RET
+LOADBUF		DEFB	0
+SAVEAREA
+        ;LD		BC,PAGE3	;Saving 0 (user) mission
+        ;LD		A,#08
+	;OUT		(C),A
+        call setpg8
+        if TILES87
+	LD HL,#C000
+        else
+	LD HL,#C000+(TOPYLOAD/8*34)
+        endif
+	LD	(SAVEBUF),HL
+        if TILES87
+	LD HL,#C000
+        ld b,30
+        else
+	LD HL,#C000+(TOPYLOAD/8*BYTESPERTILELINE)
+        ld b,26
+        endif
+SALOOP2	PUSH	BC
+	LD	B,34
+SALOOP	LD	A,(HL)
+	CALL	SAVE1
+	;INC	HL
+	;INC	HL
+        TILEMAPRIGHT
+	DJNZ	SALOOP
+	POP	BC
+	LD DE,BYTESPERTILELINE-(BYTESPERTILE*34);256-68
+	ADD HL,DE
+	DJNZ	SALOOP2
+	;LD	BC,PAGE3
+	;LD	A,#18
+	;OUT	(C),A
+        call setpg18
+
+	;LD	DE,(DiskAddrUsrLev)		;Save 0 (user) mission
+	;TRDWriteFromDE #C000,#04
+	;RET
+        ld de,fn_lvl00us
+        ld hl,0xc000
+        ld bc,0x0400
+        jp savefile
+
+SAVE1		PUSH	HL,DE,BC
+			PUSH	AF
+			;LD		BC,PAGE3
+			;LD		A,#18
+			;OUT		(C),A
+                        call setpg18
+			POP		AF
+			LD		HL,(SAVEBUF)
+			LD		(HL),A
+			INC		HL
+			LD		(SAVEBUF),HL
+			;LD		BC,PAGE3
+			;LD		A,#08
+			;OUT		(C),A
+                        call setpg8
+			POP		BC,DE,HL
+			RET
+
+SAVEBUF	DEFW	#C000
+
+BONG1
+;попал в стену???
+	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
+	INC	A
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),A
+	CP	3
+	CALL	Z,BONG2
+	LD	HL,SPRBOOM0;56
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_DIRECTION),0
+	RET
+BONG2	LD	(IX+UNIT_YESORNOT),0
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	(YESORNO),A
+	RET
+SHOT1	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
+	CP	0
+	RET	Z
+	DEC	A
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),A
+	RET
+
+EGGLE ;eagle
+	PUSH	HL
+       if 1==1
+;draw fallen flag tiles
+       if TILES87
+        ld hl,tilemap+16+(28*BYTESPERTILELINE)
+       else
+        ld hl,tilemap+16+(MAXY/8*BYTESPERTILELINE)
+       endif
+        ld a,32
+        call prchar_tilemap_hl
+        TILEMAPRIGHT
+        ld a,33
+        call prchar_tilemap_hl
+        TILEMAPLINEDOWN
+        ld a,97
+        call prchar_tilemap_hl
+        TILEMAPLEFT
+        ld a,96
+        call prchar_tilemap_hl
+       else
+	LD	HL,49152+32+5120+2048 ;???
+	LD	(HL),32
+	INC	HL
+	INC	HL
+	LD	(HL),33
+	LD	DE,254
+	ADD	HL,DE
+	LD	(HL),96
+	INC	HL
+	INC	HL
+	LD	(HL),97 ;fallen flag tiles
+       endif
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	(YESORNO),A
+	POP	HL
+	LD	IX,UNITS
+	LD	DE,2*UNITSZ;48
+	ADD	IX,DE
+	LD	(IX+UNIT_X),128
+	LD	(IX+UNIT_X+1),0
+	LD	(IX+UNIT_Y),MAXY;224
+	LD	(IX+UNIT_Y+1),0
+	LD	(IX+UNIT_YESORNOT),4 ;BADABUM
+	LD	(IX+UNIT_SAND),254
+	LD	(IX+UNIT_DIRECTION2),3
+	POP	HL
+	RET
+
+INTRO
+	LD		HL,0
+		LD		(JOINTP1),HL
+		LD		(JOINTP2),HL
+		XOR		A
+		LD		(PAUSE),A
+		LD		(PAU1),A
+		LD		(T1),HL
+		LD		(T2),HL
+		LD		(T3),HL
+		LD		(T4),HL
+		LD		(T12),HL
+		LD		(T22),HL
+		LD		(T32),HL
+		LD		(T42),HL
+
+		LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+		LD      B,H					;LD		BC,(Keys1PlStart)
+		LD      C,#FE				;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		JR		Z,INTRO
+		JP		INTRO2
+INT2
+	LD	A,100
+	LD	(MMM),A
+	RET
+INT22	LD	A,100
+	LD	(MMM2),A
+	RET
+
+PRMIS	PUSH	AF
+	LD	D,#C0
+	LD	E,#10
+	LD	HL,TEXT16 ;stage
+	LD	(TEXTW),HL
+       if TILES87
+	LD	HL,112
+       else
+	LD	HL,112-16
+       endif
+	LD	BC,124
+	CALL	TEXT
+	LD	A,(MAP)
+	CP	15
+	CALL	Z,BOSSLEV
+	CP	31
+	CALL	Z,BOSSLEV
+	CP	32
+	CALL	Z,ENDLEV
+	LD	HL,TEXT17 ;"00" INVERTED DIGITS
+	CALL	TEXR ;write 2 bytes map number INVERTED DIGITS in (HL)
+	LD	D,#C0
+	LD	E,#10
+	LD	HL,TEXT17 ;map number INVERTED DIGITS
+	LD	(TEXTW),HL
+       if TILES87
+	LD	HL,112
+       else
+	LD	HL,112-16
+       endif
+	LD	BC,124+48
+	CALL	TEXT
+       call doscreen
+       call doscreen
+	POP	AF
+	RET
+BOSSLEV
+	LD	D,#C0
+	LD	E,#10
+	LD	HL,TEXT18 ;boss
+	LD	(TEXTW),HL
+	LD	HL,112+10
+	LD	BC,124-8
+	CALL	TEXT
+	LD	D,#C0
+	LD	E,#10
+	LD	HL,TEXT19 ;level
+	LD	(TEXTW),HL
+	LD	HL,112+10
+	LD	BC,124+32
+	CALL	TEXT
+	RET
+
+TX	XOR	A
+	RET
+TEXR
+;write 2 bytes map number INVERTED DIGITS in (HL)
+	LD	A,(MAP)
+	CP	255
+	CALL	Z,TX ;xor a
+;TEXRR
+	CP	69
+	JP	NC,PTEXT7
+	CP	59
+	JP	NC,PTEXT6
+	CP	49
+	JP	NC,PTEXT5
+	CP	39
+	JP	NC,PTEXT4
+	CP	29
+	JP	NC,PTEXT3
+	CP	19
+	JP	NC,PTEXT2
+	CP	9
+	JP	NC,PTEXT
+	INC	A
+	ADD	A,129 ;inverted '0'
+	INC	HL
+	LD	(HL),A
+	RET
+PTEX	INC	A
+	ADD	A,130 ;inverted '1'
+	INC	HL
+	LD	(HL),A
+	RET
+PTEXT	LD	A,130 ;inverted '1'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,11
+	JP	PTEX
+PTEXT2	LD	A,131 ;inverted '2'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,21
+	JP	PTEX
+PTEXT3	LD	A,132 ;inverted '3'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,31
+	JP	PTEX
+PTEXT4	LD	A,133 ;inverted '4'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,41
+	JP	PTEX
+PTEXT5	LD	A,134 ;inverted '5'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,51
+	JP	PTEX
+PTEXT6	LD	A,135 ;inverted '6'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,61
+	JP	PTEX
+PTEXT7	LD	A,136 ;inverted '7'
+	LD	(HL),A
+	LD	A,(MAP)
+	SBC	A,71
+	JP	PTEX
+TEXT16	DEFM	"stage"
+	DEFB	255
+TEXT18	DEFM	"boss"
+	DEFB	255
+TEXT19	DEFM	"level"
+	DEFB	255
+TEXT17	DEFB	129 ;"00" INVERTED DIGITS
+	DEFB	129
+	DEFB	255
+RP2
+	;LD	BC,PAGE3
+	;LD	A,12
+	;OUT	(C),A
+        call setpgc ;музыка победы?
+	CALL	#C000
+       ld a,201
+       ld (AFXFRAME),a ;а то музыка играет со щелчками
+GG	EI
+	HALT
+	CALL	#C005
+       call EXIT
+	JP	GG
+
+INTRO2	CALL	FX
+		CALL	FX2
+		HALT
+		LD		A,(MMM)
+		CP		80
+		CALL	Z,PRMIS
+		CP		200
+		RET		Z
+		INC		A
+		LD		(MMM),A
+		LD		A,(MMM2)
+		INC		A
+		CP		200
+		CALL	Z,INT22
+		LD		(MMM2),A
+
+		LD		HL,(WERH)
+		LD		DE,512
+		ADD		HL,DE
+		LD		(WERH),HL
+
+		LD		HL,(WERH2)
+		LD		DE,512
+		SBC		HL,DE
+		LD		(WERH2),HL
+		LD		A,(MMM)
+		CP		100
+		JP		C,INTRO2
+		LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+		LD      B,H					;LD		BC,(Keys1PlStart)
+		LD      C,#FE				;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		RET		Z
+		JP		INTRO2
+
+FXN
+	LD	HL,#C001-512
+	LD	(WERH),HL
+	LD	A,(SM1)
+	INC	A
+	LD	(SM1),A
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	LD	A,(SM1)
+	;OUT	(C),A
+	;RET
+        jp setpg
+FXN2
+	LD	HL,65536-512
+	LD	(WERH2),HL
+	LD	A,(SM2)
+	DEC	A
+	LD	(SM2),A
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	LD	A,(SM2)
+	;OUT	(C),A
+	;RET
+        jp setpg
+FX
+         if 1==0 ;???
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	LD	A,(SM1)
+	;OUT	(C),A
+        call setpg
+	LD	A,(MMM)
+	CP	8
+	RET	C
+	CP	72
+	RET	NC
+	LD	A,(MMM)
+	CP	40
+	CALL	Z,FXN
+	LD	HL,(WERH) ;0xc001???
+	DEC	HL
+	LD	A,%10001000
+	LD	(HL),A
+	LD	DE,(WERH)
+	LD	BC,511
+	LDIR
+         endif
+	RET
+FX2
+         if 1==0 ;???
+	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	LD	A,(SM2)
+	;OUT	(C),A
+        call setpg
+	LD	A,(MMM2)
+	CP	68
+	RET	NC
+	CP	64
+         push af ;??? fix
+	CALL	Z,FXN2
+         pop af ;??? fix
+	CP	32
+	CALL	Z,FXN2
+	LD	HL,(WERH2) ;0xc001???
+	DEC	HL
+	LD	A,%10001000
+	LD	(HL),A
+	LD	DE,(WERH2)
+	LD	BC,511
+	LDIR
+         endif
+	RET
+
+WAR
+;5 bytes element:
+;+0: 1 or 0
+;+1(2b): Y
+;+3(2b): X
+	DEFB	1
+	DEFW	0
+	DEFW	256+24
+	DEFB	1
+	DEFW	0
+	DEFW	256+32
+	DEFB	1
+	DEFW	8
+	DEFW	256+24
+	DEFB	1
+	DEFW	8
+	DEFW	256+32
+	DEFB	1
+	DEFW	16
+	DEFW	256+24
+	DEFB	1
+	DEFW	16
+	DEFW	256+32
+	DEFB	1
+	DEFW	24
+	DEFW	256+24
+	DEFB	1
+	DEFW	24
+	DEFW	256+32
+	DEFB	1
+	DEFW	32
+	DEFW	256+24
+	DEFB	1
+	DEFW	32
+	DEFW	256+32
+	DEFB	1
+	DEFW	40
+	DEFW	256+24
+	DEFB	1
+	DEFW	40
+	DEFW	256+32
+	DEFB	1
+	DEFW	48
+	DEFW	256+24
+	DEFB	1
+	DEFW	48
+	DEFW	256+32
+	DEFB	1
+	DEFW	56
+	DEFW	256+24
+	DEFB	1
+	DEFW	56
+	DEFW	256+32
+	DEFB	1
+	DEFW	64
+	DEFW	256+24
+	DEFB	1
+	DEFW	64
+	DEFW	256+32
+	DEFB	1
+	DEFW	72
+	DEFW	256+24
+	DEFB	1
+	DEFW	72
+	DEFW	256+32
+	DEFB	0
+TEXT1	DEFM	"                "
+	DEFB	254
+TEXT1A	DEFM	"  EXIT MENU    "
+	DEFB	254
+	DEFM	"  START GAME   "
+	DEFB	254
+	DEFM	"                "
+	DEFB	255
+TEXT3	DEFM	"     @2020 NAMCO LTD     "
+	DEFB	254
+	DEFM	"SPECIAL EDITION FOR ZXEVO"
+	DEFB	254
+	DEFM	"   ALL RIGHTS RESERVED   "
+	DEFB	255
+TEXT4	DEFM	"I-00000 HI-00000 II-00000"
+	DEFB	255
+TEXT2	DEFB	62
+	DEFB	255
+TEXT5	DEFB	40
+	DEFB	255
+TEXT6	DEFB	130 ;'1' INVERTED DIGIT
+	DEFM	"p"
+	DEFB	254 ;nextline
+	DEFM	")" ;little brown tank
+UP1	DEFB	128 ;129 '0' ;132 '3'
+	DEFB	255
+TEXT7	DEFB	130 ;'1' INVERTED DIGIT
+	DEFM	"p"
+	DEFB	254 ;nextline
+	DEFM	")" ;little brown tank
+UP2	DEFB	128 ;129 '0' ;132 '3'
+	DEFB	255
+LEVEL	DEFB	129 ;'0' INVERTED DIGIT
+	DEFB	129 ;'0' INVERTED DIGIT
+	DEFB	255
+SAVEY	DEFW	0
+SAVEX	DEFW	0
+TEXTW	DEFW	0
+PAGEFR	DEFB	0
+PAGETO	DEFB	0
+SIZEBC	DEFW	0
+CLSDATA	DEFB	0
+        display "MAP=",$
+MAP	DEFB	0
+
+;Keyboard Control table
+	;1st player
+Keys1PlStart	DEFB	%00000001	;Start - Space
+		DEFB	#7F
+Keys1PlDn	DEFB	%00010000	;Down - 6 (Arror Dn)
+		DEFB	#EF
+Keys1PlUp	DEFB	%00001000	;Up - 7 (Arrow Up)
+		DEFB	#EF
+Keys1PlRt	DEFB	%00000100	;Right - 8 (Arrow Rt)
+		DEFB	#EF
+Keys1PlLt	DEFB	%00010000	;Left - 5 (Arrow Lt)
+		DEFB	#F7
+Keys1PlFr	DEFB	%00000010	;Fire - Z
+		DEFB	#FE
+Keys1PlFr2	DEFB	%00000100	;Fire2 - X
+		DEFB	#FE
+	;2nd player
+Keys2PlDn	DEFB	%00000010	;Down - S
+		DEFB	#FD
+Keys2PlUp	DEFB	%00000010	;Up - W
+		DEFB	#FB
+Keys2PlRt	DEFB	%00000100	;Right - D
+		DEFB	#FD
+Keys2PlLt	DEFB	%00000001	;Left - A
+		DEFB	#FD
+Keys2PlFr	DEFB	%00001000	;Fire - R
+		DEFB	#FB
+
+NOTILL	DEFB	0
+TEST	DEFW	0
+XYFLY	DEFB	10,112; COORD SPRITES ON SCREEN
+SPBUFY	DEFW	0
+SPBUFX	DEFW	0
+WARTAN	DEFB	20 ;how many enemies remained? в гараже?
+

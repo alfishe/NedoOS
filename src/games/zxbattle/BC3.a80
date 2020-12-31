@@ -1,0 +1,2410 @@
+BONUS2	DEFB	15,8,3
+	DEFB	17,3,0
+	DEFB	10,7,0
+	DEFB	12,11,1
+	DEFB	7,5,0
+	DEFB	10,8,0
+	DEFB	15,10,4
+	DEFB	12,7,5
+	DEFB	3,0,0
+	DEFB	18,9,0
+	DEFB	13,3,0
+	DEFB	0,0,0
+	DEFB	15,7,0
+	DEFB	7,6,5
+	DEFB	6,0,1
+	DEFB	10,0,0
+	DEFB	19,13,5
+	DEFB	17,3,0
+	DEFB	13,7,5
+	DEFB	9,0,0
+	DEFB	18,7,2
+	DEFB	16,5,1
+	DEFB	19,10,0
+	DEFB	8,0,0
+	DEFB	16,11,4
+	DEFB	10,7,0
+	DEFB	0,0,0
+	DEFB	17,10,0
+	DEFB	18,12,5
+	DEFB	16,9,4
+	DEFB	19,3,0
+	DEFB	15,0,0
+
+RELESE	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
+	DEC	A
+	CP	0
+	CALL	Z,RELESE2
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),A
+	RET
+RELESE2	LD	A,(IX+UNIT_STOPBIT)
+	LD	L,(IX+UNIT_NUMBERSPRITES)
+	LD	H,(IX+UNIT_NUMBERSPRITES+1)
+	INC	HL
+	INC	HL ;next SPRSTAR
+	INC	A
+	CP	4
+	CALL	Z,RELESE3
+	LD	(IX+UNIT_STOPBIT),A
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	A,4
+	RET
+RELESE3
+	LD	HL,SPRSTAR0;256+48
+	LD	A,(IX+UNIT_BITFRIENDLYFIRE)
+	INC	A
+	CP	3
+	JP	Z,READY
+	LD	(IX+UNIT_BITFRIENDLYFIRE),A
+	XOR	A
+	RET
+READY
+;момент появления нового танка на экран
+	LD	A,(IX+UNIT_BITPARENTSBULL)
+	CP	1
+	JP	Z,GAMEO11
+	CP	2
+	JP	Z,GAMEO22
+	PUSH	IX
+        
+;стереть все символы танков (потом перепечатаем сколько надо)
+       if 1==1
+        ld de,tilemap+(BYTESPERTILELINE*1)+35
+        ld hl,BYTESPERTILELINE-1
+        ld b,10
+cleartanksymbols0
+        ld a,0xe0 ;white char
+        call prchar_tilemap
+        inc de
+        call prchar_tilemap
+        ex de,hl
+        add hl,de
+        ex de,hl
+        djnz cleartanksymbols0
+       else
+	LD	HL,25994
+	LD	A,%10001000
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C088
+	LD	B,5 ;wid/8-1?
+	LD	C,80 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00010100
+	CALL	DMASTART
+	LD	B,0
+NOP2	NOP
+	NOP
+	NOP
+	DJNZ	NOP2
+       endif 
+        
+	LD	A,(BOS)
+	CP	1
+	JR	Z,NOBQ
+	LD	A,(WARTAN)
+	DEC	A
+	LD	(WARTAN),A
+	CALL	PRTAN
+NOBQ
+	LD	HL,WAR
+CIKL2	LD	A,(HL)
+	CP	0
+	JP	Z,DDS
+	PUSH	HL
+	LD	HL,TEXT5
+	LD	(TEXTW),HL
+	POP	BC
+	PUSH	BC
+	INC	BC
+	LD	A,(BC)
+         add a,8
+	LD	L,A
+	INC	BC
+	LD	A,(BC)
+	LD	H,A
+	POP	DE
+	PUSH	DE
+	INC	DE
+	INC	DE
+	INC	DE
+	LD	A,(DE)
+	LD	C,A
+	INC	DE
+	LD	A,(DE)
+	LD	B,A
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	CALL	TEXT
+	POP	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	JR	CIKL2
+DDS	POP	IX
+	CALL	NEWTANK
+	CALL	NEWBON
+	POP	HL
+	POP	HL
+	RET
+NEWWAR	LD	A,(WARTAN)
+	CP	0
+	RET	Z
+	LD	A,(MAP)
+	CP	31
+	JP	Z,NEW31
+	LD	A,(NEWW)
+	DEC	A
+	CP	0
+	JP	Z,NEWWAR2
+	LD	(NEWW),A
+	RET
+NEWWAR2	LD	A,150
+	LD	(NEWW),A
+	CALL	INSTAL2
+	CP	255
+	RET	Z
+	LD	HL,SPRSTAR0;256+48
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	RET
+NEZ1
+	XOR	A
+	RET
+BADABUM
+	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
+	INC	A
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),A
+	LD	(IX+UNIT_DIRECTION),0
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_STOPBIT),1
+	CP	1
+	JP	Z,BAD1
+	CP	5
+	JP	Z,BAD2
+	CP	9
+	JP	Z,BAD3
+	CP	13
+	JP	Z,BAD4
+	CP	17
+	JP	Z,BAD5
+	CP	21
+	JP	Z,BAD6
+	CP	70
+	JP	Z,BAD7
+	RET
+BAD1	LD	HL,SPRBOOM0;56
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_DIRECTION),0
+	PUSH	IX
+	LD	A,7
+	CALL	AFXPLAY
+	POP	IX
+	RET
+BAD2	LD	HL,SPRBOOM1;58
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_DIRECTION),0
+	RET
+BAD3	LD	HL,SPRBOOM2;60
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_DIRECTION),0
+	RET
+BAD4
+	LD	HL,SPRBOOM0_;256+56
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_DIRECTION),0
+	LD	(IX+UNIT_BITFRIENDLYFIRE),253
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	DE,8
+	SBC	HL,DE
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	DE,8
+	SBC	HL,DE
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	CALL	PRPUB
+	RET
+BAD5	LD	HL,SPRBOOM2_;256+60
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_DIRECTION),0
+	LD	(IX+UNIT_BITFRIENDLYFIRE),253
+	RET
+BAD6	LD	A,(IX+UNIT_TYPEOFTANK)
+	CP	0
+	JR	Z,BAD7
+	LD	A,(IX+UNIT_TYPEOFTANK)
+	CALL	ENE0 ;set hl
+	CP	2
+	CALL	Z,ENE1 ;set hl
+	CP	3
+	CALL	Z,ENE2 ;set hl
+	CP	4
+	CALL	Z,ENE3 ;set hl
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	DE,8
+	ADD	HL,DE
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	DE,8
+	ADD	HL,DE
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	RET
+BAD7	LD	(IX+UNIT_YESORNOT),0
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	XOR	A
+	LD	(YESORNO),A
+	LD	A,(IX+UNIT_SAND)
+	CP	254
+	CALL	Z,BAD8
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	CALL	PRIZ
+	LD	A,(IX+UNIT_TYPEOFTANK) ;???
+	CP	0
+	RET	Z
+	JP	NEXTMIS ;???
+BAD8	LD	A,1
+	LD	(ENDG),A
+	XOR	A
+	LD	(MAP),A
+	LD	HL,TEXT17
+	LD	A,129 ;'0' inverted?
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	LD	HL,LEVEL
+	LD	A,129 ;'0' inverted?
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	RET
+NEW31
+	LD	A,(TANKP)
+	CP	0
+	RET	NZ
+	LD	A,(NEWW)
+	DEC	A
+	CP	0
+	JP	Z,NEWWAR2
+	LD	(NEWW),A
+	RET
+
+
+WSEBAH	XOR	A
+	LD	(WARTAN),A ;no tanks remaining?
+	RET
+XS	DEFB	0
+END5
+	EI
+	HALT
+	LD	A,(XS)
+	INC	A
+	LD	(XS),A
+	CP	150
+	RET	C
+	XOR	A
+	LD	(XS),A
+	POP	BC
+	JP	END55
+INT55	LD	A,(WARTAN)
+	CP	6
+	RET	NC
+	CALL	RANDOM
+	CP	100
+	RET	NC
+	POP	BC
+	JP	I3
+
+ENDLEV
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	HL,TEXEND
+	LD	(TEXTW),HL
+       if TILES87
+	LD	HL,112
+       else
+	LD	HL,112-16
+       endif
+	LD	BC,124-24
+	CALL	TEXT
+       call doscreen
+       call doscreen
+	CALL	RP2
+	POP	AF
+	RET
+
+TEXEND	DEFM	"congratulations"
+		DEFB	255
+
+NJNAA	LD		HL,TEXT17
+		LD		A,129 ;'0' inverted?
+		LD		(HL),A
+		INC		HL
+		LD		A,129 ;'0' inverted?
+		LD		(HL),A
+		LD		HL,LEVEL
+		LD		A,129 ;'0' inverted?
+		LD		(HL),A
+		INC		HL
+		LD		A,129 ;'0' inverted?
+		LD		(HL),A
+;afxinit
+		LD	HL,48000
+		CALL	AFXINIT ;stop sound
+		RET
+
+SOUNDGO		DEFB	5
+
+AFXCHDESC	DEFS	3*4
+
+AFXINIT		INC		HL
+			LD		(AFXBNKA+1),HL
+			LD		HL,AFXCHDESC
+			LD		DE,#00FF
+			LD		BC,#03FD
+AFX0		LD		(HL),D
+			INC		HL
+			LD		(HL),D
+			INC		HL
+			LD		(HL),E
+			INC		HL
+			LD		(HL),E
+			INC		HL
+			DJNZ	AFX0
+			LD		HL,#FFBF
+			LD		E,#15
+AFX1		DEC	E
+			LD		B,H
+			OUT		(C),E
+			LD		B,L
+			OUT		(C),D
+			JR		NZ,AFX1
+			LD		(AFXNSEM+1),DE
+			RET	
+
+AFXFRAME	LD		BC,#03FD
+			LD		IX,AFXCHDESC
+AFXFR0		PUSH	BC
+			LD		A,11
+			LD		H,(IX+1)
+			CP		H
+			JR		NC,AFXFR7
+			LD		L,(IX+0)
+			LD		E,(HL)
+			INC		HL
+			SUB		B
+			LD		D,B
+			LD		B,#FF
+			OUT		(C),A
+			LD		B,#BF
+			LD		A,E
+			AND		#0F
+			OUT		(C),A
+			BIT		5,E
+			JR		Z,AFXFR1
+			LD		A,3
+			SUB		D
+			ADD		A,A
+			LD		B,#FF
+			OUT		(C),A
+			LD		B,#BF
+			LD		D,(HL)
+			INC		HL
+			OUT		(C),D
+			LD		B,#FF
+			INC		A
+			OUT		(C),A
+			LD		B,#BF
+			LD		D,(HL)
+			INC		HL
+			OUT		(C),D
+
+AFXFR1		BIT		6,E
+			JR		Z,AFXFR3
+			LD		A,(HL)
+			SUB		#20
+			JR		C,AFXFR2
+			LD		H,A
+			LD		B,#FF
+			LD		B,C
+			JR		AFXFR6
+
+AFXFR2		INC		HL
+			LD		(AFXNSEM+1),A
+
+AFXFR3		POP		BC
+			PUSH	BC
+			INC		B
+			LD		A,%01101111
+AFXFR4		RRC	E
+			RRCA
+			DJNZ	AFXFR4
+			LD		D,A
+			LD		BC,AFXNSEM+2
+			LD		A,(BC)
+			XOR		E
+			AND		D
+			XOR		E
+			LD		(BC),A
+AFXFR5		LD		C,(IX+2)
+			LD		B,(IX+3)
+			INC		BC
+AFXFR6		LD		(IX+2),C
+			LD		(IX+3),B
+			LD		(IX+0),L
+			LD		(IX+1),H
+
+AFXFR7		LD		BC,4
+			ADD		IX,BC
+			POP		BC
+			DJNZ	AFXFR0
+			LD		HL,#FFBF
+AFXNSEM		LD		DE,0
+			LD		A,6
+			LD		B,H
+			OUT		(C),A
+			LD		B,L
+			OUT		(C),E
+			INC		A
+			LD		B,H
+			OUT		(C),A
+			LD		B,L
+			OUT		(C),D
+			RET	
+ONE			DEFB	0
+AFXPLAY
+        display "AFXPLAY=",AFXPLAY
+		LD		DE,0
+			LD		H,E
+			LD		(ONE),A
+			LD		L,A
+			ADD		HL,HL
+AFXBNKA		LD		BC,0
+			ADD		HL,BC
+			LD		C,(HL)
+			INC		HL
+			LD		B,(HL)
+			ADD		HL,BC
+			PUSH	HL
+			LD		HL,AFXCHDESC
+			LD		B,3
+			LD		A,(ONE)
+			CP		4
+			CALL	Z,B4
+			CP		5
+			CALL	Z,B4
+AFXPL0		INC		HL
+			INC		HL
+			LD		A,(HL)
+			INC		HL
+			CP		E
+			JR		C,AFXPL1
+			LD		C,A
+			LD		A,(HL)
+			CP		D
+			JR		C,AFXPL1
+			LD		E,C
+			LD		D,A
+			PUSH	HL
+			POP		IX
+AFXPL1		INC		HL
+			DJNZ	AFXPL0
+			POP		DE
+
+			LD		(IX-3),E
+			LD		(IX-2),D
+			LD		(IX-1),B
+			LD		(IX-0),B
+			RET
+B4			LD		B,1
+			RET
+
+INSREADY	;TRDReadFromHere HISTORE,#01		;Loading Hi-Score table
+        ld de,fn_hiscore
+        ld hl,HISTORE
+        call loadfile
+			CALL	CLS
+
+			;LD		BC,PAGE3				;Loading Ending Music
+			;LD		A,#0C
+			;OUT		(C),A
+                        call setpgc
+			;TRDReadFromHere #C000,#23
+        ld de,fn_muzend
+        ld hl,0xc000
+        call loadfile
+
+			;LD		BC,PAGE3				;Loading Main Music
+			;LD		A,#C3
+			;OUT		(C),A
+                        call setpgc3
+			;TRDReadFromHere #C000,#0B
+        ld de,fn_muzmain
+        ld hl,0xc000
+        call loadfile
+
+			;TRDReadFromHere #CBB8,#0B		;Loading Boss Music
+        ld de,fn_muzboss
+        ld hl,0xcbb8
+        call loadfile
+										
+			;TRDReadFromHere	25000,#01		;Load Palette
+
+			;LD		BC,SYSCONG	;VRAM CHANGE
+			;LD		A,%00000110	;14 MHZ + CACH
+			;OUT		(C),A
+
+			;LD		BC,FMADDR	;INSTAL PALITRA a4bf
+			;LD		A,%00010000
+			;OUT		(C),A
+
+			;LD		HL,25000
+			;LD		DE,0
+			;LD		BC,32
+			;LDIR
+        ld de,pal
+        OS_SETPAL
+			CALL	TILL ;set tilemode
+
+			;TRDReadFromHere	48000,#03	;Load Sound FX
+        ld de,fn_soundfx
+        ld hl,48000
+        call loadfile
+
+			;LD      HL,(#5CF4)				;Save position of Images on disk
+			;LD		(DiskAddrImages),HL
+						
+			RET
+PRINT1
+;for CHEKPOINT
+	CALL	POONE
+	CALL	POTWO
+	RET
+
+PTS	LD	B,4
+PBC	PUSH	BC
+	PUSH	HL
+	LD	HL,TEXPTS
+	LD	(TEXTW),HL
+	POP	HL
+	LD	D,#C0 ;const
+	LD	E,#10 ;const
+	LD	BC,(CBC)
+	PUSH	HL
+	CALL	TEXT
+	POP	HL
+	POP	BC
+	LD	DE,32
+	ADD	HL,DE
+	DJNZ	PBC
+	RET
+CBC	DEFW	92
+
+POINTHI
+	LD	HL,(HISTORE)
+	LD	DE,TEXT4+11
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	LD	HL,(POINTP1)
+	LD	DE,TEXT4
+	INC	DE
+	INC	DE
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+
+	LD	HL,(POINTP2)
+	LD	DE,TEXT4+20
+	LD	(TEXCLO),DE
+	CALL	POINT666 ;write 5 digits HL in (TEXCLO++) 
+	RET
+POINT666
+;hl=number
+;write 5 digits HL in (TEXCLO++) 
+	PUSH	HL
+	LD	HL,DECTB
+	LD	B,#05
+LPPD1	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	EX	(SP),HL
+	XOR	A
+LPPD2	INC	A
+	SBC	HL,DE
+	JR	NC,LPPD2
+	ADD	HL,DE
+	ADD	A,47
+	PUSH	HL
+	LD	HL,(TEXCLO)
+	LD	(HL),A
+	INC	HL
+	LD	(TEXCLO),HL
+	POP	HL
+	EX	(SP),HL
+	DJNZ	LPPD1
+	POP	HL
+	RET
+DECTB	DEFW	10000,1000,100,10,1
+TEXCLO	DEFW	0
+
+POINT
+	PUSH	IX
+	LD	IX,(BOMIX)
+	LD	A,(IX+UNIT_BITPARENTSBULL)
+	CP	1
+	JP	Z,POINT1
+	CP	2
+	JP	Z,POINT2
+	POP	IX
+	RET
+POINT1	POP	IX
+	LD	A,(IX+UNIT_TYPEOFTANK)
+	CP	1
+	CALL	Z,PDE1
+	CP	11
+	CALL	Z,PDE1
+	CP	2
+	CALL	Z,PDE2
+	CP	12
+	CALL	Z,PDE2
+	CP	3
+	CALL	Z,PDE3
+	CP	13
+	CALL	Z,PDE3
+	CP	4
+	CALL	Z,PDE4
+	LD	HL,(POINTP1)
+	ADD	HL,DE
+	LD	(POINTP1),HL
+	LD	HL,(JOINTP1)
+	ADD	HL,DE
+	LD	(JOINTP1),HL
+	RET
+PDE1	LD	DE,10
+	LD	HL,(T1)
+	INC	HL
+	LD	(T1),HL
+	RET
+PDE2	LD	DE,20
+	LD	HL,(T2)
+	INC	HL
+	LD	(T2),HL
+	RET
+PDE3	LD	DE,30
+	LD	HL,(T3)
+	INC	HL
+	LD	(T3),HL
+	RET
+PDE4	LD	DE,40
+	LD	HL,(T4)
+	INC	HL
+	LD	(T4),HL
+	RET
+PDE12	LD	DE,10
+	LD	HL,(T12)
+	INC	HL
+	LD	(T12),HL
+	RET
+PDE22	LD	DE,20
+	LD	HL,(T22)
+	INC	HL
+	LD	(T22),HL
+	RET
+PDE32	LD	DE,30
+	LD	HL,(T32)
+	INC	HL
+	LD	(T32),HL
+	RET
+PDE42	LD	DE,40
+	LD	HL,(T42)
+	INC	HL
+	LD	(T42),HL
+	RET
+PDE5	LD	DE,50
+	RET
+POINT2	POP	IX
+	LD	A,(IX+UNIT_TYPEOFTANK)
+	CP	1
+	CALL	Z,PDE12
+	CP	11
+	CALL	Z,PDE12
+	CP	2
+	CALL	Z,PDE22
+	CP	12
+	CALL	Z,PDE22
+	CP	3
+	CALL	Z,PDE32
+	CP	13
+	CALL	Z,PDE32
+	CP	4
+	CALL	Z,PDE42
+	LD	HL,(POINTP2)
+	ADD	HL,DE
+	LD	(POINTP2),HL
+	LD	HL,(JOINTP2)
+	ADD	HL,DE
+	LD	(JOINTP2),HL
+	RET
+
+ENE0	LD	HL,SPRENE0;256+128+46 ;"10"
+	RET
+ENE1	LD	HL,SPRENE1;256+128+48 ;"20"
+	RET
+ENE2	LD	HL,SPRENE2;256+128+50 ;"30"
+	RET
+ENE3	LD	HL,SPRENE3;256+128+52 ;"40"
+	RET
+
+SLOTIME	LD	A,(TANKP)
+	CP	0
+	RET	NZ
+	LD	A,(TIMES)
+	CP	0
+	RET	Z
+	DEC	A
+	LD	(TIMES),A
+	RET
+
+SLOTIM2	LD	A,(TANKP)
+	CP	0
+	RET	NZ
+	LD	A,(TIMEW)
+	CP	0
+	RET	Z
+	DEC	A
+	LD	(TIMEW),A
+	RET
+
+BARM	LD	A,(BETONARM)
+	CP	1
+	JP	Z,BARM2
+	CP	0
+	RET	Z
+	LD	A,(TANKP)
+	CP	0
+	RET	NZ
+	LD	A,(BETONARM)
+	DEC	A
+	LD	(BETONARM),A
+	RET
+BETONARM	DEFB	0
+
+BARM2	LD	A,2
+	LD	(STEN),A
+	CALL	INSTAL
+	XOR	A
+	LD	(BETONARM),A
+	RET
+
+FIRE1P	LD      HL,(Keys2PlFr)	;LD		HL,Keys2PlFr+2
+		LD      B,H				;LD		BC,(Keys2PlFr)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		RET	NZ
+	
+	LD	IX,UNITS
+	LD	DE,4*UNITSZ;96
+	ADD	IX,DE
+	LD	A,(IX+UNIT_BITFRIENDLYFIRE)
+	CP	0
+	RET	NZ
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	RET	Z
+	CP	4 ;BADABUM
+	RET	Z
+	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
+	CP	0
+	RET	NZ
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	NZ,NEXBUL4
+	LD	IX,UNITS
+	LD	DE,4*UNITSZ;96
+	ADD	IX,DE
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),16
+	LD	A,(IX+UNIT_STAR)
+	CP	2
+	CALL	NC,IX13
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	C,(IX+UNIT_Y)
+	LD	B,(IX+UNIT_Y+1)
+	LD	A,(IX+UNIT_STAR)
+	LD	D,A
+	LD	A,(IX+UNIT_DIRECTION)
+	LD	E,A
+NEXBUL3	PUSH	DE
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	POP	DE
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	LD	(IX+UNIT_STOPBIT),0
+	LD	A,D
+	LD	(IX+UNIT_STAR),A
+	PUSH    IX,HL,DE,BC
+	LD	A,6
+	CALL	AFXPLAY
+	POP     BC,DE,HL,IX
+	LD	A,E
+	CP	1
+	JP	Z,PBUL1
+	CP	3
+	JP	Z,PBUL2
+	CP	2
+	JP	Z,PBUL3
+	CP	4
+	JP	Z,PBUL4
+	RET
+SOUND	DEFB	0
+FIRE1	LD		A,(TIMEW)
+		CP		0
+		RET		NZ
+    	IFNDEF	KEMPSTONE_HACK
+		LD      HL,(Keys1PlFr)	;LD		HL,Keys1PlFr+2
+		LD      B,H				;LD		BC,(Keys1PlFr)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		RET     NZ
+		ELSE
+		IN		A,(#1F) ;??? TODO use OS
+		AND		%00010000
+		RET		Z
+	ENDIF
+		LD		IX,UNITS
+		LD		A,(IX+UNIT_BITFRIENDLYFIRE)
+		CP		0
+		RET		NZ
+		LD		A,(IX+UNIT_YESORNOT)
+		CP		0
+		RET		Z
+		CP		4 ;BADABUM
+		RET		Z
+		LD		A,(IX+UNIT_TIMEFORSHOTONWAR)
+		CP		0
+		RET		NZ
+
+		LD		DE,UNITSZ;24
+		ADD		IX,DE
+		LD		A,(IX+UNIT_YESORNOT)
+		CP		0
+		JP		NZ,NEXBUL
+		LD		IX,UNITS
+		LD		(IX+UNIT_TIMEFORSHOTONWAR),16
+		LD		A,(IX+UNIT_STAR)
+		CP		2
+		CALL	NC,IX13
+		LD		L,(IX+UNIT_X)
+		LD		H,(IX+UNIT_X+1)
+		LD		C,(IX+UNIT_Y)
+		LD		B,(IX+UNIT_Y+1)
+		LD		A,(IX+UNIT_STAR)
+		LD		D,A
+		LD		A,(IX+UNIT_DIRECTION)
+		LD		E,A
+
+NEXBUL2	PUSH	DE
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	POP	DE
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	LD	(IX+UNIT_STOPBIT),0
+	LD	A,D
+	LD	(IX+UNIT_STAR),A
+	PUSH    IX,HL,DE,BC
+	LD	A,6
+	CALL	AFXPLAY
+	POP     BC,DE,HL,IX
+	LD	A,E
+	CP	1
+	JP	Z,PBUL1
+	CP	3
+	JP	Z,PBUL2
+	CP	2
+	JP	Z,PBUL3
+	CP	4
+	JP	Z,PBUL4
+	RET
+IX13
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),10
+	RET
+NEXBUL
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	RET	NZ
+	LD	A,(IX+UNIT_STAR)
+	CP	0
+	RET	Z
+
+	LD	IX,UNITS
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),16
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	C,(IX+UNIT_Y)
+	LD	B,(IX+UNIT_Y+1)
+	LD	A,(IX+UNIT_STAR)
+	LD	D,A
+	LD	A,(IX+UNIT_DIRECTION)
+	LD	E,A
+	PUSH	DE
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	POP	DE
+	JP	NEXBUL2
+NEXBUL4
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	RET	NZ
+	LD	A,(IX+UNIT_STAR)
+	CP	0
+	RET	Z
+
+	LD	IX,UNITS
+	LD	DE,4*UNITSZ;96
+	ADD	IX,DE
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),16
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	C,(IX+UNIT_Y)
+	LD	B,(IX+UNIT_Y+1)
+	LD	A,(IX+UNIT_STAR)
+	LD	D,A
+	LD	A,(IX+UNIT_DIRECTION)
+	LD	E,A
+	PUSH	DE
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	POP	DE
+	JP	NEXBUL3
+PBUL1	DEC	C
+	DEC	C
+	DEC	C
+	DEC	C
+	DEC	C
+	DEC	C
+	LD	D,0
+	LD	E,SPRBULLETRIGHT;54
+	LD	(IX+UNIT_NUMBERSPRITES),E
+	LD	(IX+UNIT_NUMBERSPRITES+1),D
+	LD	(IX+UNIT_DIRECTION),1
+	LD	(IX+UNIT_YESORNOT),2 ;BULL1
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	(IX+UNIT_Y),C
+	LD	(IX+UNIT_Y+1),B
+	RET
+PBUL2	INC	C
+	INC	C
+	INC	C
+	INC	C
+	INC	C
+	INC	C
+	LD	D,0
+	LD	E,SPRBULLETRIGHT;54
+	LD	(IX+UNIT_NUMBERSPRITES),E
+	LD	(IX+UNIT_NUMBERSPRITES+1),D
+	LD	(IX+UNIT_DIRECTION),3
+	LD	(IX+UNIT_YESORNOT),2 ;BULL1
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	(IX+UNIT_Y),C
+	LD	(IX+UNIT_Y+1),B
+	RET
+PBUL3	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL
+	LD	D,0
+	LD	E,SPRBULLETUP;52
+	LD	(IX+UNIT_NUMBERSPRITES),E
+	LD	(IX+UNIT_NUMBERSPRITES+1),D
+	LD	(IX+UNIT_DIRECTION),2
+	LD	(IX+UNIT_YESORNOT),2 ;BULL1
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	(IX+UNIT_Y),C
+	LD	(IX+UNIT_Y+1),B
+	RET
+PBUL4	DEC	HL
+	DEC	HL
+	DEC	HL
+	DEC	HL
+	DEC	HL
+	LD	D,0
+	LD	E,SPRBULLETUP;52
+	LD	(IX+UNIT_NUMBERSPRITES),E
+	LD	(IX+UNIT_NUMBERSPRITES+1),D
+	LD	(IX+UNIT_DIRECTION),4
+	LD	(IX+UNIT_YESORNOT),2 ;BULL1
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	(IX+UNIT_Y),C
+	LD	(IX+UNIT_Y+1),B
+	RET
+
+FIGHT3
+	LD	A,1
+	LD	(PLAYER),A
+	LD	HL,UP2
+	LD	A,132 ;'3' inverted???
+	LD	(HL),A
+	LD	IX,UNITS
+	LD	BC,SPRMYTANKLEVEL0+8;264 ;player 2
+	ld (ix+(4*UNITSZ+UNIT_NUMBERSPRITES)),c ;(IX+97),C
+	ld (ix+(4*UNITSZ+UNIT_NUMBERSPRITES+1)),b ;(IX+98),B
+	ld (ix+(4*UNITSZ+UNIT_YESORNOT)),1 ;(IX+96),1
+	ld (ix+(4*UNITSZ+UNIT_DIRECTION)),1 ;(IX+106),1
+	ld (ix+(4*UNITSZ+UNIT_ANIMATION)),0 ;(IX+107),0
+	ld (ix+(4*UNITSZ+UNIT_COUNTER)),0 ;(IX+108),0
+	ld (ix+(4*UNITSZ+UNIT_TIMEFORSHOTONWAR)),0 ;(IX+109),0
+	ld (ix+(4*UNITSZ+UNIT_STOPBIT)),0 ;(IX+110),0
+	ld (ix+(4*UNITSZ+UNIT_BITFRIENDLYFIRE)),0 ;(IX+112),0
+	ld (ix+(4*UNITSZ+UNIT_SHELLTIME)),0 ;(IX+113),0
+	ld (ix+(4*UNITSZ+UNIT_ICE)),0 ;(IX+114),0
+	ld (ix+(4*UNITSZ+UNIT_SAND)),0 ;(IX+115),0
+	ld (ix+(4*UNITSZ+UNIT_TYPEOFTANK)),0 ;(IX+116),0
+	ld (ix+(4*UNITSZ+UNIT_WATERWAY)),0 ;(IX+117),0
+	ld (ix+(4*UNITSZ+UNIT_STAR)),0 ;(IX+118),0
+	ld (ix+(4*UNITSZ+UNIT_ENERGY)),0 ;(IX+119),0
+	PUSH	IX
+	LD	DE,5*UNITSZ;120
+	ADD	IX,DE
+	LD	(IX+UNIT_STAR),0
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	(IX+UNIT_STAR),0
+	POP	IX
+	RET
+        
+FIGHT
+	PUSH	HL
+	LD	A,8
+	CALL	AFXPLAY
+	CALL	PLAYSA2 ;play #17 sound frames
+	POP	HL
+	XOR	A
+	LD	(PLAYER),A
+	PUSH	HL
+	LD	HL,UP1
+       if MANYLIVES
+        ld a,128+9
+       else
+	LD	A,132 ;'3' inverted???
+       endif
+	LD	(HL),A
+	LD	HL,UP2
+	LD	A,129
+	LD	(HL),A
+
+	POP	HL
+	LD	IX,UNITS
+	LD	(IX+UNIT_YESORNOT),1 ;SHOT1
+	LD	BC,SPRMYTANKLEVEL0;256
+	LD	(IX+UNIT_NUMBERSPRITES),C
+	LD	(IX+UNIT_NUMBERSPRITES+1),B
+	LD	(IX+UNIT_DIRECTION),1
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	(IX+UNIT_STOPBIT),0
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	LD	(IX+UNIT_SHELLTIME),0
+	LD	(IX+UNIT_ICE),0
+	LD	(IX+UNIT_SAND),0
+	LD	(IX+UNIT_TYPEOFTANK),0
+	LD	(IX+UNIT_WATERWAY),0
+	LD	(IX+UNIT_STAR),0
+	LD	(IX+UNIT_ENERGY),0
+	PUSH	IX
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	(IX+UNIT_STAR),0
+	;LD	DE,24
+	ADD	IX,DE
+	LD	(IX+UNIT_STAR),0
+	POP	IX
+
+	LD	(IX+96),0
+	LD	A,L
+	CP	136
+	CALL	Z,FIGHT3
+	POP	HL
+	XOR	A
+	LD	HL,(KORM);---X
+	LD	BC,(KORM2);----Y
+	LD	D,2 ;nsprites
+	;CALL	PRINT ;зачем???
+         xor a
+         ld (sprlist+1),a ;disable sprite #0
+FIGHT2	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H				;LD		BC,(Keys1PlStart)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	JR	Z,FIGHT2 ;wait for unpress of "start"
+FIGHTT
+       call clstiles_white
+
+	CALL	CHEKPOINT
+;сюда попадает в том числе после прохождения уровня
+       call clstiles_white
+	;LD	BC,BORDER
+	;LD	A,8
+	;OUT	(C),A
+        call border8
+	XOR	A
+	LD	(TIMES),A
+	LD	(TIMEW),A
+	LD	IX,UNITS
+	LD	(IX+UNIT_DIRECTION),1
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_DIRECTION),0
+	;LD	DE,24
+	ADD	IX,DE
+	LD	(IX+UNIT_COUNTER),0
+	LD	(IX+UNIT_DIRECTION),0
+         xor a
+         ld (sprlist+1),a ;disable sprite #0
+         ld (sprlist+6+1),a ;disable sprite #1
+         ld (sprlist+12+1),a ;disable sprite #2
+         ld (sprlist+18+1),a ;disable sprite #3
+	CALL	INTRO
+	;LD	BC,PAGE3
+	;LD	A,#C3
+	;OUT	(C),A
+       ;call setpgc3
+       ;CALL	#C000 ;init muzmain
+       ;CALL	#CBB8 ;init muzboss
+       ;LD	A,255
+       ;LD	(SOUNDW),A ;время до окончания музыки
+       xor a
+       ld (SOUNDW),a ;music off ;не помогает
+       call afxinit ;stop sound
+
+	CALL	CLS
+	CALL	TILL;               PRINT TILES ;set tilemode
+	LD	A,(MAP)
+	CP	15
+	CALL	Z,OPRED
+	CP	31
+	CALL	Z,OPRED2
+	CALL	PRTAN
+	CALL	TEXTLEF
+	XOR	A
+	LD	(TANK),A
+	LD	(TANKP),A
+	LD	(MESTO),A
+	LD	A,150
+	LD	(NEWW),A
+	LD	(NEWLEVEL),A
+	CALL	LOADAREA
+	LD	A,(MAP)
+	CP	15
+	JP	Z,BBBSSS
+	CP	31
+	JP	NZ,NTTT
+	LD	A,32
+	LD	(BOSTART),A
+	LD	A,0
+	LD	(BOS),A
+	LD	A,3
+	LD	(WARTAN),A
+	ld ix,UNITS
+	ld a,(IX+UNIT_WATERWAY)
+	ld (WR1),a
+	ld (IX+UNIT_WATERWAY),0
+	ld a,(ix+(4*UNITSZ+UNIT_WATERWAY)) ;(IX+117)
+	ld (WR2),a
+	ld (ix+(4*UNITSZ+UNIT_WATERWAY)),0 ;(IX+117),0
+	ld de,14*UNITSZ ;336
+	add ix,de
+	ld (IX+UNIT_YESORNOT),1 ;SHOT1
+	ld (IX+UNIT_TYPEOFTANK),7
+NTTT	CALL	BOSS
+         ;jr $
+         ld a,22
+         ld (animwater_a),a
+         ld (animwater_olda),a
+	;CALL	I22 ;???какое-то удвоение тайлов леса?
+	CALL	INSTAL2
+	CALL	INSARM
+	;CALL	IM2INIT ;???
+
+        ld a,(timer)
+        ld (uvoldtimer),a
+        
+         xor a
+         ld (sprlist+1),a ;disable sprite #0
+       call setpgc3
+       CALL	#C000 ;init muzmain
+       CALL	#CBB8 ;init muzboss
+       LD	A,255
+       LD	(SOUNDW),A ;время до окончания музыки
+	JP	KERNF
+
+BBBSSS	LD	A,3
+	LD	(BOS2),A
+	LD	A,3
+	LD	(WARTAN),A
+	JR	NTTT
+OPRED
+	LD	A,3
+	LD	(WARTAN),A
+	RET
+OPRED2
+	XOR	A
+	LD	(WARTAN),A
+	RET
+BOS2	DEFB	0
+TANKP33
+	XOR	A
+	RET
+
+TIME	DEFB	0
+
+TIME2	XOR	A
+	RET
+
+ANIMWATER
+	LD	A,(TANKP) ;фаза анимации танка???
+	CP	2
+	JP	Z,ANIMW1
+	RET
+ANIMW	DEFB	0
+ANIMW22	XOR	A
+	RET
+ANIMW1	LD	HL,49152+2048+128+16+8
+	LD	A,(ANIMW)
+	INC	A
+	CP	6
+	CALL	Z,ANIMW22 ;xor a
+	LD	(ANIMW),A
+       if 1==1
+        cp 3
+        ld a,(animwater_a)
+        ld (animwater_olda),a
+        ld a,WATERANIMTILE
+        jr c,$+3
+        inc a
+        ld (animwater_a),a
+        ld hl,tilemap
+        ld b,0
+        ld e,15
+animwater0
+animwater_olda=$+1
+        ld a,WATERANIMTILE
+animwater1
+        dup 17 ;5 bytes (нельзя убирать последний полный!)
+        cp (hl)
+        jr z,animwater_ok
+        inc l ;TILEMAPRIGHT
+        inc l ;TILEMAPRIGHT
+        edup
+        ld c,BYTESPERTILELINE*2-34
+        add hl,bc
+        dec e
+        jp nz,animwater0
+        ret ;14665;18403;22939;24132;36700 на уровне с боссом
+animwater_ok
+       if 1==1
+animwater_a=$+1
+        ld c,WATERANIMTILE
+        ld (hl),c
+        inc l
+        ld (hl),c
+        set 6,l
+        ld (hl),c
+        dec l
+        ld (hl),c
+         set 3,h
+        ld c,TILEFLAG1        
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+        inc l
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+        res 6,l
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+        dec l
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+         res 3,h
+         set 4,h
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+        inc l
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+        set 6,l
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+        dec l
+        ld (hl),c ;при печати тайла ставим биты изменения обоих экранов (а при печати спрайта надо только на текущем экране)
+         res 4,h
+        res 6,l
+       else
+        ex af,af'
+animwater_a=$+1
+        ld a,WATERANIMTILE
+        PRCHAR_TILEMAP_HL;call prchar_tilemap_hl
+        inc l ;TILEMAPRIGHT
+        PRCHAR_TILEMAP_HL;call prchar_tilemap_hl
+        set 6,l;TILEMAPLINEDOWN
+        PRCHAR_TILEMAP_HL;call prchar_tilemap_hl
+        dec l ;TILEMAPLEFT
+        PRCHAR_TILEMAP_HL;call prchar_tilemap_hl
+        res 6,l;TILEMAPLINEUP
+        ex af,af'
+       endif
+        inc l ;TILEMAPRIGHT
+        inc l ;TILEMAPRIGHT
+        cp (hl)
+        jr z,animwater_ok
+        ex af,af'
+        push hl
+        ld a,l
+        and 63
+        ld c,a ;X
+        rra ;X/2
+        add a,c
+        add a,c
+        ld c,a ;5*(X/2)
+        ld hl,animwater1
+        add hl,bc
+        ex (sp),hl
+        ex af,af'
+        ret
+       else
+	LD	D,0
+	LD	E,A
+	ADD	HL,DE
+	LD	DE,49152+32+56
+	LD	B,1 ;wid/8-1?
+	LD	C,7 ;hgt-1?
+	LD	A,#C0
+	LD	(PAGETO),A
+	LD	A,#C0
+	LD	(PAGEFR),A
+	LD	A,%00110001
+	CALL	DMASTART
+	RET
+       endif
+
+MATEMAT
+;пересчёт координат юнита в адрес в tilemap
+	;LD	BC,PAGE3
+	;LD	A,#08
+	;OUT	(C),A
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+MATEMAT_HL
+        call setpg8
+	LD	A,L
+	;SRL	A
+	;SRL	A
+	;SRL	A
+	;SLA	A
+	;SLA	A
+	;SLA	A
+         and 0xf8
+	LD	L,A
+	LD	A,H
+	;LD	(SPMETKA),A
+         rra
+	LD	A,L
+	 rra ;RRCA
+	RRCA
+        if BYTESPERTILE == 1
+         rrca
+        endif
+	;LD	L,A
+	;PUSH	HL
+	;POP	DE
+         ld e,a
+         ld d,0
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	A,L
+	;SRL	A
+	;SRL	A
+	;SRL	A
+	;SLA	A
+	;SLA	A
+	;SLA	A
+         and 0xf8
+	LD	L,A
+
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+        if BYTESPERTILE == 2
+	 ADD	HL,HL ;
+        endif
+        if BYTESPERTILELINE == 256
+	 ADD	HL,HL ;
+        endif
+	PUSH	HL
+	POP	BC
+	;LD	HL,#C000
+	LD	HL,tilemap
+	ADD	HL,DE
+	;LD	A,(SPMETKA)
+	;CP	1
+	;CALL	Z,SPADD ;hl-=256-64
+	ADD	HL,BC
+	LD	A,(HL)
+	LD	(IX+UNIT_SAND),A
+	LD	(IX+UNIT_ICE),A
+	RET
+
+SPACEF	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+		LD      B,H				;LD		BC,(Keys1PlStart)
+		LD      C,#FE			;CALL	CHBIT
+		IN      A,(C)
+        AND     L
+		RET		NZ
+		;LD		BC,PAGE3; CHANGE MEMORY FOR SPRITES
+		;LD		A,#08
+		;OUT		(C),A
+		;RET
+                jp setpg8
+
+LAYERS2
+	LD	HL,sprlist+22*6 ;#200
+	;LD	DE,22*6;132
+	;ADD	HL,DE
+	JR	LAYER
+LAYERS
+	LD	HL,sprlist+24*6 ;#200
+	;LD	DE,24*6;144
+	;ADD	HL,DE
+LAYER	;LD	(HL),0;-------PRINT INSTAL SPRITES
+	INC	HL
+	;LD	A,SPSIZ16+SPACT;  SIZE SPRITE Y
+	;RES	5,A
+	;SET	6,A;------------------DEACTIVACIA SPRITES
+	LD	(HL),0x40;A
+	;INC	HL
+	;LD	(HL),0;--------X
+	;INC	HL
+	;LD	A,SPSIZ16; SIZE SPRITE X
+	;LD	(HL),A
+	;INC	HL
+	;LD	A,0; NUMBER OFF SPRITE IN MEMORY
+	;LD	(HL),A
+	;INC	HL
+	;LD	(HL),0
+	;INC	HL
+	RET
+PEXIT
+	LD	IX,BRONITS
+	LD	A,(ENDG)
+	or a ;CP	0
+	;JR	Z,BTTT
+	CALL	nz,LAYERS ;24-й спрайт закрывает список спрайтов
+;BTTT
+
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	6
+	CALL	Z,ARMS
+	LD	A,(IX+UNIT_YESORNOT)
+	LD	(YESORNO),A
+	LD	L,(IX+UNIT_NUMBERSPRITES)
+	LD	H,(IX+UNIT_NUMBERSPRITES+1)
+	LD	(NUMBS),HL
+	LD	E,(IX+UNIT_X)
+	LD	D,(IX+UNIT_X+1)
+	LD	(ADDRY),DE
+	LD	E,(IX+UNIT_Y)
+	LD	D,(IX+UNIT_Y+1)
+	LD	(ADDRX),DE
+	LD	a,(IX+UNIT_DESCRADDR)
+	;LD	D,0
+	LD	(ADDR),a;DE
+	;LD	D,2
+	CALL	PRINTW
+
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	6
+	CALL	Z,ARMS
+	CP	7
+	CALL	Z,END1
+
+	LD	A,(IX+UNIT_YESORNOT)
+	LD	(YESORNO),A
+	LD	L,(IX+UNIT_NUMBERSPRITES)
+	LD	H,(IX+UNIT_NUMBERSPRITES+1)
+	LD	(NUMBS),HL
+	LD	E,(IX+UNIT_X)
+	LD	D,(IX+UNIT_X+1)
+	LD	(ADDRY),DE
+	LD	E,(IX+UNIT_Y)
+	LD	D,(IX+UNIT_Y+1)
+	LD	(ADDRX),DE
+	LD	a,(IX+UNIT_DESCRADDR)
+	;LD	D,0
+	LD	(ADDR),a;DE
+	;LD	D,2
+	CALL	PRINTW
+
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	6
+	CALL	Z,ARMS
+	CP	8
+	CALL	Z,END2
+	LD	A,(IX+UNIT_YESORNOT)
+	LD	(YESORNO),A
+	LD	L,(IX+UNIT_NUMBERSPRITES)
+	LD	H,(IX+UNIT_NUMBERSPRITES+1)
+	LD	(NUMBS),HL
+	LD	E,(IX+UNIT_X)
+	LD	D,(IX+UNIT_X+1)
+	LD	(ADDRY),DE
+	LD	E,(IX+UNIT_Y)
+	LD	D,(IX+UNIT_Y+1)
+	LD	(ADDRX),DE
+	LD	a,(IX+UNIT_DESCRADDR)
+	;LD	D,0
+	LD	(ADDR),a;DE
+	;LD	D,2
+	CALL	PRINTW
+;XXX	LD	BC,TSCONFIG; SPRITE PRINT
+;	LD	A,%11100000
+;	OUT	(C),A
+	CALL	INTELLE
+	CALL	BOSS
+
+
+	CALL	NEWWAR
+	CALL	ANIMWATER
+
+
+	LD	A,(ENDG)
+	or a;CP	0
+	JR	NZ,KERFFF
+	CALL	GAMEOV
+	CALL	GAMEOV2
+	LD	A,(TIMEW)
+	or a;CP	0
+	JR	NZ,KERFFF
+	CALL	KEY1P
+	CALL	KEY2P
+KERFFF	LD	A,(TANKP)
+	INC	A
+	CP	4
+	CALL	Z,TANKP2
+	CP	8
+	CALL	Z,TANKP3
+	LD	(TANKP),A
+	LD	A,(TANKPP)
+	INC	A
+	CP	32
+	CALL	Z,TANKP33
+	LD	(TANKPP),A
+;    CALL    EXIT; EXIT IF YOU PUSH KEY Q
+	CALL	SPACEF ;setpg8 if some key in Keys1PlStart ???
+	CALL	BARM ;handles (BETONARM)
+	CALL	SLOTIME
+	CALL	SLOTIM2
+
+ 	;POP IY,IX,AF,BC,DE,HL
+	;EI
+	RET
+
+D4	LD	D,6
+	RET
+BRIGHT	LD	A,(IX+UNIT_YESORNOT)
+	CP	1 ;SHOT1
+	RET	NZ
+	LD	A,(TANKP)
+	CP	3
+	CALL	Z,BRI1
+	CP	7
+	CALL	Z,BRI2
+	RET
+BRI1	xor a;LD	A,0
+	LD	(YESORNO),A
+	RET
+BRI2	LD	A,1
+	LD	(YESORNO),A
+	RET
+SHOT2	LD	A,(TANKP)
+	or a;CP	0
+	RET	NZ
+	LD	A,(IX+UNIT_SHELLTIME)
+	or a;CP	0
+	RET	Z
+	DEC	A
+	LD	(IX+UNIT_SHELLTIME),A
+	RET
+
+;PRINTAN
+logic
+;	DI
+; 	PUSH HL,DE,BC,AF,IX,IY
+
+	LD	A,(ENDG)
+	CP	0
+	JR	NZ,KERNFFF
+	CALL	FIRE1
+	CALL	FIRE1P
+KERNFFF
+	LD	IX,UNITS
+PRINCIK
+	LD	A,(IX+UNIT_YESORNOT)
+	LD	(YESORNO),A
+	CP	255 ;end of list of objects
+	JP	Z,PEXIT
+	CP	2
+	CALL	Z,BULL1
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	5
+	CALL	Z,RELESE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	3
+	CALL	Z,BONG1 ;попал в стену
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	4
+	CALL	Z,BADABUM ;попал в танк
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	7
+	CALL	Z,P500
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	1
+	CALL	Z,SHOT1
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	8
+	CALL	Z,LAYERS2
+
+	CALL	SHOT2
+	LD	A,(IX+UNIT_BITFRIENDLYFIRE)
+	CP	253
+	JR	Z,Z1X
+	or a;CP	0
+	CALL	NZ,BRIGHT
+Z1X	LD	L,(IX+UNIT_NUMBERSPRITES)
+	LD	H,(IX+UNIT_NUMBERSPRITES+1)
+	LD	A,(IX+UNIT_TYPEOFTANK)
+	CP	11
+	CALL	Z,ADD20
+	CP	12
+	CALL	Z,ADD20
+	CP	13
+	CALL	Z,ADD20
+	LD	A,(IX+UNIT_TYPEOFTANK)
+	CP	21
+	CALL	NC,ADD21
+	LD	A,(IX+UNIT_ANIMATION)
+	CP	1
+	CALL	Z,ANIMAC
+	LD	A,(IX+UNIT_DIRECTION)
+	CP	2
+	CALL	Z,DIR2 ;if tank, hl+=4
+	LD	A,(IX+UNIT_DIRECTION)
+	CP	4
+	CALL	Z,DIR2 ;if tank, hl+=4
+	LD	(NUMBS),HL
+	LD	E,(IX+UNIT_X)
+	LD	D,(IX+UNIT_X+1)
+	LD	(ADDRY),DE
+	LD	E,(IX+UNIT_Y)
+	LD	D,(IX+UNIT_Y+1)
+	LD	(ADDRX),DE
+
+	LD	E,(IX+UNIT_DESCRADDR)
+	LD	D,0
+	LD	(ADDR),DE
+	LD	D,2
+	LD	A,(IX+UNIT_BITFRIENDLYFIRE)
+	CP	253
+	CALL	Z,D4
+	CALL	PRINTW
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	JP	PRINCIK
+
+ANIMAC
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	2
+	RET	NC ;not a tank
+	LD	A,(IX+UNIT_TYPEOFTANK)
+	CP	21
+	RET	NC
+	LD	A,(TANK)
+	LD	E,A
+	LD	D,0
+	ADD	HL,DE
+	LD	A,(IX+UNIT_BITPARENTSBULL)
+	CP	3
+	RET	NC
+	LD	A,4
+	LD	(SOUNDGO),A
+	RET
+
+DIR2	LD	A,(IX+UNIT_YESORNOT)
+	CP	2
+	RET	NC ;not a tank
+	INC	HL
+	INC	HL
+	INC	HL
+	INC	HL ;hl=sprite for horizontal direction
+	RET
+
+
+ADDR	DEFW	0 ;смещение относительно sprlist (#200)
+YESORNO	DEFB	0
+ADDRY	DEFW	0
+ADDRX	DEFW	0
+
+MESTO	DEFB	0
+
+INSTAL2
+	LD	IX,UNITS
+	LD	DE,8*UNITSZ;192
+	ADD	IX,DE
+I33	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	Z,INST22
+	LD	DE,2*UNITSZ;48
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	Z,INST22
+	LD	DE,2*UNITSZ;48
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	Z,INST22
+	LD	A,(BOS)
+	CP	1
+	JR	Z,ZZHH
+	LD	DE,2*UNITSZ;48
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	Z,INST22
+	LD	DE,2*UNITSZ;48
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	Z,INST22
+	LD	DE,2*UNITSZ;48
+	ADD	IX,DE
+	LD	A,(IX+UNIT_YESORNOT)
+	CP	0
+	JP	Z,INST22
+ZZHH	LD	A,255
+	RET
+INST22
+	LD	(IX+UNIT_YESORNOT),5 ;RELESE
+	LD	(IX+UNIT_DIRECTION2),3
+	LD	(IX+UNIT_DIRECTION),0
+	LD	HL,SPRSTAR0;256+48
+	LD	(IX+UNIT_NUMBERSPRITES),L
+	LD	(IX+UNIT_NUMBERSPRITES+1),H
+	LD	C,0
+	LD	B,0
+	LD	(IX+UNIT_X),C
+	LD	(IX+UNIT_X+1),B
+
+	LD	A,(MESTO)
+	CP	1
+	CALL	Z,INS2
+	CP	2
+	CALL	Z,INS3
+	INC	A
+	LD	(MESTO),A
+
+	LD	C,0
+	LD	B,0
+	LD	A,(BOS)
+	CP	0
+	CALL	NZ,BOSNEW
+	LD	(IX+UNIT_Y),C
+	LD	(IX+UNIT_Y+1),B
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),4
+	LD	(IX+UNIT_STOPBIT),0
+	LD	(IX+UNIT_BITFRIENDLYFIRE),0
+	LD	(IX+UNIT_SHELLTIME),0
+	LD	DE,UNITSZ;24
+	ADD	IX,DE
+	LD	(IX+UNIT_STAR),0
+	RET
+BOSNEW	LD	BC,32
+	RET
+INS2
+	LD	C,128
+	LD	B,0
+	LD	(IX+UNIT_X),C
+	LD	(IX+UNIT_X+1),B
+	RET
+INS3	LD	BC,256
+	LD	(IX+UNIT_X),C
+	LD	(IX+UNIT_X+1),B
+	LD	A,255
+	RET
+
+       if 1==0
+I22	;LD	BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	;LD	A,#08
+	;OUT	(C),A
+        call setpg8
+	LD	HL,#C000
+	LD	B,30
+LLLL	PUSH	BC
+	LD	B,34
+LLL	LD	A,(HL)
+	CP	24 ;??? что за тайл, который надо удваивать? лес?
+	CALL	Z,LL3
+	INC	HL
+	INC	HL
+	DJNZ	LLL
+	LD	DE,188
+	ADD	HL,DE
+	POP	BC
+	DJNZ	LLLL
+	RET
+LL3	PUSH	HL
+	LD	DE,#80
+	ADD	HL,DE
+	LD	(HL),A
+	POP	HL
+	RET
+       endif
+
+TILL
+;set tilemode
+        if 1==0
+	LD	BC,T0GPAGE
+	LD	A,#C0
+	OUT	(C),A
+	LD	BC,TMPAG
+	LD	A,#08
+	OUT	(C),A
+	LD	BC,T0GPAGE
+	LD	A,#C0
+	OUT	(C),A
+	LD	BC,T1GPAGE
+	LD	A,#C0
+	OUT	(C),A
+	LD	BC,PALSEL
+	LD	A,%00000000
+	OUT	(C),A
+        endif
+	RET
+
+BULL1	LD	A,(IX+UNIT_ENERGY) ;???
+	CP	2
+	JR	Z,BULL2
+	CP	3
+	JR	Z,BULL3
+	LD	A,(IX+UNIT_DIRECTION)
+	CP	1
+	JP	Z,BULU
+	CP	3
+	JP	Z,BULD
+	CP	2
+	JP	Z,BULR
+	CP	4
+	JP	Z,BULL
+	RET
+BULL2	LD	A,(IX+UNIT_DIRECTION)
+	CP	3
+	CALL	Z,BULD
+	LD	A,(IX+UNIT_DIRECTION)
+	CP	3
+	CALL	Z,BULR
+	RET
+BULL3	LD	A,(IX+UNIT_DIRECTION)
+	CP	3
+	CALL	Z,BULD
+	LD	A,(IX+UNIT_DIRECTION)
+	CP	3
+	CALL	Z,BULL
+	RET
+BULU	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	DE,13
+	ADD	HL,DE
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	A,1
+	CALL	BULLSR2
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	DE,13
+	SBC	HL,DE
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	A,(IX+UNIT_STOPBIT)
+	CP	1
+	JP	Z,COUNU3A
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	DEC	HL
+	DEC	HL
+	LD	A,(IX+UNIT_STAR)
+	CP	0
+	CALL	NZ,ST1
+	LD	A,L
+	CP	248
+	JP	Z,CLSBULL
+	CP	247
+	JP	Z,CLSBULL
+	CP	246
+	JP	Z,CLSBULL
+	CP	245
+	JP	Z,CLSBULL
+       ;ld a,h
+       ;or a
+       ;jp nz,CLSBULL
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	CALL	MATEMAT
+	;LD	DE,256
+	;ADD	HL,DE
+         TILEMAPLINEDOWN
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU
+	CP	38
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	;INC	HL
+	;INC	HL
+         TILEMAPRIGHT
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU
+	CP	38
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	RET
+ST1
+	DEC	HL
+	DEC	HL
+	RET
+ST22
+	INC	HL
+	INC	HL
+	RET
+COUNU	;LD	(HL),38
+         ex af,af'
+         ld a,38
+         call prchar_tilemap_hl
+         ex af,af'
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	RET
+COUNU4	;LD	(HL),36
+         ex af,af'
+         ld a,36
+         call prchar_tilemap_hl
+         ex af,af'
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	RET
+COUNU5	;LD	(HL),35
+         ex af,af'
+         ld a,35
+         call prchar_tilemap_hl
+         ex af,af'
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	RET
+COUNU6	;LD	(HL),37
+         ex af,af'
+         ld a,37
+         call prchar_tilemap_hl
+         ex af,af'
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	RET
+COUNU2	;LD	(HL),0
+         ex af,af'
+         xor a
+         call prchar_tilemap_hl
+         ex af,af'
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	RET
+COUNU3	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	LD	A,(IX+UNIT_STAR)
+	CP	3
+	JP	Z,COUNU2
+	RET
+COUNU3A	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
+	LD	(IX+UNIT_YESORNOT),3 ;BONG1
+	RET
+
+BULR	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	DE,16
+	SBC	HL,DE
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	A,2
+	CALL	BULLSRA
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	DE,16
+	ADD	HL,DE
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	A,(IX+UNIT_STOPBIT)
+	CP	1
+	JP	Z,COUNU3A
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	INC	HL
+	INC	HL
+	LD	A,(IX+UNIT_STAR)
+	CP	0
+	CALL	NZ,ST22
+	LD	A,H
+	CP	1
+	CALL	Z,BULCH
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	A,(IX+UNIT_ENERGY)
+	CP	0
+	RET	NZ
+	CALL	MATEMAT
+	;INC	HL
+	;INC	HL
+         TILEMAPRIGHT
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU5
+	CP	38
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	;LD	DE,256
+	;ADD	HL,DE
+         TILEMAPLINEDOWN
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU5
+	CP	38
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	RET
+BULCH
+	LD	A,L
+	CP	8
+	;JP	NC,CLSBUL
+	RET c
+CLSBUL	POP	AF
+	JP	CLSBULL
+
+CLSBUL3	LD	A,L
+	;CP	248
+	;JP	Z,CLSBUL
+	;CP	247
+	;JP	Z,CLSBUL
+	;CP	246
+	;JP	Z,CLSBUL
+	;CP	245
+	;JP	Z,CLSBUL
+       cp 245
+       jp nc,CLSBUL
+	RET
+
+BULL	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	DE,16
+	ADD	HL,DE
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	A,4
+	CALL	BULLSRA
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	LD	DE,16
+	SBC	HL,DE
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	A,(IX+UNIT_STOPBIT)
+	CP	1
+	JP	Z,COUNU3A
+	LD	L,(IX+UNIT_X)
+	LD	H,(IX+UNIT_X+1)
+	;DEC	HL
+	;DEC	HL
+	LD	A,(IX+UNIT_STAR)
+	CP	0
+	CALL	NZ,ST1
+	LD	A,H
+	CP	0
+	CALL	NZ,CLSBUL3
+ dec hl
+ dec hl
+	LD	(IX+UNIT_X),L
+	LD	(IX+UNIT_X+1),H
+	LD	A,(IX+UNIT_ENERGY)
+	CP	0
+	RET	NZ
+	 ;LD A,l
+	 ;CP 248 ;???
+         ;jr c,$+5
+         ;ld hl,0
+         ld bc,8
+         add hl,bc
+	CALL	MATEMAT_HL
+	;LD	DE,6
+	;ADD	HL,DE
+         ;TILEMAPRIGHT
+         ;TILEMAPRIGHT
+         ;TILEMAPRIGHT
+	;LD	A,(IX+UNIT_X)
+	;CP	248 ;???
+	;JP	NC,NONO ;на начало следующей строки???
+	;DEC	HL
+	;DEC	HL
+	;DEC	HL
+	;DEC	HL
+         ;TILEMAPLEFT
+         ;TILEMAPLEFT
+NONO2
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU6
+	CP	38
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	;LD	DE,256
+	;ADD	HL,DE
+         TILEMAPLINEDOWN
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU6
+	CP	38
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	RET
+NONO	LD	L,0 ;???
+	;LD	DE,256
+	;ADD	HL,DE
+         TILEMAPLINEDOWN
+	JP	NONO2
+       if 1==0
+BULCHL
+	CP	252
+	JP	Z,CLSBUL
+	RET
+       endif
+BULD	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	DE,8
+	SBC	HL,DE
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	A,3
+	CALL	BULLSR2
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	LD	DE,8
+	ADD	HL,DE
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	A,(IX+UNIT_STOPBIT)
+	CP	1
+	JP	Z,COUNU3A
+	LD	L,(IX+UNIT_Y)
+	LD	H,(IX+UNIT_Y+1)
+	INC	HL
+	INC	HL
+	LD	A,(IX+UNIT_STAR)
+	CP	0
+	CALL	NZ,ST22
+	LD	A,L
+	;CP	232
+	;JP	NC,CLSBULL
+	;CP	233
+	;JP	NC,CLSBULL
+	;CP	234
+	;JP	NC,CLSBULL
+	;CP	235
+       cp MAXY+8
+	JP	NC,CLSBULL
+	LD	(IX+UNIT_Y),L
+	LD	(IX+UNIT_Y+1),H
+	LD	A,(IX+UNIT_ENERGY)
+	CP	0
+	RET	NZ
+	CALL	MATEMAT
+	;LD	DE,256
+	;ADD	HL,DE
+         TILEMAPLINEDOWN
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU4
+	CP	38
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	;INC	HL
+	;INC	HL
+         TILEMAPRIGHT
+	LD	A,(HL)
+	CP	30
+	CALL	Z,EGGLE
+	CP	31
+	CALL	Z,EGGLE
+	CP	94
+	CALL	Z,EGGLE
+	CP	95
+	CALL	Z,EGGLE
+	CP	2
+	CALL	Z,COUNU4
+	CP	38
+	CALL	Z,COUNU2
+	CP	36
+	CALL	Z,COUNU2
+	CP	35
+	CALL	Z,COUNU2
+	CP	37
+	CALL	Z,COUNU2
+	CP	12
+	CALL	Z,COUNU3
+	RET

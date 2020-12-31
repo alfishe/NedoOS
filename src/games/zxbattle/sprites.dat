@@ -1,0 +1,101 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;P: DDp palette
+
+tankyu0=x,0,32,16,16
+tankyu1=x,16,32,16,16
+tankyr0=x,32,32,16,16
+tankyr1=x,48,32,16,16
+tankgu0=x,64,32,16,16
+tankgu1=x,80,32,16,16
+tankgr0=x,96,32,16,16
+tankgr1=x,112,32,16,16
+tankYu0=x,128,32,16,16
+tankYu1=x,144,32,16,16
+tankYr0=x,160,32,16,16
+tankYr1=x,176,32,16,16
+tankGu0=x,192,32,16,16
+tankGu1=x,208,32,16,16
+tankGr0=x,224,32,16,16
+tankGr1=x,240,32,16,16
+tankwu0=x,0,48,16,16
+tankwu1=x,16,48,16,16
+tankwr0=x,32,48,16,16
+tankwr1=x,48,48,16,16
+tankru0=x,64,48,16,16
+tankru1=x,80,48,16,16
+tankrr0=x,96,48,16,16
+tankrr1=x,112,48,16,16
+;
+;tankyu0=x,0,64,16,16
+;tankyu1=x,16,64,16,16
+tankyl0=x,32,64,16,16
+tankyl1=x,48,64,16,16
+;tankgu0=x,64,64,16,16
+;tankgu1=x,80,64,16,16
+tankgl0=x,96,64,16,16
+tankgl1=x,112,64,16,16
+;tankYu0=x,128,64,16,16
+;tankYu1=x,144,64,16,16
+tankYl0=x,160,64,16,16
+tankYl1=x,176,64,16,16
+;tankGu0=x,192,64,16,16
+;tankGu1=x,208,64,16,16
+tankGl0=x,224,64,16,16
+tankGl1=x,240,64,16,16
+;tankwu0=x,0,80,16,16
+;tankwu1=x,16,80,16,16
+tankwl0=x,32,80,16,16
+tankwl1=x,48,80,16,16
+;tankru0=x,64,80,16,16
+;tankru1=x,80,80,16,16
+tankrl0=x,96,80,16,16
+tankrl1=x,112,80,16,16
+;
+tankyd0=x,0,96,16,16
+tankyd1=x,16,96,16,16
+;tankyr0=x,32,96,16,16
+;tankyr1=x,48,96,16,16
+tankgd0=x,64,96,16,16
+tankgd1=x,80,96,16,16
+;tankgr0=x,96,96,16,16
+;tankgr1=x,112,96,16,16
+tankYd0=x,128,96,16,16
+tankYd1=x,144,96,16,16
+;tankYr0=x,160,96,16,16
+;tankYr1=x,176,96,16,16
+tankGd0=x,192,96,16,16
+tankGd1=x,208,96,16,16
+;tankGr0=x,224,96,16,16
+;tankGr1=x,240,96,16,16
+tankwd0=x,0,112,16,16
+tankwd1=x,16,112,16,16
+;tankwr0=x,32,112,16,16
+;tankwr1=x,48,112,16,16
+tankrd0=x,64,112,16,16
+tankrd1=x,80,112,16,16
+;tankrr0=x,96,112,16,16
+;tankrr1=x,112,112,16,16
+
+tile1=x,16,0,16,16
+tile2=x,32,0,16,16
+tile3=x,48,0,16,16
+tile4=x,64,0,16,16
+tile5=x,80,0,16,16
+tile6=x,96,0,16,16
+tile7=x,112,0,16,16
+tile8=x,128,0,16,16
+;tile9=x,144,0,16,16
+;tile10=x,160,0,16,16
+;tile11=x,176,0,16,16
+;tile12=x,192,0,16,16
+;tile13=x,208,0,16,16
+;tile14=x,224,0,16,16
