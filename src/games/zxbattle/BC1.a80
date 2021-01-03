@@ -1,14 +1,14 @@
-DEAT77	LD	A,129
+DEAT77	LD	A,129 ;'0' inverted
 	LD	(UP1),A
 	JP	DEATH
 
-DEAT88	LD	A,129
+DEAT88	LD	A,129 ;'0' inverted
 	LD	(UP2),A
 	JP	DEATH
 ENDGAME
-	LD	A,(ENDG)
-	CP	100
-	JP	Z,END4
+	LD	A,(ENDG) ;1: генерируем "GAME OVER"
+	CP	100 ;"GAME OVER" приехал и стоял 98 кадров
+	JP	nc,END4 ;было Z,END4, но получается повисон при двукратной генерации "GAME OVER"???
 	CP	1
 	RET	NZ
 	LD	IX,UNITS
@@ -63,7 +63,7 @@ ENDGAME
 END1
 	LD	L,(IX+UNIT_Y)
 	LD	H,(IX+UNIT_Y+1)
-	DEC	HL
+	DEC	HL ;move "GAME OVER" up???
 	LD	A,L
 	CP	128-24
 	RET	Z
@@ -74,7 +74,7 @@ END1
 END2
 	LD	L,(IX+UNIT_Y)
 	LD	H,(IX+UNIT_Y+1)
-	DEC	HL
+	DEC	HL ;move "GAME OVER" up???
 	LD	A,L
 	CP	128-24
 	JR	Z,END3
@@ -117,10 +117,10 @@ NHF	LD	DE,5
 	CP	1
 	JR	Z,NNNNN
 	LD	HL,UP1
-	LD	A,132
+	LD	A,132 ;'3'
 	LD	(HL),A
 	LD	HL,UP2
-	LD	A,132
+	;LD	A,132 ;'3'
 	LD	(HL),A
 NNNNN
 	LD	A,#10
@@ -194,7 +194,7 @@ ST3	LD	IX,UNITS
 	CP	1
 	JP	Z,STARTM
 	JP	STARTS
-ENDG	DEFB	0
+ENDG	DEFB	0 ;1=game over, 2=game over едет, 3..100=game over приехал и стоит???
 
 EXITKK	POP	HL				;снимаем адрес возврата
 	XOR	A				;
@@ -2274,7 +2274,7 @@ EGGLE ;eagle
 	LD	(IX+UNIT_Y),MAXY;224
 	LD	(IX+UNIT_Y+1),0
 	LD	(IX+UNIT_YESORNOT),4 ;BADABUM
-	LD	(IX+UNIT_SAND),254
+	LD	(IX+UNIT_SAND),254 ;flag for BAD7
 	LD	(IX+UNIT_DIRECTION2),3
 	POP	HL
 	RET
@@ -2651,7 +2651,7 @@ TEXT6	DEFB	130 ;'1' INVERTED DIGIT
 	DEFM	")" ;little brown tank
 UP1	DEFB	128 ;129 '0' ;132 '3'
 	DEFB	255
-TEXT7	DEFB	130 ;'1' INVERTED DIGIT
+TEXT7	DEFB	131 ;'2' INVERTED DIGIT
 	DEFM	"p"
 	DEFB	254 ;nextline
 	DEFM	")" ;little brown tank

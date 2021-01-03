@@ -6,7 +6,8 @@ PRPUB	LD	HL,UP1
 	LD	A,(HL)
 	CP	129 ;'0' inverted?
 	RET	NZ
-	LD	A,1
+;both players have 0 lives
+	LD	A,1 ;game over
 	LD	(ENDG),A
 	XOR	A
 	LD	(MAP),A

@@ -10,10 +10,10 @@
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
 ;P: DDp palette
 
-bulletr0=x,416,0,16,16
-bulletu0=x,432,0,16,16
-bulletl0=x,416,64,16,16
-bulletd0=x,432,64,16,16
+bulletr0=x,416,0,10,10
+bulletu0=x,432,0,10,10
+bulletl0=x,416,64,10,10
+bulletd0=x,432,64,10,10
 boom0=x,448,64,16,16
 boom1=x,464,64,16,16
 boom2=x,480,64,16,16
@@ -67,4 +67,4 @@ tile11=x,176,0,16,16
 tile12=x,192,0,16,16
 tile13=x,208,0,16,16
 tile14=x,224,0,16,16
-tile0=x,0,0,2,8
+tile0=x,0,0,2,10

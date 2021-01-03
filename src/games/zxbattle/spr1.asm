@@ -95,8 +95,8 @@ prsprqwid=0x0100 ;TODO прямо по какому-то адресу код, а не jp
          dw drop0
          dw drop0
          dw drop0
-         dw drop0
-         dw drop0
+        dw cloud0 ;!!!
+        dw cloud1 ;!!!
          dw drop0
          dw drop0
         dw bulletl0

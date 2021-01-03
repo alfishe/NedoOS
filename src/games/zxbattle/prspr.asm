@@ -114,23 +114,28 @@ prsprnocropleft
         cp 16
         jr z,prspr16
         jr nc,prspr24
-prspr8
-        ld a,prspr8column&0xff
+;prspr8
+prspr10
+        ;ld a,prspr8column&0xff
+        ld a,prspr10column&0xff
         ld (prsprcolumnpatch),a
         ld (prsprcolumnpatch2),a
-        jp prspr8column+1
+        ;jp prspr8column+1
+        jp prspr10column+1
 prspr16
         ld a,prspr16column&0xff
         ld (prsprcolumnpatch),a
         ld (prsprcolumnpatch2),a
         jp prspr16column+1
 prspr24
+       if 1==0
         cp 32
         jr z,prspr32
         ld a,prspr24column&0xff
         ld (prsprcolumnpatch),a
         ld (prsprcolumnpatch2),a
         jp prspr24column+1
+       endif
 prspr32
         ld a,prspr32column&0xff
         ld (prsprcolumnpatch),a
@@ -144,21 +149,24 @@ prspr32column
         MASKBYTE
         DOWNBYTE
         edup
-prspr24column
+;prspr24column
         dup 8
         pop de
         MASKBYTE
         DOWNBYTE
         edup
 prspr16column
-        dup 8
+        ;dup 8
+        dup 6
         pop de
         MASKBYTE
         DOWNBYTE
         edup
-prspr8column
+;prspr8column
+prspr10column
         display prspr32column," HSB equal to ",$
-        dup 7
+        ;dup 7
+        dup 9
         pop de
         MASKBYTE
         DOWNBYTE
