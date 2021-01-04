@@ -1,7 +1,8 @@
 ﻿            DEVICE ZXSPECTRUM1024
 MANYLIVES=0;1 ;убрать при релизе!!!
-TILES87=0;1
+TILES87=0
 TILEHGT=8-TILES87
+DRAWFOREST=1
             DEFINE  ProjName        ZXBattleCity
             DEFINE  ProjVer         1_5
             ;DEFINE  TRDName         "ZXBattleCity_1_5.trd"
@@ -1283,7 +1284,7 @@ prsprhgt3q
 
 ;если спрайт - танк (не бонус)
 ;draw tree (one or many) above sprite if needed
-       if TILES87
+       if TILES87 || !DRAWFOREST
        else
         bit 5,(ix+4)
         jp nz,prspr_tree_q ;не танк

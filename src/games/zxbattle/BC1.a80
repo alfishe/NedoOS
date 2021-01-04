@@ -88,6 +88,14 @@ END3	LD	A,(ENDG)
 
 ENN	DEFB	0 ;1=resources loaded
 END4
+;взято из CHEKPOINT (иначе не обновлялся рекорд)
+	 AND	A
+	 LD	DE,(POINTP1)
+	 LD	HL,(POINTP2)
+	 SBC	HL,DE
+	 CALL	C,HISTO
+	 CALL	HISTO2
+
 	LD	A,1
 	LD	(ENN),A ;resources loaded
 	POP	HL

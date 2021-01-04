@@ -671,6 +671,7 @@ DECTB	DEFW	10000,1000,100,10,1
 TEXCLO	DEFW	0
 
 POINT
+        ld de,100 ;прибавка по умолчанию (для босса)
 	PUSH	IX
 	LD	IX,(BOMIX)
 	LD	A,(IX+UNIT_BITPARENTSBULL)
@@ -687,15 +688,17 @@ POINT1	POP	IX
 	CP	11
 	CALL	Z,PDE1
 	CP	2
-	CALL	Z,PDE2
+	CALL	Z,PDE2 ;бронетранспортёр
 	CP	12
-	CALL	Z,PDE2
+	CALL	Z,PDE2 ;мигающий бронетранспортёр
 	CP	3
-	CALL	Z,PDE3
+	CALL	Z,PDE3 ;броневик
 	CP	13
-	CALL	Z,PDE3
+	CALL	Z,PDE3 ;мигающий броневик
 	CP	4
-	CALL	Z,PDE4
+	CALL	Z,PDE4 ;не попадает на жёлтом танке на 21 уровне, но попадает на жёлтом танке на 31 уровне (когда он уже стал синим)!!! почему???
+	 CP	14
+	 CALL	Z,PDE4 ;на всякий случай на 21 уровне???
 	LD	HL,(POINTP1)
 	ADD	HL,DE
 	LD	(POINTP1),HL
@@ -761,6 +764,8 @@ POINT2	POP	IX
 	CALL	Z,PDE32
 	CP	4
 	CALL	Z,PDE42
+	 CP	14
+	 CALL	Z,PDE42 ;на всякий случай на 21 уровне???
 	LD	HL,(POINTP2)
 	ADD	HL,DE
 	LD	(POINTP2),HL
@@ -1319,10 +1324,13 @@ ANIMW1	LD	HL,49152+2048+128+16+8
         cp 3
         ld a,(animwater_a)
         ld (animwater_olda),a
+       ld c,a
         ld a,WATERANIMTILE
         jr c,$+3
         inc a
         ld (animwater_a),a
+       cp c
+       ret z
         ld hl,tilemap
         ld b,0
         ld e,15

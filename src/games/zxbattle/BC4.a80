@@ -668,30 +668,32 @@ RETZ	LD	HL,0
 	LD	(POINTP1),HL
 	LD	(POINTP2),HL
 	RET
-HISTO		LD				DE,(POINTP1)
-			LD				HL,(HISTORE)
-			SBC				HL,DE
-			CALL			C,HISTO3
-			RET
-HISTO3		LD				HL,(POINTP1)
-			LD				(HISTORE),HL
-			;LD				DE,(DiskAddrHiStore)
-			;TRDWriteFromDE 	HISTORE,#01
-			;RET
+HISTO
+	LD	DE,(POINTP1)
+	LD	HL,(HISTORE)
+	SBC	HL,DE
+	CALL	C,HISTO3
+	RET
+HISTO3	LD	HL,(POINTP1)
+	LD	(HISTORE),HL
+	;LD	DE,(DiskAddrHiStore)
+	;TRDWriteFromDE HISTORE,#01
+	;RET
         ld de,fn_hiscore
         ld hl,HISTORE
         ld bc,0x0100
         jp savefile
-HISTO2		LD				DE,(POINTP2)
-			LD				HL,(HISTORE)
-			SBC				HL,DE
-			CALL			C,HISTO4
-			RET
-HISTO4		LD				HL,(POINTP2)
-			LD				(HISTORE),HL
-			;LD				DE,(DiskAddrHiStore)
-			;TRDWriteFromDE 	HISTORE,#01
-			;RET
+HISTO2
+	LD	DE,(POINTP2)
+	LD	HL,(HISTORE)
+	SBC	HL,DE
+	CALL	C,HISTO4
+	RET
+HISTO4	LD	HL,(POINTP2)
+	LD	(HISTORE),HL
+	;LD	DE,(DiskAddrHiStore)
+	;TRDWriteFromDE HISTORE,#01
+	;RET
         ld de,fn_hiscore
         ld hl,HISTORE
         ld bc,0x0100
