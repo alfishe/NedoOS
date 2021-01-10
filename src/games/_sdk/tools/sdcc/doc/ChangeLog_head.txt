@@ -1,0 +1,100 @@
+2016-02-21 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/SDCCast.c
+	* src/SDCCast.h
+	  Make sure the parameter list is not reversed before calling parmProcess().
+	* support/regression/tests/bug-2473.c
+	  Add a new test case.
+
+2016-02-20 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/SDCCast.c
+	  Fix bug #2471.
+
+2016-02-19 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/SDCCerr.c
+	  Make the error message of error E_CONST_EXPECTED more understandable.
+
+2016-02-18 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/SDCCglue.c
+	  Add check of non-constant in a global variable's initial value.
+
+2016-02-13 Molnar Karoly <molnarkaroly AT users.sf.net>
+
+	* src/pic14/gen.c,
+	* src/pic14/glue.c,
+	* src/pic14/pcode.c,
+	* src/pic14/pcode.h:
+	Fixed bug: "#2470 wrong asm code for PIC14 interrupt - interrupt not working"
+
+2016-02-09 Maarten Brock <sourceforge.brock AT dse.nl>
+
+	* device/lib/Makefile.in: added and enabled large-mcs51-stack-auto
+	* support/regression/ports/mcs51-large-stack-auto,
+	* support/regression/ports/mcs51-large-stack-auto/spec.mk,
+	* support/regression/Makefile.in: added test-mcs51-large-stack-auto
+	* support/regression/tests/bug2094505.c: disabled for mcs51-large-stack-auto
+
+2016-02-08 Maarten Brock <sourceforge.brock AT dse.nl>
+
+	* debugger/mcs51/simi.c,
+	* debugger/mcs51/simi.h: applied patch 268, Thanks Peter Dons Tychsen
+	* device/include/stdlib.h: suppress unused variable warning
+	* src/SDCCsymt.c (checkSClass): globals and statics in code don't need an
+	  initializer but may be implicitly cleared
+	* support/regression/tests/gcc-torture-execute-20000412-1.c: added disabled
+	  testcase for this
+	* support/regression/tests/bug-2041.c: also check with xdata starting at 1
+	* support/regression/tests/bug-2089.c: fix warnings
+	* support/regression/tests/bug-2423.c: suppress warning 147, show weird 203
+
+2016-02-07 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/ds390/gen.c
+	  Fix a bug in genFarPointerSet() when the result and the right operand are
+	  both in DPTR.
+	* support/regression/tests/bug-2041.c
+	  Add a new test case.
+
+2016-02-06 Philipp Klaus Krause <pkk AT spth.de>
+
+	* src/SDCClospre.hpp,
+	  src/SDCCnaddr.hpp,
+	  src/SDCCralloc.hpp:
+	  Workaround boost bug #11880 to make SDCC compile with boost 1.60.
+
+2016-02-05 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/SDCCast.c
+	  Fix a bug in comparason operaion.
+	* support/regression/tests/memory.c
+	  Enable more tests.
+
+2016-02-04 Ben Shi <powerstudio1st AT 163 DOT com>
+
+	* src/SDCCicode.c
+	  Allow array members of structs can be accessed in pointer form.
+	* support/regression/tests/bug-2468.c
+	  Add a test case.
+
+2016-02-03 Philipp Klaus Krause <pkk AT spth.de>
+
+	* src/SDCClospre.hpp:
+	  Fix compare operator, patch #267 by Peter Dons Tychsen.
+	* device/lib/pic16/libsdcc/char/divschar.c,
+	  device/lib/pic16/libsdcc/char/modschar.c:
+	  Fix signedness of pci16 char support routines.
+
+2016-02-01 Ben Shi <powerstudio1st AT 163 DOT com>
+ 
+	* src/SDCCast.c
+	  Try to find a common type for the left and right in '?:' .
+	* support/regression/tests/bug-2461.c
+	  Add a new test case.
+
+2016-02-01 Philipp Klaus Krause <pkk AT spth.de>
+
+	* src/SDCCglobl.h,
+	  src/SDCCmain.c,

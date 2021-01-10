@@ -1,6 +1,8 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
+BINADDR=0x4000
+
 	include "target.asm"
 
 	ifdef EVO
@@ -191,6 +193,24 @@ begin
 	ld de,res_path
 	OS_CHDIR
 
+        ld de,fnaddr
+        OS_OPENHANDLE
+        push bc
+        ld de,jpaddr ;addr
+        ld hl,2 ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+
+        ld de,fnbin
+        OS_OPENHANDLE
+        push bc
+        ld de,BINADDR ;addr
+        ld hl,-BINADDR ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE                
+
         ld de,tpages
         ld b,NUMBER_OF_PAGES
 loadloop0
@@ -238,8 +258,8 @@ loadloop_nextdigit0
 ;координаты в тайлах
         call _draw_tile
         call _swap_screen
-        
-        jr $
+jpaddr=$+1
+        jp 0
 mainloop
         
         call changescrpg ;с этого момента можем видеть, что нарисовали
@@ -703,6 +723,10 @@ _time		dd 0
         
 res_path
         db "nedoload",0 ;в этом относительном пути будут лежать все загружаемые данные игры
+fnbin
+        db "code.bin",0
+fnaddr
+        db "addr.bin",0
 end        
 
 	display "begin=",begin

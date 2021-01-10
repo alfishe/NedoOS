@@ -1,0 +1,11 @@
+-mjwx
+-i _temp_\out.ihx
+-b _CODE = 0x0006
+-b _DATA = 0x0000
+-k h:\altera\nedoos\nedoos\nedoos\src\games\_sdk\tools\sdcc\bin\..\lib\z80
+-l z80
+_temp_\out.rel
+..\_sdk\crt0.rel
+..\_sdk\evo.rel
+
+-e
