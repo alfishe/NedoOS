@@ -6,7 +6,7 @@ if %title%=="" goto end
 
 set error=1
 
-PATH=..\evosdk\tools\sdcc\bin;..\evosdk
+PATH=..\_sdk\tools\sdcc\bin;..\_sdk
 set temp=_temp_
 
 rem создаЄм временную директорию дл€ компил€ции
@@ -54,7 +54,7 @@ makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\samp
 
 rem компилируем исходник на C
 
-sdcc -mz80 --xstack --code-loc 0x0006 --data-loc 0 --no-std-crt0 -I..\evosdk ..\evosdk\crt0.rel ..\evosdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
+sdcc -mz80 --xstack --code-loc 0x0006 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
 
 if ERRORLEVEL 1 goto clean
 
@@ -62,11 +62,12 @@ rem вызываем компил€тор ресурсов
 rem он создаЄт набор бинарных файлов по одному на банк пам€ти
 rem плюс скрипты дл€ сжати€ файлов megalz и сборки образа диска
 
-rem evoresc "%temp%\out.ihx" "..\evosdk\startup.bin" "%soundfx%" "%temp%\music.lst" "%temp%\palette.lst" "%temp%\image.lst" "%temp%\sample.lst" "%temp%\sprite.lst"
+rem evoresc "%temp%\out.ihx" "..\_sdk\startup.bin" "%soundfx%" "%temp%\music.lst" "%temp%\palette.lst" "%temp%\image.lst" "%temp%\sample.lst" "%temp%\sprite.lst"
 echo tools\sjasmplus\sjasmplus.exe "%temp%\..\nedoload.asm" 
-..\evosdk\tools\sjasmplus\sjasmplus.exe nedoload.asm
+..\_sdk\tools\sjasmplus\sjasmplus.exe nedoload.asm
 
-rem evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\evosdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"
+rem evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"
+evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"  SOUND_BIN_FILE "../_sdk/sound.bin"
 if ERRORLEVEL 1 goto clean
 
 rem переходим во временную директорию
@@ -75,15 +76,15 @@ cd %temp%
 
 rem пакуем файлы
 
-copy ..\..\evosdk\getsize.bat >nul
+copy ..\..\_sdk\getsize.bat >nul
 call compress.bat
 
 rem собираем загрузчик
 
-copy ..\..\evosdk\loader.asm loader.asm >nul
-copy ..\..\evosdk\unmegalz.asm unmegalz.asm >nul
-copy ..\..\evosdk\target.asm target.asm >nul
-..\..\evosdk\tools\sjasmplus\sjasmplus.exe loader.asm >nul
+copy ..\..\_sdk\loader.asm loader.asm >nul
+copy ..\..\_sdk\unmegalz.asm unmegalz.asm >nul
+copy ..\..\_sdk\target.asm target.asm >nul
+..\..\_sdk\tools\sjasmplus\sjasmplus.exe loader.asm >nul
 
 rem собираем образ и делаем его моноблочным
 
@@ -92,7 +93,7 @@ call createscl.bat
 cd ..
 
 copy %temp%\disk.scl %output% >nul
-..\evosdk\monoscl %output%
+..\_sdk\monoscl %output%
 
 set error=0
 

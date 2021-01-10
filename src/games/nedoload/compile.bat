@@ -38,4 +38,4 @@ rem ρύμολϋ
 set sample.0=
 
 call ..\_sdk\_compile_new.bat
-@if %error% ==0 ..\..\us\emul.exe %output%
+@if %error% ==0 ..\..\..\us\emul.exe %output%
