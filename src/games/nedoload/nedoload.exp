@@ -1,1 +1,6 @@
-changescrpg: EQU 0x000003A0
+_draw_tile: EQU 0x00000CA8
+_draw_image: EQU 0x00000E9F
+_select_image: EQU 0x00000C7C
+_draw_tile_key: EQU 0x00000DC7
+_color_key: EQU 0x00000D99
+changescrpg: EQU 0x000003AF

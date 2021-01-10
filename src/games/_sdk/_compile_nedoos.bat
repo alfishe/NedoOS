@@ -6,7 +6,7 @@ if %title%=="" goto end
 
 set error=1
 
-PATH=..\_sdk\tools\sdcc\bin;..\_sdk
+PATH=..\_sdk\tools\sdcc\bin;..\_sdk;%PATH%
 set temp=_temp_
 
 rem создаЄм временную директорию дл€ компил€ции
@@ -88,12 +88,12 @@ copy ..\..\_sdk\target.asm target.asm >nul
 
 rem собираем образ и делаем его моноблочным
 
-call createscl.bat
+rem call createscl.bat
 
 cd ..
 
-copy %temp%\disk.scl %output% >nul
-..\_sdk\monoscl %output%
+rem copy %temp%\disk.scl %output% >nul
+rem ..\_sdk\monoscl %output%
 
 set error=0
 

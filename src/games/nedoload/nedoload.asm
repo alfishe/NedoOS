@@ -1,4 +1,4 @@
-        DEVICE ZXSPECTRUM1024
+        DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
 BINADDR=0x4000
