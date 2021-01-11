@@ -319,7 +319,7 @@ SUMMERPAL
 
 texfilename
 texfilename_pgnumend=$+8
-        db "page_000.bin",0
+        db "page_001.bin",0
 
 
 setpgsmain40008000
@@ -735,4 +735,4 @@ end
 	
 	savebin "nedoload.com",begin,end-begin
 	
-	;LABELSLIST "..\us\user.l"
+	LABELSLIST "..\..\..\us\user.l"
