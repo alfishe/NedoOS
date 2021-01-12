@@ -1,5 +1,8 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
+..\..\_sdk\convega.exe barbaria.bmp
+copy 0barbaria.bmpx barbaria\0barbari.bmx
+copy 1barbaria.bmpx barbaria\1barbari.bmx
 rem "../../_sdk/nedores.exe" slabtile.bmp tiles.dat tiles.ast
 rem "../../_sdk/nedores.exe" slabpane.bmp panel.dat panel.ast
 rem "../../_sdk/nedores.exe" slabspr.bmp sprites.dat sprites.ast
