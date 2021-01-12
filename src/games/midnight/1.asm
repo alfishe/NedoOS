@@ -157,7 +157,7 @@ begin2
         ld sp,STACK
         OS_HIDEFROMPARENT
 
-        ld e,3+8+0x80 ;6912+noturbo+keep
+        ld e,0+0x80 ;EGA+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
 	;ld e,1
@@ -201,7 +201,7 @@ begin2
         ld a,e
         ld (pgmain4000),a
 
-        if 1==0
+        if 1==1
 	ld de,res_path
 	OS_CHDIR
 
@@ -209,11 +209,23 @@ begin2
 
         ld de,emptypal
         OS_SETPAL
-        ld de,bmpfilename
-        call openstream_file
-        call readbmphead_pal
-        call readbmpscr
-        call closestream_file
+        ld de,filename0 ;имя файла
+        ld hl,0x4000 ;куда грузим
+        call loadfile_in_hl ;загрузили один экранный файл в одну страницу
+        ld de,filename1 ;имя файла
+        ld hl,0x8000 ;куда грузим
+        call loadfile_in_hl ;загрузили другой экранный файл в другую страницу
+        ld hl,0x4000+8000 ;там в картинке палитра (по байту на цвет)
+        ld de,pal
+        ld b,16
+copypal0
+        ld a,(hl)
+        inc hl
+        ld (de),a
+        inc de
+        ld (de),a
+        inc de
+        djnz copypal0 ;скопировали палитру в pal (по 2 байта на цвет)
         ld de,pal
         OS_SETPAL
         
@@ -273,18 +285,22 @@ loadlevels0q
 
         if 1==1
         ld a,(user_scr0_high) ;ok
-        SETPG32KLOW
-        ld hl,0x4000
-        ld de,0x4000+0x4000
+        SETPG16K
+        ;ld a,(pggfx)
+        ;SETPG32KLOW
+        call setpggfxc000
+        ld hl,0xc000
+        ld de,0x4000
         ld bc,0x4000
         ldir
         ;ld a,(user_scr0_high)
-        SETPG16K
-        ld a,(pgcode8000)
-        SETPG32KLOW
+        ;SETPG16K
+        ;ld a,(pgcode8000)
+        ;SETPG32KLOW
+        call setpgcodec000
         endif
-        ld a,(user_scr0_high) ;ok
-        SETPG16K
+        ;ld a,(user_scr0_high) ;ok
+        ;SETPG16K
         
         call swapimer
 
@@ -1425,6 +1441,20 @@ L02AB   DEC     L               ; cycles 2F>2E>2D>2C>2B>2A>29>28 for
         RET                     ; return (with zero set if it was).
                                 ; but with symbol shift now in D
 
+loadfile_in_hl
+;de=имя файла
+;hl=куда грузим (0xc000)
+        ;SETPG32KHIGH ;включили страницу A в 0xc000
+        push hl ;куда грузим
+        OS_OPENHANDLE
+        pop de ;куда грузим
+        push bc ;b=handle
+        ld hl,0x4000 ;столько грузим (если столько есть в файле)
+        OS_READHANDLE
+        pop bc ;b=handle
+        OS_CLOSEHANDLE
+	ret;jp setpgmainc000 ;включили страницу программы в c000, как было
+
 
         align 256
 trecolor
@@ -1442,6 +1472,11 @@ bgpush_bmpbuf
 
 res_path
         db "midnight",0
+filename0
+        db "0midnigh.bmx",0
+filename1
+        db "1midnigh.bmx",0
+
 ;bmpfilename
         ;db "solkey.bmp",0
 muzfilename

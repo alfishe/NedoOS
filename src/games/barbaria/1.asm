@@ -122,8 +122,8 @@ copypal0
         ;SETPG32KLOW
         call setpgcodec000
         endif
-        ld a,(user_scr0_high) ;ok
-        SETPG16K
+        ;ld a,(user_scr0_high) ;ok
+        ;SETPG16K
         
         call swapimer
 
