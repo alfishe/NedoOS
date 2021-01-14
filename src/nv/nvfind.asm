@@ -31,9 +31,16 @@ nvfind_yieldkeep
         ld a,55+128 ;"or a"
         ld (nvfind_wasyield),a
 nvfind_mainloop_nokey
-        GETKEY_ ;OS_GETKEYNOLANG
+       if PRSTDIO
+        GETKEY_
         ld a,c ;keynolang
         ;cp NOKEY
+       else
+        GET_KEY
+        ld a,c ;keynolang
+        ;cp NOKEY
+         or a
+       endif
         jr nz,nvfind_mainloop_keyq
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 nvfind_wasnokey=$+1
@@ -218,7 +225,11 @@ nvfind_enter
         ld (nvfind_curfoundnameaddr),hl
 
         ld de,0x0400
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
 
         ld hl,emptypath
         ld de,nvfind_curpath
@@ -422,7 +433,11 @@ nvfind_curfilename=$+1
         call prtext
         call clearrestofline
         
+       if PRSTDIO
         GETKEY_
+       else
+        GET_KEY
+       endif
         cp key_esc
         jp z,nvfind_break
 nvfind_found_q
@@ -559,7 +574,11 @@ nvfind_curfoundfiles=$+1
         add a,5
         ld d,a
         ld e,0
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         call nvfind_findselectedname
         ld c,0 ;x
         call prtext
@@ -578,7 +597,11 @@ nvfind_curtab=$+1
 nvfind_prcursearchfilename
         ld de,0x0100
         push de
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ld c,0 ;x
         ld hl,cursearchfilename
         call prtext
@@ -586,13 +609,21 @@ nvfind_prcursearchfilename
         call nvfind_getx
         pop de
         ld e,a
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ret
 
 nvfind_prcursearchtext
         ld de,0x0300
         push de
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ld c,0 ;x
         ld hl,cursearchtext
         call prtext
@@ -600,30 +631,51 @@ nvfind_prcursearchtext
         call nvfind_getx
         pop de
         ld e,a
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ret
 
 nvfind_reprintmenu
+       if PRSTDIO
         ld de,0
         SETXY_
         CLS_
+       else
+        ld de,_COLOR
+        OS_CLS
+       endif
         
         ld de,0x0000
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ld c,0 ;x
         ld hl,tsearchfilename
         call prtext
         call nvfind_prcursearchfilename
 
         ld de,0x0200
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ld c,0 ;x
         ld hl,tsearchtext
         call prtext
         call nvfind_prcursearchtext
         
         ld de,0x0400
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         ld c,0 ;x
         ld hl,tresults
         call prtext

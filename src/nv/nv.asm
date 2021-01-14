@@ -5,6 +5,7 @@ HEAPSORT_LH=1 ;byte order in poiters: LSB,HSB
 
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
 
+        if PRSTDIO
 _COLOR=0x0007;0x07
 _PANELCOLOR=0x040f;0x4f
 _PANELDIRCOLOR=0x040f;0x4f
@@ -17,6 +18,20 @@ _COLOR_RED=0x0107;0x17
 _COLOR_DIALOG=0x0300;0700 не видно курсор;0x38
 _HINTCOLOR1=0x0007;7
 _HINTCOLOR0=0x0600;5*8
+        else
+_COLOR=0x07
+_PANELCOLOR=0x4f
+_PANELDIRCOLOR=0x4f
+_PANELEXECOLOR=0x4c
+_PANELFILECOLOR=0x0f
+_PANELSELECTCOLOR=0x4e
+_CURSORCOLOR=0x28
+_FILECURSORCOLOR=0x28
+_COLOR_RED=0x17
+_COLOR_DIALOG=0x30
+_HINTCOLOR1=7
+_HINTCOLOR0=5*8
+        endif
 
 ;8192fcbs*32bytes*2panels = 32 pages
 DIRPAGES=16
@@ -85,15 +100,15 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
         org PROGSTART
 cmd_begin
         ld sp,0x4000
+       if PRSTDIO
         call initstdio
-
-        ;ld e,6 ;textmode
-        ;OS_SETGFX
-        
-	;call nv_copyscreen0to1
-        ;GET_KEY ;съедаем key_redraw
-
         CLS_ ;print 25 lines of spaces except one
+       else
+        ld e,6 ;textmode
+        OS_SETGFX
+	call nv_copyscreen0to1
+        GET_KEY ;съедаем key_redraw
+       endif
         
 ;        ld de,nvpal
 ;        OS_SETPAL
@@ -303,7 +318,11 @@ prhint0
         cp '}'
         jr z,prhint_color1
         push hl
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
         pop hl
         jr prhint0
 prhint_color0
@@ -542,7 +561,7 @@ prdirfile_ix_decolor
         ld bc,25*256+' '
         call prdirfile_copyfn
        endif
-        ld de,filelinebuf+15
+        ld de,filelinebuf_15
         exx
         ld hl,(fcb+FCB_FSIZE+2)
 	exx
@@ -550,7 +569,7 @@ prdirfile_ix_decolor
         ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
         call z,prdword_de
-         ld de,filelinebuf+28 ;skip "cursor right" over | (which has different color)
+         ld de,filelinebuf_28 ;skip "cursor right" over | (which has different color)
         ld hl,(fcb+FCB_FDATE)
         push hl
         ld a,l
@@ -613,11 +632,26 @@ prNNcmd
          inc de
         ret
 
+        macro DATEDELIMITER
+       if PRSTDIO
+        db 0x1b,"[C"
+       else
+        db 0xb3;'│'
+       endif
+        endm
+
 filelinebuf
-        db "filename.ext   1234567890",0x1b,"[CDDmmYY hh:mm"
+        db "filename.ext   "
+filelinebuf_15
+        db "1234567890"
+        DATEDELIMITER
+filelinebuf_28
+        db "DDmmYY hh:mm"
 filelinebuf_sz=$-filelinebuf
 emptyfilelinebuf
-        db "                         ",0x1b,"[C            "
+        db "                         "
+        DATEDELIMITER
+        db "            "
 emptyfilelinebuf_sz=$-emptyfilelinebuf
 tmonth ;month=0 is at tmonth-2 (spaces)
         ;db "jan"
@@ -893,7 +927,11 @@ controlloop_noprline
         call nv_setxy
         ;SETX_ ;force reprint cursor
 controlloop_nokey
-        call yieldgetkeyloop ;YIELDGETKEYLOOP
+       if PRSTDIO
+        call yieldgetkeyloop
+       else
+        YIELDGETKEYLOOP
+       endif
          or a
          jr z,controlloop_nokey ;TODO handle mouse events
         push af
@@ -1145,7 +1183,11 @@ editcmd_up
         inc d
         push de
         ld hl,CONST_HGT_TABLE*256 + 40
-        call scrolldown ;OS_SCROLLDOWN
+       if PRSTDIO
+        call scrolldown
+       else
+        OS_SCROLLDOWN
+       endif
         pop de
         inc e
         call nv_setxy
@@ -1177,7 +1219,11 @@ editcmd_down
         inc d
         push de
         ld hl,CONST_HGT_TABLE*256 + 40
-        call scrollup ;OS_SCROLLUP
+       if PRSTDIO
+        call scrollup
+       else
+        OS_SCROLLUP
+       endif
         pop de
         ld a,d
         add a,CONST_HGT_TABLE-1
@@ -1268,6 +1314,7 @@ loadandrun_waitpid
 ;hl=cmdbuf или cmdprompt (для loadandrun_restcmd)
         push hl
         call setdrawtablesneeded
+       if PRSTDIO
         ld de,0
         SETXY_
         ld de,_COLOR
@@ -1275,7 +1322,7 @@ loadandrun_waitpid
         CLS_
         ld de,0
         SETXY_
-         ;jr $
+       endif
         ld ix,leftpanel
 	call strdelpages
         ld ix,rightpanel
@@ -1296,7 +1343,9 @@ execcmd_waitfocus0
          cp (hl)
          jr z,execcmd_waitfocus0
         endif
+       if PRSTDIO
         CLS_ ;scroll what was printed
+       endif
 execcmd_error
         call assignpages
         ld hl,cmdbuf
@@ -1655,7 +1704,11 @@ seldrv_cury=$+1
         ld b,22
         call drawfilecursor_sizeb_colorhl ;draw cursor
 seldrv_mainloop_nokey
-        call yieldgetkeyloop ;YIELDGETKEYLOOP
+       if PRSTDIO
+        call yieldgetkeyloop
+       else
+        YIELDGETKEYLOOP
+       endif
          or a
          jr z,seldrv_mainloop_nokey ;TODO handle mouse events
 	ld a,c
@@ -2817,7 +2870,9 @@ filinfo
 
         include "prdword.asm"
         include "cmdpr.asm"
+       if PRSTDIO
         include "../_sdk/stdio.asm"
+       endif
 
         align 256
 searchbuf
@@ -2843,6 +2898,10 @@ cmd_end
 
 	display "nv size ",/d,cmd_end-cmd_begin," bytes"
 
+       if PRSTDIO
 	savebin "nv.com",cmd_begin,cmd_end-cmd_begin
+       else
+	savebin "nvfast.com",cmd_begin,cmd_end-cmd_begin
+       endif
 
 	LABELSLIST "../../us/user.l"

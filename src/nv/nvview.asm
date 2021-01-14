@@ -1,7 +1,11 @@
 NVVIEW_XYTOP=0x0000
 NVVIEW_HGT=24
 NVVIEW_WID=80
+       if PRSTDIO
 _NVVIEW_PANELCOLOR=0x0700;0x38
+       else
+_NVVIEW_PANELCOLOR=0x38
+       endif
 
 editcmd_3
         call ifcmdnonempty_typedigit
@@ -33,11 +37,14 @@ nvview
         ;ld hl,nv_closehandle
         ;push hl
 
-        ;ld e,COLOR
-        ;OS_CLS
+       if PRSTDIO
         ld de,0
         SETXY_
         CLS_
+       else
+        ld e,_COLOR
+        OS_CLS
+       endif
 
         ld hl,unreservepages
         push hl
@@ -93,19 +100,24 @@ nvview_yieldkeep
         ld a,55+128 ;"or a"
         ld (nvview_wasyield),a
 nvview_mainloop_nokey
-        GETKEY_ ;OS_GETKEYNOLANG
-         ;jr c,$
-        ;jr z,nvview_mainloop_nokeygo
+       if PRSTDIO
+        GETKEY_
+       else
+        GET_KEY
+        jr z,nvview_mainloop_nokeygo
 ;есть событие (a=0: от мыши)
-        ;ld a,c ;keynolang
+        ld a,c ;keynolang
         ;cp NOKEY
-         ;or a
+         or a
+       endif
         jr nz,nvview_mainloop_keyq
          ;jr nvview_mainloop_nokey
 nvview_mainloop_nokeygo
+       if PRSTDIO
        ld a,(stdindatacount)
        or a
        jr nz,nvview_mainloop;_nokey
+       endif
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 nvview_wasnokey=$+1
         ld a,1
@@ -282,7 +294,11 @@ nvview_up
         push hl
         ld de,NVVIEW_XYTOP
         ld hl,256*NVVIEW_HGT + NVVIEW_WID
-        call scrolldown ;OS_SCROLLDOWN
+       if PRSTDIO
+        call scrolldown
+       else
+        OS_SCROLLDOWN
+       endif
         ld de,NVVIEW_XYTOP
         call nv_setxy
         pop hl
@@ -307,7 +323,11 @@ curbottomtextHSB=$+1
         push hl
         ld de,NVVIEW_XYTOP
         ld hl,256*NVVIEW_HGT + NVVIEW_WID
-        call scrollup ;OS_SCROLLUP
+       if PRSTDIO
+        call scrollup
+       else
+        OS_SCROLLUP
+       endif
         ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
         call nv_setxy
         pop hl
@@ -423,7 +443,11 @@ clear_keyboardbuffer
         ld b,50;5
 clear_keyboardbuffer0
         push bc
+       if PRSTDIO
         GETKEY_
+       else
+        GET_KEY
+       endif
         pop bc
         djnz clear_keyboardbuffer0
         pop bc
@@ -440,8 +464,11 @@ nvview_panel
         ld de,0x1800
         call nv_setxy
         ld de,_NVVIEW_PANELCOLOR;#38
+       if PRSTDIO
         SETCOLOR_
-        
+       else
+        call nv_setcolor
+       endif
         ld a,(nvview_prline_recodepatch)
         or a
         ld hl,t866
@@ -451,7 +478,11 @@ nvview_panel
         call prtext
         
         ld a,' '
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
 nvview_ncurline=$+1
         ld hl,0
         exx 
@@ -460,14 +491,22 @@ nvview_ncurline=$+1
         call prdword
         ;ix
         ld a,'/'
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
         ld hl,(nlines)
         exx 
         ld hl,0
         exx
         call prdword
         ld a,' '
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
         ld hl,(filesizeHSW)
         exx
         ld hl,(filesize)
@@ -485,8 +524,11 @@ nvview_ncurline=$+1
         ;ld e,NVVIEW_PANELCOLOR;#38
         ;OS_PRATTR
         ld de,_COLOR;#38
+       if PRSTDIO
         SETCOLOR_
-        
+       else
+        call nv_setcolor
+       endif
         ret
         
 twin
@@ -829,7 +871,7 @@ print_prlinebuf
         sub c
         ld l,a
         ld h,0
-        call sendchars
+         call nz,sendchars
         pop hl
         pop bc
         pop af

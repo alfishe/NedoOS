@@ -242,10 +242,18 @@ editcmd_noscrollleft
 editcmd_noscrollright
 ;prcmd
         ld de,_COLOR
+       if PRSTDIO
         SETCOLOR_
+       else
+        call nv_setcolor
+       endif
         ;ld de,+(txtscrhgt-1)*256+0
         ld de,CMDLINEY*256+0
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         call cmdcalcpromptsz
         dec a
         ld e,a ;!=0, т.к. буква дисковода
@@ -256,7 +264,11 @@ editcmd_noscrollright
         call cmdprNchars
         push bc
         ld a,'>'
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
         pop bc
         inc c
         ld hl,(curcmdscroll)

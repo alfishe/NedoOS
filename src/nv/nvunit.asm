@@ -25,7 +25,11 @@ prwindow_waitkey0
 ;prwindow_waitkey_addr=$+1 ; comment by demige 190511
 ;        ld hl,0 ; comment by demige 190511
 ;        call prwindow_text ; comment by demige 190511
-        call yieldgetkeyloop ;YIELDGETKEYLOOP
+       if PRSTDIO
+        call yieldgetkeyloop
+       else
+        YIELDGETKEYLOOP
+       endif
         ld a,c
         cp key_esc
         ret z
@@ -368,7 +372,11 @@ nv_setxy
         push de
         push hl
         push ix
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         pop ix
         pop hl
         pop de
@@ -380,7 +388,17 @@ nv_setcolor
 ;d=paper, e=ink
         push hl
         push ix
+       if PRSTDIO
         SETCOLOR_
+       else
+        ;ld a,d
+        ;add a,a
+        ;add a,a
+        ;add a,a
+        ;add a,e
+        ;ld e,a
+        OS_SETCOLOR
+       endif
         pop ix
         pop hl
         ret
@@ -420,7 +438,11 @@ panelprtext0
         jr z,panelprtextq
         push bc
         push hl
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
         pop hl
         pop bc
         inc c
@@ -607,7 +629,11 @@ prNsymbol
 prNsymbol0
 	push bc
         ld a,c
-	PRCHAR_
+       if PRSTDIO
+        PRCHAR_
+       else
+        PRCHAR
+       endif
 	pop bc
 	djnz prNsymbol0
         pop ix
@@ -620,7 +646,11 @@ prNsymbol0
 cmdprchar
         push hl
 	push ix
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
 	pop ix
         pop hl
         ret
@@ -756,6 +786,7 @@ drawfilecursor_sizeb_colorhl
 ;de=yx
 ;hl=color
 ;b=size
+       if PRSTDIO
 	push bc
         push hl
 	call nv_setxy
@@ -768,6 +799,29 @@ drawfilecursor_sizeb_colorhl
         ld l,b
         call sendchars
         jp setcolor_visible 
+       else
+        ;ld a,d
+        ;add a,a
+        ;add a,a
+        ;add a,a
+        ;add a,e
+        ;ld e,a
+        ;OS_SETCOLOR
+drawfilecursor_sizeb0
+        push bc
+        push de
+        push hl ;color
+        OS_SETXY
+        pop de ;color
+        push de ;color
+        OS_PRATTR
+        pop hl ;color
+        pop de
+        pop bc
+        inc e ;x
+        djnz drawfilecursor_sizeb0
+        ret
+       endif
 
         if 1==0
 nv_openfcb
@@ -887,9 +941,15 @@ prbeginstroka
 
 tmidstroka
 	db 0xba;'³'
+       if PRSTDIO
         db 0x1b,"[25C"
 	db 0xb3;'³'
         db 0x1b,"[12C"
+       else
+        ds 25,' '
+	db 0xb3;'³'
+        ds 12,' '
+       endif
 	db 0xba;'³'
 tmidstroka_sz=$-tmidstroka
         if 1==0
@@ -935,7 +995,7 @@ prcrlf
 tcrlf
         db 0x0d,0x0a
 
-        if 1==0
+        if PRSTDIO==0
 nv_copyscreen0to1
 	OS_GETMAINPAGES
 	push hl
@@ -1025,4 +1085,48 @@ nv_copyscreen1to0
 	ld a,h
 	SETPG32KLOW
 	ret
+        
+;sendchar
+;        PRCHAR
+;        ret
+        
+sendchars
+;de=buf, hl=size, c=x
+;out: A=error, c=x
+sendchars0
+        push bc
+        push de
+        push hl
+        ld a,(de)
+        PRCHAR
+        pop hl
+        pop de
+        pop bc
+        inc de
+        inc c ;x
+        dec l
+        jr nz,sendchars0
+        xor a ;no error
+        ret
+        
+clearrestofline
+;c=x
+clearrestofline0
+        push bc
+        ld a,' '
+        PRCHAR
+        pop bc
+        inc c
+        ld a,c
+        cp 80
+        jr nz,clearrestofline0
+        ret
+        
+clearrestofline_crlf
+        call clearrestofline
+        ld a,0x0d
+        PRCHAR
+        ld a,0x0a
+        PRCHAR
+        ret
         endif

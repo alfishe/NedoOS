@@ -17,13 +17,21 @@ editline_curx=$+1
         ld a,0
         add a,e
         ld e,a
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
 	;OS_GETATTR
         ; ld e,a
 	; push de ;color under cursor
         ;ld e,CURSORCOLOR;#38
         ;OS_PRATTR ;draw cursor
-        call yieldgetkeyloop ;YIELDGETKEYLOOP
+       if PRSTDIO
+        call yieldgetkeyloop
+       else
+        YIELDGETKEYLOOP
+       endif
 	; pop de ;d=color under file cursor
         ;push af
         ;OS_PRATTR ;remove cursor
@@ -103,7 +111,11 @@ editline_right
 editline_pr
 editline_xy=$+1
         ld de,0
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
 editline_text=$+1
         ld hl,0
         ld c,0 
@@ -116,7 +128,11 @@ editline_maxsz=$+1
         ret z
         push bc
         ld a,' '
+       if PRSTDIO
         PRCHAR_
+       else
+        PRCHAR
+       endif
         pop bc
         inc c
         jp editline_prspc0

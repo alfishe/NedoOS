@@ -4,8 +4,13 @@ hexeditor_WID=80
 hexeditor_MAXX=15
 hexeditor_PAGESIZE=16*hexeditor_HGT
 
+       if PRSTDIO
 _hexeditor_CURSORCOLOR=0x0700;0x38
 _hexeditor_COLOR=0x0007;7
+       else
+_hexeditor_CURSORCOLOR=0x38
+_hexeditor_COLOR=7
+       endif
 
 hexeditor_redrawloop
         ;YIELDGETKEYLOOP
@@ -20,7 +25,11 @@ hexeditor_mainloop
         ;ld b,1
         ;call drawfilecursor_sizeb_colorhl
         ;ld de,24*256+79
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
 ;hexeditor_yieldkeep
         ld a,2
 hexeditor_yieldkeep
@@ -29,14 +38,20 @@ hexeditor_yieldkeep
         ld a,55+128 ;"or a"
         ld (hexeditor_wasyield),a
 hexeditor_mainloop_nokey
-        GETKEY_ ;OS_GETKEYNOLANG
-        ;ld a,c ;keynolang
+       if PRSTDIO
+        GETKEY_
+       else
+        GET_KEY
+        ld a,c ;keynolang
         ;cp NOKEY
-         ;or a
+         or a
+       endif
         jr nz,hexeditor_keyq
+       if PRSTDIO
        ld a,(stdindatacount)
        or a
        jr nz,hexeditor_mainloop;_nokey
+       endif
 ;если два раза подряд нет события, то рисуем панельку и делаем YIELD, иначе YIELDKEEP
 hexeditor_wasnokey=$+1
         ld a,1
@@ -267,7 +282,11 @@ hexeditor_prpage0
         push de
         push af
         push hl
+       if PRSTDIO
         SETXY_
+       else
+        OS_SETXY
+       endif
         pop hl
         pop af
         call hexeditor_prline
@@ -517,9 +536,15 @@ hexeditor_up
 hexeditor_up_scroll        
         ld de,hexeditor_XYTOP
         ld hl,256*hexeditor_HGT + hexeditor_WID
-        call scrolldown ;OS_SCROLLDOWN
+       if PRSTDIO
+        call scrolldown
         ld de,hexeditor_XYTOP
         SETXY_
+       else
+        OS_SCROLLDOWN
+        ld de,hexeditor_XYTOP
+        OS_SETXY
+       endif
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         call hexeditor_prevline
@@ -551,9 +576,15 @@ hexeditor_down_scroll
         ld (hexcuraddrx),a
         ld de,hexeditor_XYTOP
         ld hl,256*hexeditor_HGT + hexeditor_WID
-        call scrollup ;OS_SCROLLUP
+       if PRSTDIO
+        call scrollup
         ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
         SETXY_
+       else
+        OS_SCROLLUP
+        ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
+        OS_SETXY
+       endif
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         ld bc,16
