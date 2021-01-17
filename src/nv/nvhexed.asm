@@ -21,14 +21,14 @@ hexeditor_mainloop
         ld b,2
         call drawfilecursor_sizeb_colorhl
         call hexeditor_calctextcursorxy
-        ;ld hl,_hexeditor_CURSORCOLOR
-        ;ld b,1
-        ;call drawfilecursor_sizeb_colorhl
-        ;ld de,24*256+79
        if PRSTDIO
         SETXY_
        else
         OS_SETXY
+        ld hl,_hexeditor_CURSORCOLOR
+        ld b,1
+        call drawfilecursor_sizeb_colorhl
+        ;ld de,24*256+79
        endif
 ;hexeditor_yieldkeep
         ld a,2
@@ -78,10 +78,12 @@ hexeditor_keyq
         ld hl,_hexeditor_COLOR
         ld b,2
         call drawfilecursor_sizeb_colorhl
-        ;call hexeditor_calctextcursorxy
-        ;ld hl,_hexeditor_COLOR
-        ;ld b,1
-        ;call drawfilecursor_sizeb_colorhl
+       if PRSTDIO == 0
+        call hexeditor_calctextcursorxy
+        ld hl,_hexeditor_COLOR
+        ld b,1
+        call drawfilecursor_sizeb_colorhl
+       endif
 	pop af
 	;pop de
 	;pop bc

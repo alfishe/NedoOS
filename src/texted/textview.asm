@@ -1199,9 +1199,9 @@ texted_prline_shift=$+1
         ld b,h
         ld c,l ;bc=bc-lineshift
         pop hl
-        ld a,texted_WID
-        jr c,texted_prlinespc
-        jr z,texted_prlinespc
+        ;ld a,texted_WID
+        jr c,texted_prlinespc_all
+        jr z,texted_prlinespc_all ;maxlinesize<=lineshift
 
         push hl
         ld hl,texted_WID

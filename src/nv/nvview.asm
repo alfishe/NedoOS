@@ -104,7 +104,7 @@ nvview_mainloop_nokey
         GETKEY_
        else
         GET_KEY
-        jr z,nvview_mainloop_nokeygo
+        ;jr z,nvview_mainloop_nokeygo
 ;есть событие (a=0: от мыши)
         ld a,c ;keynolang
         ;cp NOKEY
@@ -222,8 +222,7 @@ nvview_wrap
         call nvview_calclines
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
-        call nvview_calccurline
-        ret 
+        jp nvview_calccurline
         
 nvview_right
         ld a,(nvview_prline_shift)
@@ -780,7 +779,7 @@ nvview_nextline_cr
         cp 0x0a
         jr nz,nvview_nextline_lf
         inc hl
-nvview_nextline_lf
+nvview_nextline_lf=nvview_nextlineq
         jr nvview_nextlineq
         
 nvview_prline
@@ -806,9 +805,9 @@ nvview_prline_shift=$+1
         ld b,h
         ld c,l ;bc=bc-lineshift
         pop hl
-        ld a,NVVIEW_WID
-        jr c,nvview_prlinespc
-        jr z,nvview_prlinespc
+        ;ld a,NVVIEW_WID
+        jr c,nvview_prlinespc_all
+        jr z,nvview_prlinespc_all ;maxlinesize<=lineshift
 
         push hl
         ld hl,NVVIEW_WID
@@ -817,7 +816,7 @@ nvview_prline_shift=$+1
         pop hl
 ;b=number of chars to print != 0
         ld de,prlinebuf
-        ld c,NVVIEW_WID
+        ld c,0;NVVIEW_WID
 nvview_prline0
         ld a,(hl)
         inc hl
@@ -835,18 +834,20 @@ nvview_prline_recodepatch=$
         inc de
         pop hl
         ;pop bc
-        dec c
+        inc c;dec c
         djnz nvview_prline0
         ;call print_prlinebuf
         ;jr nz,nvview_prline_lf
         ;ret
 nvview_prline_cr
+;c=linesize [80-linesize]
         call print_prlinebuf
+;c=x
 ;nvview_prline_lf
 ;допечатать пробелы до конца строки
         jr nvview_prlinespc
 nvview_prlinespc_all
-        ld c,NVVIEW_WID
+        ld c,0;NVVIEW_WID
 nvview_prlinespc
         push af
         push hl
@@ -855,7 +856,11 @@ nvview_prlinespc
         ;ld de,tspaces
         ;call sendchars
          ld a,c
-         or a
+         ;or a
+         ;ld a,NVVIEW_WID
+         ;sub c
+         ;ld c,a
+         cp NVVIEW_WID
         call nz,clearrestofline_crlf
         pop hl
         pop af
@@ -865,12 +870,15 @@ print_prlinebuf
         push af
         push bc
         push hl
-;c=NVVIEW_WID-число символов
+;c=x [NVVIEW_WID-число символов]
         ld de,prlinebuf
-        ld a,NVVIEW_WID
-        sub c
-        ld l,a
+        ;ld a,NVVIEW_WID
+        ;sub c
+        ld l,c;a
         ld h,0
+        inc l
+        dec l
+         ld c,h
          call nz,sendchars
         pop hl
         pop bc

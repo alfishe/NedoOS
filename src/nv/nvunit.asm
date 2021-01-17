@@ -1109,6 +1109,13 @@ sendchars0
         xor a ;no error
         ret
         
+clearrestofline_crlf
+        ;call clearrestofline
+        ;ld a,0x0d
+        ;PRCHAR
+        ;ld a,0x0a
+        ;PRCHAR
+        ;ret
 clearrestofline
 ;c=x
 clearrestofline0
@@ -1122,11 +1129,4 @@ clearrestofline0
         jr nz,clearrestofline0
         ret
         
-clearrestofline_crlf
-        call clearrestofline
-        ld a,0x0d
-        PRCHAR
-        ld a,0x0a
-        PRCHAR
-        ret
         endif

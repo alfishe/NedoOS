@@ -708,9 +708,9 @@ nvview_prline_shift=$+1
         ld b,h
         ld c,l ;bc=bc-lineshift
         pop hl
-        ld a,NVVIEW_WID
-        jr c,nvview_prlinespc
-        jr z,nvview_prlinespc
+        ;ld a,NVVIEW_WID
+        jr c,nvview_prlinespc_all
+        jr z,nvview_prlinespc_all ;maxlinesize<=lineshift
 
         push hl
         ld hl,NVVIEW_WID
