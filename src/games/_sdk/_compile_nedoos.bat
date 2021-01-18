@@ -54,7 +54,7 @@ makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\samp
 
 rem компилируем исходник на C
 
-sdcc -mz80 --xstack --code-loc 0x0006 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
+sdcc -mz80 --xstack --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
 
 if ERRORLEVEL 1 goto clean
 
@@ -72,8 +72,8 @@ if ERRORLEVEL 1 goto clean
 
 rem переходим во временную директорию
 
-echo -11----------------------------
-echo %CD%
+rem echo -11----------------------------
+rem echo %CD%
 cd %temp%
 
 rem пакуем файлы
@@ -94,8 +94,8 @@ rem собираем образ и делаем его моноблочным
 rem call createscl.bat
 
 cd ..
-echo -12----------------------------
-echo %CD%
+rem echo -12----------------------------
+rem echo %CD%
 
 rem copy %temp%\disk.scl %output% >nul
 rem ..\..\_sdk\monoscl %output%

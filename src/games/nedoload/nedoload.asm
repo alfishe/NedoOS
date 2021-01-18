@@ -205,6 +205,11 @@ begin
         ld de,fnbin
         OS_OPENHANDLE
         push bc
+         ld de,BINADDR ;addr
+         ld hl,0x4000 ;size
+         OS_READHANDLE
+         pop bc
+         push bc
         ld de,BINADDR ;addr
         ld hl,-BINADDR ;size
         OS_READHANDLE
@@ -250,6 +255,7 @@ loadloop_nextdigit0
         ld de,SUMMERPAL
         OS_SETPAL
 
+        if 1==0
         ;jr $
         ld c,10
         ld b,2
@@ -258,6 +264,7 @@ loadloop_nextdigit0
 ;координаты в тайлах
         call _draw_tile
         call _swap_screen
+        endif
 jpaddr=$+1
         jp 0
 mainloop
@@ -724,7 +731,7 @@ _time		dd 0
 res_path
         db "nedoload",0 ;в этом относительном пути будут лежать все загружаемые данные игры
 fnbin
-        db "code.bin",0
+        db "code0.bin",0
 fnaddr
         db "addr.bin",0
 end        
