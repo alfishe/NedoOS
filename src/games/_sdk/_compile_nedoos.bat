@@ -72,12 +72,15 @@ if ERRORLEVEL 1 goto clean
 
 rem переходим во временную директорию
 
+echo -11----------------------------
+echo %CD%
 cd %temp%
 
 rem пакуем файлы
 
 copy ..\..\_sdk\getsize.bat >nul
-call compress.bat
+rem kills PATH!!!
+rem call compress.bat
 
 rem собираем загрузчик
 
@@ -91,9 +94,11 @@ rem собираем образ и делаем его моноблочным
 rem call createscl.bat
 
 cd ..
+echo -12----------------------------
+echo %CD%
 
 rem copy %temp%\disk.scl %output% >nul
-rem ..\_sdk\monoscl %output%
+rem ..\..\_sdk\monoscl %output%
 
 set error=0
 

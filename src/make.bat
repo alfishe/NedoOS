@@ -83,6 +83,10 @@ if not "%1"=="noneedtrd" (
         del %releasedir%\bin\gfxtest.com > nul
         del %releasedir%\bin\setfont.com > nul
         del %releasedir%\bin\noise.com > nul
+        del %releasedir%\bin\tazres.bin > nul
+        del %releasedir%\bin\cardgame.com > nul
+        del %releasedir%\bin\yad.com > nul
+        del %releasedir%\bin\nvfast.com > nul
         rem del %releasedir%\bin\dmm.com > nul
         rem del %releasedir%\bin\cc.bat > nul
 	nedotrd test.trd -n
