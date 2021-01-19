@@ -4,7 +4,18 @@
         ld e,7
         OS_CLS
         ;если сделать SETGFX, то после введения терминалов появится лишний терминал под idle
-        
+        if atm==1
+        ld a,(0x0086)
+        inc a
+        jr nz,.valid_ers_version
+        ld hl,.ers_err_str
+        call prtext
+        di
+        halt
+.ers_err_str
+        defb "You need update ERS to version 0.58.12 or newer!\r\nhttp://zxevo.ru/zxevo.rom",0x00
+.valid_ers_version
+        endif
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
         push hl
@@ -64,11 +75,11 @@ spr_cat
 	defb %00111111, %11111100
 	defb %00001111, %11110000
 	defb %00000011, %11000000
-	defb %01110000, %00001110
-	defb %10001001, %10010000
-	defb %10001001, %10001110
-	defb %10001011, %11000001
-	defb %01110011, %11001110
+	defb %00000000, %00000000
+	defb %00000001, %10000000
+	defb %00000001, %10000000
+	defb %00000011, %11000000
+	defb %00000011, %11000000
 	defb %00000011, %11000000
 	defb %00000111, %11100000
 	defb %00001111, %11110000

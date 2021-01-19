@@ -169,8 +169,16 @@ begin
         ;LD A,0xaa;%10101010 ;640x200 mode
         ;LD A,0xae;%10101110 ;textmode
 		if atm==1
-			;выясним откуда запустились
 init_rst_buf=0x4000
+            ;проверим версию ers
+            ld d,0x00
+			rst 0x08
+			defb 0x4d,0x00
+            ld hl,-0x5812    ;ERS_MIN_VERSION 0.58.12
+            add hl,de
+            ld a,0xff
+            jr nc,.err_version
+			;выясним откуда запустились
 			ld hl,init_rst_buf
 			rst 0x08
 			defb 0x50,0x03
@@ -232,6 +240,7 @@ init_rst_buf=0x4000
 			jr nz,.l2
 .l3
 			ld a,d
+.err_version
 			ld (init_sysdrv_val),a
 init_sysdev_end
 			halt
@@ -299,6 +308,8 @@ init_sysdev_end
         ld de,0xc000+idle;COMMANDLINE;PROGSTART ;idle code
         ld bc,trdosfs_sz
         ldir
+        ld a,(init_sysdrv_val)  ;нужно для проверки версии ERS
+        ld (0xc000+idle+6),a    ;при неправильном ERS сисдир==0xff
 			ld a,0xc3
 			ld (0x5cc2),a
 			ld hl,ONERR;ddrv

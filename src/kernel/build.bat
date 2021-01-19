@@ -12,8 +12,8 @@ sjasmplus --nologo --msg=war hobeta.asm
 
 if "%currentdir%"=="" (
  copy /Y nedoos.$c "../../release/sd_boot.$c" > nul
- "../../tools/dmimg.exe" ../../us/hdd_nedo.vhd put nedoos.$c /osatm2hd.$c
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put nedoos.$c /sd_boot.$c
  rem pause
- if "%makeall%"=="" ..\..\us\emulatm2.bat
- rem if "%makeall%"=="" ..\..\us\emul.exe
+ rem if "%makeall%"=="" ..\..\us\emulatm2.bat
+ if "%makeall%"=="" ..\..\us\emul.exe
 )
