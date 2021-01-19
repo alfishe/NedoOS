@@ -5,7 +5,7 @@
         OS_CLS
         ;если сделать SETGFX, то после введения терминалов появится лишний терминал под idle
         if atm==1
-        ld a,(0x0086)
+        ld a,(0x0086) ;ok
         inc a
         jr nz,.valid_ers_version
         ld hl,.ers_err_str

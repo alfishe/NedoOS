@@ -65,11 +65,11 @@ if not "%1"=="noneedtrd" (
         rem del %releasedir%\bin\*.zip > nul
         rem del %releasedir%\bin\*.fm2 > nul
         md %releasedir%\br
-        del %releasedir%\bin\*.pas %releasedir%\br\
-        del %releasedir%\bin\*.inc %releasedir%\br\
-        del %releasedir%\bin\*.ccc %releasedir%\br\
-        del %releasedir%\bin\*.c %releasedir%\br\
-        del %releasedir%\bin\*.h %releasedir%\br\
+        move %releasedir%\bin\*.pas %releasedir%\br\
+        move %releasedir%\bin\*.inc %releasedir%\br\
+        move %releasedir%\bin\*.ccc %releasedir%\br\
+        move %releasedir%\bin\*.c %releasedir%\br\
+        move %releasedir%\bin\*.h %releasedir%\br\
         rem ren %releasedir%\bin\browser.com mowser.com
         move %releasedir%\bin\evsummer.com %releasedir%\br\
         move %releasedir%\bin\cardgame.com %releasedir%\br\
