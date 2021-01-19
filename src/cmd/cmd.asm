@@ -88,8 +88,9 @@ cmdmainloop
         call execcmd_maybepipes
         ;or a
         ;call nz,callcmd;strcpexec_tryrun ;запускает по фону
-        ld hl,cmdbuf
-        ld (hl),0
+        xor a
+        ld (cmdbuf),a
+        ld (curcmdscroll),a
         jp cmdmainloop
 
 execcmd_maybepipes
@@ -254,6 +255,8 @@ tpipename
 ;;;;;;;;;;;;;;;;;;
         
 editcmd_up
+        xor a
+        ld (curcmdscroll),a
         ld de,cmdbuf
         ld hl,oldcmd
         ld bc,MAXCMDSZ+1

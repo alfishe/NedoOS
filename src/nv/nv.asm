@@ -1360,8 +1360,9 @@ execcmd_error
 	call nv_copyscreen0to1
 	YIELDGETKEY ;key refresh
        endif
-        ld hl,cmdbuf
-        ld (hl),0
+        xor a
+        ld (cmdbuf),a
+        ld (curcmdscroll),a
         jp editcmd_reprintall_keepcursor
 
 editcmd_enter_run

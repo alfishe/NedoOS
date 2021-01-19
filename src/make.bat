@@ -61,34 +61,32 @@ IF "%softbuilded%"=="" (
 )
 
 if not "%1"=="noneedtrd" (
-        del %releasedir%\bin\forest.dat > nul
-        del %releasedir%\bin\*.zip > nul
-        del %releasedir%\bin\*.fm2 > nul
-        del %releasedir%\bin\*.pas > nul
-        del %releasedir%\bin\*.inc > nul
-        del %releasedir%\bin\*.ccc > nul
-        del %releasedir%\bin\*.c > nul
-        del %releasedir%\bin\*.h > nul
+        rem del %releasedir%\bin\forest.dat > nul
+        rem del %releasedir%\bin\*.zip > nul
+        rem del %releasedir%\bin\*.fm2 > nul
         md %releasedir%\br
-        ren %releasedir%\bin\browser.com mowser.com
+        del %releasedir%\bin\*.pas %releasedir%\br\
+        del %releasedir%\bin\*.inc %releasedir%\br\
+        del %releasedir%\bin\*.ccc %releasedir%\br\
+        del %releasedir%\bin\*.c %releasedir%\br\
+        del %releasedir%\bin\*.h %releasedir%\br\
+        rem ren %releasedir%\bin\browser.com mowser.com
         move %releasedir%\bin\evsummer.com %releasedir%\br\
-        move %releasedir%\bin\br*.* %releasedir%\br\
-        ren %releasedir%\bin\mowser.com browser.com
-        del %releasedir%\bin\hello.com > nul
-        del %releasedir%\bin\reset.com > nul
-        del %releasedir%\bin\emptyapp.com > nul
-        del %releasedir%\bin\mcdemo.mcs > nul
-        del %releasedir%\bin\turbo.msg > nul
-        del %releasedir%\bin\raytrace.com > nul
-        del %releasedir%\bin\gfxtest.com > nul
-        del %releasedir%\bin\setfont.com > nul
-        del %releasedir%\bin\noise.com > nul
-        del %releasedir%\bin\tazres.bin > nul
-        del %releasedir%\bin\cardgame.com > nul
-        del %releasedir%\bin\yad.com > nul
-        del %releasedir%\bin\nvfast.com > nul
-        rem del %releasedir%\bin\dmm.com > nul
-        rem del %releasedir%\bin\cc.bat > nul
+        move %releasedir%\bin\cardgame.com %releasedir%\br\
+        rem move %releasedir%\bin\br*.* %releasedir%\br\
+        rem ren %releasedir%\bin\mowser.com browser.com
+        move %releasedir%\bin\hello.com %releasedir%\br\
+        move %releasedir%\bin\reset.com %releasedir%\br\
+        move %releasedir%\bin\emptyapp.com %releasedir%\br\
+        move %releasedir%\bin\mcdemo.mcs %releasedir%\br\
+        move %releasedir%\bin\turbo.msg %releasedir%\br\
+        move %releasedir%\bin\raytrace.com %releasedir%\br\
+        move %releasedir%\bin\gfxtest.com %releasedir%\br\
+        move %releasedir%\bin\setfont.com %releasedir%\br\
+        move %releasedir%\bin\noise.com %releasedir%\br\
+        move %releasedir%\bin\tazres.bin %releasedir%\br\
+        move %releasedir%\bin\yad.com %releasedir%\br\
+        move %releasedir%\bin\nvfast.com %releasedir%\br\
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
 	nedotrd test.trd -s 24576 -ac kernel/code.c

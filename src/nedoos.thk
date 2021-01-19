@@ -2,14 +2,6 @@
 
 cd ../nedogame/ - wrong path
 
--texted: single line showed many times
--texted: backspace at CR after empty line was setting wrong x
--texted,nvhexed: shows "changed" flag
-+texted: added default filename 1.txt
-+texted,nvview: shows filename
--nvview: code 0x1b could corrupt screen
-+nv: Esc (Break) shows old screen for nvfast (Demige), no annoying action in nv for stdio
-+term: hide mouse cursor if no activity
 
 TRDOSFS: пробелы и спецсимволы в именах
 term - скрыть мышь
