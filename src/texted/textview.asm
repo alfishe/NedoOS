@@ -180,7 +180,7 @@ texted_enter
         
 texted_save
 texted_filenameaddr=$+1
-        ld de,0;fcb_filename
+        ld de,defaultfilename
         OS_CREATEHANDLE
         or a
         ret nz
@@ -233,7 +233,8 @@ texted_save_popq
         pop af
         pop bc
         OS_CLOSEHANDLE
-        ret
+	call setunchanged
+        jp setpanelredrawflag
 
 cmd_savepage
 ;hl=size
@@ -324,13 +325,33 @@ texted_backspace_startline
         ;jr nz,texted_backspace_startline_onlycr
         call z,deletebyte ;0x0d
 texted_backspace_startline_onlycr
+;ahl=at deleted CR/LF
+;if not CR/LF before, go to "previous line" (after earlier CR/LF) and count difference
+;else x=0
+	 push af
+	 push hl
+        call prevbyte
+        call getbyte ;c
+	 pop hl
+	 pop af
+	 ld d,h
+	 ld e,l
+        ld b,a
+        ld a,c
+        cp 0x0d
+	jr z,texted_backspace_startline_setxshift_hlminusde
+        cp 0x0a
+	jr z,texted_backspace_startline_setxshift_hlminusde
+        ld a,b
+
         ;push af
         push hl
         call texted_prevline ;CY=error (impossible?)
         ex de,hl
         ;ld c,a
-        pop hl
+        pop hl ;hl=at deleted CR?,de=prevline
         ;pop af
+texted_backspace_startline_setxshift_hlminusde
         or a
         sbc hl,de
         ;sbc a,c
@@ -528,17 +549,18 @@ texted_left
 texted_prcurline
         ld a,55+0x80 ;or a
         ld (texted_lineredrawflag),a
-        ;TODO
         ld de,(curxy)
         ld e,0
         push de
 	call nv_setxy
         pop de
+;print lines until CR or EOF
         ld hl,(curlineaddr)
         ld a,(curlineaddrHSB)
 texted_prcurline_continue0
         push de
         call texted_prline_nextline
+        call c,getsize
         call iseof
         pop de
         ret z
@@ -598,11 +620,6 @@ texted_end0
         djnz texted_end0
 ;ahl=curtextline (kept)
         call texted_calccurline
-        ;push hl
-        ;ld hl,(texted_ncurline)
-        ;jr $
-        ;pop hl
-
         jp texted_pgdown_bottom
 
 
@@ -879,6 +896,7 @@ texted_panel
         ld hl,twin
         call prtext
         
+fchanged=$+1
         ld a,' '
         PRCHAR_
         call calccurlinex
@@ -906,25 +924,20 @@ texted_ncurline=$+1
         exx
         ;ld hl,(fcb+FCB_FSIZE)
         call prdword
-        ld de,tspaces
-        ld hl,42;43
+        ld de,tspaces_filename
+        ld hl,TSPACES_FILENAME_SZ
         call sendchars
-;        ld b,43
-;texted_panel0
-;        ld a,' '
-;        push bc
-;        PRCHAR_ ;TODO speedup
-;        pop bc
-;        djnz texted_panel0
         ;ld de,_texted_PANELCOLOR;#38
         ;OS_PRATTR
         ld de,_COLOR
         SETCOLOR_
         
         ret
-        
-tspaces
-        ds 80,' '
+
+tspaces_filename
+	db ' '
+tshown_filename
+        ds TSPACES_FILENAME_SZ,' '
         
 twin
         db "WIN",0
@@ -1131,7 +1144,7 @@ texted_prline_nextline
         pop hl
         pop af
 texted_nextline
-;if eof, returns eof addr
+;if eof, returns CY and old addr (use call c,getsize) [eof addr]
 ;ahl=addr
 ;line < 16K
 ;out: ahl, CY=error (keeps de)
@@ -1357,6 +1370,15 @@ istherecr_or_lf_popafZret
 ;        ld de,fcb
 ;        OS_FCLOSE
 ;        ret
+
+setunchanged
+	ld a,' '
+	jr setchanged_a
+setchanged
+	ld a,'*'
+setchanged_a
+	ld (fchanged),a
+	ret
 
 iswrapon
 ;CY = on

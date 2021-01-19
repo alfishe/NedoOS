@@ -1,9 +1,9 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
-;text=#4000
 _COLOR=0x0007;7
-        
+TSPACES_FILENAME_SZ=41
+
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
@@ -80,9 +80,26 @@ nvview_load0
         ;ld hl,text
         ;call prtext
 noautoload
+        ld hl,(texted_filenameaddr)
+	ld de,tshown_filename
+;copy hl->de no more than TSPACES_FILENAME_SZ bytes
+	ld b,TSPACES_FILENAME_SZ
+	call strcopy_maxb
 
         call textview
         QUIT
+
+strcopy_maxb
+;copy hl->de no more than b bytes
+strcopy_maxb0
+	ld a,(hl)
+	or a
+	ret z
+	ld (de),a
+	inc hl
+	inc de
+	djnz strcopy_maxb0
+	ret
 
 ;out: hl=after terminator
         if 1==1
@@ -175,12 +192,8 @@ filesize
 filesizeHSW
         dw 0
 
-;oldtimer
-;        dw 0
-        
-;fcb
-;        ds FCB_sz
-;fcb_filename=fcb+FCB_FNAME        ;по умолчанию там длина 0
+defaultfilename
+	db "1.txt",0
         
 cmd_end
 

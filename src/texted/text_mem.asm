@@ -9,6 +9,7 @@ insertbyte
         push af
         push hl
         call incfilesize ;before! because we can access new page
+	 call setchanged
         pop hl
         pop af
          pop de ;e=symbol
@@ -49,6 +50,7 @@ deletebyte_pg0
           push af
           push hl
         call ahl_to_pgaddr_pgsizeafter ;hl=phys addr, bc=block size after hl (may be 0!) (keeps de)
+	 call setchanged
 ;hl=byte addr to delete
 ;bc=size from hl to end
         push bc

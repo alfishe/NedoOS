@@ -58,7 +58,11 @@ nnvcmds=$-tnvcmds
         dw editcmd_ss2
         dw editcmd_ss1
         dw editcmd_tab
-        dw editcmd_quit
+       if PRSTDIO
+        dw reter;editcmd_quit
+       else
+        dw editcmd_showscr
+       endif
         dw editcmd_up
         dw editcmd_down
         dw editcmd_right

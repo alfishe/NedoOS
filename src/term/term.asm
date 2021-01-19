@@ -117,11 +117,17 @@ wasnokey=$+1
          ld (wascursorcuraddr),hl        
         call getmousexy
         ld (mousecursor_wasxy),de
+mousetimeout=$+1
+	ld a,1
+	dec a
+	jr z,noshowmouse
+	ld (mousetimeout),a
         call BDOS_countattraddr_mousecursor
         ld a,(hl)
         cpl
         ld (hl),a
          ;ld (hl),CURSORCOLOR
+noshowmouse
 
         YIELD
         ld a,(pgscrbuf) ;ok
@@ -264,9 +270,11 @@ oldmousebuttons=$+1
         ld (oldmousebuttons),a
         xor h
         and 7
-        jr nz,sendmouseevent
-        jp mainloop_afternokey
+        ;jr nz,sendmouseevent
+        jp z,mainloop_afternokey
 sendmouseevent
+	 ld a,50
+	 ld (mousetimeout),a
         ld a,l
         cpl
         and 7

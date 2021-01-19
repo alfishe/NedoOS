@@ -5,6 +5,8 @@ HEAPSORT_LH=1 ;byte order in poiters: LSB,HSB
 
 MAXCMDSZ=COMMANDLINE_sz-1-4 ;not counting terminator (-4 for "cmd ")
 
+TSPACES_FILENAME_SZ=43
+
         if PRSTDIO
 _COLOR=0x0007;0x07
 _PANELCOLOR=0x040f;0x4f
@@ -1322,6 +1324,10 @@ loadandrun_waitpid
         CLS_
         ld de,0
         SETXY_
+       else
+	call nv_copyscreen1to0
+        ld e,-1
+        OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
        endif
         ld ix,leftpanel
 	call strdelpages
@@ -1348,6 +1354,12 @@ execcmd_waitfocus0
        endif
 execcmd_error
         call assignpages
+       if PRSTDIO == 0
+        ld e,6 ;textmode
+        OS_SETGFX ;take focus (can be random after closing cmd)
+	call nv_copyscreen0to1
+	YIELDGETKEY ;key refresh
+       endif
         ld hl,cmdbuf
         ld (hl),0
         jp editcmd_reprintall_keepcursor
@@ -2101,6 +2113,7 @@ strcopy0
         jp nz,strcopy0
         ret
 
+;TODO change this to strcopy_maxb
 nv_makefilepath_hltode ;DE=dest HL=src BC=filename
         push bc
 	call strcopy;nv_strcopy_hltode
@@ -2122,6 +2135,7 @@ nv_addslash0
 	ld l,c
 	jp strcopy;nv_strcopy_hltode
 
+;TODO remove this
 nv_fillpathspaces_hl
 	ld b,0
 nv_fillpathspaces_hl0
@@ -2146,6 +2160,26 @@ nv_fillpathspaces_hl1
 	cp 64
 	jr c,nv_fillpathspaces_hl1
 	ret
+
+strcopy_maxb
+;copy hl->de no more than b bytes, add spaces after
+strcopy_maxb0
+	ld a,(hl)
+	or a
+	jr z,strcopy_maxb_fill
+	ld (de),a
+	inc hl
+	inc de
+	djnz strcopy_maxb0
+	ret
+strcopy_maxb_fill
+	ld a,' '
+strcopy_maxb_fill0
+	ld (de),a
+	inc de
+	djnz strcopy_maxb_fill0
+	ret
+
 
 nv_copydir_add;=nv_batch_pushrecord
 ;	jp nv_batch_pushrecord
@@ -2553,7 +2587,18 @@ _DIV0.
 	rla
 	cpl
 	ld h,a
+reter
         ret
+
+       if PRSTDIO == 0
+editcmd_showscr
+	call nv_copyscreen1to0
+	YIELDGETKEYLOOP
+	xor a
+	ld (leftpanel+PANEL.drawtableunneeded),a
+	ld (rightpanel+PANEL.drawtableunneeded),a
+	jp editcmd_reprintall_keepcursor
+       endif
 
 editcmd_0
         call ifcmdnonempty_typedigit

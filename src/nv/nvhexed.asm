@@ -60,11 +60,13 @@ hexeditor_wasnokey=$+1
 ;рисовать панельку только при отсутствии события после YIELD
 hexeditor_wasyield=$
         scf
-        ;jr nc,hexeditor_nopanel
-        ;call hexeditor_panel
-        ;call hexeditor_calctextcursorxy
-        ;SETXY_
-;hexeditor_nopanel
+        jr nc,hexeditor_nopanel
+        call hexeditor_panel
+       if PRSTDIO
+        call hexeditor_calctextcursorxy
+        SETXY_
+       endif
+hexeditor_nopanel
 	YIELD
         ld a,55 ;"scf"
         ld (hexeditor_wasyield),a
@@ -168,10 +170,11 @@ hexeditor_symbol_rightq
         ld a,(hl)
         xor 0x80
         ld (hl),a
-        call nvhex_calccuraddrline ;addr cur line
+	call setchanged
+        call nvhex_calccuraddrline ;ahl=addr cur line
         ld de,(hexcuraddrxy)
         ld e,0 
-        call nv_setxy
+        call nv_setxy ;keep ahl!!!
         jp hexeditor_prline
 
 hexeditor_save
@@ -224,6 +227,7 @@ hexeditor_save0
         jr hexeditor_save0
 hexeditor_save_popq
         call nv_closehandle
+	call setunchanged
         pop af
         ret
 
@@ -269,10 +273,10 @@ hexeditor_calctextcursorxy
         ld a,e
         add a,57
         ld e,a
-        ;ret ;no ret because panel is empty
+        ret ;no ret because panel is empty
 
-hexeditor_panel
-        ret
+hexeditor_panel=nvview_panel
+        ;ret
 
 hexeditor_prpage
         ld hl,(hexaddrline)

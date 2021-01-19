@@ -77,6 +77,13 @@ nvview_load0q
         ld (filesizeHSW),hl
         call nv_closehandle
 
+	call setunchanged
+
+	ld hl,filenametext
+	ld de,tshown_filename
+	ld b,TSPACES_FILENAME_SZ
+	call strcopy_maxb
+
         xor a
         ld h,a
         ld l,a
@@ -476,6 +483,7 @@ nvview_panel
          ld c,0
         call prtext
         
+fchanged=$+1
         ld a,' '
        if PRSTDIO
         PRCHAR_
@@ -510,15 +518,8 @@ nvview_ncurline=$+1
         exx
         ld hl,(filesize)
         call prdword
-;        ld b,43
-;nvview_panel0
-;        ld a,' '
-;        push bc
-;        PRCHAR_
-;        pop bc
-;        djnz nvview_panel0
-        ld de,tspaces
-        ld hl,43
+        ld de,tspaces_filename
+        ld hl,TSPACES_FILENAME_SZ
         call sendchars
         ;ld e,NVVIEW_PANELCOLOR;#38
         ;OS_PRATTR
@@ -529,6 +530,11 @@ nvview_ncurline=$+1
         call nv_setcolor
        endif
         ret
+        
+tspaces_filename
+	db ' '
+tshown_filename
+        ds TSPACES_FILENAME_SZ,' '
         
 twin
         db "WIN",0
@@ -830,6 +836,11 @@ nvview_prline0
         ld l,a
 nvview_prline_recodepatch=$
         nop ;/ld a,(hl)
+       if PRSTDIO
+	cp 0x1b
+	jr nz,$+3
+	xor a ;can't print 0x1b!
+       endif
         ld (de),a ;PRCHAR_
         inc de
         pop hl
@@ -971,6 +982,15 @@ popafZret
 ;        ld de,fcb
 ;        OS_FCLOSE
 ;        ret
+
+setunchanged
+	ld a,' '
+	jr setchanged_a
+setchanged
+	ld a,'*'
+setchanged_a
+	ld (fchanged),a
+	ret
 
 iswrapon
 ;CY = on
