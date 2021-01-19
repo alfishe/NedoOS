@@ -1,1 +1,1 @@
-emul.exe -i atm2.ini
+start emul.exe -i atm2.ini
