@@ -7,6 +7,8 @@
         CALL Z,RDBYH
        ENDM 
 
+ramdisk=1 ;support 2-byte links
+
 INITIALMEMPAGES=24;32;6
 
 STACK=0x4000
@@ -175,9 +177,9 @@ PTABL
 OUTpgTEXT
         LD A,pgTEXT;16 ;TODO
 OUTME
-       ;IF ramdisk
-       ; LD (BYTEPG),A
-       ;ENDIF 
+       IF ramdisk
+        LD (BYTEPG),A
+       ENDIF 
 OUTNO
         PUSH BC
        LD b,PTABL/256
@@ -443,7 +445,8 @@ BYTEsv
         CALL BYTEsPP
         POP BC
         EXX 
-       IF 0;ramdisk
+       IF ramdisk
+OUTBYTEPG
 BYTEPG=$+1
         LD A,0
         JP OUTME
