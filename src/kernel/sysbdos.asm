@@ -1266,7 +1266,7 @@ BDOS_setgfx_nokeep
         pop de
         or a
         sbc hl,de
-        jr z,BDOS_setgfx_nopushfocus
+        jr z,BDOS_setgfx_nopushfocus ;not in focus
         ;jr $
         add hl,de
         push de;iy
@@ -1293,9 +1293,9 @@ BDOS_setgfx_gfxoff
         call BDOS_gfxoff_givefocus ;spoils iy!
         pop de
         ret
-disablescreeninapp_setc000
-        call setmainpg_c000
-disablescreeninapp
+;disablescreeninapp_setc000
+        ;call setmainpg_c000
+disablescreeninapp ;used in sys_newapp
         ld a,pgkillable
         ld (0xc000+user_scr0_low),a
         ld (0xc000+user_scr0_high),a
@@ -1317,6 +1317,13 @@ enablescreeninapp_setc000
         ld e,pgscr1_1
         ld a,(iy+app.scr1high)
         call copypage_a_to_e
+        call setmainpg_c000
+        ld de,curpg16k+0xc000
+        call enablescrpg
+        ld  e,0xff&(curpg32klow+0xc000)
+        call enablescrpg
+        ld  e,0xff&(curpg32khigh+0xc000)
+        call enablescrpg
 enablescreeninapp_nokeep
         call setmainpg_c000
         ld a,pgscr0_0

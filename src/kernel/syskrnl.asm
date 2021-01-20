@@ -639,8 +639,25 @@ disablescrpgs_setc000
         ld a,pgscr1_1
         ld e,(iy+app.scr1high)
         call copypage_a_to_e
+        call setmainpg_c000
+        if 1==0
+        ds 6*4
+        else
+       display "===",$
+        ld a,(iy+app.scr0low)
+        ld (0xc000+user_scr0_low),a
+        ld a,(iy+app.scr0high)
+        ld (0xc000+user_scr0_high),a
+        ld a,(iy+app.scr1low)
+        ld (0xc000+user_scr1_low),a
+        ld a,(iy+app.scr1high)
+        ld (0xc000+user_scr1_high),a
+        endif
+        jr disablescrpgs_keepok
 disablescrpgs_nokeep
-        call disablescreeninapp_setc000
+        call setmainpg_c000
+        call disablescreeninapp ;set user_scr0_low etc to pgkillable
+disablescrpgs_keepok
         ld de,curpg16k+0xc000
         call disablescrpg
         ld  e,0xff&(curpg32klow+0xc000)
@@ -650,11 +667,44 @@ disablescrpgs_nokeep
 disablescrpg
 ;de=page keeping addr
         ld a,(de)
-        or 7&(pgscr0_0|pgscr0_1|pgscr1_0|pgscr1_1)
+        ;or 7&(pgscr0_0|pgscr0_1|pgscr1_0|pgscr1_1)
+        ;cp pgscr0_0
+        ;ret nz;jr z,disablescrpg_ok
+;disablescrpg_ok
+        ;ld a,pgkillable
+        ld c,(iy+app.scr0low)
         cp pgscr0_0
+        jr z,disablescrpg_ok
+        ld c,(iy+app.scr0high)
+        cp pgscr0_1
+        jr z,disablescrpg_ok
+        ld c,(iy+app.scr1low)
+        cp pgscr1_0
+        jr z,disablescrpg_ok
+        ld c,(iy+app.scr1high)
+        cp pgscr1_1
         ret nz;jr z,disablescrpg_ok
-disablescrpg_ok        
-        ld a,pgkillable
+disablescrpg_ok
+        ld a,c
+        ld (de),a
+        ret
+enablescrpg
+;de=page keeping addr
+        ld a,(de)
+        cp (iy+app.scr0low)
+        ld c,pgscr0_0
+        jr z,disablescrpg_ok
+        cp (iy+app.scr0high)
+        ld c,pgscr0_1
+        jr z,disablescrpg_ok
+        cp (iy+app.scr1low)
+        ld c,pgscr1_0
+        jr z,disablescrpg_ok
+        cp (iy+app.scr1high)
+        ld c,pgscr1_1
+        ret nz;jr z,enablescrpg_ok
+enablescrpg_ok
+        ld a,c
         ld (de),a
         ret
 

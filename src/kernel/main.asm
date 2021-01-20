@@ -347,15 +347,16 @@ init_sysdev_end
         ld a,pgfatfs
         call INIT_setpg_c000
         
-;перебрасываем 16K упакованный блок в 0xc000
-        ld hl,wassys+0x3fff
+        ;jr $
+;перебрасываем 16K упакованный блок в 0xb000
+        ld hl,wassys+0x4fff
         ld de,0xffff
-        ld bc,0x4000
+        ld bc,0x5000
         lddr
 ;распаковываем в 0x6400
-        ld hl,0xc000;wassys
+        ld hl,0xb000;wassys
         ld de,0x6400;0x8000
-        call DEC40 ;распаковываем в 0x8000 (там уже включены системные странички)
+        call DEC40 ;распаковываем в de (там уже включены системные странички)
 ;перебрасываем 32K из 0x6400 в 0x8000
         ld hl,0x6400+0x7fff
         ld de,0x8000+0x7fff
