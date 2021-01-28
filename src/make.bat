@@ -63,8 +63,8 @@ IF "%softbuilded%"=="" (
 if not "%1"=="noneedtrd" (
         rem del %releasedir%\bin\forest.dat > nul
         rem del %releasedir%\bin\*.zip > nul
-        rem del %releasedir%\bin\*.fm2 > nul
         md %releasedir%\br
+        move %releasedir%\bin\*.fm2 %releasedir%\br\
         move %releasedir%\bin\*.pas %releasedir%\br\
         move %releasedir%\bin\*.inc %releasedir%\br\
         move %releasedir%\bin\*.ccc %releasedir%\br\
