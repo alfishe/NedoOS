@@ -173,6 +173,10 @@ nvview_mainloop_keyq
         jp z,nvview_pgup
         cp key_pgdown
         jp z,nvview_pgdown
+         cp key_csenter
+         jp z,hexeditor_save
+         cp key_F2
+         jp z,hexeditor_save
         cp 's';csss
         jp z,nvview_changeencoding
         cp key_home
