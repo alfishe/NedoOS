@@ -5,7 +5,7 @@
   * GNU Make
   * GNU Sed
   * GNU Bash
-  * tools/aspp.sh
+  * tools/aspp
   * tools/sjasmplus
 
 Запустите `make` с указанием цели сборки.

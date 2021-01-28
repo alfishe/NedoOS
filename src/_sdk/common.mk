@@ -1,29 +1,49 @@
+# common.mk - common definitions for Makefiles.
+#
+# Supported environments:
+#   GNU/Linux
+#   Microsoft Windows (partly)
+#
+# Tools used:
+#   GNU core utilities
+#   tools/aspp
+#   tools/sjasmplus
+#   tools/dmimg
+#
+# Variables used:
+#   WINTOP - project's base path
+#   WINSDK - project's SDK path
+#   INSTALLDIR - installation path
+#   DEPAS - "tools/aspp" name
+#   DEPAFLAGS - flags for ${DEPAS}
+#   DEPEXT - dependency file's extension (no leading dot)
+#   SJASMPLUS - "tools/sjasmplus" name
+#   SJASMPLUSFLAGS - flags for ${SJASMPLUS}
+#   DMIMG - "tools/dmimg" name
 
-SJASMPLUSFLAGS	= --nologo --msg=war
+WINTOP 		:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))../../../))
+WINSDK		:= $(dir $(WINTOP)src/_sdk/)
+INSTALLDIR	:= $(dir $(WINTOP)release/)
 BIN_INSTALLDIR	= $(INSTALLDIR)/bin
 RES_INSTALLDIR	= $(INSTALLDIR)/bin
 DOC_INSTALLDIR	= $(INSTALLDIR)/doc
-WINTOP 			:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))../../../))
-INSTALLDIR		:= $(dir $(WINTOP)release/)
-EMULIMG			= $(WINTOP)us/sd_nedo.vhd
-SJASMPLUS		= $(WINTOP)tools/sjasmplus
-DMIMG			= $(WINTOP)tools/dmimg
+DEPAS		= $(WINTOP)tools/aspp
+DEPAFLAGS	= -E -MM -I . -I $(WINSDK)
+DEPEXT		= d
+SJASMPLUS	= $(WINTOP)tools/sjasmplus
+SJASMPLUSFLAGS	= --nologo --msg=war
+DMIMG		= $(WINTOP)tools/dmimg
+EMULIMG		= $(WINTOP)us/sd_nedo.vhd
 
 ifeq ($(OS),Windows_NT)
-	WINSDK := $(dir $(WINTOP)src/_sdk/)
 	ISWIN = 1
-	ASPP = "../../tools/parsasm.bat"
-	DEPAS = ${ASPP}
-	DEPAFLAGS	= -E -MM -I $(WINSDK)
+#	DEPAS = "$(WINTOP)tools/parsasm.bat"
 	RM = @del /Q
 	COPY = @copy /Y
 	MKDIR = @mkdir
 	MOVE = @move
 	IMGUNPACK = $(WINTOP)tools/images.exe
 else
-	ASPP = ../../tools/aspp.sh
-	DEPAS = env LC_CTYPE=C ${ASPP}
-	DEPAFLAGS	= -E -MM -I .
 	MKDIR = @mkdir -p
 	MOVE = @mv
 #	DEL = @rm -f
@@ -31,20 +51,8 @@ else
 #	BINEXT =
 endif
 
-# common.mk - common definitions for Makefiles.
-#
-# Supported environments:
-#   GNU/Linux.
-#
-# Tools used:
-#   GNU core utilities, tools/aspp.sh, tools/sjasmplus.
-#
-# Variables used:
-#   DEPAS - tools/aspp.sh name
-#   DEPAFLAGS - flags for ${DEPAS}
-#   DEPEXT - dependency file's extension (no leading dot)
-#   SJASMPLUS - tools/sjasmplus name
-#   SJASMPLUSFLAGS - flags for ${SJASMPLUS}
+# Clear lists
+DEPS=
 
 # sjasmplus_rule - rule to compile assembler source file using tools ${DEPAS} and ${SJASMPLUS}
 #
@@ -131,97 +139,3 @@ endef
 define copy_to_dir_rule =
 ${foreach f,${2},${eval ${call copy_file_rule,${1}/${notdir ${f}},${f},${3}}}}
 endef
-# All targets
-TARGETS=executables resources
-.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
-
-.DEFAULT_GOAL=all
-
-empty:
-	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
-	@echo 'where ACTION is one of: install clean'
-	@echo '      TARGET is one of: ${TARGETS}'
-
-# Clear lists
-DEPS=
-
-# Create directories
-${sort \
-${BIN_INSTALLDIR} \
-${RES_INSTALLDIR} \
-${DOC_INSTALLDIR} \
-}:
-	$(MKDIR) $@
-
-##########################
-## Target "executables" ##
-##########################
-
-EXEC_DEPS=
-EXEC_BINS=
-
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
-
-executables: ${EXEC_BINS}
-
-install-executables: executables | ${BIN_INSTALLDIR}
-	$(COPY) ${EXEC_BINS} "$|"
-
-clean-executables:
-	${RM} ${EXEC_DEPS} ${EXEC_BINS}
-
-$(EMULIMG): 
-	$(RM) b.bat *.vhd
-	$(IMGUNPACK)
-	$(MOVE) $(notdir $@) "$@"
-	$(RM) b.bat *.vhd
-
-DEPS+=${EXEC_DEPS}
-
-########################
-## Target "resources" ##
-########################
-
-resources: ${RESOURCES}
-
-install-resources: resources | ${RES_INSTALLDIR}
-ifneq "${sort ${RESOURCES}}" ""
-	$(COPY) ${RESOURCES} "$|"
-endif
-
-clean-resources:
-
-####################
-## Common targets ##
-####################
-
-all: executables resources
-
-install: install-executables install-resources
-
-ifeq "${sort ${DOCS}}" ""
-install-doc:
-else
-install-doc: ${DOCS} | ${DOC_INSTALLDIR}
-	$(COPY) $^ $|
-endif
-
-
-install-unreal: ${EMULIMG}
-
-clean: clean-executables clean-resources
-
-
-##################
-## Dependencies ##
-##################
-
-ifneq "${sort \
-${filter empty,${MAKECMDGOALS}} \
-${filter clean,${MAKECMDGOALS}} \
-${filter clean-%,${MAKECMDGOALS}} \
-}" ""
-else
-# FIXME: Triggered when multiple targets specified.
-include ${DEPS}
-endif

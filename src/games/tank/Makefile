@@ -2,7 +2,7 @@
 #   GNU/Linux.
 #
 # Tools used:
-#   GNU core utilities, tools/aspp.sh, tools/sjasmplus, _sdk/nedores.bin.
+#   GNU core utilities, tools/aspp, tools/sjasmplus, _sdk/nedores.bin.
 
 include ../../_sdk/common.mk
 
@@ -17,12 +17,6 @@ BIN_INSTALLDIR	= ${INSTALLDIR}
 RES_INSTALLDIR	= ${INSTALLDIR}
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 NEDORES		= ../../_sdk/nedores.bin
-ASPP		= ../../../tools/aspp.sh
-SJASMPLUS	= ../../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
-DEPAS		= env LC_CTYPE=C ${ASPP}
-DEPAFLAGS	= -E -MM -I .
-DEPEXT		= d
 
 # All targets
 TARGETS=executables resources

@@ -2,19 +2,13 @@
 #   GNU/Linux.
 #
 # Used tools:
-#   GNU core utilities, GNU sed, tools/aspp.sh, tools/sjasmplus.
+#   GNU core utilities, GNU sed, tools/aspp, tools/sjasmplus.
 
 include ../_sdk/common.mk
 
 NAME		= fatfs.raw
 #SOURCES		= ff_sj.asm
 EXPORTS_FILE	= ../kernel/ffsfunc.asm
-ASPP		= ../../tools/aspp.sh
-SJASMPLUS	= ../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
-DEPAS		= env LC_CTYPE=C ${ASPP}
-DEPAFLAGS	= -E -MM -I .
-DEPEXT		= d
 
 # All targets
 .PHONY: empty all install install-doc clean

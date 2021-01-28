@@ -21,11 +21,8 @@ NEDORES		= ${SDK_DIR}/nedores.bin
 NEDOPAD		= ${SDK_DIR}/nedopad.bin
 TOOLS_DIR	= ../tools
 MHMT		= ${TOOLS_DIR}/mhmt
-SJASMPLUS	= ${TOOLS_DIR}/sjasmplus
 DMIMG		= ${TOOLS_DIR}/dmimg
 TOOLS		= ${NEDOTRD} ${NEDORES} ${NEDOPAD} ${MHMT} ${SJASMPLUS} ${DMIMG}
-
-SJASMPLUSFLAGS	= --nologo --msg=war
 
 # All targets
 TARGETS=atm2 atm2hd atm3 atm3hd atm3sd evolution pe26

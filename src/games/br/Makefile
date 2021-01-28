@@ -2,7 +2,7 @@
 #   GNU/Linux.
 #
 # Tools used:
-#   GNU core utilities, tools/aspp.sh, tools/sjasmplus, _sdk/nedores.bin.
+#   GNU core utilities, tools/aspp, tools/sjasmplus, _sdk/nedores.bin.
 
 # TODO: Pack data files (author used `xlpz' tool).
 # TODO: Missing file "barkov/hellfire.scr", used in "levels/w~214.a80".
@@ -18,13 +18,7 @@ INSTALLDIR	?= ../../../release/nedogame
 BIN_INSTALLDIR	= ${INSTALLDIR}
 RES_INSTALLDIR	= ${INSTALLDIR}/br
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
-ASPP		= ../../../tools/aspp.sh
-SJASMPLUS	= ../../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
 NEDORES		= ../../_sdk/nedores.bin
-DEPAS		= env LC_CTYPE=C ${ASPP}
-DEPAFLAGS	= -E -MM -I .
-DEPEXT		= d
 
 # All targets
 TARGETS=executables flicks modules levels resources

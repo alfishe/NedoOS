@@ -2,7 +2,7 @@
 #   GNU/Linux.
 #
 # Tools used:
-#   GNU core utilities, tools/aspp.sh, tools/sjasmplus.
+#   GNU core utilities, tools/aspp, tools/sjasmplus.
 
 include ../_sdk/common.mk
 
@@ -15,12 +15,6 @@ INSTALLDIR	?= ../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
 RES_INSTALLDIR	= ${INSTALLDIR}/bin
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
-ASPP		= ../../tools/aspp.sh
-SJASMPLUS	= ../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war --syntax=m
-DEPAS		= env LC_CTYPE=C ${ASPP}
-DEPAFLAGS	= -E -MM -I .
-DEPEXT		= d
 
 # All targets
 TARGETS=executables resources

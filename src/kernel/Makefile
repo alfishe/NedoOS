@@ -2,20 +2,14 @@
 #   GNU/Linux.
 #
 # Used tools:
-#   GNU core utilities, tools/aspp.sh, tools/sjasmplus, tools/mhmt.
+#   GNU core utilities, tools/aspp, tools/sjasmplus, tools/mhmt.
 
 include ../_sdk/common.mk
 
 NAME		= code.c
 OBJECTS		=
 SOURCES		= main.asm
-ASPP		= ../../tools/aspp.sh
-SJASMPLUS	= ../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
 MHMT		= ../../tools/mhmt
-DEPAS		= env LC_CTYPE=C ${ASPP}
-DEPAFLAGS	= -E -MM -I .
-DEPEXT		= d
 DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
 # All targets

@@ -2,7 +2,7 @@
 #   GNU/Linux.
 #
 # Tools used:
-#   GNU core utilities, tools/aspp.sh, tools/sjasmplus.
+#   GNU core utilities, tools/aspp, tools/sjasmplus.
 
 include ../../_sdk/common.mk
 
@@ -17,12 +17,6 @@ INSTALLDIR	?= ../../../release/nedogame
 BIN_INSTALLDIR	= ${INSTALLDIR}
 RES_INSTALLDIR	= ${INSTALLDIR}/wolf3d
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
-ASPP		= ../../../tools/aspp.sh
-SJASMPLUS	= ../../../tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
-DEPAS		= env LC_CTYPE=C ${ASPP}
-DEPAFLAGS	= -E -MM -I .
-DEPEXT		= d
 
 # All targets
 TARGETS=executables resources

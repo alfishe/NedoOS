@@ -2,6 +2,8 @@
 #   GNU/Linux.
 
 srcdir		= src
+ASPP		= aspp
+ASPP_DIR	= ${srcdir}/aspp
 MHMT		= mhmt
 MHMT_DIR	= ${srcdir}/mhmt/linux
 SJASMPLUS	= sjasmplus
@@ -10,7 +12,7 @@ DMIMG		= dmimg
 DMIMG_DIR	= ${srcdir}/dmimg
 
 # All targets
-TARGETS=${MHMT} ${SJASMPLUS} ${DMIMG}
+TARGETS=${ASPP} ${MHMT} ${SJASMPLUS} ${DMIMG}
 .PHONY: empty ${foreach t,${TARGETS},clean-${t}} all clean
 
 .DEFAULT_GOAL=empty
@@ -18,6 +20,20 @@ TARGETS=${MHMT} ${SJASMPLUS} ${DMIMG}
 empty:
 	@echo 'Usage: make [ TARGET | clean-TARGET | all | clean ]'
 	@echo 'where TARGET is one of: ${TARGETS}'
+
+##########
+## aspp ##
+##########
+
+${ASPP}: ${ASPP_DIR}/build/release/linux/${ASPP} | ${ASPP_DIR}
+	cp $< $@
+
+${ASPP_DIR}/build/release/linux/${ASPP}: | ${ASPP_DIR}
+	${MAKE} -w -C $| all
+
+clean-${ASPP}:
+	${MAKE} -w -C ${ASPP_DIR} clean
+	${RM} ${ASPP}
 
 ##########
 ## mhmt ##

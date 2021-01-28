@@ -4,13 +4,13 @@
 #   GNU/Linux.
 #
 # Tools used:
-#   GNU core utilities, tools/aspp.sh, GCC (or similar tool to generate dependency information),
+#   GNU core utilities, tools/aspp, GCC (or similar tool to generate dependency information),
 #   Wine, IAR tools.
 #
 # Variables used:
 #   DEPCC - C preprocessor name (with GCC-compatible parameters)
 #   DEPCFLAGS - flags for ${DEPCC}
-#   DEPAS - tools/aspp.sh name
+#   DEPAS - tools/aspp name
 #   DEPAFLAGS - flags for ${DEPAS}
 #   DEPEXT - dependency file extension (no leading dot)
 #   WINE - Wine's name with "cmd /c" command in parameters
