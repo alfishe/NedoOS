@@ -1,3 +1,0 @@
-﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(441,5): warning MSB8003: The WindowsSDKDir property is not defined. Some build tools may not be found.
-  evoresc.cpp
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\include\crtdefs.h(10,10): fatal error C1083: Не удается открыть файл включение: corecrt.h: No such file or directory,
