@@ -311,10 +311,10 @@ loadlevels0q
 
         YIELDGETKEYLOOP
         
-        ;jr $
         xor a
         call setpg
-        jp START;GO
+        ;call CheatMenu
+        jp START
 
 setpg
         push bc

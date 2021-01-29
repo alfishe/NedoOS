@@ -417,7 +417,8 @@ CONTLOP         LD A,(HL):INC HL:IN A,(254)
 NOSCF           RL C:DJNZ CONTLOP:LD A,C:LD (FUDLR),A:RET
 
 KEMPSTON        RRC C:RRC C:RRC C
-                LD A,1:IN A,(31):AND 31:OR C:LD (FUDLR),A
+                xor a:ds 3:LD A,1:IN A,(31)
+                AND 31:OR C:LD (FUDLR),A
                 RET
 
 PAUSE           LD BC,$F000:JP DELAYBC
