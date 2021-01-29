@@ -207,10 +207,10 @@ BDOS_preparedepage8000_c000
 BDOS_setdepage
 ;keep de,hl
 depagec000=$+1
-        ld a,0
+        ld a,pgkillable;0
         call sys_setpgc000
 depage8000=$+1
-        ld a,0
+        ld a,pgkillable;0
 sys_setpg8000
         ld (sys_curpg8000),a
         ld bc,memport8000
@@ -1128,7 +1128,7 @@ BDOS_delapppages
         ld a,(iy+app.id)
         ld b,sys_npages&0xff
 sys_quit_delpages0
-        cp (hl) ;страница снимаемой задачи
+        cp (hl) ;id==снимаемая задача?
         jr nz,$+4
         ld (hl),0 ;освободили страницу
         inc hl
@@ -1441,7 +1441,7 @@ BDOS_delpage
 ;не портит de
         ld a,e
         call addrpage
-        ld (hl),b ;0
+        ld (hl),b ;id=0, т.е. у этой страницы нет хозяина
         ret ;a=0
 
 addrpage
@@ -2647,7 +2647,7 @@ SYSDRV_VAL=$+1
         ld e,SYSDRV
          call BDOS_setdrv
          ld de,syspath
-         jp setpath
+         jp setpath ;NB! uses strcpy_usp2lib -> BDOS_setdepage without BDOS_preparedepage
 
 BDOS_preparereadwritesectors_FATFS
         sub vol_trdos ;получаем физический номер устройства (HDD master, HDD slave, SD...)
