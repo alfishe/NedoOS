@@ -129,6 +129,12 @@ sys_newapp_nokillcmdline
 
         ld (iy+app.border),b;0
 
+        ld a,pgkillable
+         ld (iy+app.scr0low),a;0
+         ld (iy+app.scr0high),a;0
+         ld (iy+app.scr1low),a;0
+         ld (iy+app.scr1high),a;0
+
         ;ld a,(iy+app.mainpg)
         ;ld (iy-safestack_sz+1),a
         ;ld a,(iy+app.screen)

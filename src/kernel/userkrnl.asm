@@ -79,15 +79,15 @@ init_resident
        ei ;interrupt will be enabled after the following command (31 t-states di:out:ei:out, normal INT len = 32 t)
         out (c),d ;may switch this code page
 curpg16k=$+1
-        ld a,0;pgmain4000
+        ld a,pgkillable;0;pgmain4000
         ld b,memport4000/256
         out (c),a
 curpg32klow=$+1
-        ld a,0;pgmain8000
+        ld a,pgkillable;0;pgmain8000
         ld b,memport8000/256
         out (c),a
 curpg32khigh=$+1
-        ld a,0;pgmainc000
+        ld a,pgkillable;0;pgmainc000
         ld b,memportc000/256
         out (c),a
         pop de
