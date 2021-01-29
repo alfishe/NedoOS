@@ -1,0 +1,83 @@
+#############################################################################
+#                                                                           #
+# Set of scripts for converting of English translation of the nedoos.txt in #
+# Markdown format to TXT, HTML or PDF/ConTeXt via pandoc.                   #
+#                                                                           #
+# Author: Martin 'BruXy' Bruchanov, bruchy at gmail dot com                 #
+#                                                                           #
+# Markdown: https://pandoc.org/MANUAL.html#pandocs-markdown                 #
+# ConTeXt:  https://wiki.contextgarden.net/Main_Page                        #
+#                                                                           #
+# Notes: Original MD file is in UTF-8, but it is also exported to TXT       #
+#        with given number of columns (TXT_WIDTH) in CP866.                 #
+#                                                                           #
+#        * pandoc and iconv are used for export to HTML, TXT, ConTeXt       #
+#        * context is only necessary for PDF format, the document style     #
+#          is defined in nedoos_en.ctex.                                    #
+#                                                                           #
+#############################################################################
+
+.PHONY: check_deps tex html pdf txt clean
+
+# Input in Markdown
+SRC = nedoos_en.md
+DEPS = check_deps Makefile # dependenties
+
+# Output formats
+PDF = $(SRC:.md=.pdf)
+HTML = $(SRC:.md=.html)
+TXT = $(SRC:.md=.txt)
+TXT_WIDTH = 64
+TEX_TEXT = $(SRC:.md=_text.ctex)
+
+# ConTeXt style
+TEX = $(SRC:.md=.ctex)
+
+# Create all formats
+all: $(PDF) $(HTML) $(TXT) $(DEPS)
+
+# Create PDF
+pdf: $(PDF) $(DEPS)
+
+$(PDF): $(TEX) $(TEX_TEXT)
+	context $(TEX)
+
+# Convert MD text into ConTeXt
+# This file is called from $(TEX) with style definition
+tex: $(TEX_TEXT) $(PDF)
+
+$(TEX_TEXT): $(SRC)
+	pandoc --from markdown --to context -o $(TEX_TEXT) $(SRC)
+	sed -i -e 's/ - /~-- /g' $(TEX_TEXT) # typography improvement
+
+# Convert MD text to HTML
+html: $(HTML)
+
+$(HTML): $(SRC) $(DEPS)
+	pandoc --from markdown --to html -o $(HTML) $(SRC)
+	sed -i -e 's/ - /\&nbsp;\&ndash; /g' $(HTML) # typography improvement
+
+# Convert MD text to plain text
+txt: $(TXT)
+
+$(TXT): $(SRC) $(DEPS)
+	pandoc --from markdown --columns=$(TXT_WIDTH) --to plain -o $(TXT) $(SRC)
+	iconv --from UTF-8 --to CP866//TRANSLIT $(TXT) -o $(TXT)
+
+# Check is prerequsities are installed
+check_deps:
+	@pandoc --version > /dev/null || \
+        { echo "Install 'pandoc' first!" 1>&2; exit 1; } && echo "OK: 'pandoc' found."
+	@context --version > /dev/null || \
+        { echo "Install 'context' first!" 1>&2; exit 1; } && echo "OK: 'context' found."
+	@iconv --version > /dev/null || \
+        { echo "Install 'iconv' for file enconding conversions"; exit 1; } && \
+        echo "OK: 'iconv' found."
+
+# Clean repository
+clean:
+	rm -f $(TEX_TEXT) $(SRC:.md=.log) $(SRC:.md=.tuc)
+
+veryclean:
+	rm -f $(HTML) $(TXT) $(PDF) $(SRC:.md=.log) $(SRC:.md=.tuc)
+

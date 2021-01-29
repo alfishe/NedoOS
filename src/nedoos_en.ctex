@@ -1,0 +1,38 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                             %
+% Author: Martin 'BruXy' Bruchanov, bruchy at gmail.com                       %
+%                                                                             %
+% Style definition for ConTeXt output.                                        %
+%                                                                             %
+% ConTeXt wiki: https://wiki.contextgarden.net/                               %
+%                                                                             %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\def\papersize{letter} % use 'letter'
+\def\papersize{A4}     % use 'A4'
+
+\setuppapersize[\papersize, portrait]
+\language[en]
+\setupbodyfont[dejavu]
+
+\setuppagenumbering[state=start]
+
+\definefont[SectionFont][SansBold sa 1.5]
+\definefont[SubsectionFont][SansBold sa 1.2]
+
+\define[1]\Numbering{{#1}.}
+
+\setuphead[section][
+    style=\SectionFont,
+    numbercommand=\Numbering,
+]
+
+\setuphead[subsection][
+    style=\SubsectionFont,
+    numbercommand=\Numbering,
+]
+
+\starttext
+    \input nedoos_en_text.ctex
+\stoptext
+
