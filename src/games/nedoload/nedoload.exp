@@ -1,9 +1,9 @@
-_pal_select: EQU 0x00000441
-_pal_copy: EQU 0x00000470
-_pal_bright: EQU 0x00000456
-_swap_screen: EQU 0x00000401
-_clear_screen: EQU 0x000003E0
-_fast_ldir: EQU 0x0000048C
+_pal_select: EQU 0x00000478
+_pal_copy: EQU 0x000004A7
+_pal_bright: EQU 0x0000048D
+_swap_screen: EQU 0x00000438
+_clear_screen: EQU 0x00000417
+_fast_ldir: EQU 0x000004C3
 _draw_tile: EQU 0x00000F86
 _draw_image: EQU 0x00001181
 _select_image: EQU 0x00000F56

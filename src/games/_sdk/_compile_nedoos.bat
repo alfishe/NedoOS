@@ -71,7 +71,7 @@ echo tools\sjasmplus\sjasmplus.exe "%temp%\..\nedoload.asm"
 
 echo -CALL NEDORESC------------------------------
 rem evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"
-evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"  SOUND_BIN_FILE "../_sdk/sound.bin"
+evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "0"  SOUND_BIN_FILE "../_sdk/sound.bin" SND_PAGE 0 SPRTBL_PAGE 1 PAL_PAGE 2  SPRBUF_PAGE 3 GFX_PAGE 10 CC_PAGE0 100 CC_PAGE1 101 CC_PAGE2 102 CC_PAGE3 103
 if ERRORLEVEL 1 goto clean
 
 rem переходим во временную директорию

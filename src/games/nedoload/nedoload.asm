@@ -60,16 +60,15 @@ SPBUF_PAGE1=(9^INVMASK)
 SPBUF_PAGE2=(10^INVMASK)
 SPBUF_PAGE3=(11^INVMASK)
 
-SPTBL_PAGE=(6^INVMASK)
-
 ;CC_PAGE0=(12^INVMASK)
 CC_PAGE1=(13^INVMASK)
 CC_PAGE2=(14^INVMASK)
 CC_PAGE3=(12^INVMASK)
 
-SND_PAGE=11;TODO 0;(0^INVMASK)
-PAL_PAGE=9;TODO 1;(4^INVMASK)
-GFX_PAGE=0;TODO 2;(16^INVMASK)
+SND_PAGE=0;(0^INVMASK)
+SPTBL_PAGE=1;(6^INVMASK)
+PAL_PAGE=2;(4^INVMASK)
+GFX_PAGE=10;(16^INVMASK)
 
 
 IMG_LIST =0xd000;#1000
@@ -200,20 +199,29 @@ begin
         OS_CLOSEHANDLE
 
         ld de,fnbin
-        OS_OPENHANDLE
-        push bc
-         ld de,BINADDR ;addr
-         ld hl,0x4000 ;size
-         OS_READHANDLE
-         pop bc
-         push bc
-        ld de,BINADDR ;addr
-        ld hl,-BINADDR ;size
-        OS_READHANDLE
-        pop bc
-        OS_CLOSEHANDLE                
+        ld hl,0x4000
+        call loadbinpg
 
-        ld de,tpages
+        ld de,fnbin2
+        ld hl,0x8000
+        call loadbinpg
+
+        ld de,fnbin3
+        ld hl,0xc000
+        call loadbinpg
+
+        ld hl,sndfilename
+        call loadpage ;CY=error
+        ld (tpages+0),a
+        ld hl,sprtblfilename
+        call loadpage ;CY=error
+        ld (tpages+1),a
+        ld hl,palfilename
+        call loadpage ;CY=error
+        ld (tpages+2),a
+
+        ld de,tpages+GFX_PAGE
+
         ;ld b,NUMBER_OF_PAGES
 loadloop0
         ;push bc
@@ -299,6 +307,23 @@ pgmusic=$+1
 tpages
         ds 256 ;pages
 
+loadbinpg
+        push hl
+        OS_OPENHANDLE
+        pop de ;addr
+        push bc
+         ;ld de,BINADDR ;addr
+         ;ld hl,0x4000 ;size
+         ;OS_READHANDLE
+         ;pop bc
+         ;push bc
+        ;ld de,BINADDR ;addr
+        ld hl,-BINADDR ;size
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE                
+        ret
+
 loadpage
 ;заказывает страничку и грузит туда файл (имя файла в hl)
 ;out: hl=после имени файла, a=pg
@@ -344,10 +369,18 @@ CURPAL
 ;RSTPAL
 ;        STANDARDPAL
 
+sndfilename
+        db "page_0.bin",0
+sprtblfilename
+        db "page_1.bin",0
+palfilename
+        db "page_2.bin",0
 
 texfilename
-texfilename_pgnumend=$+8
-        db "page_001.bin",0
+texfilename_pgnumend=$+7;8
+        db "page_10.bin",0
+
+
 
 
 setpgsmain40008000
@@ -852,7 +885,12 @@ _time		dd 0
 res_path
         db "nedoload",0 ;в этом относительном пути будут лежать все загружаемые данные игры
 fnbin
-        db "code0.bin",0
+        ;db "code0.bin",0
+        db "page_101.bin",0
+fnbin2
+        db "page_102.bin",0
+fnbin3
+        db "page_103.bin",0
 fnaddr
         db "addr.bin",0
 end        
