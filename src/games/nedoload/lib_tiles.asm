@@ -7,10 +7,9 @@
 
 
 	macro MDrawTile
-
 	ld bc,-16384+40
 	dup 8
-	ld a,(de)	;#4xxx
+	ld a,r;(de)	;#4xxx
 	ld (hl),a
 	inc e
 	set 5,h
@@ -23,7 +22,7 @@
 	ld (hl),a
 	inc e
 	res 5,h
-	ld a,(de)	;#8xxx
+	ld a,r;(de)	;#8xxx
 	ld (hl),a
 	inc e
 	add hl,bc
@@ -55,7 +54,7 @@
 	;ld bc,MEM_SLOT0
 	cpl
 	;out (c),a
-	SETPG32KHIGH
+	call setpgc000;SETPG32KHIGH
 	else
 	
 	ld a,d
@@ -64,7 +63,7 @@
 	;ld bc,MEM_SLOT0
 	xor 127
 	;out (c),a
-	SETPG32KHIGH
+	call setpgc000;SETPG32KHIGH
 	endif
 
 	ld a,e
@@ -134,7 +133,7 @@ updateOneTileToBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE0
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 0
 	org $-2
@@ -147,7 +146,7 @@ updateOneTileToBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE1
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 1
 	org $-2
@@ -160,7 +159,7 @@ updateOneTileToBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE2
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 2
 	org $-2
@@ -173,7 +172,7 @@ updateOneTileToBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE3
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 3
 	org $-2
@@ -208,7 +207,7 @@ updateOneTileFromBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE0
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 0
 	org $-2
@@ -221,7 +220,7 @@ updateOneTileFromBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE1
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 1
 	org $-2
@@ -234,7 +233,7 @@ updateOneTileFromBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE2
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 2
 	org $-2
@@ -247,7 +246,7 @@ updateOneTileFromBuffer
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE3
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 3
 	org $-2
@@ -359,7 +358,7 @@ _select_image
 	;ld bc,MEM_SLOT0
 	ld a,PAL_PAGE
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	ld e,(hl)	;tile
 	inc l
@@ -370,7 +369,7 @@ _select_image
 
 	ld a,CC_PAGE3;0
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	ret
 
@@ -421,7 +420,7 @@ _draw_tile
     ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
-    SETPG32KLOW
+    call setpg8000;SETPG32KLOW
 	;-----------------
 	ret
 
@@ -598,20 +597,21 @@ _draw_tile_key
     ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
-    SETPG32KLOW
+    call setpg8000;SETPG32KLOW
 	;-----------------
 	ret
 
 
 
 ;отрисовка изображения целиком
-;эта процедура быстрее чем вывод отдельных тайлов
+;эта процедура быстрее, чем вывод отдельных тайлов
 ;a=id, c=X, b=Y
 
 ;при cy=1:
 ;d=begx, e=width
 
 _draw_image
+        ;jr $
 	;---------------
 	;ld a,(_memSlot2)
 	;push af
@@ -629,7 +629,7 @@ _draw_image
 	;ld bc,MEM_SLOT0
 	ld a,PAL_PAGE
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	 pop af
 	 jr nc,_draw_image_noextra
@@ -727,8 +727,8 @@ _draw_image_noextraq
 	cpl
 	ld (.page),a
 	;ld bc,MEM_SLOT0
-	out (c),a
-        SETPG32KHIGH
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 	else
 	
 	ld a,d
@@ -737,8 +737,8 @@ _draw_image_noextraq
 	xor 127
 	ld (.page),a
 	;ld bc,MEM_SLOT0
-	out (c),a
-        SETPG32KHIGH
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 	endif
 
 	ld a,e
@@ -776,7 +776,7 @@ _draw_image_noextraq
 	;ld bc,MEM_SLOT0
 	;out (c),a
 	ld (.page),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 .noPageChange
 	ld bc,-(16384+7*40-1)
@@ -801,13 +801,13 @@ _draw_image_noextraq
 	ld a,CC_PAGE1
 	;ld (_memSlot1),a
 	;out (c),a
-        SETPG16K
+        call setpg4000;SETPG16K
 
 	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
 	;ld (_memSlot2),a
 	;out (c),a
-        SETPG32KLOW
+        call setpg8000;SETPG32KLOW
 	
 	pop bc	;координаты начала изображения B=y C=x
 	pop hl	;размеры выводимой части
@@ -839,7 +839,7 @@ _draw_image_noextraq
 	;ld bc,MEM_SLOT0
 	ld a,CC_PAGE3;0
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 	
 	;----------------
 	;pop af

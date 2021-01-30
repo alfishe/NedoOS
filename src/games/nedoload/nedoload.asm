@@ -68,7 +68,7 @@ CC_PAGE2=(14^INVMASK)
 CC_PAGE3=(12^INVMASK)
 
 SND_PAGE=(0^INVMASK)
-PAL_PAGE=(4^INVMASK)
+PAL_PAGE=4;(4^INVMASK) ;TODO где она в файлах???????
 GFX_PAGE=(16^INVMASK)
 
 
@@ -116,22 +116,23 @@ SFX_DATA =#5100
 	endm
 
 	macro MRestoreMemMap012
+;TODO переделать на (pgcode4000) и т.п.
 	;ld bc,MEM_SLOT3
 	ld a,CC_PAGE3
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	;ld b,high MEM_SLOT1
 	ld a,CC_PAGE1
 	;ld (_memSlot1),a
 	;out (c),a
-        SETPG16K
+        call setpg4000;SETPG16K
 
 	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
 	;ld (_memSlot2),a
 	;out (c),a
-        SETPG32KLOW
+        call setpg8000;SETPG32KLOW
 	endm
 
 	macro MRestoreMemMap12
@@ -139,13 +140,13 @@ SFX_DATA =#5100
 	ld a,CC_PAGE1
 	;ld (_memSlot1),a
 	;out (c),a
-        SETPG16K
+        call setpg4000;SETPG16K
 
 	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
 	;ld (_memSlot2),a
 	;out (c),a
-        SETPG32KLOW
+        call setpg8000;SETPG32KLOW
 	endm
 
         org PROGSTART
@@ -177,6 +178,8 @@ begin
         LD (pgmain4000),A
         ld a,h
         LD (pgmain8000),A
+        ld a,l
+        LD (pgmainc000),A
         call setpgsmain40008000 ;записать в curpg...
 
         ;OS_GETSCREENPAGES
@@ -237,6 +240,14 @@ loadloop_nextdigit0
         ld (hl),a
         pop bc
         djnz loadloop0
+        
+        ld a,(pgmain4000)
+        ld (tpages+CC_PAGE1),a
+        ld a,(pgmain8000)
+        ld (tpages+CC_PAGE2),a
+pgmainc000=$+1
+        ld a,0
+        ld (tpages+CC_PAGE3),a
         
         if 1==0
         call loadpage
@@ -429,7 +440,23 @@ changescrpg
 	OS_SETSCREEN
         ret
 
+setpg4000
+        ld ($+4),a
+        ld a,(tpages)
+        SETPG16K
+        ret
 
+setpg8000
+        ld ($+4),a
+        ld a,(tpages)
+        SETPG32KLOW
+        ret
+
+setpgc000
+        ld ($+4),a
+        ld a,(tpages)
+        SETPG32KHIGH
+        ret
 
 setShadowScreen
 	MSetShadowScreen
@@ -508,7 +535,7 @@ pal_get_address
 	;ld bc,MEM_SLOT0
 	ld a,PAL_PAGE
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 	ret
 
 
@@ -526,7 +553,7 @@ RestoreMemMap3;0
 	;ld bc,MEM_SLOT0
 	ld a,CC_PAGE3;0
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 	ret
 
 
@@ -560,7 +587,7 @@ _pal_copy
 	;ld bc,MEM_SLOT0
 	ld a,CC_PAGE3;0
 	;out (c),a
-        SETPG32KHIGH
+        call setpgc000;SETPG32KHIGH
 
 	pop de
 	ld hl,palTemp

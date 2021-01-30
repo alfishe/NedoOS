@@ -50,8 +50,8 @@ void show_picture(u8 image,u8 dir,u8 fade)
 	{
 		for(i=0;i<4;++i)
 		{
-			//pal_bright(dir?BRIGHT_MID+i:BRIGHT_MID-i);
-			//for(j=0;j<4;++j) vsync();
+			pal_bright(dir?BRIGHT_MID+i:BRIGHT_MID-i);
+			for(j=0;j<4;++j) vsync();
 		}
 	}
 
@@ -63,8 +63,8 @@ void show_picture(u8 image,u8 dir,u8 fade)
 	{
 		for(i=0;i<4;++i)
 		{
-			//pal_bright(dir?BRIGHT_MAX-i:BRIGHT_MIN+i);
-			//for(j=0;j<4;++j) vsync();
+			pal_bright(dir?BRIGHT_MAX-i:BRIGHT_MIN+i);
+			for(j=0;j<4;++j) vsync();
 		}
 	}
 }
