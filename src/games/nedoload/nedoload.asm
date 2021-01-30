@@ -67,8 +67,8 @@ CC_PAGE1=(13^INVMASK)
 CC_PAGE2=(14^INVMASK)
 CC_PAGE3=(12^INVMASK)
 
-SND_PAGE=0;(0^INVMASK)
-PAL_PAGE=10;TODO 1;(4^INVMASK)
+SND_PAGE=11;TODO 0;(0^INVMASK)
+PAL_PAGE=9;TODO 1;(4^INVMASK)
 GFX_PAGE=0;TODO 2;(16^INVMASK)
 
 
@@ -155,7 +155,7 @@ begin
 ;        pop bc
 ;        djnz waitcls0 ;чтобы nv не перехватил фокус при вызове через комстроку
 
-        ld e,0
+        ld e,0+128 ;+128=keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 	ld e,0
 	OS_SETSCREEN
@@ -726,6 +726,7 @@ adr=adr+(40*8)
 tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	ds 8*25,0
 
+	;export changescrpg
 
 	export _pal_select
 	export _pal_copy
@@ -748,6 +749,20 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	export _joystick
 	export _keyboard
 	export _mouse_apply_clip
+
+_music_play
+_music_stop
+_sample_play
+_sfx_play
+_sfx_stop
+;TODO
+        ret
+        
+        export _music_play
+        export _music_stop
+        export _sample_play
+        export _sfx_play
+        export _sfx_stop
 
 
 ;переменные
@@ -816,7 +831,23 @@ _mouse_prev_dx	db 0
 _mouse_prev_dy	db 0
 _time		dd 0
 
-	export changescrpg
+	export _borderCol
+	export _palBright
+	export _palChange
+	export _sprqueue
+	export _screenActive
+	export _mouse_dx
+	export _mouse_dy
+	export _mouse_x
+	export _mouse_y
+	export _mouse_cx1
+	export _mouse_cx2
+	export _mouse_cy1
+	export _mouse_cy2
+	export _mouse_btn
+	export _time
+        export _palette
+
         
 res_path
         db "nedoload",0 ;в этом относительном пути будут лежать все загружаемые данные игры

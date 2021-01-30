@@ -45,7 +45,7 @@ __asm
 	ld hl,#2
 	add hl,sp
 	
-	push	ix
+	;push	ix
 	;ld	ix,#0
 	;add	ix,sp
 	
@@ -56,7 +56,43 @@ __asm
 	ld a,(hl)	
 	call _DRAW_IMAGE
 	
-	pop ix
+	;pop ix
+	
+	ret
+__endasm;
+}
+
+void draw_image_extra(u8 x,u8 y,u8 id,u8 width,u8 begx) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp ;cy=0
+	
+	;push	ix
+	;ld	ix,#0
+	;add	ix,sp
+	
+	;ld a,(_MEMSLOT2)
+	;push af
+	
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	ld a,(hl)
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	scf
+	call _DRAW_IMAGE
+	
+	;pop af
+	;LD	BC, #0xbff7
+    ;ld (_MEMSLOT2),a
+    ;out (c),a
+	
+	;pop ix
 	
 	ret
 __endasm;
@@ -149,142 +185,6 @@ __asm
 __endasm;
 }
 
-void swap_screen(void) __naked
-{
-__asm
-
-	
-	jp _SWAP_SCREEN
-	
-__endasm;
-}
-
-
-
-/*
-
-
-void border(u8 n) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld a,(hl)
-	ld (_BORDERCOL),a
-	ld c,a
-	and #7
-	bit 3,c
-	jr nz,1$
-	out (0xfe),a
-	ret
-1$:
-	out (0xf6),a
-	ret
-__endasm;
-}
-
-
-
-
-
-void keyboard(u8* keys) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	jp _KEYBOARD
-__endasm;
-}
-
-
-
-u8 mouse_pos(u8* x,u8* y) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld c,(hl)
-	inc hl
-	ld b,(hl)
-	inc hl
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	ld a,(_MOUSE_X)
-	ld (bc),a
-	ld a,(_MOUSE_Y)
-	ld (de),a
-	ld a,(_MOUSE_BTN)
-	ld l,a
-	ret
-__endasm;
-}
-
-
-
-void mouse_set(u8 x,u8 y) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld a,(hl)
-	ld (_MOUSE_X),a
-	inc hl
-	ld a,(hl)
-	ld (_MOUSE_Y),a
-	jp _MOUSE_APPLY_CLIP
-__endasm;
-}
-
-
-
-void mouse_clip(u8 xmin,u8 ymin,u8 xmax,u8 ymax) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld a,(hl)
-	ld (_MOUSE_CX1),a
-	inc hl
-	ld a,(hl)
-	ld (_MOUSE_CY1),a
-	inc hl
-	ld a,(hl)
-	ld (_MOUSE_CX2),a
-	inc hl
-	ld a,(hl)
-	ld (_MOUSE_CY2),a
-	jp _MOUSE_APPLY_CLIP
-__endasm;
-}
-
-
-
-u8 mouse_delta(i8* x,i8* y) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld c,(hl)
-	inc hl
-	ld b,(hl)
-	inc hl
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	ld a,(_MOUSE_DX)
-	ld (bc),a
-	ld a,(_MOUSE_DY)
-	ld (bc),a
-	ld a,(_MOUSE_BTN)
-	ld l,a
-	ret
-__endasm;
-}
-
 
 
 void sfx_play(u8 sfx,i8 vol) __naked
@@ -309,65 +209,6 @@ __endasm;
 }
 
 
-
-void music_play(u8 mus) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld a,(hl)
-	jp _MUSIC_PLAY
-__endasm;
-}
-
-
-
-void music_stop(void) __naked
-{
-__asm
-	jp _MUSIC_STOP
-__endasm;
-}
-
-
-
-void sample_play(u8 sample) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp
-	ld l,(hl)
-	jp _SAMPLE_PLAY
-__endasm;
-}
-
-
-
-u16 rand16(void) __naked
-{
-__asm
-	ld hl,(1$)
-	push hl
-	srl h
-	rr l
-	ex de,hl
-	ld hl,(2$)
-	add hl,de
-	ld (2$),hl
-	ld a,l
-	xor #15
-	ld l,a
-	ex de,hl
-	pop hl
-	sbc hl,de
-	ld (1$),hl
-	ret
-
-1$:	.dw 1
-2$:	.dw 5
-
-__endasm;
-}
 
 
 
@@ -459,43 +300,6 @@ __endasm;
 
 
 
-void draw_image_extra(u8 x,u8 y,u8 id,u8 width,u8 begx) __naked
-{
-__asm
-	ld hl,#2
-	add hl,sp ;cy=0
-	
-	push	ix
-	ld	ix,#0
-	add	ix,sp
-	
-	ld a,(_MEMSLOT2)
-	push af
-	
-	ld c,(hl)
-	inc hl
-	ld b,(hl)
-	inc hl
-	ld a,(hl)
-	inc hl
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	scf
-	call _DRAW_IMAGE
-	
-	pop af
-	LD	BC, #0xbff7
-    ld (_MEMSLOT2),a
-    out (c),a
-	
-	pop ix
-	
-	
-	ret
-__endasm;
-}
-
 
 void clear_screen(u8 color) __naked
 {
@@ -530,6 +334,247 @@ __asm
 	add hl,sp
 	ld c,(hl)
 	jp _COLOR_KEY
+__endasm;
+}
+
+
+
+
+u32 time(void) __naked
+{
+__asm
+	ld hl,#_TIME+3
+	ld d,(hl)
+	dec hl
+	ld e,(hl)
+	dec hl
+	ld a,(hl)
+	dec hl
+	ld l,(hl)
+	ld h,a
+	ret
+__endasm;
+}
+
+
+
+void delay(u16 time) __naked
+{
+__asm
+	
+	
+	ld hl,#2
+	add hl,sp
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	ld a,b
+	or c
+	ret z
+1$:
+	halt
+	dec bc
+	ld a,b
+	or c
+	jr nz,1$
+	
+	ret
+__endasm;
+}
+
+void swap_screen(void) __naked
+{
+__asm
+
+	
+	jp _SWAP_SCREEN
+	
+__endasm;
+}
+
+
+
+
+void border(u8 n) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld a,(hl)
+	ld (_BORDERCOL),a
+	;ld c,a
+	;and #7
+	;bit 3,c
+	;jr nz,1$
+	;out (0xfe),a
+	;ret
+;1$:
+	;out (0xf6),a
+	ret
+__endasm;
+}
+
+
+
+
+
+
+void keyboard(u8* keys) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	jp _KEYBOARD
+__endasm;
+}
+
+
+void music_play(u8 mus) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld a,(hl)
+	jp _MUSIC_PLAY
+__endasm;
+}
+
+
+
+void music_stop(void) __naked
+{
+__asm
+	jp _MUSIC_STOP
+__endasm;
+}
+
+
+
+void sample_play(u8 sample) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld l,(hl)
+	jp _SAMPLE_PLAY
+__endasm;
+}
+
+
+
+u16 rand16(void) __naked
+{
+__asm
+	ld hl,(1$)
+	push hl
+	srl h
+	rr l
+	ex de,hl
+	ld hl,(2$)
+	add hl,de
+	ld (2$),hl
+	ld a,l
+	xor #15
+	ld l,a
+	ex de,hl
+	pop hl
+	sbc hl,de
+	ld (1$),hl
+	ret
+
+1$:	.dw 1
+2$:	.dw 5
+
+__endasm;
+}
+
+
+/*
+
+u8 mouse_pos(u8* x,u8* y) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ld a,(_MOUSE_X)
+	ld (bc),a
+	ld a,(_MOUSE_Y)
+	ld (de),a
+	ld a,(_MOUSE_BTN)
+	ld l,a
+	ret
+__endasm;
+}
+
+
+
+void mouse_set(u8 x,u8 y) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld a,(hl)
+	ld (_MOUSE_X),a
+	inc hl
+	ld a,(hl)
+	ld (_MOUSE_Y),a
+	jp _MOUSE_APPLY_CLIP
+__endasm;
+}
+
+
+
+void mouse_clip(u8 xmin,u8 ymin,u8 xmax,u8 ymax) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld a,(hl)
+	ld (_MOUSE_CX1),a
+	inc hl
+	ld a,(hl)
+	ld (_MOUSE_CY1),a
+	inc hl
+	ld a,(hl)
+	ld (_MOUSE_CX2),a
+	inc hl
+	ld a,(hl)
+	ld (_MOUSE_CY2),a
+	jp _MOUSE_APPLY_CLIP
+__endasm;
+}
+
+
+
+u8 mouse_delta(i8* x,i8* y) __naked
+{
+__asm
+	ld hl,#2
+	add hl,sp
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ld a,(_MOUSE_DX)
+	ld (bc),a
+	ld a,(_MOUSE_DY)
+	ld (bc),a
+	ld a,(_MOUSE_BTN)
+	ld l,a
+	ret
 __endasm;
 }
 
@@ -597,46 +642,4 @@ __endasm;
 }
 
 
-
-u32 time(void) __naked
-{
-__asm
-	ld hl,#_TIME+3
-	ld d,(hl)
-	dec hl
-	ld e,(hl)
-	dec hl
-	ld a,(hl)
-	dec hl
-	ld l,(hl)
-	ld h,a
-	ret
-__endasm;
-}
-
-
-
-void delay(u16 time) __naked
-{
-__asm
-	
-	
-	ld hl,#2
-	add hl,sp
-	ld c,(hl)
-	inc hl
-	ld b,(hl)
-	ld a,b
-	or c
-	ret z
-1$:
-	halt
-	dec bc
-	ld a,b
-	or c
-	jr nz,1$
-	
-	ret
-__endasm;
-}
 */

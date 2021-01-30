@@ -25,19 +25,23 @@ rem в программе они вызываются по автоматиче�
 rem идентификаторам в файле resources.h
 rem нумерация после точки должна быть возрастающей
 
-set palette.0=gfx\pic1.bmp
-set palette.1=gfx\pic2.bmp
-set palette.2=gfx\pic3.bmp
-set palette.3=gfx\pic4.bmp
-set palette.4=gfx\pic5.bmp
+rem set palette.0=gfx\pic1.bmp
+rem set palette.1=gfx\pic2.bmp
+rem set palette.2=gfx\pic3.bmp
+rem set palette.3=gfx\pic4.bmp
+rem set palette.4=gfx\pic5.bmp
+set palette.0=font.bmp
+set palette.1=tiles2.bmp
 
 rem список изображений, откуда брать графику
 
-set image.0=gfx\pic1.bmp
-set image.1=gfx\pic2.bmp
-set image.2=gfx\pic3.bmp
-set image.3=gfx\pic4.bmp
-set image.4=gfx\pic5.bmp
+rem set image.0=gfx\pic1.bmp
+rem set image.1=gfx\pic2.bmp
+rem set image.2=gfx\pic3.bmp
+rem set image.3=gfx\pic4.bmp
+rem set image.4=gfx\pic5.bmp
+set image.0=font.bmp
+set image.1=tiles2.bmp
 
 rem спрайты
 
@@ -50,11 +54,12 @@ set soundfx=
 
 rem музыка, нужное число треков
 
-set music.0=
+set music.0=2atststr.pt3
 
 rem сэмплы
 
-set sample.0=
+set sample.0=fanfare.wav
+set sample.1=gong.wav
 
 rem echo %PATH%
 echo -1----------------------------
