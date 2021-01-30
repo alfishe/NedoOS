@@ -1,47 +1,6 @@
 #include <evo.h>
 #include "nedoload.h"
 
-/*
-void draw_image(u8 x,u8 y,u8 id) __naked
-{
-__asm
-
-	ld hl,#2
-	add hl,sp
-	
-	
-	push	ix
-	ld	ix,#0
-	add	ix,sp
-	
-	;ld a,(_MEMSLOT2)
-	;push af
-
-	
-	
-	ld c,(hl)
-	inc hl
-	ld b,(hl)
-	inc hl
-	ld a,(hl)
-	
-	
-	call _draw_image;_DRAW_IMAGE
-	
-	
-	;pop af
-	;LD	BC, #0xbff7
-    ;ld (_MEMSLOT2),a
-    ;out (c),a
-	
-	pop ix
-	
-	ret
-__endasm;
-}
-*/
-
-
 void show_picture(u8 image,u8 dir,u8 fade)
 {
 	static u8 i,j;
@@ -55,7 +14,7 @@ void show_picture(u8 image,u8 dir,u8 fade)
 		}
 	}
 
-	draw_image(0,0,image);
+	draw_image(0,0,image); //что за хрень тут генерит SDCC при --xstack??? ld hl,-3:add hl,sp:ld b,(hl) вместо ld hl,2...
 	pal_select(image);
 	swap_screen();
 

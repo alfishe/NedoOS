@@ -50,7 +50,7 @@ tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
 
-SCR_PAGE1=(1^INVMASK)
+SCR_PAGE1=(1^INVMASK) ;TODO убрать
 SCR_PAGE3=(3^INVMASK)
 SCR_PAGE5=(5^INVMASK)
 SCR_PAGE7=(7^INVMASK)
@@ -67,9 +67,9 @@ CC_PAGE1=(13^INVMASK)
 CC_PAGE2=(14^INVMASK)
 CC_PAGE3=(12^INVMASK)
 
-SND_PAGE=(0^INVMASK)
-PAL_PAGE=4;(4^INVMASK) ;TODO где она в файлах???????
-GFX_PAGE=(16^INVMASK)
+SND_PAGE=0;(0^INVMASK)
+PAL_PAGE=10;TODO 1;(4^INVMASK)
+GFX_PAGE=0;TODO 2;(16^INVMASK)
 
 
 IMG_LIST =0xd000;#1000
@@ -102,21 +102,15 @@ SFX_DATA =#5100
 	endm
 
 	macro MSetShadowScreen
-	ld a,(_screenActive)
-	;ld bc,MEM_SLOT1
-	;ld (_memSlot1),a
-	;out (c),a
-        SETPG16K
-
-	;ld b,high MEM_SLOT2
-	sub 4
-	;ld (_memSlot2),a
-	;out (c),a
-        SETPG32KLOW
+	;ld a,(_screenActive)
+        ;SETPG16K
+	;sub 4
+        ;SETPG32KLOW
+        call setpgsscr40008000;_current
 	endm
 
 	macro MRestoreMemMap012
-;TODO переделать на (pgcode4000) и т.п.
+;TODO переделать на (pgmain4000) и т.п.
 	;ld bc,MEM_SLOT3
 	ld a,CC_PAGE3
 	;out (c),a
@@ -220,13 +214,14 @@ begin
         OS_CLOSEHANDLE                
 
         ld de,tpages
-        ld b,NUMBER_OF_PAGES
+        ;ld b,NUMBER_OF_PAGES
 loadloop0
-        push bc
+        ;push bc
         push de
         ld hl,texfilename
-        call loadpage
+        call loadpage ;CY=error
         pop de
+       jr c,loadloop0q
         ld (de),a
         inc e
         ld hl,texfilename_pgnumend
@@ -238,8 +233,10 @@ loadloop_nextdigit0
         ld (hl),"0"
         jr z,loadloop_nextdigit0
         ld (hl),a
-        pop bc
-        djnz loadloop0
+        jr loadloop0
+        ;pop bc
+        ;djnz loadloop0
+loadloop0q
         
         ld a,(pgmain4000)
         ld (tpages+CC_PAGE1),a
@@ -263,7 +260,7 @@ pgmainc000=$+1
         
         call swapimer
 
-        ld de,SUMMERPAL
+        ld de,CURPAL
         OS_SETPAL
 
         if 1==0
@@ -274,8 +271,8 @@ pgmainc000=$+1
 ;c=X, b=Y, de=tile
 ;координаты в тайлах
         call _draw_tile
-        call _swap_screen
         endif
+        call _swap_screen
 jpaddr=$+1
         jp 0
 mainloop
@@ -305,15 +302,27 @@ tpages
 loadpage
 ;заказывает страничку и грузит туда файл (имя файла в hl)
 ;out: hl=после имени файла, a=pg
-        push hl
-        OS_NEWPAGE
-        pop hl
-        ld a,e
-        push af ;pg
-        SETPG32KHIGH
+;or else CY
         push hl
         ex de,hl
         OS_OPENHANDLE
+        pop hl
+        or a
+        scf
+        ret nz
+        push hl
+       push bc
+        OS_NEWPAGE
+       pop bc
+        pop hl
+        ld a,e
+        push af ;pg
+       push bc
+        SETPG32KHIGH
+       pop bc
+        push hl
+        ex de,hl
+        ;OS_OPENHANDLE
         push bc
         ld de,0xc000 ;addr
         ld hl,0x4000 ;size
@@ -325,9 +334,10 @@ loadpage
         xor a
         cpir ;after 0
         pop af ;pg
+        or a ;CY=0
         ret
 
-SUMMERPAL
+CURPAL
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
         dw 0xffff,0xfefe,0x1d1d,0x3c3c,0xcdcd,0x4c4c,0x2c2c,0xecec
         dw 0xfdfd,0x2d2d,0xeeee,0x3f3f,0xafaf,0x5d5d,0x4e4e,0x0c0c
@@ -492,9 +502,9 @@ _swap_screen
 
 	halt
 
-	ld a,(_screenActive)
-	xor 2
-	ld (_screenActive),a
+	;ld a,(_screenActive)
+	;xor 2
+	;ld (_screenActive),a
 	;ld e,a
 
 	;ld a,#10
@@ -503,10 +513,11 @@ _swap_screen
 	;or #08
 	;ld bc,#7ffd
 	;out (c),a
-         rra
-         and 1 ;+cpl?
-         ld e,a
-	 OS_SETSCREEN
+         call changescrpg
+         ;rra
+         ;and 1 ;+cpl?
+         ;ld e,a
+	 ;OS_SETSCREEN
 
 	pop af
 	jr z,.noSpr1
@@ -666,6 +677,37 @@ _sprqueue0	;формат 4 байта на спрайт, idh,idl,y,x (idh=255 конец списка)
 	ds 256,255
 _sprqueue1
 	ds 256,255
+
+	align 256
+palBrightTable
+	db #ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff	;bright 0
+	db #ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff
+	db #ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff
+	db #ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff,#ff
+	db #ff,#ff,#ff,#bf,#ff,#ff,#ff,#bf,#ff,#ff,#ff,#bf,#7f,#7f,#7f,#3f	;bright 1
+	db #ff,#ff,#ff,#bf,#ff,#ff,#ff,#bf,#ff,#ff,#ff,#bf,#7f,#7f,#7f,#3f
+	db #ff,#ff,#ff,#bf,#ff,#ff,#ff,#bf,#ff,#ff,#ff,#bf,#7f,#7f,#7f,#3f
+	db #df,#df,#df,#9f,#df,#df,#df,#9f,#df,#df,#df,#9f,#5f,#5f,#5f,#1f
+	db #ff,#ff,#bf,#fd,#ff,#ff,#bf,#fd,#7f,#7f,#3f,#7d,#ef,#ef,#af,#ed	;bright 2
+	db #ff,#ff,#bf,#fd,#ff,#ff,#bf,#fd,#7f,#7f,#3f,#7d,#ef,#ef,#af,#ed
+	db #df,#df,#9f,#dd,#df,#df,#9f,#dd,#5f,#5f,#1f,#5d,#cf,#cf,#8f,#cd
+	db #fe,#fe,#be,#fc,#fe,#fe,#be,#fc,#7e,#7e,#3e,#7c,#ee,#ee,#ae,#ec
+	db #ff,#bf,#fd,#bd,#7f,#3f,#7d,#3d,#ef,#af,#ed,#ad,#6f,#2f,#6d,#2d	;bright 3
+	db #df,#9f,#dd,#9d,#5f,#1f,#5d,#1d,#cf,#8f,#cd,#8d,#4f,#0f,#4d,#0d
+	db #fe,#be,#fc,#bc,#7e,#3e,#7c,#3c,#ee,#ae,#ec,#ac,#6e,#2e,#6c,#2c
+	db #de,#9e,#dc,#9c,#5e,#1e,#5c,#1c,#ce,#8e,#cc,#8c,#4e,#0e,#4c,#0c
+	db #1f,#5d,#1d,#1d,#8f,#cd,#8d,#8d,#0f,#4d,#0d,#0d,#0f,#4d,#0d,#0d	;bright 4
+	db #3e,#7c,#3c,#3c,#ae,#ec,#ac,#ac,#2e,#6c,#2c,#2c,#2e,#6c,#2c,#2c
+	db #1e,#5c,#1c,#1c,#8e,#cc,#8c,#8c,#0e,#4c,#0c,#0c,#0e,#4c,#0c,#0c
+	db #1e,#5c,#1c,#1c,#8e,#cc,#8c,#8c,#0e,#4c,#0c,#0c,#0e,#4c,#0c,#0c
+	db #ec,#ac,#ac,#ac,#6c,#2c,#2c,#2c,#6c,#2c,#2c,#2c,#6c,#2c,#2c,#2c	;bright 5
+	db #cc,#8c,#8c,#8c,#4c,#0c,#0c,#0c,#4c,#0c,#0c,#0c,#4c,#0c,#0c,#0c
+	db #cc,#8c,#8c,#8c,#4c,#0c,#0c,#0c,#4c,#0c,#0c,#0c,#4c,#0c,#0c,#0c
+	db #cc,#8c,#8c,#8c,#4c,#0c,#0c,#0c,#4c,#0c,#0c,#0c,#4c,#0c,#0c,#0c
+	db #0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c	;bright 6
+	db #0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c
+	db #0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c
+	db #0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c,#0c
 
 	align 256	;#nn00
 scrTable

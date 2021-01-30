@@ -40,34 +40,21 @@ __endasm;
 void draw_image(u8 x,u8 y,u8 id) __naked
 {
 __asm
-
+        ;di
+        ;halt
 	ld hl,#2
 	add hl,sp
 	
-	
 	push	ix
-	ld	ix,#0
-	add	ix,sp
-	
-;	ld a,(_MEMSLOT2)
-;	push af
-
-	
+	;ld	ix,#0
+	;add	ix,sp
 	
 	ld c,(hl)
 	inc hl
 	ld b,(hl)
 	inc hl
-	ld a,(hl)
-	
-	
+	ld a,(hl)	
 	call _DRAW_IMAGE
-	
-	
-;	pop af
-;	LD	BC, #0xbff7
-    ;ld (_MEMSLOT2),a
-    ;out (c),a
 	
 	pop ix
 	

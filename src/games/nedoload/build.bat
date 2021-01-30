@@ -41,7 +41,7 @@ set image.4=gfx\pic5.bmp
 
 rem спрайты
 
-set sprite.0=balls.bmp
+set sprite.0=
 
 rem набор звуковых эффектов, если нужен
 rem он может быть только один

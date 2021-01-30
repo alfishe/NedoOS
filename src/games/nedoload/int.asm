@@ -29,7 +29,7 @@ on_int
         push bc
         push de ;"hl"
         exx
-        ex af,af'
+        ex af,af' ;'
         push af
         push bc
         push de
@@ -37,6 +37,35 @@ on_int
         push ix
         push iy
 
+        ld hl,_palChange
+        xor a
+        cp (hl)
+        ld (hl),a
+        jp z,int_nochangepal
+	ld de,(_palBright)
+	ld a,d
+	add a,high palBrightTable
+	ld b,a
+        ld lx,e
+	ld hl,_palette
+        ld de,CURPAL
+	dup 16
+	ld a,(hl)
+	add a,lx
+	ld c,a
+	ld a,(bc)
+        ld (de),a
+        inc de
+        ld (de),a
+        inc de
+	inc l
+	edup
+	ld a,(_borderCol)
+        ld e,a
+	OS_SETBORDER
+        ld de,CURPAL
+        OS_SETPAL
+int_nochangepal
         call oldimer
 
         GET_KEY
@@ -56,7 +85,7 @@ on_int
         pop de
         pop bc
         pop af
-        ex af,af'
+        ex af,af' ;'
         exx
         pop hl
         pop bc

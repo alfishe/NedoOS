@@ -56,7 +56,8 @@ rem компилируем исходник на C
 
 sdcc -mz80 -I. -c evo.c
 copy evo.rel ..\_sdk\
-sdcc -mz80 --xstack --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
+rem sdcc -mz80 --fno-omit-frame-pointer --xstack --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
+sdcc -mz80 --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
 
 if ERRORLEVEL 1 goto clean
 

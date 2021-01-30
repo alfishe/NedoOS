@@ -14,5 +14,4 @@
 
 
 
-#define SPR_BALLS	0
 

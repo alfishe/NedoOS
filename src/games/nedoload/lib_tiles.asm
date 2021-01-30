@@ -9,7 +9,7 @@
 	macro MDrawTile
 	ld bc,-16384+40
 	dup 8
-	ld a,r;(de)	;#4xxx
+	ld a,(de)	;#4xxx
 	ld (hl),a
 	inc e
 	set 5,h
@@ -22,7 +22,7 @@
 	ld (hl),a
 	inc e
 	res 5,h
-	ld a,r;(de)	;#8xxx
+	ld a,(de)	;#8xxx
 	ld (hl),a
 	inc e
 	add hl,bc
@@ -47,24 +47,13 @@
 	ld h,(hl)
 	ld l,a
 
-	ifdef EVO
 	ld a,d
 	srl a
-	add a,low ~GFX_PAGE
+	add a,low GFX_PAGE
 	;ld bc,MEM_SLOT0
-	cpl
+	;cpl
 	;out (c),a
 	call setpgc000;SETPG32KHIGH
-	else
-	
-	ld a,d
-	srl a
-	add a,low (GFX_PAGE^127)
-	;ld bc,MEM_SLOT0
-	xor 127
-	;out (c),a
-	call setpgc000;SETPG32KHIGH
-	endif
 
 	ld a,e
 	rrca
@@ -417,10 +406,10 @@ _draw_tile
 	MRestoreMemMap012 ;TODO восстанавливать страницы, бывшие до вызова
 	;-----------------
 	pop af ;чтобы не делать это
+        SETPG32KLOW
     ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
-    call setpg8000;SETPG32KLOW
 	;-----------------
 	ret
 
@@ -594,10 +583,10 @@ _draw_tile_key
 	
 	;-----------------
 	pop af
+        SETPG32KLOW
     ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
-    call setpg8000;SETPG32KLOW
 	;-----------------
 	ret
 
@@ -613,14 +602,18 @@ _draw_tile_key
 _draw_image
         ;jr $
 	;---------------
-	;ld a,(_memSlot2)
-	;push af
+         ;xor a ;неправильно передан номер!!!
+         ;ld c,a
+         ;ld b,a
+        ld l,a
+	ld a,(curpg32klow) ;ok ;(_memSlot2)
+	push af
 	;-------------------------
 	push bc
 	push af
 
 	ld h,0
-	ld l,a
+	;ld l,a
 	add hl,hl
 	add hl,hl
 	ld bc,IMG_LIST
@@ -656,7 +649,7 @@ _draw_image_noextra
 	ld c,(hl)	;width
 	inc l
 	ld b,(hl)	;height
-
+        ;jr $
 
 	ld l,c
 _draw_image_noextraq
@@ -720,26 +713,13 @@ _draw_image_noextraq
 	ld a,c
 	exa
 
-	ifdef EVO
 	ld a,d
 	srl a
-	add a,low ~GFX_PAGE
-	cpl
+	add a,low GFX_PAGE
 	ld (.page),a
 	;ld bc,MEM_SLOT0
 	;out (c),a
         call setpgc000;SETPG32KHIGH
-	else
-	
-	ld a,d
-	srl a
-	add a,low (GFX_PAGE^127)
-	xor 127
-	ld (.page),a
-	;ld bc,MEM_SLOT0
-	;out (c),a
-        call setpgc000;SETPG32KHIGH
-	endif
 
 	ld a,e
 	rrca
@@ -765,14 +745,15 @@ _draw_image_noextraq
 	jr nz,.noPageChange
 	inc d
 	;bit 6,d
-	jr z,.noPageChange
+	;jr z,.noPageChange
 	;res 6,d
+	 jr nz,.noPageChange
          ld a,d
          or 0xc0
          ld d,a
 .page=$+1
 	ld a,0
-	dec a
+        inc a;dec a
 	;ld bc,MEM_SLOT0
 	;out (c),a
 	ld (.page),a
@@ -842,7 +823,8 @@ _draw_image_noextraq
         call setpgc000;SETPG32KHIGH
 	
 	;----------------
-	;pop af
+	pop af
+        SETPG32KLOW
     ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a
