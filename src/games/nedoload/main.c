@@ -1,6 +1,7 @@
 #include <evo.h>
 #include "nedoload.h"
 
+/*
 void draw_image(u8 x,u8 y,u8 id) __naked
 {
 __asm
@@ -25,7 +26,7 @@ __asm
 	ld a,(hl)
 	
 	
-	call _DRAW_IMAGE
+	call _draw_image;_DRAW_IMAGE
 	
 	
 	;pop af
@@ -38,7 +39,7 @@ __asm
 	ret
 __endasm;
 }
-
+*/
 
 
 void show_picture(u8 image,u8 dir,u8 fade)

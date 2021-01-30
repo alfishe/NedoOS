@@ -1,6 +1,15 @@
+_pal_select: EQU 0x0000042A
+_pal_copy: EQU 0x00000457
+_pal_bright: EQU 0x0000043D
+_swap_screen: EQU 0x000003DE
+_clear_screen: EQU 0x000003C1
+_fast_ldir: EQU 0x00000471
 _draw_tile: EQU 0x00000CA8
 _draw_image: EQU 0x00000E9F
 _select_image: EQU 0x00000C7C
 _draw_tile_key: EQU 0x00000DC7
 _color_key: EQU 0x00000D99
+_joystick: EQU 0x00001078
+_keyboard: EQU 0x000010AF
+_mouse_apply_clip: EQU 0x0000104D
 changescrpg: EQU 0x000003AF

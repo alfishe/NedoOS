@@ -1,8 +1,8 @@
-	export _draw_tile
-	export _draw_image
-	export _select_image
-	export _draw_tile_key
-	export _color_key
+	;export _draw_tile
+	;export _draw_image
+	;export _select_image
+	;export _draw_tile_key
+	;export _color_key
 
 
 

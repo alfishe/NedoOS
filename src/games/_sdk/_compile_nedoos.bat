@@ -54,6 +54,8 @@ makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\samp
 
 rem компилируем исходник на C
 
+sdcc -mz80 -I. -c evo.c
+copy evo.rel ..\_sdk\
 sdcc -mz80 --xstack --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
 
 if ERRORLEVEL 1 goto clean
@@ -66,6 +68,7 @@ rem evoresc "%temp%\out.ihx" "..\_sdk\startup.bin" "%soundfx%" "%temp%\music.lst
 echo tools\sjasmplus\sjasmplus.exe "%temp%\..\nedoload.asm" 
 ..\_sdk\tools\sjasmplus\sjasmplus.exe nedoload.asm
 
+echo -CALL NEDORESC------------------------------
 rem evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"
 evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"  SOUND_BIN_FILE "../_sdk/sound.bin"
 if ERRORLEVEL 1 goto clean

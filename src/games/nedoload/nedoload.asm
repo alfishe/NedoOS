@@ -657,8 +657,29 @@ adr=adr+(40*8)
 tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	ds 8*25,0
 
+
+	export _pal_select
+	export _pal_copy
+	export _pal_bright
+	export _swap_screen
+	export _clear_screen
+	export _fast_ldir
+
         include "int.asm"
         include "lib_tiles.asm"
+
+	export _draw_tile
+	export _draw_image
+	export _select_image
+	export _draw_tile_key
+	export _color_key
+
+        include "lib_input.asm"
+
+	export _joystick
+	export _keyboard
+	export _mouse_apply_clip
+
 
 ;переменные
 

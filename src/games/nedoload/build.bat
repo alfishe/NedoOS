@@ -59,23 +59,23 @@ rem сэмплы
 
 set sample.0=
 
-echo %PATH%
+rem echo %PATH%
 echo -1----------------------------
-echo %CD%
+rem echo %CD%
 call ..\_sdk\_compile_nedoos.bat
 
-echo %PATH%
+rem echo %PATH%
 echo -2----------------------------
-echo %CD%
+rem echo %CD%
 perl getMainAddr.pl .\_temp_\out.map nedoload\addr.bin
-echo %PATH%
+rem echo %PATH%
 echo -3----------------------------
-echo %CD%
+rem echo %CD%
 
 copy _temp_\*.bin nedoload
-echo %PATH%
+rem echo %PATH%
 echo -4----------------------------
-echo %CD%
+rem echo %CD%
 
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (

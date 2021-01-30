@@ -112,6 +112,9 @@
 ;потому что на моделях памяти ATM2 и ATM3 номера страниц различаются!
 ;
 ;Примечание 2: для смены страницы в области адресов 0x0000..0x3fff см. OS_SETMAINPAGE
+        macro SETPG4000
+        rst 0x18 ;set page "a" in 0x4000 ;spoils BC
+        endm
         macro SETPG16K
         rst 0x18 ;set page "a" in 0x4000 ;spoils BC
         endm
@@ -124,6 +127,9 @@
 ;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
 ;
 ;См. примечания к SETPG16K!
+        macro SETPG8000
+        rst 0x20 ;set page "a" in 0x8000 ;spoils BC
+        endm
         macro SETPG32KLOW
         rst 0x20 ;set page "a" in 0x8000 ;spoils BC
         endm
@@ -136,6 +142,9 @@
 ;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
 ;
 ;См. примечания к SETPG16K!
+        macro SETPGC000
+        rst 0x28 ;set page "a" in 0xc000 ;spoils BC
+        endm
         macro SETPG32KHIGH
         rst 0x28 ;set page "a" in 0xc000 ;spoils BC
         endm
