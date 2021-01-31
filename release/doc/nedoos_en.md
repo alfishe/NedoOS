@@ -626,17 +626,17 @@ since it is planned to free 0x0000 for the user, make `CALLBDOS` a restart, and
 * `CALLBDOS (0x0005)` - calling BDOS (see functions in `sys_h.asm`, function
   number in C). You should not call this macro directly, for each command there
   is a separate macro `OS_...`. Registers are not saved!
-* `GET_KEY (0x0008)` - read a key (HA=code with language, BC=code without
-  language, key codes are specified in `sys_h.asm`) and read the mouse at the
+* `OS_GETKEY (0x0008)` - read a key (HA=code with language, BC=code without
+  language, key codes are specified in `sysdefs.asm`) and read the mouse at the
   same time (de=mouse position (y, x), l=mouse buttons (bits 0, 1, 2:
   0=pressed)), nz=the program is not in focus, the buttons are not displayed,
   the mouse position must be ignored (=0)
-* `PRCHAR (0x0010)` - print character A (registers are not saved!)
-* `SETPG16K (0x0018)` - enable page A at 0x4000 (corrupts the BC register). The
+* `OS_PRCHAR (0x0010)` - print character A (registers are not saved!)
+* `SETPG4000 (0x0018)` - enable page A at 0x4000 (corrupts the BC register). The
   page number is stored in (CURPG16K)
-* `SETPG32KLOW (0x0020)` - enable page A at 0x8000 (corrupts the BC register).
+* `SETPG8000 (0x0020)` - enable page A at 0x8000 (corrupts the BC register).
   The page number is stored in (CURPG32KLOW)
-* `SETPG32KHIGH (0x0028)` - enable page A at 0xc000 (corrupts the BC register).
+* `SETPGC000 (0x0028)` - enable page A at 0xc000 (corrupts the BC register).
   The page number is stored in (CURPG32KHIGH) (switch the page at 0x0000 via
   `OS_SETMAINPAGE`, while the page must have a kernel!)
 * 0x0030 - far call is planned

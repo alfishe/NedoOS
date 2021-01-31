@@ -1413,3 +1413,83 @@ v0.755.1, 13.10.2020:
 +untr: 1,2,csY копирует из первой цифры ордера во вторую текущий трек
 +untr: добавлены сэмплы d(drum),h(hihat),c(crash),1(ornament),2(ornament)
 +untr: load (F3) - грузит muz.unt, save (F2, под именем muz.unt)
+
+v0.874.1, 31.01.2021:
+
++nedoos_en.md: English translation of nedoos.txt (BruXy)
+-make.bat: почищено содержимое *.trd, т.к. не умещалось. требовало нажатия клавиши при сборке trd
+-makeall: не собирал некоторые файлы
++tools/src/aspp, tools/aspp.exe: added new cross-platform version of "aspp"; tools/aspp.sh: removed old version (Baho)
+*repository cleanup, added many "svn:ignore" properties where needed (Baho)
+-kernel: OS_HIDEFROMPARENT не окончательно отрекалась от родителя, после выхода родитель будился
+-kernel: не освобождались страницы при отключении графического режима без bit7, каждый раз заказывались при bit7
+-kernel: fatfsdrv.asm драйвер SD-карты не работал на Pentagon 2.666LE с версии 720
+-kernel: стек прерывания мог накладываться на стек задачи
++kernel: в версии для Pentagon 2.666LE используется максимум страниц (не используется только 5 страниц ПЗУ и 8 страниц 128К - теоретически можно и из них заюзать 0,2,6, но пока не будем)
+-kernel: убраны задержки для Pentagon 2.666, всё равно не работали и вешали комп
+-kernel: установка времени после копирования файла не работала
+*kernel: в idle добавлен HALT, возможно, исправится залипание клавиш на контроллерах клавы с микроконтроллером
+-kernel: исправлен драйвер sl811
+-kernel: оптимизация вывода палитры на ZX Evo
+-kernel: sd-card драйвер: убраны лишние задержки для Евы, добавлены задержки для 8/3, так как spi не успевает обработать предыдущий байт
+-kernel: на atm2 при запуске hddboot'ом не было переменных бейсика
++kernel: ускорено чтение файлов с TR-DOS
++kernel: удаление последнего файла с TR-DOS уменьшает число файлов
++kernel: прозрачное сохранение, подсовывание и восстановление экранных страниц программ, теперь программа может не думать, рисует она в настоящий экран или нет (если включен битик сохранения SETGFX)
+-kernel: исключено случайно включение страницы 0xff (DimkaM)
++kernel: ps2drv: ctrl+цифры = ss+цифры
++kernel,idle: для ZX Evo сделана проверка версии ERS при старте недооси (DimkaM)
+-kernel: ps2drv при редраве не проверялось на переполнение буфера (DimkaM)
++term: hide mouse cursor if no activity
+-netterm: немного поправлено открытие сокетов (DimkaM)
+-cmd: увеличен буфер копирования, а то тормозило (Sayman)
+-cmd,nv: нельзя было вводить команду длиннее экрана
++nvfast: рисует прямо в экран
+-nvview: code 0x1b could corrupt screen
++nv: Esc (Break) shows old screen for nvfast (Demige), no annoying action in nv for stdio
+*nv: промпт отображается максимум 64 символа
+-nv: висло, когда промпт был шире экрана (Konstantin Kosarev)
+-nv: не работало удаление подкаталогов (Slip) (однако при большом их количестве может понадобиться вторая попытка удаления)
++texted,nvview: shows filename
+-texted: single line showed many times
+-texted: backspace at CR after empty line was setting wrong x
+-texted,nvhexed: shows "changed" flag
++texted: added default filename 1.txt
+-more,texted: возможно, был глюк с печатью строки при скролле вправо (не проверено)
++dmm: добавлена возможность увеличения размера trd образа до 640кб, если он меньше 640кб. добавлен маунтер под ATM (DimkaM)
+-dmm,time: багфиксы (DimkaM)
+-nmisvc не отвязывался от родительского процесса (DimkaM)
++reset переделан под XBIOS (DimkaM)
+-wget: исправлен запуск вьювера и плеера (DimkaM)
+-dmirc: поправлен вывод (DimkaM)
+*zxrar: 2 byte matches on (ramdisk=1, switch to 0 if needed)
++nedoload: начата интеграция Evo SDK (Hippiman), сконвертирована игра 2048 (nedoload, src/games/_sdk)
+-hddfdisk: исправлен драйвер atm-hdd (DimkaM)
++hddfdisk: добавлен инсталлятор загрузчика и tasis'а (DimkaM)
+-hddfdisk: при запуске hddboot'ом отсутствовали tr-dos переменные (DimkaM)
+-player: автоопределение копии в памяти ищет и копию, запущенную через player filename (без .com)
++wrtrd: пишет на диск A содержимое образа source.trd (Konstantin Kosarev)
++wolf3d: двери в нишах, можно открывать (caps shift)
++wolf3d: добавлены звуки, а музыка в системном прерывании
++wolf3d: space - выстрел, можно убить монстра или предмет
+-wolf3d: буферизовал номер страницы экрана, что чревато при потере фокуса
++solkey: игра Solomon's Key, выход - Esc/Break, добавлен загрузочный экран (с Amiga версии). Выход в меню по QWERT не работал на пц клаве - переделано на Q+E+T
++slabage: раскрашенная игра Slab Age, выход - Esc/Break
++isitar: новая игра Isitar 7 с MSX (старт M, выход Esc, управление курсором, выбор оружия A,X, огонь Space)
++игра на двух игроков q1 (управляется с одного компьютера: opqa+space, 1234+5). для сети запускать q1_2.com UDP сервер (192.168.0.7), потом q1_1.com UDP клиент, и можно играть по сети (в игре net (сетевая змейка) те же настройки и тот же порядок: net2.com потом net1.com)
++br: восстановлен текст инструкции к Чёрному Ворону (instrtxt.dat)
++midnight: добавлена игра Midnight Resistance, заставка с Atari ST. чит-меню (ввести I AM AN OCEAN GAMES TESTER вместо Y/N в redefine keys) не работало из-за глючного кемпстона (кемпстон отключен)
++montana2: раскрашенная игра Montana Jones 2 (Esc/Break - выход). скорость врагов уменьшена на четверть, при победе ожидается отпускание клавиш, бессмертие C
++barbaria: добавлена игра Barbarian (Esc/Break - выход), заставка с Amiga
++zxbattle: новая игра под цвет на точку ZX Battle City (Slip & nq)
++hws: игра с MSX High Way Star (декомпилировал Rasmer)
+-sprexamp: не хватало двух файлов
++raytrace
++pt: возвращены горячие кнопки +/-256 в сэмпле: csR, csT (Wally)
+-pt: ждал General Sound, даже если его не было
+-pt: не работала загрузка *.mod (для использования сэмплов командой 8sNN)
+-untr: буквы нот сдвинуты на пиксель вниз
+-unreal fix atm-nmi (ctrl+f12) (DimkaM)
++convega: конвертирует bmp в дамп экранной памяти (два файла), палитра 222 со смещения 8000
++nedolang: видимо, исправлена ошибка в таргете ARM Thumb, добавлен таргет 386
+*SETPG16K и т.д. теперь называются SETPG4000, SETPG8000, SETPGC000. curpg16k и т.д. теперь называются curpg4000, curpg8000, curpgc000. GET_KEY теперь называется OS_GETKEY. PRCHAR теперь называется OS_PRCHAR.

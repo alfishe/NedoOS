@@ -52,6 +52,13 @@ IF "%softbuilded%"=="" (
 	)
 	cd %currentdir%
 
+	FOR /R . %%i IN (*.md) DO (
+		if exist %%i (
+			copy %%i %releasedir%\doc\ > nul
+		)
+	)
+	cd %currentdir%
+
 	copy autoexec.bat %releasedir%\bin\ > nul
 	copy net.ini %releasedir%\bin\ > nul
 	copy games\smb\antipac.fm2 %releasedir%\bin\ > nul

@@ -24,14 +24,14 @@
 ;(CALLBDOS_NOPARAM_A - для функций системы, не имеющих параметра в регистре A)
 ;Напрямую использовать не рекомендуется, см. макросы для каждой отдельной функции системы.
         macro CALLBDOS ;don't use directly CALLBDOS or call BDOS!!!
-        ex af,af'
+        ex af,af' ;'
         call BDOS ;c=CMD
         endm
         macro CALLBDOS_NOPARAM_A ;don't use directly CALLBDOS or call BDOS!!!
         call BDOS ;c=CMD
         endm
 
-;*********************** GET_KEY **********************
+;*********************** OS_GETKEY **********************
 ;Возвращает нажатую кнопку клавиатуры, кнопки мыши и координаты мыши.
 ;Фактически чтение происходит только процессом с фокусом. При отсутствии фокуса возвращается 
 ;код символа NOKEY и флаг Z установлен в 0 (т.е. верно условие NZ).
@@ -50,7 +50,7 @@
 ;        ...
 ;WAIT_LOOP:
 ;        YIELD    ;отдадим квант времени системе
-;        GET_KEY
+;        OS_GETKEY
 ;        OR A
 ;        JR Z,WAIT_LOOP
 ;        CP key_esc
@@ -62,11 +62,14 @@
 ;        
 ;        Примечание: желательна обработка кода key_esc для завершения программы
 ;и кода key_redraw для перерисовки экрана при получении фокуса.
-        macro GET_KEY
+        macro OS_GETKEY
         rst 0x08 ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
         endm
+        macro GET_KEY
+        OS_GETKEY
+        endm
 
-;*********************** PRCHAR **********************
+;*********************** OS_PRCHAR **********************
 ;Выводит символ на экран, используется только в текстовом видеорежиме.
 ;При отсутствии фокуса вывод игнорируется.
 ;    Все аргументы в регистрах:
@@ -85,7 +88,7 @@
 ;        OR A
 ;        JR Z,PRINT_LOOP_END
 ;        PUSH HL
-;        PRCHAR
+;        OS_PRCHAR
 ;        POP HL
 ;        INC HL
 ;        JR PRINT_LOOP
@@ -95,11 +98,14 @@
 ;STR_HELLO:
 ;        DEFB "Hello Work!",0
 ;        savebin "progname.com",PROGSTART,$-PROGSTART
-        macro PRCHAR
+        macro OS_PRCHAR
         rst 0x10 ;a=char ;spoils all registers!
         endm
+        macro PRCHAR
+        OS_PRCHAR
+        endm
 
-;*********************** SETPG16K **********************
+;*********************** SETPG4000 **********************
 ;Устанавливает страницу номер A в области адресов 0x4000..0x7fff.
 ;Быстрая функция (не включает контекст ядра).
 ;    Все аргументы в регистрах:
@@ -116,37 +122,37 @@
         rst 0x18 ;set page "a" in 0x4000 ;spoils BC
         endm
         macro SETPG16K
-        rst 0x18 ;set page "a" in 0x4000 ;spoils BC
+        SETPG4000
         endm
         
-;*********************** SETPG32KLOW **********************
+;*********************** SETPG8000 **********************
 ;Устанавливает страницу номер A в области адресов 0x8000..0xbfff.
 ;Быстрая функция (не включает контекст ядра).
 ;    Все аргументы в регистрах:
 ;        A - номер страницы
 ;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
 ;
-;См. примечания к SETPG16K!
+;См. примечания к SETPG4000!
         macro SETPG8000
         rst 0x20 ;set page "a" in 0x8000 ;spoils BC
         endm
         macro SETPG32KLOW
-        rst 0x20 ;set page "a" in 0x8000 ;spoils BC
+        SETPG8000
         endm
         
-;*********************** SETPG32KHIGH **********************
+;*********************** SETPGC000 **********************
 ;Устанавливает страницу номер A в области адресов 0xc000..0xffff.
 ;Быстрая функция (не включает контекст ядра).
 ;    Все аргументы в регистрах:
 ;        A - номер страницы
 ;    Возвращаемых значений нет (портится BC, остальные регистры не портятся)
 ;
-;См. примечания к SETPG16K!
+;См. примечания к SETPG4000!
         macro SETPGC000
         rst 0x28 ;set page "a" in 0xc000 ;spoils BC
         endm
         macro SETPG32KHIGH
-        rst 0x28 ;set page "a" in 0xc000 ;spoils BC
+        SETPGC000
         endm
 
 ;*********************** YIELD **********************
@@ -155,7 +161,7 @@
 ;    Аргументы не используются.
 ;    Возвращаемых значений нет.
 ;    
-;Пример использования смотрите в описании GET_KEY    
+;Пример использования смотрите в описании OS_GETKEY    
 ;    
 ;Примечание: обычно используется при ожидании какого-либо события, не критичного по времени отклика.
 ;Использование этого вызова ускоряет общую работу системы.
@@ -169,7 +175,7 @@
 ;    Аргументы не используются.
 ;    Возвращаемых значений нет.
 ;    
-;Пример использования смотрите в описании GET_KEY    
+;Пример использования смотрите в описании OS_GETKEY    
 ;    
 ;Примечание: обычно используется при ожидании данных из очереди.
 ;В остальных случаях замедляет общую работу системы.
@@ -189,7 +195,7 @@
 ;        Флаг Z - если 1(Z), то клавиша не нажата
         macro YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
 	YIELD ;halt ;если сделать просто di:rst 0x38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        GET_KEY
+        OS_GETKEY
         or a ;cp NOKEY ;keylang==0?
         jr nz,$+3
         cp c ;keynolang==0?
@@ -275,10 +281,10 @@ __1=$
         
 ;Нижеследующие вызовы CP/M пользовать не рекомендуется!
 ;from CP/M (try to avoid use!)
-        macro OS_PRCHAR ;e=char
-        ld c,CMD_PRCHAR
-        CALLBDOS_NOPARAM_A
-        endm
+        ;macro OS_PRCHAR ;e=char
+        ;ld c,CMD_PRCHAR
+        ;CALLBDOS_NOPARAM_A
+        ;endm
         macro OS_SETDRV ;e=drive ;out: a!=0 => not mounted, [l=number of drives]
         ld c,CMD_SETDRV
         CALLBDOS_NOPARAM_A
@@ -823,17 +829,17 @@ __1=$
         endm
 
         macro PRCHAR_ ;send char to stdout (in: A=char)
-        ;PRCHAR
+        ;OS_PRCHAR
         call sendchar
         endm
 
         macro GETCHAR_ ;read char from stdin (out: A=char, CY=error)
-        ;GET_KEY
+        ;OS_GETKEY
         call receivechar
         endm
 
         macro GETKEY_ ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
-        ;GET_KEY
+        ;OS_GETKEY
         call receivekey
         endm
 
