@@ -4,7 +4,7 @@ echo %CD%
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 if not exist nedoload mkdir nedoload
-sjasmplus --nologo --msg=war --msg=war nedoload.asm
+sjasmplus --nologo --msg=war --msg=war --exp=nedoload.exp nedoload.asm
 java -jar exp2hConverter.jar nedoload.exp
 copy functions.h nedoload.h
 del functions.h

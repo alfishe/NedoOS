@@ -818,12 +818,156 @@ _sample_play
         SETPG32KHIGH
         ret
 
-_music_play
-_music_stop
+;выключение звука на указанном чипе
+;a=0 или 1
+reset_ay
+;используется в _sfx_stop, _music_stop
+	ifdef TFM
+	push af
+	di
+
+	call turbo_off
+
+	ld a,SND_PAGE
+	call setpg4000
+	ld a,(TURBOFMON)
+	or a
+	call nz,#400f;tfmshut
+	ld a,CC_PAGE1
+	call setpg4000
+	pop af
+	call reset_ay_ay
+
+	call turbo_on
+
+	ei
+	ret
+
+	else
+
+	di
+	call reset_ay_ay
+	ei
+	ret
+
+	endif
+
+        if 1==0
+turbo_on
+	ld a,%10101000 ;режим EGA с турбо
+	ld bc,#bd77
+	out (c),a
+	ret
+
+turbo_off
+	ld a,%10100000 ;режим EGA без турбо, так как в 14 МГц скорость нестабильна
+	ld bc,#bd77
+	out (c),a
+	ret
+        endif
+
+reset_ay_ay
+;в TFM нужно для глушения AY перед выводом эффектов
+	push af
+	ifdef TFM
+	or %11111000
+	;or %11111010		;no wait sync
+	else
+	or #fe
+	endif
+	ld bc,#fffd
+	out (c),a
+
+	xor a
+	ld l,a
+.l0
+	ld b,#ff
+	ifdef TFM
+	call libstartup_waitstatus
+	endif
+	out (c),a
+	ifdef TFM
+	call libstartup_waitstatus
+	endif
+	ld b,#bf
+	out (c),l
+	inc a
+	cp 14
+	jr nz,.l0
+	pop af
+	ret
+
+;запуск звукового эффекта
 _sfx_play
+	push bc
+	ld a,SND_PAGE
+	call setpg4000
+	pop bc
+	ld a,b
+	call AFX_PLAY
+	ld a,CC_PAGE1
+	jp setpg4000
+
+;останов звуковых эффектов
 _sfx_stop
-;TODO
-        ret
+	xor a
+	jp reset_ay
+
+;запуск музыки
+_music_play
+	push ix
+	push iy
+	push af
+	ld a,SND_PAGE
+	call setpg4000
+
+	ld a,(MUS_COUNT)
+	ld l,a
+	pop af
+
+	cp l
+	jr nc,.skip
+
+	ld h,high MUS_LIST
+	ld l,a
+
+	ld e,(hl)
+	inc h
+	ld d,(hl)
+	inc h
+	ld a,(hl)
+	ex de,hl
+	di
+	ld (musicPage),a
+	call setpg8000
+	ifdef TFM
+	ld a,(TURBOFMON)
+	or a
+	call nz,PT3_INIT
+	else
+	ld bc,#fffd
+	ld a,#fe
+	out (c),a
+	call PT3_INIT
+	endif
+	ei
+	ld a,CC_PAGE2
+	call setpg8000
+
+.skip
+	pop iy
+	pop ix
+
+	ld a,CC_PAGE1
+	jp setpg4000
+
+
+
+;выключение музыки
+_music_stop
+	xor a
+	ld (musicPage),a
+	jp reset_ay
         
         export _music_play
         export _music_stop
