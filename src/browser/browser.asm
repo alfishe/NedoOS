@@ -854,9 +854,9 @@ browser_quit
 
 ;TODO проверить, что wget жив:
         ld e,a
-        OS_WAITPID
+        OS_CHECKPID
         or a
-        jr z,browser_quitq
+        jr z,browser_quitq ;dead
 
         ld a,(wgetmainpg)
         SETPG32KHIGH

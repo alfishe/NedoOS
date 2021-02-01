@@ -134,9 +134,9 @@ wgetloaded_pid=$+1
 ;TODO проверить, что wget жив:
         ld a,(wgetloaded_pid)
         ld e,a
-        OS_WAITPID
+        OS_CHECKPID
         or a
-        call z,reloadwget
+        call z,reloadwget ;dead
 
 ;ждём готовности wget
 waitwgetinit0

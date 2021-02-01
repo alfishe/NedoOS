@@ -174,9 +174,9 @@ mainloop_afterredraw
         
 waitpid_id=$+1
         ld e,0
-        OS_WAITPID ;TODO проверять, что пайп с той стороны не закрыт
+        OS_CHECKPID ;TODO проверять, что пайп с той стороны не закрыт
         or a
-        jp z,quit
+        jp z,quit ;dead
         
         jr mainloop_type0_go
 mainloop_type0

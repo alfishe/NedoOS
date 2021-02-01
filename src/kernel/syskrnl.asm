@@ -156,6 +156,7 @@ scr0low         BYTE ;pages
 scr0high        BYTE ;pages
 scr1low         BYTE ;pages
 scr1high        BYTE ;pages
+childresult     WORD ;filled by closed child
 textcuraddr     WORD ;адрес курсора на экране
 curcolor        BYTE ;текущий атрибут при печати
 dta             WORD ;data transfer address
@@ -840,9 +841,11 @@ callbdos_sp=$+1
 
 sys_quit
 ;снять текущую задачу
+;hl=result
         ld sp,QUITSTACK ;если не сделать, то всё ещё стек задачи, и мы не вернёмся из schedule
         ld iy,(appaddr)
         ld e,(iy+app.id)
+       if 1==0
         push de
         push iy
         call BDOS_freezeapp
@@ -857,7 +860,10 @@ sys_quit
        ld hl,sys_reter
        ld (muzcall),hl ;есть в delapppages тоже!!! TODO выбросить?
 sys_quit_nomuzcall
-        call BDOS_delapppages ;глушит сокеты и музыку
+        call BDOS_delapppages ;глушит сокеты и музыку, удаляет страницы
+       endif
+;hl=result
+       call BDOS_dropapp ;будит родителя, глушит сокеты и музыку, удаляет страницы
         jp BDOS_yield_q ;переходим на какую-нибудь задачу (там же ставим pgkillable в 4000,8000,c000)
         
 setkernelpages_go

@@ -236,7 +236,8 @@ pipehandle=$+1
         ld b,a
         OS_CLOSEHANDLE ;закрыли источник данных
         pop de
-        WAITPID
+        WAITPID ;hl=result
+        call prword_hl_crlf
 
         ld a,(stdouthandle_wasatstart)
         call setstdouthandle
@@ -591,7 +592,8 @@ callcmd
         ;OS_RUNAPP
         ;pop de
         WAITPID ;не должно быть, если команда была .bat!
-        ret
+;hl=result
+        jp prword_hl_crlf
 
 loadapp_keeppath
         ld hl,cmdprompt
@@ -1239,6 +1241,7 @@ cmd_mem_q
 ;c=free pages
         ld l,c
         ld h,0
+prword_hl_crlf
         call prword
         jp prcrlf
 

@@ -4,7 +4,7 @@
 ;Закрывает текущий процесс, освобождая все используемые им страницы ОЗУ, 
 ;дескрипторы сокетов и файлов (кроме пайпов и TR-DOS'ных файлов), а также обработчик музыки.
 ;Переключает исполнение и фокус видеовывода на следующий активный процесс.
-;    Аргументы не используются.
+;    Аргумент: hl=результат программы (родитель его получает по WAITPID).
 ;    Возвращаемых значений нет.
 ;    
 ;Пример использования, а также минимальный исходный код программы:
@@ -12,6 +12,7 @@
 ;        include "../_sdk/sys_h.asm"
 ;        ORG PROGSTART
 ;        ;исходный код программы
+;        ld hl,0 ;result
 ;        QUIT
 ;        savebin "progname.com",PROGSTART,$-PROGSTART
         macro QUIT
@@ -218,14 +219,17 @@ __1=$
 ;*********************** WAITPID **********************
 ;Ожидание завершения дочернего процесса.
 ;    Аргументы не используются.
-;    Возвращаемых значений нет.
+;    Возвращаемые значения в регистрах:
+;        HL - результат, который вернула дочерняя задача
 ;Как это работает:
 ;OS_SETWAITING замораживает текущий процесс, а YIELD передаёт время системе.
 ;Текущий процесс получит управление только тогда, когда завершится дочерний процесс
-;(он автоматически размораживает родителя).
+;(он автоматически размораживает родителя и записывает childresult в структуру родителя).
         macro WAITPID
         OS_SETWAITING
         YIELD
+        ld c,CMD_GETCHILDRESULT
+	CALLBDOS_NOPARAM_A ;hl=result
         endm
 
 ;======================= from CP/M: =============================
@@ -561,7 +565,7 @@ __1=$
         ld c,CMD_READDIR
 	CALLBDOS_NOPARAM_A		;out in A=error(0 - no error, 4 - no more files, other - critical error)
         endm
-        macro OS_HIDEFROMPARENT ;for tasks with their own screen handling
+        macro OS_HIDEFROMPARENT ;for tasks with their own screen handling ;hl=результат программы (родитель его получает по WAITPID)
         ld c,CMD_HIDEFROMPARENT
 	CALLBDOS_NOPARAM_A
         endm
@@ -705,8 +709,8 @@ __1=$
         ld c,CMD_MKDIR
         CALLBDOS_NOPARAM_A
         endm
-        macro OS_WAITPID ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
-        ld c,CMD_WAITPID
+        macro OS_CHECKPID ;e=id ;check if this child(!) app exists, out: a!=0 => OK, or else a=0
+        ld c,CMD_CHECKPID
         CALLBDOS_NOPARAM_A
         endm
         macro OS_FREEZEAPP ;e=id ;disable app and make non-graphic ;сейчас делает то же, что OS_SETWAITING делает себе

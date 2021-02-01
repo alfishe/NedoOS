@@ -53,10 +53,11 @@ CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in wi
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_GETCHILDRESULT=0xcd ;hl=childresult
 CMD_RESERV_1=0xce
 CMD_OPENDIR=0xcf ;de=path
 CMD_READDIR=0xd0 ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
-CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling
+CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling ;hl=result
 CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
 CMD_PLAYCOVOX=0xd4 ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
@@ -87,7 +88,7 @@ CMD_GETFILINFO=0xe8 ;de=filename, hl=buf[FILINFO_sz] to get FILINFO
 CMD_SETMAINPAGE=0xe9 ;e=page for 0x0000
 CMD_SETSYSDRV=0xea ;out: a!=0 => not mounted, l=number of drives
 CMD_MKDIR=0xeb ;DE = Pointer to ASCIIZ string, out: a
-CMD_WAITPID=0xec ;e=id ;check if app closed, out: a=0 => OK (and reset waiting), or else a!=0
+CMD_CHECKPID=0xec ;e=id ;check if this child(!) app exists, out: a!=0 => OK, or else a=0
 CMD_FREEZEAPP=0xed ;e=id ;disable app and make non-graphic
 CMD_GETATTR=0xee ;DEPRECATED!!! ;out: a ;READ ATTR AT CURSOR POSITION
 CMD_MOUNT=0xef ;e=drive, out: a

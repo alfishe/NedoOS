@@ -99,7 +99,7 @@ muzpid=$+1
         ld a,(curpg32khigh+0x8000)
         ld (muzpgc000),a
         ret
-        
+
 killmuz
         xor a
         ld (muzpid),a
@@ -768,7 +768,7 @@ tbdoscmds
          db CMD_READHANDLE
           db CMD_GETKEYMATRIX
           db CMD_GETTIMER
-          db CMD_WAITPID
+          db CMD_CHECKPID
           db CMD_SETSCREEN
          db CMD_PRATTR
          db CMD_SETXY
@@ -822,6 +822,7 @@ tbdoscmds
         db CMD_WIZNETWRITE
         db CMD_GETFILESIZE
         db CMD_DELETE
+        db CMD_GETCHILDRESULT
         db CMD_SETWAITING
         db CMD_SETBORDER
         db CMD_READSECTORS
@@ -852,6 +853,7 @@ nbdoscmds=$-tbdoscmds
         dw BDOS_readsectors
         dw BDOS_setborder
         dw BDOS_setwaiting
+        dw BDOS_getchildresult
         dw BDOS_delete
         dw BDOS_getfilesize
         dw BDOS_wiznetwrite
@@ -905,7 +907,7 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_setxy
          dw BDOS_prattr
           dw BDOS_setscreen
-          dw BDOS_waitpid
+          dw BDOS_checkpid
           dw BDOS_gettimer
           dw BDOS_getkeymatrix
          dw BDOS_readhandle
@@ -914,17 +916,28 @@ nbdoscmds=$-tbdoscmds
          dw BDOS_wiznetread
          dw BDOS_writehandle
 
+BDOS_getchildresult
+        ld l,(iy+app.childresult)
+        ld h,(iy+app.childresult+1)
+        ret
+
 BDOS_hidefromparent
+;hl=result
         if 1==1
 ;просто разбудить родителя
 activateparent
+;hl=result
          ld e,(iy+app.parentid)
          ld a,e
          dec a
          ret z ;idle
+        push hl
          ld (iy+app.parentid),1 ;чтобы после закрытия задачи не пришлось будить родителя (он может уже не существовать)
          call BDOS_findapp ;iy=found app
          set factive,(iy+app.flags)
+        pop hl
+          ld (iy+app.childresult),l
+          ld (iy+app.childresult+1),h
          ret
         else
         push iy
@@ -1115,15 +1128,23 @@ BDOS_findapp0
         
 BDOS_dropapp
 ;e=id
+;hl=result
+       push hl
         call BDOS_findapp
+       pop hl
         jp nz,BDOS_fail ;BDOS_popfail
         push iy
+       push hl
         call BDOS_freezeapp_go
+       pop hl ;result
         pop iy
-BDOS_delapppages
+;BDOS_delapppages
          push iy
-         call activateparent
+         call activateparent ;in: hl=result
          pop iy
+       ld a,(muzpid)
+       cp (iy+app.id)
+       call z,killmuz ;before killing pages!!!
         ld hl,tsys_pages
         ld a,(iy+app.id)
         ld b,sys_npages&0xff
@@ -1157,9 +1178,9 @@ BDOS_dropapp_closefiles_skip
         add ix,de
         djnz BDOS_dropapp_closefiles0
         endif
-        ld a,(muzpid)
-        cp (iy+app.id)
-        call z,killmuz
+        ;ld a,(muzpid)
+        ;cp (iy+app.id)
+        ;call z,killmuz
         xor a ;ok
         ld (iy+app.id),a ;b;0 ;освободили место
         ret
@@ -1196,10 +1217,9 @@ BDOS_setwaiting
          res factive,(iy+app.flags)
         ret
 
-;TODO remove?
-BDOS_waitpid
+BDOS_checkpid
 ;e=id
-;check for app close (a=0 and reset waiting, or else a!=0)
+;check if this child(!) app exists, out: a!=0 => OK, or else a=0
          push iy
          ;set fwaiting,(iy+app.flags)
         ld c,(iy+app.id) ;my (parent's) id ;caller is the parent
@@ -1208,10 +1228,10 @@ BDOS_waitpid
         pop bc
         ld a,(iy+app.parentid)
          pop iy
-        jr nz,BDOS_waitpid_OK ;app doesn't exist = OK
+        jr nz,BDOS_checkpid_OK ;app doesn't exist = OK
         cp c ;parent id
         jp z,BDOS_fail ;existing app = fail
-BDOS_waitpid_OK
+BDOS_checkpid_OK
          ;res fwaiting,(iy+app.flags)
         xor a
         ret
@@ -1439,11 +1459,22 @@ BDOS_fail
 BDOS_delpage
 ;e=page
 ;не портит de
+;в конце A не гарантировано
         ld a,e
-        call addrpage
+        ;call addrpage ;a=0
+         xor pagexor;0x7f
+         ld c,a
+         ld hl,tsys_pages
+         xor a
+         ld b,a
+         add hl,bc
+       ld a,(hl)
+       inc a
+       ret z ;reserved page (for example pgkillable)
         ld (hl),b ;id=0, т.е. у этой страницы нет хозяина
-        ret ;a=0
+        ret
 
+       if 1==0
 addrpage
         xor pagexor;0x7f
         ld c,a
@@ -1451,7 +1482,8 @@ addrpage
         xor a
         ld b,a
         add hl,bc
-        ret
+        ret ;a=0
+       endif
 
 ;DEPRECATED!!!!! 
 BDOS_fdel

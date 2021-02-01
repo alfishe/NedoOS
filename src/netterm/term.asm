@@ -306,9 +306,10 @@ subnegotiation_onoff
 checkquit
 waitpid_id=$+1
         ld e,0xff
-        OS_WAITPID
+        OS_CHECKPID
         or a
         ret nz ;jp z,quit
+;dead
         ;ret
 		dec a
 		ld (waitpid_id),a
