@@ -873,6 +873,7 @@ for(i=0;i<2;i++)
 
 void main(void)
 {
+sample_play(1);
 	color_key(15);
 
 	//чёрный экран на время подготовки

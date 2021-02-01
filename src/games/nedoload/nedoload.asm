@@ -783,9 +783,43 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	export _keyboard
 	export _mouse_apply_clip
 
+_sample_play
+;проигрывание сэмпла
+;l=номер сэмпла
+	ld a,(curpg32khigh) ;ok
+	push af
+	ld a,SND_PAGE
+        call setpgc000
+	ld a,(SMP_COUNT|0xc000)
+	ld e,a
+	ld a,l
+	cp e
+	jr nc,.skip
+
+	ld h,high (SMP_LIST|0xc000)
+	ld e,(hl)	;lsb
+	inc h
+	ld a,(hl)	;msb
+        or 0xc0
+        ld d,a
+	inc h
+	ld a,(hl)	;page
+        cpl
+	inc h
+	ld h,(hl)	;delay
+	ex de,hl ;hl=data
+        ld hx,d ;delay
+        ld e,a
+        ld d,tpages/256
+;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
+        OS_PLAYCOVOX
+.skip
+        pop af
+        SETPG32KHIGH
+        ret
+
 _music_play
 _music_stop
-_sample_play
 _sfx_play
 _sfx_stop
 ;TODO
