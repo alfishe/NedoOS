@@ -160,7 +160,22 @@ cmd_begin
 	;ld (leftpanel+PANEL.sorter),hl
 	;ld hl,sorter2
 	;ld (rightpanel+PANEL.sorter),hl
-	
+
+        ld de,fn_path
+        OS_OPENHANDLE
+        or a
+        jr nz,init_nochdir
+        ld de,cmdprompt
+        push de
+        ld hl,MAXPATH_sz
+        push bc
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+        pop de ;ld de,cmdprompt
+        OS_CHDIR
+init_nochdir
+
         ld hl,rightpanel
         call editcmd_setpaneldirfromcurdir_panelhl
         ld hl,leftpanel
@@ -738,7 +753,7 @@ readdir_keepcursor
 		;cp '.'
 		;jp z,loaddir_onedot
 loaddir0
-        call loaddir_filinfo ;keep ix!!! ;out: CY=end dir, or else Z="." or ".."
+        call loaddir_filinfo ;keep ix!!! ;out: CY=end dir, or else Z="."
         jp c,loaddirq
         jr z,loaddir0
         
@@ -765,6 +780,21 @@ loaddir0
         ;ld bc,31;FCB_sz 
         ;ldir ; копируем fcb в catbuf
         ld hl,filinfo+FILINFO_FNAME
+       ld a,'.'
+       cp (hl)
+       inc hl
+       jr nz,loaddir_nodotdot
+       cp (hl)
+       jr nz,loaddir_nodotdot
+       inc hl
+       ld a,(hl)
+       dec hl
+       or a
+       jr nz,loaddir_nodotdot
+       ld a,FATTRIB_DIR|0x80
+       ld (filinfo+FILINFO_FATTRIB),a
+loaddir_nodotdot
+       dec hl
         ;ld bc,8
         ;ldir
         ;inc hl
@@ -813,8 +843,8 @@ loaddir0
         add hl,bc
         ex de,hl
         ld hl,filinfo+FILINFO_FDATE
-        ld c,2
-        ldir
+        ldi
+        ldi
 
 loaddir_curlnameaddr=$+1
         ld de,0
@@ -883,7 +913,7 @@ loaddirq
 
 loaddir_filinfo
 ;keep ix!!!
-;out: CY=end dir, or else Z="." or ".."
+;out: CY=end dir, or else Z="."
         push bc
 	push de
 	push hl
@@ -1440,11 +1470,12 @@ runfile_nocom_recodeext0
         inc de
         djnz runfile_nocom_recodeext0
         OS_SETSYSDRV ;TODO директория nv
-        ld hl,ext_filename
-        ld de,filenametext
-        push de
-	call cpmname_to_dotname
-        pop de
+        ld de,fn_ext
+        ;ld hl,ext_filename
+        ;ld de,filenametext
+        ;push de
+	;call cpmname_to_dotname
+        ;pop de
         OS_OPENHANDLE
 	or a
         ret nz ;error
@@ -2299,8 +2330,8 @@ nv_batch_nocopydir
 	;OS_FSEARCHNEXT
 	;or a
 	;jr nz,nv_batch ;skip . and ..
-        call loaddir_filinfo ;out: CY=end dir, or else Z="." or ".."
-        call loaddir_filinfo ;out: CY=end dir, or else Z="." or ".."
+        call loaddir_filinfo ;out: CY=end dir, or else Z="."
+        call loaddir_filinfo ;out: CY=end dir, or else Z="."
 nv_batch1
 	;ld de,fcb
 	;OS_SETDTA
@@ -2308,7 +2339,7 @@ nv_batch1
 	;OS_FSEARCHNEXT
 	;or a
 	;jr nz,nv_batch_nofiles
-        call loaddir_filinfo ;out: CY=end dir, or else Z="." or ".."
+        call loaddir_filinfo ;out: CY=end dir, or else Z="."
         jr c,nv_batch_nofiles
         ;jr z,nv_batch1
 
@@ -2609,6 +2640,22 @@ editcmd_quit
         ld hl,winquit
         call prwindow_waitkey ;CY=OK
         jp nc,editcmd_reprintall_keepcursor;editcmd_reprintall
+        call makeprompt
+        OS_SETSYSDRV
+        ld de,fn_path
+        OS_CREATEHANDLE
+        push bc
+        call cmdcalcpromptsz ;hl=strlen
+        inc hl ;size
+        pop bc
+        push bc
+        ld de,cmdprompt
+        OS_WRITEHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+        ld hl,cmdprompt
+        OS_CHDIR
+        ld hl,0 ;result
         QUIT
 
 ifcmdnonempty_typedigit
@@ -2794,10 +2841,12 @@ fcb2
         ds FCB_sz
 fcb2_filename=fcb2+FCB_FNAME        
 
+fn_ext
+        db "nv.ext",0
+fn_path
+        db "nv.pth",0
 cmd_filename
         db "cmd     com"
-ext_filename
-        db "nv      ext"
 texted_filename
         db "texted  com"
 

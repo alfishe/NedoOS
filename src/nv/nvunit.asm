@@ -873,7 +873,7 @@ nv_closefcb_de_
 
 copy_to_fcb_filename
         ld de,fcb_filename
-copy_to_defcb_filename
+;copy_to_defcb_filename
         ld bc,11
         ldir
         ret

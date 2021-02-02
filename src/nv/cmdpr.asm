@@ -187,6 +187,7 @@ cmdcalctextaddr_hlbase_ax
         ret
 
 cmdcalcpromptsz
+;out: hl=len, a=(len+1)<64 or 64
         ld hl,cmdprompt
         call strlen
         ld a,l
@@ -212,11 +213,13 @@ cmdcalccurxy
 strlen
 ;hl=str
 ;out: hl=length
-        ld bc,0 ;чтобы точно найти терминатор
         xor a
+        ld b,a
+        ld c,a ;чтобы точно найти терминатор
         cpir ;найдём обязательно, если длина=0, то bc=-1 и т.д.
-        ld hl,-1
-        or a
+        ld h,a
+        ld l,a
+        scf
         sbc hl,bc
         ret
 

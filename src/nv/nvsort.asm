@@ -7,10 +7,10 @@ compareattrib
 	ex de,hl
 	add hl,bc
 	ld a,(hl)
-	and FATTRIB_DIR;0x10
+	and FATTRIB_DIR|0x80 ;0x80=".."
 	ld c,a
 	ld a,(de)
-	and FATTRIB_DIR;0x10
+	and FATTRIB_DIR|0x80
 	cp c
 findmin_ccf=$
 	ccf
