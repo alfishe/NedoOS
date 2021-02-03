@@ -1,0 +1,1 @@
+;Сборка спрайтов и таблиц для финал кута        ORG #6000START        INCBIN "A:BELLVID.C"        INCBIN "A:SUNSPR4.C"        INCBIN "A:MYSL3.C"        INCBIN "A:FIN_TABS.C"END        DISPLAY "Длина сборки=",END-STARTObjTab  DB "BVssVMftC"        DW START,END-START        DB 16,32,32,0SOBJ        INCLUDE "B:SAVEOBJ4"        ORG SOBJ
