@@ -1,3 +1,9 @@
+@echo off
+if not exist %CD% (
+	echo Error: No spaces allowed in the path! 
+	pause
+	exit
+)
 if NOT "%settedpath%"=="" exit /b
 set settedpath=1
 call :ExpandRootDir %~dp0..\..
