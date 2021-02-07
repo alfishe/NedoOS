@@ -1,6 +1,28 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
-if not exist sprexamp mkdir sprexamp
+if not exist vera mkdir vera
+set LOCALDIR=vera
+set NEDORES="../../_sdk/nedores.exe"
+set SJASMPLUS=sjasmplus
+set SJASMPLUSFLAGS=--nologo --msg=war
+
+%NEDORES% icons.bmp icons.dat icons.ast
+%NEDORES% icons.bmp pal.dat pal.ast
+%NEDORES% tiles.bmp tiles0.dat tiles0.ast
+%NEDORES% tiles.bmp tiles1.dat tiles1.ast
+%NEDORES% tiles.bmp tiles2.dat tiles2.ast
+%NEDORES% tiles.bmp tiles3.dat tiles3.ast
+%NEDORES% herospr.bmp sprites0.dat sprites0.ast
+%NEDORES% herospr.bmp sprites1.dat sprites1.ast
+%SJASMPLUS% %SJASMPLUSFLAGS% icons.ast --raw=%LOCALDIR%/icons.bin
+%SJASMPLUS% %SJASMPLUSFLAGS% tiles0.ast --raw=%LOCALDIR%/tiles0.bin
+%SJASMPLUS% %SJASMPLUSFLAGS% tiles1.ast --raw=%LOCALDIR%/tiles1.bin
+%SJASMPLUS% %SJASMPLUSFLAGS% tiles2.ast --raw=%LOCALDIR%/tiles2.bin
+%SJASMPLUS% %SJASMPLUSFLAGS% tiles3.ast --raw=%LOCALDIR%/tiles3.bin
+rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites0.ast --raw=%LOCALDIR%/sprites0.bin
+rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites1.ast --raw=%LOCALDIR%/sprites1.bin
+sjasmplus --nologo --msg=war spr0.asm
+sjasmplus --nologo --msg=war spr1.asm
 sjasmplus --nologo --msg=war --msg=war VERA.asm
 rem sjasmplus113 INTRO2.asm
 rem sjasmplus113 VERALOAD.asm
