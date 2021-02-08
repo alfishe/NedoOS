@@ -52,6 +52,7 @@ on_int
 ;        OS_SETSCREEN
         
         call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!
+        di
         
        if 1==0
         GET_KEY
@@ -98,11 +99,15 @@ on_int
 ;1 - Left (5)
 ;0 - Right (8) 
        endif
+        ld a,(curpg16k) ;ok
+        push af
+        ld a,(curpg32klow) ;ok
+        push af
 	call IMS ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
-        ;ld a,(curpg16k) ;ok
-        ;SETPG16K
-        ;ld a,(curpg32klow) ;ok
-        ;SETPG32KLOW
+        pop af
+        SETPG32KLOW
+        pop af
+        SETPG16K
         ;ld a,(curpg32khigh) ;ok
         ;SETPG32KHIGH
 
