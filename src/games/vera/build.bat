@@ -8,6 +8,7 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 
 %NEDORES% icons.bmp icons.dat icons.ast
 %NEDORES% icons.bmp pal.dat pal.ast
+%NEDORES% cursors.bmp cursors.dat cursors.ast
 %NEDORES% tiles.bmp tiles0.dat tiles0.ast
 %NEDORES% tiles.bmp tiles1.dat tiles1.ast
 %NEDORES% tiles.bmp tiles2.dat tiles2.ast
@@ -19,6 +20,7 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 %SJASMPLUS% %SJASMPLUSFLAGS% tiles1.ast --raw=%LOCALDIR%/tiles1.bin
 %SJASMPLUS% %SJASMPLUSFLAGS% tiles2.ast --raw=%LOCALDIR%/tiles2.bin
 %SJASMPLUS% %SJASMPLUSFLAGS% tiles3.ast --raw=%LOCALDIR%/tiles3.bin
+rem %SJASMPLUS% %SJASMPLUSFLAGS% cursors.ast --raw=cursors.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites0.ast --raw=%LOCALDIR%/sprites0.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites1.ast --raw=%LOCALDIR%/sprites1.bin
 sjasmplus --nologo --msg=war spr0.asm

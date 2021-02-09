@@ -1,0 +1,59 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;P: DDp palette
+
+cursor00=x,0,0,16,16,7
+cursor01=x,0,16,16,16,7
+cursor02=x,0,32,16,16,7
+cursor03=x,0,48,16,16,7
+cursor04=x,0,64,16,16,7
+cursor05=x,0,80,16,16,7
+cursor06=x,0,96,16,16,7
+cursor07=x,0,112,16,16,7
+cursor08=x,0,128,16,16,7
+cursor09=x,0,144,16,16,7
+cursor10=x,0,160,16,16,7
+cursor11=x,0,176,16,16,7
+cursor12=x,0,192,16,16,7
+cursor13=x,0,212,16,16,7
+cursor14=x,0,224,16,16,7
+cursor15=x,0,240,16,16,7
+cursor16=x,0,256,16,16,7
+cursor17=x,0,272,16,16,7
+cursor18=x,0,288,16,16,7
+cursor19=x,0,304,16,16,7
+cursor20=x,0,320,16,16,7
+cursor21=x,0,336,16,16,7
+cursor22=x,0,352,16,16,7
+cursor23=x,0,368,16,16,7
+cursor24=x,0,384,16,16,7
+cursor25=x,0,400,16,16,7
+cursor26=x,0,416,16,16,7
+cursor27=x,0,432,16,16,7
+cursor28=x,0,448,16,16,7
+cursor29=x,0,464,16,16,7
+cursor30=x,0,480,16,16,7
+cursor31=x,0,496,16,16,7
+cursor32=x,0,512,16,16,7
+cursor33=x,0,528,16,16,7
+cursor34=x,0,544,16,16,7
+cursor35=x,0,560,16,16,7
+cursor36=x,0,576,16,16,7
+cursor37=x,0,592,16,16,7
+cursor38=x,0,608,16,16,7
+cursor39=x,0,624,16,16,7
+cursor40=x,0,640,16,16,7
+cursor41=x,0,656,16,16,7
+cursor42=x,0,672,16,16,7
+cursor43=x,0,688,16,16,7
+cursor44=x,0,704,16,16,7

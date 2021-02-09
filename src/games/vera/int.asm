@@ -103,13 +103,15 @@ on_int
         push af
         ld a,(curpg32klow) ;ok
         push af
+        ;ld a,(curpg32khigh) ;ok
+        ;push af
 	call IMS ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
+        ;pop af
+        ;SETPG32KHIGH
         pop af
         SETPG32KLOW
         pop af
         SETPG16K
-        ;ld a,(curpg32khigh) ;ok
-        ;SETPG32KHIGH
 
         ld hl,timer
         inc (hl)
