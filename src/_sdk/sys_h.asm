@@ -42,6 +42,7 @@
 ;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется дляи обработки "горячих кнопок"
 ;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
 ;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
+;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
 ;        Флаг Z - если 0(NZ), то отсутствует фокус. 
 ;
 ;Пример ожидания символа:
@@ -64,7 +65,7 @@
 ;        Примечание: желательна обработка кода key_esc для завершения программы
 ;и кода key_redraw для перерисовки экрана при получении фокуса.
         macro OS_GETKEY
-        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, nz=no focus (mouse position=0, ignore it!)
+        rst 0x08 ;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, lx=kempston joystick, nz=no focus (mouse position=0, ignore it!)
         endm
         macro GET_KEY
         OS_GETKEY

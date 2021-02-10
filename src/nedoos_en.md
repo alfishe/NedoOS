@@ -629,7 +629,8 @@ since it is planned to free 0x0000 for the user, make `CALLBDOS` a restart, and
 * `OS_GETKEY (0x0008)` - read a key (HA=code with language, BC=code without
   language, key codes are specified in `sysdefs.asm`) and read the mouse at the
   same time (de=mouse position (y, x), l=mouse buttons (bits 0, 1, 2:
-  0=pressed)), nz=the program is not in focus, the buttons are not displayed,
+  0=pressed)), and also Kempston joystick (LX),
+  nz=the program is not in focus, the buttons are shown empty,
   the mouse position must be ignored (=0)
 * `OS_PRCHAR (0x0010)` - print character A (registers are not saved!)
 * `SETPG4000 (0x0018)` - enable page A at 0x4000 (corrupts the BC register). The
