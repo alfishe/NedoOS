@@ -3,6 +3,7 @@ MANYLIVES=0;1 ;убрать при релизе!!!
 TILES87=0
 TILEHGT=8-TILES87
 DRAWFOREST=1
+KEMPSTON=1
             DEFINE  ProjName        ZXBattleCity
             DEFINE  ProjVer         1_5
             ;DEFINE  TRDName         "ZXBattleCity_1_5.trd"

@@ -891,18 +891,18 @@ SOUND	DEFB	0
 FIRE1	LD		A,(TIMEW)
 		CP		0
 		RET		NZ
-    	IFNDEF	KEMPSTONE_HACK
-		LD      HL,(Keys1PlFr)	;LD		HL,Keys1PlFr+2
-		LD      B,H				;LD		BC,(Keys1PlFr)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
-        AND     L
-		RET     NZ
-		ELSE
-		IN		A,(#1F) ;??? TODO use OS
-		AND		%00010000
-		RET		Z
+	IF KEMPSTON		;Replace 1st player's control to Kempston joystick
+	ld a,(kempstonbuttons) ;IN	A,(#1F)
+	AND	%00010000
+	JP	NZ,KEYFIRE1_pressed
 	ENDIF
+	LD      HL,(Keys1PlFr)	;LD		HL,Keys1PlFr+2
+	LD      B,H				;LD		BC,(Keys1PlFr)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+	RET     NZ
+KEYFIRE1_pressed
 		LD		IX,UNITS
 		LD		A,(IX+UNIT_BITFRIENDLYFIRE)
 		CP		0

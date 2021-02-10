@@ -138,7 +138,7 @@ begin
         LD (IY+1),0xCC
 
         if 1==0
-            ;IFN em3d13
+            ;IF em3d13
             ; LD HL,ONERR
             ; LD (23747),HL
             ;ENDIF 
@@ -284,7 +284,7 @@ init_sysdev_end
 			out (c),a ;отключаем 7ffd
 		endif
         
-		ifn atm==1
+		if atm != 1
 			call findpgdos
 		else
 			ld a,0x04
@@ -475,7 +475,7 @@ init_sysdrv_val=$+1
 	 ld (SYSDRV_VAL),a
         jp setkernelpages_go ;di!!!
         
-		ifn atm==1
+		if atm != 1
 INIT_OUTSHADON
         ;LD BC,0xFF77 ;shadow ports remain off
 			LD BC,0xBD77 ;shadow ports and palette remain on
@@ -528,7 +528,7 @@ basvar
 .endtape
         endif
 
-		ifn atm==1
+		if atm != 1
 findpgdos
 ;если не найти страницу текущего доса, то на старых версиях ПЗУ ZX Evo не будет работать (в странице 0x83 почему-то не дос по умолчанию)
         call crcdos
@@ -615,11 +615,12 @@ blackpalend=$-1
 
 wasresident
         disp resident
-		ifn atm==1
+		if atm != 1
 readmouse  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
-;out: hl=mousecoords, d=mousebuttons
+;out:
+;a=gfxmode, hl=mousecoords, d=mousebuttons, e=kempstonbuttons
 			call sys_SHADOFF
                        ;ifdef NOMOUSE
                        ; ld hl,0
@@ -631,12 +632,19 @@ readmouse  ;=$-wasresident+resident
 			in l,(c)
 			ld b,0xff ;y
 			in h,(c)
+                        ld c,0x1f
+                        in e,(c) ;kempstonbuttons
+                        inc e
+                        jr nz,$+3 ;0xff = kempston joystick absent
+                         inc e ;will be 0 after dec
+                        dec e
+                        jr shadon_pgsys_a
                        ;endif
 		endif
 shadon_pgsys  ;=$-wasresident+resident
         LD A,e;0xa8;%10101000 ;320x200 mode
 shadon_pgsys_a  ;=$-wasresident+resident
-		ifn atm==1
+		if atm != 1
 			CALL sys_SHADON
 		else
 			ld bc,0x01bf
@@ -668,7 +676,7 @@ sys_pgdos=wasresident+(($+1)-resident) ;для патча
 sys_outca_jr
         out (c),a
 		ret
-		ifn atm==1
+		if atm != 1
 sys_SHADON  ;=$-wasresident+resident
 			LD bc,10835
 			PUSH bc
@@ -684,7 +692,7 @@ dos3d13_resident  ;=$-wasresident+resident
         ld (dos3d13_sp_st),sp
         ld sp,trdos_sp ;надо стек в 0x4000+ (не пересекающийся с INTSTACK, т.к. сейчас может произойти системное прерывание), по умолчанию стек был в 0x3fxx
         ;call swap_sysvars
-        ex af,af'
+        ex af,af' ;'
         call sys_SHADOFF ;включили ПЗУ
 		ld (em3d13_de_st),de	;push de ;e=gfxmode
 		 
@@ -712,7 +720,7 @@ dos3d13_resident  ;=$-wasresident+resident
 		out (0xbf),a
 	endif
 	exx	;pop hl,de,bc
-	ex af,af'
+	ex af,af' ;'
 	jp      0x3D13
 
 ONERR
@@ -744,7 +752,7 @@ dos3d13_sp_st=$+1	;-wasresident+resident
 	ld a,(0x5d0f)	;возврат ошибки
 	ret
 
-	ifn atm==1
+	if atm != 1
 NVRAM_REG=0xdf
 NVRAM_VAL=0xbf
 minmes  ;=$-wasresident+resident

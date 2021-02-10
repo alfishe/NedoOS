@@ -466,23 +466,23 @@ KEY2P	LD	A,(PLAYER)
 	LD	(IX+UNIT_ICE),0
 	RET
 
-KEYDF	LD		A,3
-		CALL	YOMPA1P
-		LD		A,(IX+UNIT_COUNTER)
-		CP		0
-		JP		NZ,KEYD3
-		IFNDEF	KEMPSTONE_HACK		;Replace 1st player's control to Kempston joystick
-		LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
-		LD      B,H					;LD		BC,(Keys1PlDn)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+KEYDF	LD	A,3
+	CALL	YOMPA1P
+	LD	A,(IX+UNIT_COUNTER)
+	CP	0
+	JP	NZ,KEYD3
+	IF KEMPSTON		;Replace 1st player's control to Kempston joystick
+	ld a,(kempstonbuttons) ;IN	A,(#1F)
+	AND	%00000100
+	JP	NZ,KEYDF22
+	ENDIF
+	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
+	LD      B,H					;LD		BC,(Keys1PlDn)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP      Z,KEYDF22
-		ELSE
-		IN		A,(#1F) ;??? TODO use OS
-		AND		%00000100
-		JP		NZ,KEYDF22
-		ENDIF
+	JP      Z,KEYDF22
+KEYDF_ok
 		XOR		A
 		LD		(RAZF4),A
 		RET
@@ -563,18 +563,18 @@ KEYUF	LD		A,1
 		LD		A,(IX+UNIT_COUNTER)
 		CP		0
 		JP		NZ,KEYF3
-		IFNDEF	KEMPSTONE_HACK		;Replace 1st player's control to Kempston joystick
-		LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
-		LD      B,H					;LD		BC,(Keys1PlUp)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	IF KEMPSTON		;Replace 1st player's control to Kempston joystick
+	ld a,(kempstonbuttons) ;IN	A,(#1F)
+	AND	%00001000
+	JP	NZ,KEYUF22
+	ENDIF
+	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
+	LD      B,H					;LD		BC,(Keys1PlUp)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP      Z,KEYUF22
-		ELSE
-		IN		A,(#1F) ;??? TODO use OS
-		AND		%00001000
-		JP		NZ,KEYUF22
-		ENDIF
+	JP      Z,KEYUF22
+KEYUF_ok
 		XOR		A
 		LD		(RAZF3),A
 		RET
@@ -776,18 +776,18 @@ KEYRF	LD		A,2
 		LD		A,(IX+UNIT_COUNTER)
 		CP		0
 		JP		NZ,KEYYR3
-		IFNDEF	KEMPSTONE_HACK		;Replace 1st player's control to Kempston joystick
-		LD      HL,(Keys1PlRt)		;LD		HL,Keys1PlRt+2
-		LD      B,H					;LD		BC,(Keys1PlRt)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	IF KEMPSTON		;Replace 1st player's control to Kempston joystick
+	ld a,(kempstonbuttons) ;IN	A,(#1F)
+	AND	%00000001
+	JP	NZ,KEYRF22
+	ENDIF
+	LD      HL,(Keys1PlRt)		;LD		HL,Keys1PlRt+2
+	LD      B,H					;LD		BC,(Keys1PlRt)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP      Z,KEYRF22
-		ELSE
-		IN		A,(#1F) ;??? TODO use OS
-		AND		%00000001
-		JP		NZ,KEYRF22
-		ENDIF
+	JP      Z,KEYRF22
+KEYRF_ok
 		XOR		A
 		LD		(RAZF),A
 		RET
@@ -885,23 +885,24 @@ KEYFCH
 	CALL	RNDD
 	POP	HL
 	RET
+
 KEYLF	LD		A,4
 		CALL	COMPA1P
 		LD		A,(IX+UNIT_COUNTER)
 		CP		0
 		JP		NZ,KEYLL3
-		IFNDEF	KEMPSTONE_HACK		;Replace 1st player's control to Kempston joystick
-		LD      HL,(Keys1PlLt)		;LD		HL,Keys1PlLt+2
-		LD      B,H					;LD		BC,(Keys1PlLt)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	IF KEMPSTON		;Replace 1st player's control to Kempston joystick
+	ld a,(kempstonbuttons) ;IN	A,(#1F)
+	AND	%00000010
+	JP	NZ,KEYLF22
+	ENDIF
+	LD      HL,(Keys1PlLt)		;LD		HL,Keys1PlLt+2
+	LD      B,H					;LD		BC,(Keys1PlLt)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP      Z,KEYLF22
-		ELSE
-		IN		A,(#1F) ;??? TODO use OS
-		AND		%00000010
-		JP		NZ,KEYLF22
-		ENDIF
+	JP      Z,KEYLF22
+KEYLF_ok
 		XOR		A
 		LD		(RAZF2),A
 		RET

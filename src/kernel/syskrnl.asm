@@ -433,15 +433,29 @@ focusappaddr=$+1
 			in l,(c)
 			ld b,0xff ;y
 			in h,(c)
+			 ld bc,0xff77	;shadow ports and palette off
+			 out (c),e
+                        in a,(0x1f)
+                        ld (sys_kempstonbuttons),a
+                         ld bc,0x01bf
+			 out (c),b
+			 ld bc,0xbd77	;shadow ports and palette remain on
+			 out (c),e
+			 xor a
+			 out (0xbf),a
 		else
+                        push de ;e=gfxmode
                         ifdef NOMOUSE
                         ld hl,0
-                        ld d,0x0f
+                        ld de,0x0f00
                         else
 			call readmouse ;resident >=0x4000
                         endif
-        ld a,d
-        ld (sys_mousebuttons),a
+                        ld a,d
+                        ld (sys_mousebuttons),a
+                        ld a,e
+                        ld (sys_kempstonbuttons),a
+                        pop de ;e=gfxmode
 		endif
         ld (sys_mousecoords),hl
 		if atm != 1
@@ -450,7 +464,7 @@ focusappaddr=$+1
 			jr nz,on_int_noreadtime
                         ifdef NOCMOS
                         else
-			call readtime ;hl=date, de=time
+			call readtime ;in: e=gfxmode, out: hl=date, de=time
 			ld (sys_time_date),de
 			ld (sys_time_date+2),hl
                         endif
@@ -710,7 +724,8 @@ enablescrpg_ok
         ret
 
 sys_getchar
-;out: de=mouse yx, l=buttons, A=key, H=high bits of key, nz=no focus (mouse position=0, ignore it!)
+;out:
+;de=mouse yx, l=buttons, A=key, H=high bits of key, bc=keynolang, lx=joystick 0bP2JFUDLR, nz=no focus (mouse position=0, ignore it!)
         ;call checkfocus_getkbdmouse
 ;checkfocus_getkbdmouse
 ;out: nz=fail
@@ -754,6 +769,8 @@ sys_mousecoords=$+1
         ld de,0;hl,0
 sys_mousebuttons=$+1
         ld l,0xff
+sys_kempstonbuttons=$+2
+        ld lx,0
         ;ret ;z
         ;jp endsys_result_a
 endsys_result_a
@@ -773,6 +790,7 @@ sys_getchar_fail
          ld c,a ;no keynolang
         ld d,a;0
         ld e,a;0 ;no mouse movement
+         ld lx,a ;no joystick buttons
         ld l,0xff ;no buttons
         jr endsys_result_a ;ret ;nz ;jp endsys_result_a
 

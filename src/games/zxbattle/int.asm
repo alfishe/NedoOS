@@ -55,6 +55,12 @@ curscrnum_int=$+1
         OS_SETSCREEN
         
         call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!
+
+        if KEMPSTON
+        GET_KEY
+        ld a,lx
+        ld (kempstonbuttons),a
+        endif
         
         if 1==0
         GET_KEY
@@ -209,3 +215,6 @@ PLAYS4A
 	RET
 SOUND1	DEFB	8
 SOUNDW	DEFB	200
+
+kempstonbuttons
+        db 0
