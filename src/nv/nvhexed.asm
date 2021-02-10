@@ -1,5 +1,5 @@
 hexeditor_XYTOP=0x0000
-hexeditor_HGT=24
+hexeditor_HGT=txtscrhgt-1
 hexeditor_WID=80
 hexeditor_MAXX=15
 hexeditor_PAGESIZE=16*hexeditor_HGT
@@ -22,13 +22,11 @@ hexeditor_mainloop
         call drawfilecursor_sizeb_colorhl
         call hexeditor_calctextcursorxy
        if PRSTDIO
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
        else
-        OS_SETXY
         ld hl,_hexeditor_CURSORCOLOR
         ld b,1
         call drawfilecursor_sizeb_colorhl
-        ;ld de,24*256+79
        endif
 ;hexeditor_yieldkeep
         ld a,2
@@ -64,7 +62,7 @@ hexeditor_wasyield=$
         call hexeditor_panel
        if PRSTDIO
         call hexeditor_calctextcursorxy
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
        endif
 hexeditor_nopanel
 	YIELD
@@ -174,7 +172,9 @@ hexeditor_symbol_rightq
         call nvhex_calccuraddrline ;ahl=addr cur line
         ld de,(hexcuraddrxy)
         ld e,0 
-        call nv_setxy ;keep ahl!!!
+        push af
+        call nv_setxy ;keeps de,hl,ix
+        pop af ;keep ahl!!!
         jp hexeditor_prline
 
 hexeditor_save
@@ -287,13 +287,7 @@ hexeditor_prpage0
         push bc
         push de
         push af
-        push hl
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
-        pop hl
+        call nv_setxy ;keeps de,hl,ix
         pop af
         call hexeditor_prline
         pop de
@@ -544,13 +538,11 @@ hexeditor_up_scroll
         ld hl,256*hexeditor_HGT + hexeditor_WID
        if PRSTDIO
         call scrolldown
-        ld de,hexeditor_XYTOP
-        SETXY_
        else
         OS_SCROLLDOWN
-        ld de,hexeditor_XYTOP
-        OS_SETXY
        endif
+        ld de,hexeditor_XYTOP
+        call nv_setxy ;keeps de,hl,ix
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         call hexeditor_prevline
@@ -584,13 +576,11 @@ hexeditor_down_scroll
         ld hl,256*hexeditor_HGT + hexeditor_WID
        if PRSTDIO
         call scrollup
-        ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
-        SETXY_
        else
         OS_SCROLLUP
-        ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
-        OS_SETXY
        endif
+        ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
+        call nv_setxy ;keeps de,hl,ix
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         ld bc,16

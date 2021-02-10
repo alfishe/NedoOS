@@ -17,11 +17,7 @@ editline_curx=$+1
         ld a,0
         add a,e
         ld e,a
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
 	;OS_GETATTR
         ; ld e,a
 	; push de ;color under cursor
@@ -111,11 +107,7 @@ editline_right
 editline_pr
 editline_xy=$+1
         ld de,0
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
 editline_text=$+1
         ld hl,0
         ld c,0 

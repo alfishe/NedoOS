@@ -171,7 +171,7 @@ makeprompt
 ;keeps ix
         push ix
         ld de,cmdprompt ;de=pointer to 64 byte (MAXPATH_sz!) buf
-        OS_GETPATH
+        OS_GETPATH ;TODO брать из описателя панели
         pop ix
         ret
 
@@ -252,26 +252,18 @@ editcmd_noscrollright
        endif
         ;ld de,+(txtscrhgt-1)*256+0
         ld de,CMDLINEY*256+0
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         call cmdcalcpromptsz
         dec a
         ld e,a ;!=0, т.к. буква дисковода
         ld d,0
         ld hl,cmdprompt
-        ld c,0
+        ld c,d;0
         ;call prtext
         call cmdprNchars
         push bc
         ld a,'>'
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
         pop bc
         inc c
         ld hl,(curcmdscroll)

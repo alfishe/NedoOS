@@ -1,5 +1,5 @@
 NVVIEW_XYTOP=0x0000
-NVVIEW_HGT=24
+NVVIEW_HGT=txtscrhgt-1
 NVVIEW_WID=80
        if PRSTDIO
 _NVVIEW_PANELCOLOR=0x0700;0x38
@@ -24,10 +24,10 @@ editcmd_F3
 	call setcurpaneldir
 
         call setdrawtablesneeded
-        ld hl,editcmd_reprintall_noreaddir
+        ld hl,editcmd_reprintall_noreaddir ;TODO а если файл изменится?
         push hl
-        ld de,filenametext
 nvview
+        ld de,filenametext
 ;de=filename
         OS_OPENHANDLE
 	or a
@@ -39,7 +39,7 @@ nvview
 
        if PRSTDIO
         ld de,0
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
         CLS_
        else
         ld e,_COLOR
@@ -198,7 +198,7 @@ nvview_mainloop_keyq
 nvview_hexeditor
         ;pop af ;снимаем адрес возврата
         ld de,0x0000
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
         ld (hexaddrlineHSB),a
@@ -310,11 +310,11 @@ nvview_up
         OS_SCROLLDOWN
        endif
         ld de,NVVIEW_XYTOP
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
         pop hl
         pop af
         call nvview_prline
-         ld de,24*256+79
+         ld de,+(txtscrhgt-1)*256+79
          call nv_setxy ;avoid cursor at 0x0100
         call deccurline
         ld hl,(curbottomtextaddr)
@@ -339,7 +339,7 @@ curbottomtextHSB=$+1
         OS_SCROLLUP
        endif
         ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
         pop hl
         pop af
         call nvview_prline_nextline
@@ -471,8 +471,8 @@ nvview_changeencoding
         call nvview_prcurpage
         ;ret
 nvview_panel
-        ld de,0x1800
-        call nv_setxy
+        ld de,+(txtscrhgt-1)*256
+        call nv_setxy ;keeps de,hl,ix
         ld de,_NVVIEW_PANELCOLOR;#38
        if PRSTDIO
         SETCOLOR_
@@ -489,11 +489,7 @@ nvview_panel
         
 fchanged=$+1
         ld a,' '
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
 nvview_ncurline=$+1
         ld hl,0
         exx 
@@ -502,22 +498,14 @@ nvview_ncurline=$+1
         call prdword
         ;ix
         ld a,'/'
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
         ld hl,(nlines)
         exx 
         ld hl,0
         exx
         call prdword
         ld a,' '
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
         ld hl,(filesizeHSW)
         exx
         ld hl,(filesize)
@@ -576,7 +564,7 @@ nvview_prpage
         ld (curtoptextHSB),a
         push af
         ld de,NVVIEW_XYTOP
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
         pop af
         ld b,NVVIEW_HGT
 nvview_prpage0

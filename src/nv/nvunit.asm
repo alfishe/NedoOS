@@ -76,7 +76,7 @@ prwindow_text0
 	inc d
         inc e
         inc e
-        call nv_setxy ;keeps de,hl
+        call nv_setxy ;keeps de,hl,ix
         
         pop hl ;text
 prwindow_waitkey_text0
@@ -120,7 +120,7 @@ prwindow_waitkey_textoutertext
 prwindow_waitkey_textnextline
         inc hl
         inc d
-        call nv_setxy ;keeps de,hl
+        call nv_setxy ;keeps de,hl,ix
         jr prwindow_waitkey_text0
 
 getmarkedfiles
@@ -327,11 +327,11 @@ drawpanelfilesandsize
 ;ix=panel
         call nv_getpanelxy_de
         ld a,d
-        add a,22
+        add a,CONST_HGT_TABLE+1
         ld d,a
         inc e
         inc e
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
         ld de,_PANELDIRCOLOR;_PANELFILECOLOR
         call nv_setcolor
         call getmarkedfiles
@@ -368,15 +368,11 @@ drawpanelfilesandsize_markedsizeq
 
 nv_setxy
 ;de=yx (kept)
-;keeps hl
+;keeps de,hl,ix
         push de
         push hl
         push ix
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        MYSETXY
         pop ix
         pop hl
         pop de
@@ -438,11 +434,7 @@ panelprtext0
         jr z,panelprtextq
         push bc
         push hl
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
         pop hl
         pop bc
         inc c
@@ -589,7 +581,7 @@ prtable0
 	;call prtableline
         push bc
         push de
-        call nv_setxy ;keeps de,hl
+        call nv_setxy ;keeps de,hl,ix
         ld de,tmidstroka
         ld hl,tmidstroka_sz
         call sendchars
@@ -629,11 +621,7 @@ prNsymbol
 prNsymbol0
 	push bc
         ld a,c
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
 	pop bc
 	djnz prNsymbol0
         pop ix
@@ -646,11 +634,7 @@ prNsymbol0
 cmdprchar
         push hl
 	push ix
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
 	pop ix
         pop hl
         ret
@@ -756,6 +740,7 @@ editcmd_readprompt_setendcmdx
         ld (curcmdx),a
         ret
 
+getanotherpanel_hl
 getanotherpanel_ix
 curpanel=$+1
 	ld bc,leftpanel
@@ -781,6 +766,12 @@ setpaneldir
         ex de,hl ;de=path
 	OS_CHDIR
 	ret
+
+getcurpaneldir_hl
+	ld hl,(curpanel)
+	ld de,PANEL.dir
+	add hl,de
+        ret
 
 drawfilecursor_sizeb_colorhl
 ;de=yx
@@ -811,7 +802,7 @@ drawfilecursor_sizeb0
         push bc
         push de
         push hl ;color
-        OS_SETXY
+        MYSETXY
         pop de ;color
         push de ;color
         OS_PRATTR

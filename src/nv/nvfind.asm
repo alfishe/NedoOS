@@ -2,7 +2,7 @@ MAXSEARCHFILENAME=64
 MAXSEARCHTEXT=64
 
 FOUNDFILESFNSZ=80
-FOUNDFILESMAX=20
+FOUNDFILESMAX=txtscrhgt-5;20
 FOUNDFILESTABLE=0x8000
 FOUNDFILESTABLE_END=0x8000+(FOUNDFILESMAX*FOUNDFILESFNSZ)
 
@@ -10,13 +10,14 @@ editcmd_2
         call ifcmdnonempty_typedigit
 editcmd_F2
         call setdrawtablesneeded
-        ld hl,editcmd_reprintall_noreaddir
-        push hl
         OS_NEWPAGE
         ld a,e
         ld (findpg),a
-        ld hl,nvfind_freepg
-        push hl
+       ld hl,nvfind_freepg
+       push hl
+       ld hl,editcmd_reprintall_noreaddir
+       push hl
+
 nvfind_redrawloop
         ld a,(findpg)
         ld e,a
@@ -147,7 +148,8 @@ nvfind_view
         or a
         ret z
         call nvfind_findselectedname
-        ex de,hl
+        ld de,filenametext
+        call strcopy
         call nvview
         jp nvfind_redrawloop
 
@@ -214,7 +216,27 @@ nvfind_backspace_cursearchtext
         ld (de),a
         jp strdelch
 
+nvfind_enter_select
+;TODO select from list y=(nvfind_curfoundfile)
+        call nvfind_findselectedname
+        push hl
+        call findlastslash. ;de = after last slash
+        dec de
+        xor a
+        ld (de),a ;drop filename after path
+        pop de
+        OS_CHDIR
+        ld hl,(curpanel)
+        call editcmd_setpaneldirfromcurdir_panelhl
+        pop af ;loop return
+        pop af ;reprint return
+        jp editcmd_reprintall
+
 nvfind_enter
+        ld a,(nvfind_curfoundfiles)
+        or a
+        jr nz,nvfind_enter_select
+
         ld (nvfind_sp),sp
         call nvfind_reprintmenu
         
@@ -225,22 +247,17 @@ nvfind_enter
         ld (nvfind_curfoundnameaddr),hl
 
         ld de,0x0400
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
 
-        ld hl,emptypath
+        ;ld hl,emptypath
+        call getcurpaneldir_hl
         ld de,nvfind_curpath
-        call strcopy
+        call strcopy_addslash
 
         call nvfind_loaddir
 nvfind_break
 nvfind_sp=$+1
         ld sp,0
-;select from list
-
         ret
 
         macro STRPUSH
@@ -280,8 +297,6 @@ strmirror
 	 or c
 	 ret z
 ;de=начало, bc=hl=длина
-        ;ld h,b
-        ;ld l,c
         add hl,de ;hl=конец+1
         srl b
         rr c ;bc=wid/2
@@ -574,11 +589,7 @@ nvfind_curfoundfiles=$+1
         add a,5
         ld d,a
         ld e,0
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         call nvfind_findselectedname
         ld c,0 ;x
         call prtext
@@ -597,11 +608,7 @@ nvfind_curtab=$+1
 nvfind_prcursearchfilename
         ld de,0x0100
         push de
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,cursearchfilename
         call prtext
@@ -609,21 +616,13 @@ nvfind_prcursearchfilename
         call nvfind_getx
         pop de
         ld e,a
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ret
 
 nvfind_prcursearchtext
         ld de,0x0300
         push de
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,cursearchtext
         call prtext
@@ -631,17 +630,13 @@ nvfind_prcursearchtext
         call nvfind_getx
         pop de
         ld e,a
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ret
 
 nvfind_reprintmenu
        if PRSTDIO
         ld de,0
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
         CLS_
        else
         ld de,_COLOR
@@ -649,33 +644,21 @@ nvfind_reprintmenu
        endif
         
         ld de,0x0000
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,tsearchfilename
         call prtext
         call nvfind_prcursearchfilename
 
         ld de,0x0200
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,tsearchtext
         call prtext
         call nvfind_prcursearchtext
         
         ld de,0x0400
-       if PRSTDIO
-        SETXY_
-       else
-        OS_SETXY
-       endif
+        call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,tresults
         call prtext

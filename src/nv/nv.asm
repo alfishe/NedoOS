@@ -48,14 +48,30 @@ FILES_POINTERS_right=0xc000;0x3b00
 
 txtscrhgt=25
 txtscrwid=80
-CMDLINEY=23;24
-CONST_HGT_TABLE=21
+CMDLINEY=txtscrhgt-2
+CONST_HGT_TABLE=txtscrhgt-4
 PANELDIRCHARS37=37
 left_panel_xy=0x0000
 right_panel_xy=0x0028
 firstfiley=left_panel_xy/256 + 1
 PROGRESBARWINXY=0x0f16 ;0x0919 + 051f ;de=yx
 PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
+
+        macro MYPRCHAR
+       if PRSTDIO
+        PRCHAR_
+       else
+        PRCHAR
+       endif
+        endm
+
+        macro MYSETXY
+       if PRSTDIO
+        SETXY_
+       else
+        OS_SETXY
+       endif
+        endm
 
         macro PGW2elpg0
         ;LD A,(HS_elpg)
@@ -161,6 +177,9 @@ cmd_begin
 	;ld hl,sorter2
 	;ld (rightpanel+PANEL.sorter),hl
 
+        ld hl,rightpanel
+        call editcmd_setpaneldirfromcurdir_panelhl
+
         ld de,fn_path
         OS_OPENHANDLE
         or a
@@ -176,8 +195,6 @@ cmd_begin
         OS_CHDIR
 init_nochdir
 
-        ld hl,rightpanel
-        call editcmd_setpaneldirfromcurdir_panelhl
         ld hl,leftpanel
         call editcmd_setpaneldirfromcurdir_panelhl
 
@@ -322,8 +339,8 @@ strnewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
 	ret
 
 printhint
-        ld de,24*256
-        call nv_setxy
+        ld de,+(txtscrhgt-1)*256
+        call nv_setxy ;keeps de,hl,ix
         ld hl,thint
 prhint0
         ld a,(hl)
@@ -335,11 +352,7 @@ prhint0
         cp '}'
         jr z,prhint_color1
         push hl
-       if PRSTDIO
-        PRCHAR_
-       else
-        PRCHAR
-       endif
+        MYPRCHAR
         pop hl
         jr prhint0
 prhint_color0
@@ -377,7 +390,7 @@ drawpanel_head ;ix=panel (keep!!!)
         call nv_getpanelxy_de
         inc e
 	inc e
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
 	push ix
 	pop hl
 	ld de,(curpanel)
@@ -475,7 +488,7 @@ premptyfiles
 premptyfiles0
 	push bc
 	push de
-        call nv_setxy ;keeps de,hl
+        call nv_setxy ;keeps de,hl,ix
 	;ld e,(hl)
 	;inc hl
 	;ld d,(hl)
@@ -956,7 +969,7 @@ controlloop_noprline
 	ld hl,_FILECURSORCOLOR
 	call nz,prfilecursor_reprintfile ;more than 0 files
         call cmdcalccurxy
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
         ;SETX_ ;force reprint cursor
 controlloop_nokey
        if PRSTDIO
@@ -1069,15 +1082,12 @@ editcmddirback_go
 	ld de,tdotdot
 	OS_CHDIR
 ;взять имя директории из последнего элемента paneldir
-        ld hl,(curpanel)
-        push hl
-	ld de,PANEL.dir
-	add hl,de
+        call getcurpaneldir_hl
         call findlastslash. ;out: de = after last slash
         ex de,hl
         ld de,filenametext
         call strcopy
-        pop hl ;ld hl,(curpanel)
+        ld hl,(curpanel)
         push hl
         call editcmd_setpaneldirfromcurdir_panelhl
 	pop ix ;ld ix,(curpanel)
@@ -1222,7 +1232,7 @@ editcmd_up
        endif
         pop de
         inc e
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
 	 pop hl ;file number
         call getfcbaddrunderhl
 	jp prdirfile
@@ -1261,7 +1271,7 @@ editcmd_down
         add a,CONST_HGT_TABLE-1
         ld d,a
         inc e
-        call nv_setxy
+        call nv_setxy ;keeps de,hl,ix
 	 pop hl ;file number
         call getfcbaddrunderhl
 	jp prdirfile
@@ -1333,7 +1343,6 @@ editcmd_setpaneldirfromcurdir_panelhl
         ex de,hl ;de=pointer to 64 byte (MAXPATH_sz!) buf
         OS_GETPATH
          jp clear_keyboardbuffer
-        ;ret
 
 editcmd_enter_runcmd
 ;run "cmd <command to run>"
@@ -1348,12 +1357,12 @@ loadandrun_waitpid
         call setdrawtablesneeded
        if PRSTDIO
         ld de,0
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
         ld de,_COLOR
         SETCOLOR_
         CLS_
         ld de,0
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
        else
 	call nv_copyscreen1to0
         ld e,-1
@@ -1802,12 +1811,16 @@ seldrv_ok
 	jp seldrv_redraw_mainloop
 seldrv_ok0
 	ld a,e
-        add 'a'
-        ld ix,(curpanel)
-        ld (ix+PANEL.dir),a
-        ld (ix+PANEL.dir+1),':'
-        ld (ix+PANEL.dir+2),'/'
-        ld (ix+PANEL.dir+3),0
+        add a,'a'
+        call getcurpaneldir_hl
+        ;ld ix,(curpanel)
+        ld (hl),a
+        inc hl
+        ld (hl),':'
+        inc hl
+        ld (hl),'/'
+        inc hl
+        ld (hl),0
 	ret
 
 seldrv_down
@@ -2015,11 +2028,7 @@ proc_del_file
 	ret z
 	call getfcbfromhl
 
-	 ld ix,(curpanel)
-	ld de,PANEL.dir
-	 add ix,de
-	 push ix
-	 pop hl
+        call getcurpaneldir_hl ;почему-то было через ix 10.02.2020
 	ld de,dir_buf
 	call strcopy;nv_strcopy_hltode
 
@@ -2094,19 +2103,13 @@ editcmd_F5
         call changemark_hl ;ld (hl),1
 editcmd_5_0
 
-	call getanotherpanel_ix
+	call getanotherpanel_hl
 	ld de,PANEL.dir
-	 add ix,de
-	 push ix
-	 pop hl
+	add hl,de
 	ld de,dir2_buf
 	call strcopy;nv_strcopy_hltode
 
-	 ld ix,(curpanel)
-	ld de,PANEL.dir
-	 add ix,de
-	 push ix
-	 pop hl
+        call getcurpaneldir_hl
 	ld de,dir_buf
 	call strcopy;nv_strcopy_hltode
 
@@ -2145,11 +2148,9 @@ strcopy0
         jp nz,strcopy0
         ret
 
-;TODO change this to strcopy_maxb
-nv_makefilepath_hltode ;DE=dest HL=src BC=filename
-        push bc
+strcopy_addslash
+;hl->de
 	call strcopy;nv_strcopy_hltode
-        pop bc
 ;assumed that DE is after terminator
 	dec de
 	dec de
@@ -2163,8 +2164,13 @@ nv_addslash0
 	inc de
 	xor a
 	ld (de),a
-	ld h,b
-	ld l,c
+        ret
+
+;TODO change this to strcopy_maxb
+nv_makefilepath_hltode ;DE=dest HL=src BC=filename
+        push bc
+        call strcopy_addslash
+        pop hl
 	jp strcopy;nv_strcopy_hltode
 
 ;TODO remove this
@@ -2554,11 +2560,11 @@ filescopied=$+1
 proceditcmd_copy_q_progress0       
         push de
         push bc
-        SETXY_
+        call nv_setxy ;keeps de,hl,ix
         ;ld e,#ff
         ;OS_PRATTR
         ld a,'*'
-        PRCHAR_
+        MYPRCHAR
         pop bc
         pop de
         inc e
