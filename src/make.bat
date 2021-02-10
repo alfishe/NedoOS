@@ -94,6 +94,7 @@ if not "%1"=="noneedtrd" (
         move %releasedir%\bin\tazres.bin %releasedir%\br\
         move %releasedir%\bin\yad.com %releasedir%\br\
         move %releasedir%\bin\nvfast.com %releasedir%\br\
+        move %releasedir%\bin\movedisk.com %releasedir%\br\
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
 	nedotrd test.trd -s 24576 -ac kernel/code.c
