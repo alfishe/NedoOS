@@ -8,29 +8,31 @@ FUNC BOOL comparedesc(PCHAR filename, PBYTE desc)
 VAR CHAR c;
 VAR BOOL res;
 VAR BYTE i = 0x08;
+  res = +FALSE;
   filename = findlastslash(filename);
   loop:
     c = *(PCHAR)filename;
     INC filename;
-    IF (c == '.') { //todo test '\0', descbuf all spaces
+    IF (c == '.') {
       dot:
+      while (i != 0x00) {
+        if (*(PCHAR)desc != ' ') {goto quit;};
+        INC desc;
+        DEC i;
+      };
       //desc = (PBYTE)((UINT)desc + (UINT)i);
-      res = (*(PCHAR)((UINT)desc + (UINT)i) == *(PCHAR)filename);
+      res = (*(PCHAR)desc == *(PCHAR)filename);
       goto quit;
     };
-    IF (c != *(PCHAR)desc) {
-      res = +FALSE;
-      goto quit;
-    };
+    IF (c != *(PCHAR)desc) {goto quit;};
     INC desc;
     DEC i;
     IF (i == 0x00) {
       c = *(PCHAR)filename;
       INC filename;
-      //IF (c == '.') 
-              goto dot;
-      //res = (*(PCHAR)desc == ' '); //filenam8 (without ext) //TODO
-      //goto quit;
+      IF (c == '.') {goto dot;};
+      res = ((c == '\0') && (*(PCHAR)desc == ' ')); //filenam8 (without ext); else filename too long
+      goto quit;
     };
     goto loop;
   quit:
