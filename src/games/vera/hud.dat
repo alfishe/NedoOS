@@ -13,3 +13,4 @@
 ;P: DDp palette
 
 hud=i,192,0,64,192,7
+hudmsg=i,0,128,192,64,7
