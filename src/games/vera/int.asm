@@ -99,22 +99,22 @@ on_int
 ;1 - Left (5)
 ;0 - Right (8) 
        endif
-        ld a,(curpg16k) ;ok
+        ld a,(curpg4000) ;ok
         push af
-        ld a,(curpg32klow) ;ok
+        ld a,(curpg8000) ;ok
         push af
-        ;ld a,(curpg32khigh) ;ok
+        ;ld a,(curpgc000) ;ok
         ;push af
 	call IMS ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
         ;pop af
         ;SETPG32KHIGH
         pop af
-        SETPG32KLOW
+        SETPG8000
         pop af
-        SETPG16K
+        SETPG4000
 
-        ld hl,timer
-        inc (hl)
+        ;ld hl,timer
+        ;inc (hl)
 
         pop iy
         pop ix
@@ -144,5 +144,5 @@ on_int_sp=$+1
 on_int_jp=$+1
 	jp 0
 
-timer
-        db 0
+;timer
+        ;db 0
