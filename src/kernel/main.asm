@@ -767,10 +767,22 @@ minmes  ;=$-wasresident+resident
     ret
 
 bcd2bin  ;=$-wasresident+resident
-    ld b,NVRAM_REG
+    ld bc,0xf7 + (NVRAM_REG<<8)
     out (c),a
     ld b,NVRAM_VAL
     in a,(c)
+    ld b,a
+    and 0xf0
+    rra ;*8
+    ld c,a ;*8
+    rra ;*4
+    rra ;*2
+    add a,c ;*10
+    res 7,b
+    res 6,b
+    res 5,b
+    res 4,b
+    add a,b
     ret
     
 readtime  ;=$-wasresident+resident
@@ -784,13 +796,13 @@ readtime  ;=$-wasresident+resident
 	ld bc,0xeff7
 	ld a,0x80
 	out (c),a
-	ld bc,0xf7 + (NVRAM_REG<<8)
-    ld a,0x0b
-    out (c),a
-    ld b,NVRAM_VAL
-    in a,(c)
-    or 0x04
-    out (c),a
+	;ld bc,0xf7 + (NVRAM_REG<<8)
+    ;ld a,0x0b
+    ;out (c),a
+    ;ld b,NVRAM_VAL
+    ;in a,(c)
+    ;or 0x04
+    ;out (c),a
     xor a		;sec
     call bcd2bin
     srl a
