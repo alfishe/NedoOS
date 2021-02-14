@@ -7,7 +7,10 @@ set SJASMPLUS=sjasmplus
 set SJASMPLUSFLAGS=--nologo --msg=war
 
 %NEDORES% icons.bmp icons.dat icons.ast
-%NEDORES% icons.bmp pal.dat pal.ast
+%NEDORES% icons-day.bmp palday.dat palday.ast
+%NEDORES% icons-evening.bmp palev.dat palev.ast
+%NEDORES% icons-dawn.bmp paldawn.dat paldawn.ast
+%NEDORES% icons-night.bmp palnight.dat palnight.ast
 %NEDORES% cursors.bmp cursors.dat cursors.ast
 %NEDORES% hud.bmp hud.dat hud.ast
 %NEDORES% tiles.bmp tiles0.dat tiles0.ast
