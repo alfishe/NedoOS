@@ -19,7 +19,9 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 %NEDORES% tiles.bmp tiles3.dat tiles3.ast
 %NEDORES% herospr.bmp sprites0.dat sprites0.ast
 %NEDORES% herospr.bmp sprites1.dat sprites1.ast
-%SJASMPLUS% %SJASMPLUSFLAGS% hud.ast --raw=%LOCALDIR%/hud.bin
+%NEDORES% day_night.bmp daynight.dat daynight.ast
+rem %SJASMPLUS% %SJASMPLUSFLAGS% hud.ast --raw=%LOCALDIR%/hud.bin
+%SJASMPLUS% %SJASMPLUSFLAGS% daynight.ast --raw=%LOCALDIR%/daynight.bin
 %SJASMPLUS% %SJASMPLUSFLAGS% icons.ast --raw=%LOCALDIR%/icons.bin
 %SJASMPLUS% %SJASMPLUSFLAGS% tiles0.ast --raw=%LOCALDIR%/tiles0.bin
 %SJASMPLUS% %SJASMPLUSFLAGS% tiles1.ast --raw=%LOCALDIR%/tiles1.bin
