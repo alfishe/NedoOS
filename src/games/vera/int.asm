@@ -105,6 +105,7 @@ on_int
         push af
         ;ld a,(curpgc000) ;ok
         ;push af
+       call setpgsmain40008000
 	call IMS ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
         ;pop af
         ;SETPG32KHIGH
