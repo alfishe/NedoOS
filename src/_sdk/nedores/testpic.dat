@@ -5,6 +5,7 @@
 ;[b: b/w tiles: wid, hgt, data]
 ;B: colour tiles: wid, hgt, data
 ;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;w: b/w sprites: antipixelsw, antimaskw...
 ;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
 ;T: colour tilepic 28xN (size 0xN00 bytes)
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid

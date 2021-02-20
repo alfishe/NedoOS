@@ -208,7 +208,7 @@ void setcurinkpaper(BYTE* pcurink, BYTE* pcurpaper)
 //возвращает *pcurink, *curpaper, причЄм вместо 0x08 ставит 0x00 (чтобы не вли€ло на €ркость)
 {
 BYTE t;
-  if (sprformat == 's') {
+  if ((sprformat == 's')||(sprformat == 'w')) {
     paper = 0x08;
     ink = 0x0f;
   }; //дл€ спрайтов фон чЄрный (а маска 0x00)
@@ -308,6 +308,39 @@ int j;
       fprintf(fout, "0x%x%x", b>>4, b&0x0f);
       i++;
       if (i >= (xchr+sprwid8)) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    j++;
+    if (j >= (y+sprhgt)) break;
+  };
+}
+
+void emitsprw(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{ //antipixelsw, antimaskw
+BYTE b;
+int i;
+int j;
+  j = y;
+  while (1) {
+    fputs("\tdb ", fout);
+    i = xchr+sprwid8;
+    while (1) {
+      i--;
+      b = ~maskrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      if (i == xchr) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    fputs("\tdb ", fout);
+    i = xchr+sprwid8;
+    while (1) {
+      i--;
+      b = ~maskrow[i][j];
+      b ^= pixrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      if (i == xchr) break;
       fputs(",", fout);
     };
     fputs("\n", fout);
@@ -503,6 +536,10 @@ UINT color;
               };
               fputs("\n", fout);
               rowhgt = sprhgt;
+            }else if (sprformat == 'w') {
+              fputs(labelbuf, fout);
+              fputs("\n", fout);
+              rowhgt = sprhgt;
             }else { //'s'
               fputs(labelbuf, fout);
               fputs("\n", fout);
@@ -567,6 +604,8 @@ UINT color;
                 emitnops((BYTE)(0x100-((BYTE)(sprwid>>3)*0x09)),fout);
               }else if (sprformat == 's') { //sprite
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'w') { //sprite antipixels16, antimask16
+                emitsprw(sprx/8,y,sprwid/8,sprhgt,fout);
               };
               y = y+rowhgt;
             }; //while y
