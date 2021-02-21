@@ -61,9 +61,9 @@ prsprnocropleft
         ; ld h,0x80/32/2
          ld h,b;0
          rl h
-         inc h ;0x40/32/2 или 0x80/32/2
+         inc h
         srl a ;x bit 1
-         rl h
+         rl h ;0x40/32/2 или 0x80/32/2
         add hl,hl
         add hl,hl
         add hl,bc

@@ -6,7 +6,7 @@ set NEDORES="../../_sdk/nedores.exe"
 set SJASMPLUS=sjasmplus
 set SJASMPLUSFLAGS=--nologo --msg=war
 
-%NEDORES% icons.bmp icons.dat icons.ast
+%NEDORES% icons-day.bmp icons.dat icons.ast
 %NEDORES% icons-day.bmp palday.dat palday.ast
 %NEDORES% icons-evening.bmp palev.dat palev.ast
 %NEDORES% icons-dawn.bmp paldawn.dat paldawn.ast
