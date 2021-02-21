@@ -1,0 +1,38 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;P: DDp palette
+
+hero2_r0=x,96,0,16,32,7
+hero2_r1=x,96,32,16,32,7
+hero2_r2=x,96,64,16,32,7
+hero2_l0=x,96,96,16,32,7
+hero2_l1=x,96,128,16,32,7
+hero2_l2=x,96,160,16,32,7
+hero2_u0=x,96,192,16,32,7
+hero2_u1=x,96,224,16,32,7
+hero2_u2=x,96,256,16,32,7
+hero2_d0=x,96,288,16,32,7
+hero2_d1=x,96,320,16,32,7
+hero2_d2=x,96,352,16,32,7
+hero2ur0=x,96,384,16,32,7
+hero2ur1=x,96,416,16,32,7
+hero2ur2=x,96,448,16,32,7
+hero2dr0=x,96,480,16,32,7
+hero2dr1=x,96,512,16,32,7
+hero2dr2=x,96,544,16,32,7
+hero2ul0=x,96,576,16,32,7
+hero2ul1=x,96,608,16,32,7
+hero2ul2=x,96,640,16,32,7
+hero2dl0=x,96,672,16,32,7
+hero2dl1=x,96,704,16,32,7
+hero2dl2=x,96,736,16,32,7
