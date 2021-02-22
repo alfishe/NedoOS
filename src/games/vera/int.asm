@@ -46,11 +46,7 @@ on_int
         push hl
         push ix
         push iy
-
-curscrnum_int=$+1
-        ld e,0
-        OS_SETSCREEN
-        
+       
         call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!
         di
         
