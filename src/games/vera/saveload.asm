@@ -2,6 +2,23 @@
 
 ;Загрузка отложенного состояния
 LOAD ;-> GAME
+       if 1==1
+        ld a,PG_MAP
+        call setpg
+        ld de,savefn
+        OS_OPENHANDLE
+        push bc       
+        ld de,0xc000;VIDEOS ;0x9000 сейчас обменяно
+        LD hl,0x3000
+        OS_READHANDLE
+        pop bc ;b=handle
+        push bc
+        ld de,VARS
+        LD hl,0x600
+        OS_READHANDLE
+        pop bc ;b=handle
+        OS_CLOSEHANDLE
+       else ;TR-DOS
 ;Ищем файл
         CALL FILE
         LD C,#18
@@ -38,10 +55,34 @@ LOAD ;-> GAME
         LD BC,#0305
         CALL TRDOS
         JP NZ,ERROR ;ошибка
+        
+        ld a,(...)
+        ld (daynightphase),a
+       endif
+        xor a
+        ld (DAY_NGT),a ;обновить спрайт дня и ночи сразу
+        
         JP GAME
 
 ;Сохранение состояния
 SAVE
+       if 1==1
+        ld a,PG_MAP
+        call setpg
+        ld de,savefn
+        OS_CREATEHANDLE
+        push bc       
+        ld de,0xc000;VIDEOS ;0x9000 сейчас обменяно
+        LD hl,0x3000
+        OS_WRITEHANDLE
+        pop bc ;b=handle
+        push bc
+        ld de,VARS
+        LD hl,0x600
+        OS_WRITEHANDLE
+        pop bc ;b=handle
+        OS_CLOSEHANDLE
+       else ;TR-DOS
 ;Ищем файл
         LD A,PG_MAP
         CALL PAGE
@@ -80,8 +121,10 @@ SAVE2   LD HL,VARS
         LD BC,#0306
         CALL TRDOS
         JP NZ,ERROR2 ;ошибка
+       endif
         JP SAVE_OK
 
+       if 1==0
 ;Читаем системный сектор
 NOFILE  LD DE,#0008
         LD HL,CAT
@@ -151,5 +194,5 @@ ERR     LD B,10
         RET 
 
 FILENAM DB "VERASAVEC" ;TODO HDD
-
 CAT
+       endif
