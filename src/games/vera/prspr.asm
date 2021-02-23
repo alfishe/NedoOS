@@ -86,6 +86,7 @@ prsprnocropleft
          cp scrhgt
          jp nc,prsprcroptop
         add a,(iy-3) ;sprhgt
+prspr_curscrhgtplus1=$+1
         cp scrhgt+1 ;200=OK, >200=crop
         jp nc,prsprcropbottom        
 ;hx=расстояние до правой границы экрана (columns)
@@ -231,6 +232,7 @@ prsprcropbottom
 ;(iy-3)?3=sprhgt
 ;(iy-4)?4=sprwid
 ;hl=scr
+prspr_curscrhgt=$+1
         sub scrhgt;200
         ;sub (iy-3) ;sprhgt
          ld d,(iy-3) ;sprhgt
