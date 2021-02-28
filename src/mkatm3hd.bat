@@ -4,8 +4,6 @@ set prevmakeall=%makeall%
 set makeall=1
 %MAKE% %MFLAGS% configure-atm3hd
 if not %ERRORLEVEL%==0 goto error
-%MAKE% %MFLAGS% clean
-if not %ERRORLEVEL%==0 goto error
 %MAKE% %MFLAGS% install
 if not %ERRORLEVEL%==0 goto error
 if "%prevmakeall%"=="" (
@@ -16,3 +14,4 @@ goto end
 :error
 echo ERROR: Exit code %ERRORLEVEL%. Stopped.
 :end
+set makeall=%prevmakeall%

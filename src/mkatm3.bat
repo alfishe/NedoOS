@@ -14,3 +14,4 @@ goto end
 :error
 echo ERROR: Exit code %ERRORLEVEL%. Stopped.
 :end
+set makeall=%prevmakeall%

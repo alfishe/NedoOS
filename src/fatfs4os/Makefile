@@ -62,17 +62,17 @@ install: all
 ifeq ($(OS),Windows_NT)
 clean:
 #	$(RM) fatfs.exp fatfs.raw
-	$(RM) \
- fatfs.tmp \
- list/ccsbcs.lst \
- list/ccsbcs.r01 \
- list/ccsbcs.s01 \
- list/cout.l \
- list/ff.lst \
- list/ff.r01 \
- list/ff.s01 \
- list/mylib.r01
-	$(RMDIR) list
+	$(RM) fatfs.tmp
+# list/ccsbcs.lst \
+# list/ccsbcs.r01 \
+# list/ccsbcs.s01 \
+# list/cout.l \
+# list/ff.lst \
+# list/ff.r01 \
+# list/ff.s01 \
+# list/mylib.r01
+#	$(RMDIR) list
+	$(RM) -r list/
 else
 clean: ;
 endif

@@ -249,7 +249,7 @@ endif
 
 clean-atm2:
 	$(RM) $(INSTALLDIR)osatm2.trd
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # atm2hd
 
@@ -286,7 +286,7 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) $(INSTALLDIR)osatm2hd.\$$C
 endif
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # atm3
 
@@ -309,7 +309,7 @@ endif
 
 clean-atm3:
 	$(RM) $(INSTALLDIR)osatm3.trd
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # atm3hd
 
@@ -341,7 +341,7 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) $(INSTALLDIR)osatm3hd.\$$C
 endif
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # atm3sd
 
@@ -373,7 +373,7 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) $(INSTALLDIR)osatm3sd.\$$C
 endif
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # evo
 
@@ -402,7 +402,7 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) $(INSTALLDIR)sd_boot.\$$C
 endif
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # evsd-g
 
@@ -431,7 +431,7 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) $(INSTALLDIR)osevsd-g.\$$C
 endif
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # pe26
 
@@ -454,7 +454,7 @@ endif
 
 clean-pe26:
 	$(RM) $(INSTALLDIR)osp26.trd
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # pe26sd
 
@@ -483,7 +483,7 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) $(INSTALLDIR)osp26sd.\$$C
 endif
-	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
+#	$(RM) -r $(BIN_INSTALLDIR) $(RES_INSTALLDIR) $(DOC_INSTALLDIR)
 
 # install
 
