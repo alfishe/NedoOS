@@ -1,6 +1,8 @@
 @echo off
 if "%settedpath%"=="" call _sdk\setpath.bat
-%MAKE% %MFLAGS% configure-evsd-gatm2 clean install
+%MAKE% %MFLAGS% configure-evsd-g
+%MAKE% %MFLAGS% clean
+%MAKE% %MFLAGS% install
 if not %ERRORLEVEL%==0 goto error
 if "%makeall%"=="" (
  %MAKE% %MFLAGS% test
