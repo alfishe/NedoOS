@@ -1,7 +1,3 @@
-@echo off
-if "%settedpath%"=="" call %~dp0_sdk\setpath.bat
-%MAKE% %MFLAGS% clean
-rem TODO: add next lines to Makefiles without proper "clean" target
 del /s *.obj
 del /s *.tds
 del /s *.~c

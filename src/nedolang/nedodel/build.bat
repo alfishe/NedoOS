@@ -6,4 +6,4 @@ type err.f
 ..\_sdk\nedoasm del_os.S_
 type asmerr.f
 move /Y del_os.bin nedodel.com > nul
-rem if "%makeall%"=="" (pause)
+rem if "%currentdir%"=="" (pause)

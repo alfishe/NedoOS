@@ -1,37 +1,102 @@
 # Supported environments:
-#   GNU/Linux
-#   Windows NT
+#   GNU/Linux.
+#
+# Tools used:
+#   GNU core utilities, tools/aspp, tools/sjasmplus.
 
 include ../../_sdk/common.mk
 
-# no trailing "/"
-INSTALLDIR	:= $(INSTALLDIR)nedogame
+NAME		= eric.com
+OBJECTS		=
+SOURCES		= main.asm
+RESOURCES	= eric/ericgfx.bmp
+DOCS		=
+INSTALLDIR	?= ../../../release/nedogame
+BIN_INSTALLDIR	= ${INSTALLDIR}
+RES_INSTALLDIR	= ${INSTALLDIR}/eric
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 
-.PHONY: install clean
+# All targets
+TARGETS=executables resources
+.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
 
-eric.com: main.asm \
- ../../_sdk/file.asm \
- ../../_sdk/sys_h.asm \
- ../../_sdk/sysdefs.asm \
- eric1.asm \
- ericmuz.bin
-	$(AS) $(AFLAGS) $<
+.DEFAULT_GOAL=all
 
-install: \
- $(INSTALLDIR) \
- $(INSTALLDIR)/eric.com \
- $(INSTALLDIR)/eric \
- $(INSTALLDIR)/eric/ericgfx.bmp
+empty:
+	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
+	@echo 'where ACTION is one of: install clean'
+	@echo '      TARGET is one of: ${TARGETS}'
 
-$(INSTALLDIR) \
- $(INSTALLDIR)/eric:
-	$(MKDIR) $@
+# Clear lists
+DEPS=
 
-$(INSTALLDIR)/eric.com: eric.com
-	$(CP) $< $@
+# Create directories
+${sort \
+${BIN_INSTALLDIR} \
+${RES_INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $@
 
-$(INSTALLDIR)/eric/ericgfx.bmp: eric/ericgfx.bmp
-	$(CP) $< $@
+##########################
+## Target "executables" ##
+##########################
 
-clean:
-	$(RM) eric.com
+EXEC_DEPS=
+EXEC_BINS=
+
+${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+
+executables: ${EXEC_BINS}
+
+install-executables: executables | ${BIN_INSTALLDIR}
+	cp ${EXEC_BINS} $|
+
+clean-executables:
+	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+
+DEPS+=${EXEC_DEPS}
+
+########################
+## Target "resources" ##
+########################
+
+resources: ${RESOURCES}
+
+install-resources: resources | ${RES_INSTALLDIR}
+ifneq "${sort ${RESOURCES}}" ""
+	cp ${RESOURCES} $|
+endif
+
+clean-resources:
+
+####################
+## Common targets ##
+####################
+
+all: executables resources
+
+install: install-executables install-resources
+
+ifeq "${sort ${DOCS}}" ""
+install-doc:
+else
+install-doc: ${DOCS} | ${DOC_INSTALLDIR}
+	cp $^ $|
+endif
+
+clean: clean-executables clean-resources
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+${filter clean-%,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif

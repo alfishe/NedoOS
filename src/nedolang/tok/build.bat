@@ -6,4 +6,4 @@ type err.f
 ..\_sdk\nedoasm tok_os.S_
 type asmerr.f
 move /Y tok_os.bin tok.com > nul
-if "%makeall%"=="" (pause)
+if "%currentdir%"=="" (pause)

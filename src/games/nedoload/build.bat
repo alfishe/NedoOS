@@ -80,12 +80,15 @@ echo -4----------------------------
 rem echo %CD%
 
 SET releasedir2=../../../release/
-if "%makeall%"=="" (
+if "%currentdir%"=="" (
   FOR %%j IN (*.com) DO (
   "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /nedogame/%%j
   move "*.com" "%releasedir2%nedogame" > nul
   IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedogame\%%~nj\" > nul
   )
- %MAKE% -w -C %EMULDIR% sd
- %EMUL%
+cd ../../../src/
+call ..\tools\chkimg.bat sd
+ rem pause
+rem  if "%makeall%"=="" ..\..\..\us\emul.exe
+ if "%makeall%"=="" ..\us\emul.exe
 )

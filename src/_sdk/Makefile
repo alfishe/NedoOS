@@ -1,88 +1,25 @@
-# Supported environment:
-#   GNU/Linux
-#   Windows NT
+NAME		= nedopad.bin nedores.bin nedotrd.bin
+OBJECTS		=
+SOURCES		= nedopad/main.c nedores/main.c nedotrd/main.c
+SJASMPLUS	= ../../tools/sjasmplus
+CC		= gcc
+CFLAGS 		= -m32
 
-include common.mk
+all: ${NAME} ${SOURCES}
 
-ifeq ($(OS),Windows_NT)
- NAME		:= bin/convega.exe bin/nedopad.exe bin/nedores.exe bin/nedotrd.exe
-else
- NAME		:= bin/convega.bin bin/nedopad.bin bin/nedores.bin bin/nedotrd.bin
-endif
+nedopad.bin: nedopad/main.c
+	patch -N -p6 -i nedopad.diff; echo
+	${CC} ${CFLAGS} nedopad/main.c -o nedopad.bin
 
-.PHONY: all install clean
+nedores.bin: nedores/main.c
+	patch -N -p6 -i nedores.diff; echo
+	${CC} ${CFLAGS} nedores/main.c -o nedores.bin
 
-all: $(NAME)
+nedotrd.bin: nedotrd/main.c
+	patch -N -p6 -i nedotrd.diff; echo
+	${CC} ${CFLAGS} nedotrd/main.c -o nedotrd.bin
 
-# convega
-
-ifeq ($(OS),Windows_NT)
-convega/convega.exe: convega
-else
-convega/convega: convega
-endif
-	$(MAKE) -w -C $<
-
-ifeq ($(OS),Windows_NT)
-bin/convega.exe: convega/convega.exe
-else
-bin/convega.bin: convega/convega
-endif
-	$(CP) $< $@
-
-# nedopad
-
-ifeq ($(OS),Windows_NT)
-nedopad/nedopad.exe: nedopad
-else
-nedopad/nedopad: nedopad
-endif
-	$(MAKE) -w -C $<
-
-ifeq ($(OS),Windows_NT)
-bin/nedopad.exe: nedopad/nedopad.exe
-else
-bin/nedopad.bin: nedopad/nedopad
-endif
-	$(CP) $< $@
-
-# nedores
-
-ifeq ($(OS),Windows_NT)
-nedores/nedores.exe: nedores
-else
-nedores/nedores: nedores
-endif
-	$(MAKE) -w -C $<
-
-ifeq ($(OS),Windows_NT)
-bin/nedores.exe: nedores/nedores.exe
-else
-bin/nedores.bin: nedores/nedores
-endif
-	$(CP) $< $@
-
-# nedotrd
-
-ifeq ($(OS),Windows_NT)
-nedotrd/nedotrd.exe: nedotrd
-else
-nedotrd/nedotrd: nedotrd
-endif
-	$(MAKE) -w -C $<
-
-ifeq ($(OS),Windows_NT)
-bin/nedotrd.exe: nedotrd/nedotrd.exe
-else
-bin/nedotrd.bin: nedotrd/nedotrd
-endif
-	$(CP) $< $@
+clean: 
+	rm -f ${NAME} ${OBJECTS}
 
 install: all
-
-clean:
-	$(MAKE) -w -C convega clean
-	$(MAKE) -w -C nedopad clean
-	$(MAKE) -w -C nedores clean
-	$(MAKE) -w -C nedotrd clean
-	$(RM) $(NAME)

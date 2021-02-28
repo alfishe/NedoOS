@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <mem.h>
+//#include <mem.h>
 #include <string.h>
 
 #define _STRMAX 79

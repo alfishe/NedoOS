@@ -1,60 +1,88 @@
 # Supported environments:
-#   GNU/Linux
-#   Windows NT
+#   GNU/Linux.
+#
+# Used tools:
+#   GNU core utilities, tools/aspp, tools/sjasmplus, tools/mhmt.
 
 include ../_sdk/common.mk
 
-.PHONY: install clean
+NAME		= code.c
+OBJECTS		=
+SOURCES		= main.asm
+MHMT		= ../../tools/mhmt
+DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
 
-nedoos.$$C: hobeta.asm \
- code.c
-	$(AS) $(AFLAGS) $<
+# All targets
+.PHONY: empty hobeta clean-hobeta all install install-doc clean
 
-ffsfunc.ast: ../fatfs4os/fatfs.exp
-	$(SED) -Ee 's/^(.+)[[:space:]]+(.+)/.\1 EQU 0x\2/' $< > $@
+.DEFAULT_GOAL=all
 
-initcode.c \
-syscode.c: main.asm \
- ../_sdk/codepage/866toatm \
- ../_sdk/sys_h.asm \
- ../_sdk/sysdefs.asm \
- ../_sdk/syssets.asm \
- ../fatfs4os/fatfs.raw \
- bdospg2.asm \
- fatfs_h.asm \
- fatfsdrv.asm \
- ffsfunc.asm \
- ffsfunc.ast \
- idle.asm \
- ngssddrv.asm \
- portsngs.asm \
- ps2drv.asm \
- sl811.asm \
- sysbdos.asm \
- syskey1.asm \
- syskey2.asm \
- syskrnl.asm \
- trdosfs.asm \
- trdosio.asm \
- unmegalz.asm \
- userkrnl.asm \
- w5300.asm
-	$(AS) $(ASFLAGS) $<
+empty:
+	@echo 'Usage: make [ hobeta | clean-hobeta | all | install | install-doc | clean ]'
+
+# Clear lists
+DEPS=
+BINS=
+
+# External dependencies
+../fatfs4os/fatfs.raw ffsfunc.asm:
+	${MAKE} -w -C ../fatfs4os
+
+############
+## hobeta ##
+############
+
+HOBETA_BINS=
+
+# Dependency generation rule for .asm file:
+hobeta.${DEPEXT}: hobeta.asm
+	${RM} $@ && ${DEPAS} ${DEPAFLAGS} -MT nedoos.\$$C -MT $@ -MF $@ $<
+DEPS+=hobeta.${DEPEXT}
+# FIXME: No output file specified here (we must check sources manually):
+nedoos.$$C: hobeta.asm
+	${SJASMPLUS} ${SJASMPLUSFLAGS} $<
+HOBETA_BINS+=nedoos.\$$C
+
+hobeta: nedoos.$$C
+
+clean-hobeta:
+	${RM} ${HOBETA_BINS}
+
+BINS+=${HOBETA_BINS}
+
+####################
+## Common targets ##
+####################
+
+${eval ${call sjasmplus_odd_rule,initcode.c syscode.c user.l,${SOURCES},,DEPS,BINS}}
 
 syscode.c.mlz: syscode.c
-	$(MHMT) -mlz $< > $(NUL)
+	${MHMT} -mlz $<
+BINS+=syscode.c.mlz
 
-# order matters!
-code.c: initcode.c syscode.c.mlz
-	$(CAT) $^ > $@
+# The order of files does matter!
+${NAME}: initcode.c syscode.c.mlz
+	cat $^ > $@
+BINS+=${NAME}
 
-install: nedoos.$$C
+all: ${NAME}
+
+install: all
+
+install-doc:
 
 clean:
-	$(RM) \
- code.c \
- ffsfunc.ast \
- initcode.c \
- nedoos.\$$C \
- syscode.c \
- syscode.c.mlz
+	${RM} ${DEPS} ${BINS}
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif

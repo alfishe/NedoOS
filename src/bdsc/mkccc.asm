@@ -107,9 +107,9 @@ gsuser	equ	32	;get/set user code
 begin
 	;ENDIF
 
-        include "CCC.ASM"
+        include "ccc.asm"
 
 end
-	savebin "C.CCC",begin,end-begin
+	savebin "c.ccc",begin,end-begin
 	
 	LABELSLIST "../../us/user.l"

@@ -6,4 +6,4 @@ type err.f
 ..\_sdk\nedoasm exp_os.S_
 type asmerr.f
 move /Y exp_os.bin exp.com > nul
-if "%makeall%"=="" (pause)
+if "%currentdir%"=="" (pause)

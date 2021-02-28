@@ -1,33 +1,17 @@
-# Supported environments:
-#   GNU/Linux
-#   Windows NT
+NAME		= loyd.com
+OBJECTS		=
+SOURCES		= main.asm zx.fnt
+SJASMPLUS	= ../../../tools/sjasmplus
+INSTALLDIR	= ../../../release/nedogame
 
-include ../../_sdk/common.mk
+all: ${NAME} ${SOURCES}
 
-# no trailing "/"
-INSTALLDIR	:= $(INSTALLDIR)nedogame
+tetris.com: ${SOURCES}
+	${SJASMPLUS} --nologo main.asm
 
-.PHONY: install clean
-
-loyd.com: main.asm \
- ../../_sdk/sys_h.asm \
- ../../_sdk/sysdefs.asm \
- loydgfx.ast \
- zx.fnt
-	$(AS) $(AFLAGS) $<
-
-loydgfx.ast: loyd.bmp loyd.dat
-	$(NEDORES) $^ $@
-
-install: \
- $(INSTALLDIR) \
- $(INSTALLDIR)/loyd.com
-
-$(INSTALLDIR):
-	$(MKDIR) $@
-
-$(INSTALLDIR)/loyd.com: loyd.com
-	$(CP) $< $@
-
-clean:
-	$(RM) loyd.com loydgfx.ast
+clean: 
+	rm -f ${NAME} ${OBJECTS}
+install: all
+	cp ${NAME} ${INSTALLDIR}
+install-doc: ${DOC} 
+#	cp ${DOC} ${INSTALLDIR}/doc

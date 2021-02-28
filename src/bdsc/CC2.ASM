@@ -83,11 +83,11 @@ sdma:		equ 26
 	org PROGSTART;ram+100h	;start of TPA
 begin	
 	;IF SLRMAC
-	include CC2A.ASM
-	include CC2B.ASM
-	include CC2C.ASM
-	include CC2D.ASM
-	include CC2E.ASM
+	include cc2a.asm
+	include cc2b.asm
+	include cc2c.asm
+	include cc2d.asm
+	include cc2e.asm
         include "../_sdk/stdio.asm"
 	;ENDIF
 

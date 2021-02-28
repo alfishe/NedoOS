@@ -1,17 +1,14 @@
 @echo off
-if "%settedpath%"=="" call _sdk\setpath.ba
-set prevmakeall=%makeall%
-set makeall=1
-%MAKE% %MFLAGS% configure-pe26
-if not %ERRORLEVEL%==0 goto error
-%MAKE% %MFLAGS% install
-if not %ERRORLEVEL%==0 goto error
-if "%prevmakeall%"=="" (
- %MAKE% %MFLAGS% test
- if not %ERRORLEVEL%==0 goto error
-)
-goto end
-:error
-echo ERROR: Exit code %ERRORLEVEL%. Stopped.
-:end
-set makeall=%prevmakeall%
+echo atm=2 > _sdk\syssets.asm
+echo sys_npages=64 >> _sdk\syssets.asm
+echo NEMOIDE=1 >> _sdk\syssets.asm
+echo SYSDRV=0 >> _sdk\syssets.asm
+echo INETDRV=0x01 >> _sdk\syssets.asm
+echo PS2KBD=0x00 >> _sdk\syssets.asm
+echo 	define KOE >> _sdk\syssets.asm
+echo 	define KOEDI >> _sdk\syssets.asm
+echo 	define NOTURBO >> _sdk\syssets.asm
+call make.bat
+
+move test.trd ..\release\osp26.trd > nul
+if "%makeall%"=="" ..\us\emul.exe ..\release\osp26.trd

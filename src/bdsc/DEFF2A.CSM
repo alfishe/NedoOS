@@ -1172,8 +1172,8 @@ _5=$+1
 	ENDFUNC indexsz,5
 
 
-        include "DEFF2B.CSM"
-        include "DEFF2C.CSM"
+        include "deff2b.csm"
+        include "deff2c.csm"
 
        	FUNCTION "PUTS"
 	EXTERNAL "PUTCHAR"

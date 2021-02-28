@@ -1,3 +1,9 @@
-@echo off
-if "%settedpath%"=="" call %~dp0_sdk\setpath.bat
-%MAKE% %MFLAGS% clean-release
+cd ../release
+del *.trd
+del *.$C
+cd doc
+del /q *.*
+cd ..
+cd bin
+del /q *.*
+cd ..

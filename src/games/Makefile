@@ -1,39 +1,43 @@
 # Supported environments:
-#   GNU/Linux
-#   Windows NT
+#   GNU/Linux.
+#
+# Used tools:
+#   GNU core utilities.
 
-include ../_sdk/common.mk
+PROGS		= snake tank tetris smb untangle wolf3d br eric
+DOC		=
+INSTALLDIR	?= ../../release/nedogame
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 
-.PHONY: install clean
+.PHONY: ${PROGS} empty all install install-doc clean
 
-DIRS	:= \
- barbaria \
- br \
- eric \
- hws \
- isitar \
- loyd \
- midnight \
- montana2 \
- nedoload \
- net \
- q1 \
- slabage \
- smb \
- snake \
- solkey \
- sprexamp \
- tank \
- tetris \
- untangle \
- vera \
- wolf3d \
- zxbattle
+.DEFAULT_GOAL=all
 
-install \
-clean:
-ifeq ($(OS),Windows_NT)
-	for %%d in ($(DIRS)) do $(MAKE) $(MFLAGS) -C %%d $@
+empty:
+	@echo 'Usage: make [ TARGET | all | clean | install | install-doc ]'
+	@echo '(TARGET is one of: ${PROGS})'
+
+${PROGS}:
+	${MAKE} -w -C $@
+
+${sort \
+${INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $@ || echo
+
+all: ${PROGS}
+
+install: | ${INSTALLDIR}
+	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done
+
+ifeq "${DOC}" ""
+install-doc:
 else
-	for d in $(DIRS); do $(MAKE) $(MFLAGS) -C $$d $@; done
+install-doc: ${DOC} | ${DOC_INSTALLDIR}
+	cp $^ $|
 endif
+	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done
+
+clean:
+	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done

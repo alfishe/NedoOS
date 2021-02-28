@@ -182,11 +182,11 @@ lf:	equ 0ah
 	org PROGSTART;tpa		;start of CP/M TPA
 begin
 	;IF SLRMAC
-	include "CCA.ASM"
-	include "CCB.ASM"
+	include "cca.asm"
+	include "ccb.asm"
         include "../_sdk/stdio.asm"
-	include "CCCOMP.ASM" ;внутри есть org, начинается запарываемая часть
-	include "CCD.ASM"
+	include "cccomp.asm" ;внутри есть org, начинается запарываемая часть
+	include "ccd.asm"
 	;ENDIF
 
 ;

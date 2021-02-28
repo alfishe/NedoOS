@@ -11,5 +11,5 @@ type err.f
 ..\_sdk\nedotok state.s state.ast state.var cmdlist.var global.var constarr.ast constarr.var
 ..\_sdk\nedoaspt state.S_
 type asmerr.f
-if "%makeall%"=="" (pause)
+if "%currentdir%"=="" (pause)
 del label0.f

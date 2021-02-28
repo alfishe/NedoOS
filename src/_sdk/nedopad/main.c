@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include <mem.h>
+#include <stdlib.h>
+//#include <mem.h>
 #include <string.h>
 
 #define BYTE unsigned char

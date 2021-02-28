@@ -1,56 +1,81 @@
 # Supported environments:
-#   GNU/Linux
-#   Windows NT
+#   GNU/Linux.
 
-include ../src/_sdk/common.mk
+srcdir		= src
+ASPP		= aspp
+ASPP_DIR	= ${srcdir}/aspp
+MHMT		= mhmt
+MHMT_DIR	= ${srcdir}/mhmt/linux
+SJASMPLUS	= sjasmplus
+SJASMPLUS_DIR	= ${srcdir}/sjasmplus
+DMIMG		= dmimg
+DMIMG_DIR	= ${srcdir}/dmimg
 
-.PHONY: all clean-aspp clean-dmimg clean-mhmt clean-sjasmplus clean
+# All targets
+TARGETS=${ASPP} ${MHMT} ${SJASMPLUS} ${DMIMG}
+.PHONY: empty ${foreach t,${TARGETS},clean-${t}} all clean
 
-ifeq ($(OS),Windows_NT)
-all:
-	@echo Nothing to do on Windows.
-else
-all: aspp dmimg mhmt sjasmplus
-endif
+.DEFAULT_GOAL=empty
 
-aspp: src/aspp/build/release/linux/aspp | src/aspp
-	$(CP) $< $@
+empty:
+	@echo 'Usage: make [ TARGET | clean-TARGET | all | clean ]'
+	@echo 'where TARGET is one of: ${TARGETS}'
 
-src/aspp/build/release/linux/aspp: | src/aspp
-	$(MAKE) $(MFLAGS) -C $| all
+##########
+## aspp ##
+##########
 
-clean-aspp: | src/aspp
-	$(MAKE) $(MFLAGS) -C $| clean
-	$(RM) aspp
+${ASPP}: ${ASPP_DIR}/build/release/linux/${ASPP} | ${ASPP_DIR}
+	cp $< $@
 
-dmimg: src/dmimg/dmimg | src/dmimg
-	$(CP) $< $@
+${ASPP_DIR}/build/release/linux/${ASPP}: | ${ASPP_DIR}
+	${MAKE} -w -C $| all
 
-src/dmimg/dmimg: | src/dmimg
-	$(MAKE) $(MFLAGS) -C $|
+clean-${ASPP}:
+	${MAKE} -w -C ${ASPP_DIR} clean
+	${RM} ${ASPP}
 
-clean-dmimg: | src/dmimg
-	$(MAKE) $(MFLAGS) -C $| clean
-	$(RM) dmimg
+##########
+## mhmt ##
+##########
 
-mhmt: src/mhmt/linux/mhmt | src/mhmt/linux
-	$(CP) $< $@
+${MHMT}: | ${MHMT_DIR}
+	${MAKE} -w -C $| && cp $|/$@ $@
 
-src/mhmt/linux/mhmt: | src/mhmt/linux
-	$(MAKE) $(MFLAGS) -C $|
+clean-${MHMT}:
+	${MAKE} -w -C ${MHMT_DIR} clean
+	${RM} ${MHMT}
 
-clean-mhmt: | src/mhmt/linux
-	$(MAKE) $(MFLAGS) -C $| clean
-	$(RM) mhmt
+###############
+## sjasmplus ##
+###############
 
-sjasmplus: src/sjasmplus/sjasmplus
-	$(CP) $< $@
+${SJASMPLUS}: | ${SJASMPLUS_DIR}
+	${MAKE} -w -C $| && cp $|/$@ $@
 
-src/sjasmplus/sjasmplus: | src/sjasmplus
-	$(MAKE) $(MFLAGS) -C $|
+clean-${SJASMPLUS}:
+	${MAKE} -w -C ${SJASMPLUS_DIR} clean
+	${RM} ${SJASMPLUS}
 
-clean-sjasmplus: | src/sjasmplus
-	$(MAKE) $(MFLAGS) -C $| clean
-	$(RM) sjasmplus
+###########
+## dmimg ##
+###########
 
-clean: clean-aspp clean-dmimg clean-mhmt clean-sjasmplus
+${DMIMG}: | ${DMIMG_DIR}
+	${MAKE} -w -C $| && cp $|/$@ $@
+
+clean-${DMIMG}:
+	${MAKE} -w -C ${DMIMG_DIR} clean
+	${RM} ${DMIMG}
+
+#########
+## all ##
+#########
+
+all: ${TARGETS}
+
+###########
+## clean ##
+###########
+
+clean: ${foreach t,${TARGETS},clean-${t}}
