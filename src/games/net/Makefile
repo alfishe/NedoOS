@@ -1,18 +1,43 @@
-NAME		= master.com slave.com
-OBJECTS		=
-SOURCES		= main.asm fontgfx zx.fnt
-SJASMPLUS	= ../../../tools/sjasmplus
-INSTALLDIR	= ../../../release/nedogame/netsnake
+# Supported environments:
+#   GNU/Linux
+#   Windows NT
 
-all: ${NAME} ${SOURCES}
+include ../../_sdk/common.mk
 
-snake.com: main.asm
-	${SJASMPLUS} --nologo master.asm
-	${SJASMPLUS} --nologo slave.asm
+# no trailing "/"
+INSTALLDIR	:= $(INSTALLDIR)nedogame
 
-clean: 
-	rm -f ${NAME} ${OBJECTS}
-install: all
-	cp ${NAME} ${INSTALLDIR}
-install-doc: ${DOC} 
-#	cp ${DOC} ${INSTALLDIR}/doc
+.PHONY: all install clean
+
+all: net1.com net2.com
+
+net1.com: main.asm \
+ ../../_sdk/sys_h.asm \
+ ../../_sdk/sysdefs.asm \
+ fontgfx \
+ zx.fnt
+	$(AS) $(AFLAGS) -DCLIENT=1 $<
+
+net2.com: main.asm \
+ ../../_sdk/sys_h.asm \
+ ../../_sdk/sysdefs.asm \
+ fontgfx \
+ zx.fnt
+	$(AS) $(AFLAGS) -DCLIENT=0 $<
+
+install: \
+ $(INSTALLDIR) \
+ $(INSTALLDIR)/net1.com \
+ $(INSTALLDIR)/net2.com
+
+$(INSTALLDIR):
+	$(MKDIR) $@
+
+$(INSTALLDIR)/net1.com: net1.com
+	$(CP) $< $@
+
+$(INSTALLDIR)/net2.com: net2.com
+	$(CP) $< $@
+
+clean:
+	$(RM) net1.com net2.com

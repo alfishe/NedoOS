@@ -1,0 +1,178 @@
+*** mkspr.dpr	2021-02-18 13:06:23.493605603 +0300
+--- convega.pas	2021-02-18 13:12:42.694028570 +0300
+***************
+*** 1,9 ****
+! program mkspr;
+! 
+! {$APPTYPE CONSOLE}
+  
+  uses
+!   SysUtils, Graphics;
+  
+  const
+   bmphgt=4096;
+--- 1,7 ----
+! program convega;
+  
+  uses
+!   SysUtils;
+  
+  const
+   bmphgt=4096;
+*************** const
+*** 13,22 ****
+    maxwid=1024;
+  
+  var
+!  xbase,ybase,sprnr,curaddr,spraddr,sprpg,filenr:integer;
+!  bshift,bhgt:longword;
+   bmp:array[0..bmphgt-1,0..255] of byte;
+-  tspraddr:array[0..255,0..2] of byte;
+   foutbuf:array[0..16384] of byte;
+   foutbufpos:integer;
+   filename:string;
+--- 11,18 ----
+    maxwid=1024;
+  
+  var
+!  xbase,ybase,curaddr:integer;
+   bmp:array[0..bmphgt-1,0..255] of byte;
+   foutbuf:array[0..16384] of byte;
+   foutbufpos:integer;
+   filename:string;
+*************** var
+*** 24,33 ****
+    pic: array [0..(maxhgt-1),0..(maxwid-1)] of byte; //картинка [Y,X]
+    pal: array [0..255] of byte;
+    zeros: array [0..255] of byte;
+-   img1,imgresult: TBitMap;
+-   bmtex, bmbg: TBitMap;
+    fin,fout: file of byte;
+-   frame:integer;
+   pg,pgplane,i,j,picdisp,paldisp,addr,hgt,wid,x,y:integer;
+   b,br,bg,bb:byte;
+   plane:integer;
+--- 20,26 ----
+*************** end;
+*** 42,53 ****
+  
+  procedure foutflush;
+  begin
+-       //sprites are listed as 0..254(255=exit) and accessed via table as 1..255
+-       //(inc e:ret z:ld a,(de)...)
+-       //thus, sprnr+1
+-   tspraddr[sprnr+1,0]:=spraddr and $ff;
+-   tspraddr[sprnr+1,1]:=(spraddr and $ff00)shr 8;
+-   tspraddr[sprnr+1,2]:=sprpg; //pg
+    BlockWrite(fout,foutbuf,foutbufpos);
+    foutbufpos:=0;
+  end;
+--- 35,40 ----
+*************** procedure mksprite(xbase,ybase,sprwid,sp
+*** 85,91 ****
+  var
+   x,y:integer;
+   mask,pixel:byte;
+!  curscraddr,oldscraddr,scraddrdelta,oldde:integer;
+  
+    function colisempty(col1,col2:byte):boolean;
+    begin
+--- 72,78 ----
+  var
+   x,y:integer;
+   mask,pixel:byte;
+!  curscraddr,oldscraddr,scraddrdelta,oldde:LongInt;
+  
+    function colisempty(col1,col2:byte):boolean;
+    begin
+*************** begin
+*** 177,183 ****
+      end; //x in layer
+      x:=x-sprwid-2;
+    end; //layers
+!   wrbyte($fd); //$fd
+    wrbyte(233); //jp (iy)
+  end;
+  
+--- 164,170 ----
+      end; //x in layer
+      x:=x-sprwid-2;
+    end; //layers
+!   wrbyte($fd); //0xfd
+    wrbyte(233); //jp (iy)
+  end;
+  
+*************** begin
+*** 185,208 ****
+    if paramcount<1
+    then filename:='pic.bmp'
+    else filename:=ParamStr(1);
+!   AssignFile(fin,filename); //256c 256x256
+    Reset(fin);
+    if(filesize(fin)=0)then Halt(1);
+    writeln('input file=',filename);
+  
+-   img1:=TBitMap.Create;
+-   img1.Height:=448;
+-   img1.Width:=320;
+-   img1.PixelFormat:=pf24bit;
+-   //bmtex:=TBitMap.Create;
+- //  bmtex.Height:=256;
+- //  bmtex.Width:=256;
+-   //bmtex.LoadFromFile(fn);
+- //  bmtex.PixelFormat:=pf24bit;
+-   //Image2.Picture.Assign(bmtex);
+- 
+    BlockRead(fin,dump,FileSize(fin));
+!   CloseFile(fin);
+  
+    for i:=0 to 255 do zeros[i]:=0;
+  
+--- 172,184 ----
+    if paramcount<1
+    then filename:='pic.bmp'
+    else filename:=ParamStr(1);
+!   Assign(fin,filename); //256c 256x256
+    Reset(fin);
+    if(filesize(fin)=0)then Halt(1);
+    writeln('input file=',filename);
+  
+    BlockRead(fin,dump,FileSize(fin));
+!   Close(fin);
+  
+    for i:=0 to 255 do zeros[i]:=0;
+  
+*************** begin
+*** 242,248 ****
+    end;
+  
+    for pg:=0 to 1 do begin
+!   AssignFile(fout,IntToStr(pg)+filename+'x');
+    Rewrite(fout);
+    for pgplane:=0 to 1 do begin
+    plane:=pgplane*2+pg;
+--- 218,224 ----
+    end;
+  
+    for pg:=0 to 1 do begin
+!   Assign(fout,IntToStr(pg)+filename+'x');
+    Rewrite(fout);
+    for pgplane:=0 to 1 do begin
+    plane:=pgplane*2+pg;
+*************** begin
+*** 260,266 ****
+    end //if 0
+    else BlockWrite(fout,zeros,192-16);
+    end; //pgplane
+!   CloseFile(fout);
+    end; //pg
+  
+  end.
+--- 236,242 ----
+    end //if 0
+    else BlockWrite(fout,zeros,192-16);
+    end; //pgplane
+!   Close(fout);
+    end; //pg
+  
+  end.

@@ -1,102 +1,46 @@
 # Supported environments:
-#   GNU/Linux.
-#
-# Tools used:
-#   GNU core utilities, tools/aspp, tools/sjasmplus.
+#   GNU/Linux
+#   Windows NT
 
 include ../_sdk/common.mk
 
-NAME		= scratch.com
-OBJECTS		=
-SOURCES		= scratch.asm
-RESOURCES	=
-DOCS		= scratch.txt scratch.new
-INSTALLDIR	?= ../../release
-BIN_INSTALLDIR	= ${INSTALLDIR}/bin
-RES_INSTALLDIR	= ${INSTALLDIR}/bin
-DOC_INSTALLDIR	= ${INSTALLDIR}/doc
+.PHONY: install clean
 
-# All targets
-TARGETS=executables resources
-.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
+scratch.com: scratch.asm \
+ ../_sdk/sys_h.asm \
+ ../_sdk/sysdefs.asm \
+ 64qua.fnt \
+ bitmap.asm \
+ control.asm \
+ files.asm \
+ math.asm \
+ navigator.asm \
+ pal.asm \
+ prarrow.asm \
+ prbitmap.asm \
+ prshapes.asm \
+ prtext.asm \
+ sqrtmax2 \
+ tarcsin \
+ tsin200 \
+ window.asm \
+ windows.asm \
+ windowsh.asm
+	$(AS) $(AFLAGS) $<
 
-.DEFAULT_GOAL=all
+install: \
+ $(BIN_INSTALLDIR)scratch.com \
+ $(DOC_INSTALLDIR)scratch.new \
+ $(DOC_INSTALLDIR)scratch.txt
 
-empty:
-	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
-	@echo 'where ACTION is one of: install clean'
-	@echo '      TARGET is one of: ${TARGETS}'
+$(BIN_INSTALLDIR)scratch.com: scratch.com
+	$(CP) $< $@
 
-# Clear lists
-DEPS=
+$(DOC_INSTALLDIR)scratch.new: scratch.new
+	$(CP) $< $@
 
-# Create directories
-${sort \
-${BIN_INSTALLDIR} \
-${RES_INSTALLDIR} \
-${DOC_INSTALLDIR} \
-}:
-	mkdir -p $@
+$(DOC_INSTALLDIR)scratch.txt: scratch.txt
+	$(CP) $< $@
 
-##########################
-## Target "executables" ##
-##########################
-
-EXEC_DEPS=
-EXEC_BINS=
-
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
-
-executables: ${EXEC_BINS}
-
-install-executables: executables | ${BIN_INSTALLDIR}
-	cp ${EXEC_BINS} $|
-
-clean-executables:
-	${RM} ${EXEC_DEPS} ${EXEC_BINS}
-
-DEPS+=${EXEC_DEPS}
-
-########################
-## Target "resources" ##
-########################
-
-resources: ${RESOURCES}
-
-install-resources: resources | ${RES_INSTALLDIR}
-ifneq "${sort ${RESOURCES}}" ""
-	cp ${RESOURCES} $|
-endif
-
-clean-resources:
-
-####################
-## Common targets ##
-####################
-
-all: executables resources
-
-install: install-executables install-resources
-
-ifeq "${sort ${DOCS}}" ""
-install-doc:
-else
-install-doc: ${DOCS} | ${DOC_INSTALLDIR}
-	cp $^ $|
-endif
-
-clean: clean-executables clean-resources
-
-##################
-## Dependencies ##
-##################
-
-ifneq "${sort \
-${filter empty,${MAKECMDGOALS}} \
-${filter clean,${MAKECMDGOALS}} \
-${filter clean-%,${MAKECMDGOALS}} \
-}" ""
-else
-# FIXME: Triggered when multiple targets specified.
-include ${DEPS}
-endif
+clean:
+	$(RM) scratch.com

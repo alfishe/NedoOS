@@ -1,0 +1,26 @@
+Usage:
+  make [ACTION]
+where:
+  ACTION is one of:
+      build-tools      - build tools
+      clean-tools      - clean tools
+      configure-TARGET - configure build for TARGET
+      install          - build and install for TARGET
+      test             - test TARGET
+      clean            - clean temporary files in sources directory and release
+                         files of TARGET only
+      clean-release    - clean release directory only
+      dist-clean       - clean all
+  TARGET is one of:
+      atm2
+      atm2hd
+      atm3
+      atm3hd
+      atm3sd
+      evo
+      evsd-g
+      pe26
+      pe26sd
+Example:
+  make dist-clean build-tools configure-evo
+  make install test

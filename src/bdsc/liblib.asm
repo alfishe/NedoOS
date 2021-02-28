@@ -255,9 +255,9 @@ sz=$-__
         endm
 
         org 0x100
-        include "ccc.asm"
+        include "CCC.ASM"
 
-	INCLUDE "bds.lib"
+	include "BDS.LIB"
 
         ;align 128 ;doesn't help
 begin

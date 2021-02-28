@@ -1,0 +1,15 @@
+*** main.c	2021-02-18 13:59:24.192892091 +0300
+--- nedopad.c	2021-02-18 13:56:18.706205319 +0300
+***************
+*** 1,5 ****
+  #include <stdio.h>
+! #include <mem.h>
+  #include <string.h>
+  
+  #define BYTE unsigned char
+--- 1,5 ----
+  #include <stdio.h>
+! #include <stdlib.h>
+  #include <string.h>
+  
+  #define BYTE unsigned char

@@ -1,3 +1,5 @@
+include ../../_sdk/common.mk
+
 INSTALLDIR	= ../../../release/bin
 EXE		= code
 NAME		= demo
@@ -6,8 +8,6 @@ SOURCES		= demo.c demo.s demoproc.s logo lvnt_1 net1.s net-35.s net-lvd.s net-no
 NEDOLANG	= ../_sdk/nedolang.bin
 NEDOASM		= ../_sdk/nedoasm.bin
 NEDOTOK		= ../_sdk/nedotok.bin
-NEDOTRD		= ../../_sdk/nedotrd.bin
-NEDOPAD		= ../../_sdk/nedopad.bin
 
 all: ${NAME}.bin
 

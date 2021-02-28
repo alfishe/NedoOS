@@ -86,9 +86,6 @@ if "%currentdir%"=="" (
   move "*.com" "%releasedir2%nedogame" > nul
   IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedogame\%%~nj\" > nul
   )
-cd ../../../src/
-call ..\tools\chkimg.bat sd
- rem pause
-rem  if "%makeall%"=="" ..\..\..\us\emul.exe
- if "%makeall%"=="" ..\us\emul.exe
+ %MAKE% -w -C %EMULDIR% sd
+ if "%makeall%"=="" %EMUL%
 )

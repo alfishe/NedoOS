@@ -1,63 +1,78 @@
 # Supported environments:
-#   GNU/Linux.
-#
-# Used tools:
-#   GNU core utilities, GNU sed, tools/aspp, tools/sjasmplus.
+#   GNU/Linux
+#   Windows NT
 
 include ../_sdk/common.mk
+include ../_sdk/iar.mk
 
-NAME		= fatfs.raw
-#SOURCES		= ff_sj.asm
-EXPORTS_FILE	= ../kernel/ffsfunc.asm
+C_OPTIONS	= -S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -Llist/ -Olist/ -Alist/ -I$(IARINC)
 
-# All targets
-.PHONY: empty all install install-doc clean
+.PHONY: all install clean
 
-.DEFAULT_GOAL=all
+all: \
+ fatfs.exp \
+ fatfs.raw
 
-empty:
-	@echo 'Usage: make [ all | install | install-doc | clean ]'
+ifeq ($(OS),Windows_NT)
+list:
+	$(MKDIR) $@
 
-# Clear lists
-DEPS=
-OBJECTS=
+list/ff.lst \
+list/ff.r01 \
+list/ff.s01: ff.c \
+ diskio.h \
+ ff.h \
+ ffconf.h \
+ integer.h \
+ | list
+	$(ICCZ80) $(C_OPTIONS) $<
 
-####################
-## Common targets ##
-####################
+list/ccsbcs.lst \
+list/ccsbcs.r01 \
+list/ccsbcs.s01: ccsbcs.c \
+ ff.h \
+ ffconf.h \
+ integer.h \
+ | list
+	$(ICCZ80) $(C_OPTIONS) $<
 
-fatfs_EXP=ff_sj.exp
+list/mylib.r01: mylib.asm | list
+	$(AZ80) -S -O$|/ -uu $<
 
-#{eval ${call sjasmplus_odd_rule,${NAME} ${fatfs_EXP},${SOURCES},--exp=${fatfs_EXP},DEPS,}}
+fatfs.raw \
+list/cout.l: link.lnk \
+ list/ccsbcs.r01 \
+ list/ff.r01 \
+ list/mylib.r01 \
+ | list
+	$(XLINK) ff ccsbcs mylib -f $<
 
-${EXPORTS_FILE}: ${fatfs_EXP}
-	echo '; ${@F} - FatFS calls.' > $@
-	echo '; This file is a part of NedoOS project.' >> $@
-	echo '; Compatible compiler: sjasmplus.' >> $@
-	echo '; This file was generated automatically while building FatFS.' >> $@
-	echo 'ffsfunc' >> $@
-	sed -re 's/^.+/.&/' $< >> $@
-
-#all: ${NAME} ${EXPORTS_FILE}
-all: ${NAME}
+fatfs.exp: list/cout.l
+	$(GREP) -Ee '^[[:space:]]+f_[[:alnum:]]+[[:space:]]+[[:xdigit:]]+' $< > fatfs.tmp
+	$(SED) -Ee 's/^[[:space:]]+(f_[[:alnum:]]+)[[:space:]]+([[:xdigit:]]+).*/\1 \2/' fatfs.tmp >> $@
+	$(RM) fatfs.tmp
+else
+fatfs.raw \
+fatfs.exp:
+	$(error Target "$@" is not implemented)
+endif
 
 install: all
 
-install-doc:
-
+ifeq ($(OS),Windows_NT)
 clean:
-	${RM} ${DEPS} ${OBJECTS} ${fatfs_EXP}
-#	${RM} ${DEPS} ${OBJECTS} ${fatfs_EXP} ${NAME} ${EXPORTS_FILE}
-
-##################
-## Dependencies ##
-##################
-
-ifneq "${sort \
-${filter empty,${MAKECMDGOALS}} \
-${filter clean,${MAKECMDGOALS}} \
-}" ""
+	$(RM) \
+ fatfs.exp \
+ fatfs.raw \
+ fatfs.tmp \
+ list/ccsbcs.lst \
+ list/ccsbcs.r01 \
+ list/ccsbcs.s01 \
+ list/cout.l \
+ list/ff.lst \
+ list/ff.r01 \
+ list/ff.s01 \
+ list/mylib.r01
 else
-# FIXME: Triggered when multiple targets specified.
-include ${DEPS}
+clean: ;
 endif

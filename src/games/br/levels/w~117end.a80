@@ -405,4 +405,4 @@ ERR_RW	SCF
 
         endif
 end
-	savebin "br/br117.dat",begin,end-begin ;in current dir (not in dir of this source)
+	savebin "levels/w~117end.dat",begin,end-begin	; HINT: relative to game's root directory (sjasmplus feature)

@@ -1,108 +1,88 @@
 # Supported environments:
-#   GNU/Linux.
-#
-# Tools used:
-#   GNU core utilities, tools/aspp, tools/sjasmplus.
+#   GNU/Linux
+#   Windows NT
 
 include ../../_sdk/common.mk
 
-NAME		= wolf3d.com
-OBJECTS		=
-SOURCES		= main.asm
-SPRITES		= wolfspr.bmp wolftex.bmp
-RESOURCES	=
-DOCS		=
-LOCALDIR	= wolf3d
-INSTALLDIR	?= ../../../release/nedogame
-BIN_INSTALLDIR	= ${INSTALLDIR}
-RES_INSTALLDIR	= ${INSTALLDIR}/wolf3d
-DOC_INSTALLDIR	= ${INSTALLDIR}/doc
+# no trailing "/"
+INSTALLDIR	:= $(INSTALLDIR)nedogame
 
-# All targets
-TARGETS=executables resources
-.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
+.PHONY: install clean
 
-.DEFAULT_GOAL=all
+wolf3d.com: main.asm \
+ ../../_sdk/sys_h.asm \
+ ../../_sdk/sysdefs.asm \
+ DOOM-MUS \
+ WATM2.asm \
+ WCTRL.asm \
+ WREND.asm \
+ WSCAN10.asm \
+ corlogd_ \
+ cos \
+ da \
+ demorec9 \
+ genscale.asm \
+ logd \
+ logd2sc3 \
+ map48.E \
+ mapatm.E \
+ plusctg \
+ pluslcos \
+ scalesw3 \
+ sin \
+ sqr2int \
+ tscale3
+	$(AS) $(AFLAGS) $<
 
-empty:
-	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
-	@echo 'where ACTION is one of: install clean'
-	@echo '      TARGET is one of: ${TARGETS}'
+wolf3d:
+	$(MKDIR) $@
 
-# Clear lists
-DEPS=
+mapatm.E: WOLF484.TRD
+	$(NEDOTRD) $< -e $@
 
-# Create directories
-${sort \
-${BIN_INSTALLDIR} \
-${RES_INSTALLDIR} \
-${DOC_INSTALLDIR} \
-}:
-	mkdir -p $@
+wolf3d/sfx.bin: sfx.asm \
+ ayfxplay.asm \
+ sfx.afb \
+ | wolf3d
+	$(AS) $(AFLAGS) $<
 
-##########################
-## Target "executables" ##
-##########################
+wolf3d/music.bin: music.asm \
+ ptsplay.asm \
+ testmusi.pt3 \
+ | wolf3d
+	$(AS) $(AFLAGS) $<
 
-EXEC_DEPS=
-EXEC_BINS=
+install: \
+ $(INSTALLDIR) \
+ $(INSTALLDIR)/wolf3d.com \
+ $(INSTALLDIR)/wolf3d \
+ $(INSTALLDIR)/wolf3d/music.bin \
+ $(INSTALLDIR)/wolf3d/sfx.bin \
+ $(INSTALLDIR)/wolf3d/wolftex.bmp \
+ $(INSTALLDIR)/wolf3d/wolfspr.bmp
 
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+$(INSTALLDIR) \
+ $(INSTALLDIR)/wolf3d:
+	$(MKDIR) $@
 
-executables: ${EXEC_BINS}
+$(INSTALLDIR)/wolf3d.com: wolf3d.com
+	$(CP) $< $@
 
-install-executables: executables | ${BIN_INSTALLDIR}
-	cp ${EXEC_BINS} $|
+$(INSTALLDIR)/wolf3d/music.bin: wolf3d/music.bin
+	$(CP) $< $@
 
-clean-executables:
-	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+$(INSTALLDIR)/wolf3d/sfx.bin: wolf3d/sfx.bin
+	$(CP) $< $@
 
-DEPS+=${EXEC_DEPS}
+$(INSTALLDIR)/wolf3d/wolftex.bmp: wolftex.bmp
+	$(CP) $< $@
 
-########################
-## Target "resources" ##
-########################
+$(INSTALLDIR)/wolf3d/wolfspr.bmp: wolfspr.bmp
+	$(CP) $< $@
 
-RES_BINS=
-
-${foreach f,${SPRITES},\
-${eval ${call copy_to_dir_rule,${LOCALDIR},${f},RES_BINS}}}
-
-resources: ${RES_BINS} | ${LOCALDIR}
-
-install-resources: resources | ${RES_INSTALLDIR}
-	cp ${RES_BINS} $|
-
-clean-resources:
-	${RM} ${RES_BINS}
-
-####################
-## Common targets ##
-####################
-
-all: executables resources
-
-install: install-executables install-resources
-
-ifeq "${sort ${DOCS}}" ""
-install-doc:
-else
-install-doc: ${DOCS} | ${DOC_INSTALLDIR}
-	cp $^ $|
-endif
-
-clean: clean-executables clean-resources
-
-##################
-## Dependencies ##
-##################
-
-ifneq "${sort \
-${filter empty,${MAKECMDGOALS}} \
-${filter clean,${MAKECMDGOALS}} \
-${filter clean-%,${MAKECMDGOALS}} \
-}" ""
-else
-# FIXME: Triggered when multiple targets specified.
-include ${DEPS}
-endif
+clean:
+	$(RM) \
+ mapatm.E \
+ wolf3d.com \
+ wolf3d/music.bin \
+ wolf3d/sfx.bin

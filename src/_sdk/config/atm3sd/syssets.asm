@@ -1,0 +1,6 @@
+atm=3
+sys_npages=192
+NEMOIDE=1
+SYSDRV=12
+INETDRV=0x01
+PS2KBD=0x00

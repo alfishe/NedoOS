@@ -1,0 +1,11 @@
+*** main.c	2021-02-18 14:16:17.450371241 +0300
+--- nedores.c	2021-02-18 14:16:14.598449714 +0300
+***************
+*** 1,6 ****
+  #include <stdio.h>
+  #include <stdlib.h>
+- #include <mem.h>
+  #include <string.h>
+  
+  #define _STRMAX 79
+--- 1,5 ----

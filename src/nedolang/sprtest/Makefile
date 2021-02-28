@@ -1,3 +1,5 @@
+include ../../_sdk/common.mk
+
 INSTALLDIR	=
 EXE		= main.bin
 NAME		= spr
@@ -6,9 +8,6 @@ SOURCES		= spr.c main.s logo testmusic.pt3 testpic.bmp testpic.da lvnt_1 bqiwo.a
 NEDOLANG	= ../_sdk/nedolang.bin
 NEDOASM		= ../_sdk/nedoasm.bin
 NEDOTOK		= ../_sdk/nedotok.bin
-NEDOTRD		= ../../_sdk/nedotrd.bin
-NEDOPAD		= ../../_sdk/nedopad.bin
-NEDORES		= ../../_sdk/nedores.bin
 
 all: ${EXE}
 

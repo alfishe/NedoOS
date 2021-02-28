@@ -1,104 +1,29 @@
 # Supported environments:
-#   GNU/Linux.
-#
-# Tools used:
-#   GNU core utilities, tools/aspp, tools/sjasmplus.
+#   GNU/Linux
+#   Windows NT
 
 include ../../_sdk/common.mk
 
-NAME		= tetris.com
-OBJECTS		=
-SOURCES		= main.asm
-RESOURCES	=
-DOCS		=
-INSTALLDIR	?= ../../../release/nedogame
-BIN_INSTALLDIR	= ${INSTALLDIR}
-RES_INSTALLDIR	= ${INSTALLDIR}
-DOC_INSTALLDIR	= ${INSTALLDIR}/doc
-DEPS		= ${patsubst %.asm,%.${DEPEXT},${filter %.asm,${SOURCES}}}
-TMPS		=
+# no trailing "/"
+INSTALLDIR	:= $(INSTALLDIR)nedogame
 
-# All targets
-TARGETS=executables resources
-.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
+.PHONY: install clean
 
-.DEFAULT_GOAL=all
+tetris.com: main.asm \
+ ../../_sdk/sys_h.asm \
+ ../../_sdk/sysdefs.asm \
+ zx.fnt
+	$(AS) $(AFLAGS) $<
 
-empty:
-	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
-	@echo 'where ACTION is one of: install clean'
-	@echo '      TARGET is one of: ${TARGETS}'
+install: \
+ $(INSTALLDIR) \
+ $(INSTALLDIR)/tetris.com
 
-# Clear lists
-DEPS=
+$(INSTALLDIR):
+	$(MKDIR) $@
 
-# Create directories
-${sort \
-${BIN_INSTALLDIR} \
-${RES_INSTALLDIR} \
-${DOC_INSTALLDIR} \
-}:
-	mkdir -p $@
+$(INSTALLDIR)/tetris.com: tetris.com
+	$(CP) $< $@
 
-##########################
-## Target "executables" ##
-##########################
-
-EXEC_DEPS=
-EXEC_BINS=
-
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
-
-executables: ${EXEC_BINS}
-
-install-executables: executables | ${BIN_INSTALLDIR}
-	cp ${EXEC_BINS} $|
-
-clean-executables:
-	${RM} ${EXEC_DEPS} ${EXEC_BINS}
-
-DEPS+=${EXEC_DEPS}
-
-########################
-## Target "resources" ##
-########################
-
-resources: ${RESOURCES}
-
-install-resources: resources | ${RES_INSTALLDIR}
-ifneq "${sort ${RESOURCES}}" ""
-	cp ${RESOURCES} $|
-endif
-
-clean-resources:
-
-####################
-## Common targets ##
-####################
-
-all: executables resources
-
-install: install-executables install-resources
-
-ifeq "${sort ${DOCS}}" ""
-install-doc:
-else
-install-doc: ${DOCS} | ${DOC_INSTALLDIR}
-	cp $^ $|
-endif
-
-clean: clean-executables clean-resources
-
-##################
-## Dependencies ##
-##################
-
-ifneq "${sort \
-${filter empty,${MAKECMDGOALS}} \
-${filter clean,${MAKECMDGOALS}} \
-${filter clean-%,${MAKECMDGOALS}} \
-}" ""
-else
-# FIXME: Triggered when multiple targets specified.
-include ${DEPS}
-endif
+clean:
+	$(RM) tetris.com

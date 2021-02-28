@@ -1,102 +1,64 @@
 # Supported environments:
-#   GNU/Linux.
-#
-# Tools used:
-#   GNU core utilities, tools/aspp, tools/sjasmplus.
+#   GNU/Linux
+#   Windows NT
 
 include ../_sdk/common.mk
 
-NAME		= nv.com
-OBJECTS		=
-SOURCES		= nv.asm
-RESOURCES	= nv.ext
-DOCS		=
-INSTALLDIR	?= ../../release
-BIN_INSTALLDIR	= ${INSTALLDIR}/bin
-RES_INSTALLDIR	= ${INSTALLDIR}/bin
-DOC_INSTALLDIR	= ${INSTALLDIR}/doc
+.PHONY: all install clean
 
-# All targets
-TARGETS=executables resources
-.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
+all: \
+ nv.com \
+ nvfast.com
 
-.DEFAULT_GOAL=all
+nv.com: nv.asm \
+ ../_sdk/codepage/winto866 \
+ ../_sdk/stdio.asm \
+ ../_sdk/sys_h.asm \
+ ../_sdk/sysdefs.asm \
+ cmdpr.asm \
+ heapsort.asm \
+ nveditln.asm \
+ nvfind.asm \
+ nvhexed.asm \
+ nvjptbl.asm \
+ nvsort.asm \
+ nvunit.asm \
+ nvview.asm \
+ prdword.asm
+	$(AS) $(AFLAGS) -DPRSTDIO=1 $<
 
-empty:
-	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
-	@echo 'where ACTION is one of: install clean'
-	@echo '      TARGET is one of: ${TARGETS}'
+nvfast.com: nv.asm \
+ ../_sdk/codepage/winto866 \
+ ../_sdk/stdio.asm \
+ ../_sdk/sys_h.asm \
+ ../_sdk/sysdefs.asm \
+ cmdpr.asm \
+ heapsort.asm \
+ nveditln.asm \
+ nvfind.asm \
+ nvhexed.asm \
+ nvjptbl.asm \
+ nvsort.asm \
+ nvunit.asm \
+ nvview.asm \
+ prdword.asm
+	$(AS) $(AFLAGS) -DPRSTDIO=0 $<
 
-# Clear lists
-DEPS=
+install: \
+ $(BIN_INSTALLDIR)nv.com \
+ $(BIN_INSTALLDIR)nvfast.com \
+ $(RES_INSTALLDIR)nv.ext
 
-# Create directories
-${sort \
-${BIN_INSTALLDIR} \
-${RES_INSTALLDIR} \
-${DOC_INSTALLDIR} \
-}:
-	mkdir -p $@
+$(BIN_INSTALLDIR)nv.com: nv.com
+	$(CP) $< $@
 
-##########################
-## Target "executables" ##
-##########################
+$(BIN_INSTALLDIR)nvfast.com: nvfast.com
+	$(CP) $< $@
 
-EXEC_DEPS=
-EXEC_BINS=
+$(RES_INSTALLDIR)nv.ext: nv.ext
+	$(CP) $< $@
 
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
-
-executables: ${EXEC_BINS}
-
-install-executables: executables | ${BIN_INSTALLDIR}
-	cp ${EXEC_BINS} $|
-
-clean-executables:
-	${RM} ${EXEC_DEPS} ${EXEC_BINS}
-
-DEPS+=${EXEC_DEPS}
-
-########################
-## Target "resources" ##
-########################
-
-resources: ${RESOURCES}
-
-install-resources: resources | ${RES_INSTALLDIR}
-ifneq "${sort ${RESOURCES}}" ""
-	cp ${RESOURCES} $|
-endif
-
-clean-resources:
-
-####################
-## Common targets ##
-####################
-
-all: executables resources
-
-install: install-executables install-resources
-
-ifeq "${sort ${DOCS}}" ""
-install-doc:
-else
-install-doc: ${DOCS} | ${DOC_INSTALLDIR}
-	cp $^ $|
-endif
-
-clean: clean-executables clean-resources
-
-##################
-## Dependencies ##
-##################
-
-ifneq "${sort \
-${filter empty,${MAKECMDGOALS}} \
-${filter clean,${MAKECMDGOALS}} \
-${filter clean-%,${MAKECMDGOALS}} \
-}" ""
-else
-# FIXME: Triggered when multiple targets specified.
-include ${DEPS}
-endif
+clean:
+	$(RM) \
+ nv.com \
+ nvfast.com

@@ -1,0 +1,82 @@
+# Supported environments:
+#   GNU/Linux
+#   Windows NT
+
+include ../_sdk/common.mk
+
+.PHONY: install clean
+
+tp.com: tp.asm \
+ ../_sdk/stdio.asm \
+ ../_sdk/sys_h.asm \
+ ../_sdk/sysdefs.asm
+	$(AS) $(AFLAGS) --syntax=m $<
+
+install: \
+ $(BIN_INSTALLDIR)tp.com \
+ $(BIN_INSTALLDIR)TURBO.MSG \
+ $(RES_INSTALLDIR)CMDLIN.PAS \
+ $(RES_INSTALLDIR)LISTER.PAS \
+ $(RES_INSTALLDIR)MC-MOD00.INC \
+ $(RES_INSTALLDIR)MC-MOD01.INC \
+ $(RES_INSTALLDIR)MC-MOD02.INC \
+ $(RES_INSTALLDIR)MC-MOD03.INC \
+ $(RES_INSTALLDIR)MC-MOD04.INC \
+ $(RES_INSTALLDIR)MC-MOD05.INC \
+ $(RES_INSTALLDIR)MC-MOD06.INC \
+ $(RES_INSTALLDIR)MC-MOD07.INC \
+ $(RES_INSTALLDIR)MC.HLP \
+ $(RES_INSTALLDIR)MC.PAS \
+ $(RES_INSTALLDIR)MCDEMO.MCS \
+ $(RES_INSTALLDIR)t.pas
+
+$(BIN_INSTALLDIR)tp.com: tp.com
+	$(CP) $< $@
+
+$(BIN_INSTALLDIR)TURBO.MSG: TURBO.MSG
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)CMDLIN.PAS: CMDLIN.PAS
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)LISTER.PAS: LISTER.PAS
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD00.INC: MC-MOD00.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD01.INC: MC-MOD01.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD02.INC: MC-MOD02.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD03.INC: MC-MOD03.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD04.INC: MC-MOD04.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD05.INC: MC-MOD05.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD06.INC: MC-MOD06.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC-MOD07.INC: MC-MOD07.INC
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC.HLP: MC.HLP
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MC.PAS: MC.PAS
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)MCDEMO.MCS: MCDEMO.MCS
+	$(CP) $< $@
+
+$(RES_INSTALLDIR)t.pas: t.pas
+	$(CP) $< $@
+
+clean:
+	$(RM) tp.com
