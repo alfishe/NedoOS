@@ -12,4 +12,4 @@ type err.f
 type asmerr.f
 del compc_os.bin
 move /Y comp_os.bin comp.com > nul
-if "%currentdir%"=="" (pause)
+if "%makeall%"=="" (pause)

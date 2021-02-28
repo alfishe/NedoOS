@@ -27,6 +27,6 @@ goto :end
 
 :error
 echo ERROR: Exit code %ERRORLEVEL%. Stopped.
-if "%currentdir%"=="" pause
+if "%makeall%"=="" pause
 
 :end

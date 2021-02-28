@@ -124,7 +124,6 @@ SOFTWARE_DIRS	:= \
  hello \
  modplay \
  more \
- nedolang \
  netterm \
  nv \
  ping \
@@ -149,8 +148,16 @@ SOFTWARE_DIRS	:= \
 
 install-software:
 ifeq ($(OS),Windows_NT)
+	cd nedolang\asm&&build.bat
+	cd nedolang\comp&&build.bat
+	cd nedolang\exp&&build.bat
+	cd nedolang\movedisk&&build.bat
+	cd nedolang\nedodel&&build.bat
+	cd nedolang\testspt&&build.bat
+	cd nedolang\tok&&build.bat
 	for %%d in ($(SOFTWARE_DIRS)) do $(MAKE) $(MFLAGS) -C %%d install
 else
+	$(MAKE) $(MFLAGS) -C nedolang install
 	for d in $(SOFTWARE_DIRS); do $(MAKE) $(MFLAGS) -C $$d install; done
 endif
 
@@ -158,6 +165,7 @@ clean-software:
 ifeq ($(OS),Windows_NT)
 	for %%d in ($(SOFTWARE_DIRS)) do $(MAKE) $(MFLAGS) -C %%d clean
 else
+	$(MAKE) $(MFLAGS) -C nedolang clean
 	for d in $(SOFTWARE_DIRS); do $(MAKE) $(MFLAGS) -C $$d clean; done
 endif
 

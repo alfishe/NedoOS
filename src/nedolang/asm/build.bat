@@ -6,4 +6,4 @@ type err.f
 ..\_sdk\nedoasm asm_os.S_
 type asmerr.f
 move /Y asm_os.bin asm.com > nul
-if "%currentdir%"=="" (pause)
+if "%makeall%"=="" (pause)
