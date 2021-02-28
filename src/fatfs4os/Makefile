@@ -49,7 +49,7 @@ list/cout.l: link.lnk \
 
 fatfs.exp: list/cout.l
 	$(GREP) -Ee '^[[:space:]]+f_[[:alnum:]]+[[:space:]]+[[:xdigit:]]+' $< > fatfs.tmp
-	$(SED) -Ee 's/^[[:space:]]+(f_[[:alnum:]]+)[[:space:]]+([[:xdigit:]]+).*/\1 \2/' fatfs.tmp >> $@
+	$(SED) -Ee 's/^[[:space:]]+(f_[[:alnum:]]+)[[:space:]]+([[:xdigit:]]+).*/\1 \2/' fatfs.tmp > $@
 	$(RM) fatfs.tmp
 else
 fatfs.raw \

@@ -1,7 +1,9 @@
 @echo off
 if "%settedpath%"=="" call _sdk\setpath.ba
 %MAKE% %MFLAGS% configure-pe26sd
+if not %ERRORLEVEL%==0 goto error
 %MAKE% %MFLAGS% clean
+if not %ERRORLEVEL%==0 goto error
 %MAKE% %MFLAGS% install
 if not %ERRORLEVEL%==0 goto error
 if "%makeall%"=="" (
