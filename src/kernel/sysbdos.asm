@@ -1374,7 +1374,6 @@ BDOS_gfxoff_givefocus
         sbc hl,de
         ret nz ;jr nz,sys_quit_findgfxapp_fail ;фокус не у этой задачи
         
-         ;jr $
 oldfocusappaddr=$+1
         ld hl,app1
 oldoldfocusappaddr=$+1
@@ -1517,7 +1516,6 @@ BDOS_rndrdwrseek
         ex de,hl ;de=fil (2 words in stack = shift)        
         push de
         call BDOS_getfilesize_filde
-         ;jr $
 ;dehl=filesize (no more than 8M in CP/M finction)
 ;highest record number = dehl/128???
         add hl,hl
@@ -2140,7 +2138,14 @@ BDOS_openhandle_pipe
         add a,0xff&(-freepipes+PIPEADD80)
         push af ;a=handle
 ;a = PIPEADD80+pipeindex
-        call findpipe_byhandle ;hl=pipe
+        call findpipe_byhandle ;out: hl=pipebuf, a=pipe#
+        ld bc,pipeowners
+        add a,c
+        ld c,a
+        jr nc,$+3
+        inc b
+        ld a,(iy+app.id)
+        ld (bc),a ;pipe owner
         xor a
         ld (hl),a ;size=0
         pop bc ;b=handle
@@ -2191,7 +2196,8 @@ BDOS_closehandle_pipe
         ret
 freepipes
         ds MAXPIPES
-
+pipeowners
+        ds MAXPIPES
         
 BDOS_readwritehandleprepare
 ;b=handle, hl=number of bytes, de=addr
@@ -2240,7 +2246,6 @@ BDOS_readwritehandle_proc=$+1
         call BDOS_readhandlego
 ;TODO что делать, если возвратилось hl==0 или a!=0?
         ;ex af,af' ;error
-        ;jr $
          pop bc ;bytes to process
          or a
          sbc hl,bc
@@ -2362,7 +2367,7 @@ BDOS_readhandle_pipe
 BDOS_readhandle_pipe_nrnd
 ;a = PIPEADD80+pipeindex
          ld (BDOS_readhandle_pipe_handle),a
-        call findpipe_byhandle ;bc=number of bytes
+        call findpipe_byhandle ;out: hl=pipebuf, a=pipe# ;bc=number of bytes
 ;читаем из текущей головы столько байт, сколько есть, но не больше number of bytes
 ;пока делаем, что вся очередь лежит в начале (не атомарно)
          ld (BDOS_readhandle_pipe_addr),hl
@@ -2374,11 +2379,11 @@ BDOS_readhandle_pipe_nrnd
         call minhl_bc_tobc ;to_user_size=bc<=hl
        pop hl ;buf start
 ;
-        ex af,af'
+        ex af,af' ;'
         ld a,b
         or c
         jr z,BDOS_readhandle_pipe_empty
-        ex af,af'
+        ex af,af' ;'
        push bc ;to_user_size
         ldir ;to user
        pop bc ;to_user_size
@@ -2415,6 +2420,7 @@ BDOS_readhandle_pipe_handle=$+1
         ret
         
 findpipe_byhandle
+;out: hl=pipebuf, a=pipe#, bc=oldhl
         sub PIPEADD80-1
         ld b,a
         push hl ;number of bytes
@@ -2437,7 +2443,21 @@ BDOS_writehandle_pipe
         ret z ;rnd - fail
 ;a = PIPEADD80+pipeindex
          ld (BDOS_writehandle_pipe_handle),a
-        call findpipe_byhandle ;bc=number of bytes
+        call findpipe_byhandle ;out: hl=pipebuf, a=pipe# ;bc=number of bytes ;keep de
+;установить factive для хозяина пайпа
+        push bc
+        push de
+        ld bc,pipeowners
+        add a,c
+        ld c,a
+        jr nc,$+3
+        inc b
+        ld a,(bc)
+        ld e,a ;pipe owner
+        call BDOS_findapp ;iy=found app ;keep hl
+        set factive,(iy+app.flags)
+        pop de
+        pop bc
 ;добавляем в текущий хвост столько байт, сколько есть, но чтобы не превысило размер буфера
 ;пока делаем, что вся очередь лежит в начале (не атомарно)
          ld (BDOS_writehandle_pipe_addr),hl

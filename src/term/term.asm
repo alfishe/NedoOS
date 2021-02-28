@@ -129,6 +129,7 @@ mousetimeout=$+1
          ;ld (hl),CURSORCOLOR
 noshowmouse
 
+        OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
         YIELD
         ld a,(pgscrbuf) ;ok
         SETPG16K
@@ -151,6 +152,7 @@ mainloop_afterkey
 mainloop_yieldkeep
         ld (wasnokey),a
         endif
+        OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
         YIELDKEEP
 mainloop_afterkeyq
 mousecursor_wasxy=$+1
@@ -180,6 +182,7 @@ waitpid_id=$+1
         
         jr mainloop_type0_go
 mainloop_type0
+        OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
         YIELDKEEP
 
 mainloop_type0_go

@@ -262,6 +262,8 @@ findnextappskip
 ;no active apps (или каждая в данном фрейме уже вызывалась)
         ld iy,app1 ;idle
 findnextappq
+;TODO при fwaitfocus пропускать app, если у него нет фокуса
+;или пусть term (хозяин пайпа) получает factive только после появления чего-то в пайпе или при нажатии клавиши (когда он в фокусе)
         ld (appaddr),iy
          ld (iy+app.lasttime),a
           ;ld iy,(appaddr)
@@ -497,6 +499,13 @@ KEYSCAN
 			ld (.rep_wait),a
 .end_keyscan			
 		endif
+;TODO при наличии клавиши или события мышки поставить factive для задачи в фокусе
+;пока что просто ставим factive для задачи в фокусе, если у неё есть fgfx (т.е. это не idle) - этого достаточно для ускорения игр
+        ld iy,(focusappaddr)
+        bit fgfx,(iy+app.flags)
+        jr z,keyscan_nosetactive
+        set factive,(iy+app.flags)
+keyscan_nosetactive
 
         ;call PEEKKEY ;ld a,(curkey)
         ;cp ssEnter
