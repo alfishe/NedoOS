@@ -18,6 +18,9 @@ LOAD ;-> GAME
         OS_READHANDLE
         pop bc ;b=handle
         OS_CLOSEHANDLE
+
+        LD HL,MUSNUM
+        DEC (HL) ;???
        else ;TR-DOS
 ;Ищем файл
         CALL FILE
