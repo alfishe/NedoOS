@@ -12,4 +12,11 @@
 ;i: 16c image
 ;P: DDp palette
 
-hudmenu=i,0,0,104,96,7
+hudmenuofft=i,0,0,104,8,7
+hudmenuoff0=i,0,8,104,24,7
+hudmenuoff1=i,0,32,104,24,7
+hudmenuoff2=i,0,56,104,24,7
+hudmenuoffb=i,0,80,104,16,7
+hudmenu0=i,104,8,88,24,7
+hudmenu1=i,104,32,88,24,7
+hudmenu2=i,104,56,88,24,7
