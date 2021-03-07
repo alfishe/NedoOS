@@ -1,0 +1,23 @@
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;(hgt=8,16,24,32, wid even!)
+;P: DDp palette
+
+spaceship0=x,0,0,16,16
+fly0=x,16,0,16,16
+fly1=x,32,0,16,16
+bomb0=x,48,0,4,8
+dot0=x,64,0,2,8
+explosion0=x,80,0,18,24
+explosion1=x,112,0,22,24
+explosion2=x,144,0,24,24
+explosion3=x,176,0,30,32
+explosion4=x,208,0,32,32
