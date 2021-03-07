@@ -64,10 +64,13 @@ _128
 	;LD	(R128),A
 	;OUT	(C),A
         ;and 7
-        ld ($+3+1),a
-        ld a,(ttexpgs)
+        ;ld ($+3+1),a
+        ;ld a,(ttexpgs)
+         ld c,a
+         ld b,ttexpgs/256
+         ld a,(bc)
 	;LD	(R128),A
-        SETPG32KHIGH
+        SETPGC000
         pop bc
 	RET
         else

@@ -1,6 +1,6 @@
 //#include <evo.h>
 #include "../_sdk/evo.h"
-#include "nedoload.h"
+#include "functions.h"
 //#include "startup.h"	//этот файл генерируетс€ автоматически при компил€ции startup.asm
 
 void vsync(void) __naked

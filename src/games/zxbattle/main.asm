@@ -1407,7 +1407,12 @@ showsprites0q
 ;сейчас примерно 82000 при куче спрайтов
 
         call setpgsmain40008000
-        call setpg8
+        ;call setpg8
+        ;ret
+setpg8 ;area?
+pgarea=$+1
+        ld a,0
+        SETPGC000
         ret
 
 border1
@@ -1423,71 +1428,69 @@ border8
         ;OS_SETBORDER
         ret
 
-setpg8 ;area?
-pgarea=$+1
-        ld a,0
-        SETPG32KHIGH
-        ret
 setpgc ;ending music
 pgmuzend=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpg16 ;levels 01-16
 pglvl0=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpg17 ;levels 17-32
 pglvl1=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpg18 ;level 00 user
 pglvl2=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpgc0 ;spr0 ;left sprites (tanks)
 pgspr0=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpgc1 ;spr1 ;right sprites (bullets)
 pgspr1=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpgc2_4000
         ld a,(pgtiles)
-        SETPG16K
+        SETPG4000
         ret
 setpgc2 ;tiles
 pgtiles=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpgc3 ;main music, boss music
 pgmuzmain=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpgspr2
 pgspr2=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpgspr3
 pgspr3=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         ret
 setpg
 ;a=(SM1),(SM2) ;#10..#13???
        ret
-        ld ($+4),a
-        ld a,(tpgs)
-        SETPG32KHIGH
+        ;ld ($+4),a
+        ;ld a,(tpgs)
+         ld c,a
+         ld b,tpgs/256
+         ld a,(bc)
+        SETPGC000
         ret
 
 

@@ -3,7 +3,7 @@
 
 BINADDR=0x4000
 
-	include "target.asm"
+	include "../_sdk/target.asm"
 
 	ifdef EVO
 
@@ -34,7 +34,7 @@ INVMASK=#7f
 	endif
 
 
-        include "pages.asm"
+        ;include "_temp_/pages.asm"
 NUMBER_OF_PAGES=10
 
 scrbase=0x4000
@@ -109,7 +109,7 @@ SFX_DATA =#5100
 	endm
 
 	macro MRestoreMemMap012
-;TODO переделать на (pgmain4000) и т.п.
+;TODO переделать на (pgmain4000) и т.п. (сейчас с пересчётом по таблице)
 	;ld bc,MEM_SLOT3
 	ld a,CC_PAGE3
 	;out (c),a
@@ -476,7 +476,6 @@ curscrnum=$+1
         
 changescrpg
 ;TODO убрать
-        ;jr $
         call changescrpg_current
         ;ld (curscrnum_physical),a
 	ld e,a
@@ -484,20 +483,29 @@ changescrpg
         ret
 
 setpg4000
-        ld ($+4),a
-        ld a,(tpages)
+        ;ld ($+4),a
+        ;ld a,(tpages) ;нереентерабельно!
+        ld b,tpages/256
+        ld c,a
+        ld a,(bc)
         SETPG16K
         ret
 
 setpg8000
-        ld ($+4),a
-        ld a,(tpages)
+        ;ld ($+4),a
+        ;ld a,(tpages) ;нереентерабельно!
+        ld b,tpages/256
+        ld c,a
+        ld a,(bc)
         SETPG32KLOW
         ret
 
 setpgc000
-        ld ($+4),a
-        ld a,(tpages)
+        ;ld ($+4),a
+        ;ld a,(tpages) ;нереентерабельно!
+        ld b,tpages/256
+        ld c,a
+        ld a,(bc)
         SETPG32KHIGH
         ret
 
@@ -641,11 +649,6 @@ _pal_copy
 	ret
 
 
-prspr
-respr
-        ;TODO
-        ret
-
 
 ;более быстрая версия ldir, эффективна при bc>12
 ;из статьи на MSX Assembly Page
@@ -768,16 +771,19 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	export _clear_screen
 	export _fast_ldir
 
-        include "int.asm"
-        include "lib_tiles.asm"
-
+        include "../_sdk/lib_int.asm"
+        include "../_sdk/lib_tiles.asm"
 	export _draw_tile
 	export _draw_image
 	export _select_image
 	export _draw_tile_key
 	export _color_key
 
-        include "lib_input.asm"
+        include "../_sdk/lib_sprites.asm"
+	export _sprites_start
+	export _sprites_stop
+
+        include "../_sdk/lib_input.asm"
 
 	export _joystick
 	export _keyboard

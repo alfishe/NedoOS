@@ -1,9 +1,0 @@
-graphicsData0 = 16
-graphicsData1 = 17
-palletesData0 = 4
-soundData0 = 0
-spriteData0 = 18
-spriteTableData1 = 6
-codeData0 = 12
-codeData1 = 15
-totalPages = 8

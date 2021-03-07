@@ -1,5 +1,5 @@
-	export _sprites_start
-	export _sprites_stop
+	;export _sprites_start
+	;export _sprites_stop
 
 ;win0: background layer; screen procedure
 ;win1: screen layers 0,2
@@ -13,14 +13,16 @@
 copy_visible_to_shadow
 	ld a,(_screenActive)
 
-	ld bc,MEM_SLOT2
-	ld (_memSlot2),a
-	out (c),a
+	;ld bc,MEM_SLOT2
+	;ld (_memSlot2),a
+	;out (c),a
+        call setpg8000
 
-	ld b,high MEM_SLOT1
+	;ld b,high MEM_SLOT1
 	xor 2
-	ld (_memSlot1),a
-	out (c),a
+	;ld (_memSlot1),a
+	;out (c),a
+        call setpg4000
 
 	ld hl,16384
 	ld de,32768
@@ -30,15 +32,17 @@ copy_visible_to_shadow
 
 	ld a,(_screenActive)
 
-	ld bc,MEM_SLOT2
+	;ld bc,MEM_SLOT2
 	sub 4
-	ld (_memSlot2),a
-	out (c),a
+	;ld (_memSlot2),a
+	;out (c),a
+        call setpg8000
 
-	ld b,high MEM_SLOT1
+	;ld b,high MEM_SLOT1
 	xor 2
-	ld (_memSlot1),a
-	out (c),a
+	;ld (_memSlot1),a
+	;out (c),a
+        call setpg4000
 
 	ld hl,16384
 	ld de,32768
@@ -56,9 +60,9 @@ copy_visible_to_shadow
 convert_screen
 	push bc
 	ld a,e
-	call setSlot1
+	call setpg4000;setSlot1
 	ld a,d
-	call setSlot2
+	call setpg8000;setSlot2
 
 	ld c,200
 	ex de,hl
@@ -189,7 +193,7 @@ toutd
 resprx0
 	;display /h,$
          ld h,a ;H=x
-         ex af,af'
+         ex af,af' ;'
          ld l,a ;L=y
         ld a,b
         push bc
@@ -213,7 +217,7 @@ resprx0
 resprx1
 	;display /h,$
          ld h,a
-         ex af,af'
+         ex af,af' ;'
          ld l,a ;L=y
        ld a,b
        add a,64
@@ -241,7 +245,7 @@ resprx1
 resprx2
 	;display /h,$
          ld h,a
-         ex af,af'
+         ex af,af' ;'
          ld l,a ;L=y
        ld a,b
        add a,32
@@ -276,7 +280,7 @@ resprx3
         ld b,a
         push bc
         ld b,l
-         ex af,af'
+         ex af,af' ;'
          ld l,a ;L=y
          push hl
         inc bc

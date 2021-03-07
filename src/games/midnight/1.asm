@@ -319,13 +319,16 @@ loadlevels0q
 setpg
         push bc
         and 7
-         cp 2
-         jr z,$
-         cp 5
-         jr z,$
-        ld ($+4),a
-        ld a,(tpgs)
-        SETPG32KHIGH
+         ;cp 2
+         ;jr z,$
+         ;cp 5
+         ;jr z,$
+        ;ld ($+4),a
+        ;ld a,(tpgs)
+         ld c,a
+         ld b,tpgs/256
+         ld a,(bc)
+        SETPGC000
         pop bc
         ret
 

@@ -4,10 +4,6 @@ echo %CD%
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 if not exist nedoload mkdir nedoload
-sjasmplus --nologo --msg=war --msg=war --exp=nedoload.exp nedoload.asm
-java -jar exp2hConverter.jar nedoload.exp
-copy functions.h nedoload.h
-del functions.h
 
 rem call compile_nedoos.bat
 
@@ -61,19 +57,19 @@ rem сэмплы
 set sample.0=fanfare.wav
 set sample.1=gong.wav
 
+rem sjasmplus --nologo --msg=war --msg=war --exp=_temp_/nedoload.exp nedoload.asm
+rem java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp
+rem copy functions.h nedoload.h
+rem del nedoload.exp
+rem del functions.h
+
 rem echo %PATH%
-echo -1----------------------------
 rem echo %CD%
 call ..\_sdk\_compile_nedoos.bat
 
 rem echo %PATH%
-echo -2----------------------------
-rem echo %CD%
-perl getMainAddr.pl .\_temp_\out.map nedoload\addr.bin
-rem echo %PATH%
 echo -3----------------------------
 rem echo %CD%
-
 copy _temp_\*.bin nedoload
 rem echo %PATH%
 echo -4----------------------------

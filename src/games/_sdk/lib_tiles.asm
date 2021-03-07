@@ -1,13 +1,12 @@
 	;export _draw_tile
 	;export _draw_image
-	export _select_image
-	export _draw_tile_key
-	export _color_key
+	;export _select_image
+	;export _draw_tile_key
+	;export _color_key
 
 
 
 	macro MDrawTile
-
 	ld bc,-16384+40
 	dup 8
 	ld a,(de)	;#4xxx
@@ -48,25 +47,13 @@
 	ld h,(hl)
 	ld l,a
 
-	ifdef EVO
-	
 	ld a,d
 	srl a
-	add a,low ~GFX_PAGE
-	ld bc,MEM_SLOT0
-	cpl
-	out (c),a
-	
-	else
-	
-	ld a,d
-	srl a
-	add a,low (GFX_PAGE^127)
-	ld bc,MEM_SLOT0
-	xor 127
-	out (c),a
-	
-	endif
+	add a,low GFX_PAGE
+	;ld bc,MEM_SLOT0
+	;cpl
+	;out (c),a
+	call setpgc000;SETPG32KHIGH
 
 	ld a,e
 	rrca
@@ -77,6 +64,7 @@
 	bit 0,d
 	jr z,$+4
 	or #20
+         or 0xc0
 	ld d,a
 	ld a,e
 	and #e0
@@ -125,13 +113,16 @@ updateOneTileToBuffer
 	ld h,(hl)
 	ld l,a
 
-	sla e
-	sla e
-	sla e
+	ld a,e ;sla e
+	add a,a ;sla e
+        add a,a
+        add a,a
+	ld e,a ;sla e
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE0
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 0
 	org $-2
@@ -141,9 +132,10 @@ updateOneTileToBuffer
 	ld bc,-7*40+16384
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE1
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 1
 	org $-2
@@ -153,9 +145,10 @@ updateOneTileToBuffer
 	ld bc,-(7*40+8192)
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE2
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 2
 	org $-2
@@ -165,9 +158,10 @@ updateOneTileToBuffer
 	ld bc,-7*40+16384
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE3
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnToBuf	;столбец 3
 	org $-2
@@ -193,13 +187,16 @@ updateOneTileFromBuffer
 	ld h,(hl)
 	ld l,a
 
-	sla e
-	sla e
-	sla e
+	ld a,e ;sla e
+	add a,a ;sla e
+        add a,a
+        add a,a
+	ld e,a ;sla e
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE0
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 0
 	org $-2
@@ -209,9 +206,10 @@ updateOneTileFromBuffer
 	ld bc,-7*40+16384
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE1
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 1
 	org $-2
@@ -221,9 +219,10 @@ updateOneTileFromBuffer
 	ld bc,-(7*40+8192)
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE2
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 2
 	org $-2
@@ -233,9 +232,10 @@ updateOneTileFromBuffer
 	ld bc,-7*40+16384
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE3
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	MCopyTileColumnFromBuf	;столбец 3
 	org $-2
@@ -258,7 +258,7 @@ updateTilesToBuffer
 .clearUpdMap1
 	ld a,(hl)
 	or a
-	jp nz,.rowChange
+	jr nz,.rowChange
 	ld a,d
 	add a,8
 	ld d,a
@@ -289,20 +289,21 @@ updateTilesToBuffer
 
 
 updateTilesFromBuffer
-	ld a,(tileUpdate)
-	or a
+	ld hl,tileUpdate ;ld a,(tileUpdate)
+        xor a
+	cp (hl) ;or a
 	ret z
-	xor a
-	ld (tileUpdate),a
+	;xor a
+	ld (hl),a ;ld (tileUpdate),a
 
 	ld hl,tileUpdateMap
-	ld e,0	;y
+	ld e,a;0	;y
 .clearUpdMap0
 	ld d,0	;x
 .clearUpdMap1
 	ld a,(hl)
 	or a
-	jp nz,.rowChange
+	jr nz,.rowChange
 	ld a,d
 	add a,8
 	ld d,a
@@ -337,28 +338,28 @@ updateTilesFromBuffer
 
 _select_image
 
-
 	ld h,0
 	add hl,hl
 	add hl,hl
 	ld bc,IMG_LIST
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,PAL_PAGE
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	ld e,(hl)	;tile
 	inc l
 	ld d,(hl)
+         ;set 7,d
+         ;set 6,d
 	ld (tileOffset),de
 
-	ld a,CC_PAGE0
-	out (c),a
+	ld a,CC_PAGE3;0
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
-	
-	
-	
 	ret
 
 
@@ -393,7 +394,7 @@ setTileUpdateMap
 
 _draw_tile
 	;---------------
-	ld a,(_memSlot2)
+	ld a,(curpg8000) ;ok ;(_memSlot2)
 	push af
 	;---------------
 	ld a,(spritesActive)
@@ -402,12 +403,13 @@ _draw_tile
 	MDrawTileGetAddrs
 	MSetShadowScreen
 	MDrawTile
-	MRestoreMemMap012
+	MRestoreMemMap012 ;TODO восстанавливать страницы, бывшие до вызова
 	;-----------------
-	pop af
-    ld (_memSlot2),a
-	ld bc,MEM_SLOT2
-    out (c),a
+	pop af ;чтобы не делать это
+        SETPG8000
+    ;ld (_memSlot2),a
+	;ld bc,MEM_SLOT2
+    ;out (c),a
 	;-----------------
 	ret
 
@@ -444,7 +446,7 @@ _color_key
 
 _draw_tile_key
 	;---------------
-	ld a,(_memSlot2)
+	ld a,(curpg8000) ;ok ;(_memSlot2)
 	push af
 	;---------------
 	ld a,(spritesActive)
@@ -581,39 +583,41 @@ _draw_tile_key
 	
 	;-----------------
 	pop af
-    ld (_memSlot2),a
-	ld bc,MEM_SLOT2
-    out (c),a
+        SETPG8000
+    ;ld (_memSlot2),a
+	;ld bc,MEM_SLOT2
+    ;out (c),a
 	;-----------------
 	ret
 
 
 
 ;отрисовка изображения целиком
-;эта процедура быстрее чем вывод отдельных тайлов
+;эта процедура быстрее, чем вывод отдельных тайлов
 ;a=id, c=X, b=Y
 
 ;при cy=1:
 ;d=begx, e=width
 
 _draw_image
-	;---------------
-	;ld a,(_memSlot2)
-	;push af
+        ld l,a
+	ld a,(curpg8000) ;ok ;(_memSlot2)
+	push af
 	;-------------------------
 	push bc
 	push af
 
 	ld h,0
-	ld l,a
+	;ld l,a
 	add hl,hl
 	add hl,hl
 	ld bc,IMG_LIST
 	add hl,bc
 
-	ld bc,MEM_SLOT0
+	;ld bc,MEM_SLOT0
 	ld a,PAL_PAGE
-	out (c),a
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	 pop af
 	 jr nc,_draw_image_noextra
@@ -641,12 +645,10 @@ _draw_image_noextra
 	inc l
 	ld b,(hl)	;height
 
-
 	ld l,c
 _draw_image_noextraq
 	ld h,0
 	ld (.wdt),hl
-
 
 	pop hl
 
@@ -704,26 +706,13 @@ _draw_image_noextraq
 	ld a,c
 	exa
 
-	ifdef EVO
-	
 	ld a,d
 	srl a
-	add a,low ~GFX_PAGE
-	cpl
+	add a,low GFX_PAGE
 	ld (.page),a
-	ld bc,MEM_SLOT0
-	out (c),a
-	else
-	
-	ld a,d
-	srl a
-	add a,low (GFX_PAGE^127)
-	xor 127
-	ld (.page),a
-	ld bc,MEM_SLOT0
-	out (c),a
-	
-	endif
+	;ld bc,MEM_SLOT0
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 
 	ld a,e
 	rrca
@@ -734,6 +723,7 @@ _draw_image_noextraq
 	bit 0,d
 	jr z,$+4
 	or #20
+         or 0xc0
 	ld d,a
 	ld a,e
 	and #e0
@@ -745,17 +735,22 @@ _draw_image_noextraq
 	MDrawTile
 
 	inc e
-	jp nz,.noPageChange
+	jr nz,.noPageChange
 	inc d
-	bit 6,d
-	jp z,.noPageChange
-	res 6,d
+	;bit 6,d
+	;jr z,.noPageChange
+	;res 6,d
+	 jr nz,.noPageChange
+         ld a,d
+         or 0xc0
+         ld d,a
 .page=$+1
 	ld a,0
-	dec a
-	ld bc,MEM_SLOT0
-	out (c),a
+        inc a;dec a
+	;ld bc,MEM_SLOT0
+	;out (c),a
 	ld (.page),a
+        call setpgc000;SETPG32KHIGH
 
 .noPageChange
 	ld bc,-(16384+7*40-1)
@@ -776,15 +771,17 @@ _draw_image_noextraq
 	dec b
 	jp nz,.loopv
 
-	ld bc,MEM_SLOT1
+	;ld bc,MEM_SLOT1
 	ld a,CC_PAGE1
-	ld (_memSlot1),a
-	out (c),a
+	;ld (_memSlot1),a
+	;out (c),a
+        call setpg4000;SETPG16K
 
-	ld b,high MEM_SLOT2
+	;ld b,high MEM_SLOT2
 	ld a,CC_PAGE2
-	ld (_memSlot2),a
-	out (c),a
+	;ld (_memSlot2),a
+	;out (c),a
+        call setpg8000;SETPG32KLOW
 	
 	pop bc	;координаты начала изображения B=y C=x
 	pop hl	;размеры выводимой части
@@ -813,12 +810,14 @@ _draw_image_noextraq
 	jp nz,.setUpd1
 
 .done
-	ld bc,MEM_SLOT0
-	ld a,CC_PAGE0
-	out (c),a
+	;ld bc,MEM_SLOT0
+	ld a,CC_PAGE3;0
+	;out (c),a
+        call setpgc000;SETPG32KHIGH
 	
 	;----------------
-	;pop af
+	pop af
+        SETPG8000
     ;ld (_memSlot2),a
 	;ld bc,MEM_SLOT2
     ;out (c),a

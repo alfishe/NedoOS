@@ -50,14 +50,18 @@ FOR /F "tokens=2* delims=.=" %%A IN ('SET sample') DO ECHO %%B>>%temp%\sample.ls
 
 rem создаём resources.h с идентификаторами ресурсов
 
+..\_sdk\tools\sjasmplus\sjasmplus.exe --nologo --msg=war --msg=war --exp=_temp_/nedoload.exp nedoload.asm
+java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp
+
 makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\sample.lst" "%temp%\sprite.lst" "%soundfx%"
 
 rem компилируем исходник на C
 
-sdcc -mz80 -I. -c evo.c
-copy evo.rel ..\_sdk\
+sdcc -mz80 -I. -c ..\_sdk\evo.c
+rem copy evo.rel ..\_sdk\
 rem sdcc -mz80 --fno-omit-frame-pointer --xstack --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
-sdcc -mz80 --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
+sdcc -mz80 --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel evo.rel --opt-code-size main.c -o %temp%\out.ihx
+del evo.rel
 
 if ERRORLEVEL 1 goto clean
 
@@ -66,13 +70,17 @@ rem он создаёт набор бинарных файлов по одному на банк памяти
 rem плюс скрипты для сжатия файлов megalz и сборки образа диска
 
 rem evoresc "%temp%\out.ihx" "..\_sdk\startup.bin" "%soundfx%" "%temp%\music.lst" "%temp%\palette.lst" "%temp%\image.lst" "%temp%\sample.lst" "%temp%\sprite.lst"
-echo tools\sjasmplus\sjasmplus.exe "%temp%\..\nedoload.asm" 
+rem echo tools\sjasmplus\sjasmplus.exe "%temp%\..\nedoload.asm" 
 ..\_sdk\tools\sjasmplus\sjasmplus.exe nedoload.asm
 
 echo -CALL NEDORESC------------------------------
 rem evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"
 evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "0"  SOUND_BIN_FILE "../_sdk/sound.bin" SND_PAGE 0 SPRTBL_PAGE 1 PAL_PAGE 2  SPRBUF_PAGE 3 GFX_PAGE 10 CC_PAGE0 100 CC_PAGE1 101 CC_PAGE2 102 CC_PAGE3 103
 if ERRORLEVEL 1 goto clean
+
+rem echo %PATH%
+rem echo %CD%
+perl ../_sdk/getMainAddr.pl .\_temp_\out.map _temp_\addr.bin
 
 rem переходим во временную директорию
 

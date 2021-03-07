@@ -1,6 +1,6 @@
-	export _joystick
-	export _keyboard
-	export _mouse_apply_clip
+	;export _joystick
+	;export _keyboard
+	;export _mouse_apply_clip
 
 
 	
@@ -173,6 +173,7 @@ _joystick
 	jr c,$+4
 	set 4,l
 	
+        if 0
 	ld a,l
 	or a
 	ret nz
@@ -209,7 +210,9 @@ joystick_out_dos
 	ld de,#2a53
 	push de
 	jp #3d2f
-	
+	else
+        ret
+        endif
 	
 	
 ;опрос клавиатуры, заполняет 40-байтный массив флагами состояния клавиш
