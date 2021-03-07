@@ -1,6 +1,6 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
-convega.exe kubik.bmp
+"../../_sdk/convega.exe" kubik.bmp
 copy 0kubik.bmpx loadscr\0kubik.bmpx
 copy 1kubik.bmpx loadscr\1kubik.bmpx
 "../../_sdk/nedores.exe" vorobey.bmp vorobey.dat vorobey.ast
