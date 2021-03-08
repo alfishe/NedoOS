@@ -42,7 +42,7 @@ void main(void)
 		spriteList[i].dx=0;
 		spriteList[i].dy=0;
 		spriteList[i].dx=rand16()&1?-1:1;
-		//spriteList[i].dy=rand16()&1?-1:1;
+		spriteList[i].dy=rand16()&1?-1:1;
 	}
 
 	//вывод фона на теневой экран
@@ -103,7 +103,7 @@ void main(void)
 			if(spriteList[i].y==200-16||spriteList[i].y==0) {spriteList[i].dy=-spriteList[i].dy; 	        sfx_play(SFX_APSTENU,-3);}
 
 			spriteList[i].x+=spriteList[i].dx;
-			//spriteList[i].y+=spriteList[i].dy;
+			spriteList[i].y+=spriteList[i].dy;
                         //spriteList[i].y = 100;
 		}
 /*

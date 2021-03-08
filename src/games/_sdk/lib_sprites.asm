@@ -62,8 +62,8 @@ copy_visible_to_shadow_setldirpage
 
 convert_screen
 	push bc
-	ld a,e
-	call setpg4000;setSlot1
+	ld a,e ;screen page (physical)
+	SETPG4000;call setpg4000;setSlot1
 	ld a,d
 	call setpg8000;setSlot2
 
@@ -385,7 +385,7 @@ prsprx3
         jp (ix)
 
 respr
-       ;ret
+       ;ret       
         ld hl,_sprqueue
 		ld a,(_screenActive)
 		and 2
@@ -425,6 +425,7 @@ respr0go
         sub c
         ld b,a
          ld a,(hl) ;x/4
+          or 0xc0
         ld h,high tresprx ;(4 ветки)
         ld l,(hl)
         ld h,high resprx0 ;todo inc h

@@ -3,36 +3,14 @@
 
 BINADDR=0x4000
 
-	include "../_sdk/target.asm"
+	;include "../_sdk/target.asm"
 
-	ifdef EVO
-
-	display "EVO version"
-
-MEM_SLOT0=#37f7
-MEM_SLOT1=#77f7
-MEM_SLOT2=#b7f7
-MEM_SLOT3=#f7f7
+;MEM_SLOT0=#37f7
+;MEM_SLOT1=#77f7
+;MEM_SLOT2=#b7f7
+;MEM_SLOT3=#f7f7
 
 INVMASK=#ff
-
-	else
-
-	display "ATM version"
-
-MEM_SLOT0=#3ff7
-MEM_SLOT1=#7ff7
-MEM_SLOT2=#bff7
-MEM_SLOT3=#fff7
-
-INVMASK=#7f
-
-	endif
-
-	ifdef DOS
-	display "DOS support"
-	endif
-
 
         ;include "_temp_/pages.asm"
 NUMBER_OF_PAGES=10
@@ -169,10 +147,15 @@ begin
 ;dehl=номера страниц в 0000,4000,8000,c000
         ld a,e
         LD (pgmain4000),A
+        ld (tpages+CC_PAGE1),a
         ld a,h
         LD (pgmain8000),A
+        ld (tpages+CC_PAGE2),a
         ld a,l
-        LD (pgmainc000),A
+        ;LD (pgmainc000),A
+;pgmainc000=$+1
+;        ld a,0
+        ld (tpages+CC_PAGE3),a
         call setpgsmain40008000 ;записать в curpg...
 
         ;OS_GETSCREENPAGES
@@ -246,18 +229,22 @@ loadloop_nextdigit0
         ;djnz loadloop0
 loadloop0q
         
-        ld a,(pgmain4000)
-        ld (tpages+CC_PAGE1),a
-        ld a,(pgmain8000)
-        ld (tpages+CC_PAGE2),a
-pgmainc000=$+1
-        ld a,0
-        ld (tpages+CC_PAGE3),a
-        
+        ld hl,tpages+SPBUF_PAGE0
+        ld b,4
+mkspbuf0
+        push bc
+        push hl
+        OS_NEWPAGE
+        pop hl
+        ld (hl),e
+        dec l
+        pop bc
+        djnz mkspbuf0
+       
         if 1==0
         call loadpage
         ld (pgmusic),a
-        SETPG16K
+        SETPG4000
         push af
         call 0x4000 ;init
         pop af
@@ -297,7 +284,7 @@ curkey=$+1
         call swapimer
 pgmusic=$+1
         ld a,0
-        SETPG16K
+        SETPG4000
         ld hl,0x4008 ;stop
         OS_SETMUSIC
         halt
@@ -343,7 +330,7 @@ loadpage
         ld a,e
         push af ;pg
        push bc
-        SETPG32KHIGH
+        SETPGC000
        pop bc
         push hl
         ex de,hl
@@ -387,39 +374,39 @@ setpgsmain40008000
 pgmain4000=$+1
         ld a,0
         ;ld (curpg4000),a
-        SETPG16K
+        SETPG4000
 pgmain8000=$+1
         ld a,0
         ;ld (curpg8000),a
-        SETPG32KLOW
+        SETPG8000
         ret
 
 setpgsscr40008000_current
         call getuser_scr_low_cur
         ;ld (curpg4000),a ;TODO kill
-        SETPG16K
+        SETPG4000
         call getuser_scr_high_cur
         ;ld (curpg8000),a ;TODO kill
-        SETPG32KLOW
+        SETPG8000
         ret
 
 setpgsscr40008000
         call getuser_scr_low
         ;ld (curpg4000),a ;TODO kill
-        SETPG16K
+        SETPG4000
         call getuser_scr_high
         ;ld (curpg8000),a ;TODO kill
-        SETPG32KLOW
+        SETPG8000
         ret
 
 setpgscrlow4000
         call getuser_scr_low
-        SETPG16K
+        SETPG4000
         ret
 
 setpgscrhigh4000
         call getuser_scr_high
-        SETPG16K
+        SETPG4000
         ret
 
 getuser_scr_low
