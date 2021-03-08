@@ -27,6 +27,7 @@ void main(void)
 	static u8 palette[16];
 	static u8 keys[40];
         static u32 oldtime,curtime;
+	static u16 y;
 
 	//чёрный экран на время подготовки
 
@@ -40,7 +41,7 @@ void main(void)
 		spriteList[i].y=1+rand16()%(200-16-2);
 		spriteList[i].dx=0;
 		spriteList[i].dy=0;
-		//spriteList[i].dx=rand16()&1?-1:1;
+		spriteList[i].dx=rand16()&1?-1:1;
 		//spriteList[i].dy=rand16()&1?-1:1;
 	}
 
@@ -85,8 +86,8 @@ void main(void)
 		for(i=0;i<SPRITES_ALL;++i)
 		{
 			//i&3 выбирает один из четырех разноцветных шариков
-
-			set_sprite(i,spriteList[i].x,spriteList[i].y,i&3);
+                        y = spriteList[i].y;
+			set_sprite(i,spriteList[i].x,/*spriteList[i].*/y,i&3);
                 }
 		//обновление экрана, спрайты выводятся автоматически
 		swap_screen();
@@ -102,9 +103,10 @@ void main(void)
 			if(spriteList[i].y==200-16||spriteList[i].y==0) {spriteList[i].dy=-spriteList[i].dy; 	        sfx_play(SFX_APSTENU,-3);}
 
 			spriteList[i].x+=spriteList[i].dx;
-			spriteList[i].y+=spriteList[i].dy;
+			//spriteList[i].y+=spriteList[i].dy;
+                        //spriteList[i].y = 100;
 		}
-
+/*
 		//получение состояния клавиш
 		keyboard(keys);
 		if(keys[KEY_O]&KEY_DOWN) spriteList[0].x-=1;
@@ -122,7 +124,7 @@ void main(void)
                                }
                         }
                 }
-
+*/
                 } //logic loop
 
                 oldtime = curtime;

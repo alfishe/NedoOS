@@ -40,8 +40,6 @@ __endasm;
 void draw_image(u8 x,u8 y,u8 id) __naked
 {
 __asm
-        ;di
-        ;halt
 	ld hl,#2
 	add hl,sp
 	

@@ -50,10 +50,10 @@ tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
 
-SCR_PAGE1=(1^INVMASK) ;TODO убрать
-SCR_PAGE3=(3^INVMASK)
-SCR_PAGE5=(5^INVMASK)
-SCR_PAGE7=(7^INVMASK)
+;SCR_PAGE1=(1^INVMASK) ;TODO убрать
+;SCR_PAGE3=(3^INVMASK)
+;SCR_PAGE5=(5^INVMASK)
+;SCR_PAGE7=(7^INVMASK)
 
 SPBUF_PAGE0=(8^INVMASK)
 SPBUF_PAGE1=(9^INVMASK)
@@ -538,14 +538,15 @@ _swap_screen
 	jr z,.noSpr0
 	call setShadowScreen
 	call updateTilesToBuffer
+       jr $
 	call prspr
 .noSpr0
 
 	halt
 
-	;ld a,(_screenActive)
-	;xor 2
-	;ld (_screenActive),a
+	ld a,(_screenActive)
+	xor 2
+	ld (_screenActive),a ;for select sprqueue
 	;ld e,a
 
 	;ld a,#10

@@ -138,6 +138,17 @@ int_nochangepal
 	endif
 
 	call AFX_FRAME
+
+	;счётчик кадров
+
+	ld hl,_time
+	ld b,4
+.time1
+	inc (hl)
+	jr nz,.time2
+	inc hl
+	djnz .time1
+.time2
         
         pop af
         SETPG32KHIGH

@@ -98,8 +98,9 @@ convert_screen
 
 
 _sprites_start
-	xor a
-	ld (spritesActive),a
+	;xor a
+	;ld (spritesActive),a
+        call _sprites_stop
 
 	ld hl,_sprqueue
 	ld de,_sprqueue+1
@@ -108,30 +109,36 @@ _sprites_start
 	ldir
 
 	call copy_visible_to_shadow
-       jr _sprites_start_q
 
-	ld e,SCR_PAGE1
+	;ld e,SCR_PAGE1
+         call getuser_scr_low
+         ld e,a
 	ld d,SPBUF_PAGE0
 	ld hl,#4000
 	call convert_screen
-	ld e,SCR_PAGE5
+	;ld e,SCR_PAGE5
+         call getuser_scr_high
+         ld e,a
 	ld d,SPBUF_PAGE1
 	ld hl,#4000
 	call convert_screen
-	ld e,SCR_PAGE1
+	;ld e,SCR_PAGE1
+         call getuser_scr_low_cur
+         ld e,a
 	ld d,SPBUF_PAGE2
 	ld hl,#6000
 	call convert_screen
-	ld e,SCR_PAGE5
+	;ld e,SCR_PAGE5
+         call getuser_scr_high_cur
+         ld e,a
 	ld d,SPBUF_PAGE3
 	ld hl,#6000
 	call convert_screen
 
-_sprites_start_q
 	MRestoreMemMap12
 
 	ld a,1
-	;ld (spritesActive),a
+	ld (spritesActive),a
 
 
 	ret
@@ -186,6 +193,7 @@ tresprx
 
        ;ds .(-$)
 toutd
+;TODO пересчитать в реальные страницы
         db SPBUF_PAGE1;2
         db SPBUF_PAGE2;1
         db SPBUF_PAGE3;0
@@ -214,7 +222,7 @@ resprx0
        ld b,a
         push bc
          push hl
-        ld bc,MEM_SLOT0 ;background window port
+        ;ld bc,MEM_SLOT0 ;background window port
         ld hl,toutd+6 ;для outd ;можно dec l
         jp (ix)
 
@@ -242,7 +250,7 @@ resprx1
         push bc
          inc h
          push hl
-        ld bc,MEM_SLOT0 ;background window port
+        ;ld bc,MEM_SLOT0 ;background window port
         ld hl,toutd+3 ;для outd ;можно b
         jp (ix)
 
@@ -271,7 +279,7 @@ resprx2
        ld b,a
         push bc
          push hl
-        ld bc,MEM_SLOT0 ;background window port
+        ;ld bc,MEM_SLOT0 ;background window port
         ld hl,toutd+4 ;для outd ;можно c
         jp (ix)
 
@@ -300,7 +308,7 @@ resprx3
         ld b,a
         push bc
          push hl
-        ld bc,MEM_SLOT0 ;#37f7 ;background window port
+        ;ld bc,MEM_SLOT0 ;#37f7 ;background window port
         ld hl,toutd+5 ;для outd ;можно h
         jp (ix)
 
@@ -377,6 +385,7 @@ prsprx3
         jp (ix)
 
 respr
+       ;ret
         ld hl,_sprqueue
 		ld a,(_screenActive)
 		and 2
@@ -402,7 +411,7 @@ respr0go
         ld e,(hl) ;y
         inc l
          ld a,e
-         ex af,af'
+         ex af,af' ;'
         ld a,(de) ;addrh(y)
         ld b,a
         inc d
@@ -424,6 +433,7 @@ respr0go
 
 
 prspr
+       ;ret
         ld iy,prspr0
         ld bc,40
         exx
@@ -446,19 +456,26 @@ prspr0go
          ld e,(hl)
          inc l
       ld a,SPTBL_PAGE
-      ld bc,MEM_SLOT0 ;#37f7 ;sprites window port
-      out (c),a
+      ;ld bc,MEM_SLOT0 ;#37f7 ;sprites window port
+      ;out (c),a
+      call setpgc000
+      ld a,d
+      or 0xc0
+      ld d,a
         ld a,(de) ;addrl(id)
         ld lx,a
         inc d
         ld a,(de) ;addrh(id)
+      or 0xc0
         ld hx,a ;ix=spraddr
         inc d
       ld a,(de) ;pg(id)
-	ifdef ATM
-	xor 128
-	endif
-      out (c),a
+	;ifdef ATM
+	;xor 128
+	;endif
+      ;out (c),a
+      cpl
+      call setpgc000
         ld d,high taby
         ld e,(hl) ;y
         inc hl
@@ -484,7 +501,8 @@ squareremover
        dup 4
         ;outd ;background page
 		ld a,(hl)
-		out (c),a
+		;out (c),a
+                call setpgc000
 		dec l
         exx
         pop de ;buf
