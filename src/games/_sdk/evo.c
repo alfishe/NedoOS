@@ -579,6 +579,7 @@ __endasm;
 }
 
 
+*/
 
 void set_sprite(u8 id,u8 x,u8 y,u16 spr) __naked
 {
@@ -641,5 +642,3 @@ __asm
 __endasm;
 }
 
-
-*/

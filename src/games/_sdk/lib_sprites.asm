@@ -11,38 +11,41 @@
 ;копирование видимого экрана в теневой
 
 copy_visible_to_shadow
-	ld a,(_screenActive)
-
+	;ld a,(_screenActive)
 	;ld bc,MEM_SLOT2
 	;ld (_memSlot2),a
 	;out (c),a
-        call setpg8000
+        call getuser_scr_low
+        SETPG8000
 
 	;ld b,high MEM_SLOT1
-	xor 2
+	;xor 2
 	;ld (_memSlot1),a
 	;out (c),a
-        call setpg4000
+        call getuser_scr_low_cur
+        call copy_visible_to_shadow_setldirpage ;SETPG4000
 
-	ld hl,16384
-	ld de,32768
-	ld b,h
-	ld c,l
-	call _fast_ldir
+	;ld hl,16384
+	;ld de,32768
+	;ld b,h
+	;ld c,l
+	;call _fast_ldir
 
-	ld a,(_screenActive)
-
+	;ld a,(_screenActive)
 	;ld bc,MEM_SLOT2
-	sub 4
+	;sub 4
 	;ld (_memSlot2),a
 	;out (c),a
-        call setpg8000
+        call getuser_scr_high
+        SETPG8000
 
 	;ld b,high MEM_SLOT1
-	xor 2
+	;xor 2
 	;ld (_memSlot1),a
 	;out (c),a
-        call setpg4000
+        call getuser_scr_high_cur
+copy_visible_to_shadow_setldirpage
+        SETPG4000
 
 	ld hl,16384
 	ld de,32768
@@ -95,7 +98,6 @@ convert_screen
 
 
 _sprites_start
-	
 	xor a
 	ld (spritesActive),a
 
@@ -106,6 +108,7 @@ _sprites_start
 	ldir
 
 	call copy_visible_to_shadow
+       jr _sprites_start_q
 
 	ld e,SCR_PAGE1
 	ld d,SPBUF_PAGE0
@@ -124,10 +127,11 @@ _sprites_start
 	ld hl,#6000
 	call convert_screen
 
+_sprites_start_q
 	MRestoreMemMap12
 
 	ld a,1
-	ld (spritesActive),a
+	;ld (spritesActive),a
 
 
 	ret
