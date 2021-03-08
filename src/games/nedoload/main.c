@@ -86,8 +86,8 @@ void main(void)
 		for(i=0;i<SPRITES_ALL;++i)
 		{
 			//i&3 выбирает один из четырех разноцветных шариков
-                        y = spriteList[i].y;
-			set_sprite(i,spriteList[i].x,/*spriteList[i].*/y,i&3);
+                        //y = spriteList[i].y;
+			set_sprite(i,spriteList[i].x,spriteList[i].y,i&3);
                 }
 		//обновление экрана, спрайты выводятся автоматически
 		swap_screen();

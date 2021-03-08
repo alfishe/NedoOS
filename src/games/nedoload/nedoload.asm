@@ -538,7 +538,6 @@ _swap_screen
 	jr z,.noSpr0
 	call setShadowScreen
 	call updateTilesToBuffer
-       jr $
 	call prspr
 .noSpr0
 
