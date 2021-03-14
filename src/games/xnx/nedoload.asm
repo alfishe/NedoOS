@@ -177,18 +177,6 @@ begin
         pop bc
         OS_CLOSEHANDLE
 
-        ld de,fnbin
-        ld hl,0x4000
-        call loadbinpg
-
-        ld de,fnbin2
-        ld hl,0x8000
-        call loadbinpg
-
-        ld de,fnbin3
-        ld hl,0xc000
-        call loadbinpg
-
         ld hl,sndfilename
         call loadpage ;CY=error
         ld (tpages+0),a
@@ -248,6 +236,16 @@ mkpages0
         OS_SETMUSIC
         endif
         call setpgsmain40008000
+        call RestoreMemMap3
+        ld de,fnbin
+        ld hl,0x4000
+        call loadbinpg
+        ld de,fnbin2
+        ld hl,0x8000
+        call loadbinpg
+        ld de,fnbin3
+        ld hl,0xc000
+        call loadbinpg
         
         call swapimer
 

@@ -177,18 +177,6 @@ begin
         pop bc
         OS_CLOSEHANDLE
 
-        ld de,fnbin
-        ld hl,0x4000
-        call loadbinpg
-
-        ld de,fnbin2
-        ld hl,0x8000
-        call loadbinpg
-
-        ld de,fnbin3
-        ld hl,0xc000
-        call loadbinpg
-
         ld hl,sndfilename
         call loadpage ;CY=error
         ld (tpages+0),a
@@ -225,25 +213,8 @@ loadloop_nextdigit0
         ;djnz loadloop0
 loadloop0q
         
-       if 0
         ld hl,tpages+SPBUF_PAGE0
         ld b,4
-mkspbuf0
-        push bc
-        push hl
-        OS_NEWPAGE
-        pop hl
-        ld (hl),e
-        dec l
-        pop bc
-        djnz mkspbuf0
-       endif
-;SND_PAGE=0;(0^INVMASK)
-;SPTBL_PAGE=1;(6^INVMASK)
-;PAL_PAGE=2;(4^INVMASK)
-;SPBUF_PAGE0..3 = 3..7
-        ld hl,tpages+SPBUF_PAGE0
-        ld b,4;7
 mkpages0
         push bc
         push hl
@@ -265,6 +236,16 @@ mkpages0
         OS_SETMUSIC
         endif
         call setpgsmain40008000
+        call RestoreMemMap3
+        ld de,fnbin
+        ld hl,0x4000
+        call loadbinpg
+        ld de,fnbin2
+        ld hl,0x8000
+        call loadbinpg
+        ld de,fnbin3
+        ld hl,0xc000
+        call loadbinpg
         
         call swapimer
 

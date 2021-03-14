@@ -14,6 +14,6 @@ call make.bat noneedtrd
 cd kernel
 ..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul
 cd ..
-call ..\tools\chkimg.bat sd
 move /Y kernel\nedoos.$C ..\release\osp26sd.$C > nul
+call ..\tools\chkimg.bat sd
 if "%makeall%"=="" ..\us\emul.exe -i ..\us\dimkam.ini

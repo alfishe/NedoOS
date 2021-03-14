@@ -28,25 +28,21 @@ tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
 
-;SCR_PAGE1=(1^INVMASK) ;TODO убрать
-;SCR_PAGE3=(3^INVMASK)
-;SCR_PAGE5=(5^INVMASK)
-;SCR_PAGE7=(7^INVMASK)
-
-SPBUF_PAGE0=(8^INVMASK)
-SPBUF_PAGE1=(9^INVMASK)
-SPBUF_PAGE2=(10^INVMASK)
-SPBUF_PAGE3=(11^INVMASK)
-
-;CC_PAGE0=(12^INVMASK)
-CC_PAGE1=(13^INVMASK)
-CC_PAGE2=(14^INVMASK)
-CC_PAGE3=(12^INVMASK)
-
 SND_PAGE=0;(0^INVMASK)
 SPTBL_PAGE=1;(6^INVMASK)
 PAL_PAGE=2;(4^INVMASK)
-GFX_PAGE=10;(16^INVMASK)
+
+SPBUF_PAGE0=3;(8^INVMASK)
+SPBUF_PAGE1=4;(9^INVMASK)
+SPBUF_PAGE2=5;(10^INVMASK)
+SPBUF_PAGE3=6;(11^INVMASK)
+
+;CC_PAGE0=(12^INVMASK)
+CC_PAGE1=7;(13^INVMASK)
+CC_PAGE2=8;(14^INVMASK)
+CC_PAGE3=9;(12^INVMASK)
+
+GFX_PAGE=10;(16^INVMASK) ;и далее
 
 
 IMG_LIST =0xd000;#1000
@@ -181,18 +177,6 @@ begin
         pop bc
         OS_CLOSEHANDLE
 
-        ld de,fnbin
-        ld hl,0x4000
-        call loadbinpg
-
-        ld de,fnbin2
-        ld hl,0x8000
-        call loadbinpg
-
-        ld de,fnbin3
-        ld hl,0xc000
-        call loadbinpg
-
         ld hl,sndfilename
         call loadpage ;CY=error
         ld (tpages+0),a
@@ -231,16 +215,16 @@ loadloop0q
         
         ld hl,tpages+SPBUF_PAGE0
         ld b,4
-mkspbuf0
+mkpages0
         push bc
         push hl
         OS_NEWPAGE
         pop hl
         ld (hl),e
-        dec l
+        inc l
         pop bc
-        djnz mkspbuf0
-       
+        djnz mkpages0
+
         if 1==0
         call loadpage
         ld (pgmusic),a
@@ -252,6 +236,16 @@ mkspbuf0
         OS_SETMUSIC
         endif
         call setpgsmain40008000
+        call RestoreMemMap3
+        ld de,fnbin
+        ld hl,0x4000
+        call loadbinpg
+        ld de,fnbin2
+        ld hl,0x8000
+        call loadbinpg
+        ld de,fnbin3
+        ld hl,0xc000
+        call loadbinpg
         
         call swapimer
 
@@ -270,17 +264,8 @@ mkspbuf0
         call _swap_screen
 jpaddr=$+1
         jp 0
-mainloop
-        
-        call changescrpg ;с этого момента можем видеть, что нарисовали
-        
-;waitkey
-        halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
-curkey=$+1
-        ld a,0
-        cp key_esc
-        jr nz,mainloop;waitkey
-        
+
+quit ;TODO
         call swapimer
 pgmusic=$+1
         ld a,0
