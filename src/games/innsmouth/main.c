@@ -372,7 +372,7 @@ void game_begin( character *james)
   
   
   sprites_start();
-  draw_text(curroom,texts[0]);                     //------------------потом вернуть
+  draw_text(curroom,(struct text *)texts[0]);                     //------------------потом вернуть
 }
 
 
@@ -600,7 +600,8 @@ void activate_trigger(struct room2 *rm,character *chr,struct room2 **rooms,struc
 
 			if(rm->triggers[triggernum].text_active!=0)
 			{
-				draw_text(rm,texts[rm->triggers[triggernum].text_active-1]);
+				sample_play(SMP_BELL); //TODO временно
+				draw_text(rm,(struct text *)texts[rm->triggers[triggernum].text_active-1]);
 			}
 			if(rm->triggers[triggernum].act_walkable==1 )rm->triggers[triggernum].walkable=1-rm->triggers[triggernum].walkable;
 		}
@@ -609,7 +610,7 @@ void activate_trigger(struct room2 *rm,character *chr,struct room2 **rooms,struc
 			
 			if(rm->triggers[triggernum].text_wrong!=0 && fire!=0)
 			{
-				draw_text(rm,texts[rm->triggers[triggernum].text_wrong-1]);
+				draw_text(rm,(struct text *)texts[rm->triggers[triggernum].text_wrong-1]);
 			}
 		}
 		
@@ -618,7 +619,7 @@ void activate_trigger(struct room2 *rm,character *chr,struct room2 **rooms,struc
 		
 		if(rm->triggers[triggernum].text_touch!=0 && rm->triggers[triggernum].text_touch_sayed==0)
 		{
-			draw_text(rm,texts[rm->triggers[triggernum].text_touch-1]);
+			draw_text(rm,(struct text *)texts[rm->triggers[triggernum].text_touch-1]);
 			rm->triggers[triggernum].text_touch_sayed=1;
 		}
 	}
