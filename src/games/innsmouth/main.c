@@ -600,7 +600,6 @@ void activate_trigger(struct room2 *rm,character *chr,struct room2 **rooms,struc
 
 			if(rm->triggers[triggernum].text_active!=0)
 			{
-				sample_play(SMP_BELL); //TODO временно
 				draw_text(rm,(struct text *)texts[rm->triggers[triggernum].text_active-1]);
 			}
 			if(rm->triggers[triggernum].act_walkable==1 )rm->triggers[triggernum].walkable=1-rm->triggers[triggernum].walkable;
