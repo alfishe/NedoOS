@@ -6,8 +6,6 @@ set installdir=nedogame
 if not exist nedoload mkdir nedoload
 echo  db "nedoload" > _temp_\sets.asm
 
-rem call compile_nedoos.bat
-
 rem имя SCL файла
 
 set output=empty.scl

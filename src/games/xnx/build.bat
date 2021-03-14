@@ -86,6 +86,7 @@ echo -3----------------------------
 rem echo %CD%
 copy _temp_\*.bin xnx
 copy nedoload.com xnx.com
+del nedoload.com
 rem echo %PATH%
 echo -4----------------------------
 rem echo %CD%

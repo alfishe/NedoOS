@@ -68,11 +68,11 @@ on_int
 int_nochangepal
         call oldimer
 
-        GET_KEY
-        ld a,c ;кнопка без учёта языка
-        or a
-        jr z,$+5
-        ld (curkey),a
+        ;GET_KEY
+        ;ld a,c ;кнопка без учёта языка
+        ;or a
+        ;jr z,$+5
+        ;ld (curkey),a
 	;CALL .. ;ваш обработчик прерываний
         
         ld a,(curpg16k) ;ok

@@ -66,8 +66,8 @@ set sample.2=inventory.wav
 set sample.3=bell.wav
 set sample.4=switch.wav
 
-rem echo %PATH%
-rem echo %CD%
+echo %PATH%
+echo %CD%
 call ..\_sdk\_compile_nedoos.bat
 
 rem echo %PATH%
@@ -75,6 +75,7 @@ echo -3----------------------------
 rem echo %CD%
 copy _temp_\*.bin innsmouth
 copy nedoload.com innsmouth.com
+del nedoload.com
 rem echo %PATH%
 echo -4----------------------------
 rem echo %CD%

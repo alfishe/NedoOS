@@ -746,6 +746,7 @@ adr=#4000
 adr=adr+(40*8)
 	edup
 
+	align 256	;#nn00
 tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	ds 8*25,0
 
@@ -779,6 +780,7 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 _sample_play
 ;проигрывание сэмпла
 ;l=номер сэмпла
+       push ix
 	ld a,(curpg32khigh) ;ok
 	push af
 	ld a,SND_PAGE
@@ -809,6 +811,7 @@ _sample_play
 .skip
         pop af
         SETPG32KHIGH
+       pop ix
         ret
 
 ;выключение звука на указанном чипе

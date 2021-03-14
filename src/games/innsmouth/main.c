@@ -1,4 +1,4 @@
-#define __SDCC_z80
+//#define __SDCC_z80
 #include <evo.h>
 #include "resources.h"
 #include "map.h"

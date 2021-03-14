@@ -6,8 +6,6 @@ set installdir=nedogame
 if not exist 2048 mkdir 2048
 echo  db "2048" > _temp_\sets.asm
 
-rem call compile_nedoos.bat
-
 rem имя SCL файла
 
 set output=empty.scl
@@ -58,12 +56,6 @@ rem сэмплы
 set sample.0=fanfare.wav
 set sample.1=gong.wav
 
-rem sjasmplus --nologo --msg=war --msg=war --exp=_temp_/nedoload.exp nedoload.asm
-rem java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp
-rem copy functions.h nedoload.h
-rem del nedoload.exp
-rem del functions.h
-
 rem echo %PATH%
 rem echo %CD%
 call ..\_sdk\_compile_nedoos.bat
@@ -73,6 +65,7 @@ echo -3----------------------------
 rem echo %CD%
 copy _temp_\*.bin 2048
 copy nedoload.com 2048.com
+del nedoload.com
 rem echo %PATH%
 echo -4----------------------------
 rem echo %CD%
