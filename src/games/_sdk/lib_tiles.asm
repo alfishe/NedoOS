@@ -118,6 +118,9 @@ updateOneTileToBuffer
         add a,a
         add a,a
 	ld e,a ;sla e
+       ld a,d
+       or 0xc0
+       ld d,a
 
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE0
@@ -192,6 +195,9 @@ updateOneTileFromBuffer
         add a,a
         add a,a
 	ld e,a ;sla e
+       ld a,d
+       or 0xc0
+       ld d,a
 
 	;ld bc,MEM_SLOT0
 	ld a,SPBUF_PAGE0
