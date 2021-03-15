@@ -27,12 +27,18 @@ static u8 state = STATE_MENU;
 #define SHARP_ICE 1056
 #define KNIFE_LEFT 1552
 
-#define DEFAULT_BULLET 0x102
-#define MARISA_BULLET 0x143
-#define CIRNO_BULLET 0x100
-#define SAKUYA_BULLET 0x140
-#define FLAN_BULLET 0x101
-#define BULLET2 0x141
+//#define DEFAULT_BULLET 0x102
+//#define MARISA_BULLET 0x143
+//#define CIRNO_BULLET 0x100
+//#define SAKUYA_BULLET 0x140
+//#define FLAN_BULLET 0x101
+//#define BULLET2 0x141
+#define DEFAULT_BULLET 0x510
+#define MARISA_BULLET 0x51a
+#define CIRNO_BULLET 0x50c
+#define SAKUYA_BULLET 0x514
+#define FLAN_BULLET 0x50e
+#define BULLET2 0x516
 
 
 #define CIRNO 512

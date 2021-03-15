@@ -30,7 +30,18 @@
 #define set_screen_sync(a) ;
 #define set_res(a) ;
 
+struct game_sprite
+{
+    u8 id;
+    u8 pal;
+    i16 x;
+    i16 y;
+    u16 tile;
+};
+
 u8 id = 0;
+
+struct game_sprite sprlist[85];
 
 u8 create_sprite(u8 a, u8 wid8, u8 hgt8)
 {// TODO
@@ -38,16 +49,44 @@ u8 create_sprite(u8 a, u8 wid8, u8 hgt8)
         return id++;
 }
 
+void begin_set_sprites()
+{
+        //id = 0;
+}
+
+void end_set_sprites()
+{
+    u8 i;
+    u8 id = 0;
+    for (i = 0; i < 85; i++) {
+        if (sprlist[i].x<0) continue;
+        if (sprlist[i].x>320-16) continue;
+        if (sprlist[i].y<0) continue;
+        if (sprlist[i].y>200-16) continue;
+        if (id<64) set_sprite(id++,sprlist[i].x>>1,sprlist[i].y,sprlist[i].tile);
+        if ((sprlist[i].tile & 0xff40) != 0x140) {
+           if ((id<64)&&((sprlist[i].x>>1)<=160-16)) set_sprite(id++,(sprlist[i].x>>1)+8,sprlist[i].y   ,sprlist[i].tile+1);
+           if (sprlist[i].y>200-32) continue;
+           if (id<64) set_sprite(id++,(sprlist[i].x>>1)  ,sprlist[i].y+16,sprlist[i].tile+32);
+           if ((id<64)&&((sprlist[i].x>>1)<=160-16)) set_sprite(id++,(sprlist[i].x>>1)+8,sprlist[i].y+16,sprlist[i].tile+33);
+        }
+    }
+    if (id<64) set_sprite(id,0,0,-1);
+}
+
 void set_sprite256(u8 id, u16 tile, u8 pal, i16 x, i16 y)
 {// TODO
         //x = x-16;
-        if (x<0) x = 0;
-        x = x>>1;
-        if (x>160-8) x = 160-8;
-        if (y<0) return;
-        if (y>200-16) return;
-        if (id>=64) return;
-        set_sprite(id,x,y,(tile>>4)&0xff);
+        //if (x<0) return; //x = 0;
+        //x = x>>1;
+        //if (x>160-8) return; //x = 160-8;
+        //if (y<0) return;
+        //if (y>200-16) return;
+        //if (id>=64) return;
+        //set_sprite(id,x,y,1/*(tile>>4)&0xff*/);
+        sprlist[id].x = x;
+        sprlist[id].y = y;
+        sprlist[id].tile = ((tile&0xff)>>1) + ((tile&0x0f00)>>2);
 }
 
 void scroll(i16 x, i16 y)

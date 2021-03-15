@@ -2,8 +2,10 @@
 #define SPRITEPOOL_C
 
 #define MY_BULLET   0x500
-#define BONUS_CARD 0x103
-#define HEALTH_CARD 0x142
+//#define BONUS_CARD 0x103
+//#define HEALTH_CARD 0x142
+#define BONUS_CARD 0x512
+#define HEALTH_CARD 0x518
 
 #define NPC_count 15
 #define BULLETS_count 45
@@ -19,7 +21,7 @@
 //extern static u16 score;
 
 static void push_bonus(u16 type, u16 x, u16 y, i8 dx, i8 dy);
-
+/*
 struct game_sprite
 {
     u8 id;
@@ -28,7 +30,7 @@ struct game_sprite
     i16 y;
     u16 tile;
 };
-
+*/
 struct movable_sprite
 {
     u8 id;
@@ -160,7 +162,7 @@ static i8 find_free_bonus()
     return -1;
 }
 
-static void update_sprites(u8 part)
+static void update_sprites(u8 part) //координаты спрайтов каждой из двух частей (part) обновляются через фрейм
 {
     static u8 b;
     set_sprite256(player.id, player.tile + anim_shift[anim_frame], player.pal, player.x, player.y);
@@ -250,8 +252,10 @@ static void flush_sprites()
         if (cnt < MAX_BONUS_COUNT)
             bonuses[cnt].y = 400;
     }
+begin_set_sprites();
     update_sprites(0);
     update_sprites(1);
+end_set_sprites();
 }
 
 #endif
