@@ -17,11 +17,11 @@
 #define FIRE KEY_SPACE
 
 static u8 i, j;
-static void init_level(u8 image);
+static void init_level(u8 pal, char *fn);
 
 void game_loop();
 
-static void start_level(u8 image, u8 *name)
+static void start_level(u8 pal, char *fn, u8 *name)
 {
     u8 c;
     music_stop();
@@ -67,19 +67,24 @@ swap_screen();
 swap_screen();
     for (c = 0; c < 100; c++)
         vsync();//swap_screen();
-    init_level(image);
+    //init_level(image);
+init_level(pal, fn);
 }
 
-static void init_level(u8 image)
+static void init_level(u8 pal, char *fn)
 {
     pal_bright(BRIGHT_MIN);
-    if (image == IMG256_BG8) 
+preparescroll(fn);
+/*    if (image == IMG256_BG8) 
         unpack_pal256(PAL256_BG8, 0);
     else 
-        unpack_pal256(PAL256_BG1, 0);
+        unpack_pal256(PAL256_BG1, 0);*/
+unpack_pal256(pal, 0);
 
     unpack_pal16(PAL16_SPRITES, 15, 0);
-    draw_image_g256(0, 0, image);
+    //draw_image_g256(0, 0, image);
+scroll(0, 0);
+drawscroll();
     pal_bright(BRIGHT_MID);
     player.x = 120;
     player.y = 168;
@@ -105,7 +110,8 @@ void start_game_loop()
     //process_level = process_level2;
     scroll_pos = 0;
     bullet_sprite = DEFAULT_BULLET;
-    start_level(IMG256_BG1, "Day before festival");
+    //start_level(IMG256_BG1, "Day before festival");
+start_level(PAL256_BG1, "bg1-16.bmp", "Day before festival");
     init_vm(level1_bytecode);
     //init_vm(level2_bc);
     music_play(MUS_TH0EA1);
@@ -227,7 +233,9 @@ begin_set_sprites();
 end_set_sprites();
         if ((schedule & 3) == 0)
             bg_scroll();
-        swap_screen();
+drawscroll();
+        //swap_screen();
+swap_screen_scroll();
     }
 }
 

@@ -22,7 +22,7 @@ void instruction_page()
     text_x = 5;
     text_y = 0;
     put_str("Lost donation box incident\n\n");
-    put_str("Code and levels by Nihiash\nGraphics by Hina\nMusic by EA, WBCBZ7, Scalesmann, Gogin,\nNihirash\n\n");
+    put_str("Code and levels by Nihirash\nGraphics by Hina\nMusic by EA, WBCBZ7, Scalesmann, Gogin,\nNihirash\n\n");
     text_x = 5;
     put_str("Spring beguns with incident!");
     put_str("\n\nReimu lost his donation box, right \nbefore the spring festival of flowers.\nTogether with the box, Aun Komano also \ndisappeared.");

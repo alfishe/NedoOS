@@ -9,8 +9,10 @@
 #include "sprite_pool.c"
 #include "level4.c"
 
-static void init_level(u8 image);
-static void start_level(u8 image, u8 *name);
+//static void init_level(u8 image);
+//static void start_level(u8 image, u8 *name);
+static void init_level(u8 pal, char *fn);
+static void start_level(u8 pal, char *fn, u8 *name);
 
 static void process_level3();
 
@@ -142,7 +144,8 @@ static void init_level3()
     scroll_speed = 1;
     process_level = process_level3;
     flush_sprites();
-    start_level(IMG256_BG5, "Scarlet Devil Mansion");
+    //start_level(IMG256_BG5, "Scarlet Devil Mansion");
+start_level(PAL256_BG5, "bg5-16.bmp", "Scarlet Devil Mansion");
     music_play(MUS_SISTERS);
     bullet_sprite = DEFAULT_BULLET;
     init_vm(l3intro);
@@ -157,7 +160,8 @@ static void dialog_l3b()
     put_dialog_string(REIMU_FACE, "And here is the famous\nhospitality of the Scarlets.", 1);
     wait_for_space();
     flush_sprites();
-    init_level(IMG256_BG5);
+    //init_level(IMG256_BG5);
+init_level(PAL256_BG5, "bg5-16.bmp");
     init_vm(level3);
 }
 
@@ -229,7 +233,8 @@ static void dialog_l3m()
     vsync();//swap_screen();
     put_dialog_string(REIMU_FACE, "Who will ask you?", 1);
     wait_for_space();
-    init_level(IMG256_BG6);
+    //init_level(IMG256_BG6);
+init_level(PAL256_BG6, "bg6-16.bmp");
     level_loop = 0;
     process_level = process_boss3;
     scroll_pos = 192;

@@ -8,8 +8,10 @@
 #include "gameloop.c"
 #include "level3.c"
 
-static void init_level(u8 image);
-static void start_level(u8 image, u8 *name);
+//static void init_level(u8 image);
+//static void start_level(u8 image, u8 *name);
+static void init_level(u8 pal, char *fn);
+static void start_level(u8 pal, char *fn, u8 *name);
 
 static void process_level2();
 u8 l2s=0;
@@ -103,7 +105,8 @@ static void init_level2()
     process_level = process_level2;
     init_vm(l2intro);
     flush_sprites();
-    start_level(IMG256_BG3, "Fairies Lake");
+    //start_level(IMG256_BG3, "Fairies Lake");
+start_level(PAL256_BG3, "bg3-16.bmp", "Fairies Lake");
     music_play(MUS_GLASSED);
     bullet_sprite = DEFAULT_BULLET;
     state = STATE_PLAY;
@@ -117,7 +120,8 @@ static void l2b_dialog()
     put_dialog_string(REIMU_FACE, "CIIIIRRRNOO!\nWhat a heck you doing?!", 1);
     wait_for_space();
     flush_sprites();
-    init_level(IMG256_BG3);
+    //init_level(IMG256_BG3);
+init_level(PAL256_BG3, "bg3-16.bmp");
     init_vm(level2_bc);
 }
 
@@ -199,7 +203,8 @@ static void l2m_dialog()
     put_dialog_string(CIRNO_FACE, "It's your final!", 0);
     wait_for_space();
     flush_sprites();
-    init_level(IMG256_BG4);
+    //init_level(IMG256_BG4);
+init_level(PAL256_BG4, "bg4-16.bmp");
 
     level_loop = 0;
     bullet_sprite = CIRNO_BULLET;

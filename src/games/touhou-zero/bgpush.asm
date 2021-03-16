@@ -5,10 +5,7 @@ pushhgt=512;200 ;сколько строк графики разложено в 
 
 PUSHLINESZ=2+(pushwid*2)+2
 
-bgpush_prepare
-;de=filename
-        call openstream_file
-
+bgpush_init
         ld ix,tpushpgs
         call genpush
 
@@ -20,7 +17,11 @@ bgpush_prepare
 
         ld ix,tpushpgs+3
         call genpush
+        jp bgpush_restorememmap
 
+bgpush_prepare
+;de=filename
+        call openstream_file
         call readbmphead_pal
 
         ld (bgpush_ldbmp_sp),sp
@@ -66,8 +67,8 @@ bgpush_ldbmp1_noprevpg
         jr nz,bgpush_ldbmp1
 bgpush_ldbmp_sp=$+1
         ld sp,0
-        jp closestream_file
-
+        call closestream_file
+        jp bgpush_restorememmap
 
 ;делаем push для одного слоя (в одной страничке помещается pushwid*pushpghgt = 38*200 или 40*192 байт пуша)
 ;в страничке такой код:
@@ -192,6 +193,14 @@ genpush_nextpg
         pop hl ;pushbase+
         ret
 
+bgpush_setcurscroll
+        ;ld hl,0
+       ld a,h
+       and 1
+       ld h,a
+        ld (callpush_curscroll),hl
+        ret
+
 bgpush_inccurscroll
 ;bc=scroll increment (signed)
         ld hl,(callpush_curscroll)
@@ -306,7 +315,8 @@ callpush_curscroll=$+1
         ld hl,pushscrtop+pushwid+(1*0x2000)
         exx
         call callpush
-        
+bgpush_restorememmap
+        call RestoreMemMap3
         jp setpgsmain40008000
 
 ;TODO fill pushlines from tiles

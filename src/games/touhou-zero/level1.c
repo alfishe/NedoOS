@@ -9,7 +9,9 @@
 #include "level2.c"
 #include "interpreter.c"
 
-static void init_level(u8 image);
+//static void init_level(u8 image);
+static void init_level(u8 pal, char *fn);
+static void start_level(u8 pal, char *fn, u8 *name);
 
 static void dialog_level1();
 
@@ -19,7 +21,8 @@ static void prepare_boss1()
     music_play(MUS_NWZ);
     dialog_level1();
     bullet_sprite = MARISA_BULLET;
-    init_level(IMG256_BG2);
+    //init_level(IMG256_BG2);
+init_level(PAL256_BG2, "bg2-16.bmp");
     scroll_pos = 192;
     push_npc(144, 20, 0, 0, MARISA, 255, 1500, 1);
 }

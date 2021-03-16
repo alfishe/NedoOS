@@ -22,10 +22,16 @@ rem нумерация после точки должна быть возрас�
 
 set palette.0=gfx\font-16.bmp
 set palette.1=gfx\title-16.bmp
-set palette.2=gfx\bg1-16.bmp
-set palette.3=gfx\bg8-16.bmp
-set palette.4=gfx\final-16.bmp
-set palette.5=gfx\sprites-16.bmp
+set palette.2=gfx\final-16.bmp
+set palette.3=gfx\sprites-16.bmp
+set palette.4=gfx\bg1-16.bmp
+set palette.5=gfx\bg2-16.bmp
+set palette.6=gfx\bg3-16.bmp
+set palette.7=gfx\bg4-16.bmp
+set palette.8=gfx\bg5-16.bmp
+set palette.9=gfx\bg6-16.bmp
+set palette.10=gfx\bg7-16.bmp
+set palette.11=gfx\bg8-16.bmp
 
 rem список изображений, откуда брать графику
 

@@ -13,7 +13,7 @@ BINADDR=0x4000
 INVMASK=#ff
 
         ;include "_temp_/pages.asm"
-NUMBER_OF_PAGES=10
+;NUMBER_OF_PAGES=10
 
 scrbase=0x4000
 sprmaxwid=32
@@ -23,9 +23,9 @@ scrhgt=200
 clswid=40 ;*8
 clshgt=200
 
-STACK=0x4000
-tempsp=0x3f06 ;6 bytes for prspr
-INTSTACK=0x3f00
+STACK=0x3f80
+tempsp=0x3f86 ;6 bytes for prspr
+INTSTACK=0x4000
 
 
 SND_PAGE=0;(0^INVMASK)
@@ -250,6 +250,8 @@ mkpages0
         pop bc
         djnz mkpages0
 
+        call bgpush_init
+
         if 1==0
         call loadpage
         ld (pgmusic),a
@@ -278,7 +280,6 @@ mkpages0
         OS_SETPAL
 
         call _swap_screen
-       ;jp testscroll
 jpaddr=$+1
         jp 0
 
@@ -298,18 +299,8 @@ tpages
         ds 256 ;pages
 
         if 1==1
-testscroll
-;vertical scroll
-        ld de,bgfilename
-        call bgpush_prepare
 
-        ;call cls
-        ;ld de,pal;SUMMERPAL
-        ;OS_SETPAL
 testscroll0
-        ld bc,-1
-        call bgpush_inccurscroll
-
         call bgpush_draw ;359975t
 
         ;ld de,spritesA+1
@@ -349,9 +340,6 @@ waitchangescr1
         ;cp key_esc
         jp testscroll0
         ret
-
-bgfilename
-        db "bg1-16.bmp",0
 
         endif
 
@@ -580,7 +568,7 @@ RestoreMemMap12
 
 _swap_screen
 	push ix
-	push iy
+	;push iy
 
 	ld a,(spritesActive)
 	or a
@@ -620,7 +608,53 @@ _swap_screen
         call RestoreMemMap3;0
         call RestoreMemMap12
 .noSpr1
-	pop iy
+	;pop iy
+	pop ix
+	ret
+
+_swap_screen_scroll
+	push ix
+	;push iy
+
+	ld a,(spritesActive)
+	or a
+	push af
+	jr z,.noSpr0
+	call setShadowScreen
+	;call updateTilesToBuffer
+	call prspr
+.noSpr0
+
+	halt
+
+	ld a,(_screenActive)
+	xor 2
+	ld (_screenActive),a ;for select sprqueue
+	;ld e,a
+
+	;ld a,#10
+	;bit 1,e
+	;jr z,$+4
+	;or #08
+	;ld bc,#7ffd
+	;out (c),a
+         call changescrpg
+         ;rra
+         ;and 1 ;+cpl?
+         ;ld e,a
+	 ;OS_SETSCREEN
+
+	pop af
+	jr z,.noSpr1
+
+	call setShadowScreen
+	;call respr
+	;call updateTilesFromBuffer
+	;MRestoreMemMap012
+        call RestoreMemMap3;0
+        call RestoreMemMap12
+.noSpr1
+	;pop iy
 	pop ix
 	ret
 
@@ -819,6 +853,7 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	export _pal_copy
 	export _pal_bright
 	export _swap_screen
+	export _swap_screen_scroll
 	export _clear_screen
 	export _fast_ldir
 
@@ -843,6 +878,14 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
         include "../../_sdk/file.asm"
         include "bmp.asm"
         include "bgpush.asm"
+_preparescroll=bgpush_prepare ;de=filename
+_incscroll=bgpush_inccurscroll ;bc=scroll (-1)
+_drawscroll=bgpush_draw ;359975t
+_setscroll=bgpush_setcurscroll ;hl=scroll
+	export _preparescroll
+	export _incscroll
+	export _drawscroll
+        export _setscroll
 
 genpush_newpage
 ;заказывает страницу, заносит в tpushpgs, a=pg
@@ -1159,7 +1202,8 @@ _210=$&7
         db (_3*0x10) + (_210*0x08)
         edup
 
-bgpush_bmpbuf=0x4000 ;ds 1024;320 ;заголовок bmp или одна строка
+;bgpush_bmpbuf=0x4000 ;ds 1024;320 ;заголовок bmp или одна строка
+bgpush_bmpbuf ds 1024;320 ;заголовок bmp или одна строка
 bgpush_loadbmplinestack=bgpush_bmpbuf+1024 ;ds pushhgt*2+32
         
 res_path

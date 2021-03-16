@@ -9,8 +9,11 @@
 #include "sprite_pool.c"
 u8 l4s = 0;
 
-static void init_level(u8 image);
-static void start_level(u8 image, u8 *name);
+//static void init_level(u8 image);
+//static void start_level(u8 image, u8 *name);
+static void init_level(u8 pal, char *fn);
+static void start_level(u8 pal, char *fn, u8 *name);
+
 void process_level4();
 
 const u8 level4[] = {
@@ -156,7 +159,8 @@ void init_level4()
     level_loop = 0;
     l4s = 0;
     flush_sprites();
-    start_level(IMG256_BG7, "Looking for Patchuly Knowlege");
+    //start_level(IMG256_BG7, "Looking for Patchuly Knowlege");
+start_level(PAL256_BG7, "bg7-16.bmp", "Looking for Patchuly Knowlege");
     music_play(MUS_ZONK);
     bullet_sprite = DEFAULT_BULLET;
     state = STATE_PLAY;
@@ -173,7 +177,8 @@ void dialog_l4p2()
     put_dialog_string(REIMU_FACE, "I'm flying to kick ass\nto your bookworm!", 1);
     put_dialog_string(FLAN_FACE, "Sister Flan is sitting\nin the library!", 0);
     wait_for_space();
-    init_level(IMG256_BG7);
+    //init_level(IMG256_BG7);
+init_level(PAL256_BG7, "bg7-16.bmp");
     state = STATE_PLAY;
     process_level = process_level4;
     bullet_sprite = DEFAULT_BULLET;
@@ -294,7 +299,8 @@ void dialog_l4p3()
     vsync();//swap_screen();
     put_dialog_string(REIMU_FACE, "I need to talk with you", 1);
     wait_for_space();
-    init_level(IMG256_BG8);
+    //init_level(IMG256_BG8);
+init_level(PAL256_BG8, "bg8-16.bmp");
     pal_bright(BRIGHT_MIN);
     vsync();//swap_screen();
     unpack_pal256(PAL256_BG8, 0);
@@ -384,7 +390,8 @@ void dialog_l4p1()
     bullet_sprite = FLAN_BULLET;
     process_level = process_flandre;
     wait_for_space();
-    init_level(IMG256_BG7);
+    //init_level(IMG256_BG7);
+init_level(PAL256_BG7, "bg7-16.bmp");
     push_npc(32, 32, 2, 3, FLANDRE, BOSS_TYPE, 500, HEALTH_CARD);
     state = STATE_PLAY;
 }
