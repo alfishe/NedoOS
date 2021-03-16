@@ -65,7 +65,32 @@ MUS_LIST =#4a00
 SMP_LIST =#4d00
 SFX_DATA =#5100
 
+;------------------------ addition
+pushbase=0x8000;c000
+        macro SETPGPUSHBASE
+         ;ld (curpgc000),a
+         ;SETPG32KHIGH
+        ;ld (curpg8000),a
+        SETPG32KLOW
+        endm
 
+        macro RECODEBYTE
+        ld a,(de)
+        ld ($+4),a
+        ld a,(trecodebyteright)
+        ld c,a
+        dec de
+        ld a,(de)
+        dec de
+        ld ($+4),a
+        ld a,(trecodebyteleft)
+        or c
+        endm        
+
+
+
+
+;---------------------------------
 
 	macro MDebug color
 	push af
@@ -252,18 +277,11 @@ mkpages0
         ld de,CURPAL
         OS_SETPAL
 
-        if 1==0
-        ;jr $
-        ld c,10
-        ld b,2
-        ld de,0
-;c=X, b=Y, de=tile
-;координаты в тайлах
-        call _draw_tile
-        endif
         call _swap_screen
+       ;jp testscroll
 jpaddr=$+1
         jp 0
+
 
 quit ;TODO
         call swapimer
@@ -278,6 +296,65 @@ pgmusic=$+1
         ds 0x0200-$
 tpages
         ds 256 ;pages
+
+        if 1==1
+testscroll
+;vertical scroll
+        ld de,bgfilename
+        call bgpush_prepare
+
+        ;call cls
+        ;ld de,pal;SUMMERPAL
+        ;OS_SETPAL
+testscroll0
+        ld bc,-1
+        call bgpush_inccurscroll
+
+        call bgpush_draw ;359975t
+
+        ;ld de,spritesA+1
+        ;call preparedrawsprites
+        ;dec de
+        ;ld (drawsprites_data),de
+        ;call drawsprites
+        
+       ld a,(_time)
+       push af
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+        
+mainloopwaittimer0
+        ld a,(_time)
+oldtimer=$+1
+        ld b,0
+        ld (oldtimer),a
+        sub b
+        ld b,a
+        jr z,mainloopwaittimer0
+mainlooplogic0
+        push bc
+        ;call logic
+        pop bc
+        djnz mainlooplogic0
+        
+;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
+       pop bc ;b=timer на момент changescrpg
+waitchangescr1
+        ld a,(_time)
+        cp b
+        jr z,waitchangescr1
+        
+;waitkey
+        ;halt ;в играх не юзаем YIELD, иначе может сработать чужой обработчик прерываний
+        ;ld a,(curkey)
+        ;cp key_esc
+        jp testscroll0
+        ret
+
+bgfilename
+        db "bg1-16.bmp",0
+
+        endif
+
 
 loadbinpg
         push hl
@@ -335,6 +412,7 @@ loadpage
         ret
 
 CURPAL
+pal
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
         dw 0xffff,0xfefe,0x1d1d,0x3c3c,0xcdcd,0x4c4c,0x2c2c,0xecec
         dw 0xfdfd,0x2d2d,0xeeee,0x3f3f,0xafaf,0x5d5d,0x4e4e,0x0c0c
@@ -762,6 +840,27 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
 	export _keyboard
 	export _mouse_apply_clip
 
+        include "../../_sdk/file.asm"
+        include "bmp.asm"
+        include "bgpush.asm"
+
+genpush_newpage
+;заказывает страницу, заносит в tpushpgs, a=pg
+        push bc
+        push de
+        push hl
+        push ix
+        OS_NEWPAGE
+        pop ix
+        ld a,e
+        ld (ix),a
+        ld de,4
+        add ix,de
+        pop hl
+        pop de
+        pop bc
+        ret
+
 _sample_play
 ;проигрывание сэмпла
 ;l=номер сэмпла
@@ -1040,6 +1139,28 @@ _time		dd 0
 	export _time
         export _palette
 
+tpushpgs
+        ds 128 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+
+        align 256
+trecodebyteleft
+        dup 256
+;%00003210 => %.3...210
+_3=$&8
+_210=$&7
+        db (_3*0x08) + (_210*0x01)
+        edup
+        
+trecodebyteright
+        dup 256
+;%00003210 => %3.210...
+_3=$&8
+_210=$&7
+        db (_3*0x10) + (_210*0x08)
+        edup
+
+bgpush_bmpbuf=0x4000 ;ds 1024;320 ;заголовок bmp или одна строка
+bgpush_loadbmplinestack=bgpush_bmpbuf+1024 ;ds pushhgt*2+32
         
 res_path
 ;в этом относительном пути будут лежать все загружаемые данные игры
