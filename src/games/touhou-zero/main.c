@@ -1,4 +1,4 @@
-//#define CHEAT
+#define CHEAT
 
 #include <evo.h>
 #include "functions.h"

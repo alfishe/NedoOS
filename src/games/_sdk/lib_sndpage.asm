@@ -1,6 +1,6 @@
 	device pentagon1024
 
-	include "target.asm"
+	;include "target.asm"
 
 	org #4000
 begin
@@ -13,16 +13,17 @@ begin
 TURBOFMON db 0			;#4012 ;NEW for TFM
 	
 	ifdef TFM
-		include "tfmplay.asm"
+		include "../_sdk/tfmplay.asm"
 	else
 	ifdef WYZ
-BUFFER_DEC=#6000 ;place for decoding channel data
-		include "wyzplay.asm"
+		include "../_sdk/wyzplay.asm"
+BUFFER_DEC
+        ds 256 ;=#6000 ;place for decoding channel data
 	else
-		include "pt3play.asm"
+		include "../_sdk/pt3play.asm"
 	endif
 	endif
-	include "ayfxplay.asm"
+	include "../_sdk/ayfxplay.asm"
 
 end
 

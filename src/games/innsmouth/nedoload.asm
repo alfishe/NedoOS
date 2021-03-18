@@ -225,6 +225,8 @@ mkpages0
         pop bc
         djnz mkpages0
 
+        call initsfx
+
         if 1==0
         call loadpage
         ld (pgmusic),a
@@ -252,18 +254,9 @@ mkpages0
         ld de,CURPAL
         OS_SETPAL
 
-        if 1==0
-        ;jr $
-        ld c,10
-        ld b,2
-        ld de,0
-;c=X, b=Y, de=tile
-;координаты в тайлах
-        call _draw_tile
-        endif
         call _swap_screen
 jpaddr=$+1
-        jp 0
+        call 0
 
 quit ;TODO
         call swapimer
@@ -278,6 +271,36 @@ pgmusic=$+1
         ds 0x0200-$
 tpages
         ds 256 ;pages
+
+initsfx
+	;определение TS
+	ld bc,#fffd	;чип 0
+	out (c),b
+	xor a		;регистр 0
+	out (c),a
+	ld b,#bf	;значение #bf
+	out (c),b
+	ld b,#ff	;чип 1
+	ld a,#fe
+	out (c),a
+	xor a		;регистр 0
+	out (c),a
+	ld b,#bf	;значение 0
+	out (c),a
+	ld b,#ff	;чип 0
+	out (c),b
+	xor a		;регистр 0
+	out (c),a
+	in a,(c)
+	ld (turboSound),a
+        ld a,SND_PAGE
+        call setpg4000
+	xor a
+	call reset_ay_ay
+	inc a
+	call reset_ay_ay
+        ld hl,SFX_DATA
+        jp AFX_INIT
 
 loadbinpg
         push hl
@@ -502,7 +525,7 @@ RestoreMemMap12
 
 _swap_screen
 	push ix
-	push iy
+	;push iy
 
 	ld a,(spritesActive)
 	or a
@@ -542,7 +565,7 @@ _swap_screen
         call RestoreMemMap3;0
         call RestoreMemMap12
 .noSpr1
-	pop iy
+	;pop iy
 	pop ix
 	ret
 

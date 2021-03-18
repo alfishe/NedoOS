@@ -251,6 +251,7 @@ mkpages0
         pop bc
         djnz mkpages0
 
+        call initsfx
         call bgpush_init
 
         if 1==0
@@ -282,7 +283,7 @@ mkpages0
 
         call _swap_screen
 jpaddr=$+1
-        jp 0
+        call 0
 
 
 quit ;TODO
@@ -299,7 +300,37 @@ pgmusic=$+1
 tpages
         ds 256 ;pages
 
-        if 1==1
+initsfx
+	;определение TS
+	ld bc,#fffd	;чип 0
+	out (c),b
+	xor a		;регистр 0
+	out (c),a
+	ld b,#bf	;значение #bf
+	out (c),b
+	ld b,#ff	;чип 1
+	ld a,#fe
+	out (c),a
+	xor a		;регистр 0
+	out (c),a
+	ld b,#bf	;значение 0
+	out (c),a
+	ld b,#ff	;чип 0
+	out (c),b
+	xor a		;регистр 0
+	out (c),a
+	in a,(c)
+	ld (turboSound),a
+        ld a,SND_PAGE
+        call setpg4000
+	xor a
+	call reset_ay_ay
+	inc a
+	call reset_ay_ay
+        ld hl,SFX_DATA
+        jp AFX_INIT
+
+       if 1==0
 
 testscroll0
         call bgpush_draw ;359975t
@@ -603,7 +634,7 @@ _swap_screen
 	jr z,.noSpr1
 
 	call setShadowScreen
-	;call respr ;remove only for touhou
+	call respr ;remove only for touhou
 	call updateTilesFromBuffer
 	;MRestoreMemMap012
         call RestoreMemMap3;0

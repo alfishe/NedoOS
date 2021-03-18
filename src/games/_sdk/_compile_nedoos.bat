@@ -49,6 +49,9 @@ echo rem sample>%temp%\sample.lst
 FOR /F "tokens=2* delims=.=" %%A IN ('SET sample') DO ECHO %%B>>%temp%\sample.lst
 
 rem создаём resources.h с идентификаторами ресурсов
+..\_sdk\tools\sjasmplus\sjasmplus.exe ..\_sdk\lib_sndpage.asm
+copy sound.bin ..\_sdk\
+del sound.bin
 
 ..\_sdk\tools\sjasmplus\sjasmplus.exe --nologo --msg=war --msg=war --exp=_temp_/nedoload.exp nedoload.asm
 java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp

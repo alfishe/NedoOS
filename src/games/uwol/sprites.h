@@ -1,0 +1,24 @@
+#define SPR_ATTR_HFLIP 24
+#define DSPR 1
+
+#define uwol_r_1a       0
+#define uwol_r_2a       1
+#define uwol_r_3a       2
+#define uwol_l_1a       0+SPR_ATTR_HFLIP
+#define uwol_l_2a       1+SPR_ATTR_HFLIP
+#define uwol_l_3a       2+SPR_ATTR_HFLIP
+#define wolfi_1a        3
+#define franki_1a       4
+#define vampi_1a        5
+#define fanti_r_1a      6
+#define fanti_l_1a      6+SPR_ATTR_HFLIP
+#define uwolpelot_r_1a  7
+#define uwolpelot_r_2a  8
+#define uwolpelot_r_3a  9
+#define uwolpelot_l_1a  7+SPR_ATTR_HFLIP
+#define uwolpelot_l_2a  8+SPR_ATTR_HFLIP
+#define uwolpelot_l_3a  9+SPR_ATTR_HFLIP
+#define uwolmuete_1a    10
+#define arrow_1a        11
+#define coin_1a			12
+#define blacksquare		11+SPR_ATTR_HFLIP
