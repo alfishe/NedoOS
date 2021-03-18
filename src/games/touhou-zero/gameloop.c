@@ -108,13 +108,16 @@ void start_game_loop()
     score = 0;
 
     process_level = process_level1;
+    //process_level = process_patchu;
     //process_level = process_level2;
     scroll_pos = 0;
     bullet_sprite = DEFAULT_BULLET;
     //start_level(IMG256_BG1, "Day before festival");
 start_level(PAL256_BG1, "bg1-16.bmp", "Day before festival");
+//start_level(PAL256_BG8, "bg8-16.bmp", "Day before festival");
     init_vm(level1_bytecode);
     //init_vm(level2_bc);
+//init_vm(level4_2);
     music_play(MUS_TH0EA1);
     sprites_start();
     immortality = 20;

@@ -66,6 +66,32 @@ SMP_LIST =#4d00
 SFX_DATA =#5100
 
 ;------------------------ addition
+uvscroll_scrbase=0x4000
+uvscroll_pushbase=0x8000
+uvscroll_callbase=0xc000
+
+UVSCROLL_WID=1024
+UVSCROLL_HGT=512
+TILEMAPWID=42 ;целые метатайлы
+TILEMAPHGT=24 ;целые метатайлы
+UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
+UVSCROLL_SCRHGT=200;192-16 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
+UVSCROLL_NPUSHES=UVSCROLL_WID/2/4/2 
+UVSCROLL_SCRNPUSHES=UVSCROLL_SCRWID/2/4/2 
+
+UVSCROLL_SCRSTART=uvscroll_scrbase+((UVSCROLL_SCRHGT-1)*40)
+UVSCROLL_LINESTEP=-40
+
+UVSCROLL_NCALLPGS=4
+
+UVSCROLL_TEMPSP=tempsp
+
+METATILEMAPWID=256;64
+METATILEMAPHGT=64
+TILEGFX=0xc000
+
+DELETEDYHIGH=0x7f
+
 pushbase=0x8000;c000
         macro SETPGPUSHBASE
          ;ld (curpgc000),a
@@ -253,6 +279,9 @@ mkpages0
 
         call initsfx
         call bgpush_init
+       ;jr $
+        ;call uvscroll_prepare
+        ;jp testscrolluv
 
         if 1==0
         call loadpage
@@ -299,6 +328,121 @@ pgmusic=$+1
         ds 0x0200-$
 tpages
         ds 256 ;pages
+
+testscrolluv
+;UV scroll
+        ld de,bgxyfilename
+        call uvscroll_preparebmp
+         ;call uvscroll_preparetiles
+;TODO обновить allscroll
+;allscroll=yscroll*(UVSCROLL_WID/512)+xscroll
+        ld hl,-160 ;top left
+        ld (cameraym),hl
+        ;ld (cameraymideal),hl
+        ;ld (cameraymold),hl
+        ld de,1024-160 ;top left
+        add hl,de
+        ld (yscroll),hl
+        
+        ld hl,-160 ;top left
+        ld (cameraxm),hl
+        ;ld (cameraxmideal),hl
+        ;ld (cameraxmold),hl
+        ld de,2048-160 ;top left
+        add hl,de
+        ld (x2scroll),hl
+
+         ;call uvscroll_preparetilemap
+
+        ;call importcoords
+        ;ld iy,bullets
+        ;call genbullet_terminate
+
+        ;ld de,pal
+        ;OS_SETPAL
+mainloop_uv0
+
+        call uvscroll_draw ;367574/391621
+        call setpgsmain40008000
+        
+        call mousetrackcamera
+;d=camera dy
+;e=camera dx
+;l=mousekey
+        ld a,l ;hl=(sysmousebuttons)
+        rra
+         ;jr nc,mainloop_uvq ;LMB
+        call uvscroll_scroll
+        ;call uvscroll_scrolltiles ;23099(21121 ldir)/46220
+        
+       ld a,(_time)
+       push af
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+mainloop_uvwaittimer0
+        ld a,(_time)
+uvoldtimer=$+1
+        ld b,0
+        ld (uvoldtimer),a
+        sub b
+        ld b,a
+        jr z,mainloop_uvwaittimer0
+mainloop_uvlogic0
+        push bc
+        ;call logic
+        pop bc
+        djnz mainloop_uvlogic0
+
+;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
+       pop bc ;b=timer на момент changescrpg
+waitchangescr0
+        ld a,(_time)
+        cp b
+        jr z,waitchangescr0
+
+        jp mainloop_uv0
+
+        ret
+     
+cameraxm
+        dw 0
+cameraym
+        dw 0
+
+     
+mousetrackcamera
+       ld hl,(curmouse)
+oldmouse=$+1
+       ld de,0
+       ld (oldmouse),hl
+       ld a,h
+       sub d
+       ld d,a
+       ld a,l
+       sub e
+       ld e,a
+;de=delta (d>0: go up) (e>0: go left)
+;out: d=camera dy, e=camera dx
+        ld hl,(cameraxm)
+        ld c,e
+        ld a,c
+        rla
+        sbc a,a
+        ld b,a
+        add hl,bc
+        ld (cameraxm),hl
+        ld hl,(cameraym)
+        ld c,d
+        ld a,c
+        rla
+        sbc a,a
+        ld b,a
+        add hl,bc
+        ld (cameraym),hl
+        ret
+
+        
+bgxyfilename
+        db "bg8-16.bmp",0
 
 initsfx
 	;определение TS
@@ -910,6 +1054,7 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
         include "../../_sdk/file.asm"
         include "bmp.asm"
         include "bgpush.asm"
+        include "bgpushxy.asm"
 _preparescroll=bgpush_prepare ;de=filename
 _incscroll=bgpush_inccurscroll ;bc=scroll (-1)
 _drawscroll=bgpush_draw ;359975t

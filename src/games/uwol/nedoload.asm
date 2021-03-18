@@ -65,8 +65,6 @@ MUS_LIST =#4a00
 SMP_LIST =#4d00
 SFX_DATA =#5100
 
-
-
 	macro MDebug color
 	push af
 	ld a,color
@@ -271,6 +269,8 @@ pgmusic=$+1
         ds 0x0200-$
 tpages
         ds 256 ;pages
+
+
 
 initsfx
 	;определение TS

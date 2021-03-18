@@ -68,7 +68,10 @@ on_int
 int_nochangepal
         call oldimer
 
-        ;GET_KEY
+        GET_KEY
+       ld (curmouse),de
+       ld a,l
+       ld (curmousebuttons),a
         ;ld a,c ;кнопка без учёта языка
         ;or a
         ;jr z,$+5
@@ -174,3 +177,8 @@ on_int_sp=$+1
 	EI
 on_int_jp=$+1
 	jp 0
+
+curmouse
+        dw 0
+curmousebuttons
+        db 0
