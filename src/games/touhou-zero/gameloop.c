@@ -230,12 +230,15 @@ begin_set_sprites();
         update_sprites(schedule & 1);
         //update_sprites(0);
         //update_sprites(1);
-end_set_sprites();
         if ((schedule & 3) == 0)
             bg_scroll();
-drawscroll();
         //swap_screen();
+    
+if (schedule & 1) {
+end_set_sprites();
+drawscroll();
 swap_screen_scroll();
+}
     }
 }
 

@@ -37,15 +37,15 @@ rem список изображений, откуда брать графику
 
 set image.0=gfx\font-16.bmp
 set image.1=gfx\title-16.bmp
-set image.2=gfx\bg1-16.bmp
-set image.3=gfx\bg2-16.bmp
-set image.4=gfx\bg3-16.bmp
-set image.5=gfx\bg4-16.bmp
-set image.6=gfx\bg5-16.bmp
-set image.7=gfx\bg6-16.bmp
-set image.8=gfx\bg7-16.bmp
-set image.9=gfx\bg8-16.bmp
-set image.10=gfx\final-16.bmp
+set image.2=gfx\final-16.bmp
+rem set image.3=gfx\bg1-16.bmp
+rem set image.4=gfx\bg2-16.bmp
+rem set image.5=gfx\bg3-16.bmp
+rem set image.6=gfx\bg4-16.bmp
+rem set image.7=gfx\bg5-16.bmp
+rem set image.8=gfx\bg6-16.bmp
+rem set image.9=gfx\bg7-16.bmp
+rem set image.10=gfx\bg8-16.bmp
 
 rem спрайты
 
