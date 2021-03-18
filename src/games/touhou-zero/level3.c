@@ -156,8 +156,9 @@ start_level(PAL256_BG5, "bg5-16.bmp", "Scarlet Devil Mansion");
 static void dialog_l3b()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "And here is the famous\nhospitality of the Scarlets.", 1);
+//swap_screen();
     wait_for_space();
     flush_sprites();
     //init_level(IMG256_BG5);
@@ -168,8 +169,9 @@ init_level(PAL256_BG5, "bg5-16.bmp");
 static void dialog_l3f()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "I've not asked you!\nI'm going to talk with\nPatchuly!", 1);
+//swap_screen();
     wait_for_space();
     flush_sprites();
     init_level4();
@@ -224,14 +226,16 @@ static void dialog_l3m()
 {
     music_play(MUS_HARD);
     init_dialog();
-    vsync();//swap_screen();
-    put_dialog_string(MAID_FACE, "Hello!\nWe today too busy!\nCome tomorrow please!", 0);
-    put_dialog_string(REIMU_FACE, "I've asked about it?\nI need to talk with\nyour bookworm!", 1);
+    swap_screen();
+    put_dialog_string(MAID_FACE, "Hello!\nWe are too busy today!\nCome tomorrow please!", 0);
+    put_dialog_string(REIMU_FACE, "Did I ask about it?\nI need to talk with\nyour bookworm!", 1);
     put_dialog_string(MAID_FACE, "No no no!\nPatchuly is veery busy\nnow!", 0);
+//swap_screen();
     wait_for_space();
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "Who will ask you?", 1);
+//swap_screen();
     wait_for_space();
     //init_level(IMG256_BG6);
 init_level(PAL256_BG6, "bg6-16.bmp");

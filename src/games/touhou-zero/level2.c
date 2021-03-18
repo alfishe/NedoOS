@@ -116,8 +116,9 @@ start_level(PAL256_BG3, "bg3-16.bmp", "Fairies Lake");
 static void l2b_dialog()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "CIIIIRRRNOO!\nWhat a heck you doing?!", 1);
+//swap_screen();
     wait_for_space();
     flush_sprites();
     //init_level(IMG256_BG3);
@@ -128,11 +129,12 @@ init_level(PAL256_BG3, "bg3-16.bmp");
 static void l2f_dialog()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(CIRNO_FACE, "Okey, okey...\nYou beat strongest boss!", 0);
-    put_dialog_string(REIMU_FACE, "Hey, insect\nDid you seen my donation box?", 1);
+    put_dialog_string(REIMU_FACE, "Hey, insect!\nHave you seen my donation box?", 1);
     put_dialog_string(CIRNO_FACE, "Why do I need empty box?\nNo. I don't need it", 0);
-    put_dialog_string(REIMU_FACE, "We'll talk again!\nI haven't time for bugs now!", 1);
+    put_dialog_string(REIMU_FACE, "We'll talk again!\nI have no time for bugs now!", 1);
+//swap_screen();
     wait_for_space();
     init_level3();
 }
@@ -196,11 +198,12 @@ static void l2m_dialog()
 {
     music_play(MUS_CIRNO);
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "Hey, BUG!\nSTOP! I SAID STOP!", 1);
-    put_dialog_string(CIRNO_FACE, "Whaat?\nYou talking with final\nboss!", 0);
+    put_dialog_string(CIRNO_FACE, "Whaat?\nYou are talking with\nfinal boss!", 0);
     put_dialog_string(REIMU_FACE, "You are second...\nIf Marisa was first.", 1);
     put_dialog_string(CIRNO_FACE, "It's your final!", 0);
+//swap_screen();
     wait_for_space();
     flush_sprites();
     //init_level(IMG256_BG4);

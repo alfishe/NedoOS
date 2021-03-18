@@ -24,9 +24,9 @@ void instruction_page()
     put_str("Lost donation box incident\n\n");
     put_str("Code and levels by Nihirash\nGraphics by Hina\nMusic by EA, WBCBZ7, Scalesmann, Gogin,\nNihirash\n\n");
     text_x = 5;
-    put_str("Spring beguns with incident!");
-    put_str("\n\nReimu lost his donation box, right \nbefore the spring festival of flowers.\nTogether with the box, Aun Komano also \ndisappeared.");
-    put_str("\n\nNow she want to get they back!\n\n");
+    put_str("Spring begins with an incident!");
+    put_str("\n\nReimu lost her donation box, right \nbefore the spring festival of flowers.\nTogether with the box, Aun Komano also \ndisappeared.");
+    put_str("\n\nNow she want to get them back!\n\n");
     text_x = 2;
     put_str("Pick up ");
     put_char(128);

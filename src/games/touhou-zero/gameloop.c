@@ -28,7 +28,7 @@ static void start_level(u8 pal, char *fn, u8 *name)
     player.y = STARTY/*321*/;
     flush_sprites();
     init_text();
-    vsync();//swap_screen();
+    swap_screen();
     text_y = 24/*29*/;
     text_x = 20;
     put_str("Girls are praying...");
@@ -51,22 +51,22 @@ static void start_level(u8 pal, char *fn, u8 *name)
     draw_face(REIMU_FACE);
     text_y--;
     text_x += 5;
-swap_screen();
+//swap_screen();
 
     for (c = 0; c < 50; c++)
-        vsync();//swap_screen();
-swap_screen();
+        swap_screen();
+//swap_screen();
     draw_face(MARISA_FACE);
-swap_screen();
+//swap_screen();
     text_y--;
     text_x += 5;
     for (c = 0; c < 50; c++)
-        vsync();//swap_screen();
-swap_screen();
+        swap_screen();
+//swap_screen();
     draw_face(CIRNO_FACE);
-swap_screen();
+//swap_screen();
     for (c = 0; c < 100; c++)
-        vsync();//swap_screen();
+        swap_screen();
     //init_level(image);
 init_level(pal, fn);
 }
@@ -81,7 +81,7 @@ preparescroll(fn);
         unpack_pal256(PAL256_BG1, 0);*/
 unpack_pal256(pal, 0);
 
-    unpack_pal16(PAL16_SPRITES, 15, 0);
+    //unpack_pal16(PAL16_SPRITES, 15, 0);
     //draw_image_g256(0, 0, image);
 scroll(0, 0);
 drawscroll();
@@ -96,6 +96,7 @@ drawscroll();
     level_loop = 0;
     schedule = 0;
     add_cnt = 0;
+sprites_start();
 }
 
 
@@ -133,12 +134,12 @@ static void player_control()
     if (keys[FIRE])
         user_fire();
 
-    if (player.x < 0)
-        player.x = 0;
-    if (player.x > 300)
-        player.x = 300;
-    if (player.y < 0)
-        player.y = 0;
+    if (player.x < MIN_X_RES/*0*/)
+        player.x = MIN_X_RES/*0*/;
+    if (player.x > MAX_X_RES/*300*/)
+        player.x = MAX_X_RES/*300*/;
+    if (player.y < MIN_Y_RES/*0*/)
+        player.y = MIN_Y_RES/*0*/;
     if (player.y > MAX_Y_RES - 32)
         player.y = MAX_Y_RES - 32;
 }

@@ -51,7 +51,7 @@ void put_slow_str(u8 *str)
         if (!i)
             break;
         put_char(i);
-        vsync();//swap_screen();
+        swap_screen();
     }
 }
 

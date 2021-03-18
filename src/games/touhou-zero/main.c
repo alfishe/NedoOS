@@ -1,3 +1,5 @@
+//#define CHEAT
+
 #include <evo.h>
 #include "functions.h"
 #include "resources.h"
@@ -27,7 +29,10 @@
 #define IMG256_FINAL IMG_FINAL_16
 #define IMG256_TITLE IMG_TITLE_16
 
-#define MAX_Y_RES 200/*240*/
+#define MIN_X_RES 8/*0*/
+#define MAX_X_RES 296/*300*/
+#define MIN_Y_RES 16/*0*/
+#define MAX_Y_RES 216/*240*/
 #define STARTY 321
 
 #define draw_tile_g256 draw_tile
@@ -120,7 +125,7 @@ void end_set_sprites()
         if (sprlist[i].y<0) continue;
         if (sprlist[i].y>200-16) continue;
         if (id<64) set_sprite(id++,sprlist[i].x>>1,sprlist[i].y,sprlist[i].tile);
-        if ((sprlist[i].tile & 0xff40) != 0x140) {
+        if ((sprlist[i].tile & 0xffc0) != 0x140) {
            if ((id<64)&&((sprlist[i].x>>1)<=160-16)) set_sprite(id++,(sprlist[i].x>>1)+8,sprlist[i].y   ,sprlist[i].tile+1);
            if (sprlist[i].y>200-32) continue;
            if (id<64) set_sprite(id++,(sprlist[i].x>>1)  ,sprlist[i].y+16,sprlist[i].tile+32);
@@ -132,7 +137,7 @@ void end_set_sprites()
 }
 
 void set_sprite256(u8 id, u16 tile, u8 pal, i16 x, i16 y)
-{// TODO
+{
         //x = x-16;
         //if (x<0) return; //x = 0;
         //x = x>>1;
@@ -141,8 +146,8 @@ void set_sprite256(u8 id, u16 tile, u8 pal, i16 x, i16 y)
         //if (y>200-16) return;
         //if (id>=64) return;
         //set_sprite(id,x,y,1/*(tile>>4)&0xff*/);
-        sprlist[id].x = x;
-        sprlist[id].y = y;
+        sprlist[id].x = x-8;
+        sprlist[id].y = y-16;
         sprlist[id].tile = ((tile&0xff)>>1) + ((tile&0x0f00)>>2);
 }
 
@@ -223,7 +228,7 @@ void state_manager()
 	while (TRUE)
 	{
 		music_stop();
-		sprites_stop();
+		//sprites_stop();
 		switch (state)
 		{
 		case STATE_PLAY:
@@ -248,14 +253,15 @@ void main(void)
 {
 u16 curscroll;
 	// Порт 0x20AF - порт управления скоростью CPU. Значение 6 - это 14МГц и включенный кэш(0110)
-	//__asm 
-	//ld bc, #0x20af 
-	//ld a, #6 
-	//out(c), a 
+	//__asm
+	//ld bc, #0x20af
+	//ld a, #6
+	//out(c), a
 	//__endasm;
 	set_screen_sync(1);
 	set_res(MODE320X240);
 	pal_bright(BRIGHT_MID);
+sprites_start();
 	intro();
 /*
 preparescroll("bg2-16.bmp");

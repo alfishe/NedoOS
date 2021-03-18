@@ -88,11 +88,14 @@ void put_str(u8 *str)
 
 void init_text()
 {
+//sprites_stop();
+set_sprite(0,0,0,-1);
 	unpack_pal256(PAL256_FONT, 0);
 	select_image(IMG256_FONT);
 	clear_screen(0);
 	scroll(0, 0);
 	swap_screen();
+set_sprite(0,0,0,-1);
 	clear_screen(0);
 	swap_screen();
 	pal_bright(BRIGHT_MID);

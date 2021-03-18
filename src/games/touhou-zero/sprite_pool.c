@@ -12,7 +12,7 @@
 #define MY_BULLETS_max 10
 #define MAX_BONUS_COUNT 14
 
-#define SPR_FLIPX 32768
+#define SPR_FLIPX 16/*32768*/
 #define SPR_FLIPY 16384
 //#define MAX_Y_RES 240
 
@@ -64,7 +64,7 @@ MovableSprite bonuses[MAX_BONUS_COUNT];
 static u8 cnt;
 static u8 cards;
 
-static u8 anim_shift[] = {0, 4, 8, 12};
+//static u8 anim_shift[] = {0, 4, 8, 12}; //const needed!!!
 static u8 anim_frame = 0;
 
 static u8 is_bullet_active(MovableSprite *bullet)
@@ -74,7 +74,7 @@ static u8 is_bullet_active(MovableSprite *bullet)
 
 static u8 is_npc_active(Npc *npc)
 {
-    return npc->hp && npc->sprite.y < MAX_Y_RES + 40 && npc->sprite.x > -60 && npc->sprite.x < 360 && npc->sprite.y > -40;
+    return npc->hp && npc->sprite.y < MAX_Y_RES + 40 && npc->sprite.x >= -16/*-60*/ && npc->sprite.x < 360 && npc->sprite.y > -40;
 }
 
 
@@ -165,7 +165,7 @@ static i8 find_free_bonus()
 static void update_sprites(u8 part) //координаты спрайтов каждой из двух частей (part) обновляются через фрейм
 {
     static u8 b;
-    set_sprite256(player.id, player.tile + anim_shift[anim_frame], player.pal, player.x, player.y);
+    set_sprite256(player.id, player.tile + (anim_frame<<2)/*anim_shift[anim_frame]*/, player.pal, player.x, player.y);
     if (part)
     {
         for (cnt = 0; cnt < BULLETS_count; cnt++)
@@ -227,11 +227,11 @@ static void update_sprites(u8 part) //координаты спрайтов ка
             if (npcs[cnt].type == BOSS_TYPE || 
                 npcs[cnt].sprite.tile == 1552) 
             {
-                set_sprite256(npcs[cnt].sprite.id, npcs[cnt].sprite.tile + anim_shift[anim_frame] | (npcs[cnt].sprite.dx < 0 ? SPR_FLIPX : 0), npcs[cnt].sprite.pal, npcs[cnt].sprite.x, npcs[cnt].sprite.y);
+                set_sprite256(npcs[cnt].sprite.id, npcs[cnt].sprite.tile + (anim_frame<<2)/*anim_shift[anim_frame]*/ + (((npcs[cnt].sprite.dx < 0)&&(npcs[cnt].sprite.tile == 1552)) ? SPR_FLIPX : 0), npcs[cnt].sprite.pal, npcs[cnt].sprite.x, npcs[cnt].sprite.y);
             } 
             else 
             {
-                set_sprite256(npcs[cnt].sprite.id, npcs[cnt].sprite.tile + anim_shift[anim_frame], npcs[cnt].sprite.pal, npcs[cnt].sprite.x, npcs[cnt].sprite.y);
+                set_sprite256(npcs[cnt].sprite.id, npcs[cnt].sprite.tile + (anim_frame<<2)/*anim_shift[anim_frame]*/, npcs[cnt].sprite.pal, npcs[cnt].sprite.x, npcs[cnt].sprite.y);
             } 
             
         }

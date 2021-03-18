@@ -104,7 +104,8 @@ pushbase=0x8000;c000
         ;SETPG16K
 	;sub 4
         ;SETPG32KLOW
-        call setpgsscr40008000;_current
+        call setpgsscr40008000
+        ;call setpgsscr40008000_current
 	endm
 
 	macro MRestoreMemMap012
@@ -602,7 +603,7 @@ _swap_screen
 	jr z,.noSpr1
 
 	call setShadowScreen
-	call respr
+	;call respr ;remove only for touhou
 	call updateTilesFromBuffer
 	;MRestoreMemMap012
         call RestoreMemMap3;0

@@ -172,10 +172,11 @@ start_level(PAL256_BG7, "bg7-16.bmp", "Looking for Patchuly Knowlege");
 void dialog_l4p2() 
 { 
     init_dialog();
-    vsync();//swap_screen();
-    put_dialog_string(FLAN_FACE, "So...\nYou played with me!\nWhat you want?", 0);
-    put_dialog_string(REIMU_FACE, "I'm flying to kick ass\nto your bookworm!", 1);
+    swap_screen();
+    put_dialog_string(FLAN_FACE, "So...\nYou played with me!\nWhat do you want?", 0);
+    put_dialog_string(REIMU_FACE, "I'm flying to kick\nyour bookworm's ass!", 1);
     put_dialog_string(FLAN_FACE, "Sister Flan is sitting\nin the library!", 0);
+//swap_screen();
     wait_for_space();
     //init_level(IMG256_BG7);
 init_level(PAL256_BG7, "bg7-16.bmp");
@@ -209,30 +210,35 @@ u8 leftBonus = 0;
 void last_dialog()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(PACHU_FACE, "Please stop!\nWhat a noise in my\nlibrary?", 0);
     put_dialog_string(REIMU_FACE, "I NEED TO TALK WITH YOU!\nAnd \"thank you\" Marisa for\n\"help\"", 1);
     put_dialog_string(MARISA_FACE, "I've sent you\nhealthing and my power!", 0);
+//swap_screen();
     wait_for_space(); init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "Like a drunken sniper...", 1);
     put_dialog_string(FLAN_FACE, "So...\nWhat do you want from\nmy sister?!", 0);
-    put_dialog_string(REIMU_FACE, "My donations box is lost!\nHave you taken him for\nyour books?", 1);
+    put_dialog_string(REIMU_FACE, "My donations box is lost!\nHave you taken it for\nyour books?", 1);
+//swap_screen();
     wait_for_space(); init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(PACHU_FACE, "What?\n", 0);
-    put_dialog_string(REIMU_FACE, "Also, Komano lost...", 1);
-    put_dialog_string(PACHU_FACE, "Oh, she comed to me and\nasked books about box\nrepairing...", 0);
+    put_dialog_string(REIMU_FACE, "Also, Komano is lost...", 1);
+    put_dialog_string(PACHU_FACE, "Oh, she came to me and\nasked for books about\nbox repairing...", 0);
+//swap_screen();
     wait_for_space(); init_dialog();
-    vsync();//swap_screen();
-    put_dialog_string(PACHU_FACE, "She gone to the repair\nmaster. But you made\nall this noise!", 0);
+    swap_screen();
+    put_dialog_string(PACHU_FACE, "She went to the repair\nmaster. But you made\nall this noise!", 0);
     put_dialog_string(REIMU_FACE, "Okeey, as an apology, I'm\nwaiting for everyone to\nget drunk tonight.", 1);
     put_dialog_string(CIRNO_FACE, "I'll be there!", 0);
+//swap_screen();
     wait_for_space(); init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "But how You appears\nhere?!", 1);
     put_dialog_string(CIRNO_FACE, "Cause, I'm strongest!\nAnd Sakuya just opened\nthe door..", 0);
     put_dialog_string(REIMU_FACE, "Fi-i-inee!\nLet's drink tonight!\nAnd even Cirno-tan.", 1);
+//swap_screen();
     wait_for_space(); 
     state = STATE_WIN;
 }
@@ -290,23 +296,25 @@ void process_patchu()
 void dialog_l4p3()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(PACHU_FACE, "What a noise?!", 0);
     put_dialog_string(REIMU_FACE, "Oh...\nI've found you!", 1);
     put_dialog_string(PACHU_FACE, "Please, stop this noise!", 0);
+//swap_screen();
     wait_for_space();
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "I need to talk with you", 1);
+//swap_screen();
     wait_for_space();
     //init_level(IMG256_BG8);
 init_level(PAL256_BG8, "bg8-16.bmp");
     pal_bright(BRIGHT_MIN);
-    vsync();//swap_screen();
+    swap_screen();
     unpack_pal256(PAL256_BG8, 0);
     unpack_pal16(PAL16_SPRITES, 15, 0);
     pal_bright(BRIGHT_MID);
-    vsync();//swap_screen();
+    swap_screen();
     process_level = process_patchu;
     music_play(MUS_TH0PN);
     state = STATE_PLAY;
@@ -383,10 +391,11 @@ void process_flandre()
 void dialog_l4p1()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(FLAN_FACE, "Hello, Reddy-sister!\nAre you gonna play with me?", 0);
-    put_dialog_string(REIMU_FACE, "Flan, I haven't time for it!", 1);
+    put_dialog_string(REIMU_FACE, "Flan, I have no time\nfor this!", 1);
     put_dialog_string(FLAN_FACE, "Oh sister...\nYou'll play with me!", 0);
+//swap_screen();
     bullet_sprite = FLAN_BULLET;
     process_level = process_flandre;
     wait_for_space();

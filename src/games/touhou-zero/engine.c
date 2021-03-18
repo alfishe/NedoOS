@@ -70,7 +70,7 @@ void wait_for_space()
         keyboard(keys);
         if (keys[KEY_SPACE])
             break;
-        vsync();//swap_screen();
+        swap_screen();
     }
 }
 
@@ -81,6 +81,8 @@ static void push_npc(i16 x, i16 y, i8 dx, i8 dy, u16 tile, u8 type, u16 hp, u16 
     if (npc != -1)
     {
         npcs[npc].sprite.tile = tile;
+       if (x < 16) x = 16;
+       if (x > 296) x = 296;
         npcs[npc].sprite.x = x;
         npcs[npc].sprite.y = y;
         npcs[npc].sprite.dx = dx;
@@ -287,6 +289,9 @@ static MovableSprite *is_player_collide_with_pups()
 
 static u8 is_player_collide()
 {
+#ifdef CHEAT
+return 0;
+#endif
     for (cnt = 0; cnt < BULLETS_count; cnt++)
         if (is_bullet_active(&bullets[cnt]) && is_player_collide_with_bullet(&bullets[cnt]))
         {

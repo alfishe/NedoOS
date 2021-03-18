@@ -196,7 +196,7 @@ void int_mid_boss1(u16 tile, u16 hp) {
     switch(exec_cnt) {
     case 0: 
         scroll_speed = 0;
-        push_npc(160, -32, 0, 5, tile, 200, hp, 0); 
+        push_npc(176/*160*/, -32, 0, 5, tile, 200, hp, 0); 
         break; 
     case 0 + 3: 
         npc_by_type_set_speed(200, 2, 0); 
@@ -313,25 +313,25 @@ void int_make_shooting_star(u8 type,u16 x, u16 y, u16 tile, u16 hp)
     switch(exec_cnt) 
     {
         case 0:                                          
-            push_npc(x - 52, y, 0, 0, tile, type, hp, BONUS_CARD);  
+            push_npc(x - 56/*52*/, y, 0, 0, tile, type, hp, BONUS_CARD);  
             break;                                                
         case 0 + 1:                                      
-            push_npc(x - 51, y - 37, 0, 0, tile, type, hp, BONUS_CARD);  
+            push_npc(x - 50/*51*/, y - 37, 0, 0, tile, type, hp, BONUS_CARD);  
             break;                                                
         case 0 + 2:                                      
-            push_npc(x - 19, y - 60, 0, 0, tile, type, hp, BONUS_CARD);  
+            push_npc(x - 19, (y<76)?16:y-60/*y - 60*/, 0, 0, tile, type, hp, BONUS_CARD);  
             break;                                                
         case 0 + 3:                                      
-            push_npc(x + 20, y - 60, 0, 0, tile, type, hp, BONUS_CARD);  
+            push_npc(x + 20, (y<76)?16:y-60/*y - 60*/, 0, 0, tile, type, hp, BONUS_CARD);  
             break;                                                
         case 0 + 4:                                      
-            push_npc(x + 52, y - 37, 0, 0, tile, type, hp, BONUS_CARD);  
+            push_npc(x + 50/*52*/, y - 37, 0, 0, tile, type, hp, BONUS_CARD);  
             break;                                                
         case 0 + 5:                                      
-            push_npc(x + 64, y, 0, 0, tile, type, hp, BONUS_CARD); 
+            push_npc(/*(x>(304-56))?304:*/x+56/*64*/, y, 0, 0, tile, type, hp, BONUS_CARD); 
             break;                                                
         case 0 + 7:                                      
-            push_npc(x + 52, y + 38, 0, 0, tile, type, hp, BONUS_CARD); 
+            push_npc(x + 50/*52*/, y + 38, 0, 0, tile, type, hp, BONUS_CARD); 
             break;                                                
         case 0 + 8:                                      
             push_npc(x + 20, y + 61, 0, 0, tile, type, hp, BONUS_CARD); 
@@ -340,7 +340,7 @@ void int_make_shooting_star(u8 type,u16 x, u16 y, u16 tile, u16 hp)
             push_npc(x - 19, y + 61, 0, 0, tile, type, hp, BONUS_CARD); 
             break;                                                
         case 0 + 10:                                     
-            push_npc(x - 51, y + 30, 0, 0, tile, type, hp, BONUS_CARD); 
+            push_npc(x - 50/*51*/, y + 30, 0, 0, tile, type, hp, BONUS_CARD); 
             break;                                                
         case 0 + 15:                                     
         case 0 + 20:                                     
@@ -532,7 +532,7 @@ void int_mid_boss2(u16 tile, u16 hp)
 {
     switch(exec_cnt) {
         case 0: 
-            push_npc(160, 32, 2, 0, tile, 200, hp, HEALTH_CARD); 
+            push_npc(176/*160*/, 32, 2, 0, tile, 200, hp, HEALTH_CARD); 
             scroll_speed = 0; 
             break; 
         case 0 + 2: 
@@ -594,12 +594,12 @@ void int_aimed_circle(u8 hp, u16 tile)
         case 0:   
             xx = player.x;
             yy = player.y - 16;                                       
-            push_npc(xx - 52, yy, 0, 0, tile, type, hp, BONUS_CARD);                                
-            push_npc(xx - 51, yy - 37, 0, 0, tile, type, hp, BONUS_CARD);                                  
+            push_npc(xx - 56/*52*/, yy, 0, 0, tile, type, hp, BONUS_CARD);                                
+            push_npc(xx - 50/*51*/, yy - 37, 0, 0, tile, type, hp, BONUS_CARD);                                  
             push_npc(xx - 19, yy - 60, 0, 0, tile, type, hp, BONUS_CARD);                                      
             push_npc(xx + 20, yy - 60, 0, 0, tile, type, hp, BONUS_CARD);                                      
             push_npc(xx + 52, yy - 37, 0, 0, tile, type, hp, BONUS_CARD);                                      
-            push_npc(xx + 64, yy, 0, 0, tile, type, hp, BONUS_CARD);          
+            push_npc(xx + 56/*64*/, yy, 0, 0, tile, type, hp, BONUS_CARD);          
             break;         
         case 9:
             npc_by_type_set_speed(type, 0, 5);

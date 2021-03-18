@@ -17,7 +17,7 @@ void gameover()
     put_num(score);
     swap_screen();
     for (i=0;i<200;i++)
-        vsync();//swap_screen();
+        swap_screen();
     state = STATE_MENU;
 }
 

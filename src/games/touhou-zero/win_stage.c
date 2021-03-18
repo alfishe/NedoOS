@@ -26,7 +26,7 @@ swap_screen();
     }
 
     init_text();
-    text_y = 12/*14*/;
+    text_y = 11/*14*/;
     text_x = 15;
     put_str("You win!\n");
     text_x = 12;

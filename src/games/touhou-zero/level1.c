@@ -30,11 +30,12 @@ init_level(PAL256_BG2, "bg2-16.bmp");
 static void l1f_dialog()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(MARISA_FACE, "Cool down, Reimu!", 0);
     put_dialog_string(REIMU_FACE, "???", 1);
     put_dialog_string(MARISA_FACE, "I've heard buzzing\nfairies near Shrine", 0);
-    put_dialog_string(REIMU_FACE, "Welll...\nThis insects will subside\nnow.", 1);
+    put_dialog_string(REIMU_FACE, "Welll...\nThese insects will subside\nnow.", 1);
+//swap_screen();
     wait_for_space();
     init_level2();
 }
@@ -90,10 +91,11 @@ static void process_boss1()
 static void dialog_level1()
 {
     init_dialog();
-    vsync();//swap_screen();
+    swap_screen();
     put_dialog_string(REIMU_FACE, "Have you seen my donation\nbox?", POSITION_LEFT);
-    put_dialog_string(MARISA_FACE, "Where was no money?!\nWhom will need it?", POSITION_RIGHT);
-    put_dialog_string(REIMU_FACE, "I'll beat you for this words!", POSITION_LEFT);
+    put_dialog_string(MARISA_FACE, "Where was no money?!\nWho will need it?", POSITION_RIGHT);
+    put_dialog_string(REIMU_FACE, "I'll beat you for these\nwords!", POSITION_LEFT);
+//swap_screen();
     wait_for_space();
 }
 

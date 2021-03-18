@@ -81,6 +81,16 @@ rem echo %PATH%
 echo -3----------------------------
 rem echo %CD%
 copy _temp_\*.bin touhou-zero
+copy gfx\bg1-16.bmp touhou-zero
+copy gfx\bg2-16.bmp touhou-zero
+copy gfx\bg3-16.bmp touhou-zero
+copy gfx\bg4-16.bmp touhou-zero
+copy gfx\bg5-16.bmp touhou-zero
+copy gfx\bg6-16.bmp touhou-zero
+copy gfx\bg7-16.bmp touhou-zero
+copy gfx\bg8-16.bmp touhou-zero
+copy gfx\final-16.bmp touhou-zero
+copy gfx\title-16.bmp touhou-zero
 copy nedoload.com touhou-zero.com
 del nedoload.com
 rem echo %PATH%
