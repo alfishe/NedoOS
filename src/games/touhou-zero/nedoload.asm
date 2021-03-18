@@ -278,9 +278,12 @@ mkpages0
         djnz mkpages0
 
         call initsfx
-        call bgpush_init
+
+        call swapimer
+
+        ;call bgpush_init
        ;jr $
-        ;call uvscroll_prepare
+        call uvscroll_prepare
         ;jp testscrolluv
 
         if 1==0
@@ -305,11 +308,9 @@ mkpages0
         ld hl,0xc000
         call loadbinpg
         
-        call swapimer
-
         ld de,CURPAL
         OS_SETPAL
-
+       ;jp testscrolluv
         call _swap_screen
 jpaddr=$+1
         call 0
@@ -336,21 +337,19 @@ testscrolluv
          ;call uvscroll_preparetiles
 ;TODO обновить allscroll
 ;allscroll=yscroll*(UVSCROLL_WID/512)+xscroll
+       if 0
         ld hl,-160 ;top left
         ld (cameraym),hl
-        ;ld (cameraymideal),hl
-        ;ld (cameraymold),hl
         ld de,1024-160 ;top left
         add hl,de
         ld (yscroll),hl
         
         ld hl,-160 ;top left
         ld (cameraxm),hl
-        ;ld (cameraxmideal),hl
-        ;ld (cameraxmold),hl
         ld de,2048-160 ;top left
         add hl,de
         ld (x2scroll),hl
+       endif
 
          ;call uvscroll_preparetilemap
 
@@ -365,15 +364,21 @@ mainloop_uv0
         call uvscroll_draw ;367574/391621
         call setpgsmain40008000
         
-        call mousetrackcamera
+        ;call mousetrackcamera
 ;d=camera dy
 ;e=camera dx
 ;l=mousekey
-        ld a,l ;hl=(sysmousebuttons)
-        rra
-         ;jr nc,mainloop_uvq ;LMB
-        call uvscroll_scroll
-        ;call uvscroll_scrolltiles ;23099(21121 ldir)/46220
+        ;call uvscroll_scroll
+
+cury=$+1
+        ld hl,0
+        inc hl
+        ld (cury),hl
+        ld de,0
+;hl=y
+;de=x
+        call uvscroll_setscroll
+
         
        ld a,(_time)
        push af
@@ -442,7 +447,7 @@ oldmouse=$+1
 
         
 bgxyfilename
-        db "bg8-16.bmp",0
+        db "bg1-16.bmp",0
 
 initsfx
 	;определение TS
@@ -1059,10 +1064,16 @@ _preparescroll=bgpush_prepare ;de=filename
 _incscroll=bgpush_inccurscroll ;bc=scroll (-1)
 _drawscroll=bgpush_draw ;359975t
 _setscroll=bgpush_setcurscroll ;hl=scroll
+_drawscrollxy=uvscroll_draw
+_setscrollxy=uvscroll_setscroll
+_prepscrollxy=uvscroll_preparebmp ;de=filename
 	export _preparescroll
 	export _incscroll
 	export _drawscroll
+	export _drawscrollxy
         export _setscroll
+        export _setscrollxy
+        export _prepscrollxy
 
 genpush_newpage
 ;заказывает страницу, заносит в tpushpgs, a=pg

@@ -108,7 +108,7 @@ void start_game_loop()
     score = 0;
 
     process_level = process_level1;
-    //process_level = process_patchu;
+    //process_level = process_flandre;
     //process_level = process_level2;
     scroll_pos = 0;
     bullet_sprite = DEFAULT_BULLET;

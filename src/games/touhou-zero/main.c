@@ -64,12 +64,12 @@ __asm
         inc hl
 	ld d,(hl)
        push ix
-	call _PREPARESCROLL
+	call _PREPSCROLLXY
        pop ix
         ret
 __endasm;
 }
-
+/*
 void incscroll(i16 scroll) __naked
 {
 __asm
@@ -84,14 +84,14 @@ __asm
         ret
 __endasm;
 }
-
+*/
 void drawscroll(void) __naked
 {
 __asm
 	ld hl,#2
 	add hl,sp
        push ix
-	call _DRAWSCROLL
+	call _DRAWSCROLLXY
        pop ix
         ret
 __endasm;
@@ -150,7 +150,7 @@ void set_sprite256(u8 id, u16 tile, u8 pal, i16 x, i16 y)
         sprlist[id].y = y-16;
         sprlist[id].tile = ((tile&0xff)>>1) + ((tile&0x0f00)>>2);
 }
-
+/*
 void setscroll(u16 scroll) __naked
 {
 __asm
@@ -166,20 +166,24 @@ __asm
         ret
 __endasm;
 }
-
+*/
 void scroll(i16 x, i16 y)
-{// TODO x
+{
 __asm
 	ld hl,#2
 	add hl,sp
+       ld e,(hl)
        inc hl
+       ld d,(hl)
        inc hl
 	ld a,(hl)
         inc hl
 	ld h,(hl)
         ld l,a
+;hl=y
+;de=x
        push ix
-	call _SETSCROLL
+	call _SETSCROLLXY
        pop ix
         ret
 __endasm;
@@ -262,16 +266,16 @@ u16 curscroll;
 	set_res(MODE320X240);
 	pal_bright(BRIGHT_MID);
 sprites_start();
-	intro();
 /*
-preparescroll("bg2-16.bmp");
+preparescroll("bg1-16.bmp");
 curscroll=0;
 while(1) {
-scroll(0, curscroll++);
+scroll(0, curscroll);
 drawscroll();
 swap_screen_scroll();
 }
 */
+	intro();
 	scroll(0, 0);
 	init_pool();
 	state = STATE_MENU;

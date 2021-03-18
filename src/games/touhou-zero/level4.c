@@ -262,7 +262,7 @@ void process_patchu()
     if (boss->sprite.x > 280 || boss->sprite.x < 30) 
         boss->sprite.dx = -boss->sprite.dx;
 
-    if (scroll_pos < 2 || scroll_pos > 260) {
+    if (scroll_pos < 2 || scroll_pos > 300/*260*/) {
         scroll_speed = -scroll_speed;
     }
 
@@ -312,7 +312,7 @@ init_level(PAL256_BG8, "bg8-16.bmp");
     pal_bright(BRIGHT_MIN);
     swap_screen();
     unpack_pal256(PAL256_BG8, 0);
-    unpack_pal16(PAL16_SPRITES, 15, 0);
+    //unpack_pal16(PAL16_SPRITES, 15, 0);
     pal_bright(BRIGHT_MID);
     swap_screen();
     process_level = process_patchu;
