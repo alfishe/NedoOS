@@ -109,12 +109,12 @@ u8 create_sprite(u8 a, u8 wid8, u8 hgt8)
         //u8 id = 0;
         return id++;
 }
-
+/*
 void begin_set_sprites()
 {
         //id = 0;
 }
-
+*/
 void end_set_sprites()
 {
     u8 i;

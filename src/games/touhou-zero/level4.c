@@ -179,7 +179,8 @@ void dialog_l4p2()
 //swap_screen();
     wait_for_space();
     //init_level(IMG256_BG7);
-init_level(PAL256_BG7, "bg7-16.bmp");
+init_level(0/*PAL256_BG7*/, "bg7-16.bmp");
+unpack_pal256(PAL256_BG7, 0);
     state = STATE_PLAY;
     process_level = process_level4;
     bullet_sprite = DEFAULT_BULLET;
@@ -304,14 +305,15 @@ void dialog_l4p3()
     wait_for_space();
     init_dialog();
     swap_screen();
-    put_dialog_string(REIMU_FACE, "I need to talk with you", 1);
+    put_dialog_string(REIMU_FACE, "I need to talk with you.", 1);
 //swap_screen();
     wait_for_space();
     //init_level(IMG256_BG8);
+music_stop();
 init_level(PAL256_BG8, "bg8-16.bmp");
     pal_bright(BRIGHT_MIN);
     swap_screen();
-    unpack_pal256(PAL256_BG8, 0);
+    //unpack_pal256(PAL256_BG8, 0);
     //unpack_pal16(PAL16_SPRITES, 15, 0);
     pal_bright(BRIGHT_MID);
     swap_screen();
@@ -400,7 +402,8 @@ void dialog_l4p1()
     process_level = process_flandre;
     wait_for_space();
     //init_level(IMG256_BG7);
-init_level(PAL256_BG7, "bg7-16.bmp");
+init_level(0/*PAL256_BG7*/, "bg7-16.bmp");
+unpack_pal256(PAL256_BG7, 0);
     push_npc(32, 32, 2, 3, FLANDRE, BOSS_TYPE, 500, HEALTH_CARD);
     state = STATE_PLAY;
 }

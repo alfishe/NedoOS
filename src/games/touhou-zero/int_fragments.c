@@ -340,7 +340,7 @@ void int_make_shooting_star(u8 type,u16 x, u16 y, u16 tile, u16 hp)
             push_npc(x - 19, y + 61, 0, 0, tile, type, hp, BONUS_CARD); 
             break;                                                
         case 0 + 10:                                     
-            push_npc(x - 50/*51*/, y + 30, 0, 0, tile, type, hp, BONUS_CARD); 
+            push_npc(x - 50/*51*/, y + 38/*30*/, 0, 0, tile, type, hp, BONUS_CARD); 
             break;                                                
         case 0 + 15:                                     
         case 0 + 20:                                     

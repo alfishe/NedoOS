@@ -106,6 +106,7 @@ static void init_level2()
     init_vm(l2intro);
     flush_sprites();
     //start_level(IMG256_BG3, "Fairies Lake");
+music_stop();
 start_level(PAL256_BG3, "bg3-16.bmp", "Fairies Lake");
     music_play(MUS_GLASSED);
     bullet_sprite = DEFAULT_BULLET;
@@ -122,7 +123,8 @@ static void l2b_dialog()
     wait_for_space();
     flush_sprites();
     //init_level(IMG256_BG3);
-init_level(PAL256_BG3, "bg3-16.bmp");
+init_level(0/*PAL256_BG3*/, "bg3-16.bmp");
+unpack_pal256(PAL256_BG3, 0);
     init_vm(level2_bc);
 }
 
@@ -130,9 +132,9 @@ static void l2f_dialog()
 {
     init_dialog();
     swap_screen();
-    put_dialog_string(CIRNO_FACE, "Okey, okey...\nYou beat strongest boss!", 0);
-    put_dialog_string(REIMU_FACE, "Hey, insect!\nHave you seen my donation box?", 1);
-    put_dialog_string(CIRNO_FACE, "Why do I need empty box?\nNo. I don't need it", 0);
+    put_dialog_string(CIRNO_FACE, "Okay, okay...\nYou've beaten the\nstrongest boss!", 0);
+    put_dialog_string(REIMU_FACE, "Hey, insect!\nHave you seen my donation\nbox?", 1);
+    put_dialog_string(CIRNO_FACE, "Why do I need empty box?No. I don't need it.", 0);
     put_dialog_string(REIMU_FACE, "We'll talk again!\nI have no time for bugs now!", 1);
 //swap_screen();
     wait_for_space();
@@ -196,18 +198,20 @@ static void process_boss2()
 
 static void l2m_dialog()
 {
-    music_play(MUS_CIRNO);
+music_stop();
+init_level(PAL256_BG4, "bg4-16.bmp");
+    music_play(MUS_CIRNO); //TODO почему где-то здесь приостанавливается музыка?
     init_dialog();
     swap_screen();
     put_dialog_string(REIMU_FACE, "Hey, BUG!\nSTOP! I SAID STOP!", 1);
-    put_dialog_string(CIRNO_FACE, "Whaat?\nYou are talking with\nfinal boss!", 0);
-    put_dialog_string(REIMU_FACE, "You are second...\nIf Marisa was first.", 1);
+    put_dialog_string(CIRNO_FACE, "Whaat?\nYou are talking with\nthe final boss!", 0);
+    put_dialog_string(REIMU_FACE, "You are the second...\nIf Marisa was the first.", 1);
     put_dialog_string(CIRNO_FACE, "It's your final!", 0);
 //swap_screen();
     wait_for_space();
     flush_sprites();
     //init_level(IMG256_BG4);
-init_level(PAL256_BG4, "bg4-16.bmp");
+unpack_pal256(PAL256_BG4, 0);
 
     level_loop = 0;
     bullet_sprite = CIRNO_BULLET;

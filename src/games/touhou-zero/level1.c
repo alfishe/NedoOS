@@ -18,22 +18,24 @@ static void dialog_level1();
 static void prepare_boss1()
 {
     flush_sprites();
+music_stop();
+init_level(PAL256_BG2, "bg2-16.bmp");
     music_play(MUS_NWZ);
     dialog_level1();
     bullet_sprite = MARISA_BULLET;
     //init_level(IMG256_BG2);
-init_level(PAL256_BG2, "bg2-16.bmp");
+unpack_pal256(PAL256_BG2, 0);
     scroll_pos = 192;
     push_npc(144, 20, 0, 0, MARISA, 255, 1500, 1);
 }
 
 static void l1f_dialog()
 {
-    init_dialog();
+    init_dialog(); //TODO почему где-то здесь приостанавливается музыка?
     swap_screen();
     put_dialog_string(MARISA_FACE, "Cool down, Reimu!", 0);
     put_dialog_string(REIMU_FACE, "???", 1);
-    put_dialog_string(MARISA_FACE, "I've heard buzzing\nfairies near Shrine", 0);
+    put_dialog_string(MARISA_FACE, "I've heard buzzing\nfairies near Shrine.", 0);
     put_dialog_string(REIMU_FACE, "Welll...\nThese insects will subside\nnow.", 1);
 //swap_screen();
     wait_for_space();

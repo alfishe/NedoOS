@@ -252,7 +252,7 @@ static void flush_sprites()
         if (cnt < MAX_BONUS_COUNT)
             bonuses[cnt].y = 400;
     }
-begin_set_sprites();
+//begin_set_sprites();
     update_sprites(0);
     update_sprites(1);
 end_set_sprites();

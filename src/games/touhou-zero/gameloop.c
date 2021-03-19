@@ -74,7 +74,7 @@ init_level(pal, fn);
 static void init_level(u8 pal, char *fn)
 {
     pal_bright(BRIGHT_MIN);
-preparescroll(fn);
+if (pal) preparescroll(fn);
 /*    if (image == IMG256_BG8) 
         unpack_pal256(PAL256_BG8, 0);
     else 
@@ -84,7 +84,7 @@ unpack_pal256(pal, 0);
     //unpack_pal16(PAL16_SPRITES, 15, 0);
     //draw_image_g256(0, 0, image);
 scroll(0, 0);
-drawscroll();
+//drawscroll();
     pal_bright(BRIGHT_MID);
     player.x = 120;
     player.y = 168;
@@ -96,7 +96,7 @@ drawscroll();
     level_loop = 0;
     schedule = 0;
     add_cnt = 0;
-sprites_start();
+//sprites_start();
 }
 
 
@@ -214,7 +214,7 @@ void game_loop()
             anim_frame++;
         anim_frame &= 3;
 
-        player.tile = (immortality & 1) ? 2560 : 0;
+        player.tile = (immortality & 1) ? 1072/*2560*/ : 0;
         if (schedule & 1)
         {
             keyboard(keys);
@@ -230,7 +230,7 @@ void game_loop()
         {
             state = STATE_GAMEOVER;
         }
-begin_set_sprites();
+//begin_set_sprites();
         update_sprites(schedule & 1);
         //update_sprites(0);
         //update_sprites(1);

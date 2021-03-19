@@ -88,6 +88,8 @@ void put_str(u8 *str)
 
 void init_text()
 {
+pal_bright(BRIGHT_MIN);
+vsync();
 //sprites_stop();
 set_sprite(0,0,0,-1);
 	unpack_pal256(PAL256_FONT, 0);
@@ -98,6 +100,8 @@ set_sprite(0,0,0,-1);
 set_sprite(0,0,0,-1);
 	clear_screen(0);
 	swap_screen();
+//clear_screen(0);
+//swap_screen();
 	pal_bright(BRIGHT_MID);
 	text_x = 0;
 	text_y = 0;

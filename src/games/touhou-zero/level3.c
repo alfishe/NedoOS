@@ -162,7 +162,8 @@ static void dialog_l3b()
     wait_for_space();
     flush_sprites();
     //init_level(IMG256_BG5);
-init_level(PAL256_BG5, "bg5-16.bmp");
+init_level(0/*PAL256_BG5*/, "bg5-16.bmp");
+unpack_pal256(PAL256_BG5, 0);
     init_vm(level3);
 }
 
@@ -224,6 +225,8 @@ static void process_boss3()
 
 static void dialog_l3m()
 {
+music_stop();
+init_level(PAL256_BG6, "bg6-16.bmp");
     music_play(MUS_HARD);
     init_dialog();
     swap_screen();
@@ -238,7 +241,7 @@ static void dialog_l3m()
 //swap_screen();
     wait_for_space();
     //init_level(IMG256_BG6);
-init_level(PAL256_BG6, "bg6-16.bmp");
+unpack_pal256(PAL256_BG6, 0);
     level_loop = 0;
     process_level = process_boss3;
     scroll_pos = 192;
