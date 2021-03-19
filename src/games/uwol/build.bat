@@ -27,10 +27,10 @@ set palette.3=gfx\finend.bmp
 set palette.4=gfx\fingoo.bmp
 set palette.5=gfx\gover.bmp
 set palette.6=gfx\mojon.bmp
-set palette.70=gfx\title4warp0.bmp
-set palette.71=gfx\title4warp1.bmp
-set palette.72=gfx\title4warp2.bmp
-set palette.73=gfx\title4warp3.bmp
+set palette.10=gfx\title4warp0.bmp
+set palette.11=gfx\title4warp1.bmp
+set palette.12=gfx\title4warp2.bmp
+set palette.13=gfx\title4warp3.bmp
 
 rem список изображений, откуда брать графику
 
@@ -41,8 +41,12 @@ set image.3=gfx\finend.bmp
 set image.4=gfx\fingoo.bmp
 set image.5=gfx\gover.bmp
 set image.6=gfx\mojon.bmp
-set image.70=gfx\title4warp.bmp
-set image.71=gfx\title4warp_.bmp
+set image.10=gfx\title4warp.bmp
+set image.11=gfx\title4warp_.bmp
+
+set image.12=gfx\tilesa.bmp
+set image.13=gfx\tilesa.bmp
+rem чтобы совпадала нумерация image=pal (требуется в коде игры)
 
 rem спрайты
 

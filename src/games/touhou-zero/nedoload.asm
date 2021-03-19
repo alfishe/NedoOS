@@ -30,7 +30,7 @@ INTSTACK=0x4000
 
 SND_PAGE=0;(0^INVMASK)
 SPTBL_PAGE=1;(6^INVMASK)
-PAL_PAGE=2;(4^INVMASK)
+PAL_PAGE=0;2;(4^INVMASK)
 
 SPBUF_PAGE0=3;(8^INVMASK)
 SPBUF_PAGE1=4;(9^INVMASK)
@@ -44,8 +44,7 @@ CC_PAGE3=9;(12^INVMASK)
 
 GFX_PAGE=10;(16^INVMASK) ;и далее
 
-
-IMG_LIST =0xd000;#1000
+;IMG_LIST =0xd000;#1000
 
 ;смещения в SND_PAGE
 
@@ -171,7 +170,6 @@ pushbase=0x8000;c000
         org PROGSTART
 begin
         ld sp,STACK
-        OS_HIDEFROMPARENT
 
 ;        ld b,25
 ;waitcls0
@@ -180,7 +178,7 @@ begin
 ;        pop bc
 ;        djnz waitcls0 ;чтобы nv не перехватил фокус при вызове через комстроку
 
-        ld e,0+128 ;+128=keep
+        ld e,0;+128 ;+128=keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 	ld e,0
 	OS_SETSCREEN
@@ -204,6 +202,10 @@ begin
 ;pgmainc000=$+1
 ;        ld a,0
         ld (tpages+CC_PAGE3),a
+
+;d=pgmain0000
+        call dropotherapps ;OS_HIDEFROMPARENT
+
         call setpgsmain40008000 ;записать в curpg...
 
         ;OS_GETSCREENPAGES
@@ -235,9 +237,14 @@ begin
         ld hl,sprtblfilename
         call loadpage ;CY=error
         ld (tpages+1),a
-        ld hl,palfilename
-        call loadpage ;CY=error
-        ld (tpages+2),a
+        ld de,palfilename
+        ld hl,palettes
+        ld bc,12*16
+        call loadbinpg_sizebc
+        ;call loadpage ;CY=error
+        ;ld (tpages+2),a
+
+        call uvscroll_prepare
 
         ld de,tpages+GFX_PAGE
 
@@ -265,6 +272,7 @@ loadloop_nextdigit0
         ;djnz loadloop0
 loadloop0q
         
+       if 0 ;для touhou не нужен буфер фона
         ld hl,tpages+SPBUF_PAGE0
         ld b,4
 mkpages0
@@ -276,15 +284,11 @@ mkpages0
         inc l
         pop bc
         djnz mkpages0
+       endif
 
         call initsfx
 
         call swapimer
-
-        ;call bgpush_init
-       ;jr $
-        call uvscroll_prepare
-        ;jp testscrolluv
 
         if 1==0
         call loadpage
@@ -330,6 +334,31 @@ pgmusic=$+1
 tpages
         ds 256 ;pages
 
+dropotherapps
+;d=pgmain0000
+;от последних id (детей) к первым (родителям), т.к. при dropapp будится родитель
+        ld e,0xfe ;no id 0xff
+dropotherapps0
+        push de
+        OS_GETAPPMAINPAGES ;d,e,h,l=pages in 0000,4000,8000,c000, c=flags ;a!=0: no app
+        or a
+        ld a,d
+        pop de
+        jr nz,dropotherapps_skip ;no app
+       cp d
+       jr z,dropotherapps_skip ;my app
+        push de
+        ;e=id
+        OS_DROPAPP
+        pop de
+dropotherapps_skip
+        dec e
+        ld a,e
+        dec a ;no id 0 ;id 1 = idle
+        jr nz,dropotherapps0
+        ret
+
+       if 0
 testscrolluv
 ;UV scroll
         ld de,bgxyfilename
@@ -448,6 +477,7 @@ oldmouse=$+1
         
 bgxyfilename
         db "bg1-16.bmp",0
+       endif
 
 initsfx
 	;определение TS
@@ -526,17 +556,18 @@ waitchangescr1
 
 
 loadbinpg
+        ld bc,0x4000
+loadbinpg_sizebc
+;de=filename
+;hl=addr
+;bc=size
         push hl
+       push bc
         OS_OPENHANDLE
+       pop hl ;size
         pop de ;addr
         push bc
-         ;ld de,BINADDR ;addr
-         ;ld hl,0x4000 ;size
-         ;OS_READHANDLE
-         ;pop bc
-         ;push bc
-        ;ld de,BINADDR ;addr
-        ld hl,-BINADDR ;size
+        ;ld hl,-BINADDR ;size
         OS_READHANDLE
         pop bc
         OS_CLOSEHANDLE                
@@ -556,6 +587,8 @@ loadpage
         push hl
        push bc
         OS_NEWPAGE
+        or a
+        jr nz,$
        pop bc
         pop hl
         ld a,e
@@ -756,8 +789,21 @@ _swap_screen
 	push af
 	jr z,.noSpr0
 	call setShadowScreen
-	call updateTilesToBuffer
-	call prspr
+       ;TODO draw changed tiles to another screen (or copy them screen to screen)
+       call getuser_scr_low_cur
+       SETPGC000
+       ld hl,0x4000
+       ld de,0xc000
+       ld bc,0x4000
+       ldir
+       call getuser_scr_high_cur
+       SETPGC000
+       ld hl,0x8000
+       ld de,0xc000
+       ld bc,0x4000
+       ldir
+	;call updateTilesToBuffer
+	;call prspr
 .noSpr0
 
 	halt
@@ -782,9 +828,9 @@ _swap_screen
 	pop af
 	jr z,.noSpr1
 
-	call setShadowScreen
-	call respr ;remove only for touhou
-	call updateTilesFromBuffer
+	;call setShadowScreen
+	;call respr ;remove only for touhou
+	;call updateTilesFromBuffer
 	;MRestoreMemMap012
         call RestoreMemMap3;0
         call RestoreMemMap12
@@ -846,16 +892,22 @@ pal_get_address
 	add hl,hl
 	add hl,hl
 	add hl,hl
-         set 7,h
-         set 6,h
+         ;set 7,h
+         ;set 6,h
+       ld de,palettes
+       add hl,de
 
-	;ld bc,MEM_SLOT0
-	ld a,PAL_PAGE
-	;out (c),a
-        call setpgc000;SETPG32KHIGH
+	;ld a,PAL_PAGE
+        ;call setpgc000;SETPG32KHIGH
 	ret
 
-
+palettes
+        ds 12*16
+IMG_LIST ;was in PAL_PAGE +0x1000 ;1 image: font
+        db 0
+        db 0
+        db 0x10
+        db 0x10
 
 _pal_select
 	call pal_get_address

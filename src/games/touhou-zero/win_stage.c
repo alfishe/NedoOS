@@ -8,21 +8,24 @@
 
 void win_stage()
 {
+u16 curscroll = 1;
+i16 curdscroll = 1;
+u16 cycles = 256*6;
+preparescroll("final-16.bmp");
     music_play(MUS_WIN);
     pal_bright(BRIGHT_MIN);    
     scroll(0, 0);
     unpack_pal256(PAL256_FINAL, 0);
-    draw_image_g256(0, 0, IMG256_FINAL);
+    //draw_image_g256(0, 0, IMG256_FINAL);
     pal_bright(BRIGHT_MID);
 swap_screen();
 
-    for (i=0;i<255;i++) {
-        vsync();//swap_screen();
-        vsync();//swap_screen();
-        vsync();//swap_screen();
-        vsync();//swap_screen();
-        vsync();//swap_screen();
-        vsync();//swap_screen();
+    for (;cycles!=0;cycles--) {
+scroll(0, 512-240+curscroll);
+drawscroll();
+if ((curscroll==0)||(curscroll==40)) curdscroll = -curdscroll;
+curscroll+=curdscroll;
+        swap_screen_scroll();
     }
 
     init_text();

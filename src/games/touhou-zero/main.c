@@ -192,6 +192,7 @@ __endasm;
 
 static u16 score;
 static u8 lifes;
+static u8 cheat_on;
 
 #include "sprite_pool.c"
 
@@ -206,24 +207,31 @@ static u8 lifes;
 
 void intro()
 {
+u16 curscroll = 1;
+i16 curdscroll = 1;
+preparescroll("title-16.bmp");
 	unpack_pal256(PAL256_TITLE, 0);
-	draw_image_g256(0, 0, IMG256_TITLE);
-	text_x = 11;
+	//draw_image_g256(0, 0, IMG256_TITLE);
+	/*text_x = 11;
 	text_y = 22;//25;
 	//put_slow_str("This is party version!");
 	text_y += 2;
 	text_x = 12;
-	put_slow_str("Press SPACE to start");
+	put_slow_str("Press SPACE to start");*/
         swap_screen();
 	while (!keys[FIRE])
 	{
 		keyboard(keys);
-		vsync();//swap_screen();
+scroll(0, 512-240+curscroll);
+drawscroll();
+if ((curscroll==0)||(curscroll==40)) curdscroll = -curdscroll;
+curscroll+=curdscroll;
+		swap_screen_scroll();
 	}
 	for (cnt = BRIGHT_MID; cnt > BRIGHT_MIN; cnt--)
 	{
 		pal_bright(cnt);
-		vsync();//swap_screen();
+		swap_screen();
 	}
 }
 
@@ -255,7 +263,6 @@ void state_manager()
 
 void main(void)
 {
-u16 curscroll;
 	// Порт 0x20AF - порт управления скоростью CPU. Значение 6 - это 14МГц и включенный кэш(0110)
 	//__asm
 	//ld bc, #0x20af
@@ -276,6 +283,7 @@ swap_screen_scroll();
 }
 */
 	intro();
+//win_stage();
 	scroll(0, 0);
 	init_pool();
 	state = STATE_MENU;

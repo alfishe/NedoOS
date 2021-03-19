@@ -36,8 +36,8 @@ set palette.11=gfx\bg8-16.bmp
 rem список изображений, откуда брать графику
 
 set image.0=gfx\font-16.bmp
-set image.1=gfx\title-16.bmp
-set image.2=gfx\final-16.bmp
+rem set image.1=gfx\title-16.bmp
+rem set image.2=gfx\final-16.bmp
 rem set image.3=gfx\bg1-16.bmp
 rem set image.4=gfx\bg2-16.bmp
 rem set image.5=gfx\bg3-16.bmp

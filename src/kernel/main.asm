@@ -2,7 +2,11 @@
         ;device pentagon1024
 
         include "../_sdk/syssets.asm"
+       ifdef USETOPDOWNMEM
+TOPDOWNMEM=1
+       else
 TOPDOWNMEM=0;1
+       endif
 
 		if atm != 2
 memport0000=0x37f7

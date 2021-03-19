@@ -3258,7 +3258,25 @@ syspath
 ;для TASiS: не используются страницы ОЗУ 0x00, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
 ;для избежания гибернации: не используются страницы ОЗУ 128K
 tsys_pages
-        ds 8,0xff ;системные страницы 128K
+        ifdef FREEPG0
+        db 0
+        else
+        db 0xff
+        endif
+        ds 3,0xff ;системные страницы 128K: 1,2,3
+        ifdef FREEPG4
+        db 0
+        else
+        db 0xff
+        endif
+        db 0xff ;pg5
+        ifdef FREEPG6
+        db 0
+        else
+        db 0xff
+        endif
+        db 0xff ;pg7
+;;;;;;;;;;
         if TOPDOWNMEM
         db 0,0,0,0
         else
@@ -3267,11 +3285,16 @@ tsys_pages
         db 0,0,0,0 ;0x08..0x0f
         db 0,0,0,0,0,0,0,0 ;0x10..0x17
         db 0,0,0 ;0x18..0x1a
-        ifdef KOE
-        db 0,0,0,0,0 ;0x1b..0x1f
-        else
+        ifdef ATMRESIDENT
         db 0xff,0xff,0xff,0xff,0xff ;0x1b..0x1f for resident
+        else
+        db 0,0,0,0,0 ;0x1b..0x1f
         endif
+        ;ifdef KOE
+        ;db 0,0,0,0,0 ;0x1b..0x1f
+        ;else
+        ;db 0xff,0xff,0xff,0xff,0xff ;0x1b..0x1f for resident
+        ;endif
        dup sys_npages-32-4
        ifdef KOE
 _=$-tsys_pages

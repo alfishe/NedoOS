@@ -290,7 +290,7 @@ static MovableSprite *is_player_collide_with_pups()
 static u8 is_player_collide()
 {
 #ifdef CHEAT
-return 0;
+if (cheat_on) return 0;
 #endif
     for (cnt = 0; cnt < BULLETS_count; cnt++)
         if (is_bullet_active(&bullets[cnt]) && is_player_collide_with_bullet(&bullets[cnt]))

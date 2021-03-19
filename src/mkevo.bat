@@ -5,6 +5,7 @@ echo NEMOIDE=1 >> _sdk\syssets.asm
 echo SYSDRV=12 >> _sdk\syssets.asm
 echo INETDRV=0x01 >> _sdk\syssets.asm
 echo PS2KBD=0x01 >> _sdk\syssets.asm
+echo  define ATMRESIDENT >> _sdk\syssets.asm
 call make.bat noneedtrd
 cd  kernel
 ..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul

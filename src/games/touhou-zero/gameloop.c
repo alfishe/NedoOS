@@ -136,6 +136,10 @@ static void player_control()
         player.y += 4;
     if (keys[FIRE])
         user_fire();
+#ifdef CHEAT
+    if (keys[KEY_C]&&keys[KEY_CAPS])
+        cheat_on = 1;
+#endif
 
     if (player.x < MIN_X_RES/*0*/)
         player.x = MIN_X_RES/*0*/;

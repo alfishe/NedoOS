@@ -173,7 +173,7 @@ void dialog_l4p2()
 { 
     init_dialog();
     swap_screen();
-    put_dialog_string(FLAN_FACE, "So...\nYou played with me!\nWhat do you want?", 0);
+    put_dialog_string(FLAN_FACE, "So...\nYou've played with me!\nWhat do you want?", 0);
     put_dialog_string(REIMU_FACE, "I'm flying to kick\nyour bookworm's ass!", 1);
     put_dialog_string(FLAN_FACE, "Sister Flan is sitting\nin the library!", 0);
 //swap_screen();
@@ -236,8 +236,8 @@ void last_dialog()
 //swap_screen();
     wait_for_space(); init_dialog();
     swap_screen();
-    put_dialog_string(REIMU_FACE, "But how You appears\nhere?!", 1);
-    put_dialog_string(CIRNO_FACE, "Cause, I'm strongest!\nAnd Sakuya just opened\nthe door..", 0);
+    put_dialog_string(REIMU_FACE, "But how do you appear\nhere?!", 1);
+    put_dialog_string(CIRNO_FACE, "Cause I'm the strongest!And Sakuya just opened\nthe door..", 0);
     put_dialog_string(REIMU_FACE, "Fi-i-inee!\nLet's drink tonight!\nAnd even Cirno-tan.", 1);
 //swap_screen();
     wait_for_space(); 
