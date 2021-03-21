@@ -34,6 +34,18 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% hudmenu.ast --raw=%LOCALDIR%/hudmenu.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% cursors.ast --raw=cursors.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites0.ast --raw=%LOCALDIR%/sprites0.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites1.ast --raw=%LOCALDIR%/sprites1.bin
+echo RUS=0 >> settings.asm
+%SJASMPLUS% %SJASMPLUSFLAGS% 01GLEB.asm
+mhmt -mlz gleb.txt gleb.mlz > nul
+mhmt -mlz zlovet.txt zlovet.mlz > nul
+mhmt -mlz hevor.txt hevor.mlz > nul
+mhmt -mlz bukvin.txt bukvin.mlz > nul
+mhmt -mlz jora.txt jora.mlz > nul
+mhmt -mlz petro.txt petro.mlz > nul
+mhmt -mlz alena.txt alena.mlz > nul
+mhmt -mlz fekla.txt fekla.mlz > nul
+mhmt -mlz zadolb.txt zadolb.mlz > nul
+mhmt -mlz replic.txt replic.mlz > nul
 sjasmplus --nologo --msg=war spr0.asm
 sjasmplus --nologo --msg=war spr1.asm
 sjasmplus --nologo --msg=war sprtran0.asm
