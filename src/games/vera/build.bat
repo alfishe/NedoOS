@@ -51,8 +51,28 @@ sjasmplus --nologo --msg=war spr1.asm
 sjasmplus --nologo --msg=war sprtran0.asm
 sjasmplus --nologo --msg=war sprtran1.asm
 sjasmplus --nologo --msg=war --msg=war VERA.asm
+del veraeng.com
+ren vera.com veraeng.com
 rem sjasmplus113 INTRO2.asm
 rem sjasmplus113 VERALOAD.asm
+
+echo RUS=1 >> settings.asm
+%SJASMPLUS% %SJASMPLUSFLAGS% 01GLEB.asm
+mhmt -mlz gleb.txt gleb.mlz > nul
+mhmt -mlz zlovet.txt zlovet.mlz > nul
+mhmt -mlz hevor.txt hevor.mlz > nul
+mhmt -mlz bukvin.txt bukvin.mlz > nul
+mhmt -mlz jora.txt jora.mlz > nul
+mhmt -mlz petro.txt petro.mlz > nul
+mhmt -mlz alena.txt alena.mlz > nul
+mhmt -mlz fekla.txt fekla.mlz > nul
+mhmt -mlz zadolb.txt zadolb.mlz > nul
+mhmt -mlz replic.txt replic.mlz > nul
+sjasmplus --nologo --msg=war spr0.asm
+sjasmplus --nologo --msg=war spr1.asm
+sjasmplus --nologo --msg=war sprtran0.asm
+sjasmplus --nologo --msg=war sprtran1.asm
+sjasmplus --nologo --msg=war --msg=war VERA.asm
 
 @SET releasedir2=../../../release/
 @if "%currentdir%"=="" (
