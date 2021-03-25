@@ -16,11 +16,11 @@ char labelbuf[_STRMAX+1];
 char formatlabelbuf[_STRMAX+1];
 BYTE sizeword[4];
 BYTE pic[1024][1024];
-BYTE pixrow[1024/8][1024+1024];
+BYTE pixrow[1024/8+1][1024+1024];
 #define PIXROWSHIFT 1024
-BYTE maskrow[1024/8][1024];
+BYTE maskrow[1024/8+1][1024];
 //BYTE pixrowshift[1024/8][1024]; //>>4
-BYTE attrrow[1024/8];
+BYTE attrrow[1024/8+1];
 BYTE pal[64];
 
 #define CONVORDERSZ 1024
@@ -349,6 +349,30 @@ int j;
   };
 }
 
+void emitimgW(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{ //by columns
+BYTE b;
+int i;
+int j;
+  i = xchr;
+  while (1) {
+    fputs("\tdb ", fout);
+    j = y;
+    while (1) {
+      b = maskrow[i][j];
+                  //fprintf(fout, "0x%x%x ", i>>4, i&0x0f);
+                  //fprintf(fout, "0x%x%x ", j>>4, j&0x0f);
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      j++;
+      if (j >= (y+sprhgt)) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    i++;
+    if (i == (xchr+sprwid8)) break;
+  };
+}
+
 void emitchr_(int xchr, int y, FILE * fout)
 {
 BYTE b;
@@ -540,6 +564,10 @@ UINT color;
               fputs(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
+            }else if (sprformat == 'W') {
+              fputs(labelbuf, fout);
+              fputs("\n", fout);
+              rowhgt = sprhgt;
             }else { //'s'
               fputs(labelbuf, fout);
               fputs("\n", fout);
@@ -553,12 +581,16 @@ UINT color;
               //перекодируем ряд знакомест высотой rowhgt
               curink = 0x0f;
               curpaper = 0x08;
-              x = sprx;
+              x = 0;//sprx;
               while (x < (sprx+sprwid)) {
                 findinkpaper(x, y);
                 setcurinkpaper(&curink, &curpaper);
               //curink = 0x0f;
               //curpaper = 0x08;
+//  if (sprformat == 'W') {
+//    curpaper = 0;
+//    curink = 1;
+//  };
                 j = y;
                 while (j < (y+rowhgt)) {
                   b = 0x00;
@@ -574,6 +606,10 @@ UINT color;
                   };
                   pixrow[x/8][j] = b;
                   maskrow[x/8][j] = bmask;
+                  //fprintf(fout, "0x%x%x ", x>>4, x&0x0f);
+                  //fprintf(fout, "0x%x%x ", j>>4, j&0x0f);
+                  //fprintf(fout, "0x%x%x ", b>>4, b&0x0f);
+                  //fprintf(fout, "0x%x%x\n", bmask>>4, bmask&0x0f);
                   pixrow[(x/8)+1][j] = 0x00; //чтобы сдвигать
                   j++;
                 };
@@ -606,6 +642,9 @@ UINT color;
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'w') { //sprite antipixels16, antimask16
                 emitsprw(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'W') { //b/w image by columns
+                emitimgW(sprx/8,y,sprwid/8,sprhgt,fout);
+                //emitimgW(0,0,128,128,fout);
               };
               y = y+rowhgt;
             }; //while y
