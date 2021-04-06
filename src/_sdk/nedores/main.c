@@ -349,6 +349,28 @@ int j;
   };
 }
 
+void emitsprwnomask(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{ //antipixelsw
+BYTE b;
+int i;
+int j;
+  j = y;
+  while (1) {
+    fputs("\tdb ", fout);
+    i = xchr+sprwid8;
+    while (1) {
+      i--;
+      b = ~maskrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      if (i == xchr) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    j++;
+    if (j >= (y+sprhgt)) break;
+  };
+}
+
 void emitimgW(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
 { //by columns
 BYTE b;
@@ -560,7 +582,7 @@ UINT color;
               };
               fputs("\n", fout);
               rowhgt = sprhgt;
-            }else if (sprformat == 'w') {
+            }else if ((sprformat == 'w')||(sprformat == 'z')) {
               fputs(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
@@ -642,6 +664,8 @@ UINT color;
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'w') { //sprite antipixels16, antimask16
                 emitsprw(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'z') { //unmasked sprite
+                emitsprwnomask(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'W') { //b/w image by columns
                 emitimgW(sprx/8,y,sprwid/8,sprhgt,fout);
                 //emitimgW(0,0,128,128,fout);
