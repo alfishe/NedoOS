@@ -442,21 +442,23 @@ tag_frame
 ;TODO find src="..." (now we find last param)
         ;jr $
         call htmlskipspaces
+        display "tag_frame ",tag_frame
 tag_frame0
         ;ld a,(prcharvirtual_stateful_x)
         ;jr $
         
         ld a,(executetag_endchar)
         call htmlskipspaces_go
-
         ld de,wordbuf
         call getword_param_go ;в параметре могут быть закавыченные пробелы!
         ld (executetag_endchar),a
         or a
         ret z
-        cp '>'
-        jr nz,tag_frame0
-
+        ld hl,(wordbuf)
+        ld de,0x7273 ;check src attribute
+        sbc hl,de
+        jr nz,.no_src_attr
+        
         ld a,CLINKIMG
         ld (curlinkimg),a
         call setfontweight
@@ -468,14 +470,14 @@ tag_frame0
 ;read link to stringbuf2 until doublequote
 ;print it
         ld hl,wordbuf+5 ;after src="
-tag_frame_typetag0
+.tag_frame_typetag0
          ld a,(hl)
          or a
-         jp z,tag_frame_typetagq
+         jp z,.no_src_attr
          cp 34
-         jp z,tag_frame_typetagq
+         jp z,.no_src_attr
           cp "'"
-          jp z,tag_frame_typetagq
+          jp z,.no_src_attr
          inc hl
          push hl
          push af
@@ -483,7 +485,13 @@ tag_frame_typetag0
          pop af
         call printtostringbuf2
          pop hl
-         jr tag_frame_typetag0
+         jr .tag_frame_typetag0
+        
+.no_src_attr
+        ld a,(iy+0)
+        cp '>'
+        jr nz,tag_frame0
+        jp tag_frame_typetagq
 
 inithref
         display "inithref=",inithref

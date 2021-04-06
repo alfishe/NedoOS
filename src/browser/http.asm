@@ -409,7 +409,7 @@ tHTTP_host
 	db "Host: ",0
 tGETend
         db "\r\n"
-        db "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n"
+        db "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n"
         db "\r\n",0
 
 ;httpgetstr
