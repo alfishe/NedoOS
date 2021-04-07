@@ -59,6 +59,14 @@ curstringbuf1addr=$+1
 	 add hl,de
 	 pop de
 	 ret nc
+        cp ' '
+        jr nz,.no_spase
+.last_char=$+1
+        cp ' '
+        ret z
+.no_spase
+        ld (.last_char),a
+        ld (last_crlf_flag),a
         ld (hl),a
         inc hl
         ld (curstringbuf1addr),hl
@@ -476,6 +484,11 @@ prcharvirtual_crlf_stateful
         ld a,(printableflag)
         or a
         jr z,prcharvirtual_x0
+        
+last_crlf_flag=$+1
+        ld a,0  ;пропустим множественные переносы
+        or a
+        ret z
         call savestringbuf1
 curprintvirtualy=$+1
         ld hl,0
@@ -486,6 +499,7 @@ prcharvirtual_x0
         xor a
         ld (prcharvirtual_stateful_x),a
         ld (laststringx),a
+        ld (last_crlf_flag),a
         ret
 
 countlinewidth

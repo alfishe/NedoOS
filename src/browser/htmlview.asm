@@ -14,7 +14,6 @@ htmlview
         
 html_redrawloop
 ;redraw interface (TODO test)
-         display "html_redrawloop=",$
         call cleanstatusline
         call browser_editline_print
 

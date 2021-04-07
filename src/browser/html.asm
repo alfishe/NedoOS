@@ -12,7 +12,6 @@ CMARK=8
 
 
 loadhtml
-         display "decode html=",$
         push af ;first char
 ;skip spaces and line breaks
         cp 0xef ;hippiman.16mb.com начинается с ef bb bf (UTF-8 BOM)
@@ -134,7 +133,7 @@ mangledcharstrcp_fail
         cpir ;найдём обязательно
         jr mangledcharstrcp0
 mangledchar_error=loadhtml_mainloop
-        
+        display "loadhtml_mainloop_tag ",loadhtml_mainloop_tag
 loadhtml_mainloop_tag
         call RDBYTE;rdbyte
         ld (loadhtml_tagcloser),a
@@ -344,11 +343,7 @@ tag_input
 ;</form>
 ;TODO
         jp skiprestoftag
-
-tag_p
-        call prcharvirtual_crlf_stateful ;opening&closing
-        jp skiprestoftag
-
+        
 tag_code
 tag_pre
         push af ;z/nz
@@ -418,10 +413,12 @@ tag_u_b_iq
 tag_ul ;list
         jp nz,skiprestoftag ;opening (li does newline)
 tag_dd ;на lib.ru это перевод строки
+tag_p
 tag_div
-        ;jr $
-tag_table
+        call prcharvirtual_crlf_stateful
+        jp skiprestoftag
 tag_br
+        ld (last_crlf_flag),a
         call prcharvirtual_crlf_stateful
         jp skiprestoftag
 tag_tr
@@ -442,7 +439,6 @@ tag_frame
 ;TODO find src="..." (now we find last param)
         ;jr $
         call htmlskipspaces
-        display "tag_frame ",tag_frame
 tag_frame0
         ;ld a,(prcharvirtual_stateful_x)
         ;jr $
@@ -464,7 +460,6 @@ tag_frame0
         call setfontweight
          call rememberhrefyxposition
         call initstringbuf2
-
         ld a,'['
         call prcharvirtual_stateful
 ;read link to stringbuf2 until doublequote
@@ -975,6 +970,7 @@ tag_dt
 tag_doctype
 tag_span
 tag_html
+tag_table   ;перенос не нужен, так как далее tr
 tag_tbody
         jp skiprestoftag
 
