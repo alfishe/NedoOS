@@ -133,7 +133,6 @@ mangledcharstrcp_fail
         cpir ;найдём обязательно
         jr mangledcharstrcp0
 mangledchar_error=loadhtml_mainloop
-        display "loadhtml_mainloop_tag ",loadhtml_mainloop_tag
 loadhtml_mainloop_tag
         call RDBYTE;rdbyte
         ld (loadhtml_tagcloser),a
@@ -411,7 +410,7 @@ tag_u_b_iq
         jp skiprestoftag
         
 tag_ul ;list
-        jp nz,skiprestoftag ;opening (li does newline)
+       jp nz,skiprestoftag ;opening (li does newline)
 tag_dd ;на lib.ru это перевод строки
 tag_p
 tag_div
@@ -878,10 +877,12 @@ tag_title
         call prcharvirtual_crlf_stateful ;</title> forces newline
         xor a ;z
         jp tag_h1
-
+        display "tag_li ",tag_li
 tag_li ;list line (no closing tag)? но на msn.com куча <li ><a...>...</a></li>
-        jp z,skiprestoftag ;closing
+        push af 
         call prcharvirtual_crlf_stateful
+        pop af
+        jp z,skiprestoftag ;closing
         ld a,'*';'-';'*' ;TODO с учётом UTF8
         call prcharvirtual_stateful
         ld a,' '
@@ -970,6 +971,7 @@ tag_dt
 tag_doctype
 tag_span
 tag_html
+;tag_ul      ;перенос не нужен, так как далее li
 tag_table   ;перенос не нужен, так как далее tr
 tag_tbody
         jp skiprestoftag

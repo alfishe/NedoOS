@@ -47,30 +47,6 @@ first2pointer
         dw 0
 first2pointerHSB
         db 0
-
-;следить за переполнением STRINGBUFSZ!
-printtostringbuf1
-curstringbuf1addr=$+1
-        ld hl,stringbuf1
-	 push de
-	 ld de,stringbuf1+STRINGBUFSZ
-	 or a
-	 sbc hl,de
-	 add hl,de
-	 pop de
-	 ret nc
-        cp ' '
-        jr nz,.no_spase
-.last_char=$+1
-        cp ' '
-        ret z
-.no_spase
-        ld (.last_char),a
-        ld (last_crlf_flag),a
-        ld (hl),a
-        inc hl
-        ld (curstringbuf1addr),hl
-        ret
         
 ;следить за переполнением STRINGBUFSZ!
 printtostringbuf2
@@ -404,7 +380,7 @@ prcharvirtual_controlcode
         cp 0x09 ;tab
         jr z,prcharvirtual_tab_stateful
         cp 0x0a ;LF
-        jr z,prcharvirtual_crlf_stateful
+        jp z,prcharvirtual_crlf_stateful
         cp 0x0d ;CR
         ret z
         jr prcharvirtual_stateful_nocontrolcode
@@ -470,10 +446,38 @@ prcharvirtual_noutf8
         ld h,twinto866/256
         ld l,a
         ld a,(hl)
-        call printtostringbuf1
+        ;call printtostringbuf1        
+        
+        ;следить за переполнением STRINGBUFSZ!
+;printtostringbuf1
+curstringbuf1addr=$+1
+        ld hl,stringbuf1
+        push de
+        ld de,stringbuf1+STRINGBUFSZ
+        or a
+        sbc hl,de
+        add hl,de
+        pop de
+        jr nc,.over_full
+        cp ' '
+        jr nz,.no_space
+.last_char=$+1
+        cp ' '
+        jr nz,.no_space
+        pop af
+        ret
+.no_space
+        ld (.last_char),a
+        ld (last_crlf_flag),a
+        ld (hl),a
+        inc hl
+        ld (curstringbuf1addr),hl        
+ 
+.over_full 
         pop af
         cp 32
         ret c
+        display "prcharvirtual_stateful_x ",prcharvirtual_stateful_x
 prcharvirtual_stateful_x=$+1
         ld a,0
         inc a
@@ -484,11 +488,10 @@ prcharvirtual_crlf_stateful
         ld a,(printableflag)
         or a
         jr z,prcharvirtual_x0
-        
 last_crlf_flag=$+1
         ld a,0  ;пропустим множественные переносы
         or a
-        ret z
+        jr z,prcharvirtual_x0
         call savestringbuf1
 curprintvirtualy=$+1
         ld hl,0
