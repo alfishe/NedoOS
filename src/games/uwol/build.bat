@@ -45,7 +45,7 @@ set image.10=gfx\title4warp.bmp
 set image.11=gfx\title4warp_.bmp
 
 set image.12=gfx\tilesa.bmp
-set image.13=gfx\tilesa.bmp
+set image.13=gfx\tilesa_.bmp
 rem чтобы совпадала нумерация image=pal (требуется в коде игры)
 
 rem спрайты

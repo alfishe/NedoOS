@@ -5,7 +5,7 @@
 #define IMG_TITLE4WARP	2
 #define IMG_TITLE4WARP_	3
 #define IMG_TILESA	4
-#define IMG_TILESA	5
+#define IMG_TILESA_	5
 #define IMG_FINBAD	6
 #define IMG_FINEND	7
 #define IMG_FINGOO	8

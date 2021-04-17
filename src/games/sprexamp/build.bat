@@ -1,7 +1,7 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 if not exist sprexamp mkdir sprexamp
-"../../_sdk/nedores.exe" tiles1.bmp images/tiles.dat tiles.ast
+"../../_sdk/nedores.exe" images/tiles1.bmp images/tiles.dat tiles.ast
 "../../_sdk/nedores.exe" images/WBAR.bmp images/WBAR.dat WBAR.ast
 "../../_sdk/nedores.exe" images/WHUM1.bmp images/WHUM1.dat WHUM1.ast
 "../../_sdk/nedores.exe" images/WHUM1.bmp images/pal.dat pal.ast

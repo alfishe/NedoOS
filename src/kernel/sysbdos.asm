@@ -3291,23 +3291,21 @@ tsys_pages
         else
         db 0,0,0,0,0 ;0x1b..0x1f
         endif
-        ;ifdef KOE
-        ;db 0,0,0,0,0 ;0x1b..0x1f
-        ;else
-        ;db 0xff,0xff,0xff,0xff,0xff ;0x1b..0x1f for resident
-        ;endif
-       dup sys_npages-32-4
-       ifdef KOE
+      dup sys_npages-32-4
 _=$-tsys_pages
-        if (_ >= (64+8)) && (_ <= (64+12))
-        db 0xff
-        else
-        db 0
+_wrongpg=0
+       ifdef KEEPPG38
+        if (_ == 0x38)
+_wrongpg=0xff
         endif
-       else
-        db 0 ;0=empty, or else process number
        endif
-       edup
+       ifdef KOE
+        if (_ >= (64+8)) && (_ <= (64+12))
+_wrongpg=0xff
+        endif
+       endif
+       db _wrongpg ;0 ;0=empty, or else process number
+      edup
         if TOPDOWNMEM
         db 0xff,0xff,0xff,0xff ;системные страницы
         else

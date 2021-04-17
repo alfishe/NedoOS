@@ -7,6 +7,8 @@
 
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
+DEBUG=0
+
 MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
 txtscrhgt=25
 txtscrwid=80
@@ -76,6 +78,9 @@ tautoexecbat
 cmd_interactive
         
 cmdmainloop
+       if DEBUG
+        call printcurdir
+       endif
         call makeprompt
         call editcmd
         call prcrlf
@@ -454,7 +459,7 @@ execcmd_tryrunok
         ret
 
 execcmd_tryrunerror
-;выполнить файл с именем SYSDIR/cmdbuf и параметрами там
+;выполнить файл с именем SYSDIR/cmdbuf и параметрами там (через loadapp)
         call loadapp_keeppath
         OS_SETSYSDRV
         ld de,sysdir
@@ -656,7 +661,11 @@ loadapp_finddotok
          push af
         ld a,b
         ld (curhandle),a
-         call loadapp_setoldpath
+         ;call loadapp_setoldpath
+       if DEBUG
+         call printcurdir
+         ;call yieldgetkeyloop
+       endif
          pop af
         ret nz ;jr nz,execcmd_error ;NC!
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
@@ -1371,6 +1380,13 @@ cmd_type
         ld de,wordbuf
         call getword ;hl=terminator/space addr
 
+       if DEBUG
+        ld hl,wordbuf
+        ld c,0
+        call prtext
+        call prcrlf
+       endif
+
         ld de,wordbuf ;de=drive/path/file
         OS_OPENHANDLE
         or a
@@ -1816,6 +1832,20 @@ emptypath
 file_buf
         ds 128 ;buf for reading .bat
 file_buf_end=$-1
+
+        if DEBUG
+printcurdir
+        ld de,curdir__
+        push de
+        OS_GETPATH
+        pop hl
+        ld c,0
+        call prtext
+        call prcrlf
+        ret
+curdir__
+        ds 256
+        endif
 
         include "prdword.asm"
         include "cmdpr.asm"
