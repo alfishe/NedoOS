@@ -3146,6 +3146,7 @@ BDOS_reserv_1
         call BDOS_preparedepage
         call BDOS_setdepage
         ex de,hl
+        ld a,pgsys
         jp (hl)
 
 ;***********************‡€ƒ‹“˜Šˆ**************************	

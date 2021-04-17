@@ -8,7 +8,7 @@ rem echo SYSDRV=0 >> _sdk\syssets.asm
 echo INETDRV=0x00 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 rem echo 	define ATMRESIDENT >> _sdk\syssets.asm
-echo 	define USETOPDOWNMEM >> _sdk\syssets.asm
+rem echo 	define USETOPDOWNMEM >> _sdk\syssets.asm
 echo 	define FREEPG0 >> _sdk\syssets.asm
 echo 	define FREEPG4 >> _sdk\syssets.asm
 rem ^^^почему-то неправильно выводятся спрайты в Evo SDK
