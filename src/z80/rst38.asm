@@ -232,13 +232,15 @@ L028E   LD      L,$2F           ; initial key value
                                 ; valid values are obtained by subtracting
                                 ; eight five times.
         LD      DE,$FFFF        ; a buffer for 2 keys.
-
+       ld ix,keymatrix+7
         LD      BC,$FEFE        ; the commencing port address
                                 ; B holds 11111110 initially and is also
                                 ; used to count the 8 half-rows
 ;; KEY-LINE
-L0296   IN      A,(C)           ; read the port to A - bits will be reset
+L0296   ;IN      A,(C)           ; read the port to A - bits will be reset
                                 ; if a key is pressed else set.
+       ld a,(ix)
+       dec ix
         CPL                     ; complement - pressed key-bits are now set
         AND     $1F             ; apply 00011111 mask to pick up the
                                 ; relevant set bits.
