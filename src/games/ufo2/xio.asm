@@ -1,0 +1,67 @@
+;*** IO FOR UFO2: A-N(1..) HL-START DE-LENTGTH / CY=0 - ERROR
+XTAP
+*F xtap.a80
+SAVE    PUSH$
+	PUSH AF
+	PUSH IX
+	PUSH HL
+	POP IX
+	CALL 1222
+	POP IX
+	POP AF
+	POP$
+	RET
+
+LOAD	PUSH$
+	PUSH AF
+	PUSH IX
+	PUSH HL
+	POP IX
+	SCF
+	CALL 1366
+	POP IX
+	POP AF
+	POP$
+;	JR NC,LOAD
+	LD	A,0
+	OUT	(254),A
+	DI
+	RET
+
+NRFMAX	EQU 73+1
+;NRFT	DEFB 1 ;TAPE указатель
+NRF	DEFB 0 ;N файла
+Fstart	DEFW 0 ;адр.загрузки
+Flen	DEFW 0 ;длина
+READ    LD (NRF),A ;A-No;HL-start
+	LD (Fstart),HL
+	LD HL,XTAP-2
+	CALL WT
+	LD (Flen),HL
+REA1	LD A,(NRFT)
+	LD HL,NRF
+	CP (HL)
+	PUSH AF
+	LD HL,(Fstart)
+	LD DE,(Flen)
+	CALL LOAD
+	LD HL,NRFT
+	INC (HL)
+	LD A,(HL)
+	CP NRFMAX
+	JR C,REA2
+	LD (HL),1
+REA2	POP AF
+	RET Z
+	JR REA1
+
+OLD_TR	INC H ;[]-Совместимость с XIOD
+	INC H
+	INC H
+	INC H
+
+LD100
+D_READ	
+D_WRITE
+TR000	RET
+SIDE	DEFB 0
