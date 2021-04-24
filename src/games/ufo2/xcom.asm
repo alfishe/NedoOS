@@ -271,6 +271,16 @@ start	DI
 	CALL MENUC
 	CALL MU_ENT
 	CALL NO_3D
+       if 0
+       ld a,1
+       ld (T_UFO),a
+       ld (AQU),a ;число акванавтов
+       ld (AQNAVT),a ;имя
+       ld a,7
+       ld (AQNAVT+1),a ;ранг
+       call BATTLE
+       endif
+       ;call BATTL1
 	CALL MLOOP	;---начало
 ;	CALL XEARTH  ;--удали
 ;	CALL COPYAT  ;

@@ -642,6 +642,7 @@ NORMVEC DEFS	3
 PREVNRM DEFS	2
 
 DRWOBJ	;draws object
+        display "DRWOBJ=",DRWOBJ
 	XOR	A
 	LD	(PREVNRM),A
 	LD	DE,PTSNUM
@@ -657,7 +658,7 @@ DRWOBJ	;draws object
 	LD	HL,DONXT1
 	PUSH	HL
 	LD	HL,(INIPTR)
-	JP	(HL)
+	JP	(HL) ;первый раз = в SMT3INI
 DONXT1	LD	HL,DONXT2
 	PUSH	HL
 	LD	HL,(SMTPTR)

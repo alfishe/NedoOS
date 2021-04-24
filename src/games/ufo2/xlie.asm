@@ -796,11 +796,13 @@ LQWE	RES 7,(HL)
 ;	LDIR
 ;	RET
 
+       if 0
 LODLPc	LD HL,#4000 ;c компр
 	CALL WT
 	XOR A
 	CALL MEM
 	JP DELPC
+       endif
 
 BATREE	LD (WAREND),A
 	JR BATRET
@@ -825,7 +827,7 @@ lda	CALL LODmlz;LODLPc
 LODALX	LD DE,DSCR
 	PUSH DE
 	XOR A
-	CALL LODLPc
+	CALL LODmlz;LODLPc
 	CALL PT128
 	LD BC,#1500
 	POP HL
@@ -882,6 +884,7 @@ BATTLE    ;бой с нло
 	CALL SEABAT
 
 BATTL1	 ;битва
+        jr $
 	DI
 	CALL NOKEYw
 	 LD A,R
