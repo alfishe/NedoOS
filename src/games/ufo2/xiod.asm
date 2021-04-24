@@ -57,10 +57,21 @@ TR00	DI
 	JP	DOS
 
 READ	;A-No., HL - adr
+       push hl
+        call findsprfilename
+        ex de,hl ;de=filename
+        OS_OPENHANDLE
+       pop hl
+       push bc ;b=handle
+        OS_READHANDLE
+       pop bc ;b=handle
+        OS_CLOSEHANDLE
+        ret
+       
 	LD D,0
 	CP 73
 	JR C,REA0
-	INC D
+	INC D ;???
 REA0	LD (X0),HL
 	LD HL,X_LEN-2
 	CALL WA

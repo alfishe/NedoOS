@@ -154,3 +154,95 @@ texfilename
 ntexfilenames=5
         else
         endif
+
+findsprfilename
+;a=#=0..73
+        ld hl,sprfilenames
+findsprfilename0
+        or a
+        ret z
+        push af
+        xor a
+        ld b,a
+        ld c,a
+        cpir ;hl=после 0
+        pop af
+        dec a
+        jr findsprfilename0
+
+sprfilenames
+	DEFB "xm2.dat",0;	0,0 ;#1 (m2)
+	DEFB "xm3.dat",0;	1,150 ;#2 (m3)
+	DEFB "xm4.dat",0;	3,49 ;#3 (m4)
+	DEFB "xm5.dat",0;	7,5 ;#4 (m5)
+	DEFB "xm10.dat",0;	10,247 ;#5 (m10)
+	DEFB "xm7.dat",0;	14,152 ;#6 (m7)
+	DEFB "xm8.dat",0;	19,133 ;#7 (m8)
+	DEFB "xm9.dat",0;	22,169 ;#8 (m9)
+	DEFB "xm6.dat",0;	26,94 ;#9 (m6)
+	DEFB "xm11.dat",0;	29,173 ;#10 (m11)
+	DEFB "xm12.dat",0;	33,58 ;#11 (m12)
+	DEFB "xm13.dat",0;	37,213 ;#12 (m13)
+	DEFB "xm14.dat",0;	42,77 ;#13 (m14)
+	DEFB "xm15.dat",0;	44,11 ;#14 (m15)
+	DEFB "xm16.dat",0;	45,217 ;#15 (m16)
+	DEFB "xm17.dat",0;	47,209 ;#16 (m17)
+	DEFB "xm18.dat",0;	49,120 ;#17 (m18)
+	DEFB "xm19.dat",0;	51,58 ;#18 (m19)
+	DEFB "xm20.dat",0;	53,29 ;#19 (m20)
+	DEFB "XL2.LND",0;	54,198 ;#20 (l2)
+	DEFB "end.bin",0;	56,127 ;#21 (end)
+	DEFB "XL3.LND",0;	62,199 ;#22 (l3)
+	DEFB "XL4.LND",0;		64,84 ;#23 (l4)
+	DEFB "XL5A.LND",0;		66,26 ;#24 (l5a)
+	DEFB "XL5B.LND",0;		67,244 ;#25 (l5b)
+	DEFB "XL5C.LND",0;		69,154 ;#26 (l5c)
+	DEFB "XL5D.LND",0;		71,94 ;#27 (l5d)
+	DEFB "XL6A.LND",0;		72,247 ;#28 (l6a)
+	DEFB "XL6B.LND",0;		75,7 ;#29 (l6b)
+	DEFB "XL6C.LND",0;		77,43 ;#30 (l6c)
+	DEFB "XL6D.LND",0;		79,58 ;#31 (l6d)
+	DEFB "x2.bin",0;		81,67 ;#32 (X2) ;???
+	DEFB "XL7.LND",0;	81,71 ;#33 (l7)
+	DEFB "XL8A.LND",0;	83,32 ;#34 (l8a)
+	DEFB "XL8B.LND",0;	84,248 ;#35 (l8b)
+	DEFB "XL8C.LND",0;	86,214 ;#36 (l8c)
+	DEFB "XL8D.LND",0;	88,174 ;#37 (l8d)
+	DEFB "XL9.LND",0;	90,128 ;#38 (l9)
+	DEFB "x3.bin",0;	92,99 ;#39 (X3)
+	DEFB "XL10A.LND",0;	92,103 ;#40 (l10a)
+	DEFB "XL10B.LND",0;	93,141 ;#41 (l10b)
+	DEFB "XL10C.LND",0;	94,179 ;#42 (l10c)
+	DEFB "XL10D.LND",0;	95,225 ;#43 (l10d)
+	DEFB "XL11.LND",0;	97,14 ;#44 (l11)
+	DEFB "XL12.LND",0;	98,210 ;#45 (l12)
+	DEFB "XL13.LND",0;	100,74 ;#46 (l13)
+	DEFB "XL14.LND",0;	102,38 ;#47 (l14)
+	DEFB "XL15.LND",0;	103,88 ;#48 (l15)
+	DEFB "XL19.LND",0;	105,16 ;#49 (l19)
+	DEFB "XL17.LND",0;	105,217 ;#50 (l17)
+	DEFB "XL18.LND",0;	107,46 ;#51 (l18)
+	DEFB "XL16.LND",0;	108,109 ;#52 (l16)
+	DEFB "XL20.LND",0;	109,188 ;#53 (l20)
+	DEFB "up1.bin",0;	111,18 ;#54 (up1) ;???
+	DEFB "up2.bin",0;	116,94 ;#55 (up2)
+	DEFB "up3.bin",0;	121,183 ;#56 (up3)
+	DEFB "up4.bin",0;	127,21 ;#57 (up4)
+	DEFB "up5.bin",0;	131,62 ;#58 (up5)
+	DEFB "up6.bin",0;	138,99 ;#59 (up6)
+	DEFB "up7.bin",0;	150,43 ;#60 (up7)
+	DEFB "up8.bin",0;	161,37 ;#61 (up8)
+	DEFB "up9.bin",0;	172,200 ;#62 (up9)
+	DEFB "up10.bin",0;	184,174 ;#63 (up10)
+	DEFB "up11.bin",0;	191,192 ;#64 (up11)
+	DEFB "up12.bin",0;	202,114 ;#65 (up12)
+	DEFB "up13.bin",0;	206,254 ;#66 (up13)
+	DEFB "up14.bin",0;	211,239 ;#67 (up14)
+	DEFB "up15.bin",0;	217,97 ;#68 (up15)
+	DEFB "up16.bin",0;	225,4 ;#69 (up16)
+	DEFB "up17.bin",0;	231,142 ;#70 (up17)
+	DEFB "up18.bin",0;	238,185 ;#71 (up18)
+	DEFB "up19.bin",0;	249,150 ;#72 (up19)
+	DEFB "up20.bin",0;	3,246 ;#73 (up20)
+	DEFB "theend.bin",0;	15,13 ;the end
+

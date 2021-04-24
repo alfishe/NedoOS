@@ -35,6 +35,9 @@ mhmt -mlz blk3.bin > nul
 mhmt -mlz blk4.bin > nul
 %SJASMPLUS% %SJASMPLUSFLAGS% xcom2.asm
 
+copy ZX_DISC\xm*.dat ufo2
+copy XMAP\xl*.lnd ufo2
+
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
   FOR %%j IN (*.com) DO (

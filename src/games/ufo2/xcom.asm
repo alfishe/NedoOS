@@ -83,7 +83,7 @@ xL0
         incbin "ZX_DISC/XL0.LPC"
 xL1
 ;*B ..\ZX_DISC\XL1.LPC
-        ;incbin "ZX_DISC/XL1.LPC"
+        incbin "ZX_DISC/XL1.LPC"
 end3
 ;*P1 ***********Cтраница 1***********
         PAGE 1
