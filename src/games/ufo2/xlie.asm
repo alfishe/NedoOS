@@ -884,7 +884,6 @@ BATTLE    ;бой с нло
 	CALL SEABAT
 
 BATTL1	 ;битва
-        jr $
 	DI
 	CALL NOKEYw
 	 LD A,R

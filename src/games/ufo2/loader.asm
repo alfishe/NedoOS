@@ -156,10 +156,10 @@ ntexfilenames=5
         endif
 
 findsprfilename
-;a=#=0..73
+;a=#=1..74
         ld hl,sprfilenames
 findsprfilename0
-        or a
+        dec a
         ret z
         push af
         xor a
@@ -167,7 +167,6 @@ findsprfilename0
         ld c,a
         cpir ;hl=после 0
         pop af
-        dec a
         jr findsprfilename0
 
 sprfilenames

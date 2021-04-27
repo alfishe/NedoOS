@@ -34,7 +34,7 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% hudmenu.ast --raw=%LOCALDIR%/hudmenu.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% cursors.ast --raw=cursors.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites0.ast --raw=%LOCALDIR%/sprites0.bin
 rem %SJASMPLUS% %SJASMPLUSFLAGS% sprites1.ast --raw=%LOCALDIR%/sprites1.bin
-echo RUS=0 >> settings.asm
+echo RUS=0 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% 01GLEB.asm
 mhmt -mlz gleb.txt gleb.mlz > nul
 mhmt -mlz zlovet.txt zlovet.mlz > nul
@@ -56,7 +56,7 @@ ren vera.com veraeng.com
 rem sjasmplus113 INTRO2.asm
 rem sjasmplus113 VERALOAD.asm
 
-echo RUS=1 >> settings.asm
+echo RUS=1 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% 01GLEB.asm
 mhmt -mlz gleb.txt gleb.mlz > nul
 mhmt -mlz zlovet.txt zlovet.mlz > nul

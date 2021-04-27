@@ -77,13 +77,16 @@ xMARKER
         incbin "ZX_DISC/xmarker.dat"
 xUFO	
 ;*B ..\ZX_DISC\XM1.LPC
-        incbin "ZX_DISC/XM1.LPC"
+        ;incbin "ZX_DISC/XM1.LPC"
+        incbin "ZX_DISC/xm1.mlz"
 xL0
 ;*B ..\ZX_DISC\XL0.LPC
-        incbin "ZX_DISC/XL0.LPC"
+        ;incbin "ZX_DISC/XL0.LPC"
+        incbin "ZX_DISC/XL0.mlz"
 xL1
 ;*B ..\ZX_DISC\XL1.LPC
-        incbin "ZX_DISC/XL1.LPC"
+        ;incbin "ZX_DISC/XL1.LPC"
+        incbin "ZX_DISC/XL1.mlz"
 end3
 ;*P1 ***********Cтраница 1***********
         PAGE 1

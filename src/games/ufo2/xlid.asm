@@ -577,7 +577,7 @@ SIMBAR	PUSH	HL
 	CALL	CHNGRG
 	ENDM
 
-
+       if 0
 ;Декомпрессор
 ;HL-откуда DE-куда
 DLPCB	DEFS 4
@@ -643,6 +643,7 @@ xpDEND	LD HL,DLPCB
 	LD C,4
 	LDIR
 	RET
+       endif
 
 ;XECUTE MOUSE
 ;TAKE COORDINATES FROM CURPOS==MX

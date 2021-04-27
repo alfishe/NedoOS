@@ -3,7 +3,10 @@
 искать упакованный блок по содержимому?
 трассировать параллельно с рабочей версией?
 
-куда и что грузим для RTS?
+куда и что грузим для стратегии?
+xm19.dat
+XL19.LND
+
 db00 (pg7)
 9000
 ~9383
@@ -12,6 +15,28 @@ db00 (pg7)
 ~fxxx
 ~e5xx
 
-[почему не работает подводное сражение? как быстро туда перейти?
-или просто BATTLE, там call SEABAT (он вызывает LODALX)?
-вылетает на DRWOBJ - потому что не инициализировано T_UFO]
+
+почему ищет клетку с кодом 2, а её нет?
+
+даже если загрузить h:\map с e000 (рабочая карта)
+и почему запорота графика уровня?
+
+rem mhmt -mlz ZX_DISC\xm2.dat ufo2\xm2.dat > nul
+rem mhmt -mlz ZX_DISC\xm3.dat ufo2\xm3.dat > nul
+rem mhmt -mlz ZX_DISC\xm4.dat ufo2\xm4.dat > nul
+rem mhmt -mlz ZX_DISC\xm5.dat ufo2\xm5.dat > nul
+rem mhmt -mlz ZX_DISC\xm6.dat ufo2\xm6.dat > nul
+rem mhmt -mlz ZX_DISC\xm7.dat ufo2\xm7.dat > nul
+rem mhmt -mlz ZX_DISC\xm8.dat ufo2\xm8.dat > nul
+rem mhmt -mlz ZX_DISC\xm9.dat ufo2\xm9.dat > nul
+rem mhmt -mlz ZX_DISC\xm10.dat ufo2\xm10.dat > nul
+rem mhmt -mlz ZX_DISC\xm11.dat ufo2\xm11.dat > nul
+rem mhmt -mlz ZX_DISC\xm12.dat ufo2\xm12.dat > nul
+rem mhmt -mlz ZX_DISC\xm13.dat ufo2\xm13.dat > nul
+rem mhmt -mlz ZX_DISC\xm14.dat ufo2\xm14.dat > nul
+rem mhmt -mlz ZX_DISC\xm15.dat ufo2\xm15.dat > nul
+rem mhmt -mlz ZX_DISC\xm16.dat ufo2\xm16.dat > nul
+rem mhmt -mlz ZX_DISC\xm17.dat ufo2\xm17.dat > nul
+rem mhmt -mlz ZX_DISC\xm18.dat ufo2\xm18.dat > nul
+rem mhmt -mlz ZX_DISC\xm19.dat ufo2\xm19.dat > nul
+rem mhmt -mlz ZX_DISC\xm20.dat ufo2\xm20.dat > nul

@@ -60,8 +60,10 @@ READ	;A-No., HL - adr
        push hl
         call findsprfilename
         ex de,hl ;de=filename
+        jr $
         OS_OPENHANDLE
-       pop hl
+       pop de
+       ld hl,#4000
        push bc ;b=handle
         OS_READHANDLE
        pop bc ;b=handle

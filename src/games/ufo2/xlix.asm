@@ -87,6 +87,7 @@ USA_	CALL 	PT128
 	ADD	A,UP1st
 	LD	HL,SCR
 	CALL	READ
+       if 0 
 	LD	BC,(SCR)
 	LD	HL,SCR+2
 	ADD	HL,BC
@@ -97,6 +98,7 @@ USA_	CALL 	PT128
 	INC	HL
 	LD	DE,SCR
 	CALL	DELPC
+       endif
 	JR	USA_
 
 US1	PUSH DE
