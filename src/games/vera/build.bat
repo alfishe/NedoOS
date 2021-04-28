@@ -51,8 +51,8 @@ sjasmplus --nologo --msg=war spr1.asm
 sjasmplus --nologo --msg=war sprtran0.asm
 sjasmplus --nologo --msg=war sprtran1.asm
 sjasmplus --nologo --msg=war --msg=war VERA.asm
-del veraeng.com
-ren vera.com veraeng.com
+rem del veraeng.com
+rem ren vera.com veraeng.com
 rem sjasmplus113 INTRO2.asm
 rem sjasmplus113 VERALOAD.asm
 
