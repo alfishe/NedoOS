@@ -21,7 +21,7 @@ V42     DB "Hevor",13,"the elder",0
 V43     DB "Bookwyn the",13
         DB "librarian",0
 V44     DB "Eager",13,"the wolf",0
-V45     DB "Petro the",13,"pub owner",0
+V45     DB "Petro the",13,"innkeeper",0
 V46     DB "Alena",0
 V47     DB "Thecla",13
         DB "De Goule",0
@@ -56,8 +56,8 @@ V55     DB "Wheat",0
 V56     DB "Beehive",0
 V57     DB "Water well",0
 V58     DB "Church",0
-V59     DB "Goatling",0
-V60     DB "Living water",13,"well",0
+V59     DB "Goat",0
+V60     DB "Water of",13,"Life well",0
 V64     DB "Nothing",13
         DB "happened",0
 V65     DB "Bonfire",0
