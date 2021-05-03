@@ -476,6 +476,7 @@ M96	LD L,A
 MSizeP	pushs;$
 	CALL ASP
 	JR Z,MSiRET
+       ;jr $
 	PUSH HL
 	LD B,vSIZE/256
 	OR #80 ;(vSIZE mod 256)

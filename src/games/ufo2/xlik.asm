@@ -51,7 +51,9 @@ IA4	CALL RND
 	LD (IX+4),C
 IA5	ADD IX,DE
 	DJNZ IA4
-	CALL A_POS
+       if NOENEMY == 0
+	CALL A_POS ;размещение врагов
+       endif
 	CALL A_PARM
 	CALL A_GUN
 	RET
@@ -633,7 +635,9 @@ NX_MOV  ;----передача хода----
 	LD C,0
 	CALL REPA32
 	CALL ENDBAT
+       if PROTECT
 	CALL CHECK6 ;[]
+       endif
 	;паника людей
 	CALL PANIC
 	;проверка числа иссл []
@@ -1452,6 +1456,7 @@ G_TENT  CALL FLASHs  ;тентакулат
 	CALL FLASHs
 	JP FLASH
 
+       if PROTECT
 CHECT6	DEFW TAB100+50,TAB100+84
 
 CHECK6	PUSH AF
@@ -1473,3 +1478,4 @@ CHEC6_	LD HL,CHECT6
 	PUSH HL
 	POP IX
 	JP GET_XY
+       endif

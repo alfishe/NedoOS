@@ -1,4 +1,4 @@
-MXDM	DEFM	"////////////////////////" ;табл.альтернатив
+MXDM	db	"////////////////////////" ;табл.альтернатив
 
 ZT	DEFW	Z0,Z1,Z2,Z3,Z4,Z5,Z6,Z7,Z8,Z9,ZA,ZB,ZC,ZD,ZE,ZT
 MBU2	EQU	#DB00;(1024B-128)		;
@@ -772,7 +772,9 @@ L_ON	LD HL,#E000 ;[]-откр поле
 	LD BC,#2000
 	LD A,(xHACK)
 	CP #7F
+       if CHEATS == 0
 	RET NZ
+       endif
 LQWE	RES 7,(HL)
 	INC HL
 	DEC BC

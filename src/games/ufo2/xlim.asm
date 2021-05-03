@@ -45,7 +45,7 @@ GT_DE_	LD E,(HL)
 COMBAT  ;****************************** Бой **
 ;	0-Победа,1-Поражение/Эвакуация
 	DI
-	LD SP,#8F7E ;чтобы не было переполн
+	LD SP,#8F7E ;чтобы не было переполн ;TODO проверить
 	XOR A
 	LD (PVIS),A
 	LD (FIRTYP),A
@@ -59,6 +59,7 @@ COMBAT  ;****************************** Бой **
 	CALL INIHER
 	CALL isILL
 	CALL INILOK
+        ;jr $
 	CALL INIALI
 	CALL L_ON ;hack
 	CALL HER1st
@@ -282,7 +283,7 @@ INH4	INC HL
 INL0	LD A,(IX+14) ;болен?
 	OR A
 	JR Z,INL0_
-	LD (IX+8),0
+	LD (IX+8),0 ;мёртв
 INL0_	LD A,(IX+8) ;cуществует?
 	OR A
 	JR Z,INL1

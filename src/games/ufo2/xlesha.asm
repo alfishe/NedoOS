@@ -3,7 +3,7 @@
 
 ;(C) 1996 Медноногов Алексей
 ;Подводный бой с НЛО
-	DEFM "Alex "
+	db "Alex "
 ANGSNUM EQU	33
 SHDSCR	EQU	#9000
 VISSCR	EQU	#C000
@@ -1939,7 +1939,13 @@ MG4	LD	BC,#FBFE
 	JP 	NZ,MANAGER
 	CPL
 	JR	MG3_
-MG4_	LD	A,2
+MG4_
+       if CHEATS
+        ld a,1
+        ld (HISPWR),a
+        jp MANAGER
+       endif
+	LD	A,2
 	LD	(RETURN),A
 	LD	A,(OURPWR)
 	SLA	A

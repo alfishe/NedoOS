@@ -6,6 +6,8 @@ IMVEC=#4100
 EGA=0
 
 PROTECT=0
+CHEATS=1
+NOENEMY=1
 
 ;*L-
 ;*Z80
@@ -274,6 +276,17 @@ start	DI
 	CALL MENUC
 	CALL MU_ENT
 	CALL NO_3D
+       if 1
+       ld a,1
+       ld (T_INTR),a ;тип истребителя
+       ld a,1
+       ld (AQU),a ;число акванавтов
+       ld (AQNAVT),a ;имя
+       xor a
+       ld (AQNAVT+6),a ;wound
+       ld a,7
+       ld (AQNAVT+1),a ;ранг
+       endif
        if 0
        ld a,1
        ld (T_UFO),a

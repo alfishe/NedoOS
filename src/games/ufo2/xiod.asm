@@ -1,5 +1,5 @@
 ;*L+
-;*** IO FOR UFO2: A-N(1..) HL-START DE-LENTGTH / CY=0 - ERROR
+;*** IO FOR UFO2: A-N(1..) HL-START DE-LENGTH / CY=0 - ERROR
 SIDE	DEFB	0
 
 POS	LD A,(SIDE)
@@ -57,10 +57,11 @@ TR00	DI
 	JP	DOS
 
 READ	;A-No., HL - adr
+       if 1
        push hl
         call findsprfilename
         ex de,hl ;de=filename
-        jr $
+        ;jr $
         OS_OPENHANDLE
        pop de
        ld hl,#4000
@@ -69,7 +70,7 @@ READ	;A-No., HL - adr
        pop bc ;b=handle
         OS_CLOSEHANDLE
         ret
-       
+       else
 	LD D,0
 	CP 73
 	JR C,REA0
@@ -125,6 +126,7 @@ REA0	LD (X0),HL
 	LD B,A
 	LD DE,(FREE16)
 	JP READ1
+       endif
 
 D_WRITE DI
 LOPWR	CALL	POS
