@@ -550,8 +550,14 @@ BCAP	DEFB	0
 BVIS	DEFB	0;0-GR/1-TXT
 BIN	DEFB	#55,#81,1,#81,1,#81,1,#FF
 
+;killablecursorbuf
+;        ds 9
+
 BOFF    ;выкл.курсор
 	LD	HL,(BHL)
+       inc h
+       dec h
+       jr z,BOFF_SKIP
 	LD	DE,BIBU
 	LD	B,8
 BO4	LD	A,(DE)
@@ -559,8 +565,12 @@ BO4	LD	A,(DE)
 	INC	DE
 	INC	H
 	DJNZ	BO4
-	LD 	A,(DE)
+BOFF_SKIP
+	LD 	A,(BIBU+8);(DE)
 	LD 	HL,(AHL)
+       inc h
+       dec h
+       jr z,BNEW
 	LD	(HL),A
 
 BNEW	XOR A ;предуст.курсора
@@ -568,6 +578,9 @@ BNEW	XOR A ;предуст.курсора
 	LD (AHL+1),A
 	DEC A
 	LD (BXOLD),A
+       ;ld hl,killablecursorbuf
+       ;ld (BHL),hl
+       ;ld (AHL),hl
 	RET
 
 BOUT    CALL	MEM7

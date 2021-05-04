@@ -33,7 +33,7 @@ TX	DEFB	0
 TY	DEFB	1
 TTX	DEFB	#CD
 TTY	DEFB	0
-NSH	DEFW	0
+NSH	DEFW	0 ;96,64,32,0, а после цикла -16 (для скролла вверх)
 UDHL	DEFW	6
 XMAX	DEFB 63;макс.коорд
 YMAX	DEFB 63
@@ -196,8 +196,9 @@ UL_	LD	A,(SH)
 	INC	HL
 UL10	LD	(UDHL),HL
 	LD	HL,96
-	LD	(NSH),HL
+	LD	(NSH),HL ;96,64,32,0, а после цикла -16
 	LD	C,4
+        
 UL0	LD	HL,(UDHL)
 	LD	DE,(TTX)
 	LD	(TX),DE
@@ -219,6 +220,7 @@ UL0	LD	HL,(UDHL)
 	LD	(TTX),HL
 	DEC	C
 	JR	NZ,UL0
+        
 	LD	HL,-16
 	LD	(NSH),HL
 	LD	HL,(UDHL)
@@ -473,6 +475,7 @@ M96	LD L,A
 	ADD	HL,HL ;x96
 	RET
 
+;вывод 3D тайла (для полного обновления экрана ALLSPF)
 MSizeP	pushs;$
 	CALL ASP
 	JR Z,MSiRET
@@ -503,30 +506,33 @@ MSizeP	pushs;$
 BSP	pushs;$
 	JP	MS2
 
+;для скролла вверх/вниз
 NSP	pushs;$
-	LD	BC,(NSH)
+	LD	BC,(NSH) ;96,64,32,0, а после цикла -16
 	EX	DE,HL
 	ADD	HL,BC
 	EX	DE,HL
 	LD	B,8
-	JP	MS2
+	JP	MS2 ;печать полного тайла, но на высоту 8
 
+;для скролла вверх/вниз
 NSP2	pushs;$
 	EX	DE,HL
-	LD	BC,(NSH)
+	LD	BC,(NSH) ;96,64,32,0, а после цикла -16
 	ADD	HL,BC
 	LD	BC,16
-	ADD	HL,BC
+	ADD	HL,BC ;переходим к нижней половине тайла?
 	EX	DE,HL
 	LD	B,4
-	LD	A,(NSH)
+	LD	A,(NSH) ;96,64,32,0, а после цикла -16
 	CP	96
-	JR	Z,MS2
+	JR	Z,MS2 ;печать полного тайла, но на высоту 4
 	CP	-16
-	JR	Z,MS2
+	JR	Z,MS2 ;печать полного тайла, но на высоту 4
 	LD	B,8
-	JP	MS2
+	JP	MS2 ;печать полного тайла, но на высоту 8
 
+;печать полного тайла
 MSP	pushs;$
 	LD	B,32
 MS2	LD	(MSPSP+1),SP
@@ -551,6 +557,7 @@ MSPSP	LD	SP,#4020
 MSiRET	pops;$
 	RET
 
+;печать левой части тайла
 LSP	pushs;$
 	LD	B,32
 LS2     LD	(LSPSP+1),SP
@@ -570,6 +577,7 @@ LSPSP	LD	SP,#4020
 	pops;$
 	RET
 
+;печать правой части тайла
 RSP	pushs;$
 	LD	B,32
 RS2     LD	(RSPSP+1),SP

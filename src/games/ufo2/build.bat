@@ -28,6 +28,7 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 rem #
 rem # Executables
 rem #
+mhmt -mlz ZX_DISC\xm0.dat ZX_DISC\xm0.mlz > nul
 mhmt -mlz ZX_DISC\xm1.dat ZX_DISC\xm1.mlz > nul
 mhmt -mlz XMAP\XL0.LND ZX_DISC\XL0.mlz > nul
 mhmt -mlz XMAP\XL1.LND ZX_DISC\XL1.mlz > nul

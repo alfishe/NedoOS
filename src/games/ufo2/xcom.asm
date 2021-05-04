@@ -54,7 +54,8 @@ xBUM	EQU xBOOM+#300
 xBULL	EQU xBUM+#480
 xSHIP
 ;*B ..\ZX_DISC\XM0.LPC
-        incbin "ZX_DISC/XM0.LPC"
+        ;incbin "ZX_DISC/XM0.LPC"
+        incbin "ZX_DISC/xm0.mlz"
 	ds #FFFE-$;DEFR
 end4
 ;*P3 ***********Cтраница 3***********
@@ -139,7 +140,22 @@ beginmain
 JP_ST	JP xSTART ;вх.
 	ds #4040-$ ;DEFR
 ;Interupt entry
-INTRP	PUSH HL
+INTRP
+       if 1
+        push af
+        ld a,(SEED)
+        inc a
+        ld (SEED),a
+        jr nz,INTR2
+        ld a,(SEED+1)
+        inc a
+        ld (SEED+1),a
+INTR2
+        pop af
+        ei
+        ret
+       else
+	PUSH HL
 	LD HL,SEED
 	INC (HL)
 	JR NZ,INTR2
@@ -148,6 +164,7 @@ INTRP	PUSH HL
 INTR2	POP HL
 	EI
 	RETI
+       endif
 SEED	DEFW 1 ;счётчик
 NRFT	DEFB 1 ;для XIO
 ;Interupt table

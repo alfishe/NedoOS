@@ -77,11 +77,11 @@ DUMMY1	DEFB	1
 AQNAVT	DEFB   0;ИМЯ(0-нет)
 	DEFB   1;ранг(0-7)
 	DEFB   2 ;защита(0-нет,1,2,3)
-	DEFB   3;Time Units
-	DEFB   4;Energy
-	DEFB   5;Health
+	DEFB   99;3;Time Units
+	DEFB   99;4;Energy
+	DEFB   99;5;Health
 	DEFB   6;Wound
-	DEFB   7;Moral Level
+	DEFB   99;7;Moral Level
 	DEFB   8;Precision
 	DEFB   9;Gun 1 (255-no)
 	DEFB   10;Gun 2

@@ -371,6 +371,7 @@ L_1var  LD A,L ;H-XM L-XL
 	LD C,96
 	LD DE,xCONV
 	LDIR
+       ld hl,#b800 ;TODO FIX! костыль! где взять данные 96+96 в начале *.LND?
 	LD DE,#D000
 	LD BC,#1000
 	LDIR
