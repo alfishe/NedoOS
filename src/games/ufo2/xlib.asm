@@ -477,7 +477,7 @@ M96	LD L,A
 
 ;вывод 3D тайла (для полного обновления экрана ALLSPF)
 MSizeP	pushs;$
-	CALL ASP
+	CALL ASP ;out: de=tile addr
 	JR Z,MSiRET
        ;jr $
 	PUSH HL

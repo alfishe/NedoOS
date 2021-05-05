@@ -366,12 +366,12 @@ L_1var  LD A,L ;H-XM L-XL
 	CALL DELPCmlz
 	LD BC,96
 	LD HL,#B800
-	LD DE,#B000
+	LD DE,#B000 ;потом (в L_SPR1) попадут в xATR
 	LDIR
 	LD C,96
 	LD DE,xCONV
 	LDIR
-       ld hl,#b800 ;TODO FIX! костыль! где взять данные 96+96 в начале *.LND?
+       ;ld hl,#b800
 	LD DE,#D000
 	LD BC,#1000
 	LDIR

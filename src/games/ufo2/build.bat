@@ -28,6 +28,11 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 rem #
 rem # Executables
 rem #
+cd CPP
+xblox.exe
+rem TODO worder.exe
+cd ..
+
 mhmt -mlz ZX_DISC\xm0.dat ZX_DISC\xm0.mlz > nul
 mhmt -mlz ZX_DISC\xm1.dat ZX_DISC\xm1.mlz > nul
 mhmt -mlz XMAP\XL0.LND ZX_DISC\XL0.mlz > nul
@@ -40,25 +45,25 @@ mhmt -mlz blk3.bin > nul
 mhmt -mlz blk4.bin > nul
 %SJASMPLUS% %SJASMPLUSFLAGS% xcom2.asm
 
-mhmt -mlz ZX_DISC\xm2.dat ufo2\xm2.dat > nul
-mhmt -mlz ZX_DISC\xm3.dat ufo2\xm3.dat > nul
-mhmt -mlz ZX_DISC\xm4.dat ufo2\xm4.dat > nul
-mhmt -mlz ZX_DISC\xm5.dat ufo2\xm5.dat > nul
-mhmt -mlz ZX_DISC\xm6.dat ufo2\xm6.dat > nul
-mhmt -mlz ZX_DISC\xm7.dat ufo2\xm7.dat > nul
-mhmt -mlz ZX_DISC\xm8.dat ufo2\xm8.dat > nul
-mhmt -mlz ZX_DISC\xm9.dat ufo2\xm9.dat > nul
-mhmt -mlz ZX_DISC\xm10.dat ufo2\xm10.dat > nul
-mhmt -mlz ZX_DISC\xm11.dat ufo2\xm11.dat > nul
-mhmt -mlz ZX_DISC\xm12.dat ufo2\xm12.dat > nul
-mhmt -mlz ZX_DISC\xm13.dat ufo2\xm13.dat > nul
-mhmt -mlz ZX_DISC\xm14.dat ufo2\xm14.dat > nul
-mhmt -mlz ZX_DISC\xm15.dat ufo2\xm15.dat > nul
-mhmt -mlz ZX_DISC\xm16.dat ufo2\xm16.dat > nul
-mhmt -mlz ZX_DISC\xm17.dat ufo2\xm17.dat > nul
-mhmt -mlz ZX_DISC\xm18.dat ufo2\xm18.dat > nul
-mhmt -mlz ZX_DISC\xm19.dat ufo2\xm19.dat > nul
-mhmt -mlz ZX_DISC\xm20.dat ufo2\xm20.dat > nul
+mhmt -mlz ZX_DISC\xm2.CNV ufo2\xm2.dat > nul
+mhmt -mlz ZX_DISC\xm3.CNV ufo2\xm3.dat > nul
+mhmt -mlz ZX_DISC\xm4.CNV ufo2\xm4.dat > nul
+mhmt -mlz ZX_DISC\xm5.CNV ufo2\xm5.dat > nul
+mhmt -mlz ZX_DISC\xm6.CNV ufo2\xm6.dat > nul
+mhmt -mlz ZX_DISC\xm7.CNV ufo2\xm7.dat > nul
+mhmt -mlz ZX_DISC\xm8.CNV ufo2\xm8.dat > nul
+mhmt -mlz ZX_DISC\xm9.CNV ufo2\xm9.dat > nul
+mhmt -mlz ZX_DISC\xm10.CNV ufo2\xm10.dat > nul
+mhmt -mlz ZX_DISC\xm11.CNV ufo2\xm11.dat > nul
+mhmt -mlz ZX_DISC\xm12.CNV ufo2\xm12.dat > nul
+mhmt -mlz ZX_DISC\xm13.CNV ufo2\xm13.dat > nul
+mhmt -mlz ZX_DISC\xm14.CNV ufo2\xm14.dat > nul
+mhmt -mlz ZX_DISC\xm15.CNV ufo2\xm15.dat > nul
+mhmt -mlz ZX_DISC\xm16.CNV ufo2\xm16.dat > nul
+mhmt -mlz ZX_DISC\xm17.CNV ufo2\xm17.dat > nul
+mhmt -mlz ZX_DISC\xm18.CNV ufo2\xm18.dat > nul
+mhmt -mlz ZX_DISC\xm19.CNV ufo2\xm19.dat > nul
+mhmt -mlz ZX_DISC\xm20.CNV ufo2\xm20.dat > nul
 
 mhmt -mlz XMAP\XL2.LND ufo2\XL2.LND > nul
 mhmt -mlz XMAP\XL3.LND ufo2\XL3.LND > nul

@@ -480,10 +480,11 @@ Li11	LD (IX+7),A
 	CALL PSP
 	JP MCENTR
 
-ACT_0	;указание на поле
-	LD HL,(PPX)
-	LD (TX),HL
-	CALL GSP60
+ACT_0	;указание на поле (ходить или выбрать персонажа)
+        ;jr $
+	LD HL,(PPX) ;координаты курсора
+	LD (TX),HL ;текущие координаты тайла
+	CALL GSP60 ;проверяем, что текущий тайл >=#60 (акванавт) - это выбор
 	JP NC,ACT_H
 	CALL ATSP_
 	BIT 5,A
@@ -569,7 +570,7 @@ ACstop	LD A,255
 	JR AC_MV
 
 ACT_H	SUB #60
-	LD C,A
+	LD C,A ;номер персонажа
 	CALL GET_IX
 	CALL HERLIV
 	JP Z,BEEP

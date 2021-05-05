@@ -679,8 +679,10 @@ char GetAt (char s,char b,char m,char t,char f) //Выдача байта параметров
 
 void copy_data(char bnk,char len,char pos)
 {
- for (int k=bnk;k<bnk+len;k++)
-  for (int j=0;j<16;j++)
+ int k;
+ int j;
+ for (k=bnk;k<bnk+len;k++)
+  for (j=0;j<16;j++)
   {
    xc[pos]=xcnv[k][j];
    xa[pos]=GetAt(xat[k].s_[j],
@@ -697,23 +699,24 @@ int main() // ***MAIN***
  char *z,*b,*m,*name;
  char nf;
  unsigned i,j,k;
+ char bnk=1+3; //текущ.блок данных
+ unsigned blen;
  char *Fname=(char*)malloc(80);
  printf("\n\t (c)1996  Медноногов В.C.\t\t");
  printf("\n\tСоздание файлов аттр+конв+спрайт\n");
  printf("\tdata+xmNN.dat --> xmNN.cnv\n\n");
    copy_data(0,1,00);   //инициализ.спр.истребителя
- char bnk=1+3; //текущ.блок данных
  for(i=2;i<21;i++)
   {
-   sprintf(Fname,"d:\\'ufo2'\\zx_disc\\xm%u.dat",i);
+   sprintf(Fname,"..\\zx_disc\\xm%u.dat",i);
    HI=open(Fname,O_RDONLY | O_BINARY);
    if(HI==-1) {perror("Fatal! \7");return 1;}
-   unsigned blen=(ftyp[i]==2?4096:10240);
+   blen=(ftyp[i]==2?4096:10240);
    printf("   Длина: %u\n",blen+96+96);
    read(HI,xs,blen);
    close (HI);
    /**/
-   sprintf(Fname,"d:\\'ufo2'\\zx_disc\\xm%u.CNV",i);
+   sprintf(Fname,"..\\zx_disc\\xm%u.CNV",i);
    HO=open(Fname,O_BINARY | O_CREAT | O_TRUNC | O_RDWR,S_IWRITE);
    if (HO==-1) {perror("Ошибка создания выходного файла\7\n");return 1;}
    /**/
