@@ -1182,13 +1182,13 @@ XY2TRC	;преобр.коорд
 	RET
 
 TRACE1	;волновой трассировщик (oт DE до HL)
-	;253-X,254-O,0-start,255/<250>-end
+	;253-X(непрох.),254-O(проходимо),0-start,255/<250>-end
 	LD (WSTART),DE
 	LD (WSTOP),HL
 	LD A,L    ;опр. угла поля тр.
 	ADD A,30
 	SUB E
-	CP 60
+	CP 60 ;не дальше 30 шагов
 	JR NC,CWBD1
 	SRL A
 	SUB 31
@@ -1197,7 +1197,7 @@ TRACE1	;волновой трассировщик (oт DE до HL)
 	LD A,H    ;опр. угла поля тр.
 	ADD A,30
 	SUB D
-	CP 60
+	CP 60 ;не дальше 30 шагов
 CWBD1	JP NC,CWBD
 	SRL A
 	SUB 31
@@ -1299,10 +1299,10 @@ CW254   LD A,(HL) ;Cлед.волна
 	POP HL ;OK-NC
 	POP HL
 	POP HL
-	POP HL
-	LD (HL),250
+	POP HL ;бывший af!!!
+	;LD (HL),250
 	RET
-CW254_	LD A,D
+CW254_	LD A,D ;фаза волны 0..64
 	INC A
 	LD (HL),A
 	RET

@@ -312,7 +312,9 @@ RETRY	DEFB 9 ;к-во попыток
 TR_SEC	; ПРВЕРКА ЗАЩИТЫ - номера tr sec для PROTEC
 	CALL MEM7
 	CALL L100ok ;-------------------LD100---|
+       if PROTECT
 	CALL CHECK3
+       endif
 	RET ;---------без проверки защиты--|
 	CALL CLR_P
 	CALL RND

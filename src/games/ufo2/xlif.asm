@@ -187,6 +187,7 @@ L_l25	LD A,16
 	DJNZ L_l25
 	JP L_SPR1
 
+       if PROTECT
 CHECK3	;[]#3
 	LD HL,TAB100+75
 	LD A,(HL)
@@ -196,6 +197,7 @@ CHECK3	;[]#3
 	CP (HL)
 	RET Z
 	CALL NZ,MLOOP
+       endif
 
 L_L8	;колония II
 	LD HL,12*256+46
