@@ -1,3 +1,4 @@
+;requires pg5 in 0x4000!!!
 ;; MASK-INT
 L0038   PUSH    AF              ; save the registers.
         PUSH    HL              ; but not IY unfortunately.
