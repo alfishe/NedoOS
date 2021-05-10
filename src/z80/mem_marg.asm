@@ -1,5 +1,5 @@
 ;TODO macro next ;de++ с переключением текущей страницы
-;TODO macro mem ;pg [hl]
+;TODO macro mem ;pg [hl] ;not used outside this module
 ;TODO macro getmem ;a<=[hl]
 ;TODO macro putmem ;[hl]<=a
 

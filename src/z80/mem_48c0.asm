@@ -1,5 +1,5 @@
 ;8000,c000 - всегда замапленные страницы
-;4000 - страница ПЗУ или текущая 4000
+;4000 - страница ПЗУ или текущая 4000 (каждый раз включать)
         MACRO OUTcom
         ENDM 
         MACRO CALCpgcom
@@ -23,7 +23,7 @@
         ld a,(curpg5) ;4000
         jp 5f;o
 3;0000
-        set 5,h
+        set 6,h
         ld a,(currom) ;0000
 5;o
         OUTPG4000
@@ -58,7 +58,7 @@
         ld a,(curpg5) ;4000
         jp 5f;o
 3;0000
-        set 5,d
+        set 6,d
         ld a,(currom) ;0000
 5;o
         OUTPG4000
@@ -75,11 +75,11 @@
         OUTPG4000
         jp 6f;sl
 3;0000
-        set 5,d
+        set 6,d
         ld a,(currom) ;0000
         OUTPG4000
         ld a,(de)
-        res 5,d
+        res 6,d
         jp $+4
 6;sl
         ld a,(de)
