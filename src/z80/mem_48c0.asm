@@ -14,8 +14,7 @@
         ENDM 
 
 ;портит HL,BC!
-;оптимизен slow (там в 95% случаев стек)
-        MACRO mem ;page [hl]
+        MACRO mem ;page [hl] ;not used outside this module!
         ld a,h
         add a,a
         jr c,6f;sl ;8000,c000
@@ -49,23 +48,6 @@
 1;q
         ENDM 
 
-;портит BC,DE!
-        MACRO getnp ;a<=[de]
-        ld a,d
-        add a,a
-        jr c,6f;sl ;8000,c000
-        jp p,3f;0000
-        ld a,(curpg5) ;4000
-        jp 5f;o
-3;0000
-        set 6,d
-        ld a,(currom) ;0000
-5;o
-        OUTPG4000
-6;sl
-        ld a,(de)
-        ENDM 
-
         MACRO get ;a<=[de]
         ld a,d
         add a,a
@@ -87,23 +69,51 @@
 
 ;портит BC!
         MACRO getHL ;hl<=[de+=2]
-       PUSH DE
-        getnp
-        LD L,A
-        INC E
-        JP NZ,2f;x
-       POP DE
-       ;PUSH BC
-        next
-        get
-       ;POP BC
-        JP $+6
-2;x
-       LD A,(DE)
-       POP DE
-       INC DE
-        next
-        LD H,A
+        ld a,d
+        add a,a
+        jr c,6f;sl ;8000,c000
+        jp m,4f;4000
+        set 6,d
+        ld a,(currom) ;0000
+        OUTPG4000
+        ld a,(de)
+        ld l,a
+        inc e
+        jr nz,9f;same page in 0000
+        inc d
+        jp p,9f;same page in 0000
+        ld a,(curpg5) ;4000 after 3fff
+        OUTPG4000
+        ld d,0x40
+        jp 5f;h<=(de)
+9;same page in 0000
+        ld a,(de)
+        res 6,d
+        jp 7f;h<=a
+6;sl ;8000,c000
+        ld a,(de)
+        ld l,a
+        inc e
+        jr nz,5f;same page in 8000,c000
+        inc d
+        jr nz,5f;same page in 8000,c000
+        ld a,(currom) ;0000 after ffff
+        OUTPG4000
+        ld d,0x40
+        ld a,(de)
+        ld d,e;0
+        jp 7f
+4;4000
+        ld a,(curpg5) ;4000
+        OUTPG4000
+        ld a,(de)
+        ld l,a
+        inc de ;может выйти на 8000, но это не страшно - там всегда включена нужная страница
+5;same page in 8000,c000
+        ld a,(de)
+7;
+        ld h,a
+        inc de
         ENDM 
 
 ;портит HL,A!
@@ -125,16 +135,28 @@
         ENDM 
 
 ;портит HL,A,BC!
-;нельзя ускорить, иначе не перехватить экран
-;сделать ветку?
-;вообще не перехватывать экран?
         MACRO putmemBC
-       PUSH HL
-       PUSH BC
+        ld a,b
+        ld ($+33),a
         LD A,C
-        putmem
-       POP AF
-       POP HL
+        ld ($+15),a
+        ld a,h
+        add a,a
+        jr c,6f;sl ;8000,c000
+        jp p,1f;q ;0000
+        ld a,(curpg5) ;4000
+        OUTPG4000
+6;sl
+        LD (HL),0
+1;q
         INC HL
-        putmem
+        ld a,h
+        add a,a
+        jr c,6f;sl ;8000,c000
+        jp p,1f;q ;0000
+        ld a,(curpg5) ;4000
+        OUTPG4000
+6;sl
+        LD (HL),0
+1;q
         ENDM 
