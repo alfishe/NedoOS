@@ -123,3 +123,178 @@ $ tput rmcup|hexdump -C
 как сделать, чтобы твоя программа не тормозила другие:
 - если делать нечего - делай YIELD
 - если просто не можешь читать-писать пайп - делай YIELDKEEP, а если не помогло, тогда уже YIELD. нельзя всё время делать YIELDKEEP.
+
+
+эмулятор MSX методом перехвата биоса (как imsx). должны работать игры:
+Bomberman Special
+Bosconian
+Castle Excellent
+Galaxian
+Step Up
+Stop (Ita) Express
+Boulder Dash
+Bouncing Block
+Mappy
+Rise Out
+Tank Battalion
+Flappy
+
+		Фирма	Формат файла	Примечание
+1	3-D Bomberman	Hudson	BIN	
+2	3D Golf	Hudson	ROM	
+3	Adven'chuta! 	Mia	ROM	
+4	Aguas Bravas	Load N Run	BIN	
+5	Athletic Ball	ASCII	BIN/ROM	BIN шел под названием Ghost Flipper
+6	Back Gammon	Tecno Soft	BIN	
+7	Banana	Studio Gen	ROM	
+8	Battle Ship Clapton 2	T&E Soft	BIN/ROM	
+9	Binary Land	Hudson	ROM	
+10	Becky	Mia	ROM	
+11	Bifamu	Bandai	ROM	
+12	Black Onyx 1, The 	ASCII	ROM	
+13	Boggy'84 	Nippon Columbia	ROM	
+14	Boing Boing	Idealogic	BIN	
+15	Bokosuka Wars	ASCII	ROM	
+16	Bomberman	Hudson	ROM
+17	Bomberman Special	Hudson	ROM
+18	Boogie Woogi Jungle	Ample	BIN/ROM
+19	Boomerang	ASCII	ROM
+20	Bosconian	Namcot	ROM
+21	Bouken Roman 	System Soft	ROM
+22	Boulder Dash	Orpheus	BIN
+23	Boulder Dash (2)	Orpheus	BIN
+24	Bouncing Block	Idealogic	BIN
+25	British Bob	Relevo Videogames	ROM
+26	Buru To Marty Kikiippatsu	HAL	ROM
+27	Bytebusters	Aacksoft	BIN
+28	Cannon Ball	Hudson	BIN/ROM
+29	Captain Chef	Nippon Columbia	BIN/ROM
+30	Captain Cosmo	Nexa	ROM
+31	Car Race	Ample	ROM
+32	Casio Worldopen	Casio	ROM
+33	Castle Combat	?	BIN
+34	Castle	ASCII	ROM
+35	Castle Excellent	ASCII	ROM
+36	Chack'n Pop	Taito	ROM
+37	Champion Boulder Dash 	Comptiq	ROM
+38	Chick Fighter	Hudson	BIN
+39	Color Ball	Hudson	ROM
+40	Comecocos	Idealogic	BIN
+41	Cyclon	?	BIN
+42	Dig Dug	Namcot	ROM
+43	Dog Fighter	Hudson	BIN
+44	Donpan	Tomy/Colpax	BIN
+45	Dorodon	UPL	BIN/ROM
+46	Dragon Attack	HAL	ROM
+47	Dragon Slayer 	Square	ROM
+48	Driller Tanks	Hudson	ROM	
+49	Eric and the Floaters	Hudson	BIN	Вариант Bomberman c другим названием
+50	Erika	Jast	ROM	
+51	Exerion 1	Jaleco	BIN/ROM	
+52	Exerion 2	Jaleco	ROM	
+53	Fairy	Zap	BIN/ROM	
+54	F16 Fighting Falcon 	Nexa	BIN/ROM	
+55	Fire Rescue	Hudson	BIN/ROM	
+56	Flappy v1.0	dB-Soft	BIN	
+57	Flappy Limited	dB-Soft	ROM	
+58	Front Line	Taito	BIN/ROM	
+59	Fruit Search	HAL	ROM	
+60	Funky Mouse	Zap	ROM	
+61	Galaga	Namcot	ROM	
+62	Galaxian	Namcot	ROM	
+63	Galaxians	?	BIN	
+64	Gang Man	Hudson	BIN
+65	Ghostmaze	?	BIN
+66	Glider	Zap	ROM
+67	Hanafuda Koi Koi 	Ramsoft	ROM
+68	Harapeko Pakkun	ASCII	ROM
+69	Hitsuji Yai - Preety Sheep	Hudson	ROM
+70	Heavy Boxing	HAL	ROM
+71	Heli Tank	ASCII / Nabu Network	ROM
+72	Ice World	Casio	BIN/ROM
+73	Iga Ninpouten 1	Casio	ROM
+74	Iga Ninpouten 2	Casio	ROM
+75	Indian no Bouken	Hudson	BIN/ROM
+76	Jigsaw Set	Mia	ROM
+77	Jump Coaster	Nippon Columbia	ROM
+78	Jyankyo	Hudson	ROM
+79	Kageno Densetsu 	Taito	ROM
+80	Killer Station	Hudson	BIN
+81	Kinasai	?	BIN
+82	King & Balloon	Namcot	ROM
+83	Kinnikuman	Bandai	ROM
+84	Lonesome Tank	ETF Laboratory/Micro Art	BIN
+85	Machinegun Joe vs the Mafia 	Hudson	BIN/ROM
+86	Macross	Bothtec	ROM
+87	Manes	Zap	ROM
+88	Mappy	Namcot	ROM
+89	Mayhem	Mr. Micro	BIN
+90	Midnight Building 	Waylimit	ROM
+91	Mini Golf	Namcot	ROM
+92	MJ-05	Hudson	BIN
+93	MSX Baseball 	Matsushita Electric	BIN/ROM
+94	MSX Baseball 2	Matsushita Electric (Panasoft)	ROM
+95	MSX Soccer	Matsushita Electric	ROM
+96	Moai no Hibou	Casio	ROM	
+97	Mobile Planet Suthirus	HAL	ROM	
+98	Mobile Suit Gundam	Bandai	BIN/ROM	
+99	Mr. Chin	HAL	ROM	
+100	Mr. Do	Nippon Columbia	ROM	
+101	Mr. Do's Wild Ride 	Nippon Columbia	ROM	
+102	Nessen Koushiyen 	Casio	ROM	
+103	Night Flight	Tomy/Colpax	BIN	
+104	Ninja Jajamaru Kun 	Jaleco	ROM	
+105	Ninja Kun	Micro Cabin	ROM	
+106	Norseman	Electric Software	BIN/ROM	
+107	Nuts&Milk	Hudson	BIN	Режим редактора практически не работает, но в Blue MSX также. К игровому процессу претензий нет
+108	Nyorols	Mia	ROM	
+109	Othello	Pony Cannon	ROM	
+110	Outland	?	BIN	
+111	Pac-Man	Namcot	ROM	
+112	Pachinko U.F.O	Casio	ROM	
+113	Pai Panic	ASCII	BIN/ROM	
+114	Panic Junction	Morwood Software/Centralsoft	BIN	
+115	Peetan	Nippon Columbia	BIN/ROM	
+116	Pegasus	Victor	ROM	
+117	Penguin Race	Alfonso D.C.	ROM	
+118	Picture Puzzle	HAL	ROM	
+119	Pipi	Jaleco	BIN/ROM	
+120	Police Story, The 	Pony Cannon	ROM	
+121	Protector, The	Pony Cannon	ROM	
+122	Preety Sheep	Hudson	BIN	Англоязычный вариант Hitsuji Yai
+123	Psychedelia	?	BIN	Демка. Может показаться, что она не работает, но если понажимать клавиши, то будут узоры (и настройки). В Blue MSX аналогично
+124	Pyramid Warp	T&E Soft	ROM	
+125	Rally-X	Namcot	ROM	
+126	Raid On Bungeling Bay	Sony	ROM	
+127	Rise Out	Daewoo	ROM	Версия игры ASCII с немного другой графикой
+128	Rise Out from Dungeons	ASCII	BIN/ROM	
+129	Roger Rubbish	?	BIN	
+130	Scramble Eggs 	Ample	ROM	
+131	Senjyo	Tehkan	BIN	
+132	Shougi Sinan 1	Pony Cannon	ROM	
+133	Skate Dragon	Idealogic	BIN	
+134	Soukoban	ASCII	ROM	
+135	Space Busters	Aacksoft	BIN	Вариант Byte Busters с музыкой во время игры и "спецэффектами"
+136	Space Invader 	Taito	BIN/ROM	
+137	Spelunker	Irem	ROM	
+138	Spider	Hudson	ROM	
+139	Star Trap	Jast	ROM	
+140	Step Up	HAL	ROM	
+141	Stop (Ita) Express	Hudson	BIN/ROM	
+142	Submarine Shooter	Hudson	BIN	
+143	Super Baby	Hudson	BIN	Испаноязычный вариант Color Ball
+144	Super Doors	Hudson	BIN
+145	Super Drinker	Ample	ROM
+146	Takeru Densetsu	Takeru	ROM
+147	Tank Battalion	Namcot	BIN/ROM
+148	Tawarakun	ASCII	ROM
+149	Tear of Nile	Victor	ROM
+150	Tensai Rabbian Daifunsen	Toshiba Emi	ROM
+151	Tensidachino Gogo	Jast	ROM
+152	Thunder Ball	ASCII	ROM
+153	Time Bomb	Double Brain/Methodic Solutions	BIN
+154	Top Roller 	Jaleco	ROM
+155	Topple Zip	Bothtec	ROM
+156	Turmoil	ASCII	BIN/ROM
+157	Warp & Warp	Namcot	BIN/ROM
+158	Yokai Yasiki	Casio	ROM
