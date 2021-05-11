@@ -72,9 +72,7 @@
         jp 7f;h<=a
 4;4000
         call set4000 ;OUTPG4000
-        ;ld a,(de)
 6;sl ;8000,c000
-        ;ld a,(de)
         ld l,a
         inc de ;может выйти на 8000, но это не страшно - там всегда включена нужная страница
         ld a,(de)
@@ -85,23 +83,25 @@
 
 ;портит HL,A!
         MACRO getmemBC
-       PUSH HL
-        mem
+       ;PUSH HL
+        ld a,h
+        add a,a
+        call nc,setmem00004000
         LD C,(HL)
         INC L
         JP NZ,1f;q ;внутри mem нет метки 1
-       POP HL
-       ;PUSH BC
-        INC HL
+       ;POP HL
+       rra
+       ld h,a
+        INC h;HL
         mem
-       ;POP BC
-        JP $+4
+        ;JP $+4
 1;q
-       POP AF ;просто скипаем
+       ;POP AF ;просто скипаем
         LD B,(HL)
         ENDM 
 
-;портит HL,A,BC!
+;портит HL,A,[BC]!
 ;TODO как убрать ld (),a в вызывающую процедуру, чтобы не перекладывать через bc?
         MACRO putmemBC
        ;push hl
