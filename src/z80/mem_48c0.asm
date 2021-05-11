@@ -27,15 +27,11 @@
 
 ;портит BC! (в версии без ПЗУ не портило hl, но это ни на что не влияет)
         MACRO putmem ;[hl]<=a
-        ld ($+9),a
+        ld c,a;($+9),a
         ld a,h
         add a,a
-        ;jr c,6f;sl ;8000,c000
-        ;jp p,1f;q ;0000 ;TODO RAM in 0000
         call nc,setmem00004000forwrite;set4000 ;OUTPG4000
-6;sl
-        LD (HL),0
-1;q
+        LD (HL),c;0
         ENDM 
 
         MACRO get ;a<=[de]
@@ -108,29 +104,17 @@
 ;портит HL,A,BC!
 ;TODO как убрать ld (),a в вызывающую процедуру, чтобы не перекладывать через bc?
         MACRO putmemBC
-        ;ld a,b
-        ;ld ($+23),a
-        ;LD A,C
-        ;ld ($+10),a
-       push hl
+       ;push hl
         ld a,h
         add a,a
-        ;jr c,6f;sl ;8000,c000
-        ;jp p,1f;q ;0000 ;TODO RAM in 0000
         call nc,setmem00004000forwrite;set4000 ;OUTPG4000
-6;sl
         LD (HL),c;0
-1;q
-       pop hl
-       ;rra
-       ;ld h,a
+       ;pop hl
+       rra
+       ld h,a
         INC HL
         ld a,h
         add a,a
-        ;jr c,6f;sl ;8000,c000
-        ;jp p,1f;q ;0000 ;TODO RAM in 0000
         call nc,setmem00004000forwrite;set4000 ;OUTPG4000
-6;sl
         LD (HL),b;0
-1;q
         ENDM 
