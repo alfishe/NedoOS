@@ -92,7 +92,7 @@
         JP NZ,1f;q ;внутри mem нет метки 1
        rra
        ld h,a
-        INC h;HL
+        INC h
         mem
 1;q
         LD B,(HL)
@@ -104,11 +104,14 @@
         add a,a
         call nc,setmem00004000forwrite
         LD (HL),c
+        INC L
+        JP NZ,1f;q
        rra
        ld h,a
-        INC HL
+        INC h
         ld a,h
         add a,a
         call nc,setmem00004000forwrite
+1;q
         LD (HL),b
         ENDM 
