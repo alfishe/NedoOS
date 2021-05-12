@@ -41,10 +41,14 @@
         INC DE
         ENDM 
 
-        MACRO getmem ;a<=[hl]
+        MACRO mem ;a<=[hl]
         ld a,h
         add a,a
         call nc,setmem00004000
+        ENDM 
+
+        MACRO getmem ;a<=[hl]
+        mem
         LD A,(HL)
         ENDM 
 

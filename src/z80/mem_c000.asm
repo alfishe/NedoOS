@@ -14,7 +14,7 @@
 
 ;портит HL,BC!
 ;оптимизен slow (там в 95% случаев стек)
-        MACRO mem ;page [hl] ;not used outside this module!
+        MACRO mem ;page [hl]
         LD A,H
         ADD A,A
         jr NC,4f;lo

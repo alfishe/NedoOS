@@ -62,7 +62,7 @@
         ENDM 
 
 ;портит HL,BC!
-        MACRO mem ;page [hl] ;not used outside this module!
+        MACRO mem ;page [hl]
         ld a,h
         add a,a
         call nc,setmem00004000
