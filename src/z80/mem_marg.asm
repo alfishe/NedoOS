@@ -1,7 +1,5 @@
-;TODO macro next ;de++ с переключением текущей страницы
-;TODO macro mem ;pg [hl] ;not used outside this module
-;TODO macro getmem ;a<=[hl]
-;TODO macro putmem ;[hl]<=a
+;4000 - страница команд (может подменяться при доступе к данным, но потом вызывается OUTcom)
+;8000,c000 - страницы в 8000,c000
 
         MACRO get
         LD A,(DE)
@@ -16,92 +14,101 @@
         LD H,A
         ENDM 
 
-        MACRO OUTcom
-        LD A,(curpgcom)
-        OUTPG
+        MACRO next
+        inc e
+        call z,next_incd
         ENDM 
 
-        MACRO CALCpgcom
+;TODO как определить, что мы реально щёлкали 4000, иначе проскочить?
+        MACRO OUTcom ;если вместо стр.команд включили др.стр.
         LD HL,(curquart)
         LD A,(HL)
-        LD (curpgcom),A
-        OUTPG
+        OUTPGCOM
         ENDM 
 
-     ;перед JR/CALL/RST
-        MACRO CALCpc
-        LD A,(curquart)
-        SUB currom
-        RRCA 
-        RRCA 
-        XOR D
-        AND #C0
-        XOR D
-        LD D,A
-        ENDM 
-
-     ;после JR/JP/CALL/RST/RET (на входе - полный DE)
-        MACRO CALCiypgcom
-        LD A,D
-        ADD A,A
-        jr NC,4f;lo
-          JP M,3f;pg
-            SET 6,D
-            LD HL,curpg2
-            LD IY,marg2
-           JP 5f;o
-3;pg
-            LD HL,curpghi
-            LD IY,marg3
-           JP 5f;o
-4;lo
-           JP M,6f;sl
-            LD A,D
-            OR #C0
-            LD D,A
-            LD HL,currom
-            LD IY,marg0
-           JP 5f;o
-6;sl
-            LD HL,curpg5
-            LD IY,marg1
-            SET 7,D
-5;o
-        LD (curquart),HL
+        MACRO CALCpgcom ;изменилась конфигурация памяти, надо включить страницу для DE(PC)
+        LD HL,(curquart)
         LD A,(HL)
-        LD (curpgcom),A
-        OUTPG
+        OUTPGCOM
+        ENDM 
+
+     ;перед JR/CALL/RST (на входе - урезанный DE(PC), а надо получить полный)
+        MACRO CALCpc
+        LD A,(curquart) ;один из 4 адресов подряд, где лежат текущие страницы в окнах ;a=0,1,2,3 for 4000,8000,c000,0000
+        RRCA 
+        RRCA ;a=0x00,0x40,0x80,0xc0 for 4000,8000,c000,0000
+        add a,d ;d=0x40+
+        LD D,A ;0x40,0x80,0xC0,0x00 for 4000,8000,c000,0000
+        ENDM 
+
+     ;после JR/JP/CALL/RST/RET (на входе - полный DE(PC), а надо получить урезанный)
+        MACRO CALCiypgcom
+        ld a,d
+        rlca
+        rlca
+        dec a
+        and 3 ;a=0,1,2,3 for 4000,8000,c000,0000
+       ;ld hl,(curquart)
+       ;cp l
+       ;jp z,1f ;не получится после щёлканья в 4000
+        ld l,a
+        ld (curquart),a
+        ld h,currom/256
+        LD A,(HL)
+        OUTPGCOM
+1;oldpg
+        res 7,d
+        set 6,d
+        ENDM 
+
+;портит HL,BC!
+        MACRO mem ;page [hl] ;not used outside this module!
+        ld a,h
+        add a,a
+        call nc,setmem00004000
+        ENDM 
+
+        MACRO getmem ;a<=[hl]
+        mem
+        LD A,(HL)
+        ENDM 
+
+;портит BC!
+        MACRO putmem ;a<=[hl]
+        ld c,a
+        ld a,h
+        add a,a
+        call nc,setmem00004000forwrite
+        LD (HL),c
         ENDM 
 
 ;портит HL,A!
         MACRO getmemBC
-       PUSH HL
-        mem
+        ld a,h
+        add a,a
+        call nc,setmem00004000
         LD C,(HL)
         INC L
         JP NZ,1f;q ;внутри mem нет метки 1
-       POP HL
-       PUSH BC
-        INC HL
+       rra
+       ld h,a
+        INC h;HL
         mem
-       POP BC
-        JP $+4
 1;q
-       POP AF ;просто скипаем
         LD B,(HL)
         ENDM 
 
-;портит HL,A,BC!
-;нельзя ускорить, иначе не перехватить экран
-;сделать ветку?
-;вообще не перехватывать экран?
+;портит HL,A!
         MACRO putmemBC
-       PUSH HL
-       PUSH BC
-        LD A,C
-        putmem
-       POP AF
-       POP HL
+        ld a,h
+        add a,a
+        call nc,setmem00004000forwrite
+        LD (HL),c
+       rra
+       ld h,a
         INC HL
-        putmem
+        ld a,h
+        add a,a
+        call nc,setmem00004000forwrite
+        LD (HL),b
         ENDM 
