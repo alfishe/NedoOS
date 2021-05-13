@@ -2,6 +2,8 @@
 ;4000 - страница ПЗУ или текущая 4000 (каждый раз включать)
         MACRO OUTcom
         ENDM 
+        MACRO OUTcomCY15
+        ENDM 
         MACRO CALCpgcom
         ENDM 
         MACRO CALCpc

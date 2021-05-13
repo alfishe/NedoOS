@@ -1,6 +1,8 @@
 ;без ускорения через margins
         MACRO OUTcom
         ENDM 
+        MACRO OUTcomCY15
+        ENDM 
         MACRO CALCpgcom
         ENDM 
         MACRO CALCpc
