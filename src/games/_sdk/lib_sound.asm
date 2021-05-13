@@ -1,60 +1,85 @@
-	export _sfx_play
-	export _sfx_stop
-	export _music_play
-	export _music_stop
-	export _sample_play
+        ;export _music_play
+        ;export _music_stop
+        ;export _sample_play
+        ;export _sfx_play
+        ;export _sfx_stop
 
+_sample_play
+;РїСЂРѕРёРіСЂС‹РІР°РЅРёРµ СЃСЌРјРїР»Р°
+;l=РЅРѕРјРµСЂ СЃСЌРјРїР»Р°
+       push ix
+	ld a,(curpg32khigh) ;ok
+	push af
+	ld a,SND_PAGE
+        call setpgc000
+	ld a,(SMP_COUNT|0xc000)
+	ld e,a
+	ld a,l
+	cp e
+	jr nc,.skip
 
+	ld h,high (SMP_LIST|0xc000)
+	ld e,(hl)	;lsb
+	inc h
+	ld a,(hl)	;msb
+        or 0xc0
+        ld d,a
+	inc h
+	ld a,(hl)	;page
+        cpl
+	inc h
+	ld h,(hl)	;delay
+	ex de,hl ;hl=data
+        ld hx,d ;delay
+        ld e,a
+        ld d,tpages/256
+;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
+        OS_PLAYCOVOX
+.skip
+        pop af
+        SETPG32KHIGH
+       pop ix
+        ret
 
-;выключение звука на указанном чипе
-;a=0 или 1
-
+;РІС‹РєР»СЋС‡РµРЅРёРµ Р·РІСѓРєР° РЅР° СѓРєР°Р·Р°РЅРЅРѕРј С‡РёРїРµ
+;a=0 РёР»Рё 1
 reset_ay
-;используется в _sfx_stop, _music_stop
+;РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ _sfx_stop, _music_stop
 	ifdef TFM
 	push af
-	di
-
+	 ;di
 	call turbo_off
-
 	ld a,SND_PAGE
-	call setSlot1
+	call setpg4000
 	ld a,(TURBOFMON)
 	or a
 	call nz,#400f;tfmshut
 	ld a,CC_PAGE1
-	call setSlot1
+	call setpg4000
 	pop af
 	call reset_ay_ay
-
-	call turbo_on
-
-	ei
+	;call turbo_on
+	 ;ei ;РЅРµР»СЊР·СЏ РІ РїСЂРµСЂС‹РІР°РЅРёРё!
+	;ret
+turbo_on
+	ld a,%10101000 ;СЂРµР¶РёРј EGA СЃ С‚СѓСЂР±Рѕ
+	ld bc,#bd77
+	out (c),a
 	ret
-
+turbo_off
+	ld a,%10100000 ;СЂРµР¶РёРј EGA Р±РµР· С‚СѓСЂР±Рѕ, С‚Р°Рє РєР°Рє РІ 14 РњР“С† СЃРєРѕСЂРѕСЃС‚СЊ РЅРµСЃС‚Р°Р±РёР»СЊРЅР°
+	ld bc,#bd77
+	out (c),a
+	ret
 	else
-
-	di
-	call reset_ay_ay
-	ei
-	ret
-
+	 ;di
+	;call reset_ay_ay
+	 ;ei ;РЅРµР»СЊР·СЏ РІ РїСЂРµСЂС‹РІР°РЅРёРё!
+	;ret
 	endif
 
-turbo_on
-	ld a,%10101000 ;режим EGA с турбо
-	ld bc,#bd77
-	out (c),a
-	ret
-
-turbo_off
-	ld a,%10100000 ;режим EGA без турбо, так как в 14 МГц скорость нестабильна
-	ld bc,#bd77
-	out (c),a
-	ret
-
 reset_ay_ay
-;в TFM нужно для глушения AY перед выводом эффектов
+;РІ TFM РЅСѓР¶РЅРѕ РґР»СЏ РіР»СѓС€РµРЅРёСЏ AY РїРµСЂРµРґ РІС‹РІРѕРґРѕРј СЌС„С„РµРєС‚РѕРІ
 	push af
 	ifdef TFM
 	or %11111000
@@ -84,39 +109,38 @@ reset_ay_ay
 	pop af
 	ret
 
-
-	
-
-;запуск звукового эффекта
-
+;Р·Р°РїСѓСЃРє Р·РІСѓРєРѕРІРѕРіРѕ СЌС„С„РµРєС‚Р°
 _sfx_play
 	push bc
 	ld a,SND_PAGE
-	call setSlot1
+	call setpg4000
 	pop bc
 	ld a,b
 	call AFX_PLAY
 	ld a,CC_PAGE1
-	jp setSlot1
+	jp setpg4000
 
-
-
-;останов звуковых эффектов
-
+;РІС‹РєР»СЋС‡РµРЅРёРµ РјСѓР·С‹РєРё
+_music_stop
+	xor a
+	ld (musicPage),a
+	;jp _di_reset_ay_ei        
+;РѕСЃС‚Р°РЅРѕРІ Р·РІСѓРєРѕРІС‹С… СЌС„С„РµРєС‚РѕРІ
 _sfx_stop
 	xor a
-	jp reset_ay
+_di_reset_ay_ei
+        di
+	call reset_ay
+        ei
+        ret
 
-
-
-;запуск музыки
-
+;Р·Р°РїСѓСЃРє РјСѓР·С‹РєРё
 _music_play
 	push ix
 	push iy
 	push af
 	ld a,SND_PAGE
-	call setSlot1
+	call setpg4000
 
 	ld a,(MUS_COUNT)
 	ld l,a
@@ -134,16 +158,9 @@ _music_play
 	inc h
 	ld a,(hl)
 	ex de,hl
-	
-	ifdef EVO
-	cpl
-	else
-	xor 127
-	endif
-	
-	call setSlot2
 	di
 	ld (musicPage),a
+	call setpg8000
 	ifdef TFM
 	ld a,(TURBOFMON)
 	or a
@@ -156,87 +173,41 @@ _music_play
 	endif
 	ei
 	ld a,CC_PAGE2
-	call setSlot2
+	call setpg8000
 
 .skip
 	pop iy
 	pop ix
 
 	ld a,CC_PAGE1
-	jp setSlot1
+	jp setpg4000
 
-
-
-;выключение музыки
-
-_music_stop
+initsfx
+	;РѕРїСЂРµРґРµР»РµРЅРёРµ TS
+	ld bc,#fffd	;С‡РёРї 0
+	out (c),b
+	xor a		;СЂРµРіРёСЃС‚СЂ 0
+	out (c),a
+	ld b,#bf	;Р·РЅР°С‡РµРЅРёРµ #bf
+	out (c),b
+	ld b,#ff	;С‡РёРї 1
+	ld a,#fe
+	out (c),a
+	xor a		;СЂРµРіРёСЃС‚СЂ 0
+	out (c),a
+	ld b,#bf	;Р·РЅР°С‡РµРЅРёРµ 0
+	out (c),a
+	ld b,#ff	;С‡РёРї 0
+	out (c),b
+	xor a		;СЂРµРіРёСЃС‚СЂ 0
+	out (c),a
+	in a,(c)
+	ld (turboSound),a
+        ld a,SND_PAGE
+        call setpg4000
 	xor a
-	ld (musicPage),a
-	jp reset_ay
-
-
-;проигрывание сэмпла
-;l=номер сэмпла
-
-_sample_play
-	;ld bc,MEM_SLOT0
-	;ld a,SND_PAGE
-	;out (c),a
-	;ld a,(SMP_COUNT&#3fff)
-	;ld e,a
-	;ld a,l
-	;cp e
-	;jr nc,.skip
-
-	;ld h,high (SMP_LIST&#3f00)
-
-	;ld e,(hl)	;lsb
-	;inc h
-	;ld d,(hl)	;msb
-	;inc h
-	;ld a,(hl)	;page
-	;inc h
-	;ld h,(hl)	;delay
-	;ex de,hl
-
-	;ifdef ATM
-	;xor 128
-	;endif
-	;out (c),a
-	;ld e,a
-	;di
-	;ld a,%10100000 ;режим EGA без турбо, так как в 14 МГц скорость нестабильна
-	;ld bc,#bd77
-	;out (c),a
-	;call turbo_off
-	;ld bc,MEM_SLOT0
-.l0
-	;ld a,(hl)	;7
-	;out (#fb),a	;11
-	;or a		;4
-	;jr z,.done	;7/12
-	;inc hl		;6
-	;bit 6,h		;8
-	;jr nz,.page	;7/12
-.delay
-	;ld a,d		;4
-	;dec a		;4
-	;jp nz,$-1	;10
-	;jp .l0		;10=78t при d=1, шаг задержки 14 тактов
-.page
-	;ld h,0
-	;dec e
-;	out (c),e
-;	jp .delay
-.done
-	;ld a,%10101000 ;режим EGA с турбо
-	;ld bc,#bd77
-	;out (c),a
-	;call turbo_on
-	;ei
-
-.skip
-	;ld bc,MEM_SLOT0
-	;ld a,CC_PAGE0
-	;out (c),a
-	ret
+	call reset_ay_ay
+	inc a
+	call reset_ay_ay
+        ld hl,SFX_DATA
+        jp AFX_INIT

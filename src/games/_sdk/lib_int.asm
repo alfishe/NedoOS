@@ -67,6 +67,7 @@ on_int
         OS_SETPAL
 int_nochangepal
         call oldimer
+         di ;иначе прерывание во время остатка обработчика может зациклить обработчик
 
         GET_KEY
        ld (curmouse),de

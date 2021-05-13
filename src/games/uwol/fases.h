@@ -5,17 +5,17 @@ All macro's evaluate to compile-time constants */
 
 #define HEX__(n) 0x##n##LU
 
-#define B8__(x) ((x&0x0000000FLU)?1:0) \
-+((x&0x000000F0LU)?2:0) \
-+((x&0x00000F00LU)?4:0) \
-+((x&0x0000F000LU)?8:0) \
-+((x&0x000F0000LU)?16:0) \
-+((x&0x00F00000LU)?32:0) \
-+((x&0x0F000000LU)?64:0) \
-+((x&0xF0000000LU)?128:0)
+#define B8__(x) (((x&0x00000001LU)!=0)?1:0) \
++(((x&0x00000010LU)!=0)?2:0) \
++(((x&0x00000100LU)!=0)?4:0) \
++(((x&0x00001000LU)!=0)?8:0) \
++(((x&0x00010000LU)!=0)?16:0) \
++(((x&0x00100000LU)!=0)?32:0) \
++(((x&0x01000000LU)!=0)?64:0) \
++(((x&0x10000000LU)!=0)?128:0)
 
-#define B8(d) ((u8)B8__(HEX__(d)))
-
+//#define B8(d) ((u8)B8__(HEX__(d)))
+#define B8(d) ((u8)0b##d)
 
 
 // Estructura para las distintas pantallas,

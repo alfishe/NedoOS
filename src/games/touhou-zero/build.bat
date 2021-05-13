@@ -1,6 +1,3 @@
-echo -----------------------------
-echo %CD%
-
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 if not exist touhou-zero mkdir touhou-zero
@@ -78,23 +75,23 @@ rem echo %CD%
 call ..\_sdk\_compile_nedoos.bat
 
 rem echo %PATH%
-echo -3----------------------------
+rem echo -3----------------------------
 rem echo %CD%
-copy _temp_\*.bin touhou-zero
-copy gfx\bg1-16.bmp touhou-zero
-copy gfx\bg2-16.bmp touhou-zero
-copy gfx\bg3-16.bmp touhou-zero
-copy gfx\bg4-16.bmp touhou-zero
-copy gfx\bg5-16.bmp touhou-zero
-copy gfx\bg6-16.bmp touhou-zero
-copy gfx\bg7-16.bmp touhou-zero
-copy gfx\bg8-16.bmp touhou-zero
-copy gfx\final-16.bmp touhou-zero
-copy gfx\title-16.bmp touhou-zero
-copy nedoload.com touhou-zero.com
-del nedoload.com
+copy _temp_\*.bin touhou-zero > del
+copy gfx\bg1-16.bmp touhou-zero > del
+copy gfx\bg2-16.bmp touhou-zero > del
+copy gfx\bg3-16.bmp touhou-zero > del
+copy gfx\bg4-16.bmp touhou-zero > del
+copy gfx\bg5-16.bmp touhou-zero > del
+copy gfx\bg6-16.bmp touhou-zero > del
+copy gfx\bg7-16.bmp touhou-zero > del
+copy gfx\bg8-16.bmp touhou-zero > del
+copy gfx\final-16.bmp touhou-zero > del
+copy gfx\title-16.bmp touhou-zero > del
+copy nedoload.com touhou-zero.com > del
+del nedoload.com > del
 rem echo %PATH%
-echo -4----------------------------
+rem echo -4----------------------------
 rem echo %CD%
 
 SET releasedir2=../../../release/

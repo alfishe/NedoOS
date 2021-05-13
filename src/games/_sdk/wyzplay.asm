@@ -342,19 +342,19 @@ ROUT:          ; LD   A,[PSG_REG+0]
 ROUT_A0:        LD      DE,$FFBF
                 LD      BC,$FFFD
                 LD      HL,PSG_REG
-LOUT:           OUT     [C],A
+LOUT:           OUT     (C),A
                 LD      B,E
                 OUTI
                 LD      B,D
                 INC     A
                 CP      13
                 JR      NZ,LOUT
-                OUT     [C],A
+                OUT     (C),A
                 LD      A,[HL]
                 AND     A
                 RET     Z
                 LD      B,E
-                OUT     [C],A
+                OUT     (C),A
                 XOR     A
                 LD      [PSG_REG+13],A
                 RET

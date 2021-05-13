@@ -1,4 +1,4 @@
-	device pentagon1024
+	device zxspectrum128
 
 	;include "target.asm"
 
@@ -27,5 +27,5 @@ BUFFER_DEC
 
 end
 
-	display "Top: ",/h,$
+	;display "Top: ",/h,$
 	savebin "sound.bin",begin,end-begin

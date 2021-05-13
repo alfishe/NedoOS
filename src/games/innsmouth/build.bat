@@ -1,6 +1,3 @@
-echo -----------------------------
-echo %CD%
-
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 if not exist innsmouth mkdir innsmouth
@@ -66,18 +63,18 @@ set sample.2=inventory.wav
 set sample.3=bell.wav
 set sample.4=switch.wav
 
-echo %PATH%
-echo %CD%
+rem echo %PATH%
+rem echo %CD%
 call ..\_sdk\_compile_nedoos.bat
 
 rem echo %PATH%
-echo -3----------------------------
+rem echo -3----------------------------
 rem echo %CD%
-copy _temp_\*.bin innsmouth
-copy nedoload.com innsmouth.com
-del nedoload.com
+copy _temp_\*.bin innsmouth > nul
+copy nedoload.com innsmouth.com > nul
+del nedoload.com > nul
 rem echo %PATH%
-echo -4----------------------------
+rem echo -4----------------------------
 rem echo %CD%
 
 SET releasedir2=../../../release/

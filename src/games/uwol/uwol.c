@@ -964,7 +964,7 @@ u8 game (u8 n_pant) {
 						needed_pal[i]=j|(j<<4)|(j<<8);
 					}*/
 					curbright=4;
-					pal_bright(BRIGHT_MIN+curbright/4);
+					pal_bright(BRIGHT_MIN+1/*curbright/4*/);
     			}
     			else //выходим из паузы
     			{

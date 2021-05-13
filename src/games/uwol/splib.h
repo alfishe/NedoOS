@@ -234,7 +234,7 @@ void sp_UpdateNow(void)
 				//cnt++;
 				//set_sprite(cnt,32-8,y,blacksquare);
 				//cnt++;
-				set_sprite(cnt,32+(XWRAP/2),y,blacksquare);
+				set_sprite(cnt,(u8)(32+(XWRAP/2)),y,blacksquare);
 				cnt++;
 			}
 		}

@@ -1,6 +1,3 @@
-echo -----------------------------
-echo %CD%
-
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 if not exist nedoload mkdir nedoload
@@ -61,11 +58,11 @@ rem echo %CD%
 call ..\_sdk\_compile_nedoos.bat
 
 rem echo %PATH%
-echo -3----------------------------
+rem echo -3----------------------------
 rem echo %CD%
-copy _temp_\*.bin nedoload
+copy _temp_\*.bin nedoload > nul
 rem echo %PATH%
-echo -4----------------------------
+rem echo -4----------------------------
 rem echo %CD%
 
 SET releasedir2=../../../release/
