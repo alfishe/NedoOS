@@ -10,8 +10,8 @@
 			>
 			<DebugSettings
 				Command="$(TargetPath)"
-				WorkingDirectory="D:\old disk c\evo_sdcc\2048100"
-				CommandArguments=""
+				WorkingDirectory="D:\old disk c\evo_sdcc\mem_test"
+				CommandArguments="BINARY_FILE &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\out.ihx&quot; STARTUP_FILE &quot;D:\old disk c\evo_sdcc\evosdk\startup.bin&quot;  MUSIC_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\music.lst&quot; PALETTE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\palette.lst&quot; IMAGE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\image.lst&quot; SAMPLE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\sample.lst&quot; SPRITE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\sprite.lst&quot; ALT_PAGE_NUMERING &quot;1&quot;  SOUND_BIN_FILE &quot;D:\old disk c\evo_sdcc\evosdk\sound.bin&quot;"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
@@ -39,7 +39,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments=""
+				CommandArguments="evoresc_new.exe BINARY_FILE &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\out.ihx&quot; STARTUP_FILE &quot;..\evosdk\startup.bin&quot;  MUSIC_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\music.lst&quot; PALETTE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\palette.lst&quot; IMAGE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\image.lst&quot; SAMPLE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\sample.lst&quot; SPRITE_LIST &quot;D:\old disk c\evo_sdcc\mem_test\_temp_\sprite.lst&quot; ALT_PAGE_NUMERING &quot;0&quot;  SOUND_BIN_FILE &quot;..\evosdk\sound.bin&quot; PAL_PAGE 15"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"

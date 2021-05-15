@@ -24,7 +24,7 @@ using namespace std;
 #define	IMGLIST_ADR 17
 #define	TSPR_ADR 18
 #define	SPRBUF_PAGE 19
-#define	SPRTBL_PAGE 20
+#define	SPRTBL_PAGE2 20
 #define	SPRTBL_SLOT 21
 #define	SPRITE_SLOT 22
 #define CC_PAGE0 23
@@ -35,8 +35,9 @@ using namespace std;
 #define PAL_PAGE 28
 #define GFX_PAGE 29
 #define ALT_PAGE_NUMERING 30
+#define SOUND_BIN_FILE 31
 
-#define argsCount 31
+#define argsCount 32
 class ArgsParser {
 
 private:
@@ -62,7 +63,8 @@ public:
 						"0x1000","0xfa00",
 						"8","6","0","0",
 						"12","13","14",
-						"15","0","4","16","0"};
+						"15","0","4","16","0",
+						"../evosdk/sound.bin"};
 		for(int a=0;a<argsCount;a++) {
 			val[a]=vals[a];
 		}
@@ -99,13 +101,14 @@ public:
 						"SND_PAGE",
 						"PAL_PAGE",
 						"GFX_PAGE",
-						"ALT_PAGE_NUMERING"
+						"ALT_PAGE_NUMERING",
+						"SOUND_BIN_FILE"
 		};
 
 		keysCount=0;
-		for(int a=0;a<argc;a++) {
-			printf("arg %d = %s\n",a,argv[a]);
-		}
+		/*for(int a=0;a<argc;a++) {
+			printf("[arg %d = %s]\n",a,argv[a]);
+		}*/
 		for(int a=0;a+1<argc;) {
 			for(int b=0;b<argsCount;b++) {
 				if(strcmpi(argv[a],key[b])==0) {
@@ -151,9 +154,10 @@ public:
 						"SND_PAGE",
 						"PAL_PAGE",
 						"GFX_PAGE",
-						"ALT_PAGE_NUMERING"};
+						"ALT_PAGE_NUMERING",
+						"SOUND_BIN_FILE"};
 		printf("EVOSDK Resource Compiler by Shiru and Alone Coder 03'12\n");
-		printf("modified by Hippiman 2020\n");
+		printf("modified by Hippiman 2021\n");
 		printf("Key\t\tDefault Value\n");
 		for(int a=0;a<argsCount;a++) {
 			printf("%s\t\t%s\n",key[a],val[a]);

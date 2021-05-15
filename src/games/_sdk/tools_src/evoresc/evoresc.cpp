@@ -98,8 +98,6 @@ int get_hex_byte(char *str)
 	return (get_hex(str[0])<<4)+get_hex(str[1]);
 }
 
-
-
 //чтение Intel HEX файла в память, без всяких проверок
 
 int load_ihx(const char* name)
@@ -160,7 +158,30 @@ bool load_bin(int adr,const char* name)
 
 	return true;
 }
+int load_bin2(int adr,const char* name)
+{
+	FILE *file;
+	int size;
 
+	file=fopen(name,"rb");
+
+	if(!file) return false;
+
+	fseek(file,0,SEEK_END);
+	size=ftell(file);
+	fseek(file,0,SEEK_SET);
+
+	if(adr+size>0x10000)
+	{
+		fclose(file);
+		return 0;
+	}
+
+	fread(mem+adr,size,1,file);
+	fclose(file);
+
+	return size;
+}
 
 
 //проверка страницы на наличие ненулевых данных
@@ -190,11 +211,17 @@ bool page_save(int slot,int page, char* pageName, int filenum, FILE * fileOutAsm
 	fprintf(fileOutAsm,"%s = %d\n",name,page);
 	//printf("%s = %d\n",name,page);
 
-	fprintf(fileBatMLZ,"megalz page_%i.bin >nul\n",page);
-	fprintf(fileBatMLZ,"call _getsize.bat page_%i.bin.mlz %i\n",page,page);
-	fprintf(fileBatSCL,"trdtool + disk.scl page_%i.bin.mlz\n",page);
-
-	sprintf(name,"_temp_/page_%i.bin",page);
+	if (stringToInt(args.getArg(ALT_PAGE_NUMERING))==0){
+		fprintf(fileBatMLZ,"megalz page_%i.bin >nul\n",page);
+		fprintf(fileBatMLZ,"call _getsize.bat page_%i.bin.mlz %i\n",page,page);
+		fprintf(fileBatSCL,"trdtool + disk.scl page_%i.bin.mlz\n",page);
+		sprintf(name,"_temp_/page_%i.bin",page);
+	} else {
+		fprintf(fileBatMLZ,"megalz page_%03i.bin >nul\n",page);
+		fprintf(fileBatMLZ,"call _getsize.bat page_%03i.bin.mlz %i\n",page,page);
+		fprintf(fileBatSCL,"trdtool + disk.scl page_%03i.bin.mlz\n",page);
+		sprintf(name,"_temp_/page_%03i.bin",page);
+	}
 
 	file=fopen(name,"wb");
 
@@ -208,7 +235,20 @@ bool page_save(int slot,int page, char* pageName, int filenum, FILE * fileOutAsm
 	return true;
 }
 
+bool store_bin(int size, int number)
+{
+	char name[1024];
+	sprintf(name,"_temp_/code%d.bin",number);
+	FILE *file;
+	file=fopen(name,"wb");
 
+	if(!file) return false;
+
+	fwrite(&mem,size,1,file);
+	fclose(file);
+
+	return true;
+}
 
 void error(void)
 {
@@ -432,14 +472,14 @@ void trim_str(char* line)
 
 void main(int argc,char* argv[])
 {
-	const char cc_page[4]={stringToInt(args.getArg(CC_PAGE0)),
+	char cc_page[4]={stringToInt(args.getArg(CC_PAGE0)),
 		stringToInt(args.getArg(CC_PAGE1)),
 		stringToInt(args.getArg(CC_PAGE2)),
 		stringToInt(args.getArg(CC_PAGE3))};
 	FILE *list,*file;
 	char line[1024];
 	unsigned char *data;
-	int i,pp,off,ptr,size,page,img_count;
+	int i,pp,off,ptr,size,size2,page,img_count;
 	int mus_offset[256],mus_page[256];
 	int smp_offset[256],smp_page[256],smp_pitch[256];
 	int mus_count,mus_page_start,mus_pages,gfx_pages;
@@ -458,6 +498,9 @@ void main(int argc,char* argv[])
 		}
 	}
 
+	if(stringToInt(args.getArg(ALT_PAGE_NUMERING))!=0) {
+		globalPageNum=stringToInt(args.getArg(ALT_PAGE_NUMERING));
+	}
 	FILE *fileOutAsm;
 	fileOutAsm=fopen("_temp_/pages.asm","wb");
 
@@ -478,7 +521,7 @@ void main(int argc,char* argv[])
 	atexit(error);
 
 	//графика изображений
-
+	
 	clear_mem();
 
 	list=fopen(args.getArg(IMAGE_LIST),"rt");
@@ -488,6 +531,10 @@ void main(int argc,char* argv[])
 		printf("Error: Image list is missing\n");
 		exit(1);
 	}
+	cc_page[0]=stringToInt(args.getArg(CC_PAGE0));
+	cc_page[1]=stringToInt(args.getArg(CC_PAGE1));
+	cc_page[2]=stringToInt(args.getArg(CC_PAGE2));
+	cc_page[3]=stringToInt(args.getArg(CC_PAGE3));
 
 	page=stringToInt(args.getArg(GFX_PAGE));
 	gfx_pages=0;
@@ -539,11 +586,12 @@ void main(int argc,char* argv[])
 			}
 		}
 
-		free(tileData);
+		//free(tileData);
+		//if(tileData) free(tileData);
 
 		off+=16;
 	}
-
+	
 	if(ptr)
 	{
 		page_save(0,page,"graphicsData",pageNumCntr,fileOutAsm);
@@ -691,7 +739,7 @@ void main(int argc,char* argv[])
 	}
 
 	fclose(list);
-
+	
 	smp_page_start=page;
 
 	//данные сэмплов
@@ -770,15 +818,17 @@ void main(int argc,char* argv[])
 	spr_page_start=page;
 
 	//плееры музыки и звука, данные звуков, списки сэмплов и треков
-
+	
 	clear_mem();
 	pageNumCntr=0;
-	if(!load_bin(0x4000,"../evosdk/sound.bin"))
+	//printf(" sound.bin\n");
+	//printf("=%s\n",args.getArg(SOUND_BIN_FILE));
+	if(!load_bin(0x4000,args.getArg(SOUND_BIN_FILE)))
 	{
 		printf("Error: sound.bin not found\n");
 		exit(1);
 	}
-
+	//printf(" sound.bin\n");
 	//if(strcmp(argv[3],"")) load_bin(SFX_ADR,argv[3]);
 	if(strcmp(args.getArg(SFX_LIST),"")) load_bin(stringToInt(args.getArg(SFX_ADR)),args.getArg(SFX_LIST));
 	mem[stringToInt(args.getArg(MUS_COUNT))]=mus_count;
@@ -803,10 +853,11 @@ void main(int argc,char* argv[])
 		mem[off+768]=smp_pitch [i];
 		++off;
 	}
-
+	//printf(" sound.bin\n");
 	page_save(1,stringToInt(args.getArg(SND_PAGE)),"soundData",pageNumCntr,fileOutAsm);
 	
 	//спрайты
+	//printf(" Sprite\n");
 	pageNumCntr=0;
 	//list=fopen(argv[8],"rt");
 	list=fopen(args.getArg(SPRITE_LIST),"rt");
@@ -834,7 +885,10 @@ void main(int argc,char* argv[])
 
 		i=mkspr_add(line,stringToInt(args.getArg(SPRITE_SLOT)),fileOutAsm,&pageNumCntr);
 
-		if(i<0) exit(1);
+		if(i<0) {
+			//printf(" mazafaka %d\n",i);
+			exit(1);
+		}
 
 		spr_pages=i-spr_page_start+1;
 	}
@@ -856,16 +910,18 @@ void main(int argc,char* argv[])
 	//код программы
 
 	clear_mem();
-
+	
 	//size=load_ihx(argv[1]);
 	size=load_ihx(args.getArg(BINARY_FILE));
-	
+	//printf("code size =%d",size);
 	if(size>0)
 	{
+		store_bin(size,0);
+
 		//printf("Error: Can't load Intel HEX from file\n");
 		//exit(1);
 		code_size=size;
-
+		
 		if(code_size>=stringToInt(args.getArg(STARTUP_ADR))-stringToInt(args.getArg(STACK_SIZE)))
 		{
 			printf("Error: Out of memory, compiled code is too large\n");
@@ -874,21 +930,24 @@ void main(int argc,char* argv[])
 		}
 
 		//if(!load_bin(atoi(args.getArg("STARTUP_ADR")),argv[2]))
-		if(!load_bin(stringToInt(args.getArg(STARTUP_ADR)),args.getArg(STARTUP_FILE)))
+		size2=load_bin2(stringToInt(args.getArg(STARTUP_ADR)),args.getArg(STARTUP_FILE));
+		if(size2==0)
 		{
 			printf("Error: Can't load startup code\n");
 			exit(1);
 		}
-
+		store_bin(size+size2,1);
 		code_pages=0;
 		pageNumCntr=0;
-		for(i=0;i<4;i++)
-		{
-			if(!page_is_empty(i))
+		if (stringToInt(args.getArg(ALT_PAGE_NUMERING))==0){
+			for(i=0;i<4;i++)
 			{
-				page_save(i,cc_page[i],"codeData",pageNumCntr,fileOutAsm);
-				code_pages++;
-				pageNumCntr++;
+				if(!page_is_empty(i))
+				{
+					page_save(i,cc_page[i],"codeData",pageNumCntr,fileOutAsm);
+					code_pages++;
+					pageNumCntr++;
+				}
 			}
 		}
 	}
@@ -910,17 +969,17 @@ void main(int argc,char* argv[])
 
 	page=4/*code_pages*/+4/*sprbuf*/+mus_pages+smp_pages+gfx_pages+spr_pages+1+1+(spr_pages?1:0);//snd, pal, sprtbl
 
-	printf("\nCompiled code size %i bytes (%i max, %i left)\n\n",code_size,stringToInt(args.getArg(STARTUP_ADR))-stringToInt(args.getArg(STACK_SIZE)),stringToInt(args.getArg(STARTUP_ADR))-stringToInt(args.getArg(STACK_SIZE))-code_size);
+	//printf("\nCompiled code size %i bytes (%i max, %i left)\n\n",code_size,stringToInt(args.getArg(STARTUP_ADR))-stringToInt(args.getArg(STACK_SIZE)),stringToInt(args.getArg(STARTUP_ADR))-stringToInt(args.getArg(STACK_SIZE))-code_size);
 
-	printf("%i RAM pages (%iK) used:\n",page,page*16);
-	printf("Code:\t\t\t%i,%i,%i,%i\n",stringToInt(args.getArg(CC_PAGE0)),
+	//printf("%i RAM pages (%iK) used:\n",page,page*16);
+	/*printf("Code:\t\t\t%i,%i,%i,%i\n",stringToInt(args.getArg(CC_PAGE0)),
 		stringToInt(args.getArg(CC_PAGE1)),
 		stringToInt(args.getArg(CC_PAGE2)),
-		stringToInt(args.getArg(CC_PAGE3)));
-	printf("Sprites buffer:\t\t%i,%i,%i,%i\n",stringToInt(args.getArg(SPRBUF_PAGE)),
+		stringToInt(args.getArg(CC_PAGE3)));*/
+	/*printf("Sprites buffer:\t\t%i,%i,%i,%i\n",stringToInt(args.getArg(SPRBUF_PAGE)),
 		stringToInt(args.getArg(SPRBUF_PAGE))+1,stringToInt(args.getArg(SPRBUF_PAGE))+2,stringToInt(args.getArg(SPRBUF_PAGE))+3);
-	printf("Graphics data:\t\t");
-	if(gfx_pages)
+	printf("Graphics data:\t\t");*/
+	/*if(gfx_pages)
 	{
 		
 		for(i=0;i<gfx_pages;i++){
@@ -932,8 +991,8 @@ void main(int argc,char* argv[])
 	else
 	{
 		printf("no data\n");
-	}
-	printf("Palettes and params:\t%i\n",stringToInt(args.getArg(PAL_PAGE)));
+	}*/
+	/*printf("Palettes and params:\t%i\n",stringToInt(args.getArg(PAL_PAGE)));
 	printf("Sound code and sfx:\t%i\n",stringToInt(args.getArg(SND_PAGE)));
 	printf("Music data:\t\t");
 	if(mus_pages)
@@ -943,8 +1002,8 @@ void main(int argc,char* argv[])
 	else
 	{
 		printf("no data\n");
-	}
-	printf("Sample data:\t\t");
+	}*/
+	/*printf("Sample data:\t\t");
 	if(smp_pages)
 	{
 		for(i=0;i<smp_pages;i++) printf("%i%c",smp_page_start+i,i<smp_pages-1?',':'\n');
@@ -952,8 +1011,8 @@ void main(int argc,char* argv[])
 	else
 	{
 		printf("no data\n");
-	}
-	printf("Sprite data:\t\t");
+	}*/
+	/*printf("Sprite data:\t\t");
 	if(spr_pages)
 	{
 		for(i=0;i<spr_pages;i++) printf("%i%c",spr_page_start+i,i<spr_pages-1?',':'\n');
@@ -963,9 +1022,9 @@ void main(int argc,char* argv[])
 	{
 		printf("no data\n");
 		printf("Sprite parameters:\tno data\n");
-	}
-	printf("Total count of files:\t%d",fileCnt);
-	printf("\n");
+	}*/
+	//printf("Total count of files:\t%d",fileCnt);
+	//printf("\n");
 
 	//return 0;
 }
