@@ -16,7 +16,14 @@
 ;i: 16c image
 ;P: DDp palette
 
-letter#2=i,144,0,8,8
+;human#16=x,0,0,16,24
+;aquatoid#16=x,0,48,16,24
+;deepone#16=x,0,96,16,24
+;lobsterman#16=x,0,144,16,24
+;gillman#16=x,0,192,16,24
+;tasoth#16=x,0,240,16,24
+tentaculat#16=x,0,288,16,24
+calcinite#16=x,0,336,16,24
 ;human0=x,0,0,16,16
 ;doska=B,112,0,32,8,7
 ;beton=B,80,0,32,8,7

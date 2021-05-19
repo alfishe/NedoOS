@@ -30,6 +30,32 @@ NOENEMY=0;1
 	POP	HL
 	ENDM
 
+        PAGE 8
+        org 0xc000
+        include "sprites.ast"
+	savebin "ufo2/ufospr1.dat",0xc000,$-0xc000
+        display "endsprites=",$
+        PAGE 9
+        org 0xc000
+        include "sprites2.ast"
+	savebin "ufo2/ufospr2.dat",0xc000,$-0xc000
+        display "endsprites2=",$
+        PAGE 10
+        org 0xc000
+        include "sprites3.ast"
+	savebin "ufo2/ufospr3.dat",0xc000,$-0xc000
+        display "endsprites3=",$
+        PAGE 11
+        org 0xc000
+        include "sprites4.ast"
+	savebin "ufo2/ufospr4.dat",0xc000,$-0xc000
+        display "endsprites4=",$
+        PAGE 12
+        org 0xc000
+        include "sprites5.ast"
+	savebin "ufo2/ufospr5.dat",0xc000,$-0xc000
+        display "endsprites5=",$
+
 ;*F	XPAGE
 ;содержимое страниц
 ;СТРАНИЦЫ: c #C000

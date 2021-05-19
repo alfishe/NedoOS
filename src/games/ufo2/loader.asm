@@ -1,3 +1,13 @@
+scrbase=0x4000+4
+iconsscraddr=scrbase+25+(32*40)
+faceiconsscraddr=scrbase+(17*8*40)+1
+sprmaxwid=48;32
+sprmaxhgt=32
+scrwid=128+8;160 ;double pixels
+scrhgt=192;200
+INTSTACK=0x3f00
+tempsp=0x3f06 ;6 bytes for prspr
+
         ld sp,STACK
         OS_HIDEFROMPARENT
         ld e,3
@@ -15,7 +25,7 @@
 	OS_CHDIR
 
         OS_GETMAINPAGES
-;dehl=pages in 0000,4000,8000,c000  
+;dehl=pages in 0000,4000,8000,c000
         ld a,l
         ld (tpgs+0),a
 
@@ -24,21 +34,21 @@
         ld a,(user_scr1_high) ;ok
        if EGA
          ;ld (scrpg7),a
-       else 
+       else
          ld (getttexpgs_basepg7),a
        endif
-       
+
         OS_NEWPAGE
         ld a,e
         ld (tpgs+6),a
 
         ld hl,texfilename
-        ld b,ntexfilenames
+        ;ld b,ntexfilenames
 getttexpgs0
-        push bc
+        ;push bc
         ld a,(hl)
         or a
-        ld a,(tpgs+0)
+        ld a,(tpgs+0) ;не перезахватываем 0-ю страницу
         jr z,getttexpgs7
         ld a,(hl)
        if EGA==0
@@ -89,23 +99,43 @@ gettexpgs_noskipdata2
         OS_READHANDLE
         pop bc
         OS_CLOSEHANDLE
-                
+
         pop hl
         ld b,1
         xor a
         cpir ;after 0
-        pop bc
-        djnz getttexpgs0
+        ;pop bc
+        ld a,(hl)
+        inc a
+        jr nz,getttexpgs0
+        
+       if 0
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+
+        call setpgsscr40008000 ;включили страницы экрана
+        ld a,8
+        call setpg
+
+	ld iy,0xc004;human_0
+	ld e,50 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+	ld c,50 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+	call prspr
+
+        call setpgsmain40008000 ;включили страницы программы в 4000,8000, как было
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+        jr $
+       endif
         jp JP_ST
 
         align 256
 tpgs
         ds 64
-        
+
 quit
         ld hl,0 ;result
         QUIT
-        
+
 PT128	LD	A,6;Cтандартная страница
 	JR	MEM
 
@@ -113,8 +143,9 @@ MEM7	LD	A,7
 MEM	OR	%11011000
 _128	;LD	BC,#7FFD
 	;OUT	(C),A
-        ld b,tpgs/256
         and 7
+setpg
+        ld b,tpgs/256
         ld c,a
         ld a,(bc)
         SETPGC000
@@ -140,6 +171,12 @@ wWT_	LD	A,(HL)
 ;DEC40
         include "unmegalz.asm"
 
+        include "prspr.asm"
+        include "mem.asm"
+        
+curscrnum_int
+        db 0
+
 file_path
         db "ufo2",0
 
@@ -150,10 +187,16 @@ texfilename
         db 4,"ufo24.dat",0
         ;db 6,"br6.dat",0
         db 7,"ufo27.dat",0
-        if EGA==0
-ntexfilenames=5
-        else
-        endif
+        db 8,"ufospr1.dat",0
+        db 9,"ufospr2.dat",0
+        db 10,"ufospr3.dat",0
+        db 11,"ufospr4.dat",0
+        db 12,"ufospr5.dat",0
+        ;if EGA==0
+;ntexfilenames=5
+        ;else
+        ;endif
+        db -1
 
 findsprfilename
 ;a=#=1..74

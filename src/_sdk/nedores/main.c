@@ -28,6 +28,8 @@ BYTE pal[64];
 int convorderx[CONVORDERSZ]; //для каждого номера тайла координаты
 int convordery[CONVORDERSZ]; //для каждого номера тайла координаты
 
+int sprcount;
+
 BYTE ink;
 BYTE paper;
 BYTE curink;
@@ -74,12 +76,22 @@ unsigned int readlabel(FILE * fin, char * s)
 char c;
 unsigned int i;
 int iscomment;
+  sprcount = 0;
   do{
     i = 0;
     iscomment = 0;
     do{
       if (!fread(&c,1,1,fin)) break;
       if (c == ';') iscomment = -1;
+      if (c=='#') { //дальше число спрайтов
+        if (iscomment) continue; //в комментах можно #
+        while (1) {
+          if (!fread(&c,1,1,fin)) return 0;
+          if (c == '=') break;
+          sprcount = sprcount*10;
+          sprcount = sprcount + (int)(c-'0');
+        };
+      };
       if ((c=='=')||(c==',')) {
         if (iscomment) continue; //в комментах можно =
         break;
@@ -105,6 +117,35 @@ return sizeword[0] + (sizeword[1]<<8) + (sizeword[2]<<16) + (sizeword[3]<<24);
 }
 
 BYTE colstat[256];
+
+char numbuf[256];
+
+UINT maxsprcount;
+UINT cursprcount;
+
+void putlabel(char * labelbuf, FILE * fout)
+{
+UINT num;
+UINT i;
+        fputs(labelbuf, fout);
+        if (maxsprcount != 0) {
+          fputc('_', fout);
+          num = cursprcount;
+
+          i = 0;
+          do {
+            numbuf[i] = (char)((UINT)'0' + (num - (num/10)*10));
+            num = num/10;
+            i++;
+          } while (num != 0);
+
+          do {
+            i--;
+            fputc(numbuf[i], fout);
+          } while (i != 0);
+        };
+return;
+}
 
 void findinkpaper(int x, int y) //маска 0x00 не считается цветом
 {
@@ -516,6 +557,8 @@ UINT color;
           };*/
           while (1) {
             size = readlabel(fintxt, labelbuf); //fread(filebuf, 1, MAXDEFB, fin);
+           maxsprcount = sprcount;
+           cursprcount = 0;
             if (size == 0) break;
             readlabel(fintxt, formatlabelbuf); //format
             sprformat = *formatlabelbuf;
@@ -525,21 +568,21 @@ UINT color;
             sprhgt = readnum(fintxt);
             tiles = readnum(fintxt); //отсутствует в x
             defaultcolor = (BYTE)tiles; //для всех, кроме L
-
+           do {
             if (sprformat == 'B') {
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>3), fout);
               emitdb((BYTE)(sprhgt>>3), fout);
               rowhgt = 8;
             }else if (sprformat == 'T') { //набор тайлов
               fputs("\tds (-$)&0xff\n", fout);
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = 8;
             }else if (sprformat == 'x') { //спрайт 16c
               fputs("\n", fout);
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("=$+4\n", fout);
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>1), fout);
@@ -547,17 +590,17 @@ UINT color;
               rowhgt = sprhgt;
             }else if (sprformat == 'i') { //картинка 16c по столбцам
               fputs("\n", fout);
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
             }else if (sprformat == 'L') { //LAND как в ЧВ, дальше следует таблица - номер тайла для каждой клетки
               fputs("\n", fout);
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
             }else if (sprformat == 'P') { //DDp palette
               fputs("\n", fout);
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               i = 0;
               while (i < 64) { //DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные //color = highlow
@@ -583,15 +626,15 @@ UINT color;
               fputs("\n", fout);
               rowhgt = sprhgt;
             }else if ((sprformat == 'w')||(sprformat == 'z')) {
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
             }else if (sprformat == 'W') {
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
             }else { //'s'
-              fputs(labelbuf, fout);
+              putlabel(labelbuf, fout);
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>3), fout);
               emitdb((BYTE)(sprhgt), fout);
@@ -774,7 +817,9 @@ UINT color;
               };
 
             };
-
+            sprx = sprx + sprwid;
+            cursprcount++;
+           } while (cursprcount<maxsprcount); //while (sprcount)
           }; //while (1)
           fclose(fout);
         }else {printf("can't open %s",foutname);};
