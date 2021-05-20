@@ -258,7 +258,6 @@ sock_fd     defb 0
 FMODE_READ = #01
 FMODE_CREATE = #0E
 
-    display "display ",$
 ; HL - filename in ASCIIZ
 loadBuffer:
     ld b, Dos.FMODE_READ: call Dos.fopen
