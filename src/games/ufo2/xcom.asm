@@ -3,7 +3,6 @@
 
 STACK=0x4000
 IMVEC=#4100
-EGA=0
 
 PROTECT=0
 CHEATS=1
@@ -19,16 +18,7 @@ NOENEMY=0;1
 	;HALT
 	;ENDM
 
-        macro PUSHs;$	MAC
-	PUSH	HL
-	PUSH	DE
-	PUSH	BC
-	ENDM
-        macro POPs;POP$	MAC
-	POP	BC
-	POP	DE
-	POP	HL
-	ENDM
+        include "macro.asm"
 
         PAGE 8
         org 0xc000
@@ -55,6 +45,15 @@ NOENEMY=0;1
         include "sprites5.ast"
 	savebin "ufo2/ufospr5.dat",0xc000,$-0xc000
         display "endsprites5=",$
+        PAGE 13
+        org 0xc000
+        include "xm0.ast"
+        include "xm11a.ast"
+	savebin "ufo2/ufoxm11a.dat",0xc000,$-0xc000
+        PAGE 14
+        org 0xc000
+        include "xm11b.ast"
+	savebin "ufo2/ufoxm11b.dat",0xc000,$-0xc000
 
 ;*F	XPAGE
 ;содержимое страниц
@@ -71,13 +70,8 @@ NOENEMY=0;1
         PAGE 4
 	ORG #C000
 begin4
-xHERO
 ;*B ..\data\xhero.dat
         incbin "data/xhero.dat"
-xDIE	EQU xHERO+#3000
-xBOOM	EQU xDIE+#300
-xBUM	EQU xBOOM+#300
-xBULL	EQU xBUM+#480
 xSHIP
 ;*B ..\ZX_DISC\XM0.LPC
         ;incbin "ZX_DISC/XM0.LPC"
@@ -387,8 +381,8 @@ TAB100	ds 98;DEFR 98
 	DEFB #15,#88 ;таблица плохих секторов
 ;*L-
 ;*F xlib
-        include "xlib.asm"
-CRC2	DEFW 0;[] -crc2
+        ;include "xlib.asm"
+;CRC2	DEFW 0;[] -crc2
 xHAC2	DEFB #D5;D6;если D6, то нет боя []
 ;*F xlie
         include "xlie.asm"

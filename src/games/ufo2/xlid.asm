@@ -718,25 +718,6 @@ MX	EQU	COORD
 MY	EQU	MX+1
 OLDCO	DEFW	0	;WORKING
 
-        macro Ms _a;$	MAC
-	LD	A,_a ;=0
-	CALL	MEM
-	ENDM
-
-        macro pushs;$	MAC
-	PUSH	BC
-	PUSH	HL
-	ENDM
-        macro pops;pop$	MAC
-	POP	HL
-	POP	BC
-	ENDM
-        macro WRDs _hl,_a;$    MAC
-	LD HL,_hl;=0
-	LD (SX),HL
-	LD A,_a;=1
-	CALL NWRDM
-	ENDM
 
 ;=========================================Мeнeджер памяти
         if 0

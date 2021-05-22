@@ -171,6 +171,52 @@ wWT_	LD	A,(HL)
 ;DEC40
         include "unmegalz.asm"
 
+prtile
+;de=gfx
+        ld h,tmask/256
+;h=tmask/256
+;bc=scr
+;hx=hgt
+;4000,8000,6000,a000
+        push de
+        call prtile0
+        pop de
+        push de
+        ld a,d
+        add a,0x40
+        ld d,a
+        call prtile0
+        pop de
+        push de
+        set 5,d
+        call prtile0
+        pop de
+        ld a,d
+        add a,0x60
+        ld d,a
+prtile0
+        LD A,(de)
+        INC e
+        LD L,A
+        LD A,(bc)
+        AND (HL)
+        OR L
+        LD (bc),A
+        ld a,c
+        add a,40
+        ld c,a
+        jr nc,$+3
+        inc b
+        dec hx
+        jr nz,prtile0
+        ret
+        
+        align 256
+tmask
+        incbin "tmask"
+
+        include "xlib.asm"
+
         include "prspr.asm"
         include "mem.asm"
         
@@ -192,6 +238,8 @@ texfilename
         db 10,"ufospr3.dat",0
         db 11,"ufospr4.dat",0
         db 12,"ufospr5.dat",0
+        db 13,"ufoxm11a.dat",0
+        db 14,"ufoxm11b.dat",0
         ;if EGA==0
 ;ntexfilenames=5
         ;else

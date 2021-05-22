@@ -378,6 +378,7 @@ INCR	EX	DE,HL
 	EXX
 	JR	IM3
 
+       if 0
 DD	RLCA
 WA	RLCA
 BA	ADD	A,L
@@ -386,6 +387,7 @@ BA	ADD	A,L
 	INC	H
 BA_	LD	A,(HL)
 	RET
+       endif
 
 INS	LD	A,(IX) ;точка в боксе
 	CP	L

@@ -31,6 +31,10 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 %NEDORES% images/XHERO.bmp sprites4.dat sprites4.ast
 %NEDORES% images/XHERO.bmp sprites5.dat sprites5.ast
 
+%NEDORES% images/XM0.bmp xm0.dat xm0.ast
+%NEDORES% images/XM11.bmp xm11a.dat xm11a.ast
+%NEDORES% images/XM11.bmp xm11b.dat xm11b.ast
+
 rem #
 rem # Executables
 rem #

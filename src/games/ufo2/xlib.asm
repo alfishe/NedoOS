@@ -481,6 +481,7 @@ MSizeP	pushs;$
 	JR Z,MSiRET
        ;jr $
 	PUSH HL
+       if EGA == 0
 	LD B,vSIZE/256
 	OR #80 ;(vSIZE mod 256)
 	LD C,A
@@ -490,9 +491,9 @@ MSizeP	pushs;$
 	ADD A,A
 	ADD A,A
 	LD L,A
-	RRCA
-	ADD A,E
-	LD E,A
+	 RRCA
+	 ADD A,E
+	 LD E,A
 	ADD HL,HL
 	ADD HL,HL
 	LD A,(BC)
@@ -501,6 +502,9 @@ MSizeP	pushs;$
 	CPL
 	ADD A,33
 	LD B,A
+       else
+        ld b,32
+       endif
 	JP MS2
 
 BSP	pushs;$
@@ -535,7 +539,23 @@ NSP2	pushs;$
 ;печать полного тайла
 MSP	pushs;$
 	LD	B,32
-MS2	LD	(MSPSP+1),SP
+MS2
+       if EGA
+        ld hx,b ;hgt
+        ld b,h
+        ld c,l
+       push de
+       push bc
+       push ix
+        call prtile
+       pop ix
+       pop bc
+       set 7,c
+       pop de
+       inc de
+        call prtile
+       else
+	LD	(MSPSP+1),SP
 	EX	DE,HL
 	LD	SP,HL
 	EX	DE,HL
@@ -554,13 +574,21 @@ Ainv2	XOR	D
 	ADD	HL,DE
 	DJNZ	MS20
 MSPSP	LD	SP,#4020
+       endif
 MSiRET	pops;$
 	RET
 
 ;печать левой части тайла
 LSP	pushs;$
 	LD	B,32
-LS2     LD	(LSPSP+1),SP
+LS2
+       if EGA
+        ld hx,b
+        ld b,h
+        ld c,l
+        call prtile
+       else
+        LD	(LSPSP+1),SP
 	EX	DE,HL
 	LD	SP,HL
 	EX	DE,HL
@@ -574,13 +602,30 @@ Ainv3	XOR	D
 	ADD	HL,DE
 	DJNZ	LS20
 LSPSP	LD	SP,#4020
+       endif
 	pops;$
 	RET
 
 ;печать правой части тайла
 RSP	pushs;$
 	LD	B,32
-RS2     LD	(RSPSP+1),SP
+RS2
+       if EGA
+        ld hx,b ;hgt
+        ld b,h
+        ld c,l
+       ;push de
+       ;push bc
+       ;push ix
+        ;call prtile
+       ;pop ix
+       ;pop bc
+       set 7,c
+       ;pop de
+       inc de
+        call prtile
+       else
+        LD	(RSPSP+1),SP
 	EX	DE,HL
 	LD	SP,HL
 	EX	DE,HL
@@ -594,6 +639,7 @@ Ainv4	XOR	D
 	ADD	HL,DE
 	DJNZ	RS20
 RSPSP	LD	SP,#4020
+       endif
 	pops;$
 	RET
 
@@ -771,4 +817,58 @@ LCX2	LD A,C
 	XOR A
 	LD (DE),A
 	RET
+       
+       if 1
+DD	RLCA
+WA	RLCA
+BA	ADD	A,L
+	LD	L,A
+	JR	NC,BA_
+	INC	H
+BA_	LD	A,(HL)
+	RET
+       endif
 
+       if 1
+GET_AD	RLCA ;Взять описатель(MAN+A*32) ->HL
+	RLCA
+	RLCA
+	LD L,A
+	LD H,0
+	ADD HL,HL
+	ADD HL,HL
+	LD A,MAN/256
+	ADD A,H
+	LD H,A
+	RET
+
+GET_IX  CALL GET_AD;То же для IX
+	PUSH HL
+	POP IX
+	RET
+       endif
+
+       if 1
+HERLIV	LD A,(IX+8) ;IX-жив? Z-нет
+	OR A
+	RET Z
+	LD A,(IX+13)
+	OR A
+	RET Z
+	CP (IX+26)
+	RET NC
+	XOR A
+	RET
+       endif
+
+       if 1
+NORM_V
+       if EGA == 0
+	LD A,#AA ;вкл.норм.отобр
+	LD (Ainv1),A
+	LD (Ainv2),A
+	LD (Ainv3),A
+	LD (Ainv4),A
+       endif
+	RET
+       endif

@@ -12,6 +12,7 @@ NEWHER	LD (HER_N),A ;нов.герой
 	LD (HER_AD),HL
 	RET
 
+       if 0
 GET_AD	RLCA ;Взять описатель(MAN+A*32) ->HL
 	RLCA
 	RLCA
@@ -28,6 +29,7 @@ GET_IX  CALL GET_AD;То же для IX
 	PUSH HL
 	POP IX
 	RET
+       endif
 
 GET_DE	LD HL,(HER_AD);коорд ->DE
 GT_DE_	LD E,(HL)
@@ -309,6 +311,7 @@ INL1    PUSH DE
 
 	RET
 
+       if 0
 HERLIV	LD A,(IX+8) ;IX-жив? Z-нет
 	OR A
 	RET Z
@@ -319,6 +322,7 @@ HERLIV	LD A,(IX+8) ;IX-жив? Z-нет
 	RET NC
 	XOR A
 	RET
+       endif
 
 HER1st	LD IX,MAN ;взять первого
 	LD B,0
@@ -1550,12 +1554,14 @@ LOKMAN	;очистка поля, если персонаж
 	LD A,#60
 	RET
 
+       if 0
 NORM_V	LD A,#AA ;вкл.норм.отобр
 	LD (Ainv1),A
 	LD (Ainv2),A
 	LD (Ainv3),A
 	LD (Ainv4),A
 	RET
+       endif
 
 HT	DEFW	DSP0,DSP2,DSP4,DSP6
 HERO	PUSH	HL;Выв.героя со сдвигом-A:0-3

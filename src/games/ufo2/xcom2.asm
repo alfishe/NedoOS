@@ -3,7 +3,9 @@
 
 STACK=0x4000
 IMVEC=#4100
-EGA=0
+
+        include "macro.asm"
+
 ;*Z80
 ;*O	
 ;*P4
