@@ -1,6 +1,7 @@
 @echo off
 echo build kernel
 if "%settedpath%"=="" call ../_sdk/setpath.bat
+sjasmplus --nologo --msg=war ngsinst.asm
 sjasmplus --nologo --msg=war main.asm
 del code.c
 mhmt -mlz syscode.c > nul
@@ -16,5 +17,5 @@ if "%currentdir%"=="" (
  rem "../../tools/dmimg.exe" ../../us/hdd_nedo.vhd put nedoos.$c /osatm2hd.$c
  rem pause
  rem if "%makeall%"=="" ..\..\us\emulatm2.bat
- if "%makeall%"=="" ..\..\us\emul.exe
+rem if "%makeall%"=="" ..\..\us\emul.exe
 )
