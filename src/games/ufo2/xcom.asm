@@ -1,8 +1,8 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
-STACK=0x4000
 IMVEC=#4100
+IM2=0
 
 PROTECT=0
 CHEATS=1
@@ -185,7 +185,7 @@ INTR2	POP HL
 	EI
 	RETI
        endif
-SEED	DEFW 1 ;счётчик
+;SEED	DEFW 1 ;счётчик
 NRFT	DEFB 1 ;для XIO
 ;Interupt table
 ;==================================обслуживание клавиатуры
@@ -303,9 +303,13 @@ xSTART	DI
 	CALL JP_ST
 start	DI
 	LD SP,#4040
+       if IM2
 	LD A,#41
 	LD I,A
 	IM 2
+       else
+       call swapimer
+       endif
 	CALL START2 ;нач.уст
 	CALL BACK
        ;call SWPBAT

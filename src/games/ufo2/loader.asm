@@ -26,13 +26,17 @@ tempsp=0x3f06 ;6 bytes for prspr
 
         OS_GETMAINPAGES
 ;dehl=pages in 0000,4000,8000,c000
+        ld a,e
+        ld (pgmain4000),a
+        ld a,h
+        ld (pgmain8000),a
         ld a,l
         ld (tpgs+0),a
 
         ;OS_GETSCREENPAGES
 ;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
         ld a,(user_scr1_high) ;ok
-       if EGA
+       if 0;EGA
          ;ld (scrpg7),a
        else
          ld (getttexpgs_basepg7),a
@@ -51,7 +55,7 @@ getttexpgs0
         ld a,(tpgs+0) ;не перезахватываем 0-ю страницу
         jr z,getttexpgs7
         ld a,(hl)
-       if EGA==0
+       if 1;EGA==0
         cp 7
 getttexpgs_basepg7=$+1
         ld a,0
@@ -69,7 +73,7 @@ getttexpgs7
         ld (bc),a
         inc hl
         push hl
-        SETPG32KHIGH
+        SETPGC000
 
         ld a,(hl)
         cp ' '
@@ -171,29 +175,34 @@ wWT_	LD	A,(HL)
 ;DEC40
         include "unmegalz.asm"
 
+SEED	DEFW 1 ;счётчик
+
 prtile
+        ;ret
 ;de=gfx
         ld h,tmask/256
 ;h=tmask/256
 ;bc=scr
 ;hx=hgt
 ;4000,8000,6000,a000
-        push de
-        call prtile0
-        pop de
-        push de
-        ld a,d
+        push bc
+        call prtilepp
+        pop bc
+        push bc
+        ld a,b
         add a,0x40
-        ld d,a
-        call prtile0
-        pop de
-        push de
-        set 5,d
-        call prtile0
-        pop de
-        ld a,d
+        ld b,a
+        call prtilepp
+        pop bc
+        push bc
+        set 5,b
+        call prtilepp
+        pop bc
+        ld a,b
         add a,0x60
-        ld d,a
+        ld b,a
+prtilepp
+       push ix
 prtile0
         LD A,(de)
         INC e
@@ -209,6 +218,7 @@ prtile0
         inc b
         dec hx
         jr nz,prtile0
+       pop ix
         ret
         
         align 256
@@ -220,8 +230,8 @@ tmask
         include "prspr.asm"
         include "mem.asm"
         
-curscrnum_int
-        db 0
+;curscrnum_int
+;        db 0
 
 file_path
         db "ufo2",0
@@ -245,6 +255,8 @@ texfilename
         ;else
         ;endif
         db -1
+
+        include "int.asm"
 
 findsprfilename
 ;a=#=1..74

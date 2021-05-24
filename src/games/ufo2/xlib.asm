@@ -369,6 +369,7 @@ G00	LD	A,1 ;Вне поля
 ;возвр: Z-0й спрайт DE-адр А-номер
 ASP	CALL GSP
 	LD D,A
+       if EGA == 0
 	RLCA
 	LD A,(Ainv1)
 	JR C,A2P
@@ -383,7 +384,9 @@ A21P	LD (Ainv1),A
 	LD (Ainv2),A
 	LD (Ainv3),A
 	LD (Ainv4),A
-A22P    LD A,D
+A22P
+        LD A,D
+       endif
 A22P_	LD E,0
 	AND #7F
 	PUSH AF
@@ -476,12 +479,21 @@ M96	LD L,A
 	RET
 
 ;вывод 3D тайла (для полного обновления экрана ALLSPF)
-MSizeP	pushs;$
+MSizeP
+        ;ld a,201
+        ;ld (MSizeP),a
+
+	pushs;$
+       if EGA
+       ;push bc
+       call PT128
+       ;pop bc
+       endif
 	CALL ASP ;out: de=tile addr
 	JR Z,MSiRET
        ;jr $
-	PUSH HL
        if EGA == 0
+	PUSH HL
 	LD B,vSIZE/256
 	OR #80 ;(vSIZE mod 256)
 	LD C,A
@@ -503,6 +515,27 @@ MSizeP	pushs;$
 	ADD A,33
 	LD B,A
        else
+        ld a,d
+        sub 0xB0
+        sla e
+        rla
+        ;sla e
+        ;rla
+        add a,0xc0
+        ld d,a
+        ld a,13 ;pg
+        jr nc,MSizeP_retilen1
+        ld a,d
+        sub 0x40
+        ld d,a
+        ld a,14 ;pg
+MSizeP_retilen1
+       ;ld de,0xdf00
+        ;ld a,13
+        call setpg
+       
+        push hl
+        pop bc
         ld b,32
        endif
 	JP MS2
@@ -542,18 +575,20 @@ MSP	pushs;$
 MS2
        if EGA
         ld hx,b ;hgt
+        call setpgsscr40008000
         ld b,h
-        ld c,l
+        ld c,l ;bc=scr
        push de
        push bc
        push ix
         call prtile
        pop ix
        pop bc
-       set 7,c
        pop de
-       inc de
+       set 7,e
+       inc bc
         call prtile
+        call setpgsmain40008000
        else
 	LD	(MSPSP+1),SP
 	EX	DE,HL
@@ -584,9 +619,11 @@ LSP	pushs;$
 LS2
        if EGA
         ld hx,b
+        call setpgsscr40008000
         ld b,h
         ld c,l
         call prtile
+        call setpgsmain40008000
        else
         LD	(LSPSP+1),SP
 	EX	DE,HL
@@ -612,18 +649,20 @@ RSP	pushs;$
 RS2
        if EGA
         ld hx,b ;hgt
+        call setpgsscr40008000
         ld b,h
-        ld c,l
+        ld c,l ;scr
        ;push de
        ;push bc
        ;push ix
         ;call prtile
        ;pop ix
        ;pop bc
-       set 7,c
        ;pop de
-       inc de
+       set 7,e
+       inc bc
         call prtile
+        call setpgsmain40008000
        else
         LD	(RSPSP+1),SP
 	EX	DE,HL
@@ -649,7 +688,27 @@ RSPB	pushs;$
 LSPB	pushs;$
 	JR	LS2
 
-ALLSPF	LD A,(FLR) ;вывод обоих этажей
+ALLSPF
+       if EGA
+        ei
+        ld de,sprpal
+        OS_SETPAL
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+	ld e,1
+	OS_SETSCREEN
+        ld e,0 ;color byte
+        OS_CLS
+        call ALLSPpp
+        jr $
+        ;call changescrpg
+        ;ld e,a
+        ;OS_SETSCREEN
+        ret
+        include "pal.ast" ;sprpal
+ALLSPpp
+       endif
+	LD A,(FLR) ;вывод обоих этажей
 	OR A
 	JR NZ,ALLSP
 	INC A
@@ -657,7 +716,12 @@ ALLSPF	LD A,(FLR) ;вывод обоих этажей
 	CALL ALLSP
 	XOR A
 	CALL FLOOR
-ALLSP	LD	HL,DSCR+128+2
+ALLSP
+       if EGA
+        ld hl,scrbase+(40*4)+2
+       else
+	LD	HL,DSCR+128+2
+       endif
 	LD	A,(SH)
 	OR	A
 	JR	Z,AP1
@@ -675,7 +739,11 @@ AP3	CALL	MSizeP
 	INC	HL
 	INC	HL
 	DJNZ	AP3
+       if EGA
+        ld de,+(40*4)-30-1
+       else
 	LD	DE,128-30-1
+       endif
 	ADD	HL,DE
 	POP	DE
 	INC	D
@@ -690,7 +758,11 @@ AP4	CALL	MSizeP
 	INC	HL
 	INC	HL
 	DJNZ	AP4
+       if EGA
+        ld de,(40*4)-30+1
+       else
 	LD	DE,128-30+1
+       endif
 	ADD	HL,DE
 	POP	DE
 	INC	E
