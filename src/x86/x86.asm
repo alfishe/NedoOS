@@ -1,7 +1,12 @@
-        DEVICE ZXSPECTRUM1024
+﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
 STACK=0x4000
+
+;PC=0x4000...
+;SP=0x8000...
+;data=0xC000...
+
 
         MACRO _Loop_
         JP (IY) ;EMULOOP (нужный marg или нужный обработчик b/p)
@@ -31,6 +36,261 @@ STACK=0x4000
         JP (IY)
         ENDM 
 
+	macro CALCpc
+;TODO
+	endm
+
+	macro OUTcom
+;TODO?
+	endm
+
+	macro CALCpgcom
+;TODO
+	endm
+
+	macro CALCiypgcom
+;TODO
+	endm
+
+	macro get
+	ld a,(de)
+;TODO
+	endm
+
+	macro next
+	inc de
+;TODO
+	endm
+
+	macro getHL
+	get
+	next
+	ld l,a
+	get
+	next
+	ld h,a
+	endm
+
+	macro getBC
+	get
+	next
+	ld c,a
+	get
+	next
+	ld b,a
+	endm
+
+	macro countSS ;bc=(_SS)
+;TODO
+	endm
+
+	macro countCS ;bc=(_CS)
+;TODO
+	endm
+
+	macro countDS ;bc=(_DS)
+	ld h,b
+	ld l,c
+	xor a
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	ld (ds_LSW),hl
+	ld (ds_HSB),a
+	endm
+
+	macro countES ;bc=(_ES)
+	ld h,b
+	ld l,c
+	xor a
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	ld (es_LSW),hl
+	ld (es_HSB),a
+	endm
+
+	macro memDS
+	ld bc,(ds_LSW)
+	add hl,bc
+	ld a,(ds_HSB)
+	adc a,0
+	xor h
+	and 0x3f
+	xor h ;a = номер страницы (%01..5432)
+	ld c,a
+	ld b,tpgs/256
+	ld a,h
+	or 0xc0
+	ld h,a
+	ld a,(bc)
+	 ld a,(pgrom0) ;TODO
+	SETPGC000
+	endm
+
+	macro memES
+	ld bc,(es_LSW)
+	add hl,bc
+	ld a,(es_HSB)
+	adc a,0
+	xor h
+	and 0x3f
+	xor h ;a = номер страницы (%01..5432)
+	ld c,a
+	ld b,tpgs/256
+	ld a,h
+	or 0xc0
+	ld h,a
+	ld a,(bc)
+	 ld a,(pgrom0) ;TODO
+	SETPGC000
+	endm
+
+	macro putmemDS
+	push af
+	memDS
+	pop af
+	ld (hl),a
+	endm
+
+	macro putmemES
+	push af
+	memES
+	pop af
+	ld (hl),a
+	endm
+
+	macro getmemDS
+	memDS
+	ld a,(hl)
+	endm
+
+	macro getmemES
+	memES
+	ld a,(hl)
+	endm
+
+	macro putmemspBC
+        LD HL,(_SP)
+	inc l
+	dec l
+	call z,recountsp_dec
+	dec l
+	ld (hl),b
+	call z,recountsp_dec
+	dec l
+	ld (hl),c
+        LD (_SP),HL	
+	endm
+
+	macro getmemspBC
+        LD HL,(_SP)
+	ld c,(hl)
+        inc l
+	call z,recountsp_inc
+	ld b,(hl)
+        inc l
+	call z,recountsp_inc
+        LD (_SP),HL
+	endm
+
+	macro encodeSP
+;TODO
+	ld (_SP),bc
+	endm
+
+	macro decodeSP
+	ld bc,(_SP)
+;TODO
+	endm
+
+	macro KEEPPARITYOVERFLOW
+	ld d,a ;parity data
+	rra
+	ld e,a ;overflow data
+	rla ;restore CF
+	endm
+
+;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
+;The OF, SF, ZF, AF, and PF flags are set according to the result. 
+	macro inchlwithflags ;keep CY
+	ex af,af'
+	ld bc,1
+	jr c,2f
+	adc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf
+	ccf ;NC
+	jp 8f
+2
+	or a
+	adc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf ;C
+8
+	ex af,af'
+	ld a,h
+	xor l
+	ld d,a ;PF
+	endm
+
+	macro dechlwithflags ;keep CY
+	ex af,af'
+	ld bc,1
+	jr c,2f
+	sbc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf
+	ccf ;NC
+	jp 8f
+2
+	or a
+	sbc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf ;C
+8
+	ex af,af'
+	ld a,h
+	xor l
+	ld d,a ;PF
+	endm
+
+	macro cmphl
+	ex af,af'
+	sub (hl)
+	exx
+	KEEPPARITYOVERFLOW
+	exx
+	ex af,af'
+	endm
+
+	macro cmpc
+	ex af,af'
+	sub c
+	exx
+	KEEPPARITYOVERFLOW
+	exx
+	ex af,af'
+	endm
+
         org PROGSTART
 begin
         ld sp,STACK
@@ -44,45 +304,115 @@ begin
         ld de,diskname
         OS_OPENHANDLE
         ld a,b
-        ld (diskhandle),a
+        ;ld (diskhandle),a
        
         OS_NEWPAGE
         ld a,e
         LD (pgrom0),a
         ld de,trom0
-        ld hl,0xc000
+        ld hl,0x7c00;0xc000
 ;de=имя файла
 ;hl=куда грузим (0xc000)
 ;a=в какой странице
         call loadfile_in_ahl
 
+;TODO fill temulpgs
+
+
+
         call swapimer
 
-        LD DE,#0000 ;=PC
-        EI 
+	ld hl,0xc000
+	ld (_SP),hl
 
+        LD DE,0x7C00 ;=PC
+        LD IY,EMUCHECKQ
+        EI 
+       _LoopC_JP
+jpiyer
+        ld hl,jpiyer
+        push hl
+        jp (iy)
+EMUCHECKQ
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD C,(HL)
+        INC H
+        LD H,(HL)
+        ld L,C
+        JP (HL) 
+
+;de=имя файла;hl=куда грузим (0xc000)
+;a=в какой странице
+loadfile_in_ahl
+        SETPGC000 ;включили страницу A в 0xc000
+        push hl ;куда грузим
+        OS_OPENHANDLE
+        pop de ;куда грузим
+        push bc ;b=handle
+        ld hl,0x4000 ;столько грузим (если столько есть в файле)
+        OS_READHANDLE
+        pop bc ;b=handle
+        OS_CLOSEHANDLE
+	ret;jp setpgmainc000 ;включили страницу программы в c000, как было 
 
 path
-        db "z80",0
+        db "x86",0
 
 diskname
         db "SYS.TRD",0
         
 trom0
-        db "basic.img",0
+        db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h/16h
         ;DB "pc102782.bin",0
 
         align 256
-temulpgs
+tpgs
         ds 256 ;%10765432
 
-_BX     DW 0
-_CX     DW 0
-_DX     DW 0
+pgrom0
+        db 0 ;TODO убрать?
+
+_BX
+_BL     DB 0
+_BH     DB 0
+_CX
+_CL     DB 0
+_CH     DB 0
+_DX
+_DL     DB 0
+_DH     DB 0
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0
 _SP     DW 0
+_ES     DW 0
+_CS     DW 0
+_SS     DW 0
+_DS     DW 0
+ds_LSW	dw 0
+ds_HSB	db 0
+es_LSW	dw 0
+es_HSB	db 0
+_DIRECTION
+	db 0
+iff1	db 0
+iff2	db 0 ;TODO unneeded?
+
+timer
+	dw 0
+
+recountsp_inc
+	inc h
+;TODO
+	ret
+
+recountsp_dec
+	dec h
+;TODO
+	ret
 
 swapimer
 	di
@@ -101,6 +431,78 @@ swapimer0
 oldimer
         jp on_int
         jp 0x0038+3
+
+on_int
+        PUSH AF,HL
+        push bc,de
+        exx
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+        ex af,af' ;'
+        push af 
+        call oldimer
+	ld hl,(timer)
+	inc hl
+	ld (timer),hl
+        ;OS_GETKEY
+;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
+;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
+;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
+;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
+;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
+;        Флаг Z - если 0(NZ), то отсутствует фокус.  
+        pop af
+        ex af,af' ;'
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        exx
+        pop de,bc
+       LD A,(iff1)
+       OR A
+       jr NZ,IMEREI
+        POP HL,AF
+        EI
+       RET
+IMEREI
+        XOR A
+        LD (iff1),A
+        LD (iff2),A ;для NMI надо только iff1!
+;перед эмуляцией INT завершаем тек.команду (перехват на EMULOOP)
+        LD (keepemuchecker),IY
+        LD IY,IMINT
+        POP HL,AF
+        RET  ;di!
+IMINT
+keepemuchecker=$+2
+        LD IY,0
+       ;LD (retfromim),DE ;для индикации времени обработки прерыв
+        LD HL,#38 ;new PC
+        ;LD HL,(_I-1)
+        ;LD L,#FF ;состояние пассивной ШД
+        ;getmemBC
+        ;ld h,b
+        ;ld l,c
+        ;JR IMERIM 
+IMERIM
+;hl=new PC
+        EI
+       CALCpc ;de=old PC
+        ex de,hl ;DE=new PC
+        LD B,H
+        ld C,L ;BC=old PC
+        putmemspBC ;TODO а CS куда?
+       _LoopC_JP 
+
+	include "x86cmd.asm"
+	include "x86math.asm"
+	include "x86logic.asm"
+	include "x86table.asm"
 
 end
 

@@ -1,285 +1,475 @@
 PANIC
 	jr $
 
-PUSHAX
+CLIer
+        xor a
+        ld (iff1),a
+       _Loop_
+
+STIer
+        ld a,-1
+        ld (iff1),a
+       _Loop_
+
+CLDer
+	xor a
+	ld (_DIRECTION),a
+NOPer
+       _Loop_
+
+STDer
+	ld a,-1
+	ld (_DIRECTION),a
+       _Loop_
+
+CLCer
+	ex af,af'
+	scf
+	ccf
+	ex af,af'
+       _Loop_
+
+STCer
+	ex af,af'
+	scf
+	ex af,af'
+       _Loop_
+
+CMCer
+	ex af,af'
+	ccf
+	ex af,af'
+       _Loop_
+
+PUSHi8
+	get
+	next
+	ld c,a
+	ld b,0
+        putmemspBC
+       _LoopC
+PUSHi16
+	getBC
+        putmemspBC
+       _LoopC
+PUSHax
         EXX
        push hl ;ax
         EXX
        pop bc
         putmemspBC
        _LoopC
-PUSHCX
+PUSHcx
        ld bc,(_CX)
         putmemspBC
        _LoopC
-PUSHDX
+PUSHdx
        ld bc,(_DX)
         putmemspBC
        _LoopC
-PUSHBX
+PUSHbx
        ld bc,(_BX)
         putmemspBC
        _LoopC
-PUSHSP
+PUSHsp
        decodeSP ;ld bc,(_SP)
         putmemspBC
        _LoopC
-PUSHBP
+PUSHbp
        ld bc,(_BP)
         putmemspBC
        _LoopC
-PUSHSI
+PUSHsi
        ld bc,(_SI)
         putmemspBC
        _LoopC
-PUSHDI
+PUSHdi
        ld bc,(_DI)
         putmemspBC
        _LoopC
-PUSHES
+PUSHes
        ld bc,(_ES)
         putmemspBC
        _LoopC
-PUSHCS
+PUSHcs
        ld bc,(_CS)
         putmemspBC
        _LoopC
-PUSHSS
+PUSHss
        ld bc,(_SS)
         putmemspBC
        _LoopC
-PUSHDS
+PUSHds
        ld bc,(_DS)
         putmemspBC
        _LoopC
 
-POPAX
+POPax
         getmemspBC
         PUSH BC
         EXX
        POP HL ;ax
         EXX
        _LoopC
-POPCX
+POPcx
         getmemspBC
 	ld (_CX),bc
        _LoopC
-POPDX
+POPdx
         getmemspBC
 	ld (_DX),bc
        _LoopC
-POPBX
+POPbx
         getmemspBC
 	ld (_BX),bc
        _LoopC
-POPSP
+POPsp
         getmemspBC
 	encodeSP
        _LoopC
-POPBP
+POPbp
         getmemspBC
 	ld (_BP),bc
        _LoopC
-POPSI
+POPsi
         getmemspBC
 	ld (_SI),bc
        _LoopC
-POPDI
+POPdi
         getmemspBC
 	ld (_DI),bc
        _LoopC
-POPES
+POPes
         getmemspBC
 	ld (_ES),bc
 	countES
        _LoopC
-POPCS
+POPcs
         getmemspBC
-	ld (_ES),bc
+	ld (_CS),bc
 	countCS
        _LoopC
-POPSS
+POPss
         getmemspBC
-	ld (_ES),bc
+	ld (_SS),bc
 	countSS
        _LoopC
-POPDS
+POPds
         getmemspBC
-	ld (_ES),bc
+	ld (_DS),bc
 	countDS
        _LoopC
 
-CLDer
-	xor a
-	ld (_CLD),a
-       _Loop
-
-MOVAX
+MOVaxi16
 	getHL
 	push hl
 	exx
 	pop hl ;ax
 	exx
-       _Loop
-MOVCX
+       _Loop_
+MOVcxi16
 	getHL
 	ld (_CX),hl
-       _Loop
-MOVDX
+       _Loop_
+MOVdxi16
 	getHL
 	ld (_DX),hl
-       _Loop
-MOVBX
+       _Loop_
+MOVbxi16
 	getHL
 	ld (_BX),hl
-       _Loop
-MOVSP
-	getHL
+       _Loop_
+MOVspi16
+	getBC
 	encodeSP
-       _Loop
-MOVBP
+       _Loop_
+MOVbpi16
 	getHL
 	ld (_BP),hl
-       _Loop
-MOVSI
+       _Loop_
+MOVsii16
 	getHL
 	ld (_SI),hl
-       _Loop
-MOVDI
+       _Loop_
+MOVdii16
 	getHL
 	ld (_DI),hl
-       _Loop
+       _Loop_
 
-MOVAL
+MOVali8
 	get
 	next
 	exx
 	ld l,a ;al
 	exx
-       _Loop
-MOVCL
+       _Loop_
+MOVcli8
 	get
 	next
 	ld (_CL),a
-       _Loop
-MOVDL
+       _Loop_
+MOVdli8
 	get
 	next
 	ld (_DL),a
-       _Loop
-MOVBL
+       _Loop_
+MOVbli8
 	get
 	next
 	ld (_BL),a
-       _Loop
-MOVAH
+       _Loop_
+MOVahi8
 	get
 	next
 	exx
 	ld h,a ;ah
 	exx
-       _Loop
-MOVCH
+       _Loop_
+MOVchi8
 	get
 	next
 	ld (_CH),a
-       _Loop
-MOVDH
+       _Loop_
+MOVdhi8
 	get
 	next
 	ld (_DH),a
-       _Loop
-MOVBH
+       _Loop_
+MOVbhi8
 	get
 	next
 	ld (_BH),a
-       _Loop
+       _Loop_
 
 ;mov byte [di],n
-MOVDIBYTE
+MOVmDIBYTE
 	get
 	next
 	ld hl,(_DI)
 	putmemDS
        _LoopC
 
-INCAX
-	exx
-	inchlwithflags
-	exx
-       _Loop
-INCCX
-	ld hl,(_CX)
-	inchlwithflags
-	ld (_CX),hl
-       _Loop
-INCDX
-	ld hl,(_DX)
-	inchlwithflags
-	ld (_DX),hl
-       _Loop
-INCBX
+;mov ax,[bx]
+MOVAXmBX
 	ld hl,(_BX)
-	inchlwithflags
-	ld (_BX),hl
-       _Loop
-INCSI
-	ld hl,(_SI)
-	inchlwithflags
-	ld (_SI),hl
-       _Loop
-INCDI
-	ld hl,(_DI)
-	inchlwithflags
-	ld (_DI),hl
-       _Loop
+	inc hl
+	getmemDS
+	push af ;a=ah
+	ld hl,(_BX)
+	getmemDS
+	exx
+	pop hl ;h=ah
+	ld l,a ;al
+	exx
+       _LoopC
 
-DECAX
+;mov [addr],ax
+MOVmemax
+	getHL
+	push hl
+	exx
+	ld a,l ;al
+	exx
+	putmemDS
+	pop hl
+	inc hl
+	exx
+	ld a,h ;ah
+	exx
+	putmemDS
+       _LoopC
+;mov [addr],al
+MOVmemal
+	getHL
+	exx
+	ld a,l ;al
+	exx
+	putmemDS
+       _LoopC
+;mov ax,[addr]
+MOVaxmem
+	getHL
+	push hl
+	getmemDS
+	exx
+	ld l,a ;al
+	exx
+	pop hl
+	inc hl
+	getmemDS
+	exx
+	ld h,a ;ah
+	exx
+       _LoopC
+;mov al,[addr]
+MOValmem
+	getHL
+	getmemDS
+	exx
+	ld l,a ;al
+	exx
+       _LoopC
+
+
+INCax
+	exx
+	inchlwithflags
+	exx
+       _Loop_
+INCcx
+	ld hl,(_CX)
+	inchlwithflags
+	ld (_CX),hl
+       _Loop_
+INCdx
+	ld hl,(_DX)
+	inchlwithflags
+	ld (_DX),hl
+       _Loop_
+INCbx
+	ld hl,(_BX)
+	inchlwithflags
+	ld (_BX),hl
+       _Loop_
+INCsp
+        decodeSP
+        ld h,b
+        ld l,c
+	inchlwithflags
+        ld b,h
+        ld c,l
+	encodeSP
+       _Loop_
+INCbp
+	ld hl,(_BP)
+	inchlwithflags
+	ld (_BP),hl
+       _Loop_
+INCsi
+	ld hl,(_SI)
+	inchlwithflags
+	ld (_SI),hl
+       _Loop_
+INCdi
+	ld hl,(_DI)
+	inchlwithflags
+	ld (_DI),hl
+       _Loop_
+
+DECax
 	exx
 	dechlwithflags
 	exx
-       _Loop
-DECCX
+       _Loop_
+DECcx
 	ld hl,(_CX)
 	dechlwithflags
 	ld (_CX),hl
-       _Loop
-DECDX
+       _Loop_
+DECdx
 	ld hl,(_DX)
 	dechlwithflags
 	ld (_DX),hl
-       _Loop
-DECBX
+       _Loop_
+DECbx
 	ld hl,(_BX)
 	dechlwithflags
 	ld (_BX),hl
-       _Loop
-DECSI
+       _Loop_
+DECsp
+        decodeSP
+        ld h,b
+        ld l,c
+	dechlwithflags
+        ld b,h
+        ld c,l
+	encodeSP
+       _Loop_
+DECbp
+	ld hl,(_BP)
+	dechlwithflags
+	ld (_BP),hl
+       _Loop_
+DECsi
 	ld hl,(_SI)
 	dechlwithflags
 	ld (_SI),hl
-       _Loop
-DECDI
+       _Loop_
+DECdi
 	ld hl,(_DI)
 	dechlwithflags
 	ld (_DI),hl
-       _Loop
+       _Loop_
 
 CALLer
         getHL
-       CALCpc
-        EXD ;new PC
-        LD B,H
+       CALCpc
+        EXD ;new PC
+        LD B,H
         ld C,L ;=old PC
-        putmemspBC
+        putmemspBC
        _LoopC_JP 
 
 RETer
-        getmemspBC
-        LD D,B
+        getmemspBC
+        LD D,B
         ld E,C ;new PC
-       _LoopC_JP
+       _LoopC_JP
 
+JLEer ;jump if not greater (zero or less)
+	ex af,af'
+	jr z,JRYer
+	ex af,af'
+JLer ;jump if less (SF xor OF = 1)
+	ex af,af'
+	jp m,exaJNOer
+exaJOer
+	ex af,af'
+JOer ;jump if overflow
+	exx
+	ld a,e ;overflow data
+	and 0x40
+	rla
+	xor e
+	exx
+	JP M,JRer
+        next
+       _Loop_
+JGer ;jump if greater (not zero and not less)
+	ex af,af'
+	jr z,exaNOJP
+	ex af,af'
+JNLer ;jump if not less (SF xor OF = 0)
+	ex af,af'
+	jp m,exaJOer
+exaJNOer
+	ex af,af'
+JNOer ;jump if no overflow
+	exx
+	ld a,e ;overflow data
+	and 0x40
+	rla
+	xor e
+	exx
+	JP P,JRer
+        next
+       _Loop_ 
+JPer ;jump if parity even
+	exx
+	ld a,d ;parity data
+	exx
+	or a
+	JP PE,JRer
+        next
+       _Loop_ 
+JNPer ;jump if parity odd
+	exx
+	ld a,d ;parity data
+	exx
+	or a
+	JP PO,JRer
+        next
+       _Loop_ 
 JNEer
 	ex af,af'
 	JR NZ,JRYer
@@ -304,6 +494,20 @@ JCer
 	ex af,af'
         next
        _Loop_ 
+JBEer ;jump if CF or ZF = 1
+	ex af,af'
+	JR C,JRYer
+	JR Z,JRYer
+	ex af,af'
+        next
+       _Loop_ 
+JAer ;jump if (CF or ZF) = 0, i.e. CF=ZF=0
+	ex af,af'
+	JR C,$+4
+	JR Z,JRYer
+	ex af,af'
+        next
+       _Loop_ 
 JRYer
 	ex af,af' ;'
 JRer
@@ -316,77 +520,51 @@ JRer
         ADD HL,DE
         ex de,hl ;new PC 
        _LoopC_JP
+JSer ;jump if sign
+	ex af,af'
+	jp m,JRYer
+	ex af,af'
+        next
+       _Loop_ 
+JNSer ;jump if no sign
+	ex af,af'
+	jp p,JRYer
+	ex af,af'
+        next
+       _Loop_ 
 
-JPer
-        getHL
-        ex de,hl ;new PC ;TODO или это смещение?
-       _LoopC_JP
+exaNOJP
+	ex af,af' ;'
+        next
+       _Loop_
 
-;mov al,[di]
-MOVALDI
-	ld hl,(_DI)
-	getmemDS
-	exx
-	ld l,a ;al
-	exx
-       _LoopC
-
-;mov ah,[di]
-MOVAHDI
-	ld hl,(_DI)
-	getmemDS
-	exx
-	ld h,a ;ah
-	exx
-       _LoopC
-
-XCHGAXCX
-	exx
-	ld bc,(_CX)
+LOOPNZer
+	ex af,af' ;'
+	jr z,exaNOJP
+	jr exaLOOPer
+LOOPZer
+	ex af,af'
+	jr nz,exaNOJP
+exaLOOPer
+	ex af,af'
+LOOPer
+	ld hl,(_CX)
+	dec hl
 	ld (_CX),hl
-	ld h,b
-	ld l,c
-	exx
-       _Loop_
-XCHGAXDX
-	exx
-	ld bc,(_DX)
-	ld (_DX),hl
-	ld h,b
-	ld l,c
-	exx
-       _Loop_
-XCHGAXBX
-	exx
-	ld bc,(_BX)
-	ld (_BX),hl
-	ld h,b
-	ld l,c
-	exx
-       _Loop_
-XCHGAXSI
-	exx
-	ld bc,(_SI)
-	ld (_SI),hl
-	ld h,b
-	ld l,c
-	exx
-       _Loop_
+JCXZer ;jump if CX = 0
+	ld hl,(_CX)
+	ld a,h
+	or l
+	JR Z,JRer
+        next
+       _Loop_ 
 
-CMPSBer
-	ld hl,(_SI)
-	getmemDS
-	exx
-	ld a,l ;al
-	exx
-	cmphl
-;TODO inc si?
-       _LoopC
-
-;rep cmpsb
-REPCMPSBer
-;TODO
-       _LoopC
+JMPer
+        getHL
+       CALCpc
+        ADD HL,DE
+        ex de,hl ;new PC
+       _LoopC_JP
 
 ;jmp word [di]
 JMPWORDDI
@@ -399,15 +577,280 @@ JMPWORDDI
 	ld d,a ;new PC
        _LoopC_JP
 
-LODSBer
-	ld hl,(_SI)
-        inc hl
-        ld (_SI),hl
-        dec hl
+;mov al,[di]
+MOVALmDI
+	ld hl,(_DI)
 	getmemDS
 	exx
 	ld l,a ;al
 	exx
+       _LoopC
+
+;mov ah,[di]
+MOVAHmDI
+	ld hl,(_DI)
+	getmemDS
+	exx
+	ld h,a ;ah
+	exx
+       _LoopC
+
+	macro XCHGAXRP rp
+	exx
+	ld bc,(rp)
+	ld (rp),hl
+	ld h,b
+	ld l,c
+	exx
+       _Loop_
+	endm
+XCHGaxcx
+	XCHGAXRP _CX
+XCHGaxdx
+	XCHGAXRP _DX
+XCHGaxbx
+	XCHGAXRP _BX
+XCHGaxsp
+	decodeSP
+	push bc
+	exx
+	ex (sp),hl
+	exx
+	pop bc
+	encodeSP
+       _Loop_
+XCHGaxbp
+	XCHGAXRP _BP
+XCHGaxsi
+	XCHGAXRP _SI
+XCHGaxdi
+	XCHGAXRP _SI
+
+REPZer
+REPNZer
+;костыль! FIXME
+	get
+	next
+	cp 0xa4
+	jp z,REPMOVSBer
+	;cp 0xa5
+	;jp z,REPMOVSWer
+	;cp 0xaa
+	;jp z,REPSTOSBer
+	;cp 0xab
+	;jp z,REPSTOSWer
+	cp 0xae
+	jp z,REPSCASBer
+	;cp 0xaf
+	;jp z,REPSCASWer
+	jp PANIC
+
+MOVSBer
+	ld hl,(_SI)
+	getmemDS
+	ld hl,(_DI)
+	putmemDS
+	ld hl,(_SI)
+	ld bc,(_DI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	inc bc
+	jr z,$+6
+	dec hl
+	dec hl
+	dec bc
+	dec bc
+	ld (_SI),hl
+	ld (_DI),bc
+       _LoopC
+
+;rep cmpsb
+REPMOVSBer
+	ld hl,(_SI)
+	getmemDS
+	ld hl,(_DI)
+	putmemDS
+	ld hl,(_SI)
+	ld bc,(_DI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	inc bc
+	jr z,$+6
+	dec hl
+	dec hl
+	dec bc
+	dec bc
+	ld (_SI),hl
+	ld (_DI),bc
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ld a,h
+	or l
+	jr nz,REPMOVSBer_repeat
+       _LoopC
+REPMOVSBer_repeat
+       CALCpc
+        dec de
+        dec de ;new PC 
+       _LoopC_JP
+
+SCASBer
+	ld hl,(_SI)
+	getmemDS
+	exx
+	ld a,l ;al
+	exx
+	cmphl
+	ld hl,(_SI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	jr z,$+4
+	dec hl
+	dec hl
+	ld (_SI),hl
+       _LoopC
+
+;repnz scasb
+REPSCASBer
+	ld hl,(_SI)
+	getmemDS
+	exx
+	ld a,l ;al
+	exx
+	cmphl
+	ld hl,(_SI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	jr z,$+4
+	dec hl
+	dec hl
+	ld (_SI),hl
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ex af,af'
+	jp z,exaLoopC
+	ex af,af'
+	ld a,h
+	or l
+	jr nz,REPSCASBer_repeat
+       _LoopC
+REPSCASBer_repeat
+       CALCpc
+        dec de
+        dec de ;new PC 
+       _LoopC_JP
+
+CMPSBer
+	ld hl,(_SI)
+	getmemDS
+	push af
+	ld hl,(_DI)
+	getmemDS
+	pop af
+	cmphl
+	ld hl,(_SI)
+	ld bc,(_DI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	inc bc
+	jr z,$+6
+	dec hl
+	dec hl
+	dec bc
+	dec bc
+	ld (_SI),hl
+	ld (_DI),bc
+       _LoopC
+
+;repz cmpsb
+REPCMPSBer
+	ld hl,(_SI)
+	getmemDS
+	push af
+	ld hl,(_DI)
+	getmemDS
+	pop af
+	cmphl
+	ld hl,(_SI)
+	ld bc,(_DI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	inc bc
+	jr z,$+6
+	dec hl
+	dec hl
+	dec bc
+	dec bc
+	ld (_SI),hl
+	ld (_DI),bc
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ex af,af'
+	jr nz,exaLoopC
+	ex af,af'
+	ld a,h
+	or l
+	jr nz,REPCMPSBer_repeat
+       _LoopC
+exaLoopC
+	ex af,af' ;'
+       _LoopC
+REPCMPSBer_repeat
+       CALCpc
+        dec de
+        dec de ;new PC 
+       _LoopC_JP
+
+LODSBer
+	ld hl,(_SI)
+	getmemDS
+	exx
+	ld l,a ;al
+	exx
+	ld hl,(_SI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	jr z,$+4
+	dec hl
+	dec hl
+	ld (_SI),hl
+;flags not affected
+;dec cx не надо!
+       _LoopC
+
+LODSWer
+	ld hl,(_SI)
+	getmemDS
+	exx
+	ld l,a ;al
+	exx
+	ld hl,(_SI)
+	inc hl
+	getmemDS
+	exx
+	ld h,a ;ah
+	exx
+	ld hl,(_SI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	inc hl
+	jr z,$+6
+	dec hl
+	dec hl
+	dec hl
+	dec hl
+	ld (_SI),hl
 ;flags not affected
 ;dec cx не надо!
        _LoopC
@@ -417,16 +860,94 @@ STOSBer
 	ld a,l ;al
 	exx
 	ld hl,(_DI)
-        inc hl
-        ld (_DI),hl
-        dec hl
         putmemDS
+	ld hl,(_DI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	jr z,$+4
+	dec hl
+	dec hl
+	ld (_DI),hl
 ;flags not affected
 ;dec cx не надо!
        _LoopC
 
-;stosw               ; Save onto variable
+STOSWer
+	exx
+	ld a,l ;al
+	exx
+	ld hl,(_DI)
+        putmemDS
+	exx
+	ld a,h ;ah
+	exx
+	ld hl,(_DI)
+	inc hl
+        putmemDS
+	ld hl,(_DI)
+	ld a,(_DIRECTION)
+	or a
+	inc hl
+	inc hl
+	jr z,$+6
+	dec hl
+	dec hl
+	dec hl
+	dec hl
+	ld (_DI),hl
+;flags not affected
+;dec cx не надо!
+       _LoopC
+
 ;in al,0x40          ; Read timer counter 0 
+INali8
+	exx
+	ld a,(timer)
+	ld l,a
+	exx
+       _Loop_
+	
 ;int 0x20 ;system
 ;int 0x16 ;ah=0: input key -> al
+;int 0x10 ;ah=0x0e: print al (зачем bx=7?)
+INTi8
+	get
+	next
+	cp 0x10
+	jr z,INT_printal
+	cp 0x16
+	jr z,INT_inputal
+       _Loop_
 
+INT_printal
+        push de
+        exx
+        push hl
+        push iy
+	ld a,l
+	PRCHAR
+        pop iy
+        pop hl
+        exx
+        pop de
+       _Loop_
+
+INT_inputal
+        push de
+        exx
+        push hl
+        push iy
+        YIELDGETKEYLOOP;OS_GETKEY
+;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
+;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
+;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
+;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
+;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
+;        Флаг Z - если 0(NZ), то отсутствует фокус.  
+        pop iy
+        pop hl
+	ld l,a
+        exx
+        pop de
+       _Loop_

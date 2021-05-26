@@ -1,28 +1,16 @@
-﻿basic.img
-Его надо запускать в 0:7C00h но он требует функции bios int 10h/16h
-
-
+﻿
 
 
 буду не формировать сразу флаг чётности, а копировать последний результат в регистр. когда надо будет перейти по чётности (думаю, это редко надо), тогда и посчитаю чётность
 тогда логические операции и сдвиги через rlca/rla/rrca/rra, чтобы не менять флаги вообще, кроме C
-а в арифметических флаг P/V Z80 будет соответствовать флагу O x86 (также всегда копируем результат для чётности)
 флаг AC (x86) = флаг H (Z80)
 
 тут написано, что сдвиги также формируют флаг O: The OF flag is affected only on 1-bit shifts. For left shifts, the OF flag is set to 0 if the mostsignificant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1. For the SAR instruction, the OF flag is cleared for all 1-bit shifts. For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. https://c9x.me/x86/html/file_module_x86_id_285.html  The OF flag is defined only for the 1-bit rotates; it is undefined in all other cases (except that a zero-bit rotate does nothing, that is affects no flags). For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result. For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result. https://c9x.me/x86/html/file_module_x86_id_273.html
 
-/*в сдвигах его придётся формировать вручную! сдвиги на Z80 дают только чётность
-SHL можно через add a,a (или adc hl,..), он даст сразу S,Z,V,CY
-SAR: 1. ld a,reg:ld tmp,a:srl a:ld reg,a получаем результат. 2. add a,0: обнуляем V, устанавливаем Z, S. 3. ld a,tmp:rra оригинала для установки флага CY (нельзя rr reg!)
-ROR: ld a,reg:rrca:ld reg,a - а как обнулить V, не трогая CY, Z, S?
-SHR: как скопировать старший бит в V, не трогая CY, Z, S?*/
-
-или во всех командах вручную хранить данные для флага O? rra:ld of,a (если два старших бита разные, то это переполнение) - как это сделать без порчи CY??? к сожалению, нельзя объединить с данными для флага P (чтобы потом проверять с учётом C), т.к. не все команды меняют одновременно P, O, C (логические сдвиги - только O, C).
+или во всех командах вручную хранить данные для флага O? rra:ld of,a:rlca (если два старших бита разные, то это переполнение). к сожалению, нельзя объединить с данными для флага P (чтобы потом проверять с учётом C), т.к. не все команды меняют одновременно P, O, C (логические сдвиги - только O, C).
 тогда все сдвиги точно соответствуют сдвигам на Z80 (логические - через rrca/..., арифметические - через #cb xx)
 
-inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
-The OF, SF, ZF, AF, and PF flags are set according to the result. 
-как это сделать?
+
 
 нужно хранить в регистрах:
 16 ax (hl? но inc/dec вручную!)
@@ -32,114 +20,11 @@ The OF, SF, ZF, AF, and PF flags are set according to the result.
 
 fs,gs нужны только для 386?
 
-[можно ли префетчить команды? куда?]
-лучше CS всегда включать в конкретное окно и хранить пересчитанный PC
-SS всегда включать в другое конкретное окно и хранить пересчитанный SP
-третье окно под остальные задачи
+лучше CS всегда включать в конкретное окно (4000) и хранить пересчитанный PC
+SS всегда включать в другое конкретное окно (8000) и хранить пересчитанный SP
+третье окно (c000) под данные
 
 как адресовать память по ?s:de = (?s*16 + de)/16384 и mod 16384:
 ?s*16 сразу хранить как 24 бита (для всех ?s)
-	macro memDS
-	ld bc,(ds_LSW)
-	add hl,bc
-	ld a,(ds_HSW)
-	adc a,0
-	xor h
-	and 0x3f
-	xor h ;a = номер страницы (%01..5432)
-	set 7,h
-	set 6,h
-	SETPGC000
-	endm
-
-	macro memES
-	ld bc,(es_LSW)
-	add hl,bc
-	ld a,(es_HSW)
-	adc a,0
-	xor h
-	and 0x3f
-	xor h ;a = номер страницы (%01..5432)
-	set 7,h
-	set 6,h
-	SETPGC000
-	endm
-
-	macro putmemDS
-	push af
-	memDS
-	pop af
-	ld (hl),a
-	endm
-
-	macro putmemES
-	push af
-	memES
-	pop af
-	ld (hl),a
-	endm
-
-	macro putmemspBC
-        LD HL,(_SP)
-	inc l
-	dec l
-	call z,recountsp
-	dec l
-	ld (hl),b
-	call z,recountsp
-	dec l
-	ld (hl),c
-        LD (_SP),HL	
-	endm
-
-	macro getmemspBC
-        LD HL,(_SP)
-	ld c,(hl)
-        inc l
-	call z,recountsp
-	ld b,(hl)
-        inc l
-	call z,recountsp
-        LD (_SP),HL
-	endm
-
-	macro inchlwithflags ;знак неправильный!!! FIXME (CY не должен меняться?)
-	ex af,af'
-	inc l
-	jr nz,$+3
-	inc h
-	ex af,af'
-	endm
-
-	macro dehlwithflags ;знак неправильный!!! FIXME (CY не должен меняться?)
-	ex af,af'
-	dec l
-	jr nz,$+3
-	dec h
-	ex af,af'
-	endm
-
-	macro cmphl
-	ex af,af'
-	sub (hl)
-	exx
-	ld d,a ;parity data
-	rra
-	ld e,a ;overflow data
-	exx
-	ex af,af'
-	endm
-
-	macro cmpc
-	ex af,af'
-	sub c
-	exx
-	ld d,a ;parity data
-	rra
-	ld e,a ;overflow data
-	exx
-	ex af,af'
-	endm
-
 
 
