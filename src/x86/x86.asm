@@ -134,7 +134,7 @@ STACK=0x4000
 	or 0xc0
 	ld h,a
 	ld a,(bc)
-	 ld a,(pgrom0) ;TODO
+	 ld a,(pgprog) ;TODO
 	SETPGC000
 	endm
 
@@ -152,7 +152,7 @@ STACK=0x4000
 	or 0xc0
 	ld h,a
 	ld a,(bc)
-	 ld a,(pgrom0) ;TODO
+	 ld a,(pgprog) ;TODO
 	SETPGC000
 	endm
 
@@ -224,11 +224,12 @@ STACK=0x4000
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 
 	macro inchlwithflags ;keep CY
-	ex af,af'
+	ex af,af' ;'
 	ld bc,1
 	jr c,2f
 	adc hl,bc ;ZF,SF
 	ld a,h
+        exx
 	rra
 	ld e,a ;OF
 	scf
@@ -238,22 +239,27 @@ STACK=0x4000
 	or a
 	adc hl,bc ;ZF,SF
 	ld a,h
+        exx
 	rra
 	ld e,a ;OF
 	scf ;C
 8
-	ex af,af'
+	ex af,af' ;'
+        exx
 	ld a,h
 	xor l
+        exx
 	ld d,a ;PF
+        exx
 	endm
 
 	macro dechlwithflags ;keep CY
-	ex af,af'
+	ex af,af' ;'
 	ld bc,1
 	jr c,2f
 	sbc hl,bc ;ZF,SF
 	ld a,h
+        exx
 	rra
 	ld e,a ;OF
 	scf
@@ -263,14 +269,18 @@ STACK=0x4000
 	or a
 	sbc hl,bc ;ZF,SF
 	ld a,h
+        exx
 	rra
 	ld e,a ;OF
 	scf ;C
 8
-	ex af,af'
+	ex af,af' ;'
+        exx
 	ld a,h
 	xor l
+        exx
 	ld d,a ;PF
+        exx
 	endm
 
 	macro cmphl
@@ -299,12 +309,16 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         ld de,path
-        OS_CHDIR      
+        OS_CHDIR
 
         ld de,diskname
         OS_OPENHANDLE
         ld a,b
         ;ld (diskhandle),a
+
+        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
+        ld a,e
+        ld (pgprog),a
        
         OS_NEWPAGE
         ld a,e
@@ -373,6 +387,8 @@ tpgs
         ds 256 ;%10765432
 
 pgrom0
+        db 0 ;TODO убрать?
+pgprog
         db 0 ;TODO убрать?
 
 _BX
@@ -502,6 +518,7 @@ IMERIM
 	include "x86cmd.asm"
 	include "x86math.asm"
 	include "x86logic.asm"
+        align 256
 	include "x86table.asm"
 
 end

@@ -313,7 +313,28 @@ MOValmem
 
 INCax
 	exx
-	inchlwithflags
+	ex af,af'
+	ld bc,1
+	jr c,2f
+	adc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf
+	ccf ;NC
+	jp 8f
+2
+	or a
+	adc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf ;C
+8
+	ex af,af'
+	ld a,h
+	xor l
+	ld d,a ;PF
 	exx
        _Loop_
 INCcx
@@ -358,7 +379,28 @@ INCdi
 
 DECax
 	exx
-	dechlwithflags
+	ex af,af'
+	ld bc,1
+	jr c,2f
+	sbc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf
+	ccf ;NC
+	jp 8f
+2
+	or a
+	sbc hl,bc ;ZF,SF
+	ld a,h
+	rra
+	ld e,a ;OF
+	scf ;C
+8
+	ex af,af'
+	ld a,h
+	xor l
+	ld d,a ;PF
 	exx
        _Loop_
 DECcx
@@ -513,6 +555,7 @@ JRYer
 JRer
 	get
         next
+        ld l,a
         RLA
         SBC A,A
         LD H,A
