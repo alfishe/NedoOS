@@ -132,24 +132,14 @@ SDRDSN2		IN A,(GSCOM)
 GS_INIT
 		XOR A
 		OUT (GSDAT),A
-		LD A,0X1D
+                ld a,0x23 ;Get number of RAM Pages
 		OUT (GSCOM),A
-		IN A,(GSCOM)
-		RRA
-		JR C,$-3
+                 halt
+                 halt
 		IN A,(GSDAT)
-		LD D,A
-		AND 0X0F
-		LD E,A
-		LD A,D
-		AND 0XF0
-		RRCA
-		RRCA
-		RRCA
-		RRCA
-		CP E
-		;LD A,1
-		;JR NZ,GSDINIT1
+                 inc a
+                 cp 3+1
+                 jr c,SD_NO ;≠• ¨Æ¶•‚ °Î‚Ï <3 pages or 0xff pages
 		CALL INSTSDD
 
 ;àçàñàÄãàáÄñàü äÄêíéóäà
