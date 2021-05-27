@@ -1,17 +1,17 @@
 XORaxax
 	exx
-	ex af,af'
+	;ex af,af'
 	xor a ;CF=0
 	ld h,a
 	ld l,a
 	ld d,a ;parity data ;the SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined. 
         ld e,a;0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
 	macro XORSELFRP rp
-	ex af,af'
+	;ex af,af'
 	xor a
 	ld h,a
 	ld l,a ;CF=0
@@ -20,7 +20,7 @@ XORaxax
 	ld d,a ;parity data
         ld e,0 ;OF=0
         exx
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 	endm
 XORcxcx
@@ -33,21 +33,21 @@ XORbxbx
 ORaxax
 ANDaxax
 	exx
-	ex af,af'
+	;ex af,af'
 	ld a,h
 	or l ;CF=0
 	ld d,a ;parity data
         ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
 	macro ORSELFRP rp
-	ex af,af'
+	;ex af,af'
         ld hl,(rp)
 	ld a,h
 	or l ;CF=0
-	ex af,af'
+	ex af,af' ;'
         exx
 	ld a,h
 	xor l
@@ -71,12 +71,11 @@ ANDali8
 	get
 	next
         exx
-	ex af,af'
         and l ;al ;CF=0
         ld l,a
 	ld d,a ;parity data
 	ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -84,12 +83,11 @@ ORali8
 	get
 	next
         exx
-	ex af,af'
         or l ;al ;CF=0
         ld h,a
 	ld d,a ;parity data
 	ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -97,12 +95,11 @@ XORali8
 	get
 	next
         exx
-	ex af,af'
         xor l ;al ;CF=0
         ld h,a
 	ld d,a ;parity data
 	ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -116,13 +113,12 @@ ANDaxi16
 	get
 	next
         exx
-	ex af,af'
         and h ;ah ;CF=0
         ld h,a
         xor l
 	ld d,a ;parity data
 	ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -136,13 +132,12 @@ ORaxi16
 	get
 	next
         exx
-	ex af,af'
         or h ;ah ;CF=0
         ld h,a
         xor l
 	ld d,a ;parity data
 	ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -156,12 +151,11 @@ XORaxi16
 	get
 	next
         exx
-	ex af,af'
         xor h ;ah ;CF=0
         ld h,a
         xor l
 	ld d,a ;parity data
 	ld e,0 ;OF=0
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_

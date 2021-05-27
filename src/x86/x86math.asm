@@ -330,7 +330,7 @@ ADDaxcx
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
 NEGax
 	exx
-	ex af,af'
+	;ex af,af'
 	ex de,hl
 	xor a
 	ld h,a
@@ -340,7 +340,7 @@ NEGax
 	rra
 	ld e,a ;overflow data
 	rla ;restore CF
-	ex af,af'
+	ex af,af' ;'
         ld a,h
         xor l
 	ld d,a ;parity data
@@ -353,14 +353,14 @@ ADDaxi16
 	push hl
 	exx
 	pop bc
-	ex af,af'
+	;ex af,af'
 	or a
 	adc hl,bc
 	ld a,h
 	rra
 	ld e,a ;overflow data
 	rla ;restore CF
-	ex af,af'
+	ex af,af' ;'
         ld a,h
         xor l
 	ld d,a ;parity data
@@ -370,12 +370,12 @@ ADDaxi16
 ;add al,al
 ADDalal
         exx
-	ex af,af'
+	;ex af,af'
         ld a,l
         add a,a
         ld l,a
 	KEEPPARITYOVERFLOW
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -384,14 +384,14 @@ ADDali8
 	get
 	next
 	ld c,a
-	ex af,af'
+	;ex af,af'
 	ld a,c
 	exx
         add a,l
         ld l,a
 	KEEPPARITYOVERFLOW
 	exx
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 ;add al,n
@@ -399,7 +399,7 @@ SUBali8
 	get
 	next
 	ld c,a
-	ex af,af'
+	;ex af,af'
 	exx
 	ld a,l
 	exx
@@ -408,7 +408,7 @@ SUBali8
 	ld l,a
 	KEEPPARITYOVERFLOW
 	exx
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 ;cmp al,n
@@ -416,12 +416,12 @@ CMPali8
 	get
 	next
 	ld c,a
-	ex af,af'
+	;ex af,af'
 	exx
 	ld a,l ;al
 	exx
 	cmpc
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 SUBaxi16
@@ -429,14 +429,14 @@ SUBaxi16
         push hl
         exx
         pop bc
-	ex af,af'
+	;ex af,af'
         or a
         sbc hl,bc
         ld a,h
         rra
 	ld e,a ;overflow data
         rla ;restore CF
-	ex af,af'
+	ex af,af' ;'
         ld a,h
         xor l
 	ld d,a ;parity data
@@ -449,14 +449,14 @@ CMPaxi16
         exx
         pop bc
         push hl
-	ex af,af'
+	;ex af,af'
         or a
         sbc hl,bc
         ld a,h
         rra
 	ld e,a ;overflow data
         rla ;restore CF
-	ex af,af'
+	ex af,af' ;'
         ld a,h
         xor l
 	ld d,a ;parity data
@@ -467,7 +467,7 @@ CMPaxi16
 	macro CMPRP rp
 	getBC
 	ld hl,(rp)
-	ex af,af'
+	;ex af,af'
 	ld d,h
 	ld e,l
 	or a
@@ -476,7 +476,7 @@ CMPaxi16
 	exx
 	KEEPPARITYOVERFLOW
 	exx
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 	endm
 CMPcxi16
@@ -490,13 +490,13 @@ CMPspi16
 	ld h,b
 	ld l,c
 	getBC
-	ex af,af'
+	;ex af,af'
 	or a
 	sbc hl,bc
 	exx
 	KEEPPARITYOVERFLOW
 	exx
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 ;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
@@ -507,14 +507,14 @@ MULcx
 	call MUL16 ;HLDE=DE*BC
 	ld (_DX),hl
 	ex de,hl ;hl=ax
-	ex af,af'
+	;ex af,af'
 	ld a,d
 	or e ;0?
 	add a,255 ;set CF if result >=65536
 	sbc a,a ;keep CF
 	srl a ;keep CF
 	ld e,a ;overflow (d7 != d6) if CF
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 
@@ -526,7 +526,7 @@ IMULcx
 	call MUL16SIGNED ;HLDE=DE*BC
 	ld (_DX),hl
 	ex de,hl ;hl=ax
-	ex af,af'
+	;ex af,af'
 	ld a,h
 	rla ;ax sign
 	jr c,IMULCX_NEG
@@ -542,7 +542,7 @@ IMULCX_NEGQ
 	sbc a,a ;keep CF
 	srl a ;keep CF
 	ld e,a ;overflow (d7 != d6) if CF
-	ex af,af'
+	ex af,af' ;'
 	exx
        _Loop_
 

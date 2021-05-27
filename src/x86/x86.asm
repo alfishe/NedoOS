@@ -271,6 +271,8 @@ STACK=0x4000
 
 	macro decodeSP
 	ld bc,(_SP)
+         set 7,b
+         set 6,b
 ;TODO
 	endm
 
@@ -397,6 +399,12 @@ filltpgs0
         countCS
         ld hl,0x7c00
         memCS
+       
+        ld bc,0
+        ld (_SS),bc
+        countSS
+        ld hl,0xff00
+        memSS
        
         ;OS_NEWPAGE
         ;ld a,e
