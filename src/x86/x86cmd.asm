@@ -446,6 +446,7 @@ DECdi
 CALLer
         getHL
        CALCpc
+        add hl,de
         EXD ;new PC
         LD B,H
         ld C,L ;=old PC
@@ -610,7 +611,7 @@ JMPer
        _LoopC_JP
 
 ;jmp word [di]
-JMPWORDDI
+JMPWORDmDI
 	ld hl,(_DI)
 	getmemDS
 	ld e,a
@@ -667,7 +668,7 @@ XCHGaxbp
 XCHGaxsi
 	XCHGAXRP _SI
 XCHGaxdi
-	XCHGAXRP _SI
+	XCHGAXRP _DI
 
 REPZer
 REPNZer
@@ -676,6 +677,8 @@ REPNZer
 	next
 	cp 0xa4
 	jp z,REPMOVSBer
+	cp 0xa6
+	jp z,REPCMPSBer
 	;cp 0xa5
 	;jp z,REPMOVSWer
 	;cp 0xaa
@@ -743,10 +746,12 @@ REPMOVSBer_repeat
 SCASBer
 	ld hl,(_SI)
 	getmemDS
+	ex af,af'
 	exx
 	ld a,l ;al
 	exx
 	cmphl
+	ex af,af'
 	ld hl,(_SI)
 	ld a,(_DIRECTION)
 	or a
@@ -761,10 +766,12 @@ SCASBer
 REPSCASBer
 	ld hl,(_SI)
 	getmemDS
+	ex af,af'
 	exx
 	ld a,l ;al
 	exx
 	cmphl
+	ex af,af'
 	ld hl,(_SI)
 	ld a,(_DIRECTION)
 	or a
@@ -795,8 +802,10 @@ CMPSBer
 	push af
 	ld hl,(_DI)
 	getmemDS
+	ex af,af'
 	pop af
 	cmphl
+	ex af,af'
 	ld hl,(_SI)
 	ld bc,(_DI)
 	ld a,(_DIRECTION)
@@ -819,8 +828,10 @@ REPCMPSBer
 	push af
 	ld hl,(_DI)
 	getmemDS
+	ex af,af'
 	pop af
 	cmphl
+	ex af,af'
 	ld hl,(_SI)
 	ld bc,(_DI)
 	ld a,(_DIRECTION)
@@ -966,12 +977,16 @@ INTi8
 INT_printal
         push de
         exx
+        ex af,af' ;'
+        push af
         push hl
         push iy
 	ld a,l
 	PRCHAR
         pop iy
         pop hl
+        pop af
+        ex af,af' ;'
         exx
         pop de
        _Loop_

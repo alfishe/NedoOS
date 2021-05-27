@@ -81,11 +81,35 @@ STACK=0x4000
 	endm
 
 	macro countSS ;bc=(_SS)
-;TODO
+	ld h,b
+	ld l,c
+	xor a
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	ld (ss_LSW),hl
+	ld (ss_HSB),a
 	endm
 
 	macro countCS ;bc=(_CS)
-;TODO
+	ld h,b
+	ld l,c
+	xor a
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	ld (cs_LSW),hl
+	ld (cs_HSB),a
 	endm
 
 	macro countDS ;bc=(_DS)
@@ -120,6 +144,40 @@ STACK=0x4000
 	ld (es_HSB),a
 	endm
 
+	macro memCS
+	ld bc,(cs_LSW)
+	add hl,bc
+	ld a,(cs_HSB)
+	adc a,0
+	xor h
+	and 0x3f
+	xor h ;a = номер страницы (%01..5432)
+	ld c,a
+	ld b,tpgs/256
+	res 7,h
+        set 6,h
+	ld a,(bc)
+	 ;ld a,(pgprog) ;TODO
+	SETPG4000
+	endm
+
+	macro memSS
+	ld bc,(ss_LSW)
+	add hl,bc
+	ld a,(ss_HSB)
+	adc a,0
+	xor h
+	and 0x3f
+	xor h ;a = номер страницы (%01..5432)
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        res 6,h
+	ld a,(bc)
+	 ;ld a,(pgprog) ;TODO
+	SETPG8000
+	endm
+
 	macro memDS
 	ld bc,(ds_LSW)
 	add hl,bc
@@ -134,7 +192,7 @@ STACK=0x4000
 	or 0xc0
 	ld h,a
 	ld a,(bc)
-	 ld a,(pgprog) ;TODO
+	 ;ld a,(pgprog) ;TODO
 	SETPGC000
 	endm
 
@@ -152,7 +210,7 @@ STACK=0x4000
 	or 0xc0
 	ld h,a
 	ld a,(bc)
-	 ld a,(pgprog) ;TODO
+	 ;ld a,(pgprog) ;TODO
 	SETPGC000
 	endm
 
@@ -206,6 +264,8 @@ STACK=0x4000
 
 	macro encodeSP
 ;TODO
+         set 7,b
+         res 6,b
 	ld (_SP),bc
 	endm
 
@@ -284,21 +344,17 @@ STACK=0x4000
 	endm
 
 	macro cmphl
-	ex af,af'
 	sub (hl)
 	exx
 	KEEPPARITYOVERFLOW
 	exx
-	ex af,af'
 	endm
 
 	macro cmpc
-	ex af,af'
 	sub c
 	exx
 	KEEPPARITYOVERFLOW
 	exx
-	ex af,af'
 	endm
 
         org PROGSTART
@@ -319,18 +375,38 @@ begin
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld a,e
         ld (pgprog),a
-       
+
+        ld hl,tpgs
+        ld b,64
+filltpgs0
+        push bc
+        push hl
         OS_NEWPAGE
-        ld a,e
-        LD (pgrom0),a
+        pop hl
+        pop bc
+        ld a,l
+        rrc l
+        rrc l
+        ld (hl),e
+        ld l,a
+        inc l
+        djnz filltpgs0
+       
+        ld bc,0
+        ld (_CS),bc
+        countCS
+        ld hl,0x7c00
+        memCS
+       
+        ;OS_NEWPAGE
+        ;ld a,e
+        ;LD (pgrom0),a
         ld de,trom0
         ld hl,0x7c00;0xc000
 ;de=имя файла
 ;hl=куда грузим (0xc000)
 ;a=в какой странице
         call loadfile_in_ahl
-
-;TODO fill temulpgs
 
 
 
@@ -347,7 +423,13 @@ jpiyer
         ld hl,jpiyer
         push hl
         jp (iy)
-EMUCHECKQ
+oldpc
+        dw 0EMUCHECKQ
+       ld a,d
+       sub 0x7c
+       cp 2
+       jr nc,$
+       ld (oldpc),de
         get
         next
 	LD L,A
@@ -408,6 +490,10 @@ _ES     DW 0
 _CS     DW 0
 _SS     DW 0
 _DS     DW 0
+cs_LSW	dw 0
+cs_HSB	db 0
+ss_LSW	dw 0
+ss_HSB	db 0
 ds_LSW	dw 0
 ds_HSB	db 0
 es_LSW	dw 0

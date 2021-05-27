@@ -8,7 +8,15 @@
 ;MD=11: mov r/m,i8 ;проще всего, но не имеет смысла (есть короткий код)
 	cp %00000101
 	jp z,MOVmDIBYTE
-	jp PANIC
+	jp $;PANIC
+
+GRP416
+;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]
+	get
+	next
+	cp %00100101
+	jp z,JMPWORDmDI
+	jp $;PANIC
 
 GRP1rmi8
 ;aluop
@@ -26,9 +34,29 @@ GRP1rmi8
 ;MD=01: cmd [...+disp8],i8 ;TODO
 ;MD=10: cmd [...+disp16],i8 ;TODO
 ;MD=11: cmd r/m,i8 ;проще всего
-	cp %00111110
+	cp %00111100
 	jp z,CMPmSIBYTE
-	jp PANIC
+	jp $;PANIC
+
+GRP1rmi16
+;aluop
+	get
+	next
+;a=MD000R/M: add r/m,i8
+;a=MD001R/M: or r/m,i8
+;a=MD010R/M: adc r/m,i8
+;a=MD011R/M: sbb r/m,i8
+;a=MD100R/M: and r/m,i8
+;a=MD101R/M: sub r/m,i8
+;a=MD110R/M: xor r/m,i8
+;a=MD111R/M: cmp r/m,i8
+;MD=00: cmd [...],i8
+;MD=01: cmd [...+disp8],i8 ;TODO
+;MD=10: cmd [...+disp16],i8 ;TODO
+;MD=11: cmd r/m,i8 ;проще всего
+	cp %11111100
+	jp z,CMPspi16
+	jp $;PANIC
 
 GRP316
 ;mul,div,test,not,neg
@@ -46,7 +74,7 @@ GRP316
 ;MD=01: cmd [...+disp8],r16 ;TODO
 ;MD=10: cmd [...+disp16],r16 ;TODO
 ;MD=11: cmd r/m,r16 ;проще всего
-	cp %11100001
+	cp %11011000
 	jp z,NEGax
 	cp %11100001
 	jp z,MULcx
@@ -56,7 +84,7 @@ GRP316
 	jp z,DIVcx
 	cp %11111001
 	jp z,IDIVcx
-	jp PANIC
+	jp $;PANIC
 
 MOVrmr8
 	get
@@ -66,7 +94,7 @@ MOVrmr8
 ;MD=01: mov [...+disp8],r8 ;TODO
 ;MD=10: mov [...+disp16],r8 ;TODO
 ;MD=11: mov r/m,r8 ;проще всего
-	jp PANIC
+	jp $;PANIC
 MOVrmr16
 	get
 	next
@@ -75,9 +103,18 @@ MOVrmr16
 ;MD=01: mov [...+disp8],r16 ;TODO
 ;MD=10: mov [...+disp16],r16 ;TODO
 ;MD=11: mov r/m,r16 ;проще всего
-	jp PANIC
+	jp $;PANIC
 MOVr8rm
-	jp PANIC
+	get
+	next
+;a=MDregR/M
+;MD=00: mov r8,[...] ;TODO
+;MD=01: mov r8,[...+disp8] ;TODO
+;MD=10: mov r8,[...+disp16] ;TODO
+;MD=11: mov r8,r/m ;проще всего
+	cp %00000101
+	jp z,MOVALmDI
+	jp $;PANIC
 MOVr16rm
 	get
 	next
@@ -88,9 +125,9 @@ MOVr16rm
 ;MD=11: mov r16,r/m ;проще всего
 	cp %00000111
 	jp z,MOVAXmBX
-	jp PANIC
+	jp $;PANIC
 MOVrm16sreg
-	jp PANIC
+	jp $;PANIC
 
 ADCrmr8
 ADCrmr16
@@ -104,7 +141,7 @@ SBBr8rm
 SBBr16rm
 SBBali8
 SBBaxi16
-	jp PANIC
+	jp $;PANIC
 
 CMPrmr8
 XORrmr8
@@ -123,7 +160,7 @@ ADDrmr8
 	jp z,ADDalal
 	;cp %11100100
 	;jp z,ADDahah
-	jp PANIC
+	jp $;PANIC
 
 XORrmr16
 	get
@@ -141,7 +178,7 @@ XORrmr16
 	jp z,XORdxdx
 	cp %11011011
 	jp z,XORbxbx
-	jp PANIC
+	jp $;PANIC
 
 ORrmr16
 	get
@@ -159,7 +196,7 @@ ORrmr16
 	jp z,ORdxdx
 	cp %11011011
 	jp z,ORbxbx
-	jp PANIC
+	jp $;PANIC
 
 CMPrmr16
 ANDrmr16
@@ -176,7 +213,9 @@ ADDrmr16
 	jp z,ADDdicx
 	cp %11000011
 	jp z,ADDbxax
-	jp PANIC
+	cp %11001000
+	jp z,ADDaxcx
+	jp $;PANIC
 
 CMPr8rm
 XORr8rm
@@ -195,7 +234,7 @@ ADDr8rm
 	jp z,ADDalal
 	;cp %11100100
 	;jp z,ADDahah
-	jp PANIC
+	jp $;PANIC
 
 CMPr16rm
 XORr16rm
@@ -214,7 +253,7 @@ ADDr16rm
 	jp z,ADDdicx
 	cp %11011000
 	jp z,ADDbxax
-	jp PANIC
+	jp $;PANIC
 
 ;cbw ;Expand AL to AX
 CBWer
@@ -244,8 +283,8 @@ CMPmSIBYTE
 	next
 	ld (CMPmSIBYTE_n),a
 	ld hl,(_SI)
-	getmemDS
 	ex af,af'
+	getmemDS
 CMPmSIBYTE_n=$+1
 	cp 0
 	ex af,af'
@@ -257,7 +296,7 @@ ADDdicx
 	ld bc,(_CX)
 	ex af,af'
 	or a
-	adc hl,bc
+	adc hl,bc ;TODO overflow
 	ex af,af'
 	ld (_DI),hl
        _Loop_
@@ -271,9 +310,20 @@ ADDbxax
 	ld hl,(_BX)
 	ex af,af'
 	or a
-	adc hl,bc
+	adc hl,bc ;TODO overflow
 	ex af,af'
 	ld (_BX),hl
+       _Loop_
+
+;add ax,cx
+ADDaxcx
+	exx
+	ld bc,(_CX)
+	ex af,af'
+	or a
+	adc hl,bc ;TODO overflow
+	ex af,af'
+	exx
        _Loop_
 
 ;neg ax
@@ -305,7 +355,7 @@ ADDaxi16
 	pop bc
 	ex af,af'
 	or a
-	adc hl,de
+	adc hl,bc
 	ld a,h
 	rra
 	ld e,a ;overflow data
@@ -366,10 +416,12 @@ CMPali8
 	get
 	next
 	ld c,a
+	ex af,af'
 	exx
 	ld a,l ;al
 	exx
 	cmpc
+	ex af,af'
        _Loop_
 
 SUBaxi16
@@ -450,7 +502,7 @@ CMPspi16
 ;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
 MULcx
 	exx
-	ex de,hl
+	ex de,hl ;de=ax
 	ld bc,(_CX)
 	call MUL16 ;HLDE=DE*BC
 	ld (_DX),hl

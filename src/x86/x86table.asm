@@ -141,7 +141,7 @@ MAINCOMS
         DCOM JGer;JNLEer
 ;#8x
         DCOM GRP1rmi8  ;80 MOD100RM disp16 i8 = AND R/[M],i8 (100 - код операции АЛУ, 111=CMP)
-        DCOM PANIC ;GRP1rmi16 ;то же с i16
+        DCOM GRP1rmi16 ;GRP1rmi16 ;то же с i16 (там cmp sp,i16)
         DCOM PANIC ;GRP1rm8i8
         DCOM PANIC ;GRP1rm16i8
         DCOM PANIC ;TESTrmr8
@@ -274,7 +274,7 @@ MAINCOMS
         DCOM CLDer
         DCOM STDer
         DCOM PANIC ;GRP48
-        DCOM PANIC ;GRP416 ;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+...
+        DCOM GRP416 ;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]
 
 	DISPLAY $-MAINCOMS,"=256"
         ORG $+256
