@@ -130,17 +130,17 @@ SDRDSN2		IN A,(GSCOM)
 		POP DE
 		RET
 GS_INIT
-		XOR A
-		OUT (GSDAT),A
-                ld a,0x23 ;Get number of RAM Pages
-		OUT (GSCOM),A
-                 halt
-                 halt
-		IN A,(GSDAT)
-                 inc a
-                 cp 3+1
-                 jr c,SD_NO ;≠• ¨Æ¶•‚ °Î‚Ï <3 pages or 0xff pages
-		CALL INSTSDD
+        XOR A
+        OUT (GSDAT),A
+        ld a,0x23 ;Get number of RAM Pages
+        OUT (GSCOM),A
+        halt
+        halt
+        IN A,(GSDAT)
+        inc a
+        cp 3+1
+        jr c,SD_NO ;≠• ¨Æ¶•‚ °Î‚Ï <3 pages or 0xff pages
+        CALL INSTSDD
 
 ;àçàñàÄãàáÄñàü äÄêíéóäà
 GSDINIT		XOR A

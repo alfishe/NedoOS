@@ -837,8 +837,9 @@ tbdoscmds
         db CMD_RNDWR
         db CMD_GETFILINFO
         db CMD_RESERV_1
-        display CMD_RESERV_1
+        db CMD_GETCONFIG
 nbdoscmds=$-tbdoscmds
+        dw BDOS_get_config
         dw BDOS_reserv_1
         dw BDOS_getfilinfo
         dw BDOS_rndwr
@@ -3138,7 +3139,18 @@ BDOS_getdta
         ld e,(iy+app.dta)
         ld d,(iy+app.dta+1)
         ret
-
+        
+;получить конфиг железа
+BDOS_get_config
+    ld a,(SYSDRV_VAL)
+    ld h,a
+    ifdef KOE
+        ld l,0x06
+    else
+        ld l,atm
+    endif
+    ret
+        
 ;*****************НЕДОКУМЕНТИРОВАННЫЕ*********************
 ;вызов функции DE с картой керналя.
 BDOS_reserv_1

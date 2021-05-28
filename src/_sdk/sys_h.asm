@@ -660,6 +660,10 @@ __1=$
         ld c,CMD_GETAPPMAINPAGES
 	CALLBDOS_NOPARAM_A
         endm
+        macro OS_GETCONFIG ;H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666
+        ld c,CMD_GETCONFIG
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_GETXY ;out: de=yx ;GET CURSOR POSITION
         ld c,CMD_GETXY
 	CALLBDOS_NOPARAM_A
