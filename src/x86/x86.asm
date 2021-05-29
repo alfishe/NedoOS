@@ -14,25 +14,25 @@ STACK=0x4000
 
 ;если вместо стр.команд включили др.стр.
         MACRO _LoopC
-        OUTcom
+        ;OUTcom
         JP (IY)
         ENDM 
 
 ;если резко сменился PC (полный DE)
         MACRO _LoopJP
-        CALCiypgcom
+        encodePC;CALCiypgcom
         JP (IY)
         ENDM 
 
 ;если выключили др.стр. и резко сменился PC (полный DE)
         MACRO _LoopC_JP
-        CALCiypgcom
+        encodePC;CALCiypgcom
         JP (IY)
         ENDM 
 
 ;если IN/OUT (могла измениться конфигурация памяти)
         MACRO _LoopSWI
-        CALCpgcom
+        ;CALCpgcom
         JP (IY)
         ENDM 
 
@@ -44,16 +44,12 @@ STACK=0x4000
         ld d,a
 	endm
 
-	macro OUTcom
-;TODO?
-	endm
-
-	macro CALCpgcom
-;TODO
-	endm
-
-	macro CALCiypgcom
-;TODO
+	macro encodePC
+        ld h,d
+        ld l,e
+        memCS
+        res 7,d
+        set 6,d ;0x4000+
 	endm
 
 	macro get
@@ -407,8 +403,8 @@ filltpgs0
         ld bc,0
         ld (_CS),bc
         countCS
-        ld hl,0x7c00
-        memCS
+        ld de,0x7c00
+        encodePC;memCS
        
         ld bc,0
         ld (_SS),bc
