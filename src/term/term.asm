@@ -5,6 +5,8 @@
 
 RECODEINPUT=1
 
+MOUSETIMEOUT=150;50
+
 READPASTABUF_SZ=80
 STDINBUF_SZ=256
 
@@ -276,7 +278,7 @@ oldmousebuttons=$+1
         ;jr nz,sendmouseevent
         jp z,mainloop_afternokey
 sendmouseevent
-	 ld a,50
+	 ld a,MOUSETIMEOUT;50
 	 ld (mousetimeout),a
         ld a,l
         cpl

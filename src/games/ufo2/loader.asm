@@ -237,7 +237,11 @@ file_path
         db "ufo2",0
 
 texfilename
+       if EGA
+        db 0,"ufo20ega.dat",0
+       else
         db 0,"ufo20.dat",0
+       endif
         db 1,"ufo21.dat",0
         db 3,"ufo23.dat",0
         db 4,"ufo24.dat",0

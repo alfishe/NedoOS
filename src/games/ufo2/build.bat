@@ -31,7 +31,7 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 %NEDORES% images/XHERO.bmp sprites4.dat sprites4.ast
 %NEDORES% images/XHERO.bmp sprites5.dat sprites5.ast
 
-%NEDORES% images/XHERO.bmp pal.dat pal.ast
+%NEDORES% images/XM11.bmp pal.dat pal.ast
 
 %NEDORES% images/XM0.bmp xm0.dat xm0.ast
 %NEDORES% images/XM11.bmp xm11a.dat xm11a.ast
@@ -50,6 +50,17 @@ mhmt -mlz ZX_DISC\xm1.dat ZX_DISC\xm1.mlz > nul
 mhmt -mlz XMAP\XL0.LND ZX_DISC\XL0.mlz > nul
 mhmt -mlz XMAP\XL1.LND ZX_DISC\XL1.mlz > nul
 
+echo EGA=1 > settings.ast
+%SJASMPLUS% %SJASMPLUSFLAGS% xcom.asm
+mhmt -mlz blk1.bin > nul
+mhmt -mlz blk2.bin > nul
+mhmt -mlz blk3.bin > nul
+mhmt -mlz blk4.bin > nul
+%SJASMPLUS% %SJASMPLUSFLAGS% xcom2.asm
+ren ufo2.com ufo2ega.com
+copy ufo2\ufo20.dat ufo2\ufo20ega.dat
+
+echo EGA=0 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% xcom.asm
 mhmt -mlz blk1.bin > nul
 mhmt -mlz blk2.bin > nul
