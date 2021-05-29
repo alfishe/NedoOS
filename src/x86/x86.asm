@@ -36,8 +36,12 @@ STACK=0x4000
         JP (IY)
         ENDM 
 
-	macro decodePC ;de,pg -> de
-;TODO
+	macro decodePC ;de,pc_high -> de
+        ld a,(pc_high)
+        xor d
+        and 0xc0
+        xor d
+        ld d,a
 	endm
 
 	macro OUTcom
@@ -144,6 +148,8 @@ STACK=0x4000
 	endm
 
 	macro memCS
+        ld a,h
+        ld (pc_high),a
 	ld bc,(cs_LSW)
 	add hl,bc
 	ld a,(cs_HSB)
@@ -160,6 +166,8 @@ STACK=0x4000
 	endm
 
 	macro memSS
+        ld a,h
+        ld (sp_high),a
 	ld bc,(ss_LSW)
 	add hl,bc
 	ld a,(ss_HSB)
@@ -234,7 +242,7 @@ STACK=0x4000
 	endm
 
 	macro putmemspBC
-        LD HL,(_SP)
+        LD HL,(_SP_encoded)
 	inc l
 	dec l
 	call z,recountsp_dec
@@ -243,32 +251,40 @@ STACK=0x4000
 	call z,recountsp_dec
 	dec l
 	ld (hl),c
-        LD (_SP),HL	
+        LD (_SP_encoded),HL	
 	endm
 
 	macro getmemspBC
-        LD HL,(_SP)
+        LD HL,(_SP_encoded)
 	ld c,(hl)
         inc l
 	call z,recountsp_inc
 	ld b,(hl)
         inc l
 	call z,recountsp_inc
-        LD (_SP),HL
+        LD (_SP_encoded),HL
 	endm
 
 	macro encodeSP
-;TODO
-         set 7,b
-         res 6,b
-	ld (_SP),bc
+        ld h,b
+        ld l,c
+        res 6,b
+        set 7,b ;0x8000+
+	ld (_SP_encoded),bc
+        memSS
 	endm
 
-	macro decodeSP
-         set 7,b
-         set 6,b
-;TODO
+	macro decodeSP_fromBC
+        ld a,(sp_high)
+        xor b
+        and 0xc0
+        xor b
+        ld b,a
 	endm
+	macro decodeSP
+        ld bc,(_SP_encoded)
+        decodeSP_fromBC
+        endm
 
 	macro KEEPPARITYOVERFLOW
 	ld d,a ;parity data
@@ -397,8 +413,8 @@ filltpgs0
         ld bc,0
         ld (_SS),bc
         countSS
-        ld hl,0xff00
-        memSS
+        ld bc,0xff00
+        encodeSP;memSS
        
         ;OS_NEWPAGE
         ;ld a,e
@@ -413,9 +429,6 @@ filltpgs0
 
 
         call swapimer
-
-	ld hl,0xc000
-	ld (_SP),hl
 
         LD DE,0x7C00 ;=PC
         LD IY,EMUCHECKQ
@@ -487,7 +500,9 @@ _DH     DB 0
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0
-_SP     DW 0
+_SP_encoded     DW 0
+sp_high     db 0
+pc_high     db 0
 _ES     DW 0
 _CS     DW 0
 _SS     DW 0
@@ -511,6 +526,7 @@ timer
 recountpc_inc
 	inc d
         ret p ;<0x8000
+        push af
         push bc
         ex de,hl
         dec hl
@@ -523,6 +539,7 @@ recountpc_inc
         memCS
         ex de,hl
         pop bc
+        pop af
         ld de,0x4000
 	ret
 
@@ -534,7 +551,7 @@ recountsp_inc
         dec hl
         ld b,h
         ld c,l
-        decodeSP ;bc->bc
+        decodeSP_fromBC ;bc->bc
         ld h,b
         ld l,c
         inc hl
@@ -544,8 +561,19 @@ recountsp_inc
 	ret
 
 recountsp_dec
+;вызывается до dec l!
 	dec h
-;TODO
+        ret m ;>=0x8000
+        push bc
+        inc h
+        ld b,h
+        ld c,l
+        decodeSP_fromBC ;bc->bc
+        ld h,b
+        ld l,c
+        memSS
+        pop bc
+        ld hl,0xbf00
 	ret
 
 swapimer

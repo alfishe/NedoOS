@@ -72,8 +72,7 @@ PUSHbx
         putmemspBC
        _LoopC
 PUSHsp
-       ld bc,(_SP)
-       decodeSP
+       decodeSP ;->bc
         putmemspBC
        _LoopC
 PUSHbp
@@ -183,7 +182,7 @@ MOVbxi16
 MOVspi16
 	getBC
 	encodeSP
-       _Loop_
+       _LoopC
 MOVbpi16
 	getHL
 	ld (_BP),hl
@@ -354,15 +353,14 @@ INCbx
 	ld (_BX),hl
        _Loop_
 INCsp
-        ld bc,(_SP)
-        decodeSP
+       decodeSP ;->bc
         ld h,b
         ld l,c
 	inchlwithflags
         ld b,h
         ld c,l
 	encodeSP
-       _Loop_
+       _LoopC
 INCbp
 	ld hl,(_BP)
 	inchlwithflags
@@ -421,15 +419,14 @@ DECbx
 	ld (_BX),hl
        _Loop_
 DECsp
-        ld bc,(_SP)
-        decodeSP
+       decodeSP ;->bc
         ld h,b
         ld l,c
 	dechlwithflags
         ld b,h
         ld c,l
 	encodeSP
-       _Loop_
+       _LoopC
 DECbp
 	ld hl,(_BP)
 	dechlwithflags
@@ -464,7 +461,7 @@ RETer
 
 JLEer ;jump if not greater (zero or less)
 	ex af,af'
-	jr z,JRYer
+	jp z,JRYer
 	ex af,af'
 JLer ;jump if less (SF xor OF = 1)
 	ex af,af'
@@ -483,7 +480,7 @@ JOer ;jump if overflow
        _Loop_
 JGer ;jump if greater (not zero and not less)
 	ex af,af'
-	jr z,exaNOJP
+	jp z,exaNOJP
 	ex af,af'
 JNLer ;jump if not less (SF xor OF = 0)
 	ex af,af'
@@ -658,15 +655,14 @@ XCHGaxdx
 XCHGaxbx
 	XCHGAXRP _BX
 XCHGaxsp
-        ld bc,(_SP)
-	decodeSP
+       decodeSP ;->bc
 	push bc
 	exx
 	ex (sp),hl
 	exx
 	pop bc
 	encodeSP
-       _Loop_
+       _LoopC
 XCHGaxbp
 	XCHGAXRP _BP
 XCHGaxsi

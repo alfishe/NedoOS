@@ -486,7 +486,7 @@ CMPdxi16
 CMPbxi16
 	CMPRP _BX
 CMPspi16
-       decodeSP ;ld bc,(_SP)
+       decodeSP ;->bc
 	ld h,b
 	ld l,c
 	getBC
