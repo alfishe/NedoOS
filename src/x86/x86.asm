@@ -36,7 +36,7 @@ STACK=0x4000
         JP (IY)
         ENDM 
 
-	macro CALCpc
+	macro decodePC ;de,pg -> de
 ;TODO
 	endm
 
@@ -54,12 +54,11 @@ STACK=0x4000
 
 	macro get
 	ld a,(de)
-;TODO
 	endm
 
 	macro next
-	inc de
-;TODO
+	inc e
+        call z,recountpc_inc
 	endm
 
 	macro getHL
@@ -157,7 +156,6 @@ STACK=0x4000
 	res 7,h
         set 6,h
 	ld a,(bc)
-	 ;ld a,(pgprog) ;TODO
 	SETPG4000
 	endm
 
@@ -174,7 +172,6 @@ STACK=0x4000
 	set 7,h
         res 6,h
 	ld a,(bc)
-	 ;ld a,(pgprog) ;TODO
 	SETPG8000
 	endm
 
@@ -192,7 +189,6 @@ STACK=0x4000
 	or 0xc0
 	ld h,a
 	ld a,(bc)
-	 ;ld a,(pgprog) ;TODO
 	SETPGC000
 	endm
 
@@ -210,7 +206,6 @@ STACK=0x4000
 	or 0xc0
 	ld h,a
 	ld a,(bc)
-	 ;ld a,(pgprog) ;TODO
 	SETPGC000
 	endm
 
@@ -270,7 +265,6 @@ STACK=0x4000
 	endm
 
 	macro decodeSP
-	ld bc,(_SP)
          set 7,b
          set 6,b
 ;TODO
@@ -514,9 +508,39 @@ iff2	db 0 ;TODO unneeded?
 timer
 	dw 0
 
+recountpc_inc
+	inc d
+        ret p ;<0x8000
+        push bc
+        ex de,hl
+        dec hl
+        ld b,h
+        ld c,l
+        decodePC ;bc->bc
+        ld h,b
+        ld l,c
+        inc hl
+        memCS
+        ex de,hl
+        pop bc
+        ld de,0x4000
+	ret
+
 recountsp_inc
 	inc h
-;TODO
+        bit 6,h
+        ret z ;<0xc000
+        push bc
+        dec hl
+        ld b,h
+        ld c,l
+        decodeSP ;bc->bc
+        ld h,b
+        ld l,c
+        inc hl
+        memSS
+        pop bc
+        ld hl,0x8000
 	ret
 
 recountsp_dec
@@ -602,7 +626,7 @@ keepemuchecker=$+2
 IMERIM
 ;hl=new PC
         EI
-       CALCpc ;de=old PC
+       decodePC ;de=old PC
         ex de,hl ;DE=new PC
         LD B,H
         ld C,L ;BC=old PC

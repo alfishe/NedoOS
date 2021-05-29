@@ -72,7 +72,8 @@ PUSHbx
         putmemspBC
        _LoopC
 PUSHsp
-       decodeSP ;ld bc,(_SP)
+       ld bc,(_SP)
+       decodeSP
         putmemspBC
        _LoopC
 PUSHbp
@@ -353,6 +354,7 @@ INCbx
 	ld (_BX),hl
        _Loop_
 INCsp
+        ld bc,(_SP)
         decodeSP
         ld h,b
         ld l,c
@@ -419,6 +421,7 @@ DECbx
 	ld (_BX),hl
        _Loop_
 DECsp
+        ld bc,(_SP)
         decodeSP
         ld h,b
         ld l,c
@@ -445,7 +448,7 @@ DECdi
 
 CALLer
         getHL
-       CALCpc
+       decodePC
         add hl,de
         EXD ;new PC
         LD B,H
@@ -560,7 +563,7 @@ JRer
         RLA
         SBC A,A
         LD H,A
-       CALCpc
+       decodePC
         ADD HL,DE
         ex de,hl ;new PC 
        _LoopC_JP
@@ -605,7 +608,7 @@ JCXZer ;jump if CX = 0
 
 JMPer
         getHL
-       CALCpc
+       decodePC
         ADD HL,DE
         ex de,hl ;new PC
        _LoopC_JP
@@ -655,6 +658,7 @@ XCHGaxdx
 XCHGaxbx
 	XCHGAXRP _BX
 XCHGaxsp
+        ld bc,(_SP)
 	decodeSP
 	push bc
 	exx
@@ -738,7 +742,7 @@ REPMOVSBer
 	jr nz,REPMOVSBer_repeat
        _LoopC
 REPMOVSBer_repeat
-       CALCpc
+       decodePC
         dec de
         dec de ;new PC 
        _LoopC_JP
@@ -791,7 +795,7 @@ REPSCASBer
 	jr nz,REPSCASBer_repeat
        _LoopC
 REPSCASBer_repeat
-       CALCpc
+       decodePC
         dec de
         dec de ;new PC 
        _LoopC_JP
@@ -859,7 +863,7 @@ exaLoopC
 	ex af,af' ;'
        _LoopC
 REPCMPSBer_repeat
-       CALCpc
+       decodePC
         dec de
         dec de ;new PC 
        _LoopC_JP
