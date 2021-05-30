@@ -1,6 +1,8 @@
 ;4000 - страница команд (может подменяться при доступе к данным, но потом вызывается OUTcom)
 ;8000,c000 - страницы в 8000,c000
 
+;(для extpg5) putmem всегда пишет через регистр C! так можно перехватывать запись в экран
+
         MACRO get
         LD A,(DE)
         ENDM 
@@ -62,7 +64,7 @@
         set 6,d
         ld (curquart),a
         ld l,a
-        ld h,currom/256
+        ld h,emulcurpg0000/256
         LD A,(HL)
         OUTPGCOM
         ld a,0xc9
@@ -86,11 +88,12 @@
         ld c,a
         ld a,h
         add a,a
-        call nc,setmem00004000forwrite
+        call nc,setmem00004000writec
        if extpg5
-        call c,setmem8000c000forwrite
+        call c,setmem8000c000writec
+       else
+        ld (hl),c
        endif
-        LD (HL),c
         ENDM 
 
 ;портит HL,A! на выходе CY=A15
@@ -113,11 +116,13 @@
         MACRO putmemBC
         ld a,h
         add a,a
-        call nc,setmem00004000forwrite
+        call nc,setmem00004000writec
        if extpg5
-        call c,setmem8000c000forwrite
+        call c,setmem8000c000writec
+       else
+        ld (hl),c
        endif
-        LD (HL),c
+         ld c,b
        if extpg5
         rra
         ld h,a
@@ -131,10 +136,12 @@
        endif
         ld a,h
         add a,a
-        call nc,setmem00004000forwrite
+        call nc,setmem00004000writec
        if extpg5
-        call c,setmem8000c000forwrite
+        call c,setmem8000c000writec
        endif
 1;q
-        LD (HL),b
+       if !extpg5
+        ld (hl),c
+       endif
         ENDM 

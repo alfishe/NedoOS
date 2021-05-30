@@ -22,21 +22,21 @@
         jr NC,4f;lo
           JP M,3f;pg
             SET 6,H
-            LD A,(curpg2)
+            LD A,(emulcurpg8000)
            JP 5f;o
 3;pg
-           LD A,(curpghi)
+           LD A,(emulcurpgc000)
            JP 5f;o
 4;lo
             JP M,6f;sl
             LD A,H
             OR #C0
             LD H,A
-            LD A,(currom)
+            LD A,(emulcurpg0000)
        IF extpg5
            JP 5f;o
 6;sl
-            LD A,(curpg5)
+            LD A,(emulcurpg4000)
             SET 7,H
        ENDIF 
 5;o
@@ -62,10 +62,10 @@
         jr NC,4f;lo
           JP M,3f;pg
             SET 6,H
-            LD A,(@curpg2)
+            LD A,(@emulcurpg8000)
            JP 5f;o
 3;pg
-           LD A,(@curpghi)
+           LD A,(@emulcurpgc000)
        IF @extpg5
             CP @pg5
            JP NZ,5f;o
@@ -80,7 +80,7 @@
             OR H
            JP P,1f;q ;невозможно putmem в ПЗУ
             LD H,A
-            LD A,(@currom)
+            LD A,(@emulcurpg0000)
        IF extpg5
            JP 5f;o
 6;sl
@@ -116,15 +116,15 @@
         jr NC,4f;lo
           JP M,3f;pg
             SET 6,D
-            LD A,(curpg2)
+            LD A,(emulcurpg8000)
            JP 5f;o
 3;pg
-           LD A,(curpghi)
+           LD A,(emulcurpgc000)
            JP 5f;o
 4;lo
        IF extpg5
           JP P,8f;r
-            LD A,(curpg5)
+            LD A,(emulcurpg4000)
             SET 7,D
            JP 5f;o
        ELSE 
@@ -134,7 +134,7 @@
             LD A,D
             OR #C0
             LD D,A
-            LD A,(currom)
+            LD A,(emulcurpg0000)
 5;o
         OUTPG
 9;q
