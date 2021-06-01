@@ -6,6 +6,8 @@ play:
 
     ld hl, outputBuffer  : call VTPL.INIT
     
+    
+    ld a, 0, (Render.play_next), a
     ifdef GS
     call GeneralSound.stopModule
     endif

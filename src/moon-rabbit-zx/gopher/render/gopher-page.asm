@@ -14,7 +14,6 @@ renderGopherScreen:
     call showCursor
     ret
 
-
 checkBorder:
     ld a, (cursor_position) : cp #ff : jp z, pageUp
     ld a, (cursor_position) : cp PER_PAGE : jp z, pageDn
@@ -22,7 +21,9 @@ checkBorder:
     jp workLoop
 
 workLoop:
-    dup 3
+    ld a, (play_next) : and a : jp nz, navigate
+
+    dup 5
     halt
     edup
 .nothing
@@ -58,6 +59,8 @@ workLoop:
     jp workLoop
 
 navigate:
+    xor a : ld (play_next), a
+    
     call hideCursor
     ld a, (page_offset), b, a, a, (cursor_position) : add b : ld b, a : call Render.findLine
     ld a, (hl)
