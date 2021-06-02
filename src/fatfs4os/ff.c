@@ -2279,14 +2279,15 @@ FRESULT f_open (
 			}
 		}
 	}
-	else {	/* Open an existing file */
+	else {	/* 6769 Open an existing file */
 		if (res == FR_OK) {						/* Follow succeeded */
 			if (dir[DIR_Attr] & AM_DIR) {		/* It is a directory */
 				res = FR_NO_FILE;
-			} else {
-				if ((mode & FA_WRITE) && (dir[DIR_Attr] & AM_RDO)) /* R/O violation */
-					res = FR_DENIED;
-			}
+			} 
+			// else {
+				// if ((mode & FA_WRITE) && (dir[DIR_Attr] & AM_RDO)) /* R/O violation */
+					// res = FR_DENIED;
+			// }
 		}
 	}
 	if (res == FR_OK) {
