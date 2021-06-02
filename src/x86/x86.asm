@@ -276,7 +276,7 @@ STACK=0x4000
         ld l,c
         ;res 6,b
         ;set 7,b ;0x8000+
-	ld (_SP_encoded),bc
+	ld (_SP_encoded),hl;bc
         memSS
 	endm
 
@@ -496,7 +496,9 @@ pgprog
 
         align 256
 ;8 r16s
-_AX dw 0 ;temporary ;TODO always
+_AX
+_AL     DB 0
+_AH     DB 0
 _CX
 _CL     DB 0
 _CH     DB 0
@@ -506,7 +508,7 @@ _DH     DB 0
 _BX
 _BL     DB 0
 _BH     DB 0
-_SP_encoded     DW 0 ;TODO not encoded
+_SP_encoded     DW 0 ;not encoded
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0

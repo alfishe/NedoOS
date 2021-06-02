@@ -1,9 +1,9 @@
 XORaxax
-	exx
-	;ex af,af'
 	xor a ;CF=0
 	ld h,a
 	ld l,a
+        ld (_AX),hl
+        exx
 	ld d,a ;parity data ;the SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined. 
         ld e,a;0 ;OF=0
 	ex af,af' ;'
@@ -11,7 +11,6 @@ XORaxax
        _Loop_
 
 	macro XORSELFRP rp
-	;ex af,af'
 	xor a
 	ld h,a
 	ld l,a ;CF=0
@@ -32,25 +31,26 @@ XORbxbx
 
 ORaxax
 ANDaxax
-	exx
-	;ex af,af'
+        ld hl,(_AX)
 	ld a,h
 	or l ;CF=0
+	ex af,af' ;'
+	ld a,h
+	xor l
+	exx
 	ld d,a ;parity data
         ld e,0 ;OF=0
-	ex af,af' ;'
 	exx
        _Loop_
 
 	macro ORSELFRP rp
-	;ex af,af'
         ld hl,(rp)
 	ld a,h
 	or l ;CF=0
 	ex af,af' ;'
-        exx
 	ld a,h
 	xor l
+        exx
 	ld d,a ;parity data
         ld e,0 ;OF=0
         exx
@@ -70,9 +70,10 @@ ANDbxbx
 ANDali8
 	get
 	next
+        ld hl,_AL
+        and (hl) ;al ;CF=0
+        ld (hl),a
         exx
-        and l ;al ;CF=0
-        ld l,a
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	ex af,af' ;'
@@ -82,9 +83,10 @@ ANDali8
 ORali8
 	get
 	next
+        ld hl,_AL
+        or (hl) ;al ;CF=0
+        ld (hl),a
         exx
-        or l ;al ;CF=0
-        ld h,a
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	ex af,af' ;'
@@ -94,9 +96,10 @@ ORali8
 XORali8
 	get
 	next
+        ld hl,_AL
+        xor (hl) ;al ;CF=0
+        ld (hl),a
         exx
-        xor l ;al ;CF=0
-        ld h,a
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	ex af,af' ;'
@@ -106,16 +109,16 @@ XORali8
 ANDaxi16
 	get
 	next
-        exx
+        ld hl,(_AX)
         and l ;al ;CF=0
         ld l,a
-        exx
 	get
 	next
-        exx
         and h ;ah ;CF=0
         ld h,a
+        ld (_AX),hl
         xor l
+        exx
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	ex af,af' ;'
@@ -125,16 +128,16 @@ ANDaxi16
 ORaxi16
 	get
 	next
-        exx
+        ld hl,(_AX)
         or l ;al ;CF=0
         ld l,a
-        exx
 	get
 	next
-        exx
         or h ;ah ;CF=0
         ld h,a
+        ld (_AX),hl
         xor l
+        exx
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	ex af,af' ;'
@@ -144,16 +147,16 @@ ORaxi16
 XORaxi16
 	get
 	next
-        exx
+        ld hl,(_AX)
         xor l ;al ;CF=0
         ld l,a
-        exx
 	get
 	next
-        exx
         xor h ;ah ;CF=0
         ld h,a
+        ld (_AX),hl
         xor l
+        exx
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	ex af,af' ;'

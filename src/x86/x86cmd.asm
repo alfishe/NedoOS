@@ -53,10 +53,7 @@ PUSHi16
         putmemspBC
        _LoopC
 PUSHax
-        EXX
-       push hl ;ax
-        EXX
-       pop bc
+       ld bc,(_AX)
         putmemspBC
        _LoopC
 PUSHcx
@@ -106,10 +103,7 @@ PUSHds
 
 POPax
         getmemspBC
-        PUSH BC
-        EXX
-       POP HL ;ax
-        EXX
+        ld (_AX),bc
        _LoopC
 POPcx
         getmemspBC
@@ -162,10 +156,7 @@ POPds
 
 MOVaxi16
 	getHL
-	push hl
-	exx
-	pop hl ;ax
-	exx
+	ld (_AX),hl
        _Loop_
 MOVcxi16
 	getHL
@@ -199,9 +190,7 @@ MOVdii16
 MOVali8
 	get
 	next
-	exx
-	ld l,a ;al
-	exx
+	ld (_AL),a ;al
        _Loop_
 MOVcli8
 	get
@@ -221,9 +210,7 @@ MOVbli8
 MOVahi8
 	get
 	next
-	exx
-	ld h,a ;ah
-	exx
+	ld (_AH),a ;ah
        _Loop_
 MOVchi8
 	get
@@ -257,33 +244,26 @@ MOVAXmBX
 	push af ;a=ah
 	ld hl,(_BX)
 	getmemDS
-	exx
-	pop hl ;h=ah
-	ld l,a ;al
-	exx
+        pop hl
+        ld l,a
+        ld (_AX),hl
        _LoopC
 
 ;mov [addr],ax
 MOVmemax
 	getHL
 	push hl
-	exx
-	ld a,l ;al
-	exx
+	ld a,(_AL) ;al
 	putmemDS
 	pop hl
 	inc hl
-	exx
-	ld a,h ;ah
-	exx
+	ld a,(_AH) ;al
 	putmemDS
        _LoopC
 ;mov [addr],al
 MOVmemal
 	getHL
-	exx
-	ld a,l ;al
-	exx
+	ld a,(_AL) ;al
 	putmemDS
        _LoopC
 ;mov ax,[addr]
@@ -291,28 +271,23 @@ MOVaxmem
 	getHL
 	push hl
 	getmemDS
-	exx
-	ld l,a ;al
-	exx
+	ld (_AL),a ;al
 	pop hl
 	inc hl
 	getmemDS
-	exx
-	ld h,a ;ah
-	exx
+	ld (_AH),a ;ah
        _LoopC
 ;mov al,[addr]
 MOValmem
 	getHL
 	getmemDS
-	exx
-	ld l,a ;al
-	exx
+	ld (_AL),a ;al
        _LoopC
 
 
 INCax
 	exx
+        ld hl,(_AX)
 	ex af,af'
 	ld bc,1
 	jr c,2f
@@ -335,6 +310,7 @@ INCax
 	ld a,h
 	xor l
 	ld d,a ;PF
+        ld (_AX),hl
 	exx
        _Loop_
 INCcx
@@ -379,6 +355,7 @@ INCdi
 
 DECax
 	exx
+        ld hl,(_AX)
 	ex af,af'
 	ld bc,1
 	jr c,2f
@@ -401,6 +378,7 @@ DECax
 	ld a,h
 	xor l
 	ld d,a ;PF
+        ld (_AX),hl
 	exx
        _Loop_
 DECcx
@@ -625,27 +603,21 @@ JMPWORDmDI
 MOVALmDI
 	ld hl,(_DI)
 	getmemDS
-	exx
-	ld l,a ;al
-	exx
+	ld (_AL),a ;al
        _LoopC
 
 ;mov ah,[di]
 MOVAHmDI
 	ld hl,(_DI)
 	getmemDS
-	exx
-	ld h,a ;ah
-	exx
+	ld (_AH),a ;ah
        _LoopC
 
 	macro XCHGAXRP rp
-	exx
 	ld bc,(rp)
+        ld hl,(_AX)
 	ld (rp),hl
-	ld h,b
-	ld l,c
-	exx
+	ld (_AX),bc
        _Loop_
 	endm
 XCHGaxcx
@@ -656,11 +628,10 @@ XCHGaxbx
 	XCHGAXRP _BX
 XCHGaxsp
        decodeSP ;->bc
-	push bc
-	exx
-	ex (sp),hl
-	exx
-	pop bc
+        ld h,b
+        ld l,c
+        ld bc,(_AX)
+	ld (_AX),hl
 	encodeSP
        _LoopC
 XCHGaxbp
@@ -747,9 +718,7 @@ SCASBer
 	ld hl,(_SI)
 	getmemDS
 	ex af,af'
-	exx
-	ld a,l ;al
-	exx
+	ld a,(_AL) ;al
 	cmphl
 	ex af,af'
 	ld hl,(_SI)
@@ -767,9 +736,7 @@ REPSCASBer
 	ld hl,(_SI)
 	getmemDS
 	ex af,af'
-	exx
-	ld a,l ;al
-	exx
+	ld a,(_AL) ;al
 	cmphl
 	ex af,af'
 	ld hl,(_SI)
@@ -867,9 +834,7 @@ REPCMPSBer_repeat
 LODSBer
 	ld hl,(_SI)
 	getmemDS
-	exx
-	ld l,a ;al
-	exx
+	ld (_AL),a ;al
 	ld hl,(_SI)
 	ld a,(_DIRECTION)
 	or a
@@ -885,15 +850,11 @@ LODSBer
 LODSWer
 	ld hl,(_SI)
 	getmemDS
-	exx
-	ld l,a ;al
-	exx
+	ld (_AL),a ;al
 	ld hl,(_SI)
 	inc hl
 	getmemDS
-	exx
-	ld h,a ;ah
-	exx
+	ld (_AH),a ;ah
 	ld hl,(_SI)
 	ld a,(_DIRECTION)
 	or a
@@ -910,9 +871,7 @@ LODSWer
        _LoopC
 
 STOSBer
-	exx
-	ld a,l ;al
-	exx
+	ld a,(_AL) ;al
 	ld hl,(_DI)
         putmemDS
 	ld hl,(_DI)
@@ -928,14 +887,10 @@ STOSBer
        _LoopC
 
 STOSWer
-	exx
-	ld a,l ;al
-	exx
+	ld a,(_AL) ;al
 	ld hl,(_DI)
         putmemDS
-	exx
-	ld a,h ;ah
-	exx
+	ld a,(_AH) ;ah
 	ld hl,(_DI)
 	inc hl
         putmemDS
@@ -956,12 +911,10 @@ STOSWer
 
 ;in al,0x40          ; Read timer counter 0 
 INali8
-	exx
 	ld a,(timer)
-	ld l,a
-	exx
+	ld (_AL),a
        _Loop_
-	
+
 ;int 0x20 ;system
 ;int 0x16 ;ah=0: input key -> al
 ;int 0x10 ;ah=0x0e: print al (зачем bx=7?)
@@ -981,7 +934,7 @@ INT_printal
         push af
         push hl
         push iy
-	ld a,l
+	ld a,(_AL)
 	PRCHAR
         pop iy
         pop hl
@@ -1005,7 +958,7 @@ INT_inputal
 ;        Флаг Z - если 0(NZ), то отсутствует фокус.  
         pop iy
         pop hl
-	ld l,a
+	ld (_AL),a
         exx
         pop de
        _Loop_

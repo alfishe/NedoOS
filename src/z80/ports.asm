@@ -202,7 +202,7 @@ oldcurscr7ffd=$+1
         ld e,a
        exa
        push af
-       ;OS_SETSCREEN
+       OS_SETSCREEN
        pop af
        exa
        pop iy

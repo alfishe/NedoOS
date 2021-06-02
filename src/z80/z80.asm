@@ -987,11 +987,6 @@ writescreen_6912
         OUTPG4000
        pop bc
        ld (hl),c
-       push bc
-        LD bc,(curquart)
-        LD A,(bc)
-        OUTPGCOM ;надо именно тут, т.к. OUTcomCY15 работает только после обращения к <0x8000
-       pop bc
         ret
 
 writescreen_profi
@@ -1001,37 +996,25 @@ writescreen_profi
       push hl
        push bc
 ;y=%TTYYYyyy
-;hl=%???TTyyy YYY?????
+;hl=%010TTyyy YYYxxxxx
        push af
         ld a,h
         xor l
         and 0x1f
         xor l
-        ld c,a
-        ld b,tprofiy/256
-        ld a,(bc) ;y ;TODO y*40 + 4
-        ld c,l
+       ld c,l
         ld l,a
-        ld a,c
-        and 0x1f
-        add a,4
-        ld c,a ;x
-       ld a,h
-       xor 0x20
-       and 0x60 ;0x40+(half*0x20)
-       ld b,a
-        ld h,0
-        ld a,l
-        add hl,hl
-        add hl,hl
-        add a,l
-        ld l,a
-        jr nc,$+3
+       ld a,c
+       and 0x1f
+       ld b,0
+       bit 5,h
+       jr nz,$+4
+       ld b,0x20
+        ld h,tprofiy/256
+        ld c,(hl)
         inc h
-                  ;y*5
-        add hl,hl
-        add hl,hl
-        add hl,hl ;y*40
+        ld h,(hl)
+        ld l,a
         add hl,bc
 ;addr=0x4000+(half*0x2000)+y*40+x
        pop af
@@ -1271,15 +1254,18 @@ _Y=((_chr*8)&0x18)+((_chr/4)&0x07) ;_Y=%000TTYYY
 _egay=_Y*8;7 ;- 4
         dup 8;7
        if (_egay >= 200) || (_egay < 0)
-        db 200 ;invisible line
+        ;db 200 ;invisible line
+        DCOM (0x4000+4+(200*40))
        else
-        db _egay
+        ;db _egay
+        DCOM (0x4000+4+(_egay*40))
        endif
 _egay=_egay+1
         edup
 _chr=_chr+1
         edup
-        ds (-$)&0xff,200 ;invisible line
+        ;ds (-$)&0xff,200 ;invisible line
+        org $+256
         align 256
 temulpgs
         ds 64 ;пока используем 8

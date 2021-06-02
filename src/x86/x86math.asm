@@ -54,8 +54,10 @@ GRP1rmi16
 ;MD=01: cmd [...+disp8],i8 ;TODO
 ;MD=10: cmd [...+disp16],i8 ;TODO
 ;MD=11: cmd r/m,i8 ;проще всего
-	cp %11111100
-	jp z,CMPspi16
+       ld c,a
+       and %11111000
+	cp %11111000;100
+	jp z,CMPr16i16;CMPspi16
 	jp $;PANIC
 
 GRP316
@@ -89,13 +91,13 @@ GRP316
 	jp $;PANIC
 
 getr16
-        exx
-        ld (_AX),hl
-        exx
+        ;exx
+        ;ld (_AX),hl
+        ;exx
         ld a,c
         and 7
-       cp 4
-       jr z,getr16sp
+       ;cp 4
+       ;jr z,getr16sp
         add a,a
         ld l,a
         ld h,_AX/256
@@ -113,12 +115,12 @@ putr16
         ld (hl),b
         dec l
         ld (hl),c
-        ret nz
+        ret ;nz
 ;ax!
-        exx
-        ld hl,(_AX)
-        exx
-        ret
+        ;exx
+        ;ld hl,(_AX)
+        ;exx
+        ;ret
 
 MOVrmr8
 	get
@@ -291,24 +293,20 @@ ADDr16rm
 
 ;cbw ;Expand AL to AX
 CBWer
-	exx
-	ld a,l ;al
+	ld a,(_AL);l ;al
 	rla
 	sbc a,a
-	ld h,a ;ah
-	exx
+	ld (_AH),a;h,a ;ah
        _Loop_
 
 ;cwd ;Expand AX to DX:AX
 CWDer
-	exx
-	ld a,h ;ah
-	exx
+	ld a,(_AH);h ;ah
 	rla
 	sbc a,a
 	ld h,a
 	ld l,a
-	ld (_DX),a
+	ld (_DX),hl
        _Loop_
 
 ;cmp byte [si],n
@@ -337,10 +335,7 @@ ADDdicx
 
 ;add bx,ax
 ADDbxax
-	exx
-	push hl
-	exx
-	pop bc
+        ld bc,(_AX)
 	ld hl,(_BX)
 	ex af,af'
 	or a
@@ -351,38 +346,16 @@ ADDbxax
 
 ;add ax,cx
 ADDaxcx
-	exx
+        ld hl,(_AX)
 	ld bc,(_CX)
-	ex af,af'
 	or a
 	adc hl,bc ;TODO overflow
-	ex af,af'
-	exx
+	ex af,af' ;'
+        ld (_AX),hl
        _Loop_
 
 ;neg ax
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
-       if 0
-NEGax
-	exx
-        
-	ex de,hl
-	xor a
-	ld h,a
-	ld l,a
-	sbc hl,de
-        
-	ld a,h
-	rra
-	ld e,a ;overflow data
-	rla ;restore CF
-	ex af,af' ;'
-        ld a,h
-        xor l
-	ld d,a ;parity data
-	exx
-       _Loop_
-       endif
 NEGr16
         call getr16
         push bc
@@ -411,46 +384,45 @@ NEGr16
 
 ;add ax,nn
 ADDaxi16
-	getHL
-	push hl
-	exx
-	pop bc
-	;ex af,af'
+	getBC
+        ld hl,(_AX)
 	or a
 	adc hl,bc
 	ld a,h
 	rra
+	exx
 	ld e,a ;overflow data
+	exx
 	rla ;restore CF
 	ex af,af' ;'
         ld a,h
         xor l
+	exx
 	ld d,a ;parity data
 	exx
+        ld (_AX),hl
        _Loop_
 
 ;add al,al
 ADDalal
-        exx
-	;ex af,af'
-        ld a,l
+        ld hl,_AL
+        ld a,(hl);l
         add a,a
-        ld l,a
+        ld (hl),a
+        exx
 	KEEPPARITYOVERFLOW
+        exx
 	ex af,af' ;'
-	exx
        _Loop_
 
 ;add al,n
 ADDali8
 	get
 	next
-	ld c,a
-	;ex af,af'
-	ld a,c
-	exx
-        add a,l
-        ld l,a
+        ld hl,_AL
+        add a,(hl)
+        ld (hl),a
+        exx
 	KEEPPARITYOVERFLOW
 	exx
 	ex af,af' ;'
@@ -461,13 +433,11 @@ SUBali8
 	get
 	next
 	ld c,a
-	;ex af,af'
-	exx
-	ld a,l
-	exx
+        ld hl,_AL
+        ld a,(hl)
 	sub c
-	exx
-	ld l,a
+	ld (hl),a
+        exx
 	KEEPPARITYOVERFLOW
 	exx
 	ex af,af' ;'
@@ -478,58 +448,54 @@ CMPali8
 	get
 	next
 	ld c,a
-	;ex af,af'
-	exx
-	ld a,l ;al
-	exx
+        ld a,(_AL)
 	cmpc
 	ex af,af' ;'
        _Loop_
 
 SUBaxi16
-	getHL
-        push hl
-        exx
-        pop bc
-	;ex af,af'
+	getBC
+        ld hl,(_AX)
         or a
         sbc hl,bc
         ld a,h
         rra
+        exx
 	ld e,a ;overflow data
+        exx
         rla ;restore CF
 	ex af,af' ;'
         ld a,h
         xor l
+        exx
 	ld d,a ;parity data
 	exx
+        ld (_AX),hl
        _Loop_
 
 CMPaxi16
-	getHL
-        push hl
-        exx
-        pop bc
-        push hl
-	;ex af,af'
+	getBC
+        ld hl,(_AX)
         or a
         sbc hl,bc
         ld a,h
         rra
+        exx
 	ld e,a ;overflow data
+        exx
         rla ;restore CF
 	ex af,af' ;'
         ld a,h
         xor l
+        exx
 	ld d,a ;parity data
-        pop hl
 	exx
        _Loop_
 
+       if 0
 	macro CMPRP rp
 	getBC
 	ld hl,(rp)
-	;ex af,af'
 	ld d,h
 	ld e,l
 	or a
@@ -547,12 +513,13 @@ CMPdxi16
 	CMPRP _DX
 CMPbxi16
 	CMPRP _BX
-CMPspi16
-       decodeSP ;->bc
+       endif
+CMPr16i16
+       ;decodeSP ;->bc
+       call getr16
 	ld h,b
 	ld l,c
 	getBC
-	;ex af,af'
 	or a
 	sbc hl,bc
 	exx
@@ -564,38 +531,36 @@ CMPspi16
 ;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
 MULr16;cx
        call getr16
-       push bc
-	exx
-       pop bc
-	ex de,hl ;de=ax
+       push de
+	ld de,(_AX);ex de,hl ;de=ax
 	;ld bc,(_CX)
 	call MUL16 ;HLDE=DE*BC
 	ld (_DX),hl
-	ex de,hl ;hl=ax
-	;ex af,af'
-	ld a,d
-	or e ;0?
+	;ex de,hl ;hl=ax
+        ld (_AX),de
+	ld a,h
+	or l ;0?
 	add a,255 ;set CF if result >=65536
 	sbc a,a ;keep CF
 	srl a ;keep CF
+        exx
 	ld e,a ;overflow (d7 != d6) if CF
 	ex af,af' ;'
 	exx
+       pop de
        _Loop_
 
 ;imul cx ;ax*cx -> dxax signed (set OF,CF if result >=32768 or < -32768)
 IMULr16;cx
        call getr16
-       push bc
-	exx
-       pop bc
-	ex de,hl
+       push de
+	ld de,(_AX);ex de,hl ;de=ax
 	;ld bc,(_CX)
 	call MUL16SIGNED ;HLDE=DE*BC
 	ld (_DX),hl
-	ex de,hl ;hl=ax
-	;ex af,af'
-	ld a,h
+	;ex de,hl ;hl=ax
+        ld (_AX),de
+	ld a,d
 	rla ;ax sign
 	jr c,IMULCX_NEG
 	ld a,h
@@ -609,9 +574,11 @@ IMULCX_NEG
 IMULCX_NEGQ
 	sbc a,a ;keep CF
 	srl a ;keep CF
+        exx
 	ld e,a ;overflow (d7 != d6) if CF
 	ex af,af' ;'
 	exx
+       pop de
        _Loop_
 
 ;HLDE=DE*BC
@@ -679,35 +646,31 @@ MUL16
 ;div cx ;dxax/cx -> ax частное, dx остаток
 DIVr16;cx
        call getr16
-       push bc
-	exx
-       pop de
-	ld b,h
-	ld c,l
+       push de
+        ld d,b
+        ld e,c
+	ld bc,(_AX)
 	ld hl,(_DX)
 	;ld de,(_CX)
 	call DIV32 ;BC = HLBC/DE, HL = HLBC%DE
 	ld (_DX),hl
-	ld h,b
-	ld l,c ;ax
-	exx
+        ld (_AX),bc
+       pop de
        _Loop_
 
 ;idiv cx ;dxax/cx -> ax частное, dx остаток signed (знак остатка равен знаку делимого)
 IDIVr16;cx
        call getr16
-       push bc
-	exx
-       pop de
-	ld b,h
-	ld c,l
+       push de
+        ld d,b
+        ld e,c
+	ld bc,(_AX)
 	ld hl,(_DX)
 	;ld de,(_CX)
 	call DIV32SIGNED ;BC = HLBC/DE, HL = HLBC%DE
 	ld (_DX),hl
-	ld h,b
-	ld l,c ;ax
-	exx
+        ld (_AX),bc
+       pop de
        _Loop_
 
 ;BC = HLBC/DE, HL = HLBC%DE
@@ -806,4 +769,3 @@ DIV323
 	inc a
 	djnz DIV321
 	ret
-
