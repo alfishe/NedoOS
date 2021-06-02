@@ -157,6 +157,9 @@ begin
 
         OS_NEWPAGE
         ld a,e
+        ld (temulpgs+1),a
+        OS_NEWPAGE
+        ld a,e
         ld (temulpgs+4),a
         OS_NEWPAGE
         ld a,e
@@ -168,6 +171,19 @@ begin
         ld a,e
         ld (temulpgs+PGATTR1),a;0x3a
 
+        OS_NEWPAGE
+        ld a,e
+        ld (temulpgs+3),a
+        OS_NEWPAGE
+        ld a,e
+        ld (temulpgs+8),a
+        OS_NEWPAGE
+        ld a,e
+        ld (temulpgs+9),a
+        OS_NEWPAGE
+        ld a,e
+        ld (temulpgs+10),a
+
         ld de,path
         OS_CHDIR      
         ld de,diskname
@@ -178,10 +194,9 @@ begin
         OS_NEWPAGE
         ld a,e
         LD (pgrom48),a
+        LD (pgrom48_im1check),a
         ld de,trom48
-        ld hl,0xc000
 ;de=имя файла
-;hl=куда грузим (0xc000)
 ;a=в какой странице
         call loadfile_in_ahl
 
@@ -189,9 +204,7 @@ begin
         ld a,e
         LD (pgrom128),a
         ld de,trom128
-        ld hl,0xc000
 ;de=имя файла
-;hl=куда грузим (0xc000)
 ;a=в какой странице
         call loadfile_in_ahl
 
@@ -199,9 +212,7 @@ begin
         ld a,e
         LD (pgromDOS),a
         ld de,tromDOS
-        ld hl,0xc000
 ;de=имя файла
-;hl=куда грузим (0xc000)
 ;a=в какой странице
         call loadfile_in_ahl
 
@@ -209,27 +220,12 @@ begin
         ld a,e
         LD (pgromSYS),a
         ld de,tromSYS
-        ld hl,0xc000
 ;de=имя файла
-;hl=куда грузим (0xc000)
 ;a=в какой странице
         call loadfile_in_ahl
 
-        ;ld hl,sysvars
-        ;ld de,0x5b00
-        ;ld bc,sz_sysvars
-        ;ldir
-
-        ;LD A,(emulcurpg4000);pg5
-        ;CALL OUTA
-        ;LD HL,#C000
-        ;LD DE,#4000
-        ;LD BC,#4000
-        ;LDIR 
-
         call swapimer
 
-;RESET
 Reset
         ld sp,STACK
 
@@ -239,7 +235,7 @@ waitstart0
         halt ;не YIELD, иначе наш обработчик не вызовется!
         djnz waitstart0
 
-       if extpg5
+       if 0;extpg5
         xor a
         ld (screenin4000_flag),a
         ld a,0xc9
@@ -248,22 +244,30 @@ waitstart0
         ld (screeninc000_flag),a
        endif
 
-        ld a,(temulpgs+5)
-        ld (emulcurpg4000),a
-        SETPG4000
-        ld a,(temulpgs+2)
-        ld (emulcurpg8000),a
-        SETPG8000
+        ;ld a,5
+        ;ld (_logicpg4000),a
+        ;ld a,(temulpgs+5)
+        ;ld (emulcurpg4000),a
+        ;SETPG4000 ;TODO убрать
+        ;ld a,2
+        ;ld (_logicpg8000),a
+        ;ld a,(temulpgs+2)
+        ;ld (emulcurpg8000),a
+        ;SETPG8000
+
+        ld a,-1 ;impossible value
+        ld (oldcurvideomode),a
+        ld (oldcurscr7ffd),a
 
        ;ld a,-1
-       ;ld (doson0),a
+       ;ld (doson0),a ;for basic48
         xor a
         ld (doson0),a
-        ld (_dffd),a
-       ;ld a,0x10 
+        ;ld a,0x10 ;for basic48
         ld (_fd),a
-        ;LD A,(_fd)
-        CALL eout7FFD
+        ;xor a
+        ld (_dffd),a
+        CALL eoutDFFD;дальше идёт на eout7FFD
 
        if 0
         LD HL,0
@@ -285,15 +289,22 @@ waitstart0
         EXA
        endif
 
-      IF margins
-       LD HL,emulcurpg0000
-       LD (curquart),HL
-        LD A,(HL)
-        OUTPGCOM
-        ld de,0x4000 ;пересчитанный PC
-      else
         LD DE,0x0000 ;=PC
+Jumpin
+      IF margins
+       ;LD HL,emulcurpg0000
+       ;LD (curquart),HL
+       ; LD A,(HL)
+       ; OUTPGCOM
+       ; ld de,0x4000 ;пересчитанный PC
+        CALCiypgcom
       endif
+
+        ld a,0xdd
+        ld (oldprefix),a ;ix содержит ix
+
+        xor a
+        ld (immode),a
 
         LD IY,EMUCHECKQ
        ;EMUDATABUS ;ШД0..2 на бордюр
@@ -304,6 +315,89 @@ jpiyer
         ld hl,jpiyer
         push hl
         jp (iy)
+
+Loadsnapshot
+        ld sp,STACK
+
+        ld de,snapshotram3name
+        ld a,(temulpgs+3)
+        call loadfile_in_ahl
+        ld de,snapshotram5name
+        ld a,(temulpgs+5)
+        call loadfile_in_ahl
+        ld de,snapshotram8name
+        ld a,(temulpgs+8)
+        call loadfile_in_ahl
+        ld de,snapshotram9name
+        ld a,(temulpgs+9)
+        call loadfile_in_ahl
+        ld de,snapshotramaname
+        ld a,(temulpgs+10)
+        call loadfile_in_ahl
+
+        ld de,snapshotscrname
+        ld a,(temulpgs+6)
+        call loadfile_in_ahl
+        ld de,snapshotattrname
+        ld a,(temulpgs+PGATTR1);0x3a
+        call loadfile_in_ahl
+
+        ld de,snapshotname
+        OS_OPENHANDLE
+        ld a,(temulpgs+0)
+        call loadsnappg
+        ld a,(temulpgs+1)
+        call loadsnappg
+        ld a,(temulpgs+2)
+        call loadsnappg
+        ld a,(temulpgs+7)
+        call loadsnappg
+        OS_CLOSEHANDLE
+
+       if 0;extpg5
+        ld a,0xc9
+        ld (screenin4000_flag),a
+        ld a,0xc9
+        ld (screenin0000_flag),a
+        ld a,0xc9
+        ld (screenin8000_flag),a
+        ld a,0xc9
+        ld (screeninc000_flag),a
+       endif
+
+        ;ld a,(temulpgs+1)
+        ;ld (emulcurpg4000),a
+        ;SETPG4000 ;TODO убрать
+        ;ld a,(temulpgs+2)
+        ;ld (emulcurpg8000),a
+        ;SETPG8000
+
+        ld hl,0xe6fb
+        ld (_SP),hl
+
+        ld a,-1 ;impossible value
+        ld (oldcurvideomode),a
+        ld (oldcurscr7ffd),a
+
+       ;ld a,-1
+       ;ld (doson0),a
+        xor a
+        ld (doson0),a
+        ld a,0x09 ;screen 1
+        ld (_fd),a
+        ld a,0xb8
+        CALL eoutDFFD;дальше идёт на eout7FFD
+        
+        ld a,0xff
+        ex af,af' ;'
+        ld bc,0xff00
+        ld de,0x321f ;важно!!!
+        ld hl,0xffff
+        ld ix,0x001d ;?0038?
+        exx
+        
+        ld de,0x07a2
+        jp Jumpin
 
 ;oldpc
 ;        dw 0
@@ -422,295 +516,6 @@ retfromim=$+1
        OUT (-2),A
         JP EMUCHECKQ
 
-;OUTA
-;        PUSH BC
-;        OUTPG
-;        POP BC
-;        RET 
-
-EMUOUT
-;BC=port, A=value
-       BIT 0,C
-       jp Z,eoutFE
-       BIT 1,C
-       jr Z,eoutFD
-        PUSH AF
-        LD A,(doson0)
-        OR A
-        jp Z,EMUOUTDOS
-        POP AF
-        RET 
-eoutFD
-       BIT 7,B
-       jp Z,eout7FFD
-       BIT 6,B
-       jr NZ,eoutFFFD
-        LD BC,#BFFD
-        OUT (C),A
-        RET 
-eoutFFFD
-       BIT 5,B
-       jr z,eoutDFFD
-        LD BC,#FFFD
-        OUT (C),A
-        RET 
-eoutDFFD
-        ld (_dffd),a
-        AND 128 ;video mode
-oldcurvideomode=$+1
-        cp 0
-        jr z,eoDFFDnovideomode
-        ld (oldcurvideomode),a
-;video mode changed! set system video mode and recode screen data
-       ;push bc
-       push de
-       ;push hl
-        rla
-        jr c,eoDFFD_copyprofi
-        ld a,SCREEN4000_VIDEOMODE_6912
-        ld (screen4000_videomode),a
-        ld a,SCREENC000_VIDEOMODE_6912
-        ld (screenc000_videomode),a
-        ld a,0x05
-        call copyscreen_profi
-        ld a,0x07
-        call copyscreen_profi
-        ld e,3+0x80 ;6912+keep
-        jr eoDFFD_copyprofiq
-eoDFFD_copyprofi
-        ld a,(user_scr1_high) ;ok
-        call clearpg
-        ld a,(user_scr0_high) ;ok
-        call clearpg
-        ld a,SCREEN4000_VIDEOMODE_PROFI
-        ld (screen4000_videomode),a
-        ld a,SCREENC000_VIDEOMODE_PROFI
-        ld (screenc000_videomode),a
-        ld a,0x04
-        call copyscreen_profi
-        ld a,0x06
-        call copyscreen_profi
-        ld a,PGATTR0;0x38
-        call copyscreen_profi
-        ld a,PGATTR1;0x3a
-        call copyscreen_profi
-        ld e,2+0x80 ;MC+keep
-eoDFFD_copyprofiq
-       exx
-       push bc
-       push de
-       push hl
-       push ix
-       push iy
-       exx
-       exa
-       push af
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-       pop af
-       exa
-        ld a,e
-       pop iy
-       pop ix
-       pop hl
-       pop de
-       pop bc
-       exx
-       ;pop hl
-       pop de
-       ;pop bc              
-eoDFFDnovideomode
-        ld a,(_fd)
-eout7FFD
-;TODO block if bit 5 was "1" in (_fd)
-        LD (_fd),A
-        LD C,A
-        AND #C7
-        and 7
-        ld l,a
-       ld a,(_dffd)
-	if PROFI==512
-       and 3 ;Profi 512K
-	else
-       and 7 ;Profi 1024K
-	endif
-       add a,a
-       add a,a
-       add a,a
-       add a,l
-       ld (_logicpgc000),a
-       ld l,a
-        ld h,temulpgs/256
-        ld a,(hl)
-deadpg=$+1
-        cp 0
-        jr nz,eout7FFDOK
-       push bc
-       push de
-       push hl
-       exx
-       push bc
-       push de
-       push hl
-       push ix
-       push iy
-       exa
-       push af
-       OS_NEWPAGE ;мегабайт захватывать динамически постранично
-       pop af
-       exa
-        ld a,e
-       pop iy
-       pop ix
-       pop hl
-       pop de
-       pop bc
-       exx
-       pop hl
-       pop de
-       pop bc      
-        ld (hl),a
-eout7FFDOK
-        LD (emulcurpgc000),A
-       if margins;MEM48C0
-        push bc
-        OUTPG
-        pop bc
-       endif
-
-        ld a,(_dffd)
-        and 16 ;D4 = rom off
-        jr z,eout7FFD_romon
-        ld a,(temulpgs+0)
-        LD (emulcurpg0000),A
-         ld a,ROMSTATE_OFF
-         ld (romstate_flag),a
-        jr eout7FFD_romonq
-eout7FFD_romon
-       LD A,(doson0) ;DOS ports on ;TODO separate flag for DOS ROM select ;TODO RAM in 0000
-       OR A
-       jr Z,eo7FFDdos
-        BIT 4,C ;номер ПЗУ
-        ld b,DOSSTATE_FROM48
-        LD A,(pgrom48)
-        jr NZ,eo7FFDo
-        ld b,DOSSTATE_FROM128
-        LD A,(pgrom128)
-        JR eo7FFDo
-eo7FFDdos
-        BIT 4,C ;номер ПЗУ
-        ld b,DOSSTATE_FROMDOS
-        LD A,(pgromDOS)
-        jr NZ,eo7FFDo
-        LD A,(pgromSYS)
-        ;JR eo7FFDo
-eo7FFDo
-        LD (emulcurpg0000),A
-        ld a,b
-        ld (DOSER_state),a
-         ld a,ROMSTATE_ON
-         ld (romstate_flag),a
-eout7FFD_romonq
-
-        LD A,C
-        AND 8 ;номер экрана
-        LD (curscr),A
-oldcurscr7ffd=$+1
-        cp 0
-        jr z,eo7FFDnoscr
-        ld (oldcurscr7ffd),a
-
-       ;push bc
-       push de
-       ;push hl
-       exx
-       push bc
-       push de
-       push hl
-       push ix
-       push iy
-        rrca
-        rrca
-        rrca
-        ld e,a
-       exa
-       push af
-       OS_SETSCREEN
-       pop af
-       exa
-       pop iy
-       pop ix
-       pop hl
-       pop de
-       pop bc
-       exx
-       ;pop hl
-       pop de
-       ;pop bc
-eo7FFDnoscr
-
-       if extpg5
-        ld a,(_dffd)
-        rla
-        ld a,(_logicpgc000)
-        jr nc,screenflag_noprofi
-        and 0xff-2
-        cp 0x04
-        jr z,screenflag_noprofiq
-        cp PGATTR0
-        jr screenflag_noprofiq
-screenflag_noprofi
-        and 0xff-2
-        ;ld a,(_fd)
-        ;and 7-2
-        cp 5
-screenflag_noprofiq
-        ld a,0xc9 ;screen off
-        jr nz,$+3
-         xor a ;screen on
-        ld (screeninc000_flag),a
-        
-        ld a,(_fd)
-        bit 1,a
-        ld a,user_scr0_high&0xff
-        jr z,$+4
-        ld a,user_scr1_high&0xff
-        ld (curscreenc000pgaddr),a
-       endif
-
-       if margins
-        ld a,0x3e
-        ld (set4000com),a
-        CALCpgcom
-       endif
-        RET 
-eoutFE
-        LD (_fe),A
-outFE
-        OUT (#FE),A
-        RET 
-EMUOUTDOS
-        LD A,C
-        CP #3F
-        jr Z,eod3F
-        CP #5F
-        jr Z,eod5F
-        CP #FF
-        jr Z,eodFF
-        POP AF
-        RET 
-eod3F
-        POP AF
-        LD (dos3F),A
-        RET 
-eod5F
-        POP AF
-        LD (dos5F),A
-        RET 
-eodFF
-        POP AF
-        LD (dosFF),A
-        RET 
-
 clearpg
         OUTPG4000
         ld hl,0x4000
@@ -720,149 +525,8 @@ clearpg
         ldir
         ret
 
-copyscreen_profi
-;a=logicpg
-        ld (copyscreen_profi_logicpg),a
-        ld c,a
-        ld b,temulpgs/256
-        ld a,(bc)
-        ld (copyscreen_profi_physpg),a
-        ld hl,0x4000
-copyscreen_profi0
-        push hl
-copyscreen_profi_physpg=$+1
-        ld a,0
-        OUTPG4000
-        ld c,(hl)
-        scf
-copyscreen_profi_logicpg=$+1
-        ld a,0
-        call screenc000_branchvideomode
-        pop hl
-        inc l
-        jr nz,copyscreen_profi0
-        inc h
-        jp p,copyscreen_profi0
-        ret
-
-EMUIN
-;BC=port
-;return A=value
-       BIT 0,C
-       jr Z,einFE
-        LD A,(doson0)
-        OR A
-        jr Z,EMUINDOS
-       LD A,C
-       cp 0xfd
-       jr z,einAY
-       CP #DF
-       jr Z,einMOUSE
-       CP #1F
-       jr Z,einKEMPSTON
-        LD A,#FF
-        RET 
-einAY
-        ld bc,0xfffd
-        in a,(c)
-        ret
-einMOUSE
-       LD A,B
-       CP #FA
-       jr Z,einFADF
-       CP #FB
-       jr Z,einFBDF
-       CP #FF
-       jr Z,einFFDF
-        LD A,#FF
-        RET 
-einFADF
-        ;LD BC,#FADF
-        ;IN A,(C)
-mousebuttons=$+1
-        ld a,0xff
-        RET 
-einFBDF
-        ;LD BC,#FBDF
-        ;IN A,(C)
-mousex=$+1
-        ld a,0
-        RET 
-einFFDF
-        ;LD BC,#FFDF
-        ;IN A,(C)
-mousey=$+1
-        ld a,0
-        RET 
-einKEMPSTON
-        ;IN A,(#1f)
-kempston=$+1
-        ld a,0
-        RET 
-einFE
-        ;LD C,#FE
-        ;IN A,(C)
-        ;ld a,b
-        ;or a
-        ;jr z,$
-       push hl
-       ld hl,keymatrix
-       ld a,0xff
-       dup 8
-       rlc b
-       jr c,$+3
-       and (hl)
-       inc hl
-       edup
-       pop hl
-       and a
-        ;LD C,#FE
-        ;IN A,(C)
-        RET 
-EMUINDOS
-        LD A,C
-        CP #1F
-        jr Z,eid1F
-        CP #3F
-        jr Z,eid3F
-        CP #5F
-        jr Z,eid5F
-        CP #5F
-        jr Z,eidFF
-        LD A,#FF
-        RET 
-eidFF
-        ;LD A,#80 ;INTRQ=команда выполнена ok
-        ld a,r
-        rla
-        and 0xc0 ;D6=DRQ, D7=INTRQ
-        RET 
-eid1F
-        ;LD A,#80 ;команда выполнена ok, диск вставлен
-        ld a,r
-fddstatemask=$+1
-        and 3
-        or 0x80
-        RET 
-eid3F
-        LD A,(dos3F) ;trk
-        RET 
-eid5F
-        LD A,(dos5F) ;sec
-        RET 
-
 keymatrix
         ds 8,0xff
-
-       if 0
-imitret
-        LD HL,(_SP)
-        getmemBC
-        LD (_SP),HL
-        ld d,b
-        ld e,c
-       _LoopC_JP
-       endif
 
 DOSrdindex
         LD A,E
@@ -1118,6 +782,8 @@ DOSrdsec5ok
 
         INCLUDE "disasm.asm"
 
+        INCLUDE "ports.asm"
+
         INCLUDE "z80cmd.asm"
         align 256
         INCLUDE "z80table.asm"
@@ -1214,8 +880,12 @@ IMERnofocus
 ;TODO здесь опрос клавиш эмулятора
        ld a,0xf7
        in a,(0xfe)
+       push af
        and 0b10101
        jp z,Reset
+       pop af
+       and 0b10011
+       jp z,Loadsnapshot
 
         pop af
         ex af,af' ;'
@@ -1265,8 +935,11 @@ GETIY
         RET 
 IMERIM1
      IF skipIM1
-        ld a,(romstate_flag)
-        cp ROMSTATE_ON
+        ;ld a,(romstate_flag)
+        ;cp ROMSTATE_ON
+        ld a,(emulcurpg0000)
+pgrom48_im1check=$+1
+        cp 0
         jr nz,IMERIM
        PUSH HL
         CALL GETIY
@@ -1276,15 +949,6 @@ IMERIM1
        POP HL
         JR NZ,IMERIM
 ;вообще-то надо и SP проверить...
-    IF 0;extpg5
-        PUSH DE
-        LD A,(emulcurpg4000)
-        CALL OUTA
-        LD DE,#5C00
-        LD HL,#DC00
-        LD BC,146
-        LDIR 
-    ENDIF 
       push ix
       PUSH IY
      if margins;MEM48C0
@@ -1297,13 +961,6 @@ IMERIM1
       LD (iff2),A
       POP IY
       pop ix
-    IF 0;extpg5
-        LD HL,#5C00
-        LD DE,#DC00
-        LD BC,146
-        LDIR 
-        POP DE
-    ENDIF 
      _LoopC ;RET уже был (адрес со стека снят)
      ENDIF 
 IMERIM
@@ -1320,12 +977,12 @@ IMERIM
        _LoopC_JP
 
 writescreen_6912
-        ;bit 1,a
-        ;ld a,(user_scr0_high) ;ok
-        ;jr z,$+5
-        ;ld a,(user_scr1_high) ;ok
-curscreenc000pgaddr=$+1
+        bit 1,a
+        ld a,(user_scr0_high) ;ok
+        jr z,$+5
         ld a,(user_scr1_high) ;ok
+;curscreenc000pgaddr=$+1
+        ;ld a,(user_scr1_high) ;ok
        push bc
         OUTPG4000
        pop bc
@@ -1379,27 +1036,22 @@ writescreen_profi
 ;addr=0x4000+(half*0x2000)+y*40+x
        pop af
        bit 4,a
-       jr z,screenc000_profi_outpg_pix
+       jr z,writescreen_profi_outpg_pix
         bit 1,a
         ld a,(user_scr0_low) ;ok
-        jr z,screenc000_profi_outpg
+        jr z,writescreen_profi_outpg
         ld a,(user_scr1_low) ;ok
-        jr screenc000_profi_outpg
-screenc000_profi_outpg_pix
+        jr writescreen_profi_outpg
+writescreen_profi_outpg_pix
         bit 1,a
         ld a,(user_scr0_high) ;ok
-        jr z,screenc000_profi_outpg
+        jr z,writescreen_profi_outpg
         ld a,(user_scr1_high) ;ok
-screenc000_profi_outpg
+writescreen_profi_outpg
         OUTPG4000
        pop bc
        ld (hl),c
       pop hl
-       push bc
-        LD bc,(curquart)
-        LD A,(bc)
-        OUTPGCOM ;надо именно тут, т.к. OUTcomCY15 работает только после обращения к <0x8000
-       pop bc
         ret
 
        if margins;MEM48C0    
@@ -1411,25 +1063,60 @@ setmem8000c000writec
         ld (hl),c
 screenin8000_flag=$
         ret ;/nop for screen in 8000
-;TODO write C to screen if screen in 8000
-       
+       ld a,(_logicpg8000)
+SCREEN8000_VIDEOMODE_6912=0x30 ;jr nc
+SCREEN8000_VIDEOMODE_PROFI=0x38 ;jr c
+screen8000_videomode=$
+        jr nc,screen8000_profi
+        bit 5,h
+        jr nz,setmem8000writec_skip
+        res 7,h
+        set 6,h
+        call writescreen_6912
+       push bc
+        LD bc,(curquart)
+        LD A,(bc)
+        OUTPGCOM ;надо именно тут, т.к. OUTcomCY15 работает только после обращения к <0x8000
+       pop bc
+        set 7,h
+        res 6,h
+setmem8000writec_skip
+       ld a,h
+       add a,a
+        ret
+screen8000_profi
+        res 7,h
+        set 6,h
+        call writescreen_profi
+       push bc
+        LD bc,(curquart)
+        LD A,(bc)
+        OUTPGCOM ;надо именно тут, т.к. OUTcomCY15 работает только после обращения к <0x8000
+       pop bc
+        set 7,h
+        res 6,h
+       ld a,h
+       add a,a
         ret
 setmemc000writec
         ld (hl),c
 screeninc000_flag=$
         ret ;/nop for screen in c000
        ld a,(_logicpgc000)
-screenc000_branchvideomode
+;screenc000_branchvideomode
 SCREENC000_VIDEOMODE_6912=0x30 ;jr nc
 SCREENC000_VIDEOMODE_PROFI=0x38 ;jr c
 screenc000_videomode=$
         jr nc,screenc000_profi
-;write C to screen if screen in c000
-;todo branch for other video modes
         bit 5,h
-        ret nz
+        jr nz,setmemc000writec_skip
         res 7,h
         call writescreen_6912
+       push bc
+        LD bc,(curquart)
+        LD A,(bc)
+        OUTPGCOM ;надо именно тут, т.к. OUTcomCY15 работает только после обращения к <0x8000
+       pop bc
         set 7,h
 setmemc000writec_skip
        ld a,h
@@ -1438,6 +1125,11 @@ setmemc000writec_skip
 screenc000_profi
         res 7,h
         call writescreen_profi
+       push bc
+        LD bc,(curquart)
+        LD A,(bc)
+        OUTPGCOM ;надо именно тут, т.к. OUTcomCY15 работает только после обращения к <0x8000
+       pop bc
         set 7,h
        ld a,h
        add a,a
@@ -1496,34 +1188,26 @@ setmem4000writec
 screenin4000_flag=$
         ret ;/nop for screen in 4000
 ;CY=0
-;write C to screen if screen in 4000
        if extpg5
-;todo branch for other video modes
+       ld a,(_logicpg4000)
+screen4000_branchvideomode
 SCREEN4000_VIDEOMODE_6912=0x38 ;jr c
 SCREEN4000_VIDEOMODE_PROFI=0x30 ;jr nc
 screen4000_videomode=$
         jr c,screen4000_profi
         bit 5,h
-        ret nz
-        ld a,(user_scr0_high) ;ok
-       push bc
-        OUTPG4000
-       pop bc
-       ld (hl),c
+        call z,writescreen_6912
 setmem4000writec_skip
        ld a,h
        add a,a
         ret
 screen4000_profi
-        ld a,(user_scr0_high) ;ok
-       push bc
-        OUTPG4000
-       pop bc
-       ld (hl),c
+        call writescreen_profi
        ld a,h
        add a,a
         ret
        endif
+
        if !extpg5
 setmem00004000writec_skip
         ld h,secbuf/256
@@ -1583,9 +1267,9 @@ _chr=0
         dup 32
 ;_chr=%000YYYTT
 _Y=((_chr*8)&0x18)+((_chr/4)&0x07) ;_Y=%000TTYYY
-        db 200 ;invisible line
-_egay=_Y*7 ;- 4
-        dup 7
+        ;db 200 ;invisible line
+_egay=_Y*8;7 ;- 4
+        dup 8;7
        if (_egay >= 200) || (_egay < 0)
         db 200 ;invisible line
        else
@@ -1622,6 +1306,9 @@ iff2    DB 0
 immode  DB 0 ;#18=IM2, иначе IM1
 _fd     DB 0;#10 ;с точки зрения эмулимой проги
 _dffd   db 0
+_logicpg0000 db 0 ;TODO
+_logicpg4000 db 0
+_logicpg8000 db 0
 _logicpgc000 db 0
 _fe     DB 0
 dos3F   DB 0
@@ -1647,24 +1334,54 @@ doson0  DB 0;-1 ;0=SYS/DOS, -1=48/128
 
 loadfile_in_ahl
 ;de=имя файла
-;hl=куда грузим (0xc000)
+;[hl=куда грузим (0xc000)]
 ;a=в какой странице
         SETPGC000 ;включили страницу A в 0xc000
-        push hl ;куда грузим
+        ;push hl ;куда грузим
         OS_OPENHANDLE
-        pop de ;куда грузим
-        push bc ;b=handle
-        ld hl,0x4000 ;столько грузим (если столько есть в файле)
-        OS_READHANDLE
-        pop bc ;b=handle
+        ;pop de ;куда грузим
+        ;push bc ;b=handle
+        ;ld hl,0x4000 ;столько грузим (если столько есть в файле)
+        ;OS_READHANDLE
+        ;pop bc ;b=handle
+        call loadpg
         OS_CLOSEHANDLE
 	ret;jp setpgmainc000 ;включили страницу программы в c000, как было
+
+loadsnappg
+;b=handle
+        push bc
+        SETPGC000 ;включили страницу A в 0xc000
+        pop bc
+loadpg
+        ld de,0xc000 ;куда грузим
+        ld hl,0x4000 ;столько грузим (если столько есть в файле)
+        push bc ;b=handle
+        OS_READHANDLE
+        pop bc ;b=handle
+        ret
 
 path
         db "z80",0
 
 diskname
         db "SYS.TRD",0
+snapshotname
+        db "SOLI",0
+snapshotscrname
+        db "ram6",0
+snapshotattrname
+        db "ram3a",0
+snapshotram3name
+        db "ram3",0
+snapshotram5name
+        db "ram5",0
+snapshotram8name
+        db "ram8",0
+snapshotram9name
+        db "ram9",0
+snapshotramaname
+        db "rama",0
         
 trom48
         ;DB "2006.ROM",0
@@ -1680,12 +1397,6 @@ tromSYS
 tromDOS
         DB "DOS6_10E.ROM",0
         ;DB "testatm.rom",0
-
-        if 0
-sysvars
-        incbin "goodsysv"
-sz_sysvars=$-sysvars
-        endif
 
 swapimer
 	di

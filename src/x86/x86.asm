@@ -239,6 +239,8 @@ STACK=0x4000
 
 	macro putmemspBC
         LD HL,(_SP_encoded)
+       res 6,h
+       set 7,h
 	inc l
 	dec l
 	call z,recountsp_dec
@@ -247,35 +249,43 @@ STACK=0x4000
 	call z,recountsp_dec
 	dec l
 	ld (hl),c
+       LD HL,(_SP_encoded)
+       dec hl
+       dec hl
         LD (_SP_encoded),HL	
 	endm
 
 	macro getmemspBC
         LD HL,(_SP_encoded)
+       res 6,h
+       set 7,h
 	ld c,(hl)
         inc l
 	call z,recountsp_inc
 	ld b,(hl)
         inc l
 	call z,recountsp_inc
+       LD HL,(_SP_encoded)
+       inc hl
+       inc hl
         LD (_SP_encoded),HL
 	endm
 
 	macro encodeSP
         ld h,b
         ld l,c
-        res 6,b
-        set 7,b ;0x8000+
+        ;res 6,b
+        ;set 7,b ;0x8000+
 	ld (_SP_encoded),bc
         memSS
 	endm
 
 	macro decodeSP_fromBC
-        ld a,(sp_high)
-        xor b
-        and 0xc0
-        xor b
-        ld b,a
+        ;ld a,(sp_high)
+        ;xor b
+        ;and 0xc0
+        ;xor b
+        ;ld b,a
 	endm
 	macro decodeSP
         ld bc,(_SP_encoded)
@@ -484,19 +494,23 @@ pgrom0
 pgprog
         db 0 ;TODO убрать?
 
-_BX
-_BL     DB 0
-_BH     DB 0
+        align 256
+;8 r16s
+_AX dw 0 ;temporary ;TODO always
 _CX
 _CL     DB 0
 _CH     DB 0
 _DX
 _DL     DB 0
 _DH     DB 0
+_BX
+_BL     DB 0
+_BH     DB 0
+_SP_encoded     DW 0 ;TODO not encoded
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0
-_SP_encoded     DW 0
+
 sp_high     db 0
 pc_high     db 0
 _ES     DW 0

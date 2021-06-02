@@ -74,17 +74,51 @@ GRP316
 ;MD=01: cmd [...+disp8],r16 ;TODO
 ;MD=10: cmd [...+disp16],r16 ;TODO
 ;MD=11: cmd r/m,r16 ;проще всего
+       ld c,a
+       and %11111000
 	cp %11011000
-	jp z,NEGax
-	cp %11100001
-	jp z,MULcx
-	cp %11101001
-	jp z,IMULcx
-	cp %11110001
-	jp z,DIVcx
-	cp %11111001
-	jp z,IDIVcx
+	jp z,NEGr16;ax
+	cp %11100000;1
+	jp z,MULr16;cx
+	cp %11101000;1
+	jp z,IMULr16;cx
+	cp %11110000;1
+	jp z,DIVr16;cx
+	cp %11111000;1
+	jp z,IDIVr16;cx
 	jp $;PANIC
+
+getr16
+        exx
+        ld (_AX),hl
+        exx
+        ld a,c
+        and 7
+       cp 4
+       jr z,getr16sp
+        add a,a
+        ld l,a
+        ld h,_AX/256
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret
+getr16sp
+        decodeSP
+        ret
+
+putr16
+;hl is kept since getr16
+;TODO sp!!!
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ret nz
+;ax!
+        exx
+        ld hl,(_AX)
+        exx
+        ret
 
 MOVrmr8
 	get
@@ -328,14 +362,16 @@ ADDaxcx
 
 ;neg ax
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
+       if 0
 NEGax
 	exx
-	;ex af,af'
+        
 	ex de,hl
 	xor a
 	ld h,a
 	ld l,a
 	sbc hl,de
+        
 	ld a,h
 	rra
 	ld e,a ;overflow data
@@ -345,6 +381,32 @@ NEGax
         xor l
 	ld d,a ;parity data
 	exx
+       _Loop_
+       endif
+NEGr16
+        call getr16
+        push bc
+	exx
+        pop bc
+        
+	xor a
+	ld h,a
+	ld l,a
+	sbc hl,bc
+        
+        push hl
+        
+	ld a,h
+	rra
+	ld e,a ;overflow data
+	rla ;restore CF
+	ex af,af' ;'
+        ld a,h
+        xor l
+	ld d,a ;parity data
+	exx
+        pop bc
+        call putr16
        _Loop_
 
 ;add ax,nn
@@ -500,10 +562,13 @@ CMPspi16
        _Loop_
 
 ;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
-MULcx
+MULr16;cx
+       call getr16
+       push bc
 	exx
+       pop bc
 	ex de,hl ;de=ax
-	ld bc,(_CX)
+	;ld bc,(_CX)
 	call MUL16 ;HLDE=DE*BC
 	ld (_DX),hl
 	ex de,hl ;hl=ax
@@ -519,10 +584,13 @@ MULcx
        _Loop_
 
 ;imul cx ;ax*cx -> dxax signed (set OF,CF if result >=32768 or < -32768)
-IMULcx
+IMULr16;cx
+       call getr16
+       push bc
 	exx
+       pop bc
 	ex de,hl
-	ld bc,(_CX)
+	;ld bc,(_CX)
 	call MUL16SIGNED ;HLDE=DE*BC
 	ld (_DX),hl
 	ex de,hl ;hl=ax
@@ -609,12 +677,15 @@ MUL16
 	ret
 
 ;div cx ;dxax/cx -> ax частное, dx остаток
-DIVcx
+DIVr16;cx
+       call getr16
+       push bc
 	exx
+       pop de
 	ld b,h
 	ld c,l
 	ld hl,(_DX)
-	ld de,(_CX)
+	;ld de,(_CX)
 	call DIV32 ;BC = HLBC/DE, HL = HLBC%DE
 	ld (_DX),hl
 	ld h,b
@@ -623,12 +694,15 @@ DIVcx
        _Loop_
 
 ;idiv cx ;dxax/cx -> ax частное, dx остаток signed (знак остатка равен знаку делимого)
-IDIVcx
+IDIVr16;cx
+       call getr16
+       push bc
 	exx
+       pop de
 	ld b,h
 	ld c,l
 	ld hl,(_DX)
-	ld de,(_CX)
+	;ld de,(_CX)
 	call DIV32SIGNED ;BC = HLBC/DE, HL = HLBC%DE
 	ld (_DX),hl
 	ld h,b
