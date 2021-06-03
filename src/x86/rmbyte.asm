@@ -1,17 +1,13 @@
         macro ADDRr16
 ;a=r/m byte
+        ld c,a
         and 7
         add a,a
         ld l,a
         ld h,_AX/256
+        ld a,c
         endm
         macro GETr16
-        ;ld a,c
-        ;and 7
-        ;add a,a
-       ;cp l
-       ;jr nz,$
-        ;ld l,a
         ld h,_AX/256
         ld c,(hl)
         inc l
@@ -231,22 +227,23 @@ GRP1rmi16
 ;MD=11: cmd r/m,i8 ;проще всего
         cp 0b11000000
         jr c,GRP1mem
-       ld c,a
        ADDRr16
-       ld a,c
        and 0b11111000
-	cp 0b11111000
-	jp z,CMPrmi16
-	;jp z,CMPr16i16;CMPspi16
-	jp $;PANIC
-GRP1mem
-       ADDRm16
-       and 0b00111000
-	cp 0b00111000
-	jp z,CMPrmmemi16
-	jp $;PANIC
-
-CMPr16i16
+	cp 0b11000000
+	jp z,ADDr16i16
+	cp 0b11001000
+	jp z,ORr16i16
+	cp 0b11010000
+	jp z,ADCr16i16
+	cp 0b11011000
+	jp z,SBBr16i16
+	cp 0b11100000
+	jp z,ANDr16i16
+	cp 0b11101000
+	jp z,SUBr16i16
+	cp 0b11110000
+	jp z,XORr16i16
+;CMPr16i16
         GETr16
 	ld h,b
 	ld l,c
@@ -255,24 +252,25 @@ CMPr16i16
 	sbc hl,bc
         KEEPCFPARITYOVERFLOW_FROMHL
        _Loop_
-
-CMPrmi16
-       push hl
-        GETr16
-        ld h,b
-        ld l,c
-        getBC
-        or a
-        sbc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ;ld b,h
-        ;ld c,l
-       pop hl
-        ;PUTr16
-       _LoopC
+GRP1mem
+       ADDRm16
+       and 0b00111000
+	cp 0b00000000
+	jp z,ADDrmmemi16
+	cp 0b00001000
+	jp z,ORrmmemi16
+	cp 0b00010000
+	jp z,ADCrmmemi16
+	cp 0b00011000
+	jp z,SBBrmmemi16
+	cp 0b00100000
+	jp z,ANDrmmemi16
+	cp 0b00101000
+	jp z,SUBrmmemi16
+	cp 0b00110000
+	jp z,XORrmmemi16
 CMPrmmemi16
         ADDRm16
-       push hl
         GETm16
         ld h,b
         ld l,c
@@ -280,11 +278,148 @@ CMPrmmemi16
         or a
         sbc hl,bc
         KEEPCFPARITYOVERFLOW_FROMHL
-        ;ld b,h
-        ;ld c,l
-       pop hl
-        ;PUTm16
        _LoopC
+
+       macro OPr16i16_PRE
+       push hl
+        GETr16
+        ld h,b
+        ld l,c
+        getBC
+       endm
+       macro OPr16i16_POST
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld b,h
+        ld c,l
+       pop hl
+       _PUTr16Loop_
+       endm
+       macro LOGICOPr16i16_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        ld b,h
+        ld c,l
+       pop hl
+       _PUTr16Loop_
+       endm
+ADDr16i16
+        OPr16i16_PRE
+        or a
+        adc hl,bc
+        OPr16i16_POST
+SUBr16i16
+        OPr16i16_PRE
+        or a
+        sbc hl,bc
+        OPr16i16_POST
+ADCr16i16
+        OPr16i16_PRE
+        ex af,af' ;'
+        adc hl,bc
+        OPr16i16_POST
+SBBr16i16
+        OPr16i16_PRE
+        ex af,af' ;'
+        sbc hl,bc
+        OPr16i16_POST
+XORr16i16
+        OPr16i16_PRE
+        ld a,l
+        xor c
+        ld l,a
+        ld a,h
+        xor b
+        ld h,a
+        LOGICOPr16i16_POST
+ORr16i16
+        OPr16i16_PRE
+        ld a,l
+        or c
+        ld l,a
+        ld a,h
+        or b
+        ld h,a
+        LOGICOPr16i16_POST
+ANDr16i16
+        OPr16i16_PRE
+        ld a,l
+        and c
+        ld l,a
+        ld a,h
+        and b
+        ld h,a
+        LOGICOPr16i16_POST
+
+       macro OPrmmemi16_PRE
+        ADDRm16
+       push hl
+        GETm16
+        ld h,b
+        ld l,c
+        getBC
+       endm
+       macro OPrmmemi16_POST
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld b,h
+        ld c,l
+       pop hl
+        PUTm16
+       _LoopC
+       endm
+       macro LOGICOPrmmemi16_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        ld b,h
+        ld c,l
+       pop hl
+        PUTm16
+       _LoopC
+       endm
+ADDrmmemi16
+        OPrmmemi16_PRE
+        or a
+        adc hl,bc
+        OPrmmemi16_POST
+SUBrmmemi16
+        OPrmmemi16_PRE
+        or a
+        sbc hl,bc
+        OPrmmemi16_POST
+ADCrmmemi16
+        OPrmmemi16_PRE
+        ex af,af' ;'
+        adc hl,bc
+        OPrmmemi16_POST
+SBBrmmemi16
+        OPrmmemi16_PRE
+        ex af,af' ;'
+        sbc hl,bc
+        OPrmmemi16_POST
+XORrmmemi16
+        OPrmmemi16_PRE
+        ld a,l
+        xor c
+        ld l,a
+        ld a,h
+        xor b
+        ld h,a
+        LOGICOPrmmemi16_POST
+ORrmmemi16
+        OPrmmemi16_PRE
+        ld a,l
+        or c
+        ld l,a
+        ld a,h
+        or b
+        ld h,a
+        LOGICOPrmmemi16_POST
+ANDrmmemi16
+        OPrmmemi16_PRE
+        ld a,l
+        and c
+        ld l,a
+        ld a,h
+        and b
+        ld h,a
+        LOGICOPrmmemi16_POST
 
 GRP316
 ;mul,div,test,not,neg
@@ -304,9 +439,7 @@ GRP316
 ;MD=11: cmd r/m ;проще всего
         cp 0b11000000
         jr c,GRP316mem
-       ld c,a
        ADDRr16
-       ld a,c
        and 0b11111000
 	cp 0b11010000
 	jp z,NOTr16
