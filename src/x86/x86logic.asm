@@ -6,8 +6,8 @@ XORaxax
         exx
 	ld d,a ;parity data ;the SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined. 
         ld e,a;0 ;OF=0
-	ex af,af' ;'
 	exx
+	ex af,af' ;'
        _Loop_
 
 	macro XORSELFRP rp
@@ -32,28 +32,12 @@ XORbxbx
 ORaxax
 ANDaxax
         ld hl,(_AX)
-	ld a,h
-	or l ;CF=0
-	ex af,af' ;'
-	ld a,h
-	xor l
-	exx
-	ld d,a ;parity data
-        ld e,0 ;OF=0
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL
        _Loop_
 
 	macro ORSELFRP rp
         ld hl,(rp)
-	ld a,h
-	or l ;CF=0
-	ex af,af' ;'
-	ld a,h
-	xor l
-        exx
-	ld d,a ;parity data
-        ld e,0 ;OF=0
-        exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL
        _Loop_
 	endm
 ORcxcx
@@ -73,11 +57,7 @@ ANDali8
         ld hl,_AL
         and (hl) ;al ;CF=0
         ld (hl),a
-        exx
-	ld d,a ;parity data
-	ld e,0 ;OF=0
-	ex af,af' ;'
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
        _Loop_
 
 ORali8
@@ -86,11 +66,7 @@ ORali8
         ld hl,_AL
         or (hl) ;al ;CF=0
         ld (hl),a
-        exx
-	ld d,a ;parity data
-	ld e,0 ;OF=0
-	ex af,af' ;'
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
        _Loop_
 
 XORali8
@@ -99,11 +75,7 @@ XORali8
         ld hl,_AL
         xor (hl) ;al ;CF=0
         ld (hl),a
-        exx
-	ld d,a ;parity data
-	ld e,0 ;OF=0
-	ex af,af' ;'
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
        _Loop_
 
 ANDaxi16
@@ -117,12 +89,7 @@ ANDaxi16
         and h ;ah ;CF=0
         ld h,a
         ld (_AX),hl
-        xor l
-        exx
-	ld d,a ;parity data
-	ld e,0 ;OF=0
-	ex af,af' ;'
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
        _Loop_
 
 ORaxi16
@@ -136,12 +103,7 @@ ORaxi16
         or h ;ah ;CF=0
         ld h,a
         ld (_AX),hl
-        xor l
-        exx
-	ld d,a ;parity data
-	ld e,0 ;OF=0
-	ex af,af' ;'
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
        _Loop_
 
 XORaxi16
@@ -155,10 +117,5 @@ XORaxi16
         xor h ;ah ;CF=0
         ld h,a
         ld (_AX),hl
-        xor l
-        exx
-	ld d,a ;parity data
-	ld e,0 ;OF=0
-	ex af,af' ;'
-	exx
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
        _Loop_

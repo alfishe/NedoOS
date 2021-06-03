@@ -162,8 +162,6 @@ STACK=0x4000
 	endm
 
 	macro memSS
-        ld a,h
-        ld (sp_high),a
 	ld bc,(ss_LSW)
 	add hl,bc
 	ld a,(ss_HSB)
@@ -220,6 +218,20 @@ STACK=0x4000
 	ld (hl),a
 	endm
 
+	macro putmemDS_bc
+        push hl
+	push bc
+	memDS
+	pop bc
+	ld (hl),c
+        pop hl
+        inc hl
+        push bc
+	memDS
+        pop bc
+        ld (hl),b
+	endm
+
 	macro putmemES
 	push af
 	memES
@@ -232,72 +244,125 @@ STACK=0x4000
 	ld a,(hl)
 	endm
 
+	macro getmemDS_bc
+        push hl
+        inc hl
+	memDS
+	ld a,(hl)
+        pop hl
+        push af
+	memDS
+        pop bc
+	ld c,(hl)
+	endm
+
 	macro getmemES
 	memES
 	ld a,(hl)
 	endm
 
 	macro putmemspBC
-        LD HL,(_SP_encoded)
-       res 6,h
-       set 7,h
+        LD HL,(_SP)
 	inc l
 	dec l
 	call z,recountsp_dec
 	dec l
+       push hl
+       res 6,h
+       set 7,h
 	ld (hl),b
+       pop hl
 	call z,recountsp_dec
 	dec l
+        LD (_SP),HL	
+       res 6,h
+       set 7,h
 	ld (hl),c
-       LD HL,(_SP_encoded)
-       dec hl
-       dec hl
-        LD (_SP_encoded),HL	
 	endm
 
 	macro getmemspBC
-        LD HL,(_SP_encoded)
+        LD HL,(_SP)
+       push hl
        res 6,h
        set 7,h
 	ld c,(hl)
+       pop hl
         inc l
 	call z,recountsp_inc
+       push hl
+       res 6,h
+       set 7,h
 	ld b,(hl)
+       pop hl
         inc l
 	call z,recountsp_inc
-       LD HL,(_SP_encoded)
-       inc hl
-       inc hl
-        LD (_SP_encoded),HL
+        LD (_SP),HL
 	endm
 
 	macro encodeSP
-        ld h,b
-        ld l,c
-        ;res 6,b
-        ;set 7,b ;0x8000+
-	ld (_SP_encoded),hl;bc
+	;ld hl,(_SP)
         memSS
 	endm
 
-	macro decodeSP_fromBC
-        ;ld a,(sp_high)
-        ;xor b
-        ;and 0xc0
-        ;xor b
-        ;ld b,a
-	endm
-	macro decodeSP
-        ld bc,(_SP_encoded)
-        decodeSP_fromBC
-        endm
-
-	macro KEEPPARITYOVERFLOW
+	macro KEEPCFPARITYOVERFLOW_FROMA
+        exx
 	ld d,a ;parity data
 	rra
 	ld e,a ;overflow data
 	rla ;restore CF
+        exx
+	ex af,af' ;'
 	endm
+
+	macro KEEPLOGICCFPARITYOVERFLOW_FROMA
+        exx
+	ld d,a ;parity data
+	ld e,0 ;OF=0
+	exx
+	ex af,af' ;'
+	endm
+
+        macro KEEPCFPARITYOVERFLOW_FROMHL
+	ld a,h
+	rra
+	exx
+	ld e,a ;overflow data
+	exx
+	rla ;restore CF
+	ex af,af' ;'
+        ld a,h
+        xor l
+	exx
+	ld d,a ;parity data
+	exx
+        endm
+
+        macro KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+	or l ;CF=0
+	ex af,af' ;'
+	ld a,h
+	xor l
+	exx
+	ld d,a ;parity data
+        ld e,0 ;OF=0
+	exx
+        endm
+
+        macro KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+	or c ;CF=0
+	ex af,af' ;'
+	ld a,b
+	xor c
+	exx
+	ld d,a ;parity data
+        ld e,0 ;OF=0
+	exx
+        endm
+
+        macro KEEPLOGICCFPARITYOVERFLOW_FROMHL
+	ld a,h
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        endm
 
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 
@@ -322,8 +387,8 @@ STACK=0x4000
 	ld e,a ;OF
 	scf ;C
 8
-	ex af,af' ;'
         exx
+	ex af,af' ;'
 	ld a,h
 	xor l
         exx
@@ -352,27 +417,13 @@ STACK=0x4000
 	ld e,a ;OF
 	scf ;C
 8
-	ex af,af' ;'
         exx
+	ex af,af' ;'
 	ld a,h
 	xor l
         exx
 	ld d,a ;PF
         exx
-	endm
-
-	macro cmphl
-	sub (hl)
-	exx
-	KEEPPARITYOVERFLOW
-	exx
-	endm
-
-	macro cmpc
-	sub c
-	exx
-	KEEPPARITYOVERFLOW
-	exx
 	endm
 
         org PROGSTART
@@ -419,8 +470,9 @@ filltpgs0
         ld bc,0
         ld (_SS),bc
         countSS
-        ld bc,0xff00
-        encodeSP;memSS
+        ld hl,0xff00
+        ld (_SP),hl
+        encodeSP
        
         ;OS_NEWPAGE
         ;ld a,e
@@ -508,12 +560,27 @@ _DH     DB 0
 _BX
 _BL     DB 0
 _BH     DB 0
-_SP_encoded     DW 0 ;not encoded
+_SP     DW 0 ;use encodeSP (with hl=(_SP)) after write!
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0
+;000... -> 000 ;al
+;001... -> 010 ;cl
+;010... -> 100 ;dl
+;011... -> 110 ;bl
+;100... -> 001 ;ah
+;101... -> 011 ;ch
+;110... -> 101 ;dh
+;111... -> 111 ;bh
+        db _AL&0xff
+        db _CL&0xff
+        db _DL&0xff
+        db _BL&0xff
+        db _AH&0xff
+        db _CH&0xff
+        db _DH&0xff
+        db _BH&0xff
 
-sp_high     db 0
 pc_high     db 0
 _ES     DW 0
 _CS     DW 0
@@ -557,35 +624,21 @@ recountpc_inc
 
 recountsp_inc
 	inc h
-        bit 6,h
-        ret z ;<0xc000
         push bc
-        dec hl
-        ld b,h
-        ld c,l
-        decodeSP_fromBC ;bc->bc
-        ld h,b
-        ld l,c
-        inc hl
+        push hl
         memSS
+        pop hl
         pop bc
-        ld hl,0x8000
 	ret
 
 recountsp_dec
 ;вызывается до dec l!
-	dec h
-        ret m ;>=0x8000
+        dec h
         push bc
-        inc h
-        ld b,h
-        ld c,l
-        decodeSP_fromBC ;bc->bc
-        ld h,b
-        ld l,c
+        push hl
         memSS
+        pop hl
         pop bc
-        ld hl,0xbf00
 	ret
 
 swapimer
@@ -673,6 +726,7 @@ IMERIM
         putmemspBC ;TODO а CS куда?
        _LoopC_JP 
 
+	include "rmbyte.asm"
 	include "x86cmd.asm"
 	include "x86math.asm"
 	include "x86logic.asm"

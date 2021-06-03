@@ -1,297 +1,4 @@
-﻿MOVrm8i8
-	get
-	next
-;a=MD000R/M: mov r/m,i8
-;MD=00: mov [...],i8
-;MD=01: mov [...+disp8],i8 ;TODO
-;MD=10: mov [...+disp16],i8 ;TODO
-;MD=11: mov r/m,i8 ;проще всего, но не имеет смысла (есть короткий код)
-	cp %00000101
-	jp z,MOVmDIBYTE
-	jp $;PANIC
-
-GRP416
-;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]
-	get
-	next
-	cp %00100101
-	jp z,JMPWORDmDI
-	jp $;PANIC
-
-GRP1rmi8
-;aluop
-	get
-	next
-;a=MD000R/M: add r/m,i8
-;a=MD001R/M: or r/m,i8
-;a=MD010R/M: adc r/m,i8
-;a=MD011R/M: sbb r/m,i8
-;a=MD100R/M: and r/m,i8
-;a=MD101R/M: sub r/m,i8
-;a=MD110R/M: xor r/m,i8
-;a=MD111R/M: cmp r/m,i8
-;MD=00: cmd [...],i8
-;MD=01: cmd [...+disp8],i8 ;TODO
-;MD=10: cmd [...+disp16],i8 ;TODO
-;MD=11: cmd r/m,i8 ;проще всего
-	cp %00111100
-	jp z,CMPmSIBYTE
-	jp $;PANIC
-
-GRP1rmi16
-;aluop
-	get
-	next
-;a=MD000R/M: add r/m,i8
-;a=MD001R/M: or r/m,i8
-;a=MD010R/M: adc r/m,i8
-;a=MD011R/M: sbb r/m,i8
-;a=MD100R/M: and r/m,i8
-;a=MD101R/M: sub r/m,i8
-;a=MD110R/M: xor r/m,i8
-;a=MD111R/M: cmp r/m,i8
-;MD=00: cmd [...],i8
-;MD=01: cmd [...+disp8],i8 ;TODO
-;MD=10: cmd [...+disp16],i8 ;TODO
-;MD=11: cmd r/m,i8 ;проще всего
-       ld c,a
-       and %11111000
-	cp %11111000;100
-	jp z,CMPr16i16;CMPspi16
-	jp $;PANIC
-
-GRP316
-;mul,div,test,not,neg
-	get
-	next
-;a=MD000R/M: test r/m,i16? ;TODO
-;a=MD001R/M: ?
-;a=MD010R/M: not r/m? ;TODO
-;a=MD011R/M: neg r/m?
-;a=MD100R/M: mul ax,r/m
-;a=MD101R/M: imul ax,r/m
-;a=MD110R/M: div ax,r/m
-;a=MD111R/M: idiv ax,r/m
-;MD=00: cmd [...],r16 ;TODO
-;MD=01: cmd [...+disp8],r16 ;TODO
-;MD=10: cmd [...+disp16],r16 ;TODO
-;MD=11: cmd r/m,r16 ;проще всего
-       ld c,a
-       and %11111000
-	cp %11011000
-	jp z,NEGr16;ax
-	cp %11100000;1
-	jp z,MULr16;cx
-	cp %11101000;1
-	jp z,IMULr16;cx
-	cp %11110000;1
-	jp z,DIVr16;cx
-	cp %11111000;1
-	jp z,IDIVr16;cx
-	jp $;PANIC
-
-getr16
-        ;exx
-        ;ld (_AX),hl
-        ;exx
-        ld a,c
-        and 7
-       ;cp 4
-       ;jr z,getr16sp
-        add a,a
-        ld l,a
-        ld h,_AX/256
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        ret
-getr16sp
-        decodeSP
-        ret
-
-putr16
-;hl is kept since getr16
-;TODO sp!!!
-        ld (hl),b
-        dec l
-        ld (hl),c
-        ret ;nz
-;ax!
-        ;exx
-        ;ld hl,(_AX)
-        ;exx
-        ;ret
-
-MOVrmr8
-	get
-	next
-;a=MDregR/M
-;MD=00: mov [...],r8 ;TODO
-;MD=01: mov [...+disp8],r8 ;TODO
-;MD=10: mov [...+disp16],r8 ;TODO
-;MD=11: mov r/m,r8 ;проще всего
-	jp $;PANIC
-MOVrmr16
-	get
-	next
-;a=MDregR/M
-;MD=00: mov [...],r16 ;TODO
-;MD=01: mov [...+disp8],r16 ;TODO
-;MD=10: mov [...+disp16],r16 ;TODO
-;MD=11: mov r/m,r16 ;проще всего
-	jp $;PANIC
-MOVr8rm
-	get
-	next
-;a=MDregR/M
-;MD=00: mov r8,[...] ;TODO
-;MD=01: mov r8,[...+disp8] ;TODO
-;MD=10: mov r8,[...+disp16] ;TODO
-;MD=11: mov r8,r/m ;проще всего
-	cp %00000101
-	jp z,MOVALmDI
-	jp $;PANIC
-MOVr16rm
-	get
-	next
-;a=MDregR/M
-;MD=00: mov r16,[...] ;TODO
-;MD=01: mov r16,[...+disp8] ;TODO
-;MD=10: mov r16,[...+disp16] ;TODO
-;MD=11: mov r16,r/m ;проще всего
-	cp %00000111
-	jp z,MOVAXmBX
-	jp $;PANIC
-MOVrm16sreg
-	jp $;PANIC
-
-ADCrmr8
-ADCrmr16
-ADCr8rm
-ADCr16rm
-ADCali8
-ADCaxi16
-SBBrmr8
-SBBrmr16
-SBBr8rm
-SBBr16rm
-SBBali8
-SBBaxi16
-	jp $;PANIC
-
-CMPrmr8
-XORrmr8
-ORrmr8
-ANDrmr8
-SUBrmr8
-ADDrmr8
-	get
-	next
-;a=MDregR/M
-;MD=00: cmd [...],r8 ;TODO
-;MD=01: cmd [...+disp8],r8 ;TODO
-;MD=10: cmd [...+disp16],r8 ;TODO
-;MD=11: cmd r/m,r8 ;проще всего
-	cp %11000000
-	jp z,ADDalal
-	;cp %11100100
-	;jp z,ADDahah
-	jp $;PANIC
-
-XORrmr16
-	get
-	next
-;a=MDregR/M
-;MD=00: cmd [...],r16 ;TODO
-;MD=01: cmd [...+disp8],r16 ;TODO
-;MD=10: cmd [...+disp16],r16 ;TODO
-;MD=11: cmd r/m,r16 ;проще всего
-	cp %11000000
-	jp z,XORaxax
-	cp %11001001
-	jp z,XORcxcx
-	cp %11010010
-	jp z,XORdxdx
-	cp %11011011
-	jp z,XORbxbx
-	jp $;PANIC
-
-ORrmr16
-	get
-	next
-;a=MDregR/M
-;MD=00: cmd [...],r16 ;TODO
-;MD=01: cmd [...+disp8],r16 ;TODO
-;MD=10: cmd [...+disp16],r16 ;TODO
-;MD=11: cmd r/m,r16 ;проще всего
-	cp %11000000
-	jp z,ORaxax
-	cp %11001001
-	jp z,ORcxcx
-	cp %11010010
-	jp z,ORdxdx
-	cp %11011011
-	jp z,ORbxbx
-	jp $;PANIC
-
-CMPrmr16
-ANDrmr16
-SUBrmr16
-ADDrmr16
-	get
-	next
-;a=MDregR/M
-;MD=00: cmd [...],r16 ;TODO
-;MD=01: cmd [...+disp8],r16 ;TODO
-;MD=10: cmd [...+disp16],r16 ;TODO
-;MD=11: cmd r/m,r16 ;проще всего
-	cp %11001111
-	jp z,ADDdicx
-	cp %11000011
-	jp z,ADDbxax
-	cp %11001000
-	jp z,ADDaxcx
-	jp $;PANIC
-
-CMPr8rm
-XORr8rm
-ORr8rm
-ANDr8rm
-SUBr8rm
-ADDr8rm
-	get
-	next
-;a=MDregR/M
-;MD=00: cmd r8,[...] ;TODO
-;MD=01: cmd r8,[...+disp8] ;TODO
-;MD=10: cmd r8,[...+disp16] ;TODO
-;MD=11: cmd r8,r/m ;проще всего
-	cp %11000000
-	jp z,ADDalal
-	;cp %11100100
-	;jp z,ADDahah
-	jp $;PANIC
-
-CMPr16rm
-XORr16rm
-ORr16rm
-ANDr16rm
-SUBr16rm
-ADDr16rm
-	get
-	next
-;a=MDregR/M
-;MD=00: cmd r16,[...] ;TODO
-;MD=01: cmd r16,[...+disp8] ;TODO
-;MD=10: cmd r16,[...+disp16] ;TODO
-;MD=11: cmd r16,r/m ;проще всего
-	cp %11111001
-	jp z,ADDdicx
-	cp %11011000
-	jp z,ADDbxax
-	jp $;PANIC
-
-;cbw ;Expand AL to AX
+﻿;cbw ;Expand AL to AX
 CBWer
 	ld a,(_AL);l ;al
 	rla
@@ -315,21 +22,20 @@ CMPmSIBYTE
 	next
 	ld (CMPmSIBYTE_n),a
 	ld hl,(_SI)
-	ex af,af'
+	ex af,af' ;'
 	getmemDS
 CMPmSIBYTE_n=$+1
-	cp 0
-	ex af,af'
+	cp 0 ;TODO overflow
+	ex af,af' ;'
        _LoopC
 
 ;add di,cx
 ADDdicx
 	ld hl,(_DI)
 	ld bc,(_CX)
-	ex af,af'
 	or a
-	adc hl,bc ;TODO overflow
-	ex af,af'
+	adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
 	ld (_DI),hl
        _Loop_
 
@@ -337,10 +43,9 @@ ADDdicx
 ADDbxax
         ld bc,(_AX)
 	ld hl,(_BX)
-	ex af,af'
 	or a
-	adc hl,bc ;TODO overflow
-	ex af,af'
+	adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
 	ld (_BX),hl
        _Loop_
 
@@ -349,38 +54,59 @@ ADDaxcx
         ld hl,(_AX)
 	ld bc,(_CX)
 	or a
-	adc hl,bc ;TODO overflow
-	ex af,af' ;'
+	adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         ld (_AX),hl
        _Loop_
 
 ;neg ax
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
-NEGr16
-        call getr16
-        push bc
-	exx
-        pop bc
-        
+        macro NEGBCWITHFLAGS
 	xor a
 	ld h,a
 	ld l,a
 	sbc hl,bc
-        
-        push hl
-        
-	ld a,h
-	rra
-	ld e,a ;overflow data
-	rla ;restore CF
-	ex af,af' ;'
-        ld a,h
-        xor l
-	ld d,a ;parity data
-	exx
-        pop bc
-        call putr16
-       _Loop_
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld b,h
+        ld c,l
+        endm
+NEGr16
+       push hl
+        GETr16
+        NEGBCWITHFLAGS
+       pop hl
+       _PUTr16Loop_
+
+NEGm16
+       push hl
+        GETm16
+        NEGBCWITHFLAGS
+       pop hl
+       _PUTm16LoopC
+
+NOTr16
+       push hl
+        GETr16 ;TODO optimize
+        ld a,b
+        cpl
+        ld b,a
+        ld a,c
+        cpl
+        ld c,a ;no flags
+       pop hl
+       _PUTr16Loop_
+
+NOTm16
+       push hl
+        GETm16 ;TODO optimize
+        ld a,b
+        cpl
+        ld b,a
+        ld a,c
+        cpl
+        ld c,a ;no flags        
+       pop hl
+       _PUTm16LoopC
 
 ;add ax,nn
 ADDaxi16
@@ -388,31 +114,8 @@ ADDaxi16
         ld hl,(_AX)
 	or a
 	adc hl,bc
-	ld a,h
-	rra
-	exx
-	ld e,a ;overflow data
-	exx
-	rla ;restore CF
-	ex af,af' ;'
-        ld a,h
-        xor l
-	exx
-	ld d,a ;parity data
-	exx
+        KEEPCFPARITYOVERFLOW_FROMHL
         ld (_AX),hl
-       _Loop_
-
-;add al,al
-ADDalal
-        ld hl,_AL
-        ld a,(hl);l
-        add a,a
-        ld (hl),a
-        exx
-	KEEPPARITYOVERFLOW
-        exx
-	ex af,af' ;'
        _Loop_
 
 ;add al,n
@@ -422,13 +125,10 @@ ADDali8
         ld hl,_AL
         add a,(hl)
         ld (hl),a
-        exx
-	KEEPPARITYOVERFLOW
-	exx
-	ex af,af' ;'
+        KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
 
-;add al,n
+;sub al,n
 SUBali8
 	get
 	next
@@ -437,10 +137,7 @@ SUBali8
         ld a,(hl)
 	sub c
 	ld (hl),a
-        exx
-	KEEPPARITYOVERFLOW
-	exx
-	ex af,af' ;'
+        KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
 
 ;cmp al,n
@@ -449,8 +146,8 @@ CMPali8
 	next
 	ld c,a
         ld a,(_AL)
-	cmpc
-	ex af,af' ;'
+	sub c
+        KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
 
 SUBaxi16
@@ -458,18 +155,7 @@ SUBaxi16
         ld hl,(_AX)
         or a
         sbc hl,bc
-        ld a,h
-        rra
-        exx
-	ld e,a ;overflow data
-        exx
-        rla ;restore CF
-	ex af,af' ;'
-        ld a,h
-        xor l
-        exx
-	ld d,a ;parity data
-	exx
+        KEEPCFPARITYOVERFLOW_FROMHL
         ld (_AX),hl
        _Loop_
 
@@ -478,65 +164,30 @@ CMPaxi16
         ld hl,(_AX)
         or a
         sbc hl,bc
-        ld a,h
-        rra
-        exx
-	ld e,a ;overflow data
-        exx
-        rla ;restore CF
-	ex af,af' ;'
-        ld a,h
-        xor l
-        exx
-	ld d,a ;parity data
-	exx
+        KEEPCFPARITYOVERFLOW_FROMHL
        _Loop_
 
-       if 0
-	macro CMPRP rp
-	getBC
-	ld hl,(rp)
-	ld d,h
-	ld e,l
-	or a
-	sbc hl,bc
-	ex de,hl ;keep hl=ax
-	exx
-	KEEPPARITYOVERFLOW
-	exx
-	ex af,af' ;'
-       _Loop_
-	endm
-CMPcxi16
-	CMPRP _CX
-CMPdxi16
-	CMPRP _DX
-CMPbxi16
-	CMPRP _BX
-       endif
 CMPr16i16
-       ;decodeSP ;->bc
-       call getr16
+        GETr16
 	ld h,b
 	ld l,c
 	getBC
 	or a
 	sbc hl,bc
-	exx
-	KEEPPARITYOVERFLOW
-	exx
-	ex af,af' ;'
+        KEEPCFPARITYOVERFLOW_FROMHL
        _Loop_
 
 ;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
+MULm16
+        GETm16
+        jr MULbc
 MULr16;cx
-       call getr16
+        GETr16
+MULbc
        push de
 	ld de,(_AX);ex de,hl ;de=ax
-	;ld bc,(_CX)
 	call MUL16 ;HLDE=DE*BC
 	ld (_DX),hl
-	;ex de,hl ;hl=ax
         ld (_AX),de
 	ld a,h
 	or l ;0?
@@ -545,20 +196,22 @@ MULr16;cx
 	srl a ;keep CF
         exx
 	ld e,a ;overflow (d7 != d6) if CF
-	ex af,af' ;'
 	exx
+	ex af,af' ;'
        pop de
        _Loop_
 
 ;imul cx ;ax*cx -> dxax signed (set OF,CF if result >=32768 or < -32768)
+IMULm16
+        GETm16
+        jr IMULbc
 IMULr16;cx
-       call getr16
+        GETr16
+IMULbc
        push de
 	ld de,(_AX);ex de,hl ;de=ax
-	;ld bc,(_CX)
 	call MUL16SIGNED ;HLDE=DE*BC
 	ld (_DX),hl
-	;ex de,hl ;hl=ax
         ld (_AX),de
 	ld a,d
 	rla ;ax sign
@@ -576,8 +229,8 @@ IMULCX_NEGQ
 	srl a ;keep CF
         exx
 	ld e,a ;overflow (d7 != d6) if CF
-	ex af,af' ;'
 	exx
+	ex af,af' ;'
        pop de
        _Loop_
 
@@ -586,7 +239,6 @@ MUL16SIGNED
 	bit 7,d
 	jr nz,MUL16SIGNED_NEGDE
 	bit 7,b
-	;jr nz,MUL16SIGNED_NEGBC
 	jp z,MUL16
 MUL16SIGNED_NEGBC
 	xor a
@@ -627,7 +279,6 @@ MUL16SIGNED_NEGDE_NEGBC
 	sbc a,b
 	sub c
 	ld b,a
-	;jp MUL16
 ;HLDE=DE*BC
 MUL16
         ld hl,0
@@ -644,14 +295,17 @@ MUL16
 	ret
 
 ;div cx ;dxax/cx -> ax частное, dx остаток
+DIVm16
+        GETm16
+        jr DIVbc
 DIVr16;cx
-       call getr16
+        GETr16
+DIVbc
        push de
         ld d,b
         ld e,c
 	ld bc,(_AX)
 	ld hl,(_DX)
-	;ld de,(_CX)
 	call DIV32 ;BC = HLBC/DE, HL = HLBC%DE
 	ld (_DX),hl
         ld (_AX),bc
@@ -659,14 +313,17 @@ DIVr16;cx
        _Loop_
 
 ;idiv cx ;dxax/cx -> ax частное, dx остаток signed (знак остатка равен знаку делимого)
+IDIVm16
+        GETm16
+        jr IDIVbc
 IDIVr16;cx
-       call getr16
+        GETr16
+IDIVbc
        push de
         ld d,b
         ld e,c
 	ld bc,(_AX)
 	ld hl,(_DX)
-	;ld de,(_CX)
 	call DIV32SIGNED ;BC = HLBC/DE, HL = HLBC%DE
 	ld (_DX),hl
         ld (_AX),bc
@@ -756,9 +413,9 @@ DIV32_8
 DIV321
 	add a,a
 	adc hl,hl
-	jr c, DIV322
+	jr c,DIV322
 	sbc hl,de
-	jr nc, DIV323
+	jr nc,DIV323
 	add hl,de
 	djnz DIV321
 	ret

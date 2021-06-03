@@ -45,7 +45,7 @@ PUSHi8
 	get
 	next
 	ld c,a
-	ld b,0
+	ld b,0 ;TODO optimize
         putmemspBC
        _LoopC
 PUSHi16
@@ -69,7 +69,7 @@ PUSHbx
         putmemspBC
        _LoopC
 PUSHsp
-       decodeSP ;->bc
+       ld bc,(_SP)
         putmemspBC
        _LoopC
 PUSHbp
@@ -119,6 +119,9 @@ POPbx
        _LoopC
 POPsp
         getmemspBC
+        ld h,b
+        ld l,c
+	ld (_SP),hl
 	encodeSP
        _LoopC
 POPbp
@@ -171,7 +174,8 @@ MOVbxi16
 	ld (_BX),hl
        _Loop_
 MOVspi16
-	getBC
+	getHL
+	ld (_SP),hl
 	encodeSP
        _LoopC
 MOVbpi16
@@ -228,27 +232,6 @@ MOVbhi8
 	ld (_BH),a
        _Loop_
 
-;mov byte [di],n
-MOVmDIBYTE
-	get
-	next
-	ld hl,(_DI)
-	putmemDS
-       _LoopC
-
-;mov ax,[bx]
-MOVAXmBX
-	ld hl,(_BX)
-	inc hl
-	getmemDS
-	push af ;a=ah
-	ld hl,(_BX)
-	getmemDS
-        pop hl
-        ld l,a
-        ld (_AX),hl
-       _LoopC
-
 ;mov [addr],ax
 MOVmemax
 	getHL
@@ -284,34 +267,10 @@ MOValmem
 	ld (_AL),a ;al
        _LoopC
 
-
 INCax
-	exx
-        ld hl,(_AX)
-	ex af,af'
-	ld bc,1
-	jr c,2f
-	adc hl,bc ;ZF,SF
-	ld a,h
-	rra
-	ld e,a ;OF
-	scf
-	ccf ;NC
-	jp 8f
-2
-	or a
-	adc hl,bc ;ZF,SF
-	ld a,h
-	rra
-	ld e,a ;OF
-	scf ;C
-8
-	ex af,af'
-	ld a,h
-	xor l
-	ld d,a ;PF
-        ld (_AX),hl
-	exx
+	ld hl,(_AX)
+	inchlwithflags
+	ld (_AX),hl
        _Loop_
 INCcx
 	ld hl,(_CX)
@@ -329,13 +288,10 @@ INCbx
 	ld (_BX),hl
        _Loop_
 INCsp
-       decodeSP ;->bc
-        ld h,b
-        ld l,c
+	ld hl,(_SP)
 	inchlwithflags
-        ld b,h
-        ld c,l
-	encodeSP
+	ld (_SP),hl
+       encodeSP
        _LoopC
 INCbp
 	ld hl,(_BP)
@@ -354,32 +310,9 @@ INCdi
        _Loop_
 
 DECax
-	exx
-        ld hl,(_AX)
-	ex af,af'
-	ld bc,1
-	jr c,2f
-	sbc hl,bc ;ZF,SF
-	ld a,h
-	rra
-	ld e,a ;OF
-	scf
-	ccf ;NC
-	jp 8f
-2
-	or a
-	sbc hl,bc ;ZF,SF
-	ld a,h
-	rra
-	ld e,a ;OF
-	scf ;C
-8
-	ex af,af'
-	ld a,h
-	xor l
-	ld d,a ;PF
-        ld (_AX),hl
-	exx
+	ld hl,(_AX)
+	dechlwithflags
+	ld (_AX),hl
        _Loop_
 DECcx
 	ld hl,(_CX)
@@ -397,13 +330,10 @@ DECbx
 	ld (_BX),hl
        _Loop_
 DECsp
-       decodeSP ;->bc
-        ld h,b
-        ld l,c
+	ld hl,(_SP)
 	dechlwithflags
-        ld b,h
-        ld c,l
-	encodeSP
+	ld (_SP),hl
+       encodeSP
        _LoopC
 DECbp
 	ld hl,(_BP)
@@ -599,6 +529,7 @@ JMPWORDmDI
 	ld d,a ;new PC
        _LoopC_JP
 
+       if 0
 ;mov al,[di]
 MOVALmDI
 	ld hl,(_DI)
@@ -612,6 +543,7 @@ MOVAHmDI
 	getmemDS
 	ld (_AH),a ;ah
        _LoopC
+       endif
 
 	macro XCHGAXRP rp
 	ld bc,(rp)
@@ -627,13 +559,12 @@ XCHGaxdx
 XCHGaxbx
 	XCHGAXRP _BX
 XCHGaxsp
-       decodeSP ;->bc
-        ld h,b
-        ld l,c
-        ld bc,(_AX)
-	ld (_AX),hl
-	encodeSP
-       _LoopC
+	ld bc,(_SP)
+        ld hl,(_AX)
+	ld (_AX),bc
+	ld (_SP),hl
+       encodeSP
+       _Loop_
 XCHGaxbp
 	XCHGAXRP _BP
 XCHGaxsi
@@ -717,10 +648,9 @@ REPMOVSBer_repeat
 SCASBer
 	ld hl,(_SI)
 	getmemDS
-	ex af,af'
 	ld a,(_AL) ;al
-	cmphl
-	ex af,af'
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
 	ld hl,(_SI)
 	ld a,(_DIRECTION)
 	or a
@@ -735,10 +665,9 @@ SCASBer
 REPSCASBer
 	ld hl,(_SI)
 	getmemDS
-	ex af,af'
 	ld a,(_AL) ;al
-	cmphl
-	ex af,af'
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
 	ld hl,(_SI)
 	ld a,(_DIRECTION)
 	or a
@@ -766,13 +695,12 @@ REPSCASBer_repeat
 CMPSBer
 	ld hl,(_SI)
 	getmemDS
-	push af
+	ex af,af' ;'
 	ld hl,(_DI)
 	getmemDS
-	ex af,af'
-	pop af
-	cmphl
-	ex af,af'
+	ex af,af' ;'
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
 	ld hl,(_SI)
 	ld bc,(_DI)
 	ld a,(_DIRECTION)
@@ -792,13 +720,12 @@ CMPSBer
 REPCMPSBer
 	ld hl,(_SI)
 	getmemDS
-	push af
+	ex af,af' ;'
 	ld hl,(_DI)
 	getmemDS
-	ex af,af'
-	pop af
-	cmphl
-	ex af,af'
+	ex af,af' ;'
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
 	ld hl,(_SI)
 	ld bc,(_DI)
 	ld a,(_DIRECTION)
@@ -929,25 +856,25 @@ INTi8
 
 INT_printal
         push de
-        exx
+        ;exx
         ex af,af' ;'
         push af
-        push hl
+        ;push hl
         push iy
 	ld a,(_AL)
 	PRCHAR
         pop iy
-        pop hl
+        ;pop hl
         pop af
         ex af,af' ;'
-        exx
+        ;exx
         pop de
        _Loop_
 
 INT_inputal
         push de
-        exx
-        push hl
+        ;exx
+        ;push hl
         push iy
         YIELDGETKEYLOOP;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
@@ -957,8 +884,8 @@ INT_inputal
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
 ;        Флаг Z - если 0(NZ), то отсутствует фокус.  
         pop iy
-        pop hl
+        ;pop hl
 	ld (_AL),a
-        exx
+        ;exx
         pop de
        _Loop_
