@@ -218,6 +218,13 @@ STACK=0x4000
 	ld (hl),a
 	endm
 
+	macro putmemDS_c
+	push bc
+	memDS
+	pop bc
+	ld (hl),c
+	endm
+
 	macro putmemDS_bc
         push hl
 	push bc
@@ -244,6 +251,11 @@ STACK=0x4000
 	ld a,(hl)
 	endm
 
+	macro getmemDS_c
+	memDS
+	ld c,(hl)
+	endm
+
 	macro getmemDS_bc
         push hl
         inc hl
@@ -254,6 +266,19 @@ STACK=0x4000
 	memDS
         pop bc
 	ld c,(hl)
+	endm
+
+	macro getmemDS_hl
+        push hl
+        inc hl
+	memDS
+	ld a,(hl)
+        pop hl
+        push af
+	memDS
+        pop af
+	ld l,(hl)
+        ld h,a
 	endm
 
 	macro getmemES

@@ -16,6 +16,7 @@ CWDer
 	ld (_DX),hl
        _Loop_
 
+       if 0
 ;cmp byte [si],n
 CMPmSIBYTE
 	get
@@ -28,7 +29,9 @@ CMPmSIBYTE_n=$+1
 	cp 0 ;TODO overflow
 	ex af,af' ;'
        _LoopC
+       endif
 
+       if 1
 ;add di,cx
 ADDdicx
 	ld hl,(_DI)
@@ -58,6 +61,7 @@ ADDaxcx
         KEEPCFPARITYOVERFLOW_FROMHL
         ld (_AX),hl
        _Loop_
+       endif
 
 ;neg ax
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
@@ -164,16 +168,6 @@ CMPaxi16
         ld hl,(_AX)
         or a
         sbc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-       _Loop_
-
-CMPr16i16
-        GETr16
-	ld h,b
-	ld l,c
-	getBC
-	or a
-	sbc hl,bc
         KEEPCFPARITYOVERFLOW_FROMHL
        _Loop_
 

@@ -1,3 +1,60 @@
+        macro ADDRr16
+;a=r/m byte
+        and 7
+        add a,a
+        ld l,a
+        ld h,_AX/256
+        endm
+        macro GETr16
+        ;ld a,c
+        ;and 7
+        ;add a,a
+       ;cp l
+       ;jr nz,$
+        ;ld l,a
+        ld h,_AX/256
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        endm
+
+        macro _PUTr16Loop_
+;hl is kept since ADDRr16
+        ld a,l
+        ld (hl),c
+        inc l
+        ld (hl),b
+        cp _SP&0xff
+        jr z,3f
+       _Loop_
+3
+        ld h,b
+        ld l,c
+        encodeSP
+       _Loop_
+        endm
+
+        macro _PUTr16LoopC
+;hl is kept since ADDRr16
+        ld a,l
+        ld (hl),c
+        inc l
+        ld (hl),b
+        cp _SP&0xff
+        jr z,3f
+       _LoopC
+3
+        ld h,b
+        ld l,c
+        encodeSP
+       _LoopC
+        endm
+
+        macro _PUTm16LoopC
+        PUTm16
+       _LoopC
+        endm
+
 ;000=[bx]+[si]+disp
 ;001=[bx]+[di]+disp
 ;010=[bp]+[si]+disp
@@ -61,14 +118,23 @@
         macro GETm16
         getmemDS_bc
         endm
+        macro GETm16_hl
+        getmemDS_hl
+        endm
         macro GETm8
         getmemDS ;a
+        endm
+        macro GETm8_c
+        getmemDS_c
         endm
         macro PUTm16
         putmemDS_bc
         endm
         macro PUTm8
         putmemDS ;a
+        endm
+        macro PUTm8_c
+        putmemDS_c
         endm
 
 MOVrm8i8
@@ -130,8 +196,22 @@ GRP1rmi8
 ;MD=10: cmd [...+disp16],i8 ;TODO
 ;MD=11: cmd r/m,i8 ;проще всего
 	cp 0b00111100
-	jp z,CMPmSIBYTE
+	jp z,CMPrmmemi8
+	;jp z,CMPmSIBYTE
 	jp $;PANIC
+
+CMPrmmemi8
+        ADDRm16
+       push hl
+        GETm8_c
+        get
+        next
+        sub c
+        ld c,a
+        KEEPCFPARITYOVERFLOW_FROMA
+       pop hl
+        ;PUTm8_c
+       _LoopC
 
 GRP1rmi16
 ;aluop
@@ -149,11 +229,62 @@ GRP1rmi16
 ;MD=01: cmd [...+disp8],i8 ;TODO
 ;MD=10: cmd [...+disp16],i8 ;TODO
 ;MD=11: cmd r/m,i8 ;проще всего
+        cp 0b11000000
+        jr c,GRP1mem
        ld c,a
+       ADDRr16
+       ld a,c
        and 0b11111000
-	cp 0b11111000;100
-	jp z,CMPr16i16;CMPspi16
+	cp 0b11111000
+	jp z,CMPrmi16
+	;jp z,CMPr16i16;CMPspi16
 	jp $;PANIC
+GRP1mem
+       ADDRm16
+       and 0b00111000
+	cp 0b00111000
+	jp z,CMPrmmemi16
+	jp $;PANIC
+
+CMPr16i16
+        GETr16
+	ld h,b
+	ld l,c
+	getBC
+	or a
+	sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
+       _Loop_
+
+CMPrmi16
+       push hl
+        GETr16
+        ld h,b
+        ld l,c
+        getBC
+        or a
+        sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ;ld b,h
+        ;ld c,l
+       pop hl
+        ;PUTr16
+       _LoopC
+CMPrmmemi16
+        ADDRm16
+       push hl
+        GETm16
+        ld h,b
+        ld l,c
+        getBC
+        or a
+        sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ;ld b,h
+        ;ld c,l
+       pop hl
+        ;PUTm16
+       _LoopC
 
 GRP316
 ;mul,div,test,not,neg
@@ -174,6 +305,8 @@ GRP316
         cp 0b11000000
         jr c,GRP316mem
        ld c,a
+       ADDRr16
+       ld a,c
        and 0b11111000
 	cp 0b11010000
 	jp z,NOTr16
@@ -204,54 +337,6 @@ GRP316mem
 	cp 0b00111000
 	jp z,IDIVm16       
 	jp $;PANIC
-
-        macro GETr16
-        ld a,c
-        and 7
-        add a,a
-        ld l,a
-        ld h,_AX/256
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        endm
-
-        macro _PUTr16Loop_
-;hl is kept since getr16
-        ld a,l
-        ld (hl),c
-        inc l
-        ld (hl),b
-        cp _SP&0xff
-        jr z,3f
-       _Loop_
-3
-        ld h,b
-        ld l,c
-        encodeSP
-       _Loop_
-        endm
-
-        macro _PUTr16LoopC
-;hl is kept since getr16
-        ld a,l
-        ld (hl),c
-        inc l
-        ld (hl),b
-        cp _SP&0xff
-        jr z,3f
-       _LoopC
-3
-        ld h,b
-        ld l,c
-        encodeSP
-       _LoopC
-        endm
-
-        macro _PUTm16LoopC
-        PUTm16
-       _LoopC
-        endm
 
 MOVrmr8
 	get
@@ -297,7 +382,7 @@ MOVrmr8mem
         and 7
        add a,16
         ld l,a
-        ld h,_AX/256
+        ld h,_AX/256 ;TODO bc, no push
         ld l,(hl)
         ld a,(hl)
        pop hl
@@ -380,8 +465,7 @@ MOVr8rm
 MOVr8rmmem
        ADDRm16
        push af
-       GETm8
-       ld c,a
+       GETm8_c
        pop af
         rra
         rra
@@ -505,8 +589,7 @@ ADDrmr8mem
        ld c,a
         KEEPCFPARITYOVERFLOW_FROMA
        pop hl
-       ld a,c
-       PUTm8
+       PUTm8_c
        _LoopC
 
 XORrmr16
@@ -545,6 +628,64 @@ ORrmr16
 	jp z,ORbxbx
 	jp $;PANIC
 
+       macro OPrmr16_PRE
+	get
+	next
+;a=MDregR/M
+;MD=00: cmd r16,[...]
+;MD=01: cmd r16,[...+disp8]
+;MD=10: cmd r16,[...+disp16]
+;MD=11: cmd r16,r/m ;проще всего
+        cp 0b11000000
+        jp c,6f;ADDrmr16mem
+       push af
+        rra
+        rra
+        and 7*2 ;r16
+        ld l,a
+        ld h,_AX/256
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+       pop af
+        and 7 ;rm
+        add a,a
+        ld l,a
+        ;ld a,(hl)
+        ;inc l
+        ;ld h,(hl)
+        ;ld l,a
+        ;or a
+        ;adc hl,bc ;op
+       endm
+       macro OPrmr16_POST
+        KEEPCFPARITYOVERFLOW_FROMHL
+       _LoopC
+6;ADDrmr16mem
+       ADDRm16
+       push hl
+        ld h,_AX/256
+       push af
+        rra
+        rra
+        and 7*2 ;r16
+        ld l,a
+        ld h,_AX/256
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+       pop hl
+       push hl
+       GETm16_hl
+        ;or a
+        ;adc hl,bc ;op
+       endm
+       macro OPrmr16_POST2
+       ld b,h
+       ld c,l
+       pop hl
+       PUTm16
+       endm
 CMPrmr16
 ANDrmr16
 SUBrmr16
@@ -589,8 +730,8 @@ ADDrmr16
         ld h,_AX/256
         ld l,(hl)
         ld c,(hl)
-5;ADDr8rmok
        ld a,b
+5;ADDr8rmok
         rra
         rra
         rra
@@ -603,24 +744,24 @@ ADDrmr16
        endm
        macro OPr8rm_POST
         KEEPCFPARITYOVERFLOW_FROMA
-       _Loop_
+       _LoopC
 6;ADDr8rmmem
        ADDRm16
-       ld b,a
-       GETm8
+       push af
+       GETm8_c
+       pop af
         ld h,_AX/256
-       ld c,a
        jp 5b;ADDr8rmok
        endm
        macro LOGICOPr8rm_POST
         KEEPLOGICCFPARITYOVERFLOW_FROMA
-       _Loop_
+       _LoopC
 6;ADDr8rmmem
        ADDRm16
-       ld b,a
-       GETm8
+       push af
+       GETm8_c
+       pop af
         ld h,_AX/256
-       ld c,a
        jp 5b;ADDr8rmok
        endm
 ADDr8rm
@@ -706,7 +847,7 @@ ANDr8rm
        endm
        macro OPr16rm_POST
         KEEPCFPARITYOVERFLOW_FROMHL
-       _Loop_
+       _LoopC
 6;ADDr16rmmem
        ADDRm16
        push af
@@ -716,7 +857,7 @@ ANDr8rm
        endm
        macro LOGICOPr16rm_POST
         KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
-       _Loop_
+       _LoopC
 6;ADDr16rmmem
        ADDRm16
        push af

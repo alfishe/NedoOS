@@ -1,3 +1,4 @@
+       if 1
 XORaxax
 	xor a ;CF=0
 	ld h,a
@@ -49,6 +50,7 @@ ANDdxdx
 ORbxbx
 ANDbxbx
 	ORSELFRP _BX
+       endif
 
 ;and al,n
 ANDali8
