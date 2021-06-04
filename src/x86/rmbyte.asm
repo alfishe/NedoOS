@@ -1852,10 +1852,10 @@ GRP316
 ;mul,div,test,not,neg
 	get
 	next
-;a=MD000R/M: test r/m,i16??? (не верится по формату) ;TODO
+;a=MD000R/M: test r/m,i16 (не верится по формату)
 ;a=MD001R/M: ?
-;a=MD010R/M: not r/m?
-;a=MD011R/M: neg r/m?
+;a=MD010R/M: not r/m
+;a=MD011R/M: neg r/m
 ;a=MD100R/M: mul ax,r/m
 ;a=MD101R/M: imul ax,r/m
 ;a=MD110R/M: div ax,r/m
@@ -1868,6 +1868,7 @@ GRP316
         jr c,GRP316mem
        ADDRr16
        and 0b00111000
+	jr z,TESTr16i16
 	cp 0b00010000
 	jp z,NOTr16
 	cp 0b00011000
@@ -1880,10 +1881,11 @@ GRP316
 	jp z,DIVr16
 	cp 0b00111000
 	jp z,IDIVr16
-	jp $;PANIC
+	jr $;PANIC
 GRP316mem
        ADDRm16
        and 0b00111000
+	jr z,TESTm16i16
 	cp 0b00010000
 	jp z,NOTm16
 	cp 0b00011000
@@ -1896,7 +1898,95 @@ GRP316mem
 	jp z,DIVm16
 	cp 0b00111000
 	jp z,IDIVm16       
-	jp $;PANIC
+	jr $;PANIC
+
+TESTm16i16
+        GETm16
+        jr TESTrmi16bc
+TESTr16i16
+        GETr16
+TESTrmi16bc
+        get
+        and c
+        ld c,a
+        get
+        and b
+        ld b,a
+;The OF and CF flags are set to 0. The SF, ZF, and PF flags are set according to the result (see the "Operation" section above). The state of the AF flag is undefined. 
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+       _LoopC
+
+TESTrmr8
+        cp 0b11000000
+        jr c,TESTrmmemr8
+        ld l,a
+        ld h,_AX/256
+        ld l,(hl) ;r8 addr
+        ld c,(hl)
+       sub 64
+        ld l,a
+        ld l,(hl) ;rm addr
+        ld a,(hl)
+        and c ;op
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _Loop_
+TESTrmmemr8
+       ADDRm16
+       or 0b11000000
+       ex af,af' ;'
+       GETm8
+       ld c,a
+       ex af,af' ;'
+        ld l,a
+        ld h,_AX/256
+        ld l,(hl) ;r8 addr
+       ld a,c
+        and (hl) ;op
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _LoopC
+
+TESTrmr16
+        cp 0b11000000
+        jr c,TESTrmmemr16
+       push af
+        rra
+        rra
+        and 7*2 ;r16
+        ld l,a
+        ld h,_AX/256
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+       pop af
+        and 7 ;rm
+        add a,a
+        ld l,a
+        ld a,(hl)
+        and c
+        ld c,a
+        inc l
+        ld a,(hl)
+        and b ;op
+        ld b,a
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+       _Loop_
+TESTrmmemr16
+       push af
+       ADDRm16
+       GETm16
+       pop af
+        and 7 ;rm
+        add a,a
+        ld l,a
+        ld a,(hl)
+        and c
+        ld c,a
+        inc l
+        ld a,(hl)
+        and b ;op
+        ld b,a
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+       _LoopC
 
 GRP416
 ;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]

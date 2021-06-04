@@ -144,8 +144,8 @@ MAINCOMS
         DCOM GRP1rmi16 ;GRP1rmi16 ;то же с i16 (там cmp sp,i16)
         DCOM PANIC ;GRP1rm8i8
         DCOM PANIC ;GRP1rm16i8
-        DCOM PANIC ;TESTrmr8
-        DCOM PANIC ;TESTrmr16
+        DCOM TESTrmr8
+        DCOM TESTrmr16
         DCOM PANIC ;XCHGr8rm
         DCOM PANIC ;XCHGr16rm
         DCOM MOVrmr8

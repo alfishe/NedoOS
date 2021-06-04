@@ -363,7 +363,7 @@ STACK=0x4000
         endm
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
-	or l ;CF=0 ;ZF=(hl==0)
+	or l ;CF=0 ;ZF=(hl==0) ;TODO sign
 	ex af,af' ;'
 	ld a,h
 	xor l
@@ -374,7 +374,7 @@ STACK=0x4000
         endm
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
-	or c ;CF=0 ;ZF=(bc==0)
+	or c ;CF=0 ;ZF=(bc==0) ;TODO sign
 	ex af,af' ;'
 	ld a,b
 	xor c
