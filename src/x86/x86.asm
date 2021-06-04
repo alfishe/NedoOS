@@ -58,7 +58,7 @@ STACK=0x4000
 
 	macro next
 	inc e
-        call z,recountpc_inc
+        call z,recountpc_inc ;keep CY!
 	endm
 
 	macro getHL
@@ -363,7 +363,7 @@ STACK=0x4000
         endm
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
-	or l ;CF=0
+	or l ;CF=0 ;ZF=(hl==0)
 	ex af,af' ;'
 	ld a,h
 	xor l
@@ -374,7 +374,7 @@ STACK=0x4000
         endm
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
-	or c ;CF=0
+	or c ;CF=0 ;ZF=(bc==0)
 	ex af,af' ;'
 	ld a,b
 	xor c
@@ -589,22 +589,6 @@ _SP     DW 0 ;use encodeSP (with hl=(_SP)) after write!
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0
-;000... -> 000 ;al
-;001... -> 010 ;cl
-;010... -> 100 ;dl
-;011... -> 110 ;bl
-;100... -> 001 ;ah
-;101... -> 011 ;ch
-;110... -> 101 ;dh
-;111... -> 111 ;bh
-        db _AL&0xff
-        db _CL&0xff
-        db _DL&0xff
-        db _BL&0xff
-        db _AH&0xff
-        db _CH&0xff
-        db _DH&0xff
-        db _BH&0xff
 
 pc_high     db 0
 _ES     DW 0
@@ -626,8 +610,39 @@ iff2	db 0 ;TODO unneeded?
 
 timer
 	dw 0
+        
+;000... -> 000 ;al
+;001... -> 010 ;cl
+;010... -> 100 ;dl
+;011... -> 110 ;bl
+;100... -> 001 ;ah
+;101... -> 011 ;ch
+;110... -> 101 ;dh
+;111... -> 111 ;bh
+       ds _AX+128-$
+;decode rm
+        dup 8
+        db _AL&0xff
+        db _CL&0xff
+        db _DL&0xff
+        db _BL&0xff
+        db _AH&0xff
+        db _CH&0xff
+        db _DH&0xff
+        db _BH&0xff
+        edup
+       ds _AX+192-$
+;decode r8
+        ds 8,_AL&0xff
+        ds 8,_CL&0xff
+        ds 8,_DL&0xff
+        ds 8,_BL&0xff
+        ds 8,_AH&0xff
+        ds 8,_CH&0xff
+        ds 8,_DH&0xff
+        ds 8,_BH&0xff
 
-recountpc_inc
+recountpc_inc ;keep CY!
 	inc d
         ret p ;<0x8000
         push af

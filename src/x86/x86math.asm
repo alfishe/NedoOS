@@ -16,54 +16,6 @@ CWDer
 	ld (_DX),hl
        _Loop_
 
-       if 0
-;cmp byte [si],n
-CMPmSIBYTE
-	get
-	next
-	ld (CMPmSIBYTE_n),a
-	ld hl,(_SI)
-	ex af,af' ;'
-	getmemDS
-CMPmSIBYTE_n=$+1
-	cp 0 ;TODO overflow
-	ex af,af' ;'
-       _LoopC
-       endif
-
-       if 1
-;add di,cx
-ADDdicx
-	ld hl,(_DI)
-	ld bc,(_CX)
-	or a
-	adc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-	ld (_DI),hl
-       _Loop_
-
-;add bx,ax
-ADDbxax
-        ld bc,(_AX)
-	ld hl,(_BX)
-	or a
-	adc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-	ld (_BX),hl
-       _Loop_
-
-;add ax,cx
-ADDaxcx
-        ld hl,(_AX)
-	ld bc,(_CX)
-	or a
-	adc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld (_AX),hl
-       _Loop_
-       endif
-
-;neg ax
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
         macro NEGBCWITHFLAGS
 	xor a
@@ -112,17 +64,6 @@ NOTm16
        pop hl
        _PUTm16LoopC
 
-;add ax,nn
-ADDaxi16
-	getBC
-        ld hl,(_AX)
-	or a
-	adc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld (_AX),hl
-       _Loop_
-
-;add al,n
 ADDali8
 	get
 	next
@@ -131,8 +72,6 @@ ADDali8
         ld (hl),a
         KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
-
-;sub al,n
 SUBali8
 	get
 	next
@@ -143,8 +82,26 @@ SUBali8
 	ld (hl),a
         KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
-
-;cmp al,n
+ADCali8
+        ex af,af' ;'
+	get
+	next
+        ld hl,_AL
+        adc a,(hl)
+        ld (hl),a
+        KEEPCFPARITYOVERFLOW_FROMA
+       _Loop_
+SBBali8
+        ex af,af' ;'
+	get
+	next
+	ld c,a
+        ld hl,_AL
+        ld a,(hl)
+	sbc a,c
+	ld (hl),a
+        KEEPCFPARITYOVERFLOW_FROMA
+       _Loop_
 CMPali8
 	get
 	next
@@ -154,6 +111,14 @@ CMPali8
         KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
 
+ADDaxi16
+	getBC
+        ld hl,(_AX)
+	or a
+	adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld (_AX),hl
+       _Loop_
 SUBaxi16
 	getBC
         ld hl,(_AX)
@@ -162,7 +127,22 @@ SUBaxi16
         KEEPCFPARITYOVERFLOW_FROMHL
         ld (_AX),hl
        _Loop_
-
+ADCaxi16
+	getBC
+        ld hl,(_AX)
+	ex af,af' ;'
+	adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld (_AX),hl
+       _Loop_
+SBBaxi16
+	getBC
+        ld hl,(_AX)
+	ex af,af' ;'
+        sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld (_AX),hl
+       _Loop_
 CMPaxi16
 	getBC
         ld hl,(_AX)
