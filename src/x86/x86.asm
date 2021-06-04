@@ -389,6 +389,11 @@ STACK=0x4000
         KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
         endm
 
+        macro KEEPLOGICCFPARITYOVERFLOW_FROMBC
+	ld a,b
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC
+        endm
+
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 
 	macro inchlwithflags ;keep CY
@@ -562,85 +567,8 @@ trom0
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h/16h
         ;DB "pc102782.bin",0
 
-        align 256
-tpgs
-        ds 256 ;%10765432
-
-pgrom0
-        db 0 ;TODO убрать?
 pgprog
-        db 0 ;TODO убрать?
-
-        align 256
-;8 r16s
-_AX
-_AL     DB 0
-_AH     DB 0
-_CX
-_CL     DB 0
-_CH     DB 0
-_DX
-_DL     DB 0
-_DH     DB 0
-_BX
-_BL     DB 0
-_BH     DB 0
-_SP     DW 0 ;use encodeSP (with hl=(_SP)) after write!
-_BP     DW 0
-_SI     DW 0
-_DI     DW 0
-
-pc_high     db 0
-_ES     DW 0
-_CS     DW 0
-_SS     DW 0
-_DS     DW 0
-cs_LSW	dw 0
-cs_HSB	db 0
-ss_LSW	dw 0
-ss_HSB	db 0
-ds_LSW	dw 0
-ds_HSB	db 0
-es_LSW	dw 0
-es_HSB	db 0
-_DIRECTION
-	db 0
-iff1	db 0
-iff2	db 0 ;TODO unneeded?
-
-timer
-	dw 0
-        
-;000... -> 000 ;al
-;001... -> 010 ;cl
-;010... -> 100 ;dl
-;011... -> 110 ;bl
-;100... -> 001 ;ah
-;101... -> 011 ;ch
-;110... -> 101 ;dh
-;111... -> 111 ;bh
-       ds _AX+128-$
-;decode rm
-        dup 8
-        db _AL&0xff
-        db _CL&0xff
-        db _DL&0xff
-        db _BL&0xff
-        db _AH&0xff
-        db _CH&0xff
-        db _DH&0xff
-        db _BH&0xff
-        edup
-       ds _AX+192-$
-;decode r8
-        ds 8,_AL&0xff
-        ds 8,_CL&0xff
-        ds 8,_DL&0xff
-        ds 8,_BL&0xff
-        ds 8,_AH&0xff
-        ds 8,_CH&0xff
-        ds 8,_DH&0xff
-        ds 8,_BH&0xff
+        db 0 ;TODO там можно хранить дополнительный код (напр., отладчик)
 
 recountpc_inc ;keep CY!
 	inc d
@@ -770,6 +698,84 @@ IMERIM
 	include "x86cmd.asm"
 	include "x86math.asm"
 	include "x86logic.asm"
+
+        align 256
+tpgs
+        ds 256 ;%10765432
+
+        align 256
+;8 r16s
+_AX
+_AL     DB 0
+_AH     DB 0
+_CX
+_CL     DB 0
+_CH     DB 0
+_DX
+_DL     DB 0
+_DH     DB 0
+_BX
+_BL     DB 0
+_BH     DB 0
+_SP     DW 0 ;use encodeSP (with hl=(_SP)) after write!
+_BP     DW 0
+_SI     DW 0
+_DI     DW 0
+;4 sregs
+_ES     DW 0
+_CS     DW 0
+_SS     DW 0
+_DS     DW 0
+
+cs_LSW	dw 0
+cs_HSB	db 0
+ss_LSW	dw 0
+ss_HSB	db 0
+ds_LSW	dw 0
+ds_HSB	db 0
+es_LSW	dw 0
+es_HSB	db 0
+
+pc_high     db 0
+
+_DIRECTION
+	db 0
+iff1	db 0
+iff2	db 0 ;TODO unneeded?
+
+timer
+	dw 0
+        
+;000... -> 000 ;al
+;001... -> 010 ;cl
+;010... -> 100 ;dl
+;011... -> 110 ;bl
+;100... -> 001 ;ah
+;101... -> 011 ;ch
+;110... -> 101 ;dh
+;111... -> 111 ;bh
+       ds _AX+128-$
+;decode rm
+        dup 8
+        db _AL&0xff
+        db _CL&0xff
+        db _DL&0xff
+        db _BL&0xff
+        db _AH&0xff
+        db _CH&0xff
+        db _DH&0xff
+        db _BH&0xff
+        edup
+       ds _AX+192-$
+;decode r8
+        ds 8,_AL&0xff
+        ds 8,_CL&0xff
+        ds 8,_DL&0xff
+        ds 8,_BL&0xff
+        ds 8,_AH&0xff
+        ds 8,_CH&0xff
+        ds 8,_DH&0xff
+        ds 8,_BH&0xff
         align 256
 	include "x86table.asm"
 

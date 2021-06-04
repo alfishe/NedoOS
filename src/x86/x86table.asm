@@ -208,14 +208,14 @@ MAINCOMS
         DCOM MOVsii16
         DCOM MOVdii16
 ;#Cx
-        DCOM PANIC ;GRP2rm8i8
-        DCOM PANIC ;GRP2rm16i8
+        DCOM PANIC ;GRP2rm8i8 ;rolls?
+        DCOM PANIC ;GRP2rm16i8 ;rolls?
         DCOM PANIC ;RETi16
         DCOM RETer
         DCOM PANIC ;LESr16mem
         DCOM PANIC ;LDSr16mem
         DCOM MOVrm8i8
-        DCOM PANIC ;MOVrm16i16
+        DCOM MOVrm16i16
         DCOM PANIC ;ENTERi16i8
         DCOM PANIC ;LEAVEer
         DCOM PANIC ;RETFi16
@@ -225,8 +225,8 @@ MAINCOMS
         DCOM PANIC ;INTOer
         DCOM PANIC ;IRETer
 ;#Dx
-        DCOM PANIC ;GRP2rm81 ;rolls
-        DCOM PANIC ;GRP2rm161 ;rolls
+        DCOM GRP2rm81 ;rolls
+        DCOM GRP2rm161 ;rolls
         DCOM PANIC ;GRP2rm8cl ;rolls
         DCOM PANIC ;GRP2rm16cl ;rolls
         DCOM PANIC ;AAMer
@@ -273,7 +273,7 @@ MAINCOMS
         DCOM STIer
         DCOM CLDer
         DCOM STDer
-        DCOM PANIC ;GRP48
+        DCOM PANIC ;GRP48 ;???
         DCOM GRP416 ;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]
 
 	DISPLAY $-MAINCOMS,"=256"

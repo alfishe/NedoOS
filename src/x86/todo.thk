@@ -1,13 +1,13 @@
 ﻿
 
 
-буду не формировать сразу флаг чётности, а копировать последний результат в регистр. когда надо будет перейти по чётности (думаю, это редко надо), тогда и посчитаю чётность
+не формировать сразу флаг чётности, а копировать последний результат в регистр. когда надо будет перейти по чётности (это редко надо), тогда и посчитаем чётность
 тогда логические операции и сдвиги через rlca/rla/rrca/rra, чтобы не менять флаги вообще, кроме C
 флаг AC (x86) = флаг H (Z80)
 
-тут написано, что сдвиги также формируют флаг O: The OF flag is affected only on 1-bit shifts. For left shifts, the OF flag is set to 0 if the mostsignificant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1. For the SAR instruction, the OF flag is cleared for all 1-bit shifts. For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. https://c9x.me/x86/html/file_module_x86_id_285.html  The OF flag is defined only for the 1-bit rotates; it is undefined in all other cases (except that a zero-bit rotate does nothing, that is affects no flags). For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result. For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result. https://c9x.me/x86/html/file_module_x86_id_273.html
+сдвиги также формируют флаг O: The OF flag is affected only on 1-bit shifts. For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1. For the SAR instruction, the OF flag is cleared for all 1-bit shifts. For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. https://c9x.me/x86/html/file_module_x86_id_285.html  The OF flag is defined only for the 1-bit rotates; it is undefined in all other cases (except that a zero-bit rotate does nothing, that is affects no flags). For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result. For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result. https://c9x.me/x86/html/file_module_x86_id_273.html
 
-или во всех командах вручную хранить данные для флага O? rra:ld of,a:rla (если два старших бита разные, то это переполнение). к сожалению, нельзя объединить с данными для флага P (чтобы потом проверять с учётом C), т.к. не все команды меняют одновременно P, O, C (логические сдвиги - только O, C).
+во всех командах вручную хранить данные для флага O? rra:ld of,a:rla (если два старших бита разные, то это переполнение). к сожалению, нельзя объединить с данными для флага P (чтобы потом проверять с учётом C), т.к. не все команды меняют одновременно P, O, C (логические сдвиги - только O, C).
 тогда все сдвиги точно соответствуют сдвигам на Z80 (логические - через rrca/..., арифметические - через #cb xx)
 
 
@@ -18,7 +18,8 @@
 8 overflow data (e?)
 16 временный операнд (bc?) или loop count в сдвигах
 
-или лучше для единообразия хранить все регистры в памяти, а parity,overflow в ix?
+лучше для единообразия хранить все регистры в памяти
+parity,overflow в ix? ничего не даст?
 
 fs,gs нужны только для 386?
 

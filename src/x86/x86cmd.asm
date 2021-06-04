@@ -368,14 +368,14 @@ RETer
        _LoopC_JP
 
 JLEer ;jump if not greater (zero or less)
-	ex af,af'
+	ex af,af' ;'
 	jp z,JRYer
-	ex af,af'
+	ex af,af' ;'
 JLer ;jump if less (SF xor OF = 1)
-	ex af,af'
+	ex af,af' ;'
 	jp m,exaJNOer
 exaJOer
-	ex af,af'
+	ex af,af' ;'
 JOer ;jump if overflow
 	exx
 	ld a,e ;overflow data
@@ -387,14 +387,14 @@ JOer ;jump if overflow
         next
        _Loop_
 JGer ;jump if greater (not zero and not less)
-	ex af,af'
+	ex af,af' ;'
 	jp z,exaNOJP
-	ex af,af'
+	ex af,af' ;'
 JNLer ;jump if not less (SF xor OF = 0)
-	ex af,af'
+	ex af,af' ;'
 	jp m,exaJOer
 exaJNOer
-	ex af,af'
+	ex af,af' ;'
 JNOer ;jump if no overflow
 	exx
 	ld a,e ;overflow data
@@ -422,41 +422,41 @@ JNPer ;jump if parity odd
         next
        _Loop_ 
 JNEer
-	ex af,af'
+	ex af,af' ;'
 	JR NZ,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JEer
-	ex af,af'
+	ex af,af' ;'
 	JR Z,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JNCer
-	ex af,af'
+	ex af,af' ;'
 	JR NC,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JCer
-	ex af,af'
+	ex af,af' ;'
 	JR C,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JBEer ;jump if CF or ZF = 1
-	ex af,af'
+	ex af,af' ;'
 	JR C,JRYer
 	JR Z,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JAer ;jump if (CF or ZF) = 0, i.e. CF=ZF=0
-	ex af,af'
+	ex af,af' ;'
 	JR C,$+4
 	JR Z,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JRYer
@@ -473,15 +473,15 @@ JRer
         ex de,hl ;new PC 
        _LoopC_JP
 JSer ;jump if sign
-	ex af,af'
+	ex af,af' ;'
 	jp m,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 JNSer ;jump if no sign
-	ex af,af'
+	ex af,af' ;'
 	jp p,JRYer
-	ex af,af'
+	ex af,af' ;'
         next
        _Loop_ 
 
@@ -495,10 +495,10 @@ LOOPNZer
 	jr z,exaNOJP
 	jr exaLOOPer
 LOOPZer
-	ex af,af'
+	ex af,af' ;'
 	jr nz,exaNOJP
 exaLOOPer
-	ex af,af'
+	ex af,af' ;'
 LOOPer
 	ld hl,(_CX)
 	dec hl
@@ -528,22 +528,6 @@ JMPWORDmDI
 	getmemDS
 	ld d,a ;new PC
        _LoopC_JP
-
-       if 0
-;mov al,[di]
-MOVALmDI
-	ld hl,(_DI)
-	getmemDS
-	ld (_AL),a ;al
-       _LoopC
-
-;mov ah,[di]
-MOVAHmDI
-	ld hl,(_DI)
-	getmemDS
-	ld (_AH),a ;ah
-       _LoopC
-       endif
 
 	macro XCHGAXRP rp
 	ld bc,(rp)
