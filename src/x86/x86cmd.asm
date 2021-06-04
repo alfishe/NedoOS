@@ -1,6 +1,49 @@
 PANIC
 	jr $
 
+DSer
+       _Loop_ ;TODO или он что-то должен делать?
+CSer
+        ld a,(ds_HSB)
+        ld hl,(ds_LSW)
+        push af
+        push hl
+        ld a,(cs_HSB)
+        ld hl,(cs_LSW)
+	ld (ds_LSW),hl
+	ld (ds_HSB),a
+        ld iy,CSerq
+        jp EMUCHECKQ
+ESer
+        ld a,(ds_HSB)
+        ld hl,(ds_LSW)
+        push af
+        push hl
+        ld a,(es_HSB)
+        ld hl,(es_LSW)
+	ld (ds_LSW),hl
+	ld (ds_HSB),a
+        ld iy,CSerq
+        jp EMUCHECKQ
+SSer
+        ld a,(ds_HSB)
+        ld hl,(ds_LSW)
+        push af
+        push hl
+        ld a,(ss_HSB)
+        ld hl,(ss_LSW)
+	ld (ds_LSW),hl
+	ld (ds_HSB),a
+        ld iy,CSerq
+        jp EMUCHECKQ
+CSerq
+        pop hl
+        pop af
+	ld (ds_LSW),hl
+	ld (ds_HSB),a
+        ld iy,EMUCHECKQ
+       _Loop_
+
 CLIer
         xor a
         ld (iff1),a

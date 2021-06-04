@@ -52,7 +52,7 @@ MAINCOMS
         DCOM SUBr16rm
         DCOM SUBali8
         DCOM SUBaxi16
-	DCOM PANIC ;CSer
+	DCOM CSer
 	DCOM PANIC ;DASal
 ;#3X
         DCOM XORrmr8
@@ -61,7 +61,7 @@ MAINCOMS
         DCOM XORr16rm
         DCOM XORali8
         DCOM XORaxi16
-        DCOM PANIC ;SSer
+        DCOM SSer
         DCOM PANIC ;AAAal
         DCOM CMPrmr8
         DCOM CMPrmr16
@@ -69,7 +69,7 @@ MAINCOMS
         DCOM CMPr16rm
         DCOM CMPali8
         DCOM CMPaxi16
-	DCOM PANIC ;DSer
+	DCOM DSer ;зачем???
 	DCOM PANIC ;AASal
 ;#4X
         DCOM INCax
