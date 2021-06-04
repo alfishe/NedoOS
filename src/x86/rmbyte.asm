@@ -1692,92 +1692,80 @@ SARr16
 
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 ROLm16
-;TODO
        GETm16
-        ex af,af' ;' ;remember ZF        
-        inc hl ;keep ZF
-        ld a,(hl)
-        ld b,a
-        rla
-        dec hl ;keep ZF
-        ld a,(hl)
-        rla
-        ld c,a
         ld a,b
-        rla
-        ld b,a
         exx
-	rra
 	ld e,a ;overflow data
-	rla ;restore CF
         exx
-	ex af,af' ;'
+       ld a,b
+       rla
+        rl c
+        rl b
+       rl l ;l0=new CF
+       ex af,af' ;'
+       ld a,l
+       rra ;new CF, keep other flags
+       ex af,af' ;'
        pop hl
        _PUTm16LoopC
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RORm16
-;TODO
        GETm16
-        ex af,af' ;' ;remember ZF        
-        inc hl ;keep ZF
-        ld a,(hl)
-        ld b,a
-        rra
-        dec hl ;keep ZF
-        ld a,(hl)
-        rra
-        ld c,a
+       ld a,c
+       rra
+        rr b
+        rr c
+       rl l ;l0=new CF
+       ex af,af' ;'
+       ld a,l
+       rra ;new CF, keep other flags
+       ex af,af' ;'
         ld a,b
-        rra ;use CF from C
-        ld b,a
         exx
 	ld e,a ;overflow data
         exx
-	ex af,af' ;'
        pop hl
        _PUTm16LoopC
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 RCLm16
-;TODO
        GETm16
-        ex af,af' ;' ;remember ZF,CF
-       rla
-       ld l,a ;l0=CF
-        ex af,af' ;' ;remember ZF,CF
-       rr l
-        rl c
-        rl b
-       rl l ;l0=CF
-        ex af,af' ;' ;remember ZF,CF
-       ld a,l
-       rra ;CF
-        ex af,af' ;' ;remember ZF,CF
-        exx
-	rra
-	ld e,a ;overflow data
-	rla ;restore CF
-        exx
-	ex af,af' ;'
-       pop hl
-       _PUTm16LoopC
-;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
-RCRm16
-;TODO
-       GETm16
-        ex af,af' ;' ;remember ZF,CF
-        inc hl ;keep ZF
-        ld a,(hl)
-        rra
-        ld b,a
-        dec hl ;keep ZF
-        ld a,(hl)
-        rra
-        ld c,a
         ld a,b
         exx
 	ld e,a ;overflow data
         exx
-	ex af,af' ;'
+       ex af,af' ;'
+       rla
+       ld l,a ;l0=old CF, keep other flags
+       ex af,af' ;'
+       rr l ;restore CF
+        rl c
+        rl b
+       rl l ;l0=new CF
+       ex af,af' ;'
+       ld a,l
+       rra ;new CF, keep other flags
+       ex af,af' ;'
+       pop hl
+       _PUTm16LoopC
+;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
+RCRm16
+       GETm16
+       ex af,af' ;'
+       rla
+       ld l,a ;l0=old CF, keep other flags
+       ex af,af' ;'
+       rr l ;restore CF
+        rr b
+        rr c
+       rl l ;l0=new CF
+       ex af,af' ;'
+       ld a,l
+       rra ;new CF, keep other flags
+       ex af,af' ;'
+        ld a,b
+        exx
+	ld e,a ;overflow data
+        exx
        pop hl
        _PUTm16LoopC
 ;For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1.
