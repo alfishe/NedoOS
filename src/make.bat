@@ -33,6 +33,10 @@ IF "%softbuilded%"=="" (
 					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%!installdir!\%%~nj\" > nul
 				)
 				if exist *.ext ( copy *.ext %releasedir%!installdir!\ > nul )
+				if exist *.ccc ( copy *.ccc %releasedir%!installdir!\ > nul )
+				if exist *.crl ( copy *.crl %releasedir%!installdir!\ > nul )
+				if exist *.crl ( copy *.i %releasedir%!installdir!\ > nul )
+				if exist *.crl ( copy *.h %releasedir%!installdir!\ > nul )
 			)
 		)
 	)
@@ -43,123 +47,106 @@ IF "%softbuilded%"=="" (
 			copy %%i %releasedir%\doc\ > nul
 		)
 	)
-	cd %currentdir%
-
 	FOR /R . %%i IN (*.new) DO (
 		if exist %%i (
 			copy %%i %releasedir%\doc\ > nul
 		)
 	)
-	cd %currentdir%
-
 	FOR /R . %%i IN (*.md) DO (
 		if exist %%i (
 			copy %%i %releasedir%\doc\ > nul
 		)
 	)
-	cd %currentdir%
 
 	copy autoexec.bat %releasedir%\bin\ > nul
 	copy net.ini %releasedir%\bin\ > nul
-	copy games\smb\antipac.fm2 %releasedir%\bin\ > nul
-	copy ..\smb.nes %releasedir%\bin\ > nul
+	copy games\smb\antipac.fm2 %releasedir%\nedogame\ > nul
+	copy ..\smb.nes %releasedir%\nedogame\ > nul
 	copy basic\example.bas %releasedir%\bin\ > nul
-	rem copy games\wolf3d\wolftex.* %releasedir%\bin\ > nul
 )
 
 if not "%1"=="noneedtrd" (
-        rem del %releasedir%\bin\forest.dat > nul
-        rem del %releasedir%\bin\*.zip > nul
-        md %releasedir%\br
-        move %releasedir%\bin\*.fm2 %releasedir%\br\
-        move %releasedir%\bin\*.pas %releasedir%\br\
-        move %releasedir%\bin\*.inc %releasedir%\br\
-        move %releasedir%\bin\*.ccc %releasedir%\br\
-        move %releasedir%\bin\*.c %releasedir%\br\
-        move %releasedir%\bin\*.h %releasedir%\br\
-        rem ren %releasedir%\bin\browser.com mowser.com
-        move %releasedir%\bin\evsummer.com %releasedir%\br\
-        move %releasedir%\bin\cardgame.com %releasedir%\br\
-        rem move %releasedir%\bin\br*.* %releasedir%\br\
-        rem ren %releasedir%\bin\mowser.com browser.com
-        move %releasedir%\bin\hello.com %releasedir%\br\
-        move %releasedir%\bin\reset.com %releasedir%\br\
-        move %releasedir%\bin\emptyapp.com %releasedir%\br\
-        move %releasedir%\bin\mcdemo.mcs %releasedir%\br\
-        move %releasedir%\bin\turbo.msg %releasedir%\br\
-        move %releasedir%\bin\raytrace.com %releasedir%\br\
-        move %releasedir%\bin\gfxtest.com %releasedir%\br\
-        move %releasedir%\bin\setfont.com %releasedir%\br\
-        move %releasedir%\bin\noise.com %releasedir%\br\
-        move %releasedir%\bin\tazres.bin %releasedir%\br\
-        move %releasedir%\bin\yad.com %releasedir%\br\
-        move %releasedir%\bin\nvfast.com %releasedir%\br\
-        move %releasedir%\bin\movedisk.com %releasedir%\br\
-        move %releasedir%\bin\z80.com %releasedir%\br\
 	nedotrd test.trd -n
 	nedotrd test.trd -ah boot6000.$b
 	nedotrd test.trd -s 24576 -ac kernel/code.c
+        nedotrd test.trd -a %releasedir%/bin/autoexec.bat
+        nedotrd test.trd -a %releasedir%/bin/reset.com
+        nedotrd test.trd -a %releasedir%/bin/term.com
+        rem nedotrd test.trd -a %releasedir%/bin/netterm.com
+        nedotrd test.trd -a %releasedir%/bin/cmd.com
+        nedotrd test.trd -a %releasedir%/bin/nv.com
+        nedotrd test.trd -a %releasedir%/bin/nv.ext
+        nedotrd test.trd -a %releasedir%/bin/hddfdisk.com
+        nedotrd test.trd -a %releasedir%/bin/texted.com
+        rem nedotrd test.trd -a %releasedir%/bin/more.com
+        rem nedotrd test.trd -a %releasedir%/bin/nim.com
+        rem nedotrd test.trd -a %releasedir%/bin/diff.com
 
-	for %%i in (%releasedir%\bin\*.*) do (
-		nedotrd test.trd -a %%i
-	)
-        move %releasedir%\br\*.* %releasedir%\bin\
-        rd %releasedir%\br
+rem 	for %%i in (%releasedir%\bin\*.*) do (
+rem		nedotrd test.trd -a %%i
+rem	)
 
-	rem nedotrd test.trd -a scratch/lanscape.bmp
+rem network
+        nedotrd test.trd -a %releasedir%/bin/wizcfg.com
+        nedotrd test.trd -a %releasedir%/bin/ping.com
+        nedotrd test.trd -a %releasedir%/bin/browser.com
+        nedotrd test.trd -a %releasedir%/bin/browser/nos.htm
+        nedotrd test.trd -a %releasedir%/bin/wget.com
+        nedotrd test.trd -a %releasedir%/bin/moon.com
+        nedotrd test.trd -a %releasedir%/bin/3ws.com
+        nedotrd test.trd -a %releasedir%/bin/time.com
+        nedotrd test.trd -a %releasedir%/bin/dmirc.com
+        nedotrd test.trd -a %releasedir%/bin/dmftp.com
+        nedotrd test.trd -a %releasedir%/bin/telnet.com
 
-	rem nedotrd test.trd -a nedolang/comp/sizesz80.h
-	rem nedotrd test.trd -a nedolang/comp/comp_os.s
-	rem nedotrd test.trd -a nedolang/comp/compc_os.s
-	rem nedotrd test.trd -a nedolang/comp/compile.c
-	rem nedotrd test.trd -a nedolang/comp/codez80.c
-	rem nedotrd test.trd -a nedolang/comp/commands.c
-	rem nedotrd test.trd -a nedolang/comp/regs.c
-	rem nedotrd test.trd -a nedolang/comp/test.bat
+rem archives
+        nedotrd test.trd -a %releasedir%/bin/pkunzip.com
+        nedotrd test.trd -a %releasedir%/bin/tar.com
+        nedotrd test.trd -a %releasedir%/bin/zxrar.com
+        nedotrd test.trd -a %releasedir%/bin/unrar.com
 
-	rem nedotrd test.trd -a nedolang/_sdk/str.h
-	rem nedotrd test.trd -a nedolang/_sdk/io.h
-	rem nedotrd test.trd -a nedolang/_sdk/emit.h
-	rem nedotrd test.trd -a nedolang/_sdk/emit.c
-	rem nedotrd test.trd -a nedolang/_sdk/read.c
-	rem nedotrd test.trd -a nedolang/_sdk/typecode.h
-	rem nedotrd test.trd -a nedolang/_sdk/lib.i
-	rem nedotrd test.trd -a nedolang/_sdk/str.i
-	rem nedotrd test.trd -a nedolang/_sdk/io_os.i
-	rem nedotrd test.trd -a _sdk/sysdefs.asm
+rem disk/tape images
+        rem nedotrd test.trd -a %releasedir%/bin/nedodel.com
+        nedotrd test.trd -a %releasedir%/bin/rdtrd.com
+        nedotrd test.trd -a %releasedir%/bin/wrtrd.com
+        nedotrd test.trd -a %releasedir%/bin/playtap.com
+        nedotrd test.trd -a %releasedir%/bin/dmm.com
+        nedotrd test.trd -a %releasedir%/bin/nmisvc.com
+        nedotrd test.trd -a %releasedir%/bin/tazres.bin
 
-	rem nedotrd test.trd -a basic/example.bas
-	rem nedotrd test.trd -a nedolang/nedogift/testmusi.pt3
-	rem nedotrd test.trd -a player/coco.pt2
-	rem nedotrd test.trd -a browser/browser/nos.htm
-	rem nedotrd test.trd -a browser/house.svg
-        rem nedotrd test.trd -a _sdk/logo-louisa.svg
-	rem nedotrd test.trd -a browser/test/zajchik.gif
-	rem nedotrd test.trd -a browser/test/girl.jpg
-	rem nedotrd test.trd -a browser/test/csprmain.htm
-	rem nedotrd test.trd -a browser/test/spwiki.htm
-	rem nedotrd test.trd -a browser/test/atmpg.htm
-	rem nedotrd test.trd -a browser/test/atmpg2.htm
-	rem nedotrd test.trd -a browser/test/6914fast.gif
-	rem nedotrd test.trd -a browser/test/6908fast.gif
-	rem nedotrd test.trd -a browser/test/6909wrbg.gif
-	rem nedotrd test.trd -a browser/test/animatie.gif
-	rem nedotrd test.trd -a browser/test/sprites.gif
-	rem nedotrd test.trd -a browser/test/listh.htm
-	rem nedotrd test.trd -a browser/test/alphaba3.png
-	rem nedotrd test.trd -a browser/test/clown.png
-	rem nedotrd test.trd -a browser/test/basn3p01.png
-	rem nedotrd test.trd -a browser/test/basn3p02.png
-	rem nedotrd test.trd -a browser/test/basn3p04.png
-	rem nedotrd test.trd -a browser/test/s40n3p04.png
-	rem nedotrd test.trd -a browser/test/basn0g01.png
-	rem nedotrd test.trd -a browser/test/basn0g02.png
-	rem nedotrd test.trd -a browser/test/basn0g04.png
-	rem nedotrd test.trd -a browser/test/basi0g16.png
-	rem nedotrd test.trd -a pkunzip/pkunzip.zip
-	rem nedotrd test.trd -a modplay/scalsfjy.mod
+rem Pascal compiler
+        nedotrd test.trd -a %releasedir%/bin/tp.com
+        nedotrd test.trd -a %releasedir%/bin/turbo.msg
 
-	rem nedotrd test.trd -a browser/test/newview.png
+rem Nedolang compiler
+        nedotrd test.trd -a %releasedir%/bin/comp.com
+        nedotrd test.trd -a %releasedir%/bin/tok.com
+        nedotrd test.trd -a %releasedir%/bin/asm.com
+        rem nedotrd test.trd -a %releasedir%/bin/exp.com
+        nedotrd test.trd -a %releasedir%/bin/io.h
+        nedotrd test.trd -a %releasedir%/bin/iofast.i
+        nedotrd test.trd -a %releasedir%/bin/lib.i
+
+rem BASIC
+        nedotrd test.trd -a %releasedir%/bin/basic.com
+	nedotrd test.trd -a %releasedir%/bin/example.bas
+
+rem C compiler
+        nedotrd test.trd -a %releasedir%/bin/cc.com
+        nedotrd test.trd -a %releasedir%/bin/cc2.com
+        nedotrd test.trd -a %releasedir%/bin/clink.com
+        nedotrd test.trd -a %releasedir%/bin/c.ccc
+        nedotrd test.trd -a %releasedir%/bin/deff2.crl
+
+rem music
+        nedotrd test.trd -a %releasedir%/bin/player.com
+        nedotrd test.trd -a %releasedir%/bin/modplay.com
+        nedotrd test.trd -a %releasedir%/bin/pt.com
+        rem nedotrd test.trd -a %releasedir%/bin/untr.com
+
+rem gfx
+        nedotrd test.trd -a %releasedir%/bin/scratch.com
+        nedotrd test.trd -a %releasedir%/bin/view.com
 
 	rem for %%i in (%releasedir%\doc\*.*) do (
 	rem	nedotrd test.trd -a %%i
