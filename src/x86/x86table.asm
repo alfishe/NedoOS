@@ -152,9 +152,9 @@ MAINCOMS
         DCOM MOVrmr16
         DCOM MOVr8rm
         DCOM MOVr16rm
-        DCOM PANIC ;MOVrm16sreg
+        DCOM MOVrm16sreg
         DCOM PANIC ;LEAr16rm
-        DCOM PANIC ;MOVsregrm16
+        DCOM MOVsregrm16
         DCOM PANIC ;POPrm16
 ;#9x
         DCOM NOPer
@@ -182,8 +182,8 @@ MAINCOMS
         DCOM PANIC ;MOVSWer
         DCOM CMPSBer
         DCOM PANIC ;CMPSWer
-        DCOM PANIC ;TESTali8
-        DCOM PANIC ;TESTaxi16
+        DCOM TESTali8
+        DCOM TESTaxi16
         DCOM STOSBer
         DCOM STOSWer
         DCOM LODSBer
@@ -247,17 +247,17 @@ MAINCOMS
         DCOM LOOPer
         DCOM JCXZer
         DCOM INali8
-        DCOM PANIC ;INaxi8
-        DCOM PANIC ;OUTi8al
-        DCOM PANIC ;OUTi8ax
+        DCOM INaxi8
+        DCOM OUTi8al
+        DCOM OUTi8ax
         DCOM CALLer
         DCOM JMPer
         DCOM PANIC ;JMPptr1616
         DCOM JRer
-        DCOM PANIC ;INaldx
-        DCOM PANIC ;INaxdx
-        DCOM PANIC ;OUTdxal
-        DCOM PANIC ;OUTdxax
+        DCOM INaldx
+        DCOM INaxdx
+        DCOM OUTdxal
+        DCOM OUTdxax
 ;#Fx
         DCOM PANIC ;LOCKer
         DCOM PANIC ;INT1

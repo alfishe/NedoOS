@@ -1,3 +1,11 @@
+TESTali8
+	get
+	next
+        ld hl,_AL
+        and (hl) ;al ;CF=0
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _Loop_
+
 ANDali8
 	get
 	next
@@ -23,6 +31,19 @@ XORali8
         xor (hl) ;al ;CF=0
         ld (hl),a
         KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _Loop_
+
+TESTaxi16
+	get
+	next
+        ld hl,(_AX)
+        and l ;al ;CF=0
+        ld l,a
+	get
+	next
+        and h ;ah ;CF=0
+        ld h,a
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
        _Loop_
 
 ANDaxi16

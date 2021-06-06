@@ -316,6 +316,61 @@ MOVr16rmmem
         ld h,_AX/256
        _PUTr16LoopC
 
+MOVsregrm16
+	get
+	next
+;a=MDregR/M
+;MD=00: mov [...],r16
+;MD=01: mov [...+disp8],r16
+;MD=10: mov [...+disp16],r16
+;MD=11: mov r/m,r16 ;проще всего
+        cp 0b11000000
+        jr c,MOVsregrmmem
+       push af
+       and 7
+       add a,a
+        ld l,a
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        jr MOVsregrmq
+MOVsregrmmem
+       push af
+       ADDRm16
+       GETm16
+MOVsregrmq
+       pop af
+        rra
+        rra
+        and 7*2
+        add a,_ES&0xff
+        ld l,a
+        ld h,_ES/256
+        ld (hl),c
+        inc l
+        ld (hl),b
+;TODO count?S
+	xor a
+	sla c
+        rl b
+	rla
+	sla c
+        rl b
+	rla
+	sla c
+        rl b
+	rla
+	sla c
+        rl b
+	rla
+        set 5,l
+        ld (hl),b
+        dec l
+        ld (hl),c
+        set 3,l
+	ld (hl),a
+       _LoopC
+
 MOVrm16sreg
 	get
 	next

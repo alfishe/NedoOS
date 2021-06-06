@@ -863,12 +863,6 @@ STOSWer
 ;dec cx не надо!
        _LoopC
 
-;in al,0x40          ; Read timer counter 0 
-INali8
-	ld a,(timer)
-	ld (_AL),a
-       _Loop_
-
 ;int 0x20 ;system
 ;int 0x16 ;ah=0: input key -> al
 ;int 0x10 ;ah=0x0e: print al (зачем bx=7?)

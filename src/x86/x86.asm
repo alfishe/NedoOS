@@ -698,6 +698,7 @@ IMERIM
 	include "x86cmd.asm"
 	include "x86math.asm"
 	include "x86logic.asm"
+	include "ports.asm"
 
         align 256
 tpgs
@@ -721,20 +722,12 @@ _SP     DW 0 ;use encodeSP (with hl=(_SP)) after write!
 _BP     DW 0
 _SI     DW 0
 _DI     DW 0
+;0x10
 ;4 sregs
 _ES     DW 0
 _CS     DW 0
 _SS     DW 0
 _DS     DW 0
-
-cs_LSW	dw 0
-cs_HSB	db 0
-ss_LSW	dw 0
-ss_HSB	db 0
-ds_LSW	dw 0
-ds_HSB	db 0
-es_LSW	dw 0
-es_HSB	db 0
 
 pc_high     db 0
 
@@ -746,6 +739,21 @@ iff2	db 0 ;TODO unneeded?
 timer
 	dw 0
         
+        ds _AX+0x30-$
+;0x30
+es_LSW	dw 0
+cs_LSW	dw 0
+ss_LSW	dw 0
+ds_LSW	dw 0
+;0x38
+es_HSB	db 0
+        nop
+cs_HSB	db 0
+        nop
+ss_HSB	db 0
+        nop
+ds_HSB	db 0
+
 ;000... -> 000 ;al
 ;001... -> 010 ;cl
 ;010... -> 100 ;dl
