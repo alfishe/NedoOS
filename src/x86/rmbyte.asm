@@ -20,27 +20,23 @@
 ;100=[si]+disp
 ;101=[di]+disp
 ;110=[bp]+disp ;TODO ss: ;за исключением случая mod=00 и rm=110, когда EA равен старшему и младшему байтам смещения (какой сегмент?)
-;111=[bx]+disp
-        ;macro ADDRm16
-        ;call ADDRm16_pp
-        ;endm
-        
+;111=[bx]+disp       
         macro ADDRm16_for_GETm8 ;for MOVr8rmmem, OPr8rmmem, TESTrmmemr8, CMPrmmemr8 (в CMPrmmemi8 GET_PUTm8 и pop af, TODO TESTrmmemi8)
+         push af
         call ADDRm16_pp
-         push af ;TODO or 0b11000000:ld ($+...),a ... ld hl,_AX
         ADDRSEGMENT_chl_bHSB
-         pop af ;TODO
+         pop af
         endm ;GET делать сразу! по bc,hl
         
         macro ADDRm16_for_PUTm8_and_do_GETr8 ;for MOVrmmemr8
+         push af
         call ADDRm16_pp
-       or 0b11000000
-_base_ADDRm16_for_PUTm8_and_do_GETr8=$
-       ld ($+_shift_ADDRm16_for_PUTm8_and_do_GETr8),a
         ADDRSEGMENT_chl_bHSB
+         pop af
        push bc ;c=page (%01..5432), b=?s_HSB ;TODO сэкономить 4 такта через push hl и особую версию PUTm8
-_shift_ADDRm16_for_PUTm8_and_do_GETr8=$+1-_base_ADDRm16_for_PUTm8_and_do_GETr8
-        ld bc,_AX
+        ld b,_AX/256
+        or 0b11000000
+        ld c,a ;через ld (),a:ld bc:set 7,c:set 6,c та же скорость
         ld a,(bc)
         ld c,a ;r8 addr
         ld a,(bc)
@@ -53,10 +49,10 @@ _shift_ADDRm16_for_PUTm8_and_do_GETr8=$+1-_base_ADDRm16_for_PUTm8_and_do_GETr8
         endm
         
         macro ADDRm16_for_GET_PUTm8 ;for OPrmmemi8/r8, ROLm8...
+         push af
         call ADDRm16_pp
-        push af
         ADDRSEGMENT_chl_bHSB
-        pop af
+         pop af
        push bc ;c=page (%01..5432), b=?s_HSB
         endm ;GET делать сразу! по bc,hl
         
@@ -72,59 +68,58 @@ _shift_ADDRm16_for_PUTm8_and_do_GETr8=$+1-_base_ADDRm16_for_PUTm8_and_do_GETr8
         endm
         
         macro ADDRm16_for_PUTm16 ;for MOVrmmemr16/sreg
+         push af
         call ADDRm16_pp
-        push af ;TODO rra:rra:and 7*2:ld ($+...),a ... ld hl,_AX
         ADDRSEGMENT_chl_bHSB
-        pop af ;TODO
+         pop af
        push bc ;c=page (%01..5432), b=?s_HSB
         endm
         
         macro ADDRm16_for_GET_PUTm16 ;for OPrmmemi16/r16, ROLm16..., TESTrmmemi16, MULrmmem16...
+         push af
         call ADDRm16_pp
-        push af
         ADDRSEGMENT_chl_bHSB
-        pop af
+         pop af
        push bc ;c=page (%01..5432), b=?s_HSB
         endm ;GET делать сразу! по bc,hl
         
 ;a=r/m byte
+;out: hl=addr, abc=?s*16
 ADDRm16_pp
         bit 0,a
         ld hl,(_SI)
         jr z,$+5
         ld hl,(_DI)
         bit 2,a
-        jr z,9f
+        jr z,9f ;ds:??+
 ;1xx
         bit 1,a
-        jr z,8f
+        jr z,8f ;ds:??+
         bit 0,a
         ld hl,(_BX)
-        jr nz,8f
+        jr nz,8f ;ds:??+
         ld hl,(_BP)
        cp 64
-       jr nc,8f
+       jr nc,7f ;ss:bp+
 ;[bp+nodisp] = [disp]
-       ld c,a
        getHL
         ;jp 4f
-        ld a,c
+	ld bc,(ss_LSW)
+	ld a,(ss_HSB) ;TODO segment prefix (if iy changed) ;TODO или в этом случае ss:disp?
         ret
-9 ;0xx
+9 ;0xx ;ds:??+
         bit 1,a
+        jr nz,6f    ;01?=[bp]+[?i]+disp
         ld bc,(_BX) ;00?=[bx]+[?i]+disp
-        jr z,$+6
-        ld bc,(_BP) ;00?=[bp]+[?i]+disp
         add hl,bc
-8
+8 ;ds:??+
 ;MD=00: cmd [...] ;no disp
        cp 64
-       ret c ;jr c,7f ;no disp
+       jr c,4f ;no disp
        ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
-;get dispL
-	get
+	get ;dispL
 	next
         add a,l
         ld l,a
@@ -132,14 +127,37 @@ ADDRm16_pp
         inc h
        bit 7,c
        jr z,4f
-;get dispH
-	get
+	get ;dispH
         add a,h
         ld h,a
-	next
+	next ;TODO optimize call z -> ret nz?
 4
-       ld a,c
-;7
+	ld bc,(ds_LSW)
+	ld a,(ds_HSB) ;TODO segment prefix (if iy changed)
+        ret
+
+6 ;ss:bp+?i+
+        ld bc,(_BP)
+        add hl,bc
+7 ;ss:bp+ ;не бывает nodisk, отсеяно выше
+       ld c,a
+;MD=01: cmd [...+disp8]
+;MD=10: cmd [...+disp16]
+	get ;dispL
+	next
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+       bit 7,c
+       jr z,4f
+	get ;dispH
+        add a,h
+        ld h,a
+	next ;TODO optimize call z -> ret nz?
+4
+	ld bc,(ss_LSW)
+	ld a,(ss_HSB) ;TODO segment prefix (if iy changed)
         ret
 
 inch_nextsubsegment
@@ -164,8 +182,8 @@ inch_nextsubsegment
         ret
 
         macro ADDRSEGMENT_chl_bHSB
-	ld bc,(ds_LSW)
-	ld a,(ds_HSB) ;TODO segment from ADDRm16 or segment prefix (if iy changed)
+;hl=addr
+;abc=?s*16
        push af
         ADDSEGMENT_hl_abc_to_ahl
        pop bc
@@ -173,10 +191,10 @@ inch_nextsubsegment
 	ld a,h
 	or 0xc0
 	ld h,a
+;c=page (%01..5432), b=?s_HSB
         endm
 
         macro GETm16
-        ;ADDRSEGMENT_chl_bHSB
        push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
@@ -190,7 +208,6 @@ inch_nextsubsegment
         endm
 
         macro GETm16_hl
-        ;ADDRSEGMENT_chl_bHSB
        push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
@@ -204,14 +221,12 @@ inch_nextsubsegment
         endm
 
         macro GETm8
-        ;ADDRSEGMENT_chl_bHSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
 	ld a,(hl)
         endm
         macro GETm8_c
-        ;ADDRSEGMENT_chl_bHSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
@@ -248,11 +263,6 @@ encodeSPLoopC
         endm
 
         macro _PUTm16LoopC
-       ; ld (0),bc ;ok
-       ; ADDRSEGMENT_chl_bHSB
-       ;push bc ;c=page (%01..5432), b=?s_HSB
-       ; ld bc,(0) ;ok ;ADDRSEGMENT_chl_bHSB в ADDRm16, push bc в начале команды, а останется только то, что ниже
-       
 ;hl=addr
 ;bc=data
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
@@ -273,11 +283,6 @@ encodeSPLoopC
         endm
 
         macro _PUTm8LoopC
-       ; ld (0),a ;ok
-       ; ADDRSEGMENT_chl_bHSB
-       ;push bc ;c=page (%01..5432), b=?s_HSB
-       ; ld a,(0) ;ok ;ADDRSEGMENT_chl_bHSB в ADDRm16, push bc в начале команды, а останется только то, что ниже
-       
 ;hl=addr
 ;a=data
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
@@ -293,11 +298,6 @@ _shift_PUTm8LoopC=$+1-_base_PUTm8LoopC
         endm
 
         macro _PUTm8_cLoopC
-       ; ld (0),bc ;ok
-       ; ADDRSEGMENT_chl_bHSB
-       ;push bc ;c=page (%01..5432), b=?s_HSB
-       ; ld bc,(0) ;ok ;TODO ADDRSEGMENT_chl_bHSB в ADDRm16, push bc в начале команды, а останется только то, что ниже
-       
 ;hl=addr
 ;c=data
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
@@ -2181,8 +2181,6 @@ NEGr16
        _PUTr16Loop_
 
 NEGrmmem16
-        ADDRSEGMENT_chl_bHSB
-       push bc ;c=page (%01..5432), b=?s_HSB
        push hl
         GETm16
         NEGBCWITHFLAGS
@@ -2202,8 +2200,6 @@ NOTr16
        _PUTr16Loop_
 
 NOTrmmem16
-        ADDRSEGMENT_chl_bHSB
-       push bc ;c=page (%01..5432), b=?s_HSB
        push hl
         GETm16 ;TODO optimize
         ld a,b
