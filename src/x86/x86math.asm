@@ -16,54 +16,6 @@ CWDer
 	ld (_DX),hl
        _Loop_
 
-;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
-        macro NEGBCWITHFLAGS
-	xor a
-	ld h,a
-	ld l,a
-	sbc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld b,h
-        ld c,l
-        endm
-NEGr16
-       push hl
-        GETr16
-        NEGBCWITHFLAGS
-       pop hl
-       _PUTr16Loop_
-
-NEGm16
-       push hl
-        GETm16
-        NEGBCWITHFLAGS
-       pop hl
-       _PUTm16LoopC
-
-NOTr16
-       push hl
-        GETr16 ;TODO optimize
-        ld a,b
-        cpl
-        ld b,a
-        ld a,c
-        cpl
-        ld c,a ;no flags
-       pop hl
-       _PUTr16Loop_
-
-NOTm16
-       push hl
-        GETm16 ;TODO optimize
-        ld a,b
-        cpl
-        ld b,a
-        ld a,c
-        cpl
-        ld c,a ;no flags        
-       pop hl
-       _PUTm16LoopC
-
 ADDali8
 	get
 	next
@@ -152,7 +104,8 @@ CMPaxi16
        _Loop_
 
 ;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
-MULm16
+MULrmmem16
+       pop af ;skip
         GETm16
         jr MULbc
 MULr16;cx
@@ -176,7 +129,8 @@ MULbc
        _Loop_
 
 ;imul cx ;ax*cx -> dxax signed (set OF,CF if result >=32768 or < -32768)
-IMULm16
+IMULrmmem16
+       pop af ;skip
         GETm16
         jr IMULbc
 IMULr16;cx
@@ -269,7 +223,8 @@ MUL16
 	ret
 
 ;div cx ;dxax/cx -> ax частное, dx остаток
-DIVm16
+DIVrmmem16
+       pop af ;skip
         GETm16
         jr DIVbc
 DIVr16;cx
@@ -287,7 +242,8 @@ DIVbc
        _Loop_
 
 ;idiv cx ;dxax/cx -> ax частное, dx остаток signed (знак остатка равен знаку делимого)
-IDIVm16
+IDIVrmmem16
+       pop af ;skip
         GETm16
         jr IDIVbc
 IDIVr16;cx
