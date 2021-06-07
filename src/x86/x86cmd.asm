@@ -9,7 +9,7 @@ DSer
         ld b,1+(ds_HSB&0xff)
         get
         next
-	LD L,A
+        LD L,A
         ld H,MAINCOMS/256
         LD a,(HL)
         INC H
@@ -408,11 +408,37 @@ CALLer
         getHL
        decodePC
         add hl,de
-        EXD ;new PC
-        LD B,H
-        ld C,L ;=old PC
+        ex de,hl ;new IP(PC)
+        ld b,h
+        ld c,l ;=old IP(PC)
         putmemspBC
-       _LoopC_JP 
+       _LoopJP
+
+CALLptr1616
+;push cs; push ip (адрес после команды)
+       ld bc,(_CS)
+        putmemspBC ;old CS
+;абсолютный адрес ip, cs
+        getBC ;ip
+       push bc
+        getBC ;cs
+        ld (_CS),bc ;new CS
+        countCS
+        LD b,d
+        ld c,e ;=old PC
+       pop de ;new PC
+        putmemspBC
+       _LoopJP
+
+JMPptr1616
+;абсолютный адрес ip, cs
+        getBC ;ip
+        push bc
+        getBC ;cs
+        ld (_CS),bc
+        countCS
+        pop de
+       _LoopJP
 
 RETer
         getmemspBC

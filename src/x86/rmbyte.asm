@@ -32,17 +32,11 @@
          pop af
         endm ;GET делать сразу! по bc,hl
         
-        macro ADDRm16_for_PUTm8_and_do_GETr8 ;for MOVrmmemr8
+        macro ADDRm16_for_PUTm8 ;for MOVrmmemr8
          push af
         call ADDRm16_pp
          pop af
        push bc ;c=page (%01..5432), b=?s_HSB ;TODO сэкономить 4 такта через push hl и особую версию PUTm8
-        ld b,_AX/256
-        or 0b11000000
-        ld c,a ;через ld (),a:ld bc:set 7,c:set 6,c та же скорость
-        ld a,(bc)
-        ld c,a ;r8 addr
-        ld a,(bc)
         endm
         
         macro ADDRm16_for_PUTm8_nokeepcmd ;for MOVrmmemi8
@@ -80,12 +74,12 @@
        push bc ;c=page (%01..5432), b=?s_HSB
         endm ;GET делать сразу! по bc,hl
 
-ssbp_i ;ss:bp+?i+
+ADDRm16_pp_ssbp_plusi ;ss:bp+?i+
        push bc
         ld bc,(_BP)
         add hl,bc
        pop bc
-ssbp ;ss:bp+ ;не бывает nodisp, отсеяно выше
+ADDRm16_pp_ssbp ;ss:bp+ ;не бывает nodisp, отсеяно выше
        ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
@@ -96,19 +90,19 @@ ssbp ;ss:bp+ ;не бывает nodisp, отсеяно выше
         jr nc,$+3
         inc h
        bit 7,c
-       jr z,4f
+       jr z,ADDRm16_pp_ss_nodisp
 	get ;dispH
+	next
         add a,h
         ld h,a
-	next ;TODO optimize call z -> ret nz?
-4
+ADDRm16_pp_ss_nodisp
         bit 0,b
         jr nz,ADDRm16_pp_segprefix
 	ld bc,(ss_LSW)
-	ld a,(ss_HSB) ;TODO segment prefix (if iy changed)
+	ld a,(ss_HSB)
         ADDRSEGMENT_chl_bHSB
         ret
-       
+
 ;000=[bx]+[si]+disp
 ;001=[bx]+[di]+disp
 ;010=[bp]+[si]+disp
@@ -122,33 +116,21 @@ ssbp ;ss:bp+ ;не бывает nodisp, отсеяно выше
 ;out: hl=addr, abc=?s*16
 ADDRm16_pp
         bit 2,a
-        jr z,9f ;ds:??+
+        jr z,ADDRm16_pp_sum ;ds:b?+?i+
 ;1xx
         bit 1,a
-        jr z,5f ;ds:?i+
+        jr z,ADDRm16_pp_i ;ds:?i+
 ;11x
         bit 0,a
         ld hl,(_BX)
-        jr nz,8f ;ds:??+
+        jr nz,ADDRm16_pp_ds ;ds:??+
         ld hl,(_BP)
        cp 64
-       jr nc,ssbp ;ss:bp+
+       jr nc,ADDRm16_pp_ssbp ;ss:bp+
 ;[bp+nodisp] = [disp]
        getHL
-        ;jp 4f
         bit 0,b
-        jr nz,ADDRm16_pp_segprefix
-	ld bc,(ds_LSW)
-	ld a,(ds_HSB) ;TODO или в этом случае ss:disp?
-        ADDRSEGMENT_chl_bHSB
-        ret
-5 ;10x
-        bit 0,a
-        ld hl,(_SI)
-        jr z,8f
-        ld hl,(_DI)
-        jp 8f
-        
+        jr z,addrseg_ds
 ADDRm16_pp_segprefix
         push hl
         ld h,es_LSW/256
@@ -161,22 +143,27 @@ ADDRm16_pp_segprefix
         pop hl ;abc=?s*16
         ADDRSEGMENT_chl_bHSB
         ret
-        
-9 ;0xx
+ADDRm16_pp_i ;10x
+        bit 0,a
+        ld hl,(_SI)
+        jr z,ADDRm16_pp_ds
+        ld hl,(_DI)
+        jp ADDRm16_pp_ds
+ADDRm16_pp_sum ;0xx
         bit 0,a
         ld hl,(_SI)
         jr z,$+5
         ld hl,(_DI)
         bit 1,a
-        jp nz,ssbp_i;01?=[bp]+[?i]+disp
+        jp nz,ADDRm16_pp_ssbp_plusi;01?=[bp]+[?i]+disp
        push bc
         ld bc,(_BX) ;00?=[bx]+[?i]+disp
         add hl,bc
        pop bc
-8 ;ds:??+
+ADDRm16_pp_ds ;ds:??+
 ;MD=00: cmd [...] ;no disp
        cp 64
-       jr c,4f ;no disp
+       jr c,ADDRm16_pp_ds_nodisp
        ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
@@ -187,25 +174,28 @@ ADDRm16_pp_segprefix
         jr nc,$+3
         inc h
        bit 7,c
-       jr z,4f
+       jr z,ADDRm16_pp_ds_nodisp
 	get ;dispH
+	next
         add a,h
         ld h,a
-	next ;TODO optimize call z -> ret nz?
-4
+ADDRm16_pp_ds_nodisp
         bit 0,b
         jr nz,ADDRm16_pp_segprefix
+addrseg_ds
 	ld bc,(ds_LSW)
-	ld a,(ds_HSB) ;TODO segment prefix (if iy changed)
+	ld a,(ds_HSB)
         ADDRSEGMENT_chl_bHSB
         ret
 
 inch_nextsubsegment
-;c=page (%01..5432), b=?s_HSB
+;c=page (%01..5432), b=?s_HSB ;keep for GETm32
+;keep a
 ;hl=0xXX00
         inc h
         ret nz
        push af
+       push bc
         ld a,c ;c=page (%01..5432)
         add a,64
         adc a,0
@@ -218,8 +208,22 @@ inch_nextsubsegment
 	ld a,(bc)
 	SETPGC000
         ld h,0xc0
+       pop bc
        pop af
         ret
+
+        macro GETm8
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+	ld a,(hl)
+        endm
+        macro GETm8_c
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+	ld c,(hl)
+        endm
 
         macro GETm16
        push bc ;c=page (%01..5432), b=?s_HSB
@@ -233,7 +237,6 @@ inch_nextsubsegment
 	ld b,(hl)
         ld c,a
         endm
-
         macro GETm16_hl
        push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
@@ -244,20 +247,71 @@ inch_nextsubsegment
         inc l
         call z,inch_nextsubsegment
 	ld h,(hl)
-        ld c,a
+        ld l,a
+        endm
+        macro GETm16_de
+       push bc ;c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld a,(hl)
+        inc l
+        call z,inch_nextsubsegment
+	ld d,(hl)
+        ld e,a
         endm
 
-        macro GETm8
+        macro GETm32_l_h_c_b
+       push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
+       pop bc ;c=page (%01..5432), b=?s_HSB
 	ld a,(hl)
+_base_LSB_GETm32_l_h_c_b=$
+        ld ($+_shift_LSB_GETm32_l_h_c_b),a
+        inc l
+        call z,inch_nextsubsegment
+	ld a,(hl)
+_base_HSB_GETm32_l_h_c_b=$
+        ld ($+_shift_HSB_GETm32_l_h_c_b),a
+        inc l
+        call z,inch_nextsubsegment
+	ld a,(hl)
+        inc l
+        call z,inch_nextsubsegment
+	ld b,(hl)
+        ld c,a
+_shift_LSB_GETm32_l_h_c_b=$+1-_base_LSB_GETm32_l_h_c_b
+_shift_HSB_GETm32_l_h_c_b=$+2-_base_HSB_GETm32_l_h_c_b
+        ld hl,0
         endm
-        macro GETm8_c
+
+        macro GETm32_e_d_c_b
+       push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
-	ld c,(hl)
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld a,(hl)
+_base_LSB_GETm32_e_d_c_b=$
+        ld ($+_shift_LSB_GETm32_e_d_c_b),a
+        inc l
+        call z,inch_nextsubsegment
+	ld a,(hl)
+_base_HSB_GETm32_e_d_c_b=$
+        ld ($+_shift_HSB_GETm32_e_d_c_b),a
+        inc l
+        call z,inch_nextsubsegment
+	ld a,(hl)
+        inc l
+        call z,inch_nextsubsegment
+	ld b,(hl)
+        ld c,a
+_shift_LSB_GETm32_e_d_c_b=$+1-_base_LSB_GETm32_e_d_c_b
+_shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
+        ld de,0
         endm
 
         macro _PUTr16Loop_
@@ -301,11 +355,15 @@ encodeSPLoopC
 	SETPGC000
        pop bc ;bc=data
 	ld (hl),c
+;TODO перехват записи в экран
+        
         ld a,b
        pop bc ;c=page (%01..5432), b=?s_HSB
         inc l
         call z,inch_nextsubsegment
 	ld (hl),a
+;TODO перехват записи в экран
+        
        _LoopC
         endm
 
@@ -313,14 +371,15 @@ encodeSPLoopC
 ;hl=addr
 ;a=data
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
-_base_PUTm8LoopC=$
-        ld ($+_shift_PUTm8_cLoopC),a
        pop bc ;c=page (%01..5432), b=?s_HSB
+       push af
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
-_shift_PUTm8LoopC=$+1-_base_PUTm8LoopC
-	ld (hl),0
+       pop af
+	ld (hl),a
+;TODO перехват записи в экран
+        
        _LoopC
         endm
 
@@ -329,14 +388,15 @@ _shift_PUTm8LoopC=$+1-_base_PUTm8LoopC
 ;c=data
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
         ld a,c
-_base_PUTm8_cLoopC=$
-        ld ($+_shift_PUTm8_cLoopC),a
        pop bc ;c=page (%01..5432), b=?s_HSB
+       push af
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
-_shift_PUTm8_cLoopC=$+1-_base_PUTm8_cLoopC
-	ld (hl),0
+       pop af
+	ld (hl),a
+;TODO перехват записи в экран
+        
        _LoopC
         endm
 
@@ -414,7 +474,13 @@ MOVrmr8
         ld (hl),c
        _Loop_
 MOVrmmemr8
-       ADDRm16_for_PUTm8_and_do_GETr8
+       ADDRm16_for_PUTm8
+        ld b,_AX/256
+        or 0b11000000
+        ld c,a ;через ld (),a:ld bc:set 7,c:set 6,c та же скорость
+        ld a,(bc)
+        ld c,a ;r8 addr
+        ld a,(bc)
        _PUTm8LoopC
 
         ALIGNrm
@@ -2383,24 +2449,114 @@ TESTrmmemr16
        _LoopC
 
         ALIGNrm
-GRP416
-;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]
-;TODO узнать все коды!
+GRP48
+;a=MD000R/M: inc r/m8
+;a=MD001R/M: dec r/m8
 	get
 	next
-	cp 0b00100101
-	jp z,JMPWORDmDI
+       cp 0b11000000
+       jr c,GRP48mem
+	jr $;PANIC
+GRP48mem
 	jr $;PANIC
 
-;jmp word [di]
-;TODO для всех адресаций
-JMPWORDmDI
-	ld hl,(_DI)
-	getmemDS
-	ld e,a
-	ld hl,(_DI)
-	inc hl
-	getmemDS
-	ld d,a ;new PC
-       _LoopC_JP
+        ALIGNrm
+GRP416
+;a=MD000R/M: inc r/m16
+;a=MD001R/M: dec r/m16
+;a=MD010R/M: call r/m16
+;a=MD011R/M: callf m16:16 ;первым идет WORD для IP, потом для CS ;push cs; push ip
+;a=MD100R/M: jmp r/m16
+;a=MD101R/M: jmpf m16:16 ;первым идет WORD для IP, потом для CS ;push cs; push ip
+;a=MD110R/M: push r/m16
+;a=MD111R/M: ?
+	get
+	next
+       cp 0b11000000
+       jr c,GRP416mem
+       ADDRr16
+       and 0b00111000
+      if 0
+	jr z,INCr16
+	cp 0b00001000
+	jp z,DECr16
+	cp 0b00010000
+	jp z,CALLr16
+	;cp 0b00011000
+	;jp z,CALLFm1616
+	cp 0b00100000
+	jp z,JMPr16
+	;cp 0b00101000
+	;jp z,JMPFm1616
+	cp 0b00110000
+	jp z,PUSHrmmem16
+      endif
+	jr $;PANIC
+GRP416mem
+       push af
+       ADDRm16_for_GETm16
+       pop af
+       and 0b00111000
+	jr z,INCrmmem16
+	cp 0b00001000
+	jp z,DECrmmem16
+	cp 0b00010000
+	jp z,CALLrmmem16
+	cp 0b00011000
+	jp z,CALLFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+	cp 0b00100000
+	jp z,JMPrmmem16
+	cp 0b00101000
+	jp z,JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+	cp 0b00110000
+	jp z,PUSHrmmem16
+	jr $;PANIC
 
+INCrmmem16
+       push bc ;for PUTm16
+       push hl
+        GETm16
+	incbcwithflags
+       pop hl
+       _PUTm16LoopC
+DECrmmem16
+       push bc ;for PUTm16
+       push hl
+        GETm16
+	decbcwithflags
+       pop hl
+       _PUTm16LoopC
+CALLrmmem16
+        GETm16_hl
+        ex de,hl ;new IP(PC)
+        ld b,h
+        ld c,l ;=old IP(PC)
+        putmemspBC
+       _LoopC_JP
+CALLFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+        GETm32_l_h_c_b ;hl=new IP, bc=new CS
+;push cs; push ip (адрес после команды)
+       push hl
+       push bc
+        ld bc,(_CS) ;old CS
+        putmemspBC
+       pop bc
+       ld (_CS),bc ;new CS
+       countCS
+        LD b,d
+        ld c,e ;=old IP(PC)
+       pop de ;new IP(PC)
+        putmemspBC
+       _LoopC_JP
+JMPrmmem16
+        GETm16_de
+       _LoopC_JP
+JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+        GETm32_e_d_c_b ;hl=new IP, bc=new CS
+       ld (_CS),bc ;new CS
+       countCS
+       _LoopJP
+PUSHrmmem16
+        GETm16
+        putmemspBC
+       _LoopC

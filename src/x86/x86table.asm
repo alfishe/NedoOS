@@ -167,7 +167,7 @@ MAINCOMS
         DCOM XCHGaxdi
         DCOM CBWer
         DCOM CWDer
-        DCOM PANIC ;CALLptr1616
+        DCOM CALLptr1616
         DCOM PANIC ;FWAITer
         DCOM PANIC ;PUSHFer
         DCOM PANIC ;POPFer
@@ -252,7 +252,7 @@ MAINCOMS
         DCOM OUTi8ax
         DCOM CALLer
         DCOM JMPer
-        DCOM PANIC ;JMPptr1616
+        DCOM JMPptr1616
         DCOM JRer
         DCOM INaldx
         DCOM INaxdx
@@ -273,8 +273,8 @@ MAINCOMS
         DCOM STIer
         DCOM CLDer
         DCOM STDer
-        DCOM PANIC ;GRP48 ;???
-        DCOM GRP416 ;FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, так же можно PUSHrm+..., INCrm+... ;FF 25 = jmp word [di]
+        DCOM GRP48 ;inc/dec rm8
+        DCOM GRP416 ;inc/dec rm16, push rm16, FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, FF 25 = jmp word [di]
 
 	DISPLAY $-MAINCOMS,"=256"
         ORG $+256

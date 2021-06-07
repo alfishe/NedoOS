@@ -196,88 +196,12 @@ STACK=0x4000
 	memDS
 	pop af
 	ld (hl),a
+;TODO перехват записи в экран
+        
 	endm
 
 	macro getmemDS
 	memDS
-	ld a,(hl)
-	endm
-       endif
-
-       if 0
-	macro memES
-	ld bc,(es_LSW)
-	ld a,(es_HSB)
-        ADDSEGMENT_hl_abc_to_ahl
-	ld c,a
-	ld b,tpgs/256
-	ld a,h
-	or 0xc0
-	ld h,a
-	ld a,(bc)
-	SETPGC000
-	endm
-
-	macro putmemDS_c
-	push bc
-	memDS
-	pop bc
-	ld (hl),c
-	endm
-
-	macro putmemDS_bc
-        push hl
-	push bc
-	memDS
-	pop bc
-	ld (hl),c
-        pop hl
-        inc hl
-        push bc
-	memDS
-        pop bc
-        ld (hl),b
-	endm
-
-	macro putmemES
-	push af
-	memES
-	pop af
-	ld (hl),a
-	endm
-
-	macro getmemDS_c
-	memDS
-	ld c,(hl)
-	endm
-
-	macro getmemDS_bc
-        push hl
-        inc hl
-	memDS
-	ld a,(hl)
-        pop hl
-        push af
-	memDS
-        pop bc
-	ld c,(hl)
-	endm
-
-	macro getmemDS_hl
-        push hl
-        inc hl
-	memDS
-	ld a,(hl)
-        pop hl
-        push af
-	memDS
-        pop af
-	ld l,(hl)
-        ld h,a
-	endm
-
-	macro getmemES
-	memES
 	ld a,(hl)
 	endm
        endif
@@ -292,6 +216,8 @@ STACK=0x4000
        res 6,h
        set 7,h
 	ld (hl),b
+;TODO перехват записи в экран
+
        pop hl
 	call z,recountsp_dec
 	dec l
@@ -299,6 +225,8 @@ STACK=0x4000
        res 6,h
        set 7,h
 	ld (hl),c
+;TODO перехват записи в экран
+
 	endm
 
 	macro getmemspBC
@@ -422,6 +350,38 @@ STACK=0x4000
         exx
 	endm
 
+	macro incbcwithflags ;keep CY
+	ex af,af' ;'
+	ld hl,1
+	jr c,2f
+	adc hl,bc ;ZF,SF
+	ld a,h
+        exx
+	rra
+	ld e,a ;OF
+	scf
+	ccf ;NC
+	jp 8f
+2
+	or a
+	adc hl,bc ;ZF,SF
+	ld a,h
+        exx
+	rra
+	ld e,a ;OF
+	scf ;C
+8
+        exx
+	ex af,af' ;'
+	ld a,h
+	xor l
+        exx
+	ld d,a ;PF
+        exx
+        ld b,h
+        ld c,l
+	endm
+
 	macro dechlwithflags ;keep CY
 	ex af,af' ;'
 	ld bc,1
@@ -450,6 +410,14 @@ STACK=0x4000
         exx
 	ld d,a ;PF
         exx
+	endm
+
+	macro decbcwithflags ;keep CY
+        ld h,b
+        ld l,c
+        dechlwithflags
+        ld b,h
+        ld c,l
 	endm
 
         org PROGSTART
