@@ -177,22 +177,10 @@ STACK=0x4000
 	SETPG8000
 	endm
 
+       if 1 ;TODO подмена сегмента!!!
 	macro memDS
 	ld bc,(ds_LSW)
 	ld a,(ds_HSB)
-        ADDSEGMENT_hl_abc_to_ahl
-	ld c,a
-	ld b,tpgs/256
-	ld a,h
-	or 0xc0
-	ld h,a
-	ld a,(bc)
-	SETPGC000
-	endm
-
-	macro memES
-	ld bc,(es_LSW)
-	ld a,(es_HSB)
         ADDSEGMENT_hl_abc_to_ahl
 	ld c,a
 	ld b,tpgs/256
@@ -208,6 +196,26 @@ STACK=0x4000
 	memDS
 	pop af
 	ld (hl),a
+	endm
+
+	macro getmemDS
+	memDS
+	ld a,(hl)
+	endm
+       endif
+
+       if 0
+	macro memES
+	ld bc,(es_LSW)
+	ld a,(es_HSB)
+        ADDSEGMENT_hl_abc_to_ahl
+	ld c,a
+	ld b,tpgs/256
+	ld a,h
+	or 0xc0
+	ld h,a
+	ld a,(bc)
+	SETPGC000
 	endm
 
 	macro putmemDS_c
@@ -236,11 +244,6 @@ STACK=0x4000
 	memES
 	pop af
 	ld (hl),a
-	endm
-
-	macro getmemDS
-	memDS
-	ld a,(hl)
 	endm
 
 	macro getmemDS_c
@@ -277,6 +280,7 @@ STACK=0x4000
 	memES
 	ld a,(hl)
 	endm
+       endif
 
 	macro putmemspBC
         LD HL,(_SP)
@@ -522,7 +526,6 @@ jpiyer
 oldpc
         dw 0       endif
 EMUCHECKQ
-;если был сегментный префикс, то iy!=EMUCHECKQ, b=адрес сегментного регистра+1
        if 1 ;debug
        ld a,d
        sub 0x7c
@@ -534,10 +537,10 @@ oldpc
         next
 	LD L,A
         ld H,MAINCOMS/256
-        LD a,(HL)
+        LD b,(HL)
         INC H
         LD H,(HL)
-        ld L,a
+        ld L,b ;чётный для всех rm-команд
         JP (HL) 
 
 ;de=имя файла;hl=куда грузим (0xc000)
@@ -736,7 +739,7 @@ iff2	db 0 ;TODO unneeded?
 timer
 	dw 0
         
-        ds _AX+0x30-$
+        ds _ES+0x20-$
 ;0x30
 es_LSW	dw 0
 cs_LSW	dw 0

@@ -1,65 +1,54 @@
 PANIC
 	jr $
 
+;на входе в команду:
+;без сегментного префикса: b=l(адрес обработчика)
+;с сегментным префиксом: b=?s_LSW+1(нечётный)
+;все обработчики rm-команд по чётному адресу
 DSer
-        ld a,(ss_HSB)
-        ld hl,(ss_LSW)
-        push af
-        push hl
-        ld a,(ds_HSB)
-        ld hl,(ds_LSW)
-	ld (ss_LSW),hl
-	ld (ss_HSB),a
-        ld iy,DSerq
-        jp EMUCHECKQ
-DSerq
-        pop hl
-        pop af
-	ld (ds_LSW),hl
-	ld (ds_HSB),a
-        ld iy,EMUCHECKQ
-       _Loop_
-
+        ld b,1+(ds_HSB&0xff)
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD a,(HL)
+        INC H
+        LD H,(HL)
+        ld L,a
+        JP (HL) 
 CSer
-        ld a,(ds_HSB)
-        ld hl,(ds_LSW)
-        push af
-        push hl
-        ld a,(cs_HSB)
-        ld hl,(cs_LSW)
-	ld (ds_LSW),hl
-	ld (ds_HSB),a
-        ld iy,CSerq
-        jp EMUCHECKQ
+        ld b,1+(cs_HSB&0xff)
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD a,(HL)
+        INC H
+        LD H,(HL)
+        ld L,a
+        JP (HL) 
 ESer
-        ld a,(ds_HSB)
-        ld hl,(ds_LSW)
-        push af
-        push hl
-        ld a,(es_HSB)
-        ld hl,(es_LSW)
-	ld (ds_LSW),hl
-	ld (ds_HSB),a
-        ld iy,CSerq
-        jp EMUCHECKQ
+        ld b,1+(es_HSB&0xff)
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD a,(HL)
+        INC H
+        LD H,(HL)
+        ld L,a
+        JP (HL) 
 SSer
-        ld a,(ds_HSB)
-        ld hl,(ds_LSW)
-        push af
-        push hl
-        ld a,(ss_HSB)
-        ld hl,(ss_LSW)
-	ld (ds_LSW),hl
-	ld (ds_HSB),a
-        ld iy,CSerq
-        jp EMUCHECKQ
-CSerq
-        pop hl
-        pop af
-	ld (ds_LSW),hl
-	ld (ds_HSB),a
-        ld iy,EMUCHECKQ
-       _Loop_
+        ld b,1+(ss_HSB&0xff)
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD a,(HL)
+        INC H
+        LD H,(HL)
+        ld L,a
+        JP (HL) 
 
 CLIer
         xor a
@@ -293,6 +282,7 @@ MOVbhi8
        _Loop_
 
 ;mov [addr],ax
+;TODO подмена сегмента
 MOVmemax
 	getHL
 	push hl
@@ -304,12 +294,14 @@ MOVmemax
 	putmemDS
        _LoopC
 ;mov [addr],al
+;TODO подмена сегмента
 MOVmemal
 	getHL
 	ld a,(_AL) ;al
 	putmemDS
        _LoopC
 ;mov ax,[addr]
+;TODO подмена сегмента
 MOVaxmem
 	getHL
 	push hl
@@ -321,6 +313,7 @@ MOVaxmem
 	ld (_AH),a ;ah
        _LoopC
 ;mov al,[addr]
+;TODO подмена сегмента
 MOValmem
 	getHL
 	getmemDS
@@ -578,17 +571,6 @@ JMPer
         ex de,hl ;new PC
        _LoopC_JP
 
-;jmp word [di]
-JMPWORDmDI
-	ld hl,(_DI)
-	getmemDS
-	ld e,a
-	ld hl,(_DI)
-	inc hl
-	getmemDS
-	ld d,a ;new PC
-       _LoopC_JP
-
 	macro XCHGAXRP rp
 	ld bc,(rp)
         ld hl,(_AX)
@@ -637,6 +619,7 @@ REPNZer
 	;jp z,REPSCASWer
 	jp PANIC
 
+;TODO подмена сегмента
 MOVSBer
 	ld hl,(_SI)
 	getmemDS
@@ -658,6 +641,7 @@ MOVSBer
        _LoopC
 
 ;rep cmpsb
+;TODO подмена сегмента
 REPMOVSBer
 	ld hl,(_SI)
 	getmemDS
@@ -689,6 +673,7 @@ REPMOVSBer_repeat
         dec de ;new PC 
        _LoopC_JP
 
+;TODO подмена сегмента
 SCASBer
 	ld hl,(_SI)
 	getmemDS
@@ -706,6 +691,7 @@ SCASBer
        _LoopC
 
 ;repnz scasb
+;TODO подмена сегмента
 REPSCASBer
 	ld hl,(_SI)
 	getmemDS
@@ -736,6 +722,7 @@ REPSCASBer_repeat
         dec de ;new PC 
        _LoopC_JP
 
+;TODO подмена сегмента
 CMPSBer
 	ld hl,(_SI)
 	getmemDS
@@ -761,6 +748,7 @@ CMPSBer
        _LoopC
 
 ;repz cmpsb
+;TODO подмена сегмента
 REPCMPSBer
 	ld hl,(_SI)
 	getmemDS
@@ -802,6 +790,7 @@ REPCMPSBer_repeat
         dec de ;new PC 
        _LoopC_JP
 
+;TODO подмена сегмента
 LODSBer
 	ld hl,(_SI)
 	getmemDS
@@ -818,6 +807,7 @@ LODSBer
 ;dec cx не надо!
        _LoopC
 
+;TODO подмена сегмента
 LODSWer
 	ld hl,(_SI)
 	getmemDS
@@ -841,6 +831,7 @@ LODSWer
 ;dec cx не надо!
        _LoopC
 
+;TODO подмена сегмента
 STOSBer
 	ld a,(_AL) ;al
 	ld hl,(_DI)
@@ -857,6 +848,7 @@ STOSBer
 ;dec cx не надо!
        _LoopC
 
+;TODO подмена сегмента
 STOSWer
 	ld a,(_AL) ;al
 	ld hl,(_DI)
