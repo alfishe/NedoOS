@@ -7,11 +7,41 @@
         ld h,_AX/256
         ld a,c
         endm
+
         macro GETr16
         ld c,(hl)
         inc l
         ld b,(hl)
         endm
+
+        macro _PUTr16Loop_
+;hl is kept since ADDRr16
+        ld a,l
+        ld (hl),c
+        inc l
+        ld (hl),b
+        cp _SP&0xff
+        jp z,encodeSPLoop ;TODO ret z
+       _Loop_
+        endm
+
+        macro _PUTr16LoopC
+;hl is kept since ADDRr16
+        ld a,l
+        ld (hl),c
+        inc l
+        ld (hl),b
+        cp _SP&0xff
+        jp z,encodeSPLoopC ;TODO ret z
+       _LoopC
+        endm
+
+encodeSPLoop
+encodeSPLoopC
+        ld h,b
+        ld l,c
+        encodeSP
+       _Loop_
 
         macro ADDRSEGMENT_chl_bHSB
 ;hl=addr
@@ -113,7 +143,7 @@ ADDRm16_pp_ss_nodisp
 ;111=[bx]+disp       
 ;a=r/m byte
 ;b=?s_LSW+1 (если нечётный, а иначе сегмент по умолчанию)
-;out: hl=addr, abc=?s*16
+;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
 ADDRm16_pp
         bit 2,a
         jr z,ADDRm16_pp_sum ;ds:b?+?i+
@@ -180,6 +210,8 @@ ADDRm16_pp_ds ;ds:??+
         add a,h
         ld h,a
 ADDRm16_pp_ds_nodisp
+;вызывается из MOVaxmem
+;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
         bit 0,b
         jr nz,ADDRm16_pp_segprefix
 addrseg_ds
@@ -314,59 +346,6 @@ _shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
         ld de,0
         endm
 
-        macro _PUTr16Loop_
-;hl is kept since ADDRr16
-        ld a,l
-        ld (hl),c
-        inc l
-        ld (hl),b
-        cp _SP&0xff
-        jp z,encodeSPLoop ;TODO ret z
-       _Loop_
-        endm
-
-encodeSPLoop
-encodeSPLoopC
-        ld h,b
-        ld l,c
-        encodeSP
-       _Loop_
-
-        macro _PUTr16LoopC
-;hl is kept since ADDRr16
-        ld a,l
-        ld (hl),c
-        inc l
-        ld (hl),b
-        cp _SP&0xff
-        jp z,encodeSPLoopC ;TODO ret z
-       _LoopC
-        endm
-
-        macro _PUTm16LoopC
-;hl=addr
-;bc=data
-;(sp)=(l=page (%01..5432), h=?s_HSB)
-       ex (sp),hl ;l=page (%01..5432), h=?s_HSB
-	ld h,tpgs/256
-	ld a,(hl)
-       ex (sp),hl ;hl=addr
-       push bc ;bc=data
-	SETPGC000
-       pop bc ;bc=data
-	ld (hl),c
-;TODO перехват записи в экран
-        
-        ld a,b
-       pop bc ;c=page (%01..5432), b=?s_HSB
-        inc l
-        call z,inch_nextsubsegment
-	ld (hl),a
-;TODO перехват записи в экран
-        
-       _LoopC
-        endm
-
         macro _PUTm8LoopC
 ;hl=addr
 ;a=data
@@ -400,9 +379,29 @@ encodeSPLoopC
        _LoopC
         endm
 
-       macro ALIGNrm
-        align 2
-       endm
+        macro _PUTm16LoopC
+;hl=addr
+;bc=data
+;(sp)=(l=page (%01..5432), h=?s_HSB)
+       ex (sp),hl ;l=page (%01..5432), h=?s_HSB
+	ld h,tpgs/256
+	ld a,(hl)
+       ex (sp),hl ;hl=addr
+       push bc ;bc=data
+	SETPGC000
+       pop bc ;bc=data
+	ld (hl),c
+;TODO перехват записи в экран
+        
+        ld a,b
+       pop bc ;c=page (%01..5432), b=?s_HSB
+        inc l
+        call z,inch_nextsubsegment
+	ld (hl),a
+;TODO перехват записи в экран
+        
+       _LoopC
+        endm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ALIGNrm

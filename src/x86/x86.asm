@@ -7,6 +7,9 @@ STACK=0x4000
 ;SP=0x8000...
 ;data=0xC000...
 
+       macro ALIGNrm
+        align 2
+       endm
 
         MACRO _Loop_
         JP (IY) ;EMULOOP (нужный marg или нужный обработчик b/p)

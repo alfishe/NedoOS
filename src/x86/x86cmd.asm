@@ -4,7 +4,7 @@ PANIC
 ;на входе в команду:
 ;без сегментного префикса: b=l(адрес обработчика)
 ;с сегментным префиксом: b=?s_LSW+1(нечётный)
-;все обработчики rm-команд по чётному адресу
+;все обработчики rm-команд (и вообще команд с подменой сегмента) по чётному адресу
 DSer
         ld b,1+(ds_HSB&0xff)
         get
@@ -281,43 +281,58 @@ MOVbhi8
 	ld (_BH),a
        _Loop_
 
-;mov [addr],ax
-;TODO подмена сегмента
-MOVmemax
-	getHL
-	push hl
-	ld a,(_AL) ;al
-	putmemDS
-	pop hl
-	inc hl
-	ld a,(_AH) ;al
-	putmemDS
-       _LoopC
 ;mov [addr],al
 ;TODO подмена сегмента
+        ALIGNrm
 MOVmemal
 	getHL
-	ld a,(_AL) ;al
-	putmemDS
+        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+        ld a,(_AL)
+	ld (hl),a
+;TODO перехват записи в экран
+        
        _LoopC
-;mov ax,[addr]
-;TODO подмена сегмента
-MOVaxmem
+
+;mov [addr],ax
+        ALIGNrm
+MOVmemax
 	getHL
-	push hl
-	getmemDS
-	ld (_AL),a ;al
-	pop hl
-	inc hl
-	getmemDS
-	ld (_AH),a ;ah
-       _LoopC
+        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+       push bc
+        ld bc,(_AX) ;TODO спецверсию PUTm16
+       _PUTm16LoopC
+
 ;mov al,[addr]
-;TODO подмена сегмента
+        ALIGNrm
 MOValmem
 	getHL
-	getmemDS
-	ld (_AL),a ;al
+        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+	ld a,(hl)
+	ld (_AL),a
+       _LoopC
+
+;mov ax,[addr]
+        ALIGNrm
+MOVaxmem
+	getHL
+        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+       push bc ;c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld a,(hl)
+        inc l
+        call z,inch_nextsubsegment
+	ld b,(hl)
+        ld c,a
+	ld (_AX),bc
        _LoopC
 
 INCax
