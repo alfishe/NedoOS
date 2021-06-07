@@ -221,13 +221,12 @@ addrseg_ds
         ret
 
 inch_nextsubsegment
-;c=page (%01..5432), b=?s_HSB ;keep for GETm32
+;c=page (%01..5432), b=?s_HSB ;keep updated for GETm32
 ;keep a
-;hl=0xXX00
+;hl=0xXX00 ;keep updated
         inc h
         ret nz
        push af
-       push bc
         ld a,c ;c=page (%01..5432)
         add a,64
         adc a,0
@@ -236,6 +235,7 @@ inch_nextsubsegment
        cp b ;b=?s_HSB
        jr nz,$+3
        dec c ;если читать слово из [?s:ffff], то второй байт читается из [?s:0000]
+       push bc
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
@@ -351,14 +351,15 @@ _shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
 ;a=data
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
        pop bc ;c=page (%01..5432), b=?s_HSB
-       push af
+       push bc
 	ld b,tpgs/256
+       push af
 	ld a,(bc)
 	SETPGC000
        pop af
 	ld (hl),a
-;TODO перехват записи в экран
-        
+       pop bc
+       _PUTscreen_logpgc_zxaddrhl_datamhl
        _LoopC
         endm
 
@@ -368,14 +369,15 @@ _shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
 ;(sp)=(l=page (%01..5432), h=?s_HSB)
         ld a,c
        pop bc ;c=page (%01..5432), b=?s_HSB
-       push af
+       push bc
 	ld b,tpgs/256
+       push af
 	ld a,(bc)
 	SETPGC000
        pop af
 	ld (hl),a
-;TODO перехват записи в экран
-        
+       pop bc
+       _PUTscreen_logpgc_zxaddrhl_datamhl
        _LoopC
         endm
 
@@ -391,15 +393,13 @@ _shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
 	SETPGC000
        pop bc ;bc=data
 	ld (hl),c
-;TODO перехват записи в экран
-        
         ld a,b
        pop bc ;c=page (%01..5432), b=?s_HSB
+       _PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
         inc l
         call z,inch_nextsubsegment
 	ld (hl),a
-;TODO перехват записи в экран
-        
+       _PUTscreen_logpgc_zxaddrhl_datamhl
        _LoopC
         endm
 

@@ -72,22 +72,22 @@ STDer
        _Loop_
 
 CLCer
-	ex af,af'
+	ex af,af' ;'
 	scf
 	ccf
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 STCer
-	ex af,af'
+	ex af,af' ;'
 	scf
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 CMCer
-	ex af,af'
+	ex af,af' ;'
 	ccf
-	ex af,af'
+	ex af,af' ;'
        _Loop_
 
 PUSHi8
@@ -282,18 +282,18 @@ MOVbhi8
        _Loop_
 
 ;mov [addr],al
-;TODO подмена сегмента
         ALIGNrm
 MOVmemal
 	getHL
         call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+       push bc
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
         ld a,(_AL)
 	ld (hl),a
-;TODO перехват записи в экран
-        
+       pop bc
+       _PUTscreen_logpgc_zxaddrhl_datamhl
        _LoopC
 
 ;mov [addr],ax

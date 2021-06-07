@@ -11,6 +11,16 @@ STACK=0x4000
         align 2
        endm
 
+       macro _PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
+;keep a,bc,hl,pagec000
+        call PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
+       endm
+
+       macro _PUTscreen_logpgc_zxaddrhl_datamhl
+;keep pagec000
+        call PUTscreen_logpgc_zxaddrhl_datamhl
+       endm
+
         MACRO _Loop_
         JP (IY) ;EMULOOP (нужный marg или нужный обработчик b/p)
         ENDM 
@@ -665,6 +675,42 @@ IMERIM
         putmemspBC ;TODO а CS куда?
        _LoopC_JP 
 
+;keep a,bc,hl,pagec000
+PUTscreen_logpgc_zxaddrhl_datamhl
+PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
+        push af ;TODO
+        push bc ;TODO
+;check: это экранная страница и какой её номер в экране?
+        ld b,tscreenpgs/256
+        ld a,(bc)
+        or a
+        jr nz,PUTscreen_logpgc_zxaddrhl_datamhl_do
+        pop bc ;TODO
+        pop af ;TODO
+        ret
+PUTscreen_logpgc_zxaddrhl_datamhl_do
+        push hl ;TODO
+;TODO пересчёт ahl в x,y
+
+;TODO пересчёт x,y в ahl+left/right (ветвление?) для EGA
+        
+        SETPGC000
+;TODO корректировать точку
+     ld a,(hl)
+     cpl
+     ld (hl),a    
+        pop hl ;TODO
+        SETPGC000
+        pop bc
+        push bc
+        ld b,tpgs/256
+        ld a,(bc)
+        SETPGC000 ;как было
+        pop bc
+        pop af
+        ret
+
+
 	include "rmbyte.asm"
 	include "x86cmd.asm"
 	include "x86math.asm"
@@ -674,6 +720,8 @@ IMERIM
         align 256
 tpgs
         ds 256 ;%10765432
+tscreenpgs
+        ds 256 ;%10765432 ;номер страницы в экране или 0, если не экранная
 
         align 256
 ;8 r16s
