@@ -79,17 +79,80 @@ ADDRm16_pp
 ;7
         ret
 
+inch_nextsubsegment
+;c=page (%01..5432), b=?s_HSB
+;hl=0xXX00
+        inc h
+        ret nz
+       push af
+        ld a,c ;c=page (%01..5432)
+        add a,64
+        adc a,0
+        ld c,a
+       dec a
+       cp b ;b=?s_HSB
+       jr nz,$+3
+       dec c ;если читать слово из [?s:ffff], то второй байт читается из [?s:0000]
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+        ld h,0xc0
+       pop af
+        ret
+
+        macro ADDRSEGMENT_chl_bHSB
+	ld bc,(ds_LSW)
+	ld a,(ds_HSB)
+       push af
+        ADDSEGMENT_hl_abc_to_ahl
+       pop bc
+	ld c,a
+	ld a,h
+	or 0xc0
+	ld h,a
+        endm
+
         macro GETm16
-        getmemDS_bc
+        ADDRSEGMENT_chl_bHSB
+       push bc ;c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld a,(hl)
+        inc l
+        call z,inch_nextsubsegment
+	ld b,(hl)
+        ld c,a
         endm
+
         macro GETm16_hl
-        getmemDS_hl
+        ADDRSEGMENT_chl_bHSB
+       push bc ;c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld a,(hl)
+        inc l
+        call z,inch_nextsubsegment
+	ld h,(hl)
+        ld c,a
         endm
+
         macro GETm8
-        getmemDS ;a
+        ADDRSEGMENT_chl_bHSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+	ld a,(hl)
         endm
         macro GETm8_c
-        getmemDS_c
+        ADDRSEGMENT_chl_bHSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+	ld c,(hl)
         endm
 
         macro _PUTr16Loop_
@@ -122,17 +185,65 @@ encodeSPLoopC
         endm
 
         macro _PUTm16LoopC
-        putmemDS_bc
+        ld (0),bc ;ok
+        ADDRSEGMENT_chl_bHSB
+       push bc ;c=page (%01..5432), b=?s_HSB
+        ld bc,(0) ;ok ;TODO ADDRSEGMENT_chl_bHSB в ADDRm16, push bc в начале команды, а останется только то, что ниже
+       
+;hl=addr
+;bc=data
+       ex (sp),hl ;l=page (%01..5432), h=?s_HSB
+	ld h,tpgs/256
+	ld a,(hl)
+       ex (sp),hl
+       push bc
+	SETPGC000
+       pop bc
+	ld (hl),c
+        ld a,b
+       pop bc ;c=page (%01..5432), b=?s_HSB
+        inc l
+        call z,inch_nextsubsegment
+	ld (hl),a
        _LoopC
         endm
 
         macro _PUTm8LoopC
-        putmemDS ;a
+        ld (0),a ;ok
+        ADDRSEGMENT_chl_bHSB
+       push bc ;c=page (%01..5432), b=?s_HSB
+        ld a,(0) ;ok ;TODO ADDRSEGMENT_chl_bHSB в ADDRm16, push bc в начале команды, а останется только то, что ниже
+       
+;hl=addr
+;a=data
+_base_PUTm8LoopC=$
+        ld ($+_shift_PUTm8_cLoopC),a
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+_shift_PUTm8LoopC=$+1-_base_PUTm8LoopC
+	ld (hl),0
        _LoopC
         endm
 
         macro _PUTm8_cLoopC
-        putmemDS_c
+        ld (0),bc ;ok
+        ADDRSEGMENT_chl_bHSB
+       push bc ;c=page (%01..5432), b=?s_HSB
+        ld bc,(0) ;ok ;TODO ADDRSEGMENT_chl_bHSB в ADDRm16, push bc в начале команды, а останется только то, что ниже
+       
+;hl=addr
+;c=data
+        ld a,c
+_base_PUTm8_cLoopC=$
+        ld ($+_shift_PUTm8_cLoopC),a
+       pop bc ;c=page (%01..5432), b=?s_HSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+_shift_PUTm8_cLoopC=$+1-_base_PUTm8_cLoopC
+	ld (hl),0
        _LoopC
         endm
 

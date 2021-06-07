@@ -143,16 +143,20 @@ STACK=0x4000
 	ld (es_HSB),a
 	endm
 
-	macro memCS
-        ld a,h
-        ld (pc_high),a
-	ld bc,(cs_LSW)
+        macro ADDSEGMENT_hl_abc_to_ahl
 	add hl,bc
-	ld a,(cs_HSB)
 	adc a,0
 	xor h
 	and 0x3f
 	xor h ;a = номер страницы (%01..5432)
+        endm
+
+	macro memCS
+        ld a,h
+        ld (pc_high),a
+	ld bc,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDSEGMENT_hl_abc_to_ahl
 	ld c,a
 	ld b,tpgs/256
 	res 7,h
@@ -163,12 +167,8 @@ STACK=0x4000
 
 	macro memSS
 	ld bc,(ss_LSW)
-	add hl,bc
 	ld a,(ss_HSB)
-	adc a,0
-	xor h
-	and 0x3f
-	xor h ;a = номер страницы (%01..5432)
+        ADDSEGMENT_hl_abc_to_ahl
 	ld c,a
 	ld b,tpgs/256
 	set 7,h
@@ -179,12 +179,8 @@ STACK=0x4000
 
 	macro memDS
 	ld bc,(ds_LSW)
-	add hl,bc
 	ld a,(ds_HSB)
-	adc a,0
-	xor h
-	and 0x3f
-	xor h ;a = номер страницы (%01..5432)
+        ADDSEGMENT_hl_abc_to_ahl
 	ld c,a
 	ld b,tpgs/256
 	ld a,h
@@ -196,12 +192,8 @@ STACK=0x4000
 
 	macro memES
 	ld bc,(es_LSW)
-	add hl,bc
 	ld a,(es_HSB)
-	adc a,0
-	xor h
-	and 0x3f
-	xor h ;a = номер страницы (%01..5432)
+        ADDSEGMENT_hl_abc_to_ahl
 	ld c,a
 	ld b,tpgs/256
 	ld a,h
