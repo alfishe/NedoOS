@@ -3149,6 +3149,9 @@ BDOS_get_config
     else
         ld l,atm
     endif
+    ld a,(sys_pgdos)
+    ld d,a
+    ld e,pgsys
     ret
         
 ;*****************…„Š“Œ…’ˆ‚€›…*********************

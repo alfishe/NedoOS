@@ -8,6 +8,9 @@ cmd_begin
         ld e,3 ;6912
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         YIELD ;set palette
+        OS_GETMAINPAGES
+        ld (reset_hook_place+5),de
+        ld (reset_hook_place+7),hl
 
         ;OS_GETSCREENPAGES
 ;de=pages of screen 0 (d=higher page), hl=pages of screen 1 (h=higher page)
@@ -23,6 +26,37 @@ hobetarunner=0x4100
         ld de,hobetarunner
         ld bc,hobetarunner_sz
         ldir
+    OS_GETCONFIG
+    ld (reset_hook_place+3),de
+    ld a,l
+    ld (pcconf),a
+    cp 2
+    jr z,set_hook
+    cp 3
+    jr nz,not_set_hook
+set_hook
+    ld a,(0x1f^0xff)&0x7f
+    SETPGC000
+    ld hl,reset_hook_place
+    ld de,0xc000
+    ld bc,reset_hook_end - reset_hook_begin
+    ldir
+    ld hl,0xaa55
+    ld (0xfffe),hl
+    xor a
+    ld (0xfffd),a
+    ld hl,0xc000
+    ld e,a
+hook_crc_loop
+    add a,(hl)
+    adc a,e
+    inc hl
+    bit 7,h
+    jr nz,hook_crc_loop
+    neg
+    ld (0xfffd),a
+not_set_hook
+
 cmdpgscreen0_0=$+1
 	ld a,0xff-1
 	SETPG32KLOW
@@ -44,6 +78,7 @@ cmdpgscreen0_0=$+1
         ;lddr
 	jp hobetarunner
 
+    
 washobetarunner
 ;pgsys=pagexor-10
 ;pgfatfs=pagexor-9
@@ -120,24 +155,73 @@ washobetarunner
     ld a,0x10
     ld bc,0x7ffd
     out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+pcconf=$+1
+    ld a,1
+    cp 2
+    jr z,set_xbios
+    cp 3
+    jr nz,not_set_xbios
+set_xbios
     ld a,(0x3CBC)
     cp 0x87
     call z,0x3C9E   ;переключить в vtrdos
     ;ld bc,0x0001    ;хотресет втрдоса, на всякий случай, может и ненадо
     ;call 0x3D42
-    ;ld bc,0x0001    ;хотресет втрдоса, на всякий случай, может и ненадо
-    ;call 0x3D42
-    
-    
-         ld a,0
-         ld bc,0x7ffd
-         out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+not_set_xbios   
+    ld a,0
+    ld bc,0x7ffd
+    out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
 	ei
 hobetarunner_jp=$+1
 	jp 0;0x6000
+;АТМный перехватчик ресета
         ent
 hobetarunner_sz=$-washobetarunner
-
+reset_hook_place
+        disp 0xc000
+reset_hook_begin
+    jp reset_hook_start
+    defs 10
+reset_hook_start
+    di
+    xor a
+    ld (reset_hook_begin),a
+    ld hl,reset_hook_begin
+    ld de,0x8000
+    ld bc,reset_hook_end - reset_hook_begin
+    ldir
+    jp $ + 3 - 0x4000
+    ld a,(0x8003)
+    ld bc,0x3FF7
+    out (c),a
+    ld a,0x7b
+    ld b,0x7f
+    out (c),a
+    ld b,0xff
+    out (c),a
+    ld a,0x47
+    ld bc,0x7ffd
+    out (c),a
+    ld hl,(0x8005)
+    ld bc,0x3FF7
+    out (c),h
+    ld b,0x7F
+    out (c),l
+    ld hl,(0x8007)
+    ;ld b,0xbF
+    ;out (c),h
+    ld b,0xfF
+    out (c),l
+    ld bc,0xbd77
+    ld a,0xae
+    out (c),a
+    ld sp,0x4000
+    im 1
+    ei
+    jp 0x0000
+reset_hook_end
+        ent
+    nop
 cmd_end
 
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
