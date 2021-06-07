@@ -13,25 +13,30 @@
         ld b,(hl)
         endm
 
-;000=[bx]+[si]+disp
-;001=[bx]+[di]+disp
-;010=[bp]+[si]+disp ;TODO ss:
-;011=[bp]+[di]+disp ;TODO ss:
-;100=[si]+disp
-;101=[di]+disp
-;110=[bp]+disp ;TODO ss: ;за исключением случая mod=00 и rm=110, когда EA равен старшему и младшему байтам смещения (какой сегмент?)
-;111=[bx]+disp       
+        macro ADDRSEGMENT_chl_bHSB
+;hl=addr
+;abc=?s*16
+       push af
+        ADDSEGMENT_hl_abc_to_ahl
+       pop bc
+	ld c,a
+	ld a,h
+	or 0xc0
+	ld h,a
+;c=page (%01..5432), b=?s_HSB
+        endm
+
         macro ADDRm16_for_GETm8 ;for MOVr8rmmem, OPr8rmmem, TESTrmmemr8, CMPrmmemr8 (в CMPrmmemi8 GET_PUTm8 и pop af, TODO TESTrmmemi8)
          push af
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
          pop af
         endm ;GET делать сразу! по bc,hl
         
         macro ADDRm16_for_PUTm8_and_do_GETr8 ;for MOVrmmemr8
          push af
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
          pop af
        push bc ;c=page (%01..5432), b=?s_HSB ;TODO сэкономить 4 такта через push hl и особую версию PUTm8
         ld b,_AX/256
@@ -44,33 +49,33 @@
         
         macro ADDRm16_for_PUTm8_nokeepcmd ;for MOVrmmemi8
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
        push bc ;c=page (%01..5432), b=?s_HSB
         endm
         
         macro ADDRm16_for_GET_PUTm8 ;for OPrmmemi8/r8, ROLm8...
          push af
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
          pop af
        push bc ;c=page (%01..5432), b=?s_HSB
         endm ;GET делать сразу! по bc,hl
         
         macro ADDRm16_for_GETm16 ;for MOVr16rmmem, MOVsregrmmem, CMPrmr16, OPr16rmmem, TESTrmmemr16
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
         endm ;GET делать сразу! по bc,hl
         
         macro ADDRm16_for_PUTm16_nokeepcmd ;for MOVrmmemi16
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
        push bc ;c=page (%01..5432), b=?s_HSB
         endm
         
         macro ADDRm16_for_PUTm16 ;for MOVrmmemr16/sreg
          push af
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
          pop af
        push bc ;c=page (%01..5432), b=?s_HSB
         endm
@@ -78,23 +83,28 @@
         macro ADDRm16_for_GET_PUTm16 ;for OPrmmemi16/r16, ROLm16..., TESTrmmemi16, MULrmmem16...
          push af
         call ADDRm16_pp
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
          pop af
        push bc ;c=page (%01..5432), b=?s_HSB
         endm ;GET делать сразу! по bc,hl
         
+;000=[bx]+[si]+disp
+;001=[bx]+[di]+disp
+;010=[bp]+[si]+disp ;TODO ss:
+;011=[bp]+[di]+disp ;TODO ss:
+;100=[si]+disp
+;101=[di]+disp
+;110=[bp]+disp ;TODO ss: ;за исключением случая mod=00 и rm=110, когда EA равен старшему и младшему байтам смещения (какой сегмент?)
+;111=[bx]+disp       
 ;a=r/m byte
 ;out: hl=addr, abc=?s*16
 ADDRm16_pp
-        bit 0,a
-        ld hl,(_SI)
-        jr z,$+5
-        ld hl,(_DI)
         bit 2,a
         jr z,9f ;ds:??+
 ;1xx
         bit 1,a
-        jr z,8f ;ds:??+
+        jr z,5f ;ds:?i+
+;11x
         bit 0,a
         ld hl,(_BX)
         jr nz,8f ;ds:??+
@@ -106,8 +116,19 @@ ADDRm16_pp
         ;jp 4f
 	ld bc,(ss_LSW)
 	ld a,(ss_HSB) ;TODO segment prefix (if iy changed) ;TODO или в этом случае ss:disp?
+        ADDRSEGMENT_chl_bHSB
         ret
-9 ;0xx ;ds:??+
+5 ;10x
+        bit 0,a
+        ld hl,(_SI)
+        jr z,8f
+        ld hl,(_DI)
+        jp 8f
+9 ;0xx
+        bit 0,a
+        ld hl,(_SI)
+        jr z,$+5
+        ld hl,(_DI)
         bit 1,a
         jr nz,6f    ;01?=[bp]+[?i]+disp
         ld bc,(_BX) ;00?=[bx]+[?i]+disp
@@ -134,12 +155,13 @@ ADDRm16_pp
 4
 	ld bc,(ds_LSW)
 	ld a,(ds_HSB) ;TODO segment prefix (if iy changed)
+        ADDRSEGMENT_chl_bHSB
         ret
 
 6 ;ss:bp+?i+
         ld bc,(_BP)
         add hl,bc
-7 ;ss:bp+ ;не бывает nodisk, отсеяно выше
+7 ;ss:bp+ ;не бывает nodisp, отсеяно выше
        ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
@@ -158,6 +180,7 @@ ADDRm16_pp
 4
 	ld bc,(ss_LSW)
 	ld a,(ss_HSB) ;TODO segment prefix (if iy changed)
+        ADDRSEGMENT_chl_bHSB
         ret
 
 inch_nextsubsegment
@@ -180,19 +203,6 @@ inch_nextsubsegment
         ld h,0xc0
        pop af
         ret
-
-        macro ADDRSEGMENT_chl_bHSB
-;hl=addr
-;abc=?s*16
-       push af
-        ADDSEGMENT_hl_abc_to_ahl
-       pop bc
-	ld c,a
-	ld a,h
-	or 0xc0
-	ld h,a
-;c=page (%01..5432), b=?s_HSB
-        endm
 
         macro GETm16
        push bc ;c=page (%01..5432), b=?s_HSB

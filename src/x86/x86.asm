@@ -518,21 +518,26 @@ jpiyer
         ld hl,jpiyer
         push hl
         jp (iy)
-oldpc
-        dw 0EMUCHECKQ
+       if 1 ;debug
+oldpc
+        dw 0       endif
+EMUCHECKQ
+;если был сегментный префикс, то iy!=EMUCHECKQ, b=адрес сегментного регистра+1
+       if 1 ;debug
        ld a,d
        sub 0x7c
        cp 2
        jr nc,$
        ld (oldpc),de
+       endif
         get
         next
 	LD L,A
         ld H,MAINCOMS/256
-        LD C,(HL)
+        LD a,(HL)
         INC H
         LD H,(HL)
-        ld L,C
+        ld L,a
         JP (HL) 
 
 ;de=имя файла;hl=куда грузим (0xc000)
