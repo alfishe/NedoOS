@@ -71,19 +71,16 @@ STDer
 	ld (_DIRECTION),a
        _Loop_
 
-CLCer
-	ex af,af' ;'
-	scf
-	ccf
-	ex af,af' ;'
-       _Loop_
-
 STCer
 	ex af,af' ;'
 	scf
 	ex af,af' ;'
        _Loop_
 
+CLCer
+	ex af,af' ;'
+	scf
+	ex af,af' ;'
 CMCer
 	ex af,af' ;'
 	ccf
@@ -94,59 +91,49 @@ PUSHi8
 	get
 	next
 	ld c,a
-	ld b,0 ;TODO optimize
-        putmemspBC
-       _LoopC
+        rla
+        sbc a,a
+        ld b,a
+       jr _PUSHq
 PUSHi16
 	getBC
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHax
        ld bc,(_AX)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHcx
        ld bc,(_CX)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHdx
        ld bc,(_DX)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHbx
        ld bc,(_BX)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHsp
        ld bc,(_SP)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHbp
        ld bc,(_BP)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHsi
        ld bc,(_SI)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHdi
        ld bc,(_DI)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHes
        ld bc,(_ES)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHcs
        ld bc,(_CS)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHss
        ld bc,(_SS)
-        putmemspBC
-       _LoopC
+       jr _PUSHq
 PUSHds
        ld bc,(_DS)
+_PUSHq
         putmemspBC
        _LoopC
 
@@ -243,7 +230,7 @@ MOVdii16
 MOVali8
 	get
 	next
-	ld (_AL),a ;al
+	ld (_AL),a
        _Loop_
 MOVcli8
 	get
@@ -263,7 +250,7 @@ MOVbli8
 MOVahi8
 	get
 	next
-	ld (_AH),a ;ah
+	ld (_AH),a
        _Loop_
 MOVchi8
 	get
@@ -575,15 +562,10 @@ JSer ;jump if sign
 JNSer ;jump if no sign
 	ex af,af' ;'
 	jp p,JRYer
-	ex af,af' ;'
-        next
-       _Loop_ 
-
 exaNOJP
 	ex af,af' ;'
         next
        _Loop_
-
 LOOPNZer
 	ex af,af' ;'
 	jr z,exaNOJP
@@ -750,9 +732,9 @@ REPSCASBer
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
-	ex af,af'
+	ex af,af' ;'
 	jp z,exaLoopC
-	ex af,af'
+	ex af,af' ;'
 	ld a,h
 	or l
 	jr nz,REPSCASBer_repeat
@@ -815,9 +797,9 @@ REPCMPSBer
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
-	ex af,af'
+	ex af,af' ;'
 	jr nz,exaLoopC
-	ex af,af'
+	ex af,af' ;'
 	ld a,h
 	or l
 	jr nz,REPCMPSBer_repeat
@@ -916,36 +898,49 @@ STOSWer
 ;int 0x20 ;system
 ;int 0x16 ;ah=0: input key -> al
 ;int 0x10 ;ah=0x0e: print al (зачем bx=7?)
+;int 0x10 ;ah=0x00: set gfx mode = al (0x13)
 INTi8
 	get
 	next
 	cp 0x10
-	jr z,INT_printal
+	jr z,INT10
 	cp 0x16
 	jr z,INT_inputal
+       jr $
+       ;_Loop_
+
+INT10
+        ld a,(_AH)
+        or a
+        jr z,INT_setgfx
+        cp 0x0e
+        jr z,INT_printal
+       jr $
+
+INT_setgfx
+        push de
+        push iy
+        ld e,0+0x80 ;keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        pop iy
+        pop de
        _Loop_
 
 INT_printal
         push de
-        ;exx
         ex af,af' ;'
         push af
-        ;push hl
         push iy
 	ld a,(_AL)
 	PRCHAR
         pop iy
-        ;pop hl
         pop af
         ex af,af' ;'
-        ;exx
         pop de
        _Loop_
 
 INT_inputal
         push de
-        ;exx
-        ;push hl
         push iy
         YIELDGETKEYLOOP;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
@@ -955,8 +950,6 @@ INT_inputal
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
 ;        Флаг Z - если 0(NZ), то отсутствует фокус.  
         pop iy
-        ;pop hl
 	ld (_AL),a
-        ;exx
         pop de
        _Loop_

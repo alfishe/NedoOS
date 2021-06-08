@@ -138,20 +138,25 @@ IMULr16;cx
 IMULbc
        push de
 	ld de,(_AX);ex de,hl ;de=ax
+        call IMUL_bc_de_to_hlde
+	ld (_DX),hl ;HSW
+        ld (_AX),de ;LSW
+       pop de
+       _Loop_
+
+IMUL_bc_de_to_hlde
 	call MUL16SIGNED ;HLDE=DE*BC
-	ld (_DX),hl
-        ld (_AX),de
 	ld a,d
-	rla ;ax sign
+	rla ;LSW sign
 	jr c,IMULCX_NEG
 	ld a,h
 	or l
-	add a,255 ;set CF if ax sign != dx (result >=32768 or < -32768)
+	add a,255 ;set CF if LSW sign != HSW (result >=32768 or < -32768)
 	jp IMULCX_NEGQ
 IMULCX_NEG
 	ld a,h
 	and l
-	sub 255 ;set CF if ax sign != dx (result >=32768 or < -32768)
+	sub 255 ;set CF if LSW sign != HSW (result >=32768 or < -32768)
 IMULCX_NEGQ
 	sbc a,a ;keep CF
 	srl a ;keep CF
@@ -159,8 +164,7 @@ IMULCX_NEGQ
 	ld e,a ;overflow (d7 != d6) if CF
 	exx
 	ex af,af' ;'
-       pop de
-       _Loop_
+        ret
 
 ;HLDE=DE*BC
 MUL16SIGNED

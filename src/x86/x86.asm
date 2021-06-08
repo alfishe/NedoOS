@@ -3,6 +3,13 @@
 
 STACK=0x4000
 
+BASIC=1
+       if BASIC
+STARTPC=0x7c00
+       else
+STARTPC=0x0100
+       endif
+
 ;PC=0x4000...
 ;SP=0x8000...
 ;data=0xC000...
@@ -11,14 +18,22 @@ STACK=0x4000
         align 2
        endm
 
-       macro _PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
-;keep a,bc,hl,pagec000
-        call PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
+       macro _PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg
+        push af
+        push bc
+        ld b,tscreenpgs/256
+        ld a,(bc)
+        or a
+        call nz,PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
+        pop bc
+        pop af
        endm
 
        macro _PUTscreen_logpgc_zxaddrhl_datamhl
-;keep pagec000
-        call PUTscreen_logpgc_zxaddrhl_datamhl
+        ld b,tscreenpgs/256
+        ld a,(bc)
+        or a
+        call nz,PUTscreen_logpgc_zxaddrhl_datamhl_do
        endm
 
         MACRO _Loop_
@@ -336,25 +351,17 @@ STACK=0x4000
 	macro inchlwithflags ;keep CY
 	ex af,af' ;'
 	ld bc,1
-	jr c,2f
+       ld a,b
+       rla ;keep CF
 	adc hl,bc ;ZF,SF
+       ld b,a
 	ld a,h
-        exx
 	rra
-	ld e,a ;OF
-	scf
-	ccf ;NC
-	jp 8f
-2
-	or a
-	adc hl,bc ;ZF,SF
-	ld a,h
         exx
-	rra
 	ld e,a ;OF
-	scf ;C
-8
         exx
+       ld a,b
+       rra ;old CF
 	ex af,af' ;'
 	ld a,h
 	xor l
@@ -366,25 +373,17 @@ STACK=0x4000
 	macro incbcwithflags ;keep CY
 	ex af,af' ;'
 	ld hl,1
-	jr c,2f
+       ld a,h
+       rla ;keep CF
 	adc hl,bc ;ZF,SF
+       ld b,a
 	ld a,h
-        exx
 	rra
-	ld e,a ;OF
-	scf
-	ccf ;NC
-	jp 8f
-2
-	or a
-	adc hl,bc ;ZF,SF
-	ld a,h
         exx
-	rra
 	ld e,a ;OF
-	scf ;C
-8
         exx
+       ld a,b
+       rra ;old CF
 	ex af,af' ;'
 	ld a,h
 	xor l
@@ -398,25 +397,17 @@ STACK=0x4000
 	macro dechlwithflags ;keep CY
 	ex af,af' ;'
 	ld bc,1
-	jr c,2f
+       ld a,b
+       rla ;keep CF
 	sbc hl,bc ;ZF,SF
+       ld b,a
 	ld a,h
-        exx
 	rra
-	ld e,a ;OF
-	scf
-	ccf ;NC
-	jp 8f
-2
-	or a
-	sbc hl,bc ;ZF,SF
-	ld a,h
         exx
-	rra
 	ld e,a ;OF
-	scf ;C
-8
         exx
+       ld a,b
+       rra ;old CF
 	ex af,af' ;'
 	ld a,h
 	xor l
@@ -460,19 +451,25 @@ filltpgs0
         OS_NEWPAGE
         pop hl
         pop bc
-        ld a,l
-        rrc l
-        rrc l
+       ld a,l
+       rrc l
+       rrc l
         ld (hl),e
-        ld l,a
+       ld l,a
         inc l
         djnz filltpgs0
        
-        ld bc,0
-        ld (_CS),bc
-        countCS
-        ld de,0x7c00
-        encodePC;memCS
+;0xa0000 (pg 40): 4 pages for screen
+        ld hl,tscreenpgs+40
+        ld bc,0x401
+filltscreenpgs0
+       ld a,l
+       rrc l
+       rrc l
+        ld (hl),b
+       ld l,a
+        inc l
+        djnz filltscreenpgs0
        
         ld bc,0
         ld (_SS),bc
@@ -481,21 +478,22 @@ filltpgs0
         ld (_SP),hl
         encodeSP
        
-        ;OS_NEWPAGE
-        ;ld a,e
-        ;LD (pgrom0),a
+        ld bc,0
+        ld (_CS),bc
+        countCS
+        ld de,STARTPC
+        encodePC;memCS ;out: a=physpg, de=zxaddr
+        ex de,hl
         ld de,trom0
-        ld hl,0x7c00;0xc000
 ;de=имя файла
-;hl=куда грузим (0xc000)
-;a=в какой странице
-        call loadfile_in_ahl
+;hl=куда грузим
+        call loadfile_in_hl
 
 
 
         call swapimer
 
-        LD DE,0x7C00 ;=PC
+        LD DE,STARTPC ;=IP(PC)
         LD IY,EMUCHECKQ
         EI 
        _LoopC_JP
@@ -509,7 +507,7 @@ oldpc
 EMUCHECKQ
        if 1 ;debug
        ld a,d
-       sub 0x7c
+       sub 0x40+((STARTPC/256)&0x3f);0x7c
        cp 2
        jr nc,$
        ld (oldpc),de
@@ -524,10 +522,9 @@ oldpc
         ld L,b ;чётный для всех rm-команд
         JP (HL) 
 
-;de=имя файла;hl=куда грузим (0xc000)
-;a=в какой странице
-loadfile_in_ahl
-        SETPGC000 ;включили страницу A в 0xc000
+;de=имя файла
+;hl=куда грузим
+loadfile_in_hl
         push hl ;куда грузим
         OS_OPENHANDLE
         pop de ;куда грузим
@@ -536,7 +533,7 @@ loadfile_in_ahl
         OS_READHANDLE
         pop bc ;b=handle
         OS_CLOSEHANDLE
-	ret;jp setpgmainc000 ;включили страницу программы в c000, как было 
+	ret
 
 path
         db "x86",0
@@ -545,7 +542,11 @@ diskname
         db "SYS.TRD",0
         
 trom0
-        db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h/16h
+       if BASIC
+        db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
+       else
+        db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+       endif
         ;DB "pc102782.bin",0
 
 pgprog
@@ -658,7 +659,7 @@ on_int
 keepemuchecker=$+2
         LD IY,0
        ;LD (retfromim),DE ;для индикации времени обработки прерыв
-        LD HL,#38 ;new PC
+        LD HL,#38 ;new IP(PC) ;TODO из вектора
         ;LD HL,(_I-1)
         ;LD L,#FF ;состояние пассивной ШД
         ;getmemBC
@@ -666,56 +667,85 @@ keepemuchecker=$+2
         ;ld l,c
         ;JR IMERIM 
 IMERIM
-;hl=new PC
+;hl=new IP(PC)
         EI
-       decodePC ;de=old PC
-        ex de,hl ;DE=new PC
+       decodePC ;de=old IP(PC)
+        ex de,hl ;DE=new IP(PC)
         LD B,H
-        ld C,L ;BC=old PC
-        putmemspBC ;TODO а CS куда?
+        ld C,L ;BC=old IP(PC)
+        putmemspBC ;TODO а CS куда? push cs; push ip?
        _LoopC_JP 
 
-;keep a,bc,hl,pagec000
-PUTscreen_logpgc_zxaddrhl_datamhl
-PUTscreen_logpgc_zxaddrhl_datamhl_keepabchl
-        push af ;TODO
-        push bc ;TODO
-;check: это экранная страница и какой её номер в экране?
-        ld b,tscreenpgs/256
-        ld a,(bc)
-        or a
-        jr nz,PUTscreen_logpgc_zxaddrhl_datamhl_do
-        pop bc ;TODO
-        pop af ;TODO
-        ret
-PUTscreen_logpgc_zxaddrhl_datamhl_do
-        push hl ;TODO
-;TODO пересчёт ahl в x,y
-
-;TODO пересчёт x,y в ahl+left/right (ветвление?) для EGA
-        
-        SETPGC000
-;TODO корректировать точку
-     ld a,(hl)
-     cpl
-     ld (hl),a    
-        pop hl ;TODO
-        SETPGC000
-        pop bc
-        push bc
+PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
+       push hl
+       push bc
+       call PUTscreen_logpgc_zxaddrhl_datamhl_do
+       pop bc
         ld b,tpgs/256
         ld a,(bc)
         SETPGC000 ;как было
-        pop bc
-        pop af
+       pop hl
         ret
 
+PUTscreen_logpgc_zxaddrhl_datamhl_do
+        jr $
+        ld b,(hl) ;colour
+;a=1..4
+        rrca
+        rrca
+        and 0xc0
+        add a,h
+        ld h,a
+;hl=addr in screen=0..65535
+;экран VGA = 320 байт на строку
+;экран ZXEGA = 40 байт на строку *4 слоя
+        scf
+        rr h
+        rr l ;CY=left/right
+        jr c,PUTscreen_rightpixel
+        sra h
+        rr l
+        ld a,(user_scr0_low) ;ok
+        jr nc,$+5
+        ld a,(user_scr0_high) ;ok
+        SETPGC000
+        sra h
+        rr l
+        jr nc,$+4
+        set 5,h
+;TODO корректировать левую точку цветом b
+     ld a,(hl)
+     or 0b01000111
+     ld (hl),a    
+        ret
+PUTscreen_rightpixel
+        sra h
+        rr l
+        ld a,(user_scr0_low) ;ok
+        jr nc,$+5
+        ld a,(user_scr0_high) ;ok
+        SETPGC000
+        sra h
+        rr l
+        jr nc,$+4
+        set 5,h
+;TODO корректировать правую точку цветом b
+     ld a,(hl)
+     or 0b10111000
+     ld (hl),a    
+        ret
 
+       display "--",$
 	include "rmbyte.asm"
+       display "--",$
 	include "x86cmd.asm"
+       display "--",$
 	include "x86math.asm"
+       display "--",$
 	include "x86logic.asm"
+       display "--",$
 	include "ports.asm"
+       display "--",$
 
         align 256
 tpgs
@@ -808,10 +838,7 @@ ds_HSB	db 0
 
 end
 
-        align 256 ;for setmem00004000forwrite
-secbuf
-        ds 256
-        display secbuf+256
+        display $
 
 	savebin "x86.com",begin,end-begin
 

@@ -44,7 +44,7 @@ MAINCOMS
         DCOM ANDr16rm
         DCOM ANDali8
         DCOM ANDaxi16
-        DCOM PANIC ;ESer
+        DCOM ESer
         DCOM PANIC ;DAAal
         DCOM SUBrmr8
         DCOM SUBrmr16
@@ -69,7 +69,7 @@ MAINCOMS
         DCOM CMPr16rm
         DCOM CMPali8
         DCOM CMPaxi16
-	DCOM DSer ;зачем???
+	DCOM DSer
 	DCOM PANIC ;AASal
 ;#4X
         DCOM INCax
@@ -115,9 +115,9 @@ MAINCOMS
         DCOM PANIC ;opsize
         DCOM PANIC ;rgsize
         DCOM PUSHi16
-        DCOM PANIC ;IMULr16rmi16
+        DCOM IMULr16rmi16
         DCOM PUSHi8
-        DCOM PANIC ;IMULr16rmi8
+        DCOM IMULr16rmi8
 	DCOM PANIC ;INSBer
 	DCOM PANIC ;INSWer
 	DCOM PANIC ;OUTSBer
@@ -142,12 +142,12 @@ MAINCOMS
 ;#8x
         DCOM GRP1rmi8  ;80 MOD100RM disp16 i8 = AND R/[M],i8 (100 - код операции АЛУ, 111=CMP)
         DCOM GRP1rmi16 ;GRP1rmi16 ;то же с i16 (там cmp sp,i16)
-        DCOM PANIC ;GRP1rm8i8
-        DCOM PANIC ;GRP1rm16i8
+        DCOM PANIC ;GRP1rm8i8 - чем отличается от GRP1rmi8? в 8086 нет
+        DCOM GRP1rm16i8 ;там add dx,6 - операнд расширяется со знаком
         DCOM TESTrmr8
         DCOM TESTrmr16
         DCOM PANIC ;XCHGr8rm
-        DCOM PANIC ;XCHGr16rm
+        DCOM XCHGr16rm
         DCOM MOVrmr8
         DCOM MOVrmr16
         DCOM MOVr8rm
@@ -209,7 +209,7 @@ MAINCOMS
         DCOM MOVdii16
 ;#Cx
         DCOM PANIC ;GRP2rm8i8 ;rolls?
-        DCOM PANIC ;GRP2rm16i8 ;rolls?
+        DCOM GRP2rm16i8 ;rolls?
         DCOM PANIC ;RETi16
         DCOM RETer
         DCOM PANIC ;LESr16mem
