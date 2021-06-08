@@ -6,7 +6,7 @@ PANIC
 ;с сегментным префиксом: b=?s_LSW+1(нечётный)
 ;все обработчики rm-команд (и вообще команд с подменой сегмента) по чётному адресу
 DSer
-        ld b,1+(ds_HSB&0xff)
+        ld b,1+(ds_LSW&0xff)
         get
         next
         LD L,A
@@ -17,7 +17,7 @@ DSer
         ld L,a
         JP (HL) 
 CSer
-        ld b,1+(cs_HSB&0xff)
+        ld b,1+(cs_LSW&0xff)
         get
         next
 	LD L,A
@@ -28,7 +28,7 @@ CSer
         ld L,a
         JP (HL) 
 ESer
-        ld b,1+(es_HSB&0xff)
+        ld b,1+(es_LSW&0xff)
         get
         next
 	LD L,A
@@ -39,7 +39,7 @@ ESer
         ld L,a
         JP (HL) 
 SSer
-        ld b,1+(ss_HSB&0xff)
+        ld b,1+(ss_LSW&0xff)
         get
         next
 	LD L,A

@@ -622,16 +622,17 @@ MOVsregrm16
 	get
 	next
 ;a=MDregR/M
-;MD=00: mov [...],r16
-;MD=01: mov [...+disp8],r16
-;MD=10: mov [...+disp16],r16
-;MD=11: mov r/m,r16 ;проще всего
+;MD=00: mov sreg,[...]
+;MD=01: mov sreg,[...+disp8]
+;MD=10: mov sreg,[...+disp16]
+;MD=11: mov sreg,r/m ;проще всего
         cp 0b11000000
         jr c,MOVsregrmmem
        push af
        and 7
        add a,a
         ld l,a
+        ld h,_AX/256
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -665,7 +666,7 @@ MOVsregrmq
 	sla c
         rl b
 	rla
-        set 5,l ;0x10 -> 0x30
+        set 5,l ;0x11 -> 0x31
         ld (hl),b
         dec l
         ld (hl),c
@@ -2459,10 +2460,10 @@ ROLr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call ROLhli8
+        call ROLhli8_to_bc
        pop hl
        _PUTr16Loop_
-ROLhli8
+ROLhli8_to_bc
         get
         next
         ld b,a
@@ -2483,6 +2484,8 @@ _ROLr16i8loop
 	rla ;restore CF
         exx
 	ex af,af' ;'
+       ld b,h
+       ld c,l
         ret
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RORr16i8
@@ -2491,10 +2494,10 @@ RORr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call RORhli8
+        call RORhli8_to_bc
        pop hl
        _PUTr16Loop_
-RORhli8
+RORhli8_to_bc
         get
         next
         ld b,a
@@ -2513,6 +2516,8 @@ _RORr16i8loop
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
+       ld b,h
+       ld c,l
         ret
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 RCLr16i8
@@ -2521,10 +2526,10 @@ RCLr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call RCLhli8
+        call RCLhli8_to_bc
        pop hl
        _PUTr16Loop_
-RCLhli8
+RCLhli8_to_bc
         get
         next
         ld b,a
@@ -2543,6 +2548,8 @@ _RCLr16i8loop
 	rla ;restore CF
         exx
 	ex af,af' ;'
+       ld b,h
+       ld c,l
         ret
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RCRr16i8
@@ -2551,10 +2558,10 @@ RCRr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call RCRhli8
+        call RCRhli8_to_bc
        pop hl
        _PUTr16Loop_
-RCRhli8
+RCRhli8_to_bc
         get
         next
         ld b,a
@@ -2572,6 +2579,8 @@ _RCRr16i8loop
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
+       ld b,h
+       ld c,l
         ret
 ;For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1.
 SHLr16i8
@@ -2580,10 +2589,10 @@ SHLr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call SHLhli8
+        call SHLhli8_to_bc
        pop hl
        _PUTr16Loop_
-SHLhli8
+SHLhli8_to_bc
         get
         next
         ld b,a
@@ -2602,6 +2611,8 @@ _SHLr16i8loop
 	exx
 	ld d,a ;parity data
 	exx
+       ld b,h
+       ld c,l
         ret
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
 SHRr16i8
@@ -2610,10 +2621,10 @@ SHRr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call SHRhli8
+        call SHRhli8_to_bc
        pop hl
        _PUTr16Loop_
-SHRhli8
+SHRhli8_to_bc
         get
         next
         ld b,a
@@ -2641,6 +2652,8 @@ _SHRr16i8loop
 	exx
 	ld d,a ;parity data
 	exx
+       ld b,h
+       ld c,l
         ret
 ;For the SAR instruction, the OF flag is cleared for all 1-bit shifts. (result7 xor result6)
 SARr16i8
@@ -2649,10 +2662,10 @@ SARr16i8
         inc l
         ld h,(hl)
         ld l,a
-        call SARhli8
+        call SARhli8_to_bc
        pop hl
        _PUTr16Loop_
-SARhli8
+SARhli8_to_bc
         get
         next
         ld b,a
@@ -2680,62 +2693,50 @@ _SARr16i8loop
 	exx
 	ld d,a ;parity data
 	exx
+       ld b,h
+       ld c,l
         ret
 
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 ROLm16i8
        GETm16_hl
-       call ROLhli8
-       ld b,h
-       ld c,l
+       call ROLhli8_to_bc
       pop hl
        _PUTm16LoopC
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RORm16i8
        GETm16_hl
-       call RORhli8
-       ld b,h
-       ld c,l
+       call RORhli8_to_bc
       pop hl
        _PUTm16LoopC
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 RCLm16i8
        GETm16_hl
-       call RCLhli8
-       ld b,h
-       ld c,l
+       call RCLhli8_to_bc
       pop hl
        _PUTm16LoopC
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RCRm16i8
        GETm16_hl
-       call RCRhli8
-       ld b,h
-       ld c,l
+       call RCRhli8_to_bc
       pop hl
        _PUTm16LoopC
 ;For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1.
 SHLm16i8
        GETm16_hl
-       call SHLhli8
-       ld b,h
-       ld c,l
+       call SHLhli8_to_bc
       pop hl
        _PUTm16LoopC
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
 SHRm16i8
        GETm16_hl
-       call SHRhli8
-       ld b,h
-       ld c,l
+       call SHRhli8_to_bc
       pop hl
        _PUTm16LoopC
 ;For the SAR instruction, the OF flag is cleared for all 1-bit shifts. (result7 xor result6)
 SARm16i8
        GETm16_hl
-       call SARhli8
-       ld b,h
-       ld c,l
+       call SARhli8_to_bc
       pop hl
        _PUTm16LoopC
 

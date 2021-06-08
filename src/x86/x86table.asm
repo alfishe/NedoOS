@@ -204,7 +204,7 @@ MAINCOMS
         DCOM MOVdxi16
         DCOM MOVbxi16
         DCOM MOVspi16
-        DCOM MOVspi16
+        DCOM MOVbpi16
         DCOM MOVsii16
         DCOM MOVdii16
 ;#Cx

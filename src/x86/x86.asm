@@ -3,7 +3,7 @@
 
 STACK=0x4000
 
-BASIC=1
+BASIC=0
        if BASIC
 STARTPC=0x7c00
        else
@@ -466,7 +466,8 @@ filltscreenpgs0
        ld a,l
        rrc l
        rrc l
-        ld (hl),b
+        ld (hl),c
+        inc c
        ld l,a
         inc l
         djnz filltscreenpgs0
@@ -510,6 +511,9 @@ oldpc
        sub 0x40+((STARTPC/256)&0x3f);0x7c
        cp 2
        jr nc,$
+       ;ld a,(_SP)
+       ;rra
+       ;jr c,$
        ld (oldpc),de
        endif
         get
@@ -688,7 +692,6 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
         ret
 
 PUTscreen_logpgc_zxaddrhl_datamhl_do
-        jr $
         ld b,(hl) ;colour
 ;a=1..4
         rrca
@@ -711,8 +714,8 @@ PUTscreen_logpgc_zxaddrhl_datamhl_do
         SETPGC000
         sra h
         rr l
-        jr nc,$+4
-        set 5,h
+        jr c,$+4
+        res 5,h
 ;TODO корректировать левую точку цветом b
      ld a,(hl)
      or 0b01000111
@@ -727,8 +730,8 @@ PUTscreen_rightpixel
         SETPGC000
         sra h
         rr l
-        jr nc,$+4
-        set 5,h
+        jr c,$+4
+        res 5,h
 ;TODO корректировать правую точку цветом b
      ld a,(hl)
      or 0b10111000
