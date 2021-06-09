@@ -681,11 +681,11 @@ LOOPer
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
-JCXZer ;jump if CX = 0
+JCXZer ;jump if CX != 0
 	ld hl,(_CX)
 	ld a,h
 	or l
-	JR Z,JRer
+	JR nz,JRer
         next
        _Loop_ 
 

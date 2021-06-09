@@ -2178,14 +2178,13 @@ RCRr16
         ld a,(hl)
         rra
         ld b,a
+        exx
+	ld e,a ;overflow data
+        exx
         dec hl ;keep ZF
         ld a,(hl)
         rra
         ld c,a
-        ld a,b
-        exx
-	ld e,a ;overflow data
-        exx
 	ex af,af' ;'
        _PUTr16Loop_
 ;For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1.
