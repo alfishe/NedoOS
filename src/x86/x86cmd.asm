@@ -539,9 +539,10 @@ JMPptr1616
         getBC ;ip
         push bc
         getBC ;cs
+        pop de
+RETFq
         ld (_CS),bc
         countCS
-        pop de
        _LoopJP
 
 RETer
@@ -549,6 +550,15 @@ RETer
         LD D,B
         ld E,C ;new PC
        _LoopC_JP
+
+RETFer
+        getmemspBC
+       push bc
+        getmemspBC
+        LD D,B
+        ld E,C ;new PC
+       pop bc
+        jp RETFq
 
 JLEer ;jump if not greater (zero or less)
 	ex af,af' ;'
@@ -653,8 +663,15 @@ JRer
         LD H,A
        decodePC
         ADD HL,DE
+       ld a,h
+       xor d
+       and 0xc0
         ex de,hl ;new PC 
+       jr z,JRer_qfast
        _LoopC_JP
+JRer_qfast
+       _LoopC_JPoldpg
+
 JSer ;jump if sign
 	ex af,af' ;'
 	jp m,JRYer

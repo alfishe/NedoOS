@@ -464,8 +464,7 @@ MOVrm16i16
         and 7
         add a,a
         ld l,a
-        ld h,_AX/256
-        ld l,(hl) ;rm addr
+        ld h,_AX/256 ;rm addr
         getBC
        _PUTr16Loop_
 MOVrmmemi16
@@ -2874,7 +2873,7 @@ NOTr8 ;no flags
         cpl
         ld (hl),a
        _Loop_
-NEGr8 ;no flags
+NEGr8
         xor a
         sub (hl)
         ld (hl),a

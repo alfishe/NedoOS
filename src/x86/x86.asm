@@ -3,7 +3,7 @@
 
 STACK=0x4000
 
-BASIC=0
+BASIC=1
        if BASIC
 STARTPC=0x7c00
        else
@@ -55,6 +55,13 @@ STARTPC=0x0100
 ;если выключили др.стр. и резко сменился PC (полный DE)
         MACRO _LoopC_JP
         encodePC;CALCiypgcom
+        JP (IY)
+        ENDM 
+
+;если резко сменился PC (полный DE в той же странице)
+        MACRO _LoopC_JPoldpg
+       set 6,d
+       res 7,d ;4000+
         JP (IY)
         ENDM 
 

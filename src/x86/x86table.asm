@@ -142,7 +142,7 @@ MAINCOMS
 ;#8x
         DCOM GRP1rmi8  ;80 MOD100RM disp16 i8 = AND R/[M],i8 (100 - код операции АЛУ, 111=CMP)
         DCOM GRP1rmi16 ;GRP1rmi16 ;то же с i16 (там cmp sp,i16)
-        DCOM PANIC ;GRP1rm8i8 - чем отличается от GRP1rmi8? в 8086 нет
+        DCOM GRP1rmi8;PANIC ;GRP1rm8i8 - алиас GRP1rmi8 (в 8086 нет?)
         DCOM GRP1rm16i8 ;там add dx,6 - операнд расширяется со знаком
         DCOM TESTrmr8
         DCOM TESTrmr16
@@ -210,7 +210,7 @@ MAINCOMS
 ;#Cx
         DCOM GRP2rm8i8 ;rolls?
         DCOM GRP2rm16i8 ;rolls?
-        DCOM PANIC ;RETi16
+        DCOM PANIC ;RETi16 ;RET и потом SP += i16
         DCOM RETer
         DCOM PANIC ;LESr16mem
         DCOM PANIC ;LDSr16mem
@@ -218,8 +218,8 @@ MAINCOMS
         DCOM MOVrm16i16
         DCOM PANIC ;ENTERi16i8
         DCOM PANIC ;LEAVEer
-        DCOM PANIC ;RETFi16
-        DCOM PANIC ;RETFer
+        DCOM PANIC ;RETFi16 ;RETF и потом SP += i16
+        DCOM RETFer
         DCOM PANIC ;INT3
         DCOM INTi8
         DCOM PANIC ;INTOer
