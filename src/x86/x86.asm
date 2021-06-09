@@ -3,7 +3,7 @@
 
 STACK=0x4000
 
-BASIC=1
+BASIC=0
        if BASIC
 STARTPC=0x7c00
        else
@@ -470,6 +470,17 @@ begin
         OS_HIDEFROMPARENT
         ld e,6+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ;ld e,0
+        ;OS_SETSCREEN
+        ;ld e,0
+        ;OS_CLS
+        ;ld e,1
+        ;OS_SETSCREEN
+        ;ld e,0
+        ;OS_CLS
+
+        ld de,ansipal
+        OS_SETPAL
 
         ld de,path
         OS_CHDIR
@@ -482,6 +493,11 @@ begin
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld a,e
         ld (pgprog),a
+
+        ld a,(user_scr0_high)
+        call clpga
+        ld a,(user_scr0_low)
+        call clpga
 
         ld hl,tpgs
         ld b,64
@@ -507,8 +523,8 @@ filltscreenpgs0
        rrc l
        rrc l
         ld (hl),c
-            dec l     ;
-            ld (hl),c ;test backbuffer
+            ;dec l     ;
+            ;ld (hl),c ;test backbuffer
         inc c
        ld l,a
         inc l
@@ -547,15 +563,27 @@ filltscreenpgs0
         LD IY,EMUCHECKQ
         EI 
        _LoopC_JP
+       
+clpga
+        SETPGC000
+        ld hl,0xc000
+        ld d,h
+        ld e,l
+        inc e
+        ld bc,0x3fff
+        ld (hl),l;0
+        ldir
+        ret
+       
 jpiyer
         ld hl,jpiyer
         push hl
         jp (iy)
-       if 1 ;debug
+       if 0 ;debug
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 1 ;debug
+       if 0 ;debug
        ld a,d
        sub 0x40+((STARTPC/256)&0x3f);0x7c
        cp 2
@@ -906,6 +934,11 @@ ds_HSB	db 0
         ds 8,_BH&0xff
         align 256
 	include "x86table.asm"
+ansipal
+	;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+	;dw 0x1f1f,0x1e1e,0x1d1d,0x1c1c,0x0f0f,0x0e0e,0x0d0d,0x0c0c
+	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
+	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
 
 end
 

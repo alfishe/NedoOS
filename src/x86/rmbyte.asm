@@ -2223,7 +2223,7 @@ SHRr16
         ld b,(hl)
         srl b
         dec l
-        ld c,(hl)
+        ld a,(hl)
         rra
         ld c,a
 ;чтобы правильно сформировать ZF,SF по b,c:
@@ -2250,7 +2250,7 @@ SARr16
         ld b,(hl)
         sra b
         dec l
-        ld c,(hl)
+        ld a,(hl)
         rra
         ld c,a
 ;чтобы правильно сформировать ZF,SF по b,c:
@@ -2279,7 +2279,6 @@ ROLm16
         exx
 	ld e,a ;overflow data
         exx
-       ;ld a,b
        rla
         rl c
         rl b
@@ -2365,6 +2364,8 @@ SHLm16
 	exx
 	ld d,a ;parity data
 	exx
+        ld b,h
+        ld c,l
       pop hl
        _PUTm16LoopC
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
@@ -2502,11 +2503,6 @@ SHRr16cl
        pop hl
        _PUTr16Loop_
 SARr16cl
-       push hl
-        ld a,(hl)
-        inc l
-        ld h,(hl)
-        ld l,a
         call SARhl_b_to_bc
        pop hl
        _PUTr16Loop_
