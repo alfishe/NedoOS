@@ -19,7 +19,7 @@ MAINCOMS
         DCOM ORali8
         DCOM ORaxi16
 	DCOM PUSHcs
-	DCOM PANIC ;ext ;<--------------
+	DCOM EXTer ;<-------------- ;0f b6 d0 = movzx dx,al (move with zero-extend)
 ;#1X
         DCOM ADCrmr8
         DCOM ADCrmr16
@@ -106,13 +106,13 @@ MAINCOMS
         DCOM POPsi
         DCOM POPdi
 ;#6x
-        DCOM PANIC ;PUSHAer
-        DCOM PANIC ;POPAer
+        DCOM PUSHAer
+        DCOM POPAer
         DCOM PANIC ;BOUNDr16m
         DCOM PANIC ;ARPLrmr16
         DCOM PANIC ;FSer
         DCOM PANIC ;GSer
-        DCOM PANIC ;opsize
+        DCOM OPSIZEr ;???for lodsd
         DCOM PANIC ;rgsize
         DCOM PUSHi16
         DCOM IMULr16rmi16
@@ -153,7 +153,7 @@ MAINCOMS
         DCOM MOVr8rm
         DCOM MOVr16rm
         DCOM MOVrm16sreg
-        DCOM PANIC ;LEAr16rm
+        DCOM PANIC ;LEAr16rm ;TODO (for ladybug)
         DCOM MOVsregrm16
         DCOM PANIC ;POPrm16
 ;#9x
@@ -208,7 +208,7 @@ MAINCOMS
         DCOM MOVsii16
         DCOM MOVdii16
 ;#Cx
-        DCOM PANIC ;GRP2rm8i8 ;rolls?
+        DCOM GRP2rm8i8 ;rolls?
         DCOM GRP2rm16i8 ;rolls?
         DCOM PANIC ;RETi16
         DCOM RETer
@@ -228,8 +228,8 @@ MAINCOMS
         DCOM GRP2rm81 ;rolls
         DCOM GRP2rm161 ;rolls
         DCOM PANIC ;GRP2rm8cl ;rolls
-        DCOM PANIC ;GRP2rm16cl ;rolls
-        DCOM PANIC ;AAMer
+        DCOM GRP2rm16cl ;rolls
+        DCOM AAMer
         DCOM PANIC ;AADer
         DCOM PANIC ;SALCer
         DCOM PANIC ;XLATBer
@@ -265,7 +265,7 @@ MAINCOMS
         DCOM REPZer ;используется также для movsb и т.д.
         DCOM PANIC ;HLTer
         DCOM CMCer
-        DCOM PANIC ;GRP38 ;mul,div,test,not,neg
+        DCOM GRP38 ;mul,div,test,not,neg
         DCOM GRP316 ;mul,div,test,not,neg
         DCOM CLCer
         DCOM STCer

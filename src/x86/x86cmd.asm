@@ -1,6 +1,67 @@
 PANIC
 	jr $
 
+incdec2si_hl
+incdec2di_hl
+        inc hl
+incdecsi_hl
+incdecdi_hl
+        inc hl
+        ret
+
+EXTer
+;0f 31 = rdtsc eax edx
+;0f b6 d0 = movzx dx,al (move with zero-extend)
+;0f b6 c2 = movzx ax,dl (move with zero-extend)
+;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
+;0F 82   03+     JB rel16/32     .......c     Jump near if below/not above or equal/carry (CF=1) ;TODO (for pixeltwn)
+;JNAE rel16/32    
+;JC rel16/32 
+
+;TODO прочие адресации
+        get
+        next
+       cp 0x31
+       jr z,RDTSCer
+       cp 0xda
+       jr z,PMINUBer
+       cp 0xb6
+       jr nz,$
+        get
+        next
+       cp 0xc2
+       jr z,MOVZXaxdl
+       cp 0xd0
+       jr nz,$
+        ld hl,(_AL)
+        ld h,0
+        ld (_DX),hl
+       _Loop_
+MOVZXaxdl
+        ld hl,(_DL)
+        ld h,0
+        ld (_AX),hl
+       _Loop_
+       
+PMINUBer
+;не уверен, что такое поведение - TODO
+        ld hl,(_AX)
+        ld a,l
+        cp h
+        jr c,$+3
+        ld l,h
+        ld h,0
+        ld (_AX),hl
+       _Loop_
+
+RDTSCer
+;костыль для para512
+        ld a,r
+        ld l,a
+        ld h,a
+        ld (_AX),hl
+       _Loop_
+
 ;на входе в команду:
 ;без сегментного префикса: b=l(адрес обработчика)
 ;с сегментным префиксом: b=?s_LSW+1(нечётный)
@@ -63,12 +124,18 @@ STIer
 CLDer
 	xor a
 	ld (_DIRECTION),a
+        ld a,0x23 ;"inc hl"
+        ld (incdec2si_hl),a
+        ld (incdecsi_hl),a
 NOPer
        _Loop_
 
 STDer
 	ld a,-1
 	ld (_DIRECTION),a
+        ld a,0x2b ;"dec hl"
+        ld (incdec2si_hl),a
+        ld (incdecsi_hl),a
        _Loop_
 
 STCer
@@ -85,6 +152,23 @@ CMCer
 	ex af,af' ;'
 	ccf
 	ex af,af' ;'
+       _Loop_
+
+PUSHAer
+        ld hl,_AX
+        ld b,12
+_PUSHAer0
+        push bc
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        inc l
+        push hl
+        putmemspBC
+        pop hl
+        pop bc
+        djnz _PUSHAer0
+;TODO flags
        _Loop_
 
 PUSHi8
@@ -136,6 +220,24 @@ PUSHds
 _PUSHq
         putmemspBC
        _LoopC
+
+POPAer
+        ld hl,_AX+(12*2)
+        ld b,12
+_POPAer0
+        push bc
+        push hl
+        getmemspBC
+        pop hl
+        dec l
+        ld (hl),b
+        dec l
+        ld (hl),c
+        pop bc
+        djnz _POPAer0
+;TODO recode segments
+;TODO flags
+       _Loop_
 
 POPax
         getmemspBC
@@ -536,7 +638,7 @@ JBEer ;jump if CF or ZF = 1
 JAer ;jump if (CF or ZF) = 0, i.e. CF=ZF=0
 	ex af,af' ;'
 	JR C,$+4
-	JR Z,JRYer
+	JR nz,JRYer
 	ex af,af' ;'
         next
        _Loop_ 
@@ -621,6 +723,34 @@ XCHGaxsi
 XCHGaxdi
 	XCHGAXRP _DI
 
+       macro INCDECSIbyDIRECTION
+	ld hl,(_SI)
+        call incdecsi_hl
+	ld (_SI),hl
+       endm
+       macro INCDECDIbyDIRECTION
+	ld hl,(_DI)
+        call incdecdi_hl
+	ld (_DI),hl
+       endm
+       macro INCDECSI_DIbyDIRECTION
+	ld hl,(_SI)
+        call incdecsi_hl
+	ld (_SI),hl
+	ld hl,(_DI)
+        call incdecdi_hl
+	ld (_DI),hl
+       endm
+       macro INCDEC2SIbyDIRECTION
+	ld hl,(_SI)
+        call incdec2si_hl
+	ld (_SI),hl
+       endm
+       macro INCDEC2DIbyDIRECTION
+	ld hl,(_DI)
+        call incdec2di_hl
+	ld (_DI),hl
+       endm
 REPZer
 REPNZer
 ;костыль! FIXME
@@ -632,8 +762,8 @@ REPNZer
 	jp z,REPCMPSBer
 	;cp 0xa5
 	;jp z,REPMOVSWer
-	;cp 0xaa
-	;jp z,REPSTOSBer
+	cp 0xaa
+	jp z,REPSTOSBer
 	;cp 0xab
 	;jp z,REPSTOSWer
 	cp 0xae
@@ -642,158 +772,71 @@ REPNZer
 	;jp z,REPSCASWer
 	jp PANIC
 
-;TODO подмена сегмента
 MOVSBer
 	ld hl,(_SI)
-	getmemDS
+	getmemDS ;TODO подмена сегмента
 	ld hl,(_DI)
-	putmemDS
-	ld hl,(_SI)
-	ld bc,(_DI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	inc bc
-	jr z,$+6
-	dec hl
-	dec hl
-	dec bc
-	dec bc
-	ld (_SI),hl
-	ld (_DI),bc
+	putmemES
+        INCDECSI_DIbyDIRECTION
        _LoopC
 
-;rep cmpsb
-;TODO подмена сегмента
+;rep movsb
 REPMOVSBer
+;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
+       ;ld hl,(_CX)
+       ;ld a,h
+       ;or l
+       ;jr z,REPMOVSBerq
 	ld hl,(_SI)
-	getmemDS
+	getmemDS ;TODO подмена сегмента
 	ld hl,(_DI)
-	putmemDS
-	ld hl,(_SI)
-	ld bc,(_DI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	inc bc
-	jr z,$+6
-	dec hl
-	dec hl
-	dec bc
-	dec bc
-	ld (_SI),hl
-	ld (_DI),bc
+	putmemES
+        INCDECSI_DIbyDIRECTION
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
 	ld a,h
 	or l
-	jr nz,REPMOVSBer_repeat
-       _LoopC
-REPMOVSBer_repeat
-       decodePC
-        dec de
-        dec de ;new PC 
-       _LoopC_JP
-
-;TODO подмена сегмента
-SCASBer
-	ld hl,(_SI)
-	getmemDS
-	ld a,(_AL) ;al
-	sub (hl)
-        KEEPCFPARITYOVERFLOW_FROMA
-	ld hl,(_SI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	jr z,$+4
-	dec hl
-	dec hl
-	ld (_SI),hl
+	jr nz,REP_repeat
+REPMOVSBerq
        _LoopC
 
-;repnz scasb
-;TODO подмена сегмента
-REPSCASBer
-	ld hl,(_SI)
-	getmemDS
+REPSTOSBer
+;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
+       ld hl,(_CX)
+       ld a,h
+       or l
+       jr z,REPSTOSBerq
 	ld a,(_AL) ;al
-	sub (hl)
-        KEEPCFPARITYOVERFLOW_FROMA
-	ld hl,(_SI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	jr z,$+4
-	dec hl
-	dec hl
-	ld (_SI),hl
+	ld hl,(_DI)
+        putmemES
+        INCDECDIbyDIRECTION
+;flags not affected
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
-	ex af,af' ;'
-	jp z,exaLoopC
-	ex af,af' ;'
 	ld a,h
 	or l
-	jr nz,REPSCASBer_repeat
+	jr nz,REP_repeat
+REPSTOSBerq
        _LoopC
-REPSCASBer_repeat
+
+REP_repeat ;TODO speedup!!!
        decodePC
         dec de
         dec de ;new PC 
        _LoopC_JP
-
-;TODO подмена сегмента
-CMPSBer
-	ld hl,(_SI)
-	getmemDS
-	ex af,af' ;'
-	ld hl,(_DI)
-	getmemDS
-	ex af,af' ;'
-	sub (hl)
-        KEEPCFPARITYOVERFLOW_FROMA
-	ld hl,(_SI)
-	ld bc,(_DI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	inc bc
-	jr z,$+6
-	dec hl
-	dec hl
-	dec bc
-	dec bc
-	ld (_SI),hl
-	ld (_DI),bc
-       _LoopC
-
 ;repz cmpsb
-;TODO подмена сегмента
 REPCMPSBer
 	ld hl,(_SI)
-	getmemDS
+	getmemDS ;TODO подмена сегмента
 	ex af,af' ;'
 	ld hl,(_DI)
-	getmemDS
+	getmemES
 	ex af,af' ;'
 	sub (hl)
         KEEPCFPARITYOVERFLOW_FROMA
-	ld hl,(_SI)
-	ld bc,(_DI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	inc bc
-	jr z,$+6
-	dec hl
-	dec hl
-	dec bc
-	dec bc
-	ld (_SI),hl
-	ld (_DI),bc
+        INCDECSI_DIbyDIRECTION
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
@@ -802,95 +845,106 @@ REPCMPSBer
 	ex af,af' ;'
 	ld a,h
 	or l
-	jr nz,REPCMPSBer_repeat
+	jp nz,REP_repeat
+       _LoopC
+;repnz scasb
+REPSCASBer
+	ld hl,(_SI)
+	getmemDS ;TODO подмена сегмента
+	ld a,(_AL) ;al
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
+        INCDECSIbyDIRECTION
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ex af,af' ;'
+	jr z,exaLoopC
+	ex af,af' ;'
+	ld a,h
+	or l
+	jp nz,REP_repeat
        _LoopC
 exaLoopC
 	ex af,af' ;'
        _LoopC
-REPCMPSBer_repeat
-       decodePC
-        dec de
-        dec de ;new PC 
-       _LoopC_JP
 
-;TODO подмена сегмента
+SCASBer
+	ld hl,(_SI)
+	getmemDS ;TODO подмена сегмента
+	ld a,(_AL) ;al
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
+        INCDECSIbyDIRECTION
+       _LoopC
+
+CMPSBer
+	ld hl,(_SI)
+	getmemDS ;TODO подмена сегмента
+	ex af,af' ;'
+	ld hl,(_DI)
+	getmemES
+	ex af,af' ;'
+	sub (hl)
+        KEEPCFPARITYOVERFLOW_FROMA
+        INCDECSI_DIbyDIRECTION
+       _LoopC
+
 LODSBer
 	ld hl,(_SI)
-	getmemDS
+	getmemDS ;TODO подмена сегмента
 	ld (_AL),a ;al
-	ld hl,(_SI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	jr z,$+4
-	dec hl
-	dec hl
-	ld (_SI),hl
+        INCDECSIbyDIRECTION
 ;flags not affected
 ;dec cx не надо!
        _LoopC
 
-;TODO подмена сегмента
 LODSWer
 	ld hl,(_SI)
-	getmemDS
+	getmemDS ;TODO подмена сегмента
 	ld (_AL),a ;al
 	ld hl,(_SI)
 	inc hl
-	getmemDS
+	getmemDS ;TODO подмена сегмента
 	ld (_AH),a ;ah
-	ld hl,(_SI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	inc hl
-	jr z,$+6
-	dec hl
-	dec hl
-	dec hl
-	dec hl
-	ld (_SI),hl
+LODSWerincq
+        INCDEC2SIbyDIRECTION
 ;flags not affected
 ;dec cx не надо!
        _LoopC
 
-;TODO подмена сегмента
+OPSIZEr
+;костыль для para512
+        get
+        next
+;for lodsd
+	ld hl,(_SI)
+	getmemDS ;TODO подмена сегмента
+	ld (_AL),a ;al
+	ld hl,(_SI)
+	inc hl
+	getmemDS ;TODO подмена сегмента
+	ld (_AH),a ;ah
+       jr LODSWerincq
+
 STOSBer
 	ld a,(_AL) ;al
 	ld hl,(_DI)
-        putmemDS
-	ld hl,(_DI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	jr z,$+4
-	dec hl
-	dec hl
-	ld (_DI),hl
+        putmemES
+        INCDECDIbyDIRECTION
 ;flags not affected
 ;dec cx не надо!
        _LoopC
 
-;TODO подмена сегмента
 STOSWer
 	ld a,(_AL) ;al
 	ld hl,(_DI)
-        putmemDS
+        putmemES
 	ld a,(_AH) ;ah
 	ld hl,(_DI)
 	inc hl
-        putmemDS
-	ld hl,(_DI)
-	ld a,(_DIRECTION)
-	or a
-	inc hl
-	inc hl
-	jr z,$+6
-	dec hl
-	dec hl
-	dec hl
-	dec hl
-	ld (_DI),hl
+        putmemES ;TODO speedup
+        INCDEC2DIbyDIRECTION
 ;flags not affected
 ;dec cx не надо!
        _LoopC
@@ -906,8 +960,21 @@ INTi8
 	jr z,INT10
 	cp 0x16
 	jr z,INT_inputal
+	cp 0x1a
+	jr z,INT_gettimer
+        cp 0x21
+        jr z,INT21
        jr $
        ;_Loop_
+
+INT_gettimer
+;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
+_microtimer=$+1
+        ld hl,0
+        inc hl
+        ld (_microtimer),hl
+        ld (_DX),a
+       _Loop_
 
 INT10
         ld a,(_AH)
@@ -915,6 +982,49 @@ INT10
         jr z,INT_setgfx
         cp 0x0e
         jr z,INT_printal
+       jr $
+
+INT21
+;        mov     ax,ds                   ;deallocate all but 128k mem
+;        mov     es,ax
+;        mov     ah,4Ah
+;        mov     bx,2000h ;size 128k
+;        int     21h
+
+;        mov     ah,35h                  ;get and save old int 09h vector
+;        mov     al,09h
+;        int     21h
+;        mov     word ptr old_int9[0],bx
+;        mov     word ptr old_int9[2],es
+
+;set new int 09h vector
+;        push    cs
+;        pop     ds
+;        mov     dx,offset key_int
+;        mov     ah,25h
+;        mov     al,09h
+;        int     21h
+
+;        mov     ah,48h                  ;allocate       starbuf
+;        mov     bx,1000h                ;64k
+;        int     21h
+;        mov     es,ax
+
+;        mov     ah,0                    ;init random seed
+;        int     1Ah                     ; to timer
+;        mov     word ptr r3[0],dx       ;
+;        mov     word ptr r3[2],cx       ;
+
+
+;        mov     ah,2                    ;scoreboard
+;        mov     bh,0
+;        mov     dh,24
+;        mov     dl,0
+;        int     10h ;???
+;        mov     dx,offset fuelS
+;        mov     ah,9
+;        int     21h
+
        jr $
 
 INT_setgfx

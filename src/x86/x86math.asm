@@ -1,4 +1,24 @@
-﻿;cbw ;Expand AL to AX
+﻿AAMer
+;aam i8 ;ASCII коррекция для умножения
+;TODO:
+;ah <= al/i8
+;al <= al mod i8
+;пока костыль для para512: ah <= al/0x10, al <= al&0x0f
+        get
+        next
+        ld a,(_AL)
+        rrca
+        rrca
+        rrca
+        rrca
+        and 0x0f
+        ld (_AH),a
+        ld a,(_AL)
+        and 0x0f
+        ld (_AL),a
+       _Loop_
+
+;cbw ;Expand AL to AX
 CBWer
 	ld a,(_AL);l ;al
 	rla

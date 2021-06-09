@@ -3,7 +3,7 @@
 
 STACK=0x4000
 
-BASIC=0
+BASIC=1
        if BASIC
 STARTPC=0x7c00
        else
@@ -219,20 +219,40 @@ STARTPC=0x0100
 	SETPGC000
 	endm
 
-	macro putmemDS
-	push af
-	memDS
-	pop af
-	ld (hl),a
-;TODO перехват записи в экран
-        
-	endm
-
 	macro getmemDS
 	memDS
 	ld a,(hl)
 	endm
        endif
+
+	macro memES_nosetpg
+	ld bc,(es_LSW)
+	ld a,(es_HSB)
+        ADDSEGMENT_hl_abc_to_ahl
+	ld c,a
+	ld b,tpgs/256
+	ld a,h
+	or 0xc0
+	ld h,a
+	ld a,(bc)
+	endm
+
+	macro putmemES
+	push af
+	memES_nosetpg
+        push bc
+	SETPGC000
+        pop bc
+	pop af
+	ld (hl),a
+        _PUTscreen_logpgc_zxaddrhl_datamhl
+	endm
+
+	macro getmemES
+	memES_nosetpg
+	SETPGC000
+	ld a,(hl)
+	endm
 
 	macro putmemspBC
         LD HL,(_SP)
@@ -291,12 +311,32 @@ STARTPC=0x0100
 	ex af,af' ;'
 	endm
 
+	macro KEEPCFPARITYOVERFLOW_FROMA_keepa
+        exx
+	ld d,a ;parity data
+	rra
+	ld e,a ;overflow data
+	rla ;restore CF
+	ex af,af' ;'
+        ld a,d
+        exx
+	endm
+
 	macro KEEPLOGICCFPARITYOVERFLOW_FROMA
         exx
 	ld d,a ;parity data
 	ld e,0 ;OF=0
 	exx
 	ex af,af' ;'
+	endm
+
+	macro KEEPLOGICCFPARITYOVERFLOW_FROMA_keepa
+        exx
+	ld d,a ;parity data
+	ld e,0 ;OF=0
+	ex af,af' ;'
+        ld a,d
+	exx
 	endm
 
         macro KEEPCFPARITYOVERFLOW_FROMHL
@@ -467,6 +507,8 @@ filltscreenpgs0
        rrc l
        rrc l
         ld (hl),c
+            dec l     ;
+            ld (hl),c ;test backbuffer
         inc c
        ld l,a
         inc l
@@ -485,6 +527,13 @@ filltscreenpgs0
         ld de,STARTPC
         encodePC;memCS ;out: a=physpg, de=zxaddr
         ex de,hl
+       push hl
+       ld hl,0x4000
+       ld de,0x4001
+       ld bc,0x3fff
+       ld (hl),l;0
+       ldir ;para512 ожидает чистую память после себя
+       pop hl
         ld de,trom0
 ;de=имя файла
 ;hl=куда грузим
@@ -549,7 +598,13 @@ trom0
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
-        db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
+        ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
+        ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
        endif
         ;DB "pc102782.bin",0
 
@@ -711,14 +766,19 @@ PUTscreen_logpgc_zxaddrhl_datamhl_do
         ld a,(user_scr0_low) ;ok
         jr nc,$+5
         ld a,(user_scr0_high) ;ok
+       push bc
         SETPGC000
+       pop bc
         sra h
         rr l
         jr c,$+4
         res 5,h
-;TODO корректировать левую точку цветом b
-     ld a,(hl)
-     or 0b01000111
+;TODO пересчитать цвет b
+     ld a,b
+     and 7
+     xor (hl)
+     and 0b01000111
+     xor (hl)
      ld (hl),a    
         ret
 PUTscreen_rightpixel
@@ -727,14 +787,22 @@ PUTscreen_rightpixel
         ld a,(user_scr0_low) ;ok
         jr nc,$+5
         ld a,(user_scr0_high) ;ok
+       push bc
         SETPGC000
+       pop bc
         sra h
         rr l
         jr c,$+4
         res 5,h
-;TODO корректировать правую точку цветом b
-     ld a,(hl)
-     or 0b10111000
+;TODO пересчитать цвет b
+     ld a,b
+     and 7
+     add a,a
+     add a,a
+     add a,a
+     xor (hl)
+     and 0b10111000
+     xor (hl)
      ld (hl),a    
         ret
 
@@ -827,7 +895,7 @@ ds_HSB	db 0
         db _BH&0xff
         edup
        ds _AX+192-$
-;decode r8
+;decode r8 (TODO поменять местами с decode rm, т.к. rm нужно чаще)
         ds 8,_AL&0xff
         ds 8,_CL&0xff
         ds 8,_DL&0xff
