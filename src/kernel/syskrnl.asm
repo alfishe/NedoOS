@@ -1020,6 +1020,8 @@ KEY_PUTREDRAW
 		ld bc,0xdef7
 		out (c),c
 		ld b,0xbe
+        ld a,2
+        out (c),a
 		in a,(c)
 		jr z,.buf_empty
 		inc a

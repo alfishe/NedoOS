@@ -18,24 +18,52 @@ cmd_begin
         ld (cmdpgscreen0_0),a
 
 hobetarunner=0x4100
-        ld a,(cmdpgscreen0_0)
-	sub 4-1 ;ld a,0xff-4 ;pgkillable
-	SETPG16K
 
-        ld hl,washobetarunner
-        ld de,hobetarunner
-        ld bc,hobetarunner_sz
-        ldir
     OS_GETCONFIG
-    ld (reset_hook_place+3),de
-    ld a,l
+    ld d,l
+    ld a,l    
+    cp 1
+    jr nz,no_eva
+
+    OS_SETSYSDRV
+    ld sp,0x0000
+    ld hl,nmisvc_starter
+    ld de,0x0080
+    ld bc,nmisvc_starter_size
+    ldir
+    ld de,str_nmisvc
+    OS_OPENHANDLE
+    jp nmisvc_start
+    
+nmisvc_starter
+    disp 0x0080
+str_nmisvc
+    defb "/bin/nmisvc.com",0
+nmisvc_start
+    push bc
+        ld de,0x0100
+        ld hl,0xc000
+        OS_READHANDLE
+    pop bc
+    OS_CLOSEHANDLE
+    jp PROGSTART
+    ent
+nmisvc_starter_size=$-nmisvc_starter
+
+no_eva    
     ld (pcconf),a
+    ld c,0xff
     cp 2
-    jr z,set_hook
+    jr z,atm_1f
     cp 3
-    jr nz,not_set_hook
-set_hook
-    ld a,(0x1f^0xff)&0x7f
+    jr nz,not_atm_1f
+atm_1f
+    ld c,0x7f
+    ld d,0
+not_atm_1f
+    ld (reset_hook_place+3),de
+    ld a,0x1f^0xff
+    and c
     SETPGC000
     ld hl,reset_hook_place
     ld de,0xc000
@@ -55,38 +83,27 @@ hook_crc_loop
     jr nz,hook_crc_loop
     neg
     ld (0xfffd),a
-not_set_hook
-
+    
 cmdpgscreen0_0=$+1
 	ld a,0xff-1
 	SETPG32KLOW
         inc a ;ld a,0xff-0
 	SETPG32KHIGH
 
-        ;call loadhobeta
-        ;ret nz ;error
-        ;ld hl,0x6000
-        ;ld bc,(0x6000-17+11) ;len
-        ;add hl,bc
-        ;dec hl ;hl=load end
-        ;ex de,hl
-        ;ld hl,(0x6000-17+9) ;start
-        ;ld (hobetarunner_jp),hl
-        ;add hl,bc
-        ;dec hl
-        ;ex de,hl ;de=destination end
-        ;lddr
-	jp hobetarunner
+
+    ld a,(cmdpgscreen0_0)
+    sub 4-1 ;ld a,0xff-4 ;pgkillable
+    SETPG16K
+
+    ld hl,washobetarunner
+    ld de,hobetarunner
+    ld bc,hobetarunner_sz
+    ldir
+    jp hobetarunner
 
     
 washobetarunner
-;pgsys=pagexor-10
-;pgfatfs=pagexor-9
-;pgtrdosfs=pagexor-8
-;pgkillable=pagexor-4 ;в 128K памяти, т.к. можно портить
 	disp hobetarunner ;in pgkillable
-;$c loaded in pages 4,1,0
-;only ATM2 ports here!
 	di
 	ld a,0x7f-5
         ld bc,0xbff7
@@ -177,8 +194,9 @@ hobetarunner_jp=$+1
 ;АТМный перехватчик ресета
         ent
 hobetarunner_sz=$-washobetarunner
+
 reset_hook_place
-        disp 0xc000
+    disp 0xc000
 reset_hook_begin
     jp reset_hook_start
     defs 10
@@ -191,26 +209,44 @@ reset_hook_start
     ld bc,reset_hook_end - reset_hook_begin
     ldir
     jp $ + 3 - 0x4000
-    ld a,(0x8003)
-    ld bc,0x3FF7
-    out (c),a
-    ld a,0x7b
-    ld b,0x7f
-    out (c),a
-    ld b,0xff
-    out (c),a
-    ld a,0x47
+    ld a,0x57
     ld bc,0x7ffd
     out (c),a
+    ld de,(0x8003)
+    ld iy,0x3f7f
+    ld ix,0xbfff
+    dec d
+    inc d
+    jr z,rest_atm2
+    ld iy,0x3777
+    ld ix,0xb7f7
+rest_atm2
+    ld a,0x7f
+    ld bc,0x3FF7
+    out (c),a
+    ld b,iyh
+    out (c),e
+    ld e,0x7b
+    ld b,0x7f
+    out (c),e
+    ld b,0xff
+    out (c),e
+    ld e,0x47
+    ld bc,0x7ffd
+    out (c),e
     ld hl,(0x8005)
     ld bc,0x3FF7
+    out (c),a
+    ld b,iyh
     out (c),h
     ld b,0x7F
+    out (c),a
+    ld b,iyl
     out (c),l
     ld hl,(0x8007)
-    ;ld b,0xbF
-    ;out (c),h
     ld b,0xfF
+    out (c),a
+    ld b,ixl
     out (c),l
     ld bc,0xbd77
     ld a,0xae
@@ -219,6 +255,7 @@ reset_hook_start
     im 1
     ei
     jp 0x0000
+    
 reset_hook_end
         ent
     nop
