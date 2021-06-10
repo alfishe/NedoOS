@@ -375,13 +375,13 @@ MOVbhi8
 MOVmemal
 	getHL
         call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-       push bc
+       ld lx,c;push bc
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
         ld a,(_AL)
 	ld (hl),a
-       pop bc
+       ld c,lx;pop bc
        _PUTscreen_logpgc_zxaddrhl_datamhl
        _LoopC
 
@@ -391,8 +391,11 @@ MOVmemax
 	getHL
         call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
        ld lx,c;push bc
-        ld bc,(_AX) ;TODO спецверсию PUTm16
-       _PUTm16LoopC
+         ld b,tpgs/256
+         ld a,(bc)
+	SETPGC000
+        ld bc,(_AX)
+       _PUTm16LoopC_oldpg
 
 ;mov al,[addr]
         ALIGNrm
@@ -411,14 +414,15 @@ MOValmem
 MOVaxmem
 	getHL
         call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-       push bc ;c=page (%01..5432), b=?s_HSB
+       ld lx,c
+       ;push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
-       pop bc ;c=page (%01..5432), b=?s_HSB
+       ;pop bc ;c=page (%01..5432), b=?s_HSB
 	ld a,(hl)
         inc l
-        call z,inch_nextsubsegment
+        call z,inch_nextsubsegment_pglx
 	ld b,(hl)
         ld c,a
 	ld (_AX),bc

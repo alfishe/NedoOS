@@ -7,14 +7,21 @@
        ld h,_AX/256
        ld l,(hl) ;rm addr
        endm
-        macro ADDRr16 ;r/m register
+        macro ADDRr16_keepa ;r/m register
 ;a=r/m byte
-        ld c,a
+        ld h,a
+        and 7
+        add a,a
+        ld l,a
+        ld a,h
+        ld h,_AX/256
+        endm
+        macro ADDRr16_nokeepa ;r/m register
+;a=r/m byte
         and 7
         add a,a
         ld l,a
         ld h,_AX/256
-        ld a,c
         endm
 
         macro GETr16
@@ -28,21 +35,24 @@
         ld d,(hl)
         endm
         macro GETr16_hl
-        ld a,(hl)
+        ld b,(hl)
         inc l
         ld h,(hl)
-        ld l,a
+        ld l,b
         endm
 
-        macro PUTr16
-;hl is kept since ADDRr16
-        ld a,l
+       macro SWAPr16
+        ld a,(hl)
         ld (hl),c
+        ld c,a
         inc l
+        ld a,(hl)
         ld (hl),b
-        cp _SP&0xff
+        ld b,a
+        ld a,l
+        cp 1+(_SP&0xff)
         call z,encodeSP_pp
-        endm
+       endm
 
         macro _PUTr16Loop_
 ;hl is kept since ADDRr16
@@ -67,8 +77,7 @@
         endm
 
 encodeSP_pp
-        ld h,b
-        ld l,c
+        ld hl,(_SP)
         encodeSP
         ret
 
@@ -322,56 +331,20 @@ inch_nextsubsegment
 	SETPGC000
         endm
 
-        macro GETm32_l_h_c_b
-       push bc ;c=page (%01..5432), b=?s_HSB
+        macro skip2b_GETm16
+       ld c,lx
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
-       pop bc ;c=page (%01..5432), b=?s_HSB
-	ld a,(hl)
-_base_LSB_GETm32_l_h_c_b=$
-        ld ($+_shift_LSB_GETm32_l_h_c_b),a
         inc l
-        call z,inch_nextsubsegment
-	ld a,(hl)
-_base_HSB_GETm32_l_h_c_b=$
-        ld ($+_shift_HSB_GETm32_l_h_c_b),a
+        call z,inch_nextsubsegment_pglx
         inc l
-        call z,inch_nextsubsegment
+        call z,inch_nextsubsegment_pglx
 	ld a,(hl)
         inc l
-        call z,inch_nextsubsegment
+        call z,inch_nextsubsegment_pglx
 	ld b,(hl)
         ld c,a
-_shift_LSB_GETm32_l_h_c_b=$+1-_base_LSB_GETm32_l_h_c_b
-_shift_HSB_GETm32_l_h_c_b=$+2-_base_HSB_GETm32_l_h_c_b
-        ld hl,0
-        endm
-
-        macro GETm32_e_d_c_b
-       push bc ;c=page (%01..5432), b=?s_HSB
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
-       pop bc ;c=page (%01..5432), b=?s_HSB
-	ld a,(hl)
-_base_LSB_GETm32_e_d_c_b=$
-        ld ($+_shift_LSB_GETm32_e_d_c_b),a
-        inc l
-        call z,inch_nextsubsegment
-	ld a,(hl)
-_base_HSB_GETm32_e_d_c_b=$
-        ld ($+_shift_HSB_GETm32_e_d_c_b),a
-        inc l
-        call z,inch_nextsubsegment
-	ld a,(hl)
-        inc l
-        call z,inch_nextsubsegment
-	ld b,(hl)
-        ld c,a
-_shift_LSB_GETm32_e_d_c_b=$+1-_base_LSB_GETm32_e_d_c_b
-_shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
-        ld de,0
         endm
 
         macro _PUTm8LoopC
@@ -399,31 +372,34 @@ _shift_HSB_GETm32_e_d_c_b=$+2-_base_HSB_GETm32_e_d_c_b
        _LoopC
         endm
 
+        macro _PUTm16LoopC_oldpg
+;hl=addr
+;bc=data
+;lx=pg
+	ld (hl),c ;TODO записать в память второй байт заранее (а сложная ветка только при hl=0xffff)
+        push bc;ld a,b
+         ld c,lx
+       _PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg ;TODO по умолчанию без keeppg и сразу 2 байта
+        inc l
+        call z,inch_nextsubsegment_pglx
+        pop af
+	ld (hl),a
+         ld c,lx
+       _PUTscreen_logpgc_zxaddrhl_datamhl
+       _LoopC
+        endm
+
         macro _PUTm16LoopC
 ;hl=addr
 ;bc=data
 ;lx=pg
-;(sp)=(l=page (%01..5432), h=?s_HSB)
-;       ex (sp),hl ;l=page (%01..5432), h=?s_HSB
-;	ld h,tpgs/256
-;	ld a,(hl)
-;       ex (sp),hl ;hl=addr
        push bc ;bc=data
          ld c,lx
          ld b,tpgs/256
          ld a,(bc)
 	SETPGC000
        pop bc ;bc=data
-	ld (hl),c
-        ld a,b
-       ;pop bc ;c=page (%01..5432), b=?s_HSB
-         ld c,lx
-       _PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg
-        inc l
-        call z,inch_nextsubsegment_pglx
-	ld (hl),a
-       _PUTscreen_logpgc_zxaddrhl_datamhl
-       _LoopC
+       _PUTm16LoopC_oldpg
         endm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -440,9 +416,9 @@ MOVrm8i8
 ;MD=11: mov r/m,i8 ;проще всего, но не имеет смысла (есть короткий код)
         cp 0b11000000
         jp c,MOVrmmemi8
-        ld h,_AX/256
        sub 64
         ld l,a
+        ld h,_AX/256
         ld l,(hl) ;rm addr
         get
         next
@@ -465,10 +441,7 @@ MOVrm16i16
 ;MD=11: mov r/m,i16 ;проще всего, но не имеет смысла (есть короткий код)
         cp 0b11000000
         jp c,MOVrmmemi16
-        and 7
-        add a,a
-        ld l,a
-        ld h,_AX/256 ;rm addr
+        ADDRr16_nokeepa ;rm addr
         getBC
        _PUTr16Loop_
 MOVrmmemi16
@@ -501,9 +474,9 @@ MOVrmmemr8
        ADDRm16_for_PUTm8_nokeepcmd
        pop af
        push hl
-        ld h,_AX/256
         or 0b11000000
         ld l,a
+        ld h,_AX/256
         ld l,(hl) ;reg8 addr
         ld a,(hl)
        pop hl
@@ -514,25 +487,25 @@ MOVrmr16
 	get
 	next
 ;a=MDregR/M
-;MD=00: mov [...],r16
-;MD=01: mov [...+disp8],r16
-;MD=10: mov [...+disp16],r16
-;MD=11: mov r/m,r16 ;проще всего
+;MD=00: mov [...],reg16
+;MD=01: mov [...+disp8],reg16
+;MD=10: mov [...+disp16],reg16
+;MD=11: mov r/m,reg16 ;проще всего
         cp 0b11000000
         jr c,MOVrmmemr16
-       push af
+       ld h,a
         rra
         rra
         and 7*2
         ld l,a
+       ld a,h
         ld h,_AX/256
         ld c,(hl)
         inc l
-        ld b,(hl)
-       pop af
+        ld b,(hl) ;reg16
        and 7
        add a,a
-        ld l,a
+        ld l,a ;rm addr
        _PUTr16Loop_
 MOVrmmemr16
        ADDRm16_for_PUTm16
@@ -544,7 +517,7 @@ MOVrmmemr16
         ld h,_AX/256
         ld c,(hl)
         inc l
-        ld b,(hl)
+        ld b,(hl) ;reg16
        pop hl
        _PUTm16LoopC
 
@@ -579,32 +552,27 @@ MOVr16rm
 	get
 	next
 ;a=MDregR/M
-;MD=00: mov r16,[...]
-;MD=01: mov r16,[...+disp8]
-;MD=10: mov r16,[...+disp16]
-;MD=11: mov r16,r/m ;проще всего
+;MD=00: mov reg16,[...]
+;MD=01: mov reg16,[...+disp8]
+;MD=10: mov reg16,[...+disp16]
+;MD=11: mov reg16,r/m ;проще всего
         cp 0b11000000
         jr c,MOVr16rmmem
-       push af
-       and 7
-       add a,a
-        ld l,a
-        ld h,_AX/256
+        ADDRr16_keepa
         ld c,(hl)
         inc l
-        ld b,(hl)
-       pop af
+        ld b,(hl) ;rm
         rra
         rra
-        and 7*2 ;r16*2
-        ld l,a
+        and 7*2
+        ld l,a ;reg16 addr
        _PUTr16Loop_
 MOVr16rmmem
        ADDRm16_GETm16 ;bc=rmmem
         rra
         rra
-        and 7*2 ;r16*2
-        ld l,a
+        and 7*2
+        ld l,a ;reg16 addr
         ld h,_AX/256
        _PUTr16LoopC ;TODO без ld a,l
 
@@ -619,25 +587,20 @@ MOVsregrm16
 ;MD=11: mov sreg,r/m ;проще всего
         cp 0b11000000
         jr c,MOVsregrmmem
-       push af
-       and 7
-       add a,a
-        ld l,a
-        ld h,_AX/256
+        ADDRr16_keepa
         ld c,(hl)
         inc l
-        ld b,(hl)
-       pop af
+        ld b,(hl) ;rm
         jr MOVsregrmq
 MOVsregrmmem
        ADDRm16_GETm16 ;bc=rmmem
+        ld h,_AX/256
 MOVsregrmq
         rra
         rra
         and 7*2
         add a,_ES&0xff
         ld l,a
-        ld h,_ES/256
         ld (hl),c
         inc l
         ld (hl),b
@@ -668,26 +631,26 @@ MOVrm16sreg
 	get
 	next
 ;a=MDregR/M
-;MD=00: mov [...],r16
-;MD=01: mov [...+disp8],r16
-;MD=10: mov [...+disp16],r16
-;MD=11: mov r/m,r16 ;проще всего
+;MD=00: mov [...],sreg16
+;MD=01: mov [...+disp8],sreg16
+;MD=10: mov [...+disp16],sreg16
+;MD=11: mov r/m,sreg16 ;проще всего
         cp 0b11000000
         jr c,MOVrmmemsreg
-       push af
+       ld h,a
         rra
         rra
         and 7*2
         add a,_ES&0xff
-        ld l,a
+        ld l,a ;sreg16 addr
+       ld a,h
         ld h,_ES/256
         ld c,(hl)
         inc l
         ld b,(hl)
-       pop af
        and 7
        add a,a
-        ld l,a
+        ld l,a ;rm addr
        _PUTr16Loop_
 MOVrmmemsreg
        ADDRm16_for_PUTm16
@@ -696,7 +659,7 @@ MOVrmmemsreg
         rra
         and 7*2
         add a,_ES&0xff ;единственное отличие от MOVrmmemr16
-        ld l,a
+        ld l,a ;sreg16 addr
         ld h,_ES/256
         ld c,(hl)
         inc l
@@ -862,6 +825,34 @@ ANDrmmemi8
         KEEPLOGICCFPARITYOVERFLOW_FROMA_keepa
        _PUTm8LoopC_oldpg
 
+       macro OPr16i8_PRE
+        get
+        next
+        ld c,a
+        rla
+        sbc a,a
+        ld b,a
+       endm
+       macro OPr16i16_POST
+        ld b,h
+        ld c,l
+       pop hl
+       _PUTr16Loop_
+       endm
+       macro OPrmmem16i8_PRE
+        get
+        next
+        ld c,a
+        rla
+        sbc a,a
+        ld b,a
+       endm
+       macro OPrmmemi16_POST
+        ld b,h
+        ld c,l
+       pop hl
+       _PUTm16LoopC
+       endm
         ALIGNrm
 GRP1rmi16
 	get
@@ -880,7 +871,9 @@ GRP1rmi16
 ;MD=11: cmd r/m,i16 ;проще всего
         cp 0b11000000
         jr c,GRP1rmmemi16
-       ADDRr16
+       ADDRr16_keepa
+       push hl
+        GETr16_hl
        and 0b00111000
 	jp z,ADDr16i16
 	cp 0b00001000
@@ -896,11 +889,11 @@ GRP1rmi16
 	cp 0b00110000
 	jp z,XORr16i16
 ;CMPr16i16
-        GETr16_hl
 	getBC
 	or a
 	sbc hl,bc
         KEEPCFPARITYOVERFLOW_FROMHL
+       pop hl ;skip
        _Loop_
 GRP1rmmemi16
         ADDRm16_GETm16_for_PUTm16
@@ -929,147 +922,109 @@ CMPrmmemi16
        pop hl ;skip
        _LoopC
 
-       macro OPr16i16_PRE
-       push hl
-        GETr16_hl
-        getBC
-       endm
-       macro OPr16i8_PRE
-       push hl
-        GETr16_hl
-        get
-        next
-        ld c,a
-        rla
-        sbc a,a
-        ld b,a
-       endm
-       macro OPr16i16_POST
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld b,h
-        ld c,l
-       pop hl
-       _PUTr16Loop_
-       endm
-       macro LOGICOPr16i16_POST
-        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
-        ld b,h
-        ld c,l
-       pop hl
-       _PUTr16Loop_
-       endm
 ADDr16i16
         or a
         ex af,af' ;'
 ADCr16i16
-        OPr16i16_PRE
+        getBC
         ex af,af' ;'
         adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPr16i16_POST
 SUBr16i16
         or a
         ex af,af' ;'
 SBBr16i16
-        OPr16i16_PRE
+        getBC
         ex af,af' ;'
         sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPr16i16_POST
 XORr16i16
-        OPr16i16_PRE
-        ld a,l
-        xor c
-        ld l,a
-        ld a,h
-        xor b
-        ld h,a
-        LOGICOPr16i16_POST
-ORr16i16
-        OPr16i16_PRE
-        ld a,l
-        or c
-        ld l,a
-        ld a,h
-        or b
-        ld h,a
-        LOGICOPr16i16_POST
-ANDr16i16
-        OPr16i16_PRE
-        ld a,l
-        and c
-        ld l,a
-        ld a,h
-        and b
-        ld h,a
-        LOGICOPr16i16_POST
-
-       macro OPrmmemi16_PRE
-        getBC
-       endm
-       macro OPrmmem16i8_PRE
         get
         next
-        ld c,a
-        rla
-        sbc a,a
-        ld b,a
-       endm
-       macro OPrmmemi16_POST
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld b,h
-        ld c,l
-       pop hl
-       _PUTm16LoopC
-       endm
-       macro LOGICOPrmmemi16_POST
+        xor l
+        ld l,a
+        get
+        next
+        xor h
+        ld h,a
         KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
-        ld b,h
-        ld c,l
-       pop hl
-       _PUTm16LoopC
-       endm
+        OPr16i16_POST
+ORr16i16
+        get
+        next
+        or l
+        ld l,a
+        get
+        next
+        or h
+        ld h,a
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        OPr16i16_POST
+ANDr16i16
+        get
+        next
+        and l
+        ld l,a
+        get
+        next
+        and h
+        ld h,a
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        OPr16i16_POST
+
 ADDrmmemi16
         or a
         ex af,af' ;'
 ADCrmmemi16
-        OPrmmemi16_PRE
+        getBC
         ex af,af' ;'
         adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPrmmemi16_POST
 SUBrmmemi16
         or a
         ex af,af' ;'
 SBBrmmemi16
-        OPrmmemi16_PRE
+        getBC
         ex af,af' ;'
         sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPrmmemi16_POST
 XORrmmemi16
-        OPrmmemi16_PRE
-        ld a,l
-        xor c
+        get
+        next
+        xor l
         ld l,a
-        ld a,h
-        xor b
+        get
+        next
+        xor h
         ld h,a
-        LOGICOPrmmemi16_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        OPrmmemi16_POST
 ORrmmemi16
-        OPrmmemi16_PRE
-        ld a,l
-        or c
+        get
+        next
+        or l
         ld l,a
-        ld a,h
-        or b
+        get
+        next
+        or h
         ld h,a
-        LOGICOPrmmemi16_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        OPrmmemi16_POST
 ANDrmmemi16
-        OPrmmemi16_PRE
-        ld a,l
-        and c
+        get
+        next
+        and l
         ld l,a
-        ld a,h
-        and b
+        get
+        next
+        and h
         ld h,a
-        LOGICOPrmmemi16_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        OPrmmemi16_POST
 
         ALIGNrm
 GRP1rm16i8 ;операнд расширяется со знаком
@@ -1086,7 +1041,9 @@ GRP1rm16i8 ;операнд расширяется со знаком
 ;MD=11: cmd r/m,i8 ;проще всего
         cp 0b11000000
         jr c,GRP1rmmem16i8
-       ADDRr16
+       ADDRr16_keepa
+       push hl
+        GETr16_hl
        and 0b00111000
 	jp z,ADDr16i8
 	;cp 0b00001000
@@ -1102,7 +1059,6 @@ GRP1rm16i8 ;операнд расширяется со знаком
         ;cp 0b00110000
 	;jp z,XORr16i8
 ;CMPr16i8
-        GETr16_hl
         get
         next
         ld c,a
@@ -1112,6 +1068,7 @@ GRP1rm16i8 ;операнд расширяется со знаком
 	or a
 	sbc hl,bc
         KEEPCFPARITYOVERFLOW_FROMHL
+       pop hl ;skip
        _Loop_
 GRP1rmmem16i8
         ADDRm16_GETm16_for_PUTm16
@@ -1152,6 +1109,7 @@ ADCr16i8
         OPr16i8_PRE
         ex af,af' ;'
         adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPr16i16_POST
 SUBr16i8
         or a
@@ -1160,6 +1118,7 @@ SBBr16i8
         OPr16i8_PRE
         ex af,af' ;'
         sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPr16i16_POST
 ADDrmmem16i8
         or a
@@ -1168,6 +1127,7 @@ ADCrmmem16i8
         OPrmmem16i8_PRE
         ex af,af' ;'
         adc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPrmmemi16_POST
 SUBrmmem16i8
         or a
@@ -1176,6 +1136,7 @@ SBBrmmem16i8
         OPrmmem16i8_PRE
         ex af,af' ;'
         sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMHL
         OPrmmemi16_POST
 
        macro OPrmr8_PRE
@@ -1342,24 +1303,21 @@ ANDrmr8
 ;MD=11: cmd reg16,r/m ;проще всего
         cp 0b11000000
         jp c,6f;OPrmmemr16
-       push af
+       ld h,a
         rra
         rra
-        and 7*2 ;r16
-        ld l,a
+        and 7*2
+        ld l,a ;reg16 addr
+       ld a,h
         ld h,_AX/256
         ld c,(hl)
         inc l
-        ld b,(hl)
-       pop af
-        and 7 ;rm
+        ld b,(hl) ;reg16
+        and 7
         add a,a
-        ld l,a
+        ld l,a ;rm addr
        ;push hl
-        ;ld a,(hl)
-        ;inc l
-        ;ld h,(hl)
-        ;ld l,a
+        ;ld hl,(hl)
         ;or a
         ;adc hl,bc ;op
        endm
@@ -1370,15 +1328,51 @@ ANDrmr8
         ld h,_AX/256
         rra
         rra
-        and 7*2 ;r16
-        ld l,a
+        and 7*2
+        ld l,a ;reg16 addr
+        ;ld hl,(hl)
+        ;or a
+        ;adc hl,bc ;op
+       endm
+       macro SUBrmr16_POST
+6;SUBrmmemr16
+        ADDRm16_GETm16_for_PUTm16
+      push hl
+        ld h,_AX/256
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
        push bc
         ld c,(hl)
         inc l
-        ld b,(hl)
+        ld b,(hl) ;reg16
        pop hl
-        ;or a
-        ;adc hl,bc ;op
+        ex af,af' ;'
+        sbc hl,bc ;op
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld b,h
+        ld c,l
+      pop hl
+      _PUTm16LoopC
+       endm
+       macro CMPrmr16_POST
+6;CMPrmmemr16
+       ADDRm16_GETm16 ;bc=rmmem
+        ld h,_AX/256
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+       push bc
+        ld c,(hl)
+        inc l
+        ld b,(hl) ;reg16
+       pop hl ;rmmem
+        or a
+        sbc hl,bc ;op
+        KEEPCFPARITYOVERFLOW_FROMHL
+       _LoopC
        endm
 
         ALIGNrm
@@ -1401,6 +1395,10 @@ ADCrmr16
        pop hl
        _PUTr16Loop_
         OPrmr16_POST
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
         ex af,af' ;'
         adc hl,bc ;op
         KEEPCFPARITYOVERFLOW_FROMHL
@@ -1428,14 +1426,7 @@ SBBrmr16
         ld c,l
        pop hl
        _PUTr16Loop_
-        OPrmr16_POST
-        ex af,af' ;'
-        adc hl,bc ;op
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld b,h
-        ld c,l
-      pop hl
-      _PUTm16LoopC
+        SUBrmr16_POST
 
         ALIGNrm
 CMPrmr16
@@ -1448,23 +1439,7 @@ CMPrmr16
         sbc hl,bc ;op
         KEEPCFPARITYOVERFLOW_FROMHL
        _LoopC
-6
-       ADDRm16_GETm16 ;bc=rmmem
-        ld h,_AX/256
-        rra
-        rra
-        and 7*2 ;r16
-        ld l,a
-        ld h,_AX/256
-       push bc
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-       pop hl ;rmmem
-        or a
-        sbc hl,bc ;op
-        KEEPCFPARITYOVERFLOW_FROMHL
-       _LoopC
+        CMPrmr16_POST
 
         ALIGNrm
 XORrmr16
@@ -1481,10 +1456,11 @@ XORrmr16
        pop hl
        _PUTr16Loop_
         OPrmr16_POST
-        ld a,l
+        ld a,(hl)
         xor c
         ld c,a
-        ld a,h
+        inc l
+        ld a,(hl)
         xor b ;op
         ld b,a
         KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
@@ -1506,10 +1482,11 @@ ORrmr16
        pop hl
        _PUTr16Loop_
         OPrmr16_POST
-        ld a,l
+        ld a,(hl)
         or c
         ld c,a
-        ld a,h
+        inc l
+        ld a,(hl)
         or b ;op
         ld b,a
         KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
@@ -1531,10 +1508,11 @@ ANDrmr16
        pop hl
        _PUTr16Loop_
         OPrmr16_POST
-        ld a,l
+        ld a,(hl)
         and c
         ld c,a
-        ld a,h
+        inc l
+        ld a,(hl)
         and b ;op
         ld b,a
         KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
@@ -1559,17 +1537,6 @@ ANDrmr16
         ;op (hl),b
        endm
        macro OPr8rm_POST
-        KEEPCFPARITYOVERFLOW_FROMA
-       _LoopC
-6;OPr8rmmem
-       ADDRm16_GETm8b_keepaf
-       or 0b11000000
-        ld h,_AX/256
-       jp 5b;OPr8rmok
-       endm
-       macro LOGICOPr8rm_POST
-        KEEPLOGICCFPARITYOVERFLOW_FROMA
-       _LoopC
 6;OPr8rmmem
        ADDRm16_GETm8b_keepaf
        or 0b11000000
@@ -1588,6 +1555,8 @@ ADCr8rm
         ld a,(hl)
         adc a,b ;op
         ld (hl),a
+        KEEPCFPARITYOVERFLOW_FROMA
+       _LoopC
         OPr8rm_POST
 
         ALIGNrm
@@ -1601,6 +1570,8 @@ SBBr8rm
         ld a,(hl)
         sbc a,b ;op
         ld (hl),a
+        KEEPCFPARITYOVERFLOW_FROMA
+       _LoopC
         OPr8rm_POST
 
         ALIGNrm
@@ -1608,6 +1579,8 @@ CMPr8rm
         OPr8rm_PRE
         ld a,(hl)
         sub b ;op
+        KEEPCFPARITYOVERFLOW_FROMA
+       _LoopC
         OPr8rm_POST
 
         ALIGNrm
@@ -1616,7 +1589,9 @@ XORr8rm
         ld a,(hl)
         xor b ;op
         ld (hl),a
-        LOGICOPr8rm_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _LoopC
+        OPr8rm_POST
 
         ALIGNrm
 ORr8rm
@@ -1624,7 +1599,9 @@ ORr8rm
         ld a,(hl)
         or b ;op
         ld (hl),a
-        LOGICOPr8rm_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _LoopC
+        OPr8rm_POST
 
         ALIGNrm
 ANDr8rm
@@ -1632,50 +1609,46 @@ ANDr8rm
         ld a,(hl)
         and b ;op
         ld (hl),a
-        LOGICOPr8rm_POST
+        KEEPLOGICCFPARITYOVERFLOW_FROMA
+       _LoopC
+        OPr8rm_POST
 
        macro OPr16rm_PRE
 	get
 	next
 ;a=MDregR/M
-;MD=00: cmd r16,[...]
-;MD=01: cmd r16,[...+disp8]
-;MD=10: cmd r16,[...+disp16]
-;MD=11: cmd r16,r/m ;проще всего
+;MD=00: cmd reg16,[...]
+;MD=01: cmd reg16,[...+disp8]
+;MD=10: cmd reg16,[...+disp16]
+;MD=11: cmd reg16,r/m ;проще всего
         cp 0b11000000
         jp c,6f;OPr16rmmem
-       push af
-        and 7 ;rm
-        add a,a
-        ld l,a
-        ld h,_AX/256
+        ADDRr16_keepa ;rm addr
         ld c,(hl)
         inc l
-        ld b,(hl)
-       pop af
+        ld b,(hl) ;rm
 5;OPr16rmok
         rra
         rra
-        and 7*2 ;r16
-        ld l,a
+        and 7*2
+        ld l,a ;reg16 addr
        ;push hl
         ;ld hl,(hl)
         ;op hl,bc
        endm
        macro OPr16rm_POST
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld b,h
-        ld c,l
-       pop hl
-       _PUTr16LoopC
 6;OPr16rmmem
        ADDRm16_GETm16 ;bc=rmmem
         ld h,_AX/256
        jp 5b;OPr16rmok
        endm
+       macro CMPr16rmPOST
+6;CMPr16rmmem
+       ADDRm16_GETm16 ;bc=rmmem
+        ld h,_AX/256
+       jp 5b;OPr16rmok
+       endm
        macro LOGICOPr16rm_POST
-        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
-       _PUTr16LoopC
 6;OPr16rmmem
        ADDRm16_GETm16 ;bc=rmmem
         ld h,_AX/256
@@ -1696,6 +1669,11 @@ ADCr16rm
         ld l,a
         ex af,af' ;'
         adc hl,bc ;op
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld b,h
+        ld c,l
+       pop hl
+       _PUTr16LoopC
         OPr16rm_POST
 
         ALIGNrm
@@ -1712,11 +1690,16 @@ SBBr16rm
         ld l,a
         ex af,af' ;'
         sbc hl,bc ;op
+        KEEPCFPARITYOVERFLOW_FROMHL
+        ld b,h
+        ld c,l
+       pop hl
+       _PUTr16LoopC
         OPr16rm_POST
 
         ALIGNrm
 CMPr16rm
-        OPr16rm_PRE ;там метка 5
+        OPr16rm_PRE
         ld a,(hl)
         inc l
         ld h,(hl)
@@ -1725,10 +1708,7 @@ CMPr16rm
         sbc hl,bc ;op
         KEEPCFPARITYOVERFLOW_FROMHL
        _LoopC
-6;CMPr16rmmem
-       ADDRm16_GETm16 ;bc=rmmem
-        ld h,_AX/256
-       jp 5b;OPr16rmok
+       CMPr16rmPOST
 
         ALIGNrm
 XORr16rm
@@ -1741,6 +1721,8 @@ XORr16rm
         xor b
         ld b,a
         dec l
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+       _PUTr16LoopC
         LOGICOPr16rm_POST
 
         ALIGNrm
@@ -1754,6 +1736,8 @@ ORr16rm
         or b
         ld b,a
         dec l
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+       _PUTr16LoopC
         LOGICOPr16rm_POST
 
         ALIGNrm
@@ -1767,6 +1751,8 @@ ANDr16rm
         and b
         ld b,a
         dec l
+        KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
+       _PUTr16LoopC
         LOGICOPr16rm_POST
 
        display "alus size=",$-beginalus
@@ -2064,7 +2050,7 @@ GRP2rm161
 ;a=MD111R/M: sar r/m
         cp 0b11000000
         jp c,GRP2rmmem161
-       ADDRr16
+       ADDRr16_keepa
        and 0b00111000
 	jp z,ROLr16
 	cp 0b00001000
@@ -2419,7 +2405,7 @@ GRP2rm16cl
         djnz GRP2rm16cl_no0
        _Loop_
 GRP2rm16cl_no0
-       ADDRr16
+       ADDRr16_keepa
        push hl
         ld c,(hl)
         inc l
@@ -2512,7 +2498,7 @@ GRP2rm16i8
 ;a=MD111R/M: sar r/m,i8
         cp 0b11000000
         jr c,GRP2rmmem16i8
-       ADDRr16
+       ADDRr16_keepa
        push hl
         ld b,(hl)
         inc l
@@ -2898,7 +2884,7 @@ GRP316
 ;MD=11: cmd r/m ;проще всего
         cp 0b11000000
         jr c,GRP316mem
-       ADDRr16
+       ADDRr16_keepa
        and 0b00111000
 	jr z,TESTr16i16
 	cp 0b00010000
@@ -3087,19 +3073,19 @@ TESTrmr16
         next
         cp 0b11000000
         jr c,TESTrmmemr16
-       push af
+       ld h,a
         rra
         rra
-        and 7*2 ;r16
-        ld l,a
+        and 7*2
+        ld l,a ;reg16 addr
+       ld a,h
         ld h,_AX/256
         ld c,(hl)
         inc l
-        ld b,(hl)
-       pop af
-        and 7 ;rm
+        ld b,(hl) ;reg16
+        and 7
         add a,a
-        ld l,a
+        ld l,a ;rm addr
         ld a,(hl)
         and c
         ld c,a
@@ -3111,9 +3097,11 @@ TESTrmr16
        _Loop_
 TESTrmmemr16
        ADDRm16_GETm16 ;bc=rmmem
-        and 7 ;rm
-        add a,a
-        ld l,a
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+        ld h,_AX/256
         ld a,(hl)
         and c
         ld c,a
@@ -3169,27 +3157,51 @@ GRP416
 	get
 	next
        cp 0b11000000
-       jr c,GRP416mem
-       ADDRr16
+       jp c,GRP416mem
+       ADDRr16_keepa
        and 0b00111000
 	jr z,INCr16
 	cp 0b00001000
-	jp z,DECr16
+	jr z,DECr16
 	cp 0b00010000
-	jp z,CALLr16
+	jr z,CALLr16
 	;cp 0b00011000
 	;jp z,CALLFm1616
 	cp 0b00100000
-	jp z,JMPr16
+	;jr z,JMPr16
 	;cp 0b00101000
 	;jp z,JMPFm1616
 	;cp 0b00110000
 	;jp z,PUSHr16
-	jr $;PANIC
+	jr nz,$;PANIC
+JMPr16
+        GETr16_de
+        jp JMPr16q
+INCr16
+       push hl
+        GETr16
+	incbcwithflags
+       pop hl
+       _PUTr16Loop_
+DECr16
+       push hl
+        GETr16
+	decbcwithflags
+       pop hl
+       _PUTr16Loop_
+CALLr16
+        GETr16_hl
+        ex de,hl ;new IP(PC)
+        ld b,h
+        ld c,l ;=old IP(PC)
+        putmemspBC
+JMPr16q
+       _LoopJP
+
 GRP416mem
         ADDRm16_GETm16_for_PUTm16
        and 0b00111000
-	jr z,INCrmmem16
+	jp z,INCrmmem16
 	cp 0b00001000
 	jp z,DECrmmem16
 	cp 0b00010000
@@ -3204,18 +3216,6 @@ GRP416mem
 	jp z,PUSHrmmem16
 	jr $;PANIC
 
-INCr16
-       push hl
-        GETr16
-	incbcwithflags
-       pop hl
-       _PUTr16Loop_
-DECr16
-       push hl
-        GETr16
-	decbcwithflags
-       pop hl
-       _PUTr16Loop_
 INCrmmem16
        push hl
 	incbcwithflags
@@ -3226,13 +3226,6 @@ DECrmmem16
 	decbcwithflags
        pop hl
        _PUTm16LoopC
-CALLr16
-        GETr16_hl
-        ex de,hl ;new IP(PC)
-        ld b,h
-        ld c,l ;=old IP(PC)
-        putmemspBC
-       _LoopJP
 CALLrmmem16
         ld h,b
         ld l,c
@@ -3242,9 +3235,9 @@ CALLrmmem16
         putmemspBC
        _LoopC_JP
 CALLFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
-;TODO fix! уже прочитано 2 байта из (hl)!
-        GETm32_l_h_c_b ;hl=new IP, bc=new CS
-       push hl ;new IP
+;уже прочитано 2 байта bc из (hl), но hl не сдвинут
+       push bc ;new IP(PC)
+        skip2b_GETm16 ;bc=new CS
        push bc
 ;push cs; push ip (адрес после команды)
         ld bc,(_CS) ;old CS
@@ -3257,18 +3250,17 @@ CALLFm1616mem ;высчитывается эффективный адрес, и 
        pop de ;new IP(PC)
         putmemspBC
        _LoopC_JP
-JMPr16
-        GETr16_de
-       _LoopJP
 JMPrmmem16
         ld d,b
         ld e,c
        _LoopC_JP
 JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
-;TODO fix! уже прочитано 2 байта из (hl)!
-        GETm32_e_d_c_b ;hl=new IP, bc=new CS
+;уже прочитано 2 байта bc из (hl), но hl не сдвинут
+       push de ;new IP(PC)
+        skip2b_GETm16 ;bc=new CS
        ld (_CS),bc ;new CS
        countCS
+       pop de ;new IP(PC)
        _LoopJP
 PUSHrmmem16
         putmemspBC
@@ -3279,23 +3271,14 @@ IMULr16rmi8
         get
         next
 ;a=MDregR/M
-;MD=00: imul r16,[...],i8
-;MD=01: imul r16,[...+disp8],i8
-;MD=10: imul r16,[...+disp16],i8
-;MD=11: imul r16,r/m,i8 ;проще всего
+;MD=00: imul reg16,[...],i8
+;MD=01: imul reg16,[...+disp8],i8
+;MD=10: imul reg16,[...+disp16],i8
+;MD=11: imul reg16,r/m,i8 ;проще всего
+       push af
         cp 0b11000000
         jp c,IMULr16rmmemi8
-       push af
-        rra
-        rra
-        and 7*2
-        ld l,a
-        ld h,_AX/256
-       pop af
-       push hl ;r16addr
-        and 7
-        add a,a
-        ld l,a
+        ADDRr16_nokeepa
         GETr16 ;bc=r/m
         get
         next
@@ -3308,16 +3291,15 @@ IMULr16rmi8
         ld b,d
         ld c,e
        pop de
-       pop hl
-       _PUTr16Loop_
-IMULr16rmmemi8
-       ADDRm16_GETm16 ;bc=rmmem
+       pop af
         rra
         rra
         and 7*2
-        ld l,a
+        ld l,a ;reg16 addr
         ld h,_AX/256
-       push hl ;r16addr
+       _PUTr16Loop_
+IMULr16rmmemi8
+       ADDRm16_GETm16 ;bc=rmmem
         get
         next
        push de
@@ -3329,7 +3311,12 @@ IMULr16rmmemi8
         ld b,d
         ld c,e
        pop de
-       pop hl
+       pop af
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+        ld h,_AX/256
        _PUTr16LoopC
 
         ALIGNrm
@@ -3341,19 +3328,10 @@ IMULr16rmi16
 ;MD=01: imul r16,[...+disp8],i16
 ;MD=10: imul r16,[...+disp16],i16
 ;MD=11: imul r16,r/m,i16 ;проще всего
+       push af
         cp 0b11000000
         jp c,IMULr16rmmemi16
-       push af
-        rra
-        rra
-        and 7*2
-        ld l,a
-        ld h,_AX/256
-       pop af
-       push hl ;r16addr
-        and 7
-        add a,a
-        ld l,a
+        ADDRr16_nokeepa
         GETr16 ;bc=r/m
         getHL
        push de
@@ -3362,16 +3340,15 @@ IMULr16rmi16
         ld b,d
         ld c,e
        pop de
-       pop hl
-       _PUTr16Loop_
-IMULr16rmmemi16
-       ADDRm16_GETm16 ;bc=rmmem
+       pop af
         rra
         rra
         and 7*2
-        ld l,a
+        ld l,a ;reg16 addr
         ld h,_AX/256
-       push hl ;r16addr
+       _PUTr16Loop_
+IMULr16rmmemi16
+       ADDRm16_GETm16 ;bc=rmmem
         getHL
        push de
         ex de,hl
@@ -3379,7 +3356,12 @@ IMULr16rmmemi16
         ld b,d
         ld c,e
        pop de
-       pop hl
+       pop af
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+        ld h,_AX/256
        _PUTr16LoopC
 
         ALIGNrm
@@ -3387,32 +3369,22 @@ XCHGr16rm
         get
         next
 ;a=MDregR/M
-;MD=00: xchg r16,[...]
-;MD=01: xchg r16,[...+disp8]
-;MD=10: xchg r16,[...+disp16]
-;MD=11: xchg r16,r/m ;проще всего
+;MD=00: xchg reg16,[...]
+;MD=01: xchg reg16,[...+disp8]
+;MD=10: xchg reg16,[...+disp16]
+;MD=11: xchg reg16,r/m ;проще всего
         cp 0b11000000
         jp c,XCHGr16rmmem
-       push af
-        and 7
-        add a,a
-        ld l,a
-        ld h,_AX/256
-       pop af
-       ld (_XCHGr16rm_rmaddr),hl
+        ADDRr16_keepa ;rm addr
+      push hl
         GETr16 ;bc=r/m
-       push bc ;rm
         rra
         rra
         and 7*2
-        ld l,a
-       push hl ;r16addr
-        GETr16 ;bc=r16
-_XCHGr16rm_rmaddr=$+1
-        ld hl,0
-        PUTr16 ;rm (old r16)
-       pop hl ;r16addr
-       pop bc ;r16 (old rm)
+        ld l,a ;reg16 addr
+        ld h,_AX/256
+        SWAPr16
+      pop hl
        _PUTr16Loop_
 XCHGr16rmmem
         ADDRm16_GETm16_for_PUTm16
@@ -3420,16 +3392,9 @@ XCHGr16rmmem
         rra
         rra
         and 7*2
-        ld l,a
+        ld l,a ;reg16 addr
         ld h,_AX/256
-       ld (_XCHGr16rmmem_oldrm),bc ;TODO обмен на месте, но с проверкой на _SP
-        GETr16 ;bc=r16
-       push bc
-_XCHGr16rmmem_oldrm=$+1
-        ld bc,0
-        dec l
-        PUTr16 ;r16 (old rm)
-       pop bc ;rm (old r16)
+        SWAPr16
       pop hl
        _PUTm16LoopC
 

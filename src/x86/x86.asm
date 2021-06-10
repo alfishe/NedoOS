@@ -18,15 +18,11 @@ STARTPC=0x0100
         align 2
        endm
 
-       macro _PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg
-        push af
-        push bc
+       macro _PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg
         ld b,tscreenpgs/256
         ld a,(bc)
         cp b
-        call nz,PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
-        pop bc
-        pop af
+        call nz,PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
        endm
 
        macro _PUTscreen_logpgc_zxaddrhl_datamhl
@@ -261,7 +257,40 @@ STARTPC=0x0100
 	ld a,(hl)
 	endm
 
+;TODO перехват записи в экран (call...jr/ld...ret? (+27t быстрая ветка) или ld a,hx:rla:call cc (+22t быстрая ветка), а там на выходе пропуск всего этого блока? или вообще and hx:call z? (+18t, на входе a!=0))
 	macro putmemspBC
+        ld hl,(_SP)
+        ld a,l
+        sub 2
+        call c,putmemspBC_pp ;должна на выходе сама пропускать быструю ветку (skipsize байт ниже)
+_putmemspBC_base=$
+        ld l,a
+        ld (_SP),a
+        res 6,h
+        set 7,h ;0x8000+
+        ld (hl),c
+        inc l
+        ld (hl),b
+_putmemspBC_skipsize=$-_putmemspBC_base
+        endm
+
+	macro getmemspBC
+        LD HL,(_SP)
+        ld a,l
+        add a,2
+        call c,getmemspBC_pp ;должна на выходе сама пропускать быструю ветку (skipsize байт ниже)
+_getmemspBC_base=$
+        ld (_SP),a
+        res 6,h
+        set 7,h ;0x8000+
+	ld c,(hl)
+        inc l
+	ld b,(hl)
+_getmemspBC_skipsize=$-_getmemspBC_base
+	endm
+
+       if 0
+	macro putmemspBC_slow
         LD HL,(_SP)
 	inc l
 	dec l
@@ -271,8 +300,6 @@ STARTPC=0x0100
        res 6,h
        set 7,h
 	ld (hl),b
-;TODO перехват записи в экран
-
        pop hl
 	call z,recountsp_dec
 	dec l
@@ -280,11 +307,9 @@ STARTPC=0x0100
        res 6,h
        set 7,h
 	ld (hl),c
-;TODO перехват записи в экран
-
 	endm
 
-	macro getmemspBC
+	macro getmemspBC_slow
         LD HL,(_SP)
        push hl
        res 6,h
@@ -302,6 +327,7 @@ STARTPC=0x0100
 	call z,recountsp_inc
         LD (_SP),HL
 	endm
+       endif
 
 	macro encodeSP
 	;ld hl,(_SP)
@@ -473,72 +499,9 @@ STARTPC=0x0100
 
         org PROGSTART
 begin
-        ld sp,STACK
-        OS_HIDEFROMPARENT
-        ld e,6+0x80 ;keep
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        ;ld e,0
-        ;OS_SETSCREEN
-        ;ld e,0
-        ;OS_CLS
-        ;ld e,1
-        ;OS_SETSCREEN
-        ;ld e,0
-        ;OS_CLS
-
-        ld de,ansipal
-        OS_SETPAL
-
-        ld de,path
-        OS_CHDIR
-
-        ld de,diskname
-        OS_OPENHANDLE
-        ld a,b
-        ;ld (diskhandle),a
-
-        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-        ld a,e
-        ld (pgprog),a
-
-        ld a,(user_scr0_high) ;ok
-        call clpga
-        ld a,(user_scr0_low) ;ok
-        call clpga
-
-        ld hl,tpgs
-        ld b,64
-filltpgs0
-        push bc
-        push hl
-        OS_NEWPAGE
-        pop hl
-        pop bc
-       ld a,l
-       rrc l
-       rrc l
-        ld (hl),e
-       ld l,a
-        inc l
-        djnz filltpgs0
-       
-;0xa0000 (pg 40): 4 pages for screen
-        ld h,tscreenpgs/256
-        ld e,40
-        ld bc,0x440
-filltscreenpgs0
-       ld l,e
-       rrc l
-       rrc l
-        ld (hl),c
-            ;dec l     ;
-            ;ld (hl),c ;test backbuffer
-        ld a,c
-        add a,0x40
-        ld c,a
-        inc e
-        djnz filltscreenpgs0
-       
+        jp init
+initq
+Reset       
         ld bc,0
         ld (_SS),bc
         countSS
@@ -552,37 +515,15 @@ filltscreenpgs0
         ld de,STARTPC
         encodePC;memCS ;out: a=physpg, de=zxaddr
         ex de,hl
-       push hl
-       ld hl,0x4000
-       ld de,0x4001
-       ld bc,0x3fff
-       ld (hl),l;0
-       ldir ;para512 ожидает чистую память после себя
-       pop hl
         ld de,trom0
 ;de=имя файла
 ;hl=куда грузим
         call loadfile_in_hl
 
-
-
-        call swapimer
-
         LD DE,STARTPC ;=IP(PC)
         LD IY,EMUCHECKQ
         EI 
        _LoopC_JP
-       
-clpga
-        SETPGC000
-        ld hl,0xc000
-        ld d,h
-        ld e,l
-        inc e
-        ld bc,0x3fff
-        ld (hl),l;0
-        ldir
-        ret
        
 jpiyer
         ld hl,jpiyer
@@ -625,12 +566,6 @@ loadfile_in_hl
         OS_CLOSEHANDLE
 	ret
 
-path
-        db "x86",0
-
-diskname
-        db "SYS.TRD",0
-        
 trom0
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
@@ -647,45 +582,6 @@ trom0
 
 pgprog
         db 0 ;TODO там можно хранить дополнительный код (напр., отладчик)
-
-recountpc_inc ;keep CY!
-	inc d
-        ret p ;<0x8000
-        push af
-        push bc
-        ex de,hl
-        dec hl
-        ld b,h
-        ld c,l
-        decodePC ;bc->bc
-        ld h,b
-        ld l,c
-        inc hl
-        memCS
-        ex de,hl
-        pop bc
-        pop af
-        ld de,0x4000
-	ret
-
-recountsp_inc
-	inc h
-        push bc
-        push hl
-        memSS
-        pop hl
-        pop bc
-	ret
-
-recountsp_dec
-;вызывается до dec l!
-        dec h
-        push bc
-        push hl
-        memSS
-        pop hl
-        pop bc
-	ret
 
 swapimer
 	di
@@ -772,7 +668,92 @@ IMERIM
         putmemspBC ;TODO а CS куда? push cs; push ip?
        _LoopC_JP 
 
-PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
+putmemspBC_pp
+        ;LD HL,(_SP)
+	inc l
+	dec l
+	call z,recountsp_dec
+	dec l
+       push hl
+       res 6,h
+       set 7,h
+	ld (hl),b
+       pop hl
+	call z,recountsp_dec
+	dec l
+        LD (_SP),HL	
+       res 6,h
+       set 7,h
+	ld (hl),c
+       pop hl
+        ld bc,_putmemspBC_skipsize
+        add hl,bc
+        jp (hl)
+
+getmemspBC_pp
+        ;LD HL,(_SP)
+       push hl
+       res 6,h
+       set 7,h
+	ld c,(hl)
+       pop hl
+        inc l
+	call z,recountsp_inc
+       push hl
+       res 6,h
+       set 7,h
+	ld b,(hl)
+       pop hl
+        inc l
+	call z,recountsp_inc
+        LD (_SP),HL
+       pop hl
+       push bc
+        ld bc,_getmemspBC_skipsize
+        add hl,bc
+       pop bc
+        jp (hl)
+
+recountsp_inc
+	inc h
+        push bc
+        push hl
+        memSS
+        pop hl
+        pop bc
+	ret
+
+recountsp_dec
+;вызывается до dec l!
+        dec h
+        push bc
+        push hl
+        memSS
+        pop hl
+        pop bc
+	ret
+
+recountpc_inc ;keep CY!
+	inc d
+        ret p ;<0x8000
+        push af
+        push bc
+        ex de,hl
+        dec hl
+        ld b,h
+        ld c,l
+        decodePC ;bc->bc
+        ld h,b
+        ld l,c
+        inc hl
+        memCS
+        ex de,hl
+        pop bc
+        pop af
+        ld de,0x4000
+	ret
+
+PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
        push hl
        push bc
        call PUTscreen_logpgc_zxaddrhl_datamhl_do
@@ -958,6 +939,10 @@ ss_HSB	db 0
         nop
 ds_HSB	db 0
 
+ansipal
+	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
+	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
+
 ;000... -> 000 ;al
 ;001... -> 010 ;cl
 ;010... -> 100 ;dl
@@ -991,15 +976,107 @@ ds_HSB	db 0
         align 256
 	include "x86table.asm"
 
-ansipal
-	;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
-	;dw 0x1f1f,0x1e1e,0x1d1d,0x1c1c,0x0f0f,0x0e0e,0x0d0d,0x0c0c
-	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
-	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
+        display "killable=",$
+
+;killable
+init
+        ld sp,STACK
+        OS_HIDEFROMPARENT
+        ld e,6+0x80 ;keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ;ld e,0
+        ;OS_SETSCREEN
+        ;ld e,0
+        ;OS_CLS
+        ;ld e,1
+        ;OS_SETSCREEN
+        ;ld e,0
+        ;OS_CLS
+
+        ld de,ansipal
+        OS_SETPAL ;TODO в Reset, с копированием во временную палитру
+
+        ld de,path
+        OS_CHDIR
+
+        ;ld de,diskname
+        ;OS_OPENHANDLE
+        ;ld a,b
+        ;ld (diskhandle),a
+
+        OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
+        ld a,e
+        ld (pgprog),a
+
+        ld a,(user_scr0_high) ;ok
+        call clpga
+        ld a,(user_scr0_low) ;ok
+        call clpga
+
+        ld hl,tpgs
+        ld b,64
+filltpgs0
+        push bc
+        push hl
+        OS_NEWPAGE
+        pop hl
+     ld a,l
+     cp 4 ;чистим первые 4 страницы ;para512 ожидает чистую память после себя
+     jr nc,filltpgs0_noclear
+       push de
+       push hl
+       ld a,e
+       call clpga
+       pop hl
+       pop de
+filltpgs0_noclear
+        pop bc
+       ld a,l
+       rrc l
+       rrc l
+        ld (hl),e
+       ld l,a
+        inc l
+        djnz filltpgs0
+       
+;0xa0000 (pg 40): 4 pages for screen
+        ld h,tscreenpgs/256
+        ld e,40
+        ld bc,0x440
+filltscreenpgs0
+       ld l,e
+       rrc l
+       rrc l
+        ld (hl),c
+            ;dec l     ;
+            ;ld (hl),c ;test backbuffer
+        ld a,c
+        add a,0x40
+        ld c,a
+        inc e
+        djnz filltscreenpgs0
+
+        call swapimer ;сначала прерывания ничего не делают (iff0==0)
+
+        jp initq
+clpga
+        SETPGC000
+        ld hl,0xc000
+        ld d,h
+        ld e,l
+        inc e
+        ld bc,0x3fff
+        ld (hl),l;0
+        ldir
+        ret     
+path
+        db "x86",0
+
+;diskname
+;        db "SYS.TRD",0       
 
 end
-
-        display $
+        display "end=",$
 
 	savebin "x86.com",begin,end-begin
 
