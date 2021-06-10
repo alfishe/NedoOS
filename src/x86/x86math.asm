@@ -123,47 +123,6 @@ CMPaxi16
         KEEPCFPARITYOVERFLOW_FROMHL
        _Loop_
 
-;mul cx ;ax*cx -> dxax (set OF,CF if result >=65536)
-MULrmmem16
-       pop af ;skip
-        GETm16
-        jr MULbc
-MULr16;cx
-        GETr16
-MULbc
-       push de
-	ld de,(_AX);ex de,hl ;de=ax
-	call MUL16 ;HLDE=DE*BC
-	ld (_DX),hl
-        ld (_AX),de
-	ld a,h
-	or l ;0?
-	add a,255 ;set CF if result >=65536
-	sbc a,a ;keep CF
-	srl a ;keep CF
-        exx
-	ld e,a ;overflow (d7 != d6) if CF
-	exx
-	ex af,af' ;'
-       pop de
-       _Loop_
-
-;imul cx ;ax*cx -> dxax signed (set OF,CF if result >=32768 or < -32768)
-IMULrmmem16
-       pop af ;skip
-        GETm16
-        jr IMULbc
-IMULr16;cx
-        GETr16
-IMULbc
-       push de
-	ld de,(_AX);ex de,hl ;de=ax
-        call IMUL_bc_de_to_hlde
-	ld (_DX),hl ;HSW
-        ld (_AX),de ;LSW
-       pop de
-       _Loop_
-
 IMUL_bc_de_to_hlde
 	call MUL16SIGNED ;HLDE=DE*BC
 	ld a,d
@@ -245,44 +204,6 @@ MUL16
         rr d
         rr e
 	ret
-
-;div cx ;dxax/cx -> ax частное, dx остаток
-DIVrmmem16
-       pop af ;skip
-        GETm16
-        jr DIVbc
-DIVr16;cx
-        GETr16
-DIVbc
-       push de
-        ld d,b
-        ld e,c
-	ld bc,(_AX)
-	ld hl,(_DX)
-	call DIV32 ;BC = HLBC/DE, HL = HLBC%DE
-	ld (_DX),hl
-        ld (_AX),bc
-       pop de
-       _Loop_
-
-;idiv cx ;dxax/cx -> ax частное, dx остаток signed (знак остатка равен знаку делимого)
-IDIVrmmem16
-       pop af ;skip
-        GETm16
-        jr IDIVbc
-IDIVr16;cx
-        GETr16
-IDIVbc
-       push de
-        ld d,b
-        ld e,c
-	ld bc,(_AX)
-	ld hl,(_DX)
-	call DIV32SIGNED ;BC = HLBC/DE, HL = HLBC%DE
-	ld (_DX),hl
-        ld (_AX),bc
-       pop de
-       _Loop_
 
 ;BC = HLBC/DE, HL = HLBC%DE
 DIV32SIGNED

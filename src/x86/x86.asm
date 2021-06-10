@@ -3,7 +3,7 @@
 
 STACK=0x4000
 
-BASIC=1
+BASIC=0
        if BASIC
 STARTPC=0x7c00
        else
@@ -23,7 +23,7 @@ STARTPC=0x0100
         push bc
         ld b,tscreenpgs/256
         ld a,(bc)
-        or a
+        cp b
         call nz,PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
         pop bc
         pop af
@@ -32,7 +32,7 @@ STARTPC=0x0100
        macro _PUTscreen_logpgc_zxaddrhl_datamhl
         ld b,tscreenpgs/256
         ld a,(bc)
-        or a
+        cp b
         call nz,PUTscreen_logpgc_zxaddrhl_datamhl_do
        endm
 
@@ -501,9 +501,9 @@ begin
         ld a,e
         ld (pgprog),a
 
-        ld a,(user_scr0_high)
+        ld a,(user_scr0_high) ;ok
         call clpga
-        ld a,(user_scr0_low)
+        ld a,(user_scr0_low) ;ok
         call clpga
 
         ld hl,tpgs
@@ -523,18 +523,20 @@ filltpgs0
         djnz filltpgs0
        
 ;0xa0000 (pg 40): 4 pages for screen
-        ld hl,tscreenpgs+40
-        ld bc,0x401
+        ld h,tscreenpgs/256
+        ld e,40
+        ld bc,0x440
 filltscreenpgs0
-       ld a,l
+       ld l,e
        rrc l
        rrc l
         ld (hl),c
             ;dec l     ;
             ;ld (hl),c ;test backbuffer
-        inc c
-       ld l,a
-        inc l
+        ld a,c
+        add a,0x40
+        ld c,a
+        inc e
         djnz filltscreenpgs0
        
         ld bc,0
@@ -782,11 +784,12 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keepabchlpg_do
         ret
 
 PUTscreen_logpgc_zxaddrhl_datamhl_do
-        ld b,(hl) ;colour
+        ld c,(hl) ;colour
+     inc b ;ld b,trecolour/256
 ;a=1..4
-        rrca
-        rrca
-        and 0xc0
+        ;rrca
+        ;rrca
+        ;and 0xc0
         add a,h
         ld h,a
 ;hl=addr in screen=0..65535
@@ -808,9 +811,7 @@ PUTscreen_logpgc_zxaddrhl_datamhl_do
         rr l
         jr c,$+4
         res 5,h
-;TODO пересчитать цвет b
-     ld a,b
-     and 7
+     ld a,(bc)
      xor (hl)
      and 0b01000111
      xor (hl)
@@ -829,12 +830,7 @@ PUTscreen_rightpixel
         rr l
         jr c,$+4
         res 5,h
-;TODO пересчитать цвет b
-     ld a,b
-     and 7
-     add a,a
-     add a,a
-     add a,a
+     ld a,(bc)
      xor (hl)
      and 0b10111000
      xor (hl)
@@ -857,7 +853,60 @@ PUTscreen_rightpixel
 tpgs
         ds 256 ;%10765432
 tscreenpgs
-        ds 256 ;%10765432 ;номер страницы в экране или 0, если не экранная
+        ds 256,tscreenpgs/256 ;%10765432 ;номер страницы в экране или tscreenpgs/256, если не экранная
+
+;trecolour = tscreenpgs+256
+       macro dbcol _0
+        db ((_0)&7)*9 + (((_0)&8)*0x18)
+       endm
+        
+       macro dbcol8 _0,_1,_2,_3,_4,_5,_6,_7
+        dbcol _0
+        dbcol _1
+        dbcol _2
+        dbcol _3
+        dbcol _4
+        dbcol _5
+        dbcol _6
+        dbcol _7
+       endm
+        
+       macro dbcol8i _0,_1,_2,_3,_4,_5,_6,_7
+        dbcol8 _0|0x08,_1|0x08,_2|0x08,_3|0x08,_4|0x08,_5|0x08,_6|0x08,_7|0x08
+       endm
+        
+        align 256
+trecolour ;TODO generate for given palette
+        dup 16
+        dbcol $&0xff
+        edup
+;0x10
+        dbcol8 0,0,0,0,8,8,8,8
+        dbcol8 7,7,7,7,15,15,15,15
+;0x20
+        dbcol8 1,1,1,5,5,5,4,4
+        dbcol8 4,4,4,6,6,6,2,2
+        dbcol8 2,2,2,3,3,3,1,1
+;0x38
+        dbcol8i 1,1,1,5,5,5,4,4
+        dbcol8i 4,4,4,6,6,6,2,2
+        dbcol8i 2,2,2,3,3,3,1,1
+;0x50
+        dbcol8i 7,7,7,7,7,7,7,7
+        dbcol8i 7,7,7,7,7,7,7,7
+        dbcol8i 7,7,7,7,7,7,7,7
+;0x68
+        dbcol8 1,1,1,5,5,5,4,4
+        dbcol8 4,4,4,6,6,6,2,2
+        dbcol8 2,2,2,3,3,3,1,1
+;0x80
+       dup 6
+        dbcol8 8,8,8,8,8,8,8,8
+       edup
+;0xb0
+        ds 72,0x00
+;0xf8
+        ds 8,0
 
         align 256
 ;8 r16s
@@ -941,6 +990,7 @@ ds_HSB	db 0
         ds 8,_BH&0xff
         align 256
 	include "x86table.asm"
+
 ansipal
 	;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
 	;dw 0x1f1f,0x1e1e,0x1d1d,0x1c1c,0x0f0f,0x0e0e,0x0d0d,0x0c0c

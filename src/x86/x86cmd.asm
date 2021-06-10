@@ -390,7 +390,7 @@ MOVmemal
 MOVmemax
 	getHL
         call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-       push bc
+       ld lx,c;push bc
         ld bc,(_AX) ;TODO спецверсию PUTm16
        _PUTm16LoopC
 
@@ -661,16 +661,16 @@ JRer
         RLA
         SBC A,A
         LD H,A
-       decodePC
+       decodePC ;a=d
         ADD HL,DE
-       ld a,h
-       xor d
+       ;ld a,d
+       xor h
        and 0xc0
         ex de,hl ;new PC 
-       jr z,JRer_qfast
-       _LoopC_JP
-JRer_qfast
+       jr z,JRer_qslow
        _LoopC_JPoldpg
+JRer_qslow
+       _LoopC_JP
 
 JSer ;jump if sign
 	ex af,af' ;'
