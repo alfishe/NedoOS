@@ -1,22 +1,37 @@
 ﻿AAMer
-;aam i8 ;ASCII коррекция для умножения
-;TODO:
+;aam i8 ;ASCII коррекция после умножения
 ;ah <= al/i8
 ;al <= al mod i8
-;пока костыль для para512: ah <= al/0x10, al <= al&0x0f
+;[костыль для para512: ah <= al/0x10, al <= al&0x0f]
         get
         next
+        ld l,a
+        ld h,-1
         ld a,(_AL)
-        rrca
-        rrca
-        rrca
-        rrca
-        and 0x0f
-        ld (_AH),a
-        ld a,(_AL)
-        and 0x0f
-        ld (_AL),a
+_AAMer0
+        inc h
+        sub l
+        jr nc,_AAMer0
+        add a,l ;a=остаток, h=частное
+        ld l,a
+        ld (_AX),hl
        _Loop_
+
+AADer
+;aad i8
+;ASCII Adjust AX Before Division
+;sets the value in the AL register to (AL + (10 * AH)), and then clears the AH register to 00H. TODO
+;пока костыль для megapole: ax=ah+al
+        get
+        next
+        ld hl,(_AX)
+        ld a,h
+        add a,l
+        ld l,a
+        ld h,0
+        ld (_AX),hl
+       _Loop_
+
 
 ;cbw ;Expand AL to AX
 CBWer

@@ -230,7 +230,8 @@ ADDRm16_pp_segprefix
         ld b,(hl)
         dec l
         ld c,(hl)
-        set 3,l
+        ;set 3,l
+        res 4,l
         ld a,(hl)
         pop hl ;abc=?s*16
         ADDRSEGMENT_chl_bHSB
@@ -622,7 +623,8 @@ MOVsregrmq
         ld (hl),b
         dec l
         ld (hl),c
-        set 3,l
+        ;set 3,l
+        res 4,l
 	ld (hl),a
        _LoopC
 
@@ -1783,11 +1785,11 @@ GRP2rm8i8
 	jp z,RCLr8i8
 	cp 0b00011000
 	jp z,RCRr8i8
-	cp 0b00100000
-	jp z,SHLr8i8
 	cp 0b00111000
 	jp z,SARr8i8
        endif
+	cp 0b00100000
+	jp z,SHLr8i8
 	cp 0b00101000
 	jp z,SHRr8i8
 	jr $;PANIC
@@ -1825,6 +1827,17 @@ SHRr8i8loop
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
+       _Loop_
+
+SHLr8i8
+        get
+        next
+        ld b,a
+SHLr8i8loop
+        sla (hl)
+        djnz SHLr8i8loop
+        ld a,(hl)
+        KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
 
         ALIGNrm
@@ -2046,7 +2059,7 @@ GRP2rm161
 ;a=MD011R/M: rcr r/m
 ;a=MD100R/M: shl r/m
 ;a=MD101R/M: shr r/m
-;a=MD110R/M: ??? r/m
+;a=MD110R/M: ??? r/m <-- shl
 ;a=MD111R/M: sar r/m
         cp 0b11000000
         jp c,GRP2rmmem161
@@ -2494,7 +2507,7 @@ GRP2rm16i8
 ;a=MD011R/M: rcr r/m,i8
 ;a=MD100R/M: shl r/m,i8
 ;a=MD101R/M: shr r/m,i8
-;a=MD110R/M: ???
+;a=MD110R/M: ??? <------- shl
 ;a=MD111R/M: sar r/m,i8
         cp 0b11000000
         jr c,GRP2rmmem16i8
@@ -2512,13 +2525,14 @@ GRP2rm16i8
 	jp z,RCLr16i8
 	cp 0b00011000
 	jp z,RCRr16i8
-	cp 0b00100000
-	jp z,SHLr16i8
+	;cp 0b00100000
+	;jp z,SHLr16i8
 	cp 0b00101000
 	jp z,SHRr16i8
 	cp 0b00111000
 	jp z,SARr16i8
-	jr $;PANIC
+	;jr $;PANIC
+        jp SHLr16i8
 GRP2rmmem16i8
         ADDRm16_GETm16_for_PUTm16
        push hl
@@ -2532,13 +2546,14 @@ GRP2rmmem16i8
 	jp z,RCLm16i8
 	cp 0b00011000
 	jp z,RCRm16i8
-	cp 0b00100000
-	jp z,SHLm16i8
+	;cp 0b00100000
+	;jp z,SHLm16i8
 	cp 0b00101000
 	jp z,SHRm16i8
 	cp 0b00111000
 	jp z,SARm16i8
-	jr $;PANIC
+	;jr $;PANIC
+        jp SHLm16i8
 
 ROLr16i8
         call ROLhli8_to_bc
@@ -2831,6 +2846,7 @@ TESTr8i8
         ld b,(hl)
 _TESTrmi8b
         get
+        next
         and b
 ;The OF and CF flags are set to 0. The SF, ZF, and PF flags are set according to the result (see the "Operation" section above). The state of the AF flag is undefined.
         KEEPLOGICCFPARITYOVERFLOW_FROMA

@@ -570,13 +570,14 @@ trom0
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
-        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
        endif
         ;DB "pc102782.bin",0
 
@@ -908,11 +909,40 @@ _BP     DW 0
 _SI     DW 0
 _DI     DW 0
 ;0x10
-;4 sregs
+;4 sregs + 2
 _ES     DW 0
 _CS     DW 0
 _SS     DW 0
 _DS     DW 0
+_FS     DW 0
+_GS     DW 0
+
+        ds _ES+0x10-$
+;0x20
+es_HSB	db 0
+        nop
+cs_HSB	db 0
+        nop
+ss_HSB	db 0
+        nop
+ds_HSB	db 0
+        nop
+fs_HSB	db 0
+        nop
+gs_HSB	db 0
+
+        ds _ES+0x20-$
+;0x30
+es_LSW	dw 0
+cs_LSW	dw 0
+ss_LSW	dw 0
+ds_LSW	dw 0
+fs_LSW	dw 0
+gs_LSW	dw 0
+
+ansipal
+	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
+	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
 
 pc_high     db 0
 
@@ -924,25 +954,6 @@ iff2	db 0 ;TODO unneeded?
 timer
 	dw 0
         
-        ds _ES+0x20-$
-;0x30
-es_LSW	dw 0
-cs_LSW	dw 0
-ss_LSW	dw 0
-ds_LSW	dw 0
-;0x38
-es_HSB	db 0
-        nop
-cs_HSB	db 0
-        nop
-ss_HSB	db 0
-        nop
-ds_HSB	db 0
-
-ansipal
-	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
-	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
-
 ;000... -> 000 ;al
 ;001... -> 010 ;cl
 ;010... -> 100 ;dl

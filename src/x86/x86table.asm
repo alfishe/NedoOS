@@ -110,8 +110,8 @@ MAINCOMS
         DCOM POPAer
         DCOM PANIC ;BOUNDr16m
         DCOM PANIC ;ARPLrmr16
-        DCOM PANIC ;FSer
-        DCOM PANIC ;GSer
+        DCOM FSer
+        DCOM GSer
         DCOM OPSIZEr ;???for lodsd
         DCOM PANIC ;rgsize
         DCOM PUSHi16
@@ -169,10 +169,10 @@ MAINCOMS
         DCOM CWDer
         DCOM CALLptr1616
         DCOM PANIC ;FWAITer
-        DCOM PANIC ;PUSHFer
-        DCOM PANIC ;POPFer
-        DCOM PANIC ;SAHFer
-        DCOM PANIC ;LAHFer
+        DCOM PUSHFer
+        DCOM POPFer
+        DCOM SAHFer
+        DCOM LAHFer
 ;#Ax
         DCOM MOValmem
         DCOM MOVaxmem
@@ -230,7 +230,7 @@ MAINCOMS
         DCOM PANIC ;GRP2rm8cl ;rolls
         DCOM GRP2rm16cl ;rolls
         DCOM AAMer
-        DCOM PANIC ;AADer
+        DCOM AADer
         DCOM PANIC ;SALCer
         DCOM PANIC ;XLATBer
         DCOM PANIC ;FPU0er

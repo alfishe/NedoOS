@@ -15,6 +15,9 @@ EXTer
 ;0f b6 c2 = movzx ax,dl (move with zero-extend)
 ;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
 ;0F 82   03+     JB rel16/32     .......c     Jump near if below/not above or equal/carry (CF=1) ;TODO (for pixeltwn)
+;0F AF C3 imul ax,bx (for megapole)
+;0F 85 (6B FF) jnz rel16 (for megapole)
+;0F 45 C1 CMOVNZ ax,cx (for megapole) Conditional Move - not zero/not equal (ZF=0)
 ;JNAE rel16/32    
 ;JC rel16/32 
 
@@ -23,6 +26,12 @@ EXTer
         next
        cp 0x31
        jr z,RDTSCer
+       cp 0x45
+       jr z,CMOVNZer
+       cp 0x85
+       jp z,JNZrel16
+       cp 0xaf
+       jr z,IMULr1r2
        cp 0xda
        jr z,PMINUBer
        cp 0xb6
@@ -37,6 +46,29 @@ EXTer
         ld h,0
         ld (_DX),hl
        _Loop_
+       
+CMOVNZer
+;CMOVNZ ax,cx - Conditional Move - not zero/not equal (ZF=0)
+        ex af,af' ;'
+        jr z,CMOVnzer_no
+        ld hl,(_CX)
+        ld (_AX),hl
+CMOVnzer_no
+        ex af,af' ;'
+       _Loop_
+
+IMULr1r2
+        get
+        next
+       push de
+        ld bc,(_BX) ;TODO other regs
+	ld de,(_AX);ex de,hl ;de=ax ;TODO other regs
+        call IMUL_bc_de_to_hlde
+	;ld (_DX),hl ;HSW
+        ld (_AX),de ;LSW
+       pop de
+       _Loop_
+       
 MOVZXaxdl
         ld hl,(_DL)
         ld h,0
@@ -61,6 +93,32 @@ RDTSCer
         ld h,a
         ld (_AX),hl
        _Loop_
+
+JNZrel16
+	ex af,af' ;'
+	jr nz,JRrel16y
+	ex af,af' ;'
+        next
+        next
+       _Loop_ 
+JRrel16y
+	ex af,af' ;'
+	get
+        next
+        ld l,a
+	get
+        next
+        LD H,A
+       decodePC ;a=d
+        ADD HL,DE
+       ;ld a,d
+       xor h
+       and 0xc0
+        ex de,hl ;new PC 
+       jr z,JRrel16_qslow
+       _LoopC_JPoldpg
+JRrel16_qslow
+       _LoopC_JP
 
 ;на входе в команду:
 ;без сегментного префикса: b=l(адрес обработчика)
@@ -110,6 +168,74 @@ SSer
         LD H,(HL)
         ld L,a
         JP (HL) 
+FSer
+        ld b,1+(fs_LSW&0xff)
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD a,(HL)
+        INC H
+        LD H,(HL)
+        ld L,a
+        JP (HL) 
+GSer
+        ld b,1+(gs_LSW&0xff)
+        get
+        next
+	LD L,A
+        ld H,MAINCOMS/256
+        LD a,(HL)
+        INC H
+        LD H,(HL)
+        ld L,a
+        JP (HL) 
+
+getflags_bc
+        ex af,af' ;'
+        push af
+        ex af,af' ;'
+        pop bc 
+;b=%SZ?H???C
+        res 5,b
+        res 3,b
+        set 1,b
+        exx
+        ld a,d ;parity data
+        exx
+        or a
+        res 2,b
+        jp pe,$+5 ;или инверсно?
+        set 2,b
+;b=%SZ0A0P1C
+;b=%SF:ZF:0:AF:0:PF:1:CF
+        ret
+
+makeflags_frombc
+;b=%SF:ZF:0:AF:0:PF:1:CF
+        push bc
+        ex af,af' ;'
+        pop af
+        ex af,af' ;'
+        ld a,b
+        and 2
+        exx
+        ld d,a ;parity data ;или инверсно?
+        exx
+        ret
+
+SAHFer
+;store AH into flags
+        ld bc,(_AX)
+        call makeflags_frombc
+       _Loop_
+
+LAHFer
+;Load Status Flags into AH Register
+        call getflags_bc
+        ld a,b
+        ld (_AH),a
+       _Loop_
 
 CLIer
         xor a
@@ -182,6 +308,9 @@ PUSHi8
 PUSHi16
 	getBC
        jr _PUSHq
+PUSHFer
+       call getflags_bc
+       jr _PUSHq
 PUSHax
        ld bc,(_AX)
        jr _PUSHq
@@ -239,6 +368,10 @@ _POPAer0
 ;TODO flags
        _Loop_
 
+POPFer
+        getmemspBC
+        call makeflags_frombc
+       _LoopC
 POPax
         getmemspBC
         ld (_AX),bc
@@ -985,8 +1118,11 @@ INTi8
 	jr z,INT_gettimer
         cp 0x21
         jr z,INT21
+        cp 0x80
+        jr nc,intlooper ;костыль для megapole
        jr $
-       ;_Loop_
+intlooper
+       _Loop_
 
 INT_gettimer
 ;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
@@ -1006,6 +1142,10 @@ INT10
        jr $
 
 INT21
+        ld a,(_AH)
+        cp 0x09
+        jr z,INT_printstringdx
+
 ;        mov     ax,ds                   ;deallocate all but 128k mem
 ;        mov     es,ax
 ;        mov     ah,4Ah
@@ -1047,6 +1187,9 @@ INT21
 ;        int     21h
 
        jr $
+INT_printstringdx
+;TODO
+       _Loop_
 
 INT_setgfx
         push de
