@@ -227,7 +227,7 @@ MAINCOMS
 ;#Dx
         DCOM GRP2rm81 ;rolls
         DCOM GRP2rm161 ;rolls
-        DCOM PANIC ;GRP2rm8cl ;rolls
+        DCOM GRP2rm8cl ;rolls
         DCOM GRP2rm16cl ;rolls
         DCOM AAMer
         DCOM AADer

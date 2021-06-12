@@ -54,6 +54,12 @@
         call z,encodeSP_pp
        endm
 
+        macro _PUTr8Loop_
+;hl is kept since ADDRr8
+        ld (hl),a
+       _Loop_
+        endm
+
         macro _PUTr16Loop_
 ;hl is kept since ADDRr16
         ld a,l
@@ -2469,7 +2475,6 @@ SARr16cl
        pop hl
        _PUTr16Loop_
 GRP2rmmem16cl
-       if 0
         ADDRm16_GETm16_for_PUTm16
        push hl
         ld h,b
@@ -2477,25 +2482,173 @@ GRP2rmmem16cl
         ld bc,(_CL-1) ;b=cl
         inc b
         djnz GRP2rmmem16cl_no0
-       _Loop_
+       _LoopC
 GRP2rmmem16cl_no0
-       and 0b00111000
-	jp z,ROLm16i8
-	cp 0b00001000
-	jp z,RORm16i8
-	cp 0b00010000
-	jp z,RCLm16i8
-	cp 0b00011000
-	jp z,RCRm16i8
-	cp 0b00100000
-	jp z,SHLm16i8
-	cp 0b00101000
-	jp z,SHRm16i8
-	cp 0b00111000
-	jp z,SARm16i8
-       endif
-	jr $;PANIC
+       rla
+       rla
+       rla
+       jp c,GRP2m16cl_1xx
+       rla
+       jr c,GRP2m16cl_01x
+       rla
+       jr c,RORm16cl
+ROLm16cl
+        call ROLhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+RORm16cl
+        call RORhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+GRP2m16cl_01x
+       rla
+       jr c,RCRm16cl
+RCLm16cl
+        call RCLhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+RCRm16cl
+        call RCRhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+GRP2m16cl_1xx
+       rla
+       jr c,SARm16cl ;2 кода (111 правильный, 110 неправильный)
+       rla
+       jr c,SHRm16cl
+SHLm16cl
+        call SHLhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+SHRm16cl
+        call SHRhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+SARm16cl
+        call SARhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
 
+        ALIGNrm
+GRP2rm8cl
+        get
+        next
+;a=MD000R/M: rol r/m,cl
+;a=MD001R/M: ror r/m,cl
+;a=MD010R/M: rcl r/m,cl
+;a=MD011R/M: rcr r/m,cl
+;a=MD100R/M: shl r/m,cl
+;a=MD101R/M: shr r/m,cl
+;a=MD110R/M: ???
+;a=MD111R/M: sar r/m,cl
+        cp 0b11000000
+        jp c,GRP2rmmem8cl
+        ld bc,(_CL-1) ;b=cl
+        inc b
+        djnz GRP2rm8cl_no0
+       _Loop_
+GRP2rm8cl_no0
+       ADDRr8
+       push hl
+        ld b,(hl)
+       rla
+       rla
+       rla
+       jr c,GRP2rm8cl_1xx
+       rla
+       jr c,GRP2rm8cl_01x
+       rla
+       jr c,RORr8cl
+ROLr8cl
+        call ROLhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+RORr8cl
+        call RORhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+GRP2rm8cl_01x
+       rla
+       jr c,RCRr8cl
+RCLr8cl
+        call RCLhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+RCRr8cl
+        call RCRhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+GRP2rm8cl_1xx
+       rla
+       jr c,SARr8cl ;2 кода (111 правильный, 110 неправильный)
+       rla
+       jr c,SHRr8cl
+SHLr8cl
+        call SHLhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+SHRr8cl
+        call SHRhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+SARr8cl
+        call SARhl_b_to_bc
+       pop hl
+       _PUTr8Loop_
+GRP2rmmem8cl
+        ADDRm16_GETm8b_for_PUTm8
+       push hl
+        ld h,b
+        ld l,c       
+        ld bc,(_CL-1) ;b=cl
+        inc b
+        djnz GRP2rmmem8cl_no0
+       _LoopC
+GRP2rmmem8cl_no0
+       rla
+       rla
+       rla
+       jr c,GRP2m8cl_1xx
+       rla
+       jr c,GRP2m8cl_01x
+       rla
+       jr c,RORm8cl
+ROLm8cl
+        call ROLhl_b_to_bc
+       pop hl
+       _PUTm8LoopC
+RORm8cl
+        call RORhl_b_to_bc
+       pop hl
+       _PUTm8LoopC
+GRP2m8cl_01x
+       rla
+       jr c,RCRm8cl
+RCLm8cl
+        call RCLhl_b_to_bc
+       pop hl
+       _PUTm8LoopC
+RCRm8cl
+        call RCRhl_b_to_bc
+       pop hl
+       _PUTm8LoopC
+GRP2m8cl_1xx
+       rla
+       jr c,SARm8cl ;2 кода (111 правильный, 110 неправильный)
+       rla
+       jr c,SHRm8cl
+SHLm8cl
+        call SHLhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+SHRm8cl
+        call SHRhl_b_to_bc
+       pop hl
+       _PUTm16LoopC
+SARm8cl
+        call SARhl_b_to_bc
+       pop hl
+       _PUTm8LoopC
 
         ALIGNrm
 GRP2rm16i8
