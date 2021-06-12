@@ -1192,6 +1192,8 @@ INT_printstringdx
        _Loop_
 
 INT_setgfx
+        ld hl,_PUTscreen_do_patch_vgadata
+        ld (_PUTscreen_do_patch),hl
         push de
         push iy
         ld e,0+0x80 ;keep

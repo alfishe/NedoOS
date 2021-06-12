@@ -525,10 +525,12 @@ Reset
         EI 
        _LoopC_JP
        
+       if 0
 jpiyer
-        ld hl,jpiyer
-        push hl
+        ld hl,jpiyer
+        push hl
         jp (iy)
+       endif
        if 0 ;debug
 oldpc
         dw 0       endif
@@ -570,7 +572,7 @@ trom0
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
-        ;db "test.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
         db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
@@ -767,15 +769,12 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
         ret
 
 PUTscreen_logpgc_zxaddrhl_datamhl_do
-        ld c,(hl) ;colour
-     inc b ;ld b,trecolour/256
+_PUTscreen_do_patch=$
+_PUTscreen_do_patch_vgadata=0x044e ;ld c,(hl):inc b
+        jr PUTscreen_textmode ;/ld c,(hl):inc b
 ;a=1..4
-        ;rrca
-        ;rrca
-        ;and 0xc0
         add a,h
         ld h,a
-;hl=addr in screen=0..65535
 ;экран VGA = 320 байт на строку
 ;экран ZXEGA = 40 байт на строку *4 слоя
         scf
@@ -819,6 +818,54 @@ PUTscreen_rightpixel
      xor (hl)
      ld (hl),a    
         ret
+
+PUTscreen_textmode
+        ld c,(hl) ;colour
+     inc b ;ld b,trecolour/256
+;a=1..4
+        add a,h
+        ld h,a
+;hl=addr in screen=0..65535
+;The VGA text buffer is located at physical memory address 0xB8000.
+;25 строк по 80 слов: символ, атрибут (%FpppIiii - TODO пересчитать в PIpppiii)
+;как пересчитать строки по 160 байт (80 символов) в строки по 64 байта (128 виртуальных символов)? всего 2000 знакомест = 125 групп по 16 символов, можно по таблице получить адрес (2 байта) или номер виртуальной группы (их всего 200, т.е. 1 байт) TODO
+
+        srl h
+        rr l
+        jr c,PUTscreen_attr
+        srl h
+        rr l
+        jr nc,$+4
+        set 5,h
+;RAM page #05 (#07):
+;#21C0...#27FF - character codes of odd (1,3,...) characters (25 lines, every line is 64 bytes, of which only first 40 are significant).
+;#01C0...#07FF - character codes of even (0,2,...) characters (ditto).
+        ld a,(user_scr0_high) ;ok
+       push bc
+       ld bc,0xc1c0
+       add hl,bc
+        SETPGC000
+       pop bc
+        ld (hl),c
+        ret
+PUTscreen_attr
+        srl h
+        rr l
+        jr c,$+5
+        set 5,h
+        dec hl
+;RAM page #01 (#03):
+;#21C0...#27FF - attributes of even(!) characters (ditto).
+;#01C1...#07FF - attributes of odd(!) characters (ditto).
+        ld a,(user_scr0_low) ;ok
+       push bc
+       ld bc,0xc1c1
+       add hl,bc
+        SETPGC000
+       pop bc
+        ld (hl),c
+        ret
+       
 
        display "--",$
 	include "rmbyte.asm"
@@ -1052,9 +1099,15 @@ filltpgs0_noclear
         djnz filltpgs0
        
 ;0xa0000 (pg 40): 4 pages for screen
+;0xb8000 (pg 46): 1 page for textmode
         ld h,tscreenpgs/256
+       ;if TEXTMODE
+       ; ld e,46
+       ; ld bc,0x140
+       ;else
         ld e,40
         ld bc,0x440
+       ;endif
 filltscreenpgs0
        ld l,e
        rrc l
@@ -1067,6 +1120,8 @@ filltscreenpgs0
         ld c,a
         inc e
         djnz filltscreenpgs0
+        
+       ld (tscreenpgs+0x8b),a
 
         call swapimer ;сначала прерывания ничего не делают (iff0==0)
 

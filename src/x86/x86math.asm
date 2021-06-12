@@ -56,7 +56,9 @@ ADDali8
 	next
         ld hl,_AL
         add a,(hl)
+keephlflagsfroma_loop
         ld (hl),a
+keepflagsfroma_loop
         KEEPCFPARITYOVERFLOW_FROMA
        _Loop_
 SUBali8
@@ -66,18 +68,20 @@ SUBali8
         ld hl,_AL
         ld a,(hl)
 	sub c
-	ld (hl),a
-        KEEPCFPARITYOVERFLOW_FROMA
-       _Loop_
+        jr keephlflagsfroma_loop
+	;ld (hl),a
+        ;KEEPCFPARITYOVERFLOW_FROMA
+       ;_Loop_
 ADCali8
         ex af,af' ;'
 	get
 	next
         ld hl,_AL
         adc a,(hl)
-        ld (hl),a
-        KEEPCFPARITYOVERFLOW_FROMA
-       _Loop_
+        jr keephlflagsfroma_loop
+	;ld (hl),a
+        ;KEEPCFPARITYOVERFLOW_FROMA
+       ;_Loop_
 SBBali8
         ex af,af' ;'
 	get
@@ -86,57 +90,65 @@ SBBali8
         ld hl,_AL
         ld a,(hl)
 	sbc a,c
-	ld (hl),a
-        KEEPCFPARITYOVERFLOW_FROMA
-       _Loop_
+        jr keephlflagsfroma_loop
+	;ld (hl),a
+        ;KEEPCFPARITYOVERFLOW_FROMA
+       ;_Loop_
 CMPali8
 	get
 	next
 	ld c,a
         ld a,(_AL)
 	sub c
-        KEEPCFPARITYOVERFLOW_FROMA
-       _Loop_
+        jr keepflagsfroma_loop
+        ;KEEPCFPARITYOVERFLOW_FROMA
+       ;_Loop_
 
 ADDaxi16
 	getBC
         ld hl,(_AX)
 	or a
 	adc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
+keepaxflagsfromhl_loop
         ld (_AX),hl
+keepflagsfromhl_loop
+        KEEPCFPARITYOVERFLOW_FROMHL
        _Loop_
 SUBaxi16
 	getBC
         ld hl,(_AX)
         or a
         sbc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld (_AX),hl
-       _Loop_
+        jr keepaxflagsfromhl_loop
+        ;KEEPCFPARITYOVERFLOW_FROMHL
+        ;ld (_AX),hl
+       ;_Loop_
 ADCaxi16
 	getBC
         ld hl,(_AX)
 	ex af,af' ;'
 	adc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld (_AX),hl
-       _Loop_
+        jr keepaxflagsfromhl_loop
+        ;KEEPCFPARITYOVERFLOW_FROMHL
+        ;ld (_AX),hl
+       ;_Loop_
 SBBaxi16
 	getBC
         ld hl,(_AX)
 	ex af,af' ;'
         sbc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-        ld (_AX),hl
-       _Loop_
+        jr keepaxflagsfromhl_loop
+        ;KEEPCFPARITYOVERFLOW_FROMHL
+        ;ld (_AX),hl
+       ;_Loop_
 CMPaxi16
 	getBC
         ld hl,(_AX)
         or a
         sbc hl,bc
-        KEEPCFPARITYOVERFLOW_FROMHL
-       _Loop_
+        jr keepflagsfromhl_loop
+        ;KEEPCFPARITYOVERFLOW_FROMHL
+       ;_Loop_
 
 IMUL_bc_de_to_hlde
 	call MUL16SIGNED ;HLDE=DE*BC
