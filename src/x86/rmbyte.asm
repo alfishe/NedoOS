@@ -60,6 +60,12 @@
        _Loop_
         endm
 
+        macro _PUTr8cLoop_
+;hl is kept since ADDRr8
+        ld (hl),c
+       _Loop_
+        endm
+
         macro _PUTr16Loop_
 ;hl is kept since ADDRr16
         ld a,l
@@ -1900,6 +1906,7 @@ SARm8i8
 
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 ROLci8
+ROL_c_b
         ex af,af' ;' ;remember ZF
         ld a,c
 ROLci8loop
@@ -1915,6 +1922,7 @@ ROLci8loop
         ret
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RORci8
+ROR_c_b
         ex af,af' ;' ;remember ZF
         ld a,c
 RORci8loop
@@ -1928,6 +1936,7 @@ RORci8loop
         ret
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 RCLci8
+RCL_c_b
         ex af,af' ;' ;remember ZF,CF
         ld a,c
 RCLci8loop
@@ -1939,9 +1948,11 @@ RCLci8loop
 	ld e,a ;overflow data
 	rla ;restore CF
         exx
+	ex af,af' ;'
         ret
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RCRci8
+RCR_c_b
         ex af,af' ;' ;remember ZF,CF
         ld a,c
 RCRci8loop
@@ -1955,14 +1966,17 @@ RCRci8loop
         ret
 ;For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1.
 SHLci8
-SHLr8i8loop
-        sla c
-        djnz SHLr8i8loop
+SHL_c_b
         ld a,c
+SHLr8i8loop
+        add a,a
+        djnz SHLr8i8loop
+        ld c,a
         KEEPCFPARITYOVERFLOW_FROMA
         ret
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
 SHRci8
+SHR_c_b
 SHRr8i8loop
         srl c
         djnz SHRr8i8loop
@@ -1975,6 +1989,7 @@ SHRr8i8loop
         ret
 ;For the SAR instruction, the OF flag is cleared for all 1-bit shifts. (result7 xor result6)
 SARci8
+SAR_c_b
 SARr8i8loop
         sra c
         djnz SARr8i8loop
@@ -2069,6 +2084,7 @@ RCLr8
 	ld e,a ;overflow data
 	rla ;restore CF
         exx
+	ex af,af' ;'
        _Loop_
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
 RCRr8
@@ -2122,7 +2138,6 @@ ROLm8
 	rla ;restore CF
         exx
 	ex af,af' ;'
-       pop hl
        ld a,b
        _PUTm8LoopC_oldpg
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
@@ -2135,7 +2150,6 @@ RORm8
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
-       pop hl
        ld a,b
        _PUTm8LoopC_oldpg
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
@@ -2149,7 +2163,7 @@ RCLm8
 	ld e,a ;overflow data
 	rla ;restore CF
         exx
-       pop hl
+	ex af,af' ;'
        ld a,b
        _PUTm8LoopC_oldpg
 ;For right rotates, the OF flag is set to the exclusive OR of the two most-significant bits of the result.
@@ -2162,7 +2176,6 @@ RCRm8
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
-       pop hl
        ld a,b
        _PUTm8LoopC_oldpg
 ;For left shifts, the OF flag is set to 0 if the most significant bit of the result is the same as the CF flag (that is, the top two bits of the original operand were the same); otherwise, it is set to 1.
@@ -2170,7 +2183,6 @@ SHLm8
         ld a,b
         add a,a
         KEEPCFPARITYOVERFLOW_FROMA_keepa
-       pop hl
        _PUTm8LoopC_oldpg
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
 SHRm8
@@ -2181,7 +2193,6 @@ SHRm8
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
-       pop hl
        ld a,b
        _PUTm8LoopC_oldpg
 ;For the SAR instruction, the OF flag is cleared for all 1-bit shifts. (result7 xor result6)
@@ -2193,7 +2204,6 @@ SARm8
 	ld e,a ;overflow data
         exx
 	ex af,af' ;'
-       pop hl
        ld a,b
        _PUTm8LoopC_oldpg
 
@@ -2562,6 +2572,11 @@ GRP2rm16cl
         cp 0b11000000
         jp c,GRP2rmmem16cl
         ld bc,(_CL-1) ;b=cl
+       if SHIFTCOUNTMASK
+       res 7,b
+       res 6,b
+       res 5,b
+       endif
         inc b
         djnz GRP2rm16cl_no0
        _Loop_
@@ -2622,6 +2637,11 @@ GRP2rmmem16cl
         ld h,b
         ld l,c       
         ld bc,(_CL-1) ;b=cl
+       if SHIFTCOUNTMASK
+       res 7,b
+       res 6,b
+       res 5,b
+       endif
         inc b
         djnz GRP2rmmem16cl_no0
        _LoopC
@@ -2681,13 +2701,17 @@ GRP2rm8cl
         cp 0b11000000
         jp c,GRP2rmmem8cl
         ld bc,(_CL-1) ;b=cl
+       if SHIFTCOUNTMASK
+       res 7,b
+       res 6,b
+       res 5,b
+       endif
         inc b
         djnz GRP2rm8cl_no0
        _Loop_
 GRP2rm8cl_no0
        ADDRr8
-       push hl
-        ld b,(hl)
+        ld c,(hl)
        rla
        rla
        rla
@@ -2697,51 +2721,48 @@ GRP2rm8cl_no0
        rla
        jr c,RORr8cl
 ROLr8cl
-        call ROLhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call ROL_c_b
+       _PUTr8cLoop_
 RORr8cl
-        call RORhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call ROR_c_b
+       _PUTr8cLoop_
 GRP2rm8cl_01x
        rla
        jr c,RCRr8cl
 RCLr8cl
-        call RCLhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call RCL_c_b
+       _PUTr8cLoop_
 RCRr8cl
-        call RCRhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call RCR_c_b
+       _PUTr8cLoop_
 GRP2rm8cl_1xx
        rla
        jr c,SARr8cl ;2 кода (111 правильный, 110 неправильный todo shl)
        rla
        jr c,SHRr8cl
 SHLr8cl
-        call SHLhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call SHL_c_b
+       _PUTr8cLoop_
 SHRr8cl
-        call SHRhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call SHR_c_b
+       _PUTr8cLoop_
 SARr8cl
-        call SARhl_b_to_bc
-       pop hl
-       _PUTr8Loop_
+        call SAR_c_b
+       _PUTr8cLoop_
 GRP2rmmem8cl
-        ADDRm16_GETm8b_for_PUTm8
-       push hl
-        ld h,b
-        ld l,c       
-        ld bc,(_CL-1) ;b=cl
-        inc b
-        djnz GRP2rmmem8cl_no0
+        ADDRm16_GETm8c_for_PUTm8
+       push af
+        ld a,(_CL)
+       if SHIFTCOUNTMASK
+       and 31
+       endif
+        or a
+        jr nz,GRP2rmmem8cl_no0
+       pop af
        _LoopC
 GRP2rmmem8cl_no0
+        ld b,a
+       pop af
        rla
        rla
        rla
@@ -2751,19 +2772,19 @@ GRP2rmmem8cl_no0
        rla
        jr c,RORm8cl
 ROLm8cl
-        call ROLhl_b_to_bc
+        call ROL_c_b
         jr GRP2m8clq
 RORm8cl
-        call RORhl_b_to_bc
+        call ROR_c_b
         jr GRP2m8clq
 GRP2m8cl_01x
        rla
        jr c,RCRm8cl
 RCLm8cl
-        call RCLhl_b_to_bc
+        call RCL_c_b
         jr GRP2m8clq
 RCRm8cl
-        call RCRhl_b_to_bc
+        call RCR_c_b
         jr GRP2m8clq
 GRP2m8cl_1xx
        rla
@@ -2771,15 +2792,14 @@ GRP2m8cl_1xx
        rla
        jr c,SHRm8cl
 SHLm8cl
-        call SHLhl_b_to_bc
+        call SHL_c_b
         jr GRP2m8clq
 SHRm8cl
-        call SHRhl_b_to_bc
+        call SHR_c_b
 GRP2m8clq
-       pop hl
-       _PUTm16LoopC
+       _PUTm8cLoopC_oldpg
 SARm8cl
-        call SARhl_b_to_bc
+        call SAR_c_b
         jr GRP2m8clq
 
         ALIGNrm
@@ -2897,16 +2917,17 @@ RORhli8_to_bc
         ld b,a
 RORhl_b_to_bc
         ex af,af' ;' ;remember ZF
-        ld a,h
+        ld a,l
 _RORr16i8loop
         rra
+        ld a,h
+        rra
+        ld h,a
         ld a,l
         rra
         ld l,a
-        ld a,h
-        rra ;use CF from L
-        ld h,a
        djnz _RORr16i8loop
+        ld a,h
         exx
 	ld e,a ;overflow data
         exx

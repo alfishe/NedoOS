@@ -195,20 +195,33 @@ getflags_bc
         ex af,af' ;'
         push af
         ex af,af' ;'
-        pop bc 
-;b=%SZ?H???C
-        res 5,b
-        res 3,b
-        set 1,b
+        pop bc
+;c=%SZ?H???C
+        res 5,c
+        res 3,c
+        set 1,c
         exx
         ld a,d ;parity data
         exx
         or a
-        res 2,b
-        jp pe,$+5 ;или инверсно?
+        res 2,c
+        jp po,$+5 ;или инверсно?
+        set 2,c
+;c=%SZ0A0P1C
+;c=%SF:ZF:0:AF:0:PF:1:CF
+        ld b,0x30 + 2;interrupt enable (костыль, TODO честно)
+        ld a,(_DIRECTION)
+        rra
+        jr nc,$+4
         set 2,b
-;b=%SZ0A0P1C
-;b=%SF:ZF:0:AF:0:PF:1:CF
+        exx
+        ld a,e ;overflow data
+	and 0x40
+	rla
+	xor e
+        exx        
+        ret p ;jp p,$+5
+        set 3,b
         ret
 
 makeflags_frombc
@@ -233,7 +246,7 @@ SAHFer
 LAHFer
 ;Load Status Flags into AH Register
         call getflags_bc
-        ld a,b
+        ld a,c
         ld (_AH),a
        _Loop_
 

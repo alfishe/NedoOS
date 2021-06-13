@@ -3,12 +3,14 @@
 
 STACK=0x4000
 
-BASIC=0
+BASIC=1;0
        if BASIC
 STARTPC=0x7c00
        else
 STARTPC=0x0100
        endif
+
+SHIFTCOUNTMASK=1 ;and 31
 
 ;PC=0x4000...
 ;SP=0x8000...
@@ -572,8 +574,8 @@ trom0
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
-        ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
-        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
+        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
