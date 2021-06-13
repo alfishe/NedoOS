@@ -14,9 +14,10 @@ EXTer
 ;0f b6 d0 = movzx dx,al (move with zero-extend)
 ;0f b6 c2 = movzx ax,dl (move with zero-extend)
 ;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
-;0F 82   03+     JB rel16/32     .......c     Jump near if below/not above or equal/carry (CF=1) ;TODO (for pixeltwn)
-;0F AF C3 imul ax,bx (for megapole)
+;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;TODO (for pixeltwn)
+;0F 83 (A4 00) JNC rel16/32 Jump near if not below/above or equal/not carry (CF=0) ;TODO (for pixeltwn)
 ;0F 85 (6B FF) jnz rel16 (for megapole)
+;0F AF C3 imul ax,bx (for megapole)
 ;0F 45 C1 CMOVNZ ax,cx (for megapole) Conditional Move - not zero/not equal (ZF=0)
 ;JNAE rel16/32    
 ;JC rel16/32 
@@ -28,6 +29,12 @@ EXTer
        jr z,RDTSCer
        cp 0x45
        jr z,CMOVNZer
+       cp 0x82
+       jp z,JCrel16
+       cp 0x83
+       jp z,JNCrel16
+       cp 0x84
+       jp z,JZrel16
        cp 0x85
        jp z,JNZrel16
        cp 0xaf
@@ -94,6 +101,27 @@ RDTSCer
         ld (_AX),hl
        _Loop_
 
+JCrel16
+	ex af,af' ;'
+	jr c,JRrel16y
+	ex af,af' ;'
+        next
+        next
+       _Loop_ 
+JNCrel16
+	ex af,af' ;'
+	jr nc,JRrel16y
+	ex af,af' ;'
+        next
+        next
+       _Loop_ 
+JZrel16
+	ex af,af' ;'
+	jr z,JRrel16y
+	ex af,af' ;'
+        next
+        next
+       _Loop_ 
 JNZrel16
 	ex af,af' ;'
 	jr nz,JRrel16y
@@ -205,7 +233,7 @@ getflags_bc
         exx
         or a
         res 2,c
-        jp po,$+5 ;или инверсно?
+        jp po,$+5
         set 2,c
 ;c=%SZ0A0P1C
 ;c=%SF:ZF:0:AF:0:PF:1:CF
@@ -224,13 +252,14 @@ getflags_bc
         set 3,b
         ret
 
-makeflags_frombc
-;b=%SF:ZF:0:AF:0:PF:1:CF
+makeflags_fromc
+;c=%SF:ZF:0:AF:0:PF:1:CF
         push bc
         ex af,af' ;'
         pop af
         ex af,af' ;'
-        ld a,b
+        ld a,c
+       cpl
         and 2
         exx
         ld d,a ;parity data ;или инверсно?
@@ -239,8 +268,9 @@ makeflags_frombc
 
 SAHFer
 ;store AH into flags
-        ld bc,(_AX)
-        call makeflags_frombc
+        ld a,(_AH)
+        ld c,a
+        call makeflags_fromc
        _Loop_
 
 LAHFer
@@ -383,7 +413,7 @@ _POPAer0
 
 POPFer
         getmemspBC
-        call makeflags_frombc
+        call makeflags_fromc
        _LoopC
 POPax
         getmemspBC
@@ -908,6 +938,14 @@ XCHGaxdi
         call incdecdi_hl
 	ld (_DI),hl
        endm
+       macro INCDEC2SI_DIbyDIRECTION
+	ld hl,(_SI)
+        call incdec2si_hl
+	ld (_SI),hl
+	ld hl,(_DI)
+        call incdec2di_hl
+	ld (_DI),hl
+       endm
        macro INCDEC2SIbyDIRECTION
 	ld hl,(_SI)
         call incdec2si_hl
@@ -927,8 +965,8 @@ REPNZer
 	jp z,REPMOVSBer
 	cp 0xa6
 	jp z,REPCMPSBer
-	;cp 0xa5
-	;jp z,REPMOVSWer
+	cp 0xa5
+	jp z,REPMOVSWer
 	cp 0xaa
 	jp z,REPSTOSBer
 	;cp 0xab
@@ -937,7 +975,21 @@ REPNZer
 	jp z,REPSCASBer
 	;cp 0xaf
 	;jp z,REPSCASWer
-	jp PANIC
+	jr $;jp PANIC
+
+MOVSWer
+	ld hl,(_SI)
+	getmemDS ;TODO подмена сегмента
+	ld hl,(_DI)
+	putmemES
+	ld hl,(_SI)
+        inc hl
+	getmemDS ;TODO подмена сегмента
+	ld hl,(_DI)
+        inc hl
+	putmemES
+        INCDEC2SI_DIbyDIRECTION
+       _LoopC
 
 MOVSBer
 	ld hl,(_SI)
@@ -945,6 +997,33 @@ MOVSBer
 	ld hl,(_DI)
 	putmemES
         INCDECSI_DIbyDIRECTION
+       _LoopC
+
+;rep movsw
+REPMOVSWer
+;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
+       ;ld hl,(_CX)
+       ;ld a,h
+       ;or l
+       ;jr z,REPMOVSWerq
+	ld hl,(_SI)
+	getmemDS ;TODO подмена сегмента
+	ld hl,(_DI)
+	putmemES
+	ld hl,(_SI)
+        inc hl
+	getmemDS ;TODO подмена сегмента
+	ld hl,(_DI)
+        inc hl
+	putmemES
+        INCDEC2SI_DIbyDIRECTION
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ld a,h
+	or l
+	jp nz,REP_repeat
+REPMOVSWerq
        _LoopC
 
 ;rep movsb

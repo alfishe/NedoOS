@@ -3,7 +3,7 @@
 
 STACK=0x4000
 
-BASIC=1;0
+BASIC=0
        if BASIC
 STARTPC=0x7c00
        else
@@ -574,15 +574,15 @@ trom0
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
-        db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
-        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
+        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
+        ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
        endif
         ;DB "pc102782.bin",0
 
@@ -991,8 +991,14 @@ fs_LSW	dw 0
 gs_LSW	dw 0
 
 ansipal
-	dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
-	dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
+;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
+        ;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+        ;dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+;по сравнению с цветами терминала переставлено:
+;1-4
+;3-6
+	dw 0xffff,0xfefe,0xefef,0xeeee,0xfdfd,0xfcfc,0xeded,0xecec
+	dw 0x1f1f,0x1e1e,0x0f0f,0x0e0e,0x1d1d,0x1c1c,0x0d0d,0x0c0c
 
 pc_high     db 0
 

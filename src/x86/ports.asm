@@ -59,6 +59,10 @@ OUTbc_l
         ret
 
 IN_bc_to_bc
+        ld hl,0x03da
+        or a
+        sbc hl,bc
+        jr z,IN_03da
         ld hl,0x0040
         or a
         sbc hl,bc
@@ -67,4 +71,12 @@ IN_bc_to_bc
         ret
 IN_skip
         ld bc,0xffff
+        ret
+
+;0x03da - порт видеоконтроллера. проверяется на равенство 8 - во время КСИ? (pixeltown)
+IN_03da
+        ld a,r
+        and 8
+        ld c,a
+        ld b,0
         ret

@@ -179,7 +179,7 @@ MAINCOMS
         DCOM MOVmemal
         DCOM MOVmemax
         DCOM MOVSBer
-        DCOM PANIC ;MOVSWer
+        DCOM MOVSWer
         DCOM CMPSBer
         DCOM PANIC ;CMPSWer
         DCOM TESTali8
