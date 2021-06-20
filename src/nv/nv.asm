@@ -1131,7 +1131,7 @@ editcmddirback_ok
 editcmd_left
         ld a,(curcmdx)
         or a
-        ret z ;некуда влево
+        jp z,editcmd_pageUp ;ret z ;некуда влево
         dec a
         ld (curcmdx),a
         ret
@@ -1140,7 +1140,7 @@ editcmd_right
         call cmdcalctextaddr ;hl=addr, a=curcmdx
         inc (hl)
         dec (hl)
-        ret z ;некуда вправо, стоим на терминаторе
+        jp z,editcmd_pageDown ;ret z ;некуда вправо, стоим на терминаторе
         inc a
         ld (curcmdx),a
         ret
@@ -1827,13 +1827,17 @@ seldrv_down
         ld a,(hl)
         inc a
         cp NDRIVES;15
-        ret z
+        ;ret z
+         jr nz,$+3
+         xor a
         ld (hl),a
         ret
 seldrv_up
         ld a,(hl)
         or a
-        ret z
+        ;ret z
+         jr nz,$+4
+         ld (hl),NDRIVES
         dec (hl)
         ret
 
