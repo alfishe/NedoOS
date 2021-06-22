@@ -227,17 +227,21 @@ getflags_bc
 ;c=%SZ?H???C
         res 5,c
         res 3,c
+        res 2,c
         set 1,c
         exx
         ld a,d ;parity data
         exx
         or a
-        res 2,c
         jp po,$+5
         set 2,c
 ;c=%SZ0A0P1C
 ;c=%SF:ZF:0:AF:0:PF:1:CF
-        ld b,0x30 + 2;interrupt enable (костыль, TODO честно)
+        ld b,0x30 ;+ 2
+        ld a,(iff1)
+        or a
+        jr z,$+4
+        set 1,b ;interrupt enable
         ld a,(_DIRECTION)
         rra
         jr nc,$+4

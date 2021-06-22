@@ -105,50 +105,33 @@ CMPali8
        ;_Loop_
 
 ADDaxi16
-	getBC
-        ld hl,(_AX)
-	or a
-	adc hl,bc
-keepaxflagsfromhl_loop
-        ld (_AX),hl
-keepflagsfromhl_loop
-        KEEPCFPARITYOVERFLOW_FROMHL
-       _Loop_
-SUBaxi16
-	getBC
-        ld hl,(_AX)
         or a
-        sbc hl,bc
-        jr keepaxflagsfromhl_loop
-        ;KEEPCFPARITYOVERFLOW_FROMHL
-        ;ld (_AX),hl
-       ;_Loop_
+        ex af,af' ;'
 ADCaxi16
 	getBC
         ld hl,(_AX)
-	ex af,af' ;'
-	adc hl,bc
-        jr keepaxflagsfromhl_loop
-        ;KEEPCFPARITYOVERFLOW_FROMHL
-        ;ld (_AX),hl
-       ;_Loop_
+        ex af,af' ;'
+        ADCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
+keepaxfromhl_loop
+        ld (_AX),hl
+       _Loop_
+SUBaxi16
+        or a
+        ex af,af' ;'
 SBBaxi16
 	getBC
         ld hl,(_AX)
-	ex af,af' ;'
-        sbc hl,bc
-        jr keepaxflagsfromhl_loop
-        ;KEEPCFPARITYOVERFLOW_FROMHL
+        ex af,af' ;'
+        SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
+        jr keepaxfromhl_loop
         ;ld (_AX),hl
        ;_Loop_
 CMPaxi16
 	getBC
         ld hl,(_AX)
         or a
-        sbc hl,bc
-        jr keepflagsfromhl_loop
-        ;KEEPCFPARITYOVERFLOW_FROMHL
-       ;_Loop_
+        SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
+       _Loop_
 
 IMUL_bc_de_to_hlde
 	call MUL16SIGNED ;HLDE=DE*BC

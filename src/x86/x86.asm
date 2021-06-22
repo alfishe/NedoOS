@@ -11,6 +11,7 @@ STARTPC=0x0100
        endif
 
 SHIFTCOUNTMASK=1 ;and 31
+AFFLAG_16BIT=1 ;only for add_test
 
 ;PC=0x4000...
 ;SP=0x8000...
@@ -113,65 +114,25 @@ SHIFTCOUNTMASK=1 ;and 31
 	endm
 
 	macro countSS ;bc=(_SS)
-	ld h,b
-	ld l,c
-	xor a
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
+        call countXS_bc_to_ahl
 	ld (ss_LSW),hl
 	ld (ss_HSB),a
 	endm
 
 	macro countCS ;bc=(_CS)
-	ld h,b
-	ld l,c
-	xor a
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
+        call countXS_bc_to_ahl
 	ld (cs_LSW),hl
 	ld (cs_HSB),a
 	endm
 
 	macro countDS ;bc=(_DS)
-	ld h,b
-	ld l,c
-	xor a
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
+        call countXS_bc_to_ahl
 	ld (ds_LSW),hl
 	ld (ds_HSB),a
 	endm
 
 	macro countES ;bc=(_ES)
-	ld h,b
-	ld l,c
-	xor a
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
-	add hl,hl
-	rla
+        call countXS_bc_to_ahl
 	ld (es_LSW),hl
 	ld (es_HSB),a
 	endm
@@ -291,70 +252,30 @@ _getmemspBC_base=$
 _getmemspBC_skipsize=$-_getmemspBC_base
 	endm
 
-       if 0
-	macro putmemspBC_slow
-        LD HL,(_SP)
-	inc l
-	dec l
-	call z,recountsp_dec
-	dec l
-       push hl
-       res 6,h
-       set 7,h
-	ld (hl),b
-       pop hl
-	call z,recountsp_dec
-	dec l
-        LD (_SP),HL	
-       res 6,h
-       set 7,h
-	ld (hl),c
-	endm
-
-	macro getmemspBC_slow
-        LD HL,(_SP)
-       push hl
-       res 6,h
-       set 7,h
-	ld c,(hl)
-       pop hl
-        inc l
-	call z,recountsp_inc
-       push hl
-       res 6,h
-       set 7,h
-	ld b,(hl)
-       pop hl
-        inc l
-	call z,recountsp_inc
-        LD (_SP),HL
-	endm
-       endif
-
 	macro encodeSP
 	;ld hl,(_SP)
         memSS
 	endm
 
-	macro KEEPCFPARITYOVERFLOW_FROMA
+;для математики OF надо брать из P/O!
+	macro KEEPHFCFPARITYOVERFLOW_FROMA
         exx
 	ld d,a ;parity data
-	rra
-	ld e,a ;overflow data
-	rla ;restore CF
+	ld e,0 ;overflow data
+        jp po,$+5
+        ld e,0x40
         exx
 	ex af,af' ;'
 	endm
 
-	macro KEEPCFPARITYOVERFLOW_FROMA_keepa
+	macro KEEPCFPARITYOVERFLOW_FROMA ;для сдвигов! для математики OF надо брать из P/O!
         exx
 	ld d,a ;parity data
-	rra
-	ld e,a ;overflow data
-	rla ;restore CF
-	ex af,af' ;'
-        ld a,d
+	 rra
+	 ld e,a ;overflow data
+	 rla ;restore CF
         exx
+	ex af,af' ;'
 	endm
 
 	macro KEEPLOGICCFPARITYOVERFLOW_FROMA
@@ -365,35 +286,86 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	ex af,af' ;'
 	endm
 
-	macro KEEPLOGICCFPARITYOVERFLOW_FROMA_keepa
+        macro SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
+       if AFFLAG_16BIT
+       sbc a,a
+       ld hx,a ;todo ()
+       ld a,l
+       endif
+        sbc hl,bc
+       if AFFLAG_16BIT
+       rla
+       rra ;reset HF(AF)
+       push af
+       ld b,a
+       endif
+        ld a,l
         exx
 	ld d,a ;parity data
-	ld e,0 ;OF=0
+	ld e,0 ;overflow data
+        jp po,$+5
+        ld e,0x40
+        exx
+       if AFFLAG_16BIT
+        ld a,c
+        and 0x0f
+        sub hx ;hx=oldCF=0/-1
+        ld c,a
+        ld a,b ;oldl
+        and 0x0f
+        sub c
+        jr nc,1f
+       pop bc
+        set 4,c ;set HF(AF)
+       push bc
+1
+       pop af
+       endif
 	ex af,af' ;'
-        ld a,d
-	exx
-	endm
+        endm
 
-        macro KEEPCFPARITYOVERFLOW_FROMHL
-	ld a,h
-	rra
-	exx
-	ld e,a ;overflow data
-	exx
-	rla ;restore CF
-	ex af,af' ;'
-        ld a,h
-        xor l
-	exx
+        macro ADCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
+       if AFFLAG_16BIT
+       sbc a,a
+       ld hx,a ;todo ()
+       ld a,l
+       endif
+        adc hl,bc
+       if AFFLAG_16BIT
+       rla
+       rra ;reset HF(AF)
+       push af
+       ld b,a
+       endif
+        ld a,l
+        exx
 	ld d,a ;parity data
-	exx
+	ld e,0 ;overflow data
+        jp po,$+5
+        ld e,0x40
+        exx
+       if AFFLAG_16BIT
+        ld a,c
+        and 0x0f
+        sub hx ;hx=oldCF=0/-1
+        ld c,a
+        ld a,b ;oldl
+        or 0xf0
+        add a,c
+        jr nc,1f
+       pop bc
+        set 4,c ;set HF(AF)
+       push bc
+1
+       pop af
+       endif
+	ex af,af' ;'
         endm
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
 	or l ;CF=0 ;ZF=(hl==0) ;TODO sign
 	ex af,af' ;'
-	ld a,h
-	xor l
+        ld a,l
 	exx
 	ld d,a ;parity data
         ld e,0 ;OF=0
@@ -403,100 +375,179 @@ _getmemspBC_skipsize=$-_getmemspBC_base
         macro KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
 	or c ;CF=0 ;ZF=(bc==0) ;TODO sign
 	ex af,af' ;'
-	ld a,b
-	xor c
+        ld a,c
 	exx
 	ld d,a ;parity data
         ld e,0 ;OF=0
 	exx
         endm
 
-        macro KEEPLOGICCFPARITYOVERFLOW_FROMHL
-	ld a,h
-        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
-        endm
-
-        macro KEEPLOGICCFPARITYOVERFLOW_FROMBC
-	ld a,b
-        KEEPLOGICCFPARITYOVERFLOW_FROMBC
-        endm
+;как сформировать ZF,SF, не трогая AF?
+;для этого надо сформировать число с нужными свойствами и сделать inc
+         ;ZF SF AF OF
+;ff даёт  1  0  1  0 ;имитирует флаги после inc ffff
+;7f даёт  0  1  1  1 ;имитирует флаги после inc 7fff
+;80 даёт  0  1  0  0 ;имитирует флаги после inc 8000
+;8f даёт  0  1  1  0 ;имитирует флаги после inc 800f
+;т.е. ff, 7f надо формировать только для 7fff, ffff
+;а в остальных случаях надо брать (h&0x80) + (l&0x08)
+;если l!=ff, l!=7f, то можно просто сделать inc l
+;если l=ff, то нельзя просто сделать inc h - запортится AF!
 
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 
 	macro inchlwithflags ;keep CY
 	ex af,af' ;'
-	ld bc,1
-       ld a,b
-       rla ;keep CF
-	adc hl,bc ;ZF,SF
-       ld b,a
-	ld a,h
-	rra
+        inc l
+        jr z,1f
+        jp po,2f ;no zero, no overflow - goodbye
+;was l=7f
+3 ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+        ld a,0x0f
+        bit 7,h
+        jr z,$+4
+        set 7,a ;a7=h7
+        inc a ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+2 ;no overflow
+        ld a,l
         exx
-	ld e,a ;OF
+	ld e,0 ;overflow data
+        jr 4f
+1 ;inc h needed
+        inc h
+        jr z,2b ;set ZF(ok),AF(ok) ;no overflow
+        jp po,3b ;no overflow ;set ZF=0(ok), SF=h7(ok), AF=1, OF=0(ok), keep CY
+;overflow
+        ld a,l
         exx
-       ld a,b
-       rra ;old CF
+	;ld e,0 ;overflow data
+        ;jp po,$+5
+        ld e,0x40
+4 ;after overflow
+	ld d,a ;parity data
+        exx
 	ex af,af' ;'
-	ld a,h
-	xor l
-        exx
-	ld d,a ;PF
-        exx
 	endm
 
 	macro incbcwithflags ;keep CY
 	ex af,af' ;'
-	ld hl,1
-       ld a,h
-       rla ;keep CF
-	adc hl,bc ;ZF,SF
-       ld b,a
-	ld a,h
-	rra
+        inc c
+        jr z,1f ;inc h needed
+        jp po,2f ;no zero, no overflow - goodbye
+;was l=7f
+3 ;set ZF=0, SF=h7, AF=1(!!!), OF=0, keep CY
+        ld a,0x0f
+        bit 7,b
+        jr z,$+4
+        set 7,a ;a7=h7
+        inc a ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+2 ;no overflow
+        ld a,c
         exx
-	ld e,a ;OF
+	ld e,0 ;overflow data
+        jr 4f
+1 ;inc h needed
+        inc b
+        jr z,2b ;set ZF(ok),AF(ok) ;no overflow
+        jp po,3b ;no overflow ;set ZF=0(ok), SF=h7(ok), AF=1, OF=0(ok), keep CY
+;overflow
+        ld a,c
         exx
-       ld a,b
-       rra ;old CF
+	;ld e,0 ;overflow data
+        ;jp po,$+5
+        ld e,0x40
+4 ;after overflow
+	ld d,a ;parity data
+        exx
 	ex af,af' ;'
-	ld a,h
-	xor l
-        exx
-	ld d,a ;PF
-        exx
-        ld b,h
-        ld c,l
 	endm
 
 	macro dechlwithflags ;keep CY
 	ex af,af' ;'
-	ld bc,1
-       ld a,b
-       rla ;keep CF
-	sbc hl,bc ;ZF,SF
-       ld b,a
-	ld a,h
-	rra
+        inc l
+        dec l
+        jr z,1f ;dec h needed
+        dec l
+        jr z,4f ;maybe zero
+        jp po,2f ;no zero, no overflow - goodbye
+;was l=80
+3 ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+        ld a,0x10 ;for AF=1
+        bit 7,h
+        jr z,5f
+        set 7,a ;a7=h7
+        jr 5f
+4 ;maybe zero (was l=1)
+        inc h
+        dec h
+        jr z,2f ;set ZF, SF as needed, no AF, no OF       
+        ld a,h
+        set 1,a ;for ZF=0, AF=0
+5
+        dec a ;for a=10/90: set ZF=0, SF=h7, AF=1, OF=0, keep CY
+2 ;no overflow
+        ld a,l
         exx
-	ld e,a ;OF
+	ld e,0 ;overflow data
+        jr 6f
+1 ;was l=0; dec h needed
+        dec l ;l=ff
+        dec h
+        jp po,3b ;no overflow ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+;overflow
+        ld a,l
         exx
-       ld a,b
-       rra ;old CF
+	;ld e,0 ;overflow data
+        ;jp po,$+5
+        ld e,0x40
+6 ;after overflow
+	ld d,a ;parity data
+        exx
 	ex af,af' ;'
-	ld a,h
-	xor l
-        exx
-	ld d,a ;PF
-        exx
 	endm
 
 	macro decbcwithflags ;keep CY
-        ld h,b
-        ld l,c
-        dechlwithflags
-        ld b,h
-        ld c,l
+	ex af,af' ;'
+        inc c
+        dec c
+        jr z,1f ;dec h needed
+        dec c
+        jr z,4f ;maybe zero
+        jp po,2f ;no zero, no overflow - goodbye
+;was l=80
+3 ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+        ld a,0x10 ;for AF=1
+        bit 7,b
+        jr z,5f
+        set 7,a ;a7=h7
+        jr 5f
+4 ;maybe zero (was l=1)
+        inc b
+        dec b
+        jr z,2f ;set ZF, SF as needed, no AF, no OF       
+        ld a,b
+        set 1,a ;for ZF=0, AF=0
+5
+        dec a ;for a=10/90: set ZF=0, SF=h7, AF=1, OF=0, keep CY
+2 ;no overflow
+        ld a,c
+        exx
+	ld e,0 ;overflow data
+        jr 6f
+1 ;was l=0; dec h needed
+        dec c ;l=ff
+        dec b
+        jp po,3b ;no overflow ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
+;overflow
+        ld a,c
+        exx
+	;ld e,0 ;overflow data
+        ;jp po,$+5
+        ld e,0x40
+6 ;after overflow
+	ld d,a ;parity data
+        exx
+	ex af,af' ;'
 	endm
 
         org PROGSTART
@@ -505,26 +556,26 @@ begin
 initq
 Reset       
         ld bc,0
+       push bc
         ld (_SS),bc
         countSS
         ld hl,0xff00
         ld (_SP),hl
         encodeSP
-       
-        ld bc,0
+       pop bc ;ld bc,0
         ld (_CS),bc
         countCS
         ld de,STARTPC
+       push de
         encodePC;memCS ;out: a=physpg, de=zxaddr
         ex de,hl
         ld de,trom0
 ;de=имя файла
 ;hl=куда грузим
         call loadfile_in_hl
-
-        LD DE,STARTPC ;=IP(PC)
+       pop de ;LD DE,STARTPC ;=IP(PC)
         LD IY,EMUCHECKQ
-        EI 
+        ;EI 
        _LoopC_JP
        
        if 0
@@ -564,7 +615,7 @@ loadfile_in_hl
         OS_OPENHANDLE
         pop de ;куда грузим
         push bc ;b=handle
-        ld hl,0x4000 ;столько грузим (если столько есть в файле)
+        ld h,0x40 ;столько грузим (если столько есть в файле)
         OS_READHANDLE
         pop bc ;b=handle
         OS_CLOSEHANDLE
@@ -575,7 +626,8 @@ trom0
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
         ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
-        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
+        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
@@ -589,6 +641,7 @@ trom0
 pgprog
         db 0 ;TODO там можно хранить дополнительный код (напр., отладчик)
 
+;keep here for quit
 swapimer
 	di
         ld de,0x0038
@@ -673,6 +726,20 @@ IMERIM
         ld C,L ;BC=old IP(PC)
         putmemspBC ;TODO а CS куда? push cs; push ip?
        _LoopC_JP 
+
+countXS_bc_to_ahl
+	ld h,b
+	ld l,c
+	xor a
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+	add hl,hl
+	rla
+        ret
 
 putmemspBC_pp
         ;LD HL,(_SP)
