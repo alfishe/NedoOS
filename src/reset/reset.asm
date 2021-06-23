@@ -83,7 +83,7 @@ hook_crc_loop
     jr nz,hook_crc_loop
     neg
     ld (0xfffd),a
-    
+    di
 cmdpgscreen0_0=$+1
 	ld a,0xff-1
 	SETPG32KLOW
@@ -172,7 +172,7 @@ washobetarunner
     ld a,0x10
     ld bc,0x7ffd
     out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
-pcconf=$+1
+pcconf=$ - hobetarunner + washobetarunner + 1
     ld a,1
     cp 2
     jr z,set_xbios
