@@ -257,8 +257,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
         memSS
 	endm
 
-;для математики OF надо брать из P/O!
-	macro KEEPHFCFPARITYOVERFLOW_FROMA
+	macro KEEPHFCFPARITYOVERFLOW_FROMA ;для математики OF надо брать из P/O!
         exx
 	ld d,a ;parity data
 	ld e,0 ;overflow data
@@ -268,7 +267,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	ex af,af' ;'
 	endm
 
-	macro KEEPCFPARITYOVERFLOW_FROMA ;для сдвигов! для математики OF надо брать из P/O!
+	macro KEEPCFPARITYOVERFLOW_FROMA ;для сдвигов
         exx
 	ld d,a ;parity data
 	 rra
@@ -278,7 +277,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	ex af,af' ;'
 	endm
 
-	macro KEEPLOGICCFPARITYOVERFLOW_FROMA
+	macro KEEPLOGICCFPARITYOVERFLOW_FROMA ;для логики
         exx
 	ld d,a ;parity data
 	ld e,0 ;OF=0
@@ -382,173 +381,103 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	exx
         endm
 
-;как сформировать ZF,SF, не трогая AF?
-;для этого надо сформировать число с нужными свойствами и сделать inc
-         ;ZF SF AF OF
-;ff даёт  1  0  1  0 ;имитирует флаги после inc ffff
-;7f даёт  0  1  1  1 ;имитирует флаги после inc 7fff
-;80 даёт  0  1  0  0 ;имитирует флаги после inc 8000
-;8f даёт  0  1  1  0 ;имитирует флаги после inc 800f
-;т.е. ff, 7f надо формировать только для 7fff, ffff
-;а в остальных случаях надо брать (h&0x80) + (l&0x08)
-;если l!=ff, l!=7f, то можно просто сделать inc l
-;если l=ff, то нельзя просто сделать inc h - запортится AF!
-
+       if 1;AFFLAG_16BIT
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 
 	macro inchlwithflags ;keep CY
 	ex af,af' ;'
         inc l
-        jr z,1f
-        jp po,2f ;no zero, no overflow - goodbye
-;was l=7f
-3 ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-        ld a,0x0f
-        bit 7,h
-        jr z,$+4
-        set 7,a ;a7=h7
-        inc a ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-2 ;no overflow
         ld a,l
         exx
-	ld e,0 ;overflow data
-        jr 4f
-1 ;inc h needed
-        inc h
-        jr z,2b ;set ZF(ok),AF(ok) ;no overflow
-        jp po,3b ;no overflow ;set ZF=0(ok), SF=h7(ok), AF=1, OF=0(ok), keep CY
-;overflow
-        ld a,l
-        exx
-	;ld e,0 ;overflow data
-        ;jp po,$+5
-        ld e,0x40
-4 ;after overflow
 	ld d,a ;parity data
+	ld e,0 ;overflow data
         exx
+        call pe,inchlwithflags_l80 ;fix SF
+        call z,inchlwithflags_l00 ;inc h needed
 	ex af,af' ;'
-	endm
-
+        endm ;57t in most cases
+        
 	macro incbcwithflags ;keep CY
 	ex af,af' ;'
         inc c
-        jr z,1f ;inc h needed
-        jp po,2f ;no zero, no overflow - goodbye
-;was l=7f
-3 ;set ZF=0, SF=h7, AF=1(!!!), OF=0, keep CY
-        ld a,0x0f
-        bit 7,b
-        jr z,$+4
-        set 7,a ;a7=h7
-        inc a ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-2 ;no overflow
         ld a,c
+        exx
+	ld d,a ;parity data
+	ld e,0 ;overflow data
+        exx
+        call pe,incbcwithflags_c80 ;fix SF
+        call z,incbcwithflags_c00 ;inc b needed
+	ex af,af' ;'
+        endm ;57t in most cases
+        
+	macro dechlwithflags ;keep CY
+        call dechlwithflags_fixflags ;z/nz - separate branches
+	ex af,af' ;'
+        endm ;21+63 = 84t in most cases
+        
+	macro decbcwithflags ;keep CY
+        call decbcwithflags_fixflags ;z/nz - separate branches
+	ex af,af' ;'
+        endm ;21+63 = 84t in most cases
+
+       else ;no AF
+
+;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
+;The OF, SF, ZF, AF, and PF flags are set according to the result. 
+	macro incwithflags ;keep CY
+	ex af,af' ;'
+       sbc a,a ;keep CF
+        or a
+	adc hl,bc ;ZF,SF
+       rra ;old CF
+	ld a,l
         exx
 	ld e,0 ;overflow data
-        jr 4f
-1 ;inc h needed
-        inc b
-        jr z,2b ;set ZF(ok),AF(ok) ;no overflow
-        jp po,3b ;no overflow ;set ZF=0(ok), SF=h7(ok), AF=1, OF=0(ok), keep CY
-;overflow
-        ld a,c
-        exx
-	;ld e,0 ;overflow data
-        ;jp po,$+5
+        jp po,$+5
         ld e,0x40
-4 ;after overflow
-	ld d,a ;parity data
+	ld d,a ;PF
         exx
 	ex af,af' ;'
 	endm
+
+	macro inchlwithflags ;keep CY
+	ld bc,1
+        incwithflags
+	endm ;81.5t
+
+	macro incbcwithflags ;keep CY
+	ld hl,1
+        incwithflags
+        ld b,h
+        ld c,l
+	endm ;89.5t
 
 	macro dechlwithflags ;keep CY
+	ld bc,1
 	ex af,af' ;'
-        inc l
-        dec l
-        jr z,1f ;dec h needed
-        dec l
-        jr z,4f ;maybe zero
-        jp po,2f ;no zero, no overflow - goodbye
-;was l=80
-3 ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-        ld a,0x10 ;for AF=1
-        bit 7,h
-        jr z,5f
-        set 7,a ;a7=h7
-        jr 5f
-4 ;maybe zero (was l=1)
-        inc h
-        dec h
-        jr z,2f ;set ZF, SF as needed, no AF, no OF       
-        ld a,h
-        set 1,a ;for ZF=0, AF=0
-5
-        dec a ;for a=10/90: set ZF=0, SF=h7, AF=1, OF=0, keep CY
-2 ;no overflow
-        ld a,l
+       sbc a,a ;keep CF
+        or a
+	sbc hl,bc ;ZF,SF
+       rra ;old CF
+	ld a,l
         exx
 	ld e,0 ;overflow data
-        jr 6f
-1 ;was l=0; dec h needed
-        dec l ;l=ff
-        dec h
-        jp po,3b ;no overflow ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-;overflow
-        ld a,l
-        exx
-	;ld e,0 ;overflow data
-        ;jp po,$+5
+        jp po,$+5
         ld e,0x40
-6 ;after overflow
-	ld d,a ;parity data
+	ld d,a ;PF
         exx
 	ex af,af' ;'
-	endm
+	endm ;81.5t < 84t with call
 
 	macro decbcwithflags ;keep CY
-	ex af,af' ;'
-        inc c
-        dec c
-        jr z,1f ;dec h needed
-        dec c
-        jr z,4f ;maybe zero
-        jp po,2f ;no zero, no overflow - goodbye
-;was l=80
-3 ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-        ld a,0x10 ;for AF=1
-        bit 7,b
-        jr z,5f
-        set 7,a ;a7=h7
-        jr 5f
-4 ;maybe zero (was l=1)
-        inc b
-        dec b
-        jr z,2f ;set ZF, SF as needed, no AF, no OF       
-        ld a,b
-        set 1,a ;for ZF=0, AF=0
-5
-        dec a ;for a=10/90: set ZF=0, SF=h7, AF=1, OF=0, keep CY
-2 ;no overflow
-        ld a,c
-        exx
-	ld e,0 ;overflow data
-        jr 6f
-1 ;was l=0; dec h needed
-        dec c ;l=ff
-        dec b
-        jp po,3b ;no overflow ;set ZF=0, SF=h7, AF=1, OF=0, keep CY
-;overflow
-        ld a,c
-        exx
-	;ld e,0 ;overflow data
-        ;jp po,$+5
-        ld e,0x40
-6 ;after overflow
-	ld d,a ;parity data
-        exx
-	ex af,af' ;'
-	endm
+        ld h,b
+        ld l,c
+        dechlwithflags
+        ld b,h
+        ld c,l
+	endm ;97.5t
+
+       endif
 
         org PROGSTART
 begin
@@ -626,11 +555,11 @@ trom0
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
         ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
-        ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
-        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
+        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
@@ -726,6 +655,112 @@ IMERIM
         ld C,L ;BC=old IP(PC)
         putmemspBC ;TODO а CS куда? push cs; push ip?
        _LoopC_JP 
+
+       if 1;AFFLAG_16BIT
+;как сформировать ZF,SF, не трогая AF?
+;для этого надо сформировать число с нужными свойствами и сделать inc
+         ;ZF SF AF OF
+;ff даёт  1  0  1  0 ;имитирует флаги после inc ffff
+;7f даёт  0  1  1  1 ;имитирует флаги после inc 7fff
+;80 даёт  0  1  0  0 ;имитирует флаги после inc 8000
+;8f даёт  0  1  1  0 ;имитирует флаги после inc 800f
+;т.е. ff, 7f надо формировать только для 7fff, ffff
+;а в остальных случаях надо брать (h&0x80) + (l&0x08)
+;если l!=ff, l!=7f, то можно просто сделать inc l
+;если l=ff, то нельзя просто сделать inc h - запортится AF!
+inchlwithflags_l00 ;inc h needed
+        inc h
+        ret z ;set ZF=1(ok), AF=1(ok), OF=0(ok)
+        jp pe,inchlwithflags_overflow
+inchlwithflags_a0_setAF ;set ZF=0(ok), SF=h7(ok), AF=1, keep CY
+;a=0
+        jp m,$+5
+        ld a,0x80 ;after dec: a7=h7
+        dec a ;set ZF=0, SF=h7, AF=1, keep CY
+        ret
+incbcwithflags_c00 ;inc b needed
+        inc b
+        ret z ;set ZF=1(ok), AF=1(ok), OF=0(ok)
+        jp po,inchlwithflags_a0_setAF
+inchlwithflags_overflow
+        exx
+        ld e,0x80 ;overflow (e7!=e6)
+        exx
+        ret
+
+inchlwithflags_l80 ;fix SF, keep AF=1, ZF=0
+;a=0x80
+        bit 7,h
+        jr z,inchlwithflags_l80_p
+inchlwithflags_l80_m
+        ld a,0 ;keep CY!
+        dec a ;00->ff ;set ZF=0, SF=h7, AF=1, keep CY
+        ret
+incbcwithflags_c80 ;fix SF, keep AF=1, ZF=0
+;a=0x80
+        bit 7,b
+        jr nz,inchlwithflags_l80_m
+inchlwithflags_l80_p
+        dec a ;80->7f ;set ZF=0, SF=h7, AF=1, keep CY
+        ret
+
+dechlwithflags_fixflags
+	ex af,af' ;'
+        dec l
+        ld a,l
+        exx
+	ld d,a ;parity data
+	ld e,0 ;overflow data
+        exx
+        jr z,dechlwithflags_l00 ;maybe zero
+        inc a
+        jp pe,inchlwithflags_l80;dechlwithflags_l7f ;fix SF, keep AF=1, ZF=0
+        ret nz
+        dec h
+        jp pe,inchlwithflags_overflow
+        jr nz,inchlwithflags_a0_setAF ;set ZF=0, SF=h7, AF=1, keep CY
+;a=0, hl=0x00ff
+        inc a ;set ZF=0, SF=0, AF=0, keep CY
+        ret
+dechlwithflags_l00 ;maybe zero
+;a=0
+        inc h
+        dec h
+        ret z ;set ZF=1, SF=0, AF=0
+        ld a,h
+        res 0,a ;for ZF=0, AF=0
+        inc a ;set ZF=0, SF=h7, AF=0, keep CY
+        ret
+
+decbcwithflags_fixflags
+	ex af,af' ;'
+        dec c
+        ld a,c
+        exx
+	ld d,a ;parity data
+	ld e,0 ;overflow data
+        exx
+        jr z,decbcwithflags_c00 ;maybe zero
+        inc a
+        jp pe,inchlwithflags_l80;dechlwithflags_l7f ;fix SF, keep AF=1, ZF=0
+        ret nz
+        dec b
+        jp pe,inchlwithflags_overflow
+        jr nz,inchlwithflags_a0_setAF ;set ZF=0, SF=h7, AF=1, keep CY
+;a=0, bc=0x00ff
+        inc a ;set ZF=0, SF=0, AF=0, keep CY
+        ret
+decbcwithflags_c00 ;maybe zero
+;a=0
+        inc b
+        dec b
+        ret z ;set ZF=1, SF=0, AF=0
+        ld a,b
+        res 0,a ;for ZF=0, AF=0
+        inc a ;set ZF=0, SF=h7, AF=0, keep CY
+        ret
+
+       endif
 
 countXS_bc_to_ahl
 	ld h,b
