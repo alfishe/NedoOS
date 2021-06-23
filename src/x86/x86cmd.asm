@@ -575,7 +575,7 @@ MOVmemax
          ld a,(bc)
 	SETPGC000
         ld bc,(_AX)
-       _PUTm16LoopC_oldpg
+       _PUTm16LoopC_oldpglx
 
 ;mov al,[addr]
         ALIGNrm
