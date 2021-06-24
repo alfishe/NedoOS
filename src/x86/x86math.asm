@@ -1,4 +1,25 @@
-﻿AAMer
+﻿DAAal
+        ex af,af' ;'
+       push af
+       pop bc
+       res 1,c ;reset N flag
+DAAq
+       push bc
+       pop af
+        ld a,(_AL)
+        daa
+        ld (_AL),a
+        ex af,af' ;'
+       _Loop_
+
+DASal
+        ex af,af' ;'
+       push af
+       pop bc
+       set 1,c ;set N flag
+        jr DAAq
+
+AAMer
 ;aam i8 ;ASCII коррекция после умножения
 ;ah <= al/i8
 ;al <= al mod i8

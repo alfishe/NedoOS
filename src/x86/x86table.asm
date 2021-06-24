@@ -45,7 +45,7 @@ MAINCOMS
         DCOM ANDali8
         DCOM ANDaxi16
         DCOM ESer
-        DCOM PANIC ;DAAal
+        DCOM DAAal
         DCOM SUBrmr8
         DCOM SUBrmr16
         DCOM SUBr8rm
@@ -53,7 +53,7 @@ MAINCOMS
         DCOM SUBali8
         DCOM SUBaxi16
 	DCOM CSer
-	DCOM PANIC ;DASal
+	DCOM DASal
 ;#3X
         DCOM XORrmr8
         DCOM XORrmr16
@@ -153,7 +153,7 @@ MAINCOMS
         DCOM MOVr8rm
         DCOM MOVr16rm
         DCOM MOVrm16sreg
-        DCOM PANIC ;LEAr16rm ;TODO (for ladybug)
+        DCOM LEAr16rm ;(for ladybug)
         DCOM MOVsregrm16
         DCOM PANIC ;POPrm16
 ;#9x
@@ -210,10 +210,10 @@ MAINCOMS
 ;#Cx
         DCOM GRP2rm8i8 ;rolls?
         DCOM GRP2rm16i8 ;rolls?
-        DCOM PANIC ;RETi16 ;RET и потом SP += i16
+        DCOM RETi16 ;RET и потом SP += i16
         DCOM RETer
-        DCOM PANIC ;LESr16mem
-        DCOM PANIC ;LDSr16mem
+        DCOM LESr16mem
+        DCOM LDSr16mem
         DCOM MOVrm8i8
         DCOM MOVrm16i16
         DCOM PANIC ;ENTERi16i8
@@ -263,7 +263,7 @@ MAINCOMS
         DCOM PANIC ;INT1
         DCOM REPNZer ;используется для cmpsb
         DCOM REPZer ;используется также для movsb и т.д.
-        DCOM PANIC ;HLTer
+        DCOM HLTer
         DCOM CMCer
         DCOM GRP38 ;mul,div,test,not,neg
         DCOM GRP316 ;mul,div,test,not,neg

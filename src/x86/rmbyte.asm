@@ -136,6 +136,7 @@ encodeSPhlLoop
         macro ADDRm16_GETm8b_keepaf ;for MOVr8rmmem, OPr8rmmem, TESTrmmemr8, CMPrmmemr8 (в CMPrmmemi8 GET_PUTm8 и pop af, TODO TESTrmmemi8)
         push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
         pgforGETm8
         ld b,(hl)
         pop af
@@ -144,6 +145,7 @@ encodeSPhlLoop
         macro ADDRm16_GETm8b_for_PUTm8 ;for OPrmmemi8/r8, ROLm8... ;keep lx=pg!!! ;TODO kill, use getm8c
         push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ld lx,c ;push bc
         pgforGETm8
          ld c,lx ;pop bc
@@ -154,33 +156,54 @@ encodeSPhlLoop
         macro ADDRm16_GETm8c_for_PUTm8 ;for OPrmmemi8/r8, ROLm8... ;keep lx=pg!!!
         push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ld lx,c ;push bc
         pgforGETm8
         ld c,(hl)
         pop af
         endm
 
-        macro ADDRm16_for_PUTm8_nokeepcmd ;for MOVrmmemi8, MOVrmmemr8
+        macro ADDRm16_for_PUTm8_nokeepaf ;for MOVrmmemi8, MOVrmmemr8
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ;ld lx,c
         endm
 
         macro ADDRm16_GETm16 ;for MOVr16rmmem, MOVsregrmmem, CMPrmr16, OPr16rmmem, TESTrmmemr16
         push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ;ld lx,c
          GETm16
         pop af
-        endm ;GET делать сразу! по bc,hl
+        endm
 
-        macro ADDRm16_for_PUTm16_nokeepcmd ;for MOVrmmemi16
+        macro ADDRm16_GETm16_keeplx ;for 32bit read
+        push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
+         ld lx,c
+         GETm16
+        pop af
+        endm
+
+        macro ADDRm16_GETm16_keeplx_nokeepaf ;for 32bit read
+        call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
+         ld lx,c
+         GETm16
+        endm
+
+        macro ADDRm16_for_PUTm16_nokeepaf ;for MOVrmmemi16
+        call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ld lx,c
         endm
 
         macro ADDRm16_for_PUTm16 ;for MOVrmmemr16/sreg
          push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ld lx,c
          pop af
         endm
@@ -189,6 +212,7 @@ encodeSPhlLoop
         macro ADDRm16_GETm16_for_PUTm16 ;for OPrmmemi16/r16, ROLm16..., TESTrmmemi16, MULrmmem16...
        push af
         call ADDRm16_pp
+        ADDRSEGMENT_chl_bHSB
          ld lx,c
         push hl
         GETm16
@@ -222,7 +246,7 @@ ADDRm16_pp_ss_nodisp
         jr nz,ADDRm16_pp_segprefix
 	ld bc,(ss_LSW)
 	ld a,(ss_HSB)
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
         ret
 
 ;000=[bx]+[si]+disp
@@ -264,7 +288,7 @@ ADDRm16_pp_segprefix
         res 4,l
         ld a,(hl)
         pop hl ;abc=?s*16
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
         ret
 ADDRm16_pp_i ;10x
         bit 0,a
@@ -310,7 +334,7 @@ ADDRm16_pp_ds_nodisp
 addrseg_ds
 	ld bc,(ds_LSW)
 	ld a,(ds_HSB)
-        ADDRSEGMENT_chl_bHSB
+        ;ADDRSEGMENT_chl_bHSB
         ret
 
 inch_nextsubsegment_pglx
@@ -477,7 +501,7 @@ MOVrm8i8
         ld (hl),a
        _Loop_
 MOVrmmemi8
-       ADDRm16_for_PUTm8_nokeepcmd
+       ADDRm16_for_PUTm8_nokeepaf
         get
         next
         ld b,a
@@ -498,7 +522,7 @@ MOVrm16i16
         getBC
        _PUTr16Loop_
 MOVrmmemi16
-       ADDRm16_for_PUTm16_nokeepcmd
+       ADDRm16_for_PUTm16_nokeepaf
         getBC
        _PUTm16LoopC
 
@@ -524,7 +548,7 @@ MOVrmr8
        _Loop_
 MOVrmmemr8
        push af
-       ADDRm16_for_PUTm8_nokeepcmd
+       ADDRm16_for_PUTm8_nokeepaf
        pop af
        push hl
         or 0b11000000
@@ -1056,7 +1080,8 @@ ADCr16i8
         jp ADCr16bc ;там next
 GRP1rm16i8_1xx
        add a,a
-       jp p,$ ;no AND,XOR
+       ;jp p,$ ;no AND,XOR??? used in para512!
+       jp p,GRP1rm16i8_AND_XOR
        jr nc,SUBr16i8
 CMPr16i8
         get
@@ -1064,6 +1089,28 @@ CMPr16i8
         rla
         sbc a,a
         jp CMPr16hlac ;там next
+GRP1rm16i8_AND_XOR
+       jr c,XORr16i8
+        get
+        ld c,a
+        and l
+        ld l,a
+        ld a,c
+        rla
+        sbc a,a
+        and h
+        jp GRP1rmi16logicq ;al=result ;там next
+XORr16i8
+        get
+        ld c,a
+        xor l
+        ld l,a
+        ld a,c
+        rla
+        sbc a,a
+        xor h
+        jp GRP1rmi16logicq ;al=result ;там next
+
 GRP1rmmem16i8
         ADDRm16_GETm16_for_PUTm16
        push hl
@@ -2723,10 +2770,6 @@ GRP38
 ;a=MD101R/M: imul ax,r/m8
 ;a=MD110R/M: div ax,r/m8
 ;a=MD111R/M: idiv ax,r/m8
-;MD=00: cmd [...]
-;MD=01: cmd [...+disp8]
-;MD=10: cmd [...+disp16]
-;MD=11: cmd r/m ;проще всего
         cp 0b11000000
         jr c,GRP38mem
        ADDRr8
@@ -2806,13 +2849,10 @@ GRP316
 ;a=MD101R/M: imul ax,r/m
 ;a=MD110R/M: div ax,r/m
 ;a=MD111R/M: idiv ax,r/m
-;MD=00: cmd [...]
-;MD=01: cmd [...+disp8]
-;MD=10: cmd [...+disp16]
-;MD=11: cmd r/m ;проще всего
         cp 0b11000000
         jr c,GRP316mem
        ADDRr16_keepa
+;TODO rla
        and 0b00111000
 	jr z,TESTr16i16
 	cp 0b00010000
@@ -2842,6 +2882,7 @@ TESTrmmemi16
        _LoopC
 GRP316mem
         ADDRm16_GETm16
+;TODO rla
        and 0b00111000
 	jr z,TESTrmmemi16
 	cp 0b00010000

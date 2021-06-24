@@ -9,6 +9,67 @@ incdecdi_hl
         inc hl
         ret
 
+LEAr16rm
+;загрузить эффективный адрес (например, lea si,shift[bx] - сложить bx+shift, положить в si)
+        get
+        next
+        push af
+        call ADDRm16_pp
+;hl=addr
+;abc=?s*16 (not used)
+       ld b,h
+       ld c,l
+        ;no ADDRSEGMENT_chl_bHSB
+        pop af
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+        ld h,_AX/256
+       _PUTr16LoopC
+
+LESr16mem
+;загрузить указатель, используя ES
+;из памяти читаем reg, потом es
+        get
+        next
+       push af
+       ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
+;уже прочитано 2 байта bc из (hl), но hl не сдвинут
+       push bc
+        skip2b_GETm16 ;bc=new ES
+       ld (_ES),bc ;new ES
+       countES
+       pop bc
+       pop af
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+        ld h,_AX/256
+       _PUTr16LoopC
+LDSr16mem
+;загрузить указатель, используя DS
+;lds r16,m16:16
+;из памяти читаем reg, потом ds
+        get
+        next
+       push af
+       ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
+;уже прочитано 2 байта bc из (hl), но hl не сдвинут
+       push bc
+        skip2b_GETm16 ;bc=new DS
+       ld (_DS),bc ;new DS
+       countDS
+       pop bc
+       pop af
+        rra
+        rra
+        and 7*2
+        ld l,a ;reg16 addr
+        ld h,_AX/256
+       _PUTr16LoopC
+
 EXTer
 ;0f 31 = rdtsc eax edx
 ;0f b6 d0 = movzx dx,al (move with zero-extend)
@@ -301,6 +362,7 @@ CLDer
         ld (incdec2si_hl),a
         ld (incdecsi_hl),a
 NOPer
+HLTer ;TODO
        _Loop_
 
 STDer
@@ -554,7 +616,8 @@ MOVbhi8
         ALIGNrm
 MOVmemal
 	getHL
-        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+        call ADDRm16_pp_ds_nodisp
+        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
        ld lx,c;push bc
 	ld b,tpgs/256
 	ld a,(bc)
@@ -569,7 +632,8 @@ MOVmemal
         ALIGNrm
 MOVmemax
 	getHL
-        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+        call ADDRm16_pp_ds_nodisp
+        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
        ld lx,c;push bc
          ld b,tpgs/256
          ld a,(bc)
@@ -581,7 +645,8 @@ MOVmemax
         ALIGNrm
 MOValmem
 	getHL
-        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+        call ADDRm16_pp_ds_nodisp
+        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
@@ -593,13 +658,12 @@ MOValmem
         ALIGNrm
 MOVaxmem
 	getHL
-        call ADDRm16_pp_ds_nodisp ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+        call ADDRm16_pp_ds_nodisp
+        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
        ld lx,c
-       ;push bc ;c=page (%01..5432), b=?s_HSB
 	ld b,tpgs/256
 	ld a,(bc)
 	SETPGC000
-       ;pop bc ;c=page (%01..5432), b=?s_HSB
 	ld a,(hl)
         inc l
         call z,inch_nextsubsegment_pglx
@@ -743,6 +807,17 @@ RETFer
         ld E,C ;new PC
        pop bc
         jp RETFq
+
+RETi16 ;RET и потом SP += i16
+        getmemspBC
+       push bc
+        getBC
+        ld hl,(_SP)
+        add hl,bc
+        ld (_SP),hl
+	encodeSP
+       pop de ;new PC
+       _LoopC_JP
 
 JLEer ;jump if not greater (zero or less)
 	ex af,af' ;'
@@ -973,8 +1048,8 @@ REPNZer
 	jp z,REPMOVSWer
 	cp 0xaa
 	jp z,REPSTOSBer
-	;cp 0xab
-	;jp z,REPSTOSWer
+	cp 0xab
+	jp z,REPSTOSWer
 	cp 0xae
 	jp z,REPSCASBer
 	;cp 0xaf
@@ -1047,7 +1122,7 @@ REPMOVSBer
 	ld (_CX),hl
 	ld a,h
 	or l
-	jr nz,REP_repeat
+	jp nz,REP_repeat
 REPMOVSBerq
        _LoopC
 
@@ -1069,6 +1144,30 @@ REPSTOSBer
 	or l
 	jr nz,REP_repeat
 REPSTOSBerq
+       _LoopC
+
+REPSTOSWer
+;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
+       ld hl,(_CX)
+       ld a,h
+       or l
+       jr z,REPSTOSWerq
+	ld a,(_AL) ;al
+	ld hl,(_DI)
+        putmemES
+	ld a,(_AH) ;ah
+	ld hl,(_DI)
+	inc hl
+        putmemES ;TODO speedup
+        INCDEC2DIbyDIRECTION
+;flags not affected
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ld a,h
+	or l
+	jr nz,REP_repeat
+REPSTOSWerq
        _LoopC
 
 REP_repeat ;TODO speedup!!!
