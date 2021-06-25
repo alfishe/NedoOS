@@ -317,25 +317,58 @@ getflags_bc
         set 3,b
         ret
 
-makeflags_fromc
+makeflags_frombc
 ;c=%SF:ZF:0:AF:0:PF:1:CF
+       if 1
+        ld a,b
+        and 2 ;interrupt enable
+        add a,-1
+        sbc a,a
+        ;ld (iff1),a
+        ld a,b
+        and 4 ;direction
+        add a,-1
+        sbc a,a
+        ;ld (_DIRECTION),a
+        and 8
+        or 0x23 ;"inc hl" ;0x2b ;"dec hl"
+        ;ld (incdec2si_hl),a
+        ;ld (incdecsi_hl),a
+        ld a,b
+       cpl ;???
+        and 8 ;overflow
+        rlca
+        rlca
+        rlca ;a=0x00/0x40
+        exx
+        ld e,a ;overflow data ;или инверсно?
+        exx
+        ld a,c
+       cpl ;???
+        and 4 ;parity
+        exx
+        ld d,a ;parity data ;или инверсно?
+        exx
+       endif
         push bc
         ex af,af' ;'
         pop af
         ex af,af' ;'
-        ld a,c
-       cpl
-        and 2
-        exx
-        ld d,a ;parity data ;или инверсно?
-        exx
+       ;ld a,b ;??? for megapole
+       ;cpl
+       ;and 4;2 ;???
+        ;exx
+        ;ld d,a ;parity data ;или инверсно?
+        ;exx
         ret
 
 SAHFer
+        call getflags_bc
 ;store AH into flags
         ld a,(_AH)
         ld c,a
-        call makeflags_fromc
+       ld bc,(_AX) ;for megapole
+        call makeflags_frombc
        _Loop_
 
 LAHFer
@@ -479,7 +512,7 @@ _POPAer0
 
 POPFer
         getmemspBC
-        call makeflags_fromc
+        call makeflags_frombc
        _LoopC
 POPax
         getmemspBC

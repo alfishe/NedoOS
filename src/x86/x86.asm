@@ -485,24 +485,41 @@ begin
 initq
 Reset       
         ld bc,0
-       push bc
         ld (_SS),bc
         countSS
         ld hl,0xff00
         ld (_SP),hl
         encodeSP
-       pop bc ;ld bc,0
+        
+        ld bc,0xf000
         ld (_CS),bc
-        countCS
-        ld de,STARTPC
-       push de
+        countCS      
+        ld de,0xe000
         encodePC;memCS ;out: a=physpg, de=zxaddr
         ex de,hl
         ld de,trom0
 ;de=имя файла
 ;hl=куда грузим
         call loadfile_in_hl
+
+        ld de,0xfff0
+
+       if 1
+        ld bc,0
+        ld (_CS),bc
+        countCS      
+        ld de,STARTPC
+       push de
+        encodePC;memCS ;out: a=physpg, de=zxaddr
+        ex de,hl
+        ld de,tprog
+;de=имя файла
+;hl=куда грузим
+        call loadfile_in_hl
        pop de ;LD DE,STARTPC ;=IP(PC)
+       endif
+       
+       
         LD IY,EMUCHECKQ
         ;EI 
        _LoopC_JP
@@ -551,6 +568,8 @@ loadfile_in_hl
 	ret
 
 trom0
+        db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
+tprog
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
