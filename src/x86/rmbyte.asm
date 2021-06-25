@@ -2791,6 +2791,7 @@ GRP38
 MULr8
 ;mul ah: ax=al*ah
         ld c,(hl) ;reg
+MULrmmem8
        push de
         ld b,0
 	ld de,(_AX)
@@ -2801,14 +2802,19 @@ MULr8
        pop de
        _Loop_
 DIVr8
+;DIV AL,r/m8
+;Беззнаковое деление AX на r/m8, частное помещается в AL, остаток от деления - в AH
+        ld c,(hl) ;reg
+DIVrmmem8
        push de
-        ld e,(hl) ;reg
+        ld e,c ;reg
         ld d,0
 	ld bc,(_AX)
         ld hl,0
 	call DIV32 ;BC = HLBC/DE, HL = HLBC%DE
-	;ld (_DX),hl ;надо ли?
-        ld (_AX),bc
+        ld h,l ;остаток
+        ld l,c ;частное
+        ld (_AX),hl
        pop de
        _Loop_
 
@@ -2841,12 +2847,12 @@ GRP38mem
 	jr z,NOTrmmem8
 	cp 0b00011000
 	jr z,NEGrmmem8
-	;cp 0b00100000
-	;jp z,MULrmmem8
+	cp 0b00100000
+	jp z,MULrmmem8
 	;cp 0b00101000
 	;jp z,IMULrmmem8
-	;cp 0b00110000
-	;jp z,DIVrmmem8
+	cp 0b00110000
+	jp z,DIVrmmem8
 	;cp 0b00111000
 	;jp z,IDIVrmmem8
 	jr $;PANIC

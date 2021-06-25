@@ -530,19 +530,19 @@ jpiyer
         push hl
         jp (iy)
        endif
-       if 0 ;debug
+       if 1 ;debug
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 0 ;debug
+       if 1 ;debug
        ld a,d
        sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 2
+       cp 3
        jr nc,$
        ;ld a,(_SP)
        ;rra
        ;jr c,$
-       ;ld (oldpc),de
+       ld (oldpc),de
        endif
         get
         next
@@ -585,6 +585,7 @@ tprog
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
         ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
         db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
        endif
         ;DB "pc102782.bin",0
