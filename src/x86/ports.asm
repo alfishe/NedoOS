@@ -1,4 +1,3 @@
-;in al,0x40          ; Read timer counter 0 
 INali8
         get
         next
@@ -67,7 +66,12 @@ IN_bc_to_bc
         or a
         sbc hl,bc
         jr nz,IN_skip
+;in al,0x40          ; Read timer counter 0 
 	ld bc,(timer)
+       ld b,c
+       ld a,r
+       add a,c
+       ld c,a
         ret
 IN_skip
         ld bc,0xffff

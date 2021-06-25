@@ -189,7 +189,7 @@ MAINCOMS
         DCOM LODSBer
         DCOM LODSWer
         DCOM SCASBer
-        DCOM PANIC ;SCASWer
+        DCOM SCASWer
 ;#Bx
         DCOM MOVali8
         DCOM MOVcli8
@@ -232,7 +232,7 @@ MAINCOMS
         DCOM AAMer
         DCOM AADer
         DCOM PANIC ;SALCer
-        DCOM PANIC ;XLATBer
+        DCOM XLATBer
         DCOM PANIC ;FPU0er
         DCOM PANIC ;FPU1er
         DCOM PANIC ;FPU2er

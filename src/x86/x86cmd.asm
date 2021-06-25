@@ -280,6 +280,24 @@ GSer
         ld L,a
         JP (HL) 
 
+XLATBer
+;AL = DS:[(E)BX + AL]
+        ld a,(_AL)
+        ld hl,(_BX)
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+;keep b for segment change!
+        call ADDRm16_pp_ds_nodisp
+;hl=addr
+;abc=?s*16
+        ADDRSEGMENT_chl_bHSB
+        pgforGETm8
+        ld a,(hl)
+        ld (_AL),a
+       _LoopC
+
 getflags_bc
         ex af,af' ;'
         push af
@@ -1260,6 +1278,20 @@ SCASBer
         INCDECSIbyDIRECTION
        _LoopC
 
+SCASWer
+	ld hl,(_SI)
+	;getmemDS ;TODO подмена сегмента
+	;ld a,(_AL) ;al
+	;sub (hl)
+	memDS ;TODO подмена сегмента
+        ld c,(hl)
+        inc l ;костыль!!! TODO fix
+        ld b,(hl)
+        ld hl,(_AX)
+        SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
+        INCDEC2SIbyDIRECTION
+       _LoopC
+
 CMPSBer
 	ld hl,(_SI)
 	getmemDS ;TODO подмена сегмента
@@ -1341,7 +1373,7 @@ INTi8
 	cp 0x10
 	jr z,INT10
 	cp 0x16
-	jr z,INT_inputal
+	jr z,INT16
 	cp 0x1a
 	jr z,INT_gettimer
         cp 0x21
@@ -1358,7 +1390,7 @@ _microtimer=$+1
         ld hl,0
         inc hl
         ld (_microtimer),hl
-        ld (_DX),a
+        ld (_DX),hl
        _Loop_
 
 INT10
@@ -1420,6 +1452,9 @@ INT_printstringdx
        _Loop_
 
 INT_setgfx
+       ld a,(_AL)
+       cp 0x13
+       jr nz,INT_setgfxq
         ld hl,_PUTscreen_do_patch_vgadata
         ld (_PUTscreen_do_patch),hl
         push de
@@ -1428,6 +1463,7 @@ INT_setgfx
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         pop iy
         pop de
+INT_setgfxq
        _Loop_
 
 INT_printal
@@ -1443,7 +1479,37 @@ INT_printal
         pop de
        _Loop_
 
+INT16
+        ;mov ah,0x01     ; Any key pressed?
+        ;int 0x16
+        ;jz fb26         ; No, go to main loop
+       ld a,(_AH)
+       or a
+       jr z,INT_inputal
+       dec a
+       jr nz,INT_getkeyflags
+        ld a,(prefetchedkey)
+        or a
+        jr nz,INT16havekey
+        push de
+        push iy
+        OS_GETKEY
+        pop iy
+        pop de
+        jr nz,INT16q ;no focus
+INT16havekey
+        ld (prefetchedkey),a
+        ld b,a
+        ex af,af' ;'
+        inc b
+        dec b
+        ex af,af' ;'
+       _Loop_
 INT_inputal
+prefetchedkey=$+1
+        ld a,0
+        or a
+        jr nz,INT_inputal_a
         push de
         push iy
         YIELDGETKEYLOOP;OS_GETKEY
@@ -1454,6 +1520,18 @@ INT_inputal
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
 ;        Флаг Z - если 0(NZ), то отсутствует фокус.  
         pop iy
-	ld (_AL),a
         pop de
+INT_inputal_a
+	ld (_AL),a
+        xor a
+        ld (prefetchedkey),a
+INT16q
+       _Loop_
+INT_getkeyflags
+;16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
+        ld a,0xfe
+        in a,(0xfe)
+        cpl
+        and 0x1f
+	ld (_AL),a
        _Loop_

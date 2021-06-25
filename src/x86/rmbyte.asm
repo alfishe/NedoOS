@@ -328,7 +328,7 @@ ADDRm16_pp_ds ;ds:??+
         ld h,a
 ADDRm16_pp_ds_nodisp
 ;вызывается из MOVaxmem
-;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+;out: данные для вычисления hl=zxaddr, c=page (%01..5432), b=?s_HSB
         bit 0,b
         jr nz,ADDRm16_pp_segprefix
 addrseg_ds
@@ -2779,15 +2779,40 @@ GRP38
 	jr z,NOTr8
 	cp 0b00011000
 	jr z,NEGr8
-	;cp 0b00100000
-	;jp z,MULr8
+	cp 0b00100000
+	jp z,MULr8 ;for fbird "mul ah"
 	;cp 0b00101000
 	;jp z,IMULr8
-	;cp 0b00110000
-	;jp z,DIVr8
+	cp 0b00110000
+	jp z,DIVr8 ;for invaders "div cl"
 	;cp 0b00111000
 	;jp z,IDIVr8
 	jr $;PANIC
+MULr8
+;mul ah: ax=al*ah
+        ld c,(hl) ;reg
+       push de
+        ld b,0
+	ld de,(_AX)
+        ld d,b;0
+	call MUL16 ;HLDE=DE*BC
+       ;ld (_DX),hl ;надо ли?
+        ld (_AX),de
+       pop de
+       _Loop_
+DIVr8
+       push de
+        ld e,(hl) ;reg
+        ld d,0
+	ld bc,(_AX)
+        ld hl,0
+	call DIV32 ;BC = HLBC/DE, HL = HLBC%DE
+	;ld (_DX),hl ;надо ли?
+        ld (_AX),bc
+       pop de
+       _Loop_
+
+
 TESTr8i8
         ld c,(hl)
 TESTrmmemi8

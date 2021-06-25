@@ -11,7 +11,7 @@ STARTPC=0x0100
        endif
 
 SHIFTCOUNTMASK=1 ;and 31
-AFFLAG_16BIT=1 ;only for add_test
+AFFLAG_16BIT=0;1 ;only for add_test
 
 ;PC=0x4000...
 ;SP=0x8000...
@@ -542,7 +542,7 @@ oldpc
        ;ld a,(_SP)
        ;rra
        ;jr c,$
-       ld (oldpc),de
+       ;ld (oldpc),de
        endif
         get
         next
@@ -575,14 +575,17 @@ tprog
        else
         ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
         ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
-        db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
+        ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
+        ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
        endif
         ;DB "pc102782.bin",0
 
@@ -953,10 +956,39 @@ PUTscreen_textmode
 ;25 строк по 80 слов: символ, атрибут (%FpppIiii - TODO пересчитать в PIpppiii)
 ;как пересчитать строки по 160 байт (80 символов) в строки по 64 байта (128 виртуальных символов)? всего 2000 знакомест = 125 групп по 16 символов, можно по таблице получить адрес (2 байта) или номер виртуальной группы (их всего 200, т.е. 1 байт) TODO
 
-        srl h
+;получаем номер группы по 16 символов:
+;hl=????GGGG gggXXXxA
+        ld a,l
+        xor h
+        and 0xe0
+        xor h
+           rlca
+           rlca
+           rlca ;TODO убрать
+;пересчитываем в номер группы на АТМ textmode:
+        push hl
+        ld hl,ttextaddr
+        add a,l
+        ld l,a
+         jr nc,$+3
+         inc h
+        ld b,(hl) ;gggGGGgg
+        pop hl
+        ld a,b
+        and 0x1f
+        ld h,a
+        ld a,b
+        xor l
+        and 0xe0
+        xor l
+        ld l,a
+;пересчитываем в адрес группы на ATM textmode:
+;hl=000GGGgg gggXXXxA ;+0x01c0 уже прибавлено к номеру группы как +56
+        scf
+        rr h
         rr l
         jr c,PUTscreen_attr
-        srl h
+        sra h
         rr l
         jr nc,$+4
         set 5,h
@@ -965,30 +997,42 @@ PUTscreen_textmode
 ;#01C0...#07FF - character codes of even (0,2,...) characters (ditto).
         ld a,(user_scr0_high) ;ok
        push bc
-       ld bc,0xc1c0
-       add hl,bc
         SETPGC000
        pop bc
         ld (hl),c
         ret
 PUTscreen_attr
-        srl h
+        sra h
         rr l
-        jr c,$+5
+        jr nc,$+4
         set 5,h
-        dec hl
+       ld a,h
+       xor 0x20
+       ld h,a
+       and 0x20
+       jr nz,$+3
+       inc hl
 ;RAM page #01 (#03):
 ;#21C0...#27FF - attributes of even(!) characters (ditto).
 ;#01C1...#07FF - attributes of odd(!) characters (ditto).
         ld a,(user_scr0_low) ;ok
        push bc
-       ld bc,0xc1c1
-       add hl,bc
         SETPGC000
        pop bc
         ld (hl),c
         ret
-       
+       macro dbrrc3 data
+        db (data>>3)+((data<<5)&0xe0)
+       endm
+ttextaddr
+_=0
+        dup 25
+        dup 5
+        dbrrc3 _
+_=_+1
+        edup
+_=_+3
+        edup
 
        display "--",$
 	include "rmbyte.asm"
