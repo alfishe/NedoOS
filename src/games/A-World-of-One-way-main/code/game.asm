@@ -28,7 +28,7 @@ update:
 	ld a,l
 	or a
 	ret nz 		; to main menu
-	call rebuildLvl
+	call rebuildLvl ;выбирает, на какую сцену выйти (при NZ)
 	ret nz 		; rebuild level
 ; 	; check level passed
 	call nextLevel
@@ -45,19 +45,23 @@ rebuildLvl:
 	ld a,(hl)
 	or a
 	ret z
-	scf
-	ret
-	cp SYSTEM.SHOP_INIT
-	ret nz
-	ld (hl),0
+	;scf
+	;ret
+	;cp SYSTEM.SHOP_INIT
+	;ret nz
+	ld (hl),0 ;не ребилдим больше
 	ld d,a
 	ld a,(lives)
 	or a
 	ld a,SYSTEM.MAIN_MENU_INIT
-	ret z
-	ld a,d
-	cp d
-	ret
+	jr z,RETNZer;ret z
+	;ld a,d
+	;cp d
+	;ret ;Z
+        ld a,SYSTEM.SHOP_INIT
+RETNZer
+        cp -1
+        ret ;NZ
 ; 	jr nextLevel + 3
 nextLevel:
 	ld a,(isLevelPassed)

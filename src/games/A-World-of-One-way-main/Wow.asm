@@ -45,7 +45,6 @@ EGA=1
 begin
         ;jp begin2 ;/prsprqwid (sprites in file are made so that they return here)
 ;begin2
-        ld sp,STACK
         OS_HIDEFROMPARENT
 
         ld e,3+0x80 ;6912+keep
@@ -149,6 +148,7 @@ copypal0
         ld (0x0101),hl ;sprites in file are made so that they return in 0x0100
        endif
 
+        ld sp,STACK
         ;YIELDGETKEYLOOP
         
         ;jp GO
@@ -216,6 +216,131 @@ primgegacolumn0q
        pop ix
         ret
 
+prbgforspr
+;de=scr
+;(ix+oData.x)
+;(ix+oData.y)
+       ld a,(ix+oData.drawMethod)
+       cp 2
+       ret z
+        ld e,(ix+oData.x)
+        ld a,(ix+oData.y)
+        and 0xf0
+        ld l,a
+; L = Y; E = X (in pixels)
+        call getScrAddrByCoords ;hl=scraddr
+        ex de,hl
+
+        ld a,(ix+oData.x)
+        rra
+        and 4
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ;ld a,(ix+oData.y)
+        ;and 15
+        ;ld c,a
+        ;ld b,0
+        ;add hl,bc
+        ld bc,megafloor
+        add hl,bc
+        ld bc,0x1008
+       ;ld a,(ix+oData.y)
+       ;and 7
+       ;jr z,$+3
+       ;  inc b
+        ;ld a,(ix+oData.direction)
+        ;and 4+8 ;up+down
+          ld a,(ix+oData.y)
+          cp (ix+oData.preY)
+        jr z,.nogovert
+;на случай, когда приезжаем вниз и втыкаемся в стену
+;это движение вниз + круглый y
+;при этом не расширяем область очистки
+          ld a,(ix+oData.y)
+          cp (ix+oData.preY)
+          jr c,.nogodown
+          ld a,(ix+oData.y)
+          and 15
+          jr z,.godownskipbigmask
+.nogodown
+          ld a,b
+          add a,16
+          ld b,a
+.godownskipbigmask
+;на случай, когда мы выехали из тайла, а остались ноги
+          ld a,(ix+oData.preY)
+          and 0x0f
+          jr z,.nogovert
+          ld a,(ix+oData.y)
+          xor (ix+oData.preY)
+          and 0xf0
+          jr z,.nogovert
+        ;ld a,(ix+oData.direction)
+        ;and 8 ;down
+          ld a,(ix+oData.y)
+          cp (ix+oData.preY)
+        jr c,.nogovertdown
+        ex de,hl
+        push bc
+        ld bc,-(40*16)
+        add hl,bc
+        pop bc
+        ex de,hl
+.nogovertdown
+          ld a,b
+          add a,16
+          ld b,a
+.nogovert
+       ld a,(ix+oData.x)
+       and 7
+       jr z,$+4
+         ld c,12
+        ex de,hl
+prmegaimgega
+        ;ret
+;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+prmegaimgega0
+        push bc
+        ld hx,b
+        push hl
+        ld bc,40
+prmegaimgegacolumn0
+        ld a,(de)
+        inc de
+        ld (hl),a
+        add hl,bc
+        dec hx
+        jr nz,prmegaimgegacolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,prmegaimgegacolumn0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+prmegaimgegacolumn0q
+        pop bc
+        ld a,64
+        sub b
+       add a,e
+       ld e,a
+       jr nc,$+3
+       inc d
+        dec c
+        jr nz,prmegaimgega0
+        ret
+
 setpgsprc000
 pgspr=$+1
         ld a,0
@@ -242,10 +367,11 @@ emptypal
 ss:
         include "sprites/storage.asm"
         
-        display enemy_1-enemy_0
+        ;display enemy_1-enemy_0
        endif
        ent
 sz_sprites=$-wassprites
+        display sz_sprites,"<=0x4000"
  	endif
 
     display "level CELLS address: ",/A,levelCells

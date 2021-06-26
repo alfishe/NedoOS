@@ -14,6 +14,9 @@ sale:			db "SALE",TEXT_END
 ;---------------------------------------------
 	; FIXME fool protection does not work if you buy a password, then play and die, after death in the store you can buy the same password again.
 init:
+       if EGA
+       call set6912
+       endif
 	call PASS.clearData
 	call fadeOutFull
 	call clearScreen

@@ -153,7 +153,10 @@ preLine24:
 	; HL - screen address
 	; return HL = screen address - 24 lines
        if EGA
-;TODO для спрайтов
+       push bc
+       ld bc,-(24*40)
+       add hl,bc
+       pop bc
         ret
        else
 	ld a,l
@@ -294,6 +297,19 @@ setRemoveSides:
 	jr c,.clearUp
 	ret
 .clearDown:
+       if EGA
+       push bc
+       push de
+        ld e,(ix+oData.x)
+        ld a,(ix+oData.y)
+        and 0xf8
+        add a,32
+        ld l,a
+; L = Y; E = X (in pixels)
+        call getScrAddrByCoords ;hl=scraddr
+       pop de
+       pop bc
+       else
 	ld a,h
 	and #F8
 	ld h,a
@@ -304,25 +320,47 @@ setRemoveSides:
 	ld a,h
 	add 8
 	ld h,a
-
+       endif
 	jr .clearLeft
 
 .clearUp:
+       if EGA
+       push bc
+       push de
+        ld e,(ix+oData.x)
+        ld a,(ix+oData.y)
+        and 0xf8
+        ld l,a
+; L = Y; E = X (in pixels)
+        call getScrAddrByCoords
+       pop de
+       pop bc
+       else
 	ld a,h
 	and #F8
 	ld h,a
+       endif
 .clearLeft:
 	ld (ix+oData.clrScrAddrL),l
 	ld (ix+oData.clrScrAddrH),h
 	ret
 .clearRight:
-	inc l
-	inc l
+	inc hl
+	inc hl
 	jr .clearLeft
 ;---------------------------------------------------------
 clear1x2: 	; width = 1 symbol, height = 2 symbols
        if EGA
-;TODO чистить хвосты спрайтов
+;чистить хвосты спрайтов
+;hl=адрес на экране (Y круглый)
+        bit 0,l
+        ld de,megafloor
+        jr z,$+5
+        ld de,megafloor+(64*4)
+       push ix
+        ld bc,0x1004 ;b=hgt,c=wid (/2)
+        call prmegaimgega
+       pop ix
         ret
        else
 	xor a
@@ -344,7 +382,16 @@ clear1x2: 	; width = 1 symbol, height = 2 symbols
 ;---------------------------------------------------------
 clear2x1: 	; width = 2 symbols, height = 1 symbol
        if EGA
-;TODO чистить хвосты спрайтов
+;чистить хвосты спрайтов
+;hl=адрес на экране (Y круглый)
+        bit 3,(ix+oData.y)
+        ld de,megafloor
+        jr z,$+5
+        ld de,megafloor+8
+       push ix
+        ld bc,0x0808 ;b=hgt,c=wid (/2)
+        call prmegaimgega
+       pop ix
         ret
        else
 	xor a
@@ -627,14 +674,20 @@ printSprite3x2:
        if EGA
 ;hl=gfx
 ;de=scr
+       push iy
         push hl
         pop iy
        push ix
 ;iy=sprite data+2 = spraddr+4
 ;de=scr
+       push de
+       push hl
+        call prbgforspr
+       pop hl
+       pop de
         call prspr
        pop ix
-        ret
+       pop iy
         ret
        else
 	ld b,16
@@ -656,13 +709,20 @@ printSprite3x2as2x2:
        if EGA
 ;hl=gfx
 ;de=scr
+       push iy
         push hl
         pop iy
        push ix
 ;iy=sprite data+2 = spraddr+4
 ;de=scr
+       push de
+       push hl
+        call prbgforspr
+       pop hl
+       pop de
         call prspr
        pop ix
+       pop iy
         ret
        else
 	ld b,16
@@ -794,7 +854,7 @@ resetDelta2:
 	ld (delta2),a
 	ret
 ;------------------------------------------
-blinkArea:
+blinkArea: ;for "sale"
 	; DE - Y, X
 	; BC - height, wifth
 	ld a,(byteValue)
@@ -1002,6 +1062,7 @@ return
 	ret
 //---------------------------------
 fillProced
+;заливка площади уровня
 	ld c,0
 	ld b,(hl)   //  B = find ID
 	push hl

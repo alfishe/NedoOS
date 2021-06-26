@@ -1,5 +1,9 @@
 	module MAIN_MENU
 init:
+       if EGA
+        call set6912
+       endif
+
 	ld hl,#FFFF
 	ld (setFF2),hl
 	ld a,l
@@ -58,12 +62,13 @@ update:
 	jr nz,.continue
 	call SOUND_PLAYER.SET_SOUND.key
 	ld hl,1
+       ;inc hl
 	ld (lives),hl
 	dec l
 	ld (coins),hl
 	; start level number
 	xor a
-; 	ld a,29
+ 	;ld a,29
 	ld (currentLevel),a
 	ld a,SYSTEM.GAME_INIT
 	ret
