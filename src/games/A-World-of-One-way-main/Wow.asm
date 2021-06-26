@@ -32,23 +32,24 @@ sprmaxwid=32
 sprmaxhgt=32
 scrwid=160 ;double pixels
 scrhgt=192;200
-INTSTACK=0x3f00
-tempsp=0x3f06 ;6 bytes for prspr
+INTSTACK=0x3f80
+tempsp=0x3f86 ;6 bytes for prspr
 ;UVSCROLL_SCRWID=320 ;8*(TILEMAPWID-2)
 ;UVSCROLL_SCRHGT=192 ;(делится на 16!!!) ;8*(TILEMAPHGT-2) ;чтобы выводить всегда 12 метатайлов (3 блока по 8) по высоте
 
-screenYtable=0x8b00
+;screenYtable=0x8b00
 
-EGA=1
+EGA=0;1
 
         org PROGSTART
 begin
-        jp begin2 ;/prsprqwid (sprites in file are made so that they return here)
-begin2
+        ;jp begin2 ;/prsprqwid (sprites in file are made so that they return here)
+;begin2
         ld sp,STACK
         OS_HIDEFROMPARENT
 
         ld e,3+0x80 ;6912+keep
+        ;ld e,0+0x80 ;EGA+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 
         ld e,0 ;color byte
@@ -60,12 +61,17 @@ begin2
         ld (pgmain4000),a
         ld a,h
         ld (pgmain8000),a
-        ;ld a,l
-        ;ld (pgmainc000),a 
+        ld a,l
+        ld (pgspr),a 
 
-        OS_NEWPAGE
-        ld a,e
-        ld (pgmain4000),a
+        ld hl,wassprites
+        ld de,0xc000
+        ld bc,sz_sprites
+        ldir
+
+        ;OS_NEWPAGE
+        ;ld a,e
+        ;ld (pgmain4000),a
 
        if 1==0
 	ld de,res_path
@@ -120,10 +126,23 @@ copypal0
         YIELD
        endif
 
+       if 0
+        call setpgsscr40008000_current
+        
+        ld de,floor_2
+        ld hl,0x4000
+        ld bc,0x1008
+;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+        call primgega_onescreen
+        ;jr $
+       endif
+
         ld a,(user_scr0_high) ;ok
         SETPG16K
         
-        ;call swapimer
+        call swapimer
 
        if 0;EGA
         ld hl,prsprqwid
@@ -137,11 +156,96 @@ code:
         include "includes.asm"
         include "mem.asm"
         include "int.asm"
+
+set6912
+        ld de,emptypal
+        OS_SETPAL
+        ld e,3+0x80 ;6912+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld a,(user_scr0_high) ;ok
+        SETPG16K
+        ld e,0
+        OS_CLS
+        ld de,standardpal
+        OS_SETPAL
+        ret
+
+setEGA
+        ld de,emptypal
+        OS_SETPAL
+        ld e,0+0x80 ;EGA+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,0 ;color byte
+        OS_CLS
+        call setpgsscr40008000_current
+        ld de,pal
+        OS_SETPAL
+        ret
+
+primgega_onescreen
+;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+       push ix
+primgega0
+        push bc
+        ld hx,b
+        push hl
+        ld bc,40
+primgegacolumn0
+        ld a,(de)
+        inc de
+        ld (hl),a
+        add hl,bc
+        dec hx
+        jr nz,primgegacolumn0
+        pop hl
+        ld a,0x9f;0xa0
+        cp h
+        ld bc,0x4000
+        adc hl,bc
+        jp pe,primgegacolumn0q ;в половине случаев
+;8000->с000 (надо 6000) или a000->e001 (надо 4001)
+         inc a
+        xor h
+        ld h,a
+primgegacolumn0q
+        pop bc
+        dec c
+        jr nz,primgega0
+       pop ix
+        ret
+
+setpgsprc000
+pgspr=$+1
+        ld a,0
+        SETPGC000
+        ret
 SEED
         dw 0
 cartrigeFont
         incbin "font/font.SpecCHR"
         include "variables.asm"
+        include "prspr.asm"
+        
+        display $,"<0x3f00"
+        
+wassprites
+       disp 0xc000
+        include "sprites.ast"
+        include "pal.ast"
+standardpal
+        STANDARDPAL
+emptypal
+        ds 32,0xff        
+       if EGA
+ss:
+        include "sprites/storage.asm"
+        
+        display enemy_1-enemy_0
+       endif
+       ent
+sz_sprites=$-wassprites
  	endif
 
     display "level CELLS address: ",/A,levelCells

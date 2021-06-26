@@ -24,6 +24,8 @@ elds:
 ; 	include "code/objects/split.asm" 	; not used in currnent version
 	include "code/audio/soundPlayer.asm"
 	include "utils/utils.asm"
+       if !EGA
 ss:
 	include "sprites/storage.asm"
+       endif
 ess

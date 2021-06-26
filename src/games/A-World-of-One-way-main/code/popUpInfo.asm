@@ -62,6 +62,7 @@ show:
 	ld a,(bitmapWidth)
 	or a
 	ret z
+       if !EGA
 	ld c,a 		; pop-up width
 	ld de,(popupBitmapAddr)
 	ld ix,buffer256 	; buffer for save backgroud attributes
@@ -166,7 +167,7 @@ show:
 	pop bc
 	djnz .full
 	pop hl
-
+       endif
 	; brightness set/res for current message
 	ld a,(popupBitmapColor)
 	xor #40
@@ -177,6 +178,7 @@ show:
 	add hl,bc
 	ld (popupAttrAddr),hl
 	ret
+       if !EGA
 .skipBitmapLine:
 	ld a,(bitmapWidth)
 	add e
@@ -184,7 +186,8 @@ show:
 	adc a,d
 	sub e
 	ld d,a
-	jr .l1 
+	jr .l1
+       endif
 ;------------------------------------------
 bitmapPlus10:
 	db %00000100, %01110000

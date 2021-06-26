@@ -1,6 +1,14 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
-sjasmplus --nologo --msg=war wow.asm
+
+set NEDORES="../../_sdk/nedores.exe"
+set SJASMPLUS=sjasmplus
+set SJASMPLUSFLAGS=--nologo --msg=war
+
+%NEDORES% sprites.bmp sprites.dat sprites.ast
+%NEDORES% sprites.bmp pal.dat pal.ast
+
+%SJASMPLUS% %SJASMPLUSFLAGS% wow.asm
 
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (

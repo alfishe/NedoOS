@@ -55,7 +55,9 @@ setFF1:
 endRenderData: 			equ $
 
         display "Current low byte address (for ALIGN 256) = ",/A, low $, " | address = ",/A, $
-			align 256
+			;align 256
+                        ds (-$)&0xff
+                        ds 256 ;TODO оставить 2 байта для порчи прерыванием
 	display "buffer256 address: ",/A,$
 buffer256: 		block 256, 0 	; attribute recovery buffer for informational crawl upwards and something else :)
 	; #00 > 	free way

@@ -139,6 +139,10 @@ nextLine16:
 	; HL - screen address
 	; return HL = screen address + 16 lines (2 symbols)
 	; thanks to Sergei Smirnov
+       if EGA
+;TODO для спрайтов
+        ret
+       else
 	ld a,l
 	add #40
 	ld l,a
@@ -147,10 +151,15 @@ nextLine16:
 	add a,h
 	ld h,a
 	ret
+       endif
 ;---------------------------------------------------------
 preLine24:
 	; HL - screen address
 	; return HL = screen address - 24 lines
+       if EGA
+;TODO для спрайтов
+        ret
+       else
 	ld a,l
 	sub #60
 	ld l,a
@@ -159,10 +168,34 @@ preLine24:
 	sub #08
 	ld h,a
 	ret
+       endif
 ;---------------------------------------------------------
 getScrAddrByCoords:
-	; L = Y; E = X
+	; L = Y; E = X (in pixels)
 	; return HL > screen address
+       if EGA
+        ld a,e ;x
+        rra
+        rra
+        rra
+        and 0x1f
+         add a,scrbase&0xff
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld l,a
+        ld a,h
+        adc a,scrbase/256
+        ld h,a
+        ret
+       else
 	ld a,l
 	and 7
 	ld h,a
@@ -187,6 +220,7 @@ getScrAddrByCoords:
 	add l
 	ld l,a
 	ret
+       endif
 ;---------------------------------------------------------
 sortObjectIds:
 	; Sorts an array of 10 bytes in ascending order. ~ 3500t (byte value range 0..254)
@@ -287,6 +321,10 @@ setRemoveSides:
 	jr .clearLeft
 ;---------------------------------------------------------
 clear1x2: 	; width = 1 symbol, height = 2 symbols
+       if EGA
+;TODO чистить хвосты спрайтов
+        ret
+       else
 	xor a
 	ld b,2
 .clear:
@@ -302,8 +340,13 @@ clear1x2: 	; width = 1 symbol, height = 2 symbols
 	pop bc
 	djnz .clear
 	ret
+       endif
 ;---------------------------------------------------------
 clear2x1: 	; width = 2 symbols, height = 1 symbol
+       if EGA
+;TODO чистить хвосты спрайтов
+        ret
+       else
 	xor a
 	dup 4
 	ld (hl),a
@@ -316,6 +359,7 @@ clear2x1: 	; width = 2 symbols, height = 1 symbol
 	inc h
 	edup
 	ret
+       endif
 ;---------------------------------------------------------
 setIYtoIX:
 	ld a,iyl
@@ -331,6 +375,29 @@ delta7:
 	ret
 mul48:
 	; A = multiplier
+       if EGA
+	; return BC = A * (34*12+4) = A*412 = A*0x19C
+       push hl
+        ld l,a
+        ld h,0
+        ld c,l
+        ld b,h
+        add hl,hl ;*0x02
+        add hl,bc ;*0x03
+        add hl,hl ;*0x06
+        add hl,hl ;*0x0c
+        add hl,hl ;*0x18
+        add hl,bc ;*0x19
+        add hl,hl ;*0x32
+        add hl,bc ;*0x33
+        add hl,hl ;*0x66
+        add hl,bc ;*0x67
+        add hl,hl ;*0xce
+        add hl,hl ;*0x19C       
+        ld b,h
+        ld c,l
+       pop hl
+       else
 	; return BC = A * 48 (9 bit)
 	rrca
 	rrca
@@ -342,11 +409,15 @@ mul48:
 	adc 0
 	sub c
 	ld b,a
+       endif
 	ret
 ;---------------------------------------------------------
 getAttrAddrByCellId:
 	; C = cell ID (cells 16x16)
 	; return DE = attributes address
+       if EGA
+;=getScrAddrByCellId
+       else
 	ld a,c
 	and #C0
 	rlca
@@ -365,10 +436,37 @@ getAttrAddrByCellId:
 ; 	add e
 ; 	ld e,a
 ; 	ret
+       endif
 ;---------------------------------------------------------
 getScrAddrByCellId:
 	; C = cell ID (cells 16x16)
 	; return DE = screen address
+       if EGA
+       push hl
+        ld a,c
+        and 0x0f*16
+        ld l,a ;y
+        ld a,c
+        and 0x0f
+        add a,a
+         add a,scrbase&0xff
+        ld h,0
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,hl
+        add hl,de ;*5
+         add hl,hl
+         add hl,hl
+         add hl,hl ;*40
+        add a,l
+        ld e,a
+        ld a,h
+        adc a,scrbase/256
+        ld d,a
+       pop hl
+        ret
+       else
 	ld a,c
 	and #C0
 	rrca
@@ -388,6 +486,7 @@ gsbc:
 	add e
 	ld e,a
 	ret
+       endif
 ;------------------------------------------------------------
 getCoordsByCellId:
 	; C = cell ID (cells 16x16)
@@ -424,6 +523,7 @@ scrAddrToAttrAddr:
 	; Convert screen address to attribute address
 	; DE = screen address
 	; return DE = attributes address
+       ;if !EGA
 	ld a,d
 	and #58
 	rrca
@@ -431,8 +531,10 @@ scrAddrToAttrAddr:
 	rrca
 	or #58
 	ld d,a
+       ;endif
 	ret
 ;------------------------------------------------------------
+       if 0
 getCellIdByScrAddr:
 	; HL - screen address
 	; return A > cell ID (16x16 tile ID 0-191)
@@ -455,6 +557,7 @@ getCellIdByScrAddr:
 	and #0F
 	add h
 	ret
+       endif
 ;------------------------------------------------------------
 getObjDataById:
 	; A - object ID
@@ -491,6 +594,22 @@ printSpr:
 	; HL - sprite address
 	; C - cell ID
 	call getScrAddrByCellId
+printSpr_scraddrDE
+       if EGA
+;de=scraddr
+;hl=gfx
+       ;push hl
+        ex de,hl
+        ld bc,0x1008
+;b=hgt,c=wid (/2)
+;de=gfx
+;hl=scr
+        jp primgega_onescreen
+       ;pop hl
+       ; ret
+       else
+;de=scraddr
+;hl=gfx
 	ld b,16
 sprLine:
 	push bc
@@ -502,8 +621,22 @@ sprLine:
 	pop bc
 	djnz sprLine
 	ret
+       endif
 ;-------------------------------------------------
 printSprite3x2:
+       if EGA
+;hl=gfx
+;de=scr
+        push hl
+        pop iy
+       push ix
+;iy=sprite data+2 = spraddr+4
+;de=scr
+        call prspr
+       pop ix
+        ret
+        ret
+       else
 	ld b,16
 .sprLine:
 	push bc
@@ -516,9 +649,22 @@ printSprite3x2:
 	call nextLine
 	pop bc
 	djnz .sprLine
+       endif
 	ret
 ;-------------------------------------------------
 printSprite3x2as2x2:
+       if EGA
+;hl=gfx
+;de=scr
+        push hl
+        pop iy
+       push ix
+;iy=sprite data+2 = spraddr+4
+;de=scr
+        call prspr
+       pop ix
+        ret
+       else
 	ld b,16
 .sprLine:
 	push bc
@@ -530,6 +676,7 @@ printSprite3x2as2x2:
 	call nextLine
 	pop bc
 	djnz .sprLine
+       endif
 	ret
 ;-------------------------------------------------
 getSpriteAddr:
@@ -656,7 +803,7 @@ blinkArea:
 fillArea:
 	; A - color
 	; DE - Y, X
-	; BC - height, wifth
+	; BC - height, width
 	ld l,d
 	ld h,0
 	add hl,hl
@@ -682,6 +829,11 @@ fillArea:
 	ret
 ;------------------------------------------
 fillAttr2x2:
+;for bomb
+       if EGA
+;TODO
+        ret
+       else
 	; A - color
 	; HL - attribute address
 	ld (hl),a
@@ -692,6 +844,7 @@ fillAttr2x2:
 	ld (hl),a
 	dec l
 	ld (hl),a
+       endif
 	ret
 ;------------------------------------------
 fadeOutFull:
@@ -740,6 +893,29 @@ animation2x2:
 	xor a
 .nextFrame:
 	ld (ix+oData.animationId),a
+       if EGA
+;a=anim phase
+;count *(34*8+4) = *276 = *0x114
+      ;push bc
+       push hl
+       ld l,a
+       ld h,0
+       ld c,l
+       ld b,h
+       add hl,hl
+       add hl,hl
+       add hl,hl
+       add hl,hl ;*0x10
+       add hl,bc ;*0x11
+       add hl,hl ;*0x22
+       add hl,hl ;*0x44
+       add hl,bc ;*0x45
+       add hl,hl ;*0x8a
+       add hl,hl ;*0x114       
+       pop bc
+       add hl,bc
+      ;pop bc
+       else
 	rrca
 	rrca
 	rrca
@@ -748,6 +924,7 @@ animation2x2:
 	adc a,h
 	sub l
 	ld h,a
+       endif
 	ld (ix+oData.sprAddrL),l
 	ld (ix+oData.sprAddrH),h
 	ret

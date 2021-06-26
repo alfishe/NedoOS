@@ -1,0 +1,27 @@
+;label autonumbering: label#8=...
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;[b: b/w tiles: wid, hgt, data]
+;B: colour tiles: wid, hgt, data
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;z: b/w unmasked sprites: antipixelsw, ...
+;w: b/w sprites: antipixelsw, antimaskw...
+;W: b/w image by columns
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;P: DDp palette
+
+floor#6=i,0,0,16,16
+wall#4=i,0,16,16,16
+enemy#8=x,0,32,24,16
+hero#8=x,0,48,24,16
+coin#4=x,0,64,16,16
+bomb#4=x,0,80,16,16
+box#1=i,0,96,16,16
+broken_block#1=i,16,96,16,16
+door#1=i,0,112,16,16

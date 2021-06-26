@@ -37,7 +37,7 @@ on_int
 
 curscrnum_int=$+1
         ld e,1;0
-        OS_SETSCREEN
+;        OS_SETSCREEN
         
         call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!
         

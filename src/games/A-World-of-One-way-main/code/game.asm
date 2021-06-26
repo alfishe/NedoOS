@@ -1,7 +1,11 @@
 	module GAME
 init:
 	call fadeOutFull
+       if EGA
+        call setEGA
+       else
 	call clearScreen
+       endif
 	call LEVEL.build 	
 	; current HL for next call
 	call OBJECTS.create
@@ -62,8 +66,14 @@ nextLevel:
 	ld c,a
 	call POP_UP_INFO.isFinish
 	cpl 
-	ld a,c
-	ret
+	ld a,c ;(isLevelPassed)
+       if EGA
+	ret nz
+       push af
+        call set6912
+       pop af
+       endif
+        ret
 ;-----------------------------------------------
 returnKey:		
 	ld l,0
@@ -71,6 +81,9 @@ returnKey:
 	ret nz
 	call CONTROL.enter
 	ret nz
+       if EGA
+        call set6912
+       endif
 	ld hl,(lives)
 	ld bc,#FFFF
 	add hl,bc

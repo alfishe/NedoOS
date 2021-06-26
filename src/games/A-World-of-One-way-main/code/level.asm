@@ -96,7 +96,9 @@ buildLevel:
 	push bc
 	push de
 	push hl
+       if !EGA
 	call .paintWall
+       endif
 	pop hl
 	inc l
 	pop de
@@ -256,6 +258,13 @@ fillWalls:
 	and #BF
 	ld c,a
 	call rnd16
+       if EGA
+        ld hl,FLOOR_0001_PBM
+	and 1
+        jr z,.noadd128
+        ld hl,FLOOR_0002_PBM
+.noadd128
+       else
 	and 1
 	rrca
 	rrca
@@ -265,7 +274,8 @@ fillWalls:
 	adc a,high FLOOR_0001_PBM
 	sub l
 	ld h,a	
-	call printSpr
+       endif
+	call printSpr ;tile
 	pop bc
 	djnz .loop2
 	ret
