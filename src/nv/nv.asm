@@ -1344,6 +1344,24 @@ editcmd_setpaneldirfromcurdir_panelhl
         OS_GETPATH
          jp clear_keyboardbuffer
 
+start_from_ext
+        ld hl,cmdbuf - 1
+        xor a
+start_from_ext_l1
+        inc hl
+        cp (hl)
+        jr nz,start_from_ext_l1
+        ld a,' '
+        ld (hl),a
+        ld de,cmdprompt
+start_from_ext_l2
+        inc hl
+        ld a,(de)
+        ld (hl),a
+        inc de
+        or a
+        jr nz,start_from_ext_l2
+        
 editcmd_enter_runcmd
 ;run "cmd <command to run>"
         OS_SETSYSDRV ;TODO каталог cmd
@@ -1438,14 +1456,14 @@ editcmd_enter_runfile_nocom
         
         call runfile_findhandler ;find fcb_filename ext (spoiled) in "nv.ext"
         ret nz ;jp nz,execcmd_error
-
-        ld de,cmdbuf
-        ld hl,fcb_filename
-        OS_PARSEFNAME ;de->hl
+        jp start_from_ext
+        ; ld de,cmdbuf
+        ; ld hl,fcb_filename
+        ; OS_PARSEFNAME ;de->hl
         
-        OS_SETSYSDRV ;TODO директория cmd
-        ld hl,cmdprompt
-        jp loadandrun_waitpid
+        ; OS_SETSYSDRV ;TODO директория cmd
+        ; ld hl,cmdprompt
+        ; jp loadandrun_waitpid
 
 makeprompt_filename
         call setpaneldir_makeprompt ;keeps ix
@@ -1505,6 +1523,7 @@ runfile_nocom_readerror
         xor a
         dec a
         ret ;nz
+        display "runfile_nocom_extok ",$
 runfile_nocom_extok
         call skiptocolon ;пройти к ':'
         ld hl,cmdbuf
