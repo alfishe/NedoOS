@@ -11,7 +11,7 @@ STARTPC=0x0100
        endif
 
 SHIFTCOUNTMASK=1 ;and 31
-AFFLAG_16BIT=0;1 ;only for add_test
+AFFLAG_16BIT=1 ;only for add_test
 
 ;PC=0x4000...
 ;SP=0x8000...
@@ -285,6 +285,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	ex af,af' ;'
 	endm
 
+       if 1 ;NS
         macro SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
        if AFFLAG_16BIT
        sbc a,a
@@ -322,7 +323,9 @@ _getmemspBC_skipsize=$-_getmemspBC_base
        endif
 	ex af,af' ;'
         endm
+       endif
 
+       if 1
         macro ADCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
        if AFFLAG_16BIT
        sbc a,a
@@ -360,6 +363,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
        endif
 	ex af,af' ;'
         endm
+       endif
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
 	or l ;CF=0 ;ZF=(hl==0) ;TODO sign
@@ -534,7 +538,7 @@ jpiyer
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 1 ;debug
+       if 0 ;debug
        ld a,d
        sub 0x40+((STARTPC/256)&0x3f);0x7c
        cp 3
@@ -584,9 +588,9 @@ tprog
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
         ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
-        ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
-        db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
+        ;db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
        endif
         ;DB "pc102782.bin",0
 
@@ -1026,7 +1030,7 @@ PUTscreen_attr
         db (data>>3)+((data<<5)&0xe0)
        endm
 ttextaddr
-_=0
+_=56
         dup 25
         dup 5
         dbrrc3 _
