@@ -68,7 +68,7 @@ update:
 	ld (coins),hl
 	; start level number
 	xor a
- 	;ld a,29
+ 	;ld a,6;ld a,29
 	ld (currentLevel),a
 	ld a,SYSTEM.GAME_INIT
 	ret
