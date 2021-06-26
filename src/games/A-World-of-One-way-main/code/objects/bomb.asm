@@ -3,7 +3,11 @@ init:
 	SET_EXEC_IX update
 	xor a
 	ld (ix+oData.isMovable),a
+       if EGA
+	ld (ix+oData.drawMethod),2;a 	; for sprite 2x2 draw
+       else
 	ld (ix+oData.drawMethod),a 	; for 2x2 draw
+       endif
 	ld (ix+oData.accelerate),1
 	ld (ix+oData.color),%01000010
 	ld a,r

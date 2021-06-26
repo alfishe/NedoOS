@@ -39,7 +39,7 @@ tempsp=0x3f86 ;6 bytes for prspr
 
 ;screenYtable=0x8b00
 
-EGA=0;1
+EGA=1
 
         org PROGSTART
 begin

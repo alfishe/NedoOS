@@ -3,11 +3,12 @@ printText2x1V:
 	; HL - text address (multiply symbol)
 	; DE - screen address
 	ld a,1
-	jr printText2x1 + 1
+	jr printText2x1_a
 printText2x1:
 	; HL - text address (multiply symbol)
 	; DE - screen address
 	xor a
+printText2x1_a
 	ld (textAxis),a
 printTextLoop:
 	ld a,(hl)
@@ -139,10 +140,6 @@ nextLine16:
 	; HL - screen address
 	; return HL = screen address + 16 lines (2 symbols)
 	; thanks to Sergei Smirnov
-       if EGA
-;TODO для спрайтов
-        ret
-       else
 	ld a,l
 	add #40
 	ld l,a
@@ -151,7 +148,6 @@ nextLine16:
 	add a,h
 	ld h,a
 	ret
-       endif
 ;---------------------------------------------------------
 preLine24:
 	; HL - screen address
@@ -264,7 +260,11 @@ getDrawData:
 	ld (ix+oData.scrAddrH),h
 	ld a,(ix+oData.spriteId)
 	call getSpriteAddr
+       if EGA
+	ld a,(ix+oData.x);e
+       else
 	ld a,e
+       endif
 	and 7
 	ld (ix+oData.bit),a
 	or a

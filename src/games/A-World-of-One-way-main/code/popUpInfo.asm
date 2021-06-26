@@ -13,6 +13,9 @@ isFinish:
 	; return 0 = finish; !0 = continue
 	ld a,(popupAttrAddr)
 	or a
+       if EGA
+       xor a
+       endif
 	ret
 ;------------------------------------------
 setExplosion:
@@ -62,7 +65,9 @@ show:
 	ld a,(bitmapWidth)
 	or a
 	ret z
-       if !EGA
+       if EGA
+	ld hl,(popupAttrAddr)
+       else
 	ld c,a 		; pop-up width
 	ld de,(popupBitmapAddr)
 	ld ix,buffer256 	; buffer for save backgroud attributes
