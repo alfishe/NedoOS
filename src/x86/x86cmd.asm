@@ -1386,10 +1386,11 @@ intlooper
 
 INT_gettimer
 ;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
-_microtimer=$+1
-        ld hl,0
-        inc hl
-        ld (_microtimer),hl
+;_microtimer=$+1
+;        ld hl,0
+;        inc hl
+;        ld (_microtimer),hl
+       ld hl,(timer)
         ld (_DX),hl
        _Loop_
 

@@ -25,6 +25,8 @@ rem # Modules: compile
 rem #
 rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 
+%NEDORES% images/XHERO.bmp sprites1.dat sprites1.ast
+rem TODO fix
 %NEDORES% images/XHERO.bmp sprites.dat sprites.ast
 %NEDORES% images/XHERO.bmp sprites2.dat sprites2.ast
 %NEDORES% images/XHERO.bmp sprites3.dat sprites3.ast

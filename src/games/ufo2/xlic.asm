@@ -2049,14 +2049,14 @@ NJ2     ADD A,(HL)
 	LD A,E
 	JR C,NJ2
 NJ3     LD A,C
-       ld a,2 ;FIXME
+       ld a,2 ;FIXME это всегда порт
 	LD (OBJ_N),A
 	OR A
 	JR Z,NJ0
 	CP 4
 	JR Z,NJ4
 	CALL RNDG ;кор,порт,остр,Ub,Uc (0..15)
-       ld a,2 ;FIXME
+       ld a,2 ;FIXME это всегда порт
 	AND #F
 	JR NJR
 NJ4     LD B,80

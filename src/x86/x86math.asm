@@ -80,7 +80,7 @@ ADDali8
 keephlflagsfroma_loop
         ld (hl),a
 keepflagsfroma_loop
-        KEEPCFPARITYOVERFLOW_FROMA
+        KEEPHFCFPARITYOVERFLOW_FROMA
        _Loop_
 SUBali8
 	get

@@ -1851,6 +1851,7 @@ RCLm8i8
         call RCLci8
         jr GRP2rmmem8i8q
 GRP2rmmem8i8_1xx
+       add a,a
        jp p,SHLm8i8
        jr c,SARm8i8
         call SHRci8
@@ -2031,6 +2032,7 @@ RCLr8
 	ex af,af' ;'
        _Loop_
 GRP2rm81_1xx
+       add a,a
        jp p,SHLr8
        jr c,SARr8
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
@@ -2118,6 +2120,7 @@ RCLm8
 	ex af,af' ;'
        _PUTm8bLoopC_oldpgc
 GRP2rmmem81_1xx
+       add a,a
        jp p,SHLm8
        jr c,SARm8
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
@@ -2457,14 +2460,12 @@ GRP2rm16cl_no0
        rla
        rla
        jr c,GRP2rm16cl_1xx
-       rla
+       add a,a
        jr c,GRP2rm16cl_01x
-       rla
-       jp c,RORhl_b_to_hl
+       jp m,RORhl_b_to_hl
         jp ROLhl_b_to_hl
 GRP2rm16cl_01x
-       rla
-       jp c,RCRhl_b_to_hl
+       jp m,RCRhl_b_to_hl
         jp RCLhl_b_to_hl
 GRP2rm16cl_1xx
        add a,a
@@ -2515,14 +2516,12 @@ GRP2rmmem8cl_no0
        rla
        rla
        jr c,GRP2m8cl_1xx
-       rla
+       add a,a
        jr c,GRP2m8cl_01x
-       rla
-       jp c,ROR_c_b
+       jp m,ROR_c_b
         jp ROL_c_b
 GRP2m8cl_01x
-       rla
-       jp c,RCR_c_b
+       jp m,RCR_c_b
         jp RCL_c_b
 GRP2m8cl_1xx
        add a,a
@@ -2563,11 +2562,9 @@ GRP2rm16i8_go
        rla
        rla
        jp c,GRP2rmmem16i8_1xx
-       rla
+       add a,a
        jr c,GRP2rmmem16i8_01x
-       rla
-       jr c,RORhli8_to_hl
-       ;jr nc,ROLhli8_to_hl
+       jp m,RORhli8_to_hl ;TODO once
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 ROLhli8_to_hl
         get
@@ -2617,9 +2614,7 @@ _RORr16i8loop
         ret
 
 GRP2rmmem16i8_01x
-       rla
-       jr c,RCRhli8_to_hl
-       ;jr nc,RCLhli8_to_hl
+       jp m,RCRhli8_to_hl
 ;For left rotates, the OF flag is set to the exclusive OR of the CF bit (after the rotate) and the most-significant bit of the result.
 RCLhli8_to_hl
         get
@@ -2690,7 +2685,6 @@ GRP2rmmem16i8_1xx
       add a,a
       jp p,SHLhli8_to_hl
        jr c,SARhli8_to_hl
-       ;jp SHRhli8_to_hl
 ;For the SHR instruction, the OF flag is set to the most-significant bit of the original operand. (result7 xor result6)
 SHRhli8_to_hl
         get

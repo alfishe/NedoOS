@@ -19,8 +19,13 @@ SCR	EQU	#C000
 ATR	EQU	#D800
 DSCR	EQU	#9000
 DATR	EQU	#A800
+       if 0;EGA
+MAN=0xd000
+ALIEN=MAN+320
+       else
 MAN	EQU     #AB00
 ALIEN   EQU	MAN+320
+       endif
 TMP	EQU	DSCR
 xATR	EQU     #AF00
 vSIZE	EQU	#AF80
@@ -272,6 +277,7 @@ ATSP	;получить атрибуты из xATR
 	CALL GSP
 	AND #7F
 ATSP_	EXX
+ATSP_exx
 	LD E,A
 	LD D,xATR/256
 	LD A,(DE)
@@ -300,7 +306,7 @@ ATSPM	;взять атрибуты с учётом героев
 	LD D,A
 	LD A,(DE)
 	AND #7F
-	JR ATSP_+1
+	JR ATSP_exx
 
 GS_4x4	LD	A,63
 	CP	H
@@ -407,7 +413,12 @@ A4P     POP AF
 	JR NZ,A7PLIV
 	LD A,(IX+4)
 	CALL M96
+       if EGA
+       add hl,hl
+       ld de,0xf000 ;TODO
+       else
 	LD DE,xDIE
+       endif
 	JR A6P
 A7PLIV	LD A,(IX+6)	;visi
 	OR A		;
@@ -427,7 +438,12 @@ A9P     CALL NORM_V
 	ADD A,D
 	ADD A,H
 	LD H,A
+       if EGA
+       add hl,hl
+       ld de,0xe000 ;TODO
+       else
 	LD DE,xHERO
+       endif
 A6P	ADD HL,DE
 	PUSH HL
 	LD A,(IX+7)
@@ -435,13 +451,18 @@ A6P	ADD HL,DE
 	LD L,0
 	SRL A
 	RR L
-	ADD A,#B0
+	ADD A,#B0 ;???тайлы корабля и далее прочие тайлы
 	LD H,A
 	LD DE,DATR
 	LD BC,128
 	LDIR
 	POP HL
 	LD DE,DATR+16
+       if EGA
+	Ms 14 ;TODO fix для разных героев
+;TODO наложение спрайта на тайл
+
+       else
 	Ms 4
 	LD B,48
 A5P	LD A,(DE)
@@ -458,6 +479,7 @@ A5P	LD A,(DE)
 	INC DE
 	INC HL
 	DJNZ A5P
+       endif
 	CALL PT128
 	POP IX
 	POPs;$

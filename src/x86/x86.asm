@@ -955,6 +955,8 @@ PUTscreen_textmode
      inc b ;ld b,trecolour/256
 ;a=1..4
         add a,h
+       ;cp 4096/256
+       ;ret nc
         ld h,a
 ;hl=addr in screen=0..65535
 ;The VGA text buffer is located at physical memory address 0xB8000.
@@ -963,8 +965,7 @@ PUTscreen_textmode
 
 ;получаем номер группы по 16 символов:
 ;hl=????GGGG gggXXXxA
-        ld a,l
-        xor h
+        xor l
         and 0xe0
         xor h
            rlca
@@ -1023,8 +1024,17 @@ PUTscreen_attr
         ld a,(user_scr0_low) ;ok
        push bc
         SETPGC000
-       pop bc
-        ld (hl),c
+       pop bc ;c=%ppppiiii
+        ld a,c
+        rra
+        xor c
+        and 0b00111000
+        xor c
+        and 0b10111111
+        bit 3,c
+        jr z,$+4
+        or 0b01000000
+        ld (hl),a ;%pipppiii
         ret
        macro dbrrc3 data
         db (data>>3)+((data<<5)&0xe0)
@@ -1038,6 +1048,9 @@ _=_+1
         edup
 _=_+3
         edup
+        dbrrc3 255
+        dbrrc3 255
+        dbrrc3 255
 
        display "--",$
 	include "rmbyte.asm"

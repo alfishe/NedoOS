@@ -53,6 +53,7 @@ NOENEMY=0;1
         PAGE 14
         org 0xc000
         include "xm11b.ast"
+        include "sprites1.ast"
 	savebin "ufo2/ufoxm11b.dat",0xc000,$-0xc000
 
 ;*F	XPAGE
