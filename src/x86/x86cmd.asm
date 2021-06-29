@@ -288,14 +288,13 @@ XLATBer
         ld l,a
         jr nc,$+3
         inc h
-;keep b for segment change!
-        call ADDRm16_pp_ds_nodisp
+        call ADDRGETm16_pp_ds_nodisp
 ;hl=addr
 ;abc=?s*16
-        ADDRSEGMENT_chl_bHSB
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
+        ;ADDRSEGMENT_chl_bHSB
+	;ld b,tpgs/256
+	;ld a,(bc)
+	;SETPGC000
         ld a,(hl)
         ld (_AL),a
        _LoopC
@@ -663,12 +662,12 @@ MOVbhi8
         ALIGNrm
 MOVmemal
 	getHL
-        call ADDRm16_pp_ds_nodisp
-        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-       ld lx,c;push bc
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
+        call ADDRGETm16_pp_ds_nodisp
+       ; ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+       ;ld lx,c;push bc
+	;ld b,tpgs/256
+	;ld a,(bc)
+	;SETPGC000
         ld a,(_AL)
 	ld (hl),a
        ld c,lx;pop bc
@@ -679,12 +678,12 @@ MOVmemal
         ALIGNrm
 MOVmemax
 	getHL
-        call ADDRm16_pp_ds_nodisp
-        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-       ld lx,c;push bc
-         ld b,tpgs/256
-         ld a,(bc)
-	SETPGC000
+        call ADDRGETm16_pp_ds_nodisp
+       ; ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+       ;ld lx,c;push bc
+       ;  ld b,tpgs/256
+       ;  ld a,(bc)
+	;SETPGC000
         ld bc,(_AX)
        _PUTm16LoopC_oldpglx
 
@@ -692,11 +691,11 @@ MOVmemax
         ALIGNrm
 MOValmem
 	getHL
-        call ADDRm16_pp_ds_nodisp
-        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
+        call ADDRGETm16_pp_ds_nodisp
+        ;ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+	;ld b,tpgs/256
+	;ld a,(bc)
+	;SETPGC000
 	ld a,(hl)
 	ld (_AL),a
        _LoopC
@@ -705,12 +704,12 @@ MOValmem
         ALIGNrm
 MOVaxmem
 	getHL
-        call ADDRm16_pp_ds_nodisp
-        ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
-       ld lx,c
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
+        call ADDRGETm16_pp_ds_nodisp
+        ;ADDRSEGMENT_chl_bHSB ;out: hl=zxaddr, c=page (%01..5432), b=?s_HSB
+       ;ld lx,c
+	;ld b,tpgs/256
+	;ld a,(bc)
+	;SETPGC000
 	ld a,(hl)
         inc l
         call z,inch_nextsubsegment_pglx

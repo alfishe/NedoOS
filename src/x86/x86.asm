@@ -1050,6 +1050,8 @@ PUTscreen_attr
        display "--",$
 	include "rmbyte.asm"
        display "--",$
+	include "rmbytcmd.asm"
+       display "--",$
 	include "x86cmd.asm"
        display "--",$
 	include "x86math.asm"
