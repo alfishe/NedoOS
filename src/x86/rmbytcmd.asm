@@ -2862,7 +2862,7 @@ XCHGr16rm
 ;MD=10: xchg reg16,[...+disp16]
 ;MD=11: xchg reg16,r/m ;проще всего
         cp 0b11000000
-        jp c,XCHGr16rmmem
+        jr c,XCHGr16rmmem
         ADDRr16_keepa ;rm addr
       push hl
         GETr16 ;bc=r/m
@@ -2883,5 +2883,38 @@ XCHGr16rmmem
         ld h,_AX/256
         SWAPr16
         jp _pophl_PUTm16LoopC
+
+XCHGr8rm
+        get
+        next
+;a=MDregR/M
+;MD=00: xchg reg8,[...]
+;MD=01: xchg reg8,[...+disp8]
+;MD=10: xchg reg8,[...+disp16]
+;MD=11: xchg reg8,r/m ;проще всего
+        cp 0b11000000
+        jr c,XCHGr8rmmem
+        ADDRr8 ;rm addr
+        ld b,(hl) ;b=r/m
+      push hl
+       or 0b11000000
+        ld l,a
+        ld h,_AX/256
+        ld l,(hl) ;reg8 addr
+        ld a,(hl)
+        ld (hl),b
+       pop hl
+       _PUTr8Loop_
+XCHGr8rmmem
+       ADDRm16_GETm8c_for_PUTm8
+      push hl
+       or 0b11000000
+        ld l,a
+        ld h,_AX/256
+        ld l,(hl) ;reg8 addr
+        ld a,(hl)
+        ld (hl),c
+       pop hl
+       _PUTm8aLoopC_oldpglx
 
        display "muls size=",$-beginmuls

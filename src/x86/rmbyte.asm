@@ -138,7 +138,7 @@ encodeSPhlLoop
         ld c,a
         endm
 
-        macro ADDRm16_GETm8b_keepaf ;for MOVr8rmmem, OPr8rmmem, TESTrmmemr8, CMPrmmemr8 (в CMPrmmemi8 GET_PUTm8 и pop af) ;TODO kill
+        macro ADDRm16_GETm8b_keepaf ;for MOVr8rmmem, OPr8rmmem, TESTrmmemr8, CMPrmmemr8 (в CMPrmmemi8 GET_PUTm8 и pop af) 
         push af
         call ADDRGETm16_pp
         ;ADDRSEGMENT_chl_bHSB
@@ -149,7 +149,7 @@ encodeSPhlLoop
         ld b,(hl)
         endm
 
-        macro ADDRm16_GETm8c_for_PUTm8 ;for OPrmmemi8/r8, ROLm8... ;keep lx=pg!!!
+        macro ADDRm16_GETm8c_for_PUTm8 ;for OPrmmemi8/r8, ROLm8... ;keep lx=pg!!! ;TODO kill
         push af
         call ADDRGETm16_pp
         ;ADDRSEGMENT_chl_bHSB
