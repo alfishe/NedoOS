@@ -305,18 +305,19 @@ encodeSPhlLoop
 ADDRm16_pp_ssbp_plusi ;ss:bp+?i+
         ld bc,(_BP)
         add hl,bc
+       cp 64
+       ret c
 ADDRm16_pp_ssbp ;ss:bp+ ;не бывает nodisp, отсеяно выше
-       ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
+       rla
 	get ;dispL
 	next
+       jr nc,ADDRm16_pp_ds_8bit
         add a,l
         ld l,a
         jr nc,$+3
         inc h
-       bit 7,c
-       ret z
 	get ;dispH
 	next
         add a,h
@@ -368,21 +369,29 @@ ADDRm16_pp_ds ;ds:??+
 ;MD=00: cmd [...] ;no disp
        cp 64
        ret c
-       ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
+       rla
 	get ;dispL
 	next
+       jr nc,ADDRm16_pp_ds_8bit
         add a,l
         ld l,a
         jr nc,$+3
         inc h
-       bit 7,c
-       ret z
 	get ;dispH
 	next
         add a,h
         ld h,a
+        ret
+ADDRm16_pp_ds_8bit
+       or a
+       jp p,$+4
+       dec h
+        add a,l
+        ld l,a
+        ret nc
+        inc h
         ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -392,18 +401,21 @@ ADDRGETm16_pp_ssbp_plusi ;ss:bp+?i+
         ld bc,(_BP)
         add hl,bc
        pop bc
+       cp 64
+       jr c,ADDRGETm16_pp_ss_nodisp
 ADDRGETm16_pp_ssbp ;ss:bp+ ;не бывает nodisp, отсеяно выше
-       ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
+       rla
 	get ;dispL
 	next
+       jr nc,ADDRGETm16_pp_ssbp_8bit
         add a,l
         ld l,a
         jr nc,$+3
         inc h
-       bit 7,c
-       jr z,ADDRGETm16_pp_ss_nodisp
+       ;bit 7,c
+       ;jr z,ADDRGETm16_pp_ss_nodisp
 	get ;dispH
 	next
         add a,h
@@ -419,6 +431,15 @@ ADDRGETm16_pp_ss_nodisp
 	ld a,(bc)
 	SETPGC000
         ret
+ADDRGETm16_pp_ssbp_8bit
+       or a
+       jp p,$+4
+       dec h
+        add a,l
+        ld l,a
+        jr nc,ADDRGETm16_pp_ss_nodisp
+        inc h
+        jp ADDRGETm16_pp_ss_nodisp
 
 ;000=[bx]+[si]+disp
 ;001=[bx]+[di]+disp
@@ -485,17 +506,16 @@ ADDRGETm16_pp_ds ;ds:??+
 ;MD=00: cmd [...] ;no disp
        cp 64
        jr c,ADDRGETm16_pp_ds_nodisp
-       ld c,a
 ;MD=01: cmd [...+disp8]
 ;MD=10: cmd [...+disp16]
+       rla
 	get ;dispL
 	next
+       jr nc,ADDRGETm16_pp_ds_8bit
         add a,l
         ld l,a
         jr nc,$+3
         inc h
-       bit 7,c
-       jr z,ADDRGETm16_pp_ds_nodisp
 	get ;dispH
 	next
         add a,h
@@ -514,6 +534,15 @@ ADDRGETm16_pp_seg_ds
 	ld a,(bc)
 	SETPGC000
         ret
+ADDRGETm16_pp_ds_8bit
+       or a
+       jp p,$+4
+       dec h
+        add a,l
+        ld l,a
+        jr nc,ADDRGETm16_pp_ds_nodisp
+        inc h
+        jp ADDRGETm16_pp_ds_nodisp
 
 inch_nextsubsegment_pglx
 ;lx=page (%01..5432) ;keep updated for GET..PUT back
@@ -537,29 +566,3 @@ inch_nextsubsegment_pglx
         ld h,0xc0
        pop af
         ret
-
-       if 0
-inch_nextsubsegment
-;c=page (%01..5432)[, b=?s_HSB] ;keep updated for GET..PUT back
-;keep a
-;hl=0xXX00 ;keep updated
-        inc h
-        ret nz
-       push af
-        ld a,c ;c=page (%01..5432)
-        add a,64
-        adc a,0
-        ld c,a
-       ;dec a
-       ;cp b ;b=?s_HSB
-       ;jr nz,$+3
-       ;dec c ;если читать слово из [?s:ffff], то второй байт читается из [?s:0000], но на 386 не так
-       push bc
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
-        ld h,0xc0
-       pop bc
-       pop af
-        ret
-       endif

@@ -544,7 +544,7 @@ oldpc
        if 0 ;debug
        ld a,d
        sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 3
+       cp 2
        jr nc,$
        ;ld a,(_SP)
        ;rra
@@ -591,20 +591,21 @@ tprog
        if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
        else
+        ;db "main.img",0
         ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
         ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
         ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system) ;сам себя запарывает
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
         ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
-        db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
-        ;db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
+        db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
        endif
         ;DB "pc102782.bin",0
 
