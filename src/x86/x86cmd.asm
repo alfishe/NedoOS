@@ -293,7 +293,9 @@ XLATBer
 ;hl=addr
 ;abc=?s*16
         ADDRSEGMENT_chl_bHSB
-        pgforGETm8
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
         ld a,(hl)
         ld (_AL),a
        _LoopC
@@ -304,10 +306,10 @@ getflags_bc
         ex af,af' ;'
         pop bc
 ;c=%SZ?H???C
-        res 5,c
-        res 3,c
-        res 2,c
-        set 1,c
+         res 5,c
+         res 3,c
+         res 2,c
+         set 1,c ;TODO a
         exx
         ld a,d ;parity data
         exx
@@ -321,7 +323,7 @@ getflags_bc
         or a
         jr z,$+4
         set 1,b ;interrupt enable
-        ld a,(_DIRECTION)
+        ld a,(_DIRECTION) ;TODO from patch
         rra
         jr nc,$+4
         set 2,b
@@ -372,12 +374,6 @@ makeflags_frombc
         ex af,af' ;'
         pop af
         ex af,af' ;'
-       ;ld a,b ;??? for megapole
-       ;cpl
-       ;and 4;2 ;???
-        ;exx
-        ;ld d,a ;parity data ;или инверсно?
-        ;exx
         ret
 
 SAHFer
@@ -385,7 +381,7 @@ SAHFer
 ;store AH into flags
         ld a,(_AH)
         ld c,a
-       ld bc,(_AX) ;for megapole
+       ;ld bc,(_AX) ;for megapole
         call makeflags_frombc
        _Loop_
 

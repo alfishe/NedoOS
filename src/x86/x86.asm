@@ -488,6 +488,9 @@ begin
         jp init
 initq
 Reset       
+        ld de,ansipal
+        OS_SETPAL ;TODO с копированием во временную палитру
+
         ld bc,0
         ld (_SS),bc
         countSS
@@ -557,6 +560,17 @@ oldpc
         LD H,(HL)
         ld L,b ;чётный для всех rm-команд
         JP (HL) 
+
+clpga
+        SETPGC000
+        ld hl,0xc000
+        ld d,h
+        ld e,l
+        inc e
+        ld bc,0x3fff
+        ld (hl),l;0
+        ldir
+        ret     
 
 ;de=имя файла
 ;hl=куда грузим
@@ -903,7 +917,7 @@ PUTscreen_logpgc_zxaddrhl_datamhl_do
 _PUTscreen_do_patch=$
 _PUTscreen_do_patch_vgadata=0x044e ;ld c,(hl):inc b
         jr PUTscreen_textmode ;/ld c,(hl):inc b
-;a=1..4
+;a=1..4*0x40
         add a,h
         ld h,a
 ;экран VGA = 320 байт на строку
@@ -952,77 +966,73 @@ PUTscreen_rightpixel
 
 PUTscreen_textmode
         ld c,(hl) ;colour
-     inc b ;ld b,trecolour/256
-;a=1..4
-        add a,h
+     ;inc b ;ld b,trecolour/256
+;a=1..4*0x40
+        ;add a,h
        ;cp 4096/256
        ;ret nc
-        ld h,a
+        ;ld h,a
 ;hl=addr in screen=0..65535
 ;The VGA text buffer is located at physical memory address 0xB8000.
-;25 строк по 80 слов: символ, атрибут (%FpppIiii - TODO пересчитать в PIpppiii)
-;как пересчитать строки по 160 байт (80 символов) в строки по 64 байта (128 виртуальных символов)? всего 2000 знакомест = 125 групп по 16 символов, можно по таблице получить адрес (2 байта) или номер виртуальной группы (их всего 200, т.е. 1 байт) TODO
-
+;25 строк по 80 слов: символ, атрибут (%FpppIiii - пересчитать в PIpppiii)
+;как пересчитать строки по 160 байт (80 символов) в строки по 64 байта (128 виртуальных символов)? всего 2000 знакомест = 125 групп по 16 символов, можно по таблице получить адрес (2 байта) или номер виртуальной группы (их всего 200, т.е. 1 байт)
+       push bc
 ;получаем номер группы по 16 символов:
-;hl=????GGGG gggXXXxA
-        xor l
-        and 0xe0
-        xor h
-           rlca
-           rlca
-           rlca ;TODO убрать
+;hl=0000GGGG gggXXXxA
+        ;xor l
+        ;and 0xe0
+        ;xor h
+           ;rlca
+           ;rlca
+           ;rlca
+        ld a,l  ;gggXXXxA
+        srl a
+        xor h 
+        and 0xf0
+        xor h    ;0gggGGGG
 ;пересчитываем в номер группы на АТМ textmode:
-        push hl
-        ld hl,ttextaddr
-        add a,l
-        ld l,a
-         jr nc,$+3
-         inc h
-        ld b,(hl) ;gggGGGgg
-        pop hl
-        ld a,b
-        and 0x1f
+        ld b,ttextaddr/256
+        ld c,a
+        ld a,(bc) ;gggGGGgg
         ld h,a
-        ld a,b
         xor l
         and 0xe0
         xor l
         ld l,a
+        ld a,h
+        and 0x1f
 ;пересчитываем в адрес группы на ATM textmode:
 ;hl=000GGGgg gggXXXxA ;+0x01c0 уже прибавлено к номеру группы как +56
-        scf
-        rr h
+         scf
+         rra
         rr l
         jr c,PUTscreen_attr
-        sra h
+         scf
+         rra
         rr l
         jr nc,$+4
-        set 5,h
+         or 0x20;set 5,h
+        ld h,a
 ;RAM page #05 (#07):
 ;#21C0...#27FF - character codes of odd (1,3,...) characters (25 lines, every line is 64 bytes, of which only first 40 are significant).
 ;#01C0...#07FF - character codes of even (0,2,...) characters (ditto).
         ld a,(user_scr0_high) ;ok
-       push bc
         SETPGC000
        pop bc
         ld (hl),c
         ret
 PUTscreen_attr
-        sra h
+         rra
         rr l
-        jr nc,$+4
-        set 5,h
-       ld a,h
-       xor 0x20
-       ld h,a
-       and 0x20
-       jr nz,$+3
-       inc hl
+        inc l
+        jr c,$+5
+         or 0x20
+         dec l
+        ld h,a
 ;RAM page #01 (#03):
 ;#21C0...#27FF - attributes of even(!) characters (ditto).
 ;#01C1...#07FF - attributes of odd(!) characters (ditto).
         ld a,(user_scr0_low) ;ok
-       push bc
         SETPGC000
        pop bc ;c=%ppppiiii
         ld a,c
@@ -1036,21 +1046,6 @@ PUTscreen_attr
         or 0b01000000
         ld (hl),a ;%pipppiii
         ret
-       macro dbrrc3 data
-        db (data>>3)+((data<<5)&0xe0)
-       endm
-ttextaddr
-_=56
-        dup 25
-        dup 5
-        dbrrc3 _
-_=_+1
-        edup
-_=_+3
-        edup
-        dbrrc3 255
-        dbrrc3 255
-        dbrrc3 255
 
        display "--",$
 	include "rmbyte.asm"
@@ -1226,11 +1221,27 @@ timer
         align 256
 	include "x86table.asm"
 
+        align 256
+       macro dbrrc3 data
+        db (data>>3)+((data<<5)&0xe0)
+       endm
+ttextaddr
+        dup 128
+_=$&0xff
+;0gggGGGG -> 0GGGGggg:
+_=((_&0x0f)<<3)+((_&0x70)>>4)
+       if _<125
+_=_/5*8+(_-(_/5*5))+56
+        dbrrc3 _
+       else
+        dbrrc3 255
+       endif
+        edup
+
         display "killable=",$
 
 ;killable
 init
-        ld sp,STACK
         OS_HIDEFROMPARENT
         ld e,6+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
@@ -1243,12 +1254,10 @@ init
         ;ld e,0
         ;OS_CLS
 
-        ld de,ansipal
-        OS_SETPAL ;TODO в Reset, с копированием во временную палитру
-
         ld de,path
         OS_CHDIR
 
+        ld sp,STACK
         ;ld de,diskname
         ;OS_OPENHANDLE
         ;ld a,b
@@ -1272,11 +1281,11 @@ filltpgs0
         pop hl
      ld a,l
      cp 4 ;чистим первые 4 страницы ;para512 ожидает чистую память после себя
-     jr nc,filltpgs0_noclear
+     ;jr nc,filltpgs0_noclear
        push de
        push hl
        ld a,e
-       call clpga
+       call c,clpga
        pop hl
        pop de
 filltpgs0_noclear
@@ -1292,46 +1301,25 @@ filltpgs0_noclear
 ;0xa0000 (pg 40): 4 pages for screen
 ;0xb8000 (pg 46): 1 page for textmode
         ld h,tscreenpgs/256
-       ;if TEXTMODE
-       ; ld e,46
-       ; ld bc,0x140
-       ;else
-        ld e,40
-        ld bc,0x440
-       ;endif
+        ld bc,4*256+40
+        xor a
 filltscreenpgs0
-       ld l,e
-       rrc l
-       rrc l
-        ld (hl),c
-            ;dec l     ;
-            ;ld (hl),c ;test backbuffer
-        ld a,c
         add a,0x40
-        ld c,a
-        inc e
+       ld l,c
+       rrc l
+       rrc l
+        ld (hl),a
+            ;dec l     ;
+            ;ld (hl),a ;test backbuffer
+        inc c
         djnz filltscreenpgs0
-        
-       ld (tscreenpgs+0x8b),a
+       ld (tscreenpgs+0x8b),a ;for textmode
 
         call swapimer ;сначала прерывания ничего не делают (iff0==0)
 
         jp initq
-clpga
-        SETPGC000
-        ld hl,0xc000
-        ld d,h
-        ld e,l
-        inc e
-        ld bc,0x3fff
-        ld (hl),l;0
-        ldir
-        ret     
 path
         db "x86",0
-
-;diskname
-;        db "SYS.TRD",0       
 
 end
         display "end=",$

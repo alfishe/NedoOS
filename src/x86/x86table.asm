@@ -146,7 +146,7 @@ MAINCOMS
         DCOM GRP1rm16i8 ;там add dx,6 - операнд расширяется со знаком
         DCOM TESTrmr8
         DCOM TESTrmr16
-        DCOM PANIC ;XCHGr8rm
+        DCOM PANIC ;XCHGr8rm ;TODO for pixeltown
         DCOM XCHGr16rm
         DCOM MOVrmr8
         DCOM MOVrmr16
@@ -276,5 +276,5 @@ MAINCOMS
         DCOM GRP48 ;inc/dec rm8
         DCOM GRP416 ;inc/dec rm16, push rm16, FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, FF 25 = jmp word [di]
 
-	DISPLAY $-MAINCOMS,"=256"
+	;DISPLAY $-MAINCOMS,"=256"
         ORG $+256
