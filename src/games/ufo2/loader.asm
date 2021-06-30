@@ -220,7 +220,10 @@ prtile0
         jr nz,prtile0
        pop ix
         ret
-        
+
+        align 256
+temptilebuf
+        ds 256
         align 256
 tmask
         incbin "tmask"

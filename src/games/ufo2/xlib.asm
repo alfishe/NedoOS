@@ -18,14 +18,12 @@
 SCR	EQU	#C000
 ATR	EQU	#D800
 DSCR	EQU	#9000
-DATR	EQU	#A800
        if 0;EGA
-MAN=0xd000
-ALIEN=MAN+320
        else
+DATR	EQU	#A800
+       endif
 MAN	EQU     #AB00
 ALIEN   EQU	MAN+320
-       endif
 TMP	EQU	DSCR
 xATR	EQU     #AF00
 vSIZE	EQU	#AF80
@@ -398,10 +396,23 @@ A22P_	LD E,0
 	PUSH AF
 	CP #60
 	JR NC,A4P
+       if EGA
+        ld a,d
+        add a,0xc0
+        ld d,a
+        ld a,13 ;pg
+        jr nc,MSizeP_retilen1
+        inc a
+        set 7,d
+        set 6,d
+MSizeP_retilen1
+        call setpg
+       else
 	SRL A
 	RR E
 	ADD A,#B0;sprites
 	LD D,A
+       endif
 	POP AF
 	RET
 A4P     POP AF
@@ -445,10 +456,46 @@ A9P     CALL NORM_V
 	LD DE,xHERO
        endif
 A6P	ADD HL,DE
-	PUSH HL
+	PUSH HL ;sprite gfx
 	LD A,(IX+7)
 	AND #7F
 	LD L,0
+       if EGA
+        ;jr $
+        add a,#c0
+        ld h,a
+        ld a,13
+        jr nc,$+2+1+4
+         inc a
+         set 7,h
+         set 6,h ;tile gfx
+        call setpg       
+	LD DE,temptilebuf;DATR ;temporary tile buffer
+	LD BC,256
+	LDIR
+	pop de ;sprite gfx
+	ld a,14 ;TODO fix для разных героев
+        call setpg
+	LD bc,temptilebuf;DATR ;temporary tile buffer
+;наложение спрайта на тайл
+        ld h,tmask/256
+A5P_column
+        ld a,c
+        add a,8
+        ld c,a
+       dup 24
+        LD A,(de) ;sprite gfx
+        INC de
+        LD L,A
+        LD A,(bc) ;temporary tile buffer
+        AND (HL)
+        OR L
+        LD (bc),A
+        inc c
+       edup
+        jp nz,A5P_column
+
+       else
 	SRL A
 	RR L
 	ADD A,#B0 ;???тайлы корабля и далее прочие тайлы
@@ -456,13 +503,8 @@ A6P	ADD HL,DE
 	LD DE,DATR
 	LD BC,128
 	LDIR
-	POP HL
+	POP HL ;sprite gfx
 	LD DE,DATR+16
-       if EGA
-	Ms 14 ;TODO fix для разных героев
-;TODO наложение спрайта на тайл
-
-       else
 	Ms 4
 	LD B,48
 A5P	LD A,(DE)
@@ -483,7 +525,11 @@ A5P	LD A,(DE)
 	CALL PT128
 	POP IX
 	POPs;$
-	LD DE,DATR
+       if EGA
+        ld de,temptilebuf
+       else
+	LD DE,DATR ;temporary tile buffer
+       endif
 	LD A,#60
 	OR A
 	RET;NZ
@@ -537,6 +583,7 @@ MSizeP
 	ADD A,33
 	LD B,A
        else
+       if 0
         ld a,d
         sub 0xB0
         sla e
@@ -547,14 +594,18 @@ MSizeP
         ld d,a
         ld a,13 ;pg
         jr nc,MSizeP_retilen1
-        ld a,d
-        sub 0x40
-        ld d,a
-        ld a,14 ;pg
+        inc a
+        set 7,d
+        set 6,d
+        ;ld a,d
+        ;sub 0x40
+        ;ld d,a
+        ;ld a,14 ;pg
 MSizeP_retilen1
        ;ld de,0xdf00
         ;ld a,13
         call setpg
+       endif
        
         push hl
         pop bc
