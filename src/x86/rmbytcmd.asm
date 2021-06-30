@@ -2421,7 +2421,7 @@ TESTrmmemi16
         KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
        _LoopC
 GRP316mem
-        ADDRm16_GETm16
+        ADDRm16_GETm16_for_PUTm16
 ;TODO rla
        and 0b00111000
 	jr z,TESTrmmemi16
