@@ -463,7 +463,7 @@ CMPr16hlac
         SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
        pop hl ;skip
         next
-       _Loop_
+       _LoopC
 GRP1rmi16_AND_XOR
         next
         jr c,XORr16i16

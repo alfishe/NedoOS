@@ -1284,7 +1284,7 @@ SCASWer
         ld b,(hl)
         ld hl,(_AX)
         SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
-        INCDEC2SIbyDIRECTION
+        INCDEC2DIbyDIRECTION
        _LoopC
 
 CMPSBer

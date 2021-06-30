@@ -72,6 +72,7 @@ IN_bc_to_bc
        ld a,r
        add a,c
        ld c,a
+       ;ld bc,0xffff
         ret
 IN_skip
         ld bc,0xffff
