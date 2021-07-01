@@ -26,12 +26,7 @@ rem #
 rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 
 %NEDORES% images/XHERO.bmp sprites1.dat sprites1.ast
-rem TODO fix
-%NEDORES% images/XHERO.bmp sprites.dat sprites.ast
 %NEDORES% images/XHERO.bmp sprites2.dat sprites2.ast
-%NEDORES% images/XHERO.bmp sprites3.dat sprites3.ast
-%NEDORES% images/XHERO.bmp sprites4.dat sprites4.ast
-%NEDORES% images/XHERO.bmp sprites5.dat sprites5.ast
 
 %NEDORES% images/XM11.bmp pal.dat pal.ast
 

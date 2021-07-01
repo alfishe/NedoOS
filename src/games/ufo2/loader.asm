@@ -259,9 +259,9 @@ texfilename
         db 7,"ufo27.dat",0
         db 8,"ufospr1.dat",0
         db 9,"ufospr2.dat",0
-        db 10,"ufospr3.dat",0
-        db 11,"ufospr4.dat",0
-        db 12,"ufospr5.dat",0
+        ;db 10,"ufospr3.dat",0
+        ;db 11,"ufospr4.dat",0
+        ;db 12,"ufospr5.dat",0
         db 13,"ufoxm11a.dat",0
         db 14,"ufoxm11b.dat",0
         ;if EGA==0

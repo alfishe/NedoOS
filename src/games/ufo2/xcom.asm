@@ -26,7 +26,8 @@ NOENEMY=0;1
 
         PAGE 8
         org 0xc000
-        include "sprites.ast"
+        ds 0x0400 ;чтобы в одной странице ровно 5 рядов спрайтов
+        include "sprites1.ast"
 	savebin "ufo2/ufospr1.dat",0xc000,$-0xc000
         display "endsprites=",$
         PAGE 9
@@ -34,21 +35,21 @@ NOENEMY=0;1
         include "sprites2.ast"
 	savebin "ufo2/ufospr2.dat",0xc000,$-0xc000
         display "endsprites2=",$
-        PAGE 10
-        org 0xc000
-        include "sprites3.ast"
-	savebin "ufo2/ufospr3.dat",0xc000,$-0xc000
-        display "endsprites3=",$
-        PAGE 11
-        org 0xc000
-        include "sprites4.ast"
-	savebin "ufo2/ufospr4.dat",0xc000,$-0xc000
-        display "endsprites4=",$
-        PAGE 12
-        org 0xc000
-        include "sprites5.ast"
-	savebin "ufo2/ufospr5.dat",0xc000,$-0xc000
-        display "endsprites5=",$
+        ;PAGE 10
+        ;org 0xc000
+        ;include "sprites3.ast"
+	;savebin "ufo2/ufospr3.dat",0xc000,$-0xc000
+        ;display "endsprites3=",$
+        ;PAGE 11
+        ;org 0xc000
+        ;include "sprites4.ast"
+	;savebin "ufo2/ufospr4.dat",0xc000,$-0xc000
+        ;display "endsprites4=",$
+        ;PAGE 12
+        ;org 0xc000
+        ;include "sprites5.ast"
+	;savebin "ufo2/ufospr5.dat",0xc000,$-0xc000
+        ;display "endsprites5=",$
         PAGE 13
         org 0xc000
         include "xm0.ast"
@@ -57,7 +58,7 @@ NOENEMY=0;1
         PAGE 14
         org 0xc000
         include "xm11b.ast"
-        include "sprites1.ast"
+        ;include "sprites1.ast"
 	savebin "ufo2/ufoxm11b.dat",0xc000,$-0xc000
 
 ;*F	XPAGE

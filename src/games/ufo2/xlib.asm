@@ -451,7 +451,7 @@ A9P     CALL NORM_V
 	LD H,A
        if EGA
        add hl,hl
-       ld de,0xe000 ;TODO
+       ld de,0x8400
        else
 	LD DE,xHERO
        endif
@@ -461,7 +461,6 @@ A6P	ADD HL,DE
 	AND #7F
 	LD L,0
        if EGA
-        ;jr $
         add a,#c0
         ld h,a
         ld a,13
@@ -474,7 +473,11 @@ A6P	ADD HL,DE
 	LD BC,256
 	LDIR
 	pop de ;sprite gfx
-	ld a,14 ;TODO fix для разных героев
+	ld a,8
+        bit 6,d
+        set 6,d
+        jr z,$+3
+        inc a
         call setpg
 	LD bc,temptilebuf;DATR ;temporary tile buffer
 ;наложение спрайта на тайл
