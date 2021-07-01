@@ -21,6 +21,13 @@ tempsp=0x3f06 ;6 bytes for prspr
         ld e,0 ;color byte
         OS_CLS
 
+        ld b,25
+waitcls0
+        push bc
+        YIELD
+        pop bc
+        djnz waitcls0 ;чтобы nv не затёр pg7
+
 	ld de,file_path
 	OS_CHDIR
 

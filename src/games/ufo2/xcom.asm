@@ -1,6 +1,10 @@
         DEVICE ZXSPECTRUM1024
         include "../../_sdk/sys_h.asm"
 
+        SLOT 0
+        page 63 ;иначе по умолчанию в 0x0000 pg7
+        SLOT 3 
+
 IMVEC=#4100
 IM2=0
 

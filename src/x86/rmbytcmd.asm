@@ -436,7 +436,7 @@ GRP1rmi16
         ld l,a
         get
         or h
-        jr GRP1rmi16logicq        
+        jp GRP1rmi16logicq        
 SBBr16i16
         ex af,af' ;' ;old CF for sbb
         get
@@ -447,7 +447,7 @@ SUBr16i16
         ld b,a
 SBCr16bc
         SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
-        jr GRP1rmi16q
+        jp GRP1rmi16q
 GRP1rmi16_1xx
        add a,a
         get

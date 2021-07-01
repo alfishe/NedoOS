@@ -1745,6 +1745,8 @@ commandslist
         db "echo",0
         dw cmd_pause
         db "pause",0
+        dw cmd_cls
+        db "cls",0
         
         dw -1 ;конец таблицы команд
 
@@ -1850,6 +1852,8 @@ curdir__
         include "prdword.asm"
         include "cmdpr.asm"
         include "../_sdk/stdio.asm"
+
+cmd_cls=clearterm ;print 25 lines of spaces except one
 
 cmd_end
 

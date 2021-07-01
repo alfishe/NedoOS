@@ -887,6 +887,271 @@ wassys
         org 0x0000
 sysbegin
         include "syskrnl.asm"
+        
+	display "$ before align=",syskrnl_end
+       if 1
+       macro SETHANDLER cmd,addr
+        org wastbdoscmds+cmd
+        db addr&0xff
+        org wastbdoscmds+256+cmd
+        db addr/256
+       endm
+
+        ds 0xff&(-syskrnl_end)
+tbdoscmds=syskrnl_end+(0xff&(-syskrnl_end))
+wastbdoscmds
+        ds 256,BDOS_pop2fail&0xff
+        ds 256,BDOS_pop2fail/256
+       
+         SETHANDLER CMD_WRITEHANDLE,BDOS_writehandle
+         SETHANDLER CMD_WIZNETREAD,BDOS_wiznetread
+         SETHANDLER CMD_YIELDKEEP,BDOS_yieldkeep
+         SETHANDLER CMD_YIELD,BDOS_yield
+         SETHANDLER CMD_READHANDLE,BDOS_readhandle
+          SETHANDLER CMD_GETKEYMATRIX,BDOS_getkeymatrix
+          SETHANDLER CMD_GETTIMER,BDOS_gettimer
+          SETHANDLER CMD_CHECKPID,BDOS_checkpid
+          SETHANDLER CMD_SETSCREEN,BDOS_setscreen
+         SETHANDLER CMD_PRATTR,BDOS_prattr
+         SETHANDLER CMD_SETXY,BDOS_setxy
+         SETHANDLER CMD_SETCOLOR,BDOS_setcolor
+         SETHANDLER CMD_PRCHAR,BDOS_prchar
+         SETHANDLER CMD_GETATTR,BDOS_getattr
+	SETHANDLER CMD_SETDTA,BDOS_setdta;0x1a
+	SETHANDLER CMD_FOPEN,BDOS_fopen;0x0f
+	SETHANDLER CMD_FREAD,BDOS_fread;0x14
+	SETHANDLER CMD_FCLOSE,BDOS_fclose;0x10
+	SETHANDLER CMD_FDEL,BDOS_fdel;0x13 ;DEPRECATED!!!!! 
+	SETHANDLER CMD_FCREATE,BDOS_fcreate;0x16
+	SETHANDLER CMD_FWRITE,BDOS_fwrite;0x15
+        SETHANDLER CMD_FSEARCHFIRST,BDOS_fsearchfirst;0x11
+        SETHANDLER CMD_FSEARCHNEXT,BDOS_fsearchnext;0x12
+        SETHANDLER CMD_OPENDIR,BDOS_opendir
+        SETHANDLER CMD_READDIR,BDOS_readdir
+        SETHANDLER CMD_SETDRV,BDOS_setdrv
+	SETHANDLER CMD_PARSEFNAME,BDOS_parse_filename;0x5c
+        SETHANDLER CMD_CHDIR,BDOS_chdir
+        SETHANDLER CMD_GETPATH,BDOS_getpath
+        SETHANDLER CMD_RUNAPP,BDOS_runapp
+        SETHANDLER CMD_NEWAPP,BDOS_newapp
+        SETHANDLER CMD_CLS,BDOS_cls
+        SETHANDLER CMD_SETGFX,BDOS_setgfx
+        SETHANDLER CMD_SETPAL,BDOS_setpal
+        SETHANDLER CMD_GETMAINPAGES,BDOS_getmainpages
+        SETHANDLER CMD_NEWPAGE,BDOS_newpage
+        SETHANDLER CMD_DELPAGE,BDOS_delpage
+        SETHANDLER CMD_MOUNT,BDOS_mount
+        SETHANDLER CMD_FREEZEAPP,BDOS_freezeapp
+        SETHANDLER CMD_MKDIR,BDOS_mkdir
+        SETHANDLER CMD_RENAME,BDOS_rename
+        SETHANDLER CMD_SETSYSDRV,BDOS_setsysdrv
+        ;SETHANDLER CMD_FWRITE_NBYTES,BDOS_fwrite_nbytes
+        SETHANDLER CMD_SCROLLUP,BDOS_scrollup
+        SETHANDLER CMD_SCROLLDOWN,BDOS_scrolldown
+        SETHANDLER CMD_OPENHANDLE,BDOS_openhandle
+        SETHANDLER CMD_CREATEHANDLE,BDOS_createhandle
+        SETHANDLER CMD_CLOSEHANDLE,BDOS_closehandle
+        SETHANDLER CMD_SEEKHANDLE,BDOS_seekhandle
+        SETHANDLER CMD_TELLHANDLE,BDOS_tellhandle
+        SETHANDLER CMD_SETFILETIME,BDOS_setfiletime
+        SETHANDLER CMD_GETFILETIME,BDOS_getfiletime
+        SETHANDLER CMD_GETTIME,BDOS_gettime
+        SETHANDLER CMD_GETXY,BDOS_getxy
+        SETHANDLER CMD_GETAPPMAINPAGES,BDOS_getappmainpages
+        SETHANDLER CMD_DROPAPP,BDOS_dropapp
+        SETHANDLER CMD_WIZNETOPEN,BDOS_wiznetopen
+        SETHANDLER CMD_WIZNETCLOSE,BDOS_wiznetclose
+        SETHANDLER CMD_WIZNETWRITE,BDOS_wiznetwrite
+        SETHANDLER CMD_GETFILESIZE,BDOS_getfilesize
+        SETHANDLER CMD_DELETE,BDOS_delete
+        SETHANDLER CMD_GETCHILDRESULT,BDOS_getchildresult
+        SETHANDLER CMD_SETWAITING,BDOS_setwaiting
+        SETHANDLER CMD_SETBORDER,BDOS_setborder
+        SETHANDLER CMD_READSECTORS,BDOS_readsectors
+        SETHANDLER CMD_WRITESECTORS,BDOS_writesectors
+        SETHANDLER CMD_SETMAINPAGE,BDOS_setmainpage
+        SETHANDLER CMD_SETMUSIC,BDOS_setmusic
+        SETHANDLER CMD_PLAYCOVOX,BDOS_playcovox
+        SETHANDLER CMD_GETSTDINOUT,BDOS_getstdinout
+        SETHANDLER CMD_SETSTDINOUT,BDOS_setstdinout
+        SETHANDLER CMD_HIDEFROMPARENT,BDOS_hidefromparent
+        SETHANDLER CMD_RNDRD,BDOS_rndrd
+        SETHANDLER CMD_RNDWR,BDOS_rndwr
+        SETHANDLER CMD_GETFILINFO,BDOS_getfilinfo
+        SETHANDLER CMD_RESERV_1,BDOS_reserv_1
+        SETHANDLER CMD_GETCONFIG,BDOS_get_config
+         
+         org wastbdoscmds+512
+trecode=tbdoscmds+512
+         
+       else
+
+tbdoscmds=syskrnl_end
+wastbdoscmds
+         db CMD_WRITEHANDLE
+         db CMD_WIZNETREAD
+         db CMD_YIELDKEEP
+         db CMD_YIELD
+         db CMD_READHANDLE
+          db CMD_GETKEYMATRIX
+          db CMD_GETTIMER
+          db CMD_CHECKPID
+          db CMD_SETSCREEN
+         db CMD_PRATTR
+         db CMD_SETXY
+         db CMD_SETCOLOR
+         db CMD_PRCHAR
+         db CMD_GETATTR
+	db CMD_SETDTA;0x1a
+	db CMD_FOPEN;0x0f
+	db CMD_FREAD;0x14
+	db CMD_FCLOSE;0x10
+	db CMD_FDEL;0x13 ;DEPRECATED!!!!! 
+	db CMD_FCREATE;0x16
+	db CMD_FWRITE;0x15
+        db CMD_FSEARCHFIRST;0x11
+        db CMD_FSEARCHNEXT;0x12
+        db CMD_OPENDIR
+        db CMD_READDIR
+        db CMD_SETDRV
+	db CMD_PARSEFNAME;0x5c
+        db CMD_CHDIR
+        db CMD_GETPATH
+        db CMD_RUNAPP
+        db CMD_NEWAPP
+        db CMD_CLS
+        db CMD_SETGFX
+        db CMD_SETPAL
+        db CMD_GETMAINPAGES
+        db CMD_NEWPAGE
+        db CMD_DELPAGE
+        db CMD_MOUNT
+        db CMD_FREEZEAPP
+        db CMD_MKDIR
+        db CMD_RENAME
+        db CMD_SETSYSDRV
+        ;db CMD_FWRITE_NBYTES
+        db CMD_SCROLLUP
+        db CMD_SCROLLDOWN
+        db CMD_OPENHANDLE
+        db CMD_CREATEHANDLE
+        db CMD_CLOSEHANDLE
+        db CMD_SEEKHANDLE
+        db CMD_TELLHANDLE
+        db CMD_SETFILETIME
+        db CMD_GETFILETIME
+        db CMD_GETTIME
+        db CMD_GETXY
+        db CMD_GETAPPMAINPAGES
+        db CMD_DROPAPP
+        db CMD_WIZNETOPEN
+        db CMD_WIZNETCLOSE
+        db CMD_WIZNETWRITE
+        db CMD_GETFILESIZE
+        db CMD_DELETE
+        db CMD_GETCHILDRESULT
+        db CMD_SETWAITING
+        db CMD_SETBORDER
+        db CMD_READSECTORS
+        db CMD_WRITESECTORS
+        db CMD_SETMAINPAGE
+        db CMD_SETMUSIC
+        db CMD_PLAYCOVOX
+        db CMD_GETSTDINOUT
+        db CMD_SETSTDINOUT
+        db CMD_HIDEFROMPARENT
+        db CMD_RNDRD
+        db CMD_RNDWR
+        db CMD_GETFILINFO
+        db CMD_RESERV_1
+        db CMD_GETCONFIG
+nbdoscmds=$-wastbdoscmds
+        dw BDOS_get_config
+        dw BDOS_reserv_1
+        dw BDOS_getfilinfo
+        dw BDOS_rndwr
+        dw BDOS_rndrd
+        dw BDOS_hidefromparent
+        dw BDOS_setstdinout
+        dw BDOS_getstdinout
+        dw BDOS_playcovox
+        dw BDOS_setmusic
+        dw BDOS_setmainpage
+        dw BDOS_writesectors
+        dw BDOS_readsectors
+        dw BDOS_setborder
+        dw BDOS_setwaiting
+        dw BDOS_getchildresult
+        dw BDOS_delete
+        dw BDOS_getfilesize
+        dw BDOS_wiznetwrite
+        dw BDOS_wiznetclose
+        dw BDOS_wiznetopen
+        dw BDOS_dropapp
+        dw BDOS_getappmainpages
+        dw BDOS_getxy
+        dw BDOS_gettime
+        dw BDOS_getfiletime
+        dw BDOS_setfiletime
+        dw BDOS_tellhandle
+        dw BDOS_seekhandle
+        dw BDOS_closehandle
+        dw BDOS_createhandle
+        dw BDOS_openhandle
+        dw BDOS_scrolldown
+        dw BDOS_scrollup
+        ;dw BDOS_fwrite_nbytes
+        dw BDOS_setsysdrv
+        dw BDOS_rename
+        dw BDOS_mkdir
+        dw BDOS_freezeapp
+        dw BDOS_mount
+        dw BDOS_delpage
+        dw BDOS_newpage
+        dw BDOS_getmainpages
+        dw BDOS_setpal
+        dw BDOS_setgfx
+        dw BDOS_cls
+        dw BDOS_newapp
+        dw BDOS_runapp
+        dw BDOS_getpath
+        dw BDOS_chdir
+        dw BDOS_parse_filename
+        dw BDOS_setdrv
+        dw BDOS_readdir
+        dw BDOS_opendir
+        dw BDOS_fsearchnext
+        dw BDOS_fsearchfirst
+	dw BDOS_fwrite
+	dw BDOS_fcreate
+	dw BDOS_fdel ;DEPRECATED!!!!! 
+	dw BDOS_fclose
+	dw BDOS_fread
+	dw BDOS_fopen
+        dw BDOS_setdta
+         dw BDOS_getattr
+         dw BDOS_prchar
+         dw BDOS_setcolor
+         dw BDOS_setxy
+         dw BDOS_prattr
+          dw BDOS_setscreen
+          dw BDOS_checkpid
+          dw BDOS_gettimer
+          dw BDOS_getkeymatrix
+         dw BDOS_readhandle
+         dw BDOS_yield
+         dw BDOS_yieldkeep
+         dw BDOS_wiznetread
+         dw BDOS_writehandle
+trecode=tbdoscmds+$-wastbdoscmds
+       endif
+
+;TODO хранить прямо в текстовом экране? а если затрут, то восстанавливать? по какому событию?
+	incbin "../_sdk/codepage/866toatm"
+
+syscodesz=trecode+256-wassyscode
+        display "syscodesz=",/h,syscodesz," < minstack=",/h,SYSMINSTACK
+
 wasuserkernel
         disp 0x0000
         include "userkrnl.asm"
@@ -895,6 +1160,9 @@ userkernel_sz=$-wasuserkernel
 	;display "wasuserkernel=",/d,wasuserkernel
 	;display "wasuserkernel_end=",/d,$
 	;display "userkernel_sz=",/d,userkernel_sz
+;wastjump
+;        include "tjump.asm"
+;tjump_sz=$-wastjump
         ds 0x4000-$
         incbin "../fatfs4os/fatfs.raw"
 sysend

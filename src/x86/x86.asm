@@ -285,7 +285,79 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	ex af,af' ;'
 	endm
 
-       if 1 ;NS
+       if AFFLAG_16BIT ;NS
+        macro SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
+	jr c,4f;sbc_with_carry	;7/12 ;[10]
+;sbc_without_carry
+;half carry part
+	ld a,l			;4
+	sbc a,c			;4	;теряет carry !!
+	push af			;11	
+;востанавливаем carry = 0
+	and a				;4
+	sbc hl,bc			;15
+;half carry part
+	pop bc			;10
+;save x86 flags
+	push af                 	;11 59
+;parity
+	ld a,l			;4	A = new L
+	exx             	;4
+	ld d,a 			;4 12	parity data = new L
+;overflow
+	ld e,0x00 	;7	overflow data
+	jp po,2f  	;10
+	ld e,0x40 	;7
+2	exx			;4 
+;half carry part
+	bit 4,c			;8 36
+	jr nz,1f			;7 / 12
+	pop af				;10
+	rla                     	;4
+	rra 				;4	;Z80 HF(AF) = 0		xxx0 xxxx
+	;ex af,af' ;'			;4 22
+        jp 3f
+1	pop af				;10
+	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
+	;ex af,af' ;'			;4 18
+	jp 3f	
+4;sbc_with_carry
+;half carry part
+	ld a,l			;4
+	sbc a,c			;4		;теряет carry !!
+	push af			;11
+;востанавливаем carry = 1
+	scf
+	sbc hl,bc			;15
+;half carry part
+	pop bc			;10
+;save x86 flags
+	push af                 	;11
+;parity
+	ld a,l			;4	A = new L
+	exx             	;4
+	ld d,a 			;4	parity data = new L
+;overflow
+	ld e,0x00 	;7	overflow data
+	jp po,2f  	;10
+	ld e,0x40 	;7
+2	exx			;4
+;half carry part
+	bit 4,c			;8
+	jr nz,1f			;7 / 12
+	pop af				;10
+	rla                     	;4
+	rra 				;4	;Z80 HF(AF) = 0		xxx0 xxxx
+	;ex af,af' ;'			;4
+        jp 3f
+1
+	pop af				;10
+	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
+3
+	ex af,af' ;'			;4 18
+        endm
+       
+       else
         macro SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
        if AFFLAG_16BIT
        sbc a,a
@@ -315,17 +387,90 @@ _getmemspBC_skipsize=$-_getmemspBC_base
         and 0x0f
         sub c
         jr nc,1f
-       pop bc
-        set 4,c ;set HF(AF)
-       push bc
+       pop af
+       cpl ;set HF(AF)
+       jp 2f
 1
        pop af
+2
        endif
 	ex af,af' ;'
         endm
        endif
 
-       if 1
+       if AFFLAG_16BIT ;NS
+        macro ADCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
+	jr c,4f;adc_with_carry	;7/12 ;[10]
+;adc_without_carry
+;half carry part
+	ld a,l			;4
+	adc a,c			;4	;теряет carry !!
+	push af			;11	
+;востанавливаем carry = 0
+	and a				;4
+	adc hl,bc			;15
+;half carry part
+	pop bc			;10
+;save x86 flags
+	push af                 	;11 59
+;parity
+	ld a,l			;4	A = new L
+	exx             	;4
+	ld d,a 			;4 12	parity data = new L
+;overflow
+	ld e,0x00 	;7	overflow data
+	jp po,2f  	;10
+	ld e,0x40 	;7
+2	exx			;4 
+;half carry part
+	bit 4,c			;8 36
+	jr nz,1f			;7 / 12
+	pop af				;10
+	rla                     	;4
+	rra 				;4	;Z80 HF(AF) = 0		xxx0 xxxx
+	;ex af,af' ;'			;4 22
+        jp 3f
+1	pop af				;10
+	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
+	;ex af,af' ;'			;4 18
+	jp 3f	
+4;adc_with_carry
+;half carry part
+	ld a,l			;4
+	adc a,c			;4		;теряет carry !!
+	push af			;11
+;востанавливаем carry = 1
+	scf
+	adc hl,bc			;15
+;half carry part
+	pop bc			;10
+;save x86 flags
+	push af                 	;11
+;parity
+	ld a,l			;4	A = new L
+	exx             	;4
+	ld d,a 			;4	parity data = new L
+;overflow
+	ld e,0x00 	;7	overflow data
+	jp po,2f  	;10
+	ld e,0x40 	;7
+2	exx			;4
+;half carry part
+	bit 4,c			;8
+	jr nz,1f			;7 / 12
+	pop af				;10
+	rla                     	;4
+	rra 				;4	;Z80 HF(AF) = 0		xxx0 xxxx
+	;ex af,af' ;'			;4
+        jp 3f
+1
+	pop af				;10
+	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
+3
+	ex af,af' ;'			;4 18
+        endm
+       
+       else
         macro ADCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
        if AFFLAG_16BIT
        sbc a,a
@@ -355,11 +500,12 @@ _getmemspBC_skipsize=$-_getmemspBC_base
         or 0xf0
         add a,c
         jr nc,1f
-       pop bc
-        set 4,c ;set HF(AF)
-       push bc
+       pop af
+       cpl ;set HF(AF)
+       jp 2f
 1
        pop af
+2
        endif
 	ex af,af' ;'
         endm

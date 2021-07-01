@@ -841,7 +841,29 @@ callbdos_lock
             ;xor 0x10 ;fd_user^fd_system
             ;out (0xfd),a
         ld iy,(appaddr)
+       if 1
+        ;push hl
+        ;ld l,c
+        ;ld h,tbdoscmds/256
+        ;ld a,(hl)
+        ;inc h
+        ;ld h,(hl)
+        ;ld l,a
+        ;ex (sp),hl
+        ;ret ;73t+call ;TODO jp (hl)..pop hl..jp NN ;58t, no call
+        push hl
+        ld l,c
+        ld h,tbdoscmds/256
+        ld a,(hl)
+        inc h
+        ld h,(hl)
+        ld l,a
+        ld ($+3+1+1),hl
+        pop hl ;70t+call
+        call 0
+       else
         call BDOShandler
+       endif
          push af
          push bc
          call setpgs_killable
@@ -865,6 +887,31 @@ callbdos_sp=$+1
         exx
         endif
         jp endsys_result_a
+
+       if 0
+BDOShandler
+        push hl
+        ld a,c
+        ld hl,tbdoscmds
+        push bc
+        ld bc,nbdoscmds
+        cpir
+        jp nz,BDOS_pop2fail
+;bc=nbdoscmds-(cmdnumber+1) = 0..(nbdoscmds-1)
+        add hl,bc
+;hl=tbdoscmds+nbdoscmds
+        add hl,bc
+        add hl,bc
+;hl=tbdoscmds+nbdoscmds+ 2*(nbdoscmds-(cmdnumber+1))
+        pop bc
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ;hl=jump addr
+        ex (sp),hl
+        ret
+       endif
 
 sys_quit
 ;снять текущую задачу
@@ -1054,6 +1101,5 @@ INTSTACK1;!=0x3f00 ;kernelspace (для входа в обработчик без порчи стека) (не пер
 
         include "fatfsdrv.asm"
         include "sysbdos.asm" ;в конце есть align 256
+syskrnl_end=$
         ent
-syscodesz=$-wassyscode
-        display "syscodesz=",/h,syscodesz," < minstack=",/h,SYSMINSTACK
