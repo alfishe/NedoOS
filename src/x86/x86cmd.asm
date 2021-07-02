@@ -289,12 +289,6 @@ XLATBer
         jr nc,$+3
         inc h
         call ADDRGETm16_pp_ds_nodisp
-;hl=addr
-;abc=?s*16
-        ;ADDRSEGMENT_chl_bHSB
-	;ld b,tpgs/256
-	;ld a,(bc)
-	;SETPGC000
         ld a,(hl)
         ld (_AL),a
        _LoopC
@@ -1081,6 +1075,7 @@ XCHGaxdi
         call incdec2di_hl
 	ld (_DI),hl
        endm
+        ALIGNrm
 REPZer
 REPNZer
 ;костыль! FIXME
@@ -1102,23 +1097,27 @@ REPNZer
 	;jp z,REPSCASWer
 	jr $;jp PANIC
 
+        ALIGNrm
 MOVSWer
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
+       push bc
+       ld a,c
 	ld hl,(_DI)
 	putmemES
-	ld hl,(_SI)
-        inc hl
-	getmemDS ;TODO подмена сегмента
 	ld hl,(_DI)
         inc hl
+       pop af
 	putmemES
         INCDEC2SI_DIbyDIRECTION
        _LoopC
 
+        ALIGNrm
 MOVSBer
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
+        call ADDRGETm16_pp_ds_nodisp
+        ld a,(hl)
 	ld hl,(_DI)
 	putmemES
         INCDECSI_DIbyDIRECTION
@@ -1126,6 +1125,7 @@ MOVSBer
 
 ;rep movsw
 REPMOVSWer
+;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ;ld hl,(_CX)
        ;ld a,h
@@ -1147,12 +1147,13 @@ REPMOVSWer
 	ld (_CX),hl
 	ld a,h
 	or l
-	jp nz,REP_repeat
+	jp nz,REP_repeat ;TODO keep old b
 REPMOVSWerq
        _LoopC
 
 ;rep movsb
 REPMOVSBer
+;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ;ld hl,(_CX)
        ;ld a,h
@@ -1168,11 +1169,12 @@ REPMOVSBer
 	ld (_CX),hl
 	ld a,h
 	or l
-	jp nz,REP_repeat
+	jp nz,REP_repeat ;TODO keep old b
 REPMOVSBerq
        _LoopC
 
 REPSTOSBer
+;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ld hl,(_CX)
        ld a,h
@@ -1193,6 +1195,7 @@ REPSTOSBerq
        _LoopC
 
 REPSTOSWer
+;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ld hl,(_CX)
        ld a,h
@@ -1240,7 +1243,7 @@ REPCMPSBer
 	ex af,af' ;'
 	ld a,h
 	or l
-	jp nz,REP_repeat
+	jp nz,REP_repeat ;TODO keep old b
        _LoopC
 ;repnz scasb
 REPSCASBer
@@ -1258,38 +1261,37 @@ REPSCASBer
 	ex af,af' ;'
 	ld a,h
 	or l
-	jp nz,REP_repeat
+	jp nz,REP_repeat ;TODO keep old b
        _LoopC
 exaLoopC
 	ex af,af' ;'
        _LoopC
 
+        ALIGNrm
 SCASBer
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
-	ld a,(_AL) ;al
+        call ADDRGETm16_pp_ds_nodisp
+	ld a,(_AL)
 	sub (hl)
         KEEPCFPARITYOVERFLOW_FROMA
         INCDECSIbyDIRECTION
        _LoopC
 
+        ALIGNrm
 SCASWer
 	ld hl,(_SI)
-	;getmemDS ;TODO подмена сегмента
-	;ld a,(_AL) ;al
-	;sub (hl)
-	memDS ;TODO подмена сегмента
-        ld c,(hl)
-        inc l ;костыль!!! TODO fix
-        ld b,(hl)
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
         ld hl,(_AX)
         SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
         INCDEC2DIbyDIRECTION
        _LoopC
 
+        ALIGNrm
 CMPSBer
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
+        call ADDRGETm16_pp_ds_nodisp
+        ld a,(hl)
 	ex af,af' ;'
 	ld hl,(_DI)
 	getmemES
@@ -1299,41 +1301,47 @@ CMPSBer
         INCDECSI_DIbyDIRECTION
        _LoopC
 
+        ALIGNrm
 LODSBer
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
-	ld (_AL),a ;al
+        call ADDRGETm16_pp_ds_nodisp
+        ld a,(hl)
+	ld (_AL),a
         INCDECSIbyDIRECTION
 ;flags not affected
 ;dec cx не надо!
        _LoopC
 
+        ALIGNrm
 LODSWer
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
-	ld (_AL),a ;al
-	ld hl,(_SI)
-	inc hl
-	getmemDS ;TODO подмена сегмента
-	ld (_AH),a ;ah
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
+	ld (_AX),bc
+	;ld hl,(_SI)
+	;getmemDS ;TODO подмена сегмента
+	;ld (_AL),a ;al
+	;ld hl,(_SI)
+	;inc hl
+	;getmemDS ;TODO подмена сегмента
+	;ld (_AH),a ;ah
 LODSWerincq
         INCDEC2SIbyDIRECTION
 ;flags not affected
 ;dec cx не надо!
        _LoopC
 
+        ALIGNrm
 OPSIZEr
 ;костыль для para512
         get
         next
 ;for lodsd
 	ld hl,(_SI)
-	getmemDS ;TODO подмена сегмента
-	ld (_AL),a ;al
-	ld hl,(_SI)
-	inc hl
-	getmemDS ;TODO подмена сегмента
-	ld (_AH),a ;ah
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
+	ld (_AX),bc
+        INCDEC2SIbyDIRECTION
        jr LODSWerincq
 
 STOSBer

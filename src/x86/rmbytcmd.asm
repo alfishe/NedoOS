@@ -2267,6 +2267,17 @@ _SARr16i8loop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 beginmuls
 
+NOTr8 ;no flags
+        ld a,(hl)
+        cpl
+        ld (hl),a
+       _Loop_
+NEGr8
+        xor a
+        sub (hl)
+        ld (hl),a
+        KEEPHFCFPARITYOVERFLOW_FROMA
+       _Loop_
         ALIGNrm
 GRP38
 	get
@@ -2290,8 +2301,8 @@ GRP38
 	jr z,NEGr8
 	cp 0b00100000
 	jp z,MULr8 ;for fbird "mul ah"
-	;cp 0b00101000
-	;jp z,IMULr8
+	cp 0b00101000
+	jp z,IMULr8 ;for rogue "imul ah"
 	cp 0b00110000
 	jp z,DIVr8 ;for invaders "div cl"
 	;cp 0b00111000
@@ -2306,6 +2317,25 @@ MULrmmem8
 	ld de,(_AX)
         ld d,b;0
 	call MUL16 ;HLDE=DE*BC
+       ;ld (_DX),hl ;надо ли?
+        ld (_AX),de
+       pop de
+       _Loop_
+IMULr8
+;imul ah: ax=+-al*+-ah?
+        ld c,(hl) ;reg
+IMULrmmem8
+       push de
+        ld a,c
+        rla
+        sbc a,a
+        ld b,a
+	ld a,(_AL)
+        ld e,a
+        rla
+        sbc a,a
+        ld d,a
+	call MUL16SIGNED ;HLDE=DE*BC
        ;ld (_DX),hl ;надо ли?
         ld (_AX),de
        pop de
@@ -2327,7 +2357,6 @@ DIVrmmem8
        pop de
        _Loop_
 
-
 TESTr8i8
         ld c,(hl)
 TESTrmmemi8
@@ -2337,17 +2366,6 @@ TESTrmmemi8
 ;The OF and CF flags are set to 0. The SF, ZF, and PF flags are set according to the result (see the "Operation" section above). The state of the AF flag is undefined.
         KEEPLOGICCFPARITYOVERFLOW_FROMA
        _LoopC
-NOTr8 ;no flags
-        ld a,(hl)
-        cpl
-        ld (hl),a
-       _Loop_
-NEGr8
-        xor a
-        sub (hl)
-        ld (hl),a
-        KEEPHFCFPARITYOVERFLOW_FROMA
-       _Loop_
 GRP38mem
        ADDRm16_GETm8c_for_PUTm8
        and 0b00111000
@@ -2358,8 +2376,8 @@ GRP38mem
 	jr z,NEGrmmem8
 	cp 0b00100000
 	jp z,MULrmmem8
-	;cp 0b00101000
-	;jp z,IMULrmmem8
+	cp 0b00101000
+	jp z,IMULrmmem8
 	cp 0b00110000
 	jp z,DIVrmmem8
 	;cp 0b00111000

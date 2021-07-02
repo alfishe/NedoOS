@@ -317,10 +317,10 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	rra 				;4	;Z80 HF(AF) = 0		xxx0 xxxx
 	;ex af,af' ;'			;4 22
         jp 3f
-1	pop af				;10
-	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
-	;ex af,af' ;'			;4 18
-	jp 3f	
+;1	pop af				;10
+;	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
+;	;ex af,af' ;'			;4 18
+;	jp 3f	
 4;sbc_with_carry
 ;half carry part
 	ld a,l			;4
@@ -430,10 +430,10 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	rra 				;4	;Z80 HF(AF) = 0		xxx0 xxxx
 	;ex af,af' ;'			;4 22
         jp 3f
-1	pop af				;10
-	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
-	;ex af,af' ;'			;4 18
-	jp 3f	
+;1	pop af				;10
+;	cpl	;если не нужен A	;4	;Z80 HF(AF) = 1		xxx1 xxxx
+;	;ex af,af' ;'			;4 18
+;	jp 3f	
 4;adc_with_carry
 ;half carry part
 	ld a,l			;4
@@ -742,7 +742,7 @@ tprog
         ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
         ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system) ;сам себя запарывает
+        db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
