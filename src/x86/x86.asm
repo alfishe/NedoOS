@@ -742,13 +742,13 @@ tprog
         ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
         ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
-        ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
         db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
@@ -1063,7 +1063,7 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
 PUTscreen_logpgc_zxaddrhl_datamhl_do
 _PUTscreen_do_patch=$
 _PUTscreen_do_patch_vgadata=0x044e ;ld c,(hl):inc b
-        jr PUTscreen_textmode ;/ld c,(hl):inc b
+        jr PUTscreen_textmode ;/ld c,(hl):inc b (b=trecolour/256)
 ;a=1..4*0x40
         add a,h
         ld h,a
@@ -1429,7 +1429,8 @@ filltpgs0
         OS_NEWPAGE
         pop hl
      ld a,l
-     cp 4 ;чистим первые 4 страницы ;para512 ожидает чистую память после себя
+     add a,-40
+     cp 4-40 ;чистим первые 4 страницы и экран с остатком памяти ;para512 ожидает чистую память после себя, pillman ожидает чистый экран
      ;jr nc,filltpgs0_noclear
        push de
        push hl

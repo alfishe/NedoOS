@@ -769,7 +769,7 @@ CMPrmr8
         ld l,a
         ld h,_AX/256
         ld l,(hl) ;reg8 addr
-       ld a,c
+       ld a,b
         sub (hl) ;op
         KEEPHFCFPARITYOVERFLOW_FROMA
        _LoopC
@@ -2688,6 +2688,13 @@ DECrmmem8
 JMPr16
         GETr16_de
         jp JMPr16q
+DECr16
+       push hl
+        GETr16
+	decbcwithflags
+        jr _pophl_PUTr16Loop_
+       ;pop hl
+       ;_PUTr16Loop_
         ALIGNrm
 GRP416
 ;a=MD000R/M: inc r/m16
@@ -2725,15 +2732,9 @@ INCr16
 _pophl_PUTr16Loop_
        pop hl
        _PUTr16Loop_
-DECr16
-       push hl
-        GETr16
-	decbcwithflags
-        jr _pophl_PUTr16Loop_
-       ;pop hl
-       ;_PUTr16Loop_
 CALLr16
         GETr16_hl
+       decodePC
         ex de,hl ;new IP(PC)
         ld b,h
         ld c,l ;=old IP(PC)
@@ -2790,6 +2791,7 @@ CALLrmmem16
         ld h,b
         ld l,c
 _CALLrmmem16q
+       decodePC
         ex de,hl ;new IP(PC)
         ld b,h
         ld c,l ;=old IP(PC)
@@ -2807,7 +2809,7 @@ CALLFm1616mem ;высчитывается эффективный адрес, и 
        ld (_CS),bc ;new CS
        countCS
        pop hl ;new IP(PC)
-        jr _CALLrmmem16q
+        jp _CALLrmmem16q
 
         ALIGNrm
 IMULr16rmi8

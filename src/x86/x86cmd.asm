@@ -288,7 +288,7 @@ XLATBer
         ld l,a
         jr nc,$+3
         inc h
-        call ADDRGETm16_pp_ds_nodisp
+        call ADDRGETm16_pp_ds_nodisp ;может подменить сегмент
         ld a,(hl)
         ld (_AL),a
        _LoopC
@@ -816,6 +816,7 @@ CALLptr1616
         getBC ;cs
         ld (_CS),bc ;new CS
         countCS
+       decodePC
         LD b,d
         ld c,e ;=old PC
        pop de ;new PC
@@ -1502,6 +1503,7 @@ INT16
         pop de
         jr nz,INT16q ;no focus
 INT16havekey
+       ;ld a,0x48
         ld (prefetchedkey),a
         ld b,a
         ex af,af' ;'
@@ -1527,6 +1529,25 @@ prefetchedkey=$+1
         pop de
 INT_inputal_a
 	ld (_AL),a
+         ld c,1
+         cp key_esc
+         jr z,INT_inputal_a_scancodeq
+         ld c,0x4b
+         cp key_left
+         jr z,INT_inputal_a_scancodeq
+         ld c,0x4d
+         cp key_right
+         jr z,INT_inputal_a_scancodeq
+         ld c,0x48
+         cp key_up
+         jr z,INT_inputal_a_scancodeq
+         ld c,0x50
+         cp key_down
+         jr z,INT_inputal_a_scancodeq
+         ld c,a
+INT_inputal_a_scancodeq
+         ld a,c
+	 ld (_AH),a ;scancode for pillman
         xor a
         ld (prefetchedkey),a
 INT16q

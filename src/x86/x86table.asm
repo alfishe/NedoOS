@@ -274,7 +274,7 @@ MAINCOMS
         DCOM CLDer
         DCOM STDer
         DCOM GRP48 ;inc/dec rm8
-        DCOM GRP416 ;inc/dec rm16, push rm16, FF MOD01fRM disp16 = CALLrm+... /f - межсегментный/, FF 25 = jmp word [di]
+        DCOM GRP416 ;inc/dec rm16, push rm16, FF MD01fR/M disp16 = CALLrm+... /f - межсегментный/, FF 25 = jmp word [di]
 
 	;DISPLAY $-MAINCOMS,"=256"
         ORG $+256
