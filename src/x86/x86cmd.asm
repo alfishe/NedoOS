@@ -1395,6 +1395,12 @@ INT_gettimer
 ;        inc hl
 ;        ld (_microtimer),hl
        ld hl,(timer)
+       srl h
+       rr l
+       srl h
+       rr l
+       srl h
+       rr l
         ld (_DX),hl
        _Loop_
 

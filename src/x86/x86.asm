@@ -751,7 +751,7 @@ tprog
         db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
-        db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
+        ;db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
        endif
         ;DB "pc102782.bin",0
 

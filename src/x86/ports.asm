@@ -68,6 +68,10 @@ IN_bc_to_bc
         jr nz,IN_skip
 ;in al,0x40          ; Read timer counter 0 
 	ld bc,(timer)
+       ;srl b
+       ;rr c
+       ;srl b
+       ;rr c
        ld b,c
        ld a,r
        add a,c
