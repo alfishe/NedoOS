@@ -3,11 +3,13 @@
 
 STACK=0x4000
 
+       if 0
 BASIC=0
        if BASIC
 STARTPC=0x7c00
        else
 STARTPC=0x0100
+       endif
        endif
 
 SHIFTCOUNTMASK=1 ;and 31
@@ -631,6 +633,21 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 
         org PROGSTART
 begin
+        ld hl,COMMANDLINE ;command line
+        call skipword
+        call skipspaces
+        ld a,(hl)
+        or a
+        jr z,noautoload
+;command line = "x86 <file to load>"
+       ld (filenameaddr),hl
+       ld hl,0x100
+       ld (loadaddr),hl
+       jr autoloadq
+noautoload
+        ld de,path
+        OS_CHDIR
+autoloadq
         jp init
 initq
 Reset       
@@ -660,11 +677,13 @@ Reset
        if 1
         ld bc,0
         ld (_CS),bc
-        countCS      
-        ld de,STARTPC
+        countCS
+loadaddr=$+1
+        ld de,0x7c00;STARTPC
        push de
         encodePC;memCS ;out: a=physpg, de=zxaddr
         ex de,hl
+filenameaddr=$+1
         ld de,tprog
 ;de=имя файла
 ;hl=куда грузим
@@ -676,6 +695,10 @@ Reset
         LD IY,EMUCHECKQ
         ;EI 
        _LoopC_JP
+
+quiter
+        call swapimer ;сначала прерывания ничего не делают (iff0==0)
+        QUIT
        
        if 0
 jpiyer
@@ -734,9 +757,9 @@ loadfile_in_hl
 trom0
         db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
 tprog
-       if BASIC
+       ;if BASIC
         db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
-       else
+       ;else
         ;db "main.img",0
         ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
         ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
@@ -748,11 +771,11 @@ tprog
         ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
-        db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
+        ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
         ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
         ;db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
-       endif
+       ;endif
         ;DB "pc102782.bin",0
 
 pgprog
@@ -792,6 +815,10 @@ on_int
 	ld hl,(timer)
 	inc hl
 	ld (timer),hl
+       ld a,0xf7
+       in a,(0xfe)
+       and 0b10101
+       jp z,quiter ;1+2+3 = quit
         ;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
 ;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
@@ -1403,9 +1430,6 @@ init
         ;ld e,0
         ;OS_CLS
 
-        ld de,path
-        OS_CHDIR
-
         ld sp,STACK
         ;ld de,diskname
         ;OS_OPENHANDLE
@@ -1470,6 +1494,26 @@ filltscreenpgs0
         jp initq
 path
         db "x86",0
+skipword
+;hl=string
+;out: hl=terminator/space addr
+getword0
+        ld a,(hl)
+        or a
+        ret z
+        cp ' '
+        ret z
+        inc hl
+        jr getword0
+
+skipspaces
+;hl=string
+;out: hl=after last space
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces
 
 end
         display "end=",$

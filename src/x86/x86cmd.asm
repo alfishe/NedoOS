@@ -75,8 +75,8 @@ EXTer
 ;0f b6 d0 = movzx dx,al (move with zero-extend)
 ;0f b6 c2 = movzx ax,dl (move with zero-extend)
 ;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
-;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;TODO (for pixeltwn)
-;0F 83 (A4 00) JNC rel16/32 Jump near if not below/above or equal/not carry (CF=0) ;TODO (for pixeltwn)
+;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;(for pixeltwn)
+;0F 83 (A4 00) JNC rel16/32 Jump near if not below/above or equal/not carry (CF=0) ;(for pixeltwn)
 ;0F 85 (6B FF) jnz rel16 (for megapole)
 ;0F AF C3 imul ax,bx (for megapole)
 ;0F 45 C1 CMOVNZ ax,cx (for megapole) Conditional Move - not zero/not equal (ZF=0)
@@ -430,8 +430,9 @@ CMCer
        _Loop_
 
 PUSHAer
+;Сохранить в стеке регистры AX, CX, DX, BX, исходный (TODO) SP, BP, SI и DI
         ld hl,_AX
-        ld b,12
+        ld b,8
 _PUSHAer0
         push bc
         ld c,(hl)
@@ -443,7 +444,6 @@ _PUSHAer0
         pop hl
         pop bc
         djnz _PUSHAer0
-;TODO flags
        _Loop_
 
 PUSHi8
@@ -500,8 +500,10 @@ _PUSHq
        _LoopC
 
 POPAer
-        ld hl,_AX+(12*2)
-        ld b,12
+;Загрузить из стека регистры DI, SI, BP, BX, DX, CX и AX
+;Команда POPA проделывает действия обратные команде PUSHA, восстанавливая регистры общего назначения к значениям, бывшим в них до выполнения команды PUSHA, кроме регистра SP, который пропускается (TODO)
+        ld hl,_AX+(8*2)
+        ld b,8
 _POPAer0
         push bc
         push hl
@@ -513,8 +515,6 @@ _POPAer0
         ld (hl),c
         pop bc
         djnz _POPAer0
-;TODO recode segments
-;TODO flags
        _Loop_
 
 POPFer
