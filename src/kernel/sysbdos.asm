@@ -179,7 +179,7 @@ BDOS_preparedepage
         jr nz,BDOS_preparedepage4000_8000
         set 7,d
 	ld (depage8000),a
-        ld a,(curpg16k+0x8000)
+        ld a,(curpg4000+0x8000)
         ;ld bc,memportc000
         ;out (c),a
 	ld (depagec000),a
@@ -188,18 +188,18 @@ BDOS_preparedepage4000_8000
         ld a,d
         add a,0x40
         ld d,a
-        ld a,(curpg32klow+0x8000)
+        ld a,(curpg8000+0x8000)
         ;call sys_setpgc000
 	ld (depagec000),a
-        ld a,(curpg16k+0x8000)
+        ld a,(curpg4000+0x8000)
         ;call sys_setpg8000
 	ld (depage8000),a
         ret
 BDOS_preparedepage8000_c000
-        ld a,(curpg32khigh+0x8000)
+        ld a,(curpgc000+0x8000)
         ;call sys_setpgc000
 	ld (depagec000),a
-        ld a,(curpg32klow+0x8000)
+        ld a,(curpg8000+0x8000)
         ;call sys_setpg8000
 	ld (depage8000),a
         ret

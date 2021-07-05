@@ -14,6 +14,7 @@ STARTPC=0x0100
 
 SHIFTCOUNTMASK=1 ;and 31
 AFFLAG_16BIT=1 ;only for add_test
+FASTADC16WITHFLAGS=0 ;NS
 
 ;PC=0x4000...
 ;SP=0x8000...
@@ -287,7 +288,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
 	ex af,af' ;'
 	endm
 
-       if AFFLAG_16BIT ;NS
+       if FASTADC16WITHFLAGS;AFFLAG_16BIT ;NS
         macro SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
 	jr c,4f;sbc_with_carry	;7/12 ;[10]
 ;sbc_without_carry
@@ -400,7 +401,7 @@ _getmemspBC_skipsize=$-_getmemspBC_base
         endm
        endif
 
-       if AFFLAG_16BIT ;NS
+       if FASTADC16WITHFLAGS;AFFLAG_16BIT ;NS
         macro ADCHLBC_KEEPCFPARITYOVERFLOW_FROMHL ;для математики OF надо брать из P/O!
 	jr c,4f;adc_with_carry	;7/12 ;[10]
 ;adc_without_carry
@@ -657,7 +658,7 @@ Reset
         ld bc,0
         ld (_SS),bc
         countSS
-        ld hl,0xff00
+        ld hl,0x7f00
         ld (_SP),hl
         encodeSP
         
@@ -710,11 +711,11 @@ jpiyer
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 0 ;debug
-       ld a,d
-       sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 2
-       jr nc,$
+       if 1 ;debug
+       ;ld a,d
+       ;sub 0x40+((STARTPC/256)&0x3f);0x7c
+       ;cp 0x3f
+       ;jr nc,$
        ;ld a,(_SP)
        ;rra
        ;jr c,$
@@ -748,7 +749,7 @@ loadfile_in_hl
         OS_OPENHANDLE
         pop de ;куда грузим
         push bc ;b=handle
-        ld h,0x40 ;столько грузим (если столько есть в файле)
+        ld h,0x7f ;столько грузим (если столько есть в файле)
         OS_READHANDLE
         pop bc ;b=handle
         OS_CLOSEHANDLE
@@ -757,25 +758,11 @@ loadfile_in_hl
 trom0
         db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
 tprog
-       ;if BASIC
-        db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
-       ;else
-        ;db "main.img",0
-        ;db "test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран
-        ;db "add_test.img",0 ;Его надо запускать в 0:0100h, пишет прямо в текстовый экран ;AFFLAG_16BIT=1!!!
-        ;db "paporot.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        ;db "gfxcom.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        ;db "para512.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
-        ;db "railways.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
+        db "atomchess.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
+        ;db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
-        ;db "pixeltwn.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system), Pentium 3
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)
-        ;db "pillman.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
-        ;db "fbird.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#0,1 (key available)
-        ;db "rogue.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h
-        ;db "invaders.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
-       ;endif
         ;DB "pc102782.bin",0
 
 pgprog

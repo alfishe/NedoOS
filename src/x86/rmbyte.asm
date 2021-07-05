@@ -257,7 +257,7 @@ encodeSPhlLoop
        _LoopC
         endm
 
-        macro _PUTm16LoopC_oldpglx
+        macro _PUTm16_oldpglx
 ;hl=addr
 ;bc=data
 ;lx=pg
@@ -271,7 +271,7 @@ encodeSPhlLoop
 	ld (hl),a
          ld c,lx
        _PUTscreen_logpgc_zxaddrhl_datamhl ;TODO убрать там повторный ld c,lx:ld b,.../256
-       _LoopC
+       ;_LoopC
         endm
 
         macro _PUTm16LoopC
@@ -284,7 +284,8 @@ encodeSPhlLoop
          ld a,(bc)
 	SETPGC000
        pop bc ;bc=data
-       _PUTm16LoopC_oldpglx
+       _PUTm16_oldpglx
+       _LoopC
         endm
 
         macro _PUTm16hlLoopC ;(instead of ld b,h:ld c,l:pop hl:_PUTm16LoopC)
@@ -297,7 +298,8 @@ encodeSPhlLoop
          ld a,(bc)
 	SETPGC000
        pop bc ;bc=data
-       _PUTm16LoopC_oldpglx
+       _PUTm16_oldpglx
+       _LoopC
         endm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

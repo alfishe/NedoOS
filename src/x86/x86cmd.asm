@@ -679,7 +679,8 @@ MOVmemax
        ;  ld a,(bc)
 	;SETPGC000
         ld bc,(_AX)
-       _PUTm16LoopC_oldpglx
+       _PUTm16_oldpglx
+       _LoopC
 
 ;mov al,[addr]
         ALIGNrm
@@ -1040,6 +1041,9 @@ XCHGaxsi
 XCHGaxdi
 	XCHGAXRP _DI
 
+       macro INCDEC2HLbyDIRECTION
+        call incdec2si_hl
+       endm
        macro INCDECSIbyDIRECTION
 	ld hl,(_SI)
         call incdecsi_hl
@@ -1098,6 +1102,51 @@ REPNZer
 	;jp z,REPSCASWer
 	jr $;jp PANIC
 
+REPMOVSWer_scr
+	ld hl,(_DI)
+       push hl
+	ld bc,(_CX)
+	ld hl,(_SI)
+REPMOVSWer_scr0
+        push bc
+        push hl
+	ld bc,(ds_LSW)
+	ld a,(ds_HSB)
+        ADDRSEGMENT_chl_bHSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+         GETm16
+       push bc
+         ld a,c
+	ld hl,(_DI)
+	ld bc,(es_LSW)
+	ld a,(es_HSB)
+        ADDRSEGMENT_chl_bHSB
+         ld lx,c
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       pop bc
+        _PUTm16_oldpglx
+        INCDEC2DIbyDIRECTION
+        pop hl
+        INCDEC2HLbyDIRECTION
+        pop bc
+	dec bc
+        ld a,b
+        or c
+        jp nz,REPMOVSWer_scr0
+        ;ld hl,0
+	ld (_CX),bc
+       ld hl,(_DI)
+       pop bc ;DI old
+       sbc hl,bc ;was NC
+       ld bc,(_SI)
+       add hl,bc
+       ld (_SI),hl
+       _LoopC
+
         ALIGNrm
 MOVSWer
 	ld hl,(_SI)
@@ -1128,6 +1177,9 @@ MOVSBer
 REPMOVSWer
 ;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
+       ld a,(_ES+1)
+       cp 0xa0
+       jp nc,REPMOVSWer_scr
        ;ld hl,(_CX)
        ;ld a,h
        ;or l
@@ -1337,6 +1389,7 @@ OPSIZEr
 ;костыль для para512
         get
         next
+;TODO check
 ;for lodsd
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
@@ -1401,8 +1454,8 @@ INT_gettimer
        rr l
        srl h
        rr l
-       srl h
-       rr l
+       ;srl h
+       ;rr l
         ld (_DX),hl
        _Loop_
 

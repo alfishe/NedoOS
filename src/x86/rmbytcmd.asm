@@ -116,8 +116,22 @@ MOVrmmemr16
         ld c,(hl)
         inc l
         ld b,(hl) ;reg16
+pophl_PUTm16LoopC
        pop hl
        _PUTm16LoopC
+
+        ALIGNrm
+POPrm16
+        get
+        next
+        cp 0b11000000
+        jr nc,$ ;not mem
+        ADDRm16_for_PUTm16_nokeepaf
+        push hl
+        getmemspBC
+       ; pop hl
+       ;_PUTm16LoopC
+       jr pophl_PUTm16LoopC
 
         ALIGNrm
 MOVr8rm
@@ -2936,17 +2950,5 @@ XCHGr8rmmem
         ld (hl),c
        pop hl
        _PUTm8aLoopC_oldpglx
-
-        ALIGNrm
-POPrm16
-        get
-        next
-        cp 0b11000000
-        jr nc,$ ;not mem
-        ADDRm16_for_PUTm16_nokeepaf
-        push hl
-        getmemspBC
-        pop hl
-       _PUTm16LoopC
 
        display "muls size=",$-beginmuls
