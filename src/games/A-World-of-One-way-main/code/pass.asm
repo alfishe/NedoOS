@@ -54,6 +54,10 @@ setLevPass:
 	add hl,hl
 	add hl,hl
 	add hl,hl
+       if EGA
+       set 7,h
+       set 6,h
+       endif
 .loop:
 	ld a,(hl)
 	xor l

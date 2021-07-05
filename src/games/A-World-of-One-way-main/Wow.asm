@@ -49,7 +49,8 @@ begin
 
         ld e,3+0x80 ;6912+keep
         ;ld e,0+0x80 ;EGA+keep
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ;OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        call setgfx
 
         ld e,0 ;color byte
         OS_CLS
@@ -157,11 +158,20 @@ code:
         include "mem.asm"
         include "int.asm"
 
+curgfxmode
+        db 0
+
+setgfx
+       ld a,e
+       ld (curgfxmode),a
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ret
+
 set6912
         ld de,emptypal
         OS_SETPAL
         ld e,3+0x80 ;6912+keep
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        call setgfx
         ld a,(user_scr0_high) ;ok
         SETPG16K
         ld e,0
@@ -174,7 +184,7 @@ setEGA
         ld de,emptypal
         OS_SETPAL
         ld e,0+0x80 ;EGA+keep
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        call setgfx
         ld e,0 ;color byte
         OS_CLS
         call setpgsscr40008000_current
@@ -223,6 +233,52 @@ prbgforspr
        ld a,(ix+oData.drawMethod)
        cp 2
        ret z
+       
+    if 1
+        ld a,(ix+oData.y)
+        cp (ix+oData.preY)
+        jr c,$+5
+        ld a,(ix+oData.preY)
+        ld l,a
+        ld e,(ix+oData.x)
+; L = Y; E = X (in pixels)
+       push hl ;l=minY
+        call getScrAddrByCoords ;hl=scraddr
+        ex de,hl
+       pop hl ;l=minY
+        ld a,(ix+oData.y)
+        cp (ix+oData.preY)
+        jr nc,$+5
+        ld a,(ix+oData.preY)
+        add a,16 ;a=maxY
+        sub l
+       push af ;hsb=hgt
+       ld c,l ;minY
+        ld a,(ix+oData.x)
+        rra
+        and 4
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+       ld a,c ;minY
+        and 15
+        ld c,a
+        ld b,0
+        add hl,bc
+        ld bc,megafloor
+        add hl,bc
+       pop bc ;hsb=hgt
+        ld c,8
+;hl=gfx
+;de=scr
+;b=hgt,c=8
+    else    
+       
         ld e,(ix+oData.x)
         ld a,(ix+oData.y)
         and 0xf0
@@ -297,6 +353,12 @@ prbgforspr
           add a,16
           ld b,a
 .nogovert
+
+   endif
+;hl=gfx
+;de=scr
+;b=hgt
+
        ld a,(ix+oData.x)
        and 7
        jr z,$+4

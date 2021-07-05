@@ -113,6 +113,12 @@ play:
         ; shouldn't happen!
         ret nz
 
+       if EGA
+        ld a,(curgfxmode)
+        or 8
+        ld e,a;0+0x80+8 ;EGA+keep+noturbo
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+       endif
         ; noise
         ld a, (sfx_freq)
         ld d, a
@@ -134,6 +140,12 @@ noise_freq_loop:
         jr noise_loop
 
 tone:
+       if EGA
+        ld a,(curgfxmode)
+        or 8
+        ld e,a;0+0x80+8 ;EGA+keep+noturbo
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+       endif
         ld a, (sfx_freq)
         ld d, a
 
@@ -165,6 +177,11 @@ noise_done:
         ld a, (sfx_freq_chg)
         add d
         ld (sfx_freq), a
+       if EGA
+        ld a,(curgfxmode)
+        ld e,a;0+0x80 ;EGA+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+       endif
 
         ret
 
