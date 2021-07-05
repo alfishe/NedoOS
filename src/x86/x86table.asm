@@ -155,7 +155,7 @@ MAINCOMS
         DCOM MOVrm16sreg
         DCOM LEAr16rm ;(for ladybug)
         DCOM MOVsregrm16
-        DCOM PANIC ;POPrm16
+        DCOM POPrm16 ;(for rogue)
 ;#9x
         DCOM NOPer
         DCOM XCHGaxcx

@@ -1193,7 +1193,9 @@ PUTscreen_textmode
         ld a,(user_scr0_high) ;ok
         SETPGC000
        pop bc
-        ld (hl),c
+       ld b,t866toatm/256
+       ld a,(bc)
+        ld (hl),a
         ret
 PUTscreen_attr
          rra
@@ -1396,6 +1398,10 @@ timer
         ds 8,_BH&0xff
         align 256
 	include "x86table.asm"
+
+        align 256
+t866toatm
+        incbin "../kernel/866toatm"
 
         align 256
        macro dbrrc3 data

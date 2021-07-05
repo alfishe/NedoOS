@@ -2937,4 +2937,16 @@ XCHGr8rmmem
        pop hl
        _PUTm8aLoopC_oldpglx
 
+        ALIGNrm
+POPrm16
+        get
+        next
+        cp 0b11000000
+        jr nc,$ ;not mem
+        ADDRm16_for_PUTm16_nokeepaf
+        push hl
+        getmemspBC
+        pop hl
+       _PUTm16LoopC
+
        display "muls size=",$-beginmuls

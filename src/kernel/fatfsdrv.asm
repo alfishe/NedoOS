@@ -11,7 +11,7 @@
 
 	 ifdef KOE
         macro NOPSDCARD
-        ds 4
+        ;ds 4
         endm
          else
         macro NOPSDCARD

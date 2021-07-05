@@ -1384,6 +1384,8 @@ INTi8
         jr z,INT21
         cp 0x80
         jr nc,intlooper ;костыль для megapole
+        cp 0x20
+        jp z,quiter
        jr $
 intlooper
        _Loop_

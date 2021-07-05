@@ -1,0 +1,1 @@
+start "" /affinity 2 emul.exe

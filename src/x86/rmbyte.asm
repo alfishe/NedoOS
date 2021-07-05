@@ -195,7 +195,7 @@ encodeSPhlLoop
          GETm16
         endm
 
-        macro ADDRm16_for_PUTm16_nokeepaf ;for MOVrmmemi16
+        macro ADDRm16_for_PUTm16_nokeepaf ;for MOVrmmemi16, POPrm16
         call ADDRGETm16_pp
         ;ADDRSEGMENT_chl_bHSB
         ; ld lx,c
@@ -217,8 +217,8 @@ encodeSPhlLoop
         ; ld lx,c
         push hl
         GETm16
-        pop hl
-       pop af
+        pop hl ;TODO
+       pop af ;;TODO a проносить в hx, pop hl убрать, т.к. далее обычно стоит push hl
         endm
 
         macro skip2b_GETm16
