@@ -243,7 +243,7 @@ control_imer_oldmousewheel=$+2
         sub hx
         ;ld (mouse_scrollvalue),a
         jr z,nowheelmove
-        jp m,term_pgdown
+        jp p,term_pgdown
         jp term_pgup
 nowheelmove
         ;ld a,0

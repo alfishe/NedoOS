@@ -459,12 +459,12 @@ html_up
         ret
 html_up_scroll
 mouse_scrollvalue=$+1
-        ld a,0 ;*0x10
+        ld a,0 ;*-0x10
 html_up_scroll0
         push af
         call html_up_scroll1
         pop af
-        sub 0x10
+        add a,0x10;sub 0x10
         jr nz,html_up_scroll0
         ret
 html_up_scroll1
@@ -490,12 +490,12 @@ html_down
         ld (htmlcursorxy+1),a
         ret
 html_down_scroll
-        ld a,(mouse_scrollvalue) ;*-0x10
+        ld a,(mouse_scrollvalue) ;*+0x10
 html_down_scroll0
         push af
         call html_down_scroll1
         pop af
-        add a,0x10
+        sub 0x10;add a,0x10
         jr nz,html_down_scroll0
         ret
 html_down_scroll1

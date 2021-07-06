@@ -894,7 +894,7 @@ control_imer_oldmousewheel=$+2
         ;neg
         ;ld (mouse_scrollvalue),a        
         ld a,key_down_scroll
-        ret m ;nz        
+        ret p;m ;nz        
 ;yieldgetkeynolang_scrollup
         ld a,key_up_scroll
         ret ;nz
