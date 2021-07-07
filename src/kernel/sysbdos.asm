@@ -3135,7 +3135,7 @@ _wrongpg=0xff
         endif
        endif
        ifdef KOE
-        if (_ >= (64+8)) && (_ <= (64+12))
+        if (_ >= (64+8)) && (_ <= (64+12)) ;TODO ramdisk тоже?
 _wrongpg=0xff
         endif
        endif

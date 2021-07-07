@@ -61,13 +61,31 @@ curscrnum_int=$+1
         ld a,lx
         ld (kempstonbuttons),a
         endif
+
+       ifdef CLIENT
+       if TCP
+       if CLIENT
+;отправить клавиатуру
+;принять истинную клавиатуру
+       else ;SERVER
+;принять клавиатуру
+;наложить на нашу клавиатуру
+;отправить истинную клавиатуру
+       endif
+       else ;UDP
+;TODO
+       if CLIENT
+       else ;SERVER
+       endif
+       endif
+       endif
         
-        if 1==0
-        GET_KEY
-        ld a,c ;кнопка без учёта языка
-        or a
-        jr z,$+5
-        ld (curkey),a
+        if VIRTUALKEYS
+        ;GET_KEY
+        ;ld a,c ;кнопка без учёта языка
+        ;or a
+        ;jr z,$+5
+        ;ld (curkey),a
         
         OS_GETKEYMATRIX
 	rr c ;'a'
@@ -96,8 +114,9 @@ curscrnum_int=$+1
 	bit 2,h ;8
 	jr z,$+3
 	inc a ;Right
-        cpl 
-        ld (joystate),a
+        ;cpl 
+        ld (joy1state),a
+       ;display "joy1state=",joy1state
 ;bit - button (ZX key)
 ;7 - A (A)
 ;6 - B (S)
@@ -167,6 +186,13 @@ on_int_jp=$+1
 
 timer
         db 0
+
+       if VIRTUALKEYS
+joy1state
+        db 0xff
+joy2state
+        db 0xff
+       endif
 
 PLAYS
 	LD	A,(SOUNDW)

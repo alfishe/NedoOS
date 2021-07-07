@@ -500,16 +500,21 @@ TABL	DEFW	32766
 	DEFB	255
 	DEFB	255
 REDIFIN
-		LD      HL,(Keys1PlStart)	;ждем отпускания клавиши START
-		LD      B,H					
-		LD      C,#FE				
-		IN      A,(C)
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;ждем отпускания клавиши START
+	LD      B,H					
+	LD      C,#FE				
+	IN      A,(C)
         AND     L
-		JR		Z,REDIFIN
-		LD		A,8					;проигрываем звуковой эффект
-		CALL	AFXPLAY
-		CALL	PLAYSA
-		CALL	CLSR				;очищаем экран и выводим надписи
+       endif
+	JR		Z,REDIFIN
+	LD		A,8					;проигрываем звуковой эффект
+	CALL	AFXPLAY
+	CALL	PLAYSA
+	CALL	CLSR				;очищаем экран и выводим надписи
 REDIFI2
 	CALL	TESTKEY
 	LD	HL,TEX1
@@ -619,15 +624,21 @@ TANK	DEFB	0
 TANKP	DEFB	0 ;sprite phase
 KORM	DEFW	104
 KORM2	DEFW	126
-KEYDD2	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
-		LD      B,H					;LD		BC,(Keys1PlDn)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+KEYDD2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
+	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
+	LD      B,H					;LD		BC,(Keys1PlDn)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,KEYDD2
-		LD		A,1
-		CALL	AFXPLAY
-		CALL	PLAYSA
+       endif
+	JR		Z,KEYDD2
+	LD		A,1
+	CALL	AFXPLAY
+	CALL	PLAYSA
 
 	LD	HL,(KORM2)
 	LD	DE,10
@@ -640,15 +651,21 @@ KEYDD2	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
 
 KEYDD3	LD	HL,126
 	RET
-KEYUU2	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
-		LD      B,H					;LD		BC,(Keys1PlUp)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+KEYUU2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
+	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
+	LD      B,H					;LD		BC,(Keys1PlUp)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,KEYUU2
-		LD		A,1
-		CALL	AFXPLAY
-		CALL	PLAYSA
+       endif
+	JR		Z,KEYUU2
+	LD		A,1
+	CALL	AFXPLAY
+	CALL	PLAYSA
 	LD	HL,(KORM2)
 	LD	DE,10
 	SBC	HL,DE
@@ -692,11 +709,17 @@ EDITOR;START
 	LD	A,8
 	CALL	AFXPLAY
 	CALL	PLAYSA2 ;play #17 sound frames
-STA	LD      HL,(Keys1PlStart)	;LD HL,Keys1PlStart+2
+STA
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD HL,Keys1PlStart+2
 	LD      B,H			;LD BC,(Keys1PlStart)
 	LD      C,#FE			;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JR	Z,STA ;wait START unpress
 		;LD		BC,BORDER
 		;LD		A,8
@@ -876,54 +899,76 @@ INSTAL
        endif
 	RET
 
-KEYDDD2	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
-		LD      B,H				;LD		BC,(Keys1PlDn)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+KEYDDD2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
+	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
+	LD      B,H				;LD		BC,(Keys1PlDn)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,KEYDDD2
-		LD		HL,(KORM2)
-		LD		DE,8
-		ADD		HL,DE
-		LD		A,L
-		CP		122-16
-		CALL	Z,KEYDDD3
-		LD		(KORM2),HL
-		RET
+       endif
+	JR		Z,KEYDDD2
+	LD		HL,(KORM2)
+	LD		DE,8
+	ADD		HL,DE
+	LD		A,L
+	CP		122-16
+	CALL	Z,KEYDDD3
+	LD		(KORM2),HL
+	RET
 KEYDDD3	LD	HL,90
 	RET
-KEYUUU2	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
-		LD      B,H				;LD		BC,(Keys1PlUp)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+KEYUUU2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
+	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
+	LD      B,H				;LD		BC,(Keys1PlUp)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,KEYUUU2
-		LD		HL,(KORM2)
-		LD		DE,8
-		SBC		HL,DE
-		LD		A,L
-		CP		82
-		CALL	Z,KEYUUU3
-		LD		(KORM2),HL
-		RET
+       endif
+	JR		Z,KEYUUU2
+	LD		HL,(KORM2)
+	LD		DE,8
+	SBC		HL,DE
+	LD		A,L
+	CP		82
+	CALL	Z,KEYUUU3
+	LD		(KORM2),HL
+	RET
 KEYUUU3	LD	HL,98
 	RET
 
 KEY2
 ;editor menu keys
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
 	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
-		LD      B,H				;LD		BC,(Keys1PlDn)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+	LD      B,H				;LD		BC,(Keys1PlDn)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		CALL	Z,KEYDDD2
-		LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
-		LD      B,H				;LD		BC,(Keys1PlUp)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+       endif
+	CALL	Z,KEYDDD2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
+	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
+	LD      B,H				;LD		BC,(Keys1PlUp)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		CALL	Z,KEYUUU2
-		RET
+       endif
+	CALL	Z,KEYUUU2
+	RET
 
 FLICKER	LD	A,SPRMYTANKLEVEL0;40
 	RET
@@ -961,18 +1006,30 @@ EXITM	POP	HL
 	JP	EXITKK
 
 
-ENTER	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
-		LD      B,H				;LD		BC,(Keys1PlStart)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+ENTER
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H				;LD		BC,(Keys1PlStart)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		RET	NZ
-ENTER2	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
-		LD      B,H				;LD		BC,(Keys1PlStart)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+       endif
+	RET	NZ
+ENTER2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H				;LD		BC,(Keys1PlStart)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR	Z,ENTER2
+       endif
+	JR	Z,ENTER2
 
        if 1==1 ;???
 	LD	A,(NOTILL)
@@ -1134,11 +1191,16 @@ CHBIT4	IN	A,(C)
 	RET
 
 SPACE
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE
+       else
 	LD      HL,(Keys1PlFr)	;LD HL,Keys1PlFr+2
 	LD      B,H		;LD BC,(Keys1PlFr)
 	LD      C,#FE		;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	RET	NZ ;fire not pressed
 	;LD	BC,PAGE3
 	;LD	A,#08
@@ -1389,84 +1451,126 @@ SPADD
 	RET
         endif
 
-KEYX	LD      HL,(Keys1PlFr2)	;LD HL,Keys1PlFr2+2
+KEYX
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE2
+       else
+	LD      HL,(Keys1PlFr2)	;LD HL,Keys1PlFr2+2
 	LD      B,H		;LD BC,(Keys1PlFr2)
 	LD      C,#FE		;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	RET	NZ ;fire2 not pressed
-KEYX2	LD      HL,(Keys1PlFr2)	;LD HL,Keys1PlFr2+2
+KEYX2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE2
+       else
+	LD      HL,(Keys1PlFr2)	;LD HL,Keys1PlFr2+2
 	LD      B,H		;LD BC,(Keys1PlFr2)
 	LD      C,#FE		;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JR	Z,KEYX2 ;wait fire2 unpress
-
-		LD		A,(CURSOR)
-		RES		7,A
-		CP		28
-		JR		Z,NOL
-		INC		A
-		INC		A
-		LD		(CURSOR),A
-		RET
+	LD		A,(CURSOR)
+	RES		7,A
+	CP		28
+	JR		Z,NOL
+	INC		A
+	INC		A
+	LD		(CURSOR),A
+	RET
 NOL	XOR	A
 	LD	(CURSOR),A
 	RET
 
-KEYR	LD      HL,(Keys1PlRt)	;LD		HL,Keys1PlRt+2
-		LD      B,H				;LD		BC,(Keys1PlRt)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+KEYR
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_RIGHT
+       else
+	LD      HL,(Keys1PlRt)	;LD		HL,Keys1PlRt+2
+	LD      B,H				;LD		BC,(Keys1PlRt)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR	Z,KEYR2
-		RET
-KEYL	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
-		LD      B,H				;LD		BC,(Keys1PlLt)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+       endif
+	JR	Z,KEYR2
+	RET
+KEYL
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_LEFT
+       else
+	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
+	LD      B,H				;LD		BC,(Keys1PlLt)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,KEYL2
-		RET
-KEYD	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
-		LD      B,H				;LD		BC,(Keys1PlDn)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+       endif
+	JP		Z,KEYL2
+	RET
+KEYD
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
+	LD      HL,(Keys1PlDn)	;LD		HL,Keys1PlDn+2
+	LD      B,H				;LD		BC,(Keys1PlDn)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,KEYD2
-		RET
-KEYU	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
-		LD      B,H				;LD		BC,(Keys1PlUp)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+       endif
+	JP		Z,KEYD2
+	RET
+KEYU
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
+	LD      HL,(Keys1PlUp)	;LD		HL,Keys1PlUp+2
+	LD      B,H				;LD		BC,(Keys1PlUp)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,KEYU2
-		RET
-KEYR2	LD		A,(NOTILL)
-		CP		1
-		JP		Z,KEYR3
-		LD		HL,(XCUR)
-		LD		A,1
-		CP		H
-		RET		Z
-		LD		DE,16
-		ADD		HL,DE
-		LD		(XCUR),HL
-		RET
+       endif
+	JP		Z,KEYU2
+	RET
+KEYR2
+	LD		A,(NOTILL)
+	CP		1
+	JP		Z,KEYR3
+	LD		HL,(XCUR)
+	LD		A,1
+	CP		H
+	RET		Z
+	LD		DE,16
+	ADD		HL,DE
+	LD		(XCUR),HL
+	RET
 
-KEYL33	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
-		LD      B,H				;LD		BC,(Keys1PlLt)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+KEYL33
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_LEFT
+       else
+	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
+	LD      B,H				;LD		BC,(Keys1PlLt)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,KEYL33
-		LD		HL,(KORM2)
-		LD		A,L
-;		CP		90
-;		JR      Z,KEYL333
-;		CP	98
-;		JR      Z,KEYL333
-		RET
+       endif
+	JR		Z,KEYL33
+	LD		HL,(KORM2)
+	LD		A,L
+;	CP		90
+;	JR      Z,KEYL333
+;	CP	98
+;	JR      Z,KEYL333
+	RET
 
 ;KEYL333	LD	HL,TEXT1
 ;	LD	DE,30
@@ -1496,19 +1600,25 @@ KEYL33	LD      HL,(Keys1PlLt)	;LD		HL,Keys1PlLt+2
 
 
 
-KEYR3	LD      HL,(Keys1PlRt)	;LD		HL,Keys1PlRt+2
-		LD      B,H				;LD		BC,(Keys1PlRt)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+KEYR3
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_RIGHT
+       else
+	LD      HL,(Keys1PlRt)	;LD		HL,Keys1PlRt+2
+	LD      B,H				;LD		BC,(Keys1PlRt)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,KEYR3
-		LD		HL,(KORM2)
-		LD		A,L
-		CP		90
-		JR		Z,KEYR33
-		CP		98
-		JR		Z,KEYR33
-		RET
+       endif
+	JR		Z,KEYR3
+	LD		HL,(KORM2)
+	LD		A,L
+	CP		90
+	JR		Z,KEYR33
+	CP		98
+	JR		Z,KEYR33
+	RET
 KEYR33	LD	HL,TEXT1
 	LD	DE,30
 	ADD	HL,DE
@@ -2289,27 +2399,32 @@ EGGLE ;eagle
 
 INTRO
 	LD		HL,0
-		LD		(JOINTP1),HL
-		LD		(JOINTP2),HL
-		XOR		A
-		LD		(PAUSE),A
-		LD		(PAU1),A
-		LD		(T1),HL
-		LD		(T2),HL
-		LD		(T3),HL
-		LD		(T4),HL
-		LD		(T12),HL
-		LD		(T22),HL
-		LD		(T32),HL
-		LD		(T42),HL
+	LD		(JOINTP1),HL
+	LD		(JOINTP2),HL
+	XOR		A
+	LD		(PAUSE),A
+	LD		(PAU1),A
+	LD		(T1),HL
+	LD		(T2),HL
+	LD		(T3),HL
+	LD		(T4),HL
+	LD		(T12),HL
+	LD		(T22),HL
+	LD		(T32),HL
+	LD		(T42),HL
 
-		LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
-		LD      B,H					;LD		BC,(Keys1PlStart)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H					;LD		BC,(Keys1PlStart)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JR		Z,INTRO
-		JP		INTRO2
+       endif
+	JR		Z,INTRO
+	JP		INTRO2
 INT2
 	LD	A,100
 	LD	(MMM),A
@@ -2489,13 +2604,18 @@ INTRO2	CALL	FX
 		LD		A,(MMM)
 		CP		100
 		JP		C,INTRO2
-		LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
-		LD      B,H					;LD		BC,(Keys1PlStart)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H					;LD		BC,(Keys1PlStart)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		RET		Z
-		JP		INTRO2
+       endif
+	RET		Z
+	JP		INTRO2
 
 FXN
 	LD	HL,#C001-512
@@ -2712,4 +2832,3 @@ XYFLY	DEFB	10,112; COORD SPRITES ON SCREEN
 SPBUFY	DEFW	0
 SPBUFX	DEFW	0
 WARTAN	DEFB	20 ;how many enemies remained? в гараже?
-

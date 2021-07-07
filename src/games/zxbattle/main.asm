@@ -1,18 +1,59 @@
 ﻿            DEVICE ZXSPECTRUM1024
+TCP=1
+        ifdef CLIENT
+VIRTUALKEYS=1
+        else
+VIRTUALKEYS=0
+        endif
+JOYMASK_SELECT=0b00100000
+JOYMASK_START =0b00010000
+JOYMASK_FIRE  =0b10000000
+JOYMASK_FIRE2 =0b01000000
+JOYMASK_UP    =0b00001000
+JOYMASK_DOWN  =0b00000100
+JOYMASK_LEFT  =0b00000010
+JOYMASK_RIGHT =0b00000001
+;7 - A (A)
+;6 - B (S)
+;5 - Select (Space)
+;4 - Start (Enter)
+;3 - Up (7)
+;2 - Down (6)
+;1 - Left (5)
+;0 - Right (8) 
+
 MANYLIVES=0;1 ;убрать при релизе!!!
 TILES87=0
 TILEHGT=8-TILES87
 DRAWFOREST=1
 KEMPSTON=1
             DEFINE  ProjName        ZXBattleCity
-            DEFINE  ProjVer         1_5
-            ;DEFINE  TRDName         "ZXBattleCity_1_5.trd"
-            ;DEFINE  BasicFName      "boot.B"
-            ;DEFINE  MainCodeFName   "city.C"
-            ;DEFINE  MainCodeStart   #6590   ;26000
+            DEFINE  ProjVer         1_6
 
-            ;EMPTYTRD TRDName
         include "../../_sdk/sys_h.asm"
+
+;************************* Возможные номера ошибок (errno)*************************
+SHUT_RDWR 		EQU 2
+ERR_EAGAIN		EQU 35		;/* Try again */
+ERR_EWOULDBLOCK	EQU ERR_EAGAIN	;/* Operation would block */
+ERR_INTR 		EQU 4
+ERR_NFILE 		EQU 23
+ERR_ALREADY 	EQU 37
+ERR_NOTSOCK 	EQU 38
+ERR_EMSGSIZE 	EQU 40    ;/* Message too long */
+ERR_PROTOTYPE 	EQU 41
+ERR_AFNOSUPPORT EQU 47
+ERR_HOSTUNREACH EQU 65
+ERR_ECONNABORTED EQU	53	/* Software caused connection abort */
+ERR_CONNRESET 	EQU 54
+ERR_NOTCONN 	EQU 57
+
+;************************* Протоколы соединений *************************
+SOCK_STREAM EQU 0x01		;tcp/ip
+SOCK_ICMP 	EQU 0x02		;icmp
+SOCK_DGRAM 	EQU 0x03		;udp/ip
+
+AF_INET EQU 2
 
 TOPYLOAD=32;0
 TOPY=0;32
@@ -233,15 +274,95 @@ MAINGO
         ld a,e
         ld (pgarea),a
 
-	CALL	INSREADY				;Loading Hi-Score table, music, palette, sound FX and palette initiallisation
-	LD	HL,48000				;Sound FX initiallisation
+	CALL	INSREADY				;Loading Hi-Score table, music, palette, sound FX and palette initialisation
+	LD	HL,48000				;Sound FX initialisation
 	CALL	AFXINIT
         
         ld hl,prsprqwid
         ld (0x0101),hl ;спрайты в файле подготовлены так, что выходят в 0x0100
 
-	JP	PRESTARTS
+       ifdef CLIENT
+       
+       if TCP
+       if CLIENT
+;create socket:
+		ld de,SOCK_STREAM+(AF_INET<<8)
+		OS_NETSOCKET
+		ld a,l
+		or a
+		jp m,CONNECTIONERROR;?C_EXIT
+		ld (soc),a
+		LD DE,web_ia
+		OS_NETCONNECT
+                 ld a,l ;DimkaM 12.03.2019
+		or a
+		jp p,connect_ok
+createsoc_err
+		ld a,(soc)
+		ld e,0
+		OS_NETSHUTDOWN
+		jp CONNECTIONERROR
+CONNECTIONERROR
+connect_ok
+       else ;SERVER
+;SOCKET  OS_NETSOCKET(unsigned int);
+;#define socket(domain, type, protocol) OS_NETSOCKET((domain<<8)+type)
+        ;ld bc,1 ;domain???
+	LD DE,513 ;type???
+	OS_NETSOCKET ;Подключить TCP/IP сокет к хосту.???
+	LD (soc),A
+	;a=socket
+	LD DE,web_ia
+;signed char OS_BIND(const struct sockaddr_in * addr, SOCKET socket);
+;#define bind(socket, addr, address_len) OS_BIND(addr,socket)
+	OS_BIND ;Присвоение сокету конкретного номера исходящего порта.
+	LD a,(soc) ;socket
+	;LD DE,0 ;backlog???
+;signed char OS_LISTEN(int, SOCKET socket);
+;#define listen(socket, backlog) OS_LISTEN(backlog,socket)
+	OS_LISTEN ;Включить режим прослушивания исходящего порта(режим сервера) TCP/IP сокета.
+	LD a,(soc) ;socket
+	;LD DE,0 ;addr???
+;SOCKET OS_ACCEPT(const struct sockaddr_in * addr, SOCKET socket);
+;#define accept(socket, addr, address_len) OS_ACCEPT(addr,socket)
+	OS_ACCEPT ;ждём, когда подсоединятся
+	LD (datasoc),A
+;	Возвращаемые значения в регистрах:
+;		L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
+;		А - errno при ошибке.
+;	Возможные ошибки:
+;		ERR_NOTSOCK 		- не действительный дескриптор сокета
+;		ERR_ECONNABORTED	- общая ошибка сокета
+;		ERR_EAGAIN			- входящих подключений пока нет
+	;OR	A
+	;JP	P,?0043
         
+       endif
+       
+       else ;UDP
+       
+	ld de,0x0203
+	OS_NETSOCKET
+	ld a,l
+	ld (soc),a
+	or a
+	jp m,inet_exiterr_nosoc
+inet_exiterr_nosoc ;TODO
+       if CLIENT==0
+	ld a,(soc)
+	LD DE,port_ia
+	OS_BIND
+        ld a,l
+	or a
+	jp m,inet_exiterr
+inet_exiterr ;TODO
+       endif 
+       
+       endif ;UDP
+       endif 
+
+	JP	PRESTARTS
+
         ds 0x200-$
 sprlist
 	ds 85*6
@@ -251,6 +372,52 @@ sprlistsz=$-sprlist
 ;+2: x
 ;+3: 2(xsize:SPSIZ16) +1(SPSIZBS) +0x80(mirrorhor)
 ;+4,5: pattern number
+
+
+       ifdef CLIENT 
+soc
+        db 0
+datasoc
+        db 0
+
+       if TCP
+;TCP:
+curport=$+1
+web_ia:
+	defb 0
+        db 0,80
+        db 8,8,8,8
+        ds 8 ;reserved
+       else
+;UDP:
+;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
+;	struct in_addr sin_addr;char sin_zero[8];};
+        if CLIENT
+;master(net1): from 192.168.1.2 to 192.168.1.177
+port_ia:
+	defb 0
+        db 100,53 ;port (big endian)
+        db 192,168,0,7;127,0,0,1 ;ip (big endian)
+;port_iarecv:
+;	defb 0
+;        db 100,53 ;port (big endian)
+;        db 192,168,1,177 ;ip (big endian)
+
+        else
+
+;slave(net2): from 192.168.1.177 to 192.168.1.2
+port_ia:
+	defb 0
+        db 100,53 ;port (big endian)
+        db 255,255,255,255 ;ip (big endian)
+;port_iasend:
+;	defb 0
+;        db 100,53 ;port (big endian)
+;        db 192,168,1,2 ;ip (big endian)
+        endif
+       endif
+        
+       endif ;ifdef CLI
 
 PRESTARTS
 	LD	A,(ENN) ;resources loaded?
@@ -402,17 +569,27 @@ KERNS
          ;jp EDITOR;START ;editor
          ;jp FIGHT
 	CALL	EXIT ;if break, set (MAP)=31
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
 	LD      HL,(Keys1PlStart)
 	LD      B,H
 	LD      C,#FE
 	IN      A,(C)
         AND     L
+       endif
 	CALL	Z,STR8 ;press start
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE
+       else
 	LD      HL,(Keys1PlFr)
 	LD      B,H
 	LD      C,#FE
 	IN      A,(C)
         AND     L
+       endif
 	CALL	Z,STR8 ;press start
 
 	LD	A,(STR6) ;time in startmenu
@@ -508,17 +685,27 @@ stopscroll_draw
         
 STR4
          call doscreen
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
 	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
 	LD      B,H					;LD		BC,(Keys1PlDn)
 	LD      C,#FE				;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	CALL	Z,KEYDD2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
 	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
 	LD      B,H					;LD		BC,(Keys1PlUp)
 	LD      C,#FE				;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	CALL	Z,KEYUU2
 	LD	HL,(KORM);---X
 	LD	BC,(KORM2);----Y
@@ -596,17 +783,27 @@ STR8
 	RET
        endif
 STR10
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
 	LD      HL,(Keys1PlStart)
 	LD      B,H
 	LD      C,#FE
 	IN      A,(C)
         AND     L
+       endif
 	JR	Z,STR10
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE
+       else
 	LD      HL,(Keys1PlFr)
 	LD      B,H
 	LD      C,#FE
 	IN      A,(C)
         AND     L
+       endif
 	JR	Z,STR10
 	LD	A,1
 	LD	(STAKEY),A ;start unpressed
@@ -1578,6 +1775,14 @@ end
         display "UP1=",UP1
         display "MAP=",MAP
 
-	savebin "zxbattle.com",begin,end-begin
+       ifdef CLIENT
+	if CLIENT
+		savebin "zxbatcli.com",begin,end-begin
+	else
+		savebin "zxbatsrv.com",begin,end-begin
+	endif
+       else
+        savebin "zxbattle.com",begin,end-begin
+       endif
 
 	LABELSLIST "../../../us/user.l"

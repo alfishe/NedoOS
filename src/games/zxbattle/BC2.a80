@@ -471,16 +471,21 @@ KEYDF	LD	A,3
 	LD	A,(IX+UNIT_COUNTER)
 	CP	0
 	JP	NZ,KEYD3
-	IF KEMPSTON		;Replace 1st player's control to Kempston joystick
+       IF KEMPSTON		;Replace 1st player's control to Kempston joystick
 	ld a,(kempstonbuttons) ;IN	A,(#1F)
 	AND	%00000100
 	JP	NZ,KEYDF22
-	ENDIF
+       ENDIF
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
 	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
 	LD      B,H					;LD		BC,(Keys1PlDn)
 	LD      C,#FE				;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JP      Z,KEYDF22
 KEYDF_ok
 		XOR		A
@@ -568,11 +573,16 @@ KEYUF	LD		A,1
 	AND	%00001000
 	JP	NZ,KEYUF22
 	ENDIF
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
 	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
 	LD      B,H					;LD		BC,(Keys1PlUp)
 	LD      C,#FE				;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JP      Z,KEYUF22
 KEYUF_ok
 		XOR		A
@@ -781,11 +791,16 @@ KEYRF	LD		A,2
 	AND	%00000001
 	JP	NZ,KEYRF22
 	ENDIF
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_RIGHT
+       else
 	LD      HL,(Keys1PlRt)		;LD		HL,Keys1PlRt+2
 	LD      B,H					;LD		BC,(Keys1PlRt)
 	LD      C,#FE				;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JP      Z,KEYRF22
 KEYRF_ok
 		XOR		A
@@ -896,11 +911,16 @@ KEYLF	LD		A,4
 	AND	%00000010
 	JP	NZ,KEYLF22
 	ENDIF
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_LEFT
+       else
 	LD      HL,(Keys1PlLt)		;LD		HL,Keys1PlLt+2
 	LD      B,H					;LD		BC,(Keys1PlLt)
 	LD      C,#FE				;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JP      Z,KEYLF22
 KEYLF_ok
 		XOR		A
@@ -970,17 +990,22 @@ KEYLF2A	LD	A,(IX+UNIT_STOPBIT)
 
 
 KEYDFP2	LD		A,3
-		CALL	YOMPA2P
-		LD		A,(IX+UNIT_COUNTER)
-		CP		0
-		JP		NZ,KEYD3P
-		LD      HL,(Keys2PlDn)		;LD		HL,Keys2PlDn+2
-		LD      B,H					;LD		BC,(Keys2PlDn)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	CALL	YOMPA2P
+	LD		A,(IX+UNIT_COUNTER)
+	CP		0
+	JP		NZ,KEYD3P
+       if VIRTUALKEYS
+        ld a,(joy2state)
+        and JOYMASK_DOWN
+       else
+	LD      HL,(Keys2PlDn)		;LD		HL,Keys2PlDn+2
+	LD      B,H					;LD		BC,(Keys2PlDn)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,KEYDF2P
-		RET
+       endif
+	JP		Z,KEYDF2P
+	RET
 
 KEYD3P	LD	(IX+UNIT_ANIMATION),1
 	LD	A,(IX+UNIT_COUNTER)
@@ -1025,17 +1050,22 @@ PEYDF2A	LD	A,(IX+UNIT_STOPBIT)
 	LD	(IX+UNIT_COUNTER),8
 	JP	KEYDFP2
 KEYUFP2	LD		A,1
-		CALL	YOMPA2P
-		LD		A,(IX+UNIT_COUNTER)
-		CP	0
-		JP		NZ,KEYF3P
-		LD      HL,(Keys2PlUp)		;LD		HL,Keys2PlUp+2
-		LD      B,H					;LD		BC,(Keys2PlUp)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	CALL	YOMPA2P
+	LD		A,(IX+UNIT_COUNTER)
+	CP	0
+	JP		NZ,KEYF3P
+       if VIRTUALKEYS
+        ld a,(joy2state)
+        and JOYMASK_UP
+       else
+	LD      HL,(Keys2PlUp)		;LD		HL,Keys2PlUp+2
+	LD      B,H					;LD		BC,(Keys2PlUp)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,QEYUF2P
-		RET
+       endif
+	JP		Z,QEYUF2P
+	RET
 
 KEYF3P
 	LD	(IX+UNIT_ANIMATION),1
@@ -1078,17 +1108,22 @@ PEYUF2A	LD	A,(IX+UNIT_STOPBIT)
 	LD	(IX+UNIT_COUNTER),8
 	JP	KEYUFP2
 KEYRFP2	LD		A,2
-		CALL	COMPA2P
-		LD		A,(IX+UNIT_COUNTER)
-		CP		0
-		JP		NZ,KEYYR3P
-		LD      HL,(Keys2PlRt)		;LD		HL,Keys2PlRt+2
-		LD      B,H					;LD		BC,(Keys2PlRt)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	CALL	COMPA2P
+	LD		A,(IX+UNIT_COUNTER)
+	CP		0
+	JP		NZ,KEYYR3P
+       if VIRTUALKEYS
+        ld a,(joy2state)
+        and JOYMASK_RIGHT
+       else
+	LD      HL,(Keys2PlRt)		;LD		HL,Keys2PlRt+2
+	LD      B,H					;LD		BC,(Keys2PlRt)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,QEYRF2P
-		RET
+       endif
+	JP		Z,QEYRF2P
+	RET
 KEYYR3P
 	LD	(IX+UNIT_ANIMATION),1
 	LD	A,(IX+UNIT_COUNTER)
@@ -1130,17 +1165,22 @@ PEYRF2A	LD	A,(IX+UNIT_STOPBIT)
 	LD	(IX+UNIT_COUNTER),8
 	JP	KEYRFP2
 KEYLFP2	LD		A,4
-		CALL	COMPA2P
-		LD		A,(IX+UNIT_COUNTER)
-		AND		A
-		JP		NZ,KEYLL3P
-		LD      HL,(Keys2PlLt)		;LD		HL,Keys2PlLt+2
-		LD      B,H					;LD		BC,(Keys2PlLt)
-		LD      C,#FE				;CALL	CHBIT
-		IN      A,(C)
+	CALL	COMPA2P
+	LD		A,(IX+UNIT_COUNTER)
+	AND		A
+	JP		NZ,KEYLL3P
+       if VIRTUALKEYS
+        ld a,(joy2state)
+        and JOYMASK_LEFT
+       else
+	LD      HL,(Keys2PlLt)		;LD		HL,Keys2PlLt+2
+	LD      B,H					;LD		BC,(Keys2PlLt)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		JP		Z,QEYLF2P
-		RET
+       endif
+	JP		Z,QEYLF2P
+	RET
 
 KEYLL3P
 	LD	(IX+UNIT_ANIMATION),1

@@ -824,12 +824,18 @@ BARM2	LD	A,2
 	LD	(BETONARM),A
 	RET
 
-FIRE1P	LD      HL,(Keys2PlFr)	;LD		HL,Keys2PlFr+2
-		LD      B,H				;LD		BC,(Keys2PlFr)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+FIRE1P
+       if VIRTUALKEYS
+        ld a,(joy2state)
+        and JOYMASK_FIRE
+       else
+	LD      HL,(Keys2PlFr)	;LD		HL,Keys2PlFr+2
+	LD      B,H				;LD		BC,(Keys2PlFr)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		RET	NZ
+       endif
+	RET	NZ
 	
 	LD	IX,UNITS
 	LD	DE,4*UNITSZ;96
@@ -896,11 +902,16 @@ FIRE1	LD		A,(TIMEW)
 	AND	%00010000
 	JP	NZ,KEYFIRE1_pressed
 	ENDIF
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE
+       else
 	LD      HL,(Keys1PlFr)	;LD		HL,Keys1PlFr+2
 	LD      B,H				;LD		BC,(Keys1PlFr)
 	LD      C,#FE			;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	RET     NZ
 KEYFIRE1_pressed
 		LD		IX,UNITS
@@ -1172,11 +1183,17 @@ FIGHT
 	;CALL	PRINT ;зачем???
          xor a
          ld (sprlist+1),a ;disable sprite #0
-FIGHT2	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+FIGHT2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
 	LD      B,H				;LD		BC,(Keys1PlStart)
 	LD      C,#FE			;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	JR	Z,FIGHT2 ;wait for unpress of "start"
 FIGHTT
        call clstiles_white
@@ -1495,17 +1512,23 @@ MATEMAT_HL
 	LD	(IX+UNIT_ICE),A
 	RET
 
-SPACEF	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
-		LD      B,H				;LD		BC,(Keys1PlStart)
-		LD      C,#FE			;CALL	CHBIT
-		IN      A,(C)
+SPACEF
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H				;LD		BC,(Keys1PlStart)
+	LD      C,#FE			;CALL	CHBIT
+	IN      A,(C)
         AND     L
-		RET		NZ
-		;LD		BC,PAGE3; CHANGE MEMORY FOR SPRITES
-		;LD		A,#08
-		;OUT		(C),A
-		;RET
-                jp setpg8
+       endif
+	RET		NZ
+	;LD		BC,PAGE3; CHANGE MEMORY FOR SPRITES
+	;LD		A,#08
+	;OUT		(C),A
+	;RET
+        jp setpg8
 
 LAYERS2
 	LD	HL,sprlist+22*6 ;#200
