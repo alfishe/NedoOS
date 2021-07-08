@@ -29,70 +29,10 @@ eoutDFFD
         AND 128 ;video mode
 oldcurvideomode=$+1
         cp 0
-        jr z,eoDFFDnovideomode
-        ld (oldcurvideomode),a
-;video mode changed! set system video mode and recode screen data
-       ;push bc
-       push de
-       ;push hl
-        rla
-        jr c,eoDFFD_copyprofi
-        ld a,SCREEN4000_VIDEOMODE_6912
-        ld (screen4000_videomode),a
-        ld a,SCREEN8000_VIDEOMODE_6912
-        ld (screen8000_videomode),a
-        ld a,SCREENC000_VIDEOMODE_6912
-        ld (screenc000_videomode),a
-        ld a,0x05
-        call copyscreen_profi
-        ld a,0x07
-        call copyscreen_profi
-        ld e,3+0x80 ;6912+keep
-        jr eoDFFD_copyprofiq
-eoDFFD_copyprofi
-        ld a,(user_scr1_high) ;ok
-        call clearpg
-        ld a,(user_scr0_high) ;ok
-        call clearpg
-        ld a,SCREEN4000_VIDEOMODE_PROFI
-        ld (screen4000_videomode),a
-        ld a,SCREEN8000_VIDEOMODE_PROFI
-        ld (screen8000_videomode),a
-        ld a,SCREENC000_VIDEOMODE_PROFI
-        ld (screenc000_videomode),a
-        ld a,0x04
-        call copyscreen_profi
-        ld a,0x06
-        call copyscreen_profi
-        ld a,PGATTR0;0x38
-        call copyscreen_profi
-        ld a,PGATTR1;0x3a
-        call copyscreen_profi
-        ld e,2+0x80 ;MC+keep
-eoDFFD_copyprofiq
-       exx
-       push bc
-       push de
-       push hl
-       push ix
-       push iy
-       exx
-       exa
-       push af
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-       pop af
-       exa
-        ld a,e
-       pop iy
-       pop ix
-       pop hl
-       pop de
-       pop bc
-       exx
-       ;pop hl
-       pop de
-       ;pop bc              
-eoDFFDnovideomode
+        ;jr z,eoDFFDnovideomode
+        ;ld (oldcurvideomode),a
+        call nz,setvideomode
+;eoDFFDnovideomode
         ld a,(_fd)
 eout7FFD
 ;TODO block if bit 5 was "1" in (_fd)
@@ -185,37 +125,10 @@ eout7FFD_romonq
         LD (curscr),A
 oldcurscr7ffd=$+1
         cp 0
-        jr z,eo7FFDnoscr
-        ld (oldcurscr7ffd),a
-       ;push bc
-       push de
-       ;push hl
-       exx
-       push bc
-       push de
-       push hl
-       push ix
-       push iy
-        rrca
-        rrca
-        rrca
-        ld e,a
-       exa
-       push af
-       OS_SETSCREEN
-       pop af
-       exa
-       pop iy
-       pop ix
-       pop hl
-       pop de
-       pop bc
-       exx
-       ;pop hl
-       pop de
-       ;pop bc
-eo7FFDnoscr
-
+        ;jr z,eo7FFDnoscr
+        ;ld (oldcurscr7ffd),a
+        call nz,setscreen
+;eo7FFDnoscr
         ld hl,_dffd
         bit 3,(hl)
         ld a,5
@@ -446,7 +359,7 @@ einFE
        and a
         ;LD C,#FE
         ;IN A,(C)
-        RET 
+        RET
 EMUINDOS
         LD A,C
         CP #1F
@@ -458,23 +371,119 @@ EMUINDOS
         CP #5F
         jr Z,eidFF
         LD A,#FF
-        RET 
+        RET
 eidFF
         ;LD A,#80 ;INTRQ=команда выполнена ok
         ld a,r
         rla
         and 0xc0 ;D6=DRQ, D7=INTRQ
-        RET 
+        RET
 eid1F
         ;LD A,#80 ;команда выполнена ok, диск вставлен
         ld a,r
 fddstatemask=$+1
         and 3
         or 0x80
-        RET 
+        RET
 eid3F
         LD A,(dos3F) ;trk
-        RET 
+        RET
 eid5F
         LD A,(dos5F) ;sec
-        RET 
+        RET
+
+setvideomode
+        ld (oldcurvideomode),a
+;video mode changed! set system video mode and recode screen data
+       ;push bc
+       push de
+       ;push hl
+        rla
+        jr c,eoDFFD_copyprofi
+        ld a,SCREEN4000_VIDEOMODE_6912
+        ld (screen4000_videomode),a
+        ld a,SCREEN8000_VIDEOMODE_6912
+        ld (screen8000_videomode),a
+        ld a,SCREENC000_VIDEOMODE_6912
+        ld (screenc000_videomode),a
+        ld a,0x05
+        call copyscreen_profi
+        ld a,0x07
+        call copyscreen_profi
+        ld e,3+0x80 ;6912+keep
+        jr eoDFFD_copyprofiq
+eoDFFD_copyprofi
+        ld a,(user_scr1_high) ;ok
+        call clearpg
+        ld a,(user_scr0_high) ;ok
+        call clearpg
+        ld a,SCREEN4000_VIDEOMODE_PROFI
+        ld (screen4000_videomode),a
+        ld a,SCREEN8000_VIDEOMODE_PROFI
+        ld (screen8000_videomode),a
+        ld a,SCREENC000_VIDEOMODE_PROFI
+        ld (screenc000_videomode),a
+        ld a,0x04
+        call copyscreen_profi
+        ld a,0x06
+        call copyscreen_profi
+        ld a,PGATTR0;0x38
+        call copyscreen_profi
+        ld a,PGATTR1;0x3a
+        call copyscreen_profi
+        ld e,2+0x80 ;MC+keep
+eoDFFD_copyprofiq
+       exx
+       push bc
+       push de
+       push hl
+       push ix
+       push iy
+       exx
+       exa
+       push af
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+       pop af
+       exa
+        ld a,e
+       pop iy
+       pop ix
+       pop hl
+       pop de
+       pop bc
+       exx
+       ;pop hl
+       pop de
+       ;pop bc
+       ret
+
+setscreen
+        ld (oldcurscr7ffd),a
+       ;push bc
+       push de
+       ;push hl
+       exx
+       push bc
+       push de
+       push hl
+       push ix
+       push iy
+        rrca
+        rrca
+        rrca
+        ld e,a
+       exa
+       push af
+       OS_SETSCREEN
+       pop af
+       exa
+       pop iy
+       pop ix
+       pop hl
+       pop de
+       pop bc
+       exx
+       ;pop hl
+       pop de
+       ;pop bc
+       ret

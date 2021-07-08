@@ -1,34 +1,4 @@
 
-;DISASM "B" LINES FROM "HL" ADDRESS
-DIS0    PUSH BC
-        PUSH HL
-        EX DE,HL
-        CALL S1 ;VIEW ADDRESS
-        POP HL
-        LD A,32
-       RST 16
-        CALL LEN
-        LD A,B
-        DEC A
-        CP 4
-        JR C,$+4
-        LD B,1
-        PUSH HL
-DIS1    LD E,(HL)
-        INC HL
-        CALL S2 ;VIEW BYTES (1..4)
-        DJNZ DIS1
-        LD A,6
-       RST 16
-        EX (SP),HL
-        CALL COMMAND ;VIEW COMMAND
-        LD A,6
-       RST 16
-        POP HL
-DIS2    POP BC
-        DJNZ DIS0
-        RET 
-
 ED      INC HL
         LD B,32
         LD A,(HL)
@@ -67,8 +37,7 @@ C6      CP 4
         JR C,$+3
         DEC A
         ADD A,"0"
-       RST 16
-        RET 
+       jp Disasm_PrChar
 
 C7      LD E,A
         LD A,(HL)
@@ -92,10 +61,9 @@ LHL     LD DE,RP+4
         BIT 6,B
         JP Z,T0
         LD A,"I"
-       RST 16
+       call Disasm_PrChar
         LD A,B
-       RST 16
-        RET 
+       jp Disasm_PrChar
 
 C5      SUB 32
         RET C
@@ -109,7 +77,8 @@ C5      SUB 32
 C9      LD DE,COMM
         JR TXT
 
-bit     INC HL
+disasmbit
+        INC HL
         BIT 6,B
         JR Z,B0
         INC HL
@@ -130,22 +99,23 @@ B1      RLCA
         CALL TEXT
         CALL CALC
         ADD A,"0"
-       RST 16
+       call Disasm_PrChar
         LD A,44
-B2     RST 16
+B2     call Disasm_PrChar
         LD A,(HL)
         BIT 5,B
         JR NZ,$+6
-        AND 7
-        CP 6
+         AND 7
+         CP 6
         CALL NZ,REG
         BIT 6,B
         RET Z
         INC B
         INC B
-        JP R1+4
+        JP R1p4
 
-COMMAND LD B,32
+Disasm_COMMAND
+        LD B,32
 clear   LD A,(HL)
         CP 221
         JR NZ,CY
@@ -162,7 +132,7 @@ CY      CP 253
         JR CX
 
 CZ      CP 203
-        JR Z,bit
+        JR Z,disasmbit
         CP 237
         JP Z,ED
         CP 118
@@ -224,7 +194,7 @@ T4      DEC A
         LD E,(HL)
         INC HL
         LD D,(HL)
-        CALL S1
+        CALL Disasm_PrHashWord_de
         JR T6
 
 TX      DEC A
@@ -236,11 +206,14 @@ TX      DEC A
         BIT 7,E
         JR Z,$+3
         DEC D
+disasmcmdaddr=$+1
+       ld hl,0
+       inc hl
         INC HL
         ADD HL,DE
         EX DE,HL
         POP HL
-        CALL S1
+        CALL Disasm_PrHashWord_de
         JR T6
 
 TY      DEC A
@@ -249,7 +222,7 @@ TY      DEC A
         CALL CT
         JR T6
 
-T5     RST 16
+T5     call Disasm_PrChar
 T6      POP DE
         POP AF
         INC DE
@@ -290,7 +263,7 @@ REGd    AND 7
 R0      CP 71
         JR NZ,R1
         LD A,"L"
-R6     RST 16
+R6     call Disasm_PrChar
         LD A,D
         AND 7
         CP 6
@@ -302,13 +275,13 @@ R6     RST 16
         CP 88
         RET C
         LD A,B
-R8     RST 16
-        RET 
+R8     jp Disasm_PrChar
 
 R1      CP 64
         JR NZ,R8
+R1p4
         LD A,"("
-       RST 16
+       call Disasm_PrChar
         CALL LHL
         BIT 6,B
         JR Z,R5
@@ -320,11 +293,10 @@ R1      CP 64
         SUB C
         LD C,A
         LD A,"-"
-R4     RST 16
+R4     call Disasm_PrChar
         CALL S7
 R5      LD A,")"
-       RST 16
-        RET 
+       jp Disasm_PrChar
 
 C2      AND 7
         CP 6
@@ -354,9 +326,9 @@ S7      ;LD A,(S1)
         ;CP 24
         ;JR Z,S8_100 ;decimal mode
         LD A,"#"
-       RST 16
+       call Disasm_PrChar
         LD E,C
-        JR S2
+        JR prhex_e;S2
 
        if 0
 S8_100  LD D,100
@@ -372,34 +344,18 @@ S9      LD E,47
         ADD A,D
         LD C,A
         LD A,E
-       RST 16
+       call Disasm_PrChar
         RET
        endif
 
-S1      LD A,"#" ;WARNING! рассчитано на JR ZZZZZZ
-       RST 16
-        LD A,D
-        RRA 
-        RRA 
-        RRA 
-        RRA 
-        CALL S3
-        LD A,D
-        CALL S3
-S2      LD A,E
-        RRA 
-        RRA 
-        RRA 
-        RRA 
-        CALL S3
+;S1
+Disasm_PrHashWord_de
+        LD A,"#" ;WARNING! рассчитано на JR ZZZZZZ
+       call Disasm_PrChar
+        jp Disasm_PrWord_de
+prhex_e
         LD A,E
-S3      AND 15
-        ADD A,48
-        CP 58
-        JR C,S4
-        ADD A,7
-S4     RST 16
-        RET 
+       jp Disasm_PrHex_a
 
        if 0
         NOP 
@@ -420,7 +376,7 @@ S6      INC A
         SBC HL,BC
         JR NC,S6
         ADD HL,BC
-       RST 16
+       call Disasm_PrChar
         RET 
        endif
 
@@ -475,7 +431,8 @@ COM2    DB 46,2,47,50,199,71,50,46,2,175,46,2,47,50,199,71,50
         DB 199,71,50,46,4,175
 
 ;COUNT Z80 COMMAND LENGTH
-LEN     PUSH HL
+Disasm_LEN ;keep hl ;return b=len
+        PUSH HL
         LD E,64
         LD BC,#0301;769
 LNX     LD D,(HL)
@@ -488,7 +445,7 @@ LENL0   INC HL
         JR LNX
 LENL1
         CP 253
-        JR Z,LENL0
+        JR Z,LENL0 ;может зациклиться на префиксах
         CP 205
         JR Z,LENend
         CP 195

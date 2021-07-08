@@ -316,6 +316,10 @@ jpiyer
         push hl
         jp (iy)
 
+Quit
+        call swapimer
+        QUIT
+
 Loadsnapshot
         ld sp,STACK
 
@@ -780,6 +784,7 @@ DOSrdsec5ok
         pop hl,de,bc    
         ret
 
+        include "debugger.asm"
         INCLUDE "disasm.asm"
 
         INCLUDE "ports.asm"
@@ -787,6 +792,9 @@ DOSrdsec5ok
         INCLUDE "z80cmd.asm"
         align 256
         INCLUDE "z80table.asm"
+        align 256
+t866toatm
+        incbin "../kernel/866toatm"
         DISPLAY $
        IF stats
         align 256
@@ -799,6 +807,10 @@ comstats
 
 on_int
         PUSH AF,HL
+
+        ex af,af' ;'
+        push af
+
         push bc,de
         exx
         push bc
@@ -806,8 +818,6 @@ on_int
         push hl
         push ix
         push iy
-        ex af,af' ;'
-        push af
 
         ld a,(curscr)
 oldcurscr=$+1
@@ -877,18 +887,6 @@ IMERnoborder
         ld (kempston),a
 IMERnofocus
 
-;TODO здесь опрос клавиш эмулятора
-       ld a,0xf7
-       in a,(0xfe)
-       push af
-       and 0b10101
-       jp z,Reset
-       pop af
-       and 0b10011
-       jp z,Loadsnapshot
-
-        pop af
-        ex af,af' ;'
         pop iy
         pop ix
         pop hl
@@ -896,12 +894,39 @@ IMERnofocus
         pop bc
         exx
         pop de,bc       
+
+        pop af
+        ex af,af' ;'
+
+debugon=$
+        or a
+        jr c,imerskipdebug
+
+;здесь опрос клавиш эмулятора
+       ld a,0xef
+       in a,(0xfe)
+       and 0b10101 ;6+8+0
+       jp z,Reset
+       ld a,0xf7
+       in a,(0xfe)
+       push af
+       and 0b10101 ;1+3+5
+       jp z,Quit
+       pop af
+       push af
+       and 0b10011 ;1+2+5
+       jp z,Loadsnapshot
+       pop af
+       and 0b11000 ;4+5
+       jp z,GotoDebugger
+
        LD A,(iff1)
        OR A
        jr NZ,IMEREI
+imerskipdebug
         POP HL,AF
         EI 
-        RET 
+        RET        
 IMEREI
         XOR A
         LD (iff1),A
@@ -911,6 +936,64 @@ IMEREI
         LD IY,IMINT
         POP HL,AF
         RET  ;di!
+GotoDebugger
+;перед входом в отладчик завершаем тек.команду (перехват на EMULOOP)
+        LD (keepemuchecker),IY
+        LD IY,IMDEBUG
+        POP HL,AF
+        EI 
+        RET 
+IMDEBUG
+       ld a,55 ;scf
+       ld (debugon),a
+
+;запоминаем регистры в переменные
+       CALCpc ;de=old PC
+       ld (curpc),de
+       exx
+       ld (curbc),bc
+       ld (curde),de
+       ld (curhl),hl
+       ex af,af' ;'
+       push af
+       pop hl
+       ld (curaf),hl
+;ставим, что был префикс #dd, кладём curix,curiy
+        ld a,(oldprefix)
+        CP #DD
+        jr Z,IMDEBUGwasdd
+;был префикс #fd, ix содержит "iy"
+        ld a,#dd
+        LD (oldprefix),A
+        LD HL,(_IZ) ;=curiy
+        ld (curiy),ix ;=_IZ
+        ld (curix),hl
+        jr IMDEBUGwasddq
+IMDEBUGwasdd
+        ld (curix),ix
+        ;ld (curiy),hl ;=_IZ
+IMDEBUGwasddq
+
+        call Debugger
+
+;берём регистры из переменных (уже установлено "был префикс #dd")
+        ld ix,(curix)
+        ;ld hl,(curiy) ;=_IZ
+        ;ld (_IZ),hl
+       ld hl,(curaf)
+       push hl
+       pop af
+       ex af,af' ;'
+       ld hl,(curhl)
+       ld de,(curde)
+       ld bc,(curbc)
+       exx
+       
+       ld a,55+128 ;or a
+       ld (debugon),a
+        ld iy,(keepemuchecker)
+       ld de,(curpc)
+       _LoopC_JP
 IMINT
 keepemuchecker=$+2
         LD IY,0
@@ -1278,15 +1361,25 @@ pgromDOS
         db 0
 pgromSYS
         db 0
-        
+
+curregs ;for debugger
+curaf   dw 0 ;for debugger
+curbc   dw 0 ;for debugger
+curde   dw 0 ;for debugger
+curhl   dw 0 ;for debugger
 _AF     DW 0 ;AF'
 _BC     DW 0 ;BC'
 _DE     DW 0 ;DE'
 _HL     DW 0 ;HL'
 _SP     DW 0
+curpc   dw 0 ;for debugger
+curix   dw 0 ;for debugger
+;curiy   dw 0 ;for debugger
+curiy ;for debugger
 _IZ     DW 0
 _R      DB 0
 _I      DB 0
+
 iff1    DB 0
 iff2    DB 0
 immode  DB 0 ;#18=IM2, иначе IM1
