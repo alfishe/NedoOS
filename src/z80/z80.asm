@@ -784,6 +784,7 @@ DOSrdsec5ok
         pop hl,de,bc    
         ret
 
+        include "debugsrv.asm"
         include "debugger.asm"
         INCLUDE "disasm.asm"
 

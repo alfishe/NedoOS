@@ -1,3 +1,30 @@
+;выводит в текстовый буфер
+
+Disasm_PrWord_de
+;de=word
+;used in disasm!
+        ld a,d
+        call Disasm_PrHex_a
+        ld a,e
+Disasm_PrHex_a
+;used in disasm!
+        push af
+        rra
+        rra
+        rra
+        rra
+        call Disasm_PrHexDig
+        pop af
+Disasm_PrHexDig
+        or 0xf0
+        daa
+        add a,0xa0
+        adc a,0x40
+Disasm_PrChar
+        ld (ix),a
+        inc ix
+        ret
+
 
 ED      INC HL
         LD B,32
@@ -89,7 +116,7 @@ B0      LD A,(HL)
         LD DE,COMB
         JR NC,B1
         CALL CT
-        LD A,32
+        LD A,' '
         JR B2
 
 B1      RLCA 
@@ -98,7 +125,7 @@ B1      RLCA
         ADD A,8
         CALL TEXT
         CALL CALC
-        ADD A,"0"
+        ADD A,'0'
        call Disasm_PrChar
         LD A,44
 B2     call Disasm_PrChar

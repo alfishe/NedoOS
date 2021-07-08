@@ -1,4 +1,12 @@
+DEBUGGER_REGSY=0
+DEBUGGER_REGSX=0
+DEBUGGER_DISASMY=0
+DEBUGGER_DISASMX=8
+DEBUGGER_MEMY=0
+DEBUGGER_MEMX=0x2b
 DEBUGGER_MEMLINES=24
+DEBUGGER_DISASMLINES=24
+DEBUGGER_REGSLINES=13
 
 Debugger
         ld e,6+0x80 ;keep
@@ -8,7 +16,11 @@ Debugger
 
         call Debugger_Redraw
 Debugger0
+        call Debugger_drawcursor
         YIELDGETKEYLOOP
+        push af
+        call Debugger_undrawcursor
+        pop af
         cp key_esc
         jr z,DebuggerQuit
 
@@ -18,6 +30,16 @@ Debugger0
         jr z,DebuggerPgUp
         cp key_pgdown
         jr z,DebuggerPgDown
+        cp key_up
+        jr z,DebuggerUp
+        cp key_down
+        jr z,DebuggerDown
+        cp key_left
+        jp z,DebuggerLeft
+        cp key_right
+        jp z,DebuggerRight
+        cp key_tab
+        jp z,DebuggerTab
         ret
 
 DebuggerQuit
@@ -28,30 +50,103 @@ DebuggerQuit
 ;TODO wait key unpress
         ret
 
-DebuggerPgUp
-DebuggerPgDown
-        ld hl,(debugger_curmemaddr)
-        ld bc,DEBUGGER_MEMLINES*8
-        add hl,bc
-        ld (debugger_curmemaddr),hl
-        ld (debugger_curdisasmaddr),hl
+DebuggerUp
+        call Debugger_decy ;m=overflow
+        ret p
+;TODO scroll
+        call Debugger_getcuraddr16_de
+        ld hl,-8
+        add hl,de
+        call Debugger_putcuraddr16_hl
+        jp Debugger_Redraw
+DebuggerDown
+        call Debugger_incy ;z=overflow
+        ret nz
+;TODO scroll (use nextaddr16)
+        call Debugger_getcuraddr16_de
+        ld hl,8
+        add hl,de
+        call Debugger_putcuraddr16_hl
         jp Debugger_Redraw
 
-Debugger_Redraw
-        ld de,0x0000
+DebuggerTab
+        call Debugger_inctab
+        jp Debugger_Redraw
+
+DebuggerPgUp
+        call Debugger_getcuraddr16_de
+        ld a,(debugger_curtab)
+        dec a
+        ld hl,-(DEBUGGER_MEMLINES*8)
+        jr nz,$+5
+        ld hl,-DEBUGGER_MEMLINES
+        add hl,de
+        call Debugger_putcuraddr16_hl
+        jp Debugger_Redraw
+
+DebuggerPgDown
+        call Debugger_getnextaddr16_de
+        ex de,hl
+        call Debugger_putcuraddr16_hl
+        jp Debugger_Redraw
+
+Debugger_undrawcursor
+        ld c,0x0f;0x07
+        jr Debugger_drawcursor_colorc
+Debugger_drawcursor
+        ld c,0x38
+Debugger_drawcursor_colorc
+        call Debugger_getcurxy_de_widb
+        ld l,c
+drawcursor_sizeb0
+        push bc
+        push de
+        push hl ;color
         OS_SETXY
-        ld hl,tdebugger
-        call Debugger_PrText
-        ld de,0x0100
+        pop de ;color
+        push de ;color
+        OS_PRATTR
+        pop hl ;color
+        pop de
+        pop bc
+        inc e ;x
+        djnz drawcursor_sizeb0
+        ret
+
+Debugger_Redraw
+        ;ld de,0x0000
+        ;OS_SETXY
+        ;ld hl,tdebugger
+        ;call Debugger_PrText
+        ld a,(debugger_curtab)
+        or a
+        call Debugger_setcolorz
+        ld de,DEBUGGER_REGSY*256+DEBUGGER_REGSX
         call Debugger_PrRegs
-debugger_curmemaddr=$+1
-        ld hl,0
-        ld de,0x0108
-        call Debugger_PrMem_hl
-debugger_curdisasmaddr=$+1
-        ld hl,0
-        ld de,0x012e
+
+        ld a,(debugger_curtab)
+        cp 1
+        call Debugger_setcolorz
+        ld hl,(debugger_curdisasmaddr)
+        ld de,DEBUGGER_DISASMY*256+DEBUGGER_DISASMX
         call Debugger_Disasm_hl
+
+        ld a,(debugger_curtab)
+        cp 2
+        call Debugger_setcolorz
+        ld hl,(debugger_curmemaddr)
+        ld de,DEBUGGER_MEMY*256+DEBUGGER_MEMX
+        call Debugger_PrMem_hl
+
+        ld e,0x07
+        OS_SETCOLOR
+        ret
+
+Debugger_setcolorz
+        ld e,0x0f
+        jr z,$+4
+        ld e,0x07
+        OS_SETCOLOR
         ret
 
 Debugger_PrRegs
@@ -60,7 +155,7 @@ Debugger_PrRegs
 Debugger_PrRegs0
         ld a,(bc)
         or a
-        ret z
+        jr z,Debugger_PrRegs0q
       push de
        push hl
         push bc
@@ -72,19 +167,42 @@ Debugger_PrRegs0
        pop hl
         ld e,(hl)
         inc hl
-       push hl
+       ;push hl
         ld d,(hl)
-        push bc
+        ;push bc
         call Debugger_PrWord_de
-        pop bc
-       pop hl
+        ;pop bc
+       ;pop hl
         inc hl
       pop de
         inc d
         jr Debugger_PrRegs0
+Debugger_PrRegs0q
+        OS_SETXY
+        ld a,(curaf) ;flags
+        ld hl,tflags
+        scf
+Debugger_PrFlags0
+        adc a,a
+        ret z
+        push af
+        ld a,(hl)
+        inc hl
+        jr c,Debugger_PrFlags_nooff
+        add a,0x20
+        cp 'a'
+        jr nc,Debugger_PrFlags_nooff
+        ld a,'.'
+Debugger_PrFlags_nooff
+        call Debugger_PrChar
+        pop af
+        or a
+        jr Debugger_PrFlags0
+tflags
+        db "SZ5H3PNC"
 
 Debugger_PrMem_hl
-        ld b,24
+        ld b,DEBUGGER_MEMLINES
 Debugger_PrMem0
         push bc
         push de
@@ -96,14 +214,14 @@ Debugger_PrMem0
         inc d
         pop bc
         djnz Debugger_PrMem0
+        ld (debugger_nextmemaddr),hl
         ret
         
 Debugger_PrMemLine_hl ;return hl = hl+8
         push hl
         ex de,hl
         call Debugger_PrWord_de
-        ld a,' '
-        PRCHAR
+        call Debugger_PrSpace
         pop hl
         push hl
         ld b,8
@@ -111,11 +229,10 @@ Debugger_PrMemLine0
         push bc
         call Debugger_GetMem_hl_to_a
         inc hl
-        push hl
+        ;push hl
         call Debugger_PrHex_a
-        ld a,' '
-        PRCHAR
-        pop hl
+        call Debugger_PrSpace
+        ;pop hl
         pop bc
         djnz Debugger_PrMemLine0
         pop hl
@@ -124,7 +241,7 @@ Debugger_PrMemLine1
         push bc
         call Debugger_GetMem_hl_to_a
         inc hl
-        push hl
+        ;push hl
        ld bc,t866toatm+'?'
        cp 0x0d
        jr z,Debugger_PrMemLine_skipchar
@@ -137,14 +254,14 @@ Debugger_PrMemLine1
        ld c,a
 Debugger_PrMemLine_skipchar
        ld a,(bc)
-        PRCHAR
-        pop hl
+        call Debugger_PrChar
+        ;pop hl
         pop bc
         djnz Debugger_PrMemLine1
         ret
 
 Debugger_Disasm_hl
-        ld b,24
+        ld b,DEBUGGER_DISASMLINES
 Debugger_Disasm0
         push bc
         push de
@@ -156,6 +273,7 @@ Debugger_Disasm0
         inc d
         pop bc
         djnz Debugger_Disasm0
+        ld (debugger_nextdisasmaddr),hl
         ret
         
 Debugger_DisasmLine_hl ;return hl = next cmd
@@ -163,14 +281,11 @@ Debugger_DisasmLine_hl ;return hl = next cmd
        ld (disasmcmdaddr),hl
         ld d,h
         ld e,l
-        call Disasm_PrWord_de
-        call Disasm_PrSpace
-        ld de,disasmlinebuf
+        call Debugger_PrWord_de
+        call Debugger_PrSpace
+        ld de,disasmcmdbuf
        push de
-        call Debugger_CopyMem_hl_to_de
-        call Debugger_CopyMem_hl_to_de
-        call Debugger_CopyMem_hl_to_de
-        call Debugger_CopyMem_hl_to_de
+        call Debugger_CopyMem_hl_to_de_4bytes
        pop hl
         call Disasm_LEN ;keep hl ;return b=len
         LD A,B
@@ -194,22 +309,41 @@ Debugger_DisasmLine_hl0
         ld a,(hl)
         inc hl
         jr c,Debugger_DisasmLine_hl_nospaces
-        call Disasm_PrSpace
-        call Disasm_PrSpace
+        call Debugger_PrSpace
+        call Debugger_PrSpace
         or a
 Debugger_DisasmLine_hl_nospaces
-        call c,Disasm_PrHex_a
+        call c,Debugger_PrHex_a
         djnz Debugger_DisasmLine_hl0
-       pop hl
-       
+        
+        ld hl,disasmtextbuf
+       push hl
+        ld de,disasmtextbuf+1
+        ld bc,disasmtextbuf_sz-1
+        ld (hl),' '
+        ldir
+       pop ix
+        
+       pop hl ;cmdbuf       
         call Disasm_COMMAND
-;TODO печатать пробелы после команды
+        
+        ld hl,disasmtextbuf
+        ld b,disasmtextbuf_sz
+Debugger_DisasmLine_pr0
+        ld a,(hl)
+        inc hl
+        call Debugger_PrChar
+        djnz Debugger_DisasmLine_pr0
        
        pop bc
        pop hl
         add hl,bc
         ret
 
+Debugger_CopyMem_hl_to_de_4bytes
+        call Debugger_CopyMem_hl_to_de_2bytes
+Debugger_CopyMem_hl_to_de_2bytes
+        call Debugger_CopyMem_hl_to_de
 Debugger_CopyMem_hl_to_de
         call Debugger_GetMem_hl_to_a
         ld (de),a
@@ -217,14 +351,11 @@ Debugger_CopyMem_hl_to_de
         inc de
         ret
 
-disasmlinebuf
+disasmcmdbuf
         ds 4
-
-Debugger_GetMem_hl_to_a
-       push hl
-        getmem;ld a,(hl)
-       pop hl
-        ret
+disasmtextbuf
+        ds 21
+disasmtextbuf_sz=$-disasmtextbuf
 
 Debugger_PrText
         ld a,(hl)
@@ -239,36 +370,27 @@ Debugger_PrText
 Debugger_PrChar_bc
         ld a,(bc)
         inc bc
-        push bc
-        PRCHAR
-        pop bc
-        ret
+        jr Debugger_PrChar
 
 Debugger_PrWord_de
-Disasm_PrWord_de
 ;de=word
-;used in disasm!
-        ;push de
         ld a,d
         call Debugger_PrHex_a
-        ;pop de
         ld a,e
 Debugger_PrHex_a
-Disasm_PrHex_a
-;used in disasm!
         push af
         rra
         rra
         rra
         rra
-        call Disasm_PrHexDig
+        call Debugger_PrHexDig
         pop af
-Disasm_PrHexDig
+Debugger_PrHexDig
         or 0xf0
         daa
         add a,0xa0
         adc a,0x40
-Disasm_PrChar
+Debugger_PrChar
        push bc
        push de
        push hl
@@ -277,9 +399,10 @@ Disasm_PrChar
        pop de
        pop bc
         ret
-Disasm_PrSpace
+
+Debugger_PrSpace
         ld a,' '
-        jr Disasm_PrChar
+        jr Debugger_PrChar
         
 tregs
         db "af:"
@@ -297,5 +420,186 @@ tregs
         db "ir:"
         db 0
         
-tdebugger
-        db "Debugger",0
+;tdebugger
+;        db "Debugger",0
+
+Debugger_inctab
+        ld hl,debugger_curtab
+        inc (hl)
+        ld a,(hl)
+        sub 3
+        ret nz
+        ld (hl),a
+        ret
+
+Debugger_getcuraddr16_de
+        call Debugger_getcurtab_hl_curaddr16_a_ys_d_y
+        ld e,(hl)
+        inc hl
+        ld d,(hl) ;curaddr16
+        ret
+Debugger_putcuraddr16_hl
+        push hl
+        call Debugger_getcurtab_hl_curaddr16_a_ys_d_y
+        pop de
+        ld (hl),e
+        inc hl
+        ld (hl),d ;curaddr16
+        ret
+
+Debugger_getnextaddr16_de
+        call Debugger_getcurtab_hl_cury_a_ys_d_y
+        dec hl
+        ld d,(hl)
+        dec hl
+        ld e,(hl) ;nextaddr16
+        ret
+Debugger_putnextaddr16_hl
+        push hl
+        call Debugger_getcurtab_hl_cury_a_ys_d_y
+        pop de
+        dec hl
+        ld (hl),d
+        dec hl
+        ld (hl),e ;nextaddr16
+        ret
+
+Debugger_getcurtab_hl_curaddr16_a_ys_d_y
+        ld a,(debugger_curtab)
+;Debugger_getatab_hl_curaddr16_a_ys_d_y
+        add a,a
+        ld hl,tdebuggertabs
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a ;hl=tab
+        ld d,(hl) ;y
+        inc hl
+        ld a,(hl) ;ys
+        inc hl
+        ret
+
+Debugger_getcurtab_hl_cury_a_ys_d_y
+        ;ld a,(debugger_curtab)
+;Debugger_getatab_hl_cury_a_ys_d_y
+        ;call Debugger_getatab_hl_curaddr16_a_ys_d_y
+        call Debugger_getcurtab_hl_curaddr16_a_ys_d_y
+        inc hl ;
+        inc hl ;skip curaddr16
+        inc hl ;
+        inc hl ;skip nextaddr16
+        ret
+
+Debugger_incy
+;z=overflow
+        call Debugger_getcurtab_hl_cury_a_ys_d_y 
+        inc (hl) ;cury
+        cp (hl)
+        ret nz
+        dec (hl);ld (hl),0 ;TODO scroll
+        xor a ;z
+        ret
+
+Debugger_decy
+;m=overflow
+        call Debugger_getcurtab_hl_cury_a_ys_d_y 
+        dec a
+        dec (hl) ;cury
+        ret p
+        inc (hl);ld (hl),a ;TODO scroll
+        xor a
+        dec a ;m
+        ret
+
+Debugger_incx
+        call Debugger_getcurtab_hl_cury_a_ys_d_y 
+        inc hl ;skip cury
+        ld a,(hl) ;xs
+        inc hl
+        inc (hl) ;curx
+        cp (hl)
+        ret nz
+        ld (hl),0
+        ret
+
+Debugger_decx
+        call Debugger_getcurtab_hl_cury_a_ys_d_y 
+        inc hl ;skip cury
+        ld a,(hl) ;xs
+        inc hl
+        dec a
+        dec (hl) ;curx
+        ret p
+        ld (hl),a
+        ret
+
+Debugger_getcurxy_de_widb
+        call Debugger_getcurtab_hl_cury_a_ys_d_y 
+        ld a,d
+        add a,(hl) ;cury
+        ld d,a
+        inc hl
+        inc hl ;skip xs
+        ld a,(hl) ;curx
+        inc hl
+        add a,a
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        ld e,(hl)
+        inc hl
+        ld b,(hl)
+        ret
+
+debugger_curtab ;regs, disasm, mem
+        db 0
+tdebuggertabs
+        dw tdebuggertab_regs
+        dw tdebuggertab_disasm
+        dw tdebuggertab_mem
+;y,ys
+;curaddr16
+;nextaddr16
+;cury
+;xs
+;curx
+;x0,x0wid,x1,x1wid,...
+tdebuggertab_regs
+        db DEBUGGER_REGSY,DEBUGGER_REGSLINES
+        dw 0,0
+        db 0
+        db 1
+        db 0
+        db DEBUGGER_REGSX+3,4
+tdebuggertab_disasm
+        db DEBUGGER_DISASMY,DEBUGGER_DISASMLINES
+debugger_curdisasmaddr
+        dw 0
+debugger_nextdisasmaddr
+        dw 0
+        db 0
+        db 3
+        db 0
+        db DEBUGGER_DISASMX,4
+        db DEBUGGER_DISASMX+5,8
+        db DEBUGGER_DISASMX+5+8,disasmtextbuf_sz
+tdebuggertab_mem
+        db DEBUGGER_MEMY,DEBUGGER_MEMLINES
+debugger_curmemaddr
+        dw 0
+debugger_nextmemaddr
+        dw 0
+        db 0
+        db 3
+        db 0
+        db DEBUGGER_MEMX,4
+        db DEBUGGER_MEMX+5,8*3-1
+        db DEBUGGER_MEMX+5+(8*3),8
+
+DebuggerLeft=Debugger_decx
+DebuggerRight=Debugger_incx
