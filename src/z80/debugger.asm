@@ -127,6 +127,14 @@ drawcursor_sizeb0
 
 
 Debugger_editbyte_c_keya
+       if 1
+        sla c
+        sla c
+        sla c
+        sla c
+        or c
+        ld c,a
+       else
 hexeditor_half=$
         or a ;/scf
         jr c,hexeditor_symbol_right
@@ -146,6 +154,7 @@ hexeditor_symbol_rightq
         ld a,(hexeditor_half)
         xor 0x80
         ld (hexeditor_half),a
+       endif
         ret
 
 Debugger_editaddr
@@ -153,8 +162,8 @@ Debugger_editaddr
         call Debugger_getcurxypos_de
         ld a,(debugger_curtab)
         dec a
-        jr z,Debugger_calcaddr_disasm
-        jp p,Debugger_calcaddr_mem
+        jr z,Debugger_editaddr_disasm
+        jp p,Debugger_editaddr_mem
         ld hl,curregs
         ld a,d
         add a,a
@@ -170,10 +179,10 @@ Debugger_editaddr
         call Debugger_editbyte_c_keya
         ld (hl),c
         ret
-Debugger_calcaddr_disasm
+Debugger_editaddr_disasm
        ld a,e
        or a
-       ret z ;TODO edit addr
+       jr z,Debugger_editaddr_disasm_newaddr
        dec e
        cp 4
        ret nc ;TODO edit asm
@@ -181,24 +190,29 @@ Debugger_calcaddr_disasm
        push de
         ld a,d
         or a
-        jr z,Debugger_calcaddr_disasm0q
-Debugger_calcaddr_disasm0
+        jr z,Debugger_editaddr_disasm0q
+Debugger_editaddr_disasm0
         push hl
         call Disasm_GetCmdLen_bc
         pop hl
         add hl,bc
         dec d
-        jr nz,Debugger_calcaddr_disasm0
-Debugger_calcaddr_disasm0q
+        jr nz,Debugger_editaddr_disasm0
+Debugger_editaddr_disasm0q
        pop de
        ld d,0
        add hl,de
 ;TODO проверить длину и не редактировать невидимые байты (которые e>=len)
         jr Debugger_editaddr_inmem
-Debugger_calcaddr_mem
+Debugger_editaddr_disasm_newaddr
+        xor a
+        ld (debugger_curdisasmy),a
+        ld hl,debugger_curdisasmaddr
+        jr Debugger_edit16bit
+Debugger_editaddr_mem
        ld a,e
        or a
-       ret z ;TODO edit addr
+       jr z,Debugger_editaddr_mem_newaddr
        dec e
        cp 9
        ret nc ;TODO edit text
@@ -218,6 +232,21 @@ Debugger_editaddr_inmem
         call Debugger_editbyte_c_keya
         ld a,c
         jp Debugger_PutMem_hl_a
+Debugger_editaddr_mem_newaddr
+        xor a
+        ld (debugger_curmemy),a
+        ld hl,debugger_curmemaddr
+Debugger_edit16bit
+        ld a,(hl)
+        inc hl
+       dup 4
+        add a,a
+        rl (hl)
+       edup
+        dec hl
+        or lx
+        ld (hl),a
+        ret
 
 Debugger_Redraw
         ;ld de,0x0000
@@ -701,21 +730,23 @@ debugger_curdisasmaddr
         dw 0
 debugger_nextdisasmaddr
         dw 0
+debugger_curdisasmy
         db 0
-        db 6
+        db 5;6
         db 0
         db DEBUGGER_DISASMX,4
         db DEBUGGER_DISASMX+5,2
         db DEBUGGER_DISASMX+7,2
         db DEBUGGER_DISASMX+9,2
         db DEBUGGER_DISASMX+11,2
-        db DEBUGGER_DISASMX+13,disasmtextbuf_sz
+        ;db DEBUGGER_DISASMX+13,disasmtextbuf_sz
 tdebuggertab_mem
         db DEBUGGER_MEMY,DEBUGGER_MEMLINES
 debugger_curmemaddr
         dw 0
 debugger_nextmemaddr
         dw 0
+debugger_curmemy
         db 0
         db 1+8+8;3
         db 0
