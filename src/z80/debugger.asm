@@ -40,7 +40,19 @@ Debugger0
         jp z,DebuggerRight
         cp key_tab
         jp z,DebuggerTab
-        ret
+        cp '0'
+        ret c
+        cp '9'+1
+        jr c,DebuggerDigit
+        cp 'a'
+        ret c
+        cp 'f'+1
+        ret nc
+        sub 'a'-('9'+1)
+DebuggerDigit
+        sub '0'
+        call Debugger_editaddr
+        jp Debugger_Redraw
 
 DebuggerQuit
         ld a,(oldcurvideomode)
@@ -112,6 +124,100 @@ drawcursor_sizeb0
         inc e ;x
         djnz drawcursor_sizeb0
         ret
+
+
+Debugger_editbyte_c_keya
+hexeditor_half=$
+        or a ;/scf
+        jr c,hexeditor_symbol_right
+        add a,a
+        add a,a
+        add a,a
+        add a,a;a=XXXX0000
+        xor c
+        and 0xf0
+        jr hexeditor_symbol_rightq
+hexeditor_symbol_right
+        xor c
+        and 0x0f
+hexeditor_symbol_rightq
+        xor c
+        ld c,a
+        ld a,(hexeditor_half)
+        xor 0x80
+        ld (hexeditor_half),a
+        ret
+
+Debugger_editaddr
+       ld lx,a
+        call Debugger_getcurxypos_de
+        ld a,(debugger_curtab)
+        dec a
+        jr z,Debugger_calcaddr_disasm
+        jp p,Debugger_calcaddr_mem
+        ld hl,curregs
+        ld a,d
+        add a,a
+        add a,l
+        ld l,a
+        jr nc,$+3
+        inc h
+        dec e
+        jr z,$+3
+        inc hl
+       ld a,lx
+        ld c,(hl) ;
+        call Debugger_editbyte_c_keya
+        ld (hl),c
+        ret
+Debugger_calcaddr_disasm
+       ld a,e
+       or a
+       ret z ;TODO edit addr
+       dec e
+       cp 4
+       ret nc ;TODO edit asm
+        ld hl,(debugger_curdisasmaddr)
+       push de
+        ld a,d
+        or a
+        jr z,Debugger_calcaddr_disasm0q
+Debugger_calcaddr_disasm0
+        push hl
+        call Disasm_GetCmdLen_bc
+        pop hl
+        add hl,bc
+        dec d
+        jr nz,Debugger_calcaddr_disasm0
+Debugger_calcaddr_disasm0q
+       pop de
+       ld d,0
+       add hl,de
+;TODO проверить длину и не редактировать невидимые байты (которые e>=len)
+        jr Debugger_editaddr_inmem
+Debugger_calcaddr_mem
+       ld a,e
+       or a
+       ret z ;TODO edit addr
+       dec e
+       cp 9
+       ret nc ;TODO edit text
+        ld l,d
+        ld h,0
+        ld d,h;0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,de
+        ld de,(debugger_curmemaddr)
+        add hl,de
+Debugger_editaddr_inmem
+        call Debugger_GetMem_hl_to_a
+        ld c,a
+       ld a,lx
+        call Debugger_editbyte_c_keya
+        ld a,c
+        jp Debugger_PutMem_hl_a
 
 Debugger_Redraw
         ;ld de,0x0000
@@ -283,19 +389,8 @@ Debugger_DisasmLine_hl ;return hl = next cmd
         ld e,l
         call Debugger_PrWord_de
         call Debugger_PrSpace
-        ld de,disasmcmdbuf
-       push de
-        call Debugger_CopyMem_hl_to_de_4bytes
-       pop hl
-        call Disasm_LEN ;keep hl ;return b=len
-        LD A,B
-        DEC A
-        CP 4
-        JR C,$+4
-        LD B,1 ;если много префиксов, оставляем один
-
-        ld c,b
-        ld b,0
+        call Disasm_GetCmdLen_bc
+        
        push bc
 
        push hl
@@ -338,6 +433,21 @@ Debugger_DisasmLine_pr0
        pop bc
        pop hl
         add hl,bc
+        ret
+
+Disasm_GetCmdLen_bc
+        ld de,disasmcmdbuf
+       push de
+        call Debugger_CopyMem_hl_to_de_4bytes
+       pop hl
+        call Disasm_LEN ;keep hl ;return b=len
+        LD A,B
+        DEC A
+        CP 4
+        JR C,$+4
+         LD B,1 ;если много префиксов, оставляем один
+        ld c,b
+        ld b,0
         ret
 
 Debugger_CopyMem_hl_to_de_4bytes
@@ -556,6 +666,14 @@ Debugger_getcurxy_de_widb
         ld b,(hl)
         ret
 
+Debugger_getcurxypos_de
+        call Debugger_getcurtab_hl_cury_a_ys_d_y 
+        ld d,(hl) ;cury
+        inc hl
+        inc hl ;skip xs
+        ld e,(hl) ;curx
+        ret
+
 debugger_curtab ;regs, disasm, mem
         db 0
 tdebuggertabs
@@ -573,9 +691,10 @@ tdebuggertab_regs
         db DEBUGGER_REGSY,DEBUGGER_REGSLINES
         dw 0,0
         db 0
-        db 1
+        db 2
         db 0
-        db DEBUGGER_REGSX+3,4
+        db DEBUGGER_REGSX+3,2
+        db DEBUGGER_REGSX+5,2
 tdebuggertab_disasm
         db DEBUGGER_DISASMY,DEBUGGER_DISASMLINES
 debugger_curdisasmaddr
@@ -583,11 +702,14 @@ debugger_curdisasmaddr
 debugger_nextdisasmaddr
         dw 0
         db 0
-        db 3
+        db 6
         db 0
         db DEBUGGER_DISASMX,4
-        db DEBUGGER_DISASMX+5,8
-        db DEBUGGER_DISASMX+5+8,disasmtextbuf_sz
+        db DEBUGGER_DISASMX+5,2
+        db DEBUGGER_DISASMX+7,2
+        db DEBUGGER_DISASMX+9,2
+        db DEBUGGER_DISASMX+11,2
+        db DEBUGGER_DISASMX+13,disasmtextbuf_sz
 tdebuggertab_mem
         db DEBUGGER_MEMY,DEBUGGER_MEMLINES
 debugger_curmemaddr
@@ -595,11 +717,20 @@ debugger_curmemaddr
 debugger_nextmemaddr
         dw 0
         db 0
-        db 3
+        db 1+8+8;3
         db 0
         db DEBUGGER_MEMX,4
-        db DEBUGGER_MEMX+5,8*3-1
-        db DEBUGGER_MEMX+5+(8*3),8
+        ;db DEBUGGER_MEMX+5,8*3-1
+        ;db DEBUGGER_MEMX+5+(8*3),8
+_=DEBUGGER_MEMX+5
+       dup 8
+        db _,2
+_=_+3
+       edup
+       dup 8
+        db _,1
+_=_+1
+       edup
 
 DebuggerLeft=Debugger_decx
 DebuggerRight=Debugger_incx
