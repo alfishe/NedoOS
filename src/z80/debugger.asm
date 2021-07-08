@@ -40,17 +40,6 @@ Debugger0
         jp z,DebuggerRight
         cp key_tab
         jp z,DebuggerTab
-        cp '0'
-        ret c
-        cp '9'+1
-        jr c,DebuggerDigit
-        cp 'a'
-        ret c
-        cp 'f'+1
-        ret nc
-        sub 'a'-('9'+1)
-DebuggerDigit
-        sub '0'
         call Debugger_editaddr
         jp Debugger_Redraw
 
@@ -157,6 +146,22 @@ hexeditor_symbol_rightq
        endif
         ret
 
+countdigit
+;C=error
+        cp '0'
+        ret c
+        cp '9'+1
+        jr c,DebuggerDigit
+        cp 'a'
+        ret c
+        cp 'f'+1
+        ccf
+        ret c
+        sub 'a'-('9'+1)
+DebuggerDigit
+        sub '0'
+        ret
+
 Debugger_editaddr
        ld lx,a
         call Debugger_getcurxypos_de
@@ -175,6 +180,8 @@ Debugger_editaddr
         jr z,$+3
         inc hl
        ld a,lx
+        call countdigit ;C=error
+        ret c
         ld c,(hl) ;
         call Debugger_editbyte_c_keya
         ld (hl),c
@@ -214,8 +221,45 @@ Debugger_editaddr_mem
        or a
        jr z,Debugger_editaddr_mem_newaddr
        dec e
-       cp 9
-       ret nc ;TODO edit text
+       sub 9
+       jr nc,Debugger_editaddr_mem_edittext
+        call Debugger_memaddr_from_de
+Debugger_editaddr_inmem
+        call Debugger_GetMem_hl_to_a
+        ld c,a
+       ld a,lx
+        call countdigit ;C=error
+        ret c
+        call Debugger_editbyte_c_keya
+        ld a,c
+        jp Debugger_PutMem_hl_a
+Debugger_editaddr_mem_newaddr
+        xor a
+        ld (debugger_curmemy),a
+        ld hl,debugger_curmemaddr
+Debugger_edit16bit
+        ld a,lx
+        call countdigit ;C=error
+        ret c
+        ld c,a
+        ld a,(hl)
+        inc hl
+       dup 4
+        add a,a
+        rl (hl)
+       edup
+        dec hl
+        or c
+        ld (hl),a
+        ret
+Debugger_editaddr_mem_edittext
+        ld e,a
+        call Debugger_memaddr_from_de
+        ld a,lx
+        ld (hl),a
+        ret
+
+Debugger_memaddr_from_de
         ld l,d
         ld h,0
         ld d,h;0
@@ -225,27 +269,6 @@ Debugger_editaddr_mem
         add hl,de
         ld de,(debugger_curmemaddr)
         add hl,de
-Debugger_editaddr_inmem
-        call Debugger_GetMem_hl_to_a
-        ld c,a
-       ld a,lx
-        call Debugger_editbyte_c_keya
-        ld a,c
-        jp Debugger_PutMem_hl_a
-Debugger_editaddr_mem_newaddr
-        xor a
-        ld (debugger_curmemy),a
-        ld hl,debugger_curmemaddr
-Debugger_edit16bit
-        ld a,(hl)
-        inc hl
-       dup 4
-        add a,a
-        rl (hl)
-       edup
-        dec hl
-        or lx
-        ld (hl),a
         ret
 
 Debugger_Redraw
