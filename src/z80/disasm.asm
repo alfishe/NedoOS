@@ -1,5 +1,5 @@
 ;выводит в текстовый буфер
-SMALLLETTERADD=32;0
+SMALLLETTERADD=0;32;0
 
 Disasm_PrWord_de
 ;de=word
@@ -287,16 +287,20 @@ R0      CP 71+SMALLLETTERADD ;0x47+
         LD A,'L'+SMALLLETTERADD
 R6     call Disasm_PrChar
         LD A,D
+        and 0xf7
+        cp 0x26 ;ld h,i8 (0x2e=ld l,i8)
+        jr z,REG_hzlz
         AND 7
         CP 6
-        RET Z
+        RET Z ;(hl)/(iz+),h/l не пересчитываем
         XOR D
         CP 112
-        RET Z
+        RET Z ;h/l,(hl)/(iz+) не пересчитываем
+REG_hzlz
         LD A,B
-        CP 88
+        CP 'X'
         RET C
-        LD A,B
+        ;LD A,B
 R8     jp Disasm_PrChar
 
 R1      CP 64+SMALLLETTERADD
@@ -518,8 +522,13 @@ COMHim
         db3letter 'I','M',' ';db 79,83,166
         db4letter 'R','S','T',' ';db 88,89,90,166
 CC
+       if SMALLLETTERADD
         db2letter 'N','z';DB 84,224 ;'z'+6=128!!!
         db1letter 'z';db 224
+       else
+        db2letter 'N','Z';DB 84,224 ;'z'+6=128!!!
+        db1letter 'Z';db 224
+       endif
         db2letter 'N','C';db 84,201
         db1letter 'C';db 201
         db2letter 'P','O';db 86,213
@@ -529,12 +538,12 @@ CC
 COM0
         DB 84,85,214 ;nop
         db 75,94,38,71,76,50,71,76,173 ;ex af,af'
-        db 74,80,84,96,38,133 ;djnz
-        db 80,88,38,133 ;jr
-        db 80,88,38,84,96,50,133 ;jr nz,
-        db 80,88,38,96,50,133 ;jr z,
-        db 80,88,38,84,73,50,133 ;jr nc,
-        db 80,88,38,73,50,133 ;jr c,
+        db 74,80,84,96,38,133 ;djnz $+
+        db 80,88,38,133 ;jr $+
+        db 80,88,38,84,96,50,133 ;jr nz,$+
+        db 80,88,38,96,50,133 ;jr z,$+
+        db 80,88,38,84,73,50,133 ;jr nc,$+
+        db 80,88,38,73,50,133 ;jr c,$+
 COM
         DB 71,74,74,38,71,178 ;add a,
         db 71,74,73,38,71,178 ;adc a,
@@ -618,13 +627,9 @@ COM2
         db 71,50,46,4,175 ;a,(i16)
 
 Disasm_GetCmdLen_bc
-        ld de,disasmcmdbuf
-       push de
-        call Debugger_CopyMem_hl_to_de_4bytes
-       pop hl
-       push hl
+       ;push hl
         call Disasm_LEN ;return b=len
-       pop hl
+       ;pop hl
         LD A,B
         DEC A
         CP 5
@@ -638,7 +643,7 @@ Disasm_GetCmdLen_bc
 Disasm_LEN ;return b=len
         ;PUSH HL
         LD E,0x40;64 ;const (used 5 times)
-        LD BC,#0301;769
+        LD BC,#0301;769 ;c=1: не было dd/fd
 LNX     LD D,(HL)
         LD A,D
         CP 0xdd;221
@@ -648,13 +653,14 @@ LENL0   INC HL
         INC B
         JR LNX
 LENL1
+;b=3+
         CP 0xfd;253
         JR Z,LENL0 ;может зациклиться на префиксах
         CP 0xcd;205 ;call
         JR Z,LENend
         CP 0xc3;195 ;jp
         JR Z,LENend
-        DEC B
+        DEC B ;b=2+
         CP 0xcb;203
         JR Z,LENend
         CP 0xd3;211 ;out (n),a
@@ -663,19 +669,22 @@ LENL1
         JR Z,LENend
         CP 0xed;237
         JR NZ,LENL2
+;ed
         INC HL
         LD A,(HL)
-        RLA 
+        add a,a
         LD A,(HL)
         ;POP HL
         RET C
+       ret p
+;ed 40..7f
         AND 7
         CP 3
         RET NZ
         INC B
-        INC B
+        INC B ;ld rp,(mm)/ld (mm),rp
         RET 
-LENL2
+LENL2 ;b=2+
         AND 7
         JR NZ,LENL6
         LD A,D
@@ -683,30 +692,50 @@ LENL2
         JR C,LENendB1
 LNY     CP E;0x40
         JR LENL7
-LENL6
+LENL6 ;b=2+
         CP 6
         JR NZ,LENL5
         LD A,D
         SUB E;0x40
-LENrlaL7
+;LENrlaL7
         RLA 
 LENL7
         JR C,LENend
 LENendB1
-        LD B,1
+        dec b ;LD B,1
 LENend
         ;POP HL
         DEC C
-        RET Z
-        INC B
+        RET Z ;не было dd/fd
+;b=длина команды + длина префикса
+;надо добавить 1 байт (iz+) для некоторых команд
+        ;INC B
         LD A,D
         CP 0xcb;203
-        JR Z,LENINCB
-        CP 0x34;52 ;inc (hl) ;???
-        JR C,LENL3
+        JR Z,LENINCB ;везде появляется iz+d
+        CP 0x34;52 ;inc (hl)/(iz+)
+        ret c ;JR C,LENL3 ;<0x34
         CP 0x37;55 ;scf ;???
+       if 0
         CCF 
-        JR LENretcINCB
+        JR LENretcINCB ;0x34..0x36: inc (hl),dec (hl),ld (hl),i8 do b++
+       endif
+       if 1
+        JR c,LENINCB ;0x34..0x36: inc (hl),dec (hl),ld (hl),i8 do b++
+        xor 6 ;чтобы halt вышел за диапазон сравнения
+        cp 0x70
+        ret z ;halt
+        jr c,LENend_noldmreg
+        cp 0x78
+        jr c,LENINCB ;ld (hl),reg
+LENend_noldmreg
+        sub 0x40
+        ret m
+        and 7
+        ret nz
+        ;jr LENINCB
+       endif
+       if 0
 LENL3
         AND 7
         CP 6
@@ -716,35 +745,49 @@ LENL3
         RLA
 LENretcINCB
         RET C
+       endif
 LENINCB
         INC B
-        RET 
+        RET
+       if 0
 LENL4
         XOR D
         CP 0x70 ;112
         RET NZ
         INC B
-        RET 
+        RET
+       endif
+
 LENL5
-        INC B
+        INC B ;b=3+
         CP 2
         JR NZ,LENL8
         LD A,D
         ADD A,E;0x40
         JR C,LENend
         CP 0x60 ;96
+       dec b
         JR C,LENendB1
+       inc b
         CPL 
-        JR LENrlaL7
-LENL8
+        ;JR LENrlaL7
+        RLA
+        jr len3or1
+LENL8 ;b=3+
         CP 4
         LD A,D
         JR NZ,LENL9
         ADD A,E;0x40
-        JR LENL7
-LENL9
+        ;JR LENL7
+len3or1
+        JR C,LENend ;call pp,nn
+        dec b
+        jr LENendB1
+LENL9 ;b=3+
         AND 15
+       dec b
         DEC A
         JR NZ,LENendB1
+       inc b
         LD A,D
         JR LNY

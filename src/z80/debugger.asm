@@ -1,16 +1,20 @@
+DEBUGGER_MEMLINES=24
+DEBUGGER_DISASMLINES=24
+DEBUGGER_REGSLINES=13
 DEBUGGER_REGSY=0
 DEBUGGER_REGSX=0
+DEBUGGER_FLAGSY=DEBUGGER_REGSY+DEBUGGER_REGSLINES
+DEBUGGER_FLAGSX=DEBUGGER_REGSX
 DEBUGGER_DISASMY=0
 DEBUGGER_DISASMX=8
 DEBUGGER_MEMY=0
 DEBUGGER_MEMX=0x2b
-DEBUGGER_MEMLINES=24
-DEBUGGER_DISASMLINES=24
-DEBUGGER_REGSLINES=13
 
 Debugger
         ld e,6+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld e,0
+        OS_SETSCREEN
         ld e,0 ;color byte
         OS_CLS
 
@@ -40,7 +44,9 @@ Debugger0
         jp z,DebuggerRight
         cp key_tab
         jp z,DebuggerTab
-        call Debugger_editaddr
+        cp key_enter
+        jp z,DebuggerEnter
+        call Debugger_edit
         jp Debugger_Redraw
 
 DebuggerQuit
@@ -91,6 +97,43 @@ DebuggerPgDown
         call Debugger_putcuraddr16_hl
         jp Debugger_Redraw
 
+DebuggerEnter
+        ld hl,(debugger_curdisasmaddr) ;TODO current line
+      push hl
+        call Debugger_GetCmd_to_disasmcmdbuf
+        call Debugger_Disasm_cmdbuf_to_textbuf
+        ld de,disasmtextbuf
+        ld hl,disasmcmdbuf
+;de=cmd text
+;hl=code generated ;out: after the code
+;out: NZ=error
+        call asmcmd
+
+        ld e,2
+        jr nz,DebuggerEnter_error
+        ld e,0
+DebuggerEnter_error
+       push hl
+        OS_SETBORDER
+       pop hl ;after the code
+        ld de,disasmcmdbuf
+        ld a,l
+        sub e
+     pop hl ;hl=(debugger_curdisasmaddr)+
+        jr z,DebuggerEnter_nocmd
+        ld b,a ;b=generated code len
+        ;de=disasmcmdbuf
+DebuggerEnter_writecmd0
+        push bc
+        ld a,(de)
+        inc de
+        call Debugger_PutMem_hl_a
+        inc hl
+        pop bc
+        djnz DebuggerEnter_writecmd0
+DebuggerEnter_nocmd
+        jp Debugger_Redraw
+
 Debugger_undrawcursor
         ld c,0x0f;0x07
         jr Debugger_drawcursor_colorc
@@ -113,7 +156,6 @@ drawcursor_sizeb0
         inc e ;x
         djnz drawcursor_sizeb0
         ret
-
 
 Debugger_editbyte_c_keya
        if 1
@@ -162,13 +204,13 @@ DebuggerDigit
         sub '0'
         ret
 
-Debugger_editaddr
+Debugger_edit
        ld lx,a
         call Debugger_getcurxypos_de
         ld a,(debugger_curtab)
         dec a
-        jr z,Debugger_editaddr_disasm
-        jp p,Debugger_editaddr_mem
+        jr z,Debugger_edit_disasm
+        jp p,Debugger_edit_mem
         ld hl,curregs
         ld a,d
         add a,a
@@ -186,45 +228,49 @@ Debugger_editaddr
         call Debugger_editbyte_c_keya
         ld (hl),c
         ret
-Debugger_editaddr_disasm
+Debugger_edit_disasm
        ld a,e
        or a
-       jr z,Debugger_editaddr_disasm_newaddr
+       jr z,Debugger_edit_disasm_newaddr
        dec e
        cp 1+4
        ret nc ;TODO edit asm
         ld hl,(debugger_curdisasmaddr)
-       push de
-        ld a,d
+       push de ;e=x
+        ld a,d ;y
         or a
-        jr z,Debugger_editaddr_disasm0q
-Debugger_editaddr_disasm0
+        jr z,Debugger_edit_disasm0q
+Debugger_edit_disasm0
+        push de
         push hl
+        call Debugger_GetCmd_to_disasmcmdbuf
+        ld hl,disasmcmdbuf
         call Disasm_GetCmdLen_bc
         pop hl
+        pop de
         add hl,bc
         dec d
-        jr nz,Debugger_editaddr_disasm0
-Debugger_editaddr_disasm0q
-       pop de
+        jr nz,Debugger_edit_disasm0
+Debugger_edit_disasm0q
+       pop de ;e=x
        ld d,0
        add hl,de
 ;TODO проверить длину и не редактировать невидимые байты (которые e>=len)
-        jr Debugger_editaddr_inmem
-Debugger_editaddr_disasm_newaddr
+        jr Debugger_edit_inmem
+Debugger_edit_disasm_newaddr
         xor a
         ld (debugger_curdisasmy),a
         ld hl,debugger_curdisasmaddr
         jr Debugger_edit16bit
-Debugger_editaddr_mem
+Debugger_edit_mem
        ld a,e
        or a
-       jr z,Debugger_editaddr_mem_newaddr
+       jr z,Debugger_edit_mem_newaddr
        dec e
        sub 9
-       jr nc,Debugger_editaddr_mem_edittext
+       jr nc,Debugger_edit_mem_edittext
         call Debugger_memaddr_from_de
-Debugger_editaddr_inmem
+Debugger_edit_inmem
         call Debugger_GetMem_hl_to_a
         ld c,a
        ld a,lx
@@ -233,7 +279,7 @@ Debugger_editaddr_inmem
         call Debugger_editbyte_c_keya
         ld a,c
         jp Debugger_PutMem_hl_a
-Debugger_editaddr_mem_newaddr
+Debugger_edit_mem_newaddr
         xor a
         ld (debugger_curmemy),a
         ld hl,debugger_curmemaddr
@@ -252,7 +298,7 @@ Debugger_edit16bit
         or c
         ld (hl),a
         ret
-Debugger_editaddr_mem_edittext
+Debugger_edit_mem_edittext
         ld e,a
         call Debugger_memaddr_from_de
         ld a,lx
@@ -276,33 +322,35 @@ Debugger_Redraw
         ;OS_SETXY
         ;ld hl,tdebugger
         ;call Debugger_PrText
-        ld a,(debugger_curtab)
-        or a
+        xor a
         call Debugger_setcolorz
         ld de,DEBUGGER_REGSY*256+DEBUGGER_REGSX
         call Debugger_PrRegs
+        
+        call Debugger_setcolor_normal
+        ld de,DEBUGGER_FLAGSY*256+DEBUGGER_FLAGSX
+        call Debugger_PrFlags
 
-        ld a,(debugger_curtab)
-        cp 1
+        ld a,1
         call Debugger_setcolorz
         ld hl,(debugger_curdisasmaddr)
         ld de,DEBUGGER_DISASMY*256+DEBUGGER_DISASMX
         call Debugger_Disasm_hl
 
-        ld a,(debugger_curtab)
-        cp 2
+        ld a,2
         call Debugger_setcolorz
         ld hl,(debugger_curmemaddr)
         ld de,DEBUGGER_MEMY*256+DEBUGGER_MEMX
         call Debugger_PrMem_hl
 
-        ld e,0x07
-        OS_SETCOLOR
-        ret
+        jr Debugger_setcolor_normal
 
 Debugger_setcolorz
+        ld hl,debugger_curtab
+        cp (hl)
         ld e,0x0f
         jr z,$+4
+Debugger_setcolor_normal
         ld e,0x07
         OS_SETCOLOR
         ret
@@ -313,7 +361,7 @@ Debugger_PrRegs
 Debugger_PrRegs0
         ld a,(bc)
         or a
-        jr z,Debugger_PrRegs0q
+        ret z
       push de
        push hl
         push bc
@@ -335,15 +383,16 @@ Debugger_PrRegs0
       pop de
         inc d
         jr Debugger_PrRegs0
-Debugger_PrRegs0q
+
+Debugger_PrFlags
         OS_SETXY
         ld a,(curaf) ;flags
+        ld c,a
         ld hl,tflags
         scf
 Debugger_PrFlags0
-        adc a,a
+        rl c
         ret z
-        push af
         ld a,(hl)
         inc hl
         jr c,Debugger_PrFlags_nooff
@@ -353,7 +402,6 @@ Debugger_PrFlags0
         ld a,'.'
 Debugger_PrFlags_nooff
         call Debugger_PrChar
-        pop af
         or a
         jr Debugger_PrFlags0
 tflags
@@ -441,11 +489,15 @@ Debugger_DisasmLine_hl ;return hl = next cmd
         ld e,l
         call Debugger_PrWord_de
         call Debugger_PrSpace
+        call Debugger_GetCmd_to_disasmcmdbuf
+        ld hl,disasmcmdbuf
+        push hl
         call Disasm_GetCmdLen_bc
+        pop hl
         
        push bc
 
-       push hl
+       ;push hl
         ld b,4
 Debugger_DisasmLine_hl0
 ;4-b = n = номер печатаемого байта
@@ -462,17 +514,8 @@ Debugger_DisasmLine_hl0
 Debugger_DisasmLine_hl_nospaces
         call c,Debugger_PrHex_a
         djnz Debugger_DisasmLine_hl0
-        
-        ld hl,disasmtextbuf
-       push hl
-        ld de,disasmtextbuf+1
-        ld bc,disasmtextbuf_sz-1
-        ld (hl),' '
-        ldir
-       pop ix
-        
-       pop hl ;cmdbuf       
-        call Disasm_COMMAND
+
+        call Debugger_Disasm_cmdbuf_to_textbuf
         
         ld hl,disasmtextbuf
         ld b,disasmtextbuf_sz
@@ -487,14 +530,27 @@ Debugger_DisasmLine_pr0
         add hl,bc
         ret
 
+Debugger_Disasm_cmdbuf_to_textbuf
+        ld hl,disasmtextbuf
+       push hl
+        ld de,disasmtextbuf+1
+        ld bc,disasmtextbuf_sz-1
+        ld (hl),' '
+        ldir
+       pop ix
+        ld hl,disasmcmdbuf;pop hl ;cmdbuf       
+        jp Disasm_COMMAND
+
+Debugger_GetCmd_to_disasmcmdbuf
+        ld de,disasmcmdbuf
 Debugger_CopyMem_hl_to_de_4bytes
         call Debugger_CopyMem_hl_to_de_2bytes
 Debugger_CopyMem_hl_to_de_2bytes
         call Debugger_CopyMem_hl_to_de
 Debugger_CopyMem_hl_to_de
         call Debugger_GetMem_hl_to_a
-        ld (de),a
         inc hl
+        ld (de),a
         inc de
         ret
 
@@ -654,7 +710,7 @@ Debugger_incy
 Debugger_decy
 ;m=overflow
         call Debugger_getcurtab_hl_cury_a_ys_d_y 
-        dec a
+        ;dec a
         dec (hl) ;cury
         ret p
         inc (hl);ld (hl),a ;TODO scroll

@@ -788,6 +788,9 @@ DOSrdsec5ok
         include "debugger.asm"
         INCLUDE "disasm.asm"
 
+        include "asmsrv.asm"
+        INCLUDE "asm.asm"
+
         INCLUDE "ports.asm"
 
         INCLUDE "z80cmd.asm"
