@@ -1,5 +1,5 @@
 ;выводит в текстовый буфер
-SMALLLETTERADD=0;32;0
+SMALLLETTERADD=32;0
 
 Disasm_PrWord_de
 ;de=word

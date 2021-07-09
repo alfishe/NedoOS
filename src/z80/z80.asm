@@ -791,6 +791,8 @@ DOSrdsec5ok
         include "asmsrv.asm"
         INCLUDE "asm.asm"
 
+        include "editline.asm"
+
         INCLUDE "ports.asm"
 
         INCLUDE "z80cmd.asm"

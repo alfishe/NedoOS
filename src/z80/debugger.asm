@@ -10,6 +10,10 @@ DEBUGGER_DISASMX=8
 DEBUGGER_MEMY=0
 DEBUGGER_MEMX=0x2b
 
+DEBUGGER_COLORACTIVE=0x0f
+DEBUGGER_COLOR=0x07
+DEBUGGER_COLORCURSOR=0x38
+
 Debugger
         ld e,6+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
@@ -98,10 +102,25 @@ DebuggerPgDown
         jp Debugger_Redraw
 
 DebuggerEnter
+        ld a,(debugger_curtab)
+        dec a
+        ret nz
+        call Debugger_getcurxypos_de
+        ld a,e
+        cp 5
+        ret nz
+        
         ld hl,(debugger_curdisasmaddr) ;TODO current line
       push hl
         call Debugger_GetCmd_to_disasmcmdbuf
         call Debugger_Disasm_cmdbuf_to_textbuf
+        
+        ld e,DEBUGGER_COLORACTIVE
+        OS_SETCOLOR
+        call Debugger_getcurxy_de_widb
+        ld hl,disasmtextbuf
+        call EditLine_xyde_widb
+        
         ld de,disasmtextbuf
         ld hl,disasmcmdbuf
 ;de=cmd text
@@ -135,10 +154,10 @@ DebuggerEnter_nocmd
         jp Debugger_Redraw
 
 Debugger_undrawcursor
-        ld c,0x0f;0x07
+        ld c,DEBUGGER_COLORACTIVE;0x0f;0x07
         jr Debugger_drawcursor_colorc
 Debugger_drawcursor
-        ld c,0x38
+        ld c,DEBUGGER_COLORCURSOR;0x38
 Debugger_drawcursor_colorc
         call Debugger_getcurxy_de_widb
         ld l,c
@@ -348,10 +367,10 @@ Debugger_Redraw
 Debugger_setcolorz
         ld hl,debugger_curtab
         cp (hl)
-        ld e,0x0f
+        ld e,DEBUGGER_COLORACTIVE;0x0f
         jr z,$+4
 Debugger_setcolor_normal
-        ld e,0x07
+        ld e,DEBUGGER_COLOR;0x07
         OS_SETCOLOR
         ret
 
@@ -519,15 +538,19 @@ Debugger_DisasmLine_hl_nospaces
         
         ld hl,disasmtextbuf
         ld b,disasmtextbuf_sz
+        call Debugger_PrChars_hl_b
+       
+       pop bc
+       pop hl
+        add hl,bc
+        ret
+
+Debugger_PrChars_hl_b
 Debugger_DisasmLine_pr0
         ld a,(hl)
         inc hl
         call Debugger_PrChar
         djnz Debugger_DisasmLine_pr0
-       
-       pop bc
-       pop hl
-        add hl,bc
         ret
 
 Debugger_Disasm_cmdbuf_to_textbuf
@@ -796,14 +819,14 @@ debugger_nextdisasmaddr
         dw 0
 debugger_curdisasmy
         db 0
-        db 5;6
+        db 6
         db 0
         db DEBUGGER_DISASMX,4
         db DEBUGGER_DISASMX+5,2
         db DEBUGGER_DISASMX+7,2
         db DEBUGGER_DISASMX+9,2
         db DEBUGGER_DISASMX+11,2
-        ;db DEBUGGER_DISASMX+13,disasmtextbuf_sz
+        db DEBUGGER_DISASMX+13,disasmtextbuf_sz
 tdebuggertab_mem
         db DEBUGGER_MEMY,DEBUGGER_MEMLINES
 debugger_curmemaddr

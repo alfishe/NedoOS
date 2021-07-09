@@ -1,3 +1,5 @@
+OR20FORBRACKETS=0;0x20
+
        macro MATCH s1
         cp s1
         ret nz
@@ -64,11 +66,13 @@ asmcmd_ldi_
         cp 'r'
         jr z,asmcmd_ldir
         asmputbyte 0xa0 ;ldi
+        cp a ;Z
         ret
 asmcmd_ldir
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0xb0 ;ldir
+        cp a ;Z
         ret
 asmcmd_ldd_
 ;ldd/lddr
@@ -78,11 +82,13 @@ asmcmd_ldd_
         cp 'r'
         jr z,asmcmd_lddr
         asmputbyte 0xa8 ;ldd
+        cp a ;Z
         ret
 asmcmd_lddr
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0xb8 ;lddr
+        cp a ;Z
         ret
         
 asmcmd_l
@@ -98,7 +104,7 @@ asmcmd_l
         jp z,asmcmd_ld_a
         cp '('
         jp z,asmcmd_ld_bracket
-        cp '['|0x20
+        cp '['|OR20FORBRACKETS
         jp z,asmcmd_ld_bracket
         cp 'h'
         jr z,asmcmd_ld_h
@@ -140,14 +146,17 @@ asmcmd_ld_reg_noindex
         ld a,b ;reg1*8
         add a,c ;reg2
         asmputbyte_a
+        cp a ;Z
         ret
 asmcmd_ld_reg_noreg
-        ld a,b ;reg1*8
-        add a,6
+        ld a,b ;reg1*8+0x40
+        add a,6-0x40
         asmputbyte_a ;ld r8,i8
+        asmgetchar
         call matchexpr
         ret nz
         asmputbyte_c
+        cp a ;Z
         ret
 
 asmcmd_ld_b
@@ -178,11 +187,11 @@ asmcmd_ld_h
         asmgetchar
         cp 'l'
         jp z,asmcmd_ld_hl
+        ld b,0x60;'h'
         cp 'y'
         jr z,asmcmd_ld_hy
         cp 'x'
         ;jr z,asmcmd_ld_hx
-        ld b,0x60;'h'
         jr nz,asmcmd_ld_reg_gotnextchar
 asmcmd_ld_hx
 ;ld hx,reg/n (reg!=h,l,hy,ly)
@@ -216,6 +225,7 @@ asmcmd_ld_hz_reg
         ld a,c
         add a,b ;'h'*8
         asmputbyte_a
+        cp a ;Z
         ret
 asmcmd_ld_l
 ;l/lx/ly
@@ -240,7 +250,7 @@ asmcmd_ld_rp_nn_bmm_cnn
         SKIPSPACES
         cp '('
         jr z,asmcmd_ld_sp_bracket
-        cp '['|0x20
+        cp '['|OR20FORBRACKETS
         jr z,asmcmd_ld_sp_bracket
         asmputbyte_c; 0x31 ;ld sp,nn
         jr asmmatchexpr_emitword_bc
@@ -258,7 +268,7 @@ asmcmd_ld_hl
         SKIPSPACES
         cp '('
         jr z,asmcmd_ld_hl_bracket
-        cp '['|0x20
+        cp '['|OR20FORBRACKETS
         jr z,asmcmd_ld_hl_bracket
         asmputbyte 0x21 ;ld hl,nn
 asmmatchexpr_emitword_bc
@@ -266,6 +276,7 @@ asmmatchexpr_emitword_bc
         ret nz ;error
         asmputbyte_c
         asmputbyte_b
+        cp a ;Z
         ret
 asmcmd_ld_hl_bracket
         asmputbyte 0x2a ;ld hl,(mm)
@@ -277,7 +288,7 @@ asmmatchexpr_bracket_emitword_bc_noeatopenbracket
         ret nz ;error
         cp ')'
         jr z,asmeatemitword_bc
-        cp ']'|0x20
+        cp ']'|OR20FORBRACKETS
         ;jr z,asmeatemitword_bc
         ret nz ;nz=error
 asmeatemitword_bc
@@ -285,12 +296,15 @@ asmeatemitword_bc
         asmgetchar
         asmputbyte_c
         asmputbyte_b
+        cp a ;Z
         ret
 
 asmcmd_ld_bracket
 ;TODO ld (hl),a/ld (rp),a/ld (iz+),a/ld (mm),a/hl/ix/iy/rp
         asmnextchar ;eat
         asmgetchar
+
+        cp a ;Z
         ret
 
 asmcmd_ld_r
@@ -302,6 +316,7 @@ asmcmd_ld_r
         MATCH 'a'
         asmputbyte 0xed
         asmputbyte 0x4f ;ld r,a
+        cp a ;Z
         ret
 
 asmcmd_ld_a
@@ -312,12 +327,12 @@ asmcmd_ld_a
         SKIPSPACES
         cp '('
         jr z,asmcmd_ld_a_bracket
-        cp '['|0x20
+        cp '['|OR20FORBRACKETS
         jr z,asmcmd_ld_a_bracket
         cp 'i'
-        jr z,asmcmd_ld_a_i
+        jp z,asmcmd_ld_a_i
         cp 'r'
-        jr z,asmcmd_ld_a_r
+        jp z,asmcmd_ld_a_r
 ;ld a,a/reg/n
         cp 'a'
         jr z,asmcmd_ld_a_a
@@ -326,16 +341,19 @@ asmcmd_ld_a
         call matchexpr
         asmputbyte 0x3e ;ld a,n
         asmputbyte_c
+        cp a ;Z
         ret
 asmcmd_ld_a_rb
         ld a,c
         add a,0x78 ;ld a,rb
         asmputbyte_a
+        cp a ;Z
         ret
 asmcmd_ld_a_a
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0x7f ;ld a,a
+        cp a ;Z
         ret
 
 asmcmd_ld_a_bracket
@@ -346,11 +364,17 @@ asmcmd_ld_a_bracket
         cp 'i'
         jr z,asmcmd_ld_a_bracket_i
 ;ld a,(mm)/(rp)
+        ;cp 'h'
+        ;jr z,asmcmd_ld_a_bracket_h
         call matchrp ;c=rp*0x10
         jr nz,asmcmd_ld_a_bracket_norp
         ld a,c
         add a,0x0a
+        cp 0x20 ;'hl'
+        jr c,$+4
+         ld a,0x7e
         asmputbyte_a ;ld a,(rp)
+        cp a ;Z
         ret
 asmcmd_ld_a_bracket_norp
 ;ld a,(mm)
@@ -381,12 +405,12 @@ asmcmd_ld_a_bracket_iz
         ld c,0
         cp ')'
         jr z,asmcmd_ld_a_bracket_iz_noshift
-        cp ']'|0x20
+        cp ']'|OR20FORBRACKETS
         jr z,asmcmd_ld_a_bracket_iz_noshift
         call matchexpr
         cp ')'
         jr z,asmcmd_ld_a_bracket_iz_ok
-        cp ']'|0x20
+        cp ']'|OR20FORBRACKETS
         ;jr z,asmcmd_ld_a_bracket_iz_ok
         ret nz
 asmcmd_ld_a_bracket_iz_ok
@@ -394,18 +418,21 @@ asmcmd_ld_a_bracket_iz_noshift
         asmnextchar ;eat
         asmgetchar
         asmputbyte_c
+        cp a ;Z
         ret
 asmcmd_ld_a_i
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0xed
         asmputbyte 0x57 ;ld a,i
+        cp a ;Z
         ret
 asmcmd_ld_a_r
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0xed
         asmputbyte 0x5f ;ld a,r
+        cp a ;Z
         ret
 
 asmcmd_ld_i
@@ -422,13 +449,15 @@ asmcmd_ld_i
         ret nz
         ld c,0xfd
 asmcmd_ld_ix
+        asmnextchar ;eat
+        asmgetchar
         MATCH ','
         SKIPSPACES
 ;ld iz,nn/(mm)
         asmputbyte_c ;0xdd/fd      
         cp '('
         jr z,asmcmd_ld_iz_bracket
-        cp '['|0x20
+        cp '['|OR20FORBRACKETS
         jr z,asmcmd_ld_iz_bracket
         asmputbyte 0x21 ;ld hl,mm
         jp asmmatchexpr_emitword_bc
@@ -442,6 +471,7 @@ asmcmd_ld_i_comma
         MATCH 'a'
         asmputbyte 0xed
         asmputbyte 0x47 ;ld i,a
+        cp a ;Z
         ret
         
 matchrb
@@ -540,6 +570,8 @@ matchrp
         asmgetchar
         cp 'e'
         jp nz,asm_backchar
+        asmnextchar ;eat
+        asmgetchar
         ld c,0x10
         JPMATCHENDWORD_BACK
 matchrp_h
@@ -547,6 +579,8 @@ matchrp_h
         asmgetchar
         cp 'l'
         jp nz,asm_backchar
+        asmnextchar ;eat
+        asmgetchar
         ld c,0x20
         JPMATCHENDWORD_BACK
 matchrp_b
@@ -554,6 +588,8 @@ matchrp_b
         asmgetchar
         cp 'c'
         jp nz,asm_backchar
+        asmnextchar ;eat
+        asmgetchar
         ld c,0
         JPMATCHENDWORD_BACK
 
@@ -582,6 +618,7 @@ matchval
         cp 10
         jr nc,matchval_nodigit
         push hl
+        ld bc,0
         ld h,b
         ld l,c
 matchval_dec0 ;bc=hl
@@ -601,13 +638,16 @@ matchval_dec0 ;bc=hl
         cp 10
         jr c,matchval_dec0
         pop hl
-        add a,'0' ;как было
+        ;add a,'0' ;как было
+        asmgetchar        
         cp a ;z
         ret
 matchval_nodigit
-        ld c,'0'
-        add a,c ;как было (для следующих match)
-        dec c ;nz (error)
+        ;ld c,'0'
+        ;add a,c ;как было (для следующих match)
+        ;dec c ;nz (error)
+        or a ;nz (error)
+        asmgetchar        
         ret
 
 matchval_hex
@@ -636,7 +676,8 @@ matchval_hex_nodigit
         sub 'A'-'a'
         cp 6
         jr c,matchval_hex_add
-        sub 'A' ;как было
+        ;sub -'A' ;как было
+        asmgetchar
         cp a ;z
         ret
 
@@ -667,6 +708,10 @@ matchendword
 ;Z=конец слова, NZ=не конец
         cp ' '+1
         jr c,matchendword_ok
+        cp ')'
+        ret z
+        cp ']'|OR20FORBRACKETS
+        ret z
         cp ','
         ret ;z/nz
 matchendword_ok
@@ -678,6 +723,10 @@ matchendword_back
 ;Z=конец слова, NZ=не конец (откручиваем назад)
         cp ' '+1
         jr c,matchendword_ok
+        cp ')'
+        ret z
+        cp ']'|OR20FORBRACKETS
+        ret z
         cp ','
         ret z
 asm_backchar
