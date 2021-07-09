@@ -191,7 +191,7 @@ Debugger_editaddr_disasm
        or a
        jr z,Debugger_editaddr_disasm_newaddr
        dec e
-       cp 4
+       cp 1+4
        ret nc ;TODO edit asm
         ld hl,(debugger_curdisasmaddr)
        push de
@@ -485,21 +485,6 @@ Debugger_DisasmLine_pr0
        pop bc
        pop hl
         add hl,bc
-        ret
-
-Disasm_GetCmdLen_bc
-        ld de,disasmcmdbuf
-       push de
-        call Debugger_CopyMem_hl_to_de_4bytes
-       pop hl
-        call Disasm_LEN ;keep hl ;return b=len
-        LD A,B
-        DEC A
-        CP 4
-        JR C,$+4
-         LD B,1 ;если много префиксов, оставляем один
-        ld c,b
-        ld b,0
         ret
 
 Debugger_CopyMem_hl_to_de_4bytes
