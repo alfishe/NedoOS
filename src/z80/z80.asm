@@ -786,18 +786,19 @@ DOSrdsec5ok
 
         include "debugsrv.asm"
         include "debugger.asm"
-        INCLUDE "disasm.asm"
+        include "disasm.asm"
 
         include "asmsrv.asm"
-        INCLUDE "asm.asm"
+        include "asmsubr.asm"
+        include "asm.asm"
 
         include "editline.asm"
 
-        INCLUDE "ports.asm"
+        include "ports.asm"
 
-        INCLUDE "z80cmd.asm"
+        include "z80cmd.asm"
         align 256
-        INCLUDE "z80table.asm"
+        include "z80table.asm"
         align 256
 t866toatm
         incbin "../kernel/866toatm"
