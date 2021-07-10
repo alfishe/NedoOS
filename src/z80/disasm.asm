@@ -71,7 +71,16 @@ C7      LD E,A
         LD A,E
         JR C,C8
         ADD A,2
-C8      LD DE,COMI
+C8
+       or a
+       jr nz,noinregc
+       ld a,(hl)
+       sub 0x70
+       ld de,COMINF
+       jr z,TXT
+       xor a
+noinregc
+        LD DE,COMI
         CP 3 ;ld (nn), ;ld rp,(nn) - как работает? показывает правильно даже с префиксом
         JR NZ,TXT ;а как проверяется 2? sbc/adc hl,rp - всегда hl, а не ix/iy! показывает правильно даже с префиксом
         LD C,(HL)
@@ -568,7 +577,9 @@ COMB
         DB 89,75,90,166 ;ret
 COM3
         DB 80,86,38,4+128 ;jp i16
-        db 166 ;NU
+        ;db 166 ;NU
+COMINF
+       db3letter 'I','N','F'
         db 85,91,90,38,46,3,47,50,199 ;out (i8),a
         db 79,84,38,71,50,46,3,175 ;in a,(i8)
         db 75,94,38,46,89,86,47,50,128 ;ex (sp),hl/ix/iy

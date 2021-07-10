@@ -11,6 +11,15 @@ IYADD=0x70;0xa0
         MATCH_NOGET s1
         asmgetchar
        endm
+
+       macro MATCHOPENBRACKET
+        cp '('
+        jr z,$+5
+         cp '['|OR20FORBRACKETS
+         ret nz
+        asmnextchar ;eat
+        asmgetchar
+       endm
        
        macro CPCLOSEBRACKET_NOEAT
         cp ')'
@@ -182,11 +191,77 @@ matchval_bracket
         MATCH ')'
         ret
 
+matchcc
+;a=first char ;съедает слово! если error, то откатывает как было
+;NZ=error
+;out: a=0x20+0,8..0x38 for 'nz'/'z'/'nc'/'c'/'po'/'pe'/'p'/'m'
+        cp 'p'
+        jr z,matchcc_p
+        cp 'm'
+        jr z,matchcc_m
+matchcc_for_jr
+        cp 'n'
+        jr z,matchcc_n
+        cp 'c'
+        jr z,matchcc_c
+        cp 'z'
+        ;jr z,matchcc_z
+        ret nz
+;matchcc_z
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x08
+        JPMATCHENDWORD_BACK1
+matchcc_m
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x38
+        JPMATCHENDWORD_BACK1
+matchcc_p
+        asmnextchar ;eat
+        asmgetchar
+        cp 'o'
+        jr z,matchcc_po
+        cp 'e'
+        jr z,matchcc_pe
+        ld c,0x20+0x30
+        JPMATCHENDWORD_BACK1
+matchcc_po
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x20
+        JPMATCHENDWORD_BACK2
+matchcc_pe
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x28
+        JPMATCHENDWORD_BACK2
+matchcc_c
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x18
+        JPMATCHENDWORD_BACK1
+matchcc_n
+        asmnextchar ;eat
+        asmgetchar
+        cp 'z'
+        jr z,matchcc_nz
+        cp 'c'
+        jp nz,asm_backchar
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x10
+        JPMATCHENDWORD_BACK2
+matchcc_nz
+        asmnextchar ;eat
+        asmgetchar
+        ld c,0x20+0x00
+        JPMATCHENDWORD_BACK2
+
 matchrb_ora
         cp 'a'
         jr z,matchrb_a
 matchrb
-;for ld only!!!
 ;a=first char ;съедает слово! если error, то откатывает как было
 ;в команде ld уже проверено 'a', 'i' для первого и второго параметра
 ;опознаёт b/c/d/e/h/l/hx/lx/hy/ly
@@ -349,6 +424,7 @@ matchendword_back1
         ret z
 asm_backchar
         asmbackchar ;!=0
+ora
         or a
         ret ;nz
 

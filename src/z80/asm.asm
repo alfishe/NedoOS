@@ -19,8 +19,38 @@ asmcmd_c
 ;TODO call/cp/ccf/cpi*/cpd*
         asmnextchar ;eat
         asmgetchar
-
-        ret
+        cp 'a'
+        jr z,asmcmd_ca_
+        cp 'p'
+        jr z,asmcmd_cp
+        cp 'c'
+        ret nz ;jr z,asmcmd_cc_
+        asmnextchar ;eat
+        asmgetchar
+        MATCH_NOGET 'f'
+        asmputbyte 0x3f ;ccf
+        jp matchendword
+asmcmd_ca_
+        asmnextchar ;eat
+        asmgetchar
+        MATCH 'l'
+        MATCH 'l'
+        MATCHSPACES
+        call matchcc
+        jr z,asmcmd_callcc
+        asmputbyte 0xcd ;call
+        jp asmmatchexpr_emitword_bc        
+asmcmd_callcc
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        ;ld b,a
+        ld a,c ;0x20+cc*8
+        add a,0xc4-0x20
+        asmputbyte_a ;call cc
+        ;ld a,b
+        asmgetchar
+        jp asmmatchexpr_emitword_bc        
         
 asmcmd_ini_
         asmnextchar ;eat
@@ -73,6 +103,12 @@ asmcmd_im2
         asmputbyte_a
         cp a ;Z
         ret
+asmcmd_inf
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xed
+        asmputbyte 0x70 ;inf
+        jp matchendword
 asmcmd_in_
         asmnextchar ;eat
         asmgetchar
@@ -82,8 +118,48 @@ asmcmd_in_
         jr z,asmcmd_ini_
         cp 'd'
         jr z,asmcmd_ind_
-;TODO in r,(c)/in a,(i8)
-
+        cp 'f'
+        jr z,asmcmd_inf
+;in r,(c)/in a,(i8)
+        MATCHSPACES
+        call matchrb_ora
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        MATCHOPENBRACKET
+        cp 'c'
+        jr z,asmcmd_in_bracket_c
+asmcmd_in_expr
+        ;inc c ;reg
+        ;bit 3,c
+        ;jp z,ora ;nz (error)
+        ;ld b,a
+        ld a,c
+        cp 7
+        ret nz
+        asmgetchar;ld a,b
+        call matchexpr
+        ret nz
+        MATCHCLOSEBRACKET_NOGET
+        asmputbyte 0xdb ;in a,(n)
+        asmputbyte_c
+        cp a ;Z
+        ret
+asmcmd_in_bracket_c
+        asmnextchar ;eat
+        asmgetchar
+        call matchendword_back1
+        jr nz,asmcmd_in_expr
+        MATCHCLOSEBRACKET_NOGET
+        asmputbyte 0xed
+        ld a,c ;reg
+        add a,a
+        add a,a
+        add a,a
+        ret m ;nz: индексный регистр - error
+        add a,0x40
+        asmputbyte_a ;in r,(c)
+        cp a ;Z
         ret
 asmcmd_inc
         asmnextchar ;eat
