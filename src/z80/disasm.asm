@@ -715,7 +715,10 @@ LENend
         JR Z,LENINCB ;везде появляется iz+d
         CP 0x34;52 ;inc (hl)/(iz+)
         ret c ;JR C,LENL3 ;<0x34
-        CP 0x37;55 ;scf ;???
+        CP 0x37;55
+        
+;TODO fix ld (ix),c - почему 4 байта?
+        
        if 0
         CCF 
         JR LENretcINCB ;0x34..0x36: inc (hl),dec (hl),ld (hl),i8 do b++
