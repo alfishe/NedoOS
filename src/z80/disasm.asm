@@ -1,6 +1,8 @@
 ;выводит в текстовый буфер
 SMALLLETTERADD=32;0
 
+;TODO fix ld (ix+d),n - пишет ld (ix+d),d
+
 Disasm_PrWord_de
 ;de=word
         ld a,d
