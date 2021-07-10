@@ -1,1 +1,1 @@
-start "" /affinity 2 emul.exe
+start "" /affinity 4 emul.exe

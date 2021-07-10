@@ -321,7 +321,6 @@ matchrp_s
         ld c,0x30
         JPMATCHENDWORD_BACK2
 
-       if 0
 matchendword
 ;a=char
 ;Z=конец слова, NZ=не конец
@@ -336,7 +335,6 @@ matchendword
 matchendword_ok
         cp a
         ret
-       endif
 
 matchendword_back1
 ;a=char
@@ -379,6 +377,5 @@ asmskipspaces
         cp ' '
         jr z,asmskipspaces_next
         ret c ;error (nz)
-matchendword_ok
         cp a ;z
         ret

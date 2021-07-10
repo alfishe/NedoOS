@@ -22,21 +22,85 @@ asmcmd_c
 
         ret
         
-asmcmd_i
-;TODO inc/in/ini*/ind*/im
+asmcmd_ini_
         asmnextchar ;eat
         asmgetchar
+        asmputbyte 0xed
+        cp 'r'
+        jr z,asmcmd_inir
+        asmputbyte 0xa2 ;ini
+        jp matchendword
+asmcmd_inir
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xb2 ;inir
+        jp matchendword
+asmcmd_ind_
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xed
+        cp 'r'
+        jr z,asmcmd_indr
+        asmputbyte 0xaa ;ind
+        jp matchendword
+asmcmd_indr
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xba ;indr
+        jp matchendword
+asmcmd_i
+;inc/in/ini*/ind*/im
+        asmnextchar ;eat
+        asmgetchar
+        cp 'n'
+        jr z,asmcmd_in_
+        MATCH 'm'
+        MATCHSPACES
+        call matchexpr
+        ret nz
+        asmputbyte 0xed
+        ld a,2
+        sub c
+        ret c ;nz
+        dec a
+        ld a,0x56
+        jr z,asmcmd_im1
+        ld a,0x5e
+        jp m,asmcmd_im2
+        ld a,0x46
+asmcmd_im1
+asmcmd_im2
+        asmputbyte_a
+        cp a ;Z
+        ret
+asmcmd_in_
+        asmnextchar ;eat
+        asmgetchar
+        cp 'c'
+        jr z,asmcmd_inc
+        cp 'i'
+        jr z,asmcmd_ini_
+        cp 'd'
+        jr z,asmcmd_ind_
+;TODO in r,(c)/in a,(i8)
 
         ret
+asmcmd_inc
+        asmnextchar ;eat
+        asmgetchar
+        ld b,0x34-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
+        jr asmcmd_dec
         
 asmcmd_dec_hz
+;a=reg*4
         ld b,a
         ld a,c
         or 0xdd
         asmputbyte_a
         ld a,b
         add a,a ;(4..5)*8 + (0x50..0x70)*8
-        add a,0x85 ;dec h/l
+        ;add a,0x85 ;dec h/l
+        add a,0x85-(0x35-6) ;dec h/l
         asmputbyte_a
         cp a ;Z
         ret
@@ -47,7 +111,9 @@ asmcmd_dec_rb
         add a,a
         jr c,asmcmd_dec_hz
         add a,a
-        add a,0x05 ;dec r
+        ;add a,0x05 ;dec r
+        add a,b ;0x34-6=0x2e(inc)/0x35-6=0x2f(dec)
+        add a,0x05-(0x35-6) ;dec r
         asmputbyte_a
         cp a ;Z
         ret
@@ -70,10 +136,22 @@ asmcmd_di
         asmputbyte 0xf3 ;di
         cp a ;Z
         ret
+asmcmd_dec_i
+;dec ix/iy
+        asmnextchar ;eat
+        asmgetchar
+        cp 'x'
+        jr z,asmcmd_dec_ix
+        cp 'y'
+        ret nz
+        asmputbyte 0xfd
+        jr asmcmd_dec_hl
 asmcmd_de
         asmnextchar ;eat
         asmgetchar
         MATCH 'c'
+        ld b,0x35-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
+asmcmd_dec
         MATCHSPACES
         cp '('
         jr z,asmcmd_dec_bracket
@@ -86,27 +164,24 @@ asmcmd_de
         jr z,asmcmd_dec_rb
         call matchrp_orsp
         ret nz
-        ld a,c ;0/0x10/0x20/0x30
-        add a,0x0b ;dec rp
-        asmputbyte_a
+        ld a,0x03
+        bit 0,b ;0x34-6=0x2e(inc)/0x35-6=0x2f(dec)
+        jr z,$+4
+        ld a,0x0b ;a=0x03(inc)/0x0b(dec)        
+        add a,c ;0/0x10/0x20/0x30
+        asmputbyte_a ;dec rp
         cp a ;Z
         ret
-asmcmd_dec_i
-;dec ix/iy
-        asmnextchar ;eat
-        asmgetchar
-        cp 'x'
-        jr z,asmcmd_dec_ix
-        cp 'y'
-        ret nz
-        asmputbyte 0xfd
-        jr asmcmd_dec_hl
 asmcmd_dec_ix
         asmputbyte 0xdd
 asmcmd_dec_hl
         asmnextchar ;eat
         ;asmgetchar
-        asmputbyte 0x2b
+        ld a,0x23
+        bit 0,b ;0x34-6=0x2e(inc)/0x35-6=0x2f(dec)
+        jr z,$+4
+        ld a,0x2b ;a=0x23(inc)/0x2b(dec)
+        asmputbyte a;0x2b ;dec hl
         cp a ;Z
         ret
 
@@ -118,14 +193,12 @@ asmcmd_ldi_
         cp 'r'
         jr z,asmcmd_ldir
         asmputbyte 0xa0 ;ldi
-        cp a ;Z
-        ret
+        jp matchendword
 asmcmd_ldir
         asmnextchar ;eat
         ;asmgetchar
         asmputbyte 0xb0 ;ldir
-        cp a ;Z
-        ret
+        jp matchendword
 asmcmd_ldd_
 ;ldd/lddr
         asmnextchar ;eat
@@ -134,14 +207,12 @@ asmcmd_ldd_
         cp 'r'
         jr z,asmcmd_lddr
         asmputbyte 0xa8 ;ldd
-        cp a ;Z
-        ret
+        jp matchendword
 asmcmd_lddr
         asmnextchar ;eat
         ;asmgetchar
         asmputbyte 0xb8 ;lddr
-        cp a ;Z
-        ret
+        jp matchendword
 
 asmcmd_ld_reg_bracket_i
 ;b=reg*8+0x40
@@ -163,13 +234,13 @@ asmcmd_ld_reg_bracket_iz
         add a,6 ;ld r,[hl]
         asmputbyte_a
         jp asmcmd_anycmd_bracket_iz_bracket
-asmcmd_inc_bracket
+;asmcmd_inc_bracket
 ;inc [hl]/[iz+]
-        ld b,0x34-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
-        jr asmcmd_ld_reg_bracket
+        ;ld b,0x34-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
+        ;jr asmcmd_ld_reg_bracket
 asmcmd_dec_bracket
 ;dec [hl]/[iz+]
-        ld b,0x35-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
+        ;ld b,0x35-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
         ;jp asmcmd_ld_reg_bracket
 asmcmd_ld_reg_bracket
 ;b=reg*8+0x40
