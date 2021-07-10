@@ -528,13 +528,11 @@ asmcmd_ld_a
         cp '['|OR20FORBRACKETS
         jr z,asmcmd_ld_a_bracket
         cp 'i'
-        jp z,asmcmd_ld_a_i
+        jr z,asmcmd_ld_a_i
         cp 'r'
-        jp z,asmcmd_ld_a_r
-;ld a,a/reg/n
-        cp 'a'
-        jr z,asmcmd_ld_a_a
-        call matchrb
+        jr z,asmcmd_ld_a_r
+;ld a,reg/n
+        call matchrb_ora
         jr z,asmcmd_ld_a_rb
         call matchexpr
         ret nz
@@ -546,12 +544,6 @@ asmcmd_ld_a_rb
         ld a,c
         add a,0x78 ;ld a,rb
         asmputbyte_a
-        cp a ;Z
-        ret
-asmcmd_ld_a_a
-        asmnextchar ;eat
-        asmgetchar
-        asmputbyte 0x7f ;ld a,a
         cp a ;Z
         ret
 
@@ -609,17 +601,15 @@ asmcmd_anycmd_bracket_iz_bracket
         ret
 
 asmcmd_ld_a_i
-        asmnextchar ;eat
-        asmgetchar
-        asmputbyte 0xed
-        asmputbyte 0x57 ;ld a,i
-        cp a ;Z
-        ret
+        ld c,0x57 ;ld a,i
+        jr asmcmd_eat_put_ed_c
 asmcmd_ld_a_r
+        ld c,0x5f ;ld a,r
+asmcmd_eat_put_ed_c
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0xed
-        asmputbyte 0x5f ;ld a,r
+        asmputbyte_c ;0x5f ;ld a,r
         cp a ;Z
         ret
 
@@ -918,5 +908,5 @@ asm_backchar
         or a
         ret ;nz
 
-asmtestcmd
-        db "ld a,5",0
+;asmtestcmd
+;        db "ld a,5",0

@@ -791,7 +791,7 @@ Debugger_getcurxypos_de
         ret
 
 debugger_curtab ;regs, disasm, mem
-        db 0
+        db 1
 tdebuggertabs
         dw tdebuggertab_regs
         dw tdebuggertab_disasm

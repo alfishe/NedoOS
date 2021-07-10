@@ -1,10 +1,26 @@
+;редактирует строку, заполненную пробелами
 EditLine_xyde_widb
         ld (EditLine_addr),hl
         ld (EditLine_xy),de
         ld a,b
         ld (EditLine_wid),a
-        xor a
+;ищем первый непробел с конца, ставим туда курсор и двигаем вправо через функцию (чтобы не было переполнения)
+        ld c,a
+        ld b,0
+        add hl,bc
+        dec a
+        ld b,a ;wid-1
+        ld a,' '
+EditLine_findend0
+        dec hl
+        cp (hl)
+        jr nz,EditLine_findend0q
+        djnz EditLine_findend0
+EditLine_findend0q
+        ld a,b ;0..wid-1
+        ;xor a
         ld (EditLine_curx),a
+        call EditLineRight
         call EditLine_Redraw
 EditLine0
         call EditLine_drawcursor

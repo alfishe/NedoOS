@@ -1,8 +1,6 @@
 ;выводит в текстовый буфер
 SMALLLETTERADD=32;0
 
-;TODO fix ld (ix+d),n - пишет ld (ix+d),d
-
 Disasm_PrWord_de
 ;de=word
         ld a,d
@@ -313,6 +311,7 @@ R1p4
         CALL LHL
         BIT 6,B
         JR Z,R5
+       inc hl
         LD A,C
         RLA 
         LD A,'+'
@@ -322,7 +321,7 @@ R1p4
         LD C,A
         LD A,'-'
 R4     call Disasm_PrChar
-        CALL S7
+        CALL S7 ;prnum C
 R5      LD A,')'
        jp Disasm_PrChar
 
