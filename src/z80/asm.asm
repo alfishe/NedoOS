@@ -15,14 +15,112 @@ asmcmd
         
         ret
         
+asmcmd_cp_
+        asmnextchar ;eat
+        asmgetchar
+        cp 'i'
+        jr z,asmcmd_cpi_
+        cp 'd'
+        jr z,asmcmd_cpd_
+;cp r/i8/(hl)/(iz+)
+        MATCHSPACES
+        ld b,0xb8 ;cp base
+        cp '('
+        jp z,asmcmd_ld_reg_bracket;asmcmd_cp_bracket
+        cp '['|OR20FORBRACKETS
+        jp z,asmcmd_ld_reg_bracket;asmcmd_cp_bracket
+;cp r/i8
+asmcmd_ALU ;b=ALUop base
+        call matchrb_ora
+        jr nz,asmcmd_cp_noreg
+        ld a,c ;reg
+       cp 0x40
+       jr c,asmcmd_cp_nhz
+;asmcmd_cp_hz
+        or 0xdd
+        asmputbyte_a
+        ld a,c ;reg(4/5)+0x50/0x70
+        and 7
+asmcmd_cp_nhz
+        add a,b
+        asmputbyte_a ;cp r
+        cp a ;Z
+        ret
+asmcmd_cp_noreg
+        ;ld c,a
+        ld a,b
+        add a,0xfe-0xb8
+        asmputbyte_a ;cp n
+        asmgetchar;ld a,c
+        jp asmmatchexpr_putc
+       if 0
+asmcmd_cp_bracket
+;cp (hl)/(iz+)
+        asmnextchar ;eat
+        asmgetchar
+        cp 'i'
+        jr z,asmcmd_ld_reg_bracket_i;asmcmd_cp_bracket_i
+        MATCH 'h'
+        MATCH 'l'
+        MATCHCLOSEBRACKET_NOGET
+        ld a,b
+        add a,6 ;(hl)
+        asmputbyte_a ;cp n
+        cp a ;Z
+        ret
+asmcmd_cp_bracket_i
+        asmnextchar ;eat
+        asmgetchar
+        cp 'x'
+        jr z,asmcmd_cp_bracket_ix
+        cp 'y'
+        ;jr z,asmcmd_cp_bracket_iy
+        ret nz
+        asmputbyte 0xfd
+        jr asmcmd_cp_bracket_iz
+asmcmd_cp_bracket_ix
+        asmputbyte 0xdd
+asmcmd_cp_bracket_iz
+        ld a,b
+        add a,6 ;(hl)
+        asmputbyte_a ;cp n
+        jp asmcmd_anycmd_bracket_iz_bracket
+       endif
+asmcmd_cpi_
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xed
+        cp 'r'
+        jr z,asmcmd_cpir
+        asmputbyte 0xa1 ;cpi
+        jp matchendword
+asmcmd_cpir
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xb1 ;cpir
+        jp matchendword
+asmcmd_cpd_
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xed
+        cp 'r'
+        jr z,asmcmd_cpdr
+        asmputbyte 0xa9 ;cpd
+        jp matchendword
+asmcmd_cpdr
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xb9 ;cpdr
+        jp matchendword
+
 asmcmd_c
-;TODO call/cp/ccf/cpi*/cpd*
+;call/cp/ccf/cpi*/cpd*
         asmnextchar ;eat
         asmgetchar
         cp 'a'
         jr z,asmcmd_ca_
         cp 'p'
-        jr z,asmcmd_cp
+        jr z,asmcmd_cp_
         cp 'c'
         ret nz ;jr z,asmcmd_cc_
         asmnextchar ;eat
@@ -48,8 +146,7 @@ asmcmd_callcc
         ld a,c ;0x20+cc*8
         add a,0xc4-0x20
         asmputbyte_a ;call cc
-        ;ld a,b
-        asmgetchar
+        asmgetchar;ld a,b
         jp asmmatchexpr_emitword_bc        
         
 asmcmd_ini_
@@ -130,9 +227,6 @@ asmcmd_in_
         cp 'c'
         jr z,asmcmd_in_bracket_c
 asmcmd_in_expr
-        ;inc c ;reg
-        ;bit 3,c
-        ;jp z,ora ;nz (error)
         ;ld b,a
         ld a,c
         cp 7
@@ -230,9 +324,9 @@ asmcmd_de
 asmcmd_dec
         MATCHSPACES
         cp '('
-        jr z,asmcmd_dec_bracket
+        jr z,asmcmd_ld_reg_bracket;asmcmd_dec_bracket
         cp '['|OR20FORBRACKETS
-        jr z,asmcmd_dec_bracket
+        jr z,asmcmd_ld_reg_bracket;asmcmd_dec_bracket
 ;dec r/rp/iz
         cp 'i'
         jr z,asmcmd_dec_i
@@ -314,7 +408,7 @@ asmcmd_ld_reg_bracket_iz
 ;inc [hl]/[iz+]
         ;ld b,0x34-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
         ;jr asmcmd_ld_reg_bracket
-asmcmd_dec_bracket
+;asmcmd_dec_bracket
 ;dec [hl]/[iz+]
         ;ld b,0x35-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
         ;jp asmcmd_ld_reg_bracket
@@ -402,11 +496,12 @@ asmcmd_ld_reg_noreg
         add a,6-0x40
         asmputbyte_a ;ld r8,i8
         asmgetchar
-        call matchexpr
-        ret nz
-        asmputbyte_c
-        cp a ;Z
-        ret
+        jp asmmatchexpr_putc
+        ;call matchexpr
+        ;ret nz
+        ;asmputbyte_c
+        ;cp a ;Z
+        ;ret
 
 asmcmd_ld_b
 ;b/bc
@@ -714,12 +809,13 @@ asmcmd_ld_a
 ;ld a,reg/n
         call matchrb_ora
         jr z,asmcmd_ld_a_rb
-        call matchexpr
-        ret nz
         asmputbyte 0x3e ;ld a,n
-        asmputbyte_c
-        cp a ;Z
-        ret
+        jp asmmatchexpr_putc
+        ;call matchexpr
+        ;ret nz
+        ;asmputbyte_c
+        ;cp a ;Z
+        ;ret
 asmcmd_ld_a_rb
         ld a,c
         add a,0x78 ;ld a,rb
