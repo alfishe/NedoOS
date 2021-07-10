@@ -718,9 +718,6 @@ LENend
         CP 0x34;52 ;inc (hl)/(iz+)
         ret c ;JR C,LENL3 ;<0x34
         CP 0x37;55
-        
-;TODO fix ld (ix),c - почему 4 байта?
-        
        if 0
         CCF 
         JR LENretcINCB ;0x34..0x36: inc (hl),dec (hl),ld (hl),i8 do b++
@@ -795,4 +792,6 @@ LENL9 ;b=3+
         JR NZ,LENendB1
        inc b
         LD A,D
-        JR LNY
+        ;JR LNY
+        CP E;0x40
+        jr len3or1

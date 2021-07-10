@@ -867,12 +867,15 @@ matchval_minus
         asmgetchar
         call matchval
         ret nz
+       ;push af
         xor a
         sub c
         ld c,a
         sbc a,b
         sub c
         ld b,a
+       ;pop af
+        asmgetchar
         cp a ;z
         ret
 
