@@ -1,6 +1,8 @@
 ;выводит в текстовый буфер
 SMALLLETTERADD=32;0
 
+;TODO fix out (c),(hl) -> out (c),0
+
 Disasm_PrWord_de
 ;de=word
         ld a,d
@@ -140,15 +142,15 @@ B2     call Disasm_PrChar
         ;BIT 5,B
         ;JR NZ,$+6
         bit 6,b
-        jr z,$+6
+        jp z,REG;jr z,$+6
          AND 7
          CP 6
         CALL NZ,REG
         BIT 6,B
         RET Z
-        INC B
-        INC B
-        JP R1p4
+        INC B ;???
+        INC B ;???
+        JP R1p4 ;(hl)/(iz+)
 
 Disasm_COMMAND
         LD B,' ';32

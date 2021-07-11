@@ -20,14 +20,28 @@ IYADD=0x70;0xa0
         asmnextchar ;eat
         asmgetchar
        endm
+       macro CPOPENBRACKET_JR addr
+        cp '('
+        jr z,addr
+        cp '['|OR20FORBRACKETS
+        jr z,addr
+       endm
+       macro CPOPENBRACKET_JP addr
+        cp '('
+        jp z,addr
+        cp '['|OR20FORBRACKETS
+        jp z,addr
+       endm
        
-       macro CPCLOSEBRACKET_NOEAT
+       macro CPCLOSEBRACKET
         cp ')'
         jr z,$+4
         cp ']'|OR20FORBRACKETS
        endm
        macro MATCHCLOSEBRACKET_NOGET
-        CPCLOSEBRACKET_NOEAT
+        cp ')'
+        jr z,$+5
+        cp ']'|OR20FORBRACKETS
         ret nz
         asmnextchar ;eat
        endm
@@ -43,7 +57,9 @@ IYADD=0x70;0xa0
         jr z,1f;asmcmd_ld_bracket_iz_noshift
         call matchexpr
         ret nz
-        CPCLOSEBRACKET_NOEAT
+        cp ')'
+        jr z,$+5
+        cp ']'|OR20FORBRACKETS
         ret nz
 1;asmcmd_ld_bracket_iz_noshift
         asmnextchar ;eat
@@ -274,7 +290,7 @@ matchcc_nz
 matchrb_ora
         cp 'a'
         jr z,matchrb_a
-matchrb
+;matchrb
 ;a=first char ;съедает слово! если error, то откатывает как было
 ;в команде ld уже проверено 'a', 'i' для первого и второго параметра
 ;опознаёт b/c/d/e/h/l/hx/lx/hy/ly
