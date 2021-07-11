@@ -63,10 +63,11 @@ IYADD=0x70;0xa0
        endm
 
        macro MATCHSPACES ;ret nz (error) if not spaces or if eol ;остаётся на первом непробеле и его возвращает в a
-        cp ' '
-        jr z,$+4
-         cp 9 ;tab
-        call z,asmskipspaces_next
+        ;cp ' '
+        ;jr z,$+4
+        ; cp 9 ;tab
+        ;call z,asmskipspaces_next
+        call matchspaces
         ret nz
        endm
 
@@ -455,6 +456,11 @@ matchendword_back2
         or a
         ret ;nz
 
+matchspaces
+        cp ' '
+        jr z,$+5
+         cp 9 ;tab
+         ret nz ;call z,asmskipspaces_next
 ;out: nz (error) if eol ;остаётся на первом непробеле и его возвращает в a
 asmskipspaces_next
         asmnextchar

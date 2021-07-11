@@ -18,8 +18,87 @@ asmcmd
         jp z,asmcmd_o
         cp 'x'
         jp z,asmcmd_x
+        cp 's'
+        jp z,asmcmd_s
+        cp 'e'
+        jp z,asmcmd_e
         
         ret
+
+asmcmd_e
+;ei/ex/exx
+        asmnextchar ;eat
+        asmgetchar
+        cp 'x'
+        jr z,asmcmd_ex_
+        MATCH 'i'
+        asmputbyte 0xfb ;ei
+        jp matchendword
+asmcmd_ex_
+        asmnextchar ;eat
+        asmgetchar
+        cp 'x'
+        jr z,asmcmd_exx
+        MATCHSPACES
+;ex de,hl/ex af,af'/ex (sp),hl/iz
+        cp 'a'
+        jr z,asmcmd_ex_a
+        cp 'd'
+        jr z,asmcmd_ex_d
+        MATCHOPENBRACKET
+        MATCH 's'
+        MATCH 'p'
+        MATCHCLOSEBRACKET
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        cp 'i'
+        jr z,asmcmd_ex_bracket_sp_bracket_i
+        MATCH 'h'
+        MATCH_NOGET 'l'
+asmcmd_ex_bracket_sp_bracket_hl
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xe3 ;ex (sp),hl
+        jp matchendword
+asmcmd_ex_bracket_sp_bracket_i
+        asmnextchar ;eat
+        asmgetchar
+        MATCHXY_PUTDDFD_NOGET
+        jr asmcmd_ex_bracket_sp_bracket_hl
+asmcmd_ex_d
+        asmnextchar ;eat
+        asmgetchar
+        MATCH 'e'
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        MATCH 'h'
+        MATCH_NOGET 'l'
+        asmputbyte 0xeb ;ex de,hl
+        cp a ;Z
+        ret
+asmcmd_exx
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xd9 ;exx
+        jp matchendword
+asmcmd_ex_a
+        asmnextchar ;eat
+        asmgetchar
+        MATCH 'f'
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        MATCH 'a'
+        MATCH 'f'
+        MATCH_NOGET 0x27 ;'
+        asmputbyte 0x08 ;ex af,af'
+        cp a ;Z
+        ret
+
+asmcmd_s
+;sub/sbc/scf/set/srl/sra/sli
 
 asmcmd_a
 ;add/adc/and
