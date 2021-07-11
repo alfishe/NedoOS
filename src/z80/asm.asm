@@ -22,6 +22,10 @@ asmcmd
         jp z,asmcmd_s
         cp 'e'
         jp z,asmcmd_e
+        cp 'b'
+        jp z,asmcmd_b
+        cp 'r'
+        jp z,asmcmd_r
         
         ret
 
@@ -97,6 +101,88 @@ asmcmd_ex_a
         cp a ;Z
         ret
 
+asmcmd_r
+;ret/res/rl*/rlc*/rr*/rrc*/rst
+        asmnextchar ;eat
+        asmgetchar
+        cp 'e'
+        jr z,asmcmd_re_
+        cp 'l'
+        jr z,asmcmd_rl_
+        cp 'r'
+        jr z,asmcmd_rr_
+        MATCH 's'
+        MATCH 't'
+        MATCHSPACES
+        call matchexpr
+        ret nz
+        ld a,c
+        or 0xc7
+        asmputbyte_a
+        cp a ;Z
+        ret
+asmcmd_re_
+        asmnextchar ;eat
+        asmgetchar
+        cp 't'
+        jr z,asmcmd_ret
+        MATCH_NOGET 's'
+        ld lx,0x80 ;res base
+        jp asmcmd_res
+asmcmd_ret
+        asmnextchar ;eat
+        asmgetchar
+        call matchspaces
+        jr nz,asmcmd_ret_nocc
+        call matchcc
+        ld a,0xc0-0x20 ;ret cc
+        jp z,asmcmd_putaplusc
+asmcmd_ret_nocc
+        asmputbyte 0xc9 ;ret
+        cp a ;Z
+        ret
+        
+asmcmd_rl_
+        asmnextchar ;eat
+        asmgetchar
+        cp 'a'
+        jr z,asmcmd_rla
+        cp 'c'
+        ld b,0x10 ;rl base
+        jr nz,asmcmd_anycbshift_noeat
+        asmnextchar ;eat
+        asmgetchar
+        cp 'a'
+        ld b,0x00 ;rlc base
+        jr nz,asmcmd_anycbshift_noeat
+        asmputbyte 0x07 ;rlca
+        cp a ;Z
+        ret
+asmcmd_rla
+        asmputbyte 0x17 ;rla
+        cp a ;Z
+        ret
+asmcmd_rr_
+        asmnextchar ;eat
+        asmgetchar
+        cp 'a'
+        jr z,asmcmd_rra
+        cp 'c'
+        ld b,0x18 ;rr base
+        jr nz,asmcmd_anycbshift_noeat
+        asmnextchar ;eat
+        asmgetchar
+        cp 'a'
+        ld b,0x08 ;rrc base
+        jr nz,asmcmd_anycbshift_noeat
+        asmputbyte 0x0f ;rrca
+        cp a ;Z
+        ret
+asmcmd_rra
+        asmputbyte 0x1f ;rra
+        cp a ;Z
+        ret
+
 asmcmd_s
 ;sub/sbc/scf/set/srl/sra/sla/sli
         asmnextchar ;eat
@@ -121,6 +207,7 @@ asmcmd_s
 asmcmd_anycbshift
         asmnextchar ;eat
         asmgetchar
+asmcmd_anycbshift_noeat
         MATCHSPACES
         call matchrb_ora
         jr nz,asmcmd_anycbshift_noreg
@@ -180,12 +267,20 @@ asmcmd_anycbshift_noreg
         cp a ;Z
         ret
 
+asmcmd_b
+        ld lx,0x40 ;bit base
+        asmnextchar ;eat
+        asmgetchar
+        cp 'i'
+        jr z,asmcmd_bise
+        ret ;nz (error)
 asmcmd_se_
+        ld lx,0xc0 ;set base
+asmcmd_bise
         asmnextchar ;eat
         asmgetchar
         MATCH_NOGET 't'
-        ld lx,0xc0 ;set
-asmcmd_bitresset
+asmcmd_res
         asmgetchar
         MATCHSPACES
         call matchexpr

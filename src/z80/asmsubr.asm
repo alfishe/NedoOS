@@ -32,6 +32,13 @@ IYADD=0x70;0xa0
         cp '['|OR20FORBRACKETS
         jp z,addr
        endm
+
+       macro CPSPACES_JR addr
+        cp ' '
+        jr z,addr
+        cp 9 ;tab
+        jr z,addr
+       endm
        
        macro CPCLOSEBRACKET
         cp ')'
@@ -223,7 +230,7 @@ matchval_bracket
 matchcc
 ;a=first char ;съедает слово! если error, то откатывает как было
 ;NZ=error
-;out: a=0x20+0,8..0x38 for 'nz'/'z'/'nc'/'c'/'po'/'pe'/'p'/'m'
+;out: c=0x20+0,8..0x38 for 'nz'/'z'/'nc'/'c'/'po'/'pe'/'p'/'m'
         cp 'p'
         jr z,matchcc_p
         cp 'm'
