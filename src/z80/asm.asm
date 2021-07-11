@@ -147,20 +147,6 @@ asmcmd_sr_
         ld b,0x38 ;srl base
         jr z,asmcmd_anycbshift
         ret ;nz (error)
-asmcmd_anycbshift_noreg
-        MATCHOPENBRACKET
-;[hl]/[iz+]
-        cp 'i'
-        jr z,asmcmd_anycbshift_bracket_i
-        MATCH 'h'
-        MATCH 'l'
-        MATCHCLOSEBRACKET_NOGET
-        asmputbyte 0xcb
-        ld a,b ;anycbshift base
-        add a,6 ;(hl)
-        asmputbyte_a
-        cp a ;Z
-        ret
 asmcmd_anycbshift_bracket_i
         asmnextchar ;eat
         asmgetchar
@@ -179,10 +165,48 @@ asmcmd_anycbshift_bracket_i
         asmputbyte_a
         cp a ;Z
         ret
+asmcmd_anycbshift_noreg
+        MATCHOPENBRACKET
+;[hl]/[iz+]
+        cp 'i'
+        jr z,asmcmd_anycbshift_bracket_i
+        MATCH 'h'
+        MATCH 'l'
+        MATCHCLOSEBRACKET_NOGET
+        asmputbyte 0xcb
+        ld a,b ;anycbshift base
+        add a,6 ;(hl)
+        asmputbyte_a
+        cp a ;Z
+        ret
 
 asmcmd_se_
-;TODO set
-        ret
+        asmnextchar ;eat
+        asmgetchar
+        MATCH_NOGET 't'
+        ld lx,0xc0 ;set
+asmcmd_bitresset
+        asmgetchar
+        MATCHSPACES
+        call matchexpr
+        ret nz
+        ld a,c
+        and 7
+        add a,a
+        add a,a
+        add a,a
+        add a,lx ;base
+        ld b,a
+        asmgetchar
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        call matchrb_ora
+        jr nz,asmcmd_anycbshift_noreg;asmcmd_bitresset_noreg
+        asmputbyte 0xcb
+        bit 4,c
+        jp z,asmcmd_putcand7plusb ;bit #
+        ret ;nz (error) ;hx/lx/hy/ly
 
 asmcmd_su_
         asmnextchar ;eat
