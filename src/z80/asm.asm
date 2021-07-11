@@ -31,7 +31,38 @@ asmcmd_a
         MATCH 'd'
         ld b,0xa0 ;and base
         jp asmcmd_ALU ;b=ALUop base
-        
+asmcmd_add_i
+        asmnextchar ;eat
+        asmgetchar
+       ld c,a
+        MATCHXY_PUTDDFD_NOGET
+        asmnextchar ;eat
+        asmgetchar
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+;add iz,rp/iz
+        cp 'i'
+        jr z,asmcmd_add_iz_comma_i
+        call matchrp_orsp
+        ret nz
+        ld a,c
+        cp 0x20 ;h
+        jr nz,asmcmd_add_hl_rp
+        or a ;nz (error)
+        ret
+asmcmd_add_iz_comma_i
+        asmnextchar ;eat
+        asmgetchar
+       cp c
+        ret nz ;nz (error)
+        asmnextchar ;eat
+        asmgetchar
+        ;call matchendword
+        ;ret nz
+        asmputbyte 0x29 ;add hl,hl
+        cp a ;Z
+        ret
 asmcmd_ad_
         asmnextchar ;eat
         asmgetchar
@@ -41,9 +72,8 @@ asmcmd_ad_
         MATCHSPACES
         cp 'a'
         jr z,asmcmd_adc_a
-;adc hl/iz
-        cp 'i'
-        jr z,asmcmd_adc_i
+        ld b,0x4a ;adc hl,rp base
+;adc hl
         MATCH 'h'
         MATCH 'l'
         SKIPSPACES_BEFORECOMMA
@@ -51,15 +81,11 @@ asmcmd_ad_
         SKIPSPACES
         call matchrp_orsp ;c=0/0x10/0x20/0x30 (bc/de/hl/sp)
         ld a,c
-        add a,0x4a
+        add a,b ;0x4a(adc)/0x42(sbc)
         asmputbyte 0xed
         asmputbyte_a ;adc hl,rp
         cp a ;Z
         ret
-asmcmd_adc_i
-        asmnextchar ;eat
-        asmgetchar
-        
 asmcmd_add
         asmnextchar ;eat
         asmgetchar
@@ -75,30 +101,24 @@ asmcmd_add
         MATCH ','
         SKIPSPACES
         call matchrp_orsp ;c=0/0x10/0x20/0x30 (bc/de/hl/sp)
+asmcmd_add_hl_rp
         ld a,c
         add a,0x09
         asmputbyte_a ;add hl,rp
         cp a ;Z
         ret
 
-asmcmd_add_i
-
-
 asmcmd_adc_a
-        asmnextchar ;eat
-        asmgetchar
-        SKIPSPACES_BEFORECOMMA
-        MATCH ','
-        SKIPSPACES
         ld b,0x88 ;adc a base
-        jp asmcmd_ALU_nospaces ;b=ALUop base
+        jr asmcmd_adx_a
 asmcmd_add_a
+        ld b,0x80 ;add a base
+asmcmd_adx_a
         asmnextchar ;eat
         asmgetchar
         SKIPSPACES_BEFORECOMMA
         MATCH ','
         SKIPSPACES
-        ld b,0x80 ;add a base
         jp asmcmd_ALU_nospaces ;b=ALUop base
 
 asmcmd_out_bracket_c
@@ -459,16 +479,6 @@ asmcmd_di
         asmputbyte 0xf3 ;di
         cp a ;Z
         ret
-asmcmd_dec_i
-;dec ix/iy
-        asmnextchar ;eat
-        asmgetchar
-        cp 'x'
-        jr z,asmcmd_dec_ix
-        cp 'y'
-        ret nz
-        asmputbyte 0xfd
-        jr asmcmd_dec_hl
 asmcmd_de
         asmnextchar ;eat
         asmgetchar
@@ -476,13 +486,13 @@ asmcmd_de
         ld b,0x35-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
 asmcmd_dec
         MATCHSPACES
+        cp 'i'
+        jr z,asmcmd_dec_i
         cp '('
         jr z,asmcmd_ld_reg_bracket;asmcmd_dec_bracket
         cp '['|OR20FORBRACKETS
         jr z,asmcmd_ld_reg_bracket;asmcmd_dec_bracket
-;dec r/rp/iz
-        cp 'i'
-        jr z,asmcmd_dec_i
+;dec r/rp
         call matchrb_ora
         jr z,asmcmd_dec_rb
         call matchrp_orsp
@@ -495,9 +505,11 @@ asmcmd_dec
         asmputbyte_a ;dec rp
         cp a ;Z
         ret
-asmcmd_dec_ix
-        asmputbyte 0xdd
-asmcmd_dec_hl
+asmcmd_dec_i
+;dec ix/iy
+        asmnextchar ;eat
+        asmgetchar
+        MATCHXY_PUTDDFD_NOGET
         asmnextchar ;eat
         ;asmgetchar
         ld a,0x23
@@ -541,30 +553,12 @@ asmcmd_ld_reg_bracket_i
 ;b=reg*8+0x40
         asmnextchar ;eat
         asmgetchar
-        cp 'x'
-        jr z,asmcmd_ld_reg_bracket_ix
-        cp 'y'
-        ;jr z,asmcmd_ld_reg_bracket_iy
-        ret nz
-;asmcmd_ld_reg_bracket_iy
-        asmputbyte 0xfd
-        jr asmcmd_ld_reg_bracket_iz
-asmcmd_ld_reg_bracket_ix
-        asmputbyte 0xdd
-asmcmd_ld_reg_bracket_iz
+        MATCHXY_PUTDDFD_NOGET
 ;ld r,[iz+]
         ld a,b ;reg*8+0x40
         add a,6 ;ld r,[hl]
         asmputbyte_a
         jp asmcmd_anycmd_bracket_iz_bracket
-;asmcmd_inc_bracket
-;inc [hl]/[iz+]
-        ;ld b,0x34-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
-        ;jr asmcmd_ld_reg_bracket
-;asmcmd_dec_bracket
-;dec [hl]/[iz+]
-        ;ld b,0x35-6 ;b=reg*8+0x40 (к нему прибавляется 6, получается код команды)
-        ;jp asmcmd_ld_reg_bracket
 asmcmd_ld_reg_bracket
 ;b=reg*8+0x40
 ;ld r,[hl]/[iz+]
@@ -661,10 +655,8 @@ asmcmd_ld_b
         asmnextchar ;eat
         asmgetchar
         cp 'c'
-        ;jr z,asmcmd_ld_bc
         ld b,0x40;'b'
         jr nz,asmcmd_ld_reg_gotnextchar
-;asmcmd_ld_bc
         ld bc,0x4b01 ;ld bc,(mm), ld bc,nn
         jr asmcmd_ld_rp_nn_bmm_cnn
 asmcmd_ld_d
@@ -672,10 +664,8 @@ asmcmd_ld_d
         asmnextchar ;eat
         asmgetchar
         cp 'e'
-        ;jr z,asmcmd_ld_de
         ld b,0x50;'d'
         jr nz,asmcmd_ld_reg_gotnextchar
-;asmcmd_ld_de
         ld bc,0x5b11 ;ld de,(mm), ld de,nn
         jr asmcmd_ld_rp_nn_bmm_cnn
 asmcmd_ld_h
@@ -688,7 +678,6 @@ asmcmd_ld_h
         cp 'y'
         jr z,asmcmd_ld_hy
         cp 'x'
-        ;jr z,asmcmd_ld_hx
         jr nz,asmcmd_ld_reg_gotnextchar
 asmcmd_ld_hx
 ;ld hx,reg/n (reg!=h,l,hy,ly)
@@ -702,9 +691,18 @@ asmcmd_ld_hx
         jr nz,asmcmd_ld_reg_noreg;asmcmd_ld_hx_noreg
         ld a,c
         cp IYADD ;+4/5 = hy/ly
-        ret nc ;nz (error)
-        jr asmcmd_ld_hz_reg
-        
+        jr c,asmcmd_ld_hz_reg
+        ret ;nz (error)
+asmcmd_ld_l
+;l/lx/ly
+        asmnextchar ;eat
+        asmgetchar
+        ld b,0x68;'l'
+        cp 'x'
+        jr z,asmcmd_ld_hx;lx
+        cp 'y'
+        jp nz,asmcmd_ld_reg_gotnextchar
+        ;jr z,asmcmd_ld_hy;ly
 asmcmd_ld_hy
 ;ld hy,reg/n (reg!=h,l,hx,lx)
         asmputbyte 0xfd
@@ -722,21 +720,10 @@ asmcmd_ld_hz_reg
         cp 2
         ret c ;nz (error)
         ld a,c
-        add a,b ;'h'*8
+        add a,b ;'h'/'l'*8
         asmputbyte_a
         cp a ;Z
         ret
-asmcmd_ld_l
-;l/lx/ly
-        asmnextchar ;eat
-        asmgetchar
-        ld b,0x68;'l'
-        cp 'y'
-        jr z,asmcmd_ld_hy;ly
-        cp 'x'
-        ;jr z,asmcmd_ld_lx
-        jp nz,asmcmd_ld_reg_gotnextchar
-        jr z,asmcmd_ld_hx;lx
 
 asmcmd_ld_s
         asmnextchar ;eat
@@ -761,10 +748,13 @@ asmcmd_ld_sp_bracket
         asmputbyte_b; 0x7b ;ld sp,(mm)
         jr asmmatchexpr_bracket_emitword_bc ;eats
 
-asmcmd_ld_ix
-;ld ix,nn/(mm)
-        asmputbyte 0xdd
-        ;jr asmcmd_ld_hl
+asmcmd_ld_i
+        asmnextchar ;eat
+        asmgetchar
+        SKIPSPACES_BEFORECOMMA
+        cp ','
+        jp z,asmcmd_ld_i_comma
+        MATCHXY_PUTDDFD_NOGET
 asmcmd_ld_hl
 ;ld hl,nn/(mm)
         asmnextchar ;eat
@@ -843,17 +833,7 @@ asmcmd_ld_bracket_mm_bracket_comma_i
 ;ld (mm),iz
         asmnextchar ;eat
         asmgetchar
-        cp 'x'
-        jr z,asmcmd_ld_bracket_mm_bracket_comma_ix
-        cp 'y'
-        ;jr z,asmcmd_ld_bracket_mm_bracket_comma_iy
-        ret nz
-;asmcmd_ld_bracket_mm_bracket_comma_iy
-        asmputbyte 0xfd
-        jr asmcmd_ld_bracket_mm_bracket_comma_iz
-asmcmd_ld_bracket_mm_bracket_comma_ix
-        asmputbyte 0xdd
-asmcmd_ld_bracket_mm_bracket_comma_iz
+        MATCHXY_PUTDDFD_NOGET
         asmputbyte 0x22 ;ld (),hl
         jr asmeat_putbc
 asmcmd_ld_bracket_mm_bracket_comma_a
@@ -1042,21 +1022,6 @@ asmcmd_eat_put_ed_c
         cp a ;Z
         ret
 
-asmcmd_ld_i
-        asmnextchar ;eat
-        asmgetchar
-        SKIPSPACES_BEFORECOMMA
-        cp ','
-        jr z,asmcmd_ld_i_comma
-        cp 'x'
-        ld c,0xdd
-        jp z,asmcmd_ld_ix
-        cp 'y'
-        ;jr z,asmcmd_ld_iy
-        ret nz
-        asmputbyte 0xfd
-        jp asmcmd_ld_hl
-        
 asmcmd_ld_i_comma
         asmnextchar ;eat
         asmgetchar
@@ -1065,6 +1030,3 @@ asmcmd_ld_i_comma
         asmputbyte 0x47 ;ld i,a
         cp a ;Z
         ret
-        
-;asmtestcmd
-;        db "ld a,5",0

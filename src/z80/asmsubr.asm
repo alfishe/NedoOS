@@ -69,6 +69,18 @@ IYADD=0x70;0xa0
         call z,asmskipspaces_next
         ret nz
        endm
+
+       macro MATCHXY_PUTDDFD_NOGET
+        cp 'x'
+        jr z,1f;asmcmd_ld_bracket_mm_bracket_comma_ix
+        cp 'y'
+        ret nz
+        asmputbyte 0xfd
+        jr 2f;asmcmd_ld_bracket_mm_bracket_comma_iz
+1;asmcmd_ld_bracket_mm_bracket_comma_ix
+        asmputbyte 0xdd
+2;asmcmd_ld_bracket_mm_bracket_comma_iz
+       endm
        
        macro JPMATCHENDWORD_BACK1
         jp matchendword_back1
