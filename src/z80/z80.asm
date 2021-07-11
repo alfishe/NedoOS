@@ -565,6 +565,8 @@ DOSER_state=$
        if margins
         ld a,(curquart)
         cp 3 ;0000?
+       ;cpl
+       ;and 3
         jr z,DOSDOS ;DOS -> DOS
        else
         LD A,D
@@ -643,6 +645,8 @@ DOSERny
         jr nz,jpiy;RET NZ
         ld a,(curquart)
         cp 3 ;0000?
+       ;cpl
+       ;and 3
         jr nz,jpiy;RET NZ
        else
         LD A,D
@@ -797,18 +801,6 @@ DOSrdsec5ok
         include "ports.asm"
 
         include "z80cmd.asm"
-        align 256
-        include "z80table.asm"
-        align 256
-t866toatm
-        incbin "../kernel/866toatm"
-        DISPLAY $
-       IF stats
-        align 256
-comstats
-        DISPLAY "comstats=",$
-        DS #400
-       ENDIF 
 
         include "rst38.asm"
 
@@ -1334,32 +1326,6 @@ next_incd
         ret
        endif
 
-        align 256
-tprofiy
-_chr=0
-        dup 32
-;_chr=%000YYYTT
-_Y=((_chr*8)&0x18)+((_chr/4)&0x07) ;_Y=%000TTYYY
-        ;db 200 ;invisible line
-_egay=_Y*8;7 ;- 4
-        dup 8;7
-       if (_egay >= 200) || (_egay < 0)
-        ;db 200 ;invisible line
-        DCOM (0x4000+4+(200*40))
-       else
-        ;db _egay
-        DCOM (0x4000+4+(_egay*40))
-       endif
-_egay=_egay+1
-        edup
-_chr=_chr+1
-        edup
-        ;ds (-$)&0xff,200 ;invisible line
-        org $+256
-        align 256
-temulpgs
-        ds 64 ;пока используем 8
-
 pgrom48
         db 0
 pgrom128
@@ -1404,14 +1370,7 @@ dosFF   DB 0
        if margins
 curquart
         DW emulcurpg0000
-        align 256
        endif
-
-;реальные банки (лежат подряд для margins)
-emulcurpg4000  DB 0 ;for 4000
-emulcurpg8000  DB 0 ;for 8000
-emulcurpgc000  DB 0 ;for c000
-emulcurpg0000  DB 0 ;for 0000
 
 curscr  DB 0 ;0/8
 
@@ -1502,12 +1461,57 @@ oldimer
         jp on_int
         jp 0x0038+3
 
-end
-
+        align 256
+        include "z80table.asm"
+        align 256
+       if margins
+        align 256 ;почему не работает 8? TODO
+       endif
+;реальные банки (лежат подряд с адреса, делящегося на 8, для margins)
+emulcurpg4000=$  ;DB 0 ;for 4000
+emulcurpg8000=$+1  ;DB 0 ;for 8000
+emulcurpgc000=$+2  ;DB 0 ;for c000
+emulcurpg0000=$+3  ;DB 0 ;for 0000
+        ;ds 4
+t866toatm
+        incbin "../kernel/866toatm"
+       IF stats
+        align 256
+comstats
+        DISPLAY "comstats=",$
+        DS #400
+       ENDIF 
         align 256 ;for setmem00004000forwrite
 secbuf
         ds 256
-        display secbuf+256
+        align 256
+tprofiy
+_chr=0
+        dup 32
+;_chr=%000YYYTT
+_Y=((_chr*8)&0x18)+((_chr/4)&0x07) ;_Y=%000TTYYY
+        ;db 200 ;invisible line
+_egay=_Y*8;7 ;- 4
+        dup 8;7
+       if (_egay >= 200) || (_egay < 0)
+        ;db 200 ;invisible line
+        DCOM (0x4000+4+(200*40))
+       else
+        ;db _egay
+        DCOM (0x4000+4+(_egay*40))
+       endif
+_egay=_egay+1
+        edup
+_chr=_chr+1
+        edup
+        ;ds (-$)&0xff,200 ;invisible line
+        org $+256
+        align 256
+temulpgs
+        ds 64 ;пока используем 8
+
+        display $
+end
 
 	savebin "z80.com",begin,end-begin
 

@@ -2,7 +2,6 @@ asmcmd
 ;de=cmd text
 ;hl=code generated ;out: after the code
 ;out: NZ=error
-        ;ld de,asmtestcmd
         asmgetchar
         cp 'l'
         jp z,asmcmd_l
@@ -22,12 +21,106 @@ asmcmd
         jp z,asmcmd_s
         cp 'e'
         jp z,asmcmd_e
-        cp 'b'
-        jp z,asmcmd_b
         cp 'r'
         jp z,asmcmd_r
-        
-        ret
+        cp 'b'
+        jp z,asmcmd_b
+        cp 'j'
+        jr z,asmcmd_j
+        cp 'p'
+        jr z,asmcmd_p
+        cp 'n'
+        ret nz
+asmcmd_n
+;nop/neg
+        asmnextchar ;eat
+        asmgetchar
+        cp 'o'
+        jr z,asmcmd_no_
+        MATCH 'e'
+        MATCH 'g'
+        asmputbyte 0xed
+        asmputbyte 0x44 ;neg
+        jp matchendword
+asmcmd_no_
+        asmnextchar ;eat
+        asmgetchar
+        sub 'p'
+        ret nz
+        asmnextchar ;eat        
+        asmputbyte_a ;nop
+        asmgetchar
+        jp matchendword
+
+asmcmd_p
+;pop/push
+        asmnextchar ;eat
+        asmgetchar
+        cp 'o'
+        jr z,asmcmd_po_
+        ld b,0xc5 ;push base
+        MATCH 'u'
+        MATCH 's'
+        cp 'h'
+        ret nz
+asmcmd_poppush
+        asmnextchar ;eat
+        asmgetchar
+        MATCHSPACES
+        cp 'i'
+        jr z,asmcmd_poppush_i
+        cp 'a'
+        jr z,asmcmd_poppush_a
+        call matchrp
+        jp z,asmcmd_putbplusc
+        ret ;nz (error)
+asmcmd_poppush_i
+        asmnextchar ;eat
+        asmgetchar
+        MATCHXY_PUTDDFD_NOEAT
+        asmnextchar ;eat
+        asmgetchar
+        set 5,b
+        asmputbyte_b ;pop/push hl
+        jp matchendword
+asmcmd_poppush_a
+        asmnextchar ;eat
+        asmgetchar
+        MATCH_NOGET 'f'
+        ld a,b
+        add a,0x30
+        asmputbyte_a ;pop/push hl
+        asmgetchar
+        jp matchendword
+
+asmcmd_j
+;jr/jp
+        asmnextchar ;eat
+        asmgetchar
+        cp 'p'
+        ld bc,256*(0xc2-0x20)+0xc3 ;jp base
+        jp z,asmcmd_jpcall
+        MATCH 'r'
+        MATCHSPACES
+        call matchcc_forjr
+        jr z,asmcmd_jrcc
+        asmputbyte 0x18
+        jp asmcmd_jrs
+
+asmcmd_po_
+        asmnextchar ;eat
+        asmgetchar
+        cp 'p'
+        ld b,0xc1 ;pop base
+        jr z,asmcmd_poppush
+        ret ;nz (error)
+
+asmcmd_jrcc
+        SKIPSPACES_BEFORECOMMA
+        MATCH ','
+        SKIPSPACES
+        asmputbyte_c ;jr cc
+        jp asmcmd_jrs
 
 asmcmd_e
 ;ei/ex/exx
@@ -68,7 +161,7 @@ asmcmd_ex_bracket_sp_bracket_hl
 asmcmd_ex_bracket_sp_bracket_i
         asmnextchar ;eat
         asmgetchar
-        MATCHXY_PUTDDFD_NOGET
+        MATCHXY_PUTDDFD_NOEAT
         jr asmcmd_ex_bracket_sp_bracket_hl
 asmcmd_ex_d
         asmnextchar ;eat
@@ -237,7 +330,7 @@ asmcmd_sr_
 asmcmd_anycbshift_bracket_i
         asmnextchar ;eat
         asmgetchar
-        MATCHXY_PUTDDFD_NOGET
+        MATCHXY_PUTDDFD_NOEAT
         asmnextchar ;eat
         asmputbyte 0xcb
         ld a,b ;anycbshift base
@@ -334,7 +427,7 @@ asmcmd_add_i
         asmnextchar ;eat
         asmgetchar
        ld c,a
-        MATCHXY_PUTDDFD_NOGET
+        MATCHXY_PUTDDFD_NOEAT
         asmnextchar ;eat
         asmgetchar
         SKIPSPACES_BEFORECOMMA
@@ -357,11 +450,8 @@ asmcmd_add_iz_comma_i
         ret nz ;nz (error)
         asmnextchar ;eat
         asmgetchar
-        ;call matchendword
-        ;ret nz
         asmputbyte 0x29 ;add hl,hl
-        cp a ;Z
-        ret
+        jp matchendword
 asmcmd_ad_
         asmnextchar ;eat
         asmgetchar
@@ -381,8 +471,13 @@ asmcmd_adcsbc_hl
         SKIPSPACES
         call matchrp_orsp ;c=0/0x10/0x20/0x30 (bc/de/hl/sp)
         asmputbyte 0xed
+asmcmd_putbplusc
         ld a,b
-        jp asmcmd_putaplusc
+asmcmd_putaplusc
+        add a,c ;0/0x10/0x20/0x30
+        asmputbyte_a
+        cp a ;Z
+        ret
 asmcmd_add
         asmnextchar ;eat
         asmgetchar
@@ -605,21 +700,28 @@ asmcmd_ca_
         asmnextchar ;eat
         asmgetchar
         MATCH 'l'
-        MATCH 'l'
+        cp 'l'
+        ret nz
+        ld bc,256*(0xc4-0x20)+0xcd ;call base
+asmcmd_jpcall
+        asmnextchar ;eat
+        asmgetchar
         MATCHSPACES
         call matchcc
         jr z,asmcmd_callcc
-        asmputbyte 0xcd ;call
+        asmputbyte_c ;0xcd ;call
         jp asmmatchexpr_emitword_bc        
 asmcmd_callcc
         SKIPSPACES_BEFORECOMMA
-        MATCH ','
-        SKIPSPACES
-        ;ld b,a
+        cp ','
+        ret nz
         ld a,c ;0x20+cc*8
-        add a,0xc4-0x20
+        add a,b ;0xc4-0x20
+        ;add a,0xc4-0x20-0xcd
         asmputbyte_a ;call cc
-        asmgetchar;ld a,b
+        asmnextchar ;eat
+        asmgetchar
+        SKIPSPACES
         jp asmmatchexpr_emitword_bc        
         
 asmcmd_ini_
@@ -756,11 +858,13 @@ asmcmd_dec_rb
         add a,0x05-(0x35-6) ;dec r
         jp asmcmd_putaplusb ;0x34-6=0x2e(inc)/0x35-6=0x2f(dec)
 asmcmd_d
-;dec/di/daa
+;dec/di/daa/djnz
         asmnextchar ;eat
         asmgetchar
         cp 'e'
         jr z,asmcmd_de
+        cp 'j'
+        jr z,asmcmd_djnz
         cp 'i'
         jr z,asmcmd_di
         MATCH 'a'
@@ -768,12 +872,43 @@ asmcmd_d
         asmputbyte 0x27 ;daa
         cp a ;Z
         ret
+asmcmd_djnz
+        asmnextchar ;eat
+        asmgetchar
+        MATCH 'n'
+        cp 'z'
+        ret nz
+        asmputbyte 0x10 ;djnz
+        asmnextchar ;eat
+        asmgetchar
+        MATCHSPACES
+asmcmd_jrs
+        call matchexpr
+        ret nz
+        push hl
+        ld hl,(asmcmdaddr)
+        inc hl
+        inc hl
+        ld a,c
+        sub l
+        ld c,a
+        ld a,b
+        sbc a,h
+        ld b,a
+        pop hl
+        ld a,c
+        rla
+        sbc a,a
+        cp b
+        ret nz ;jr overflow!!!
+        asmputbyte_c ;shift
+        cp a ;Z
+        ret
 asmcmd_di
         asmnextchar ;eat
         asmgetchar
         asmputbyte 0xf3 ;di
-        cp a ;Z
-        ret
+        jp matchendword
 asmcmd_de
         asmnextchar ;eat
         asmgetchar
@@ -795,27 +930,33 @@ asmcmd_dec
         ret nz
         ld a,0x03
         bit 0,b ;0x34-6=0x2e(inc)/0x35-6=0x2f(dec)
-        jr z,$+4
-        ld a,0x0b ;a=0x03(inc rp)/0x0b(dec rp)        
-asmcmd_putaplusc
-        add a,c ;0/0x10/0x20/0x30
-        asmputbyte_a
-        cp a ;Z
-        ret
+        jp z,asmcmd_putaplusc
+        ld a,0x0b ;a=0x03(inc rp)/0x0b(dec rp)
+        jp asmcmd_putaplusc
 asmcmd_dec_i
 ;dec ix/iy
         asmnextchar ;eat
         asmgetchar
-        MATCHXY_PUTDDFD_NOGET
+        MATCHXY_PUTDDFD_NOEAT
         asmnextchar ;eat
-        ;asmgetchar
+        asmgetchar
         ld a,0x23
         bit 0,b ;0x34-6=0x2e(inc)/0x35-6=0x2f(dec)
         jr z,$+4
         ld a,0x2b ;a=0x23(inc)/0x2b(dec)
         asmputbyte a;0x2b ;dec hl
-        cp a ;Z
-        ret
+        jp matchendword
+
+asmcmd_ld_reg_bracket_i
+;b=reg*8+0x40
+        asmnextchar ;eat
+        asmgetchar
+        MATCHXY_PUTDDFD_NOEAT
+;ld r,[iz+]
+        ld a,b ;reg*8+0x40
+        add a,6 ;ld r,[hl]
+        asmputbyte_a
+        jp asmcmd_anycmd_bracket_iz_bracket
 
 asmcmd_ldi_
 ;ldi/ldir
@@ -828,34 +969,19 @@ asmcmd_ldi_
         jp matchendword
 asmcmd_ldir
         asmnextchar ;eat
-        ;asmgetchar
+        asmgetchar
         asmputbyte 0xb0 ;ldir
         jp matchendword
 asmcmd_ldd_
 ;ldd/lddr
         asmnextchar ;eat
-        ;asmgetchar
+        asmgetchar
         asmputbyte 0xed
         cp 'r'
         jr z,asmcmd_lddr
         asmputbyte 0xa8 ;ldd
         jp matchendword
-asmcmd_lddr
-        asmnextchar ;eat
-        ;asmgetchar
-        asmputbyte 0xb8 ;lddr
-        jp matchendword
 
-asmcmd_ld_reg_bracket_i
-;b=reg*8+0x40
-        asmnextchar ;eat
-        asmgetchar
-        MATCHXY_PUTDDFD_NOGET
-;ld r,[iz+]
-        ld a,b ;reg*8+0x40
-        add a,6 ;ld r,[hl]
-        asmputbyte_a
-        jp asmcmd_anycmd_bracket_iz_bracket
 asmcmd_ld_reg_bracket
 ;b=reg*8+0x40
 ;ld r,[hl]/[iz+]
@@ -869,11 +995,13 @@ asmcmd_ld_reg_bracket
         MATCHCLOSEBRACKET_NOGET
         ld a,6 ;ld r,[hl]
         jp asmcmd_putaplusb
-        ;add a,b ;reg*8+0x40
-        ;asmputbyte_a
-        ;cp a ;Z
-        ;ret
-        
+
+asmcmd_lddr
+        asmnextchar ;eat
+        asmgetchar
+        asmputbyte 0xb8 ;lddr
+        jp matchendword
+
 asmcmd_l
         asmnextchar ;eat
         asmgetchar
@@ -1043,7 +1171,7 @@ asmcmd_ld_i
         SKIPSPACES_BEFORECOMMA
         cp ','
         jp z,asmcmd_ld_i_comma
-        MATCHXY_PUTDDFD_NOGET
+        MATCHXY_PUTDDFD_NOEAT
 asmcmd_ld_hl
 ;ld hl,nn/(mm)
         asmnextchar ;eat
@@ -1118,7 +1246,7 @@ asmcmd_ld_bracket_mm_bracket_comma_i
 ;ld (mm),iz
         asmnextchar ;eat
         asmgetchar
-        MATCHXY_PUTDDFD_NOGET
+        MATCHXY_PUTDDFD_NOEAT
         asmputbyte 0x22 ;ld (),hl
         jr asmeat_putbc
 asmcmd_ld_bracket_mm_bracket_comma_a
@@ -1176,9 +1304,7 @@ asmcmd_ld_bracket_ix
 asmcmd_ld_bracket_iy
         asmputbyte 0xfd
 asmcmd_ld_bracket_iz
-        asmnextchar ;eat
-        asmgetchar
-        MATCHBRACKET_OR_i8BRACKET
+        EAT_MATCHBRACKET_OR_i8BRACKET
         SKIPSPACES_BEFORECOMMA
         MATCH ','
         SKIPSPACES
@@ -1203,11 +1329,10 @@ asmcmd_ld_r
         SKIPSPACES_BEFORECOMMA
         MATCH ','
         SKIPSPACES
-        MATCH_NOGET 'a'
+        MATCH 'a'
         asmputbyte 0xed
         asmputbyte 0x4f ;ld r,a
-        cp a ;Z
-        ret
+        jp matchendword
 
 asmcmd_ld_a
 ;ld a,i/r/n/(/reg
@@ -1229,15 +1354,8 @@ asmcmd_ld_a
         call matchrb_ora
         ld a,0x78
         jp z,asmcmd_putaplusc
-        ;jr z,asmcmd_ld_a_rb
         asmputbyte 0x3e ;ld a,i8
         jp asmmatchexpr_putc
-;asmcmd_ld_a_rb
-        ;ld a,c
-        ;add a,0x78 ;ld a,rb
-        ;asmputbyte_a
-        ;cp a ;Z
-        ;ret
 
 asmcmd_ld_a_bracket
 ;ld a,(mm)/(rp)/(iz+)
@@ -1247,8 +1365,6 @@ asmcmd_ld_a_bracket
         cp 'i'
         jr z,asmcmd_ld_a_bracket_i
 ;ld a,(mm)/(rp)
-        ;cp 'h'
-        ;jr z,asmcmd_ld_a_bracket_h
         call matchrp ;c=rp*0x10
         jr nz,asmcmd_ld_a_bracket_norp
         ld a,c
@@ -1269,7 +1385,8 @@ asmcmd_ld_a_bracket_i
         cp 'x'
         jr z,asmcmd_ld_a_bracket_ix
         cp 'y'
-        jr z,asmcmd_ld_a_bracket_iy
+        jr z,asmcmd_ld_a_bracket_iy ;надо тут, т.к. expr не откатить
+asmcmd_ld_a_bracket_i_expr
         call matchexpr
         ret nz
         asmputbyte 0x3a ;ld a,()
@@ -1287,7 +1404,17 @@ asmcmd_ld_a_bracket_iz
 asmcmd_anycmd_bracket_iz_bracket
         asmnextchar ;eat
         asmgetchar
-        MATCHBRACKET_OR_i8BRACKET_NOGET
+        ld c,0
+        CPCLOSEBRACKET_JR 1f
+        cp '+'
+        jr z,$+6
+         cp '-'
+         jr nz,asmcmd_ld_a_bracket_i_expr
+        call matchexpr
+        ret nz
+        MATCHCLOSEBRACKET_NOEAT
+1
+        asmnextchar ;eat
         asmputbyte_c
         cp a ;Z
         ret
@@ -1299,17 +1426,15 @@ asmcmd_ld_a_r
         ld c,0x5f ;ld a,r
 asmcmd_eat_put_ed_c
         asmnextchar ;eat
-        ;asmgetchar
+        asmgetchar
         asmputbyte 0xed
         asmputbyte_c ;0x5f ;ld a,r
-        cp a ;Z
-        ret
+        jp matchendword
 
 asmcmd_ld_i_comma
         asmnextchar ;eat
         asmgetchar
-        MATCH_NOGET 'a'
+        MATCH 'a'
         asmputbyte 0xed
         asmputbyte 0x47 ;ld i,a
-        cp a ;Z
-        ret
+        jp matchendword

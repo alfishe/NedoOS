@@ -240,6 +240,7 @@ TX      DEC A
         JR Z,$+3
         DEC D
 disasmcmdaddr=$+1
+asmcmdaddr=$+1
        ld hl,0
        inc hl
         INC HL

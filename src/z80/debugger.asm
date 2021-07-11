@@ -476,9 +476,11 @@ Debugger_PrMemLine1
        jr z,Debugger_PrMemLine_skipchar
        cp 0x09
        jr z,Debugger_PrMemLine_skipchar
+       jr c,Debugger_PrMemLine_prchar ;неполная таблица
        ld c,a
 Debugger_PrMemLine_skipchar
        ld a,(bc)
+Debugger_PrMemLine_prchar
         call Debugger_PrChar
         ;pop hl
         pop bc
@@ -503,7 +505,6 @@ Debugger_Disasm0
         
 Debugger_DisasmLine_hl ;return hl = next cmd
        push hl
-       ld (disasmcmdaddr),hl
         ld d,h
         ld e,l
         call Debugger_PrWord_de
@@ -565,6 +566,7 @@ Debugger_Disasm_cmdbuf_to_textbuf
         jp Disasm_COMMAND
 
 Debugger_GetCmd_to_disasmcmdbuf
+       ld (disasmcmdaddr),hl
         ld de,disasmcmdbuf
 Debugger_CopyMem_hl_to_de_4bytes
         call Debugger_CopyMem_hl_to_de_2bytes

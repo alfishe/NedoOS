@@ -33,46 +33,50 @@ IYADD=0x70;0xa0
         jp z,addr
        endm
 
+       if 0
        macro CPSPACES_JR addr
         cp ' '
         jr z,addr
         cp 9 ;tab
         jr z,addr
        endm
+       endif
        
        macro CPCLOSEBRACKET
         cp ')'
         jr z,$+4
         cp ']'|OR20FORBRACKETS
        endm
-       macro MATCHCLOSEBRACKET_NOGET
+       macro CPCLOSEBRACKET_JR addr
+        cp ')'
+        jr z,addr
+        cp ']'|OR20FORBRACKETS
+        jr z,addr
+       endm
+       macro MATCHCLOSEBRACKET_NOEAT
         cp ')'
         jr z,$+5
         cp ']'|OR20FORBRACKETS
         ret nz
+       endm
+       macro MATCHCLOSEBRACKET_NOGET
+        MATCHCLOSEBRACKET_NOEAT
         asmnextchar ;eat
        endm
        macro MATCHCLOSEBRACKET
         MATCHCLOSEBRACKET_NOGET
         asmgetchar
        endm
-       macro MATCHBRACKET_OR_i8BRACKET_NOGET
+       macro EAT_MATCHBRACKET_OR_i8BRACKET
+        asmnextchar ;eat
+        asmgetchar
         ld c,0
-        cp ')'
-        jr z,1f;asmcmd_ld_bracket_iz_noshift
-        cp ']'|OR20FORBRACKETS
-        jr z,1f;asmcmd_ld_bracket_iz_noshift
+        CPCLOSEBRACKET_JR 1f
         call matchexpr
         ret nz
-        cp ')'
-        jr z,$+5
-        cp ']'|OR20FORBRACKETS
-        ret nz
+        MATCHCLOSEBRACKET_NOEAT
 1;asmcmd_ld_bracket_iz_noshift
         asmnextchar ;eat
-       endm
-       macro MATCHBRACKET_OR_i8BRACKET
-        MATCHBRACKET_OR_i8BRACKET_NOGET
         asmgetchar
        endm
 
@@ -94,7 +98,7 @@ IYADD=0x70;0xa0
         ret nz
        endm
 
-       macro MATCHXY_PUTDDFD_NOGET
+       macro MATCHXY_PUTDDFD_NOEAT
         cp 'x'
         jr z,1f;asmcmd_ld_bracket_mm_bracket_comma_ix
         cp 'y'
@@ -235,7 +239,7 @@ matchcc
         jr z,matchcc_p
         cp 'm'
         jr z,matchcc_m
-matchcc_for_jr
+matchcc_forjr
         cp 'n'
         jr z,matchcc_n
         cp 'c'
