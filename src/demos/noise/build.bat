@@ -52,9 +52,9 @@ sjasmplus --nologo --msg=war noise.asm
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
   @FOR %%j IN (*.com) DO (
-  @"../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /bin/%%j
-  @move "*.com" "%releasedir2%bin" > nul
-  @IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%bin\%%~nj\" > nul
+  @"../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /nedodemo/%%j
+  @move "*.com" "%releasedir2%nedodemo" > nul
+  @IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedodemo\%%~nj\" > nul
   )
  rem pause
 cd ../../../src/

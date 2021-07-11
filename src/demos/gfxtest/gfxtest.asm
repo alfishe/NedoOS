@@ -1,5 +1,5 @@
         DEVICE ZXSPECTRUM128
-        include "../_sdk/sys_h.asm"
+        include "../../_sdk/sys_h.asm"
 
 STACK=0x4000
 scrbase=0x8000
