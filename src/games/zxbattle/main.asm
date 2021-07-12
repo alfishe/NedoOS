@@ -310,6 +310,9 @@ connect_ok
         ;ld bc,1 ;domain???
 	LD DE,513 ;type???
 	OS_NETSOCKET ;Подключить TCP/IP сокет к хосту.???
+        ld a,l
+	or a
+	jp m,CONNECTIONERROR;?C_EXIT
 	LD (soc),A
 	;a=socket
 	LD DE,web_ia
@@ -321,11 +324,15 @@ connect_ok
 ;signed char OS_LISTEN(int, SOCKET socket);
 ;#define listen(socket, backlog) OS_LISTEN(backlog,socket)
 	OS_LISTEN ;Включить режим прослушивания исходящего порта(режим сервера) TCP/IP сокета.
+accept0
 	LD a,(soc) ;socket
 	;LD DE,0 ;addr???
 ;SOCKET OS_ACCEPT(const struct sockaddr_in * addr, SOCKET socket);
 ;#define accept(socket, addr, address_len) OS_ACCEPT(addr,socket)
 	OS_ACCEPT ;ждём, когда подсоединятся
+        ld a,l
+        or a
+        jp m,accept0
 	LD (datasoc),A
 ;	Возвращаемые значения в регистрах:
 ;		L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
@@ -334,9 +341,7 @@ connect_ok
 ;		ERR_NOTSOCK 		- не действительный дескриптор сокета
 ;		ERR_ECONNABORTED	- общая ошибка сокета
 ;		ERR_EAGAIN			- входящих подключений пока нет
-	;OR	A
-	;JP	P,?0043
-        
+CONNECTIONERROR
        endif
        
        else ;UDP
