@@ -324,16 +324,22 @@ connect_ok
 ;signed char OS_LISTEN(int, SOCKET socket);
 ;#define listen(socket, backlog) OS_LISTEN(backlog,socket)
 	OS_LISTEN ;Включить режим прослушивания исходящего порта(режим сервера) TCP/IP сокета.
-accept0
+WAIT_CLIENTS0
 	LD a,(soc) ;socket
 	;LD DE,0 ;addr???
 ;SOCKET OS_ACCEPT(const struct sockaddr_in * addr, SOCKET socket);
 ;#define accept(socket, addr, address_len) OS_ACCEPT(addr,socket)
 	OS_ACCEPT ;ждём, когда подсоединятся
-        ld a,l
-        or a
-        jp m,accept0
-	LD (datasoc),A
+	BIT 7,L
+	JR Z,ESTABLISHED
+	CP ERR_EAGAIN
+	JP NZ,ERR_EXIT	;обработка ошибки
+	OS_YIELD		;не обязательно. Если время реагирования на подключение не критично,
+						;то отдадим квант времени системе.
+	JR WAIT_CLIENTS0	;никто не подключился, ждём
+ESTABLISHED
+	LD A,L				;удачно
+	LD (datasoc),A	;сохраняем дескриптор сокета.
 ;	Возвращаемые значения в регистрах:
 ;		L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
 ;		А - errno при ошибке.
@@ -342,6 +348,7 @@ accept0
 ;		ERR_ECONNABORTED	- общая ошибка сокета
 ;		ERR_EAGAIN			- входящих подключений пока нет
 CONNECTIONERROR
+ERR_EXIT
        endif
        
        else ;UDP
@@ -378,6 +385,10 @@ sprlistsz=$-sprlist
 ;+3: 2(xsize:SPSIZ16) +1(SPSIZBS) +0x80(mirrorhor)
 ;+4,5: pattern number
 
+       macro DWBIGENDIAN data
+        db data/256
+        db data&0xff
+       endm
 
        ifdef CLIENT 
 soc
@@ -390,7 +401,7 @@ datasoc
 curport=$+1
 web_ia:
 	defb 0
-        db 0,80
+        DWBIGENDIAN 20001 ;db 0,80
         db 8,8,8,8
         ds 8 ;reserved
        else
@@ -401,7 +412,7 @@ web_ia:
 ;master(net1): from 192.168.1.2 to 192.168.1.177
 port_ia:
 	defb 0
-        db 100,53 ;port (big endian)
+        DWBIGENDIAN 20001 ;db 0,80
         db 192,168,0,7;127,0,0,1 ;ip (big endian)
 ;port_iarecv:
 ;	defb 0
@@ -413,7 +424,7 @@ port_ia:
 ;slave(net2): from 192.168.1.177 to 192.168.1.2
 port_ia:
 	defb 0
-        db 100,53 ;port (big endian)
+        DWBIGENDIAN 20001 ;db 0,80
         db 255,255,255,255 ;ip (big endian)
 ;port_iasend:
 ;	defb 0
