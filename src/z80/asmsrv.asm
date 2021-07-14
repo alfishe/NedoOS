@@ -34,4 +34,22 @@
         ld (hl),data
         inc hl
        endm
+       macro asmputbyteOK data
+;Z
+        ld (hl),data
+        inc hl ;for true asm (to know command size)
+;Z
+       endm
 
+;size optimization for debugger:
+       macro ASMNEXTCHAR_LAST
+        ;asmnextchar ;for true asm
+       endm
+       macro ASMGETCHAR_LAST
+        ;asmgetchar ;for true asm
+       endm
+       macro ASMCMD_MATCHENDWORD
+        ;jp matchendword_back1 ;for true asm
+        ret ;for debugger
+       endm
+       

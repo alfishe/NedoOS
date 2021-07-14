@@ -2,6 +2,10 @@ OR20FORBRACKETS=0;0x20
 IXADD=0x50;0x80
 IYADD=0x70;0xa0
 
+       macro MATCH_NOEAT s1
+        cp s1
+        ret nz
+       endm
        macro MATCH_NOGET s1
         cp s1
         ret nz
@@ -33,15 +37,6 @@ IYADD=0x70;0xa0
         jp z,addr
        endm
 
-       if 0
-       macro CPSPACES_JR addr
-        cp ' '
-        jr z,addr
-        cp 9 ;tab
-        jr z,addr
-       endm
-       endif
-       
        macro CPCLOSEBRACKET
         cp ')'
         jr z,$+4
@@ -89,6 +84,10 @@ IYADD=0x70;0xa0
         ;SKIPSPACES
        endm
 
+       macro SKIPSPACES_AFTERCOMMA
+        ;SKIPSPACES
+       endm
+
        macro MATCHSPACES ;ret nz (error) if not spaces or if eol ;остаётся на первом непробеле и его возвращает в a
         ;cp ' '
         ;jr z,$+4
@@ -109,7 +108,7 @@ IYADD=0x70;0xa0
         asmputbyte 0xdd
 2;asmcmd_ld_bracket_mm_bracket_comma_iz
        endm
-       
+
        macro JPMATCHENDWORD_BACK1
         jp matchendword_back1
        endm
