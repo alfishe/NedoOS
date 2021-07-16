@@ -2,7 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 _COLOR=0x0007;7
-TSPACES_FILENAME_SZ=41
+TSPACES_FILENAME_SZ=42;41
 
         org PROGSTART
 cmd_begin

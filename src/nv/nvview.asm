@@ -116,10 +116,10 @@ nvview_mainloop_nokey
        if PRSTDIO
         GETKEY_
         jr nz,nvview_mainloop_keyq
-        GETKEY_
-        jr nz,nvview_mainloop_keyq
-        GETKEY_
-        jr nz,nvview_mainloop_keyq ;event бывает 3-символьный
+        ;GETKEY_
+        ;jr nz,nvview_mainloop_keyq
+        ;GETKEY_
+        ;jr nz,nvview_mainloop_keyq ;event бывает 3-символьный
        else
         GET_KEY
         ;jr z,nvview_mainloop_nokeygo
@@ -129,6 +129,7 @@ nvview_mainloop_nokey
          or a
         jr nz,nvview_mainloop_keyq
        endif
+      if 0
          ;jr nvview_mainloop_nokey
 ;nvview_mainloop_nokeygo
        if PRSTDIO
@@ -136,7 +137,6 @@ nvview_mainloop_nokey
        or a
        jr nz,nvview_mainloop;_nokey
        endif
-      if 0
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 nvview_wasnokey=$+1
         ld a,1

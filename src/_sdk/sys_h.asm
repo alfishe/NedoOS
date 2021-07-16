@@ -847,7 +847,7 @@ __1=$
 
         macro GETKEY_ ;read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
         ;OS_GETKEY
-        call receivekey
+        call getkey;receivekey
         endm
 
         macro SETCOLOR_ ;setcolor (macro SETCOLOR_) - set color attribute (in: d=paper, e=ink)

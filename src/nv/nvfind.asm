@@ -48,13 +48,13 @@ nvfind_mainloop_nokey
        if PRSTDIO
         GETKEY_
         jr nz,nvfind_mainloop_keyq
-        GETKEY_
-        jr nz,nvfind_mainloop_keyq
-        GETKEY_
-        jr nz,nvfind_mainloop_keyq ;event бывает 3-символьный
-       ld a,(stdindatacount)
-       or a
-       jr nz,nvfind_mainloop
+        ;GETKEY_
+        ;jr nz,nvfind_mainloop_keyq
+        ;GETKEY_
+        ;jr nz,nvfind_mainloop_keyq ;event бывает 3-символьный
+       ;ld a,(stdindatacount)
+       ;or a
+       ;jr nz,nvfind_mainloop
        else
         GET_KEY
         ld a,c ;keynolang

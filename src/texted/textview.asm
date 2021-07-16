@@ -1,4 +1,6 @@
-;TODO в режиме wrap при стирании перерисовывать последнюю строку и всё за ней, если она уничтожена
+;TODO в режиме wrap:
+;- при стирании перерисовывать последнюю строку и всё за ней, если она уничтожена
+;- при добавлении перерисовывать строки ниже, если изменилось число строк
 
 texted_XYTOP=0x0000
 texted_HGT=24
@@ -55,14 +57,14 @@ texted_waitkey_nokey
         ;ld a,c ;keynolang
         ;cp NOKEY ;TODO отличить от отсутствия фокуса nz? (не в фокусе клавиши не отдаются)
         jr nz,texted_mainloop_keyq ;event
-        GETKEY_
-        jr nz,texted_mainloop_keyq ;event
-        GETKEY_
-        jr nz,texted_mainloop_keyq ;event бывает 3-символьный
+        ;GETKEY_
+        ;jr nz,texted_mainloop_keyq ;event
+        ;GETKEY_
+        ;jr nz,texted_mainloop_keyq ;event бывает 3-символьный
+      if 0
        ld a,(stdindatacount)
        or a
        jr nz,texted_mainloop
-      if 0
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 ;рисовать панельку только при отсутствии события после YIELD
 wasnokey=$+1
@@ -73,18 +75,20 @@ texted_wasyield=$
         scf
         jr nc,nopanel
       endif
-texted_panelredrawflag=$ ;TODO убрать?
-        scf ;/or a
-        call c,texted_panel
+;texted_panelredrawflag=$
+        ;scf ;/or a
+        call texted_panel ;call c
+      if 0
         ld de,(curxy)
 	call nv_setxy
-      if 0
 nopanel
         YIELD
         ld a,55 ;"scf"
         ld (texted_wasyield),a
-      endif
         jr texted_waitkey_nokey
+      else
+        jr texted_mainloop
+      endif        
 texted_mainloop_keyq      
 
         cp key_redraw
@@ -246,8 +250,8 @@ texted_save_popq
         pop af
         pop bc
         OS_CLOSEHANDLE
-	call setunchanged
-        jp setpanelredrawflag
+	jp setunchanged
+        ;jp setpanelredrawflag
 
 cmd_savepage
 ;hl=size
@@ -263,15 +267,15 @@ cmd_savepage_handle=$+1
 setredrawflag
         ld a,55 ;scf
         ld (texted_redrawflag),a
-        ;ret
-setpanelredrawflag
-        ld a,55 ;scf
-        ld (texted_panelredrawflag),a
         ret
+;setpanelredrawflag
+        ;ld a,55 ;scf
+        ;ld (texted_panelredrawflag),a
+        ;ret
 setlineredrawflag
         ld a,55 ;scf
         ld (texted_lineredrawflag),a
-        jr setpanelredrawflag;ret
+        ret
 
 calccurlinex
         ld hl,(texted_prline_shift)
@@ -515,7 +519,7 @@ texted_wrap
         
 texted_right
 ;TODO X<16384
-        call setpanelredrawflag
+        ;call setpanelredrawflag
         ld de,(curxy)
         inc e
         ld a,e
@@ -539,7 +543,7 @@ texted_right_wrap
         jp texted_down
         
 texted_left
-        call setpanelredrawflag
+        ;call setpanelredrawflag
         ld de,(curxy)
         ld a,e
         sub 1
@@ -674,7 +678,7 @@ texted_up
         push af
         push hl
         call deccurline
-        call setpanelredrawflag
+        ;call setpanelredrawflag
         pop hl
         pop af
         ld c,a
@@ -708,7 +712,7 @@ texted_down
         push af
         push hl
         call inccurline
-        call setpanelredrawflag
+        ;call setpanelredrawflag
         pop hl
         pop af
         ld c,a
@@ -742,7 +746,7 @@ texted_settop
         ret
 
 texted_pgup
-        call setpanelredrawflag
+        ;call setpanelredrawflag
         ld a,(cury)
         or a
         ld b,a
@@ -774,7 +778,7 @@ texted_pgup0
         ret
         
 texted_pgdown
-        call setpanelredrawflag
+        ;call setpanelredrawflag
         ld a,(cury)
         sub texted_HGT-1
         neg
@@ -895,8 +899,8 @@ texted_changeencoding
         ;call texted_prcurpage
         ;ret
 texted_panel
-        ld a,55+0x80 ;or a
-        ld (texted_panelredrawflag),a
+        ;ld a,55+0x80 ;or a
+        ;ld (texted_panelredrawflag),a
         ld de,0x1800
 	call nv_setxy
         ld de,_texted_PANELCOLOR

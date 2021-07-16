@@ -45,10 +45,10 @@ hexeditor_mainloop_nokey
        if PRSTDIO
         GETKEY_
         jr nz,hexeditor_keyq
-        GETKEY_
-        jr nz,hexeditor_keyq
-        GETKEY_
-        jr nz,hexeditor_keyq ;event бывает 3-символьный
+        ;GETKEY_
+        ;jr nz,hexeditor_keyq
+        ;GETKEY_
+        ;jr nz,hexeditor_keyq ;event бывает 3-символьный
        else
         GET_KEY
         ld a,c ;keynolang

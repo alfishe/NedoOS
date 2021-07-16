@@ -2,7 +2,8 @@
 ;initstdio
 ;receivechar (macro GETCHAR_) - read char from stdin (out: A=char, CY=error)
 ;receivechars - read chars from stdin (de=buf, hl=size, out: bc=bytes actually read (if EOF), CY=error(EOF))
-;receivekey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
+;receivekey - read one byte of key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
+;getkey (macro GETKEY_) - read key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;yieldgetkeyloop - wait key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
 ;setcolor (macro SETCOLOR_) - set color attribute (in: D=paper0..7, E=ink0..15)
 ;setcolor_invisible - NON-STANDARD

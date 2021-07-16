@@ -1751,8 +1751,8 @@ editcmd_F1
         ld (windrv),a ;x
 	add a,5
 	ld (windrverr),a
-        ld hl,editcmd_reprintcurpanel;editcmd_reprintall_onlyreadcurdir
-        push hl
+       ;ld hl,editcmd_reprintcurpanel;editcmd_reprintall_onlyreadcurdir
+       ;push hl
 
 seldrv_redraw_mainloop
         ld hl,windrv
@@ -1796,7 +1796,7 @@ seldrv_mainloop_nokey
         cp key_enter
         jr z,seldrv_selcursor
         cp key_esc
-        ret z
+        jp z,editcmd_reprintall_noreaddir ;ret z
 	cp 'a'
 	jr c,seldrv_cursor
 	cp 'a'+NDRIVES;'p'
@@ -1820,7 +1820,7 @@ seldrv_ok
 	OS_SETDRV
 	pop de
 	or a
-        jr z,seldrv_ok0
+        jr z,seldrv_ok_ok
 	ld de,_COLOR_RED
 	call nv_setcolor
 	ld hl,windrverr
@@ -1828,7 +1828,7 @@ seldrv_ok
 	ld de,_COLOR
 	call nv_setcolor
 	jp seldrv_redraw_mainloop
-seldrv_ok0
+seldrv_ok_ok
 	ld a,e
         add a,'a'
         call getcurpaneldir_hl
@@ -1840,7 +1840,7 @@ seldrv_ok0
         ld (hl),'/'
         inc hl
         ld (hl),0
-	ret
+	jp editcmd_reprintcurpanel ;ret
 
 seldrv_down
         ld a,(hl)
@@ -1916,6 +1916,7 @@ editcmd_reprintcurpanel
 	ld ix,(curpanel)
 	call readdir
 	call sortfiles
+;editcmd_reprintcurpanel_ix_noreaddir
 	call drawpanel_with_files
         jp editcmd_readprompt_setendcmdx
 editcmd_reprintall_noreaddir
