@@ -1,3 +1,4 @@
+;TODO в режиме wrap при стирании перерисовывать последнюю строку и всё за ней, если она уничтожена
 
 texted_XYTOP=0x0000
 texted_HGT=24
@@ -34,13 +35,19 @@ texted_redrawflag=$
 ;texted_waitkey_nokey
         ld de,(curxy)
 	call nv_setxy
+       if 0
         ld a,2
 mainloop_yieldkeep
         ld (wasnokey),a
 	YIELDKEEP
         ld a,55+128 ;"or a"
         ld (texted_wasyield),a
+       endif
 texted_waitkey_nokey
+      if 0
+      else
+        YIELD
+      endif
         GETKEY_ ;OS_GETKEYNOLANG
         ;or a ;cp NOKEY ;keylang==0?
         ;jr nz,texted_mainloop_keyq
@@ -50,9 +57,12 @@ texted_waitkey_nokey
         jr nz,texted_mainloop_keyq ;event
         GETKEY_
         jr nz,texted_mainloop_keyq ;event
+        GETKEY_
+        jr nz,texted_mainloop_keyq ;event бывает 3-символьный
        ld a,(stdindatacount)
        or a
        jr nz,texted_mainloop
+      if 0
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 ;рисовать панельку только при отсутствии события после YIELD
 wasnokey=$+1
@@ -62,15 +72,18 @@ wasnokey=$+1
 texted_wasyield=$
         scf
         jr nc,nopanel
-texted_panelredrawflag=$
+      endif
+texted_panelredrawflag=$ ;TODO убрать?
         scf ;/or a
         call c,texted_panel
         ld de,(curxy)
 	call nv_setxy
+      if 0
 nopanel
         YIELD
         ld a,55 ;"scf"
         ld (texted_wasyield),a
+      endif
         jr texted_waitkey_nokey
 texted_mainloop_keyq      
 
@@ -89,8 +102,8 @@ texted_mainloop_keyq
         jp z,texted_pgup
         cp key_pgdown
         jp z,texted_pgdown
-        ;cp 's'
-        ;jp z,texted_changeencoding
+         cp key_F1;extS
+         jp z,texted_changeencoding
         cp key_home
         jp z,texted_home
         cp key_end
@@ -103,8 +116,8 @@ texted_mainloop_keyq
         jp z,texted_gotobof;home
         cp key_sspgdown;ext4
         jp z,texted_gotoeof;end
-        cp extW
-        jp z,texted_wrap
+        ;cp extW
+        ;jp z,texted_wrap
          cp key_ins
          jp z,texted_wrap
         cp key_backspace

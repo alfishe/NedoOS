@@ -28,6 +28,7 @@ hexeditor_mainloop
         ld b,1
         call drawfilecursor_sizeb_colorhl
        endif
+      if 0
 ;hexeditor_yieldkeep
         ld a,2
 hexeditor_yieldkeep
@@ -35,21 +36,32 @@ hexeditor_yieldkeep
 	YIELDKEEP
         ld a,55+128 ;"or a"
         ld (hexeditor_wasyield),a
+      endif
 hexeditor_mainloop_nokey
+      if 0
+      else
+        YIELD
+      endif
        if PRSTDIO
         GETKEY_
+        jr nz,hexeditor_keyq
+        GETKEY_
+        jr nz,hexeditor_keyq
+        GETKEY_
+        jr nz,hexeditor_keyq ;event бывает 3-символьный
        else
         GET_KEY
         ld a,c ;keynolang
         ;cp NOKEY
          or a
-       endif
         jr nz,hexeditor_keyq
+       endif
        if PRSTDIO
        ld a,(stdindatacount)
        or a
        jr nz,hexeditor_mainloop;_nokey
        endif
+      if 0
 ;если два раза подряд нет события, то рисуем панельку и делаем YIELD, иначе YIELDKEEP
 hexeditor_wasnokey=$+1
         ld a,1
@@ -59,15 +71,18 @@ hexeditor_wasnokey=$+1
 hexeditor_wasyield=$
         scf
         jr nc,hexeditor_nopanel
+      endif
         call hexeditor_panel
        if PRSTDIO
         call hexeditor_calctextcursorxy
         call nv_setxy ;keeps de,hl,ix
        endif
+      if 0
 hexeditor_nopanel
 	YIELD
         ld a,55 ;"scf"
         ld (hexeditor_wasyield),a
+      endif
         jr hexeditor_mainloop_nokey
 hexeditor_keyq
         ;push hl

@@ -25,24 +25,44 @@ nvfind_redrawloop
         call nvfind_reprintmenu
 
 nvfind_mainloop
+        call nvfind_getx
+        ld e,a
+        ld a,(nvfind_curtab)
+        add a,a
+        inc a
+        ld d,a
+        call nv_setxy ;keeps de,hl,ix
+      if 0
         ld a,2
 nvfind_yieldkeep
         ld (nvfind_wasnokey),a
 	YIELDKEEP
         ld a,55+128 ;"or a"
         ld (nvfind_wasyield),a
+      endif
 nvfind_mainloop_nokey
+      if 0
+      else
+        YIELD
+      endif
        if PRSTDIO
         GETKEY_
-        ld a,c ;keynolang
-        ;cp NOKEY
+        jr nz,nvfind_mainloop_keyq
+        GETKEY_
+        jr nz,nvfind_mainloop_keyq
+        GETKEY_
+        jr nz,nvfind_mainloop_keyq ;event бывает 3-символьный
+       ld a,(stdindatacount)
+       or a
+       jr nz,nvfind_mainloop
        else
         GET_KEY
         ld a,c ;keynolang
         ;cp NOKEY
          or a
-       endif
         jr nz,nvfind_mainloop_keyq
+       endif
+      if 0
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 nvfind_wasnokey=$+1
         ld a,1
@@ -55,7 +75,10 @@ nvfind_wasyield=$
 	YIELD
         ld a,55 ;"scf"
         ld (nvfind_wasyield),a
-        jr nvfind_mainloop_nokey
+      else
+        call nvfind_panel
+      endif
+        jr nvfind_mainloop;_nokey
 nvfind_mainloop_keyq
         cp key_redraw
         jr z,nvfind_redrawloop
@@ -602,36 +625,29 @@ nvfind_panel
 nvfind_curtab=$+1
         ld a,0
         or a
-        jp z,nvfind_prcursearchfilename
-        jp nvfind_prcursearchtext
-
+        ;jp z,nvfind_prcursearchfilename
+        jr nz,nvfind_prcursearchtext
 nvfind_prcursearchfilename
         ld de,0x0100
-        push de
+        ;push de
         call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,cursearchfilename
         call prtext
-        call clearrestofline
-        call nvfind_getx
-        pop de
-        ld e,a
-        call nv_setxy ;keeps de,hl,ix
-        ret
-
+        jp clearrestofline
+        ;call nvfind_getx
+        ;pop de
+        ;ld e,a
+        ;call nv_setxy ;keeps de,hl,ix
+        ;ret
 nvfind_prcursearchtext
         ld de,0x0300
-        push de
+        ;push de
         call nv_setxy ;keeps de,hl,ix
         ld c,0 ;x
         ld hl,cursearchtext
         call prtext
-        call clearrestofline
-        call nvfind_getx
-        pop de
-        ld e,a
-        call nv_setxy ;keeps de,hl,ix
-        ret
+        jp clearrestofline
 
 nvfind_reprintmenu
        if PRSTDIO

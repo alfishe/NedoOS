@@ -100,15 +100,26 @@ nvview_redrawloop
 
         call nvview_prcurpage
 nvview_mainloop
+      if 0
         ld a,2
 nvview_yieldkeep
         ld (nvview_wasnokey),a
 	YIELDKEEP
         ld a,55+128 ;"or a"
         ld (nvview_wasyield),a
+      endif
 nvview_mainloop_nokey
+      if 0
+      else
+        YIELD
+      endif
        if PRSTDIO
         GETKEY_
+        jr nz,nvview_mainloop_keyq
+        GETKEY_
+        jr nz,nvview_mainloop_keyq
+        GETKEY_
+        jr nz,nvview_mainloop_keyq ;event бывает 3-символьный
        else
         GET_KEY
         ;jr z,nvview_mainloop_nokeygo
@@ -116,15 +127,16 @@ nvview_mainloop_nokey
         ld a,c ;keynolang
         ;cp NOKEY
          or a
-       endif
         jr nz,nvview_mainloop_keyq
+       endif
          ;jr nvview_mainloop_nokey
-nvview_mainloop_nokeygo
+;nvview_mainloop_nokeygo
        if PRSTDIO
        ld a,(stdindatacount)
        or a
        jr nz,nvview_mainloop;_nokey
        endif
+      if 0
 ;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
 nvview_wasnokey=$+1
         ld a,1
@@ -135,26 +147,14 @@ nvview_wasnokey=$+1
 nvview_wasyield=$
         scf
         call c,nvview_panel ;97359 t
+      else
+        call nvview_panel ;97359 t
+      endif
+      if 0
 	YIELD
         ld a,55 ;"scf"
         ld (nvview_wasyield),a
-
-       if 1==0
-        GETKEY_ ;OS_GETKEYNOLANG
-         ;jr c,$
-        jr z,nvview_mainloop_yieldnokeygo
-;есть событие (a=0: от мыши)
-        ;ld a,c ;keynolang
-        ;cp NOKEY
-         or a
-        jr nz,nvview_mainloop_keyq
-        jr nvview_mainloop_nokey
-nvview_mainloop_yieldnokeygo
-       ;ld a,6 ;c
-       ;out (-2),a
-        call nvview_panel ;97359 t
-       endif
-
+      endif
         jr nvview_mainloop_nokey
 nvview_mainloop_keyq
         cp key_redraw
@@ -177,7 +177,7 @@ nvview_mainloop_keyq
          jp z,hexeditor_save
          cp key_F2
          jp z,hexeditor_save
-        cp 's';csss
+        cp key_F1;'s'
         jp z,nvview_changeencoding
         cp key_home
         jp z,nvview_home
@@ -191,7 +191,7 @@ nvview_mainloop_keyq
         jp z,nvview_left
         cp key_right
         jp z,nvview_right
-        cp 'w'
+        cp key_ins;'w'
         jp z,nvview_wrap
         ret
 

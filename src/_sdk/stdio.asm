@@ -68,7 +68,7 @@ stdio_mousey=$+2
         ld de,0
 wasmouseevent=$
         ret ;NC=no error, nz=event ;/nop
-        or a
+        or a ;z/nz
         ret
 
 yieldgetkeyloop
@@ -349,8 +349,10 @@ sendchar
         ld de,stdoutbuf
 sendchars
 ;send chars to stdout (in: de=buf, hl=size, out: A=error)
+       if 0
         xor a
         ld (sendchars_yieldkeepcount),a
+       endif
 sendchars0
         push de
         push hl
@@ -373,20 +375,24 @@ stdouthandle=$+1
 ;de=remaining data addr
         push de
         push hl
+       if 0
 ;чтобы избежать бесконечного YIELDKEEP с постоянным попаданием прерывания в керналь
 ;ограничим число YIELDKEEP, а потом будет YIELD
          ld a,b
-         or c
+         or c ;bc=bytes actually written
          jr z,sendchars_nofail ;NC
 sendchars_yieldkeepcount=$+1
         ld a,0
         add a,128
         ld (sendchars_yieldkeepcount),a
 sendchars_nofail ;NC
-        ld c,CMD_YIELDKEEP
-        jr nc,$+4
-        ld c,CMD_YIELD
-        call BDOS ;YIELDKEEP ;2158t
+        ;ld c,CMD_YIELDKEEP
+        ;jr nc,$+4
+        ;ld c,CMD_YIELD
+        ;call BDOS
+       else
+        YIELDKEEP ;2158t
+       endif
         pop hl
         pop de
         jr sendchars0

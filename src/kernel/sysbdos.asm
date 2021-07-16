@@ -743,8 +743,6 @@ BDOS_getchildresult
         ret
 
 BDOS_hidefromparent
-;hl=result
-        if 1==1
 ;просто разбудить родителя
 activateparent
 ;hl=result
@@ -753,31 +751,13 @@ activateparent
          dec a
          ret z ;idle
         push hl
-         ld (iy+app.parentid),1 ;чтобы после закрытия задачи не пришлось будить родителя (он может уже не существовать)
+         ld (iy+app.parentid),1;idle ;чтобы после закрытия задачи не пришлось будить родителя (он может уже не существовать)
          call BDOS_findapp ;iy=found app
          set factive,(iy+app.flags)
         pop hl
           ld (iy+app.childresult),l
           ld (iy+app.childresult+1),h
          ret
-        else
-        push iy
-        call sys_findfreeid ;портит iy        
-        pop iy
-        ld c,a
-;перезахватить страницы
-        ld hl,tsys_pages
-        ld a,(iy+app.id)
-        ld (iy+app.id),c
-        ld b,sys_npages&0xff
-BDOS_hidefromparent0
-        cp (hl) ;id задачи, которой принадлежит страница
-        jr nz,$+4
-        ld (hl),c ;заменили страницу
-        inc hl
-        djnz BDOS_hidefromparent0
-        endif
-        ret
 
 BDOS_setstdinout
 ;b=id, e=stdin, d=stdout, h=stderr
@@ -1966,7 +1946,7 @@ BDOS_openhandle_pipe
         jr nc,$+3
         inc b
         ld a,(iy+app.id)
-        ld (bc),a ;pipe owner
+        ld (bc),a ;pipe owner (потом переназначится тому, кто читает)
         xor a
         ld (hl),a ;size=0
         pop bc ;b=handle
@@ -2189,6 +2169,13 @@ BDOS_readhandle_pipe_nrnd
 ;a = PIPEADD80+pipeindex
          ld (BDOS_readhandle_pipe_handle),a
         call findpipe_byhandle ;out: hl=pipebuf, a=pipe# ;bc=number of bytes
+        ld bc,pipeowners
+        add a,c
+        ld c,a
+        jr nc,$+3
+        inc b
+        ld a,(iy+app.id)
+        ld (bc),a ;pipe owner - это адресат (чтобы его будить)
 ;читаем из текущей головы столько байт, сколько есть, но не больше number of bytes
 ;пока делаем, что вся очередь лежит в начале (не атомарно)
          ld (BDOS_readhandle_pipe_addr),hl
@@ -2241,6 +2228,7 @@ BDOS_readhandle_pipe_handle=$+1
         ret
         
 findpipe_byhandle
+;hl=number of bytes
 ;out: hl=pipebuf, a=pipe#, bc=oldhl
         sub PIPEADD80-1
         ld b,a
@@ -2265,7 +2253,7 @@ BDOS_writehandle_pipe
 ;a = PIPEADD80+pipeindex
          ld (BDOS_writehandle_pipe_handle),a
         call findpipe_byhandle ;out: hl=pipebuf, a=pipe# ;bc=number of bytes ;keep de
-;установить factive для хозяина пайпа
+;включить адресату пайпа (он крутится в YIELD) возможность принять сообщение сразу
         push bc
         push de
         ld bc,pipeowners
@@ -2276,7 +2264,10 @@ BDOS_writehandle_pipe
         ld a,(bc)
         ld e,a ;pipe owner
         call BDOS_findapp ;iy=found app ;keep hl
-        set factive,(iy+app.flags)
+        ;set factive,(iy+app.flags)
+        ld a,(sys_timer) ;ok
+        dec a
+        ld (iy+app.lasttime),a
         pop de
         pop bc
 ;добавляем в текущий хвост столько байт, сколько есть, но чтобы не превысило размер буфера

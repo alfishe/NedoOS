@@ -16,7 +16,7 @@ HTMLHGT=25
 COLOR=7
 CURSORCOLOR=0x38
 
-REPEATNOKEY=2 ;0
+REPEATNOKEY=0;2
 
         macro BDOSSETPGSSCR
         ld a,(user_scr0_low) ;ok ;pgscr0_0 ;attr
@@ -101,10 +101,10 @@ maketrecodeback0
 
 execcmd_error
 mainloop_afternokey
+       if REPEATNOKEY != 0
 ;если два раза подряд нет событий, то надо делать YIELD, иначе YIELDKEEP
 ;т.е. когда нет событий, идёт всё время YIELD. А если событие,пусто,событие,пусто, то всё время YIELDKEEP
 ;тогда курсор исчезает - плохо
-        if REPEATNOKEY != 0
 wasnokey=$+1
         ld a,1
         dec a
@@ -113,8 +113,10 @@ wasnokey=$+1
         ;ld a,55 ;"scf"
         ;ld (wasnokey),a
         ;jr nc,mainloop_yieldkeep
-        endif
-       call printcursor
+       else
+mainloop_afterkey
+       endif
+        call printcursor
          ld hl,(pr_buf_curaddr)
          ld (wascursorcuraddr),hl        
         call getmousexy
@@ -131,8 +133,8 @@ mousetimeout=$+1
          ;ld (hl),CURSORCOLOR
 noshowmouse
 
-        OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
-        YIELD
+        ;OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
+        YIELD ;вернётся раньше, если что-то появилось в пайпе
         ld a,(pgscrbuf) ;ok
         SETPG16K
         call BDOS_countattraddr
@@ -145,18 +147,20 @@ wascursorcuraddr=$+1
         ld a,(de) ;из pgscrbuf
         ld (hl),a;COLOR
 
+       if REPEATNOKEY != 0
         jr mainloop_afterkeyq
 mainloop_afterkey
-        if REPEATNOKEY != 0
+       ;if REPEATNOKEY != 0
         ;ld a,55+128 ;"or a"
         ;ld (wasnokey),a
         ld a,REPEATNOKEY;2
 mainloop_yieldkeep
         ld (wasnokey),a
-        endif
-        OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
-        YIELDKEEP
+       ;endif
+        ;OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
+        YIELD ;вернётся раньше, если что-то появилось в пайпе
 mainloop_afterkeyq
+       endif
 mousecursor_wasxy=$+1
         ld de,0
          call getscrbuftop_a
@@ -184,8 +188,8 @@ waitpid_id=$+1
         
         jr mainloop_type0_go
 mainloop_type0
-        OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
-        YIELDKEEP
+        ;OS_SETWAITING ;засыпаем, будем просыпаться только при появлении чего-то в пайпе
+        ;YIELDKEEP
 
 mainloop_type0_go
         call type_stdin ;stdin to screen
