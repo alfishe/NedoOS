@@ -218,7 +218,7 @@ begin
 MAINGO
         ld sp,STACK
         ;OS_HIDEFROMPARENT
-        ld e,0 ;EGA
+        ld e,0 + 0x80 ;EGA + keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode) +8=noturbo, +0x80=keep gfx pages
         ld de,path
         OS_CHDIR
@@ -286,6 +286,7 @@ MAINGO
        if TCP
        if CLIENT
 ;create socket:
+CONNECTIONERROR
 	ld de,SOCK_STREAM+(AF_INET<<8)
 	OS_NETSOCKET
 	ld a,l
@@ -302,7 +303,7 @@ createsoc_err
 	ld e,0
 	OS_NETSHUTDOWN
 	jp CONNECTIONERROR
-CONNECTIONERROR
+;CONNECTIONERROR
 connect_ok
        else ;SERVER
 ;SOCKET  OS_NETSOCKET(unsigned int);
@@ -402,7 +403,7 @@ curport=$+1
 web_ia:
 	defb 0
         DWBIGENDIAN 20001 ;db 0,80
-        db 8,8,8,8
+        db 192,168,1,2;177;127,0,0,1 ;ip (big endian) ;connect to 192.168.1.2
         ds 8 ;reserved
        else
 ;UDP:
@@ -413,7 +414,7 @@ web_ia:
 port_ia:
 	defb 0
         DWBIGENDIAN 20001 ;db 0,80
-        db 192,168,0,5;127,0,0,1 ;ip (big endian)
+        db 192,168,1,177;127,0,0,1 ;ip (big endian)
 ;port_iarecv:
 ;	defb 0
 ;        db 100,53 ;port (big endian)
@@ -439,72 +440,7 @@ PRESTARTS
 	LD	A,(ENN) ;resources loaded?
 	CP	1
 	JP	Z,ZZZZ2 ;skip load
-			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
-			;LD		A,#C0
-			;OUT		(C),A
-        call setpgc0
-			;LD		DE,(DiskAddrImages)	;Load sectors 	Image.tg.p
-			;TRDReadFromDE	#C000,#40
-        ld de,fn_spr0
-        ld hl,0xc000
-        call loadfile
-			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
-			;LD		A,#C1
-			;OUT		(C),A
-        call setpgc1
-			;TRDReadFromHere #C000,#40	;Load sectors 	Image2.t.p
-        ld de,fn_spr1
-        ld hl,0xc000
-        call loadfile
-        
-        call setpgspr2
-        ld de,fn_spr2
-        ld hl,0xc000
-        call loadfile
-        
-        call setpgspr3
-        ld de,fn_spr3
-        ld hl,0xc000
-        call loadfile
-        
-			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
-			;LD		A,#C2
-			;OUT		(C),A
-        call setpgc2
-			;TRDReadFromHere #C000,#40	;Load sectors 	DATA0.C
-        ld de,fn_tiles
-        ld hl,0xc000
-        call loadfile
-        ld ix,0xc000
-        ld e,0
-;recode tiles
-;каждый символ храним по inc d, по 4 байта на строку в порядке 0,1,3,2
-;то есть данные берём из +0,+8,+24,+16
-recodefont0
-        ld d,0xe0
-        
-        ld b,8
-recodefont1
-        ld a,(ix)
-        ld (de),a
-        inc d
-        ld a,(ix+8)
-        ld (de),a
-        inc d
-        ld a,(ix+24)
-        ld (de),a
-        inc d
-        ld a,(ix+16)
-        ld (de),a
-        inc d
-        inc ix
-        djnz recodefont1
-        
-        ld bc,32-8
-        add ix,bc
-        
-        inc e
-        jr nz,recodefont0
+       call loadresources
 			;LD      HL,(#5CF4)				;Save position of Levels on disk
 			;LD		(DiskAddrLevels),HL
 
@@ -1017,42 +953,7 @@ savefile
         OS_CLOSEHANDLE
 	ret
 
-path
-        db "zxbattle",0
-fn_hiscore
-        db "hi_score.dat",0
-fn_soundfx
-        db "sound_fx.bin",0
-fn_muzmain
-        db "muz_main.dat",0
-fn_muzboss
-        db "muz_boss.dat",0
-fn_muzend
-        db "muz_end.dat",0
-        if TILES87
-fn_lvl0116
-        db "lvl_0116.dat",0
-fn_lvl1732
-        db "lvl_1732.dat",0
-        else
-fn_lvl0116
-        db "lvln0116.dat",0
-fn_lvl1732
-        db "lvln1732.dat",0
-        endif
-fn_lvl00us
-        db "lvl_00us.dat",0
-fn_spr0
-        db "spr0.dat",0
-fn_spr1
-        db "spr1.dat",0
-fn_spr2
-        db "spr2.dat",0
-fn_spr3
-        db "spr3.dat",0
-fn_tiles
-        db "font.bin",0
-bgfilename
+bgfilename ;needs 40008000?
         db "menu.bmp",0
 
         macro PRTILE
@@ -1761,6 +1662,8 @@ tpgs ;номера 16..
         ds TILEFLAG1*256+TILEFLAG1-$
         jp drawleftandrighttiles
 
+	INCLUDE	"int.asm"
+
         ds 0x2000-$
 tilemap
        if BYTESPERTILE == 1
@@ -1769,11 +1672,11 @@ tilemap
        endif
         ds 64*35*BYTESPERTILE ;scr1 update flags ;40*25 ;35 - запас на любой y при обновлении 4 рядов
 
-	INCLUDE	"int.asm"
 	INCLUDE	"mem.asm"
 	INCLUDE	"prspr.asm"
 
-	display $,"<0x3ee0"
+	;display $,"<0x3ee0"
+        ds 0x3ee0-$
         ds 0x4000-$
 
         INCLUDE	"XASASM1.a80"
@@ -1783,9 +1686,51 @@ tilemap
 	INCLUDE	"BC3.a80"
 	INCLUDE	"BC4.a80"
 
+path
+        db "zxbattle",0
+fn_hiscore
+        db "hi_score.dat",0
+fn_soundfx
+        db "sound_fx.bin",0
+fn_muzmain
+        db "muz_main.dat",0
+fn_muzboss
+        db "muz_boss.dat",0
+fn_muzend
+        db "muz_end.dat",0
+        if TILES87
+fn_lvl0116
+        db "lvl_0116.dat",0
+fn_lvl1732
+        db "lvl_1732.dat",0
+        else
+fn_lvl0116
+        db "lvln0116.dat",0
+fn_lvl1732
+        db "lvln1732.dat",0
+        endif
+fn_lvl00us
+        db "lvl_00us.dat",0
+fn_spr0
+        db "spr0.dat",0
+fn_spr1
+        db "spr1.dat",0
+fn_spr2
+        db "spr2.dat",0
+fn_spr3
+        db "spr3.dat",0
+fn_tiles
+        db "font.bin",0
+
+       ifdef CLIENT
+inetbuf_sz=256
+inetbuf
+        ds inetbuf_sz
+       endif
+
 end
 
-	;display "End=",end
+	display "End=",end
 	;display "Free after end=",/d,#c000-end
 	;display "Size ",/d,end-begin," bytes"
         display "UP1=",UP1

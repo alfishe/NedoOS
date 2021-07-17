@@ -56,6 +56,13 @@ curscrnum_int=$+1
         
         call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!
 
+        ld a,(curpg16k) ;ok
+        push af
+        ld a,(curpg32klow) ;ok
+        push af
+        ld a,(curpg32khigh) ;ok
+        push af
+
         if KEMPSTON
         GET_KEY
         ld a,lx
@@ -161,7 +168,7 @@ client_gotnothing
 
        else ;SERVER
 ;принять сколько получится из TCP в очередь
-;если там есть полный joy2, то дешифровать
+;если там есть полный joy2, то дешифровать и сыграть один фрейм логики
 ;костыль: принимаем сколько есть, если >=1, то берём последний байт
         ld de,inetbuf
 ;readstream0
@@ -212,12 +219,6 @@ serv_gotnothing
        endif
        endif
         
-        ld a,(curpg16k) ;ok
-        push af
-        ld a,(curpg32klow) ;ok
-        push af
-        ld a,(curpg32khigh) ;ok
-        push af
         call setpgsmain40008000
 	;LD	BC,PAGE3
 	;LD	A,#C3
@@ -278,12 +279,6 @@ joy2state
         db 0xff
        endif
        
-       ifdef CLIENT
-inetbuf_sz=256
-inetbuf
-        ds inetbuf_sz
-       endif
-
 PLAYS
 	LD	A,(SOUNDW)
 	CP	0

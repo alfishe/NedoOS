@@ -1,3 +1,73 @@
+loadresources
+			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
+			;LD		A,#C0
+			;OUT		(C),A
+        call setpgc0
+			;LD		DE,(DiskAddrImages)	;Load sectors 	Image.tg.p
+			;TRDReadFromDE	#C000,#40
+        ld de,fn_spr0
+        ld hl,0xc000
+        call loadfile
+			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
+			;LD		A,#C1
+			;OUT		(C),A
+        call setpgc1
+			;TRDReadFromHere #C000,#40	;Load sectors 	Image2.t.p
+        ld de,fn_spr1
+        ld hl,0xc000
+        call loadfile
+        
+        call setpgspr2
+        ld de,fn_spr2
+        ld hl,0xc000
+        call loadfile
+        
+        call setpgspr3
+        ld de,fn_spr3
+        ld hl,0xc000
+        call loadfile
+        
+			;LD		BC,PAGE3	;CHANGE MEMORY FOR SPRITES
+			;LD		A,#C2
+			;OUT		(C),A
+        call setpgc2
+			;TRDReadFromHere #C000,#40	;Load sectors 	DATA0.C
+        ld de,fn_tiles
+        ld hl,0xc000
+        call loadfile
+        
+        ld ix,0xc000
+        ld e,0
+;recode tiles
+;каждый символ храним по inc d, по 4 байта на строку в порядке 0,1,3,2
+;то есть данные берём из +0,+8,+24,+16
+recodefont0
+        ld d,0xe0
+        
+        ld b,8
+recodefont1
+        ld a,(ix)
+        ld (de),a
+        inc d
+        ld a,(ix+8)
+        ld (de),a
+        inc d
+        ld a,(ix+24)
+        ld (de),a
+        inc d
+        ld a,(ix+16)
+        ld (de),a
+        inc d
+        inc ix
+        djnz recodefont1
+        
+        ld bc,32-8
+        add ix,bc
+        
+        inc e
+        jr nz,recodefont0
+        ret
+
 DEAT77	LD	A,129 ;'0' inverted
 	LD	(UP1),A
 	JP	DEATH
