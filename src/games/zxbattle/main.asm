@@ -518,6 +518,16 @@ ZZZZ2
        ld (KERNSoldtimer),a
 ;цикл показа и обработки меню
 KERNS
+      ifdef CLIENT
+      if CLIENT
+       call sendjoy1
+       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+      else
+       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       call sendjoy1joy2 ;TODO в каждом цикле логики
+      endif
+      endif
+
          ;jp EDITOR;START ;editor
          ;jp FIGHT
 	CALL	EXIT ;if break, set (MAP)=31
@@ -785,6 +795,16 @@ EXIT
 	;RET
 
 KERNF
+      ifdef CLIENT
+      if CLIENT
+       call sendjoy1
+       ;call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+      else
+       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       ;call sendjoy1joy2 ;TODO в каждом цикле логики
+      endif
+      endif
+
         call doscreen_and_logic
 
         CALL	ENDGAME
@@ -826,6 +846,16 @@ uvoldtimer=$+1
 ;b=сколько прошло прерываний
 mainloop_uvlogic0
         push bc
+      ifdef CLIENT
+      if CLIENT
+       ;call sendjoy1
+       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+      else
+       ;call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       call sendjoy1joy2 ;TODO в каждом цикле логики
+      endif
+      endif
+
         call logic ;<----------------- свою логику пиши сюда
         pop bc
         djnz mainloop_uvlogic0
