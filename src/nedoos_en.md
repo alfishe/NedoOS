@@ -177,8 +177,8 @@ Keyboard short cuts:
 * Caps Shift+Enter or F9 - insert the file name on the command line
 * 3 - text files viewer
   - use cursor keys, PageUp (Caps Shift+3), PageDown (Caps Shift+4),
-  - s - switch encoding,
-  - w - switch line breaks,
+  - F1 - switch encoding,
+  - Ins - switch line breaks,
   - Break (Esc, Caps Shift + Space) - exit,
   - Tab (Caps Shift + Symbol Shift) - switch to hex viewer/editor:
     - use cursor for moving control, PgUp, PgDn,
@@ -191,8 +191,9 @@ Keyboard short cuts:
 * 6 - rename the file/directory (do not use "/" and "\" in the name)
 * 7 - create a directory in the current panel (Esc [CS+Space] - cancel)
 * 8 - delete tagged files (only empty directories are deleted)
-* 1, 2 - select a drive in the left or right panel (cursor, Esc [CS+Space]
+* 1 - select a drive in the current panel (cursor, Esc [CS+Space]
   to cancel, Enter - confirm selection)
+* 2 - find files (Tab - switch between filename and substring)
 
   **Note:** Instead of numbers, you can press F1..F10 on the PS/2 keyboard.
 
@@ -230,6 +231,7 @@ Shortcuts:
 * Del (Caps Shift + 9) - delete a character to the right of the cursor
 * Caps Shift+Enter or F2 - save
 * Break (Esc, Caps Shift + Space) - exit
+* F1 - change encoding (866/1251)
 
 Other keys are used to input the text.
 

@@ -265,7 +265,7 @@ readfrominet_tojoy1joy2
 readstream0
 	push de ;ptr
 	;push hl ;размер
-	ld hl,2;inetbuf_sz ;сколько читать
+	ld hl,4;2;inetbuf_sz ;сколько читать
 	ld a,(datasoc)
 	OS_WIZNETREAD
 	bit 7,h

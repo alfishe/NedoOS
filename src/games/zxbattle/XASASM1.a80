@@ -1,3 +1,13 @@
+ldarnd
+        ;ld a,r
+        push hl
+rndseed=$+1
+        ld hl,0x500
+        inc l
+        ld (rndseed),hl
+        ld a,(hl)
+        pop hl
+        ret
 
 CLSBULL	LD	(IX+UNIT_YESORNOT),3
 	LD	(IX+UNIT_TIMEFORSHOTONWAR),0
@@ -711,7 +721,7 @@ FIREWAR
 	LD	A,(IX+UNIT_TYPEOFTANK)
 	CP	21
 	RET	NC
-	LD	A,R
+	call ldarnd;LD	A,R
 	LD	C,50
 	ADD	A,C
 	LD	(IX+UNIT_TIMEFORSHOTONWAR),A
@@ -790,7 +800,7 @@ RNDR	LD	A,(IX+UNIT_COUNTER)
 RND
 	LD	(IX+UNIT_NEEDRND),0
 	CALL	INT55
-	LD	A,R
+	call ldarnd;LD	A,R
 	CP	32
 	JP	C,I1
 	CP	64
@@ -1578,13 +1588,14 @@ C224	CALL	RANDOM
 	LD	(IX+UNIT_TYPEOFTANK),A
 	RET
 A21	DEFB	0
-RANDOM	LD	A,R
+RANDOM
+	call ldarnd;LD	A,R
 	RLCA	;          RANDOMIZE
 	RLCA
 	RLCA
 	RLCA
 	LD	B,A
-	LD	A,R
+	call ldarnd;LD	A,R
 	ADD	A,B
 	RET
 P500	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
@@ -1699,7 +1710,7 @@ MNOL
 	LD	(MOVE),A
 MNOL2
 
-	LD	A,R
+	call ldarnd;LD	A,R
 	LD	(IX+UNIT_STOPBIT),A
 	LD	(IX+UNIT_STAR),0
 	LD	(IX+UNIT_DIRECTION),5
@@ -1838,7 +1849,7 @@ NEWT2	LD	A,(HL)
 	LD	(IX+UNIT_DIRECTION),0
 	LD	(IX+UNIT_ANIMATION),0
 	LD	(IX+UNIT_COUNTER),0
-	LD	A,R
+	call ldarnd;LD	A,R
 	LD	(IX+UNIT_TIMEFORSHOTONWAR),A
 	LD	(IX+UNIT_STOPBIT),0
 	LD	(IX+UNIT_BITFRIENDLYFIRE),0

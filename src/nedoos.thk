@@ -13,7 +13,6 @@ cd ../nedogame/ - wrong path
 nv - pgdown, pgup должно возвращаться на то же место?
 
 TRDOSFS: пробелы и спецсимволы в именах
-term - скрыть мышь
 
 IDE и Self-hosting
 Слои в графическом редакторе
