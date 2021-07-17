@@ -286,22 +286,22 @@ MAINGO
        if TCP
        if CLIENT
 ;create socket:
-		ld de,SOCK_STREAM+(AF_INET<<8)
-		OS_NETSOCKET
-		ld a,l
-		or a
-		jp m,CONNECTIONERROR;?C_EXIT
-		ld (soc),a
-		LD DE,web_ia
-		OS_NETCONNECT
-                 ld a,l ;DimkaM 12.03.2019
-		or a
-		jp p,connect_ok
+	ld de,SOCK_STREAM+(AF_INET<<8)
+	OS_NETSOCKET
+	ld a,l
+	or a
+	jp m,CONNECTIONERROR;?C_EXIT
+	ld (datasoc),a
+	LD DE,web_ia
+	OS_NETCONNECT
+         ld a,l ;DimkaM 12.03.2019
+	or a
+	jp p,connect_ok
 createsoc_err
-		ld a,(soc)
-		ld e,0
-		OS_NETSHUTDOWN
-		jp CONNECTIONERROR
+	ld a,(datasoc)
+	ld e,0
+	OS_NETSHUTDOWN
+	jp CONNECTIONERROR
 CONNECTIONERROR
 connect_ok
        else ;SERVER
@@ -409,11 +409,11 @@ web_ia:
 ;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
 ;	struct in_addr sin_addr;char sin_zero[8];};
         if CLIENT
-;master(net1): from 192.168.1.2 to 192.168.1.177
+;client: from 192.168.1.2 to 192.168.1.177
 port_ia:
 	defb 0
         DWBIGENDIAN 20001 ;db 0,80
-        db 192,168,0,7;127,0,0,1 ;ip (big endian)
+        db 192,168,0,5;127,0,0,1 ;ip (big endian)
 ;port_iarecv:
 ;	defb 0
 ;        db 100,53 ;port (big endian)
@@ -421,7 +421,7 @@ port_ia:
 
         else
 
-;slave(net2): from 192.168.1.177 to 192.168.1.2
+;server: from 192.168.1.177 to 192.168.1.2
 port_ia:
 	defb 0
         DWBIGENDIAN 20001 ;db 0,80

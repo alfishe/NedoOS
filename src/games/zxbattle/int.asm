@@ -62,24 +62,6 @@ curscrnum_int=$+1
         ld (kempstonbuttons),a
         endif
 
-       ifdef CLIENT
-       if TCP
-       if CLIENT
-;отправить клавиатуру
-;принять истинную клавиатуру
-       else ;SERVER
-;принять клавиатуру
-;наложить на нашу клавиатуру
-;отправить истинную клавиатуру
-       endif
-       else ;UDP
-;TODO
-       if CLIENT
-       else ;SERVER
-       endif
-       endif
-       endif
-        
         if VIRTUALKEYS
         ;GET_KEY
         ;ld a,c ;кнопка без учёта языка
@@ -128,6 +110,108 @@ curscrnum_int=$+1
 ;0 - Right (8) 
         endif
 
+       ifdef CLIENT
+       if TCP
+       if CLIENT
+;отправить joy1
+        ld de,joy1state ;ptr
+        ld hl,1 ;сколько слать
+	ld a,(datasoc)
+	OS_WIZNETWRITE
+	;bit 7,h
+	;JR Z,SEND_OK	;ошибок нет
+	;CP ERR_EMSGSIZE
+	;JP NZ,ERR_EXIT	;обработка ошибки
+	;OS_YIELD		;не обязательно. Если время не критично,
+						;то отдадим квант времени системе.
+	;JR WAIT_SEND	;буфер отправки переполнен, ждём освобождения
+;SEND_OK
+
+;принять сколько получится из TCP в очередь
+;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
+;костыль: принимаем сколько есть, если >=2, то берём последние 2 байта
+        ld de,inetbuf
+;readstream0
+	push de ;ptr
+	;push hl ;размер
+	ld hl,inetbuf_sz;1 ;сколько читать
+	ld a,(datasoc)
+	OS_WIZNETREAD
+	bit 7,h
+	;pop hl
+	pop de ;ptr
+	jr z,readstream_ok
+	;cp ERR_EAGAIN
+        ;jr z,readstream0 ;вдруг ответ не успел прийти
+	;jp readstream_err
+        ld hl,0 ;size
+readstream_ok
+;hl=сколько прочитали
+        ld bc,2
+        or a
+        sbc hl,bc
+        jr c,client_gotnothing
+        add hl,de
+        ld a,(hl)
+        ld (joy1state),a
+        inc hl
+        ld a,(hl)
+        ld (joy2state),a
+client_gotnothing
+
+       else ;SERVER
+;принять сколько получится из TCP в очередь
+;если там есть полный joy2, то дешифровать
+;костыль: принимаем сколько есть, если >=1, то берём последний байт
+        ld de,inetbuf
+;readstream0
+	push de ;ptr
+	;push hl ;размер
+	ld hl,inetbuf_sz;1 ;сколько читать
+	ld a,(datasoc)
+	OS_WIZNETREAD
+	bit 7,h
+	;pop hl
+	pop de ;ptr
+	jr z,readstream_ok
+	;cp ERR_EAGAIN
+        ;jr z,readstream0 ;вдруг ответ не успел прийти
+	;jp readstream_err
+        ld hl,0 ;size
+readstream_ok
+;hl=сколько прочитали
+        ld a,h
+        or l
+        jr z,serv_gotnothing
+        add hl,de
+        dec hl
+        ld a,(hl) ;last byte received
+        ld (joy2state),a
+serv_gotnothing
+
+;отправить joy1, joy2
+        ld de,joy1state ;ptr
+        ld hl,2 ;сколько слать
+	ld a,(datasoc)
+	OS_WIZNETWRITE
+	;bit 7,h
+	;JR Z,SEND_OK	;ошибок нет
+	;CP ERR_EMSGSIZE
+	;JP NZ,ERR_EXIT	;обработка ошибки
+	;OS_YIELD		;не обязательно. Если время не критично,
+						;то отдадим квант времени системе.
+	;JR WAIT_SEND	;буфер отправки переполнен, ждём освобождения
+;SEND_OK
+        
+       endif
+       else ;UDP
+;TODO
+       if CLIENT
+       else ;SERVER
+       endif
+       endif
+       endif
+        
         ld a,(curpg16k) ;ok
         push af
         ld a,(curpg32klow) ;ok
@@ -192,6 +276,12 @@ joy1state
         db 0xff
 joy2state
         db 0xff
+       endif
+       
+       ifdef CLIENT
+inetbuf_sz=256
+inetbuf
+        ds inetbuf_sz
        endif
 
 PLAYS
