@@ -695,6 +695,10 @@ TANKP	DEFB	0 ;sprite phase
 KORM	DEFW	104
 KORM2	DEFW	126
 KEYDD2
+      if 1==1
+       cp c
+       ret z
+      else
        if VIRTUALKEYS
         ld a,(joy1state)
         and JOYMASK_DOWN
@@ -706,6 +710,7 @@ KEYDD2
         AND     L
        endif
 	JR		Z,KEYDD2
+      endif
 	LD		A,1
 	CALL	AFXPLAY
 	CALL	PLAYSA
@@ -722,6 +727,10 @@ KEYDD2
 KEYDD3	LD	HL,126
 	RET
 KEYUU2
+      if 1==1
+       cp c
+       ret z
+      else
        if VIRTUALKEYS
         ld a,(joy1state)
         and JOYMASK_UP
@@ -733,6 +742,7 @@ KEYUU2
         AND     L
        endif
 	JR		Z,KEYUU2
+      endif
 	LD		A,1
 	CALL	AFXPLAY
 	CALL	PLAYSA
@@ -2048,30 +2058,6 @@ PERECHET
 	RR	C
 	LD	E,C		;ג E - לכאהרןÿ קאסעü X/2
        endif
-	RET
-
-CLSSTART
-        if 1==1 ;???
-        call clstiles
-        else
-	LD	HL,25998
-	LD	A,%00010001
-	LD	(HL),A
-	INC	HL
-	LD	(HL),A
-	DEC	HL
-	LD	DE,#C000
-	LD	B,95 ;wid/8-1?
-	LD	C,240 ;hgt-1?
-	LD	A,#05
-	LD	(PAGEFR),A
-	LD	A,#10
-	LD	(PAGETO),A
-	LD	A,%00110100
-	CALL	DMASTART
-	HALT
-	HALT
-        endif
 	RET
 
 TEXTLEF

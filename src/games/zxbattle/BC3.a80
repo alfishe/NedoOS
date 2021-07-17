@@ -1125,10 +1125,18 @@ FIGHT3
 	RET
         
 FIGHT
+;hl=y в меню
 	PUSH	HL
 	LD	A,8
 	CALL	AFXPLAY
 	CALL	PLAYSA2 ;play #17 sound frames
+
+       ifdef CLIENT
+       if CLIENT
+        call readfrominet_skipall
+       endif
+       endif
+
 	POP	HL
 	XOR	A
 	LD	(PLAYER),A

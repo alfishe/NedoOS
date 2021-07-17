@@ -1,12 +1,32 @@
+RANDOM
 ldarnd
         ;ld a,r
+        push de
         push hl
-rndseed=$+1
-        ld hl,0x500
-        inc l
-        ld (rndseed),hl
-        ld a,(hl)
+;Patrik Rak
+rndseed1=$+1
+        ld  hl,0xA280   ; xz -> yw
+rndseed2=$+1
+        ld  de,0xC0DE   ; yw -> zt
+        ld  (rndseed1),de  ; x = y, z = w
+        ld  a,e         ; w = w ^ ( w << 3 )
+        add a,a
+        add a,a
+        add a,a
+        xor e
+        ld  e,a
+        ld  a,h         ; t = x ^ (x << 1)
+        add a,a
+        xor h
+        ld  d,a
+        rra             ; t = t ^ (t >> 1) ^ w
+        xor d
+        xor e
+        ld  h,l         ; y = z
+        ld  l,a         ; w = t
+        ld  (rndseed2),hl
         pop hl
+        pop de
         ret
 
 CLSBULL	LD	(IX+UNIT_YESORNOT),3
@@ -1588,6 +1608,7 @@ C224	CALL	RANDOM
 	LD	(IX+UNIT_TYPEOFTANK),A
 	RET
 A21	DEFB	0
+       if 1==0
 RANDOM
 	call ldarnd;LD	A,R
 	RLCA	;          RANDOMIZE
@@ -1598,6 +1619,7 @@ RANDOM
 	call ldarnd;LD	A,R
 	ADD	A,B
 	RET
+       endif
 P500	LD	A,(IX+UNIT_TIMEFORSHOTONWAR)
 	DEC	A
 	LD	(IX+UNIT_TIMEFORSHOTONWAR),A

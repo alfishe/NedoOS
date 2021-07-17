@@ -104,7 +104,15 @@ curscrnum_int=$+1
 	jr z,$+3
 	inc a ;Right
         ;cpl 
+       ifdef CLIENT
+       if CLIENT
+        ld (joyTMPstate),a
+       else
         ld (joy1state),a
+       endif
+       else
+        ld (joy1state),a
+       endif
        ;display "joy1state=",joy1state
 ;bit - button (ZX key)
 ;7 - A (A)
@@ -181,6 +189,8 @@ timer
         db 0
 
        if VIRTUALKEYS
+joyTMPstate
+        db 0xff
 joy1state
         db 0xff
 joy2state
@@ -240,9 +250,9 @@ kempstonbuttons
 
        ifdef CLIENT
        if CLIENT
-sendjoy1
-;отправить joy1
-        ld de,joy1state ;ptr
+sendjoyTMP
+;отправить joyTMP
+        ld de,joyTMPstate ;ptr
         ld hl,1 ;сколько слать
 	ld a,(datasoc)
 	OS_WIZNETWRITE
@@ -256,6 +266,24 @@ sendjoy1
 ;SEND_OK
         ret
 
+readfrominet_skipall
+;костыль!
+        ld de,inetbuf
+readskip0
+	push de ;ptr
+	;push hl ;размер
+	ld hl,2;inetbuf_sz ;сколько читать
+	ld a,(datasoc)
+	OS_WIZNETREAD
+	bit 7,h
+	;pop hl
+	pop de ;ptr
+       jr nz,readskip0
+        ld a,h
+        or l
+        jr nz,readskip0
+        ret
+
 readfrominet_tojoy1joy2
 ;принять одно сообщение из TCP в очередь
 ;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
@@ -265,7 +293,7 @@ readfrominet_tojoy1joy2
 readstream0
 	push de ;ptr
 	;push hl ;размер
-	ld hl,4;2;inetbuf_sz ;сколько читать
+	ld hl,2;inetbuf_sz ;сколько читать
 	ld a,(datasoc)
 	OS_WIZNETREAD
 	bit 7,h

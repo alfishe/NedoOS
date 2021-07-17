@@ -403,7 +403,7 @@ curport=$+1
 web_ia:
 	defb 0
         DWBIGENDIAN 20001 ;db 0,80
-        db 192,168,1,2;177;127,0,0,1 ;ip (big endian) ;connect to 192.168.1.2
+        db 192,168,1,177;127,0,0,1 ;ip (big endian) ;connect to 192.168.1.177
         ds 8 ;reserved
        else
 ;UDP:
@@ -453,6 +453,9 @@ PRESTARTS
         call swapimer      
 
 STARTS
+;сюда можем попасть из игры
+        ld sp,STACK
+
 	 LD A,1
 	 LD (NEWLEVEL),A ;иначе рычит в меню
          ld a,5
@@ -508,7 +511,7 @@ ZZZZ2
         ld (callpush_curscroll),hl
 
 ;Main menu cycle!
-;K inject here! to-do
+;K inject here! TODO
          call doscreen
          call doscreen
          ;ld b,24
@@ -518,42 +521,7 @@ ZZZZ2
        ld (KERNSoldtimer),a
 ;цикл показа и обработки меню
 KERNS
-      ifdef CLIENT
-      if CLIENT
-       call sendjoy1
-       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
-      else
-       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
-       call sendjoy1joy2 ;TODO в каждом цикле логики
-      endif
-      endif
-
-         ;jp EDITOR;START ;editor
-         ;jp FIGHT
-	CALL	EXIT ;if break, set (MAP)=31
-       if VIRTUALKEYS
-        ld a,(joy1state)
-        and JOYMASK_START
-       else
-	LD      HL,(Keys1PlStart)
-	LD      B,H
-	LD      C,#FE
-	IN      A,(C)
-        AND     L
-       endif
-	CALL	Z,STR8 ;press start
-       if VIRTUALKEYS
-        ld a,(joy1state)
-        and JOYMASK_FIRE
-       else
-	LD      HL,(Keys1PlFr)
-	LD      B,H
-	LD      C,#FE
-	IN      A,(C)
-        AND     L
-       endif
-	CALL	Z,STR8 ;press start
-
+      call menucheckkeys_exit_start
 	LD	A,(STR6) ;time in startmenu
 	CP	218
 	CALL	Z,STR77 ;autounpress start
@@ -561,69 +529,7 @@ KERNS
 	CALL	Z,STR7 ;print text TEXT3 (copyrights), TEXT4 (hiscores)
 	CP	220
 	JP	Z,STR4
-       if 1==1
-        ld a,(timer)
-KERNSoldtimer=$+1
-        ld b,0
-        ld (KERNSoldtimer),a
-        sub b
-        ld c,a
-        ld b,0
-        jr z,STR44
-       ld a,(STR6)
-       add a,c
-       ld (STR6),a
-        ld hl,(callpush_curscroll)
-        bit 7,h
-        jr nz,STR4 ;end of scroll
-        ld de,512-200-8
-        or a
-        sbc hl,de
-	jr nc,stopscroll
-        call bgpush_inccurscroll
-scroll_wait0
-       ld a,(timer)
-lastscrtimer=$+1
-       cp 0
-       jr z,scroll_wait0 ;wait screen change
-        call bgpush_draw ;359975t
-        call setpgsmain40008000
-       ld a,(timer)
-       ld (lastscrtimer),a
-        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
-        jp STR44
-stopscroll
-        call stopscroll_draw
-STR5
-STR44
-       else
-	INC	A
-	LD	(STR6),A ;++time in startmenu
-	LD	A,(STR) ;scroll page?
-	CP	15
-	JP	Z,STR4 ;end of scroll?
-	LD	HL,(STR2) ;scroll position?
-	LD	A,H
-	CP	#C0
-	JP	Z,STR3 ;go to previous scroll page
-	LD	DE,256
-	SBC	HL,DE
-STR5	LD	(STR2),HL ;scroll position?
-       if 1==0
-	PUSH	HL
-	POP	DE
-	LD	HL,#C000
-	LD	B,51 ;wid/8-1?
-	LD	C,154 ;hgt-1?
-	LD	A,#C2
-	LD	(PAGEFR),A
-	LD	A,(STR)
-	LD	(PAGETO),A
-	LD	A,%00010001
-	CALL	DMASTART
-       endif
-STR44
-       endif
+      call menuscroll
 	;HALT
         ;call doscreen
        ;call setpgc3
@@ -632,6 +538,22 @@ STR44
        or a
        call z,afxinit ;stop sound
 	jp KERNS
+
+STR4
+      ifdef CLIENT
+      if CLIENT
+       call sendjoyTMP
+       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+      else
+       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       call sendjoy1joy2 ;TODO в каждом цикле логики
+      endif
+      endif
+
+      call menucheckkeys_up_down
+         call doscreen        
+       call menuscreen_tank
+	JP KERNS ;STR44
 
 stopscroll_draw
         ld de,512-200-8
@@ -645,54 +567,6 @@ stopscroll_draw
         ld (callpush_curscroll),hl
         ret
         
-STR4
-         call doscreen
-       if VIRTUALKEYS
-        ld a,(joy1state)
-        and JOYMASK_DOWN
-       else
-	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
-	LD      B,H					;LD		BC,(Keys1PlDn)
-	LD      C,#FE				;CALL	CHBIT
-	IN      A,(C)
-        AND     L
-       endif
-	CALL	Z,KEYDD2
-       if VIRTUALKEYS
-        ld a,(joy1state)
-        and JOYMASK_UP
-       else
-	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
-	LD      B,H					;LD		BC,(Keys1PlUp)
-	LD      C,#FE				;CALL	CHBIT
-	IN      A,(C)
-        AND     L
-       endif
-	CALL	Z,KEYUU2
-	LD	HL,(KORM);---X
-	LD	BC,(KORM2);----Y
-       if TILES87
-       else
-        ld a,c
-        sub 16 ;костыль
-        ld c,a
-       endif
-	LD	A,(TANK) ;sprite phase
-	ADD	A,4;44 ;sprite pattern number
-	LD	D,2 ;size
-	CALL	PRINT
-	LD	A,(TANKP) ;anim timer
-	INC	A
-	CP	4
-	CALL	Z,TANKP2 ;next sprite phase
-	CP	8
-	CALL	Z,TANKP3 ;prev sprite phase
-	LD	(TANKP),A ;anim timer
-	;LD	BC,TSCONFIG; SPRITE PRINT
-	;LD	A,%10000000
-	;OUT	(C),A
-	JP	STR44
-
         if 1==1
 STR3
 	LD	A,(STR)
@@ -723,11 +597,166 @@ CHEKSTA
 	JP	Z,REDIFIN
 	RET
 
+menuscroll
+       if 1==1
+        ld a,(timer)
+KERNSoldtimer=$+1
+        ld b,0
+        ld (KERNSoldtimer),a
+        sub b
+        ld c,a
+        ld b,0
+        ret z ;jr z,STR44
+       ld a,(STR6)
+       add a,c
+       ld (STR6),a
+        ld hl,(callpush_curscroll)
+        bit 7,h
+        jr nz,STR4 ;end of scroll
+        ld de,512-200-8
+        or a
+        sbc hl,de
+	jr nc,stopscroll
+        call bgpush_inccurscroll
+scroll_wait0
+       ld a,(timer)
+lastscrtimer=$+1
+       cp 0
+       jr z,scroll_wait0 ;wait screen change
+        call bgpush_draw ;359975t
+        call setpgsmain40008000
+       ld a,(timer)
+       ld (lastscrtimer),a
+        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+        ret;jp STR44
+stopscroll
+        call stopscroll_draw
+STR5
+       else
+	INC	A
+	LD	(STR6),A ;++time in startmenu
+	LD	A,(STR) ;scroll page?
+	CP	15
+	JP	Z,STR4 ;end of scroll?
+	LD	HL,(STR2) ;scroll position?
+	LD	A,H
+	CP	#C0
+	JP	Z,STR3 ;go to previous scroll page
+	LD	DE,256
+	SBC	HL,DE
+STR5	LD	(STR2),HL ;scroll position?
+       if 1==0
+	PUSH	HL
+	POP	DE
+	LD	HL,#C000
+	LD	B,51 ;wid/8-1?
+	LD	C,154 ;hgt-1?
+	LD	A,#C2
+	LD	(PAGEFR),A
+	LD	A,(STR)
+	LD	(PAGETO),A
+	LD	A,%00010001
+	CALL	DMASTART
+       endif
+       endif
+;STR44
+        ret
+
+menuscreen_tank
+	LD	HL,(KORM);---X
+	LD	BC,(KORM2);----Y
+       if TILES87
+       else
+        ld a,c
+        sub 16 ;костыль
+        ld c,a
+       endif
+	LD	A,(TANK) ;sprite phase
+	ADD	A,4;44 ;sprite pattern number
+	LD	D,2 ;size
+	CALL	PRINT
+	LD	A,(TANKP) ;anim timer
+	INC	A
+	CP	4
+	CALL	Z,TANKP2 ;next sprite phase
+	CP	8
+	CALL	Z,TANKP3 ;prev sprite phase
+	LD	(TANKP),A ;anim timer
+	;LD	BC,TSCONFIG; SPRITE PRINT
+	;LD	A,%10000000
+	;OUT	(C),A
+        ret
+
+menucheckkeys_exit_start
+	CALL	EXIT ;if break, set (MAP)=31
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)
+	LD      B,H
+	LD      C,#FE
+	IN      A,(C)
+        AND     L
+       endif
+oldkeystart1=$+1
+       ld c,0xff
+       ld (oldkeystart1),a
+	CALL	Z,STR8 ;press start
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE
+       else
+	LD      HL,(Keys1PlFr)
+	LD      B,H
+	LD      C,#FE
+	IN      A,(C)
+        AND     L
+       endif
+oldkeyfire1=$+1
+       ld c,0xff
+       ld (oldkeyfire1),a
+	CALL	Z,STR8 ;press start
+        ret
+
+menucheckkeys_up_down
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_DOWN
+       else
+	LD      HL,(Keys1PlDn)		;LD		HL,Keys1PlDn+2
+	LD      B,H					;LD		BC,(Keys1PlDn)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+       endif
+oldkeydd2=$+1
+       ld c,0xff
+       ld (oldkeydd2),a
+	CALL	Z,KEYDD2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_UP
+       else
+	LD      HL,(Keys1PlUp)		;LD		HL,Keys1PlUp+2
+	LD      B,H					;LD		BC,(Keys1PlUp)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+       endif
+oldkeyuu2=$+1
+       ld c,0xff
+       ld (oldkeyuu2),a
+	CALL	Z,KEYUU2
+        ret
+        
 STR8
+       cp c
+       ret z
 ;press start
         LD	A,(STAKEY) ;start unpressed?
 	CP	1
-	jr	Z,CHEKSTA ;use menu option depending on Y (KORM2)
+	jp	Z,CHEKSTA ;use menu option depending on Y (KORM2)
 	LD	A,(STR6) ;time in startmenu
 	CP	220
 	JR	Z,STR10 ;wait start key unpress
@@ -745,6 +774,7 @@ STR8
 	RET
        endif
 STR10
+      if 1==0
        if VIRTUALKEYS
         ld a,(joy1state)
         and JOYMASK_START
@@ -767,8 +797,33 @@ STR10
         AND     L
        endif
 	JR	Z,STR10
+      endif
 	LD	A,1
 	LD	(STAKEY),A ;start unpressed
+	RET
+
+CLSSTART
+        if 1==1 ;???
+        call clstiles
+        else
+	LD	HL,25998
+	LD	A,%00010001
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	DEC	HL
+	LD	DE,#C000
+	LD	B,95 ;wid/8-1?
+	LD	C,240 ;hgt-1?
+	LD	A,#05
+	LD	(PAGEFR),A
+	LD	A,#10
+	LD	(PAGETO),A
+	LD	A,%00110100
+	CALL	DMASTART
+	HALT
+	HALT
+        endif
 	RET
 
 STAKEY	DEFB	0 ;1=start unpressed
@@ -797,7 +852,7 @@ EXIT
 KERNF
       ifdef CLIENT
       if CLIENT
-       call sendjoy1
+       call sendjoyTMP
        ;call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
       else
        call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
@@ -848,7 +903,7 @@ mainloop_uvlogic0
         push bc
       ifdef CLIENT
       if CLIENT
-       ;call sendjoy1
+       ;call sendjoyTMP
        call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
       else
        ;call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
