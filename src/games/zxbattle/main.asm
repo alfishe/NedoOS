@@ -374,7 +374,7 @@ inet_exiterr ;TODO
        endif ;UDP
        endif 
 
-	JP	PRESTARTS
+	JP	PRESTART;S
 
         ds 0x200-$
 sprlist
@@ -436,10 +436,10 @@ port_ia:
         
        endif ;ifdef CLI
 
-PRESTARTS
-	LD	A,(ENN) ;resources loaded?
-	CP	1
-	JP	Z,ZZZZ2 ;skip load
+PRESTART;S
+	;LD	A,(ENN) ;resources loaded?
+	;CP	1
+	;JP	Z,ZZZZ2 ;skip load
        call loadresources
 			;LD      HL,(#5CF4)				;Save position of Levels on disk
 			;LD		(DiskAddrLevels),HL
@@ -519,53 +519,67 @@ ZZZZ2
          ;djnz $-1
        ld a,(timer)
        ld (KERNSoldtimer),a
+       ld (scrolloldtimer),a
 ;цикл показа и обработки меню
 KERNS
-      call menucheckkeys_exit_start
+     ifdef CLIENT
+      if CLIENT
+       call sendjoyTMP
+       ld hl,menucheckkeys
+       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+      else
+       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       call sendjoy1joy2 ;TODO в каждом цикле логики
+       call menucheckkeys
+      endif
+     else
+      call menucheckkeys
+     endif
+
+      call menuchangetimer ;при окончании таймера вызывает autounpress start
+      call menudraw
+      jr KERNS
+
+menudraw
 	LD	A,(STR6) ;time in startmenu
-	CP	218
-	CALL	Z,STR77 ;autounpress start
-	CP	219
-	CALL	Z,STR7 ;print text TEXT3 (copyrights), TEXT4 (hiscores)
+	;CP	218
+	;CALL	Z,STR77 ;autounpress start
+	;CP	219
+	;CALL	Z,menu_printcopyrights;STR7 ;print text TEXT3 (copyrights), TEXT4 (hiscores)
 	CP	220
-	JP	Z,STR4
+	JP	nc,noscroll;STR4
+        ld hl,(callpush_curscroll)
+        bit 7,h
+        jr nz,noscroll;STR4 ;end of scroll
       call menuscroll
-	;HALT
-        ;call doscreen
        ;call setpgc3
        ;call #C000 ;init muzmain
        ld a,(SOUNDW)
        or a
        call z,afxinit ;stop sound
-	jp KERNS
-
-STR4
-      ifdef CLIENT
-      if CLIENT
-       call sendjoyTMP
-       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
-      else
-       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
-       call sendjoy1joy2 ;TODO в каждом цикле логики
-      endif
-      endif
-
-      call menucheckkeys_up_down
-         call doscreen        
+	ret;jp KERNS
+noscroll;STR4
        call menuscreen_tank
-	JP KERNS ;STR44
+         call doscreen        
+	ret;JP KERNS ;STR44
 
 stopscroll_draw
         ld de,512-200-8
         ld (callpush_curscroll),de
         call bgpush_draw ;359975t
-        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
-        halt
+	CALL menu_printcopyrights;STR7 ;print text TEXT3 (copyrights), TEXT4 (hiscores)
+       call menuscreen_tank
+         call doscreen ;содержит changescrpg и waitchangescr
+        ;call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
+        ;halt
         call bgpush_draw ;359975t
+	CALL menu_printcopyrights;STR7 ;print text TEXT3 (copyrights), TEXT4 (hiscores)
         call setpgsmain40008000
         ld h,-1
         ld (callpush_curscroll),hl
-        ret
+       call menuscreen_tank
+         jp doscreen        
+        ;ret
         
         if 1==1
 STR3
@@ -584,21 +598,7 @@ STR77
 	POP	AF
 	RET
 
-CHEKSTA
-	LD	HL,(KORM2) ;Y
-	LD	A,L
-	CP	126
-	JP	Z,FIGHT
-	CP	136
-	JP	Z,FIGHT
-	CP	146
-	JP	Z,EDITOR;START ;editor
-	CP	156
-	JP	Z,REDIFIN
-	RET
-
-menuscroll
-       if 1==1
+menuchangetimer
         ld a,(timer)
 KERNSoldtimer=$+1
         ld b,0
@@ -608,16 +608,31 @@ KERNSoldtimer=$+1
         ld b,0
         ret z ;jr z,STR44
        ld a,(STR6)
+      cp 220
+       ret nc
        add a,c
-       ld (STR6),a
+       ld (STR6),a ;time in start menu
+      cp 220
+        ret nc
+	CALL STR77 ;autounpress start
+        ret
+
+menuscroll
+       if 1==1
+        ld a,(timer)
+scrolloldtimer=$+1
+        ld bc,0
+        ld (scrolloldtimer),a
+        sub c
+        ld c,a
         ld hl,(callpush_curscroll)
-        bit 7,h
-        jr nz,STR4 ;end of scroll
+        ;bit 7,h
+        ;jr nz,STR4 ;end of scroll
         ld de,512-200-8
         or a
         sbc hl,de
 	jr nc,stopscroll
-        call bgpush_inccurscroll
+        call bgpush_inccurscroll ;bc=scroll increment (signed)
 scroll_wait0
        ld a,(timer)
 lastscrtimer=$+1
@@ -687,7 +702,7 @@ menuscreen_tank
 	;OUT	(C),A
         ret
 
-menucheckkeys_exit_start
+menucheckkeys
 	CALL	EXIT ;if break, set (MAP)=31
        if VIRTUALKEYS
         ld a,(joy1state)
@@ -717,9 +732,8 @@ oldkeyfire1=$+1
        ld c,0xff
        ld (oldkeyfire1),a
 	CALL	Z,STR8 ;press start
-        ret
-
-menucheckkeys_up_down
+        ;ret
+;menucheckkeys_up_down
        if VIRTUALKEYS
         ld a,(joy1state)
         and JOYMASK_DOWN
@@ -751,9 +765,13 @@ oldkeyuu2=$+1
         ret
         
 STR8
+;press start
+      if 1
        cp c
        ret z
-;press start
+        call stopscroll_draw
+        jp CHEKSTA ;use menu option depending on Y (KORM2)
+      else
         LD	A,(STAKEY) ;start unpressed?
 	CP	1
 	jp	Z,CHEKSTA ;use menu option depending on Y (KORM2)
@@ -800,6 +818,20 @@ STR10
       endif
 	LD	A,1
 	LD	(STAKEY),A ;start unpressed
+	RET
+      endif
+
+CHEKSTA
+	LD	HL,(KORM2) ;Y
+	LD	A,L
+	CP	126
+	JP	Z,FIGHT
+	CP	136
+	JP	Z,FIGHT
+	CP	146
+	JP	Z,EDITOR;START ;editor
+	CP	156
+	JP	Z,REDIFIN
 	RET
 
 CLSSTART
@@ -904,14 +936,17 @@ mainloop_uvlogic0
       ifdef CLIENT
       if CLIENT
        ;call sendjoyTMP
+       ld hl,logic
        call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
       else
        ;call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
        call sendjoy1joy2 ;TODO в каждом цикле логики
+        call logic
       endif
+      else
+        call logic
       endif
 
-        call logic ;<----------------- свою логику пиши сюда
         pop bc
         djnz mainloop_uvlogic0
 

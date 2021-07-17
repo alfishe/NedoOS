@@ -723,7 +723,6 @@ KEYDD2
 	CALL	Z,KEYDD3
 	LD	(KORM2),HL
 	RET
-
 KEYDD3	LD	HL,126
 	RET
 KEYUU2
@@ -755,11 +754,11 @@ KEYUU2
 	LD	(KORM2),HL
 	RET
 KEYUU3	LD	HL,156
-
 	RET
-        
 
-STR7	PUSH	AF
+;STR7
+menu_printcopyrights
+	PUSH	AF
 	LD	D,#C0 ;const
 	LD	E,#10 ;const
 	LD	HL,TEXT3	;адрес строки ;copyrights
@@ -2469,6 +2468,7 @@ INTRO
 	LD		(T32),HL
 	LD		(T42),HL
 
+      if 0
        if VIRTUALKEYS
         ld a,(joy1state)
         and JOYMASK_START
@@ -2480,6 +2480,7 @@ INTRO
         AND     L
        endif
 	JR		Z,INTRO
+      endif
 	JP		INTRO2
 INT2
 	LD	A,100

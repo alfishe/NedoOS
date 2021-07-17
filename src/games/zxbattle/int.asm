@@ -278,16 +278,18 @@ readskip0
 	bit 7,h
 	;pop hl
 	pop de ;ptr
-       jr nz,readskip0
+       ret nz;jr nz,readskip0
         ld a,h
         or l
         jr nz,readskip0
         ret
 
 readfrominet_tojoy1joy2
+;hl=адрес процедуры, которую вызвать, если приняли сообщение (и так для всех сообщений в очереди)
+        ld (readfrominet_call),hl
+readstream
 ;принять одно сообщение из TCP в очередь
 ;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
-;костыль: принимаем сколько есть, если >=2, то берём последние 2 байта
 ;надо принять гарантированно!!!
         ld de,inetbuf
 readstream0
@@ -299,26 +301,29 @@ readstream0
 	bit 7,h
 	;pop hl
 	pop de ;ptr
-       jr nz,readstream0
-	jr z,readstream_ok
+       ret nz;jr nz,readstream0
+ 	;jr z,readstream_ok
 	;cp ERR_EAGAIN
         ;jr z,readstream0 ;вдруг ответ не успел прийти
 	;jp readstream_err
-        ld hl,0 ;size
-readstream_ok
+        ;ld hl,0 ;size
+;readstream_ok
 ;hl=сколько прочитали
         ld bc,2
         or a
         sbc hl,bc
-        jr c,client_gotnothing
+        ret c;jr c,client_gotnothing
         add hl,de
         ld a,(hl)
         ld (joy1state),a
         inc hl
         ld a,(hl)
         ld (joy2state),a
-client_gotnothing
-        ret
+readfrominet_call=$+1
+        call 0
+        jr readstream
+;client_gotnothing
+;        ret
 
        else ;SERVER
 

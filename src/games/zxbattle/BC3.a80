@@ -1133,7 +1133,7 @@ FIGHT
 
        ifdef CLIENT
        if CLIENT
-        call readfrominet_skipall
+        ;call readfrominet_skipall
        endif
        endif
 
@@ -1191,6 +1191,7 @@ FIGHT
 	;CALL	PRINT ;зачем???
          xor a
          ld (sprlist+1),a ;disable sprite #0
+      if 0
 FIGHT2
        if VIRTUALKEYS
         ld a,(joy1state)
@@ -1203,6 +1204,7 @@ FIGHT2
         AND     L
        endif
 	JR	Z,FIGHT2 ;wait for unpress of "start"
+      endif
 FIGHTT
        call clstiles_white
 
