@@ -278,18 +278,27 @@ readstream0
         jr z,readstream0_retry
         ret
 
+twobytes
+        dw 0
+
 readfrominet_tojoy1joy2
 ;hl=адрес процедуры, которую вызвать, если приняли сообщение (и так для всех сообщений в очереди)
         ld (readfrominet_call),hl
 ;принять одно сообщение из TCP в очередь
 ;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
 ;надо принять гарантированно хотя бы одно!!!
-        ld de,inetbuf
-        ld bc,inetbuf_sz
-        call readstream0
-;hl=сколько прочитали
+        ld de,twobytes
+        call readinetqueue ;чтобы принять гарантированно хотя бы одно сообщение
+inetqueue_oldsize=$+1
+       ld hl,0 ;до вынимания этого сообщения (2 байт)
+inetqueue_oldaddr=$+1
+       ld de,0
+;hl=сколько есть байтов данных
+;de=где
 readstream_parse0
         ld a,(de)
+       or a
+       jr z,readstream_parse_sync
         ld (joy1state),a
         inc de
         ld a,(de)
@@ -306,20 +315,62 @@ readfrominet_call=$+1
         ld a,h
         or l
         jr nz,readstream_parse0
+       ld (inetqueue_cursize),hl
+       ld hl,inetbuf
+       ld (inetqueue_curaddr),hl
+        ret
+readstream_parse_sync
+;неожиданно пришёл sync, перестаём парсить
+       ld (inetqueue_cursize),hl
+       ld (inetqueue_curaddr),de
+        ret
+
+readinetqueue_retry
+       push de
+        ld de,inetbuf
+       ld (inetqueue_curaddr),de
+        ld bc,inetbuf_sz
+        call readstream0
+       ld (inetqueue_cursize),hl
+       pop de
+readinetqueue
+;читаем 2 байта из очереди в de
+;если в очереди ничего нет, то подчитываем из интернета
+inetqueue_cursize=$+1
+        ld hl,0
+inetqueue_curaddr=$+1
+        ld bc,inetbuf
+        ld a,h
+        or l
+        jr z,readinetqueue_retry
+       ld (inetqueue_oldsize),hl
+       ld (inetqueue_oldaddr),bc
+        ld a,(bc)
+        ld (de),a
+        inc bc
+        inc de
+        dec hl
+        ld a,(bc)
+        ld (de),a
+        inc bc
+        inc de
+        dec hl
+       ld (inetqueue_cursize),hl
+       ld (inetqueue_curaddr),bc
         ret
 
 inet_waitsync
-        ld hl,inet_waitsync_check
-        call readfrominet_tojoy1joy2
-        ld a,(joy1state)
+        ;ld hl,inet_waitsync_check
+        ;call readfrominet_tojoy1joy2
+        ld de,twobytes;joy1state
+        call readinetqueue;readstream0
+        ld a,(twobytes)
         or a
-        jr z,inet_waitsync
+        jr nz,inet_waitsync
         ld de,rndseed1
-        ld bc,2
-        call readstream0
+        call readinetqueue;readstream0
         ld de,rndseed2
-        ld bc,2
-        call readstream0
+        call readinetqueue;readstream0
 inet_waitsync_check
         ret
 

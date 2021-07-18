@@ -13,9 +13,9 @@ sjasmplus --nologo --msg=war spr2.asm
 sjasmplus --nologo --msg=war spr3.asm
 sjasmplus --nologo --msg=war tiles.ast --raw=zxbattle/tiles.bin
 sjasmplus --nologo --msg=war font.ast --raw=zxbattle/font.bin
-sjasmplus --nologo --msg=war -DCLIENT=1 main.asm
-sjasmplus --nologo --msg=war main.asm
 sjasmplus --nologo --msg=war -DCLIENT=0 main.asm
+sjasmplus --nologo --msg=war main.asm
+sjasmplus --nologo --msg=war -DCLIENT=1 main.asm
 
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
