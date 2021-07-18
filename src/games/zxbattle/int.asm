@@ -266,6 +266,7 @@ sendjoyTMP
 ;SEND_OK
         ret
 
+        if 0
 readfrominet_skipall
 ;костыль!
         ld de,inetbuf
@@ -283,25 +284,28 @@ readskip0
         or l
         jr nz,readskip0
         ret
+        endif
 
 readfrominet_tojoy1joy2
 ;hl=адрес процедуры, которую вызвать, если приняли сообщение (и так для всех сообщений в очереди)
         ld (readfrominet_call),hl
-readstream
 ;принять одно сообщение из TCP в очередь
 ;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
-;надо принять гарантированно!!!
+;надо принять гарантированно хотя бы одно!!!
         ld de,inetbuf
+        jr readstream0
+readstream0_retry
+        halt;YIELD
 readstream0
 	push de ;ptr
 	;push hl ;размер
-	ld hl,2;inetbuf_sz ;сколько читать
+	ld hl,inetbuf_sz ;сколько читать
 	ld a,(datasoc)
 	OS_WIZNETREAD
 	bit 7,h
 	;pop hl
 	pop de ;ptr
-       ret nz;jr nz,readstream0
+       jr nz,readstream0_retry
  	;jr z,readstream_ok
 	;cp ERR_EAGAIN
         ;jr z,readstream0 ;вдруг ответ не успел прийти
@@ -309,21 +313,38 @@ readstream0
         ;ld hl,0 ;size
 ;readstream_ok
 ;hl=сколько прочитали
-        ld bc,2
-        or a
-        sbc hl,bc
-        ret c;jr c,client_gotnothing
-        add hl,de
-        ld a,(hl)
+        ld a,h
+        or l
+        jr z,readstream0_retry
+;hl=сколько прочитали
+readstream_parse0
+        ld a,(de)
         ld (joy1state),a
-        inc hl
-        ld a,(hl)
+        inc de
+        ld a,(de)
         ld (joy2state),a
+        inc de
+        push de
+        push hl
 readfrominet_call=$+1
         call 0
-        jr readstream
-;client_gotnothing
-;        ret
+        pop hl
+        pop de
+        dec hl
+        dec hl
+        ld a,h
+        or l
+        jr nz,readstream_parse0
+        ret
+
+inet_waitsync
+        ld hl,inet_waitsync_check
+        call readfrominet_tojoy1joy2
+        ld a,(joy1state)
+        or a
+        jr z,inet_waitsync
+inet_waitsync_check
+        ret
 
        else ;SERVER
 
@@ -361,6 +382,7 @@ serv_gotnothing
 sendjoy1joy2
 ;отправить joy1, joy2
         ld de,joy1state ;ptr
+sendjoy1joy2_de
         ld hl,2 ;сколько слать
 	ld a,(datasoc)
 	OS_WIZNETWRITE
@@ -373,6 +395,12 @@ sendjoy1joy2
 	;JR WAIT_SEND	;буфер отправки переполнен, ждём освобождения
 ;SEND_OK
         ret
+        
+inet_sendsync
+        ld de,twozeros
+        jr sendjoy1joy2_de
+twozeros
+        dw 0
         
        endif ;SERVER
 

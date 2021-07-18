@@ -931,24 +931,28 @@ uvoldtimer=$+1
         jr c,$+4
         ld b,4
 ;b=сколько прошло прерываний
-mainloop_uvlogic0
-        push bc
       ifdef CLIENT
       if CLIENT
        ;call sendjoyTMP
        ld hl,logic
-       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+       call readfrominet_tojoy1joy2 ;читать одно сообщение, выполнить логику - и так пока есть сообщения
       else
+mainloop_uvlogic0
+        push bc
        ;call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
-       call sendjoy1joy2 ;TODO в каждом цикле логики
+       call sendjoy1joy2 ;в каждом цикле логики
         call logic
-      endif
-      else
-        call logic
-      endif
-
         pop bc
         djnz mainloop_uvlogic0
+      endif
+      else
+mainloop_uvlogic0
+        push bc
+        call logic
+        pop bc
+        djnz mainloop_uvlogic0
+      endif
+
 
 ;ждём физического переключения экрана!
 ;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)

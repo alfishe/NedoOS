@@ -1289,7 +1289,6 @@ FIGHTT
 	ld (IX+UNIT_YESORNOT),1 ;SHOT1
 	ld (IX+UNIT_TYPEOFTANK),7
 NTTT	CALL	BOSS
-         ;jr $
          ld a,22
          ld (animwater_a),a
          ld (animwater_olda),a
@@ -1308,6 +1307,15 @@ NTTT	CALL	BOSS
        CALL	#CBB8 ;init muzboss
        LD	A,255
        LD	(SOUNDW),A ;время до окончания музыки
+       
+;sync
+       ifdef CLIENT
+       if CLIENT
+        call inet_waitsync
+       else
+        call inet_sendsync
+       endif
+       endif
 	JP	KERNF
 
 BBBSSS	LD	A,3
