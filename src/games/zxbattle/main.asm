@@ -526,10 +526,10 @@ KERNS
       if CLIENT
        call sendjoyTMP
        ld hl,menucheckkeys
-       call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
+       call readfrominet_tojoy1joy2 ;читать ровно одно сообщение, выполнить логику. и так пока есть сообщения
       else
        call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
-       call sendjoy1joy2 ;TODO в каждом цикле логики
+       call sendjoy1joy2 ;в каждом цикле логики
        call menucheckkeys
       endif
      else
@@ -880,6 +880,9 @@ EXIT
 	;LD	A,31
 	;LD	(MAP),A
 	;RET
+
+reter
+        ret
 
 KERNF
       ifdef CLIENT

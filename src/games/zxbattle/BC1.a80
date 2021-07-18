@@ -2481,7 +2481,61 @@ INTRO
        endif
 	JR		Z,INTRO
       endif
-	JP		INTRO2
+	;JP		INTRO2
+INTRO2
+     ifdef CLIENT
+      if CLIENT
+       call sendjoyTMP
+       ld hl,reter;menucheckkeys
+       call readfrominet_tojoy1joy2 ;читать ровно одно сообщение, выполнить логику. и так пока есть сообщения
+      else
+       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       call sendjoy1joy2 ;в каждом цикле логики
+      endif
+     else
+     endif
+
+	CALL	FX
+	CALL	FX2
+	HALT
+	LD		A,(MMM)
+	CP		80
+	CALL	Z,PRMIS
+	CP		200
+	RET		Z
+	INC		A
+	LD		(MMM),A
+	LD		A,(MMM2)
+	INC		A
+	CP		200
+	CALL	Z,INT22
+	LD		(MMM2),A
+
+	LD		HL,(WERH)
+	LD		DE,512
+	ADD		HL,DE
+	LD		(WERH),HL
+
+	LD		HL,(WERH2)
+	LD		DE,512
+	SBC		HL,DE
+	LD		(WERH2),HL
+	LD		A,(MMM)
+	CP		100
+	JP		C,INTRO2
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
+	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
+	LD      B,H					;LD		BC,(Keys1PlStart)
+	LD      C,#FE				;CALL	CHBIT
+	IN      A,(C)
+        AND     L
+       endif
+	RET	Z
+	JP	INTRO2
+
 INT2
 	LD	A,100
 	LD	(MMM),A
@@ -2632,47 +2686,6 @@ GG	EI
 	CALL	#C005
        call EXIT
 	JP	GG
-
-INTRO2	CALL	FX
-		CALL	FX2
-		HALT
-		LD		A,(MMM)
-		CP		80
-		CALL	Z,PRMIS
-		CP		200
-		RET		Z
-		INC		A
-		LD		(MMM),A
-		LD		A,(MMM2)
-		INC		A
-		CP		200
-		CALL	Z,INT22
-		LD		(MMM2),A
-
-		LD		HL,(WERH)
-		LD		DE,512
-		ADD		HL,DE
-		LD		(WERH),HL
-
-		LD		HL,(WERH2)
-		LD		DE,512
-		SBC		HL,DE
-		LD		(WERH2),HL
-		LD		A,(MMM)
-		CP		100
-		JP		C,INTRO2
-       if VIRTUALKEYS
-        ld a,(joy1state)
-        and JOYMASK_START
-       else
-	LD      HL,(Keys1PlStart)	;LD		HL,Keys1PlStart+2
-	LD      B,H					;LD		BC,(Keys1PlStart)
-	LD      C,#FE				;CALL	CHBIT
-	IN      A,(C)
-        AND     L
-       endif
-	RET		Z
-	JP		INTRO2
 
 FXN
 	LD	HL,#C001-512

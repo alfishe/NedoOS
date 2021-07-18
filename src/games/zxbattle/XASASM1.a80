@@ -27,6 +27,7 @@ rndseed2=$+1
         ld  (rndseed2),hl
         pop hl
         pop de
+       ;xor a
         ret
 
 CLSBULL	LD	(IX+UNIT_YESORNOT),3
