@@ -888,19 +888,19 @@ KERNF
       ifdef CLIENT
       if CLIENT
        call sendjoyTMP
-       ;call readfrominet_tojoy1joy2 ;TODO в каждом цикле логики ;читать ровно одно сообщение, но гарантированно! остальные на следующий цикл логики
       else
        call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
-       ;call sendjoy1joy2 ;TODO в каждом цикле логики
       endif
       endif
 
         call doscreen_and_logic
 
+;TODO эти события тоже обслуживать в logic:
         CALL	ENDGAME
 	LD		A,(NEWLEVEL)
 	CP		1
 	CALL	Z,END5
+
 	JR	KERNF
 
 doscreen

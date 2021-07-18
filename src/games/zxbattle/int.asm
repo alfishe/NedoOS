@@ -105,11 +105,7 @@ curscrnum_int=$+1
 	inc a ;Right
         ;cpl 
        ifdef CLIENT
-       if CLIENT
-        ld (joyTMPstate),a
-       else
-        ld (joy1state),a
-       endif
+        ld (joyTMPstate),a ;TODO в очередь, а в логике брать в том же порядке
        else
         ld (joy1state),a
        endif
@@ -124,16 +120,6 @@ curscrnum_int=$+1
 ;1 - Left (5)
 ;0 - Right (8) 
         endif
-
-       ifdef CLIENT
-       if TCP
-       else ;UDP
-;TODO
-       if CLIENT
-       else ;SERVER
-       endif
-       endif
-       endif
         
         call setpgsmain40008000
 	;LD	BC,PAGE3
@@ -266,44 +252,18 @@ sendjoyTMP
 ;SEND_OK
         ret
 
-        if 0
-readfrominet_skipall
-;костыль!
-        ld de,inetbuf
-readskip0
-	push de ;ptr
-	;push hl ;размер
-	ld hl,2;inetbuf_sz ;сколько читать
-	ld a,(datasoc)
-	OS_WIZNETREAD
-	bit 7,h
-	;pop hl
-	pop de ;ptr
-       ret nz;jr nz,readskip0
-        ld a,h
-        or l
-        jr nz,readskip0
-        ret
-        endif
-
-readfrominet_tojoy1joy2
-;hl=адрес процедуры, которую вызвать, если приняли сообщение (и так для всех сообщений в очереди)
-        ld (readfrominet_call),hl
-;принять одно сообщение из TCP в очередь
-;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
-;надо принять гарантированно хотя бы одно!!!
-        ld de,inetbuf
-        jr readstream0
 readstream0_retry
         halt;YIELD
 readstream0
+;bc=size
 	push de ;ptr
-	;push hl ;размер
-	ld hl,inetbuf_sz ;сколько читать
+	push bc ;размер
+	ld h,b
+        ld l,c ;ld hl,inetbuf_sz ;сколько читать
 	ld a,(datasoc)
 	OS_WIZNETREAD
 	bit 7,h
-	;pop hl
+	pop bc
 	pop de ;ptr
        jr nz,readstream0_retry
  	;jr z,readstream_ok
@@ -316,6 +276,17 @@ readstream0
         ld a,h
         or l
         jr z,readstream0_retry
+        ret
+
+readfrominet_tojoy1joy2
+;hl=адрес процедуры, которую вызвать, если приняли сообщение (и так для всех сообщений в очереди)
+        ld (readfrominet_call),hl
+;принять одно сообщение из TCP в очередь
+;если там есть, то дешифровать истинные joy1(от сервера), joy2(наш с задержкой)
+;надо принять гарантированно хотя бы одно!!!
+        ld de,inetbuf
+        ld bc,inetbuf_sz
+        call readstream0
 ;hl=сколько прочитали
 readstream_parse0
         ld a,(de)
@@ -343,6 +314,12 @@ inet_waitsync
         ld a,(joy1state)
         or a
         jr z,inet_waitsync
+        ld de,rndseed1
+        ld bc,2
+        call readstream0
+        ld de,rndseed2
+        ld bc,2
+        call readstream0
 inet_waitsync_check
         ret
 
@@ -380,6 +357,8 @@ serv_gotnothing
         ret
 
 sendjoy1joy2
+       ld a,(joyTMPstate)
+       ld (joy1state),a ;атомарно
 ;отправить joy1, joy2
         ld de,joy1state ;ptr
 sendjoy1joy2_de
@@ -398,6 +377,10 @@ sendjoy1joy2_de
         
 inet_sendsync
         ld de,twozeros
+        call sendjoy1joy2_de
+        ld de,rndseed1
+        call sendjoy1joy2_de
+        ld de,rndseed2
         jr sendjoy1joy2_de
 twozeros
         dw 0
