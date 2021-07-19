@@ -1206,10 +1206,21 @@ FIGHT2
 	JR	Z,FIGHT2 ;wait for unpress of "start"
       endif
 FIGHTT
+;sync
        call clstiles_white
 
 	CALL	CHEKPOINT
 ;сюда попадает в том числе после прохождения уровня
+
+;это не помогает:
+       ifdef CLIENT
+       if CLIENT
+        call inet_waitsync
+       else
+        call inet_sendsync
+       endif
+       endif
+
        call clstiles_white
 	;LD	BC,BORDER
 	;LD	A,8
@@ -1726,6 +1737,11 @@ SHOT2	LD	A,(TANKP)
 logic
 ;	DI
 ; 	PUSH HL,DE,BC,AF,IX,IY
+       ifdef CLIENT
+       ld hl,(logicindex)
+       inc hl
+       ld (logicindex),hl
+       endif
 
 	LD	A,(ENDG)
 	CP	0

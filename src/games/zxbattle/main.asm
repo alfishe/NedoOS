@@ -452,6 +452,15 @@ PRESTART;S
 
         call swapimer      
 
+       ifdef CLIENT
+        ld de,fn_log
+        OS_CREATEHANDLE
+        ld a,b
+        ld (loghandle),a
+        
+        OS_HIDEFROMPARENT
+       endif
+
 STARTS
 ;сюда можем попасть из игры
         ld sp,STACK
@@ -1815,6 +1824,8 @@ tilemap
 
 path
         db "zxbattle",0
+fn_log
+        db "zxbattle.log",0
 fn_hiscore
         db "hi_score.dat",0
 fn_soundfx

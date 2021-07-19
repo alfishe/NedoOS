@@ -306,6 +306,7 @@ readstream_parse0
         inc de
         push de
         push hl
+       call wrlog
 readfrominet_call=$+1
         call 0
         pop hl
@@ -371,7 +372,11 @@ inet_waitsync
         call readinetqueue;readstream0
         ld de,rndseed2
         call readinetqueue;readstream0
-inet_waitsync_check
+       ld hl,0
+       ld (logicindex),hl
+       ld a,0
+       ld (wrlog),a
+;inet_waitsync_check
         ret
 
        else ;SERVER
@@ -410,6 +415,7 @@ serv_gotnothing
 sendjoy1joy2
        ld a,(joyTMPstate)
        ld (joy1state),a ;атомарно
+       call wrlog
 ;отправить joy1, joy2
         ld de,joy1state ;ptr
 sendjoy1joy2_de
@@ -432,10 +438,46 @@ inet_sendsync
         ld de,rndseed1
         call sendjoy1joy2_de
         ld de,rndseed2
-        jr sendjoy1joy2_de
+        call sendjoy1joy2_de
+       ld hl,0
+       ld (logicindex),hl
+       ld a,0
+       ld (wrlog),a
+        ret
 twozeros
         dw 0
         
        endif ;SERVER
+
+wrlog
+       ret ;/nop
+logicindex=$+1
+        ld hl,0
+        ld (logportion+0),hl
+        ld hl,(joy1state)
+        ld (logportion+2),hl
+        ld hl,(rndseed1)
+        ld (logportion+4),hl
+        ld hl,(rndseed2)
+        ld (logportion+6),hl
+loghandle=$+1
+        ld b,0
+        ld de,logportion
+        ld hl,8
+        OS_WRITEHANDLE
+        
+        ld hl,(logicindex)
+        ld a,h
+        cp 15
+        ret c
+       ld a,0xc9
+       ld (wrlog),a
+       ld a,(loghandle)
+       ld b,a
+       OS_CLOSEHANDLE
+        ret
+
+logportion
+        ds 8 ;time,joy1joy2,rndseed1,rndseed2
 
        endif
