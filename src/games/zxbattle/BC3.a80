@@ -1310,7 +1310,8 @@ NTTT	CALL	BOSS
        CALL	#CBB8 ;init muzboss
        LD	A,255
        LD	(SOUNDW),A ;время до окончания музыки
-       
+      
+      if 0
 ;sync
        ifdef CLIENT
        if CLIENT
@@ -1319,6 +1320,7 @@ NTTT	CALL	BOSS
         call inet_sendsync
        endif
        endif
+      endif
 	JP	KERNF
 
 BBBSSS	LD	A,3

@@ -388,8 +388,10 @@ inet_waitsync
         call readinetqueue;readstream0
         ld de,rndseed2
         call readinetqueue;readstream0
-        ld de,MESTO
-        call readinetqueue;readstream0
+        ;ld de,MESTO
+        ;call readinetqueue;readstream0
+       xor a
+       ld (MESTO),a
         ;ld de,UNITS
         ;ld hl,UNITS_blocksz
         ;call readinetblock
@@ -476,8 +478,10 @@ inet_sendsync
         call sendjoy1joy2_de
         ld de,rndseed2
         call sendjoy1joy2_de
-        ld de,MESTO
-        call sendjoy1joy2_de
+        ;ld de,MESTO
+        ;call sendjoy1joy2_de
+       xor a
+       ld (MESTO),a
         ;ld de,UNITS
         ;ld hl,UNITS_blocksz
         ;call sendblock
