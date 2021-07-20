@@ -1815,10 +1815,10 @@ tilemap
         ds 0x3ee0-$
         ds 0x4000-$
 
+	INCLUDE	"units.asm"
         INCLUDE	"XASASM1.a80"
 	INCLUDE	"BC1.a80"
 	INCLUDE	"BC2.a80"
-	INCLUDE	"units.asm"
 	INCLUDE	"BC3.a80"
 	INCLUDE	"BC4.a80"
 

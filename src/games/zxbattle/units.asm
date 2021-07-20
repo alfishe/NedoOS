@@ -600,3 +600,5 @@ BRONITS	DEFB	0;-------------------BRONA
 	DEFB	0; ARRMS13
 	DEFB	0; ARRMS14
 	DEFB	255
+
+UNITS_blocksz=$-UNITS

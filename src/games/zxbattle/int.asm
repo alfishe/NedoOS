@@ -360,6 +360,23 @@ inetqueue_curaddr=$+1
        ld (inetqueue_curaddr),bc
         ret
 
+readinetblock
+;de=addr
+;hl=size (even)
+        push de
+        push hl
+        call readinetqueue
+        pop hl
+        pop de
+        inc de
+        inc de
+        dec hl
+        dec hl
+        ld a,h
+        or l
+        jr nz,readinetblock
+        ret
+
 inet_waitsync
         ;ld hl,inet_waitsync_check
         ;call readfrominet_tojoy1joy2
@@ -372,6 +389,9 @@ inet_waitsync
         call readinetqueue;readstream0
         ld de,rndseed2
         call readinetqueue;readstream0
+        ld de,UNITS
+        ld hl,UNITS_blocksz
+        call readinetblock
        ld hl,0
        ld (logicindex),hl
        ld a,0
@@ -431,7 +451,24 @@ sendjoy1joy2_de
 	;JR WAIT_SEND	;буфер отправки переполнен, ждём освобождения
 ;SEND_OK
         ret
-        
+
+sendblock
+;de=addr
+;hl=size (even)
+        push de
+        push hl
+        call sendjoy1joy2_de
+        pop hl
+        pop de
+        inc de
+        inc de
+        dec hl
+        dec hl
+        ld a,h
+        or l
+        jr nz,sendblock
+        ret
+
 inet_sendsync
         ld de,twozeros
         call sendjoy1joy2_de
@@ -439,6 +476,9 @@ inet_sendsync
         call sendjoy1joy2_de
         ld de,rndseed2
         call sendjoy1joy2_de
+        ld de,UNITS
+        ld hl,UNITS_blocksz
+        call sendblock
        ld hl,0
        ld (logicindex),hl
        ld a,0
