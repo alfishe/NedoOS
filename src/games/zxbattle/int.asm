@@ -303,6 +303,7 @@ readstream_parse0
         inc de
         ld a,(de)
         ld (joy2state),a
+       ;ld (logicindex),a
         inc de
         push de
         push hl
@@ -438,8 +439,18 @@ serv_gotnothing
 sendjoy1joy2
        ld a,(joyTMPstate)
        ld (joy1state),a ;атомарно
+       ;ld a,(joy2state)
+       ;push af
+       ;ld a,(logicindex)
+       ;ld (joy2state),a
 ;отправить joy1, joy2
         ld de,joy1state ;ptr
+        call sendjoy1joy2_de
+       ;pop af
+       ;ld (joy2state),a
+        ret
+
+        
 sendjoy1joy2_de
         ld hl,2 ;сколько слать
 	ld a,(datasoc)

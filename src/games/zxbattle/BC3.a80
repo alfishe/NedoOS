@@ -1311,7 +1311,7 @@ NTTT	CALL	BOSS
        LD	A,255
        LD	(SOUNDW),A ;время до окончания музыки
       
-      if 0
+      if 1
 ;sync
        ifdef CLIENT
        if CLIENT

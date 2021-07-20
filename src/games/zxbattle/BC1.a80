@@ -2486,11 +2486,12 @@ INTRO2
      ifdef CLIENT
       if CLIENT
        call sendjoyTMP
-       ld hl,reter;menucheckkeys
+       ld hl,reter;menucheckkeys ;TODO INTRO2LOGIC
        call readfrominet_tojoy1joy2 ;читать ровно одно сообщение, выполнить логику. и так пока есть сообщения
       else
        call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
        call sendjoy1joy2 ;в каждом цикле логики
+       ds 3 ;TODO INTRO2LOGIC
       endif
      else
      endif
