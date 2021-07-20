@@ -163,12 +163,14 @@ washobetarunner
 	out (c),a
 ;48: pages 48/DOS,5,2,0(7ffd)
         
-        LD A,%10101011 ;6912
+        LD A,%10100011 ;6912
 	ld bc,0xff77 ;shadow ports off, palette off
         out (c),a
 	ld sp,0x6000
-    
-    
+    	ld bc,0xeff7
+    	ld a,0x10
+    	out (c),a
+    	
     ld a,0x10
     ld bc,0x7ffd
     out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
@@ -182,15 +184,17 @@ set_xbios
     ld a,(0x3CBC)
     cp 0x87
     call z,0x3C9E   ;переключить в vtrdos
-    ;ld bc,0x0001    ;хотресет втрдоса, на всякий случай, может и ненадо
-    ;call 0x3D42
 not_set_xbios   
-    ld a,0
-    ld bc,0x7ffd
-    out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+    ;ld a,0
+    ;ld bc,0x7ffd
+    ;out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+    ld a,7
+    out (0xfe),a
+    ld hl,0
+    push hl
 	ei
 hobetarunner_jp=$+1
-	jp 0;0x6000
+	jp 0x3d2f ;0;0x6000
 ;АТМный перехватчик ресета
         ent
 hobetarunner_sz=$-washobetarunner
