@@ -393,9 +393,9 @@ inet_waitsync
         ;call readinetqueue;readstream0
        xor a
        ld (MESTO),a
-        ;ld de,UNITS
-        ;ld hl,UNITS_blocksz
-        ;call readinetblock
+        ld de,UNITS
+        ld hl,UNITS_blocksz
+        call readinetblock
        ld hl,0
        ld (logicindex),hl
        ld a,0
@@ -453,6 +453,7 @@ sendjoy1joy2
         
 sendjoy1joy2_de
         ld hl,2 ;сколько слать
+sendblock
 	ld a,(datasoc)
 	OS_WIZNETWRITE
 	;bit 7,h
@@ -465,6 +466,7 @@ sendjoy1joy2_de
 ;SEND_OK
         ret
 
+       if 0
 sendblock
 ;de=addr
 ;hl=size (even)
@@ -481,6 +483,7 @@ sendblock
         or l
         jr nz,sendblock
         ret
+       endif
 
 inet_sendsync
         ld de,twozeros
@@ -493,9 +496,9 @@ inet_sendsync
         ;call sendjoy1joy2_de
        xor a
        ld (MESTO),a
-        ;ld de,UNITS
-        ;ld hl,UNITS_blocksz
-        ;call sendblock
+        ld de,UNITS
+        ld hl,UNITS_blocksz
+        call sendblock
        ld hl,0
        ld (logicindex),hl
        ld a,0
