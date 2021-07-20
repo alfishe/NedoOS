@@ -306,7 +306,6 @@ readstream_parse0
         inc de
         push de
         push hl
-       call wrlog
 readfrominet_call=$+1
         call 0
         pop hl
@@ -389,9 +388,11 @@ inet_waitsync
         call readinetqueue;readstream0
         ld de,rndseed2
         call readinetqueue;readstream0
-        ld de,UNITS
-        ld hl,UNITS_blocksz
-        call readinetblock
+        ld de,MESTO
+        call readinetqueue;readstream0
+        ;ld de,UNITS
+        ;ld hl,UNITS_blocksz
+        ;call readinetblock
        ld hl,0
        ld (logicindex),hl
        ld a,0
@@ -435,7 +436,6 @@ serv_gotnothing
 sendjoy1joy2
        ld a,(joyTMPstate)
        ld (joy1state),a ;атомарно
-       call wrlog
 ;отправить joy1, joy2
         ld de,joy1state ;ptr
 sendjoy1joy2_de
@@ -476,9 +476,11 @@ inet_sendsync
         call sendjoy1joy2_de
         ld de,rndseed2
         call sendjoy1joy2_de
-        ld de,UNITS
-        ld hl,UNITS_blocksz
-        call sendblock
+        ld de,MESTO
+        call sendjoy1joy2_de
+        ;ld de,UNITS
+        ;ld hl,UNITS_blocksz
+        ;call sendblock
        ld hl,0
        ld (logicindex),hl
        ld a,0

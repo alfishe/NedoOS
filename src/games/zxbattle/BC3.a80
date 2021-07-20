@@ -1730,6 +1730,7 @@ logic
 ;	DI
 ; 	PUSH HL,DE,BC,AF,IX,IY
        ifdef CLIENT
+       call wrlog
        ld hl,(logicindex)
        inc hl
        ld (logicindex),hl
@@ -1844,11 +1845,12 @@ DIR2	LD	A,(IX+UNIT_YESORNOT)
 
 
 ADDR	DEFW	0 ;смещение относительно sprlist (#200)
-YESORNO	DEFB	0
+;YESORNO	DEFB	0
 ADDRY	DEFW	0
 ADDRX	DEFW	0
 
 MESTO	DEFB	0
+YESORNO	DEFB	0
 
 INSTAL2
 	LD	IX,UNITS
