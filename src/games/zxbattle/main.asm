@@ -1,5 +1,6 @@
 ﻿            DEVICE ZXSPECTRUM1024
 TCP=1
+LOGGING=0
         ifdef CLIENT
 VIRTUALKEYS=1
         else
@@ -453,10 +454,12 @@ PRESTART;S
         call swapimer      
 
        ifdef CLIENT
+       if LOGGING
         ld de,fn_log
         OS_CREATEHANDLE
         ld a,b
         ld (loghandle),a
+       endif
         
         ;OS_HIDEFROMPARENT
        endif

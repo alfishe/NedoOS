@@ -9,10 +9,10 @@ rndseed1=$+1
 rndseed2=$+1
         ld  de,0xC0DE   ; yw -> zt
         ld  (rndseed1),de  ; x = y, z = w
-       ifdef CLIENT
-       ld hl,(joy1state)
-       ld de,(logicindex)
-       endif
+       ;ifdef CLIENT
+       ;ld hl,(joy1state)
+       ;ld de,(logicindex)
+       ;endif
         ld  a,e         ; w = w ^ ( w << 3 )
         add a,a
         add a,a

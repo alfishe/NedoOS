@@ -134,12 +134,6 @@ curscrnum_int=$+1
 	LD	A,5
 	LD	(SOUNDGO),A
 
-	LD	A,(TIME)
-	INC	A
-	CP	2
-	CALL	Z,TIME2
-	LD	(TIME),A
-        
         pop af
         SETPG32KHIGH
         pop af
@@ -396,10 +390,12 @@ inet_waitsync
         ld de,UNITS
         ld hl,UNITS_blocksz
         call readinetblock
+       if LOGGING
        ld hl,0
        ld (logicindex),hl
        ld a,0
        ld (wrlog),a
+       endif
 ;inet_waitsync_check
         ret
 
@@ -499,16 +495,19 @@ inet_sendsync
         ld de,UNITS
         ld hl,UNITS_blocksz
         call sendblock
+       if LOGGING
        ld hl,0
        ld (logicindex),hl
        ld a,0
        ld (wrlog),a
+       endif
         ret
 twozeros
         dw 0
         
        endif ;SERVER
 
+       if LOGGING
 wrlog
        ret ;/nop
 logicindex=$+1
@@ -536,6 +535,7 @@ loghandle=$+1
        ld b,a
        OS_CLOSEHANDLE
         ret
+       endif
 
 logportion
         ds 8 ;time,joy1joy2,rndseed1,rndseed2
