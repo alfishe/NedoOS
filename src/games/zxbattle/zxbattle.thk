@@ -1,11 +1,21 @@
+Тайлы: кирпичи, лес, бетон, вода, песок (последний тормозит танки).
+В игре есть два босса.
+Бонусы: звезда, кораблик, жизнь, лопата, каска, граната. Все бонусы также могут подбирать враги, что "доставляет".  Если враг взял звезду, то все танки на экране получают улучшение. Тоже самое с корабликом. 
+Враги: простой танк, бтр, броневик, усиленный броневик (убивается с 6 выстрелов, и стреляет чаще обычных врагов), фиолетовый броневик (умеет включать броню, отвечает на выстрелы), кораблик...просто кораблик.
+Игра записывает на диск ваши результаты (очки), потому диск не должен быть защищен от записи. 
+Звезда улучшение стрельбы (апгрейд танка), кораблик плавать по воде, жизнь это жизнь (добавляет жизнь), лопата окапывает герб (если взял враг - то раскапывает), каска броня, граната все враги взрываются (работает)
+Часы враги застывают (если возьмёт враг, то почти хана)
+
 TODO:
+автоопределение адреса сервера в сети
+ввод или передача через комстроку адреса сервера (на клиенте)
+анимация воды по частям?
 генерить список спрайтов только при отрисовке
 почему при игре одним игроком после попадания появляется 2P?
 не грузить уровни каждый раз
 меню стирать полосами сверху и снизу
 ускорить KEY1P (сейчас 12299, даже когда ничего не делать)
 сдвинуть всю картинку на 2 знакоместа вправо?
-сеть? TCP, передавать с клиента нажатую клавиатуру, а с сервера получать истинную клавиатуру, которую использовать в игре. Сервер накладывает две клавиатуры (потом сделать с маской)
 при старте 32 уровня на тайлах 8x7 почему-то босса видно снизу
 в оригинале большие танки после первой пары попаданий перекрашиваются:
 белый - зелёный - труп
@@ -31,3 +41,81 @@ TODO:
 -не обновлялся рекорд при GAME OVER
 -за босса давались рандомные очки
 -призовой улучшенный броневик не засчитывался за улучшенный броневик
+-hiscore не всегда правильно обновлялось?
+
+
+Today I have adapted ZX Battle City (ATM-Turbo 2+, NedoOS, Your Game 6 winner) for network play.
+My setup is as follows: Pentagon 2.666LE + ZXNetUSB card on one side (IP 192.168.1.177), PC with Unreal Speccy emulator on the other side (IP 192.168.1.2). They are connected by Ethernet cable.
+NedoOS provides networking in the kernel, with calls like this:
+[code];try to connect
+CONNECTIONERROR
+	ld de,SOCK_STREAM+(AF_INET<<8)
+	OS_NETSOCKET
+	ld a,l
+	or a
+	jp m,CONNECTIONERROR
+	ld (datasoc),a
+	LD DE,web_ia
+	OS_NETCONNECT
+        ld a,l
+	or a
+	jp p,connect_ok
+createsoc_err
+	ld a,(datasoc)
+	ld e,0
+	OS_NETSHUTDOWN
+	jp CONNECTIONERROR
+connect_ok[/code]
+
+Today I have adapted ZX Battle City (ATM-Turbo 2+, NedoOS, Your Game 6 winner) for network play.
+My setup is as follows: Pentagon 2.666LE + ZXNetUSB card on one side (IP 192.168.1.177), PC with Unreal Speccy emulator on the other side (IP 192.168.1.2). They are connected by Ethernet cable.
+NedoOS provides networking in the kernel, with calls like this:
+[code];try to connect
+CONNECTIONERROR
+	ld de,SOCK_STREAM+(AF_INET<<8)
+	OS_NETSOCKET
+	ld a,l
+	or a
+	jp m,CONNECTIONERROR
+	ld (datasoc),a
+	LD DE,web_ia
+	OS_NETCONNECT
+        ld a,l
+	or a
+	jp p,connect_ok
+createsoc_err
+	ld a,(datasoc)
+	ld e,0
+	OS_NETSHUTDOWN
+	jp CONNECTIONERROR
+connect_ok[/code]
+
+Previously I based the network games (MIGAME, early wolf2004 network test, NedoOS snake-net, NedoOS q1) on synchronous connections, with algorithm like this:
+- side 1 sends data to side 2 and waits for the answer
+- side 2 receives the data and sends the answer
+- both sides play one step of game logic with this data.
+
+This was an error-prone and high-ping-prone algorithm.
+ZX Battle City is an action game, so I changed all this.
+Now we have TCP connection, and the "true" game state is held on the server. The client only receives the state change from it and sends its (client's) joystick data to the server.
+The new algorithm is like this:
+
+Server side (controls joystick1):
+- draw the screen.
+- read the stream. Get the last byte (skip the rest), this will be the current joystick2 state.
+- find out how many frames has passed since the last time here. Name it N.
+- for N times: Set joystick1 state := physical joystick state. Send the current joystick1 and joystick2 state. Call logic. (NB: joystick1 state must not change in the interrupt routine!)
+
+Client side (controls joystick2):
+- draw the screen.
+- send the current joystick state (don't use it as joystick2 directly!).
+- read the stream to get AT LEAST ONE full message with joystick1 and joystick2 states.
+- for each of the messages: Set joystick1 and joystick2 state as received. Call logic. (NB: client doesn't count frames, it executes as many logical frames as server did.)
+
+The game has complex code (by Slip), and it was hard to separate logic from the gfx engine (DO THIS IN YOUR GAMES FROM THE BEGINNING! and don't forget to count frames: there are Spectrums with as low as 1.75 MHz and as high as 28 MHz!). It also has many places where the buttons are read. The first thing I did is virtual joystick1 and joystick2 states used everywhere in the game instead of INs.
+
+To make sure both sides start the game in the same state I added a special case in the stream: if both joysticks contain zero, this is the sync frame. After this two-zero frame, the stream contains RND seed, then the full block of game data (previously spread over the whole source).
+
+I spent many days trying to figure out the case of inconsistent enemy AI, logged the both sides in files, and finally found a simple 2-state variable TIME that was changed in interrupt handler. The game got worked when I moved it in the game logic call.
+
+Does anybody know how to automatically receive a computer's current Internet IP to make it a server under NAT? The only way I know is an http request to http://checkip.dyndns.org . All the other servers like this use https that is unusable (our https proxy will show its own address).
