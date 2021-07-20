@@ -458,7 +458,7 @@ PRESTART;S
         ld a,b
         ld (loghandle),a
         
-        OS_HIDEFROMPARENT
+        ;OS_HIDEFROMPARENT
        endif
 
 STARTS
