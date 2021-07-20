@@ -880,7 +880,20 @@ DAA1	LD	(HL),A
 	LD	(CBC),BC
 	CALL	PTS
 UP222
-CHEK2	CALL	PRINT1 ;POONE,POTWO
+CHEK2
+     ifdef CLIENT
+      if CLIENT
+       call sendjoyTMP
+       ld hl,reter;menucheckkeys
+       call readfrominet_tojoy1joy2 ;читать ровно одно сообщение, выполнить логику. и так пока есть сообщения
+      else
+       call readfrominet_tojoy2 ;может быть принято сколько угодно сообщений - берём последнее
+       call sendjoy1joy2 ;в каждом цикле логики
+      endif
+     else
+     endif
+
+	CALL	PRINT1 ;POONE,POTWO
         ;jr $ ;на этот момент видно STAGE01
        ;ld a,(PAUSE)
        ;cp 49;or a
@@ -891,22 +904,37 @@ CHEK2	CALL	PRINT1 ;POONE,POTWO
 		;LD		BC,TSCONFIG; SPRITE PRINT
 		;LD		A,%11000000
 		;OUT		(C),A
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_FIRE
+       else
 	LD      HL,(Keys1PlFr)	;LD HL,Keys1PlFr+2
 	LD      B,H		;LD BC,(Keys1PlFr)
 	LD      C,#FE		;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	RET	Z
+       if VIRTUALKEYS
+        ld a,(joy2state)
+        and JOYMASK_START
+       else
 	LD      HL,(Keys2PlFr)	;LD HL,Keys2PlFr+2
 	LD      B,H		;LD BC,(Keys2PlFr)
 	LD      C,#FE	        ;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	RET	Z
+       if VIRTUALKEYS
+        ld a,(joy1state)
+        and JOYMASK_START
+       else
 	LD      HL,(Keys1PlStart)	;LD HL,Keys1PlStart+2
 	LD      B,H			;LD BC,(Keys1PlStart)
 	LD      C,#FE			;CALL	CHBIT
 	IN      A,(C)
         AND     L
+       endif
 	RET	Z
 	JR	CHEK2

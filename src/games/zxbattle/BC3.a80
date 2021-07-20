@@ -329,14 +329,6 @@ END5
 	LD	(XS),A
 	POP	BC
 	JP	END55
-INT55	LD	A,(WARTAN)
-	CP	6
-	RET	NC
-	CALL	RANDOM
-	CP	100
-	RET	NC
-	POP	BC
-	JP	I3
 
 ENDLEV
 	LD	D,#C0 ;const
@@ -356,7 +348,7 @@ ENDLEV
 	POP	AF
 	RET
 
-TEXEND	DEFM	"congratulations"
+TEXEND	db	"congratulations"
 		DEFB	255
 
 NJNAA	LD		HL,TEXT17
@@ -1206,12 +1198,12 @@ FIGHT2
 	JR	Z,FIGHT2 ;wait for unpress of "start"
       endif
 FIGHTT
-;sync
        call clstiles_white
 
-	CALL	CHEKPOINT
+	CALL	CHEKPOINT ;там есть ожидание кнопки
 ;сюда попадает в том числе после прохождения уровня
 
+;sync
 ;это не помогает:
        ifdef CLIENT
        if CLIENT
