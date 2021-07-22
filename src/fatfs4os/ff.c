@@ -3018,7 +3018,7 @@ FRESULT f_readdir (
 				res = dir_next(dj, 0);		/* Increment index for next */
 				if (res == FR_NO_FILE) {
 					dj->sect = 0;
-					//res = FR_OK;
+					res = FR_OK;
 				}
 			}
 			FREE_BUF();
