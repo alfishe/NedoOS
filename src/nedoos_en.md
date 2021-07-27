@@ -232,6 +232,7 @@ Shortcuts:
 * Caps Shift+Enter or F2 - save
 * Break (Esc, Caps Shift + Space) - exit
 * F1 - change encoding (866/1251)
+* Ins (Symbol Shift+W) - wrap on/off
 
 Other keys are used to input the text.
 

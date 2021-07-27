@@ -154,6 +154,7 @@ Del (Caps Shift+9) - удаление символа справа от курсора
 Caps Shift+Enter или F2 - сохранение
 Break (Esc, Caps Shift+Space) - выход
 F1 - сменить кодировку (866/1251)
+Ins (Symbol Shift+W) - wrap on/off
 
 Остальные клавиши используются для ввода символов.
 
