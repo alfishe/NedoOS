@@ -15,6 +15,15 @@ cmd_begin
         
         ;ld e,COLOR
         ;OS_CLS
+        
+        ld hl,twinto866
+mktwinto866_0
+        ld e,(hl)
+        ld d,t866towin/256
+        ld a,l
+        ld (de),a
+        inc l
+        jr nz,mktwinto866_0
 
         ld hl,COMMANDLINE ;command line
         call skipword

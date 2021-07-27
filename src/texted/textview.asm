@@ -1,6 +1,10 @@
 ;TODO в режиме wrap:
 ;- при стирании перерисовывать последнюю строку и всё за ней, если она уничтожена
 ;- при добавлении перерисовывать строки ниже, если изменилось число строк
+;a) отслеживать последнюю позицию при печати (не годится для word wrap)
+;б) отслеживать длину строки до и после (не годится для word wrap)
+;в) отслеживать число подстрок до и после
+;г) отслеживать список адресов всех подстрок на экране
 
 texted_XYTOP=0x0000
 texted_HGT=24
@@ -138,6 +142,13 @@ texted_mainloop_keyq
         ret c ;прочие системные кнопки не нужны
 typein
         ld c,a
+        ld a,(texted_prline_recodepatch)
+        or a
+        jr z,typein_nowin
+       ld h,t866towin/256
+       ld l,c
+       ld c,(hl)
+typein_nowin
         call linesize_minus_x ;sz<x = error
         call c,insert_minushl_spaces
         call calccursoraddr
@@ -148,9 +159,7 @@ typein
 
 linesize_minus_x
 ;sz<x = CY
-        ld hl,(curlineaddr)
-        ld a,(curlineaddrHSB)
-        call calclinesz ;hl=sz
+        call calccurlinesz ;hl=sz
         ex de,hl
         call calccurlinex
         ex de,hl
@@ -403,17 +412,26 @@ texted_home
 texted_end
 ;TODO wrap (set y)
         ;call calccursoraddr
-        ld hl,(curlineaddr)
-        ld a,(curlineaddrHSB)
-        call calclinesz ;hl=sz
+        call calccurlinesz ;hl=sz
         call setxshift_hl
         jp setredrawflag
 
-calclinesz
+calccurlinesz_nowrap
+;out: hl=sz (keeps bc)
+        ld hl,(curlineaddr)
+        ld a,(curlineaddrHSB)
 ;ahl=line addr
-;out: hl=sz (keeps bc,de)
+        push bc
+        call texted_nextline_nowrap ;CY=error
+        jr calccurlinesz_go
+calccurlinesz
+;out: hl=sz (keeps bc)
+        ld hl,(curlineaddr)
+        ld a,(curlineaddrHSB)
+;ahl=line addr
         push bc
         call texted_nextline ;CY=error
+calccurlinesz_go
         call c,getsize
         call nc,skipbackcrlf
         ld bc,(curlineaddr)
@@ -568,34 +586,73 @@ texted_prcurline
         ld (texted_lineredrawflag),a
         ld de,(curxy)
         ld e,0
-        push de
-	call nv_setxy
-        pop de
+        ;push de
+	call nv_setxy ;keeps de
+        ;pop de
 ;print lines until CR or EOF
+;TODO если изменилось число подстрок, то печатаем всё ниже
+;костыль: печатаем всё ниже, если у текущей строки последняя позиция печати=0 (бывает при стирании) или 1 (бывает при добавлении). можно сделать делением длины строки на 80
+      push de
+       call calccurlinesz_nowrap ;out: hl=sz (keeps bc)
+      pop de
+       ld bc,-80
+       add hl,bc
+       jr c,$-1
+;hl=-80..-1 for line remainder = 0..79
+       ld a,l
+       sub c
+       cp 2
         ld hl,(curlineaddr)
         ld a,(curlineaddrHSB)
+       jr c,texted_prcurline_allbelow
 texted_prcurline_continue0
+        call texted_prline_nextline_nooverflow     
+        call texted_prcurline_continue ;z=no continue
+       ret z
+        inc d
+       ld b,a
+        ld a,d
+        cp texted_HGT
+       ld a,b
+        jr nz,texted_prcurline_continue0
+        ret
+texted_prcurline_allbelow
+texted_prcurline_allbelow0
+        call texted_prline_nextline_nooverflow     
+        call texted_prcurline_continue ;z=no continue
+        inc d
+       ld b,a
+        ld a,d
+        cp texted_HGT
+       ld a,b
+        jr nz,texted_prcurline_allbelow0
+        ret
+
+texted_prline_nextline_nooverflow
         push de
         call texted_prline_nextline
-        call c,getsize
-        call iseof
         pop de
+        call c,getsize ;при переполнении ahl=filesize
+        ret
+
+texted_prcurline_continue
+;out: z=no continue
+        call iseof
         ret z
         call prevbyte
-        call getbyte
+        call getbyte ;to c
+       push bc
+        call nextbyte
+       pop bc
         ld b,a
         ld a,c
         cp 0x0d
-        ret z
+        jr z,texted_prcurline_continue_ab_z
         cp 0x0a
-        ret z
-        inc d
-        ld a,d
-        cp texted_HGT
-        ret z
+texted_prcurline_continue_ab_z
         ld a,b
-        call nextbyte
-        jr texted_prcurline_continue0
+        ;ret z
+        ret
 
 texted_prcurpage
          ;ld e,0
@@ -1021,7 +1078,7 @@ texted_prpage0
 texted_prevline
 ;ahl=addr
 ;line < 16K
-;out: ahl, CY=error (keeps de)
+;out: ahl, CY=error
         call isbof
          scf
         ret z
@@ -1035,12 +1092,12 @@ texted_prevline
          ld b,h
          ld c,l
          
-        push de
+        ;push de
         ld de,0x4000
         or a
         sbc hl,de
         sbc a,e;0
-        pop de
+        ;pop de
         
         push af
         push hl
@@ -1127,8 +1184,8 @@ findprevline_oldHSB=$+1
 
 getmaxlinesize
 ;ahl = addr
-;out: bc=max line size before eof, z=(bc==0) (keeps ahl,de)
-         push de
+;out: bc=max line size before eof, z=(bc==0) (keeps ahl)
+         ;push de
         push af
         push hl
         ex de,hl
@@ -1151,7 +1208,7 @@ getmaxlinesize_aftereof
         ld a,b
         or c
         ld a,e
-         pop de
+         ;pop de
         ret
 
 texted_prline_nextline
@@ -1164,9 +1221,10 @@ texted_nextline
 ;if eof, returns CY and old addr (use call c,getsize) [eof addr]
 ;ahl=addr
 ;line < 16K
-;out: ahl, CY=error (keeps de)
+;out: ahl, CY=error
         call iswrapon ;CY=on
         jp c,texted_pseudoprline
+texted_nextline_nowrap ;для вычисления длины строки
         call getmaxlinesize ;bc=max line size before eof, z=(bc==0)
          scf
         ret z
@@ -1419,3 +1477,5 @@ cury
         align 256
 twinto866
         incbin "../_sdk/codepage/winto866"
+t866towin
+        ds 256,' ' ;incbin "../_sdk/codepage/866towin"
