@@ -286,6 +286,7 @@ MAINGO
        
        if TCP
        if CLIENT
+        call getipfromcmd
 ;create socket:
 CONNECTIONERROR
 	ld de,SOCK_STREAM+(AF_INET<<8)
@@ -398,44 +399,133 @@ soc
 datasoc
         db 0
 
-       if TCP
 ;TCP:
 curport=$+1
 web_ia:
 	defb 0
         DWBIGENDIAN 20001 ;db 0,80
+web_ia_ip
         db 192,168,1,177;127,0,0,1 ;ip (big endian) ;connect to 192.168.1.177
         ds 8 ;reserved
-       else
-;UDP:
-;struct sockaddr_in {unsigned char sin_family;unsigned short sin_port;
-;	struct in_addr sin_addr;char sin_zero[8];};
-        if CLIENT
-;client: from 192.168.1.2 to 192.168.1.177
-port_ia:
-	defb 0
-        DWBIGENDIAN 20001 ;db 0,80
-        db 192,168,1,177;127,0,0,1 ;ip (big endian)
-;port_iarecv:
-;	defb 0
-;        db 100,53 ;port (big endian)
-;        db 192,168,1,177 ;ip (big endian)
 
-        else
+getipfromcmd
+	ld hl,COMMANDLINE
+        call skipword
+        ld a,(hl)
+        or a
+        ret z
+        call skipspaces
+	ld de,web_ia_ip
+ping_nextdig
+	call strtobyte_hltode
+       or a
+       ret nz ;error
+	ld a,(hl)
+	cp '.'
+	inc hl
+	jr z,ping_nextdig
+        ret
 
-;server: from 192.168.1.177 to 192.168.1.2
-port_ia:
-	defb 0
-        DWBIGENDIAN 20001 ;db 0,80
-        db 255,255,255,255 ;ip (big endian)
-;port_iasend:
-;	defb 0
-;        db 100,53 ;port (big endian)
-;        db 192,168,1,2 ;ip (big endian)
-        endif
-       endif
-        
-       endif ;ifdef CLI
+skipword
+;hl=string
+;out: hl=terminator/space addr
+skipword0
+        ld a,(hl)
+        or a
+        ret z ;jr z,skipwordq
+        sub ' '
+        ret z ;jr z,skipwordq
+        inc hl ;ldi
+        jr skipword0
+
+skipspaces
+;hl=string
+;out: hl=after last space
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces
+
+strtodigit_a ;a=FF - err
+	sub 0x30
+	jr c,str_digit_a_err
+	sub 10
+	jr nc,str_digit_a_err
+	add 10
+	ret
+str_digit_a_err
+	ld a,0xFF
+	ret
+
+strtobyte_hltode ; a=0 ok a=FF error
+	ld a,(hl)
+	call strtodigit_a
+	inc a
+	or a
+	jr z,strtobyte_err
+
+	dec a
+	ld c,a
+	inc hl
+	ld a,(hl)
+	call strtodigit_a
+	inc a
+	or a
+	jr nz,strtobyte_2digit
+	ld a,c
+	ld (de),a
+	xor a
+	inc de
+	ret
+
+strtobyte_2digit
+	inc hl
+	dec a;в а вторая цифра
+	ex af,af' ;'
+	ld a,c
+	ld b,9
+strtobyte_2digit0
+	add c
+	djnz strtobyte_2digit0
+	ld c,a
+	ex af,af' ;'
+	add c
+	ld c,a
+
+	ld a,(hl)
+	call strtodigit_a
+	inc a
+	or a
+	jr nz,strtobyte_3digit
+	ld a,c
+	ld (de),a
+	xor a
+	inc de
+	ret
+strtobyte_3digit
+	inc hl
+	dec a; в a третья цифра
+	ex af,af' ;'
+	ld a,c
+	ld b,9
+strtobyte_3digit0
+	add c
+	jr c,strtobyte_err
+	djnz strtobyte_3digit0
+	ld c,a
+	ex af,af' ;'
+	add c
+	jr c,strtobyte_err
+	ld (de),a
+	xor a
+	inc de
+	ret
+strtobyte_err
+	ld a,0xFF
+	ret 
+
+       endif ;ifdef CLIENT
 
 PRESTART;S
 	;LD	A,(ENN) ;resources loaded?

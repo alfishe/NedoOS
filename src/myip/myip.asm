@@ -36,7 +36,7 @@ cmd_begin
 	call print
         pop hl
        ld a,(hl)
-       cp 0x0d ;message starts with 0x0d for no know reason
+       cp 0x0d ;message starts with 0x0d for no known reason
        jr nz,$+3
        inc hl
 	call print
