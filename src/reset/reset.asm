@@ -185,16 +185,16 @@ set_xbios
     cp 0x87
     call z,0x3C9E   ;переключить в vtrdos
 not_set_xbios   
-    ;ld a,0
-    ;ld bc,0x7ffd
-    ;out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
+    ld a,0
+    ld bc,0x7ffd
+    out (c),a ;for 128 basic (проверено, работает, 48 тоже работает)
     ld a,7
     out (0xfe),a
     ld hl,0
     push hl
 	ei
 hobetarunner_jp=$+1
-	jp 0x3d2f ;0;0x6000
+	jp 0 ;0x3d2f ;0;0x6000
 ;АТМный перехватчик ресета
         ent
 hobetarunner_sz=$-washobetarunner
