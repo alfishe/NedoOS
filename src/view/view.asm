@@ -84,10 +84,10 @@ curextq
         ldir
 
         call runext
-        jr nc,quit
+        jr nc,wrongfile;quit
         
-        ld bc,quit
-        push bc
+        ;ld bc,quit
+        ;push bc
         
         ld a,(filehandle)
         ld b,a
@@ -104,7 +104,7 @@ curextq
         or d
         or e
         jr z,loadscr
-        if 1==0
+       if 1==0
         ld a,h
         sub 0x08
         or l
@@ -129,15 +129,17 @@ curextq
         or d
         or e
         jr z,load3
-        endif
+       endif
 
 
 ;wrong file
         call closestream_file
         
-        
+wrongfile
 openerror
-quit
+        ld hl,-1
+        ;jr quit
+;quit
         QUIT
 
 ;readerror
@@ -155,7 +157,22 @@ waitkeyquit
 control0
         call yieldgetkeynolang
         jr z,control0
-        ret
+waitkeyq        
+        ld hl,0
+;проверяем стрелки
+        cp key_left
+        jr z,quitwithkey
+        cp key_right
+        jr z,quitwithkey
+        cp key_up
+        jr z,quitwithkey
+        cp key_down
+        jr z,quitwithkey
+        QUIT
+quitwithkey
+;возвращаем код клавиши (для nv)
+        ld l,a
+        QUIT
 
 loadplc
 ;hl=size
@@ -717,7 +734,7 @@ controlimg0
         OS_SETSCREEN ;e=screen=0..1
         call yieldgetkeynolang
         jr z,controlimg0
-        ret
+        jp waitkeyq
         
 load888
         call setEGA ;keeps hl
