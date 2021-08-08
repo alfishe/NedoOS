@@ -70,6 +70,8 @@ cmdlineword2=$+1
         call strcp ;z=yes
         jr z,cmd_interactive
 cmd_exit
+lastresult=$+1
+       ld hl,0
         QUIT
         
 tautoexecbat
@@ -597,6 +599,7 @@ callcmd
         ;OS_RUNAPP
         ;pop de
         WAITPID ;не должно быть, если команда была .bat!
+       ld (lastresult),hl
 ;hl=result
         jp prword_hl_crlf
 

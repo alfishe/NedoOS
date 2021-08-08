@@ -971,6 +971,17 @@ controlloop_noprline
         call cmdcalccurxy
         call nv_setxy ;keeps de,hl,ix
         ;SETX_ ;force reprint cursor
+keyfromcalledapp=$+1
+       ld a,0
+       or a
+       jr z,controlloop_nokey
+       push af
+        cp key_enter
+        ld a,key_enter
+        jr nz,$+3
+        xor a
+        ld (keyfromcalledapp),a
+        jr controlloop_nokeyq
 controlloop_nokey
        if PRSTDIO
         call yieldgetkeyloop
@@ -980,6 +991,7 @@ controlloop_nokey
          or a
          jr z,controlloop_nokey ;TODO handle mouse events
         push af
+controlloop_nokeyq
         ld ix,(curpanel)
         call getfcbaddrundercursor
         ;push hl
@@ -1371,7 +1383,8 @@ editcmd_enter_runcmd
         ld hl,cmdbuf
 loadandrun_waitpid
 ;hl=cmdbuf или cmdprompt (для loadandrun_restcmd)
-        push hl
+       ;ld (loadandrun_waitpid_string),hl
+       push hl
         call setdrawtablesneeded
        if PRSTDIO
         ld de,0
@@ -1391,12 +1404,36 @@ loadandrun_waitpid
         ld ix,rightpanel
 	call strdelpages
         call deletepages
-        pop hl ;hl=cmdbuf или cmdprompt
+;loadandrun_waitpid_looploadandrun
+;loadandrun_waitpid_string=$+1
+;       ld hl,0
+       pop hl ;hl=cmdbuf или cmdprompt
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch в текущем терминале
         WAITPID
+;HL - результат, который вернула дочерняя задача
+        ld a,h
+        or a
+        jr nz,loadandrun_waitpid_looploadandrunq
+        ld a,l
+        cp key_left
+        ld a,key_up
+        jr z,loadandrun_waitpid_looploadandrun
+        ld a,l
+        cp key_right
+        ld a,key_down
+        jr z,loadandrun_waitpid_looploadandrun
+        ld a,l
+        cp key_up
+        jr z,loadandrun_waitpid_looploadandrun
+        cp key_down
+        ;jr z,loadandrun_waitpid_looploadandrun
+        jr nz,loadandrun_waitpid_looploadandrunq
+loadandrun_waitpid_looploadandrun
+       ld (keyfromcalledapp),a
+loadandrun_waitpid_looploadandrunq
 ;wait for focus
         if 1==0
 execcmd_waitfocus0
