@@ -112,7 +112,7 @@ rem disk/tape images
         nedotrd test.trd -a %releasedir%/bin/playtap.com
         nedotrd test.trd -a %releasedir%/bin/dmm.com
         nedotrd test.trd -a %releasedir%/bin/nmisvc.com
-        nedotrd test.trd -a %releasedir%/bin/tazres.bin
+        rem nedotrd test.trd -a %releasedir%/bin/tazres.bin
 
 rem Pascal compiler
         nedotrd test.trd -a %releasedir%/bin/tp.com
