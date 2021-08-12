@@ -54,10 +54,6 @@ Debugger0
         jp Debugger_Redraw
 
 DebuggerQuit
-        ld a,(oldcurvideomode)
-        call setvideomode
-        ld a,(oldcurscr7ffd)
-        call setscreen
 ;TODO wait key unpress
         ret
 

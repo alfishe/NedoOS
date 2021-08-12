@@ -974,6 +974,10 @@ IMDEBUGwasdd
 IMDEBUGwasddq
 
         call Debugger
+        ld a,(oldcurvideomode)
+        call setvideomode
+        ld a,(oldcurscr7ffd)
+        call setscreen
 
 ;берём регистры из переменных (уже установлено "был префикс #dd")
         ld ix,(curix)
