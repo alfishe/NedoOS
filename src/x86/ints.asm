@@ -41,17 +41,31 @@ printstring
 ;CX = Number of characters in string
 ;DH = Row, DL = Column
 ;ES:BP = Offset of string
+        ;jr $
+       push de
+       push iy
        ld a,(_BL)
        ld e,a
        OS_SETCOLOR
        ld hl,(_DX)
-       ld e,h
-       ld d,l
+       ;ld e,h
+       ;ld d,l
+       ex de,hl
        OS_SETXY
        ld bc,(_CX)
-       
-       
-       
+       ld hl,(_BP)
+printstringbp0
+       push bc
+       push hl
+       getmemES
+;a=char
+       PRCHAR
+       pop hl
+       pop bc
+       cpi
+       jp pe,printstringbp0
+       pop iy
+       pop de
        ret;_Loop_
 
 INT10
