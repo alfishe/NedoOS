@@ -41,7 +41,6 @@ printstring
 ;CX = Number of characters in string
 ;DH = Row, DL = Column
 ;ES:BP = Offset of string
-        ;jr $
        push de
        push iy
        ld a,(_BL)
@@ -236,26 +235,28 @@ prefetchedkey=$+1
         pop iy
         pop de
 INT_inputal_a
-	ld (_AL),a
-         ld c,1
+	;ld (_AL),a
+         ld bc,0x0100
          cp key_esc
          jr z,INT_inputal_a_scancodeq
-         ld c,0x4b
+         ld b,0x4b
          cp key_left
          jr z,INT_inputal_a_scancodeq
-         ld c,0x4d
+         ld b,0x4d
          cp key_right
          jr z,INT_inputal_a_scancodeq
-         ld c,0x48
+         ld b,0x48
          cp key_up
          jr z,INT_inputal_a_scancodeq
-         ld c,0x50
+         ld b,0x50
          cp key_down
          jr z,INT_inputal_a_scancodeq
+        ld b,c;0
          ld c,a
 INT_inputal_a_scancodeq
-         ld a,c
-	 ld (_AH),a ;scancode for pillman
+         ;ld a,c
+	 ;ld (_AH),a ;scancode for pillman
+         ld (_AX),bc
         xor a
         ld (prefetchedkey),a
 ;INT16q

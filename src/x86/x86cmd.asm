@@ -101,6 +101,8 @@ EXTer
        jp z,JZrel16
        cp 0x85
        jp z,JNZrel16
+      cp 0x88
+      jp z,JSrel16 ;pitman
        cp 0xaf
        jr z,IMULr1r2
        cp 0xda
@@ -159,7 +161,8 @@ MOVZXmem
         rra
         and 7*2
         ld l,a
-       _PUTr16Loop_
+        ld h,_AX/256
+       _PUTr16Loop_AisL
        
 CMOVNZer
 ;CMOVNZ ax,cx - Conditional Move - not zero/not equal (ZF=0)
@@ -202,6 +205,13 @@ RDTSCer
         ld (_AX),hl
        _Loop_
 
+JSrel16
+	ex af,af' ;'
+	jp m,JRrel16y
+	ex af,af' ;'
+        next
+        next
+       _Loop_ 
 JCrel16
 	ex af,af' ;'
 	jr c,JRrel16y
