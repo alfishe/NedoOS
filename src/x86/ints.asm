@@ -109,6 +109,10 @@ INT21
         ret z;jr z,intlooper ;TODO allocate (return ax = segment)
         cp 0x06
         ret z ;TODO 06h	Direct console I/O (for blaze0)
+        cp 0x25
+        ret z ;TODO for pitman
+        cp 0x35
+        ret z ;TODO for pitman
 ;TODO for lander:
 ;        mov     ax,ds                   ;deallocate all but 128k mem
 ;        mov     es,ax
@@ -236,10 +240,10 @@ prefetchedkey=$+1
         pop de
 INT_inputal_a
 	;ld (_AL),a
-         ld bc,0x0100
+         ld bc,0x011b ;1b for pitman, 01 for pillman?
          cp key_esc
          jr z,INT_inputal_a_scancodeq
-         ld b,0x4b
+         ld bc,0x4b00
          cp key_left
          jr z,INT_inputal_a_scancodeq
          ld b,0x4d
