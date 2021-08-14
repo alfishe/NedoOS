@@ -1303,7 +1303,7 @@ GRP2rm8i8
 ;a=MD011R/M: rcr r/m
 ;a=MD100R/M: shl r/m
 ;a=MD101R/M: shr r/m
-;a=MD110R/M: ??? r/m
+;a=MD110R/M: ??? r/m <-- shl
 ;a=MD111R/M: sar r/m
         cp 0b11000000
         jr c,GRP2rmmem8i8
@@ -1353,7 +1353,7 @@ GRP2r8i8q
         ld (hl),c
        _Loop_
 SHLr8i8
-        call SHRci8
+        call SHLci8
         ld (hl),c
        _Loop_
 GRP2rmmem8i8
@@ -1951,7 +1951,7 @@ GRP2rm16cl
 ;a=MD011R/M: rcr r/m,cl
 ;a=MD100R/M: shl r/m,cl
 ;a=MD101R/M: shr r/m,cl
-;a=MD110R/M: ???
+;a=MD110R/M: ??? <-- shl
 ;a=MD111R/M: sar r/m,cl
         cp 0b11000000
         jp c,GRP2rmmem16cl

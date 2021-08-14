@@ -45,7 +45,16 @@ printstring
        push de
        push iy
        ld a,(_BL)
-       ld e,a
+       ld e,a ;%PpppIiii
+      rra
+      xor e
+      and 0x38
+      xor e
+      and 0xbf ;%P0pppiii
+      bit 3,e
+      jr z,$+4
+      or 0x40
+      ld e,a ;%PIpppiii
        OS_SETCOLOR
        ld hl,(_DX)
        ;ld e,h
@@ -58,12 +67,14 @@ printstringbp0
        push bc
        push hl
        getmemES
+       ;ld a,'@'
 ;a=char
        PRCHAR
        pop hl
        pop bc
        cpi
        jp pe,printstringbp0
+      ;ld (_BP),hl ;так хуже в pitman
        pop iy
        pop de
        ret;_Loop_
@@ -143,7 +154,7 @@ INT21
        jr $
 INT_printstringdx
 ;TODO
-
+        ;jr $
        ret;_Loop_
 
 INT_setgfx
