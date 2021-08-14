@@ -1112,6 +1112,8 @@ REPNZer
 	jp z,REPSCASBer
 	;cp 0xaf
 	;jp z,REPSCASWer
+       cp 0x6e
+       jp z,NOPer ;TODO rep insw for lkccmini (настройка палитры, порт dx=0x03c9 https://bochs.sourceforge.io/techspec/PORTS.LST)
 	jr $;jp PANIC
 
 REPMOVSWer_scr

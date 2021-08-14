@@ -108,20 +108,20 @@ MAINCOMS
 ;#6x
         DCOM PUSHAer
         DCOM POPAer
-        DCOM PANIC ;BOUNDr16m
+        DCOM PANIC ;BOUNDr16m ;for basic.x86, ll? TODO
         DCOM PANIC ;ARPLrmr16 ;for cgadots TODO;Compares the RPL fields of two segment selectors. The first operand (the destination operand) contains one segment selector and the second operand (source operand) contains the other. (The RPL field is located in bits 0 and 1 of each operand.) If the RPL field of the destination operand is less than the RPL field of the source operand, the ZF flag is set and the RPL field of the destination operand is increased to match that of the source operand. Otherwise, the ZF flag is cleared and no change is made to the destination operand. (The destination operand can be a word register or a memory location; the source operand must be a word register.)
         DCOM FSer
         DCOM GSer
-        DCOM OPSIZEr ;???for lodsd
+        DCOM OPSIZEr ;???for lodsd (TODO может быть даже с repnz - blue)
         DCOM PANIC ;rgsize
         DCOM PUSHi16
         DCOM IMULr16rmi16
         DCOM PUSHi8
         DCOM IMULr16rmi8
 	DCOM PANIC ;INSBer
-	DCOM PANIC ;INSWer
+	DCOM PANIC ;INSWer (TODO rep insw for lkccmini)
 	DCOM PANIC ;OUTSBer
-	DCOM PANIC ;OUTSWer
+	DCOM PANIC ;OUTSWer (TODO for firefighter)
 ;#7x
         DCOM JOer
         DCOM JNOer
@@ -222,7 +222,7 @@ MAINCOMS
         DCOM RETFer
         DCOM PANIC ;INT3 ;TODO for qloth_
         DCOM INTi8
-        DCOM PANIC ;INTOer
+        DCOM PANIC ;INTOer ;TODO for mips
         DCOM PANIC ;IRETer
 ;#Dx
         DCOM GRP2rm81 ;rolls
@@ -260,7 +260,7 @@ MAINCOMS
         DCOM OUTdxax
 ;#Fx
         DCOM PANIC ;LOCKer
-        DCOM PANIC ;INT1
+        DCOM PANIC ;INT1 ;TODO (atom)
         DCOM REPNZer ;используется для cmpsb
         DCOM REPZer ;используется также для movsb и т.д.
         DCOM HLTer

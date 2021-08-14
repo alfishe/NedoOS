@@ -2669,6 +2669,8 @@ GRP48mem
 	jr z,INCrmmem8
 	cp 0b00001000
 	jp z,DECrmmem8
+;TODO fe 27 for blockage?
+        
 	jr $;PANIC
 
 INCr8

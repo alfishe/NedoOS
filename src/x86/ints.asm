@@ -70,10 +70,13 @@ INT10
         ret z ;TODO ;Write character only at cursor position	AH=0Ah	AL = Character, BH = Page Number, CX = Number of times to print character
         cp 0x0b
         ret z ;TODO for zaxon Set background/border color	AH=0Bh, BH = 00h	BL = Background/Border color (border only in text modes)
+        cp 0x10
+        ret z ;TODO for plutina AL = 1A  read color page state
        jr $
 
 INT21
         ld a,(_AH)
+;TODO 00h	Program terminate (plutina), с ожиданием клавиши
         cp 0x09
         jr z,INT_printstringdx
         cp 0x4a
