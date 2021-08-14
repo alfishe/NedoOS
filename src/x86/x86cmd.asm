@@ -74,6 +74,8 @@ EXTer
 ;0f 31 = rdtsc eax edx
 ;0f b6 d0 = movzx dx,al (move with zero-extend)
 ;0f b6 c2 = movzx ax,dl (move with zero-extend)
+;0f b6 06 87 0c = movzx ax,byte ptr [0c87] TODO for pitman
+;0f b6 9f 8e 0c = movzx bx,byte ptr [bx+0c8e] TODO for pitman
 ;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
 ;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;(for pixeltwn)
 ;0F 83 (A4 00) JNC rel16/32 Jump near if not below/above or equal/not carry (CF=0) ;(for pixeltwn)
@@ -999,11 +1001,18 @@ LOOPer
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
-JCXZer ;jump if CX != 0
+;jump if CX != 0
 	ld hl,(_CX)
 	ld a,h
 	or l
 	JR nz,JRer
+        next
+       _Loop_ 
+JCXZer ;jump if CX == 0
+	ld hl,(_CX)
+	ld a,h
+	or l
+	JR z,JRer
         next
        _Loop_ 
 
@@ -1420,6 +1429,22 @@ STOSWer
 ;dec cx не надо!
        _LoopC
 
+INT_gettimer
+;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
+;_microtimer=$+1
+;        ld hl,0
+;        inc hl
+;        ld (_microtimer),hl
+       ld hl,(timer)
+       srl h
+       rr l
+       srl h
+       rr l
+       ;srl h
+       ;rr l
+        ld (_DX),hl
+       _Loop_
+
 ;int 0x20 ;system
 ;int 0x16 ;ah=0: input key -> al
 ;int 0x10 ;ah=0x0e: print al (зачем bx=7?)
@@ -1442,36 +1467,35 @@ INTi8
        jr $
 intlooper
        _Loop_
-
-INT_gettimer
-;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
-;_microtimer=$+1
-;        ld hl,0
-;        inc hl
-;        ld (_microtimer),hl
-       ld hl,(timer)
-       srl h
-       rr l
-       srl h
-       rr l
-       ;srl h
-       ;rr l
-        ld (_DX),hl
+printstring
+;TODO AL = Write mode
+;TODO BH = Page Number
+;BL = Color
+;CX = Number of characters in string
+;DH = Row, DL = Column
+;ES:BP = Offset of string
        _Loop_
 
 INT10
         ld a,(_AH)
         or a
         jr z,INT_setgfx
+        cp 0x13
+        jp z,printstring
         cp 0x0e
         jr z,INT_printal
+        cp 0x01
+        jr z,intlooper ;TODO disable caret
        jr $
 
 INT21
         ld a,(_AH)
         cp 0x09
         jr z,INT_printstringdx
-
+        cp 0x4a
+        jr z,intlooper ;TODO deallocate
+        cp 0x48
+        jr z,intlooper ;TODO allocate (return ax = segment)
 ;        mov     ax,ds                   ;deallocate all but 128k mem
 ;        mov     es,ax
 ;        mov     ah,4Ah
@@ -1519,8 +1543,12 @@ INT_printstringdx
 
 INT_setgfx
        ld a,(_AL)
+       ;cp 0x03
+       ;jr z,INT_setgfxq ;TODO setgfx textmode
+       cp 0x04 ;CGA 320x200x4
+       jr z,INT_setgfxCGA
        cp 0x13
-       jr nz,INT_setgfxq
+       jr nz,INT_setgfxq ;TODO setgfx textmode
         ld hl,_PUTscreen_do_patch_vgadata
         ld (_PUTscreen_do_patch),hl
         push de
@@ -1530,6 +1558,9 @@ INT_setgfx
         pop iy
         pop de
 INT_setgfxq
+       _Loop_
+INT_setgfxCGA
+
        _Loop_
 
 INT_printal

@@ -711,11 +711,11 @@ jpiyer
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 1 ;debug
-       ;ld a,d
-       ;sub 0x40+((STARTPC/256)&0x3f);0x7c
-       ;cp 0x3f
-       ;jr nc,$
+       if 0 ;debug
+       ld a,d
+       sub 0x40+((STARTPC/256)&0x3f);0x7c
+       cp 0x0a
+       jr nc,$
        ;ld a,(_SP)
        ;rra
        ;jr c,$
