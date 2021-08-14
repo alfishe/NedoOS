@@ -1,3 +1,10 @@
+     macro DISABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+;TODO!
+     endm
+     macro ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+;TODO!
+     endm
+
 INT_gettimer
 ;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
 ;_microtimer=$+1
@@ -42,6 +49,7 @@ printstring
 ;DH = Row, DL = Column
 ;ES:BP = Offset of string
        push de
+     DISABLE_IFF0
        push iy
        ld a,(_BL)
        ld e,a ;%PpppIiii
@@ -75,6 +83,7 @@ printstringbp0
        jp pe,printstringbp0
       ;ld (_BP),hl ;так хуже в pitman
        pop iy
+     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
        pop de
        ret;_Loop_
 
@@ -171,10 +180,12 @@ INT_setgfx
         ld hl,_PUTscreen_do_patch_vgadata
         ld (_PUTscreen_do_patch),hl
         push de
+     DISABLE_IFF0
         push iy
         ld e,0+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         pop iy
+     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
         pop de
 INT_setgfxq
        ret;_Loop_
@@ -186,10 +197,12 @@ INT_printal
         push de
         ex af,af' ;'
         push af
+     DISABLE_IFF0
         push iy
 	ld a,(_AL)
 	PRCHAR
         pop iy
+     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
         pop af
         ex af,af' ;'
         pop de
@@ -208,9 +221,11 @@ INT16
         or a
         jr nz,INT16havekey
         push de
+     DISABLE_IFF0
         push iy
         OS_GETKEY
         pop iy
+     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
         pop de
         ret nz;jr nz,INT16q ;no focus
 INT16havekey
@@ -228,6 +243,7 @@ prefetchedkey=$+1
         or a
         jr nz,INT_inputal_a
         push de
+     DISABLE_IFF0
         push iy
         YIELDGETKEYLOOP;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
@@ -237,6 +253,7 @@ prefetchedkey=$+1
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
 ;        Флаг Z - если 0(NZ), то отсутствует фокус.  
         pop iy
+     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
         pop de
 INT_inputal_a
 	;ld (_AL),a
