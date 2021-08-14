@@ -74,8 +74,8 @@ EXTer
 ;0f 31 = rdtsc eax edx
 ;0f b6 d0 = movzx dx,al (move with zero-extend)
 ;0f b6 c2 = movzx ax,dl (move with zero-extend)
-;0f b6 06 87 0c = movzx ax,byte ptr [0c87] TODO for pitman
-;0f b6 9f 8e 0c = movzx bx,byte ptr [bx+0c8e] TODO for pitman
+;0f b6 06 87 0c = movzx ax,byte ptr [0c87] for pitman
+;0f b6 9f 8e 0c = movzx bx,byte ptr [bx+0c8e] for pitman
 ;0f a8 .. TODO for 25frame
 ;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
 ;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;(for pixeltwn)
@@ -90,7 +90,7 @@ EXTer
         get
         next
        cp 0x31
-       jr z,RDTSCer
+       jp z,RDTSCer
        cp 0x45
        jr z,CMOVNZer
        cp 0x82
@@ -107,10 +107,37 @@ EXTer
        jr z,PMINUBer
        cp 0xb6
        jr nz,$
-;movzx
+;movzx r16,rm8
         get
         next
-;TODO modr/m
+        cp 0b11000000
+        jr c,MOVZXmem
+        ;jr $
+      if 1
+       ;ld h,a
+       sub 64
+        ld l,a
+        ld h,_AX/256
+        ld l,(hl) ;rm addr
+       ;ld a,h
+        ;ld h,_AX/256
+        ld c,(hl)
+        ld b,0 ;rm
+        rra
+        rra
+        and 7*2
+        ld l,a
+       _PUTr16Loop_
+        ;ld l,a
+        ;ld h,_AX/256
+        ;ld l,(hl) ;reg8 addr
+        ;ld c,(hl)
+        ;ld b,0 ;reg16
+       ;and 7
+       ;add a,a
+        ;ld l,a ;rm addr
+       ;_PUTr16Loop_
+      else
        cp 0xc2
        jr z,MOVZXaxdl
        cp 0xd0
@@ -119,6 +146,20 @@ EXTer
         ld h,0
         ld (_DX),hl
        _Loop_
+MOVZXaxdl
+        ld hl,(_DL)
+        ld h,0
+        ld (_AX),hl
+       _Loop_
+      endif
+MOVZXmem
+       ADDRm16_GETm8c_for_PUTm8
+        ld b,0 ;rm
+        rra
+        rra
+        and 7*2
+        ld l,a
+       _PUTr16Loop_
        
 CMOVNZer
 ;CMOVNZ ax,cx - Conditional Move - not zero/not equal (ZF=0)
@@ -141,13 +182,7 @@ IMULr1r2
         ld (_AX),de ;LSW
        pop de
        _Loop_
-       
-MOVZXaxdl
-        ld hl,(_DL)
-        ld h,0
-        ld (_AX),hl
-       _Loop_
-       
+
 PMINUBer
 ;не уверен, что такое поведение - TODO
         ld hl,(_AX)

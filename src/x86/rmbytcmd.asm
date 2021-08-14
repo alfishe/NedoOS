@@ -2305,7 +2305,7 @@ GRP38
 ;a=MD110R/M: div ax,r/m8
 ;a=MD111R/M: idiv ax,r/m8
         cp 0b11000000
-        jr c,GRP38mem
+        jp c,GRP38mem
        ADDRr8
        and 0b00111000
 	jr z,TESTr8i8
@@ -2319,8 +2319,8 @@ GRP38
 	jp z,IMULr8 ;for rogue "imul ah"
 	cp 0b00110000
 	jp z,DIVr8 ;for invaders "div cl"
-	;cp 0b00111000
-	;jp z,IDIVr8
+	cp 0b00111000
+	jp z,IDIVr8 ;for pitman
 	jr $;PANIC
 MULr8
 ;mul ah: ax=al*ah
@@ -2370,6 +2370,31 @@ DIVrmmem8
         ld (_AX),hl
        pop de
        _Loop_
+IDIVr8
+;IDIV AL,r/m8
+;знаковое деление AX на r/m8, частное помещается в AL, остаток от деления - в AH
+        ld c,(hl) ;reg
+IDIVrmmem8
+       push de
+        ld e,c ;reg
+        ld a,c
+        rla
+        sbc a,a
+        ld d,a
+        ;ld d,0
+	ld bc,(_AX)
+       ld a,b
+       rla
+       sbc a,a
+       ld h,a
+       ld l,a
+        ;ld hl,0
+	call DIV32SIGNED ;BC = HLBC/DE, HL = HLBC%DE
+        ld h,l ;остаток
+        ld l,c ;частное
+        ld (_AX),hl
+       pop de
+       _Loop_
 
 TESTr8i8
         ld c,(hl)
@@ -2394,8 +2419,8 @@ GRP38mem
 	jp z,IMULrmmem8
 	cp 0b00110000
 	jp z,DIVrmmem8
-	;cp 0b00111000
-	;jp z,IDIVrmmem8
+	cp 0b00111000
+	jp z,IDIVrmmem8
 	jr $;PANIC
 NOTrmmem8 ;no flags
         ld a,c
