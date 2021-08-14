@@ -76,6 +76,7 @@ EXTer
 ;0f b6 c2 = movzx ax,dl (move with zero-extend)
 ;0f b6 06 87 0c = movzx ax,byte ptr [0c87] TODO for pitman
 ;0f b6 9f 8e 0c = movzx bx,byte ptr [bx+0c8e] TODO for pitman
+;0f a8 .. TODO for 25frame
 ;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
 ;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;(for pixeltwn)
 ;0F 83 (A4 00) JNC rel16/32 Jump near if not below/above or equal/not carry (CF=0) ;(for pixeltwn)
@@ -106,8 +107,10 @@ EXTer
        jr z,PMINUBer
        cp 0xb6
        jr nz,$
+;movzx
         get
         next
+;TODO modr/m
        cp 0xc2
        jr z,MOVZXaxdl
        cp 0xd0
@@ -1429,226 +1432,17 @@ STOSWer
 ;dec cx не надо!
        _LoopC
 
-INT_gettimer
-;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
-;_microtimer=$+1
-;        ld hl,0
-;        inc hl
-;        ld (_microtimer),hl
-       ld hl,(timer)
-       srl h
-       rr l
-       srl h
-       rr l
-       ;srl h
-       ;rr l
-        ld (_DX),hl
-       _Loop_
-
-;int 0x20 ;system
-;int 0x16 ;ah=0: input key -> al
-;int 0x10 ;ah=0x0e: print al (зачем bx=7?)
-;int 0x10 ;ah=0x00: set gfx mode = al (0x13)
 INTi8
+       ld a,(curpg4000) ;ok
+       push af
 	get
 	next
-	cp 0x10
-	jr z,INT10
-	cp 0x16
-	jr z,INT16
-	cp 0x1a
-	jr z,INT_gettimer
-        cp 0x21
-        jr z,INT21
-        cp 0x80
-        jr nc,intlooper ;костыль для megapole
-        cp 0x20
-        jp z,quiter
-       jr $
-intlooper
+       push af
+       ld a,(pgprog)
+       SETPG4000
+       pop af
+        call far_int
+       pop af
+       SETPG4000
        _Loop_
-printstring
-;TODO AL = Write mode
-;TODO BH = Page Number
-;BL = Color
-;CX = Number of characters in string
-;DH = Row, DL = Column
-;ES:BP = Offset of string
-       _Loop_
-
-INT10
-        ld a,(_AH)
-        or a
-        jr z,INT_setgfx
-        cp 0x13
-        jp z,printstring
-        cp 0x0e
-        jr z,INT_printal
-        cp 0x01
-        jr z,intlooper ;TODO disable caret
-       jr $
-
-INT21
-        ld a,(_AH)
-        cp 0x09
-        jr z,INT_printstringdx
-        cp 0x4a
-        jr z,intlooper ;TODO deallocate
-        cp 0x48
-        jr z,intlooper ;TODO allocate (return ax = segment)
-;        mov     ax,ds                   ;deallocate all but 128k mem
-;        mov     es,ax
-;        mov     ah,4Ah
-;        mov     bx,2000h ;size 128k
-;        int     21h
-
-;        mov     ah,35h                  ;get and save old int 09h vector
-;        mov     al,09h
-;        int     21h
-;        mov     word ptr old_int9[0],bx
-;        mov     word ptr old_int9[2],es
-
-;set new int 09h vector
-;        push    cs
-;        pop     ds
-;        mov     dx,offset key_int
-;        mov     ah,25h
-;        mov     al,09h
-;        int     21h
-
-;        mov     ah,48h                  ;allocate       starbuf
-;        mov     bx,1000h                ;64k
-;        int     21h
-;        mov     es,ax
-
-;        mov     ah,0                    ;init random seed
-;        int     1Ah                     ; to timer
-;        mov     word ptr r3[0],dx       ;
-;        mov     word ptr r3[2],cx       ;
-
-
-;        mov     ah,2                    ;scoreboard
-;        mov     bh,0
-;        mov     dh,24
-;        mov     dl,0
-;        int     10h ;???
-;        mov     dx,offset fuelS
-;        mov     ah,9
-;        int     21h
-
-       jr $
-INT_printstringdx
-;TODO
-       _Loop_
-
-INT_setgfx
-       ld a,(_AL)
-       ;cp 0x03
-       ;jr z,INT_setgfxq ;TODO setgfx textmode
-       cp 0x04 ;CGA 320x200x4
-       jr z,INT_setgfxCGA
-       cp 0x13
-       jr nz,INT_setgfxq ;TODO setgfx textmode
-        ld hl,_PUTscreen_do_patch_vgadata
-        ld (_PUTscreen_do_patch),hl
-        push de
-        push iy
-        ld e,0+0x80 ;keep
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        pop iy
-        pop de
-INT_setgfxq
-       _Loop_
-INT_setgfxCGA
-
-       _Loop_
-
-INT_printal
-        push de
-        ex af,af' ;'
-        push af
-        push iy
-	ld a,(_AL)
-	PRCHAR
-        pop iy
-        pop af
-        ex af,af' ;'
-        pop de
-       _Loop_
-
-INT16
-        ;mov ah,0x01     ; Any key pressed?
-        ;int 0x16
-        ;jz fb26         ; No, go to main loop
-       ld a,(_AH)
-       or a
-       jr z,INT_inputal
-       dec a
-       jr nz,INT_getkeyflags
-        ld a,(prefetchedkey)
-        or a
-        jr nz,INT16havekey
-        push de
-        push iy
-        OS_GETKEY
-        pop iy
-        pop de
-        jr nz,INT16q ;no focus
-INT16havekey
-       ;ld a,0x48
-        ld (prefetchedkey),a
-        ld b,a
-        ex af,af' ;'
-        inc b
-        dec b
-        ex af,af' ;'
-       _Loop_
-INT_inputal
-prefetchedkey=$+1
-        ld a,0
-        or a
-        jr nz,INT_inputal_a
-        push de
-        push iy
-        YIELDGETKEYLOOP;OS_GETKEY
-;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
-;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
-;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
-;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
-;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
-;        Флаг Z - если 0(NZ), то отсутствует фокус.  
-        pop iy
-        pop de
-INT_inputal_a
-	ld (_AL),a
-         ld c,1
-         cp key_esc
-         jr z,INT_inputal_a_scancodeq
-         ld c,0x4b
-         cp key_left
-         jr z,INT_inputal_a_scancodeq
-         ld c,0x4d
-         cp key_right
-         jr z,INT_inputal_a_scancodeq
-         ld c,0x48
-         cp key_up
-         jr z,INT_inputal_a_scancodeq
-         ld c,0x50
-         cp key_down
-         jr z,INT_inputal_a_scancodeq
-         ld c,a
-INT_inputal_a_scancodeq
-         ld a,c
-	 ld (_AH),a ;scancode for pillman
-        xor a
-        ld (prefetchedkey),a
-INT16q
-       _Loop_
-INT_getkeyflags
-;16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
-        ld a,0xfe
-        in a,(0xfe)
-        cpl
-        and 0x1f
-	ld (_AL),a
-       _Loop_
+        

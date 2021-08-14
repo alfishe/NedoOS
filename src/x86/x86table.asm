@@ -109,7 +109,7 @@ MAINCOMS
         DCOM PUSHAer
         DCOM POPAer
         DCOM PANIC ;BOUNDr16m
-        DCOM PANIC ;ARPLrmr16
+        DCOM PANIC ;ARPLrmr16 ;for cgadots TODO;Compares the RPL fields of two segment selectors. The first operand (the destination operand) contains one segment selector and the second operand (source operand) contains the other. (The RPL field is located in bits 0 and 1 of each operand.) If the RPL field of the destination operand is less than the RPL field of the source operand, the ZF flag is set and the RPL field of the destination operand is increased to match that of the source operand. Otherwise, the ZF flag is cleared and no change is made to the destination operand. (The destination operand can be a word register or a memory location; the source operand must be a word register.)
         DCOM FSer
         DCOM GSer
         DCOM OPSIZEr ;???for lodsd
@@ -168,7 +168,7 @@ MAINCOMS
         DCOM CBWer
         DCOM CWDer
         DCOM CALLptr1616
-        DCOM PANIC ;FWAITer
+        DCOM PANIC ;FWAITer ;TODO for ladybug
         DCOM PUSHFer
         DCOM POPFer
         DCOM SAHFer
@@ -208,8 +208,8 @@ MAINCOMS
         DCOM MOVsii16
         DCOM MOVdii16
 ;#Cx
-        DCOM GRP2rm8i8 ;rolls?
-        DCOM GRP2rm16i8 ;rolls?
+        DCOM GRP2rm8i8 ;rolls
+        DCOM GRP2rm16i8 ;rolls
         DCOM RETi16 ;RET и потом SP += i16
         DCOM RETer
         DCOM LESr16mem
@@ -220,7 +220,7 @@ MAINCOMS
         DCOM PANIC ;LEAVEer
         DCOM PANIC ;RETFi16 ;RETF и потом SP += i16
         DCOM RETFer
-        DCOM PANIC ;INT3
+        DCOM PANIC ;INT3 ;TODO for qloth_
         DCOM INTi8
         DCOM PANIC ;INTOer
         DCOM PANIC ;IRETer
