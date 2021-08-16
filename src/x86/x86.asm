@@ -188,9 +188,23 @@ on_int
         ex af,af' ;'
         push af 
         call oldimer
-	ld hl,(timer)
+				;(65536 / 50) * 18,206 Hz
+				;23862,96832 = $5D37
+timer_frq = $+1
+        ld de,0x5D37
+timer_cnt = $+1
+        ld hl,0x0000
+	add hl,de
+	ld (timer_cnt),hl
+	jr nc,timer_inc_skip
+timer = $+1
+        ld hl,0x0000
 	inc hl
 	ld (timer),hl
+timer_inc_skip
+	;ld hl,(timer)
+	;inc hl
+	;ld (timer),hl
        ld a,0xf7
        in a,(0xfe)
        and 0b10101
@@ -739,8 +753,8 @@ _DIRECTION
 iff1	db 0
 iff2	db 0 ;TODO unneeded?
 
-timer
-	dw 0
+;timer
+;	dw 0
         
 ;000... -> 000 ;al
 ;001... -> 010 ;cl
