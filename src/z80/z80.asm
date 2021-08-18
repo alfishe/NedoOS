@@ -2,6 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 PROFI=512;1024
+PENT512=1;0 ;если включить, то может неправильно работать память Profi
 	if PROFI=512
 PGATTR0=0x18
 PGATTR1=0x1a
@@ -307,6 +308,8 @@ Jumpin
         ld (immode),a
 
         LD IY,EMUCHECKQ
+       ld a,55+128 ;or a
+       ld (debugon),a
        ;EMUDATABUS ;ШД0..2 на бордюр
        ;EMUADDRBUS ;ША8..10 ма бордюр
        ;EMUCHECKPOINT ;проверка адреса или условия
@@ -321,6 +324,8 @@ Quit
         QUIT
 
 Loadsnapshot
+       ld a,55 ;scf
+       ld (debugon),a
         ld sp,STACK
 
         ld de,snapshotram3name
@@ -401,7 +406,21 @@ Loadsnapshot
         exx
         
         ld de,0x07a2
+    if 0;1 ;debug
+      IF margins
+        CALCiypgcom
+      endif
+        ld a,0xdd
+        ld (oldprefix),a ;ix содержит ix
+        xor a
+        ld (immode),a
+        ld hl,EMUCHECKQ
+        LD (keepemuchecker),hl;IY
+       ;jr $
+       jp IMDEBUG
+    else
         jp Jumpin
+    endif
 
 ;oldpc
 ;        dw 0
@@ -898,7 +917,7 @@ IMERnofocus
         ex af,af' ;'
 
 debugon=$
-        or a
+        scf;or a ;для нормального старта пока пропускаем все активности до JumpIn
         jr c,imerskipdebug
 
 ;здесь опрос клавиш эмулятора

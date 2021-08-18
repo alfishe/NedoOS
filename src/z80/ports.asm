@@ -21,6 +21,8 @@ eoutFD
 eoutFFFD
        BIT 5,B
        jr z,eoutDFFD
+       BIT 1,B
+       jr z,eoutDFFD ;ATM1
         LD BC,#FFFD
         OUT (C),A
         RET 
@@ -38,10 +40,15 @@ eout7FFD
 ;TODO block if bit 5 was "1" in (_fd)
         LD (_fd),A
         LD C,A
-        AND #C7
-        and 7
-        ld l,a
+     if PENT512
+      rlca
+      rlca
+      and 3
+      ld hl,_dffd
+      or (hl)
+     else
        ld a,(_dffd)
+     endif
 	if PROFI==512
        and 3 ;Profi 512K
 	else
@@ -50,7 +57,9 @@ eout7FFD
        add a,a
        add a,a
        add a,a
-       add a,l
+       xor c
+       and 0xf8
+       xor c
        ld (_logicpg),a
        ld l,a
         ld h,temulpgs/256
