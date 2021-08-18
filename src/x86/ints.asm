@@ -39,7 +39,13 @@ far_int
         
         cp 0x11
         ret z ;TODO for shamus
-       jr $
+
+ if debug_stop = 0
+ ret
+ else
+ jr $
+ endif
+ 
 ;intlooper
 ;       _Loop_
 printstring
@@ -107,7 +113,11 @@ INT10
         cp 0x10
         ret z ;TODO for plutina AL = 1A  read color page state
         
-       jr $
+ if debug_stop = 0
+ ret
+ else
+ jr $
+ endif
 
 INT21
         ld a,(_AH)
@@ -165,7 +175,12 @@ INT21
 ;        mov     ah,9
 ;        int     21h
 
-       jr $
+ if debug_stop = 0
+ ret
+ else
+ jr $
+ endif
+ 
 INT_printstringdx
 ;TODO
         ;jr $

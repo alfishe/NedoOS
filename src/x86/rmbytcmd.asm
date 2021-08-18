@@ -2321,7 +2321,13 @@ GRP38
 	jp z,DIVr8 ;for invaders "div cl"
 	cp 0b00111000
 	jp z,IDIVr8 ;for pitman
-	jr $;PANIC
+
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
+ 
 MULr8
 ;mul ah: ax=al*ah
         ld c,(hl) ;reg
@@ -2421,7 +2427,13 @@ GRP38mem
 	jp z,DIVrmmem8
 	cp 0b00111000
 	jp z,IDIVrmmem8
-	jr $;PANIC
+	
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
+ 
 NOTrmmem8 ;no flags
         ld a,c
         cpl
@@ -2464,7 +2476,13 @@ GRP316
 	jp z,DIVr16
 	cp 0b00111000
 	jp z,IDIVr16
-	jr $;PANIC
+	
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
+ 
 TESTr16i16
         GETr16
 TESTrmmemi16
@@ -2494,7 +2512,12 @@ GRP316mem
 	jp z,DIVrmmem16
 	cp 0b00111000
 	jp z,IDIVrmmem16
-	jr $;PANIC
+
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
 
 ;The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. The OF, SF, ZF, AF, and PF flags are set according to the result
         macro NEGBCWITHFLAGS
@@ -2687,7 +2710,13 @@ GRP48
 	jr z,INCr8
 	cp 0b00001000
 	jp z,DECr8
-	jr $;PANIC
+
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
+ 
 GRP48mem
        ADDRm16_GETm8c_for_PUTm8
        and 0b00111000
@@ -2696,7 +2725,11 @@ GRP48mem
 	jp z,DECrmmem8
 ;TODO fe 27 for blockage?
         
-	jr $;PANIC
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
 
 INCr8
         ex af,af' ;' ;remember CY (keep)
@@ -2765,7 +2798,13 @@ GRP416
 	;jp z,JMPFm1616
 	;cp 0b00110000
 	;jp z,PUSHr16
-	jr nz,$;PANIC
+	
+ if debug_stop = 0
+ jp nz,PANIC
+ else
+ jr nz,$
+ endif
+ 
 INCr16
        push hl
         GETr16
@@ -2799,7 +2838,13 @@ GRP416mem
 	jr z,JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
 	cp 0b00110000
 	;jr z,PUSHrmmem16
-	jr nz,$;PANIC
+	
+ if debug_stop = 0
+ jp nz,PANIC
+ else
+ jr nz,$
+ endif
+ 
 PUSHrmmem16
         putmemspBC
        _LoopC

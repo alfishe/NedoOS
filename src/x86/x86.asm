@@ -1,6 +1,10 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
+
+
+	include "x86.ini"
+
 STACK=0x4000
 
        if 0
@@ -104,7 +108,12 @@ oldpc
        ld a,d
        sub 0x40+((STARTPC/256)&0x3f);0x7c
        cp 0x0a
-       jr nc,$
+       
+ if debug_stop = 0
+ jp nc,PANIC
+ else
+ jr nc,$
+ endif
        ;ld a,(_SP)
        ;rra
        ;jr c,$

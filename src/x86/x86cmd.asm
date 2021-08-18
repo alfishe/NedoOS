@@ -1,5 +1,9 @@
 PANIC
-	jr $
+ if debug_stop = 0
+ _Loop_
+ else
+ jr $
+ endif
 
 incdec2si_hl
 incdec2di_hl
@@ -1165,7 +1169,12 @@ REPNZer
 	;jp z,REPSCASWer
        cp 0x6e
        jp z,NOPer ;TODO rep insw for lkccmini (настройка палитры, порт dx=0x03c9 https://bochs.sourceforge.io/techspec/PORTS.LST)
-	jr $;jp PANIC
+
+ if debug_stop = 0
+ jp PANIC
+ else
+ jr $
+ endif
 
 REPMOVSWer_scr
 	ld hl,(_DI)
