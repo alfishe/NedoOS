@@ -34,7 +34,7 @@ tnvcmds
         db key_end
 	db key_F10,key_F1,key_F2,key_F3,key_F4,key_F5,key_F6,key_F7,key_F8,key_F9,key_ins
 nnvcmds=$-tnvcmds
-	dw editcmd_space,editcmd_typeword,editcmd_F8,editcmd_F7,editcmd_F6,editcmd_F5,editcmd_F4,editcmd_F3,editcmd_F2,editcmd_F1,editcmd_quit
+	dw editcmd_space,editcmd_menu,editcmd_F8,editcmd_F7,editcmd_F6,editcmd_F5,editcmd_F4,editcmd_F3,editcmd_F2,editcmd_F1,editcmd_quit
         dw editcmd_End
         dw editcmd_Home
         dw editcmd_invfiles

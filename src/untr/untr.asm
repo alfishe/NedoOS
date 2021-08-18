@@ -1192,6 +1192,7 @@ findsampleloop0
         ret
 
         include "view.asm"
+        include "scroll.asm"
         include "save.asm"
 
         macro tn msk,semi,vol,frq,noi

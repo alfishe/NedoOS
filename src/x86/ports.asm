@@ -67,25 +67,34 @@ IN_bc_to_bc
         sbc hl,bc
         jr nz,IN_skip
 ;in al,0x40          ; Read timer counter 0 
-	ld bc,(timer)
+      if 1
+        ld a,0
+        inc a
+        ld ($-2),a
+        ld c,a
+        ld b,a
+      else
+	ld bc,(timer_cnt);(timer)
        ;srl b
        ;rr c
        ;srl b
        ;rr c
-       ld b,c
+       ;ld b,c
        ld a,r
+       add a,a
        add a,c
        ld c,a
+       endif
        ;ld bc,0xffff
         ret
 IN_skip
         ld bc,0xffff
         ret
 
-;0x03da - порт видеоконтроллера. проверяется на равенство 8 - во время КСИ? (pixeltown)
+;0x03da - порт видеоконтроллера. проверяется на равенство 8 - во время КСИ? (pixeltown) и на and 1 (cgademo)
 IN_03da
         ld a,r
-        and 8
+        and 8+1
         ld c,a
         ld b,0
         ret

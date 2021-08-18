@@ -36,6 +36,9 @@ far_int
         ret nc;jr nc,intlooper ;костыль для megapole
         cp 0x20
         jp z,quiter
+        
+        cp 0x11
+        ret z ;TODO for shamus
        jr $
 ;intlooper
 ;       _Loop_
@@ -92,7 +95,7 @@ INT10
         cp 0x13
         jp z,printstring
         cp 0x0e
-        jr z,INT_printal
+        jp z,INT_printal
         cp 0x01
         ret z;jr z,intlooper ;TODO disable caret
         cp 0x02
@@ -103,6 +106,7 @@ INT10
         ret z ;TODO for zaxon Set background/border color	AH=0Bh, BH = 00h	BL = Background/Border color (border only in text modes)
         cp 0x10
         ret z ;TODO for plutina AL = 1A  read color page state
+        
        jr $
 
 INT21
@@ -169,27 +173,181 @@ INT_printstringdx
 
 INT_setgfx
        ld a,(_AL)
-       ;cp 0x03
-       ;jr z,INT_setgfxq ;TODO setgfx textmode
+       cp 0x01 ;sorryass
+       jr z,INT_setgfxTEXT40
+       cp 0x07 ;shamus "please turn on the color display"
+       jr z,INT_setgfxTEXT40
        cp 0x04 ;CGA 320x200x4
        jr z,INT_setgfxCGA
        cp 0x13
-       jr nz,INT_setgfxq ;TODO setgfx textmode
-        ld hl,_PUTscreen_do_patch_vgadata
+       jr nz,INT_setgfxTEXT80
+        call setegamode
+;INT_setgfxq
+       ret;_Loop_
+INT_setgfxCGA
+        call setegamode
+        ld hl,_PUTscreen_do_patch_cgadata
         ld (_PUTscreen_do_patch),hl
+;TODO
+
+       ret;_Loop_
+INT_setgfxTEXT40
+        call settextmode
+        ld hl,_PUTscreen_do_patch_textmode40
+        ld (_PUTscreen_do_patch),hl ;TODO копировать всю процедуру?
+        ld a,0xf8
+        ld (PUTscreen_textmode_groupmask),a
+        ld a,0xf0
+        ld (PUTscreen_textmode_groupmask2),a
+        ld a,0x3f ;srl a
+        ld (PUTscreen_textmode_srlcode),a
+        ;jr $
+;       macro dbrrc3 data
+;        db (data>>3)+((data<<5)&0xe0)
+;       endm
+;ttextaddr
+;        dup 128
+;_=$&0xff
+;; |младший
+;;0GgggGGG -> 0GGGGggg:
+;_=((_&0x07)<<4)+((_&0x78)>>3)
+;       if _<125
+;_=_/5*8+(_-(_/5*5))+56
+;        dbrrc3 _
+;       else
+;        dbrrc3 255
+;       endif
+;        edup
+        ld hl,ttextaddr
+mktext40addr0
+        ld (hl),0;255
+        ld a,l
+        and 0x07
+       rrca
+       ;rrca
+       ;rrca
+       ;rrca
+       ;ld c,a
+        ;ld a,l
+        ;and 0x78
+        xor l
+        and 0x87
+        xor l
+       rrca
+       rrca
+       rrca
+       ;or c
+;a=_
+        cp 125
+        jr nc,mktext40addr_skip
+        ld b,-1
+       inc b
+       sub 5
+       jr nc,$-3
+        add a,5 ;a=(_ mod 5) ;b=_/5
+        sla b
+        sla b
+        add a,b
+        add a,b
+        add a,56 ;a=_/5*8+(_-(_/5*5))+56
+        rrca
+        rrca
+        rrca
+        ld (hl),a
+mktext40addr_skip
+        inc l
+        jp p,mktext40addr0
+        ret
+INT_setgfxTEXT80
+        call settextmode
+        ld a,0xf0
+        ld (PUTscreen_textmode_groupmask),a
+        ld a,0xe0
+        ld (PUTscreen_textmode_groupmask2),a
+        ld a,0x38 ;srl b
+        ld (PUTscreen_textmode_srlcode),a
+;       macro dbrrc3 data
+;        db (data>>3)+((data<<5)&0xe0)
+;       endm
+;ttextaddr
+;        dup 128
+;_=$&0xff
+;;0gggGGGG -> 0GGGGggg:
+;_=((_&0x0f)<<3)+((_&0x70)>>4)
+;       if _<125
+;_=_/5*8+(_-(_/5*5))+56
+;        dbrrc3 _
+;       else
+;        dbrrc3 255
+;       endif
+;        edup
+        ld hl,ttextaddr
+mktextaddr0
+        ld (hl),255
+        ld a,l
+        and 0x70
+        rlca
+        xor l
+        and 0xf0
+        xor l
+       rlca
+       rlca
+       rlca
+;a=_
+        cp 125
+        jr nc,mktextaddr_skip
+        ld b,-1
+       inc b
+       sub 5
+       jr nc,$-3
+        add a,5 ;a=(_ mod 5) ;b=_/5
+        sla b
+        sla b
+        add a,b
+        add a,b
+        add a,56 ;a=_/5*8+(_-(_/5*5))+56
+        rrca
+        rrca
+        rrca
+        ld (hl),a
+mktextaddr_skip
+        inc l
+        jp p,mktextaddr0
+        ret
+
+setegamode
+        ld hl,_PUTscreen_do_patch_vgadata
+        ld (_PUTscreen_do_patch),hl ;TODO копировать всю процедуру?
         push de
+        ld e,0+0x80 ;EGA+keep
+        call setgfx
+        ld hl,wastrecolour
+        ld de,trecolour
+        ld bc,256
+        ldir
+        pop de
+        ret
+
+settextmode
+        ld hl,_PUTscreen_do_patch_textmode
+        ld (_PUTscreen_do_patch),hl ;TODO копировать всю процедуру?
+        push de
+        ld e,6+0x80 ;text+keep
+        call setgfx
+        ld hl,wast866toatm
+        ld de,trecolour
+        ld bc,256
+        ldir
+        pop de
+        ret
+
+setgfx
      DISABLE_IFF0
         push iy
-        ld e,0+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         pop iy
      ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
-        pop de
-INT_setgfxq
-       ret;_Loop_
-INT_setgfxCGA
-
-       ret;_Loop_
+        ret
 
 INT_printal
         push de
@@ -288,3 +446,72 @@ INT_getkeyflags
         and 0x1f
 	ld (_AL),a
        ret;_Loop_
+
+wast866toatm
+        incbin "../kernel/866toatm"
+
+       macro dbcol _0
+        db ((_0)&7)*9 + (((_0)&8)*0x18)
+       endm
+        
+       macro dbcol8 _0,_1,_2,_3,_4,_5,_6,_7
+        dbcol _0
+        dbcol _1
+        dbcol _2
+        dbcol _3
+        dbcol _4
+        dbcol _5
+        dbcol _6
+        dbcol _7
+       endm
+        
+       macro dbcol8i _0,_1,_2,_3,_4,_5,_6,_7
+        dbcol8 _0|0x08,_1|0x08,_2|0x08,_3|0x08,_4|0x08,_5|0x08,_6|0x08,_7|0x08
+       endm
+        
+wastrecolour ;TODO generate for given palette
+        dup 16
+        dbcol ($-wastrecolour)
+        edup
+;0x10
+        dbcol8 0,0,0,0,8,8,8,8
+        dbcol8 7,7,7,7,15,15,15,15
+;0x20
+        dbcol8 1,1,1,5,5,5,4,4
+        dbcol8 4,4,4,6,6,6,2,2
+        dbcol8 2,2,2,3,3,3,1,1
+;0x38
+        dbcol8i 1,1,1,5,5,5,4,4
+        dbcol8i 4,4,4,6,6,6,2,2
+        dbcol8i 2,2,2,3,3,3,1,1
+;0x50
+        dbcol8i 7,7,7,7,7,7,7,7
+        dbcol8i 7,7,7,7,7,7,7,7
+        dbcol8i 7,7,7,7,7,7,7,7
+;0x68
+        dbcol8 1,1,1,5,5,5,4,4
+        dbcol8 4,4,4,6,6,6,2,2
+        dbcol8 2,2,2,3,3,3,1,1
+;0x80
+       dup 6
+        dbcol8 8,8,8,8,8,8,8,8
+       edup
+;0xb0
+        ds 72,0x00
+;0xf8
+        ds 8,0
+
+        align 256
+tcga
+_y=0
+       dup 100
+_x=0
+       dup 5
+       dw 0xc000+(80*_y)+(8*_x)
+_x=_x+1
+       edup
+_y=_y+1
+       edup
+       dup 24
+        dw 0xfff8
+       edup

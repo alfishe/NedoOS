@@ -76,7 +76,7 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
         macro PGW2elpg0
         ;LD A,(HS_elpg)
 	ld a,(ix+PANEL.poipg)
-        SETPG32KLOW
+        SETPG8000
         endm
         
         macro PGW2elpg
@@ -88,13 +88,13 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
         ;jr z,$+5
         ;LD A,(HS_elpg+1)
 	ld a,(ix+PANEL.poipg)
-        SETPG32KLOW
+        SETPG8000
         endm
 
         macro PGW2strpg
         ld ($+4),a
         LD A,(HS_strpg)
-        SETPG32KLOW
+        SETPG8000
         endm
 
         macro PGW3elpg
@@ -106,13 +106,13 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
         ;jr z,$+5
         ;LD A,(HS_elpg+1)
 	ld a,(ix+PANEL.poipg)
-        SETPG32KHIGH
+        SETPGC000
         endm
 
         macro PGW3strpg
         ld ($+4),a
         LD A,(HS_strpg)
-        SETPG32KHIGH
+        SETPGC000
         endm
 
         org PROGSTART
@@ -364,7 +364,7 @@ prhint_color
         call nv_setcolor
         jr prhint0
 thint
-        db "{1}Drive { 2}Find  { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}InsNam{ 0}Quit  ",0
+        db "{1}Drive { 2}Find  { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}Menu  { 0}Quit  ",0
 
 readpanels_reprint
         call printhint
@@ -585,7 +585,7 @@ prdirfile_ix_decolor
         ldir
        else
         ld a,(fcb+FCB_EXTENTNUMBERLO)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filelinebuf
         ld bc,25*256+' '
@@ -778,7 +778,7 @@ loaddir0
         ;ld l,(ix+PANEL.curpgfcbpoi)
         ;ld h,(ix+PANEL.curpgfcbpoi+1)
         ;ld a,(hl)
-        ;SETPG32KHIGH
+        ;SETPGC000
 	ld a,e
 	and 31
 	add a,(ix+PANEL.pgadd)
@@ -880,7 +880,7 @@ loaddir_fcb_lnamepgpoi=$+1
         ld (0),a
 loaddir_fcb_lnameaddrpoi=$+2
         ld (0),de
-        SETPG32KHIGH
+        SETPGC000
         ld hl,filinfo+FILINFO_LNAME
         ld a,(hl)
         or a
@@ -1123,7 +1123,7 @@ editcmddirbackfind0
         ld e,(hl)
         inc hl
         ld d,(hl)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,filenametext
         call strcp
         pop hl
@@ -1376,7 +1376,7 @@ start_from_ext_l2
         
 editcmd_enter_runcmd
 ;run "cmd <command to run>"
-        OS_SETSYSDRV ;TODO каталог cmd
+        OS_SETSYSDRV ;директория cmd
         ld hl,cmd_filename
         call copy_to_fcb_filename
 
@@ -1498,7 +1498,7 @@ editcmd_enter_runfile_nocom
         ; ld hl,fcb_filename
         ; OS_PARSEFNAME ;de->hl
         
-        ; OS_SETSYSDRV ;TODO директория cmd
+        ; OS_SETSYSDRV ;директория cmd
         ; ld hl,cmdprompt
         ; jp loadandrun_waitpid
 
@@ -1533,7 +1533,7 @@ runfile_nocom_recodeext0
         inc hl
         inc de
         djnz runfile_nocom_recodeext0
-        OS_SETSYSDRV ;TODO директория nv
+        OS_SETSYSDRV ;директория nv
         ld de,fn_ext
         ;ld hl,ext_filename
         ;ld de,filenametext
@@ -1659,9 +1659,9 @@ hobetarunner=0x4100
         OS_SETGFX
 
         ld a,(user_scr0_low) ;ok
-	SETPG32KLOW
+	SETPG8000
         inc a ;ld a,#ff-0
-	SETPG32KHIGH
+	SETPGC000
 ;0x4000 : pgcode4000 ;(pg4 может запортиться от стека!!! причём не только этой задачи!!!)
 ;0x8000 : pg1
 ;0xc000 : pg0
@@ -1671,17 +1671,17 @@ hobetarunner=0x4100
         di
         ld a,(user_scr0_low) ;ok
 	sub 4-1 ;ld a,#ff-4 ;pgkillable
-	SETPG32KLOW
+	SETPG8000
         ld hl,0x4000
         ld de,0x8000
         ld bc,0x4000
         ldir ;copy pgcode4000 -> pg4
 
         ld a,(user_scr0_low) ;ok
-	SETPG32KLOW
+	SETPG8000
         ;ld a,(user_scr0_low) ;ok
 	sub 4-1 ;ld a,#ff-4 ;pgkillable
-	SETPG16K
+	SETPG4000
         ld hl,washobetarunner
         ld de,hobetarunner
         ld bc,hobetarunner_sz
@@ -1746,7 +1746,7 @@ loadandrun
 ;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         push de
         push hl
         ld hl,fcb_filename
@@ -1908,18 +1908,15 @@ editcmd_F4
         ld hl,editcmd_reprintall_noreaddir
         push hl
 
-        call makeprompt_filename
-
-        ;call runfile_findhandler ;find fcb_filename ext (spoiled) in "nv.ext"
-        ;ret nz ;jp nz,execcmd_error
-
-        ;ld de,cmdbuf
-        ;ld hl,fcb_filename
-        ;OS_PARSEFNAME ;de->hl
-
-        OS_SETSYSDRV ;TODO директория texted
-
         ld hl,texted_filename
+runprog_hl_withcurfile
+       push hl
+
+        call makeprompt_filename ;сам делает getfcbundercursor
+
+        OS_SETSYSDRV ;директория texted
+
+       pop hl;ld hl,texted_filename
         call copy_to_fcb_filename
 
         ;ld hl,cmdbuf
@@ -1930,11 +1927,20 @@ editcmd_F4
 
 editcmd_9
         call ifcmdnonempty_typedigit
-	;ld e,1
-	;OS_SETSCREEN
-	;YIELDGETKEYLOOP
-	;ld e,0
-	;OS_SETSCREEN
+editcmd_menu
+       if PRSTDIO
+        ld hl,editcmd_reprintall_noreaddir
+        push hl
+
+        ld hl,menu_filename
+        jr runprog_hl_withcurfile
+       else
+	ld e,1
+	OS_SETSCREEN
+	YIELDGETKEYLOOP
+	ld e,0
+	OS_SETSCREEN
+       endif
         ret
 
 editcmd_reprintall_keepcursor
@@ -1988,7 +1994,7 @@ editcmd_F6
 
         if 1==1
         ld a,(fcb+FCB_EXTENTNUMBERLO)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filenametext
         push hl
@@ -2107,7 +2113,7 @@ proc_del_file_batch
 	call cpmname_to_dotname
        else
         ld a,(fcb+FCB_EXTENTNUMBERLO)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filenametext
         ld bc,63*256+0
@@ -2287,7 +2293,7 @@ nv_copydir_add;=nv_batch_pushrecord
 	ld a,h
 	ld (savepg),a
 	ld a,(dirpg)
-	SETPG32KLOW
+	SETPG8000
 
 	ld hl,0x8000
 	ld bc,(dir_batch_pointer)
@@ -2319,7 +2325,7 @@ nv_batch_pushsrecordend
 	inc bc
 	ld (dir_batch_pointer),bc
 	ld a,(savepg)
-	SETPG32KLOW
+	SETPG8000
 	ret
 
 nv_batch_poprecord ;z=empty
@@ -2327,7 +2333,7 @@ nv_batch_poprecord ;z=empty
 	ld a,h
 	ld (savepg),a
 	ld a,(dirpg)
-	SETPG32KLOW
+	SETPG8000
 
 	ld hl,0x8000
 	ld bc,(dir_batch_pointer)
@@ -2357,7 +2363,7 @@ nv_batch_popsrecordend
 	or a ;NZ
 nv_batch_popsrecordq
 	ld a,(savepg)
-	SETPG32KLOW
+	SETPG8000
 	ret
 
 nv_batch
@@ -2475,7 +2481,7 @@ proceditcmd_copy_fcb
 	call cpmname_to_dotname
        else
         ld a,(fcb+FCB_EXTENTNUMBERLO)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filenametext
         ld bc,63*256+0
@@ -2916,6 +2922,8 @@ cmd_filename
         db "cmd     com"
 texted_filename
         db "texted  com"
+menu_filename
+        db "menu    com"
 
 filenametext ;for change dir, rename
         ds 64 ;max filename size+terminator

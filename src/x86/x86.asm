@@ -477,6 +477,78 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
        pop hl
         ret
 
+PUTscreen_cgadata
+        ld c,(hl) ;4 pixels
+        ;inc b ;(b=trecolour/256)
+;a=1..4*0x40
+
+;экран CGA = 80 байт на строку (8000 байт один слой)
+;экран ZXEGA = 40 байт на строку *4 слоя
+;чередование строк CGA (нечётные идут вторым слоем с +8192) - по таблице 64-пиксельных блоков? если берём одну половину CGA экрана, то это из 500 блоков вычисляем 1000 (или если ещё разделить на 4 части, то из 125 блоков вычисляем 250)
+;или придётся быстро делить на 80 и умножать на 40
+;или по большой таблице в страничке
+     if 1
+        ld b,l
+        ld a,h
+        rra
+        rr l
+        rra
+        rr l
+        rra
+        rr l
+       push af
+        and 0x03
+        add a,+(tcga|0xc000)/256
+        ld h,a
+        res 0,l
+        ld a,(pgprog)
+       push bc
+        SETPGC000
+        ;ld bc,tcga|0xc000
+        ;add hl,bc
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+       pop bc
+        rr b
+        jr nc,$+4
+        set 5,h
+        xor b
+        and 0xf8
+        xor b
+        ld l,a     
+       pop af
+       push bc
+        and 4 ;бывший bit 5,h
+        jr z,$+2+3+1
+        ld bc,40
+        add hl,bc
+     else
+        ld a,h
+        or 0xc0
+        ld h,a
+       sra h
+       rr l
+       jr c,$+4
+       res 5,h
+       res 4,h
+       push bc
+     endif
+        ld a,(user_scr0_low) ;ok
+        SETPGC000
+       pop bc
+     ld a,c;(bc)
+     and 0xf0
+     ld (hl),a    
+        ld a,(user_scr0_high) ;ok
+       push bc
+        SETPGC000
+       pop bc
+     ld a,c;(bc)
+     and 0x0f
+     ld (hl),a    
+        ret
+
 PUTscreen_logpgc_zxaddrhl_datamhl_do
 _PUTscreen_do_patch=$
 _PUTscreen_do_patch_vgadata=0x044e ;ld c,(hl):inc b
@@ -528,14 +600,15 @@ PUTscreen_rightpixel
      ld (hl),a    
         ret
 
+PUTscreen_textmode40
+_PUTscreen_do_patch_textmode40=256*(PUTscreen_textmode40-(_PUTscreen_do_patch+2))+0x18
+       bit 3,h
+       ret nz ;only for 40 pitch (sorryass)
 PUTscreen_textmode
+_PUTscreen_do_patch_textmode=256*(PUTscreen_textmode-(_PUTscreen_do_patch+2))+0x18
         ld c,(hl) ;colour
      ;inc b ;ld b,trecolour/256
 ;a=1..4*0x40
-        ;add a,h
-       ;cp 4096/256
-       ;ret nc
-        ;ld h,a
 ;hl=addr in screen=0..65535
 ;The VGA text buffer is located at physical memory address 0xB8000.
 ;25 строк по 80 слов: символ, атрибут (%FpppIiii - пересчитать в PIpppiii)
@@ -543,6 +616,10 @@ PUTscreen_textmode
        push bc
 ;получаем номер группы по 16 символов:
 ;hl=0000GGGG gggXXXxA
+
+;для 40 символов в строке группы по 8 символов:
+;hl=00000GGG GgggXXxA
+
         ;xor l
         ;and 0xe0
         ;xor h
@@ -552,21 +629,37 @@ PUTscreen_textmode
         ld a,l  ;gggXXXxA
         srl a
         xor h 
+PUTscreen_textmode_groupmask=$+1
         and 0xf0
-        xor h    ;0gggGGGG
+        xor h   ;0gggGGGG
+        
+;для 40 символов в строке:
+        ;ld a,l  ;GgggXXxA
+        ;srl a   ;0GgggXXx
+        ;xor h 
+        ;and 0xf8
+        ;xor h   ;0GgggGGG
+        
 ;пересчитываем в номер группы на АТМ textmode:
         ld b,ttextaddr/256
         ld c,a
         ld a,(bc) ;gggGGGgg
         ld h,a
+PUTscreen_textmode_srlcode=$+1
+       srl b ;srl a для 40 символов в строке (для 80 вообще не нужно)
         xor l
-        and 0xe0
+PUTscreen_textmode_groupmask2=$+1
+        and 0xe0 ;0xf0 для 40 символов в строке
         xor l
         ld l,a
         ld a,h
         and 0x1f
 ;пересчитываем в адрес группы на ATM textmode:
 ;hl=000GGGgg gggXXXxA ;+0x01c0 уже прибавлено к номеру группы как +56
+
+;для 40 символов в строке (группы по 8 символов):
+;hl=000GGGgg 0gggXXxA
+
          scf
          rra
         rr l
@@ -583,7 +676,7 @@ PUTscreen_textmode
         ld a,(user_scr0_high) ;ok
         SETPGC000
        pop bc
-       ld b,t866toatm/256
+       inc b ;ld b,t866toatm/256
        ld a,(bc)
         ld (hl),a
         ret
@@ -613,6 +706,8 @@ PUTscreen_attr
         ld (hl),a ;%pipppiii
         ret
 
+_PUTscreen_do_patch_cgadata=256*(PUTscreen_cgadata-(_PUTscreen_do_patch+2))+0x18
+
        display "--",$
 	include "rmbyte.asm"
        display "--",$
@@ -632,59 +727,10 @@ tpgs
         ds 256 ;%10765432
 tscreenpgs
         ds 256,tscreenpgs/256 ;%10765432 ;номер страницы в экране или tscreenpgs/256, если не экранная
-
+trecolour
 ;trecolour = tscreenpgs+256
-       macro dbcol _0
-        db ((_0)&7)*9 + (((_0)&8)*0x18)
-       endm
-        
-       macro dbcol8 _0,_1,_2,_3,_4,_5,_6,_7
-        dbcol _0
-        dbcol _1
-        dbcol _2
-        dbcol _3
-        dbcol _4
-        dbcol _5
-        dbcol _6
-        dbcol _7
-       endm
-        
-       macro dbcol8i _0,_1,_2,_3,_4,_5,_6,_7
-        dbcol8 _0|0x08,_1|0x08,_2|0x08,_3|0x08,_4|0x08,_5|0x08,_6|0x08,_7|0x08
-       endm
-        
-        align 256
-trecolour ;TODO generate for given palette
-        dup 16
-        dbcol $&0xff
-        edup
-;0x10
-        dbcol8 0,0,0,0,8,8,8,8
-        dbcol8 7,7,7,7,15,15,15,15
-;0x20
-        dbcol8 1,1,1,5,5,5,4,4
-        dbcol8 4,4,4,6,6,6,2,2
-        dbcol8 2,2,2,3,3,3,1,1
-;0x38
-        dbcol8i 1,1,1,5,5,5,4,4
-        dbcol8i 4,4,4,6,6,6,2,2
-        dbcol8i 2,2,2,3,3,3,1,1
-;0x50
-        dbcol8i 7,7,7,7,7,7,7,7
-        dbcol8i 7,7,7,7,7,7,7,7
-        dbcol8i 7,7,7,7,7,7,7,7
-;0x68
-        dbcol8 1,1,1,5,5,5,4,4
-        dbcol8 4,4,4,6,6,6,2,2
-        dbcol8 2,2,2,3,3,3,1,1
-;0x80
-       dup 6
-        dbcol8 8,8,8,8,8,8,8,8
-       edup
-;0xb0
-        ds 72,0x00
-;0xf8
-        ds 8,0
+;сюда копируется либо wastrecolour, либо wast866toatm
+        incbin "../kernel/866toatm"
 
         align 256
 ;8 r16s
@@ -789,10 +835,7 @@ iff2	db 0 ;TODO unneeded?
         align 256
 	include "x86table.asm"
 
-        align 256
-t866toatm
-        incbin "../kernel/866toatm"
-
+;генерируется для textmode
         align 256
        macro dbrrc3 data
         db (data>>3)+((data<<5)&0xe0)
@@ -800,14 +843,27 @@ t866toatm
 ttextaddr
         dup 128
 _=$&0xff
+
+      if 0 ;40 символов в строке
+
+; |младший
+;0GgggGGG -> 0GGGGggg:
+_=((_&0x07)<<4)+((_&0x78)>>3)
+      
+      else ;80 символов в строке
+
 ;0gggGGGG -> 0GGGGggg:
 _=((_&0x0f)<<3)+((_&0x70)>>4)
+       
+      endif
+
        if _<125
 _=_/5*8+(_-(_/5*5))+56
         dbrrc3 _
        else
         dbrrc3 255
        endif
+
         edup
 
         display "killable=",$

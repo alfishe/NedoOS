@@ -168,7 +168,7 @@ MAINCOMS
         DCOM CBWer
         DCOM CWDer
         DCOM CALLptr1616
-        DCOM PANIC ;FWAITer ;TODO for ladybug
+        DCOM PANIC ;FWAITer ;TODO for ladybug, ElCsiP
         DCOM PUSHFer
         DCOM POPFer
         DCOM SAHFer

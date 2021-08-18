@@ -208,9 +208,27 @@ GETKEY
 		ld d,a
 		ld a,(de)
 		ld c,a
+               cp key_enter
+               jr z,.modify_enter
 		 bit .bKEY_MODE_SHIFT,l
 		 jp nz,.zero_ret ;Shift+F1 - это не F1
 		jr .retsymb
+.modify_enter
+		 bit .bKEY_MODE_SHIFT,l
+                 jr z,.retsymb
+        ld a,0x7f
+        in a,(0xfe)
+        rra
+        ld c,a ;c0=ss
+        ld a,0xbf
+        in a,(0xfe)
+        or c
+        rra ;NC: ssEnter pressed
+        jr nc,.zero_ret
+                 ld a,key_csenter
+                 ld c,a
+                 jr .retsymb
+
 .is_mode_key
 		cp 64
 		jr nz,.not_shift_key
