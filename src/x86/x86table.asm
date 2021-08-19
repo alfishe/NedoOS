@@ -112,14 +112,14 @@ MAINCOMS
         DCOM PANIC ;ARPLrmr16 ;for cgadots TODO;Compares the RPL fields of two segment selectors. The first operand (the destination operand) contains one segment selector and the second operand (source operand) contains the other. (The RPL field is located in bits 0 and 1 of each operand.) If the RPL field of the destination operand is less than the RPL field of the source operand, the ZF flag is set and the RPL field of the destination operand is increased to match that of the source operand. Otherwise, the ZF flag is cleared and no change is made to the destination operand. (The destination operand can be a word register or a memory location; the source operand must be a word register.)
         DCOM FSer
         DCOM GSer
-        DCOM OPSIZEr ;???for lodsd (TODO может быть даже с repnz - blue)
+        DCOM OPSIZEr ;???for lodsd (TODO может быть даже с repnz - blue) ;lander cs:0646: 66 ff 36 9a 08 "push dword ptr [089a]", 66 8f 06 96 08 "pop dword ptr [0896]" и есть 32-битные реги
         DCOM PANIC ;rgsize
         DCOM PUSHi16
         DCOM IMULr16rmi16
         DCOM PUSHi8
         DCOM IMULr16rmi8
 	DCOM PANIC ;INSBer
-	DCOM PANIC ;INSWer (TODO rep insw for lkccmini)
+	DCOM PANIC ;INSWer (TODO rep insw for lkccmini) for rax
 	DCOM PANIC ;OUTSBer
 	DCOM PANIC ;OUTSWer (TODO for firefighter)
 ;#7x
@@ -168,7 +168,7 @@ MAINCOMS
         DCOM CBWer
         DCOM CWDer
         DCOM CALLptr1616
-        DCOM PANIC ;FWAITer ;TODO for ladybug, ElCsiP
+        DCOM NOPer;PANIC ;FWAITer ;TODO for ladybug, ElCsiP, hyper
         DCOM PUSHFer
         DCOM POPFer
         DCOM SAHFer
@@ -233,14 +233,14 @@ MAINCOMS
         DCOM AADer
         DCOM PANIC ;SALCer
         DCOM XLATBer
-        DCOM PANIC ;FPU0er
-        DCOM PANIC ;FPU1er
-        DCOM PANIC ;FPU2er
-        DCOM PANIC ;FPU3er
-        DCOM PANIC ;FPU4er
+        DCOM PANIC ;FPU0er ;D8 /0 = FADD m32fp ;Add m32fp to ST(0) and store result in ST(0) ;D8 C0+i = FADD ST(0), ST(i) ;Add ST(0) to ST(i) and store result in ST(0) ;D8 /1 = FMUL m32fp ;Multiply ST(0) by m32fp and store result in ST(0) ;D8 /2 = FCOM m32fp ;Compare ST(0) with m32fp ;D8 /3 = FCOMP m32fp ;Compare ST(0) with m32fp and pop register stack ;D8 /4 = FSUB m32fp ;Subtract m32fp from ST(0) and store result in ST(0) ;D8 /6 = FDIV m32fp ;Divide ST(0) by m32fp and store result in ST(0) ;D8 /7 = FDIVR m32fp ;Divide m32fp by ST(0) and store result in ST(0)
+        DCOM PANIC ;FPU1er ;D9 E0 = FCHS ;Complements sign of ST(0) ;D9 E1 = FABS ;Replace ST with its absolute value ;D9 F6 = FDECSTP ;Decrement TOP field in FPU status word (rotate the stack by one position) ;D9 FF = FCOS ;Replace ST(0) with its approximate cosine
+        DCOM PANIC ;FPU2er ;DA /0 = FIADD m32int ;Add m32int to ST(0) and store result in ST(0)
+        DCOM PANIC ;FPU3er ;DB /0 = FILD m32int ;Push m32int onto the FPU register stack ;DB F0+i = FCOMI ST, ST(i) ;Compare ST(0) with ST(i) and set status flags accordingly
+        DCOM PANIC ;FPU4er ;DC /0 = FADD m64fp ;Add m64fp to ST(0) and store result in ST(0) ;DC C0+i = FADD ST(i), ST(0) ;Add ST(i) to ST(0) and store result in ST(i)
         DCOM PANIC ;FPU5er
-        DCOM PANIC ;FPU6er
-        DCOM PANIC ;FPU7er
+        DCOM PANIC ;FPU6er ;DE /0 = FIADD m16int ;Add m16int to ST(0) and store result in ST(0) ;DE C0+i = FADDP ST(i), ST(0) ;Add ST(0) to ST(i), store result in ST(i), and pop the register stack ;DE C1 = FADDP ;Add ST(0) to ST(1), store result in ST(1), and pop the register stack
+        DCOM PANIC ;FPU7er ;DF /0 = FILD m16int ;Push m16int onto the FPU register stack ;DF /5 = FILD m64int ;Push m64int onto the FPU register stack
 ;#Ex
         DCOM LOOPNZer
         DCOM LOOPZer

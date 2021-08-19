@@ -1080,7 +1080,7 @@ JMPer
         getHL
        decodePC
         ADD HL,DE
-        ex de,hl ;new PC
+        ex de,hl ;new PC ;TODO убрать двойной ex de,hl
        _LoopC_JP
 
 	macro XCHGAXRP rp

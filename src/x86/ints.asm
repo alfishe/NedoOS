@@ -125,15 +125,19 @@ INT21
         cp 0x09
         jr z,INT_printstringdx
         cp 0x4a
-        ret z;jr z,intlooper ;TODO deallocate
+        ret z;jr z,intlooper ;TODO deallocate (Resize memory block)
         cp 0x48
         ret z;jr z,intlooper ;TODO allocate (return ax = segment)
         cp 0x06
         ret z ;TODO 06h	Direct console I/O (for blaze0)
+        cp 0x07
+        jp z,dosgetchar ;(for mision)
         cp 0x25
         ret z ;TODO for pitman
         cp 0x35
         ret z ;TODO for pitman
+        cp 0x30
+        jp z,dosversion ;for rax
 ;TODO for lander:
 ;        mov     ax,ds                   ;deallocate all but 128k mem
 ;        mov     es,ax
@@ -180,6 +184,19 @@ INT21
  else
  jr $
  endif
+ 
+dosversion
+;Entry: AL = what to return in BH (00h OEM number, 01h version flag)
+;Return:
+;AL = major version number (00h if DOS 1.x)
+;AH = minor version number
+;BL:CX = 24-bit user serial number (most versions do not use this) if DOS <5 or AL=00h
+;BH = MS-DOS OEM number if DOS 5+ and AL=01h
+;BH = version flag bit 3: DOS is in ROM other: reserved (0)
+;TODO
+        ld hl,5
+        ld (_AX),hl
+        ret
  
 INT_printstringdx
 ;TODO
@@ -388,9 +405,20 @@ INT16
        jr z,INT_inputal
        dec a
        jr nz,INT_getkeyflags
+;1 Получить состояние клавиатуры (84-клавишная клавиатура)
+;Выход:
+;При ZF=1 нет клавиши
+;При ZF=0: (враньё??? pillman игнорит это значение ax и сразу читает через ah=0!!!)
+;     AH - скан-код
+;     AL - ASCII код
+int16getkey
         ld a,(prefetchedkey)
         or a
+       if 0
+        jr nz,INT_inputal_a
+       else
         jr nz,INT16havekey
+       endif
         push de
      DISABLE_IFF0
         push iy
@@ -399,15 +427,28 @@ INT16
      ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
         pop de
         ret nz;jr nz,INT16q ;no focus
+       ld b,a
+        ex af,af' ;'
+        inc b
+        dec b ;Z (no key)
+        ex af,af' ;'
+       or a
+       ret z
+       if 0
+       jr INT_inputal_a
+       else
 INT16havekey
        ;ld a,0x48
         ld (prefetchedkey),a
         ld b,a
+       ld c,a
+         ld (_AX),bc
         ex af,af' ;'
         inc b
-        dec b
+        dec b ;NZ
         ex af,af' ;'
        ret;_Loop_
+       endif
 INT_inputal
 prefetchedkey=$+1
         ld a,0
@@ -443,12 +484,16 @@ INT_inputal_a
          ld b,0x50
          cp key_down
          jr z,INT_inputal_a_scancodeq
-        ld b,c;0
+        ld b,a;c;0
          ld c,a
 INT_inputal_a_scancodeq
          ;ld a,c
 	 ;ld (_AH),a ;scancode for pillman
          ld (_AX),bc
+        ex af,af' ;'
+        inc b
+        dec b ;NZ if key
+        ex af,af' ;'
         xor a
         ld (prefetchedkey),a
 ;INT16q
@@ -461,6 +506,12 @@ INT_getkeyflags
         and 0x1f
 	ld (_AL),a
        ret;_Loop_
+
+dosgetchar=INT_inputal
+;dosgetchar=int16getkey ;livin проскакивает меню
+;Return:
+;ZF set if no character available and AL = 00h
+;ZF clear if character available AL = character read
 
 wast866toatm
         incbin "../kernel/866toatm"

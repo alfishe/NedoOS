@@ -60,6 +60,12 @@
         and 0xc0
         xor d
         ld d,a
+;теперь вычитаем пересчитанный сегмент, т.к. при encodePC он прибавляется
+	ld bc,(cs_LSW)
+        ex de,hl
+        ;or a
+        sbc hl,bc
+        ex de,hl
 	endm
 
 	macro encodePC
@@ -128,13 +134,15 @@
         endm
 
 	macro _memCS
-        ld a,h
-        ld (pc_high),a
+        ;ld a,h
+        ;ld (pc_high),a
 	ld bc,(cs_LSW)
 	ld a,(cs_HSB)
         ADDSEGMENT_hl_abc_to_ahl
 	ld c,a
 	ld b,tpgs/256
+       ld a,h
+       ld (pc_high),a
 	res 7,h
         set 6,h
 	ld a,(bc)

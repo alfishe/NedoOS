@@ -2782,7 +2782,7 @@ GRP416
 	get
 	next
        cp 0b11000000
-       jr c,GRP416mem
+       jp c,GRP416mem
        ADDRr16_keepa
        and 0b00111000
 	jr z,INCr16

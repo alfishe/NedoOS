@@ -122,19 +122,14 @@ jpiyer
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 0;1 ;debug
+       if 0 ;debug
       push de
        decodePC
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 0x30
+       cp 0x09
       pop de
-       
- if debug_stop = 0
- jp nc,PANIC
- else
- jr nc,$
- endif
+      jr nc,$
        ld a,(_SP)
        rra
        jr c,$
@@ -259,6 +254,17 @@ on_int
         ex af,af' ;'
         push af 
         call oldimer
+       if 0 ;костыль для livin,tetris
+       ld a,(curpgc000)
+       ld hl,tpgs+0x40
+       cp (hl)
+       ;ld hl,0xfc28 ;tetris
+       ld hl,0xffb2 ;livin
+       jr nz,$+3
+        dec (hl)
+       endif
+        
+        
 				;(65536 / 50) * 18,206 Hz
 				;23862,96832 = $5D37
 timer_frq = $+1
