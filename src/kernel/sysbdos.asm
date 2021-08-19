@@ -753,8 +753,9 @@ activateparent
         push hl
          ld (iy+app.parentid),1;idle ;чтобы после закрытия задачи не пришлось будить родителя (он может уже не существовать)
          call BDOS_findapp ;iy=found app
-         set factive,(iy+app.flags)
         pop hl
+        ret nz ;not found
+         set factive,(iy+app.flags)
           ld (iy+app.childresult),l
           ld (iy+app.childresult+1),h
          ret

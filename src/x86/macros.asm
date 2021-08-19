@@ -63,11 +63,9 @@
 	endm
 
 	macro encodePC
-        ld h,d
-        ld l,e
-        memCS
-        res 7,d
-        set 6,d ;0x4000+
+        ex de,hl
+        _memCS
+        ex de,hl
 	endm
 
 	macro get
@@ -129,7 +127,7 @@
 	xor h ;a = номер страницы (%01..5432)
         endm
 
-	macro memCS
+	macro _memCS
         ld a,h
         ld (pc_high),a
 	ld bc,(cs_LSW)

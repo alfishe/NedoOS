@@ -885,7 +885,9 @@ CALLptr1616
        _LoopJP
 
 JMPptr1616
-;абсолютный адрес ip, cs
+;абсолютный адрес ip, cs? так не работает rax
+;или это адрес, по которому лежит ip, cs?
+        ;jr $
         getBC ;ip
         push bc
         getBC ;cs

@@ -51,7 +51,7 @@ Reset
         ld bc,0
         ld (_SS),bc
         countSS
-        ld hl,0x7f00
+        ld hl,0x7ff0
         ld (_SP),hl
         encodeSP
         
@@ -81,7 +81,25 @@ filenameaddr=$+1
         ld de,tprog
 ;de=имя файла
 ;hl=куда грузим
-        call loadfile_in_hl
+        ;call loadfile_in_hl ;for bootbasic
+        
+        OS_OPENHANDLE
+        ld a,b
+        ld (curhandle),a
+        ld a,(tpgs)
+        ld d,a
+        ld a,(tpgs+0x40)
+        ld e,a
+        ld a,(tpgs+0x80)
+        ld h,a
+        ld a,(tpgs+0xc0)
+        ld l,a
+        ;jr $
+        call readfile_pages_dehl
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+        
        pop de ;LD DE,STARTPC ;=IP(PC)
        endif
        
@@ -104,19 +122,22 @@ jpiyer
 oldpc
         dw 0       endif
 EMUCHECKQ
-       if 0 ;debug
+       if 0;1 ;debug
+      push de
+       decodePC
        ld a,d
-       sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 0x0a
+       ;sub 0x40+((STARTPC/256)&0x3f);0x7c
+       cp 0x30
+      pop de
        
  if debug_stop = 0
  jp nc,PANIC
  else
  jr nc,$
  endif
-       ;ld a,(_SP)
-       ;rra
-       ;jr c,$
+       ld a,(_SP)
+       rra
+       jr c,$
        ld (oldpc),de
        endif
         get
@@ -152,6 +173,47 @@ loadfile_in_hl
         pop bc ;b=handle
         OS_CLOSEHANDLE
 	ret
+
+readfile_pages_dehl
+        ld a,d
+        SETPGC000
+        ld a,0xc100/256
+        call cmd_loadpage
+        ret nz
+        ld a,e
+        call cmd_loadfullpage
+        ret nz
+        ld a,h
+        call cmd_loadfullpage
+        ret nz
+        ld a,l
+cmd_loadfullpage
+        SETPGC000
+        ld a,0xc000/256
+cmd_loadpage
+;out: a=error, bc=bytes read
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+        call readcurhandle
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        or a
+        ret
+
+readcurhandle
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ret
 
 trom0
         db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
@@ -460,16 +522,10 @@ recountpc_inc ;keep CY!
         ret p ;<0x8000
         push af
         push bc
-        ex de,hl
-        dec hl
-        ld b,h
-        ld c,l
-        decodePC ;bc->bc
-        ld h,b
-        ld l,c
-        inc hl
-        memCS
-        ex de,hl
+        dec de
+        decodePC ;de->de
+        inc de
+        encodePC ;de->de
         pop bc
         pop af
         ld de,0x4000
@@ -907,7 +963,7 @@ init
         call clpga
 
         ld hl,tpgs
-        ld b,64
+        ld b,64 ;TODO меньше для АТМ2
 filltpgs0
         push bc
         push hl

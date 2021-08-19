@@ -224,7 +224,7 @@ GETKEY
         in a,(0xfe)
         or c
         rra ;NC: ssEnter pressed
-        jr nc,.zero_ret
+        jp nc,.zero_ret
                  ld a,key_csenter
                  ld c,a
                  jr .retsymb
