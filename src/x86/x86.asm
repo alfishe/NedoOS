@@ -38,6 +38,7 @@ initq
 Reset       
         ld de,ansipal
         OS_SETPAL ;TODO с копированием во временную палитру
+;TODO установить текстмод
 
         ld bc,0
         ld (_SS),bc
@@ -230,6 +231,22 @@ tprog
 pgprog
         db 0 ;там можно хранить дополнительный код (напр., отладчик)
 
+;иначе pop iy запорет iy от обработчика прерывания
+disable_iff0_keep_iy
+      ;di
+        ld (iykeeper_iy),iy
+        ld a,55 ;scf
+        ld (iykeeper_on),a ;keep hl,de!
+        ret
+;иначе pop iy запорет iy от обработчика прерывания
+enable_iff0_remember_iy
+iykeeper_iy=$+2
+        ld iy,0
+        ld hl,iykeeper_on
+        ld (hl),55+128 ;or a ;keep a!
+      ;ei
+        ret
+
 ;keep here for quit
 swapimer
 	di
@@ -317,7 +334,7 @@ timer_inc_skip
 IMEREI
         XOR A
         LD (iff1),A
-        LD (iff2),A ;для NMI надо только iff1!
+        ;LD (iff2),A ;для NMI надо только iff1!
 ;перед эмуляцией INT завершаем тек.команду (перехват на EMULOOP)
         LD (keepemuchecker),IY
         LD IY,IMINT
@@ -326,6 +343,11 @@ timer_inc_skip
 IMINT
 keepemuchecker=$+2
         LD IY,0
+iykeeper_on=$
+        or a ;scf=on
+        jr nc,IMINT_noiykeeperdata
+        ld iy,(iykeeper_iy)
+IMINT_noiykeeperdata
        ;LD (retfromim),DE ;для индикации времени обработки прерыв
       ;костыль для неинициализированного прерывания
       ld a,(tpgs)
@@ -333,11 +355,12 @@ keepemuchecker=$+2
       ld hl,(9*4+0xc000) ;ip
       ld a,h
       or l
-      jp z,NOPer
+     ;xor a
+      jp z,STIer
       ;jr $
         
 ;int 9
-        EI
+        ;EI
 ;push cs; push ip (адрес после команды) (retf читает ip,cs)
        ld bc,(_CS)
         putmemspBC ;old CS
@@ -354,6 +377,11 @@ keepemuchecker=$+2
         ld c,e ;=old PC
        pop de ;new PC
         putmemspBC
+
+       call getflags_bc
+       putmemspBC
+
+     ;jp IRETer
        _LoopC_JP 
 
        if 1;AFFLAG_16BIT
@@ -568,16 +596,28 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
 
 PUTscreen_cgadata
         ld c,(hl) ;4 pixels
-        ;inc b ;(b=trecolour/256)
+        inc b ;(b=trecolour/256)
 ;a=1..4*0x40
+       ld a,(bc)
+       ld (cgarightpair),a
+       ld a,c
+       rlca
+       rlca
+       rlca
+       rlca
+       ld c,a ;или ещё одну таблицу
+       ld a,(bc)
+       ld (cgaleftpair),a
+        ld a,(pgprog)
+        SETPGC000
 
 ;экран CGA = 80 байт на строку (8000 байт один слой)
 ;экран ZXEGA = 40 байт на строку *4 слоя
 ;чередование строк CGA (нечётные идут вторым слоем с +8192) - по таблице 64-пиксельных блоков? если берём одну половину CGA экрана, то это из 500 блоков вычисляем 1000 (или если ещё разделить на 4 части, то из 125 блоков вычисляем 250)
 ;или придётся быстро делить на 80 и умножать на 40
 ;или по большой таблице в страничке
-     if 1
-        ld b,l
+       ld c,l ;запомнить младшие 4 бита
+       ld b,h ;запомнить bit 5
         ld a,h
         rra
         rr l
@@ -585,57 +625,32 @@ PUTscreen_cgadata
         rr l
         rra
         rr l
-       push af
         and 0x03
         add a,+(tcga|0xc000)/256
         ld h,a
         res 0,l
-        ld a,(pgprog)
-       push bc
-        SETPGC000
-        ;ld bc,tcga|0xc000
-        ;add hl,bc
         ld a,(hl)
         inc l
         ld h,(hl)
-       pop bc
-        rr b
+       rr c
         jr nc,$+4
         set 5,h
-        xor b
+        xor c
         and 0xf8
-        xor b
+        xor c
         ld l,a     
-       pop af
-       push bc
-        and 4 ;бывший bit 5,h
+       bit 5,b ;бывший bit 5,h
         jr z,$+2+3+1
-        ld bc,40
-        add hl,bc
-     else
-        ld a,h
-        or 0xc0
-        ld h,a
-       sra h
-       rr l
-       jr c,$+4
-       res 5,h
-       res 4,h
-       push bc
-     endif
+         ld bc,40
+         add hl,bc
         ld a,(user_scr0_low) ;ok
         SETPGC000
-       pop bc
-     ld a,c;(bc)
-     and 0xf0
-     ld (hl),a    
+cgaleftpair=$+1
+     ld (hl),0
         ld a,(user_scr0_high) ;ok
-       push bc
         SETPGC000
-       pop bc
-     ld a,c;(bc)
-     and 0x0f
-     ld (hl),a    
+cgarightpair=$+1
+     ld (hl),0
         ret
 
 PUTscreen_logpgc_zxaddrhl_datamhl_do

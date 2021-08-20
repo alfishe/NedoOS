@@ -2,11 +2,11 @@
 ;SP=0x8000...
 ;data=0xC000...
 
-     macro DISABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
-;TODO!
+     macro DISABLE_IFF0_KEEP_IY ;иначе pop iy запорет iy от обработчика прерывания
+        call disable_iff0_keep_iy
      endm
-     macro ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
-;TODO!
+     macro ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
+        call enable_iff0_remember_iy
      endm
 
 

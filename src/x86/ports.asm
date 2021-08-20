@@ -53,7 +53,7 @@ OUTdxax
         _LoopC
 
 OUTbc_hl
-        ret
+        ;ret
 OUTbc_l
         ret
 
@@ -66,7 +66,7 @@ IN_bc_to_bc
        or a
        sbc hl,bc
        jr z,IN_0060 ;for mision
-       ld hl,0x0061
+       inc hl ;ld hl,0x0061
        or a
        sbc hl,bc
        jr z,IN_0061 ;for mision
@@ -104,6 +104,7 @@ IN_skip
         ret
 
 ;Порт 60h при чтении содержит скан-код последней нажатой клавиши.
+;TODO ещё отжатие (+0x80)
 ;Порт 61h управляет не только клавиатурой, но и другими устройствами компьютера, например, работой встроенного динамика. Этот порт доступен как для чтения, так и для записи. Для нас важен самый старший бит этого порта. Если в старший бит порта 61h записать значение 1, клавиатура будет заблокирована, если 0 - разблокирована.
 ;Так как порт 61h управляет не только клавиатурой, при изменении содержимого старшего бита необходимо сохранить состояние остальных битов этого порта. Для этого можно сначала выполнить чтение содержимого порта в регистр, изменить состояние старшего бита, затем выполнить запись нового значения в порт:
 ;        in      al, 61h
@@ -112,11 +113,19 @@ IN_skip
         
 IN_0060
         push de
-     DISABLE_IFF0
-        push iy
+     DISABLE_IFF0_KEEP_IY
         OS_GETKEY
-        pop iy
-     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+       ;or a
+       ;jr z,IN_0060_nokey
+        cp 0x60
+        jr c,$+4
+        sub 0x20
+        ld c,a
+        ld b,0
+        ld hl,tkeytoscancode
+        add hl,bc
+        ld a,(hl)
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
       ;ld c,0x18
       ; ld a,r
@@ -148,3 +157,40 @@ IN_03da
         ld c,a
         ld b,0
         ret
+
+tkeytoscancode
+       db 0x20+128 ;unpress D
+        ds 13+tkeytoscancode-$
+        db 0x1c ;enter
+        ds 32+tkeytoscancode-$
+        db 0x39 ;space
+        ds 48+tkeytoscancode-$
+        db 0x0b,2,3,4,5,6,7,8,9,10
+        ds 0x41+tkeytoscancode-$
+        db 0x1e ;(A)
+        db 0x30 ;(B)
+        db 0x2e ;(C)
+        db 0x20 ;(D)
+        db 0x12 ;(E)
+        db 0x21 ;(F)
+        db 0x22 ;(G)
+        db 0x23 ;(H)
+        db 0x17 ;(I)
+        db 0x24 ;(J)
+        db 0x25 ;(K)
+        db 0x26 ;(L)
+        db 0x32 ;(M)
+        db 0x31 ;(N)
+        db 0x18 ;(O)
+        db 0x19 ;(P)
+        db 0x10 ;(Q)
+        db 0x13 ;(R)
+        db 0x1f ;(S)
+        db 0x14 ;(T)
+        db 0x16 ;(U)
+        db 0x2f ;(V)
+        db 0x11 ;(W)
+        db 0x2d ;(X)
+        db 0x15 ;(Y)
+        db 0x2c ;(Z)
+        ds 96+tkeytoscancode-$

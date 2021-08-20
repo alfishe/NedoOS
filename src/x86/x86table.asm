@@ -223,7 +223,7 @@ MAINCOMS
         DCOM PANIC ;INT3 ;TODO for qloth_
         DCOM INTi8
         DCOM PANIC ;INTOer ;TODO for mips
-        DCOM RETFer;PANIC ;IRETer (for livin)
+        DCOM IRETer ;(for livin)
 ;#Dx
         DCOM GRP2rm81 ;rolls
         DCOM GRP2rm161 ;rolls

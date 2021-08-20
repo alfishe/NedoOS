@@ -49,8 +49,7 @@ printstring
 ;DH = Row, DL = Column
 ;ES:BP = Offset of string
        push de
-     DISABLE_IFF0
-       push iy
+     DISABLE_IFF0_KEEP_IY
        ld a,(_BL)
        ld e,a ;%PpppIiii
       rra
@@ -82,8 +81,7 @@ printstringbp0
        cpi
        jp pe,printstringbp0
       ;ld (_BP),hl ;так хуже в pitman
-       pop iy
-     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
        pop de
        ret;_Loop_
 
@@ -203,6 +201,10 @@ INT_setgfx
        cp 0x07 ;shamus "please turn on the color display"
        jr z,INT_setgfxTEXT40
        cp 0x04 ;CGA 320x200x4
+       ld hl,cgapal1
+       jr z,INT_setgfxCGA
+       cp 0x05 ;CGA 320x200x4
+       ld hl,cgapal2
        jr z,INT_setgfxCGA
        cp 0x13
        jr nz,INT_setgfxTEXT80
@@ -210,11 +212,34 @@ INT_setgfx
 ;INT_setgfxq
        ret;_Loop_
 INT_setgfxCGA
+       push hl
         call setegamode
+       pop hl
+       call setpalhl_with_caution
         ld hl,_PUTscreen_do_patch_cgadata
         ld (_PUTscreen_do_patch),hl
-;TODO
-
+        ld hl,trecolour
+mkrecga0
+        ld c,l ;%????LlRr
+        xor a
+        rr c
+        rla
+        rr c
+        rla
+        add a,a
+        rr c
+        rla
+        rr c
+        rla
+        ;rlca ;a=%lRr????L
+        ;rlca ;a=%Rr????Ll
+        ;add a,a;%r????Ll0 CY=R
+        ;rla  ;a=%????Ll0R
+        ;rla  ;a=%???Ll0Rr
+        ;and 0x1f;000rR0lL
+        ld (hl),a
+        inc l
+        jr nz,mkrecga0
        ret;_Loop_
 INT_setgfxTEXT40
         call settextmode
@@ -367,23 +392,30 @@ settextmode
         ret
 
 setgfx
-     DISABLE_IFF0
-        push iy
+     DISABLE_IFF0_KEEP_IY
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        pop iy
-     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+        ld e,0
+        OS_CLS
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         ret
+
+setpalhl_with_caution
+       push de
+     DISABLE_IFF0_KEEP_IY
+       ex de,hl
+       OS_SETPAL
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
+       pop de
+       ret
 
 INT_printal
         push de
         ex af,af' ;'
         push af
-     DISABLE_IFF0
-        push iy
+     DISABLE_IFF0_KEEP_IY
 	ld a,(_AL)
 	PRCHAR
-        pop iy
-     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop af
         ex af,af' ;'
         pop de
@@ -413,11 +445,9 @@ int16getkey
         jr nz,INT16havekey
        endif
         push de
-     DISABLE_IFF0
-        push iy
+     DISABLE_IFF0_KEEP_IY
         OS_GETKEY
-        pop iy
-     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
         ret nz;jr nz,INT16q ;no focus
        ld b,a
@@ -448,8 +478,7 @@ prefetchedkey=$+1
         or a
         jr nz,INT_inputal_a
         push de
-     DISABLE_IFF0
-        push iy
+     DISABLE_IFF0_KEEP_IY
         YIELDGETKEYLOOP;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
 ;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
@@ -457,8 +486,7 @@ prefetchedkey=$+1
 ;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
 ;        Флаг Z - если 0(NZ), то отсутствует фокус.  
-        pop iy
-     ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
 INT_inputal_a
 	;ld (_AL),a
@@ -505,6 +533,24 @@ dosgetchar=INT_inputal
 ;Return:
 ;ZF set if no character available and AL = 00h
 ;ZF clear if character available AL = character read
+
+;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
+;standard:
+        ;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+        ;dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+;ansi:
+	;dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
+	;dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
+cgapal1
+;0,R,G,Y (bits swapped):
+       dup 4
+	dw 0xffff,0x1d1d,0x0f0f,0x0d0d
+       edup
+cgapal2
+;0,M,C,W (bits swapped):
+       dup 4
+	dw 0xffff,0x9c9c,0x4e4e,0x0c0c
+       edup
 
 wast866toatm
         incbin "../kernel/866toatm"

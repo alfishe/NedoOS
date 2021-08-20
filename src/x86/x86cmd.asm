@@ -446,7 +446,7 @@ CLIer
 
 STIer
         ld a,-1
-        ld (iff1),a ;TODO написать нормальный обработчик прерываний (сейчас тупо #38)
+        ld (iff1),a
        if 1
 ;мегакостыль для pitman:
        ld hl,0x4925
@@ -905,6 +905,11 @@ RETer
         ld E,C ;new PC
        _LoopC_JP
 
+IRETer
+        getmemspBC
+        call makeflags_frombc
+        ld a,-1
+        ld (iff1),a
 RETFer
         getmemspBC ;ip
        push bc
