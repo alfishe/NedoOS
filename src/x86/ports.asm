@@ -118,6 +118,7 @@ IN_0060
         call keyscan_getkey
        ;or a
        ;jr z,IN_0060_nokey
+      if 0
        push af
        and 0x7f
         cp 0x60
@@ -131,6 +132,7 @@ IN_0060
         xor (hl)
         and 0x80
         xor (hl)
+      endif
      ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
       ;ld c,0x18
@@ -164,6 +166,7 @@ IN_03da
         ld b,0
         ret
 
+       if 0
 tkeytoscancode
        ;db 0x20+128 ;unpress D
         ds 13+tkeytoscancode-$
@@ -200,3 +203,4 @@ tkeytoscancode
         db 0x15 ;(Y)
         db 0x2c ;(Z)
         ds 96+tkeytoscancode-$
+       endif
