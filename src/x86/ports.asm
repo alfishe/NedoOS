@@ -126,14 +126,14 @@ IN_0060
        ld c,a
         ret
 IN_0061
-        ld a,0xfb
-        in a,(0xfe)
-        cpl
-        ld c,a
-       ld a,r
-       add a,a
-       add a,c
-       ld c,a
+        ;ld a,0xfb
+        ;in a,(0xfe)
+        ;cpl
+        ld c,0;a
+       ;ld a,r
+       ;add a,a
+       ;add a,c
+       ;ld c,a
         ret
 
 IN_0202
