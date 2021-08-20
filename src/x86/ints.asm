@@ -1,10 +1,3 @@
-     macro DISABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
-;TODO!
-     endm
-     macro ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
-;TODO!
-     endm
-
 INT_gettimer
 ;int 1Ah ;AL= 24 hours overflow flag, CX:DX = 32bit timer
 ;_microtimer=$+1

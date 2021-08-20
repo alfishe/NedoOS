@@ -1,6 +1,15 @@
 ;PC=0x4000...
 ;SP=0x8000...
 ;data=0xC000...
+
+     macro DISABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+;TODO!
+     endm
+     macro ENABLE_IFF0 ;иначе pop iy запорет iy от обработчика прерывания
+;TODO!
+     endm
+
+
        macro ALIGNrm
         align 2
        endm
