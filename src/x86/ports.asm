@@ -62,6 +62,18 @@ IN_bc_to_bc
         or a
         sbc hl,bc
         jr z,IN_03da
+       ld hl,0x0060
+       or a
+       sbc hl,bc
+       jr z,IN_0060 ;for mision
+       ld hl,0x0061
+       or a
+       sbc hl,bc
+       jr z,IN_0061 ;for mision
+        ld hl,0x0202
+        or a
+        sbc hl,bc
+        jr z,IN_0202
         ld hl,0x0040
         or a
         sbc hl,bc
@@ -89,6 +101,34 @@ IN_bc_to_bc
         ret
 IN_skip
         ld bc,0xffff
+        ret
+
+IN_0060
+        ;ld a,0xfd
+        ;in a,(0xfe)
+        ;cpl
+        ;ld c,a
+      ld c,0x18
+       ld a,r
+       and 7
+       ;add a,a
+       add a,c
+       ld c,a
+        ret
+IN_0061
+        ld a,0xfb
+        in a,(0xfe)
+        cpl
+        ld c,a
+       ld a,r
+       add a,a
+       add a,c
+       ld c,a
+        ret
+
+IN_0202
+;проверяется на равенство 3f (ptica)
+        ld bc,0x003f
         ret
 
 ;0x03da - порт видеоконтроллера. проверяется на равенство 8 - во время КСИ? (pixeltown) и на and 1 (cgademo)

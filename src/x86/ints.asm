@@ -133,9 +133,9 @@ INT21
         cp 0x07
         jp z,dosgetchar ;(for mision)
         cp 0x25
-        ret z ;TODO for pitman
+        ret z ;TODO for pitman ;set new int 09h vector
         cp 0x35
-        ret z ;TODO for pitman
+        ret z ;TODO for pitman ;get and save old int 09h vector
         cp 0x30
         jp z,dosversion ;for rax
 ;TODO for lander:

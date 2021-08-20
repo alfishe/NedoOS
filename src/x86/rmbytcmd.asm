@@ -720,6 +720,9 @@ GRP1rmmem16i8_1xx
 
         ALIGNrm
 ADDrmr8
+       if DEBUG
+       jr $ ;code 00
+       endif
         or a
         ex af,af' ;'
         ALIGNrm
@@ -1194,6 +1197,9 @@ ANDr8rm
 
         ALIGNrm
 ADDr16rm
+       if DEBUG
+       jr $ ;code 03
+       endif
         or a
         ex af,af' ;'
         ALIGNrm
@@ -2791,7 +2797,7 @@ GRP416
 	cp 0b00010000
 	jr z,CALLr16
 	;cp 0b00011000
-	;jp z,CALLFm1616
+	;jp z,CALLFm1616 ;for vc???
 	cp 0b00100000
 	;jr z,JMPr16
 	;cp 0b00101000
@@ -2872,6 +2878,10 @@ JMPFm1616mem ;высчитывается эффективный адрес, и �
        countCS
        pop de ;new IP(PC)
        _LoopJP
+
+;CALLFm1616
+        ;GETr16
+        ;какой сегмент???
 
 CALLrmmem16
         ld h,b

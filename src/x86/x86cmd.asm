@@ -445,14 +445,16 @@ CLIer
        _Loop_
 
 STIer
-        ;ld a,-1
-        ;ld (iff1),a ;TODO написать нормальный обработчик прерываний (сейчас тупо #38)
+        ld a,-1
+        ld (iff1),a ;TODO написать нормальный обработчик прерываний (сейчас тупо #38)
+       if 1
 ;мегакостыль для pitman:
        ld hl,0x4925
        ld a,(hl)
        cp 0x74
        jr nz,$+3
        inc (hl) ;чтобы не зацикливалось при ожидании изменения переменной по прерыванию (TODO реализовать прерывания с установкой вектора через int21 25, 35)
+       endif
        _Loop_
 
 CLDer
@@ -882,7 +884,7 @@ CALLptr1616
         ld c,e ;=old PC
        pop de ;new PC
         putmemspBC
-       _LoopJP
+       _LoopC_JP
 
 JMPptr1616
 ;абсолютный адрес ip, cs? так не работает rax
@@ -904,12 +906,10 @@ RETer
        _LoopC_JP
 
 RETFer
-        getmemspBC
+        getmemspBC ;ip
        push bc
-        getmemspBC
-        LD D,B
-        ld E,C ;new PC
-       pop bc
+        getmemspBC ;cs
+       pop de ;new PC
         jp RETFq
 
 RETi16 ;RET и потом SP += i16

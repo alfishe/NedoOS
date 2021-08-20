@@ -1,23 +1,14 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-
+DEBUG=0;1
 
 	include "x86.ini"
 
 STACK=0x4000
 
-       if 0
-BASIC=0
-       if BASIC
-STARTPC=0x7c00
-       else
-STARTPC=0x0100
-       endif
-       endif
-
 SHIFTCOUNTMASK=1 ;and 31
-AFFLAG_16BIT=1 ;only for add_test
+AFFLAG_16BIT=0;1 ;only for add_test
 FASTADC16WITHFLAGS=0 ;NS
 
 ;PC=0x4000...
@@ -51,7 +42,7 @@ Reset
         ld bc,0
         ld (_SS),bc
         countSS
-        ld hl,0x7ff0
+        ld hl,0xfff0
         ld (_SP),hl
         encodeSP
         
@@ -76,13 +67,19 @@ loadaddr=$+1
         ld de,0x7c00;STARTPC
        push de
         encodePC;memCS ;out: a=physpg, de=zxaddr
+       ld hl,0x9fff
+       ld (0x4002),hl ;cs:0002=top segment of mem?
         ex de,hl
 filenameaddr=$+1
         ld de,tprog
+       ld a,h
+       cp 0x41
+       jr z,loadcom
 ;de=имя файла
 ;hl=куда грузим
-        ;call loadfile_in_hl ;for bootbasic
-        
+        call loadfile_in_hl ;for bootbasic
+        jr loadcomq
+loadcom
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
@@ -99,7 +96,7 @@ filenameaddr=$+1
         ld a,(curhandle)
         ld b,a
         OS_CLOSEHANDLE
-        
+loadcomq
        pop de ;LD DE,STARTPC ;=IP(PC)
        endif
        
@@ -118,22 +115,32 @@ jpiyer
         push hl
         jp (iy)
        endif
-       if 1 ;debug
+       if DEBUG
+       align 256
 oldpc
-        dw 0       endif
+        ;dw 0
+        ds 256       endif
 EMUCHECKQ
-       if 0 ;debug
+       if DEBUG
       push de
        decodePC
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 0x09
+       cp 0x30
       pop de
       jr nc,$
        ld a,(_SP)
        rra
        jr c,$
-       ld (oldpc),de
+       ;ld (oldpc),de
+oldpcaddr=$+1
+        ld hl,oldpc
+        ld (hl),e
+        inc l
+        ld (hl),d
+        inc l
+        ld (oldpcaddr),hl
+
        endif
         get
         next
@@ -254,7 +261,7 @@ on_int
         ex af,af' ;'
         push af 
         call oldimer
-       if 0 ;костыль для livin,tetris
+       if 0;1 ;костыль для livin,tetris
        ld a,(curpgc000)
        ld hl,tpgs+0x40
        cp (hl)
@@ -262,8 +269,7 @@ on_int
        ld hl,0xffb2 ;livin
        jr nz,$+3
         dec (hl)
-       endif
-        
+       endif      
         
 				;(65536 / 50) * 18,206 Hz
 				;23862,96832 = $5D37
@@ -321,21 +327,33 @@ timer_inc_skip
 keepemuchecker=$+2
         LD IY,0
        ;LD (retfromim),DE ;для индикации времени обработки прерыв
-        LD HL,#38 ;new IP(PC) ;TODO из вектора
-        ;LD HL,(_I-1)
-        ;LD L,#FF ;состояние пассивной ШД
-        ;getmemBC
-        ;ld h,b
-        ;ld l,c
-        ;JR IMERIM 
-IMERIM
-;hl=new IP(PC)
+      ;костыль для неинициализированного прерывания
+      ld a,(tpgs)
+      SETPGC000
+      ld hl,(9*4+0xc000) ;ip
+      ld a,h
+      or l
+      jp z,NOPer
+      ;jr $
+        
+;int 9
         EI
-       decodePC ;de=old IP(PC)
-        ex de,hl ;DE=new IP(PC)
-        LD B,H
-        ld C,L ;BC=old IP(PC)
-        putmemspBC ;TODO а CS куда? push cs; push ip?
+;push cs; push ip (адрес после команды) (retf читает ip,cs)
+       ld bc,(_CS)
+        putmemspBC ;old CS
+;абсолютный адрес ip, cs
+        ld a,(tpgs)
+        SETPGC000
+        ld hl,(9*4+0xc000) ;ip
+       push hl
+        ld bc,(9*4+0xc002) ;cs
+        ld (_CS),bc ;new CS
+        countCS
+       decodePC
+        LD b,d
+        ld c,e ;=old PC
+       pop de ;new PC
+        putmemspBC
        _LoopC_JP 
 
        if 1;AFFLAG_16BIT
