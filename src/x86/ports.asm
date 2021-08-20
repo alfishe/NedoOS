@@ -114,9 +114,12 @@ IN_skip
 IN_0060
         push de
      DISABLE_IFF0_KEEP_IY
-        OS_GETKEY
+        ;OS_GETKEY
+        call keyscan_getkey
        ;or a
        ;jr z,IN_0060_nokey
+       push af
+       and 0x7f
         cp 0x60
         jr c,$+4
         sub 0x20
@@ -124,7 +127,10 @@ IN_0060
         ld b,0
         ld hl,tkeytoscancode
         add hl,bc
-        ld a,(hl)
+       pop af
+        xor (hl)
+        and 0x80
+        xor (hl)
      ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
       ;ld c,0x18
@@ -159,7 +165,7 @@ IN_03da
         ret
 
 tkeytoscancode
-       db 0x20+128 ;unpress D
+       ;db 0x20+128 ;unpress D
         ds 13+tkeytoscancode-$
         db 0x1c ;enter
         ds 32+tkeytoscancode-$

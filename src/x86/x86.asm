@@ -308,7 +308,9 @@ timer_inc_skip
        ld a,0xf7
        in a,(0xfe)
        and 0b10101
-       jp z,quiter ;1+2+3 = quit
+       jp z,quiter ;1+3+5 = quit
+
+        call KEYB
         ;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
 ;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
@@ -812,6 +814,7 @@ PUTscreen_attr
 
 _PUTscreen_do_patch_cgadata=256*(PUTscreen_cgadata-(_PUTscreen_do_patch+2))+0x18
 
+	include "keyscan.asm"
        display "--",$
 	include "rmbyte.asm"
        display "--",$
@@ -901,7 +904,7 @@ pc_high     db 0
 _DIRECTION
 	db 0
 iff1	db 0
-iff2	db 0 ;TODO unneeded?
+;iff2	db 0 ;TODO unneeded?
 
 ;timer
 ;	dw 0
