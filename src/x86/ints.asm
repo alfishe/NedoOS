@@ -195,6 +195,7 @@ INT_printstringdx
        ret;_Loop_
 
 INT_setgfx
+         ;jr $
        ld a,(_AL)
        cp 0x01 ;sorryass
        jr z,INT_setgfxTEXT40
@@ -429,7 +430,8 @@ INT16
        or a
        jr z,INT_inputal
        dec a
-       jr nz,INT_getkeyflags
+       jp nz,INT_getkeyflags
+        ;jr $
 ;1 Получить состояние клавиатуры (84-клавишная клавиатура)
 ;Выход:
 ;При ZF=1 нет клавиши
@@ -493,7 +495,37 @@ INT_inputal_a
          ld bc,0x011b ;1b for pitman, 01 for pillman?
          cp key_esc
          jr z,INT_inputal_a_scancodeq
-         ld bc,0x4b00
+         ld bc,0x3b00
+         cp key_F1
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x3c
+         cp key_F2
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x3d
+         cp key_F3
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x3e
+         cp key_F4
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x3f
+         cp key_F5
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x40
+         cp key_F6
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x41
+         cp key_F7
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x42
+         cp key_F8
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x43
+         cp key_F9
+         jr z,INT_inputal_a_scancodeq
+         inc b;ld b,0x44
+         cp key_F10
+         jr z,INT_inputal_a_scancodeq
+         ld b,0x4b
          cp key_left
          jr z,INT_inputal_a_scancodeq
          ld b,0x4d

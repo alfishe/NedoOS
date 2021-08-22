@@ -354,24 +354,45 @@ IMINT_noiykeeperdata
       ;костыль для неинициализированного прерывания
       ld a,(tpgs)
       SETPGC000
+;int 0 - ??? (Goody, Ms Pacman) - убитый (в cs там лежит свободная память, но даже при cs=0 лажа)
+;int 1 - cpu generated??? (есть обработчик в mision, но если его поставить, всё время стреляет)
+;int 8 - timer
+;int 9 - keyboard
       ld hl,(9*4+0xc000) ;ip
+      ld bc,(9*4+0xc002) ;cs
+     ld a,0x55
+     rlca
+     ld ($-2),a
+     jr c,int_no8
+      ld hl,(8*4+0xc000) ;ip
+      ld bc,(8*4+0xc002) ;cs
+     ;ld a,0x55
+     ;rlca
+     ;ld ($-2),a
+     ;jr c,int_no8
+     ; ld hl,(0*4+0xc000) ;ip
+     ; ld bc,0 ;cs
+int_no8
       ld a,h
       or l
      ;xor a
       jp z,STIer
       ;jr $
         
-;int 9
         ;EI
 ;push cs; push ip (адрес после команды) (retf читает ip,cs)
+      push bc
+      push hl
        ld bc,(_CS)
         putmemspBC ;old CS
 ;абсолютный адрес ip, cs
         ld a,(tpgs)
         SETPGC000
-        ld hl,(9*4+0xc000) ;ip
+      pop hl
+      pop bc
+        ;ld hl,(9*4+0xc000) ;ip
+        ;ld bc,(9*4+0xc002) ;cs
        push hl
-        ld bc,(9*4+0xc002) ;cs
         ld (_CS),bc ;new CS
         countCS
        decodePC
@@ -903,7 +924,7 @@ pc_high     db 0
 
 _DIRECTION
 	db 0
-iff1	db 0
+iff1	db 0xff
 ;iff2	db 0 ;TODO unneeded?
 
 ;timer
