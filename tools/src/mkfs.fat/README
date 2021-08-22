@@ -1,0 +1,9 @@
+unfinished port of mkfs.fat (github.com/dosfstools/dosfstools)
+to the lame shitty shindoshs (compiles and works just fine under normal OSes!)
+
+Also fixed to use ONLY image files (no more devices).
+
+(lvd) I'm only able to test it with either
+'make' (native linux binary)
+ or
+'make CC=i686-w64-mingw32-gcc' (lots of errors)
