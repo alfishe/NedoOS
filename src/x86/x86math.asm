@@ -332,3 +332,9 @@ DIV323
 	inc a
 	djnz DIV321
 	ret
+
+FPU3er
+;DB /0 = FILD m32int ;Push m32int onto the FPU register stack ;DB F0+i = FCOMI ST, ST(i) ;Compare ST(0) with ST(i) and set status flags accordingly ;DB E3 finit
+;TODO
+        next
+        _Loop_

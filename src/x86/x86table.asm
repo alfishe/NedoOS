@@ -220,9 +220,9 @@ MAINCOMS
         DCOM PANIC ;LEAVEer
         DCOM PANIC ;RETFi16 ;RETF и потом SP += i16
         DCOM RETFer
-        DCOM PANIC ;INT3 ;TODO for qloth_
+        DCOM INT3 ;for qloth_
         DCOM INTi8
-        DCOM PANIC ;INTOer ;TODO for mips
+        DCOM INTOer ;Generate overflow trap if overflow flag is 1 ;for mips
         DCOM IRETer ;(for livin)
 ;#Dx
         DCOM GRP2rm81 ;rolls
@@ -236,7 +236,7 @@ MAINCOMS
         DCOM PANIC ;FPU0er ;D8 /0 = FADD m32fp ;Add m32fp to ST(0) and store result in ST(0) ;D8 C0+i = FADD ST(0), ST(i) ;Add ST(0) to ST(i) and store result in ST(0) ;D8 /1 = FMUL m32fp ;Multiply ST(0) by m32fp and store result in ST(0) ;D8 /2 = FCOM m32fp ;Compare ST(0) with m32fp ;D8 /3 = FCOMP m32fp ;Compare ST(0) with m32fp and pop register stack ;D8 /4 = FSUB m32fp ;Subtract m32fp from ST(0) and store result in ST(0) ;D8 /6 = FDIV m32fp ;Divide ST(0) by m32fp and store result in ST(0) ;D8 /7 = FDIVR m32fp ;Divide m32fp by ST(0) and store result in ST(0)
         DCOM PANIC ;FPU1er ;D9 E0 = FCHS ;Complements sign of ST(0) ;D9 E1 = FABS ;Replace ST with its absolute value ;D9 F6 = FDECSTP ;Decrement TOP field in FPU status word (rotate the stack by one position) ;D9 FF = FCOS ;Replace ST(0) with its approximate cosine
         DCOM PANIC ;FPU2er ;DA /0 = FIADD m32int ;Add m32int to ST(0) and store result in ST(0)
-        DCOM PANIC ;FPU3er ;DB /0 = FILD m32int ;Push m32int onto the FPU register stack ;DB F0+i = FCOMI ST, ST(i) ;Compare ST(0) with ST(i) and set status flags accordingly
+        DCOM FPU3er ;DB /0 = FILD m32int ;Push m32int onto the FPU register stack ;DB F0+i = FCOMI ST, ST(i) ;Compare ST(0) with ST(i) and set status flags accordingly ;DB E3 finit
         DCOM PANIC ;FPU4er ;DC /0 = FADD m64fp ;Add m64fp to ST(0) and store result in ST(0) ;DC C0+i = FADD ST(i), ST(0) ;Add ST(i) to ST(0) and store result in ST(i)
         DCOM PANIC ;FPU5er
         DCOM PANIC ;FPU6er ;DE /0 = FIADD m16int ;Add m16int to ST(0) and store result in ST(0) ;DE C0+i = FADDP ST(i), ST(0) ;Add ST(0) to ST(i), store result in ST(i), and pop the register stack ;DE C1 = FADDP ;Add ST(0) to ST(1), store result in ST(1), and pop the register stack
@@ -260,7 +260,7 @@ MAINCOMS
         DCOM OUTdxax
 ;#Fx
         DCOM PANIC ;LOCKer
-        DCOM PANIC ;INT1 ;TODO (atom)
+        DCOM INT1 ;(atom)
         DCOM REPNZer ;используетс€ дл€ cmpsb
         DCOM REPZer ;используетс€ также дл€ movsb и т.д.
         DCOM HLTer

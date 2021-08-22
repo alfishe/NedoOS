@@ -379,7 +379,7 @@ int_no8
       jp z,STIer
       ;jr $
         
-        ;EI
+gotoint
 ;push cs; push ip (адрес после команды) (retf читает ip,cs)
       push bc
       push hl
@@ -406,6 +406,32 @@ int_no8
 
      ;jp IRETer
        _LoopC_JP 
+
+INT1
+      ld a,(tpgs)
+      SETPGC000
+      ld hl,(1*4+0xc000) ;ip
+      ld bc,(1*4+0xc002) ;cs
+        jp gotoint
+INT3
+      ld a,(tpgs)
+      SETPGC000
+      ld hl,(3*4+0xc000) ;ip
+      ld bc,(3*4+0xc002) ;cs
+        jp gotoint
+INTOer
+	exx
+	ld a,e ;overflow data
+	and 0x40
+	rla
+	xor e
+	exx
+	JP p,NOPer
+      ld a,(tpgs)
+      SETPGC000
+      ld hl,(4*4+0xc000) ;ip
+      ld bc,(4*4+0xc002) ;cs
+        jp gotoint
 
        if 1;AFFLAG_16BIT
 ;как сформировать ZF,SF, не трогая AF?

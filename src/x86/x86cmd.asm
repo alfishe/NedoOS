@@ -1172,8 +1172,8 @@ REPNZer
 	jp z,REPSTOSWer
 	cp 0xae
 	jp z,REPSCASBer
-	;cp 0xaf
-	;jp z,REPSCASWer
+	cp 0xaf
+	jp z,REPSCASWer ;for ms pacman
        cp 0x6e
        jp z,NOPer ;TODO rep insw for lkccmini (настройка палитры, порт dx=0x03c9 https://bochs.sourceforge.io/techspec/PORTS.LST)
 
@@ -1399,6 +1399,24 @@ REPSCASBer
        _LoopC
 exaLoopC
 	ex af,af' ;'
+       _LoopC
+;repnz scasb
+REPSCASWer
+	ld hl,(_SI)
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
+        ld hl,(_AX)
+        SBCHLBC_KEEPCFPARITYOVERFLOW_FROMHL
+        INCDEC2DIbyDIRECTION
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ex af,af' ;'
+	jr z,exaLoopC
+	ex af,af' ;'
+	ld a,h
+	or l
+	jp nz,REP_repeat ;TODO keep old b
        _LoopC
 
         ALIGNrm

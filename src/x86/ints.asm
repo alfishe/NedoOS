@@ -24,7 +24,7 @@ far_int
 	cp 0x1a
 	jr z,INT_gettimer
         cp 0x21
-        jr z,INT21
+        jp z,INT21
         cp 0x80
         ret nc;jr nc,intlooper ;костыль для megapole
         cp 0x20
