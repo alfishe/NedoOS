@@ -32,10 +32,11 @@
 #include <errno.h>
 #include <ctype.h>
 #include <wctype.h>
-#include <termios.h>
+//#include <termios.h>
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "mingw-termios.h"
 #include "common.h"
 #include "charconv.h"
 

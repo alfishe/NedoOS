@@ -68,7 +68,7 @@
 #include "msdos_fs.h"
 #include "device_info.h"
 #include "charconv.h"
-
+#include "my_getline.h"
 
 /* Constant definitions */
 
@@ -1989,8 +1989,9 @@ int main(int argc, char **argv)
 
     /* Let's make sure to sync the block device. Otherwise, if we operate on a loop device and people issue
      * "losetup -d" right after this command finishes our in-flight writes might never hit the disk */
-    if (fsync(dev) < 0)
-        pdie("unable to synchronize %s", device_name);
+//    if (fsync(dev) < 0)
+//        pdie("unable to synchronize %s", device_name);
+// removed as this mkfs is only working with file images
 
     exit(0);			/* Terminate with no errors! */
 }

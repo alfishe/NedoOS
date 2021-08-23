@@ -21,7 +21,7 @@
 */
 
 #include "charconv.h"
-#include <langinfo.h>
+//#include <langinfo.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>

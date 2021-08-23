@@ -1,9 +1,9 @@
-NAME = mkfs_fat
-OBJS = mkfs.fat device_info common charconv
+NAME = mkfs_fat.exe
+OBJS = mkfs.fat device_info common charconv mingw-termios my_getline
 
-CFLAGS =-O2 -Wall -g
+CFLAGS = -D_POSIX_C_SOURCE=200809L -O2 -Wall -g
 
-CC ?= gcc
+CC = i686-w64-mingw32-gcc
 
 
 .PHONY: all
@@ -20,5 +20,5 @@ $(NAME): $(OBJS:%=%.o)
 clean:
 	rm $(NAME) $(OBJS:%=%.o) $(OBJS:%=%.d)
 
-%.o: %.c Makefile
+%.o: %.c Makefile.w32
 	$(CC) $(CFLAGS) -c -o $@ $<
