@@ -606,6 +606,11 @@ POPsp
 	ld (_SP),hl
 	encodeSP
        _LoopC
+LEAVEer
+;Set SP to BP, then pop BP
+        ld hl,(_BP)
+        ld (_SP),hl
+	encodeSP
 POPbp
         getmemspBC
 	ld (_BP),bc

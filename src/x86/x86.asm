@@ -1,7 +1,7 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=0;1
+DEBUG=1
 
 	include "x86.ini"
 
@@ -61,9 +61,13 @@ Reset
         ld de,0xfff0
 
        if 1
-        ld bc,0
+        ld bc,0x0400
         ld (_CS),bc
+       push bc
         countCS
+       pop bc
+        ld (_ES),bc
+        countES
 loadaddr=$+1
         ld de,0x7c00;STARTPC
        push de
@@ -84,13 +88,13 @@ loadcom
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
-        ld a,(tpgs)
-        ld d,a
         ld a,(tpgs+0x40)
-        ld e,a
+        ld d,a
         ld a,(tpgs+0x80)
-        ld h,a
+        ld e,a
         ld a,(tpgs+0xc0)
+        ld h,a
+        ld a,(tpgs+0x01)
         ld l,a
         ;jr $
         call readfile_pages_dehl
@@ -116,11 +120,6 @@ jpiyer
         push hl
         jp (iy)
        endif
-       if DEBUG
-       align 256
-oldpc
-        ;dw 0
-        ds 256       endif
 EMUCHECKQ
        if DEBUG
       push de
@@ -990,6 +989,13 @@ iff1	db 0xff
         align 256
 	include "x86table.asm"
 
+       if DEBUG
+       align 256
+oldpc
+        ;dw 0
+        ds 256
+       endif
+
 ;генерируется для textmode
         align 256
        macro dbrrc3 data
@@ -1123,7 +1129,7 @@ skipspaces
         jr skipspaces
 
         display "lowend=",$
-        ds 0x3fc0-$
+        ;ds 0x3fc0-$
         ds 0x4000-$
         include "ints.asm"
 end

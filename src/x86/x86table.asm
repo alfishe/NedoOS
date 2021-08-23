@@ -108,7 +108,7 @@ MAINCOMS
 ;#6x
         DCOM PUSHAer
         DCOM POPAer
-        DCOM PANIC ;BOUNDr16m ;for basic.x86, ll? TODO
+        DCOM PANIC ;BOUNDr16m ;for basic.x86, ll, firefighter? TODO
         DCOM PANIC ;ARPLrmr16 ;for cgadots TODO;Compares the RPL fields of two segment selectors. The first operand (the destination operand) contains one segment selector and the second operand (source operand) contains the other. (The RPL field is located in bits 0 and 1 of each operand.) If the RPL field of the destination operand is less than the RPL field of the source operand, the ZF flag is set and the RPL field of the destination operand is increased to match that of the source operand. Otherwise, the ZF flag is cleared and no change is made to the destination operand. (The destination operand can be a word register or a memory location; the source operand must be a word register.)
         DCOM FSer
         DCOM GSer
@@ -216,8 +216,8 @@ MAINCOMS
         DCOM LDSr16mem
         DCOM MOVrm8i8
         DCOM MOVrm16i16
-        DCOM PANIC ;ENTERi16i8
-        DCOM PANIC ;LEAVEer ;TODO ptica (03c8)? или это глюк? (в td не могу найти эту точку, в начале программы точно нет)
+        DCOM PANIC ;ENTERi16i8 (TODO ms pacman)
+        DCOM LEAVEer ;ptica (03c8)? или это глюк? (в td не могу найти эту точку, в начале программы точно нет)
         DCOM PANIC ;RETFi16 ;RETF и потом SP += i16
         DCOM RETFer
         DCOM INT3 ;for qloth_
