@@ -217,11 +217,11 @@ MAINCOMS
         DCOM MOVrm8i8
         DCOM MOVrm16i16
         DCOM PANIC ;ENTERi16i8
-        DCOM PANIC ;LEAVEer
+        DCOM PANIC ;LEAVEer ;TODO ptica (03c8)? или это глюк? (в td не могу найти эту точку, в начале программы точно нет)
         DCOM PANIC ;RETFi16 ;RETF и потом SP += i16
         DCOM RETFer
         DCOM INT3 ;for qloth_
-        DCOM INTi8
+        DCOM INTi8 ;TODO тут ещё fldcw cd 35 xx xx, fistp cd 3b xx xx (mips)
         DCOM INTOer ;Generate overflow trap if overflow flag is 1 ;for mips
         DCOM IRETer ;(for livin)
 ;#Dx

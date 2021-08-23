@@ -38,7 +38,7 @@ LESr16mem
         get
         next
        push af
-       ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
+       ADDRm16_GETm16_for_PUTm16 ;ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
        push bc
         skip2b_GETm16 ;bc=new ES
@@ -59,7 +59,7 @@ LDSr16mem
         get
         next
        push af
-       ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
+       ADDRm16_GETm16_for_PUTm16 ;ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
        push bc
         skip2b_GETm16 ;bc=new DS

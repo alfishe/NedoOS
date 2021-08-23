@@ -127,9 +127,10 @@ oldpc
        decodePC
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
-       cp 0x30
+       or e;cp 0x30
       pop de
-      jr nc,$
+      jr z,$;nc,$
+      if 1;0
        ld a,(_SP)
        rra
        jr c,$
@@ -141,7 +142,7 @@ oldpcaddr=$+1
         ld (hl),d
         inc l
         ld (oldpcaddr),hl
-
+       endif
        endif
         get
         next
