@@ -223,6 +223,7 @@ char dummy_boot_code[BOOTCODE_SIZE] = "\x0e"	/* push cs */
     "This is not a bootable disk.  Please insert a bootable floppy and\r\n"
     "press any key to try again ... \r\n";
 
+
 #define MESSAGE_OFFSET 29	/* Offset of message in above code */
 
 static char initial_volume_name[] = NO_NAME; /* Initial volume name, make sure that is writable */
@@ -1895,7 +1896,11 @@ int main(int argc, char **argv)
 
     if (!create) {
 	check_mount(device_name);	/* Is the device already mounted? */
+#ifdef _WIN32
+	dev = open(device_name, O_EXCL | O_RDWR | O_BINARY);	/* Is it a suitable device to build the FS on? */
+#else
 	dev = open(device_name, O_EXCL | O_RDWR);	/* Is it a suitable device to build the FS on? */
+#endif
 	if (dev < 0) {
 	    fprintf(stderr, "%s: unable to open %s: %s\n", program_name,
 		    device_name, strerror(errno));
