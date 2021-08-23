@@ -19,7 +19,7 @@ int imagemnt(char * imgname){
 		return 1;
 	}
 	if(res=f_mount(&fs, "0:", 1)){
-		printf("f_mount error %d.",res);
+		printf("f_mount error %d.\n",res);
 		return 1;
 	}
 	return 0;
@@ -29,7 +29,7 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 	int res;
 	if(strcmp(cmd,"mkdir")==0){
 		if(argc!=2){
-			puts("Error: wrong namber parameters");
+			puts("Error: wrong number of parameters\n");
 			return 1;
 		}
 		if(res=f_mkdir(arg1)){
@@ -41,7 +41,7 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 		}
 	}else if(strcmp(cmd,"del")==0){
 		if(argc!=2){
-			puts("Error: wrong namber parameters");
+			puts("Error: wrong number of parameters\n");
 			return 1;
 		}
 		if(res=f_unlink(arg1)){
@@ -51,7 +51,7 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 		}
 	}else if(strcmp(cmd,"put")==0){
 		if(argc!=3){
-			puts("Error: wrong namber parameters");
+			puts("Error: wrong number of parameters\n");
 			return 1;
 		}
 		if((f1=fopen(arg1,"rb"))==NULL) {
@@ -74,7 +74,7 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 		f_close(&f2);
 	}else if(strcmp(cmd,"get")==0){
 		if(argc!=3){
-			puts("Error: wrong namber parameters");
+			puts("Error: wrong number of parameters\n");
 			return 1;
 		}
 		if((f1=fopen(arg2,"w+b"))==NULL) {
@@ -117,7 +117,7 @@ int runcmd(int argc, char * cmd, char * arg1, char * arg2){
 		}	
 	}else if(strcmp(cmd,"conf")==0){
 		if(argc!=2){
-			puts("Error: wrong namber parameters");
+			puts("Error: wrong number of parameters\n");
 			return 1;
 		}
 		if((fconf=fopen(arg1,"r"))==NULL) {
@@ -138,7 +138,7 @@ int main (int argc, char *argv[]){
 #endif
 
 	if(argc<3){
-		puts("Error: Need more parameters.");
+		puts("Error: Need more parameters.\n");
 		exit(1);
 	}
 	if(imagemnt(argv[1])) exit(2);
@@ -175,7 +175,7 @@ int main (int argc, char *argv[]){
 	if(img != NULL) fclose(img);
 	exit(0);
 errexit:
-	printf("%s: %d",cc,res);
+	printf("%s: %d\n",cc,res);
 	fclose(img);
 	exit(1);
 }
