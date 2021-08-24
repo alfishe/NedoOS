@@ -258,10 +258,8 @@ JRrel16y
        xor h
        and 0xc0
         ex de,hl ;new PC 
-       jr z,JRrel16_qslow
+       jp z,JRer_qslow
        _LoopC_JPoldpg
-JRrel16_qslow
-       _LoopC_JP
 
 ;на входе в команду:
 ;без сегментного префикса: b=l(адрес обработчика)
@@ -447,7 +445,7 @@ CLIer
 STIer
         ld a,-1
         ld (iff1),a
-       if 1
+       if 0;1
 ;мегакостыль для pitman:
        ld hl,0x4925
        ld a,(hl)
@@ -1181,12 +1179,25 @@ REPNZer
 	jp z,REPSCASWer ;for ms pacman
        cp 0x6e
        jp z,NOPer ;TODO rep insw for lkccmini (настройка палитры, порт dx=0x03c9 https://bochs.sourceforge.io/techspec/PORTS.LST)
+       cp 0x66
+       jr z,REPSTOSDWer ;for blue
 
  if debug_stop = 0
  jp PANIC
  else
  jr $
  endif
+
+REPSTOSDWer
+       get
+       next
+       cp 0xab
+       jr nz,$
+       ld hl,(_CX)
+       add hl,hl
+       ld (_CX),hl
+       jr c,$
+        jp REPSTOSWer
 
 REPMOVSWer_scr
 	ld hl,(_DI)

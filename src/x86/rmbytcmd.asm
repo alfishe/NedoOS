@@ -2730,6 +2730,7 @@ GRP48mem
 	cp 0b00001000
 	jp z,DECrmmem8
 ;TODO fe 27 for blockage?
+;TODO fe 70 for atom?
         
  if debug_stop = 0
  jp PANIC
