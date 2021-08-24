@@ -684,9 +684,35 @@ ADCrmmem16i8
         jp ADCrmmem16bc ;там next
 GRP1rmmem16i8_1xx
        add a,a
-       jp p,$ ;no AND,XOR
+       ;jp p,$ ;no AND,XOR??? used in pchela!
+       jp p,
        jr nc,SUBrmmem16i8
         jr CMPr16i8
+GRP1rmmem16i8_AND_XOR
+       jr c,XORrmmem16i8
+        get
+        ld c,a
+        and l
+        ld l,a
+        ld a,c
+        rla
+        sbc a,a
+        and h
+        jp GRP1rmmemi16logicq ;al=result ;там next
+XORrmmem16i8
+        get
+        ld c,a
+        xor l
+        ld l,a
+        ld a,c
+        rla
+        sbc a,a
+        xor h
+GRP1rmmemi16logicq ;al=result ;там next
+        ld h,a
+        KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
+        next
+       _PUTm16hlLoopC
 
 ;--------------- alu single calls
        macro OPrmr8_PRE

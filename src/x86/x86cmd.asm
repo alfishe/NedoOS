@@ -254,11 +254,11 @@ JRrel16y
         LD H,A
        decodePC ;a=d
         ADD HL,DE
-       ;ld a,d
-       xor h
-       and 0xc0
+       ;;ld a,d
+       ;xor h
+       ;and 0xc0
         ex de,hl ;new PC 
-       jp z,JRer_qslow
+       ;jp z,JRer_qslow
        _LoopC_JPoldpg
 
 ;на входе в команду:
@@ -1034,12 +1034,12 @@ JRer
         LD H,A
        decodePC ;a=d
         ADD HL,DE
-       ;ld a,d
-       xor h
-       and 0xc0
+       ;;ld a,d
+       ;xor h
+       ;and 0xc0
         ex de,hl ;new PC 
-       jr z,JRer_qslow
-       _LoopC_JPoldpg
+       ;jr z,JRer_qslow
+       ;_LoopC_JPoldpg
 JRer_qslow
        _LoopC_JP
 
@@ -1161,6 +1161,7 @@ XCHGaxdi
 REPZer
 REPNZer
 ;костыль! FIXME
+;TODO ставить свой iy в каждом обработчике, чтобы не делать jr
 	get
 	next
 	cp 0xa4

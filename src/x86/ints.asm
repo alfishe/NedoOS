@@ -55,7 +55,8 @@ filltpgs0
        push de
        push hl
        ld a,e
-       call c,clpga
+       ;call c,clpga
+       call clpga
        pop hl
        pop de
 filltpgs0_noclear

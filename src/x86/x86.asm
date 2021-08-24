@@ -451,7 +451,7 @@ recountpc_inc ;keep CY!
 PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
        push hl
        push bc
-       call PUTscreen_logpgc_zxaddrhl_datamhl_do ;TODO inline вместе с этим хвостиком
+       call PUTscreen_logpgc_zxaddrhl_datamhl_do ;не получится inline, т.к. многие вызывают прямо PUTscreen_logpgc_zxaddrhl_datamhl_do
        pop bc
         ld b,tpgs/256
         ld a,(bc)
