@@ -1216,7 +1216,7 @@ REPMOVSWer_scr0
 	SETPGC000
          GETm16
        push bc
-         ld a,c
+         ;ld a,c
 	ld hl,(_DI)
 	ld bc,(es_LSW)
 	ld a,(es_HSB)

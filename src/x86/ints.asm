@@ -41,6 +41,11 @@ autoloadq
         ld a,(user_scr0_low) ;ok
         call clpga
 
+        ld de,trom0
+        OS_OPENHANDLE
+        ld a,b
+        ld (curhandle),a
+
         ld hl,tpgs
         ld b,64 ;TODO меньше для АТМ2
 filltpgs0
@@ -48,15 +53,19 @@ filltpgs0
         push hl
         OS_NEWPAGE
         pop hl
-     ld a,l
-     add a,-40
-     cp 4-40 ;чистим первые 4 страницы и экран с остатком памяти ;para512 ожидает чистую память после себя, pillman ожидает чистый экран
-     ;jr nc,filltpgs0_noclear
+     ;ld a,l
+     ;add a,-40
+     ;cp 4-40 ;чистим первые 4 страницы и экран с остатком памяти ;para512 ожидает чистую память после себя, pillman ожидает чистый экран
+     ;;jr nc,filltpgs0_noclear
        push de
        push hl
        ld a,e
        ;call c,clpga
        call clpga
+        SETPGC000
+        ld de,0xc000
+        ld hl,0x4000
+        ;call readcurhandle
        pop hl
        pop de
 filltpgs0_noclear
@@ -108,23 +117,33 @@ resetpp
         ;call loadfile_in_hl
         ;ld de,0xfff0
 
-        ld bc,0x0500
-        ld (_SS),bc
-        countSS
-        ld bc,0x0400
+        ld bc,0x0c02;0400
         ld (_CS),bc
         countCS
         ld (_DS),bc
         countDS
         ld (_ES),bc
         countES
+        ld (_SS),bc
+        countSS
         ld hl,0xfff0
         ld (_SP),hl
         encodeSP
-       ld a,(tpgs+0x40) ;cs
-       SETPGC000
-       ld hl,0x9fff
-       ld (0xc002),hl ;cs:0002=top segment of mem?
+       ;ld a,(tpgs+0x40) ;cs
+       ;SETPGC000
+       ;ld hl,0x9fff
+       ;ld (0xc002),hl ;cs:0002=top segment of mem?
+	ld hl,0x0002
+	ld bc,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDRSEGMENT_chl_bHSB
+         ld lx,c
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       ld bc,0x9fff
+        _PUTm16_oldpglx
+
 loadaddr=$+1
         ld de,0x7c00;STARTPC
        push de
@@ -134,10 +153,20 @@ filenameaddr=$+1
        ld a,d
        dec a;cp 0x41
        jr z,loadcom
-        set 7,d;STARTPC
-        ex de,hl
-       ld a,(tpgs+0x80) ;2-я страница сегмента программы = 3-я страница памяти (#2)
-       SETPGC000
+       ; set 7,d;STARTPC
+       ; ex de,hl
+       ;ld a,(tpgs+0x80) ;2-я страница сегмента программы = 3-я страница памяти (#2)
+       ;SETPGC000
+	ex de,hl
+       ;push de
+	ld bc,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDRSEGMENT_chl_bHSB
+         ld lx,c
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+       ;pop de
 ;de=имя файла
 ;hl=куда грузим
         call loadfile_in_hl ;for bootbasic
@@ -165,19 +194,6 @@ loadfile_in_hl
         OS_CLOSEHANDLE
 	ret
 
-readfile_pages_dehl
-        ld a,d
-        SETPGC000
-        ld a,0xc100/256
-        call cmd_loadpage
-        ret nz
-        ld a,e
-        call cmd_loadfullpage
-        ret nz
-        ld a,h
-        call cmd_loadfullpage
-        ret nz
-        ld a,l
 cmd_loadfullpage
         SETPGC000
         ld a,0xc000/256
@@ -239,7 +255,8 @@ farquiter
         QUIT
 
 trom0
-        db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
+        ;db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
+        db "em87_1_3_installed.BIN",0 ;грузить во всю память
 tprog
         db "atomchess.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
         ;db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
@@ -277,6 +294,53 @@ loadcompp
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
+
+        ld hl,0x0100
+	ld bc,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDRSEGMENT_chl_bHSB
+	ld b,tpgs/256
+       push bc
+       push hl
+        ld a,(curhandle)
+        ld b,a
+        OS_GETFILESIZE ;b=handle, out: dehl=file size
+       pop de
+       pop bc        
+loadcompp0
+;de=текущий адрес загрузки (c000+)
+;hl=сколько байтов осталось грузить
+;bc=tpgs+текущий номер страницы
+        push bc
+        ld a,(bc)
+        SETPGC000
+       push hl ;сколько байтов осталось грузить
+       add hl,de
+       sbc hl,de
+       jr nc,loadcompp_nocroppg
+       ld hl,1
+       ;scf
+       sbc hl,de
+loadcompp_nocroppg
+        call readcurhandle
+        ld b,h
+        ld c,l
+       pop hl ;сколько байтов осталось грузить
+       or a
+       sbc hl,bc
+       ld de,0xc000
+        pop bc
+        ld a,c
+        rlca
+        rlca
+        inc a
+        rrca
+        rrca
+        ld c,a ;next pg
+        ld a,h
+        or l
+        jr nz,loadcompp0
+       if 0
         ld a,(tpgs+0x40)
         ld d,a
         ld a,(tpgs+0x80)
@@ -286,7 +350,20 @@ loadcompp
         ld a,(tpgs+0x01)
         ld l,a
         ;jr $
-        call readfile_pages_dehl
+        ld a,d
+        SETPGC000
+        ld a,0xc100/256
+        call cmd_loadpage
+        ret nz
+        ld a,e
+        call cmd_loadfullpage
+        ret nz
+        ld a,h
+        call cmd_loadfullpage
+        ret nz
+        ld a,l
+        call cmd_loadfullpage
+       endif
         ld a,(curhandle)
         ld b,a
         OS_CLOSEHANDLE
