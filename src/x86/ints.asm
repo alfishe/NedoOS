@@ -95,7 +95,7 @@ filltscreenpgs0
         djnz filltscreenpgs0
        ld (tscreenpgs+0x8b),a ;for textmode
 
-        call swapimer ;сначала прерывания ничего не делают (iff0==0)
+        call swapimer ;сначала прерывания ничего не делают (iff1==0)
 
         jp initq
 
@@ -126,7 +126,7 @@ resetpp
         countES
         ld (_SS),bc
         countSS
-        ld hl,0xfff0
+        ld hl,0;0xfff0
         ld (_SP),hl
         encodeSP
        ;ld a,(tpgs+0x40) ;cs
@@ -1349,5 +1349,6 @@ _x=_x+1
 _y=_y+1
        edup
        dup 24
-        dw 0xfff8
+        ;dw 0xfff8;запарывает rst
+        dw 0xc000+(80*200)
        edup

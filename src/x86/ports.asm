@@ -113,7 +113,7 @@ IN_skip
         
 IN_0060
         push de
-     DISABLE_IFF0_KEEP_IY
+     ;DISABLE_IFF0_KEEP_IY
         ;OS_GETKEY
         call keyscan_getkey
        ;or a
@@ -133,7 +133,7 @@ IN_0060
         and 0x80
         xor (hl)
       endif
-     ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
+     ;ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
       ;ld c,0x18
       ; ld a,r

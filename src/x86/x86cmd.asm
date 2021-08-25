@@ -363,15 +363,23 @@ getflags_bc
         set 2,c
 ;c=%SZ0A0P1C
 ;c=%SF:ZF:0:AF:0:PF:1:CF
-        ld b,0x30 ;+ 2
         ld a,(iff1)
-        or a
-        jr z,$+4
-        set 1,b ;interrupt enable
-        ld a,(_DIRECTION) ;TODO from patch
-        rra
-        jr nc,$+4
-        set 2,b
+        ;ld b,0x30 ;+ 2
+        ;or a
+        ;jr z,$+4
+        ;set 1,b ;interrupt enable
+       and 2
+       or 0x30
+       ld b,a
+        ;ld a,(_DIRECTION) ;TODO from patch
+        ;rra
+        ;jr nc,$+4
+        ;set 2,b
+       ld a,(incdecsi_hl)
+       rra
+       and 4
+       or b
+       ld b,a
         exx
         ld a,e ;overflow data
 	and 0x40
@@ -389,18 +397,18 @@ makeflags_frombc
         and 2 ;interrupt enable
         add a,-1
         sbc a,a
-        ;ld (iff1),a
+        ld (iff1),a
         ld a,b
-        and 4 ;direction
-        add a,-1
-        sbc a,a
+        ;and 4 ;direction
+        ;add a,-1
+        ;sbc a,a
         ;ld (_DIRECTION),a
+       rla
         and 8
         or 0x23 ;"inc hl" ;0x2b ;"dec hl"
-        ;ld (incdec2si_hl),a
-        ;ld (incdecsi_hl),a
+        ld (incdec2si_hl),a
+        ld (incdecsi_hl),a
         ld a,b
-       cpl ;???
         and 8 ;overflow
         rlca
         rlca
@@ -409,10 +417,10 @@ makeflags_frombc
         ld e,a ;overflow data ;или инверсно?
         exx
         ld a,c
-       cpl ;???
-        and 4 ;parity
+       ;cpl
+       or 0xfb;and 4 ;parity
         exx
-        ld d,a ;parity data ;или инверсно?
+        ld d,a ;parity data
         exx
        endif
         push bc
@@ -456,8 +464,8 @@ STIer
        _Loop_
 
 CLDer
-	xor a
-	ld (_DIRECTION),a
+	;xor a
+	;ld (_DIRECTION),a
         ld a,0x23 ;"inc hl"
         ld (incdec2si_hl),a
         ld (incdecsi_hl),a
@@ -466,8 +474,8 @@ HLTer ;TODO
        _Loop_
 
 STDer
-	ld a,-1
-	ld (_DIRECTION),a
+	;ld a,-1
+	;ld (_DIRECTION),a
         ld a,0x2b ;"dec hl"
         ld (incdec2si_hl),a
         ld (incdecsi_hl),a
@@ -911,8 +919,8 @@ RETer
 IRETer
         getmemspBC
         call makeflags_frombc
-        ld a,-1
-        ld (iff1),a
+        ;ld a,-1
+        ;ld (iff1),a ;уже есть в makeflags
 RETFer
         getmemspBC ;ip
        push bc

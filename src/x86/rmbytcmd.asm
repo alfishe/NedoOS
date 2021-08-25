@@ -2517,11 +2517,16 @@ GRP316
  
 TESTr16i16
         GETr16
+;       jr TESTrmmemi16_skip
 TESTrmmemi16
+;       jr $
+;TESTrmmemi16_skip
         get
+        next
         and c
         ld c,a
         get
+        next
         and b
         ld b,a
 ;The OF and CF flags are set to 0. The SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined.
@@ -2868,7 +2873,7 @@ GRP416mem
 	cp 0b00100000
 	jr z,JMPrmmem16
 	cp 0b00101000
-	jr z,JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+	jp z,JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
 	cp 0b00110000
 	;jr z,PUSHrmmem16
 	

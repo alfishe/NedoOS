@@ -39,6 +39,9 @@ jpiyer
         jp (iy)
        endif
 EMUCHECKQ
+        ;call getflags_bc
+        ;call makeflags_frombc
+        ;call getflags_bc
        if DEBUG
       push de
        decodePC
@@ -157,7 +160,6 @@ timer_inc_skip
 IMEREI
         XOR A
         LD (iff1),A
-        ;LD (iff2),A ;для NMI надо только iff1!
 ;перед эмуляцией INT завершаем тек.команду (перехват на EMULOOP)
         LD (keepemuchecker),IY
         LD IY,IMINT
@@ -188,6 +190,7 @@ IMINT_noiykeeperdata
      jr c,int_no8
       ld hl,(8*4+0xc000) ;ip
       ld bc,(8*4+0xc002) ;cs
+    if 1;0
      ld a,0x55
      rlca
      ld ($-2),a
@@ -195,6 +198,7 @@ IMINT_noiykeeperdata
       ld hl,(0x1c*4+0xc000) ;ip
       ld bc,(0x1c*4+0xc002) ;cs
 int_no8
+    endif
       ld a,h
       or l
      ;xor a
@@ -202,14 +206,14 @@ int_no8
       ;jr $
         
 gotoint
-;push cs; push ip (адрес после команды) (retf читает ip,cs)
+;push cs; push ip (адрес после команды); push flags (iret читает flags,ip,cs)
       push bc
       push hl
        ld bc,(_CS)
         putmemspBC ;old CS
 ;абсолютный адрес ip, cs
-        ld a,(tpgs)
-        SETPGC000
+        ;ld a,(tpgs)
+        ;SETPGC000
       pop hl
       pop bc
         ;ld hl,(9*4+0xc000) ;ip
@@ -224,6 +228,7 @@ gotoint
         putmemspBC
 
        call getflags_bc
+        set 1,b ;interrupt enable
        putmemspBC
 
      jp JRer_qslow ;_LoopC_JP 
@@ -374,6 +379,41 @@ countXS_bc_to_ahl
 	rla
         ret
 
+       if 1
+getmemspBCpp
+        ld bc,(_SP)
+	ld hl,(ss_LSW)
+	ld a,(ss_HSB)
+        ADDSEGMENT_hl_abc_to_ahl
+        inc bc
+        inc bc
+        ld (_SP),bc
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        res 6,h
+	ld a,(bc)
+	SETPG8000
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        push bc
+        ld hl,(_SP)
+        inc hl
+        memSS
+        pop bc
+        ld b,(hl)
+	ret
+recountsp_inc
+        push bc
+        ld hl,(_SP)
+        inc hl
+        memSS
+        pop bc
+	ret
+       else
+;не работает при некруглых сегментах
 putmemspBC_pp
         ;LD HL,(_SP)
 	inc l
@@ -433,6 +473,7 @@ recountsp_incdec
         pop hl
         pop bc
 	ret
+       endif
 
 recountpc_inc ;keep CY!
 	inc d
@@ -550,8 +591,8 @@ ansipal ;можно убрать в ints
 
 pc_high
         db 0
-_DIRECTION
-	db 0
+;_DIRECTION
+	;db 0
 iff1
 	db 0xff
 pgprog

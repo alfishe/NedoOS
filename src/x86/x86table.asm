@@ -62,7 +62,7 @@ MAINCOMS
         DCOM XORali8
         DCOM XORaxi16
         DCOM SSer
-        DCOM PANIC ;AAAal
+        DCOM PANIC ;AAAal ;TODO labir
         DCOM CMPrmr8
         DCOM CMPrmr16
         DCOM CMPr8rm

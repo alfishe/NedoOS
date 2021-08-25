@@ -221,6 +221,20 @@
 
 ;TODO перехват записи в экран (call...jr/ld...ret? (+27t быстрая ветка) или ld a,hx:rla:call cc (+22t быстрая ветка), а там на выходе пропуск всего этого блока? или вообще and hx:call z? (+18t, на входе a!=0))
 	macro putmemspBC
+       if 1
+       push bc
+        ld hl,(_SP)
+        dec hl
+        dec hl
+        ld (_SP),hl
+        memSS
+       pop bc
+        ld (hl),c
+        inc l
+        call z,recountsp_inc
+        ld (hl),b
+       else
+;не работает при некруглых сегментах
         ld hl,(_SP)
         ld a,l
         sub 2
@@ -234,9 +248,14 @@ _putmemspBC_base=$
         inc l
         ld (hl),b
 _putmemspBC_skipsize=$-_putmemspBC_base
+       endif
         endm
 
 	macro getmemspBC
+       if 1
+        call getmemspBCpp
+       else
+;не работает при некруглых сегментах
         LD HL,(_SP)
         ld a,l
         add a,2
@@ -249,6 +268,7 @@ _getmemspBC_base=$
         inc l
 	ld b,(hl)
 _getmemspBC_skipsize=$-_getmemspBC_base
+       endif
 	endm
 
 	macro encodeSP
