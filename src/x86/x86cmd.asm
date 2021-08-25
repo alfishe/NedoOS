@@ -35,10 +35,13 @@ LEAr16rm
 LESr16mem
 ;загрузить указатель, используя ES
 ;из памяти читаем reg, потом es
+       if DEBUG
+        jr $
+       endif
         get
         next
        push af
-       ADDRm16_GETm16_for_PUTm16 ;ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
+       ADDRm16_GETm16_for_PUTm16 ;TODO nokeepaf ;ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
        push bc
         skip2b_GETm16 ;bc=new ES
@@ -56,10 +59,13 @@ LDSr16mem
 ;загрузить указатель, используя DS
 ;lds r16,m16:16
 ;из памяти читаем reg, потом ds
+       if DEBUG
+        jr $
+       endif
         get
         next
        push af
-       ADDRm16_GETm16_for_PUTm16 ;ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
+       ADDRm16_GETm16_for_PUTm16 ;TODO nokeepaf ;ADDRm16_GETm16_keeplx_nokeepaf ;bc=rmmem
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
        push bc
         skip2b_GETm16 ;bc=new DS
@@ -1174,10 +1180,12 @@ REPNZer
 	next
 	cp 0xa4
 	jp z,REPMOVSBer
-	cp 0xa6
-	jp z,REPCMPSBer
 	cp 0xa5
 	jp z,REPMOVSWer
+	cp 0xa6
+	jp z,REPCMPSBer
+	cp 0xa7
+	jp z,REPCMPSWer ;ms pacman
 	cp 0xaa
 	jp z,REPSTOSBer
 	cp 0xab
@@ -1398,6 +1406,29 @@ REPCMPSBer
 	dec hl
 	ld (_CX),hl
 	ex af,af' ;'
+	jp nz,exaLoopC
+	ex af,af' ;'
+	ld a,h
+	or l
+	jp nz,REP_repeat ;TODO keep old b
+       _LoopC
+;repz cmpsw
+REPCMPSWer
+	ld hl,(_SI)
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
+       push bc
+	ld hl,(_DI)
+	getmemES
+       pop hl
+        or a
+        sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMA
+        INCDEC2SI_DIbyDIRECTION
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
+	ex af,af' ;'
 	jr nz,exaLoopC
 	ex af,af' ;'
 	ld a,h
@@ -1425,7 +1456,7 @@ REPSCASBer
 exaLoopC
 	ex af,af' ;'
        _LoopC
-;repnz scasb
+;repnz scasw
 REPSCASWer
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp

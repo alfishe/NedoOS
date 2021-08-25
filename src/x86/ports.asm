@@ -70,6 +70,10 @@ IN_bc_to_bc
        or a
        sbc hl,bc
        jr z,IN_0061 ;for mision
+       ld hl,0x0201
+       or a
+       sbc hl,bc
+       jr z,IN_0201 ;for planeta
         ld hl,0x0202
         or a
         sbc hl,bc
@@ -153,6 +157,15 @@ IN_0061
        ;ld c,a
         ret
 
+IN_0201
+;проверяется по маске 3 (planeta). не помогает
+        ;jr $
+        ld a,r
+        rra
+        rra
+        ld c,a
+        ret
+
 IN_0202
 ;проверяется на равенство 3f (ptica)
         ld bc,0x003f
@@ -161,6 +174,8 @@ IN_0202
 ;0x03da - порт видеоконтроллера. проверяется на равенство 8 - во время КСИ? (pixeltown) и на and 1 (cgademo)
 IN_03da
         ld a,r
+       rra
+       rra
         and 8+1
         ld c,a
         ld b,0

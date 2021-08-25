@@ -41,7 +41,7 @@ autoloadq
         ld a,(user_scr0_low) ;ok
         call clpga
 
-        ld de,trom0
+        ld de,tallmem
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
@@ -77,7 +77,9 @@ filltpgs0_noclear
        ld l,a
         inc l
         djnz filltpgs0
-       
+
+        call closecurhandle
+
 ;0xa0000 (pg 40): 4 pages for screen
 ;0xb8000 (pg 46): 1 page for textmode
         ld h,tscreenpgs/256
@@ -102,19 +104,24 @@ filltscreenpgs0
 resetpp
         xor a
         ld (iff1),a
-        
+
         call INT_setgfxTEXT80
-        
-        ;ld bc,0xf000
-        ;ld (_CS),bc
-        ;countCS
-        ;ld de,0xe000
+
+        ld bc,0xf000
+        ld (_CS),bc
+        countCS
+        ld bc,0xe000
         ;encodePC;memCS ;out: a=physpg, de=zxaddr
-        ;ex de,hl
-        ;ld de,trom0
+	ld hl,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDRSEGMENT_chl_bHSB
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+        ld de,trom0
 ;de=имя файла
 ;hl=куда грузим
-        ;call loadfile_in_hl
+        call loadfile_in_hl
         ;ld de,0xfff0
 
         ld bc,0x0c02;0400
@@ -174,12 +181,12 @@ filenameaddr=$+1
 loadcom
         call loadcompp
 loadcomq
-       pop de ;LD DE,STARTPC ;=IP(PC)      
-       
+       pop de ;LD DE,STARTPC ;=IP(PC)
+
         LD IY,EMUCHECKQ
         ld a,-1
         ld (iff1),a
-     jp JRer_qslow ;_LoopC_JP 
+     jp JRer_qslow ;_LoopC_JP
 
 ;de=имя файла
 ;hl=куда грузим
@@ -231,7 +238,7 @@ clpga
         ld bc,0x3fff
         ld (hl),l;0
         ldir
-        ret     
+        ret
 
 ;keep here for quit
 swapimer
@@ -255,7 +262,8 @@ farquiter
         QUIT
 
 trom0
-        ;db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
+        db "compaq.bin",0 ;грузить в F000:E000, запускать с FFF0?
+tallmem
         db "em87_1_3_installed.BIN",0 ;грузить во всю память
 tprog
         db "atomchess.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
@@ -306,7 +314,7 @@ loadcompp
         ld b,a
         OS_GETFILESIZE ;b=handle, out: dehl=file size
        pop de
-       pop bc        
+       pop bc
 loadcompp0
 ;de=текущий адрес загрузки (c000+)
 ;hl=сколько байтов осталось грузить
@@ -364,6 +372,7 @@ loadcompp_nocroppg
         ld a,l
         call cmd_loadfullpage
        endif
+closecurhandle
         ld a,(curhandle)
         ld b,a
         OS_CLOSEHANDLE
@@ -384,7 +393,7 @@ INT_gettimer
         ld (_DX),hl
        ret;_Loop_
 
-far_int        
+far_int
 ;int 0x20 ;system
 ;int 0x16 ;ah=0: input key -> al
 ;int 0x10 ;ah=0x0e: print al (зачем bx=7?)
@@ -401,7 +410,7 @@ far_int
         ret nc;jr nc,intlooper ;костыль для megapole
         cp 0x20
         jp z,quiter
-        
+
         cp 0x11
         ret z ;TODO for shamus
 
@@ -410,7 +419,7 @@ far_int
  else
  jr $
  endif
- 
+
 ;intlooper
 ;       _Loop_
 printstring
@@ -468,9 +477,11 @@ INT10
         cp 0x01
         ret z;jr z,intlooper ;TODO disable caret
         cp 0x02
-        ret z;jr z,intlooper ;TODO set cursor position
+        jp z,INT_setcursorposition ;set cursor position
+        cp 0x09
+        jp z,INT_prcharandattr ;Писать символ и атрибут в текущей позиции курсора (zaxon, km, nstalker, pipes)
         cp 0x0a
-        ret z ;TODO ;Write character only at cursor position	AH=0Ah	AL = Character, BH = Page Number, CX = Number of times to print character
+        jp z,INT_prcharnoattr ;Write character only at cursor position	AH=0Ah	AL = Character, BH = Page Number, CX = Number of times to print character
         cp 0x0b
         ret z ;TODO for zaxon Set background/border color	AH=0Bh, BH = 00h	BL = Background/Border color (border only in text modes)
         cp 0x10
@@ -479,12 +490,130 @@ INT10
         jp z,INT_setgfx ;blue (установка шрифта? не вызывает setgfx!!!)
         cp 0x0f
         jp z,INT_getgfx ;blue
-        
+
  if debug_stop = 0
  ret
  else
  jr $
  endif
+
+;TODO
+;03h  Узнать позицию и размер курсора
+;Вход:
+;BH = видео страница
+;Выход:
+;DH = текущая строка курсора (см. функцию 02H)
+;DL = текущий столбец курсора (см. функцию 02H)
+;CH = текущая начальная строка экрана, содержащая курсор (см. функцию 01H)
+;CL = текущая конечная строка экрана, содержащая курсор (см. функцию 01H)
+
+
+INT_setcursorposition
+;Вход:
+;BH = видео страница
+;DH = номер строки (считая от 0)
+;DL = номер столбца (считая от 0)
+        ld hl,(_DX)
+        ld (intcursorposition),hl
+        ret
+
+INT_prcharnoattr
+INT_prcharandattr
+;Писать символ и атрибут в текущей позиции курсора (zaxon, km, nstalker, pipes)
+;Вход:
+;BH = номер видео страницы
+;AL = записываемый символ (ASCII код)
+;CX = счетчик (сколько экземпляров символа записать)
+;BL = видео атрибут (текстовый режим) или цвет (графический режим)
+;Примечание:
+;При записи с помощью этой функции курсор не сдвигается!
+;В графических режимах не рекомендуется использовать значение CX, отличное от единицы, т.к. не везде правильно реализован повтор символа
+;Если программа работает под управлением PTS-DOS, то значения в BH, BL и CX могут быть проигнорированны)
+       push de
+        ld hl,(_AL)
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld bc,font;0x1a6e+0xa000
+        add hl,bc
+        ;ld a,(tpgs+0xcf) ;last page of BIOS
+        ;SETPG8000 ;TODO fix for fast stack!!!
+       push hl
+intcursorposition=$+1
+        ld de,0
+        ld l,d
+        ld h,0
+         ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc ;y*5
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*40*8
+         set 7,h
+         set 6,h
+        ld c,e
+        add hl,bc
+       pop de ;gfx
+        ld b,8
+_leftpix=0x07
+_rightpix=0x38
+INT_prchar0
+        push bc
+        push de
+        ld a,(de)
+        ld e,a
+        ld a,(user_scr0_low) ;ok
+        SETPGC000
+        xor a
+        bit 7,e
+        jr z,$+4
+        or _leftpix
+        bit 6,e
+        jr z,$+4
+        or _rightpix
+        ld (hl),a
+        set 5,h
+        xor a
+        bit 3,e
+        jr z,$+4
+        or _leftpix
+        bit 2,e
+        jr z,$+4
+        or _rightpix
+        ld (hl),a
+        ld a,(user_scr0_high) ;ok
+        SETPGC000
+        xor a
+        bit 1,e
+        jr z,$+4
+        or _leftpix
+        bit 0,e
+        jr z,$+4
+        or _rightpix
+        ld (hl),a
+        res 5,h
+        xor a
+        bit 5,e
+        jr z,$+4
+        or _leftpix
+        bit 4,e
+        jr z,$+4
+        or _rightpix
+        ld (hl),a
+        ld bc,40
+        add hl,bc
+        pop de
+        inc de
+        pop bc
+        djnz INT_prchar0
+       pop de
+        ret
 
 INT21
         ld a,(_AH)
@@ -495,8 +624,8 @@ INT21
         ret z;jr z,intlooper ;TODO deallocate (Resize memory block)
         cp 0x48
         ret z;jr z,intlooper ;TODO allocate (return ax = segment)
-        cp 0x06
-        ret z ;TODO 06h	Direct console I/O (for blaze0)
+        ;cp 0x06
+        ;ret z ;TODO 06h	Direct console I/O (for blaze0)
         cp 0x07
         jp z,dosgetchar ;(for mision)
         cp 0x25
@@ -537,7 +666,7 @@ INT21
  else
  jr $
  endif
- 
+
 setvector
 ;set new int 09h vector
 ;        push    cs
@@ -600,7 +729,7 @@ dosversion
         ld hl,5
         ld (_AX),hl
         ret
- 
+
 INT_printstringdx
 ;TODO
         ;jr $
@@ -908,7 +1037,7 @@ prefetchedkey=$+1
 ;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
 ;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
-;        Флаг Z - если 0(NZ), то отсутствует фокус.  
+;        Флаг Z - если 0(NZ), то отсутствует фокус.
      ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
         pop de
 INT_inputal_a
@@ -1035,7 +1164,7 @@ wasPUTscreen_cga
         xor c
         and 0xf8
         xor c
-        ld l,a     
+        ld l,a
        bit 5,b ;бывший bit 5,h
         jr z,$+2+3+1
          ld bc,40
@@ -1081,7 +1210,7 @@ wasPUTscreen_vga
      xor (hl)
      and 0b01000111
      xor (hl)
-     ld (hl),a    
+     ld (hl),a
         ret
 PUTscreen_rightpixel
         sra h
@@ -1100,7 +1229,7 @@ PUTscreen_rightpixel
      xor (hl)
      and 0b10111000
      xor (hl)
-     ld (hl),a    
+     ld (hl),a
         ret
      ent
 szPUTscreen_vga=$-wasPUTscreen_vga
@@ -1118,7 +1247,7 @@ wasPUTscreen_textmode40
 ;hl=00000GGG GgggXXxA
         ld a,l  ;gggXXXxA
         srl a
-        xor h 
+        xor h
         and 0xf8 ;0xf8 для 40 символов в строке
         xor h   ;0gggGGGG
 ;пересчитываем в номер группы на АТМ textmode:
@@ -1182,7 +1311,7 @@ PUTscreen_textmode40_attr
      ent
 szPUTscreen_textmode40=$-wasPUTscreen_textmode40
 
-       
+
 wasPUTscreen_textmode
      disp PUTscreen_logpgc_zxaddrhl_datamhl_do
         ld c,(hl) ;colour
@@ -1194,9 +1323,9 @@ wasPUTscreen_textmode
 ;hl=0000GGGG gggXXXxA
         ld a,l  ;gggXXXxA
         srl a
-        xor h 
+        xor h
         and 0xf0 ;0xf8 для 40 символов в строке
-        xor h   ;0gggGGGG       
+        xor h   ;0gggGGGG
 ;пересчитываем в номер группы на АТМ textmode:
         ld b,ttextaddr/256
         ld c,a
@@ -1289,7 +1418,7 @@ wast866toatm
        macro dbcol _0
         db ((_0)&7)*9 + (((_0)&8)*0x18)
        endm
-        
+
        macro dbcol8 _0,_1,_2,_3,_4,_5,_6,_7
         dbcol _0
         dbcol _1
@@ -1300,11 +1429,11 @@ wast866toatm
         dbcol _6
         dbcol _7
        endm
-        
+
        macro dbcol8i _0,_1,_2,_3,_4,_5,_6,_7
         dbcol8 _0|0x08,_1|0x08,_2|0x08,_3|0x08,_4|0x08,_5|0x08,_6|0x08,_7|0x08
        endm
-        
+
 wastrecolour ;TODO generate for given palette
         dup 16
         dbcol ($-wastrecolour)
@@ -1352,3 +1481,6 @@ _y=_y+1
         ;dw 0xfff8;запарывает rst
         dw 0xc000+(80*200)
        edup
+
+font
+        incbin "866_code.fnt"

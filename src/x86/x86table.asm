@@ -62,7 +62,7 @@ MAINCOMS
         DCOM XORali8
         DCOM XORaxi16
         DCOM SSer
-        DCOM PANIC ;AAAal ;TODO labir
+        DCOM AAAal ;labir
         DCOM CMPrmr8
         DCOM CMPrmr16
         DCOM CMPr8rm
@@ -70,7 +70,7 @@ MAINCOMS
         DCOM CMPali8
         DCOM CMPaxi16
 	DCOM DSer
-	DCOM PANIC ;AASal
+	DCOM AASal ;plutina
 ;#4X
         DCOM INCax
         DCOM INCcx
@@ -168,7 +168,7 @@ MAINCOMS
         DCOM CBWer
         DCOM CWDer
         DCOM CALLptr1616
-        DCOM NOPer;PANIC ;FWAITer ;TODO for ladybug, ElCsiP, hyper
+        DCOM NOPer ;FWAITer ;TODO for ladybug, ElCsiP, hyper
         DCOM PUSHFer
         DCOM POPFer
         DCOM SAHFer

@@ -19,6 +19,28 @@ DASal
        set 1,c ;set N flag
         jr DAAq
 
+AAAal ;labir
+        ex af,af' ;'
+        ld a,(_AL)
+        cp 10
+        ccf
+        jr nc,$+4
+        sub 10
+        ld (_AL),a
+        ex af,af' ;'
+       _Loop_
+
+AASal
+        ex af,af' ;'
+        ld a,(_AL)
+        rla
+        rra
+        jr nc,$+4
+        add a,10
+        ld (_AL),a
+        ex af,af' ;'
+       _Loop_
+
 AAMer
 ;aam i8 ;ASCII коррекция после умножения
 ;ah <= al/i8
