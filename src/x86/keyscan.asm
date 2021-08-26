@@ -254,9 +254,9 @@ TPLAINKEYS
         db 0x39,0x1c,0x19,0x0b,2,0x10,0x1e ;DB 32,13,"P01QA",0
 TCSKEYS
 ;a-la #205
-        DB "bhy",10,8,"tgv"
-        DB "nju",11,5,"rfc"
-        DB "mki",9,4,"edx"
+        DB "bhy",0x50,0x4b,"tgv"
+        DB "nju",0x48,5,"rfc"
+        DB "mki",0x4d,4,"edx"
         DB 0,"lo",15,6,"wsz"
         DB csSpc,csEnt,"p",12,7,"qa",14
 TSSKEYS

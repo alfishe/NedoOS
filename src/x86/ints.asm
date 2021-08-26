@@ -555,11 +555,15 @@ intcursorposition=$+1
         add hl,hl
         add hl,hl
         add hl,hl ;y*40*8
+        ld c,e
          set 7,h
          set 6,h
-        ld c,e
-        add hl,bc
        pop de ;gfx
+    if 0
+       push bc ;x
+       push de ;gfx
+       push hl ;y*40*8 + 0xc000
+        add hl,bc
         ld b,8
 _leftpix=0x07
 _rightpix=0x38
@@ -612,7 +616,84 @@ INT_prchar0
         inc de
         pop bc
         djnz INT_prchar0
+        ld a,(tpgs+0x8b) ;cga screen
+        SETPGC000
+       pop hl ;y*40*8 + 0xc000 = y*320 + 0xc000 = y*(320/4)*4 + 0xc000
+       pop de ;gfx
+       pop bc ;x
+    endif
+        add hl,bc
+        add hl,bc
+       ;jr $
+        call cgaput2bytes
+        set 5,h
+        call cgaput2bytes
+        ld bc,80-0x2000
+        add hl,bc
+        call cgaput2bytes
+        set 5,h
+        call cgaput2bytes
+        ld bc,80-0x2000
+        add hl,bc
+        call cgaput2bytes
+        set 5,h
+        call cgaput2bytes
+        ld bc,80-0x2000
+        add hl,bc
+        call cgaput2bytes
+        set 5,h
+        call cgaput2bytes
+        ;ld bc,80-0x2000
+        ;add hl,bc
        pop de
+        ret
+
+cgaput2bytes
+        ld a,(de)
+        ld c,a
+        xor a
+        rl c
+        rla
+        add a,a
+        rl c
+        rla
+        add a,a
+        rl c
+        rla
+        add a,a
+        rl c
+        rla
+        ld b,a
+        add a,a
+        or b
+        ld (hl),a
+       push bc
+        ld c,0x8b
+        _PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg
+       pop bc
+        
+        inc l
+        xor a
+        rl c
+        rla
+        add a,a
+        rl c
+        rla
+        add a,a
+        rl c
+        rla
+        add a,a
+        rl c
+        rla
+        ld c,a
+        add a,a
+        or c
+        ld (hl),a
+        ld c,0x8b
+        _PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg
+
+        dec l
+        inc de
         ret
 
 INT21
