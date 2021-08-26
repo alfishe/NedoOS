@@ -1015,12 +1015,11 @@ int16getkey
 INT16havekey
        ;ld a,0x48
         ld (prefetchedkey),a
-        ld b,a
-       ld c,a
+        call nedooskey_to_pckey ;a->bc
          ld (_AX),bc
         ex af,af' ;'
         inc b
-        dec b ;NZ
+        dec b ;Z/NZ
         ex af,af' ;'
        ret;_Loop_
        endif
@@ -1042,8 +1041,39 @@ prefetchedkey=$+1
         pop de
 INT_inputal_a
 	;ld (_AL),a
+        call nedooskey_to_pckey ;a->bc
+         ;ld a,c
+	 ;ld (_AH),a ;scancode for pillman
+         ld (_AX),bc
+        ex af,af' ;'
+        inc b
+        dec b ;NZ if key
+        ex af,af' ;'
+        xor a
+        ld (prefetchedkey),a
+;INT16q
+       ret;_Loop_
+INT_getkeyflags
+;16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
+        ld a,0xfe
+        in a,(0xfe)
+        cpl
+        and 0x1f
+	ld (_AL),a
+       ret;_Loop_
+
+dosgetchar=INT_inputal
+;dosgetchar=int16getkey ;livin проскакивает меню
+;Return:
+;ZF set if no character available and AL = 00h
+;ZF clear if character available AL = character read
+
+nedooskey_to_pckey ;a->bc
          ld bc,0x011b ;1b for pitman, 01 for pillman?
          cp key_esc
+         jr z,INT_inputal_a_scancodeq
+         ld bc,0x1c1c ;HSB for pipes, LSB not needed?
+         cp key_enter
          jr z,INT_inputal_a_scancodeq
          ld bc,0x3b00
          cp key_F1
@@ -1090,32 +1120,7 @@ INT_inputal_a
         ld b,a;c;0
          ld c,a
 INT_inputal_a_scancodeq
-         ;ld a,c
-	 ;ld (_AH),a ;scancode for pillman
-         ld (_AX),bc
-        ex af,af' ;'
-        inc b
-        dec b ;NZ if key
-        ex af,af' ;'
-        xor a
-        ld (prefetchedkey),a
-;INT16q
-       ret;_Loop_
-INT_getkeyflags
-;16h#2 (keyboard flags: al=0x10(scrolllock)+0x08(alt)+0x04(ctrl)+0x03(shifts))
-        ld a,0xfe
-        in a,(0xfe)
-        cpl
-        and 0x1f
-	ld (_AL),a
-       ret;_Loop_
-
-dosgetchar=INT_inputal
-;dosgetchar=int16getkey ;livin проскакивает меню
-;Return:
-;ZF set if no character available and AL = 00h
-;ZF clear if character available AL = character read
-
+        ret
 
 
 
