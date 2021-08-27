@@ -927,6 +927,19 @@ RETFer
         getmemspBC ;cs
        pop de ;new PC
         jp RETFq
+RETFi16 ;RETF и потом SP += i16
+        getmemspBC ;ip
+       push bc
+        getmemspBC ;cs
+       push bc
+        getBC
+        ld hl,(_SP)
+        add hl,bc
+        ld (_SP),hl
+	encodeSP
+       pop bc
+       pop de ;new PC
+        jp RETFq
 
 RETi16 ;RET и потом SP += i16
         getmemspBC
@@ -1501,6 +1514,21 @@ CMPSBer
 	sub (hl)
         KEEPCFPARITYOVERFLOW_FROMA
         INCDECSI_DIbyDIRECTION
+       _LoopC
+
+        ALIGNrm
+CMPSWer
+	ld hl,(_SI)
+        call ADDRGETm16_pp_ds_nodisp
+         GETm16
+       push bc
+	ld hl,(_DI)
+	getmemES
+       pop hl
+        or a
+        sbc hl,bc
+        KEEPCFPARITYOVERFLOW_FROMA
+        INCDEC2SI_DIbyDIRECTION
        _LoopC
 
         ALIGNrm

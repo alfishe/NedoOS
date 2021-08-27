@@ -45,16 +45,6 @@ jpiyer
        if DEBUG
       push de
        decodePC
-       ld a,d
-       ;sub 0x40+((STARTPC/256)&0x3f);0x7c
-       ;or e;cp 0x30
-       ;cp 3
-      ld hl,0x239
-      or a
-      sbc hl,de
-      pop de
-      ;jr nc,$
-      jr z,$
       if 1;0
        ;ld a,(_SP)
        ;rra
@@ -68,6 +58,16 @@ oldpcaddr=$+1
         inc l
         ld (oldpcaddr),hl
        endif
+       ld a,d
+       ;sub 0x40+((STARTPC/256)&0x3f);0x7c
+       ;or e;cp 0x30
+       ;cp 3
+      ld hl,0;x239
+      or a
+      sbc hl,de
+      pop de
+      ;jr nc,$
+      jr z,$
        endif
         get
         next

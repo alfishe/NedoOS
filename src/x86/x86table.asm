@@ -120,7 +120,7 @@ MAINCOMS
         DCOM IMULr16rmi8
 	DCOM PANIC ;INSBer
 	DCOM PANIC ;INSWer (TODO rep insw for lkccmini) for rax
-	DCOM PANIC ;OUTSBer
+	DCOM PANIC ;OUTSBer (TODO for ll)
 	DCOM PANIC ;OUTSWer (TODO for firefighter)
 ;#7x
         DCOM JOer
@@ -181,7 +181,7 @@ MAINCOMS
         DCOM MOVSBer
         DCOM MOVSWer
         DCOM CMPSBer
-        DCOM PANIC ;CMPSWer
+        DCOM CMPSWer ;for firefighter
         DCOM TESTali8
         DCOM TESTaxi16
         DCOM STOSBer
@@ -216,9 +216,9 @@ MAINCOMS
         DCOM LDSr16mem
         DCOM MOVrm8i8
         DCOM MOVrm16i16
-        DCOM PANIC ;ENTERi16i8 (TODO ms pacman)
+        DCOM PANIC ;ENTERi16i8 (TODO ms pacman?)
         DCOM LEAVEer ;ptica (03c8)? или это глюк? (в td не могу найти эту точку, в начале программы точно нет)
-        DCOM PANIC ;RETFi16 ;RETF и потом SP += i16
+        DCOM RETFi16 ;RETF и потом SP += i16 ;fot 
         DCOM RETFer
         DCOM INT3 ;for qloth_
         DCOM INTi8 ;TODO тут ещё fldcw cd 35 xx xx, fistp cd 3b xx xx (mips)

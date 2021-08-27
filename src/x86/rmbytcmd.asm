@@ -2904,7 +2904,7 @@ JMPrmmem16
        _LoopC_JP
 JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
-       push de ;new IP(PC)
+       push bc ;new IP(PC)
         skip2b_GETm16 ;bc=new CS
        ld (_CS),bc ;new CS
        countCS

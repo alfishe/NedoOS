@@ -414,6 +414,14 @@ far_int
         cp 0x11
         ret z ;TODO for shamus
 
+        cp 0x13
+        ret z ;TODO for digger
+        cp 0x60
+        ret z ;TODO for digger
+
+        cp 0x65
+        ret z ;TODO for NSTALKER
+
  if debug_stop = 0
  ret
  else
@@ -478,6 +486,8 @@ INT10
         ret z;jr z,intlooper ;TODO disable caret
         cp 0x02
         jp z,INT_setcursorposition ;set cursor position
+        cp 0x03
+        jp z,INT_getcursorposition ;get cursor position
         cp 0x09
         jp z,INT_prcharandattr ;Писать символ и атрибут в текущей позиции курсора (zaxon, km, nstalker, pipes)
         cp 0x0a
@@ -497,15 +507,20 @@ INT10
  jr $
  endif
 
-;TODO
 ;03h  Узнать позицию и размер курсора
 ;Вход:
 ;BH = видео страница
 ;Выход:
 ;DH = текущая строка курсора (см. функцию 02H)
 ;DL = текущий столбец курсора (см. функцию 02H)
-;CH = текущая начальная строка экрана, содержащая курсор (см. функцию 01H)
+;CH = текущая начальная строка экрана, содержащая курсор (см. функцию 01H) 0..7 внутри знакоместа?
 ;CL = текущая конечная строка экрана, содержащая курсор (см. функцию 01H)
+INT_getcursorposition
+        ld hl,(intcursorposition)
+        ld (_DX),hl
+        ld hl,0 ;TODO
+        ld (_CX),hl
+        ret
 
 
 INT_setcursorposition
