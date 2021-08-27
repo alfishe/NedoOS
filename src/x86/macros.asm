@@ -52,8 +52,9 @@
 
 ;если резко сменился PC (полный DE в той же странице)
         MACRO _LoopC_JPoldpg
-       set 6,d
-       res 7,d ;4000+
+       ;set 6,d
+       ;res 7,d ;4000+
+        encodePC;CALCiypgcom
         JP (IY)
         ENDM 
 

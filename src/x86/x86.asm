@@ -47,9 +47,14 @@ jpiyer
        decodePC
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
-       or e;cp 0x30
+       ;or e;cp 0x30
+       ;cp 3
+      ld hl,0x239
+      or a
+      sbc hl,de
       pop de
-      jr z,$;nc,$
+      ;jr nc,$
+      jr z,$
       if 1;0
        ;ld a,(_SP)
        ;rra
@@ -102,15 +107,6 @@ on_int
         ex af,af' ;'
         push af 
         call oldimer
-       if 0;1 ;костыль для livin,tetris
-       ld a,(curpgc000)
-       ld hl,tpgs+0x40
-       cp (hl)
-       ;ld hl,0xfc28 ;tetris
-       ld hl,0xffb2 ;livin
-       jr nz,$+3
-        dec (hl)
-       endif      
         
 				;(65536 / 50) * 18,206 Hz
 				;23862,96832 = $5D37
@@ -177,11 +173,54 @@ IMINT_noiykeeperdata
       ;костыль для неинициализированного прерывания
       ld a,(tpgs)
       SETPGC000
-;int 0 - ??? (Goody, Ms Pacman) - убитый (в cs там лежит свободная память, но даже при cs=0 лажа)
-;int 1 - cpu generated??? (есть обработчик в mision, но если его поставить, всё время стреляет)
+;int 0 - Переполнение при делении (Goody, Ms Pacman) - убитый (в cs там лежит свободная память, но даже при cs=0 лажа)
+;int 1 - cpu generated??? Пошаговое прерывание (есть обработчик в mision, но если его поставить, всё время стреляет)
 ;int 8 - timer
 ;int 9 - keyboard
-;int 1c - timer (pitman)
+;int 1c - timer Пользовательское прерывание по таймеру (pitman)
+
+;INT 00h: Переполнение при делении.
+;INT 01h: Пошаговое прерывание.
+;INT 02h: Немаскируемое прерывание.
+;INT 03h: Прерывание по точке.
+;INT 04h: Прерывание по переполнению.
+;INT 05h: Печать экрана. 
+;INT 06h: Неверная команда.
+;INT 07h: Сопроцессор отсутсвует..
+;INT 08h: IRQ 0 Прерывание от таймера.
+;INT 09h: IRQ 1 Прерывание от клавиатуры. 
+;INT 0Ah: IRQ 2 Оборудование.
+;INT 0Bh: IRQ 3 Оборудование (COM 2).
+;INT 0Ch: IRQ 4 Оборудование (COM 1).
+;INT 0Dh: IRQ 5 Оборудование (LPT, на оригинальном IBM PC - жёсткий диск).
+;INT 0Eh: IRQ 6 Прерывание от дискеты.
+;INT 0Fh: IRQ 7 Оборудование.
+;INT 10h: Видео сервис.
+;INT 11h: Список оборудования.
+;INT 12h: Размер используемой памяти.
+;INT 13h: Дисковый ввод/вывод.
+;INT 14h: Ввод/вывод через COM порт.
+;INT 15h: Дополнительные функции.
+;INT 16h: Ввод/вывод клавиатуры, управление процессором и кэшем.
+;INT 17h: Ввод/вывод LPT.
+;INT 18h: Возврат в BIOS.
+;INT 19h: Загрузка.
+;INT 1Ah: Ввод/вывод таймера и сервисы PCI BIOS.
+;INT 1Bh: Прерывание клавиатуры.
+;INT 1Ch: Пользовательское прерывание по таймеру
+;INT 1Dh: Видео параметры
+;INT 1Eh: Параметры дискет
+;INT 1Fh: Символы графики
+
+;INT 70h: IRQ 8 Оборудование (RTC).
+;INT 71h: IRQ 9 Оборудование.
+;INT 72h: IRQ 10 Оборудование.
+;INT 73h: IRQ 11 Оборудование.
+;INT 74h: IRQ 12 Оборудование (Мышь).
+;INT 75h: IRQ 13 Оборудование (Сопроцессор 80287+).
+;INT 76h: IRQ 14 Оборудование (Жёсткий диск).
+;INT 77h: IRQ 15 Оборудование.
+
       ld hl,(9*4+0xc000) ;ip
       ld bc,(9*4+0xc002) ;cs
      ld a,0x55
@@ -400,7 +439,7 @@ getmemspBCpp
         ret nz
         push bc
         ld hl,(_SP)
-        inc hl
+        dec hl;inc hl
         memSS
         pop bc
         ld b,(hl)
@@ -486,7 +525,7 @@ recountpc_inc ;keep CY!
         encodePC ;de->de
         pop bc
         pop af
-        ld de,0x4000
+        ;ld de,0x4000
 	ret
 
 PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
@@ -594,7 +633,7 @@ pc_high
 ;_DIRECTION
 	;db 0
 iff1
-	db 0xff
+	db 0
 pgprog
         db 0 ;там можно хранить дополнительный код (напр., отладчик)
 oldimer

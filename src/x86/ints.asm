@@ -133,7 +133,7 @@ resetpp
         countES
         ld (_SS),bc
         countSS
-        ld hl,0;0xfff0
+        ld hl,0xfffe;0xfff0
         ld (_SP),hl
         encodeSP
        ;ld a,(tpgs+0x40) ;cs
@@ -257,7 +257,7 @@ swapimer0
         ret
 
 farquiter
-        call swapimer ;сначала прерывания ничего не делают (iff0==0)
+        call swapimer
         ld hl,0
         QUIT
 
@@ -266,8 +266,8 @@ trom0
 tallmem
         db "em87_1_3_installed.BIN",0 ;грузить во всю память
 tprog
-        db "atomchess.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
-        ;db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
+        ;db "atomchess.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
+        db "basic.img",0 ;Его надо запускать в 0:7C00h, требует функции bios int 10h, 16h, 20h(system)
         ;db "lander.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 21h(allocate, vectors)
         ;db "ladybug.img",0 ;Его надо запускать в 0:0100h, требует функции bios int 10h, 20h(system)
         ;db "megapole.img",0 ;Его надо запускать в 0:0100h, требует bios int 10h, 21h#9 (print)

@@ -265,7 +265,8 @@ JRrel16y
        ;and 0xc0
         ex de,hl ;new PC 
        ;jp z,JRer_qslow
-       _LoopC_JPoldpg
+       _LoopC_JP;oldpg
+
 
 ;на входе в команду:
 ;без сегментного префикса: b=l(адрес обработчика)
@@ -459,14 +460,6 @@ CLIer
 STIer
         ld a,-1
         ld (iff1),a
-       if 0;1
-;мегакостыль для pitman:
-       ld hl,0x4925
-       ld a,(hl)
-       cp 0x74
-       jr nz,$+3
-       inc (hl) ;чтобы не зацикливалось при ожидании изменения переменной по прерыванию (TODO реализовать прерывания с установкой вектора через int21 25, 35)
-       endif
        _Loop_
 
 CLDer
@@ -917,6 +910,7 @@ RETFq
        _LoopJP
 
 RETer
+        ;jr $
         getmemspBC
         LD D,B
         ld E,C ;new PC
