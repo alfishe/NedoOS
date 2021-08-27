@@ -35,6 +35,10 @@ autoloadq
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld a,e
         ld (pgprog),a
+        ld a,h
+        ld (tpgs+0xcf),a ;pgrom0 (#0x3f)
+        ld e,l
+        OS_DELPAGE
 
         ld a,(user_scr0_high) ;ok
         call clpga
@@ -47,7 +51,11 @@ autoloadq
         ld (curhandle),a
 
         ld hl,tpgs
-        ld b,64 ;TODO меньше для АТМ2
+       if FULL1M
+        ld b,64
+       else
+        ld b,48 ;для АТМ2
+       endif
 filltpgs0
         push bc
         push hl
@@ -97,16 +105,6 @@ filltscreenpgs0
         djnz filltscreenpgs0
        ld (tscreenpgs+0x8b),a ;for textmode
 
-        call swapimer ;сначала прерывания ничего не делают (iff1==0)
-
-        jp initq
-
-resetpp
-        xor a
-        ld (iff1),a
-
-        call INT_setgfxTEXT80
-
         ld bc,0xf000
         ld (_CS),bc
         countCS
@@ -123,6 +121,16 @@ resetpp
 ;hl=куда грузим
         call loadfile_in_hl
         ;ld de,0xfff0
+
+        call swapimer ;сначала прерывания ничего не делают (iff1==0)
+
+        jp initq
+
+resetpp
+        xor a
+        ld (iff1),a
+
+        call INT_setgfxTEXT80
 
         ld bc,0x0c02;0400
         ld (_CS),bc

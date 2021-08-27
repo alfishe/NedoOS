@@ -2,6 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 DEBUG=0;1
+FULL1M=0
 
 	include "x86.ini"
 
