@@ -158,8 +158,7 @@ KBbc=$+1
 KBcode=$+1
         LD D,0
 PUTKEY
-GKEYADR=$+1
-        LD HL,KEYBUFF ;адрес конца списка
+        LD HL,(GKEYADR);KEYBUFF ;адрес конца списка
         LD A,D
        OR A
        RET Z ;нет события

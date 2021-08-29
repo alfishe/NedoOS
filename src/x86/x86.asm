@@ -131,7 +131,13 @@ timer_inc_skip
        and 0b10101
        jp z,quiter ;1+3+5 = quit
 
-        call KEYB
+       ld a,(curpg4000) ;ok
+       push af
+       ld a,(pgprog)
+       SETPG4000
+        call KEYB ;TODO в странице
+       pop af
+       SETPG4000
         ;OS_GETKEY
 ;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
 ;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
@@ -171,9 +177,24 @@ iykeeper_on=$
         ld iy,(iykeeper_iy)
 IMINT_noiykeeperdata
        ;LD (retfromim),DE ;для индикации времени обработки прерыв
-      ;костыль для неинициализированного прерывания
+       
+;NS:
+;Planeta запускаетсо кода [0000:041A] != [0000:041c]
+;это на вид именно сиистемные переменные
+;они дрыгаются так же в досе
+;там еще всякие щифты рядом
+;это начало и конец буфера клавиатуры
+       
       ld a,(tpgs)
       SETPGC000
+
+        ;call KEYB ;TODO в странице
+GKEYADR=$+1
+        LD HL,KEYBUFF ;адрес конца списка
+        ld (0x041c+0xc000),hl
+        ld hl,KEYBUFF
+        ld (0x041a+0xc000),hl
+
 ;int 0 - Переполнение при делении (Goody, Ms Pacman) - убитый (в cs там лежит свободная память, но даже при cs=0 лажа)
 ;int 1 - cpu generated??? Пошаговое прерывание (есть обработчик в mision, но если его поставить, всё время стреляет)
 ;int 8 - timer
@@ -242,7 +263,7 @@ int_no8
       ld a,h
       or l
      ;xor a
-      jp z,STIer
+      jp z,STIer ;костыль для неинициализированного прерывания
       ;jr $
         
 gotoint
@@ -543,7 +564,7 @@ PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
 PUTscreen_logpgc_zxaddrhl_datamhl_do
         ds maxszPUTscreen;0x52;100
 
-	include "keyscan.asm"
+	;include "keyscan.asm"
        display "--",$
 	include "rmbyte.asm"
        display "--",$
@@ -694,6 +715,8 @@ ttextaddr
         ds 0x3fc0-$
         ds 0x4000-$
         include "ints.asm"
+	include "keyscan.asm"
+        display "end=",$
 end
 
 	savebin "x86.com",begin,end-begin

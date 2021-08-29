@@ -119,6 +119,10 @@ IN_0060
         push de
      ;DISABLE_IFF0_KEEP_IY
         ;OS_GETKEY
+       ld a,(curpg4000) ;ok
+       push af
+       ld a,(pgprog)
+       SETPG4000
         call keyscan_getkey
        ;or a
        ;jr z,IN_0060_nokey
@@ -138,13 +142,18 @@ IN_0060
         xor (hl)
       endif
      ;ENABLE_IFF0_REMEMBER_IY ;иначе pop iy запорет iy от обработчика прерывания
-        pop de
       ;ld c,0x18
       ; ld a,r
       ; and 7
        ;add a,a
       ; add a,c
        ld c,a
+       ;jr $
+       pop af
+       push bc
+       SETPG4000
+       pop bc
+        pop de
         ret
 IN_0061
         ;ld a,0xfb

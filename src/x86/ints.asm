@@ -187,6 +187,12 @@ filenameaddr=$+1
         call loadfile_in_hl ;for bootbasic
         jr loadcomq
 loadcom
+        ex de,hl ;de=filename
+        ld bc,(_CS)
+        ld hl,0x0100 ;addr in segment
+;de=filename
+;bc=segment
+;hl=addr in segment
         call loadcompp
 loadcomq
        pop de ;LD DE,STARTPC ;=IP(PC)
@@ -305,15 +311,17 @@ skipspaces
         jr skipspaces
 
 loadcompp
-;hl=filename
-        ex de,hl
+;de=filename
+;bc=segment
+;hl=addr in segment
+       push hl
+       push bc ;segment
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
-
-        ld hl,0x0100
-	ld bc,(cs_LSW)
-	ld a,(cs_HSB)
+       pop bc ;segment
+        call countXS_bc_to_ahl
+       pop bc ;addr in segment
         ADDRSEGMENT_chl_bHSB
 	ld b,tpgs/256
        push bc
@@ -356,30 +364,6 @@ loadcompp_nocroppg
         ld a,h
         or l
         jr nz,loadcompp0
-       if 0
-        ld a,(tpgs+0x40)
-        ld d,a
-        ld a,(tpgs+0x80)
-        ld e,a
-        ld a,(tpgs+0xc0)
-        ld h,a
-        ld a,(tpgs+0x01)
-        ld l,a
-        ;jr $
-        ld a,d
-        SETPGC000
-        ld a,0xc100/256
-        call cmd_loadpage
-        ret nz
-        ld a,e
-        call cmd_loadfullpage
-        ret nz
-        ld a,h
-        call cmd_loadfullpage
-        ret nz
-        ld a,l
-        call cmd_loadfullpage
-       endif
 closecurhandle
         ld a,(curhandle)
         ld b,a
@@ -1077,6 +1061,7 @@ INT_printal
        ret;_Loop_
 
 INT16
+        ;jr $
         ;mov ah,0x01     ; Any key pressed?
         ;int 0x16
         ;jz fb26         ; No, go to main loop
