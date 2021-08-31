@@ -927,6 +927,9 @@ RETFer
        push bc
         getmemspBC ;cs
        pop de ;new PC
+       ld a,b
+       or c
+       jr z,IRETer ;нужно для обработчика прерываний, который в конце переходит на старый BIOSный обработчик (gamecga (ratillery))
         jp RETFq
 RETFi16 ;RETF и потом SP += i16
         getmemspBC ;ip

@@ -59,11 +59,14 @@ oldpcaddr=$+1
         inc l
         ld (oldpcaddr),hl
        endif
+       ld a,(_CS+1)
+       or a
+       jr z,$
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
-       ;cp 3
-      ld hl,0;x239
+       ;cp 0x97
+      ld hl,0x2d09;0x2976
       or a
       sbc hl,de
       pop de
@@ -197,7 +200,7 @@ GKEYADR=$+1
 
 ;int 0 - Переполнение при делении (Goody, Ms Pacman) - убитый (в cs там лежит свободная память, но даже при cs=0 лажа)
 ;int 1 - cpu generated??? Пошаговое прерывание (есть обработчик в mision, но если его поставить, всё время стреляет)
-;int 8 - timer
+;int 8 - timer (ratillery for music)
 ;int 9 - keyboard
 ;int 1c - timer Пользовательское прерывание по таймеру (pitman)
 

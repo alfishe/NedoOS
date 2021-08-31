@@ -132,7 +132,7 @@ resetpp
 
         call INT_setgfxTEXT80
 
-        ld bc,0x0c02;0400
+        ld bc,0x400;0x0c02;0400
         ld (_CS),bc
         countCS
         ld (_DS),bc
@@ -1161,7 +1161,7 @@ nedooskey_to_pckey ;a->bc
          ld bc,0x011b ;1b for pitman, 01 for pillman?
          cp key_esc
          jr z,INT_inputal_a_scancodeq
-         ld bc,0x1c1c ;HSB for pipes, LSB not needed?
+         ld bc,0x1c0d ;HSB for pipes, LSB for cgagame (ratillery)
          cp key_enter
          jr z,INT_inputal_a_scancodeq
          ld bc,0x3b00
