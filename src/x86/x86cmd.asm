@@ -339,6 +339,7 @@ GSer
         ld L,a
         JP (HL) 
 
+        ALIGNrm
 XLATBer
 ;AL = DS:[(E)BX + AL]
         ld a,(_AL)
