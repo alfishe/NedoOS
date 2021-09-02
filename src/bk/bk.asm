@@ -333,19 +333,34 @@ hlnextpg
         ld h,0xc0
 	ret
 
-PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
+putscreen_c
        push hl
        push bc
-       call PUTscreen_logpgc_zxaddrhl_datamhl_do ;не получится inline, т.к. многие вызывают прямо PUTscreen_logpgc_zxaddrhl_datamhl_do
+;TODO bw/color
+;y=%TTYYYyyy
+;hl=%01TTYYYy yyxxxxxx
+       ld b,0
+       bit 0,l
+       jr nz,$+4
+       ld b,0x20
+        ld a,l
+        rra
+        and 0x1f
+       add hl,hl
+       add hl,hl
+       ld l,h
+        ld h,ty/256
+        ld c,(hl)
+        inc h
+        ld h,(hl) ;hc = ybase
+        ld l,a
+        add hl,bc
+;addr=0x8000+(half*0x2000)+y*40+x
+        ld a,(user_scr0_high) ;ok
+        SETPG8000 ;TODO щёлкать только в color      
        pop bc
-        ld b,tpgs/256
-        ld a,(bc)
-        SETPGC000 ;как было
+        ld (hl),c
        pop hl
-        ret
-
-PUTscreen_logpgc_zxaddrhl_datamhl_do
-        
         ret
 
 getflags_bc
@@ -490,7 +505,7 @@ putdest_Loop
         rla
         rla
         rla
-        jr c,putdestop_1xx
+        jp c,putdestop_1xx
         add a,a
         jr c,putdestop_01x
         jp m,putdestop_001
@@ -530,8 +545,32 @@ putdestop_01x
         ld l,a
         WRMEM_hl_LoopC
 
-putdestop_011
-        jr $
+putdestop_011 ;@(Rn)+
+        ld a,l
+        cp 0x0e
+        jr z,putdestop_011_pc
+       push bc
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        inc bc
+        inc bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld h,b
+        ld l,c
+       pop bc
+        WRMEM_hl_LoopC
+putdestop_011_pc
+        get
+        next
+        ld l,a
+        get
+        next
+        ld h,a
+        WRMEM_hl_LoopC
+
 putdestop_1xx
         add a,a
         jp c,putdestop_11x
@@ -592,7 +631,7 @@ readsourceop
 
 readsourceop_xx1
         bit 2,b
-        jr nz,readsourceop_x11
+        jp nz,readsourceop_x11
         bit 3,b
         jp nz,readsourceop_101
 readdestop_001 ;(Rn): Rn contains the address of the operand
@@ -619,7 +658,7 @@ readdestop_010 ;(Rn)+
         ld a,(hl)
         jr nz,$+3
         inc (hl)
-        RDMEM_ac_ret ;bc=result
+        RDMEM_ac_ret ;bc=result, a=hx
 
 readsourceop_010_pc
         get
@@ -631,19 +670,39 @@ readsourceop_010_pc
        ld a,hx
         ret
 
+readdestop_011 ;@(Rn)+
+       ld hx,c
+        cp 0x0e
+        jr z,readdestop_011_pc
+        ld c,(hl)
+        inc l
+        ld a,(hl)
+        jp readsourceop_addrfromaddr_ac
+readdestop_011_pc
+;инкремент не делаем, чтобы его делал putdest
+        get
+        inc e ;next без переключения страниц!!! FIXME
+        ld c,a
+        get
+        dec e ;FIXME
+        RDMEM_ac_ret ;bc=result, a=hx
+
 readsourceop_x11
         bit 3,b
         jp nz,readsourceop_111
-readdestop_011 ;@(Rn)+
-        cp 0x0c
+readsourceop_011 ;@(Rn)+
        ld hx,c
+        cp 0x0e
+        jr z,readsourceop_011_pc
         ld c,(hl)
-       inc (hl) ;sp/pc +=2 ;TODO нечётный?
-        inc (hl)
-        inc hl
-        ld a,(hl)
-        jr nz,$+3
-        inc (hl)
+        inc l
+        ld b,(hl)
+        inc bc
+        inc bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld a,b
 readsourceop_addrfromaddr_ac
         ld l,c
         ld h,a
@@ -659,7 +718,15 @@ readsourceop_addrfromaddr_ac
         inc l
         call z,inchnextpg
         ld a,(hl)
-        RDMEM_ac_ret ;bc=result
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readsourceop_011_pc
+        get
+        next
+        ld c,a
+        get
+        next
+        RDMEM_ac_ret ;bc=result, a=hx
 
 readsourceop_100
 readdestop_100
@@ -677,7 +744,7 @@ readdestop_100
         dec l
         ld (hl),c
         ld a,b
-        RDMEM_ac_ret ;bc=result
+        RDMEM_ac_ret ;bc=result, a=hx
 
 readsourceop_101
 readdestop_101
@@ -707,7 +774,7 @@ readdestop_110
         get
         next
         adc a,(hl) ;ac=Rn+X
-        RDMEM_ac_ret ;bc=result
+        RDMEM_ac_ret ;bc=result, a=hx
 
 readsourceop_111
 readdestop_111
@@ -735,6 +802,26 @@ poprecodePCLoop
         align 256
 tpgs
         ds 256 ;%10765432
+
+        align 256
+ty
+_=0
+        dup 32
+        db 0xff&(_*40)
+        dup 7
+        db 0xff&(_*40)
+_=_+1        
+        edup
+        edup
+_=0
+        dup 32
+        db (_*40)/256+0x80
+        dup 7
+        db (_*40)/256+0x80
+_=_+1        
+        edup
+        edup
+
 
         align 256
 ;8 r16s

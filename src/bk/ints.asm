@@ -47,7 +47,8 @@ autoloadq
         ld a,(user_scr0_high) ;ok
         call clpga
         ld a,(user_scr0_low) ;ok
-        call clpga
+        ld e,7
+        call clpga_e
 
         ;ld de,tallmem
         ;OS_OPENHANDLE
@@ -168,13 +169,16 @@ curhandle=$+1
         ret
 
 clpga
+        ld e,0
+clpga_e
         SETPGC000
         ld hl,0xc000
+       ld a,e
         ld d,h
         ld e,l
         inc e
         ld bc,0x3fff
-        ld (hl),l;0
+       ld (hl),a;0
         ldir
         ret
 

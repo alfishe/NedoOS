@@ -129,11 +129,14 @@
        push bc
         ld a,h
         and 0xc0
+       jp m,2f ;ROM/ports
         ld c,a
        ld lx,a
 	ld b,tpgs/256
 	set 7,h
         set 6,h
+       cp 0x40
+       jr z,1f ;screen
 	ld a,(bc)
 	SETPGC000
        pop bc
@@ -142,9 +145,31 @@
         call z,inchnextpg
         ld (hl),b
         _LoopC
+1 ;screen
+	ld a,(bc)
+	SETPGC000
+       pop bc
+        ld (hl),c
+        call putscreen_c
+        inc l
+        jr z,3f;screen inchnextpg
+5
+        ld (hl),b
+        ld c,b
+        call putscreen_c
+        _LoopC
+3
+        inc h
+        jr nz,5b
+;screen nextpg = ROM
+        ;call hlnextpg
+        _LoopC
+2 ;ROM/ports
+;TODO ports
+        _LoopC
        endm
 
-       macro RDMEM_ac_ret ;bc=result
+       macro RDMEM_ac_ret ;bc=result, a=hx
         ld l,c
         ld h,a
         and 0xc0
