@@ -35,8 +35,12 @@ autoloadq
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld a,e
         ld (pgprog),a
-        ld a,h
-        ld (tpgs+0xcf),a ;pgrom0 (#0x3f)
+        ;ld a,h
+        ;ld (tpgs+0xcf),a ;pgrom0 (#0x3f)
+       push hl
+        ld e,h
+        OS_DELPAGE
+       pop hl
         ld e,l
         OS_DELPAGE
 
@@ -109,9 +113,9 @@ resetpp
 loadaddr=$+1
         ld de,0x0200;STARTPC
        push de
+        ld hl,0x01fc
 filenameaddr=$+1
         ld de,tprog ;de=filename
-        ld hl,0x0200 ;addr in segment
 ;de=filename
 ;hl=addr in segment
         call loadcompp
@@ -120,7 +124,7 @@ filenameaddr=$+1
         LD IY,EMUCHECKQ
         ;ld a,-1
         ;ld (iff1),a
-     _LoopC_JP
+     jp loopcjp;_LoopC_JP заменит текущую страницу
 
 ;de=имя файла
 ;hl=куда грузим
@@ -200,9 +204,9 @@ trom0
 trom1
         db "bk10_106_basic1.rom",0
 trom2
-        db "bk10_106_basic2.rom",0
+        db "bk10_107_basic2.rom",0
 trom3
-        db "bk10_106_basic3.rom",0
+        db "bk10_108_basic3.rom",0
 tprog
         db "textshow.bin",0
 path
@@ -237,7 +241,8 @@ loadcompp
         ld a,b
         ld (curhandle),a
        pop de ;addr in segment
-       and 0xc0
+        ld a,d
+        and 0xc0
 	ld c,a
 	ld b,tpgs/256
 	set 7,d

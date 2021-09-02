@@ -536,7 +536,8 @@ readsourceop_x10
        ld hx,c
         ld c,(hl)
         ;jr nc,readsourceop_010_sppc
-       jr c,$+3
+       jr c,$+2+2+1
+       jr z,readsourceop_010_pc
        inc (hl) ;sp/pc +=2 ;TODO нечётный?
         inc (hl)
         inc hl
@@ -561,6 +562,15 @@ readsourceop_x10
         inc h
         call z,hlnextpg
         ld b,(hl)
+        ret
+
+readsourceop_010_pc
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a
         ret
 
 readsourceop_x11
@@ -795,9 +805,10 @@ readsourceop_111
 ;hl=Rn+X ;a=h
         jp readsourceop_addrfromaddr
 
+poprecodePCLoop
+       pop af ;ignore
 recodePCLoop
 ;de=new PC
-       pop af ;ignore
        _LoopC_JP
 
 

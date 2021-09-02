@@ -5,8 +5,53 @@ PANIC
  jr $
  endif
 
+CLR_COM_INC_DEC
+        ld a,c
+        cp 0x40
+        jr c,CLRer
+        
+;TODO
+       _LoopC
+CLRer
+;TODO разные адресации
+        rla
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+        ld (hl),0
+        inc l
+       ex af,af' ;'
+        ;ld a,1
+        ;dec a
+        xor a ;обнуляет перенос и V, так надо
+        ld (hl),a
+       ex af,af' ;'
+       _LoopC
+
 MOVer
 ;TODO
+
+;15c1, 4000 ;mov #40000,r1
+;0001 0101 1100 0001
+;0 001 010 111 000 001
+     ;(Rn)+;r7 ;rn;r1
+        ld b,a
+;bc=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+
+        rla
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+        ex af,af' ;'
+        ;TODO сбросить V
+        ex af,af' ;'
+        ld (hl),c
+        ld a,l
+        inc l
+        ld (hl),b
+        cp 0x0e
+        jp z,recodePCLoop ;de=new PC
        _LoopC
 
 CMPer
@@ -68,7 +113,7 @@ ADDregreg
         ld (hl),e
         ld a,l
         cp 0x0e
-        jp z,recodePCLoop ;de=new PC
+        jp z,poprecodePCLoop ;de=new PC
        pop de
        _LoopC
 
@@ -160,12 +205,17 @@ CALLer
         ld a,c
         rla
         and 0x0e
+       cp 0x0e
+       jr z,CALLerPC
+;TODO test
         ld l,a
         ld h,_R0/256
        push hl
         ld c,(hl)
         inc l
         ld b,(hl) ;bc=link
+       inc bc
+       inc bc
         putmemspBC
         
         get
@@ -191,4 +241,65 @@ CALLer
 
         ld d,b
         ld e,c
+loopcjp
        _LoopC_JP
+
+CALLerPC
+;jsr PC, addr работает так: mov PC=>-(sp);mov addr=>pc
+        ld a,(pc_high)
+        xor d
+        and 0xc0
+        xor d
+        ld b,a
+        ld c,e ;bc=link
+       inc bc
+       inc bc
+        putmemspBC
+        
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a ;bc=X
+
+        decodePC
+        
+        ld a,e
+        add a,c
+        ld e,a
+        ld a,d
+        adc a,b
+        ld d,a ;bc=pc+X
+       _LoopC_JP
+
+SOBer
+;Subtract One and Branch: Reg < Reg - 1; if Reg ? 0 then PC < PC - 2 ? Offset
+;TODO
+
+        decodePC
+        
+        ld a,e
+        add a,c
+        ld e,a
+        ld a,d
+        adc a,b
+        ld d,a ;bc=pc+X
+       _LoopC_JP
+
+RTI_JMP_RTS_SWAB
+;TODO
+NEG_ADC_SBC_TST
+;TODO
+ROR_ROL_ASR_ASL
+;TODO
+c0064_MFPI_MTPI_SXT
+;TODO
+CLRB_COMB_INCB_DECB
+;TODO
+NEGB_ADCB_SBCB_TSTB
+;TODO
+RORB_ROLB_ASRB_ASLB
+;TODO
+MTPS_MFPD_MTPD_MFPS
+        jp PANIC
