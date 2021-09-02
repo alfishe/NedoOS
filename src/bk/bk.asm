@@ -392,6 +392,33 @@ getflags_bc
        or c
        ld c,a
         ret
+
+makeflags_frombc
+;c=IxxTNZVC
+        ld a,c
+        rla ;interrupt enable
+        sbc a,a
+        ld (iff1),a
+        ld a,c
+        ld c,0
+        rra
+        jr nc,$+3
+        inc c ;C
+        rra
+        jr nc,$+4
+        set 2,c ;V
+        rra
+        jr nc,$+4
+        set 6,c ;Z
+        rra
+        jr nc,$+4
+        set 7,c ;Z
+;c=%SZ???V?C
+        push bc
+        ex af,af' ;'
+        pop af
+        ex af,af' ;'
+        ret
         
 STIer
         ld a,-1
@@ -488,7 +515,7 @@ readdestop_x11
         jp nz,readdestop_111
         jp readdestop_011
 
-;bc=dest, a=cmdLSB = %??fmtRRR
+;bc=data, a=cmdLSB = %??fmtRRR
 putdest_Loop
 ;15-12 Opcode
 ;11-9 Src
@@ -585,6 +612,110 @@ putdestop_11x
         jr $
 putdestop_111
         jr $
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;c=data, a=cmdLSB = %??fmtRRR
+putdest8_Loop
+;15-12 Opcode
+;11-9 Src
+;8-6 Register
+;5-3 Dest
+;2-0 Register
+        ld h,a
+        rla
+        and 0x0e
+        ld l,a ;0000rrr0
+        ld a,h
+        ld h,_R0/256
+         ;ld l,(hl) ;TODO
+        rla
+        rla
+        rla
+        jp c,putdestop8_1xx
+        add a,a
+        jr c,putdestop8_01x
+        jp m,putdestop8_001
+;000 Register
+        ld a,l
+        cp 0x0e
+        jp z,bctoPCLoop
+        ld (hl),c
+        inc l
+       ld a,c
+       rla
+       sbc a,a ;TODO надо ли расширять знак?
+        ld (hl),a
+        _LoopC
+putdestop8_001 ;(Rn): Rn contains the address of the operand
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        WRMEM8_hl_LoopC
+putdestop8_01x
+        jp m,putdestop8_011
+;putdestop_010 ;(Rn)+
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,l
+        cp 0x0c
+        ld a,(hl)
+        ;jr nc,putdestop_010_sppc
+       jr c,$+2+3+1
+       jp nz,bctoPCLoop;putdestop_010_pc
+       inc (hl) ;sp/pc +=2 ;TODO нечётный?
+        inc (hl)
+        inc hl
+        jr nz,$+2+3+2
+         inc (hl)
+         ld h,(hl)
+         dec h
+         jr $+3
+       ld h,(hl)
+        ld l,a
+        WRMEM8_hl_LoopC
+
+putdestop8_011 ;@(Rn)+
+        ld a,l
+        cp 0x0e
+        jr z,putdestop8_011_pc
+       push bc
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        inc bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld h,b
+        ld l,c
+       pop bc
+        WRMEM8_hl_LoopC
+putdestop8_011_pc
+        get
+        next
+        ld l,a
+        get
+        next
+        ld h,a
+        WRMEM8_hl_LoopC
+
+putdestop8_1xx
+        add a,a
+        jp c,putdestop8_11x
+        jp m,putdestop8_101
+;putdestop8_100
+        jr $
+putdestop8_101
+        jr $
+putdestop8_11x
+        jp m,putdestop8_111
+;putdestop8_110
+        jr $
+putdestop8_111
+        jr $
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 readsourceop
 ;ac=cmd
@@ -789,13 +920,6 @@ readdestop_111
         next
         adc a,(hl) ;ac=Rn+X
         jp readsourceop_addrfromaddr_ac
-
-poprecodePCLoop
-       pop af ;ignore
-;recodePCLoop
-;de=new PC
-       _LoopC_JP
-
 
 	include "bkcmd.asm"
 

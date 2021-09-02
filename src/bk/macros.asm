@@ -119,9 +119,14 @@
         call getdest
        endm ;bc=dest, a=cmdLSB
 
-;bc=dest, a=cmdLSB
+;bc=data, a=cmdLSB
        macro PUTDEST_Loop
         jp putdest_Loop
+       endm
+
+;c=data, a=cmdLSB
+       macro PUTDEST8_Loop
+        jp putdest8_Loop
        endm
 
 ;hl=addr, bc=data
@@ -169,6 +174,36 @@
         _LoopC
        endm
 
+;hl=addr, c=data
+       macro WRMEM8_hl_LoopC
+       push bc
+        ld a,h
+        and 0xc0
+       jp m,2f ;ROM/ports
+        ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+       cp 0x40
+       jr z,1f ;screen
+	ld a,(bc)
+	SETPGC000
+       pop bc
+        ld (hl),c
+        _LoopC
+1 ;screen
+	ld a,(bc)
+	SETPGC000
+       pop bc
+        ld (hl),c
+        call putscreen_c
+        _LoopC
+2 ;ROM/ports
+;TODO ports
+        _LoopC
+       endm
+
        macro RDMEM_ac_ret ;bc=result, a=hx
         ld l,c
         ld h,a
@@ -190,41 +225,3 @@
         ld b,(hl)
         ret
        endm
-
-;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
-;The OF, SF, ZF, AF, and PF flags are set according to the result. 
-	macro inchlwithflags ;keep CY
-	ex af,af' ;'
-        inc l
-        ld a,l
-        exx
-	ld d,a ;parity data
-	ld e,0 ;overflow data
-        exx
-        call pe,inchlwithflags_l80 ;fix SF
-        call z,inchlwithflags_l00 ;inc h needed
-	ex af,af' ;'
-        endm ;57t in most cases
-        
-	macro incbcwithflags ;keep CY
-	ex af,af' ;'
-        inc c
-        ld a,c
-        exx
-	ld d,a ;parity data
-	ld e,0 ;overflow data
-        exx
-        call pe,incbcwithflags_c80 ;fix SF
-        call z,incbcwithflags_c00 ;inc b needed
-	ex af,af' ;'
-        endm ;57t in most cases
-        
-	macro dechlwithflags ;keep CY
-        call dechlwithflags_fixflags ;z/nz - separate branches
-	ex af,af' ;'
-        endm ;21+63 = 84t in most cases
-        
-	macro decbcwithflags ;keep CY
-        call decbcwithflags_fixflags ;z/nz - separate branches
-	ex af,af' ;'
-        endm ;21+63 = 84t in most cases

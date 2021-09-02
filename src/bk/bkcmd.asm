@@ -5,32 +5,62 @@ PANIC
  jr $
  endif
 
-CLR_COM_INC_DEC
-        ld a,c
-        cp 0x40
-        jr c,CLRer
-        
-;TODO
 loopc
        _LoopC
-CLRer
-;TODO разные адресации
-        rla
-         and 0x0e
-        ld l,a
-        ld h,_R0/256
-        ld (hl),0
-        inc l
+
+CLR_COM_INC_DEC
+        ld a,c
+        add a,a
+        jr c,INC_DEC
+        jp m,COMer
+;CLRer
+        ld a,c
        ex af,af' ;'
         ;ld a,1
         ;dec a
         xor a ;обнуляет перенос и V, так надо
-        ld (hl),a
+        ld b,a
+        ld c,a
        ex af,af' ;'
-       _LoopC
+        PUTDEST_Loop       
+COMer
+        GETDEST
+       ld l,a
+        ld a,c
+        cpl
+        ld c,a
+        ld a,b
+        cpl
+        ld b,a ;TODO флаги?
+       ld a,l
+        PUTDEST_Loop       
+INC_DEC
+        jp m,DECer
+        GETDEST
+        ex af,af' ;'
+     rra ;keep CF in a7
+        ld hl,1
+        or a
+        adc hl,bc
+     rla ;CF from a7
+        ex af,af' ;'
+        PUTDEST_Loop       
+DECer
+        GETDEST
+        ex af,af' ;'
+     rra ;keep CF in a7
+        ld h,b
+        ld l,c
+        ld bc,1
+        or a
+        sbc hl,bc
+        ld b,h
+        ld c,l
+     rla ;CF from a7
+        ex af,af' ;'
+        PUTDEST_Loop       
 
 MOVer
-
 ;15df, 02d8, ffb4 ;mov #1330, @#177664
 ;0001 0101 1101 1111
 ;0 001 010 111 011 111
@@ -49,73 +79,194 @@ MOVer
         PUTDEST_Loop
 
 CMPer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+        ld h,b
+        ld l,c
+       pop bc
+        ex af,af' ;'
+        or a
+        sbc hl,bc
+        ccf
+        ex af,af' ;'
        _LoopC
 
 BITer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ;ex af,af' ;'
+        ld a,l ;src
+        and c
+        ld c,a
+        ld a,h ;src
+        and b
+        ld b,a
+     ;rra
+     ;ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ;ld a,h
+     ;rla ;CF
+        ex af,af' ;'
        _LoopC
 
 BICer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ;ex af,af' ;'
+        ld a,l ;src
+        cpl
+        and c
+        ld c,a
+        ld a,h ;src
+        cpl
+        and b
+        ld b,a
+     ;rra
+     ;ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ;ld a,h
+     ;rla ;CF
+        ex af,af' ;'
        _LoopC
 
 BISer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ;ex af,af' ;'
+        ld a,l ;src
+        or c
+        ld c,a
+        ld a,h ;src
+        or b
+        ld b,a
+     ;rra
+     ;ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ;ld a,h
+     ;rla ;CF
+        ex af,af' ;'
        _LoopC
 
 ADDer
         ;ld b,a
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-        
-        rla
-         and 0x0e
-        ld l,a
-        ld h,_R0/256
-       push de
-        ld e,(hl)
-        inc l
-        ld d,(hl)
-        ex de,hl
+       push hl
+        GETDEST
+       pop hl
         ex af,af' ;'
         or a
         adc hl,bc
         ex af,af' ;'
-        ex de,hl
-        ld (hl),d
-        dec l
-        ld (hl),e
-        ld a,l
-        cp 0x0e
-        jp z,poprecodePCLoop ;de=new PC
-       pop de
-       _LoopC
+        ld b,h
+        ld c,l
+        PUTDEST_Loop
 
 SUBer
-;TODO
-       _LoopC
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+        ld h,b
+        ld l,c
+       pop bc
+        ex af,af' ;'
+        or a
+        sbc hl,bc
+        ccf
+        ex af,af' ;'
+        ld b,h
+        ld c,l
+        PUTDEST_Loop
 
 MOVBer
-;TODO
-       _LoopC
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        ex af,af' ;'
+        ;TODO сбросить V
+        ex af,af' ;'        
+        PUTDEST8_Loop
 
 CMPBer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ex af,af' ;'
+        ld a,c
+        sub l
+        ld c,a
+        ccf
+        ex af,af' ;'
        _LoopC
 
 BITBer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ex af,af' ;'
+        ld a,c
+        and l ;TODO keep CY?
+        ex af,af' ;'
        _LoopC
 
 BICBer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ex af,af' ;'
+        ld a,l ;src
+        cpl
+        and c
+        ld c,a ;TODO keep CY?
+        ex af,af' ;'
        _LoopC
 
 BISBer
-;TODO
+;ac=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+       push hl
+        GETDEST
+       pop hl
+        ex af,af' ;'
+        ld a,c
+        or l
+        ld c,a ;TODO keep CY?
+        ex af,af' ;'
        _LoopC
-
 
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
@@ -340,14 +491,35 @@ RTI_JMP_RTS_SWAB
         jr $
         
 c0002_0003
+;a=cmdLSB*2
         jp m,SWABer;c0003
 ;00020r	RTS	Return from subroutine: PC < Reg; Reg < (SP)+
         cp 8*2 ;с=0x80..0x87
         jr c,RTSer
 ;0002??	d5=1,d4=0	Ccc ;flags &= ~(d3..d0 (NZVC))
 ;0002??	d5=1,d4=1	Scc ;flags |= (d3..d0 (NZVC))
-        
-        jr $
+        bit 4,c
+        jr nz,SCCer
+       ld a,c
+       push af
+        call getflags_bc
+       pop af
+       and 0x0f
+       cpl
+       and c
+       ld c,a
+        call makeflags_frombc
+       _LoopC
+SCCer
+       ld a,c
+       push af
+        call getflags_bc
+       pop af
+       and 0x0f
+       or c
+       ld c,a
+        call makeflags_frombc
+       _LoopC
 
 RTSer
         ;and 0x0e
@@ -378,6 +550,37 @@ JMPer
         ld d,b
         ld e,c
        _LoopC_JP
+
+
+RORB_ROLB_ASRB_ASLB
+        ld a,c
+        add a,a
+        jr c,ASRB_ASLB
+        jp m,ROLBer
+;RORBer
+        GETDEST
+	ex af,af' ;'
+        rr c
+	ex af,af' ;'
+        PUTDEST8_Loop
+ROLBer
+        GETDEST
+	ex af,af' ;'
+        rl c
+	ex af,af' ;'
+        PUTDEST8_Loop
+ASRB_ASLB
+        jp m,ASLBer
+;ASRer
+        GETDEST
+        sra c ;TODO проверить
+	ex af,af' ;'
+        PUTDEST8_Loop
+ASLBer
+        GETDEST
+        sla c
+	ex af,af' ;'
+        PUTDEST8_Loop
 
 
 ROR_ROL_ASR_ASL
@@ -448,6 +651,7 @@ ASLer
         adc hl,hl
         ld b,h
         ld c,l
+	ex af,af' ;'
         PUTDEST_Loop
 
 NEG_ADC_SBC_TST
@@ -458,13 +662,14 @@ CLRB_COMB_INCB_DECB
 ;TODO
 NEGB_ADCB_SBCB_TSTB
 ;TODO
-RORB_ROLB_ASRB_ASLB
-;TODO
 MTPS_MFPD_MTPD_MFPS
 ;TODO
         jr $
 
 SWABer
-;TODO
-        jr $
+        GETDEST
+        ld h,b
+        ld b,c
+        ld c,h
+        PUTDEST_Loop
 
