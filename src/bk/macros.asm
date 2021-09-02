@@ -86,11 +86,28 @@
 	endm
 
         macro putmemspBC
-;TODO
+       push bc
+        ld hl,(_SP)
+        dec hl
+        dec hl
+        ld (_SP),hl
+        ld a,h
+        and 0xc0
+        ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       pop bc
+        ld (hl),c
+        inc l
+        call z,recountsp_inc
+        ld (hl),b
         endm
 
         macro getmemspBC
-;TODO
+        call getmemspBCpp
         endm
 
 

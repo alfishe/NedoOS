@@ -383,6 +383,53 @@ STIer
         ld (iff1),a
        _LoopC
 
+getmemspBCpp
+        ld hl,(_SP)
+        inc hl
+        inc hl
+        ld (_SP),hl
+        ld a,h
+        and 0xc0
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        push bc
+        ld hl,(_SP)
+        dec hl
+        ld a,h
+        and 0xc0
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        pop bc
+        ld b,(hl)
+	ret
+
+recountsp_inc
+        push bc
+        ld hl,(_SP)
+        inc hl
+        ld a,h
+        and 0xc0
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        pop bc
+	ret
+
 readsourceop
 ;bc=cmd
 ;out: bc=sourceop, a=cmdLSB
