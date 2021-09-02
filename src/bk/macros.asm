@@ -114,6 +114,15 @@
         call getmemspBCpp
         endm
 
+;a=cmdLSB
+        macro GETDEST
+        call getdest
+        endm ;bc=dest, a=cmdLSB
+
+;bc=dest, a=cmdLSB
+        macro PUTDEST
+        call putdest
+        endm
 
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 

@@ -407,25 +407,77 @@ JMPer
 
 
 ROR_ROL_ASR_ASL
-;TODO
         ld a,c
         add a,a
         jr c,ASR_ASL
         jp m,ROLer
 ;RORer
-        
+        GETDEST
+	ex af,af' ;'
+        rr b
+        rr c
+     rra
+     ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ld a,h
+     rla ;CF
+	ex af,af' ;'
+        PUTDEST
        _LoopC
 ROLer
-
-        
+        GETDEST
+	ex af,af' ;'
+        rl c
+        rl b
+     rra
+     ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ld a,h
+     rla ;CF
+	ex af,af' ;'
+        PUTDEST
        _LoopC
 ASR_ASL
         jp m,ASLer
 ;ASRer
-        
+        GETDEST
+        sra b
+        rr c
+     rra
+     ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ld a,h
+     rla ;CF
+	ex af,af' ;'
+        PUTDEST
        _LoopC
 ASLer
-
+        GETDEST
+        ld h,b
+        ld l,c
+        or a
+        adc hl,hl
+        ld b,h
+        ld c,l
+        PUTDEST
        _LoopC
 
 NEG_ADC_SBC_TST

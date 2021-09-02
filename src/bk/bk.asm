@@ -432,6 +432,19 @@ recountsp_inc
         pop bc
 	ret
 
+;a=cmdLSB
+getdest
+;out: bc=dest, a=cmdLSB
+;TODO
+
+        ret
+
+;bc=dest, a=cmdLSB
+putdest
+;TODO
+
+        ret
+
 readsourceop
 ;bc=cmd
 ;out: bc=sourceop, a=cmdLSB
