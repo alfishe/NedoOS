@@ -474,7 +474,7 @@ readdestop_x11
         jp readdestop_011
 
 ;bc=dest, a=cmdLSB = %??fmtRRR
-putdest
+putdest_Loop
 ;15-12 Opcode
 ;11-9 Src
 ;8-6 Register
@@ -495,16 +495,41 @@ putdest
         jr c,putdestop_01x
         jp m,putdestop_001
 ;000 Register
+        ld a,l
+        cp 0x0e
+        jp z,bctoPCLoop
         ld (hl),c
         inc l
         ld (hl),b
-        ret
-putdestop_001
-        jr $
+        _LoopC
+putdestop_001 ;(Rn): Rn contains the address of the operand
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        WRMEM_hl_LoopC
 putdestop_01x
         jp m,putdestop_011
-;putdestop_010
-        jr $
+;putdestop_010 ;(Rn)+
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,l
+        cp 0x0c
+        ld a,(hl)
+        ;jr nc,putdestop_010_sppc
+       jr c,$+2+3+1
+       jp nz,bctoPCLoop;putdestop_010_pc
+       inc (hl) ;sp/pc +=2 ;TODO нечётный?
+        inc (hl)
+        inc hl
+        jr nz,$+2+3+2
+         inc (hl)
+         ld h,(hl)
+         dec h
+         jr $+3
+       ld h,(hl)
+        ld l,a
+        WRMEM_hl_LoopC
+
 putdestop_011
         jr $
 putdestop_1xx
@@ -700,7 +725,7 @@ readdestop_111
 
 poprecodePCLoop
        pop af ;ignore
-recodePCLoop
+;recodePCLoop
 ;de=new PC
        _LoopC_JP
 

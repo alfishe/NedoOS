@@ -30,8 +30,6 @@ CLRer
        _LoopC
 
 MOVer
-;TODO
-
 ;15c1, 4000 ;mov #40000,r1
 ;0001 0101 1100 0001
 ;0 001 010 111 000 001
@@ -39,21 +37,10 @@ MOVer
         ;ld b,a
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-
-        rla
-         and 0x0e
-        ld l,a
-        ld h,_R0/256
         ex af,af' ;'
         ;TODO סבנמסטעü V
-        ex af,af' ;'
-        ld (hl),c
-        ld a,l
-        inc l
-        ld (hl),b
-        cp 0x0e
-        jp z,recodePCLoop ;de=new PC
-       _LoopC
+        ex af,af' ;'        
+        PUTDEST_Loop
 
 CMPer
 ;TODO
@@ -173,7 +160,7 @@ CALLer
         ld (hl),e
         inc l
         ld (hl),d
-
+bctoPCLoop
         ld d,b
         ld e,c
 loopcjp
@@ -409,8 +396,7 @@ ROR_ROL_ASR_ASL
      ld a,h
      rla ;CF
 	ex af,af' ;'
-        PUTDEST
-       _LoopC
+        PUTDEST_Loop
 ROLer
         GETDEST
 	ex af,af' ;'
@@ -428,8 +414,7 @@ ROLer
      ld a,h
      rla ;CF
 	ex af,af' ;'
-        PUTDEST
-       _LoopC
+        PUTDEST_Loop
 ASR_ASL
         jp m,ASLer
 ;ASRer
@@ -448,8 +433,7 @@ ASR_ASL
      ld a,h
      rla ;CF
 	ex af,af' ;'
-        PUTDEST
-       _LoopC
+        PUTDEST_Loop
 ASLer
         GETDEST
         ld h,b
@@ -458,8 +442,7 @@ ASLer
         adc hl,hl
         ld b,h
         ld c,l
-        PUTDEST
-       _LoopC
+        PUTDEST_Loop
 
 NEG_ADC_SBC_TST
 ;TODO

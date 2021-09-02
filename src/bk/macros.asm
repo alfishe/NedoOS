@@ -89,7 +89,7 @@
 	ld b,a
 	endm
 
-        macro putmemspBC
+       macro putmemspBC
        push bc
         ld hl,(_SP)
         dec hl
@@ -108,21 +108,41 @@
         inc l
         call z,recountsp_inc
         ld (hl),b
-        endm
+       endm
 
-        macro getmemspBC
+       macro getmemspBC
         call getmemspBCpp
-        endm
+       endm
 
 ;c=cmdLSB
-        macro GETDEST
+       macro GETDEST
         call getdest
-        endm ;bc=dest, a=cmdLSB
+       endm ;bc=dest, a=cmdLSB
 
 ;bc=dest, a=cmdLSB
-        macro PUTDEST
-        call putdest
-        endm
+       macro PUTDEST_Loop
+        jp putdest_Loop
+       endm
+
+;hl=addr, bc=data
+       macro WRMEM_hl_LoopC
+       push bc
+        ld a,h
+        and 0xc0
+        ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       pop bc
+        ld (hl),c
+        inc l
+        call z,inchnextpg
+        ld (hl),b
+        _LoopC
+       endm
 
        macro RDMEM_ac_ret ;bc=result
         ld l,c
