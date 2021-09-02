@@ -143,53 +143,6 @@ BISBer
        _LoopC
 
 
-
-BRer
-;TODO
-       _LoopC
-BNEer
-;TODO
-       _LoopC
-BEQer
-;TODO
-       _LoopC
-BGEer
-;TODO
-       _LoopC
-BLTer
-;TODO
-       _LoopC
-BGTer
-;TODO
-       _LoopC
-BLEer
-;TODO
-       _LoopC
-BPLer
-;TODO
-       _LoopC
-BMIer
-;TODO
-       _LoopC
-BHIer
-;TODO
-       _LoopC
-BLOSer
-;TODO
-       _LoopC
-BVCer
-;TODO
-       _LoopC
-BVSer
-;TODO
-       _LoopC
-BCCer ;BCC or BHIS	Branch if carry clear, or Branch if higher or same C = 0
-;TODO
-       _LoopC
-BCSer ;BCS or BLO	Branch if carry set, or Branch if lower C = 1
-;TODO
-       _LoopC
-
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
 
@@ -307,6 +260,89 @@ SOBer
         dec d
        _LoopC_JP
 
+exaBR
+        ex af,af' ;'
+BRer
+        decodePC        
+        ld a,e
+        add a,c
+        jr nc,$+3
+        dec d
+        add a,c
+        jr nc,$+3
+        dec d
+        ld e,a
+       _LoopC_JP
+
+BNEer
+        ex af,af' ;'
+        jr nz,exaBR
+        ex af,af' ;'
+       _LoopC
+BEQer
+        ex af,af' ;'
+        jr z,exaBR
+        ex af,af' ;'
+       _LoopC
+BGEer ;Branch if greater than or equal (N ? V) = 0
+;TODO
+        jr $
+       _LoopC
+BLTer ;Branch if less than (N ? V) = 1
+;TODO
+        jr $
+       _LoopC
+BGTer ;Branch if greater than (Z ? (N ? V)) = 0
+;TODO
+        jr $
+       _LoopC
+BLEer ;Branch if less than or equal (Z ? (N ? V)) = 1
+;TODO
+        jr $
+       _LoopC
+BPLer
+        ex af,af' ;'
+        jp p,exaBR
+        ex af,af' ;'
+       _LoopC
+BMIer
+        ex af,af' ;'
+        jp m,exaBR
+        ex af,af' ;'
+       _LoopC
+BHIer ;(C ? Z) = 0
+        ex af,af' ;'
+        jr c,$+4
+        jr nz,exaBR
+        ex af,af' ;'
+       _LoopC
+BLOSer ;(C ? Z) = 1
+        ex af,af' ;'
+        jr c,exaBR
+        jr z,exaBR
+        ex af,af' ;'
+       _LoopC
+BVCer ;Branch if overflow clear V = 0
+        ex af,af' ;'
+        jp po,exaBR ;po=no overflow
+        ex af,af' ;'
+       _LoopC
+BVSer ;Branch if overflow set V = 1
+        ex af,af' ;'
+        jp pe,exaBR ;pe=overflow
+        ex af,af' ;'
+       _LoopC
+BCCer ;BCC or BHIS	Branch if carry clear, or Branch if higher or same C = 0
+        ex af,af' ;'
+        jr nc,exaBR
+        ex af,af' ;'
+       _LoopC
+BCSer ;BCS or BLO	Branch if carry set, or Branch if lower C = 1
+        ex af,af' ;'
+        jr c,exaBR
+        ex af,af' ;'
+       _LoopC
+
 RTI_JMP_RTS_SWAB
 ;0000.. см. ниже
 ;0001??	JMP	Jump: PC < Src
@@ -314,7 +350,7 @@ RTI_JMP_RTS_SWAB
 ;0002??	d5=1,d4=0	Ccc ;flags &= ~(d3..d0 (NZVC))
 ;0002??	d5=1,d4=1	Scc ;flags |= (d3..d0 (NZVC))
 ;0003dr	SWAB	Swap bytes of word: Dest < Swap-bytes(Dest)
-        ld b,a
+        ;ld b,a
         ld a,c
         add a,a
         jr c,c0002_0003
@@ -370,9 +406,29 @@ JMPer
        _LoopC_JP
 
 
-NEG_ADC_SBC_TST
-;TODO
 ROR_ROL_ASR_ASL
+;TODO
+        ld a,c
+        add a,a
+        jr c,ASR_ASL
+        jp m,ROLer
+;RORer
+        
+       _LoopC
+ROLer
+
+        
+       _LoopC
+ASR_ASL
+        jp m,ASLer
+;ASRer
+        
+       _LoopC
+ASLer
+
+       _LoopC
+
+NEG_ADC_SBC_TST
 ;TODO
 c0064_MFPI_MTPI_SXT
 ;TODO
