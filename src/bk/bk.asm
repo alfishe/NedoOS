@@ -64,12 +64,15 @@ oldpcaddr=$+1
        endif
         get
         next
+        ld c,a
+        get
+        next
 	LD L,A
         ld H,MAINCOMS/256
         LD b,(HL)
         INC H
         LD H,(HL)
-        ld L,b ;чётный для всех rm-команд
+        ld L,b ;ac=cmd
         JP (HL) 
 
 ;иначе pop iy запорет iy от обработчика прерывания
