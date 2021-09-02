@@ -61,7 +61,7 @@ IN_bc_to_bc
         ld hl,0x03da
         or a
         sbc hl,bc
-        jr z,IN_03da
+        jr z,IN_03da ;может быть 3ba todo
        ld hl,0x0060
        or a
        sbc hl,bc
@@ -181,6 +181,23 @@ IN_0202
         ret
 
 ;0x03da - порт видеоконтроллера. проверяется на равенство 8 - во время КСИ? (pixeltown) и на and 1 (cgademo)
+;- bit 0 Display Enable-Logical 0 indicates the CRT
+;raster is in a horizontal or vertical retrace
+;interval. This bit is the real time status of the
+;display enable signal. Some programs use this
+;status bit to restrict screen updates to inactive
+;display intervals. The Enhanced Graphics
+;Adapter does not require the CPU to update the
+;screen buffer during inactive display intervals to .~
+;avoid glitches in the display image.
+;- bit 3 Vertical Retrace-A logical 0 indicates that video
+;information is being displayed on the CRT
+;screen; a logicall indicates the CRT is in a
+;vertical retrace interval. This bit can be
+;programmed to interrupt the processor on
+;interrupt level 2 at the start of the vertical
+;retrace. This is done through bits 4 and 5 of the ~
+;Vertical Retrace End Register of the CRTC. 
 IN_03da
         ld a,r
        rra

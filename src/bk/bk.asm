@@ -315,6 +315,24 @@ recountpc_inc ;keep CY!
         ;ld de,0x4000
 	ret
 
+inchnextpg
+        inc h
+        ret nz
+hlnextpg
+        push af
+        push bc
+	ld a,lx
+        add a,0x40
+        ;adc a,0
+        ld c,a
+	ld b,tpgs/256
+	ld a,(bc)
+	SETPGC000
+        pop bc
+        pop af
+        ld h,0xc0
+	ret
+
 PUTscreen_logpgc_zxaddrhl_datamhl_keephlpg_do
        push hl
        push bc
@@ -331,12 +349,349 @@ PUTscreen_logpgc_zxaddrhl_datamhl_do
         ret
 
 getflags_bc
-;TODO
+;формат PSW такой: IxxTNZVC
+;разрешение прерываний -- маска 0200(0x80) в PSW
+;T - разрешение трассировочного прерывания
+        ex af,af' ;'
+        push af
+        ex af,af' ;'
+        pop bc
+;c=%SZ???V?C
+        ld a,c ;flags
+        ld bc,0
+        add a,a
+        jr nc,$+4
+        set 3,c ;N=S
+        jp p,$+5
+        set 2,c ;Z
+        rra ;a=flags
+        rra
+        jr nc,$+3
+        inc c ;C
+        rra
+        rra
+        jr nc,$+4
+        set 1,c ;V
+        ld a,(iff1)
+       and 0x80
+       or c
+       ld c,a
         ret
         
 STIer
+        ld a,-1
+        ld (iff1),a
+       _LoopC
+
+readsourceop
+;bc=cmd
+;out: bc=sourceop, a=cmdLSB
+
+;TODO read pc
+
+;15-12 Opcode
+;11-9 Src
+;8-6 Register
+;5-3 Dest
+;2-0 Register
+
+;0n	Register	Rn	The operand is in Rn
+;1n	Register deferred	(Rn)	Rn contains the address of the operand
+;2n	Autoincrement	(Rn)+	Rn contains the address of the operand, then increment Rn
+;3n	Autoincrement deferred	@(Rn)+	Rn contains the address of the address of the operand, then increment Rn by 2
+;4n	Autodecrement	−(Rn)	Decrement Rn, then use the result as the address of the operand
+;5n	Autodecrement deferred	@−(Rn)	Decrement Rn by 2, then use the result as the address of the address of the operand
+;6n	Index	X(Rn)	Rn+X is the address of the operand
+;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
+        ld a,b
+        rra
+        rra
+        jr c,readsourceop_xx1
+        rra
+        jr c,readsourceop_x10
+        rra
+        jp c,readsourceop_100
+;000 Register
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+         ;ld l,(hl) ;TODO
+;0000rrr0
+         ld a,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret
+
+readsourceop_xx1
+        rra
+        jr c,readsourceop_x11
+        rra
+        jp c,readsourceop_101
+;001 (Rn): Rn contains the address of the operand
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+         ;ld l,(hl) ;TODO
+;0000rrr0
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld a,h
+        and 0xc0
+       ld hx,c
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret
+
+readsourceop_x10
+        rra
+        jp c,readsourceop_110
+;010 (Rn)+
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+        ;jr nc,readsourceop_010_sppc
+       jr c,$+3
+       inc (hl) ;sp/pc +=2 ;TODO нечётный?
+        inc (hl)
+        inc hl
+        ld a,(hl)
+        jr nz,$+3
+        inc (hl)
+        ld l,c
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        inc h
+        call z,hlnextpg
+        ld b,(hl)
+        ret
+
+readsourceop_x11
+        rra
+        jp c,readsourceop_111
+;011 @(Rn)+
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+       inc (hl) ;sp/pc +=2 ;TODO нечётный?
+        inc (hl)
+        inc hl
+        ld a,(hl)
+        jr nz,$+3
+        inc (hl)
+        ld l,c
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld c,(hl)
+        inc l
+        call z,inchnextpg
+        ld a,(hl)
+        ld l,c
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        inc h
+        call z,hlnextpg
+        ld b,(hl)
+        ret
+
+readsourceop_100
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+       jr c,$+3
+       dec bc ;sp/pc +=2
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld l,c
+        ld a,b
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        inc h
+        call z,hlnextpg
+        ld b,(hl)
+        ret
+
+readsourceop_101
+;101 @-(Rn)
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+       dec bc ;sp/pc -=2
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld l,c
+        ld a,b
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld c,(hl)
+        inc l
+        call z,inchnextpg
+        ld a,(hl)
+        ld l,c
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        inc h
+        call z,hlnextpg
+        ld b,(hl)
+        ret
+
+readsourceop_110
+;110 Index: X(Rn): Rn+X is the address of the operand
 ;TODO
         ret
+readsourceop_111
+;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+;TODO
+        ret
+
+recodePCLoop
+;de=new PC
+       pop af ;ignore
+       _LoopC_JP
+
 
 	include "bkcmd.asm"
 

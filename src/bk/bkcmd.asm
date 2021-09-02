@@ -46,38 +46,21 @@ ADDer
 
 ADDregreg
 
-
-;TODO subroutine
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a
-        ld h,_R0/256
-         ;ld l,(hl)
-;0000rrr0
-         ld a,c
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        
-        
+;bc=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
         
         rla
          and 0x0e
         ld l,a
+        ld h,_R0/256
        push de
         ld e,(hl)
         inc l
         ld d,(hl)
         ex de,hl
         ex af,af' ;'
-        add hl,bc
+        or a
+        adc hl,bc
         ex af,af' ;'
         ex de,hl
         ld (hl),d
@@ -88,11 +71,6 @@ ADDregreg
         jp z,recodePCLoop ;de=new PC
        pop de
        _LoopC
-
-recodePCLoop
-;de=new PC
-       pop af ;ignore
-       _LoopC_JP
 
 SUBer
 ;TODO

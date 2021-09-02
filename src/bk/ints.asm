@@ -242,9 +242,7 @@ loadcompp
 	ld b,tpgs/256
 	set 7,d
         set 6,d
-	ld a,(bc)
        push bc
-	SETPG4000
        push de
         ld a,(curhandle)
         ld b,a
