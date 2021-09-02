@@ -47,7 +47,6 @@
 	endm
 
 	macro encodePC_AisD
-       ld a,d
        ld (pc_high),a
        and 0xc0
 	ld c,a

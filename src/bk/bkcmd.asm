@@ -11,6 +11,7 @@ CLR_COM_INC_DEC
         jr c,CLRer
         
 ;TODO
+loopc
        _LoopC
 CLRer
 ;TODO разные адресации
@@ -275,20 +276,100 @@ CALLerPC
 
 SOBer
 ;Subtract One and Branch: Reg < Reg - 1; if Reg ? 0 then PC < PC - 2 ? Offset
-;TODO
-
-        decodePC
-        
+;TODO pc,sp?
+        rra
+        ld a,c
+        rra
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+       ld a,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        cpd
+        ld (hl),c
+        inc hl
+        ld (hl),b
+        jp po,loopc ;jump if 0
+        and 0x3f
+        add a,a
+        ld c,a
+        decodePC        
         ld a,e
-        add a,c
+        sub c
         ld e,a
-        ld a,d
-        adc a,b
-        ld d,a ;bc=pc+X
+        jr nc,$+3
+        dec d
        _LoopC_JP
 
 RTI_JMP_RTS_SWAB
+;0000.. см. ниже
+;0001??	JMP	Jump: PC < Src
+;00020r	RTS	Return from subroutine: PC < Reg; Reg < (SP)+
+;0002??	d5=1,d4=0	Ccc ;flags &= ~(d3..d0 (NZVC))
+;0002??	d5=1,d4=1	Scc ;flags |= (d3..d0 (NZVC))
+;0003dr	SWAB	Swap bytes of word: Dest < Swap-bytes(Dest)
+        ld b,a
+        ld a,c
+        add a,a
+        jr c,c0002_0003
+        jp m,JMPer;c0001
+;000000	HALT
+;000001	WAIT
+;000002	RTI	Return from interrupt: PC < (SP)+; PS < (SP)+
+;000003	BPT	Breakpoint trap: -(SP) < PS; -(SP) < PC; PC < (14); PS < (16)
+;000004	IOT	I/O trap: -(SP) < PS; -(SP) < PC; PC < (20); PS < (22)
+;000005	RESET
+;000006	RTT	Return from trap: PC < (SP)+; PS < (SP)+
 ;TODO
+        jr $
+        
+c0002_0003
+        jp m,SWABer;c0003
+;00020r	RTS	Return from subroutine: PC < Reg; Reg < (SP)+
+        cp 8*2 ;с=0x80..0x87
+        jr c,RTSer
+;0002??	d5=1,d4=0	Ccc ;flags &= ~(d3..d0 (NZVC))
+;0002??	d5=1,d4=1	Scc ;flags |= (d3..d0 (NZVC))
+        
+        jr $
+
+RTSer
+        ;and 0x0e
+       cp 0x0e
+       jr z,RTSerPC
+;TODO test
+        ld l,a
+        ld h,_R0/256
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+       push hl
+        getmemspBC
+       pop hl
+        ld (hl),b
+        dec l
+        ld (hl),c
+       _LoopC_JP
+RTSerPC
+        getmemspBC
+        ld d,b
+        ld e,c
+       _LoopC_JP
+
+JMPer
+;bc=cmd
+        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        ld d,b
+        ld e,c
+       _LoopC_JP
+
+
 NEG_ADC_SBC_TST
 ;TODO
 ROR_ROL_ASR_ASL
@@ -302,4 +383,10 @@ NEGB_ADCB_SBCB_TSTB
 RORB_ROLB_ASRB_ASLB
 ;TODO
 MTPS_MFPD_MTPD_MFPS
-        jp PANIC
+;TODO
+        jr $
+
+SWABer
+;TODO
+        jr $
+

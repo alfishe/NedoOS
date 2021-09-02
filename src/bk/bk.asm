@@ -388,6 +388,8 @@ getmemspBCpp
         inc hl
         inc hl
         ld (_SP),hl
+        dec hl
+        dec hl
         ld a,h
         and 0xc0
 	ld c,a
@@ -537,7 +539,7 @@ readsourceop_x10
         ld c,(hl)
         ;jr nc,readsourceop_010_sppc
        jr c,$+2+2+1
-       jr z,readsourceop_010_pc
+       jr nz,readsourceop_010_pc
        inc (hl) ;sp/pc +=2 ;TODO нечётный?
         inc (hl)
         inc hl
@@ -571,6 +573,7 @@ readsourceop_010_pc
         get
         next
         ld b,a
+       ld a,hx
         ret
 
 readsourceop_x11
