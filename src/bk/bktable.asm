@@ -1,0 +1,26 @@
+        MACRO DCOM wrd
+        DB wrd&0xff;\0
+        ORG $+255        DB wrd/256;'(\0)        ORG $-256        ENDM
+;--------------------- -----------------------
+MAINCOMS
+;#0X
+        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC;#1X
+        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer        DCOM MOVer;#2X
+        DCOM CMPer
+        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer        DCOM CMPer;#3X
+        DCOM BITer
+        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer        DCOM BITer;#4X
+        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer        DCOM BICer;#5X
+        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer        DCOM BISer;#6x
+        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer        DCOM ADDer;#7x
+        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC;#8x
+        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC;#9x
+        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer        DCOM MOVBer;#Ax
+        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer        DCOM CMPBer;#Bx
+        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer        DCOM BITBer;#Cx
+        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer        DCOM BICBer;#Dx
+        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer        DCOM BISBer;#Ex
+        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer        DCOM SUBer;#Fx
+        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC        DCOM PANIC
+	DISPLAY $-MAINCOMS,"=256"
+        ORG $+256
