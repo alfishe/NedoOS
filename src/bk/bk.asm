@@ -432,111 +432,105 @@ recountsp_inc
         pop bc
 	ret
 
-;a=cmdLSB
+;c=cmdLSB = %??fmtRRR
 getdest
 ;out: bc=dest, a=cmdLSB
-;TODO
-
-        ret
-
-;bc=dest, a=cmdLSB
-putdest
-;TODO
-
-        ret
-
-readsourceop
-;bc=cmd
-;out: bc=sourceop, a=cmdLSB
-
-;TODO read pc
-
 ;15-12 Opcode
 ;11-9 Src
 ;8-6 Register
 ;5-3 Dest
 ;2-0 Register
-
-;0n	Register	Rn	The operand is in Rn
-;1n	Register deferred	(Rn)	Rn contains the address of the operand
-;2n	Autoincrement	(Rn)+	Rn contains the address of the operand, then increment Rn
-;3n	Autoincrement deferred	@(Rn)+	Rn contains the address of the address of the operand, then increment Rn by 2
-;4n	Autodecrement	−(Rn)	Decrement Rn, then use the result as the address of the operand
-;5n	Autodecrement deferred	@−(Rn)	Decrement Rn by 2, then use the result as the address of the address of the operand
-;6n	Index	X(Rn)	Rn+X is the address of the operand
-;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
-        ld a,b
-        rra
-        rra
-        jr c,readsourceop_xx1
-        rra
-        jr c,readsourceop_x10
-        rra
-        jp c,readsourceop_100
-;000 Register
-        ld a,b
-        rra
         ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a
+        rla
+        and 0x0e
+        ld l,a ;0000rrr0
         ld h,_R0/256
          ;ld l,(hl) ;TODO
-;0000rrr0
+        bit 3,c
+        jr nz,readdestop_xx1
+        bit 4,c
+        jr nz,readdestop_x10
+        bit 5,c
+        jp nz,readdestop_100
+;000 Register
          ld a,c
         ld c,(hl)
         inc l
         ld b,(hl)
         ret
+readdestop_x10
+        bit 5,c
+        jp nz,readdestop_110
+        jp readdestop_010
+readdestop_xx1
+        bit 4,c
+        jr nz,readdestop_x11
+        bit 5,c
+        jp nz,readdestop_101
+        jp readdestop_001
+readdestop_x11
+        bit 5,c
+        jp nz,readdestop_111
+        jp readdestop_011
 
-readsourceop_xx1
-        rra
-        jr c,readsourceop_x11
-        rra
-        jp c,readsourceop_101
-;001 (Rn): Rn contains the address of the operand
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a
+;bc=dest, a=cmdLSB = %??fmtRRR
+putdest
+;15-12 Opcode
+;11-9 Src
+;8-6 Register
+;5-3 Dest
+;2-0 Register
+        ld h,a
+        rla
+        and 0x0e
+        ld l,a ;0000rrr0
+        ld a,h
         ld h,_R0/256
          ;ld l,(hl) ;TODO
-;0000rrr0
-        ld a,(hl)
+        rla
+        rla
+        rla
+        jr c,putdestop_1xx
+        add a,a
+        jr c,putdestop_01x
+        jp m,putdestop_001
+;000 Register
+        ld (hl),c
         inc l
-        ld h,(hl)
-        ld l,a
-        ld a,h
-        and 0xc0
-       ld hx,c
-	ld c,a
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-       ld a,hx
-        ld c,(hl)
-        inc l
-        ld b,(hl)
+        ld (hl),b
         ret
+putdestop_001
+        jr $
+putdestop_01x
+        jp m,putdestop_011
+;putdestop_010
+        jr $
+putdestop_011
+        jr $
+putdestop_1xx
+        add a,a
+        jp c,putdestop_11x
+        jp m,putdestop_101
+;putdestop_100
+        jr $
+putdestop_101
+        jr $
+putdestop_11x
+        jp m,putdestop_111
+;putdestop_110
+        jr $
+putdestop_111
+        jr $
 
-readsourceop_x10
-        rra
-        jp c,readsourceop_110
-;010 (Rn)+
-;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        ld a,b
+readsourceop
+;ac=cmd
+;out: bc=sourceop, a=cmdLSB
+;15-12 Opcode
+;11-9 Src
+;8-6 Register
+;5-3 Dest
+;2-0 Register
+        ld b,a
         rra
         ld a,c
         rra ;rrr?????
@@ -547,6 +541,47 @@ readsourceop_x10
          and 0x0e
         ld l,a ;0000rrr0
         ld h,_R0/256
+         ;ld l,(hl) ;TODO
+
+;0n	Register	Rn	The operand is in Rn
+;1n	Register deferred	(Rn)	Rn contains the address of the operand
+;2n	Autoincrement	(Rn)+	Rn contains the address of the operand, then increment Rn
+;3n	Autoincrement deferred	@(Rn)+	Rn contains the address of the address of the operand, then increment Rn by 2
+;4n	Autodecrement	−(Rn)	Decrement Rn, then use the result as the address of the operand
+;5n	Autodecrement deferred	@−(Rn)	Decrement Rn by 2, then use the result as the address of the address of the operand
+;6n	Index	X(Rn)	Rn+X is the address of the operand
+;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
+;TODO read pc
+        bit 1,b
+        jr nz,readsourceop_xx1
+        bit 2,b
+        jr nz,readsourceop_x10
+        bit 3,b
+        jp nz,readsourceop_100
+;000 Register
+         ld a,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret
+
+readsourceop_xx1
+        bit 2,b
+        jr nz,readsourceop_x11
+        bit 3,b
+        jp nz,readsourceop_101
+readdestop_001 ;(Rn): Rn contains the address of the operand
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld a,(hl)
+        RDMEM_ac_ret ;bc=result
+
+readsourceop_x10
+        bit 3,b
+        jp nz,readsourceop_110
+readdestop_010 ;(Rn)+
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
         cp 0x0c
        ld hx,c
         ld c,(hl)
@@ -559,25 +594,7 @@ readsourceop_x10
         ld a,(hl)
         jr nz,$+3
         inc (hl)
-        ld l,c
-        ld h,a
-        and 0xc0
-	ld c,a
-       ld lx,a ;for nextpg
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-       ld a,hx
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        ret nz
-        inc h
-        call z,hlnextpg
-        ld b,(hl)
-        ret
+        RDMEM_ac_ret ;bc=result
 
 readsourceop_010_pc
         get
@@ -590,20 +607,9 @@ readsourceop_010_pc
         ret
 
 readsourceop_x11
-        rra
-        jp c,readsourceop_111
-;011 @(Rn)+
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a ;0000rrr0
-        ld h,_R0/256
+        bit 3,b
+        jp nz,readsourceop_111
+readdestop_011 ;@(Rn)+
         cp 0x0c
        ld hx,c
         ld c,(hl)
@@ -613,9 +619,9 @@ readsourceop_x11
         ld a,(hl)
         jr nz,$+3
         inc (hl)
+readsourceop_addrfromaddr_ac
         ld l,c
         ld h,a
-readsourceop_addrfromaddr
         and 0xc0
 	ld c,a
        ld lx,a
@@ -628,40 +634,12 @@ readsourceop_addrfromaddr
         inc l
         call z,inchnextpg
         ld a,(hl)
-        ld l,c
-        ld h,a
-        and 0xc0
-	ld c,a
-       ld lx,a ;for nextpg
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-       ld a,hx
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        ret nz
-        inc h
-        call z,hlnextpg
-        ld b,(hl)
-        ret
+        RDMEM_ac_ret ;bc=result
 
 readsourceop_100
+readdestop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a ;0000rrr0
-        ld h,_R0/256
         cp 0x0c
        ld hx,c
         ld c,(hl)
@@ -673,40 +651,12 @@ readsourceop_100
         ld (hl),b
         dec l
         ld (hl),c
-        ld l,c
         ld a,b
-        ld h,a
-        and 0xc0
-	ld c,a
-       ld lx,a ;for nextpg
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-       ld a,hx
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        ret nz
-        inc h
-        call z,hlnextpg
-        ld b,(hl)
-        ret
+        RDMEM_ac_ret ;bc=result
 
 readsourceop_101
+readdestop_101
 ;101 @-(Rn)
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a ;0000rrr0
-        ld h,_R0/256
         cp 0x0c
        ld hx,c
         ld c,(hl)
@@ -717,54 +667,12 @@ readsourceop_101
         ld (hl),b
         dec l
         ld (hl),c
-        ld l,c
         ld a,b
-        ld h,a
-        and 0xc0
-	ld c,a
-       ld lx,a ;for nextpg
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-        ld c,(hl)
-        inc l
-        call z,inchnextpg
-        ld a,(hl)
-        ld l,c
-        ld h,a
-        and 0xc0
-	ld c,a
-       ld lx,a ;for nextpg
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-       ld a,hx
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        ret nz
-        inc h
-        call z,hlnextpg
-        ld b,(hl)
-        ret
+        jp readsourceop_addrfromaddr_ac
 
 readsourceop_110
+readdestop_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a
-        ld h,_R0/256
        ld hx,c
         get
         next
@@ -773,40 +681,12 @@ readsourceop_110
         inc l
         get
         next
-        adc a,(hl)
-        ld h,a
-        ld l,c
-;hl=Rn+X
-        and 0xc0
-	ld c,a
-       ld lx,a ;for nextpg
-	ld b,tpgs/256
-	set 7,h
-        set 6,h
-	ld a,(bc)
-	SETPGC000
-       ld a,hx
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        ret nz
-        inc h
-        call z,hlnextpg
-        ld b,(hl)
-        ret
+        adc a,(hl) ;ac=Rn+X
+        RDMEM_ac_ret ;bc=result
+
 readsourceop_111
+readdestop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
-        ld a,b
-        rra
-        ld a,c
-        rra ;rrr?????
-         rra
-         rra
-         rra
-         rra
-         and 0x0e
-        ld l,a
-        ld h,_R0/256
        ld hx,c
         get
         next
@@ -815,11 +695,8 @@ readsourceop_111
         inc l
         get
         next
-        adc a,(hl)
-        ld h,a
-        ld l,c
-;hl=Rn+X ;a=h
-        jp readsourceop_addrfromaddr
+        adc a,(hl) ;ac=Rn+X
+        jp readsourceop_addrfromaddr_ac
 
 poprecodePCLoop
        pop af ;ignore

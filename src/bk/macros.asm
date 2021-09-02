@@ -114,7 +114,7 @@
         call getmemspBCpp
         endm
 
-;a=cmdLSB
+;c=cmdLSB
         macro GETDEST
         call getdest
         endm ;bc=dest, a=cmdLSB
@@ -123,6 +123,28 @@
         macro PUTDEST
         call putdest
         endm
+
+       macro RDMEM_ac_ret ;bc=result
+        ld l,c
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a ;for nextpg
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        inc h
+        call z,hlnextpg
+        ld b,(hl)
+        ret
+       endm
 
 ;inc - Adds 1 to the destination operand, while preserving the state of the CF flag. 
 ;The OF, SF, ZF, AF, and PF flags are set according to the result. 

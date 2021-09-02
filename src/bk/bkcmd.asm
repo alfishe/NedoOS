@@ -36,8 +36,8 @@ MOVer
 ;0001 0101 1100 0001
 ;0 001 010 111 000 001
      ;(Rn)+;r7 ;rn;r1
-        ld b,a
-;bc=cmd
+        ;ld b,a
+;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
 
         rla
@@ -72,27 +72,8 @@ BISer
        _LoopC
 
 ADDer
-        ld b,a
-;TODO
-
-;15-12 Opcode
-;11-9 Src
-;8-6 Register
-;5-3 Dest
-;2-0 Register
-
-;0n	Register	Rn	The operand is in Rn
-;1n	Register deferred	(Rn)	Rn contains the address of the operand
-;2n	Autoincrement	(Rn)+	Rn contains the address of the operand, then increment Rn
-;3n	Autoincrement deferred	@(Rn)+	Rn contains the address of the address of the operand, then increment Rn by 2
-;4n	Autodecrement	?(Rn)	Decrement Rn, then use the result as the address of the operand
-;5n	Autodecrement deferred	@?(Rn)	Decrement Rn by 2, then use the result as the address of the address of the operand
-;6n	Index	X(Rn)	Rn+X is the address of the operand
-;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
-
-ADDregreg
-
-;bc=cmd
+        ;ld b,a
+;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
         
         rla
@@ -399,8 +380,8 @@ RTSerPC
        _LoopC_JP
 
 JMPer
-;bc=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+;?c=cmd
+        GETDEST ;call readsourceop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
        _LoopC_JP
