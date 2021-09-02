@@ -500,7 +500,7 @@ readsourceop_x10
         ld h,a
         and 0xc0
 	ld c,a
-       ld lx,a
+       ld lx,a ;for nextpg
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -542,6 +542,7 @@ readsourceop_x11
         inc (hl)
         ld l,c
         ld h,a
+readsourceop_addrfromaddr
         and 0xc0
 	ld c,a
        ld lx,a
@@ -558,7 +559,7 @@ readsourceop_x11
         ld h,a
         and 0xc0
 	ld c,a
-       ld lx,a
+       ld lx,a ;for nextpg
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -604,7 +605,7 @@ readsourceop_100
         ld h,a
         and 0xc0
 	ld c,a
-       ld lx,a
+       ld lx,a ;for nextpg
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -648,7 +649,7 @@ readsourceop_101
         ld h,a
         and 0xc0
 	ld c,a
-       ld lx,a
+       ld lx,a ;for nextpg
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -662,7 +663,7 @@ readsourceop_101
         ld h,a
         and 0xc0
 	ld c,a
-       ld lx,a
+       ld lx,a ;for nextpg
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -680,12 +681,72 @@ readsourceop_101
 
 readsourceop_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
-;TODO
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+       ld hx,c
+        get
+        next
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        next
+        adc a,(hl)
+        ld h,a
+        ld l,c
+;hl=Rn+X
+        and 0xc0
+	ld c,a
+       ld lx,a ;for nextpg
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        ret nz
+        inc h
+        call z,hlnextpg
+        ld b,(hl)
         ret
 readsourceop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
-;TODO
-        ret
+        ld a,b
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a
+        ld h,_R0/256
+       ld hx,c
+        get
+        next
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        next
+        adc a,(hl)
+        ld h,a
+        ld l,c
+;hl=Rn+X ;a=h
+        jp readsourceop_addrfromaddr
 
 recodePCLoop
 ;de=new PC
