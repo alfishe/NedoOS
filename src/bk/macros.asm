@@ -115,8 +115,15 @@
        endm
 
 ;c=cmdLSB
-       macro GETDEST
-        call getdest
+       macro GETDEST_cmdc
+        ld a,c
+        call getdest_aisc
+       endm ;bc=dest, a=cmdLSB
+
+;a=cmdLSB
+       macro GETDEST_cmda
+        ld c,a
+        call getdest_aisc
        endm ;bc=dest, a=cmdLSB
 
 ;bc=data, a=cmdLSB

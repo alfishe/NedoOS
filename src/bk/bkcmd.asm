@@ -24,7 +24,8 @@ CLR_COM_INC_DEC
        ex af,af' ;'
         PUTDEST_Loop       
 COMer
-        GETDEST
+        GETDEST_cmdc
+	ex af,af' ;' ;keep a=cmdLSB
        ld l,a
         ld a,c
         cpl
@@ -33,10 +34,11 @@ COMer
         cpl
         ld b,a ;TODO флаги?
        ld a,l
+       ex af,af' ;'
         PUTDEST_Loop       
 INC_DEC
         jp m,DECer
-        GETDEST
+        GETDEST_cmdc
         ex af,af' ;'
      rra ;keep CF in a7
         ld hl,1
@@ -46,7 +48,7 @@ INC_DEC
         ex af,af' ;'
         PUTDEST_Loop       
 DECer
-        GETDEST
+        GETDEST_cmdc
         ex af,af' ;'
      rra ;keep CF in a7
         ld h,b
@@ -73,16 +75,23 @@ MOVer
         ;ld b,a
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-        ;ex af,af' ;'
+        ex af,af' ;'
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
         ;TODO сбросить V
-        ;ex af,af' ;'
+        ex af,af' ;'
         PUTDEST_Loop
 
 CMPer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
         ld h,b
         ld l,c
        pop bc
@@ -96,10 +105,10 @@ CMPer
 BITer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
-        ;ex af,af' ;'
+	ex af,af' ;' ;keep a=cmdLSB
         ld a,l ;src
         and c
         ld c,a
@@ -123,10 +132,10 @@ BITer
 BICer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
-        ;ex af,af' ;'
+	ex af,af' ;' ;keep a=cmdLSB
         ld a,l ;src
         cpl
         and c
@@ -152,10 +161,10 @@ BICer
 BISer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
-        ;ex af,af' ;'
+	ex af,af' ;' ;keep a=cmdLSB
         ld a,l ;src
         or c
         ld c,a
@@ -177,11 +186,12 @@ BISer
        _LoopC
 
 ADDer
+        ;jr $
         ;ld b,a
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
         ex af,af' ;'
         or a
@@ -194,8 +204,8 @@ ADDer
 SUBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
         ld h,b
         ld l,c
        pop bc
@@ -210,16 +220,18 @@ SUBer
 
 MOVBer
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-        ;ex af,af' ;'
+        ex af,af' ;'
+        ld a,c
+        or a
         ;TODO сбросить V
-        ;ex af,af' ;'
+        ex af,af' ;'
         PUTDEST8_Loop
 
 CMPBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
         ex af,af' ;'
         ld a,c
@@ -232,8 +244,8 @@ CMPBer
 BITBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
         ex af,af' ;'
         ld a,c
@@ -244,8 +256,8 @@ BITBer
 BICBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
         ex af,af' ;'
         ld a,l ;src
@@ -258,8 +270,8 @@ BICBer
 BISBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push hl
-        GETDEST
+       push bc
+        GETDEST_cmda
        pop hl
         ex af,af' ;'
         ld a,c
@@ -388,15 +400,16 @@ SOBer
 exaBR
         ex af,af' ;'
 BRer
-        decodePC        
+        decodePC 
+       sla c
+       sbc a,a
+       ld b,a
         ld a,e
         add a,c
-        jr nc,$+3
-        dec d
-        add a,c
-        jr nc,$+3
-        dec d
         ld e,a
+        ld a,d
+        adc a,b
+        ld d,a
        _LoopC_JP
 
 BNEer
@@ -546,7 +559,7 @@ RTSerPC
 
 JMPer
 ;?c=cmd
-        GETDEST ;call readsourceop ;out: bc=sourceop, a=cmdLSB
+        GETDEST_cmdc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
        _LoopC_JP
@@ -558,13 +571,13 @@ RORB_ROLB_ASRB_ASLB
         jr c,ASRB_ASLB
         jp m,ROLBer
 ;RORBer
-        GETDEST
+        GETDEST_cmdc
 	ex af,af' ;'
         rr c
 	ex af,af' ;'
         PUTDEST8_Loop
 ROLBer
-        GETDEST
+        GETDEST_cmdc
 	ex af,af' ;'
         rl c
 	ex af,af' ;'
@@ -572,12 +585,14 @@ ROLBer
 ASRB_ASLB
         jp m,ASLBer
 ;ASRer
-        GETDEST
+        GETDEST_cmdc
+	ex af,af' ;' ;keep a=cmdLSB
         sra c ;TODO проверить
 	ex af,af' ;'
         PUTDEST8_Loop
 ASLBer
-        GETDEST
+        GETDEST_cmdc
+	ex af,af' ;' ;keep a=cmdLSB
         sla c
 	ex af,af' ;'
         PUTDEST8_Loop
@@ -589,7 +604,7 @@ ROR_ROL_ASR_ASL
         jr c,ASR_ASL
         jp m,ROLer
 ;RORer
-        GETDEST
+        GETDEST_cmdc
 	ex af,af' ;'
         rr b
         rr c
@@ -607,7 +622,7 @@ ROR_ROL_ASR_ASL
 	ex af,af' ;'
         PUTDEST_Loop
 ROLer
-        GETDEST
+        GETDEST_cmdc
 	ex af,af' ;'
         rl c
         rl b
@@ -627,7 +642,8 @@ ROLer
 ASR_ASL
         jp m,ASLer
 ;ASRer
-        GETDEST
+        GETDEST_cmdc
+	ex af,af' ;' ;keep a=cmdLSB
         sra b
         rr c
      rra
@@ -644,7 +660,8 @@ ASR_ASL
 	ex af,af' ;'
         PUTDEST_Loop
 ASLer
-        GETDEST
+        GETDEST_cmdc
+	ex af,af' ;' ;keep a=cmdLSB
         ld h,b
         ld l,c
         or a
@@ -667,7 +684,7 @@ MTPS_MFPD_MTPD_MFPS
         jr $
 
 SWABer
-        GETDEST
+        GETDEST_cmdc
         ld h,b
         ld b,c
         ld c,h

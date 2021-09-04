@@ -49,18 +49,23 @@ oldpcaddr=$+1
         inc l
         ld (hl),d
         inc l
+        ld bc,(_R1)
+        ld (hl),c
+        inc l
+        ld (hl),b
+        inc l
         ld (oldpcaddr),hl
        endif
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x2d09;0x2976
+      ld hl,0x027e
       or a
       sbc hl,de
       pop de
       ;jr nc,$
-      jr z,$
+      ;jr z,$
        endif
         get
         next
@@ -337,6 +342,9 @@ putscreen_c
          ;halt
        push hl
        push bc
+       ld b,tmirror/256
+       ld a,(bc)
+       push af
 ;TODO bw/color
 ;y=%TTYYYyyy
 ;hl=%01TTYYYy yyxxxxxx
@@ -359,8 +367,9 @@ putscreen_c
 ;addr=0x8000+(half*0x2000)+y*40+x
         ld a,(user_scr0_high) ;ok
         SETPG8000 ;TODO щёлкать только в color      
+       pop af
+        ld (hl),a
        pop bc
-        ld (hl),c
        pop hl
         ret
 
@@ -475,15 +484,14 @@ recountsp_inc
         pop bc
 	ret
 
-;c=cmdLSB = %??fmtRRR
-getdest
+;a=cmdLSB = %??fmtRRR
+getdest_aisc
 ;out: bc=dest, a=cmdLSB
 ;15-12 Opcode
 ;11-9 Src
 ;8-6 Register
 ;5-3 Dest
 ;2-0 Register
-        ld a,c
         rla
         and 0x0e
         ld l,a ;0000rrr0
@@ -628,7 +636,35 @@ putdestop_1xx
         jp c,putdestop_11x
         jp m,putdestop_101
 ;putdestop_100
-        jr $
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        cp 0x0e
+        jr z,putdestop_100_pc
+       push de
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+        dec de
+        dec de
+        ld (hl),d
+        dec l
+        ld (hl),e
+        ex de,hl
+       pop de
+        WRMEM_hl_LoopC
+putdestop_100_pc ;TODO так ли при -(pc)?
+        decodePC
+        dec de
+        dec de
+        encodePC
+        ld a,c
+        ld (de),a
+        inc e
+        ld a,b
+        ld (de),a
+        dec e
+       _LoopC
+
 putdestop_101
         jr $
 putdestop_11x
@@ -637,6 +673,21 @@ putdestop_11x
         jr $
 putdestop_111
         jr $
+
+;15c2
+;0001 0101 1100 0010
+;0 001 010 111 000 010
+;mov  ;src;(pc)+;dst ;r2
+
+;65c0
+;0110 0101 1100 0000
+;0 110 010 111 000 000
+;add ;src;(pc)+;dst ;r0
+
+;02fc
+;0000 0010 1111 1100
+;0 000 001 011 111 100
+     ;bne
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;c=data, a=cmdLSB = %??fmtRRR
@@ -671,6 +722,7 @@ putdest8_Loop
        sbc a,a ;TODO надо ли расширять знак?
         ld (hl),a
         _LoopC
+
 putdestop8_001 ;(Rn): Rn contains the address of the operand
         ld a,(hl)
         inc l
@@ -685,8 +737,8 @@ putdestop8_01x
         cp 0x0c
         ld a,(hl)
         ;jr nc,putdestop_010_sppc
-       jr c,$+2+3+1
-       jp nz,bctoPCLoop;putdestop_010_pc
+       jr c,$+2+2+1
+       jr nz,putdestop8_010_pc
        inc (hl) ;sp/pc +=2 ;TODO нечётный?
         inc (hl)
         inc hl
@@ -698,6 +750,14 @@ putdestop8_01x
        ld h,(hl)
         ld l,a
         WRMEM8_hl_LoopC
+putdestop8_010_pc ;TODO так ли при dest=(pc+)?
+        ld a,c
+        ld (de),a
+        next
+        ;ld a,b
+        ;ld (de),a
+        next
+        jp bctoPCLoop
 
 putdestop8_011 ;@(Rn)+
         ld a,l
@@ -743,7 +803,33 @@ putdestop8_1xx
         jp c,putdestop8_11x
         jp m,putdestop8_101
 ;putdestop8_100
-        jr $
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        cp 0x0c
+       push de
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+        dec de
+       jr c,$+2+2+1
+       jr nz,putdestop8_100_pc
+       dec de ;sp/pc +=2
+        ld (hl),d
+        dec l
+        ld (hl),e
+        ex de,hl
+       pop de
+        WRMEM8_hl_LoopC
+putdestop8_100_pc ;TODO так ли при -(pc)?
+       pop af ;skip
+        decodePC
+        dec de
+        dec de
+        encodePC
+        ld a,c
+        ld (de),a
+       _LoopC
+        
 putdestop8_101
         jr $
 putdestop8_11x
@@ -965,6 +1051,20 @@ readdestop_111
         align 256
 tpgs
         ds 256 ;%10765432
+
+        align 256
+tmirror
+       dup 256
+_7=$&0x80
+_6=$&0x40
+_5=$&0x20
+_4=$&0x10
+_3=$&0x08
+_2=$&0x04
+_1=$&0x02
+_0=$&0x01
+        db (_7>>7)+(_6>>5)+(_5>>3)+(_4>>1)+(_3<<1)+(_2<<3)+(_1<<5)+(_0<<7)
+       edup
 
         align 256
 ty
