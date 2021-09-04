@@ -121,7 +121,15 @@ on_int
        push af
        ld a,(pgprog)
        SETPG4000
-        call KEYB ;TODO в странице
+        call KEYB
+iskeymessage=$
+        or a ;/scf
+        jr c,int_alreadyhavekey
+        call keyscan_getkey
+        ld (bk_curkey),a
+        ld a,55 ;"scf"
+        ld (iskeymessage),a ;message
+int_alreadyhavekey
        pop af
        SETPG4000
         ;OS_GETKEY
@@ -1045,6 +1053,33 @@ readdestop_111
         next
         adc a,(hl) ;ac=Rn+X
         jp readsourceop_addrfromaddr_ac
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+rdport_c
+        ld a,c
+;FFB0=177660 регистр состояния клавиатуры (Разряд 6 - маска прерываний от клавиатуры. разряд доступен по записи и чтению. “0” - разрешено прерывание от клавиатуры; “1” - запрещено прерывание от клавиатуры. Разряд 7 - флаг состояния клавиатуры. Устанавливается в единицу при поступлении в регистр данных клавиатуры нового кода. Сбрасывается в “0” при чтении регистра данных клавиатуры.)
+;FFB2=177662 Регистр данных клавиатуры
+        ld a,l
+        cp 0xb0
+        jr z,2f ;kbd state
+        cp 0xb2
+        jr nz,9f ;no ports
+;kbd data
+bk_curkey=$+1
+        ld bc,0
+        ld a,55+128 ;"or a"
+        ld (iskeymessage),a ;no message (INT прочитает новую кнопку)
+        ret
+2 ;kbd state
+        ld a,(iskeymessage) ;a7=no message
+        rra
+        and 0x40
+        ld c,a
+        ld b,0
+        ret
+9
+;TODO прерывание ошибки шины
+        ret
 
 	include "bkcmd.asm"
 

@@ -175,9 +175,23 @@
         jr nz,5b
 ;screen nextpg = ROM
         ;call hlnextpg
+9
         _LoopC
 2 ;ROM/ports
-;TODO ports
+      if 0
+       inc h
+       jr nz,9b ;no ports
+;FFB0=177660 регистр состояния клавиатуры (Разряд 6 - маска прерываний от клавиатуры. разряд доступен по записи и чтению. “0” - разрешено прерывание от клавиатуры; “1” - запрещено прерывание от клавиатуры. Разряд 7 - флаг состояния клавиатуры. Устанавливается в единицу при поступлении в регистр данных клавиатуры нового кода. Сбрасывается в “0” при чтении регистра данных клавиатуры.)
+;FFB2=177662 Регистр данных клавиатуры
+        ld a,l
+        cp 0xb0
+        jr z,2f ;kbd state
+        cp 0xb2
+        jr nz,9b ;no ports
+;kbd data
+        _LoopC
+2 ;kbd state
+      endif
         _LoopC
        endm
 
@@ -212,8 +226,10 @@
        endm
 
        macro RDMEM_ac_ret ;bc=result, a=hx
-        ld l,c
         ld h,a
+       cp 0xff
+       jp z,rdport_c
+        ld l,c
         and 0xc0
 	ld c,a
        ld lx,a ;for nextpg
