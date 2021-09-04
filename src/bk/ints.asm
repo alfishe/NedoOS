@@ -45,7 +45,8 @@ autoloadq
         OS_DELPAGE
 
         ld a,(user_scr0_high) ;ok
-        call clpga
+        ld e,0xaa
+        call clpga_e
         ld a,(user_scr0_low) ;ok
         ld e,7
         call clpga_e

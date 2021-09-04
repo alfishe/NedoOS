@@ -334,6 +334,7 @@ hlnextpg
 	ret
 
 putscreen_c
+         ;halt
        push hl
        push bc
 ;TODO bw/color
@@ -341,7 +342,7 @@ putscreen_c
 ;hl=%01TTYYYy yyxxxxxx
        ld b,0
        bit 0,l
-       jr nz,$+4
+       jr z,$+4
        ld b,0x20
         ld a,l
         rra
@@ -554,40 +555,64 @@ putdestop_01x
         jp m,putdestop_011
 ;putdestop_010 ;(Rn)+
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+;а тут небайтовая, значит, всегда +=2
         ld a,l
-        cp 0x0c
-        ld a,(hl)
-        ;jr nc,putdestop_010_sppc
-       jr c,$+2+3+1
-       jp nz,bctoPCLoop;putdestop_010_pc
-       inc (hl) ;sp/pc +=2 ;TODO нечётный?
-        inc (hl)
-        inc hl
-        jr nz,$+2+3+2
-         inc (hl)
-         ld h,(hl)
-         dec h
-         jr $+3
-       ld h,(hl)
-        ld l,a
+        cp 0x0e
+       jr z,putdestop_010_pc
+       push de
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+        inc de
+        inc de
+        ld (hl),d
+        dec l
+        ld (hl),e
+        ex de,hl
+       pop de
         WRMEM_hl_LoopC
+
+putdestop_010_pc
+;TODO так ли при dest=(pc+)?
+        ld a,c
+        ld (de),a
+        next
+        ld a,b
+        ld (de),a
+        next
+        jp bctoPCLoop
 
 putdestop_011 ;@(Rn)+
         ld a,l
         cp 0x0e
         jr z,putdestop_011_pc
-       push bc
-        ld c,(hl)
+       push de
+        ld e,(hl)
         inc l
-        ld b,(hl)
-        inc bc
-        inc bc
-        ld (hl),b
+        ld d,(hl)
+        inc de
+        inc de
+        ld (hl),d
         dec l
-        ld (hl),c
-        ld h,b
-        ld l,c
-       pop bc
+        ld (hl),e
+        ex de,hl
+       pop de
+        ld a,h
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld a,(hl)
+       push af
+        inc l
+        call z,inchnextpg
+        ld h,(hl)
+       pop af
+        ld l,a
         WRMEM_hl_LoopC
 putdestop_011_pc
         get
@@ -678,17 +703,31 @@ putdestop8_011 ;@(Rn)+
         ld a,l
         cp 0x0e
         jr z,putdestop8_011_pc
-       push bc
-        ld c,(hl)
+       push de
+        ld e,(hl)
         inc l
-        ld b,(hl)
-        inc bc
-        ld (hl),b
+        ld d,(hl)
+        inc de
+        inc de
+        ld (hl),d
         dec l
-        ld (hl),c
-        ld h,b
-        ld l,c
-       pop bc
+        ld (hl),e
+        ex de,hl
+       pop de
+        ld a,h
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld b,(hl)
+        inc l
+        call z,inchnextpg
+        ld h,(hl)
+        ld l,b
         WRMEM8_hl_LoopC
 putdestop8_011_pc
         get
@@ -931,18 +970,24 @@ tpgs
 ty
 _=0
         dup 32
-        db 0xff&(_*40)
+        db 0xff&(_*40+4)
         dup 7
-        db 0xff&(_*40)
-_=_+1        
+        db 0xff&(_*40+4)
+_=_+1
+       if _>200
+_=200
+       endif
         edup
         edup
 _=0
         dup 32
-        db (_*40)/256+0x80
+        db (_*40+4)/256+0x80
         dup 7
-        db (_*40)/256+0x80
+        db (_*40+4)/256+0x80
 _=_+1        
+       if _>200
+_=200
+       endif
         edup
         edup
 

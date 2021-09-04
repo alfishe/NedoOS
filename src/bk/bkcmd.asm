@@ -73,9 +73,9 @@ MOVer
         ;ld b,a
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-        ex af,af' ;'
+        ;ex af,af' ;'
         ;TODO סבנמסטעü V
-        ex af,af' ;'        
+        ;ex af,af' ;'
         PUTDEST_Loop
 
 CMPer
@@ -210,9 +210,9 @@ SUBer
 
 MOVBer
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-        ex af,af' ;'
+        ;ex af,af' ;'
         ;TODO סבנמסטעü V
-        ex af,af' ;'        
+        ;ex af,af' ;'
         PUTDEST8_Loop
 
 CMPBer
