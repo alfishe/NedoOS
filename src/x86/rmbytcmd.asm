@@ -13,11 +13,13 @@ MOVrm8i8
         ;jr c,MOVrmmemi8
         jr nc,MOVr8i8
 ;MOVrmmemi8
+       ;UNTESTED
        ADDRm16_for_PUTm8a_nokeepaf
         get
         next
        _PUTm8aLoopC_oldpglx
 MOVr8i8
+       UNTESTED
        sub 64
         ld l,a
         ld h,_AX/256
@@ -40,10 +42,12 @@ MOVrm16i16
         ;jr c,MOVrmmemi16
         jr nc,MOVr16i16
 ;MOVrmmemi16
+       ;UNTESTED
        ADDRm16_for_PUTm16_nokeepaf
         getBC
        _PUTm16LoopC
 MOVr16i16
+       UNTESTED
         ADDRr16_nokeepa ;rm addr
         getBC
        _PUTr16Loop_
@@ -122,6 +126,7 @@ pophl_PUTm16LoopC
 
         ALIGNrm
 POPrm16
+       UNTESTED
         get
         next
         cp 0b11000000
@@ -190,6 +195,7 @@ MOVr16rmmem
 
         ALIGNrm
 MOVsregrm16
+       ;UNTESTED
 	get
 	next
 ;a=MDregR/M
@@ -240,6 +246,7 @@ MOVsregrmq
 
         ALIGNrm
 MOVrm16sreg
+       ;UNTESTED
 	get
 	next
 ;a=MDregR/M
@@ -625,6 +632,7 @@ CMPr16i8
         sbc a,a
         jp CMPr16hlac ;там next
 GRP1rm16i8_AND_XOR
+       UNTESTED
        jr c,XORr16i8
         get
         ld c,a
@@ -689,6 +697,7 @@ GRP1rmmem16i8_1xx
        jr nc,SUBrmmem16i8
         jr CMPr16i8
 GRP1rmmem16i8_AND_XOR
+       UNTESTED
        jr c,XORrmmem16i8
         get
         ld c,a
@@ -746,7 +755,7 @@ XORrmmem16i8
 
         ALIGNrm
 ADDrmr8
-       if DEBUG
+       if DEBUG03
        jr $ ;code 00
        endif
         or a
@@ -1223,7 +1232,7 @@ ANDr8rm
 
         ALIGNrm
 ADDr16rm
-       if DEBUG
+       if DEBUG03
        jr $ ;code 03
        endif
         or a
@@ -2340,7 +2349,7 @@ GRP38
         jp c,GRP38mem
        ADDRr8
        and 0b00111000
-	jr z,TESTr8i8
+	jp z,TESTr8i8
 	cp 0b00010000
 	jr z,NOTr8
 	cp 0b00011000
@@ -2377,6 +2386,7 @@ IMULr8
 ;imul ah: ax=+-al*+-ah?
         ld c,(hl) ;reg
 IMULrmmem8
+       UNTESTED
        push de
         ld a,c
         rla
@@ -2397,6 +2407,7 @@ DIVr8
 ;Беззнаковое деление AX на r/m8, частное помещается в AL, остаток от деления - в AH
         ld c,(hl) ;reg
 DIVrmmem8
+       UNTESTED
        push de
         ld e,c ;reg
         ld d,0
@@ -2413,6 +2424,7 @@ IDIVr8
 ;знаковое деление AX на r/m8, частное помещается в AL, остаток от деления - в AH
         ld c,(hl) ;reg
 IDIVrmmem8
+       UNTESTED
        push de
         ld e,c ;reg
         ld a,c
@@ -2516,10 +2528,11 @@ GRP316
  endif
  
 TESTr16i16
+       UNTESTED
         GETr16
 ;       jr TESTrmmemi16_skip
 TESTrmmemi16
-;       jr $
+       ;UNTESTED
 ;TESTrmmemi16_skip
         get
         next
@@ -2566,6 +2579,7 @@ GRP316mem
         ld c,l
         endm
 NEGr16
+       UNTESTED
        push hl
         GETr16
         NEGBCWITHFLAGS
@@ -2573,6 +2587,7 @@ NEGr16
        _PUTr16Loop_
 
 NEGrmmem16
+       UNTESTED
        push hl
         NEGBCWITHFLAGS
        pop hl
@@ -2602,6 +2617,7 @@ NOTrmmem16
 MULr16
         GETr16
 MULrmmem16
+       ;UNTESTED
        push de
 	ld de,(_AX);ex de,hl ;de=ax
 	call MUL16 ;HLDE=DE*BC
@@ -2623,6 +2639,7 @@ MULrmmem16
 IMULr16
         GETr16
 IMULrmmem16
+       UNTESTED
        push de
 	ld de,(_AX);ex de,hl ;de=ax
         call IMUL_bc_de_to_hlde
@@ -2635,6 +2652,7 @@ IMULrmmem16
 DIVr16
         GETr16
 DIVrmmem16
+       UNTESTED
        push de
         ld d,b
         ld e,c
@@ -2650,6 +2668,7 @@ DIVrmmem16
 IDIVr16
         GETr16
 IDIVrmmem16
+       UNTESTED
        push de
         ld d,b
         ld e,c
@@ -2663,6 +2682,7 @@ IDIVrmmem16
 
         ALIGNrm
 TESTrmr8
+       UNTESTED
         get
         next
         cp 0b11000000
@@ -2691,6 +2711,7 @@ TESTrmmemr8
 
         ALIGNrm
 TESTrmr16
+       UNTESTED
         get
         next
         cp 0b11000000
@@ -2718,6 +2739,7 @@ TESTrmr16
         KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
        _Loop_
 TESTrmmemr16
+       UNTESTED
        ADDRm16_GETm16 ;bc=rmmem
         rra
         rra
@@ -2785,12 +2807,14 @@ DECr8
        _Loop_
 
 INCrmmem8
+       ;UNTESTED
         ex af,af' ;' ;remember CY (keep)
 	inc c
         ld a,c
 	KEEPHFCFPARITYOVERFLOW_FROMA
        _PUTm8cLoopC_oldpglx
 DECrmmem8
+       ;UNTESTED
         ex af,af' ;' ;remember CY (keep)
 	dec c
         ld a,c
@@ -2798,6 +2822,7 @@ DECrmmem8
        _PUTm8cLoopC_oldpglx
 
 JMPr16
+       UNTESTED
         GETr16_de
         jp JMPr16q
 DECr16
@@ -2899,10 +2924,12 @@ DECrmmem16
        jr _pophl_PUTm16LoopC
 
 JMPrmmem16
+       UNTESTED
         ld d,b
         ld e,c
        _LoopC_JP
 JMPFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+       UNTESTED
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
        push bc ;new IP(PC)
         skip2b_GETm16 ;bc=new CS
@@ -2916,6 +2943,7 @@ JMPFm1616mem ;высчитывается эффективный адрес, и �
         ;какой сегмент???
 
 CALLrmmem16
+       ;UNTESTED
         ld h,b
         ld l,c
 _CALLrmmem16q
@@ -2926,6 +2954,7 @@ _CALLrmmem16q
         putmemspBC
        _LoopC_JP
 CALLFm1616mem ;высчитывается эффективный адрес, и с этого адреса берутся 4 байта (ip:cs)
+       UNTESTED
 ;уже прочитано 2 байта bc из (hl), но hl не сдвинут
        push bc ;new IP(PC)
         skip2b_GETm16 ;bc=new CS
@@ -2941,6 +2970,7 @@ CALLFm1616mem ;высчитывается эффективный адрес, и 
 
         ALIGNrm
 IMULr16rmi8
+       UNTESTED
         get
         next
 ;a=MDregR/M
@@ -2957,6 +2987,7 @@ IMULr16rmi8
 IMULr16rmmemi8
        ADDRm16_GETm16 ;bc=rmmem
 _IMULr16rmmem_geti8
+       UNTESTED
         get
         next
        push de
@@ -2968,6 +2999,7 @@ _IMULr16rmmem_geti8
 
         ALIGNrm
 IMULr16rmi16
+       UNTESTED
         get
         next
 ;a=MDregR/M
@@ -3002,6 +3034,7 @@ _IMULr16rmmem_go
 
         ALIGNrm
 XCHGr16rm
+       ;UNTESTED
         get
         next
 ;a=MDregR/M
@@ -3011,6 +3044,7 @@ XCHGr16rm
 ;MD=11: xchg reg16,r/m ;проще всего
         cp 0b11000000
         jr c,XCHGr16rmmem
+       GOOD
         ADDRr16_keepa ;rm addr
       push hl
         GETr16 ;bc=r/m
@@ -3018,10 +3052,11 @@ XCHGr16rm
         rra
         and 7*2
         ld l,a ;reg16 addr
-        ld h,_AX/256
+        ;ld h,_AX/256 ;уже есть в ADDRr16_keepa
         SWAPr16
         jp _pophl_PUTr16Loop_
 XCHGr16rmmem
+       UNTESTED
         ADDRm16_GETm16_for_PUTm16
       push hl
         rra
@@ -3032,7 +3067,9 @@ XCHGr16rmmem
         SWAPr16
         jp _pophl_PUTm16LoopC
 
+        ALIGNrm
 XCHGr8rm
+       ;UNTESTED
         get
         next
 ;a=MDregR/M
@@ -3042,18 +3079,20 @@ XCHGr8rm
 ;MD=11: xchg reg8,r/m ;проще всего
         cp 0b11000000
         jr c,XCHGr8rmmem
+       GOOD
         ADDRr8 ;rm addr
         ld b,(hl) ;b=r/m
       push hl
        or 0b11000000
         ld l,a
-        ld h,_AX/256
+        ;ld h,_AX/256 ;есть в ADDRr8
         ld l,(hl) ;reg8 addr
         ld a,(hl)
         ld (hl),b
-       pop hl
+      pop hl
        _PUTr8Loop_
 XCHGr8rmmem
+       UNTESTED
        ADDRm16_GETm8c_for_PUTm8
       push hl
        or 0b11000000
@@ -3062,7 +3101,7 @@ XCHGr8rmmem
         ld l,(hl) ;reg8 addr
         ld a,(hl)
         ld (hl),c
-       pop hl
+      pop hl
        _PUTm8aLoopC_oldpglx
 
        display "muls size=",$-beginmuls

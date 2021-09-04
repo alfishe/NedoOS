@@ -13,8 +13,10 @@ incdecdi_hl
         inc hl
         ret
 
+        ALIGNrm
 LEAr16rm
 ;загрузить эффективный адрес (например, lea si,shift[bx] - сложить bx+shift, положить в si)
+       UNTESTED
         get
         next
         push af
@@ -32,12 +34,11 @@ LEAr16rm
         ld h,_AX/256
        _PUTr16LoopC
 
+        ALIGNrm
 LESr16mem
 ;загрузить указатель, используя ES
 ;из памяти читаем reg, потом es
-       if DEBUG
-        jr $
-       endif
+       UNTESTED
         get
         next
        push af
@@ -55,13 +56,13 @@ LESr16mem
         ld l,a ;reg16 addr
         ld h,_AX/256
        _PUTr16LoopC
+
+        ALIGNrm
 LDSr16mem
 ;загрузить указатель, используя DS
 ;lds r16,m16:16
 ;из памяти читаем reg, потом ds
-       if DEBUG
-        jr $
-       endif
+       UNTESTED
         get
         next
        push af
@@ -79,194 +80,6 @@ LDSr16mem
         ld l,a ;reg16 addr
         ld h,_AX/256
        _PUTr16LoopC
-
-EXTer
-;0f 31 = rdtsc eax edx
-;0f b6 d0 = movzx dx,al (move with zero-extend)
-;0f b6 c2 = movzx ax,dl (move with zero-extend)
-;0f b6 06 87 0c = movzx ax,byte ptr [0c87] for pitman
-;0f b6 9f 8e 0c = movzx bx,byte ptr [bx+0c8e] for pitman
-;0f a8 .. TODO for 25frame
-;0F DA  r P3+     PMINUB mm mm/m64   sse1      Minimum of Packed Unsigned Byte Integers (for pixeltwn)
-;0F 82 (xx xx) JC rel16/32 Jump near if below/not above or equal/carry (CF=1) ;(for pixeltwn)
-;0F 83 (A4 00) JNC rel16/32 Jump near if not below/above or equal/not carry (CF=0) ;(for pixeltwn)
-;0F 85 (6B FF) jnz rel16 (for megapole)
-;0F AF C3 imul ax,bx (for megapole)
-;0F 45 C1 CMOVNZ ax,cx (for megapole) Conditional Move - not zero/not equal (ZF=0)
-;JNAE rel16/32    
-;JC rel16/32 
-
-;TODO прочие адресации
-        get
-        next
-       cp 0x31
-       jp z,RDTSCer
-       cp 0x45
-       jr z,CMOVNZer
-       cp 0x82
-       jp z,JCrel16
-       cp 0x83
-       jp z,JNCrel16
-       cp 0x84
-       jp z,JZrel16
-       cp 0x85
-       jp z,JNZrel16
-      cp 0x88
-      jp z,JSrel16 ;pitman
-       cp 0xaf
-       jr z,IMULr1r2
-       cp 0xda
-       jr z,PMINUBer
-       cp 0xb6
-       jr nz,$
-;movzx r16,rm8
-        get
-        next
-        cp 0b11000000
-        jr c,MOVZXmem
-        ;jr $
-      if 1
-       ;ld h,a
-       sub 64
-        ld l,a
-        ld h,_AX/256
-        ld l,(hl) ;rm addr
-       ;ld a,h
-        ;ld h,_AX/256
-        ld c,(hl)
-        ld b,0 ;rm
-        rra
-        rra
-        and 7*2
-        ld l,a
-       _PUTr16Loop_
-        ;ld l,a
-        ;ld h,_AX/256
-        ;ld l,(hl) ;reg8 addr
-        ;ld c,(hl)
-        ;ld b,0 ;reg16
-       ;and 7
-       ;add a,a
-        ;ld l,a ;rm addr
-       ;_PUTr16Loop_
-      else
-       cp 0xc2
-       jr z,MOVZXaxdl
-       cp 0xd0
-       jr nz,$
-        ld hl,(_AL)
-        ld h,0
-        ld (_DX),hl
-       _Loop_
-MOVZXaxdl
-        ld hl,(_DL)
-        ld h,0
-        ld (_AX),hl
-       _Loop_
-      endif
-MOVZXmem
-       ADDRm16_GETm8c_for_PUTm8
-        ld b,0 ;rm
-        rra
-        rra
-        and 7*2
-        ld l,a
-        ld h,_AX/256
-       _PUTr16Loop_AisL
-       
-CMOVNZer
-;CMOVNZ ax,cx - Conditional Move - not zero/not equal (ZF=0)
-        ex af,af' ;'
-        jr z,CMOVnzer_no
-        ld hl,(_CX)
-        ld (_AX),hl
-CMOVnzer_no
-        ex af,af' ;'
-       _Loop_
-
-IMULr1r2
-        get
-        next
-       push de
-        ld bc,(_BX) ;TODO other regs
-	ld de,(_AX);ex de,hl ;de=ax ;TODO other regs
-        call IMUL_bc_de_to_hlde
-	;ld (_DX),hl ;HSW
-        ld (_AX),de ;LSW
-       pop de
-       _Loop_
-
-PMINUBer
-;не уверен, что такое поведение - TODO
-        ld hl,(_AX)
-        ld a,l
-        cp h
-        jr c,$+3
-        ld l,h
-        ld h,0
-        ld (_AX),hl
-       _Loop_
-
-RDTSCer
-;костыль для para512
-        ld a,r
-        ld l,a
-        ld h,a
-        ld (_AX),hl
-       _Loop_
-
-JSrel16
-	ex af,af' ;'
-	jp m,JRrel16y
-	ex af,af' ;'
-        next
-        next
-       _Loop_ 
-JCrel16
-	ex af,af' ;'
-	jr c,JRrel16y
-	ex af,af' ;'
-        next
-        next
-       _Loop_ 
-JNCrel16
-	ex af,af' ;'
-	jr nc,JRrel16y
-	ex af,af' ;'
-        next
-        next
-       _Loop_ 
-JZrel16
-	ex af,af' ;'
-	jr z,JRrel16y
-	ex af,af' ;'
-        next
-        next
-       _Loop_ 
-JNZrel16
-	ex af,af' ;'
-	jr nz,JRrel16y
-	ex af,af' ;'
-        next
-        next
-       _Loop_ 
-JRrel16y
-	ex af,af' ;'
-	get
-        next
-        ld l,a
-	get
-        next
-        LD H,A
-       decodePC ;a=d
-        ADD HL,DE
-       ;;ld a,d
-       ;xor h
-       ;and 0xc0
-        ex de,hl ;new PC 
-       ;jp z,JRer_qslow
-       _LoopC_JP;oldpg
-
 
 ;на входе в команду:
 ;без сегментного префикса: b=l(адрес обработчика)
@@ -341,6 +154,7 @@ GSer
 
         ALIGNrm
 XLATBer
+       UNTESTED
 ;AL = DS:[(E)BX + AL]
         ld a,(_AL)
         ld hl,(_BX)
@@ -438,6 +252,7 @@ makeflags_frombc
         ret
 
 SAHFer
+       UNTESTED
         call getflags_bc
 ;store AH into flags
         ld a,(_AH)
@@ -447,6 +262,7 @@ SAHFer
        _Loop_
 
 LAHFer
+       UNTESTED
 ;Load Status Flags into AH Register
         call getflags_bc
         ld a,c
@@ -498,6 +314,7 @@ CMCer
        _Loop_
 
 PUSHAer
+       UNTESTED
 ;Сохранить в стеке регистры AX, CX, DX, BX, исходный (TODO) SP, BP, SI и DI
         ld hl,_AX
         ld b,8
@@ -515,6 +332,7 @@ _PUSHAer0
        _Loop_
 
 PUSHi8
+       UNTESTED
 	get
 	next
 	ld c,a
@@ -568,6 +386,7 @@ _PUSHq
        _LoopC
 
 POPAer
+       UNTESTED
 ;Загрузить из стека регистры DI, SI, BP, BX, DX, CX и AX
 ;Команда POPA проделывает действия обратные команде PUSHA, восстанавливая регистры общего назначения к значениям, бывшим в них до выполнения команды PUSHA, кроме регистра SP, который пропускается (TODO)
         ld hl,_AX+(8*2)
@@ -881,6 +700,7 @@ CALLer
        _LoopJP
 
 CALLptr1616
+       UNTESTED
 ;push cs; push ip (адрес после команды)
        ld bc,(_CS)
         putmemspBC ;old CS
@@ -900,7 +720,7 @@ CALLptr1616
 JMPptr1616
 ;абсолютный адрес ip, cs? так не работает rax
 ;или это адрес, по которому лежит ip, cs?
-        ;jr $
+       UNTESTED
         getBC ;ip
         push bc
         getBC ;cs
@@ -911,7 +731,6 @@ RETFq
        _LoopJP
 
 RETer
-        ;jr $
         getmemspBC
         LD D,B
         ld E,C ;new PC
@@ -946,6 +765,7 @@ RETFi16 ;RETF и потом SP += i16
         jp RETFq
 
 RETi16 ;RET и потом SP += i16
+       UNTESTED
         getmemspBC
        push bc
         getBC
@@ -957,15 +777,18 @@ RETi16 ;RET и потом SP += i16
        _LoopC_JP
 
 JLEer ;jump if not greater (zero or less)
+       UNTESTED
 	ex af,af' ;'
 	jp z,JRYer
 	ex af,af' ;'
 JLer ;jump if less (SF xor OF = 1)
+       UNTESTED
 	ex af,af' ;'
 	jp m,exaJNOer
 exaJOer
 	ex af,af' ;'
 JOer ;jump if overflow
+       UNTESTED
 	exx
 	ld a,e ;overflow data
 	and 0x40
@@ -976,15 +799,18 @@ JOer ;jump if overflow
         next
        _Loop_
 JGer ;jump if greater (not zero and not less)
+       UNTESTED
 	ex af,af' ;'
 	jp z,exaNOJP
 	ex af,af' ;'
 JNLer ;jump if not less (SF xor OF = 0)
+       UNTESTED
 	ex af,af' ;'
 	jp m,exaJOer
 exaJNOer
 	ex af,af' ;'
 JNOer ;jump if no overflow
+       UNTESTED
 	exx
 	ld a,e ;overflow data
 	and 0x40
@@ -995,6 +821,7 @@ JNOer ;jump if no overflow
         next
        _Loop_ 
 JPer ;jump if parity even
+       UNTESTED
 	exx
 	ld a,d ;parity data
 	exx
@@ -1003,6 +830,7 @@ JPer ;jump if parity even
         next
        _Loop_ 
 JNPer ;jump if parity odd
+       UNTESTED
 	exx
 	ld a,d ;parity data
 	exx
@@ -1035,6 +863,7 @@ JCer
         next
        _Loop_ 
 JBEer ;jump if CF or ZF = 1
+       UNTESTED
 	ex af,af' ;'
 	JR C,JRYer
 	JR Z,JRYer
@@ -1042,6 +871,7 @@ JBEer ;jump if CF or ZF = 1
         next
        _Loop_ 
 JAer ;jump if (CF or ZF) = 0, i.e. CF=ZF=0
+       UNTESTED
 	ex af,af' ;'
 	JR C,$+4
 	JR nz,JRYer
@@ -1102,6 +932,7 @@ LOOPer
         next
        _Loop_ 
 JCXZer ;jump if CX == 0
+       UNTESTED
 	ld hl,(_CX)
 	ld a,h
 	or l
@@ -1130,6 +961,7 @@ XCHGaxdx
 XCHGaxbx
 	XCHGAXRP _BX
 XCHGaxsp
+       UNTESTED
 	ld bc,(_SP)
         ld hl,(_AX)
 	ld (_AX),bc
@@ -1274,6 +1106,7 @@ REPMOVSWer_scr0
 
         ALIGNrm
 MOVSWer
+       ;UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
          GETm16
@@ -1290,6 +1123,7 @@ MOVSWer
 
         ALIGNrm
 MOVSBer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
         ld a,(hl)
@@ -1331,6 +1165,7 @@ REPMOVSWerq
 
 ;rep movsb
 REPMOVSBer
+       ;UNTESTED
 ;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ;ld hl,(_CX)
@@ -1352,6 +1187,7 @@ REPMOVSBerq
        _LoopC
 
 REPSTOSBer
+       UNTESTED
 ;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ld hl,(_CX)
@@ -1373,6 +1209,7 @@ REPSTOSBerq
        _LoopC
 
 REPSTOSWer
+       UNTESTED
 ;TODO раздельно оптимизировать копирование на экран и не на экран
 ;костыль: если cx=0, то сразу выходим (а не 65536 повторов)
        ld hl,(_CX)
@@ -1404,6 +1241,7 @@ REP_repeat ;TODO speedup!!!
        _LoopC_JP
 ;repz cmpsb
 REPCMPSBer
+       UNTESTED
 	ld hl,(_SI)
 	getmemDS ;TODO подмена сегмента
 	ex af,af' ;'
@@ -1425,6 +1263,7 @@ REPCMPSBer
        _LoopC
 ;repz cmpsw
 REPCMPSWer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
          GETm16
@@ -1448,6 +1287,7 @@ REPCMPSWer
        _LoopC
 ;repnz scasb
 REPSCASBer
+       UNTESTED
 	ld hl,(_SI)
 	getmemDS ;TODO подмена сегмента
 	ld a,(_AL) ;al
@@ -1469,6 +1309,7 @@ exaLoopC
        _LoopC
 ;repnz scasw
 REPSCASWer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
          GETm16
@@ -1488,6 +1329,7 @@ REPSCASWer
 
         ALIGNrm
 SCASBer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
 	ld a,(_AL)
@@ -1498,6 +1340,7 @@ SCASBer
 
         ALIGNrm
 SCASWer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
          GETm16
@@ -1508,6 +1351,7 @@ SCASWer
 
         ALIGNrm
 CMPSBer
+       ;UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
         ld a,(hl)
@@ -1522,6 +1366,7 @@ CMPSBer
 
         ALIGNrm
 CMPSWer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
          GETm16
@@ -1537,6 +1382,7 @@ CMPSWer
 
         ALIGNrm
 LODSBer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
         ld a,(hl)
@@ -1548,6 +1394,7 @@ LODSBer
 
         ALIGNrm
 LODSWer
+       UNTESTED
 	ld hl,(_SI)
         call ADDRGETm16_pp_ds_nodisp
          GETm16
@@ -1567,6 +1414,7 @@ LODSWerincq
 
         ALIGNrm
 OPSIZEr
+       UNTESTED
 ;костыль для para512
         get
         next
@@ -1580,6 +1428,7 @@ OPSIZEr
        jr LODSWerincq
 
 STOSBer
+       UNTESTED
 	ld a,(_AL) ;al
 	ld hl,(_DI)
         putmemES
@@ -1589,6 +1438,7 @@ STOSBer
        _LoopC
 
 STOSWer
+       UNTESTED
 	ld a,(_AL) ;al
 	ld hl,(_DI)
         putmemES
@@ -1614,4 +1464,3 @@ INTi8
        pop af
        SETPG4000
        _Loop_
-        

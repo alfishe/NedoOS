@@ -2,6 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 DEBUG=0;1
+DEBUG03=0
 FULL1M=0
 
 	include "x86.ini"
@@ -298,18 +299,21 @@ gotoint
      jp JRer_qslow ;_LoopC_JP 
 
 INT1
+       UNTESTED
       ld a,(tpgs)
       SETPGC000
       ld hl,(1*4+0xc000) ;ip
       ld bc,(1*4+0xc002) ;cs
         jp gotoint
 INT3
+       UNTESTED
       ld a,(tpgs)
       SETPGC000
       ld hl,(3*4+0xc000) ;ip
       ld bc,(3*4+0xc002) ;cs
         jp gotoint
 INTOer
+       UNTESTED
 	exx
 	ld a,e ;overflow data
 	and 0x40
@@ -573,6 +577,7 @@ PUTscreen_logpgc_zxaddrhl_datamhl_do
        display "--",$
 	include "rmbytcmd.asm"
        display "--",$
+	include "extcmd.asm"
 	include "x86cmd.asm"
        display "--",$
 	include "x86math.asm"
