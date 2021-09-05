@@ -1,7 +1,7 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=0;1
+DEBUG=1
 
 	include "bk.ini"
 
@@ -678,7 +678,19 @@ putdestop_101
 putdestop_11x
         jp m,putdestop_111
 ;putdestop_110
-        jr $
+;110 Index: X(Rn): Rn+X is the address of the operand
+        get
+        next
+        add a,(hl)
+       push af
+        inc l
+        get
+        next
+        adc a,(hl)
+        ld h,a
+       pop af
+        ld l,a ;hl=Rn+X
+        WRMEM_hl_LoopC
 putdestop_111
         jr $
 
@@ -696,6 +708,20 @@ putdestop_111
 ;0000 0010 1111 1100
 ;0 000 001 011 111 100
      ;bne
+     
+;1c71 ;mov barofs(r1), nhbar(r1)
+;0001 1100 0111 0001
+;0 001 110 001 110 001
+      ;src;X(r1);dst;X(r1)
+
+;7951
+;0111 1001 0101 0001
+;0 111 100 101 010 001
+     ;XOR ;r5;dst;(r1)+
+
+;7e85 ;sob
+;0111 1110 1000 0101
+;0 111 111 010 000 101
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;c=data, a=cmdLSB = %??fmtRRR
@@ -843,7 +869,19 @@ putdestop8_101
 putdestop8_11x
         jp m,putdestop8_111
 ;putdestop8_110
-        jr $
+;110 Index: X(Rn): Rn+X is the address of the operand
+        get
+        next
+        add a,(hl)
+       push af
+        inc l
+        get
+        next
+        adc a,(hl)
+        ld h,a
+       pop af
+        ld l,a ;hl=Rn+X
+        WRMEM8_hl_LoopC
 putdestop8_111
         jr $
 
@@ -900,18 +938,29 @@ readsourceop_xx1
         jp nz,readsourceop_101
 readdestop_001 ;(Rn): Rn contains the address of the operand
        ld hx,c
+       cp 0x0e
+       jr z,readsourceop_001_pc
         ld c,(hl)
         inc l
         ld a,(hl)
         RDMEM_ac_ret ;bc=result
+readsourceop_001_pc
+        ld a,(de)
+        ld c,a
+        inc e
+        ld a,(de)
+        ld b,a
+        dec e ;TODO нечётные
+       ld a,hx
+        ret
 
 readsourceop_x10
         bit 3,b
         jp nz,readsourceop_110
 readdestop_010 ;(Rn)+
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        cp 0x0c
        ld hx,c
+        cp 0x0c
         ld c,(hl)
         ;jr nc,readsourceop_010_sppc
        jr c,$+2+2+1
@@ -992,8 +1041,7 @@ readsourceop_011_pc
         next
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsourceop_100
-readdestop_100
+readdestop_100 ;TODO 16bit версию (всегда -=2)
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
         cp 0x0c
@@ -1003,14 +1051,27 @@ readdestop_100
         ld b,(hl)
         dec bc
        jr c,$+3
-       dec bc ;sp/pc +=2
+       dec bc ;sp/pc +=2 ;TODO pc
+        ld a,b
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readsourceop_100 ;TODO 16bit версию (всегда -=2)
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+       jr c,$+3
+       dec bc ;sp/pc +=2 ;TODO pc
         ld (hl),b
         dec l
         ld (hl),c
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsourceop_101
 readdestop_101
 ;101 @-(Rn)
         cp 0x0c
@@ -1019,7 +1080,19 @@ readdestop_101
         inc l
         ld b,(hl)
         dec bc
-       dec bc ;sp/pc -=2
+       dec bc ;sp/pc -=2 ;TODO pc
+        ld a,b
+        jp readsourceop_addrfromaddr_ac
+
+readsourceop_101
+;101 @-(Rn)
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+       dec bc ;sp/pc -=2 ;TODO pc
         ld (hl),b
         dec l
         ld (hl),c

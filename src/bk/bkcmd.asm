@@ -159,6 +159,48 @@ TSTer
      rla ;CF
         ex af,af' ;'
        _LoopC
+
+XORer
+       ;jr $
+        ld b,a
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+         and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+         ;ld l,(hl) ;TODO
+       ld a,c
+        ld c,(hl)
+        inc l
+        ld b,(hl) ;bc=src
+       push bc
+        GETDEST_cmda
+       pop hl
+        ex af,af' ;'
+     rra
+     ld hx,a ;keep CF
+        ld a,h ;src
+        xor b
+        ld b,a
+        ld a,l ;src
+        xor c
+        ld c,a
+        ;ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ld a,hx
+     rla ;CF
+        ex af,af' ;'
+        PUTDEST_Loop
         
 NEGB_ADCB_SBCB_TSTB
         ld a,c
@@ -286,24 +328,24 @@ BICer
         GETDEST_cmda
        pop hl
 	ex af,af' ;' ;keep a=cmdLSB
-        ld a,l ;src
-        cpl
-        and c
-        ld c,a
+     rra
+     ld hx,a ;keep CF
         ld a,h ;src
         cpl
         and b
         ld b,a
-     rra
-     ld h,a ;keep CF
-        ld a,c
+        ld a,l ;src
+        cpl
+        and c
+        ld c,a
+        ;ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
        add a,0xff
        sbc a,a ;CF=(c!=0)
        and d;1 ;any number 1..0x7f
        or b ;CF=0 ;ZF=(bc==0)
-     ld a,h
+     ld a,hx
      rla ;CF
         ex af,af' ;'
         PUTDEST_Loop
@@ -315,22 +357,22 @@ BISer
         GETDEST_cmda
        pop hl
 	ex af,af' ;' ;keep a=cmdLSB
-        ld a,l ;src
-        or c
-        ld c,a
+     rra
+     ld hx,a ;keep CF
         ld a,h ;src
         or b
         ld b,a
-     rra
-     ld h,a ;keep CF
-        ld a,c
+        ld a,l ;src
+        or c
+        ld c,a
+        ;ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
        add a,0xff
        sbc a,a ;CF=(c!=0)
        and d;1 ;any number 1..0x7f
        or b ;CF=0 ;ZF=(bc==0)
-     ld a,h
+     ld a,hx
      rla ;CF
         ex af,af' ;'
         PUTDEST_Loop
@@ -837,8 +879,17 @@ ASLer
 
 c0064_MFPI_MTPI_SXT
 ;TODO
+        jr $
 MTPS_MFPD_MTPD_MFPS
 ;TODO
+        jr $
+MULer
+        jr $
+DIVer
+        jr $
+ASHer
+        jr $
+ASHCer
         jr $
 
 SWABer
