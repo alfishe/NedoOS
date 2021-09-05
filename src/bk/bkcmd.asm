@@ -8,6 +8,45 @@ PANIC
 loopc
        _LoopC
 
+CLRB_COMB_INCB_DECB
+        ld a,c
+        add a,a
+        jr c,INCB_DECB
+        jp m,COMBer
+;CLRBer        
+        ld a,c
+       ex af,af' ;'
+        ;ld a,1
+        ;dec a
+        xor a ;обнуляет перенос и V, так надо
+        ld c,a
+       ex af,af' ;'
+        PUTDEST8_Loop
+COMBer
+        GETDEST_cmdc
+	ex af,af' ;' ;keep a=cmdLSB
+       ld l,a
+        ld a,c
+        cpl
+        ld c,a ;TODO флаги?
+       ld a,l
+       ex af,af' ;'
+        PUTDEST8_Loop
+INCB_DECB
+        jp m,DECBer
+;INCBer
+        GETDEST_cmdc
+        ex af,af' ;'
+        inc c
+        ex af,af' ;'
+        PUTDEST8_Loop
+DECBer
+        GETDEST_cmdc
+        ex af,af' ;'
+        dec c
+        ex af,af' ;'
+        PUTDEST8_Loop
+
 CLR_COM_INC_DEC
         ld a,c
         add a,a
@@ -44,6 +83,8 @@ INC_DEC
         ld hl,1
         or a
         adc hl,bc
+        ld b,h
+        ld c,l
      rla ;CF from a7
         ex af,af' ;'
         PUTDEST_Loop       
@@ -62,6 +103,111 @@ DECer
         ex af,af' ;'
         PUTDEST_Loop       
 
+NEG_ADC_SBC_TST
+        ld a,c
+        add a,a
+        jp m,ADC_TST
+        jr c,SBCer
+;NEGer
+        GETDEST_cmdc
+        ex af,af' ;'
+     rra ;keep CF in a7
+        ld hl,0
+        or a
+        sbc hl,bc
+        ld b,h
+        ld c,l
+     rla ;CF from a7
+        ex af,af' ;'
+        PUTDEST_Loop
+SBCer        
+        GETDEST_cmdc
+        ex af,af' ;'
+        ld h,b
+        ld l,c
+        ld bc,0
+        sbc hl,bc
+        ld b,h
+        ld c,l
+        ex af,af' ;'
+        PUTDEST_Loop
+
+ADC_TST
+        jr c,TSTer
+;ADCer
+        GETDEST_cmdc
+        ex af,af' ;'
+        ld hl,0
+        adc hl,bc
+        ld b,h
+        ld c,l
+        ex af,af' ;'
+        PUTDEST_Loop
+TSTer
+        GETDEST_cmdc
+        ex af,af' ;'
+     rra
+     ld h,a ;keep CF
+        ld a,c
+;чтобы правильно сформировать ZF,SF по h,l:
+;если l!=0, то set h!=0
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
+     ld a,h
+     rla ;CF
+        ex af,af' ;'
+       _LoopC
+        
+NEGB_ADCB_SBCB_TSTB
+        ld a,c
+        add a,a
+        jp m,ADCB_TSTB
+        jr c,SBCBer
+;NEGBer
+        GETDEST_cmdc
+        ex af,af' ;'
+     rra ;keep CF in a7
+     ld h,a
+        xor a
+        sub c
+        ld c,a
+     ld a,h
+     rla ;CF from a7
+        ex af,af' ;'
+        PUTDEST8_Loop
+SBCBer
+        GETDEST_cmdc
+        ex af,af' ;'
+        ld a,c
+        sbc a,0
+        ld c,a
+        ex af,af' ;'
+        PUTDEST8_Loop
+
+ADCB_TSTB
+        jr c,TSTBer
+;ADCBer
+        GETDEST_cmdc
+        ex af,af' ;'
+        ld a,c
+        adc a,0
+        ld c,a
+        ex af,af' ;'
+        PUTDEST8_Loop
+TSTBer
+        GETDEST_cmdc
+        ex af,af' ;'
+     rra
+     ld h,a ;keep CF
+        ld a,c
+        or a ;TODO сбросить V?
+     ld a,h
+     rla ;CF
+        ex af,af' ;'
+       _LoopC
+
 MOVer
 ;15df, 02d8, ffb4 ;mov #1330, @#177664
 ;0001 0101 1101 1111
@@ -76,6 +222,8 @@ MOVer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
         ex af,af' ;'
+     rra
+     ld h,a ;keep CF
         ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
@@ -83,6 +231,8 @@ MOVer
        sbc a,a ;CF=(c!=0)
        and d;1 ;any number 1..0x7f
        or b ;CF=0 ;ZF=(bc==0)
+     ld a,h
+     rla ;CF
         ;TODO сбросить V
         ex af,af' ;'
         PUTDEST_Loop
@@ -108,15 +258,15 @@ BITer
        push bc
         GETDEST_cmda
        pop hl
-	ex af,af' ;' ;keep a=cmdLSB
+	;ex af,af' ;' ;keep a=cmdLSB
         ld a,l ;src
         and c
         ld c,a
         ld a,h ;src
         and b
         ld b,a
-     ;rra
-     ;ld h,a ;keep CF
+     rra
+     ld h,a ;keep CF
         ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
@@ -124,8 +274,8 @@ BITer
        sbc a,a ;CF=(c!=0)
        and d;1 ;any number 1..0x7f
        or b ;CF=0 ;ZF=(bc==0)
-     ;ld a,h
-     ;rla ;CF
+     ld a,h
+     rla ;CF
         ex af,af' ;'
        _LoopC
 
@@ -144,8 +294,8 @@ BICer
         cpl
         and b
         ld b,a
-     ;rra
-     ;ld h,a ;keep CF
+     rra
+     ld h,a ;keep CF
         ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
@@ -153,10 +303,10 @@ BICer
        sbc a,a ;CF=(c!=0)
        and d;1 ;any number 1..0x7f
        or b ;CF=0 ;ZF=(bc==0)
-     ;ld a,h
-     ;rla ;CF
+     ld a,h
+     rla ;CF
         ex af,af' ;'
-       _LoopC
+        PUTDEST_Loop
 
 BISer
 ;ac=cmd
@@ -171,8 +321,8 @@ BISer
         ld a,h ;src
         or b
         ld b,a
-     ;rra
-     ;ld h,a ;keep CF
+     rra
+     ld h,a ;keep CF
         ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
@@ -180,14 +330,12 @@ BISer
        sbc a,a ;CF=(c!=0)
        and d;1 ;any number 1..0x7f
        or b ;CF=0 ;ZF=(bc==0)
-     ;ld a,h
-     ;rla ;CF
+     ld a,h
+     rla ;CF
         ex af,af' ;'
-       _LoopC
+        PUTDEST_Loop
 
 ADDer
-        ;jr $
-        ;ld b,a
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
@@ -221,9 +369,13 @@ SUBer
 MOVBer
         call readsourceop ;out: bc=sourceop, a=cmdLSB
         ex af,af' ;'
+     rra
+     ld h,a ;keep CF
         ld a,c
         or a
         ;TODO сбросить V
+     ld a,h
+     rla ;CF
         ex af,af' ;'
         PUTDEST8_Loop
 
@@ -248,8 +400,12 @@ BITBer
         GETDEST_cmda
        pop hl
         ex af,af' ;'
+     rra
+     ld h,a ;keep CF
         ld a,c
         and l ;TODO keep CY?
+     ld a,h
+     rla ;CF
         ex af,af' ;'
        _LoopC
 
@@ -260,10 +416,14 @@ BICBer
         GETDEST_cmda
        pop hl
         ex af,af' ;'
+     rra
+     ld h,a ;keep CF
         ld a,l ;src
         cpl
         and c
-        ld c,a ;TODO keep CY?
+        ld c,a
+     ld a,h
+     rla ;CF
         ex af,af' ;'
        _LoopC
 
@@ -274,11 +434,15 @@ BISBer
         GETDEST_cmda
        pop hl
         ex af,af' ;'
+     rra
+     ld h,a ;keep CF
         ld a,c
         or l
-        ld c,a ;TODO keep CY?
+        ld c,a
+     ld a,h
+     rla ;CF
         ex af,af' ;'
-       _LoopC
+        PUTDEST8_Loop
 
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
@@ -671,13 +835,7 @@ ASLer
 	ex af,af' ;'
         PUTDEST_Loop
 
-NEG_ADC_SBC_TST
-;TODO
 c0064_MFPI_MTPI_SXT
-;TODO
-CLRB_COMB_INCB_DECB
-;TODO
-NEGB_ADCB_SBCB_TSTB
 ;TODO
 MTPS_MFPD_MTPD_MFPS
 ;TODO

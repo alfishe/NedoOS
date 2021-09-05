@@ -7,8 +7,8 @@ init
         jr z,noautoload
 ;command line = bk <file to load>"
        ld (filenameaddr),hl
-       ld hl,0x1fc
-       ld (loadaddr),hl
+       ;ld hl,0x1fc
+       ;ld (runaddr),hl
        jr autoloadq
 noautoload
         ld de,path
@@ -112,7 +112,7 @@ resetpp
         ld hl,0x0200
         ld (_SP),hl
 
-loadaddr=$+1
+;runaddr=$+1
         ld de,0x0200;STARTPC
        push de
         ld hl,0x01fc
@@ -213,7 +213,7 @@ trom2
 trom3
         db "bk10_108_basic3.rom",0
 tprog
-        db "textshow.bin",0
+        db "textshow.bk",0
 path
         db "bk",0
 
