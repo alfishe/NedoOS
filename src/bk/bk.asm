@@ -60,12 +60,12 @@ oldpcaddr=$+1
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x027e
+      ld hl,0x025c
       or a
       sbc hl,de
       pop de
       ;jr nc,$
-      ;jr z,$
+      jr z,$
        endif
         get
         next
@@ -926,7 +926,23 @@ putdestop_111
 ;0111 1110 1000 0101
 ;0 111 111 010 000 101
 
+;[025c]:2017 ;cmp r0,#...
+;0010 0000 0001 0111
+;0 010 000 000 010 111
+      ;src;r0 ;dst;(pc)+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;a=cmdLSB = %??fmtRRR
+getdest_aisc_autoinc ;TODO всегда +=2
+getdest8_aisc_autoinc
+;out: bc=dest, a=cmdLSB
+       rra
+       rra
+       ld b,a       
+        ld a,c
+        rla
+        jr readsourceop_go
 
 readsourceop
 ;ac=cmd
@@ -944,6 +960,7 @@ readsourceop
          rra
          rra
          rra
+readsourceop_go
          and 0x0e
         ld l,a ;0000rrr0
         ld h,_R0/256

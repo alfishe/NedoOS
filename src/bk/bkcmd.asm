@@ -144,7 +144,7 @@ ADC_TST
         ex af,af' ;'
         PUTDEST_Loop
 TSTer
-        GETDEST_cmdc
+        GETDEST_cmdc_autoinc
         ex af,af' ;'
      rra
      ld h,a ;keep CF
@@ -239,7 +239,7 @@ ADCB_TSTB
         ex af,af' ;'
         PUTDEST8_Loop
 TSTBer
-        GETDEST8_cmdc
+        GETDEST8_cmdc_autoinc
         ex af,af' ;'
      rra
      ld h,a ;keep CF
@@ -283,7 +283,7 @@ CMPer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST_cmda
+        GETDEST_cmda_autoinc
         ld h,b
         ld l,c
        pop bc
@@ -298,7 +298,7 @@ BITer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST_cmda
+        GETDEST_cmda_autoinc
        pop hl
 	;ex af,af' ;' ;keep a=cmdLSB
         ld a,l ;src
@@ -425,7 +425,7 @@ CMPBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST8_cmda
+        GETDEST8_cmda_autoinc
        pop hl
         ex af,af' ;'
         ld a,c
@@ -439,7 +439,7 @@ BITBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST8_cmda
+        GETDEST8_cmda_autoinc
        pop hl
         ex af,af' ;'
      rra
@@ -467,7 +467,7 @@ BICBer
      ld a,h
      rla ;CF
         ex af,af' ;'
-       _LoopC
+        PUTDEST8_Loop
 
 BISBer
 ;ac=cmd
@@ -765,7 +765,7 @@ RTSerPC
 
 JMPer
 ;?c=cmd
-        GETDEST_cmdc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
+        GETDEST_cmdc_autoinc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
        _LoopC_JP

@@ -127,6 +127,18 @@
        endm ;bc=dest, a=cmdLSB
 
 ;c=cmdLSB
+       macro GETDEST_cmdc_autoinc
+        ld a,c
+        call getdest_aisc_autoinc
+       endm ;bc=dest, a=cmdLSB
+
+;a=cmdLSB
+       macro GETDEST_cmda_autoinc
+        ld c,a
+        call getdest_aisc_autoinc
+       endm ;bc=dest, a=cmdLSB
+
+;c=cmdLSB
        macro GETDEST8_cmdc
         ld a,c
         call getdest8_aisc
@@ -136,6 +148,18 @@
        macro GETDEST8_cmda
         ld c,a
         call getdest8_aisc
+       endm ;c=dest, a=cmdLSB
+
+;c=cmdLSB
+       macro GETDEST8_cmdc_autoinc
+        ld a,c
+        call getdest8_aisc_autoinc
+       endm ;c=dest, a=cmdLSB
+
+;a=cmdLSB
+       macro GETDEST8_cmda_autoinc
+        ld c,a
+        call getdest8_aisc_autoinc
        endm ;c=dest, a=cmdLSB
 
 ;bc=data, a=cmdLSB
