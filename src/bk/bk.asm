@@ -2,7 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 DEBUG=0;1
-CRUTCH=1 ;костыль для textshow
+CRUTCH=0;1 ;костыль для textshow
 
 	include "bk.ini"
 
@@ -738,6 +738,96 @@ readdestop_x11
         jp nz,readdestop_111
         jp readdestop_011
 
+readdestop_011 ;@(Rn)+ ;всегда +=2
+readdest8op_011 ;@(Rn)+ ;всегда +=2 ;TODO optimize
+       ld hx,c
+        cp 0x0e
+        jr z,readdestop_011_pc
+        ld c,(hl)
+        inc l
+        ld a,(hl)
+        jp readsourceop_addrfromaddr_ac
+readdestop_011_pc
+;инкремент не делаем, чтобы его делал putdest
+        get
+        inc e ;next без переключения страниц!!! FIXME
+        ld c,a
+        get
+        dec e ;FIXME
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readdest8op_100
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        cp 0x0c
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+       jr c,$+3 ;+2
+        ;jr nz,readdest8op_100_pc ;TODO pc
+       dec bc ;sp/pc +=2
+        ld a,b
+        RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
+
+readdestop_100
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ;cp 0x0e
+        ;jr z,readdestop_100_pc ;TODO pc
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+        dec bc
+        ld a,b
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readdest8op_101
+readdestop_101
+;101 @-(Rn) ;всегда -=2
+        ;cp 0x0e
+        ;jr z,readdestop_101_pc ;TODO pc
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+        dec bc
+        ld a,b
+        jp readsourceop_addrfromaddr_ac
+
+readdestop_110
+readdest8op_110 ;TODO optimize
+       ld hx,c
+        get
+        inc e
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        adc a,(hl) ;ac=Rn+X
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readdestop_111
+readdest8op_111 ;TODO optimize
+;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+       ld hx,c
+        get
+        inc e
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        adc a,(hl) ;ac=Rn+X
+        jp readsourceop_addrfromaddr_ac
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;bc=data, a=cmdLSB = %??fmtRRR
 putdest_Loop
 ;15-12 Opcode
@@ -938,14 +1028,24 @@ putdestop_111
 
 ;a=cmdLSB = %??fmtRRR
 getdest_aisc_autoinc ;TODO всегда +=2
-getdest8_aisc_autoinc
 ;out: bc=dest, a=cmdLSB
        rra
        rra
        ld b,a       
         ld a,c
         rla
-        jr readsourceop_go
+        jp readsourceop_go
+
+getdest8_aisc_autoinc
+;out: c=dest, a=cmdLSB
+       rra
+       rra
+       ld b,a       
+        ld a,c
+        rla
+        jp readsource8op_go
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 readsourceop
 ;ac=cmd
@@ -995,10 +1095,9 @@ readsourceop_xx1
         jp nz,readsourceop_x11
         bit 3,b
         jp nz,readsourceop_101
+;001: (Rn)
 readdestop_001 ;(Rn): Rn contains the address of the operand
-readdest8op_001 ;(Rn): Rn contains the address of the operand ;TODO optimize
 readdestop_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest
-readdest8op_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest ;TODO optimize
        ld hx,c
        cp 0x0e
        jr z,readsourceop_001_pc
@@ -1046,24 +1145,6 @@ readsourceop_010_pc
        ld a,hx
         ret
 
-readdestop_011 ;@(Rn)+ ;всегда +=2
-readdest8op_011 ;@(Rn)+ ;всегда +=2 ;TODO optimize
-       ld hx,c
-        cp 0x0e
-        jr z,readdestop_011_pc
-        ld c,(hl)
-        inc l
-        ld a,(hl)
-        jp readsourceop_addrfromaddr_ac
-readdestop_011_pc
-;инкремент не делаем, чтобы его делал putdest
-        get
-        inc e ;next без переключения страниц!!! FIXME
-        ld c,a
-        get
-        dec e ;FIXME
-        RDMEM_ac_ret ;bc=result, a=hx
-
 readsourceop_x11
         bit 3,b
         jp nz,readsourceop_111
@@ -1109,36 +1190,182 @@ readsourceop_011_pc
         next
         RDMEM_ac_ret ;bc=result, a=hx
 
-readdest8op_100
+readsourceop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        cp 0x0c
-       ld hx,c
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        dec bc
-       jr c,$+3 ;+2
-        ;jr nz,readdest8op_100_pc ;TODO pc
-       dec bc ;sp/pc +=2
-        ld a,b
-        RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
-
-readdestop_100
-;100 -(Rn)
-;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        ;cp 0x0e
-        ;jr z,readdestop_100_pc ;TODO pc
+        cp 0x0e ;TODO pc
        ld hx,c
         ld c,(hl)
         inc l
         ld b,(hl)
         dec bc
         dec bc
+        ld (hl),b
+        dec l
+        ld (hl),c
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsourceop_100 ;TODO 16bit версию (всегда -=2)
+readsourceop_101
+;101 @-(Rn) ;всегда -=2
+        ;cp 0x0e
+        ;jr z,readsourceop_101_pc ;TODO pc
+       ld hx,c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+        dec bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld a,b
+        jp readsourceop_addrfromaddr_ac
+
+readsourceop_110
+;110 Index: X(Rn): Rn+X is the address of the operand
+       ld hx,c
+        get
+        next
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        next
+        adc a,(hl) ;ac=Rn+X
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readsourceop_111
+;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+       ld hx,c
+        get
+        next
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        next
+        adc a,(hl) ;ac=Rn+X
+        jp readsourceop_addrfromaddr_ac
+
+;;;;;;;;;;;;;;;;;;;;;;;
+readsource8op
+;ac=cmd
+;out: c=sourceop, a=cmdLSB
+;15-12 Opcode
+;11-9 Src
+;8-6 Register
+;5-3 Dest
+;2-0 Register
+        ld b,a
+        rra
+        ld a,c
+        rra ;rrr?????
+         rra
+         rra
+         rra
+         rra
+readsource8op_go
+         and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+         ;ld l,(hl) ;TODO
+
+;0n	Register	Rn	The operand is in Rn
+;1n	Register deferred	(Rn)	Rn contains the address of the operand
+;2n	Autoincrement	(Rn)+	Rn contains the address of the operand, then increment Rn
+;3n	Autoincrement deferred	@(Rn)+	Rn contains the address of the address of the operand, then increment Rn by 2
+;4n	Autodecrement	−(Rn)	Decrement Rn, then use the result as the address of the operand
+;5n	Autodecrement deferred	@−(Rn)	Decrement Rn by 2, then use the result as the address of the address of the operand
+;6n	Index	X(Rn)	Rn+X is the address of the operand
+;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
+        bit 1,b
+        jr nz,readsource8op_xx1
+        bit 2,b
+        jr nz,readsource8op_x10
+        bit 3,b
+        jp nz,readsource8op_100
+;000 Register
+         ld a,c
+        ld c,(hl)
+        ;inc l
+        ;ld b,(hl)
+        ret
+
+readsource8op_xx1
+        bit 2,b
+        jp nz,readsource8op_x11
+        bit 3,b
+        jp nz,readsource8op_101
+;001: (Rn)
+readdest8op_001 ;(Rn): Rn contains the address of the operand ;TODO optimize
+readdest8op_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest ;TODO optimize
+       ld hx,c
+       cp 0x0e
+       ;jr z,readsource8op_001_pc
+       jp z,readsourceop_001_pc
+        ld c,(hl)
+        inc l
+        ld a,(hl)
+        RDMEM_ac_ret ;bc=result
+
+readsource8op_x10
+        bit 3,b
+        jp nz,readsource8op_110
+;(Rn)+
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+       ld hx,c
+        cp 0x0e
+       ;jr z,readsource8op_010_pc
+       jp z,readsourceop_010_pc
+        ld c,(hl)
+      cp 0x0c
+      jr c,$+3 ;для textshow
+         inc (hl) ;sp/pc +=2 ;TODO нечётный?
+        inc (hl)
+        inc hl
+        ld a,(hl)
+        jr nz,$+3
+        inc (hl)
+        RDMEM_ac_ret ;bc=result, a=hx
+
+readsource8op_x11
+        bit 3,b
+        jp nz,readsourceop_111
+readsource8op_011 ;@(Rn)+ ;всегда +=2
+       ld hx,c
+        cp 0x0e
+        ;jr z,readsource8op_011_pc
+        jp z,readsourceop_011_pc
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+      cp 0x0c
+      jr c,$+3 ;не проверяется в textshow!
+         inc bc
+        inc bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld a,b
+readsource8op_addrfromaddr_ac
+        ld l,c
+        ld h,a
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld c,(hl)
+        inc l
+        call z,inchnextpg
+        ld a,(hl)
+        RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
+
+readsource8op_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
         cp 0x0c
@@ -1155,21 +1382,7 @@ readsourceop_100 ;TODO 16bit версию (всегда -=2)
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 
-readdest8op_101
-readdestop_101
-;101 @-(Rn) ;всегда -=2
-        ;cp 0x0e
-        ;jr z,readdestop_101_pc ;TODO pc
-       ld hx,c
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        dec bc
-        dec bc
-        ld a,b
-        jp readsourceop_addrfromaddr_ac
-
-readsourceop_101
+readsource8op_101
 ;101 @-(Rn) ;всегда -=2
         ;cp 0x0e
         ;jr z,readsourceop_101_pc ;TODO pc
@@ -1177,11 +1390,9 @@ readsourceop_101
         ld c,(hl)
         inc l
         ld b,(hl)
-      if CRUTCH
-      cp 0x0c
-      jr c,$+3 ;костыль для textshow
-      endif
-        dec bc
+      ;cp 0x0c
+      ;jr c,$+3 ;костыль для textshow
+         dec bc
         dec bc
         ld (hl),b
         dec l
@@ -1189,58 +1400,11 @@ readsourceop_101
         ld a,b
         jp readsourceop_addrfromaddr_ac
 
-readdestop_110
-readdest8op_110 ;TODO optimize
-       ld hx,c
-        get
-        inc e
-        add a,(hl)
-        ld c,a
-        inc l
-        get
-        dec e ;FIXME
-        adc a,(hl) ;ac=Rn+X
-        RDMEM_ac_ret ;bc=result, a=hx
-
-readsourceop_110
+readsource8op_110=readsourceop_110 ;TODO optimize
 ;110 Index: X(Rn): Rn+X is the address of the operand
-       ld hx,c
-        get
-        next
-        add a,(hl)
-        ld c,a
-        inc l
-        get
-        next
-        adc a,(hl) ;ac=Rn+X
-        RDMEM_ac_ret ;bc=result, a=hx
 
-readdestop_111
-readdest8op_111 ;TODO optimize
+readsource8op_111=readsourceop_111 ;TODO optimize
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
-       ld hx,c
-        get
-        inc e
-        add a,(hl)
-        ld c,a
-        inc l
-        get
-        dec e ;FIXME
-        adc a,(hl) ;ac=Rn+X
-        jp readsourceop_addrfromaddr_ac
-
-readsourceop_111
-;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
-       ld hx,c
-        get
-        next
-        add a,(hl)
-        ld c,a
-        inc l
-        get
-        next
-        adc a,(hl) ;ac=Rn+X
-        jp readsourceop_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
 rdport_c

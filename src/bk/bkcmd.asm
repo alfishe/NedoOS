@@ -409,7 +409,7 @@ SUBer
         PUTDEST_Loop
 
 MOVBer
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call readsource8op ;out: bc=sourceop, a=cmdLSB
         ex af,af' ;'
      rra
      ld h,a ;keep CF
@@ -428,7 +428,7 @@ MOVBer
 
 CMPBer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call readsource8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda_autoinc
        pop hl
@@ -442,7 +442,7 @@ CMPBer
 
 BITBer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call readsource8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda_autoinc
        pop hl
@@ -458,7 +458,7 @@ BITBer
 
 BICBer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call readsource8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda
        pop hl
@@ -476,7 +476,7 @@ BICBer
 
 BISBer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call readsource8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda
        pop hl
