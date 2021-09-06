@@ -1,7 +1,8 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=1
+DEBUG=0;1
+CRUTCH=1 ;костыль для textshow
 
 	include "bk.ini"
 
@@ -60,7 +61,7 @@ oldpcaddr=$+1
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x025c
+      ld hl,0x0262;0x0280;0x0262;0x025c
       or a
       sbc hl,de
       pop de
@@ -558,11 +559,13 @@ putdest8_Loop
         cp 0x0e
         jp z,bctoPCLoop
         ld (hl),c
-        inc l
+       if 0 ;не надо расширять знак (Alexander Tishin), кроме movb (см. там отдельно)
+       inc l
        ld a,c
        rla
-       sbc a,a ;TODO надо ли расширять знак?
-        ld (hl),a
+       sbc a,a
+       ld (hl),a
+       endif
         _LoopC
 
 putdestop8_001 ;(Rn): Rn contains the address of the operand
@@ -974,7 +977,6 @@ readsourceop_go
 ;5n	Autodecrement deferred	@−(Rn)	Decrement Rn by 2, then use the result as the address of the address of the operand
 ;6n	Index	X(Rn)	Rn+X is the address of the operand
 ;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
-;TODO read pc
         bit 1,b
         jr nz,readsourceop_xx1
         bit 2,b
@@ -1023,6 +1025,10 @@ readsourceop_x10
         cp 0x0e
        jr z,readsourceop_010_pc
         ld c,(hl)
+      if CRUTCH
+      cp 0x0c
+      jr c,$+3 ;костыль для textshow
+      endif
         inc (hl) ;sp/pc +=2 ;TODO нечётный?
         inc (hl)
         inc hl
@@ -1068,6 +1074,10 @@ readsourceop_011 ;@(Rn)+ ;всегда +=2
         ld c,(hl)
         inc l
         ld b,(hl)
+      if 0;CRUTCH
+      cp 0x0c
+      jr c,$+3 ;костыль для textshow
+      endif
         inc bc
         inc bc
         ld (hl),b
@@ -1167,6 +1177,10 @@ readsourceop_101
         ld c,(hl)
         inc l
         ld b,(hl)
+      if CRUTCH
+      cp 0x0c
+      jr c,$+3 ;костыль для textshow
+      endif
         dec bc
         dec bc
         ld (hl),b

@@ -185,6 +185,11 @@
         set 6,h
        cp 0x40
        jr z,1f ;screen
+      if DEBUG
+      ld a,h
+      cp 0xc1 ;stack
+      jr c,$
+      endif
 	ld a,(bc)
 	SETPGC000
        pop bc

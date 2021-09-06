@@ -162,7 +162,7 @@ TSTer
 
 XORer
        ;jr $
-        ld b,a
+        ;ld b,a
         rra
         ld a,c
         rra ;rrr?????
@@ -413,13 +413,18 @@ MOVBer
         ex af,af' ;'
      rra
      ld h,a ;keep CF
+       ld a,c
+       rla
+       sbc a,a
+       ld b,a ;for textshow
         ld a,c
         or a
         ;TODO סבנמסטעü V
      ld a,h
      rla ;CF
         ex af,af' ;'
-        PUTDEST8_Loop
+        ;PUTDEST8_Loop
+        PUTDEST_Loop ;for textshow
 
 CMPBer
 ;ac=cmd
