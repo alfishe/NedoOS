@@ -23,7 +23,7 @@ CLRB_COMB_INCB_DECB
        ex af,af' ;'
         PUTDEST8_Loop
 COMBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
 	ex af,af' ;' ;keep a=cmdLSB
        ld l,a
         ld a,c
@@ -35,13 +35,13 @@ COMBer
 INCB_DECB
         jp m,DECBer
 ;INCBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
         ex af,af' ;'
         inc c
         ex af,af' ;'
         PUTDEST8_Loop
 DECBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
         ex af,af' ;'
         dec c
         ex af,af' ;'
@@ -208,7 +208,7 @@ NEGB_ADCB_SBCB_TSTB
         jp m,ADCB_TSTB
         jr c,SBCBer
 ;NEGBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
         ex af,af' ;'
      rra ;keep CF in a7
      ld h,a
@@ -220,7 +220,7 @@ NEGB_ADCB_SBCB_TSTB
         ex af,af' ;'
         PUTDEST8_Loop
 SBCBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
         ex af,af' ;'
         ld a,c
         sbc a,0
@@ -231,7 +231,7 @@ SBCBer
 ADCB_TSTB
         jr c,TSTBer
 ;ADCBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
         ex af,af' ;'
         ld a,c
         adc a,0
@@ -239,7 +239,7 @@ ADCB_TSTB
         ex af,af' ;'
         PUTDEST8_Loop
 TSTBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
         ex af,af' ;'
      rra
      ld h,a ;keep CF
@@ -425,7 +425,7 @@ CMPBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST_cmda
+        GETDEST8_cmda
        pop hl
         ex af,af' ;'
         ld a,c
@@ -439,7 +439,7 @@ BITBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST_cmda
+        GETDEST8_cmda
        pop hl
         ex af,af' ;'
      rra
@@ -455,7 +455,7 @@ BICBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST_cmda
+        GETDEST8_cmda
        pop hl
         ex af,af' ;'
      rra
@@ -473,7 +473,7 @@ BISBer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
        push bc
-        GETDEST_cmda
+        GETDEST8_cmda
        pop hl
         ex af,af' ;'
      rra
@@ -777,13 +777,13 @@ RORB_ROLB_ASRB_ASLB
         jr c,ASRB_ASLB
         jp m,ROLBer
 ;RORBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
 	ex af,af' ;'
         rr c
 	ex af,af' ;'
         PUTDEST8_Loop
 ROLBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
 	ex af,af' ;'
         rl c
 	ex af,af' ;'
@@ -791,13 +791,13 @@ ROLBer
 ASRB_ASLB
         jp m,ASLBer
 ;ASRer
-        GETDEST_cmdc
+        GETDEST8_cmdc
 	ex af,af' ;' ;keep a=cmdLSB
         sra c ;TODO проверить
 	ex af,af' ;'
         PUTDEST8_Loop
 ASLBer
-        GETDEST_cmdc
+        GETDEST8_cmdc
 	ex af,af' ;' ;keep a=cmdLSB
         sla c
 	ex af,af' ;'

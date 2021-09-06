@@ -126,6 +126,18 @@
         call getdest_aisc
        endm ;bc=dest, a=cmdLSB
 
+;c=cmdLSB
+       macro GETDEST8_cmdc
+        ld a,c
+        call getdest8_aisc
+       endm ;c=dest, a=cmdLSB
+
+;a=cmdLSB
+       macro GETDEST8_cmda
+        ld c,a
+        call getdest8_aisc
+       endm ;c=dest, a=cmdLSB
+
 ;bc=data, a=cmdLSB
        macro PUTDEST_Loop
         jp putdest_Loop
