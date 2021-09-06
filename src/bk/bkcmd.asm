@@ -653,20 +653,30 @@ BEQer
         ex af,af' ;'
        _LoopC
 BGEer ;Branch if greater than or equal (N ? V) = 0
-;TODO
-        jr $
+;for ninza
+        ex af,af' ;'
+       jp p,exaBR ;FIXME
+        ex af,af' ;'
        _LoopC
 BLTer ;Branch if less than (N ? V) = 1
 ;TODO
-        jr $
+        ex af,af' ;'
+       jp m,exaBR ;FIXME
+        ex af,af' ;'
        _LoopC
 BGTer ;Branch if greater than (Z ? (N ? V)) = 0
 ;TODO
-        jr $
+        ex af,af' ;'
+       jr z,$+2+3
+       jp p,exaBR ;FIXME
+        ex af,af' ;'
        _LoopC
 BLEer ;Branch if less than or equal (Z ? (N ? V)) = 1
 ;TODO
-        jr $
+        ex af,af' ;'
+       jr z,exaBR
+       jp m,exaBR ;FIXME
+        ex af,af' ;'
        _LoopC
 BPLer
         ex af,af' ;'
@@ -924,3 +934,8 @@ SWABer
         ld c,h
         PUTDEST_Loop
 
+EMTer
+;TODO
+       _LoopC
+TRAPer
+        jr $

@@ -113,20 +113,30 @@ resetpp
         ld (_SP),hl
 
 ;runaddr=$+1
-        ld de,0x0200;STARTPC
-       push de
-        ld hl,0x01fc
+        ;ld de,0x0200;STARTPC
+       ;push de
 filenameaddr=$+1
         ld de,tprog ;de=filename
-;de=filename
-;hl=addr in segment
-        call loadcompp
+        OS_OPENHANDLE
+        ld a,b
+        ld (curhandle),a
+        ld de,bkheader
+        ld hl,4 ;de=buffer, hl=size
+        call readcurhandle
+        ld de,(bkheader)
+        ;ld de,0x01fc
+;de=addr
+       push de
+        call loadcompp_noheader
        pop de ;LD DE,STARTPC ;=IP(PC)
 
         LD IY,EMUCHECKQ
         ;ld a,-1
         ;ld (iff1),a
      jp loopcjp;_LoopC_JP заменит текущую страницу
+
+bkheader
+        ds 4
 
 ;de=имя файла
 ;hl=куда грузим
@@ -240,12 +250,14 @@ skipspaces
 
 loadcompp
 ;de=filename
-;hl=addr in segment
+;hl=addr
        push hl
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
-       pop de ;addr in segment
+       pop de ;addr
+loadcompp_noheader
+;de=addr
         ld a,d
         and 0xc0
 	ld c,a
@@ -257,6 +269,11 @@ loadcompp
         ld a,(curhandle)
         ld b,a
         OS_GETFILESIZE ;b=handle, out: dehl=file size
+        ld bc,4
+        or a
+        sbc hl,bc
+        jr nc,$+3
+        dec de
        pop de
        pop bc
 loadcompp0

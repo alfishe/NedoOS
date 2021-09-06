@@ -2,7 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 DEBUG=0;1
-CRUTCH=1 ;костыль для textshow
+CRUTCH=1 ;костыль для movb
 
 	include "bk.ini"
 
@@ -621,6 +621,7 @@ putdestop8_011 ;@(Rn)+
         dec de
         ex de,hl
        pop de
+putdestop8_memfrommem       
         ld a,h
         and 0xc0
 	ld c,a
@@ -680,7 +681,20 @@ putdestop8_100_pc ;TODO так ли при -(pc)?
        _LoopC
         
 putdestop8_101
-        jr $
+;101 @-(Rn) ;всегда -=2
+        ;cp 0x0e
+        ;jr z,readdestop_101_pc ;TODO pc
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+        dec bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld h,b
+        ld l,c
+        jp putdestop8_memfrommem
 putdestop8_11x
         jp m,putdestop8_111
 ;putdestop8_110
@@ -698,7 +712,19 @@ putdestop8_11x
         ld l,a ;hl=Rn+X
         WRMEM8_hl_LoopC
 putdestop8_111
-        jr $
+;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+        get
+        next
+        add a,(hl)
+       push af
+        inc l
+        get
+        next
+        adc a,(hl)
+        ld h,a
+       pop af
+        ld l,a ;hl=Rn+X
+        jp putdestop8_memfrommem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -805,7 +831,10 @@ readdestop_101
 
 readdestop_110
 readdest8op_110 ;TODO optimize
+;X(Rn)
        ld hx,c
+       cp 0x0e
+       jr z,readdestop_110_pc
         get
         inc e
         add a,(hl)
@@ -814,6 +843,25 @@ readdest8op_110 ;TODO optimize
         get
         dec e ;FIXME
         adc a,(hl) ;ac=Rn+X
+        RDMEM_ac_ret ;bc=result, a=hx
+readdestop_110_pc ;for mona
+        get
+        inc e
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        ld b,a
+       decodePC
+       ld a,c
+       add a,e
+       ld l,a
+       ld a,b
+       adc a,d
+       ld h,a
+       encodePC
+       ld a,h
+       ld c,l ;ac=Rn+X
         RDMEM_ac_ret ;bc=result, a=hx
 
 readdestop_111
@@ -917,6 +965,7 @@ putdestop_011 ;@(Rn)+
         dec de
         ex de,hl
        pop de
+putdestop_memfrommem
         ld a,h
         and 0xc0
 	ld c,a
@@ -978,11 +1027,26 @@ putdestop_100_pc ;TODO так ли при -(pc)?
        _LoopC
 
 putdestop_101
-        jr $
+;101 @-(Rn) ;всегда -=2
+        ;cp 0x0e
+        ;jr z,readdestop_101_pc ;TODO pc
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+        dec bc
+        ld (hl),b
+        dec l
+        ld (hl),c
+        ld h,b
+        ld l,c
+        jp putdestop_memfrommem
 putdestop_11x
         jp m,putdestop_111
 ;putdestop_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
+       cp 0x0e
+       jr z,putdestop_110_pc
         get
         next
         add a,(hl)
@@ -995,8 +1059,39 @@ putdestop_11x
        pop af
         ld l,a ;hl=Rn+X
         WRMEM_hl_LoopC
+        
+putdestop_110_pc ;for mona
+        get
+        inc e
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        ld b,a
+       decodePC
+       ld a,c
+       add a,e
+       ld l,a
+       ld a,b
+       adc a,d
+       ld h,a
+       encodePC ;hl=Rn+X
+        WRMEM_hl_LoopC
+
 putdestop_111
-        jr $
+;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+        get
+        next
+        add a,(hl)
+       push af
+        inc l
+        get
+        next
+        adc a,(hl)
+        ld h,a
+       pop af
+        ld l,a ;hl=Rn+X
+        jp putdestop_memfrommem
 
 ;15c2
 ;0001 0101 1100 0010
