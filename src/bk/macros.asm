@@ -270,6 +270,9 @@
         ld h,a
        cp 0xff
        jp z,rdport_c
+     ;ld a,h
+     ;cp 0x09
+     ;jr z,$
         ld l,c
         and 0xc0
 	ld c,a

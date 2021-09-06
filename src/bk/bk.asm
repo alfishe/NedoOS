@@ -2,7 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 DEBUG=0;1
-CRUTCH=0;1 ;костыль для textshow
+CRUTCH=1 ;костыль для textshow
 
 	include "bk.ini"
 
@@ -61,7 +61,7 @@ oldpcaddr=$+1
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x0262;0x0280;0x0262;0x025c
+      ld hl,0x0266;0x0280;0x0262;0x025c
       or a
       sbc hl,de
       pop de
@@ -666,6 +666,8 @@ putdestop8_1xx
         ld (hl),e
         ex de,hl
        pop de
+     ;inc hl
+       ;jr $
         WRMEM8_hl_LoopC
 putdestop8_100_pc ;TODO так ли при -(pc)?
        pop af ;skip
@@ -1130,10 +1132,6 @@ readsourceop_x10
         cp 0x0e
        jr z,readsourceop_010_pc
         ld c,(hl)
-      if CRUTCH
-      cp 0x0c
-      jr c,$+3 ;костыль для textshow
-      endif
         inc (hl) ;sp/pc +=2 ;TODO нечётный?
         inc (hl)
         inc hl
@@ -1161,10 +1159,6 @@ readsourceop_011 ;@(Rn)+ ;всегда +=2
         ld c,(hl)
         inc l
         ld b,(hl)
-      if 0;CRUTCH
-      cp 0x0c
-      jr c,$+3 ;костыль для textshow
-      endif
         inc bc
         inc bc
         ld (hl),b

@@ -283,15 +283,16 @@ MOVer
 CMPer
 ;ac=cmd
         call readsourceop ;out: bc=sourceop, a=cmdLSB
-       push bc
+       push bc ;src
         GETDEST_cmda_autoinc
-        ld h,b
-        ld l,c
-       pop bc
+       ; ld h,b
+       ; ld l,c
+       ;pop bc ;hl=dest, bc=src
+       pop hl ;hl=src, bc=dest
         ex af,af' ;'
         or a
         sbc hl,bc
-        ccf
+        ;ccf
         ex af,af' ;'
        _LoopC
 
@@ -424,8 +425,15 @@ MOVBer
      ld a,h
      rla ;CF
         ex af,af' ;'
-        ;PUTDEST8_Loop
+      if CRUTCH
+      and 0x3f
+      ;cp 0xe0
+      cp 0x08
+      jr nc,MOVB_minusr0 ;любая адресация, кроме простого Rn
+      endif
         PUTDEST_Loop ;for textshow
+MOVB_minusr0
+        PUTDEST8_Loop
 
 CMPBer
 ;ac=cmd
@@ -846,6 +854,7 @@ ROR_ROL_ASR_ASL
 ROLer
         GETDEST_cmdc
 	ex af,af' ;'
+       ;jr $
         rl c
         rl b
      rra
