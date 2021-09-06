@@ -178,6 +178,7 @@ XORer
         ld c,(hl)
         inc l
         ld b,(hl) ;bc=src
+        ;jr $
        push bc
         GETDEST_cmda
        pop hl
@@ -489,7 +490,17 @@ BISBer
      ld a,h
      rla ;CF
         ex af,af' ;'
+       if 0 ;не помогло для nocopper, вообще исчезла надпись
+       ld h,a
+       ld a,c
+       rla
+       sbc a,a
+       ld b,a
+       ld a,h
+       PUTDEST_Loop
+       else
         PUTDEST8_Loop
+       endif
 
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc

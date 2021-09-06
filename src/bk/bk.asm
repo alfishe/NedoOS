@@ -617,6 +617,8 @@ putdestop8_011 ;@(Rn)+
         ld (hl),d
         dec l
         ld (hl),e
+        dec de
+        dec de
         ex de,hl
        pop de
         ld a,h
@@ -880,6 +882,8 @@ putdestop_01x
         ld (hl),d
         dec l
         ld (hl),e
+        dec de
+        dec de
         ex de,hl
        pop de
         WRMEM_hl_LoopC
@@ -907,6 +911,8 @@ putdestop_011 ;@(Rn)+
         ld (hl),d
         dec l
         ld (hl),e
+        dec de
+        dec de
         ex de,hl
        pop de
         ld a,h
@@ -1164,6 +1170,8 @@ readsourceop_011 ;@(Rn)+ ;всегда +=2
         ld (hl),b
         dec l
         ld (hl),c
+        dec bc
+        dec bc
         ld a,b
 readsourceop_addrfromaddr_ac
         ld l,c
@@ -1340,6 +1348,7 @@ readsource8op_011 ;@(Rn)+ ;всегда +=2
         ld c,(hl)
         inc l
         ld b,(hl)
+       push bc
       cp 0x0c
       jr c,$+3 ;не проверяется в textshow!
          inc bc
@@ -1347,6 +1356,7 @@ readsource8op_011 ;@(Rn)+ ;всегда +=2
         ld (hl),b
         dec l
         ld (hl),c
+       pop bc
         ld a,b
 readsource8op_addrfromaddr_ac
         ld l,c
