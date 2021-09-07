@@ -7,13 +7,9 @@ init
         jr z,noautoload
 ;command line = bk <file to load>"
        ld (filenameaddr),hl
-       ;ld hl,0x1fc
-       ;ld (runaddr),hl
-       jr autoloadq
+       ;jr autoloadq
 noautoload
-        ld de,path
-        OS_CHDIR
-autoloadq
+;autoloadq
         OS_HIDEFROMPARENT
         ld e,2+0x80 ;keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
@@ -86,6 +82,12 @@ filltpgs0_noclear
 
         ;call closecurhandle
 
+        ld de,oldpath
+        OS_GETPATH
+
+        ld de,path
+        OS_CHDIR
+
         ld de,trom0 ;de=filename
         ld hl,0x8000 ;addr in segment
         call loadcompp
@@ -98,6 +100,9 @@ filltpgs0_noclear
         ld de,trom3 ;de=filename
         ld hl,0xe000 ;addr in segment
         call loadcompp
+
+        ld de,oldpath
+        OS_CHDIR
 
         call swapimer ;сначала прерывания ничего не делают (iff1==0)
 
@@ -112,11 +117,13 @@ resetpp
         ld hl,0x0200
         ld (_SP),hl
 
-;runaddr=$+1
-        ;ld de,0x0200;STARTPC
-       ;push de
+       ld hl,0x8000
+
 filenameaddr=$+1
-        ld de,tprog ;de=filename
+        ld de,0;tprog ;de=filename
+       ld a,d
+       or e
+       jr z,noloadfile
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
@@ -127,9 +134,11 @@ filenameaddr=$+1
         ;ld de,0x01fc
 ;de=addr
        push de
+        ld hl,4 ;size defect
         call loadcompp_noheader
-       pop de ;LD DE,STARTPC ;=IP(PC)
-
+       pop hl ;=IP(PC)
+noloadfile
+       ex de,hl
         LD IY,EMUCHECKQ
         ;ld a,-1
         ;ld (iff1),a
@@ -150,28 +159,6 @@ loadfile_in_hl
         pop bc ;b=handle
         OS_CLOSEHANDLE
 	ret
-
-cmd_loadfullpage
-        SETPGC000
-        ld a,0xc000/256
-cmd_loadpage
-;out: a=error, bc=bytes read
-;keeps hl,de
-        push de
-        push hl
-        ld d,a
-        xor a
-        ld l,a
-        ld e,a
-        sub d
-        ld h,a ;de=buffer, hl=size
-        call readcurhandle
-        ld b,h
-        ld c,l
-        pop hl
-        pop de
-        or a
-        ret
 
 readcurhandle
 curhandle=$+1
@@ -222,8 +209,8 @@ trom2
         db "bk10_107_basic2.rom",0
 trom3
         db "bk10_108_basic3.rom",0
-tprog
-        db "textshow.bk",0
+;tprog
+;        db "textshow.bk",0
 path
         db "bk",0
 
@@ -256,8 +243,9 @@ loadcompp
         ld a,b
         ld (curhandle),a
        pop de ;addr
+       ld hl,0 ;no size defect
 loadcompp_noheader
-;de=addr
+;de=addr, hl=size defect
         ld a,d
         and 0xc0
 	ld c,a
@@ -268,8 +256,9 @@ loadcompp_noheader
        push de
         ld a,(curhandle)
         ld b,a
+       push hl ;size defect
         OS_GETFILESIZE ;b=handle, out: dehl=file size
-        ld bc,4
+       pop bc ;ld bc,4
         or a
         sbc hl,bc
         jr nc,$+3
@@ -317,3 +306,6 @@ closecurhandle
 
 far_int
         ret
+
+oldpath
+        ds MAXPATH_sz

@@ -1322,6 +1322,8 @@ readsourceop_101
 readsourceop_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
        ld hx,c
+        cp 0x0e
+        jr z,readsourceop_110_pc
         get
         next
         add a,(hl)
@@ -1331,6 +1333,24 @@ readsourceop_110
         next
         adc a,(hl) ;ac=Rn+X
         RDMEM_ac_ret ;bc=result, a=hx
+readsourceop_110_pc
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a
+       push de
+        decodePC
+        ld a,c
+        add a,e
+        ld c,a
+        ld a,b
+        adc a,d
+        ld b,a
+       pop de
+       ld a,hx
+        ret
 
 readsourceop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
