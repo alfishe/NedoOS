@@ -717,7 +717,7 @@ BCCer ;BCC or BHIS	Branch if carry clear, or Branch if higher or same C = 0
        _LoopC
 BCSer ;BCS or BLO	Branch if carry set, or Branch if lower C = 1
         ex af,af' ;'
-        jr c,exaBR
+        jp c,exaBR
         ex af,af' ;'
        _LoopC
 
@@ -936,6 +936,64 @@ SWABer
 
 EMTer
 ;TODO
+;Emulator trap: -(SP) < PS; -(SP) < PC; PC < (30); PS < (32)
+       ld a,c
+       cp 0x3b ;draw pixel
+       jr z,EMT_drawpixel
+       cp 0x39 ;get color
+       jr z,EMT_getcolor
+       cp 0x38 ;set color
+       jr z,EMT_setcolor
        _LoopC
+EMT_drawpixel
+        ld hl,(_R1) ;y
+        ld h,l
+        ld l,0
+        srl h
+        rr l
+        srl h
+        rr l ;y*64
+        ld bc,(_R0) ;x
+       push bc
+        ld b,0
+        srl c
+        srl c ;x/4
+        add hl,bc
+        ld a,(tpgs+0x40)
+	set 7,h
+        set 6,h
+	SETPGC000
+       pop bc
+        ld a,c
+        ld c,3
+        and c;3
+        inc a
+        ld b,a
+        ld a,(bk_curcolor)
+        and c;3
+rollcolor0
+        rrc c
+        rrc c ;mask
+        rrca
+        rrca ;pixel
+        djnz rollcolor0
+        xor (hl)
+        and c
+        xor (hl)
+        ld (hl),a
+        call putscreen_c
+       _LoopC
+EMT_getcolor
+bk_curcolor=$+1
+        ld hl,0
+        ld (_R0),hl
+       _LoopC
+EMT_setcolor
+        ld hl,(_R0)
+        ld (bk_curcolor),hl
+       _LoopC
+
 TRAPer
+;TODO
+;General trap: -(SP) < PS; -(SP) < PC; PC < (34); PS < (36)
         jr $

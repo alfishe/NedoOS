@@ -602,7 +602,7 @@ putdestop8_010_pc ;TODO так ли при dest=(pc+)?
         ;ld a,b
         ;ld (de),a
         next
-        jp bctoPCLoop
+       _LoopC
 
 putdestop8_011 ;@(Rn)+
         ld a,l
@@ -939,14 +939,14 @@ putdestop_01x
         WRMEM_hl_LoopC
 
 putdestop_010_pc
-;TODO так ли при dest=(pc+)?
+;TODO так ли при dest=(pc+)? mona: mov r4,#0
         ld a,c
         ld (de),a
         next
         ld a,b
         ld (de),a
         next
-        jp bctoPCLoop
+       _LoopC
 
 putdestop_011 ;@(Rn)+
         ld a,l
