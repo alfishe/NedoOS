@@ -800,15 +800,21 @@ RTSerPC
 JMPer
 ;?c=cmd
 ;почему jmp (r3) с адресацией (Rn) работает как jmp r3? (cputest 0x0258 -> 0x3dc8)
+;jmp X(pc) работает как jmp pc+x (cputest 0x3dfc)
        ld a,c
        and 0x38
        cp 0x08
        jr z,JMPer_001
+       cp 0x18
+       jr z,JMPer_011
+       cp 0x30
+       jp z,JMPer_110
+       jr $
         GETDEST_cmdc_autoinc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
        _LoopC_JP
-JMPer_001
+JMPer_001 ;pc=rn
         ld a,c
         rla
         and 0x0e
@@ -818,7 +824,69 @@ JMPer_001
         inc l
         ld d,(hl)
        _LoopC_JP
-
+JMPer_011 ;pc=(Rn++)
+        ld a,c
+        rla
+        and 0x0e
+       cp 0x0e
+       jr z,JMPer_011_pc ;pc=(pc++)
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+        ex de,hl
+        ld a,h
+        and 0xc0
+	ld c,a
+       ld lx,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld e,(hl)
+        inc l
+        call z,inchnextpg
+        ld d,(hl)
+       _LoopC_JP
+JMPer_011_pc ;pc=(pc++)
+        get
+        next
+        ld c,a
+        get
+        next
+        ld d,a
+        ld e,c
+       _LoopC_JP
+JMPer_110 ;pc=rn+x
+        ld a,c
+        rla
+        and 0x0e
+       cp 0x0e
+       jr z,JMPer_110_pc
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+       _LoopC_JP
+JMPer_110_pc ;pc=pc+x
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a
+       decodePC_to_ae
+        ld h,a
+       ld a,c
+       add a,e
+       ld e,a
+       ld a,b
+       adc a,h ;ac=pc+X
+       ld d,a
+       _LoopC_JP
 
 RORB_ROLB_ASRB_ASLB
         ld a,c
@@ -931,7 +999,40 @@ c0064_MFPI_MTPI_SXT
         jr $
 MTPS_MFPD_MTPD_MFPS
 ;TODO
-        jr $
+        ld a,c
+        add a,a
+        jp m,MFPD_MFPS
+;MTPS_MTPD
+        jr c,MTPDer
+;MTPSer ;Move to PSW: PSW < Src
+        GETDEST_cmdc
+        call makeflags_frombc
+       _LoopC
+MTPDer ;Move to previous D space: Dest < (SP)+
+        ld hl,(_R6)
+        inc hl
+        inc hl
+        ld (_R6),hl
+        dec hl
+        dec hl
+        PUTDEST_Loop
+
+MFPD_MFPS
+        jr c,MFPDer
+;MFPSer ;Move from PSW: Dest < PSW
+       ld a,c
+       push af
+        call getflags_bc
+       pop af
+        PUTDEST_Loop
+MFPDer ;Move from previous D space: ?(SP) < Src
+        GETDEST_cmdc
+        ld hl,(_R6)
+        dec hl
+        dec hl
+        ld (_R6),hl
+        WRMEM_hl_LoopC
+        
 MULer
         jr $
 DIVer
