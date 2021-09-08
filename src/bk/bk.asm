@@ -1,8 +1,9 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=0;1
+DEBUG=1
 CRUTCH=1 ;костыль для movb
+DEBUGWR=0
 
 	include "bk.ini"
 
@@ -61,7 +62,7 @@ oldpcaddr=$+1
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x0266;0x0280;0x0262;0x025c
+      ld hl,0x0258;0x3dc8
       or a
       sbc hl,de
       pop de
@@ -201,8 +202,8 @@ gotoint
         set 7,c ;interrupt enable
        putmemspBC
 
-       decodePC
-        LD b,d
+       decodePC_to_ae
+        LD b,a
         ld c,e ;=old PC
        pop de ;new PC
         putmemspBC
@@ -513,7 +514,7 @@ getdest8_aisc
         jr nz,readdest8op_x10
         bit 5,c
         jp nz,readdest8op_100
-;000 Register
+;000 Register ;TODO pc
          ld a,c
         ld c,(hl)
         ret
@@ -653,6 +654,7 @@ putdestop8_1xx
 ;putdestop8_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,l
         cp 0x0c
        push de
         ld e,(hl)
@@ -682,6 +684,7 @@ putdestop8_100_pc ;TODO так ли при -(pc)?
         
 putdestop8_101
 ;101 @-(Rn) ;всегда -=2
+        ;ld a,l
         ;cp 0x0e
         ;jr z,readdestop_101_pc ;TODO pc
         ld c,(hl)
@@ -747,7 +750,7 @@ getdest_aisc
         jr nz,readdestop_x10
         bit 5,c
         jp nz,readdestop_100
-;000 Register
+;000 Register ;TODO pc
          ld a,c
         ld c,(hl)
         inc l
@@ -768,8 +771,9 @@ readdestop_x11
         jp nz,readdestop_111
         jp readdestop_011
 
-readdestop_011 ;@(Rn)+ ;всегда +=2
 readdest8op_011 ;@(Rn)+ ;всегда +=2 ;TODO optimize
+        ld a,l
+readdestop_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
         jr z,readdestop_011_pc
@@ -789,6 +793,7 @@ readdestop_011_pc
 readdest8op_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,l
         cp 0x0c
        ld hx,c
         ld c,(hl)
@@ -816,6 +821,7 @@ readdestop_100
         RDMEM_ac_ret ;bc=result, a=hx
 
 readdest8op_101
+        ;ld a,l
 readdestop_101
 ;101 @-(Rn) ;всегда -=2
         ;cp 0x0e
@@ -829,8 +835,9 @@ readdestop_101
         ld a,b
         jp readsourceop_addrfromaddr_ac
 
-readdestop_110
 readdest8op_110 ;TODO optimize
+        ld a,l
+readdestop_110
 ;X(Rn)
        ld hx,c
        cp 0x0e
@@ -852,16 +859,13 @@ readdestop_110_pc ;for mona
         get
         dec e ;FIXME
         ld b,a
-       decodePC
+       decodePC_to_ae
+        ld h,a
        ld a,c
        add a,e
-       ld l,a
+       ld c,a
        ld a,b
-       adc a,d
-       ld h,a
-       encodePC
-       ld a,h
-       ld c,l ;ac=Rn+X
+       adc a,h ;ac=pc+X
         RDMEM_ac_ret ;bc=result, a=hx
 
 readdestop_111
@@ -1068,14 +1072,10 @@ putdestop_110_pc ;for mona
         get
         dec e ;FIXME
         ld b,a
-       decodePC
-       ld a,c
-       add a,e
-       ld l,a
-       ld a,b
-       adc a,d
-       ld h,a
-       encodePC ;hl=Rn+X
+       decodePC_to_ae
+        ld h,a
+        ld l,e
+        add hl,bc ;hl=pc+X
         WRMEM_hl_LoopC
 
 putdestop_111
@@ -1187,10 +1187,18 @@ readsourceop_go
         bit 3,b
         jp nz,readsourceop_100
 ;000 Register
+       cp 0x0e
+       jr z,readsourceop_000_pc
          ld a,c
         ld c,(hl)
         inc l
         ld b,(hl)
+        ret
+readsourceop_000_pc
+        decodePC_to_ae
+        ld b,a
+         ld a,c
+        ld c,e
         ret
 
 readsourceop_xx1
@@ -1340,15 +1348,14 @@ readsourceop_110_pc
         get
         next
         ld b,a
-       push de
-        decodePC
+        decodePC_to_ae
+         ld h,a
         ld a,c
         add a,e
         ld c,a
         ld a,b
-        adc a,d
+        adc a,h;d
         ld b,a
-       pop de
        ld a,hx
         ret
 

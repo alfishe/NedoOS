@@ -799,9 +799,24 @@ RTSerPC
 
 JMPer
 ;?c=cmd
+;почему jmp (r3) с адресацией (Rn) работает как jmp r3? (cputest 0x0258 -> 0x3dc8)
+       ld a,c
+       and 0x38
+       cp 0x08
+       jr z,JMPer_001
         GETDEST_cmdc_autoinc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
+       _LoopC_JP
+JMPer_001
+        ld a,c
+        rla
+        and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        ld e,(hl)
+        inc l
+        ld d,(hl)
        _LoopC_JP
 
 
@@ -864,7 +879,6 @@ ROR_ROL_ASR_ASL
 ROLer
         GETDEST_cmdc
 	ex af,af' ;'
-       ;jr $
         rl c
         rl b
      rra

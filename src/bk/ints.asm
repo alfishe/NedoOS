@@ -137,6 +137,13 @@ filenameaddr=$+1
         ld hl,4 ;size defect
         call loadcompp_noheader
        pop hl ;=IP(PC)
+       ld a,h
+       cp 2
+       jr nc,noloadfile
+;autostart: берём адрес из 0x01fe
+        ld a,(tpgs)
+        SETPGC000
+        ld hl,(0x01fe+0xc000)
 noloadfile
        ex de,hl
         LD IY,EMUCHECKQ

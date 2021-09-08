@@ -46,6 +46,13 @@
         ld d,a
 	endm
 
+	macro decodePC_to_ae ;de,pc_high -> ae
+        ld a,(pc_high)
+        xor d
+        and 0xc0
+        xor d
+	endm
+
 	macro encodePC_AisD
        ld (pc_high),a
        and 0xc0
@@ -185,7 +192,7 @@
         set 6,h
        cp 0x40
        jr z,1f ;screen
-      if DEBUG
+      if DEBUGWR
       ld a,h
       cp 0xc1 ;stack
       jr c,$
