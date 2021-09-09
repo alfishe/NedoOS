@@ -62,7 +62,7 @@ oldpcaddr=$+1
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x0258;0x3dc8
+      ld hl,0x1f74;0x0258;0x3dc8
       or a
       sbc hl,de
       pop de

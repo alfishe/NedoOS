@@ -518,7 +518,7 @@ CALLer
 ;0 000 100 111 110 111<-link
           ;src ;X(rn) ;dst
 
-;09f7 - абсолютный call???
+;09df - абсолютный call
 ;0000 1001 1101 1111
 ;0 000 100 111 011 111<-link
           ;src ;@(Rn)+ ;dst
@@ -528,6 +528,7 @@ CALLer
         and 0x0e
        cp 0x0e
        jr z,CALLerPC
+       jr $
 ;TODO test
         ld l,a
         ld h,_R0/256
@@ -567,6 +568,8 @@ loopcjp
 
 CALLerPC
 ;jsr PC, addr работает так: mov PC=>-(sp);mov addr=>pc
+       ld a,c
+       push af
         ld a,(pc_high)
         xor d
         and 0xc0
@@ -583,9 +586,14 @@ CALLerPC
         get
         next
         ld b,a ;bc=X
-
+       pop af
+       cp 0xdf
+       jp z,bctoPCLoop
+      if DEBUG
+       cp 0xf7
+       jr nz,$
+      endif
         decodePC
-        
         ld a,e
         add a,c
         ld e,a
@@ -743,6 +751,8 @@ RTI_JMP_RTS_SWAB
 ;TODO
         cp 4*2
         jr z,looper ;IOT
+        cp 5*2
+        jr z,looper ;RESET ;for pacman
         jr $
         
 c0002_0003
