@@ -741,6 +741,8 @@ RTI_JMP_RTS_SWAB
 ;000005	RESET
 ;000006	RTT	Return from trap: PC < (SP)+; PS < (SP)+
 ;TODO
+        cp 4*2
+        jr z,looper ;IOT
         jr $
         
 c0002_0003
@@ -762,6 +764,7 @@ c0002_0003
        and c
        ld c,a
         call makeflags_frombc
+looper
        _LoopC
 SCCer
        ld a,c
@@ -996,16 +999,44 @@ ASLer
 
 c0064_MFPI_MTPI_SXT
 ;TODO
-        jr $
+        ld a,c
+        add a,a
+        jp m,MFPI_SXT
+;c0064_MTPI
+        jr nc,$
+;MTPIer ;Move to previous I space: Dest < (SP)+
+        ld hl,(_R6)
+        inc hl
+        inc hl
+        ld (_R6),hl
+        dec hl
+        dec hl
+        PUTDEST_Loop
+MFPI_SXT
+        jr c,SXTer
+;MFPIer ;Move from previous I space: ?(SP) < Src
+        GETDEST_cmdc_autoinc
+        ld hl,(_R6)
+        dec hl
+        dec hl
+        ld (_R6),hl
+        WRMEM_hl_LoopC
+SXTer ;Sign extend: if N flag ? 0 then Dest < -1 else Dest < 0
+        ex af,af' ;'
+        ld bc,0
+        jp p,$+3+1
+        dec bc
+        ex af,af' ;'
+        PUTDEST_Loop
+
 MTPS_MFPD_MTPD_MFPS
-;TODO
         ld a,c
         add a,a
         jp m,MFPD_MFPS
 ;MTPS_MTPD
         jr c,MTPDer
 ;MTPSer ;Move to PSW: PSW < Src
-        GETDEST_cmdc
+        GETDEST_cmdc_autoinc
         call makeflags_frombc
        _LoopC
 MTPDer ;Move to previous D space: Dest < (SP)+
@@ -1026,7 +1057,7 @@ MFPD_MFPS
        pop af
         PUTDEST_Loop
 MFPDer ;Move from previous D space: ?(SP) < Src
-        GETDEST_cmdc
+        GETDEST_cmdc_autoinc
         ld hl,(_R6)
         dec hl
         dec hl
