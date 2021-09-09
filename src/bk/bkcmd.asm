@@ -512,8 +512,6 @@ BISBer
 
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
-
-        ld a,b
         rra
         ld a,c
         rra
