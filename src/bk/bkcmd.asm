@@ -513,25 +513,33 @@ BISBer
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
 
-;09f7 - относительный call
-;0000 1001 1111 0111
-;0 000 100 111 110 111<-link
-          ;src ;X(rn) ;dst
-
-;09df - абсолютный call
-;0000 1001 1101 1111
-;0 000 100 111 011 111<-link
-          ;src ;@(Rn)+ ;dst
-
+        ld a,b
+        rra
         ld a,c
-        rla
-        and 0x0e
-       cp 0x0e
+        rra
+        and 0xe0
+       cp 0xe0
        jr z,CALLerPC
-       jr $
+       rrca
+       rrca
+       rrca
+       rrca
 ;TODO test
         ld l,a
         ld h,_R0/256
+        
+;относительный call?
+;0 000 100 lnk 110 rrr
+          ;src ;@X(rn) ;dst
+
+;абсолютный call
+;0 000 100 lnk 011 111
+          ;src ;@(Rn)+ ;dst
+        ld a,c
+        and 0x38
+        cp 0x18
+        jr nz,$
+        
        push hl
         ld c,(hl)
         inc l
@@ -548,13 +556,12 @@ CALLer
         ld b,a ;bc=X
 
         decodePC
-        
-        ld a,e
-        add a,c
-        ld c,a
-        ld a,d
-        adc a,b
-        ld b,a ;bc=pc+X
+        ;ld a,e
+        ;add a,c
+        ;ld c,a
+        ;ld a,d
+        ;adc a,b
+        ;ld b,a ;bc=pc+X
         
        pop hl
         ld (hl),e
@@ -566,6 +573,14 @@ bctoPCLoop
 loopcjp
        _LoopC_JP
 
+;09f7 - относительный call
+;0000 1001 1111 0111
+;0 000 100 111 110 111<-link
+          ;src ;X(rn) ;dst
+;09df - абсолютный call
+;0000 1001 1101 1111
+;0 000 100 111 011 111<-link
+          ;src ;@(Rn)+ ;dst
 CALLerPC
 ;jsr PC, addr работает так: mov PC=>-(sp);mov addr=>pc
        ld a,c
@@ -660,30 +675,33 @@ BEQer
         jr z,exaBR
         ex af,af' ;'
        _LoopC
-BGEer ;Branch if greater than or equal (N ? V) = 0
-;for ninza
+BGTer ;Branch if greater than (Z v (N (+) V)) = 0
+;for pipedoc
         ex af,af' ;'
-       jp p,exaBR ;FIXME
+       jr z,exanoBR
         ex af,af' ;'
-       _LoopC
-BLTer ;Branch if less than (N ? V) = 1
-;TODO
+BGEer ;Branch if greater than or equal (N (+) V) = 0
+;for ninza, leopol
         ex af,af' ;'
-       jp m,exaBR ;FIXME
-        ex af,af' ;'
-       _LoopC
-BGTer ;Branch if greater than (Z ? (N ? V)) = 0
-;TODO
-        ex af,af' ;'
-       jr z,$+2+3
-       jp p,exaBR ;FIXME
+       jp pe,BGEoverflow
+       jp p,exaBR
+exanoBR
         ex af,af' ;'
        _LoopC
-BLEer ;Branch if less than or equal (Z ? (N ? V)) = 1
-;TODO
+BGEoverflow
+BLTnooverflow
+       jp m,exaBR
+        ex af,af' ;'
+       _LoopC
+BLEer ;Branch if less than or equal (Z v (N (+) V)) = 1
         ex af,af' ;'
        jr z,exaBR
-       jp m,exaBR ;FIXME
+        ex af,af' ;'
+BLTer ;Branch if less than (N (+) V) = 1
+;for digger, leopol
+        ex af,af' ;'
+       jp po,BLTnooverflow
+       jp p,exaBR
         ex af,af' ;'
        _LoopC
 BPLer
@@ -720,7 +738,7 @@ BVSer ;Branch if overflow set V = 1
        _LoopC
 BCCer ;BCC or BHIS	Branch if carry clear, or Branch if higher or same C = 0
         ex af,af' ;'
-        jr nc,exaBR
+        jp nc,exaBR
         ex af,af' ;'
        _LoopC
 BCSer ;BCS or BLO	Branch if carry set, or Branch if lower C = 1
