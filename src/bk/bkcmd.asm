@@ -870,9 +870,16 @@ JMPer_110 ;pc=rn+x
        jr z,JMPer_110_pc
         ld l,a ;0000rrr0
         ld h,_R0/256
-        ld e,(hl)
+        get
+        next
+        add a,(hl)
+        ld c,a
+        get
+        ;next
         inc l
-        ld d,(hl)
+        adc a,(hl)
+        ld d,a
+        ld e,c
        _LoopC_JP
 JMPer_110_pc ;pc=pc+x
         get
@@ -1143,3 +1150,7 @@ TRAPer
 ;TODO
 ;General trap: -(SP) < PS; -(SP) < PC; PC < (34); PS < (36)
         jr $
+
+FFFFer
+;for Piramania
+       _LoopC
