@@ -623,6 +623,7 @@ _SS     DW 0
 _DS     DW 0
 _FS     DW 0
 _GS     DW 0
+_PC dw 0 ;for debugger
 
         ds _ES+0x10-$
 ;0x20
@@ -724,6 +725,40 @@ ttextaddr
         ds 0x4000-$
         include "ints.asm"
 	include "keyscan.asm"
+        include "decoder.asm"
+        include "opcodes.asm"
+        include "nametables.asm"
+        include "functions.asm" 
+        include "debugger.asm" 
+        include "editline.asm" 
+; Чтение их памяти по адресу HL++
+; _param_ip -- это РЕАЛЬНЫЙ ip, который должен быть сконвертирован
+;              на память спектрума
+; ----------------------------------------------------------------------
+
+read:       push    hl
+            ld      hl, (_param_ip)
+            ;ld      a, (hl)
+           call Debugger_GetMem_hl_to_a
+            inc     hl
+            ld      (_param_ip), hl
+            pop     hl
+            ret
+
+; Реальный IP (в данном случае совпадает с адресом в памяти спектрума)
+_param_ip:  defw    0
+
+Debugger_PutMem_hl_a
+        ld (hl),a ;TODO
+        ret
+Debugger_GetMem_hl_to_a
+        ld a,(hl) ;TODO
+        ret
+
+        align 256
+t866toatm
+        incbin "../kernel/866toatm"
+
         display "end=",$
 end
 
