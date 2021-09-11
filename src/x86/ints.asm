@@ -198,6 +198,8 @@ loadcomq
        pop de ;LD DE,STARTPC ;=IP(PC)
 
         LD IY,EMUCHECKQ
+       ld a,55+128 ;or a
+       ld (debugon),a ;no debug
         ld a,-1
         ld (iff1),a
      jp JRer_qslow ;_LoopC_JP

@@ -130,16 +130,12 @@ timer_inc_skip
 	;ld hl,(timer)
 	;inc hl
 	;ld (timer),hl
-       ld a,0xf7
-       in a,(0xfe)
-       and 0b10101
-       jp z,quiter ;1+3+5 = quit
 
        ld a,(curpg4000) ;ok
        push af
        ld a,(pgprog)
        SETPG4000
-        call KEYB ;TODO в странице
+        call KEYB ;TODO ниже
        pop af
        SETPG4000
         ;OS_GETKEY
@@ -158,9 +154,24 @@ timer_inc_skip
         pop bc
         exx
         pop de,bc
+
+debugon=$
+        scf;or a ;для нормального старта пока пропускаем все активности до JumpIn
+        jr c,imerskipdebug
+
+       ld a,0xf7
+       in a,(0xfe)
+       and 0b10101
+       push af
+       jp z,quiter ;1+3+5 = quit
+       pop af
+       and 0b11000 ;4+5
+       jp z,GotoDebugger
+
        LD A,(iff1)
        OR A
        jr NZ,IMEREI
+imerskipdebug
         POP HL,AF
         EI
        RET
@@ -172,7 +183,46 @@ timer_inc_skip
         LD IY,IMINT
         POP HL,AF
         RET  ;di!
-IMINT
+GotoDebugger
+;перед входом в отладчик завершаем тек.команду (перехват на EMULOOP)
+        LD (keepemuchecker),IY
+        LD IY,IMDEBUG
+        POP HL,AF
+        EI 
+        RET 
+IMDEBUG
+       ld a,55 ;scf
+       ld (debugon),a
+
+;запоминаем регистры в переменные
+       decodePC ;de=old PC
+       ld (curpc),de
+       ;exx
+       ;ex af,af' ;'
+       ;push af
+       ;pop hl
+       call getflags_bc
+       ld (curflags),bc
+
+       ld a,(pgprog)
+       SETPG4000
+       
+        ld de,ansipal
+        OS_SETPAL
+        call Debugger
+        ;ld a,(oldcurvideomode)
+        ;call setvideomode
+
+       ld bc,(curflags)
+       call makeflags_frombc
+       
+       ld a,55+128 ;or a
+       ld (debugon),a
+        ld iy,(keepemuchecker)
+       ld de,(curpc)
+       _LoopC_JP
+
+IMINT
 keepemuchecker=$+2
         LD IY,0
 iykeeper_on=$
@@ -623,7 +673,8 @@ _SS     DW 0
 _DS     DW 0
 _FS     DW 0
 _GS     DW 0
-_PC dw 0 ;for debugger
+curpc    dw 0 ;for debugger
+curflags dw 0 ;for debugger
 
         ds _ES+0x10-$
 ;0x20

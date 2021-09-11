@@ -2,7 +2,7 @@ MAXCMDBYTES=10
 
 DEBUGGER_MEMLINES=24
 DEBUGGER_DISASMLINES=24
-DEBUGGER_REGSLINES=13
+DEBUGGER_REGSLINES=15;13
 DEBUGGER_REGSY=0
 DEBUGGER_REGSX=0
 DEBUGGER_FLAGSY=DEBUGGER_REGSY+DEBUGGER_REGSLINES
@@ -403,9 +403,9 @@ Debugger_PrRegs0
 
 Debugger_PrFlags
         OS_SETXY
-        ;ld a,(curaf) ;flags
-        ;ld c,a
-       call getflags_bc
+        ld a,(curflags) ;flags
+        ld c,a
+       ;call getflags_bc
         ld hl,tflags
         scf
 Debugger_PrFlags0
@@ -570,13 +570,14 @@ Debugger_Disasm_hl_to_textbuf
 Disasm_COMMAND
 ;hl=addr
         ld (_param_ip),hl
-        jp decode_line ;addr=(_param_ip)
+        ret;jp decode_line ;addr=(_param_ip)
 
 Disasm_GetCmdLen_bc
 ;hl=addr
         ld (_param_ip),hl
        push hl
-        call decode_line
+        ;call decode_line
+        call read
        pop bc
         ld hl,(_param_ip)
         or a
