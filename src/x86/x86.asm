@@ -779,7 +779,8 @@ ttextaddr
         include "decoder.asm"
         include "opcodes.asm"
         include "nametables.asm"
-        include "functions.asm" 
+        include "functions.asm" ;prchar for disasm 
+        include "routines.asm" 
         include "debugger.asm" 
         include "editline.asm" 
 ; Чтение их памяти по адресу HL++

@@ -524,13 +524,18 @@ Debugger_DisasmLine_hl0
        sub b
 ;n >= c печатать нельзя, вместо этого пробелы
        cp c
-        ld a,(hl)
+       push af
+        call Debugger_GetMem_hl_to_a ;ld a,(hl)
+        ld (Debugger_DisasmLine_a),a
+       pop af
         inc hl
         jr c,Debugger_DisasmLine_hl_nospaces
         call Debugger_PrSpace
         call Debugger_PrSpace
         or a
 Debugger_DisasmLine_hl_nospaces
+Debugger_DisasmLine_a=$+1
+       ld a,0
         call c,Debugger_PrHex_a
         djnz Debugger_DisasmLine_hl0
        pop hl

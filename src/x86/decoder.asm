@@ -4,14 +4,6 @@
 
 decode_line:
 
-            ; Выдать текущий адрес CS:IP
-            ;ld      hl, (_param_ip)
-            ;ld      b, h
-            ;ld      c, l
-            ;call    print_uint16
-            ;ld      a, ' '
-            ;call    print_char
-
             xor     a
             ld      (_param_cnt), a
             ld      (_param_segpfx), a
@@ -20,14 +12,14 @@ decode_line:
             ; Чтение опкода
 .read:      call    read
             call    deb_setprefix   ; Вычисление префикса
-            jr      z, .read        ; Если он был, следующий байт
+            jr      z, .read        ; Перечитать, если это префикс
+            ld      h, 0
+            ld      l, a
             ld      (ix+0), a       ; _param_opcode
             and     3               ; Убрать лишние биты
             ld      (ix+1), a       ; _param_bitdir
 
             ; Получение кода мнемоники
-            ld      l, a
-            ld      h, 0
             ld      de, opcodes_table
             add     hl, de
             ld      a, (hl)
@@ -404,3 +396,21 @@ show_grpff: call    load_modrm
             pop     af
             call    print_part_rm
             ret
+
+; ----------------------------------------------------------------------
+; Переменные
+; ----------------------------------------------------------------------
+
+video_cursor:   defw        0
+
+; IX parameters
+_start_ix_data:
+
+; Порядок не менять (!)
+_param_opcode:  defb        0   ; +0
+_param_bitdir:  defb        0   ; +1 Битность=0 / Направление=1
+_param_cnt:     defb        0   ; +2
+_param_segpfx:  defb        0   ; +3
+_param_mod:     defb        0   ; +4
+_param_reg:     defb        0   ; +5
+_param_r_m:     defb        0   ; +6
