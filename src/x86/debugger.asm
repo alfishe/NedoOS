@@ -1,16 +1,16 @@
 MAXCMDBYTES=10
 
-DEBUGGER_MEMLINES=24
-DEBUGGER_DISASMLINES=24
+DEBUGGER_MEMLINES=12;24
+DEBUGGER_DISASMLINES=13;24
 DEBUGGER_REGSLINES=15;13
 DEBUGGER_REGSY=0
 DEBUGGER_REGSX=0
 DEBUGGER_FLAGSY=DEBUGGER_REGSY+DEBUGGER_REGSLINES
 DEBUGGER_FLAGSX=DEBUGGER_REGSX
 DEBUGGER_DISASMY=0
-DEBUGGER_DISASMX=8
-DEBUGGER_MEMY=0
-DEBUGGER_MEMX=0x2b
+DEBUGGER_DISASMX=9;8
+DEBUGGER_MEMY=13;0
+DEBUGGER_MEMX=15;0x2b
 
 DEBUGGER_COLORACTIVE=0x0f
 DEBUGGER_COLOR=0x07
@@ -570,14 +570,18 @@ Debugger_Disasm_hl_to_textbuf
 Disasm_COMMAND
 ;hl=addr
         ld (_param_ip),hl
-        ret;jp decode_line ;addr=(_param_ip)
+       ld hl,disasmtextbuf
+       ld (video_cursor),hl
+        jp decode_line ;addr=(_param_ip)
 
 Disasm_GetCmdLen_bc
 ;hl=addr
         ld (_param_ip),hl
        push hl
-        ;call decode_line
-        call read
+       ld hl,disasmtextbuf
+       ld (video_cursor),hl
+        call decode_line
+        ;call read
        pop bc
         ld hl,(_param_ip)
         or a

@@ -210,8 +210,8 @@ IMDEBUG
         ld de,ansipal
         OS_SETPAL
         call Debugger
-        ;ld a,(oldcurvideomode)
-        ;call setvideomode
+        ld a,(curgfxmode)
+        call INT_setgfx
 
        ld bc,(curflags)
        call makeflags_frombc
@@ -800,10 +800,38 @@ read:       push    hl
 _param_ip:  defw    0
 
 Debugger_PutMem_hl_a
-        ld (hl),a ;TODO
+       push bc
+       push hl
+       push af
+	ld bc,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDSEGMENT_hl_abc_to_ahl
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       pop af
+        ld (hl),a
+       pop hl
+       pop bc
         ret
 Debugger_GetMem_hl_to_a
-        ld a,(hl) ;TODO
+       push bc
+       push hl
+	ld bc,(cs_LSW)
+	ld a,(cs_HSB)
+        ADDSEGMENT_hl_abc_to_ahl
+	ld c,a
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+        ld a,(hl)
+       pop hl
+       pop bc
         ret
 
         align 256

@@ -838,6 +838,7 @@ curgfxmode=$+1
         ret
 
 INT_setgfx
+;TODO redraw all screen memory after that
          ;jr $
        ld a,(_AL)
        ld (curgfxmode),a

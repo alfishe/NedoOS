@@ -5,12 +5,12 @@
 decode_line:
 
             ; Выдать текущий адрес CS:IP
-            ld      hl, (_param_ip)
-            ld      b, h
-            ld      c, l
-            call    print_uint16
-            ld      a, ' '
-            call    print_char
+            ;ld      hl, (_param_ip)
+            ;ld      b, h
+            ;ld      c, l
+            ;call    print_uint16
+            ;ld      a, ' '
+            ;call    print_char
 
             xor     a
             ld      (_param_cnt), a
