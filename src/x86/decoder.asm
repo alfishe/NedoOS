@@ -374,8 +374,9 @@ show_grpf6: call    load_modrm
 show_grpfe: call    load_modrm
             ld      a, (_param_reg)
             cp      2
-            ret     nc                      ; Все что менее 2, невалидно
-            ld      de, name_f7             ; INC
+            jr      c, .ok
+            ld      a, 1                    ; DEC
+.ok:        ld      de, name_f7             ; INC
             and     a
             jr      z, .prt
             inc     de                      ; DEC
@@ -396,6 +397,84 @@ show_grpff: call    load_modrm
             pop     af
             call    print_part_rm
             ret
+
+            ; Задан A, показать мнемонику из `name_table_ext`
+show_0fmnem:
+            ld      de, name_table_ext
+            call    print_nt
+            call    spacexpand
+            ret
+
+; D8-DFh ESC/FPU: Все ESC-коды загружают modrm
+show_fpu:   call    load_modrm
+            ret
+
+; Расширенный опкод
+show_0fextend:
+
+            call    read
+            ld      (_param_opcode), a
+            ld      h, 0
+            ld      l, a
+            ld      de, opcodes_0f_table
+            add     hl, hl
+            add     hl, de
+            ld      a, (hl)
+            inc     hl
+            ld      h, (hl)
+            ld      l, a
+            or      h
+            ret     z           ; Инструкция не реализована
+            jp      (hl)
+
+; 80h-8Fh J<ccc> near i16
+ie80h:      ld      a, (_param_opcode)
+            and     15
+            add     37          ; Здесь мнемоники j<cccc>
+            ld      de, name_table
+            call    print_nt
+            call    spacexpand
+            jp      show_rel16
+
+            ; RDTSC
+ie31:       xor     a
+            jp      show_0fmnem
+
+
+            ; MOV<z|s>X r8/16, rm
+ieb6:       ld      a, 1        ; movzx
+            jr      ieb67
+iebe:       ld      a, 2        ; movsx
+ieb67:      call    show_0fmnem
+            call    load_modrm
+            ld      a, (ix+1)
+            push    af
+            set     0, (ix+1)
+            call    print_part_reg
+            ld      a, ','
+            call    print_char
+            pop     af
+            ld      (ix+1),a
+            call    print_part_rm
+            ret
+
+; 40-4F CMOV<ccc>
+ie40:       ld      a, 3
+            ld      de, name_table_ext
+            call    print_nt
+            ld      a, (_param_opcode)
+            and     15
+            ld      de, name_cmovccc
+.show16:    call    print_nt
+            call    spacexpand
+            set     0, (ix+1)
+            call    show_modrm
+            ret
+
+; IMUL r16, rm16
+ieaf:       ld      a, 24
+            ld      de, name_table
+            jr      ie40.show16
 
 ; ----------------------------------------------------------------------
 ; Переменные

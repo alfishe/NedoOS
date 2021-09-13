@@ -54,7 +54,8 @@ print_int16:
             jr      .prt
 .plus:      ld      a, '+'
             call    print_char
-.prt:       call    print_uint16
+.prt:       call    print_sharp
+            call    print_uint16.nosharp
             pop     af
             ret
 
@@ -72,27 +73,28 @@ print_int8: push    af
             ld      a, '+'
             call    print_char
             pop     af
-.minus:     call    print_uint8
+.minus:     call    print_sharp
+            call    print_uint8.nosharp
             pop     af
             ret
 
 ; ==== Печать BC
 print_uint16:
-
-            push    af
+            call    print_sharp
+.nosharp:   push    af
             push    bc
             ld      a, b
-            call    print_uint8
+            call    print_uint8.nosharp
             ld      a, c
-            call    print_uint8
+            call    print_uint8.nosharp
             pop     bc
             pop     af
             ret
 
 ; ==== Печать A[7:0]
 print_uint8:
-
-            push    af
+            call    print_sharp
+.nosharp:   push    af
             rlca
             rlca
             rlca
@@ -111,6 +113,13 @@ print_nibble:
             daa                     ; Коррекция если >9
             add     0xf0            ; Если больше чем >9, то CF=1
             adc     0x40            ; 0..9 => 30..39, а если CF=1, то с 41..46
+            call    print_char
+            pop     af
+            ret
+
+print_sharp:                        ; Печатать решетку #
+            push    af
+            ld      a, '#'
             call    print_char
             pop     af
             ret
@@ -166,7 +175,7 @@ show_modrm: ; Читаем байт modrm
             call    load_modrm
 
             ; Проверяем направление
-            ld      a, (ix+1)
+.ready:     ld      a, (ix+1)
             and     2
             jr      nz, .dir2
 

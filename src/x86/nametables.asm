@@ -30,6 +30,17 @@ name_table:
     defw        name_loop,  name_jcxz,  name_in,    name_out        ; 93
     defw        name_jmp
 
+name_table_ext:
+
+    defw        name_rdtsc, name_movzx, name_movsx, name_cmov
+
+name_cmovccc:
+
+    defw        name_o,     name_no,    name_b,     name_nb
+    defw        name_z,     name_nz,    name_be,    name_a
+    defw        name_s,     name_ns,    name_p,     name_np
+    defw        name_l,     name_ge,    name_le,    name_g
+
 name_modrm_table:
 
     defw        name_r_m0, name_r_m1, name_r_m2, name_r_m3
@@ -64,7 +75,7 @@ name_f6:
 name_f7:
 
     defw        name_inc, name_dec,  name_call, name_callf
-    defw        name_jmp, name_jmpf, name_push
+    defw        name_jmp, name_jmpf, name_push, name_inv
 
 operand_proc:
 
@@ -109,6 +120,8 @@ operand_proc:
     defw        show_grpf6          ; 38
     defw        show_grpfe          ; 39
     defw        show_grpff          ; 40
+    defw        show_0fextend       ; 41
+    defw        show_fpu            ; 42
 
 ; Таблица мнемоник
 ; ----------------------------------------------------------------------
@@ -209,13 +222,21 @@ name_jcxz:      defb    "jcxz",0    ; 94
 name_in:        defb    "in",0      ; 95
 name_out:       defb    "out",0     ; 96
 name_jmp:       defb    "jmp",0     ; 97
-name_not:       defb    "not",0
-name_neg:       defb    "neg",0
-name_mul:       defb    "mul",0
-name_div:       defb    "div",0
-name_idiv:      defb    "idiv",0
-name_callf:     defb    "callf",0
-name_jmpf:      defb    "jmpf",0
+; В группах
+name_not:       defb    "not",0     ; 98
+name_neg:       defb    "neg",0     ; 99
+name_mul:       defb    "mul",0     ; 100
+name_div:       defb    "div",0     ; 101
+name_idiv:      defb    "idiv",0    ; 102
+name_callf:     defb    "callf",0   ; 103
+name_jmpf:      defb    "jmpf",0    ; 104
+name_inv:       defb    "<inv>",0   ; 105
+
+; Дополнительные 0Fh xxx
+name_rdtsc:     defb    "rdtsc",0   ; 0
+name_movzx:     defb    "movzx",0   ; 1
+name_movsx:     defb    "movsx",0   ; 2
+name_cmov:      defb    "cmov",0   ; 3
 
 ; Таблица для modrm: rm-часть
 name_r_m0:      defb    "bx+si",0
@@ -266,4 +287,22 @@ name_shl:       defb    "shl",0
 name_shr:       defb    "shr",0
 name_sal:       defb    "sal",0
 name_sar:       defb    "sar",0
+
+; Условия
+name_o:         defb    "o",0       ; 0
+name_no:        defb    "no",0      ; 1
+name_b:         defb    "b",0       ; 2
+name_nb:        defb    "nb",0      ; 3
+name_z:         defb    "z",0       ; 4
+name_nz:        defb    "nz",0      ; 5
+name_be:        defb    "be",0      ; 6
+name_a:         defb    "a",0       ; 7
+name_s:         defb    "s",0       ; 8
+name_ns:        defb    "ns",0      ; 9
+name_p:         defb    "p",0       ; a
+name_np:        defb    "np",0      ; b
+name_l:         defb    "l",0       ; c
+name_ge:        defb    "ge",0      ; d
+name_le:        defb    "le",0      ; e
+name_g:         defb    "g",0       ; f
 
