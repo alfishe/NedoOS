@@ -523,6 +523,7 @@ CALLer
        rrca
        rrca
 ;TODO test
+       jr $ ;leopol(0da4): 091f = jsr R4, @#sub_110346
         ld l,a
         ld h,_R0/256
         
@@ -583,10 +584,10 @@ CALLerPC
 ;jsr PC, addr работает так: mov PC=>-(sp);mov addr=>pc
        ld a,c
        push af
-        ld a,(pc_high)
-        xor d
-        and 0xc0
-        xor d
+       sub 0xc8
+       cp 8
+       jr c,CALLerPC_rn ;call (r1) = 04711 = 09c9
+        decodePC_to_ae
         ld b,a
         ld c,e ;bc=link
        inc bc
@@ -614,6 +615,22 @@ CALLerPC
         adc a,b
         ld d,a ;bc=pc+X
        _LoopC_JP
+
+CALLerPC_rn ;call (r1) = 04711 = 09c9
+        decodePC_to_ae
+        ld b,a
+        ld c,e ;bc=link
+        putmemspBC
+       pop af
+        and 7
+        add a,a
+        ld l,a
+        ld h,_R0/256
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+       _LoopC_JP
+
 
 SOBer
 ;Subtract One and Branch: Reg < Reg - 1; if Reg ? 0 then PC < PC - 2 ? Offset
@@ -807,6 +824,7 @@ RTSer
         ;and 0x0e
        cp 0x0e
        jr z,RTSerPC
+       jr $
 ;TODO test
         ld l,a
         ld h,_R0/256

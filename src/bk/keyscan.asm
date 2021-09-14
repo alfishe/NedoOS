@@ -26,16 +26,21 @@ KEYB
 KBoff
         NOP ;/ret
 ;сканировать клавиатуру
+       ld a,0xff
         LD HL,OLDSCAN
         LD BC,#FEFE
-KEYBSC  LD D,(HL)
-        IN A,(C)
-        LD (HL),A
+KEYBSC  LD D,(HL) ;старый скан
+        IN e,(C)
+        LD (HL),e
         INC HL
         LD (HL),D ;старый скан
+       and d
         INC HL
         RLC B
         jr C,KEYBSC
+       cpl
+       and 0x1f
+       ld (iskeypressed),a
 
 ;время CS и SS
 tss=$+1
@@ -246,11 +251,11 @@ TCURKEYS
 TPLAINKEYS
 ;a-la #205
 ;#205: "BHY6..." (39 байт, SS=#E)
-        db 0x30,0x23,0x15,7,6,0x14,0x22,0x2f ;DB "BHY65TGV"
-        db 0x31,0x24,0x16,8,5,0x13,0x21,0x2e ;DB "NJU74RFC"
-        db 0x32,0x25,0x17,9,4,0x12,0x20,0x2d ;DB "MKI83EDX"
-        db 0x00,0x26,0x18,10,2,0x11,0x1f,0x2c ;DB 0,"LO91WSZ"
-        db 32,10,0x19,0x0b,2,0x10,0 ;DB 32,13,"P01QA",0
+        db "BHY65TGV"
+        db "NJU74RFC"
+        db "MKI83EDX"
+        db 0,"LO91WSZ"
+        db 32,10,"P01QA",0
 TCSKEYS
 ;a-la #205
         DB "bhy",27,8,"tgv"

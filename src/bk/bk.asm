@@ -1605,29 +1605,48 @@ readsource8op_111=readsourceop_111 ;TODO optimize
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
 rdport_c
+;out: a=hx!!!
+       ;ld b,a
         ld a,c
 ;FFB0=177660 регистр состояния клавиатуры (Разряд 6 - маска прерываний от клавиатуры. разряд доступен по записи и чтению. “0” - разрешено прерывание от клавиатуры; “1” - запрещено прерывание от клавиатуры. Разряд 7 - флаг состояния клавиатуры. Устанавливается в единицу при поступлении в регистр данных клавиатуры нового кода. Сбрасывается в “0” при чтении регистра данных клавиатуры.)
 ;FFB2=177662 Регистр данных клавиатуры
-        ld a,l
+;bit #100,@#177716 (ffce): tapestate, Разряд 6 служит индикатором нажатия клавиши (”лог 0” - клавиша нажата, “лог 1” - клавиша отжата). Используется при реализации режима “повтор”.
         cp 0xb0
         jr z,2f ;kbd state
+        cp 0xce
+        jr z,rdport_c_tapestate
         cp 0xb2
         jr nz,9f ;no ports
 ;kbd data
 bk_curkey=$+1
-        ld bc,0
+        ld c,0
         ld a,55+128 ;"or a"
         ld (iskeymessage),a ;no message (INT прочитает новую кнопку)
+       ld a,hx
+       ld b,0
         ret
 2 ;kbd state
         ld a,(iskeymessage) ;a7=no message
         rra
         and 0x40
         ld c,a
-        ld b,0
+       ld a,hx
+       ld b,0
         ret
 9
 ;TODO прерывание ошибки шины
+       ld a,hx
+        ret
+rdport_c_tapestate
+;Разряд 6 служит индикатором нажатия клавиши (”лог 0” - клавиша нажата, “лог 1” - клавиша отжата). Используется при реализации режима “повтор”.
+iskeypressed=$+1
+        ld a,0;(iskeypressed) ;0=not pressed
+        sub 1
+        sbc a,a ;-1=not pressed
+        and 0x40
+        ld c,a
+       ld a,hx
+       ld b,0
         ret
 
 	include "bkcmd.asm"
