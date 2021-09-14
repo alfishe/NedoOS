@@ -88,8 +88,8 @@ filltpgs0_noclear
 
         call closecurhandle
 
-;0xa0000 (pg 40): 4 pages for screen
-;0xb8000 (pg 46): 1 page for textmode
+;0xa0000 (pg 40): 4 pages for VGA screen
+;0xb8000 (pg 46): 1 page for textmode/CGA
         ld h,tscreenpgs/256
         ld bc,4*256+40
         xor a
@@ -842,6 +842,7 @@ INT_setgfx
          ;jr $
        ld a,(_AL)
        ld (curgfxmode),a
+INT_setgfx_a
        cp 0x01 ;sorryass
        jr z,INT_setgfxTEXT40
        cp 0x07 ;shamus "please turn on the color display"
@@ -1215,7 +1216,50 @@ INT_inputal_a_scancodeq
         ret
 
 
-
+redraw_screen_memory
+        ld a,(curgfxmode)
+        cp 0x13
+        jr nz,redraw_screen_memory_cga
+        ld hl,0
+redraw_screen_memory_vga0
+        ld a,h
+        and 0xc0
+        add a,40/4
+        ld c,a
+        push hl
+        set 7,h
+        set 6,h
+       ld lx,c
+	ld b,tpgs/256
+	ld a,(bc)
+        SETPGC000
+	ld a,(hl)
+       ld c,lx
+       _PUTscreen_logpgc_zxaddrhl_datamhl
+        pop hl
+        inc hl
+        ld a,h
+        or l
+        jr nz,redraw_screen_memory_vga0
+        ret
+redraw_screen_memory_cga
+        ld hl,0xc000
+redraw_screen_memory_cga0
+        ld c,0x8b
+        push hl
+       ld lx,c
+	ld b,tpgs/256
+	ld a,(bc)
+        SETPGC000
+	ld a,(hl)
+       ld c,lx
+       _PUTscreen_logpgc_zxaddrhl_datamhl
+        pop hl
+        inc hl
+        ld a,h
+        or l
+        jr nz,redraw_screen_memory_cga0
+        ret
 
 wasPUTscreen_cga
      disp PUTscreen_logpgc_zxaddrhl_datamhl_do

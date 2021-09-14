@@ -2088,7 +2088,7 @@ GRP2rmmem8cl_no0
        jr c,GRP2m8cl_1xx
        add a,a
        jr c,GRP2m8cl_01x
-       jp m,ROR_c_b
+       jp m,ROR_c_b ;TODO jp m один раз
         jp ROL_c_b
 GRP2m8cl_01x
        jp m,RCR_c_b
@@ -2765,11 +2765,11 @@ GRP48
        cp 0b11000000
        jr c,GRP48mem
        ADDRr8
-       ;and 0b00111000
-       and 0b00001000 ;Валерий Лис: На 8086 глянул, как работает, он делает DEC всем mod_reg>0. Но это ошибка на современных процессорах и вызывает исключение
+       and 0b00111000
+       ;and 0b00001000 ;Валерий Лис: На 8086 глянул, как работает, он делает DEC всем mod_reg>0. Но это ошибка на современных процессорах и вызывает исключение
 	jr z,INCr8
-	cp 0b00001000
-	jp z,DECr8
+	;cp 0b00001000
+	jp nz,DECr8
 
  if debug_stop = 0
  jp PANIC
@@ -2779,11 +2779,11 @@ GRP48
  
 GRP48mem
        ADDRm16_GETm8c_for_PUTm8
-       ;and 0b00111000
-       and 0b00001000 ;Валерий Лис: На 8086 глянул, как работает, он делает DEC всем mod_reg>0. Но это ошибка на современных процессорах и вызывает исключение
+       and 0b00111000
+       ;and 0b00001000 ;Валерий Лис: На 8086 глянул, как работает, он делает DEC всем mod_reg>0. Но это ошибка на современных процессорах и вызывает исключение
 	jr z,INCrmmem8
-	cp 0b00001000
-	jp z,DECrmmem8
+	;cp 0b00001000
+	jp nz,DECrmmem8
 ;TODO fe 27 for blockage?
 ;TODO fe 70 for atom?
         

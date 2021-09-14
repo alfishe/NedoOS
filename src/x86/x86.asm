@@ -210,8 +210,10 @@ IMDEBUG
         ld de,ansipal
         OS_SETPAL
         call Debugger
+
         ld a,(curgfxmode)
-        call INT_setgfx
+        call INT_setgfx_a
+        call redraw_screen_memory
 
        ld bc,(curflags)
        call makeflags_frombc
