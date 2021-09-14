@@ -181,10 +181,10 @@
 
 ;hl=addr, bc=data
        macro WRMEM_hl_LoopC
-       push bc
         ld a,h
         and 0xc0
        jp m,2f ;ROM/ports
+       push bc
         ld c,a
        ld lx,a
 	ld b,tpgs/256
@@ -245,10 +245,10 @@
 
 ;hl=addr, c=data
        macro WRMEM8_hl_LoopC
-       push bc
         ld a,h
         and 0xc0
        jp m,2f ;ROM/ports
+       push bc
         ld c,a
        ld lx,a
 	ld b,tpgs/256

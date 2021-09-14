@@ -1,7 +1,7 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=1
+DEBUG=0;1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
 
@@ -38,6 +38,11 @@ jpiyer
         ;call makeflags_frombc
         ;call getflags_bc
        if DEBUG
+      ld a,d
+      sub 0x40
+      cp 0x40
+      jr nc,$
+      
       push de
        decodePC
       if 1;0
@@ -63,7 +68,7 @@ oldpcaddr=$+1
        ;or e;cp 0x30
        cp 1
        ;jr z,$
-      ld hl,0x3222;0x3262;0x1f74;0x0258;0x3dc8
+      ld hl,0x0318;0x32c8;0x3222;0x3262;0x1f74;0x0258;0x3dc8
       or a
       sbc hl,de
       pop de
@@ -730,9 +735,8 @@ putdestop8_110_pc
         get
         next;inc e
         ld c,a
-        ;inc l
         get
-        next;dec e ;FIXME
+        next;dec e
         ld b,a
        decodePC_to_ae
         ld h,a
@@ -894,6 +898,8 @@ readdestop_110_pc ;for mona
         dec e ;FIXME
         ld b,a
        decodePC_to_ae
+      inc bc
+      inc bc
         ld h,a
        ld a,c
        add a,e
@@ -1113,9 +1119,8 @@ putdestop_110_pc ;for mona, leopol
         get
         next;inc e
         ld c,a
-        ;inc l
         get
-        next;dec e ;FIXME
+        next;dec e
         ld b,a
        decodePC_to_ae
         ld h,a
