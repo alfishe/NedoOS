@@ -1,7 +1,7 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=0;1
+DEBUG=1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
 
@@ -62,13 +62,13 @@ oldpcaddr=$+1
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        cp 1
-       jr z,$
-      ld hl,0x1f74;0x0258;0x3dc8
+       ;jr z,$
+      ld hl,0x3222;0x3262;0x1f74;0x0258;0x3dc8
       or a
       sbc hl,de
       pop de
       ;jr nc,$
-      ;jr z,$
+      jr z,$
        endif
         get
         next
@@ -516,6 +516,8 @@ getdest8_aisc
         bit 5,c
         jp nz,readdest8op_100
 ;000 Register ;TODO pc
+       cp 0x0e
+       jr z,$
          ld a,c
         ld c,(hl)
         ret
@@ -571,6 +573,9 @@ putdest8_Loop
         _LoopC
 
 putdestop8_001 ;(Rn): Rn contains the address of the operand
+       ld a,l
+       cp 0x0e
+       jr z,$
         ld a,(hl)
         inc l
         ld h,(hl)
@@ -598,6 +603,7 @@ putdestop8_01x
         ld l,a
         WRMEM8_hl_LoopC
 putdestop8_010_pc ;TODO так ли при dest=(pc+)?
+       jr $
         ld a,c
         ld (de),a
         next
@@ -674,6 +680,7 @@ putdestop8_1xx
        ;jr $
         WRMEM8_hl_LoopC
 putdestop8_100_pc ;TODO так ли при -(pc)?
+       jr $
        pop af ;skip
         decodePC
         dec de
@@ -685,9 +692,9 @@ putdestop8_100_pc ;TODO так ли при -(pc)?
         
 putdestop8_101
 ;101 @-(Rn) ;всегда -=2
-        ;ld a,l
-        ;cp 0x0e
-        ;jr z,readdestop_101_pc ;TODO pc
+       ld a,l
+       cp 0x0e
+       jr z,$;putdestop8_101_pc ;TODO pc
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -703,6 +710,9 @@ putdestop8_11x
         jp m,putdestop8_111
 ;putdestop8_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
+       ld a,l
+       cp 0x0e
+       jr z,putdestop8_110_pc
         get
         next
         add a,(hl)
@@ -715,8 +725,27 @@ putdestop8_11x
        pop af
         ld l,a ;hl=Rn+X
         WRMEM8_hl_LoopC
+putdestop8_110_pc
+       push bc
+        get
+        next;inc e
+        ld c,a
+        ;inc l
+        get
+        next;dec e ;FIXME
+        ld b,a
+       decodePC_to_ae
+        ld h,a
+        ld l,e
+        add hl,bc ;hl=pc+X
+       pop bc
+        WRMEM8_hl_LoopC
+        
 putdestop8_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+       ld a,l
+       cp 0x0e
+       jr z,$
         get
         next
         add a,(hl)
@@ -752,6 +781,8 @@ getdest_aisc
         bit 5,c
         jp nz,readdestop_100
 ;000 Register ;TODO pc
+       cp 0x0e
+       jr z,$
          ld a,c
         ld c,(hl)
         inc l
@@ -795,6 +826,8 @@ readdest8op_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
         ld a,l
+       cp 0x0e
+       jr z,$
         cp 0x0c
        ld hx,c
         ld c,(hl)
@@ -810,8 +843,8 @@ readdest8op_100
 readdestop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        ;cp 0x0e
-        ;jr z,readdestop_100_pc ;TODO pc
+        cp 0x0e
+        jr z,$;readdestop_100_pc ;TODO pc
        ld hx,c
         ld c,(hl)
         inc l
@@ -822,11 +855,11 @@ readdestop_100
         RDMEM_ac_ret ;bc=result, a=hx
 
 readdest8op_101
-        ;ld a,l
+        ld a,l
 readdestop_101
 ;101 @-(Rn) ;всегда -=2
-        ;cp 0x0e
-        ;jr z,readdestop_101_pc ;TODO pc
+        cp 0x0e
+        jr z,$;readdestop_101_pc ;TODO pc
        ld hx,c
         ld c,(hl)
         inc l
@@ -869,9 +902,12 @@ readdestop_110_pc ;for mona
        adc a,h ;ac=pc+X
         RDMEM_ac_ret ;bc=result, a=hx
 
-readdestop_111
 readdest8op_111 ;TODO optimize
+       ld a,l
+readdestop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+       cp 0x0e
+       jr z,$;readdestop_111_pc
        ld hx,c
         get
         inc e
@@ -915,6 +951,9 @@ putdest_Loop
         ld (hl),b
         _LoopC
 putdestop_001 ;(Rn): Rn contains the address of the operand
+       ld a,l
+       cp 0x0e
+       jr z,$
         ld a,(hl)
         inc l
         ld h,(hl)
@@ -944,7 +983,7 @@ putdestop_01x
         WRMEM_hl_LoopC
 
 putdestop_010_pc
-;TODO так ли при dest=(pc+)? mona: mov r4,#0
+;dest=(pc+) mona: mov r4,#0 ;space4k: dec #6000
         ld a,c
         ld (de),a
         next
@@ -1004,6 +1043,7 @@ putdestop_1xx
 ;putdestop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,l
         cp 0x0e
         jr z,putdestop_100_pc
        push de
@@ -1019,6 +1059,7 @@ putdestop_1xx
        pop de
         WRMEM_hl_LoopC
 putdestop_100_pc ;TODO так ли при -(pc)?
+       jr $
         decodePC
         dec de
         dec de
@@ -1033,8 +1074,9 @@ putdestop_100_pc ;TODO так ли при -(pc)?
 
 putdestop_101
 ;101 @-(Rn) ;всегда -=2
-        ;cp 0x0e
-        ;jr z,readdestop_101_pc ;TODO pc
+       ld a,l
+       cp 0x0e
+       jr z,$;readdestop_101_pc ;TODO pc
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1050,6 +1092,7 @@ putdestop_11x
         jp m,putdestop_111
 ;putdestop_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
+        ld a,l
        cp 0x0e
        jr z,putdestop_110_pc
         get
@@ -1065,22 +1108,27 @@ putdestop_11x
         ld l,a ;hl=Rn+X
         WRMEM_hl_LoopC
         
-putdestop_110_pc ;for mona
+putdestop_110_pc ;for mona, leopol
+       push bc
         get
-        inc e
+        next;inc e
         ld c,a
-        inc l
+        ;inc l
         get
-        dec e ;FIXME
+        next;dec e ;FIXME
         ld b,a
        decodePC_to_ae
         ld h,a
         ld l,e
         add hl,bc ;hl=pc+X
+       pop bc
         WRMEM_hl_LoopC
 
 putdestop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+        ld a,l
+       cp 0x0e
+       jr z,$;putdestop_111_pc ;TODO
         get
         next
         add a,(hl)
@@ -1299,8 +1347,9 @@ readsourceop_011_pc
 readsourceop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        cp 0x0e ;TODO pc
        ld hx,c
+        cp 0x0e ;TODO pc
+        jr z,$ ;ninza_1 сюда не должен попадать
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1314,9 +1363,9 @@ readsourceop_100
 
 readsourceop_101
 ;101 @-(Rn) ;всегда -=2
-        ;cp 0x0e
-        ;jr z,readsourceop_101_pc ;TODO pc
        ld hx,c
+        cp 0x0e
+        jr z,$;readsourceop_101_pc ;TODO pc
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1363,6 +1412,8 @@ readsourceop_110_pc
 readsourceop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
        ld hx,c
+       cp 0x0e
+       jr z,readsourceop_111_pc
         get
         next
         add a,(hl)
@@ -1371,6 +1422,20 @@ readsourceop_111
         get
         next
         adc a,(hl) ;ac=Rn+X
+        jp readsourceop_addrfromaddr_ac
+readsourceop_111_pc ;for morf
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a
+        decodePC_to_ae
+        ld h,a
+        ld l,e
+        add hl,bc
+        ld a,h
+        ld c,l ;ac=Rn+X
         jp readsourceop_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -1511,8 +1576,8 @@ readsource8op_100
 
 readsource8op_101
 ;101 @-(Rn) ;всегда -=2
-        ;cp 0x0e
-        ;jr z,readsourceop_101_pc ;TODO pc
+        cp 0x0e
+        jr z,$;readsource8op_101_pc ;TODO pc
        ld hx,c
         ld c,(hl)
         inc l
