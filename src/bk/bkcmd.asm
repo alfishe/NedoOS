@@ -442,10 +442,10 @@ CMPBer
         GETDEST8_cmda_autoinc
        pop hl
         ex af,af' ;'
-        ld a,c
-        sub l
+        ld a,l;c
+        sub c;l
         ld c,a
-        ccf
+        ;ccf
         ex af,af' ;'
        _LoopC
 
