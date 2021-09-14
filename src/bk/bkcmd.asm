@@ -510,6 +510,31 @@ BISBer
         PUTDEST8_Loop
        endif
 
+CALLer_relative
+       push hl
+        ld c,(hl)
+        inc l
+        ld b,(hl) ;bc=link
+       ;inc bc
+       ;inc bc
+        putmemspBC
+        
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a ;bc=X
+
+        decodePC
+        ld a,e
+        add a,c
+        ld c,a
+        ld a,d
+        adc a,b
+        ld b,a ;bc=pc+X
+        jr CALLer_q
+
 CALLer
 ;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
         rra
@@ -523,19 +548,23 @@ CALLer
        rrca
        rrca
 ;TODO test
-       jr $ ;leopol(0da4): 091f = jsr R4, @#sub_110346
-        ld l,a
-        ld h,_R0/256
-        
-;относительный call?
-;0 000 100 lnk 110 rrr
-          ;src ;@X(rn) ;dst
-
+       ;jr $
+;leopol(0da4): 091f = 004437 = jsr R4, @#sub_110346
 ;абсолютный call
 ;0 000 100 lnk 011 111
           ;src ;@(Rn)+ ;dst
+
+;pacman(10c6): 0937 = 004467 = jsr r4,...
+;относительный call
+;0 000 100 lnk 110 rrr
+          ;src ;@X(rn) ;dst
+        ld l,a
+        ld h,_R0/256       
+
         ld a,c
         and 0x38
+       cp 0x30
+       jr z,CALLer_relative
         cp 0x18
         jr nz,$
         
@@ -543,8 +572,8 @@ CALLer
         ld c,(hl)
         inc l
         ld b,(hl) ;bc=link
-       inc bc
-       inc bc
+       ;inc bc
+       ;inc bc
         putmemspBC
         
         get
@@ -561,7 +590,7 @@ CALLer
         ;ld a,d
         ;adc a,b
         ;ld b,a ;bc=pc+X
-        
+CALLer_q
        pop hl
         ld (hl),e
         inc l
@@ -824,8 +853,8 @@ RTSer
         ;and 0x0e
        cp 0x0e
        jr z,RTSerPC
-       jr $
-;TODO test
+       ;jr $
+;TODO test ;leopol(90f0=110360): 0084 = 000204 = rts r4
         ld l,a
         ld h,_R0/256
         ld e,(hl)
@@ -1141,7 +1170,17 @@ EMTer
        jr z,EMT_getcolor
        cp 0x38 ;set color
        jr z,EMT_setcolor
+       cp 0x06
+       jr z,EMT_readkbd
        _LoopC
+EMT_readkbd
+;EMT 6 - чтение кода символа с клавиатуры (выходной параметр - код нажатой клавиши в R0)
+        ld a,(bk_curkey) ;TODO или с ожиданием?
+        ld c,a
+        ld b,0
+        ld (_R0),bc
+       _LoopC
+
 EMT_drawpixel
         ld hl,(_R1) ;y
         ld h,l

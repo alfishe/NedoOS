@@ -749,7 +749,7 @@ putdestop8_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
        ld a,l
        cp 0x0e
-       jr z,$
+       jr z,putdestop8_111_pc
         get
         next
         add a,(hl)
@@ -761,6 +761,20 @@ putdestop8_111
         ld h,a
        pop af
         ld l,a ;hl=Rn+X
+        jp putdestop8_memfrommem
+putdestop8_111_pc
+       push bc
+        get
+        next;inc e
+        ld c,a
+        get
+        next;dec e
+        ld b,a
+       decodePC_to_ae
+        ld h,a
+        ld l,e
+        add hl,bc ;hl=pc+X
+       pop bc
         jp putdestop8_memfrommem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
