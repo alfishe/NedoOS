@@ -1287,16 +1287,18 @@ cmd_drop_par0
 cmd_proc
         ld e,1 ;no id 0
 cmd_proc0
+       ld a,e
+       ld (cmd_proc_id),a
         push de
         OS_GETAPPMAINPAGES ;d,e,h,l=pages in 0000,4000,8000,c000, c=flags
         or a
         jr nz,cmd_proc_skip
         ld a,d
-        pop de
-        push de
+        pop de ;e=id
+        push de ;e=id
          push bc
-        push af
-        ex de,hl
+        push af ;main page
+        ex de,hl ;l=id
         ld h,0
         call prword
         ld a,' '
@@ -1325,6 +1327,26 @@ cmd_proc0
           PRCHAR_
          ld a,' '
          PRCHAR_
+
+        ld de,0 ;e=page, d=number of pages for this id
+cmd_proc_countmem0
+       push de
+        OS_GETPAGEOWNER
+        ld a,e
+       pop de
+cmd_proc_id=$+1
+        cp 0
+        jr nz,$+3
+         inc d
+        inc e
+        jr nz,cmd_proc_countmem0
+        ld l,d ;print number of used pages
+        ld h,0
+        call prword
+
+         ld a,' '
+         PRCHAR_
+         
         ld hl,0xc000+COMMANDLINE
         call prtext
         call prcrlf
