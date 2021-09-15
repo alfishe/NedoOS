@@ -802,6 +802,10 @@ __1=$
         ld c,CMD_DELPAGE
 	CALLBDOS_NOPARAM_A
         endm
+        macro OS_GETPAGEOWNER ;e=page ;out: e=owner id (0=free, 0xff=system)
+        ld c,CMD_GETPAGEOWNER
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_SETSCREEN ;e=screen=0..1
         ld c,CMD_SETSCREEN
 	CALLBDOS_NOPARAM_A

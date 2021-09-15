@@ -53,6 +53,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in wi
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_GETPAGEOWNER=0x0cb ;e=page ;out: e=owner id (0=free, 0xff=system)
 CMD_GETCONFIG=0xcc ;H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666
 CMD_GETCHILDRESULT=0xcd ;hl=childresult
 CMD_RESERV_1=0xce

@@ -1211,6 +1211,24 @@ sys_quit_findgfxapp_fail
         xor a
         ret
 
+BDOS_getpageowner
+;e=page ;out: e=owner id (0=free, 0xff=system)
+        ld hl,tsys_pages
+      if sys_npages != 256
+       ld a,e
+       cp sys_npages
+       jr nc,BDOS_getpageowner_toobig
+      endif
+        ld d,0
+        add hl,de
+        ld e,(hl)
+        ret
+      if sys_npages != 256
+BDOS_getpageowner_toobig
+       ld e,0xff
+        ret
+      endif
+
 BDOS_newpage
         ;ld iy,(appaddr)
 BDOS_newpage_iy

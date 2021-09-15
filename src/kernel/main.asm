@@ -903,6 +903,7 @@ wastbdoscmds
         ds 256,BDOS_pop2fail&0xff
         ds 256,BDOS_pop2fail/256
        
+         SETHANDLER CMD_GETPAGEOWNER,BDOS_getpageowner
          SETHANDLER CMD_WRITEHANDLE,BDOS_writehandle
          SETHANDLER CMD_WIZNETREAD,BDOS_wiznetread
          SETHANDLER CMD_YIELDKEEP,BDOS_yieldkeep
