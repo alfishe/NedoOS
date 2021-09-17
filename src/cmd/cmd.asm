@@ -1146,23 +1146,87 @@ cmd_ren
         call getword ;hl=terminator/space addr
         ld de,wordbuf
         ld hl,wordbuf2
+       ld a,(de)
+       cp '*'
+       jr z,cmd_ren_star
         OS_RENAME
         or a
         ret z
+cmd_ren_star_error
         ld hl,tcantrename
         jp cmderror
-        
+cmd_ren_star
+       cp (hl)
+       jr nz,cmd_ren_star_error
+;поддерживаем только переименование вида ren *.ext1 *.ext2
+        inc hl
+        inc de
+        ld a,(de)
+       cp '.'
+       jr nz,cmd_ren_star_error
+       cp (hl)
+       jr nz,cmd_ren_star_error
+        inc hl
+        inc de
+;de,hl указывают на ext1, ext2
+        ld (cmd_ren_star_ext1),de
+        ld (cmd_ren_star_ext2),hl
+        ld de,emptypath
+        OS_OPENDIR
+;проверяем все файлы в текущей директории на соответствие filename.ext1
+;если совпало, то переименовываем в filename.ext2
+cmd_ren_star0
+        ld de,filinfo
+;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
+        OS_READDIR
+;out in A=error(0 - no error, 4 - no more files, other - critical error)
+       ;jr $
+        or a
+        ret nz ;todo show N files renamed
+        ld hl,filinfo+FILINFO_LNAME ;длинного имени может не быть
+        ld a,(hl)
+        or a
+        jr nz,$+5
+         ld hl,filinfo+FILINFO_FNAME
+       push hl ;from name
+        call findlastdot
+;de=after last dot
+cmd_ren_star_ext1=$+1
+        ld hl,0
+        call strcp ;z=yes
+       pop hl ;from name
+        jr nz,cmd_ren_star0
+
+        ;ld hl,filinfo+FILINFO_LNAME
+       push hl ;from name
+        ld de,filenamebuf
+       push de
+        call strcopy
+       pop hl ;to name
+       push hl
+        call findlastdot
+;de=after last dot in toname
+cmd_ren_star_ext2=$+1
+        ld hl,0
+        call strcopy ;z=yes ;возможное переполнение уходит в filenamebuf2
+       pop hl ;to name
+       pop de ;from name
+        ;ld hl,filenamebuf2 ;to name
+        OS_RENAME
+;TODO inc count
+        jr cmd_ren_star0
+
 cmd_copy
         ld hl,(execcmd_pars)
         ld a,(hl)
         or a
-        jr z,cmd_error_nopars
+        jp z,cmd_error_nopars
         ld de,filenamebuf;wordbuf
         call getword ;hl=terminator/space addr
         call skipspaces
         ld a,(hl)
         or a
-        jr z,cmd_error_notenoughpars
+        jp z,cmd_error_notenoughpars
         ld de,filenamebuf2;wordbuf2
         call getword ;hl=terminator/space addr
 
@@ -1698,22 +1762,37 @@ getdirfcb_bc0
         ret        
         
 ;hl = poi to filename in string
+;out: ;de = after last slash
 findlastslash.
 nfopenfnslash.
 	ld d,h
 	ld e,l ;de = after last slash
-;find last slash
 nfopenfnslash0.
 	ld a,[hl]
 	inc hl
 	or a
-	jr z,nfopenfnslashq.
+	ret z ;jr z,nfopenfnslashq.
 	cp '/'
 	jr nz,nfopenfnslash0.
 	jr nfopenfnslash.
-nfopenfnslashq.
+;nfopenfnslashq.
 ;de = after last slash
-	ret
+	;ret
+
+;hl = poi to filename in string
+;out: ;de = after last slash
+findlastdot
+nfopenfndot.
+	ld d,h
+	ld e,l ;de = after last dot
+nfopenfndot0.
+	ld a,[hl]
+	inc hl
+	or a
+	ret z
+	cp '.'
+	jr nz,nfopenfndot0.
+	jr nfopenfndot.
 
 commandslist
         dw cmd_dir
