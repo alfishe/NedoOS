@@ -1164,11 +1164,15 @@ EMTer
 ;TODO
 ;Emulator trap: -(SP) < PS; -(SP) < PC; PC < (30); PS < (32)
        ld a,c
-       cp 0x3b ;draw pixel
+       cp 0x18 ;draw pixel (ай-0010)
        jr z,EMT_drawpixel
-       cp 0x39 ;get color
+       cp 0x3b ;draw pixel (ай-0011)
+       jr z,EMT_drawpixel
+       cp 0x39 ;get color (ай-0011)
        jr z,EMT_getcolor
-       cp 0x38 ;set color
+       cp 0x0e ;set color (ай-0010)
+       jr z,EMT_setcolor
+       cp 0x38 ;set color (ай-0011)
        jr z,EMT_setcolor
        cp 0x06
        jr z,EMT_readkbd
@@ -1182,14 +1186,14 @@ EMT_readkbd
        _LoopC
 
 EMT_drawpixel
-        ld hl,(_R1) ;y
+        ld hl,(_R2) ;y
         ld h,l
         ld l,0
         srl h
         rr l
         srl h
         rr l ;y*64
-        ld bc,(_R0) ;x
+        ld bc,(_R1) ;x
        push bc
         ld b,0
         srl c
@@ -1225,7 +1229,7 @@ bk_curcolor=$+1
         ld (_R0),hl
        _LoopC
 EMT_setcolor
-        ld hl,(_R0)
+        ld hl,(_R0) ;ascii code
         ld (bk_curcolor),hl
        _LoopC
 
