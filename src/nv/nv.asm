@@ -573,6 +573,9 @@ prdirfile_fn0qq
         ret
 
 prdirfile
+       ld a,(keyfromcalledapp)
+       or a
+       ret nz ;после вызова с выходом по стрелке - не печатаем
 ;hl=fcb
         call getfcbfromhl
         call colorfile ;de=color
@@ -954,10 +957,26 @@ loaddir_filinfo
         ret
 
 controlloop
-        call fixscroll_prcmd
+       ld a,(keyfromcalledapp)
+       or a
+        call z,fixscroll_prcmd
 controlloop_noprline
         ld hl,controlloop
         push hl
+        
+keyfromcalledapp=$+1
+       ld a,0 ;после вызова и выхода по стрелке здесь стрелка, потом key_enter, потом 0
+       or a
+       jr z,controlloop_nokey
+       push af
+        cp key_enter
+        ld a,key_enter
+        jr nz,$+3
+        xor a
+        ld (keyfromcalledapp),a
+        jr controlloop_nokeyq
+controlloop_nokey
+        
         ld ix,(curpanel)
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
@@ -971,18 +990,7 @@ controlloop_noprline
         call cmdcalccurxy
         call nv_setxy ;keeps de,hl,ix
         ;SETX_ ;force reprint cursor
-keyfromcalledapp=$+1
-       ld a,0
-       or a
-       jr z,controlloop_nokey
-       push af
-        cp key_enter
-        ld a,key_enter
-        jr nz,$+3
-        xor a
-        ld (keyfromcalledapp),a
-        jr controlloop_nokeyq
-controlloop_nokey
+
        if PRSTDIO
         call yieldgetkeyloop
        else
@@ -991,7 +999,7 @@ controlloop_nokey
          or a
          jr z,controlloop_nokey ;TODO handle mouse events
         push af
-controlloop_nokeyq
+;controlloop_nokeyq
         ld ix,(curpanel)
         call getfcbaddrundercursor
         ;push hl
@@ -1007,7 +1015,9 @@ controlloop_nokeyq
         ;OS_PRATTR ;remove cursor
          ld de,_COLOR
          call nv_setcolor ;even if we didn't reprint command line, draw windows with its color
+controlloop_nokeyq
         pop af
+
         ld hl,tnvcmds
         ld bc,nnvcmds
         cpir
@@ -1432,17 +1442,14 @@ loadandrun_waitpid
         ;jr z,loadandrun_waitpid_looploadandrun
         jr nz,loadandrun_waitpid_looploadandrunq
 loadandrun_waitpid_looploadandrun
+;вышли из вызванной программы по стрелке - не перепечатываем ничего
        ld (keyfromcalledapp),a
+        call assignpages
+        ld ix,(curpanel)
+	call readdir_keepcursor
+	jp sortfiles
+       
 loadandrun_waitpid_looploadandrunq
-;wait for focus
-        if 1==0
-execcmd_waitfocus0
-         YIELD
-         ld a,(user_scr0_low)
-         ld hl,user_scr0_high
-         cp (hl)
-         jr z,execcmd_waitfocus0
-        endif
        if PRSTDIO
         CLS_ ;scroll what was printed
        endif

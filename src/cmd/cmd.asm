@@ -243,8 +243,10 @@ pipehandle=$+1
         ld b,a
         OS_CLOSEHANDLE ;закрыли источник данных
         pop de
-        WAITPID ;hl=result
-        call prword_hl_crlf
+       call waitpid_keepresult
+        ;WAITPID ;hl=result
+        ;ld (lastresult),hl
+        ;call prword_hl_crlf
 
         ld a,(stdouthandle_wasatstart)
         call setstdouthandle
@@ -598,10 +600,11 @@ callcmd
         ;push de
         ;OS_RUNAPP
         ;pop de
+waitpid_keepresult
         WAITPID ;не должно быть, если команда была .bat!
        ld (lastresult),hl
 ;hl=result
-        jp prword_hl_crlf
+        ret;jp prword_hl_crlf
 
 loadapp_keeppath
         ld hl,cmdprompt
@@ -1180,7 +1183,6 @@ cmd_ren_star0
 ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
         OS_READDIR
 ;out in A=error(0 - no error, 4 - no more files, other - critical error)
-       ;jr $
         or a
         ret nz ;todo show N files renamed
         ld hl,filinfo+FILINFO_LNAME ;длинного имени может не быть
