@@ -121,7 +121,11 @@ GETKEY
 		bit .bKEY_MODE_ALT,l
 		jr z,.no_alt_mod
 		ld a,b
-		jr .retsymb
+		;jr .retsymb
+	add a,0xff&.alt_decode
+	ld e,a
+	adc a,0xff&(.alt_decode>>8)
+	jr .ctrl_mod_ok
 ;.no_alt_mod
 		;bit .bKEY_MODE_CTRL,l
 		;jr z,.no_ctrl_mod
@@ -129,8 +133,9 @@ GETKEY
 		ld a,b
 		add a,0xff&.ctrl_decode
 		ld e,a
-		ld a,0
 		adc a,0xff&(.ctrl_decode>>8)
+.ctrl_mod_ok                
+                sub e
 		ld d,a
 		ld a,(de)
 		ld c,a
@@ -343,3 +348,7 @@ GETKEY
 	defb ssA,ssB,ssC,ssD,ssE,ssF,ssG,ssH,ssI,ssJ,ssK,ssL,ssM
 	defb ssN,ssO,ssP,ssQ,ssR,ssS,ssT,ssU,ssV,ssW,ssX,ssY,ssZ
         db "{}:\"<>~",ss1,ss2,ss3,ss4,ss5,ss6,ss7,ss8,ss9,ss0,"_+|?"
+.alt_decode=$-1
+	defb extA,extB,extC,extD,extE,extF,extG,extH,extI,extJ,extK,extL,extM
+	defb extN,extO,extP,extQ,extR,extS,extT,extU,extV,extW,extX,extY,extZ
+        db "{}:\"<>~",ext1,ext2,ext3,ext4,ext5,ext6,ext7,ext8,ext9,ext0,"_+|?"

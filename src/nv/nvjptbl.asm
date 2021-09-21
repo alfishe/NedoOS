@@ -29,7 +29,7 @@ tnvcmds
         db key_pgup
         db key_pgdown
         db ss5;'%'
-        db '*'
+        db extA;'*'
         db key_home
         db key_end
 	db key_F10,key_F1,key_F2,key_F3,key_F4,key_F5,key_F6,key_F7,key_F8,key_F9,key_ins
