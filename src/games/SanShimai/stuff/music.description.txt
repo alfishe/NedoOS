@@ -1,0 +1,46 @@
+file	0x10		SS_01.M 0x10 Prologue
+file	0x11		SS_02.M
+file	0x12		SS_03.M 0x12 Building top floor
+file	0x13		SS_04.M 0x13 building
+file	0x14		SS_05.M 0x14 game over
+file	0x15		SS_06.M 0x15 Inside the Seamount Trading Building
+file	0x16		SS_07.M 0x16 Eiichi's theme
+file	0x17		SS_08.M 0x17 Security guard theme
+file	0x18		SS_09.M 0x18 morning song
+file	0x19		SS_10.M 0x19 downtown
+file	0x1a		SS_11.M 0x1a Okamura Family Song Part 1
+file	0x1b		SS_12.M 0x1b Home song
+file	0x1c		SS_13.M 0x1c ending 1
+file	0x1d		SS_14.M 0x1d school
+file	0x1e		SS_15.M 0x1e A scene where Eiichi jumps into the flames
+file	0x1f		SS_16.M 0x1f H scene
+file	0x20		SS_18.M 0x20 ending 2
+file	0x21		SS_20.M 0x21 Risa's theme
+file	0x22		SS_21.M 0x22 H scene (school)
+file	0x23		SS_22.M 0x23 Okamura family part 2
+file	0x24		START1.M
+file	0x25		START2.M
+
+No. Title
+0x10 Prologue
+0x11
+0x12 Building top floor
+0x13 building
+0x14 game over
+0x15 Inside the Seamount Trading Building
+0x16 Eiichi's theme
+0x17 Security guard theme
+0x18 morning song
+0x19 downtown
+0x1a Okamura Family Song Part 1
+0x1b Home song
+0x1c ending 1
+0x1d school
+0x1e A scene where Eiichi jumps into the flames
+0x1f H scene
+0x20 ending 2
+0x21 Risa's theme
+0x22 H scene (school)
+0x23 Okamura family part 2
+0x24 Start 1
+0x25 Start 2 
