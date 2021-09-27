@@ -881,11 +881,14 @@ JMPer
        and 0x38
        cp 0x08
        jr z,JMPer_001
+       cp 0x10
+       jp z,JMPer_010
        cp 0x18
        jr z,JMPer_011
        cp 0x30
        jp z,JMPer_110
        jr $
+;дальше неправильно общий случай (надо переходить без лишнего чтения памяти!)
         GETDEST_cmdc_autoinc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
@@ -899,6 +902,23 @@ JMPer_001 ;pc=rn
         ld e,(hl)
         inc l
         ld d,(hl)
+       _LoopC_JP
+JMPer_010 ;pc=rn++
+        ld a,c
+        rla
+        and 0x0e
+        ld l,a ;0000rrr0
+        ld h,_R0/256
+        ld e,(hl)
+        inc l
+        ld d,(hl)
+       inc de
+       inc de
+        ld (hl),d
+        dec l
+        ld (hl),e
+       dec de
+       dec de
        _LoopC_JP
 JMPer_011 ;pc=(Rn++)
         ld a,c
@@ -1170,19 +1190,45 @@ EMTer
        jr z,EMT_drawpixel
        cp 0x39 ;get color (БК-0011)
        jr z,EMT_getcolor
-       cp 0x0e ;set color (БК-0010)
-       jr z,EMT_setcolor
+       cp 0x0e ;set color (БК-0010) ;pentis, mona
+       jp z,EMT_setcolor
        cp 0x38 ;set color (БК-0011)
        jr z,EMT_setcolor
        cp 0x06
        jr z,EMT_readkbd
+        cp 0x0c ;bubbler ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
+        jr z,EMTer_q
+        cp 0x16 ;bubbler ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
+        jr z,EMTer_q
+        cp 0x14 ;labyrinh ;EMT 24 - установка курсора по координатам X = R1, Y = R2;
+        jr z,EMTer_q
+        cp 0x10 ;labyrinh ;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте;
+        jr z,EMTer_q
+        cp 0x1a ;labyrinh после вывода пикселя
+        jr z,EMTer_q
+        cp 0x12 ;packmanria ;EMT 22 - вывод символа в служебную строку; вход: R0 - код символа (0 - очистка строки); R1 - номер позиции в служебной строке;
+        jr z,EMTer_q
+        cp 0x1c ;pentis ;EMT 34 - получение в R0 слова состояния дисплея, в котором каждый разряд является индикатором включения соответствующего режима (табл. 15): 0 - выключено, 1 - включено;
+        jr z,EMTer_q
+;TODO вызов обработчика
+
+       jr $
+EMTer_q
        _LoopC
 EMT_readkbd
 ;EMT 6 - чтение кода символа с клавиатуры (выходной параметр - код нажатой клавиши в R0)
-        ld a,(bk_curkey) ;TODO или с ожиданием?
+        ;ld a,55+128 ;"or a"
+        ;ld (iskeymessage),a ;no message
+        ld a,(bk_curkey) ;TODO правильно сделать ожидание?
+        or a
+        jr z,EMT_readkbd
         ld c,a
         ld b,0
         ld (_R0),bc
+        ;ld a,55 ;"scf"
+        ;ld (iskeymessage),a ;message
+        xor a
+        ld (bk_curkey),a ;no message (INT прочитает новую кнопку)
        _LoopC
 
 EMT_drawpixel

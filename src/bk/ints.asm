@@ -124,22 +124,39 @@ filenameaddr=$+1
        ld a,d
        or e
        jr z,noloadfile
+      push de
+      ex de,hl
+      call findlastdot
+      ld a,(de) ;de = after last dot
+      pop de
+      cp '0' ;костыль для теста .0bk
+      ld hl,4
+      jr nz,$+3
+      ld l,h
+      push hl
         OS_OPENHANDLE
         ld a,b
         ld (curhandle),a
         ld de,bkheader
-        ld hl,4 ;de=buffer, hl=size
-        call readcurhandle
+      pop hl
+      push hl ;header size
+        ;ld hl,4 ;de=buffer, hl=size
+        ld a,h
+        or l
+        call nz,readcurhandle
+      pop hl ;size defect
         ld de,(bkheader)
         ;ld de,0x01fc
 ;de=addr
        push de
-        ld hl,4 ;size defect
+        ;ld hl,4 ;size defect
         call loadcompp_noheader
        pop hl ;=IP(PC)
        ld a,h
        cp 2
        jr nc,noloadfile
+     or a
+     jr z,loadfile_testq ;костыль для теста
 ;autostart: берём адрес из 0x01fe
         ld a,(tpgs)
         SETPGC000
@@ -151,8 +168,28 @@ noloadfile
         ;ld (iff1),a
      jp loopcjp;_LoopC_JP заменит текущую страницу
 
+loadfile_testq
+        ld hl,0x0080
+        jr noloadfile
+
+;hl = poi to filename in string
+;out: ;de = after last dot
+findlastdot
+nfopenfndot.
+	ld d,h
+	ld e,l ;de = after last dot
+nfopenfndot0.
+	ld a,[hl]
+	inc hl
+	or a
+	ret z
+	cp '.'
+	jr nz,nfopenfndot0.
+	jr nfopenfndot.
+
 bkheader
-        ds 4
+        dw 0 ;addr
+        dw 0 ;size (not used)
 
 ;de=имя файла
 ;hl=куда грузим
