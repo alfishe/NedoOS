@@ -160,7 +160,7 @@ filenameaddr=$+1
 ;autostart: берём адрес из 0x01fe
         ld a,(tpgs)
         SETPGC000
-        ld hl,(0x01fe+0xc000)
+        ld hl,(0x01f6+0xc000) ;1f6 for newlode
 noloadfile
        ex de,hl
         LD IY,EMUCHECKQ
