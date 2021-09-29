@@ -254,20 +254,20 @@ TPLAINKEYS
         db "BHY65TGV"
         db "NJU74RFC"
         db "MKI83EDX"
-        db 0,"LO91WSZ"
+        db 0,"LO92WSZ"
         db 32,10,"P01QA",0
 TCSKEYS
 ;a-la #205
         DB "bhy",27,8,"tgv"
-        DB "nju",26,5,"rfc"
-        DB "mki",25,4,"edx"
-        DB 0,"lo",15,6,"wsz"
-        DB 3,21,"p",24,7,"qa",20
+        DB "nju",26,15,"rfc" ;15 = pgdn = лат
+        DB "mki",25,14,"edx" ;14 = pgup = рус
+        DB 0,"lo",26, 6 ,"wsz" ;26 = del = сдвижка в строке
+        DB 3,21,"p",24, 7 ,"qa",20 ;3 = break = КТ
 TSSKEYS
 ;a-la #205
         DB "*^[&%>}/"
         DB ",-]'$<{?"
-        DB ".+",15,"(#",ssE,'\\',"`"
+        DB ".+", 15 ,"(#",ssE,'\\',"`"
         DB 0,"=;)@",19,"|:"
         DB 14,ssEnt,34,"_!",ssQ,"~"
        ;CS+SS ищется в TCSKEYS
