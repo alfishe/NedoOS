@@ -1382,6 +1382,7 @@ readsourceop_100
         ld (hl),b
         dec l
         ld (hl),c
+rdmem_bc_to_bc
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 

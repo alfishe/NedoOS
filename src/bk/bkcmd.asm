@@ -811,12 +811,27 @@ RTI_JMP_RTS_SWAB
 ;000005	RESET
 ;000006	RTT	Return from trap: PC < (SP)+; PS < (SP)+
 ;TODO
+        jr z,halter ;HALT
         cp 4*2
         jr z,looper ;IOT
         cp 5*2
         jr z,looper ;RESET ;for pacman
         jr $
-        
+halter
+;Команда 000000 – это HALT. Вызывает прерывание по 4-му вектору. Когда встречается Halt, нужно положить в стек слово состояния процессора и адрес, следующий за командой HALT. Затем перейти по адресу, который записан в ячейке 4. При этом слово состояние процессора взять из ячейки 6.
+        call getflags_bc
+        putmemspBC
+       decodePC_to_ae
+        LD b,a
+        ld c,e ;=old PC
+        putmemspBC
+        ld bc,6
+        call rdmem_bc_to_bc
+        call makeflags_frombc
+        ld bc,4
+        call rdmem_bc_to_bc
+        jp bctoPCLoop 
+      
 c0002_0003
 ;a=cmdLSB*2
         jp m,SWABer;c0003
