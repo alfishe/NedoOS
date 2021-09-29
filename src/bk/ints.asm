@@ -210,20 +210,6 @@ curhandle=$+1
         OS_READHANDLE
         ret
 
-clpga
-        ld e,0
-clpga_e
-        SETPGC000
-        ld hl,0xc000
-       ld a,e
-        ld d,h
-        ld e,l
-        inc e
-        ld bc,0x3fff
-       ld (hl),a;0
-        ldir
-        ret
-
 ;keep here for quit
 swapimer
 	di

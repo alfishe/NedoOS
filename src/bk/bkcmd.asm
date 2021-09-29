@@ -1200,19 +1200,19 @@ EMTer
 ;Emulator trap: -(SP) < PS; -(SP) < PC; PC < (30); PS < (32)
        ld a,c
        cp 0x18 ;draw pixel (БК-0010)
-       jr z,EMT_drawpixel
+       jr z,EMT_drawpixelR1R2
        cp 0x3b ;draw pixel (БК-0011)
-       jr z,EMT_drawpixel
+       jr z,EMT_drawpixelR0R1
        cp 0x39 ;get color (БК-0011)
-       jr z,EMT_getcolor
+       jp z,EMT_getcolor
        cp 0x0e ;set color (БК-0010) ;pentis, mona
        jp z,EMT_setcolor
        cp 0x38 ;set color (БК-0011)
-       jr z,EMT_setcolor
+       jp z,EMT_setcolor
        cp 0x06
        jr z,EMT_readkbd
-        cp 0x0c ;bubbler ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
-        jr z,EMTer_q
+        cp 0x0c ;bubbler,mona ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
+        jp z,EMT_cls
         cp 0x16 ;bubbler ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
         jr z,EMTer_q
         cp 0x14 ;labyrinh ;EMT 24 - установка курсора по координатам X = R1, Y = R2;
@@ -1246,15 +1246,23 @@ EMT_readkbd
         ld (bk_curkey),a ;no message (INT прочитает новую кнопку)
        _LoopC
 
-EMT_drawpixel
+EMT_drawpixelR0R1
+        ld hl,(_R1) ;y
+        ld bc,(_R0) ;x
+        jr EMT_drawpixel_go
+EMT_drawpixelR1R2
         ld hl,(_R2) ;y
+        ld bc,(_R1) ;x
+EMT_drawpixel_go
+       ld a,h
+       or a
+       jr nz,emt_drawpixel_q
         ld h,l
         ld l,0
         srl h
         rr l
         srl h
         rr l ;y*64
-        ld bc,(_R1) ;x
        push bc
         ld b,0
         srl c
@@ -1266,12 +1274,13 @@ EMT_drawpixel
 	SETPGC000
        pop bc
         ld a,c
+        cpl
         ld c,3
         and c;3
         inc a
         ld b,a
-        ld a,(bk_curcolor)
-        and c;3
+bk_curcolor_recoded=$+1
+        ld a,0 ;0..3
 rollcolor0
         rrc c
         rrc c ;mask
@@ -1282,7 +1291,9 @@ rollcolor0
         and c
         xor (hl)
         ld (hl),a
+        ld c,a
         call putscreen_c
+emt_drawpixel_q
        _LoopC
 EMT_getcolor
 bk_curcolor=$+1
@@ -1292,6 +1303,25 @@ bk_curcolor=$+1
 EMT_setcolor
         ld hl,(_R0) ;ascii code
         ld (bk_curcolor),hl
+        ld a,l
+       dec a
+       cpl
+        and 3
+        ;cp 2
+        ;jr c,$+4
+        ; xor 1
+        ld (bk_curcolor_recoded),a
+       _LoopC
+
+EMT_cls
+        push de
+        ld a,(tpgs+0x40)
+       call clpga
+        ld a,(user_scr0_high) ;ok
+       call clpga
+       ; ld a,(user_scr0_low) ;ok
+       ;call clpga
+        pop de
        _LoopC
 
 TRAPer

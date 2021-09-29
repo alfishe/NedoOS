@@ -849,10 +849,10 @@ readdest8op_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
         ld a,l
+       ld hx,c
        cp 0x0e
        jr z,$
         cp 0x0c
-       ld hx,c
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -866,9 +866,9 @@ readdest8op_100
 readdestop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        cp 0x0e
-        jr z,$;readdestop_100_pc ;TODO pc
        ld hx,c
+       cp 0x0e
+       jr z,$;readdestop_100_pc ;TODO pc
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -881,9 +881,9 @@ readdest8op_101
         ld a,l
 readdestop_101
 ;101 @-(Rn) ;всегда -=2
-        cp 0x0e
-        jr z,$;readdestop_101_pc ;TODO pc
        ld hx,c
+       cp 0x0e
+       jr z,readdestop_101_pc
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -891,6 +891,8 @@ readdestop_101
         dec bc
         ld a,b
         jp readsourceop_addrfromaddr_ac
+readdestop_101_pc
+        jr $
 
 readdest8op_110 ;TODO optimize
         ld a,l
@@ -931,9 +933,9 @@ readdest8op_111 ;TODO optimize
        ld a,l
 readdestop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
-       cp 0x0e
-       jr z,$;readdestop_111_pc
        ld hx,c
+       cp 0x0e
+       jr z,readdestop_111_pc
         get
         inc e
         add a,(hl)
@@ -942,6 +944,24 @@ readdestop_111
         get
         dec e ;FIXME
         adc a,(hl) ;ac=Rn+X
+        jp readsourceop_addrfromaddr_ac
+readdestop_111_pc ;for leopol?
+        get
+        inc e
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        ld b,a
+       decodePC_to_ae
+      inc bc
+      inc bc
+        ld h,a
+       ld a,c
+       add a,e
+       ld c,a
+       ld a,b
+       adc a,h ;ac=pc+X
         jp readsourceop_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1132,7 +1152,6 @@ putdestop_11x
        pop af
         ld l,a ;hl=Rn+X
         WRMEM_hl_LoopC
-        
 putdestop_110_pc ;for mona, leopol
        push bc
         get
@@ -1152,7 +1171,7 @@ putdestop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
         ld a,l
        cp 0x0e
-       jr z,$;putdestop_111_pc ;TODO
+       jr z,putdestop_111_pc
         get
         next
         add a,(hl)
@@ -1165,6 +1184,22 @@ putdestop_111
        pop af
         ld l,a ;hl=Rn+X
         jp putdestop_memfrommem
+putdestop_111_pc ;leopold глубоко во время игрового процесса
+;[[pc+X]]
+       push bc
+        get
+        next;inc e
+        ld c,a
+        get
+        next;dec e
+        ld b,a
+       decodePC_to_ae
+        ld h,a
+        ld l,e
+        add hl,bc ;hl=pc+X
+       pop bc
+        jp putdestop_memfrommem
+
 
 ;15c2
 ;0001 0101 1100 0010
@@ -1430,9 +1465,10 @@ readsourceop_110_pc
         ld c,a
         ld a,b
         adc a,h;d
-        ld b,a
-       ld a,hx
-        ret
+        ;ld b,a
+       ;ld a,hx
+       ; ret
+        RDMEM_ac_ret ;bc=result, a=hx
 
 readsourceop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
@@ -1641,6 +1677,8 @@ rdport_c
          jr z,rdport_c_io ;Клад
         cp 0xce
         jr z,rdport_c_tapestate
+        cp 0xcf
+        jr z,rdport_c_tapestate_hsb
          ;cp 0x70 ;В *560м регистре имеются два бита, 6й и 7й. 7 бит *560го регистра устанавливается по reset или если во входной регистр *562 поступил новый байт, а если перед приемом байтов установить в 1 6й бит *560го регистра, то произойдет прерывание с вектором, адрес которого читается из регистра *566
          ;cp 0x72 ;*562й регистр - буфер приемника, оттуда считывается последний принятый байт, по записи регистр ничего не делает
          cp 0x74 ;В регистре *564 имеются тоже два бита, 6й и 7й, с тем же назначением, что и у приемника, 7й бит устанавливается в 0, когда процессор пишет байт в буфер передатчика, *566, и устанавливается в 1, когда заканчивается передача, т.е. когда буфер готов к приему следующего байта. Если при установке 7го бита был установлен 6й, то по готовности передатчика возникает прерывание с вектором, на 4 бОльшим, чем считываемое из регистра *566 значение.
@@ -1702,6 +1740,24 @@ iskeypressed=$+1
        ld a,hx
        ld b,0x80
         ret
+rdport_c_tapestate_hsb ;for morf
+       ld a,hx
+       ld bc,0x0080
+        ret
+
+clpga
+        ld e,0
+clpga_e
+        SETPGC000
+        ld hl,0xc000
+       ld a,e
+        ld d,h
+        ld e,l
+        inc e
+        ld bc,0x3fff
+       ld (hl),a;0
+        ldir
+        ret
 
 	include "bkcmd.asm"
 
@@ -1725,25 +1781,35 @@ _0=$&0x01
 
         align 256
 ty
-_=0
+__=0
         dup 32
-        db 0xff&(_*40+4)
-        dup 7
-        db 0xff&(_*40+4)
-_=_+1
-       if _>200
+        dup 8
+_=__-8
+       if (_<0)
 _=200
+       endif
+       if (_>200)
+_=200
+       endif
+        db 0xff&(_*40+4)
+       if ($&7)
+__=__+1
        endif
         edup
         edup
-_=0
+__=0
         dup 32
-        db (_*40+4)/256+0x80
-        dup 7
-        db (_*40+4)/256+0x80
-_=_+1        
-       if _>200
+        dup 8
+_=__-8
+       if (_<0)
 _=200
+       endif
+       if (_>200)
+_=200
+       endif
+        db (_*40+4)/256+0x80
+       if ($&7)
+__=__+1        
        endif
         edup
         edup
