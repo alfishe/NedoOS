@@ -267,7 +267,8 @@ deb_lnk
 
 
 
-;ï¸¨á¦¬ mem_buf. é²¯ï¬¼è´¥ó²½ ë¡ª í¾§í±­ç¡½ë± ë‹Š        ld a,(mem_buf1)
+;ï¸¨á¦¬ mem_buf. é²¯ï¬¼è´¥ó²½ ë¡ª í¾§í±­ç¡½ë± ë‹Š        
+        ld a,(mem_buf1)
         SETPGC000
         ld hl,0xc000
         ld de,0xc001
