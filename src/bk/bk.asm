@@ -612,8 +612,8 @@ putdestop8_01x
        ld h,(hl)
         ld l,a
         WRMEM8_hl_LoopC
-putdestop8_010_pc ;TODO так ли при dest=(pc+)?
-       jr $
+putdestop8_010_pc ;TODO так ли при dest=(pc+)? bkscope
+       ;jr $
         ld a,c
         ld (de),a
         next
@@ -803,13 +803,20 @@ getdest_aisc
         jr nz,readdestop_x10
         bit 5,c
         jp nz,readdestop_100
-;000 Register ;TODO pc
+;000 Register
        cp 0x0e
-       jr z,$
+       jr z,readdestop_000_pc
          ld a,c
         ld c,(hl)
         inc l
         ld b,(hl)
+        ret
+readdestop_000_pc ;cd.bk - TODO правильно ли? программа не работает
+      ld hx,c
+       decodePC_to_ae
+       ld b,a
+       ld c,e
+      ld a,hx
         ret
 readdestop_x10
         bit 5,c
@@ -1675,6 +1682,8 @@ rdport_c
          jr z,rdport_c_scrshift ;Bubbler
          cp 0xcc
          jr z,rdport_c_io ;Клад
+         cp 0xc8 ;177710 ;Таймер работает независимо от работы программы. Содержимое счётчика времени определяется как результат функции PEEK(&O177710) и периодически уменьшается от S0 до 0 (рис. 10).
+         jr z,rdport_c_timer ;kld19nm_bk10
         cp 0xce
         jr z,rdport_c_tapestate
         cp 0xcf
@@ -1720,6 +1729,15 @@ rdport_c_scrshift
         jr $
        ld a,hx
         ret
+rdport_c_timer ;kld19nm_bk10
+;177710 ;Таймер работает независимо от работы программы. Содержимое счётчика времени определяется как результат функции PEEK(&O177710) и периодически уменьшается от S0 до 0 (рис. 10).
+bktimer=$+1
+        ld bc,0
+        dec bc
+        ld (bktimer),bc
+       ld a,hx
+        ret
+
 rdport_c_testconsole_txstate
 ;В регистре *564 имеются тоже два бита, 6й и 7й, с тем же назначением, что и у приемника, 7й бит устанавливается в 0, когда процессор пишет байт в буфер передатчика, *566, и устанавливается в 1, когда заканчивается передача, т.е. когда буфер готов к приему следующего байта. Если при установке 7го бита был установлен 6й, то по готовности передатчика возникает прерывание с вектором, на 4 бОльшим, чем считываемое из регистра *566 значение.
        ld bc,0x80 ;ready

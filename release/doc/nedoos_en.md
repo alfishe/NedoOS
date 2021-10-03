@@ -165,7 +165,7 @@ Keyboard short cuts:
 * End (Symbol Shift+E) - jump to the last file
 * Tab (Caps Shift+Symbol Shift) - change the current panel
 * Space - tag file
-* `*` - invert tagging
+* Ext+A (Alt+A) - invert tagging
 * BackSpace (Caps Shift+0) - switch to the parent directory
 * Enter - launch the file under cursor in the blocking mode (`.com`
   and `.$c` are launched directly, other types may use the external

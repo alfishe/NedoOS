@@ -801,7 +801,7 @@ RTI_JMP_RTS_SWAB
         ;ld b,a
         ld a,c
         add a,a
-        jr c,c0002_0003
+        jp c,c0002_0003
         jp m,JMPer;c0001
 ;000000	HALT
 ;000001	WAIT
@@ -812,11 +812,24 @@ RTI_JMP_RTS_SWAB
 ;000006	RTT	Return from trap: PC < (SP)+; PS < (SP)+
 ;TODO
         jr z,halter ;HALT
+        cp 1*2
+        jp z,looper ;WAIT ;for hny2020? программа не работает
+        cp 2*2
+        jr z,RTIer ;for movblobs
         cp 4*2
-        jr z,looper ;IOT
+        jp z,looper ;IOT
         cp 5*2
-        jr z,looper ;RESET ;for pacman
+        jp z,looper ;RESET ;for pacman
+        cp 6*2
+        jr z,RTTer
         jr $
+RTIer
+RTTer
+        getmemspBC
+       push bc
+        getmemspBC
+       pop de
+       _LoopC_JP
 halter
 wrmemrom_LoopC
 ;Команда 000000 – это HALT. Вызывает прерывание по 4-му вектору. Когда встречается Halt, нужно положить в стек слово состояния процессора и адрес, следующий за командой HALT. Затем перейти по адресу, который записан в ячейке 4. При этом слово состояние процессора взять из ячейки 6.
@@ -1226,6 +1239,16 @@ EMTer
         jr z,EMTer_q
         cp 0x1c ;pentis ;EMT 34 - получение в R0 слова состояния дисплея, в котором каждый разряд является индикатором включения соответствующего режима (табл. 15): 0 - выключено, 1 - включено;
         jr z,EMTer_q
+         or a
+         jr z,EMTer_q ;metaballs11, cafelogo256
+         cp 0x29
+         jr z,EMTer_q ;metaballs11
+         cp 0x32
+         jr z,EMTer_q ;road2cafe
+         cp 0x2f
+         jr z,EMTer_q ;road2cafe
+         cp 0x33
+         jr z,EMTer_q ;road2cafe
 ;TODO вызов обработчика
 
        jr $
