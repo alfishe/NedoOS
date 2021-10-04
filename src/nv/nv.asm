@@ -246,7 +246,7 @@ assignpages
 
 	OS_NEWPAGE
 	ld a,e
-        SETPG16K ;copybuf
+        SETPG4000 ;copybuf
         ret
 
 deletepages
@@ -273,16 +273,16 @@ delpage_a
         ret
 
 strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
-	ld hl, HS_strpg
-	ld e, (ix+PANEL.pgadd)
+	ld hl,HS_strpg
+	ld e,(ix+PANEL.pgadd)
 	ld d,0; (ix+PANEL.pgadd+1)
 	add hl,de
         ld (ix+PANEL.curpgfcbpoi),l
         ld (ix+PANEL.curpgfcbpoi+1),h
         call strdelpages_next
 strdelpages_lname
-	ld hl, HS_strpg+DIRPAGES+1 ;HS_lnamepg
-	ld e, (ix+PANEL.pgadd)
+	ld hl,HS_strpg+DIRPAGES+1 ;HS_lnamepg
+	ld e,(ix+PANEL.pgadd)
 	ld d,0; (ix+PANEL.pgadd+1)
 	add hl,de
         ld (ix+PANEL.curpglnamepoi),l
@@ -291,17 +291,17 @@ strdelpages_lname
 
 strdelpages_next
         inc hl
-        ld a, (hl)
+        ld a,(hl)
         or a
         ret z
-        ld e, a
+        ld e,a
         push hl
         push ix
 	OS_DELPAGE
         pop ix
 	pop hl
         xor a
-        ld (hl), a
+        ld (hl),a
         jr strdelpages_next
 
 lnamenewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
@@ -562,14 +562,14 @@ prdirfile_fn0
         inc hl
         inc de
         djnz prdirfile_fn0
-        jr prdirfile_fn0qq
+        ret;jr prdirfile_fn0qq
 prdirfile_fn0q
         ld a,c;' '
 prdirfile_fn1
         ld (de),a
         inc de
         djnz prdirfile_fn1         
-prdirfile_fn0qq
+;prdirfile_fn0qq
         ret
 
 prdirfile
@@ -581,26 +581,19 @@ prdirfile
         call colorfile ;de=color
 prdirfile_ix_decolor
         call nv_setcolor
-       if 1==0
-        ld hl,fcb+1
-        ld de,filelinebuf
-        ld bc,11
-        ldir
-       else
         ld a,(fcb+FCB_EXTENTNUMBERLO)
         SETPGC000
         ld hl,(fcb+FCB_EXTENTNUMBERHI)
         ld de,filelinebuf
         ld bc,25*256+' '
         call prdirfile_copyfn
-       endif
-        ld de,filelinebuf_15
-        exx
+        ;exx
         ld hl,(fcb+FCB_FSIZE+2)
 	exx
         ld hl,(fcb+FCB_FSIZE)
         ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
+        ld de,filelinebuf_15
         call z,prdword_de
          ld de,filelinebuf_28 ;skip "cursor right" over | (which has different color)
         ld hl,(fcb+FCB_FDATE)
@@ -908,7 +901,7 @@ nonewpg:
         
         pop bc
         inc bc ;nfiles
-        bit 5,b;1,b ;страничка pgtemp закончилась? max 512 файлов по 32 байта
+        bit 5,b;1,b ;страничка pgtemp закончилась? max 8192 файлов по 32 байта
         jp z,loaddir0
 loaddir_error
 loaddirq
@@ -3030,10 +3023,13 @@ wordfiles
 wordbytes
         db "1234567890 bytes ",0
 emptypath=$-1
-        ;db 0
+        db 0 ;иначе по непонятной причине после панели с файлом tron.ovl.bk перестаёт печатать панели (важен старший байт длины файла!?!?)
 
 filinfo
         ds FILINFO_sz
+        ;ds 500
+        
+        display "sort=",$
 
         include "nvsort.asm"
         include "heapsort.asm"
