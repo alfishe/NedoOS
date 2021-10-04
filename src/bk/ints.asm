@@ -11,8 +11,26 @@ init
 noautoload
 ;autoloadq
         OS_HIDEFROMPARENT
-        ld e,2+0x80 ;keep
+        ld e,2+0x80 ;MC+keep
+       ld e,0+0x80 ;EGA+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+
+        ld de,bkpal
+        OS_SETPAL
+
+        ld hl,tleftpixels
+mkrecolor0
+        ld a,l ;%????RrLl ;%????LlRr
+        rrca
+        rrca   ;%Ll????Rr
+        rla
+        rla    ;%????Rr?L
+        rla    ;%???Rr?Ll
+        and 0x1b
+        ld (hl),a;000Rr0Ll
+        inc l
+        jr nz,mkrecolor0
+
         ;ld e,0
         ;OS_SETSCREEN
         ;ld e,0
@@ -339,3 +357,16 @@ far_int
 
 oldpath
         ds MAXPATH_sz
+
+;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
+;standard:
+        ;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
+        ;dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
+;ansi:
+	;dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
+	;dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
+bkpal
+;0,R,B,G:
+       dup 4
+	dw 0xffff,0x1d1d,0x1e1e,0x0f0f
+       edup

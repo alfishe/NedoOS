@@ -360,13 +360,13 @@ hlnextpg
 	ret
 
 putscreen_c
+        jr putscreen_c_color
          ;halt
        push hl
        push bc
        ld b,tmirror/256
        ld a,(bc)
        push af
-;TODO bw/color
 ;y=%TTYYYyyy
 ;hl=%01TTYYYy yyxxxxxx
        ld b,0
@@ -386,6 +386,55 @@ putscreen_c
         ld l,a
         add hl,bc
 ;addr=0x8000+(half*0x2000)+y*40+x
+        ld a,(user_scr0_high) ;ok
+        SETPG8000 ;TODO щёлкать только в color      
+       pop af
+        ld (hl),a
+       pop bc
+       pop hl
+        ret
+
+putscreen_c_color
+       push hl
+       push bc
+       ;ld b,tmirror/256
+       ;ld a,(bc)
+       ;push af
+;y=%TTYYYyyy
+;hl=%01TTYYYy yyxxxxxx
+       ld b,0
+       bit 0,l
+       jr z,$+4
+       ld b,0x20
+        ld a,l
+        rra
+        and 0x1f
+       add hl,hl
+       add hl,hl
+       ld l,h
+        ld h,ty/256
+        ld c,(hl)
+        inc h
+        ld h,(hl) ;hc = ybase
+        ld l,a
+        add hl,bc
+;addr=0x8000+(half*0x2000)+y*40+x
+       
+        ld a,(user_scr0_low) ;ok
+        SETPG8000 ;TODO щёлкать только в color      
+       pop bc
+       push bc
+        ld b,tleftpixels/256
+        ld a,(bc)
+        ld (hl),a
+        ld a,c
+        rlca
+        rlca
+        rlca
+        rlca
+        ld c,a
+        ld a,(bc)
+       push af
         ld a,(user_scr0_high) ;ok
         SETPG8000 ;TODO щёлкать только в color      
        pop af
@@ -1883,7 +1932,7 @@ print_bc_to_log_addr=$+1
 
         align 256
 log
-        ds 2
+        ds 256
         
         align 256
 	include "bktable.asm"
@@ -1894,6 +1943,10 @@ oldpc
         ;dw 0
         ds 256
        endif
+
+        align 256
+tleftpixels ;for color
+        ds 256
 
 ;генерируется для textmode
         align 256
