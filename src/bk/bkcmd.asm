@@ -1209,14 +1209,15 @@ SWABer
         ld c,h
         PUTDEST_Loop
 
+EMTer_q
+       _LoopC
 EMTer
-;TODO
-;Emulator trap: -(SP) < PS; -(SP) < PC; PC < (30); PS < (32)
+;TODO убрать ловушки
        ld a,c
        cp 0x18 ;draw pixel (БК-0010)
-       jr z,EMT_drawpixelR1R2
+       jp z,EMT_drawpixelR1R2
        cp 0x3b ;draw pixel (БК-0011)
-       jr z,EMT_drawpixelR0R1
+       jp z,EMT_drawpixelR0R1
        cp 0x39 ;get color (БК-0011)
        jp z,EMT_getcolor
        cp 0x0e ;set color (БК-0010) ;pentis, mona
@@ -1224,7 +1225,7 @@ EMTer
        cp 0x38 ;set color (БК-0011)
        jp z,EMT_setcolor
        cp 0x06
-       jr z,EMT_readkbd
+       jp z,EMT_readkbd
         cp 0x0c ;bubbler,mona ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
         jp z,EMT_cls
         cp 0x16 ;bubbler ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
@@ -1249,11 +1250,21 @@ EMTer
          jr z,EMTer_q ;road2cafe
          cp 0x33
          jr z,EMTer_q ;road2cafe
-;TODO вызов обработчика
-
-       jr $
-EMTer_q
-       _LoopC
+;Emulator trap: -(SP) < PS; -(SP) < PC; PC < (30); PS < (32)
+        call getflags_bc
+        putmemspBC
+        decodePC_to_ae
+        ld b,a
+        ld c,e
+        putmemspBC
+        ld bc,0x1a ;032
+        call rdmem_bc_to_bc
+        call makeflags_frombc
+        ld bc,0x18 ;030
+        call rdmem_bc_to_bc
+        ld d,b
+        ld e,c
+       _LoopC_JP
 EMT_readkbd
 ;EMT 6 - чтение кода символа с клавиатуры (выходной параметр - код нажатой клавиши в R0)
         ;ld a,55+128 ;"or a"
@@ -1339,14 +1350,40 @@ EMT_setcolor
 
 EMT_cls
         push de
+        call cls_for_curgfxmode
+        pop de
+       _LoopC
+
+cls_for_curgfxmode
         ld a,(tpgs+0x40)
        call clpga
         ld a,(user_scr0_high) ;ok
        call clpga
-       ; ld a,(user_scr0_low) ;ok
-       ;call clpga
-        pop de
-       _LoopC
+curgfxmode=$+1
+        ld a,0
+        or a
+        ret z ;не чистим атрибут, если mono (он установлен в setgfxmode)
+        ld a,(user_scr0_low) ;ok
+       jp clpga
+
+redraw_for_curgfxmode
+        ld bc,0x4000
+redraw_for_curgfxmode0
+        push bc
+        call rdmem_bc_to_bc ;TODO optimize
+        pop hl
+        push hl
+        call putscreen_c
+        pop hl
+        push hl
+        inc hl
+        ld c,b
+        call putscreen_c
+        pop bc
+        inc bc
+        bit 7,b
+        jr z,redraw_for_curgfxmode0
+        ret
 
 TRAPer
 ;TODO

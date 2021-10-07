@@ -117,7 +117,7 @@ on_int
         push iy
         ex af,af' ;'
         push af 
-        call oldimer
+        call oldimer ;делает ei!!! двигать позже нельзя, он ставит палитру в верхнем бордере и потом не будет второй раз!
         
 	;ld hl,(timer)
 	;inc hl
@@ -131,6 +131,12 @@ on_int
        push af
        ld a,(pgprog)
        SETPG4000
+
+       ld a,0xf7
+       in a,(0xfe)
+       and 0b11000
+       call z,changegfxmode ;4+5 = change gfx mode
+
         call KEYB
 ;iskeymessage=$
 ;        or a ;/scf
@@ -183,12 +189,10 @@ iykeeper_on=$
         jr nc,IMINT_noiykeeperdata
         ld iy,(iykeeper_iy)
 IMINT_noiykeeperdata
-       ;LD (retfromim),DE ;для индикации времени обработки прерыв
               
       ld a,(tpgs)
       SETPGC000
 
-        ;call KEYB ;TODO в странице
 GKEYADR=$+1
         LD HL,KEYBUFF ;адрес конца списка
 
@@ -332,13 +336,12 @@ recountpc_inc ;keep CY!
         ret p ;<0x8000
         push af
         push bc
-        dec de
-        decodePC ;de->de
-        inc de
-        encodePC ;de->de
+         dec de
+         decodePC ;de->de
+         inc de
+        encodePC ;de->de, setpg
         pop bc
         pop af
-        ;ld de,0x4000
 	ret
 
 inchnextpg
@@ -360,8 +363,10 @@ hlnextpg
 	ret
 
 putscreen_c
+putscreen_c_patch=$
+PUTSCREEN_C_PATCH_MONO=0x3e
+PUTSCREEN_C_PATCH_COLOR=0x18
         jr putscreen_c_color
-         ;halt
        push hl
        push bc
        ld b,tmirror/256
@@ -397,9 +402,6 @@ putscreen_c
 putscreen_c_color
        push hl
        push bc
-       ;ld b,tmirror/256
-       ;ld a,(bc)
-       ;push af
 ;y=%TTYYYyyy
 ;hl=%01TTYYYy yyxxxxxx
        ld b,0
@@ -419,9 +421,8 @@ putscreen_c_color
         ld l,a
         add hl,bc
 ;addr=0x8000+(half*0x2000)+y*40+x
-       
         ld a,(user_scr0_low) ;ok
-        SETPG8000 ;TODO щёлкать только в color      
+        SETPG8000
        pop bc
        push bc
         ld b,tleftpixels/256
@@ -436,7 +437,7 @@ putscreen_c_color
         ld a,(bc)
        push af
         ld a,(user_scr0_high) ;ok
-        SETPG8000 ;TODO щёлкать только в color      
+        SETPG8000
        pop af
         ld (hl),a
        pop bc
@@ -1834,6 +1835,7 @@ tpgs
 
         align 256
 tmirror
+tleftpixels
        dup 256
 _7=$&0x80
 _6=$&0x40
@@ -1902,15 +1904,15 @@ _SP
 _R7
         dw 0
 
-ansipal ;можно убрать в ints
+;ansipal ;можно убрать в ints
 ;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
         ;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
         ;dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
 ;по сравнению с цветами терминала переставлено:
 ;1-4
 ;3-6
-	dw 0xffff,0xfefe,0xefef,0xeeee,0xfdfd,0xfcfc,0xeded,0xecec
-	dw 0x1f1f,0x1e1e,0x0f0f,0x0e0e,0x1d1d,0x1c1c,0x0d0d,0x0c0c
+	;dw 0xffff,0xfefe,0xefef,0xeeee,0xfdfd,0xfcfc,0xeded,0xecec
+	;dw 0x1f1f,0x1e1e,0x0f0f,0x0e0e,0x1d1d,0x1c1c,0x0d0d,0x0c0c
 
 pc_high
         db 0
@@ -1943,10 +1945,6 @@ oldpc
         ;dw 0
         ds 256
        endif
-
-        align 256
-tleftpixels ;for color
-        ds 256
 
 ;генерируется для textmode
         align 256

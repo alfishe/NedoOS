@@ -11,36 +11,12 @@ init
 noautoload
 ;autoloadq
         OS_HIDEFROMPARENT
-        ld e,2+0x80 ;MC+keep
-       ld e,0+0x80 ;EGA+keep
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-
-        ld de,bkpal
-        OS_SETPAL
-
-        ld hl,tleftpixels
-mkrecolor0
-        ld a,l ;%????RrLl ;%????LlRr
-        rrca
-        rrca   ;%Ll????Rr
-        rla
-        rla    ;%????Rr?L
-        rla    ;%???Rr?Ll
-        and 0x1b
-        ld (hl),a;000Rr0Ll
-        inc l
-        jr nz,mkrecolor0
-
-        ;ld e,0
-        ;OS_SETSCREEN
-        ;ld e,0
-        ;OS_CLS
-        ;ld e,1
-        ;OS_SETSCREEN
-        ;ld e,0
-        ;OS_CLS
 
         ld sp,STACK
+
+        ld a,0;1 ;pseudo-color
+        call setgfxmode
+
         ;ld de,diskname
         ;OS_OPENHANDLE
         ;ld a,b
@@ -49,26 +25,12 @@ mkrecolor0
         OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld a,e
         ld (pgprog),a
-        ;ld a,h
-        ;ld (tpgs+0xcf),a ;pgrom0 (#0x3f)
        push hl
         ld e,h
         OS_DELPAGE
        pop hl
         ld e,l
         OS_DELPAGE
-
-        ld a,(user_scr0_high) ;ok
-        ld e,0xaa
-        call clpga_e
-        ld a,(user_scr0_low) ;ok
-        ld e,7
-        call clpga_e
-
-        ;ld de,tallmem
-        ;OS_OPENHANDLE
-        ;ld a,b
-        ;ld (curhandle),a
 
         ld hl,tpgs
         ld b,4
@@ -80,12 +42,7 @@ filltpgs0
        push de
        push hl
        ld a,e
-       ;call c,clpga
        call clpga
-        ;SETPGC000
-        ;ld de,0xc000
-        ;ld hl,0x4000
-        ;call readcurhandle
        pop hl
        pop de
 filltpgs0_noclear
@@ -97,8 +54,6 @@ filltpgs0_noclear
        ld l,a
         inc l
         djnz filltpgs0
-
-        ;call closecurhandle
 
         ld de,oldpath
         OS_GETPATH
@@ -130,7 +85,7 @@ resetpp
         xor a
         ld (iff1),a
 
-        ;call INT_setgfxTEXT80
+        call cls_for_curgfxmode
 
         ld hl,0x0200
         ld (_SP),hl
@@ -228,6 +183,65 @@ curhandle=$+1
         OS_READHANDLE
         ret
 
+changegfxmode
+;TODO защита от int!!!
+       di
+        ld a,(curgfxmode)
+        xor 1
+        call setgfxmode
+        call redraw_for_curgfxmode
+       ei
+        ret
+
+setgfxmode
+       ld (curgfxmode),a
+;0=mono
+;1=pseudo-color
+;...
+        or a
+        jr z,setgfxmode_mono
+;1=pseudo-color
+       ld e,0+0x80 ;EGA+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld de,bkpal
+        OS_SETPAL
+        ld hl,tleftpixels
+mkrecolor0
+        ld a,l ;%????RrLl ;%????LlRr
+        rrca
+        rrca   ;%Ll????Rr
+        rla
+        rla    ;%????Rr?L
+        rla    ;%???Rr?Ll
+        and 0x1b
+        ld (hl),a;000Rr0Ll
+        inc l
+        jr nz,mkrecolor0
+        ld a,PUTSCREEN_C_PATCH_COLOR
+        ld (putscreen_c_patch),a
+        ret
+setgfxmode_mono
+        ld e,2+0x80 ;MC+keep
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld de,standardpal
+        OS_SETPAL       
+        ld hl,tmirror
+mkmirror0
+        ld b,8
+mkmirror1
+        rlc l
+        rra
+        djnz mkmirror1
+        ld (hl),a
+        inc l
+        jr nz,mkmirror0
+        ld e,7 ;атрибут для mono
+        ld a,(user_scr0_low) ;ok
+       call clpga_e
+        ld a,PUTSCREEN_C_PATCH_MONO
+        ld (putscreen_c_patch),a
+        ret
+
 ;keep here for quit
 swapimer
 	di
@@ -257,8 +271,6 @@ trom2
         db "bk10_107_basic2.rom",0
 trom3
         db "bk10_108_basic3.rom",0
-;tprog
-;        db "textshow.bk",0
 path
         db "bk",0
 
@@ -367,6 +379,10 @@ oldpath
 	;dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
 bkpal
 ;0,R,B,G:
+;0,W,orange,teal
        dup 4
-	dw 0xffff,0x1d1d,0x1e1e,0x0f0f
+	;dw 0xffff,0x1d1d,0x1e1e,0x0f0f
+	dw 0xffff,0x8d8d,0x5f5f,0x0c0c
        edup
+standardpal
+        STANDARDPAL
