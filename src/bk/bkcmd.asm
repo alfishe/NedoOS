@@ -1342,9 +1342,6 @@ EMT_setcolor
        dec a
        cpl
         and 3
-        ;cp 2
-        ;jr c,$+4
-        ; xor 1
         ld (bk_curcolor_recoded),a
        _LoopC
 
@@ -1355,8 +1352,6 @@ EMT_cls
        _LoopC
 
 cls_for_curgfxmode
-        ld a,(tpgs+0x40)
-       call clpga
         ld a,(user_scr0_high) ;ok
        call clpga
 curgfxmode=$+1
@@ -1386,9 +1381,21 @@ redraw_for_curgfxmode0
         ret
 
 TRAPer
-;TODO
 ;General trap: -(SP) < PS; -(SP) < PC; PC < (34); PS < (36)
-        jr $
+        call getflags_bc
+        putmemspBC
+        decodePC_to_ae
+        ld b,a
+        ld c,e
+        putmemspBC
+        ld bc,0x1e ;036
+        call rdmem_bc_to_bc
+        call makeflags_frombc
+        ld bc,0x1c ;034
+        call rdmem_bc_to_bc
+        ld d,b
+        ld e,c
+       _LoopC_JP
 
 FFFFer
 ;for Piramania

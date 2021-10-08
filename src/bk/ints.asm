@@ -85,6 +85,10 @@ resetpp
         xor a
         ld (iff1),a
 
+        ld a,(tpgs+0x00)
+       call clpga
+        ld a,(tpgs+0x40)
+       call clpga
         call cls_for_curgfxmode
 
         ld hl,0x0200
@@ -189,6 +193,7 @@ changegfxmode
         ld a,(curgfxmode)
         xor 1
         call setgfxmode
+        call cls_for_curgfxmode
         call redraw_for_curgfxmode
        ei
         ret
