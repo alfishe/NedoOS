@@ -13,8 +13,8 @@ CLRB_COMB_INCB_DECB
         add a,a
         jr c,INCB_DECB
         jp m,COMBer
-;CLRBer        
-        ld a,c
+;CLRBer
+        ld a,c ;GETDEST8_cmdc ;сначала читаем, потом обнуляем? не может ни на что повлиять?
        ex af,af' ;'
         ;ld a,1
         ;dec a
@@ -53,7 +53,7 @@ CLR_COM_INC_DEC
         jr c,INC_DEC
         jp m,COMer
 ;CLRer
-        ld a,c
+        ld a,c ;GETDEST_cmdc ;сначала читаем, потом обнуляем? не может ни на что повлиять?
        ex af,af' ;'
         ;ld a,1
         ;dec a
@@ -263,7 +263,7 @@ MOVer
      ;(Rn)+;r7 ;rn;r1
         ;ld b,a
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
         ex af,af' ;'
      rra
      ld h,a ;keep CF
@@ -282,7 +282,7 @@ MOVer
 
 CMPer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
        push bc ;src
         GETDEST_cmda_autoinc
        ; ld h,b
@@ -298,7 +298,7 @@ CMPer
 
 BITer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST_cmda_autoinc
        pop hl
@@ -325,7 +325,7 @@ BITer
 
 BICer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST_cmda
        pop hl
@@ -354,7 +354,7 @@ BICer
 
 BISer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST_cmda
        pop hl
@@ -381,7 +381,7 @@ BISer
 
 ADDer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST_cmda
        pop hl
@@ -395,7 +395,7 @@ ADDer
 
 SUBer
 ;ac=cmd
-        call readsourceop ;out: bc=sourceop, a=cmdLSB
+        call rdsrcop ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST_cmda
         ld h,b
@@ -411,7 +411,7 @@ SUBer
         PUTDEST_Loop
 
 MOVBer
-        call readsource8op ;out: bc=sourceop, a=cmdLSB
+        call rdsrc8op ;out: bc=sourceop, a=cmdLSB
         ex af,af' ;'
      rra
      ld h,a ;keep CF
@@ -437,7 +437,7 @@ MOVB_minusr0
 
 CMPBer
 ;ac=cmd
-        call readsource8op ;out: bc=sourceop, a=cmdLSB
+        call rdsrc8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda_autoinc
        pop hl
@@ -451,7 +451,7 @@ CMPBer
 
 BITBer
 ;ac=cmd
-        call readsource8op ;out: bc=sourceop, a=cmdLSB
+        call rdsrc8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda_autoinc
        pop hl
@@ -467,7 +467,7 @@ BITBer
 
 BICBer
 ;ac=cmd
-        call readsource8op ;out: bc=sourceop, a=cmdLSB
+        call rdsrc8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda
        pop hl
@@ -485,7 +485,7 @@ BICBer
 
 BISBer
 ;ac=cmd
-        call readsource8op ;out: bc=sourceop, a=cmdLSB
+        call rdsrc8op ;out: bc=sourceop, a=cmdLSB
        push bc
         GETDEST8_cmda
        pop hl
@@ -918,7 +918,7 @@ JMPer
        jp z,JMPer_110
        jr $
 ;дальше неправильно общий случай (надо переходить без лишнего чтения памяти!)
-        GETDEST_cmdc_autoinc ;call readsourceop ;out: bc=sourceop, a=cmdLSB
+        GETDEST_cmdc_autoinc ;call rdsrcop ;out: bc=sourceop, a=cmdLSB
         ld d,b
         ld e,c
        _LoopC_JP

@@ -1,7 +1,7 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=1
+DEBUG=0;1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
 
@@ -141,10 +141,11 @@ on_int
 ;iskeymessage=$
 ;        or a ;/scf
 ;        jr c,int_alreadyhavekey
-       ld a,(bk_curkey)
-       or a
-       jr nz,int_alreadyhavekey
+       ;ld a,(bk_curkey)
+       ;or a
+       ;jr nz,int_alreadyhavekey
         call keyscan_getkey
+       jr z,int_alreadyhavekey ;no keys in buf
         ld (bk_curkey),a
         ;ld a,55 ;"scf"
         ;ld (iskeymessage),a ;message
@@ -621,21 +622,15 @@ putdest8_Loop
 ;000 Register
         ld a,l
         cp 0x0e
-        jp z,bctoPCLoop
-        ld (hl),c
-       if 0 ;не надо расширять знак (Alexander Tishin), кроме movb (см. там отдельно)
-       inc l
-       ld a,c
-       rla
-       sbc a,a
-       ld (hl),a
-       endif
+        jp z,$;bctoPCLoop
+        ld (hl),c ;не надо расширять знак (Alexander Tishin), кроме movb (см. там отдельно)
         _LoopC
 
 putdestop8_001 ;(Rn): Rn contains the address of the operand
        ld a,l
        cp 0x0e
        jr z,$
+        GOOD ;leopol начало
         ld a,(hl)
         inc l
         ld h,(hl)
@@ -648,10 +643,10 @@ putdestop8_01x
         ld a,l
         cp 0x0c
         ld a,(hl)
-        ;jr nc,putdestop_010_sppc
        jr c,$+2+2+1
        jr nz,putdestop8_010_pc
        inc (hl) ;sp/pc +=2 ;TODO нечётный?
+        GOOD ;leopol демо
         inc (hl)
         inc hl
         jr nz,$+2+3+2
@@ -663,7 +658,7 @@ putdestop8_01x
         ld l,a
         WRMEM8_hl_LoopC
 putdestop8_010_pc ;TODO так ли при dest=(pc+)? bkscope
-       ;jr $
+        GOOD ;bkscope ;нет в leopol
         ld a,c
         ld (de),a
         next
@@ -676,6 +671,7 @@ putdestop8_011 ;@(Rn)+
         ld a,l
         cp 0x0e
         jr z,putdestop8_011_pc
+        UNTESTED
        push de
         ld e,(hl)
         inc l
@@ -690,6 +686,7 @@ putdestop8_011 ;@(Rn)+
         ex de,hl
        pop de
 putdestop8_memfrommem       
+       push bc
         ld a,h
         and 0xc0
 	ld c,a
@@ -704,8 +701,10 @@ putdestop8_memfrommem
         call z,inchnextpg
         ld h,(hl)
         ld l,b
+       pop bc
         WRMEM8_hl_LoopC
 putdestop8_011_pc
+        UNTESTED
         get
         next
         ld l,a
@@ -731,6 +730,7 @@ putdestop8_1xx
        jr c,$+2+2+1
        jr nz,putdestop8_100_pc
        dec de ;sp/pc +=2
+        GOOD ;leopol начало
         ld (hl),d
         dec l
         ld (hl),e
@@ -755,6 +755,7 @@ putdestop8_101
        ld a,l
        cp 0x0e
        jr z,$;putdestop8_101_pc ;TODO pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -773,6 +774,7 @@ putdestop8_11x
        ld a,l
        cp 0x0e
        jr z,putdestop8_110_pc
+        GOOD ;bkscope
         get
         next
         add a,(hl)
@@ -786,6 +788,7 @@ putdestop8_11x
         ld l,a ;hl=Rn+X
         WRMEM8_hl_LoopC
 putdestop8_110_pc
+        GOOD ;leopol начало
        push bc
         get
         next;inc e
@@ -805,6 +808,7 @@ putdestop8_111
        ld a,l
        cp 0x0e
        jr z,putdestop8_111_pc
+        UNTESTED
         get
         next
         add a,(hl)
@@ -818,6 +822,7 @@ putdestop8_111
         ld l,a ;hl=Rn+X
         jp putdestop8_memfrommem
 putdestop8_111_pc
+        UNTESTED
        push bc
         get
         next;inc e
@@ -862,6 +867,7 @@ getdest_aisc
         ld b,(hl)
         ret
 readdestop_000_pc ;cd.bk - TODO правильно ли? программа не работает
+        UNTESTED
       ld hx,c
        decodePC_to_ae
        ld b,a
@@ -889,11 +895,13 @@ readdestop_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
         jr z,readdestop_011_pc
+        GOOD ;road2cafe ;нет в leopol
         ld c,(hl)
         inc l
         ld a,(hl)
-        jp readsourceop_addrfromaddr_ac
+        jp rdsrcop_addrfromaddr_ac
 readdestop_011_pc
+        GOOD ;bubbler ;нет в leopol
 ;инкремент не делаем, чтобы его делал putdest
         get
         inc e ;next без переключения страниц!!! FIXME
@@ -914,9 +922,9 @@ readdest8op_100
         inc l
         ld b,(hl)
         dec bc
-       jr c,$+3 ;+2
-        ;jr nz,readdest8op_100_pc ;TODO pc
+       jr c,$+3
        dec bc ;sp/pc +=2
+        UNTESTED
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
 
@@ -926,6 +934,7 @@ readdestop_100
        ld hx,c
        cp 0x0e
        jr z,$;readdestop_100_pc ;TODO pc
+        GOOD ;sokoban ;нет в leopol
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -941,14 +950,15 @@ readdestop_101
        ld hx,c
        cp 0x0e
        jr z,readdestop_101_pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
         dec bc
         dec bc
         ld a,b
-        jp readsourceop_addrfromaddr_ac
-readdestop_101_pc
+        jp rdsrcop_addrfromaddr_ac
+readdestop_101_pc ;TODO
         jr $
 
 readdest8op_110 ;TODO optimize
@@ -958,6 +968,7 @@ readdestop_110
        ld hx,c
        cp 0x0e
        jr z,readdestop_110_pc
+        GOOD ;leopol демо2
         get
         inc e
         add a,(hl)
@@ -968,10 +979,11 @@ readdestop_110
         adc a,(hl) ;ac=Rn+X
         RDMEM_ac_ret ;bc=result, a=hx
 readdestop_110_pc ;for mona
+        GOOD ;leopol начало
         get
         inc e
         ld c,a
-        inc l
+        ;inc l
         get
         dec e ;FIXME
         ld b,a
@@ -993,6 +1005,7 @@ readdestop_111
        ld hx,c
        cp 0x0e
        jr z,readdestop_111_pc
+        UNTESTED
         get
         inc e
         add a,(hl)
@@ -1001,25 +1014,27 @@ readdestop_111
         get
         dec e ;FIXME
         adc a,(hl) ;ac=Rn+X
-        jp readsourceop_addrfromaddr_ac
+        jp rdsrcop_addrfromaddr_ac
 readdestop_111_pc ;for leopol?
+;[[pc+X]]
+        GOOD ;leopold когда уже появилась грязь вместо мышей
         get
         inc e
         ld c,a
-        inc l
+        ;inc l
         get
         dec e ;FIXME
         ld b,a
        decodePC_to_ae
       inc bc
-      inc bc
+      inc bc ;TODO надо ли?
         ld h,a
        ld a,c
        add a,e
        ld c,a
        ld a,b
        adc a,h ;ac=pc+X
-        jp readsourceop_addrfromaddr_ac
+        jp rdsrcop_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1069,6 +1084,7 @@ putdestop_01x
         ld a,l
         cp 0x0e
        jr z,putdestop_010_pc
+        GOOD ;textshow
        push de
         ld e,(hl)
         inc l
@@ -1098,6 +1114,7 @@ putdestop_011 ;@(Rn)+
         ld a,l
         cp 0x0e
         jr z,putdestop_011_pc
+        UNTESTED ;road2cafe после этого портит экран
        push de
         ld e,(hl)
         inc l
@@ -1112,6 +1129,7 @@ putdestop_011 ;@(Rn)+
         ex de,hl
        pop de
 putdestop_memfrommem
+       push bc
         ld a,h
         and 0xc0
 	ld c,a
@@ -1128,8 +1146,10 @@ putdestop_memfrommem
         ld h,(hl)
        pop af
         ld l,a
+       pop bc
         WRMEM_hl_LoopC
 putdestop_011_pc
+        GOOD ;textshow
         get
         next
         ld l,a
@@ -1148,6 +1168,7 @@ putdestop_1xx
         ld a,l
         cp 0x0e
         jr z,putdestop_100_pc
+        GOOD ;textshow
        push de
         ld e,(hl)
         inc l
@@ -1179,6 +1200,7 @@ putdestop_101
        ld a,l
        cp 0x0e
        jr z,$;readdestop_101_pc ;TODO pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1197,6 +1219,7 @@ putdestop_11x
         ld a,l
        cp 0x0e
        jr z,putdestop_110_pc
+        GOOD ;leopol демо3
         get
         next
         add a,(hl)
@@ -1210,6 +1233,7 @@ putdestop_11x
         ld l,a ;hl=Rn+X
         WRMEM_hl_LoopC
 putdestop_110_pc ;for mona, leopol
+        GOOD ;leopol начало
        push bc
         get
         next;inc e
@@ -1229,6 +1253,7 @@ putdestop_111
         ld a,l
        cp 0x0e
        jr z,putdestop_111_pc
+        UNTESTED
         get
         next
         add a,(hl)
@@ -1241,8 +1266,9 @@ putdestop_111
        pop af
         ld l,a ;hl=Rn+X
         jp putdestop_memfrommem
-putdestop_111_pc ;leopold глубоко во время игрового процесса
+putdestop_111_pc
 ;[[pc+X]]
+        GOOD ;leopold глубоко во время игрового процесса (появление мышей?)
        push bc
         get
         next;inc e
@@ -1302,7 +1328,7 @@ getdest_aisc_autoinc ;TODO всегда +=2
        ld b,a       
         ld a,c
         rla
-        jp readsourceop_go
+        jp rdsrcop_go
 
 getdest8_aisc_autoinc
 ;out: c=dest, a=cmdLSB
@@ -1311,11 +1337,11 @@ getdest8_aisc_autoinc
        ld b,a       
         ld a,c
         rla
-        jp readsource8op_go
+        jp rdsrc8op_go
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-readsourceop
+rdsrcop
 ;ac=cmd
 ;out: bc=sourceop, a=cmdLSB
 ;15-12 Opcode
@@ -1331,7 +1357,7 @@ readsourceop
          rra
          rra
          rra
-readsourceop_go
+rdsrcop_go
          and 0x0e
         ld l,a ;0000rrr0
         ld h,_R0/256
@@ -1346,42 +1372,44 @@ readsourceop_go
 ;6n	Index	X(Rn)	Rn+X is the address of the operand
 ;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
         bit 1,b
-        jr nz,readsourceop_xx1
+        jr nz,rdsrcop_xx1
         bit 2,b
-        jr nz,readsourceop_x10
+        jr nz,rdsrcop_x10
         bit 3,b
-        jp nz,readsourceop_100
+        jp nz,rdsrcop_100
 ;000 Register
        cp 0x0e
-       jr z,readsourceop_000_pc
+       jr z,rdsrcop_000_pc
          ld a,c
         ld c,(hl)
         inc l
         ld b,(hl)
         ret
-readsourceop_000_pc
+rdsrcop_000_pc
+        GOOD ;leopol начало
         decodePC_to_ae
         ld b,a
          ld a,c
         ld c,e
         ret
 
-readsourceop_xx1
+rdsrcop_xx1
         bit 2,b
-        jp nz,readsourceop_x11
+        jp nz,rdsrcop_x11
         bit 3,b
-        jp nz,readsourceop_101
+        jp nz,rdsrcop_101
 ;001: (Rn)
 readdestop_001 ;(Rn): Rn contains the address of the operand
 readdestop_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest
        ld hx,c
        cp 0x0e
-       jr z,readsourceop_001_pc
+       jr z,rdsrcop_001_pc
         ld c,(hl)
         inc l
         ld a,(hl)
         RDMEM_ac_ret ;bc=result
-readsourceop_001_pc
+rdsrcop_001_pc
+        GOOD ;bkscope
         get
         ld c,a
         inc e
@@ -1391,14 +1419,15 @@ readsourceop_001_pc
        ld a,hx
         ret
 
-readsourceop_x10
+rdsrcop_x10
         bit 3,b
-        jp nz,readsourceop_110
+        jp nz,rdsrcop_110
 ;(Rn)+
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
        ld hx,c
         cp 0x0e
-       jr z,readsourceop_010_pc
+       jr z,rdsrcop_010_pc
+        GOOD ;textshow
         ld c,(hl)
         inc (hl) ;sp/pc +=2 ;TODO нечётный?
         inc (hl)
@@ -1407,7 +1436,8 @@ readsourceop_x10
         jr nz,$+3
         inc (hl)
         RDMEM_ac_ret ;bc=result, a=hx
-readsourceop_010_pc
+rdsrcop_010_pc
+        GOOD ;textshow
         get
         next
         ld c,a
@@ -1417,13 +1447,14 @@ readsourceop_010_pc
        ld a,hx
         ret
 
-readsourceop_x11
+rdsrcop_x11
         bit 3,b
-        jp nz,readsourceop_111
-readsourceop_011 ;@(Rn)+ ;всегда +=2
+        jp nz,rdsrcop_111
+rdsrcop_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
-        jr z,readsourceop_011_pc
+        jr z,rdsrcop_011_pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1435,7 +1466,7 @@ readsourceop_011 ;@(Rn)+ ;всегда +=2
         dec bc
         dec bc
         ld a,b
-readsourceop_addrfromaddr_ac
+rdsrcop_addrfromaddr_ac
         ld l,c
         ld h,a
         and 0xc0
@@ -1451,8 +1482,8 @@ readsourceop_addrfromaddr_ac
         call z,inchnextpg
         ld a,(hl)
         RDMEM_ac_ret ;bc=result, a=hx
-
-readsourceop_011_pc
+rdsrcop_011_pc
+        GOOD ;leopol демо4(кот у цифр)
         get
         next
         ld c,a
@@ -1460,12 +1491,13 @@ readsourceop_011_pc
         next
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsourceop_100
+rdsrcop_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
        ld hx,c
         cp 0x0e ;TODO pc
         jr z,$ ;ninza_1 сюда не должен попадать
+        GOOD ;leopol начало
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1478,11 +1510,12 @@ rdmem_bc_to_bc
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsourceop_101
+rdsrcop_101
 ;101 @-(Rn) ;всегда -=2
        ld hx,c
         cp 0x0e
-        jr z,$;readsourceop_101_pc ;TODO pc
+        jr z,$;rdsrcop_101_pc ;TODO pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1492,13 +1525,14 @@ readsourceop_101
         dec l
         ld (hl),c
         ld a,b
-        jp readsourceop_addrfromaddr_ac
+        jp rdsrcop_addrfromaddr_ac
 
-readsourceop_110
+rdsrcop_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
        ld hx,c
         cp 0x0e
-        jr z,readsourceop_110_pc
+        jr z,rdsrcop_110_pc
+        GOOD ;leopol начало
         get
         next
         add a,(hl)
@@ -1508,7 +1542,8 @@ readsourceop_110
         next
         adc a,(hl) ;ac=Rn+X
         RDMEM_ac_ret ;bc=result, a=hx
-readsourceop_110_pc
+rdsrcop_110_pc
+        GOOD ;leopol демо
         get
         next
         ld c,a
@@ -1522,16 +1557,14 @@ readsourceop_110_pc
         ld c,a
         ld a,b
         adc a,h;d
-        ;ld b,a
-       ;ld a,hx
-       ; ret
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsourceop_111
+rdsrcop_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
        ld hx,c
        cp 0x0e
-       jr z,readsourceop_111_pc
+       jr z,rdsrcop_111_pc
+        GOOD ;klad ;нет в leopol
         get
         next
         add a,(hl)
@@ -1540,8 +1573,9 @@ readsourceop_111
         get
         next
         adc a,(hl) ;ac=Rn+X
-        jp readsourceop_addrfromaddr_ac
-readsourceop_111_pc ;for morf
+        jp rdsrcop_addrfromaddr_ac
+rdsrcop_111_pc ;for morf
+        GOOD ;leopol появление мышей2?
         get
         next
         ld c,a
@@ -1554,10 +1588,10 @@ readsourceop_111_pc ;for morf
         add hl,bc
         ld a,h
         ld c,l ;ac=Rn+X
-        jp readsourceop_addrfromaddr_ac
+        jp rdsrcop_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;
-readsource8op
+rdsrc8op
 ;ac=cmd
 ;out: c=sourceop, a=cmdLSB
 ;15-12 Opcode
@@ -1573,7 +1607,7 @@ readsource8op
          rra
          rra
          rra
-readsource8op_go
+rdsrc8op_go
          and 0x0e
         ld l,a ;0000rrr0
         ld h,_R0/256
@@ -1588,11 +1622,11 @@ readsource8op_go
 ;6n	Index	X(Rn)	Rn+X is the address of the operand
 ;7n	Index deferred	@X(Rn)	Rn+X is the address of the address of the operand
         bit 1,b
-        jr nz,readsource8op_xx1
+        jr nz,rdsrc8op_xx1
         bit 2,b
-        jr nz,readsource8op_x10
+        jr nz,rdsrc8op_x10
         bit 3,b
-        jp nz,readsource8op_100
+        jp nz,rdsrc8op_100
 ;000 Register
          ld a,c
         ld c,(hl)
@@ -1600,32 +1634,33 @@ readsource8op_go
         ;ld b,(hl)
         ret
 
-readsource8op_xx1
+rdsrc8op_xx1
         bit 2,b
-        jp nz,readsource8op_x11
+        jp nz,rdsrc8op_x11
         bit 3,b
-        jp nz,readsource8op_101
+        jp nz,rdsrc8op_101
 ;001: (Rn)
 readdest8op_001 ;(Rn): Rn contains the address of the operand ;TODO optimize
 readdest8op_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest ;TODO optimize
        ld hx,c
        cp 0x0e
-       ;jr z,readsource8op_001_pc
-       jp z,readsourceop_001_pc
+       ;jr z,rdsrc8op_001_pc
+       jp z,rdsrcop_001_pc
         ld c,(hl)
         inc l
         ld a,(hl)
         RDMEM_ac_ret ;bc=result
 
-readsource8op_x10
+rdsrc8op_x10
         bit 3,b
-        jp nz,readsource8op_110
+        jp nz,rdsrc8op_110
 ;(Rn)+
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
        ld hx,c
         cp 0x0e
-       ;jr z,readsource8op_010_pc
-       jp z,readsourceop_010_pc
+       ;jr z,rdsrc8op_010_pc
+       jp z,rdsrcop_010_pc
+        GOOD ;textshow
         ld c,(hl)
       cp 0x0c
       jr c,$+3 ;для textshow
@@ -1637,14 +1672,15 @@ readsource8op_x10
         inc (hl)
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsource8op_x11
+rdsrc8op_x11
         bit 3,b
-        jp nz,readsourceop_111
-readsource8op_011 ;@(Rn)+ ;всегда +=2
+        jp nz,rdsrcop_111
+rdsrc8op_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
-        ;jr z,readsource8op_011_pc
-        jp z,readsourceop_011_pc
+        ;jr z,rdsrc8op_011_pc
+        jp z,rdsrcop_011_pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1658,7 +1694,7 @@ readsource8op_011 ;@(Rn)+ ;всегда +=2
         ld (hl),c
        pop bc
         ld a,b
-readsource8op_addrfromaddr_ac
+rdsrc8op_addrfromaddr_ac
         ld l,c
         ld h,a
         and 0xc0
@@ -1675,11 +1711,14 @@ readsource8op_addrfromaddr_ac
         ld a,(hl)
         RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
 
-readsource8op_100
+rdsrc8op_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        cp 0x0c
        ld hx,c
+        cp 0x0e
+        jp z,$;rdsrc8op_100_pc
+        cp 0x0c
+        GOOD ;leopol начало
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1692,28 +1731,27 @@ readsource8op_100
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 
-readsource8op_101
+rdsrc8op_101
 ;101 @-(Rn) ;всегда -=2
-        cp 0x0e
-        jr z,$;readsource8op_101_pc ;TODO pc
        ld hx,c
+        cp 0x0e
+        jr z,$;rdsrc8op_101_pc ;TODO pc
+        UNTESTED
         ld c,(hl)
         inc l
         ld b,(hl)
-      ;cp 0x0c
-      ;jr c,$+3 ;костыль для textshow
          dec bc
         dec bc
         ld (hl),b
         dec l
         ld (hl),c
         ld a,b
-        jp readsourceop_addrfromaddr_ac
+        jp rdsrcop_addrfromaddr_ac
 
-readsource8op_110=readsourceop_110 ;TODO optimize
+rdsrc8op_110=rdsrcop_110 ;TODO optimize
 ;110 Index: X(Rn): Rn+X is the address of the operand
 
-readsource8op_111=readsourceop_111 ;TODO optimize
+rdsrc8op_111=rdsrcop_111 ;TODO optimize
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
 
 ;;;;;;;;;;;;;;;;;;;;;;;;

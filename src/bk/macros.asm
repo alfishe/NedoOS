@@ -2,6 +2,15 @@
 ;SP=0x8000...
 ;data=0xC000...
 
+       macro UNTESTED
+       if DEBUG
+        jr $
+       endif
+       endm
+
+       macro GOOD
+       endm
+
      macro DISABLE_IFF0_KEEP_IY ;иначе pop iy запорет iy от обработчика прерывания
         call disable_iff0_keep_iy
      endm
