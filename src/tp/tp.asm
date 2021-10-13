@@ -48,10 +48,10 @@ _rdseq	equ	20 ;
 _wrseq	equ	21 ;
 _make	equ	22 ;
 _rename	equ	23 ;TODO
-_retdsk	equ	25 ;TODO (return A=current drive)
+_retdsk	equ	25 ;removed TODO (return A=current drive)
 _setdma	equ	26 ;
-_getalv	equ	27 ;TODO
-_getdpb	equ	31 ;TODO
+_getalv	equ	27 ;removed TODO
+_getdpb	equ	31 ;removed TODO
 _rndrd	equ	33 ;
 _rndwr	equ	34 ;
 _filsiz	equ	35 ;TODO (lib?)
@@ -791,7 +791,7 @@ l0262:
 ;
 setlowvideo:
 	push	af
-	ld	a,(l00e0)	; Get video mode
+	ld	a,(l00e0)	;ok ;FIXME ; Get video mode
 	or	a		; Test low mode already set
 	jr	z,l0282		; Yeap, skip
         if 1==1
@@ -801,7 +801,7 @@ setlowvideo:
         push ix
         push iy
 	xor	a
-	ld	(l00e0),a	; Set video mode
+	ld	(l00e0),a	;ok ;FIXME ; Set video mode
         if TERM
         ld de,0x0007
         else
@@ -823,7 +823,7 @@ l027c:
 	push	de
 	push	hl
 	xor	a
-	ld	(l00e0),a	; Set video mode
+	ld	(l00e0),a	;ok ;FIXME ; Set video mode
 	ld	hl,l01c8	; Set attribute
 l027c:
 	call	l0235		; Give control
@@ -839,7 +839,7 @@ l0282:
 ;
 setnormvideo:
 	push	af
-	ld	a,(l00e0)	; Get video mode
+	ld	a,(l00e0)	;ok ;FIXME ; Get video mode
 	cp	-1		; Test normal mode already set
 	jr	z,l0282		; Yeap, skip
         if 1==1
@@ -849,7 +849,7 @@ setnormvideo:
         push ix
         push iy
 	ld a,-1
-	ld (l00e0),a	; Set video mode
+	ld (l00e0),a	;ok ;FIXME ; Set video mode
         if TERM
         ld de,0x000f
         else
@@ -861,7 +861,7 @@ setnormvideo:
 	push	de
 	push	hl
 	ld	a,-1
-	ld	(l00e0),a	; Set video mode
+	ld	(l00e0),a	;ok ;FIXME ; Set video mode
 	ld	hl,l01c2	; Reset attribute
 	jr	l027c
         endif
@@ -1102,7 +1102,7 @@ l033c:
 	pop	hl
 	pop	bc		; Get character
 	push	hl
-	ld	a,(l00dd)	; Get $C mode
+	ld	a,(l00dd)	;ok ;FIXME ; Get $C mode
 	or	a
 	jr	z,l035f		; $C-, so skip testing
 	push	de
@@ -1142,9 +1142,9 @@ l035f:
 ;	 RST opcode, typically F7 or EF]
 ;
 l0364:
-	ld	(l00d2),hl	; Save address
+	ld	(l00d2),hl	;ok ;FIXME ; Save address
 	ld	a,b
-	ld	(l00dd),a	; Set $C mode
+	ld	(l00dd),a	;ok ;FIXME ; Set $C mode
 	ld	a,c		; Get $U
 	or	a
 	jr	z,l037a		; No interrupt
@@ -1164,12 +1164,12 @@ l037a:
 	xor	a
 	ld	l,a
 	ld	h,a
-	ld	(l00d0),a	; Clear I/O error
-	ld	(l00d4),hl	; Clear some pointers
-	ld	(l00d6),hl
+	ld	(l00d0),a	;ok ;FIXME ; Clear I/O error
+	ld	(l00d4),hl	;ok ;FIXME ; Clear some pointers
+	ld	(l00d6),hl ;ok ;FIXME 
 	ld	a,_MaxBuf
-	ld	(l00d1),a	; Set buffer length
-	ld	(l00e0),a	; Set video mode
+	ld	(l00d1),a	;ok ;FIXME ; Set buffer length
+	ld	(l00e0),a	;ok ;FIXME ; Set video mode
 	ret
 ;
 ; Character I/O table moved into 0x00A0
@@ -2306,8 +2306,8 @@ l078b:
 ;	Reg  DE holds middle part of real number
 ;
 l0792:
-	ld	bc,(l00c8+2)	; Load old values
-	ld	de,(l00c8)
+	ld	bc,(l00c8+2) ;ok ;FIXME 	; Load old values
+	ld	de,(l00c8) ;ok ;FIXME 
 	push	bc		; Save them
 	push	de
 	ld	a,b		; Expand to 40 bits
@@ -2329,11 +2329,11 @@ l0792:
 	ld	c,l
 	ld	hl,0110001011101001b
 	add	hl,de		; Fix them - add 62E9H
-	ld	(l00c8),hl	; Save new values
+	ld	(l00c8),hl ;ok ;FIXME 	; Save new values
 	ex	de,hl
 	ld	hl,0011011000011001b
 	adc	hl,bc		; Add 3619H
-	ld	(l00c8+2),hl
+	ld	(l00c8+2),hl ;ok ;FIXME 
 	ld	b,h		; Copy result
 	ld	c,l
 	ret
@@ -2653,7 +2653,7 @@ l0920:
 	call	l09dd		; Verify start in range 1..255
 	ld	c,a
 	pop	de		; Get sub_string
-	ld	(l00e8),de
+	ld	(l00e8),de ;ok ;FIXME 
 	ld	hl,0
 	add	hl,sp		; Get string pointer
 	ld	a,(de)
@@ -2691,7 +2691,7 @@ l0951:
 	jr	z,l0973
 	push	bc
 	push	de
-	ld	hl,(l00e8)	; Get back sub_string pointer
+	ld	hl,(l00e8)	;ok ;FIXME ; Get back sub_string pointer
 	ld	e,a
 	dec	e
 	ld	d,0
@@ -2725,7 +2725,7 @@ l0973:
 l097a:
 	or	a
 	jr	z,l098b
-	ld	hl,(l00e8)	; Get sub_string pointer
+	ld	hl,(l00e8)	;ok ;FIXME ; Get sub_string pointer
 	ld	b,0
 	add	hl,bc
 	ex	de,hl
@@ -2916,7 +2916,7 @@ l0a27:
 	push	bc
 	set	sgn.bit,b	; Force bit set
 	xor	a
-	ex	af,af'
+	ex	af,af' ;'
 	exx
 	set	sgn.bit,b
 	ld	a,l
@@ -2925,16 +2925,16 @@ l0a27:
 	jr	z,l0a47		; Yeap
 	jr	nc,l0a3c
 	neg
-	ex	af,af'
+	ex	af,af' ;'
 	dec	a
-	ex	af,af'
+	ex	af,af' ;'
 	exx
 l0a3c:
 	call	l0b7a		; Shift mantissa right
 	inc	l		; Bump exponent
 	dec	a
 	jr	nz,l0a3c
-	ex	af,af'
+	ex	af,af' ;'
 	jr	z,l0a47
 	exx
 l0a47:
@@ -3042,13 +3042,13 @@ l0ab3:
 	inc	ix
 	ld	l,(ix+0)
 l0aba:
-	ex	af,af'
+	ex	af,af' ;'
 	rr	l		; Shift bit
 	jr	nc,l0ac2
 	call	l0b92		; Add mantissa if bit out
 l0ac2:
 	call	l0b7b		; Rotate mantissa right
-	ex	af,af'
+	ex	af,af' ;'
 	dec	a		; Go thru all bits
 	jr	nz,l0aba
 	exx
@@ -3058,7 +3058,7 @@ l0ac2:
 	ld	l,(ix-mant.len)	; Get byte back
 	bit	sgn.bit,b	; Test sign
 	jr	nz,l0ade
-	ex	af,af'
+	ex	af,af' ;'
 	call	l0b87		; Get bit
 	inc	l
 	dec	l
@@ -3071,7 +3071,7 @@ l0ade:
 l0ae1:
 	or	a
 l0ae2:
-	ex	af,af'
+	ex	af,af' ;'
 	pop	af
 	exx
 	pop	bc
@@ -3084,7 +3084,7 @@ l0ae2:
 	inc	l
 	dec	l
 	call	z,l0b72		; Clear if underflow
-	ex	af,af'
+	ex	af,af' ;'
 	ret
 ;
 ; Divide reals
@@ -3111,14 +3111,14 @@ l0af5:
 	exx
 	ld	a,bit.len	; Set bit count
 l0b0a:
-	ex	af,af'
+	ex	af,af' ;'
 	call	l0bc6		; Compare mantissas
 	jr	c,l0b13
 	call	l0bac		; Subtract mantissas
 l0b13:
 	ccf
 	rl	l
-	ex	af,af'
+	ex	af,af' ;'
 	dec	a		; Go thru the bits
 	jr	nz,l0b26
 	ld	(ix+mant.len),l	; Set result
@@ -3131,7 +3131,7 @@ l0b13:
 l0b26:
 	call	l0b86		; Shift left
 	jr	nc,l0b0a
-	ex	af,af'
+	ex	af,af' ;'
 	call	l0bac		; Subtract mantissas
 	or	a
 	jr	l0b13
@@ -3363,9 +3363,9 @@ l0bfd:
 	push	bc		; save 2nd
 	push	de
 	push	hl
-	ex	af,af'
+	ex	af,af' ;'
 	call	l0b72		; Init result
-	ex	af,af'
+	ex	af,af' ;'
 l0c10:
 	scf
 	call	l0b7b		; Rotate mantissa right
@@ -3756,7 +3756,7 @@ l0e7b:
 	ld	ix,l0ee0-3*Real.Len
 	ld	a,2		; Set loop
 l0e81:
-	ex	af,af'
+	ex	af,af' ;'
 	exx
 	ld	de,3*Real.Len
 	add	ix,de
@@ -3764,7 +3764,7 @@ l0e81:
 	exx
 	call	l0bdf		; Compare reals
 	jr	c,l0e9c
-	ex	af,af'
+	ex	af,af' ;'
 	dec	a		; Go thru the loop
 	jr	nz,l0e81
 	exx
@@ -3997,7 +3997,7 @@ l0fde:
 	bit	sgn.bit,l	; Test exponent < 0
 	jr	z,l0fff		; Return zero if so
 	bit	sgn.bit,b	; Mark sign
-	ex	af,af'
+	ex	af,af' ;'
 	set	sgn.bit,b	; Set bit
 l0fe8:
 	ld	a,int.max
@@ -4009,7 +4009,7 @@ l0fe8:
 	jr	l0fe8
 l0ff5:
 	call	l0b7a		; Shift mantissa right
-	ex	af,af'
+	ex	af,af' ;'
 	ld	h,b		; Get result
 	ld	l,c
 	ret	z		; End if > 0
@@ -4033,7 +4033,7 @@ l1008:
 	or	l
 	jp	z,l0b72		; Set 0.0 if so
 	bit	sgn.bit,h	; Test sign
-	ex	af,af'
+	ex	af,af' ;'
 	call	l0780		; Make number positive
 	ld	a,int.max+1	; Init exponent
 l1015:
@@ -4046,7 +4046,7 @@ l1015:
 	ld	de,0		; Clear lo part
 	ld	h,d
 	ld	l,a
-	ex	af,af'		; Test sign
+	ex	af,af' ;'	; Test sign
 	ret	nz
 	res	sgn.bit,b	; Set > 0
 	ret
@@ -4718,34 +4718,34 @@ l136f:
 ;
 l1370:
 	xor	a		; Set zero
-	ld	(l00e8),a	; Put into mode
+	ld	(l00e8),a	;ok ;FIXME ; Put into mode
 	pop	iy		; Get back caller
-	ld	hl,(l00d2)	; Get top of memory
+	ld	hl,(l00d2)	;ok ;FIXME ; Get top of memory
 	ld	b,16		; And max length
 	call	l05e2		; Assign string from stack
 	xor	a
 	ld	(de),a		; Close it
 	pop	hl		; Fetch FIB
-	ld	(l00e2),hl	; Put into device
+	ld	(l00e2),hl	;ok ;FIXME ; Put into device
 	push	iy		; Bring back caller
 	ld	a,h		; Verify not standard but file
 	or	a
 	jr	nz,l1390
 	ld	a,_StdAssErr	; Set illegal FIB
-	ld	(l00d0),a
+	ld	(l00d0),a ;ok ;FIXME 
 	ret
 l1390:
-	ld	a,(l00e8)	; Get back mode
+	ld	a,(l00e8)	;ok ;FIXME ; Get back mode
 	or	a		; Test text file
 	jr	z,l13a0		; Nope
 	call	l13b6		; Find standard device
 	jr	nz,l13a0	; Nope
-	ld	hl,(l00e2)	; Get back FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get back FIB
 	ld	(hl),a		; Set flag
 	ret
 l13a0:
 	call	l03f2		; Parse file
-	ld	hl,(l00e2)
+	ld	hl,(l00e2) ;ok ;FIXME 
 	ld	(hl),0
 	ld	de,FIB.FCB
 	add	hl,de		; Point to FCB part
@@ -4767,7 +4767,7 @@ l13bb:
 	push	bc
 	push	hl
 	ld	b,Std.Itm-1	; Set length of one item
-	ld	de,(l00d2)	; Get top of memory
+	ld	de,(l00d2)	;ok ;FIXME ; Get top of memory
 l13c3:
 	inc	de
 	ld	a,(de)
@@ -4827,22 +4827,22 @@ l13fe:
 ;
 l13ff:
 	xor	a
-	ld	(l00e8),a	; Set mode (0=RESET)
+	ld	(l00e8),a	;ok ;FIXME ; Set mode (0=RESET)
 	call	l1469		; Close open file
-	ld	a,(l00d0)
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test error
 	ret	nz		; End if so
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	res	wr.bit,(hl)	; Reset write flag
 	ld	a,(hl)
 	and	FIBtype		; Get type
 	ret	nz		; Exit on standard device
 	call	l1430		; Prepare file operation
-	ld	a,(l00d0)
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test error
 	ret	nz		; Exit if so
-	ld	hl,(l00e2)	; Get back FIB
-	ld	a,(l00e8)	; Get file mode
+	ld	hl,(l00e2)	;ok ;FIXME ; Get back FIB
+	ld	a,(l00e8)	;ok ;FIXME ; Get file mode
 	or	a		; Test RESET
 	ld	bc,RecLng*256+_.in
 	jr	z,l142b		; Yeap
@@ -4858,11 +4858,11 @@ l142b:
 ;
 l1430:
 	call	l145a		; Clear FCB of this FIB
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	de,FIB.FCB
 	add	hl,de		; Point to FCB
 	ex	de,hl
-	ld	a,(l00e8)	; Get file mode
+	ld	a,(l00e8)	;ok ;FIXME ; Get file mode
 	or	a		; Test RESET
 	ld	bc,_NoFile*256+_open
 	jr	z,l144e		; Yeap, go open file
@@ -4880,13 +4880,13 @@ l144e:
          or a
          ret z
 	ld	a,b
-	ld	(l00d0),a	; Set error if not
+	ld	(l00d0),a	;ok ;FIXME ; Set error if not
 	ret
 ;
 ; Clear FCB of current FIB
 ;
 l145a:
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	de,FIB.FCB+_ex
 	add	hl,de		; Point to EX filed
 	ld	b,FCBlen-_ex	; Set length
@@ -4903,7 +4903,7 @@ l1463:
 ; ENTRY	Reg HL holds FIB
 ;
 l1469:
-	ld	(l00e2),hl	; Save FIB for current device
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB for current device
 	ld	a,(hl)
 	and	FIBtype		; Get type
 	ret	nz		; Exit if not a file
@@ -4917,7 +4917,7 @@ l147e:
 	bit	in.bit,(hl)	; Test input
 	ret	z		; Nope, end
 l1481:
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	push	hl
 	ld	de,FIB.FCB
 	add	hl,de		; Point to FCB
@@ -4928,7 +4928,7 @@ l1481:
 	inc	a		; Test success 
 	jr	nz,l1498	; Yeap
 	ld	a,_NoClose
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 l1498:
 	ld	(hl),0		; Reset FIB flag
 	ret
@@ -4937,11 +4937,11 @@ l1498:
 ;
 l149b:
 	ex	(sp),hl
-	ld	(l00e4),hl	; Save caller
+	ld	(l00e4),hl	;ok ;FIXME ; Save caller
 	ex	(sp),hl
 	push	hl
 	ld	hl,l00c2
-	ld	(l00e2),hl	; Set standard as FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Set standard as FIB
 	pop	hl
 	ret
 ;
@@ -4950,13 +4950,13 @@ l149b:
 ;
 l14a9:
 	ex	(sp),hl
-	ld	(l00e4),hl	; Save caller for error
+	ld	(l00e4),hl	;ok ;FIXME ; Save caller for error
 	ex	(sp),hl
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	bit	in.bit,(hl)	; Test read allowed
 	ret	nz		; Yeap
 	ld	a,_NoRead
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Check file before write
@@ -4964,13 +4964,13 @@ l14a9:
 ;
 l14ba:
 	ex	(sp),hl
-	ld	(l00e4),hl	; Save caller for error
+	ld	(l00e4),hl	;ok ;FIXME ; Save caller for error
 	ex	(sp),hl
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	bit	out.bit,(hl)	; Test write allowed
 	ret	nz		; Yeap
 	ld	a,_NoWrite
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Function READLN(var)
@@ -4986,11 +4986,11 @@ l14cb:
 l14cc:
 	xor	a
 	ex	(sp),hl		; Get caller
-	ld	(l00e4),hl	; Save it
+	ld	(l00e4),hl	;ok ;FIXME ; Save it
 	ex	(sp),hl
 	push	hl
 	ld	hl,l00c2
-	ld	(l00e2),hl	; Set standard device
+	ld	(l00e2),hl	;ok ;FIXME ; Set standard device
 	res	wr.bit,(hl)	; Reset write bit
 	push	af		; Save mode
 	call	l14e8		; Read a line
@@ -5015,8 +5015,8 @@ l14ea:
 l14f4:
 	ld	c,a
 	ld	(hl),_MaxBuf	; Set default length
-	ld	hl,(l00d2)	; Get top of memory
-	ld	(l00d4),hl	; Unpack it
+	ld	hl,(l00d2)	;ok ;FIXME ; Get top of memory
+	ld	(l00d4),hl	;ok ;FIXME ; Unpack it
 l14fd:
 	ld	d,0		; Reset character count
 l14ff:
@@ -5040,10 +5040,10 @@ l14ff:
 	jr	nc,l1533
 	cp	CtrlC		; Test ^C
 	jr	nz,l14ff
-	ld	a,(l00dd)	; Get $C mode
+	ld	a,(l00dd)	;ok ;FIXME ; Get $C mode
 	or	a		; Test abort
 	jr	z,l14ff		; $C- - so ignore
-	ld	ix,(l00e4)
+	ld	ix,(l00e4) ;ok ;FIXME 
 	jp	l2016		; Abort
 ;
 ; Found printable character
@@ -5095,14 +5095,14 @@ l155e:
 	ld	(hl),lf
 l1566:
 	inc	hl
-	ld	(l00d6),hl	; Set top pointer
+	ld	(l00d6),hl	;ok ;FIXME ; Set top pointer
 	ret
 ;
 ; Get character from file or console buffer
 ;
 l156b:
-	ld	hl,(l00e2)	; Get FIB
-	ld	a,(l00d0)
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test error
 	jp	nz,l15ed	; Force EOF if so
 	ld	a,(hl)
@@ -5166,7 +5166,7 @@ l1597:
 	ld	a,(hl)
 	cp	eof		; Test EOF
 	jr	nz,l15e0	; Nope
-	ld	hl,(l00e2)
+	ld	hl,(l00e2) ;ok ;FIXME 
 	inc	hl
 	inc	hl
 	dec	(hl)		; Fix pointer if eof found
@@ -5178,18 +5178,18 @@ l1597:
 l15ab:
 	dec	a		; Test CON:
 	jr	nz,l15c9
-	ld	hl,(l00d4)	; Get current pointer
-	ld	de,(l00d6)	; Get top pointer
+	ld	hl,(l00d4)	;ok ;FIXME ; Get current pointer
+	ld	de,(l00d6)	;ok ;FIXME ; Get top pointer
 	or	a
 	sbc	hl,de		; Test more in buffer
 	jr	c,l15bf		; Ok
 	ld	b,-1
 	call	l14ea		; Else get more
 l15bf:
-	ld	hl,(l00d4)	; Get current pointer
+	ld	hl,(l00d4)	;ok ;FIXME ; Get current pointer
 	ld	a,(hl)
 	inc	hl		; Bump
-	ld	(l00d4),hl
+	ld	(l00d4),hl ;ok ;FIXME 
 	jr	l15e0
 l15c9:
 	dec	a		; Test KBD:
@@ -5208,7 +5208,7 @@ l15dc:
 	call	l00b5		; Read USR
 	ld	a,l
 l15e0:
-	ld	hl,(l00e2)	; Get back FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get back FIB
 	set	wr.bit,(hl)	; Set preread flag
 	inc	hl
 	ld	(hl),a		; Save character
@@ -5228,7 +5228,7 @@ l15ed:
 ;
 l15f0:
 	push	hl
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	a,(hl)
 	and	FIBtype		; Get device
 	cp	RAMdevice	; Test RAM
@@ -5295,7 +5295,7 @@ l1636:
 	ret	z		; Yeap
 l163d:
 	ld	a,_IllNum
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	scf
 	ret
 ;
@@ -5418,9 +5418,9 @@ l16c5:
 ; ENTRY	Accu holds character
 ;
 l16c6:
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	c,a		; Save character
-	ld	a,(l00d0)
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test I/O error
 	ret	nz		; Exit if so
 	ld	a,(hl)		; Get type
@@ -5456,8 +5456,8 @@ l16e4:
 				; 5=USR:
 	jp	l00b2		; Put to console
 l16fd:
-	ld	hl,(l00e8)	; Get string pointer
-	ld	a,(l00ea)	; Get max length
+	ld	hl,(l00e8)	;ok ;FIXME ; Get string pointer
+	ld	a,(l00ea)	;ok ;FIXME ; Get max length
 	cp	(hl)		; Test in range
 	ret	z		; Nope, exit
 	inc	(hl)		; Bump count
@@ -5470,7 +5470,7 @@ l16fd:
 ; Write sector to file if any item in buffer
 ;
 l170c:
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	inc	hl
 	inc	hl
 	ld	a,(hl)		; Get record pointer
@@ -5481,7 +5481,7 @@ l170c:
 	call	l19ba		; Write record
 	ret	z		; Ok, no errr
 	ld	a,_WrErr
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Write character to device
@@ -5502,7 +5502,7 @@ l1726:
 	pop	bc
 	pop	de
 	push	bc
-	ld	ix,(l00d2)	; Get top of memory for buffer
+	ld	ix,(l00d2)	;ok ;FIXME ; Get top of memory for buffer
 	bit	sgn.bit,h	; Test sign of count
 	jr	z,l1737		; >= 0
 	call	l0783		; Negate
@@ -5521,7 +5521,7 @@ l1745:
 l1749:
 	pop	hl
 	call	l04c8		; Get byte from integer
-	ld	de,(l00d2)	; Get back top of memory
+	ld	de,(l00d2)	;ok ;FIXME ; Get back top of memory
 	push	ix
 	pop	hl
 	or	a
@@ -5573,7 +5573,7 @@ l1779:
 	pop	bc
 	exx
 	push	bc
-	ld	ix,(l00d2)	; Get top of memory for buffer
+	ld	ix,(l00d2)	;ok ;FIXME ; Get top of memory for buffer
 	push	de
 	call	l1027		; Convert real to ASCII
 	jr	l1749
@@ -5681,7 +5681,7 @@ l17e1:
 l17e6: ;???
 	ld	de,eof
 l17e9:
-	ld	(l00e2),hl	; Set device
+	ld	(l00e2),hl	;ok ;FIXME ; Set device
 	bit	in.bit,(hl)	; Test input possible
 	jr	z,l180c		; Nope
 l17f0:
@@ -5718,17 +5718,17 @@ l1810:
 ;
 l1811:
 	xor	a
-	ld	(l00e8),a	; Set mode (0=RESET)
-	ld	(l00e6),de	; Save record length
+	ld	(l00e8),a	;ok ;FIXME ; Set mode (0=RESET)
+	ld	(l00e6),de	;ok ;FIXME ; Save record length
 	call	l187a		; Close file
-	ld	a,(l00d0)	; Test error
+	ld	a,(l00d0)	;ok ;FIXME ; Test error
 	or	a
 	ret	nz		; End if so
 	call	l1430		; Set up FIB ;opens/creates file!!!
-	ld	a,(l00d0)	; Test error
+	ld	a,(l00d0)	;ok ;FIXME ; Test error
 	or	a
 	ret	nz		; End if so
-	ld	hl,(l00e2)	; Init FIB flag
+	ld	hl,(l00e2)	;ok ;FIXME ; Init FIB flag
 	ld	(hl),_.in+_.out+_.read
 	inc	hl
 	inc	hl
@@ -5745,7 +5745,7 @@ l1811:
 	ld	(hl),a
 	ld	de,FIB.rec-FIB.FCB-_rrn-1
 	add	hl,de		; Point to FIB record
-	ld	a,(l00e8)
+	ld	a,(l00e8) ;ok ;FIXME 
 	or	a		; Test mode
 	jr	nz,l1864	; Skip RESET
 ;
@@ -5761,12 +5761,12 @@ l1811:
 	ld	c,(hl)		; Point to max records
 	inc	hl
 	ld	b,(hl)
-	ld	hl,(l00e6)
+	ld	hl,(l00e6) ;ok ;FIXME 
 	or	a
 	sbc	hl,bc		; Test agianst tem in file
 	ret	z		; Correct value
 	ld	a,_InvRec
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Perform REWRITE
@@ -5778,7 +5778,7 @@ l1864:
 	inc	hl
 	ld	(hl),a
 	inc	hl
-	ld	de,(l00e6)	; Fetch length
+	ld	de,(l00e6)	;ok ;FIXME ; Fetch length
 	ld	(hl),e		; Store into FIB
 	inc	hl
 	ld	(hl),d
@@ -5791,12 +5791,12 @@ l1864:
 ; ENTRY	Reg HL points to FIB
 ;
 l187a:
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	ld	a,(hl)		; Get state
 	and	_.in+_.out	; Test any action
 	ret	z		; Nope
 	call	l19ae		; Write record if requested
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	de,FIB.FCB+_rrn
 	add	hl,de		; Point to random recird
 	xor	a
@@ -5819,22 +5819,22 @@ l187a:
 ;
 l18a4:
 	ex	(sp),hl
-	ld	(l00e4),hl	; Save caller
+	ld	(l00e4),hl	;ok ;FIXME ; Save caller
 	ex	(sp),hl
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	ld	a,(hl)
 	and	_.in+_.out	; Test I/O allowed
 	ret	nz		; Yeap
 l18b0:
 	ld	a,_BlkErr
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Get structure from input READ(type)
 ; ENTRY	Reg HL points to FIB
 ;
 l18b6:
-	ld	a,(l00d0)	; Get error
+	ld	a,(l00d0)	;ok ;FIXME ; Get error
 	or	a		; Test previous
 	ret	nz		; Yeap
 	push	hl
@@ -5847,7 +5847,7 @@ l18b6:
 	xor	a
 	call	l1909		; Read
 l18ca:
-	ld	hl,(l00e2)	; Get back FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get back FIB
 	ld	de,FIB.cur
 	add	hl,de
 	inc	(hl)		; Bump record
@@ -5864,7 +5864,7 @@ l18d6:
 ; ENTRY	Reg HL points to FIB
 ;
 l18dc:
-	ld	a,(l00d0)	; Get error
+	ld	a,(l00d0)	;ok ;FIXME ; Get error
 	or	a		; Test previous
 	ret	nz		; Yeap
 	push	hl
@@ -5873,7 +5873,7 @@ l18dc:
 	sbc	hl,de		; Test same size
 	ld	a,Rec.Wr
 	jr	nz,l18fc
-	ld	hl,(l00e2)
+	ld	hl,(l00e2) ;ok ;FIXME 
 	ld	de,FIB.rec
 	add	hl,de		; Point to record
 	inc	(hl)		; Bump it
@@ -5890,7 +5890,7 @@ l18fc:
 l1902:
 	pop	hl
 	ld	a,_OvflErr
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Perform record IO
@@ -5903,14 +5903,14 @@ l1902:
 ;		3 : On WRITE and REWRITE
 ;
 l1909:
-	ld	(l00e9),a	; Save code
+	ld	(l00e9),a	;ok ;FIXME ; Save code
 	ex	de,hl
 l190d:
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	bit	rd.bit,(hl)	; Test known buffer
 	jr	z,l1943		; Nope
 	res	rd.bit,(hl)	; Reset bit
-	ld	a,(l00e9)	; Get mode
+	ld	a,(l00e9)	;ok ;FIXME ; Get mode
 	bit	Rec.Wr.bit,a	; Test write
 	jr	z,l1935		; Nope, so read
 	inc	hl
@@ -5920,7 +5920,7 @@ l190d:
 	dec	hl
 	or	a
 	jr	nz,l1935	; Not empty, so read
-	ld	a,(l00e9)	; Get code
+	ld	a,(l00e9)	;ok ;FIXME ; Get code
 	bit	Rec.New.bit,a	; Test new
 	jr	nz,l1943	; Yeap
 	ld	a,b		; Get counter
@@ -5938,9 +5938,9 @@ l1935:
 	pop	bc
         ;jr nz,$
 	jr	nz,l1991	; Error return
-	ld	hl,(l00e2)	; Get back FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get back FIB
 l1943:
-	ld	a,(l00e9)	; Get mode
+	ld	a,(l00e9)	;ok ;FIXME ; Get mode
 	bit	Rec.Wr.bit,a	; Test write allowed
 	jr	z,l194c		; Nope
 	set	wr.bit,(hl)	; Set bit
@@ -5965,7 +5965,7 @@ l195c:
 l1966:
 	inc	a
 	call	l199a		; Swap back
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	inc	hl
 	inc	hl
 	and	NOMSB		; Test remainder in buffer
@@ -5998,7 +5998,7 @@ l1991:
 	db	skip.2
 l1994:
 	ld	a,_WrErr
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Swap record pointers on request
@@ -6007,7 +6007,7 @@ l1994:
 ;
 l199a:
 	push	af
-	ld	a,(l00e9)	; Get mode
+	ld	a,(l00e9)	;ok ;FIXME ; Get mode
 	bit	Rec.Wr.bit,a	; Test selection
 	jr	z,l19a3
 	ex	de,hl		; Swap
@@ -6020,7 +6020,7 @@ l19a3:
 ; ENTRY	Reg HL holds FIB
 ;
 l19a5:
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	call	l19ae		; Write if possible
 	ret	z
 	jr	l1994		; Set error
@@ -6029,7 +6029,7 @@ l19a5:
 ;
 l19ae:
 	ld	c,_rndwr	; Set OS function
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	set	rd.bit,(hl)	; Set read bit
 	bit	wr.bit,(hl)	; Test write
 	ret	z		; Nope
@@ -6041,7 +6041,7 @@ l19ae:
 ;	Accu holds BDOS code
 ;
 l19ba:
-	ld	hl,(l00e2)	; Load FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Load FIB
 	push	hl
 	push	bc
 	ld	de,FIB.buff
@@ -6065,7 +6065,7 @@ l19ba:
 l19d5:
 	pop	bc
 	pop	de
-	ld	(l00e2),de	; Save FIB
+	ld	(l00e2),de	;ok ;FIXME ; Save FIB
 	push	bc
 	push	hl
 	call	l1a5a		; Get FIB data
@@ -6073,7 +6073,7 @@ l19d5:
 	or	a
 	sbc	hl,de		; Test record less size
 	jr	c,l1a26		; Error if so
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	bc,FIB.reclen	; Point to length of record
 	add	hl,bc
 	ld	c,(hl)		; Get record
@@ -6097,7 +6097,7 @@ l19fe:
 	ex	de,hl
 	ld	d,e		; / 256
 	ld	e,h
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	inc	hl
 	inc	hl
 	ld	(hl),a		; Store record pointer
@@ -6122,7 +6122,7 @@ l19fe:
 	ret
 l1a26:
 	ld	a,_SeekEOF
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Multiply record number by record length
@@ -6183,7 +6183,7 @@ l1a55:
 ;	Reg BC holds record length
 ;
 l1a5a:
-	ld	hl,(l00e2)	; Load FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Load FIB
 ;
 ; Get size of file
 ; Function FILESIZE(file):integer
@@ -6220,17 +6220,18 @@ l1a6f:
 ; Procedure RESET(un_typed_file)
 ;
 l1a70:
+;TODO полностью переписать!!!
 	xor	a
-	ld	(l00e8),a	; Save mode (0=RESET)
+	ld	(l00e8),a	;ok ;FIXME ; Save mode (0=RESET)
 	call	l1ab0		; Close open file
-	ld	a,(l00d0)
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test error
 	ret	nz		; Exit if so
 	call	l1430		; Fix FIB
-	ld	a,(l00d0)
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test error
 	ret	nz		; Exit if so
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	(hl),_.in+_.out	; Set flag
 	push	hl
 	ld	de,FIB.FCB
@@ -6248,7 +6249,7 @@ l1a70:
 	ld	b,(hl)
 	ld	(hl),a
 	ld	de,FIB.rec-FIB.FCB-_rrn-1
-	add	hl,de		; Point to recird number
+	add	hl,de		; Point to record number
 	ld	(hl),c		; Set it
 	inc	hl
 	ld	(hl),b
@@ -6268,7 +6269,7 @@ l1a70:
 ; Procedure CLOSE(un_typed_file)
 ;
 l1ab0:
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	ld	a,(hl)		; Get mode
 	and	_.in+_.out	; Test access
 	ret	z		; Nope
@@ -6294,7 +6295,7 @@ l1ac0:
 	ld	b,h		; Copy count
 	ld	c,l
 	ld	hl,l00f0	; Point to scratch
-	ld	(l00e6),hl	; Set for record
+	ld	(l00e6),hl	;ok ;FIXME ; Set for record
 	pop	ix
 	pop	de		; Get buffer
 	pop	hl		; Get FIB
@@ -6302,19 +6303,19 @@ l1ac0:
 	push	bc
 	call	l1afd		; Execute block I/O
 	pop	bc
-	ld	a,(l00d0)
+	ld	a,(l00d0) ;ok ;FIXME 
 	or	a		; Test error
 	ret	nz		; Exit if so
-	ld	hl,(l00f0)
+	ld	hl,(l00f0) ;ok ;FIXME 
 	sbc	hl,bc		; Test all records processed
 	ret	z		; Yeap
-	ld	a,(l00e9)	; Get file function
+	ld	a,(l00e9)	;ok ;FIXME ; Get file function
 	cp	_rndrd		; Test read
 	ld	a,_IllEOF
 	jr	z,l1ae9
 	ld	a,_WrErr
 l1ae9:
-	ld	(l00d0),a	; Set error code accordingly
+	ld	(l00d0),a	;ok ;FIXME ; Set error code accordingly
 	ret
 ;
 ; Write block to untyped file
@@ -6334,7 +6335,7 @@ l1aed:
 l1af1:
 	ld	a,_rndrd	; Set function
 l1af3:
-	ld	(l00e6),hl	; Save result pointer
+	ld	(l00e6),hl	;ok ;FIXME ; Save result pointer
 	pop	ix
 	pop	bc		; Get count
 	pop	de		; Get buffer
@@ -6347,12 +6348,12 @@ l1af3:
 ;	Reg DE holds buffer
 ;
 l1afd:
-	ld	(l00e9),a	; Save function
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e9),a	;ok ;FIXME ; Save function
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	ld	a,(hl)		; Get mode
 	and	_.in+_.out	; Test IO allowed
 	jp	z,l18b0		; Nope
-	ld	hl,(l00e6)	; Get record address
+	ld	hl,(l00e6)	;ok ;FIXME ; Get record address
 	xor	a
 	ld	(hl),a		; Clear record
 	inc	hl
@@ -6365,11 +6366,11 @@ l1b10:
 	push	de
 	ld	c,_setdma
 	call	BDOS		; Set disk buffer
-	ld	hl,(l00e2)	; Get back FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get back FIB
 	ld	de,FIB.FCB
 	add	hl,de		; Point to FCB
 	ex	de,hl
-	ld	a,(l00e9)	; Get file function
+	ld	a,(l00e9)	;ok ;FIXME ; Get file function
 	ld	c,a
 	call	BDOS		; Execute I/O
 	pop	de
@@ -6377,7 +6378,7 @@ l1b10:
 	or	a		; Test result
 	jr	nz,l1b4d	; Not good
 	push	de
-	ld	hl,(l00e2)	; Get FIB again
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB again
 	ld	de,FIB.FCB+_rrn
 	add	hl,de		; Point to record
 	inc	(hl)		; Advance record
@@ -6389,7 +6390,7 @@ l1b3c:
 	ld	hl,RecLng
 	add	hl,de		; Advance buffer
 	ex	de,hl
-	ld	hl,(l00e6)
+	ld	hl,(l00e6) ;ok ;FIXME 
 	inc	(hl)		; Advance record count
 	jr	nz,l1b4a
 	inc	hl
@@ -6398,7 +6399,7 @@ l1b4a:
 	dec	bc		; Count down requested length
 	jr	l1b10
 l1b4d:
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	de,FIB.FCB+_rrn
 	add	hl,de		; Point to last record
 	ld	c,(hl)
@@ -6431,7 +6432,7 @@ l1b4d:
 l1b6f:
 	pop	bc
 	pop	de
-	ld	(l00e2),de	; Save FIB
+	ld	(l00e2),de	;ok ;FIXME ; Save FIB
 	push	bc
 	push	hl
 	call	l1a5a		; Get record data
@@ -6439,7 +6440,7 @@ l1b6f:
 	or	a
 	sbc	hl,de		; Test position
 	jp	c,l1a26		; Error if overflow
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	bc,FIB.cur
 	add	hl,bc
 	ld	(hl),e		; Save new position
@@ -6510,7 +6511,7 @@ l1ba5:
 l1be4:
 	ld	a,_NoFile	; Set error
 l1be6:
-	ld	(l00d0),a
+	ld	(l00d0),a ;ok ;FIXME 
 	ret
 ;
 ; Perform executing new programs
@@ -6524,14 +6525,14 @@ l1bea:
 ;
 l1beb:
 	xor	a
-	ld	(l00e8),a	; Set mode (0=CHAIN)
+	ld	(l00e8),a	;ok ;FIXME ; Set mode (0=CHAIN)
 	call	l1c4c		; Test device ok
 	ret	nz		; Nope
-	ld	a,(l00d8)	; Test run mode
+	ld	a,(l00d8)	;ok ;FIXME ; Test run mode
 	or	a
 	ld	a,_DirErr
 	jr	z,l1be6		; Must *NOT* be direct mode
-	ld	hl,(l00e2)	; Get FIB
+	ld	hl,(l00e2)	;ok ;FIXME ; Get FIB
 	ld	de,FIB.FCB
 	add	hl,de		; Point to FCB
 	ld	de,l005c
@@ -6547,7 +6548,7 @@ l1beb:
 	ld	bc,l0019
 	ldir			; move loader to temporry location
 	ld	de,0x0100;TPA		; Init loader address
-	ld	a,(l00e8)	; Test mode
+	ld	a,(l00e8)	;ok ;FIXME ; Test mode
 	or	a
 	jr	nz,l1c2d
 	ld	de,(progstartaddr);(TPA+1)	; Change address for CHAIN
@@ -6589,12 +6590,12 @@ l0019	equ	$-_l1c33
 ;	If illegal, IOerror 20H will be set
 ;
 l1c4c:
-	ld	(l00e2),hl	; Save FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Save FIB
 	ld	a,(hl)		; Get flag
 	and	FIBtype		; Mask it
 	ret	z		; 0000 menas file
 	ld	a,_IllIO
-	ld	(l00d0),a	; Set error
+	ld	(l00d0),a	;ok ;FIXME ; Set error
 	ret
 ;
 ; Load overlay file
@@ -6607,11 +6608,11 @@ l1c4c:
 ;	n*128 Bytes record(s)
 ;
 l1c59:
-	ld	(l00e6),hl	; Save record
-	ld	(l00e8),de	; Save record count
+	ld	(l00e6),hl	;ok ;FIXME ; Save record
+	ld	(l00e8),de	;ok ;FIXME ; Save record count
 	ex	de,hl
 	pop	hl
-	ld	(l00e2),hl	; Save caller
+	ld	(l00e2),hl	;ok ;FIXME ; Save caller
 	ld	c,(hl)		; Fetch last sector
 	ld	(hl),e		; Set new one
 	inc	hl
@@ -6624,7 +6625,7 @@ l1c59:
 	ex	de,hl
 	inc	hl
 	ld	de,l005c
-	ld	a,(l00dc)	; Get overlay drive
+	ld	a,(l00dc) ;ok ;FIXME 	; Get overlay drive
 	ld	(de),a		; Store into standard FCB
 	inc	de
 	ld	bc,Fname+Fext
@@ -6642,9 +6643,9 @@ l1c82:
 	pop	de		; Get back buffer address
 	inc	a		; Test success
 	jr	z,l1cd2		; Nope
-	ld	hl,(l00e6)	; Get start record
-	ld	(l005c+_rrn),hl	; Set for random record
-	ld	bc,(l00e8)	; Get record count
+	ld	hl,(l00e6) ;ok ;FIXME 	; Get start record
+	ld	(l005c+_rrn),hl ;ok ;FIXME 	; Set for random record
+	ld	bc,(l00e8) ;ok ;FIXME 	; Get record count
 l1c9d:
 	push	bc
 	push	de
@@ -6657,9 +6658,9 @@ l1c9d:
 	pop	bc
 	or	a		; Verify no error
 	jr	nz,l1cd2	; Error
-	ld	hl,(l005c+_rrn)
+	ld	hl,(l005c+_rrn) ;ok ;FIXME 
 	inc	hl		; Bump record
-	ld	(l005c+_rrn),hl
+	ld	(l005c+_rrn),hl ;ok ;FIXME 
 	ld	hl,RecLng
 	add	hl,de		; Get next address
 	ex	de,hl
@@ -6687,7 +6688,7 @@ l1cdb:
 	call	l04c8		; Get byte from integer
 	cp	'P'-'@'+1	; Test max
 	ret	nc		; Exit on range error
-	ld	(l00dc),a	; Set overlay drive
+	ld	(l00dc),a ;ok ;FIXME 	; Set overlay drive
 	ret
 ;
 ; Procedure NEW(pointer)
@@ -6696,11 +6697,11 @@ l1cdb:
 ;	Variable pointer on stack
 ;
 l1ce5:
-	ld	(l00f0),hl	; Save space required
+	ld	(l00f0),hl ;ok ;FIXME 	; Save space required
 	ex	de,hl
 	pop	hl
 	ex	(sp),hl
-	ld	(l00f2),hl	; Save address of variable
+	ld	(l00f2),hl ;ok ;FIXME 	; Save address of variable
 	inc	de
 	inc	de
 	inc	de
@@ -6708,8 +6709,8 @@ l1ce5:
 	and	-HeapLen	; Get modulo 4
 	ld	e,a
 	ld	hl,l00de
-	ld	(l00f8),hl	; Init pointer
-	ld	ix,(l00de)	; Get pointer to 1st free address
+	ld	(l00f8),hl ;ok ;FIXME 	; Init pointer
+	ld	ix,(l00de) ;ok ;FIXME 	; Get pointer to 1st free address
 l1cff:
 	ld	l,(ix+HeapLOlen)
 	ld	h,(ix+HeapHIlen)
@@ -6721,7 +6722,7 @@ l1cff:
 	ld	l,(ix+HeapLOadr); Get next address
 	ld	h,(ix+HeapHIadr)
 	push	hl
-	ld	(l00f8),ix	; Save last address
+	ld	(l00f8),ix ;ok ;FIXME 	; Save last address
 	pop	ix		; Copy chain
 	jr	l1cff
 l1d1c:
@@ -6745,12 +6746,12 @@ l1d30:
 	push	ix
 	pop	de		; Copy pointer
 l1d43:
-	ld	hl,(l00f8)	; Get pointer
+	ld	hl,(l00f8) ;ok ;FIXME 	; Get pointer
 	ld	(hl),e		; Set new link
 	inc	hl
 	ld	(hl),d
 	pop	de
-	ld	hl,(l00f2)
+	ld	hl,(l00f2) ;ok ;FIXME 
 	ld	(hl),e		; Set into vriable
 	inc	hl
 	ld	(hl),d
@@ -6957,7 +6958,7 @@ l1e80:
 ; ENTRY	Reg HL holds pointer
 ;
 l1ea3:
-	ld	de,(l00c4)	; Get heap pointer
+	ld	de,(l00c4) ;ok ;FIXME 	; Get heap pointer
 	ld	(hl),e		; Store into variable
 	inc	hl
 	ld	(hl),d
@@ -6977,8 +6978,8 @@ l1eab:
 ; ENTRY	Reg HL points to 1st free location
 ;
 l1eaf:
-	ld	(l00c4),hl	; Set heap pointer
-	ld	(l00de),hl
+	ld	(l00c4),hl ;ok ;FIXME 	; Set heap pointer
+	ld	(l00de),hl ;ok ;FIXME 
 	ld	b,HeapLen
 l1eb7:
 	ld	(hl),0		; Clear 4 bytes
@@ -7003,18 +7004,18 @@ l1ebd:
 l1ebe:
 	xor	a
 	ld	c,a		; Save mode
-	ld	(l00e8),hl	; Save string
+	ld	(l00e8),hl	;ok ;FIXME ; Save string
 	xor	a
 	ld	(hl),a		; Init to empty string
-	ld	(l00d0),a	; Clear error
+	ld	(l00d0),a	;ok ;FIXME ; Clear error
 	ld	a,b
-	ld	(l00ea),a	; Save max length
-	ld	hl,(l00e2)
-	ld	(l00ed),hl	; Save current FIB
+	ld	(l00ea),a	;ok ;FIXME ; Save max length
+	ld	hl,(l00e2) ;ok ;FIXME 
+	ld	(l00ed),hl	;ok ;FIXME ; Save current FIB
 	ld	hl,l1f46
-	ld	(l00e2),hl	; Set RAM device
+	ld	(l00e2),hl	;ok ;FIXME ; Set RAM device
 	pop	hl		; Get caller
-	ld	(l00e4),hl
+	ld	(l00e4),hl ;ok ;FIXME 
 	pop	hl		; Get digit count/comma places
 	inc	c		; Test mode
 	dec	c
@@ -7024,9 +7025,9 @@ l1ebe:
 l1ee6:
 	call	l1779		; Get real string
 l1ee9:
-	ld	hl,(l00ed)
-	ld	(l00e2),hl	; Restore FIB
-	ld	hl,(l00e4)	; Get caller
+	ld	hl,(l00ed) ;ok ;FIXME 
+	ld	(l00e2),hl	;ok ;FIXME ; Restore FIB
+	ld	hl,(l00e4)	;ok ;FIXME ; Get caller
 	jp	(hl)
 ;
 ; Convert string to number
@@ -7043,23 +7044,23 @@ l1ef3:
 ;
 l1ef4:
 	xor	a
-	ld	(l00ec),a	; Save mode
-	ld	(l00e8),hl	; Save result
-	ld	hl,(l00e2)
-	ld	(l00ed),hl	; Save current FIB
+	ld	(l00ec),a	;ok ;FIXME ; Save mode
+	ld	(l00e8),hl	;ok ;FIXME ; Save result
+	ld	hl,(l00e2) ;ok ;FIXME 
+	ld	(l00ed),hl	;ok ;FIXME ; Save current FIB
 	ld	hl,l1f46
-	ld	(l00e2),hl	; Set RAM FIB
+	ld	(l00e2),hl	;ok ;FIXME ; Set RAM FIB
 	pop	hl
-	ld	(l00e4),hl	; Save caller
+	ld	(l00e4),hl	;ok ;FIXME ; Save caller
 	pop	hl
-	ld	(l00ea),hl	; Save integer/real address
+	ld	(l00ea),hl	;ok ;FIXME ; Save integer/real address
 	ld	hl,l005c
 	ld	b,1eh
 	call	l05e2		; Assign string from stack
 	xor	a
 	ld	(de),a
-	ld	hl,(l00ea)	; Get back variable pointer
-	ld	a,(l00ec)	; Test mode
+	ld	hl,(l00ea)	;ok ;FIXME ; Get back variable pointer
+	ld	a,(l00ec)	;ok ;FIXME ; Test mode
 	or	a
 	jr	nz,l1f27
 	call	l164e		; Convert to integer
@@ -7302,13 +7303,13 @@ l1ffb:
 	ld	a,h
 	or	l
 	ret	z		; Nope
-	ld	a,(l00dd)	; Get $C mode
+	ld	a,(l00dd)	;ok ;FIXME ; Get $C mode
 	push	af
 	xor	a
-	ld	(l00dd),a	; Set $C-
+	ld	(l00dd),a	;ok ;FIXME ; Set $C-
 	call	l0320		; Read from keyboard
 	pop	af
-	ld	(l00dd),a	; Reset $C mode
+	ld	(l00dd),a	;ok ;FIXME ; Reset $C mode
 	ld	a,l
 	cp	CtrlC		; Test Control-C
 	ret	nz		; Nope
@@ -7321,7 +7322,7 @@ l2016:
 ; (May be turned off by {$I-})
 ;
 l201b:
-	ld	a,(l00d0)	; Test any error
+	ld	a,(l00d0)	;ok ;FIXME ; Test any error
 	or	a
 	ret	z		; Nope
 	pop	ix		; Get caller
@@ -7418,7 +7419,7 @@ l20bd:
 ; Halt program
 ;
 l20d4:
-	ld	a,(l00d8)	; Test run mode
+	ld	a,(l00d8)	;ok ;FIXME ; Test run mode
 	or	a
 	jp	z,l278e		; Enter TP menue
         if TERM == 0
@@ -7509,8 +7510,9 @@ l215e:
 	ld	bc,-MEMGAP
 	add	hl,bc
 	ld	(l44f6),hl	; Set for available memory
-	ld	c,_retdsk
-	call	BDOS		; Get logged disk (return L=A=current drive)
+	;ld	c,_retdsk
+	;call	BDOS		; Get logged disk (return L=A=current drive)
+       xor a
 	inc	a
 	ld	(l44f8),a	; Save it
 	call	l20e5		; Set up environment
@@ -7609,8 +7611,9 @@ l227a:
 ;
 	db	'L'+MSB,'ogged drive:',' '+MSB
 	db	null
-	ld	c,_retdsk
-	call	BDOS		; Fetch disk (return L=A=current drive)
+	;ld	c,_retdsk
+	;call	BDOS		; Fetch disk (return L=A=current drive)
+       xor a
 	add	a,'A'		; Make ASCII
 	call	puttoconsole_a		; Put to console
 	call	l01fa		; Tell work file
@@ -8702,10 +8705,10 @@ l2af8:
 	ld	hl,-1		; Set zero offset
 l2afe:
 	push	hl
-	ld	hl,(l00a6+1)
+	ld	hl,(l00a6+1) ;ok ;FIXME 
 	ld	(l421e),hl	; Change I/O
 	ld	hl,l4214
-	ld	(l00a6+1),hl
+	ld	(l00a6+1),hl ;ok ;FIXME 
 	pop	hl
 	jp	l2e91		; Go edit
 ;
@@ -8810,11 +8813,12 @@ l2b93:
 	db	null
 	call	l2261		; Input string
 	call	l03ee		; Parse file
-	ld	c,_retdsk
-	call	_BDOS		; Return current disk (return L=A=current drive)
+	;ld	c,_retdsk
+	;call	_BDOS		; Return current disk (return L=A=current drive)
+       xor a
 	push	af
 	push	af
-	ld	a,(l005c)	; Get disk
+	ld	a,(l005c)	;ok ;FIXME ; Get disk
 	or	a		; Test default
 	jr	z,l2bbb		; Yeap
 	pop	hl		; Clean stack
@@ -8825,8 +8829,8 @@ l2b93:
 	;call	_BDOS		; Select disk
 l2bbb:
 	pop	af
-	add	a,'A'		; Make disk ASCII
-	ld	(l2c8d),a	; Save disk
+	;add	a,'A'		; Make disk ASCII
+	;ld	(l2c8d),a	; Save disk
 	;ld	de,TmpBuff
 	;ld	c,_setdma
 	;call	_BDOS		; Set disk buffer
@@ -8910,6 +8914,7 @@ l2c29:
 	db	cr,lf,null
 l2c3e:
 	call	l01e1		; Give new line
+      if 0
 ;
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ; !!! FOLLOWING IS ERRONEOUS ON CP/M 3.x !!!
@@ -8962,6 +8967,7 @@ l2c8d:
 	call	l2e61		; Print number
 	ld	a,'k'
 	call	puttoconsole_a		; Put to console
+      endif
 	pop	af		; Get back selected disk
 	ld	e,a
        ret
@@ -9028,7 +9034,7 @@ l2cce:
 	ld	a,(de)
 	cp	eof		; Test empty input
 	jr	nz,l2ce8	; Nope
-	ld	a,(DU)		; Get from caller
+	ld	a,(DU)		;ok ;FIXME ; Get from caller
 	jr	l2cf1
 l2ce8:
 	call	doupcase		; Convert to upper case
@@ -9088,12 +9094,13 @@ l2d2f:
 	ld	(l005c+Fdrv+Fname+1),hl
 	ld	c,0		; Set no wild card
 	call	l0406		; Parse file
-	ld	a,(l005c)	; Test drive given
+	ld	a,(l005c)	;ok ;FIXME ; Test drive given
 	or	a
 	ret	nz		; Yeap
 	push	de
-	ld	c,_retdsk
-	call	_BDOS		; Return current disk (return L=A=current drive)
+	;ld	c,_retdsk
+	;call	_BDOS		; Return current disk (return L=A=current drive)
+       xor a
 	inc	a
 	ld	(l005c),a	; Set disk
 	pop	de
@@ -11439,7 +11446,7 @@ l3c96:
 ; Select video
 ;
 l3c99:
-	ld	a,(l00e0)	; Get video mode
+	ld	a,(l00e0)	;ok ;FIXME ; Get video mode
 	or	a
 	jr	z,l3cec		; Make normal video
 	jr	l3cdf		; Set low video
@@ -11477,7 +11484,7 @@ l3cc0:
 ; Set low video
 ;
 l3cdf:
-	ld	a,(l00e0)	; Get video mode
+	ld	a,(l00e0)	;ok ;FIXME ; Get video mode
 	or	a		; Test enabled
 	ret	z		; Nope
 	bit	0,(iy+7)	; Test selected
@@ -11487,7 +11494,7 @@ l3cdf:
 ; Set normal video
 ;
 l3cec:
-	ld	a,(l00e0)	; Get video mode
+	ld	a,(l00e0)	;ok ;FIXME ; Get video mode
 	or	a		; Test enabled
 	ret	nz		; Yeap
 	bit	0,(iy+7)	; Test selected
