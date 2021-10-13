@@ -79,9 +79,9 @@ texted_wasyield=$
         scf
         jr nc,nopanel
       endif
-;texted_panelredrawflag=$
-        ;scf ;/or a
-        call texted_panel ;call c
+texted_panelredrawflag=$
+        scf ;/or a
+        call c,texted_panel ;call c
       if 0
         ld de,(curxy)
 	call nv_setxy
@@ -259,8 +259,8 @@ texted_save_popq
         pop af
         pop bc
         OS_CLOSEHANDLE
-	jp setunchanged
-        ;jp setpanelredrawflag
+	call setunchanged
+        jp setpanelredrawflag
 
 cmd_savepage
 ;hl=size
@@ -276,15 +276,15 @@ cmd_savepage_handle=$+1
 setredrawflag
         ld a,55 ;scf
         ld (texted_redrawflag),a
-        ret
-;setpanelredrawflag
-        ;ld a,55 ;scf
-        ;ld (texted_panelredrawflag),a
         ;ret
+setpanelredrawflag
+        ld a,55 ;scf
+        ld (texted_panelredrawflag),a
+        ret
 setlineredrawflag
         ld a,55 ;scf
         ld (texted_lineredrawflag),a
-        ret
+        jr setpanelredrawflag;ret
 
 calccurlinex
         ld hl,(texted_prline_shift)
@@ -537,7 +537,7 @@ texted_wrap
         
 texted_right
 ;TODO X<16384
-        ;call setpanelredrawflag
+        call setpanelredrawflag
         ld de,(curxy)
         inc e
         ld a,e
@@ -561,7 +561,7 @@ texted_right_wrap
         jp texted_down
         
 texted_left
-        ;call setpanelredrawflag
+        call setpanelredrawflag
         ld de,(curxy)
         ld a,e
         sub 1
@@ -735,7 +735,7 @@ texted_up
         push af
         push hl
         call deccurline
-        ;call setpanelredrawflag
+        call setpanelredrawflag
         pop hl
         pop af
         ld c,a
@@ -769,7 +769,7 @@ texted_down
         push af
         push hl
         call inccurline
-        ;call setpanelredrawflag
+        call setpanelredrawflag
         pop hl
         pop af
         ld c,a
@@ -803,7 +803,7 @@ texted_settop
         ret
 
 texted_pgup
-        ;call setpanelredrawflag
+        call setpanelredrawflag
         ld a,(cury)
         or a
         ld b,a
@@ -835,7 +835,7 @@ texted_pgup0
         ret
         
 texted_pgdown
-        ;call setpanelredrawflag
+        call setpanelredrawflag
         ld a,(cury)
         sub texted_HGT-1
         neg
@@ -956,8 +956,8 @@ texted_changeencoding
         ;call texted_prcurpage
         ;ret
 texted_panel
-        ;ld a,55+0x80 ;or a
-        ;ld (texted_panelredrawflag),a
+        ld a,55+0x80 ;or a
+        ld (texted_panelredrawflag),a
         ld de,0x1800
 	call nv_setxy
         ld de,_texted_PANELCOLOR
