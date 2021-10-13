@@ -900,8 +900,8 @@ sysbegin
         ds 0xff&(-syskrnl_end)
 tbdoscmds=syskrnl_end+(0xff&(-syskrnl_end))
 wastbdoscmds
-        ds 256,BDOS_pop2fail&0xff
-        ds 256,BDOS_pop2fail/256
+        ds 256,BDOS_fail&0xff
+        ds 256,BDOS_fail/256
        
          SETHANDLER CMD_GETPAGEOWNER,BDOS_getpageowner
          SETHANDLER CMD_WRITEHANDLE,BDOS_writehandle

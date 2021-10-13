@@ -229,18 +229,9 @@ FIL_sz=32+512
 ; FRESULT f_close (
 	; FIL *fp		/* Pointer to the file object to be closed */)
         MACRO F_CLOS_CURDRV ;de=fil
-        push de
-        call BDOS_setpgstructs
-        inc de
-        inc de
-        inc de
-        inc de
-        inc de
-        xor a
-        ld (de),a
-        pop de
-	ld hl,ffsfunc.f_close
-	call call_ffs_curvol
+       ld a,d
+       or e
+       call nz,f_clos_curdrv_pp
 	ENDM
 
 

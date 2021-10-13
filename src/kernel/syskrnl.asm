@@ -988,6 +988,21 @@ sys_findfreeid0
         djnz sys_findfreeid0
 ;a=free id
         ret
+
+f_clos_curdrv_pp
+;de=fil !=0
+        push de
+        call BDOS_setpgstructs
+        inc de
+        inc de
+        inc de
+        inc de
+        inc de
+        xor a
+        ld (de),a
+        pop de
+	ld hl,ffsfunc.f_close
+	jp call_ffs_curvol
 		
 		if atm==1
 NVRAM_REG=0xde
