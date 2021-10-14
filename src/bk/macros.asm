@@ -111,6 +111,7 @@
         dec hl
         dec hl
         ld (_SP),hl
+       res 0,l ;for cputest
         ld a,h
         and 0xc0
         ld c,a

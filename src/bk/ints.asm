@@ -87,8 +87,7 @@ resetpp
 
         ld a,(tpgs+0x00)
        call clpga
-        ld a,(tpgs+0x40)
-       call clpga
+        call cls_bk
         call cls_for_curgfxmode
 
         ld hl,0x0200

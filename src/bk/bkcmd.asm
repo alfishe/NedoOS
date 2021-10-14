@@ -813,7 +813,7 @@ RTI_JMP_RTS_SWAB
 ;TODO
         jr z,halter ;HALT
         cp 1*2
-        jp z,looper ;WAIT ;for hny2020? программа не работает
+        jp z,WAITer ;WAIT ;for cputest, hny2020? программа не работает
         cp 2*2
         jr z,RTIer ;for movblobs
         cp 4*2
@@ -822,6 +822,8 @@ RTI_JMP_RTS_SWAB
         jp z,looper ;RESET ;for pacman
         cp 6*2
         jr z,RTTer
+        cp 15*2
+        jp z,looper ;STEP ;for cputest
         jr $
 RTIer
 RTTer
@@ -830,9 +832,10 @@ RTTer
         getmemspBC
        pop de
        _LoopC_JP
+WAITer
 halter
 wrmemrom_LoopC
-;Команда 000000 – это HALT. Вызывает прерывание по 4-му вектору. Когда встречается Halt, нужно положить в стек слово состояния процессора и адрес, следующий за командой HALT. Затем перейти по адресу, который записан в ячейке 4. При этом слово состояние процессора взять из ячейки 6.
+;Команда 000000 – это HALT. Вызывает прерывание по 4-му вектору. Когда встречается Halt, нужно положить в стек слово состояния процессора и адрес, следующий за командой HALT. Затем перейти по адресу, который записан в ячейке 4. При этом слово состояния процессора взять из ячейки 6.
         call getflags_bc
         putmemspBC
        decodePC_to_ae
@@ -908,6 +911,8 @@ JMPer
 ;jmp X(pc) работает как jmp pc+x (cputest 0x3dfc)
        ld a,c
        and 0x38
+       ;cp 0x00
+       jr z,JMPer_000
        cp 0x08
        jr z,JMPer_001
        cp 0x10
@@ -922,6 +927,7 @@ JMPer
         ld d,b
         ld e,c
        _LoopC_JP
+JMPer_000 ;pc=rn ;for cputest
 JMPer_001 ;pc=rn
         ld a,c
         rla
@@ -1226,14 +1232,14 @@ EMTer
        jp z,EMT_setcolor
        cp 0x06
        jp z,EMT_readkbd
-        cp 0x0c ;bubbler,mona ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
+        cp 0x0c ;bubbler,mona,cputest ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
         jp z,EMT_cls
         cp 0x16 ;bubbler ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
         jr z,EMTer_q
         cp 0x14 ;labyrinh ;EMT 24 - установка курсора по координатам X = R1, Y = R2;
         jr z,EMTer_q
-        cp 0x10 ;labyrinh ;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте;
-        jr z,EMTer_q
+        cp 0x10 ;labyrinh,cputest ;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте;
+        jp z,PRSTRINGer
         cp 0x1a ;labyrinh после вывода пикселя
         jr z,EMTer_q
         cp 0x12 ;packmanria ;EMT 22 - вывод символа в служебную строку; вход: R0 - код символа (0 - очистка строки); R1 - номер позиции в служебной строке;
@@ -1347,7 +1353,10 @@ EMT_setcolor
 
 EMT_cls
         push de
+        call cls_bk
         call cls_for_curgfxmode
+       ld hl,0x0200
+       ld (intcursorposition),hl
         pop de
        _LoopC
 
@@ -1379,6 +1388,199 @@ redraw_for_curgfxmode0
         bit 7,b
         jr z,redraw_for_curgfxmode0
         ret
+
+PRSTRINGer
+;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте
+;TODO в cputest байты в начале:
+;232 233 224 236 221 234
+;9a 9b 94 9e 91 9c
+;232 переключение индикации курсора
+;233 установка числа символов в строке 32/64 - получается 32 (параметра нет - почему?)
+;221..224 управление яркостью: красный, зелёный, синий, чёрный
+;236 установка режимов формирования индикаторов в служебной строке
+;234 установка режима негативной индикации символов
+
+;потом в тексте: 234 012 - вроде как ставит без инверсии
+        ld hl,(_R2)
+PRSTRINGer0
+        ld bc,(_R1)
+        push hl
+        call rdmem_bc_to_bc
+        ld hl,(_R1)
+        inc hl
+        ld (_R1),hl
+        pop hl
+        ld a,c
+        cp h ;символ-ограничитель
+        jr z,PRSTRINGerq
+       cp 10
+        jr z,PRSTRINGerLF
+       cp 12
+        jr z,PRSTRINGerCLS
+       cp 7
+       jr z,PRSTRINGer_skip ;TODO bell
+       cp 0xa0
+       jr nc,PRSTRINGer_noskip ;rus
+       cp 0x80
+       jr nc,PRSTRINGer_skip ;TODO
+PRSTRINGer_noskip
+        push hl
+        ld h,tkoi/256
+        ld l,a
+        ld a,(hl)
+        call prchar
+        pop hl
+PRSTRINGer_skip
+        dec l
+       jr PRSTRINGer0
+        ;jr nz,PRSTRINGer0
+PRSTRINGerq
+       _LoopC
+       
+PRSTRINGerLF
+       ld bc,(intcursorposition)
+       inc b ;TODO scroll?
+       ld c,0
+       ld (intcursorposition),bc
+       jr PRSTRINGer_skip
+PRSTRINGerCLS
+        push hl
+        push de
+        call cls_bk
+        call cls_for_curgfxmode
+       ld hl,0x0200
+       ld (intcursorposition),hl
+        pop de
+        pop hl
+       jr PRSTRINGer_skip
+       
+       
+prchar
+;Писать символ и атрибут в текущей позиции курсора (zaxon, km, nstalker, pipes)
+;Вход:
+;BH = номер видео страницы
+;AL = записываемый символ (ASCII код)
+;CX = счетчик (сколько экземпляров символа записать)
+;BL = видео атрибут (текстовый режим) или цвет (графический режим)
+;Примечание:
+;При записи с помощью этой функции курсор не сдвигается!
+;В графических режимах не рекомендуется использовать значение CX, отличное от единицы, т.к. не везде правильно реализован повтор символа
+;Если программа работает под управлением PTS-DOS, то значения в BH, BL и CX могут быть проигнорированны)
+       push de
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld bc,font;0x1a6e+0xa000
+        add hl,bc
+        ld a,(tpgs+0x40) ;scr
+        SETPGC000
+       push hl
+intcursorposition=$+1
+        ld de,0x0200 ;bkscr=0x4000+(2*64*8)
+        ld l,d ;y
+        ld h,0
+         ld d,h ;de=x
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*64
+        add hl,hl
+        add hl,hl
+        add hl,hl ;y*64*8
+         set 7,h
+         set 6,h
+        add hl,de
+        add hl,de
+       pop de ;gfx
+       ;jr $
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ld bc,64
+        add hl,bc
+        call cgaput2bytes
+        ;ld bc,80-0x2000
+        ;add hl,bc
+        ld hl,(intcursorposition)
+        inc l
+        ld a,l
+        cp 32
+        jr c,prchar_nonewline
+        ld l,0
+        inc h ;todo scroll?
+prchar_nonewline
+        ld (intcursorposition),hl
+       pop de
+        ret
+
+cgaput2bytes
+        ld a,(de)
+        ld c,a
+        xor a
+        rl c
+        rra
+        rrca
+        rl c
+        rra
+        rrca
+        rl c
+        rra
+        rrca
+        rl c
+        rra
+        ld b,a
+        rrca
+        or b
+        ld (hl),a
+       push bc
+        ld c,a
+        call putscreen_c
+       pop bc
+        
+        inc l
+        xor a
+        rl c
+        rra
+        rrca
+        rl c
+        rra
+        rrca
+        rl c
+        rra
+        rrca
+        rl c
+        rra
+        ld b,a
+        rrca
+        or b
+        ld (hl),a
+        ld c,a
+        call putscreen_c
+
+        dec l
+        inc de
+        ret
+
 
 TRAPer
 ;General trap: -(SP) < PS; -(SP) < PC; PC < (34); PS < (36)
