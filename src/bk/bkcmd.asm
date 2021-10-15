@@ -1235,9 +1235,9 @@ EMTer
         cp 0x0c ;bubbler,mona,cputest ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
         jp z,EMT_cls
         cp 0x16 ;bubbler ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
-        jr z,EMTer_q
+        jp z,GETXYer
         cp 0x14 ;labyrinh ;EMT 24 - установка курсора по координатам X = R1, Y = R2;
-        jr z,EMTer_q
+        jp z,SETXYer
         cp 0x10 ;labyrinh,cputest ;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте;
         jp z,PRSTRINGer
         cp 0x1a ;labyrinh после вывода пикселя
@@ -1389,6 +1389,26 @@ redraw_for_curgfxmode0
         jr z,redraw_for_curgfxmode0
         ret
 
+;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
+GETXYer
+       ld hl,(intcursorposition)
+       ld a,h
+       sub 6
+       ld h,0
+        ld (_R1),hl
+       ld l,a
+        ld (_R2),hl
+       _LoopC
+;EMT 24 - установка курсора по координатам X = R1, Y = R2;
+SETXYer
+        ld hl,(_R1)
+        ld a,(_R2)
+       add a,6 ;для Labyrinh и первого экрана klad, но потом в klad неправильно печатается счёт!
+        ld h,a
+       ld (intcursorposition),hl
+       _LoopC
+
+
 PRSTRINGer
 ;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте
 ;TODO в cputest байты в начале:
@@ -1432,8 +1452,8 @@ PRSTRINGer_noskip
         pop hl
 PRSTRINGer_skip
         dec l
-       jr PRSTRINGer0
-        ;jr nz,PRSTRINGer0
+       ;jr PRSTRINGer0 ;для CPUTEST
+        jr nz,PRSTRINGer0 ;для всего остального
 PRSTRINGerq
        _LoopC
        
@@ -1446,8 +1466,8 @@ PRSTRINGerLF
 PRSTRINGerCLS
         push hl
         push de
-        call cls_bk
-        call cls_for_curgfxmode
+        ;call cls_bk
+        ;call cls_for_curgfxmode
        ld hl,0x0200
        ld (intcursorposition),hl
         pop de

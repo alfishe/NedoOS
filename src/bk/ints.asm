@@ -190,7 +190,10 @@ changegfxmode
 ;TODO защита от int!!!
        di
         ld a,(curgfxmode)
-        xor 1
+        inc a
+        cp 3
+        jr c,$+3
+        xor a
         call setgfxmode
         call cls_for_curgfxmode
         call redraw_for_curgfxmode
@@ -201,14 +204,19 @@ setgfxmode
        ld (curgfxmode),a
 ;0=mono
 ;1=pseudo-color
+;2=rgb
 ;...
         or a
         jr z,setgfxmode_mono
 ;1=pseudo-color
+;2=rgb
+        cp 1
+        ld de,bkpal
+        jr z,$+5
+        ld de,rgbpal
+        OS_SETPAL
        ld e,0+0x80 ;EGA+keep
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
-        ld de,bkpal
-        OS_SETPAL
         ld hl,tleftpixels
 mkrecolor0
         ld a,l ;%????RrLl ;%????LlRr
@@ -382,11 +390,14 @@ oldpath
 	;dw 0xffff,0xfdfd,0xefef,0xeded,0xfefe,0xfcfc,0xeeee,0xecec
 	;dw 0x1f1f,0x1d1d,0x0f0f,0x0d0d,0x1e1e,0x1c1c,0x0e0e,0x0c0c
 bkpal
-;0,R,B,G:
 ;0,W,orange,teal
        dup 4
-	;dw 0xffff,0x1d1d,0x1e1e,0x0f0f
 	dw 0xffff,0x8d8d,0x5f5f,0x0c0c
+       edup
+rgbpal
+;0,R,B,G:
+       dup 4
+	dw 0xffff,0xdede,0x6f6f,0xbdbd
        edup
 standardpal
         STANDARDPAL

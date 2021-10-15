@@ -1,4 +1,4 @@
-﻿        DEVICE ZXSPECTRUM1024
+        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
 DEBUG=0;1
@@ -136,7 +136,14 @@ on_int
        ld a,0xf7
        in a,(0xfe)
        and 0b11000
+on_int_oldchgfxmodekey=$+1
+        cp 0
+        ld (on_int_oldchgfxmodekey),a
+        cp c
+        jr z,on_int_nochgfxmode
+       or a
        call z,changegfxmode ;4+5 = change gfx mode
+on_int_nochgfxmode
 
         call KEYB
 ;iskeymessage=$
