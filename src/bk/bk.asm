@@ -4,7 +4,7 @@
 DEBUG=0;1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
-BASIC=1;0
+BASIC=0
 
 	include "bk.ini"
 

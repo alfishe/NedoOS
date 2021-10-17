@@ -61,6 +61,10 @@ filltpgs0_noclear
         ld de,path
         OS_CHDIR
 
+        ld de,tlowmem ;de=filename
+        ld hl,0x0000 ;addr in segment
+        call loadcompp
+
         ld de,trom0 ;de=filename
         ld hl,0x8000 ;addr in segment
         call loadcompp
@@ -275,6 +279,8 @@ farquiter
         ld hl,0
         QUIT
 
+tlowmem
+        db "bklowmem.bin",0
 trom0
         db "bk10_017_mon.rom",0
 trom1
