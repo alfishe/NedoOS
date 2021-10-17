@@ -4,6 +4,7 @@
 DEBUG=0;1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
+BASIC=1;0
 
 	include "bk.ini"
 
@@ -1860,6 +1861,45 @@ rdport_c_tapestate_hsb ;for morf
        ld a,hx
        ld bc,0x0080
         ret
+
+buserror
+;из rdmem
+        ld sp,STACK
+;TRAP to 4
+        call getflags_bc
+        putmemspBC
+        decodePC_to_ae
+        ld b,a
+        ld c,e
+        putmemspBC
+        ld bc,0x06
+        call rdmem_bc_to_bc
+        call makeflags_frombc
+        ld bc,0x04
+        call rdmem_bc_to_bc
+        ld d,b
+        ld e,c
+       _LoopC_JP
+
+JMPer_error
+        ;jr $
+        ld sp,STACK
+;TRAP to 10
+        call getflags_bc
+        putmemspBC
+        decodePC_to_ae
+        ld b,a
+        ld c,e
+        putmemspBC
+        ld bc,0x0a
+        call rdmem_bc_to_bc
+        call makeflags_frombc
+        ld bc,0x08
+        call rdmem_bc_to_bc
+        ld d,b
+        ld e,c
+       _LoopC_JP
+
 
 cls_bk
         ld a,(tpgs+0x40)

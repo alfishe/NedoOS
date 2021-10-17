@@ -912,7 +912,8 @@ JMPer
        ld a,c
        and 0x38
        ;cp 0x00
-       jr z,JMPer_000
+       ;jr z,JMPer_000
+      jp z,JMPer_error
        cp 0x08
        jr z,JMPer_001
        cp 0x10
@@ -1209,10 +1210,18 @@ ASHCer
         jr $
 
 SWABer
+;Z,N по мл. байту результата, C,V сбросить
         GETDEST_cmdc
         ld h,b
         ld b,c
         ld c,h
+       ex af,af' ;'
+        ld a,c
+        inc a
+        dec a
+        scf
+        ccf
+       ex af,af' ;'
         PUTDEST_Loop
 
 EMTer_q
@@ -1230,6 +1239,7 @@ EMTer
        jp z,EMT_setcolor
        cp 0x38 ;set color (БК-0011)
        jp z,EMT_setcolor
+     if 1
        cp 0x06
        jp z,EMT_readkbd
         cp 0x0c ;bubbler,mona,cputest ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
@@ -1256,6 +1266,7 @@ EMTer
          jr z,EMTer_q ;road2cafe
          cp 0x33
          jr z,EMTer_q ;road2cafe
+    endif
 ;Emulator trap: -(SP) < PS; -(SP) < PC; PC < (30); PS < (32)
         call getflags_bc
         putmemspBC
@@ -1393,7 +1404,7 @@ redraw_for_curgfxmode0
 GETXYer
        ld hl,(intcursorposition)
        ld a,h
-       sub 6
+       sub 5
        ld h,0
         ld (_R1),hl
        ld l,a
@@ -1403,7 +1414,7 @@ GETXYer
 SETXYer
         ld hl,(_R1)
         ld a,(_R2)
-       add a,6 ;для Labyrinh и первого экрана klad, но потом в klad неправильно печатается счёт!
+       add a,5 ;для Labyrinh и первого экрана klad, но потом в klad неправильно печатается счёт!
         ld h,a
        ld (intcursorposition),hl
        _LoopC
@@ -1451,8 +1462,10 @@ PRSTRINGer_noskip
         call prchar
         pop hl
 PRSTRINGer_skip
+       inc l
+       dec l
+       jr z,PRSTRINGer0 ;для CPUTEST L=0
         dec l
-       ;jr PRSTRINGer0 ;для CPUTEST
         jr nz,PRSTRINGer0 ;для всего остального
 PRSTRINGerq
        _LoopC
@@ -1466,8 +1479,8 @@ PRSTRINGerLF
 PRSTRINGerCLS
         push hl
         push de
-        ;call cls_bk
-        ;call cls_for_curgfxmode
+        call cls_bk
+        call cls_for_curgfxmode
        ld hl,0x0200
        ld (intcursorposition),hl
         pop de

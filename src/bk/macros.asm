@@ -291,6 +291,10 @@
         ld h,a
        cp 0xff
        jp z,rdport_c
+      if BASIC == 0
+       cp 0xa0
+       jp nc,buserror
+      endif
      ;ld a,h
      ;cp 0x09
      ;jr z,$
