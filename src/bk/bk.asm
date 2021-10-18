@@ -4,7 +4,7 @@
 DEBUG=0;1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
-BASIC=0
+BASIC=1;0
 
 	include "bk.ini"
 
@@ -1864,6 +1864,7 @@ rdport_c_tapestate_hsb ;for morf
 
 buserror
 ;из rdmem
+JMPer_error
         ld sp,STACK
 ;TRAP to 4
         call getflags_bc
@@ -1881,8 +1882,7 @@ buserror
         ld e,c
        _LoopC_JP
 
-JMPer_error
-         jr buserror
+wrongcmd
         ld sp,STACK
 ;TRAP to 10
         call getflags_bc

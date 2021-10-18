@@ -853,9 +853,10 @@ wrmemrom_LoopC
 c0002_0003
 ;a=cmdLSB*2
         jp m,SWABer;c0003
-;00020r	RTS	Return from subroutine: PC < Reg; Reg < (SP)+
         cp 8*2 ;с=0x80..0x87
-        jr c,RTSer
+        jr c,RTSer ;00020r	RTS	Return from subroutine: PC < Reg; Reg < (SP)+
+        cp 16*2
+       jp c,wrongcmd
 ;0002??	d5=1,d4=0	Ccc ;flags &= ~(d3..d0 (NZVC))
 ;0002??	d5=1,d4=1	Scc ;flags |= (d3..d0 (NZVC))
         bit 4,c
@@ -1229,6 +1230,7 @@ EMTer_q
        _LoopC
 EMTer
 ;TODO убрать ловушки
+     if 1
        ld a,c
        cp 0x18 ;draw pixel (БК-0010)
        jp z,EMT_drawpixelR1R2
@@ -1240,7 +1242,6 @@ EMTer
        jp z,EMT_setcolor
        cp 0x38 ;set color (БК-0011)
        jp z,EMT_setcolor
-     if 1
        cp 0x06
        jp z,EMT_readkbd
         cp 0x0c ;bubbler,mona,cputest ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
