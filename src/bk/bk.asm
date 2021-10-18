@@ -1882,7 +1882,7 @@ buserror
        _LoopC_JP
 
 JMPer_error
-        ;jr $
+         jr buserror
         ld sp,STACK
 ;TRAP to 10
         call getflags_bc

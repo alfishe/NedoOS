@@ -563,6 +563,7 @@ CALLer
 
         ld a,c
         and 0x38
+      jp z,JMPer_error
        cp 0x30
        jr z,CALLer_relative
         cp 0x18
