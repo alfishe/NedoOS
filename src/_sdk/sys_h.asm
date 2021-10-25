@@ -637,6 +637,11 @@ __1=$
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
         endm
+        macro OS_GETDNS;DE= ptr to DNS buffer(4 bytes)
+	ld l,0x08
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
         macro OS_WIZNETCLOSE;A=SOCKET
         ld c,CMD_WIZNETCLOSE
 	CALLBDOS

@@ -152,9 +152,32 @@ wiznet_open
 		jp z,w53_bind
 		dec l
 		jp z,w53_listen
+		dec l
+		jp z,w53_setdns
+		dec l
+		jp z,w53_getdns
 		ld a,ERR_INTR	;функция не существует
 		ld hl,-1
 		ret
+w53_setdns:	;DE-указатель на 4 байта dns
+		call BDOS_preparedepage
+		call BDOS_setdepage 
+		ld hl,.dns
+		ex de,hl
+.dnsldi
+		ldi
+		ldi
+		ldi
+		ldi
+		ret
+.dns	
+		defb 8,8,4,4
+w53_getdns:	;DE-указатель на 4 байта dns
+		call BDOS_preparedepage
+		call BDOS_setdepage 
+		ld hl,w53_setdns.dns
+		jr w53_setdns.dnsldi
+
 w53_socket:
 ;E-socket type, D-address family
 ;ищем свободный сокет
