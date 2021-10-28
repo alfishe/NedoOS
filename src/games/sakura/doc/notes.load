@@ -1,0 +1,67 @@
+'open file. load 16c
+        ld a,(filehandle)
+        ld b,a
+        OS_GETFILESIZE ;dehl=filesize
+
+
+
+
+        ;ld de,dirname
+        ;OS_CHDIR
+
+        ld de,gfxname
+        call openstream_file
+        ;or a
+	;jp nz,noloadgfx
+
+;;;;;;;;;;;;dirname
+;;;;;;;;;;;;        db "eric",0
+;;;;;;;;;;;gfxname
+;;;;;;;;;;;;        db "eric/ericgfx.bmp",0
+
+;;;;;;;;;;;;;;;;;;;;;;;	ld de,bmpbuf
+;;;;;;;;;;;;;;;;;;;;;;;        ld hl,14+2
+;;;;;;;;;;;;;;;;;;;;;;;        call readstream_file
+;;;;;;;;;;;;;;;;;;;;;;;                ;DE = Buffer address, HL = Number of bytes to read
+
+
+        call setEGA ;keeps hl
+        ld hl,0x8000
+        ld de,0x8000
+        call readstream_file
+        ld de,TPAL;curpal
+        ld hl,32
+        call readstream_file
+        call closestream_file
+        ld de,TPAL;curpal
+        OS_SETPAL
+        jp waitkeyquit
+
+
+
+palstandard
+        STANDARDPAL
+palblack
+        ds 32,0xf3
+
+''''''''''''''''''''''''''''''''''
+setEGA
+;keeps hl
+        push hl
+        ld de,palblack
+        OS_SETPAL
+        ld e,0
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        ld hl,0x8000
+        ld bc,0x7fff
+        call fillzero
+        pop hl
+        ret
+
+fillzero
+        ld d,h
+        ld e,l
+        inc de
+        ld (hl),0
+        ldir
+        ret
