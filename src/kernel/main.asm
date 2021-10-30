@@ -158,6 +158,8 @@ begin
         XOR A
         ld (0x5d10),a 
         
+        call reset_ay
+        
         ;ld hl,0xc9f1 ;pop af:ret
         ;ld (0x5cc2),hl
         
@@ -478,7 +480,26 @@ init_sysdrv_val=$+1
 	 ld a,SYSDRV
 	 ld (SYSDRV_VAL),a
         jp setkernelpages_go ;di!!!
-        
+
+reset_ay
+        ld a,0xfe
+        call reset_ay_ay
+        ld a,0xff
+reset_ay_ay
+	ld bc,#fffd
+	out (c),a
+	xor a
+	ld l,a
+reset_ay_ay0
+	ld b,#ff
+	out (c),a
+	ld b,#bf
+	out (c),l
+	inc a
+	cp 14
+	jr nz,reset_ay_ay0
+	ret
+
 		if atm != 1
 INIT_OUTSHADON
         ;LD BC,0xFF77 ;shadow ports remain off
