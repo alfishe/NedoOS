@@ -97,10 +97,13 @@ KEYBX1  LD A,(HL) ;было отжато=1
 ;пребразовать скан-код E в код клавиши D
         LD D,0
        jr Z,KBpress ;Z=нажатие
-        LD HL,TCURKEYS-#D8
-        ADD HL,DE
-        LD D,(HL) ;под каким кодом была нажата эта клавиша
-        SET 7,D ;признак отжатия в коде клавиши
+        ;LD HL,TCURKEYS-#D8
+        ;ADD HL,DE
+        ;LD D,(HL) ;под каким кодом была нажата эта клавиша
+        ;SET 7,D ;признак отжатия в коде клавиши
+       POP HL
+       POP BC
+       ret
         XOR A
         LD (KBcode),A ;выкл. автоповтор
         JR KBpressQ

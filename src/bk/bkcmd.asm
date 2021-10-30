@@ -542,7 +542,7 @@ CALLer
         rra
         and 0xe0
        cp 0xe0
-       jr z,CALLerPC
+       jr z,CALLerPC ;link=src=pc
        rrca
        rrca
        rrca
@@ -559,7 +559,7 @@ CALLer
 ;0 000 100 lnk 110 rrr
           ;src ;@X(rn) ;dst
         ld l,a
-        ld h,_R0/256       
+        ld h,_R0/256
 
         ld a,c
         and 0x38
@@ -604,11 +604,11 @@ loopcjp
 
 ;09f7 - относительный call
 ;0000 1001 1111 0111
-;0 000 100 111 110 111<-link
+;0 000 100 111 110 111<-addr
           ;src ;X(rn) ;dst
 ;09df - абсолютный call
 ;0000 1001 1101 1111
-;0 000 100 111 011 111<-link
+;0 000 100 111 011 111<-addr
           ;src ;@(Rn)+ ;dst
 CALLerPC
 ;jsr PC, addr работает так: mov PC=>-(sp);mov addr=>pc
@@ -631,10 +631,17 @@ CALLerPC
         next
         ld b,a ;bc=X
        pop af
-       cp 0xdf
+;jsr link, addr работает так: mov link=>-(sp);mov pc=>link; mov addr=>pc
+       cp 0xdf ;0 000 100 111 011 111 (addr=@(PC)+)
+                    ;-(Rn);src ;@rn+ ;dst ;абсолютный call
        jp z,bctoPCLoop
+       ;cp 0xfa ;0 000 100 111 111 010 (addr=@X(R2): R2+X is the address of the address of the operand) ;call @146716(R2)
+                    ;-(Rn);src ;@X(rn);dst
+       cp 0xf8 ;call @nnn(Rn)
+       jr nc,calladdr_from_rnplusn
       if DEBUG
-       cp 0xf7
+       cp 0xf7 ;0 000 100 111 110 111 (addr=X(PC): PC+X is the address of the operand)
+                    ;-(Rn);src ;X(rn) ;dst ;относительный call
        jr nz,$
       endif
         decodePC
@@ -645,6 +652,22 @@ CALLerPC
         adc a,b
         ld d,a ;bc=pc+X
        _LoopC_JP
+
+calladdr_from_rnplusn
+        GOOD ;basic после ОШИБКА
+        and 7
+        add a,a
+        ld l,a
+        ld h,_R0/256
+        ld a,(hl)
+        add a,c
+        ld c,a
+        inc l
+        ld a,(hl)
+        adc a,b
+        ;ld b,a
+        call rdmem_ac_to_bc
+       jp bctoPCLoop
 
 CALLerPC_rn ;call (r1) = 04711 = 09c9
         decodePC_to_ae
@@ -812,9 +835,9 @@ RTI_JMP_RTS_SWAB
 ;000005	RESET
 ;000006	RTT	Return from trap: PC < (SP)+; PS < (SP)+
 ;TODO
-        jr z,halter ;HALT
+        jr z,halter ;HALT ;mona0010 выходит именно по этой команде
         cp 1*2
-        jp z,WAITer ;WAIT ;for cputest, hny2020? программа не работает
+        jp z,WAITer ;WAIT ;for cputest, hny2020?
         cp 2*2
         jr z,RTIer ;for movblobs
         cp 4*2
@@ -823,8 +846,11 @@ RTI_JMP_RTS_SWAB
         jp z,looper ;RESET ;for pacman
         cp 6*2
         jr z,RTTer
+       cp 8*2
+       jp z,looper ;ничего не делает? (Manwe)
         cp 15*2
         jp z,looper ;STEP ;for cputest
+;TODO 10*2 (cindy2 после первого эффекта - что делает?) jp (iy) не помогает
         jr $
 RTIer
 RTTer
@@ -834,9 +860,16 @@ RTTer
        pop de
        _LoopC_JP
 WAITer
+;ожидает любого прерывания (напр. от клавиатуры). по умолчанию на БК-0011 выключены кадровые прерывания ;mona0011
+        ld a,(bk_curkey) ;TODO правильно сделать ожидание?
+        or a
+        jr z,WAITer
+       _LoopC
+
 halter
 wrmemrom_LoopC
 ;Команда 000000 – это HALT. Вызывает прерывание по 4-му вектору. Когда встречается Halt, нужно положить в стек слово состояния процессора и адрес, следующий за командой HALT. Затем перейти по адресу, который записан в ячейке 4. При этом слово состояния процессора взять из ячейки 6.
+;почему mona0010 не останавливается?
         call getflags_bc
         putmemspBC
        decodePC_to_ae
@@ -1177,7 +1210,7 @@ MTPS_MFPD_MTPD_MFPS
         GETDEST_cmdc_autoinc
         call makeflags_frombc
        _LoopC
-MTPDer ;Move to previous D space: Dest < (SP)+
+MTPDer ;Move to previous D space: Dest < (SP)+ (нет в ВМ1?)
         ld hl,(_R6)
         inc hl
         inc hl
@@ -1187,7 +1220,7 @@ MTPDer ;Move to previous D space: Dest < (SP)+
         PUTDEST_Loop
 
 MFPD_MFPS
-        jr c,MFPDer
+        jr nc,MFPDer
 ;MFPSer ;Move from PSW: Dest < PSW
        ld a,c
        push af
@@ -1238,14 +1271,16 @@ EMTer
        jp z,EMT_drawpixelR0R1
        cp 0x39 ;get color (БК-0011)
        jp z,EMT_getcolor
-       cp 0x0e ;set color (БК-0010) ;pentis, mona
-       jp z,EMT_setcolor
+       ;cp 0x0e ;set color (БК-0010) ;pentis, mona
+       ;jp z,EMT_setcolor
        cp 0x38 ;set color (БК-0011)
        jp z,EMT_setcolor
        cp 0x06
        jp z,EMT_readkbd
         cp 0x0c ;bubbler,mona,cputest ;EMT 14 - инициализация экрана и установка всех векторов прерывания;
         jp z,EMT_cls
+        cp 0x0e ;klad ;EMT 16 - печать символа
+        jp z,EMT_prchar
         cp 0x16 ;bubbler ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
         jp z,GETXYer
         cp 0x14 ;labyrinh ;EMT 24 - установка курсора по координатам X = R1, Y = R2;
@@ -1356,6 +1391,7 @@ bk_curcolor=$+1
        _LoopC
 EMT_setcolor
         ld hl,(_R0) ;ascii code
+;EMT_setcolor_hl
         ld (bk_curcolor),hl
         ld a,l
        dec a
@@ -1365,6 +1401,7 @@ EMT_setcolor
        _LoopC
 
 EMT_cls
+        ;jr $
         push de
         call cls_bk
         call cls_for_curgfxmode
@@ -1421,6 +1458,13 @@ SETXYer
        ld (intcursorposition),hl
        _LoopC
 
+EMT_prchar
+;R0=символ
+        ;jr $
+        ld bc,(_R0)
+        ld a,c
+        call prchar_bk
+       _LoopC
 
 PRSTRINGer
 ;EMT 20 - вывод строки; вход: R1 - адрес строки; R2 - длина строки в младшем байте; символ-ограничитель в старшем байте
@@ -1446,12 +1490,26 @@ PRSTRINGer0
         ld a,c
         cp h ;символ-ограничитель
         jr z,PRSTRINGerq
+        call prchar_bk
+       inc l
+       dec l
+       jr z,PRSTRINGer0 ;для CPUTEST L=0
+        dec l
+        jr nz,PRSTRINGer0 ;для всего остального
+PRSTRINGerq
+       _LoopC
+
+prchar_bk
        cp 10
         jr z,PRSTRINGerLF
-       cp 12
+       cp 12 ;14 oct
         jr z,PRSTRINGerCLS
        cp 7
        jr z,PRSTRINGer_skip ;TODO bell
+       cp 0x91
+       jr c,PRSTRINGer_noskip
+       cp 0x95
+       jr c,PRSTRING_setcolor
        cp 0xa0
        jr nc,PRSTRINGer_noskip ;rus
        cp 0x80
@@ -1464,20 +1522,23 @@ PRSTRINGer_noskip
         call prchar
         pop hl
 PRSTRINGer_skip
-       inc l
-       dec l
-       jr z,PRSTRINGer0 ;для CPUTEST L=0
-        dec l
-        jr nz,PRSTRINGer0 ;для всего остального
-PRSTRINGerq
-       _LoopC
-       
+        ret
+PRSTRING_setcolor
+        ;sub 0x91
+        ld l,a
+        ld (bk_curcolor),hl
+       dec a
+       cpl
+        and 3
+        ld (bk_curcolor_recoded),a
+        ret
+
 PRSTRINGerLF
        ld bc,(intcursorposition)
        inc b ;TODO scroll?
        ld c,0
        ld (intcursorposition),bc
-       jr PRSTRINGer_skip
+       ret;jr PRSTRINGer_skip
 PRSTRINGerCLS
         push hl
         push de
@@ -1487,7 +1548,7 @@ PRSTRINGerCLS
        ld (intcursorposition),hl
         pop de
         pop hl
-       jr PRSTRINGer_skip
+       ret;jr PRSTRINGer_skip
        
        
 prchar

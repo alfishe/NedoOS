@@ -70,13 +70,12 @@ oldpcaddr=$+1
        ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
-       cp 1
+       ;cp 1
        ;jr z,$
-      ld hl,0x300e;0x0318;0x32c8;0x3222;0x3262;0x1f74;0x0258;0x3dc8
+      ld hl,0x228;0x8252;0x0318;0x32c8;0x3222;0x3262;0x1f74;0x0258;0x3dc8
       or a
       sbc hl,de
       pop de
-      ;jr nc,$
       ;jr z,$
        endif
         get
@@ -215,12 +214,17 @@ GKEYADR=$+1
 ;10 (0x08) -- нелегальная команда
 ;ещё есть программные EMT/TRAP/BPT/IOT
 
-      ld hl,(0x30*4+0xc000) ;pc
-      ld bc,(0x30*4+0xc002) ;psw
+      ld hl,(0x30+0xc000) ;pc
+      ld bc,(0x30+0xc002) ;psw
       ld a,h
       or l
      xor a
       jp z,STIer ;костыль для неинициализированного прерывания
+        
+;должно вызываться только при нажатии на клавишу
+        ld a,(bk_curkey)
+        or a
+        jp z,STIer
         
 gotoint
 ;push psw; push pc (адрес после команды)
@@ -715,7 +719,7 @@ putdestop8_memfrommem
        pop bc
         WRMEM8_hl_LoopC
 putdestop8_011_pc
-        UNTESTED
+        GOOD ;pacman
         get
         next
         ld l,a
@@ -878,7 +882,7 @@ getdest_aisc
         ld b,(hl)
         ret
 readdestop_000_pc ;cd.bk - TODO правильно ли? программа не работает
-        UNTESTED
+        GOOD ;basic
       ld hx,c
        decodePC_to_ae
        ld b,a
@@ -1465,7 +1469,7 @@ rdsrcop_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
         jr z,rdsrcop_011_pc
-        UNTESTED
+        GOOD ;mars1
         ld c,(hl)
         inc l
         ld b,(hl)
@@ -1519,6 +1523,7 @@ rdsrcop_100
         ld (hl),c
 rdmem_bc_to_bc
         ld a,b
+rdmem_ac_to_bc
         RDMEM_ac_ret ;bc=result, a=hx
 
 rdsrcop_101
@@ -1775,15 +1780,15 @@ rdport_c
 ;bit #100,@#177716 (ffce): tapestate, Разряд 6 служит индикатором нажатия клавиши ("лог 0" - клавиша нажата, "лог 1" - клавиша отжата). Используется при реализации режима "повтор".
 ;177714: Регистр порта ввода-вывода
 ;177664 предназначен для указания начала экранного ОЗУ и организации рулонного сдвига экрана. При начальной установке экрана в регистре записывается значение 1330 (0x02d8). Изменение этого значения на 1 приводит к сдвигу изображения на экране по вертикали на 1 точечную строку. Сразу же после включения питания разряд 9 устанавливается в "1". При включении режима расширенной памяти разряд сбрасывается в "0". Разряды 8, 10-15 не используются.
-        cp 0xb0
+        cp 0xb0 ;177660
         jr z,2f ;kbd state
-         cp 0xb4
+         cp 0xb4 ;177662
          jr z,rdport_c_scrshift ;Bubbler
          cp 0xcc
          jr z,rdport_c_io ;Клад
          cp 0xc8 ;177710 ;Таймер работает независимо от работы программы. Содержимое счётчика времени определяется как результат функции PEEK(&O177710) и периодически уменьшается от S0 до 0 (рис. 10).
          jr z,rdport_c_timer ;kld19nm_bk10
-        cp 0xce
+        cp 0xce ;177716
         jr z,rdport_c_tapestate
         cp 0xcf
         jr z,rdport_c_tapestate_hsb
@@ -1795,10 +1800,15 @@ rdport_c
         cp 0xb2
         jr nz,9f ;no ports
 ;kbd data
-bk_curkey=$+1
+bk_oldkey=$+1
         ld c,0
-        ;ld a,55+128 ;"or a"
-        ;ld (iskeymessage),a ;no message (INT прочитает новую кнопку)
+bk_curkey=$+1
+        ld a,0
+        or a
+        jr z,bk_port_getkey_no
+        ld (bk_oldkey),a
+        ld c,a
+bk_port_getkey_no
         xor a
         ld (bk_curkey),a ;no message (INT прочитает новую кнопку)
        ld a,hx

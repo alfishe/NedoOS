@@ -94,7 +94,7 @@ resetpp
         call cls_bk
         call cls_for_curgfxmode
 
-        ld hl,0x0200
+        ld hl,0x01fe;0x0200
         ld (_SP),hl
 
        ld hl,0x8000
