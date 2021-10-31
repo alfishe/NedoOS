@@ -5,9 +5,22 @@
     IFDEF MB03
     include "mb03-uart.asm"
     ENDIF
+
+    IFDEF AY
+    include "ay-uart.asm"
+    ENDIF
     
     include "utils.asm"
-    IFDEF NEDOOS
+   
+    IFDEF NEDOOSATM
+ 	 	include "atm-uart.asm"
+        include "wifi.asm"
+    ENDIF
+	
+	IFDEF NEDOOS
+		IFNDEF NEDOOSATM
+			include "nedowifi.asm"
+		ENDIF
         include "nedoos.asm"
     ELSE
         include "wifi.asm"

@@ -45,7 +45,7 @@ gotoXY
 	
 fillLine:
     ld d, h, e, 0 : call gotoXY
-    ld b, 64
+    ld b, 80
 .loop
     push af, bc
     rst 0x10
@@ -70,7 +70,7 @@ highlightLine
 	pop de
 	inc e
 	ld a,e
-	cp 64
+	cp 80
 	jr nz,.mloop
 	ret
     ENDMODULE

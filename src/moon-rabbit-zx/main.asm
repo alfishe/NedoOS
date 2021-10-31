@@ -9,6 +9,15 @@
     ENDIF
 asmOrg:
     jp start
+    
+; Generate version string
+    LUA ALLPASS
+    v = tostring(sj.get_define("V"))
+    maj = string.sub(v, 1,1)
+    min = string.sub(v, 2,2)
+    sj.insert_define("VERSION_STRING", "\"" .. maj .. "." .. min .. "\"")
+    ENDLUA
+
     include "vdp/index.asm"
     include "utils/index.asm"
     include "gopher/render/index.asm"
@@ -27,29 +36,57 @@ asmOrg:
     include "player/vortexnedoos.asm"
     ENDIF
 start:
-    di
+
     IFNDEF NEDOOS
-        ld sp, asmOrg
+outputBuffer:
+    di
+    ld sp, asmOrg
+    call Memory.init
+    ei
+    
+    ld a, 7 : call Memory.setPage
+    ;; Logo
+    ld hl, logo, b, Dos.FMODE_READ : call Dos.fopen
+    push af
+    ld hl, #c000, bc, 6912 : call Dos.fread
+    pop af
+    call Dos.fclose
+
+    ld b, 150 
+1   halt 
+    djnz 1b
+    ;; End of logo :-)
+
     ELSE
         ld sp, 0x4000
     ENDIF
-    ei
+ 
+    
+
     call TextMode.init
+
+    IFDEF NEDOOSATM
+        call Wifi.init
+    ENDIF
+
     IFNDEF NEDOOS
 		ld hl, initing : call TextMode.printZ
         call Wifi.init
     ENDIF
-    call History.home
-    jr $
+   jp History.home
 
-outputBuffer:
+    IFDEF NEDOOS
+outputBuffer:	
+	ENDIF
+
+
 initing db "Initing Wifi...",13,0
-
+logo    db  "data/logo.scr", 0
     display "ENDS: ", $
     display "Buff size", #ffff - $
     IFDEF NEDOOS
         savebin "moon.com", asmOrg, $ - asmOrg
     ELSE
-        savebin "moon.bin", asmOrg, $ - asmOrg
+	    savebin "moon.bin", asmOrg, $ - asmOrg
     ENDIF
     
