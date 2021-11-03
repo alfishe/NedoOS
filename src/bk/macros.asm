@@ -291,19 +291,17 @@
 
        macro RDMEM_ac_ret ;bc=result, a=hx
         ld h,a
+       res 0,c ;16-bit read always at even addr
        cp 0xff
        jp z,rdport_c
       if BASIC == 0
        cp 0xa0
        jp nc,buserror
       endif
-     ;ld a,h
-     ;cp 0x09
-     ;jr z,$
         ld l,c
         and 0xc0
 	ld c,a
-       ld lx,a ;for nextpg
+       ;ld lx,a ;for nextpg
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -313,9 +311,31 @@
         ld c,(hl)
         inc l
         ld b,(hl)
-        ret nz
-        inc h
-        call z,hlnextpg
-        ld b,(hl)
+        ;ret nz
+        ;inc h
+        ;call z,hlnextpg
+        ;ld b,(hl)
+        ret
+       endm
+
+       macro RDMEM8_ac_ret ;c=result, a=hx
+        ld h,a
+       cp 0xff
+       jp z,rdport_c
+      if BASIC == 0
+       cp 0xa0
+       jp nc,buserror
+      endif
+        ld l,c
+        and 0xc0
+	ld c,a
+       ;ld lx,a ;for nextpg
+	ld b,tpgs/256
+	set 7,h
+        set 6,h
+	ld a,(bc)
+	SETPGC000
+       ld a,hx
+        ld c,(hl)
         ret
        endm

@@ -1436,13 +1436,13 @@ redraw_for_curgfxmode
         ld bc,0x4000
 redraw_for_curgfxmode0
         push bc
-        call rdmem_bc_to_bc ;TODO optimize
+        call rdmem_bc_to_bc
         pop hl
         push hl
         call putscreen_c
         pop hl
-        push hl
         inc hl
+        push hl
         ld c,b
         call putscreen_c
         pop bc

@@ -590,7 +590,7 @@ getdest8_aisc
         bit 4,c
         jr nz,rddest8_x10
         bit 5,c
-        jp nz,rddest8_100
+        jr nz,rddest8_100
 ;000 Register ;TODO pc
        cp 0x0e
        jr z,$
@@ -610,7 +610,132 @@ rddest8_xx1
 rddest8_x11
         bit 5,c
         jp nz,rddest8_111
-        jp rddest8_011
+        ;jp rddest8_011
+;rddest8_011 ;@(Rn)+ ;всегда +=2
+        ld a,l
+       ld hx,c
+        cp 0x0e
+        jr z,rddest8_011_pc
+        UNTESTED ;GOOD ;road2cafe ;нет в leopol
+        ld c,(hl)
+        inc l
+        ld a,(hl)
+        jp rdsrc8_addrfromaddr_ac
+rddest8_011_pc
+        UNTESTED ;GOOD ;bubbler ;нет в leopol
+;инкремент не делаем, чтобы его делал putdest
+        get
+        inc e ;next без переключения страниц!!! FIXME
+        ld c,a
+        get
+        dec e ;FIXME
+        RDMEM8_ac_ret ;c=result, a=hx
+
+rddest8_100
+;100 -(Rn)
+;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
+        ld a,l
+       ld hx,c
+       cp 0x0e
+       jr z,$;rddest8_100_pc
+        cp 0x0c
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+       jr c,$+3
+       dec bc ;sp/pc +=2
+        UNTESTED
+        ld a,b
+        RDMEM8_ac_ret ;c=result, a=hx
+
+rddest8_101
+        ld a,l
+;101 @-(Rn) ;всегда -=2
+       ld hx,c
+       cp 0x0e
+       jr z,$;rddest8_101_pc
+        UNTESTED
+        ld c,(hl)
+        inc l
+        ld b,(hl)
+        dec bc
+        dec bc
+        ld a,b
+        jp rdsrc8_addrfromaddr_ac
+
+rddest8_110
+        ld a,l
+;X(Rn)
+       ld hx,c
+       cp 0x0e
+       jr z,rddest8_110_pc
+        UNTESTED ;GOOD ;leopol демо2
+        get
+        inc e
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        adc a,(hl) ;ac=Rn+X
+        RDMEM8_ac_ret ;c=result, a=hx
+rddest8_110_pc ;for mona
+        UNTESTED ;GOOD ;leopol начало
+        get
+        inc e
+        ld c,a
+        ;inc l
+        get
+        dec e ;FIXME
+        ld b,a
+       decodePC_to_ae
+      inc bc
+      inc bc
+        ld h,a
+       ld a,c
+       add a,e
+       ld c,a
+       ld a,b
+       adc a,h ;ac=pc+X
+        RDMEM8_ac_ret ;c=result, a=hx       
+
+rddest8_111
+       ld a,l
+;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+       ld hx,c
+       cp 0x0e
+       jr z,rddest8_111_pc
+        UNTESTED
+        get
+        inc e
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        dec e ;FIXME
+        adc a,(hl) ;ac=Rn+X
+        jp rdsrc8_addrfromaddr_ac
+rddest8_111_pc ;for leopol?
+;[[pc+X]]
+        UNTESTED ;GOOD ;leopold когда уже появилась грязь вместо мышей
+        get
+        inc e
+        ld c,a
+        ;inc l
+        get
+        dec e ;FIXME
+        ld b,a
+       decodePC_to_ae
+      inc bc
+      inc bc ;TODO надо ли?
+        ld h,a
+       ld a,c
+       add a,e
+       ld c,a
+       ld a,b
+       adc a,h ;ac=pc+X
+        jp rdsrc8_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;c=data, a=cmdLSB = %??fmtRRR
@@ -902,11 +1027,8 @@ rddest_xx1
 rddest_x11
         bit 5,c
         jp nz,rddest_111
-        jp rddest_011
-
-rddest8_011 ;@(Rn)+ ;всегда +=2 ;TODO optimize
-        ld a,l
-rddest_011 ;@(Rn)+ ;всегда +=2
+        ;jp rddest_011
+;rddest_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
         jr z,rddest_011_pc
@@ -925,24 +1047,6 @@ rddest_011_pc
         dec e ;FIXME
         RDMEM_ac_ret ;bc=result, a=hx
 
-rddest8_100
-;100 -(Rn)
-;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
-        ld a,l
-       ld hx,c
-       cp 0x0e
-       jr z,$
-        cp 0x0c
-        ld c,(hl)
-        inc l
-        ld b,(hl)
-        dec bc
-       jr c,$+3
-       dec bc ;sp/pc +=2
-        UNTESTED
-        ld a,b
-        RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
-
 rddest_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
@@ -958,8 +1062,6 @@ rddest_100
         ld a,b
         RDMEM_ac_ret ;bc=result, a=hx
 
-rddest8_101
-        ld a,l
 rddest_101
 ;101 @-(Rn) ;всегда -=2
        ld hx,c
@@ -976,8 +1078,6 @@ rddest_101
 rddest_101_pc ;TODO
         jr $
 
-rddest8_110 ;TODO optimize
-        ld a,l
 rddest_110
 ;X(Rn)
        ld hx,c
@@ -1013,8 +1113,6 @@ rddest_110_pc ;for mona
        adc a,h ;ac=pc+X
         RDMEM_ac_ret ;bc=result, a=hx
 
-rddest8_111 ;TODO optimize
-       ld a,l
 rddest_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
        ld hx,c
@@ -1660,12 +1758,17 @@ rddest8_001 ;(Rn): Rn contains the address of the operand ;TODO optimize
 rddest8_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest ;TODO optimize
        ld hx,c
        cp 0x0e
-       ;jr z,rdsrc8_001_pc
-       jp z,rdsrc_001_pc
+       jr z,rdsrc8_001_pc
         ld c,(hl)
         inc l
         ld a,(hl)
-        RDMEM_ac_ret ;bc=result
+        RDMEM8_ac_ret ;bc=result
+rdsrc8_001_pc
+        UNTESTED ;GOOD ;bkscope
+        get
+        ld c,a
+       ld a,hx
+        ret
 
 rdsrc8_x10
         bit 3,b
@@ -1674,8 +1777,7 @@ rdsrc8_x10
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
        ld hx,c
         cp 0x0e
-       ;jr z,rdsrc8_010_pc
-       jp z,rdsrc_010_pc
+       jr z,rdsrc8_010_pc
         GOOD ;textshow
         ld c,(hl)
       cp 0x0c
@@ -1686,16 +1788,23 @@ rdsrc8_x10
         ld a,(hl)
         jr nz,$+3
         inc (hl)
-        RDMEM_ac_ret ;bc=result, a=hx
+        RDMEM8_ac_ret ;bc=result, a=hx
+rdsrc8_010_pc
+        UNTESTED ;GOOD ;textshow
+        get
+        next
+        ld c,a
+        next
+       ld a,hx
+        ret
 
 rdsrc8_x11
         bit 3,b
-        jp nz,rdsrc_111
+        jp nz,rdsrc8_111
 rdsrc8_011 ;@(Rn)+ ;всегда +=2
        ld hx,c
         cp 0x0e
-        ;jr z,rdsrc8_011_pc
-        jp z,rdsrc_011_pc
+       jr z,rdsrc8_011_pc
         UNTESTED
         ld c,(hl)
         inc l
@@ -1725,33 +1834,41 @@ rdsrc8_addrfromaddr_ac
         inc l
         call z,inchnextpg
         ld a,(hl)
-        RDMEM_ac_ret ;bc=result, a=hx ;TODO optimize
+        RDMEM8_ac_ret ;c=result, a=hx ;TODO optimize
+rdsrc8_011_pc
+        UNTESTED ;GOOD ;leopol демо4(кот у цифр)
+        get
+        next
+        ld c,a
+        get
+        next
+        RDMEM8_ac_ret ;c=result, a=hx
 
 rdsrc8_100
 ;100 -(Rn)
 ;при адресациях (reg)+ и -(reg), есть особый случай: если регистр -- это r6 или r7, то регистр всегда изменяется на 2, даже если команда байтовая
        ld hx,c
         cp 0x0e
-        jp z,$;rdsrc8_100_pc
-        cp 0x0c
+       jr z,$;rdsrc8_100_pc
         GOOD ;leopol начало
         ld c,(hl)
         inc l
         ld b,(hl)
         dec bc
+       cp 0x0c
        jr c,$+3
-       dec bc ;sp/pc +=2 ;TODO pc
+       dec bc ;sp/pc +=2
         ld (hl),b
         dec l
         ld (hl),c
         ld a,b
-        RDMEM_ac_ret ;bc=result, a=hx
+        RDMEM8_ac_ret ;bc=result, a=hx
 
 rdsrc8_101
 ;101 @-(Rn) ;всегда -=2
        ld hx,c
         cp 0x0e
-        jr z,$;rdsrc8_101_pc ;TODO pc
+       jr z,$;rdsrc8_101_pc
         UNTESTED
         ld c,(hl)
         inc l
@@ -1762,13 +1879,70 @@ rdsrc8_101
         dec l
         ld (hl),c
         ld a,b
-        jp rdsrc_addrfromaddr_ac
+        jp rdsrc8_addrfromaddr_ac
 
-rdsrc8_110=rdsrc_110 ;TODO optimize
+rdsrc8_110
 ;110 Index: X(Rn): Rn+X is the address of the operand
+       ld hx,c
+        cp 0x0e
+       jr z,rdsrc8_110_pc
+        UNTESTED ;GOOD ;leopol начало
+        get
+        next
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        next
+        adc a,(hl) ;ac=Rn+X
+        RDMEM8_ac_ret ;bc=result, a=hx
+rdsrc8_110_pc
+        UNTESTED ;GOOD ;leopol демо
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a
+        decodePC_to_ae
+         ld h,a
+        ld a,c
+        add a,e
+        ld c,a
+        ld a,b
+        adc a,h;d
+        RDMEM8_ac_ret ;bc=result, a=hx
 
-rdsrc8_111=rdsrc_111 ;TODO optimize
+rdsrc8_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
+       ld hx,c
+        cp 0x0e
+       jr z,rdsrc8_111_pc
+        UNTESTED ;GOOD ;klad ;нет в leopol
+        get
+        next
+        add a,(hl)
+        ld c,a
+        inc l
+        get
+        next
+        adc a,(hl) ;ac=Rn+X
+        jp rdsrc8_addrfromaddr_ac
+rdsrc8_111_pc ;for morf
+        UNTESTED ;GOOD ;leopol появление мышей2?
+        get
+        next
+        ld c,a
+        get
+        next
+        ld b,a
+        decodePC_to_ae
+        ld h,a
+        ld l,e
+        add hl,bc
+        ld a,h
+        ld c,l ;ac=Rn+X
+        jp rdsrc8_addrfromaddr_ac
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
 rdport_c
