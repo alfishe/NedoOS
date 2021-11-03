@@ -89,6 +89,9 @@ resetpp
         xor a
         ld (iff1),a
 
+        ld hl,0x02d8
+        ld (bkscroll),hl
+
         ld a,(tpgs+0x00)
        call clpga
         call cls_bk

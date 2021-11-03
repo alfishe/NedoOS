@@ -193,12 +193,13 @@
 
 ;hl=addr, bc=data
        macro WRMEM_hl_LoopC
+       res 0,l ;16-bit write always at even addr
         ld a,h
         and 0xc0
        jp m,2f ;ROM/ports
        push bc
         ld c,a
-       ld lx,a
+       ;ld lx,a
 	ld b,tpgs/256
 	set 7,h
         set 6,h
@@ -214,7 +215,7 @@
        pop bc
         ld (hl),c
         inc l
-        call z,inchnextpg
+        ;call z,inchnextpg
         ld (hl),b
         _LoopC
 1 ;screen
@@ -224,36 +225,40 @@
         ld (hl),c
         call putscreen_c
         inc l
-        jr z,3f;screen inchnextpg
-5
+        ;jr z,3f;screen inchnextpg
+;5
         ld (hl),b
         ld c,b
         call putscreen_c
         _LoopC
-3
-        inc h
-        jr nz,5b
+;3
+;        inc h
+;        jr nz,5b
 ;screen nextpg = ROM
-        ;call hlnextpg
-9
-        _LoopC
+;        ;call hlnextpg
+;        _LoopC
 2 ;ROM/ports
       if 1
        inc h
        jp nz,wrmemrom_LoopC ;no ports
 ;FFB0=177660 регистр состояния клавиатуры (Разряд 6 - маска прерываний от клавиатуры. разряд доступен по записи и чтению. “0” - разрешено прерывание от клавиатуры; “1” - запрещено прерывание от клавиатуры. Разряд 7 - флаг состояния клавиатуры. Устанавливается в единицу при поступлении в регистр данных клавиатуры нового кода. Сбрасывается в “0” при чтении регистра данных клавиатуры.)
 ;FFB2=177662 Регистр данных клавиатуры
+;177664 предназначен для указания начала экранного ОЗУ и организации рулонного сдвига экрана. При начальной установке экрана в регистре записывается значение 1330 (0x02d8). Изменение этого значения на 1 приводит к сдвигу изображения на экране по вертикали на 1 точечную строку. Сразу же после включения питания разряд 9 устанавливается в "1". При включении режима расширенной памяти разряд сбрасывается в "0". Разряды 8, 10-15 не используются.
         ld a,l
         cp 0xb0
-        jr z,9b;2f ;kbd state ;TODO сюда пишет labyrinh, потом ждёт в (0xffce) 0x80a0
+        jr z,9f ;kbd state ;TODO сюда пишет labyrinh, потом ждёт в (0xffce) 0x80a0
         cp 0xb2
-        jr z,9b;3f ;kbd data
+        jr z,9f ;kbd data
+        cp 0xb4
+        jr z,8f ;scroll
         cp 0x76 ;буфер передатчика
-        jr nz,9b ;no ports
-        call print_bc_to_log
-3 ;kbd data
-2 ;kbd state
+        ;jr nz,9f ;no ports
+        call z,print_bc_to_log
       endif
+9
+        _LoopC
+8
+        ld (bkscroll),bc
         _LoopC
        endm
 

@@ -1407,7 +1407,7 @@ EMT_setcolor
         ld (bk_curcolor),hl
         ld a,l
        dec a
-       cpl
+       ;cpl
         and 3
         ld (bk_curcolor_recoded),a
        _LoopC
@@ -1417,7 +1417,7 @@ EMT_cls
         push de
         call cls_bk
         call cls_for_curgfxmode
-       ld hl,0x0200
+       ld hl,0;0x0200
        ld (intcursorposition),hl
         pop de
        _LoopC
@@ -1453,9 +1453,10 @@ redraw_for_curgfxmode0
 
 ;EMT 26 - получение координат курсора: R1 = X, R2 = Y;
 GETXYer
+       ;ld bc,(bkscroll)
        ld hl,(intcursorposition)
        ld a,h
-       sub 5
+       ;add a,c;sub c;5
        ld h,0
         ld (_R1),hl
        ld l,a
@@ -1463,16 +1464,17 @@ GETXYer
        _LoopC
 ;EMT 24 - установка курсора по координатам X = R1, Y = R2;
 SETXYer
+;177664 предназначен для указания начала экранного ОЗУ и организации рулонного сдвига экрана. При начальной установке экрана в регистре записывается значение 1330 (0x02d8). Изменение этого значения на 1 приводит к сдвигу изображения на экране по вертикали на 1 точечную строку. Сразу же после включения питания разряд 9 устанавливается в "1". При включении режима расширенной памяти разряд сбрасывается в "0". Разряды 8, 10-15 не используются.
+       ;ld bc,(bkscroll)
         ld hl,(_R1)
         ld a,(_R2)
-       add a,5 ;для Labyrinh и первого экрана klad, но потом в klad неправильно печатается счёт!
+       ;sub c;add a,c;5 ;для Labyrinh и первого экрана klad, но потом в klad неправильно печатается счёт!
         ld h,a
        ld (intcursorposition),hl
        _LoopC
 
 EMT_prchar
 ;R0=символ
-        ;jr $
         ld bc,(_R0)
         ld a,c
         call prchar_bk
@@ -1494,7 +1496,7 @@ PRSTRINGer
 PRSTRINGer0
         ld bc,(_R1)
         push hl
-        call rdmem_bc_to_bc
+        call rdmem8_bc_to_c
         ld hl,(_R1)
         inc hl
         ld (_R1),hl
@@ -1502,7 +1504,9 @@ PRSTRINGer0
         ld a,c
         cp h ;символ-ограничитель
         jr z,PRSTRINGerq
+        push hl
         call prchar_bk
+        pop hl
        inc l
        dec l
        jr z,PRSTRINGer0 ;для CPUTEST L=0
@@ -1527,12 +1531,12 @@ prchar_bk
        cp 0x80
        jr nc,PRSTRINGer_skip ;TODO
 PRSTRINGer_noskip
-        push hl
+        ;push hl
         ld h,tkoi/256
         ld l,a
         ld a,(hl)
         call prchar
-        pop hl
+        ;pop hl
 PRSTRINGer_skip
         ret
 PRSTRING_setcolor
@@ -1547,7 +1551,10 @@ PRSTRING_setcolor
 
 PRSTRINGerLF
        ld bc,(intcursorposition)
-       inc b ;TODO scroll?
+       ;ld a,b
+       ;add a,8;TODO scroll?
+       ;ld b,a
+       inc b
        ld c,0
        ld (intcursorposition),bc
        ret;jr PRSTRINGer_skip
@@ -1556,7 +1563,7 @@ PRSTRINGerCLS
         push de
         call cls_bk
         call cls_for_curgfxmode
-       ld hl,0x0200
+       ld hl,0;0x0200
        ld (intcursorposition),hl
         pop de
         pop hl
@@ -1586,8 +1593,15 @@ prchar
         SETPGC000
        push hl
 intcursorposition=$+1
-        ld de,0x0200 ;bkscr=0x4000+(2*64*8)
-        ld l,d ;y
+        ld de,0;0x0200 ;bkscr=0x4000+(2*64*8)
+        sla d
+        sla d
+        sla d
+       ld a,(bkscroll)
+       ;add a,80
+       neg
+       add a,d
+        ld l,a;d ;y
         ld h,0
          ld d,h ;de=x
         add hl,hl
@@ -1596,9 +1610,9 @@ intcursorposition=$+1
         add hl,hl
         add hl,hl
         add hl,hl ;y*64
-        add hl,hl
-        add hl,hl
-        add hl,hl ;y*64*8
+        ;add hl,hl
+        ;add hl,hl
+        ;add hl,hl ;y*64*8
          set 7,h
          set 6,h
         add hl,de
@@ -1635,7 +1649,10 @@ intcursorposition=$+1
         cp 32
         jr c,prchar_nonewline
         ld l,0
-        inc h ;todo scroll?
+        ;ld a,h
+        ;add a,8 ;todo scroll?
+        ;ld h,a
+        inc h
 prchar_nonewline
         ld (intcursorposition),hl
        pop de

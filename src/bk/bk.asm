@@ -646,6 +646,7 @@ rddest8_100
        jr c,$+3
        dec bc ;sp/pc +=2
         UNTESTED
+rdmem8_bc_to_c
         ld a,b
         RDMEM8_ac_ret ;c=result, a=hx
 
@@ -681,7 +682,7 @@ rddest8_110
         adc a,(hl) ;ac=Rn+X
         RDMEM8_ac_ret ;c=result, a=hx
 rddest8_110_pc ;for mona
-        UNTESTED ;GOOD ;leopol начало
+        GOOD ;morf
         get
         inc e
         ld c,a
@@ -1754,8 +1755,8 @@ rdsrc8_xx1
         bit 3,b
         jp nz,rdsrc8_101
 ;001: (Rn)
-rddest8_001 ;(Rn): Rn contains the address of the operand ;TODO optimize
-rddest8_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest ;TODO optimize
+rddest8_001 ;(Rn): Rn contains the address of the operand
+rddest8_010 ;(Rn)+ ;инкремент не делаем, чтобы его делал putdest
        ld hx,c
        cp 0x0e
        jr z,rdsrc8_001_pc
@@ -1790,7 +1791,7 @@ rdsrc8_x10
         inc (hl)
         RDMEM8_ac_ret ;bc=result, a=hx
 rdsrc8_010_pc
-        UNTESTED ;GOOD ;textshow
+        GOOD ;dark
         get
         next
         ld c,a
@@ -1834,9 +1835,9 @@ rdsrc8_addrfromaddr_ac
         inc l
         call z,inchnextpg
         ld a,(hl)
-        RDMEM8_ac_ret ;c=result, a=hx ;TODO optimize
+        RDMEM8_ac_ret ;c=result, a=hx
 rdsrc8_011_pc
-        UNTESTED ;GOOD ;leopol демо4(кот у цифр)
+        GOOD ;digger
         get
         next
         ld c,a
@@ -1886,7 +1887,7 @@ rdsrc8_110
        ld hx,c
         cp 0x0e
        jr z,rdsrc8_110_pc
-        UNTESTED ;GOOD ;leopol начало
+        GOOD ;cindy2 начало
         get
         next
         add a,(hl)
@@ -1895,9 +1896,9 @@ rdsrc8_110
         get
         next
         adc a,(hl) ;ac=Rn+X
-        RDMEM8_ac_ret ;bc=result, a=hx
+        RDMEM8_ac_ret ;c=result, a=hx
 rdsrc8_110_pc
-        UNTESTED ;GOOD ;leopol демо
+        GOOD ;dark
         get
         next
         ld c,a
@@ -1911,14 +1912,14 @@ rdsrc8_110_pc
         ld c,a
         ld a,b
         adc a,h;d
-        RDMEM8_ac_ret ;bc=result, a=hx
+        RDMEM8_ac_ret ;c=result, a=hx
 
 rdsrc8_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
        ld hx,c
         cp 0x0e
        jr z,rdsrc8_111_pc
-        UNTESTED ;GOOD ;klad ;нет в leopol
+        GOOD ;klad
         get
         next
         add a,(hl)
@@ -1929,7 +1930,7 @@ rdsrc8_111
         adc a,(hl) ;ac=Rn+X
         jp rdsrc8_addrfromaddr_ac
 rdsrc8_111_pc ;for morf
-        UNTESTED ;GOOD ;leopol появление мышей2?
+        UNTESTED ;GOOD ;klad
         get
         next
         ld c,a
@@ -2005,6 +2006,7 @@ rdport_c_io
         ret
 rdport_c_scrshift
        ld a,hx
+bkscroll=$
        ld bc,0x02d8
         ret
 9
