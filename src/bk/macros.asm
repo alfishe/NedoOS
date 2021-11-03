@@ -71,6 +71,8 @@
         set 6,d
 	ld a,(bc)
 	SETPG4000
+        ld a,0xaa
+        ld (oddpc),a ;even, for for jp pc; TODO jp oddaddr?
 	endm
 
 	macro encodePC

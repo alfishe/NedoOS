@@ -77,6 +77,8 @@ COMer
         PUTDEST_Loop       
 INC_DEC
         jp m,DECer
+       cp 0xff&(0x87*2) ;inc pc = 005207
+       jr z,incpc
         GETDEST_cmdc
         ex af,af' ;'
      rra ;keep CF in a7
@@ -88,6 +90,16 @@ INC_DEC
      rla ;CF from a7
         ex af,af' ;'
         PUTDEST_Loop       
+incpc
+oddpc=$+1
+        ld a,0xaa
+        rrca
+        ld (oddpc),a
+        jr nc,incpc_nowasodd
+        next
+        next
+incpc_nowasodd
+       _LoopC
 DECer
         GETDEST_cmdc
         ex af,af' ;'
