@@ -118,6 +118,13 @@ void filltable(void)
     printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
 	BOX(12, 6 + prccount, 54, 2, 40);
 	BOX(14, 5, 41, prccount, 43);
+	
+	ATRIB(37);
+	ATRIB(40);
+	AT(6, 23);
+    puts("Q - UP; A - DOWN; D - KILL; ESC - EXIT or press number of process");
+	ATRIB(33);
+
 }
 
 void killapp(unsigned char id)
@@ -137,6 +144,8 @@ C_task main(int argc, char *argv[])
     AT(33, 4);
     ATRIB(33);
     puts("TASK MANAGER");
+	
+	
 	redraw();
     while (loop)
     {
