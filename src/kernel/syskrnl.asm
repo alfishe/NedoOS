@@ -302,7 +302,7 @@ palettechanged=$
         ld hl,(focusappaddr)
         ld bc,app.pal+31 ;-app.gfxmode
         add hl,bc
-	if atm==1
+	if 0;atm==1
 		ld bc,0x07ff
 		dup 8
 		ld a,b
@@ -443,7 +443,7 @@ focusappaddr=$+1
 			 out (c),b
 			 ld bc,0xbd77	;shadow ports and palette remain on
 			 out (c),e
-			 xor a
+			 ld a,32 ;xor a ;D5=444 palette
 			 out (0xbf),a
 		else
                         push de ;e=gfxmode

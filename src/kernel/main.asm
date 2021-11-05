@@ -261,7 +261,7 @@ init_sysdev_end
 			LD A,0xa8;%10101000 ;320x200 mode
 			ld bc,0xbd77	;shadow ports and palette remain on
 			out (c),a
-			xor a
+			 ld a,32 ;xor a ;D5=444 palette
 			out (0xbf),a
 		else
 			LD A,0xa8;%10101000 ;320x200 mode
@@ -676,7 +676,7 @@ shadon_pgsys_a  ;=$-wasresident+resident
 			out (c),b
 			ld bc,0xbd77	;shadow ports and palette remain on
 			out (c),a
-			xor a
+			 ld a,32 ;xor a ;D5=444 palette
 			out (0xbf),a
 		endif
 		
@@ -741,7 +741,7 @@ dos3d13_resident  ;=$-wasresident+resident
 	ld bc,32
 	ldir
 	if atm == 1
-		xor a
+		 ld a,32 ;xor a ;D5=444 palette
 		out (0xbf),a
 	endif
 	exx	;pop hl,de,bc
