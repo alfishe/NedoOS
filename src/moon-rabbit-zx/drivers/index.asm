@@ -10,16 +10,26 @@
     include "ay-uart.asm"
     ENDIF
     
-    include "utils.asm"
+	include "utils.asm"
    
-    IFDEF NEDOOSATM
- 	 	include "atm-uart.asm"
+	IFDEF NEDOOSATM
+		IFNDEF NEDOOSEVO
+			include "atm-uart.asm"
+			include "wifi.asm"
+		ENDIF
+	ENDIF
+
+	IFDEF NEDOOSEVO
+ 	 	include "evo-uart.asm"
         include "wifi.asm"
-    ENDIF
+	ENDIF
+
 	
 	IFDEF NEDOOS
 		IFNDEF NEDOOSATM
+			IFNDEF NEDOOSEVO
 			include "nedowifi.asm"
+			ENDIF
 		ENDIF
         include "nedoos.asm"
     ELSE

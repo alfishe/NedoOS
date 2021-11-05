@@ -7,7 +7,7 @@ SJASMPLUS="sjasmplus"
 endif
 BINARY=moon.bin moon.com
 LST=main.lst
-VERSION="13"
+VERSION="14"
 all: 
 	@echo "For making MB03 version call: 'make mb03'"
 	@echo "For making ZXUno(esxDOS) version call: 'make zxuno'"
@@ -15,6 +15,7 @@ all:
 	@echo "For making Ay-Wifi(esxDOS) version call: make esxdos-ay"
 	@echo "For making NedoOS version call: 'make nedoos'"
 	@echo "For making NedoOS(ATM UART) version call: 'make nedoosatm'"
+	@echo "For making NedoOS(EVO UART) version call: 'make nedoosevo'"
 	@echo ""
 	@echo "Before changing version call: 'make clean' for removing builded images"
 	
@@ -35,6 +36,10 @@ nedoos: $(SOURCES)
 
 nedoosatm: $(SOURCES)
 	$(SJASMPLUS) main.asm -DNEDOOS -DNEDOOSATM -DGS --lst=main.lst -DV=$(VERSION)
+
+nedoosevo: $(SOURCES)
+	$(SJASMPLUS) main.asm -DNEDOOS -DNEDOOSATM -DNEDOOSEVO -DGS --lst=main.lst -DV=$(VERSION)
+
 
 clean:
 	rm $(BINARY) $(LST)

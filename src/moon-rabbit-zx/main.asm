@@ -61,8 +61,6 @@ outputBuffer:
         ld sp, 0x4000
     ENDIF
  
-    
-
     call TextMode.init
 
     IFDEF NEDOOSATM
@@ -80,7 +78,7 @@ outputBuffer:
 	ENDIF
 
 
-initing db "Initing Wifi...",13,0
+initing db "Initing Wifi...",13,10,0
 logo    db  "data/logo.scr", 0
     display "ENDS: ", $
     display "Buff size", #ffff - $

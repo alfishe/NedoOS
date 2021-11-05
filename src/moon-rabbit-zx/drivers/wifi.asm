@@ -27,8 +27,8 @@ init:
     scf
     ret
 .errMsg db "WiFi chip init failed!",0
-.uartIniting db "Uart initing...",13,0
-.chipIniting db "Chip initing...",13,0
+.uartIniting db "Uart initing...",13,10,0
+.chipIniting db "Chip initing...",13,10,0
 .doneInit    db "Done!",0
     IFNDEF PROXY   
 ; HL - host pointer in gopher row
