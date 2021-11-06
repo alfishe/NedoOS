@@ -128,7 +128,7 @@ begin
             ld bc,0x7ffd
             out (c),a
         endif
-		if atm==2
+	if atm==2
             ld hl,basvar.tape
             ld de,0x5c00
             ld bc,basvar.endtape - basvar.tape
@@ -139,13 +139,13 @@ begin
             call z,0x3C9E
             ;call 0x3d21
         endif
+        if atm==3
+	 ld a,32 ;xor a ;D5=444 palette
+	 out (0xbf),a
+        endif
         LD (IY+1),0xCC
 
         if 1==0
-            ;IF em3d13
-            ; LD HL,ONERR
-            ; LD (23747),HL
-            ;ENDIF 
             LD A,(23833)
             ADD A,'A'
             LD (src),A
