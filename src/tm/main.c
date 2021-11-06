@@ -28,7 +28,6 @@ void redraw(void)
 {
     unsigned char c3;
     
-//    BOX(14, 5, 41, prccount, 43);
     ATRIB(43);
 
     for (c3 = 0; c3 < prccount; c3++)
@@ -122,7 +121,7 @@ void filltable(void)
 	ATRIB(37);
 	ATRIB(40);
 	AT(6, 23);
-    puts("Q - UP; A - DOWN; D - KILL; ESC - EXIT or press number of process");
+    puts("Q - UP; A - DOWN; D - KILL; ESC - EXIT or press number of process.");
 	ATRIB(33);
 
 }

@@ -20,4 +20,6 @@ copy /Y data\logo.scr ..\..\release\bin\browser\logo.scr
 "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put moonue.com /bin/moonue.com
 "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put data/index.gph /bin/browser/index.gph
 "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put data/logo.scr /bin/browser/logo.scr
+
+del /Q *.lst
 if "%makeall%"=="" ..\..\us\emul.exe
