@@ -28,6 +28,7 @@ void redraw(void)
 {
     unsigned char c3;
     
+//    BOX(14, 5, 41, prccount, 43);
     ATRIB(43);
 
     for (c3 = 0; c3 < prccount; c3++)
@@ -121,7 +122,7 @@ void filltable(void)
 	ATRIB(37);
 	ATRIB(40);
 	AT(6, 23);
-    puts("Q - UP; A - DOWN; D - KILL; ESC - EXIT or press number of process.");
+    puts("W - UP; S - DOWN; X - KILL; ESC - EXIT or press number of process");
 	ATRIB(33);
 
 }
@@ -150,37 +151,56 @@ C_task main(int argc, char *argv[])
     {
         procname = getchar();
 
-        if (procname > '0' && procname < '9')
+		if (procname == '\e')
+        {
+		break;
+        }
+
+        if (procname > '0' && procname < 58)
         {
             procname = procname - '0';
             killapp(procname);
+			goto end;
 		}
-        else if (procname == '\e')
+		
+		if (procname > '@' && procname < 'G')
         {
-            loop = 0;
+            killapp(procname - 55);
+			goto end;
+		}
+
+		if (procname > 96 && procname < 'g')
+        {
+            killapp(procname - 87);
+			goto end;
+		}
+        
+        if (procname == 13 || procname == 'x'|| procname == 'X')
+        {
+            killapp(table[curpos - 1].nomer);
+			goto end;
         }
 
-        if (procname == 'q' || procname == 'Q')
+		if (procname == 'w' || procname == 'W')
         {
             curpos--;
-        }
-        if (procname == 'a' || procname == 'A')
+		}
+
+        if (procname == 's' || procname == 'S')
         {
             curpos++;
         }
-        if (procname == '\n' || procname == 'd')
-        {
-            killapp(table[curpos - 1].nomer);
-        }
+
         if (curpos < 1)
         {
             curpos = prccount;
         }
+
         if (curpos > prccount)
         {
             curpos = 1;
         }
-        redraw();
+end:	redraw();
     }
     return 0;
 }
