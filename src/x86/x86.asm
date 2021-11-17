@@ -161,8 +161,8 @@ debugon=$
 
        ld a,0xf7
        in a,(0xfe)
-       and 0b10101
        push af
+       and 0b10101
        jp z,quiter ;1+3+5 = quit
        pop af
        and 0b11000 ;4+5

@@ -912,18 +912,26 @@ exaNOJP
         next
        _Loop_
 LOOPNZer
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
 	ex af,af' ;'
 	jr z,exaNOJP
-	jr exaLOOPer
+	ex af,af' ;'
+	jr LOOPer_nodec
 LOOPZer
+	ld hl,(_CX)
+	dec hl
+	ld (_CX),hl
 	ex af,af' ;'
 	jr nz,exaNOJP
-exaLOOPer
 	ex af,af' ;'
+	jr LOOPer_nodec
 LOOPer
 	ld hl,(_CX)
 	dec hl
 	ld (_CX),hl
+LOOPer_nodec
 ;jump if CX != 0
 	ld hl,(_CX)
 	ld a,h
@@ -936,7 +944,7 @@ JCXZer ;jump if CX == 0
 	ld hl,(_CX)
 	ld a,h
 	or l
-	JR z,JRer
+	jp z,JRer
         next
        _Loop_ 
 
