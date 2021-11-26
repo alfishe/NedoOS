@@ -22,6 +22,10 @@ begin
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
+        ld a,h
+        ld (pg16c0),a
+        ld a,l
+        ld (pg16c1),a
         ld a,e
         LD (pgmusic),A
 
@@ -36,6 +40,28 @@ begin
 	;ld a,h
         ;ld (setpgs_scr1_high),a
 
+        ld a,(pg16c0)
+        SETPG4000        
+        ld de,bmpfilename
+        OS_OPENHANDLE
+        push bc
+        ld de,0x4000
+        ld hl,0x4000
+        OS_READHANDLE
+        ld a,(pg16c1)
+        SETPG4000        
+        pop bc
+        push bc
+        ld de,0x4000
+        ld hl,0x4000
+        OS_READHANDLE
+        pop bc
+        push bc
+        ld hl,32
+        ld de,palbuf16c
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
         ld de,texfilename
         OS_OPENHANDLE
 
@@ -48,7 +74,7 @@ getttexpgs0
         push bc
         OS_NEWPAGE
         ld a,e
-        SETPG16K
+        SETPG4000
         pop bc        
         push de
         ld de,0x4000 ;addr
@@ -76,8 +102,6 @@ copypal0
         ld (de),a
         inc de
         djnz copypal0
-        ld de,palbuf
-        OS_SETPAL
 
         call setpgmusic
         ld hl,wasmusic
@@ -93,34 +117,58 @@ copypal0
         OS_SETMUSIC
 
         call swapimer
+MUSICPATTERNSIZE=256;192
+        OS_GETTIMER
+        ld (oldtimer),de
 
-        ld hl,ttexpgs
+showpic_mainloop
+
 showpic0
-        call setpgs_scr0
-        ld de,0x8000
-        call ldirpg
-        call ldirpg       
-        push hl
-        YIELD
+        call setpgs_scr0       
+        call showpic
+        ld de,palbuf
+        OS_SETPAL
+        call halt_testquit
         ld e,0
         OS_SETSCREEN
-        pop hl
-        call setpgs_scr1
-        ld de,0x8000
-        call ldirpg
-        call ldirpg       
 
-        push hl
-        YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
-        push af
+        call setpgs_scr1
+        call showpic
+        call halt_testquit
         ld e,1
         OS_SETSCREEN
-        pop af
-        pop hl
-        res 5,l
-        cp key_esc
-        jr nz,showpic0
+        
+        call gettimer        
+        ld bc,MUSICPATTERNSIZE
+        or a
+        sbc hl,bc
+        jr c,showpic0
+        call settimer
 
+        call setpgs_scr0       
+        call showpic16c
+        ld de,palbuf16c
+        OS_SETPAL
+        call halt_testquit
+        ld e,0
+        OS_SETSCREEN
+
+        call setpgs_scr1
+        call showpic16c
+        call halt_testquit
+        ld e,1
+        OS_SETSCREEN
+
+showpic1
+        call gettimer        
+        ld bc,MUSICPATTERNSIZE
+        or a
+        sbc hl,bc
+        jr c,showpic1
+        call settimer
+        
+        jr showpic_mainloop
+quit
         call swapimer
 
 	  ld a,(pgmusic)
@@ -131,10 +179,56 @@ showpic0
         ;call MUTE
         QUIT
 
+halt_testquit
+        YIELDGETKEY ;out: nz=nokey, a=keylang, c=keynolang
+        cp key_esc
+        jr z,quit
+        ret
+
+gettimer
+        ;ld hl,(timer)
+        OS_GETTIMER
+        ex de,hl
+oldtimer=$+1
+        ld de,0
+        ld (oldtimer),hl
+        or a
+        sbc hl,de ;hl=time delta
+mytimer=$+1
+        ld de,0
+        add hl,de
+settimer
+        ;ld (timer),hl
+        ld (mytimer),hl
+        ret
+
+pg16c0
+        db 0
+pg16c1
+        db 0
+
+showpic
+showpiccurpgpoi=$+1
+        ld hl,ttexpgs
+        ld de,0x8000
+        call ldirpg
+        call ldirpg       
+        res 5,l
+        ld (showpiccurpgpoi),hl
+        ret
+
+showpic16c
+        ld de,0x8000
+        ld a,(pg16c0)
+        call ldirpg_a
+        ld a,(pg16c1)
+        call ldirpg_a
+        ret
+
 setpgmusic
 pgmusic=$+1
         ld a,0
-        SETPG16K
+        SETPG4000
         ret
 
 swapimer
@@ -178,7 +272,7 @@ on_int_sp=$+1
         
         push ix
         push iy
-        ex af,af'
+        ex af,af' ;'
         exx
         push af
         push bc
@@ -193,14 +287,6 @@ on_int_sp=$+1
 ;        GET_KEY
 ;        ld (curkey),a
         
-;pgmuznum=$+1
-;        ld a,0
-;        SETPG32KHIGH
-        ;call PLAY ;muzplay
-;pgc000=$+1
-;        ld a,0
-;        SETPG32KHIGH
-
         call oldimer ;ei
         
         pop hl
@@ -208,7 +294,7 @@ on_int_sp=$+1
         pop bc
         pop af
         exx
-        ex af,af'
+        ex af,af' ;'
         pop iy
         pop ix
         
@@ -244,7 +330,8 @@ setpgs_scr1
 ldirpg
         ld a,(hl)
         inc l
-        SETPG16K
+ldirpg_a
+        SETPG4000
         push hl
         ld hl,0x4000
         ld bc,0x4000
@@ -253,12 +340,16 @@ ldirpg
         ret
 
 texfilename
-        db "noise/forest.dat"
+        db "noise/forest.dat",0
+bmpfilename
+        db "noise/forest.16c",0
 
 palbuf
         ds 32
+palbuf16c
+        ds 32
 
-;oldtimer
+;timer
 ;        dw 0
         
         align 256
