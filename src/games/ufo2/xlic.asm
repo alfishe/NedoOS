@@ -2049,14 +2049,18 @@ NJ2     ADD A,(HL)
 	LD A,E
 	JR C,NJ2
 NJ3     LD A,C
-       ld a,2 ;FIXME это всегда порт
-	LD (OBJ_N),A
+       ;ld a,2 ;FIXME 2=порт (работает)
+       ;ld a,0 ;FIXME 0=НЛО?
+       ;ld a,1 ;FIXME 1=корабль?
+       ld a,3 ;FIXME 3=остров?
+	LD (OBJ_N),A ;(тип 0..6)
 	OR A
-	JR Z,NJ0
+	JR Z,NJ0 ;0=НЛО
 	CP 4
-	JR Z,NJ4
+	JR Z,NJ4 ;4=база?
 	CALL RNDG ;кор,порт,остр,Ub,Uc (0..15)
-       ld a,2 ;FIXME это всегда порт
+       ld a,2 ;FIXME 2=это всегда порт (для острова плохо подходит)
+       ;ld a,3 ;FIXME 3=это???
 	AND #F
 	JR NJR
 NJ4     LD B,80

@@ -31,8 +31,12 @@ rem %SJASMPLUS% %SJASMPLUSFLAGS% W1LAND.ast --raw=%LOCALDIR%/W1LAND.bin
 %NEDORES% images/XM11.bmp pal.dat pal.ast
 
 %NEDORES% images/XM0.bmp xm0.dat xm0.ast
-%NEDORES% images/XM11.bmp xm11a.dat xm11a.ast
-%NEDORES% images/XM11.bmp xm11b.dat xm11b.ast
+rem XM11=порт
+rem XM9=остров
+rem %NEDORES% images/XM11.bmp xm11a.dat xm11a.ast
+rem %NEDORES% images/XM11.bmp xm11b.dat xm11b.ast
+%NEDORES% images/XM9.bmp xm11a.dat xm11a.ast
+%NEDORES% images/XM9.bmp xm11b.dat xm11b.ast
 
 rem #
 rem # Executables
