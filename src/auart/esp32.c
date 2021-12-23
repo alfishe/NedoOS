@@ -1,0 +1,11 @@
+void sendcommand(char commandline[])
+{
+  int pos = 0;
+  while (commandline[pos] != '\0')
+  {
+    uart_write(commandline[pos]);
+    pos++;
+  }
+  uart_write('\r');
+  uart_write('\n');
+}
