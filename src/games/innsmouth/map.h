@@ -259,7 +259,7 @@ const struct item it18={18,{"Каминные спички."}};
 const struct item it19={19,{"Ключ зажигания."}};
 const struct item it20={20,{"Канистра с керосином."}};
 
-const struct item *items[20]={&it1,&it2,&it3,&it4,&it5,&it6,&it7,&it8,&it9,&it10,&it11,&it12,&it13,&it14,&it15,&it16,&it17,&it18,&it19,&it20};
+const struct item * const items[20]={&it1,&it2,&it3,&it4,&it5,&it6,&it7,&it8,&it9,&it10,&it11,&it12,&it13,&it14,&it15,&it16,&it17,&it18,&it19,&it20};
 const struct text vedro_text={8,3,21,3,1,{"Ведро с водой.\nОна выглядит чистой."}};
 const struct text vedro_text2={8,3,20,3,1,{"Я намочил полотенце\nв ведре с водой"}};
 const struct text text_shkaf2={8,3,20,2,1,{"Я нашел полотенце."}};
