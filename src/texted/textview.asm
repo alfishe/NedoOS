@@ -138,6 +138,8 @@ texted_mainloop_keyq
         jp z,texted_save
         cp key_F2
         jp z,texted_save
+        cp key_F9
+        jp z,texted_build
         cp 0x20
         ret c ;прочие системные кнопки не нужны
 typein

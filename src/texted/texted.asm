@@ -191,6 +191,121 @@ minhl_bc_tobc
         ld c,l
         ret
 
+texted_build
+        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        ;ld a,d
+        ;ld (stdouthandle_wasatstart),a
+        ;ld a,e
+        ;ld (stdinhandle_wasatstart),a
+
+;keep current path
+        ld de,curpath
+        OS_GETPATH ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
+;new app, get pages for new app, load cmd with command line from cmdbuf
+        call loadapp ;NZ=error ;e=id
+;run cmd
+        push de
+        OS_RUNAPP
+        pop de
+;wait for finish
+        WAITPID ;не должно быть, если команда была .bat!
+       ;ld (lastresult),hl
+
+;set current path
+        ld de,curpath
+        OS_CHDIR
+        jp setredrawflag
+        
+loadapp
+;set system path
+        OS_SETSYSDRV
+        ld de,tcmd
+        OS_OPENHANDLE
+        or a
+         push af
+        ld a,b
+        ld (curhandle),a
+         pop af
+        ret nz ;jr nz,execcmd_error ;NC!
+        
+;set path for newapp
+        ld de,curpath
+        OS_CHDIR
+        
+        OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
+        or a
+        ret nz ;error ;NC!
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+       push bc ;b=id
+        ld a,d
+        SETPGC000
+        push de
+        push hl
+        ld hl,cmdbuf
+        ld de,0xc000+COMMANDLINE
+        call strcopy
+        pop hl
+        pop de
+        call readfile_pages_dehl
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+       pop de ;d=id
+        ld e,d ;e=id
+        xor a
+        ret ;Z
+
+strcopy
+;hl->de
+strcopy0
+        ld a,(hl)
+        ldi
+        or a
+        jr nz,strcopy0
+        ret
+
+readfile_pages_dehl
+        ld a,d
+        SETPGC000
+        ld a,0xc100/256
+        call cmd_loadpage
+        ret nz
+        ld a,e
+        call cmd_loadfullpage
+        ret nz
+        ld a,h
+        call cmd_loadfullpage
+        ret nz
+        ld a,l
+cmd_loadfullpage
+        SETPGC000
+        ld a,0xc000/256
+cmd_loadpage
+;out: a=error
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        pop hl
+        pop de
+        or a
+        ret
+
+curpath
+        ds MAXPATH_sz
+tcmd
+        db "cmd.com",0
+cmdbuf
+        db "cmd build.bat",0
+
         include "prdword.asm"
         include "textview.asm"
         include "text_mem.asm"
