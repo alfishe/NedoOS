@@ -135,12 +135,14 @@ NEG_ADC_SBC_TST
 SBCer        
         GETDEST_cmdc
         ex af,af' ;'
+       ccf ;for morf!
         ld h,b
         ld l,c
         ld bc,0
         sbc hl,bc
         ld b,h
         ld c,l
+       ccf ;for morf!
         ex af,af' ;'
         PUTDEST_Loop
 
@@ -173,7 +175,6 @@ TSTer
        _LoopC
 
 XORer
-       ;jr $
         ;ld b,a
         rra
         ld a,c
@@ -881,7 +882,7 @@ WAITer
 halter
 wrmemrom_LoopC
 ;Команда 000000 – это HALT. Вызывает прерывание по 4-му вектору. Когда встречается Halt, нужно положить в стек слово состояния процессора и адрес, следующий за командой HALT. Затем перейти по адресу, который записан в ячейке 4. При этом слово состояния процессора взять из ячейки 6.
-;почему mona0010 не останавливается?
+;почему mona0010 не останавливается? mona0011 тоже
         call getflags_bc
         putmemspBC
        decodePC_to_ae

@@ -27,7 +27,7 @@ quiter
        ld a,(pgprog)
        SETPG4000
        jp farquiter
-       
+
        if 0
 jpiyer
         ld hl,jpiyer
@@ -46,7 +46,7 @@ EMUCHECKQ
       sub 0x40
       cp 0x40
       jr nc,$
-      
+
       push de
        decodePC
       if 1;0
@@ -89,7 +89,7 @@ oldpcaddr=$+1
         INC H
         LD H,(HL)
         ld L,b ;ac=cmd
-        JP (HL) 
+        JP (HL)
 
 ;иначе pop iy запорет iy от обработчика прерывания
 disable_iff0_keep_iy
@@ -117,9 +117,9 @@ on_int
         push ix
         push iy
         ex af,af' ;'
-        push af 
+        push af
         call oldimer ;делает ei!!! двигать позже нельзя, он ставит палитру в верхнем бордере и потом не будет второй раз!
-        
+
 	;ld hl,(timer)
 	;inc hl
 	;ld (timer),hl
@@ -166,7 +166,7 @@ int_alreadyhavekey
 ;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
 ;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
 ;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
-;        Флаг Z - если 0(NZ), то отсутствует фокус.  
+;        Флаг Z - если 0(NZ), то отсутствует фокус.
         pop af
         ex af,af' ;'
         pop iy
@@ -200,7 +200,7 @@ iykeeper_on=$
         jr nc,IMINT_noiykeeperdata
         ld iy,(iykeeper_iy)
 IMINT_noiykeeperdata
-              
+
       ld a,(tpgs)
       SETPGC000
 
@@ -218,15 +218,17 @@ GKEYADR=$+1
       ld bc,(0x30+0xc002) ;psw
       ld a,h
       or l
-     xor a
+     ;xor a
       jp z,STIer ;костыль для неинициализированного прерывания
-        
+
 ;должно вызываться только при нажатии на клавишу
         ld a,(bk_curkey)
         or a
         jp z,STIer
-        
-gotoint
+
+        ld a,-1
+        LD (iff1),A ;почему-то сам обработчик в бейсике не выставляет??? но всё равно не работает ввод в бейсике
+;gotoint
 ;push psw; push pc (адрес после команды)
        push hl
        call getflags_bc
@@ -408,7 +410,7 @@ PUTSCREEN_C_PATCH_COLOR=0x18
         add hl,bc
 ;addr=0x8000+(half*0x2000)+y*40+x
         ld a,(user_scr0_high) ;ok
-        SETPG8000 ;TODO щёлкать только в color      
+        SETPG8000 ;TODO щёлкать только в color
        pop af
         ld (hl),a
        pop bc
@@ -516,7 +518,7 @@ makeflags_frombc
         pop af
         ex af,af' ;'
         ret
-        
+
 STIer
         ld a,-1
         ld (iff1),a
@@ -699,7 +701,7 @@ rddest8_110_pc ;for mona
        ld c,a
        ld a,b
        adc a,h ;ac=pc+X
-        RDMEM8_ac_ret ;c=result, a=hx       
+        RDMEM8_ac_ret ;c=result, a=hx
 
 rddest8_111
        ld a,l
@@ -826,7 +828,7 @@ wrdest8_011 ;@(Rn)+
         dec de
         ex de,hl
        pop de
-wrdest8_memfrommem       
+wrdest8_memfrommem
        push bc
         ld a,h
         and 0xc0
@@ -890,7 +892,7 @@ wrdest8_100_pc ;TODO так ли при -(pc)?
         ld a,c
         ld (de),a
        _LoopC
-        
+
 wrdest8_101
 ;101 @-(Rn) ;всегда -=2
        ld a,l
@@ -943,7 +945,7 @@ wrdest8_110_pc
         add hl,bc ;hl=pc+X
        pop bc
         WRMEM8_hl_LoopC
-        
+
 wrdest8_111
 ;111 Index deferred: @X(Rn): Rn+X is the address of the address of the operand
        ld a,l
@@ -1412,7 +1414,7 @@ wrdest_111_pc
 ;0000 0010 1111 1100
 ;0 000 001 011 111 100
      ;bne
-     
+
 ;1c71 ;mov barofs(r1), nhbar(r1)
 ;0001 1100 0111 0001
 ;0 001 110 001 110 001
@@ -1439,7 +1441,7 @@ getdest_aisc_autoinc ;TODO всегда +=2
 ;out: bc=dest, a=cmdLSB
        rra
        rra
-       ld b,a       
+       ld b,a
         ld a,c
         rla
         jp rdsrc_go
@@ -1448,7 +1450,7 @@ getdest8_aisc_autoinc
 ;out: c=dest, a=cmdLSB
        rra
        rra
-       ld b,a       
+       ld b,a
         ld a,c
         rla
         jp rdsrc8_go
@@ -2011,7 +2013,7 @@ bkscroll=$
         ret
 9
 ;TODO прерывание ошибки шины
-        jr $
+        ;jr $ ;бейсик читает ff5a
        ld a,hx
         ret
 rdport_c_timer ;kld19nm_bk10
@@ -2161,7 +2163,7 @@ _=200
        endif
         db (_*40+4)/256+0x80
        if ($&7)
-__=__+1        
+__=__+1
        endif
         edup
         edup
@@ -2187,16 +2189,6 @@ _SP
 _R7
         dw 0
 
-;ansipal ;можно убрать в ints
-;DDp palette: %grbG11RB(low),%grbG11RB(high), inverted
-        ;dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0xeded,0xecec
-        ;dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
-;по сравнению с цветами терминала переставлено:
-;1-4
-;3-6
-	;dw 0xffff,0xfefe,0xefef,0xeeee,0xfdfd,0xfcfc,0xeded,0xecec
-	;dw 0x1f1f,0x1e1e,0x0f0f,0x0e0e,0x1d1d,0x1c1c,0x0d0d,0x0c0c
-
 pc_high
         db 0
 iff1
@@ -2218,7 +2210,7 @@ print_bc_to_log_addr=$+1
         align 256
 log
         ds 256
-        
+
         align 256
 	include "bktable.asm"
 

@@ -1,7 +1,8 @@
 ﻿        DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=0;1
+DEBUG=0
+DEBUGSTOP=0;1
 DEBUG03=0
 FULL1M=0
 
@@ -44,10 +45,10 @@ jpiyer
         ;call getflags_bc
         ;call makeflags_frombc
         ;call getflags_bc
-       if DEBUG
+       if DEBUGSTOP
       push de
        decodePC
-      if 1;0
+      if 1
        ;ld a,(_SP)
        ;rra
        ;jr c,$
@@ -60,19 +61,19 @@ oldpcaddr=$+1
         inc l
         ld (oldpcaddr),hl
        endif
-       ld a,(_CS+1)
-       or a
-       jr z,$
-       ld a,d
+       ;ld a,(_CS+1)
+       ;or a
+       ;jr z,$
+       ;ld a,d
        ;sub 0x40+((STARTPC/256)&0x3f);0x7c
        ;or e;cp 0x30
        ;cp 0x97
-      ld hl,0x2d09;0x2976
+      ld hl,0x03ce;iret;0x0304;int;0x2d09;0x2976
       or a
       sbc hl,de
       pop de
       ;jr nc,$
-      jr z,$
+      call z,breakpoint
        endif
         get
         next
@@ -83,6 +84,8 @@ oldpcaddr=$+1
         LD H,(HL)
         ld L,b ;чётный для всех rm-команд
         JP (HL) 
+breakpoint
+        jr $
 
 ;иначе pop iy запорет iy от обработчика прерывания
 disable_iff0_keep_iy
@@ -306,16 +309,20 @@ GKEYADR=$+1
      ld ($-2),a
      jr c,int_no8
       ld hl,(8*4+0xc000) ;ip
+       ld bc,0x0221
+       or a
+       sbc hl,bc
+       add hl,bc
+       jr z,int_1c ;костыль для PATROL - 0221 не работает
       ld bc,(8*4+0xc002) ;cs
-    if 1;0
      ld a,0x55
      rlca
      ld ($-2),a
      jr c,int_no8
+int_1c
       ld hl,(0x1c*4+0xc000) ;ip
       ld bc,(0x1c*4+0xc002) ;cs
 int_no8
-    endif
       ld a,h
       or l
      ;xor a
@@ -758,7 +765,7 @@ oldimer
         align 256
 	include "x86table.asm"
 
-       if DEBUG
+       if DEBUGSTOP
        align 256
 oldpc
         ;dw 0
