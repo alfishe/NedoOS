@@ -64,8 +64,8 @@ CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
 CMD_PLAYCOVOX=0xd4 ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
 CMD_SETMUSIC=0xd5 ;hl=muzaddr (0x4000..0x7fff), a=muzpg
-CMD_READSECTORS=0xd6 ;b=drive, de=buffer, ixhl=sector number, a=count
-CMD_WRITESECTORS=0xd7 ;b=drive, de=buffer, ixhl=sector number, a=count
+CMD_READSECTORS=0xd6 ;b=drive, de=buffer, ixhl=sector number, a=count ;out: a=error
+CMD_WRITESECTORS=0xd7 ;b=drive, de=buffer, ixhl=sector number, a=count ;out: a=error
 CMD_SETBORDER=0xd8 ;e=0..15
 CMD_SETWAITING=0xd9 ;don't use directly! ;set WAITING state for current task
 CMD_GETFILESIZE=0xda ;b=handle, out: dehl=file size

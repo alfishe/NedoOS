@@ -233,6 +233,7 @@ Shortcuts:
 * Break (Esc, Caps Shift + Space) - exit
 * F1 - change encoding (866/1251)
 * Ins (Symbol Shift+W) - wrap on/off
+* F9 - run build.bat in text directory
 
 Other keys are used to input the text.
 

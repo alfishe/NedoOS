@@ -1089,7 +1089,7 @@ trdoscurdrive=$+1
         ld a,0xff
 	call iodos_setdrive
         ;ld iy,23610
-	call dos3d13.
+	call dos3d13. ;returns a=error (from 0x5d0f)
         ld hl,(0x5cf4);(sysvars+0x00f4) ;next sector
         ret
 

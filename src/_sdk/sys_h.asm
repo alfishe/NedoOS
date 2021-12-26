@@ -583,11 +583,11 @@ __1=$
         ld c,CMD_SETMUSIC
 	CALLBDOS
         endm
-        macro OS_READSECTORS ;b=drive, de=buffer, ixhl=sector number, a=count
+        macro OS_READSECTORS ;b=drive, de=buffer, ixhl=sector number, a=count ;out: a=error
         ld c,CMD_READSECTORS
 	CALLBDOS
         endm
-        macro OS_WRITESECTORS ;b=drive, de=buffer, ixhl=sector number, a=count
+        macro OS_WRITESECTORS ;b=drive, de=buffer, ixhl=sector number, a=count ;out: a=error
         ld c,CMD_WRITESECTORS
 	CALLBDOS
         endm
