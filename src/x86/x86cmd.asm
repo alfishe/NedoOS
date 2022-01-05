@@ -191,7 +191,7 @@ getflags_bc
         ;jr z,$+4
         ;set 1,b ;interrupt enable
        and 2
-       or 0x30
+       ;or 0x30 ;FIXME skip for x86 tests, use for Valery Lis's tests
        ld b,a
         ;ld a,(_DIRECTION) ;TODO from patch
         ;rra
@@ -286,7 +286,9 @@ CLDer
         ld (incdec2si_hl),a
         ld (incdecsi_hl),a
 NOPer
+       _Loop_
 HLTer ;TODO
+        jr $
        _Loop_
 
 STDer

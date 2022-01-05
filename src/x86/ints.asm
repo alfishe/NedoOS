@@ -7,8 +7,23 @@ init
         jr z,noautoload
 ;command line = "x86 <file to load>"
        ld (filenameaddr),hl
-       ld hl,0x100
+       ld de,0x100
+       ld (loadaddr),de
+       ld bc,COMMANDLINE_sz
+       xor a
+       cpir
+       dec hl ;0
+       dec hl
+       ld a,(hl)
+       cp 'r'
+       jr nz,autoloadq
+;x8r tests
+       ld hl,0x0000
        ld (loadaddr),hl
+       ld hl,0x1400
+       ld (resetpp_DS),hl
+        xor a
+        ld (resetpp_IFF1),a
        jr autoloadq
 noautoload
         ld de,path
@@ -105,6 +120,7 @@ filltscreenpgs0
         djnz filltscreenpgs0
        ld (tscreenpgs+0x8b),a ;for textmode
 
+;TODO загрузка ПЗУ любого размера
         ld bc,0xf000
         ld (_CS),bc
         countCS
@@ -132,9 +148,11 @@ resetpp
 
         call INT_setgfxTEXT80
 
-        ld bc,0x400;0x0c02;0400
+        ld bc,0x0400;0x0c02;0400
         ld (_CS),bc
         countCS
+resetpp_DS=$+1
+        ld bc,0x0400 ;patched for x8r tests
         ld (_DS),bc
         countDS
         ld (_ES),bc
@@ -187,6 +205,7 @@ filenameaddr=$+1
         call loadfile_in_hl ;for bootbasic
         jr loadcomq
 loadcom
+;TODO всё грузить здесь (только отличается начальный адрес загрузки)
         ex de,hl ;de=filename
         ld bc,(_CS)
         ld hl,0x0100 ;addr in segment
@@ -200,8 +219,9 @@ loadcomq
         LD IY,EMUCHECKQ
        ld a,55+128 ;or a
        ld (debugon),a ;no debug
+resetpp_IFF1=$+1
         ld a,-1
-        ld (iff1),a
+        ld (iff1),a ;FIXME for x8r test
      jp JRer_qslow ;_LoopC_JP
 
 ;de=имя файла
@@ -211,7 +231,7 @@ loadfile_in_hl
         OS_OPENHANDLE
         pop de ;куда грузим
         push bc ;b=handle
-        ld h,0x7f ;столько грузим (если столько есть в файле)
+        ld hl,0x4000;h,0x7f ;столько грузим (если столько есть в файле)
         OS_READHANDLE
         pop bc ;b=handle
         OS_CLOSEHANDLE

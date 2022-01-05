@@ -541,7 +541,14 @@ _getmemspBC_skipsize=$-_getmemspBC_base
        endif
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMHL_AisH
-	or l ;CF=0 ;ZF=(hl==0) ;TODO sign
+	;or l ;CF=0 ;ZF=(hl==0) ;TODO sign
+;чтобы правильно сформировать ZF,SF по h,l:
+;если c!=0, то set 0,b
+       ld a,l
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or h ;CF=0 ;ZF=(bc==0)
 	ex af,af' ;'
         ld a,l
 	exx
@@ -551,7 +558,14 @@ _getmemspBC_skipsize=$-_getmemspBC_base
         endm
 
         macro KEEPLOGICCFPARITYOVERFLOW_FROMBC_AisB
-	or c ;CF=0 ;ZF=(bc==0) ;TODO sign
+	;or c ;CF=0 ;ZF=(bc==0) ;TODO sign
+;чтобы правильно сформировать ZF,SF по b,c:
+;если c!=0, то set 0,b
+       ld a,c
+       add a,0xff
+       sbc a,a ;CF=(c!=0)
+       and d;1 ;any number 1..0x7f
+       or b ;CF=0 ;ZF=(bc==0)
 	ex af,af' ;'
         ld a,c
 	exx
