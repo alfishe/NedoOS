@@ -130,7 +130,7 @@ POPrm16
         get
         next
         cp 0b11000000
-        jr nc,$ ;not mem
+        jr nc,$ ;not mem ;datatrnf c1: pop %cx (non-standard) 
         ADDRm16_for_PUTm16_nokeepaf
         push hl
         getmemspBC
@@ -2648,7 +2648,7 @@ IMULrmmem16
        pop de
        _Loop_
 
-;div cx ;dxax/cx -> ax частное, dx остаток
+;div cx ;dxax/cx -> ax частное, dx остаток (надо ffff ffff/0001 = ffff, остаток ffff, а не остаток 0)
 DIVr16
         GETr16
 DIVrmmem16
@@ -2858,7 +2858,7 @@ GRP416
 	;cp 0b00011000
 	;jp z,CALLFm1616 ;for vc???
 	cp 0b00100000
-	;jr z,JMPr16
+	jr z,JMPr16
 	;cp 0b00101000
 	;jp z,JMPFm1616
 	;cp 0b00110000

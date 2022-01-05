@@ -4,7 +4,7 @@
 DEBUG=0
 DEBUGSTOP=0;1
 DEBUG03=0
-FULL1M=0
+FULL1M=1;0
 
 	include "x86.ini"
 

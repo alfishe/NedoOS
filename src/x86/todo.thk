@@ -1,6 +1,33 @@
 ﻿пройдены тесты 186:
 add
 bitwise: лишнее 10 (AF) на 7-й (and ah,al) - The state of the AF flag is undefined. лишнее 80 (SF) на 14-й (or cx,word[4]) - не был сформирован знак в LOG16 (fixed), 10-й с конца (test ah,al): лишнее 10 (AF) - The state of the AF flag is undefined.
+cmpneg
+control
+jmpmov
+
+провалены тесты:
+bcdconv: все флаги неверны, +2e неверный результат daa 5496 вм. 5490 (где-то неправильный AF?)
+datatrnf c1: pop %cx (non-standard) 
+div: все флаги неверны, +0x10 0000 вм ffff:
+ mov dx,0ffffh
+ mov ax,0ffffh
+ mov cx,01h
+ mov word[bp],02h
+ div cx ;ffff ffff/0001
+ add bp,02h
+ mov word[12],ax
+ mov word[14],cx
+ mov word[16],dx <----
++0x14 8000 вм ffff:
+ mov dx,0ffffh
+ mov ax,0ffffh
+ mov word[18],0ffffh
+ mov word[bp],04h
+ div word[18] ;ffff ffff/ffff
+ add bp,02h
+ mov word[20],ax
+ mov word[22],dx
+
 
 
 para512: на старте рисует поверх всего экрана кучу блоков размером 256*65536 - так и надо? пока костыль для rep stosb 65536=0
@@ -8,11 +35,9 @@ para512: на старте рисует поверх всего экрана к�
 cgademo: небольшое затирание надписи
 digger: запарывается немного меню [один спрайт движения влево уже не запарывается после фикса знака в LOG16)
 
-goody: не управляется, всё время появляется полицейский, ему на голову падает мешок
-livin: все спрайты улетают вправо-вверх
-mision: враги не движутся
-malar: запарывается немного меню, игра не запускается
-
+mision: огонь триггерится, а не работает при нажатом
+malar: запарывается немного меню, [игра не запускается при cs=0400, запускается при 1000)
+sorryass сломалось
 
 
 еще странный косяк по х86

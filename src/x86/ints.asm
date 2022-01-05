@@ -20,8 +20,10 @@ init
 ;x8r tests
        ld hl,0x0000
        ld (loadaddr),hl
-       ld hl,0x1400
+       ld hl,0x0000
        ld (resetpp_DS),hl
+       ld hl,0xf000
+       ld (resetpp_CS),hl
         xor a
         ld (resetpp_IFF1),a
        jr autoloadq
@@ -148,11 +150,12 @@ resetpp
 
         call INT_setgfxTEXT80
 
-        ld bc,0x0400;0x0c02;0400
+resetpp_CS=$+1
+        ld bc,0x2000;0x0c02;0400
         ld (_CS),bc
         countCS
 resetpp_DS=$+1
-        ld bc,0x0400 ;patched for x8r tests
+        ld bc,0x2000 ;patched for x8r tests
         ld (_DS),bc
         countDS
         ld (_ES),bc
@@ -186,23 +189,22 @@ filenameaddr=$+1
        ld a,d
        dec a;cp 0x41
        jr z,loadcom
-       ; set 7,d;STARTPC
-       ; ex de,hl
-       ;ld a,(tpgs+0x80) ;2-я страница сегмента программы = 3-я страница памяти (#2)
-       ;SETPGC000
-	ex de,hl
-       ;push de
-	ld bc,(cs_LSW)
-	ld a,(cs_HSB)
-        ADDRSEGMENT_chl_bHSB
-         ld lx,c
-	ld b,tpgs/256
-	ld a,(bc)
-	SETPGC000
-       ;pop de
-;de=имя файла
-;hl=куда грузим
-        call loadfile_in_hl ;for bootbasic
+	;ex de,hl
+	;ld bc,(cs_LSW)
+	;ld a,(cs_HSB)
+        ;ADDRSEGMENT_chl_bHSB
+        ; ld lx,c
+	;ld b,tpgs/256
+	;ld a,(bc)
+	;SETPGC000 ;de=имя файла ;hl=куда грузим
+        ;call loadfile_in_hl ;for bootbasic
+        ex de,hl ;de=filename
+        ld bc,(_CS)
+        ld hl,0x0000 ;addr in segment
+;de=filename
+;bc=segment
+;hl=addr in segment
+        call loadcompp
         jr loadcomq
 loadcom
 ;TODO всё грузить здесь (только отличается начальный адрес загрузки)
@@ -351,23 +353,32 @@ loadcompp
         ld a,(curhandle)
         ld b,a
         OS_GETFILESIZE ;b=handle, out: dehl=file size
+      ld a,d
+      or e
        pop de
        pop bc
+      jr z,loadcompp_less64k
+        push bc
+       push hl ;сколько байтов осталось грузить
+       scf
+        jr loadcompp_croppg
+loadcompp_less64k
 loadcompp0
 ;de=текущий адрес загрузки (c000+)
 ;hl=сколько байтов осталось грузить
 ;bc=tpgs+текущий номер страницы
         push bc
-        ld a,(bc)
-        SETPGC000
        push hl ;сколько байтов осталось грузить
        add hl,de
        sbc hl,de
        jr nc,loadcompp_nocroppg
+loadcompp_croppg
        ld hl,1
        ;scf
-       sbc hl,de
+       sbc hl,de ;грузим до конца страницы
 loadcompp_nocroppg
+        ld a,(bc)
+        SETPGC000
         call readcurhandle
         ld b,h
         ld c,l

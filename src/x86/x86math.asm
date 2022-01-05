@@ -325,7 +325,7 @@ DIV32SIGNED_NEGHLBC_NEGDE
 	ld h,a ;знак остатка равен знаку делимого
 	ret
 
-;BC = HLBC/DE, HL = HLBC%DE
+;BC = HLBC/DE, HL = HLBC%DE ;ffff ffff/ffff почему-то остаток 8000!? TODO FIX
 DIV32
 	ld a,b
 	call DIV32_8
