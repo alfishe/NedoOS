@@ -1,3 +1,4 @@
+unsigned char spdFactor;
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,6 +14,7 @@ int bufferPos;
 int endPos;
 int curpos;
 int oldpos;
+
 unsigned char cursorX;
 unsigned char cursorY;
 
@@ -20,7 +22,7 @@ void getdata (void)
 {
   unsigned char readbyte;
   uart_startrts();
-  uart_delay10k();
+  uart_delayXk(spdFactor);
   uart_stoprts();
 
   while (uart_queue() != 0)
@@ -93,11 +95,12 @@ void flushbuf(void)
 
 C_task main(void)
 {
-  unsigned  char cmd[128];
+  unsigned  char cmd[256];
   unsigned char cmdpos;
   os_initstdio();
   puts("ATM2+ UART TESTER. SEND AND RECIEVE BYTES.");
   uart_init(3);
+  spdFactor = 45;
   puts("Uart inited @ 38400");
   flushbuf();
   cmd[0] = '\0';
@@ -105,74 +108,81 @@ C_task main(void)
   while (1)
   {
     unsigned char count;
-    getdata();
-    renderWin();
-    uart_delay10k();
-    YIELD();
-    key = _low_level_get();
+   getdata();
+   renderWin();
 
+    key = _low_level_get();
     if (key != 0)
     {
-      uart_delay10k();
       switch (key)
       {
         case 177:
           uart_init(1);
           puts("Uart inited @ 115200");
+		  spdFactor = 13;
           key = 0;
           break;
 
         case 178:
           uart_init(2);
           puts("Uart inited @ 57600");
-          key = 0;
+          spdFactor = 28;
+		  key = 2;
           break;
 
         case 179:
           uart_init(3);
           puts("Uart inited @ 38400");
+		  spdFactor = 44;
           key = 0;
           break;
 
         case 180:
           uart_init(4);
           puts("Uart inited @ 28800");
-          key = 0;
-          break;
+          spdFactor = 55;
+		  key = 0;
+		  break;
 
         case 181:
           uart_init(6);
           puts("Uart inited @ 19200");
+		  spdFactor = 20;
           key = 0;
           break;
 
         case 182:
           uart_init(8);
           puts("Uart inited @ 14400");
+		  spdFactor = 90;
           key = 0;
           break;
 
         case 183:
           uart_init(12);
           puts("Uart inited @ 9600");
+		  spdFactor = 100;
           key = 0;
           break;
 
         case 184:
           uart_init(24);
           puts("Uart inited @ 4800");
+		  spdFactor = 100;
           key = 0;
           break;
 
         case 185:
           uart_init(48);
           puts("Uart inited @ 2400");
+		  spdFactor = 100;
           key = 0;
           break;
 
         case 176:
           uart_init(96);
           puts("Uart inited @ 1200");
+		  spdFactor =  150;
           key = 0;
           break;
 
@@ -192,14 +202,12 @@ C_task main(void)
           break;
 
         case 27:
-          goto quit;
-      }
-
-      if (key == 8)
-      {
-        if (cmdpos != 0)
+          exit(0);
+      
+		case 8:
+		if (cmdpos != 0)
         {
-          cmdpos--;
+  		cmdpos--;
           cmd[cmdpos] = '\0';
           putchar ('\r');
           for ( count = 0; count < cmdpos + 1; count++)
@@ -214,17 +222,17 @@ C_task main(void)
             count++;
           }
         }
-        key = 0;
-      }
+			key = 0;
+			break;
+	  }
     }
 
     if (key != 0)
     {
-
       cmd[cmdpos] = key;
       cmdpos++;
       putchar (key);
     }
   }
-quit: return 0;
+return 0;
 }

@@ -23,10 +23,10 @@
 	void uart_stoprts(void)
 		Запретить модему  отправлять данные
 	void uart_flashrts(void)
-		Моргнуть приемом данных в течение ~10k циклов.
+		Моргнуть приемом данных в районе 25 тактов.
 	unsigned char uart_read(void)
 		Прочитать байт из порта (блокирующий)
 	unsigned char uart_queue(void)
 		Прочитать длинну очереди   в буфере UART
-	void uart_delay10k(void)
-		Подождать ~ 10k циклов
+	void uart_delayXk(unsigned char X)
+		Подождать ~ X * 1k циклов

@@ -5,7 +5,10 @@ void sendcommand(char commandline[])
   {
     uart_write(commandline[pos]);
     pos++;
+//	uart_delayXk(10);
   }
   uart_write('\r');
+//	uart_delayXk(10);
   uart_write('\n');
+
 }
