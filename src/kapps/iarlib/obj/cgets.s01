@@ -1,0 +1,249 @@
+	MODULE	cgets(16)
+	RSEG	CODE(0)
+	RSEG	UDATA0(0)
+	EXTERN	OS_GETXY
+	EXTERN	OS_PRATTR
+	EXTERN	OS_SETXY
+	PUBLIC	cxy
+	EXTERN	getchar
+	PUBLIC	gets
+	EXTERN	putchar
+	EXTERN	?CLZ80L_4_06_L00
+	EXTERN	?C_V_SWITCH_L06
+	EXTERN	?ENT_AUTO_DIRECT_L09
+	EXTERN	?LEAVE_DIRECT_L09
+	EXTERN	?STRCPY_L11
+	EXTERN	?STRLEN_L11
+	RSEG	CODE
+; 1.	#include <oscalls.h>
+; 2.	#include <stdio.h>
+; 3.	#include <string.h>
+; 4.	
+; 5.	union{
+; 6.	    unsigned int w;
+; 7.	    struct{
+; 8.	        unsigned char x;
+; 9.	        unsigned char y;
+; 10.	    }xy;
+; 11.	}cxy;
+; 12.	
+gets:
+	CALL	?ENT_AUTO_DIRECT_L09
+	DEFW	-2
+	PUSH	IY
+; 13.	char * gets(char *str)  {
+; 14.	    char * pstr;
+	LD	(IX-2),0
+; 15.	    char curs = 0;
+; 16.	    char ch;
+	CALL	OS_GETXY
+	LD	(cxy),HL
+; 17.	    cxy.w = OS_GETXY();
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	LD	(HL),0
+?0011:
+; 18.	    *str=0x00;
+	XOR	A
+	INC	A
+?0037:
+?0012:
+; 19.	    while(1)
+; 20.	    {
+	LD	BC,(cxy+1)
+	LD	DE,(cxy)
+	CALL	OS_SETXY
+; 21.	        OS_SETXY(cxy.xy.x,cxy.xy.y);
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	PUSH	HL
+	POP	IY
+?0014:
+; 22.	        pstr=str;
+	XOR	A
+	OR	(IY+0)
+	JR	Z,?0013
+?0015:
+	INC	IY
+	LD	E,(IY-1)
+	LD	D,0
+	CALL	putchar
+; 23.	        while(*pstr) putchar(*pstr++);
+	JR	?0014
+?0013:
+	LD	DE,32
+	CALL	putchar
+; 24.	        putchar(' ');
+	LD	BC,(cxy+1)
+	LD	A,(cxy)
+	ADD	A,(IX-2)
+	LD	E,A
+	CALL	OS_SETXY
+; 25.	        OS_SETXY(cxy.xy.x+curs,cxy.xy.y);
+	LD	E,47
+	CALL	OS_PRATTR
+; 26.	        OS_PRATTR(INK_WHITE|PAPER_CYAN);
+	CALL	getchar
+	LD	(IX-1),L
+; 27.	        ch=getchar();
+	LD	E,7
+	CALL	OS_PRATTR
+; 28.	        OS_PRATTR(INK_WHITE|PAPER_BLACK);
+	LD	E,(IX-1)
+	CALL	?C_V_SWITCH_L06
+	DEFW	4
+	DEFB	8
+	DEFB	13
+	DEFB	248
+	DEFB	251
+	DEFW	?0027
+	DEFW	?0024
+	DEFW	?0021
+	DEFW	?0017
+	DEFW	?0018
+?0017:
+; 29.	        switch(ch){
+; 30.	            case 0x0d:
+	LD	DE,10
+	CALL	putchar
+; 31.	                putchar(0x0a);
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+; 32.	                return str;
+	JP	?0035
+?0018:
+; 33.	            case 0x08:
+	XOR	A
+	OR	(IX-2)
+	JR	Z,?0011
+?0019:
+; 34.	                if(curs){
+	LD	C,(IX-2)
+	LD	B,0
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	ADD	HL,BC
+	EX	DE,HL
+	LD	C,(IX-2)
+	LD	B,0
+	DEC	BC
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	ADD	HL,BC
+	CALL	?STRCPY_L11
+; 35.	                    strcpy(str + curs - 1,str + curs);
+	DEC	(IX-2)
+?0020:
+; 36.	                    curs--;
+; 37.	                }
+	JP	?0011
+?0021:
+; 38.	                break;
+; 39.	            case 0xf8:
+	XOR	A
+	OR	(IX-2)
+	JR	Z,?0029
+?0022:
+	DEC	(IX-2)
+?0023:
+; 40.	                if(curs)curs--;
+	JR	?0029
+?0024:
+; 41.	                break;
+; 42.	            case 0xfb:
+	LD	C,(IX-2)
+	LD	B,0
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	ADD	HL,BC
+	LD	A,(HL)
+	OR	A
+	JR	Z,?0029
+?0025:
+	INC	(IX-2)
+?0026:
+; 43.	                if(*(str+curs))curs++;
+	JR	?0029
+?0027:
+; 44.	                break;
+; 45.	            default:
+	LD	C,(IX-2)
+	LD	B,0
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	ADD	HL,BC
+	CALL	?STRLEN_L11
+	LD	C,(IX-2)
+	LD	B,0
+	ADD	HL,BC
+	LD	C,(IX+2)
+	LD	B,(IX+3)
+	ADD	HL,BC
+	PUSH	HL
+	POP	IY
+; 46.	                pstr = str + strlen(str+curs) + curs;
+	AND	A
+	SBC	HL,BC
+	LD	BC,(cxy)
+	LD	B,0
+	ADD	HL,BC
+	LD	A,78
+	XOR	L
+	OR	H
+	JR	Z,?0029
+?0028:
+?0031:
+; 47.	                if(((pstr - str) + cxy.xy.x)!=78){
+	XOR	A
+	INC	A
+?0036:
+?0032:
+; 48.	                    while(1){
+	LD	B,(IY+0)
+	LD	(IY+1),B
+; 49.	                        pstr[1]=pstr[0];
+	LD	C,(IX-2)
+	LD	B,0
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	ADD	HL,BC
+	PUSH	IY
+	POP	BC
+	AND	A
+	SBC	HL,BC
+	JR	Z,?0030
+?0033:
+?0034:
+; 50.	                        if(pstr==(str+curs)) break;
+	DEC	IY
+; 51.	                        pstr--;
+; 52.	                    }
+	JR	?0028
+?0030:
+	LD	C,(IX-2)
+	LD	B,0
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	ADD	HL,BC
+	LD	B,(IX-1)
+	LD	(HL),B
+; 53.	                    *(str+curs) = ch;
+	INC	(IX-2)
+?0029:
+; 54.	                    curs++;
+; 55.	                }
+?0016:
+; 56.	                break;
+; 57.	        }
+; 58.	    }
+	JP	?0011
+?0010:
+; 59.	    return str;
+?0035:
+	POP	IY
+	JP	?LEAVE_DIRECT_L09
+; 60.	}
+	RSEG	UDATA0
+cxy:
+	DEFS	2
+	END

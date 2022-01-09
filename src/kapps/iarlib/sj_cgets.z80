@@ -1,0 +1,191 @@
+dec2int ;de-str
+        ld hl,0x0000
+.main_loop
+        ld a,(de)
+        inc de
+        or a
+        ret z
+        cp 'x'
+        jr z,hex2int
+        sub '0'
+        ret c
+        cp 10
+        ret nc
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        add hl,hl
+        ld c,a
+        ld b,0x00
+        add hl,bc
+        jr .main_loop
+        
+hex2int ;de-str
+        ld hl,0x0000
+        ld b,h
+.main_loop
+        ld a,(de)
+        inc de
+        or a
+        ret z
+        sub '0'
+        ret c
+        cp 10
+        jr c,.is_digit
+        and 0xdf
+        sub 0x11 - 10
+        cp 10
+        ret c
+        cp 16
+        ret nc
+.is_digit
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld c,a
+        add hl,bc
+        jr .main_loop
+cgets
+        xor a
+        ld (hl),a
+        ld (.curs),a
+        ld (.str),hl
+        OS_GETXY
+        ld (.cxy),de
+.main_loop
+        ld de,(.cxy)
+        OS_SETXY
+        ld hl,(.str)
+        call puts
+        ld a,' '
+        OS_PRCHAR
+        ld de,(.cxy)
+        ld a,(.curs)
+        add a,e
+        ld e,a
+        OS_SETXY
+        ld e,0x07|0x28
+        OS_PRATTR
+        call getchar
+        push af
+            ld e,0x07|0x00
+            OS_PRATTR
+        pop af
+.curs=$+1
+        ld b,0
+.str=$+1
+        ld hl,0
+        cp 0x0d
+        ret z ;jr nz,.no_enter
+        ;ld hl,(.str)
+        ;ret
+.no_enter
+        cp 0x08
+        jr nz,.no_bs
+        ld a,b ;(.curs)
+        sub 1
+        adc a,0
+        jr c,.main_loop
+        ld (.curs),a
+        ;ld hl,(.str)
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld d,h
+        ld e,l
+        inc hl
+.strshift   
+        ldi     
+        ld a,(de)
+        or a
+        jp z,.main_loop
+        jr .strshift
+.no_bs
+        cp key_left
+        jr nz,.no_left
+        ld a,b ;(.curs)
+        sub 1
+        adc a,0
+        ld (.curs),a
+        jr .main_loop
+.no_left
+        cp key_right
+        jr nz,.no_right
+        ;ld hl,(.str)
+        ld a,b ;(.curs)
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+        ld a,(hl)
+        or a
+        jr z,.main_loop
+.inc_curs
+        ld hl,.curs
+        inc (hl)
+        jp .main_loop
+.no_right
+        ld c,a
+        ;ld hl,(.str)
+        ld a,b ;(.curs)
+        add a,l
+        ld l,a
+        adc a,h
+        sub l
+        ld h,a
+.char_loop
+        ld a,c
+        ld c,(hl)
+        ld (hl),a
+        or a
+        jr z,.inc_curs
+        inc hl
+        jr .char_loop
+.cxy
+        defw 0
+        
+print_hex
+        push af
+        rra
+        rra
+        rra
+        rra
+        call .pr_d
+        pop af        
+.pr_d
+        and 0x0f
+        cp 10
+        jr c,.is_digit
+        add a,7
+.is_digit
+        add a,'0'
+        OS_PRCHAR
+        ret
+        
+strcpy      ;de-dst hl-src
+        ld a,(hl)
+        ldi
+        or a
+        ret z
+        jr strcpy
+        
+clsstr
+        ld a,"\r"
+        OS_PRCHAR
+        ld b,79
+.fl
+        ld a,' '
+        push bc
+        OS_PRCHAR
+        pop bc
+        djnz .fl
+        ld a,"\r"
+        OS_PRCHAR
+        ret
+        
