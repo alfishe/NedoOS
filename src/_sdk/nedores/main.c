@@ -398,6 +398,28 @@ int j;
   j = y;
   while (1) {
     fputs("\tdb ", fout);
+    i = xchr;
+    while (1) {
+      b = ~maskrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      i++;
+      if (i == xchr+sprwid8) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    j++;
+    if (j >= (y+sprhgt)) break;
+  };
+}
+
+void emitsprwnomaskback(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{ //antipixelsw
+BYTE b;
+int i;
+int j;
+  j = y;
+  while (1) {
+    fputs("\tdb ", fout);
     i = xchr+sprwid8;
     while (1) {
       i--;
@@ -625,7 +647,7 @@ UINT color;
               };
               fputs("\n", fout);
               rowhgt = sprhgt;
-            }else if ((sprformat == 'w')||(sprformat == 'z')) {
+            }else if ((sprformat == 'w')||(sprformat == 'z')||(sprformat == 'Z')) {
               putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
@@ -707,7 +729,9 @@ UINT color;
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'w') { //sprite antipixels16, antimask16
                 emitsprw(sprx/8,y,sprwid/8,sprhgt,fout);
-              }else if (sprformat == 'z') { //unmasked sprite
+              }else if (sprformat == 'z') { //unmasked sprite right to left
+                emitsprwnomaskback(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'Z') { //unmasked sprite
                 emitsprwnomask(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'W') { //b/w image by columns
                 emitimgW(sprx/8,y,sprwid/8,sprhgt,fout);

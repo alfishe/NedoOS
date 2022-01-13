@@ -6,7 +6,8 @@
 ;[b: b/w tiles: wid, hgt, data]
 ;B: colour tiles: wid, hgt, data
 ;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
-;z: b/w unmasked sprites: antipixelsw, ...
+;z: b/w sprites: antipixelsw... (right to left)
+;Z: b/w sprites: antipixelsw... (left to right)
 ;w: b/w sprites: antipixelsw, antimaskw...
 ;W: b/w image by columns
 ;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
