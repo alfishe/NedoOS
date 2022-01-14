@@ -14,6 +14,7 @@
 BYTE filebuf[65536];
 char labelbuf[_STRMAX+1];
 char formatlabelbuf[_STRMAX+1];
+char commentlabelbuf[_STRMAX+1];
 BYTE sizeword[4];
 BYTE pic[1024][1024];
 BYTE pixrow[1024/8+1][1024+1024];
@@ -29,6 +30,8 @@ int convorderx[CONVORDERSZ]; //для каждого номера тайла координаты
 int convordery[CONVORDERSZ]; //для каждого номера тайла координаты
 
 int sprcount;
+
+BYTE numok;
 
 BYTE ink;
 BYTE paper;
@@ -50,6 +53,20 @@ char c;
   }while (c!=0x0a);
 }
 
+void readcomment(FILE * fin, char * s)
+{ //возможно, 0x0d уже прочитан, теперь пропускаем 0x0a
+char c;
+unsigned int i;
+  i = 0;
+  do{
+    if (!fread(&c,1,1,fin)) break;
+    if (i==_STRMAX) break;
+    s[i] = c;
+    i++;
+  }while (c!=0x0a);
+  s[i] = '\0';
+}
+
 int readnum(FILE * fin)
 {
 char c;
@@ -64,6 +81,7 @@ int sign=1;
     if (c=='-') {sign = -1; goto skip;};
     if ((c<'0')||(c>'9')) break; //в том числе 0x0a
     num = num*10 + (int)(c-'0');
+    numok = 0xff;
 skip:
 	;
   }while(1);
@@ -588,8 +606,11 @@ UINT color;
             spry = readnum(fintxt);
             sprwid = readnum(fintxt);
             sprhgt = readnum(fintxt);
+            numok = 0x00;
             tiles = readnum(fintxt); //отсутствует в x
             defaultcolor = (BYTE)tiles; //для всех, кроме L
+            *commentlabelbuf = '\0';
+            if ((numok != 0x00) && (sprformat != 'L')) readcomment(fintxt, commentlabelbuf);
            do {
             if (sprformat == 'B') {
               putlabel(labelbuf, fout);
@@ -662,6 +683,10 @@ UINT color;
               emitdb((BYTE)(sprhgt), fout);
               rowhgt = sprhgt;
             };
+
+//copy comment as code line
+              fputs(commentlabelbuf, fout);
+              //fputs("\n", fout);
 
             y = spry;
             while (y < (spry+sprhgt)) {
