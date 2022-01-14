@@ -39,14 +39,6 @@ void exit(int e){
 }
 
 extern void dns_resolve(void);
-/*
-unsigned char readcmos(unsigned char r) {
-	output(0xdef7,r);
-	return input(0xbef7);
-}
-*/
-
-
 
 unsigned char readcmos(unsigned char r) {
     disable_interrupt();
@@ -80,13 +72,6 @@ void writecmos(unsigned char r,unsigned char v) {
     }
     enable_interrupt();
 }
-
-/*
-void writecmos(unsigned char r,unsigned char v) {
-	output(0xdef7,r);
-	output(0xbef7,v);
-}
-*/
 
 void Unix_to_GMT(void)
 {

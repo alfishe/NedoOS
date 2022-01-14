@@ -776,8 +776,9 @@ dos3d13_sp_st=$+1	;-wasresident+resident
 	ld sp,0
 	ld a,(0x5d0f)	;возврат ошибки
 	ret
-
 	if atm != 1
+		if atm2clock != 1
+; Подержка часов GLUK в АТМ2+ (актуальная процедура для Evo находится в syskrnl)
 NVRAM_REG=0xdf
 NVRAM_VAL=0xbf
 minmes  ;=$-wasresident+resident
@@ -870,7 +871,85 @@ readtime  ;=$-wasresident+resident
 	pop af
 	jp shadon_pgsys_a
 		endif
+	endif
+	if atm != 1
+		if atm2clock == 1
+; Подержка часов 8952  АТМ2+ и АТМ8		
+cmd2ve:	;e=command	 возвращаем результат в A
+		di
+		ld	bc,0x55FE		;адрес 8952
+		in	a,(c)			;Переход в режим команды
+		ld	b,e				;команда из E переноcим в B
+		in	a,(c)			;выполнить команду
+		ei
+		ret
+readtime  ;=$-wasresident+resident
+;sp=0x7fxx
+;e=gfxmode
+;out: hl=date, de=time
+;TODO атомарно
 
+	call sys_SHADOFF
+	LD A,e;0xa8;%10101000 ;320x200 mode
+	push af
+	push bc
+
+	ld e, 0x90		;hours
+	call cmd2ve
+	ld l, a
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ld e, 0x50		;Minutes
+	call cmd2ve
+	add a,l
+	ld l,a
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ld e, 0x10		;Seconds
+	call cmd2ve
+	srl a
+	add a,l
+	ld l,a
+	push hl			;save time
+
+;	Date	
+	ld e, 0x92		;year
+	call cmd2ve
+	add a, 20
+	ld l, a
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	
+	ld e, 0x52		;month
+	call cmd2ve
+	add a,l
+	ld l,a	
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+
+	ld e, 0x12		;day
+	call cmd2ve
+	add a,l
+	ld l,a
+	pop de
+
+	pop bc
+	pop af
+	jp shadon_pgsys_a
+		endif
+	endif
 	;disp $-wasresident+resident
 
 		

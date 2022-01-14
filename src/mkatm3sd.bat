@@ -1,5 +1,6 @@
 @echo off
 echo atm=3 > _sdk\syssets.asm
+echo atm2clock=0 >> _sdk\syssets.asm
 echo sys_npages=192 >> _sdk\syssets.asm
 echo NEMOIDE=1 >> _sdk\syssets.asm
 echo SYSDRV=12 >> _sdk\syssets.asm
