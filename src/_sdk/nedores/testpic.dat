@@ -1,4 +1,4 @@
-;label autonumbering: label#8=...
+;label autonumbering: label#8=... or label$4 or label$4#8
 ;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
 ;6912: color 0 in bmp is for mask
 ;16c: color 16 in bmp is for mask
@@ -18,7 +18,7 @@
 ;P: DDp palette
 
 letter#2=i,144,0,8,8,7; db 123,45
-Letter#2=i,144,0,8,8,7
+Letter$3#2=i,0,0,8,8,7
 letterx=i,144,0,8,8,7; db 67,89
 Letterx=i,144,0,8,8,7
 human0=x,0,0,16,16

@@ -30,6 +30,7 @@ int convorderx[CONVORDERSZ]; //для каждого номера тайла координаты
 int convordery[CONVORDERSZ]; //для каждого номера тайла координаты
 
 int sprcount;
+int vertsprcount;
 
 BYTE numok;
 
@@ -95,17 +96,27 @@ char c;
 unsigned int i;
 int iscomment;
   sprcount = 0;
+  vertsprcount = 0;
   do{
     i = 0;
     iscomment = 0;
     do{
       if (!fread(&c,1,1,fin)) break;
       if (c == ';') iscomment = -1;
+      if (c=='$') { //дальше число спрайтов вертикально
+        if (iscomment) continue; //в комментах можно $
+        while (1) {
+          if (!fread(&c,1,1,fin)) return 0;
+          if ((c < '0') || (c > '9')) break;
+          vertsprcount = vertsprcount*10;
+          vertsprcount = vertsprcount + (int)(c-'0');
+        };
+      };
       if (c=='#') { //дальше число спрайтов
         if (iscomment) continue; //в комментах можно #
         while (1) {
           if (!fread(&c,1,1,fin)) return 0;
-          if (c == '=') break;
+          if ((c < '0') || (c > '9')) break;
           sprcount = sprcount*10;
           sprcount = sprcount + (int)(c-'0');
         };
@@ -140,12 +151,31 @@ char numbuf[256];
 
 UINT maxsprcount;
 UINT cursprcount;
+UINT maxvertsprcount;
+UINT curvertsprcount;
 
 void putlabel(char * labelbuf, FILE * fout)
 {
 UINT num;
 UINT i;
         fputs(labelbuf, fout);
+        if (maxvertsprcount != 0) {
+          fputc('_', fout);
+          fputc('_', fout);
+          num = curvertsprcount;
+
+          i = 0;
+          do {
+            numbuf[i] = (char)((UINT)'0' + (num - (num/10)*10));
+            num = num/10;
+            i++;
+          } while (num != 0);
+
+          do {
+            i--;
+            fputc(numbuf[i], fout);
+          } while (i != 0);
+        };
         if (maxsprcount != 0) {
           fputc('_', fout);
           num = cursprcount;
@@ -549,6 +579,7 @@ BYTE bmask;
 BYTE b0;
 
 int sprx;
+int startsprx;
 int spry;
 int sprwid;
 int sprhgt;
@@ -597,12 +628,12 @@ UINT color;
           };*/
           while (1) {
             size = readlabel(fintxt, labelbuf); //fread(filebuf, 1, MAXDEFB, fin);
+           maxvertsprcount = vertsprcount;
            maxsprcount = sprcount;
-           cursprcount = 0;
             if (size == 0) break;
             readlabel(fintxt, formatlabelbuf); //format
             sprformat = *formatlabelbuf;
-            sprx = readnum(fintxt);
+            startsprx = readnum(fintxt);
             spry = readnum(fintxt);
             sprwid = readnum(fintxt);
             sprhgt = readnum(fintxt);
@@ -611,7 +642,11 @@ UINT color;
             defaultcolor = (BYTE)tiles; //для всех, кроме L
             *commentlabelbuf = '\0';
             if ((numok != 0x00) && (sprformat != 'L')) readcomment(fintxt, commentlabelbuf);
-           do {
+           curvertsprcount = 0;
+           do { //vertsprcount
+           cursprcount = 0;
+           sprx = startsprx;
+           do { //sprcount
             if (sprformat == 'B') {
               putlabel(labelbuf, fout);
               fputs("\n", fout);
@@ -869,6 +904,9 @@ UINT color;
             sprx = sprx + sprwid;
             cursprcount++;
            } while (cursprcount<maxsprcount); //while (sprcount)
+            spry = spry + sprhgt;
+            curvertsprcount++;
+           } while (curvertsprcount<maxvertsprcount); //while (vertsprcount)
           }; //while (1)
           fclose(fout);
         }else {printf("can't open %s",foutname);};
