@@ -53,7 +53,7 @@ getPacket
     BIT 7,H
     JR Z,RECEIVED	;ошибок нет
     CP 35   ;ERR_EAGAIN
-    ret z
+    jp z, getPacket
     ;обработка ошибки
     ld a,1
     ld (closed), a
@@ -74,8 +74,6 @@ RECEIVED
 	ld de,outputBuffer
 	or a
 	sbc hl,de
-	;ld hl,(bytes_avail)
-	;add hl,de
     ld (bytes_avail),HL
 continue
     ret
