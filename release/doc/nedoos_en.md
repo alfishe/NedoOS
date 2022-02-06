@@ -227,13 +227,16 @@ Shortcuts:
   movement
 * Home (Symbol Shift+Q) - jump to the beginning of the line
 * End (Symbol Shift+E) - jump to the end of the line
+* Symbol Shift+PageUp - jump to the beginning of text
+* Symbol Shift+PageDown - jump to the end of text
 * BackSpace (Caps Shift+0) - delete a character before the cursor
 * Del (Caps Shift + 9) - delete a character to the right of the cursor
-* Caps Shift+Enter or F2 - save
 * Break (Esc, Caps Shift + Space) - exit
-* F1 - change encoding (866/1251)
 * Ins (Symbol Shift+W) - wrap on/off
+* F1 - help
+* F2 or Caps Shift+Enter - save
 * F9 - run build.bat in text directory
+* F10 - change encoding (866/1251)
 
 Other keys are used to input the text.
 

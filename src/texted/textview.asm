@@ -110,7 +110,7 @@ texted_mainloop_keyq
         jp z,texted_pgup
         cp key_pgdown
         jp z,texted_pgdown
-         cp key_F1;extS
+         cp key_F10;extS
          jp z,texted_changeencoding
         cp key_home
         jp z,texted_home
@@ -136,6 +136,8 @@ texted_mainloop_keyq
         jp z,texted_enter
         cp key_csenter
         jp z,texted_save
+        cp key_F1
+        jp z,texted_help
         cp key_F2
         jp z,texted_save
         cp key_F9
@@ -1447,6 +1449,32 @@ istherecr_or_lf_popafZret
 ;        ld de,fcb
 ;        OS_FCLOSE
 ;        ret
+
+texted_help
+        call clearterm
+        ld hl,thelp
+        call prtext
+        call yieldgetkeyloop
+        jp setredrawflag
+
+thelp
+        db "Keys in texted:\r\n"
+        db "\r\n"
+        db "стрелки, PageUp (Caps Shift+3), PageDown (Caps Shift+4) - движение курсора\r\n"
+        db "Home (Symbol Shift+Q) - переход к началу строки\r\n"
+        db "End (Symbol Shift+E) - переход к концу строки\r\n"
+        db "Symbol Shift+PageUp - переход к началу текста\r\n"
+        db "Symbol Shift+PageDown - переход к концу текста\r\n"
+        db "BackSpace (Caps Shift+0) - удаление символа слева от курсора\r\n"
+        db "Del (Caps Shift+9) - удаление символа справа от курсора\r\n"
+        db "Break (Esc, Caps Shift+Space) - выход\r\n"
+        db "Ins (Symbol Shift+W) - wrap on/off\r\n"
+        db "F1 - help\r\n"
+        db "F2 или Caps Shift+Enter - сохранение\r\n"
+        db "F9 - запустить build.bat из директории с текстом\r\n"
+        db "F10 - сменить кодировку (866/1251)"
+        db 0
+
 
 setunchanged
 	ld a,' '
