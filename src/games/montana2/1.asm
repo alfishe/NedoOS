@@ -56,7 +56,19 @@ begin2
 	ld de,res_path
 	OS_CHDIR
 
+        call setpgsscr40008000_buf
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x7fff
+        ld (hl),l;0
+        ldir
+
         call setpgsscr40008000
+        ld hl,0x4000
+        ld de,0x4001
+        ld bc,0x7fff
+        ld (hl),l;0
+        ldir
 
         ld de,emptypal
         OS_SETPAL

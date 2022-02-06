@@ -647,11 +647,11 @@ UINT color;
            cursprcount = 0;
            sprx = startsprx;
            do { //sprcount
-            if (sprformat == 'B') {
+            if ((sprformat == 'B')||(sprformat == 'b')) {
               putlabel(labelbuf, fout);
               fputs("\n", fout);
-              emitdb((BYTE)(sprwid>>3), fout);
-              emitdb((BYTE)(sprhgt>>3), fout);
+              //emitdb((BYTE)(sprwid>>3), fout);
+              //emitdb((BYTE)(sprhgt>>3), fout);
               rowhgt = 8;
             }else if (sprformat == 'T') { //набор тайлов
               fputs("\tds (-$)&0xff\n", fout);
@@ -770,11 +770,11 @@ UINT color;
   //            shiftrow(sprx, y, sprwid, rowhgt, PIXROWSHIFT, 0x04); //сдвигаем ряд знакомест >>4, результат в pixrow[sprx][y+PIXROWSHIFT]
 
               //выводим в асм
-              if (sprformat == 'B') { //tiles
+              if ((sprformat == 'B')||(sprformat == 'b')) { //tiles or bw tiles
                 x = sprx;
                 while (x < (sprx+sprwid)) {
   //                emitchrshift(x/8,y,fout);
-                  emitchr(x/8,y,fout);
+                  emitchr(x/8,y,fout); //checks for capital letter in sprformat
                   x = x+8;
                 };
   //              emitchrshift(x/8,y,fout);

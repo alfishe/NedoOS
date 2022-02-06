@@ -3,8 +3,8 @@
 ;6912: color 0 in bmp is for mask
 ;16c: color 16 in bmp is for mask
 ;formats:
-;[b: b/w tiles: wid, hgt, data]
-;B: colour tiles: wid, hgt, data
+;b: b/w tiles: chrdata...
+;B: colour tiles: chrdata...
 ;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
 ;z: b/w sprites: antipixelsw... (right to left)
 ;Z: b/w sprites: antipixelsw... (left to right)
@@ -23,8 +23,8 @@ letterx=i,144,0,8,8,7; db 67,89
 Letterx=i,144,0,8,8,7
 human0=x,0,0,16,16
 human1=x,0,16,16,16
-doska=B,112,0,32,8,7
-beton=B,80,0,32,8,7
+doska=B,112,0,32,8,7; db 4,1
+beton=B,80,0,32,8,7; db 4,1
 ;cherry=s,176,0,16,13,7
 ;tilepic=T,0,0,224,64,15
 ;bar=i,192,0,64,192,7
