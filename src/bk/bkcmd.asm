@@ -135,14 +135,14 @@ NEG_ADC_SBC_TST
 SBCer        
         GETDEST_cmdc
         ex af,af' ;'
-       ccf ;for morf!
+       ;ccf ;for morf!
         ld h,b
         ld l,c
         ld bc,0
         sbc hl,bc
         ld b,h
         ld c,l
-       ccf ;for morf!
+       ;ccf ;for morf!
         ex af,af' ;'
         PUTDEST_Loop
 
@@ -280,6 +280,7 @@ MOVer
         ex af,af' ;'
      rra
      ld h,a ;keep CF
+     ;jr $
         ld a,c
 ;чтобы правильно сформировать ZF,SF по h,l:
 ;если l!=0, то set h!=0
@@ -417,7 +418,7 @@ SUBer
         ex af,af' ;'
         or a
         sbc hl,bc
-        ccf
+        ;ccf
         ex af,af' ;'
         ld b,h
         ld c,l

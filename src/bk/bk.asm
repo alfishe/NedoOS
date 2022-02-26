@@ -1,7 +1,7 @@
         DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=0;1
+DEBUG=1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
 BASIC=1;0
@@ -72,11 +72,11 @@ oldpcaddr=$+1
        ;or e;cp 0x30
        ;cp 1
        ;jr z,$
-      ld hl,0x228;0x8252;0x0318;0x32c8;0x3222;0x3262;0x1f74;0x0258;0x3dc8
+      ld hl,0x954;0x228;0x8252;0x0318;0x32c8;0x3222;0x3262;0x1f74;0x0258;0x3dc8
       or a
       sbc hl,de
       pop de
-      ;jr z,$
+      jr z,$
        endif
         get
         next
@@ -673,7 +673,7 @@ rddest8_110
        ld hx,c
        cp 0x0e
        jr z,rddest8_110_pc
-        UNTESTED ;GOOD ;leopol демо2
+        GOOD ;pacman ;leopol демо2
         get
         inc e
         add a,(hl)
@@ -965,7 +965,7 @@ wrdest8_111
         ld l,a ;hl=Rn+X
         jp wrdest8_memfrommem
 wrdest8_111_pc
-        UNTESTED
+        GOOD ;pacman
        push bc
         get
         next;inc e
@@ -1121,7 +1121,7 @@ rddest_111
        ld hx,c
        cp 0x0e
        jr z,rddest_111_pc
-        UNTESTED
+        UNTESTED ;miraclebk
         get
         inc e
         add a,(hl)
@@ -1230,7 +1230,7 @@ wrdest_011 ;@(Rn)+
         ld a,l
         cp 0x0e
         jr z,wrdest_011_pc
-        UNTESTED ;road2cafe после этого портит экран
+        GOOD;UNTESTED ;road2cafe после этого портит экран
        push de
         ld e,(hl)
         inc l
@@ -1369,7 +1369,7 @@ wrdest_111
         ld a,l
        cp 0x0e
        jr z,wrdest_111_pc
-        UNTESTED
+        UNTESTED ;miraclebk
         get
         next
         add a,(hl)
@@ -1932,7 +1932,7 @@ rdsrc8_111
         adc a,(hl) ;ac=Rn+X
         jp rdsrc8_addrfromaddr_ac
 rdsrc8_111_pc ;for morf
-        UNTESTED ;GOOD ;klad
+        GOOD ;klad ;pacman
         get
         next
         ld c,a
