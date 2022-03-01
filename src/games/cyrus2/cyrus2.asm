@@ -35,11 +35,6 @@ begin
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ;call setgfx
 
-        ld de,pal
-        OS_SETPAL
-
-        YIELD
-
         ld e,0 ;color byte
         OS_CLS
 
@@ -53,7 +48,21 @@ begin
         ;ld (pgspr),a  
 
         ld a,(user_scr0_high) ;ok
-        SETPG4000       
+        SETPG4000
+        
+        ld hl,scr
+        ld de,0x4000
+        ld bc,0x1b00
+        ldir
+        
+        YIELDGETKEYLOOP
+        
+        ld de,pal
+        OS_SETPAL
+
+        YIELD
+
+        
         ld sp,0x8000
         ld iy,23610
         jp START_POINT
@@ -157,6 +166,9 @@ rst10_y=$+2
 
 font
         incbin "font.bin"
+
+scr
+        incbin "CyrusII.scr"
 
 		org	#637c
 		

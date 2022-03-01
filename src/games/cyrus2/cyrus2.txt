@@ -1,0 +1,498 @@
+CYRUS II
+========
+
+Playing is believing as far as this the ultimate chess playing sensation for the Sinclair Spectrum is 
+concerned.
+
+The many features of this superior version means it will beat all existing Sinclair Spectrum chess programs 
+published.
+
+• Variable level performance
+• 1900 standard book opening
+• Set pieces
+• Problem solving
+
+plus many, many more unique features....
+
+From beginner through to tournament playing expert Cyrus II is the only chess program that should interest 
+you.
+
+
+Introduction
+
+Cyrus II is a chess program to interest players of all levels. Its abilities range from almost 
+instantaneous play suitable for a beginner, through to tournament-style play for chess experts. It offers 
+a wide range of operating features, enabling you (for example) to take moves back, replay a game that is 
+over, or set up special positions for problem-solving.
+
+If you like, start up the program and find out by experiment how to use it. No harm can come, whatever key 
+you press, and Cyrus will do its best to understand your intentions.
+
+
+Loading the Program
+
+Insert cassette in tape cassette recorder Mark 1 - type LOAD "" then press ENTER.
+Mark II - Press ENTER to accept tape loader option.
+
+
+Starting a Game
+
+Inside the square at the bottom left-hand corner of the board, you will see a flashing white arrow. This 
+is the marker, which is used for indicating your moves to the computer.
+
+By means of the four "direction" keys (← ↓ ↑ →), you can move the marker around the chessboard to position 
+it wherever you want. A quick key-press moves the marker one square in the direction indicated. If you 
+hold the key down, the marker keeps on moving until it reaches the edge of the board, or the key is 
+released.
+
+If you are playing White, make your first move like this:
+
+  (a) Place the marker on the square occupied by the piece you want to move (so that it points towards the 
+      base of the piece).
+  (b) Press the ENTER key and the marker stops flashing.
+  (c) Press a "direction" key again; you will now see two markers. One is flashing, and responds to your 
+      commands; the other one, pointing towards your piece, remains static.
+  (d) Move the flashing marker to the square where you want the piece to go.
+  (e) Press ENTER again.
+
+Your move is now carried out, and Cyrus starts computing its reply.
+
+You can make the program move first - if you want to play Black - by pressing M. In this case, before the 
+game starts, you will probably want to invert the chessboard by pressing the I key.
+
+
+Special Moves
+
+A capture is made no differently from any other move - simply move your own piece to its destination 
+square. The same goes for a pawn capture en passant.
+
+In order to castle, make the move of the King, and the rook's move is made for you automatically.
+
+If you advance one of your own pawns to the far end of the board, this pawn will repeatedly move back and 
+forth until you tell the computer what piece you want in its place. Press Q, R, B or N according to 
+whether you want a queen, rook, bishop or knight. (Other keys have the same effect as Q. When Cyrus 
+promotes one of its own pawns, it always chooses a queen.)
+
+
+Message Display
+
+On the Board display, the word CYRUS or PLAYER at the top or bottom, shows whether the computer or the 
+user is playing from this end of the board, and with which colour.
+
+A clock reading is also displayed for each opponent, for example:
+
+			01:17:36
+
+- meaning that the total thinking time so far used by this side is one hour, seventeen minutes and 
+thirty-six seconds. By seeing which "clock" is going you can tell which side is to move next.
+
+If you press the space bar, the screen changes to a different type of display. In place of the chessboard, 
+you will see a record of the last few moves made and a list of the commands currently at your disposal.
+
+Here is how moves are recorded. Each file (or vertical column of squares) is given a letter, viewed from 
+the "White" side, the letters range from "a" (on the extreme left) to "h". Each rank (or horizontal row) 
+is given a number, running from 1 (at White's end) to 8. Each square is designated by the letter of its 
+file and the number of its rank. (So at the start of the game, the White king is on e1, the Black queen 
+is on d8, etc.) A move by a pawn is recorded by simply naming the pawn's old and new squares. When any 
+other piece moves, its initial letter (or N in the case of a knight) is inserted before the departure 
+square.
+
+Example:	1	e2-e4		d7-d5
+		2	e4xd5 		Ng8-f6
+		3	Bf1-b5+
+
+White has started by moving his pawn from e2 to e4 (i.e. the pawn in front of his king has gone two 
+squares forward). Black has replied with a double advance of the pawn in front of his queen from d7 to d5. 
+Then the White pawn has captured the Black one (a capture is indicated by "x"), and Black has brought out 
+his knight from g8 to f6. On his third move, White has played his bishop from f1 to b5; the *+" sign shows 
+that this move gives check.
+
+White's moves are always listed on the left, Black's on the right. Castling (on the king's side or queen's 
+side respectively) is denoted by "0-0" or "0-0-0".
+
+Below the game-record, you will see either the word THINKING (if Cyrus is computing the next move) or else 
+YOUR MOVE.
+
+Lower down the screen, there is a list of the commands that are currently available, e.g: 
+
+			B - Back
+
+- reminding you that by pressing the B key you can retract a move. The full list of commands should be 
+clear to you once you have read the remaining sections of this manual.
+
+To return from the message screen to the chessboard screen, press the space bar again.
+
+
+Result of the Game
+
+The message screen displays CHECKMATE or STALEMATE if such a situation has come about.
+
+If Cyrus recognises that the same position (with the same side to move) has arisen three times, it 
+announces a DRAW.
+
+A draw is also announced if, over the space of 50 consecutive moves (played by one side and answered by 
+the opponent), no piece has been captured and no pawn moved.
+
+To signify the end of the game, one of the kings (that of the player whose opponent made the last move) 
+repeatedly "flashes" on the chessboard display.
+
+
+Interrupting the Computer
+
+If you press the M key while Cyrus is computing its move, it will cut short its calculations and play the 
+move assessed as best according to its analysis so far.
+
+Notice that most of the special operating features described below (e.g. selection of the "level", 
+retraction of moves, etc) will not work when it is the program's turn to move. By inducing a moving, you 
+enable any of the features to be used.
+
+
+New Game
+
+You can begin a new game at any time, by pressing the G key. The screen then shows:
+
+			New?
+
+To confirm your command, press Y. The starting position reappears, and both "clocks" are set back to zero.
+
+Note that until you actually enter a move or start Cyrus computing, the previous game still remains in 
+the computer's memory. You can return to any position in that game by using the F key.
+
+If you have pressed G by accident, a key-press other than "Y" allows play to be resumed.
+
+
+Levels of Playing Strength
+
+There are various levels of skill on which Cyrus II may be instructed to play. Obviously, the program 
+plays more strongly the more thinking time it has for its moves. The following table shows the approximate 
+average time it takes for a move on Levels 1 - 9.
+			Level	Time
+			1	2 seconds
+			2	6 seconds
+			3	15 seconds
+			4	30 seconds
+			5	45 seconds
+			6	1 minute
+			7	2 minutes
+			8	3 minutes
+			9	3 minutes 30 seconds
+
+There are also three further levels, called "adaptable", "infinite" and "problem".
+
+When playing on the adaptable level, Cyrus aims to play at roughly the same rate as its opponent; it 
+measures your thinking time over a series of moves, then speeds up or slows down as necessary.
+
+When computing a move on the infinite level, Cyrus will normally carry on thinking until you tell it to 
+move by pressing M. If you don't do this, the computer will not actually play a move unless:
+
+	(a) it has a "book" move available (see below);
+or 	(b) it finds a forced mate, or completes as deep an analysis of the position as is within its
+	    capacity;
+or 	(c) there is only one legal move it can make.
+
+On the problem level, the program searches for a way to force checkmate in 5 moves or less; for more 
+details, see the section on "Chess Problems".
+
+When you first set up the program, Cyrus is ready to play on Level 1. The current level can always be seen 
+on the message display. You may change the level any time when it is your turn to move, by pressing the L 
+key. A single key-press takes you one level higher. If you hold the key down, you will see the level 
+constantly changing - after going up to Level 9, the screen shows ADAP, INF, PROB, and then Level 1, Level 
+2 ... and so on.
+
+When the level that you want is displayed, simply carry on playing. The program remains on the same level 
+(even after a new game starts), until you change it again; you may do so as often as you like.
+
+
+Changing Sides
+
+If you press the M key when it is your turn to move, Cyrus will start computing a move for the side that 
+you have been playing, and will expect you to take over the other side.
+
+You can change sides like this as often as you like. When you do so, you will probably want to turn the 
+chessboard round, so that you will still be playing "up the screen". To invert the board, press the I key.
+
+
+Playing Both Sides
+
+It's possible for you to play a series of moves for both White and Black. For example, you may want to 
+enter the moves of an opening variation which interests you, to see how Cyrus handles the resulting 
+position. To do this, press S followed by M (you will then see the word PLAYER at both sides of the 
+chessboard screen). You can now enter moves for both sides in turn. When you want Cyrus to carry on 
+playing, re-press the M key.
+
+This "multi-move" feature enables two human opponents to play a game against each other with the screen 
+display as their chessboard.
+
+
+Demonstration
+
+If you press the D key, both sides will be taken over by the program, as a demonstration game. (Then CYRUS 
+will be displayed at both sides ends of the screen). After finishing a game, the program will pause for a 
+few seconds and then begin a new one. To halt the demonstration, press M. Then, after the next move is 
+made, you may continue the game against the computer.
+
+
+Retracting and Replaying Moves
+
+If you've played a move but then have second throughts about it, you can easily take it back. Wait for 
+Cyrus to reply, or make it do so at once by pressing M. Then press B, and the program's move is retracted. 
+A second press of this key retracts your own last move, and you may make another one in its place. A move 
+can be taken back even when the program is displaying checkmate or a draw.
+
+By pressing the B key repeatedly or holding it down, you can take back a whole series of moves by both 
+sides (going right back to the start of the game if you want). Notice that if you take back one more move 
+for White than for Black (or vice versa), you swap sides with the computer.
+
+The F key ("forward") has the opposite effecf to the B key; it replays the move or moves that you have 
+taken back. As one example of its use, suppose that during a game you want to have another look at a 
+position which arose 10 moves earlier. Take back the 10 moves with the B key; then, after you have 
+finished examining this position, hold down the F key until you arrive again at the position where you 
+interrupted the game. Play can now be resumed.
+
+You can retract and replay the same sequence of moves as many times as you like. You may also carry on 
+playing from any position within the sequence. This means you can find out what would have happened if 
+you had played differently at a particular stage of the game.
+
+Note, however, that when - in any position - you enter a new move or press M (or D) you are erasing from 
+the computer's memory the moves that had previously been played from this position onwards. Those moves 
+can no longer be replayed with the F key.
+
+To review the entire game, you can press the G key and Y key (so that the starting position reappears), 
+then repeatedly press F. This is not, however, possible if the game began from a position which you 
+"set up".
+
+
+Hint
+
+If you want Cyrus to suggest a move for you, press H. One of your pieces makes a move on the board, and 
+then goes back again. It is for you to decide whether to act on this hint; it is not necessarily the best 
+move available (especially on the program's lower levels), though Cyrus will not deliberately mislead you.
+
+If you press H when Cyrus is computing the next move, one of the program's pieces is moved back and forth 
+in the same way. This shows you what move was rated as best at the outset of the analysis.
+
+
+Analysis
+
+If you would like some further insight into the program's train of thought, press the A key. The word 
+ANALYSIS appears on the message screen. If Cyrus has just started computing its move, the display will
+now remain unchanged for a few moments, but after that a series of moves will be recorded just above the 
+list of commands. The first move in this series is the one that Cyrus is thinking of playing next -the 
+best move according to its analysis so far. The following move is your expected reply, then comes the 
+computer's intended answer to that... and so on.
+
+For this feature, a simplified form of notation is used-each move is indicated merely by giving the old 
+and new squares of the piece. The analysis display can be cancelled by re-pressing the A key.
+
+
+Setting up a Position
+
+Now and again you may want to see Cyrus solve a chess problem; or you may wish to set up a position from 
+a game that has been published, to see how the program handles it. In order to rearrange the position on 
+the chessboard, first press the S key. The wording SET UP appears on the chessboard screen, to show that 
+the program is ready for a special mode of operation. Notice the new list of commands on the message 
+screen - in "set up position" mode, some of the keys have different uses from their normal ones.
+
+As long as SET UP is displayed, you can do any of the following things:
+
+  (a) You can clear the entire chessboard by pressing C. Usually you will want to do this before anything 
+      else - but not if the position that you intend to set up differs only slightly from the position 
+      currently displayed.
+  (b) To clear an individual square, position the marker on that square and press E.
+  (c) To insert a piece on the board, bring the marker onto the desired square and press the appropriate 
+      key: K (king), Q (queen), R (rook), B (bishop), N (knight) or P (pawn). The way to select the colour 
+      of the piece will be explained presently.
+  (d) Both of the clock times can be sent back to zero by pressing Z. (Notice that as long as the program 
+      is in "set up position" mode, the clocks are stopped).
+
+On the screen you will see the word WHITE or BLACK. This shows which colour a new piece will be, if you 
+now place one on the board. To change over from one colour to the other, press X.
+
+The word WHITE or BLACK also indicates which side will move next if play is commenced at this moment. So 
+once the position is ready, you may need to press X to display the correct colour.
+
+Finally press the S key, to take the program out of "set up position" mode again. The normal list of 
+commands will now be shown on the message screen, and play may proceed.
+
+Here's an example of how a position is set up. We'll suppose that the position you want is the following, 
+and that White is to move.
+
+Press S			"SETUP" appears on the chessboard screen.
+Press C			The board is cleared.
+
+If the word BLACK is displayed, press X (message: WHITE). You can now place White pieces on the board.
+Bring the marker onto the square where you want the White king (b2)
+
+Press K			A White king appears.
+
+Bring the marker onto the square for the White pawn (b3).
+
+Press P			A White pawn appears.
+
+Bring the marker onto the square for the White queen (c4).
+
+Press Q			A White queen appears.
+
+Press X			The word BLACK appears. You can now enter black pieces.
+
+Bring the marker onto the square for the Black king (f6).
+
+Press K			A Black king appears.
+
+Bring the marker onto the square for the Black queen (g5).
+
+Press Q			A Black queen appears.
+
+Press the X key (message: WHITE). Cyrus now knows that when play continues from this position, it will be 
+White to move next.
+
+Finally, press S. The word SET UP disappears, and YOUR MOVE is shown on the message screen. Play can now 
+begin. Adjust the "level", if you want; then press M, to start Cyrus computing. (Or else, if you are 
+playing White yourself, make a move in the usual way.)
+
+In connection with setting up positions, there are a few more points to be noted:
+
+  (a) Illegal positions: If you've set up a position in which (say) there are no kings, or one side has 
+      two queens as well as eight pawns, or Black's king is in check when White is to move-then Cyrus 
+      recognises this position as illegal. With such a position on the board, it is impossible to take 
+      the program out of "set up position" mode and continue playing; when you press S, the computer will 
+      merely give the "error buzz" and display ILLEGAL SETUP. Correct the position as necessary.
+  (b) Castling: If a king or rook has been placed on the board in the way we have just described, there 
+      can be no castling with that piece. A position in which (say) White has the right to castle King's 
+      side may be set up as follows. First press G and Y (the starting position appears), then enter "set 
+      up position" mode by pressing S. The White king and King's rook should now be left alone, while 
+      unwanted pieces are removed individually with the E key.
+  (c) En passant captures: After a position has been set up, the next move cannot be a pawn capture en 
+      passant. To create a position where such a capture is legal, set up the immediatley preceding 
+      position and then make the move which permits the capture.
+  (d) Game record: When play proceeds after you have set a position up, the numbering of subsequent moves 
+      always begins from 10. The computer's memory of any game you had previously been playing is now 
+      erased.
+
+This does not, however, mean that the foregoing moves are erased from memory if you press S by accident 
+in the middle of a game. As long as you repress the same key without actually having made any alterations 
+to the position, play may continue as before. The numbering of the moves remains unchanged, and if you 
+like they can be "taken back" or "replayed" in the normal way.
+
+
+Chess Problems
+
+Most chess problems carry some such wording as "White to play and mate in three moves" - meaning that you 
+have to find a move which enables White to give checkmate on this third move at the latest, no matter how 
+Black tries to defend himself.
+
+Cyrus II can solve problems for mate in anything up to 5 moves. Set up the position as described in the 
+preceding section. Make sure Cyrus knows which side moves next. Select "problem" level with the L key. On 
+leaving "set up position" mode, press M to start Cyrus computing.
+
+Cyrus now begins by looking for a move that gives checkmate immediately. If it discovers that this is not 
+possible, it displays NO MATE IN 1 on the message screen, and starts searching for a way to force mate in 
+two moves... and so on. If the program finds (say) a forced mate in 3 moves, it momentarily displays MATE 
+IN 3, and makes the appropriate move on the chessboard. You may now make a move for the defending side. 
+Then (after re-computing if necessary), Cyrus will play the next move of the solution. After that, you 
+can, if you like, take back the last pair of moves and play a different move for the defence, to see how 
+the program answers it.
+
+If Cyrus discovers, by performing an exhaustive analysis of the position, that it is impossible to force 
+checkmate within 5 moves, it displays NO MATE IN 5, and simply makes the move it considers best.
+
+NB: (a) If there is a "book" move available, Cyrus will move immediately, without performing any analysis.
+    (b)	Cyrus cannot solve problems that require "underpromoting" a pawn to rook, bishop to knight.
+
+
+Saving and Loading Games
+
+The record of a game may be saved on cassette, and later re-loaded into the computer for resumption of 
+play, or for replay and analysis, etc.
+
+When you want to use the cassette recorder, press the C key. You then have the following options.
+
+  (a) To save a record of the game you have been playing, press S. The computer then prompts you to give 
+      the game a name (for instance FIRSTGAME); this can be up to 10 characters long (it cannot contain 
+      blank spaces). Type the name, and follow with ENTER. Press the PLAY and RECORD controls on the tape 
+      recorder, then press any of the computer's keys. This will begin the saving process; once it is 
+      finished, the program reverts to normal playing conditions (message: YOUR MOVE).
+  (b) To load a game from cassette, make sure the tape is wound back far enough, and press L. Type the 
+      name under which the game was recorded, press ENTER and the PLAY control, then press any key on the 
+      keyboard. When loading is complete, the position that had been reached when the game was saved can 
+      be viewed on the chessboard screen, and you may make use of any of the program's functions.
+  (c) To allow play to be resumed (if, say, you pressed the C key by mistake), press any key other than 
+      S or L.
+
+If you make a mistake when entering the name of a game record, the DELETE key erases the last character 
+typed. Note that the BREAK key and the space bar have the effect of interrupting any cassette operation 
+and returning the program to normal playing conditions.
+
+
+Printer
+
+If you have a printer connected, pressing the P key allows you to operate it. This key-press automatically 
+switches to the message screen, which displays a special menu of commands. You have these possibilities:
+
+  (a) Press Z or P, according to whether you are using a ZX or serial printer. An asterisk on the screen 
+      shows which alternative has been selected. Until you have done this, nothing can be printed.
+  (b) For a print-out of the game-record up to the current position, press B. (The initial position of the 
+      record is printed first.)
+  (c) Pressing B causes the current position on the board to be printed.
+  (d) Press C for a continuous listing of moves. This means that when play continues, each move will be 
+      printed out as soon as it is made. An asterisk shows that this feature has been selected; to cancel 
+      it, repeat the same command.
+  (e) For further options, press 0. This enables you to set the baud rate for serial printing, by pressing 
+      a key in the range 1 - 9. A table of baud rates and the corresponding key-presses is displayed on 
+      the screen. In addition, the facility of inserting a "line feed" with each "carriage return" can be 
+      switched on or off by pressing L.
+
+Pressing a key not currently listed on the message screen has the effect of returning, from the special 
+options under (e), to the main printer "menu"; or from there, to normal playing conditions.
+
+
+Summary of Commands
+
+A 	Display analysis (predicted continuation). Repeat to cancel.
+B 	Take back last move; promote pawn to bishop.
+C	Cassette operation.
+	L  Load game record.
+	S  Save game record.
+	(Other keys: return to normal playing mode).
+D	Demonstration (program	plays both sides).
+F	Step forward, i.e. replay move taken back.
+G	New game.
+	Y Yes (Other keys: no.)
+H	If user to move, give hint; if program to move, show move currently assessed as best. 
+I	Invert chessboard.
+L	Change level.
+M 	Take over the side which is to move; if already on this side, move immediately.
+N	Promote pawn to knight.
+P	Printer operation.
+	B  Print board position.
+	C  Continuous listing (each move printed when played). Repeat to cancel.
+	G  Print game record.
+	O  Further options (set baud rate; select carriage return + line feed).
+	P  Serial printer.
+	Z  ZX Printer.
+	(Other keys: return to normal playing mode.)
+Q	Promote pawn to queen.
+R	Promote pawn to rook.
+S 	Selects "Set up" mode.
+	B  Bishop.
+	C  Clear chessboard.
+	E  Empty square.
+	K  King.
+	M  Multi-move mode (user plays both sides).
+	N  Knight.
+	P  Pawn.
+	Q  Queen.
+	R  Rook.
+	S  Return to normal playing mode.
+	X  Change colour of pieces to be entered and side to move.
+	Z  Set both clocks to zero.
+ENTER	During move entry, selects square of departure or destination.
+SPACE	Switch between chessboard and message screen.
+↑↓←→	Move marker in direction indicated.
+1-9	Move marker to specified rank.
+CS+A-H	Move marker to specified file.
+
+
+© 1986 Intelligent Chess Software Ltd. All rights reserved.
+Unauthorised copying, lending, broadcasting or resale by any means strictly prohibited.
+Alligata Software Ltd., 10range Street, Sheffield S14DW.Tel: (0742) 755796
