@@ -1375,12 +1375,12 @@ curiy ;for debugger
 _IZ     DW 0
 _R      DB 0
 _I      DB 0
+_fd     DB 0;#10 ;с точки зрения эмулимой проги
+_dffd   db 0
 
 iff1    DB 0
 iff2    DB 0
 immode  DB 0 ;#18=IM2, иначе IM1
-_fd     DB 0;#10 ;с точки зрения эмулимой проги
-_dffd   db 0
 _logicpg0000 db 0 ;TODO
 _logicpg4000 db 0
 _logicpg8000 db 0

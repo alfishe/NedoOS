@@ -1,6 +1,6 @@
 DEBUGGER_MEMLINES=24
 DEBUGGER_DISASMLINES=24
-DEBUGGER_REGSLINES=13
+DEBUGGER_REGSLINES=14;13
 DEBUGGER_REGSY=0
 DEBUGGER_REGSX=0
 DEBUGGER_FLAGSY=DEBUGGER_REGSY+DEBUGGER_REGSLINES
@@ -97,9 +97,14 @@ DebuggerPgDown
         call Debugger_putcuraddr16_hl
         jp Debugger_Redraw
 
+DebuggerEnter_regs ;for change #fd
+        call Debugger_set7ffd
+        jp Debugger_Redraw
+
 DebuggerEnter
         ld a,(debugger_curtab)
         dec a
+       jp m,DebuggerEnter_regs
         ret nz
         call Debugger_getcurxypos_de
         ld a,e
@@ -226,6 +231,7 @@ Debugger_edit
         dec a
         jr z,Debugger_edit_disasm
         jp p,Debugger_edit_mem
+;Debugger_edit_regs
         ld hl,curregs
         ld a,d
         add a,a
@@ -642,6 +648,7 @@ tregs
         db "ix:"
         db "iy:"
         db "ir:"
+        db "FD:"
         db 0
         
 ;tdebugger
