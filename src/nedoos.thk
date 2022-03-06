@@ -35,6 +35,15 @@ perl
 
 
 
+[17:02] alone_coder: is PCL5 still supported in hp printers?
+[17:02] SevenFFF: Yes it is
+[17:03] ZXGuesser: only in high end models possibly
+[17:03] ZXGuesser: I've not looked at HP for a while since they went insane
+[17:04] SevenFFF: In all the major vendors. And jet direct printing too. It's just telnet to port 9100, send the text, and close the connection 
+[17:04] ZXGuesser: but getting PCL etc in my new brother pushed me up to the next price tier
+[17:04] SevenFFF: My bog standard $70 brother laser has PCL5 and jetdirect
+
+
 
 вставляй пустой отформатированный диск в nemo (divide)
 заходи в E:/

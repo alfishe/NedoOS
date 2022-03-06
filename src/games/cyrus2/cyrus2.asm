@@ -1,6 +1,8 @@
 	device zxspectrum128
         include "../../_sdk/sys_h.asm"
 
+INTSTACK=0x4000
+
 ROM_START	equ	0
 
 SCREEN		equ	#4000
@@ -62,6 +64,8 @@ begin
 
         YIELD
 
+
+        call swapimer
         
         ld sp,0x8000
         ld iy,23610
@@ -74,6 +78,10 @@ pal
         dw 0xffff,0xfefe,0xfdfd,0xfcfc,0xefef,0xeeee,0x6d6d,0xecec
         dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c
 
+keymatrix
+        ds 8,0xff
+
+        include "int.asm"
         include "rst38.asm"
 rst10
         push af
@@ -170,7 +178,7 @@ font
 scr
         incbin "CyrusII.scr"
 
-		org	#637c
+		ds 0x637c-$
 		
 unk_637C:	ds 1			; DATA XREF: sub_A262+4
 txt_buf_6:	ds 6			; DATA XREF: sub_9FB2+33
@@ -190,7 +198,7 @@ unk_63BF:	ds 65			; DATA XREF: sub_8C20+1A0F
 
 
 
-		org	#6400
+		ds 0x6400-$
 SCR_BUF_6400:	ds	#1b00		; up to 7EFF
 
 		; 7F00..7FFF free
@@ -199,7 +207,7 @@ SCR_BUF_6400:	ds	#1b00		; up to 7EFF
 
 
 
-		org	#8000
+		ds 0x8000-$
 START_POINT:
 
 ; FUNCTION CHUNK AT 8067 SIZE 00000033 BYTES
@@ -223,8 +231,8 @@ loc_8032:
 		inc	hl
 		ld	(hl), INT_PROC/256
 		ld	a, INT_VEC/256
-		ld	i, a
-		im	2
+		ds 2 ;ld	i, a
+		ds 2 ;im	2
 		jp	loc_8067
 
 
@@ -11730,7 +11738,7 @@ loc_B9F7:				; CODE XREF: sub_B976+61
 
 
         align 256
-		;must be 256-aligned
+		;must be 256-aligned ;какие-то константы для оценки позиции?
 tbl_BA00:	db    0,   1,   1,  #D,   3,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1
 		db    5,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1
 		db    5,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1
@@ -13392,18 +13400,22 @@ sub_C3A1:				; CODE XREF: sub_BC00+18D
 
 
 ; =============== S U B	R O U T	I N E =======================================
-
+;a=0..15 (реально 9,5,3)? попадёт в max?
+;l=? попадёт в индекс таблицы для вычитания
+;c=? попадёт в индекс таблицы для сложения
+;b=?
+;h=?
+;out: hl в том же формате, что bc
 
 sub_C3A3:				; CODE XREF: sub_BC00+F2
 					; sub_BC00+108 ...
 
 ; FUNCTION CHUNK AT C36E SIZE 00000033 BYTES
 
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, l
 		or	a
 		jr	z, loc_C389
-
 
 loc_C3A8:				; CODE XREF: sub_C3A3-B sub_C3A3-5
 		exx
@@ -13413,28 +13425,23 @@ loc_C3A8:				; CODE XREF: sub_C3A3-B sub_C3A3-5
 		or	a
 		jr	z, loc_C36E
 
-
 loc_C3AF:				; CODE XREF: sub_C3A3-24 sub_C3A3-1D
 		exx
 		ld	c, a
-		ex	af, af'
-		ld	d, a
-		ld	e, #FF
-		ld	h, tbl_BA00/256
-
+		ex	af, af' ;'
+		ld	d, a ;max?
+		ld	e, #FF ;min?
+		ld	h, tbl_BA00/256 ;какие-то константы для оценки позиции?
 
 loc_C3B7:				; CODE XREF: sub_C3A3+36 sub_C3A3+49 ...
 		ld	l, b
 		sub	(hl)
 		cp	e
-		jp	m, loc_C3C2
-
+		jp	m, loc_C3C2 ;value<max?
 		cp	d
-		jp	p, loc_C420
-
-		ld	e, a
-
-
+		jp	p, loc_C420 ;value>min?
+;max<=value<=min???
+		ld	e, a ;new max?
 loc_C3C2:				; CODE XREF: sub_C3A3+17
 		inc	h		; tbl_BB00
 		ld	b, (hl)
@@ -13442,20 +13449,16 @@ loc_C3C2:				; CODE XREF: sub_C3A3+17
 		dec	b
 		jr	z, loc_C3FD
 
-
 loc_C3C8:				; CODE XREF: sub_C3A3+6A sub_C3A3+79
 		dec	h
 		ld	l, c
 		add	a, (hl)
 		cp	d
-		jp	p, loc_C3D4
-
+		jp	p, loc_C3D4 ;value>min?
 		cp	e
-		jp	m, loc_C42A
-
-		ld	d, a
-
-
+		jp	m, loc_C42A ;value<max?
+;max<=value<=min???
+		ld	d, a ;new min?
 loc_C3D4:				; CODE XREF: sub_C3A3+29
 		inc	h
 		ld	c, (hl)
@@ -13465,8 +13468,8 @@ loc_C3D4:				; CODE XREF: sub_C3A3+29
 		jp	nz, loc_C3B7
 
 		exx
-		ex	af, af'
-		ld	a, b
+		ex	af, af' ;'
+		ld	a, b ;изначально передано в процедуру в b
 		and	#FC ; 'ь'
 		jr	z, loc_C3EF
 
@@ -13477,7 +13480,7 @@ loc_C3D4:				; CODE XREF: sub_C3A3+29
 		ld	a, d
 		exx
 		ld	c, a
-		ex	af, af'
+		ex	af, af' ;'
 		jp	loc_C3B7
 
 ; ---------------------------------------------------------------------------
@@ -14811,7 +14814,7 @@ end
 
 		; below is only data memory (tables and variables), zeroed at start
 
-		org	#D000
+		ds 0xD000-$
 
 BRD_88_0:	ds 8		; DATA XREF: START_POINT+6B
 					; sub_8C20-71D ...
@@ -15244,6 +15247,7 @@ word_D1BC:	dw 0			; DATA XREF: sub_BC00+170
 					; sub_BC00:loc_BD7C
 		db    0
 		db    0
+;block 0
 word_D1C0:	dw 0			; DATA XREF: sub_BC00+65
 					; sub_BC00+18A
 word_D1C2:	dw 0			; DATA XREF: sub_BC00+17F
@@ -15252,6 +15256,7 @@ word_D1C4:	dw 0			; DATA XREF: sub_BC00+186
 					; sub_BC00:loc_BD93
 		db    0
 		db    0
+;block 1
 word_D1C8:	dw 0			; DATA XREF: sub_BC00+6D
 					; sub_BC00+1A1
 word_D1CA:	dw 0			; DATA XREF: sub_BC00+196
@@ -15260,6 +15265,7 @@ word_D1CC:	dw 0			; DATA XREF: sub_BC00+19D
 					; sub_BC00:loc_BDAA
 		db    0
 		db    0
+;block 2
 word_D1D0:	dw 0			; DATA XREF: sub_BC00+75
 					; sub_BC00+1B8
 word_D1D2:	dw 0			; DATA XREF: sub_BC00+1AD
@@ -15268,6 +15274,7 @@ word_D1D4:	dw 0			; DATA XREF: sub_BC00+1B4
 					; sub_BC00:loc_BDC1
 		db    0
 		db    0
+;block 3
 word_D1D8:	dw 0			; DATA XREF: sub_BC00+7D
 					; sub_BC00+1CF
 word_D1DA:	dw 0			; DATA XREF: sub_BC00+1C4
@@ -15276,6 +15283,7 @@ word_D1DC:	dw 0			; DATA XREF: sub_BC00+1CB
 					; sub_BC00:loc_BDD8
 		db    0
 		db    0
+;block 4
 word_D1E0:	dw 0			; DATA XREF: sub_BC00+85
 					; sub_BC00+1E6
 word_D1E2:	dw 0			; DATA XREF: sub_BC00+1DB
@@ -15284,6 +15292,7 @@ word_D1E4:	dw 0			; DATA XREF: sub_BC00+1E2
 					; sub_BC00:loc_BDEF
 		db    0
 		db    0
+;block 5
 word_D1E8:	dw 0			; DATA XREF: sub_BC00+8D
 					; sub_BC00+1FD
 word_D1EA:	dw 0			; DATA XREF: sub_BC00+1F2
@@ -15292,6 +15301,7 @@ word_D1EC:	dw 0			; DATA XREF: sub_BC00+1F9
 					; sub_BC00:loc_BE06
 		db    0
 		db    0
+;block 6
 word_D1F0:	dw 0			; DATA XREF: sub_BC00+95
 					; sub_BC00+214
 word_D1F2:	dw 0			; DATA XREF: sub_BC00+209
@@ -15300,6 +15310,7 @@ word_D1F4:	dw 0			; DATA XREF: sub_BC00+210
 					; sub_BC00:loc_BE1D
 		db    0
 		db    0
+;block 7
 word_D1F8:	dw 0			; DATA XREF: sub_BC00+9D
 					; sub_BC00+22B
 word_D1FA:	dw 0			; DATA XREF: sub_BC00+220
@@ -15308,6 +15319,7 @@ word_D1FC:	dw 0			; DATA XREF: sub_BC00+227
 					; sub_BC00:loc_BE34
 		db    0
 		db    0
+
 array_D200:	db    0,   0,	0,   0,	  0,   0,   0,	 0 ; DATA XREF:	sub_875B+4
 					; sub_875B+11	...
 		ds 1			; still
@@ -15390,7 +15402,7 @@ byte_D25C:	ds #A			; DATA XREF: sub_B2E2
 
 
 
-		org	#D300
+		ds 0xD300-$
 
 byte_D300:	ds 1			; DATA XREF: sub_8C20-541
 					; sub_8C20-1D1
@@ -15407,12 +15419,12 @@ stk_1bvalue:	ds 1			; DATA XREF: START_POINT+94
 
 
 
-		org	#D800
+		ds 0xD800-$
 		;stack is upwards
 RAM_END_D800:	    			; DATA XREF: START_POINT:loc_8067
 					; START_POINT+70 ...
 		    
-		org	#D803
+		ds 0xD803-$
 tbl_D803:	    			; DATA XREF: sub_8C20:loc_8365
 					; sub_8446 ...
 					; some 3byte structs, #FF -- end mark
@@ -15421,12 +15433,12 @@ tbl_D803:	    			; DATA XREF: sub_8C20:loc_8365
 
 
 
-		org	#F000
+		ds 0xF000-$
 unk_F000:	    			; DATA XREF: sub_8446+3 sub_92A0 ...
 			
 
 
-		org	#F300
+		ds 0xF300-$
 
 		ds 1
 
@@ -15445,7 +15457,7 @@ save_ERRSP:	ds 2			; DATA XREF: RAM:803E
 
 
 
-		org	#FEFF
+		ds 0xFEFF-$
 INT_VEC:	ds 2
 
 
