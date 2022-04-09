@@ -171,11 +171,15 @@ trdos_searchnext_basq
         ld (de),a
         inc de
         ld (de),a
+        ld de,fcb2+FCB_FATTRIB
+        ld (de),a
         ld de,fcb2+FCB_FTIME
+       ld a,l ;file pos in sector
+       and 0xf0
         ld (de),a
         inc de
-        ld (de),a
-        ld de,fcb2+FCB_FATTRIB
+       ld a,h
+       sub trdos_catbuf/256 ;sector
         ld (de),a
         ld bc,16-11-2
         add hl,bc
@@ -271,6 +275,21 @@ trdos_getfilesizeHSB=$+1
         xor a
         ret
 
+trdos_getfiletime
+;de=path/file ASCIIZ string
+;out: ix=date, hl=time (counted from file index)
+        ld c,9 ;c=FILENAMESZ
+        call findfile
+;carry = off, a = 0, de = DOSBUF after filename, b = 8-sector
+        ld a,e
+       and 0xf0
+        ld l,a
+        ld a,8
+        sub b
+        ld h,a
+        ld ix,0
+        ret
+
 trdos_seekhandle_bof
 ;b=file handle
         ld h,b
@@ -316,7 +335,6 @@ trdos_seekhandle
         ld c,9 ;c=FILENAMESZ
         call findfile
         jr nz,trdos_seekhandle_q
-        ;jr $
 ;пройти блоки файла, суммировать totalsize+=blocksize и остановиться на том, где addrm1 < totalsize+blocksize ((addrm1-totalsize) < blocksize)
 ;hl,de=after filename
 trdos_seekhandle_0

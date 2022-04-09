@@ -238,7 +238,7 @@ sorter2_add0
 sorter1
 	
 	;ld a,(ix+PANEL.pg)
-	;SETPG32KHIGH
+	;SETPGC000
 	
 	ld c,(ix+PANEL.files)
 	ld b,(ix+PANEL.files+1)
@@ -296,7 +296,7 @@ findmin0
         
 	push de ;de=current min (pointer)
         call getfilepointer_de_fromhl
-	 SETPG32KLOW ;а то сейчас по current min включается PG32KHIGH
+	 SETPG8000 ;а то сейчас по current min включается PGC000
 	 res 6,d
         ex de,hl ;hl=FCB
         ex (sp),hl ;hl=current min (pointer)

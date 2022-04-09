@@ -1,7 +1,8 @@
 @echo off
 echo build term
 if "%settedpath%"=="" call ../_sdk/setpath.bat
-sjasmplus --nologo --msg=war term.asm
+sjasmplus --nologo --msg=war -DTEXTMODE=0 term.asm
+sjasmplus --nologo --msg=war -DTEXTMODE=1 term.asm
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (

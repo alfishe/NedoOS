@@ -514,7 +514,7 @@ editcmd
 editcmd0
         call fixscroll_prcmd
         call cmdcalccurxy
-        SETXY_
+        SETX_;SETXY_
         ;ld e,CURSORCOLOR;#38
         ;OS_PRATTR ;нарисовать курсор
         call yieldgetkeyloop ;YIELDGETKEYLOOP
@@ -694,7 +694,7 @@ editcmd_noscrollright
         ld de,_COLOR
         SETCOLOR_
         ld de,+(txtscrhgt-1)*256+0
-        SETXY_
+        SETX_;SETXY_
         ;ld a,0x0d
         ;PRCHAR_
         ;ld hl,cmdprompt

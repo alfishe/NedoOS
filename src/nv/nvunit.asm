@@ -270,7 +270,7 @@ gotofilepointer_numberde
 getfilepointer_de_fromhl
 ;out: hl=next pointer
 	ld a,(ix+PANEL.poipg)
-	SETPG32KHIGH
+	SETPGC000
 	ld a,(hl)
 	and 0xe0
 	ld e,a
@@ -292,7 +292,7 @@ getfilepointer_de_fromhl
 putfilepointer_de_tohl
 ;out: hl=next pointer
 	ld a,(ix+PANEL.poipg)
-	SETPG32KHIGH
+	SETPGC000
 	ld (hl),e
 	inc hl
 	ld (hl),d
@@ -302,7 +302,7 @@ putfilepointer_de_tohl
 swapfilepointers_hl_de
 ;out: hl=next pointer
 	ld a,(ix+PANEL.poipg)
-	SETPG32KHIGH
+	SETPGC000
 	ld a,(de)
 	ldi
 	dec hl
@@ -326,8 +326,10 @@ isthisdotdir_hl
 drawpanelfilesandsize
 ;ix=panel
         call nv_getpanelxy_de
-        ld a,d
-        add a,CONST_HGT_TABLE+1
+        ;ld a,CONST_HGT_TABLE+1
+        ld a,(filesperpanel)
+        inc a
+        add a,d
         ld d,a
         inc e
         inc e
@@ -404,7 +406,7 @@ getfcbaddrundercursor
 getfcbaddrunderhl
 	ld ix,(curpanel)
 	;ld a,(ix+PANEL.pg)
-	;SETPG32KHIGH
+	;SETPGC000
         ex de,hl
         call gotofilepointer_numberde ;hl=file pointer
 	;ld a,(hl)
@@ -459,35 +461,35 @@ changedir_fromfcb
         if 1==0
 readfile_pages_dehl
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         ld a,+(0xc000+PROGSTART)/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,e
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc000/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,h
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc000/256
         call cmd_loadpage
         or a
         ret nz
         
         ld a,l
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc000/256
         jp cmd_loadpage
         endif
 
 readfile_pages_dehl
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc100/256
         call cmd_loadpage
         ret nz
@@ -499,7 +501,7 @@ readfile_pages_dehl
         ret nz
         ld a,l
 cmd_loadfullpage
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc000/256
 cmd_loadpage
 ;out: a=error, bc=bytes read
@@ -574,7 +576,8 @@ prtable
 	ld hl,prbeginstroka
 	call prtableline
         push ix
-	ld b,CONST_HGT_TABLE
+	;ld b,CONST_HGT_TABLE
+        ld bc,(filesperpanel-1) ;b
 prtable0
 	inc d 
 	;ld hl,prmidstroka
@@ -678,27 +681,29 @@ nv_setdirpos_zero
         ld hl,0
         jr nv_setdirpos_hl
 
-count_filecursor_y
+count_filecursor_logy
 ;out: a=y, de=PANEL.xy
-        call nv_getpanelxy_de
+        ;call nv_getpanelxy_de
 	ld a,(ix+PANEL.dirpos)
 	sub (ix+PANEL.dirscroll)
-	add a,d;(ix+PANEL.xy+1) ;y
+	;add a,d;(ix+PANEL.xy+1) ;y
 	ret
 
 setfilecursorxy
 	;push af
 	ld ix,(curpanel)
-	call count_filecursor_y
+        call nv_getpanelxy_de
+	call count_filecursor_logy
+        add a,d
 	ld d,a
 	;ld e,(ix+PANEL.xy)
 	inc d
 	inc e
 	;pop af
 	;push af
-	call nv_setxy
+	jp nv_setxy
 	;pop af ;color
-	ret
+	;ret
 
 prfilecursor_reprintfile
 ;hl=color
@@ -892,7 +897,7 @@ winbeginstroka_wid=$
 	db 0xbb;'¿'
 	db 1
 	db 0
-	
+
 winmidstroka
 	db 0xba;'³'
 	db 1
@@ -1002,11 +1007,11 @@ nv_copyscreen0to1
 	push hl ;1 screen
 	push de ;0 screen
 	ld a,l
-	SETPG32KHIGH
+	SETPGC000
 	pop de
 	push de
 	ld a,e
-	SETPG32KLOW
+	SETPG8000
 	ld bc,0x4000
 	ld hl,0x8000
 	ld de,0xC000
@@ -1015,10 +1020,10 @@ nv_copyscreen0to1
 	pop hl
 	push de
 	ld a,h
-	SETPG32KHIGH
+	SETPGC000
 	pop de
 	ld a,d
-	SETPG32KLOW
+	SETPG8000
 	ld bc,0x4000
 	ld hl,0x8000
 	ld de,0xC000
@@ -1026,10 +1031,10 @@ nv_copyscreen0to1
 	pop hl
 	push hl
 	ld a,l
-	SETPG32KHIGH
+	SETPGC000
 	pop hl
 	ld a,h
-	SETPG32KLOW
+	SETPG8000
 	ret
 
 nv_copyscreen1to0
@@ -1047,11 +1052,11 @@ nv_copyscreen1to0
 	push hl ;1 screen
 	push de ;0 screen
 	ld a,l
-	SETPG32KHIGH
+	SETPGC000
 	pop de
 	push de
 	ld a,e
-	SETPG32KLOW
+	SETPG8000
 	ld bc,0x4000
 	ld hl,0xc000
 	ld de,0x8000
@@ -1060,10 +1065,10 @@ nv_copyscreen1to0
 	pop hl
 	push de
 	ld a,h
-	SETPG32KHIGH
+	SETPGC000
 	pop de
 	ld a,d
-	SETPG32KLOW
+	SETPG8000
 	ld bc,0x4000
 	ld hl,0xc000
 	ld de,0x8000
@@ -1071,10 +1076,10 @@ nv_copyscreen1to0
 	pop hl
 	push hl
 	ld a,l
-	SETPG32KHIGH
+	SETPGC000
 	pop hl
 	ld a,h
-	SETPG32KLOW
+	SETPG8000
 	ret
         
 ;sendchar

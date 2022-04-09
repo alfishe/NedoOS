@@ -493,6 +493,7 @@ invhorline0
         pop bc
         ret
         
+       if 0
         SHAPESPROC shapes_colortocolormask
 ;a=color = %....3210
         push bc
@@ -518,6 +519,7 @@ invhorline0
         rra
         pop bc
         ret
+       endif
 
         SHAPESPROC shapes_fillbox
 ;b=y

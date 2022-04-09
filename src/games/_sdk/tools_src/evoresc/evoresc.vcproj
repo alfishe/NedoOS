@@ -41,10 +41,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				WholeProgramOptimization="false"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
+				BufferSecurityCheck="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"

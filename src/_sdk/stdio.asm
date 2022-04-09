@@ -1,5 +1,5 @@
 ;EXPORT:
-;initstdio
+;initstdio - init stdinhandle, stdouthandle, stdhgt
 ;receivechar (macro GETCHAR_) - read char from stdin (out: A=char, CY=error)
 ;receivechars - read chars from stdin (de=buf, hl=size, out: bc=bytes actually read (if EOF), CY=error(EOF))
 ;receivekey - read one byte of key from stdin (out: A=keylang, C=keynolang(???TODO), CY=error)
@@ -18,14 +18,16 @@
 ;setstdinhandle - in: A=handle
 ;clearrestofline - clear line after cursor
 ;clearrestofline_crlf - clear line after cursor, go to next line
-;clearterm - print 25 lines of spaces except one
+;clearterm - print <stdiohgt> lines of spaces except one space, set cursor to 0,0
 
 STDINBUF_SZ=255
 
 initstdio
-        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
-		ld c,CMD_GETSTDINOUT
-		call BDOS
+        ;OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr, l=hgt of stdout
+        ld c,CMD_GETSTDINOUT
+        call BDOS
+        ld a,l
+        ld (stdiohgt),a
         ld a,e
         ld (stdinhandle),a
         ld a,d
@@ -39,15 +41,15 @@ setstdinhandle
 setstdinout
         ;OS_GETMAINPAGES ;out: dehl=номера страниц в 0000,4000,8000,c000, c=flags, b=id
         ld c,CMD_GETMAINPAGES
-		call BDOS
-		ld a,(stdinhandle)
+        call BDOS
+        ld a,(stdinhandle)
         ld e,a
         ld a,(stdouthandle)
         ld d,a
 ;b=id, e=stdin, d=stdout, h=stderr (TODO)
         ;OS_SETSTDINOUT
-		ld c,CMD_SETSTDINOUT
-		call BDOS
+        ld c,CMD_SETSTDINOUT
+        call BDOS
         ret
 
 getkey
@@ -251,7 +253,9 @@ clearrestofline
 clearterm
         ld a,0x0d ;carriage return
         call sendchar
-        ld b,24
+stdiohgt=$+1
+        ld b,25
+        dec b
 clearterm0
         push bc
         ;ld de,clearterm_data
@@ -266,8 +270,6 @@ clearterm0
         call clearrestofline
         ld de,0
         jp setxy
-;clearterm_data
-;        DEFB "                                                                                "
 
 clearrestofline_crlf
         ld de,tclearrestofline_crlf

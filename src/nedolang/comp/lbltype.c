@@ -42,6 +42,7 @@ EXPORT PROC dellbl() //для undef
 {
 VAR PBYTE plbl; //метка в таблице заканчивается нулём
 VAR UINT plbl_idx;
+    //errstr("dellbl:"); errstr(_name); enderr();
   _lblhash = (BYTE)hash((PBYTE)_name);
   plbl_idx = _lblshift[_lblhash];
   WHILE (plbl_idx != _LBLBUFEOF) { //пока цепочка меток не закончилась
@@ -55,9 +56,9 @@ VAR UINT plbl_idx;
   };
 }
 
-EXPORT FUNC UINT gettypename(PCHAR s) //взять название типа структуры в joined (сразу после lbltype)
+EXPORT FUNC UINT gettypename(PCHAR s) //взять название типа структуры в s (сразу после lbltype)
 {
-RETURN strcopy((PCHAR)&_lbls[_typeaddr], (UINT)*(PBYTE)&_lbls[_typeaddr-1], s); //в C индексы, в асме указатели (лезут в UINT)
+RETURN strcopy((PCHAR)&_lbls[_typeaddr], (UINT)*(PBYTE)&_lbls[_typeaddr-1], s); //from, n, to //в C индексы, в асме указатели (лезут в UINT)
 }
 
 EXPORT PROC addlbl(TYPE t, BOOL isloc, UINT varsz) //(_name)

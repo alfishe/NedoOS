@@ -1,8 +1,8 @@
-hexeditor_XYTOP=0x0000
-hexeditor_HGT=txtscrhgt-1
-hexeditor_WID=80
+hexeditor_XYTOP=0x0000 ;может сдвинуться из-за меню
+;hexeditor_HGT=txtscrhgt-1 ;может уменьшиться из-за меню
+hexeditor_WID=80 ;может уменьшиться из-за скроллбара
 hexeditor_MAXX=15
-hexeditor_PAGESIZE=16*hexeditor_HGT
+;hexeditor_PAGESIZE=16*hexeditor_HGT
 
        if PRSTDIO
 _hexeditor_CURSORCOLOR=0x0700;0x38
@@ -297,7 +297,8 @@ hexeditor_prpage
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)
         ld de,hexeditor_XYTOP
-        ld b,hexeditor_HGT
+        ;ld b,hexeditor_HGT
+        ld bc,(hexedhgt-1) ;b
 hexeditor_prpage0
         push bc
         push de
@@ -482,7 +483,9 @@ hexeditor_pgup
         or a
         ld a,c
         jr nz,hexeditor_pgupq
-        ld b,hexeditor_HGT-1
+        ;ld b,hexeditor_HGT-1
+        ld bc,(hexedhgt-1) ;b
+        dec b
 hexeditor_pgup0
         push bc
         call hexeditor_prevline
@@ -501,14 +504,18 @@ hexeditor_pgdown
         call nvhex_calccuraddrline 
         ld de,(hexcuraddrxy)
         ld c,a
-        ld a,d
-        cp hexeditor_HGT-1
+        ;ld a,hexeditor_HGT-1
+        ld a,(hexedhgt)
+        dec a
+        cp d
         ld a,c
         jr z,hexeditor_pgdown_do
 hexeditor_pgdown0
         ld c,a
-        ld a,d
-        cp hexeditor_HGT-1
+        ;ld a,hexeditor_HGT-1
+        ld a,(hexedhgt)
+        dec a
+        cp d
         ld a,c
         jr z,hexeditor_pgdownq
         call nvhex_calcnextcorrectxy
@@ -527,8 +534,10 @@ hexeditor_pgdown_do
         ld d,0
 hexeditor_pgdown_do0
         ld c,a
-        ld a,d
-        cp hexeditor_HGT-1
+        ;ld a,hexeditor_HGT-1
+        ld a,(hexedhgt)
+        dec a
+        cp d
         ld a,c
         jr z,hexeditor_pgdown_doq
         call nvhex_calcnextcorrectxy
@@ -550,7 +559,9 @@ hexeditor_up
         ret
 hexeditor_up_scroll        
         ld de,hexeditor_XYTOP
-        ld hl,256*hexeditor_HGT + hexeditor_WID
+        ;ld hl,256*hexeditor_HGT + hexeditor_WID
+        ld hl,(hexedhgt-1) ;h
+        ld l,hexeditor_WID
        if PRSTDIO
         call scrolldown
        else
@@ -571,8 +582,10 @@ hexeditor_down
         call nvhex_calcnextcorrectxy
         ret nc
         ld c,a
-        ld a,d
-        cp hexeditor_HGT
+        ;ld a,hexeditor_HGT;-1
+        ld a,(hexedhgt)
+        ;dec a
+        cp d
         ld a,c
         jr z,hexeditor_down_scroll
         ld (hexcuraddrxy),de
@@ -588,13 +601,23 @@ hexeditor_down_scroll
         ld a,e
         ld (hexcuraddrx),a
         ld de,hexeditor_XYTOP
-        ld hl,256*hexeditor_HGT + hexeditor_WID
+        ;ld hl,256*hexeditor_HGT + hexeditor_WID
+        ld hl,(hexedhgt-1) ;h
+        ld l,hexeditor_WID
+       push de
+       push hl
        if PRSTDIO
         call scrollup
        else
         OS_SCROLLUP
        endif
-        ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
+        ;ld de,hexeditor_XYTOP+((hexeditor_HGT-1)*256)
+       pop hl
+       pop de
+        dec h
+        ld l,0
+        add hl,de
+        ex de,hl ;de=hexeditor_XYTOP+((hexeditor_HGT-1)*256)
         call nv_setxy ;keeps de,hl,ix
         ld hl,(hexaddrline)
         ld a,(hexaddrlineHSB)

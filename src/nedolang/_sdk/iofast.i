@@ -242,48 +242,24 @@ flushdesc.
 	pop hl ;poi to FCB
 	ret
 
-;FUNC BOOL comparedesc FORWARD(PCHAR filename, PBYTE desc);
-comparedesc
-comparedesc.A.=$+1 ;filename
-	ld hl,0
-	call findlastslash.
-;de = after last slash
-comparedesc.B.=$+1 ;desc
-	ld hl,0
-;compare until '.' or '\0' or 8 loops
-	ld b,8
-comparedesc0.
-	ld a,[de] ;filename
-	;or a
-	;jr z,comparedesctrue. ;filename ended without ext (descriptor not ended)
-	inc de
-	cp '.'
-	jr z,comparedescdot.
-	cp [hl] ;descriptor
-	jr nz,comparedescfalse.
-	inc hl
-	djnz comparedesc0.
-	ld a,[de] ;filename
-	inc de
-	cp '.'
-	jr z,comparedescdot8. ;filenam8.ext
-	;filenam8 (without ext)
-	ld a,[hl]
-	cp ' '
-	jr nz,comparedescfalse.
-comparedesctrue.
-	ld a,0xff ;TRUE
-	ret
-comparedescdot.
-	inc hl
-	djnz $-1 ;hl = descriptor ext
-comparedescdot8.
-	ld a,[de] ;filename ext
-	cp [hl] ;descriptor ext
-	jr z,comparedesctrue.
-comparedescfalse.
-	xor a ;FALSE
-	ret
+;FUNC LONG getfiletime FORWARD(PCHAR filename);
+getfiletime
+	EXPORT getfiletime
+getfiletime.A.=$+1
+	EXPORT getfiletime.A.
+        ld de,0
+        ld c,9 ;c=FILENAMESZ
+        call findfile
+;carry = off, a = 0, de = DOSBUF after filename, b = 8-sector
+        ld a,e
+       and 0xf0
+        ld e,a
+        ld a,8
+        sub b
+        ld d,a
+        ld hl,0
+;out: hlde=datetime
+        ret
 
 findfile
 ;find new block if exists

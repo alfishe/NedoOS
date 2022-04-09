@@ -239,3 +239,12 @@ CX = число модифицируемых регистров (1-256).
      0 - B
 По некоторым сведениям, эта функция разрушает содержимое регистров si, di, bp, sp, bx, ax. Так что при ее использовании следует соблюдать осторожность и в случае ошибок сохранять и затем восстанавливать упомянутые регистры
 Документация на PhoenixBios (rev 6) не описывает эту функцию. возможно, она не поддерживается
+
+
+https://ru.wikipedia.org/wiki/Program_Segment_Prefix
+
+http://neurofox.ru/help/dosmz
+
+https://www.old-games.ru/game/2304.html
+
+dosbox debugger https://www.vogons.org/viewtopic.php?f=39&t=3944

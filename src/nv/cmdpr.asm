@@ -205,9 +205,12 @@ cmdcalccurxy
         add a,(hl)
         ld hl,curcmdscroll ;сдвиг команды относительно экрана
         sub (hl)
-        ld e,a
         ;ld d,txtscrhgt-1
-        ld d,CMDLINEY
+        ;ld d,CMDLINEY
+        ld de,(scrhgt-1) ;d
+        dec d
+        dec d
+        ld e,a
         ret
 
 strlen
@@ -251,7 +254,11 @@ editcmd_noscrollright
         call nv_setcolor
        endif
         ;ld de,+(txtscrhgt-1)*256+0
-        ld de,CMDLINEY*256+0
+        ;ld de,CMDLINEY*256+0
+        ld de,(scrhgt-1) ;d
+        dec d
+        dec d
+        ld e,0
         call nv_setxy ;keeps de,hl,ix
         call cmdcalcpromptsz
         dec a
@@ -276,7 +283,7 @@ editcmd_noscrollright
         ;jp prtext
         jp clearrestofline
 
-tspaces
+tspaces ;for drawfilecursor_sizeb_colorhl
         ds txtscrwid-1,' '
         db 0
  

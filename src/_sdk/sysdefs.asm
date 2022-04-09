@@ -61,7 +61,7 @@ CMD_OPENDIR=0xcf ;de=path
 CMD_READDIR=0xd0 ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
 CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling ;hl=result
 CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
-CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr
+CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr, l=hgt of stdout
 CMD_PLAYCOVOX=0xd4 ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
 CMD_SETMUSIC=0xd5 ;hl=muzaddr (0x4000..0x7fff), a=muzpg
 CMD_READSECTORS=0xd6 ;b=drive, de=buffer, ixhl=sector number, a=count ;out: a=error
@@ -143,6 +143,7 @@ FATTRIB_DIR=0x10 ;mask for FCB_FATTRIB
 ;Application flags:
 
 factive=0 ;0=zombie, 1=scheduled ;TODO есть сообщения: SET при добавлении сообщения, RES при взятии последнего сообщения
+fchildfinished=1 ;устанавливается при завершении дочернего процесса (чтобы в этом случае проскочить SETWAITING), сбрасывается по GETCHILDRESULT
 ;fcritical=4 (чтобы не портить hl)
 fgfx=5 ;app can take focus
 ;ffocus=6 ;app has focus (only one can)

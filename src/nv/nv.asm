@@ -46,14 +46,14 @@ catbuf_right=0xc000
 FILES_POINTERS_left=0xc000;0x3700
 FILES_POINTERS_right=0xc000;0x3b00
 
-txtscrhgt=25
+;txtscrhgt=25
 txtscrwid=80
-CMDLINEY=txtscrhgt-2
-CONST_HGT_TABLE=txtscrhgt-4
+;CMDLINEY=txtscrhgt-2
+;CONST_HGT_TABLE=txtscrhgt-4 ;число видимых файлов в панели
 PANELDIRCHARS37=37
 left_panel_xy=0x0000
 right_panel_xy=0x0028
-firstfiley=left_panel_xy/256 + 1
+;firstfiley=left_panel_xy/256 + 1
 PROGRESBARWINXY=0x0f16 ;0x0919 + 051f ;de=yx
 PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
 
@@ -120,7 +120,14 @@ cmd_begin
         ld sp,0x4000
        if PRSTDIO
         call initstdio
-        CLS_ ;print 25 lines of spaces except one
+        ld a,(stdiohgt)
+        ld (scrhgt),a
+        dec a
+        ld (nvviewhgt),a ;может потом уменьшиться из-за меню
+        ;ld (hexedhgt),a
+        sub 3
+        ld (filesperpanel),a
+        call clearterm ;print <stdiohgt> lines of spaces except one space, set cursor to 0,0
        else
         ld e,6 ;textmode
         OS_SETGFX
@@ -339,7 +346,10 @@ strnewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
 	ret
 
 printhint
-        ld de,+(txtscrhgt-1)*256
+        ;ld de,+(txtscrhgt-1)*256
+        ld de,(scrhgt-1) ;d
+        dec d
+        ld e,0
         call nv_setxy ;keeps de,hl,ix
         ld hl,thint
 prhint0
@@ -448,7 +458,9 @@ drawpanel_files
 	push bc ;dirscroll
 	or a
 	sbc hl,bc ;hl=number of files in panel - scroll in panel
-	ld bc,CONST_HGT_TABLE
+	;ld bc,CONST_HGT_TABLE
+        ld bc,(filesperpanel) ;c
+        ld b,0
 	call minhl_bc_tobc ;bc = min(CONST_HGT_TABLE, number of files in panel - scroll in panel)
 	pop de ;dirscroll
         call gotofilepointer_numberde ;hl=file pointer
@@ -480,7 +492,8 @@ prNfiles0
 	djnz prNfiles0
 premptyfiles
 ;c=files to show
-        ld a,CONST_HGT_TABLE
+        ;ld a,CONST_HGT_TABLE
+        ld a,(filesperpanel)
         sub c
         ret z
         push ix
@@ -577,7 +590,7 @@ prdirfile
        or a
        ret nz ;после вызова с выходом по стрелке - не печатаем
 ;hl=fcb
-        call getfcbfromhl
+        call getfcbfromhl ;copy to fcb buffer
         call colorfile ;de=color
 prdirfile_ix_decolor
         call nv_setcolor
@@ -589,7 +602,7 @@ prdirfile_ix_decolor
         call prdirfile_copyfn
         ;exx
         ld hl,(fcb+FCB_FSIZE+2)
-	exx
+        exx
         ld hl,(fcb+FCB_FSIZE)
         ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
@@ -706,7 +719,11 @@ nv_setcursor_zero
 
 nv_setcursor_hl
         call nv_setdirpos_hl
-	ld bc,CONST_HGT_TABLE*2/3;CONST_HGT_TABLE-1
+	;ld bc,CONST_HGT_TABLE*2/3;CONST_HGT_TABLE-1
+        ld a,(filesperpanel)
+        srl a
+        ld c,a
+        ld b,0
         xor a
         sbc hl,bc
         jr nc,$+4
@@ -1161,36 +1178,44 @@ editcmd_right
         ret
 
 editcmd_pageDown
-	call count_filecursor_y
-	cp CONST_HGT_TABLE-1+firstfiley -1 ;???
-        jr c,editcmd_pageDown_nolastvisible ;not last visible file
         call nv_getdirpos_hl
-	ld bc,CONST_HGT_TABLE
+	;ld bc,CONST_HGT_TABLE-1 ;чтобы возвращаться на то же место по pageUp
+        ld bc,(filesperpanel) ;c
+        dec c
+        ld b,0
         add hl,bc
+	;call count_filecursor_logy
+	;cp c;CONST_HGT_TABLE-1
+        ;jr c,editcmd_pageDown_nolastvisible ;not last visible file
 editcmd_pageDown_end_q        
         call cpfiles_setdirpos ;hl=dirpos
-	ld bc,CONST_HGT_TABLE-1
+	;ld bc,CONST_HGT_TABLE-1
+        ld bc,(filesperpanel) ;c
+        dec c
+        ld b,0
         xor a
         sbc hl,bc
         jr nc,$+4
         ld h,a
         ld l,a;0
         jr editcmd_pageUpq
-editcmd_pageDown_nolastvisible
-        call nv_getdirscroll_bc
-	ld hl,CONST_HGT_TABLE-1
-        add hl,bc ;last visible file
-        call cpfiles_setdirpos
-editcmd_clearkbddrawpanel
-	call drawpanel_files
-        jp clear_keyboardbuffer ;TODO почему не работает?
+;editcmd_pageDown_nolastvisible
+        ;call cpfiles_setdirpos
+        ;call nv_getdirscroll_bc
+	;ld hl,CONST_HGT_TABLE-1
+        ;add hl,bc ;last visible file
+        ;call cpfiles_setdirpos
+	;jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
 
 editcmd_pageUp
-        call count_filecursor_y
-        cp firstfiley
-        jr nc,editcmd_pageDown_nofirstvisible ;not first visible file
+        ;call count_filecursor_logy
+        ;or a;cp firstfiley
+        ;jr nz,editcmd_pageDown_nofirstvisible ;not first visible file
         call nv_getdirpos_hl
-	ld bc,CONST_HGT_TABLE-1
+	;ld bc,CONST_HGT_TABLE-1
+        ld bc,(filesperpanel) ;c
+        dec c
+        ld b,0
         xor a
         sbc hl,bc
         jr nc,$+4
@@ -1201,13 +1226,16 @@ editcmd_pageUpq
         ld b,h
         ld c,l
         call nv_setdirscroll_bc
-	jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
-editcmd_pageDown_nofirstvisible
-        call nv_getdirscroll_bc
-        ld h,b
-        ld l,c
-        call nv_setdirpos_hl
-	jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
+;editcmd_clearkbddrawpanel
+	call drawpanel_files
+        call editcmd_updownq
+        jp clear_keyboardbuffer ;TODO почему не работает?
+;editcmd_pageDown_nofirstvisible
+        ;call nv_getdirscroll_bc
+        ;ld h,b
+        ;ld l,c
+        ;call nv_setdirpos_hl
+	;jr editcmd_clearkbddrawpanel ;jp drawpanel_files      
 
 editcmd_End
         ld hl,-1 ;>=files
@@ -1229,28 +1257,48 @@ editcmd_up
         ret z ;first file
         dec hl
         call nv_setdirpos_hl
-	call count_filecursor_y
-	cp firstfiley-2;or a
-        ret nz ;not above first visible file
+	call count_filecursor_logy
+	inc a ;firstfiley-2;or a
+        jr nz,editcmd_updownq;ret nz ;not above first visible file
         call nv_getdirscroll_bc
 	dec bc
         call nv_setdirscroll_bc
-         push bc
+         ;push bc
         call nv_getpanelxy_de
         inc d
-        push de
-        ld hl,CONST_HGT_TABLE*256 + 40
+        ;push de
+        ;ld hl,CONST_HGT_TABLE*256 + 40
+        ld hl,(filesperpanel-1) ;h
+        ld l,40
        if PRSTDIO
         call scrolldown
        else
         OS_SCROLLDOWN
        endif
-        pop de
-        inc e
-        call nv_setxy ;keeps de,hl,ix
-	 pop hl ;file number
+        ;pop de
+editcmd_updownq
+        ;inc e
+        ;call nv_setxy ;keeps de,hl,ix
+         ;pop hl ;file number
+        call setfilecursorxy
+        call nv_getdirpos_hl
+       ;push hl
         call getfcbaddrunderhl
-	jp prdirfile
+        call prdirfile
+       ;pop hl
+       ret
+;TODO автоматически вносить имя файла в строку:
+        ;call getfcbaddrunderhl
+        ;call getfcbfromhl ;copy to fcb buffer
+        ld a,(fcb+FCB_EXTENTNUMBERLO)
+        SETPGC000
+        ld hl,(fcb+FCB_EXTENTNUMBERHI)
+        ld de,cmdbuf
+;TODO либо в конце, либо вместо последнего слова (в зависимости от флага)
+        ;call strcopy
+        ld bc,MAXCMDSZ
+        ldir
+        jp fixscroll_prcmd
 
 editcmd_down
          ld hl,controlloop_noprline
@@ -1263,33 +1311,41 @@ editcmd_down
 	add hl,bc
         ret z ;last file
         call nv_setdirpos_hl
-	call count_filecursor_y
-	cp CONST_HGT_TABLE-1+firstfiley
-        ret c ;not last visible file
+	call count_filecursor_logy
+	;cp CONST_HGT_TABLE;-1+firstfiley
+        ld hl,(filesperpanel) ;l
+        cp l
+        ;ret c ;not last visible file
+       jr c,editcmd_updownq;editcmd_down_noscroll
         call nv_getdirscroll_bc
 	inc bc
         call nv_setdirscroll_bc
-        ld hl,CONST_HGT_TABLE-1
-        add hl,bc
-        push hl
+        ;ld hl,CONST_HGT_TABLE-1
+        ;ld hl,(filesperpanel) ;l
+        ;ld h,0
+        ;add hl,bc
+         ;push hl
         call nv_getpanelxy_de
         inc d
-        push de
-        ld hl,CONST_HGT_TABLE*256 + 40
+        ;push de
+        ;ld hl,CONST_HGT_TABLE*256 + 40
+        ld hl,(filesperpanel-1) ;h
+        ld l,40
        if PRSTDIO
         call scrollup
        else
         OS_SCROLLUP
        endif
-        pop de
-        ld a,d
-        add a,CONST_HGT_TABLE-1
-        ld d,a
-        inc e
-        call nv_setxy ;keeps de,hl,ix
-	 pop hl ;file number
-        call getfcbaddrunderhl
-	jp prdirfile
+        ;pop de
+        ;ld a,CONST_HGT_TABLE-1
+        ;ld a,(filesperpanel)
+        ;dec a
+        ;add a,d
+        ;ld d,a
+        jr editcmd_updownq
+;editcmd_down_noscroll
+	;call setfilecursorxy
+        ;jr editcmd_updownqq
 
 editcmd_ss1
 	ld hl,comparefilename
@@ -1394,9 +1450,9 @@ loadandrun_waitpid
         call nv_setxy ;keeps de,hl,ix
         ld de,_COLOR
         SETCOLOR_
-        CLS_
-        ld de,0
-        call nv_setxy ;keeps de,hl,ix
+        ;CLS_
+        ;ld de,0
+        ;call nv_setxy ;keeps de,hl,ix
        else
 	call nv_copyscreen1to0
         ld e,-1
@@ -2190,7 +2246,7 @@ editcmd_5_0
         call prwindow_edit ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
 
-        ld hl,editcmd_reprintall
+        ld hl,editcmd_reprintall_keepcursor;editcmd_reprintall
         push hl ;don't change!
 
         ld hl,0
@@ -3017,6 +3073,24 @@ hobetarunner_jp=$+1
 	jp 0x6000
         ent
 hobetarunner_sz=$-washobetarunner
+
+       if PRSTDIO
+scrhgt
+        db 33
+nvviewhgt
+hexedhgt
+        db 33-1 ;может потом уменьшиться из-за меню
+filesperpanel
+        db 33-4
+       else
+scrhgt
+        db 25
+nvviewhgt
+hexedhgt
+        db 25-1 ;может потом уменьшиться из-за меню
+filesperpanel
+        db 25-4
+       endif
 
 wordfiles
         db "1234567890 files ";,0

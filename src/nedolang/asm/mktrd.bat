@@ -1,5 +1,6 @@
 nedotrd test.trd -n
 nedotrd test.trd -ah ..\batch\batch.$b
+nedotrd test.trd -ah ..\batch\ace.$b
 nedotrd test.trd -s 64000 -ac ..\batch\batch
 nedotrd test.trd -a ..\asm\compile.bat
 nedotrd test.trd -a ..\comp\nedolang
@@ -20,5 +21,7 @@ nedotrd test.trd -a ..\asm\asmj_z80.c
 nedotrd test.trd -a ..\asm\asm.s
 nedotrd test.trd -a ..\_sdk\lib.i
 nedotrd test.trd -a ..\_sdk\str.i
+nedotrd test.trd -a ..\_sdk\io.i
 nedotrd test.trd -a ..\_sdk\iofast.i
 nedotrd test.trd -a ..\_sdk\io.c
+nedotrd test.trd -a ..\asm\findlbl.i

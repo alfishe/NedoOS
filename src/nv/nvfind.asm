@@ -2,7 +2,7 @@ MAXSEARCHFILENAME=64
 MAXSEARCHTEXT=64
 
 FOUNDFILESFNSZ=80
-FOUNDFILESMAX=txtscrhgt-5;20
+FOUNDFILESMAX=20;TODO txtscrhgt-5
 FOUNDFILESTABLE=0x8000
 FOUNDFILESTABLE_END=0x8000+(FOUNDFILESMAX*FOUNDFILESFNSZ)
 
@@ -21,7 +21,7 @@ editcmd_F2
 nvfind_redrawloop
         ld a,(findpg)
         ld e,a
-        SETPG32KLOW
+        SETPG8000
         call nvfind_reprintmenu
 
 nvfind_mainloop

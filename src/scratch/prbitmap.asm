@@ -50,15 +50,15 @@ _=$
 _=$
         exx
         ld c,(iy)
-        ld a,(bc)
+        ld a,(bc) ;0L000LLL
         ld l,(iy+1)
-        or (hl)
+        or (hl) ;(hl)=R0RRR000
         ld (de),a
         set 5,d
         ld c,(iy+4)
-        ld a,(bc)
+        ld a,(bc) ;0L000LLL
         ld l,(iy+5)
-        or (hl)
+        or (hl) ;(hl)=R0RRR000
         ld (de),a
         res 5,d
         inc de
@@ -155,7 +155,7 @@ showbitmapbox_400_lines1
          push hl ;bitmap addr
         ;ld a,(setpgs_scr_low)
         ld a,(user_scr0_low)
-        SETPG16K
+        SETPG4000
         ld b,d
         ld c,e
         ld d,tpixelrecode/256
@@ -163,7 +163,7 @@ showbitmapbox_400_lines1
          pop hl ;bitmap addr
         ;ld a,(setpgs_scr_high)
         ld a,(user_scr0_high)
-        SETPG16K
+        SETPG4000
          pop bc ;scr (0xc000+)
         SHOWBITMAPLINELAYER02_400 ;lx=wid(chr)
         pop hl ;bitmap addr
@@ -205,7 +205,7 @@ showbitmapbox_200_lines1
          push hl ;bitmap addr
         ;ld a,(setpgs_scr_low)
         ld a,(user_scr0_low)
-        SETPG16K
+        SETPG4000
         ld b,d
         ld c,e
         ld d,tpixelrecode/256
@@ -213,7 +213,7 @@ showbitmapbox_200_lines1
          pop hl ;bitmap addr
         ;ld a,(setpgs_scr_high)
         ld a,(user_scr0_high)
-        SETPG16K
+        SETPG4000
          pop bc ;scr (0xc000+)
         inc hl
         SHOWBITMAPLINELAYER02_200 ;lx=wid(chr)
@@ -261,7 +261,7 @@ showbitmapbox_25_lines0
         exx
         ;ld a,(setpgs_scr_low)
         ld a,(user_scr0_low)
-        SETPG16K
+        SETPG4000
         SHOWBITMAPLINELAYER02_25 ;lx=wid(chr)
          pop iy ;bitmap addr+2
         exx
@@ -269,7 +269,7 @@ showbitmapbox_25_lines0
         exx
         ;ld a,(setpgs_scr_high)
         ld a,(user_scr0_high)
-        SETPG16K
+        SETPG4000
         SHOWBITMAPLINELAYER02_25 ;lx=wid(chr)
         exx
         pop hl ;bitmap addr
@@ -313,7 +313,7 @@ showbitmapbox_50_lines0
         exx
         ;ld a,(setpgs_scr_low)
         ld a,(user_scr0_low)
-        SETPG16K
+        SETPG4000
         SHOWBITMAPLINELAYER02_50 ;lx=wid(chr)
          pop iy ;bitmap addr+2
         exx
@@ -321,7 +321,7 @@ showbitmapbox_50_lines0
         exx
         ;ld a,(setpgs_scr_high)
         ld a,(user_scr0_high)
-        SETPG16K
+        SETPG4000
         SHOWBITMAPLINELAYER02_50 ;lx=wid(chr)
         exx
         pop hl ;bitmap addr
@@ -368,7 +368,7 @@ showbitmapbox_100_lines0
         exx
         ;ld a,(setpgs_scr_low)
         ld a,(user_scr0_low)
-        SETPG16K
+        SETPG4000
         SHOWBITMAPLINELAYER02_100 ;lx=wid(chr)
          pop iy ;bitmap addr+2
         exx
@@ -376,7 +376,7 @@ showbitmapbox_100_lines0
         exx
         ;ld a,(setpgs_scr_high)
         ld a,(user_scr0_high)
-        SETPG16K
+        SETPG4000
         SHOWBITMAPLINELAYER02_100 ;lx=wid(chr)
         exx
         pop hl ;bitmap addr

@@ -38,7 +38,7 @@ palettey=workzoney
 palettex8=rightpanelx8
 
 navigatorx=rightpanelx8*8
-navigatory=palettey+(8*4)
+navigatory=palettey+(8*5)
 navigatorhgt=31 ;лучше не увеличивать, чтобы не было переполнения при умножении на bitmapwid (max 2048)
 navigatorwid=31
 
@@ -97,9 +97,9 @@ name
         org PROGSTART
 gfxeditor_begin
 main_go
-;        jp main_go2
-;        ds 256
-;main_go2
+        jp main_go2
+        ds 256
+main_go2
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         OS_HIDEFROMPARENT
         ld e,0 ;EGA
@@ -294,7 +294,7 @@ curliney2=$+1
 ;ix=x2
 ;hl=y2
         jp shapes_line
-        
+
 invarrzone
 ;инвертировать пункт под стрелкой
 ;hl=x на экране
@@ -448,7 +448,7 @@ fire
 fire_or_rmb_line
 ;bc=x в bitmap, de=y в bitmap
         call isitclick
-	ret nz ;кнопку уже держали
+        ret nz ;кнопку уже держали
         ld hl,(curlinestate)
         dec l
         jr z,fire_or_rmb_line_finish
@@ -678,7 +678,7 @@ maxy=$+1
 
 setcurcolor
         call isitclick
-	ret nz ;кнопку уже держали
+        ret nz ;кнопку уже держали
         ld a,(curmousebutton)
         or a
         ld de,curcolor1
@@ -687,7 +687,10 @@ setcurcolor
         call ahl_coords
         sub palettey
         rra
-        and 0x0c
+       cp 0x10
+       jr c,$+4
+       ld a,0x10 ;transparent color 16
+        and 0x1c;0x0c
         ld bc,-palettex8*8
         add hl,bc
         srl l
@@ -798,7 +801,7 @@ control_keys_new
         call showworkscreen
         ret
         
-getcontrastcolors
+getcontrastcolors ;out: lx=background fill color byte 0bRLrrrlll, hx=brush color byte 0bRLrrrlll
         push bc
         push de
         push hl
@@ -862,7 +865,7 @@ getcontrastcolors_nmin
         pop bc
         ret
 
-getgreycolor
+getgreycolor ;TODO не самый яркий и не самый тёмный, если возможно
         ld a,0b00111111
         ret
 
@@ -1291,14 +1294,18 @@ showcurcolor
         ld de,256*colorhgt+2
         push de ;y
         ld bc,256*colory+colorx8
-        ld a,(curcolor1)
-        call shapes_colortocolormask
+        ld hl,(curcolor1)
+        ld h,tpixelrecode/256
+        ld a,(hl)
+        ;call shapes_colortocolormask
         call shapes_prbox
         ;ld de,256*colorhgt+2
         pop de ;y
         ld bc,256*colory+colorx8+2
-        ld a,(curcolor2)
-        call shapes_colortocolormask
+        ld hl,(curcolor2)
+        ld h,tpixelrecode/256
+        ld a,(hl)
+        ;call shapes_colortocolormask
         jp shapes_prbox
 
 calccurtool
@@ -1401,7 +1408,10 @@ prpal1
         push de
         ld de,0x0801 ;hgt, wid(chr)
         push bc
-        call shapes_colortocolormask
+        ld l,a
+        ld h,tpixelrecode/256
+        ld a,(hl)
+        ;call shapes_colortocolormask
         call shapes_prbox
         pop bc
         pop de
@@ -1478,9 +1488,12 @@ tscalesnames
         db "200",0
         db "400",0
         
+setpal_de
+        OS_SETPAL
+        ret
 showbitmap
-        ld hl,workpal
-        call copytemp_setpal
+        ld de,workpal
+        call setpal_de
         call setpgs_scr
         ld hl,(curbitmapwid_edit)
         ld de,(curbitmaphgt)
@@ -1605,7 +1618,7 @@ setpgshapes
         push bc
 curpgshapes=$+1
         ld a,0;pgshapes
-        SETPG16K
+        SETPG4000
         pop bc
         ret
 
@@ -1628,7 +1641,7 @@ curpgtemp=$+1
         include "window.asm"
         include "navigator.asm"
         
-        include "pal.asm"
+        ;include "pal.asm"
         
         include "bitmap.asm"
 
@@ -1690,30 +1703,53 @@ pathbuf_forBDOS
         
         .align 256
 ;;;;;;;;;;;;;;;;;;; таблицы для prbitmap
-tpixelrecode
+tpixelrecode ;для увеличенных масштабов (где оба пикселя в байте одинаковые)
 ;%00003210 => %33210210
-        dup 256
+        dup 16
 _3=$&8
 _210=$&7
         db (_3*0x18) + (_210*0x09)
         edup
-        
+        dup 256-16
+        db 0b10111000 ;TODO patched maxbrightL+minbrightR/minbrightL+maxbrightR
+        edup
+
+;эти две таблицы - для 100% и уменьшенных масштабов
 tpixelrecodeLEFT
 ;%00003210 => %.3...210
-        dup 256
+        dup 16
 _3=$&8
 _210=$&7
         db (_3*0x08) + (_210*0x01)
         edup
-        
+        dup 256-16
+        db 0 ;TODO patched maxbrightL/minrightL
+        edup
+
 tpixelrecodeRIGHT
 ;%00003210 => %3.210...
-        dup 256
+        dup 16
 _3=$&8
 _210=$&7
         db (_3*0x10) + (_210*0x08)
         edup
+        dup 256-16
+        db 0b10111000 ;TODO patched minbrightR/maxbrightR
+        edup
+
+tbitmappages
+        ;display "tbitmappages=",tbitmappages
+        ds bmpmaxpages,0x7f
         
+activeend
+        display "activeend=",activeend
+        ds 0x4000-$
+SHAPES_begin
+        include "prshapes.asm"
+        include "prarrow.asm"
+        include "prtext.asm"
+        include "pal.asm"
+        .align 256
 ;;;;;;;;;;;;;;;;;;; таблицы для палитры
 tsin
         incbin "tsin200"
@@ -1736,17 +1772,6 @@ tsqrt
 ;аргумент 0..255 (соответствует 0..2)
 ;результат 0..127 (соответствует 0..1) и выше
         incbin "sqrtmax2"
-tbitmappages
-        ;display "tbitmappages=",tbitmappages
-        ds bmpmaxpages,0x7f
-        
-activeend
-        display "activeend=",activeend
-        ds 0x4000-$
-SHAPES_begin
-        include "prshapes.asm"
-        include "prarrow.asm"
-        include "prtext.asm"
         .align 256
 font48
         incbin "64qua.fnt"

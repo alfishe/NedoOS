@@ -1,6 +1,6 @@
 if "%settedpath%"=="" call ../_sdk/setpath.bat
-sjasmplus --nologo --msg=war -DPRSTDIO=1 nv.asm
 sjasmplus --nologo --msg=war -DPRSTDIO=0 nv.asm
+sjasmplus --nologo --msg=war -DPRSTDIO=1 nv.asm
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (

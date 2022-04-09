@@ -345,7 +345,7 @@ readbmp8_pic0
 ;hl=addr
 readbmp8_pic00
         READBYTE_A
-        and 0x0f
+        ;and 0x0f
         call readbmp_putbyte_checkendline
         jr z,readbmp8_pic00
         call readbmp_nextline
@@ -438,7 +438,7 @@ readbmp_starty=$+1
 
 readbmp_linestart
         ld a,(curpgtemp)
-        SETPG16K ;для буфера текущей строки
+        SETPG4000 ;для буфера текущей строки
         ;call setpgtemp ;для file_buf (должен быть выше 0xc000) ;уже подключен
         ld bc,(curbitmapwid_edit)
         dec bc
@@ -597,8 +597,8 @@ filemenu
         ldir
         
         ld (filemenu_exitsp),sp
-        ld hl,RSTPAL
-        call copytemp_setpal
+        ld de,RSTPAL
+        call setpal_de
 filemenu_restart
         call prfilemenu
         ld a,ZONE_NO
@@ -638,8 +638,8 @@ filemenuloop
 filemenu_exit
 filemenu_exitsp=$+1
         ld sp,0
-        ;ld hl,workpalend
-        ;call setpalhl
+        ;ld de,workpalend
+        ;call setpal_de
         jp showworkscreen
 
 filemenu_quit

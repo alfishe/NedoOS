@@ -8,6 +8,9 @@ TSPACES_FILENAME_SZ=42;41
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
         call initstdio
+        ld a,(stdiohgt)
+        dec a
+        ld (textedhgt),a
         ;ld e,6 ;textmode
         ;OS_SETGFX
 
@@ -299,6 +302,8 @@ curhandle=$+1
         or a
         ret
 
+textedhgt
+        db 0
 curpath
         ds MAXPATH_sz
 tcmd

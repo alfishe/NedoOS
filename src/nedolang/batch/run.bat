@@ -14,6 +14,7 @@ del *.S_
 del *.I_
 del batch
 ren batch.bin batch
+nedotrd basics.trd -eh ace.$b
 nedotrd basics.trd -eh batch.$b
 call ..\asm\mktrd.bat
 ..\..\..\us\emul.exe test.trd

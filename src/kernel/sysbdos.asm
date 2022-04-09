@@ -738,6 +738,7 @@ BDOS_playcovoxdone
         ret
 
 BDOS_getchildresult
+         res fchildfinished,(iy+app.flags) ;устанавливался по завершении дочерней задачи (чтобы в этом случае проскочить SETWAITING)
         ld l,(iy+app.childresult)
         ld h,(iy+app.childresult+1)
         ret
@@ -772,9 +773,14 @@ BDOS_setstdinout
         ret
 
 BDOS_getstdinout
-;e=stdin, d=stdout, h=stderr
+;out: e=stdin, d=stdout, h=stderr, l=hgt of stdout
         ld e,(iy+app.stdin)
         ld d,(iy+app.stdout)
+       ld h,0
+       ld l,d ;stdout
+       ld bc,pipetypes-PIPEADD80
+       add hl,bc
+       ld l,(hl)
         ld h,(iy+app.stderr)
         ret
 
@@ -1015,8 +1021,10 @@ BDOS_runapp
         ret
 
 BDOS_setwaiting
-         ;set fwaiting,(iy+app.flags)
-         res factive,(iy+app.flags)
+        ;set fwaiting,(iy+app.flags)
+         bit fchildfinished,(iy+app.flags)
+         ret nz ;не замораживает, если дочерний процесс уже завершился
+        res factive,(iy+app.flags)
         ret
 
 BDOS_checkpid
@@ -1766,8 +1774,6 @@ BDOS_getfiletime
         call BDOS_setdepage ;TODO убрать в драйвер
         call countfiledrive ;a=volume, de=path without drive, c=1: drive in path, CY=TR-DOS
         jr c,BDOS_getfiletime_zero
-		;push af
-		;pop af
         ld bc,fres
 ;de=name
 ;bc=pointer to time,date
@@ -1777,6 +1783,9 @@ BDOS_getfiletime
         ;xor a
         ret
 BDOS_getfiletime_zero
+        ;display "BDOS_getfiletime_zero=",BDOS_getfiletime_zero
+        BDOSSETPGTRDOSFS
+        jp trdos_getfiletime
         ;xor a
         ;ld l,a
         ;ld h,a
@@ -1968,6 +1977,23 @@ BDOS_openhandle_pipe
         ld (bc),a ;pipe owner (потом переназначится тому, кто читает)
         xor a
         ld (hl),a ;size=0
+       ld hl,pipetypes-pipeowners
+       add hl,bc
+       inc de
+       inc de ;de=path without drive, skip slash and first letter (for unique names in the future)
+       ld a,(de)
+       sub '0'
+       ld c,a
+       add a,a
+       add a,a
+       add a,c
+       add a,a ;*10
+       ld c,a
+       inc de
+       ld a,(de)
+       sub '0'
+       add a,c
+       ld (hl),a ;размер терминала в строках (делается из имени пайпа типа "a33")
         pop bc ;b=handle
 ;b=new pipe handle
         ret
@@ -2018,7 +2044,9 @@ freepipes
         ds MAXPIPES
 pipeowners
         ds MAXPIPES
-        
+pipetypes ;пока тут размер терминала в строках, делается из имени пайпа
+        ds MAXPIPES
+
 BDOS_readwritehandleprepare
 ;b=handle, hl=number of bytes, de=addr
 ;out: hl=fil, de=number of bytes, bc=addr(0x8000+)
@@ -2249,8 +2277,9 @@ BDOS_readhandle_pipe_handle=$+1
 findpipe_byhandle
 ;hl=number of bytes
 ;out: hl=pipebuf, a=pipe#, bc=oldhl
-        sub PIPEADD80-1
+        sub PIPEADD80
         ld b,a
+        inc b
         push hl ;number of bytes
         push de ;user space
         ld de,PIPEDESC_SZ

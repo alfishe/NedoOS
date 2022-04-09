@@ -7,7 +7,7 @@
 ;г) отслеживать список адресов всех подстрок на экране
 
 texted_XYTOP=0x0000
-texted_HGT=24
+;texted_HGT=24
 texted_WID=80
 _texted_PANELCOLOR=0x0700;0x38
 
@@ -615,8 +615,9 @@ texted_prcurline_continue0
        ret z
         inc d
        ld b,a
-        ld a,d
-        cp texted_HGT
+        ;ld a,texted_HGT
+        ld a,(textedhgt)
+        cp d
        ld a,b
         jr nz,texted_prcurline_continue0
         ret
@@ -626,8 +627,9 @@ texted_prcurline_allbelow0
         call texted_prcurline_continue ;z=no continue
         inc d
        ld b,a
-        ld a,d
-        cp texted_HGT
+        ;ld a,texted_HGT
+        ld a,(textedhgt)
+        cp d
        ld a,b
         jr nz,texted_prcurline_allbelow0
         ret
@@ -690,7 +692,8 @@ getsize
         
 texted_gotoeof
         call getsize
-        ld b,texted_HGT
+        ;ld b,texted_HGT
+        ld bc,(textedhgt-1) ;b
 texted_end0
         push bc 
         call texted_prevline
@@ -754,10 +757,12 @@ texted_up
         push af
         push hl
         ld de,texted_XYTOP
-        ld hl,256*texted_HGT + texted_WID
+        ;ld hl,256*texted_HGT + texted_WID
+        ld hl,(textedhgt-1) ;h
+        ld l,texted_WID
         call scrolldown ;OS_SCROLLDOWN
         ld de,texted_XYTOP
-	call nv_setxy
+        call nv_setxy
         pop hl
         pop af
         call texted_prline
@@ -779,20 +784,30 @@ texted_down
         ld c,a
         ld de,(curxy)
         inc d
-        ld a,d
-        cp texted_HGT
+        ;ld a,texted_HGT
+        ld a,(textedhgt)
+        cp d
         ld (curxy),de
-        ret c
-        dec a
-        ld (cury),a
+        ret nz;c
+        dec d
+        ld (curxy),de
         ld a,c
         push af
         push hl
         ld de,texted_XYTOP
-        ld hl,256*texted_HGT + texted_WID
+        ;ld hl,256*texted_HGT + texted_WID
+        ld hl,(textedhgt-1) ;h
+        ld l,texted_WID
+       push de
+       push hl
         call scrollup ;OS_SCROLLUP
-        ld de,texted_XYTOP+((texted_HGT-1)*256)
-	call nv_setxy
+       pop hl
+       pop de
+       dec h
+       ld l,0
+       add hl,de
+       ex de,hl ;de=texted_XYTOP+((texted_HGT-1)*256)
+        call nv_setxy
         pop hl
         pop af
         call texted_prline;_nextline
@@ -825,7 +840,9 @@ texted_pgup_gotop0
         ld (curlineaddrHSB),a
         ret
 texted_pgup_top
-        ld b,texted_HGT-1
+        ;ld b,texted_HGT-1
+        ld bc,(textedhgt-1) ;b
+        dec b
 texted_pgup0
         push bc 
         call texted_prevline
@@ -840,9 +857,14 @@ texted_pgup0
         
 texted_pgdown
         call setpanelredrawflag
-        ld a,(cury)
-        sub texted_HGT-1
-        neg
+        ;ld a,(cury)
+        ;sub texted_HGT-1
+        ;neg
+        ;ld b,a
+        ld a,(textedhgt)
+        dec a
+        ld hl,cury
+        sub (hl)
         ld b,a
         ld hl,(curlineaddr)
         ld a,(curlineaddrHSB)
@@ -863,7 +885,9 @@ texted_pgdown_bottom
         ld (cury),a
         pop af
         call texted_settop
-        ld b,texted_HGT-1
+        ;ld b,texted_HGT-1
+        ld bc,(textedhgt-1) ;b
+        dec b
 texted_pgdown0
         push bc 
         call texted_nextline
@@ -962,8 +986,12 @@ texted_changeencoding
 texted_panel
         ld a,55+0x80 ;or a
         ld (texted_panelredrawflag),a
-        ld de,0x1800
-	call nv_setxy
+        ;ld de,0x1800
+        ld a,(stdiohgt)
+        dec a
+        ld d,a
+        ld e,0
+        call nv_setxy
         ld de,_texted_PANELCOLOR
         SETCOLOR_
         
@@ -1009,11 +1037,10 @@ texted_ncurline=$+1
         ;OS_PRATTR
         ld de,_COLOR
         SETCOLOR_
-        
         ret
 
 tspaces_filename
-	db ' '
+        db ' '
 tshown_filename
         ds TSPACES_FILENAME_SZ,' '
         
@@ -1066,7 +1093,8 @@ texted_prpage
         ld de,texted_XYTOP
 	call nv_setxy
         pop af
-        ld b,texted_HGT
+        ;ld b,texted_HGT
+        ld bc,(textedhgt-1) ;b
 texted_prpage0
         push bc
         ;push de

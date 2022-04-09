@@ -66,6 +66,7 @@ SQEYEDZ=(EYEDZDIVFIXK*EYEDZDIVFIXK)
         org PROGSTART
 begin
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
+        ld hl,1234
         OS_HIDEFROMPARENT
        if EGA
         ld e,0+0x80 ;EGA + keep gfx pages

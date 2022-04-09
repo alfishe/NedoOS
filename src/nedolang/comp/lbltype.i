@@ -1,3 +1,12 @@
+;формат метки:
+;(2) адрес следующей метки или _LBLBUFEOF (0xffff)
+;[(1) длина имени метки (только в lbltype.c)]
+;(n) имя метки (ASCIIZ)
+;(1) тип метки
+;(1) локальность метки (isloc), обычно 0
+;(2) адрес метки типа (в lbltype.c индекс метки типа в массиве _lbls)
+;(2) размер информационного поля переменной или типа (1,2,4 или много для структур, 0 для функций)
+
 ;_lblhash = 0x00;
 ;REPEAT {
 ;  _lblshift[_lblhash] = _LBLBUFEOF;
@@ -51,7 +60,7 @@ lbltype
 lbltype.hash0.
 	xor l
 	add hl,hl
-	add a,l
+	add a,l ;TODO h
 	ld l,a
 	ld a,[de]
 	inc de
@@ -61,52 +70,56 @@ lbltype.hash0.
 	add hl,hl
 	LD de,_lblshift
 	ADD HL,DE
-	ld [_lblhashaddr],hl
+	ld [_lblhashaddr],hl ;for addlbl
 	LD e,[HL]
 	INC HL
-	LD d,[HL]
+	LD d,[HL] ;de=first label (from hash)
 lbltype.A.
 	ld a,d
 	and e
-	inc a ;de==_LBLBUFEOF?
-	jr Z,lbltype.B.
+	inc a ;label==_LBLBUFEOF?
+	jr z,lbltype.B. ;not found
 	ex de,hl
 	LD e,[HL]
 	INC HL
-	LD d,[HL]
+	LD d,[HL] ;de=next label
 	inc hl
-	LD [_typeaddr],hl ;для запоминания типа в будущей переменной
-	LD bc,[_name]
+	LD [lbltype.newtypeaddr],hl ;для запоминания типа в будущей переменной
+	LD bc,[_name] ;de
 lbltype.strcp0.
-	ld a,[bc] ;s2
-	cp [hl] ;s1
+	ld a,[bc] ;s2 (name)
+	cp [hl] ;s1 (label name)
 	jr nz,lbltype.A.
 	inc hl
 	inc bc
 	or a
 	jp nz,lbltype.strcp0.
 	LD a,[HL]
-	ld c,a
-	inc hl ;sizeof(TYPE)
+	ld c,a ;t
+	inc hl ;+sizeof(TYPE)
 	AND _T_TYPE
 	LD A,[HL]
 	LD [_isloc],A
 	INC HL
 	LD e,[HL]
 	INC HL
-	LD d,[HL]
+	LD d,[HL] ;адрес типа
 	inc hl
-	jr NZ,lbltype.E.
-	LD [_typeaddr],de ;вспоминаем адрес типа, если это переменная, а не объявление типа
+	jr Z,lbltype.E. ;используем адрес типа
+lbltype.newtypeaddr=$+1
+	ld de,0 ;если это объявление типа, то используем адрес самой метки
 lbltype.E.
+	LD [_typeaddr],de
 	LD e,[HL]
 	INC HL
 	LD d,[HL]
 	LD [_varsz],de
-	ld a,c
+	ld a,c ;RETURN t
 	ret
 lbltype.B.
 	LD A,_T_UNKNOWN
+	 ;ld hl,_lbls+2
+	 ;LD [_typeaddr],hl ;для запоминания типа в будущей переменной
 	RET
 
 ;_lblhash = (BYTE)hash((PBYTE)_name);
@@ -129,7 +142,7 @@ dellbl
 dellbl.hash0.
 	xor l
 	add hl,hl
-	add a,l
+	add a,h;l
 	ld l,a
 	ld a,[de]
 	inc de
@@ -166,8 +179,8 @@ dellbl.plbl=$+1
 	LD [0],a
 	RET
 
-;взять название типа структуры (сразу после lbltype)
-;RETURN strcopy((PCHAR)&_lbls[_typeaddr], (UINT)*(PBYTE)&_lbls[_typeaddr-1], s); //в C индексы, в асме указатели (лезут в UINT)
+;взять название типа структуры в s (сразу после lbltype)
+;RETURN strcopy((PCHAR)&_lbls[_typeaddr], (UINT)*(PBYTE)&_lbls[_typeaddr-1], s); //from, n, to //в C индексы, в асме указатели (лезут в UINT)
 gettypename
 	EXPORT gettypename
 	EXPORT gettypename.A.
@@ -180,13 +193,14 @@ gettypename.A.=$+1
 gettypename0
 	cp [hl]
 	ldi
-	jp nz,gettypename0
+	jp nz,gettypename0 ;bc=-len
 	ld h,a
-	ld l,a
-	scf ;len without terminator
-	sbc hl,bc
+	ld l,a ;0
+	scf
+	sbc hl,bc ;0-(-len)-1 = len-1 ;len without terminator
 	RET
 
+;EXPORT PROC addlbl(TYPE t, BOOL isloc, UINT varsz) //(_name)
 ;oldt = lbltype(); //(_name) //устанавливает _isloc (если найдена) и _typeaddr (адрес, если найдена)
 ;IF ((oldt == _T_UNKNOWN)||isloc) { //если не было метки или локальная поверх глобальной или другой локальной (параметра)
 ;  //метки нет: пишем в начало цепочки адрес конца страницы и создаём метку там со ссылкой на старое начало цепочки
@@ -229,17 +243,25 @@ addlbl.B.=$+1
 	SUB _T_UNKNOWN
 	JP nz,addlbl.D.
 addlbl.islocon
-	LD HL,[_lblbuffreeidx]
+	LD HL,[_lblbuffreeidx] ;addr of free space for a label
 	LD DE,_lbls+_LBLBUFMAXSHIFT
 	LD A,L
 	SUB E
 	LD A,H
 	SBC A,D
 	JP NC,addlbl.F.
-	ex de,hl
-	LD hl,[_lblhashaddr]
-	ldi
-	ldi
+	ex de,hl ;de=addr of space for a label
+_lblhashaddr=$+1
+	LD hl,0
+	ld a,[hl]
+	ld [hl],e ;correct addr in hash table LSB
+	ld [de],a ;copy next label addr from hash table LSB
+	inc hl
+	ld a,[hl]
+	ld [hl],d ;correct addr in hash table HSB
+	inc de
+	ld [de],a ;copy next label addr from hash table HSB
+	inc de
 	LD bc,[_lenname]
 	LD HL,[_name]
 	inc bc ;copy with terminator
@@ -263,11 +285,7 @@ addlbl.C.=$+1
 	INC HL
 	LD [HL],D
 	INC HL
-        ex de,hl
-	LD hl,[_lblbuffreeidx]
-	LD [_lblbuffreeidx],de
-_lblhashaddr=$+1
-	LD [0],hl
+	LD [_lblbuffreeidx],hl
 	ret
 addlbl.F.
 	LD HL,addlbl.H.

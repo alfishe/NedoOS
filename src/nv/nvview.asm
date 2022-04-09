@@ -1,6 +1,6 @@
-NVVIEW_XYTOP=0x0000
-NVVIEW_HGT=txtscrhgt-1
-NVVIEW_WID=80
+NVVIEW_XYTOP=0x0000 ;может потом сместиться из-за меню
+;NVVIEW_HGT=txtscrhgt-1 ;может потом уменьшиться из-за меню
+NVVIEW_WID=80 ;может потом уменьшиться из-за скроллбара
        if PRSTDIO
 _NVVIEW_PANELCOLOR=0x0700;0x38
        else
@@ -268,7 +268,8 @@ nvview_home
 nvview_end
         ld hl,(filesize)
         ld a,(filesizeHSW)
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_end0
         push bc 
         call nvview_prevline
@@ -303,7 +304,9 @@ nvview_up
         push af
         push hl
         ld de,NVVIEW_XYTOP
-        ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ;ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ld hl,(nvviewhgt-1) ;h
+        ld l,NVVIEW_WID
        if PRSTDIO
         call scrolldown
        else
@@ -314,7 +317,10 @@ nvview_up
         pop hl
         pop af
         call nvview_prline
-         ld de,+(txtscrhgt-1)*256+79
+         ;ld de,+(txtscrhgt-1)*256+79
+        ld de,(scrhgt-1) ;d
+        dec d ;последняя строка экрана
+        ld e,txtscrwid-1
          call nv_setxy ;avoid cursor at 0x0100
         call deccurline
         ld hl,(curbottomtextaddr)
@@ -332,13 +338,23 @@ curbottomtextHSB=$+1
         push af
         push hl
         ld de,NVVIEW_XYTOP
-        ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ;ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ld hl,(nvviewhgt-1) ;h
+        ld l,NVVIEW_WID
+       push de
+       push hl
        if PRSTDIO
         call scrollup
        else
         OS_SCROLLUP
        endif
-        ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
+        ;ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
+       pop hl
+       pop de
+       dec h
+       ld l,0
+       add hl,de
+       ex de,hl ;de=NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
         call nv_setxy ;keeps de,hl,ix
         pop hl
         pop af
@@ -359,7 +375,8 @@ nvview_pgup
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
 nvview_pgup_go
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_pgup0
         push bc 
         call nvview_prevline
@@ -371,13 +388,16 @@ nvview_pgup0
         
 nvview_pgdown
          ld hl,(nvview_ncurline)
-         ld bc,NVVIEW_HGT
+         ;ld bc,NVVIEW_HGT
+        ld bc,(nvviewhgt) ;c
+        ld b,0
          add hl,bc
          ld (nvview_ncurline),hl
         ld hl,(curbottomtextaddr)
         ld a,(curbottomtextHSB)
 nvview_pgdown_pgup_ahl
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_pgdown0
         push bc 
         call nvview_nextline
@@ -386,7 +406,8 @@ nvview_pgdown0
         djnz nvview_pgdown0
         jr nvview_pgup_go
         if 1==0
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_pgdown1
         push bc 
         call nvview_prevline
@@ -467,11 +488,14 @@ nvview_changeencoding
         ld hl,nvview_prline_recodepatch
         ld a,(hl)
         xor 0x7e ;"ld a,(hl)"
-        ld (hl),a
+        ld (hl),a ;TODO utf8
         call nvview_prcurpage
         ;ret
 nvview_panel
-        ld de,+(txtscrhgt-1)*256
+        ;ld de,+(txtscrhgt-1)*256
+        ld de,(scrhgt-1) ;d
+        dec d ;последняя строка экрана
+        ld e,0
         call nv_setxy ;keeps de,hl,ix
         ld de,_NVVIEW_PANELCOLOR;#38
        if PRSTDIO
@@ -566,7 +590,8 @@ nvview_prpage
         ld de,NVVIEW_XYTOP
         call nv_setxy ;keeps de,hl,ix
         pop af
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_prpage0
         push bc
         ;push de
@@ -1002,7 +1027,7 @@ npages=$+1
         inc l
         ld (npages),hl
         ld a,e
-        SETPG32KHIGH
+        SETPGC000
         xor a
         ret ;z
 
@@ -1051,10 +1076,10 @@ setpg32k
         ld l,a
         ld h,textpages/256
         ld a,(hl)
-        SETPG32KLOW
+        SETPG8000
         inc l
         ld a,(hl)
-        SETPG32KHIGH
+        SETPGC000
         pop hl
         ret
 

@@ -63,53 +63,53 @@ calcRGBtoHSV
         add a,b ;b/2
         rra;srl a
         sub e ;a = (r/2+b/2-g)/2 = c/2
-        ld e,a ;c/2 = +-0..127 (соответствует -1..+1)
-         push af ;cy=S=знак c
+        ld e,a ;c/2 = +-0..127 (бRRвў_вбвўг_в -1..+1)
+         push af ;cy=S=- Є c
         ld d,tsqr/256
         ld a,(de)
         ld b,a ;c*c
         ld e,h
-        sra e ;si/2 = +-0..63 (соответствует -.5..+.5)
+        sra e ;si/2 = +-0..63 (бRRвў_вбвўг_в -.5..+.5)
         ld a,(de) ;s*s
         add a,b ;+c*c
         ld e,a
         inc d ;tsqrt/256
-;аргумент 0..255 (соответствует 0..2)
-;результат 0..127 (соответствует 0..1) и выше
+; а_г┐_-в 0..255 (бRRвў_вбвўг_в 0..2)
+;а_г<мв в 0..127 (бRRвў_вбвўг_в 0..1) Ё ўли_
         ld a,(de) ;rad = sqrt(si*si + c*c)
         ld e,a
         ld d,0
 ;hl=isi=32768*si = +-0..32767
 ;de=irad=128*rad = 0..127
-        call divhldesigned ;hl / de результат в hl
+        call divhldesigned ;hl / de а_г<мв в ў hl
 ;hl=256*(si/rad) = +-0..255
         ;ld bc,256
         ;add hl,bc
         inc h ;hl = 0..511
         sra h
-        rr l ;hl = 0..255 (если меньше или больше, то подгоняем)
+        rr l ;hl = 0..255 (_б<Ё ┐_-ми_ Ё<Ё ЎR<ми_, вR ЇR¤_R-п_┐)
         ld a,h
         or a
         jp p,$+3+2
         xor a
-        ld l,a ;если меньше
+        ld l,a ;_б<Ё ┐_-ми_
         jr z,$+2+2
-        ld l,255 ;если больше
-        ;ld bc,tarcsin ;0..128 соответствуют -1..0; 128..255 соответствуют 0..+1
+        ld l,255 ;_б<Ё ЎR<ми_
+        ;ld bc,tarcsin ;0..128 бRRвў_вбвўгов -1..0; 128..255 бRRвў_вбвўгов 0..+1
         ;add hl,bc
         ld h,tarcsin/256
-         pop af ;cy=S=знак c
-        ld a,(hl) ;-50..50 соответствуют -pi/2..+pi/2
+         pop af ;cy=S=- Є c
+        ld a,(hl) ;-50..50 бRRвў_вбвўгов -pi/2..+pi/2
         jr nc,calcRGBtoHSV_nonegcos
         cpl
         add a,100+1
 calcRGBtoHSV_nonegcos
-;a=-50..150 соответствуют -pi/2..+3*pi/2
+;a=-50..150 бRRвў_вбвўгов -pi/2..+3*pi/2
         cp -50
         jr c,calcRGBtoHSV_nonegarcsin
         add a,200
 calcRGBtoHSV_nonegarcsin
-;a=H=0..199 соответствуют 0..+2*pi
+;a=H=0..199 бRRвў_вбвўгов 0..+2*pi
         ld (curH),a
         
         pop de ;d=r/2, e=g/2
@@ -127,7 +127,7 @@ calcRGBtoHSV_nonegarcsin
         ld (calcRGBtoHSV_findR),a
         ld a,e
         ld (calcRGBtoHSV_findG),a
-;подбираем s,v, пишем их в curS, curV
+;ЇR¤ЎЁа _┐ s,v, ЇЁи_┐ Ёе ў curS, curV
         ld hx,255 ;min
 ;l=iv=0..32 ;h=is=0xe0+0..31
         ld h,editpal_e0 ;S
@@ -146,20 +146,20 @@ calcRGBtoHSV_findR=$+1
         sub 0
         jr nc,$+4
         neg
-        ld c,a ;разница R
+        ld c,a ;а -Ёж  R
         ld a,e
 calcRGBtoHSV_findG=$+1
         sub 0
         jr nc,$+4
         neg
         add a,c
-        ld c,a ;разница R+разница G
+        ld c,a ;а -Ёж  R+а -Ёж  G
         ld a,b
 calcRGBtoHSV_findB=$+1
         sub 0
         jr nc,$+4
         neg
-        add a,c ;общая разница
+        add a,c ;RЎй п а -Ёж 
         exx
         pop hl
         cp hx ;min
@@ -186,14 +186,14 @@ calcRGBtoHSV_findnomin
 ;  ir = iv + isi + ic + minC;
 ;  ig = iv +     - ic + minC;
 ;  ib = iv - isi + ic + minC;
-;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
+;h=is=0xc0+0..31 (г│_ Ї_а_бзЁв -R ¤<п  ¤ --R_R iv)
 ;a=ih=0..199
 ;b=iv=0..32
 ;d=tabclippal/256 + (y&3)*2
         ld l,a
         ld e,(hl) ;isi = +-0..32 ;sin
         sla e
-        add a,50 ;четверть периода
+        add a,50 ;з_вў_авм Ї_аЁR¤ 
         ld l,a
         ld c,(hl) ;ic = +-0..32 ;cos
         endm
@@ -228,29 +228,19 @@ calcRGBtoHSV_findnomin
         rlca
         or (hl)
         rlca
-        or c ;a'a = возвращаем 2 байта (4 пикселя по горизонтали) 
+        or c ;a'a = ўRўа й _┐ 2 Ў cв  (4 ЇЁЄб_<п ЇR _RаЁR-в <Ё) 
         endm
         
-;в палитре редактора палитры первые 8 цветов: BGR
+;ў Ї <Ёва_ а_¤ ЄвRа  Ї <Ёвал Ї_аўл_ 8 жў_вRў: BGR
 
-copytemp_setpal
-        ;call setpgtemp
-        ;ld de,0xffe0
-        ;push de
-        ;ld bc,32
-        ;ldir
-        ;pop de
-        ex de,hl
-        OS_SETPAL
-        ret
 paleditorpal
-;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;DDp palette: %grbG11RB(low),%grbG11RB(high), Ё-ў_аб-л_
 ;high B, high b, low B, low b
-paleditorpal_color=$+(8*2) ;видимый цвет
-paleditorpal_curcolor=$+(9*2) ;текущий цвет
-paleditorpal_oldcolors=$+(10*2) ;старые цвета
+paleditorpal_color=$+(8*2) ;ўЁ¤Ё┐лc жў_в
+paleditorpal_curcolor=$+(9*2) ;в_ЄгйЁc жў_в
+paleditorpal_oldcolors=$+(10*2) ;бв ал_ жў_в 
         dw 0xffff,0xbdbd,0x6f6f,0x2d2d,0xdede,0x9c9c,0x4e4e,0x0c0c
-        dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c ;8=видимый цвет, 9=текущий цвет, остальные старые
+        dw 0xffff,0xdede,0xbdbd,0x9c9c,0x6f6f,0x4e4e,0x2d2d,0x0c0c ;8=ўЁ¤Ё┐лc жў_в, 9=в_ЄгйЁc жў_в, Rбв <м-л_ бв ал_
 paleditorpalend=$-1
 RSTPAL
         STANDARDPAL
@@ -259,15 +249,15 @@ RSTPALend=$-1
 drawpal
         call cls
         
-        ld hl,paleditorpal
-        call copytemp_setpal
+        ld de,paleditorpal
+        call setpal_de
 
         call drawpalHS
         call drawpalV
 
-        call drawpalcolor ;видимый цвет
-        call drawpalcurcolor ;текущий цвет
-;старые цвета
+        call drawpalcolor ;ўЁ¤Ё┐лc жў_в
+        call drawpalcurcolor ;в_ЄгйЁc жў_в
+;бв ал_ жў_в 
         call setpgshapes
 
         ld bc,editpal_oldcolory*256 + editpal_oldcolorx8 ;b=y ;c=x/8
@@ -290,7 +280,7 @@ drawpaloldcolors0
          ld a,c
          add a,4*40 - 4
          call calcscr_from_xchr_ya
-         set 5,h ;на 4 пикселя правее
+         set 5,h ;-  4 ЇЁЄб_<п Їа ў__
         call prhexcolor
         pop hl
         pop bc
@@ -324,7 +314,7 @@ drawpal_cursors
         add a,200
         jp shapes_prarr_ring8c
         
-;текущий цвет        
+;в_ЄгйЁc жў_в        
 drawpalcurcolor
         call setpgshapes
 
@@ -339,7 +329,7 @@ drawpalcurcolor
 calchexcolor
 ;keep c!!!
 ;hl=color (DDp palette)
-;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;DDp palette: %grbG11RB(low),%grbG11RB(high), Ё-ў_аб-л_
 ;high B, high b, low B, low b
         ld b,0xff
         ld de,0xffff
@@ -413,7 +403,7 @@ prhexcolor
 ;de=color (DDp palette)
 ;hl=screen        
         ld ix,0x3f00 ;lx=background color
-;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;DDp palette: %grbG11RB(low),%grbG11RB(high), Ё-ў_аб-л_
 ;high B, high b, low B, low b
         push hl
         ex de,hl
@@ -449,10 +439,10 @@ drawpalcolumn0
 ;curV=$+1
 drawpalHS_S=$+2
         ld hl,16 ;l=iv=0..32 ;h=is=0xe0+0..31
-        ld h,(hl) ;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
+        ld h,(hl) ;h=is=0xc0+0..31 (г│_ Ї_а_бзЁв -R ¤<п  ¤ --R_R iv)
         ld b,l ;b=iv=0..32
         calcHSVtogfx_1
-        ;a=ih (немного искажённое), соответствует y
+        ;a=ih (-_┐-R_R ЁбЄ │с--R_), бRRвў_вбвўг_в y
         and 3
         add a,a
         add a,tabclippal/256
@@ -496,7 +486,7 @@ drawpalVcolumn00
         ld l,a ;l=iv=0..32
 curS=$+1
         ld h,editpal_e0+16 ;h=is=0xe0+0..31
-        ld h,(hl) ;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
+        ld h,(hl) ;h=is=0xc0+0..31 (г│_ Ї_а_бзЁв -R ¤<п  ¤ --R_R iv)
         ld b,l ;b=iv=0..32
 curH=$+1
         ld a,0
@@ -553,7 +543,7 @@ drawpal_countpixels
         calcHSVtogfx_2
 ;d'=r, e'=g
 ;b'=b
-;a'a=два цвета = %00bgrbgr
+;a'a=¤ў  жў_в  = %00bgrbgr
         exx
         rra
         jr nc,$+3
@@ -606,7 +596,7 @@ calcHSVtoRGB
         ld d,b
         ld e,b ;d=r, e=g
         exx
-        ld h,(hl) ;h=is=0xc0+0..31 (уже пересчитано для заданного iv)
+        ld h,(hl) ;h=is=0xc0+0..31 (г│_ Ї_а_бзЁв -R ¤<п  ¤ --R_R iv)
         ld b,l ;b=iv=0..32
         calcHSVtogfx_1
         ld h,tabclippal/256 ;d=tabclippal/256 + (y&3)*2
@@ -695,7 +685,7 @@ col4to2
 
 calcRGBtopal_pp
 ;e=B, d=G, l=R
-;DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные
+;DDp palette: %grbG11RB(low),%grbG11RB(high), Ё-ў_аб-л_
         xor a
         rl e  ;B
         rra
@@ -715,8 +705,8 @@ calcRGBtopal_pp
         ret
 
 drawpalcolor
-        ld hl,paleditorpal
-        call copytemp_setpal
+        ld de,paleditorpal
+        call setpal_de
         call setpgs_scr
 
         call setpgshapes
@@ -730,8 +720,8 @@ drawpalcolor
         ld hl,0x2000+(editpal_colory+editpal_colorhgt)*40+editpal_colorx8 + scrbase
         call prhexcolor
 
-        ;ld hl,paleditorpalend
-        ;call setpalhl
+        ;ld de,paleditorpalend
+        ;call setpal_de
 
         ld bc,editpal_colory*256 + editpal_colorx8 ;b=y ;c=x/8
         ld de,editpal_colorhgt*256+editpal_colorwid8 ;d=hgt ;e=wid8
@@ -742,11 +732,11 @@ t444
         db "444",0
        
 editpal
-;hl=редактируемый цвет
+;hl=а_¤ ЄвЁаг_┐лc жў_в
         ld (editpal_quitsp),sp
         push hl
 
-        call initpal ;составление таблиц
+        call initpal ;бRбв ў<_-Ё_ в Ў<Ёж
         
         ld hl,paleditorpalend-2 ;paleditorpal_curcolor+...
         ld de,paleditorpalend ;paleditorpal_oldcolors+...
@@ -756,9 +746,9 @@ editpal
         ld (paleditorpal_curcolor),hl
         push hl
         call calchexcolor
-        call calcRGBtoHSV ;назначает curH,curS,curV
+        call calcRGBtoHSV ;- - з _в curH,curS,curV
         pop hl
-        ld (paleditorpal_color),hl ;потом, чтобы точнее оставить цвет
+        ld (paleditorpal_color),hl ;ЇRвR┐, звRЎл вRз-__ Rбв ўЁвм жў_в
         
         call drawpal
         
@@ -767,10 +757,10 @@ editpal
         
 editpalloop
         call setpgs_scr
-;1. всё выводим
-;2. ждём событие
-;3. всё стираем
-;4. обрабатываем событие
+;1. ўбс ўлўR¤Ё┐
+;2. │¤с┐ бRЎлвЁ_
+;3. ўбс бвЁа _┐
+;4. RЎа Ў влў _┐ бRЎлвЁ_
         call setpgshapes
 
         ;call ahl_coords
@@ -780,13 +770,13 @@ editpalloop
         call ahl_coords
         call shapes_prarr8c
         
-        call waitsomething ;в это время стрелка видна
-;что-то изменилось
+        call waitsomething ;ў нвR ўа_┐п бва_<Є  ўЁ¤- 
+;звR-вR Ё┐_-Ё<Rбм
         
         call ahl_oldcoords
         call shapes_rearr
         ;call ahl_oldcoords
-        ;call invarrzone ;инвертировать пункт под стрелкой
+        ;call invarrzone ;Ё-ў_авЁаRў вм Їг-Єв ЇR¤ бва_<ЄRc
 	
         ld a,(key)
         cp key_redraw
@@ -867,17 +857,17 @@ editpal_fire_or_rmbV
         jp drawpal_cursors
         
 editpal_fire_or_rmbsetcolor
-;установить цвет и выйти
+;гбв -RўЁвм жў_в Ё ўлcвЁ
         ld a,(arry) ;0..199
         sub editpal_colory
         cp editpal_colorhgt
          jr nc,switch444 ;ret nc
         ld hl,(paleditorpal_color)
-        ld (paleditorpal_curcolor),hl ;чтобы видеть на следующем входе
-        ;jp editpal_quit ;hl=цвет-результат
+        ld (paleditorpal_curcolor),hl ;звRЎл ўЁ¤_вм -  б<_¤гой_┐ ўеR¤_
+        ;jp editpal_quit ;hl=жў_в-а_г<мв в
 editpal_quit
-        ld hl,(paleditorpal_curcolor) ;как было
-;hl=цвет-результат
+        ld hl,(paleditorpal_curcolor) ;Є Є Ўл<R
+;hl=жў_в-а_г<мв в
 editpal_quitsp=$+1
         ld sp,0
         ret
@@ -898,7 +888,7 @@ editpal_fire_or_rmbsetcurcolor
         ld a,(arry)
         sub editpal_curcolory
         cp editpal_curcolorhgt
-        jr c,editpal_quit ;hl=цвет-результат
+        jr c,editpal_quit ;hl=жў_в-а_г<мв в
         sub editpal_oldcolory-editpal_curcolory
         ld hl,paleditorpal_oldcolors
         ld b,6
@@ -922,12 +912,12 @@ editpal_fire_or_rmbsetoldcolorok
         ld (paleditorpal_color),hl
         push hl
         call calchexcolor
-        call calcRGBtoHSV ;назначает curH,curS,curV
+        call calcRGBtoHSV ;- - з _в curH,curS,curV
         pop hl
-        ld (paleditorpal_color),hl ;потом, чтобы точнее оставить цвет
-        jp editpal_fire_redrawpals ;там drawpal_cursors
+        ld (paleditorpal_color),hl ;ЇRвR┐, звRЎл вRз-__ Rбв ўЁвм жў_в
+        jp editpal_fire_redrawpals ;в ┐ drawpal_cursors
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Инициализация ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; _-ЁжЁ <Ё жЁп ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
 
 initpal
         call setpgpal
@@ -954,7 +944,7 @@ initpalmul0
         jr z,initpalmul0
         pop hl
         inc l
-        jr nz,initpalmuls0 ;важны 0..200
+        jr nz,initpalmuls0 ;ў │-л 0..200
 
 ;mktabfixsaturation
 ;  int scoeff = (1 - ((v-.5)*2)*((v-.5)*2) )*256;
@@ -977,7 +967,7 @@ initpalfixsat_volumes0
 initpalfixsat0
         ld a,h
         ld (de),a
-        add hl,bc ;максимум умножили на 31
+        add hl,bc ;┐ ЄбЁ┐г┐ г┐-R│Ё<Ё -  31
         inc d
          ld a,d
          cp editpal_e0+32

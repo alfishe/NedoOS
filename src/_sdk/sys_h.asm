@@ -123,7 +123,7 @@
         macro SETPG4000
         rst 0x18 ;set page "a" in 0x4000 ;spoils BC
         endm
-        macro SETPG16K
+        macro SETPG16K ;don't use!
         SETPG4000
         endm
         
@@ -138,7 +138,7 @@
         macro SETPG8000
         rst 0x20 ;set page "a" in 0x8000 ;spoils BC
         endm
-        macro SETPG32KLOW
+        macro SETPG32KLOW ;don't use!
         SETPG8000
         endm
         
@@ -153,13 +153,13 @@
         macro SETPGC000
         rst 0x28 ;set page "a" in 0xc000 ;spoils BC
         endm
-        macro SETPG32KHIGH
+        macro SETPG32KHIGH ;don't use!
         SETPGC000
         endm
 
 ;*********************** YIELD **********************
 ;Отдаёт квант времени системе.
-;В текущем кванте 50 Гц этой задаче не будет возвращено управление.
+;В текущем кванте 50 Гц этой задаче не будет возвращено управление. И её кастомный обработчик прерывания не вызовется, если есть другие активные задачи.
 ;    Аргументы не используются.
 ;    Возвращаемых значений нет.
 ;    
@@ -218,13 +218,13 @@ __1=$
 ;Ожидание завершения дочернего процесса.
 ;    Аргументы не используются.
 ;    Возвращаемые значения в регистрах:
-;        HL - результат, который вернула дочерняя задача
+;        HL - результат, который вернул дочерний процесс
 ;Как это работает:
 ;OS_SETWAITING замораживает текущий процесс, а YIELD передаёт время системе.
-;Текущий процесс получит управление только тогда, когда завершится дочерний процесс
+;Текущий процесс получит управление только тогда, когда дочерний процесс завершится или сделает OS_HIDEFROMPARENT
 ;(он автоматически размораживает родителя и записывает childresult в структуру родителя).
         macro WAITPID
-        OS_SETWAITING
+        OS_SETWAITING ;не замораживает, если дочерний процесс уже завершился
         YIELD
         ld c,CMD_GETCHILDRESULT
 	CALLBDOS_NOPARAM_A ;hl=result
@@ -571,7 +571,7 @@ __1=$
         ld c,CMD_SETSTDINOUT
 	CALLBDOS_NOPARAM_A
         endm
-        macro OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
+        macro OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr, l=hgt of stdout
         ld c,CMD_GETSTDINOUT
 	CALLBDOS_NOPARAM_A
         endm
@@ -603,7 +603,7 @@ __1=$
         ld c,CMD_SETBORDER
 	CALLBDOS_NOPARAM_A
         endm
-        macro OS_SETWAITING ;set WAITING state for current task
+        macro OS_SETWAITING ;set WAITING state for current task ;don't use directly!
         ld c,CMD_SETWAITING
 	CALLBDOS_NOPARAM_A
         endm

@@ -310,7 +310,7 @@ PROC twordtojoined()
   _lenjoined = strcopy(_tword, _lentword, _joined);
 }
 
-PROC joinvarname(BOOL iscall) //возвращает _t = тип(_name)
+PROC joinvarname(BOOL iscall) //возвращает _t = тип(_name)???
 { //идентификатор уже прочитан
 VAR BYTE lvl;
   do_type();
@@ -348,7 +348,7 @@ PROC getstructfield() //возвращает _t = тип поля
   _joined[_lenjoined] = '\0';
   cmdpushnum(); //structname.structfield
   cmdadd();
-  _lenname = strcopy(_joined, _lenjoined, _name); //structname.structfield
+  _lenname = strcopy(/**from=*/_joined, _lenjoined, _name); //structname.structfield
   _t = lbltype(); //(_name)
 }
 
@@ -689,6 +689,7 @@ VAR TYPE t1;
     rdword();
     IF (*(PCHAR)_tword=='>') { //structinstancepointer->structfield
       //структура уже прочитана и адресована _typeaddr, тип _t = некий указатель
+      IF (_t == _T_UNKNOWN) {errstr("nolbl:"); errstr(_name); enderr(); };
       getstructfield(); //_t = тип поля
       IF (!_addrexpr) cmdpeek(); //peek
       rdword(); //использовали structfield
@@ -818,6 +819,7 @@ VAR BOOL ispoke;
       };
       eat('-');
       //структура уже прочитана и адресована _typeaddr, тип _t = некий указатель
+      IF (_t == _T_UNKNOWN) {errstr("nolbl:"); errstr(_name); enderr(); };
       getstructfield(); //_t = тип поля
       t = _t; //todo
       rdword(); //использовали structfield
@@ -1215,7 +1217,7 @@ VAR UINT i = 0;
           jautonum(i);
           _lenname = strcopy(_joined, _lenjoined, _name);
           _t = lbltype();
-          do_const_num(lbltype()&(~_T_TYPE)|_T_ARRAY); //_T_ARRAY не даёт создать метку
+          do_const_num(lbltype()&(~_T_TYPE)|_T_ARRAY); //_T_ARRAY не даёт создать метку //TODO _t
           INC i;
         }ELSE { //не структура
           do_const_num(t&(~_T_CONST)); //_T_ARRAY не даёт создать метку
@@ -1716,9 +1718,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
             rdquotes('\"'/**, +FALSE*/); //IF (_c0 == '\"') { rdquotes('>'); }ELSE rdquotes('\"');
             _hinclfile[_nhinclfiles] = _fin;
             _hnline[_nhinclfiles] = _curline;
-            INC _nhinclfiles;
-            compfile(_tword);
-            DEC _nhinclfiles;
+            INC _nhinclfiles; compfile(_tword); DEC _nhinclfiles;
             _fin = _hinclfile[_nhinclfiles];
             _curline = _hnline[_nhinclfiles];
             _waseof = +FALSE;

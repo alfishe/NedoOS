@@ -28,6 +28,8 @@ FUNC UINT writesectors FORWARD(PBYTE buf, UINT trsec, BYTE count);
 FUNC PCHAR findlastslash FORWARD(PCHAR s);
 //FUNC BOOL comparedesc FORWARD(PCHAR filename, PBYTE desc);
 
+FUNC LONG getfiletime FORWARD(PCHAR filename);
+
 //do define:
 //FCB1 ;aligned ;len=0x0200*files
 //DOSBUF ;aligned ;len=0x100

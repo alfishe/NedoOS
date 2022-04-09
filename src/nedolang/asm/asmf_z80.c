@@ -74,7 +74,7 @@ PROC asmlong(LONG value) //разная разрядность LONG/DL
   ;;asmbyte((BYTE)((UINT)value>>8)); //compatible version
   ;;asmbyte((BYTE)(value>>16L)); //compatible version
   ;;asmbyte((BYTE)(value>>24L)); //compatible version
-  /*fwrite((PBYTE)&value, 4, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_LONG, т.к. тут надо размер для таргета!)
+  /*IF (_asms) fwrite((PBYTE)&value, 4, 1, _fout);*/ //fast version (little endian) (не _SIZEOF_LONG, т.к. тут надо размер для таргета!)
   /*_curaddr = _curaddr + 4;*/ //fast version (little endian) (не _SIZEOF_LONG, т.к. тут надо размер для таргета!)
 }
 

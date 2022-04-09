@@ -10,7 +10,7 @@
 DEBUG=0
 
 MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
-txtscrhgt=25
+;txtscrhgt=25
 txtscrwid=80
 CMDLINEY=24
 
@@ -680,7 +680,7 @@ loadapp_finddotok
 ;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         push de
         push hl
         ld hl,cmdbuf
@@ -708,7 +708,7 @@ readapp
         push bc ;b=id
 
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         push de
         push hl
         ld hl,COMMANDLINE ;command line
@@ -743,7 +743,7 @@ skipword0
 
 readfile_pages_dehl
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc100/256
         call cmd_loadpage
         ret nz
@@ -755,7 +755,7 @@ readfile_pages_dehl
         ret nz
         ld a,l
 cmd_loadfullpage
-        SETPG32KHIGH
+        SETPGC000
         ld a,0xc000/256
 cmd_loadpage
 ;out: a=error
@@ -1370,7 +1370,7 @@ cmd_proc0
         ld a,' '
         PRCHAR_
         pop af ;main page
-        SETPG32KHIGH
+        SETPGC000
          pop bc ;c=flags
          push bc
          bit factive,c
@@ -1807,6 +1807,8 @@ commandslist
         db "rm",0
         dw cmd_exit
         db "exit",0
+        dw cmd_exit
+        db "quit",0
         dw cmd_cd
         db "cd",0
         dw cmd_copy

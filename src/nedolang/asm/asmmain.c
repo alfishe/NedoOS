@@ -10,7 +10,7 @@
 
 #include "asmloop.c"
 
-#include "findlabel.c"
+#include "findlbl.c"
 
 PROC writearray(PBYTE parray, UINT size, PCHAR filename)
 {
