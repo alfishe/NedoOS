@@ -582,7 +582,8 @@ cmd_filename
         db "cmd.com",0
 
 tpipename
-        db "z:",0
+        ;db "z:",0
+        db "z:/a25",0
 
 stdoutbuf
         db 0
