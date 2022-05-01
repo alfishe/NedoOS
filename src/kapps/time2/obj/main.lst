@@ -1,0 +1,25 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  21/Apr/2022  21:15:18                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  main.c                                              #
+#       List file     =  ./obj/main.lst                                      #
+#       Object file   =  ./obj/main.r01                                      #
+#       ASM file      =  ./obj/main.s01                                      #
+#       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
+#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
+#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ main.c            #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+      1            #include <stdio.h>
+
+#include <stdio.h>
+------------------^
+"main.c",1  Error[2]: Failed to open #include file 'stdio.h'
+
+Fatal error, compilation aborted

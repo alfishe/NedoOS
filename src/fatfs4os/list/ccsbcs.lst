@@ -1,0 +1,350 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  14/Jan/2022  19:00:33                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  ccsbcs.c                                            #
+#       List file     =  list\ccsbcs.lst                                     #
+#       Object file   =  list\ccsbcs.r01                                     #
+#       ASM file      =  list\ccsbcs.s01                                     #
+#       Command line  =  -S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -Llist\     #
+#                        -Olist\ -Alist\ -I..\..\iar\inc\ ccsbcs.c           #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+   \   0000                    NAME    ccsbcs(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    RSEG    CONST(0)
+   \   0000                    PUBLIC  ff_convert
+   \   0000                    EXTERN  ?CLZ80L_4_06_L00
+   \   0000                    EXTERN  ?ENT_AUTO_DIRECT_L09
+   \   0000                    EXTERN  ?LEAVE_DIRECT_L09
+   \   0000                    RSEG    CODE
+      1          /*------------------------------------------------------------------------*/
+      2          /* Unicode - Local code bidirectional converter  (C)ChaN, 2009            */
+      3          /* (SBCS code pages)                                                      */
+      4          /*------------------------------------------------------------------------*/
+      5          /*  437   U.S. (OEM)
+      6          /   720   Arabic (OEM)
+      7          /   1256  Arabic (Windows)
+      8          /   737   Greek (OEM)
+      9          /   1253  Greek (Windows)
+     10          /   1250  Central Europe (Windows)
+     11          /   775   Baltic (OEM)
+     12          /   1257  Baltic (Windows)
+     13          /   850   Multilingual Latin 1 (OEM)
+     14          /   852   Latin 2 (OEM)
+     15          /   1252  Latin 1 (Windows)
+     16          /   855   Cyrillic (OEM)
+     17          /   1251  Cyrillic (Windows)
+     18          /   866   Russian (OEM)
+     19          /   857   Turkish (OEM)
+     20          /   1254  Turkish (Windows)
+     21          /   858   Multilingual Latin 1 + Euro (OEM)
+     22          /   862   Hebrew (OEM)
+     23          /   1255  Hebrew (Windows)
+     24          /   874   Thai (OEM, Windows)
+     25          /   1258  Vietnam (OEM, Windows)
+     26          */
+     27          
+     28          #include "ff.h"
+     29          
+     30          
+     31          #if _CODE_PAGE == 437
+     53          #elif _CODE_PAGE == 720
+     75          #elif _CODE_PAGE == 737
+     97          #elif _CODE_PAGE == 775
+    119          #elif _CODE_PAGE == 850
+    141          #elif _CODE_PAGE == 852
+    163          #elif _CODE_PAGE == 855
+    185          #elif _CODE_PAGE == 857
+    207          #elif _CODE_PAGE == 858
+    229          #elif _CODE_PAGE == 862
+    251          #elif _CODE_PAGE == 866
+    252          #define _TBLDEF 1
+    253          static
+    254          const WCHAR Tbl[] = {   /*  CP866(0x80-0xFF) to Unicode conversion table */
+    255              0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0416, 0x0417,
+    256              0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E, 0x041F,
+    257              0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426, 0x0427,
+    258              0x0428, 0x0429, 0x042A, 0x042B, 0x042C, 0x042D, 0x042E, 0x042F,
+    259              0x0430, 0x0431, 0x0432, 0x0433, 0x0434, 0x0435, 0x0436, 0x0437,
+    260              0x0438, 0x0439, 0x043A, 0x043B, 0x043C, 0x043D, 0x043E, 0x043F,
+    261              0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561, 0x2562, 0x2556,
+    262              0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510,
+    263              0x2514, 0x2534, 0x252C, 0x251C, 0x2500, 0x253C, 0x255E, 0x255F,
+    264              0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567,
+    265              0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x256B,
+    266              0x256A, 0x2518, 0x250C, 0x2588, 0x2584, 0x258C, 0x2590, 0x2580,
+    267              0x0440, 0x0441, 0x0442, 0x0443, 0x0444, 0x0445, 0x0446, 0x0447,
+    268              0x0448, 0x0449, 0x044A, 0x044B, 0x044C, 0x044D, 0x044E, 0x044F,
+    269              0x0401, 0x0451, 0x0404, 0x0454, 0x0407, 0x0457, 0x040E, 0x045E,
+    270              0x00B0, 0x2219, 0x00B7, 0x221A, 0x2116, 0x00A4, 0x25A0, 0x00A0
+    271          };
+    272          
+    273          #elif _CODE_PAGE == 874
+    295          #elif _CODE_PAGE == 1250
+    317          #elif _CODE_PAGE == 1251
+    339          #elif _CODE_PAGE == 1252
+    361          #elif _CODE_PAGE == 1253
+    383          #elif _CODE_PAGE == 1254
+    405          #elif _CODE_PAGE == 1255
+    427          #elif _CODE_PAGE == 1256
+    449          #elif _CODE_PAGE == 1257
+    471          #elif _CODE_PAGE == 1258
+    493          #endif
+    494          
+    495          
+    496          #if !_TBLDEF || !_USE_LFN
+    498          #endif
+    499          
+    500          
+    501          WCHAR ff_convert (  /* Converted character, Returns zero on error */
+    502              WCHAR   src,    /* Character code to be converted */
+    503              UINT    dir     /* 0: Unicode to OEMCP, 1: OEMCP to Unicode */
+    504          )
+   \   0000            ff_convert:
+   \   0000  CD0000            CALL    ?ENT_AUTO_DIRECT_L09
+   \   0003  0000              DEFW    0
+   \   0005  FDE5              PUSH    IY
+   \   0007  DD6E02            LD      L,(IX+2)
+   \   000A  DD6603            LD      H,(IX+3)
+   \   000D  E5                PUSH    HL
+   \   000E  FDE1              POP     IY
+    505          {
+    506              WCHAR c;
+    507          
+    508          
+   \   0010  018000            LD      BC,128
+   \   0013  A7                AND     A
+   \   0014  ED42              SBC     HL,BC
+   \   0016  3005              JR      NC,?0003
+   \   0018            ?0002:
+    509              if (src < 0x80) {   /* ASCII */
+   \   0018  FDE5              PUSH    IY
+   \   001A  E1                POP     HL
+   \   001B  1822              JR      ?0009
+    510                  c = src;
+    511          
+   \   001D            ?0003:
+    512              } else {
+   \   001D  DD7E04            LD      A,(IX+4)
+   \   0020  DDB605            OR      (IX+5)
+   \   0023  281D              JR      Z,?0006
+   \   0025            ?0005:
+    513                  if (dir) {      /* OEMCP to Unicode */
+   \   0025  010001            LD      BC,256
+   \   0028  FDE5              PUSH    IY
+   \   002A  E1                POP     HL
+   \   002B  ED42              SBC     HL,BC
+   \   002D  3804              JR      C,?0008
+   \   002F  69                LD      L,C
+   \   0030  61                LD      H,C
+   \   0031  180C              JR      ?0009
+   \   0033            ?0008:
+   \   0033  FDE5              PUSH    IY
+   \   0035  E1                POP     HL
+   \   0036  29                ADD     HL,HL
+   \   0037  0100FF            LD      BC,Tbl-256
+   \   003A  09                ADD     HL,BC
+   \   003B  46                LD      B,(HL)
+   \   003C  23                INC     HL
+   \   003D  66                LD      H,(HL)
+   \   003E  68                LD      L,B
+   \   003F            ?0009:
+   \   003F  EB                EX      DE,HL
+    514                      c = (src >= 0x100) ? 0 : Tbl[src - 0x80];
+    515          
+   \   0040  1829              JR      ?0010
+   \   0042            ?0006:
+    516                  } else {        /* Unicode to OEMCP */
+   \   0042  110000            LD      DE,0
+   \   0045            ?0012:
+   \   0045  018000            LD      BC,128
+   \   0048  6B                LD      L,E
+   \   0049  62                LD      H,D
+   \   004A  A7                AND     A
+   \   004B  ED42              SBC     HL,BC
+   \   004D  3016              JR      NC,?0011
+   \   004F            ?0013:
+    517                      for (c = 0; c < 0x80; c++) {
+   \   004F  6B                LD      L,E
+   \   0050  62                LD      H,D
+   \   0051  29                ADD     HL,HL
+   \   0052  010000            LD      BC,Tbl
+   \   0055  09                ADD     HL,BC
+   \   0056  46                LD      B,(HL)
+   \   0057  23                INC     HL
+   \   0058  66                LD      H,(HL)
+   \   0059  68                LD      L,B
+   \   005A  FDE5              PUSH    IY
+   \   005C  C1                POP     BC
+   \   005D  A7                AND     A
+   \   005E  ED42              SBC     HL,BC
+   \   0060  2803              JR      Z,?0011
+   \   0062            ?0015:
+   \   0062            ?0016:
+   \   0062  13                INC     DE
+    518                          if (src == Tbl[c]) break;
+    519                      }
+   \   0063  18E0              JR      ?0012
+   \   0065            ?0011:
+   \   0065  7B                LD      A,E
+   \   0066  C680              ADD     A,128
+   \   0068  5F                LD      E,A
+   \   0069  1600              LD      D,0
+   \   006B            ?0010:
+   \   006B            ?0004:
+    520                      c = (c + 0x80) & 0xFF;
+    521                  }
+    522              }
+    523          
+   \   006B  EB                EX      DE,HL
+    524              return c;
+   \   006C  FDE1              POP     IY
+   \   006E  C30000            JP      ?LEAVE_DIRECT_L09
+    525          }
+    526          
+    527          #if 0
+    541          #endif
+   \   0000                    RSEG    CONST
+   \   0000            Tbl:
+   \   0000  1004              DEFW    1040
+   \   0002  1104              DEFW    1041
+   \   0004  1204              DEFW    1042
+   \   0006  1304              DEFW    1043
+   \   0008  1404              DEFW    1044
+   \   000A  1504              DEFW    1045
+   \   000C  1604              DEFW    1046
+   \   000E  1704              DEFW    1047
+   \   0010  1804              DEFW    1048
+   \   0012  1904              DEFW    1049
+   \   0014  1A04              DEFW    1050
+   \   0016  1B04              DEFW    1051
+   \   0018  1C04              DEFW    1052
+   \   001A  1D04              DEFW    1053
+   \   001C  1E04              DEFW    1054
+   \   001E  1F04              DEFW    1055
+   \   0020  2004              DEFW    1056
+   \   0022  2104              DEFW    1057
+   \   0024  2204              DEFW    1058
+   \   0026  2304              DEFW    1059
+   \   0028  2404              DEFW    1060
+   \   002A  2504              DEFW    1061
+   \   002C  2604              DEFW    1062
+   \   002E  2704              DEFW    1063
+   \   0030  2804              DEFW    1064
+   \   0032  2904              DEFW    1065
+   \   0034  2A04              DEFW    1066
+   \   0036  2B04              DEFW    1067
+   \   0038  2C04              DEFW    1068
+   \   003A  2D04              DEFW    1069
+   \   003C  2E04              DEFW    1070
+   \   003E  2F04              DEFW    1071
+   \   0040  3004              DEFW    1072
+   \   0042  3104              DEFW    1073
+   \   0044  3204              DEFW    1074
+   \   0046  3304              DEFW    1075
+   \   0048  3404              DEFW    1076
+   \   004A  3504              DEFW    1077
+   \   004C  3604              DEFW    1078
+   \   004E  3704              DEFW    1079
+   \   0050  3804              DEFW    1080
+   \   0052  3904              DEFW    1081
+   \   0054  3A04              DEFW    1082
+   \   0056  3B04              DEFW    1083
+   \   0058  3C04              DEFW    1084
+   \   005A  3D04              DEFW    1085
+   \   005C  3E04              DEFW    1086
+   \   005E  3F04              DEFW    1087
+   \   0060  9125              DEFW    9617
+   \   0062  9225              DEFW    9618
+   \   0064  9325              DEFW    9619
+   \   0066  0225              DEFW    9474
+   \   0068  2425              DEFW    9508
+   \   006A  6125              DEFW    9569
+   \   006C  6225              DEFW    9570
+   \   006E  5625              DEFW    9558
+   \   0070  5525              DEFW    9557
+   \   0072  6325              DEFW    9571
+   \   0074  5125              DEFW    9553
+   \   0076  5725              DEFW    9559
+   \   0078  5D25              DEFW    9565
+   \   007A  5C25              DEFW    9564
+   \   007C  5B25              DEFW    9563
+   \   007E  1025              DEFW    9488
+   \   0080  1425              DEFW    9492
+   \   0082  3425              DEFW    9524
+   \   0084  2C25              DEFW    9516
+   \   0086  1C25              DEFW    9500
+   \   0088  0025              DEFW    9472
+   \   008A  3C25              DEFW    9532
+   \   008C  5E25              DEFW    9566
+   \   008E  5F25              DEFW    9567
+   \   0090  5A25              DEFW    9562
+   \   0092  5425              DEFW    9556
+   \   0094  6925              DEFW    9577
+   \   0096  6625              DEFW    9574
+   \   0098  6025              DEFW    9568
+   \   009A  5025              DEFW    9552
+   \   009C  6C25              DEFW    9580
+   \   009E  6725              DEFW    9575
+   \   00A0  6825              DEFW    9576
+   \   00A2  6425              DEFW    9572
+   \   00A4  6525              DEFW    9573
+   \   00A6  5925              DEFW    9561
+   \   00A8  5825              DEFW    9560
+   \   00AA  5225              DEFW    9554
+   \   00AC  5325              DEFW    9555
+   \   00AE  6B25              DEFW    9579
+   \   00B0  6A25              DEFW    9578
+   \   00B2  1825              DEFW    9496
+   \   00B4  0C25              DEFW    9484
+   \   00B6  8825              DEFW    9608
+   \   00B8  8425              DEFW    9604
+   \   00BA  8C25              DEFW    9612
+   \   00BC  9025              DEFW    9616
+   \   00BE  8025              DEFW    9600
+   \   00C0  4004              DEFW    1088
+   \   00C2  4104              DEFW    1089
+   \   00C4  4204              DEFW    1090
+   \   00C6  4304              DEFW    1091
+   \   00C8  4404              DEFW    1092
+   \   00CA  4504              DEFW    1093
+   \   00CC  4604              DEFW    1094
+   \   00CE  4704              DEFW    1095
+   \   00D0  4804              DEFW    1096
+   \   00D2  4904              DEFW    1097
+   \   00D4  4A04              DEFW    1098
+   \   00D6  4B04              DEFW    1099
+   \   00D8  4C04              DEFW    1100
+   \   00DA  4D04              DEFW    1101
+   \   00DC  4E04              DEFW    1102
+   \   00DE  4F04              DEFW    1103
+   \   00E0  0104              DEFW    1025
+   \   00E2  5104              DEFW    1105
+   \   00E4  0404              DEFW    1028
+   \   00E6  5404              DEFW    1108
+   \   00E8  0704              DEFW    1031
+   \   00EA  5704              DEFW    1111
+   \   00EC  0E04              DEFW    1038
+   \   00EE  5E04              DEFW    1118
+   \   00F0  B000              DEFW    176
+   \   00F2  1922              DEFW    8729
+   \   00F4  B700              DEFW    183
+   \   00F6  1A22              DEFW    8730
+   \   00F8  1621              DEFW    8470
+   \   00FA  A400              DEFW    164
+   \   00FC  A025              DEFW    9632
+   \   00FE  A000              DEFW    160
+   \   0100                    END
+
+Errors: none
+Warnings: none
+Code size: 113
+Constant size: 256
+Static variable size: Data(0) Iram(0)
+

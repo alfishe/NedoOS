@@ -1,0 +1,857 @@
+	NAME	main(16)
+	RSEG	CODE(0)
+	RSEG	CSTR(0)
+	RSEG	UDATA0(0)
+	PUBLIC	AT
+	PUBLIC	ATRIB
+	PUBLIC	BOX
+	EXTERN	OS_DROPAPP
+	EXTERN	OS_GETAPPMAINPAGES
+	EXTERN	OS_GETMAINPAGES
+	EXTERN	OS_GETPAGEOWNER
+	EXTERN	SETPG32KHIGH
+	PUBLIC	c1
+	PUBLIC	c2
+	PUBLIC	curpos
+	EXTERN	errno
+	PUBLIC	filltable
+	PUBLIC	freemem
+	EXTERN	getchar
+	PUBLIC	killapp
+	PUBLIC	main
+	PUBLIC	main_pg
+	EXTERN	os_initstdio
+	PUBLIC	pgbak
+	PUBLIC	prccount
+	EXTERN	printf
+	PUBLIC	procname
+	PUBLIC	procnum
+	EXTERN	putchar
+	PUBLIC	putdec
+	EXTERN	puts
+	PUBLIC	redraw
+	PUBLIC	sysmem
+	PUBLIC	table
+	PUBLIC	usedmem
+	EXTERN	?CLZ80L_4_06_L00
+	EXTERN	?SS_DIV_L02
+	EXTERN	?S_MUL_L02
+	EXTERN	?SS_MODASG_L02
+	EXTERN	?SS_DIVASG_IY_L12
+	RSEG	CODE
+putdec:
+	PUSH	BC
+	PUSH	IY
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	DE
+	PUSH	AF
+	PUSH	AF
+	PUSH	AF
+	XOR	A
+	LD	(IX-6),A
+	LD	(IX-5),A
+	LD	IY,100
+?0011:
+	PUSH	IY
+	POP	BC
+	LD	HL,0
+	OR	128
+	SBC	HL,BC
+	JP	PO,?0090
+	XOR	H
+?0090:
+	JP	P,?0010
+?0012:
+	PUSH	IY
+	POP	BC
+	LD	E,(IX-2)
+	LD	D,(IX-1)
+	CALL	?SS_DIV_L02
+	LD	(IX-4),E
+	LD	(IX-3),D
+	LD	HL,6
+	ADD	HL,SP
+	CALL	?SS_MODASG_L02
+	LD	A,(IX-4)
+	OR	(IX-3)
+	JR	NZ,?0016
+	LD	A,(IX-6)
+	OR	(IX-5)
+	JR	NZ,?0016
+	LD	A,1
+	XOR	IYL
+	OR	IYH
+	JR	NZ,?0015
+?0016:
+?0017:
+?0014:
+	LD	(IX-6),1
+	LD	(IX-5),0
+	LD	HL,48
+	LD	C,(IX-4)
+	LD	B,(IX-3)
+	ADD	HL,BC
+	EX	DE,HL
+	CALL	putchar
+?0015:
+	LD	BC,10
+	CALL	?SS_DIVASG_IY_L12
+	JR	?0011
+?0010:
+	LD	SP,IX
+	POP	IX
+	POP	IY
+	POP	BC
+	RET
+AT:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	LD	DE,27
+	CALL	putchar
+	LD	DE,91
+	CALL	putchar
+	LD	E,C
+	LD	D,B
+	CALL	putdec
+	LD	DE,59
+	CALL	putchar
+	LD	E,(IX-4)
+	LD	D,(IX-3)
+	CALL	putdec
+	LD	DE,72
+	CALL	putchar
+	LD	SP,IX
+	POP	IX
+	RET
+ATRIB:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	DE
+	LD	DE,27
+	CALL	putchar
+	LD	DE,91
+	CALL	putchar
+	LD	E,(IX-2)
+	LD	D,(IX-1)
+	CALL	putdec
+	LD	DE,109
+	CALL	putchar
+	LD	SP,IX
+	POP	IX
+	RET
+BOX:
+	PUSH	IY
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	LD	E,(IX+10)
+	LD	D,0
+	CALL	ATRIB
+	LD	IYH,0
+?0019:
+	LD	A,IYH
+	CP	(IX+8)
+	JR	NC,?0018
+?0020:
+	LD	C,IYH
+	LD	B,0
+	LD	E,(IX-2)
+	LD	D,0
+	LD	L,C
+	LD	H,B
+	ADD	HL,DE
+	LD	C,L
+	LD	B,H
+	LD	E,(IX-4)
+	LD	D,0
+	CALL	AT
+	LD	IYL,0
+?0023:
+	LD	A,IYL
+	CP	(IX+6)
+	JR	NC,?0022
+?0024:
+	LD	DE,32
+	CALL	putchar
+	INC	IYL
+	JR	?0023
+?0022:
+	INC	IYH
+	JR	?0019
+?0018:
+	LD	SP,IX
+	POP	IX
+	POP	IY
+	RET
+redraw:
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	DE
+	LD	DE,43
+	CALL	ATRIB
+	POP	DE
+	LD	E,0
+?0027:
+	LD	L,E
+	LD	H,0
+	LD	BC,(prccount)
+	OR	128
+	SBC	HL,BC
+	JP	PO,?0091
+	XOR	H
+?0091:
+	JP	P,?0026
+?0028:
+	PUSH	DE
+	LD	C,E
+	LD	B,0
+	LD	HL,5
+	ADD	HL,BC
+	LD	C,L
+	LD	B,H
+	LD	DE,12
+	CALL	AT
+	POP	DE
+	LD	BC,(curpos)
+	LD	B,0
+	DEC	BC
+	LD	L,E
+	LD	H,0
+	AND	A
+	SBC	HL,BC
+	JR	NZ,?0031
+?0030:
+	PUSH	DE
+	LD	DE,31
+	CALL	ATRIB
+	POP	DE
+	JR	?0032
+?0031:
+	PUSH	DE
+	LD	DE,30
+	CALL	ATRIB
+	POP	DE
+?0032:
+	PUSH	DE
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	LD	HL,table
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0033
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	DE
+	PUSH	DE
+	LD	HL,table+2
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	EX	DE,HL
+	CALL	puts
+	POP	DE
+	PUSH	DE
+	LD	C,E
+	LD	B,0
+	LD	HL,5
+	ADD	HL,BC
+	LD	C,L
+	LD	B,H
+	LD	DE,50
+	CALL	AT
+	POP	DE
+	PUSH	DE
+	LD	HL,table+34
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0034
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	DE
+	PUSH	DE
+	LD	C,E
+	LD	B,0
+	LD	HL,5
+	ADD	HL,BC
+	LD	C,L
+	LD	B,H
+	LD	DE,55
+	CALL	AT
+	POP	DE
+	PUSH	DE
+	LD	HL,table+35
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0033
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	DE
+	PUSH	DE
+	LD	HL,table+36
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0033
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	DE
+	PUSH	DE
+	LD	HL,table+37
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0033
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	DE
+	PUSH	DE
+	LD	HL,table+38
+	LD	C,E
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0035
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	DE
+	INC	E
+	JP	?0027
+?0026:
+	LD	SP,IX
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+filltable:
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+	CALL	OS_GETMAINPAGES
+	LD	(main_pg),HL
+	LD	(main_pg+2),BC
+	LD	A,(main_pg)
+	LD	(pgbak),A
+	LD	HL,0
+	LD	(prccount),HL
+	LD	(IX-4),0
+?0037:
+	LD	A,(IX-4)
+	CP	16
+	JP	NC,?0036
+?0038:
+	LD	B,(IX-4)
+	INC	B
+	LD	(IX-3),B
+	LD	E,B
+	CALL	OS_GETAPPMAINPAGES
+	LD	(main_pg),HL
+	LD	(main_pg+2),BC
+	LD	A,(errno)
+	OR	A
+	JP	NZ,?0041
+?0040:
+	LD	BC,39
+	LD	DE,(prccount)
+	CALL	?S_MUL_L02
+	LD	HL,table
+	ADD	HL,DE
+	LD	B,(IX-3)
+	LD	(HL),B
+	LD	HL,table+1
+	LD	C,(IX-4)
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	A,(prccount)
+	LD	(HL),A
+	LD	HL,table+35
+	LD	BC,39
+	LD	DE,(prccount)
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	A,(main_pg+3)
+	LD	(HL),A
+	LD	HL,table+36
+	LD	BC,39
+	LD	DE,(prccount)
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	A,(main_pg+2)
+	LD	(HL),A
+	LD	HL,table+37
+	LD	BC,39
+	LD	DE,(prccount)
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	A,(main_pg+1)
+	LD	(HL),A
+	LD	HL,table+38
+	LD	BC,39
+	LD	DE,(prccount)
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	A,(main_pg)
+	LD	(HL),A
+	LD	HL,table+35
+	LD	BC,39
+	LD	DE,(prccount)
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	E,(HL)
+	CALL	SETPG32KHIGH
+	LD	BC,31
+	PUSH	BC
+	LD	HL,table+2
+	LD	DE,39
+	LD	BC,(prccount)
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	EX	DE,HL
+	LD	HL,49280
+	POP	BC
+	LDIR
+	LD	HL,(prccount)
+	INC	HL
+	LD	(prccount),HL
+	JR	?0042
+?0041:
+	LD	HL,table+1
+	LD	C,(IX-4)
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	(HL),0
+?0042:
+	LD	HL,table+34
+	LD	C,(IX-4)
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	(HL),0
+	INC	(IX-4)
+	JP	?0037
+?0036:
+	LD	DE,(pgbak)
+	CALL	SETPG32KHIGH
+	XOR	A
+	LD	(freemem),A
+	XOR	A
+	LD	(sysmem),A
+	XOR	A
+	LD	(usedmem),A
+	XOR	A
+	LD	(c2),A
+?0044:
+	LD	A,(c2)
+	CP	255
+	JR	NC,?0043
+?0045:
+	LD	DE,(c2)
+	CALL	OS_GETPAGEOWNER
+	LD	(IX-2),A
+	OR	A
+	JR	NZ,?0048
+?0047:
+	LD	HL,freemem
+	INC	(HL)
+	JR	?0052
+?0048:
+	LD	B,(IX-2)
+	INC	B
+	JR	NZ,?0051
+?0050:
+	LD	HL,sysmem
+	INC	(HL)
+	JR	?0052
+?0051:
+	LD	HL,table-38
+	LD	C,(IX-2)
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	C,(HL)
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	LD	HL,table+34
+	ADD	HL,DE
+	INC	(HL)
+	LD	HL,usedmem
+	INC	(HL)
+?0052:
+?0049:
+	LD	HL,c2
+	INC	(HL)
+	JR	?0044
+?0043:
+	LD	C,41
+	PUSH	BC
+	LD	C,1
+	PUSH	BC
+	LD	C,54
+	PUSH	BC
+	LD	A,(prccount)
+	ADD	A,5
+	LD	C,A
+	LD	E,12
+	CALL	BOX
+	POP	HL
+	POP	HL
+	POP	HL
+	LD	HL,5
+	LD	BC,(prccount)
+	ADD	HL,BC
+	LD	C,L
+	LD	B,H
+	LD	DE,12
+	CALL	AT
+	LD	DE,33
+	CALL	ATRIB
+	LD	BC,(sysmem)
+	LD	B,0
+	PUSH	BC
+	LD	BC,(usedmem)
+	LD	B,0
+	PUSH	BC
+	LD	BC,(freemem)
+	LD	B,0
+	PUSH	BC
+	LD	HL,?0053
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	LD	C,40
+	PUSH	BC
+	LD	C,2
+	PUSH	BC
+	LD	C,54
+	PUSH	BC
+	LD	A,(prccount)
+	ADD	A,6
+	LD	C,A
+	LD	E,12
+	CALL	BOX
+	POP	HL
+	POP	HL
+	POP	HL
+	LD	C,43
+	PUSH	BC
+	LD	A,(prccount)
+	LD	C,A
+	PUSH	BC
+	LD	C,41
+	PUSH	BC
+	LD	C,5
+	LD	E,14
+	CALL	BOX
+	POP	HL
+	POP	HL
+	POP	HL
+	LD	DE,37
+	CALL	ATRIB
+	LD	DE,40
+	CALL	ATRIB
+	LD	BC,23
+	LD	DE,6
+	CALL	AT
+	LD	DE,?0054
+	CALL	puts
+	LD	DE,33
+	CALL	ATRIB
+	LD	SP,IX
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+killapp:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	DE
+	CALL	OS_DROPAPP
+	CALL	filltable
+	LD	SP,IX
+	POP	IX
+	RET
+main:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	PUSH	AF
+	LD	(IX-6),1
+	LD	A,1
+	LD	(curpos),A
+	CALL	os_initstdio
+	CALL	filltable
+	LD	L,41
+	PUSH	HL
+	LD	L,1
+	PUSH	HL
+	LD	L,54
+	PUSH	HL
+	LD	C,4
+	LD	E,12
+	CALL	BOX
+	POP	HL
+	POP	HL
+	POP	HL
+	LD	BC,4
+	LD	DE,33
+	CALL	AT
+	LD	DE,33
+	CALL	ATRIB
+	LD	DE,?0055
+	CALL	puts
+	CALL	redraw
+?0057:
+	XOR	A
+	OR	(IX-6)
+	JP	Z,?0056
+?0058:
+	CALL	getchar
+	LD	A,L
+	LD	(procname),A
+	CP	101
+	JP	Z,?0056
+?0059:
+?0060:
+	LD	A,(procname)
+	LD	B,A
+	LD	A,48
+	CP	B
+	JR	NC,?0062
+	LD	A,(procname)
+	CP	58
+	JR	NC,?0062
+?0064:
+?0063:
+?0061:
+	LD	A,(procname)
+	ADD	A,208
+	LD	(procname),A
+	LD	E,A
+	CALL	killapp
+	JP	?0089
+?0062:
+	LD	A,(procname)
+	LD	B,A
+	LD	A,64
+	CP	B
+	JR	NC,?0067
+	LD	A,(procname)
+	CP	71
+	JR	NC,?0067
+?0069:
+?0068:
+?0066:
+	LD	A,(procname)
+	ADD	A,201
+	LD	E,A
+	CALL	killapp
+	JP	?0089
+?0067:
+	LD	A,(procname)
+	LD	B,A
+	LD	A,96
+	CP	B
+	JR	NC,?0071
+	LD	A,(procname)
+	CP	103
+	JR	NC,?0071
+?0073:
+?0072:
+?0070:
+	LD	A,(procname)
+	ADD	A,169
+	LD	E,A
+	CALL	killapp
+	JR	?0089
+?0071:
+	LD	A,(procname)
+	CP	13
+	JR	Z,?0076
+	LD	A,(procname)
+	CP	120
+	JR	Z,?0076
+	LD	A,(procname)
+	CP	88
+	JR	NZ,?0075
+?0076:
+?0077:
+?0074:
+	LD	HL,table-39
+	LD	BC,(curpos)
+	LD	B,0
+	LD	DE,39
+	CALL	?S_MUL_L02
+	ADD	HL,DE
+	LD	E,(HL)
+	CALL	killapp
+	JR	?0089
+?0075:
+	LD	A,(procname)
+	CP	119
+	JR	Z,?0080
+	LD	A,(procname)
+	CP	87
+	JR	NZ,?0079
+?0080:
+?0081:
+?0078:
+	LD	HL,curpos
+	DEC	(HL)
+?0079:
+	LD	A,(procname)
+	CP	115
+	JR	Z,?0084
+	LD	A,(procname)
+	CP	83
+	JR	NZ,?0083
+?0084:
+?0085:
+?0082:
+	LD	HL,curpos
+	INC	(HL)
+?0083:
+	LD	A,(curpos)
+	CP	1
+	JR	NC,?0087
+?0086:
+	LD	A,(prccount)
+	LD	(curpos),A
+?0087:
+	LD	BC,(curpos)
+	LD	B,0
+	LD	HL,(prccount)
+	OR	128
+	SBC	HL,BC
+	JP	PO,?0092
+	XOR	H
+?0092:
+	JP	P,?0089
+?0088:
+	LD	A,1
+	LD	(curpos),A
+?0089:
+?0065:
+	CALL	redraw
+	JP	?0057
+?0056:
+	LD	HL,0
+	LD	SP,IX
+	POP	IX
+	RET
+	RSEG	CSTR
+?0033:
+	DEFB	'%X.'
+	DEFB	0
+?0034:
+	DEFB	'%u  '
+	DEFB	0
+?0035:
+	DEFB	'%X'
+	DEFB	0
+?0053:
+	DEFB	'    Free:%u pages     Used:%u pages  Sys:%u pages'
+	DEFB	0
+?0054:
+	DEFB	'W - UP; S - DOWN; X - KILL; ESC - EXIT or press number of proce'
+	DEFB	'ss'
+	DEFB	0
+?0055:
+	DEFB	'TASK MANAGER'
+	DEFB	0
+	RSEG	UDATA0
+table:
+	DEFS	663
+procnum:
+	DEFS	2
+prccount:
+	DEFS	2
+c1:
+	DEFS	1
+c2:
+	DEFS	1
+pgbak:
+	DEFS	1
+freemem:
+	DEFS	1
+sysmem:
+	DEFS	1
+usedmem:
+	DEFS	1
+curpos:
+	DEFS	1
+procname:
+	DEFS	1
+main_pg:
+	DEFS	4
+	END

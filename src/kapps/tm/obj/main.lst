@@ -1,0 +1,240 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  21/Apr/2022  21:21:16                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  main.c                                              #
+#       List file     =  ./obj/main.lst                                      #
+#       Object file   =  ./obj/main.r01                                      #
+#       ASM file      =  ./obj/main.s01                                      #
+#       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
+#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
+#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ main.c            #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+      1            
+      2            #include <stdlib.h>
+      3            #include <stdio.h>
+      4            #include <string.h>
+      5            #include <oscalls.h>
+      6            #include <intrz80.h>
+      7            #include <terminal.c>
+      8            #define COMMANDLINE 0x0080
+      9            
+     10            struct process
+     11            {
+     12                unsigned char nomer;
+     13                unsigned char nomer2;
+     14                unsigned char name[32];
+     15                unsigned char used;
+     16                unsigned char window_0;
+     17                unsigned char window_1;
+     18                unsigned char window_2;
+     19                unsigned char window_3;
+     20            } table[17];
+     21            
+     22            int procnum, prccount;
+     23            unsigned char c1, c2, pgbak, freemem, sysmem, usedmem, curpos;
+     24            unsigned char procname;
+     25            union APP_PAGES main_pg;
+     26            
+     27            void redraw(void)
+     28            {
+     29                unsigned char c3;
+     30                
+     31            //    BOX(14, 5, 41, prccount, 43);
+     32                ATRIB(43);
+     33            
+     34                for (c3 = 0; c3 < prccount; c3++)
+     35                {
+     36                    AT(12, 5 + c3);
+     37                    if (c3 == curpos - 1)
+     38                    {
+     39                        ATRIB(31);
+     40                    }
+     41                    else
+     42                    {
+     43                        ATRIB(30);
+     44                    }
+     45                    printf("%X.",table[c3].nomer);
+     46                    puts(table[c3].name);
+     47                    AT(50, 5 + c3);
+     48                    printf("%u  ", table[c3].used);
+     49                    AT(55, 5 + c3);
+     50                    printf("%X.", table[c3].window_0);
+     51                    printf("%X.", table[c3].window_1);
+     52                    printf("%X.", table[c3].window_2);
+     53                    printf("%X", table[c3].window_3);
+     54                }
+     55            
+     56            
+     57            }
+     58            void filltable(void)
+     59            {
+     60                unsigned char c3, c4;
+     61                main_pg.l = OS_GETMAINPAGES();
+     62                pgbak = main_pg.pgs.window_3;
+     63                prccount = 0;
+     64                for (c3 = 0; c3 < 16; c3++)
+     65                {
+     66                    c4 = c3 + 1;
+     67                    main_pg.l = OS_GETAPPMAINPAGES(c4);
+     68            
+     69                    if (errno == 0)
+     70                    {
+     71            
+     72                        table[prccount].nomer = c4;
+     73                        table[c3].nomer2 = prccount;
+     74                        table[prccount].window_0 = main_pg.pgs.window_0;
+     75                        table[prccount].window_1 = main_pg.pgs.window_1;
+     76                        table[prccount].window_2 = main_pg.pgs.window_2;
+     77                        table[prccount].window_3 = main_pg.pgs.window_3;
+     78                        SETPG32KHIGH(table[prccount].window_0);
+     79                        memcpy(table[prccount].name, (char *)(0xc000 + COMMANDLINE), 31);
+     80                        prccount++;
+     81                    }
+     82                    else
+     83                    {
+     84                        table[c3].nomer2 = 0;
+     85                    }
+     86                    table[c3].used = 0;
+     87                }
+     88            
+     89                SETPG32KHIGH(pgbak);
+     90            
+     91                freemem = 0;
+     92                sysmem = 0;
+     93                usedmem = 0;
+     94                for (c2 = 0; c2 < 255; c2++)
+     95                {
+     96                    unsigned char owner;
+     97                    owner = OS_GETPAGEOWNER(c2);
+     98                    if (owner == 0)
+     99                    {
+    100                        freemem++;
+    101                    }
+    102                    else
+    103            
+    104                        if (owner == 255)
+    105                    {
+    106                        sysmem++;
+    107                    }
+    108                    else
+    109                    {
+    110                        table[table[owner - 1].nomer2].used++;
+    111                        usedmem++;
+    112                    }
+    113                }
+    114            
+    115                BOX(12, 5 + prccount, 54, 1, 41);
+    116                AT(12, 5 + prccount);
+    117                ATRIB(33);
+    118                printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
+    119                    BOX(12, 6 + prccount, 54, 2, 40);
+    120                    BOX(14, 5, 41, prccount, 43);
+    121                    
+    122                    ATRIB(37);
+    123                    ATRIB(40);
+    124                    AT(6, 23);
+    125                puts("W - UP; S - DOWN; X - KILL; ESC - EXIT or press number of process");
+    126                    ATRIB(33);
+    127            
+    128            }
+    129            
+    130            void killapp(unsigned char id)
+    131            {
+    132            
+    133                OS_DROPAPP(id);
+    134                filltable();
+    135            }
+    136            
+    137            C_task main(int argc, char *argv[])
+    138            {
+    139                unsigned char loop = 1;
+    140                curpos = 1;
+    141                os_initstdio();
+    142                filltable();
+    143                BOX(12, 4, 54, 1, 41);
+    144                AT(33, 4);
+    145                ATRIB(33);
+    146                puts("TASK MANAGER");
+    147                    
+    148                    
+    149                    redraw();
+    150                while (loop)
+    151                {
+    152                    procname = getchar();
+    153            
+    154                            if (procname == '\e')
+
+                if (procname == '\e')
+-----------------------------------^
+"main.c",154  Warning[6]: Unknown escape sequence ('e'); assumed 'e'
+    155                    {
+    156                            break;
+    157                    }
+    158            
+    159                    if (procname > '0' && procname < 58)
+    160                    {
+    161                        procname = procname - '0';
+    162                        killapp(procname);
+    163                                    goto end;
+    164                            }
+    165                            
+    166                            if (procname > '@' && procname < 'G')
+    167                    {
+    168                        killapp(procname - 55);
+    169                                    goto end;
+    170                            }
+    171            
+    172                            if (procname > 96 && procname < 'g')
+    173                    {
+    174                        killapp(procname - 87);
+    175                                    goto end;
+    176                            }
+    177                    
+    178                    if (procname == 13 || procname == 'x'|| procname == 'X')
+    179                    {
+    180                        killapp(table[curpos - 1].nomer);
+    181                                    goto end;
+    182                    }
+    183            
+    184                            if (procname == 'w' || procname == 'W')
+    185                    {
+    186                        curpos--;
+    187                            }
+    188            
+    189                    if (procname == 's' || procname == 'S')
+    190                    {
+    191                        curpos++;
+    192                    }
+    193            
+    194                    if (curpos < 1)
+    195                    {
+    196                        curpos = prccount;
+    197                    }
+    198            
+    199                    if (curpos > prccount)
+    200                    {
+    201                        curpos = 1;
+    202                    }
+    203            end:    redraw();
+    204                }
+    205                return 0;
+    206            }
+
+}
+^
+"main.c",206  Warning[33]: Local or formal 'argv' was never referenced
+"main.c",206  Warning[33]: Local or formal 'argc' was never referenced
+
+Errors: none
+Warnings: 3
+Code size: 1485
+Constant size: 141
+Static variable size: Data(679) Iram(0)
+
