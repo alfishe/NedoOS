@@ -25,10 +25,10 @@ XCLFILE	:= $(LIBDIR)lnk.xcl
 endif	
 
 ifeq ($(OS),Windows_NT)
-RM		:= $(TOOL)msys/rm.exe -r -f
+RM	:= $(TOOL)/msys/rm.exe -r -f
 MKDIR	:= $(TOOL)/msys/mkdir.exe
 MAKE	:= $(TOOL)/mingw/make.exe
-CP		:= $(TOOL)/msys/cp.exe
+CP	:= $(TOOL)/msys/cp.exe
 WINE	:=
 else
 RM		:= rm -r -f
