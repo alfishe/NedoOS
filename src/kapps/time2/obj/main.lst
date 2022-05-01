@@ -2,7 +2,7 @@
 #                                                                            #
 # IAR Z80/64180 C-Compiler V4.06A/W32                                        #
 #                                                                            #
-#       Compile time  =  21/Apr/2022  21:15:18                               #
+#       Compile time  =  01/May/2022  22:52:34                               #
 #       Target option =  Z80                                                 #
 #       Memory model  =  large                                               #
 #       Source file   =  main.c                                              #
@@ -10,16 +10,265 @@
 #       Object file   =  ./obj/main.r01                                      #
 #       ASM file      =  ./obj/main.s01                                      #
 #       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
-#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
-#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ main.c            #
+#                        -A./obj/ -Ih:/nos/nedoos/iar/inc/                   #
+#                        -Ih:/nos/nedoos/src/kapps/iarlib/ main.c            #
 #                                                                            #
 #                           Copyright 2001 IAR Systems. All rights reserved. #
 ##############################################################################
 
       1            #include <stdio.h>
+      2            #include <string.h>
+      3            #include <oscalls.h>
+      4            #include <socket.h>
+      5            #include <intrz80.h>
+      6            int GMT=3;
+      7            no_init unsigned char   is_atm;
+      8            no_init unsigned char netbuf[4*1024];
+      9            no_init struct sockaddr_in ntp_ia;
+     10            union {unsigned long ul;unsigned char b[4];} secsUnix;
+     11            unsigned int hour, minute, second, day, month, year, weekday;
+     12            SOCKET s=0;
+     13            unsigned char inet=0;
+     14            const unsigned char monthDays[12] = 
+     15                            {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+     16            const unsigned char ntpnead[48] =
+     17                            {0xdb, 0x00, 0x11, 0xfa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0xfe,};
+     18            unsigned char * defntp = "2.ru.pool.ntp.org";
+     19            const unsigned char regaddr_ve[16]={0x10,0,0x50,0,0x90,0,0,0x12,0x52,0x92,0,0,0,0,0,0};
+     20            
+     21            const unsigned char help[] = "\
+     22            -H help\r\n\
+     23            -T set time(-T17:59:38)\r\n\
+     24            -D set date(-D21-06-2019)\r\n\
+     25            -N ntp-server default: -N2.ru.pool.ntp.org\r\n\
+     26            -Z time-zone default: -Z3\r\n\
+     27            -i get datetime from internet";
+     28            
+     29            extern void dns_resolve(void);
+     30            
+     31            void exit(int e){
+     32                    if(s)closesocket(s,0);
+     33                    if(e!=0) {
+     34                            puts((char*)e);
+     35                            //puts("Press any key");
+     36                            //getchar();
+     37                    }
+     38                    ((void(*)(int))0x0000)(e);
+     39            }
+     40            
+     41            extern void dns_resolve(void);
+     42            
+     43            unsigned char readcmos(unsigned char r) {
+     44                disable_interrupt();
+     45                if(is_atm == 2 || is_atm == 3){
+     46                    r = regaddr_ve[r];
+     47                    if(r != 0){
+     48                        input(0x55FE);
+     49                        r = input((r << 8) | 0x00fe);
+     50                    }
+     51                }else{
+     52                    output(0xdef7,r);
+     53                    r = input(0xbef7);
+     54                }
+     55                enable_interrupt();
+     56                return r;
+     57            
+     58            }
+     59            
+     60            void writecmos(unsigned char r,unsigned char v) {
+     61                disable_interrupt();
+     62                if(is_atm == 2 || is_atm == 3){
+     63                    r = regaddr_ve[r] +1;           // На запись порт + 1
+     64                    if(r != 0){
+     65                            input(0x55FE);  
+     66                            input((r << 8) | 0x00fe);
+     67                            input((v << 8) | 0x00fe);       
+     68                            }
+     69                }else{
+     70                    output(0xdef7,r);
+     71                    r = input(0xbef7);
+     72                }
+     73                enable_interrupt();
+     74            }
+     75            
+     76            void Unix_to_GMT(void)
+     77            {
+     78             // корректировка часового пояса и синхронизация 
+     79              unsigned char monthLength=0;
+     80              int days=0;
+     81              secsUnix.ul = secsUnix.ul + GMT * 3600;     
+     82            
+     83              second=secsUnix.ul%60;
+     84              secsUnix.ul/=60; // now it is minutes
+     85              minute=secsUnix.ul%60;
+     86              secsUnix.ul/=60; // now it is hours
+     87              hour=secsUnix.ul%24;
+     88              secsUnix.ul/=24; // now it is days
+     89              weekday=(secsUnix.ul+4)%7; // day week, 0-sunday
+     90              year=70; 
+     91              while(days + ((year % 4) ? 365 : 366) <= secsUnix.ul) {
+     92                 days += (year % 4) ? 365 : 366;
+     93                 year++;
+     94              }
+     95              secsUnix.ul -= days; // now it is days in this year, starting at 0
+     96             
+     97              days=0;
+     98              month=0;
+     99              for (month=0; month<12; month++) {
+    100                if (month==1) { // february
+    101                  if (year%4) monthLength=28;
+    102                  else monthLength=29;
+    103                }
+    104                else monthLength = monthDays[month];
+    105                if (secsUnix.ul>=monthLength) secsUnix.ul-=monthLength;
+    106                else break;   
+    107              }
+    108              month++;       // jan is month 1
+    109              day=secsUnix.ul+1;  // day of month
+    110            } 
+    111            void ntp_resolver(void){
+    112                    unsigned char i,j;
+    113                    signed char res;
+    114                    int len;
+    115                    ntp_ia.sin_port=123<<8;
+    116                    ntp_ia.sin_addr=*dns_resolver((void*)defntp);
+    117                    if(!ntp_ia.sin_addr.S_un.S_addr) exit((int)"error: domain name not resolved");                  
+    118                    i=10;
+    119            inetloop:
+    120                    YIELD();
+    121                    i--;
+    122                    if(i==0){
+    123                            exit((int)"inet error");
+    124                    }
+    125                    s=socket(AF_INET,SOCK_DGRAM,0);
+    126                    if(s<0){
+    127                            s=0;
+    128                            goto inetloop;
+    129                    }
+    130                    memcpy(netbuf,ntpnead,sizeof(ntpnead));
+    131                    /*res=connect(s, &ntp_ia, sizeof(ntp_ia));
+    132                    if(res<0){
+    133                            closesocket(s,0);
+    134                            s=0;
+    135                            goto inetloop;
+    136                    }*/
+    137                    len=sendto(s,netbuf,48, 0, &ntp_ia, sizeof(ntp_ia));
+    138                    if(res<0){
+    139                            closesocket(s,0);
+    140                            s=0;
+    141                            goto inetloop;
+    142                    }
+    143                    j=50;
+    144                    while(j){
+    145                            j--;
+    146                            len=recvfrom(s,netbuf,sizeof(netbuf), 0, &ntp_ia, sizeof(ntp_ia));
+    147                            if(len<0){
+    148                                    YIELD();
+    149                                    continue;
+    150                            }
+    151                            break;
+    152                    }
+    153                    
+    154                    closesocket(s,0);
+    155                    s=0;
+    156                    if(len<=0){
+    157                    exit((int)"server error");
+    158                    }
+    159                    secsUnix.b[3] = netbuf[40];
+    160                    secsUnix.b[2] = netbuf[41];
+    161                    secsUnix.b[1] = netbuf[42];
+    162                    secsUnix.b[0] = netbuf[43];
+    163                    secsUnix.ul-=2208988800UL;
+    164                    Unix_to_GMT();
+    165            }
+    166            
+    167            void set_datetime(void){
+    168            
+    169                    writecmos(0x0b,readcmos(0x0b)|6);
+    170                    writecmos(0x07,day);
+    171                    writecmos(0x08,month);
+    172                    writecmos(0x09,year-100);
+    173                    writecmos(0x00,second);
+    174                    writecmos(0x02,minute);
+    175                    writecmos(0x04,hour);
+    176            }
+    177            void get_datetime(void)
+    178            {
+    179                    writecmos(0x0b,readcmos(0x0b)|6);
+    180                    second          = readcmos(0x00);
+    181                    minute          = readcmos(0x02);
+    182                    hour            = readcmos(0x04);
+    183                    weekday         = readcmos(0x06)-1;
+    184                    day                     = readcmos(0x07);
+    185                    month           = readcmos(0x08);
+    186                    year            = readcmos(0x09)+100;   
+    187            }
+    188            
+    189            C_task main (int argc, char *argv[]) 
+    190            {
+    191                    unsigned char i=1;
+    192                    os_initstdio();
+    193                    is_atm = (unsigned char)OS_GETCONFIG();
+    194            
+    195                    if(argc==1) {
+    196                            get_datetime();
+    197                            puts(help);
+    198                    }
+    199                    while(i!=argc){
+    200                            char * p=argv[i];
+    201                            if(p[0]!='-') exit((int)"Wrong parameter. Use -H for help");
+    202                            switch (p[1]&0xdf){
+    203                                    case 'T':
+    204                                            get_datetime();
+    205                                            if(sscanf(p+2,"%d:%d:%d",&hour,&minute,&second)==3){
+    206                                                    disable_interrupt();
+    207                                                    set_datetime();
+    208                                                    enable_interrupt();
+    209                                            }
+    210                                            break;
+    211                                    case 'D':
+    212                                            get_datetime();
+    213                                            if(sscanf(p+2,"%d-%d-%d",&day,&month,&year)==3){
+    214                                                    disable_interrupt();
+    215                                                    year-=1900;
+    216                                                    set_datetime();
+    217                                                    enable_interrupt();
+    218                                            }
+    219                                            break;
+    220                                    case 'N':
+    221                                            defntp=p+2;
+    222                                            break;
+    223                                    case 'Z':
+    224                                            if(sscanf(p+2,"%d",&GMT)!=1){
+    225                                                    GMT=3;
+    226                                            }
+    227                                            break;
+    228                                    case 'H':
+    229                                            exit((int)help);
+    230                                            break;
+    231                                    case 'I':
+    232                                            inet=1;
+    233                                            break;
+    234                                    default:
+    235                                            exit((int)"Wrong parameter. Use -H for help");
+    236                            }
+    237                            i++;
+    238                    }
+    239                    if(inet){
+    240                            ntp_resolver();
+    241                            set_datetime();
+    242                            writecmos(0x06,weekday+1);
+    243                    }
+    244                    puts("Now time:");
+    245                    printf("%02u-%02u-%04u ",day,month,year+1900);
+    246                    printf("%02u:%02u:%02u\r\n",hour,minute,second);
+    247                    exit(0);
+    248                    return 0;
+    249            }   
 
-#include <stdio.h>
-------------------^
-"main.c",1  Error[2]: Failed to open #include file 'stdio.h'
+Errors: none
+Warnings: none
+Code size: 1487
+Constant size: 415
+Static variable size: Data(4136) Iram(0)
 
-Fatal error, compilation aborted

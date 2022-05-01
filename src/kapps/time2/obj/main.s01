@@ -1,0 +1,986 @@
+	NAME	main(16)
+	RSEG	CODE(0)
+	RSEG	CSTR(0)
+	RSEG	CONST(0)
+	RSEG	NO_INIT(0)
+	RSEG	UDATA0(0)
+	RSEG	IDATA0(0)
+	RSEG	CDATA0(0)
+	PUBLIC	GMT
+	EXTERN	OS_GETCONFIG
+	EXTERN	OS_NETCLOSE
+	EXTERN	OS_NETRECVFROM
+	EXTERN	OS_NETSENDTO
+	EXTERN	OS_NETSOCKET
+	PUBLIC	Unix_to_GMT
+	EXTERN	YIELD
+	PUBLIC	day
+	PUBLIC	defntp
+	EXTERN	dns_resolver
+	PUBLIC	exit
+	PUBLIC	get_datetime
+	PUBLIC	help
+	PUBLIC	hour
+	PUBLIC	inet
+	PUBLIC	is_atm
+	PUBLIC	main
+	PUBLIC	minute
+	PUBLIC	month
+	PUBLIC	monthDays
+	PUBLIC	netbuf
+	PUBLIC	ntp_ia
+	PUBLIC	ntp_resolver
+	PUBLIC	ntpnead
+	EXTERN	os_initstdio
+	EXTERN	printf
+	EXTERN	puts
+	PUBLIC	readcmos
+	PUBLIC	regaddr_ve
+	PUBLIC	s
+	PUBLIC	second
+	PUBLIC	secsUnix
+	PUBLIC	set_datetime
+	EXTERN	sscanf
+	PUBLIC	weekday
+	PUBLIC	writecmos
+	PUBLIC	year
+	EXTERN	?CLZ80L_4_06_L00
+	EXTERN	?S_MUL_L02
+	EXTERN	?UL_MOD_L03
+	EXTERN	?UL_DIVASG_L03
+	EXTERN	?L_ADDASG_L03
+	EXTERN	?L_SUBASG_L03
+	EXTERN	?C_V_SWITCH_L06
+	RSEG	CODE
+exit:
+	PUSH	BC
+	PUSH	IY
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	DE
+	POP	IY
+	LD	A,(s)
+	OR	A
+	JR	Z,?0012
+?0011:
+	LD	BC,(s)
+	LD	E,0
+	CALL	OS_NETCLOSE
+?0012:
+	LD	A,IYL
+	OR	IYH
+	JR	Z,?0014
+?0013:
+	PUSH	IY
+	POP	DE
+	CALL	puts
+?0014:
+	PUSH	IY
+	POP	DE
+	CALL	0
+	LD	SP,IX
+	POP	IX
+	POP	IY
+	POP	BC
+	RET
+readcmos:
+	PUSH	BC
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	LD	D,E
+	DI
+	LD	A,(is_atm)
+	DEC	A
+	DEC	A
+	JR	Z,?0017
+	LD	A,(is_atm)
+	CP	3
+	JR	NZ,?0016
+?0017:
+?0018:
+?0015:
+	LD	C,D
+	LD	B,0
+	LD	HL,regaddr_ve
+	ADD	HL,BC
+	LD	B,(HL)
+	LD	D,B
+	INC	B
+	DEC	B
+	JR	Z,?0021
+?0019:
+	LD	BC,22014
+	IN	E,(C)
+	LD	C,D
+	LD	B,0
+	LD	B,C
+	LD	C,0
+	LD	A,C
+	OR	254
+	LD	C,A
+	IN	E,(C)
+	LD	D,E
+?0020:
+	JR	?0021
+?0016:
+	LD	BC,57079
+	OUT	(C),D
+	LD	BC,48887
+	IN	E,(C)
+	LD	D,E
+?0021:
+	EI
+	LD	A,D
+	LD	SP,IX
+	POP	IX
+	POP	BC
+	RET
+writecmos:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	DE
+	LD	D,C
+	DI
+	LD	A,(is_atm)
+	DEC	A
+	DEC	A
+	JR	Z,?0024
+	LD	A,(is_atm)
+	CP	3
+	JR	NZ,?0023
+?0024:
+?0025:
+?0022:
+	LD	C,(IX-2)
+	LD	B,0
+	LD	HL,regaddr_ve
+	ADD	HL,BC
+	LD	B,(HL)
+	INC	B
+	LD	(IX-2),B
+	INC	B
+	DEC	B
+	JR	Z,?0028
+?0026:
+	LD	BC,22014
+	IN	E,(C)
+	LD	C,(IX-2)
+	LD	B,0
+	LD	B,C
+	LD	C,0
+	LD	A,C
+	OR	254
+	LD	C,A
+	IN	E,(C)
+	LD	C,D
+	LD	B,0
+	LD	B,C
+	LD	C,0
+	LD	A,C
+	OR	254
+	LD	C,A
+	IN	E,(C)
+?0027:
+	JR	?0028
+?0023:
+	LD	A,(IX-2)
+	LD	BC,57079
+	OUT	(C),A
+	LD	BC,48887
+	IN	E,(C)
+	LD	(IX-2),E
+?0028:
+	EI
+	LD	SP,IX
+	POP	IX
+	RET
+Unix_to_GMT:
+	PUSH	BC
+	PUSH	DE
+	PUSH	IY
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	LD	(IX-2),0
+	LD	IY,0
+	LD	HL,secsUnix
+	LD	BC,3600
+	LD	DE,(GMT)
+	CALL	?S_MUL_L02
+	LD	A,D
+	RLCA
+	SBC	A,A
+	LD	C,A
+	LD	B,C
+	CALL	?L_ADDASG_L03
+	LD	HL,0
+	PUSH	HL
+	LD	HL,60
+	PUSH	HL
+	LD	BC,(secsUnix+2)
+	LD	HL,(secsUnix)
+	CALL	?UL_MOD_L03
+	LD	(second),HL
+	LD	HL,secsUnix
+	LD	BC,0
+	LD	DE,60
+	CALL	?UL_DIVASG_L03
+	LD	HL,0
+	PUSH	HL
+	LD	HL,60
+	PUSH	HL
+	LD	BC,(secsUnix+2)
+	LD	HL,(secsUnix)
+	CALL	?UL_MOD_L03
+	LD	(minute),HL
+	LD	HL,secsUnix
+	LD	BC,0
+	LD	DE,60
+	CALL	?UL_DIVASG_L03
+	LD	HL,0
+	PUSH	HL
+	LD	HL,24
+	PUSH	HL
+	LD	BC,(secsUnix+2)
+	LD	HL,(secsUnix)
+	CALL	?UL_MOD_L03
+	LD	(hour),HL
+	LD	HL,secsUnix
+	LD	BC,0
+	LD	DE,24
+	CALL	?UL_DIVASG_L03
+	LD	HL,0
+	PUSH	HL
+	LD	HL,7
+	PUSH	HL
+	LD	HL,0
+	PUSH	HL
+	LD	HL,4
+	PUSH	HL
+	LD	HL,(secsUnix)
+	POP	BC
+	ADD	HL,BC
+	EX	DE,HL
+	LD	HL,(secsUnix+2)
+	POP	BC
+	ADC	HL,BC
+	LD	C,L
+	LD	B,H
+	EX	DE,HL
+	CALL	?UL_MOD_L03
+	LD	(weekday),HL
+	LD	HL,70
+	LD	(year),HL
+?0030:
+	LD	A,(year)
+	AND	3
+	LD	HL,366
+	JR	Z,?0034
+	DEC	HL
+?0034:
+	PUSH	IY
+	POP	BC
+	ADD	HL,BC
+	LD	A,H
+	RLCA
+	SBC	A,A
+	LD	C,A
+	LD	B,C
+	PUSH	BC
+	PUSH	HL
+	AND	A
+	LD	HL,(secsUnix)
+	POP	BC
+	SBC	HL,BC
+	LD	HL,(secsUnix+2)
+	POP	BC
+	SBC	HL,BC
+	JR	C,?0029
+?0031:
+	LD	A,(year)
+	AND	3
+	LD	DE,366
+	JR	Z,?0037
+	DEC	DE
+?0037:
+	ADD	IY,DE
+	LD	HL,(year)
+	INC	HL
+	LD	(year),HL
+	JR	?0030
+?0029:
+	LD	HL,secsUnix
+	PUSH	IY
+	POP	DE
+	LD	A,D
+	RLCA
+	SBC	A,A
+	LD	C,A
+	LD	B,C
+	CALL	?L_SUBASG_L03
+	LD	IY,0
+	LD	HL,0
+	LD	(month),HL
+	LD	HL,0
+	LD	(month),HL
+?0039:
+	LD	BC,12
+	LD	HL,(month)
+	AND	A
+	SBC	HL,BC
+	JR	NC,?0038
+?0040:
+	LD	HL,(month)
+	LD	A,1
+	XOR	L
+	OR	H
+	JR	NZ,?0043
+?0042:
+	LD	A,(year)
+	AND	3
+	JR	Z,?0045
+?0044:
+	LD	(IX-2),28
+	JR	?0047
+?0045:
+	LD	(IX-2),29
+?0046:
+	JR	?0047
+?0043:
+	LD	HL,monthDays
+	LD	BC,(month)
+	ADD	HL,BC
+	LD	B,(HL)
+	LD	(IX-2),B
+?0047:
+	LD	L,(IX-2)
+	LD	BC,0
+	LD	H,C
+	PUSH	BC
+	PUSH	HL
+	AND	A
+	LD	HL,(secsUnix)
+	POP	BC
+	SBC	HL,BC
+	LD	HL,(secsUnix+2)
+	POP	BC
+	SBC	HL,BC
+	JR	C,?0038
+?0048:
+	LD	HL,secsUnix
+	LD	E,(IX-2)
+	LD	BC,0
+	LD	D,C
+	CALL	?L_SUBASG_L03
+?0049:
+?0050:
+	LD	HL,(month)
+	INC	HL
+	LD	(month),HL
+	JR	?0039
+?0038:
+	LD	HL,(month)
+	INC	HL
+	LD	(month),HL
+	LD	HL,(secsUnix)
+	INC	HL
+	LD	(day),HL
+	LD	SP,IX
+	POP	IX
+	POP	IY
+	POP	DE
+	POP	BC
+	RET
+ntp_resolver:
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+	PUSH	AF
+	LD	HL,31488
+	LD	(ntp_ia+1),HL
+	LD	DE,ntp_ia+3
+	PUSH	DE
+	LD	DE,(defntp)
+	CALL	dns_resolver
+	POP	DE
+	LD	BC,4
+	LDIR
+	LD	HL,ntp_ia+3
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)
+	EX	DE,HL
+	LD	A,L
+	OR	H
+	OR	C
+	OR	B
+	JR	NZ,?0052
+?0051:
+	LD	DE,?0053
+	CALL	exit
+?0052:
+	LD	(IX-5),10
+?0054:
+	CALL	YIELD
+	DEC	(IX-5)
+	XOR	A
+	OR	(IX-5)
+	JR	NZ,?0056
+?0055:
+	LD	DE,?0057
+	CALL	exit
+?0056:
+	LD	DE,515
+	CALL	OS_NETSOCKET
+	LD	(s),A
+	OR	A
+	JP	P,?0059
+?0058:
+	XOR	A
+	LD	(s),A
+	JR	?0054
+?0059:
+	LD	BC,48
+	LD	DE,netbuf
+	LD	HL,ntpnead
+	LDIR
+	LD	HL,netbuf
+	PUSH	HL
+	LD	HL,48
+	PUSH	HL
+	LD	BC,(s)
+	LD	DE,ntp_ia
+	CALL	OS_NETSENDTO
+	POP	AF
+	POP	AF
+	LD	(IX-4),L
+	LD	(IX-3),H
+	BIT	7,(IX-2)
+	JR	Z,?0061
+?0060:
+	LD	BC,(s)
+	LD	E,0
+	CALL	OS_NETCLOSE
+	XOR	A
+	LD	(s),A
+	JR	?0054
+?0061:
+	LD	(IX-6),50
+?0063:
+	XOR	A
+	OR	(IX-6)
+	JR	Z,?0062
+?0064:
+	DEC	(IX-6)
+	LD	HL,netbuf
+	PUSH	HL
+	LD	HL,4096
+	PUSH	HL
+	LD	BC,(s)
+	LD	DE,ntp_ia
+	CALL	OS_NETRECVFROM
+	POP	AF
+	POP	AF
+	LD	(IX-4),L
+	LD	(IX-3),H
+	BIT	7,H
+	JR	Z,?0062
+?0065:
+	CALL	YIELD
+	JR	?0063
+?0066:
+	JR	?0062
+	JR	?0063
+?0062:
+	LD	BC,(s)
+	LD	E,0
+	CALL	OS_NETCLOSE
+	XOR	A
+	LD	(s),A
+	LD	C,(IX-4)
+	LD	B,(IX-3)
+	LD	HL,0
+	OR	128
+	SBC	HL,BC
+	JP	PO,?0100
+	XOR	H
+?0100:
+	JP	M,?0068
+?0067:
+	LD	DE,?0069
+	CALL	exit
+?0068:
+	LD	A,(netbuf+40)
+	LD	(secsUnix+3),A
+	LD	A,(netbuf+41)
+	LD	(secsUnix+2),A
+	LD	A,(netbuf+42)
+	LD	(secsUnix+1),A
+	LD	A,(netbuf+43)
+	LD	(secsUnix),A
+	LD	HL,secsUnix
+	LD	BC,33706
+	LD	DE,32384
+	CALL	?L_SUBASG_L03
+	CALL	Unix_to_GMT
+	LD	SP,IX
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+set_datetime:
+	PUSH	BC
+	PUSH	DE
+	LD	E,11
+	CALL	readcmos
+	OR	6
+	LD	C,A
+	LD	E,11
+	CALL	writecmos
+	LD	BC,(day)
+	LD	E,7
+	CALL	writecmos
+	LD	BC,(month)
+	LD	E,8
+	CALL	writecmos
+	LD	A,(year)
+	ADD	A,156
+	LD	C,A
+	LD	E,9
+	CALL	writecmos
+	LD	BC,(second)
+	LD	E,0
+	CALL	writecmos
+	LD	BC,(minute)
+	LD	E,2
+	CALL	writecmos
+	LD	BC,(hour)
+	LD	E,4
+	CALL	writecmos
+	POP	DE
+	POP	BC
+	RET
+get_datetime:
+	PUSH	BC
+	PUSH	DE
+	LD	E,11
+	CALL	readcmos
+	OR	6
+	LD	C,A
+	LD	E,11
+	CALL	writecmos
+	LD	E,0
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	LD	(second),BC
+	LD	E,2
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	LD	(minute),BC
+	LD	E,4
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	LD	(hour),BC
+	LD	E,6
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	DEC	BC
+	LD	(weekday),BC
+	LD	E,7
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	LD	(day),BC
+	LD	E,8
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	LD	(month),BC
+	LD	E,9
+	CALL	readcmos
+	LD	C,A
+	LD	B,0
+	LD	HL,100
+	ADD	HL,BC
+	LD	(year),HL
+	POP	DE
+	POP	BC
+	RET
+main:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	PUSH	AF
+	PUSH	AF
+	LD	(IX-8),1
+	CALL	os_initstdio
+	CALL	OS_GETCONFIG
+	LD	A,L
+	LD	(is_atm),A
+	LD	A,1
+	XOR	E
+	OR	D
+	JR	NZ,?0071
+?0070:
+	CALL	get_datetime
+	LD	DE,help
+	CALL	puts
+?0071:
+?0073:
+	LD	C,(IX-8)
+	LD	B,0
+	LD	L,(IX-4)
+	LD	H,(IX-3)
+	AND	A
+	SBC	HL,BC
+	JP	Z,?0072
+?0074:
+	LD	L,(IX-8)
+	LD	H,0
+	ADD	HL,HL
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	B,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,B
+	PUSH	HL
+	POP	IY
+	LD	A,(HL)
+	CP	45
+	JR	Z,?0076
+?0075:
+	LD	DE,?0077
+	CALL	exit
+?0076:
+	LD	B,(IY+1)
+	RES	5,B
+	LD	E,B
+	CALL	?C_V_SWITCH_L06
+	DEFW	6
+	DEFB	68
+	DEFB	72
+	DEFB	73
+	DEFB	78
+	DEFB	84
+	DEFB	90
+	DEFW	?0094
+	DEFW	?0088
+	DEFW	?0079
+	DEFW	?0087
+	DEFW	?0093
+	DEFW	?0092
+	DEFW	?0083
+?0079:
+	CALL	get_datetime
+	LD	HL,second
+	PUSH	HL
+	LD	HL,minute
+	PUSH	HL
+	LD	HL,hour
+	PUSH	HL
+	LD	HL,?0082
+	PUSH	HL
+	PUSH	IY
+	POP	HL
+	INC	HL
+	INC	HL
+	PUSH	HL
+	CALL	sscanf
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	LD	A,3
+	XOR	L
+	OR	H
+	JP	NZ,?0078
+?0080:
+	DI
+	CALL	set_datetime
+	EI
+?0081:
+	JR	?0078
+?0083:
+	CALL	get_datetime
+	LD	HL,year
+	PUSH	HL
+	LD	HL,month
+	PUSH	HL
+	LD	HL,day
+	PUSH	HL
+	LD	HL,?0086
+	PUSH	HL
+	PUSH	IY
+	POP	HL
+	INC	HL
+	INC	HL
+	PUSH	HL
+	CALL	sscanf
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	LD	A,3
+	XOR	L
+	OR	H
+	JR	NZ,?0078
+?0084:
+	DI
+	LD	HL,year
+	LD	A,(HL)
+	SUB	108
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	SBC	A,7
+	LD	(HL),A
+	CALL	set_datetime
+	EI
+?0085:
+	JR	?0078
+?0087:
+	PUSH	IY
+	POP	HL
+	INC	HL
+	INC	HL
+	LD	(defntp),HL
+	JR	?0078
+?0088:
+	LD	HL,GMT
+	PUSH	HL
+	LD	HL,?0091
+	PUSH	HL
+	PUSH	IY
+	POP	HL
+	INC	HL
+	INC	HL
+	PUSH	HL
+	CALL	sscanf
+	POP	AF
+	POP	AF
+	POP	AF
+	LD	A,1
+	XOR	L
+	OR	H
+	JR	Z,?0078
+?0089:
+	LD	HL,3
+	LD	(GMT),HL
+?0090:
+	JR	?0078
+?0092:
+	LD	DE,help
+	CALL	exit
+	JR	?0078
+?0093:
+	LD	A,1
+	LD	(inet),A
+	JR	?0078
+?0094:
+	LD	DE,?0077
+	CALL	exit
+?0078:
+	INC	(IX-8)
+	JP	?0071
+?0072:
+	LD	A,(inet)
+	OR	A
+	JR	Z,?0096
+?0095:
+	CALL	ntp_resolver
+	CALL	set_datetime
+	LD	BC,(weekday)
+	INC	C
+	LD	E,6
+	CALL	writecmos
+?0096:
+	LD	DE,?0097
+	CALL	puts
+	LD	HL,1900
+	LD	BC,(year)
+	ADD	HL,BC
+	PUSH	HL
+	LD	HL,(month)
+	PUSH	HL
+	LD	HL,(day)
+	PUSH	HL
+	LD	HL,?0098
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	LD	HL,(second)
+	PUSH	HL
+	LD	HL,(minute)
+	PUSH	HL
+	LD	HL,(hour)
+	PUSH	HL
+	LD	HL,?0099
+	PUSH	HL
+	CALL	printf
+	POP	AF
+	POP	AF
+	POP	AF
+	POP	AF
+	LD	DE,0
+	CALL	exit
+	LD	HL,0
+	LD	SP,IX
+	POP	IX
+	RET
+	RSEG	CSTR
+?0010:
+	DEFB	'2.ru.pool.ntp.org'
+	DEFB	0
+?0053:
+	DEFB	'error: domain name not resolved'
+	DEFB	0
+?0057:
+	DEFB	'inet error'
+	DEFB	0
+?0069:
+	DEFB	'server error'
+	DEFB	0
+?0077:
+	DEFB	'Wrong parameter. Use -H for help'
+	DEFB	0
+?0082:
+	DEFB	'%d:%d:%d'
+	DEFB	0
+?0086:
+	DEFB	'%d-%d-%d'
+	DEFB	0
+?0091:
+	DEFB	'%d'
+	DEFB	0
+?0097:
+	DEFB	'Now time:'
+	DEFB	0
+?0098:
+	DEFB	'%02u-%02u-%04u '
+	DEFB	0
+?0099:
+	DEFB	'%02u:%02u:%02u'
+	DEFB	13,10,0
+	RSEG	CONST
+monthDays:
+	DEFB	31
+	DEFB	28
+	DEFB	31
+	DEFB	30
+	DEFB	31
+	DEFB	30
+	DEFB	31
+	DEFB	31
+	DEFB	30
+	DEFB	31
+	DEFB	30
+	DEFB	31
+ntpnead:
+	DEFB	219
+	DEFB	0
+	DEFB	17
+	DEFB	250
+	DEFB	0
+	DEFB	0
+	DEFB	0
+	DEFB	0
+	DEFB	0
+	DEFB	1
+	DEFB	3
+	DEFB	254
+	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	DEFB	0,0,0
+regaddr_ve:
+	DEFB	16
+	DEFB	0
+	DEFB	'P'
+	DEFB	0
+	DEFB	144
+	DEFB	0
+	DEFB	0
+	DEFB	18
+	DEFB	'R'
+	DEFB	146
+	DEFB	0
+	DEFB	0
+	DEFB	0
+	DEFB	0
+	DEFB	0
+	DEFB	0
+help:
+	DEFB	'-H help'
+	DEFB	13,10
+	DEFB	'-T set time(-T17:59:38)'
+	DEFB	13,10
+	DEFB	'-D set date(-D21-06-2019)'
+	DEFB	13,10
+	DEFB	'-N ntp-server default: -N2.ru.pool.ntp.org'
+	DEFB	13,10
+	DEFB	'-Z time-zone default: -Z3'
+	DEFB	13,10
+	DEFB	'-i get datetime from internet'
+	DEFB	0
+	RSEG	NO_INIT
+is_atm:
+	DEFS	1
+netbuf:
+	DEFS	4096
+ntp_ia:
+	DEFS	15
+	RSEG	UDATA0
+secsUnix:
+	DEFS	4
+hour:
+	DEFS	2
+minute:
+	DEFS	2
+second:
+	DEFS	2
+day:
+	DEFS	2
+month:
+	DEFS	2
+year:
+	DEFS	2
+weekday:
+	DEFS	2
+	RSEG	IDATA0
+GMT:
+	DEFS	2
+s:
+	DEFS	1
+inet:
+	DEFS	1
+defntp:
+	DEFS	2
+	RSEG	CDATA0
+	DEFW	3
+	DEFB	0
+	DEFB	0
+	DEFW	?0010
+	END

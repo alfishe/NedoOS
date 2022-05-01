@@ -1,8 +1,9 @@
-atm=2 
-sys_npages=64 
-NEMOIDE=0 
-SYSDRV=4 
+atm=1 
+atm2clock=0 
+sys_npages=192 
+NEMOIDE=1 
+SYSDRV=12 
 INETDRV=0x01 
-PS2KBD=0x00 
-	define ATMRESIDENT 
-	define KEEPPG38 
+PS2KBD=0x01 
+ define NGSSD 
+ define ATMRESIDENT 

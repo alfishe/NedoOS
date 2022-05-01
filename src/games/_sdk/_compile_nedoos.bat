@@ -99,10 +99,14 @@ rem call compress.bat
 
 rem собираем загрузчик
 
-copy ..\..\_sdk\loader.asm loader.asm >nul
-copy ..\..\_sdk\unmegalz.asm unmegalz.asm >nul
-copy ..\..\_sdk\target.asm target.asm >nul
-..\..\_sdk\tools\sjasmplus\sjasmplus.exe loader.asm >nul
+rem echo -12----------------------------
+rem copy ..\..\_sdk\loader.asm loader.asm >nul
+rem echo -13----------------------------
+rem copy ..\..\_sdk\unmegalz.asm unmegalz.asm >nul
+rem echo -14----------------------------
+rem copy ..\..\_sdk\target.asm target.asm >nul
+rem echo -15----------------------------
+rem ..\..\_sdk\tools\sjasmplus\sjasmplus.exe loader.asm >nul
 
 rem собираем образ и делаем его моноблочным
 
