@@ -1,6 +1,6 @@
 ;
 ;65C02 emulator on a Z80
-;by James Smith (UK), 2010
+;by James Smith (UK), 2008
 ;
         DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
@@ -134,8 +134,8 @@ colourram	EQU $B0
 ;page 1 must ALWAYS be after page 0!
 
 M1page		EQU (base+$2900)/256	;was $DB
-MRpage		EQU (base+$2A00)/256	;was $DC
-MWpage		EQU (base+$2B00)/256	;was $DD
+MRpage		EQU (base+$2A00)/256	;was $DC ;read readdressing+1 for every HSB
+MWpage		EQU (base+$2B00)/256	;was $DD ;write readdressing+1 for every HSB
 Oppage		EQU (base+$2800)/256	;was $DA
 IM2page		EQU (base+$2600)/256	;was $D8
 Safepage	EQU base+$1800
@@ -436,21 +436,109 @@ begin
         ld a,(user_scr0_high) ;ok
         SETPG4000
 
-        ld hl,wasrom
+        ld hl,wasbasicrom
         ld de,0xe000
         ld bc,0x2000
         ldir
-        ld hl,0x8000
+        ld hl,waskernalrom
         ld de,0x6000
         ld bc,0x2000
         ldir
+        ld hl,wasloadfile
+        ld de,loadfile
+        ld bc,loadfile_sz
+        ldir
+
+        ld hl,COMMANDLINE ;command line
+        call skipword
+        call skipspaces
+        ld a,(hl)
+        or a
+        jr z,noautoload
+;command line = bk <file to load>"
+       ld (filenameaddr),hl
+       ;jr autoloadq
+       
+noautoload
+;autoloadq
         jp GO
 
-wasrom
+wasloadfile
+        disp 0x5b00
+loadfile
+        im 1
+        push af
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+        exx
+        ex af,af' ;'
+        push af
+        push bc
+        push de
+        push hl
+filenameaddr=$+1
+        ld de,0
+        
+      ld hl,(0x7ffe)
+      push hl
+;de=filename
+        OS_OPENHANDLE
+        push bc
+        ld de,0x7ffe
+        ld hl,0x2002
+        OS_READHANDLE
+        pop bc
+        OS_CLOSEHANDLE
+      pop hl
+      ld (0x7ffe),hl
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ex af,af' ;'
+        exx
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        im 2
+        ret
+        ent
+loadfile_sz=$-wasloadfile
+
+skipword
+;hl=string
+;out: hl=terminator/space addr
+getword0
+        ld a,(hl)
+        or a
+        ret z
+        cp ' '
+        ret z
+        inc hl
+        jr getword0
+
+skipspaces
+;hl=string
+;out: hl=after last space
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces
+
+wasbasicrom
         incbin "vic20.rom"
 
-        org 0x8000
+        org 0x8000 ;will be 8k RAM
+waskernalrom
         incbin "vic20a.rom"
+        org 0xa000
         incbin "vic20f.rom"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -596,6 +684,8 @@ nmi_handler:
 	LD HL,(M1page*256)+$26	;LD H,$M1page instead of JR $-4
 				;$26 is opcode for LD H,nn
 	LD (op_decode+1),HL	;reset 2 bytes to what they normally are
+
+         call loadfile ;FIXME!
 
 ;PC (DE) is already correct at this point - so stack it
 
@@ -4006,7 +4096,7 @@ trap	EQU $01
 	DB $7F
 
 ;*** MEMORY READ TABLE ***
-
+;MRpage
 	DB $81
 	DB $82	
 	DB $83	;VIC-20 had 1/2K at start of memory!
@@ -4276,7 +4366,7 @@ trap	EQU $01
 	DB $80
 
 ;*** MEMORY WRITE TABLE ***
-
+;MWpage
 	DB $81
 	DB $82	
 	DB $83	;VIC-20 had 1/2K at start of memory!
@@ -4601,7 +4691,7 @@ irq_handler:
 	LD (op_decode+1),HL	;reset 2 bytes to what they normally are
 
 ;PC (DE) is already correct at this point - so stack it
-	EX AF,AF'
+	EX AF,AF' ;'
 
 	LD A,D
 	do_pushA
@@ -4613,7 +4703,7 @@ irq_handler:
 			;also L will never overflow so quicker to do INC L than INC HL
 	LD D,(HL)	;DE (PC) now contains  vector
 
-	EX AF,AF'
+	EX AF,AF' ;'
 	opPHP		;prepare flags in A
 	AND $EF		;force B flag to be clear (only IRQ pushes this bit as 0)
 	do_pushA	;correct flags are in A
@@ -4624,7 +4714,7 @@ irq_handler:
 	OR $04		;have to set bit 2 (I flag)
 	LD (HL),A
 irq_finish:
-	EX AF,AF'
+	EX AF,AF' ;'
 
 	JP (IX)		;no incPC as DE (PC) is already correct
 
@@ -5227,7 +5317,7 @@ DealWithIER1:
 	LD HL,VIA911E
 
 dealwithIER:
-	EX AF,AF'
+	EX AF,AF' ;'
 	LD IX,op_decode
 	LD A,(BC)
 	BIT 7,A
@@ -5236,7 +5326,7 @@ dealwithIER:
 
 	OR (HL)			;merge in existing IER
 	LD (HL),A
-	EX AF,AF'		;back to 6502 AF
+	EX AF,AF' ;'		;back to 6502 AF
 	JP (IX)
 clearIER:
 
@@ -5244,7 +5334,7 @@ clearIER:
 	AND (HL)		;reset bits which were set to 1
 	OR $80			;bit 7 is always set when reading back in
 	LD (HL),A
-	EX AF,AF'		;back to 6502 AF
+	EX AF,AF' ;'		;back to 6502 AF
 	JP (IX)
 
 
@@ -5391,7 +5481,7 @@ VIC9002h:
 
 rVIC9003:
 ;number of rows
-	EX AF,AF'	;save 6502 AF
+	EX AF,AF' ;'	;save 6502 AF
 	LD A,(VIC9003)
 	AND $7F		;drop bit 7
 	RRA		;div by 2 (CF will be cleared by above AND)
@@ -5544,7 +5634,7 @@ VICraster03b:
 
 rVICsoundvol:
 ;sound volume
-	EX AF,AF'	;save 6502 AF
+	EX AF,AF' ;'	;save 6502 AF
 rVICsoundvol1:
 	LD IX,op_decode
 	LD BC,$FFFD	;port $FFFD - sound port on 128
@@ -5614,12 +5704,12 @@ rVICsoundvol5:
 	LD B,$BF	;want port $BFFD now
 	OUT (C),H	;enable all 3 tone channels and possibly noise channel on A
 
-	EX AF,AF'	;restore 6502 AF
+	EX AF,AF' ;'	;restore 6502 AF
 	JP (IX)
 
 rVICsoundA:
 ;IX set via rVICsoundvol
-	EX AF,AF'	;save 6502 AF
+	EX AF,AF' ;'	;save 6502 AF
 	LD A,(VIC900A)
 	CPL		;255 is highest note
 	LD L,A
@@ -5649,7 +5739,7 @@ rVICsoundA:
 
 rVICsoundB:
 ;IX set via rVICsoundvol
-	EX AF,AF'	;save 6502 AF
+	EX AF,AF' ;'	;save 6502 AF
 	LD A,(VIC900B)
 	CPL
 	LD L,A
@@ -5677,7 +5767,7 @@ rVICsoundB:
 
 rVICsoundC:
 ;IX set via rVICsoundvol
-	EX AF,AF'	;save 6502 AF
+	EX AF,AF' ;'	;save 6502 AF
 	LD A,(VIC900C)
 	CPL
 	LD L,A
@@ -5705,7 +5795,7 @@ rVICsoundC:
 
 rVICsoundD:
 ;IX set via rVICsoundvol
-	EX AF,AF'	;save 6502 AF
+	EX AF,AF' ;'	;save 6502 AF
 	LD A,(VIC900D)
 	CPL		;255 is highest note
 	LD L,A
@@ -5936,7 +6026,7 @@ L05C2:  INC     IX              ; increment byte pointer.
 L05C4:  DEC     DE              ; decrement length.
 
 L05C5:
-        EX      AF,AF'          ; store the flags.
+        EX      AF,AF' ;'          ; store the flags.
         LD      B,$B2           ; timing.
 
 ;   when starting to read 8 bits the receiving byte is marked with bit at right.
@@ -6081,7 +6171,7 @@ VICtable:
 
 VICignore:
 	LD IX,op_decode
-	EX AF,AF'		;restore 6502 AF
+	EX AF,AF' ;'		;restore 6502 AF
 	JP (IX)		;ignore value and carry on!
 
 ;was org $0e00+base
