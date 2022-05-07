@@ -1,0 +1,266 @@
+*** TWENTY COMMODES *** V1.90
+
+Overview & Requirements
+
+This program emulates a Commodore VIC 20 on a Sinclair Spectrum! It was originally released as an entry for CSSCGC2008, but version 1.90 has undergone some improvements to make it better than ever (see below for more details).
+The program will run on a standard 48K Spectrum but will be silent. The 128K Spectrums (and 48K machines with compatible AY interfaces) will provide reasonable emulation of the VIC sound generators. A Kempston joystick can be used to emulate a VIC joystick.
+If your emulator or Spectrum clone provides the opportunity to run faster then now is the time to use it! A Z80 speed of 50MHz will emulate the 6502 and hardware reasonably well.
+
+
+
+1) What's a VIC 20?
+
+The PET might have been Commodore's first computer, but it was the VIC which helped introduce computers to enthusiasts and families. When it came out in 1980 it had many features yet undercut the competition in price. It was cheap, but it still had a proper keyboard and had hardware support for graphics, timing and I/O. Add to this that it could do colour and sound and you can see why it sold well. Even the William Shatner TV adverts in America helped sell the VIC! The Sinclair ZX80 also came out in 1980 and was amazing for being sold at £99 ($200), but it was a much simpler computer. I don't think it's fair to compare the two machines, however it is interesting to note the differences on how the Americans and British approach designing a computer.
+
+I hasten to add I never owned a VIC 20 (far too expensive!), so this has been a steep learning curve... Thankfully VICE has made testing a lot easier for me.
+
+
+
+2) The emulator
+
+2.1) Why emulate a VIC 20?
+
+It's well known that Commodore 64 and Sinclair/Timex Spectrum users have friendly (and not-so-friendly) rivalry. I thought it would be nice to get a standard Spectrum (no extra hardware) to emulate a Commodore machine. I chose the Vic20 because it doesn't have the complex VIC-II and SID chips, yet it still runs CBM Basic 2.0 in all it's glory. The Vic also has fewer colours and the screen resolution is less than the Spectrum's, so emulation is made easier. Even the 40 character text mode of the C64 would be difficult to emulate properly on a Spectrum.
+
+Does it emulate everything about a VIC 20? In short, no! However, it does emulate a fair amount of VIC 20 hardware. Certainly enough to run some commercial games!
+
+The sections below detail how each part of the VIC architecture is emulated. Please note it can get a bit technical...
+
+
+
+2.2) 6502 CPU
+
+As per the UK101 emulator, this program has a virtual 6502 core. It emulates all the NMOS 6502 instructions and most of the CMOS 6502 instructions too. Only the BBS,BBR,STO,WAI,SMB and RMB instructions are not implemented. The other CMOS instructions and addressing modes are implemented. The 6502 adopts CMOS behaviour when dealing with interrupts (BCD turned off), BCD arithmetic (flags set correctly) and the JMP command (works correctly over page boundaries).
+If an "illegal" opcode is run then the border will turn red, but continue running. The opcode will be decoded as a NOP - just like the CMOS 6502, and the PC will be incremented by 1,2 or 3 bytes as per CMOS behaviour. There is no "JAM" opcode inside this emulator...
+
+
+
+2.3) 6522 VIAs
+
+It is impossible to emulate a 1MHz timer on a Spectrum which only has a 50Hz timer! Therefore no attempt is made to emulate T1 and T2 (or the latches) of each VIA. Address $9114 emulates the lsb of T1 by returning random values (I think the RND function uses it). Addresses $911F and $912F are trapped and work in the same way as $9111 and $9121. Addresses $9111 and $9120 emulate a joystick by reading the Spectrum's kempston joystick. Address $9121 is emulated to supported to the VIC keyboard, see section 2.5
+
+
+
+2.4) VIC chip
+
+Please note Multicolour mode is not supported!
+
+$9000/1 - positioning the screen (HPOS and VPOS) is not emulated.
+
+$9002 does allow the width of the screen to be changed (1-27). v1.72 onwards emulates Bit 7 (start of colour RAM) and allows up to 31 columns.
+
+$9003 allows the height of the screen to be changed (1-23). Bit 7 is supported - see $9004. Bit 0 is supported with limitations (Double height). Characters are drawn 2 rows high as required, but attributes are only applied to the top half of the row. The double-height code is still unfinished as many games set the row height >12 which means the screen can't be fully displayed on a ZX 24 row screen. ("Duck Hunt" is one such example)
+
+$9004 is emulated. Every time this location is read, the raster value returned will increment and loop between 0-311. Bit 0 of the raster counter is held in bit 7 of $9003. Programs which rely on the raster value being accurate will fail (or more likely just flicker).
+
+$9005 allows the redefining of the character set by moving it to a different point in memory. Bits 4-7 which set the video RAM address are not supported. The use of setting character memory to begin at $1E00 and wrap-around to $8000 is supported. As of V1.86 changes to this register force the screen to be redrawn. Pressing CBM and SHIFT keys changes the character set with immediate effect.
+
+$9006/7 - lightpen registers. These are not emulated.
+
+$9008/9 - paddle registers. These are not emulated.
+
+$900A/B/C - frequency of alto/tenor/soprano voices. These values are converted to a rough AY-3-8912 equivalent!
+
+$900D - frequency of the noise channel is badly emulated! The AY and VIC chipsets implement noise differently.
+
+$900E - volume control is emulated. Bits 4-7 which set the auxiliary colour are not supported as there is no multicolour mode...
+
+$900F - border colour (bits 0-2), reverse field (bit 3) and background colour (bits 4-7) are supported. As of V1.90 ULA II (more colours) support has been added. This allows the Spectrum to display all 16 colours of the VIC pretty much as a real VIC would. On a standard Spectrum not all the background colours are available. V1.87 allows standard Spectrums to display colour combinations which before would've clashed to give an "invisible" display such as pink on a red background (before that would've been light red + red). A colour table (256 bytes) is used to pick a suitable colour pairing. This means the "unavailable" colours can change, for example light purple can be either light magenta or light cyan.
+
+Changes to the screen width/height or border colour force a redraw of the false border (space outside VIC screen but within Spectrum border area).
+
+
+
+2.5) VIC keyboard
+
+The VIC has many more keys than the Spectrum so some weird key combinations are required.
+
+The alphanumeric keys are mapped straight through to their VIC equivalents. CAPS SHIFT simulates the LEFT SHIFT of the VIC, so to get " (quote) you'd press CAPS+2.
+
+DELETE is simulated with CAPS+0 (same as Spectrum)
+
+F1,F3,F5 and F7 are simulated with SYM+1,3,5 and 7 respectively. F2,F4,F6 and F8 are shifted just like the real VIC, so to get F2 you'd press CAPS+SYM+2.
+
+RUNSTOP is simualted with SYM+A (STOP on the Spectrum)
+
+The COMMODORE key is simulated with SYM+C
+
+RESTORE+RUNSTOP is simulated with CAPS+SPACE (BREAK on the Spectrum)
+
+Punctuation can be tricky. Half of the punctuation keys are mapped to their Spectrum equivalents. For example to get ":" (colon) you'd press SYM+Z. To get "[" (left square bracket), which on a VIC is SHIFT+':', you'd press CAPS+SYM+Z. The following table should help with the punctuation symbols :
+
+:	SYM+Z
+[	CAPS+SYM+Z
+£ (GBP)	SYM+X
+/	SYM+V
+?	CAPS+SYM+V
+*	SYM+B
+_	CAPS+SYM+B
+,	SYM+N
+<	CAPS+SYM+N
+.	SYM+M
+>	CAPS+SYM+M
+^	SYM+H
+PI	CAPS+SYM+H
+-	SYM+J
++	SYM+K
+=	SYM+L
+left ^	SYM+R
+;	SYM+O
+]	CAPS+SYM+O
+@	SYM+2
+
+
+Unfortunately the CURSOR keys are emulated in a different way. This is because if the cursor keys (CAPS+5 to 8) are emulated then you can't type in certain characters, in particular an open bracket (SHIFT+8). The VIC20 only had two cursor keys - right and down. Left and up were obtained by holding down SHIFT and the left or up keys respectively. To obtain the DOWN key use SYM+6 (same as Spectrum) and to obtain the RIGHT key use SYM+8. The HOME key is also emulated via SYM+4.
+
+LEFT	CAPS+SYM+8
+RIGHT	SYM+8
+UP	CAPS+SYM+6
+DOWN	SYM+6
+HOME	SYM+4
+
+The CTRL, RIGHT SHIFT and CAPS LOCK keys are currently not emulated.
+
+
+
+2.6) Memory
+
+V1.90 now supports several VIC-20 memory configurations. Once selected it cannot be changed unless you reset and load the program in again.
+Standard 48/128/+2 Spectrums can simulate a base (5.5K) VIC-20 or an expanded (5.5K+3K) VIC-20.
+The +2A and +3 Spectrums can take advantage of their 64K RAM mode to simulate an extended (5.5K+8K), (5.5K+16K) or (5.5K+3K+16K) VIC-20, or to emulate an 8K/16K ROM cartridge. Yes you can now play Radar Rat Race! Unfortunately the 64K RAM mode used has more contended RAM which leads to the emulator running slower than the base or expanded configurations.
+
+
+
+2.7) Tape and device I/O
+
+No attempt has been made to emulate the tape or other IEE488 devices. Currently the only way to LOAD games in is to import a binary image of the game into the VIC's RAM space. See section 3 for details on how to do this.
+
+
+
+2.8) Interrupts
+
+The VIC 20 uses NMI and normal interrupts. Pressing RESTORE+RUN/STOP (BREAK) generates a NMI. A regular interrupt is generated by the emulator every 1/50 second. This is not quite the 1/60 second that the VIC uses. The cursor will therefore flash a bit slower and timer functions (such as TI variable) will be wrong.
+
+
+
+2.9) What's changed since the previous version?
+
+V1.90 has several improvements compared to the previous versions.
+The 6502 emulation is faster, smaller and more accruate than previous versions.
+Trapped I/O has been speeded up to make writing to the screen quicker than before.
+ULA-II support means you get to see games as they are supposed to look like
+Video memory can be relocated and changes are reflected immediately.
+Various standard VIC memory sizes are supported.
+Restore + RUN/STOP behaviour improved.
+
+
+2.10) Known Bugs
+
+Read-modify-write opcodes do not work correctly against I/O ports and screen memory. This causes incorrect sounds and scores not to update on the screen.
+Double-height display mode is broken in v1.90
+Emulator slows down if you hold down a key - not sure this is a bug, but just a side effect of how the VIC kernal processes key presses.
+
+
+3) Using VIC 20 Software
+
+3.1) What works?
+
+A lot of commercial software does work. Any software which depends on the VIA timers will fail to work - Wacky Waiters is an example
+
+3.2) Loading games
+
+As the tape and IEE488 devices are not emulated an alternative method is required to load in games. The following example allows you to play "Blitzkreig" written by Llamasoft. It is perfectly legal to download and play this game as Jeff Minter has given full permission. The game can be obtained from http://www.llamasoft.co.uk/lc-8bit.php
+
+i) Download the Blitzkreig game from the website. It comes as a .TAP (tape) file. Or if you're Argentinian, you'll probably want to try another game (read Mr. Minter's blog for an explanation) - Gridrunner works fine on the emulator and comes as a .PRG file. However, the PRG file only seems to load if you have a completely unexpanded VIC (ie: not even the 3K RAM expansion).
+
+ii) Launch the VICE (versatile Commodore emulator) VIC 20 emulator.
+
+iii) Configure the VIC20 to match the emulators specification. Select Settings -> VIC settings and make sure the 3K RAM (block 0) expansion option is selected.
+
+iv) Attach the .TAP file and let it load.
+
+v) Once the game has started press ALT+M to enter the monitor
+
+vi) Save the 8K RAM of the VIC by typing in SAVE "filename.bin" 0 $0000 $1FFF
+
+vii) Unfortunately VICE saves the block of memory with a 2 byte header. This needs to be removed. I use Filetweak as it's free and is a very good hex viewer / editor. If you haven't got such a tool you could try loading the memory block two bytes lower (ie: $7FFE instead of $8000), but bear in mind you will corrupt the kernal by doing this. As of V1.90 a routine can undo the corruption after loading in the binary block by setting PC to $B3F8. This will reset the memory contents and start executing regardless of what the machine was doing prior to being interrupted.
+
+viii) Load the .bin file (which should be exactly 8192 bytes long) at $8000 into your Spectrum (easier to do this on an emulator...)
+
+ix) The emulator might lockup and will usually make the border go red. Try pressing BREAK to force an NMI. This will usually work. If it does work, then you'll be returned to the READY prompt. Just type in RUN and this should start the game. If you want to avoid this hit and miss approach then you have to do the following :
+
+Load the memory block in at $8000 (first 8K RAM only!! - remainder of RAM needs to be loaded in at $0200, then $5E00, then $2000)
+Set DE to equal the 6502 PC
+Set E' to equal the 6502 S(tack) register
+Set IYH to equal the 6502 Y register
+Set IYL to equal the 6502 X register
+Set A' to equal the 6502 A register
+Set F' to equal the 6502 F register (not quite accurate as only the Z80 C,S and Z flags are used by the 6502 core)
+Jump to the address in IX (eg: JP (IX) ) to start decoding the next 6502 instruction.
+
+
+
+3.3) Saving games
+
+It's probably easiest to save the Spectrum's memory as a snapshot if you want to play a VIC20 game at a later date. The VIC20 8K RAM ($0000-$1FFF) is held at $8000-$9FFF in the Sinclair memory map. VIC memory beyond $2000 is held in the ZX 64K RAM bank at $0200-$3FFF and $5E00-$5FFF. See section 4 for the complete memory map. You could export the memory out of the emulator and import back into VICE, which then allows you to save in "real" disk and tape formats.
+
+
+
+4) Memory map
+
+4.1) VIC 20 memory map
+
+$0000-$03FF	lower 1K RAM - includes zero page and stack pages
+$0400-$0FFF	extra 3K expansion memory
+$1000-$1FFF	standard 4K RAM - fitted in all VICs
+		of which $1E00-$1FFF is video RAM.
+$2000-$3FFF	extra 8K expansion memory. Installing this forces video RAM to relocate to $1000
+$4000-$5FFF	unused, can be used for another 8K memory expansion.
+$6000-$7FFF	Can be another 8K memory expansion block or another 8K of Cartridge ROM
+$8000-$8FFF	character set ROM used by VIC chip
+$9000-$900F	VIC chip registers 0-15
+$9110-$911F	VIA 1 chip
+$9120-$912F	VIA 2 chip
+$9600-$97FF	colour nybble memory (only 4 bits valid on real VIC). 8K expansion relocates this block to $9400-$95FF.
+$A000-$BFFF	8K cartridge ROM space
+$C000-$DFFF	8K BASIC ROM
+$E000-$FFFF	Kernal ROM (actually BASIC overspills into lower area of kernal)
+
+
+
+4.2) Spectrum memory map
+
+64K RAM mode
+$0200-$1FFF	8K VIC 20 RAM ($2000-$3DFF) or second 8K cartridge ROM ($6000-$7FFF)
+$2000-$3FFF	8K VIC 20 RAM ($4000-$5FFF) or 8K cartridge ROM ($A000-$BFFF)
+$4000-$5AFF	Spectrum screen
+$5B00-$5DFF	BASIC and system variable area
+$5E00-$5FFF	last part of 8K VIC 20 RAM ($3E00-$3FFF)
+
+standard 16K ROM + 48K RAM mode
+$0000-$3FFF	ZX 16K ROM
+$4000-$5AFF	Spectrum screen
+$5B00-$5FFF	BASIC and system variable area
+
+both modes
+$6000-$7FFF	Kernal ROM
+$8000-$9FFF	8K VIC 20 RAM ($0000-$1FFF)
+$A000-$AFFF	character set ROM
+$B000-$B1FF	colour nybble memory
+$B200-$DFFF	emulator code
+$E000-$FFFF	8K BASIC ROM
+
+
+
+5) Final comments
+
+I hope you enjoy this program! If other people wish to port the Z80 code to other platforms then feel free to modify the source code. It assembles using TASM. I only ask for you to credit "twenty commodes" as the source and provide links to the crap computer games 2008 (CSSCGC2008) competition! If you have any questions then ask at the World of Spectrum forums (www.worldofspectrum.org).
+
+I would be interested to see any improvements to the 6502 core. It is fairly optimised already, but I'm sure the odd T-state can be shaved off here and there. The code is not as clear as it could be as clarity has been sacrificed for speed.
+
+Thanks go to :
+
+Asbjorn Djupdal for typing up the VIC 20 programmers reference guide - invaluble! (worth reading if you want to program the VIC)
+Richard Cini for his Commodore hacking articles on the VIC-20 kernal. The startup disassembly was invaluable getting the emulator to a certain point.
+Lance Ewing for writing a decent article on the VIC-20 keyboard (most are about the C64, and the rest don't have enough detail)
+Digital Prawn for providing guidance on using the VIC and for providing encouragement!
