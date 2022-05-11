@@ -1,18 +1,17 @@
-bmp:scratch.com
-bat:cmd.com
-txt,new,ext,ini,nfo,diz:texted.com
-gif,jpg,png,htm,svg:browser.com
-tfc,pt2,pt3,mt3,m  :player.com
-bas:basic.com
-zip,gz :pkunzip.com
-trd,scl,fdi,tap:dmm.com -az
-16c,scr,fnt,img,3  ,888,y  ,+  ,-  ,plc,mc ,mcx,grf,ch$,mg1,mg2,mg4,mg8,rm ,mlt:view.com
-mod:modplay.com
-tar:tar.com
-sna,b  ,z80:nmisvc.com
-rar:unrar.com
-x86,x8r:x86.com
-bk ,0bk:bk.com
-s98:s98_play.com
-ps6:ps6_play.com
-v20:vic20.com
+bat: cmd.com
+bas: basic.com
+txt,new,ext,ini,nfo,diz: texted.com
+bmp: scratch.com
+gif,jpg,png,htm,svg: browser.com
+16c,scr,fnt,img,3  ,888,y  ,+  ,-  ,plc,mc ,mcx,grf,ch$,mg1,mg2,mg4,mg8,rm ,mlt: view.com
+tfc,pt2,pt3,mt3,m: player.com
+mod: modplay.com
+s98: s98_play.com
+zip,gz : pkunzip.com
+tar: tar.com
+rar: unrar.com
+trd,scl,fdi,tap: dmm.com -az
+sna,b  ,z80: nmisvc.com
+thk: texted.com
+x86: x86.com
+ch8: NSChip.com

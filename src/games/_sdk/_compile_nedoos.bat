@@ -53,7 +53,7 @@ sjasmplus --nologo --msg=war ..\_sdk\lib_sndpage.asm
 copy sound.bin ..\_sdk\ > nul
 del sound.bin > nul
 
-sjasmplus --nologo --msg=war --exp=_temp_/nedoload.exp nedoload.asm
+sjasmplus.exe --nologo --msg=war --exp=_temp_/nedoload.exp nedoload.asm
 java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp > nul
 
 makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\sample.lst" "%temp%\sprite.lst" "%soundfx%"
@@ -74,7 +74,7 @@ rem плюс скрипты для сжатия файлов megalz и сборки образа диска
 
 rem evoresc "%temp%\out.ihx" "..\_sdk\startup.bin" "%soundfx%" "%temp%\music.lst" "%temp%\palette.lst" "%temp%\image.lst" "%temp%\sample.lst" "%temp%\sprite.lst"
 rem echo tools\sjasmplus\sjasmplus.exe "%temp%\..\nedoload.asm" 
-sjasmplus --nologo --msg=war nedoload.asm
+sjasmplus.exe --nologo --msg=war --exp=_temp_/nedoload.exp nedoload.asm
 
 rem echo -CALL NEDORESC------------------------------
 rem evoresc_new.exe BINARY_FILE "%temp%\out.ihx" STARTUP_FILE "..\_sdk\startup.bin" SFX_LIST "%soundfx%" MUSIC_LIST "%temp%\music.lst" PALETTE_LIST "%temp%\palette.lst" IMAGE_LIST "%temp%\image.lst" SAMPLE_LIST "%temp%\sample.lst" SPRITE_LIST "%temp%\sprite.lst" ALT_PAGE_NUMERING "1"

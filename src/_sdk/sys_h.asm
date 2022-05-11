@@ -1,3 +1,4 @@
+        opt -Wno-rdlow
         include "sysdefs.asm"
         
 ;*********************** QUIT **********************
