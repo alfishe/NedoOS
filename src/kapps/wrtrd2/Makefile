@@ -2,7 +2,7 @@
 BIN		:= wrtrd2.com
 
 #поддиректория инсталляции в release
-INSTDIR := bin\kapps
+INSTDIR := bin
 
 #тип вводавывода TTY или BDOS
 CONSOLE := TTY

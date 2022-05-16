@@ -134,7 +134,7 @@ void killapp(unsigned char id)
     filltable();
 }
 
-C_task main(int argc, char *argv[])
+C_task main(void)
 {
     unsigned char loop = 1;
     curpos = 1;
