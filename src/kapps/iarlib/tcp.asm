@@ -6,9 +6,9 @@ RSEG CODE
 OS_NETSOCKET:	
 ;D - AF_INET
 ;E - (0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip
-;---------
+;------
 ;L - SOCKET
-;H - ErrNo
+;A - ErrNo
 	push bc
 	ld l,0x01
 	ld c, CMD_WIZNETOPEN
@@ -20,7 +20,10 @@ OS_NETSOCKET:
 	pop iy
 	pop ix
 	pop bc
-	LD h, a
+	
+	ld h, l
+	ld l, a
+	
 	ret
 ENDMOD
 
@@ -171,6 +174,47 @@ icmpsend:
 
 ret
 ENDMOD
+
+MODULE OS_BIND
+PUBLIC OS_BIND
+#include "sysdefs.asm"
+RSEG CODE
+;  A - SOCKET
+;  DE - указатель на структуру sockaddr_in содержащую номер исходящего порта.
+;   (остальные поля структуры не используются, но обязаны присутствовать)
+; Возвращаемые значения в регистрах:
+;  L - При отрицательном значении - функция завершилась с ошибкой.
+;  А - errno при ошибке
+OS_BIND:	
+	ld a, e
+	ld d, b
+	ld e, c
+	push ix
+	push iy
+	ld l,0x05
+    ld c,CMD_WIZNETOPEN
+	ex af,af'
+	call BDOS
+	pop iy
+	pop ix
+	
+	ld h, l
+	ld l, a
+	ret
+ENDMOD
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

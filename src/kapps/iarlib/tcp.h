@@ -30,9 +30,9 @@ struct readstructure
 
 unsigned int OS_NETSOCKET(unsigned int);
 //	D - семейство адресов, беззнаковое 8-битное число, допускается только значение 2 (AF_INET).
-//  E -  протокол соединения(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip)
+//  E - протокол соединения(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip)
 // 	Возвращаемые значения в регистрах:
-//  L - SOCKET  при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
+//  L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
 //  А - errno при ошибке.
 //	HL - параметр вернем
 
@@ -41,7 +41,7 @@ unsigned int OS_NETSOCKET(unsigned int);
 unsigned int OS_NETCONNECT (unsigned char socket,struct sockaddr_in *);
 //	A - SOCKET
 //	DE - указатель на структуру sockaddr_in содержащую IP адрес и порт хоста.
-// 	Возвращаемые значения в регистрах:
+//	Возвращаемые значения в регистрах:
 //  L - При отрицательном значении  - функция завершилась с ошибкой.
 //  А - errno при ошибке.
 
@@ -55,6 +55,9 @@ unsigned int OS_WIZNETWRITE (struct readstructure *);
 //if TCP: A=SOCKET, de=buffer_ptr, HL=sizeof(buffer)
 //else:	 A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
 //out: HL=count if HL < 0 then A=error 
+
+unsigned int OS_BIND(unsigned char socket,struct sockaddr_in *);
+//	A=SOCKET, DE=sockaddr ptr {unsigned char sin_family /*net type*/; unsigned short sin_port; struct in_addr sin_addr /*4 bytes IP*/; char sin_zero[8];}
 
 
 #define IPPROTO_TCP 6

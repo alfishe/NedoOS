@@ -7,8 +7,8 @@
 
 
 
-unsigned char netbuf[2*1024];
-unsigned char cmdlist[] = "CONNECT\r\n";
+unsigned char netbuf[512];
+unsigned char cmdlist[] = "GET https://zxart.ee/\r\n";
 unsigned char socket;
 unsigned char errno;
 unsigned char status;
@@ -85,10 +85,10 @@ C_task main (void)
 	unsigned char key = 0;
 	os_initstdio();
 	opensocket = OS_NETSOCKET ((AF_INET << 8) + SOCK_STREAM);
-	errno  = opensocket >> 8 ;
-	socket = opensocket;
-	if (errno !=0) {printf("Socket creation error %d\n\r",errno);}
-	else {printf ("Socket #%d created\n\r", socket);}
+	if (opensocket > 32767) {errorPrint(opensocket & 255);}
+	else {socket = (opensocket >> 8); printf ("Socket #%d created\n\r", socket);}
+
+
 
     targetadr.family		= AF_INET;
     targetadr.porth			= 00;
@@ -113,29 +113,44 @@ C_task main (void)
 	todo = OS_WIZNETWRITE (&readStruct);
 	printf ("CONNECT, bytes sended = %u \n\r",todo);
 
-	while (key == 0)
-	{key = _low_level_get();}
-
+	
 	readStruct.socket  = socket; 
 	readStruct.BufAdr  = &netbuf;
-	readStruct.bufsize = 100;//sizeof (netbuf); 	
+	readStruct.bufsize = sizeof (netbuf); 	
 	readStruct.protocol = SOCK_STREAM; 
 
+do {
+	do 
+	{
 	todo = OS_WIZNETREAD (&readStruct);
-	printf ("ANSWER from server: %u \n\r",todo);
-	if (todo > 32767) {errorPrint(todo & 255); todo = 0; }
+	if (todo > 32767) {errorPrint(todo & 255);} 
+	YIELD();
+	}
+	while ((todo & 255) == ERR_EAGAIN);
 
-
-
+	//todo = 0;
 
 	for (q = 0;q < todo;q++)
 	{
 	if (netbuf[q] == 0){putchar ('.');} else {putchar(netbuf[q]);}
 	}	
 
-
+	key = 0;
 	while (key == 0)
 	{key = _low_level_get();}
+
+
+}
+	while (todo == sizeof (netbuf));
+
+
+
+//	todo = OS_BIND(unsigned char socket,struct sockaddr_in *);
+
+
+
+
+
 	printf ("\n\r");	
 return 0;
 }   
