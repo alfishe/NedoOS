@@ -5,6 +5,8 @@
 #include <tcp.h>
 
 
+
+
 unsigned char netbuf[2*1024];
 unsigned char cmdlist[] = "CONNECT\r\n";
 unsigned char socket;
@@ -12,6 +14,7 @@ unsigned char errno;
 unsigned char status;
 struct sockaddr_in 	targetadr;
 struct readstructure   readStruct;
+
 void putdec(int c)
 {
   int div;
@@ -25,6 +28,55 @@ void putdec(int c)
     }
   }
 }
+
+void errorPrint(unsigned int error)
+{
+      switch (error)
+		{
+        case 2:
+         printf ("02 SHUT_RDWR\n\r");
+          break;
+		case 4:
+         printf ("04 ERR_INTR\n\r");
+          break;
+		case 23:
+         printf ("23 ERR_NFILE\n\r");
+          break;
+		case 35:
+         printf ("35 ERR_EAGAIN or ERR_EWOULDBLOCK\n\r");
+          break;
+		case 37:
+         printf ("37 ERR_ALREADY\n\r");
+          break;
+		case 38:
+         printf ("38 ERR_NOTSOCK\n\r");
+          break;
+		case 40:
+         printf ("40 ERR_EMSGSIZE\n\r");
+          break;
+		case 41:
+         printf ("41 ERR_PROTOTYPE\n\r");
+          break;
+		case 47:
+         printf ("47 ERR_AFNOSUPPORT\n\r");
+          break;
+		case 53:
+         printf ("53 ERR_ECONNABORTED\n\r");
+          break;
+		case 54:
+         printf ("54 ERR_CONNRESET\n\r");
+          break;
+		case 57:
+         printf ("57 ERR_NOTCONN\n\r");
+          break;
+		case 65:
+         printf ("65 ERR_HOSTUNREACH\n\r");
+          break;
+		default:
+		 printf ("%u UNKNOWN ERROR\n\r", error);
+		}
+		
+}	
 
 C_task main (void) 
 {
@@ -49,10 +101,8 @@ C_task main (void)
 
 	opensocket = OS_NETCONNECT (socket, &targetadr);
 
-	errno  = opensocket >> 8 ;
-	status = opensocket;
-	if (status !=0) {printf("connection unsuccessful  %d %d \n\r", status, errno);}
-	else {printf ("Connection successful.\n\r");}
+	if (opensocket > 32767) {errorPrint(opensocket & 255);}
+	else {printf("connection successful, %u\n\r", (opensocket & 255));}
 
 	
 	strcpy (netbuf, cmdlist);
@@ -68,16 +118,21 @@ C_task main (void)
 
 	readStruct.socket  = socket; 
 	readStruct.BufAdr  = &netbuf;
-	readStruct.bufsize = sizeof (netbuf); 	
+	readStruct.bufsize = 100;//sizeof (netbuf); 	
 	readStruct.protocol = SOCK_STREAM; 
 
 	todo = OS_WIZNETREAD (&readStruct);
-	printf ("ANSWER from server bytes: %u \n\r",todo);
+	printf ("ANSWER from server: %u \n\r",todo);
+	if (todo > 32767) {errorPrint(todo & 255); todo = 0; }
+
+
+
 
 	for (q = 0;q < todo;q++)
 	{
 	if (netbuf[q] == 0){putchar ('.');} else {putchar(netbuf[q]);}
 	}	
+
 
 	while (key == 0)
 	{key = _low_level_get();}
