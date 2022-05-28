@@ -61,14 +61,29 @@ MODULE OS_WIZNETREAD
 PUBLIC OS_WIZNETREAD
 #include "sysdefs.asm"
 RSEG CODE
-;	A=SOCKET, de=buffer_ptr, HL=sizeof(buffer) ; 
-;	out: HL=count if HL < 0 then A=error
+;if TCP: A=SOCKET, de=buffer_ptr, 		HL=sizeof(buffer)
+;else:	 A=SOCKET, de=sockaddr_in ptr,	HL=sizeof(buffer), IX=buffer_ptr,
+;out: HL=count if HL < 0 then A=error 
 OS_WIZNETREAD:	
 	push bc
-	push de
 	push ix
 	push iy
 
+	ld b, e
+	ld a, e
+	add a, 05	; protocol
+	ld e, a		
+	ld a, (de)	;(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip	
+	cp 01
+	jp z, tcpread
+	cp 02
+	jp z, icmpread
+	cp 03
+	jp z, udpread
+
+
+tcpread:
+	ld e, b 	
 	ex de,hl
 	ld a, (hl) 	;socket
 	inc l
@@ -87,35 +102,55 @@ OS_WIZNETREAD:
 	bit 7, h
 	jp z, readok 	;noerror just return
 	ld l, a
+	jp readnot
+icmpread:
+udpread:
+	ld e, b 	
+	ex de,hl
+	ld a, (hl) 	;socket
+	inc l
+	ld (store_ix1), hl
+	ld IX, (store_ix1) 	; buffer HL
+	inc l
+	inc l
+	ld c, (hl) 			;size L
+	inc l
+	ld b, (hl) 			;size H
+	ld l, c
+	ld h, b
+	ex af,af'
+	ld c, CMD_WIZNETREAD
+	call BDOS
+	bit 7, h
+	jp z, readok 	;noerror just return
+	ld l, a
 
-
-readok:	
+readok:
+readnot:	
 	pop iy
 	pop ix
-	pop de
 	pop bc
 	ret
+store_ix1:
+defb 0,0
 ENDMOD
 
 MODULE OS_WIZNETWRITE
 PUBLIC OS_WIZNETWRITE
 #include "sysdefs.asm"
 RSEG CODE
-;CMD_WIZNETWRITE=0xde
-;if TCP: A=SOCKET, de=buffer_ptr, HL=sizeof(buffer)
-;else:	 A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
+;if TCP: A=SOCKET, de=buffer_ptr, 		HL=sizeof(buffer)
+;else:	 A=SOCKET, de=sockaddr_in ptr,	HL=sizeof(buffer), IX=buffer_ptr,
 ;out: HL=count if HL < 0 then A=error 
 OS_WIZNETWRITE	
 	push bc
 	push ix
 	push iy
-;E - (0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip	
-	
 	ld b, e
 	ld a, e
-	add a, 05
-	ld e, a
-	ld a, (de)
+	add a, 05	; protocol
+	ld e, a		
+	ld a, (de)	;(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip	
 	cp 01
 	jp z, tcpsend
 	cp 02
@@ -126,53 +161,57 @@ OS_WIZNETWRITE
 tcpsend:	
 	ld e, b 
 	ex de,hl
-	ld a, (hl) 	;socket
+	ld a, (hl) 			;socket
 	inc l
-	ld e, (hl) 	;buffer L
+	ld e, (hl) 			;buffer L
 	inc l
-	ld d, (hl) 	;buffer H
+	ld d, (hl) 			;buffer H
 	inc l
-	ld c, (hl) 	;size L
+	ld c, (hl) 			;size L
 	inc l
-	ld b, (hl) 	;size H
+	ld b, (hl) 			;size H
 	ld l, c
 	ld h, b
 	ex af,af'
 	ld c, CMD_WIZNETWRITE
 	call BDOS	
-	pop iy
-	pop ix
-	pop bc
-	ret
+	bit 7, h
+	jp z, writeok 		;noerror just return
+	ld l, a
+	jp writenot
 	
 udpsend:
 icmpsend:
+	ld e, b 
+	ex de,hl
+	ld a, (hl) 			; socket
+	inc l
+	ld (store_ix), hl
+	ld IX, (store_ix) 	; buffer HL
+	inc l
+	inc l
+	ld c, (hl) 			; size L
+	inc l
+	ld b, (hl) 			; size H
+	inc l				; protocol
+	inc l
+	ex de,hl			; DE-HL now point at sockaddr_in
+	ex af,af'
+	ld c, CMD_WIZNETWRITE
+	call BDOS	
+	bit 7, h
+	jp z, writeok 		;noerror just return
+	ld l, a
 
-
-
-
-
-
-			ex de,hl
-			ld a, (hl)
-			ld hl, 0
-			ld l, a
-			pop iy
-			pop ix
-			pop bc
-
-
-
-;При протоколе отличном от TCP/IP все аргументы в регистрах:
-;  A - SOCKET
-;  DE - указатель на структуру sockaddr_in, в неё необходимо поместить IP-адрес и порт хоста получателя
-;  IX - указатель на буфер с данными
-;  HL - размер данных(в байтах), в текущей реализации максимум 8192 байта
-; Возвращаемые значения в регистрах:
-;  HL - при отрицательном значении функция завершилась с ошибкой,
-;   иначе возвращается действительный размер(в байтах) отправленных данных,
+writeok:
+writenot:
+	pop iy
+	pop ix
+	pop bc
 
 ret
+store_ix:
+defb 0,0
 ENDMOD
 
 MODULE OS_BIND
@@ -203,18 +242,83 @@ OS_BIND:
 	ret
 ENDMOD
 
+MODULE OS_LISTEN
+PUBLIC OS_LISTEN
+#include "sysdefs.asm"
+RSEG CODE
+; A - SOCKET
+; Возвращаемые значения в регистрах:
+; L - При отрицательном значении - функция завершилась с ошибкой.
+; А - errno при ошибке.
+OS_LISTEN:	
+	ld a, e
+	push bc
+	push ix
+	push iy
+	ld l,0x06
+    ld c,CMD_WIZNETOPEN
+	ex af,af'
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ld h, l
+	ld l, a
+	ret
+ENDMOD
+
+
+MODULE OS_ACCEPT
+PUBLIC OS_ACCEPT
+#include "sysdefs.asm"
+RSEG CODE
+; A - SOCKET
+; Возвращаемые значения в регистрах:
+; L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
+; А - errno при ошибке.
+OS_ACCEPT:	
+	ld a, e
+	push bc
+	push ix
+	push iy
+	ld l,0x04
+    ld c,CMD_WIZNETOPEN
+	ex af,af'
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ld h, l
+	ld l, a
+	ret
+ENDMOD
 
 
 
-
-
-
-
-
-
-
-
-
+MODULE OS_NETSHUTDOWN
+PUBLIC OS_NETSHUTDOWN
+#include "sysdefs.asm"
+RSEG CODE
+; A - SOCKET
+; Возвращаемые значения в регистрах:
+; L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
+; А - errno при ошибке.
+OS_NETSHUTDOWN:	
+	ld a, e
+	push bc
+	push ix
+	push iy
+	ld l,0x02
+    ld c,CMD_WIZNETOPEN
+	ex af,af'
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ld h, l
+	ld l, a
+	ret
+ENDMOD
 
 
 

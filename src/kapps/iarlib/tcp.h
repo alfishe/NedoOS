@@ -1,10 +1,3 @@
-/*struct in_addr 	{
-				unsigned char b1; 
-				unsigned char b2;
-				unsigned char b3; 
-				unsigned char b4;
-				};
-*/
 
 struct sockaddr_in {
         unsigned char   family;			/*net type*/
@@ -23,10 +16,16 @@ struct readstructure
 			void 			*BufAdr;
 			unsigned int 	bufsize;
 			unsigned char	protocol;
+			
+			unsigned char   family;			// ICMP/UDP sockaddr_in
+			unsigned char 	porth;
+			unsigned char 	portl;
+			unsigned char 	b1; 
+			unsigned char 	b2;
+			unsigned char 	b3; 
+			unsigned char 	b4;
+			unsigned char	zero[8];
 			};
-
-
-
 
 unsigned int OS_NETSOCKET(unsigned int);
 //	D - семейство адресов, беззнаковое 8-битное число, допускается только значение 2 (AF_INET).
@@ -35,8 +34,6 @@ unsigned int OS_NETSOCKET(unsigned int);
 //  L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
 //  А - errno при ошибке.
 //	HL - параметр вернем
-
-
 
 unsigned int OS_NETCONNECT (unsigned char socket,struct sockaddr_in *);
 //	A - SOCKET
@@ -58,6 +55,25 @@ unsigned int OS_WIZNETWRITE (struct readstructure *);
 
 unsigned int OS_BIND(unsigned char socket,struct sockaddr_in *);
 //	A=SOCKET, DE=sockaddr ptr {unsigned char sin_family /*net type*/; unsigned short sin_port; struct in_addr sin_addr /*4 bytes IP*/; char sin_zero[8];}
+
+unsigned int OS_LISTEN(unsigned char socket);
+// A - SOCKET
+// Возвращаемые значения в регистрах:
+// L - При отрицательном значении - функция завершилась с ошибкой.
+// А - errno при ошибке.
+
+unsigned int OS_ACCEPT(unsigned char socket);
+// A - SOCKET
+// Возвращаемые значения в регистрах:
+// L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
+// А - errno при ошибке.
+
+unsigned int OS_NETSHUTDOWN (unsigned char socket);
+// A=SOCKET ; 
+// out: if HL < 0 then A=error
+
+
+
 
 
 #define IPPROTO_TCP 6
