@@ -1270,10 +1270,14 @@ editcmd_up
         ;ld hl,CONST_HGT_TABLE*256 + 40
         ld hl,(filesperpanel-1) ;h
         ld l,40
+       ld a,(keyfromcalledapp)
+       or a ;nz = после вызова с выходом по стрелке - не печатаем
        if PRSTDIO
-        call scrolldown
+        call z,scrolldown
        else
+        jr nz,scrolldownskip
         OS_SCROLLDOWN
+scrolldownskip
        endif
         ;pop de
 editcmd_updownq
@@ -1331,10 +1335,14 @@ editcmd_down
         ;ld hl,CONST_HGT_TABLE*256 + 40
         ld hl,(filesperpanel-1) ;h
         ld l,40
+       ld a,(keyfromcalledapp)
+       or a ;nz = после вызова с выходом по стрелке - не печатаем
        if PRSTDIO
-        call scrollup
+        call z,scrollup
        else
+        jr nz,scrollupskip
         OS_SCROLLUP
+scrollupskip
        endif
         ;pop de
         ;ld a,CONST_HGT_TABLE-1
