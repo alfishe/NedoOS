@@ -4,6 +4,9 @@
 STACK=0x4000
 scrbase=0x8000
 
+WIN1251=1
+MAKEWIN1251=0
+
         macro NEXTCOLUMN
 	bit 6,h
 	set 6,h
@@ -27,6 +30,31 @@ begin
         
         ld e,0 ;color byte 0bRLrrrlll
         OS_CLS
+
+       if MAKEWIN1251
+;make 1251 font
+        ld hl,propfont
+        ld de,waspropfont
+        ld bc,0x900
+        ldir
+
+        ld e,0
+mk1251_chars0        
+        ld d,twinto866/256
+        ld a,(de)
+        ld l,a
+        ld d,propfont/256
+        ld h,waspropfont/256
+        ld b,9
+mk1251_char0
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc d
+        djnz mk1251_char0
+        inc e
+        jr nz,mk1251_chars0
+       endif
         
         ld a,(user_scr0_low) ;ok
         SETPG8000
@@ -88,7 +116,7 @@ pr1
 
 xytoscraddr
 ;l=x/2
-;e=y (–Ω–µ –ø–æ—Ä—Ç–∏—Ç—Å—è)
+;e=y (≠• ØÆ‡‚®‚·Ô)
 ;screen pages are mapped in 2 CPU windows
 ;addr = tY(y) + tX(x)
         ld h,tx/256
@@ -107,8 +135,8 @@ xytoscraddr_l=$+1
 
         if 1==0
 prpixel
-;bc=x (–Ω–µ –ø–æ—Ä—Ç–∏—Ç—Å—è)
-;e=y (–Ω–µ –ø–æ—Ä—Ç–∏—Ç—Å—è)
+;bc=x (≠• ØÆ‡‚®‚·Ô)
+;e=y (≠• ØÆ‡‚®‚·Ô)
 ;screen pages are mapped in 2 CPU windows
 ;addr = tY(y) + tX(x)
         push bc
@@ -129,7 +157,7 @@ prpixel
         adc a,(hl) ;f(x mod 4)
         ld b,a
         ld a,(bc)
-        and 0xb8 ;keep right pixel ;–∏–Ω–∞—á–µ –Ω–∞–¥–æ cls –ø–µ—Ä–µ–¥ redraw
+        and 0xb8 ;keep right pixel ;®≠†Á• ≠†§Æ cls Ø•‡•§ redraw
 prpixel_color_l=$+1
         or 0;lx
         ld (bc),a
@@ -146,7 +174,7 @@ prpixel_r
         adc a,(hl) ;f(x mod 4)
         ld b,a
         ld a,(bc)
-        and 0x47 ;keep left pixel ;–∏–Ω–∞—á–µ –Ω–∞–¥–æ cls –ø–µ—Ä–µ–¥ redraw
+        and 0x47 ;keep left pixel ;®≠†Á• ≠†§Æ cls Ø•‡•§ redraw
 prpixel_color_r=$+1
         or 0;lx
         ld (bc),a
@@ -196,7 +224,7 @@ drawwindowfill0
         pop bc
         NEXTCOLUMN
         ld de,40*2
-        add hl,de ;–≤—Ç–æ—Ä–æ–π –±–æ–∫—Å –≤–Ω—É—Ç—Ä–∏ –ø–µ—Ä–≤–æ–≥–æ
+        add hl,de ;¢‚Æ‡Æ© °Æ™· ¢≠„‚‡® Ø•‡¢Æ£Æ
         dec c
         dec c
         ld a,b
@@ -349,14 +377,18 @@ drawhorline0go
         ret
 
 prcharprop_shch
-        ;ld a,'ô'
+        ld a,30
         call prcharprop_do
-        ld a,255
+        ld a,31
         jr prcharprop_do
 prcharprop
 ;ô (Shch) doesn't fit in 8 bits + scroll
 ;print it as ò (Sh) + tail
+       if WIN1251
+        cp 'Ÿ'
+       else
         cp 'ô'
+       endif
         jr z,prcharprop_shch
 prcharprop_do
 ;print with proportional font (any char width)
@@ -463,7 +495,19 @@ chardata
 
         align 256
 propfont
+       if WIN1251 & !MAKEWIN1251
+        incbin "prop1251.bin" ;0x800 font + 0x100 width
+       else
         incbin "propfont.bin" ;0x800 font + 0x100 width
+       endif
+
+       if MAKEWIN1251
+waspropfont
+        ds 0x900
+        align 256
+twinto866
+        incbin "winto866"
+       endif
 
         align 256
 tx
@@ -489,7 +533,7 @@ ty
 end
 
 ;fix font
-        org propfont+'ô' ;ò without spacing instead of ô
+        org propfont+30 ;ò without spacing instead of ô
         db 0
         org $+255
         db 0x82
@@ -508,7 +552,7 @@ end
         org $+255
         db 7
 
-        org propfont+255 ;tail
+        org propfont+31 ;tail
         db 0
         org $+255
         db 0
