@@ -65,7 +65,7 @@ begin
         ld e,0
 pr0
         push hl
-        ld c,0 ;phase
+        ld c,1;0 ;phase
         ld d,32
 pr1
         push de
@@ -348,7 +348,17 @@ drawhorline0go
         djnz drawhorline0
         ret
 
+prcharprop_shch
+        ;ld a,'™'
+        call prcharprop_do
+        ld a,255
+        jr prcharprop_do
 prcharprop
+;™ (Shch) doesn't fit in 8 bits + scroll
+;print it as ˜ (Sh) + tail
+        cp '™'
+        jr z,prcharprop_shch
+prcharprop_do
 ;print with proportional font (any char width)
 ;hl=screen addr
 ;c=phase (even=left, odd=right pixel)
@@ -477,5 +487,45 @@ ty
         ds 56,8000/256
 
 end
+
+;fix font
+        org propfont+'™' ;˜ without spacing instead of ™
+        db 0
+        org $+255
+        db 0x82
+        org $+255
+        db 0x92
+        org $+255
+        db 0x92
+        org $+255
+        db 0x92
+        org $+255
+        db 0x92
+        org $+255
+        db 0xfe
+        org $+255
+        db 0
+        org $+255
+        db 7
+
+        org propfont+255 ;tail
+        db 0
+        org $+255
+        db 0
+        org $+255
+        db 0
+        org $+255
+        db 0
+        org $+255
+        db 0
+        org $+255
+        db 0
+        org $+255
+        db 0x80
+        org $+255
+        db 0x80
+        org $+255
+        db 1
+
 	savebin "gfxtest.com",begin,end-begin
 	LABELSLIST "../../../us/user.l",1
