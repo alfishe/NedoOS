@@ -29,9 +29,9 @@ begin
         OS_CLS
         
         ld a,(user_scr0_low) ;ok
-        SETPG32KLOW
+        SETPG8000
         ld a,(user_scr0_high) ;ok
-        SETPG32KHIGH
+        SETPGC000
         
 ;01          89          01    ;low+0x0000
 ;   23          ab          23 ;high+0x0000
@@ -60,6 +60,27 @@ begin
 ;b=hgt-1
 ;c=wid/2
         call drawwindow
+
+        ld hl,0x8000+(40*100)
+        ld e,0
+pr0
+        push hl
+        ld c,0 ;phase
+        ld d,32
+pr1
+        push de
+        ld a,e ;char
+        call prcharprop
+        pop de
+        inc e
+        dec d
+        jr nz,pr1
+        pop hl
+        ld bc,8*40
+        add hl,bc
+        inc e
+        dec e
+        jr nz,pr0
         
         jr $
         
@@ -327,6 +348,113 @@ drawhorline0go
         djnz drawhorline0
         ret
 
+prcharprop
+;print with proportional font (any char width)
+;hl=screen addr
+;c=phase (even=left, odd=right pixel)
+;a=char
+       push hl
+        ld l,a
+        ld h,propfont/256
+        ld de,chardata
+;1. copy char data
+;shift 1 pix right if needed
+        bit 0,c
+        jr z,prcharprop_copyfontnoscroll
+        dup 7
+        ld a,(hl)
+        rrca
+        ld (de),a
+        inc h
+        inc e
+        edup
+        ld a,(hl)
+        rrca
+        jp prcharprop_copyfontq
+prcharprop_copyfontnoscroll
+        dup 7
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc e
+        edup
+        ld a,(hl)
+prcharprop_copyfontq
+        ld (de),a
+        inc h
+        ld b,(hl) ;charwidth
+        ld a,c ;phase
+        add a,b
+        ld ly,a ;next phase = phase + charwidth
+        ld a,c ;phase
+        and 1 ;phase&1
+        inc a
+        add a,b ;charwidth
+        rra
+        ld hy,a ;number of 2 pixel columns = (charwidth + (phase&1) + 1)/2
+       pop hl
+;hl=screen addr
+;hy=number of 2 pixel columns = (charwidth + (phase&1) + 1)/2
+;ly=next phase (even=left, odd=right pixel)
+;2. print 2 pixel vertical line (scroll left bits 7,6 in char data)
+        ld bc,40
+prcharprop_columns0
+        push hl
+        ld de,chardata
+        dup 7
+        ex de,hl
+        ld a,(de)
+        rl (hl) ;CY=left pixel
+        jr nc,$+4
+        or 0x47 ;hx
+        rl (hl) ;CY=right pixel
+        jr nc,$+4
+        or 0xb8 ;lx
+        ld (de),a
+        ex de,hl
+        add hl,bc
+        inc e
+        edup
+        ex de,hl
+        ld a,(de)
+        rl (hl) ;CY=left pixel
+        jr nc,$+4
+        or 0x47 ;hx
+        rl (hl) ;CY=right pixel
+        jr nc,$+4
+        or 0xb8 ;lx
+        ld (de),a
+;3. next column and loop
+        pop hl
+        ld d,h
+        ld e,l ;this will be next screen addr if the char ends in odd column ((ly&1) = 1)
+	bit 6,h
+	set 6,h
+	jr z,$+2+4+2+2+1
+	 ld a,h
+	 xor 0x60
+	 ld h,a
+	 and 0x20
+	 jr nz,$+3
+	 inc hl
+        dec hy
+        jp nz,prcharprop_columns0
+        ld c,ly
+;c=next phase (even=left, odd=right pixel)
+        bit 0,c
+        ret z
+        ex de,hl ;old screen addr if the char ends in odd column ((ly&1) = 1)
+;hl=next screen addr
+        ret
+
+        align 8
+chardata
+        ds 8 ;any place for inc l
+
+        align 256
+propfont
+        incbin "propfont.bin" ;0x800 font + 0x100 width
+
         align 256
 tx
         dup 256
@@ -350,3 +478,4 @@ ty
 
 end
 	savebin "gfxtest.com",begin,end-begin
+	LABELSLIST "../../../us/user.l",1
