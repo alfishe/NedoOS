@@ -4,8 +4,10 @@
 STACK=0x4000
 scrbase=0x8000
 
+ROTATEDFONT=1
+MAKEROTATEDFONT=0;1
 WIN1251=1
-MAKEWIN1251=0
+MAKEWIN1251=0;1
 
         macro NEXTCOLUMN
 	bit 6,h
@@ -56,6 +58,38 @@ mk1251_char0
         jr nz,mk1251_chars0
        endif
         
+       if MAKEROTATEDFONT
+        ld l,0
+mkrotfont0
+       push hl
+        ld h,propfont/256
+        ld de,chardata
+        ld b,8
+mkrotfont_copychar0
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc e
+        djnz mkrotfont_copychar0
+       ;ld c,(hl) ;charwidth
+        ex de,hl
+        ld d,propfont/256 + 7
+        ld b,8
+mkrotfont_rotchar0
+        ld hl,chardata
+        dup 8
+        rl (hl)
+        rla
+        inc l
+        edup
+        ld (de),a
+        dec d
+        djnz mkrotfont_rotchar0
+       pop hl
+        inc l
+        jr nz,mkrotfont0
+       endif
+        
         ld a,(user_scr0_low) ;ok
         SETPG8000
         ld a,(user_scr0_high) ;ok
@@ -93,12 +127,14 @@ mk1251_char0
         ld e,0
 pr0
         push hl
-        ld c,1;0 ;phase
+        ld ly,1;0 ;phase
         ld d,32
 pr1
         push de
         ld a,e ;char
+        ex de,hl
         call prcharprop
+        ex de,hl
         pop de
         inc e
         dec d
@@ -376,12 +412,84 @@ drawhorline0go
         djnz drawhorline0
         ret
 
+    if !ROTATEDFONT
 prcharprop_shch
         ld a,30
         call prcharprop_do
         ld a,31
         jr prcharprop_do
+    endif
 prcharprop
+;print with proportional font (any char width up to 8)
+;de=screen addr
+;ly=phase (even=left pixel [of next screen addr], odd=right pixel)
+;a=char
+    if ROTATEDFONT
+        ld l,a
+        ld h,propfont/256 + 8
+        ld a,ly ;phase
+       ld c,a ;phase
+        add a,(hl) ;charwidth
+        dec h
+        ld ly,a ;nextphase = phase + charwidth
+       inc a
+       or 1
+       sub c ;phase
+       rra
+       ld hy,a ;number of 2 pixel columns = (((nextphase+1)|1) - phase)/2      
+        ld bc,40
+        ld a,b ;0
+       jr nc,prcharprop_columns0_skipbyte ;odd phase = blank left pixel in same screen addr
+;de=screen addr
+;hl=gfx addr
+prcharprop_columns0
+	bit 6,d
+	set 6,d
+	jr z,$+2+4+2+2+1
+	 ld a,d
+	 xor 0x60
+	 ld d,a
+	 and 0x20
+	 jr nz,$+3
+	 inc de
+        ld a,(hl)
+        dec h
+prcharprop_columns0_skipbyte
+        push de ;screen addr
+        push hl ;gfx addr
+        ld h,(hl)
+        ld l,a
+        ex de,hl
+        dup 7
+        ld a,(hl)
+        rl e ;CY=left pixel
+        jr nc,$+4
+        or 0x47 ;hx
+        rl d ;CY=right pixel
+        jr nc,$+4
+        or 0xb8 ;lx
+        ld (hl),a
+        add hl,bc
+        edup
+        ld a,(hl)
+        rl e ;CY=left pixel
+        jr nc,$+4
+        or 0x47 ;hx
+        rl d ;CY=right pixel
+        jr nc,$+4
+        or 0xb8 ;lx
+        ld (hl),a
+;3. next column and loop
+        pop hl ;gfx addr
+        dec h
+        pop de ;screen addr
+        dec hy
+        jp nz,prcharprop_columns0
+;de=next screen addr
+        ret
+    
+    else ;~ROTATEDFONT
+    
 ;™ (Shch) doesn't fit in 8 bits + scroll
 ;print it as ˜ (Sh) + tail
        if WIN1251
@@ -391,18 +499,15 @@ prcharprop
        endif
         jr z,prcharprop_shch
 prcharprop_do
-;print with proportional font (any char width)
-;hl=screen addr
-;c=phase (even=left, odd=right pixel)
-;a=char
-       push hl
+       push de
         ld l,a
         ld h,propfont/256
         ld de,chardata
 ;1. copy char data
 ;shift 1 pix right if needed
-        bit 0,c
-        jr z,prcharprop_copyfontnoscroll
+        ld a,ly ;phase
+        rra
+        jr nc,prcharprop_copyfontnoscroll
         dup 7
         ld a,(hl)
         rrca
@@ -425,10 +530,10 @@ prcharprop_copyfontq
         ld (de),a
         inc h
         ld b,(hl) ;charwidth
-        ld a,c ;phase
+        ld a,ly ;phase
         add a,b
         ld ly,a ;next phase = phase + charwidth
-        ld a,c ;phase
+        sub b ;ld a,c ;phase
         and 1 ;phase&1
         inc a
         add a,b ;charwidth
@@ -481,13 +586,13 @@ prcharprop_columns0
 	 inc hl
         dec hy
         jp nz,prcharprop_columns0
-        ld c,ly
-;c=next phase (even=left, odd=right pixel)
-        bit 0,c
-        ret z
-        ex de,hl ;old screen addr if the char ends in odd column ((ly&1) = 1)
+        ld a,ly ;ly=next phase (even=left, odd=right pixel)
+        rra
+        ret c ;old screen addr if the char ends in odd column ((ly&1) = 1)
+        ex de,hl
 ;hl=next screen addr
         ret
+    endif ;~ROTATEDFONT
 
         align 8
 chardata
@@ -495,11 +600,19 @@ chardata
 
         align 256
 propfont
+      if ROTATEDFONT & !MAKEROTATEDFONT
+       if WIN1251 & !MAKEWIN1251
+        incbin "prot1251.bin" ;0x800 font + 0x100 width
+       else
+        incbin "protfont.bin" ;0x800 font + 0x100 width
+       endif
+      else
        if WIN1251 & !MAKEWIN1251
         incbin "prop1251.bin" ;0x800 font + 0x100 width
        else
         incbin "propfont.bin" ;0x800 font + 0x100 width
        endif
+      endif
 
        if MAKEWIN1251
 waspropfont
@@ -532,6 +645,7 @@ ty
 
 end
 
+      if !ROTATEDFONT
 ;fix font
         org propfont+30 ;˜ without spacing instead of ™
         db 0
@@ -570,6 +684,7 @@ end
         db 0x80
         org $+255
         db 1
+      endif
 
 	savebin "gfxtest.com",begin,end-begin
 	LABELSLIST "../../../us/user.l",1
