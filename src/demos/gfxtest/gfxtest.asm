@@ -598,6 +598,10 @@ prcharprop_columns0
 chardata
         ds 8 ;any place for inc l
 
+      if ROTATEDFONT
+        align 256
+        ds 256 ;for max width 8 at odd x phase
+      endif
         align 256
 propfont
       if ROTATEDFONT & !MAKEROTATEDFONT
