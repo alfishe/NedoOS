@@ -280,7 +280,7 @@ delpage_a
         ret
 
 strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
-	ld hl,HS_strpg
+	ld hl,HS_strpg +1
 	ld e,(ix+PANEL.pgadd)
 	ld d,0; (ix+PANEL.pgadd+1)
 	add hl,de
@@ -298,6 +298,7 @@ strdelpages_lname
 
 strdelpages_next
         inc hl
+strdelpages_go
         ld a,(hl)
         or a
         ret z
@@ -910,6 +911,7 @@ loaddir_fcb_lnameaddrpoi=$+2
 	add hl,bc
 	ex hl,de ; увеличили на 32 catbuf
 	jr nc,nonewpg ; всё ещё умещаемся в страницу
+       ;jr $
 	inc de ;next page de
 	call strnewpage
         set 7,d
