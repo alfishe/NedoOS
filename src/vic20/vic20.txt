@@ -264,3 +264,9 @@ Asbjorn Djupdal for typing up the VIC 20 programmers reference guide - invaluble
 Richard Cini for his Commodore hacking articles on the VIC-20 kernal. The startup disassembly was invaluable getting the emulator to a certain point.
 Lance Ewing for writing a decent article on the VIC-20 keyboard (most are about the C64, and the rest don't have enough detail)
 Digital Prawn for providing guidance on using the VIC and for providing encouragement!
+
+----------------
+NedoOS version:
+CS+Space loads the commandline file
+1+CS+Space = quit to OS
+

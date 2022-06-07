@@ -486,18 +486,28 @@ loadfile
 filenameaddr=$+1
         ld de,0
         
-      ld hl,(0x7ffe)
-      push hl
+      ;ld hl,(0x7ffe)
+      ;push hl
 ;de=filename
         OS_OPENHANDLE
         push bc
-        ld de,0x7ffe
-        ld hl,0x2002
+        ld de,loadfileaddr;0x7ffe
+        ld hl,2;0x2002
+        OS_READHANDLE
+        pop bc
+loadfileaddr=$+1
+        ld de,0
+        ld a,d
+        and 0x1f
+        or 0x80
+        ld d,a
+        ld hl,0x2000
+        push bc
         OS_READHANDLE
         pop bc
         OS_CLOSEHANDLE
-      pop hl
-      ld (0x7ffe),hl
+      ;pop hl
+      ;ld (0x7ffe),hl
         pop hl
         pop de
         pop bc
