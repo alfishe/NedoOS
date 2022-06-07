@@ -497,11 +497,19 @@ filenameaddr=$+1
         pop bc
 loadfileaddr=$+1
         ld de,0
+       ld hl,0x2000
+       or a
+       sbc hl,de
         ld a,d
         and 0x1f
         or 0x80
         ld d,a
-        ld hl,0x2000
+        ;ld hl,0x2000
+        push bc
+        OS_READHANDLE
+        pop bc
+        ld de,0x0200 ;next 8K
+        ld hl,0x1e00
         push bc
         OS_READHANDLE
         pop bc
