@@ -462,6 +462,10 @@ begin
 noautoload
 ;autoloadq
         jp GO
+quit
+        im 1
+        ld hl,0
+        QUIT
 
 wasloadfile
         disp 0x5b00
@@ -4726,6 +4730,10 @@ kkey10:
 	RRCA
 kkey11:
 	RET C		;exit if not (C) or if is (NC)
+       ld a,0xf7
+       in a,(0xfe)
+       rra ;'1'+cs+space
+       jp nc,quit
 	LD HL,irq1
 	LD A,(HL)
 	XOR $08		;JR C or JR NC
