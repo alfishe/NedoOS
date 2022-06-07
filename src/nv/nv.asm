@@ -280,7 +280,7 @@ delpage_a
         ret
 
 strdelpages ;удаляем str страницы. IX - панель. первую страничку не удаляем
-	ld hl,HS_strpg +1
+	ld hl,HS_strpg
 	ld e,(ix+PANEL.pgadd)
 	ld d,0; (ix+PANEL.pgadd+1)
 	add hl,de
@@ -298,7 +298,6 @@ strdelpages_lname
 
 strdelpages_next
         inc hl
-strdelpages_go
         ld a,(hl)
         or a
         ret z
@@ -320,11 +319,12 @@ lnamenewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strp
         pop ix
         ld l,(ix+PANEL.curpglnamepoi)
         ld h,(ix+PANEL.curpglnamepoi+1)
+       inc hl
 	ld (hl),e
-	inc hl
-	ld (hl),0 ; маркер конца списка
         ld (ix+PANEL.curpglnamepoi),l
         ld (ix+PANEL.curpglnamepoi+1),h
+	inc hl
+	ld (hl),0 ; маркер конца списка
 	pop de
 	pop hl
 	ret
@@ -337,11 +337,12 @@ strnewpage ;выделяем новую страничку IX - панель, [E номер странички в HS_strpg]
         pop ix
         ld l,(ix+PANEL.curpgfcbpoi)
         ld h,(ix+PANEL.curpgfcbpoi+1)
+       inc hl
 	ld (hl),e
-	inc hl
-	ld (hl),0 ; маркер конца списка
         ld (ix+PANEL.curpgfcbpoi),l
         ld (ix+PANEL.curpgfcbpoi+1),h
+	inc hl
+	ld (hl),0 ; маркер конца списка
 	pop de
 	pop hl
 	ret

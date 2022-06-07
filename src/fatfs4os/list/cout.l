@@ -2,7 +2,7 @@
 #                                                                              #
 #      IAR Universal Linker V5.0.0.2/W32                                       #
 #                                                                              #
-#           Link time     =  07/Jun/2022  23:38:10                             #
+#           Link time     =  08/Jun/2022  00:02:09                             #
 #           Target CPU    =  Z80/64180                                         #
 #           List file     =  list\cout.l                                       #
 #           Output file 1 =  H:\nos\nedoos\src\fatfs4os\fatfs.raw              #
