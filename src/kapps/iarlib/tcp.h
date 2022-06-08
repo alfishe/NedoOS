@@ -13,18 +13,18 @@ struct sockaddr_in {
 struct readstructure
 			{
 			unsigned char  	socket; 
-			void 			*BufAdr;
+			unsigned int	BufAdr;
 			unsigned int 	bufsize;
 			unsigned char	protocol;
 			
-			unsigned char   family;			// ICMP/UDP sockaddr_in
-			unsigned char 	porth;
-			unsigned char 	portl;
-			unsigned char 	b1; 
-			unsigned char 	b2;
-			unsigned char 	b3; 
-			unsigned char 	b4;
-			unsigned char	zero[8];
+//			unsigned char   family;			// ICMP/UDP sockaddr_in
+//			unsigned char 	porth;
+//			unsigned char 	portl;
+//			unsigned char 	b1; 
+//			unsigned char 	b2;
+///			unsigned char 	b3; 
+//			unsigned char 	b4;
+//			unsigned char	zero[8];
 			};
 
 unsigned int OS_NETSOCKET(unsigned int);
