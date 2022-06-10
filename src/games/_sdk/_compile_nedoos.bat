@@ -54,7 +54,8 @@ copy sound.bin ..\_sdk\ > nul
 del sound.bin > nul
 
 sjasmplus.exe --nologo --msg=war --exp=_temp_/nedoload.exp nedoload.asm
-java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp > nul
+rem java -jar ../_sdk/exp2hConverter.jar _temp_/nedoload.exp > nul
+perl ../_sdk/exp2hConverter.pl _temp_/nedoload.exp > nul
 
 makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\sample.lst" "%temp%\sprite.lst" "%soundfx%"
 
