@@ -223,4 +223,4 @@ file_buf_end=$-1
 
 	savebin "print.com",cmd_begin,cmd_end-cmd_begin
 	
-	LABELSLIST "..\..\us\user.l"
+	LABELSLIST "..\..\us\user.l",1
