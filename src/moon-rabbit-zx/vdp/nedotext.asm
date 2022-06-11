@@ -54,6 +54,22 @@ fillLine:
     ret
 	
 usualLine
+	ld d,a
+	ld e,0
+.mloop
+	push de
+	ld c,nos.CMD_SETXY
+	call nos.BDOS
+	ld e,7
+	ld c,nos.CMD_PRATTR
+	call nos.BDOS
+	pop de
+	inc e
+	ld a,e
+	cp 80
+	jr nz,.mloop
+	ret
+
 highlightLine	
 	ld d,a
 	ld e,0
@@ -61,10 +77,7 @@ highlightLine
 	push de
 	ld c,nos.CMD_SETXY
 	call nos.BDOS
-	ld c,nos.CMD_GETATTR
-	call nos.BDOS
-	xor 0xff
-	ld e,a
+	ld e,79
 	ld c,nos.CMD_PRATTR
 	call nos.BDOS
 	pop de
