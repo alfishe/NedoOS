@@ -2,7 +2,8 @@
         include "../_sdk/sys_h.asm"
 
 MAXCMDSZ=COMMANDLINE_sz-1;127 ;не считая терминатора
-filebufsz=512
+filebuf=0xc000
+filebufsz=0x4000;512
 TRDSIZE=655360
 
         org PROGSTART
@@ -29,6 +30,18 @@ cmd_begin
         OS_DELPAGE
         endif
 
+        ld hl,tpgs
+        ld b,TRDSIZE/0x4000
+getpgs
+        push bc
+        push hl
+        OS_NEWPAGE
+        pop hl
+        ld (hl),e
+        inc hl
+        pop bc
+        djnz getpgs
+
         ld hl,COMMANDLINE ;command line
 ;command line = "print <file>"
         ld de,wordbuf
@@ -43,12 +56,12 @@ nofilename
         ld de,wordbuf
         OS_CREATEHANDLE
         or a
-        jr nz,errorquit
+        jp nz,errorquit
         push bc
         ld a,b
         ld (filehandle),a
 
-        call dosoff
+        ;call dosoff
 
 ;Пример настройки контроллера на скорость обмена 9600 бод из режима BASIC-48:
 ;10 LET register = 3: LET value = 128: GO SUB 1000
@@ -60,17 +73,21 @@ nofilename
         or 128
         out (c),a
         ld bc,#f8ef ;RS232_DIV_L
-        ld a,1;12 ;115200
+        ld a,2;12 ;115200/2 (иначе не успеет)
         out (c),a
         ld bc,#f9ef ;RS232_DIV_H
         ld a,0 ;+128 native ZXEvo mode
         out (c),a
         ld bc,#fbef ;RS232_LINE_CTRL
-        ld a,7;3
+        ld a,3
         out (c),a
+	ld bc,0xFAEF;UART_FCR	;сбрасываем буферы
+	ld a,7
+	out (c),a
 
-        call doson
+        ;call doson
 
+        di
         ld hl,TRDSIZE&0xffff
         ld de,TRDSIZE/65536
 readloop0
@@ -89,7 +106,7 @@ readloop_fullsize
         ld l,c
 readloop_tailsize
        push hl ;size to read
-        call readtofile
+        call readtomem;file
        pop bc ;size to read
        pop hl ;remaining size
        pop de ;remaining size HSW
@@ -102,6 +119,39 @@ readloop_tailsize
         or h
         or l
         jr nz,readloop0
+        ei
+
+        ld hl,TRDSIZE&0xffff
+        ld de,TRDSIZE/65536
+saveloop0
+;dehl=remaining size
+        ld bc,filebufsz
+       push de ;remaining size HSW
+       push hl ;remaining size
+        ld a,d
+        or e
+        jr nz,saveloop_fullsize
+        sbc hl,bc
+        add hl,bc
+        jr c,saveloop_tailsize ;dehl < bc
+saveloop_fullsize
+        ld h,b
+        ld l,c
+saveloop_tailsize
+       push hl ;size to read
+        call savetofile
+       pop bc ;size to read
+       pop hl ;remaining size
+       pop de ;remaining size HSW
+        or a
+        sbc hl,bc
+        jr nc,$+3
+        dec de
+        ld a,d
+        or e
+        or h
+        or l
+        jr nz,saveloop0
         
         pop bc
         OS_CLOSEHANDLE
@@ -112,10 +162,18 @@ errorquit
        ld h,0
         QUIT
 
-readtofile
+readtomem;file
 ;hl=size
         push hl
-        call dosoff
+        ;call dosoff
+        
+readtomem_tpgspointer=$+1
+        ld hl,tpgs
+        ld a,(hl)
+        SETPGC000
+        inc hl
+        ld (readtomem_tpgspointer),hl
+        
         pop hl
 
         ld de,filebuf
@@ -142,10 +200,21 @@ readbyte0
         or l
         jp nz,readtofile0
 
-        call doson
+        ;call doson
 
        pop hl ;size
+        ret
 
+savetofile
+       push hl ;size
+savetofile_tpgspointer=$+1
+        ld hl,tpgs
+        ld a,(hl)
+        SETPGC000
+        inc hl
+        ld (savetofile_tpgspointer),hl
+       pop hl ;size
+        
         ld de,filebuf
 filehandle=$+1
         ld b,0
@@ -211,8 +280,12 @@ wordbuf
 
 cmd_end
 
-filebuf
-        ds filebufsz
+        align 256
+tpgs
+        ds 64
+
+;filebuf
+;        ds filebufsz
 
 
 
