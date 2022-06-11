@@ -1,37 +1,20 @@
-# Supported environments:
-#   GNU/Linux
-#   Windows NT
+#название запускаемого файла
+BIN		:= yad.com
 
-include ../../_sdk/common.mk
-include ../../_sdk/iar.mk
+#поддиректория инсталляции в release
+INSTDIR := bin
 
-.PHONY: install clean
+#тип вводавывода TTY или BDOS
+CONSOLE := BDOS
 
-ifeq ($(OS),Windows_NT)
-yad.com: lnk.xcl \
- list/main.r01 \
- list/yadplay.r01 \
- | $(XLINK)
-	$(XLINK) list/main.r01 list/yadplay.r01 -FRAW-BINARY -S -o $@ -f $<
-else
-yad.com:
-	$(warning Target "$@" is not implemented)
-endif
+#файлы .с
+SRCC	:= main.c
+#файлы .h
+SRCH	:=
+#файлы .asm
+SRCA	:= yadplay.asm
+#линковочный файл-скрипт. можно не указывать, тогда будет использоватся стандартный
+XCLFILE	:= lnk.xcl
 
-list:
-	$(MKDIR) $@
 
-list/main.r01: main.asm | $(AZ80) list
-	$(AZ80) -S -uu -Olist/ $<
-
-list/yadplay.r01: yadplay.asm | $(AZ80) list
-	$(AZ80) -S -uu -Olist/ $<
-
-install: yad.com
-
-clean:
-	$(RM) \
- list/cout.html \
- list/main.r01 \
- list/yadplay.r01 \
- yad.com
+include ../../dmapps/iarlib/iar.mk

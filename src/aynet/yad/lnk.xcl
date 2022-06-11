@@ -1,8 +1,3 @@
--l list/cout.html 
--xehinms 
--Z(CODE)DBGMON=FFFF-FFFF 
-../../_sdk/iar.lib 
--C ../../../iar/lib/clz80
 -cZ80 //процессор, под который собираем
 -Ilist
 -Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-3FFF //сегменты памяти с константами и кодом
