@@ -7,14 +7,22 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <tcp.h>
-unsigned char netbuf[8192];
+#include <graphic.h>
+unsigned char netbuf[1452];
 unsigned char picture[7000];
-unsigned char piclist[3072];
+unsigned char piclist[2048];
 unsigned char crlf[2] = {13, 10};
 unsigned int bytecount;
 unsigned char status, key;
 struct sockaddr_in   targetadr;
 struct readstructure   readStruct;
+
+#define user_scr0_low 0x0017
+#define user_scr0_high 0x0035
+#define user_scr1_low 0x0036
+#define user_scr1_high 0x0037
+
+
 
 void putdec(int c)
 {
@@ -408,9 +416,6 @@ unsigned long processJson(unsigned long startPos)
   
   parseJson(",\"title\":\"");
   convert866(); 
- printf("Title: ");
- printf(netbuf);
- printf("\n\r");
  
  strcat (piclist, netbuf) ;
   strcat (piclist, "\n\r");
@@ -424,12 +429,9 @@ unsigned long processJson(unsigned long startPos)
   strcat (piclist, "\n\r");
   strcat (piclist, parseJson("\"year\":\""));
   strcat (piclist, "\n\r");
-//convert866();
 
 return idpic;
 }
-
-
 
 
 C_task main (void)
@@ -437,18 +439,16 @@ C_task main (void)
   unsigned char errno;
   unsigned long iddqd, count;
   os_initstdio();
+  piclist[0] = '\0';
 
- piclist[0] = '\0';
- 
- 
 for (count = 0; count < 20;count++)
 {
+   piclist[0] = '\0';
   iddqd = processJson(count);
- // printf ("\n\rProcess %lu json \n\r", iddqd);
- 
- errno = getPic(iddqd);
-  printf ("PicDownloaded %lu,  %u\n\r",iddqd, errno);
- savePic(iddqd);
+  errno = getPic(iddqd);
+  viewScreen6912((unsigned int)&picture);
+  printf("RETURNED!\n\r");
+  savePic(iddqd);
 }
 }
 
