@@ -45,7 +45,7 @@ cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS
         OS_HIDEFROMPARENT
         ld e,3+0x80 ;6912 + keep gfx pages
-        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
+        OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+128=keep gfx ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ;ld e,0
         ;OS_CLS
 
@@ -192,6 +192,18 @@ refrq2
         call setpgsamples
         call playsample ;после этого канал можно микшировать
         call setpgroots
+
+        ld hl,COMMANDLINE ;command line
+;command line = "untr <file>"
+        call skipword
+        ld a,(hl)
+        or a
+        jr z,nofilename
+        call skipspaces
+        ld de,tfilename
+        call getword
+        call untr_load
+nofilename
 
 ;;;;;;;;;;;;;;;;;;;;;
         ;call setneedredraw
@@ -1195,6 +1207,45 @@ findsampleloop0
         include "scroll.asm"
         include "save.asm"
 
+getword
+;hl=string
+;de=wordbuf
+;out: hl=terminator/space addr
+getword0
+        ld a,(hl)
+        or a
+        jr z,getwordq
+        sub ' '
+        jr z,getwordq
+        ldi
+        jp getword0
+getwordq
+        ;xor a
+        ld (de),a
+        ret
+
+skipword
+;hl=string
+;out: hl=terminator/space addr
+skipword0
+        ld a,(hl)
+        or a
+        ret z
+        sub ' '
+        ret z
+        inc hl
+        jp skipword0
+
+skipspaces
+;hl=string
+;out: hl=after last space
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces
+
+
         macro tn msk,semi,vol,frq,noi
         db msk,semi,0,vol
         dw frq
@@ -1594,4 +1645,4 @@ cmd_end
 
 	savebin "untr.com",cmd_begin,cmd_end-cmd_begin
 
-	LABELSLIST "../../us/user.l"
+	LABELSLIST "../../us/user.l",1

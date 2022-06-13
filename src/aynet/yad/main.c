@@ -151,14 +151,13 @@ C_task main (int argc, char *argv[])
 			continue;
 		}
 		if(l < 0){
-			if(errno != ERR_EAGAIN){
-				shutup();
-				closesocket(datasoc, 0);
-				OS_SETMUSIC(int_null, app_pages.pgs.window_1);
-				datasoc = 0;
-			}else{
-				_low_level_get();
-			}
+			shutup();
+			closesocket(datasoc, 0);
+			OS_SETMUSIC(int_null, app_pages.pgs.window_1);
+			datasoc = 0;
+			continue;
+		}else if(l == 0){
+			_low_level_get();
 			continue;
 		}
 		//тут складываем пакет в буфер

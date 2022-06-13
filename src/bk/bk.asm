@@ -1,7 +1,7 @@
         DEVICE ZXSPECTRUM1024
         include "../_sdk/sys_h.asm"
 
-DEBUG=1
+DEBUG=0;1
 CRUTCH=1 ;костыль для movb
 DEBUGWR=0
 BASIC=1;0
@@ -76,7 +76,7 @@ oldpcaddr=$+1
       or a
       sbc hl,de
       pop de
-      jr z,$
+      ;jr z,$
        endif
         get
         next
@@ -2249,4 +2249,4 @@ end
 
 	savebin "bk.com",begin,end-begin
 
-	LABELSLIST "../../us/user.l"
+	LABELSLIST "../../us/user.l",1

@@ -414,5 +414,5 @@ tsongname
         ds tsongname+((MAXSONGNAME+1)*2)-$
 
 tfilename
-        db "muz.unt",0
+        db "untr/muz.unt",0
         ds tfilename+DIRMAXFILENAME64-$
