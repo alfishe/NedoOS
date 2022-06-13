@@ -8,35 +8,18 @@
 #include <ctype.h>
 #include <tcp.h>
 #include <graphic.h>
+#include <terminal.c>
 unsigned char netbuf[1452];
 unsigned char picture[7000];
-unsigned char piclist[2048];
+unsigned char piclist[1024];
+unsigned char picId[16];
+unsigned char picName[255];
 unsigned char crlf[2] = {13, 10};
 unsigned int bytecount;
 unsigned char status, key;
 struct sockaddr_in   targetadr;
 struct readstructure   readStruct;
 
-#define user_scr0_low 0x0017
-#define user_scr0_high 0x0035
-#define user_scr1_low 0x0036
-#define user_scr1_high 0x0037
-
-
-
-void putdec(int c)
-{
-  int div;
-  int hassent = 0;
-  for (div = 100; div > 0; div /= 10) {
-    int disp = c / div;
-    c %= div;
-    if ((disp != 0) || (hassent) || (div == 1)) {
-      hassent = 1;
-      putchar('0' + disp);
-    }
-  }
-}
 
 void errorPrint(unsigned int error)
 {
@@ -126,7 +109,7 @@ unsigned char netConnect (unsigned char socket)
     errorPrint(todo & 255);
     exit(0);
   } else {
-    //printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
+   // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
   }
   return 0;
 }  
@@ -157,14 +140,14 @@ wizwrite:
   }
   else
   {
-    //printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
+  //  printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
   }
   return todo;
 }
 
 unsigned int tcpRead (unsigned char socket)
 {
-  unsigned char retry = 80;
+  unsigned char retry = 40;
   unsigned int err, todo;
 
   readStruct.socket  = socket;
@@ -188,7 +171,7 @@ wizread:
     }
     goto wizread;
   }
-  printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
+ // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
  return todo;
 }
 
@@ -207,7 +190,7 @@ unsigned int cutHeader(unsigned int todo)
     headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
     q = todo - headlng;
     memcpy (&netbuf, count + 4, q);
-    //printf ("header removed. %u bytes\r\n", headlng);
+   // printf ("header removed. %u bytes\r\n", headlng);
   }
   return q;
 }
@@ -221,7 +204,7 @@ unsigned int netShutDown(unsigned char socket)
     errorPrint(todo & 255);
     return 255;
   }  else {
-    //printf ("Socket #%u closed.\n\r", socket);
+   // printf ("Socket #%u closed.\n\r", socket);
   }
   return 0;
 }
@@ -293,33 +276,64 @@ unsigned char savePic(unsigned long fileId)
   return 0;
 }
 
-const char* parseJson(unsigned char *property)
+int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPos)
 {
-  unsigned char *count, lng, *start, test;
-  int q;
-  netbuf[0] = '\0';
-  lng = strlen(property);
-  count = strstr (picture, property);
-  if ( count == NULL)
-  {
-    printf ("not found\r\n");
-	exit(0);
-    return "*not found*";
-  }
-  start = count + lng;
-  test  = *start;
-  q = -1;
-while (((unsigned char)test !='\"') && ((unsigned char)test !=',') && ((unsigned char)test !=']'))
-// Нужно более универальное  решениен чтоб запятые в текте не мешались
-  {
-  q++;
-  test  = *start;
-  start++;
-  }
-strncat(netbuf, count + lng, q);  
-return netbuf;  
+	unsigned int i, j;		
+	unsigned int lenC, lenS;	
+	
+	for (lenC = 0; c[lenC]; lenC++);
+	for (lenS = 0; s[lenS]; lenS++);
+	 
+	for (i = startPos; i <= lenS - lenC; i++) 
+	{ 
+		for (j = 0; s[i + j] == c[j]; j++); 
+	
+ 		if (j - lenC == 1 && i == lenS - lenC  && !(n - 1)) return i;
+		if (j == lenC)
+		if (n - 1) n--; 
+		else return i;
+	}
+	return -1;
 }
 
+
+
+const char* parseJson(unsigned char *property)
+{
+unsigned int q, w, lng, lngp1, findEnd, listPos;
+unsigned char terminator;
+int n;
+	n = -1;
+	netbuf[0] = '\0';
+	n = pos(picture, property, 1 , 0);
+	if ( n == -1)  { printf("Property not found...\n\r");}
+	lng = n - 1 + strlen(property);
+	if (picture[lng] == ':')  {terminator = '\0';}
+	if (picture[lng] == '\"') {terminator = '\"';}
+	if (picture[lng] == '[')  {terminator = ']';}
+		
+	findEnd = 1;
+	lngp1 = lng + 1;
+  
+  while (42)
+  {
+		
+	if ((picture [lngp1 + findEnd] == ','))
+	{
+		if (terminator == '\0'){break;}
+		if ((picture [lng + findEnd] == terminator)) { findEnd--; break;}
+	}
+	findEnd++;
+  }
+	listPos = 0;
+	for (w = lngp1; w < findEnd + lngp1 ;w++)
+	{
+	netbuf [listPos] = picture[w];
+		listPos++;
+	}
+netbuf[listPos] = '\0';	
+return netbuf;
+}
 void convert866(void)
 {
   unsigned int lng, targetPos, w, q = 0;
@@ -339,10 +353,7 @@ void convert866(void)
 	q = q + 4;
 	buffer[4] = '\0';
 	decVal= (unsigned int)strtol(buffer, NULL, 16);
-													//printf("hex %s\n\r",buffer);
-													//printf("dec %u\n\r",decVal);
-	
-	
+														
 	  if (decVal < 1088) {decVal = decVal - 912;}
 	  if (decVal > 1087) {decVal = decVal - 864;}
 	  if (decVal == 1025) {decVal = 240;}
@@ -364,34 +375,35 @@ void convert866(void)
 
 
 
-unsigned long processJson(unsigned long startPos)
+unsigned long processJson(unsigned long startPos, unsigned char limit)
 {
   unsigned int todo, pPos, headskip;
-  unsigned char cmdlist1[] = "GET /api/export:zxPicture\/filter:zxPicture\/limit:1\/start:";
-  unsigned char cmdlist2[] = "\/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+  unsigned char cmdlist1[] = "GET /api/export:zxPicture\/filter:zxPicture\/limit:";
+  unsigned char cmdlist2[] = "\/start:";
+  unsigned char cmdlist3[] = "\/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer  [] = "000000000";
   unsigned char *count, socket;
   const char *titleptr;
   unsigned long idpic, bytecount;
-
  
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect (socket);
     
 	  netbuf[0] = '\0';
       strcat (netbuf, cmdlist1);
-	  sprintf(buffer, "%lu", startPos);
+	  sprintf(buffer, "%u", limit);
 	  strcat (netbuf, buffer);
 	  strcat (netbuf, cmdlist2);
+	  sprintf(buffer, "%lu", startPos);
+	  strcat (netbuf, buffer);
+	  strcat (netbuf, cmdlist3);
  	     
 	  todo = tcpSend (socket, (unsigned int)&netbuf, strlen(netbuf));
 	  
-
 	  
   headskip = 0;
   pPos = 0;
   fillPicture(socket);
-  netShutDown(socket);
   count = strstr (picture, "responseStatus\":\"success");
   if ( count == NULL)
   {
@@ -409,15 +421,16 @@ unsigned long processJson(unsigned long startPos)
 
  
 	
-  netbuf[0] = '\0';
-  strcat (piclist, parseJson("\"id\":"));
+  netbuf [0] = '\0';
+  picName[0] = '\0';
+  picId  [0] = '\0';
+  strcat (picId, parseJson("\"id\":"));
   idpic = atol (netbuf);
   strcat (piclist, "\n\r");
-  
   parseJson(",\"title\":\"");
   convert866(); 
- 
- strcat (piclist, netbuf) ;
+  strcat (picName, netbuf);
+  strcat (piclist, netbuf) ;
   strcat (piclist, "\n\r");
   strcat (piclist, parseJson ("\"dateCreated\":"));
   strcat (piclist, "\n\r");
@@ -433,22 +446,43 @@ unsigned long processJson(unsigned long startPos)
 return idpic;
 }
 
-
 C_task main (void)
 {
-  unsigned char errno;
+  unsigned char errno,keypress;
   unsigned long iddqd, count;
   os_initstdio();
   piclist[0] = '\0';
 
-for (count = 0; count < 20;count++)
-{
-   piclist[0] = '\0';
-  iddqd = processJson(count);
-  errno = getPic(iddqd);
-  viewScreen6912((unsigned int)&picture);
-  printf("RETURNED!\n\r");
-  savePic(iddqd);
+	BOX(1, 1, 80, 25, 47);
+	AT(1,1);
+	ATRIB(30);
+	ATRIB(47);
+	count = 0;
+start:
+
+	piclist[0] = '\0';
+	iddqd = processJson(count, 1);
+	printf(" ID:%s    TITLE:%s \r\n",picId, picName);
+	errno = getPic(iddqd);
+	keypress = viewScreen6912((unsigned int)&picture);
+
+if (keypress == 's' || keypress == 'S')  
+{  
+	savePic(iddqd);
+	printf("        ID:%s    TITLE:%s  SAVED\r\n",picId, picName);
 }
+
+if (keypress == 27)  
+{  
+	
+	printf("Good bye...\r\n");
+	ATRIB(37);
+	ATRIB(40);
+	exit(0);
 }
+count++;
+goto start;
+
+}
+
 

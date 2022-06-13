@@ -57,9 +57,10 @@ inkey
 	pop ix	
 	
 	ld a,c
+	ld (pg0), a
 	cp 00
 	jp z, inkey
-	
+	ld l, c	
 	ld e, -1
 	ld c, CMD_SETGFX
 	push ix
@@ -68,17 +69,14 @@ inkey
 	pop iy
 	pop ix
 	ld a, (pgC)
-	
-	
 	push ix
 	push iy
 	rst 0x28
 	pop iy
 	pop ix
-	
-	
 	pop bc
 	pop hl
+	ld a, (pg0)
 	ret
 pg4		defb 0
 pg0		defb 0
