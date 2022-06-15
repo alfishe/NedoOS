@@ -19,6 +19,7 @@ unsigned int bytecount;
 unsigned char status, key;
 struct sockaddr_in   targetadr;
 struct readstructure   readStruct;
+unsigned long contLen;
 
 
 void errorPrint(unsigned int error)
@@ -147,7 +148,7 @@ wizwrite:
 
 unsigned int tcpRead (unsigned char socket)
 {
-  unsigned char retry = 40;
+  unsigned char retry = 50;
   unsigned int err, todo;
 
   readStruct.socket  = socket;
@@ -177,9 +178,22 @@ wizread:
 
 unsigned int cutHeader(unsigned int todo)
 {
-  unsigned int q, headlng;
-  unsigned char *count;
-
+	unsigned int q, headlng;
+	unsigned char *count;
+	count = strstr (netbuf, "Content-Length:");
+	if ( count == NULL)
+  {
+    printf ("contLen  not found \r\n");
+	contLen = 0;
+  }
+	else
+	{
+	
+	contLen = atol (count + 15);			// 1.1
+	//printf ("Found at count %u   Dlinna  soderzhimogo = %lu \n\r", count, contLen);
+	}
+	
+	
   count = strstr (netbuf, "\r\n\r\n");
   if ( count == NULL)
   {
@@ -192,6 +206,8 @@ unsigned int cutHeader(unsigned int todo)
     memcpy (&netbuf, count + 4, q);
    // printf ("header removed. %u bytes\r\n", headlng);
   }
+ 
+
   return q;
 }
 
@@ -229,7 +245,9 @@ void fillPicture(unsigned char socket)
     {
       picture [w + pPos]  = netbuf[w];
     }
-    pPos = pPos + q;
+    if (pPos > 6912) {printf ("Picture overrun... \n\r"); break;} // 1.1
+	pPos = pPos + q;
+	
   }
     netShutDown(socket);
 }
@@ -424,12 +442,14 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   netbuf [0] = '\0';
   picName[0] = '\0';
   picId  [0] = '\0';
+
   strcat (picId, parseJson("\"id\":"));
   idpic = atol (netbuf);
-  strcat (piclist, "\n\r");
+//  strcat (piclist, "\n\r");
   parseJson(",\"title\":\"");
   convert866(); 
   strcat (picName, netbuf);
+  /*
   strcat (piclist, netbuf) ;
   strcat (piclist, "\n\r");
   strcat (piclist, parseJson ("\"dateCreated\":"));
@@ -442,6 +462,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   strcat (piclist, "\n\r");
   strcat (piclist, parseJson("\"year\":\""));
   strcat (piclist, "\n\r");
+*/
 
 return idpic;
 }
@@ -453,11 +474,25 @@ C_task main (void)
   os_initstdio();
   piclist[0] = '\0';
 
-	BOX(1, 1, 80, 25, 47);
+	BOX(1, 1, 80, 9, 40);
+	BOX(1, 10, 80, 14, 47);
+	
 	AT(1,1);
+	
+	ATRIB(33);
+	ATRIB(40);
+	count = 0;
+	printf(" Управление:\n\r");
+	printf("	'ESC' - выход из программы;\n\r");
+	printf("	'<-' или 'B' к последним картинкам;\n\r");
+	printf("	'->' или 'Пробел' к более старым картинкам\n\r");
+	printf("	'J' Прыжок на  указанную по счету картинку,<15000\n\r");
+	printf("\n\rВнимание, пока не реализована обработка тэга 'type' и \n\r");
+	printf("на нестандартных картинках программа будет падать или глючить\n\r");
+	do {key = _low_level_get();} while (key == 0);
 	ATRIB(30);
 	ATRIB(47);
-	count = 0;
+	AT(1,10);
 start:
 
 	piclist[0] = '\0';
@@ -465,6 +500,7 @@ start:
 	printf(" ID:%s    TITLE:%s \r\n",picId, picName);
 	errno = getPic(iddqd);
 	keypress = viewScreen6912((unsigned int)&picture);
+
 
 if (keypress == 's' || keypress == 'S')  
 {  
@@ -480,7 +516,23 @@ if (keypress == 27)
 	ATRIB(40);
 	exit(0);
 }
-count++;
+if (keypress == 248 || keypress == 'b' || keypress == 'B')  
+{  
+	if (count > 0) {count--;}
+}
+
+if (keypress == 251|| keypress == 32)  
+{  
+	count++;
+}
+
+if (keypress == 'j' || keypress == 'J')  
+{  
+printf("Jump to picture:");
+scanf ("%lu", &count);
+}
+
+
 goto start;
 
 }
