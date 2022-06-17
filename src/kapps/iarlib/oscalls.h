@@ -16,6 +16,7 @@ void os_initstdio(void);
 void print(unsigned char *);
 unsigned int OS_GETXY(void);
 unsigned char OS_GETATTR(void);
+long time(void); //Alone Coder
 
 //Kulich Area
 

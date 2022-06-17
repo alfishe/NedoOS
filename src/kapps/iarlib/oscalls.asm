@@ -1,4 +1,21 @@
 
+        MODULE TIME
+        PUBLIC time
+	#include "sysdefs.asm"
+	RSEG CODE
+time:
+        push ix
+        push iy
+    ld c,CMD_GETTIMER ;out: hlde=timer
+	call BDOS
+        ld b,h
+        ld c,l
+        ex de,hl
+        pop iy
+        pop ix
+        ret ;return bchl
+        ENDMOD
+
 	MODULE ERRNOMOD
 	PUBLIC errno
 	RSEG	NO_INIT
