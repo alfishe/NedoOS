@@ -11,7 +11,7 @@
 
 /* Accuracy of timings and human fatigue controlled by next two lines */
 //#define LOOPS	5000		/* Use this for slow or 16 bit machines */
-#define LOOPS	5000		/* Use this for slow or 16 bit machines */
+#define LOOPS	50000		/* Use this for slow or 16 bit machines */
 //#define LOOPS	500000		/* Use this for faster machines */
 
 /* Compiler dependent options */
