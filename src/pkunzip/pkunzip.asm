@@ -13,6 +13,12 @@ ziptrees=0x4000;0x8000;0x4000 ;чтобы было bit 6 ;size = 0xa60 + 2*288?
 TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
+READZIPDIR=1;0 пока не работает
+;в обычном заголовке файла длина имени файла в другом месте и вообще заголовок другой!
+;READ не должна будет содержать позиционирование
+;надо не проверять число файлов. выход по какому-то другому условию - любой заголовок, кроме PK,3,4 (в директории PK,1,2. Archive decryption header, Archive extra data record наверняка имеют другие заголовки, примеров нет)
+
+SEEK32BIT=1
 
 depkbuf=0x7c00;0 for pages
 buf64k=0;0 for nopages
@@ -57,8 +63,12 @@ getpgs0
         ld b,a
         OS_GETFILESIZE ;dehl=filesize
         ld (ML_FLEN),hl
+       if SEEK32BIT
+        ld (ST_FLENw),de
+       else
         ld a,e
         ld (ST_FLEN),a
+       endif
 
         CALL initdepk;Z6629 ;ИНИЦИАЛИЗАЦИЯ ДЕПAKEPA
        LD IY,DISKBUF+DISKBUFsz-1
@@ -242,15 +252,20 @@ ON_BANK        ;CP 0        ;RET Z ;для такого поведения надо перед каждой рас
 ;ЧTEHИE ЧACTИ ФAЙЛА
 ;de=len
 ;ix=buffer
-;ahl=position in fileREAD    
+;ahl=position in file
+;SEEK32BIT: bchl=position in fileREAD    
         PUSH IX,DE,BC,HL,AF
 
         push de ;len
         push ix ;buf
         
+       if SEEK32BIT
+        ld d,b
+        ld e,c
+       else
         ld d,0
         ld e,a
-        ;ld hl,1
+       endif
         ;dehl=shift
         ld a,(filehandle)
         ld b,a
@@ -405,7 +420,7 @@ RDBYH
         PUSH BC
         push IX
        ;CALL rdCS
-       ex af,af'
+       ex af,af' ;'
        PUSH AF
         exx
         push bc
@@ -442,7 +457,7 @@ ZIPRDBYHq
         pop bc
         exx
        POP AF
-       ex af,af'
+       ex af,af' ;'
         POP IX
         pop BC
        POP DE
@@ -453,7 +468,11 @@ ZIPRDBYHq
         RET 
 
 ;Z61B7   LD A,#2E;        LD (DE),A;        INC DE;Z61BB   LDI ;        RET PO;        JR Z61BB
-ML_FLEN DW 0ST_FLEN DB 0 
+ML_FLEN DW 0
+       if SEEK32BIT
+ST_FLENw DW 0 
+       elseST_FLEN DB 0 
+       endif
 
 prcrlf
         ld hl,tcrlf
@@ -499,4 +518,4 @@ T6624=BUFER+8 ;flagsT6626=BUFER+#0A ;T6626=METOД CЖATИЯ: 0:STORED, 8:DEFLATE, o
 
 	savebin "pkunzip.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "../us/user.l"
+	LABELSLIST "../../us/user.l",1
