@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../_sdk/setpath.bat
+sjasmplus --nologo --msg=war vm.asm
 sjasmplus --nologo --msg=war zxio_7.asm
 
 SET releasedir2=../../release/
