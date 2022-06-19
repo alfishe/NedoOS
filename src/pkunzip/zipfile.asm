@@ -28,6 +28,7 @@ SM2w=$-2
        else
         LD C,0SM2=$-1        LD HL,(SME_ML) ;start of central directory
         LD A,(SME_ST)        ADD HL,DE        ADC A,C        LD DE,#16       LD C,0        ADD HL,DE        ADC A,C
+;ahl=position in file
        endif        LD IX,BUFER        LD DE,(LEN_KOM) ;комментарий может быть до 0x4000 (реально формат позволяет больше)        CALL READ        ;LD HL,TEXT20        ;CALL PRINTS_       endif
 
         if 1==0        LD A,0MEN=$-1        OR A        JR Z,NM1        CALL INS_DESTNM1     LD A,(DESTIN)        CP "*"        JR NZ,$+5        LD A,(SOURCE)        SUB #41        LD C,1        CALL TRDOS        LD C,#18        CALL TRDOS        LD HL,FNAME1        LD DE,23773        LD BC,9        LDIR         LD HL,BUFER        LD DE,(LEN_KOM)        LD C,#B        CALL TRDOS        LD A,(MEN)        OR A       JR Z,PR700       CALL INS_SOURC        endif
@@ -220,7 +221,7 @@ PROWERKA
         LD bc,(ST_FLENw)
        else
         LD A,(ST_FLEN)
-       endif        LD HL,(ML_FLEN) ;ahl=длина файла        LD DE,#800       if SEEK32BIT
+       endif        LD HL,(ML_FLEN) ;ahl(bchl)=длина файла        LD DE,#800       if SEEK32BIT
          ld a,b
          or c
        else
@@ -275,6 +276,7 @@ PROWERKA
         ADD HL,de
         jr nc,$+3
         inc bc
+        or a
         LD de,BUFER
         SBC HL,de
         jr nc,$+3
@@ -381,6 +383,7 @@ Z6780  JP ERR_Z1 ;дошли до начала файла, а end of central directory не нашли
 ;bcde=next position in file
 Z6896=$+1
         LD HL,0
+        or a
         SBC HL,DE ;это просто сравнение, результат не используется
 Z6894w=$+1
         LD hl,0
@@ -428,6 +431,7 @@ Z68AB   CALL checksignature;Z6901        RET ZZ68AF   JR ERR_Z1 ;глобальная ош
        if SEEK32BIT
 ;bcde=next position in file
         LD HL,(SME_ML) ;start of central directory
+        or a
         SBC HL,DE ;это просто сравнение, результат не используется
         LD hl,(SME_STw)
         SBC hl,bc
