@@ -13,7 +13,10 @@ unsigned char netbuf[1452];
 unsigned char picture[7000];
 unsigned char piclist[1024];
 unsigned char picId[16];
+unsigned char picType[32];
 unsigned char picName[255];
+unsigned char picYear[8];
+unsigned char picRating[8];
 unsigned char crlf[2] = {13, 10};
 unsigned int bytecount;
 unsigned char status, key;
@@ -439,17 +442,26 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
 
  
 	
-  netbuf [0] = '\0';
-  picName[0] = '\0';
-  picId  [0] = '\0';
-
+  netbuf 	[0] = '\0';
+  picName	[0] = '\0';
+  picId  	[0] = '\0';
+  picType 	[0] = '\0';
+  picRating [0] = '\0';
+  picYear 	[0] = '\0';
   strcat (picId, parseJson("\"id\":"));
   idpic = atol (netbuf);
-//  strcat (piclist, "\n\r");
   parseJson(",\"title\":\"");
   convert866(); 
   strcat (picName, netbuf);
+  parseJson(",\"type\":\"");
+  strcat (picType, netbuf) ;
+  parseJson("\"rating\":\"");
+  strcat (picRating, netbuf) ;
+  parseJson("\"year\":\"");
+  strcat (picYear, netbuf) ;
+
   /*
+  "type":"standard",
   strcat (piclist, netbuf) ;
   strcat (piclist, "\n\r");
   strcat (piclist, parseJson ("\"dateCreated\":"));
@@ -474,8 +486,8 @@ C_task main (void)
   os_initstdio();
   piclist[0] = '\0';
 
-	BOX(1, 1, 80, 9, 40);
-	BOX(1, 10, 80, 14, 47);
+	BOX(1, 1, 80, 8, 40);
+	BOX(1, 9, 80, 17, 47);
 	
 	AT(1,1);
 	
@@ -487,20 +499,25 @@ C_task main (void)
 	printf("	'<-' или 'B' к последним картинкам;\n\r");
 	printf("	'->' или 'Пробел' к более старым картинкам\n\r");
 	printf("	'J' Прыжок на  указанную по счету картинку,<15000\n\r");
-	printf("\n\rВнимание, пока не реализована обработка тэга 'type' и \n\r");
-	printf("на нестандартных картинках программа будет падать или глючить\n\r");
+	printf("	'I' Просмотр экрана информации о картинках\n\r");
 	do {key = _low_level_get();} while (key == 0);
 	ATRIB(30);
 	ATRIB(47);
-	AT(1,10);
+	AT(1,8);
 start:
 
 	piclist[0] = '\0';
 	iddqd = processJson(count, 1);
-	printf(" ID:%s    TITLE:%s \r\n",picId, picName);
-	errno = getPic(iddqd);
-	keypress = viewScreen6912((unsigned int)&picture);
+	printf(" ID:%s	TITLE:%s\r\n",picId, picName);
+	printf(" RATING:%s	YEAR:%s \r\n", picRating, picYear);
 
+	if(!strcmp(picType, "standard")) 
+	
+	{
+		errno = getPic(iddqd);
+		keypress = viewScreen6912((unsigned int)&picture);
+	}
+	else {printf("  >>Format %s not supported, skipped \n\r", picType);count++; goto start;}
 
 if (keypress == 's' || keypress == 'S')  
 {  
@@ -530,6 +547,11 @@ if (keypress == 'j' || keypress == 'J')
 {  
 printf("Jump to picture:");
 scanf ("%lu", &count);
+}
+
+if (keypress == 'i' || keypress == 'I')  
+{  
+do {key = _low_level_get();} while (key == 0);
 }
 
 
