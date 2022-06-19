@@ -18,7 +18,7 @@ READZIPDIR=1;0 пока не работает
 ;READ не должна будет содержать позиционирование
 ;надо не проверять число файлов. выход по какому-то другому условию - любой заголовок, кроме PK,3,4 (в директории PK,1,2. Archive decryption header, Archive extra data record наверняка имеют другие заголовки, примеров нет)
 
-SEEK32BIT=1
+SEEK32BIT=0;1
 
 depkbuf=0x7c00;0 for pages
 buf64k=0;0 for nopages
