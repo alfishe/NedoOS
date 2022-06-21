@@ -147,6 +147,28 @@ openerror
 ;        call closestream_file
 ;        jr error
 
+loadatr
+load53c
+        ld hl,0xd800
+        ld de,0xd801
+        ld bc,0x2ff
+        ld (hl),l
+        ldir
+        ld hl,0xc000
+        ld a,0x55
+        ld b,24
+load53c0
+        ld (hl),a
+        inc l
+        jr nz,$-2
+        cpl
+        inc h
+        djnz load53c0
+        ex de,hl ;ld de,0xd800
+        ld hl,0x300
+        call readstream_file
+        call closestream_file
+        jr waitkeyquit
 loadscr
 ;hl=size
 ;TODO кнопку A выключения/переключения атрибутов
@@ -1020,6 +1042,10 @@ extlist
         db "3",0
         dw load888
         db "888",0
+        dw loadatr
+        db "atr",0
+        dw load53c
+        db "53c",0
         dw loadfnt
         db "fnt",0
         dw loady
@@ -1077,4 +1103,4 @@ cmd_end
 
 	savebin "view.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "../us/user.l"
+	LABELSLIST "../../us/user.l",1
