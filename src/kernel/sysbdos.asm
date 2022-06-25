@@ -2312,12 +2312,13 @@ BDOS_writehandle_pipe
         ld a,(bc)
         ld e,a ;pipe owner
         call BDOS_findapp ;iy=found app ;keep hl
+        pop de
+        pop bc
+       jp nz,BDOS_fail ;иначе виснет при нажатии кнопки во время закрытия программы ;FIXME почему пайп в какой-то момент без хозяина?
         ;set factive,(iy+app.flags)
         ld a,(sys_timer) ;ok
         dec a
         ld (iy+app.lasttime),a
-        pop de
-        pop bc
 ;добавляем в текущий хвост столько байт, сколько есть, но чтобы не превысило размер буфера
 ;пока делаем, что вся очередь лежит в начале (не атомарно)
          ld (BDOS_writehandle_pipe_addr),hl
