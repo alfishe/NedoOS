@@ -17,4 +17,4 @@ SRCA	:=
 XCLFILE	:= lnk.xcl
 
 
-include ../iarlib/iar.mk
+include ../../dmapps/iarlib/iar.mk
