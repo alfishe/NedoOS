@@ -1081,6 +1081,7 @@ wastbdoscmds
         SETHANDLER CMD_GETFILINFO,BDOS_getfilinfo
         SETHANDLER CMD_RESERV_1,BDOS_reserv_1
         SETHANDLER CMD_GETCONFIG,BDOS_get_config
+        SETHANDLER CMD_GETMEMPORTS,BDOS_getmemports
          
          org wastbdoscmds+512
 trecode=tbdoscmds+512
@@ -1166,7 +1167,9 @@ wastbdoscmds
         db CMD_GETFILINFO
         db CMD_RESERV_1
         db CMD_GETCONFIG
+        db CMD_GETMEMPORTS
 nbdoscmds=$-wastbdoscmds
+        dw BDOS_getmemports
         dw BDOS_get_config
         dw BDOS_reserv_1
         dw BDOS_getfilinfo

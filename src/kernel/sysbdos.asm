@@ -3012,8 +3012,17 @@ BDOS_get_config
     ld a,(sys_pgdos)
     ld d,a
     ld e,pgsys
+;H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666
+;E=pgsys(system page) D= TR-DOS page
     ret
-        
+
+BDOS_getmemports
+        ld ix,memport0000
+        ld bc,memport4000
+        ld de,memport8000
+        ld hl,memportc000
+        ret
+
 ;*****************НЕДОКУМЕНТИРОВАННЫЕ*********************
 ;вызов функции DE с картой керналя.
 BDOS_reserv_1
