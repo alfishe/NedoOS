@@ -97,13 +97,13 @@ curextq
         or l
         or d
         or e
-        jr z,loadscr ;TODO ещё 6913
+        jp z,loadscr ;TODO ещё 6913
         ld a,h
         sub 0x18
         or l
         or d
         or e
-        jr z,loadscr
+        jp z,loadscr
        if 1==0
         ld a,h
         sub 0x08
@@ -146,7 +146,102 @@ openerror
 ;;TODO restore stack
 ;        call closestream_file
 ;        jr error
-
+	
+zxsattr
+	
+loadzxs
+	call setpgs_scr
+	ld de,0x6000		
+	call readstream_file
+	call closestream_file
+; Атрибуты
+	ld de,0x6000 + 1676
+	ld hl,0xd800
+	ld bc,32
+zxs_attr_0
+	ld a,(de)
+	ld (hl),a
+	inc de
+	ld bc,32
+	add hl,bc
+	ld a,h
+	cp 0xdb
+	jr nz,zxs_attr_0
+	ld h,0xd8
+	inc l
+	ld a,l
+	cp c
+	jr nz,zxs_attr_0
+	
+; Символы
+	ld ix,0x6000 + 908
+	ld de,0xc000
+	
+zxs_sym_0
+	ld a,(ix+0)
+	ld l,a
+	ld h,0
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	ld bc,0x6000 + 12
+	add hl,bc
+		dup 8
+		ld a,(hl)
+		ld (de),a
+		inc d
+		inc hl
+		edup
+	inc ix
+	call d_de
+	ld a,d
+	cp 0xd8
+	jr nz,zxs_sym_0
+	inc e
+	ld a,d
+	sub 0x18
+	ld d,a
+	ld a,e
+	cp 32
+	jr nz,zxs_sym_0
+; Бордер
+	display $
+	ld e,0
+	ld hl,0x6000 + 2444
+	ld a,(hl)
+	inc hl
+	or a
+	jr z,zxs_no_r
+	inc e
+	inc e
+zxs_no_r
+	ld a,(hl)
+	inc hl
+	or a
+	jr z,zxs_no_g
+	inc e
+	inc e
+	inc e
+	inc e
+zxs_no_g
+	ld a,(hl)
+	inc hl
+	or a
+	jr z,zxs_no_b
+	inc e
+zxs_no_b
+	OS_SETBORDER
+	jr waitkeyquit
+d_de
+	ld a,e
+	add a,32
+	ld e,a
+	ret c
+	ld a,d
+	sub 8
+	ld d,a
+	ret 
+	
 loadatr
 load53c
         ld hl,0xd800
@@ -1044,6 +1139,8 @@ extlist
         db "888",0
         dw loadatr
         db "atr",0
+        dw loadzxs
+        db "zxs",0
         dw load53c
         db "53c",0
         dw loadfnt
