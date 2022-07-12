@@ -1497,7 +1497,7 @@ emulcurpgc000=$+2  ;DB 0 ;for c000
 emulcurpg0000=$+3  ;DB 0 ;for 0000
         ;ds 4
 t866toatm
-        incbin "../kernel/866toatm"
+        incbin "../_sdk/codepage/866toatm"
        IF stats
         align 256
 comstats
