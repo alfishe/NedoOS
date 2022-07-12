@@ -98,6 +98,8 @@ function rddir(dirPath){
 					case '.m':
 						window.s+='<td><a href="javascript:runprog(\'bin/player.com%20/'+pn+'\')">Play</a></td>';
 						break;
+					case '.zxs':
+					case '.atr':
 					case '.scr':
 						window.s+='<td><a href="javascript:runprog(\'bin/view.com%20/'+pn+'\')">View</a></td>';
 						break;
