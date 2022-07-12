@@ -3,6 +3,14 @@
 
 _COLOR=0x0007;7
 TSPACES_FILENAME_SZ=42;41
+PRSTDIO=1
+        if PRSTDIO
+_COLOR=0x0007;0x07
+_COLOR_RED=0x0107;0x17
+        else
+_COLOR=0x07
+_COLOR_RED=0x17
+        endif
 
         org PROGSTART
 cmd_begin
@@ -311,9 +319,51 @@ tcmd
 cmdbuf
         db "cmd build.bat",0
 
+winquit
+        dw 0x0a1f ;de=yx
+        dw 0x0613 ;bc=hgt,wid
+        db 3 ;next line
+        db "Text not saved!",0
+        db 3 ;next line
+        db "     Quit?",0
+        db 0 ;end of window
+
         include "prdword.asm"
         include "textview.asm"
         include "text_mem.asm"
+
+        include "../_sdk/textwindow.asm"
+setdrawtablesneeded
+getmarkedfiles
+        ret
+        include "../_sdk/texteditln.asm"
+
+strdelch
+;delete char at (hl-1), shift string left
+;keeps ix
+editcmd_bs0
+        ld a,(hl)
+        dec hl
+        ld (hl),a
+        inc hl
+        inc hl
+        or a
+        jr nz,editcmd_bs0
+        ret
+
+strinsch
+;insert char E at (hl), shift string right
+;keeps ix
+editcmd_ins0
+        ld a,(hl)
+        ld (hl),e
+        ld e,a
+        inc hl
+        or a
+        jr nz,editcmd_ins0
+        ld (hl),a
+        ret
+
         include "../_sdk/stdio.asm"
 
 filesize

@@ -654,7 +654,7 @@ tscreenpgs
 trecolour
 ;trecolour = tscreenpgs+256
 ;сюда копируется либо wastrecolour, либо wast866toatm
-        incbin "../kernel/866toatm"
+        incbin "../_sdk/codepage/866toatm"
 
         align 256
 ;8 r16s
@@ -846,7 +846,7 @@ Debugger_GetMem_hl_to_a
 
         align 256
 t866toatm
-        incbin "../kernel/866toatm"
+        incbin "../_sdk/codepage/866toatm"
 
         display "end=",$
 end

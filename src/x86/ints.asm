@@ -1585,7 +1585,7 @@ cgapal2
        edup
 
 wast866toatm
-        incbin "../kernel/866toatm"
+        incbin "../_sdk/codepage/866toatm"
 
        macro dbcol _0
         db ((_0)&7)*9 + (((_0)&8)*0x18)

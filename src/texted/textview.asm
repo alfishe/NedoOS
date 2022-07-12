@@ -97,11 +97,11 @@ texted_mainloop_keyq
 
         cp key_redraw
         jr z,texted_redrawloop
-        cp key_esc
-        ret z
         
         ld hl,texted_mainloop
         push hl
+        cp key_esc
+        jp z,texted_quit ;ret z
         cp key_up
         jp z,texted_up
         cp key_down
@@ -187,6 +187,32 @@ textinsertsymbol_pseudospace0
         call texted_end
         pop bc
         ret
+
+texted_quit
+        ld a,(fchanged)
+        cp ' '
+        jr z,texted_quit_ok
+        call setredrawflag;texted_prcurpage
+        ld de,_COLOR_RED
+       if PRSTDIO
+        SETCOLOR_
+       else
+        OS_SETCOLOR
+       endif
+        ld hl,winquit
+        call prwindow_waitkey ;CY=OK
+        push af
+        ld de,_COLOR
+       if PRSTDIO
+        SETCOLOR_
+       else
+        OS_SETCOLOR
+       endif
+        pop af
+        ret nc ;no quit
+texted_quit_ok
+        pop af
+        ret ;quit
 
 texted_enter
         call linesize_minus_x ;sz<x = error

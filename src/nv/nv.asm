@@ -3121,10 +3121,12 @@ filinfo
 
         include "nvjptbl.asm"
         include "nvunit.asm"
-        include "nveditln.asm"
         include "nvview.asm"
         include "nvhexed.asm"
         include "nvfind.asm"
+
+        include "../_sdk/textwindow.asm"
+        include "../_sdk/texteditln.asm"
 
         include "prdword.asm"
         include "cmdpr.asm"
