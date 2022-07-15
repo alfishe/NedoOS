@@ -31,6 +31,10 @@ _ERRORCOLOR=0x0009;0x42
         asmgetchar
        endm
 
+       macro skipspaces
+        call asmskipspaces
+       endm
+
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже 0x3b00! иначе возможна порча OS        
@@ -72,14 +76,17 @@ cmdmainloop
         call mov10 ;без этого почему-то не работает
         ld hl,xOP1 ;куда печатаем?
          ld bc,xOP1 ;что печатаем?
-        call xtostr
+        call xtostr ;превращает число в строку
+       push hl
         ;ld hl,strout-1
         ld c,0
         call prtext
         call prcrlf
-
+       pop hl
+       ld de,cmdbuf
+       call strcopy
         xor a
-        ld (cmdbuf),a
+        ;ld (cmdbuf),a
         ld (curcmdscroll),a
         jp cmdmainloop
 
@@ -193,16 +200,7 @@ editcmd_right
         ret
 
 execcmd
-;a=0: command executed
-;a!=0: no such internal command
-        ld hl,cmdbuf
-        ld a,(hl)
-        or a
-        ret z
-        ld de,wordbuf
-        call getword ;hl=terminator/space addr
-        ;call skipspaces
-        ;ld (execcmd_pars),hl
+;a=next char
 execcmd0
         ld hl,commandslist ;list of internal commands
 strcpexec0
@@ -210,26 +208,35 @@ strcpexec0
         inc hl
         ld b,(hl)
         inc hl
-        ld a,b
-        cp -1
-        ret z ;jr z,strcpexec_tryrun ;a!=0: no such internal command
+       inc b
+        jr z,execcmderr
+       dec b
+       push af
+       push de
         ld de,wordbuf
         push hl
         call strcp
         pop hl
         jr nz,strcpexec_fail
+       pop de
+       pop af
+       cp a ;z=no error
         ld h,b
         ld l,c
-        call jphl ;execute command
-        xor a
-        ret ;a=0: command executed
-jphl
         jp (hl) ;run internal command
 strcpexec_fail
         ld b,-1 ;чтобы точно найти терминатор
         xor a
         cpir ;найдём обязательно
+       pop de
+       pop af
         jr strcpexec0
+
+execcmderr
+        or a
+        ret nz ;nz=error
+        cp 1
+        ret ;nz=error
 
 ;;;;;;;;;;;;;;;;
 
@@ -288,9 +295,6 @@ matchmulexpr_mul
         asmgetchar
         call matchval
         ret nz ;error
-;TODO:
-;если у нас слева не константа (где признак? af'?), то для неё уже сгенерирован код
-;если у нас две константы, не делаем call mul, а вычисляем в bc как константу
         call compilemulnewold
         jr matchmulexpr_loop
 matchmulexpr_div
@@ -398,7 +402,7 @@ matchdecnoexp
        push de
         ld hl,wordbuf
         ld bc,xnum1
-        call strtox
+        call strtox ;превращает строку в число
         ld hl,xnum1
         call pushxnum
        pop de
@@ -407,12 +411,19 @@ matchdecnoexp
         ret
 matchval_nodigit
         add a,'0' ;как было (для следующих match)
-;TODO функции
-
-        ;dec c ;nz (error)
-        or a ;nz (error)
-        asmgetchar        
-        ret
+        ld hl,wordbuf
+matchword0
+        ld (hl),a
+        inc hl
+        asmnextchar
+        asmgetchar
+        cp 'a'
+        jr c,matchword0q
+        cp 'z'+1
+        jr c,matchword0
+matchword0q
+        ld (hl),0
+        jp execcmd
 
 matchval_hex
         asmnextchar ;eat
@@ -572,11 +583,103 @@ compileneg
        pop af
         ret
 
-
-cmd_sin
-cmd_sqrt
+cmd_e
+        ld hl,xconst_e
+        jr cmd_const
+cmd_pi
+        ld hl,xconst_pi
+        jr cmd_const
+cmd_const
+       push af
+       push de
+        call pushxnum
+       pop de
+       pop af
         ret
 
+cmd_sin
+        ld hl,xsin
+        jr cmd_onepar
+cmd_cos
+        ld hl,xcos
+        jr cmd_onepar
+cmd_tan
+        ld hl,xtan
+        jr cmd_onepar
+cmd_sinh
+        ld hl,xsinh
+        jr cmd_onepar
+cmd_cosh
+        ld hl,xcosh
+        jr cmd_onepar
+cmd_tanh
+        ld hl,xtanh
+        jr cmd_onepar
+cmd_asin
+        ld hl,xasin
+        jr cmd_onepar
+cmd_acos
+        ld hl,xacos
+        jr cmd_onepar
+cmd_atan
+        ld hl,xatan
+        jr cmd_onepar
+cmd_asinh
+        ld hl,xasinh
+        jr cmd_onepar
+cmd_acosh
+        ld hl,xacosh
+        jr cmd_onepar
+cmd_atanh
+        ld hl,xatanh
+        jr cmd_onepar
+cmd_abs
+        ld hl,xabs
+        jr cmd_onepar
+cmd_ln
+        ld hl,xln
+        jr cmd_onepar
+cmd_exp
+        ld hl,xexp
+        jr cmd_onepar
+cmd_sqrt
+        ld hl,xsqrt
+        jr cmd_onepar
+
+cmd_onepar
+;a=next char
+;hl=xcmd
+       push hl
+        skipspaces
+        call matchval
+       pop hl
+        ld (cmd_onepar_xcmd),hl
+       push af
+       push de
+        ld de,xnum1
+        call popxnum
+        ld hl,xnum1
+        ld bc,xOP1
+cmd_onepar_xcmd=$+1
+        call xsqrt
+        ld hl,xOP1
+        call pushxnum
+       pop de
+       pop af
+        ret
+
+;out: nz (error) if eol ;остаётся на первом непробеле и его возвращает в a
+asmskipspaces_next
+        asmnextchar
+        asmgetchar
+asmskipspaces
+        cp 9 ;tab
+        jr z,asmskipspaces_next
+        cp ' '
+        jr z,asmskipspaces_next
+        ret c ;error (nz)
+        cp a ;z
+        ret
 
 ;;;;;;;;;;;;;;
 
@@ -618,8 +721,40 @@ crlfbuf
         db 0x0d,0x0a
 
 commandslist
+        dw cmd_e
+        db "e",0
+        dw cmd_pi
+        db "pi",0
+        dw cmd_abs
+        db "abs",0
+        dw cmd_asin
+        db "asin",0
+        dw cmd_acos
+        db "acos",0
+        dw cmd_atan
+        db "atan",0
+        dw cmd_asinh
+        db "asinh",0
+        dw cmd_acosh
+        db "acosh",0
+        dw cmd_atanh
+        db "atanh",0
         dw cmd_sin
         db "sin",0
+        dw cmd_cos
+        db "cos",0
+        dw cmd_tan
+        db "tan",0
+        dw cmd_sinh
+        db "sinh",0
+        dw cmd_cosh
+        db "cosh",0
+        dw cmd_tanh
+        db "tanh",0
+        dw cmd_exp
+        db "exp",0
+        dw cmd_ln
+        db "ln",0
         dw cmd_sqrt
         db "sqrt",0
         
@@ -710,8 +845,8 @@ xnum1
         ds 10
 xnum2
         ds 10
-xnum3
-        ds 10
+;xnum3
+;        ds 10
 
 xnumstack
 ;продолжается дальше вперёд
