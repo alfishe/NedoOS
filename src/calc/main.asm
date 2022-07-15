@@ -316,14 +316,14 @@ matchval
         cp '('
         jp z,matchval_bracket
         cp '#'
-        jr z,matchval_hex
+        jp z,matchval_hex
         cp '+'
-        jr z,matchval_plus
+        jp z,matchval_plus
         cp '.'
-        jr z,matchdec
+        jp z,matchdec
         sub '0'
         cp 10
-        jr nc,matchval_nodigit
+        jp nc,matchval_nodigit
         add a,'0'
 matchdec
         ld hl,wordbuf
@@ -347,10 +347,36 @@ matchdec0q
         asmgetchar
         cp '-'
         jr nz,matchdecnoexpminus
+       if 0
+;либа не переваривает отрицательную экспоненту, поэтому делаем n*pow10(exp)
+        call matchdecnoexp
+        call matchval
+       push af
+       push de
+        ld de,xnum1
+        call popxnum
+        ld hl,xnum1
+        ld bc,xOP1
+        call xpow10
+        ld de,xnum1
+        call popxnum
+        ld hl,xOP1
+        ld de,xnum1
+        ld bc,xnum2
+        call xmul
+        ld hl,xnum2
+        call pushxnum
+       pop de
+       pop af
+        ld (hl),0
+        cp a ;z
+        ret
+       else 
         ld (hl),a
         inc hl
         asmnextchar
         asmgetchar
+       endif
 matchdecnoexpminus
         sub '0'
         cp 10

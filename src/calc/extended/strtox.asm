@@ -47,6 +47,7 @@ strtox:
 ;_:
   call strtox_sub0
 TItox_stepin:
+;bc=exp-1
 ;Gotta multiply the number at (xOP1) by 2^64
 
 ;Save the location of the ending byte of the string
@@ -114,9 +115,9 @@ strtox_normed:
   ld (xOP1+8),bc
   pop bc
 ;now (xOP1) is our number, need to multiply by power of 10!
-;Power of 10 is stored in B, need to put in A first
+;Power of 10 is stored in BC, need to put in A first
   xor a
-  sub b
+  or b;sub b ;Alone Coder
   ld de,pow10table+120
   jp p,strtox_powp;+_
   xor a : sub c : ld c,a
@@ -236,13 +237,13 @@ str_xeng_expq;_:
   ld b,a
   ret
 str_xeng_add;_:
-
   add a,e
   ld c,a
   ld a,d
   adc a,b
   ld b,a
   ret
+
 xOP1_xtimes_256:
   push bc
   ld e,8
@@ -250,7 +251,7 @@ xOP1_xtimes_2560;_:
   or a
   ld hl,xOP1
   call xOP1_xtimes_256pp;+_
-  call xOP1_xtimes_256pp;+_
+  call xOP1_xtimes_256pp;+_ ;итого 10 раз xOP1_xtimes_sub
   rl c
   dec e
   jr nz,xOP1_xtimes_2560;-_
