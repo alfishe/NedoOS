@@ -1,1 +1,1 @@
-Not working. Backup.  Can only  init esp
+Not working. Backup.  Can only  init esp and connect

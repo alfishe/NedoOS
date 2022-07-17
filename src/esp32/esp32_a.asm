@@ -37,9 +37,28 @@ begin
 		ld hl, espinited
 		call prtext
 		
+
+		call OS_NETSOCKET
+
+		ld de,adrstruct
+		call OS_NETCONNECT
+		ld a,l
+		cp 255
+		jp z, errorop
+
+		call OS_NETSHUTDOWN
+		
 		ld hl, asterix
 		call prtext
-		
+		ld hl, crlf
+		call prtext
+		QUIT
+
+
+errorop:
+		call OS_NETSHUTDOWN
+		ld hl,defaulterror
+		call prtext
 		QUIT
 ;****************************************************************************		
 comparestr:		
@@ -62,15 +81,21 @@ notequal:
  		
 ;****************************************************************************
 readanswer:					;Read 1 line
-		ld hl, answerbuffer
+		push de
+		push hl
+		ld hl,answerbuffer
 		call uart_startrts
 		call uart_stoprts
 		call uart_read
-
 		call uart_startrts
 		call uart_stoprts
 		call uart_read
+		jp readanswer3
 readanswer2:
+		push de
+		push hl
+		ld hl,answerbuffer
+readanswer3:
 		call uart_startrts
 		call uart_stoprts
 		call uart_read
@@ -79,10 +104,12 @@ readanswer2:
 		jp z, endline
 		ld (hl), e
 		inc hl
-		jp readanswer2
+		jp readanswer3
 endline:
 		ld (hl), 0
 		call flushbuf
+		pop hl
+		pop de
 		ret
 ;****************************************************************************
 flushbuf:
@@ -190,6 +217,8 @@ read2:
 		in	a,(c)			;Получили число байт в буфере
 		or a
 		jp nz,togetb		; В буфере есть байт
+		call uart_startrts
+		call uart_stoprts
 		jp read2			; А теперь есть?
 
 togetb:		
@@ -244,6 +273,7 @@ strlen
 ;****************************************************************************
 sendtext
 ;hl=text
+		push de
 		push bc
 		push hl
         push hl
@@ -262,12 +292,18 @@ more2send
 		jp nz, more2send
 		pop hl
 		pop bc
+		pop de
 		ret
 ;****************************************************************
 esp_init:
 ; делаем инициализацию настроек, закрываем сокеты и серверы.
 		call flushbuf
 		
+		ld hl, atcipclose
+		call sendtext
+		YIELD
+		call readanswer
+
 		ld hl, ate0
 		call sendtext
 		YIELD
@@ -292,43 +328,57 @@ nextinit:
 		YIELD
 		call readanswer
 		
-		ld hl, atcipclose
-		call sendtext
-		YIELD
-		call readanswer
-		
 		ld hl, atcipdinfo
 		call sendtext
 		YIELD
 		call readanswer
+		
+		call flushbuf
 		ret
 
 
 
 ;****************************************************************
 ; Based on: https://wikiti.brandonw.net/index.php?title=Z80_Routines:Other:DispHL
-; DE - number
+; DE(HL) - number
 ; It will be written to UART
 deToNumEsp:
-	ld	bc,-10000
-	call	n1
-	ld	bc,-1000
-	call	n1
-	ld	bc,-100
-	call	n1
-	ld	c,-10
-	call	n1
-	ld	c,-1
-n1	ld	a,'0'-1
-n2	inc	a
-	add	de,bc
-	jr	c, n2
-	sbc	de,bc
-    push bc
+    ld a,0
+	ld (firstzero),a
+	ld hl,de
+    ld    bc,-10000
+    call    n1
+    ld    bc,-1000
+    call    n1
+    ld    bc,-100
+    call    n1
+    ld    c,-10
+    call    n1
+    ld    c,-1
+n1    ld  a,'0'-1
+n2    inc a
+    add    hl,bc
+    jr    c, n2
+    sbc    hl,bc
 	ld e,a
+    cp '0'
+	jp z, zerotest
+	ld (firstzero),a
+printzero:
 	call uart_write
-    pop bc
-    ret
+skipzero:
+	ret
+
+zerotest:
+		ld a, (firstzero)
+		cp 0
+		jp z, skipzero
+		jp printzero
+
+firstzero:
+		db 0
+toespbuf
+		db 0,0,0,0,0,0,0,0,0,0	
 ;****************************************************************
 OS_NETCONNECT:
 ;Все аргументы в регистрах:
@@ -347,43 +397,57 @@ OS_NETCONNECT:
 ;DEFB 1,2,3,4   ;IP адрес назначения
 ;DEFB 0,0,0,0,0,0,0,0 ;резерв
 ;atcipstart1		;"AT+CIPSTART=\"TCP\",\"",0
+		push bc
 		ld hl,atcipstart1
 		call sendtext
 		ld hl,de
 		inc hl
-		ld bc,(hl)
-		push bc
+		push hl
 		inc hl
 		inc hl
-		ld de,(hl)
+		ld e,(hl)
+		ld d,0
+		push hl
 		call deToNumEsp
+		pop hl
 		ld e,'.'
 		call uart_write
 		inc hl
-		ld de,(hl)
+		ld e,(hl)
+		ld d,0
+		push hl
 		call deToNumEsp
+		pop hl
 		ld e,'.'
 		call uart_write
 		inc hl
-		ld de,(hl)
+		ld e,(hl)
+		ld d,0
+		push hl
 		call deToNumEsp
+		pop hl
 		ld e,'.'
 		call uart_write
 		inc hl
-		ld de,(hl)
+		ld e,(hl)
+		ld d,0
+		push hl
 		call deToNumEsp
-
+		pop hl
 		ld hl,atcipstart2
 		call sendtext
 		pop hl
 		ld de,(hl)
+		ld l,d
+		ld h,e
+		ex de,hl
 		call deToNumEsp
 		ld hl,crlf
 		call sendtext
 		YIELD
-		call readanswer
+		call readanswer2
 		ld hl,answerbuffer
-		ld bc,okanswer
+		ld bc,connanswer
 		call comparestr
 		cp 1
 		jp z,okstart
@@ -394,7 +458,7 @@ OS_NETCONNECT:
 okstart:
 		ld l,0
 		ld a,0
-
+		pop bc
 		ret
 		
 ;****************************************************************************
@@ -430,7 +494,7 @@ ERRPROTOTYPE:
 		ld a, ERR_PROTOTYPE
 		ret
 ;****************************************************************************
-;OS_NETSHUTDOWN
+OS_NETSHUTDOWN
 ;Закрытие сокета.
 ;A - SOCKET
 ;E - Варианты закрытия, 0 - закрыть немедленно, 1 - закрыть только если буфер отправки пуст.
@@ -444,6 +508,8 @@ ERRPROTOTYPE:
 		ld l, 0
 		ld a, 0
 		ret
+
+
 
 atgmr
 		db "AT+GMR",0x0d,0x0a,0
@@ -472,6 +538,9 @@ asterix
 
 plusik
         db "+",0
+crlf
+        db 0x0d,0x0a,0
+
 
 uartinited
 		db "Uart inited.",0x0d,0x0a,0
@@ -482,17 +551,28 @@ espinited
 espnotinited
 		db "ESP not inited.",0x0d,0x0a,0		
 
+defaulterror
+		db "Default error.",0x0d,0x0a,0				
+
 erroranswer
 		db "ERROR",0
+connanswer
+		db "CONNECT",0		
 okanswer
 		db "OK",0
 busyanswer
 		db "busy",0
 
-crlf
-		db 0x0d,0x0a,0
+adrstruct:
+		DB 2
+		DB 00,80    ;порт назначения
+		DB 217,146,69,13   ;IP адрес назначения
+		DB 0,0,0,0,0,0,0,0 ;резерв
 
- 
+
+
+
+
         include "../_sdk/stdio.asm"
 
 
