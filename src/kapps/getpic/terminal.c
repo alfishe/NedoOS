@@ -1,16 +1,18 @@
-void putdec(long c)
+void putdec(int c)
 {
-  long div;
-  long hassent = 0;
-  for(div = 100; div > 0; div /= 10) {
-    long disp = c / div;
+  int div;
+  int hassent = 0;
+  for (div = 100; div > 0; div /= 10) {
+    int disp = c / div;
     c %= div;
-    if((disp != 0) || (hassent) || (div == 1)) {
+    if ((disp != 0) || (hassent) || (div == 1)) {
       hassent = 1;
-      putchar('0'+disp);
+      putchar('0' + disp);
     }
   }
 }
+
+
 
 void AT(int X, int Y)
 {
@@ -29,6 +31,7 @@ void ATRIB( int color)
   putdec(color);
   putchar('m');
 }
+
 
 
 void BOX(unsigned char Xbox, unsigned char Ybox, unsigned char Wbox, unsigned char Hbox, unsigned char Cbox)

@@ -321,13 +321,13 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 
 const char* parseJson(unsigned char *property)
 {
-unsigned int q, w, lng, lngp1, findEnd, listPos;
+unsigned int w, lng, lngp1, findEnd, listPos;
 unsigned char terminator;
 int n;
 	n = -1;
 	netbuf[0] = '\0';
 	n = pos(picture, property, 1 , 0);
-	if ( n == -1)  { printf("Property not found...\n\r");}
+	if ( n == -1)  {strcpy(netbuf, "0\0"); return netbuf;}
 	lng = n - 1 + strlen(property);
 	if (picture[lng] == ':')  {terminator = '\0';}
 	if (picture[lng] == '\"') {terminator = '\"';}
@@ -404,7 +404,6 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   unsigned char cmdlist3[] = "\/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer  [] = "000000000";
   unsigned char *count, socket;
-  const char *titleptr;
   unsigned long idpic, bytecount;
  
   socket = OpenSock(AF_INET, SOCK_STREAM);
