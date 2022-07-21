@@ -7,15 +7,6 @@ begin
         ;OS_SETGFX
         call initstdio
 
-        ld a,9
-        ld b,0
-        ld de,0x8000
-        ld ix,0
-        ld hl,0
-;b=drive(0..), de=buffer, ixhl=sector number, a=count
-        OS_READSECTORS
-        jr $
-        
         ld hl,thello
         call prtext
         ld hl,thello
@@ -54,4 +45,4 @@ thello
 end
 	savebin "hello.com",begin,end-begin
 
-	LABELSLIST "../../us/user.l"
+	LABELSLIST "../../us/user.l",1
