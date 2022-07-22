@@ -1,5 +1,5 @@
 @echo off
-path=..\us\;..\tools\
+path=..\..\..\us\;..\..\..\tools\
 sjasmplus main.asm
 rem sjasmplus depkmain.asm
 pause
