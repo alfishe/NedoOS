@@ -14,7 +14,7 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 %SJASMPLUS% %SJASMPLUSFLAGS% main.asm
 rem sjasmplus depkmain.asm
 nedotrd basic.trd -eh boot.$b > nul
-del test.scl
+rem del test.scl
 rem mhmt -mlz code.c
 rem del code.c
 rem copy /b depkcode.c + code.c.mlz code.c
@@ -27,7 +27,7 @@ rem del code.c
 rem del code.c.mlz
 rem del depkcode.c
 rem ..\us\emulatm test.scl
-emul worms.trd > nul
+rem emul worms.trd > nul
 rem unreal test.scl
 
 @SET releasedir2=../../../release/
@@ -40,5 +40,5 @@ rem unreal test.scl
 @cd ../../../src/
 @call ..\tools\chkimg.bat sd
  rem pause
-rem  @if "%makeall%"=="" ..\us\emul.exe
+@if "%makeall%"=="" ..\us\emul.exe
 )
