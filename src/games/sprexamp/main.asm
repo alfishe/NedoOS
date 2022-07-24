@@ -63,9 +63,9 @@ DELETEDYHIGH=0x7f
 pushbase=0x8000;c000
         macro SETPGPUSHBASE
          ;ld (curpgc000),a
-         ;SETPG32KHIGH
+         ;SETPGC000
         ;ld (curpg8000),a
-        SETPG32KLOW
+        SETPG8000
         endm
 
         macro RECODEBYTE
@@ -141,7 +141,7 @@ mainloop_uv_nodrawbg
 undrawsprites0
         ld a,(hl)
         dec hl
-        SETPG32KHIGH
+        SETPGC000
         ld a,(hl)
        ;sub 0x80
         ld hy,a
@@ -290,7 +290,7 @@ waitchangescr1
         call swapimer
 pgmusic=$+1
         ld a,0
-        SETPG16K
+        SETPG4000
         ld hl,0x4008+3 ;stop
         OS_SETMUSIC
         halt
@@ -634,7 +634,7 @@ sfxplay
         push af
 pgsfx=$+1
         ld a,0
-        SETPG32KLOW
+        SETPG8000
         pop af
         jp 0x8000 ;SFXPLAY
 
@@ -644,7 +644,7 @@ pgsfx=$+1
         include "bgpush.asm"
         include "bgpushxy.asm"
         include "mem.asm"
-        include "bmp.asm"
+        include "../../_sdk/bmp.asm"
         include "logic.asm"
         include "camera.asm"
 

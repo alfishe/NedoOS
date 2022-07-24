@@ -73,7 +73,7 @@ scrhgt=200
 
 pushbase=0x8000
         macro SETPGPUSHBASE
-        SETPG32KLOW
+        SETPG8000
         endm
 
         macro RECODEBYTE
@@ -1361,7 +1361,6 @@ showsprites
         
         call setpgsscr8000c000
         call setpgc2_4000;setpggfxc000
-         ;jr $
         call showtiles
         
         ld hl,(showtilesaddrpatch)
@@ -1855,7 +1854,7 @@ genpush_newpage
         ret
 
 	INCLUDE	"bgpush.asm"
-	INCLUDE	"bmp.asm"
+	INCLUDE	"../../_sdk/bmp.asm"
         include "../../_sdk/file.asm"
 bgpush_bmpbuf=0x4000 ;ds 1024;320 ;заголовок bmp или одна строка
 bgpush_loadbmplinestack=bgpush_bmpbuf+1024 ;ds pushhgt*2+32

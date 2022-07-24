@@ -797,7 +797,7 @@ tileUpdateMap	;битовая карта обновившихся знакомест, 64x25 бит
         export _sfx_stop
 
         include "../../_sdk/file.asm"
-        include "bmp.asm"
+        include "../../_sdk/bmp.asm"
         include "bgpush.asm"
         include "bgpushxy.asm"
 _preparescroll=bgpush_prepare ;de=filename

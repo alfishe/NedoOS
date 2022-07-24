@@ -11,6 +11,13 @@ readbmphead_pal
 ;de=buf
 ;hl=size
         call readstream_file
+       ld hl,(bgpush_bmpbuf+2)
+       ld a,l
+       ld b,4
+       srl h
+       rra
+       djnz $-3
+       ld (bmpwid),a
         ld de,bgpush_bmpbuf
         ld hl,+(4*16)
 ;de=buf
@@ -33,6 +40,8 @@ recodepal0
         inc hl
         djnz recodepal0
         ret
+bmpwid
+        dw 0
 
 readfile_rgbtopal
 ;e=B, d=G, l=R
@@ -125,7 +134,7 @@ bgpush_ldbmp_layerline
 ;b=pushwid/2
         ;ld b,pushwid/2
         push bc
-        SETPG32KLOW;SETPGPUSHBASE
+        SETPG8000;SETPGPUSHBASE
         pop bc
         push bc
         push de
