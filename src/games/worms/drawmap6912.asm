@@ -1,6 +1,5 @@
 DrawMASK
-       LD A,PGMASK
-       call OUTME
+       call SetPgMask
         ld hl,(MOUSEX)
         ld a,l
         srl h

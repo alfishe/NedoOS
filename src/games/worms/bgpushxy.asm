@@ -316,8 +316,8 @@ uvscroll_setscroll
 ;de=x
         srl d
         rr e
-       ld bc,200-1
-       add hl,bc
+       ;ld bc,200-1
+       ;add hl,bc
         ld a,h
         cpl
         and 1

@@ -104,8 +104,7 @@ MKMAP42 LD A,(HL)
         LD (DE),A
         INC DE
         DJNZ MKMAP42       
-       ld a,PGMASK
-       call OUTME
+       call SetPgMask
        pop de
        push hl
        ld hl,MKMASKBUF
@@ -242,10 +241,7 @@ PRLMN
         LD E,(HL) ;hgt
         INC HL
 
-       push bc
-       ld a,PGMASK
-       call OUTME
-       pop bc
+       call SetPgMask
         
        PUSH HL ;gfx
 PRLMN00

@@ -201,8 +201,7 @@ WRMOVEQ
         RET 
 WRMOVE
         ld hl,WORMXY
-        LD A,PGMASK
-        call OUTME
+       call SetPgMask
 DOGRAVa=$+1
         LD A,0
         ADD A,64

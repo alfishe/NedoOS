@@ -35,6 +35,7 @@ MKMAP
 
        call DrawPie ;7
 
+   if !ATM ;TODO!!!
 ;add elements:
       if ATM;USELMNBUF
         call GenLMNList
@@ -78,6 +79,7 @@ LMN0    LD A,10
       endif
         JR nz,LMN0
 LMNQ
+    endif
 
 ;clear table of y's (per column) usable for worms
         XOR A
@@ -148,7 +150,7 @@ MKMAPPP
 
         LD HL,DIRECTN
         LD DE,DTNTAB
-        LD  C,32
+        LD bc,32
         LDIR 
 
         LD E,0 ;SCREEN (X) NO. -1=NOPRINT
@@ -276,8 +278,7 @@ DIRECTN
 FindUsableYsInMask
 ;create table of usable y's and count them in LX
 ;LX=0
-       LD A,PGMASK
-       CALL OUTME
+       call SetPgMask
         ld hl,MASK+MASKSZ-1 ;don't use last byte column
         LD C,64
         LD E,MASKWID*4-1 -4 ;don't use last byte column
@@ -285,6 +286,10 @@ SETF    RLC C
         RLC C
         JR NC,$+3
          DEC HL
+     if ATM ;TODO fix!!!
+     ld b,MASKHGT-1 ;y
+     INC LX ;usable columns count
+     else
         PUSH DE
         PUSH HL
 ;снизу вверх смотрим столбец маски (бит 0,2,4 или 6 в C)
@@ -303,6 +308,7 @@ SETF1   ADD HL,DE
         INC LX ;usable columns count
 SETFQ   POP HL
         POP DE
+     endif
         LD A,B
         LD (DE),A ;y place for this column
         DEC E

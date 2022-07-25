@@ -1,5 +1,7 @@
-;при проверке наличия мыши требует память 0xb8b9..0xbb00
 INIMOUS
+;TODO для ATM читать начальные координаты мыши
+       if !ATM
+;при проверке наличия мыши требует память 0xb8b9..0xbb00
         EI 
         HALT 
         LD HL,#BA00
@@ -48,6 +50,7 @@ NOMOUSE
         ;XOR A
         ;LD (OLDX-1),A
         ;LD (OLDY-1),A
+       endif
         RET 
 
 ;onint

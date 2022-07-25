@@ -112,32 +112,69 @@ XorPixInMap
         RET NC
        PUSH BC
        PUSH HL
-        LD H,TMAPLN/256
-        LD L,A
-        LD A,C
-        AND 0xf8
-        ADD A,E
-        RRCA 
-        RRCA 
-        RRCA 
-        CP MAPWID
-        JR NC,XorPixInMapq
-        ADD A,(HL)
-        INC H
-        LD H,(HL)
-        LD L,A
-        JR NC,$+3
-        INC H
-        LD A,C
-        AND 7
-        INC A
-        LD B,A
-        LD A,1
-        RRCA 
-        DJNZ $-1
-        XOR (HL)
-        LD (HL),A
-XorPixInMapq
+      push de
+      push ix
+       neg
+       ld b,a
+        ld a,b ;y
+        rlca
+        rlca
+        and 3 ;y/64
+        add a,a
+        add a,a
+        ld l,a
+        srl e
+        rr c
+        ld lx,0x47
+       jr nc,XorPixInMap_right
+        ld lx,0xb8
+XorPixInMap_right
+        srl e
+        rr c
+        rra
+        srl e
+        rr c
+        rra
+        rlca
+        rlca
+        ;cpl
+        and 3 ;x layer
+        add a,l
+       add a,SKIPPGS
+        ld l,a;0
+        ld h,tpushpgs/256 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        ld a,(hl)
+        push bc
+        SETPGC000
+        pop bc
+        ;jr $
+        ld hl,0xc001
+        ld a,b ;y
+        and 0x3f
+        add a,h
+        ld h,a
+;c=0: l=0x3d
+;c=1: l=0x3e
+;c=2: l=0x39
+;c=3: l=0x3a
+;...
+       ld a,c
+       cpl
+       add a,a
+       and 0xfc
+       add a,l
+       ld l,a
+       ld a,c
+       and 1
+       add a,l
+       ld l,a
+        ;jr $
+        ld a,(hl)
+        xor lx;0xb8
+        ld (hl),a
+
+      pop ix
+      pop de
        POP HL
        POP BC
         RET 
@@ -152,17 +189,126 @@ UnSetPixInMap ;and in mask
        add a,MAPHGT-TERRAINHGT
         SUB TERRAINHGT;MAPHGT
         RET NC
-       PUSH HL
        PUSH BC
+       PUSH HL
+      push de
+      push ix
+       neg
+       ld b,a
+        ld a,b ;y
+        rlca
+        rlca
+        and 3 ;y/64
+        add a,a
+        add a,a
+        ld l,a
+        srl e
+        rr c
+        ld lx,0xb8;0x47
+       jr nc,UnSetPixInMap_right
+        ld lx,0x47;0xb8
+UnSetPixInMap_right
+        srl e
+        rr c
+        rra
+        srl e
+        rr c
+        rra
+        rlca
+        rlca
+        ;cpl
+        and 3 ;x layer
+        add a,l
+       add a,SKIPPGS
+        ld l,a;0
+        ld h,tpushpgs/256 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        ld a,(hl)
+        push bc
+        SETPGC000
+        pop bc
+        ;jr $
+        ld hl,0xc001
+        ld a,b ;y
+        and 0x3f
+        add a,h
+        ld h,a
+;c=0: l=0x3d
+;c=1: l=0x3e
+;c=2: l=0x39
+;c=3: l=0x3a
+;...
+       ld a,c
+       cpl
+       add a,a
+       and 0xfc
+       add a,l
+       ld l,a
+       ld a,c
+       and 1
+       add a,l
+       ld l,a
+        ;jr $
+        ld a,(hl)
+        and lx;0xb8
+        ld (hl),a
 
-;TODO
-
-       POP BC
+      pop ix
+      pop de
        POP HL
+       POP BC
         RET 
 
 EorFillInMap
-
-;TODO
-
+        ld hl,tpushpgs + SKIPPGS+15
+        dec l
+        call EorFillInMappp
+        dec l
+        call EorFillInMappp
+        dec l
+        call EorFillInMappp
+        dec l
+EorFillInMappp
+        ld e,0xfd
+EorFillInMap0
+        call EorFillInMap_column
+        inc e
+        call EorFillInMap_column
+        ld a,e
+        sub 5
+        ld e,a
+        jr nc,EorFillInMap0
+        ret
+        
+EorFillInMap_column
+        push hl
+        xor a
+        ld b,4
+EorFillInMap_column0
+;a=накопленный байт
+;hl=tpushpgs+
+;e=LSB of addr
+;b=число страниц осталось в этом столбце
+       push bc
+       push de
+       push hl
+       push af
+        ld a,(hl)
+        SETPGC000
+       pop af
+        ld h,0xff
+        ld l,e
+        LD B,64;MAPHGT
+MKMAPF0 XOR (HL)
+        LD (HL),A
+        dec h
+        DJNZ MKMAPF0
+       pop hl
+       pop de
+       pop bc
+        dec l
+        dec l
+        dec l
+        dec l
+        djnz EorFillInMap_column0
+        pop hl
         ret

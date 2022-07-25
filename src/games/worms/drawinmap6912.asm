@@ -202,8 +202,7 @@ UnSetPixInMap ;and in mask
         DJNZ $-1
         and (HL)
         LD (HL),A
-        LD A,PGMASK
-        CALL OUTME
+       call SetPgMask
        pop hl
        pop bc
        push bc

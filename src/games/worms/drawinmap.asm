@@ -9,6 +9,9 @@ AnimMines
 
 UnDrawWormsInMap ;FIXME
 DrawWormsInMap
+       if ATM ;TODO!!!
+       ret
+       endif
         LD A,PGMAP;16
         CALL OUTME
         ld hl,WORMXY
@@ -60,6 +63,9 @@ DrawWormsInMap_skip
 
 UnDrawWormsDataInMap ;FIXME
 DrawWormsDataInMap
+       if ATM ;TODO!!!
+       ret
+       endif
         LD A,PGMAP;16
         CALL OUTME
         ld hl,WORMXY

@@ -1,9 +1,29 @@
 ;процедуры для генерации карты, нижнего уровня (зависят от типа экрана)
 
 ClearMap
-
-;TODO
-
+        ld hl,tpushpgs +SKIPPGS ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        ld b,16
+ClearMap0
+        push bc
+        push hl
+        ld a,(hl)
+        SETPGC000
+        ld hl,0xc000
+        xor a
+ClearMap1
+        inc l
+        ld (hl),a
+        inc l
+        ld (hl),a
+        inc l
+        inc l ;skip push
+        jr nz,ClearMap1
+        inc h
+        jr nz,ClearMap1
+        pop hl
+        pop bc
+        inc hl
+        djnz ClearMap0
         ret
 
 MapNextColumn
@@ -20,12 +40,15 @@ MapNextPg
         ret
 
 FindPlacesForGrass ;записывает в grassbuf
+;TODO
+
+        ret
        ld a,PGMAP
        call OUTME
 ;по чётным столбцам сверху вниз ищем переходы 0->1
         ld ix,grassbuf
         ld hl,MAP
-        ld b,MAPWID*4
+        ld bc,MAPWID*4
         xor a ;RLE counter
         ex af,af' ;'
 findgrass_columns0
@@ -64,7 +87,10 @@ findgrass_empty
        pop hl
        pop bc
         call MapNextColumn
-        djnz findgrass_columns0
+        dec bc
+        ld a,b
+        or c
+        jr nz,findgrass_columns0
         ld (ix),b;0 ;иначе в последнем столбце может появиться лажа
         ret
 
@@ -78,10 +104,21 @@ MakeMaskFromMap
        ld a,PGMAP
        call OUTME
 
-       ld a,PGMASK
-       call OUTME
+       call SetPgMask
+        ld hl,MASK
+        ld de,MASK+1
+        ld bc,MASKSZ-1
+        ld (hl),0
+        ldir
+
+        LD HL,MASKSZ+MASK-(MASKWID*2) ;fill last lines (костыль, пока карты нет)
+        LD BC,+(MASKWID*2)*256+255
+        LD (HL),C
+        INC HL
+        DJNZ $-2
+       
 ;extra bottom line of mask is always filled (for element placement)
-        LD HL,MASKSZ+MASK;MASKBUF
+        LD HL,MASKSZ+MASK
         LD BC,MASKWID*256+255
         LD (HL),C
         INC HL
@@ -138,10 +175,7 @@ PRLMNO
         LD E,(HL) ;hgt
         INC HL
 
-       push bc
-       ld a,PGMASK
-       call OUTME
-       pop bc
+       call SetPgMask
         
 
 ;TODO
