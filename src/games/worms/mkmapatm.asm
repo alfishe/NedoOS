@@ -126,9 +126,69 @@ MakeMaskFromMap
         ret
 
 TexturizeGroundInMap
+        call SetPgTexture8000
+        ld de,0x8000
+        ld c,0xfd
+TexturizeGroundInMap0
+        call TexturizeGroundInMappp4
+        inc c
+        call TexturizeGroundInMappp4
+        ld a,c
+        sub 5
+        ld c,a
+        jr nc,TexturizeGroundInMap0
+        call setpgsmain40008000
+        ret
 
-;TODO
-
+TexturizeGroundInMappp4        
+        ld hl,tpushpgs +SKIPPGS+12 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        call TexturizeGroundInMappp
+        inc l
+        call TexturizeGroundInMappp
+        inc l
+        call TexturizeGroundInMappp
+        inc l
+        ;call TexturizeGroundInMappp
+TexturizeGroundInMappp
+;hl=tpushpgs+
+;c="l"
+;de=gfx
+        push hl
+        ld b,4
+TexturizeGround0
+        push bc
+        push hl
+        ld a,(hl)
+        ld h,0xff
+        ld l,c
+        SETPGC000
+       push de
+        ld b,64
+TexturizeGround1
+        ld a,(de)
+        inc e
+        and (hl)
+        ld (hl),a
+        dec h
+        djnz TexturizeGround1
+        ld a,e
+       pop de
+        xor e
+        and 0x7f
+        xor e
+        ld e,a
+        pop hl
+        pop bc
+        dec l
+        dec l
+        dec l
+        dec l
+        djnz TexturizeGround0
+        ld hl,128
+        add hl,de
+        ex de,hl
+        pop hl
+        res 5,d
         ret
 
 AddGrassInMap

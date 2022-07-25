@@ -9,6 +9,9 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 @echo off
 %NEDORES% gfx/sprites_bw.bmp sprites.dat sprites.ast
 %NEDORES% gfx/texmars_bw.bmp texture.dat texture.ast
+%NEDORES% gfx/texforrest.bmp texforrest.dat texforrest.ast
+%NEDORES% gfx/panel.bmp pal.dat pal.ast
+%NEDORES% gfx/panel.bmp panel16.dat panel16.ast
 %NEDORES% gfx/panel_bw.bmp panel.dat panel.ast
 %NEDORES% gfx/panel_bw.bmp numfont.dat numfont.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% main.asm
