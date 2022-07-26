@@ -106,3 +106,17 @@ Utensils: Teaspoon, Fork, Wooden Spoon, Whisk
 Team 17: Mr Spadge, Pumper Cloggs, Pa Symons, 10BOB Boggy
 Goodbye: Took That, Soasis, Howard Wilkinson, Another Bishop /пародии на названия каких-то старых групп/
 Ourcars: Mazda 626, Toyota MR2 TBar, Hyundai Thingy, Battered Sierra
+
+
+
+что можно улучшить по сравнению с оригиналом:
+- музыка
+- сетевая игра
+- разные прыжки из Armageddon
+- ускорение ползания ритмичным тыканьем из Armageddon
+- mortar, jetpac из Armageddon 
+- можно добавить птицу, по которой можно попасть, и тогда она пикирует и взрывается с огромной силой
+- настроить баланс оружия (например, граната на 70, т.к. ей трудно попасть - а ИИ не давать кидать точно в цель)
+- игра на прохождение
+- ограничить время верёвки
+- время на отход после выстрела

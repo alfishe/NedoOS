@@ -139,11 +139,11 @@ UnDrawOldTitle
         call UnDrawOldTitle_screen
         jp setpgsmain40008000 
 UnDrawOldTitle_screen
-       SCRADDR 10,TITLEY
+       SCRADDR 8,TITLEY
         ld hl,_
         ld e,0 ;e=gfx byte
-        ld bc,8*256+20*4 ;b=hgt,c=wid (/2)
-        jp climgega_onescreen
+        ld bc,8*256+24*4 ;b=hgt,c=wid (/2)
+        jp climgega_onescreen ;TODO надрисовать панельку (её верхушки) с энергией
 
        if 0
 climgega_xy
