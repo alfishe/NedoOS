@@ -39,6 +39,19 @@ MapNextPg
         ld h,0xff
         ret
 
+MapNextPg_de
+       push af
+       push bc
+        ld a,ly
+        sub 4
+        ld ly,a
+        ld a,(iy)
+        SETPGC000
+       pop bc
+       pop af
+        ld d,0xff
+        ret
+
 FindPlacesForGrass ;записывает в grassbuf
 ;по чётным столбцам сверху вниз ищем переходы 0->1
         ld de,grassbuf
@@ -115,17 +128,31 @@ findgrass_empty
 
 MakeMaskFromMap
 ;FIXME в случае неполной маски (нужна защита от влетания в стену на краю карты - надо полную маску или при любой порче ландшафта крайний левый пикс маски формировать из 5 левых пикс, справа аналогично?)
-;x в маске считается для центра червя, x=0 соответствует x=4 в карте
+;TODO x в маске считается для центра червя, x=0 соответствует x=4 в карте
 ;то есть берём байт маски из карты так: ----M-M- M-M-m-m- m-m-----
 
-;TODO
-
-       call SetPgMask
-        ld hl,MASK
-        ld de,MASK+1
+       call SetPgMask8000
+        ld hl,MASK -0x4000
+        ld de,MASK+1 -0x4000
         ld bc,MASKSZ-1
         ld (hl),0
         ldir
+
+        ld hl,MASKDO -0x4000
+        ld e,0xfd
+        ld b,MASKWID
+MakeMaskFromMap0
+        call MakeMaskFromMap_column4
+        inc e
+        call MakeMaskFromMap_column4 ;hl is same
+        inc hl
+        ld a,e
+        sub 5
+        ld e,a
+        djnz MakeMaskFromMap0
+
+       call setpgsmain40008000 
+       call SetPgMask
 
         LD HL,MASKSZ+MASK-(MASKWID*2) ;fill last lines (костыль, пока карты нет)
         LD BC,+(MASKWID*2)*256+255
@@ -139,6 +166,42 @@ MakeMaskFromMap
         LD (HL),C
         INC HL
         DJNZ $-2
+        ret
+
+MakeMaskFromMap_column4
+        ld iy,tpushpgs+SKIPPGS +12 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        call MakeMaskFromMap_column2
+MakeMaskFromMap_column2
+        call MakeMaskFromMap_column
+MakeMaskFromMap_column
+;e=LSB of addr
+;iy=tpushpgs+
+;hl=mask
+        push bc
+        push de
+        push hl
+        push iy
+        ld a,(iy)
+        SETPGC000
+        ld d,0xff-8 ;ноги червя
+        ld bc,MASKWID
+        ld hx,+((BIGMAPHGT-8)/2)&0xff
+MakeMaskFromMap_column0
+        ld a,(de)
+        rla
+        rl (hl)
+        add hl,bc
+        dec d
+        dec d
+        bit 5,d
+        call nz,MapNextPg_de
+        dec hx
+        jr nz,MakeMaskFromMap_column0
+        pop iy
+        pop hl
+        pop de
+        pop bc
+        inc ly
         ret
 
 TexturizeGroundInMap

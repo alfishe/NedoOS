@@ -71,8 +71,8 @@ MT0     LD A,(HL)
        push de
 MT1
 ;TODO 16c font
-_left=1;0xb8
-_right=8;0x47
+_left=1
+_right=8
         xor a
         rlc (hl)
         jr nc,$+4
