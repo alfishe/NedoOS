@@ -117,14 +117,17 @@ PRBT0   LD A,(DE)
 
 BT      DB #E0,#F8,#FE,#FF,3,7,7,7
 
-windRA=#55B9
+windRA=0x55B9
 windRAbit=4
-windLA=#55B6
-windLAbit=32
-windEA=#50F0
+windLA=0x55b0;#55B6
+windLAbit=8;32
+windEA=0x50F0
 windEAbit=4
+windLAwid=47
+windEAwid=119
 
 nrgPLOT
+;CY=pix, e=mask, hl=scraddr
         SBC A,A
         XOR (HL)
         AND E
@@ -142,13 +145,8 @@ nrgPLOT
         LD (HL),A
         DEC H
         DEC H
-        RET 
-nrgGOLEFT
-        RLC E
-        ret nc;JR NC,$+3
-        DEC HL
-        ret
-nrgGORIGHT
+        ;RET 
+;nrgGORIGHT
         RRC E
         ret nc;JR NC,$+3
         INC HL

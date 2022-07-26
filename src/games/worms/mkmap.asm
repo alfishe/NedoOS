@@ -40,7 +40,7 @@ MKMAP
 
        call DrawPie ;7
 
-   if !ATM ;TODO!!!
+   if 0;!ATM ;TODO!!!
 ;add elements:
       if ATM;USELMNBUF
         call GenLMNList
@@ -163,17 +163,17 @@ MKMAPPP
         CALL RND
         AND 127
         add a,28;48
-        LD B,A ;y?
+        LD B,A ;y
         LD HL,DTNTAB+8   ;14
 MKMAP0  LD A,2;4
-        CALL RNDA
+        CALL RNDA ;direction change
         CP 1;2
         SBC A,0;1
-        ADD A,L
-        LD D,L
-        LD L,A
+        ADD A,L ;+old direction
+        LD D,L ;old direction
+        LD L,A ;new direction
         CALL TESTL
-        LD A,D
+        LD A,D ;old direction
         SUB 5
         LD D,A
         LD A,L
@@ -191,7 +191,7 @@ MKMAP0  LD A,2;4
         LD A,3
         CALL RNDA
         INC A
-        LD D,A
+        LD D,A ;steps in this direction
 MKMAP1  PUSH HL
         SLA L
         LD A,(HL)
@@ -235,7 +235,7 @@ MKMAPNY LD B,A
         DEC D
         JR NZ,MKMAP1
         LD A,E
-        CP 4 ;LAST SCREEN
+        CP 3;4 ;after LAST SCREEN
         JR NZ,MKMAP0
         ret
 

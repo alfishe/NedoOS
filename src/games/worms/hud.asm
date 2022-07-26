@@ -84,45 +84,57 @@ PRTEAM0 LD A,(HL)
 
 ;печать полосок энергии и ветра
 DrawEnergy
-        ld a,(wind) ;-46..46
-        add a,47
+        ld a,(wind) ;-46..46 ;TODO на ATM ширина 58 (пересчитать из 128?)
+        add a,windLAwid;47
         ld c,a ;1..46 left, 47 no, 48..93 right
+       ;ld c,1;46
         LD HL,windLA
-        LD b,#2F
+        LD b,windLAwid;47
         LD E,windLAbit;32
 PRnrg0
+        ;LD A,B
+        ;DEC A
+        ;CP C
+        ;ccf
+        ;CALL nrgPLOT
+        ;CALL nrgGOLEFT
         LD A,B
-        DEC A
-        CP C
-        ccf
+        ADD A,C
+        CP windLAwid+1
         CALL nrgPLOT
-        CALL nrgGOLEFT
+        ;CALL nrgGORIGHT
         DJNZ PRnrg0
 windP
         LD HL,windRA
-        LD B,#2F
+        LD b,windLAwid;47
         LD E,windRAbit;4
 PRnrg1
         LD A,B
         ADD A,C
-        CP 95
-        ccf
+        ;CP windLAwid*2+1;95
+        ;ccf
+        jr c,$+4
+        add a,-(windLAwid*2+1)
         CALL nrgPLOT
-        CALL nrgGORIGHT
+        ;CALL nrgGORIGHT
         DJNZ PRnrg1
 PRnrgE
-        ld a,(powr) ;0..118
-        cpl
-        add a,119
+        ld a,(powr) ;0..118 ;TODO на АТМ ширина 148 (пересчитать из 256?)
+        ;cpl
+        ;add a,windEAwid;119
         ld c,a
         LD HL,windEA
-        LD B,#76
+        LD B,windEAwid;-1;#76
         LD E,windEAbit;4
 PRnrg2
-        LD A,c
-        CP b
+        ;LD A,c
+        ;CP b
+         ld a,b
+         add a,c
+         jr c,$+4
+         add a,-windEAwid
         CALL nrgPLOT
-        CALL nrgGORIGHT
+        ;CALL nrgGORIGHT
         DJNZ PRnrg2
         RET 
 

@@ -9,11 +9,13 @@ AnimMines
 
 UnDrawWormsInMap ;FIXME
 DrawWormsInMap
-       if ATM ;TODO!!!
-       ret
+       ;if ATM ;TODO!!!
+       ;ret
+       ;endif
+       if !ATM
+        LD A,PGMAP;16
+        CALL OUTME
        endif
-        ;LD A,PGMAP;16
-        ;CALL OUTME
         ld hl,WORMXY
 DrawWormsInMap0
         ;POP BC ;SPRITE (lsb=xlow*64;32)
@@ -63,11 +65,13 @@ DrawWormsInMap_skip
 
 UnDrawWormsDataInMap ;FIXME
 DrawWormsDataInMap
-       if ATM ;TODO!!!
-       ret
+       ;if ATM ;TODO!!!
+       ;ret
+       ;endif
+       if !ATM
+        LD A,PGMAP;16
+        CALL OUTME
        endif
-        ;LD A,PGMAP;16
-        ;CALL OUTME
         ld hl,WORMXY
 DrawWormsDataInMap0
         ;POP BC ;SPRITE (lsb=xlow*32)
