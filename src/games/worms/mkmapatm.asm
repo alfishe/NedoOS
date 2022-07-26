@@ -26,72 +26,91 @@ ClearMap1
         djnz ClearMap0
         ret
 
-MapNextColumn
-
-;TODO
-
-        ret
-
 MapNextPg
-
-;TODO
-
-        ld h,0xc0
+       push af
+       push bc
+        ld a,ly
+        sub 4
+        ld ly,a
+        ld a,(iy)
+        SETPGC000
+       pop bc
+       pop af
+        ld h,0xff
         ret
 
 FindPlacesForGrass ;записывает в grassbuf
-;TODO
-
-        ret
-       ld a,PGMAP
-       call OUTME
 ;по чётным столбцам сверху вниз ищем переходы 0->1
-        ld ix,grassbuf
-        ld hl,MAP
-        ld bc,MAPWID*4
+        ld de,grassbuf
+        ld c,0xfd
+        ld b,+(MAPWID+1)/2
         xor a ;RLE counter
         ex af,af' ;'
 findgrass_columns0
+        call findgrass_column4
+        inc c
+        call findgrass_column4
+        ld a,c
+        sub 5
+        ld c,a
+        djnz findgrass_columns0
+        xor a
+        ld (de),a;0 ;иначе в последнем столбце может появиться лажа
+        ret
+
+findgrass_column4
+        ld iy,tpushpgs +SKIPPGS+12 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        call findgrass_column2
+findgrass_column2
+        call findgrass_column
+findgrass_column
+;iy=tpushpgs+
+;c=LSB of addr
+;de=gfx
        push bc
-       push hl
-        ld b,MAPHGT-1
+       push iy
+        ld a,(iy)
+        ld h,0xff
+        ld l,c
+        SETPGC000        
+        ld b,BIGMAPHGT-1;MAPHGT-1
 findgrass1
         ld a,(hl)
         cpl
-        and c
-        inc h
+        and 0x47;c
+        dec h ;dec h - это сверху вниз!
+        bit 6,h
+       ;jr z,$
         call z,MapNextPg
         and (hl)
         ex af,af' ;'
         inc a
          jr nz,findgrass_nooverflow
-         ld (ix),a;0 ;0=просто пропуск 255 пикс
-         inc ix
-        ld a,hx
+         ld (de),a;0 ;0=просто пропуск 255 пикс
+         inc de
+        ld a,d
         cp (grassbuf+grassbufsz)/256
         jp z,nowhere ;buffer overflow
          ld a,1
 findgrass_nooverflow
         ex af,af' ;'
         jr z,findgrass_empty
+       ;ld a,(hl)
+       ;xor 0x80
+       ;ld (hl),a
         ex af,af' ;'
-        ld (ix),a
-        inc ix
-        ld a,hx
+        ld (de),a
+        inc de
+        ld a,d
         cp (grassbuf+grassbufsz)/256
         jp z,nowhere ;buffer overflow
         xor a
         ex af,af' ;'
 findgrass_empty
         djnz findgrass1
-       pop hl
+       pop iy
        pop bc
-        call MapNextColumn
-        dec bc
-        ld a,b
-        or c
-        jr nz,findgrass_columns0
-        ld (ix),b;0 ;иначе в последнем столбце может появиться лажа
+        inc ly
         ret
 
 MakeMaskFromMap
@@ -100,9 +119,6 @@ MakeMaskFromMap
 ;то есть берём байт маски из карты так: ----M-M- M-M-m-m- m-m-----
 
 ;TODO
-
-       ld a,PGMAP
-       call OUTME
 
        call SetPgMask
         ld hl,MASK
@@ -128,7 +144,7 @@ MakeMaskFromMap
 TexturizeGroundInMap
         call SetPgTexture8000
         ld de,0x8000
-        ld c,0xfd
+        ld c,0xfd ;c=LSB of addr
 TexturizeGroundInMap0
         call TexturizeGroundInMappp4
         inc c
@@ -137,21 +153,17 @@ TexturizeGroundInMap0
         sub 5
         ld c,a
         jr nc,TexturizeGroundInMap0
-        call setpgsmain40008000
-        ret
+        jp setpgsmain40008000
 
-TexturizeGroundInMappp4        
+TexturizeGroundInMappp4
+;c=LSB of addr
         ld hl,tpushpgs +SKIPPGS+12 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        call TexturizeGroundInMappp2
+TexturizeGroundInMappp2
         call TexturizeGroundInMappp
-        inc l
-        call TexturizeGroundInMappp
-        inc l
-        call TexturizeGroundInMappp
-        inc l
-        ;call TexturizeGroundInMappp
 TexturizeGroundInMappp
 ;hl=tpushpgs+
-;c="l"
+;c=LSB of addr
 ;de=gfx
         push hl
         ld b,4
@@ -189,12 +201,106 @@ TexturizeGround1
         ex de,hl
         pop hl
         res 5,d
+        inc l
         ret
 
 AddGrassInMap
-
-;TODO
-
+        ld ix,grassbuf
+        ld c,0xfd ;c=LSB of addr
+        ld b,+(MAPWID+1)/2
+        xor a ;RLE counter
+        ex af,af' ;'
+addgrass_columns0
+        call addgrass_column4
+        inc c
+        call addgrass_column4
+        ld a,c
+        sub 5
+        ld c,a
+        djnz addgrass_columns0
+        ret
+        
+addgrass_column4
+        ld iy,tpushpgs +SKIPPGS+12 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        call addgrass_column2
+addgrass_column2
+        call addgrass_column
+addgrass_column
+;iy=tpushpgs+
+;c=LSB of addr
+;de=gfx
+       push bc
+       push iy
+        ld a,(iy)
+        ld h,0xff
+        ld l,c
+        SETPGC000
+        ld b,BIGMAPHGT-1;MAPHGT-1
+addgrass0
+        ;dec h
+        ;bit 6,h
+        ;call z,MapNextPg
+        ex af,af' ;'
+addgrass_noadd1
+        inc a
+        cp (ix)
+        jr nz,addgrass_noadd
+        inc ix
+         or a
+         jr z,addgrass_noadd1 ;0=просто пропуск 255 пикс
+     push bc
+     push hl
+     push iy
+        LD de,grass16
+        ld a,ly
+        and 3 ;xphase
+        add a,a
+        add a,a
+        add a,a
+        add a,e
+        ld e,a
+        jr nc,$+3
+        inc d
+addgrass1
+        ld a,(de)
+        or a
+        jr z,addgrass1q
+       and 0x47
+       jr z,addgrass_noleft
+       xor (hl)
+       and 0x47
+       xor (hl)
+       ld (hl),a
+addgrass_noleft
+        ld a,(de)
+       and 0xb8
+       jr z,addgrass_noright
+       xor (hl)
+       and 0xb8
+       xor (hl)
+       ld (hl),a
+addgrass_noright
+        dec h
+        bit 6,h
+        call z,MapNextPg
+        inc de
+        djnz addgrass1 ;чтобы не вылететь за карту
+addgrass1q
+     pop iy
+        ld a,(iy)
+        SETPGC000
+     pop hl
+     pop bc
+        xor a
+addgrass_noadd
+        ex af,af' ;'
+        dec h
+        bit 6,h
+        call z,MapNextPg
+        djnz addgrass0
+       pop iy
+       pop bc
+        inc ly
         ret
 
 PRLMNerror
@@ -212,10 +318,7 @@ PRLMN
 ;draw element in map and mask
 ;c=X (in chr)
 ;b=N
-       push bc
-       ld a,PGLMN
-       call OUTME
-       pop bc
+       call SetPgLmn8000
 
         ld a,b
         SCF 
@@ -346,8 +449,8 @@ PRLMNmask2
         
 ;TODO
         
-       LD A,PGMAP;16
-       CALL OUTME
+       ;LD A,PGMAP;16
+       ;CALL OUTME
         POP BC ;width,hgt
         POP DE ;gfx
         
@@ -362,6 +465,7 @@ PRLMNmask2
        ;or a ;NC
         RET 
 
+       if 0
 CheckGroundExist ;проверяем, есть ли земля на ниж. линии (CY=error)
 
 ;TODO
@@ -371,3 +475,48 @@ CheckGroundExist ;проверяем, есть ли земля на ниж. ли
         ret nz
         scf
         ret ;error ;нет земли на ниж. линии
+       endif
+
+EorFillInMap
+        ld c,0xfd ;c=LSB of addr
+EorFillInMap0
+        call EorFillInMap_column4
+        inc c
+        call EorFillInMap_column4
+        ld a,c
+        sub 5
+        ld c,a
+        jr nc,EorFillInMap0
+        ret
+        
+EorFillInMap_column4
+;c=LSB of addr
+        ld iy,tpushpgs + SKIPPGS+12
+        call EorFillInMap_column2
+EorFillInMap_column2
+        call EorFillInMap_column
+EorFillInMap_column
+        xor a ;TODO 0xff для пещер
+;a=накопленный байт
+;iy=tpushpgs+
+;c=LSB of addr
+;b=число страниц осталось в этом столбце
+       push bc
+       push iy
+       push af
+        ld a,(iy)
+        ld h,0xff
+        ld l,c
+        SETPGC000
+       pop af
+        LD B,BIGMAPHGT&0xff
+MKMAPF0 XOR (HL)
+        LD (HL),A
+        dec h
+        bit 6,h
+        call z,MapNextPg
+        DJNZ MKMAPF0
+       pop iy
+       pop bc
+        inc ly
+        ret

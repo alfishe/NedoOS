@@ -8,23 +8,44 @@ DrawPieHL
 
 DrawPanel
 ;hl=panel
-
-;TODO
-
-        ret
+        ex de,hl
+        call setpgsscr40008000
+        call SetPgTextureC000
+        ld bc,38*256+160
+        ld hl,0x4000+(40*162)
+       push bc
+       push de
+       push hl
+        call primgega_onescreen
+        call changescrpg
+        call setpgsscr40008000
+       pop hl
+       pop de
+       pop bc
+        call primgega_onescreen
+        ;call changescrpg
+        jp setpgsmain40008000
 
 ;печать игрового сообщения
 DrawTitle
         CALL UnDrawOldTitle
         LD A,15
         LD (STCNTa),A
+        push hl
+        call DrawTitle_screen
+        pop hl
+        call DrawTitle_screen
+        LD (curdrawingtitle),HL
+        jp setpgsmain40008000 
+DrawTitle_screen
+        call setpgsscr40008000
         LD C,(HL) ;len
         INC L
-        LD A,32
+        LD A,40;32
         SUB C
        ;RET C
         RRA ;x
-       SCRADDR 0,128
+       SCRADDR 0,TITLEY
        ld de,_
        add a,e
        ld e,a
@@ -33,30 +54,88 @@ DrawTitle
 MT0     LD A,(HL)
         INC L
         sub 32;CP 32
-        JR Z,MTSPC        
+        ;JR Z,MTSPC        
         PUSH HL
-        
-        LD H,FONT88/2/256
-        RLCA
-        rlca
+        LD H,FONT88/256
+        add a,a
+        add a,a
+        add a,a
         LD L,A
-        add hl,hl
+        jr nc,$+3
+        inc h
         LD B,8
+       push de
 MT1
-
-;TODO
-
+;TODO 16c font
+_left=1;0xb8
+_right=8;0x47
+        xor a
+        rlc (hl)
+        jr nc,$+4
+        or _left
+        rlc (hl)
+        jr nc,$+4
+        or _right        
+        ld (de),a
+        ld a,d
+        add a,0x40
+        ld d,a
+        xor a
+        rlc (hl)
+        jr nc,$+4
+        or _left
+        rlc (hl)
+        jr nc,$+4
+        or _right        
+        ld (de),a
+        ld a,d
+        add a,0x20-0x40
+        ld d,a
+        xor a
+        rlc (hl)
+        jr nc,$+4
+        or _left
+        rlc (hl)
+        jr nc,$+4
+        or _right        
+        ld (de),a
+        ld a,d
+        add a,0x40
+        ld d,a
+        xor a
+        rlc (hl)
+        jr nc,$+4
+        or _left
+        rlc (hl)
+        jr nc,$+4
+        or _right        
+        ld (de),a
+        ld a,e
+        add a,40
+        ld e,a
+        ld a,d
+        adc a,-0x60
+        ld d,a
+        inc l
         DJNZ MT1
+       pop de
 
         POP HL
-MTSPC   INC E
+MTSPC   INC de ;scraddr
         DEC C
         JR NZ,MT0
-        LD (curdrawingtitle),HL
-        RET 
+        push hl
+        call changescrpg
+        pop hl
+        ret
 
 UnDrawOldTitle
-
+        push hl
+        call UnDrawOldTitle_screen
+        pop hl
+        call UnDrawOldTitle_screen
+        jp setpgsmain40008000 
+UnDrawOldTitle_screen
 ;TODO
 
         ret

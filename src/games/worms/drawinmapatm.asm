@@ -104,19 +104,22 @@ PrepareXorPixInMap
         ret
 
 XorPixInMap
-;b=y
+;b=y (от верхнего края TERRAIN)
 ;ec=x
-        LD A,B
+       LD A,B
        add a,MAPHGT-TERRAINHGT
         SUB TERRAINHGT;MAPHGT
-        RET NC
+       RET NC
+;a=-TERRAINHGT..-1
        PUSH BC
        PUSH HL
       push de
       push ix
-       neg
+       ;neg
+       ;ld b,a
+        ;ld a,b ;y
+       cpl
        ld b,a
-        ld a,b ;y
         rlca
         rlca
         and 3 ;y/64
@@ -129,20 +132,16 @@ XorPixInMap
        jr nc,XorPixInMap_right
         ld lx,0xb8
 XorPixInMap_right
-        srl e
-        rr c
-        rra
-        srl e
-        rr c
-        rra
-        rlca
-        rlca
-        ;cpl
+        ld a,c
         and 3 ;x layer
         add a,l
        add a,SKIPPGS
         ld l,a;0
         ld h,tpushpgs/256 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        srl e
+        rr c
+        srl e
+        rr c
         ld a,(hl)
         push bc
         SETPGC000
@@ -185,16 +184,16 @@ PrepareUnSetPixInMap
 UnSetPixInMap ;and in mask
 ;b=y
 ;ec=x
-        LD A,B
-       add a,MAPHGT-TERRAINHGT
-        SUB TERRAINHGT;MAPHGT
-        RET NC
+       ; LD A,B
+       ;add a,MAPHGT-TERRAINHGT
+       ; SUB TERRAINHGT;MAPHGT
+       ; RET NC ;TODO чтобы не вырезало потолок, если взорван пол! или проверять в самом круге
        PUSH BC
        PUSH HL
       push de
       push ix
-       neg
-       ld b,a
+       ;neg
+       ;ld b,a
         ld a,b ;y
         rlca
         rlca
@@ -257,58 +256,3 @@ UnSetPixInMap_right
        POP HL
        POP BC
         RET 
-
-EorFillInMap
-        ld hl,tpushpgs + SKIPPGS+15
-        dec l
-        call EorFillInMappp
-        dec l
-        call EorFillInMappp
-        dec l
-        call EorFillInMappp
-        dec l
-EorFillInMappp
-        ld e,0xfd
-EorFillInMap0
-        call EorFillInMap_column
-        inc e
-        call EorFillInMap_column
-        ld a,e
-        sub 5
-        ld e,a
-        jr nc,EorFillInMap0
-        ret
-        
-EorFillInMap_column
-        push hl
-        xor a
-        ld b,4
-EorFillInMap_column0
-;a=накопленный байт
-;hl=tpushpgs+
-;e=LSB of addr
-;b=число страниц осталось в этом столбце
-       push bc
-       push de
-       push hl
-       push af
-        ld a,(hl)
-        SETPGC000
-       pop af
-        ld h,0xff
-        ld l,e
-        LD B,64;MAPHGT
-MKMAPF0 XOR (HL)
-        LD (HL),A
-        dec h
-        DJNZ MKMAPF0
-       pop hl
-       pop de
-       pop bc
-        dec l
-        dec l
-        dec l
-        dec l
-        djnz EorFillInMap_column0
-        pop hl
-        ret

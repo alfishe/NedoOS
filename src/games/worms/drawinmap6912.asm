@@ -122,7 +122,7 @@ PrepareXorPixInMap
         ret
 
 XorPixInMap
-;b=y
+;b=y (от верхнего края TERRAIN)
 ;ec=x
         LD A,B
        add a,MAPHGT-TERRAINHGT
@@ -249,23 +249,3 @@ UnSetPixInMapq
        POP BC
        POP HL
         RET 
-
-EorFillInMap
-        LD A,PGMAP;16
-        CALL OUTME
-
-        LD HL,MAP;#C000
-        LD DE,MAPWID
-        LD C,E
-MKMAPF  PUSH HL
-        LD B,MAPHGT
-        XOR A
-MKMAPF0 XOR (HL)
-        LD (HL),A
-        ADD HL,DE
-        DJNZ MKMAPF0
-        POP HL
-        INC L
-        DEC C
-        JR NZ,MKMAPF
-        ret

@@ -10,6 +10,7 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 %NEDORES% gfx/sprites_bw.bmp sprites.dat sprites.ast
 %NEDORES% gfx/texmars_bw.bmp texture.dat texture.ast
 %NEDORES% gfx/texforrest.bmp texforrest.dat texforrest.ast
+%NEDORES% gfx/grass.bmp grass16.dat grass16.ast
 %NEDORES% gfx/panel.bmp pal.dat pal.ast
 %NEDORES% gfx/panel.bmp panel16.dat panel16.ast
 %NEDORES% gfx/panel_bw.bmp panel.dat panel.ast
@@ -43,5 +44,5 @@ rem unreal test.scl
 @cd ../../../src/
 @call ..\tools\chkimg.bat sd
  rem pause
-@if "%makeall%"=="" ..\us\emul.exe
+@if "%makeall%"=="" ..\us\emul.exe games\worms\worms.trd
 )

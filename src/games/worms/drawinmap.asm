@@ -12,8 +12,8 @@ DrawWormsInMap
        if ATM ;TODO!!!
        ret
        endif
-        LD A,PGMAP;16
-        CALL OUTME
+        ;LD A,PGMAP;16
+        ;CALL OUTME
         ld hl,WORMXY
 DrawWormsInMap0
         ;POP BC ;SPRITE (lsb=xlow*64;32)
@@ -66,8 +66,8 @@ DrawWormsDataInMap
        if ATM ;TODO!!!
        ret
        endif
-        LD A,PGMAP;16
-        CALL OUTME
+        ;LD A,PGMAP;16
+        ;CALL OUTME
         ld hl,WORMXY
 DrawWormsDataInMap0
         ;POP BC ;SPRITE (lsb=xlow*32)

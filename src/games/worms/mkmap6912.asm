@@ -437,6 +437,7 @@ copyLMNok
 ;MKMAP_copyLMNbug ;при послеигровой генерации на 48K {0x4000}=0
         ret
 
+       if 0
 CheckGroundExist ;проверяем, есть ли земля на ниж. линии (CY=error)
        ld a,PGMAP
        call OUTME ;технически не нужно, т.к. вызывается после MKMAPPP
@@ -449,3 +450,24 @@ CheckGroundExist ;проверяем, есть ли земля на ниж. ли
         ret nz
         scf
         ret ;error ;нет земли на ниж. линии
+       endif
+
+EorFillInMap
+        LD A,PGMAP;16
+        CALL OUTME
+
+        LD HL,MAP;#C000
+        LD DE,MAPWID
+        LD C,E
+MKMAPF  PUSH HL
+        LD B,MAPHGT
+        XOR A
+MKMAPF0 XOR (HL)
+        LD (HL),A
+        ADD HL,DE
+        DJNZ MKMAPF0
+        POP HL
+        INC L
+        DEC C
+        JR NZ,MKMAPF
+        ret

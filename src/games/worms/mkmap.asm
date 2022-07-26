@@ -10,12 +10,17 @@ MKMAP
        call DrawPie ;1
 
         call MKMAPPP ;generate map contour ;CY=error
-        call CheckGroundExist ;проверяем, есть ли земля на ниж. линии (CY=error)
-        jr c,MKMAP ;error
+        ;call CheckGroundExist ;проверяем, есть ли земля на ниж. линии (CY=error)
+        ;jr c,MKMAP ;error
 
        call DrawPie ;2
 
         call EorFillInMap
+
+        ;ld b,0
+        ;ld e,0
+        ;ld c,10
+        ;call XorPixInMap
 
        call DrawPie ;3
 
