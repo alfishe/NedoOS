@@ -9,9 +9,6 @@ AnimMines
 
 UnDrawWormsInMap ;FIXME
 DrawWormsInMap
-       ;if ATM ;TODO!!!
-       ;ret
-       ;endif
        if !ATM
         LD A,PGMAP;16
         CALL OUTME
@@ -65,9 +62,6 @@ DrawWormsInMap_skip
 
 UnDrawWormsDataInMap ;FIXME
 DrawWormsDataInMap
-       ;if ATM ;TODO!!!
-       ;ret
-       ;endif
        if !ATM
         LD A,PGMAP;16
         CALL OUTME
@@ -126,6 +120,7 @@ SPRINTnam
         CALL Pr2CharsInMap
         INC HL
         DJNZ SPRINTnam
+        dec hl ;чтобы можно было использовать hl для указания на команду (т.е. на цвет)
        pop bc ;yx
        ld a,b
        add a,6
@@ -164,8 +159,19 @@ DrawWormsDataInMap_skip
 UnDrawCircleInMap
 ;d,lxe=y0,x0
 ;b=R
+       push bc
+       push de
+       push ix
         call PrepareUnSetPixInMap
-        
+        ld hl,UnSetPixInMap
+        call UnDrawCircle
+        call SetPgMask
+       pop ix
+       pop de
+       pop bc
+        ld hl,UnSetPixInMask
+UnDrawCircle
+        ld (hline_unsetpixpatch),hl
         LD L,B,H,#00 ;hl=R
         ADD HL,HL ;hl=curwidth=R*2
        PUSH DE
@@ -269,10 +275,56 @@ hline_hx
 ;ec=x
 ;hx=len
 hline0
-        call UnSetPixInMap
+hline_unsetpixpatch=$+1
+        call UnSetPixInMap ;/UnSetPixInMask
         inc c
         jr nz,$+3
          inc e
         dec hx ;--
         jr nz,hline0
         ret
+
+UnSetPixInMask
+;b=y (TODO /2)
+;ec=x (TODO /2)
+        LD A,B
+       add a,MAPHGT-TERRAINHGT
+        SUB TERRAINHGT;MAPHGT
+        RET NC
+      PUSH HL
+      push bc
+        sub 8 ;таблица строк маски использует координату "y" для ног, т.е. на 8 пикс ниже
+        ld l,a
+        ld b,e
+        srl b ;xhigh
+        rr c ;xlow
+        dec bc
+        dec bc ;маска рассчитана под "x" центра червя, т.е. сдвинута на 4 больших (2 масочных) пикс
+        LD H,TMASKLN/256
+        LD A,C
+        AND 0xf8
+        ADD A,b ;0/1 = xhigh/2
+        RRCA 
+        RRCA 
+        RRCA 
+        CP MASKWID
+        JR NC,UnSetPixInMaskq
+        ADD A,(HL)
+        INC H
+        LD H,(HL)
+        LD L,A
+        JR NC,$+3
+        INC H
+        LD A,C
+        AND 7
+        INC A
+        LD B,A
+        LD A,0xfe
+        RRCA 
+        DJNZ $-1
+        and (HL)
+        LD (HL),A
+UnSetPixInMaskq
+      POP BC
+      POP HL
+        RET 

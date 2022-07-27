@@ -15,6 +15,8 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 %NEDORES% gfx/panel.bmp panel16.dat panel16.ast
 %NEDORES% gfx/panel_bw.bmp panel.dat panel.ast
 %NEDORES% gfx/panel_bw.bmp numfont.dat numfont.ast
+
+echo ATM=0 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% main.asm
 rem sjasmplus depkmain.asm
 nedotrd basic.trd -eh boot.$b > nul
@@ -30,9 +32,28 @@ nedotrd worms.trd -ac hicode2.c
 rem del code.c
 rem del code.c.mlz
 rem del depkcode.c
-rem ..\us\emulatm test.scl
-rem emul worms.trd > nul
-rem unreal test.scl
+
+%SJASMPLUS% %SJASMPLUSFLAGS% main.asm
+rem sjasmplus depkmain.asm
+del test.tap
+del worms.tap
+rem mhmt -mlz code.c
+del code.bin
+rem copy /b depkcode.c + code.c.mlz code.bin
+copy /b code.c code.bin
+copy /b hicode.c hicode.bin
+copy /b hicode2.c hicode2.bin
+bas2tap -a10 loader.txt worms.tap
+rem bin2tap -b -a 24576 -r 24576 -o worms.tap code.bin
+bin2tap -append -a 49152 -o worms.tap hicode.bin
+bin2tap -append -a 49152 -o worms.tap hicode2.bin
+bin2tap -append -a 24576 -o worms.tap code.bin
+rem del code.bin
+rem del code.c.mlz
+rem del depkcode.c
+
+echo ATM=1 > settings.ast
+%SJASMPLUS% %SJASMPLUSFLAGS% main.asm
 
 @SET releasedir2=../../../release/
 @if "%currentdir%"=="" (
@@ -44,5 +65,6 @@ rem unreal test.scl
 @cd ../../../src/
 @call ..\tools\chkimg.bat sd
  rem pause
+rem @if "%makeall%"=="" ..\us\emul.exe games\worms\worms.trd games\worms\worms.tap
 @if "%makeall%"=="" ..\us\emul.exe games\worms\worms.trd
 )

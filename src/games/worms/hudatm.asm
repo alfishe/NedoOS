@@ -68,6 +68,14 @@ MT0     LD A,(HL)
         jr nc,$+3
         inc h
         LD B,8
+        call DrawCharHgtB
+        POP HL
+MTSPC   INC de ;scraddr
+        DEC C
+        JR NZ,MT0
+        ret
+
+DrawCharHgtB
        push de
 MT1
 ;TODO 16c font
@@ -120,30 +128,38 @@ _right=8
         ld a,d
         adc a,-0x60
         ld d,a
-        inc l
+        inc hl
         DJNZ MT1
        pop de
-
-        POP HL
-MTSPC   INC de ;scraddr
-        DEC C
-        JR NZ,MT0
         ret
 
 UnDrawOldTitle
         push hl
-        call setpgsscr40008000
-        call UnDrawOldTitle_screen
-        call setpgsscr40008000_current
-        pop hl
-        call UnDrawOldTitle_screen
-        jp setpgsmain40008000 
-UnDrawOldTitle_screen
        SCRADDR 8,TITLEY
         ld hl,_
         ld e,0 ;e=gfx byte
         ld bc,8*256+24*4 ;b=hgt,c=wid (/2)
-        jp climgega_onescreen ;TODO надрисовать панельку (её верхушки) с энергией
+        call climgega
+         ;TODO надрисовать панельку (её верхушки) с энергией
+        pop hl
+        ret
+climgega
+;hl=scr
+;e=gfx byte
+;b=hgt,c=wid (/2)
+        push bc
+        call setpgsscr40008000
+        pop bc
+        push bc
+        push de
+        push hl
+        call climgega_onescreen
+        call setpgsscr40008000_current
+        pop hl
+        pop de
+        pop bc
+        call climgega_onescreen
+        jp setpgsmain40008000 
 
        if 0
 climgega_xy
@@ -274,6 +290,7 @@ nrgPLOT
         ld e,a
         rla;cp 8
         ret c;nc
+NextColumn
         ld a,h
         xor 0x40^0x80
         ld h,a
@@ -327,20 +344,25 @@ DrawTime
        bit 0,c
        ret nz
         ;LD D,61 ;ROM font FIXME
+      push bc
        ld hl,numfont
-       ld a,b
+       ld c,b
        ld b,0
        add hl,bc
-       ex de,hl
-       ld bc,numfont
-       add a,c
-       ld c,a
-       jr nc,$+3
-       inc b
-        ;LD E,B
-        ;SET 7,E
-        ;LD B,D
-        ;SET 7,C
+       SCRADDR 1,140
+        ld de,_
+        call setpgsscr40008000
+        ld b,16
+        call DrawCharHgtB
+        inc de
+      pop bc
+       ld hl,numfont
+       ld b,0
+       add hl,bc
+        ld b,16
+        call DrawCharHgtB
+        jp setpgsmain40008000
+        
 DrawTime_Go
 
 ;TODO
@@ -352,10 +374,23 @@ Hud_ResetTimeAttrHL
         RET 
 
 cls
-
-;TODO
-
-        ret
+;по идее не надо чистить панельку
+;нельзя использовать OS_SETSCREEN - он используется в прерывании
+       if 1
+       SCRADDR 0,0
+        ld hl,_
+        ld e,0 ;e=gfx byte
+        ld bc,TITLEY*256+40*4 ;b=hgt,c=wid (/2)
+        jp climgega
+       else
+        ld e,0 ;color byte
+        OS_CLS
+        call changescrpg
+        halt
+        ld e,0 ;color byte
+        OS_CLS
+        jp changescrpg
+       endif
 
 PR64
 
@@ -376,13 +411,86 @@ PRSTAR
         RET 
 
 ENRAMKA
-
-;TODO
-
+;hl=scr
+        call setpgsscr40008000
+       push hl
+        call EnRamka_onescreen
+        call setpgsscr40008000_current
+       pop hl
+        call EnRamka_onescreen
+        jp setpgsmain40008000
+EnRamka_onescreen
+        ld c,0xff
+        push hl
+        call EnRamka_horline
+        pop hl
+        ld b,RAMKAHGT-1
+EnRamka_onescreen0
+        push bc
+        ld de,40
+        add hl,de
+        push hl
+        ld a,c
+        and 0xb8 ;right
+        ld (hl),a
+        ld de,RAMKAWID-1
+        add hl,de
+        call NextColumn
+        call NextColumn
+        call NextColumn
+        ld a,c
+        and 0x47 ;left
+        ld (hl),a
+        pop hl
+        pop bc
+        djnz EnRamka_onescreen0
+EnRamka_horline
+;c=color byte
+        ld a,c
+        and 0xb8 ;right
+        ld (hl),a
+        ld b,RAMKAWID*4-1
+        call ScrHorLine
+        ld a,c
+        and 0x47 ;left
+        ld (hl),a
+        ret
+ScrHorLine
+;b=wid
+;c=color byte
+EnRamka_horline0
+        call NextColumn
+        ld (hl),c
+        djnz EnRamka_horline0
         RET 
 
-ENFAKE ;рисуем полную энергию у команды
-
-;TODO
-
+ENFAKE
+;рисуем полную энергию у команды
+;hl=scr
+        call setpgsscr40008000
+       push hl
+        call EnFake_onescreen
+        call setpgsscr40008000_current
+       pop hl
+        call EnFake_onescreen
+        jp setpgsmain40008000
+EnFake_onescreen
+        ld c,0xff-((15-9)*9) ;color9 (yellow)
+        LD b,5
+ENFAKE0 push bc
+        PUSH HL
+        call NextColumn
+        ld a,c
+        and 0xb8 ;right
+        ld (hl),a
+        LD B,RAMKAWID*4-3
+        call ScrHorLine
+        ld a,c
+        and 0x47 ;left
+        ld (hl),a
+        POP HL
+        ld de,40
+        add hl,de
+        pop bc
+        djnz ENFAKE0
         RET 

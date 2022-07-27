@@ -228,6 +228,7 @@ Hud_ResetTimeAttrHL
         RET 
 
 cls
+;не чистит панельку
        ld hl,0x4000
         ld b,192-32
 cls0
@@ -383,15 +384,16 @@ PRSTAR1 LD A,(DE)
 SPRSTAR
         DB 8,12,#1C,-1,127,62,62,#66,66
 ENRAMKA
-        LD BC,#DFF
+;hl=scr
+        LD BC,+(RAMKAWID-1)*256+0xff
         LD D,H
         LD E,L
-        LD (HL),127
+        LD (HL),0x7f
         INC L
-        LD (HL),C
+        LD (HL),C ;0xff
         DJNZ $-2
-        DEC (HL)
-        LD B,15
+        DEC (HL) ;0xfe
+        LD B,RAMKAHGT-1;15
 ENRAMK0 CALL DHL
         SET 1,(HL)
         EX DE,HL
@@ -399,24 +401,24 @@ ENRAMK0 CALL DHL
         SET 6,(HL)
         EX DE,HL
         DJNZ ENRAMK0
-        LD B,13
-        LD (HL),-2
+        LD B,RAMKAWID-1;13
+        LD (HL),0xfe
         DEC L
-        LD (HL),C
+        LD (HL),C ;0xff
         DJNZ $-2
-        LD (HL),127
+        LD (HL),0x7f
         RET 
 ENFAKE
 ;рисуем полную энергию у команды
 ;hl=scr
         LD E,5
 ENFAKE0 PUSH HL
-        LD (HL),#5F
-        LD B,13
+        LD (HL),0x5F ;0x40 от рамки слева
+        LD B,RAMKAWID-1;13
         INC L
         LD (HL),C
         DJNZ $-2
-        LD (HL),-6
+        LD (HL),0xfa ;0x02 от рамки справа
         POP HL
         CALL DHL
         DEC E

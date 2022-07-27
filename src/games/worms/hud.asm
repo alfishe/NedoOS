@@ -3,48 +3,48 @@
 ;печать панельки энергии и ветра + названия команд
 DrawEnergyPanel
         call ClearEnergyPanel
-       SCRADDR 1,4
+       SCRADDR RAMKAX,4
         LD HL,_;#4401
         CALL ENRAMKA
-       SCRADDR 17,4
+       SCRADDR RAMKAX+16,4
         LD HL,_;#4411
         CALL ENRAMKA
-       SCRADDR 1,6
+       SCRADDR RAMKAX,6
         LD HL,_;#4601
         CALL ENFAKE ;рисуем полную энергию у команды
-       SCRADDR 1,6+7
+       SCRADDR RAMKAX,6+7
         LD HL,_
         CALL ENFAKE ;рисуем полную энергию у команды
-       SCRADDR 17,6
+       SCRADDR RAMKAX+16,6
         LD HL,_;#4611
         CALL ENFAKE ;рисуем полную энергию у команды
-       SCRADDR 17,6+7
+       SCRADDR RAMKAX+16,6+7
         LD HL,_
         CALL ENFAKE ;рисуем полную энергию у команды
         LD HL,CUTEAMS
-       SCRADDR 2,1
+       SCRADDR RAMKAX+1,1
         LD DE,_;#4102
         CALL PRTEAM
-       SCRADDR 2,16
+       SCRADDR RAMKAX+1,16
         LD DE,_;#4042
         CALL PRTEAM
-       SCRADDR 30,1
+       SCRADDR RAMKAX+29,1
         LD DE,_;#411E
         CALL PRTEAM
-       SCRADDR 30,16
+       SCRADDR RAMKAX+29,16
         LD DE,_;#405E
         CALL PRTEAM
 
-       SCRADDR 0,0
+       SCRADDR RAMKAX-1,0
         LD HL,_;#4000
         CALL PRSTAR
-       SCRADDR 31,0
+       SCRADDR RAMKAX+30,0
         LD HL,_;#401F
         CALL PRSTAR
-       SCRADDR 0,15
+       SCRADDR RAMKAX-1,15
         LD HL,_;#4720
         CALL PRSTAR
-       SCRADDR 31,15
+       SCRADDR RAMKAX+30,15
         LD HL,_;#473F
         jp PRSTAR
         

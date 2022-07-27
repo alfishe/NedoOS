@@ -49,7 +49,8 @@ SPRINT0 LD A,(DE)
 
 SetXYInMap
 ;b=y
-;c=x
+;c=x/4
+;hl=NAMES+ (по нему /(4*12) можно вычислить номер команды и найти цвет)
          push bc
          exx
          pop bc
@@ -167,7 +168,7 @@ PrepareUnSetPixInMap
         pop bc
         ret
 
-UnSetPixInMap ;and in mask
+UnSetPixInMap
 ;b=y
 ;ec=x
         LD A,B
@@ -177,7 +178,7 @@ UnSetPixInMap ;and in mask
        PUSH HL
        PUSH BC
         LD H,TMAPLN/256
-        LD L,A
+         LD L,A
         LD A,C
         AND 0xf8
         ADD A,E
@@ -186,7 +187,6 @@ UnSetPixInMap ;and in mask
         RRCA 
         CP MAPWID
         JR NC,UnSetPixInMapq
-       push hl
         ADD A,(HL)
         INC H
         LD H,(HL)
@@ -202,49 +202,6 @@ UnSetPixInMap ;and in mask
         DJNZ $-1
         and (HL)
         LD (HL),A
-       call SetPgMask
-       pop hl
-       pop bc
-       push bc
-       push de
-        ld a,l
-        sub 8 ;таблица строк маски использует координату "y" для ног, т.е. на 8 пикс ниже
-        ld l,a
-        srl e ;xhigh
-        rr c ;xlow
-       ld a,c
-       sub 2 ;маска рассчитана под "x" центра червя, т.е. сдвинута на 4 больших (2 масочных) пикс
-       ld c,a
-       jr nc,$+3
-       dec e
-        LD H,TMASKLN/256
-        LD A,C
-        AND 0xf8
-        ADD A,E
-        RRCA 
-        RRCA 
-        RRCA 
-       pop de
-        CP MASKWID
-        JR NC,UnSetPixInMaskq
-        ADD A,(HL)
-        INC H
-        LD H,(HL)
-        LD L,A
-        JR NC,$+3
-        INC H
-        LD A,C
-        AND 7
-        INC A
-        LD B,A
-        LD A,0xfe
-        RRCA 
-        DJNZ $-1
-        and (HL)
-        LD (HL),A
-UnSetPixInMaskq
-        LD A,PGMAP
-        CALL OUTME
 UnSetPixInMapq
        POP BC
        POP HL
