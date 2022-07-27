@@ -393,15 +393,71 @@ cls
        endif
 
 PR64
+;de=scr
+;a=char
+       push bc
+       push hl
+       push af
+        call setpgsscr40008000
+       pop af
+       push af
+        call PR64_screen
+        call setpgsscr40008000_current
+       pop af
+        call PR64_screen
+        call setpgsmain40008000
+        ex de,hl
+        call NextColumn
+        call NextColumn
+        ex de,hl
+       pop hl
+       pop bc
+        ret
+PR64_screen
+       push de
+        SUB 32
+        ADD A,A
+        ADD A,A
+        ADD A,A
+        LD L,A
+        LD H,FONT/256
+        jr nc,$+3
+        inc h
+        LD B,7
+PR640
+_left=1
+_right=8
+        xor a
+        rlc (hl)
+        jr nc,$+4
+        or _left
+        rlc (hl)
+        jr nc,$+4
+        or _right        
+        ld (de),a
+        ld a,d
+        add a,0x40
+        ld d,a
+        xor a
+        rlc (hl)
+        jr nc,$+4
+        or _left
+        rlc (hl)
+        jr nc,$+4
+        or _right        
+        ld (de),a
+        ld a,e
+        add a,40
+        ld e,a
+        ld a,d
+        adc a,-0x40
+        ld d,a
+        inc hl
+        DJNZ PR640
+       pop de
+        ret
 
-;TODO
-
-        RET 
-
-ClearEnergyPanel
-
-;TODO
-
+ClearEnergyPanel ;не нужно для АТМ (на 6912 чистит грязь от генератора карты и ставит атрибуты сверху)
         RET 
 
 PRSTAR
@@ -467,15 +523,20 @@ EnRamka_horline0
 ENFAKE
 ;рисуем полную энергию у команды
 ;hl=scr
+;c=color byte
+        push bc
         call setpgsscr40008000
+        pop bc
+       push bc
        push hl
         call EnFake_onescreen
         call setpgsscr40008000_current
        pop hl
+       pop bc
         call EnFake_onescreen
         jp setpgsmain40008000
 EnFake_onescreen
-        ld c,0xff-((15-9)*9) ;color9 (yellow)
+        ;ld c,0xff-((15-9)*9) ;color9 (yellow)
         LD b,5
 ENFAKE0 push bc
         PUSH HL

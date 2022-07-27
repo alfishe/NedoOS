@@ -123,9 +123,9 @@ PrepareXorPixInMap
         ret
 
 XorPixInMap
-;b=y (от верхнего края TERRAIN)
-;ec=x
-        LD A,B
+;e=y (от верхнего края TERRAIN)
+;bc=x
+        LD A,e
        add a,MAPHGT-TERRAINHGT
         SUB TERRAINHGT;MAPHGT
         RET NC
@@ -133,9 +133,9 @@ XorPixInMap
        PUSH HL
         LD H,TMAPLN/256
         LD L,A
-        LD A,C
+        LD A,C ;xlow
         AND 0xf8
-        ADD A,E
+        ADD A,b ;xhigh
         RRCA 
         RRCA 
         RRCA 
@@ -169,24 +169,24 @@ PrepareUnSetPixInMap
         ret
 
 UnSetPixInMap
-;b=y
-;ec=x
-        LD A,B
-       add a,MAPHGT-TERRAINHGT
-        SUB TERRAINHGT;MAPHGT
-        RET NC
-       PUSH HL
-       PUSH BC
+;e=truey ;e=y (от верхнего края TERRAIN)
+;bc=x
+;        LD A,e
+;       add a,MAPHGT-TERRAINHGT
+;        SUB TERRAINHGT;MAPHGT
+;        RET NC
+       ;PUSH HL
+       ;PUSH BC
         LD H,TMAPLN/256
-         LD L,A
-        LD A,C
+         LD L,e;A
+        LD A,C ;xlow
         AND 0xf8
-        ADD A,E
+        ADD A,b ;xhigh
         RRCA 
         RRCA 
         RRCA 
         CP MAPWID
-        JR NC,UnSetPixInMapq
+       ret nc;JR NC,UnSetPixInMapq
         ADD A,(HL)
         INC H
         LD H,(HL)
@@ -202,7 +202,7 @@ UnSetPixInMap
         DJNZ $-1
         and (HL)
         LD (HL),A
-UnSetPixInMapq
-       POP BC
-       POP HL
+;UnSetPixInMapq
+       ;POP BC
+       ;POP HL
         RET 

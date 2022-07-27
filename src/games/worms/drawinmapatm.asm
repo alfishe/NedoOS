@@ -231,59 +231,68 @@ PrepareXorPixInMap
         ret
 
 XorPixInMap
-;b=y (от верхнего края TERRAIN)
-;ec=x
-       LD A,B
+;e=y (от верхнего края TERRAIN)
+;bc=x
+       LD A,e
        add a,MAPHGT-TERRAINHGT
         SUB TERRAINHGT;MAPHGT
        RET NC
 ;a=-TERRAINHGT..-1
        PUSH BC
        PUSH HL
-      push de
-       ld l,a ;true y
        cpl
-        rlca
-        rlca
-        and 3 ;y/64
-        add a,a
-        add a,a
-        srl e
-        rr c
-        ld d,0x47
-       jr nc,XorPixInMap_right
-        ld d,0xb8
-XorPixInMap_right
+       ld h,a ;~truey
+        rrca
+        rrca
+        rrca
         xor c
-        and 0xfc ;3 x layer
+        and 3*8 ;6(7)=xlayer ;3*8=(y/64)*8
         xor c
+        rrca
+        and 15 ;4 layers with 4 pages each
        if SKIPPGS
        add a,SKIPPGS
        endif
-        srl e
+      ld (XorPixInMap_pgnum),a ;окупается только при экономии push..pop de
+        srl b
         rr c
-        srl e
-        rr c ;x/8
-      ld e,a
-        ld a,l ;y
-        and 0x3f
+      ex af,af' ;'
+        srl b
+        ld a,c
+        rra ;x/4
+     if 1
+        cpl
+;11. -> 100 -> 101
+;10. -> 101 -> 110
+;01. -> 000 -> 001
+;00. -> 001 -> 010
+        rrca   ;"b1" -> b0
+        rrca   ;"b1" -> b7
+        add a,a;"b1" -> CY
+        ccf
+        rla   ;~"b1" -> b0
+        inc a
+     else
+        rra ;x/8
        cpl
-        ld h,a
-       ld a,c ;x/8
-       cpl
+       ld c,a ;x/8
        add a,a
        and 0xfc
        rr c
-       adc a,1
-       ld l,a ;c=0: l=0x3d ;c=1: l=0x3e ;c=2: l=0x39 ;c=3: l=0x3a
-      ld c,e
-        ld b,tpushpgs/256 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
-        ld a,(bc)
+       sbc a,-2
+     endif
+       ld l,a ;x8=0: 0x3d ;x8=1: 0x3e ;x8=2: 0x39 ;x8=3: 0x3a
+        ld a,h ;~truey
+        or 0xc0
+        ld h,a
+XorPixInMap_pgnum=$+1
+        ld a,(tpushpgs) ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
         SETPGC000
-        ld a,(hl)
-        xor d;0xb8
+      ex af,af' ;'
+      sbc a,a
+      xor 0x47
+        xor (hl)
         ld (hl),a
-      pop de
        POP HL
        POP BC
         RET 
@@ -292,72 +301,69 @@ PrepareUnSetPixInMap
         ret
 
 UnSetPixInMap
-;b=y
-;ec=x
-        LD A,B
-       add a,MAPHGT-TERRAINHGT
-        SUB TERRAINHGT;MAPHGT
-        RET NC ;TODO чтобы не вырезало потолок, если взорван пол! или проверять в самом круге
+;e=truey ;e=y (от верхнего края TERRAIN)
+;bc=x
+;        LD A,e
+;       add a,MAPHGT-TERRAINHGT
+;        SUB TERRAINHGT;MAPHGT
+;        RET NC ;TODO чтобы не вырезало потолок, если взорван пол! или проверять в самом круге
+       ld a,e
 ;a=-TERRAINHGT..-1
-       PUSH BC
-       PUSH HL
-      push de
-      push ix
-       ld b,a ;true y
+       ;PUSH BC
+       ;PUSH HL
        cpl
-        rlca
-        rlca
-        and 3 ;y/64
-        add a,a
-        add a,a
-        ld l,a
-        srl e
-        rr c
-        ld lx,0xb8;0x47
-       jr nc,UnSetPixInMap_right
-        ld lx,0x47;0xb8
-UnSetPixInMap_right
-        srl e
-        rr c
-        rra
-        srl e
-        rr c
-        rra
-        rlca
-        rlca
-        ;cpl
-        and 3 ;x layer
-        add a,l
+       ld h,a ;~truey
+        rrca
+        rrca
+        rrca
+        xor c
+        and 3*8 ;6(7)=xlayer ;3*8=(y/64)*8
+        xor c
+        rrca
+        and 15 ;4 layers with 4 pages each
        if SKIPPGS
        add a,SKIPPGS
        endif
-        ld l,a;0
-        ld h,tpushpgs/256 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
-        ld a,(hl)
-        push bc
-        SETPGC000
-        pop bc
-        ld a,b ;y
-        and 0x3f
+      ld (UnSetPixInMap_pgnum),a ;окупается только при экономии push..pop de
+        srl b
+        rr c
+      ex af,af' ;'
+        srl b
+        ld a,c
+        rra ;x/4
+     if 1
+        cpl
+;11. -> 100 -> 101
+;10. -> 101 -> 110
+;01. -> 000 -> 001
+;00. -> 001 -> 010
+        rrca   ;"b1" -> b0
+        rrca   ;"b1" -> b7
+        add a,a;"b1" -> CY
+        ccf
+        rla   ;~"b1" -> b0
+        inc a
+     else
+        rra ;x/8
        cpl
-        ld h,a
-;c=0: l=0x3d
-;c=1: l=0x3e
-;c=2: l=0x39
-;c=3: l=0x3a
-;...
-       ld a,c
-       cpl
+       ld c,a ;x/8
        add a,a
        and 0xfc
        rr c
-       adc a,1
-       ld l,a
-        ld a,(hl)
-        and lx;0xb8
+       sbc a,-2
+     endif
+       ld l,a ;x8=0: 0x3d ;x8=1: 0x3e ;x8=2: 0x39 ;x8=3: 0x3a
+        ld a,h ;~truey
+        or 0xc0
+        ld h,a
+UnSetPixInMap_pgnum=$+1
+        ld a,(tpushpgs) ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        SETPGC000
+      ex af,af' ;'
+      sbc a,a
+      xor 0xb8;0x47
+        and (hl)
         ld (hl),a
-      pop ix
-      pop de
-       POP HL
-       POP BC
+       ;POP HL
+       ;POP BC
         RET 

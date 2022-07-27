@@ -270,15 +270,19 @@ DHL
         RET 
 
 PR64
+;de=scr
+;a=char
         PUSH BC
         PUSH DE
         PUSH HL
         SUB 32
         ADD A,A
+        ADD A,A
+        ADD A,A
         LD L,A
-        LD H,FONT/4/256
-        ADD HL,HL
-        ADD HL,HL
+        LD H,FONT/256
+        jr nc,$+3
+        inc h
         LD B,7
         DEC C
         JR Z,PR641
@@ -330,17 +334,19 @@ PR64R
         RET 
 
 ClearEnergyPanel
+       if 1 ;чтобы очистить грязь от генератора карты
         LD HL,#4000
         LD DE,#4001
         LD BC,#7FF
         LD (HL),L
         LDIR 
+       endif
         LD A,6
         LD HL,#5800
         LD (HL),A
         INC L
         LD DE,#5802
-        LD C,#5D
+        LD bc,#5D
         LD (HL),67
         LDIR 
         LD (DE),A
@@ -416,8 +422,8 @@ ENFAKE0 PUSH HL
         LD (HL),0x5F ;0x40 от рамки слева
         LD B,RAMKAWID-1;13
         INC L
-        LD (HL),C
-        DJNZ $-2
+        LD (HL),0xff
+        DJNZ $-3
         LD (HL),0xfa ;0x02 от рамки справа
         POP HL
         CALL DHL

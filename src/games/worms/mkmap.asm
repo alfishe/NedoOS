@@ -158,12 +158,12 @@ MKMAPPP
         LD bc,32
         LDIR 
 
-        LD E,0 ;SCREEN (X) NO. -1=NOPRINT
-        LD C,E
+        LD b,0 ;SCREEN (X) NO. -1=NOPRINT
+        LD C,b
         CALL RND
         AND 127
         add a,28;48
-        LD B,A ;y
+        LD e,A ;y
         LD HL,DTNTAB+8   ;14
 MKMAP0  LD A,2;4
         CALL RNDA ;direction change
@@ -180,7 +180,7 @@ MKMAP0  LD A,2;4
         SUB 5
         XOR D
         AND 8
-        CALL NZ,XorPixInMap ;b=y ;ec=x
+        CALL NZ,XorPixInMap ;e=y ;bc=x
         PUSH HL
         SLA L
         LD A,(HL)
@@ -196,29 +196,30 @@ MKMAP1  PUSH HL
         SLA L
         LD A,(HL)
         OR A
-        CALL NZ,XorPixInMap ;b=y ;ec=x
+        CALL NZ,XorPixInMap ;e=y ;bc=x
         LD A,(HL)
         CP 128
         JR C,MKMAPFW
         ADD A,C
         LD C,A
         JR C,MKMAPBW
-        DEC E
+        DEC b
         JR MKMAPBW
 MKMAPFW CP 2
         JR C,MKMAPN2
-        INC C
-        JR NZ,$+3
-        INC E
-        CALL XorPixInMap ;b=y ;ec=x
+        ;INC C
+        ;JR NZ,$+3
+        ;INC b
+        inc bc
+        CALL XorPixInMap ;e=y ;bc=x
         LD A,1
 MKMAPN2 ADD A,C
         LD C,A
         JR NC,$+3
-        INC E
+        INC b
 MKMAPBW INC L
         LD A,(HL)
-        ADD A,B
+        ADD A,e
         POP HL
         CP 208 +TERRAINHGT-MAPHGT
         JR C,MKMAPNY
@@ -229,12 +230,12 @@ MKMAPBW INC L
        SLA L
        INC L
         LD A,(HL)
-        ADD A,B
+        ADD A,e
         POP HL
-MKMAPNY LD B,A
+MKMAPNY LD e,A
         DEC D
         JR NZ,MKMAP1
-        LD A,E
+        LD A,b
         CP 3;4 ;after LAST SCREEN
         JR NZ,MKMAP0
         ret

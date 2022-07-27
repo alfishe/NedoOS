@@ -157,60 +157,79 @@ DrawWormsDataInMap_skip
         jr DrawWormsDataInMap0
 
 UnDrawCircleInMap
-;d,lxe=y0,x0
-;b=R
+;e,bc=y0,x0
+;d=R
        push bc
        push de
-       push ix
         call PrepareUnSetPixInMap
         ld hl,UnSetPixInMap
+        xor a
         call UnDrawCircle
         call SetPgMask
-       pop ix
        pop de
        pop bc
+       
+        ld a,e
+        sub 8 ;таблица строк маски использует координату "y" для ног, т.е. на 8 пикс ниже
+        srl a
+        ld e,a ;y0
+        srl b
+        rr c ;x0
+        dec bc
+        dec bc
+        srl d ;R
+       
         ld hl,UnSetPixInMask
+        ld a,0x87 ;"add a,a"
 UnDrawCircle
+;e,bc=y0,x0
+;d=R
+;hl=pixproc
+;a="add a,a"/"nop"
         ld (hline_unsetpixpatch),hl
-        LD L,B,H,#00 ;hl=R
+        ld (hline_y2patch),a
+        ld hx,e ;y0
+        LD L,d ;R
+        ld H,#00 ;hl=R
         ADD HL,HL ;hl=curwidth=R*2
-       PUSH DE
-        LD DE,#0003 ;???
-        EX DE,HL
-        OR A:SBC HL,DE ;hl=3-(r*2)
-        LD e,B,d,#00 ;e=curx=R, d=cury=0
-       POP bc ;xy0
+        ld a,3 ;???
+        sub l
+        ld l,a
+        sbc a,h
+        sub l
+        ld h,a ;hl=3-(R*2)
+        LD e,d ;R
+        ld d,#00 ;e=curx=R, d=cury=0
 
-fCIR0    PUSH bc ;xy0
+fCIR0    PUSH bc ;x0
        push hl
        push de
        push bc
 ;e=curx
 ;d=cury
-;b,lxc=y0,x0
+;hx,bc=y0,x0
         ld a,c
         sub e
         ld c,a ;x=x0-curx
-        ld a,e ;len=curx
-        ld e,lx ;x0high
         jr nc,$+3
-         dec e
+         dec b
+        ld a,e ;len=curx
         add a,a ;len=2*len
-        ld hx,a ;len
+        ld lx,a ;len
        push bc
        push de
-        ld a,b ;y0
+        ld a,hx ;y0
         add a,d ;cury
-        ld b,a ;y=y0+cury
+        ld e,a ;y=y0+cury
         push ix
-        call hline_hx ;b,ec=y,x ;hx=len=2*curx
+        call hline_lx ;e,bc=y,x ;lx=len=2*curx
         pop ix
        pop de
        pop bc
-        ld a,b ;y0
+        ld a,hx ;y0
         sub d ;cury
-        ld b,a ;y=y0-cury
-        call hline_hx ;b,ec=y,x ;hx=len=2*curx
+        ld e,a ;y=y0-cury
+        call hline_lx ;e,bc=y,x ;lx=len=2*curx
        pop bc
        pop de
        pop HL
@@ -229,77 +248,86 @@ fCIR2
         ld a,c
         sub d
         ld c,a ;x=x0-cury
-        ld a,d ;len=cury
-        ld d,e ;curx
-        ld e,lx ;x0high
         jr nc,$+3
-         dec e
+         dec b
+        ld a,d ;len=cury
         add a,a ;len=2*len
-        ld hx,a ;len
+        ld lx,a ;len
        push bc
        push de
-        ld a,b ;y0
-        add a,d ;curx
-        ld b,a ;y
+        ld a,hx ;y0
+        add a,e ;curx
+        ld e,a ;y
         push ix
-        call hline_hx ;b,ec=y,x ;hx=len=2*cury
+        call hline_lx ;b,ec=y,x ;lx=len=2*cury
         pop ix
        pop de
        pop bc
-        ld a,b ;y0
-        sub d ;curx
-        ld b,a ;y
-        call hline_hx ;b,ec=y,x ;hx=len=2*cury
+        ld a,hx ;y0
+        sub e ;curx
+        ld e,a ;y
+        call hline_lx ;b,ec=y,x ;lx=len=2*cury
        pop de
        pop bc
         INC d ;cury
         DEC e ;curx
         LD L,d
         ld H,#00
-        LD c,e,b,#00
-        OR A:SBC HL,bc ;hl=cury-curx
+        LD c,e
+        ld b,#00
+        OR A
+        SBC HL,bc ;hl=cury-curx
         LD bc,#000A ;???
 fCIR3    ADD HL,HL
         add HL,HL ;hl=(cury-curx)*4
         add HL,bc ;hl=(cury-curx)*4 + const
-      POP bc:ADD HL,bc ;hl=(cury-curx)*4 + const + curwidth
+      POP bc
+      ADD HL,bc ;hl=(cury-curx)*4 + const + curwidth
 
-        POP bc ;xy0
+        POP bc ;x0
         LD A,e
         cp d
         JP NC,fCIR0
         ret
        
-hline_hx
-;b=y
-;ec=x
-;hx=len
+hline_lx
+;e=y (TODO check here)
+;bc=x
+;lx=len
+        LD A,e
+hline_y2patch=$
+        add a,a ;/nop
+       add a,MAPHGT-TERRAINHGT
+        SUB TERRAINHGT;MAPHGT
+        RET NC
+        ld e,a
+        ld d,lx
 hline0
+       push bc
 hline_unsetpixpatch=$+1
         call UnSetPixInMap ;/UnSetPixInMask
-        inc c
-        jr nz,$+3
-         inc e
-        dec hx ;--
+       pop bc
+        inc bc
+        dec d ;--
         jr nz,hline0
         ret
 
 UnSetPixInMask
-;b=y (TODO /2)
-;ec=x (TODO /2)
-        LD A,B
-       add a,MAPHGT-TERRAINHGT
-        SUB TERRAINHGT;MAPHGT
-        RET NC
-      PUSH HL
-      push bc
-        sub 8 ;таблица строк маски использует координату "y" для ног, т.е. на 8 пикс ниже
-        ld l,a
-        ld b,e
-        srl b ;xhigh
-        rr c ;xlow
-        dec bc
-        dec bc ;маска рассчитана под "x" центра червя, т.е. сдвинута на 4 больших (2 масочных) пикс
+;e=truey ;e=y (/2) (от верхнего края TERRAIN)
+;bc=x (/2)
+       ; LD A,e
+       ; add a,a
+       ;add a,MAPHGT-TERRAINHGT
+       ; SUB TERRAINHGT;MAPHGT
+       ; RET NC
+      ;PUSH HL
+      ;push bc
+         ;sub 8 ;таблица строк маски использует координату "y" для ног, т.е. на 8 пикс ниже
+        ld l,e;a
+         ;srl b ;xhigh
+         ;rr c ;xlow
+         ;dec bc
+         ;dec bc ;маска рассчитана под "x" центра червя, т.е. сдвинута на 4 больших (2 масочных) пикс
         LD H,TMASKLN/256
         LD A,C
         AND 0xf8
@@ -308,7 +336,7 @@ UnSetPixInMask
         RRCA 
         RRCA 
         CP MASKWID
-        JR NC,UnSetPixInMaskq
+       ret nc;JR NC,UnSetPixInMaskq
         ADD A,(HL)
         INC H
         LD H,(HL)
@@ -322,9 +350,12 @@ UnSetPixInMask
         LD A,0xfe
         RRCA 
         DJNZ $-1
+         ;ld b,TABROLL07/256
+         ;ld a,(bc) ;bit
+         ;cpl
         and (HL)
         LD (HL),A
-UnSetPixInMaskq
-      POP BC
-      POP HL
+;UnSetPixInMaskq
+      ;POP BC
+      ;POP HL
         RET 
