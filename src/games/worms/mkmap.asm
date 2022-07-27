@@ -40,7 +40,7 @@ MKMAP
 
        call DrawPie ;7
 
-   if 0;!ATM ;TODO!!!
+   if !ATM ;TODO!!!
 ;add elements:
       if ATM;USELMNBUF
         call GenLMNList
@@ -291,7 +291,7 @@ SETF    RLC C
         RLC C
         JR NC,$+3
          DEC HL
-     if ATM ;TODO fix!!!
+     if 0;ATM ;TODO fix!!!
      ld b,MASKHGT-1 ;y
      INC LX ;usable columns count
      else

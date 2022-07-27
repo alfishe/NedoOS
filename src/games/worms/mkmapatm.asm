@@ -132,11 +132,13 @@ MakeMaskFromMap
 ;то есть берём байт маски из карты так: ----M-M- M-M-m-m- m-m-----
 
        call SetPgMask8000
+       if 0;1
         ld hl,MASK -0x4000
         ld de,MASK+1 -0x4000
         ld bc,MASKSZ-1
         ld (hl),0
         ldir
+       endif
 
         ld hl,MASKDO -0x4000
         ld e,0xfd
@@ -154,11 +156,13 @@ MakeMaskFromMap0
        call setpgsmain40008000 
        call SetPgMask
 
+       if 0;1
         LD HL,MASKSZ+MASK-(MASKWID*2) ;fill last lines (костыль, пока карты нет)
         LD BC,+(MASKWID*2)*256+255
         LD (HL),C
         INC HL
         DJNZ $-2
+       endif
        
 ;extra bottom line of mask is always filled (for element placement)
         LD HL,MASKSZ+MASK
@@ -183,7 +187,7 @@ MakeMaskFromMap_column
         push iy
         ld a,(iy)
         SETPGC000
-        ld d,0xff-8 ;ноги червя
+        ld d,0xff-8 ;сверху вниз ;-8, потому что маска для ног червя
         ld bc,MASKWID
         ld hx,+((BIGMAPHGT-8)/2)&0xff
 MakeMaskFromMap_column0
@@ -193,10 +197,11 @@ MakeMaskFromMap_column0
         add hl,bc
         dec d
         dec d
-        bit 5,d
-        call nz,MapNextPg_de
+        bit 6,d
+        call z,MapNextPg_de
         dec hx
         jr nz,MakeMaskFromMap_column0
+        ;jr $
         pop iy
         pop hl
         pop de

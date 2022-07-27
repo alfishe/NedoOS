@@ -265,7 +265,7 @@ PRLMN00
        POP DE
         LD A,D ;wid
         DEC A
-        RRA 
+        srl a;RRA 
         NEG 
         ADD A,C
         LD C,A ;x
