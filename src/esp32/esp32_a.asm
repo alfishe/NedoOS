@@ -46,6 +46,13 @@ begin
 		cp 255
 		jp z, errorop
 
+
+		ld de,testsend
+		ld hl,159
+		ld a,65
+		call tcpsend
+
+
 		call OS_NETSHUTDOWN
 		
 		ld hl, asterix
@@ -80,7 +87,7 @@ notequal:
 		ret
  		
 ;****************************************************************************
-readanswer:					;Read 1 line
+readanswer:					;Read 1 line out at answerbuffer
 		push de
 		push hl
 		ld hl,answerbuffer
@@ -333,19 +340,24 @@ nextinit:
 		YIELD
 		call readanswer
 		
+		ld hl, atciprecvmode1
+		call sendtext
+		YIELD
+		call readanswer
+
 		call flushbuf
 		ret
-
-
 
 ;****************************************************************
 ; Based on: https://wikiti.brandonw.net/index.php?title=Z80_Routines:Other:DispHL
 ; DE(HL) - number
 ; It will be written to UART
 deToNumEsp:
-    ld a,0
+    ld hl,de
+hlToNumEsp:
+	ld a,0
 	ld (firstzero),a
-	ld hl,de
+	;ld hl,de
     ld    bc,-10000
     call    n1
     ld    bc,-1000
@@ -355,8 +367,8 @@ deToNumEsp:
     ld    c,-10
     call    n1
     ld    c,-1
-n1    ld  a,'0'-1
-n2    inc a
+n1  ld  a,'0'-1
+n2  inc a
     add    hl,bc
     jr    c, n2
     sbc    hl,bc
@@ -374,11 +386,9 @@ zerotest:
 		cp 0
 		jp z, skipzero
 		jp printzero
-
 firstzero:
 		db 0
-toespbuf
-		db 0,0,0,0,0,0,0,0,0,0	
+
 ;****************************************************************
 OS_NETCONNECT:
 ;Все аргументы в регистрах:
@@ -392,11 +402,6 @@ OS_NETCONNECT:
 ;ERR_ALREADY  - сокет уже подключен
 ;ERR_HOSTUNREACH - хост не доступн, либо отверг подключение.
 ;++++TCP+++++
-;DEFB AF_INET
-;DEFB 0,80    ;порт назначения
-;DEFB 1,2,3,4   ;IP адрес назначения
-;DEFB 0,0,0,0,0,0,0,0 ;резерв
-;atcipstart1		;"AT+CIPSTART=\"TCP\",\"",0
 		push bc
 		ld hl,atcipstart1
 		call sendtext
@@ -454,6 +459,7 @@ OS_NETCONNECT:
 		
 		ld l,255
 		ld a,ERR_HOSTUNREACH
+		pop bc
 		ret
 okstart:
 		ld l,0
@@ -508,6 +514,140 @@ OS_NETSHUTDOWN
 		ld l, 0
 		ld a, 0
 		ret
+;****************************************************************************
+OS_WIZNETREAD
+; Прочитать входящие данные.
+; Макрос вызова функции ядра.
+ 
+; При протоколе TCP/IP все аргументы в регистрах:
+;  A - SOCKET
+;  DE - указатель на буфер для принятия данных
+;  HL - размер буфера(в байтах)
+; При протоколе отличном от TCP/IP все аргументы в регистрах:
+;  A - SOCKET
+;  DE - указатель на структуру sockaddr_in, в неё помещается(ядром) IP-адрес и порт хоста отправившего данные.
+;  IX - указатель на буфер для принятия данных
+;  HL - размер буфера(в байтах)
+; Возвращаемые значения в регистрах:
+;  HL - при отрицательном значении функция завершилась с ошибкой,
+;   про значении больше нуля возвращается действительный размер(в байтах) принятых данных,
+;   нулевого значения вызов не возвращает.
+;  А - errno при ошибке.
+; Возможные ошибки:
+;  ERR_NOTSOCK - не действительный дескриптор сокета
+;  ERR_EAGAIN - входящих данных пока нет
+;  ERR_NOTCONN - сокет с неустановленным\пропавшем соединением(при протоколе TCP/IP)
+
+
+		ret
+;****************************************************************************
+OS_WIZNETWRITE
+; При протоколе TCP/IP все аргументы в регистрах:
+;  A - SOCKET
+;  DE - указатель на буфер с данными
+;  HL - размер данных(в байтах), в текущей реализации максимум 8192 байта
+; При протоколе отличном от TCP/IP все аргументы в регистрах:
+;  A - SOCKET
+;  DE - указатель на структуру sockaddr_in, в неё необходимо поместить IP-адрес и порт хоста получателя
+;  IX - указатель на буфер с данными
+;  HL - размер данных(в байтах), в текущей реализации максимум 8192 байта
+; Возвращаемые значения в регистрах:
+;  HL - при отрицательном значении функция завершилась с ошибкой,
+;   иначе возвращается действительный размер(в байтах) отправленных данных,
+;  А - errno при ошибке.
+; Возможные ошибки:
+;  ERR_NOTSOCK - не действительный дескриптор сокета
+;  ERR_NOTCONN - сокет с неустановленным\пропавшем соединением(при протоколе TCP/IP)
+;  ERR_EMSGSIZE - в буфере отправки нет места, либо пакет слишком большой
+;pseudo socket 65=TCP 66=ICMP 67=UDP
+		push bc
+		cp 65
+		jp tcpsend
+		cp 66
+		jp icmpsend
+		cp 67
+		jp udpsend
+		jp errnotsock
+tcpsend
+; При протоколе TCP/IP все аргументы в регистрах:
+;  A - SOCKET
+;  DE - указатель на буфер с данными
+;  HL - размер данных(в байтах), в текущей реализации максимум 8192 байта
+;Возвращаемые значения в регистрах:
+;  HL - при отрицательном значении функция завершилась с ошибкой,
+;   иначе возвращается действительный размер(в байтах) отправленных данных,
+;  А - errno при ошибке.
+		ld (sendpointer),de
+		ld (sendsize),hl
+		ld hl, atcipsend
+		call sendtext
+		ld hl,(sendsize)
+		call hlToNumEsp
+		ld hl,crlf
+		call sendtext
+		YIELD
+waitprompt:		
+		call uart_read
+		ld a,e
+		cp '>'
+		jp nz,waitprompt
+		ld hl,(sendsize)
+		ld de,(sendpointer)
+more2go:
+		push de
+		;ld hl,(sendpointer)
+		;ld a,(hl)
+		;ld e,a
+		ld a,(de)
+		ld e,a
+		call uart_write
+		pop de
+		inc de
+		;ld (sendpointer),de
+		dec hl
+		ld a,0
+		cp h
+		jp nz, more2go 
+		cp l
+		jp nz, more2go
+		YIELD
+
+		call readanswer
+		
+		ld hl,answerbuffer
+		call prtext
+
+		ld hl,crlf
+		call prtext
+		
+		QUIT
+		
+		ld a,0
+		pop bc
+		ret
+sendpointer:
+		db 00,00
+sendsize:
+		db 00,00
+
+icmpsend:
+udpsend:
+
+errnotsock:
+		ld h,255
+		ld l,255
+		ld a,ERR_NOTSOCK
+		pop bc
+		ret
+
+errnotconn:
+		ld h,255
+		ld l,255
+		ld a,ERR_NOTCONN
+		pop bc
+		ret		
+;****************************************************************************
+
 
 
 
@@ -515,6 +655,8 @@ atgmr
 		db "AT+GMR",0x0d,0x0a,0
 ate0
 		db "ATE0",0x0d,0x0a,0		
+ate1
+		db "ATE1",0x0d,0x0a,0		
 atcipmux0
 		db "AT+CIPMUX=0",0x0d,0x0a,0		
 atcipserver0
@@ -522,14 +664,17 @@ atcipserver0
 
 atcipdinfo
 		db "AT+CIPDINFO=0",0x0d,0x0a,0				
-
 atcipclose
 		db "AT+CIPCLOSE",0x0d,0x0a,0
-		
+atciprecvmode1
+		db "AT+CIPRECVMODE=1",0x0d,0x0a,0
 atcipstart1
 		db "AT+CIPSTART=\"TCP\",\"",0
 atcipstart2	
 		db "\",",0
+atcipsend
+		db "AT+CIPSEND=",0
+
 thello
         db "ESP32 Driver Project(single mode)",0x0d,0x0a,0
 
@@ -540,8 +685,6 @@ plusik
         db "+",0
 crlf
         db 0x0d,0x0a,0
-
-
 uartinited
 		db "Uart inited.",0x0d,0x0a,0
  
@@ -562,6 +705,11 @@ okanswer
 		db "OK",0
 busyanswer
 		db "busy",0
+sendprompt
+		db ">",0
+recvbytes
+		db "Recv ",0
+
 
 adrstruct:
 		DB 2
@@ -569,17 +717,23 @@ adrstruct:
 		DB 217,146,69,13   ;IP адрес назначения
 		DB 0,0,0,0,0,0,0,0 ;резерв
 
+testsend:
+	db "GET /api/export:zxPicture/filter:zxPicture/limit:1/start:0/order:date,desc HTTP/1.1"
+	db 13, 10
+	db "Host: zxart.ee"
+	db 13, 10
+	db "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)"
+	db 13, 10, 13, 10, 0;
+tmp:
+	db 0,0,0,0,0,0,0,0
 
+    include "../_sdk/stdio.asm"
 
-
-
-        include "../_sdk/stdio.asm"
-
-
+; \r = 13 (CR) \n = 10 (LF).
 
 answerbuffer
-		db "............................................................................................................................."
-		db "............................................................................................................................",0x0d,0x0a,0
+	db "............................................................................................................................."
+	db "............................................................................................................................",0x0d,0x0a,0
 end
 	savebin "ea.com",begin,end-begin
 
