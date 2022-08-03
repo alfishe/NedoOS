@@ -1125,4 +1125,4 @@ cmd_end
 
 	savebin "basic.com",cmd_begin,cmd_end-cmd_begin
 	
-	LABELSLIST "../../us/user.l"
+	LABELSLIST "../../us/user.l",1

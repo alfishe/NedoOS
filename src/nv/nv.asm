@@ -602,6 +602,8 @@ prdirfile_ix_decolor
         ld de,filelinebuf
         ld bc,25*256+' '
         call prdirfile_copyfn
+       xor a ;для вывода размера файла (не портит содержимое буфера под незначащими нулями)
+       ld (prnumdwordcmd_zero_lddea),a
         ;exx
         ld hl,(fcb+FCB_FSIZE+2)
         exx
@@ -610,6 +612,8 @@ prdirfile_ix_decolor
         and FATTRIB_DIR
         ld de,filelinebuf_15
         call z,prdword_de
+       ld a,0x12 ;"ld (de),a": для вывода files, size
+       ld (prnumdwordcmd_zero_lddea),a
          ld de,filelinebuf_28 ;skip "cursor right" over | (which has different color)
         ld hl,(fcb+FCB_FDATE)
         push hl
@@ -627,12 +631,12 @@ prdirfile_ix_decolor
         ld l,a
         ld h,0
         ld bc,tmonth-2
-        add hl,bc
+        add hl,bc ;CY=0
         ldi
         ldi
         pop hl
         ld a,h
-        srl a
+        rra ;srl a
         sub 20
         jr nc,$+4
         add a,100 ;XX century
@@ -1627,7 +1631,7 @@ runfile_nocom_readerror
         xor a
         dec a
         ret ;nz
-        display "runfile_nocom_extok ",$
+        ;display "runfile_nocom_extok ",$
 runfile_nocom_extok
         call skiptocolon ;пройти к ':'
         ld hl,cmdbuf
@@ -2002,13 +2006,14 @@ editcmd_menu
         ld hl,menu_filename
         jr runprog_hl_withcurfile
        else
+;это не меню, а показ экрана! FIXME
 	ld e,1
 	OS_SETSCREEN
 	YIELDGETKEYLOOP
 	ld e,0
 	OS_SETSCREEN
-       endif
         ret
+       endif
 
 editcmd_reprintall_keepcursor
 	call readpanels_reprint_keepcursor
@@ -2889,7 +2894,7 @@ wincopy
 
         db ' ' ;для typeword - перед tnewfilename
 tnewfilename
-        ds 64 ;max filename size+terminator
+        ds DIRMAXFILENAME64;64 ;max filename size+terminator
 
 winquit
         dw 0x0a1f ;de=yx
@@ -2993,7 +2998,7 @@ menu_filename
         db "menu    com"
 
 filenametext ;for change dir, rename
-        ds 64 ;max filename size+terminator
+        ds DIRMAXFILENAME64;64 ;max filename size+terminator
 
 ext
         ds 3 ;TODO объединить с filenametext
@@ -3112,9 +3117,6 @@ emptypath=$-1
 
 filinfo
         ds FILINFO_sz
-        ;ds 500
-        
-        display "sort=",$
 
         include "nvsort.asm"
         include "heapsort.asm"
@@ -3128,7 +3130,7 @@ filinfo
         include "../_sdk/textwindow.asm"
         include "../_sdk/texteditln.asm"
 
-        include "prdword.asm"
+        include "../_sdk/prdword.asm"
         include "cmdpr.asm"
        if PRSTDIO
         include "../_sdk/stdio.asm"
@@ -3156,7 +3158,7 @@ twinto866
         incbin "../_sdk/codepage/winto866"
 cmd_end
 
-	display "nv size ",/d,cmd_end-cmd_begin," bytes"
+	display "nv size ",cmd_end-cmd_begin," bytes"
 
        if PRSTDIO
 	savebin "nv.com",cmd_begin,cmd_end-cmd_begin

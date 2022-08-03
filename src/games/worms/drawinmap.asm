@@ -7,6 +7,19 @@ AnimMines
         ld (hl),a
         ret
 
+ForcedUnDrawWormsInMap
+ForcedDrawWormsInMap
+        ld a,SPRLIST_IMPOSSIBLE;xor a ;"nop" - print all
+        ld (DrawWormsInMap_staypatch),a
+        ld a,DrawWormsInMap_drawminepatch_never
+        ld (DrawWormsInMap_drawminepatch),a ;never print mines
+        call DrawWormsInMap
+        ld a,SPRLIST_PRINTED;0x7e ;"ld a,(hl)" - print only non-staying
+        ld (DrawWormsInMap_staypatch),a
+        ld a,DrawWormsInMap_drawminepatch_always
+        ld (DrawWormsInMap_drawminepatch),a ;always print mines
+        ret
+
 UnDrawWormsInMap ;FIXME
 DrawWormsInMap
        if !ATM
@@ -46,22 +59,42 @@ DrawWormsInMap_nomine
         rl e
         rl d
        edup
-        sla c
+        sla c ;bc=gfx
+       ld a,b
+       cp sprmine_0/256
+DrawWormsInMap_drawminepatch=$+1
+       jr z,DrawWormsInMap_drawalways
+        inc l
+        inc l
+        ld a,(hl) ;dy ;/nop
+DrawWormsInMap_staypatch=$+1
+       cp SPRLIST_PRINTED
+       jr z,DrawWormsInMap_skipdy ;staying printed
+        cp SPRLIST_STAYING
+       jr nz,$+4
+       ld (hl),SPRLIST_PRINTED
+        dec l
+        dec l
+DrawWormsInMap_drawalways
+DrawWormsInMap_drawminepatch_always=DrawWormsInMap_drawalways-(DrawWormsInMap_drawminepatch+1)
        push hl
-        ld l,(hl)
+        ld l,(hl) ;y
 ;de=x in pixels
 ;l=y
 ;bc=gfx
         call DrawWormInMap
        pop hl
 DrawWormsInMap_skip
+DrawWormsInMap_drawminepatch_never=DrawWormsInMap_skip-(DrawWormsInMap_drawminepatch+1)
         inc l
         inc l
+DrawWormsInMap_skipdy
         inc l
         jr DrawWormsInMap0
 
 UnDrawWormsDataInMap ;FIXME
 DrawWormsDataInMap
+
        if !ATM
         LD A,PGMAP;16
         CALL OUTME
@@ -87,9 +120,9 @@ DrawWormsDataInMap0
        ld a,c ;xhigh
        cp XWID
        jr nc,DrawWormsDataInMap_skip ;dead
-       ld a,(hl) ;dy
-       cp SPRLIST_STAYING
-       jr nz,DrawWormsDataInMap_skip ;not staying
+       ;ld a,(hl) ;dy
+       ;cp SPRLIST_STAYING
+       ;jr nz,DrawWormsDataInMap_skip ;not staying
        push hl
         ld a,b ;y
         SUB 13

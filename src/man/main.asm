@@ -1,29 +1,52 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
-;usage: dir|more.com
+;usage: man filename_without_ext
 
-_COLOR=0x0007
+PRSTDIO=1
+        if PRSTDIO
+_COLOR=0x0007;0x07
+_COLOR_RED=0x0107;0x17
+_NVVIEW_PANELCOLOR=0x0700;0x38
+        else
+_COLOR=0x07
+_COLOR_RED=0x17
+_NVVIEW_PANELCOLOR=0x38
+        endif
 
 NVVIEW_XYTOP=0x0000
 NVVIEW_HGT=24
 NVVIEW_WID=80
-;_NVVIEW_PANELCOLOR=0x0700;0x38
-NVVIEW_PANELCOLOR=0x38
+txtscrwid=80
+TSPACES_FILENAME_SZ=43+3
+
+        macro MYPRCHAR
+       if PRSTDIO
+        PRCHAR_
+       else
+        PRCHAR
+       endif
+        endm
 
         org PROGSTART
 cmd_begin
         ld sp,0x4000
+       if PRSTDIO
+        call initstdio
+        ld a,(stdiohgt)
+        ld (scrhgt),a
+        dec a
+        ld (nvviewhgt),a ;может потом уменьшиться из-за меню
+        ;ld (hexedhgt),a
+        sub 3
+        ld (filesperpanel),a
+        call clearterm ;print <stdiohgt> lines of spaces except one space, set cursor to 0,0
+       else
         OS_HIDEFROMPARENT
-        ;call initstdio
-
         ld e,6 ;textmode
         OS_SETGFX
-
-        OS_GETSTDINOUT ;e=stdin, d=stdout, h=stderr
-        ld a,e
-        ld (stdinhandle),a
-        ;ld a,d
-        ;ld (stdouthandle),a
+        ld e,_COLOR
+        OS_CLS
+       endif
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000(copybuf),8000,c000*(dirbuf)
@@ -34,14 +57,46 @@ cmd_begin
         ld e,l
         OS_DELPAGE
 
+        ld hl,COMMANDLINE ;command line
+        call skipword
+        call skipspaces
+        ld a,(hl)
+        or a
+        jr z,noautoload
+;command line = "texted <file to load>"
+        ld (texted_filenameaddr),hl
+        call skipword
+        ld (hl),'.'
+        inc hl
+        ld (hl),'t'
+        inc hl
+        ld (hl),'x'
+        inc hl
+        ld (hl),'t'
+        inc hl
+        ld (hl),0
+noautoload
         call lister
 
         QUIT
 
 lister
+        OS_SETSYSDRV
+	ld de,res_path
+	OS_CHDIR 
+
+texted_filenameaddr=$+1
+        ld de,filenametext
+;de=filename
+        OS_OPENHANDLE
+	or a
+        ret nz ;error
+        ld a,b
+        ld (curhandle),a
+
         ld hl,unreservepages
         push hl
-
+        
         ld hl,0
         ld de,0
 nvview_load0
@@ -51,44 +106,32 @@ nvview_load0
         pop hl
         pop de
         ret nz ;no memory
-        push de
-        push hl
-        ld de,0xc000
-        ld hl,0x4000
-        call receivechars
-;out: CY=error, de=end addr in buf
-        push af
-        ld a,d
-        sub 0xc0
-        ld b,a
-        ld c,e
-        ;push bc
-        ;ld h,b
-        ;ld l,c
-        ;ld de,0xc000
-        ;call sendchars
-        ;pop bc
-        pop af ;CY=error
-        
-        pop hl
-        pop de
-        push af ;CY=error
+;nvview_load0nonewpg        
+        ld a,0xc000/256
+        call cmd_loadpage
+        jr nz,nvview_load0q
         ex de,hl
         add hl,bc
         ex de,hl
         jr nc,$+3
         inc hl
-        pop af ;CY=error
-        jr nc,nvview_load0
+         ;TODO nvview_load0nonewpg with new pointer if no new page
+        ld a,b
+        or c
+        jr nz,nvview_load0
+nvview_load0q
 ;hlde=true file size (for TRDOSFS)
         ld (filesize),de
         ld (filesizeHSW),hl
 
-;закрываем файл сами, иначе cmd когда будет закрывать?
-        ld a,(stdinhandle)
+        ld a,(curhandle)
         ld b,a
-        OS_CLOSEHANDLE ;hl=size actually received
+        OS_CLOSEHANDLE
 
+        ld hl,(texted_filenameaddr)
+	ld de,tshown_filename
+	ld b,TSPACES_FILENAME_SZ
+	call strcopy_maxb
 
         xor a
         ld h,a
@@ -108,10 +151,22 @@ nvview_redrawloop
 nvview_mainloop
 nvview_mainloop0
 	YIELD ;halt ;если сделать просто di:rst #38, то 1.сдвинем таймер и 2.можем потерять кадровое прерывание, а если без ei, то будут глюки
-        GET_KEY ;GETKEY_ ;OS_GETKEYNOLANG
-        ld a,c ;keynolang
-        cp NOKEY
+       if PRSTDIO
+        GETKEY_
         jr nz,nvview_mainloop_keyq
+        ;GETKEY_
+        ;jr nz,nvview_mainloop_keyq
+        ;GETKEY_
+        ;jr nz,nvview_mainloop_keyq ;event бывает 3-символьный
+       else
+        GET_KEY
+        ;jr z,nvview_mainloop_nokeygo
+;есть событие (a=0: от мыши)
+        ld a,c ;keynolang
+        ;cp NOKEY
+         or a
+        jr nz,nvview_mainloop_keyq
+       endif
         call nvview_panel
         jr nvview_mainloop0
 nvview_mainloop_keyq
@@ -131,8 +186,8 @@ nvview_mainloop_keyq
         jp z,nvview_pgup
         cp key_pgdown
         jp z,nvview_pgdown
-        cp 's';csss
-        jp z,nvview_changeencoding
+        ;cp 's';csss
+        ;jp z,nvview_changeencoding
         cp key_home
         jp z,nvview_home
         cp key_sspgup;ext3
@@ -145,8 +200,8 @@ nvview_mainloop_keyq
         jp z,nvview_left
         cp key_right
         jp z,nvview_right
-        cp 'w'
-        jp z,nvview_wrap
+        ;cp 'w'
+        ;jp z,nvview_wrap
         ret
 
 nvview_wrap
@@ -161,22 +216,24 @@ nvview_wrap
         call nvview_calclines
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
-        call nvview_calccurline
-        ret 
+        jp nvview_calccurline
+
         
 nvview_right
         ld a,(nvview_prline_shift)
         add a,8
         ret c
         ld (nvview_prline_shift),a
-        jp nvview_prcurpage
+        call nvview_prcurpage
+        jp clear_keyboardbuffer
         
 nvview_left
         ld a,(nvview_prline_shift)
         sub 8
         ret c
         ld (nvview_prline_shift),a
-        jp nvview_prcurpage
+        call nvview_prcurpage
+        jp clear_keyboardbuffer
         
 nvview_prcurpage
         ld hl,(curtoptextaddr)
@@ -195,7 +252,8 @@ nvview_home
 nvview_end
         ld hl,(filesize)
         ld a,(filesizeHSW)
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_end0
         push bc 
         call nvview_prevline
@@ -230,15 +288,24 @@ nvview_up
         push af
         push hl
         ld de,NVVIEW_XYTOP
-        ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ;ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ld hl,(nvviewhgt-1) ;h
+        ld l,NVVIEW_WID
+       if PRSTDIO
+        call scrolldown
+       else
         OS_SCROLLDOWN
+       endif
         ld de,NVVIEW_XYTOP
-        OS_SETXY
+        call nv_setxy ;keeps de,hl,ix
         pop hl
         pop af
         call nvview_prline
-         ;ld de,24*256+79
-         ;call nv_setxy ;avoid cursor at 0x0100
+         ;ld de,+(txtscrhgt-1)*256+79
+        ld de,(scrhgt-1) ;d
+        dec d ;последняя строка экрана
+        ld e,txtscrwid-1
+         call nv_setxy ;avoid cursor at 0x0100
         call deccurline
         ld hl,(curbottomtextaddr)
         ld a,(curbottomtextHSB)
@@ -255,10 +322,24 @@ curbottomtextHSB=$+1
         push af
         push hl
         ld de,NVVIEW_XYTOP
-        ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ;ld hl,256*NVVIEW_HGT + NVVIEW_WID
+        ld hl,(nvviewhgt-1) ;h
+        ld l,NVVIEW_WID
+       push de
+       push hl
+       if PRSTDIO
+        call scrollup
+       else
         OS_SCROLLUP
-        ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
-        OS_SETXY
+       endif
+        ;ld de,NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
+       pop hl
+       pop de
+       dec h
+       ld l,0
+       add hl,de
+       ex de,hl ;de=NVVIEW_XYTOP+((NVVIEW_HGT-1)*256)
+        call nv_setxy ;keeps de,hl,ix
         pop hl
         pop af
         call nvview_prline_nextline
@@ -278,7 +359,8 @@ nvview_pgup
         ld hl,(curtoptextaddr)
         ld a,(curtoptextHSB)
 nvview_pgup_go
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_pgup0
         push bc 
         call nvview_prevline
@@ -290,13 +372,16 @@ nvview_pgup0
         
 nvview_pgdown
          ld hl,(nvview_ncurline)
-         ld bc,NVVIEW_HGT
+         ;ld bc,NVVIEW_HGT
+        ld bc,(nvviewhgt) ;c
+        ld b,0
          add hl,bc
          ld (nvview_ncurline),hl
         ld hl,(curbottomtextaddr)
         ld a,(curbottomtextHSB)
 nvview_pgdown_pgup_ahl
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_pgdown0
         push bc 
         call nvview_nextline
@@ -305,7 +390,8 @@ nvview_pgdown0
         djnz nvview_pgdown0
         jr nvview_pgup_go
         if 1==0
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
 nvview_pgdown1
         push bc 
         call nvview_prevline
@@ -369,10 +455,14 @@ nvview_calclines0
         
 clear_keyboardbuffer
         push bc
-        ld b,20;5
+        ld b,50;5
 clear_keyboardbuffer0
         push bc
-        GET_KEY ;GETKEY_
+       if PRSTDIO
+        GETKEY_
+       else
+        GET_KEY
+       endif
         pop bc
         djnz clear_keyboardbuffer0
         pop bc
@@ -382,27 +472,36 @@ nvview_changeencoding
         ld hl,nvview_prline_recodepatch
         ld a,(hl)
         xor 0x7e ;"ld a,(hl)"
-        ld (hl),a
+        ld (hl),a ;TODO utf8
         call nvview_prcurpage
         ;ret
 nvview_panel
-        ld de,0x1800
-        OS_SETXY
-        ld de,NVVIEW_PANELCOLOR;#38
-        OS_SETCOLOR
-        
+        ;ld de,+(txtscrhgt-1)*256
+        ld de,(scrhgt-1) ;d
+        dec d ;последняя строка экрана
+        ld e,0
+        call nv_setxy ;keeps de,hl,ix
+        ld de,_NVVIEW_PANELCOLOR;#38
+       if PRSTDIO
+        SETCOLOR_
+       else
+        call nv_setcolor
+       endif
+
+       if 0
         ld a,(nvview_prline_recodepatch)
         or a
-        ld de,t866
+        ld hl,t866
         jr z,$+5
-        ld de,twin
-        ld hl,3
-        call sendchars
-        ; ld c,0
-        ;call prtext
+        ld hl,twin
+         ld c,0
+        call prtext
+       endif
         
+fchanged=$+1
+
         ld a,' '
-        PRCHAR
+        MYPRCHAR
 nvview_ncurline=$+1
         ld hl,0
         exx 
@@ -411,31 +510,39 @@ nvview_ncurline=$+1
         call prdword
         ;ix
         ld a,'/'
-        PRCHAR
+        MYPRCHAR
         ld hl,(nlines)
         exx 
         ld hl,0
         exx
         call prdword
         ld a,' '
-        PRCHAR
+        MYPRCHAR
         ld hl,(filesizeHSW)
         exx
         ld hl,(filesize)
         call prdword
-        ld b,43
-nvview_panel0
-        ld a,' '
-        push bc
-        PRCHAR
-        pop bc
-        djnz nvview_panel0
+        ld de,tspaces_filename
+        ld hl,TSPACES_FILENAME_SZ
+        call sendchars
+
+
+
+
         ;ld e,NVVIEW_PANELCOLOR;#38
         ;OS_PRATTR
         ld de,_COLOR;#38
-        OS_SETCOLOR
-        
+       if PRSTDIO
+        SETCOLOR_
+       else
+        call nv_setcolor
+       endif
         ret
+        
+tspaces_filename
+	db ' '
+tshown_filename
+        ds TSPACES_FILENAME_SZ,' '
         
 twin
         db "WIN",0
@@ -472,15 +579,20 @@ nvview_prpage
         ld (curtoptextaddr),hl
         ld (curtoptextHSB),a
         push af
-        push hl
         ld de,NVVIEW_XYTOP
-        OS_SETXY
-        pop hl
+        call nv_setxy ;keeps de,hl,ix
         pop af
-        ld b,NVVIEW_HGT
+        ;ld b,NVVIEW_HGT
+        ld bc,(nvviewhgt-1) ;b
+
 nvview_prpage0
         push bc
         ;push de
+        ;push af
+        ;push hl
+        ;call nv_setxy
+        ;pop hl
+        ;pop af
         call nvview_prline_nextline
         ;pop de
         pop bc
@@ -650,7 +762,7 @@ nvview_nextline0
         cp 0x0d
         jr z,nvview_nextline_cr
         cp 0x0a
-        jr z,nvview_nextline_lf
+        jr z,nvview_nextline_cr;lf
         ld a,b
         or c
         jr nz,nvview_nextline0
@@ -683,7 +795,7 @@ nvview_nextline_cr
         cp 0x0a
         jr nz,nvview_nextline_lf
         inc hl
-nvview_nextline_lf
+nvview_nextline_lf=nvview_nextlineq
         jr nvview_nextlineq
         
 nvview_prline
@@ -719,47 +831,84 @@ nvview_prline_shift=$+1
         ld b,c
         pop hl
 ;b=number of chars to print != 0
-        ld c,NVVIEW_WID
+        ld de,prlinebuf
+        ld c,0;NVVIEW_WID
 nvview_prline0
         ld a,(hl)
         inc hl
         cp 0x0d
         jr z,nvview_prline_cr
         cp 0x0a
-        jr z,nvview_prline_lf
-        push bc
+        jr z,nvview_prline_cr;lf
+        ;push bc
         push hl
         ld h,twinto866/256
         ld l,a
 nvview_prline_recodepatch=$
         nop ;/ld a,(hl)
-        PRCHAR
+       if PRSTDIO
+	cp 0x1b
+	jr nz,$+3
+	xor a ;can't print 0x1b!
+       endif
+        ld (de),a ;PRCHAR_
+        inc de
         pop hl
-        pop bc
-        dec c
+        ;pop bc
+        inc c;dec c
         djnz nvview_prline0
-        jr nz,nvview_prline_lf
-        ret
-nvview_prlinespc_all
-        ld c,NVVIEW_WID
+        ;call print_prlinebuf
+        ;jr nz,nvview_prline_lf
+        ;ret
+
 nvview_prline_cr
-nvview_prline_lf
+;c=linesize [80-linesize]
+        call print_prlinebuf
+;c=x
+;nvview_prline_lf
 ;допечатать пробелы до конца строки
-        ld a,c
+        jr nvview_prlinespc
+nvview_prlinespc_all
+        ld c,0;NVVIEW_WID
 nvview_prlinespc
-        ld b,a
-nvview_prlinespc_b
         push af
         push hl
-nvview_prlinespc0
-        push bc
-        ld a,' '
-        PRCHAR
-        pop bc
-        djnz nvview_prlinespc0
+        ;ld l,b
+        ;ld h,0
+        ;ld de,tspaces
+        ;call sendchars
+         ld a,c
+         ;or a
+         ;ld a,NVVIEW_WID
+         ;sub c
+         ;ld c,a
+         cp NVVIEW_WID
+        call nz,clearrestofline_crlf
         pop hl
         pop af
         ret
+
+print_prlinebuf
+        push af
+        push bc
+        push hl
+;c=x [NVVIEW_WID-число символов]
+        ld de,prlinebuf
+        ;ld a,NVVIEW_WID
+        ;sub c
+        ld l,c;a
+        ld h,0
+        inc l
+        dec l
+         ld c,h
+         call nz,sendchars
+        pop hl
+        pop bc
+        pop af
+        ret
+
+prlinebuf
+        ds NVVIEW_WID
 
 nvview_pseudoprline
 ;ahl=addr
@@ -812,7 +961,7 @@ nvview_pseudoprline_lf
 istherecr_or_lf
 ;hl=addr
 ;de=length to search
-;out: z=found, hl=after match or after area
+;out: z=found, hl=at match or after area
         ld a,d
         or e
         jr z,istherecr_or_lf_fail
@@ -840,6 +989,20 @@ popafZret
         cp a ;Z
         ret
         
+;nvview_closefcb
+;        ld de,fcb
+;        OS_FCLOSE
+;        ret
+
+setunchanged
+	ld a,' '
+	jr setchanged_a
+setchanged
+	ld a,'*'
+setchanged_a
+	ld (fchanged),a
+	ret
+
 iswrapon
 ;CY = on
 wrapflag=$
@@ -858,7 +1021,7 @@ npages=$+1
         inc l
         ld (npages),hl
         ld a,e
-        SETPG32KHIGH
+        SETPGC000
         xor a
         ret ;z
 
@@ -887,7 +1050,7 @@ unreservepage_fail
         ret ;nz
         
 ahl_to_pgaddr
-;keeps bc
+;keeps bc,de
 ;counts physical hl
         rl h
         rla
@@ -907,13 +1070,46 @@ setpg32k
         ld l,a
         ld h,textpages/256
         ld a,(hl)
-        SETPG32KLOW
+        SETPG8000
         inc l
         ld a,(hl)
-        SETPG32KHIGH
+        SETPGC000
         pop hl
         ret
 
+skipword
+;hl=string
+;out: hl=terminator/space addr
+getword0
+        ld a,(hl)
+        or a
+        ret z
+        cp ' '
+        ret z
+        inc hl
+        jr getword0
+
+skipspaces
+;hl=string
+;out: hl=after last space
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces
+
+nv_setxy
+;de=yx (kept)
+;keeps hl
+        push de
+        push hl
+        push ix
+        SETXY_
+        pop ix
+        pop hl
+        pop de
+        ret
+        
 minhl_bc_tobc
         or a
         sbc hl,bc
@@ -923,6 +1119,7 @@ minhl_bc_tobc
         ld c,l
         ret
 
+       if !PRSTDIO
 sendchars
 ;send chars to stdout (in: de=buf, hl=size, out: A=error)
         ld b,h
@@ -932,13 +1129,15 @@ sendchars0
         push bc
         push hl
         ld a,(hl)
-        PRCHAR
+        MYPRCHAR
         pop hl
         pop bc
         cpi
         jp pe,sendchars0
         ret
+       endif
 
+       if 0
 ;receivechars - read chars from stdin
 receivechars
 ;de=buf, hl=size
@@ -964,27 +1163,101 @@ stdinhandle=$+1
         sbc hl,bc ;size-=readed
         jr nz,receivechars0
         ret
+       endif
 
-nlines
-        dw 0
+cmd_loadpage
+;out: a=error, bc=bytes read
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+        call readcurhandle
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        or a
+        ret
+
+readcurhandle
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ret
+
+strcopy_maxb
+;copy hl->de no more than b bytes, add spaces after
+strcopy_maxb0
+	ld a,(hl)
+	or a
+	jr z,strcopy_maxb_fill
+	ld (de),a
+	inc hl
+	inc de
+	djnz strcopy_maxb0
+	ret
+strcopy_maxb_fill
+	ld a,' '
+strcopy_maxb_fill0
+	ld (de),a
+	inc de
+	djnz strcopy_maxb_fill0
+	ret
+
+        include "../_sdk/stdio.asm"
+
+        include "../_sdk/prdword.asm"
+        ;include "../_sdk/stdio.asm"
+
+        align 256
+twinto866
+        incbin "../_sdk/codepage/winto866"
+
+       if PRSTDIO
+scrhgt
+        db 33
+nvviewhgt
+hexedhgt
+        db 33-1 ;может потом уменьшиться из-за меню
+filesperpanel
+        db 33-4
+       else
+scrhgt
+        db 25
+nvviewhgt
+hexedhgt
+        db 25-1 ;может потом уменьшиться из-за меню
+filesperpanel
+        db 25-4
+       endif
+
+res_path
+        db "../doc",0
+
+filenametext
+        db "nedoos.txt",0
+        ds filenametext+DIRMAXFILENAME64-$
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+cmd_end
 
 filesize
         dw 0
 filesizeHSW
         dw 0
 
+nlines
+        dw 0
+
         align 256
 textpages
         ds 256
-twinto866
-        incbin "../_sdk/codepage/winto866"
+	;display "man size ",/d,cmd_end-cmd_begin," bytes"
 
-        include "../_sdk/prdword.asm"
-        ;include "../_sdk/stdio.asm"
-
-cmd_end
-	;display "more size ",/d,cmd_end-cmd_begin," bytes"
-
-	savebin "more.com",cmd_begin,cmd_end-cmd_begin
+	savebin "man.com",cmd_begin,cmd_end-cmd_begin
 
 	LABELSLIST "../../us/user.l",1

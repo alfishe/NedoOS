@@ -1,6 +1,8 @@
 ;вместо dy могут стоять значения:
 SPRLIST_STAYING=99 ;мёртвый (xhigh=INVISIBLEX) или уже впечатанный в карту, не обрабатывается логикой
 SPRLIST_END=100 ;в конце списка ещё spritehsb=1!
+SPRLIST_PRINTED=101
+SPRLIST_IMPOSSIBLE=102
 
 ;в каких регистрах хранить данные при обработке:
 ;lc=x16 ;XXXXXXXX XXx????? (могут быть проблемы с точностью X при скольжении)
@@ -212,10 +214,12 @@ DOGRAVa=$+1
 WM0
         GETCOORDS
        ld a,d ;dy
-       cp SPRLIST_STAYING
-       jp z,NEWSPD_nogravity;WM0 ;стоячий червь или пустышка
+       cp SPRLIST_PRINTED
+       jp z,NEWSPD_nogravity;WM0 ;стоячий червь (уже напечатанный) или пустышка
        cp SPRLIST_END
        jr z,WRMOVEQ ;конец списка
+       cp SPRLIST_STAYING
+       jp z,NEWSPD_nogravity;WM0 ;стоячий червь или пустышка
         ADDCOORDS
         BIT 7,D
         jp NZ,WMGOUP
@@ -244,7 +248,7 @@ WM0
         ;or 0;16
         ld c,a
 ;nostoprot
-        LD d,SPRLIST_STAYING
+        LD de,SPRLIST_STAYING*256 ;когда напечатается, будет e!=0
        jp NEWSPD_nogravity
 WMGOUP
 ;движение вверх
@@ -345,7 +349,7 @@ StayingWormsVsMovingWorms ;столкновение летящего со сто
         ret
        
 CheckFlyingWorms
-;проверить, есть ли живые не стоящие
+;проверить, есть ли живые не стоящие (логика не дожна зависеть от разницы STAYING/PRINTED!)
 ;z=нету
         ld hl,WORMXY
 CheckFlyingWorms0
@@ -363,6 +367,8 @@ CheckFlyingWorms0
         ld a,(hl) ;dy
         cp SPRLIST_END
         ret z
+        cp SPRLIST_PRINTED
+        jr z,CheckFlyingWorms_skip
         cp SPRLIST_STAYING
         ret nz
 CheckFlyingWorms_skip

@@ -1,7 +1,6 @@
         DEVICE ZXSPECTRUM128
         include "../_sdk/sys_h.asm"
 
-_COLOR=0x0007;7
 TSPACES_FILENAME_SZ=42;41
 PRSTDIO=1
         if PRSTDIO
@@ -50,7 +49,7 @@ mktwinto866_0
 
         ld hl,0
         ld de,0
-nvview_load0
+nvview_load0 ;TODO сделать как в nvview
         push bc
         push de
         push hl
@@ -292,7 +291,7 @@ cmd_loadfullpage
         SETPGC000
         ld a,0xc000/256
 cmd_loadpage
-;out: a=error
+;out: a=error, bc=bytes read
 ;keeps hl,de
         push de
         push hl
@@ -302,12 +301,18 @@ cmd_loadpage
         ld e,a
         sub d
         ld h,a ;de=buffer, hl=size
-curhandle=$+1
-        ld b,0
-        OS_READHANDLE
+        call readcurhandle
+        ld b,h
+        ld c,l
         pop hl
         pop de
         or a
+        ret
+
+readcurhandle
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
         ret
 
 textedhgt
@@ -328,7 +333,22 @@ winquit
         db "     Quit?",0
         db 0 ;end of window
 
-        include "prdword.asm"
+prword
+;hl=num
+        push hl
+        pop iy
+        ld de,prdwordbuf
+        push de
+        exx
+        ld a,' '
+        ld (prnumdwordcmd_zero_sym),a
+        ld hl,0
+        call prword_hliy ;de'=buf
+        pop de
+        ld hl,5
+        jp sendchars
+
+        include "../_sdk/prdword.asm"
         include "textview.asm"
         include "text_mem.asm"
 
@@ -380,4 +400,4 @@ cmd_end
 
 	savebin "texted.com",cmd_begin,cmd_end-cmd_begin
 	
-	LABELSLIST "../../us/user.l"
+	LABELSLIST "../../us/user.l",1

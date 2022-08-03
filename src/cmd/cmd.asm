@@ -1957,7 +1957,13 @@ curdir__
         ds 256
         endif
 
-        include "prdword.asm"
+prword
+        exx
+        ld hl,0
+        exx
+        jp prdword
+
+        include "../_sdk/prdword.asm"
         include "cmdpr.asm"
         include "../_sdk/stdio.asm"
 

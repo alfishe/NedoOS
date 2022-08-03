@@ -120,7 +120,7 @@ processfiles0
 	push ix
 	ex de,hl
         call isthisdotdir_hl
-        display "processfiles_proc ",$
+        ;display "processfiles_proc ",$
 processfiles_proc=$+1
 	call nz,0 ;copy может переключать страницу (сейчас не переключает)
 	pop ix
@@ -223,7 +223,7 @@ drawpanelfilesandsize
 	call nz,nv_setcolor
         ;push ix
         ld de,wordfiles
-        call prdword_de_withspaces
+        call prdword_de;_withspaces
         ;ld hl,wordfiles
         ; ld c,0
         ;call prtext
@@ -236,7 +236,7 @@ drawpanelfilesandsize_markedsize
         call getmarkedfilessize
 drawpanelfilesandsize_markedsizeq
         ld de,wordbytes
-        call prdword_de_withspaces
+        call prdword_de;_withspaces
         push ix
         ld hl,wordfiles;bytes
          ld c,0
@@ -638,54 +638,6 @@ drawfilecursor_sizeb0
         ret
        endif
 
-        if 1==0
-nv_openfcb
-;if success, autopush nv_closefcb
-;out: nz=error
-        push ix
-        ld de,fcb
-        OS_FOPEN
-        pop ix
-        or a
-        ret nz ;error
-        ld hl,nv_closefcb
-        ex (sp),hl
-        jp (hl)
-
-nv_createfcb2
-;if success, autopush nv_closefcb2
-;out: nz=error
-        ld de,fcb2
-        push ix
-        OS_FCREATE
-        pop ix
-        or a
-        ret nz ;error
-        ld hl,nv_closefcb2
-        ex (sp),hl
-        jp (hl)
-
-nv_closefcb2
-;keep de and flags!!!
-        push de
-        ld de,fcb2
-        jr nv_closefcb_de_
-nv_closefcb
-;keep de and flags!!!
-        push de
-        ld de,fcb
-nv_closefcb_de_
-;out: keep flags!!!
-        push af
-        push ix
-        OS_FCLOSE
-        pop ix
-        pop af
-        pop de
-        ;or a
-        ret
-        endif
-
 copy_to_fcb_filename
         ld de,fcb_filename
 ;copy_to_defcb_filename
@@ -782,98 +734,45 @@ tcrlf
 
         if PRSTDIO==0
 nv_copyscreen0to1
-	OS_GETMAINPAGES
-	push hl
-	;OS_GETSCREENPAGES
+	;OS_GETMAINPAGES
+	;push hl
+        ;...
+	;pop hl
+	;ld a,l
+	;SETPGC000
+	;ld a,h
+	;SETPG8000
         ld a,(user_scr1_low) ;ok
-        ld l,a
+        ld hl,(user_scr0_low) ;ok
+        call nv_copypg ;pg l -> pg a
         ld a,(user_scr1_high) ;ok
-        ld h,a
-        ld a,(user_scr0_low) ;ok
-        ld e,a
-        ld a,(user_scr0_high) ;ok
-        ld d,a
-	push hl ;1 screen
-	push de ;0 screen
-	ld a,l
+        ld hl,(user_scr0_high) ;ok
+nv_copypg
+;pg l -> pg a
 	SETPGC000
-	pop de
-	push de
-	ld a,e
+	ld a,l
 	SETPG8000
-	ld bc,0x4000
 	ld hl,0x8000
 	ld de,0xC000
-	ldir
-	pop de
-	pop hl
-	push de
-	ld a,h
-	SETPGC000
-	pop de
-	ld a,d
-	SETPG8000
 	ld bc,0x4000
-	ld hl,0x8000
-	ld de,0xC000
 	ldir
-	pop hl
-	push hl
-	ld a,l
-	SETPGC000
-	pop hl
-	ld a,h
-	SETPG8000
-	ret
+        ret
 
 nv_copyscreen1to0
-	OS_GETMAINPAGES
-	push hl
-	;OS_GETSCREENPAGES
-        ld a,(user_scr1_low) ;ok
-        ld l,a
-        ld a,(user_scr1_high) ;ok
-        ld h,a
+	;OS_GETMAINPAGES
+	;push hl
+        ;...
+	;pop hl
+	;ld a,l
+	;SETPGC000
+	;ld a,h
+	;SETPG8000
         ld a,(user_scr0_low) ;ok
-        ld e,a
+        ld hl,(user_scr1_low) ;ok
+        call nv_copypg ;pg l -> pg a
         ld a,(user_scr0_high) ;ok
-        ld d,a
-	push hl ;1 screen
-	push de ;0 screen
-	ld a,l
-	SETPGC000
-	pop de
-	push de
-	ld a,e
-	SETPG8000
-	ld bc,0x4000
-	ld hl,0xc000
-	ld de,0x8000
-	ldir
-	pop de
-	pop hl
-	push de
-	ld a,h
-	SETPGC000
-	pop de
-	ld a,d
-	SETPG8000
-	ld bc,0x4000
-	ld hl,0xc000
-	ld de,0x8000
-	ldir
-	pop hl
-	push hl
-	ld a,l
-	SETPGC000
-	pop hl
-	ld a,h
-	SETPG8000
-	ret
-        
-;sendchar
-;        PRCHAR
-;        ret
+        ld hl,(user_scr1_high) ;ok
+        jr nv_copypg
         
 sendchars
 ;de=buf, hl=size, c=x

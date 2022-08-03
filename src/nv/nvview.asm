@@ -100,19 +100,8 @@ nvview_redrawloop
 
         call nvview_prcurpage
 nvview_mainloop
-      if 0
-        ld a,2
-nvview_yieldkeep
-        ld (nvview_wasnokey),a
-	YIELDKEEP
-        ld a,55+128 ;"or a"
-        ld (nvview_wasyield),a
-      endif
 nvview_mainloop_nokey
-      if 0
-      else
         YIELD
-      endif
        if PRSTDIO
         GETKEY_
         jr nz,nvview_mainloop_keyq
@@ -129,32 +118,7 @@ nvview_mainloop_nokey
          or a
         jr nz,nvview_mainloop_keyq
        endif
-      if 0
-         ;jr nvview_mainloop_nokey
-;nvview_mainloop_nokeygo
-       if PRSTDIO
-       ld a,(stdindatacount)
-       or a
-       jr nz,nvview_mainloop;_nokey
-       endif
-;если два раза подряд нет события, то делаем YIELD, иначе YIELDKEEP
-nvview_wasnokey=$+1
-        ld a,1
-        dec a
-        jr nz,nvview_yieldkeep
-       ;jr nvview_yieldkeep
-;рисовать панельку только при отсутствии события после YIELD
-nvview_wasyield=$
-        scf
-        call c,nvview_panel ;97359 t
-      else
         call nvview_panel ;97359 t
-      endif
-      if 0
-	YIELD
-        ld a,55 ;"scf"
-        ld (nvview_wasyield),a
-      endif
         jr nvview_mainloop_nokey
 nvview_mainloop_keyq
         cp key_redraw

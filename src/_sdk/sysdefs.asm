@@ -16,7 +16,7 @@ user_scr1_low=0x0036
 user_scr1_high=0x0037
 
 MAXPATH_sz=256;64
-DIRMAXFILENAME64=64
+DIRMAXFILENAME64=64 ;including EOL
 
 ;------------------------‘’“Š’“› CP/M --------------------------------------
 ;from CP/M (try to avoid use!):
