@@ -718,11 +718,10 @@ untr_play
         call startplay
 
         jr playenter0_go
-        ;OS_GETTIMER ;out: hlde=timer
-        ;ld (playenter_oldtimer),de
+        ;OS_GETTIMER ;out: dehl=timer
+        ;ld (playenter_oldtimer),hl
 playenter0
-;        OS_GETTIMER ;out: hlde=timer
-;        ex de,hl
+;        OS_GETTIMER ;out: dehl=timer
 ;playenter_oldtimer=$+1
 ;        ld de,0
 ;        ld (playenter_oldtimer),hl

@@ -96,7 +96,7 @@ CMD_FREEZEAPP=0xed ;e=id ;disable app and make non-graphic
 CMD_GETATTR=0xee ;DEPRECATED!!! ;out: a ;READ ATTR AT CURSOR POSITION
 CMD_MOUNT=0xef ;e=drive, out: a
 CMD_GETKEYMATRIX=0xf0 ;out: bcdehlix = halfrows cs...space
-CMD_GETTIMER=0xf1 ;out: hlde=timer
+CMD_GETTIMER=0xf1 ;out: dehl=timer
 CMD_YIELD=0xf2 ;schedule to another app (use YIELD macro instead of HALT!!!)
 CMD_RUNAPP=0xf3 ;e=id ;ACTIVATE DISABLED APP
 CMD_NEWAPP=0xf4 ;out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP

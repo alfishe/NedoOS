@@ -31,13 +31,12 @@ begin
 
         ld a,r
         ld (rndseed1),a
-        OS_GETTIMER ;hlde=timer
-        ld (rndseed2),de
-         ld (oldupdtimer),de
+        OS_GETTIMER ;dehl=timer
+        ld (rndseed2),hl
+         ld (oldupdtimer),hl
 
 	ld de,filename
 	OS_OPENHANDLE
-	;jr $
 	;ld a,-1
 	or a
 	jr nz,noloadini
@@ -701,9 +700,8 @@ dectotxt12
         ret
 
 updatetime
-        OS_GETTIMER ;hlde=timer
-        ld hl,(oldupdtimer)
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
+        ld de,(oldupdtimer)
         ld (oldupdtimer),hl
         or a
         sbc hl,de ;hl=frames

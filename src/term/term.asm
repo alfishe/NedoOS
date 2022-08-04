@@ -268,9 +268,8 @@ mainloop_type0_go
        
         if 1==0
 ;if long time no message from stdin, print cursor
-        OS_GETTIMER ;hlde=timer
-        push de
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
+        push hl
 lastsdtinmsgtimer=$+1
         ld de,0
          ;ld (lastsdtinmsgtimer),hl
@@ -737,8 +736,8 @@ stdinhandle=$+1
 
         push hl
         call redraw_to_base
-         ;OS_GETTIMER ;hlde=timer
-         ;ld (lastsdtinmsgtimer),de
+         ;OS_GETTIMER ;dehl=timer
+         ;ld (lastsdtinmsgtimer),hl
         BDOSSETPGSSCR
 pgscrbuf=$+1
         ld a,0 ;ok
@@ -1089,9 +1088,9 @@ term_prfsm_afterescbracket_H
 forcereprintcursor
         ;push de
         ;push hl
-        ;OS_GETTIMER ;hlde=timer
-        ;dec d
-        ;ld (lastsdtinmsgtimer),de
+        ;OS_GETTIMER ;dehl=timer
+        ;dec h
+        ;ld (lastsdtinmsgtimer),hl
          ld hl,0;2
          ld (cursortimelimit),hl
         ;pop hl

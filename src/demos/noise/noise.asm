@@ -162,8 +162,8 @@ copypal0
 
         call swapimer
 MUSICPATTERNSIZE=256;192
-        OS_GETTIMER
-        ld (oldtimer),de
+        OS_GETTIMER ;dehl
+        ld (oldtimer),hl;de
 
 showpic_mainloop
 
@@ -280,8 +280,8 @@ halt_testquit
 
 gettimer
         ;ld hl,(timer)
-        OS_GETTIMER
-        ex de,hl
+        OS_GETTIMER ;dehl
+        ;ex de,hl
 oldtimer=$+1
         ld de,0
         ld (oldtimer),hl

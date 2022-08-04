@@ -7,8 +7,8 @@ cmd_begin
 
 ;init
 	YIELD
-        OS_GETTIMER ;hlde=timer
-	ld (icmpstarttime),de
+        OS_GETTIMER ;dehl=timer
+	ld (icmpstarttime),hl
 
 	ld sp,0x8000
         call initstdio
@@ -358,9 +358,8 @@ ping_printstat0
 
 ;print overal time
 	YIELD 
-        OS_GETTIMER ;hlde=timer
-	ld hl,(icmpstarttime)
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
+	ld de,(icmpstarttime)
 	or a
 	sbc hl,de
 	ld d,h
@@ -455,8 +454,7 @@ ping_printwork_crc
 	ld hl,txt_work3
 	call print_hl
 	;YIELD ; update current time in "oldtimer"
-        OS_GETTIMER ;hlde=timer
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
 	ld a,(icmppacket.data+6)
 	ld d,a
 	ld a,(icmppacket.data+7)
@@ -531,8 +529,7 @@ ping_buildicmppacket
 	ld (icmpnum),hl
 	ld (ix + STicmpreq.num),h
 	ld (ix + STicmpreq.num+1),l
-        OS_GETTIMER ;hlde=timer
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
 	ld (ix + STicmpreq.data),h
 	ld (ix + STicmpreq.data+1),l
 	ld (ix + STicmpreq.data+2),h

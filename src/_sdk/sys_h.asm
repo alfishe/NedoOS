@@ -741,7 +741,7 @@ __1=$
         ld c,CMD_GETKEYMATRIX
         CALLBDOS_NOPARAM_A
         endm
-        macro OS_GETTIMER ;out: hlde=timer
+        macro OS_GETTIMER ;out: dehl=timer
         ld c,CMD_GETTIMER
 	CALLBDOS_NOPARAM_A
         endm

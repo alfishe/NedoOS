@@ -6,11 +6,10 @@
 time:
         push ix
         push iy
-    ld c,CMD_GETTIMER ;out: hlde=timer
+    ld c,CMD_GETTIMER ;out: dehl=timer
 	call BDOS
-        ld b,h
-        ld c,l
-        ex de,hl
+        ld b,d
+        ld c,e
         pop iy
         pop ix
         ret ;return bchl

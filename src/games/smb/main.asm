@@ -255,8 +255,8 @@ loaddemoq
 
         ld de,mariopal
         OS_SETPAL
-        ;OS_GETTIMER ;hlde=timer
-        ;ld (oldtimer),de
+        ;OS_GETTIMER ;dehl=timer
+        ;ld (oldtimer),hl
 	YIELD ;иначе палитра не установится
         
         call setpgs_code
@@ -1322,8 +1322,8 @@ oldpalette=$+1
 	sbc hl,de
 	jp z,EmulatePPU_nochpal ;реально поддержано изменение цвета Марио в палитре: при этом пишется oldpalette=левоечисло
 	push de
-        ;OS_GETTIMER ;hlde=timer
-        ;ld (oldtimer),de ;иначе yield вылетит без ожидания прерывания
+        ;OS_GETTIMER ;dehl=timer
+        ;ld (oldtimer),hl ;иначе yield вылетит без ожидания прерывания
 	YIELD ;иначе можем напороться на di в swapimer
 	call swapimer ;делать это после YIELD, т.к. внутри di..ei
 	pop de
@@ -2331,12 +2331,13 @@ gettimer
 ;out: hl=timer
 ;суммируем оба таймера - вдруг было системное прерывание
 	if OSCALLS
-        OS_GETTIMER ;hlde=timer
-	endif
+        OS_GETTIMER ;dehl=timer
+curtimer=$+1
+	ld de,0
+        add hl,de
+        else
 curtimer=$+1
 	ld hl,0
-	if OSCALLS
-        add hl,de
 	endif
 	ret
 

@@ -110,8 +110,7 @@ newlevel
         call prmap
         call fillcollisionmap
         
-        OS_GETTIMER ;hlde=timer
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
         ;ld hl,(timer)
         ld (oldtimer),hl
         
@@ -128,8 +127,7 @@ loop
         ;out (0xfe),a
         
 loopdelay
-        OS_GETTIMER ;hlde=timer
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
         ;ld hl,(timer)
 oldtimer=$+1
         ld bc,0

@@ -825,10 +825,10 @@ BDOS_getkeymatrix_fail
 
 BDOS_gettimerX
 BDOS_gettimer
-        ld hl,(sys_timer+2) ;ok
-        ld de,(sys_timer) ;ok
+        ld de,(sys_timer+2) ;ok
+        ld hl,(sys_timer) ;ok
          ld a,(sys_timer+2) ;ok
-         sub l
+         sub e
          jr nz,BDOS_gettimerX ;для атомарности
         ret ;a=0
         

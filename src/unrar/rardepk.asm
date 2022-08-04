@@ -139,18 +139,18 @@ nohobski
         LD B,A
        RET Z
       if frmcnt
-        ex af,af'
+        ex af,af' ;'
         push af
 	 push bc
         push ix
         push iy
-        OS_GETTIMER ;hlde=timer
+        OS_GETTIMER ;dehl=timer
         pop iy
         pop ix
 	 pop bc
         pop af
-        ex af,af'
-        LD (wastimer),de
+        ex af,af' ;'
+        LD (wastimer),hl
       ENDIF 
         XOR A
         LD L,A
@@ -171,8 +171,7 @@ DEPADR=$+1
       if frmcnt
        call RST16
        DB #D,#a,"frames=",0
-        OS_GETTIMER ;hlde=timer
-        ex de,hl
+        OS_GETTIMER ;dehl=timer
 wastimer=$+1
         ld de,0
         or a

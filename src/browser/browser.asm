@@ -303,8 +303,8 @@ browser_backspaceq
          ;call setpgcode4000 ;само восстанавливается
         call setpgtemp8000
 
-         OS_GETTIMER ;hlde=timer
-         ld (timebegin),de
+         OS_GETTIMER ;dehl=timer
+         ld (timebegin),hl
 
         ld hl,curfulllink
         call isprotocolpresent
@@ -672,9 +672,8 @@ showgif_frames0
 
 	push hl
 	push af
-        OS_GETTIMER ;hlde=timer
+        OS_GETTIMER ;dehl=timer
 	pop af
-	ex de,hl
 	ex (sp),hl
         call showframe ;читает showframetime из кадра
 
@@ -709,10 +708,9 @@ showframe_delay0
         cp key_up
         jr z,showframe_up
 showframe_nokey
-        OS_GETTIMER ;hlde=timer
+        OS_GETTIMER ;dehl=timer
 showframemaxtimer=$+1
 	ld bc,0 ;max timer for this frame
-	ex de,hl
 	or a
 	sbc hl,bc
 	jp m,showframe_delay0 ;timer<maxtimer
@@ -947,8 +945,7 @@ showtime
         ld a,STATUSCOLOR
         call initprcharmc
 
-         OS_GETTIMER ;hlde=timer
-         ex de,hl
+         OS_GETTIMER ;dehl=timer
 timebegin=$+1
          ld de,0
          or a
