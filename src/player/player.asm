@@ -73,7 +73,7 @@ cmd_proc_skip
         call skipspaces
         ld a,(hl)
         or a
-        jr z,noautoload
+        jp z,noautoload
         ld (filenameaddr),hl
 ;command line = "texted <file to load>"
         ;ld (texted_filenameaddr),hl
@@ -100,19 +100,27 @@ cmd_proc_skip
 	ld a,%00000010 ;PT2
 	ld (SETUP),a
 	
-        ld hl,module
+	;инитим до инита трека, иначе не работает SAA
+musicpage=$+1
+	ld a,0
+	ld hl,player
+	OS_SETMUSIC 
+	
+	di
+	ld hl,end_init
+	push hl
+	display $
+    ld hl,module
+	ld a,(module + 0x0a)
+	cp 'E'
+        jp z,EPlayer_Init
 	ld a,(hl)
 	cp 'T'
-        push af
-        call nz,INIT
-        pop af
-        call z,tfmini
-
-musicpage=$+1
-	 ld a,0
-         ld hl,player
-         OS_SETMUSIC 
-         
+        jp z,tfmini
+		
+		jp INIT
+end_init
+    ei  
 mainloopredraw
         ld e,COLOR
         OS_CLS
@@ -220,15 +228,19 @@ player
 	ld bc,0xbd77	;shadow ports and palette remain on
         out (c),a
 
+	ld hl,end_player
+	push hl
+	
+	ld a,(module + 0x0a)
+	cp 'E'
+        jp z,EPlayer_Play
 	ld a,(module)
 	cp 'T'
-        push af
-        ;push de
-        call nz,PLAY
-        ;pop de
-        pop af
-        call z,tfm
+		jp z,tfm
         
+		jp nz,PLAY
+        
+end_player
         pop af
 	;LD A,0xa8;%10101000 ;320x200 mode
 	ld bc,0xbd77	;shadow ports and palette remain on
@@ -246,6 +258,7 @@ muter
 
         include "ptsplay.asm"
         include "tfmplay.asm"
+        include "etplayer.asm"
         ent
 szplayer=$-wasplayer
         
