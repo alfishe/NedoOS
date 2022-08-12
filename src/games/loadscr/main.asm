@@ -71,9 +71,9 @@ pgvorobey=$+1
 
 ;теперь надо вывести загруженные данные на экран
         ld a,(pgscrdata0)
-        SETPG32KHIGH ;включили страницу с данными в c000
+        SETPGC000 ;включили страницу с данными в c000
         ld a,(user_scr0_low) ;ok
-        SETPG16K ;включили пол-экрана в 4000
+        SETPG4000 ;включили пол-экрана в 4000
         ld hl,0xc000
         ld de,0x4000
         ld bc,0x4000
@@ -92,9 +92,9 @@ copypal0
         djnz copypal0 ;скопировали палитру в pal (по 2 байта на цвет)
         
         ld a,(pgscrdata1)
-        SETPG32KHIGH ;включили страницу с данными в c000
+        SETPGC000 ;включили страницу с данными в c000
         ld a,(user_scr0_high) ;ok
-        SETPG16K ;включили другие пол-экрана в 4000
+        SETPG4000 ;включили другие пол-экрана в 4000
         ld hl,0xc000
         ld de,0x4000
         ld bc,0x4000
@@ -112,7 +112,7 @@ copypal0
         call primgega_onescreen
        
 
-        ld de,sprpal;pal
+        ld de,pal;sprpal
         OS_SETPAL ;включили палитру спрайтов;картинки
         
         call setpgsmain40008000 ;включили страницу программы в 4000, как было
@@ -131,23 +131,103 @@ mainloop
 
 ;вывод фона или восстановление фона под спрайтами
 ;... рекомендую взять из sprexamp!
-
-
+restorer_cursprlist=$+1
+        ld hl,sprlist1
+        ld de,sprlist1^sprlist2
+        ld a,h
+        xor d
+        ld h,a
+        ld a,l
+        xor e
+        ld l,a
+        ld (restorer_cursprlist),hl
+       push hl ;curlist
+restorer0
+        ld e,(hl) ;x/2
+        ld a,e
+        cp 200
+        jr z,restorer0q
+        inc hl
+        ld c,(hl) ;y
+        inc hl
+       ld a,scrhgt
+       sub (hl) ;hgt
+       ld b,a
+        inc hl
+       push hl
+        ld a,e ;x/2
+        sub +(sprmaxwid-1)
+        jr nc,$+3
+        xor a ;если <0
+        ;cp scrwid-sprmaxwid
+        ;jr c,$+4
+        ;ld a,scrwid-sprmaxwid
+        srl a
+        srl a
+        ld e,a ;x/8 >=0
+        ld a,c ;y
+        cp -(sprmaxhgt-1)
+        jr c,$+3
+        xor a ;если <0
+        cp b
+        jr c,$+3
+        ld a,b
+        ld c,a
+;e=x/8 >=0
+;c=y >=0
+        ld b,0
+        ld l,c
+        ld h,b;0
+        add hl,hl ;y*2
+        add hl,hl ;y*4
+        add hl,bc ;y*5
+        add hl,hl ;y*10
+        add hl,hl ;y*20
+        add hl,hl ;y*40
+        ld d,b;0
+        add hl,de ;+x/8
+        ld bc,0x4000
+        add hl,bc
+	;ld hl,0x4000 ;hl=scr
+	;ld de,scrwid/4 + (256*scrhgt) ;d=hgt,e=wid (/8)
+	ld de,3 + (256*16) ;d=hgt,e=wid (/8)        
+        call copyimgega_defaulttoshadow
+       pop hl
+        jr restorer0
+restorer0q
 ;вывод спрайтов
 ;...
         call setpgsscr40008000 ;включили страницы экрана
 
+        ;ld hl,sprlist1
+       pop hl
+        ld (cursprlistaddr),hl
+
 	ld iy,spaceship0
 	ld e,50 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 	ld c,50 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        call keepspr
 	call prspr
 	ld iy,fly0
+curx=$+1
 	ld e,80 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
+       ld a,e
+       ;add a,sprmaxwid-1
+       cp scrwid-1+(sprmaxwid-1)
+       jr nc,noprspr
+cury=$+1
 	ld c,60 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+       ld a,c
+       add a,sprmaxhgt-1
+       cp scrhgt-1+(sprmaxhgt-1)
+       jr nc,noprspr
+        call keepspr
 	call prspr
+noprspr
 	ld iy,explosion4
 	ld e,60 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
 	ld c,60 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
+        call keepspr
 	call prspr
 
         call setpgsmain40008000 ;включили страницы программы в 4000,8000, как было
@@ -171,6 +251,10 @@ uvoldtimer=$+1
 mainloop_uvlogic0
         push bc
         ;call logic ;<----------------- свою логику пиши сюда
+        ld hl,curx
+        inc (hl)
+        ld hl,cury
+        inc (hl)
         pop bc
         djnz mainloop_uvlogic0
 
@@ -189,6 +273,29 @@ waitchangescr0
         ;YIELDGETKEYLOOP ;ждём кнопку
 	call swapimer
         QUIT
+        
+keepspr
+cursprlistaddr=$+1
+        ld hl,0
+        ld (hl),e ;x
+        inc hl
+        ld (hl),c ;y
+        inc hl
+        ld a,(iy-1)
+        ld (hl),a ;hgt
+        inc hl
+        ld (cursprlistaddr),hl
+        ret
+        
+endkeepspr
+        ld hl,(cursprlistaddr)
+        ld (hl),200
+        ret
+
+sprlist1
+        ds 3*128,200
+sprlist2
+        ds 3*128,200
 
 pal
         ds 32 ;тут будет палитра картинки
@@ -250,15 +357,15 @@ copyimgega_curtodefault
 ;d=hgt,e=wid (/8)
 ;hl=scr
         call getuser_scr_low_cur
-        SETPG16K ;set "from" page in 4000
+        SETPG4000 ;set "from" page in 4000
         call getuser_scr_low
-        SETPG32KHIGH ;set "to" page in c000
+        SETPGC000 ;set "to" page in c000
         call copyimgegalayer
         call getuser_scr_high_cur
         SETPG16K ;set "from" page in 4000
         call getuser_scr_high
 copyimgegaq
-        SETPG32KHIGH ;set "to" page in c000
+        SETPGC000 ;set "to" page in c000
         call copyimgegalayer
         call setpgmainc000
         jp setpgsmain40008000
@@ -267,13 +374,26 @@ copyimgega_defaulttocur
 ;d=hgt,e=wid (/8)
 ;hl=scr
         call getuser_scr_low
-        SETPG16K ;set "from" page in 4000
+        SETPG4000 ;set "from" page in 4000
         call getuser_scr_low_cur
-        SETPG32KHIGH ;set "to" page in c000
+        SETPGC000 ;set "to" page in c000
         call copyimgegalayer
         call getuser_scr_high
-        SETPG16K ;set "from" page in 4000
+        SETPG4000 ;set "from" page in 4000
         call getuser_scr_high_cur
+        jr copyimgegaq ;set "to" page in c000, copy
+
+copyimgega_defaulttoshadow
+;d=hgt,e=wid (/8)
+;hl=scr
+        ld a,(pgscrdata0)
+        SETPG4000 ;set "from" page in 4000
+        call getuser_scr_low
+        SETPGC000 ;set "to" page in c000
+        call copyimgegalayer
+        ld a,(pgscrdata1)
+        SETPG4000 ;set "from" page in 4000
+        call getuser_scr_high
         jr copyimgegaq ;set "to" page in c000, copy
 
 copyimgegalayer
@@ -288,7 +408,7 @@ copyimgegacolumn0
         ld a,(hl)
         set 5,h
         ld c,(hl)
-        set 7,h
+         set 7,h
         ld (hl),c
         res 5,h
         ld (hl),a
@@ -345,4 +465,4 @@ end
 	
 	savebin "loadscr.com",begin,end-begin
 	
-	;LABELSLIST "../../../us/user.l"
+	LABELSLIST "../../../us/user.l",1

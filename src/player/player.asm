@@ -268,4 +268,4 @@ cmd_end
 
 	savebin "player.com",cmd_begin,cmd_end-cmd_begin
 	
-	;LABELSLIST "../us/user.l"
+	LABELSLIST "../us/user.l",1
