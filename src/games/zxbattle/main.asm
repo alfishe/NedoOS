@@ -275,6 +275,11 @@ MAINGO
         ld a,e
         ld (pgarea),a
 
+        OS_NEWPAGE
+        ld a,e
+        ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
+        ld (pgfake2),a       
+
 	CALL	INSREADY				;Loading Hi-Score table, music, palette, sound FX and palette initialisation
 	LD	HL,48000				;Sound FX initialisation
 	CALL	AFXINIT

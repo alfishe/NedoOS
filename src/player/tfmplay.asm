@@ -1,3 +1,5 @@
+;play *.tfc
+
 	;module pt3player
 ;TODO begin&end только в одном каналеstatuschip0=%11111000statuschip1=%11111001        MACRO WaitStatus       ;OUT (C),D ;statuschip0/1
        nop

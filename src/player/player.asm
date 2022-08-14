@@ -18,6 +18,12 @@ cmd_begin
 	ld (musicpage),a
         ld a,b
         ld (myid),a
+       if 0
+        ld a,h
+        ld (page8000),a
+        ld a,l
+        ld (pagec000),a
+       endif
         ;push hl
         ;ld e,h
         ;OS_DELPAGE
@@ -67,6 +73,15 @@ cmd_proc_skip
         ld de,0x4000
         ld bc,szplayer
         ldir
+
+       if 0
+page8000=$+1
+        ld a,0
+        SETPG8000
+pagec000=$+1
+        ld a,0
+        SETPGC000
+       endif
         
         ld hl,COMMANDLINE ;command line
         call skipword
@@ -76,11 +91,26 @@ cmd_proc_skip
         jp z,noautoload
         ld (filenameaddr),hl
 ;command line = "texted <file to load>"
+       push hl
+        call findlastdot ;out: de = after last dot or start
+        ld (extaddr),de
+       pop hl
         ;ld (texted_filenameaddr),hl
         ex de,hl ;de=drive/path/file
         OS_OPENHANDLE
 ;b=new file handle
 
+extaddr=$+1
+        ld hl,0
+        inc hl
+        inc hl
+        ld a,(hl)
+        or 0x20
+        cp 'd'
+        jp z,play_tfd
+        cp 'm'
+        jp z,play_tfm
+        
         ld de,module;0xc000
         ld hl,0xffff&(-module);0x4000
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
@@ -100,16 +130,17 @@ cmd_proc_skip
 	ld a,%00000010 ;PT2
 	ld (SETUP),a
 	
+        halt
 	;инитим до инита трека, иначе не работает SAA
 musicpage=$+1
 	ld a,0
 	ld hl,player
-	OS_SETMUSIC 
+	OS_SETMUSIC ;пишет в AY
 	
 	di
 	ld hl,end_init
 	push hl
-	display $
+	;display $
     ld hl,module
 	ld a,(module + 0x0a)
 	cp 'E'
@@ -157,6 +188,169 @@ quit
           halt
 noautoload
         QUIT
+
+play_tfd
+;b=handle
+        call loadtfd
+
+        call tfd_ini
+        call tfmshut
+
+	ld a,(musicpage)
+	ld hl,tfd_play
+	OS_SETMUSIC 
+        jp mainloopredraw
+
+play_tfm
+;b=handle
+        call loadtfd
+
+        ;call tfm_ini
+
+        halt
+	ld a,(musicpage)
+	ld hl,tfm_play
+	OS_SETMUSIC ;пишет в AY
+
+        call tfmshut
+
+        ld a,0xa0;%10101000 ;320x200 mode noturbo
+	ld bc,0xbd77	;shadow ports and palette remain on
+        out (c),a
+
+        LD DE,#FFBF
+        LD C,#FD 
+        CALL selChip0
+        CALL clrSSG;tfminiPP
+        LD A,%11111000
+        EXA 
+        LD A,7
+        CALL WRITEREG
+        CALL selChip1
+        CALL clrSSG;tfminiPP
+        LD A,%11101111
+        EXA 
+        LD A,7
+        call WRITEREG 
+
+	LD A,0xa8;%10101000 ;320x200 mode
+	ld bc,0xbd77	;shadow ports and palette remain on
+        out (c),a
+
+        jp mainloopredraw
+
+clrSSG
+        XOR A
+        EXA 
+        LD A,#0D ;SSG
+regClrS0 CALL WRITEREG
+        DEC A
+        JP P,regClrS0
+        ret
+
+loadtfd
+;b=handle
+        ld a,b
+        ld (curhandle),a
+       if 1
+        ld hl,0
+        ld de,0
+nvview_load0
+        push de
+        push hl
+        call reservepage
+        pop hl
+        pop de
+        ret nz ;no memory
+;nvview_load0nonewpg        
+        ld a,0xc000/256
+        call cmd_loadpage
+        jr nz,nvview_load0q
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        jr nc,$+3
+        inc hl
+         ;TODO nvview_load0nonewpg with new pointer if no new page
+        ld a,b
+        or c
+        jr nz,nvview_load0
+nvview_load0q
+;hlde=true file size (for TRDOSFS)
+        ;ld (filesize),de
+        ;ld (filesizeHSW),hl
+
+        ld a,(curhandle)
+        ld b,a
+        OS_CLOSEHANDLE
+       else
+        ld de,tfmData
+        ld hl,0xffff&(-tfmData);0x4000
+;B = file handle, DE = Buffer address, HL = Number of bytes to read
+        push bc
+        OS_READHANDLE
+        pop bc
+
+;B = file handle
+        OS_CLOSEHANDLE
+       endif
+        ret
+
+reservepage
+;new page, set page in textpages, npages++, set page in #c000
+;nz=error
+        OS_NEWPAGE
+        or a
+        ret nz
+npages=$+1
+        ld hl,tpgs;textpages
+        ld (hl),e
+        inc l
+        ld (npages),hl
+        ld a,e
+        SETPGC000
+        xor a
+        ret ;z
+
+cmd_loadpage
+;out: a=error, bc=bytes read
+;keeps hl,de
+        push de
+        push hl
+        ld d,a
+        xor a
+        ld l,a
+        ld e,a
+        sub d
+        ld h,a ;de=buffer, hl=size
+        call readcurhandle
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        or a
+        ret
+
+readcurhandle
+curhandle=$+1
+        ld b,0
+        OS_READHANDLE
+        ret
+
+;hl = poi to filename in string
+;out: de = after last dot or start
+findlastdot
+	ld d,h
+	ld e,l ;de = after last dot
+findlastdot0
+	ld a,[hl]
+	inc hl
+	or a
+	ret z
+	cp '.'
+	jr nz,findlastdot0
+	jr findlastdot
+
 
 teststr
 testdata0
@@ -236,9 +430,9 @@ player
         jp z,EPlayer_Play
 	ld a,(module)
 	cp 'T'
-		jp z,tfm
+        jp z,tfm
         
-		jp nz,PLAY
+        jp nz,PLAY
         
 end_player
         pop af
@@ -258,14 +452,18 @@ muter
 
         include "ptsplay.asm"
         include "tfmplay.asm"
+        include "tfdtest.asm"
+        include "tfmtest.asm"
         include "etplayer.asm"
+;tfmData
         ent
 szplayer=$-wasplayer
-        
+
 cmd_end
 
+	display "szplayer ",/d,szplayer," bytes"
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "player.com",cmd_begin,cmd_end-cmd_begin
 	
-	LABELSLIST "../us/user.l",1
+	LABELSLIST "../../us/user.l",1

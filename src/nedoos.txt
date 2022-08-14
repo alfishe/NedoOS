@@ -244,14 +244,6 @@ clink filename deffgfx (см. cc.bat и пример ex.c)
 cc concat.c
 clink concat
 
-player
-~~~~~~
-
-NedoPlayer - простейший плейер музыки в форматах *.pt2, *.pt3 (с поддержкой TurboSound) и *.tfc.
-Имя файла для проигрывания передаётся параметром в командной строке.
-Печатает имя файла при обновлении экрана.
-Выход - Break (Esc, Caps Shift+Space).
-
 modplay
 ~~~~~~
 
