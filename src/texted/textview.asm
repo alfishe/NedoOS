@@ -1042,20 +1042,14 @@ texted_ncurline=$+1
         ld a,'/'
         PRCHAR_
         ld hl,(nlines)
-        exx 
-        ld hl,0
-        exx
-        call prdword
+        ld de,0
+        call prdword_dehl
         ld a,' '
         PRCHAR_
         call getsize
-        exx
-        ;ld hl,(fcb+FCB_FSIZE+2)
-        ld l,a
-        ld h,0
-        exx
-        ;ld hl,(fcb+FCB_FSIZE)
-        call prdword
+        ld e,a
+        ld d,0
+        call prdword_dehl
         ld de,tspaces_filename
         ld hl,TSPACES_FILENAME_SZ
         call sendchars

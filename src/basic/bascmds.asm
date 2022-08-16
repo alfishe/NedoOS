@@ -187,11 +187,11 @@ cmd_pause_nogfxq
         ret
 
 cmd_gfx
-        call getexpr
+        call getexpr_dehl
         exx
         push hl
         exx
-        ld a,e
+        ld a,l
         and 7
         ld e,a
          ld (curgfx),a
@@ -205,11 +205,11 @@ cmd_gfx
 
 getexprcolor
 ;out: a=color = %33210210
-        call getexpr
-        ld a,e
+        call getexpr_dehl
+        ld a,l
         and 7
         ld d,a
-        ld a,e
+        ld a,l
         and 15
         add a,a
         add a,a
@@ -224,11 +224,11 @@ getexprcolor
 cmd_line
 ;hl'=курсор
 ;line x2,y2,color
-        call getexpr
-        ld (cmd_line_x2),de
+        call getexpr_dehl
+        ld (cmd_line_x2),hl
         call eatcomma
-        call getexpr
-        ld (cmd_line_y2),de
+        call getexpr_dehl
+        ld (cmd_line_y2),hl
         call eatcomma
         call getexprcolor ;a=color = %33210210
 
@@ -260,11 +260,11 @@ cmd_line_y2=$+1
 cmd_plot
 ;hl'=курсор
 ;plot x,y,color
-        call getexpr
-        ld (cmd_plot_x),de
+        call getexpr_dehl
+        ld (cmd_plot_x),hl
         call eatcomma
-        call getexpr
-        ld (cmd_plot_y),de
+        call getexpr_dehl
+        ld (cmd_plot_y),hl
         call eatcomma
         call getexprcolor
         ;ld lx,a ;lx=color = %33210210
@@ -504,7 +504,7 @@ prpixel_cury
         rra
         jr nc,$+4
         set 5,h
-        and %00111111
+        and 0b00111111
         add a,l
         ld l,a
         adc a,h
@@ -513,7 +513,7 @@ prpixel_cury
 prpixel_color_l=$+1
         ld a,0;lx
         xor (hl)
-        and %01000111 ;keep left pixel 
+        and 0b01000111 ;keep left pixel 
         xor (hl) ;right pixel from screen
         ld (hl),a
         ret
@@ -524,7 +524,7 @@ prpixel_r
         rra
         jr nc,$+4
         set 5,h
-        and %00111111
+        and 0b00111111
         add a,l
         ld l,a
         adc a,h
@@ -533,7 +533,7 @@ prpixel_r
 prpixel_color_r=$+1
         ld a,0;lx
         xor (hl)
-        and %10111000 ;keep right pixel 
+        and 0b10111000 ;keep right pixel 
         xor (hl) ;left pixel from screen
         ld (hl),a
         ret
@@ -541,14 +541,13 @@ prpixel_color_r=$+1
 cmd_system
 ;hl'=курсор
 ;system "command params"
-        call getexpr
+        call getexpr_dehl
         bit 7,c
         jp z,fail_syntax
         exx
         push hl
         exx
 ;hl = wordbuf = string
-
         ld de,curdir ;DE = Pointer to 64 byte (MAXPATH_sz!) buffer
         OS_GETPATH
         OS_SETSYSDRV ;TODO каталог cmd
@@ -566,15 +565,15 @@ cmd_system
         push bc ;b=id
         
         ld a,d
-        SETPG32KHIGH
+        SETPGC000
         push de
         push hl
         ld hl,syscmdbuf
-        ld de,#c000+COMMANDLINE
+        ld de,0xc000+COMMANDLINE
         ld bc,COMMANDLINE_sz
         ldir ;command line
         xor a
-        ld (#c000+COMMANDLINE+COMMANDLINE_sz-1),a ;на случай, если "cmd "+wordbuf больше 128 байт
+        ld (0xc000+COMMANDLINE+COMMANDLINE_sz-1),a ;на случай, если "cmd "+wordbuf больше 128 байт
         pop hl
         pop de
 cmd_system_handle=$+1
@@ -610,7 +609,7 @@ popret
 readfile_pages_dehl
         ld a,d
         push bc
-        SETPG32KHIGH
+        SETPGC000
         pop bc
          ld a,e
          push af
@@ -626,9 +625,9 @@ readfile_pages_dehl
         ld a,l
 cmd_setpgloadpage
         push bc
-        SETPG32KHIGH
+        SETPGC000
         pop bc
-        ld a,#c000/256
+        ld a,0xc000/256
 cmd_loadpage
 ;a=loadaddr/256
 ;b=handle
@@ -661,7 +660,7 @@ tcmd
 cmd_loadcode
 ;hl'=курсор
 ;load "name.bas"
-        call getexpr
+        call getexpr_dehl
         bit 7,c
         jp z,fail_syntax
         call cmd_load_hl
@@ -701,7 +700,7 @@ cmd_load_hl
 cmd_load
 ;hl'=курсор
 ;load "name.bas"
-        call getexpr
+        call getexpr_dehl
         bit 7,c
         jp z,fail_syntax
         call cmd_load_text
@@ -763,7 +762,7 @@ endfile
 cmd_savecode ; оригинальная процедура быстрой выгрузки программы в файл
 ;hl'=курсор
 ;save "name.bas"
-        call getexpr
+        call getexpr_dehl
         bit 7,c
         jp z,fail_syntax
         ;exx
@@ -797,7 +796,7 @@ cmd_savecode ; оригинальная процедура быстрой выгрузки программы в файл
 cmd_save
 ;hl'=курсор
 ;save "name.bas"
-        call getexpr
+        call getexpr_dehl
         bit 7,c
         jp z,fail_syntax
         ex de,hl
@@ -924,7 +923,7 @@ cmd_for_nocreate
 
         call eateq
         push bc
-        call getexpr
+        call getexpr_dehl
         pop bc
         ld a,c
         call setvar_int
@@ -932,10 +931,10 @@ cmd_for_nocreate
         call eatword ;to
         
         push bc
-        call getexpr
+        call getexpr_dehl
         pop bc
-        push hl ;HSW
-        push de ;LSW
+        push de ;HSW
+        push hl ;LSW
         ld a,c
         call findvar_index
         ld de,4+4
@@ -953,7 +952,7 @@ cmd_for_nocreate
         call eatword ;step
         
         push bc
-        call getexpr ;hlde=step
+        call getexpr_dehl ;dehl=step
         pop bc
         
         ld a,h
@@ -962,8 +961,8 @@ cmd_for_nocreate
         or e
         jp z,fail_syntax
                
-        push hl ;HSW
-        push de ;LSW
+        push de ;HSW
+        push hl ;LSW
         ld a,c
         call findvar_index
         ld de,4
@@ -1013,39 +1012,39 @@ cmd_next
         jp z,fail_syntax
         
         push hl
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-        inc hl
         ld c,(hl)
         inc hl
         ld b,(hl)
-        inc hl ;bcde = i
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl ;debc = i
         
         ld a,(hl)
-        add a,e
-        ld e,a
-        inc hl
-        ld a,(hl)
-        adc a,d
-        ld d,a
-        inc hl
-        ld a,(hl)
-        adc a,c
+        add a,c
         ld c,a
         inc hl
         ld a,(hl)
         adc a,b
-        ld b,a ;bcde = i = i+step
+        ld b,a
+        inc hl
+        ld a,(hl)
+        adc a,e
+        ld e,a
+        inc hl
+        ld a,(hl)
+        adc a,d
+        ld d,a ;debc = i = i+step
         
         ex (sp),hl
-        ld (hl),e
-        inc hl
-        ld (hl),d
-        inc hl
         ld (hl),c
         inc hl
         ld (hl),b
+        inc hl
+        ld (hl),e
+        inc hl
+        ld (hl),d
         inc hl
         pop hl
         
@@ -1055,30 +1054,29 @@ cmd_next
         
 ;to>=i?
         ld a,(hl)
-        sub e
-        ld e,a
-        inc hl
-        ld a,(hl)
-        sbc a,d
-        ld d,a
-        inc hl
-        ld a,(hl)
-        sbc a,c
+        sub c
         ld c,a
         inc hl
         ld a,(hl)
         sbc a,b
         ld b,a
         inc hl
-;bcde = to-i
+        ld a,(hl)
+        sbc a,e
+        ld e,a
+        inc hl
+        ld a,(hl)
+        sbc a,d
+        ld d,a
+        inc hl
+;debc = to-i
 ;TODO знаковое переполнение
         pop af ;NZ = step<0
-        call nz,negbcde
+        call nz,negdebc
 ;i<=to (to-i >= 0) - continue loop
-        bit 7,b ;Z = to-i>=0
+        bit 7,d ;Z = to-i>=0
         ret nz ;end of loop
-        call getint ;de=адрес после for ;было hlde=номер строки
-        ex de,hl
+        call getint ;hl=адрес после for ;было dehl=номер строки
         exx
         ret
         ;jp cmd_goto_ok
@@ -1103,11 +1101,11 @@ cmd_dim
         jp nz,fail_syntax
         call eat
         push bc
-        call getexpr
+        call getexpr_dehl
         pop bc
         call eatclosebracket
         
-;hlde=de=size
+        ex de,hl ;de=size
 
 ;c=name (char)
         ld hl,(varend)
@@ -1132,8 +1130,9 @@ cmd_dim
         
 cmd_edit
 ;hl'=курсор
-        call getexpr
-        call findline
+        call getexpr_dehl
+        ex de,hl
+        call findline ;de номер
         ld a,(hl)
         cp d
         jp nz,fail_syntax
@@ -1150,7 +1149,7 @@ cmd_edit
         exx
         ld hl,cmdbuf
         exx
-        call prlinenum_tomem
+        call prlinenum_tomem ;de номер
         exx
         ld (hl),' '
         inc hl
@@ -1284,7 +1283,7 @@ cmd_let
         call addvar_int
 cmd_let_createq
         push bc
-        call getexpr ;hlde=value
+        call getexpr_dehl ;dehl=value
         pop bc ;иначе выражение может запороть c
         ld a,c
         call setvar_int ;TODO не искать переменную второй раз
@@ -1293,7 +1292,7 @@ cmd_let_createq
 cmd_let_array
         call eat ;skip '(' and spaces
         push bc
-        call getexpr
+        call getexpr_dehl
         pop bc
         call eatclosebracket
         ld a,c
@@ -1302,17 +1301,17 @@ cmd_let_array
         call indexarray
         push hl ;адрес элемента
         call eateq
-        call getexpr ;hlde
+        call getexpr_dehl
         ld b,h
-        ld c,l ;bcde
+        ld c,l ;debc
         pop hl ;адрес элемента
-        ld (hl),e
-        inc hl
-        ld (hl),d
-        inc hl
         ld (hl),c
         inc hl
         ld (hl),b
+        inc hl
+        ld (hl),e
+        inc hl
+        ld (hl),d
         ret
         
 cmd_let_str
@@ -1354,21 +1353,23 @@ cmd_let_str_createq
 cmd_let_strarray
         call eat ;skip '(' and spaces
         push bc
-        call getexpr ;hlde=index
+        call getexpr_dehl ;dehl=index
         pop bc
         call eatclosebracket
         call eateq
+       ex de,hl
         ld a,c
-        call findvar_str
+        call findvar_str ;hl=str
         jp z,fail_syntax
-        ld a,d
+        ld a,d ;de=index
         or a
         jp nz,fail_syntax ;range check
         add hl,de
         push hl ;addr in str
-        call getexpr ;hlde=char
+        call getexpr_dehl ;dehl=char
+        ld a,l
         pop hl ;addr in str       
-        ld (hl),e
+        ld (hl),a
         ret
         
 cmd_cls
@@ -1382,7 +1383,7 @@ cmd_cls
 
 cmd_if
 ;hl'=курсор
-        call getexpr
+        call getexpr_dehl
 	ld a,h
 	or l
 	or d
@@ -1405,10 +1406,11 @@ gotonextlineq
         
 cmd_goto
 ;hl'=курсор
-        call getexpr
-cmd_goto_ok
-;hlde=номер строки
-        call findline
+        call getexpr_dehl
+        ex de,hl
+;cmd_goto_ok
+;de=номер строки
+        call findline ;de номер
         call startline
         exx
         ld a,RUNMODE_PROG
@@ -1480,8 +1482,8 @@ cmd_print0
         exx
         cp ';'
         jp z,cmd_print_semicolon
-        call getexpr
-        call prval
+        call getexpr_dehl
+        call prval_dehl
         jr cmd_print
 cmd_print_semicolon
         call eat
@@ -1489,8 +1491,8 @@ cmd_print_semicolon
         jr nz,cmd_print ;TODO cmd_print0?
         ret
         
-getexpr
-;out: hlde=value, c=type
+getexpr_dehl
+;out: dehl=value, c=type
         call getaddexpr
 getexpr0
         exx
@@ -1560,16 +1562,16 @@ getexpr_lesseq
 getexpr_more_subr        
 ;old > new: new-old = CY
         push bc
-        push hl ;HSW
-        push de ;LSW
+        push de ;HSW
+        push hl ;LSW
         call getaddexpr
         pop bc ;LSW
-        ex de,hl
 	or a
         sbc hl,bc
-        ex de,hl
         pop bc ;HSW
+        ex de,hl
         sbc hl,bc
+        ex de,hl
         pop bc
 	ld hl,0
 	ld de,0
@@ -1581,25 +1583,25 @@ getexpr_more_subr
 getexpr_less_subr
 ;old < new: old-new = CY
         push bc
-        push hl ;old HSW
-        push de ;old LSW
+        push de ;old HSW
+        push hl ;old LSW
         call getaddexpr
 	pop bc ;old LSW
 	pop af ;old HSW
-	push hl ;new HSW
-	push de ;new LSW
+	push de ;new HSW
+	push hl ;new LSW
         push af ;old HSW
         push bc ;old LSW
-	pop de ;old LSW
-	pop hl ;old HSW
+	pop hl ;old LSW
+	pop de ;old HSW
 	
         pop bc ;LSW
-        ex de,hl
 	or a
         sbc hl,bc
-        ex de,hl
         pop bc ;HSW
+        ex de,hl
         sbc hl,bc
+        ex de,hl
         pop bc
 	ld hl,0
 	ld de,0
@@ -1610,16 +1612,16 @@ getexpr_less_subr
 
 getexpr_eq_subr
         push bc
-        push hl ;HSW
-        push de ;LSW
+        push de ;HSW
+        push hl ;LSW
         call getaddexpr
         pop bc ;LSW
-        ex de,hl
 	or a
         sbc hl,bc
-        ex de,hl
         pop bc ;HSW
+        ex de,hl
         sbc hl,bc
+        ex de,hl
 	ld a,d
 	or e
 	or h
@@ -1655,37 +1657,37 @@ getaddexpr0
 getaddexpr_plus
         call eat
         push bc
-        push hl ;HSW
-        push de ;LSW
+        push de ;HSW
+        push hl ;LSW
         call getmulexpr
         pop bc ;LSW
-        ex de,hl
         add hl,bc
-        ex de,hl
         pop bc ;HSW
+        ex de,hl
         adc hl,bc
+        ex de,hl
         pop bc
         jr getaddexpr0
         
 getaddexpr_minus
         call eat
         push bc
-        push hl ;HSW
-        push de ;LSW
+        push de ;HSW
+        push hl ;LSW
         call getmulexpr
         pop bc ;LSW
-        ex de,hl
         or a
         sbc hl,bc
-        ex de,hl
         pop bc ;HSW
+        ex de,hl
         sbc hl,bc
-        call neghlde
+        ex de,hl
+        call negdehl
         pop bc
         jr getaddexpr0
 
 getmulexpr
-        call getval_
+        call getval_dehl_
 getmulexpr0
         exx
         ld a,(hl)
@@ -1707,17 +1709,18 @@ getmulexpr0
 getmulexpr_div
         call eat
         push bc
-        push hl ;HSW old
-        push de ;LSW old
-        call getval_
-        push hl ;LSW new
+        push de ;HSW old
+        push hl ;LSW old
+        call getval_dehl_
         push de ;HSW new
+        push hl ;LSW new
         exx
         pop ix ;LSW new
         pop bc ;HSW new
         pop de ;LSW old
         ex (sp),hl ;pop hl ;HSW old
-        call _DIVLONG.
+        call _DIVLONG. ;hl, de / bc, ix ;out: hl(high), de(low)
+       ex de,hl ;dehl
         exx
         pop hl ;курсор
         exx
@@ -1727,12 +1730,14 @@ getmulexpr_div
 getmulexpr_mul
         call eat
         push bc
-        push hl ;HSW
-        push de ;LSW
-        call getval_
+        push de ;HSW
+        push hl ;LSW
+        call getval_dehl_
         pop ix ;LSW
         pop bc ;HSW
+       ex de,hl ;hl,de
         call _MULLONG.
+       ex de,hl ;dehl
         pop bc
         jr getmulexpr0
         
@@ -1744,7 +1749,7 @@ _DIVLONG.
 	xor b
 	push af
 	xor b
-	call m,neghlde
+	call m,div_neghlde
 	ld a,b
 	rla
 	jr nc,divlongnonegbcix
@@ -1769,7 +1774,7 @@ divlongnonegbcix
 	ld hl,0
 	exx
 	ld a,e
-	ex af,af' ;e_in
+	ex af,af' ;' ;e_in
 	push de ;d_in
 	ld c,l ;l_in
 	ld a,h ;h_in
@@ -1794,7 +1799,7 @@ divlongnonegbcix
 ;hl'hla <= 0hlde_in
 	call _DIVLONGP. ;"e"
 	ld e,a ;"e"
-	ex af,af' ;"d"
+	ex af,af' ;' ;"d"
 	ld d,a
 	pop hl ;h="l"
 	ld l,h
@@ -1802,7 +1807,21 @@ divlongnonegbcix
 	
 	pop af
 	ret p
-	jp neghlde
+div_neghlde
+        xor a
+        sub e
+        ld e,a
+        ld a,0
+        sbc a,d
+        ld d,a
+        ld a,0
+        sbc a,l
+        ld l,a
+        ld a,0
+        sbc a,h
+        ld h,a
+        ret
+
 ;a = hl'hla/de'de
 ;c not used
 _DIVLONGP.
@@ -1883,16 +1902,16 @@ _MULLONG0.
         
 getval_unaryminus
         call eat
-        call getval_
-        jp neghlde
+        call getval_dehl_
+        jp negdehl
 getval_bracket
         call eat
-        call getexpr
+        call getexpr_dehl
         jp eatclosebracket
         
-getval_
+getval_dehl_
 ;hl'=курсор
-;out: hlde=value, c=type
+;out: dehl=value, c=type
         exx
         ld a,(hl)
         exx
@@ -1903,10 +1922,10 @@ getval_
         cp '('
         jr z,getval_bracket
         cp '"'
-        jr z,getval_str
+        jp z,getval_str
         sub '0'
         cp 10
-        jr c,getval_num
+        jr c,getval_num_dehl
         exx
         ld a,(hl)
         exx
@@ -1945,27 +1964,29 @@ getval_varstr
 getval_varchararray
         call eat
         push bc
-        call getexpr
+        call getexpr_dehl
         pop bc
         call eatclosebracket
+       ex de,hl ;de=index
         ld a,c
         call findvar_str
         jp z,fail_syntax
-        ld a,d
+        ld a,d ;de=index
         or a
         jp nz,fail_syntax ;range check
         add hl,de
-        ld e,(hl)
-        ld hl,0
-        ld d,h ;hlde=char
+        ld l,(hl)
+        ld de,0
+        ld h,d ;dehl=char
         res 7,c ;ld c,0 ;int
         ret
 getval_vararray
         call eat
         push bc
-        call getexpr
+        call getexpr_dehl
         pop bc
         call eatclosebracket
+       ex de,hl ;de=index
         ld a,c
         call findvar_array
         jp z,fail_syntax
@@ -1973,8 +1994,8 @@ getval_vararray
         call getint
         res 7,c ;ld c,0 ;int
         ret
-getval_num
-        call readnum ;hlde=num, hl'=after num and spaces, CY=error
+getval_num_dehl
+        call readnum_dehl ;dehl=num, hl'=after num and spaces, CY=error
         jp c,fail_syntax
         res 7,c ;ld c,0 ;int
         ret
@@ -1984,14 +2005,14 @@ getval_str
         set 7,c ;ld c,0 ;str
         ret
 
-prval
-;hlde=value, c=type
+prval_dehl
+;dehl=value, c=type
         exx
         push hl
         exx
         bit 7,c
         jr nz,prval_str
-        call prdword_hlde
+        call prdword_dehl
         pop hl
         exx
         ret

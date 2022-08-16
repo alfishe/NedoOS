@@ -73,16 +73,14 @@ nvview_load0
         pop hl
         pop de
         push af ;CY=error
-        ex de,hl
         add hl,bc
-        ex de,hl
         jr nc,$+3
-        inc hl
+        inc de
         pop af ;CY=error
         jr nc,nvview_load0
-;hlde=true file size (for TRDOSFS)
-        ld (filesize),de
-        ld (filesizeHSW),hl
+;dehl=true file size (for TRDOSFS)
+        ld (filesize),hl
+        ld (filesizeHSW),de
 
 ;закрываем файл сами, иначе cmd когда будет закрывать?
         ld a,(stdinhandle)
@@ -405,24 +403,18 @@ nvview_panel
         PRCHAR
 nvview_ncurline=$+1
         ld hl,0
-        exx 
-        ld hl,0
-        exx
-        call prdword
-        ;ix
+        ld de,0
+        call prdword_dehl
         ld a,'/'
         PRCHAR
         ld hl,(nlines)
-        exx 
-        ld hl,0
-        exx
-        call prdword
+        ld de,0
+        call prdword_dehl
         ld a,' '
         PRCHAR
-        ld hl,(filesizeHSW)
-        exx
         ld hl,(filesize)
-        call prdword
+        ld de,(filesizeHSW)
+        call prdword_dehl
         ld b,43
 nvview_panel0
         ld a,' '

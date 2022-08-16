@@ -1,20 +1,20 @@
-prdword ;для печати на экран
-;hl'hl=num
-        ld de,prdwordbuf
-        push de
-        call prdword_de
+prdword_dehl ;для печати на экран
+;dehl=num
+        ld bc,prdwordbuf
+        push bc
+        call prdword_dehl_tobc
         pop de
         ld hl,10
         jp sendchars
 
-prdword_de
-;hl'hl=num
-;de=buf
+prdword_dehl_tobc ;для печати в буфер
+;dehl=num
+;bc=buf
+        push de
         push hl
-        pop iy
         exx
-;hliy=num
-;de'=buf addr
+        pop iy
+        pop hl ;hliy=num ;bc'=buf addr
         ld a,' '
         ld (prnumdwordcmd_zero_sym),a
         ld a,h
@@ -35,23 +35,32 @@ prdword_de
         ld  c,+(-100000>>16)
         ld de,+(-100000&0xffff)
         call prdig32bit
-        jp prword_hliy
+        jp _prword_hliy
+
+prword_hl_tobc ;для печати в буфер
+;hl=num
+;bc=buf
+        push hl
+        exx
+        pop iy
+        ld a,' '
+        ld (prnumdwordcmd_zero_sym),a
+        ld hl,0
+        jr _prword_hliy ;hliy=num ;bc'=buf addr
 prdword_skiphsw
         call prnumdwordcmd_azero
         call prnumdwordcmd_azero_a
         call prnumdwordcmd_azero_a
         call prnumdwordcmd_azero_a
         call prnumdwordcmd_azero_a
-prword_hliy
-;hliy=num
-;de'=buf addr
+_prword_hliy ;hliy=num ;bc'=buf addr
         ld bc,+(-10000>>16)
         ld de,+(-10000&0xffff)
         call prdig32bit
         push iy
         pop hl
 ;hl=num
-;de'=buf addr
+;bc'=buf addr
         ld bc,+(-1000&0xffff)
         call prdig16bit
         ld bc,+(-100&0xffff)
@@ -61,13 +70,13 @@ prword_hliy
         ld a,l
         add a,'0'
         exx
-        ld (de),a
-        inc de
+        ld (bc),a
+        inc bc
         ret
 prdig16bit
 ;hl=num
 ;bc=-divisor
-;de'=screen addr
+;bc'=buf addr
         ld a,'0'-1
 prdig16bit0
         inc a
@@ -78,11 +87,11 @@ prdword_digok
         cp '0'
         jr z,prnumdwordcmd_azero
         exx
-        ld (de),a
-        inc de
+        ld (bc),a
+        inc bc
         exx
-        ld a,0x12 ;"ld (de),a"
-        ld (prnumdwordcmd_zero_lddea),a ;все последующие нули видимые
+        ld a,0x02 ;"ld (bc),a"
+        ld (prnumdwordcmd_zero_ldbca),a ;все последующие нули видимые
         ld a,'0'
         ld (prnumdwordcmd_zero_sym),a ;все последующие нули печатаем не пробелом, а нулём
         ret
@@ -91,15 +100,15 @@ prnumdwordcmd_zero_sym=$+1
         ld a,' '
 prnumdwordcmd_azero_a
         exx
-prnumdwordcmd_zero_lddea=$ ;0: для вывода размера файла (не портит содержимое буфера под незначащими нулями) ;0x12 "ld (de),a": для вывода files, size
-        ld (de),a
-        inc de
+prnumdwordcmd_zero_ldbca=$ ;0: для вывода размера файла (не портит содержимое буфера под незначащими нулями) ;0x02 "ld (bc),a": для вывода files, size
+        ld (bc),a
+        inc bc
         exx
         ret   
 prdig32bit
 ;hliy=num
 ;bcde=-divisor
-;de'=buf addr
+;bc'=buf addr
         ld a,'0'-1
 prdig32bit0
         inc a

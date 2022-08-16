@@ -79,20 +79,18 @@ nvview_load0 ;TODO сделать как в nvview
         pop de
 
         push af ;NZ = bytes to read != bytes actually read
-        ex de,hl
         add hl,bc
-        ex de,hl
         jr nc,$+3
-        inc hl
+        inc de
         pop af ;NZ = bytes to read != bytes actually read
 
         pop bc
 
         ;or a
         jr z,nvview_load0
-;hlde=true file size (for TRDOSFS)
-        ld (filesize),de
-        ld (filesizeHSW),hl
+;dehl=true file size (for TRDOSFS)
+        ld (filesize),hl
+        ld (filesizeHSW),de
         
         OS_CLOSEHANDLE
         
@@ -335,15 +333,9 @@ winquit
 
 prword
 ;hl=num
-        push hl
-        pop iy
-        ld de,prdwordbuf
-        push de
-        exx
-        ld a,' '
-        ld (prnumdwordcmd_zero_sym),a
-        ld hl,0
-        call prword_hliy ;de'=buf
+        ld bc,prdwordbuf
+        push bc
+        call prword_hl_tobc ;bc'=buf
         pop de
         ld hl,5
         jp sendchars

@@ -225,8 +225,8 @@ findline_lines_less
         inc hl ;пропускаем терминатор
         jr findline_lines0
        
-readnum_
-;out: hlde=num, hl'=text, CY=error
+readnum_dehl_
+;out: dehl=num, hl'=text, CY=error
         exx
         ld a,(hl)
         exx
@@ -234,8 +234,8 @@ readnum_
         cp 10 ;NC = не число
         ccf ;CY = не число
         ret c ;error
-readnum
-;out: hlde=num, hl'=text, CY=error
+readnum_dehl
+;out: dehl=num, hl'=text, CY=error
         ld hl,0
         ld de,0 ;накопитель
 readnum0
@@ -248,30 +248,30 @@ readnum0
         exx
         inc hl
         exx
-         push hl ;HSW
-         push de ;LSW
-        sla e
-        rl d
-        adc hl,hl ;*2
-        sla e
-        rl d
-        adc hl,hl ;*4
+         push de ;HSW
+         push hl ;LSW
+        add hl,hl
+        rl e
+        rl d ;*2
+        add hl,hl
+        rl e
+        rl d ;*4
          pop bc ;LSW
-         ex de,hl
          add hl,bc
-         ex de,hl
          pop bc ;HSW
+         ex de,hl
          adc hl,bc ;*5
-        sla e
-        rl d
-        adc hl,hl ;*10
-        add a,e
-        ld e,a
-        ld a,d
+         ex de,hl
+        add hl,hl
+        rl e
+        rl d ;*10
+        add a,l
+        ld l,a
+        ld a,h
         adc a,0
-        ld d,a
+        ld h,a
         jr nc,$+3
-        inc hl
+        inc de
         jr readnum0
 readnumq
         call eatspaces
@@ -298,7 +298,8 @@ add_or_run_line
         ld hl,cmdbuf
         exx
         call eatspaces
-        call readnum_ ;hlde=linenum, hl'=text, CY=error
+        call readnum_dehl_ ;dehl=linenum, hl'=text, CY=error
+        ex de,hl ;de номер
         jp c,cmd_run0;runline
         exx
         ld a,(hl)
@@ -379,7 +380,7 @@ addline_linelen=$+1
         
 delline
 ;de=linenum
-        call findline ;hl=адрес строки или (progend)
+        call findline ;de номер ;hl=адрес строки или (progend)
         ld bc,(progend)
         or a
         sbc hl,bc
@@ -756,57 +757,58 @@ loginv
         ld h,a
         ret
         
-
-neghlde
+negdebc
         xor a
-        sub e
-        ld e,a
-        ld a,0
-        sbc a,d
-        ld d,a
-        ld a,0
-        sbc a,l
-        ld l,a
-        ld a,0
-        sbc a,h
-        ld h,a
-        ret
-
-negbcde
-        xor a
-        sub e
-        ld e,a
-        ld a,0
-        sbc a,d
-        ld d,a
-        ld a,0
-        sbc a,c
+        sub c
         ld c,a
         ld a,0
         sbc a,b
         ld b,a
+        ld a,0
+        sbc a,e
+        ld e,a
+        ld a,0
+        sbc a,d
+        ld d,a
+        ret
+negdehl
+        xor a
+        sub l
+        ld l,a
+        ld a,0
+        sbc a,h
+        ld h,a
+        ld a,0
+        sbc a,e
+        ld e,a
+        ld a,0
+        sbc a,d
+        ld d,a
         ret
 
 prlinenum_tomem
+;de=num
         ld bc,prdword_digit_tomem
         ld (prdword_digit_prchar_jp),bc
         ld hl,0
-        jr prdword_subr
+        ex de,hl
+        jr _prdword_subr ;dehl=num
         
 prword_de
 ;de=num
         ld hl,0
-prdword_hlde
-;hlde=num
+        ex de,hl
+prdword_dehl
+;dehl=num
         ld bc,prdword_digit_toscr
         ld (prdword_digit_prchar_jp),bc
-        bit 7,h
-        jr z,prdword_hlde_positive
+        bit 7,d
+        jr z,prdword_positive
         ld a,'-'
         call prdword_digit_prchar
-        call neghlde
-prdword_hlde_positive
-prdword_subr
+        call negdehl
+prdword_positive
+_prdword_subr
         ld a,' '
         ld (prnumdwordcmd_zero),a
         ld lx,0
@@ -816,11 +818,10 @@ prdword_subr
         ld bc,100000000/65536
         ld a,100000000/256&#ff
         call prdword_digit
-        ld a,h
-        ld lx,a
-        ld h,l
-        ld l,d
+        ld lx,d
         ld d,e
+        ld e,h
+        ld h,l
         ld bc,10000000/256
         ld a,10000000&#ff ;0x989680
         call prdword_digit
@@ -842,7 +843,7 @@ prdword_subr
         ld bc,10/256
         ld a,10&#ff
         call prdword_digit
-        ld a,d
+        ld a,h
         add a,'0'
 prdword_digit_prchar
 prdword_digit_prchar_jp=$+1
@@ -863,9 +864,10 @@ prdword_digit_tomem
         exx
         ret
 prdword_digit
-;hlde=num
+;deh[l]=num
 ;bca0=divisor
-        push de
+        push hl
+        ex de,hl
         ld e,a
         ld a,d
         ld d,'0'-1
@@ -884,8 +886,9 @@ prdword_digit0
         jr nc,$+4
         inc lx
          ld c,d ;digit
-        pop de
-        ld d,a ;hlde=num
+        ex de,hl
+        pop hl
+        ld h,a ;dehl=num
          ld a,c ;digit
         cp '0'
         jr nz,prnumdwordcmd_nozero
@@ -923,7 +926,7 @@ prstr_withlen0
         
 ;getvar_int
 ;a=name (char)
-;out: hlde
+;out: dehl
         ;call findvar_int ;hl=addr
 getint
         ld e,(hl)
@@ -934,6 +937,7 @@ getint
         inc hl
         ld h,(hl)
         ld l,a
+        ex de,hl
         ret
 
 ;getvar_str
@@ -943,7 +947,8 @@ getint
         ;ret
 
 setvar_int
-;a=name (char), hlde=value
+;a=name (char), dehl=value
+        ex de,hl
         push hl
         call findvar_int ;hl=addr
         ld (hl),e

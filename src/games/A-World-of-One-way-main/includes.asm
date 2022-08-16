@@ -27,5 +27,5 @@ elds:
        if !EGA
 ss:
 	include "sprites/storage.asm"
-       endif
 ess
+       endif

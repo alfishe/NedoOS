@@ -956,10 +956,9 @@ cmd_dir2_0
         ld a,' '
         PRCHAR_
 
-        ld hl,(filinfo+FILINFO_FSIZE+2)
-        exx
         ld hl,(filinfo+FILINFO_FSIZE)
-        call prdword
+        ld de,(filinfo+FILINFO_FSIZE+2)
+        call prdword_dehl
         ld a,' '
         PRCHAR_
 
@@ -1958,10 +1957,8 @@ curdir__
         endif
 
 prword
-        exx
-        ld hl,0
-        exx
-        jp prdword
+        ld de,0
+        jp prdword_dehl
 
         include "../_sdk/prdword.asm"
         include "cmdpr.asm"

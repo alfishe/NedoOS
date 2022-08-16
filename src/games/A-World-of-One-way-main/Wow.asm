@@ -428,7 +428,7 @@ emptypal
        if EGA
 ss:
         include "sprites/storage.asm"
-        
+ess        
         ;display enemy_1-enemy_0
        endif
        ent

@@ -62,19 +62,17 @@ nvview_load0
         ld a,0xc000/256
         call cmd_loadpage
         jr nz,nvview_load0q
-        ex de,hl
         add hl,bc
-        ex de,hl
         jr nc,$+3
-        inc hl
+        inc de
          ;TODO nvview_load0nonewpg with new pointer if no new page
         ld a,b
         or c
         jr nz,nvview_load0
 nvview_load0q
-;hlde=true file size (for TRDOSFS)
-        ld (filesize),de
-        ld (filesizeHSW),hl
+;dehl=true file size (for TRDOSFS)
+        ld (filesize),hl
+        ld (filesizeHSW),de
         call nv_closehandle
 
 	call setunchanged
@@ -480,24 +478,18 @@ fchanged=$+1
         MYPRCHAR
 nvview_ncurline=$+1
         ld hl,0
-        exx 
-        ld hl,0
-        exx
-        call prdword
-        ;ix
+        ld de,0
+        call prdword_dehl
         ld a,'/'
         MYPRCHAR
         ld hl,(nlines)
-        exx 
-        ld hl,0
-        exx
-        call prdword
+        ld de,0
+        call prdword_dehl
         ld a,' '
         MYPRCHAR
-        ld hl,(filesizeHSW)
-        exx
         ld hl,(filesize)
-        call prdword
+        ld de,(filesizeHSW)
+        call prdword_dehl
         ld de,tspaces_filename
         ld hl,TSPACES_FILENAME_SZ
         call sendchars

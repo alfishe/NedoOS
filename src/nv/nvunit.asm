@@ -1,11 +1,10 @@
 
 getmarkedfiles
 ;ix = panel
-;out: hl'hl = files
-        ld hl,0
-        exx
+;out: dehl = markedfiles
         ld l,(ix+PANEL.markedfiles)
         ld h,(ix+PANEL.markedfiles+1)
+        ld de,0
         ret
 
 changemark_hl
@@ -62,53 +61,49 @@ changemark_hlq
 
 getmarkedfilessize
 ;ix = panel
-;out: hl'hl = files
-        ld l,(ix+PANEL.markedsize+2)
-        ld h,(ix+PANEL.markedsize+3)
-        exx
+;out: dehl = markedfilessize
         ld l,(ix+PANEL.markedsize)
         ld h,(ix+PANEL.markedsize+1)
+        ld e,(ix+PANEL.markedsize+2)
+        ld d,(ix+PANEL.markedsize+3)
         ret
         
 getfiles
 ;ix = panel
-;out: hl'hl=files (without ".", "..")
-        ld hl,0
-        exx
+;out: dehl=files (without ".", "..")
         ld l,(ix+PANEL.filesdirs)
         ld h,(ix+PANEL.filesdirs+1)
+        ld de,0
         ret
 
 countfiles
         ld hl,proc_count
-        jp processfiles ;hl'hl=files (without ".", "..")
+        jp processfiles ;hl=files (without ".", "..")
 proc_count
 	inc iy
 	ret
 
 getfilessize
 ;ix = panel
-        ;exx
-        ld l,(ix+PANEL.totalsize+2)
-        ld h,(ix+PANEL.totalsize+3)
-        exx
         ld l,(ix+PANEL.totalsize)
         ld h,(ix+PANEL.totalsize+1)
-        ret ;hl'hl=size
+        ld e,(ix+PANEL.totalsize+2)
+        ld d,(ix+PANEL.totalsize+3)
+        ret ;dehl=size
 
 processfiles
 ;ix = panel address (kept)
-;hl = procedure address (uses hl=fcb, hl'iy = accumulator)
-;out: hl'hl = result
+;hl = procedure address (uses hl=fcb, iy = accumulator)
+;out: hl = result
 	ld (processfiles_proc),hl
 
         call nv_getpanelfiles_bc
 
 	ld l,(ix+PANEL.pointers)
 	ld h,(ix+PANEL.pointers+1)
-        exx
-        ld hl,0
-        exx
+        ;exx
+        ;ld hl,0
+        ;exx
 	ld iy,0
 processfiles0
 	ld a,b
@@ -120,7 +115,6 @@ processfiles0
 	push ix
 	ex de,hl
         call isthisdotdir_hl
-        ;display "processfiles_proc ",$
 processfiles_proc=$+1
 	call nz,0 ;copy может переключать страницу (сейчас не переключает)
 	pop ix
@@ -129,11 +123,14 @@ processfiles_proc=$+1
 	dec bc
 	jp processfiles0
 processfilesq
+         ;exx
+         ;push hl
         push iy
        push ix
 	call nv_batch ;исполнить всё, что запомнили в nv_batch_pushrecord?
        pop ix
 	pop hl
+         ;pop de
         ret
 
 gotofilepointer_numberde
@@ -210,33 +207,28 @@ drawpanelfilesandsize
         inc e
         inc e
         call nv_setxy ;keeps de,hl,ix
-        ld de,_PANELDIRCOLOR;_PANELFILECOLOR
-        call nv_setcolor
-        call getmarkedfiles
+        ;ld de,_PANELDIRCOLOR;_PANELFILECOLOR
+        ;call nv_setcolor
+        call getmarkedfiles ;dehl
         ld a,h
         or l
-        push af ;z = no marked
+       push af ;z = no marked
         call z,getfiles
-	pop af
-	push af
+	;pop af
+	;push af
+        push de
+        ld de,_PANELDIRCOLOR
+        jr z,$+5
 	ld de,_PANELSELECTCOLOR
-	call nz,nv_setcolor
-        ;push ix
-        ld de,wordfiles
-        call prdword_de;_withspaces
-        ;ld hl,wordfiles
-        ; ld c,0
-        ;call prtext
-        ;pop ix
-        pop af ;z = no marked
-        jr nz,drawpanelfilesandsize_markedsize
-        call getfilessize
-        jr drawpanelfilesandsize_markedsizeq
-drawpanelfilesandsize_markedsize
+	call nv_setcolor
+        pop de
+        ld bc,wordfiles
+        call prdword_dehl_tobc;_withspaces
         call getmarkedfilessize
-drawpanelfilesandsize_markedsizeq
-        ld de,wordbytes
-        call prdword_de;_withspaces
+       pop af ;z = no marked
+        call z,getfilessize
+        ld bc,wordbytes
+        call prdword_dehl_tobc;_withspaces
         push ix
         ld hl,wordfiles;bytes
          ld c,0

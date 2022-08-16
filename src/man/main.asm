@@ -110,19 +110,17 @@ nvview_load0
         ld a,0xc000/256
         call cmd_loadpage
         jr nz,nvview_load0q
-        ex de,hl
         add hl,bc
-        ex de,hl
         jr nc,$+3
-        inc hl
+        inc de
          ;TODO nvview_load0nonewpg with new pointer if no new page
         ld a,b
         or c
         jr nz,nvview_load0
 nvview_load0q
-;hlde=true file size (for TRDOSFS)
-        ld (filesize),de
-        ld (filesizeHSW),hl
+;dehl=true file size (for TRDOSFS)
+        ld (filesize),hl
+        ld (filesizeHSW),de
 
         ld a,(curhandle)
         ld b,a
@@ -196,10 +194,10 @@ nvview_mainloop_keyq
         jp z,nvview_end
         cp key_sspgdown;ext4
         jp z,nvview_end
-        cp key_left
-        jp z,nvview_left
-        cp key_right
-        jp z,nvview_right
+        ;cp key_left
+        ;jp z,nvview_left
+        ;cp key_right
+        ;jp z,nvview_right
         ;cp 'w'
         ;jp z,nvview_wrap
         ret
@@ -218,7 +216,7 @@ nvview_wrap
         ld a,(curtoptextHSB)
         jp nvview_calccurline
 
-        
+       if 0
 nvview_right
         ld a,(nvview_prline_shift)
         add a,8
@@ -234,6 +232,7 @@ nvview_left
         ld (nvview_prline_shift),a
         call nvview_prcurpage
         jp clear_keyboardbuffer
+       endif
         
 nvview_prcurpage
         ld hl,(curtoptextaddr)
@@ -504,30 +503,21 @@ fchanged=$+1
         MYPRCHAR
 nvview_ncurline=$+1
         ld hl,0
-        exx 
-        ld hl,0
-        exx
-        call prdword
-        ;ix
+        ld de,0
+        call prdword_dehl
         ld a,'/'
         MYPRCHAR
         ld hl,(nlines)
-        exx 
-        ld hl,0
-        exx
-        call prdword
+        ld de,0
+        call prdword_dehl
         ld a,' '
         MYPRCHAR
-        ld hl,(filesizeHSW)
-        exx
         ld hl,(filesize)
-        call prdword
+        ld de,(filesizeHSW)
+        call prdword_dehl
         ld de,tspaces_filename
         ld hl,TSPACES_FILENAME_SZ
         call sendchars
-
-
-
 
         ;ld e,NVVIEW_PANELCOLOR;#38
         ;OS_PRATTR

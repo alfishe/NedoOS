@@ -603,17 +603,15 @@ prdirfile_ix_decolor
         ld bc,25*256+' '
         call prdirfile_copyfn
        xor a ;для вывода размера файла (не портит содержимое буфера под незначащими нулями)
-       ld (prnumdwordcmd_zero_lddea),a
-        ;exx
-        ld hl,(fcb+FCB_FSIZE+2)
-        exx
+       ld (prnumdwordcmd_zero_ldbca),a
         ld hl,(fcb+FCB_FSIZE)
+        ld de,(fcb+FCB_FSIZE+2)
         ld a,(fcb+FCB_FATTRIB)
         and FATTRIB_DIR
-        ld de,filelinebuf_15
-        call z,prdword_de
-       ld a,0x12 ;"ld (de),a": для вывода files, size
-       ld (prnumdwordcmd_zero_lddea),a
+        ld bc,filelinebuf_15
+        call z,prdword_dehl_tobc
+       ld a,0x02 ;"ld (bc),a": для вывода files, size
+       ld (prnumdwordcmd_zero_ldbca),a
          ld de,filelinebuf_28 ;skip "cursor right" over | (which has different color)
         ld hl,(fcb+FCB_FDATE)
         push hl
@@ -916,7 +914,6 @@ loaddir_fcb_lnameaddrpoi=$+2
 	add hl,bc
 	ex hl,de ; увеличили на 32 catbuf
 	jr nc,nonewpg ; всё ещё умещаемся в страницу
-       ;jr $
 	inc de ;next page de
 	call strnewpage
         set 7,d
@@ -2687,7 +2684,7 @@ filescopied=$+1
         push hl
         ld ix,(curpanel)
 ;ix = panel
-        call getmarkedfiles ;out: hl'hl = files
+        call getmarkedfiles ;out: dehl = markedfiles
         ex de,hl ;de=files
         pop hl ;filescopied*32
         call divhlde

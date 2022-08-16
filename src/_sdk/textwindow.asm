@@ -99,7 +99,7 @@ prwindow_waitkey_textnfiles
         push de
         push hl
 	call getmarkedfiles;countmarkedfiles
-        call prdword
+        call prdword_dehl
         pop hl
         pop de
         jr prwindow_waitkey_text0
