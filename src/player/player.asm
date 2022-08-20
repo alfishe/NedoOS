@@ -116,20 +116,20 @@ extaddr=$+1
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
         push bc
         OS_READHANDLE
+;hl = file size
         pop bc
+;B = file handle
+        push hl
 
 ;B = file handle
         OS_CLOSEHANDLE
-        
-	ld a,(module)
-        cp 'V'
-        jr z,$+4
-	cp 'P' ;'P'/'V' for PT3
-	ld a,%00100000 ;PT3
-	jr z,$+4
-	ld a,%00000010 ;PT2
-	ld (SETUP),a
-	
+        pop ix
+;ix = file size
+        call getptsconfig
+;a = player config bits, hl = offset to the second module if available
+        ld (SETUP),a
+        ld (secondmoduleoffset), hl
+
         halt
 	;инитим до инита трека, иначе не работает SAA
 musicpage=$+1
@@ -148,7 +148,11 @@ musicpage=$+1
 	ld a,(hl)
 	cp 'T'
         jp z,tfmini
-		
+
+secondmoduleoffset=$+1
+        ld de,0
+        add de,hl ;address of the second module
+
 		jp INIT
 end_init
     ei  
@@ -405,7 +409,45 @@ prtext0
         pop hl
         jp prtext0
 
-        
+findts
+;ix = file size
+;out: zf = 1 if TS data is found, hl = offset to the second module if available
+        ld de,module
+        add ix,de ;past-the-end address of the data buffer
+
+        ld a,'0'
+        cp (ix-4)
+        ret nz
+        ld a,'2'
+        cp (ix-3)
+        ret nz
+        ld a,'T'
+        cp (ix-2)
+        ret nz
+        ld a,'S'
+        cp (ix-1)
+        ret nz
+
+        ld hl,(ix-12)
+        ret
+
+getptsconfig
+;ix = file size
+;out: a = player config bits, hl = offset to the second module if available
+        call findts
+        ld a,%00010000 ;2xPT3
+        ret z
+
+        ld a,(module)
+        cp 'V'
+        jr z,$+4
+        cp 'P' ;'P'/'V' for PT3
+        ld a,%00100000 ;PT3
+        ret z
+
+        ld a,%00000010 ;PT2
+        ret
+
 ;oldtimer
 ;        dw 0
 
