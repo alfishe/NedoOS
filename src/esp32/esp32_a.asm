@@ -48,15 +48,23 @@ begin
 
 
 		ld de,testsend
-		ld hl,159
 		ld a,65
+		ld hl,159
 		call tcpsend
 
 
+		YIELD
+		YIELD
+		YIELD
+
+
+		ld a,65
+		ld de,answerbuffer
+		ld hl,256 
+		call OS_WIZNETREAD
+				
 		call OS_NETSHUTDOWN
-		
-		ld hl, asterix
-		call prtext
+
 		ld hl, crlf
 		call prtext
 		QUIT
@@ -71,6 +79,8 @@ errorop:
 comparestr:		
 ;hl=string to test	bc=string tester
 ;a = 1 if equal = 0 if not. May be Z flag use later for short test
+		push de
+comparestr2		
 		ld a, (hl)
 		ld d, a
 		ld a, (bc)
@@ -80,15 +90,17 @@ comparestr:
 		inc hl
 		ld a, (bc)
 		cp 0
-		jp nz, comparestr
+		jp nz, comparestr2
 		ld a, 1
+		pop de
 		ret
 notequal:
+		pop de
 		ld a,0
 		ret
  		
 ;****************************************************************************
-readanswer:					;Read 1 line out at answerbuffer
+readanswer:					;Read 1 line out at answerbuffer with clear
 		push de
 		push hl
 		ld hl,answerbuffer
@@ -114,8 +126,9 @@ readanswer3:
 		inc hl
 		jp readanswer3
 endline:
+		call uart_read
 		ld (hl), 0
-		call flushbuf
+		;call flushbuf
 		pop hl
 		pop de
 		ret
@@ -311,16 +324,17 @@ esp_init:
 		call sendtext
 		YIELD
 		call readanswer
-
+		call flushbuf
 		ld hl, ate0
 		call sendtext
 		YIELD
 		call readanswer
-
+		call flushbuf
 		ld hl, atcipmux0
 		call sendtext
 		YIELD
 		call readanswer
+		call flushbuf
 		ld hl, answerbuffer
 		ld bc, okanswer
 		call comparestr
@@ -335,17 +349,17 @@ nextinit:
 		call sendtext
 		YIELD
 		call readanswer
-		
+		call flushbuf
 		ld hl, atcipdinfo
 		call sendtext
 		YIELD
 		call readanswer
-		
+		call flushbuf
 		ld hl, atciprecvmode1
 		call sendtext
 		YIELD
 		call readanswer
-
+		call flushbuf
 		call flushbuf
 		ret
 
@@ -545,15 +559,15 @@ OS_NETSHUTDOWN
 		ret
 ;****************************************************************************
 OS_WIZNETREAD
-; Возвращаемые значения в регистрах:
-;  HL - при отрицательном значении функция завершилась с ошибкой,
-;   про значении больше нуля возвращается действительный размер(в байтах) принятых данных,
-;   нулевого значения вызов не возвращает.
-;  А - errno при ошибке.
-; Возможные ошибки:
-;  ERR_NOTSOCK - не действительный дескриптор сокета
-;  ERR_EAGAIN - входящих данных пока нет
-;  ERR_NOTCONN - сокет с неустановленным\пропавшем соединением(при протоколе TCP/IP)
+;Возвращаемые значения в регистрах:
+;HL - при отрицательном значении функция завершилась с ошибкой,
+;про значении больше нуля возвращается действительный размер(в байтах) принятых данных,
+;нулевого значения вызов не возвращает.
+;А - errno при ошибке.
+;Возможные ошибки:
+;ERR_NOTSOCK - не действительный дескриптор сокета
+;ERR_EAGAIN - входящих данных пока нет
+;ERR_NOTCONN - сокет с неустановленным\пропавшем соединением(при протоколе TCP/IP)
 ;pseudo socket 65=TCP 66=ICMP 67=UDP
 		cp 65
 		jp tcpread
@@ -564,15 +578,102 @@ OS_WIZNETREAD
 		jp errnotsock
 tcpread
 ;При протоколе TCP/IP все аргументы в регистрах:
-;  A - SOCKET
-;  DE - указатель на буфер для принятия данных
-;  HL - размер буфера(в байтах)
+;A - SOCKET
+;DE - указатель на буфер для принятия данных
+;HL - размер буфера(в байтах)
+		ld (recsize),hl
+		ld (recpointer),de
 		push bc		
-		
-		
-		
-		ret
+erragain1	;DEBUG!!!!!!
+		call flushbuf
+		ld hl,recvlen		
+		call sendtext
+		YIELD
+		call readanswer2
+		ld hl,answerbuffer
+		ld de,12
+		adc hl,de
+		ld de,hl
+		call matchval
+		ld (realsize),bc; counter
+		ld hl,0
+		sbc hl,bc 
+		jp z, erragain1		;DEBUG
 
+		ld hl,atrecvdata		
+		call sendtext
+		ld hl,(recsize)
+		call hlToNumEsp
+		ld hl,crlf
+		call sendtext
+		YIELD
+		call readanswer; +CIPVRECDATA
+		call readanswer2; +CIPVRECDATA
+		ld hl,answerbuffer
+		ld bc,recvdata2
+		call comparestr
+		cp 1
+		jp z,answerok		
+		YIELD
+		ld hl,plusik
+		call prtext
+		ld hl,crlf
+		call prtext
+		QUIT
+answerok:		
+		ld hl,asterix
+		call prtext
+		ld hl,(recsize)
+		ld de,(realsize)
+		sbc hl,de		
+		jp s, recrec
+		ld bc,(realsize)
+		jp recreal		
+recrec						;В буфере данных больше чем  запрошено, получаем сколько запросили
+		ld bc,(recsize)	
+recreal						;В буфере данных меньше чем  запрошено, получаем сколько пришло
+		ld hl,(recpointer)
+nextbyte:
+		call uart_read
+		ld (hl),e
+		inc hl
+		dec bc
+		ld a,0
+		cp b
+		jp nz, nextbyte 
+		cp c
+		jp nz, nextbyte
+okrecieve:
+
+		inc hl
+		ld(hl),0
+
+		ld hl,(recpointer)
+		call prtext
+
+
+
+
+		ld hl,(realsize)
+		ld a,0
+			
+		ld hl,recpointer
+		call prtext
+		
+		ld hl,plusik
+		call prtext
+		ld hl,asterix
+		call prtext
+		
+		QUIT
+		pop bc
+		ret
+recpointer:
+		db 00,00
+recsize:
+		db 00,00
+realsize:
+		db 00,00		
 
 icmpread
 udpread
@@ -583,25 +684,8 @@ udpread
 ;  HL - размер буфера(в байтах)
 		push bc	
 
-errnotsock:
-		ld h,255
-		ld l,255
-		ld a,ERR_NOTSOCK
-		pop bc
-		ret
+		jp errnotsock
 
-errnotconn:
-		ld h,255
-		ld l,255
-		ld a,ERR_NOTCONN
-		pop bc
-		ret
-erragain:
-		ld h,255
-		ld l,255
-		ld a,ERR_EAGAIN
-		pop bc
-		ret
 
 
 ;****************************************************************************
@@ -657,6 +741,7 @@ more2go:
 		call prtext
 		QUIT
 bytesok
+		call flushbuf
 		ld de,hl
 		call matchval	 ;de=numpointer bc=result
 		ld hl,bc
@@ -671,6 +756,9 @@ sendsize:
 icmpsend:
 udpsend:
 		push bc
+
+
+
 errnotsock:
 		ld h,255
 		ld l,255
@@ -683,7 +771,13 @@ errnotconn:
 		ld l,255
 		ld a,ERR_NOTCONN
 		pop bc
-		ret		
+		ret	
+erragain:
+		ld h,255
+		ld l,255
+		ld a,ERR_EAGAIN
+		pop bc
+		ret	
 ;****************************************************************************
 
 
@@ -699,7 +793,6 @@ atcipmux0
 		db "AT+CIPMUX=0",0x0d,0x0a,0		
 atcipserver0
 		db "AT+CIPSERVER=0",0x0d,0x0a,0
-
 atcipdinfo
 		db "AT+CIPDINFO=0",0x0d,0x0a,0				
 atcipclose
@@ -712,29 +805,30 @@ atcipstart2
 		db "\",",0
 atcipsend
 		db "AT+CIPSEND=",0
-
+atrecvdata
+		db "AT+CIPRECVDATA=",0
+recvdata2
+		db "+CIPRECVDATA:",0
+recvlen
+		db "AT+CIPRECVLEN?",0x0d,0x0a,0
+recvlenansw
+		db "+CIPRECVLEN:",0				
 thello
         db "ESP32 Driver Project(single mode)",0x0d,0x0a,0
-
 asterix
         db "*",0x0d,0x0a,0
-
 plusik
         db "+",0
 crlf
         db 0x0d,0x0a,0
 uartinited
 		db "Uart inited.",0x0d,0x0a,0
- 
 espinited
 		db "ESP inited.",0x0d,0x0a,0
-
 espnotinited
 		db "ESP not inited.",0x0d,0x0a,0		
-
 defaulterror
 		db "Default error.",0x0d,0x0a,0				
-
 erroranswer
 		db "ERROR",0
 connanswer
@@ -748,6 +842,10 @@ sendprompt
 recvbytes
 		db "Recv ",0
 
+ipdbytes
+		db "+IPD,",0
+
+		
 
 adrstruct:
 		DB 2
