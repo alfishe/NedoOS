@@ -60,7 +60,7 @@ begin
 
 		ld a,65
 		ld de,answerbuffer
-		ld hl,256 
+		ld hl,512 
 		call OS_WIZNETREAD
 				
 		call OS_NETSHUTDOWN
@@ -608,21 +608,13 @@ erragain1	;DEBUG!!!!!!
 		call sendtext
 		YIELD
 		call readanswer; +CIPVRECDATA
-		call readanswer2; +CIPVRECDATA
-		ld hl,answerbuffer
-		ld bc,recvdata2
-		call comparestr
-		cp 1
-		jp z,answerok		
-		YIELD
-		ld hl,plusik
-		call prtext
-		ld hl,crlf
-		call prtext
-		QUIT
+skip2coma:
+		call uart_read
+		ld a,','		
+		cp e
+		jp nz, skip2coma
+
 answerok:		
-		ld hl,asterix
-		call prtext
 		ld hl,(recsize)
 		ld de,(realsize)
 		sbc hl,de		
@@ -630,7 +622,7 @@ answerok:
 		ld bc,(realsize)
 		jp recreal		
 recrec						;В буфере данных больше чем  запрошено, получаем сколько запросили
-		ld bc,(recsize)	
+		ld bc,(recsize)
 recreal						;В буфере данных меньше чем  запрошено, получаем сколько пришло
 		ld hl,(recpointer)
 nextbyte:
@@ -644,27 +636,14 @@ nextbyte:
 		cp c
 		jp nz, nextbyte
 okrecieve:
-
-		inc hl
-		ld(hl),0
+		ld (hl),00		;DEBUG
 
 		ld hl,(recpointer)
 		call prtext
 
-
-
-
-		ld hl,(realsize)
-		ld a,0
-			
-		ld hl,recpointer
+		ld hl,crlf
 		call prtext
-		
-		ld hl,plusik
-		call prtext
-		ld hl,asterix
-		call prtext
-		
+
 		QUIT
 		pop bc
 		ret
