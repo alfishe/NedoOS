@@ -188,6 +188,7 @@ RandomizeSetup
         ld bc,8-1
         ld (hl),0
         ldir
+
         call GEN_RANDBYTE
         ld a,b
         and 6
@@ -199,8 +200,11 @@ RandomizeSetup
         inc a
         call RandomizeSetup_HLplaceA
         ld (hl),_B
+
         call GEN_RANDBYTE
-        and 3
+        add a,6
+        jr nc,$-2
+;a=0..9
         call RandomizeSetup_HLemptyplaceA
         ld (hl),_Q
 
