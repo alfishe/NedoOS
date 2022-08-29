@@ -1,7 +1,8 @@
 	device zxspectrum128
         include "../../_sdk/sys_h.asm"
 
-FIX=0
+;FIX=1
+        include "settings.ast"
 
 INTSTACK=0x4000
 
@@ -24,6 +25,12 @@ bit_NEW_KEY	equ	5
 bit_CAPS_LOCK	equ	3
 
 EGA=0
+
+_R=0x11
+_N=0x31
+_B=0x21
+_Q=0x09
+_K=0x01
 
 		MACRO	EOS
 		org	$-1
@@ -174,6 +181,106 @@ rst10_y=$+2
         ld (rst10_scr),hl
         ret
 
+       if FIX
+RandomizeSetup
+        ld hl,starting_setup
+        ld de,starting_setup+1
+        ld bc,8-1
+        ld (hl),0
+        ldir
+        call GEN_RANDBYTE
+        ld a,b
+        and 6
+        call RandomizeSetup_HLplaceA
+        ld (hl),_B
+        call GEN_RANDBYTE
+        ld a,b
+        and 6
+        inc a
+        call RandomizeSetup_HLplaceA
+        ld (hl),_B
+        call GEN_RANDBYTE
+        and 3
+        call RandomizeSetup_HLemptyplaceA
+        ld (hl),_Q
+
+       if 1
+;должны равновероятно выбираться 10 вариантов расстановки коней в 5 свободных клетках
+        call GEN_RANDBYTE
+        add a,10
+        jr nc,$-2
+;a=0..9
+        add a,a
+        ld c,a
+        ld b,0
+        ld hl,knightsetups
+        add hl,bc
+        ex de,hl
+        ld a,(de)
+        inc de
+        call RandomizeSetup_HLemptyplaceA
+        ld (hl),_N
+        ld a,(de)
+        call RandomizeSetup_HLemptyplaceA
+        ld (hl),_N
+       else
+;так распределение коней неравномерно
+        call GEN_RANDBYTE
+        and 3
+        call RandomizeSetup_HLemptyplaceA
+        ld (hl),_N
+        call GEN_RANDBYTE
+        and 3
+        call RandomizeSetup_HLemptyplaceA
+        ld (hl),_N
+       endif
+
+        ld hl,starting_setup-1
+        call RandomizeSetup_findempty
+        ld (hl),_R
+        call RandomizeSetup_findempty
+        ld (hl),_K
+        call RandomizeSetup_findempty
+        ld (hl),_R
+        ret
+        
+RandomizeSetup_HLplaceA
+        ld c,a
+        ld b,0
+        ld hl,starting_setup
+        add hl,bc
+        ret
+
+RandomizeSetup_findempty
+RandomizeSetup_findempty0
+        inc hl
+        ld a,(hl)
+        or a
+        jr nz,RandomizeSetup_findempty0
+        ret
+
+RandomizeSetup_HLemptyplaceA
+        inc a
+        ld b,a
+        ld hl,starting_setup-1
+RandomizeSetup_HLemptyplaceA0
+        call RandomizeSetup_findempty
+        djnz RandomizeSetup_HLemptyplaceA0
+        ret
+        
+knightsetups
+        db 0,0
+        db 0,1
+        db 0,2
+        db 0,3
+        db 1,1
+        db 1,2
+        db 1,3
+        db 2,2
+        db 2,3
+        db 3,3
+       endif
+
 font
         incbin "font.bin"
 
@@ -283,7 +390,7 @@ loc_8072:				; CODE XREF: START_POINT+75
 		ld	(SEL_SCRorBUF),	a
 		call	CLR_SCR_OR_BUF
 
-		call	CLR_BOARD
+		call	CLR_BOARD ;??? потом ещё раз
 
 		call	PRT_DETECT
 
@@ -335,7 +442,7 @@ loc_80B9:				; CODE XREF: sub_8C20-B6E
 
 
 loc_80CB:				; CODE XREF: sub_8C20-1DA
-		call	sub_875B
+		call	InitBoard_ClearMoves
 
 
 loc_80CE:				; CODE XREF: sub_8C20-511
@@ -1257,7 +1364,7 @@ loc_8595:				; CODE XREF: sub_8C20-80A
 loc_85B4:				; CODE XREF: sub_8C20-670
 		ld	(scr_XY), hl
 		ld	hl, aSIXbuf	; "     "
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ld	a,#40 ; '@'
 		ld	(byte_D08E), a
@@ -1299,7 +1406,7 @@ loc_85E0:				; CODE XREF: sub_8C20-645
 
 
 loc_85F5:				; CODE XREF: sub_8C20-630
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ld	hl, byte_D0DF
 		ld	(hl), 4
@@ -1393,7 +1500,7 @@ loc_865C:				; CODE XREF: sub_8C20-5D0
 		ld	hl, #1600
 		ld	(scr_XY), hl
 		ld	hl, a_8spaces	; "       "
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		call	restore_6_spaces
 
@@ -1561,14 +1668,17 @@ loc_8745:				; CODE XREF: sub_8C20-4E7
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_875B:				; CODE XREF: sub_8C20:loc_80CB
+InitBoard_ClearMoves:				; CODE XREF: sub_8C20:loc_80CB
+       if FIX
+        call RandomizeSetup
+       endif
 		xor	a
 		ld	(byte_D0FF), a
 		ld	hl, array_D200
 		ld	b, #A
 
 
-loc_8764:				; CODE XREF: sub_875B+B
+loc_8764:				; CODE XREF: InitBoard_ClearMoves+B
 		ld	(hl), a
 		inc	l
 		djnz	loc_8764
@@ -1579,7 +1689,7 @@ loc_8764:				; CODE XREF: sub_875B+B
 		ld	hl, array_D200
 
 
-loc_876F:				; CODE XREF: sub_875B+16
+loc_876F:				; CODE XREF: InitBoard_ClearMoves+16
 		dec	hl
 		ld	(hl), a
 		djnz	loc_876F
@@ -1588,28 +1698,32 @@ loc_876F:				; CODE XREF: sub_875B+16
 		ld	b, #80 ; 'Ђ'
 
 
-loc_8778:				; CODE XREF: sub_875B+1F
+loc_8778:				; CODE XREF: InitBoard_ClearMoves+1F
 		dec	hl
 		ld	(hl), a
 		djnz	loc_8778
 
-		call	sub_87BC
+		call	Copy_starting_setup
 
-		ld	de, word_D100
+		ld	de, word_D100 ;пустышка
 		ld	c, #41 ; 'A'
-		call	sub_87BF
+		call	sub_87BF ;копирует ряд de по |c в hl
 
 		ld	l, #60 ; '`'
 		ld	c, #C1	; 'Б'
-		call	sub_87BF
+		call	sub_87BF ;копирует ряд de по |c в hl
 
 		ld	c, #81 ; 'Ѓ'
-		call	sub_87BC
+		call	Copy_starting_setup
 
+       if !FIX
 		xor	a
 		ld	(byte_D09E), a
 		inc	a
-                 ;ld (byte_D09E), a ;end of opening?
+       else
+        ld a,1
+        ld (byte_D09E), a ;end of opening?
+       endif
 		ld	(byte_D0B2), a
 		ld	(byte_D02D), a
 		ld	(byte_D0BF), a
@@ -1624,22 +1738,22 @@ loc_8778:				; CODE XREF: sub_875B+1F
 
 		jp	loc_8828
 
-; End of function sub_875B
+; End of function InitBoard_ClearMoves
 
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_87BC:				; CODE XREF: sub_875B+21 sub_875B+35
-		ld	de, byte_8901
+Copy_starting_setup:				; CODE XREF: InitBoard_ClearMoves+21 InitBoard_ClearMoves+35
+		ld	de, starting_setup
 
-; End of function sub_87BC
+; End of function Copy_starting_setup
 
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_87BF:				; CODE XREF: sub_875B+29 sub_875B+30
+sub_87BF:				; CODE XREF: InitBoard_ClearMoves+29 InitBoard_ClearMoves+30
 		ld	b, 8
 
 
@@ -1688,7 +1802,7 @@ loc_87D5:				; CODE XREF: sub_87CD+F
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_87DE:				; CODE XREF: sub_875B+5B
+sub_87DE:				; CODE XREF: InitBoard_ClearMoves+5B
 		ld	hl, word_D100
 		xor	a
 
@@ -1765,7 +1879,7 @@ sub_881D:				; CODE XREF: sub_8C20-58D
 		call	sub_87EA
 
 
-loc_8828:				; CODE XREF: sub_875B+5E
+loc_8828:				; CODE XREF: InitBoard_ClearMoves+5E
 		ld	de, BRD_88_0
 		ld	h, #D1	; 'С'   ; word_D100/256
 
@@ -1983,7 +2097,10 @@ loc_88F4:				; CODE XREF: sub_88E9+4
 ; End of function sub_88E9
 
 ; ---------------------------------------------------------------------------
-byte_8901:	db	#11,#31,#21,#09,#01,#21,#31,#11
+starting_setup:
+	;db	#11,#31,#21,#09,#01,#21,#31,#11
+	db	_R,_N,_B,_Q,_K,_B,_N,_R
+	;db	_R,_K,_N,_R,_B,_B,_N,_Q
 
 aSIXbuf:	db	'      '
 		EOS
@@ -2001,7 +2118,7 @@ sub_890F:				; CODE XREF: sub_8C20-679
 		ld	hl, #1700
 		ld	(scr_XY), hl
 		ld	hl, aSIXbuf	; "     "
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ret
 
@@ -3431,7 +3548,6 @@ loc_8F9B:				; CODE XREF: sub_8F4D+A
 		jr	c, loc_8FBC
 
 		call	KEY_SCAN
-
 		push	af
 		ld	hl, byte_D0DF
 		bit	5, (hl)
@@ -3617,7 +3733,7 @@ loc_906D:				; CODE XREF: sub_9018+51
 		ld	(scr_XY), hl
 		pop	hl
 		inc	hl
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		pop	hl
 		ld	(scr_XY), hl
@@ -4186,7 +4302,7 @@ sub_92D7:				; CODE XREF: sub_8FC1+D
 		ld	hl, #1500
 		ld	(scr_XY), hl
 		ld	hl, aNew	; " NEW "
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ld	de, #C00
 		ld	(scr_XY), de
@@ -4202,11 +4318,11 @@ loc_92F7:
 		ld	hl, #1500
 		ld	(scr_XY), hl
 		ld	hl, a_8spaces	; "       "
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		pop	af
-		cp	#59 ; 'Y'
-		jp	z, loc_809A
+		cp	'Y'
+		jp	z, loc_809A ;9EE6 + NEW_GAME
 
 		call	BEEP_move
 
@@ -4525,8 +4641,7 @@ loc_9430:				; CODE XREF: CLR_BOARD+9
 
 loc_9436:				; CODE XREF: CLR_BOARD+15
 		push	af
-		call	SH_EMPT_POS
-
+		call	SH_EMPT_POS ;show square
 		pop	af
 		inc	a
 		cp	#40 ; '@'
@@ -5643,7 +5758,7 @@ aSelectBaudRate:db 'SELECT BAUD RATE:-',#0D
 		EOS
 ; ---------------------------------------------------------------------------
 
-loc_9E65:				; CODE XREF: sub_8C20-666
+PRINT_STR_scr0:				; CODE XREF: sub_8C20-666
 					; sub_8C20:loc_85F5 ...
 		xor	a
 		jr	PRINT_STR_A
@@ -6428,7 +6543,7 @@ sub_A177:				; CODE XREF: sub_90E8+254
 		ld	hl, #B00
 		ld	(scr_XY), hl
 		ld	hl, aPress	; " PRESS"
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ld	hl, SCR_ATTRS
 		ld	a, (SEL_SCRorBUF)
@@ -6506,7 +6621,7 @@ sub_A1E0:				; CODE XREF: sub_A177+5C sub_A177+64 ...
 		push	hl
 		ld	(scr_XY), hl
 		ld	hl, a_8spaces	; "       "
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		pop	hl
 		inc	h
@@ -6552,12 +6667,12 @@ loc_A211:				; CODE XREF: sub_A177+95
 
 loc_A219:				; CODE XREF: sub_A177+9F
 		push	de
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ld	hl, #1001
 		ld	(scr_XY), hl
 		pop	hl
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ret
 
@@ -6581,12 +6696,12 @@ sub_A228:				; CODE XREF: INIT_PRINT_CLOCKS+2E
 
 loc_A23C:				; CODE XREF: sub_A228+11
 		push	de
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ld	hl, #1100
 		ld	(scr_XY), hl
 		pop	hl
-		call	loc_9E65
+		call	PRINT_STR_scr0
 
 		ret
 
@@ -7758,8 +7873,10 @@ loc_A7E6:				; CODE XREF: SHOW_LOGO+33
 
 ; ---------------------------------------------------------------------------
 
+       if !FIX
 	;unneeded space???
 		ds	267
+       endif
 
 
 
@@ -7793,21 +7910,24 @@ sub_A915:
 
 
 ; ---------------------------------------------------------------------------
+       if FIX
+                align 8
+       endif
 
 		;must be inside 256b page
-byte_A918:	db #0E,#12,#1F,#21,#F2,#EE,#E1,#DF
+byte_A918:	db #0E,#12,#1F,#21,#F2,#EE,#E1,#DF ;8 bytes
 
-
-
-byte_A920:	db #0F			; DATA XREF: sub_A94F+42
-					; sub_AAF8:loc_AAFA ...
+byte_A920:	db #0F			; DATA XREF: sub_A94F+42 ;sub_AAF8:loc_AAFA ... ;8 bytes
 		db #11
 		db #EF
 		db #F1
-byte_A924:	db #01			; DATA XREF: sub_AAC9:loc_AACB
+byte_A924:	db #01			; DATA XREF: sub_AAC9:loc_AACB ;4 bytes
 		db #FF
 		db #10
-byte_A927:	db #F0			; DATA XREF: sub_AFC5:loc_B00D
+                db #F0			
+
+byte_A928: ; DATA XREF: sub_AFC5:loc_B00D
+;any place?
 		db #80
 		db #00
 		db #34
@@ -8693,7 +8813,7 @@ sub_AC74:				; CODE XREF: sub_AFC5+B
 		ld	a, (byte_D20C) ;oldmove #?
 		dec	a
 		ret	nz
-		call	GEN_RANDBYTE
+		call	GEN_RANDBYTE ;b=rnd
 
 		ld	hl, #FFFF
 
@@ -8740,7 +8860,7 @@ loc_ACA3:				; CODE XREF: sub_AC74+3C
 ; ---------------------------------------------------------------------------
 
 loc_ACB2:				; CODE XREF: sub_AC74+1E
-		call	GEN_RANDBYTE
+		call	GEN_RANDBYTE ;b=rnd
 
 		call	sub_AD01
 
@@ -8756,7 +8876,7 @@ loc_ACB2:				; CODE XREF: sub_AC74+1E
 
 loc_ACC3:				; CODE XREF: sub_AC74+60
 		push	hl
-		call	GEN_RANDBYTE
+		call	GEN_RANDBYTE ;b=rnd
 
 		call	sub_ACF6 ;find opening in loop
 
@@ -8899,7 +9019,7 @@ GEN_RANDBYTE:				; CODE XREF: sub_AC74+A
 		rra
 		ld	(RAND_SEED), a
 		ld	b, a
-		ret
+		ret ;b=rnd
 
 ; End of function GEN_RANDBYTE
 
@@ -9539,7 +9659,7 @@ loc_AFE0:				; CODE XREF: sub_AFC5+16
 
 
 loc_B00D:				; CODE XREF: sub_AFC5+44
-		ld	hl, byte_A927
+		ld	hl, byte_A928-1
 
 
 loc_B010:				; CODE XREF: sub_AFC5+4E
@@ -14907,7 +15027,7 @@ byte_D07A:	db 0			; DATA XREF: sub_B36B+13 sub_B47F+2	...
 		db    0
 		db    0
 		db    0
-unk_D080:	db    0			; DATA XREF: sub_875B+18
+unk_D080:	db    0			; DATA XREF: InitBoard_ClearMoves+18
 		db    0
 		db    0
 		db    0
@@ -14933,10 +15053,10 @@ RAND_SEED:	db 0			; DATA XREF: GEN_RANDBYTE+3
 		db    0
 		db    0
 		db    0
-byte_D097:	db 0			; DATA XREF: sub_875B+49
+byte_D097:	db 0			; DATA XREF: InitBoard_ClearMoves+49
 					; sub_A94F:loc_A961 ...
 byte_D098:	db 0			; DATA XREF: sub_A6F7+34 sub_AFC5+5F ...
-word_D099:	dw 0			; DATA XREF: sub_875B+58
+word_D099:	dw 0			; DATA XREF: InitBoard_ClearMoves+58
 		db    0
 		db    0
 		db    0
@@ -15063,9 +15183,9 @@ word_D0F7:	dw 0			; DATA XREF: sub_8C20-B1F
 		db    0
 		db    0
 		db    0
-byte_D0FF:	db 0			; DATA XREF: sub_875B+1
+byte_D0FF:	db 0			; DATA XREF: InitBoard_ClearMoves+1
 word_D100:	dw 0			; DATA XREF: sub_8C20-532
-					; sub_875B+24	...
+					; InitBoard_ClearMoves+24	...
 		db    0
 		db    0
 		db    0
@@ -15329,8 +15449,8 @@ word_D1FC:	dw 0			; DATA XREF: sub_BC00+227
 		db    0
 		db    0
 
-array_D200:	db    0,   0,	0,   0,	  0,   0,   0,	 0 ; DATA XREF:	sub_875B+4
-					; sub_875B+11	...
+array_D200:	db    0,   0,	0,   0,	  0,   0,   0,	 0 ; DATA XREF:	InitBoard_ClearMoves+4
+					; InitBoard_ClearMoves+11	...
 		ds 1			; still
 		ds 1			; array
 		ds 1			; D200
@@ -15475,6 +15595,9 @@ INT_VEC:	ds 2
 		;savebin "cyrus2_compilable.bin",#8000,#5000
 		;labelslist "cyrus2_compilable.lab"
  		;end
- 
+       if FIX
+	savebin "cyrus960.com",begin,end-begin
+       else
 	savebin "cyrus2.com",begin,end-begin
-	LABELSLIST "../../../us/user.l" 
+       endif
+	LABELSLIST "../../../us/user.l",1
