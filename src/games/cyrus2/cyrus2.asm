@@ -1,6 +1,8 @@
 	device zxspectrum128
         include "../../_sdk/sys_h.asm"
 
+FIX=0
+
 INTSTACK=0x4000
 
 ROM_START	equ	0
@@ -226,6 +228,7 @@ loc_8032:
 
 		ld	hl, (bas_ERRSP)
 		ld	(save_ERRSP), hl
+               if !FIX
 		ld	hl, INT_VEC
 		ld	(hl), INT_PROC&255
 		inc	hl
@@ -233,6 +236,7 @@ loc_8032:
 		ld	a, INT_VEC/256
 		ds 2 ;ld	i, a
 		ds 2 ;im	2
+               endif
 		jp	loc_8067
 
 
@@ -310,7 +314,7 @@ NEW_GAME:				; CODE XREF: sub_8C20-3
 		call	BEEP_start
 
 		ei
-		ld	a, (byte_D20C)
+		ld	a, (byte_D20C) ;oldmove #?
 		dec	a
 		jr	z, loc_80B9
 
@@ -321,8 +325,8 @@ NEW_GAME:				; CODE XREF: sub_8C20-3
 loc_80B9:				; CODE XREF: sub_8C20-B6E
 		xor	a
 		ld	(byte_D0B3), a ;d3=swap board
-		inc	a
-		ld	(byte_D049), a
+                inc	a
+		ld	(byte_D049), a ;move # ;бесполезно - 875B тоже туда пишет
 		scf
 		call	sub_A915
 
@@ -357,9 +361,9 @@ loc_80DD:				; CODE XREF: sub_8C20-B3C
 
 		call	sub_A43C
 
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		dec	a
-		jr	z, loc_80F5
+		jr	z, loc_80F5 ;first move
 
 		call	sub_939F
 
@@ -470,7 +474,7 @@ loc_8162:				; CODE XREF: sub_8C20-AC7
 
 
 loc_818F:				; CODE XREF: sub_8C20-A96
-		call	sub_9F0D
+		call	sub_9F0D ;show state and help
 
 		ld	ix, word_D059
 		call	sub_A903
@@ -508,7 +512,7 @@ loc_81B6:				; CODE XREF: sub_8C20-A71
 
 
 loc_81B7:				; CODE XREF: sub_8C20-A81
-		ex	af, af'
+		ex	af, af' ;'
 		ld	hl, 0
 		ld	(word_D09F), hl
 		ld	hl, byte_D0B4
@@ -519,7 +523,7 @@ loc_81B7:				; CODE XREF: sub_8C20-A81
 		bit	5, b
 		jp	nz, loc_8520
 
-		ex	af, af'
+		ex	af, af' ;'
 		jp	c, loc_8B8D
 
 		call	BEEP_move
@@ -527,7 +531,7 @@ loc_81B7:				; CODE XREF: sub_8C20-A81
 		ld	a, (byte_D09E)
 		or	a
 		jr	z, loc_81E0
-
+;end of opening?
 		ld	a, (byte_D0B6)
 		bit	2, a
 		call	nz, sub_A684
@@ -718,7 +722,7 @@ loc_82D7:				; CODE XREF: sub_8C20-95A
 		rra
 		jr	nc, loc_82E8
 
-		ld	hl, byte_D049
+		ld	hl, byte_D049 ;move #
 		inc	(hl)
 
 
@@ -758,7 +762,7 @@ loc_82F9:				; CODE XREF: sub_8C20-92F
 		ld	a, (byte_D09E)
 		or	a
 		jr	z, loc_8365
-
+;end of opening?
 		ld	a, (byte_D0B4)
 		rra
 		jr	c, loc_8365
@@ -821,7 +825,7 @@ loc_8365:				; CODE XREF: sub_8C20-909
 
 
 loc_8378:				; CODE XREF: sub_8C20-216
-		call	sub_9F0D
+		call	sub_9F0D ;show state and help
 
 		ld	b, 0
 		ld	a, (byte_D02D)
@@ -1209,7 +1213,7 @@ loc_8533:				; CODE XREF: sub_8C20-6F9
 		rra
 		jr	c, loc_857C
 
-		ld	hl, byte_D049
+		ld	hl, byte_D049 ;move #
 		dec	(hl)
 
 
@@ -1282,7 +1286,7 @@ loc_85DD:				; CODE XREF: sub_8C20-4D5
 
 
 loc_85E0:				; CODE XREF: sub_8C20-645
-		call	sub_9F0D
+		call	sub_9F0D ;show state and help
 
 		ld	hl, #1601
 		ld	(scr_XY), hl
@@ -1422,9 +1426,8 @@ loc_868C:				; CODE XREF: sub_8C20-59C
 		jr	z, loc_8712
 
 		call	sub_881D
-
-		ld	a, #A
-		ld	(byte_D049), a
+		ld	a, #A ;??? сюда никогда не попадаем?
+		ld	(byte_D049), a ;move #
 		call	sub_A915
 
 		xor	a
@@ -1467,8 +1470,8 @@ loc_86A7:				; CODE XREF: sub_8C20-577
 		ld	(byte_D300), a
 		ld	a, (byte_D00A)
 		ld	(byte_D302), a
-		ld	a, (byte_D049)
-		ld	(byte_D20C), a
+		ld	a, (byte_D049) ;move #
+		ld	(byte_D20C), a ;oldmove #?
 		ld	hl, word_D100
 		ld	de, array_64bytes
 		ld	b, #20 ; ' '
@@ -1606,12 +1609,13 @@ loc_8778:				; CODE XREF: sub_875B+1F
 		xor	a
 		ld	(byte_D09E), a
 		inc	a
+                 ;ld (byte_D09E), a ;end of opening?
 		ld	(byte_D0B2), a
 		ld	(byte_D02D), a
 		ld	(byte_D0BF), a
-		ld	(byte_D049), a
+		ld	(byte_D049), a ;move #
 		ld	(byte_D097), a
-		ld	(byte_D20C), a
+		ld	(byte_D20C), a ;oldmove #?
 		ld	hl, stk_1bvalue
 		ld	(ptr_stk_1bvalue), hl
 		ld	hl, RAM_END_D800
@@ -2256,8 +2260,8 @@ loc_8A32:				; CODE XREF: sub_8C20-11
 		ld	hl, (word_D0F7)
 		dec	hl
 		ld	(word_D09F), hl
-		ld	a, (byte_D20C)
-		ld	(byte_D049), a
+		ld	a, (byte_D20C) ;oldmove #
+		ld	(byte_D049), a ;move #
 		dec	a
 		jp	z, loc_80CB
 
@@ -3153,7 +3157,7 @@ loc_8E71:				; CODE XREF: sub_8DE9+82
 loc_8E73:				; CODE XREF: sub_8DE9+48
 		ld	hl, byte_D0DF
 		res	0, (hl)
-		call	sub_9F0D
+		call	sub_9F0D ;show state and help
 
 
 loc_8E7B:				; CODE XREF: sub_8DE9+41
@@ -5819,7 +5823,7 @@ sub_9EE6:				; CODE XREF: sub_92D7-1239
 
 sub_9F0D:				; CODE XREF: sub_8C20:loc_818F
 					; sub_8C20:loc_8378 ...
-
+;show state and help
 ; FUNCTION CHUNK AT 9F5B SIZE 00000018 BYTES
 
 		call	sub_842C
@@ -6142,14 +6146,14 @@ loc_A07E:				; CODE XREF: PRINT_CLOCKS_SWAP+11
 
 
 sub_A08D:				; CODE XREF: sub_8C20-AF7 sub_9FB2+5
-		ld	a, #FF		; print	byte in	decimal???
+		ld	a, #FF		; print	move # in decimal???
 		ld	(NEED_SCR2BUF),	a
 		ld	a, (byte_D0C0)
 		add	a, 6
 		ld	h, a
 		ld	l, 0
 		ld	(scr_XY), hl
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		ld	b, a
 		ld	a, (byte_D0B4)
 		bit	5, a
@@ -6183,7 +6187,7 @@ loc_A0BB:				; CODE XREF: sub_A08D+36
 ; ---------------------------------------------------------------------------
 
 loc_A0C5:				; CODE XREF: sub_A08D+30
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, b
 		cp	#30 ; '0'
 		jr	nz, loc_A0D3
@@ -6199,7 +6203,7 @@ loc_A0C5:				; CODE XREF: sub_A08D+30
 loc_A0D3:				; CODE XREF: sub_A08D+3C sub_A08D+42
 		call	sub_A0F7
 
-		ex	af, af'
+		ex	af, af' ;'
 		ld	b, #30 ; '0'
 
 
@@ -6215,7 +6219,7 @@ loc_A0D9:				; CODE XREF: sub_A08D+54
 ; ---------------------------------------------------------------------------
 
 loc_A0E3:				; CODE XREF: sub_A08D+4E
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, b
 		cp	#30 ; '0'
 		jr	nz, loc_A0F1
@@ -6231,7 +6235,7 @@ loc_A0E3:				; CODE XREF: sub_A08D+4E
 loc_A0F1:				; CODE XREF: sub_A08D+5A sub_A08D+60
 		call	sub_A0F7
 
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, #30 ; '0'
 
 ; End of function sub_A08D
@@ -6935,7 +6939,7 @@ sub_A3D0:				; CODE XREF: sub_9FB2+3F
 ; ---------------------------------------------------------------------------
 
 loc_A3E0:				; CODE XREF: sub_A3D0+9
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		ld	b, a
 		ld	a, (byte_D0B4)
 		bit	5, a
@@ -8671,7 +8675,7 @@ loc_AC67:				; CODE XREF: sub_AC5D+2
 ; START	OF FUNCTION CHUNK FOR sub_AC74
 
 loc_AC6F:				; CODE XREF: sub_AC74+37
-		ld	a, #FF
+		ld	a, #FF ;end of opening?
 		ld	(byte_D09E), a
 
 ; END OF FUNCTION CHUNK	FOR sub_AC74
@@ -8685,8 +8689,8 @@ sub_AC74:				; CODE XREF: sub_AFC5+B
 
 		ld	a, (byte_D09E)
 		or	a
-		ret	nz
-		ld	a, (byte_D20C)
+		ret	nz ;end of opening?
+		ld	a, (byte_D20C) ;oldmove #?
 		dec	a
 		ret	nz
 		call	GEN_RANDBYTE
@@ -8695,7 +8699,7 @@ sub_AC74:				; CODE XREF: sub_AFC5+B
 
 
 loc_AC84:				; CODE XREF: sub_AC74+33
-		inc	hl
+		inc	hl ;hl=opening chunk
 		ld	a, (word_D0F7)
 		ld	c, a
 		ld	a, (byte_D09E)
@@ -8727,9 +8731,9 @@ loc_ACA3:				; CODE XREF: sub_AC74+3C
 		jr	z, loc_AC84
 
 		bit	6, b
-		jr	z, loc_AC6F
+		jr	z, loc_AC6F ;end of opening?
 
-		call	sub_ACF6
+		call	sub_ACF6 ;find opening in loop
 
 		jr	loc_ACA3
 
@@ -8754,7 +8758,7 @@ loc_ACC3:				; CODE XREF: sub_AC74+60
 		push	hl
 		call	GEN_RANDBYTE
 
-		call	sub_ACF6
+		call	sub_ACF6 ;find opening in loop
 
 		jr	c, loc_ACD8
 
@@ -8805,10 +8809,12 @@ loc_ACF4:				; CODE XREF: sub_AC74+7B
 
 
 sub_ACF6:				; CODE XREF: sub_AC74+39 sub_AC74+53
+;hl=opening chunk
 		ld	de, #FFFF
 
 
 loc_ACF9:				; CODE XREF: sub_ACF6+9
+;hl=opening chunk
 		call	sub_AD01
 
 		inc	hl
@@ -8822,6 +8828,7 @@ loc_ACF9:				; CODE XREF: sub_ACF6+9
 
 
 sub_AD01:				; CODE XREF: sub_AC74+2C sub_AC74+41 ...
+;hl=opening chunk
 		call	OPENING_SEARCH
 
 		bit	7, a
@@ -8874,7 +8881,7 @@ loc_AD2B:
 		djnz	loc_AD2B
 
 		pop	hl
-		pop	bc		; output is A, 8 bit from a word
+		pop	bc		; output is A (8 bits from a word) + CY (9th bit)
 		ret
 
 ; End of function OPENING_SEARCH
@@ -9522,7 +9529,7 @@ loc_AFE0:				; CODE XREF: sub_AFC5+16
 		ld	a, c
 		sub	e
 		ld	(byte_D02E), a
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		cp	8
 		cpl
 		jr	c, loc_B00D
@@ -9660,7 +9667,7 @@ loc_B0B7:				; CODE XREF: sub_AFC5+E sub_AFC5+91	...
 		ld	hl, (word_D088)
 		add	hl, bc
 		ld	(word_D088), hl
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		cp	9
 		jp	c, loc_B164
 
@@ -9945,7 +9952,7 @@ loc_B20D:				; CODE XREF: sub_B1EB+24
 		adc	hl, de		; mul E	by 10, why ADC???
 		djnz	loc_B20D
 
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		dec	a
 		ld	b, 0
 		ld	c, #A
@@ -11466,7 +11473,7 @@ loc_B8BE:				; CODE XREF: sub_B8B2+9
 		ld	e, a
 		ld	d, 0
 		ld	hl, 0
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		dec	a
 		jr	z, loc_B8D9
 
@@ -11786,7 +11793,7 @@ sub_BC00:				; CODE XREF: sub_8C20-9FD
 		ld	(word_D03D), sp
 		xor	a
 		ld	e, a
-		ex	af, af'
+		ex	af, af' ;'
 		ld	h, BRD_88_0/256
 		exx
 		ld	h, word_D100/256
@@ -11919,7 +11926,7 @@ loc_BCD2:				; CODE XREF: sub_BC00+C3
 		exx
 		call	nz, sub_C6C4
 
-		ex	af, af'
+		ex	af, af' ;'
 		sra	a
 		sra	a
 		add	a, e
@@ -12381,7 +12388,7 @@ loc_BFB0:				; CODE XREF: sub_BC00+3A8
 		jp	m, loc_BFD4
 
 		set	1, (ix+2)
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, l
 		inc	a
 		sub	e
@@ -12398,7 +12405,7 @@ loc_BFB0:				; CODE XREF: sub_BC00+3A8
 
 loc_BFCC:				; CODE XREF: sub_BC00+3BE
 		ld	(byte_D07A), a
-		ex	af, af'
+		ex	af, af' ;'
 		jr	z, loc_BFD3
 
 		dec	a
@@ -12413,7 +12420,7 @@ loc_BFD4:				; CODE XREF: sub_BC00+3B3
 		dec	e
 		jp	m, loc_C002
 
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, (byte_D01D)
 		bit	1, a
 		jr	nz, loc_BFE5
@@ -12448,7 +12455,7 @@ loc_BFF9:				; CODE XREF: sub_BC00+3F3
 
 loc_C001:				; CODE XREF: sub_BC00+3E9
 					; sub_BC00+3EE ...
-		ex	af, af'
+		ex	af, af' ;'
 
 
 loc_C002:				; CODE XREF: sub_BC00+3D6
@@ -12643,9 +12650,9 @@ loc_C0A0:				; CODE XREF: sub_BC00+AB
 		sub	e
 		ld	e, a
 		ld	h, BRD_88_0/256
-		ex	af, af'
+		ex	af, af' ;'
 		neg
-		ex	af, af'
+		ex	af, af' ;'
 
 
 loc_C0AE:				; CODE XREF: sub_BC00+2B
@@ -12717,9 +12724,9 @@ loc_C0AE:				; CODE XREF: sub_BC00+2B
 		ld	hl, (word_D100)
 		call	sub_C1EF
 
-		ex	af, af'
+		ex	af, af' ;'
 		neg
-		ex	af, af'
+		ex	af, af' ;'
 		xor	a
 		sub	e
 		ld	e, a
@@ -12770,7 +12777,7 @@ loc_C155:				; CODE XREF: sub_C1F4-A4
 
 
 loc_C169:				; CODE XREF: sub_C1F4-98 sub_C1F4-91
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, #10
 		jp	loc_C1E7
 
@@ -12795,7 +12802,7 @@ loc_C16F:				; CODE XREF: sub_C1F4-8D
 
 
 loc_C185:				; CODE XREF: sub_C1F4-80 sub_C1F4-7C ...
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, 8
 		jp	loc_C1E7
 
@@ -12804,7 +12811,7 @@ loc_C185:				; CODE XREF: sub_C1F4-80 sub_C1F4-7C ...
 ; START	OF FUNCTION CHUNK FOR sub_C1EF
 
 loc_C18B:				; CODE XREF: sub_C1EF+3
-		ld	a, (byte_D049)
+		ld	a, (byte_D049) ;move #
 		cpl
 		add	a, #B
 		exx
@@ -12884,12 +12891,12 @@ loc_C1DC:				; CODE XREF: sub_C1F4-21
 
 
 loc_C1E6:				; CODE XREF: sub_C1F4-A9 sub_C1F4-71 ...
-		ex	af, af'
+		ex	af, af' ;'
 
 
 loc_C1E7:				; CODE XREF: sub_C1F4-88 sub_C1F4-6C
 		add	a, d
-		ex	af, af'
+		ex	af, af' ;'
 		ld	h, BRD_88_0/256
 		ld	b, l
 		jp	loc_C21E
@@ -13040,9 +13047,9 @@ loc_C263:				; CODE XREF: sub_C254+4
 		bit	6, l
 		exx
 		ret	z
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, c
-		ex	af, af'
+		ex	af, af' ;'
 		ret
 
 ; End of function sub_C254
@@ -13117,9 +13124,9 @@ loc_C298:				; CODE XREF: sub_C1F4+9E
 loc_C2A6:				; DATA XREF: sub_BC00+23
 		srl	h
 		srl	h
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, h
-		ex	af, af'
+		ex	af, af' ;'
 		bit	5, h
 		jp	z, loc_C313
 
@@ -13493,14 +13500,14 @@ loc_C3EF:				; CODE XREF: sub_C3A3+3E
 		ld	a, 3
 		exx
 		ld	c, a
-		ex	af, af'
+		ex	af, af' ;'
 		jp	loc_C3B7
 
 ; ---------------------------------------------------------------------------
 
 loc_C3FD:				; CODE XREF: sub_C3A3+23
 		exx
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, h
 		and	#FC ; 'ь'
 		jr	z, loc_C410
@@ -13512,7 +13519,7 @@ loc_C3FD:				; CODE XREF: sub_C3A3+23
 		ld	a, d
 		exx
 		ld	b, a
-		ex	af, af'
+		ex	af, af' ;'
 		jp	loc_C3C8
 
 ; ---------------------------------------------------------------------------
@@ -13526,7 +13533,7 @@ loc_C410:				; CODE XREF: sub_C3A3+5F
 		dec	e
 		exx
 		ld	b, a
-		ex	af, af'
+		ex	af, af' ;'
 		jp	loc_C3C8
 
 ; ---------------------------------------------------------------------------
@@ -13972,9 +13979,9 @@ loc_C578:				; CODE XREF: sub_C563+C
 
 loc_C592:				; CODE XREF: sub_C563+23
 		set	6, (ix+2)
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, #14
-		ex	af, af'
+		ex	af, af' ;'
 		ret
 
 ; End of function sub_C563
@@ -14008,9 +14015,9 @@ loc_C59B:				; CODE XREF: sub_C5FF+D
 
 loc_C5B9:				; CODE XREF: sub_C5FF-56
 		set	6, (ix+2)
-		ex	af, af'
+		ex	af, af' ;'
 		add	a, #14
-		ex	af, af'
+		ex	af, af' ;'
 		jp	loc_C5FA
 
 ; END OF FUNCTION CHUNK	FOR sub_C5FF
@@ -14560,7 +14567,9 @@ loc_C77A:				; CODE XREF: RAM:C76F
 		ret
 
 ; ---------------------------------------------------------------------------
+       if !FIX
 		db    0	;unneeded???
+       endif
 
 
 		;might be at any address
@@ -14863,7 +14872,7 @@ word_D03D:	dw 0			; DATA XREF: sub_AD40+1A sub_AD40+AD ...
 		db    0
 BRD_88_4:	ds 8
 		db    0
-byte_D049:	db 0			; DATA XREF: sub_8C20-B62
+byte_D049:	db 0			; DATA XREF: sub_8C20-B62 ;move # (1..N)
 					; sub_8C20-B37 ...
 word_D04A:	dw 0			; DATA XREF: sub_AB53+8 sub_AB53+CD	...
 byte_D04C:	db 0			; DATA XREF: sub_A932+10 sub_AFC5+2D ...
@@ -14931,7 +14940,7 @@ word_D099:	dw 0			; DATA XREF: sub_875B+58
 		db    0
 		db    0
 		db    0
-byte_D09E:	db 0			; DATA XREF: sub_8C20-A4E
+byte_D09E:	db 0			; DATA XREF: sub_8C20-A4E ;end of opening?
 					; sub_8C20-90D ...
 word_D09F:	dw 0			; DATA XREF: sub_8C20-B58
 					; sub_8C20:loc_811C ...
@@ -15327,7 +15336,7 @@ array_D200:	db    0,   0,	0,   0,	  0,   0,   0,	 0 ; DATA XREF:	sub_875B+4
 		ds 1			; D200
 unk_D20B:	ds 1			; DATA XREF: sub_B34B+6
 					; sub_B36B:loc_B39E
-byte_D20C:	ds 1			; DATA XREF: sub_8C20-B72
+byte_D20C:	ds 1			; DATA XREF: sub_8C20-B72 ;oldmove #?
 					; sub_8C20-535 ...
 byte_D20D:	ds #E			; DATA XREF: sub_B2D1+3
 					; array	of 14 bytes
