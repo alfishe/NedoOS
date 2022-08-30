@@ -283,6 +283,37 @@ knightsetups
         db 2,2
         db 2,3
         db 3,3
+
+GEN_RANDBYTE:
+        PUSH de
+        PUSH HL
+;Patrik Rak
+rndseed1=$+1
+        ld  hl,0xA280   ; xz -> yw
+rndseed2=$+1
+        ld  de,0xC0DE   ; yw -> zt
+        ld  (rndseed1),de  ; x = y, z = w
+        ld  a,e         ; w = w ^ ( w << 3 )
+        add a,a
+        add a,a
+        add a,a
+        xor e
+        ld  e,a
+        ld  a,h         ; t = x ^ (x << 1)
+        add a,a
+        xor h
+        ld  d,a
+        rra             ; t = t ^ (t >> 1) ^ w
+        xor d
+        xor e
+        ld  h,l         ; y = z
+        ld  l,a         ; w = t
+        ld  (rndseed2),hl
+        ld b,a
+        POP HL
+        POP de
+        ret ;b=rnd
+
        endif
 
 font
@@ -1003,7 +1034,7 @@ loc_83A1:				; CODE XREF: sub_8C20-68E
 ; ---------------------------------------------------------------------------
 
 loc_83D1:				; CODE XREF: sub_8C20-85E
-		call	sub_8D1B
+		call	ChangeLevel_ifL
 
 		jr	nc, loc_83E8
 
@@ -1334,7 +1365,7 @@ loc_857C:				; CODE XREF: sub_8C20-6AA
 		ld	ix, word_D059
 		call	sub_A903
 
-		ld	hl, byte_D0D9
+		ld	hl, curkey_D0D9
 		ld	a, (hl)
 		ld	(hl), 0
 		ld	(byte_D0B8), a
@@ -1476,7 +1507,7 @@ loc_862E:				; CODE XREF: sub_8C20-5FE
 ; ---------------------------------------------------------------------------
 
 loc_863F:				; CODE XREF: sub_8C20-60D
-		call	sub_8D1B
+		call	ChangeLevel_ifL
 
 		jp	nc, loc_85D8
 
@@ -2993,7 +3024,7 @@ KING:		db  #4B	; K		; DATA XREF: sub_8C20:loc_8745
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_8D1B:				; CODE XREF: sub_8C20:loc_83D1
+ChangeLevel_ifL:				; CODE XREF: sub_8C20:loc_83D1
 					; sub_8C20:loc_863F
 		cp	#4C ; 'L'
 		scf
@@ -3001,7 +3032,7 @@ sub_8D1B:				; CODE XREF: sub_8C20:loc_83D1
 		ld	a, (byte_D0B1)
 
 
-loc_8D22:				; CODE XREF: sub_8D1B+8 sub_8D1B+C
+loc_8D22:				; CODE XREF: ChangeLevel_ifL+8 ChangeLevel_ifL+C
 		inc	a
 		jr	z, loc_8D22
 
@@ -3010,7 +3041,7 @@ loc_8D22:				; CODE XREF: sub_8D1B+8 sub_8D1B+C
 
 		ld	(byte_D0B1), a
 
-; End of function sub_8D1B
+; End of function ChangeLevel_ifL
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -3373,10 +3404,10 @@ loc_8EB7:				; CODE XREF: sub_8EA7+20
 
 loc_8EBA:				; CODE XREF: sub_8EA7+1B
 		ld	a, (de)
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, (hl)
 		ld	(de), a
-		ex	af, af'
+		ex	af, af' ;'
 		ld	(hl), a
 		inc	de
 		inc	hl
@@ -3400,10 +3431,10 @@ loc_8EBA:				; CODE XREF: sub_8EA7+1B
 
 loc_8ED5:				; CODE XREF: sub_8EA7+36
 		ld	a, (de)
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, (hl)
 		ld	(de), a
-		ex	af, af'
+		ex	af, af' ;'
 		ld	(hl), a
 		inc	hl
 		inc	de
@@ -3652,16 +3683,16 @@ loc_9008:				; CODE XREF: sub_8FC1+44
 ; End of function sub_8FC1
 
 ; ---------------------------------------------------------------------------
-; START	OF FUNCTION CHUNK FOR sub_90E8
+; START	OF FUNCTION CHUNK FOR HotKeys
 
-loc_900E:				; CODE XREF: sub_90E8+A sub_90E8+F ...
-		ld	(byte_D0D9), a
+HotKeys_keepkey_pop_ret:				; CODE XREF: HotKeys+A HotKeys+F ...
+		ld	(curkey_D0D9), a
 		ld	hl, byte_D0B4
 		set	7, (hl)
 		pop	af
 		ret
 
-; END OF FUNCTION CHUNK	FOR sub_90E8
+; END OF FUNCTION CHUNK	FOR HotKeys
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -3845,7 +3876,7 @@ loc_90DC:
 ; START	OF FUNCTION CHUNK FOR sub_8FC1
 
 loc_90E1:				; CODE XREF: sub_8FC1+28
-		call	sub_90E8
+		call	HotKeys
 
 		call	sub_9128
 
@@ -3856,7 +3887,7 @@ loc_90E1:				; CODE XREF: sub_8FC1+28
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_90E8:				; CODE XREF: sub_8FC1:loc_90E1
+HotKeys:				; CODE XREF: sub_8FC1:loc_90E1
 
 ; FUNCTION CHUNK AT 900E SIZE 0000000A BYTES
 ; FUNCTION CHUNK AT 92CB SIZE 0000000C BYTES
@@ -3869,13 +3900,13 @@ sub_90E8:				; CODE XREF: sub_8FC1:loc_90E1
 		ret	z
 		ld	(hl), 0
 		cp	#4D ; 'M'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		cp	#42 ; 'B'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		cp	#46 ; 'F'
-		jp	z, loc_92CB
+		jp	z, loc_92CB ;F=Forward
 
 		cp	#48 ; 'H'
 		jp	z, loc_9340
@@ -3884,26 +3915,26 @@ sub_90E8:				; CODE XREF: sub_8FC1:loc_90E1
 		jp	z, loc_9326
 
 		cp	#44 ; 'D'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		cp	#41 ; 'A'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		cp	#53 ; 'S'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		cp	#4C ; 'L'
-		jp	z, loc_935D
+		jp	z, loc_935D ;L=Level
 
 		cp	#43 ; 'C'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		cp	#50 ; 'P'
-		jp	z, loc_900E
+		jp	z, HotKeys_keepkey_pop_ret
 
 		ret
 
-; End of function sub_90E8
+; End of function HotKeys
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -4276,19 +4307,20 @@ loc_92C6:				; CODE XREF: sub_92B6+9
 ; End of function sub_92B6
 
 ; ---------------------------------------------------------------------------
-; START	OF FUNCTION CHUNK FOR sub_90E8
+; START	OF FUNCTION CHUNK FOR HotKeys
 
-loc_92CB:				; CODE XREF: sub_90E8+14
+loc_92CB:				; CODE XREF: HotKeys+14
+;F=Forward
 		ld	hl, (ptr_stk_1bvalue)
 		ld	l, (hl)
 		inc	l
-		jp	nz, loc_900E	; if not #FF
+		jp	nz, HotKeys_keepkey_pop_ret	; if not #FF
 
 		call	BEEP_3
 
 		ret
 
-; END OF FUNCTION CHUNK	FOR sub_90E8
+; END OF FUNCTION CHUNK	FOR HotKeys
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -4345,9 +4377,9 @@ loc_92F7:
 ; End of function sub_92D7
 
 ; ---------------------------------------------------------------------------
-; START	OF FUNCTION CHUNK FOR sub_90E8
+; START	OF FUNCTION CHUNK FOR HotKeys
 
-loc_9326:				; CODE XREF: sub_90E8+1E
+loc_9326:				; CODE XREF: HotKeys+1E
 		call	sub_9571
 
 		ld	hl, byte_D0B3
@@ -4368,7 +4400,7 @@ loc_9326:				; CODE XREF: sub_90E8+1E
 
 ; ---------------------------------------------------------------------------
 
-loc_9340:				; CODE XREF: sub_90E8+19
+loc_9340:				; CODE XREF: HotKeys+19
 		ld	hl, (word_D25A)
 		call	sub_9571
 
@@ -4385,7 +4417,7 @@ loc_9340:				; CODE XREF: sub_90E8+19
 
 		ret
 
-; END OF FUNCTION CHUNK	FOR sub_90E8
+; END OF FUNCTION CHUNK	FOR HotKeys
 
 
 
@@ -4398,17 +4430,18 @@ halt_A_frames:
 
 
 ; ---------------------------------------------------------------------------
-; START	OF FUNCTION CHUNK FOR sub_90E8
+; START	OF FUNCTION CHUNK FOR HotKeys
 
-loc_935D:				; CODE XREF: sub_90E8+32
-		jp	loc_900E
+loc_935D:				; CODE XREF: HotKeys+32
+;L=Level
+		jp	HotKeys_keepkey_pop_ret
 
-; END OF FUNCTION CHUNK	FOR sub_90E8
+; END OF FUNCTION CHUNK	FOR HotKeys
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_9360:				; CODE XREF: sub_90E8+248
+sub_9360:				; CODE XREF: HotKeys+248
 		ld	hl, BOARD
 		ld	de,  BOARD+#3F
 		jp	loc_936F
@@ -4419,7 +4452,7 @@ sub_9360:				; CODE XREF: sub_90E8+248
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_9369:				; CODE XREF: sub_90E8+24E
+sub_9369:				; CODE XREF: HotKeys+24E
 		ld	hl, BOARD2
 		ld	de, BOARD2+63
 
@@ -6537,7 +6570,7 @@ loc_A175:				; CODE XREF: sub_A164+B
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_A177:				; CODE XREF: sub_90E8+254
+sub_A177:				; CODE XREF: HotKeys+254
 					; sub_9F0D+20
 
 ; FUNCTION CHUNK AT A1F1 SIZE 00000037 BYTES
@@ -7361,10 +7394,10 @@ loc_A4F4:				; CODE XREF: sub_8C20-868
 
 		and	#5F ; '_'
 		cp	#4C ; 'L'
-		jp	z, loc_A5D9
+		jp	z, loc_A5D9 ;Load
 
 		cp	#53 ; 'S'
-		jp	z, loc_A596
+		jp	z, loc_A596 ;Save
 
 
 loc_A525:				; CODE XREF: sub_8C20+18F7
@@ -7470,6 +7503,7 @@ loc_A58E:				; CODE XREF: SAVE_RECORD+62
 ; START	OF FUNCTION CHUNK FOR sub_8C20
 
 loc_A596:				; CODE XREF: sub_8C20+1902
+;Save
 		ld	de, #1000
 		ld	hl, aSaveTheGameRec ; "      SAVE THE GAME RECORD"
 		call	sub_9F42
@@ -7516,6 +7550,7 @@ loc_A5D2:				; CODE XREF: sub_8C20+1982
 ; ---------------------------------------------------------------------------
 
 loc_A5D9:				; CODE XREF: sub_8C20+18FD
+;Load
 		ld	de, #1000
 		ld	hl, aLoadAGameRecor ; "      LOAD A GAME RECORD"
 		call	sub_9F42
@@ -9013,7 +9048,7 @@ loc_AD2B:
 
 ; =============== S U B	R O U T	I N E =======================================
 
-
+       if !FIX
 GEN_RANDBYTE:				; CODE XREF: sub_AC74+A
 					; sub_AC74:loc_ACB2 ...
 		ld	a, r
@@ -9024,6 +9059,7 @@ GEN_RANDBYTE:				; CODE XREF: sub_AC74+A
 		ld	(RAND_SEED), a
 		ld	b, a
 		ret ;b=rnd
+       endif
 
 ; End of function GEN_RANDBYTE
 
@@ -15138,8 +15174,8 @@ NEED_SCR2BUF:	db 0			; DATA XREF: sub_8D2C+A
 word_D0D5:	dw 0			; DATA XREF: sub_965C+4 sub_9F42 ...
 TMP_BOARD_PTR:	dw 0			; DATA XREF: sub_93A4:loc_93A7
 					; sub_93A4:loc_93FC ...
-byte_D0D9:	db 0			; DATA XREF: sub_8C20-697
-					; sub_90E8:loc_900E
+curkey_D0D9:	db 0			; DATA XREF: sub_8C20-697
+					; HotKeys:HotKeys_keepkey_pop_ret
 word_D0DA:	dw 0			; DATA XREF: sub_8C20-8CF
 					; sub_9128+EE
 byte_D0DC:	db 0			; DATA XREF: sub_8C20:loc_835C
