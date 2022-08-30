@@ -817,7 +817,7 @@ loc_829A:				; CODE XREF: sub_8C20-97E
 		bit	0, (hl)
 		jr	nz, loc_829A
 
-		call	sub_937B
+		call	ShowBOARD2
 
 		ld	hl, BOARD2
 		ld	de, BOARD
@@ -3173,7 +3173,7 @@ loc_8DB0:				; CODE XREF: sub_8D9E+A
 		or	a
 		jr	z, loc_8DBC
 
-		call	sub_937B
+		call	ShowBOARD2
 
 		jp	loc_8E2C
 
@@ -3291,7 +3291,7 @@ loc_8E2C:				; CODE XREF: sub_8D9E+1B sub_8DE9+38
 		ld	(word_D02B), hl
 		ld	hl, 0
 		ld	(INC_SECONDS), hl
-		call	sub_9380
+		call	ShowBOARD
 
 		ld	hl, byte_D0B3 ;d3=swap board
 		bit	5, (hl)
@@ -4173,7 +4173,7 @@ loc_9231:				; CODE XREF: sub_9128+F4
 		ld	(hl), a
 		call	sub_9571
 
-		call	sub_937B
+		call	ShowBOARD2
 
 		ld	a, #14
 		ld	(DECREMENT_50HZ), a
@@ -4200,7 +4200,7 @@ sub_924C:				; CODE XREF: sub_8F4D+60
 		bit	6, (hl)
 		res	6, (hl)
 		res	5, (hl)
-		call	nz, sub_9380
+		call	nz, ShowBOARD
 
 		ld	a, (byte_D0DC)
 		cp	#51 ; 'Q'
@@ -4223,9 +4223,9 @@ loc_9279:				; CODE XREF: sub_924C+5
 		xor	#40 ; '@'
 		ld	(hl), a
 		and	#40 ; '@'
-		jp	nz, sub_937B
+		jp	nz, ShowBOARD2
 
-		jp	sub_9380
+		jp	ShowBOARD
 
 ; End of function sub_924C
 
@@ -4386,11 +4386,11 @@ loc_9326:				; CODE XREF: HotKeys+1E
 		ld	a, (hl)
 		xor	8
 		ld	(hl), a ;d3=swap board
-		call	sub_9360
+		call	RotateBOARD
 
-		call	sub_9380
+		call	ShowBOARD
 
-		call	sub_9369
+		call	RotateBOARD2
 
 		call	sub_955D
 
@@ -4404,14 +4404,14 @@ loc_9340:				; CODE XREF: HotKeys+19
 		ld	hl, (word_D25A)
 		call	sub_9571
 
-		call	sub_937B
+		call	ShowBOARD2
 
 		call	BEEP_move
 
 		ld	a, #14
 		call	halt_A_frames
 
-		call	sub_9380
+		call	ShowBOARD
 
 		call	sub_955D
 
@@ -4441,27 +4441,18 @@ loc_935D:				; CODE XREF: HotKeys+32
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_9360:				; CODE XREF: HotKeys+248
+RotateBOARD:				; CODE XREF: HotKeys+248
 		ld	hl, BOARD
 		ld	de,  BOARD+#3F
 		jp	loc_936F
-
-; End of function sub_9360
-
-
+; End of function RotateBOARD
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_9369:				; CODE XREF: HotKeys+24E
+RotateBOARD2:				; CODE XREF: HotKeys+24E
 		ld	hl, BOARD2
 		ld	de, BOARD2+63
-
-
-loc_936F:				; CODE XREF: sub_9360+6
+loc_936F:				; CODE XREF: RotateBOARD+6
 		ld	b, #20 ; ' '
-
-
-loc_9371:				; CODE XREF: sub_9369+F
+_loc_9371:				; CODE XREF: RotateBOARD2+F
 		ld	c, (hl)
 		ld	a, (de)
 		ld	(hl), a
@@ -4469,36 +4460,26 @@ loc_9371:				; CODE XREF: sub_9369+F
 		ld	(de), a
 		inc	hl
 		dec	de
-		djnz	loc_9371
-
+		djnz	_loc_9371
 		ret
 
-; End of function sub_9369
+; End of function RotateBOARD2
 
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_937B:				; CODE XREF: sub_8C20-97C
+ShowBOARD2:				; CODE XREF: sub_8C20-97C
 					; sub_8D9E+18	...
 		ld	hl,  BOARD2+#3F
 		jr	loc_9383
-
-; End of function sub_937B
-
-
+; End of function ShowBOARD2
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_9380:				; CODE XREF: sub_8DE9+77 sub_924C+1A ...
+ShowBOARD:				; CODE XREF: sub_8DE9+77 sub_924C+1A ...
 		ld	hl,  BOARD+#3F
-
-
-loc_9383:				; CODE XREF: sub_937B+3
+loc_9383:				; CODE XREF: ShowBOARD2+3
 		ld	b, #40 ; '@'
-
-
-loc_9385:				; CODE XREF: sub_9380+1C
+_loc_9385:				; CODE XREF: ShowBOARD+1C
 		ld	a, (hl)
 		push	bc
 		push	de
@@ -4508,20 +4489,18 @@ loc_9385:				; CODE XREF: sub_9380+1C
 		dec	a
 		ld	hl, byte_D0B3 ;d3=swap board
 		bit	3, (hl)
-		jr	z, loc_9395
-		xor	#3F ; '?'
-loc_9395:				; CODE XREF: sub_9380+11
+		jr	z, _loc_9395
+		xor	#3F
+_loc_9395:				; CODE XREF: ShowBOARD+11
 		call	SHOW_FIG_POS
 
 		pop	hl
 		pop	de
 		pop	bc
 		dec	hl
-		djnz	loc_9385
-
+		djnz	_loc_9385
 		ret
-
-; End of function sub_9380
+; End of function ShowBOARD
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -5110,10 +5089,10 @@ sub_95C5:				; CODE XREF: sub_8FC1+8 sub_924C+B ...
 
 loc_95D8:				; CODE XREF: sub_95C5+1B sub_95C5+1E
 		ld	a, (hl)
-		ex	af, af'
+		ex	af, af' ;'
 		ld	a, (de)
 		ld	(hl), a
-		ex	af, af'
+		ex	af, af' ;'
 		ld	(de), a
 		inc	hl
 		inc	de
@@ -7954,13 +7933,13 @@ sub_A915:
        endif
 
 		;must be inside 256b page
-byte_A918:	db #0E,#12,#1F,#21,#F2,#EE,#E1,#DF ;8 bytes
+byte_A918:	db #0E,#12,#1F,#21,#F2,#EE,#E1,#DF ;8 bytes ;knight moves?
 
-byte_A920:	db #0F			; DATA XREF: sub_A94F+42 ;sub_AAF8:loc_AAFA ... ;8 bytes
+byte_A920:	db #0F			; DATA XREF: sub_A94F+42 ;sub_AAF8:loc_AAFA ... ;8 bytes ;bishop moves (then rook moves)
 		db #11
 		db #EF
 		db #F1
-byte_A924:	db #01			; DATA XREF: sub_AAC9:loc_AACB ;4 bytes
+byte_A924:	db #01			; DATA XREF: sub_AAC9:loc_AACB ;4 bytes ;rook moves?
 		db #FF
 		db #10
                 db #F0			
@@ -8070,8 +8049,8 @@ loc_A984:				; CODE XREF: sub_A94F+2F
 
 		ld	c, #88 ; 'ˆ'
 		exx
-		ld	de, byte_A920
-		call	sub_AAA7
+		ld	de, byte_A920 ;bishop moves (then rook moves)
+		call	sub_AAA7 ;8 moves (queen?)
 
 		ld	a, (iy+8)
 		or	a
@@ -8323,7 +8302,7 @@ sub_AAA2:				; CODE XREF: sub_A94F+71 sub_A94F+78
 
 
 loc_AAA4:				; CODE XREF: sub_A94F+116
-		ld	de, byte_A918
+		ld	de, byte_A918 ;knight moves?
 
 ; End of function sub_AAA2
 
@@ -8388,7 +8367,7 @@ sub_AAC9:				; CODE XREF: sub_A94F+53 sub_A94F+5A
 
 
 loc_AACB:				; CODE XREF: sub_A94F+119
-		ld	de, byte_A924
+		ld	de, byte_A924 ;rook moves?
 
 
 loc_AACE:				; CODE XREF: sub_AAF8+5
@@ -8457,8 +8436,8 @@ sub_AAF8:				; CODE XREF: sub_A94F+61 sub_A94F+68
 
 
 loc_AAFA:				; CODE XREF: sub_A94F+111
-		ld	de, byte_A920
-		jp	loc_AACE
+		ld	de, byte_A920 ;bishop moves (then rook moves)
+		jp	loc_AACE ;4 moves (bishop)
 
 ; End of function sub_AAF8
 
@@ -8472,7 +8451,7 @@ sub_AB00:				; CODE XREF: sub_A94F+4C
 
 
 loc_AB02:				; CODE XREF: sub_A94F+11B
-		ld	de, byte_A920
+		ld	de, byte_A920 ;bishop moves (then rook moves)
 		ld	b, 8
 		jp	loc_AAD0
 
