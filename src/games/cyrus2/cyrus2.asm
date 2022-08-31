@@ -1,4 +1,4 @@
-	device zxspectrum128
+        device zxspectrum128
         include "../../_sdk/sys_h.asm"
 
 ;FIX=1
@@ -208,7 +208,7 @@ RandomizeSetup
         ld (hl),_Q
 
        if 1
-;фюыцэ√ ЁртэютхЁю Єэю т√сшЁрЄ№ё  10 трЁшрэЄют ЁрёёЄрэютъш ъюэхщ т 5 ётюсюфэ√ї ъыхЄърї
+;должны равновероятно выбираться 10 вариантов расстановки коней в 5 свободных клетках
         call goodrnd
         add a,10
         jr nc,$-2
@@ -227,7 +227,7 @@ RandomizeSetup
         call RandomizeSetup_HLemptyplaceA
         ld (hl),_N
        else
-;Єръ ЁрёяЁхфхыхэшх ъюэхщ эхЁртэюьхЁэю
+;так распределение коней неравномерно
         call goodrnd
         and 3
         call RandomizeSetup_HLemptyplaceA
@@ -342,7 +342,7 @@ scr
 unk_637C:	ds 1			; DATA XREF: sub_A262+4
 txt_buf_6:	ds 6			; DATA XREF: sub_9FB2+33
 		ds 3
-buf_10bytes:	ds 10			; DATA XREF: sub_8977	sub_8977+17 ... ;ё■фр яш°хЄё  эрчтрэшх їюфр
+buf_10bytes:	ds 10			; DATA XREF: sub_8977	sub_8977+17 ... ;сюда пишется название хода
 		ds 1
 CLK_1:		ds 8			; DATA XREF: sub_9018+15
 					; INIT_PRINT_CLOCKS+3	...
@@ -440,7 +440,7 @@ loc_8072:				; CODE XREF: START_POINT+75
 		ld	(SEL_SCRorBUF),	a
 		call	CLR_SCR_OR_BUF
 
-		call	CLR_BOARD ;??? яюЄюь х∙╕ Ёрч
+		call	CLR_BOARD ;??? потом ещё раз
 
 		call	PRT_DETECT
 
@@ -486,7 +486,7 @@ loc_80B9:				; CODE XREF: sub_8C20-B6E
 		xor	a
 		ld	(byte_D0B3), a ;d3=swap board
                 inc	a
-		ld	(byte_D049), a ;move # ;схёяюыхчэю - 875B Єюцх Єєфр яш°хЄ
+		ld	(byte_D049), a ;move # ;бесполезно - 875B тоже туда пишет
 		scf
 		call	sub_A915
 
@@ -757,7 +757,7 @@ loc_8236:				; CODE XREF: sub_8C20-9E7
 		inc	hl
 		ld	(word_D0F7), hl
 		ld	a, (ix+2)
-		and	#80 ; 'А'
+		and	#80 ; '?'
 		or	e
 		ld	hl, (ptr_stk_1bvalue)
 		ld	(hl), a
@@ -777,7 +777,7 @@ loc_8253:				; CODE XREF: sub_8C20-E5
 
 		push	hl
 		ld	l, (ix+1)
-		ld	h, #D0	; '╨'
+		ld	h, #D0	; 'Р'
 		ld	l, (hl)
 		res	2, l
 		inc	l
@@ -809,7 +809,7 @@ loc_8281:				; CODE XREF: sub_8C20-9A9
 
 loc_8283:				; CODE XREF: sub_8C20-9A1
 					; sub_8C20-CB
-		call	sub_8977 ;т√тюф їюфр т buf_10bytes
+		call	sub_8977 ;вывод хода в buf_10bytes
 
 		call	sub_8B66
 
@@ -897,7 +897,7 @@ loc_82EB:				; CODE XREF: sub_8C20-AC5
 ; ---------------------------------------------------------------------------
 
 loc_82F9:				; CODE XREF: sub_8C20-92F
-		and	#9F ; 'Я'
+		and	#9F ; '?'
 		ld	(hl), a
 		ld	ix, word_D059
 		call	sub_A903
@@ -1283,7 +1283,7 @@ loc_84DF:				; CODE XREF: sub_8C20-76A
 		cp	#4E ; 'N'
 		jr	z, loc_8500
 
-		ld	b,#83 ; 'Г'
+		ld	b,#83 ; '?'
 		cp	#42 ; 'B'
 		jr	nz, loc_8512
 
@@ -1571,7 +1571,7 @@ loc_868C:				; CODE XREF: sub_8C20-59C
 		jr	z, loc_8712
 
 		call	sub_881D
-		ld	a, #A ;??? ё■фр эшъюуфр эх яюярфрхь?
+		ld	a, #A ;??? сюда никогда не попадаем?
 		ld	(byte_D049), a ;move #
 		call	sub_A915
 
@@ -1686,7 +1686,7 @@ loc_8737:				; CODE XREF: sub_8C20-502
 
 loc_8745:				; CODE XREF: sub_8C20-4E7
 		ld	hl, KING
-		call	sub_8CF7 ;яюшёъ ъырёёр ЇшуєЁ√ яю шьхэш
+		call	sub_8CF7 ;поиск класса фигуры по имени
 
 		jp	c, loc_85DD
 
@@ -1735,13 +1735,13 @@ loc_8778:				; CODE XREF: InitBoard_ClearMoves+1F
 
 		call	Copy_starting_setup
 
-		ld	de, word_D100 ;яєёЄ√°ър (р яюЄюь Єрь сєфхЄ яюыюцхэшх ъюЁюы ?)
+		ld	de, word_D100 ;пустышка (а потом там будет положение короля?)
 		ld	c, #41
-		call	sub_87BF ;ъюяшЁєхЄ Ё ф de яю |c т hl
+		call	sub_87BF ;копирует ряд de по |c в hl
 
 		ld	l, #60
 		ld	c, #C1
-		call	sub_87BF ;ъюяшЁєхЄ Ё ф de яю |c т hl
+		call	sub_87BF ;копирует ряд de по |c в hl
 
 		ld	c, #81
 		call	Copy_starting_setup
@@ -1856,14 +1856,14 @@ sub_87EA:				; CODE XREF: sub_87EA+30 sub_881D+3	...
 		and	#8F
 		push	hl
 		ld	hl, KING-1
-		call	sub_8CF7 ;яюшёъ ъырёёр ЇшуєЁ√ яю Ўхэх
+		call	sub_8CF7 ;поиск класса фигуры по цене
 
 		inc	hl
 		inc	hl
 		inc	hl
 		ld	a, (hl)
 		or	e
-		ld	h, #D0	; '╨'
+		ld	h, #D0	; 'Р'
 		ld	l, d
 		ld	(hl), a
 		pop	hl
@@ -1894,7 +1894,7 @@ sub_881D:				; CODE XREF: sub_8C20-58D
 
 loc_8828:				; CODE XREF: InitBoard_ClearMoves+5E
 		ld	de, BRD_88_0
-		ld	h, #D1	        ; word_D100/256
+		ld	h, word_D100/256
 
 
 loc_882D:				; CODE XREF: sub_881D+1A sub_881D+22
@@ -2017,7 +2017,7 @@ loc_88A3:				; CODE XREF: sub_8853+42
 		cp	#20 ; ' '
 		jr	nz, loc_88AF
 
-		ld	b, #83 ; 'Г'
+		ld	b, #83 ; '?'
 		ld	c, 4
 
 
@@ -2030,7 +2030,7 @@ loc_88B2:				; CODE XREF: sub_8853+40
 
 
 loc_88B5:				; CODE XREF: sub_8853+94
-		ld	a, #82 ; 'В'
+		ld	a, #82 ; '''
 		and	l
 		set	6, a
 		ld	l, a
@@ -2176,7 +2176,7 @@ sub_8939:				; CODE XREF: sub_8C20-4EF
 
 
 loc_8949:				; CODE XREF: sub_8939+B
-		call	sub_8960 ;т√тюф шьхэш яюы  A т hl
+		call	sub_8960 ;вывод имени поля A в hl
 
 		ld	a, (word_D0BB)
 		cp	#FF
@@ -2185,7 +2185,7 @@ loc_8949:				; CODE XREF: sub_8939+B
 		ld	(hl),'-'
 		inc	hl
 		ld	a, (word_D0BB+1)
-		call	sub_8960 ;т√тюф шьхэш яюы  A т hl
+		call	sub_8960 ;вывод имени поля A в hl
 
 
 loc_895C:				; CODE XREF: sub_8939+18
@@ -2200,7 +2200,7 @@ loc_895C:				; CODE XREF: sub_8939+18
 
 
 sub_8960:				; CODE XREF: sub_8939:loc_8949
-;т√тюф шьхэш яюы  A т hl					; sub_8939+20	...
+;вывод имени поля A в hl					; sub_8939+20	...
 		ld	b, a
 		and	#F
 		add	a,'a'
@@ -2226,12 +2226,12 @@ sub_8960:				; CODE XREF: sub_8939:loc_8949
 
 
 sub_8977:				; CODE XREF: sub_8C20:loc_8283
-;т√тюф їюфр т buf_10bytes
-;(ix+0)=юЄъєфр їюфшь
-;(ix+1)=ъєфр їюфшь (яЁш ЁюъшЁютъх чряшёрэ їюф ъюЁюы )
-;(ix+2)D3=ё·хфхэшх
-;(ix+2)D4=ЁюъшЁютър, (ix+1)D2=ъюЁюЄър  (уюфшЄё  ш фы  Chess960)
-;(ix+2)D7=°рї
+;вывод хода в buf_10bytes
+;(ix+0)=откуда ходим
+;(ix+1)=куда ходим (при рокировке записан ход короля)
+;(ix+2)D3=съедение
+;(ix+2)D4=рокировка, (ix+1)D2=короткая (годится и для Chess960)
+;(ix+2)D7=шах
 		ld	hl, buf_10bytes
 		ld	b, #A
 loc_897C:				; CODE XREF: sub_8977+8
@@ -2243,12 +2243,12 @@ loc_897C:				; CODE XREF: sub_8977+8
 		ld	(byte_D0DC), a
 
 		bit	4, (ix+2)
-		jr	z, loc_89A4 ;эх ЁюъшЁютър
+		jr	z, loc_89A4 ;не рокировка
 		ld	hl, aOOO	; "O-O-O"
 		ld	de, buf_10bytes+1
 		ld	c, 5
 		bit	2, (ix+1)
-		jr	z, loc_899E ;ЁюъшЁєхь т ыхтє■ яюыютшэє фюёъш
+		jr	z, loc_899E ;рокируем в левую половину доски
 		inc	hl
 		inc	hl ;"O-O"
 		inc	de
@@ -2267,16 +2267,16 @@ loc_89A4:				; CODE XREF: sub_8977+12
 		ld	(hl), a
 		inc	hl
 		ld	a, (ix+0)
-		call	sub_8960 ;т√тюф шьхэш яюы  A т hl
+		call	sub_8960 ;вывод имени поля A в hl
 
 		ld	(hl),'-'
 		bit	3, (ix+2)
-		jr	z, loc_89BC ;яЁюёЄю їюф
-		ld	(hl),'x' ;ё·хфхэшх
+		jr	z, loc_89BC ;просто ход
+		ld	(hl),'x' ;съедение
 loc_89BC:				; CODE XREF: sub_8977+41
 		inc	hl
 		ld	a, (ix+1)
-		call	sub_8960 ;т√тюф шьхэш яюы  A т hl
+		call	sub_8960 ;вывод имени поля A в hl
 
 		dec	hl
 		pop	de
@@ -2637,7 +2637,7 @@ loc_8B9E:				; CODE XREF: sub_8C20-8C sub_8C20-87
 		rra
 		jr	nc, loc_8BCF
 
-		ld	l, #80 ; 'А'
+		ld	l, #80 ; '?'
 
 
 loc_8BCF:				; CODE XREF: sub_8C20-55
@@ -2944,7 +2944,7 @@ loc_8CF3:				; CODE XREF: sub_8C20+D0
 
 
 sub_8CF7:				; CODE XREF: sub_8C20-4D8
-;яюшёъ ъырёёр ЇшуєЁ√ яю эюьхЁє, ъюфє, шьхэш					; sub_87EA+1D	...
+;поиск класса фигуры по номеру, коду, имени					; sub_87EA+1D	...
 		ld	b, 6
 
 
@@ -2963,30 +2963,30 @@ loc_8CF9:				; CODE XREF: sub_8CF7+8
 ; End of function sub_8CF7
 
 ; ---------------------------------------------------------------------------
-		db    0	   ;Ўхэр K		; DATA XREF: sub_87EA+1A sub_9FF5+20
-KING:		db  'K'    ;шь  K		          ; DATA XREF: sub_8C20:loc_8745
-		db    6	   ;эюьхЁ K		; DATA XREF: sub_94C9:loc_94FF
-		db    0    ;ъюф K
-		db    9    ;Ўхэр Q
-		db  'Q'    ;шь  Q
-		db    5    ;эюьхЁ Q
-		db    8    ;ъюф Q
-		db    5    ;Ўхэр R
-		db  'R'    ;шь  R
-		db    4    ;эюьхЁ R
-		db  #10    ;ъюф R
-		db  #83    ;Ўхэр B
-		db  'B'    ;шь  B
-		db    3    ;эюьхЁ B
-		db  #20    ;ъюф B
-		db    3    ;Ўхэр N
-		db  'N'    ;шь  N
-		db    2    ;эюьхЁ N
-		db  #30    ;ъюф N
-		db    1    ;Ўхэр P
-		db  'P'    ;шь  P
-		db    1    ;эюьхЁ P
-		db  #40    ;ъюф P
+		db    0	   ;цена K		; DATA XREF: sub_87EA+1A sub_9FF5+20
+KING:		db  'K'    ;имя K		          ; DATA XREF: sub_8C20:loc_8745
+		db    6	   ;номер K		; DATA XREF: sub_94C9:loc_94FF
+		db    0    ;код K
+		db    9    ;цена Q
+		db  'Q'    ;имя Q
+		db    5    ;номер Q
+		db    8    ;код Q
+		db    5    ;цена R
+		db  'R'    ;имя R
+		db    4    ;номер R
+		db  #10    ;код R
+		db  #83    ;цена B
+		db  'B'    ;имя B
+		db    3    ;номер B
+		db  #20    ;код B
+		db    3    ;цена N
+		db  'N'    ;имя N
+		db    2    ;номер N
+		db  #30    ;код N
+		db    1    ;цена P
+		db  'P'    ;имя P
+		db    1    ;номер P
+		db  #40    ;код P
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -3099,7 +3099,7 @@ loc_8D87:				; CODE XREF: sub_8D6A+21
 		or	a
 		jr	z, loc_8D93
 
-		ld	l, #FE	; '■'
+		ld	l, #FE	; 'ю'
 
 
 loc_8D93:				; CODE XREF: sub_8D6A+25
@@ -3425,7 +3425,7 @@ loc_8EE5:				; CODE XREF: sub_8EA7+2A
 loc_8EEB:				; CODE XREF: sub_8EA7+4C
 		ld	a, (de)
 		ld	(hl), a
-		and	#F8 ; '°'
+		and	#F8 ; 'ш'
 		or	c
 		ld	(de), a
 		inc	hl
@@ -3638,7 +3638,7 @@ loc_8FFC:				; CODE XREF: sub_8FC1+16
 loc_9008:				; CODE XREF: sub_8FC1+44
 		or	a
 		ret	nz
-		call	sub_9128 ;ттюф шьхэш яюы ?
+		call	sub_9128 ;ввод имени поля?
 		ret
 
 ; End of function sub_8FC1
@@ -3839,7 +3839,7 @@ loc_90DC:
 loc_90E1:				; CODE XREF: sub_8FC1+28
 		call	HotKeys
 
-		call	sub_9128 ;ттюф шьхэш яюы ?
+		call	sub_9128 ;ввод имени поля?
 
 		ret
 
@@ -3902,7 +3902,7 @@ HotKeys:				; CODE XREF: sub_8FC1:loc_90E1
 
 
 sub_9128:				; CODE XREF: sub_8FC1+49
-;ттюф шьхэш яюы ?					; sub_8FC1+123
+;ввод имени поля?					; sub_8FC1+123
 
 ; FUNCTION CHUNK AT 9290 SIZE 00000010 BYTES
 
@@ -3918,7 +3918,7 @@ sub_9128:				; CODE XREF: sub_8FC1+49
 		cp	#C
 		jp	z, loc_9290
 
-		jp	loc_9163 ;ттюф ёшьтюы№эюую шьхэш яюы 
+		jp	loc_9163 ;ввод символьного имени поля
 
 ; ---------------------------------------------------------------------------
 
@@ -4502,7 +4502,7 @@ loc_93C3:				; CODE XREF: sub_93A4+12
 		or	a
 		jr	z, loc_93F2
 
-		and	#F8 ; '°'
+		and	#F8 ; 'ш'
 		inc	a
 		ld	l, a
 		inc	h
@@ -4807,7 +4807,7 @@ loc_94F2:				; CODE XREF: sub_94C9+51
 
 loc_94FF:				; CODE XREF: sub_94C9+30
 		ld	hl, KING+1
-		call	sub_8CF7 ;яюшёъ ъырёёр ЇшуєЁ√ яю эюьхЁє
+		call	sub_8CF7 ;поиск класса фигуры по номеру
 
 		dec	hl
 		ld	a, (hl)
@@ -4940,7 +4940,7 @@ sub_9571:				; CODE XREF: sub_8C20-AF4
 
 
 sub_9585:				; CODE XREF: sub_9128+2C sub_955D+5
-;A=эюьхЁ яюы ?=0b0YYY0XXX
+;A=номер поля?=0b0YYY0XXX
 		push	af
 		ld	a, (byte_D04D)
 		or	a
@@ -4960,7 +4960,7 @@ loc_9592:				; CODE XREF: sub_9585+9
 
 sub_9595:				; CODE XREF: sub_8C20-20C
 					; sub_8C20-17C ...
-;A=эюьхЁ яюы ?=0b0YYY0XXX
+;A=номер поля?=0b0YYY0XXX
 		ld	d, #FF ;and
 		ld	e, 0   ;or
 		jr	loc_959B ;???
@@ -4968,7 +4968,7 @@ sub_9595:				; CODE XREF: sub_8C20-20C
 ; ---------------------------------------------------------------------------
 
 loc_959B:				; CODE XREF: sub_9585+E sub_9595+4 ...
-;A=эюьхЁ яюы ?=0b0YYY0XXX
+;A=номер поля?=0b0YYY0XXX
 		push	hl
 		push	af
 		push	de
@@ -5000,7 +5000,7 @@ sub_95A8:				; CODE XREF: sub_9128+34 sub_955D+D
 
 
 sub_95AE:				; CODE XREF: sub_9595+9
-;A=эюьхЁ яюы ?=0b0YYY0XXX
+;A=номер поля?=0b0YYY0XXX
 		and	#77
 		ld	hl, byte_D0B3 ;d3=swap board
 		bit	3, (hl)
@@ -5318,7 +5318,7 @@ loc_9704:				; CODE XREF: sub_96F7+6 sub_96F7+A
 		push	de
 		push	bc
 		ld	c, a
-		and	#F0 ; 'Ё'
+		and	#F0 ; 'р'
 		rlca
 		rlca
 		rlca
@@ -5421,7 +5421,7 @@ BEEP_start:				; CODE XREF: sub_8C20-B76
 		push	hl
 		push	de
 		ld	hl, #511
-		ld	de, #A5 ; 'е'
+		ld	de, #A5 ; '?'
 		jr	BEEP_common
 
 ; End of function BEEP_start
@@ -6087,7 +6087,7 @@ sub_9FF5:				; CODE XREF: sub_8C20-A12
 		ld	a, (hl)
 		and	#8F
 		ld	hl, KING-1
-		call	sub_8CF7 ;яюшёъ ъырёёр ЇшуєЁ√ яю Ўхэх
+		call	sub_8CF7 ;поиск класса фигуры по цене
 
 		inc	hl
 		ld	b, (hl)
@@ -6650,7 +6650,7 @@ loc_A24D:				; CODE XREF: sub_A24B:loc_A25F
 
 loc_A24F:				; CODE XREF: sub_A24B+B
 		ld	a, (hl)
-		and	#F8 ; '°'
+		and	#F8 ; 'ш'
 		or	e
 		ld	(hl), a
 		inc	hl
@@ -6822,7 +6822,7 @@ loc_A318:				; CODE XREF: sub_8C20+16C7
 		jp	z, loc_A29F
 
 		ld	a, (hl)
-		and	#FD ; '¤'
+		and	#FD ; 'э'
 		xor	1
 		ld	(hl), a
 		jr	loc_A330
@@ -6834,7 +6834,7 @@ loc_A325:				; CODE XREF: sub_8C20+16CC
 		jp	z, loc_A29F
 
 		ld	a, (hl)
-		and	#FE ; '■'
+		and	#FE ; 'ю'
 		xor	2
 		ld	(hl), a
 
@@ -6844,7 +6844,7 @@ loc_A330:				; CODE XREF: sub_8C20+1703
 		jp	nz, loc_A29F
 
 		ld	a, (hl)
-		and	#CF ; '╧'
+		and	#CF ; 'П'
 		ld	(hl), a
 		jp	loc_A29F
 
@@ -7678,7 +7678,7 @@ sub_A6F7:				; CODE XREF: sub_AFC5+C7
 		ld	a, #FF
 		ld	(NEED_SCR2BUF),	a
 		ld	a, (hl)
-		cp	#FE ; '■'
+		cp	#FE ; 'ю'
 		jr	c, loc_A725
 
 		ld	hl,  a_8spaces+5
@@ -7943,7 +7943,7 @@ loc_A961:				; CODE XREF: sub_A903	sub_A94F+8
 loc_A984:				; CODE XREF: sub_A94F+2F
 		ld	b, (iy+0)
 		bit	4, (iy+1)
-		call	z, sub_AB0A ;яЁютхЁ хь ш яш°хь ЁюъшЁютъш т ёяшёюъ їюфют?
+		call	z, sub_AB0A ;проверяем и пишем рокировки в список ходов?
 
 		ld	c, #88
 		exx
@@ -7952,32 +7952,32 @@ loc_A984:				; CODE XREF: sub_A94F+2F
 
 		ld	a, (iy+8)
 		or	a
-		call	p, sub_AB00 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ЇхЁч ?
+		call	p, sub_AB00 ;составляем список ходов от поля A для ферзя?
 
 		ld	a, (iy+#10)
 		or	a
-		call	p, sub_AAC9 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ырф№ш
+		call	p, sub_AAC9 ;составляем список ходов от поля A для ладьи
 
 		ld	a, (iy+#18)
 		or	a
-		call	p, sub_AAC9 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ырф№ш
+		call	p, sub_AAC9 ;составляем список ходов от поля A для ладьи
 
 		ld	a, (iy+#20)
 		or	a
-		call	p, sub_AAF8 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ёыюэр?
+		call	p, sub_AAF8 ;составляем список ходов от поля A для слона?
 
 		ld	a, (iy+#28)
 		or	a
-		call	p, sub_AAF8 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ёыюэр?
+		call	p, sub_AAF8 ;составляем список ходов от поля A для слона?
 
 		ld	a, (iy+#30)
 		ld	c, #88
 		or	a
-		call	p, sub_AAA2 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ъюэ ?
+		call	p, sub_AAA2 ;составляем список ходов от поля A для коня?
 
 		ld	a, (iy+#38)
 		or	a
-		call	p, sub_AAA2 ;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ъюэ ?
+		call	p, sub_AAA2 ;составляем список ходов от поля A для коня?
 
 		ld	c, #11
 		exx
@@ -8007,25 +8007,25 @@ loc_A9DA:				; CODE XREF: sub_A94F+83 sub_A94F+F2
 		add	a, c
 		ld	l, a
 		xor	a
-		or	(hl) ;тяхЁхфш ёяЁртр?
+		or	(hl) ;впереди справа?
 		jp	z, loc_A9F6
 
 		exx
 		xor	c
 		exx
-		call	m, sub_AB41 ;яш°хь їюф B-E, Їыруш A=8=ё·хфхэшх
+		call	m, sub_AB41 ;пишем ход B-L, флаги A=8=съедение
 		xor	a
 
 loc_A9F6:				; CODE XREF: sub_A94F+9D
 		dec	l
 		dec	l
-		or	(hl) ;тяхЁхфш ёыхтр?
+		or	(hl) ;впереди слева?
 		jp	z, loc_AA03
 
 		exx
 		xor	c
 		exx
-		call	m, sub_AB41 ;яш°хь їюф B-E, Їыруш A=8=ё·хфхэшх
+		call	m, sub_AB41 ;пишем ход B-L, флаги A=8=съедение
 		xor	a
 
 loc_AA03:				; CODE XREF: sub_A94F+AA
@@ -8034,11 +8034,11 @@ loc_AA03:				; CODE XREF: sub_A94F+AA
 		jr	nz, loc_AA33
 
 		ex	de, hl
-		ld	(hl), b ;юЄъєфр
+		ld	(hl), b ;откуда
 		inc	hl
-		ld	(hl), e ;ъєфр
+		ld	(hl), e ;куда
 		inc	hl
-		ld	(hl), a ;Їыруш=0
+		ld	(hl), a ;флаги=0
 		inc	hl
 		ex	de, hl
 		ld	a, b
@@ -8056,7 +8056,7 @@ loc_AA03:				; CODE XREF: sub_A94F+AA
 		or	(hl)
 		jr	nz, loc_AA3A
 
-		call	sub_AB43 ;яш°хь їюф B-E, Їыруш A=0
+		call	sub_AB43 ;пишем ход B-L, флаги A=0
 
 		dec	l
 		or	(hl)
@@ -8151,7 +8151,7 @@ sub_AA71:				; CODE XREF: sub_A94F+E8
 loc_AA85:				; CODE XREF: sub_AA71+C
 		dec	l
 		ld	a, #28
-		jp	sub_AB43 ;яш°хь їюф B-E, Їыруш A
+		jp	sub_AB43 ;пишем ход B-L, флаги A
 
 ; End of function sub_AA71
 
@@ -8205,11 +8205,11 @@ sub_AAA7:				; CODE XREF: sub_A94F+45
 		ld	b, 8
 
 loc_AAA9:				; CODE XREF: sub_AAA7:loc_AAC5
-		ld	a, (de) ;ёфтшу ЇшуєЁ√
+		ld	a, (de) ;сдвиг фигуры
 		inc	e
 		exx
-		add	a, b ;+юЄъєфр
-		ld	l, a ;ъєфр
+		add	a, b ;+откуда
+		ld	l, a ;куда
 		and	c
 		jr	nz, loc_AAC4
 
@@ -8218,17 +8218,17 @@ loc_AAA9:				; CODE XREF: sub_AAA7:loc_AAC5
 
 		exx
 		xor	c
-		jp	p, loc_AAC5 ;эх ьюцхь ё·хёЄ№ ётю■ ЇшуєЁє
+		jp	p, loc_AAC5 ;не можем съесть свою фигуру
 		exx
-		ld	a, 8 ;ё·хфхэшх?
+		ld	a, 8 ;съедение?
 
 loc_AABC:				; CODE XREF: sub_AAA7+B
 		ex	de, hl
-		ld	(hl), b ;юЄъєфр
+		ld	(hl), b ;откуда
 		inc	hl
-		ld	(hl), e ;ъєфр
+		ld	(hl), e ;куда
 		inc	hl
-		ld	(hl), a ;Їыруш=0/8
+		ld	(hl), a ;флаги=0/8
 		inc	hl
 		ex	de, hl
 
@@ -8248,7 +8248,7 @@ loc_AAC5:				; CODE XREF: sub_AAA7+F
 
 
 sub_AAC9:				; CODE XREF: sub_A94F+53 sub_A94F+5A
-;ёюёЄрты хь ёяшёюъ їюфют юЄ яюы  A фы  ырф№ш
+;составляем список ходов от поля A для ладьи
 		ld	b, a
 		exx
 
@@ -8264,24 +8264,24 @@ loc_AAD0:				; CODE XREF: sub_AAC9:loc_AAF4
 		inc	e
 		exx
 		ld	c, a
-		ld	l, b ;юЄъєфр
+		ld	l, b ;откуда
 
 loc_AAD5:				; CODE XREF: sub_AAC9+1E
 		ld	a, l
 		add	a, c
-		ld	l, a ;ъєфр
+		ld	l, a ;куда
 		and	#88
-		jr	nz, loc_AAF3 ;т√°ыш чр яЁхфхы√ фюёъш
+		jr	nz, loc_AAF3 ;вышли за пределы доски
 
 		or	(hl)
-		jr	nz, loc_AAEA ;эр чрэ Єюх яюых
+		jr	nz, loc_AAEA ;на занятое поле
 
 		ex	de, hl
-		ld	(hl), b ;юЄъєфр
+		ld	(hl), b ;откуда
 		inc	hl
-		ld	(hl), e ;ъєфр
+		ld	(hl), e ;куда
 		inc	hl
-		ld	(hl), a ;Їыруш=0
+		ld	(hl), a ;флаги=0
 		inc	hl
 		ex	de, hl
 		jp	loc_AAD5
@@ -8291,10 +8291,10 @@ loc_AAD5:				; CODE XREF: sub_AAC9+1E
 loc_AAEA:				; CODE XREF: sub_AAC9+14
 		exx
 		xor	c
-		jp	p, loc_AAF4 ;эх ьюцхь ё·хёЄ№ ётю■ ЇшуєЁє
+		jp	p, loc_AAF4 ;не можем съесть свою фигуру
 		exx
 
-		call	sub_AB41 ;яш°хь їюф B-E, Їыруш A=8=ё·хфхэшх
+		call	sub_AB41 ;пишем ход B-L, флаги A=8=съедение
 loc_AAF3:				; CODE XREF: sub_AAC9+11
 
 		exx
@@ -8338,60 +8338,97 @@ loc_AB02:				; CODE XREF: sub_A94F+11B
 
 
 sub_AB0A:				; CODE XREF: sub_A94F+3C
-;яЁютхЁ хь ш яш°хь ЁюъшЁютъш т ёяшёюъ їюфют?
+;проверяем и пишем рокировки в список ходов?
         if FIX
         ret ;TODO
         endif
 		bit	7, (ix+2)
-		ret	nz ;ъюЁюы№ єцх їюфшы? шыш ¤Єю °рї?
+		ret	nz ;король уже ходил? или это шах?
 		bit	4, (iy+#19)
-		jr	nz, loc_AB26 ;ырф№  єцх їюфшыр?
+		jr	nz, gencastlingRfail;loc_AB26 ;ладья уже ходила?
 		bit	7, (iy+#18)
-		jr	nz, loc_AB26 ;ырф№  ьхЁЄтр?
+		jr	nz, gencastlingRfail;loc_AB26 ;ладья мертва?
 
+       if FIX
+;в Chess960 проверять сколько надо полей (от короля или Е (смотря что левее) вплоть до края доски, кроме короля и самой ладьи)
+        ld a,b
+        and 7
+        cp 4 ;E
+        jr c,$+4 ;король левее E
+         ld a,4 ;E
+        xor b
+        and 7
+        xor b
+        ld l,a ;от короля или Е (смотря что левее)
+        
+gencastlingR0
+        ld a,(hl)
+        or a
+        jr z,gencastlingR0ok
+        and 0x38
+        cp _K&0x38
+        jr z,gencastlingR0ok
+        ld a,(hl)
+        and 0x30
+        cp _R&0x30
+        jr nz,gencastlingRfail
+gencastlingR0ok
+        inc l
+        bit 3,l
+        jr z,gencastlingR0
+        
+        ld a,b
+        and 0xf8
+        or 6
+        ld l,a
+        call sub_AB3C ;пишем ход B-L, флаги A=#10=рокировка
+
+       else
 		xor	a
 		ld	l, b
 		inc	l
-		or	(hl) ;ёяЁртр яєёЄю?
-		jr	nz, loc_AB26
+		or	(hl) ;справа пусто?
+		jr	nz, gencastlingRfail;loc_AB26
 
 		inc	l
-		or	(hl) ;х∙╕ яЁртхх яєёЄю? TODO т Chess960 яЁютхЁ Є№ ёъюы№ъю эрфю яюыхщ
-		call	z, sub_AB3C ;яш°хь їюф B-E, Їыруш A=#10=ЁюъшЁютър?
+		or	(hl) ;ещё правее пусто?
+		call	z, sub_AB3C ;пишем ход B-L, флаги A=#10=рокировка
+       endif
 
-loc_AB26:				; CODE XREF: sub_AB0A+9 sub_AB0A+F ...
+gencastlingRfail;loc_AB26:				; CODE XREF: sub_AB0A+9 sub_AB0A+F ...
+
 		bit	4, (iy+#11)
-		ret	nz ;ырф№  єцх їюфшыр?
+		ret	nz ;ладья уже ходила?
 		bit	7, (iy+#10)
-		ret	nz ;ырф№  ьхЁЄтр?
+		ret	nz ;ладья мертва?
 		ld	l, b
 		xor	a
 		dec	l
-		or	(hl) ;ёыхтр яєёЄю?
+		or	(hl) ;слева пусто?
 		ret	nz
 		dec	l
-		or	(hl) ;х∙╕ ыхтхх яєёЄю?
+		or	(hl) ;ещё левее пусто?
 		ret	nz
 		dec	l
-		or	(hl) ;х∙╕ ыхтхх яєёЄю? TODO т Chess960 яЁютхЁ Є№ ёъюы№ъю эрфю яюыхщ
+		or	(hl) ;ещё левее пусто? TODO в Chess960 проверять сколько надо полей (от короля или Е (смотря что правее) вплоть до левого края доски, кроме короля и самой ладьи)
 		ret	nz
 		inc	l
-;яш°хь їюф B-E, Їыруш A=#10=ЁюъшЁютър?
+;пишем ход B-L, флаги A=#10=рокировка?
 ; =============== S U B	R O U T	I N E =======================================
 sub_AB3C:				; CODE XREF: sub_AB0A+19
-		ld	a, #10 ;ЁюъшЁютър?
-		jp	sub_AB43 ;яш°хь їюф B-E, Їыруш A
+		ld	a, #10 ;рокировка?
+		jp	sub_AB43 ;пишем ход B-L, флаги A
 ; =============== S U B	R O U T	I N E =======================================
 sub_AB41:				; CODE XREF: sub_A94F+A3 sub_A94F+B0 ...
-		ld	a, 8 ;ё·хфхэшх
+		ld	a, 8 ;съедение
 ; =============== S U B	R O U T	I N E =======================================
 sub_AB43:				; CODE XREF: sub_A94F+D2 sub_AA71+17 ...
 		ex	de, hl
-		ld	(hl), b ;юЄъєфр
+		ld	(hl), b ;откуда
 		inc	hl
-		ld	(hl), e ;ъєфр
+		ld	(hl), e ;куда
 		inc	hl
-		ld	(hl), a ;Їыруш
+		ld	(hl), a ;флаги
 		inc	hl
 		ex	de, hl
 		ret
@@ -8532,7 +8569,7 @@ loc_ABC6:				; CODE XREF: sub_AB53+1B
 		jr	nz, loc_ABB0
 
 		ld	a, (ix+2)
-		and	#88 ; 'И'
+		and	#88 ; '?'
 		ld	a, c
 		jr	z, loc_ABEF
 
@@ -8995,7 +9032,7 @@ loc_ADA9:				; CODE XREF: sub_AD40+27 sub_AD40+2F ...
 		ld	(hl), 0
 		ld	l, c
 		ld	c, (hl)
-		ld	(hl), e
+		ld	(hl), e ;переместили короля при рокировке?
 		ld	b, l
 		inc	h		; word_D100
 		res	2, e
@@ -9077,24 +9114,24 @@ loc_ADF5:				; CODE XREF: sub_AD40+84
 		add	a, #10
 		ld	l, a
 		ld	a, (hl)
-		cp	#C0 ; '└'
+		cp	#C0
 		jr	nc, loc_AE59
 
 		ld	a, l
 		add	a, #F
 		ld	l, a
 		ld	a, (hl)
-		cp	#C0 ; '└'
+		cp	#C0
 		jr	nc, loc_AE59
 
 		inc	l
 		ld	a, (hl)
-		cp	#C0 ; '└'
+		cp	#C0
 		jr	nc, loc_AE59
 
 		inc	l
 		ld	a, (hl)
-		cp	#C0 ; '└'
+		cp	#C0
 		jr	nc, loc_AE59
 
 		ld	l, e
@@ -9112,7 +9149,7 @@ loc_AE2D:				; CODE XREF: sub_AD40+C1
 		add	a, #10
 		ld	l, a
 		ld	a, (hl)
-		cp	#C0 ; '└'
+		cp	#C0 ; 'А'
 		jr	nc, loc_AE59
 
 		ld	l, e
@@ -9124,7 +9161,7 @@ loc_AE2D:				; CODE XREF: sub_AD40+C1
 ; ---------------------------------------------------------------------------
 
 loc_AE45:				; CODE XREF: sub_AD40+BB
-		cp	#C0 ; '└'
+		cp	#C0 ; 'А'
 		jp	nc, loc_AEF1
 
 		jp	loc_AEF3
@@ -9134,7 +9171,7 @@ loc_AE45:				; CODE XREF: sub_AD40+BB
 loc_AE4D:				; CODE XREF: sub_AD40+BF
 		jp	m, loc_AECF
 
-		ld	(hl), #A1 ; 'б'
+		ld	(hl), #A1 ; 'Ў'
 		set	0, (ix+2)
 		jp	loc_AEF3
 
@@ -9168,7 +9205,7 @@ loc_AE66:				; CODE XREF: sub_AD40+B7
 		sub	#10
 		ld	l, a
 		ld	a, (hl)
-		and	#C0 ; '└'
+		and	#C0 ; 'А'
 		cp	#40 ; '@'
 		jr	nc, loc_AE59
 
@@ -9176,19 +9213,19 @@ loc_AE66:				; CODE XREF: sub_AD40+B7
 		sub	#11
 		ld	l, a
 		ld	a, (hl)
-		and	#C0 ; '└'
+		and	#C0 ; 'А'
 		cp	#40 ; '@'
 		jr	z, loc_AE59
 
 		inc	l
 		ld	a, (hl)
-		and	#C0 ; '└'
+		and	#C0 ; 'А'
 		cp	#40 ; '@'
 		jr	z, loc_AE59
 
 		inc	l
 		ld	a, (hl)
-		and	#C0 ; '└'
+		and	#C0 ; 'А'
 		cp	#40 ; '@'
 		jr	z, loc_AE59
 
@@ -9207,7 +9244,7 @@ loc_AEA2:				; CODE XREF: sub_AD40+12E
 		sub	#10
 		ld	l, a
 		ld	a, (hl)
-		and	#C0 ; '└'
+		and	#C0 ; 'А'
 		cp	#40 ; '@'
 		jr	z, loc_AE59
 
@@ -9220,7 +9257,7 @@ loc_AEA2:				; CODE XREF: sub_AD40+12E
 ; ---------------------------------------------------------------------------
 
 loc_AEBC:				; CODE XREF: sub_AD40+128
-		and	#C0 ; '└'
+		and	#C0 ; 'А'
 		jr	z, loc_AEF1
 
 		jp	loc_AEF3
@@ -9230,7 +9267,7 @@ loc_AEBC:				; CODE XREF: sub_AD40+128
 loc_AEC3:				; CODE XREF: sub_AD40+12C
 		jp	p, loc_AECF
 
-		ld	(hl), #A1 ; 'б'
+		ld	(hl), #A1 ; 'Ў'
 		set	0, (ix+2)
 		jp	loc_AEF3
 
@@ -9250,7 +9287,7 @@ loc_AECF:				; CODE XREF: sub_AD40:loc_AE4D
 loc_AEDE:				; CODE XREF: sub_AD40+19A
 		sub	8
 		ld	(word_D00D), a
-		ld	e, #84 ; 'Д'
+		ld	e, #84 ; '"'
 		bit	3, (ix+2)
 		jp	z, loc_AF17
 
@@ -9297,7 +9334,7 @@ loc_AF07:				; CODE XREF: sub_AD40+1C3
 
 loc_AF15:				; CODE XREF: sub_AD40+11E
 					; sub_AD40+1B8
-		ld	e, #80 ; 'А'
+		ld	e, #80
 
 
 loc_AF17:				; CODE XREF: sub_AD40+1A9
@@ -9321,37 +9358,68 @@ loc_AF1F:				; CODE XREF: sub_AD40+80
 
 		set	5, (hl)
 		dec	h
-		bit	2, b
+		bit	2, b ;b=позиция короля после рокировки
 		jr	z, loc_AF40
-
+;ладья при рокировке вправо?
+               if FIX ;TODO Chess960 найти позицию ладьи до рокировки (самая правая фигура, не считая короля, но король мог её затереть!!!)
+                ld l,b ;b=позиция короля после рокировки
+                ;inc l ;TODO
+		ld	c,0x9c
+                ld a,l
+                cp b
+                jr z,$+4 ;король затёр ладью
+		ld	(hl), 0 ;снимаем ладью
+               else
 		inc	b
 		ld	l, b
-		ld	c, (hl)
-		ld	(hl), 0
+		ld	c,(hl)
+		ld	(hl), 0 ;снимаем ладью
+               endif
+               if FIX
+               ld l,b ;b=позиция короля после рокировки
+               dec l
+               else
 		dec	l
 		dec	l
+               endif
 		jp	loc_AF49
 
 ; ---------------------------------------------------------------------------
 
 loc_AF40:				; CODE XREF: sub_AD40+1F4
+;ладья при рокировке влево?
+               if FIX ;TODO Chess960 найти позицию ладьи до рокировки (самая левая фигура, не считая короля, но король мог её затереть!!!)
+                ld l,b ;b=позиция короля после рокировки
+                ;dec l
+                ;dec l ;TODO
+		ld	c,0x94; (hl)
+                ld a,l
+                cp b
+                jr z,$+4 ;король затёр ладью
+		ld	(hl), 0 ;снимаем ладью
+               else
 		dec	b
 		dec	b
 		ld	l, b
 		ld	c, (hl)
-		ld	(hl), 0
+		ld	(hl), 0 ;снимаем ладью
+               endif
+               if FIX
+               ld l,b ;b=позиция короля после рокировки
+               inc l
+               else
 		inc	l
 		inc	l
 		inc	l
-
+               endif
 
 loc_AF49:				; CODE XREF: sub_AD40+1FD
-		ld	(hl), c
+		ld	(hl), c ;ставим ладью на новое место?
 		ld	a, (word_D04A+1)
 		or	a
 		jr	z, loc_AF54
 
-		ld	a, #84 ; 'Д'
+		ld	a, #84
 		and	c
 		ld	(hl), a
 
@@ -9359,10 +9427,10 @@ loc_AF49:				; CODE XREF: sub_AD40+1FD
 loc_AF54:				; CODE XREF: sub_AD40+20E
 		push	bc
 		res	2, c
-		ld	b, #D1	; '╤'
+		ld	b, word_D100/256
 		ld	a, l
 		ld	(bc), a
-		ld	e, #40 ; '@'
+		ld	e, #40
 		ld	hl, (word_D03D)
 		set	7, (hl)
 		push	de
@@ -9389,16 +9457,16 @@ loc_AF6C:				; CODE XREF: sub_AF65+19
 		ld	(hl), a
 		ld	a, b
 		add	a, e
-		and	#88 ; 'И'
+		and	#88
 		ret	nz
 		ld	a, b
 		sub	e
-		and	#88 ; 'И'
+		and	#88
 		ret	nz
 		ld	a, #11
 		add	a, e
 		ld	e, a
-		ld	a, #40 ; '@'
+		ld	a, #40
 		add	a, (hl)
 		jp	loc_AF6C
 
@@ -9449,7 +9517,7 @@ loc_AF9A:				; CODE XREF: sub_AF81+9
 		ld	(hl), c
 		ld	l, b
 		dec	h		; BRD_88_0/256
-		ld	(hl), a
+		ld	(hl), a ;вернули ход назад?
 		pop	hl
 		ld	(word_D00D), hl
 		exx
@@ -9467,16 +9535,16 @@ loc_AFAF:				; CODE XREF: sub_AF81+E
 ; ---------------------------------------------------------------------------
 
 loc_AFB6:				; CODE XREF: sub_AF81+C
-		ld	e, h
-		ld	a, l
+		ld	e, h ;???
+		ld	a, l ;???
 		ld	(de), a
 		res	2, l
 		ld	h, word_D100/256
-		ld	b, (hl)
+		ld	b, (hl) ;???
 		ld	(hl), e
 		xor	a
 		ld	e, b
-		ld	(de), a
+		ld	(de), a ;стираем ладью при отмене рокировки?
 		jp	loc_AF99
 
 ; End of function sub_AF81
@@ -9518,7 +9586,7 @@ loc_AFE0:				; CODE XREF: sub_AFC5+16
 		call	sub_A932
 
 		ld	e, c
-		ld	l, #88 ; 'И'
+		ld	l, #88 ; '?'
 		call	sub_A932
 
 		ld	a, c
@@ -9551,7 +9619,7 @@ loc_B010:				; CODE XREF: sub_AFC5+4E
 		ld	(hl), a
 		xor	a
 		ld	(word_D00D), a
-		ld	a, #FE	; '■'
+		ld	a, #FE	; 'ю'
 		ld	(byte_D098), a
 		call	sub_B2B9
 
@@ -9749,7 +9817,7 @@ loc_B120:				; CODE XREF: sub_AFC5+144
 		jr	nz, loc_B14F
 
 		ld	a, (byte_D0F4)
-		cp	#9B ; 'Ы'
+		cp	#9B ; '>'
 		jr	c, loc_B164
 
 		ld	a, (byte_D0B1)
@@ -9824,7 +9892,7 @@ sub_B185:				; CODE XREF: sub_AFC5:loc_B11D
 		ld	a, (byte_D0F1)
 		add	a, d
 		ld	d, a
-		and	#F0 ; 'Ё'
+		and	#F0 ; 'р'
 		jr	nz, loc_B191
 
 		ld	d, #10
@@ -9851,7 +9919,7 @@ loc_B197:				; CODE XREF: sub_B185+E
 sub_B19C:				; CODE XREF: sub_AFC5+95
 		ld	a, (byte_D08B)
 		ld	c, a
-		add	a, #84 ; 'Д'
+		add	a, #84 ; '"'
 		sra	a
 		sra	a
 		sra	a
@@ -9874,14 +9942,14 @@ loc_B1B2:				; CODE XREF: sub_B19C+12
 		cp	#F
 		jr	c, loc_B1CC
 
-		cp	#F2 ; 'Є'
+		cp	#F2 ; 'т'
 		jr	nc, loc_B1CC
 
 		rla
 		ld	a, #E
 		jr	nc, loc_B1CC
 
-		ld	a, #F2	; 'Є'
+		ld	a, #F2	; 'т'
 
 
 loc_B1CC:				; CODE XREF: sub_B19C+23 sub_B19C+27 ...
@@ -10002,7 +10070,7 @@ loc_B240:				; CODE XREF: sub_B1EB+58
 
 loc_B24B:				; CODE XREF: sub_B1EB+5B
 		pop	hl
-		ld	a, #FE	; '■'
+		ld	a, #FE	; 'ю'
 		ld	(byte_D0F3), a
 		ld	(byte_D02A), a
 		ld	a, h
@@ -10402,7 +10470,7 @@ sub_B3CA:				; CODE XREF: sub_B36B+2E sub_B36B+4C
 		ld	a, (de)
 		ld	(hl), a
 		ld	a, c
-		or	#80 ; 'А'
+		or	#80 ; '?'
 		ld	(de), a
 		inc	de
 		inc	hl
@@ -10410,7 +10478,7 @@ sub_B3CA:				; CODE XREF: sub_B36B+2E sub_B36B+4C
 		ld	a, (de)
 		ld	(hl), a
 		ld	a, c
-		or	#80 ; 'А'
+		or	#80 ; '?'
 		ld	(de), a
 		inc	de
 		inc	hl
@@ -10788,7 +10856,7 @@ loc_B593:				; CODE XREF: sub_B47F+101
 
 
 loc_B59D:				; CODE XREF: sub_B47F+11B
-		add	a, #84 ; 'Д'
+		add	a, #84 ; '"'
 		ld	(hl), a
 		jp	loc_B4E7
 
@@ -11234,7 +11302,7 @@ loc_B7CA:				; DATA XREF: sub_B75A:loc_B78B
 		ld	hl, (word_D06D)
 		ld	a, (byte_D03B)
 		rla
-		call	c, sub_B80F ;ьюцхЄ т√їюфшЄ№ юЄё■фр
+		call	c, sub_B80F ;может выходить отсюда
 
 		bit	2, (ix+2)
 		jr	z, loc_B7E5
@@ -11273,7 +11341,7 @@ loc_B7E7:				; CODE XREF: RAM:B7E1	RAM:B7E3
 loc_B7F1:				; CODE XREF: RAM:B7A8	RAM:B7AE ...
 		ld	a, (byte_D03B)
 		rla
-		call	c, sub_B80F ;ьюцхЄ т√їюфшЄ№ юЄё■фр
+		call	c, sub_B80F ;может выходить отсюда
 
 		ld	a, (byte_D009)
 		bit	2, (ix+2)
@@ -11422,7 +11490,7 @@ loc_B8A0:				; CODE XREF: RAM:B828	RAM:B82E ...
 		ld	a, b
 
 loc_B8AD:				; CODE XREF: RAM:B89A	RAM:B8A8
-		call	sub_B943 ;схЁ╕Є [a] шч ЄрсышЎ√ яю 3 срщЄр ш Ёрёъырф√трхЄ т byte_D019..C
+		call	sub_B943 ;берёт [a] из таблицы по 3 байта и раскладывает в byte_D019..C
 
 		or	a
 		ret
@@ -11717,7 +11785,7 @@ loc_B9F7:				; CODE XREF: sub_B976+61
 
 
         align 256
-		;must be 256-aligned ;ъръшх-Єю ъюэёЄрэЄ√ фы  юЎхэъш яючшЎшш?
+		;must be 256-aligned ;какие-то константы для оценки позиции?
 tbl_BA00:	db    0,   1,   1,  #D,   3,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1
 		db    5,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1
 		db    5,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1,   3,   1,   1,   1
@@ -11783,43 +11851,43 @@ sub_BC00:				; CODE XREF: sub_8C20-9FD
 
 
 loc_BC27:				; CODE XREF: sub_BC00+19 sub_BC00+21
-		add	a, #80 ; 'А'
+		add	a, #80
 		ld	b, a
 		exx
 		jp	c, loc_C0AE
 
 
 loc_BC2E:				; CODE XREF: sub_BC00+547
-		ld	d, #88 ; 'И'
+		ld	d, #88
 		ld	a, (byte_D188)
 		or	a
-		call	p, sub_C48D ;яЁютхЁ хь яюы  яю їюфє ЇхЁч ?
+		call	p, sub_C48D ;проверяем поля по ходу ферзя?
 
 		ld	a, (byte_D190)
 		or	a
-		call	p, sub_C498 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ырф№ш?
+		call	p, sub_C498 ;что-то делаем и проверяем поля по ходу ладьи?
 
 		ld	a, (byte_D198)
 		or	a
-		call	p, sub_C498 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ырф№ш?
+		call	p, sub_C498 ;что-то делаем и проверяем поля по ходу ладьи?
 
 		ld	a, (byte_D1A0)
 		or	a
-		call	p, sub_C5CF ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ёыюэр
+		call	p, sub_C5CF ;что-то делаем и проверяем поля по ходу слона
 
 		ld	a, (byte_D1A8)
 		or	a
-		call	p, sub_C5CF ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ёыюэр
+		call	p, sub_C5CF ;что-то делаем и проверяем поля по ходу слона
 
 		ld	a, (byte_D1B0)
 		or	a
-		call	p, sub_C505 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ъюэ 
+		call	p, sub_C505 ;что-то делаем и проверяем поля по ходу коня
 
 		ld	a, (byte_D1B8)
 		or	a
-		call	p, sub_C505 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ъюэ 
+		call	p, sub_C505 ;что-то делаем и проверяем поля по ходу коня
 
-		ld	d, #F1	; 'ё'
+		ld	d, #F1
 		ld	b, array_D200/256
 		ld	hl, (word_D1C0)
 		bit	7, l
@@ -12409,7 +12477,7 @@ loc_BFE5:				; CODE XREF: sub_BC00+3DF
 		dec	d
 		jp	m, loc_C001
 
-		and	#C9 ; '╔'
+		and	#C9 ; 'Й'
 		jr	z, loc_BFF9
 
 		set	6, (ix+2)
@@ -12434,7 +12502,7 @@ loc_C002:				; CODE XREF: sub_BC00+3D6
 		cp	#18
 		jr	c, loc_C016
 
-		cp	#E9 ; 'щ'
+		cp	#E9 ; 'й'
 		jp	nc, loc_C016
 
 		rla
@@ -12442,7 +12510,7 @@ loc_C002:				; CODE XREF: sub_BC00+3D6
 		ld	b, a
 		ld	c, a
 		ret	c
-		ld	a, #FC	; '№'
+		ld	a, #FC	; 'ь'
 		ld	b, a
 		ld	c, a
 		ret
@@ -12459,20 +12527,20 @@ loc_C016:				; CODE XREF: sub_BC00+404
 		cp	#22 ; '"'
 		jr	c, loc_C02B
 
-		cp	#DF ; '▀'
+		cp	#DF ; 'Я'
 		jr	nc, loc_C02B
 
 		rla
 		ld	a, #21 ; '!'
 		jr	nc, loc_C02B
 
-		ld	a, #DF	; '▀'
+		ld	a, #DF	; 'Я'
 
 
 loc_C02B:				; CODE XREF: sub_BC00+41E
 					; sub_BC00+422 ...
 		add	a, c
-		add	a, #80 ; 'А'
+		add	a, #80 ; '?'
 		ld	c, a
 		ld	b, a
 		ld	a, (byte_D03B)
@@ -12492,7 +12560,7 @@ loc_C036:				; CODE XREF: sub_BC00+459
 		ld	b, a
 		ld	a, c
 		ret	nc
-		ld	b, #FE	; '■'
+		ld	b, #FE	; 'ю'
 		ret
 
 ; ---------------------------------------------------------------------------
@@ -12510,7 +12578,7 @@ loc_C049:				; CODE XREF: sub_BC00+434
 
 
 loc_C056:				; CODE XREF: sub_BC00+453
-		adc	a, #80 ; 'А'
+		adc	a, #80 ; '?'
 		cp	c
 		jr	nc, loc_C036
 
@@ -12532,7 +12600,7 @@ loc_C062:				; CODE XREF: sub_BC00+44D
 
 
 loc_C069:				; CODE XREF: sub_BC00+466
-		adc	a, #80 ; 'А'
+		adc	a, #80 ; '?'
 		jr	loc_C05B
 
 ; End of function sub_BC00
@@ -12614,7 +12682,7 @@ loc_C09A:				; CODE XREF: sub_C06D+17
 ; START	OF FUNCTION CHUNK FOR sub_BC00
 
 loc_C0A0:				; CODE XREF: sub_BC00+AB
-		ld	a, #90 ; 'Р'
+		ld	a, #90 ; '?'
 		add	a, b
 		ld	b, a
 		exx
@@ -12629,33 +12697,33 @@ loc_C0A0:				; CODE XREF: sub_BC00+AB
 
 loc_C0AE:				; CODE XREF: sub_BC00+2B
 		ld	a, (byte_D108)
-		ld	d, #88 ; 'И'
+		ld	d, #88
 		or	a
-		call	p, sub_C48D ;яЁютхЁ хь яюы  яю їюфє ЇхЁч ?
+		call	p, sub_C48D ;проверяем поля по ходу ферзя?
 
 		ld	a, (byte_D110)
 		or	a
-		call	p, sub_C498 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ырф№ш?
+		call	p, sub_C498 ;что-то делаем и проверяем поля по ходу ладьи?
 
 		ld	a, (byte_D118)
 		or	a
-		call	p, sub_C498 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ырф№ш?
+		call	p, sub_C498 ;что-то делаем и проверяем поля по ходу ладьи?
 
 		ld	a, (byte_D120)
 		or	a
-		call	p, sub_C5C4 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ёыюэр?
+		call	p, sub_C5C4 ;что-то делаем и проверяем поля по ходу слона?
 
 		ld	a, (byte_D128)
 		or	a
-		call	p, sub_C5C4 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ёыюэр?
+		call	p, sub_C5C4 ;что-то делаем и проверяем поля по ходу слона?
 
 		ld	a, (byte_D130)
 		or	a
-		call	p, sub_C512 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ъюэ 
+		call	p, sub_C512 ;что-то делаем и проверяем поля по ходу коня
 
 		ld	a, (byte_D138)
 		or	a
-		call	p, sub_C512 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ъюэ 
+		call	p, sub_C512 ;что-то делаем и проверяем поля по ходу коня
 
 		ld	d, #11
 		ld	b, array_D200/256
@@ -12694,7 +12762,7 @@ loc_C0AE:				; CODE XREF: sub_BC00+2B
 		call	sub_C06D
 
 		ld	hl, (word_D100)
-		call	sub_C1EF ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  тюъЁєу ;out: Z=яєёЄю, A' яЁшсрты хЄ 12 эр ърцфюь чрэ Єюь
+		call	sub_C1EF ;что-то делаем и проверяем поля вокруг ;out: Z=пусто, A' прибавляет 12 на каждом занятом
 
 		ex	af, af' ;'
 		neg
@@ -12705,7 +12773,7 @@ loc_C0AE:				; CODE XREF: sub_BC00+2B
 		ld	hl, (word_D180)
 		exx
 		set	7, b
-		call	sub_C1F4 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  тюъЁєу ;out: Z=яєёЄю, A' яЁшсрты хЄ 12 эр ърцфюь чрэ Єюь
+		call	sub_C1F4 ;что-то делаем и проверяем поля вокруг ;out: Z=пусто, A' прибавляет 12 на каждом занятом
 
 		exx
 		bit	4, b
@@ -12783,7 +12851,7 @@ loc_C185:				; CODE XREF: sub_C1F4-80 sub_C1F4-7C ...
 ; START	OF FUNCTION CHUNK FOR sub_C1EF
 
 loc_C18B:				; CODE XREF: sub_C1EF+3
-;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  тюъЁєу ;out: Z=яєёЄю, A' яЁшсрты хЄ 12 эр ърцфюь чрэ Єюь
+;что-то делаем и проверяем поля вокруг ;out: Z=пусто, A' прибавляет 12 на каждом занятом
 		ld	a, (byte_D049) ;move #
 		cpl
 		add	a, #B
@@ -12818,7 +12886,7 @@ loc_C1A4:				; CODE XREF: sub_C1EF-57 sub_C1EF-51
 
 loc_C1B5:				; CODE XREF: sub_C1EF-46 sub_C1EF-40
 		exx
-		jp	sub_C1F4 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  тюъЁєу ;out: Z=яєёЄю, A' яЁшсрты хЄ 12 эр ърцфюь чрэ Єюь
+		jp	sub_C1F4 ;что-то делаем и проверяем поля вокруг ;out: Z=пусто, A' прибавляет 12 на каждом занятом
 
 ; END OF FUNCTION CHUNK	FOR sub_C1EF
 ; ---------------------------------------------------------------------------
@@ -12831,14 +12899,14 @@ loc_C1B9:				; CODE XREF: sub_C1F4+4
 		ld	h, BRD_88_0/256
 		ld	b, l
 		ld	c, 8
-		jp	loc_C21E ;яЁютхЁ хь яюы  тюъЁєу
+		jp	loc_C21E ;проверяем поля вокруг
 
 ; ---------------------------------------------------------------------------
 
 loc_C1C5:				; CODE XREF: sub_C1F4-39
 		ld	b, a
 		ld	c, 4
-		ld	a, #C0	; '└'
+		ld	a, #C0	; 'А'
 		and	h
 		rra
 		rra
@@ -12858,7 +12926,7 @@ loc_C1DC:				; CODE XREF: sub_C1F4-21
 		or	a
 		jr	nz, loc_C1E6
 
-		ld	a, #C0	; '└'
+		ld	a, #C0	; 'А'
 		and	h
 		jr	nz, loc_C185
 
@@ -12872,7 +12940,7 @@ loc_C1E7:				; CODE XREF: sub_C1F4-88 sub_C1F4-6C
 		ex	af, af' ;'
 		ld	h, BRD_88_0/256
 		ld	b, l
-		jp	loc_C21E ;яЁютхЁ хь яюы  тюъЁєу
+		jp	loc_C21E ;проверяем поля вокруг
 
 ; END OF FUNCTION CHUNK	FOR sub_C1F4
 
@@ -12885,7 +12953,7 @@ sub_C1EF:				; CODE XREF: sub_BC00+52B
 
 		exx
 		bit	0, b
-		jr	z, loc_C18B ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  тюъЁєу ;out: Z=яєёЄю, A' яЁшсрты хЄ 12 эр ърцфюь чрэ Єюь
+		jr	z, loc_C18B ;что-то делаем и проверяем поля вокруг ;out: Z=пусто, A' прибавляет 12 на каждом занятом
 
 ; End of function sub_C1EF
 
@@ -12895,7 +12963,7 @@ sub_C1EF:				; CODE XREF: sub_BC00+52B
 
 sub_C1F4:				; CODE XREF: sub_BC00+53B
 					; sub_C1EF-39
-;L' = яюых
+;L' = поле
 ;B = ?
 ; FUNCTION CHUNK AT C14A SIZE 00000041 BYTES
 ; FUNCTION CHUNK AT C1B9 SIZE 00000036 BYTES
@@ -12911,7 +12979,7 @@ sub_C1F4:				; CODE XREF: sub_BC00+53B
 		bit	5, h
 		jp	z, loc_C27F
 
-		ld	a, #C0	; '└'
+		ld	a, #C0	; 'А'
 		and	h
 		jr	nz, loc_C26D
 
@@ -12944,52 +13012,52 @@ loc_C21D:				; CODE XREF: sub_C1F4+25
 
 
 loc_C21E:				; CODE XREF: sub_C1F4-32 sub_C1F4-8	...
-;яЁютхЁ хь яюы  тюъЁєу ;out: Z=яєёЄю, A' яЁшсрты хЄ C эр ърцфюь чрэ Єюь
+;проверяем поля вокруг ;out: Z=пусто, A' прибавляет C на каждом занятом
 		dec	l
 		xor	a
-		or	(hl) ;ыхтхх
+		or	(hl) ;левее
 		call	nz, sub_C254
 
 		inc	l
 		inc	l
-		or	(hl) ;яЁртхх
+		or	(hl) ;правее
 		call	nz, sub_C254
 
 		ld	a, #10
 		add	a, b
-		jp	m, loc_C241 ;эх ёьюЄЁшь эшцх
+		jp	m, loc_C241 ;не смотрим ниже
 
 		ld	l, a
 		xor	a
-		or	(hl) ;эшцх?
+		or	(hl) ;ниже?
 		call	nz, sub_C254
 
 		inc	l
-		or	(hl) ;эшцх яЁртхх?
+		or	(hl) ;ниже правее?
 		call	nz, sub_C254
 
 		dec	l
 		dec	l
-		or	(hl) ;эшцх ыхтхх?
+		or	(hl) ;ниже левее?
 		call	nz, sub_C254
 
 
 loc_C241:				; CODE XREF: sub_C1F4+39
-		ld	a, #F0	; 'Ё'
+		ld	a, #F0	; 'р'
 		add	a, b
-		ret	m ;эх ёьюЄЁшь т√°х
+		ret	m ;не смотрим выше
 		ld	l, a
 		xor	a
-		or	(hl) ;т√°х?
+		or	(hl) ;выше?
 		call	nz, sub_C254
 
 		inc	l
-		or	(hl) ;т√°х ыхтхх?
+		or	(hl) ;выше левее?
 		call	nz, sub_C254
 
 		dec	l
 		dec	l
-		or	(hl) ;т√°х яЁртхх?
+		or	(hl) ;выше правее?
 		ret	z
 
 ; End of function sub_C1F4
@@ -13003,9 +13071,9 @@ sub_C254:				; CODE XREF: sub_C1F4+2D sub_C1F4+33 ...
 ; FUNCTION CHUNK AT C471 SIZE 0000001C BYTES
 
 		exx
-		ld	l, a ;ъюф эрщфхээющ ЇшуєЁ√?
+		ld	l, a ;код найденной фигуры?
 		inc	l
-		xor	b ;ЎтхЄ ЇшуєЁ?
+		xor	b ;цвет фигур?
 		jp	p, loc_C263
 
 		ld	a, #78 ; 'x'
@@ -13047,7 +13115,7 @@ loc_C276:				; CODE XREF: sub_C1F4+7D
 		dec	e
 		ld	b, l
 		ld	h, BRD_88_0/256
-		jp	loc_C21E ;яЁютхЁ хь яюы  тюъЁєу
+		jp	loc_C21E ;проверяем поля вокруг
 
 ; ---------------------------------------------------------------------------
 
@@ -13059,7 +13127,7 @@ loc_C27F:				; CODE XREF: sub_C1F4+8
 		ld	b, l
 		ld	c, 0
 		inc	e
-		jp	loc_C21E ;яЁютхЁ хь яюы  тюъЁєу
+		jp	loc_C21E ;проверяем поля вокруг
                 
 
 ; END OF FUNCTION CHUNK	FOR sub_C1F4
@@ -13086,13 +13154,13 @@ loc_C295:				; CODE XREF: RAM:C28D
 loc_C298:				; CODE XREF: sub_C1F4+9E
 		ld	e, a
 		ld	c, 8
-		ld	a, #C0	; '└'
+		ld	a, #C0	; 'А'
 		and	h
 		jr	nz, loc_C26D
 
 		ld	h, BRD_88_0/256
 		ld	b, l
-		jp	loc_C21E ;яЁютхЁ хь яюы  тюъЁєу
+		jp	loc_C21E ;проверяем поля вокруг
 
 ; END OF FUNCTION CHUNK	FOR sub_C1F4
 ; ---------------------------------------------------------------------------
@@ -13281,13 +13349,13 @@ loc_C33E:				; CODE XREF: sub_C2EA-15 sub_C2F2+4
 		push	bc
 		ld	c, h
 		ld	h, BRD_88_0/256
-		ld	d, #88 ; 'И'
+		ld	d, #88
 		ld	a, l
 		bit	3, c
-		jp	nz, sub_C48D ;яЁютхЁ хь яюы  яю їюфє ЇхЁч ?
+		jp	nz, sub_C48D ;проверяем поля по ходу ферзя?
 
 		bit	2, c
-		jp	nz, sub_C498 ;ўЄю-Єю фхырхь ш яЁютхЁ хь яюы  яю їюфє ырф№ш?
+		jp	nz, sub_C498 ;что-то делаем и проверяем поля по ходу ладьи?
 
 		bit	7, c
 		ld	b, a
@@ -13324,7 +13392,7 @@ loc_C362:				; CODE XREF: sub_C2F2+31 sub_C2F2+45
 
 loc_C36E:				; CODE XREF: sub_C3A3+A
 		ld	a, b
-		and	#FD ; '¤'
+		and	#FD ; 'э'
 		jr	nz, loc_C377
 
 		ex	af, af' ;'
@@ -13338,7 +13406,7 @@ loc_C377:				; CODE XREF: sub_C3A3-32
 		and	3
 		ld	b, a
 		ld	a, d
-		and	#FC ; '№'
+		and	#FC ; 'ь'
 		jr	nz, loc_C3AF
 
 		dec	e
@@ -13363,7 +13431,7 @@ loc_C390:				; CODE XREF: sub_C3A3-18
 		and	3
 		ld	h, a
 		ld	a, d
-		and	#FC ; '№'
+		and	#FC ; 'ь'
 		jr	nz, loc_C3A8
 
 		ld	a, 3
@@ -13383,12 +13451,12 @@ sub_C3A1:				; CODE XREF: sub_BC00+18D
 
 
 ; =============== S U B	R O U T	I N E =======================================
-;a=0..15 (Ёхры№эю 9,5,3)? яюярф╕Є т max?
-;l=? яюярф╕Є т шэфхъё ЄрсышЎ√ фы  т√ўшЄрэш 
-;c=? яюярф╕Є т шэфхъё ЄрсышЎ√ фы  ёыюцхэш 
+;a=0..15 (реально 9,5,3)? попадёт в max?
+;l=? попадёт в индекс таблицы для вычитания
+;c=? попадёт в индекс таблицы для сложения
 ;b=?
 ;h=?
-;out: hl т Єюь цх ЇюЁьрЄх, ўЄю bc
+;out: hl в том же формате, что bc
 
 sub_C3A3:				; CODE XREF: sub_BC00+F2
 					; sub_BC00+108 ...
@@ -13414,7 +13482,7 @@ loc_C3AF:				; CODE XREF: sub_C3A3-24 sub_C3A3-1D
 		ex	af, af' ;'
 		ld	d, a ;max?
 		ld	e, #FF ;min?
-		ld	h, tbl_BA00/256 ;ъръшх-Єю ъюэёЄрэЄ√ фы  юЎхэъш яючшЎшш?
+		ld	h, tbl_BA00/256 ;какие-то константы для оценки позиции?
 
 loc_C3B7:				; CODE XREF: sub_C3A3+36 sub_C3A3+49 ...
 		ld	l, b
@@ -13452,8 +13520,8 @@ loc_C3D4:				; CODE XREF: sub_C3A3+29
 
 		exx
 		ex	af, af' ;'
-		ld	a, b ;шчэрўры№эю яхЁхфрэю т яЁюЎхфєЁє т b
-		and	#FC ; '№'
+		ld	a, b ;изначально передано в процедуру в b
+		and	#FC ; 'ь'
 		jr	z, loc_C3EF
 
 		ld	d, a
@@ -13485,7 +13553,7 @@ loc_C3FD:				; CODE XREF: sub_C3A3+23
 		exx
 		ex	af, af' ;'
 		ld	a, h
-		and	#FC ; '№'
+		and	#FC ; 'ь'
 		jr	z, loc_C410
 
 		ld	d, a
@@ -13644,14 +13712,14 @@ loc_C47D:				; CODE XREF: sub_C254+231
 
 sub_C48D:				; CODE XREF: sub_BC00+34
 					; sub_BC00+4B4 ...
-;яЁютхЁ хь яюы  яю їюфє ЇхЁч ?
+;проверяем поля по ходу ферзя?
 		ld	b, a
 		exx
-		ld	c, #40 ; '@'
-		call	sub_C49C ;яЁютхЁ хь яюы  яю їюфє ырф№ш?
+		ld	c, #40
+		call	sub_C49C ;проверяем поля по ходу ладьи?
 
 		exx
-		jp	loc_C5D9 ;яЁютхЁ хь яюы  яю їюфє ёыюэр
+		jp	loc_C5D9 ;проверяем поля по ходу слона
 
 ; End of function sub_C48D
 
@@ -13671,26 +13739,21 @@ sub_C498:				; CODE XREF: sub_BC00+3B sub_BC00+42 ...
 
 
 sub_C49C:				; CODE XREF: sub_C48D+4
-;яЁютхЁ хь яюы  яю їюфє ырф№ш?
+;проверяем поля по ходу ладьи?
 		ld	e, 8
 		exx
 		ld	l, b
 		xor	a
-
-
 loc_C4A1:				; CODE XREF: sub_C49C+B
 		inc	l
 		bit	3, l
 		jr	nz, loc_C4AF
-
 		or	(hl)
 		jr	z, loc_C4A1
 
 		ld	c, 1
-		call	sub_C4E2 ;яЁютхЁ хь яюы  ёяЁртр?
-
+		call	sub_C4E2 ;проверяем поля справа?
 		xor	a
-
 
 loc_C4AF:				; CODE XREF: sub_C49C+8
 		ld	l, b
@@ -13705,18 +13768,18 @@ loc_C4B0:				; CODE XREF: sub_C49C+1A
 		jr	z, loc_C4B0
 
 		ld	c, #FF
-		call	sub_C4E2 ;яЁютхЁ хь яюы  ёыхтр?
+		call	sub_C4E2 ;проверяем поля слева?
 
 
 loc_C4BD:				; CODE XREF: sub_C49C+17
 		ld	c, #10
 		ld	a, b
 		add	a, c
-		call	p, sub_C4CA ;яЁютхЁ хь яюы  ёэшчє?
+		call	p, sub_C4CA ;проверяем поля снизу?
 
-		ld	c, #F0	; 'Ё'
+		ld	c, #F0	; 'р'
 		ld	l, b
-                                    ;яЁютхЁ хь яюы  ётхЁїє?
+                                    ;проверяем поля сверху?
 
 loc_C4C7:				; CODE XREF: sub_C4CA+4
 		ld	a, l
@@ -13838,7 +13901,7 @@ loc_C51A:				; CODE XREF: sub_C505+A
 
 
 loc_C51F:				; CODE XREF: sub_C6C4+5E
-;яЁютхЁ хь яюы  яю їюфє ъюэ 
+;проверяем поля по ходу коня
 		ld	a, #E
 		add	a, b
 		jp	m, loc_C542
@@ -13867,27 +13930,27 @@ loc_C51F:				; CODE XREF: sub_C6C4+5E
 
 
 loc_C542:				; CODE XREF: sub_C512+10
-		ld	a, #F2	; 'Є'
+		ld	a, #F2	; 'т'
 		add	a, b
 		ret	m
 		ld	l, a
 		and	d
 		call	z, sub_C563
 
-		ld	a, #EE	; 'ю'
+		ld	a, #EE	; 'о'
 		add	a, b
 		ld	l, a
 		and	d
 		call	z, sub_C563
 
-		ld	a, #E1	; 'с'
+		ld	a, #E1	; 'б'
 		add	a, b
 		ret	m
 		ld	l, a
 		and	d
 		call	z, sub_C562
 
-		ld	a, #DF	; '▀'
+		ld	a, #DF	; 'Я'
 		add	a, b
 		ld	l, a
 		and	d
@@ -13988,7 +14051,7 @@ loc_C59B:				; CODE XREF: sub_C5FF+D
 		ld	l, a
 		inc	e
 		inc	e
-		jp	loc_C5FA ;яЁютхЁ хь яюы  яю ъръюьє-Єю эряЁртыхэш■ C
+		jp	loc_C5FA ;проверяем поля по какому-то направлению C
 
 ; ---------------------------------------------------------------------------
 
@@ -13997,7 +14060,7 @@ loc_C5B9:				; CODE XREF: sub_C5FF-56
 		ex	af, af' ;'
 		add	a, #14
 		ex	af, af' ;'
-		jp	loc_C5FA ;яЁютхЁ хь яюы  яю ъръюьє-Єю эряЁртыхэш■ C
+		jp	loc_C5FA ;проверяем поля по какому-то направлению C
 
 ; END OF FUNCTION CHUNK	FOR sub_C5FF
 
@@ -14039,36 +14102,36 @@ loc_C5D6:				; CODE XREF: sub_C5C4+8
 
 
 loc_C5D9:				; CODE XREF: sub_C48D+8
-;яЁютхЁ хь яюы  яю їюфє ёыюэр
-		ld	e, #C4	; '─'
+;проверяем поля по ходу слона
+		ld	e, #C4	; 'Д'
 		exx
 		ld	c, #F
 		ld	a, b
 		add	a, c
-		ld	l, a ;эшцх ыхтхх? (ш фрыхх яю ¤Єюьє эряЁртыхэш■)
+		ld	l, a ;ниже левее? (и далее по этому направлению)
 		and	d
 		call	z, sub_C5FF
 
 		ld	c, #11
 		ld	a, b
 		add	a, c
-		ld	l, a ;эшцх яЁртхх? (ш фрыхх яю ¤Єюьє эряЁртыхэш■)
+		ld	l, a ;ниже правее? (и далее по этому направлению)
 		and	d
 		call	z, sub_C5FF
 
-		ld	c, #EF	; 'я'
+		ld	c, #EF	; 'п'
 		ld	a, b
 		add	a, c
-		ld	l, a ;т√°х ыхтхх? (ш фрыхх яю ¤Єюьє эряЁртыхэш■)
+		ld	l, a ;выше левее? (и далее по этому направлению)
 		and	d
 		call	z, sub_C5FF
 
-		ld	c, #F1	; 'ё'
+		ld	c, #F1	; 'с'
 		ld	l, b
-                             ;т√°х яЁртхх? (ш фрыхх яю ¤Єюьє эряЁртыхэш■)
+                             ;выше правее? (и далее по этому направлению)
 
 loc_C5FA:				; CODE XREF: sub_C5FF-49 sub_C5FF-3E ...
-;яЁютхЁ хь яюы  яю ъръюьє-Єю эряЁртыхэш■ C
+;проверяем поля по какому-то направлению C
 		ld	a, l
 		add	a, c
 		ld	l, a
@@ -14087,7 +14150,7 @@ sub_C5FF:				; CODE XREF: sub_C5CF+13 sub_C5CF+1C ...
 
 		inc	e
 		or	(hl)
-		jr	z, loc_C5FA ;яЁютхЁ хь яюы  яю ъръюьє-Єю эряЁртыхэш■ C
+		jr	z, loc_C5FA ;проверяем поля по какому-то направлению C
 
 		exx
 		ld	l, a
@@ -14268,7 +14331,7 @@ loc_C686:				; CODE XREF: sub_C5FF+8E
 
 loc_C697:				; CODE XREF: sub_C5FF+89
 		ld	a, l
-		cp	#84 ; 'Д'
+		cp	#84 ; '"'
 		jr	nc, loc_C6A7
 
 		ld	(hl), d
@@ -14344,12 +14407,12 @@ loc_C6CF:				; CODE XREF: RAM:C777
 		ld	bc, loc_C76B
 		push	bc
 		ld	a, l
-		and	#80 ; 'А'
+		and	#80 ; '?'
 		ld	b, a
 		ld	e, (hl)
 		inc	l
 		ld	a, (hl)
-		and	#8E ; 'О'
+		and	#8E ; '?'
 		jr	z, loc_C6EF
 
 		jp	m, loc_C734
@@ -14359,7 +14422,7 @@ loc_C6CF:				; CODE XREF: RAM:C777
 
 		jr	z, loc_C725
 
-		ld	c, #C0	; '└'
+		ld	c, #C0	; 'А'
 		call	sub_C727
 
 		jp	loc_C73D
@@ -14374,7 +14437,7 @@ loc_C6EF:				; CODE XREF: sub_C6C4+18 sub_C6C4+72
 		ld	c, #F
 		jr	z, loc_C6FA
 
-		ld	c, #EF	; 'я'
+		ld	c, #EF	; 'п'
 
 
 loc_C6FA:				; CODE XREF: sub_C6C4+32
@@ -14428,7 +14491,7 @@ loc_C719:				; CODE XREF: sub_C6C4+1F
 		exx
 		ld	d, #88
 		ld	b, a
-		jp	loc_C51F ;яЁютхЁ хь яюы  яю їюфє ъюэ 
+		jp	loc_C51F ;проверяем поля по ходу коня
 
 ; ---------------------------------------------------------------------------
 
@@ -14459,7 +14522,7 @@ loc_C734:				; CODE XREF: sub_C6C4+1A
 		and	2
 		jr	z, loc_C6EF
 
-		ld	c, #FC	; '№'
+		ld	c, #FC	; 'ь'
 		ld	a, e
 		exx
 		ld	b, a
@@ -14483,7 +14546,7 @@ sub_C744:				; CODE XREF: sub_C727+5 sub_C727+A ...
 		neg
 		cp	c
 		ret	z
-		ld	d, #88 ; 'И'
+		ld	d, #88 ; '?'
 		call	sub_C755
 
 		xor	a

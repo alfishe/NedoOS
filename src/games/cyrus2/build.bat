@@ -5,9 +5,9 @@ set NEDORES="../../_sdk/nedores.exe"
 set SJASMPLUS=sjasmplus
 set SJASMPLUSFLAGS=--nologo --msg=war
 
-echo FIX=1 > settings.ast
-%SJASMPLUS% %SJASMPLUSFLAGS% cyrus2.asm
 echo FIX=0 > settings.ast
+%SJASMPLUS% %SJASMPLUSFLAGS% cyrus2.asm
+echo FIX=1 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% cyrus2.asm
 
 SET releasedir2=../../../release/
