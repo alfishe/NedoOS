@@ -455,7 +455,7 @@ loc_8072:				; CODE XREF: START_POINT+75
 
 loc_809A:				; CODE XREF: sub_92D7+35
 		xor	a
-		ld	(byte_D0B4), a
+		ld	(byte_D0B4), a ;visible board?
 		call	sub_9EE6
 
 ; END OF FUNCTION CHUNK	FOR sub_92D7
@@ -577,7 +577,7 @@ loc_811C:				; CODE XREF: sub_8C20-B10
 
 		ld	hl, byte_D0B4
 		bit	5, (hl)
-		jr	nz, loc_8142
+		jr	nz, loc_8142 ;invisible board?
 
 		ld	sp, RAM_END_D800
 		call	sub_8C2D
@@ -678,7 +678,7 @@ loc_81B7:				; CODE XREF: sub_8C20-A81
 		and	#9F
 		ld	(hl), a
 		bit	5, b
-		jp	nz, loc_8520
+		jp	nz, loc_8520 ;invisible board?
 
 		ex	af, af' ;'
 		jp	c, loc_8B8D
@@ -820,7 +820,7 @@ loc_8283:				; CODE XREF: sub_8C20-9A1
 
 		ld	hl, byte_D0B4
 		bit	5, (hl)
-		jr	nz, loc_82B2
+		jr	nz, loc_82B2 ;invisible board?
 
 		call	sub_8D9E
 
@@ -864,7 +864,7 @@ loc_82CD:				; CODE XREF: sub_8C20-965
 		ld	hl, byte_D0B4
 		bit	5, (hl)
 		jr	nz, loc_82D7 ;invisible board?
-		call	sub_9FB2
+		call	sub_9FB2 ;добавление хода на экране со скроллом?
 loc_82D7:				; CODE XREF: sub_8C20-95A
 					; sub_8C20-955 ...
 		ld	hl, byte_D02D
@@ -936,7 +936,7 @@ loc_82F9:				; CODE XREF: sub_8C20-92F
 		call	sub_939F
 
 		ld	hl, byte_D0B4
-		set	5, (hl)
+		set	5, (hl) ;invisible board?
 		ld	a, (byte_D02D)
 		ld	hl, byte_D0B3 ;d3=swap board
 		res	1, (hl)
@@ -977,10 +977,7 @@ loc_8378:				; CODE XREF: sub_8C20-216
 		ld	a, (byte_D02D)
 		rra
 		jr	nc, loc_8385
-
 		ld	b,#70
-
-
 loc_8385:				; CODE XREF: sub_8C20-89F
 		ld	a, b
 		ld	(word_D0BB+1), a
@@ -989,14 +986,13 @@ loc_8385:				; CODE XREF: sub_8C20-89F
 		ld	(byte_D0CD), a
 		call	sub_955D
 
-
 loc_8394:				; CODE XREF: sub_8C20-83A
 					; sub_8C20-82D ...
 		ld	hl, byte_D0DF
 		ld	a, 2
 		ld	(hl), a
 		xor	a
-		ld	(byte_D0B8), a
+		ld	(keycodeformenu), a
 
 
 loc_839E:				; CODE XREF: sub_8C20-87A
@@ -1012,7 +1008,7 @@ loc_83A1:				; CODE XREF: sub_8C20-68E
 		bit	4, (hl)
 		jp	nz, loc_845D
 
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		or	a
 		jr	z, loc_839E
@@ -1048,7 +1044,7 @@ loc_83D1:				; CODE XREF: sub_8C20-85E
 		call	sub_9571
 
 		ld	hl, (word_D25A)
-		call	sub_8C6B
+		call	ShowHintMove
 
 		call	sub_955D
 
@@ -1238,7 +1234,7 @@ loc_846B:				; CODE XREF: sub_8C20-7AB
 
 		ld	(hl), 8
 		xor	a
-		ld	(byte_D0B8), a
+		ld	(keycodeformenu), a
 
 
 loc_84BF:				; CODE XREF: sub_8C20-743
@@ -1371,7 +1367,7 @@ loc_857C:				; CODE XREF: sub_8C20-6AA
 		ld	hl, curkey_D0D9
 		ld	a, (hl)
 		ld	(hl), 0
-		ld	(byte_D0B8), a
+		ld	(keycodeformenu), a
 		jp	loc_83A1
 
 ; ---------------------------------------------------------------------------
@@ -1449,15 +1445,13 @@ loc_85F5:				; CODE XREF: sub_8C20-630
 		ld	hl, byte_D0DF
 		ld	(hl), 4
 
-
 loc_85FD:				; CODE XREF: sub_8C20+A
 		call	sub_955D
-
 
 loc_8600:				; CODE XREF: sub_8C20-618
 		call	sub_8F4D
 
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		or	a
 		jr	z, loc_8600
@@ -1467,7 +1461,7 @@ loc_8600:				; CODE XREF: sub_8C20-618
 		call	sub_8C2D
 
 		pop	af
-		cp	#5A ; 'Z'
+		cp	'Z'
 		jr	nz, loc_863F
 
 		call	INIT_PRINT_CLOCKS
@@ -1480,22 +1474,17 @@ loc_861A:				; CODE XREF: sub_8C20-4C8
 		ld	a, (byte_D08D)
 		add	a, b
 
-
 loc_861E:				; CODE XREF: sub_8C20-4DE
 		ld	c, (hl)
 		ld	(hl), a
 		bit	0, c
 		jr	nz, loc_862E
-
 		bit	2, c
 		jr	z, loc_862E
-
 		res	2, c
 		ld	l, c
 		inc	h
 		set	7, (hl)
-
-
 loc_862E:				; CODE XREF: sub_8C20-5FE
 					; sub_8C20-5FA ...
 		ld	sp, RAM_END_D800
@@ -1514,7 +1503,7 @@ loc_863F:				; CODE XREF: sub_8C20-60D
 
 		jp	nc, loc_85D8
 
-		cp	#43 ; 'C'
+		cp	'C'
 		jr	nz, loc_864E
 
 		call	sub_87CD
@@ -1524,17 +1513,17 @@ loc_863F:				; CODE XREF: sub_8C20-60D
 ; ---------------------------------------------------------------------------
 
 loc_864E:				; CODE XREF: sub_8C20-5D9
-		cp	#4D ; 'M'
+		cp	'M'
 		jr	z, loc_865C
 
-		cp	#53 ; 'S'
+		cp	'S'
 		jp	nz, loc_871C
 
 		ld	hl, byte_D0B4
 		res	0, (hl)
 
-
 loc_865C:				; CODE XREF: sub_8C20-5D0
+;"Move"
 		ld	hl, #1600
 		ld	(scr_XY), hl
 		ld	hl, a_8spaces	; "       "
@@ -1551,20 +1540,14 @@ loc_865C:				; CODE XREF: sub_8C20-5D0
 		sub	3
 		ld	(byte_D0B2), a
 		jr	z, loc_8682
-
 		set	0, b
-
-
 loc_8682:				; CODE XREF: sub_8C20-5A2
 		ld	a, b
 		cp	(hl)
 		jr	z, loc_868C
-
 		ld	(hl), b
 		ld	a, 3
 		ld	(byte_D04D), a
-
-
 loc_868C:				; CODE XREF: sub_8C20-59C
 		ld	a, (byte_D04D)
 		and	2
@@ -2597,10 +2580,10 @@ loc_8B8D:				; CODE XREF: sub_8C20-A54
 		ld	hl, aCheckmate	; "CHECKMAT"
 		ld	a, (byte_D05B)
 		rla
-		jr	c, loc_8B9E
+		jr	c, loc_8B9E ;конец игры
 
 		ld	hl, aStalemate	; "STALEMAT"
-		jr	loc_8B9E
+		jr	loc_8B9E ;конец игры
 
 ; ---------------------------------------------------------------------------
 
@@ -2608,27 +2591,28 @@ loc_8B9B:				; CODE XREF: sub_8C20-B0C
 					; sub_8C20-AD9
 		ld	hl, aDraw	; "DRA"
 
-
 loc_8B9E:				; CODE XREF: sub_8C20-8C sub_8C20-87
+;конец игры
+;hl=msg
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jp	nz, loc_8520
+		jp	nz, loc_8520 ;invisible board?
 
 		xor	a
 		ld	(byte_D0BF), a
-		push	hl
+	push hl
 		call	sub_A43C
 
 		call	sub_A45A
 
 		call	sub_A43C
 
-		pop	hl
-		call	sub_9E68
+	pop hl ;msg
+		call	PrintStrF00
 
 		ld	hl, aBBackSSetPosn_ ; "B - Back          S - Set posn. G - new"...
 		ld	de, #1000
-		call	sub_9F42
+		call	PrintGameState
 
 		call	sub_9939
 
@@ -2636,20 +2620,15 @@ loc_8B9E:				; CODE XREF: sub_8C20-8C sub_8C20-87
 		ld	hl, word_D100
 		rra
 		jr	nc, loc_8BCF
-
-		ld	l, #80 ; '?'
-
-
+		ld	l, #80
 loc_8BCF:				; CODE XREF: sub_8C20-55
-		ld	b, #30 ; '0'
+		ld	b, #30
 		ld	d, 0
 		ld	l, (hl)
 		dec	h		; BRD_88_0/256
 		ld	e, (hl)
 		ld	c, e
 		or	a
-
-
 loc_8BD8:				; CODE XREF: sub_8C20-8 sub_8C20-5
 		ld	a, e
 		ld	e, d
@@ -2695,10 +2674,8 @@ loc_8BFF:				; CODE XREF: sub_8C20-29
 		pop	hl
 		jp	nz, loc_8A32
 
-
 loc_8C12:				; CODE XREF: sub_8C20-1F
 		scf
-
 
 loc_8C13:				; CODE XREF: sub_8C20-2D
 		ld	a, (byte_D0B4)
@@ -2729,7 +2706,7 @@ sub_8C20:				; CODE XREF: sub_8C20-562
 
 		pop	hl
 		ld	hl, aIllegalSetup ; "ILLEGAL SETU"
-		call	sub_9E68
+		call	PrintStrF00
 
 		call	BEEP_3
 
@@ -2744,7 +2721,7 @@ sub_8C20:				; CODE XREF: sub_8C20-562
 sub_8C2D:				; CODE XREF: sub_8C20-AE4
 					; sub_8C20:loc_845D ...
 		ld	hl, a_32spaces	; "                        "
-		call	sub_9E68
+		call	PrintStrF00
 
 		ret
 
@@ -2754,9 +2731,9 @@ sub_8C2D:				; CODE XREF: sub_8C20-AE4
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_8C34:				; CODE XREF: sub_8C20-34 sub_8C6B+3D ...
+sub_8C34:				; CODE XREF: sub_8C20-34 ShowHintMove+3D ...
 		xor	a
-		ld	(byte_D0B8), a
+		ld	(keycodeformenu), a
 
 loc_8C38:
 		ld	a, #A
@@ -2769,10 +2746,10 @@ loc_8C3A:				; CODE XREF: sub_8C34+8
 
 		call	sub_8F4D
 
-		ld	a, (byte_D0B8)
+		ld	a, (keycodeformenu)
 		push	af
 		xor	a
-		ld	(byte_D0B8), a
+		ld	(keycodeformenu), a
 		pop	af
 		or	a
 		ret
@@ -2807,23 +2784,21 @@ loc_8C50:				; CODE XREF: RAM:loc_8C50 RAM:8C53
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_8C6B:				; CODE XREF: sub_8C20-840
-					; sub_8FC1+37
+ShowHintMove:				; CODE XREF: sub_8C20-840
+;l=from, h=to?					; sub_8FC1+37
 		ld	a, l
 		or	h
 		ret	z
 		ld	a, l
-		call	sub_8CC1
-
+		call	sub_8CC1 ;a = 0yyy0xxx -> 00yyyxxx с учётом swap board
 		ld	c, a
 		ld	a, h
-		call	sub_8CC1
-
+		call	sub_8CC1 ;a = 0yyy0xxx -> 00yyyxxx с учётом swap board
 		ld	b, 0
 		ld	hl, BOARD
 		add	hl, bc
 		ld	e, (hl)
-		ld	b, a
+		ld	b, a ;00yyyxxx
 		ld	hl, BOARD
 		add	a, l
 		ld	l, a
@@ -2834,70 +2809,65 @@ sub_8C6B:				; CODE XREF: sub_8C20-840
 		ld	hl, byte_D0B3 ;d3=swap board
 		bit	3, (hl)
 		jr	z, loc_8C98
-
 		ld	a, b
-		xor	#3F ; '?'
+		xor	#3F
 		ld	b, a
 		ld	a, c
-		xor	#3F ; '?'
+		xor	#3F
 		ld	c, a
-
-
-loc_8C98:				; CODE XREF: sub_8C6B+23
-		push	de
-		push	bc
+loc_8C98:				; CODE XREF: ShowHintMove+23
+		push	de ;e=from fig, d=to fig?
+		 push	bc ;c=from pos, b=to pos?
 		ld	c, e
 		ld	a, b
-		call	SHOW_FIG_POS
-
-		pop	bc
-		push	bc
+		call	SHOW_FIG_POS ;show to
+		 pop	bc
+		 push	bc
 		ld	a, c
-		call	SH_EMPT_POS
+		call	SH_EMPT_POS ;show from
 
 		call	BEEP_move
 
 		call	sub_8C34
-
 		call	sub_8C34
 
-		pop	bc
+		 pop	bc
 		pop	de
-		push	de
-		push	bc
+		push	de ;e=from fig, d=to fig?
+		 push	bc ;c=from pos, b=to pos?
 		ld	a, c
 		ld	c, e
-		call	SHOW_FIG_POS
-
-		pop	bc
+		call	SHOW_FIG_POS ;show old from
+		 pop	bc
 		pop	de
 		ld	a, b
 		ld	c, d
-		call	SHOW_FIG_POS
+		call	SHOW_FIG_POS ;show old to
 
 		or	1
 		ret
 
-; End of function sub_8C6B
+; End of function ShowHintMove
 
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_8CC1:				; CODE XREF: sub_8C6B+4 sub_8C6B+9
+sub_8CC1:				; CODE XREF: ShowHintMove+4 ShowHintMove+9
+;a = 0yyy0xxx -> 00yyyxxx с учётом swap board
 		push	af
 		and	7
 		ld	b, a
 		pop	af
 		rra
-		and	#38 ; '8'
+		and	#38
 		add	a, b
 		push	hl
 		ld	hl, byte_D0B3 ;d3=swap board
 		bit	3, (hl)
 		pop	hl
 		ret	z
-		xor	#3F ; '?'
+		xor	#3F
 		ret
 
 ; End of function sub_8CC1
@@ -2909,7 +2879,6 @@ loc_8CD5:				; CODE XREF: sub_8C20-819
 ;'D' - demo
 		ld	hl, byte_D0B4
 		set	1, (hl)
-
 
 loc_8CDA:				; CODE XREF: sub_8C20-81E
 ;'M' - move
@@ -3128,12 +3097,11 @@ sub_8D9E:				; CODE XREF: sub_8C20-989
 		push	bc
 		ld	hl, byte_D0B4
 		bit	5, (hl)
-		jr	z, loc_8DB0
+		jr	z, loc_8DB0 ;visible board?
 
 		call	BEEP_move
 
 		call	sub_8C2D
-
 
 loc_8DB0:				; CODE XREF: sub_8D9E+A
 		ld	a, (SEL_SCRorBUF)
@@ -3236,11 +3204,11 @@ loc_8E0F:				; CODE XREF: sub_8DE9+1F sub_8DE9+22
 loc_8E2C:				; CODE XREF: sub_8D9E+1B sub_8DE9+38
 		ld	hl, byte_D0B4
 		bit	5, (hl)
-		jr	z, loc_8E73
+		jr	z, loc_8E73 ;visible board?
 
 		call	sub_A6E4
 
-		call	sub_9FB2
+		call	sub_9FB2 ;добавление хода на экране со скроллом?
 
 		ld	a, (byte_D0B6)
 		bit	2, a
@@ -3264,20 +3232,16 @@ loc_8E2C:				; CODE XREF: sub_8D9E+1B sub_8DE9+38
 		bit	5, (hl)
 		ld	hl, byte_D0B4
 		jr	z, loc_8E71
-
 		set	7, (hl)
 		res	1, (hl)
 
-
 loc_8E71:				; CODE XREF: sub_8DE9+82
-		res	5, (hl)
-
+		res	5, (hl) ;visible board?
 
 loc_8E73:				; CODE XREF: sub_8DE9+48
 		ld	hl, byte_D0DF
 		res	0, (hl)
 		call	sub_9F0D ;show state and help
-
 
 loc_8E7B:				; CODE XREF: sub_8DE9+41
 		pop	bc
@@ -3502,7 +3466,7 @@ sub_8F4D:				; CODE XREF: sub_8C20-A6F
 
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	nz, loc_8F94
+		jr	nz, loc_8F94 ;invisible board?
 
 		bit	6, a
 		jr	z, loc_8F94
@@ -3590,13 +3554,13 @@ sub_8FC1:				; CODE XREF: sub_8F4D+66
 
 ; FUNCTION CHUNK AT 90E1 SIZE 00000007 BYTES
 
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		ld	(hl), 0
-		cp	#20 ; ' '
+		cp	' '
 		jp	z, sub_95C5
 
-		cp	#47 ; 'G'
+		cp	'G'
 		call	z, sub_92D7
 
 		ld	(hl), a
@@ -3604,8 +3568,8 @@ sub_8FC1:				; CODE XREF: sub_8F4D+66
 		bit	6, (hl)
 		jr	z, loc_8FFC
 
-		ld	a, (byte_D0B8)
-		cp	#4D ; 'M'
+		ld	a, (keycodeformenu)
+		cp	'M'
 		ld	hl, byte_D0B4
 		jr	nz, loc_8FE7
 
@@ -3614,21 +3578,21 @@ sub_8FC1:				; CODE XREF: sub_8F4D+66
 
 loc_8FE7:				; CODE XREF: sub_8FC1+20
 		bit	5, (hl)
-		jp	nz, loc_90E1
+		jp	nz, loc_90E1 ;invisible board?
 
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		ld	(hl), 0
-		cp	#48 ; 'H'
+		cp	'H'
 		ret	nz
 		ld	hl, (tbl_D803)
-		call	sub_8C6B
+		call	ShowHintMove
 		ret
 
 ; ---------------------------------------------------------------------------
 
 loc_8FFC:				; CODE XREF: sub_8FC1+16
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		ld	hl, byte_D0DF
 		bit	3, (hl)
@@ -3793,8 +3757,8 @@ KEY_SCAN:
 		bit	bit_NEW_KEY, (hl)
 		ret	z			;return with CY=0 if nothing pressed
 		res	bit_NEW_KEY, (hl)
-		ld	(byte_D0BD), a
-		ld	(byte_D0B8), a
+		ld	(keycode), a
+		ld	(keycodeformenu), a
 		ld	a, (bas_LAST_K)
 		cp	'I'
 		jr	nc, loc_90D6	; >='I'
@@ -3815,7 +3779,7 @@ loc_90D1:
 		;  '1'<=SCANCODE<='8'
 		;  8<=SCANCODE<#0E
 		; 8-LEFT,9-RIGHT,10-DOWN,11-UP
-		ld	(byte_D0BD), a
+		ld	(keycode), a
 		scf			;CY=1 was keypress
 		ret
 loc_90D6:
@@ -3827,7 +3791,7 @@ loc_90DC:
 		;  SCANCODE>='I', 'a'..'z' are uppercased
 		;  '9'<=SCANCODE<'A'
 		;  #0E<=SCANCODE<'1'
-		ld	(byte_D0B8), a
+		ld	(keycodeformenu), a
 		scf			;CY=1 was keypress
 		ret
 
@@ -3855,7 +3819,7 @@ HotKeys:				; CODE XREF: sub_8FC1:loc_90E1
 ; FUNCTION CHUNK AT 9326 SIZE 00000032 BYTES
 ; FUNCTION CHUNK AT 935D SIZE 00000003 BYTES
 
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		or	a
 		ret	z
@@ -3906,7 +3870,7 @@ sub_9128:				; CODE XREF: sub_8FC1+49
 
 ; FUNCTION CHUNK AT 9290 SIZE 00000010 BYTES
 
-		ld	hl, byte_D0BD
+		ld	hl, keycode
 		ld	a, (hl)
 		or	a
 		ret	z
@@ -4082,7 +4046,7 @@ loc_91F0:				; CODE XREF: sub_9128+B9
 		pop	ix
 		ld	hl, byte_D0B4
 		bit	5, (hl)
-		jr	z, loc_922A
+		jr	z, loc_922A ;visible board?
 
 		ld	d, (ix+0)
 		ld	e, (ix+1)
@@ -4135,7 +4099,7 @@ loc_9231:				; CODE XREF: sub_9128+F4
 
 
 sub_924C:				; CODE XREF: sub_8F4D+60
-		ld	hl, byte_D0B8
+		ld	hl, keycodeformenu
 		ld	a, (hl)
 		or	a
 		jr	z, loc_9279
@@ -4621,7 +4585,7 @@ loc_9436:				; CODE XREF: CLR_BOARD+15
 ; =============== S U B	R O U T	I N E =======================================
 
 
-SH_EMPT_POS:				; CODE XREF: sub_8C6B+37 CLR_BOARD+E
+SH_EMPT_POS:				; CODE XREF: ShowHintMove+37 CLR_BOARD+E
 		ld	c, 0
 
 ; End of function SH_EMPT_POS
@@ -4633,7 +4597,7 @@ SH_EMPT_POS:				; CODE XREF: sub_8C6B+37 CLR_BOARD+E
 ; C - figure:
 ; 0..6:	empty,pawn,knight,bishop,rook,queen,king ; 0..6 white, 8..E black
 
-SHOW_FIG_POS:				; CODE XREF: sub_8C6B+31 sub_8C6B+49 ...
+SHOW_FIG_POS:				; CODE XREF: ShowHintMove+31 ShowHintMove+49 ...
 		ld	b, a		
 		ld	d, #34 ; '4' ;attr: paper=6, ink=4
 		and	9
@@ -5174,7 +5138,7 @@ loc_9655:				; CODE XREF: SET_BRD_COLOR+6
 sub_965C:				; CODE XREF: sub_9EE6
 		di
 		ld	hl, 0
-		ld	(word_D0D5), hl
+		ld	(gamestatemsgaddr), hl
 		ld	hl, SCR_BUF_6400
 		ld	a, (SEL_SCRorBUF)
 		or	a
@@ -5695,14 +5659,14 @@ PRINT_STR_scr0:				; CODE XREF: sub_8C20-666
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_9E68:				; CODE XREF: sub_8C20-6B sub_8C20+4	...
+PrintStrF00:				; CODE XREF: sub_8C20-6B sub_8C20+4	...
 		ld	de, #F00
 		ld	(scr_XY), de
 		call	PRINT_STR_FF
 
 		ret
 
-; End of function sub_9E68
+; End of function PrintStrF00
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -5712,10 +5676,8 @@ PRINT_STR_FF:				; CODE XREF: sub_842C:loc_843F
 					; sub_890F+9 ...
 		ld	a, #FF
 
-
 PRINT_STR_A:				; CODE XREF: RAM:9E66
 		ld	(NEED_SCR2BUF),	a
-
 
 loc_9E78:				; CODE XREF: PRINT_STR_FF+14
 					; PRINT_STR_FF+1F
@@ -5736,7 +5698,7 @@ loc_9E78:				; CODE XREF: PRINT_STR_FF+14
 
 loc_9E89:				; CODE XREF: PRINT_STR_FF+9
 		push	af
-		and	#7F ; ''
+		and	#7F
 		call	PRINT_LETTER
 
 		pop	af
@@ -5763,12 +5725,9 @@ PRINT_LETTER:				; CODE XREF: sub_8D2C+1C sub_8D2C+22 ...
 
 		add	hl, de
 		pop	af
-		cp	#30
+		cp	'0'
 		jr	nz, loc_9EAA
-
-		ld	a, #4F ; 'O'
-
-
+		ld	a,'O'
 loc_9EAA:				; CODE XREF: PRINT_LETTER+11
 		push	hl
 		ld	de,font-256 ;#3C00	; ROM FONT
@@ -5781,8 +5740,6 @@ loc_9EAA:				; CODE XREF: PRINT_LETTER+11
 		ex	de, hl
 		pop	hl
 		ld	b, 8
-
-
 loc_9EB9:				; CODE XREF: PRINT_LETTER+28
 		ld	a, (de)
 		ld	(hl), a
@@ -5793,13 +5750,10 @@ loc_9EB9:				; CODE XREF: PRINT_LETTER+28
 		ld	hl, (scr_XY)
 		ld	a, l
 		inc	a
-		cp	#20 ; ' '
+		cp	#20
 		jr	nz, loc_9ECA
-
 		xor	a
 		inc	h
-
-
 loc_9ECA:				; CODE XREF: PRINT_LETTER+31
 		ld	l, a
 		ld	(scr_XY), hl
@@ -5820,12 +5774,9 @@ ADDR_SCR2BUF:				; CODE XREF: PRINT_LETTER+A
 		ld	a, (SEL_SCRorBUF)
 		ld	hl, NEED_SCR2BUF
 		cp	(hl)
-		ld	de, #2400	; addition to move to SCR_BUF=#6400
+		ld	de, SCR_BUF_6400-#4000	; addition to move to SCR_BUF=#6400
 		jr	nz, loc_9EE3
-
 		ld	de, 0
-
-
 loc_9EE3:				; CODE XREF: ADDR_SCR2BUF+C
 		pop	hl
 		pop	af
@@ -5893,10 +5844,10 @@ sub_9F0D:				; CODE XREF: sub_8C20:loc_818F
 		ld	hl, aYourMove	; "YOUR MOVE"
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	nz, sub_9F42
+		jr	nz, PrintGameState ;invisible board?
 
 		bit	6, a
-		jr	z, sub_9F42
+		jr	z, PrintGameState
 
 		ld	hl, aThinking	; "THINKING"
 
@@ -5906,31 +5857,28 @@ sub_9F0D:				; CODE XREF: sub_8C20:loc_818F
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_9F42:				; CODE XREF: sub_8C20-62 sub_9F0D+2C ...
-		ld	bc, (word_D0D5)
-		ld	(word_D0D5), hl
+PrintGameState:				; CODE XREF: sub_8C20-62 sub_9F0D+2C ...
+		ld	bc, (gamestatemsgaddr)
+		ld	(gamestatemsgaddr), hl
 		or	a
 		sbc	hl, bc
-		ret	z
-		call	sub_9F9E
-
-		ld	hl, (word_D0D5)
-
-
+		ret	z ;не перепечатываем
+		call	PrintClear1000
+		ld	hl, (gamestatemsgaddr)
 loc_9F53:				; CODE XREF: sub_9F0D+5F sub_9F0D+64
 		ld	(scr_XY), de
 		call	PRINT_STR_FF
 
 		ret
 
-; End of function sub_9F42
+; End of function PrintGameState
 
 ; ---------------------------------------------------------------------------
 ; START	OF FUNCTION CHUNK FOR sub_9F0D
 
 loc_9F5B:				; CODE XREF: sub_9F0D+D
 		ld	(scr_XY), de
-		call	sub_9F42
+		call	PrintGameState
 
 		ld	de, #1019
 		ld	hl, aWhite	; "WHIT"
@@ -5991,28 +5939,24 @@ sub_9F8B:				; CODE XREF: sub_9F0D+13 sub_A177+83
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_9F9E:				; CODE XREF: sub_9F42+B
+PrintClear1000:				; CODE XREF: PrintGameState+B
+;clear game state on screen
 		ld	hl, #1000
 		ld	(scr_XY), hl
-
-
-loc_9FA4:				; CODE XREF: sub_9F9E+12
+loc_9FA4:				; CODE XREF: PrintClear1000+12
 		ld	hl, a_32spaces	; "                        "
 		call	PRINT_STR_FF
-
 		ld	a, (scr_XY+1)
 		cp	#17
 		ret	z
 		jr	loc_9FA4
 
-; End of function sub_9F9E
-
-
+; End of function PrintClear1000
 ; =============== S U B	R O U T	I N E =======================================
 
 
 sub_9FB2:				; CODE XREF: sub_8C20-94C
-					; sub_8DE9+4D
+;добавление хода на экране со скроллом? ; sub_8DE9+4D
 		ld	a, #FF
 		ld	(NEED_SCR2BUF),	a
 		call	sub_A08D
@@ -6027,7 +5971,6 @@ sub_9FB2:				; CODE XREF: sub_8C20-94C
 		inc	a
 		ld	(byte_D0C0), a
 		dec	a
-
 
 loc_9FCB:				; CODE XREF: sub_9FB2+10
 		add	a, 6
@@ -6200,7 +6143,7 @@ sub_A08D:				; CODE XREF: sub_8C20-AF7 sub_9FB2+5
 		ld	b, a
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	z, loc_A0AF
+		jr	z, loc_A0AF ;visible board?
 
 		ld	a, (byte_D0BF)
 		rra
@@ -6313,14 +6256,10 @@ SCROLL_UP:				; CODE XREF: sub_9FB2+2D
 		ld	a, (SEL_SCRorBUF)
 		or	a
 		jr	z, loc_A111
-
 		ld	hl,  SCREEN+#C0
-
-
 loc_A111:				; CODE XREF: SCROLL_UP+8
 		ld	a, 5
 		ex	af, af' ;'
-
 
 loc_A114:				; CODE XREF: SCROLL_UP+34
 		ld	a, #20 ; ' '
@@ -6328,22 +6267,15 @@ loc_A114:				; CODE XREF: SCROLL_UP+34
 		ld	e, a
 		ld	a, h
 		jr	nc, loc_A11D
-
 		add	a, 8
-
-
 loc_A11D:				; CODE XREF: SCROLL_UP+15
 		ld	d, a		; DE is	1 char lower than HL
 		push	de
 		ld	c, 8
-
-
 loc_A121:				; CODE XREF: SCROLL_UP+2C
 		push	hl
 		push	de
-		ld	b, #20 ; ' '
-
-
+		ld	b, #20
 loc_A125:				; CODE XREF: SCROLL_UP+25
 		ld	a, (de)
 		ld	(hl), a
@@ -6370,14 +6302,10 @@ loc_A125:				; CODE XREF: SCROLL_UP+25
 
 loc_A13A:				; CODE XREF: SCROLL_UP+31
 		ld	c, 8
-
-
 loc_A13C:				; CODE XREF: SCROLL_UP+43
 		push	hl
-		ld	b, #20 ; ' '
+		ld	b, #20
 		xor	a
-
-
 loc_A140:				; CODE XREF: SCROLL_UP+3E
 		ld	(hl), a
 		inc	hl
@@ -6438,8 +6366,7 @@ sub_A164:				; CODE XREF: sub_9018+12 sub_954C ...
 		bit	5, a
 		jr	c, loc_A173
 
-		jr	nz, loc_A175
-
+		jr	nz, loc_A175 ;invisible board?
 
 loc_A171:				; CODE XREF: sub_A164:loc_A173
 		or	a
@@ -6756,7 +6683,7 @@ loc_A29F:				; CODE XREF: sub_8C20-863
 
 		ld	de, #1000
 		ld	hl, aZZxPrinterPSer ; " Z-ZX PRINTER    P-SERIAL"
-		call	sub_9F42
+		call	PrintGameState
 
 		ld	a, (CFG_BITS)
 		ld	c, a
@@ -6879,7 +6806,7 @@ loc_A35A:				; CODE XREF: sub_8C20+16D1
 					; sub_8C20+1777 ...
 		ld	hl, aSelectBaudRate ; "SELECT BAUD RATE:-"
 		ld	de, #1000
-		call	sub_9F42
+		call	PrintGameState
 
 		ld	a, (CFG_BITS)
 		ld	hl,#140B
@@ -6986,14 +6913,13 @@ loc_A3E0:				; CODE XREF: sub_A3D0+9
 		ld	b, a
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	z, loc_A3F2
+		jr	z, loc_A3F2 ;visible board?
 
 		ld	a, (byte_D0BF)
 		rra
 		jr	nc, loc_A3F2
 
 		dec	b
-
 
 loc_A3F2:				; CODE XREF: sub_A3D0+19 sub_A3D0+1F
 		push	bc
@@ -7225,7 +7151,7 @@ sub_A4C2:				; CODE XREF: sub_A3D0	sub_A466 ...
 
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	nz, loc_A4EF
+		jr	nz, loc_A4EF ;invisible board?
 
 		ld	hl, (word_D09F)
 		ld	a, h
@@ -7274,7 +7200,7 @@ loc_A4F4:				; CODE XREF: sub_8C20-868
 
 		ld	de, #1000
 		ld	hl, aSSaveRecordLLo ; "S- Save record   L- Load record"
-		call	sub_9F42
+		call	PrintGameState
 
 		ld	hl, loc_A671
 		push	hl
@@ -7283,13 +7209,12 @@ loc_A4F4:				; CODE XREF: sub_8C20-868
 
 		jr	c, loc_A525
 
-		and	#5F ; '_'
-		cp	#4C ; 'L'
+		and	#5F
+		cp	'L'
 		jp	z, loc_A5D9 ;Load
 
-		cp	#53 ; 'S'
+		cp	'S'
 		jp	z, loc_A596 ;Save
-
 
 loc_A525:				; CODE XREF: sub_8C20+18F7
 		pop	hl
@@ -7397,7 +7322,7 @@ loc_A596:				; CODE XREF: sub_8C20+1902
 ;Save
 		ld	de, #1000
 		ld	hl, aSaveTheGameRec ; "      SAVE THE GAME RECORD"
-		call	sub_9F42
+		call	PrintGameState
 
 		call	SAVE_RECORD
 
@@ -7444,7 +7369,7 @@ loc_A5D9:				; CODE XREF: sub_8C20+18FD
 ;Load
 		ld	de, #1000
 		ld	hl, aLoadAGameRecor ; "      LOAD A GAME RECORD"
-		call	sub_9F42
+		call	PrintGameState
 
 
 fool_name:
@@ -7562,7 +7487,7 @@ sub_A684:				; CODE XREF: sub_8C20-A43
 					; sub_8DE9+55	...
 		ld	a, (byte_D0B4)
 		bit	5, a
-		ret	nz
+		ret	nz ;invisible board?
 		ld	a, (byte_D0DF)
 		rra
 		ret	c
@@ -7582,7 +7507,6 @@ sub_A684:				; CODE XREF: sub_8C20-A43
 		ld	b, 7
 		ld	hl, byte_D258
 
-
 loc_A6AA:				; CODE XREF: sub_A684+48
 		ld	a, (hl)
 		cp	#FF
@@ -7598,7 +7522,7 @@ loc_A6AA:				; CODE XREF: sub_A684+48
 		ld	a, (hl)
 		call	sub_A021
 
-		ld	a, #2D ; '-'
+		ld	a, '-'
 		call	PRINT_LETTER
 
 		pop	hl
@@ -7621,7 +7545,6 @@ loc_A6D0:				; CODE XREF: sub_A684+29 sub_A684+52
 		call	PRINT_STR_FF
 
 		djnz	loc_A6D0
-
 
 loc_A6D8:				; CODE XREF: sub_A684+4A sub_A6F7+3E
 		pop	hl
@@ -7662,7 +7585,7 @@ sub_A6E4:				; CODE XREF: sub_8C20-92D
 sub_A6F7:				; CODE XREF: sub_AFC5+C7
 		ld	a, (byte_D0B4)
 		bit	5, a
-		ret	nz
+		ret	nz ;invisible board?
 		push	bc
 		push	de
 		push	hl
@@ -7678,7 +7601,7 @@ sub_A6F7:				; CODE XREF: sub_AFC5+C7
 		ld	a, #FF
 		ld	(NEED_SCR2BUF),	a
 		ld	a, (hl)
-		cp	#FE ; 'ю'
+		cp	#FE
 		jr	c, loc_A725
 
 		ld	hl,  a_8spaces+5
@@ -7698,7 +7621,7 @@ loc_A728:				; CODE XREF: sub_A6F7+2C
 
 		ld	a, (byte_D098)
 		srl	a
-		add	a, #31 ; '1'
+		add	a, '1'
 		call	PRINT_LETTER
 
 		jp	loc_A6D8
@@ -8944,7 +8867,7 @@ GEN_RANDBYTE:				; CODE XREF: sub_AC74+A
 
 sub_AD40:				; CODE XREF: sub_A906	sub_AB53+79 ...
 		pop	hl
-		exx
+		exx ;hl'=return addr
 		ld	hl, (word_D00D)
 		push	hl
 		ld	hl, byte_D03B
@@ -9055,7 +8978,8 @@ loc_ADA9:				; CODE XREF: sub_AD40+27 sub_AD40+2F ...
 
 
 loc_ADCC:				; CODE XREF: sub_AD40+1E7
-		ld	e, #80
+;hl'=return addr
+                ld	e, #80
 		push	de
 		exx
 		jp	(hl)
@@ -9076,10 +9000,9 @@ loc_ADD3:				; CODE XREF: sub_AD40+1AE
 		and	(hl)
 		bit	7, l
 		jr	z, loc_ADE3
-
 		neg
-
 loc_ADE3:				; CODE XREF: sub_AD40+9F
+;hl'=return addr
 		ld	hl, word_D00D
 		add	a, (hl)
 		ld	(hl), a
@@ -9113,24 +9036,24 @@ loc_ADF5:				; CODE XREF: sub_AD40+84
 		ld	a, b
 		add	a, #10
 		ld	l, a
-		ld	a, (hl)
+		ld	a, (hl) ;впереди
 		cp	#C0
 		jr	nc, loc_AE59
 
 		ld	a, l
 		add	a, #F
 		ld	l, a
-		ld	a, (hl)
+		ld	a, (hl) ;ещё впереди слева
 		cp	#C0
 		jr	nc, loc_AE59
 
 		inc	l
-		ld	a, (hl)
+		ld	a, (hl) ;ещё впереди
 		cp	#C0
 		jr	nc, loc_AE59
 
 		inc	l
-		ld	a, (hl)
+		ld	a, (hl) ;ещё впереди справа
 		cp	#C0
 		jr	nc, loc_AE59
 
@@ -9148,8 +9071,8 @@ loc_AE2D:				; CODE XREF: sub_AD40+C1
 		ld	a, b
 		add	a, #10
 		ld	l, a
-		ld	a, (hl)
-		cp	#C0 ; 'А'
+		ld	a, (hl) ;впереди
+		cp	#C0
 		jr	nc, loc_AE59
 
 		ld	l, e
@@ -9161,7 +9084,7 @@ loc_AE2D:				; CODE XREF: sub_AD40+C1
 ; ---------------------------------------------------------------------------
 
 loc_AE45:				; CODE XREF: sub_AD40+BB
-		cp	#C0 ; 'А'
+		cp	#C0
 		jp	nc, loc_AEF1
 
 		jp	loc_AEF3
@@ -9171,7 +9094,7 @@ loc_AE45:				; CODE XREF: sub_AD40+BB
 loc_AE4D:				; CODE XREF: sub_AD40+BF
 		jp	m, loc_AECF
 
-		ld	(hl), #A1 ; 'Ў'
+		ld	(hl), #A1
 		set	0, (ix+2)
 		jp	loc_AEF3
 
@@ -9204,29 +9127,29 @@ loc_AE66:				; CODE XREF: sub_AD40+B7
 		ld	a, b
 		sub	#10
 		ld	l, a
-		ld	a, (hl)
-		and	#C0 ; 'А'
-		cp	#40 ; '@'
+		ld	a, (hl) ;выше
+		and	#C0
+		cp	#40
 		jr	nc, loc_AE59
 
 		ld	a, l
 		sub	#11
 		ld	l, a
-		ld	a, (hl)
-		and	#C0 ; 'А'
-		cp	#40 ; '@'
+		ld	a, (hl) ;ещё выше левее
+		and	#C0
+		cp	#40
 		jr	z, loc_AE59
 
 		inc	l
-		ld	a, (hl)
-		and	#C0 ; 'А'
-		cp	#40 ; '@'
+		ld	a, (hl) ;ещё выше
+		and	#C0
+		cp	#40
 		jr	z, loc_AE59
 
 		inc	l
-		ld	a, (hl)
-		and	#C0 ; 'А'
-		cp	#40 ; '@'
+		ld	a, (hl) ;ещё выше правее
+		and	#C0
+		cp	#40
 		jr	z, loc_AE59
 
 		ld	l, e
@@ -9243,9 +9166,9 @@ loc_AEA2:				; CODE XREF: sub_AD40+12E
 		ld	a, b
 		sub	#10
 		ld	l, a
-		ld	a, (hl)
-		and	#C0 ; 'А'
-		cp	#40 ; '@'
+		ld	a, (hl) ;выше
+		and	#C0
+		cp	#40
 		jr	z, loc_AE59
 
 		ld	l, e
@@ -9257,7 +9180,7 @@ loc_AEA2:				; CODE XREF: sub_AD40+12E
 ; ---------------------------------------------------------------------------
 
 loc_AEBC:				; CODE XREF: sub_AD40+128
-		and	#C0 ; 'А'
+		and	#C0
 		jr	z, loc_AEF1
 
 		jp	loc_AEF3
@@ -9267,7 +9190,7 @@ loc_AEBC:				; CODE XREF: sub_AD40+128
 loc_AEC3:				; CODE XREF: sub_AD40+12C
 		jp	p, loc_AECF
 
-		ld	(hl), #A1 ; 'Ў'
+		ld	(hl), #A1
 		set	0, (ix+2)
 		jp	loc_AEF3
 
@@ -9280,14 +9203,11 @@ loc_AECF:				; CODE XREF: sub_AD40:loc_AE4D
 		ld	a, (word_D00D)
 		bit	7, l
 		jr	z, loc_AEDE
-
 		add	a, #10
-
-
 loc_AEDE:				; CODE XREF: sub_AD40+19A
 		sub	8
 		ld	(word_D00D), a
-		ld	e, #84 ; '"'
+		ld	e, #84
 		bit	3, (ix+2)
 		jp	z, loc_AF17
 
@@ -9300,13 +9220,11 @@ loc_AEF1:				; CODE XREF: sub_AD40+107
 					; sub_AD40+17E
 		ld	(hl), #11
 
-
 loc_AEF3:				; CODE XREF: sub_AD40+EA
 					; sub_AD40+102 ...
 		ld	a, (ix+2)
 		bit	3, a
 		jp	z, loc_AF15
-
 
 loc_AEFB:				; CODE XREF: sub_AD40+123
 		bit	5, a
@@ -9315,14 +9233,11 @@ loc_AEFB:				; CODE XREF: sub_AD40+123
 		ld	a, b
 		bit	7, l
 		jr	z, loc_AF07
-
 		add	a, #20 ; ' '
-
-
 loc_AF07:				; CODE XREF: sub_AD40+1C3
 		sub	#10
 		dec	h
-		ld	l, a
+		ld	l, a ;выше?
 		ld	c, (hl)
 		ld	(hl), 0
 		inc	h
@@ -9335,7 +9250,6 @@ loc_AF07:				; CODE XREF: sub_AD40+1C3
 loc_AF15:				; CODE XREF: sub_AD40+11E
 					; sub_AD40+1B8
 		ld	e, #80
-
 
 loc_AF17:				; CODE XREF: sub_AD40+1A9
 		push	de
@@ -9364,11 +9278,11 @@ loc_AF1F:				; CODE XREF: sub_AD40+80
                if FIX ;TODO Chess960 найти позицию ладьи до рокировки (самая правая фигура, не считая короля, но король мог её затереть!!!)
                 ld l,b ;b=позиция короля после рокировки
                 ;inc l ;TODO
-		ld	c,0x9c
+		ld c,0x9c
                 ld a,l
                 cp b
                 jr z,$+4 ;король затёр ладью
-		ld	(hl), 0 ;снимаем ладью
+		ld (hl),0 ;снимаем ладью
                else
 		inc	b
 		ld	l, b
@@ -9392,11 +9306,11 @@ loc_AF40:				; CODE XREF: sub_AD40+1F4
                 ld l,b ;b=позиция короля после рокировки
                 ;dec l
                 ;dec l ;TODO
-		ld	c,0x94; (hl)
+		ld c,0x94; (hl)
                 ld a,l
                 cp b
                 jr z,$+4 ;король затёр ладью
-		ld	(hl), 0 ;снимаем ладью
+		ld (hl),0 ;снимаем ладью
                else
 		dec	b
 		dec	b
@@ -9423,7 +9337,6 @@ loc_AF49:				; CODE XREF: sub_AD40+1FD
 		and	c
 		ld	(hl), a
 
-
 loc_AF54:				; CODE XREF: sub_AD40+20E
 		push	bc
 		res	2, c
@@ -9449,9 +9362,8 @@ sub_AF65:				; CODE XREF: sub_AD40:loc_AF1F
 
 
 loc_AF68:				; CODE XREF: sub_884D:loc_A912
-		and	#3F ; '?'
+		and	#3F
 		ld	e, #11
-
 
 loc_AF6C:				; CODE XREF: sub_AF65+19
 		ld	(hl), a
@@ -9499,10 +9411,8 @@ loc_AF92:				; CODE XREF: sub_AF81+32
 		res	7, (hl)
 		ld	a, b
 
-
 loc_AF99:				; CODE XREF: sub_AF81+41
 		pop	hl
-
 
 loc_AF9A:				; CODE XREF: sub_AF81+9
 		ld	e, h
@@ -9566,7 +9476,7 @@ sub_AFC5:				; CODE XREF: sub_A900
 
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	z, loc_AFE0
+		jr	z, loc_AFE0 ;visible board?
 
 		call	nz, sub_B2E2
 
@@ -9586,7 +9496,7 @@ loc_AFE0:				; CODE XREF: sub_AFC5+16
 		call	sub_A932
 
 		ld	e, c
-		ld	l, #88 ; '?'
+		ld	l, #88
 		call	sub_A932
 
 		ld	a, c
@@ -9596,14 +9506,10 @@ loc_AFE0:				; CODE XREF: sub_AFC5+16
 		cp	8
 		cpl
 		jr	c, loc_B00D
-
 		ld	a, c
 		add	a, e
-
-
 loc_B00D:				; CODE XREF: sub_AFC5+44
 		ld	hl, byte_A928-1
-
 
 loc_B010:				; CODE XREF: sub_AFC5+4E
 		inc	hl
@@ -9619,7 +9525,7 @@ loc_B010:				; CODE XREF: sub_AFC5+4E
 		ld	(hl), a
 		xor	a
 		ld	(word_D00D), a
-		ld	a, #FE	; 'ю'
+		ld	a, #FE
 		ld	(byte_D098), a
 		call	sub_B2B9
 
@@ -9654,7 +9560,6 @@ loc_B050:				; CODE XREF: sub_AFC5+EF
 		push	ix
 		call	sub_B19C
 
-
 loc_B05D:				; CODE XREF: sub_AFC5:loc_B182
 		ld	a, (byte_D0B1)
 		cp	#C
@@ -9669,7 +9574,6 @@ loc_B05D:				; CODE XREF: sub_AFC5:loc_B182
 		ld	(byte_D08B), a
 		ld	a, #80
 		ld	(byte_D019), a
-
 
 loc_B07A:				; CODE XREF: sub_AFC5+9D
 		call	sub_B47F
@@ -9693,18 +9597,15 @@ loc_B091:				; CODE XREF: sub_AFC5+C5
 		inc	a
 		jr	z, loc_B09C
 
-
 loc_B097:				; CODE XREF: sub_AFC5+CA
 		ld	a, (hl)
 		cp	#FE
 		jr	c, loc_B0A3
 
-
 loc_B09C:				; CODE XREF: sub_AFC5+D0
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	z, loc_B0B7
-
+		jr	z, loc_B0B7 ;visible board?
 
 loc_B0A3:				; CODE XREF: sub_AFC5+D5
 		ld	a, (byte_D0B4)
@@ -9724,7 +9625,7 @@ loc_B0A3:				; CODE XREF: sub_AFC5+D5
 loc_B0B7:				; CODE XREF: sub_AFC5+E sub_AFC5+91	...
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jp	nz, loc_B164
+		jp	nz, loc_B164 ;invisible board?
 
 		ld	bc, (INC_SECONDS)
 		ld	hl, (word_D088)
@@ -9748,10 +9649,8 @@ loc_B0B7:				; CODE XREF: sub_AFC5+E sub_AFC5+91	...
 		ld	bc, (word_D02B)
 		add	hl, bc
 
-
 loc_B0E8:				; CODE XREF: sub_AFC5+11C
 		pop	af
-
 
 loc_B0E9:				; CODE XREF: sub_AFC5+114
 		cp	6
@@ -9763,17 +9662,15 @@ loc_B0E9:				; CODE XREF: sub_AFC5+114
 		ld	a, c
 		rra
 		rra
-		and	#3F ; '?'
+		and	#3F
 		add	a, c
 		ld	c, a
 		ld	a, 0
 		adc	a, b
 		ld	b, a
 
-
 loc_B0FE:				; CODE XREF: sub_AFC5+12C
 		ld	a, 4
-
 
 loc_B100:				; CODE XREF: sub_AFC5+140
 		dec	a
@@ -9781,7 +9678,6 @@ loc_B100:				; CODE XREF: sub_AFC5+140
 
 		sbc	hl, bc
 		jr	nc, loc_B100
-
 
 loc_B107:				; CODE XREF: sub_AFC5+13C
 		sub	2
@@ -9797,14 +9693,11 @@ loc_B107:				; CODE XREF: sub_AFC5+13C
 		bit	5, a
 		jr	nz, loc_B120
 
-
 loc_B11B:				; CODE XREF: sub_AFC5+14D
 		ld	a, 1
 
-
 loc_B11D:				; CODE XREF: sub_AFC5+146
 		call	sub_B185
-
 
 loc_B120:				; CODE XREF: sub_AFC5+144
 					; sub_AFC5+154
@@ -10140,11 +10033,10 @@ loc_B284:				; CODE XREF: sub_B1EB+96
 
 		ld	a, (byte_D0B4)
 		bit	5, a
-		jr	nz, loc_B29C
+		jr	nz, loc_B29C ;invisible board?
 
 		ld	a, #FF
 		call	sub_B185
-
 
 loc_B29C:				; CODE XREF: sub_B1EB+91 sub_B1EB+9D ...
 		ld	a, (byte_D0F4)
@@ -11458,7 +11350,7 @@ loc_B877:				; CODE XREF: RAM:B845	RAM:B84F ...
 		ld	a, (byte_D0B4)
 		bit	5, a
 		scf
-		ret	z
+		ret	z ;visible board?
 		ld	hl, byte_D0B3 ;d3=swap board
 		set	5, (hl)
 
@@ -15018,13 +14910,13 @@ byte_D0B6:	db 0			; DATA XREF: sub_8C20:loc_81A1
 					; sub_8C20-A48 ...
 byte_D0B7:	db 0			; DATA XREF: sub_8C20-68A
 					; sub_A08D:loc_A0AF ...
-byte_D0B8:	db 0			; DATA XREF: sub_8C20-885
+keycodeformenu:	db 0			; DATA XREF: sub_8C20-885
 					; sub_8C20-873 ...
 		db    0
 		db    0
 word_D0BB:	dw 0			; DATA XREF: sub_8C20-895
 					; sub_8C20-7C0 ...
-byte_D0BD:	db 0			; DATA XREF: KEY_SCAN+9
+keycode:	db 0			; DATA XREF: KEY_SCAN+9
 					; KEY_SCAN:loc_90D1 ...
 SEL_SCRorBUF:	db 0			; DATA XREF: START_POINT+81
 					; sub_8D9E:loc_8DB0 ...
@@ -15055,7 +14947,7 @@ scr_pix_addr:	dw 0			; DATA XREF: sub_8EFB+B sub_8EFB+25	...
 scr_attr_addr:	dw 0			; DATA XREF: sub_8EFB+14 sub_8EFB+2E ...
 NEED_SCR2BUF:	db 0			; DATA XREF: sub_8D2C+A
 					; PRINT_STR_FF:PRINT_STR_A ...
-word_D0D5:	dw 0			; DATA XREF: sub_965C+4 sub_9F42 ...
+gamestatemsgaddr:	dw 0			; DATA XREF: sub_965C+4 PrintGameState ...
 TMP_BOARD_PTR:	dw 0			; DATA XREF: sub_93A4:loc_93A7
 					; sub_93A4:loc_93FC ...
 curkey_D0D9:	db 0			; DATA XREF: sub_8C20-697
@@ -15495,7 +15387,7 @@ unk_F000:	    			; DATA XREF: sub_8446+3 sub_92A0 ...
 
 		ds 1
 
-BOARD:		ds #40			; DATA XREF: sub_8C20-976 sub_8C6B+E ...
+BOARD:		ds #40			; DATA XREF: sub_8C20-976 ShowHintMove+E ...
 		
 		ds 6
 
