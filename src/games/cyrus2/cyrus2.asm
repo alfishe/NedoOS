@@ -445,7 +445,7 @@ loc_8072:				; CODE XREF: START_POINT+75
 		call	PRT_DETECT
 
 		ld	a, 1
-		ld	(byte_D0B1), a
+		ld	(curlevel), a
 		ld	a, #FF
 		ld	(stk_1bvalue), a
 		ld	(byte_D0F0), a
@@ -456,7 +456,7 @@ loc_8072:				; CODE XREF: START_POINT+75
 loc_809A:				; CODE XREF: sub_92D7+35
 		xor	a
 		ld	(byte_D0B4), a ;visible board?
-		call	sub_9EE6
+		call	sub_9EE6 ;print Cyrus II, level, space to see board
 
 ; END OF FUNCTION CHUNK	FOR sub_92D7
 ; START	OF FUNCTION CHUNK FOR sub_8C20
@@ -569,9 +569,9 @@ loc_811C:				; CODE XREF: sub_8C20-B10
 
 		ld	hl, CFG_BITS
 		res	5, (hl)
-		call	sub_A08D
+		call	PrintMoveNumber
 
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		call	sub_954C
 
@@ -629,7 +629,7 @@ loc_8162:				; CODE XREF: sub_8C20-AC7
 		ld	(hl), a
 		bit	5, a
 		jr	z, loc_818F
-		call	sub_955D
+		call	DrawMoveAndCursors
 loc_818F:				; CODE XREF: sub_8C20-A96
 		call	sub_9F0D ;show state and help
 
@@ -925,7 +925,7 @@ loc_82F9:				; CODE XREF: sub_8C20-92F
 		res	7, h
 		ld	e, h
 		ld	hl, RAM_END_D800
-		call	sub_A90C
+		call	_FindMove_D_E
 
 		jr	c, loc_8365
 
@@ -969,7 +969,6 @@ loc_8365:				; CODE XREF: sub_8C20-909
 		ld	ix, word_D059
 		call	sub_A903
 
-
 loc_8378:				; CODE XREF: sub_8C20-216
 		call	sub_9F0D ;show state and help
 
@@ -980,11 +979,11 @@ loc_8378:				; CODE XREF: sub_8C20-216
 		ld	b,#70
 loc_8385:				; CODE XREF: sub_8C20-89F
 		ld	a, b
-		ld	(word_D0BB+1), a
+		ld	(needdrawcursor1), a
 		ld	a, #FF
-		ld	(word_D0BB), a
+		ld	(needdrawcursorfrom), a
 		ld	(byte_D0CD), a
-		call	sub_955D
+		call	DrawMoveAndCursors
 
 loc_8394:				; CODE XREF: sub_8C20-83A
 					; sub_8C20-82D ...
@@ -993,13 +992,9 @@ loc_8394:				; CODE XREF: sub_8C20-83A
 		ld	(hl), a
 		xor	a
 		ld	(keycodeformenu), a
-
-
 loc_839E:				; CODE XREF: sub_8C20-87A
 					; sub_8C20-86E
 		call	sub_8F4D
-
-
 loc_83A1:				; CODE XREF: sub_8C20-68E
 		ld	hl, byte_D0DF
 		bit	0, (hl)
@@ -1014,16 +1009,16 @@ loc_83A1:				; CODE XREF: sub_8C20-68E
 		jr	z, loc_839E
 
 		ld	(hl), 0
-		cp	#43 ; 'C'
+		cp	'C'
 		jp	z, loc_A4F4
 
-		cp	#50 ; 'P'
+		cp	'P'
 		jp	z, loc_A29F
 
-		cp	#49 ; 'I'
+		cp	'I'
 		jr	nz, loc_83D1
 
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		ld	hl, byte_D0B3
 		ld	a, (hl)
@@ -1041,12 +1036,12 @@ loc_83D1:				; CODE XREF: sub_8C20-85E
 		cp	#48 ; 'H'
 		jr	nz, loc_83F6
 
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		ld	hl, (word_D25A)
 		call	ShowHintMove
 
-		call	sub_955D
+		call	DrawMoveAndCursors
 
 		jr	loc_8394
 
@@ -1175,9 +1170,9 @@ loc_845B:				; CODE XREF: sub_8446+9
 loc_845D:				; CODE XREF: sub_8C20-876
 		call	sub_8C2D
 
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		ld	b, a
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		ld	c, a
 		ld	hl, RAM_END_D800
 
@@ -1203,7 +1198,7 @@ loc_846B:				; CODE XREF: sub_8C20-7AB
 		push	hl
 		call	sub_A6E4
 
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		call	BEEP_move
 
@@ -1302,7 +1297,7 @@ loc_8512:				; CODE XREF: sub_8C20-722
 
 
 loc_8515:				; CODE XREF: sub_8C20-777
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#A
 		call	z, sub_8D6A
 
@@ -1377,15 +1372,15 @@ loc_8595:				; CODE XREF: sub_8C20-80A
 ;'S' - set position
 		xor	a
 		ld	(byte_D0B7), a
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		ld	a, #FF
-		ld	(word_D0BB), a
-		call	sub_955D
+		ld	(needdrawcursorfrom), a
+		call	DrawMoveAndCursors
 
 		call	restore_6_spaces
 
-		call	sub_890F
+		call	PrintMoveText
 
 		call	sub_A150
 
@@ -1446,7 +1441,7 @@ loc_85F5:				; CODE XREF: sub_8C20-630
 		ld	(hl), 4
 
 loc_85FD:				; CODE XREF: sub_8C20+A
-		call	sub_955D
+		call	DrawMoveAndCursors
 
 loc_8600:				; CODE XREF: sub_8C20-618
 		call	sub_8F4D
@@ -1649,7 +1644,7 @@ loc_871C:				; CODE XREF: sub_8C20-5CC
 		ld	a, (hl)
 		xor	1
 		ld	(hl), a
-		call	sub_8939
+		call	PrepareAndPrintMoveText
 
 		jp	loc_85D8
 
@@ -1660,7 +1655,7 @@ loc_8737:				; CODE XREF: sub_8C20-502
 		jr	nz, loc_8745
 
 		ld	h, #D0
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		ld	l, a
 		xor	a
 		jp	loc_861E
@@ -1677,7 +1672,7 @@ loc_8745:				; CODE XREF: sub_8C20-4E7
 		inc	hl
 		ld	a, (hl)
 		ld	b, a
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		ld	l, a
 		ld	h, BRD_88_0/256
 		jp	loc_861A
@@ -2102,8 +2097,7 @@ aSIXbuf:	db	'      '
 
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_890F:				; CODE XREF: sub_8C20-679
+PrintMoveText:				; CODE XREF: sub_8C20-679
 					; restore_6_spaces+D ...
 		ld	hl, #61A
 		ld	(scr_XY), hl
@@ -2114,76 +2108,50 @@ sub_890F:				; CODE XREF: sub_8C20-679
 		ld	(scr_XY), hl
 		ld	hl, aSIXbuf	; "     "
 		call	PRINT_STR_scr0
-
 		ret
-
-; End of function sub_890F
-
-
+; End of function PrintMoveText
 ; =============== S U B	R O U T	I N E =======================================
-
-
 restore_6_spaces:			; CODE XREF: sub_8C20-67C
 					; sub_8C20-5B8 ...
 		ld	hl, aSIXbuf	; "     "
 		ld	b, 5
 		ld	a, #20 ; ' '
-
-
 loc_892F:				; CODE XREF: restore_6_spaces+9
 		ld	(hl), a
 		inc	hl
 		djnz	loc_892F
-
 		ld	(hl),' '|#80
-		call	sub_890F
-
+		call	PrintMoveText
 		ret
-
 ; End of function restore_6_spaces
-
-
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_8939:				; CODE XREF: sub_8C20-4EF
+PrepareAndPrintMoveText:				; CODE XREF: sub_8C20-4EF
 					; sub_9128+37	...
 		call	restore_6_spaces
-
 		ld	hl, aSIXbuf	; "     "
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		cp	#FF
 		jr	nz, loc_8949
-
-		ld	a, (word_D0BB+1)
-
-
-loc_8949:				; CODE XREF: sub_8939+B
+		ld	a, (needdrawcursor1)
+loc_8949:				; CODE XREF: PrepareAndPrintMoveText+B
 		call	sub_8960 ;вывод имени поля A в hl
 
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		cp	#FF
 		jr	z, loc_895C
 
 		ld	(hl),'-'
 		inc	hl
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		call	sub_8960 ;вывод имени поля A в hl
-
-
-loc_895C:				; CODE XREF: sub_8939+18
-		call	sub_890F
-
+loc_895C:				; CODE XREF: PrepareAndPrintMoveText+18
+		call	PrintMoveText
 		ret
-
-; End of function sub_8939
-
-
+; End of function PrepareAndPrintMoveText
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_8960:				; CODE XREF: sub_8939:loc_8949
-;вывод имени поля A в hl					; sub_8939+20	...
+sub_8960:				; CODE XREF: PrepareAndPrintMoveText:loc_8949
+;вывод имени поля A в hl					; PrepareAndPrintMoveText+20	...
 		ld	b, a
 		and	#F
 		add	a,'a'
@@ -2201,12 +2169,8 @@ sub_8960:				; CODE XREF: sub_8939:loc_8949
 		ld	(hl), a
 		inc	hl
 		ret
-
 ; End of function sub_8960
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
 
 sub_8977:				; CODE XREF: sub_8C20:loc_8283
 ;вывод хода в buf_10bytes
@@ -2334,18 +2298,18 @@ loc_8A0D:				; CODE XREF: sub_8C20:loc_8443
         if FIX
          call setoldrnd
         endif
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		or	a
-		call	p, sub_9595
+		call	p, UnDrawCursor
 
 		ld	hl, (word_D0F7)
 		ld	a, l
 		or	h
 		jp	z, loc_8A07
 
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		ld	c, a
 		ld	b, 0
 		ld	hl, (word_D088)
@@ -2432,13 +2396,13 @@ loc_8A8E:				; CODE XREF: sub_8C20-19A
 
 loc_8A9D:				; CODE XREF: sub_8C20-80F
 ;'F' - forward
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		or	a
-		call	p, sub_9595
+		call	p, UnDrawCursor
 
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		ld	c, a
 		ld	b, 0
 		ld	hl, (word_D088)
@@ -2884,9 +2848,9 @@ loc_8CDA:				; CODE XREF: sub_8C20-81E
 ;'M' - move
 		call	BEEP_move
 
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		or	a
-		call	p, sub_9595
+		call	p, UnDrawCursor
 
 		ld	hl, byte_D0B4
 		res	0, (hl)
@@ -2959,32 +2923,22 @@ KING:		db  'K'    ;имя K		          ; DATA XREF: sub_8C20:loc_8745
 
 ; =============== S U B	R O U T	I N E =======================================
 
-
 ChangeLevel_ifL:				; CODE XREF: sub_8C20:loc_83D1
 					; sub_8C20:loc_863F
-		cp	#4C ; 'L'
+		cp	'L'
 		scf
 		ret	nz
-		ld	a, (byte_D0B1)
-
-
+		ld	a, (curlevel)
 loc_8D22:				; CODE XREF: ChangeLevel_ifL+8 ChangeLevel_ifL+C
 		inc	a
 		jr	z, loc_8D22
-
 		cp	#D
 		jr	nc, loc_8D22
-
-		ld	(byte_D0B1), a
-
+		ld	(curlevel), a
 ; End of function ChangeLevel_ifL
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_8D2C:				; CODE XREF: sub_9EE6+23
-		ld	a, (byte_D0B1)
+PrintCurLevel:				; CODE XREF: sub_9EE6+23
+		ld	a, (curlevel)
 		push	af
 		or	a
 		call	sub_A915
@@ -2998,36 +2952,28 @@ sub_8D2C:				; CODE XREF: sub_9EE6+23
 		jr	nc, loc_8D56
 
 		push	af
-		ld	a, #20 ; ' '
+		ld	a, ' '
 		call	PRINT_LETTER
-
 		pop	af
-		add	a, #30 ; '0'
+		add	a, '0'
 		call	PRINT_LETTER
 
 		ld	hl,  a_8spaces+5
 		jr	loc_8D65
-
 ; ---------------------------------------------------------------------------
-
-loc_8D56:				; CODE XREF: sub_8D2C+17
+loc_8D56:				; CODE XREF: PrintCurLevel+17
 		ld	hl, a_ADAP	; "ADA"
 		jr	z, loc_8D65
-
 		ld	hl, a_INF	; "INF"
 		cp	#B
 		jr	z, loc_8D65
-
 		ld	hl, aProb	; "PRO"
-
-
-loc_8D65:				; CODE XREF: sub_8D2C+28 sub_8D2C+2D ...
+loc_8D65:				; CODE XREF: PrintCurLevel+28 PrintCurLevel+2D ...
 		call	PRINT_STR_FF
-
 		xor	a
 		ret
 
-; End of function sub_8D2C
+; End of function PrintCurLevel
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -3035,52 +2981,41 @@ loc_8D65:				; CODE XREF: sub_8D2C+28 sub_8D2C+2D ...
 
 sub_8D6A:				; CODE XREF: sub_8C20-706
 					; sub_8DE9+68
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		ld	c, a
 		ld	b, 0
 		ld	h, b
 		ld	l, c
 		add	hl, hl
-		add	hl, hl
+		add	hl, hl ;*4
 		add	hl, bc
 		add	hl, bc
-		add	hl, bc
+		add	hl, bc ;*7
 		ld	bc, (INC_SECONDS)
 		dec	bc
 		dec	bc
 		bit	7, b
 		jr	z, loc_8D84
-
 		ld	bc, 0
-
-
 loc_8D84:				; CODE XREF: sub_8D6A+15
 		add	hl, bc
 		ld	b, 3
-
-
 loc_8D87:				; CODE XREF: sub_8D6A+21
 		srl	h
 		rr	l
-		djnz	loc_8D87
+		djnz	loc_8D87 ;*7/8
 
 		ld	a, h
 		or	a
 		jr	z, loc_8D93
-
-		ld	l, #FE	; 'ю'
-
-
+		ld	l, #FE
 loc_8D93:				; CODE XREF: sub_8D6A+25
 		ld	a, l
 		cp	2
 		jr	nc, loc_8D9A
-
 		ld	a, 2
-
-
 loc_8D9A:				; CODE XREF: sub_8D6A+2C
-		ld	(byte_D0F4), a
+		ld	(timeformove), a
 		ret
 
 ; End of function sub_8D6A
@@ -3218,7 +3153,7 @@ loc_8E2C:				; CODE XREF: sub_8D9E+1B sub_8DE9+38
 		ld	de, BOARD
 		ld	bc, #40
 		ldir
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#A
 		call	z, sub_8D6A
 
@@ -3471,7 +3406,7 @@ sub_8F4D:				; CODE XREF: sub_8C20-A6F
 		bit	6, a
 		jr	z, loc_8F94
 
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		inc	a
 		jr	z, loc_8F94
 
@@ -3875,7 +3810,7 @@ sub_9128:				; CODE XREF: sub_8FC1+49
 		or	a
 		ret	z
 		ld	(hl), 0
-		ld	bc, (word_D0BB)
+		ld	bc, (needdrawcursorfrom)
 		cp	#D
 		jp	z, loc_91CE
 
@@ -3886,27 +3821,26 @@ sub_9128:				; CODE XREF: sub_8FC1+49
 
 ; ---------------------------------------------------------------------------
 
-loc_9141:				; CODE XREF: sub_9128+50 sub_9128+70 ...
+ReDrawMoveAndCursors:				; CODE XREF: sub_9128+50 sub_9128+70 ...
 		push	bc
 		ld	a, b
 		cp	#FF
-		call	nz, sub_9595
+		call	nz, UnDrawCursor
 
 		pop	bc
 		ld	a, c
 		cp	#FF
-		call	nz, sub_9595
+		call	nz, UnDrawCursor
 
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		cp	#FF
-		call	nz, sub_9585
+		call	nz, DrawCursor
 
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		cp	#FF
-		call	nz, sub_95A8
+		call	nz, DrawCursorFrom
 
-		call	sub_8939
-
+		call	PrepareAndPrintMoveText
 		ret
 
 ; ---------------------------------------------------------------------------
@@ -3921,13 +3855,13 @@ loc_9163:				; CODE XREF: sub_9128+16
 		push	bc
 		sub	#41 ; 'A'
 		ld	b, a
-		ld	hl,  word_D0BB+1
+		ld	hl,  needdrawcursor1
 		ld	a, (hl)
 		and	#F0
 		or	b
 		ld	(hl), a
 		pop	bc
-		jp	loc_9141
+		jp	ReDrawMoveAndCursors
 
 ; ---------------------------------------------------------------------------
 
@@ -3947,13 +3881,13 @@ loc_917B:				; CODE XREF: sub_9128+3D sub_9128+41
 		rlca
 		rlca
 		ld	b, a
-		ld	hl,  word_D0BB+1
+		ld	hl,  needdrawcursor1
 		ld	a, (hl)
 		and	#F
 		or	b
 		ld	(hl), a
 		pop	bc
-		jp	loc_9141
+		jp	ReDrawMoveAndCursors
 
 ; ---------------------------------------------------------------------------
 
@@ -3995,7 +3929,7 @@ loc_91B5:				; CODE XREF: sub_9128+81
 loc_91BD:				; CODE XREF: sub_9128+8F
 		sub	#10
 loc_91BF:				; CODE XREF: sub_9128+88 sub_9128+8B ...
-		ld	hl,  word_D0BB+1
+		ld	hl,  needdrawcursor1
 		add	a, (hl)
 		ld	b, a
 		and	#77
@@ -4004,7 +3938,7 @@ loc_91BF:				; CODE XREF: sub_9128+88 sub_9128+8B ...
 		ld	(hl), a
 loc_91CA:				; CODE XREF: sub_9128+9F
 		pop	bc
-		jp	loc_9141
+		jp	ReDrawMoveAndCursors
 
 ; ---------------------------------------------------------------------------
 
@@ -4017,31 +3951,31 @@ loc_91CE:				; CODE XREF: sub_9128+E
 		jr	nz, loc_91E0
 
 		ld	a, #FF
-		ld	(word_D0BB), a
-		jp	loc_9141
+		ld	(needdrawcursorfrom), a
+		jp	ReDrawMoveAndCursors
 ; ---------------------------------------------------------------------------
 loc_91E0:				; CODE XREF: sub_9128+AE
 		inc	a
 		jr	nz, loc_91F0
 
 		call	sub_92A0
-		jp	nz, loc_9141
+		jp	nz, ReDrawMoveAndCursors
 		ld	a, b
-		ld	(word_D0BB), a
-		jp	loc_9141
+		ld	(needdrawcursorfrom), a
+		jp	ReDrawMoveAndCursors
 ; ---------------------------------------------------------------------------
 loc_91F0:				; CODE XREF: sub_9128+B9
 		call	sub_92B6
 
-		jp	nz, loc_9141
+		jp	nz, ReDrawMoveAndCursors
 
 		push	bc
 		push	hl
-		ld	a, (word_D0BB)
+		ld	a, (needdrawcursorfrom)
 		ld	(byte_D0C4), a
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		ld	(byte_D0C5), a
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		pop	ix
 		ld	hl, byte_D0B4
@@ -4084,7 +4018,7 @@ loc_9231:				; CODE XREF: sub_9128+F4
 		ld	a, (hl)
 		or	#E0
 		ld	(hl), a
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		call	ShowBOARD2
 
@@ -4150,10 +4084,10 @@ loc_9290:				; CODE XREF: sub_9128+13
 		cp	c
 		ret	z
 		ld	a, #FF
-		ld	(word_D0BB), a
+		ld	(needdrawcursorfrom), a
 		ld	a, c
-		ld	(word_D0BB+1), a
-		jp	loc_9141
+		ld	(needdrawcursor1), a
+		jp	ReDrawMoveAndCursors
 
 ; END OF FUNCTION CHUNK	FOR sub_9128
 
@@ -4293,7 +4227,7 @@ loc_92F7:
 ; START	OF FUNCTION CHUNK FOR HotKeys
 
 loc_9326:				; CODE XREF: HotKeys+1E
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		ld	hl, byte_D0B3
 		ld	a, (hl)
@@ -4305,7 +4239,7 @@ loc_9326:				; CODE XREF: HotKeys+1E
 
 		call	RotateBOARD2
 
-		call	sub_955D
+		call	DrawMoveAndCursors
 
 		call	sub_A177
 
@@ -4315,7 +4249,7 @@ loc_9326:				; CODE XREF: HotKeys+1E
 
 loc_9340:				; CODE XREF: HotKeys+19
 		ld	hl, (word_D25A)
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		call	ShowBOARD2
 
@@ -4326,7 +4260,7 @@ loc_9340:				; CODE XREF: HotKeys+19
 
 		call	ShowBOARD
 
-		call	sub_955D
+		call	DrawMoveAndCursors
 
 		ret
 
@@ -4841,69 +4775,47 @@ loc_9537:				; CODE XREF: sub_94C9+7A
 
 ; =============== S U B	R O U T	I N E =======================================
 
-
 sub_954C:				; CODE XREF: sub_8C20-AF1
 		call	sub_A164
-
 		ld	a, #70 ; 'p'
 		jr	c, loc_9554
-
 		xor	a
-
-
 loc_9554:				; CODE XREF: sub_954C+5
-		ld	(word_D0BB+1), a
+		ld	(needdrawcursor1), a
 		ld	a, #FF
-		ld	(word_D0BB), a
+		ld	(needdrawcursorfrom), a
 		ret
 
 ; End of function sub_954C
 
 
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_955D:				; CODE XREF: sub_8C20-A94
+DrawMoveAndCursors:				; CODE XREF: sub_8C20-A94
 					; sub_8C20-88F ...
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		cp	#FF
-		call	nz, sub_9585
-
-		ld	a, (word_D0BB)
+		call	nz, DrawCursor
+		ld	a, (needdrawcursorfrom)
 		cp	#FF
-		call	nz, sub_95A8
-
-		call	sub_8939
-
+		call	nz, DrawCursorFrom
+		call	PrepareAndPrintMoveText
 		ret
-
-; End of function sub_955D
-
-
+; End of function DrawMoveAndCursors
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_9571:				; CODE XREF: sub_8C20-AF4
+UnDrawMoveAndCursors:				; CODE XREF: sub_8C20-AF4
 					; sub_8C20-85C ...
-		ld	a, (word_D0BB+1)
+		ld	a, (needdrawcursor1)
 		cp	#FF
-		call	nz, sub_9595
-
-		ld	a, (word_D0BB)
+		call	nz, UnDrawCursor
+		ld	a, (needdrawcursorfrom)
 		cp	#FF
-		call	nz, sub_9595
-
+		call	nz, UnDrawCursor
 		call	restore_6_spaces
-
 		ret
-
-; End of function sub_9571
-
-
+; End of function UnDrawMoveAndCursors
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_9585:				; CODE XREF: sub_9128+2C sub_955D+5
+DrawCursor:				; CODE XREF: sub_9128+2C DrawMoveAndCursors+5
 ;A=номер поля?=0b0YYY0XXX
 		push	af
 		ld	a, (byte_D04D)
@@ -4912,32 +4824,24 @@ sub_9585:				; CODE XREF: sub_9128+2C sub_955D+5
 		ld	e, #A9 ;or
 		jr	z, loc_9592
 		ld	e, #AA ;or
-loc_9592:				; CODE XREF: sub_9585+9
+loc_9592:				; CODE XREF: DrawCursor+9
 		pop	af
 		jr	loc_959B
-
-; End of function sub_9585
-
-
+; End of function DrawCursor
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_9595:				; CODE XREF: sub_8C20-20C
+UnDrawCursor:				; CODE XREF: sub_8C20-20C
 					; sub_8C20-17C ...
 ;A=номер поля?=0b0YYY0XXX
 		ld	d, #FF ;and
 		ld	e, 0   ;or
 		jr	loc_959B ;???
-
 ; ---------------------------------------------------------------------------
-
-loc_959B:				; CODE XREF: sub_9585+E sub_9595+4 ...
+loc_959B:				; CODE XREF: DrawCursor+E UnDrawCursor+4 ...
 ;A=номер поля?=0b0YYY0XXX
 		push	hl
 		push	af
 		push	de
 		call	sub_95AE
-
 		pop	de
 		and	d
 		or	e
@@ -4945,25 +4849,17 @@ loc_959B:				; CODE XREF: sub_9585+E sub_9595+4 ...
 		pop	af
 		pop	hl
 		ret
-
-; End of function sub_9595
-
-
+; End of function UnDrawCursor
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_95A8:				; CODE XREF: sub_9128+34 sub_955D+D
+DrawCursorFrom:				; CODE XREF: sub_9128+34 DrawMoveAndCursors+D
 		ld	d, 0   ;and
 		ld	e, #29 ;or
 		jr	loc_959B
-
-; End of function sub_95A8
-
-
+; End of function DrawCursorFrom
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_95AE:				; CODE XREF: sub_9595+9
+sub_95AE:				; CODE XREF: UnDrawCursor+9
 ;A=номер поля?=0b0YYY0XXX
 		and	#77
 		ld	hl, byte_D0B3 ;d3=swap board
@@ -4974,16 +4870,12 @@ loc_95B9:				; CODE XREF: sub_95AE+7
 		call	sub_9703 ;calc scr_XY, scr_pix_addr, scr_attr_addr
 
 		ld	hl, (scr_attr_addr)
-		ld	a, (hl)
+		ld	a, (hl) ;нормальный цвет из угла клетки
 		ld	de, #21
-		add	hl, de
+		add	hl, de ;позиция курсора на клетке
 		ret
-
 ; End of function sub_95AE
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
 
 sub_95C5:				; CODE XREF: sub_8FC1+8 sub_924C+B ...
 		ld	hl, SEL_SCRorBUF
@@ -5117,7 +5009,7 @@ loc_9646:				; CODE XREF: CLR_SCR_OR_BUF+1E
 ; =============== S U B	R O U T	I N E =======================================
 
 
-SET_BRD_COLOR:				; CODE XREF: sub_95C5+6 sub_965C+30	...
+SET_BRD_COLOR:				; CODE XREF: sub_95C5+6 FillAttrsAndBorder+30	...
 		ld	a, (SEL_SCRorBUF)
 		or	a
 		ld	a, 5
@@ -5135,7 +5027,7 @@ loc_9655:				; CODE XREF: SET_BRD_COLOR+6
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_965C:				; CODE XREF: sub_9EE6
+FillAttrsAndBorder:				; CODE XREF: sub_9EE6
 		di
 		ld	hl, 0
 		ld	(gamestatemsgaddr), hl
@@ -5144,11 +5036,11 @@ sub_965C:				; CODE XREF: sub_9EE6
 		or	a
 		jr	z, loc_966F
 		ld	hl, SCREEN
-loc_966F:				; CODE XREF: sub_965C+E
+loc_966F:				; CODE XREF: FillAttrsAndBorder+E
 		ld	a, h
 		add	a, #18
 		ld	b, 0
-loc_9674:				; CODE XREF: sub_965C+1B
+loc_9674:				; CODE XREF: FillAttrsAndBorder+1B
 		ld	(hl), b
 		inc	hl
 		cp	h
@@ -5156,10 +5048,10 @@ loc_9674:				; CODE XREF: sub_965C+1B
 
 		ld	c, #18
 		ld	de, fill_attrs
-loc_967E:				; CODE XREF: sub_965C+2D
+loc_967E:				; CODE XREF: FillAttrsAndBorder+2D
 		ld	b, #20 ; ' '
 		ld	a, (de)
-loc_9681:				; CODE XREF: sub_965C+27
+loc_9681:				; CODE XREF: FillAttrsAndBorder+27
 		ld	(hl), a
 		inc	hl
 		djnz	loc_9681
@@ -5167,14 +5059,12 @@ loc_9681:				; CODE XREF: sub_965C+27
 		jr	z, loc_968B
 		inc	de
 		jr	loc_967E
-
 ; ---------------------------------------------------------------------------
-
-loc_968B:				; CODE XREF: sub_965C+2A
+loc_968B:				; CODE XREF: FillAttrsAndBorder+2A
 		ei
 		jr	SET_BRD_COLOR
 
-; End of function sub_965C
+; End of function FillAttrsAndBorder
 
 ; ---------------------------------------------------------------------------
 fill_attrs:	db  #3A,#3A,#29,#29,#29,#29,#29,#29
@@ -5515,10 +5405,10 @@ aCyrusIi:	db 'CYRUS II     ',#7F
 		db ' INTELLIGENT CHESS SOFTWARE LTD'
 		EOS
 
-		db '  LEVEL'
+		db '  LEVEL' ;печатается вместе с предыдущим
 		EOS
 
-		db	'Press <SPACE> to see board'
+		db	'Press <SPACE> to see board' ;печатается вместе с предыдущим
 		EOS
 
 aPress:		db ' PRESS',#0D
@@ -5543,13 +5433,13 @@ aCyrus:		db 'CYRUS '          ; DATA XREF: sub_9F73 sub_A177+86 ...
 a_PLAYER:	db 'PLAYER'          ; DATA XREF: sub_9F73+5 sub_A177+8D ...
 		EOS
 
-a_ADAP:		db 'ADAP'            ; DATA XREF: sub_8D2C:loc_8D56
+a_ADAP:		db 'ADAP'            ; DATA XREF: PrintCurLevel:loc_8D56
 		EOS
 
-a_INF:		db 'INF '            ; DATA XREF: sub_8D2C+2F
+a_INF:		db 'INF '            ; DATA XREF: PrintCurLevel+2F
 		EOS
 
-aProb:		db 'PROB'            ; DATA XREF: sub_8D2C+36
+aProb:		db 'PROB'            ; DATA XREF: PrintCurLevel+36
 		EOS
 
 aAnalysis:	db 'ANALYSIS'        ; DATA XREF: sub_842C+10
@@ -5673,7 +5563,7 @@ PrintStrF00:				; CODE XREF: sub_8C20-6B sub_8C20+4	...
 
 
 PRINT_STR_FF:				; CODE XREF: sub_842C:loc_843F
-					; sub_890F+9 ...
+					; PrintMoveText+9 ...
 		ld	a, #FF
 
 PRINT_STR_A:				; CODE XREF: RAM:9E66
@@ -5713,7 +5603,7 @@ loc_9E89:				; CODE XREF: PRINT_STR_FF+9
 ; =============== S U B	R O U T	I N E =======================================
 
 
-PRINT_LETTER:				; CODE XREF: sub_8D2C+1C sub_8D2C+22 ...
+PRINT_LETTER:				; CODE XREF: PrintCurLevel+1C PrintCurLevel+22 ...
 		push	hl
 		push	de
 		push	bc
@@ -5790,7 +5680,7 @@ loc_9EE3:				; CODE XREF: ADDR_SCR2BUF+C
 
 sub_9EE6:				; CODE XREF: sub_92D7-1239
 					; sub_8C20+1A5B
-		call	sub_965C
+		call	FillAttrsAndBorder
 
 		ld	hl, #C
 		ld	(scr_XY), hl
@@ -5805,7 +5695,7 @@ sub_9EE6:				; CODE XREF: sub_92D7-1239
 		ld	(scr_XY), de
 		call	PRINT_STR_FF
 
-		call	sub_8D2C
+		call	PrintCurLevel
 
 		ret
 
@@ -5959,7 +5849,7 @@ sub_9FB2:				; CODE XREF: sub_8C20-94C
 ;добавление хода на экране со скроллом? ; sub_8DE9+4D
 		ld	a, #FF
 		ld	(NEED_SCR2BUF),	a
-		call	sub_A08D
+		call	PrintMoveNumber
 
 		ld	l, 6
 		call	sub_A164
@@ -6130,8 +6020,7 @@ loc_A07E:				; CODE XREF: PRINT_CLOCKS_SWAP+11
 
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_A08D:				; CODE XREF: sub_8C20-AF7 sub_9FB2+5
+PrintMoveNumber:				; CODE XREF: sub_8C20-AF7 sub_9FB2+5
 		ld	a, #FF		; print	move # in decimal???
 		ld	(NEED_SCR2BUF),	a
 		ld	a, (byte_D0C0)
@@ -6148,105 +6037,73 @@ sub_A08D:				; CODE XREF: sub_8C20-AF7 sub_9FB2+5
 		ld	a, (byte_D0BF)
 		rra
 		jr	nc, loc_A0AF
-
 		dec	b
-
-
-loc_A0AF:				; CODE XREF: sub_A08D+19 sub_A08D+1F
+loc_A0AF:				; CODE XREF: PrintMoveNumber+19 PrintMoveNumber+1F
 		ld	a, (byte_D0B7)
 		cp	b
 		ret	z
 		ld	a, b
 		ld	(byte_D0B7), a
 		ld	bc, #3000
-
-
-loc_A0BB:				; CODE XREF: sub_A08D+36
-		cp	#64 ; 'd'
+loc_A0BB:				; CODE XREF: PrintMoveNumber+36
+		cp	100
 		jr	c, loc_A0C5
-
 		inc	b
 		inc	c
-		sub	#64 ; 'd'
+		sub	100
 		jr	loc_A0BB
-
 ; ---------------------------------------------------------------------------
-
-loc_A0C5:				; CODE XREF: sub_A08D+30
+loc_A0C5:				; CODE XREF: PrintMoveNumber+30
 		ex	af, af' ;'
 		ld	a, b
-		cp	#30 ; '0'
+		cp	'0'
 		jr	nz, loc_A0D3
 
 		ld	a, c
 		or	a
-		ld	a, #30 ; '0'
+		ld	a, '0'
 		jr	nz, loc_A0D3
-
-		ld	a, #20 ; ' '
-
-
-loc_A0D3:				; CODE XREF: sub_A08D+3C sub_A08D+42
+		ld	a, ' '
+loc_A0D3:				; CODE XREF: PrintMoveNumber+3C PrintMoveNumber+42
 		call	sub_A0F7
-
 		ex	af, af' ;'
-		ld	b, #30 ; '0'
-
-
-loc_A0D9:				; CODE XREF: sub_A08D+54
-		cp	#A
+		ld	b, '0'
+loc_A0D9:				; CODE XREF: PrintMoveNumber+54
+		cp	10
 		jr	c, loc_A0E3
-
 		inc	b
 		inc	c
-		sub	#A
+		sub	10
 		jr	loc_A0D9
-
 ; ---------------------------------------------------------------------------
-
-loc_A0E3:				; CODE XREF: sub_A08D+4E
+loc_A0E3:				; CODE XREF: PrintMoveNumber+4E
 		ex	af, af' ;'
 		ld	a, b
-		cp	#30 ; '0'
+		cp	'0'
 		jr	nz, loc_A0F1
-
 		ld	a, c
 		or	a
-		ld	a, #30 ; '0'
+		ld	a, '0'
 		jr	nz, loc_A0F1
-
-		ld	a, #20 ; ' '
-
-
-loc_A0F1:				; CODE XREF: sub_A08D+5A sub_A08D+60
+		ld	a, ' '
+loc_A0F1:				; CODE XREF: PrintMoveNumber+5A PrintMoveNumber+60
 		call	sub_A0F7
-
 		ex	af, af' ;'
-		add	a, #30 ; '0'
-
-; End of function sub_A08D
-
-
+		add	a, '0'
+; End of function PrintMoveNumber
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_A0F7:				; CODE XREF: sub_A08D:loc_A0D3
-					; sub_A08D:loc_A0F1
+sub_A0F7:				; CODE XREF: PrintMoveNumber:loc_A0D3
+					; PrintMoveNumber:loc_A0F1
 		push	af
 		call	PRINT_LETTER
 
 		ld	a, (byte_D0E1)
 		cp	3
-		jr	nc, loc_A102
-
-
+		jr	nc, loc_A102 ;???
 loc_A102:				; CODE XREF: sub_A0F7+9
 		pop	af
 		ret
-
 ; End of function sub_A0F7
-
-
 ; =============== S U B	R O U T	I N E =======================================
 
 
@@ -6669,7 +6526,7 @@ PRTD_detect_zxprt:			; CODE XREF: PRT_DETECT+2A
 
 loc_A29F:				; CODE XREF: sub_8C20-863
 					; sub_8C20+16FA ...
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		ld	a, #FF
 		ld	(NEED_SCR2BUF),	a
@@ -7190,7 +7047,7 @@ loc_A4EF:				; CODE XREF: sub_A4C2+F sub_A4C2+16	...
 ; START	OF FUNCTION CHUNK FOR sub_8C20
 
 loc_A4F4:				; CODE XREF: sub_8C20-868
-		call	sub_9571
+		call	UnDrawMoveAndCursors
 
 		ld	a, #FF
 		ld	(NEED_SCR2BUF),	a
@@ -7472,7 +7329,7 @@ loc_A671:				; DATA XREF: sub_8C20+18EC
 		ld	(word_D0F7), hl
 		call	SET_BRD_COLOR
 
-		call	sub_9EE6
+		call	sub_9EE6 ;print Cyrus II, level, space to see board
 
 		call	PRINT_CLOCKS_SWAP
 
@@ -7749,8 +7606,8 @@ sub_A906:
 		jp	sub_AD40
 sub_A909:
 		jp	sub_AF81
-sub_A90C:
-		jp	sub_AC59
+_FindMove_D_E:
+		jp	FindMove_D_E
 sub_A90F:
 		jp	sub_AB4C
 loc_A912:
@@ -8592,60 +8449,39 @@ loc_AC4F:				; CODE XREF: sub_AB53+F8
 
 
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_AC59:				; CODE XREF: sub_A90C
+FindMove_D_E:				; CODE XREF: _FindMove_D_E
 		ld	bc, 3
-
-
-loc_AC5C:				; CODE XREF: sub_AC5D+5 sub_AC5D+F
+loc_AC5C:				; CODE XREF: FindMove_D_E_continue+5 FindMove_D_E_continue+F
 		add	hl, bc
-
-; End of function sub_AC59
-
-
+; End of function FindMove_D_E
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_AC5D:				; CODE XREF: sub_B36B+48 sub_B36B+52
+FindMove_D_E_continue:				; CODE XREF: FindMoveAndSwap+48 FindMoveAndSwap+52
 		ld	a, (hl)
 		cp	d
-		jr	z, loc_AC67
-
+		jr	z, loc_AC67 ;from совпало
 		inc	a
 		jp	nz, loc_AC5C
-
-		scf
+		scf ;не совпало
 		ret
-
 ; ---------------------------------------------------------------------------
-
-loc_AC67:				; CODE XREF: sub_AC5D+2
+loc_AC67:				; CODE XREF: FindMove_D_E_continue+2
 		inc	hl
 		ld	a, (hl)
 		dec	hl
 		cp	e
-		ret	z
+		ret	z ;to совпало
 		jp	loc_AC5C
-
-; End of function sub_AC5D
-
+; End of function FindMove_D_E_continue
 ; ---------------------------------------------------------------------------
 ; START	OF FUNCTION CHUNK FOR sub_AC74
 
 loc_AC6F:				; CODE XREF: sub_AC74+37
 		ld	a, #FF ;end of opening?
 		ld	(byte_D09E), a
-
 ; END OF FUNCTION CHUNK	FOR sub_AC74
-
 ; =============== S U B	R O U T	I N E =======================================
-
-
 sub_AC74:				; CODE XREF: sub_AFC5+B
-
 ; FUNCTION CHUNK AT AC6F SIZE 00000005 BYTES
-
 		ld	a, (byte_D09E)
 		or	a
 		ret	nz ;end of opening?
@@ -8655,8 +8491,6 @@ sub_AC74:				; CODE XREF: sub_AFC5+B
 		call	GEN_RANDBYTE ;b=rnd
 
 		ld	hl, #FFFF
-
-
 loc_AC84:				; CODE XREF: sub_AC74+33
 		inc	hl ;hl=opening chunk
 		ld	a, (word_D0F7)
@@ -8672,30 +8506,22 @@ loc_AC84:				; CODE XREF: sub_AC74+33
 		add	a, c
 		ld	c, a
 		jr	nc, loc_AC9C
-
 		inc	b
-
-
 loc_AC9C:				; CODE XREF: sub_AC74+25
 		ld	a, (bc)
-		and	#7F ; ''
+		and	#7F
 		ld	c, a
 		call	sub_AD01
-
 
 loc_ACA3:				; CODE XREF: sub_AC74+3C
 		ld	b, a
 		res	6, a
 		cp	c
 		jr	z, loc_AC84
-
 		bit	6, b
 		jr	z, loc_AC6F ;end of opening?
-
 		call	sub_ACF6 ;find opening in loop
-
 		jr	loc_ACA3
-
 ; ---------------------------------------------------------------------------
 
 loc_ACB2:				; CODE XREF: sub_AC74+1E
@@ -8736,13 +8562,10 @@ loc_ACC3:				; CODE XREF: sub_AC74+60
 loc_ACD8:				; CODE XREF: sub_AC74+56
 		pop	hl
 		call	sub_AD01
-
 		ld	c, a
-
-
 loc_ACDD:				; CODE XREF: sub_AC74+47 sub_AC74+4D ...
 		ld	a, c
-		and	#3F ; '?'
+		and	#3F
 		ld	d, a
 		rla
 		add	a, d
@@ -8753,49 +8576,32 @@ loc_ACDD:				; CODE XREF: sub_AC74+47 sub_AC74+4D ...
 		xor	a
 		bit	7, c
 		jr	nz, loc_ACF4
-
 		ld	(byte_D09E), a
-
-
 loc_ACF4:				; CODE XREF: sub_AC74+7B
 		xor	a
 		ret
 
 ; End of function sub_AC74
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
 
 sub_ACF6:				; CODE XREF: sub_AC74+39 sub_AC74+53
 ;hl=opening chunk
 		ld	de, #FFFF
-
-
 loc_ACF9:				; CODE XREF: sub_ACF6+9
 ;hl=opening chunk
 		call	sub_AD01
-
 		inc	hl
 		bit	7, d
 		jr	z, loc_ACF9
-
 ; End of function sub_ACF6
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
 
 sub_AD01:				; CODE XREF: sub_AC74+2C sub_AC74+41 ...
 ;hl=opening chunk
 		call	OPENING_SEARCH
-
 		bit	7, a
 		jr	z, loc_AD09
-
 		dec	de
-
-
 loc_AD09:				; CODE XREF: sub_AD01+5
 		bit	6, a
 		ret	z
@@ -8803,10 +8609,7 @@ loc_AD09:				; CODE XREF: sub_AD01+5
 		ret
 
 ; End of function sub_AD01
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
 
 OPENING_SEARCH:
 		push	bc		; get any 8 bits from 9-byte chunks? HL=index into them, 0..63 into first chunk, 64..127 into next, etc.
@@ -8832,20 +8635,14 @@ OPENING_SEARCH:
 		ld	a, (hl)
 		inc	hl
 		ld	c, (hl)
-
-
 loc_AD2B:
 		rl	c
 		rla
 		djnz	loc_AD2B
-
 		pop	hl
 		pop	bc		; output is A (8 bits from a word) + CY (9th bit)
 		ret
-
 ; End of function OPENING_SEARCH
-
-
 ; =============== S U B	R O U T	I N E =======================================
 
 GEN_RANDBYTE:				; CODE XREF: sub_AC74+A
@@ -8858,12 +8655,8 @@ GEN_RANDBYTE:				; CODE XREF: sub_AC74+A
 		ld	(RAND_SEED), a
 		ld	b, a
 		ret ;b=rnd
-
 ; End of function GEN_RANDBYTE
-
-
 ; =============== S U B	R O U T	I N E =======================================
-
 
 sub_AD40:				; CODE XREF: sub_A906	sub_AB53+79 ...
 		pop	hl
@@ -9542,7 +9335,7 @@ loc_B010:				; CODE XREF: sub_AFC5+4E
 		ld	(word_D00D+1), a
 		inc	a
 		ld	(byte_D03B), a
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#B
 		call	nc, sub_B8B2
 
@@ -9561,7 +9354,7 @@ loc_B050:				; CODE XREF: sub_AFC5+EF
 		call	sub_B19C
 
 loc_B05D:				; CODE XREF: sub_AFC5:loc_B182
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#C
 		jr	nz, loc_B07A
 
@@ -9582,7 +9375,7 @@ loc_B07A:				; CODE XREF: sub_AFC5+9D
 
 		ld	hl, byte_D08B
 		pop	ix
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#C
 		jr	nz, loc_B091
 
@@ -9701,7 +9494,7 @@ loc_B11D:				; CODE XREF: sub_AFC5+146
 
 loc_B120:				; CODE XREF: sub_AFC5+144
 					; sub_AFC5+154
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#A
 		jr	z, loc_B14F
 
@@ -9709,11 +9502,11 @@ loc_B120:				; CODE XREF: sub_AFC5+144
 		bit	2, a
 		jr	nz, loc_B14F
 
-		ld	a, (byte_D0F4)
-		cp	#9B ; '>'
+		ld	a, (timeformove)
+		cp	#9B
 		jr	c, loc_B164
 
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		add	a, a
 		ld	hl, tbl_B8DD-2
 		add	a, l
@@ -9880,9 +9673,9 @@ sub_B1EB:				; CODE XREF: sub_AFC5+21
 
 ; FUNCTION CHUNK AT B1E8 SIZE 00000003 BYTES
 
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#A
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		jr	nz, loc_B205
 
 		or	a
@@ -9893,17 +9686,13 @@ sub_B1EB:				; CODE XREF: sub_AFC5+21
 		ld	a, #A
 		ld	(byte_D03C), a
 		ret
-
 ; ---------------------------------------------------------------------------
-
 loc_B205:				; CODE XREF: sub_B1EB+8
 		ld	e, a
 		xor	a
 		ld	d, a
 		ld	b, #A
 		ld	hl, 0
-
-
 loc_B20D:				; CODE XREF: sub_B1EB+24
 		adc	hl, de		; mul E	by 10, why ADC???
 		djnz	loc_B20D
@@ -9912,8 +9701,6 @@ loc_B20D:				; CODE XREF: sub_B1EB+24
 		dec	a
 		ld	b, 0
 		ld	c, #A
-
-
 loc_B219:				; CODE XREF: sub_B1EB+30
 		inc	b
 		sub	c
@@ -9924,13 +9711,9 @@ loc_B219:				; CODE XREF: sub_B1EB+30
 		ld	e, l
 		or	a
 		jr	loc_B226
-
 ; ---------------------------------------------------------------------------
-
 loc_B224:				; CODE XREF: sub_B1EB:loc_B226
 		adc	hl, de		; E*10*floor(byte_D049/10)
-
-
 loc_B226:				; CODE XREF: sub_B1EB+37
 		djnz	loc_B224
 
@@ -9942,14 +9725,12 @@ loc_B226:				; CODE XREF: sub_B1EB+37
 
 		ld	c, a
 		push	hl
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		ld	d, 0
 		ld	e, a
 		xor	a
 		ld	(byte_D03C), a
 		dec	a
-
-
 loc_B240:				; CODE XREF: sub_B1EB+58
 		inc	a
 		sbc	hl, de
@@ -9957,13 +9738,10 @@ loc_B240:				; CODE XREF: sub_B1EB+58
 
 		sub	c
 		jr	c, loc_B24B
-
 		ld	(byte_D03C), a
-
-
 loc_B24B:				; CODE XREF: sub_B1EB+5B
 		pop	hl
-		ld	a, #FE	; 'ю'
+		ld	a, #FE
 		ld	(byte_D0F3), a
 		ld	(byte_D02A), a
 		ld	a, h
@@ -9974,38 +9752,25 @@ loc_B24B:				; CODE XREF: sub_B1EB+5B
 		rra
 		dec	c
 		jr	z, loc_B260
-
 		srl	a
-
-
 loc_B260:				; CODE XREF: sub_B1EB+71
 		inc	c
 		sub	2
 		jr	nc, loc_B266
-
 		xor	a
-
-
 loc_B266:				; CODE XREF: sub_B1EB+78
 		inc	a
 		ld	(byte_D0F3), a
-
-
 loc_B26A:				; CODE XREF: sub_B1EB+6C
 		xor	a		; HL=HL/C ?
 		ld	b, #11
-
-
 loc_B26D:				; CODE XREF: sub_B1EB+8C
 		rl	l		; ADC HL,HL?
 		rl	h
 		rla
 		cp	c
 		jr	c, loc_B276
-
 		sub	c
-
-
 loc_B276:				; CODE XREF: sub_B1EB+88
 		ccf
 		djnz	loc_B26D
@@ -10018,16 +9783,13 @@ loc_B276:				; CODE XREF: sub_B1EB+88
 		rra
 		or	a
 		jr	nz, loc_B284
-
 		inc	a
-
-
 loc_B284:				; CODE XREF: sub_B1EB+96
 		ld	(byte_D02A), a
 		rla
 		jr	c, loc_B29C
 
-		ld	a, (byte_D0F4)
+		ld	a, (timeformove)
 		cp	l
 		jr	c, loc_B29F
 
@@ -10039,17 +9801,12 @@ loc_B284:				; CODE XREF: sub_B1EB+96
 		call	sub_B185
 
 loc_B29C:				; CODE XREF: sub_B1EB+91 sub_B1EB+9D ...
-		ld	a, (byte_D0F4)
-
-
+		ld	a, (timeformove)
 loc_B29F:				; CODE XREF: sub_B1EB+A3
 		ld	hl, byte_D02A
 		cp	(hl)
 		jr	nc, loc_B2A6
-
 		ld	(hl), a
-
-
 loc_B2A6:				; CODE XREF: sub_B1EB+B8
 		ld	a, (byte_D02A)
 		ld	b, a
@@ -10263,7 +10020,7 @@ sub_B34B:				; CODE XREF: sub_B309+6 sub_B309+33	...
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_B36B:				; CODE XREF: sub_B47F-71
+FindMoveAndSwap:				; CODE XREF: sub_B47F-71
 		inc	hl
 		inc	hl
 		inc	hl
@@ -10271,7 +10028,6 @@ sub_B36B:				; CODE XREF: sub_B47F-71
 		ld	a, (ix+2)
 		and	6
 		jp	z, loc_B39E
-
 		ld	b, (ix+1)
 		and	4
 		jr	nz, loc_B385
@@ -10280,38 +10036,27 @@ sub_B36B:				; CODE XREF: sub_B47F-71
 		ld	b, a
 		rla
 		jr	c, loc_B39E
-
-
-loc_B385:				; CODE XREF: sub_B36B+11
+loc_B385:				; CODE XREF: FindMoveAndSwap+11
 		ex	de, hl
 		inc	hl
 		ld	de, #FFFD	; -3
 		res	7, b
-
-
-loc_B38C:				; CODE XREF: sub_B36B+27
+loc_B38C:				; CODE XREF: FindMoveAndSwap+27
 		add	hl, de
 		ld	a, (hl)
 		cp	b
 		jr	z, loc_B397
-
 		inc	a
 		jp	nz, loc_B38C
-
 		jr	loc_B39E
-
 ; ---------------------------------------------------------------------------
-
-loc_B397:				; CODE XREF: sub_B36B+24
+loc_B397:				; CODE XREF: FindMoveAndSwap+24
 		pop	de
 		dec	hl
-		call	sub_B3CA
-
+		call	SwapMove_HL_DE
 		inc	de
 		push	de
-
-
-loc_B39E:				; CODE XREF: sub_B36B+9 sub_B36B+18	...
+loc_B39E:				; CODE XREF: FindMoveAndSwap+9 FindMoveAndSwap+18	...
 		ld	hl, unk_D20B	; D20D-2 ?
 		ld	a, (byte_D097)
 		add	a, a
@@ -10325,44 +10070,31 @@ loc_B39E:				; CODE XREF: sub_B36B+9 sub_B36B+18	...
 		push	hl
 		bit	7, d
 		jr	nz, loc_B3BB
-
-		call	sub_AC5D
-
-
-loc_B3B6:				; CODE XREF: sub_B36B+5B
+		call	FindMove_D_E_continue
+loc_B3B6:				; CODE XREF: FindMoveAndSwap+5B
 		pop	de
-		call	nc, sub_B3CA
-
+		call	nc, SwapMove_HL_DE
 		ret
-
 ; ---------------------------------------------------------------------------
-
-loc_B3BB:				; CODE XREF: sub_B36B+46
+loc_B3BB:				; CODE XREF: FindMoveAndSwap+46
 		res	7, d
-		call	sub_AC5D
-
+		call	FindMove_D_E_continue
 		inc	hl
 		inc	hl
 		bit	3, (hl)
 		dec	hl
 		dec	hl
 		jr	nz, loc_B3B6
-
 		pop	de
 		ret
-
-; End of function sub_B36B
-
-
+; End of function FindMoveAndSwap
 ; =============== S U B	R O U T	I N E =======================================
-
-
-sub_B3CA:				; CODE XREF: sub_B36B+2E sub_B36B+4C
+SwapMove_HL_DE:				; CODE XREF: FindMoveAndSwap+2E FindMoveAndSwap+4C
 		ld	c, (hl)
 		ld	a, (de)
 		ld	(hl), a
 		ld	a, c
-		or	#80 ; '?'
+		or	#80 ;???
 		ld	(de), a
 		inc	de
 		inc	hl
@@ -10370,7 +10102,7 @@ sub_B3CA:				; CODE XREF: sub_B36B+2E sub_B36B+4C
 		ld	a, (de)
 		ld	(hl), a
 		ld	a, c
-		or	#80 ; '?'
+		or	#80 ;???
 		ld	(de), a
 		inc	de
 		inc	hl
@@ -10380,14 +10112,10 @@ sub_B3CA:				; CODE XREF: sub_B36B+2E sub_B36B+4C
 		ld	a, c
 		ld	(de), a
 		ret
-
-; End of function sub_B3CA
-
-
+; End of function SwapMove_HL_DE
 ; =============== S U B	R O U T	I N E =======================================
 
-
-sub_B3E2:				; CODE XREF: sub_B47F+A7 sub_B47F+C2
+InsertMove_EndIX_NMovesAX:				; CODE XREF: sub_B47F+A7 sub_B47F+C2
 		push	ix
 		pop	hl
 		ld	a, (hl)
@@ -10397,10 +10125,8 @@ sub_B3E2:				; CODE XREF: sub_B47F+A7 sub_B47F+C2
 		ld	b, (hl)
 		inc	hl
 		ld	c, (hl)
-		ex	af, af'
-
-
-loc_B3ED:				; CODE XREF: sub_B3E2+18
+		ex	af, af' ;'
+loc_B3ED:				; CODE XREF: InsertMove_EndIX_NMovesAX+18
 		dec	de
 		ld	a, (de)
 		ld	(hl), a
@@ -10415,9 +10141,8 @@ loc_B3ED:				; CODE XREF: sub_B3E2+18
 		dec	hl
 		inc	a
 		jp	nz, loc_B3ED
-
 		inc	hl
-		ex	af, af'
+		ex	af, af' ;'
 		ld	(hl), a
 		inc	hl
 		ld	(hl), b
@@ -10425,7 +10150,7 @@ loc_B3ED:				; CODE XREF: sub_B3E2+18
 		ld	(hl), c
 		ret
 
-; End of function sub_B3E2
+; End of function InsertMove_EndIX_NMovesAX
 
 ; ---------------------------------------------------------------------------
 ; START	OF FUNCTION CHUNK FOR sub_B47F
@@ -10438,7 +10163,7 @@ loc_B405:				; CODE XREF: sub_B47F+3D
 		dec	hl
 		dec	hl
 		push	hl
-		call	sub_B36B
+		call	FindMoveAndSwap
 
 		pop	ix
 
@@ -10650,7 +10375,7 @@ loc_B4F4:				; CODE XREF: sub_B47F+111
 		dec	a
 		jp	nz, loc_B413
 
-		call	sub_B3E2
+		call	InsertMove_EndIX_NMovesAX
 
 		ld	a, (byte_D08B)
 		inc	a
@@ -10676,7 +10401,7 @@ loc_B53A:				; CODE XREF: sub_B47F+91 sub_B47F+B3
 		dec	a
 		jp	nz, loc_B54C
 
-		call	sub_B3E2
+		call	InsertMove_EndIX_NMovesAX
 
 		pop	hl
 		pop	ix
@@ -10702,7 +10427,7 @@ loc_B54C:				; CODE XREF: sub_B47F+BF
 
 loc_B563:				; CODE XREF: sub_B47F+5F
 		ld	b, (ix+2)
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#C
 		jr	z, loc_B574
 
@@ -10877,7 +10602,7 @@ loc_B645:				; CODE XREF: sub_B47F+16E
 		bit	2, d
 		jp	z, loc_B4A6
 
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#C
 		jp	z, loc_B4A6
 
@@ -11104,7 +10829,7 @@ sub_B75A:				; CODE XREF: sub_B47F-59
 		add	a, l
 		ld	l, a
 		ld	(word_D06D), hl
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#C
 		jr	z, loc_B796
 
@@ -11284,7 +11009,7 @@ loc_B819:				; CODE XREF: sub_AFC5+8E
 		jp	p, loc_B841
 
 		ld	b, 2
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#C
 		jp	z, loc_B8A0
 
@@ -11306,7 +11031,7 @@ loc_B819:				; CODE XREF: sub_AFC5+8E
 ; ---------------------------------------------------------------------------
 
 loc_B841:				; CODE XREF: RAM:B81E
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		dec	a
 		jr	z, loc_B877
 
@@ -11343,7 +11068,7 @@ loc_B841:				; CODE XREF: RAM:B81E
 ; ---------------------------------------------------------------------------
 
 loc_B877:				; CODE XREF: RAM:B845	RAM:B84F ...
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		cp	#B
 		jr	z, loc_B88A
 
@@ -11392,7 +11117,7 @@ loc_B8AD:				; CODE XREF: RAM:B89A	RAM:B8A8
 
 
 sub_B8B2:				; CODE XREF: sub_A915	sub_AFC5+82 ...
-		ld	a, (byte_D0B1)
+		ld	a, (curlevel)
 		add	a, a
 		ld	hl, tbl_B8DD-2
 		add	a, l
@@ -11407,7 +11132,7 @@ loc_B8BE:				; CODE XREF: sub_B8B2+9
 		ld	(byte_D0F1), a
 		inc	hl
 		ld	a, (hl)
-		ld	(byte_D0F4), a
+		ld	(timeformove), a
 		ld	e, a
 		ld	d, 0
 		ld	hl, 0
@@ -14837,7 +14562,7 @@ BRD_88_7:	ds 8
 		db    0
 byte_D079:	db 0			; DATA XREF: sub_C254+21E
 					; sub_C5FF+84	...
-byte_D07A:	db 0			; DATA XREF: sub_B36B+13 sub_B47F+2	...
+byte_D07A:	db 0			; DATA XREF: FindMoveAndSwap+13 sub_B47F+2	...
 		db    0
 		db    0
 		db    0
@@ -14896,7 +14621,7 @@ word_D09F:	dw 0			; DATA XREF: sub_8C20-B58
 		db    0
 		db    0
 		db    0
-byte_D0B1:	db 0			; DATA XREF: START_POINT+8F
+curlevel:	db 0			; DATA XREF: START_POINT+8F
 					; sub_8C20:loc_8515 ...
 byte_D0B2:	db 0			; DATA XREF: sub_8C20-ACD
 					; sub_8C20-5A5 ...
@@ -14909,12 +14634,13 @@ byte_D0B4:	db 0			; DATA XREF: sub_92D7-123C ;d5=invisible board?
 byte_D0B6:	db 0			; DATA XREF: sub_8C20:loc_81A1
 					; sub_8C20-A48 ...
 byte_D0B7:	db 0			; DATA XREF: sub_8C20-68A
-					; sub_A08D:loc_A0AF ...
+					; PrintMoveNumber:loc_A0AF ...
 keycodeformenu:	db 0			; DATA XREF: sub_8C20-885
 					; sub_8C20-873 ...
 		db    0
 		db    0
-word_D0BB:	dw 0			; DATA XREF: sub_8C20-895
+needdrawcursorfrom: db 0			; DATA XREF: sub_8C20-895
+needdrawcursor1: db 0
 					; sub_8C20-7C0 ...
 keycode:	db 0			; DATA XREF: KEY_SCAN+9
 					; KEY_SCAN:loc_90D1 ...
@@ -14945,9 +14671,9 @@ scr_XY:		dw 0			; DATA XREF: sub_842C+8
 					; sub_8C20:loc_85B4 ...
 scr_pix_addr:	dw 0			; DATA XREF: sub_8EFB+B sub_8EFB+25	...
 scr_attr_addr:	dw 0			; DATA XREF: sub_8EFB+14 sub_8EFB+2E ...
-NEED_SCR2BUF:	db 0			; DATA XREF: sub_8D2C+A
+NEED_SCR2BUF:	db 0			; DATA XREF: PrintCurLevel+A
 					; PRINT_STR_FF:PRINT_STR_A ...
-gamestatemsgaddr:	dw 0			; DATA XREF: sub_965C+4 PrintGameState ...
+gamestatemsgaddr:	dw 0			; DATA XREF: FillAttrsAndBorder+4 PrintGameState ...
 TMP_BOARD_PTR:	dw 0			; DATA XREF: sub_93A4:loc_93A7
 					; sub_93A4:loc_93FC ...
 curkey_D0D9:	db 0			; DATA XREF: sub_8C20-697
@@ -14987,7 +14713,7 @@ byte_D0F2:	db 0			; DATA XREF: sub_AFC5+88
 					; sub_AFC5+18F ...
 byte_D0F3:	db 0			; DATA XREF: sub_8C20-AB9
 					; sub_8F4D+28	...
-byte_D0F4:	db 0			; DATA XREF: sub_8C20-201
+timeformove:	db 0			; DATA XREF: sub_8C20-201
 					; sub_8C20-179 ...
 ptr_stk_1bvalue:dw 0			; DATA XREF: sub_8C20-9D7
 					; sub_8C20-9D2 ...
@@ -15271,7 +14997,7 @@ array_D200:	db    0,   0,	0,   0,	  0,   0,   0,	 0 ; DATA XREF:	InitBoard_Clear
 		ds 1			; array
 		ds 1			; D200
 unk_D20B:	ds 1			; DATA XREF: sub_B34B+6
-					; sub_B36B:loc_B39E
+					; FindMoveAndSwap:loc_B39E
 byte_D20C:	ds 1			; DATA XREF: sub_8C20-B72 ;oldmove #?
 					; sub_8C20-535 ...
 byte_D20D:	ds #E			; DATA XREF: sub_B2D1+3
