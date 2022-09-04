@@ -3424,15 +3424,12 @@ sub_8F4D:				; CODE XREF: sub_8C20-A6F
 
 		ld	hl, byte_D0B4
 		set	7, (hl)
-		ld	hl, byte_D0F1
+		ld	hl, timenorm
 		dec	(hl)
 		ld	a, (hl)
 		and	#F0
 		jr	nz, loc_8F93
-
 		inc	(hl)
-
-
 loc_8F93:				; CODE XREF: sub_8F4D+31 sub_8F4D+35 ...
 		pop	bc
 
@@ -9275,7 +9272,7 @@ sub_AFC5:				; CODE XREF: sub_A900
 
 
 loc_AFE0:				; CODE XREF: sub_AFC5+16
-		call	sub_B2D1
+		call	sub_B2D1 ;копирует 14 координат полей с маской 0yyy0xxx из byte_D258 в byte_D20D
 
 		call	sub_B2F1
 
@@ -9339,7 +9336,7 @@ loc_B010:				; CODE XREF: sub_AFC5+4E
 		cp	#B
 		call	nc, sub_B8B2
 
-		ld	a, (byte_D0F1)
+		ld	a, (timenorm)
 		ld	(byte_D0F2), a
 
 
@@ -9371,7 +9368,7 @@ loc_B05D:				; CODE XREF: sub_AFC5:loc_B182
 loc_B07A:				; CODE XREF: sub_AFC5+9D
 		call	sub_B47F
 
-		call	sub_B2D1
+		call	sub_B2D1 ;копирует 14 координат полей с маской 0yyy0xxx из byte_D258 в byte_D20D
 
 		ld	hl, byte_D08B
 		pop	ix
@@ -9490,7 +9487,7 @@ loc_B11B:				; CODE XREF: sub_AFC5+14D
 		ld	a, 1
 
 loc_B11D:				; CODE XREF: sub_AFC5+146
-		call	sub_B185
+		call	IncreaseTimeNorm_A
 
 loc_B120:				; CODE XREF: sub_AFC5+144
 					; sub_AFC5+154
@@ -9514,11 +9511,11 @@ loc_B120:				; CODE XREF: sub_AFC5+144
 		ld	a, 0
 		adc	a, h
 		ld	h, a
-		ld	a, (byte_D0F1)
+		ld	a, (timenorm)
 		sub	3
 		sub	(hl)
 		neg
-		call	m, sub_B185
+		call	m, IncreaseTimeNorm_A
 
 		jr	loc_B164
 
@@ -9526,7 +9523,7 @@ loc_B120:				; CODE XREF: sub_AFC5+144
 
 loc_B14F:				; CODE XREF: sub_AFC5+160
 					; sub_AFC5+167
-		ld	a, (byte_D0F1)
+		ld	a, (timenorm)
 		add	a, 4
 		ld	hl, byte_D0F2
 		cp	(hl)
@@ -9535,7 +9532,7 @@ loc_B14F:				; CODE XREF: sub_AFC5+160
 
 		ld	hl, byte_D0B3 ;d3=swap board
 		bit	5, (hl)
-		call	z, sub_B185
+		call	z, IncreaseTimeNorm_A
 
 
 loc_B164:				; CODE XREF: sub_AFC5+F7
@@ -9572,31 +9569,25 @@ loc_B182:				; CODE XREF: sub_AFC5+1AE
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_B185:				; CODE XREF: sub_AFC5:loc_B11D
+IncreaseTimeNorm_A:				; CODE XREF: sub_AFC5:loc_B11D
 					; sub_AFC5+185 ...
 		ld	d, a
-		ld	a, (byte_D0F1)
+		ld	a, (timenorm) ;в начале партии #0C, после 1 хода за белых #10, потом с 9 хода за белых увеличивается на 1 с каждым ходом. Take Back не влияет, даже если уйти с линии
 		add	a, d
 		ld	d, a
-		and	#F0 ; 'р'
-		jr	nz, loc_B191
-
-		ld	d, #10
-
-
-loc_B191:				; CODE XREF: sub_B185+8
-		cp	#50 ; 'P'
-		jr	c, loc_B197
-
-		ld	d, #4F ; 'O'
-
-
-loc_B197:				; CODE XREF: sub_B185+E
+		and	#F0
+		jr	nz, loc_B191 ;>=#10
+		ld	d, #10 ;=#10
+loc_B191:				; CODE XREF: IncreaseTimeNorm_A+8
+		cp	#50
+		jr	c, loc_B197 ;<#50
+		ld	d, #4F ;=#4F
+loc_B197:				; CODE XREF: IncreaseTimeNorm_A+E
 		ld	a, d
-		ld	(byte_D0F1), a
+		ld	(timenorm), a
 		ret
 
-; End of function sub_B185
+; End of function IncreaseTimeNorm_A
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -9605,7 +9596,7 @@ loc_B197:				; CODE XREF: sub_B185+E
 sub_B19C:				; CODE XREF: sub_AFC5+95
 		ld	a, (byte_D08B)
 		ld	c, a
-		add	a, #84 ; '"'
+		add	a, #84
 		sra	a
 		sra	a
 		sra	a
@@ -9614,10 +9605,7 @@ sub_B19C:				; CODE XREF: sub_AFC5+95
 		or	a
 		ld	a, b
 		jr	nz, loc_B1B2
-
 		neg
-
-
 loc_B1B2:				; CODE XREF: sub_B19C+12
 		ld	hl, word_D00D
 		add	a, (hl)
@@ -9628,16 +9616,13 @@ loc_B1B2:				; CODE XREF: sub_B19C+12
 		cp	#F
 		jr	c, loc_B1CC
 
-		cp	#F2 ; 'т'
+		cp	#F2
 		jr	nc, loc_B1CC
 
 		rla
 		ld	a, #E
 		jr	nc, loc_B1CC
-
-		ld	a, #F2	; 'т'
-
-
+		ld	a, #F2
 loc_B1CC:				; CODE XREF: sub_B19C+23 sub_B19C+27 ...
 		add	a, a
 		add	a, a
@@ -9798,7 +9783,7 @@ loc_B284:				; CODE XREF: sub_B1EB+96
 		jr	nz, loc_B29C ;invisible board?
 
 		ld	a, #FF
-		call	sub_B185
+		call	IncreaseTimeNorm_A
 
 loc_B29C:				; CODE XREF: sub_B1EB+91 sub_B1EB+9D ...
 		ld	a, (timeformove)
@@ -9868,16 +9853,13 @@ sub_B2D1:				; CODE XREF: sub_AFC5:loc_AFE0
 		ld	hl, byte_D258
 		ld	de, byte_D20D
 		ld	b, #E
-
-
 loc_B2D9:				; CODE XREF: sub_B2D1+E
 		ld	a, (hl)
-		and	#77 ; 'w'
+		and	#77 ;маска поля 0yyy0xxx
 		ld	(de), a
 		inc	e
 		inc	l
 		djnz	loc_B2D9
-
 		ret
 
 ; End of function sub_B2D1
@@ -11035,12 +11017,12 @@ loc_B841:				; CODE XREF: RAM:B81E
 		dec	a
 		jr	z, loc_B877
 
-		ld	a, (byte_D0F1)
+		ld	a, (timenorm)
 		rra
 		rra
 		rra
 		and	#1E
-		jr	z, loc_B877
+		jr	z, loc_B877 ;так не бывает? начинается с #0C
 
 		inc	c
 		cp	c
@@ -11129,7 +11111,7 @@ sub_B8B2:				; CODE XREF: sub_A915	sub_AFC5+82 ...
 
 loc_B8BE:				; CODE XREF: sub_B8B2+9
 		ld	a, (hl)
-		ld	(byte_D0F1), a
+		ld	(timenorm), a
 		inc	hl
 		ld	a, (hl)
 		ld	(timeformove), a
@@ -14708,7 +14690,7 @@ unk_D0E6:	db    0			; DATA XREF: sub_AB53+F
 		db    0
 byte_D0EF:	db 0			; DATA XREF: sub_AB53+32 sub_AFC5+6D
 byte_D0F0:	db 0			; DATA XREF: START_POINT+97
-byte_D0F1:	db 0			; DATA XREF: sub_8F4D+3C sub_AFC5+85 ...
+timenorm:	db 0			; DATA XREF: sub_8F4D+3C sub_AFC5+85 ... ;норма времени на ход? в начале партии #0C, после 1 хода за белых #10, потом с 9 хода за белых увеличивается на 1 с каждым ходом. Take Back не влияет, даже если уйти с линии
 byte_D0F2:	db 0			; DATA XREF: sub_AFC5+88
 					; sub_AFC5+18F ...
 byte_D0F3:	db 0			; DATA XREF: sub_8C20-AB9
@@ -15000,7 +14982,7 @@ unk_D20B:	ds 1			; DATA XREF: sub_B34B+6
 					; FindMoveAndSwap:loc_B39E
 byte_D20C:	ds 1			; DATA XREF: sub_8C20-B72 ;oldmove #?
 					; sub_8C20-535 ...
-byte_D20D:	ds #E			; DATA XREF: sub_B2D1+3
+byte_D20D:	ds #E			; DATA XREF: sub_B2D1+3 ;sub_B2D1 копирует 14 координат полей с маской 0yyy0xxx из byte_D258 в byte_D20D
 					; array	of 14 bytes
 		ds 1
 		ds 1
