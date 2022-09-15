@@ -115,6 +115,8 @@ readsectors.A.=$+1 ;buf
 	ld de,0
 readsectors.C.=$+2 ;count
 	ld hl,0x0100
+        ld a,(curhandle)
+        ld b,a
         ld c,CMD_READHANDLE
         call 0x0005        
         ret
@@ -128,6 +130,8 @@ writesectors.A.=$+1 ;buf
 	ld de,0
 writesectors.C.=$+2 ;count
 	ld hl,0x0100
+        ld a,(curhandle)
+        ld b,a
         ld c,CMD_WRITEHANDLE
         call 0x0005        
         ret

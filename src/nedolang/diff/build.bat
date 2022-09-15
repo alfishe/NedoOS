@@ -6,4 +6,12 @@ type err.f
 ..\_sdk\nedoasm diff_os.S_
 type asmerr.f
 move /Y diff_os.bin diff.com > nul
-if "%currentdir%"=="" (pause)
+
+if "%currentdir%"=="" (
+ FOR %%j IN (*.com) DO (
+ copy /Y %%j "../../../release/bin/" > nul
+ "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
+rem pause
+ if "%makeall%"=="" ..\..\..\us\emul.exe
+)
