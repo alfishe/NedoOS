@@ -2136,7 +2136,7 @@ editcmd_F7
 editcmd_8 ;del
         call ifcmdnonempty_typedigit
 editcmd_F8
-        ;ld ix,(curpanel)
+         ;ld ix,(curpanel)
         call getmarkedfiles;countmarkedfiles
         ld a,h
         or l

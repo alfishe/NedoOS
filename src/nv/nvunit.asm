@@ -411,10 +411,10 @@ cmd_savepage
         ret
 
 setdrawtablesneeded
-        ld ix,leftpanel
-        res 0,(ix+PANEL.drawtableunneeded)
-        ld ix,rightpanel
-        res 0,(ix+PANEL.drawtableunneeded)
+        ld hl,leftpanel+PANEL.drawtableunneeded
+        res 0,(hl)
+        ld hl,rightpanel+PANEL.drawtableunneeded
+        res 0,(hl)
         ret
 
 
