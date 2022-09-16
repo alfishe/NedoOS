@@ -30,14 +30,18 @@
 
 #include "sjdefs.h"
 
-const char pathBadSlash = '\\';
-const char pathGoodSlash = '/';
+FILE* SJ_fopen(const char* fname, const char* mode) {
+	if (nullptr == fname || nullptr == mode || !*fname) return nullptr;
+	return fopen(fname, mode);
+}
 
+/*
 FILE* dbg_fopen(const char* fname, const char* modes) {
 	FILE* f = fopen(fname, modes);
 	printf("fopen = %p modes [%s]\tname (%lu) [%s]\n", (void*)f, modes, strlen(fname), fname);
 	return f;
 }
+*/
 
 void SJ_GetCurrentDirectory(int whatever, char* pad) {
 	pad[0] = 0;
@@ -68,7 +72,9 @@ static bool isWindowsDrivePathStart(const char* filePath) {
 }
 
 int SJ_SearchPath(const char* oudzp, const char* filename, const char*, int maxlen, char* nieuwzp, char** ach) {
-	FILE* fp;
+	assert(nieuwzp);
+	*nieuwzp = 0;
+	if (nullptr == filename) return 0;
 	if (isAnySlash(filename[0]) || isWindowsDrivePathStart(filename)) {
 		STRCPY(nieuwzp, maxlen, filename);
 	} else {
@@ -88,6 +94,7 @@ int SJ_SearchPath(const char* oudzp, const char* filename, const char*, int maxl
 			if (isAnySlash(*p++)) *ach = p;
 		}
 	}
+	FILE* fp;
 	if (FOPEN_ISOK(fp, nieuwzp, "r")) {
 		fclose(fp);
 		return 1;
@@ -105,9 +112,11 @@ long GetTickCount() {
 
 #endif	// #ifndef WIN32
 
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
+#if defined (_WIN32) || defined (__CYGWIN__)
+	// cygwin: O_BINARY is in fcntl.h, setmode is in io.h
+	// MSVC: _O_BINARY and _setmode
+	#include <fcntl.h>
+	#include <io.h>
 #endif
 
 void switchStdOutIntoBinaryMode() {
@@ -122,7 +131,7 @@ void switchStdOutIntoBinaryMode() {
 
 #ifdef USE_LUA
 
-void LuaShellExec(char *command) {
+void LuaShellExec(const char *command) {
 #ifdef WIN32
 	WinExec(command, SW_SHOWNORMAL);
 #else

@@ -1,4 +1,4 @@
-lua_parse_line.asm(18): warning: When lua script emits machine code bytes, use "ALLPASS" modifier
+lua_parse_line.asm(18): warning[luamc]: When lua script emits machine code bytes, use "ALLPASS" modifier
 # file opened: lua_parse_line.asm
  1    0000
  2    0000                  org     0x1234          ; eol comment belong to ORG
@@ -23,13 +23,39 @@ lua_parse_line.asm(12): error: [LUA] Label not found: pass_default
 14    123A 07           pass_default: rlca      ; this will cause problems
 lua_parse_line.asm(13): error: [LUA] Label not found: pass_default_2
 14    123B 17           pass_default_2: rla      ; same with _pl alias
-lua_parse_line.asm(14): warning: When lua script emits machine code bytes, use "ALLPASS" modifier
+lua_parse_line.asm(14): warning[luamc]: When lua script emits machine code bytes, use "ALLPASS" modifier
 14    123C                  endlua
 15    123C                  lua pass1   ; pass1 this is also insufficient to generate valid machine code
 16    123C ~                    sj.parse_line("pass1: daa      ; will define label, but machine code will be missing")
 17    123C ~                    _pl("pass1_2: scf      ; same with _pl alias")
 18    123C                  endlua
 19    123C
+20    123C                  ;check lua wrappers to survive invalid args and report assembling errors
+21    123C                  lua allpass
+22    123C ~                    sj.parse_line(nil)
+23    123C ~                    sj.parse_line("")
+24    123C ~                    sj.parse_line("invalid_1: invalid")
+25    123C ~                    sj.parse_line(2) -- becomes string "2" -> temporary label (valid asm syntax)
+26    123C ~                    _pl(nil)
+27    123C ~                    _pl("")
+28    123C ~                    _pl("invalid_3: invalid")
+29    123C ~                    _pl(4)
+30    123C
+30    123C
+lua_parse_line.asm(24): warning: [LUA] Label has different value in pass 3: previous value 4666 not equal 4668
+lua_parse_line.asm(24): error: [LUA] Unrecognized instruction: invalid
+30    123C              invalid_1: invalid
+lua_parse_line.asm(25): warning: [LUA] Temporary label has different address
+30    123C              2
+30    123C
+30    123C
+lua_parse_line.asm(28): warning: [LUA] Label has different value in pass 3: previous value 4666 not equal 4668
+lua_parse_line.asm(28): error: [LUA] Unrecognized instruction: invalid
+30    123C              invalid_3: invalid
+lua_parse_line.asm(29): warning: [LUA] Temporary label has different address
+30    123C              4
+30    123C                  endlua
+31    123C
 # file closed: lua_parse_line.asm
 
 Value    Label
@@ -40,5 +66,7 @@ Value    Label
 0x1237 X allpass_4
 0x1238 X allpass_5
 0x1239 X allpass_6
+0x123C X invalid_1
+0x123C X invalid_3
 0x123A X pass1
 0x123B X pass1_2

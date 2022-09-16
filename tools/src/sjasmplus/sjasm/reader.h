@@ -52,6 +52,7 @@ bool anyComma(char*& p);		// eats any comma (even one of double-commas)
 bool comma(char*& p);			// eats single comma, but not if double-comma is ahead
 bool doubleComma(char* & p);
 bool nonMaComma(char* & p);		// eats single comma only if multi-arg is configured to non-comma
+bool relaxedMaComma(char* & p);	// checks multi-arg comma (double/single), but also eats single comma
 EBracketType OpenBracket(char*& p);
 int CloseBracket(char*& p);
 char* ParenthesesEnd(char* p);
@@ -73,6 +74,7 @@ int GetCharConstInDoubleQuotes(char*& op, aint& val);
 int GetCharConstInApostrophes(char*& op, aint& val);
 template <class strT> int GetCharConstAsString(char* & p, strT e[], int & ei, int max_ei = 128, int add = 0);
 int GetBytes(char*& p, int e[], int add, int dc);
+void GetStructText(char*& p, aint len, byte* data, const byte* initData = nullptr);	// initData indicate "{}" is required for multi-value init
 int GetBits(char*& p, int e[]);
 int GetBytesHexaText(char*& p, int e[]);
 int cmphstr(char*& p1, const char* p2, bool allowParenthesisEnd = false);		// p2 must be lowercase to match both cases
@@ -85,4 +87,3 @@ EStructureMembers GetStructMemberId(char*& p);
 EDelimiterType DelimiterBegins(char*& src, const std::array<EDelimiterType, 3> delimiters, bool advanceSrc = true);
 EDelimiterType DelimiterAnyBegins(char*& src, bool advanceSrc = true);
 int GetMacroArgumentValue(char* & src, char* & dst);
-bool warningNotSuppressed(bool alsoFake = false);	// checks for "ok" ("fake") in EOL comment

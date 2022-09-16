@@ -28,162 +28,48 @@
 
 // sjio.cpp
 
-#include "termcolor.hpp"
-
 #include "sjdefs.h"
 
 #include <fcntl.h>
 
-#define DESTBUFLEN 8192
+int ListAddress;
+std::vector<const char*> archivedFileNames;	// archive of all files opened (also includes!) (fullname!)
+
+static constexpr int LIST_EMIT_BYTES_BUFFER_SIZE = 1024 * 64;
+static constexpr int DESTBUFLEN = 8192;
+
+// ReadLine buffer and variables around
+static char rlbuf[LINEMAX2 * 2];
+static char * rlpbuf, * rlpbuf_end, * rlppos;
+static bool colonSubline;
+static int blockComment;
+
+static int ListEmittedBytes[LIST_EMIT_BYTES_BUFFER_SIZE], nListBytes = 0;
+static char WriteBuffer[DESTBUFLEN];
+static int tape_seek = 0;
+static int tape_length = 0;
+static int tape_parity = 0x55;
+static FILE* FP_tapout = NULL;
+static FILE* FP_Input = NULL, * FP_Output = NULL, * FP_RAW = NULL;
+static FILE* FP_ListingFile = NULL,* FP_ExportFile = NULL;
+static aint WBLength = 0;
 
 static void CloseBreakpointsFile();
 
-// ReadLine buffer and variables around
-char rlbuf[4096 * 2]; //x2 to prevent errors
-char * rlpbuf, * rlpbuf_end, * rlppos;
-bool colonSubline;
-int blockComment;
-
-constexpr int LIST_EMIT_BYTES_BUFFER_SIZE = 1024 * 64;
-int ListEmittedBytes[LIST_EMIT_BYTES_BUFFER_SIZE], nListBytes = 0;
-char WriteBuffer[DESTBUFLEN];
-int tape_seek = 0;
-int tape_length = 0;
-int tape_parity = 0x55;
-FILE* FP_tapout = NULL;
-FILE* FP_Input = NULL, * FP_Output = NULL, * FP_RAW = NULL;
-FILE* FP_ListingFile = NULL,* FP_ExportFile = NULL;
-int ListAddress;
-aint WBLength = 0;
-bool IsSkipErrors = false;
-
-static void initErrorLine() {		// adds filename + line of definition if possible
-	*ErrorLine = 0;
-	*ErrorLine2 = 0;
-	// when OpenFile is reporting error, the filename is still nullptr, but pass==1 already
-	if (pass < 1 || LASTPASS < pass || nullptr == CurSourcePos.filename) return;
-	// during assembling, show also file+line info
-	TextFilePos errorPos = DefinitionPos.line ? DefinitionPos : CurSourcePos;
-	bool isEmittedMsgEnabled = true;
-#ifdef USE_LUA
-	if (LuaStartPos.line) {
-		errorPos = LuaStartPos;
-		lua_Debug ar;
-
-		// find either top level of lua stack, or standalone file, otherwise it's impossible
-		// to precisely report location of error (ASM can have 2+ LUA blocks defining functions)
-		int level = 1;			// level 0 is "C" space, ignore that always
-		// suppress "is emitted here" when directly inlined in current code
-		isEmittedMsgEnabled = (0 < listmacro);
-		while (true) {
-			if (!lua_getstack(LUA, level, &ar)) break;	// no more lua stack levels
-			if (!lua_getinfo(LUA, "Sl", &ar)) break;	// no more info about current level
-			if (strcmp("[string \"script\"]", ar.short_src)) {
-				// standalone definition in external file found, pinpoint it precisely
-				errorPos.filename = ar.short_src;
-				errorPos.line = ar.currentline;
-				isEmittedMsgEnabled = true;				// and add "emitted here" in any case
-				break;	// no more lua-stack traversing, stop here
-			}
-			// if source was inlined script, update the possible source line
-			errorPos.line = LuaStartPos.line + ar.currentline;
-			// and keep traversing stack until top level is found (to make the line meaningful)
-			++level;
-		}
+// returns permanent C-string pointer to the fullpathname (if new, it is added to archive)
+const char* ArchiveFilename(const char* fullpathname) {
+	for (auto fname : archivedFileNames) {		// search whole archive for identical full name
+		if (!strcmp(fname, fullpathname)) return fname;
 	}
-#endif //USE_LUA
-	SPRINTF2(ErrorLine, LINEMAX2, "%s(%d): ", errorPos.filename, errorPos.line);
-	// if the error filename:line is not identical with current source line, add ErrorLine2 about emit
-	if (isEmittedMsgEnabled &&
-		(strcmp(errorPos.filename, CurSourcePos.filename) || errorPos.line != CurSourcePos.line)) {
-		SPRINTF2(ErrorLine2, LINEMAX2, "%s(%d): ^ emitted from here\n", CurSourcePos.filename, CurSourcePos.line);
-	}
+	const char* newName = STRDUP(fullpathname);
+	archivedFileNames.push_back(newName);
+	return newName;
 }
 
-static void outputErrorLine(const EOutputVerbosity errorLevel) {
-	// always print the message into listing file (the OutputVerbosity does not apply to listing)
-	if (GetListingFile()) {
-		fputs(ErrorLine, GetListingFile());
-		if (*ErrorLine2) fputs(ErrorLine2, GetListingFile());
-	}
-	// print the error into stderr if OutputVerbosity allows this type of message
-	if (Options::OutputVerbosity <= errorLevel) {
-		_CERR ErrorLine _END;
-		if (*ErrorLine2)  _CERR ErrorLine2 _END;
-	}
-}
-
-void Error(const char* message, const char* badValueMessage, EStatus type) {
-	// check if it is correct pass by the type of error
-	if (type == EARLY && LASTPASS <= pass) return;
-	if ((type == SUPPRESS || type == IF_FIRST || type == PASS3) && pass < LASTPASS) return;
-	// check if this one should be skipped due to type constraints and current-error-state
-	if (FATAL != type && PreviousErrorLine == CompiledCurrentLine) {
-		// non-fatal error, on the same line as previous, maybe skip?
-		if (IsSkipErrors || IF_FIRST == type) return;
-	}
-	// update current-error-state (reset "skip" on new parsed-line, set "skip" by SUPPRESS type)
-	IsSkipErrors = (IsSkipErrors && (PreviousErrorLine == CompiledCurrentLine)) || (SUPPRESS == type);
-	PreviousErrorLine = CompiledCurrentLine;
-	++ErrorCount;							// number of non-skipped (!) errors
-
-	DefineTable.Replace("__ERRORS__", ErrorCount);
-
-	initErrorLine();
-	STRCAT(ErrorLine, LINEMAX2-1, "error: ");
-#ifdef USE_LUA
-	if (LuaStartPos.line) STRCAT(ErrorLine, LINEMAX2-1, "[LUA] ");
-#endif
-	STRCAT(ErrorLine, LINEMAX2-1, message);
-	if (badValueMessage) {
-		STRCAT(ErrorLine, LINEMAX2-1, ": "); STRCAT(ErrorLine, LINEMAX2-1, badValueMessage);
-	}
-	if (!strchr(ErrorLine, '\n')) STRCAT(ErrorLine, LINEMAX2-1, "\n");	// append EOL if needed
-	outputErrorLine(OV_ERROR);
-	// terminate whole assembler in case of fatal error
-	if (type == FATAL) {
-		ExitASM(1);
-	}
-}
-
-void ErrorInt(const char* message, aint badValue, EStatus type) {
-	char numBuf[24];
-	SPRINTF1(numBuf, 24, "%d", badValue);
-	Error(message, numBuf, type);
-}
-
-void ErrorOOM() {		// out of memory
-	Error("Not enough memory!", nullptr, FATAL);
-}
-
-void Warning(const char* message, const char* badValueMessage, EWStatus type)
-{
-	// check if it is correct pass by the type of error
-	if (type == W_EARLY && LASTPASS <= pass) return;
-	if (type == W_PASS3 && pass < LASTPASS) return;
-
-	// turn the warning into error if "Warnings as errors" is switched on
-	if (Options::syx.WarningsAsErrors) switch (type) {
-		case W_EARLY:	Error(message, badValueMessage, EARLY); return;
-		case W_PASS3:	Error(message, badValueMessage, PASS3); return;
-		case W_ALL:		Error(message, badValueMessage, ALL); return;
-	}
-
-	++WarningCount;
-
-	DefineTable.Replace("__WARNINGS__", WarningCount);
-
-	initErrorLine();
-	STRCAT(ErrorLine, LINEMAX2-1, "warning: ");
-#ifdef USE_LUA
-	if (LuaStartPos.line) STRCAT(ErrorLine, LINEMAX2-1, "[LUA] ");
-#endif
-	STRCAT(ErrorLine, LINEMAX2-1, message);
-	if (badValueMessage) {
-		STRCAT(ErrorLine, LINEMAX2-1, ": "); STRCAT(ErrorLine, LINEMAX2-1, badValueMessage);
-	}
-	if (!strchr(ErrorLine, '\n')) STRCAT(ErrorLine, LINEMAX2-1, "\n");	// append EOL if needed
-	outputErrorLine(OV_WARNING);
+// does release all archived filenames, making all pointers (and archive itself) invalid
+void ReleaseArchivedFilenames() {
+	for (auto filename : archivedFileNames) free((void*)filename);
+	archivedFileNames.clear();
 }
 
 // find position of extension in filename (points at dot char or beyond filename if no extension)
@@ -237,19 +123,33 @@ void CheckRamLimitExceeded() {
 	char buf[64];
 	if (CurAddress >= 0x10000) {
 		if (LASTPASS == pass && notWarnedCurAdr) {
-			SPRINTF2(buf, 64, "RAM limit exceeded 0x%X by %s", (unsigned int)CurAddress, PseudoORG ? "DISP":"ORG");
+			SPRINTF2(buf, 64, "RAM limit exceeded 0x%X by %s",
+					 (unsigned int)CurAddress, DISP_NONE != PseudoORG ? "DISP":"ORG");
 			Warning(buf);
 			notWarnedCurAdr = false;
 		}
-		if (PseudoORG) CurAddress &= 0xFFFF;	// fake DISP address gets auto-wrapped FFFF->0
+		if (DISP_NONE != PseudoORG) CurAddress &= 0xFFFF;	// fake DISP address gets auto-wrapped FFFF->0
 	} else notWarnedCurAdr = true;
-	if (PseudoORG && adrdisp >= 0x10000) {
+	if (DISP_NONE != PseudoORG && adrdisp >= 0x10000) {
 		if (LASTPASS == pass && notWarnedDisp) {
 			SPRINTF1(buf, 64, "RAM limit exceeded 0x%X by ORG", (unsigned int)adrdisp);
 			Warning(buf);
 			notWarnedDisp = false;
 		}
 	} else notWarnedDisp = true;
+}
+
+void resolveRelocationAndSmartSmc(const aint immediateOffset, Relocation::EType minType) {
+	// call relocation data generator to do its own errands
+	Relocation::resolveRelocationAffected(immediateOffset, minType);
+	// check smart-SMC functionality, if there is unresolved record to be set up
+	if (INT_MAX == immediateOffset || sourcePosStack.empty() || 0 == smartSmcIndex) return;
+	if (smartSmcLines.size() < smartSmcIndex) return;
+	auto & smartSmc = smartSmcLines.at(smartSmcIndex - 1);
+	if (~0U != smartSmc.colBegin || smartSmc != sourcePosStack.back()) return;
+	if (1 < sourcePosStack.back().colBegin) return;		// only first segment belongs to SMC label
+	// record does match current line, resolve the smart offset
+	smartSmc.colBegin = immediateOffset;
 }
 
 void WriteDest() {
@@ -315,16 +215,17 @@ void PrepareListLine(char* buffer, aint hexadd)
 
 	int digit = ' ';
 	int linewidth = reglenwidth;
-	aint linenumber = CurSourcePos.line % 10000;
-	if (linewidth > 5)
-	{
+	uint32_t currentLine = sourcePosStack.at(IncludeLevel).line;
+	aint linenumber = currentLine % 10000;
+	if (5 <= linewidth) {		// five-digit number, calculate the leading "digit"
 		linewidth = 5;
-		digit = CurSourcePos.line / 10000 + '0';
+		digit = currentLine / 10000 + '0';
 		if (digit > '~') digit = '~';
-		if (CurSourcePos.line >= 10000) linenumber += 10000;
+		if (currentLine >= 10000) linenumber += 10000;
 	}
 	memset(buffer, ' ', 24);
 	if (listmacro) buffer[23] = '>';
+	if (Options::LST_T_MC_ONLY == Options::syx.ListingType) buffer[23] = '{';
 	sprintf(buffer, "%*u", linewidth, linenumber); buffer[linewidth] = ' ';
 	memcpy(buffer + linewidth, "++++++", IncludeLevel > 6 - linewidth ? 6 - linewidth : IncludeLevel);
 	sprintf(buffer + 6, "%04X", hexadd & 0xFFFF); buffer[10] = ' ';
@@ -355,16 +256,28 @@ FILE* GetListingFile() {
 	return NULL;
 }
 
+static aint lastListedLine = -1;
+
 void ListFile(bool showAsSkipped) {
 	if (LASTPASS != pass || NULL == GetListingFile() || donotlist || Options::syx.IsListingSuspended) {
 		donotlist = nListBytes = 0;
 		return;
 	}
+	if (showAsSkipped && Options::LST_T_ACTIVE == Options::syx.ListingType) {
+		assert(nListBytes <= 0);	// inactive line should not produce any machine code?!
+		nListBytes = 0;
+		return;		// filter out all "inactive" lines
+	}
+	if (Options::LST_T_MC_ONLY == Options::syx.ListingType && nListBytes <= 0) {
+		return;		// filter out all lines without machine-code bytes
+	}
 	int pos = 0;
 	do {
 		if (showAsSkipped) substitutedLine = line;	// override substituted lines in skipped mode
 		PrepareListLine(pline, ListAddress);
-		if (pos) pline[24] = 0;		// remove source line on sub-sequent list-lines
+		const bool hideSource = !showAsSkipped && (lastListedLine == CompiledCurrentLine);
+		if (hideSource) pline[24] = 0;				// hide *same* source line on sub-sequent list-lines
+		lastListedLine = CompiledCurrentLine;		// remember this line as listed
 		char* pp = pline + 10;
 		int BtoList = (nListBytes < 4) ? nListBytes : 4;
 		for (int i = 0; i < BtoList; ++i) {
@@ -380,11 +293,13 @@ void ListFile(bool showAsSkipped) {
 		pos += BtoList;
 	} while (0 < nListBytes);
 	nListBytes = 0;
+	ListAddress = CurAddress;			// move ListAddress also beyond unlisted but emitted bytes
 }
 
 void ListSilentOrExternalEmits() {
 	// catch silent/external emits like "sj.add_byte(0x123)" from Lua script
 	if (0 == nListBytes) return;		// no silent/external emit happened
+	++CompiledCurrentLine;
 	char silentOrExternalBytes[] = "; these bytes were emitted silently/externally (lua script?)";
 	substitutedLine = silentOrExternalBytes;
 	eolComment = nullptr;
@@ -417,10 +332,31 @@ static void EmitByteNoListing(int byte, bool preserveDeviceMemory = false) {
 		CheckRamLimitExceeded();
 	}
 	++CurAddress;
-	if (PseudoORG) ++adrdisp;
+	if (DISP_NONE != PseudoORG) ++adrdisp;
 }
 
-void EmitByte(int byte) {
+static bool PageDiffersWarningShown = false;
+
+void EmitByte(int byte, bool isInstructionStart) {
+	if (isInstructionStart) {
+		// SLD (Source Level Debugging) tracing-data logging
+		if (IsSldExportActive()) {
+			int pageNum = Page->Number;
+			if (DISP_NONE != PseudoORG) {
+				int mappingPageNum = Device->GetPageOfA16(CurAddress);
+				if (LABEL_PAGE_UNDEFINED == dispPageNum) {	// special DISP page is not set, use mapped
+					pageNum = mappingPageNum;
+				} else {
+					pageNum = dispPageNum;					// special DISP page is set, use it instead
+					if (pageNum != mappingPageNum && !PageDiffersWarningShown) {
+						WarningById(W_DISP_MEM_PAGE);
+						PageDiffersWarningShown = true;		// show warning about different mapping only once
+					}
+				}
+			}
+			WriteToSldFile(pageNum, CurAddress);
+		}
+	}
 	byte &= 0xFF;
 	if (nListBytes < LIST_EMIT_BYTES_BUFFER_SIZE-1) {
 		ListEmittedBytes[nListBytes++] = byte;		// write also into listing
@@ -433,27 +369,35 @@ void EmitByte(int byte) {
 	EmitByteNoListing(byte);
 }
 
-void EmitWord(int word) {
-	EmitByte(word % 256);
-	EmitByte(word / 256);
+void EmitWord(int word, bool isInstructionStart) {
+	EmitByte(word % 256, isInstructionStart);
+	EmitByte(word / 256, false);
 }
 
-void EmitBytes(const int* bytes) {
-	if (*bytes == -1) {
+void EmitBytes(const int* bytes, bool isInstructionStart) {
+	if (BYTES_END_MARKER == *bytes) {
 		Error("Illegal instruction", line, IF_FIRST);
 		SkipToEol(lp);
 	}
-	while (*bytes != -1) EmitByte(*bytes++);
+	while (BYTES_END_MARKER != *bytes) {
+		EmitByte(*bytes++, isInstructionStart);
+		isInstructionStart = (INSTRUCTION_START_MARKER == *bytes);	// only true for first byte, or when marker
+		if (isInstructionStart) ++bytes;
+	}
 }
 
-void EmitWords(int* words) {
-	while (*words != -1) EmitWord(*words++);
+void EmitWords(const int* words, bool isInstructionStart) {
+	while (BYTES_END_MARKER != *words) {
+		EmitWord(*words++, isInstructionStart);
+		isInstructionStart = false;		// only true for first word
+	}
 }
 
 void EmitBlock(aint byte, aint len, bool preserveDeviceMemory, int emitMaxToListing) {
 	if (len <= 0) {
-		CurAddress = (CurAddress + len) & 0xFFFF;
-		if (PseudoORG) adrdisp = (adrdisp + len) & 0xFFFF;
+		const aint adrMask = Options::IsLongPtr ? ~0 : 0xFFFF;
+		CurAddress = (CurAddress + len) & adrMask;
+		if (DISP_NONE != PseudoORG) adrdisp = (adrdisp + len) & adrMask;
 		if (DeviceID)	Device->CheckPage(CDevice::CHECK_NO_EMIT);
 		else			CheckRamLimitExceeded();
 		return;
@@ -507,16 +451,16 @@ char* GetPath(const char* fname, char** filenamebegin, bool systemPathsBeforeCur
 
 // if offset is negative, it functions as "how many bytes from end of file"
 // if length is negative, it functions as "how many bytes from end of file to not load"
-void BinIncFile(char* fname, int offset, int length) {
+void BinIncFile(const char* fname, aint offset, aint length) {
 	// open the desired file
 	FILE* bif;
 	char* fullFilePath = GetPath(fname);
-	if (!FOPEN_ISOK(bif, fullFilePath, "rb")) Error("Error opening file", fname, FATAL);
+	if (!FOPEN_ISOK(bif, fullFilePath, "rb")) Error("opening file", fname);
 	free(fullFilePath);
 
 	// Get length of file
 	int totlen = 0, advanceLength;
-	if (fseek(bif, 0, SEEK_END) || (totlen = ftell(bif)) < 0) Error("telling file length", fname, FATAL);
+	if (bif && (fseek(bif, 0, SEEK_END) || (totlen = ftell(bif)) < 0)) Error("telling file length", fname, FATAL);
 
 	// process arguments (extra features like negative offset/length or INT_MAX length)
 	// negative offset means "from the end of file"
@@ -533,18 +477,17 @@ void BinIncFile(char* fname, int offset, int length) {
 	}
 	// validate the resulting [offset, length]
 	if (offset < 0 || length < 0 || totlen < offset + length) {
-		Error("file too short", fname, FATAL);
+		Error("file too short", fname);
+		offset = std::min(std::max(0, offset), totlen);			//TODO change to std::clamp when C++17 is used
+		length = std::min(std::max(0, length), totlen-offset);	//TODO change to std::clamp when C++17 is used
+		assert((0 <= offset) && (offset + length <= totlen));
 	}
 	if (0 == length) {
 		Warning("include data: requested to include no data (length=0)");
-		fclose(bif);
+		if (bif) fclose(bif);
 		return;
 	}
-
-	// Seek to the beginning of part to include
-	if (fseek(bif, offset, SEEK_SET) || ftell(bif) != offset) {
-		Error("seeking in file to offset", fname, FATAL);
-	}
+	assert(nullptr != bif);				// otherwise it was handled by 0 == length case above
 
 	if (pass != LASTPASS) {
 		while (length) {
@@ -559,10 +502,15 @@ void BinIncFile(char* fname, int offset, int length) {
 			}
 			length -= advanceLength;
 			if (length <= 0 && 0 == advanceLength) Error("BinIncFile internal error", NULL, FATAL);
-			if (PseudoORG) adrdisp = adrdisp + advanceLength;
+			if (DISP_NONE != PseudoORG) adrdisp = adrdisp + advanceLength;
 			CurAddress = CurAddress + advanceLength;
 		}
 	} else {
+		// Seek to the beginning of part to include
+		if (fseek(bif, offset, SEEK_SET) || ftell(bif) != offset) {
+			Error("seeking in file to offset", fname, FATAL);
+		}
+
 		// Reading data from file
 		char* data = new char[length + 1], * bp = data;
 		if (NULL == data) ErrorOOM();
@@ -581,16 +529,14 @@ static stdin_log_t* stdin_log = nullptr;
 
 void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t* fStdinLog)
 {
-	const char* oFileNameFull = fileNameFull;
-	TextFilePos oSourcePos = CurSourcePos;
-	char* oCurrentDirectory, * fullpath;
-	TCHAR* filenamebegin;
-
 	if (++IncludeLevel > 20) {
-		Error("Over 20 files nested", NULL, FATAL);
+		Error("Over 20 files nested", NULL, ALL);
+		--IncludeLevel;
+		return;
 	}
+	char* fullpath, * filenamebegin;
 	if (!*nfilename && fStdinLog) {
-		fullpath = STRDUP("console_input");
+		fullpath = STRDUP("<stdin>");
 		filenamebegin = fullpath;
 		FP_Input = stdin;
 		stdin_log = fStdinLog;
@@ -598,19 +544,19 @@ void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t*
 	} else {
 		fullpath = GetPath(nfilename, &filenamebegin, systemPathsBeforeCurrent);
 
-		if (!*fullpath || !FOPEN_ISOK(FP_Input, fullpath, "rb")) {
+		if (!FOPEN_ISOK(FP_Input, fullpath, "rb")) {
 			free(fullpath);
-			Error("Error opening file", nfilename, FATAL);
+			Error("opening file", nfilename, ALL);
+			--IncludeLevel;
+			return;
 		}
 	}
+
+	const char* oFileNameFull = fileNameFull, * oCurrentDirectory = CurrentDirectory;
+
 	// archive the filename (for referencing it in SLD tracing data or listing/errors)
-	auto ofnIt = std::find(openedFileNames.cbegin(), openedFileNames.cend(), fullpath);
-	if (ofnIt == openedFileNames.cend()) {		// new filename, add it to archive
-		openedFileNames.push_back(fullpath);
-		ofnIt = --openedFileNames.cend();
-	}
-	fileNameFull = ofnIt->c_str();				// get const pointer into archive
-	CurSourcePos.newFile(Options::IsShowFullPath ? fileNameFull : FilenameBasePos(fileNameFull));
+	fileNameFull = ArchiveFilename(fullpath);	// get const pointer into archive
+	sourcePosStack.emplace_back(Options::IsShowFullPath ? fileNameFull : FilenameBasePos(fileNameFull));
 
 	// refresh pre-defined values related to file/include
 	DefineTable.Replace("__INCLUDE_LEVEL__", IncludeLevel);
@@ -619,7 +565,7 @@ void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t*
 
 	// open default listing file for each new source file (if default listing is ON)
 	if (LASTPASS == pass && 0 == IncludeLevel && Options::IsDefaultListingName) {
-		OpenDefaultList(fullpath);			// explicit listing file is already opened
+		OpenDefaultList(fileNameFull);			// explicit listing file is already opened
 	}
 	// show in listing file which file was opened
 	FILE* listFile = GetListingFile();
@@ -629,9 +575,8 @@ void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t*
 		fputs("\n", listFile);
 	}
 
-	oCurrentDirectory = CurrentDirectory;
-	*filenamebegin = 0;
-	CurrentDirectory = fullpath;
+	*filenamebegin = 0;					// shorten fullpath to only-path string
+	CurrentDirectory = fullpath;		// and use it as CurrentDirectory
 
 	rlpbuf = rlpbuf_end = rlbuf;
 	colonSubline = false;
@@ -647,6 +592,8 @@ void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t*
 		}
 	}
 	CurrentDirectory = oCurrentDirectory;
+	free(fullpath);						// was used by CurrentDirectory till now
+	fullpath = nullptr;
 
 	// show in listing file which file was closed
 	if (LASTPASS == pass && listFile) {
@@ -664,14 +611,9 @@ void OpenFile(const char* nfilename, bool systemPathsBeforeCurrent, stdin_log_t*
 
 	--IncludeLevel;
 
-	// Free memory
-	free(fullpath);
-
-	if (CurSourcePos.line > maxlin) {
-		maxlin = CurSourcePos.line;
-	}
+	maxlin = std::max(maxlin, sourcePosStack.back().line);
+	sourcePosStack.pop_back();
 	fileNameFull = oFileNameFull;
-	CurSourcePos = oSourcePos;
 
 	// refresh pre-defined values related to file/include
 	DefineTable.Replace("__INCLUDE_LEVEL__", IncludeLevel);
@@ -749,7 +691,10 @@ static bool ReadBufData() {
 		}
 	}
 	// check UTF BOM markers only at the beginning of the file (source line == 0)
-	if (CurSourcePos.line) return (rlpbuf < rlpbuf_end);	// return true if some data were read
+	assert(!sourcePosStack.empty());
+	if (sourcePosStack.back().line) {
+		return (rlpbuf < rlpbuf_end);		// return true if some data were read
+	}
 	//UTF BOM markers detector
 	for (const auto & bomMarkerData : UtfBomMarkers) {
 		if (rlpbuf_end < (rlpbuf + bomMarkerData.length)) continue;	// not enough bytes in buffer
@@ -805,8 +750,14 @@ void ReadBufLine(bool Parse, bool SplitByColon) {
 				continue;
 			}
 			// check if still in label area, if yes, copy the finishing colon as char (don't split by it)
-			if ((IsLabel = IsLabel && islabchar(*rlppos))) {
+			if ((IsLabel = (IsLabel && islabchar(*rlppos)))) {
 				++rlppos;					// label character
+				//SMC offset handling
+				if (ReadBufData() && '+' == *rlpbuf) {	// '+' after label, add it as SMC_offset syntax
+					IsLabel = false;
+					*rlppos++ = *rlpbuf++;
+					if (ReadBufData() && (isdigit(byte(*rlpbuf)) || '*' == *rlpbuf)) *rlppos++ = *rlpbuf++;
+				}
 				if (ReadBufData() && ':' == *rlpbuf) {	// colon after label, add it
 					*rlppos++ = *rlpbuf++;
 					IsLabel = false;
@@ -851,8 +802,9 @@ void ReadBufLine(bool Parse, bool SplitByColon) {
 			colonSubline = SplitByColon && ReadBufData() && (':' == *rlpbuf) && ++rlpbuf;
 		}
 		// do +1 for very first colon-segment only (rest is +1 due to artificial space at beginning)
-		size_t advanceColumns = colonSubline ? (0 == CurSourcePos.colEnd) + strlen(line) : 0;
-		CurSourcePos.nextSegment(colonSubline, advanceColumns);
+		assert(!sourcePosStack.empty());
+		size_t advanceColumns = colonSubline ? (0 == sourcePosStack.back().colEnd) + strlen(line) : 0;
+		sourcePosStack.back().nextSegment(colonSubline, advanceColumns);
 		// line is parsed and ready to be processed
 		if (Parse) 	ParseLine();	// processed here in loop
 		else 		return;			// processed externally
@@ -864,7 +816,7 @@ static void OpenListImp(const char* listFilename) {
 	if (OV_LST == Options::OutputVerbosity) return;
 	if (NULL == listFilename || !listFilename[0]) return;
 	if (!FOPEN_ISOK(FP_ListingFile, listFilename, "w")) {
-		Error("Error opening file", listFilename, FATAL);
+		Error("opening file for write", listFilename, FATAL);
 	}
 }
 
@@ -919,7 +871,7 @@ void SeekDest(long offset, int method) {
 	}
 }
 
-void NewDest(char* newfilename, int mode) {
+void NewDest(const char* newfilename, int mode) {
 	// close previous output file
 	CloseDest();
 
@@ -934,7 +886,7 @@ void OpenDest(int mode) {
 		mode = OUTPUT_TRUNCATE;
 	}
 	if (!Options::NoDestinationFile && !FOPEN_ISOK(FP_Output, Options::DestinationFName, mode == OUTPUT_TRUNCATE ? "wb" : "r+b")) {
-		Error("Error opening file", Options::DestinationFName, FATAL);
+		Error("opening file for write", Options::DestinationFName, FATAL);
 	}
 	Options::NoDestinationFile = false;
 	if (NULL == FP_RAW && '-' == Options::RAWFName[0] && 0 == Options::RAWFName[1]) {
@@ -943,7 +895,7 @@ void OpenDest(int mode) {
 		switchStdOutIntoBinaryMode();
 	}
 	if (FP_RAW == NULL && Options::RAWFName[0] && !FOPEN_ISOK(FP_RAW, Options::RAWFName, "wb")) {
-		Error("Error opening file", Options::RAWFName);
+		Error("opening file for write", Options::RAWFName);
 	}
 	if (FP_Output != NULL && mode != OUTPUT_TRUNCATE) {
 		if (fseek(FP_Output, 0, mode == OUTPUT_REWIND ? SEEK_SET : SEEK_END)) {
@@ -972,33 +924,32 @@ void CloseTapFile()
 	FP_tapout = NULL;
 }
 
-void OpenTapFile(char * tapename, int flagbyte)
+void OpenTapFile(const char * tapename, int flagbyte)
 {
 	CloseTapFile();
 
-	if (!FOPEN_ISOK(FP_tapout,tapename, "r+b"))	Error( "Error opening file in TAPOUT", tapename, FATAL);
-	if (fseek(FP_tapout, 0, SEEK_END))			Error("File seek end error in TAPOUT", tapename, FATAL);
+	if (!FOPEN_ISOK(FP_tapout,tapename, "r+b")) {
+		Error( "opening file for write", tapename);
+		return;
+	}
+	if (fseek(FP_tapout, 0, SEEK_END)) Error("File seek end error in TAPOUT", tapename, FATAL);
 
 	tape_seek = ftell(FP_tapout);
 	tape_parity = flagbyte;
 	tape_length = 2;
 
-	char tap_data[4] = { 0,0,0,0 };
-	tap_data[2] = (char)flagbyte;
+	byte tap_data[3] = { 0, 0, (byte)flagbyte };
 
-	if (fwrite(tap_data, 1, 3, FP_tapout) != 3) {
+	if (sizeof(tap_data) != fwrite(tap_data, 1, sizeof(tap_data), FP_tapout)) {
 		fclose(FP_tapout);
 		Error("Write error (disk full?)", NULL, FATAL);
 	}
 }
 
-int FileExists(char* file_name) {
-	int exists = 0;
+bool FileExists(const char* file_name) {
 	FILE* test;
-	if (FOPEN_ISOK(test, file_name, "r")) {
-		exists = 1;
-		fclose(test);
-	}
+	bool exists = FOPEN_ISOK(test, file_name, "r");
+	exists && fclose(test);
 	return exists;
 }
 
@@ -1080,12 +1031,69 @@ unsigned char MemGetByte(unsigned int address) {
 }
 
 
-int SaveBinary(char* fname, int start, int length) {
+int SaveBinary(const char* fname, aint start, aint length) {
 	FILE* ff;
 	if (!FOPEN_ISOK(ff, fname, "wb")) {
-		Error("Error opening file", fname, FATAL);
+		Error("opening file for write", fname, FATAL);
 	}
 	int result = SaveRAM(ff, start, length);
+	fclose(ff);
+	return result;
+}
+
+
+int SaveBinary3dos(const char* fname, aint start, aint length, byte type, word w2, word w3) {
+	FILE* ff;
+	if (!FOPEN_ISOK(ff, fname, "wb")) Error("opening file for write", fname, FATAL);
+	// prepare +3DOS 128 byte header content
+	constexpr aint hsize = 128;
+	const aint full_length = hsize + length;
+	byte sum = 0, p3dos_header[hsize] { "PLUS3DOS\032\001" };
+	p3dos_header[11] = byte(full_length>>0);
+	p3dos_header[12] = byte(full_length>>8);
+	p3dos_header[13] = byte(full_length>>16);
+	p3dos_header[14] = byte(full_length>>24);
+	// +3 BASIC 8 byte header filled with "relevant values"
+	p3dos_header[15+0] = type;
+	p3dos_header[15+1] = byte(length>>0);
+	p3dos_header[15+2] = byte(length>>8);
+	p3dos_header[15+3] = byte(w2>>0);
+	p3dos_header[15+4] = byte(w2>>8);
+	p3dos_header[15+5] = byte(w3>>0);
+	p3dos_header[15+6] = byte(w3>>8);
+	// calculat checksum of the header
+	for (const byte v : p3dos_header) sum += v;
+	p3dos_header[hsize-1] = sum;
+	// write header and data
+	int result = (hsize == (aint) fwrite(p3dos_header, 1, hsize, ff)) ? SaveRAM(ff, start, length) : 0;
+	fclose(ff);
+	return result;
+}
+
+
+int SaveBinaryAmsdos(const char* fname, aint start, aint length, word start_adr, byte type) {
+	FILE* ff;
+	if (!FOPEN_ISOK(ff, fname, "wb")) {
+		Error("opening file for write", fname, SUPPRESS);
+		return 0;
+	}
+	// prepare AMSDOS 128 byte header content
+	constexpr aint hsize = 128;
+	byte amsdos_header[hsize] {};	// all zeroed (user_number and filename stay like that, just zeroes)
+	amsdos_header[0x12] = type;
+	amsdos_header[0x15] = byte(start>>0);
+	amsdos_header[0x16] = byte(start>>8);
+	amsdos_header[0x18] = amsdos_header[0x40] = byte(length>>0);
+	amsdos_header[0x19] = amsdos_header[0x41] = byte(length>>8);
+	amsdos_header[0x1A] = byte(start_adr>>0);
+	amsdos_header[0x1B] = byte(start_adr>>8);
+	// calculat checksum of the header
+	word sum = 0;
+	for (int ii = 0x43; ii--; ) sum += amsdos_header[ii];
+	amsdos_header[0x43] = byte(sum>>0);
+	amsdos_header[0x44] = byte(sum>>8);
+	// write header and data
+	int result = (hsize == (aint) fwrite(amsdos_header, 1, hsize, ff)) ? SaveRAM(ff, start, length) : 0;
 	fclose(ff);
 	return result;
 }
@@ -1100,14 +1108,14 @@ bool SaveDeviceMemory(FILE* file, const size_t start, const size_t length) {
 // start and length must be sanitized by caller
 bool SaveDeviceMemory(const char* fname, const size_t start, const size_t length) {
 	FILE* ff;
-	if (!FOPEN_ISOK(ff, fname, "wb")) Error("Error opening file", fname, FATAL);
+	if (!FOPEN_ISOK(ff, fname, "wb")) Error("opening file for write", fname, FATAL);
 	bool res = SaveDeviceMemory(ff, start, length);
 	fclose(ff);
 	return res;
 }
 
 
-int SaveHobeta(char* fname, char* fhobname, int start, int length) {
+int SaveHobeta(const char* fname, const char* fhobname, aint start, aint length) {
 	unsigned char header[0x11];
 	int i;
 
@@ -1122,7 +1130,7 @@ int SaveHobeta(char* fname, char* fhobname, int start, int length) {
 	i = strlen(fhobname);
 	if (i > 1)
 	{
-		char *ext = strrchr(fhobname, '.');
+		const char *ext = strrchr(fhobname, '.');
 		if (ext && ext[1])
 		{
 			header[8] = ext[1];
@@ -1157,7 +1165,7 @@ int SaveHobeta(char* fname, char* fhobname, int start, int length) {
 
 	FILE* ff;
 	if (!FOPEN_ISOK(ff, fname, "wb")) {
-		Error("Error opening file", fname, FATAL);
+		Error("opening file for write", fname, FATAL);
 	}
 
 	int result = (17 == fwrite(header, 1, 17, ff)) && SaveRAM(ff, start, length);
@@ -1169,18 +1177,22 @@ EReturn ReadFile() {
 	while (ReadLine()) {
 		const bool isInsideDupCollectingLines = !RepeatStack.empty() && !RepeatStack.top().IsInWork;
 		if (!isInsideDupCollectingLines) {
+			// check for ending of IF/IFN/... block (keywords: ENDIF, ELSE and ELSEIF)
 			char* p = line;
 			SkipBlanks(p);
 			if ('.' == *p) ++p;
-			if (cmphstr(p, "endif")) {
+			EReturn retVal = END;
+			if (cmphstr(p, "elseif")) retVal = ELSEIF;
+			if (cmphstr(p, "else")) retVal = ELSE;
+			if (cmphstr(p, "endif")) retVal = ENDIF;
+			if (END != retVal) {
+				// one of the end-block keywords was found, don't parse it as regular line
+				// but just substitute the rest of it and return end value of the keyword
+				++CompiledCurrentLine;
 				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
-				substitutedLine = line;		// override substituted listing for ENDIF
-				return ENDIF;
-			} else if (cmphstr(p, "else")) {
-				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
-				substitutedLine = line;		// override substituted listing for ELSE
-				ListFile();
-				return ELSE;
+				substitutedLine = line;		// for listing override substituted line with source
+				if (ENDIF != retVal) ListFile();	// do the listing for ELSE and ELSEIF
+				return retVal;
 			}
 		}
 		ParseLineSafe();
@@ -1193,6 +1205,11 @@ EReturn SkipFile() {
 	int iflevel = 0;
 	while (ReadLine()) {
 		char* p = line;
+		if (isLabelStart(p) && !Options::syx.IsPseudoOpBOF) {
+			// this could be label, skip it (the --dirbol users can't use label + IF/... inside block)
+			while (islabchar(*p)) ++p;
+			if (':' == *p) ++p;
+		}
 		SkipBlanks(p);
 		if ('.' == *p) ++p;
 		if (cmphstr(p, "if") || cmphstr(p, "ifn") || cmphstr(p, "ifused") ||
@@ -1202,16 +1219,35 @@ EReturn SkipFile() {
 			if (iflevel) {
 				--iflevel;
 			} else {
+				++CompiledCurrentLine;
 				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
 				substitutedLine = line;		// override substituted listing for ENDIF
 				return ENDIF;
 			}
 		} else if (cmphstr(p, "else")) {
 			if (!iflevel) {
+				++CompiledCurrentLine;
 				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
 				substitutedLine = line;		// override substituted listing for ELSE
 				ListFile();
 				return ELSE;
+			}
+		} else if (cmphstr(p, "elseif")) {
+			if (!iflevel) {
+				++CompiledCurrentLine;
+				lp = ReplaceDefine(p);		// skip any empty substitutions and comments
+				substitutedLine = line;		// override substituted listing for ELSEIF
+				ListFile();
+				return ELSEIF;
+			}
+		} else if (cmphstr(p, "lua")) {		// lua script block detected, skip it whole
+			// with extra custom while loop, to avoid confusion by `if/...` inside lua scripts
+			ListFile(true);
+			while (ReadLine()) {
+				p = line;
+				SkipBlanks(p);
+				if (cmphstr(p, "endlua")) break;
+				ListFile(true);
 			}
 		}
 		ListFile(true);
@@ -1226,10 +1262,10 @@ int ReadLineNoMacro(bool SplitByColon) {
 }
 
 int ReadLine(bool SplitByColon) {
-	DefinitionPos = TextFilePos();
 	if (IsRunning && lijst) {		// read MACRO lines, if macro is being emitted
-		if (!lijstp) return 0;
-		DefinitionPos = lijstp->definition;
+		if (!lijstp || !lijstp->string) return 0;
+		assert(!sourcePosStack.empty());
+		sourcePosStack.back() = lijstp->source;
 		STRCPY(line, LINEMAX, lijstp->string);
 		substitutedLine = line;		// reset substituted listing
 		eolComment = NULL;			// reset end of line comment
@@ -1243,6 +1279,7 @@ int ReadFileToCStringsList(CStringsList*& f, const char* end) {
 	// f itself should be already NULL, not resetting it here
 	CStringsList** s = &f;
 	while (ReadLineNoMacro()) {
+		++CompiledCurrentLine;
 		char* p = line;
 		SkipBlanks(p);
 		if ('.' == *p) ++p;
@@ -1257,42 +1294,58 @@ int ReadFileToCStringsList(CStringsList*& f, const char* end) {
 	return 0;
 }
 
-void WriteExp(char* n, aint v) {
+void WriteLabelEquValue(const char* name, aint value, FILE* f) {
+	if (nullptr == f) return;
 	char lnrs[16],* l = lnrs;
+	STRCPY(temp, LINEMAX-2, name);
+	STRCAT(temp, LINEMAX-1, ": EQU ");
+	STRCAT(temp, LINEMAX-1, "0x");
+	PrintHex32(l, value); *l = 0;
+	STRCAT(temp, LINEMAX-1, lnrs);
+	STRCAT(temp, LINEMAX-1, "\n");
+	fputs(temp, f);
+}
+
+void WriteExp(const char* n, aint v) {
 	if (FP_ExportFile == NULL) {
 		if (!FOPEN_ISOK(FP_ExportFile, Options::ExportFName, "w")) {
-			Error("Error opening file", Options::ExportFName, FATAL);
+			Error("opening file for write", Options::ExportFName, FATAL);
 		}
 	}
-	STRCPY(ErrorLine, LINEMAX2, n);
-	STRCAT(ErrorLine, LINEMAX2-1, ": EQU ");
-	STRCAT(ErrorLine, LINEMAX2-1, "0x");
-	PrintHex32(l, v); *l = 0;
-	STRCAT(ErrorLine, LINEMAX2-1, lnrs);
-	STRCAT(ErrorLine, LINEMAX2-1, "\n");
-	fputs(ErrorLine, FP_ExportFile);
+	WriteLabelEquValue(n, v, FP_ExportFile);
 }
 
 /////// source-level-debugging support by Ckirby
 
 static FILE* FP_SourceLevelDebugging = NULL;
-static char sldMessage[LINEMAX];
+static char sldMessage[LINEMAX2];
 static const char* WriteToSld_noSymbol = "";
-static char sldMessage_sourcePos[80];
-static char sldMessage_definitionPos[80];
+static char sldMessage_sourcePos[1024];
+static char sldMessage_definitionPos[1024];
 static const char* sldMessage_posFormat = "%d:%d:%d";	// at +3 is "%d:%d" and at +6 is "%d"
+static std::vector<std::string> sldCommentKeywords;
 
 static void WriteToSldFile_TextFilePos(char* buffer, const TextFilePos & pos) {
 	int offsetFormat = !pos.colBegin ? 6 : !pos.colEnd ? 3 : 0;
-	snprintf(buffer, 79, sldMessage_posFormat + offsetFormat, pos.line, pos.colBegin, pos.colEnd);
+	snprintf(buffer, 1024-1, sldMessage_posFormat + offsetFormat, pos.line, pos.colBegin, pos.colEnd);
 }
 
 static void OpenSldImp(const char* sldFilename) {
 	if (nullptr == sldFilename || !sldFilename[0]) return;
 	if (!FOPEN_ISOK(FP_SourceLevelDebugging, sldFilename, "w")) {
-		Error("Error opening file", sldFilename, FATAL);
+		Error("opening file for write", sldFilename, FATAL);
 	}
-	fputs("|SLD.data.version|0\n", FP_SourceLevelDebugging);
+	fputs("|SLD.data.version|1\n", FP_SourceLevelDebugging);
+	if (0 < sldCommentKeywords.size()) {
+		fputs("||K|KEYWORDS|", FP_SourceLevelDebugging);
+		bool notFirst = false;
+		for (auto keyword : sldCommentKeywords) {
+			if (notFirst) fputs(",", FP_SourceLevelDebugging);
+			notFirst = true;
+			fputs(keyword.c_str(), FP_SourceLevelDebugging);
+		}
+		fputs("\n", FP_SourceLevelDebugging);
+	}
 }
 
 // will write directly into Options::SourceLevelDebugFName array
@@ -1363,14 +1416,48 @@ void WriteToSldFile(int pageNum, int value, char type, const char* symbol) {
 	// comment line, not to be parsed
 	if (nullptr == FP_SourceLevelDebugging || !type) return;
 	if (nullptr == symbol) symbol = WriteToSld_noSymbol;
-	const char* macroFN = DefinitionPos.filename && strcmp(DefinitionPos.filename, CurSourcePos.filename) ?
-							DefinitionPos.filename : "";
-	WriteToSldFile_TextFilePos(sldMessage_sourcePos, CurSourcePos);
-	WriteToSldFile_TextFilePos(sldMessage_definitionPos, DefinitionPos);
-	snprintf(sldMessage, LINEMAX, "%s|%s|%s|%s|%d|%d|%c|%s\n",
-				CurSourcePos.filename, sldMessage_sourcePos, macroFN, sldMessage_definitionPos,
+
+	assert(!sourcePosStack.empty());
+	const bool outside_source = (sourcePosStack.size() <= size_t(IncludeLevel));
+	const bool has_def_pos = !outside_source && (size_t(IncludeLevel + 1) < sourcePosStack.size());
+	const TextFilePos & curPos = outside_source ? sourcePosStack.back() : sourcePosStack.at(IncludeLevel);
+	const TextFilePos defPos = has_def_pos ? sourcePosStack.back() : TextFilePos();
+
+	const char* macroFN = defPos.filename && strcmp(defPos.filename, curPos.filename) ? defPos.filename : "";
+	WriteToSldFile_TextFilePos(sldMessage_sourcePos, curPos);
+	WriteToSldFile_TextFilePos(sldMessage_definitionPos, defPos);
+	snprintf(sldMessage, LINEMAX2, "%s|%s|%s|%s|%d|%d|%c|%s\n",
+				curPos.filename, sldMessage_sourcePos, macroFN, sldMessage_definitionPos,
 				pageNum, value, type, symbol);
 	fputs(sldMessage, FP_SourceLevelDebugging);
+}
+
+void SldAddCommentKeyword(const char* keyword) {
+	if (nullptr == keyword || !keyword[0]) {
+		if (LASTPASS == pass) Error("[SLDOPT COMMENT] invalid keyword", lp, SUPPRESS);
+		return;
+	}
+	if (1 == pass) {
+		auto begin = sldCommentKeywords.cbegin();
+		auto end = sldCommentKeywords.cend();
+		// add keyword only if it is new (not included yet)
+		if (std::find(begin, end, keyword) == end) sldCommentKeywords.push_back(keyword);
+	}
+}
+
+void SldTrackComments() {
+	assert(eolComment && IsSldExportActive());
+	if (!eolComment[0]) return;
+	for (auto keyword : sldCommentKeywords) {
+		if (strstr(eolComment, keyword.c_str())) {
+			int pageNum = Page->Number;
+			if (DISP_NONE != PseudoORG) {
+				pageNum = LABEL_PAGE_UNDEFINED != dispPageNum ? dispPageNum : Device->GetPageOfA16(CurAddress);
+			}
+			WriteToSldFile(pageNum, CurAddress, 'K', eolComment);
+			return;
+		}
+	}
 }
 
 /////// Breakpoints list (for different emulators)
@@ -1388,7 +1475,7 @@ void OpenBreakpointsFile(const char* filename, const EBreakpointsFile type) {
 		return;
 	}
 	if (!FOPEN_ISOK(FP_BreakpointsFile, filename, "w")) {
-		Error("Error opening file", filename, FATAL);
+		Error("opening file for write", filename, EARLY);
 	}
 	breakpointsCounter = 0;
 	breakpointsType = type;
@@ -1402,7 +1489,7 @@ static void CloseBreakpointsFile() {
 
 void WriteBreakpoint(const aint val) {
 	if (!FP_BreakpointsFile) {
-		if (warningNotSuppressed()) Warning("breakpoints file was not specified");
+		WarningById(W_BP_FILE);
 		return;
 	}
 	++breakpointsCounter;

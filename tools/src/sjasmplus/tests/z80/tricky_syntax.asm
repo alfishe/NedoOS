@@ -1,11 +1,11 @@
-    ; test various tricky cases of syntax
+    OPT -Wrdlow ; test various tricky cases of syntax, enable rdlow warning
     adc     a , (   ( 3 ) + ( 4 )   )
     ld      a , (   ( 3 ) + ( 4 )   )   // extra warning about if low address is ok
     ld      a ,     ( 3 ) + ( 4 )
     ld      a ,     ( 3 ) | ( 4 )
-    ld      a ,       ( 3 | 4 )         // ok. (warning suppressed by comment)
+    ld      a ,       ( 3 | 4 )         // rdlow-ok. (warning suppressed by comment)
     ld      a,((3|4))       // fake (should NOT suppress warning about low address)
-    ld      a,(+(3|4))      //ok (should suppress)
+    ld      a,(+(3|4))      //rdlow-ok (should suppress)
     ld      a,+((3|4))
 
     ; test all IXY variants recognized by parser
@@ -71,3 +71,24 @@ label:
     ld      a  ,  Low  hl   ; error
     ld      a  ,  high  d
 d:
+
+    ex      (sp),hl     ; #E3
+    ex      hl,(sp)     ; #E3
+    ex      (sp),ix     ; #DDE3
+    ex      ix,(sp)     ; #DDE3
+    ex      (sp),iy     ; #FDE3
+    ex      iy,(sp)     ; #FDE3
+    ; invalid
+    ex      af,
+    ex      af,hl
+    ex      af,(sp)
+    ex      af',af      ; does leak `ex af,af` machine code, but also reports error
+    ex      de,bc
+    ex      hl,bc
+    ex      sp,hl
+    ex      (sp,hl
+    ex      de,(sp)
+    ex      (sp),de
+    ex      hl,sp
+    ex      ix,sp
+    ex      iy,sp

@@ -52,3 +52,19 @@
     SAVESNA "coverage2.sna", &
 
     IFUSED ..InvalidName
+
+    ELSEIF 1        ; ELSEIF without appropriate initial IF/IFN block
+
+    IF 0
+    ELSEIF 1 && @   ; syntax error
+        false
+    ELSEIF 1
+        still false, the syntax error blocks any remaining conditions
+    ELSE
+        false
+    ENDIF
+
+    DEVICE ZXSPECTRUM48
+    SAVESNA "coverage2.sna", &
+    SAVESNA "coverage2.sna", -1
+    SAVESNA "coverage2.sna"

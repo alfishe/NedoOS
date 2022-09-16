@@ -28,28 +28,21 @@
 
 // sjasm.cpp
 
-#include "termcolor.hpp"
 #include "sjdefs.h"
 #include <cstdlib>
 #include <chrono>
 #include <ctime>
 
-#ifdef USE_LUA
-
-#include "lua_sjasm.h"
-
-#endif //USE_LUA
-
-void PrintHelp() {
+static void PrintHelpMain() {
 	// Please keep help lines at most 79 characters long (cursor at column 88 after last char)
 	//     |<-- ...8901234567890123456789012345678901234567890123456789012... 80 chars -->|
 	_COUT "Based on code of SjASM by Sjoerd Mastijn (http://www.xl2s.tk)" _ENDL;
-	_COUT "Copyright 2004-2020 by Aprisobal and all other participants" _ENDL;
+	_COUT "Copyright 2004-2022 by Aprisobal and all other participants" _ENDL;
 	//_COUT "Patches by Antipod / boo_boo / PulkoMandy and others" _ENDL;
 	//_COUT "Tidy up by Tygrys / UB880D / Cizo / mborik / z00m" _ENDL;
 	_COUT "\nUsage:\nsjasmplus [options] sourcefile(s)" _ENDL;
 	_COUT "\nOption flags as follows:" _ENDL;
-	_COUT "  -h or --help             Help information (you see it)" _ENDL;
+	_COUT "  -h or --help[=warnings]  Help information (you see it)" _ENDL;
 	_COUT "  --zxnext[=cspect]        Enable ZX Spectrum Next Z80 extensions (Z80N)" _ENDL;
 	_COUT "  --i8080                  Limit valid instructions to i8080 only (+ no fakes)" _ENDL;
 	_COUT "  --lr35902                Sharp LR35902 CPU instructions mode (+ no fakes)" _ENDL;
@@ -57,8 +50,8 @@ void PrintHelp() {
 	_COUT "  -i<path> or -I<path> or --inc=<path> ( --inc without \"=\" to empty the list)" _ENDL;
 	_COUT "                           Include path (later defined have higher priority)" _ENDL;
 	_COUT "  --lst[=<filename>]       Save listing to <filename> (<source>.lst is default)" _ENDL;
-	_COUT "  --lstlab                 Enable label table in listing" _ENDL;
-	_COUT "  --sym=<filename>         Save symbols list to <filename>" _ENDL;
+	_COUT "  --lstlab[=sort]          Append [sorted] symbol table to listing" _ENDL;
+	_COUT "  --sym=<filename>         Save symbol table to <filename>" _ENDL;
 	_COUT "  --exp=<filename>         Save exports to <filename> (see EXPORT pseudo-op)" _ENDL;
 	//_COUT "  --autoreloc              Switch to autorelocation mode. See more in docs." _ENDL;
 	_COUT "  --raw=<filename>         Machine code saved also to <filename> (- is STDOUT)" _ENDL;
@@ -69,19 +62,40 @@ void PrintHelp() {
 	_COUT "  --msg=[all|war|err|none|lst|lstlab]" _ENDL;
 	_COUT "                           Stderr messages verbosity (\"all\" is default)" _ENDL;
 	_COUT "  --fullpath               Show full path to file in errors" _ENDL;
+	_COUT "  --color=[on|off|auto]    Enable or disable ANSI coloring of warnings/errors" _ENDL;
 	_COUT " Other:" _ENDL;
 	_COUT "  -D<NAME>[=<value>]       Define <NAME> as <value>" _ENDL;
 	_COUT "  -                        Reads STDIN as source (even in between regular files)" _ENDL;
 	_COUT "  --longptr                No device: program counter $ can go beyond 0x10000" _ENDL;
-	_COUT "  --virtlabels             Emit virtual intead of physical address labels in LABELSLIST" _ENDL;
 	_COUT "  --reversepop             Enable reverse POP order (as in base SjASM version)" _ENDL;
 	_COUT "  --dirbol                 Enable directives from the beginning of line" _ENDL;
-	_COUT "  --nofakes                Disable fake instructions" _ENDL;
 	_COUT "  --dos866                 Encode from Windows codepage to DOS 866 (Cyrillic)" _ENDL;
 	_COUT "  --syntax=<...>           Adjust parsing syntax, check docs for details." _ENDL;
 }
 
 namespace Options {
+	const STerminalColorSequences tcols_ansi = {
+		/*end*/		"\033[m",
+		/*display*/	"\033[36m",		// Cyan
+		/*warning*/	"\033[33m",		// Yellow
+		/*error*/	"\033[31m",		// Red
+		/*bold*/	"\033[1m"		// bold
+	};
+
+	const STerminalColorSequences tcols_none = {
+		/*end*/		"",
+		/*display*/	"",
+		/*warning*/	"",
+		/*error*/	"",
+		/*bold*/	""
+	};
+
+	const STerminalColorSequences* tcols = &tcols_none;
+
+	void SetTerminalColors(bool enabled) {
+		tcols = enabled ? &tcols_ansi : &tcols_none;
+	}
+
 	char OutPrefix[LINEMAX] = {0};
 	char SymbolListFName[LINEMAX] = {0};
 	char ListingFName[LINEMAX] = {0};
@@ -103,14 +117,16 @@ namespace Options {
 	bool IsShowFullPath = 0;
 	bool AddLabelListing = false;
 	bool HideLogo = 0;
-	bool ShowHelp = 0;
+	bool ShowHelp = false;
+	bool ShowHelpWarnings = false;
 	bool ShowVersion = false;
 	bool NoDestinationFile = true;		// no *.out file by default
 	SSyntax syx, systemSyntax;
 	bool IsI8080 = false;
 	bool IsLR35902 = false;
 	bool IsLongPtr = false;
-
+	bool SortSymbols = false;
+	bool IsBigEndian = false;
 	bool EmitVirtualLabels = false;
 
 	// Include directories list is initialized with "." directory
@@ -135,9 +151,8 @@ namespace Options {
 			Error(errorTxt, bp, SUPPRESS);
 			return true;
 		}
-		// check end-of-line comment for mentioning "fake" to remove warning, or beginning with "ok"
-		if (syx.FakeWarning && warningNotSuppressed(true)) {
-			Warning("Fake instruction", bp);
+		if (syx.FakeWarning) {
+			WarningById(W_FAKE, bp);
 		}
 		return false;
 	}
@@ -166,14 +181,23 @@ namespace Options {
 
 } // eof namespace Options
 
-CDevice *Devices = 0;
-CDevice *Device = 0;
-CDevicePage *Page = 0;
-char* DeviceID = 0;
+static void PrintHelp(bool forceMainHelp) {
+	if (forceMainHelp || Options::ShowHelp) PrintHelpMain();
+	if (Options::ShowHelpWarnings) PrintHelpWarnings();
+}
+
+CDevice *Devices = nullptr;
+CDevice *Device = nullptr;
+CDevicePage *Page = nullptr;
+char* DeviceID = nullptr;
+TextFilePos globalDeviceSourcePos;
+aint deviceDirectivesCount = 0;
+static char* globalDeviceID = nullptr;
+static aint globalDeviceZxRamTop = 0;
 
 // extend
 const char* fileNameFull = nullptr, * fileName = nullptr;	//fileName is either full or basename (--fullpath)
-char* lp, line[LINEMAX], temp[LINEMAX], ErrorLine[LINEMAX2], ErrorLine2[LINEMAX2], * bp;
+char* lp, line[LINEMAX], temp[LINEMAX], * bp;
 char sline[LINEMAX2], sline2[LINEMAX2], * substitutedLine, * eolComment, ModuleName[LINEMAX];
 
 SSource::SSource(SSource && src) {	// move constructor, "pick" the stdin pointer
@@ -199,43 +223,46 @@ SSource::~SSource() {
 }
 
 std::vector<SSource> sourceFiles;
-std::vector<std::string> openedFileNames;
 
 int ConvertEncoding = ENCWIN;
 
-int pass = 0, IsLabelNotFound = 0, ErrorCount = 0, WarningCount = 0, IncludeLevel = -1;
+EDispMode PseudoORG = DISP_NONE;
+bool IsLabelNotFound = false, IsSubstituting = false;
+int pass = 0, ErrorCount = 0, WarningCount = 0, IncludeLevel = -1;
 int IsRunning = 0, donotlist = 0, listmacro = 0;
-int adrdisp = 0, PseudoORG = 0, dispPageNum = LABEL_PAGE_UNDEFINED, StartAddress = -1;
+int adrdisp = 0, dispPageNum = LABEL_PAGE_UNDEFINED, StartAddress = -1;
 byte* MemoryPointer=NULL;
 int macronummer = 0, lijst = 0, reglenwidth = 0;
-TextFilePos CurSourcePos, DefinitionPos;
+source_positions_t sourcePosStack;
+source_positions_t smartSmcLines;
+source_positions_t::size_type smartSmcIndex;
 uint32_t maxlin = 0;
 aint CurAddress = 0, CompiledCurrentLine = 0, LastParsedLabelLine = 0, PredefinedCounter = 0;
-aint destlen = 0, size = -1L,PreviousErrorLine = -1L, comlin = 0;
-char* CurrentDirectory=NULL;
+aint destlen = 0, size = -1L, comlin = 0;
+const char* CurrentDirectory=NULL;
 
 char* vorlabp=NULL, * macrolabp=NULL, * LastParsedLabel=NULL;
 std::stack<SRepeatStack> RepeatStack;
 CStringsList* lijstp = NULL;
 CLabelTable LabelTable;
-CLocalLabelTable LocalLabelTable;
+CTemporaryLabelTable TemporaryLabelTable;
 CDefineTable DefineTable;
 CMacroDefineTable MacroDefineTable;
 CMacroTable MacroTable;
 CStructureTable StructureTable;
 
-#ifdef USE_LUA
-
-lua_State *LUA;			// lgtm[cpp/short-global-name] .. name seems barely ok (especially considering rest of code)
-TextFilePos LuaStartPos;
-
-#endif //USE_LUA
-
-int deviceDirectivesCounter = 0;
-static char* globalDeviceID = NULL;
-static aint globalDeviceZxRamTop = 0;
+// reserve keywords in labels table, to detect when user is defining label colliding with keyword
+static void ReserveLabelKeywords() {
+	for (const char* keyword : {
+		"abs", "and", "exist", "high", "low", "mod", "norel", "not", "or", "shl", "shr", "xor"
+	}) {
+		LabelTable.Insert(keyword, -65536, LABEL_IS_UNDEFINED|LABEL_IS_KEYWORD);
+	}
+}
 
 void InitPass() {
+	assert(sourcePosStack.empty());				// there's no source position [left] in the stack
+	Relocation::InitPass();
 	Options::SSyntax::restoreSystemSyntax();	// release all stored syntax variants and reset to initial
 	uint32_t maxpow10 = 1;
 	reglenwidth = 0;
@@ -251,9 +278,9 @@ void InitPass() {
 	macrolabp = NULL;
 	listmacro = 0;
 	CurAddress = 0;
-	CurSourcePos = DefinitionPos = TextFilePos();	// reset current source/definition positions
 	CompiledCurrentLine = 0;
-	PseudoORG = 0; adrdisp = 0; dispPageNum = LABEL_PAGE_UNDEFINED;
+	smartSmcIndex = 0;
+	PseudoORG = DISP_NONE; adrdisp = 0; dispPageNum = LABEL_PAGE_UNDEFINED;
 	ListAddress = 0; macronummer = 0; lijst = 0; comlin = 0;
 	lijstp = NULL;
 	DidEmitByte();				// reset the emitted flag
@@ -261,17 +288,30 @@ void InitPass() {
 	MacroTable.ReInit();
 	MacroDefineTable.ReInit();
 	DefineTable = Options::CmdDefineTable;
-	LocalLabelTable.InitPass();
-	// reset "device" stuff
-	if (2 == pass && Devices && 1 == deviceDirectivesCounter) {	// only single device detected
-		globalDeviceID = STRDUP(Devices->ID);		// make it global for remaining passes
+	TemporaryLabelTable.InitPass();
+
+	// reset "device" stuff + detect "global device" directive
+	if (globalDeviceID) {		// globalDeviceID detector has to trigger before every pass
+		free(globalDeviceID);
+		globalDeviceID = nullptr;
+	}
+	if (1 < pass && 1 == deviceDirectivesCount && Devices) {	// only single DEVICE used
+		globalDeviceID = STRDUP(Devices->ID);		// make it global for next pass
 		globalDeviceZxRamTop = Devices->ZxRamTop;
 	}
 	if (Devices) delete Devices;
-	Devices = Device = NULL;
-	DeviceID = NULL;
-	Page = NULL;
-	deviceDirectivesCounter = 0;
+	Devices = Device = nullptr;
+	DeviceID = nullptr;
+	Page = nullptr;
+	deviceDirectivesCount = 0;
+	// resurrect "global" device here
+	if (globalDeviceID) {
+		sourcePosStack.push_back(globalDeviceSourcePos);
+		if (!SetDevice(globalDeviceID, globalDeviceZxRamTop)) {		// manually tested (remove "!")
+			Error("Failed to re-initialize global device", globalDeviceID, FATAL);
+		}
+		sourcePosStack.pop_back();
+	}
 
 	// predefined defines - (deprecated) classic sjasmplus v1.x (till v1.15.1)
 	DefineTable.Replace("_SJASMPLUS", "1");
@@ -279,12 +319,12 @@ void InitPass() {
 	DefineTable.Replace("_VERSION", "__VERSION__");
 	DefineTable.Replace("_ERRORS", "__ERRORS__");
 	DefineTable.Replace("_WARNINGS", "__WARNINGS__");
-	// predefined defines - sjasmplus v2.x-like (since v1.15.2)
+	// predefined defines - sjasmplus v2.x-like (since v1.16.0)
 	// __DATE__ and __TIME__ are defined just once in main(...) (stored in Options::CmdDefineTable)
 	DefineTable.Replace("__SJASMPLUS__", VERSION_NUM);		// modified from _SJASMPLUS
 	DefineTable.Replace("__VERSION__", "\"" VERSION "\"");	// migrated from _VERSION
-	DefineTable.Replace("__ERRORS__", "0");					// migrated from _ERRORS
-	DefineTable.Replace("__WARNINGS__", "0");				// migrated from _WARNINGS
+	DefineTable.Replace("__ERRORS__", ErrorCount);			// migrated from _ERRORS (can be already > 0 from earlier pass)
+	DefineTable.Replace("__WARNINGS__", WarningCount);		// migrated from _WARNINGS (can be already > 0 from earlier pass)
 	DefineTable.Replace("__PASS__", pass);					// current pass of assembler
 	DefineTable.Replace("__INCLUDE_LEVEL__", "-1");			// include nesting
 	DefineTable.Replace("__BASE_FILE__", "<none>");			// the include-level 0 file
@@ -292,20 +332,17 @@ void InitPass() {
 	DefineTable.Replace("__LINE__", "<dynamic value>");		// current line in current file
 	DefineTable.Replace("__COUNTER__", "<dynamic value>");	// gcc-like, incremented upon every use
 	PredefinedCounter = 0;
-
-	// resurrect "global" device here
-	if (globalDeviceID && !SetDevice(globalDeviceID, globalDeviceZxRamTop)) {
-		Error("Failed to re-initialize global device", globalDeviceID, FATAL);
-	}
 }
 
 void FreeRAM() {
 	if (Devices) {
-		delete Devices;		Devices = NULL;
+		delete Devices;		Devices = nullptr;
 	}
 	if (globalDeviceID) {
-		free(globalDeviceID);	globalDeviceID = NULL;
+		free(globalDeviceID);	globalDeviceID = nullptr;
 	}
+	for (CDeviceDef* deviceDef : DefDevices) delete deviceDef;
+	DefDevices.clear();
 	lijstp = NULL;		// do not delete this, should be released by owners of DUP/regular macros
 	free(vorlabp);		vorlabp = NULL;
 	LabelTable.RemoveAll();
@@ -315,6 +352,8 @@ void FreeRAM() {
 		free(PreviousIsLabel);
 		PreviousIsLabel = nullptr;
 	}
+	if (Options::IncludeDirsList) delete Options::IncludeDirsList;
+	ReleaseArchivedFilenames();
 }
 
 
@@ -341,7 +380,7 @@ namespace Options {
 			if (*val) {
 				if (NULL != buffer) STRCPY(buffer, bufferSize, val);
 			} else {
-				_CERR "No parameters found in " _CMDL arg _ENDL;
+				Error("no parameters found in", arg, ALL);
 			}
 			return 1;	// keyword detected, option was processed
 		}
@@ -380,23 +419,23 @@ namespace Options {
 				// l L - warn/error about labels using keywords (default = no message)
 				case 'l':
 				case 'L':
-					if (0 == pass || LASTPASS == pass) {
-						_CERR "Syntax option not implemented yet: " _CMDL syntaxOption _ENDL;
-					}
+				{
+					const char this_option_is[2] = { syntaxOption, 0 };
+					Error("Syntax option not implemented yet", this_option_is, PASS03);
 					break;
+				}
 				// i - case insensitive instructions/directives (default = same case required)
 				case 'i': syx.CaseInsensitiveInstructions = true; break;
 				// w - warnings option: report warnings as errors
 				case 'w': syx.WarningsAsErrors = true; break;
-				// m - switch off "Accessing low memory" warning globally
-				case 'm': syx.IsLowMemWarningEnabled = false; break;
 				// M - alias "m" and "M" for "(hl)" to cover 8080-like syntax: ADD A,M
 				case 'M': syx.Is_M_Memory = true; break;
+				// s - switch off sub-word substitution in DEFINEs (s like "Simple defines" or "Sub word")
+				case 's': syx.IsSubwordSubstitution = false; break;
 				// unrecognized option
 				default:
-					if (0 == pass || LASTPASS == pass) {
-						_CERR "Unrecognized syntax option: " _CMDL syntaxOption _ENDL;
-					}
+					const char this_option_is[2] = { syntaxOption, 0 };
+					Error("Unrecognized syntax option", this_option_is, PASS03);
 					break;
 				}
 			}
@@ -431,8 +470,12 @@ namespace Options {
 					syx.IsPseudoOpBOF = true;
 				} else if (!strcmp(opt, "nofakes")) {
 					syx.FakeEnabled = false;
+					// was deprecated, as it is provided by `--syntax=F` too, but now I decided to keep also this older option
+					// (it's less cryptic than the --syntax letter soup, one duplicity of functionality will not end the world, right?)
 				} else if (!strcmp(opt, "syntax")) {
 					parseSyntaxValue();
+				} else if (!doubleDash && 'W' == opt[0]) {
+					CliWoption(val);
 				} else if (onlySyntaxOptions) {
 					// rest of the options is available only when launching the sjasmplus
 					return;
@@ -446,18 +489,20 @@ namespace Options {
 					// force (silently) other CPU modes OFF
 					IsLR35902 = false;
 					syx.IsNextEnabled = 0;
-				} else if ((!doubleDash && !strcmp(opt,"h") && !val[0]) || (doubleDash && !strcmp(opt, "help"))) {
-					ShowHelp = 1;
+				} else if ((!doubleDash && 'h' == opt[0] && !val[0]) || (doubleDash && !strcmp(opt, "help"))) {
+					ShowHelp |= strcmp("warnings", val);
+					ShowHelpWarnings |= !strcmp("warnings", val);
 				} else if (doubleDash && !strcmp(opt, "version")) {
 					ShowVersion = true;
 				} else if (!strcmp(opt, "lstlab")) {
 					AddLabelListing = true;
+					if (val[0]) SortSymbols = !strcmp("sort", val);
 				} else if (!strcmp(opt, "longptr")) {
 					IsLongPtr = true;
-				} else if (!strcmp(opt,"virtlabels")) {
-					EmitVirtualLabels = true;
 				} else if (CheckAssignmentOption("msg", NULL, 0)) {
-					if (!strcmp("none", val)) {
+					if (!*val) {
+						// nothing to do, CheckAssignmentOption already displayed error
+					} else if (!strcmp("none", val)) {
 						OutputVerbosity = OV_NONE;
 						HideLogo = true;
 					} else if (!strcmp("err", val)) {
@@ -473,9 +518,10 @@ namespace Options {
 					} else if (!strcmp("lstlab", val)) {
 						OutputVerbosity = OV_LST;
 						AddLabelListing = true;
+						SortSymbols = true;
 						HideLogo = true;
 					} else {
-						_CERR "Unexpected parameter in " _CMDL arg _ENDL;
+						Error("unexpected parameter in", arg, ALL);
 					}
 				} else if (!strcmp(opt, "lst") && !val[0]) {
 					IsDefaultListingName = true;
@@ -491,37 +537,46 @@ namespace Options {
 					// was proccessed inside CheckAssignmentOption function
 				} else if (!strcmp(opt, "fullpath")) {
 					IsShowFullPath = 1;
+				} else if (!strcmp(opt, "color")) {
+					if (!strcmp("on", val)) {
+						SetTerminalColors(true);
+					} else if (!strcmp("off", val)) {
+						SetTerminalColors(false);
+					} else if (!strcmp("auto", val)) {
+						// already heuristically detected, nothing to do
+					} else {
+						Error("invalid --color setting (use: on|off|auto)", val, ALL);
+					}
 				} else if (!strcmp(opt, "nologo")) {
 					HideLogo = 1;
 				} else if (!strcmp(opt, "dos866")) {
 					ConvertEncoding = ENCDOS;
 				} else if ((doubleDash && !strcmp(opt, "inc")) ||
-							(!doubleDash && !strcmp(opt, "i")) ||
-							(!doubleDash && !strcmp(opt, "I"))) {
+							(!doubleDash && 'i' == opt[0]) ||
+							(!doubleDash && 'I' == opt[0])) {
 					if (*val) {
 						IncludeDirsList = new CStringsList(val, IncludeDirsList);
 					} else {
 						if (!doubleDash || '=' == arg[5]) {
-							_CERR "No include path found in " _CMDL arg _ENDL;
+							Error("no include path found in", arg, ALL);
 						} else {	// individual `--inc` without "=path" will RESET include dirs
 							if (IncludeDirsList) delete IncludeDirsList;
 							IncludeDirsList = nullptr;
 						}
 					}
-				} else if (!doubleDash && opt[0] == 'D') {
+				} else if (!doubleDash && 'D' == opt[0]) {
 					char defN[LINEMAX], defV[LINEMAX];
 					if (*val) {		// for -Dname=value the `val` contains "name=value" string
-						//TODO the `Error("Duplicate name"..)` is not shown while parsing CLI options
 						splitByChar(val, '=', defN, LINEMAX, defV, LINEMAX);
 						CmdDefineTable.Add(defN, defV, NULL);
 					} else {
-						_CERR "No parameters found in " _CMDL arg _ENDL;
+						Error("no parameters found in", arg, ALL);
 					}
 				} else if (!doubleDash && 0 == opt[0]) {
 					// only single "-" was on command line = source STDIN
 					sourceFiles.push_back(SSource(1));		// special constructor for stdin input
 				} else {
-					_CERR "Unrecognized option: " _CMDL arg _ENDL;
+					Error("unrecognized option", arg, ALL);
 				}
 
 				++i;					// next CLI argument
@@ -537,14 +592,6 @@ namespace Options {
 		return i;
 	}
 }
-
-#ifdef USE_LUA
-
-void LuaFatalError(lua_State *L) {
-	Error((char *)lua_tostring(L, -1), NULL, FATAL);
-}
-
-#endif //USE_LUA
 
 // ==============================================================================================
 // == UnitTest++ part, checking if unit tests are requested and does launch test-runner then   ==
@@ -574,37 +621,38 @@ void LuaFatalError(lua_State *L) {
 
 // == end of UnitTest++ part ====================================================================
 
+static char launch_directory[MAX_PATH];
+
 #ifdef WIN32
 int main(int argc, char* argv[]) {
 #else
 int main(int argc, char **argv) {
 #endif
-	char buf[MAX_PATH];
-	int base_encoding;
+	// existence of NO_COLOR env.var. disables auto-colors: http://no-color.org/
+	const char* envNoColor = std::getenv("NO_COLOR");
+	// try to auto-detect ANSI-colour support (true if env.var. TERM exist and contains "color" substring)
+	const char* envTerm = std::getenv("TERM");
+	Options::SetTerminalColors(!envNoColor && envTerm && strstr(envTerm, "color"));
+
 	const char* logo = "SjASMPlus Z80 Cross-Assembler v" VERSION " (https://github.com/z00m128/sjasmplus)";
 
+	sourcePosStack.reserve(32);
+	smartSmcLines.reserve(64);
 	sourceFiles.reserve(32);
-	openedFileNames.reserve(64);
+	archivedFileNames.reserve(64);
 
 	CHECK_UNIT_TESTS		// UnitTest++ extra handling in specially built executable
 
-	// verify that I'm running on little-endian platform (the reinterpret word casts will break on BE platform)
-	// The new source is easy to locate through reinterpret_cast keywords, but I have strong
-	// suspicion there is also old sjasmplus code which is not endianness-agnostic.
-	// To fix it would need major testing with some BE platform and deep code review.
 	const word little_endian_test[] = { 0x1234 };
 	const byte le_test_byte = *reinterpret_cast<const byte*>(little_endian_test);
-	if (0x34 != le_test_byte) {
-		ErrorInt("Big-endian platform detected, unfortunately sjasmplus" \
-		" is currently LE-only, please report the issue.", le_test_byte, FATAL);
-	}
+	Options::IsBigEndian = (0x12 == le_test_byte);
 
 	// start counter
 	long dwStart = GetTickCount();
 
 	// get current directory
-	SJ_GetCurrentDirectory(MAX_PATH, buf);
-	CurrentDirectory = buf;
+	SJ_GetCurrentDirectory(MAX_PATH, launch_directory);
+	CurrentDirectory = launch_directory;
 
 	Options::COptionsParser optParser;
 	char* envFlags = std::getenv("SJASMPLUSOPTS");
@@ -618,7 +666,7 @@ int main(int argc, char **argv) {
 			temp[charI++] = 0;
 		}
 		if (!SkipBlanks(envFlags)) {
-			_CERR "SJASMPLUSOPTS environment variable contains too many options (max is 32)" _ENDL;
+			Error("SJASMPLUSOPTS environment variable contains too many options (max is 32)", nullptr, ALL);
 		}
 		// process environment variable ahead of command line options (in the same way)
 		int i = 0;
@@ -646,60 +694,52 @@ int main(int argc, char **argv) {
 			if (!argv[i]) break;
 			sourceFiles.push_back(SSource(argv[i++]));
 		}
-		if (Options::IsDefaultListingName && Options::ListingFName[0]) {
-			Error("Using both  --lst  and  --lst=<filename>  is not possible.", NULL, FATAL);
-		}
-		if (OV_LST == Options::OutputVerbosity && (Options::IsDefaultListingName || Options::ListingFName[0])) {
-			Error("Using  --msg=lst[lab]  and other list options is not possible.", NULL, FATAL);
-		}
-		if (Options::IsDefaultSldName && Options::SourceLevelDebugFName[0]) {
-			Error("Using both  --sld  and  --sld=<filename>  is not possible.", NULL, FATAL);
-		}
+	}
+	// warn about BE-host only when there's any CLI argument && after CLI options were parsed
+	if (2 <= argc && Options::IsBigEndian) WarningById(W_BE_HOST, nullptr, W_EARLY);
+	if (Options::IsDefaultListingName && Options::ListingFName[0]) {
+		Error("Using both  --lst  and  --lst=<filename>  is not possible.", NULL, FATAL);
+	}
+	if (OV_LST == Options::OutputVerbosity && (Options::IsDefaultListingName || Options::ListingFName[0])) {
+		Error("Using  --msg=lst[lab]  and other list options is not possible.", NULL, FATAL);
+	}
+	if (Options::IsDefaultSldName && Options::SourceLevelDebugFName[0]) {
+		Error("Using both  --sld  and  --sld=<filename>  is not possible.", NULL, FATAL);
 	}
 	Options::systemSyntax = Options::syx;		// create copy of initial system settings of syntax
 
-	if (argc == 1 || Options::ShowHelp) {
+	if (argc == 1 || Options::ShowHelp || Options::ShowHelpWarnings) {
 		_COUT logo _ENDL;
-		PrintHelp();
+		PrintHelp(argc == 1);
 		exit(argc == 1);
 	}
 
 	if (!Options::HideLogo) {
-		_COUT logo _ENDL;
+		_CERR logo _ENDL;
+	}
+
+	if (!Options::IsShowFullPath && (Options::IsDefaultSldName || Options::SourceLevelDebugFName[0])) {
+		Warning("missing  --fullpath  with  --sld  may produce incomplete file paths.", NULL, W_EARLY);
 	}
 
 	if (Options::ShowVersion) {
 		if (Options::HideLogo) {	// if "sjasmplus --version --nologo", emit only the raw VERSION
-			_COUT VERSION _ENDL;
+			_CERR VERSION _ENDL;
 		}
 		// otherwise the full logo was already printed
 		// now check if there were some sources to assemble, if NOT, exit with "OK"!
 		if (0 == sourceFiles.size()) exit(0);
 	}
 
-#ifdef USE_LUA
-
-	// init LUA
-	LUA = lua_open();
-	lua_atpanic(LUA, (lua_CFunction)LuaFatalError);
-	luaL_openlibs(LUA);
-	luaopen_pack(LUA);
-
-	tolua_sjasm_open(LUA);
-
-#endif //USE_LUA
-
 	// exit with error if no input file were specified
 	if (0 == sourceFiles.size()) {
-		if (Options::OutputVerbosity <= OV_ERROR) {
-			_CERR "No inputfile(s)" _ENDL;
-		}
+		Error("no inputfile(s)", nullptr, ALL);
 		exit(1);
 	}
 
 	// create default output name, if not specified
 	ConstructDefaultFilename(Options::DestinationFName, LINEMAX, ".out");
-	base_encoding = ConvertEncoding;
+	int base_encoding = ConvertEncoding;
 
 	// init some vars
 	InitCPU();
@@ -707,15 +747,13 @@ int main(int argc, char **argv) {
 	// open lists (if not set to "default" file name, then the OpenFile will handle it)
 	OpenList();
 
+	ReserveLabelKeywords();
+
 	do {
 		++pass;
+		if (pass == LASTPASS) OpenSld();	//open source level debugging file (BEFORE InitPass)
 		InitPass();
-
-		if (pass == LASTPASS) {
-			OpenDest();
-			//open source level debugging file
-			OpenSld();
-		}
+		if (pass == LASTPASS) OpenDest();
 
 		for (SSource & src : sourceFiles) {
 			IsRunning = 1;
@@ -723,15 +761,23 @@ int main(int argc, char **argv) {
 			OpenFile(src.fname, false, src.stdin_log);
 		}
 
-		if (PseudoORG) {
-			CurAddress = adrdisp; PseudoORG = 0;
+		while (!RepeatStack.empty()) {
+			sourcePosStack.push_back(RepeatStack.top().sourcePos);	// mark DUP line with error
+			Error("[DUP/REPT] missing EDUP/ENDR to end repeat-block");
+			sourcePosStack.pop_back();
+			RepeatStack.pop();
+		}
+
+		if (DISP_NONE != PseudoORG) {
+			CurAddress = adrdisp;
+			PseudoORG = DISP_NONE;
 		}
 
 		if (Options::OutputVerbosity <= OV_ALL) {
 			if (pass != LASTPASS) {
-				_COUT "Pass " _CMDL pass _CMDL " complete (" _CMDL ErrorCount _CMDL " errors)" _ENDL;
+				_CERR "Pass " _CMDL pass _CMDL " complete (" _CMDL ErrorCount _CMDL " errors)" _ENDL;
 			} else {
-				_COUT "Pass 3 complete" _ENDL;
+				_CERR "Pass 3 complete" _ENDL;
 			}
 		}
 	} while (pass < LASTPASS);
@@ -756,7 +802,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (Options::OutputVerbosity <= OV_ALL) {
-		_COUT "Errors: " _CMDL ErrorCount _CMDL ", warnings: " _CMDL WarningCount _CMDL ", compiled: " _CMDL CompiledCurrentLine _CMDL " lines" _END;
+		_CERR "Errors: " _CMDL ErrorCount _CMDL ", warnings: " _CMDL WarningCount _CMDL ", compiled: " _CMDL CompiledCurrentLine _CMDL " lines" _END;
 
 		double dwCount;
 		dwCount = GetTickCount() - dwStart;
@@ -764,7 +810,7 @@ int main(int argc, char **argv) {
 		char workTimeTxt[200] = "";
 		SPRINTF1(workTimeTxt, 200, ", work time: %.3f seconds", dwCount / 1000);
 
-		_COUT workTimeTxt _ENDL;
+		_CERR workTimeTxt _ENDL;
 	}
 
 	cout << flush;
@@ -772,12 +818,7 @@ int main(int argc, char **argv) {
 	// free RAM
 	FreeRAM();
 
-#ifdef USE_LUA
-
-	// close Lua
-	lua_close(LUA);
-
-#endif //USE_LUA
+	lua_impl_close();
 
 	return (ErrorCount != 0);
 }

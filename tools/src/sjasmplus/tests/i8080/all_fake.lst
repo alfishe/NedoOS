@@ -93,10 +93,8 @@ all_fake.asm(50): error: Label not found: ix
 all_fake.asm(51): error: Label not found: iy
  51   800F 21 00 00     ld_hl_iy            ld hl,iy
 all_fake.asm(52): error: Label not found: ix
-all_fake.asm(52): warning: Accessing low memory address 0x0077, is it ok?: ld hl,(ix+$77)
  52   8012 2A 77 00     ld_hl_#ix_nn#       ld hl,(ix+$77)
 all_fake.asm(53): error: Label not found: iy
-all_fake.asm(53): warning: Accessing low memory address 0x0077, is it ok?: ld hl,(iy+$77)
  53   8015 2A 77 00     ld_hl_#iy_nn#       ld hl,(iy+$77)
  54   8018
 all_fake.asm(55): error: Illegal instruction: ld_ix_bc            ld ix,bc
@@ -380,72 +378,102 @@ all_fake.asm(201): error: Unrecognized instruction: ldd (ix+$77),$44
 all_fake.asm(202): error: Unrecognized instruction: ldd (iy+$77),$44
 202   801E              ldd_#iy_nn#_nn      ldd (iy+$77),$44
 203   801E
-all_fake.asm(204): error: Illegal instruction: sub_hl_bc           sub hl,bc
-204   801E              sub_hl_bc           sub hl,bc
-all_fake.asm(205): error: Illegal instruction: sub_hl_de           sub hl,de
-205   801E              sub_hl_de           sub hl,de
-all_fake.asm(206): error: Illegal instruction: sub_hl_hl           sub hl,hl
-206   801E              sub_hl_hl           sub hl,hl
-all_fake.asm(207): error: Illegal instruction: sub_hl_sp           sub hl,sp
-207   801E              sub_hl_sp           sub hl,sp
+all_fake.asm(204): error: Fake instructions are not implemented in i8080 mode: adc de,bc
+204   801E              adc_de_bc           adc de,bc
+all_fake.asm(205): error: Fake instructions are not implemented in i8080 mode: adc de,de
+205   801E              adc_de_de           adc de,de
+all_fake.asm(206): error: Fake instructions are not implemented in i8080 mode: adc de,hl
+206   801E              adc_de_hl           adc de,hl
+all_fake.asm(207): error: Fake instructions are not implemented in i8080 mode: adc de,sp
+207   801E              adc_de_sp           adc de,sp
 208   801E
-209   801E                  ; ZXNext section - there are no true regular fakes yet, but some specials
-all_fake.asm(210): error: Unrecognized instruction: mul         
-210   801E              zxn_mul             mul         ; no warning "correct" syntax: "mul d,e" and "mul de"
-211   801E                  ; these definitely should not work in i8080 mode (trying to switch --zxnext is fatal error)
-all_fake.asm(212): error: Unrecognized instruction: break       
-212   801E              zxn_csp_break       break       ; CSpect emulator only: breakpoint instruction
-all_fake.asm(213): error: Unrecognized instruction: exit        
-213   801E              zxn_csp_exit        exit        ; CSpect emulator only: exit instruction
-214   801E
+all_fake.asm(209): error: Fake instructions are not implemented in i8080 mode: add de,bc
+209   801E              add_de_bc           add de,bc
+all_fake.asm(210): error: Fake instructions are not implemented in i8080 mode: add de,de
+210   801E              add_de_de           add de,de
+all_fake.asm(211): error: Fake instructions are not implemented in i8080 mode: add de,hl
+211   801E              add_de_hl           add de,hl
+all_fake.asm(212): error: Fake instructions are not implemented in i8080 mode: add de,sp
+212   801E              add_de_sp           add de,sp
+213   801E
+all_fake.asm(214): error: Fake instructions are not implemented in i8080 mode: sbc de,bc
+214   801E              sbc_de_bc           sbc de,bc
+all_fake.asm(215): error: Fake instructions are not implemented in i8080 mode: sbc de,de
+215   801E              sbc_de_de           sbc de,de
+all_fake.asm(216): error: Fake instructions are not implemented in i8080 mode: sbc de,hl
+216   801E              sbc_de_hl           sbc de,hl
+all_fake.asm(217): error: Fake instructions are not implemented in i8080 mode: sbc de,sp
+217   801E              sbc_de_sp           sbc de,sp
+218   801E
+all_fake.asm(219): error: Fake instructions are not implemented in i8080 mode: sub de,bc
+219   801E              sub_de_bc           sub de,bc
+all_fake.asm(220): error: Fake instructions are not implemented in i8080 mode: sub de,de
+220   801E              sub_de_de           sub de,de
+all_fake.asm(221): error: Fake instructions are not implemented in i8080 mode: sub de,hl
+221   801E              sub_de_hl           sub de,hl
+all_fake.asm(222): error: Fake instructions are not implemented in i8080 mode: sub de,sp
+222   801E              sub_de_sp           sub de,sp
+all_fake.asm(223): error: Fake instructions are not implemented in i8080 mode: sub hl,bc
+223   801E              sub_hl_bc           sub hl,bc
+all_fake.asm(224): error: Fake instructions are not implemented in i8080 mode: sub hl,de
+224   801E              sub_hl_de           sub hl,de
+all_fake.asm(225): error: Fake instructions are not implemented in i8080 mode: sub hl,hl
+225   801E              sub_hl_hl           sub hl,hl
+all_fake.asm(226): error: Fake instructions are not implemented in i8080 mode: sub hl,sp
+226   801E              sub_hl_sp           sub hl,sp
+227   801E
+228   801E                  ; ZXNext section - there are no true regular fakes yet, but some specials
+all_fake.asm(229): error: Unrecognized instruction: mul
+229   801E              zxn_mul             mul         ; no warning "correct" syntax: "mul d,e" and "mul de"
+230   801E                  ; these definitely should not work in i8080 mode (trying to switch --zxnext is fatal error)
+all_fake.asm(231): error: Unrecognized instruction: break
+231   801E              zxn_csp_break       break       ; CSpect emulator only: breakpoint instruction
+all_fake.asm(232): error: Unrecognized instruction: exit
+232   801E              zxn_csp_exit        exit        ; CSpect emulator only: exit instruction
+233   801E
 # file closed: all_fake.asm
 
 Value    Label
 ------ - -----------------------------------------------------------
-0x8000 X rl_bc
-0x8000 X rl_de
-0x8000 X rl_hl
-0x8000 X rr_bc
-0x8000 X rr_de
-0x8000 X rr_hl
-0x8000 X sla_bc
-0x8000 X sla_de
-0x8000 X sla_hl
-0x8000 X sll_bc
-0x8000 X sll_de
-0x8000 X sll_hl
-0x8000 X sli_bc
-0x8000 X sli_de
-0x8000 X sli_hl
-0x8000 X sra_bc
-0x8000 X sra_de
-0x8000 X sra_hl
-0x8000 X srl_bc
-0x8000 X srl_de
-0x8000 X srl_hl
+0x801E X adc_de_bc
+0x801E X adc_de_de
+0x801E X adc_de_hl
+0x801E X adc_de_sp
+0x801E X add_de_bc
+0x801E X add_de_de
+0x801E X add_de_hl
+0x801E X add_de_sp
+0x8018 X ld_#hl#_bc
+0x8018 X ld_#hl#_de
+0x8018 X ld_#ix_nn#_bc
+0x8018 X ld_#ix_nn#_de
+0x8018 X ld_#ix_nn#_hl
+0x801B X ld_#iy_nn#_bc
+0x801B X ld_#iy_nn#_de
+0x801B X ld_#iy_nn#_hl
+0x8006 X ld_bc_#hl#
+0x8006 X ld_bc_#ix_nn#
+0x8006 X ld_bc_#iy_nn#
 0x8000 X ld_bc_bc
 0x8000 X ld_bc_de
 0x8000 X ld_bc_hl
 0x8000 X ld_bc_ix
 0x8003 X ld_bc_iy
-0x8006 X ld_bc_#hl#
-0x8006 X ld_bc_#ix_nn#
-0x8006 X ld_bc_#iy_nn#
+0x800C X ld_de_#hl#
+0x800C X ld_de_#ix_nn#
+0x800C X ld_de_#iy_nn#
 0x8006 X ld_de_bc
 0x8006 X ld_de_de
 0x8006 X ld_de_hl
 0x8006 X ld_de_ix
 0x8009 X ld_de_iy
-0x800C X ld_de_#hl#
-0x800C X ld_de_#ix_nn#
-0x800C X ld_de_#iy_nn#
+0x8012 X ld_hl_#ix_nn#
+0x8015 X ld_hl_#iy_nn#
 0x800C X ld_hl_bc
 0x800C X ld_hl_de
 0x800C X ld_hl_hl
 0x800C X ld_hl_ix
 0x800F X ld_hl_iy
-0x8012 X ld_hl_#ix_nn#
-0x8015 X ld_hl_#iy_nn#
 0x8018 X ld_ix_bc
 0x8018 X ld_ix_de
 0x8018 X ld_ix_hl
@@ -456,99 +484,6 @@ Value    Label
 0x8018 X ld_iy_hl
 0x8018 X ld_iy_ix
 0x8018 X ld_iy_iy
-0x8018 X ld_#hl#_bc
-0x8018 X ld_#hl#_de
-0x8018 X ld_#ix_nn#_bc
-0x8018 X ld_#ix_nn#_de
-0x8018 X ld_#ix_nn#_hl
-0x801B X ld_#iy_nn#_bc
-0x801B X ld_#iy_nn#_de
-0x801B X ld_#iy_nn#_hl
-0x801E X ldi_bc_#hl#
-0x801E X ldi_bc_#ix_nn#
-0x801E X ldi_bc_#iy_nn#
-0x801E X ldi_de_#hl#
-0x801E X ldi_de_#ix_nn#
-0x801E X ldi_de_#iy_nn#
-0x801E X ldi_hl_#ix_nn#
-0x801E X ldi_hl_#iy_nn#
-0x801E X ldi_#hl#_bc
-0x801E X ldi_#hl#_de
-0x801E X ldi_#ix_nn#_bc
-0x801E X ldi_#ix_nn#_de
-0x801E X ldi_#ix_nn#_hl
-0x801E X ldi_#iy_nn#_bc
-0x801E X ldi_#iy_nn#_de
-0x801E X ldi_#iy_nn#_hl
-0x801E X ldi_a_#bc#
-0x801E X ldi_a_#de#
-0x801E X ldi_a_#hl#
-0x801E X ldi_b_#hl#
-0x801E X ldi_c_#hl#
-0x801E X ldi_d_#hl#
-0x801E X ldi_e_#hl#
-0x801E X ldi_h_#hl#
-0x801E X ldi_l_#hl#
-0x801E X ldi_a_#ix_nn#
-0x801E X ldi_b_#ix_nn#
-0x801E X ldi_c_#ix_nn#
-0x801E X ldi_d_#ix_nn#
-0x801E X ldi_e_#ix_nn#
-0x801E X ldi_h_#ix_nn#
-0x801E X ldi_l_#ix_nn#
-0x801E X ldi_a_#iy_nn#
-0x801E X ldi_b_#iy_nn#
-0x801E X ldi_c_#iy_nn#
-0x801E X ldi_d_#iy_nn#
-0x801E X ldi_e_#iy_nn#
-0x801E X ldi_h_#iy_nn#
-0x801E X ldi_l_#iy_nn#
-0x801E X ldd_a_#bc#
-0x801E X ldd_a_#de#
-0x801E X ldd_a_#hl#
-0x801E X ldd_b_#hl#
-0x801E X ldd_c_#hl#
-0x801E X ldd_d_#hl#
-0x801E X ldd_e_#hl#
-0x801E X ldd_h_#hl#
-0x801E X ldd_l_#hl#
-0x801E X ldd_a_#ix_nn#
-0x801E X ldd_b_#ix_nn#
-0x801E X ldd_c_#ix_nn#
-0x801E X ldd_d_#ix_nn#
-0x801E X ldd_e_#ix_nn#
-0x801E X ldd_h_#ix_nn#
-0x801E X ldd_l_#ix_nn#
-0x801E X ldd_a_#iy_nn#
-0x801E X ldd_b_#iy_nn#
-0x801E X ldd_c_#iy_nn#
-0x801E X ldd_d_#iy_nn#
-0x801E X ldd_e_#iy_nn#
-0x801E X ldd_h_#iy_nn#
-0x801E X ldd_l_#iy_nn#
-0x801E X ldi_#bc#_a
-0x801E X ldi_#de#_a
-0x801E X ldi_#hl#_a
-0x801E X ldi_#hl#_b
-0x801E X ldi_#hl#_c
-0x801E X ldi_#hl#_d
-0x801E X ldi_#hl#_e
-0x801E X ldi_#hl#_h
-0x801E X ldi_#hl#_l
-0x801E X ldi_#ix_nn#_a
-0x801E X ldi_#ix_nn#_b
-0x801E X ldi_#ix_nn#_c
-0x801E X ldi_#ix_nn#_d
-0x801E X ldi_#ix_nn#_e
-0x801E X ldi_#ix_nn#_h
-0x801E X ldi_#ix_nn#_l
-0x801E X ldi_#iy_nn#_a
-0x801E X ldi_#iy_nn#_b
-0x801E X ldi_#iy_nn#_c
-0x801E X ldi_#iy_nn#_d
-0x801E X ldi_#iy_nn#_e
-0x801E X ldi_#iy_nn#_h
-0x801E X ldi_#iy_nn#_l
 0x801E X ldd_#bc#_a
 0x801E X ldd_#de#_a
 0x801E X ldd_#hl#_a
@@ -558,6 +493,7 @@ Value    Label
 0x801E X ldd_#hl#_e
 0x801E X ldd_#hl#_h
 0x801E X ldd_#hl#_l
+0x801E X ldd_#hl#_nn
 0x801E X ldd_#ix_nn#_a
 0x801E X ldd_#ix_nn#_b
 0x801E X ldd_#ix_nn#_c
@@ -565,6 +501,7 @@ Value    Label
 0x801E X ldd_#ix_nn#_e
 0x801E X ldd_#ix_nn#_h
 0x801E X ldd_#ix_nn#_l
+0x801E X ldd_#ix_nn#_nn
 0x801E X ldd_#iy_nn#_a
 0x801E X ldd_#iy_nn#_b
 0x801E X ldd_#iy_nn#_c
@@ -572,16 +509,128 @@ Value    Label
 0x801E X ldd_#iy_nn#_e
 0x801E X ldd_#iy_nn#_h
 0x801E X ldd_#iy_nn#_l
-0x801E X ldi_#hl#_nn
-0x801E X ldi_#ix_nn#_nn
-0x801E X ldi_#iy_nn#_nn
-0x801E X ldd_#hl#_nn
-0x801E X ldd_#ix_nn#_nn
 0x801E X ldd_#iy_nn#_nn
+0x801E X ldd_a_#bc#
+0x801E X ldd_a_#de#
+0x801E X ldd_a_#hl#
+0x801E X ldd_a_#ix_nn#
+0x801E X ldd_a_#iy_nn#
+0x801E X ldd_b_#hl#
+0x801E X ldd_b_#ix_nn#
+0x801E X ldd_b_#iy_nn#
+0x801E X ldd_c_#hl#
+0x801E X ldd_c_#ix_nn#
+0x801E X ldd_c_#iy_nn#
+0x801E X ldd_d_#hl#
+0x801E X ldd_d_#ix_nn#
+0x801E X ldd_d_#iy_nn#
+0x801E X ldd_e_#hl#
+0x801E X ldd_e_#ix_nn#
+0x801E X ldd_e_#iy_nn#
+0x801E X ldd_h_#hl#
+0x801E X ldd_h_#ix_nn#
+0x801E X ldd_h_#iy_nn#
+0x801E X ldd_l_#hl#
+0x801E X ldd_l_#ix_nn#
+0x801E X ldd_l_#iy_nn#
+0x801E X ldi_#bc#_a
+0x801E X ldi_#de#_a
+0x801E X ldi_#hl#_a
+0x801E X ldi_#hl#_b
+0x801E X ldi_#hl#_bc
+0x801E X ldi_#hl#_c
+0x801E X ldi_#hl#_d
+0x801E X ldi_#hl#_de
+0x801E X ldi_#hl#_e
+0x801E X ldi_#hl#_h
+0x801E X ldi_#hl#_l
+0x801E X ldi_#hl#_nn
+0x801E X ldi_#ix_nn#_a
+0x801E X ldi_#ix_nn#_b
+0x801E X ldi_#ix_nn#_bc
+0x801E X ldi_#ix_nn#_c
+0x801E X ldi_#ix_nn#_d
+0x801E X ldi_#ix_nn#_de
+0x801E X ldi_#ix_nn#_e
+0x801E X ldi_#ix_nn#_h
+0x801E X ldi_#ix_nn#_hl
+0x801E X ldi_#ix_nn#_l
+0x801E X ldi_#ix_nn#_nn
+0x801E X ldi_#iy_nn#_a
+0x801E X ldi_#iy_nn#_b
+0x801E X ldi_#iy_nn#_bc
+0x801E X ldi_#iy_nn#_c
+0x801E X ldi_#iy_nn#_d
+0x801E X ldi_#iy_nn#_de
+0x801E X ldi_#iy_nn#_e
+0x801E X ldi_#iy_nn#_h
+0x801E X ldi_#iy_nn#_hl
+0x801E X ldi_#iy_nn#_l
+0x801E X ldi_#iy_nn#_nn
+0x801E X ldi_a_#bc#
+0x801E X ldi_a_#de#
+0x801E X ldi_a_#hl#
+0x801E X ldi_a_#ix_nn#
+0x801E X ldi_a_#iy_nn#
+0x801E X ldi_b_#hl#
+0x801E X ldi_b_#ix_nn#
+0x801E X ldi_b_#iy_nn#
+0x801E X ldi_bc_#hl#
+0x801E X ldi_bc_#ix_nn#
+0x801E X ldi_bc_#iy_nn#
+0x801E X ldi_c_#hl#
+0x801E X ldi_c_#ix_nn#
+0x801E X ldi_c_#iy_nn#
+0x801E X ldi_d_#hl#
+0x801E X ldi_d_#ix_nn#
+0x801E X ldi_d_#iy_nn#
+0x801E X ldi_de_#hl#
+0x801E X ldi_de_#ix_nn#
+0x801E X ldi_de_#iy_nn#
+0x801E X ldi_e_#hl#
+0x801E X ldi_e_#ix_nn#
+0x801E X ldi_e_#iy_nn#
+0x801E X ldi_h_#hl#
+0x801E X ldi_h_#ix_nn#
+0x801E X ldi_h_#iy_nn#
+0x801E X ldi_hl_#ix_nn#
+0x801E X ldi_hl_#iy_nn#
+0x801E X ldi_l_#hl#
+0x801E X ldi_l_#ix_nn#
+0x801E X ldi_l_#iy_nn#
+0x8000 X rl_bc
+0x8000 X rl_de
+0x8000 X rl_hl
+0x8000 X rr_bc
+0x8000 X rr_de
+0x8000 X rr_hl
+0x801E X sbc_de_bc
+0x801E X sbc_de_de
+0x801E X sbc_de_hl
+0x801E X sbc_de_sp
+0x8000 X sla_bc
+0x8000 X sla_de
+0x8000 X sla_hl
+0x8000 X sli_bc
+0x8000 X sli_de
+0x8000 X sli_hl
+0x8000 X sll_bc
+0x8000 X sll_de
+0x8000 X sll_hl
+0x8000 X sra_bc
+0x8000 X sra_de
+0x8000 X sra_hl
+0x8000 X srl_bc
+0x8000 X srl_de
+0x8000 X srl_hl
+0x801E X sub_de_bc
+0x801E X sub_de_de
+0x801E X sub_de_hl
+0x801E X sub_de_sp
 0x801E X sub_hl_bc
 0x801E X sub_hl_de
 0x801E X sub_hl_hl
 0x801E X sub_hl_sp
-0x801E X zxn_mul
 0x801E X zxn_csp_break
 0x801E X zxn_csp_exit
+0x801E X zxn_mul

@@ -27,7 +27,7 @@ Label       :   MACRO nameOrArg?
 
     ;; DEFL labels also don't work, even without colon
 Babel = 2       MACRO nameOrArg2?
-                    dz  "name-or-arg2 as name\n"
+;                     dz  "name-or-arg2 as name\n"
                 ENDM
 
     MODULE module1  ; first version did use "module1" as part of macro name - now fixed+tested
@@ -54,3 +54,7 @@ newInModule     MACRO arg1?
 
                 MACRO #invalidClassic2 arg1?    ; no need for "ENDM" due to error
 #invalidNew2    MACRO arg1?
+
+trailingChar$   MACRO arg1
+
+                MACRO trailingChar$ arg1

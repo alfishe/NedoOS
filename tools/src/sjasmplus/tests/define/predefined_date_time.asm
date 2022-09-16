@@ -8,3 +8,8 @@
     DB  __TIME__
     DD  __ERRORS__, __WARNINGS__
     DB  __PASS__
+
+; 1.20.1 version check (needs update upon release)
+    ASSERT 1 == (__SJASMPLUS__>>16)
+    ASSERT 20 == ((__SJASMPLUS__>>8)&0xFF)
+    ASSERT 1 == (__SJASMPLUS__&0xFF)

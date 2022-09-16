@@ -29,7 +29,6 @@
 // reader.cpp
 
 #include "sjdefs.h"
-#include <cassert>
 
 //enum EDelimiterType          { DT_NONE, DT_QUOTES, DT_APOSTROPHE, DT_ANGLE, DT_COUNT };
 static const char delimiters_b[] = { ' ',    '"',       '\'',          '<',      0 };
@@ -171,6 +170,20 @@ bool nonMaComma(char* & p) {
 	return comma(p);
 }
 
+bool relaxedMaComma(char* & p) {
+	SkipBlanks(p);
+	if (',' != p[0]) return false;		// no comma
+	if (',' == p[1]) {
+		// double comma detected, accept it only in --syntax=a mode
+		if (Options::syx.isMultiArgPlainComma()) return false;
+		p += 2;
+		return true;
+	}
+	// single comma is enough in relaxed way, even in --syntax=a mode
+	++p;
+	return true;
+}
+
 //enum EBracketType          { BT_NONE, BT_ROUND, BT_CURLY, BT_SQUARE, BT_COUNT };
 static const char brackets_b[] = { 0,      '(',      '{',      '[',       0 };
 static const char brackets_e[] = { 0,      ')',      '}',      ']',       0 };
@@ -218,7 +231,7 @@ char nidtemp[LINEMAX], *nidsubp = nidtemp;
 // add GetLabel where appropriate, handle "@" + "." modifiers more consistently and transparently)
 char* GetID(char*& p) {
 	char* np = nidtemp;
-	if (SkipBlanks(p) || (!isLabelStart(p, false) && *p != '.')) return NULL;
+	if (SkipBlanks(p) || (!isLabelStart(p, false) && *p != '.')) return nullptr;
 	while (islabchar((byte)*p)) *np++ = *p++;
 	*np = 0;
 	return nidtemp;
@@ -232,17 +245,17 @@ void ResetGrowSubId() {
 char* GrowSubId(char* & p) {	// appends next part of ID
 	// The caller function ReplaceDefineInternal already assures the first char of ID is (isalpha() || '_')
 	// so there are no extra tests here to verify validity of first character (like GetID(..) must do)
-	if ('_' == *p) {
-		// add sub-parts delimiter in separate step (i.e. new ID grows like: "a", "a_", "a_b", ...
-		while ('_' == *p) *nidsubp++ = *p++;
-	} else while (*p && (isalnum((byte)*p) || '.' == *p || '?' == *p || '!' == *p || '#' == *p || '@' == *p)) {
-		// add sub-part of id till next underscore
+	const bool isSubwordSubstitution = Options::syx.IsSubwordSubstitution;	// help compiler -O2
+	bool startsAtUnderscore = ('_' == *p);
+	// add sub-parts delimiter in separate step (i.e. new ID grows like: "a", "a_", "a_b", ...)
+	while (islabchar(*p)) {
 		*nidsubp++ = *p++;
+		// break at sub-word boundaries when new underscore block starts or ends
+		if (isSubwordSubstitution && (('_' == *p) != startsAtUnderscore)) break;
 	}
 	if (nidtemp+LINEMAX <= nidsubp) Error("ID too long, buffer overflow detected.", NULL, FATAL);
 	*nidsubp = 0;
-	if (!nidtemp[0]) return NULL;	// result is empty string, return NULL rather
-	return nidtemp;
+	return nidtemp[0] ? nidtemp : nullptr;	// return non-empty string or nullptr
 }
 
 char* GrowSubIdByExtraChar(char* & p) {	// append the next char even if not a legal label/ID char
@@ -333,13 +346,9 @@ int check24(aint val) {
 }
 
 void checkLowMemory(byte hiByte, byte lowByte) {
-	if (hiByte || !warningNotSuppressed() || !Options::syx.IsLowMemWarningEnabled) {
-		return;			// address is >= 256 or warning is suppressed
-	}
+	if (hiByte || Relocation::type) return;
 	// for addresses 0..255 issue warning
-	char buf[64];
-	SPRINTF1(buf, 64, "Accessing low memory address 0x%04X, is it ok?", lowByte);
-	Warning(buf, bp);
+	WarningById(W_READ_LOW_MEM, lowByte);
 }
 
 int need(char*& p, char c) {
@@ -417,7 +426,7 @@ bool GetNumericValue_TwoBased(char*& p, const char* const pend, aint& val, const
 	}
 	aint digit;
 	const int base = 1<<shiftBase;
-	const aint overflowMask = (~0L)<<(32-shiftBase);
+	const aint overflowMask = (~0UL)<<(32-shiftBase);
 	while (p < pend) {
 		const byte charDigit = *p++;
 		if ('\'' == charDigit && isalnum((byte)*p)) continue;
@@ -472,6 +481,7 @@ int GetConstant(char*& op, aint& val) {
 	if ('#' == *pend || '$' == *pend || '%' == *pend) ++pend;
 	while (isalnum((byte)*pend) || ('\'' == *pend && isalnum((byte)pend[1]))) ++pend;
 	char* const hardEnd = pend;
+	bool has_decimal_part = ('.' == *hardEnd) && isalnum((byte)hardEnd[1]);
 	// check if the format is defined by prefix (#, $, %, 0x, 0X, 0b, 0B, 0q, 0Q)
 	char* p = op;
 	int shiftBase = 0, base = 0;
@@ -494,11 +504,11 @@ int GetConstant(char*& op, aint& val) {
 	// if the base is still undecided, check for suffix format specifier
 	if (0 == shiftBase) {
 		switch (pend[-1]|0x20) {
-			case 'h': --pend; shiftBase = 4;  break;
-			case 'q': --pend; shiftBase = 3;  break;
-			case 'o': --pend; shiftBase = 3;  break;
-			case 'b': --pend; shiftBase = 1;  break;
-			case 'd': --pend;      base = 10; break;
+			case 'h': --pend; shiftBase = 4;  has_decimal_part = false; break;
+			case 'q': --pend; shiftBase = 3;  has_decimal_part = false; break;
+			case 'o': --pend; shiftBase = 3;  has_decimal_part = false; break;
+			case 'b': --pend; shiftBase = 1;  has_decimal_part = false; break;
+			case 'd': --pend;      base = 10; has_decimal_part = false; break;
 			default:
 				base = 10;
 				break;
@@ -516,7 +526,34 @@ int GetConstant(char*& op, aint& val) {
 		if (!GetNumericValue_IntBased(p, pend, val, base) && GetNumericValue_ProcessLastError(op))
 			return 0;
 	}
-	op = hardEnd;
+	// check for possible decimal part and warn about it appropriately (can be user error or Lua string formatting)
+	if (!has_decimal_part) {
+		// no decimal part detected, all is done here
+		op = hardEnd;
+		return 1;
+	}
+	// possible decimal part detected, try to parse it just to throw it away (with warnings if enabled)
+	p = hardEnd + 1;
+	assert(isalnum((byte)*p));
+	pend = hardEnd + 2;
+	while (isalnum((byte)*pend) || ('\'' == *pend && isalnum((byte)pend[1]))) ++pend;
+	aint fractionVal;
+	if (0 < shiftBase) {
+		GetNumericValue_TwoBased(p, pend, fractionVal, shiftBase);
+	} else {
+		GetNumericValue_IntBased(p, pend, fractionVal, base);
+	}
+	// ignore overflow errors in fractional part, the value is thrown away any way, just report it as non-zero
+	if (getNumericValueErr_overflow == getNumericValueLastErr) {
+		fractionVal = 1;
+		getNumericValueLastErr = nullptr;
+	} else if (nullptr != getNumericValueLastErr) {		// but report other syntax errors
+		GetNumericValue_ProcessLastError(hardEnd);
+		return 0;
+	}
+	// warn about zero/non-zero fractional part in the numeral string
+	WarningById(fractionVal ? W_NON_ZERO_DECIMAL : W_ZERO_DECIMAL, op);
+	op = pend;
 	return 1;
 }
 
@@ -600,7 +637,7 @@ int GetCharConst(char*& p, aint& val) {
 	int bytes = 0, strRes;
 	if (!(strRes = GetCharConstAsString(p, buffer, bytes))) return 0;		// no string detected
 	val = 0;
-	if (-1 == strRes) return 0;		// some syntax/max_size error happened
+	if (strRes < 0) return 0;		// some syntax/max_size error happened
 	for (int ii = 0; ii < bytes; ++ii) val = (val << 8) + (255&buffer[ii]);
 	if (0 == bytes) {
 		Warning("Empty string literal converted to value 0!", op);
@@ -615,7 +652,8 @@ int GetCharConst(char*& p, aint& val) {
 }
 
 // returns (adjusts also "p" and "ei", and fills "e"):
-//  -1 = syntax error (or buffer full)
+//  -2 = buffer full
+//  -1 = syntax error (missing quote/apostrophe)
 //   0 = no string literal detected at p[0]
 //   1 = string literal in single quotes (apostrophe)
 //   2 = string literal in double quotes (")
@@ -628,7 +666,8 @@ template <class strT> int GetCharConstAsString(char* & p, strT e[], int & ei, in
 		e[ei++] = (val + add) & 255;
 	}
 	if ((quotes ? '"' : '\'') != *p) {	// too many/invalid arguments or zero-terminator can lead to this
-		if (!*p) Error("Syntax error", elementP, SUPPRESS);
+		if (*p) return -2;				// too many arguments
+		Error("Syntax error", elementP, SUPPRESS);	// zero-terminator
 		return -1;
 	}
 	++p;
@@ -642,6 +681,8 @@ template int GetCharConstAsString<int>(char* & p, int e[], int & ei, int max_ei,
 int GetBytes(char*& p, int e[], int add, int dc) {
 	aint val;
 	int t = 0, strRes;
+	// reset alternate result flag in ParseExpression part of code
+	Relocation::isResultAffected = false;
 	do {
 		const int oldT = t;
 		char* const oldP = p;
@@ -651,7 +692,7 @@ int GetBytes(char*& p, int e[], int add, int dc) {
 		}
 		if (0 != (strRes = GetCharConstAsString(p, e, t, 128, add))) {
 			// string literal parsed (both types)
-			if (-1 == strRes) break;		// syntax error happened
+			if (strRes < 0) break;		// syntax error happened
 			// single byte "strings" may have further part of expression, detect it here
 			if (1 == t - oldT && !SkipBlanks(p) && ',' != *p) {
 				// expression with single char detected (like 'a'|128), revert the string parsing
@@ -671,15 +712,82 @@ int GetBytes(char*& p, int e[], int add, int dc) {
 		}
 		if (ParseExpressionNoSyntaxError(p, val)) {
 			check8(val);
+			Relocation::resolveRelocationAffected(t, Relocation::HIGH);
 			e[t++] = (val + add) & 255;
 		} else {
 			Error("Syntax error", p, SUPPRESS);
 			break;
 		}
 	} while(comma(p) && t < 128);
+	Relocation::checkAndWarn();
 	e[t] = -1;
 	if (t == 128 && *p) Error("Over 128 bytes defined in single DB/DC/... Values over", p, SUPPRESS);
 	return t;
+}
+
+void GetStructText(char*& p, aint len, byte* data, const byte* initData) {
+	assert(1 <= len && len <= CStructureEntry2::TEXT_MAX_SIZE && nullptr != data);
+	// reset alternate result flag in ParseExpression part of code
+	Relocation::isResultAffected = false;
+	// "{}" is always required to keep the syntax less ambiguous
+	// (prototype code was trying to be more relaxed, but it was quickly becoming too complicated)
+	// (the relaxed sub-struct boundaries are confusing, eating "{}" a bit unexpectedly (to user))
+	if (!need(p, '{')) {
+		if (nullptr == initData) {
+			Error("TEXT field value must be enclosed in curly braces, missing '{'", p);
+		} else {
+			memcpy(data, initData, len);
+		}
+		return;
+	}
+	aint ii = 0, val;
+	do {
+		// if no more chars/lines to be parsed, or ending curly brace incoming, finish the loop
+		if (!PrepareNonBlankMultiLine(p) || '}' == *p) break;
+		const int oldIi = ii;
+		char* const oldP = p;
+		int strRes;
+		if (0 < (strRes = GetCharConstAsString(p, data, ii, len))) {
+			// string literal parsed (both types)
+			// single byte "strings" may have further part of expression, detect it here
+			if (1 == ii - oldIi && !SkipBlanks(p) && ',' != *p && '}' != *p) {
+				// expression with single char detected (like 'a'|128), revert the string parsing
+				ii = oldIi;
+				p = oldP;		// and continue with the last code-path trying to parse expression
+			} else {			// string literal (not expression) parsed OK
+				continue;
+			}
+		}
+		if (-1 == strRes) break;		// syntax error happened
+		if (-2 == strRes || len <= ii) {
+			Error("Maximum length of struct text reached. Values over", p, SUPPRESS);
+			break;
+		}
+		if (ParseExpressionNoSyntaxError(p, val)) {
+			check8(val);
+			data[ii++] = byte(val);
+		} else {
+			Error("Syntax error", p, SUPPRESS);
+			break;
+		}
+	} while (comma(p));
+	if (!PrepareNonBlankMultiLine(p) || !need(p, '}')) {
+		Error("TEXT field value must be enclosed in curly braces, missing '}'", p);
+		return;
+	}
+	Relocation::checkAndWarn();
+	// some bytes were initialized explicitly
+	if (nullptr != initData) {
+		// init remaining bytes from initData
+		while (ii < len) {
+			data[ii] = initData[ii];
+			++ii;
+		}
+	} else {
+		// init remaining bytes by last byte (or zero if none was defined)
+		byte filler = 0 < ii ? data[ii - 1] : 0;
+		while (ii < len) data[ii++] = filler;
+	}
 }
 
 int GetBits(char*& p, int e[]) {
@@ -759,13 +867,14 @@ int GetBytesHexaText(char*& p, int e[]) {
 static EDelimiterType delimiterOfLastFileName = DT_NONE;
 
 static char* GetFileName(char*& p, const char* pathPrefix, bool convertslashes) {
+	bool slashConverted = false;
 	char* newFn = new char[LINEMAX+1], * result = newFn;
 	if (NULL == newFn) ErrorOOM();
 	// prepend the filename with path-prefix, if some was requested
 	if (pathPrefix) {
 		while (*pathPrefix) {
 			*newFn = *pathPrefix;
-			if (convertslashes && pathBadSlash == *newFn) *newFn = pathGoodSlash;	// convert slashes if enabled
+			if (convertslashes && pathBadSlash == *newFn) *newFn = pathGoodSlash;
 			++newFn, ++pathPrefix;
 			if (LINEMAX <= newFn-result) Error("Filename too long!", NULL, FATAL);
 		}
@@ -777,7 +886,7 @@ static char* GetFileName(char*& p, const char* pathPrefix, bool convertslashes) 
 	// copy all characters until zero or delimiter-end character is reached
 	while (*p && deliE != *p) {
 		*newFn = *p;		// copy character
-		if (convertslashes && pathBadSlash == *newFn) *newFn = pathGoodSlash;	// convert slashes if enabled
+		if (convertslashes && pathBadSlash == *newFn) slashConverted = (*newFn = pathGoodSlash);
 		++newFn, ++p;
 		if (LINEMAX <= newFn-result) Error("Filename too long!", NULL, FATAL);
 	}
@@ -793,6 +902,7 @@ static char* GetFileName(char*& p, const char* pathPrefix, bool convertslashes) 
 		}
 	}
 	SkipBlanks(p);			// skip blanks any way
+	if (slashConverted) WarningById(W_BACKSLASH, bp);
 	return result;
 }
 
@@ -878,6 +988,10 @@ EStructureMembers GetStructMemberId(char*& p) {
 	case 'D'*2+'2':
 		if (cmphstr(p, "d24")) return SMEMBD24;
 		break;
+	case 't'*2+'e':
+	case 'T'*2+'E':
+		if (cmphstr(p, "text")) return SMEMBTEXT;
+		break;
 	default:
 		break;
 	}
@@ -887,6 +1001,7 @@ EStructureMembers GetStructMemberId(char*& p) {
 int GetMacroArgumentValue(char* & src, char* & dst) {
 	SkipBlanks(src);
 	const char* const dstOrig = dst, * const srcOrig = src;
+	const char* dstStopTrim = dst;
 	while (*src && ',' != *src) {
 		// check if there is some kind of delimiter next (string literal or angle brackets expression)
 		// the angle-bracket can only be used around whole argument (i.e. '<' must be first char)
@@ -947,8 +1062,10 @@ int GetMacroArgumentValue(char* & src, char* & dst) {
 		}
 		// set ending delimiter for quotes and apostrophe (angles are stripped from value)
 		if (DT_QUOTES == delI || DT_APOSTROPHE == delI) *dst++ = endCh;
+		dstStopTrim = dst;						// should not trim right spaces beyond this point
 		++src;									// advance over delimiter
 	}
+	while (dstStopTrim < dst && White(dst[-1])) --dst;	// trim the right size space from value
 	*dst = 0;									// zero terminator of resulting string value
 	if (! *dstOrig) Warning("[Macro argument parser] empty value", srcOrig);
 	return 1;
@@ -966,18 +1083,6 @@ EDelimiterType DelimiterBegins(char*& src, const std::array<EDelimiterType, 3> d
 
 EDelimiterType DelimiterAnyBegins(char*& src, bool advanceSrc) {
 	return DelimiterBegins(src, delimiters_all, advanceSrc);
-}
-
-// checks for "ok" (or also "fake") in EOL comment
-// "ok" must follow the comment start, "fake" can be anywhere inside
-bool warningNotSuppressed(bool alsoFake) {
-	if (nullptr == eolComment) return true;
-	char* comment = eolComment;
-	while (';' == *comment || '/' == *comment) ++comment;
-	while (' ' == *comment || '\t' == *comment) ++comment;
-	// check if "ok" is first word
-	if ('o' == comment[0] && 'k' == comment[1] && !isalnum((byte)comment[2])) return false;
-	return alsoFake ? (nullptr == strstr(eolComment, "fake")) : true;
 }
 
 //eof reader.cpp

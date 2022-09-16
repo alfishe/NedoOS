@@ -14,9 +14,9 @@
 13    0002 ~            label?_suffix? ; define global label
 14    0002                  ENDM
 15    0002                  createLabelWithSuffix label, 4    ; label_4
-15    0002             >label_4     ; define global label
+15    0002             >label_4 ; define global label
 16    0002                  createLabelWithSuffix label, 5    ; label_5
-16    0002             >label_5     ; define global label
+16    0002             >label_5 ; define global label
 17    0002
 # file closed: s_predefined.asm
 
@@ -24,6 +24,6 @@ Value    Label
 ------ - -----------------------------------------------------------
 0x0001 X label_1
 0x000B X label_2
-0x0001 X label__COUNTER__
 0x0002 X label_4
 0x0002 X label_5
+0x0001 X label__COUNTER__

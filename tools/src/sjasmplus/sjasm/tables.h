@@ -28,50 +28,85 @@
 
 // tables.h
 
+#include <unordered_map>
+
 struct TextFilePos {
 	const char*		filename;
 	uint32_t		line;				// line numbering start at 1 (human way) 0 = invalid/init value
-	uint32_t 		colBegin, colEnd;	// columns coordinates are unused at this moment
+	uint32_t 		colBegin, colEnd;	// columns coordinates for lines with multiple segments using ':'
+					// colBegin is also reused for smartSmc offsets
 
-	TextFilePos();
+	TextFilePos(const char* fileNamePtr = nullptr, uint32_t line = 0);
 	void newFile(const char* fileNamePtr);	// requires stable immutable pointer (until sjasmplus exits)
 
 	// advanceColumns are valid only when true == endsWithColon (else advanceColumns == 0)
 	// default arguments are basically "next line"
 	void nextSegment(bool endsWithColon = false, size_t advanceColumns = 0);
+
+	inline bool operator == (const TextFilePos & b) const {
+		// compares pointers to filenames (!), as they should be stable, provided by ArchiveFilename
+		return filename == b.filename && line == b.line;
+	}
+	inline bool operator != (const TextFilePos & b) const {
+		return !(*this == b);
+	}
 };
 
-enum EStructureMembers { SMEMBUNKNOWN, SMEMBALIGN, SMEMBBYTE, SMEMBWORD, SMEMBBLOCK, SMEMBDWORD, SMEMBD24, SMEMBPARENOPEN, SMEMBPARENCLOSE };
+typedef std::vector<TextFilePos> source_positions_t;
 
-char* ValidateLabel(const char* naam, bool setNameSpace);
+enum EStructureMembers {
+	SMEMBUNKNOWN, SMEMBALIGN,
+	SMEMBBYTE, SMEMBWORD, SMEMBBLOCK, SMEMBDWORD, SMEMBD24, SMEMBTEXT,
+	SMEMBPARENOPEN, SMEMBPARENCLOSE
+};
+
+struct SLabelTableEntry;
+
+char* ValidateLabel(const char* naam, bool setNameSpace, bool ignoreCharAfter = false);
+char* ExportLabelToSld(const char* naam, const SLabelTableEntry* label);
+char* ExportModuleToSld(bool endModule = false);
 extern char* PreviousIsLabel;
+bool LabelExist(char*& p, aint& val);
 bool GetLabelPage(char*& p, aint& val);
 bool GetLabelValue(char*& p, aint& val);
-int GetLocalLabelValue(char*& op, aint& val);
+int GetTemporaryLabelValue(char*& op, aint& val, bool requireUnderscore = false);
 
 constexpr int LABEL_PAGE_UNDEFINED = -1;
 constexpr int LABEL_PAGE_ROM = 0x7F00;			// must be minimum of special values (but positive)
-constexpr int LABEL_PAGE_OUT_OF_BOUNDS = 0x7F01;	// label is defined, but not within Z80 address space
+constexpr int LABEL_PAGE_OUT_OF_BOUNDS = 0x7F80;	// label is defined, but not within Z80 address space
 
-class CLabelTableEntry {
-public:
-	char*	name;
-	aint	value;
-	int		updatePass;	// last update was in pass
-	short	page;
-	bool	IsDEFL;
-	bool	IsEQU;
-	bool	used;
-	CLabelTableEntry();
-	void ClearData();
+constexpr unsigned LABEL_IS_UNDEFINED = (1<<0);
+constexpr unsigned LABEL_IS_DEFL = (1<<1);
+constexpr unsigned LABEL_IS_EQU = (1<<2);
+constexpr unsigned LABEL_IS_STRUCT_D = (1<<3);
+constexpr unsigned LABEL_IS_STRUCT_E = (1<<4);
+constexpr unsigned LABEL_HAS_RELOC_TRAIT = (1<<5);
+constexpr unsigned LABEL_IS_RELOC = (1<<6);
+constexpr unsigned LABEL_IS_SMC = (1<<7);
+constexpr unsigned LABEL_IS_KEYWORD = (1<<8);
+// constexpr unsigned LABEL_IS_USED = (1<<?);	// currently not explicitly used in Insert(..) (calculated implicitly)
+
+struct SLabelTableEntry {
+	aint				value = 0;
+	int					updatePass = 0;	// last update was in pass
+	short				page = LABEL_PAGE_UNDEFINED;
+	unsigned			traits = 0;
+	bool				used = false;
+	Relocation::EType	isRelocatable = Relocation::OFF;
 };
 
+typedef std::unordered_map<std::string, SLabelTableEntry> symbol_map_t;
+
 class CLabelTable {
+private:
+	symbol_map_t symbols;
 public:
-	CLabelTable();
-	int Insert(const char* nname, aint nvalue, bool undefined = false, bool IsDEFL = false, bool IsEQU = false);
-	int Update(char*, aint);
-	CLabelTableEntry* Find(const char* name, bool onlyDefined = false);
+	CLabelTable(const CLabelTable&) = delete;
+	CLabelTable& operator=(CLabelTable const &) = delete;
+	CLabelTable() { symbols.reserve(LABTABSIZE); }
+	int Insert(const char* nname, aint nvalue, unsigned traits = 0, short equPageNum = LABEL_PAGE_UNDEFINED);
+	int Update(char* name, aint value);
+	SLabelTableEntry* Find(const char* name, bool onlyDefined = false);
 	bool Remove(const char* name);
 	bool IsUsed(const char* name);
 	void RemoveAll();
@@ -79,50 +114,44 @@ public:
 	void DumpForUnreal();
 	void DumpForCSpect();
 	void DumpSymbols();
-private:
-	int HashTable[LABTABSIZE], NextLocation;
-	CLabelTableEntry LabelTable[LABTABSIZE];
-	int Hash(const char*);
 };
 
-class CFunctionTableEntry {
-public:
-	char* name;
-	void (*funp)(void);
-};
+typedef void (*function_fn_t)(void);
+typedef std::unordered_map<std::string, function_fn_t> function_map_t;
 
 class CFunctionTable {
-public:
-	CFunctionTable();
-	int Insert(const char*, void(*) (void));
-	int insertd(const char*, void(*) (void));
-	int zoek(const char*);
-	int Find(char*);
 private:
-	int HashTable[FUNTABSIZE], NextLocation;
-	CFunctionTableEntry funtab[FUNTABSIZE];
-	int Hash(const char*);
+	function_map_t functions;
+public:
+	CFunctionTable(const CFunctionTable&) = delete;
+	CFunctionTable& operator=(CFunctionTable const &) = delete;
+	CFunctionTable() { functions.reserve(FUNTABSIZE); }
+	int Insert(const char*, function_fn_t);
+	int insertd(const char*, function_fn_t);
+	int zoek(const char*);
 };
 
-class CLocalLabelTableEntry {
-public:
+struct TemporaryLabel {
 	aint nummer, value;
-	CLocalLabelTableEntry* next, * prev;
-	CLocalLabelTableEntry(aint number, aint address, CLocalLabelTableEntry* previous);
+	bool isRelocatable;
+	TemporaryLabel(aint number, aint address);
 };
 
-class CLocalLabelTable {
+class CTemporaryLabelTable {
 public:
-	CLocalLabelTable();
-	~CLocalLabelTable();
+	CTemporaryLabelTable(const CTemporaryLabelTable&) = delete;
+	CTemporaryLabelTable& operator=(CTemporaryLabelTable const &) = delete;
+	CTemporaryLabelTable();
 	void InitPass();
-	aint seekForward(const aint labelNumber) const;
-	aint seekBack(const aint labelNumber) const;
+	const TemporaryLabel* seekForward(const aint labelNumber) const;
+	const TemporaryLabel* seekBack(const aint labelNumber) const;
 	bool InsertRefresh(const aint labelNumber);
 private:
+	typedef std::vector<TemporaryLabel> temporary_labels_t;
+	temporary_labels_t labels;
+	temporary_labels_t::size_type refresh;
 	bool insertImpl(const aint labelNumber);
 	bool refreshImpl(const aint labelNumber);
-	CLocalLabelTableEntry* first, * last, * refresh;
 };
 
 class CStringsList {
@@ -130,10 +159,12 @@ public:
 	char* string;
 	CStringsList* next;
 	TextFilePos source;
-	TextFilePos definition;
-	CStringsList();
 	~CStringsList();
 	CStringsList(const char* stringSource, CStringsList* next = NULL);
+	CStringsList(const CStringsList&) = delete;
+	CStringsList& operator=(CStringsList const &) = delete;
+
+	static bool contains(const CStringsList* strlist, const char* searchString);
 };
 
 class CDefineTableEntry {
@@ -141,8 +172,11 @@ public:
 	char* name, * value;
 	CStringsList* nss;
 	CDefineTableEntry* next;
+	CDefineTableEntry(const CDefineTableEntry&) = delete;
+	CDefineTableEntry& operator=(CDefineTableEntry const &) = delete;
 	CDefineTableEntry(const char*, const char*, CStringsList*, CDefineTableEntry*);
 	~CDefineTableEntry();
+	void Replace(const char* nvalue);
 };
 
 class CMacroDefineTable {
@@ -151,7 +185,7 @@ public:
 	void AddMacro(char*, char*);
 	CDefineTableEntry* getdefs();
 	void setdefs(CDefineTableEntry*);
-	char* getverv(char*);
+	const char* getverv(const char*) const;
 	int FindDuplicate(char*);
 	CMacroDefineTable();
 	CMacroDefineTable(const CMacroDefineTable&) = delete;
@@ -167,7 +201,7 @@ public:
 	CStringsList* DefArrayList;
 	void Init();
 	void Add(const char*, const char*, CStringsList*);
-	char* Get(const char*);
+	const char* Get(const char*);
 	int FindDuplicate(const char*);
 	int Replace(const char*, const char*);
 	int Replace(const char*, const int);
@@ -188,16 +222,20 @@ public:
 	char* naam;
 	CStringsList* args, * body;
 	CMacroTableEntry* next;
-	CMacroTableEntry(char*, CMacroTableEntry*);
+	CMacroTableEntry(const CMacroTableEntry&) = delete;
+	CMacroTableEntry& operator=(CMacroTableEntry const &) = delete;
+	CMacroTableEntry(char* nname, CMacroTableEntry* nnext);
 	~CMacroTableEntry();
 };
 
 class CMacroTable {
 public:
-	void Add(char*, char*&);
+	void Add(const char*, char*&);
 	int Emit(char*, char*&);
-	int FindDuplicate(char*);
+	int FindDuplicate(const char*);
 	void ReInit();
+	CMacroTable(const CMacroTable&) = delete;
+	CMacroTable& operator=(CMacroTable const &) = delete;
 	CMacroTable();
 	~CMacroTable();
 private:
@@ -210,16 +248,25 @@ public:
 	char* naam;
 	aint offset;
 	CStructureEntry1* next;
+	CStructureEntry1(const CStructureEntry1&) = delete;
+	CStructureEntry1& operator=(CStructureEntry1 const &) = delete;
 	CStructureEntry1(char*, aint);
 	~CStructureEntry1();
 };
 
 class CStructureEntry2 {
 public:
-	aint offset, len, def;
-	EStructureMembers type;
+	static constexpr aint TEXT_MAX_SIZE = 8192;
 	CStructureEntry2* next;
-	CStructureEntry2(aint noffset, aint nlen, aint ndef, EStructureMembers ntype);
+	byte* text;
+	aint offset, len, def;
+	Relocation::EType defDeltaType;
+	EStructureMembers type;
+
+	CStructureEntry2(const CStructureEntry2&) = delete;
+	CStructureEntry2& operator=(CStructureEntry2 const &) = delete;
+	CStructureEntry2(aint noffset, aint nlen, aint ndef, Relocation::EType ndeltatype, EStructureMembers ntype);
+	CStructureEntry2(aint noffset, aint nlen, byte* textData);
 	~CStructureEntry2();
 	aint ParseValue(char* & p);
 };
@@ -232,25 +279,29 @@ public:
 	aint noffset;
 	void AddLabel(char*);
 	void AddMember(CStructureEntry2*);
-	void CopyLabel(char*, aint);
 	void CopyLabels(CStructure*);
-	void CopyMember(CStructureEntry2*, aint);
 	void CopyMembers(CStructure*, char*&);
 	void deflab();
-	void emitlab(char* iid, aint address);
+	void emitlab(char* iid, aint address, bool isRelocatable);
 	void emitmembs(char*&);
 	CStructure* next;
+	CStructure(const CStructure&) = delete;
+	CStructure& operator=(CStructure const &) = delete;
 	CStructure(const char* nnaam, char* nid, int no, int ngl, CStructure* p);
 	~CStructure();
 private:
 	CStructureEntry1* mnf, * mnl;
 	CStructureEntry2* mbf, * mbl;
+	void CopyLabel(char*, aint);
+	void CopyMember(CStructureEntry2* item, aint newDefault, Relocation::EType newDeltaType);
 };
 
 class CStructureTable {
 public:
 	CStructure* Add(char* naam, int no, int gl);
 	void ReInit();
+	CStructureTable(const CStructureTable&) = delete;
+	CStructureTable& operator=(CStructureTable const &) = delete;
 	CStructureTable();
 	~CStructureTable();
 	CStructure* zoek(const char*, int);
@@ -262,24 +313,19 @@ private:
 };
 
 struct SRepeatStack {
+	SRepeatStack(const SRepeatStack&) = delete;
+	SRepeatStack& operator=(SRepeatStack const &) = delete;
+	SRepeatStack(aint count, CStringsList* condition, CStringsList* firstLine);
+	~SRepeatStack();
+
 	int RepeatCount;
+	CStringsList* RepeatCondition;
 	TextFilePos sourcePos;
-	aint CurrentSourceLine;
 	CStringsList* Lines;
 	CStringsList* Pointer;
 	bool IsInWork;
 	int Level;
 };
-
-struct SConditionalStack {
-	aint CurrentSourceLine;
-	CStringsList* Lines;
-	CStringsList* Pointer;
-	bool IsInWork;
-	int Level;
-};
-
-int LuaGetLabel(char *name);
 
 //eof tables.h
 

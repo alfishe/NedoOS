@@ -28,7 +28,8 @@
 
 #include "sjdefs.h"
 
-bool IsZXSpectrumDevice(char *name) {
+bool IsZXSpectrumDevice(const char *name) {
+	if (nullptr == name) return false;
 	if (strcmp(name, "ZXSPECTRUM48") &&
 		strcmp(name, "ZXSPECTRUM128") &&
 		strcmp(name, "ZXSPECTRUM256") &&
@@ -37,6 +38,16 @@ bool IsZXSpectrumDevice(char *name) {
 		strcmp(name, "ZXSPECTRUM2048") &&
 		strcmp(name, "ZXSPECTRUM4096") &&
 		strcmp(name, "ZXSPECTRUM8192"))
+	{
+		return false;
+	}
+	return true;
+}
+
+bool IsAmstradCPCDevice(const char* name) {
+	if (nullptr == name) return false;
+	if (strcmp(name, "AMSTRADCPC464") &&
+		strcmp(name, "AMSTRADCPC6128"))
 	{
 		return false;
 	}
@@ -135,9 +146,9 @@ static void DeviceZXSpectrum8192(CDevice **dev, CDevice *parent, aint ramtop) {
 }
 
 static void DeviceZxSpectrumNext(CDevice **dev, CDevice *parent, aint ramtop) {
-	if (ramtop) Warning("ZXN device doesn't init memory in any way (RAMTOP is ignored)");
-	if (Options::IsI8080) Error("Can't use ZXN device while in i8080 assembling mode.", line, FATAL);
-	if (Options::IsLR35902) Error("Can't use ZXN device while in Sharp LR35902 assembling mode.", line, FATAL);
+	if (ramtop) WarningById(W_NO_RAMTOP);
+	if (Options::IsI8080) Error("Can't use ZXN device while in i8080 assembling mode", line, FATAL);
+	if (Options::IsLR35902) Error("Can't use ZXN device while in Sharp LR35902 assembling mode", line, FATAL);
 	*dev = new CDevice("ZXSPECTRUMNEXT", parent);
 	const int initialPages[] = {14, 15, 10, 11, 4, 5, 0, 1};	// basically same as ZX128, but 8k
 	initRegularSlotDevice(*dev, 0x2000, 8, 224, initialPages);
@@ -149,16 +160,54 @@ static void DeviceZxSpectrumNext(CDevice **dev, CDevice *parent, aint ramtop) {
 	}
 }
 
-int SetDevice(char *id, const aint ramtop) {
+static void DeviceNoSlot64k(CDevice **dev, CDevice *parent, aint ramtop) {
+	if (ramtop) WarningById(W_NO_RAMTOP);
+	*dev = new CDevice("NOSLOT64K", parent);
+	const int initialPages[] = { 0 };
+	initRegularSlotDevice(*dev, 0x10000, 1, 32, initialPages);	// 32*64kiB = 2MiB
+}
+
+static void DeviceAmstradCPC464(CDevice** dev, CDevice* parent, aint ramtop) {
+	if (ramtop) WarningById(W_NO_RAMTOP);
+	*dev = new CDevice("AMSTRADCPC464", parent);
+	const int initialPages[] = { 0, 1, 2, 3 };
+	initRegularSlotDevice(*dev, 0x4000, 4, 4, initialPages);
+}
+
+static void DeviceAmstradCPC6128(CDevice** dev, CDevice* parent, aint ramtop) {
+	if (ramtop) WarningById(W_NO_RAMTOP);
+	*dev = new CDevice("AMSTRADCPC6128", parent);
+	const int initialPages[] = { 0, 1, 2, 3 };
+	initRegularSlotDevice(*dev, 0x4000, 4, 8, initialPages);
+}
+
+static bool SetUserDefinedDevice(const char* id, CDevice** dev, CDevice* parent, aint ramtop) {
+	auto findIt = std::find_if(
+		DefDevices.begin(), DefDevices.end(),
+		[&](const CDeviceDef* el) { return 0 == strcasecmp(id, el->getID()); }
+	);
+	if (DefDevices.end() == findIt) return false;	// not found
+	const CDeviceDef & def = **findIt;
+	if (ramtop) WarningById(W_NO_RAMTOP);
+	*dev = new CDevice(def.getID(), parent);
+	initRegularSlotDevice(*dev, def.SlotSize, def.SlotsCount, def.PagesCount, def.initialPages);
+	return true;
+}
+
+bool SetDevice(const char *const_id, const aint ramtop) {
 	CDevice** dev;
 	CDevice* parent = nullptr;
+	char* id = const_cast<char*>(const_id);		//TODO cmphstr for both const/nonconst variants?
+		// ^ argument is const because of lua bindings
 
 	if (!id || cmphstr(id, "none")) {
-		DeviceID = 0; return true;
+		DeviceID = nullptr;
+		Device = nullptr;
+		return true;
 	}
 
 	if (!DeviceID || strcmp(DeviceID, id)) {	// different device than current, change to it
-		DeviceID = 0;
+		DeviceID = nullptr;
 		dev = &Devices;
 		// search for device
 		while (*dev) {
@@ -185,7 +234,13 @@ int SetDevice(char *id, const aint ramtop) {
 				DeviceZXSpectrum8192(dev, parent, ramtop);
 			} else if (cmphstr(id, "zxspectrumnext")) {
 				DeviceZxSpectrumNext(dev, parent, ramtop);
-			} else {
+			} else if (cmphstr(id, "noslot64k")) {
+				DeviceNoSlot64k(dev, parent, ramtop);
+			} else if (cmphstr(id, "amstradcpc464")) {
+				DeviceAmstradCPC464(dev, parent, ramtop);
+			} else if (cmphstr(id, "amstradcpc6128")) {
+				DeviceAmstradCPC6128(dev, parent, ramtop);
+			} else if (!SetUserDefinedDevice(id, dev, parent, ramtop)) {
 				return false;
 			}
 		}
@@ -195,25 +250,55 @@ int SetDevice(char *id, const aint ramtop) {
 		Device->CheckPage(CDevice::CHECK_RESET);
 	}
 	if (ramtop && Device->ZxRamTop && ramtop != Device->ZxRamTop) {
-		Warning("[DEVICE] this device was already opened with different RAMTOP value");
+		WarningById(W_DEV_RAMTOP);
+	}
+	if (IsSldExportActive()) {
+		// SLD tracing data are being exported, export the device data
+		int pageSize = Device->GetCurrentSlot()->Size;
+		int pageCount = Device->PagesCount;
+		int slotsCount = Device->SlotsCount;
+		char buf[LINEMAX];
+		snprintf(buf, LINEMAX, "pages.size:%d,pages.count:%d,slots.count:%d",
+			pageSize, pageCount, slotsCount
+		);
+		for (int slotI = 0; slotI < slotsCount; ++slotI) {
+			size_t bufLen = strlen(buf);
+			char* bufAppend = buf + bufLen;
+			snprintf(bufAppend, LINEMAX-bufLen,
+						(0 == slotI) ? ",slots.adr:%d" : ",%d",
+						Device->GetSlot(slotI)->Address);
+		}
+		// pagesize
+		WriteToSldFile(-1,-1,'Z',buf);
 	}
 	return true;
 }
 
-char* GetDeviceName() {
-	if (!DeviceID) {
-		return (char *)"NONE";
-	} else {
-		return DeviceID;
-	}
+const char* DEVICE_NONE_ID = "NONE";
+
+const char* GetDeviceName() {
+	return DeviceID ? DeviceID : DEVICE_NONE_ID;
+}
+
+std::vector<CDeviceDef*> DefDevices;
+
+CDeviceDef::CDeviceDef(const char* name, aint slot_size, aint page_count)
+	: SlotSize(slot_size), SlotsCount((0x10000 + slot_size - 1) / slot_size), PagesCount(page_count) {
+	assert(name);
+	ID = STRDUP(name);
+}
+
+CDeviceDef::~CDeviceDef() {
+	free(ID);
 }
 
 CDevice::CDevice(const char *name, CDevice *parent)
-	: Next(NULL), SlotsCount(0), PagesCount(0), Memory(nullptr), ZxRamTop(0), CurrentSlot(0) {
+	: Next(nullptr), SlotsCount(0), PagesCount(0), Memory(nullptr), ZxRamTop(0), CurrentSlot(0),
+	previousSlotI(0), previousSlotOpt(CDeviceSlot::ESlotOptions::O_NONE), limitExceeded(false) {
 	ID = STRDUP(name);
 	if (parent) parent->Next = this;
-	for (auto & slot : Slots) slot = NULL;
-	for (auto & page : Pages) page = NULL;
+	for (auto & slot : Slots) slot = nullptr;
+	for (auto & page : Pages) page = nullptr;
 }
 
 CDevice::~CDevice() {
@@ -225,12 +310,12 @@ CDevice::~CDevice() {
 }
 
 void CDevice::AddSlot(int32_t adr, int32_t size) {
-	if (MAX_SLOT_N == SlotsCount) ErrorInt("Can't add more slots, already at max", MAX_SLOT_N, FATAL);
+	if (CDeviceDef::MAX_SLOT_N == SlotsCount) ErrorInt("Can't add more slots, already at max", CDeviceDef::MAX_SLOT_N, FATAL);
 	Slots[SlotsCount++] = new CDeviceSlot(adr, size);
 }
 
 void CDevice::AddPage(byte* memory, int32_t size) {
-	if (MAX_PAGE_N == PagesCount) ErrorInt("Can't add more pages, already at max", MAX_PAGE_N, FATAL);
+	if (CDeviceDef::MAX_PAGE_N == PagesCount) ErrorInt("Can't add more pages, already at max", CDeviceDef::MAX_PAGE_N, FATAL);
 	Pages[PagesCount] = new CDevicePage(memory, size, PagesCount);
 	PagesCount++;
 }
@@ -269,7 +354,7 @@ int CDevice::GetPageOfA16(int32_t address) {
 void CDevice::CheckPage(const ECheckPageLevel level) {
 	// fake DISP address gets auto-wrapped FFFF->0 (with warning only)
 	// only with "emit" mode, labels may get the value 0x10000 before the address gets truncated
-	if (PseudoORG && CHECK_NO_EMIT != level && 0x10000 <= CurAddress) {
+	if (DISP_NONE != PseudoORG && CHECK_NO_EMIT != level && 0x10000 <= CurAddress) {
 		if (LASTPASS == pass) {
 			char buf[64];
 			SPRINTF1(buf, 64, "RAM limit exceeded 0x%X by DISP", (unsigned int)CurAddress);
@@ -278,7 +363,7 @@ void CDevice::CheckPage(const ECheckPageLevel level) {
 		CurAddress &= 0xFFFF;
 	}
 	// check the emit address for bytecode
-	const int realAddr = PseudoORG ? adrdisp : CurAddress;
+	const int realAddr = DISP_NONE != PseudoORG ? adrdisp : CurAddress;
 	// quicker check to avoid scanning whole slots array every byte
 	if (CHECK_RESET != level
 		&& Slots[previousSlotI]->Address <= realAddr
@@ -297,7 +382,7 @@ void CDevice::CheckPage(const ECheckPageLevel level) {
 		// if still in the same slot and within boundaries, we are done
 		if (i == previousSlotI && realAddr < S->Address + S->Size) return;
 		// crossing into other slot, check options for special functionality of old slot
-		if (S->Address + S->Size <= realAddr) MemoryPointer = NULL; // you're not writing there
+		if (S->Address + S->Size <= realAddr) MemoryPointer = nullptr; // you're not writing there
 		switch (previousSlotOpt) {
 			case CDeviceSlot::O_ERROR:
 				if (LASTPASS == pass && CHECK_EMIT == level && !limitExceeded) {
@@ -328,7 +413,7 @@ void CDevice::CheckPage(const ECheckPageLevel level) {
 				}
 				prevS->Page = Pages[nextPageN];		// map next page into the guarded slot
 				Page = prevS->Page;
-				if (PseudoORG) adrdisp -= prevS->Size;
+				if (DISP_NONE != PseudoORG) adrdisp -= prevS->Size;
 				else CurAddress -= prevS->Size;
 				MemoryPointer = Page->RAM;
 				return;		// preserve current option status
@@ -346,11 +431,11 @@ void CDevice::CheckPage(const ECheckPageLevel level) {
 		previousSlotOpt = S->Option;
 		return;
 	}
-	Error("CheckPage(..): please, contact the author of this program.", NULL, FATAL);
+	Error("CheckPage(..): please, contact the author of this program.", nullptr, FATAL);
 }
 
 bool CDevice::SetSlot(int slotNumber) {
-	if (slotNumber < 0 || SlotsCount <= slotNumber || NULL == Slots[slotNumber]) return false;
+	if (slotNumber < 0 || SlotsCount <= slotNumber || nullptr == Slots[slotNumber]) return false;
 	CurrentSlot = slotNumber;
 	return true;
 }
@@ -373,13 +458,22 @@ void CDevice::Poke(aint z80adr, byte value) {
 	page->RAM[z80adr & (page->Size-1)] = value;
 }
 
+aint CDevice::SlotNumberFromPreciseAddress(aint address) {
+	if (address < SlotsCount) return address;		// seems to be slot number, not address
+	// check if the address (input value) does exactly match start-address of some slot
+	int slotNum = GetSlotOfA16(address);
+	if (-1 == slotNum) return address;				// does not belong to any slot
+	if (address != GetSlot(slotNum)->Address) return address;		// not exact match
+	return slotNum;									// return address converted into slot number
+}
+
 CDevicePage::CDevicePage(byte* memory, int32_t size, int number)
 	: Size(size), Number(number), RAM(memory) {
 	if (nullptr == RAM) Error("No memory defined", nullptr, FATAL);
 }
 
 CDeviceSlot::CDeviceSlot(int32_t adr, int32_t size)
-	: Address(adr), Size(size), Page(NULL), InitialPage(-1), Option(O_NONE) {
+	: Address(adr), Size(size), Page(nullptr), InitialPage(-1), Option(O_NONE) {
 }
 
 CDeviceSlot::~CDeviceSlot() {

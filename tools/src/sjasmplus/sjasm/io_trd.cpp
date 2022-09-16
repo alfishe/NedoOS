@@ -40,7 +40,8 @@ struct STrdFile {
 
 	byte		filename[NAME_BASE_SZ];
 	byte		ext;
-	word		address;		// sometimes: other two extension letters for 8.3 naming scheme
+	byte		addressLo;		// sometimes: other two extension letters for 8.3 naming scheme
+	byte		addressHi;		// can't be `word` because of BE-hosts support
 	word		length;
 	byte		sectorLength;
 	byte		startSector;
@@ -90,6 +91,9 @@ struct STrdDisc {
 	static long fileOffset(const long track, const long sector) {
 		return (track * SECTOR_SZ * SECTORS_PER_TRACK) + (sector * SECTOR_SZ);
 	}
+
+	void swapEndianness();
+	bool writeToFile(FILE *ftrd);
 }
 #ifndef _MSC_VER
 	__attribute__((packed));
@@ -99,6 +103,17 @@ struct STrdDisc {
 #endif
 static_assert(STrdDisc::SECTOR_SZ == sizeof(STrdDisc), "TRD disc info is expected to be 256 bytes long!");
 
+void STrdDisc::swapEndianness() {
+	numOfFreeSectors = sj_bswap16(numOfFreeSectors);
+}
+
+bool STrdDisc::writeToFile(FILE *ftrd) {
+	if (Options::IsBigEndian) swapEndianness();		// fix endianness in binary form before write
+	if (1 != fwrite(this, sizeof(STrdDisc), 1, ftrd)) return false;
+	if (Options::IsBigEndian) swapEndianness();		// revert endianness back to native host form
+	return true;
+}
+
 #ifdef _MSC_VER
 #pragma pack(push, 1)
 #endif
@@ -107,6 +122,10 @@ struct STrdHead {
 
 	STrdFile	catalog[NUM_OF_FILES_MAX];
 	STrdDisc	info;
+
+	void swapEndianness();
+	bool readFromFile(FILE *ftrd);
+	bool writeToFile(FILE *ftrd);
 }
 #ifndef _MSC_VER
 	__attribute__((packed));
@@ -115,6 +134,24 @@ struct STrdHead {
 #pragma pack(pop)
 #endif
 static_assert(9 * STrdDisc::SECTOR_SZ == sizeof(STrdHead), "TRD catalog and info area should be 9 sectors long!");
+
+void STrdHead::swapEndianness() {
+	info.swapEndianness();
+	for (STrdFile & file : this->catalog) file.length = sj_bswap16(file.length);
+}
+
+bool STrdHead::readFromFile(FILE *ftrd) {
+	if (1 != fread(this, sizeof(STrdHead), 1, ftrd)) return false;
+	if (Options::IsBigEndian) swapEndianness();
+	return this->info.isTrdInfo();
+}
+
+bool STrdHead::writeToFile(FILE *ftrd) {
+	if (Options::IsBigEndian) swapEndianness();		// fix endianness in binary form before write
+	if (1 != fwrite(this, sizeof(STrdHead), 1, ftrd)) return false;
+	if (Options::IsBigEndian) swapEndianness();		// revert endianness back to native host form
+	return true;
+}
 
 /**
  * @brief Write empty TRD file (80 tracks, 2 sides) into file
@@ -133,7 +170,7 @@ static int saveEmptyWrite(FILE* ff, byte* buf, const char label[8]) {
 		STrdDisc discInfo{};
 		// replace label data if requested
 		if (label) memcpy(discInfo.label, label, STrdDisc::LABEL_SZ);
-		if (1 != fwrite(&discInfo, sizeof(STrdDisc), 1, ff)) return 0;
+		if (!discInfo.writeToFile(ff)) return 0;
 	}
 	// zeroes till end of first track
 	if (7 != fwrite(buf, STrdDisc::SECTOR_SZ, 7, ff)) return 0;
@@ -144,10 +181,10 @@ static int saveEmptyWrite(FILE* ff, byte* buf, const char label[8]) {
 	return 1;
 }
 
-int TRD_SaveEmpty(const char* fname, const char label[8]) {
+bool TRD_SaveEmpty(const char* fname, const char label[8]) {
 	FILE* ff;
 	if (!FOPEN_ISOK(ff, fname, "wb")) {
-		Error("Error opening file", fname, IF_FIRST);
+		Error("opening file for write", fname, IF_FIRST);
 		return 0;
 	}
 	byte* buf = (byte*) calloc(STrdDisc::SECTORS_PER_TRACK*STrdDisc::SECTOR_SZ, sizeof(byte));
@@ -160,13 +197,15 @@ int TRD_SaveEmpty(const char* fname, const char label[8]) {
 }
 
 ETrdFileName TRD_FileNameToBytes(const char* inputName, byte binName[12], int & nameL) {
+	constexpr int baseSz = int(STrdFile::NAME_BASE_SZ);	// pre-cast to `int` (vs `nameL`)
+	const char* ext = strrchr(inputName, '.');
+	const int maxL = std::min(baseSz, ext ? int(ext-inputName) : baseSz);
 	nameL = 0;
-	while (inputName[nameL] && ('.' != inputName[nameL]) && nameL < int(STrdFile::NAME_BASE_SZ)) {
+	while (inputName[nameL] && nameL < maxL) {
 		binName[nameL] = inputName[nameL];
 		++nameL;
 	}
-	while (nameL < int(STrdFile::NAME_BASE_SZ)) binName[nameL++] = ' ';
-	const char* ext = strrchr(inputName, '.');
+	while (nameL < baseSz) binName[nameL++] = ' ';
 	while (ext && ext[1] && nameL < int(STrdFile::NAME_ALT_FULL_SZ)) {
 		binName[nameL] = ext[1];
 		++nameL;
@@ -178,7 +217,7 @@ ETrdFileName TRD_FileNameToBytes(const char* inputName, byte binName[12], int & 
 	int fillIdx = nameL;
 	while (fillIdx < 12) binName[fillIdx++] = 0;
 	if (int(STrdFile::NAME_FULL_SZ) < nameL) return THREE_LETTER_EXTENSION;
-	switch (binName[STrdFile::NAME_BASE_SZ]) {
+	switch (binName[baseSz]) {
 		case 'B': case 'C': case 'D': case '#':
 			return OK;
 	}
@@ -192,7 +231,7 @@ static int ReturnWithError(const char* errorText, const char* fname, FILE* fileT
 }
 
 // use autostart == -1 to disable it (the valid autostart is 0..9999 as line number of BASIC program)
-int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, int autostart, bool replace, bool addplace) {
+bool TRD_AddFile(const char* fname, const char* fhobname, int start, int length, int autostart, bool replace, bool addplace, int lengthMinusVars) {
 
 	// do some preliminary checks with file name and autostart - prepare final catalog entry data
 	union {
@@ -203,14 +242,14 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 	// this will overwrite also first byte of "trd.length" (12 bytes are affected, not just 11)
 	const ETrdFileName nameWarning = TRD_FileNameToBytes(fhobname, longFname, Lname);
 	const bool isExtensionB = ('B' == trdf.ext);
-	if (!addplace && warningNotSuppressed()) {
+	if (!addplace) {
 		if (INVALID_EXTENSION == nameWarning) {
-			Warning("zx.trdimage_add_file: invalid file extension, TRDOS extensions are B, C, D and #.", fhobname);
+			WarningById(W_TRD_EXT_INVALID, fhobname);
 		}
 		if (THREE_LETTER_EXTENSION == nameWarning) {
-			Warning("zx.trdimage_add_file: additional non-standard TRDOS file extension with 3 characters", fhobname);
+			WarningById(W_TRD_EXT_3, fhobname);
 			if (isExtensionB) {
-				Warning("SAVETRD: the \"B\" extension is always single letter", fhobname);
+				WarningById(W_TRD_EXT_B, fhobname);
 				Lname = STrdFile::NAME_FULL_SZ;
 			}
 		}
@@ -218,6 +257,15 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 	if (0 <= autostart && (!isExtensionB || 9999 < autostart)) {
 		Warning("zx.trdimage_add_file: autostart value is BASIC program line number (0..9999) (in lua use -1 otherwise).");
 		autostart = -1;
+	}
+	if (-1 != lengthMinusVars) {
+		if (!isExtensionB) {
+			Error("zx.trdimage_add_file: length without variables is for BASIC files only.");
+			return 0;
+		} else if (lengthMinusVars < 0 || length < lengthMinusVars) {
+			Error("zx.trdimage_add_file: length without variables is not in <0..length> range.");
+			return 0;
+		}
 	}
 
 	// more validations - for Lua (or SAVETRD letting wrong values go through)
@@ -242,10 +290,13 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 	trdf.length = word(length);
 	trdf.sectorLength = byte((length + 255 + (0 <= autostart ? 4 : 0))>>8);
 	if (isExtensionB) {
-		trdf.address = word(length);
+		trdf.addressLo = byte(length);
+		trdf.addressHi = byte(length>>8);
+		if (-1 != lengthMinusVars) trdf.length = word(lengthMinusVars);
 	} else {
 		if (Lname <= int(STrdFile::NAME_FULL_SZ)) {
-			trdf.address = word(start);	// single letter extension => "start" field is used for start value
+			trdf.addressLo = byte(start);	// single letter extension => "start" field is used for start value
+			trdf.addressHi = byte(start>>8);
 		}
 	}
 	if (0 == trdf.sectorLength) {	// can overflow only when 0xFF00 length with autostart => 0
@@ -255,9 +306,9 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 
 	// read 9 sectors of disk into "trdHead" (contains root directory catalog and disk info data)
 	FILE* ff;
+	if (!FOPEN_ISOK(ff, fname, "r+b")) return ReturnWithError("Error opening file", fname, ff);
 	STrdHead trdHead;
-	if (!FOPEN_ISOK(ff, fname, "r+b")) Error("Error opening file", fname, FATAL);
-	if (1 != fread(&trdHead, sizeof(STrdHead), 1, ff) || !trdHead.info.isTrdInfo()) {
+	if (!trdHead.readFromFile(ff)) {
 		return ReturnWithError("TRD image read error", fname, ff);
 	}
 
@@ -313,10 +364,10 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 		fileIndex = trdHead.info.numOfFiles;
 	} else {
 		// in "normal" mode warn when file already exists
-		if (STrdHead::NUM_OF_FILES_MAX != fileIndex && warningNotSuppressed()) {
+		if (STrdHead::NUM_OF_FILES_MAX != fileIndex) {
 			// to keep legacy behaviour of older sjasmplus versions, this is just warning
 			// and the same file will be added to end of directory any way
-			Warning("TRD file already exists, creating one more!", fname, W_PASS3);
+			WarningById(W_TRD_DUPLICATE, fname);
 		}
 		fileIndex = trdHead.info.numOfFiles;
 	}
@@ -366,22 +417,22 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 		if (oldTargetEndPos < freePos) {	// some data after old file -> shift them a bit
 			// first move the data inside the TRD image
 			size_t dataToMoveLength = freePos - oldTargetEndPos;
-			byte* dataToMove = new byte[dataToMoveLength];
-			if (nullptr == dataToMove) ErrorOOM();
+			std::unique_ptr<byte[]> dataToMove(new byte[dataToMoveLength]);
+			if (nullptr == dataToMove.get()) ErrorOOM();
 			if (fseek(ff, oldTargetEndPos, SEEK_SET)) {
 				return ReturnWithError("TRD image has wrong format", fname, ff);
 			}
-			if (dataToMoveLength != fread(dataToMove, 1, dataToMoveLength, ff)) {
+			if (dataToMoveLength != fread(dataToMove.get(), 1, dataToMoveLength, ff)) {
 				return ReturnWithError("TRD read error", fname, ff);
 			}
 			if (fseek(ff, newTargetEndPos, SEEK_SET)) {
 				return ReturnWithError("TRD image has wrong format", fname, ff);
 			}
 			// first modification of the provided TRD file (since here, if something fails, the file is damaged)
-			if (dataToMoveLength != fwrite(dataToMove, 1, dataToMoveLength, ff)) {
+			if (dataToMoveLength != fwrite(dataToMove.get(), 1, dataToMoveLength, ff)) {
 				return ReturnWithError("TRD write error", fname, ff);
 			}
-			delete[] dataToMove;
+			dataToMove.release();
 			// adjust all catalog entries which got the content sectors shifted
 			for (unsigned entryIndex = 0; entryIndex < STrdHead::NUM_OF_FILES_MAX; ++entryIndex) {
 				auto & entry = trdHead.catalog[entryIndex];
@@ -427,7 +478,7 @@ int TRD_AddFile(const char* fname, const char* fhobname, int start, int length, 
 	if (fseek(ff, 0, SEEK_SET)) {
 		return ReturnWithError("TRD image has wrong format", fname, ff);
 	}
-	if (1 != fwrite(&trdHead, sizeof(STrdHead), 1, ff)) {
+	if (!trdHead.writeToFile(ff)) {
 		return ReturnWithError("TRD write error", fname, ff);
 	}
 
@@ -442,13 +493,13 @@ int TRD_PrepareIncFile(const char* trdname, const char* filename, aint & offset,
 	TRD_FileNameToBytes(filename, trdFormName, Lname);	// ignore diagnostic info about extension
 
 	// read 9 sectors of disk into "trdHead" (contains root directory catalog and disk info data)
-	FILE* ff;
 	STrdHead trdHead;
 	char* fullTrdName = GetPath(trdname);
-	if (!FOPEN_ISOK(ff, fullTrdName, "rb")) Error("[INCTRD] Error opening file", trdname, FATAL);
+	FILE* ff = SJ_fopen(fullTrdName, "rb");
 	free(fullTrdName);
 	fullTrdName = nullptr;
-	if (1 != fread(&trdHead, sizeof(STrdHead), 1, ff) || !trdHead.info.isTrdInfo()) {
+	if (nullptr == ff) return ReturnWithError("[INCTRD] Error opening file", trdname, ff);
+	if (!trdHead.readFromFile(ff)) {
 		return ReturnWithError("TRD image read error", trdname, ff);
 	}
 	fclose(ff);

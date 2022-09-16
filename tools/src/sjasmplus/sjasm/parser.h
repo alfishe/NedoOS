@@ -41,11 +41,33 @@ int ParseDirective_REPT();
 void ParseInstruction();
 char* ReplaceDefine(char* lp);
 void SetLastParsedLabel(const char* label);
-void ParseLine(bool = true);
-void ParseLineSafe(bool = true);
-void ParseStructLine(CStructure* st);
-uint32_t LuaCalculate(char *str);
-void LuaParseLine(char *str);
-void LuaParseCode(char *str);
-//eof parser.h
+int PrepareLine();		// initial part of ParseLine, before the actual content parsing logic starts
 
+/**
+ * @brief Reads and prepares for parsing new lines until non-blank char is encountered (producing
+ * listing file along).
+ *
+ * WARNING - this is pushing slightly beyond the original architecture of SjASMPlus, affecting
+ * global state like `lp, line, ...`, so it's *NOT* possible to "roll-back" from this step, this
+ * is one-way ticket in terms of lines parsing.
+ *
+ * @param p parsing pointer (will be adjusted for new line read)
+ * @return bool false when no more lines available, true when non-blank char is ready
+ */
+bool PrepareNonBlankMultiLine(char*& p);
+
+void ParseLine(bool parselabels = true);
+void ParseLineSafe(bool parselabels = true);
+void ParseStructLine(CStructure* st);
+
+template <int argsN> bool getIntArguments(char*& lp, aint (&args)[argsN], const bool (&argOptional)[argsN]) {
+	for (int i = 0; i < argsN; ++i) {
+		if (0 < i && !comma(lp)) return argOptional[i];
+		aint val;				// temporary variable to preserve original value in case of error
+		if (!ParseExpression(lp, val)) return (0 == i) && argOptional[i];
+		args[i] = val;
+	}
+	return !comma(lp);
+}
+
+//eof parser.h

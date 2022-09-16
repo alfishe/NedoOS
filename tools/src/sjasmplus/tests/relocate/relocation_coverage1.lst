@@ -1,0 +1,46 @@
+relocation_coverage1.asm(28): error: Missing end of relocation block started here
+# file opened: relocation_coverage1.asm
+ 1    0000                  ORG $1000
+ 2    1000
+ 3    1000                  RELOCATE_START
+ 4    1000
+relocation_coverage1.asm(3): error: Relocation block already started here
+relocation_coverage1.asm(5): ^ emitted from here
+ 5    1000                  RELOCATE_START      ; error 2x start
+ 6    1000
+ 7    1000 01 00            dw      relocate_count
+ 8    1002 02 00            dw      relocate_size
+ 9    1004
+10    1004              label1:
+11    1004 CD 04 10         call    label1
+relocation_coverage1.asm(12): warning[relunstable]: Relocation makes one of the expressions unstable, resulting machine code is not relocatable
+12    1007 3E 10            ld      a,high label1   ; warning about unstable expression
+13    1009              label2:
+relocation_coverage1.asm(14): warning[relunstable]: Relocation makes one of the expressions unstable, resulting machine code is not relocatable
+14    1009 3E 20            ld      a,high(4*label2) - high(2*label1)   ; warning about unstable expression
+15    100B 3E 00            ld      a,high(8*label2) - high(8*label1)   ; this one is stable (no warning)
+16    100D
+17    100D 3E 10            ld      a,high label2   ; relunstable-ok ; warning supressed
+18    100F
+relocation_coverage1.asm(19): warning[reldiverts]: Expression can't be relocated by simple "+offset" mechanics, value diverts differently.
+19    100F 21 10 00         ld      hl,high label1  ; can't be relocated by simple "+offset" in regular mode (would work in HIGH mode)
+20    1012
+21    1012                  RELOCATE_END
+22    1012
+relocation_coverage1.asm(23): error: HIGH mode can't be mixed with regular mode
+23    1012                  RELOCATE_START   HIGH   ; error - HIGH and "regular" mode can't be mixed in the same assembling unit
+24    1012
+25    1012 05 10            RELOCATE_TABLE
+26    1014
+relocation_coverage1.asm(27): error: Relocation block start for this end is missing
+27    1014                  RELOCATE_END        ; error about missing START
+28    1014                  RELOCATE_START      ; error about missing END
+29    1014
+# file closed: relocation_coverage1.asm
+
+Value    Label
+------ - -----------------------------------------------------------
+0x1004   label1
+0x1009   label2
+0x0001   relocate_count
+0x0002   relocate_size

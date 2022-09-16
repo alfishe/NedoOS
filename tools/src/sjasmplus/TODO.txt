@@ -5,6 +5,21 @@ scratch area + TODO keeper for sjasmplus developers:
 ====================
 Ped:
 
+baze — Today at 22:22
+@neon Even if you keep paging outs in machine code, it's a good idea to keep LOAD in BASIC. My suggestion would be to use set 4,(iy + 1) so that +3 BASIC doesn't corrupt page 7 during IM 1. Then, for every out (c),a you also do ld (#5B5C),a to keep 128 BASIC happy. I think that should work with 48K BASIC, 128K BASIC and +3 BASIC.
+
+errors: add new CLI option for the "emitted/included at/from" messages,
+keeping the assembler more silent in msg=war|err mode
+
+listing with pre-substituted original source line included
+ catch list: DUP -> EDUP, `nop:nop:nop`, ...
+ output: maybe `<` like macros have `>`? and missing address, only line number?
+
+relocation -> extra support for Next driver banks?
+(see Robin's https://github.com/Threetwosevensixseven/ZXRelocate to learn what exactly that means)
+
+check https://github.com/google/AFL
+
 add block/reserve which does really preserve the device memory content (currently only the
 structure block+align does preserve memory, and standalone ALIGN, but not DS/BLOCK)
 
@@ -12,40 +27,11 @@ structure block+align does preserve memory, and standalone ALIGN, but not DS/BLO
 claim it's confusing/useless.
  -> turned out to be lot more difficult than expected (macros + lua inlining)
 
-remote build script - "done" ATM, waiting for feedback/improvements suggestions/logs
-
-ARM emulation on x86: https://github.com/nongiach/arm_now  ???
-
-+3DOS podpora do sjasmplus:
-    z00m:
-    uz sme to tu sto razy rozoberali
-    Elliotova utilitka to vie
-    lepit tie hlavicky
-    http://www.seasip.info/ZX/unix.html
-    specform a unspecform
-    a ma tam aj priamo patchnuty zmakebas
-    a ma k tym taptools aj zdrojaky
-    aha tak na zmakebas je len patch
-    a teraz som si spomenul, ze u mna je to cele uz patchnute
-    https://github.com/z00m128/zmakebas (edited)
-
-+3DOS v pythone: https://github.com/shred/nextskeleton/blob/master/skeleton/tools/makeautoexec.py
-
-
-`make install` doesn't refresh binary???
-(does link, but doesn't use the new library, but old)
- --- not sure what was this varmfskii report about, the Makefile is now tuned a bit any way
- -- maybe dependencies? (but it did sound like after clean the `make install` alone doesn't
- work properly, and that should now work) Dependencies are borked, needs `make clean` when
- headers are modified (known bug, too lazy to build dependencies in universal makefile).
-
-consider the "low memory access" warning locked to only ZX-like devices?
-
 parser.cpp ParseExpShift and other "needa" doing transformations (shr => '>' ???)
 - write tests trying those "while" loops for groups of operators
 - write tests testing operator precedence
 
-CSPECTMAP - needs better support for DISP and instances of STRUCT
+CSPECTMAP - needs better support for DISP
 - also reported to be not as good as external tool, but seems that is due to not-using DEVICE directive by author
 (can't help that)
 
@@ -57,18 +43,8 @@ static analysis: PVS-Studio https://www.viva64.com/en/m/0036/
  * https://scan.coverity.com/projects/z00m128-sjasmplus
     (needs build according to their tool or Travis CI)
 
-Lua error reporting: if function is defined in different anonymous block, only the emit
-line is reported in error message. If each anonymous block would get unique name, and
-track the starting position of the definition, then it would be possible to report even
-errors from inside lua functions defined in current asm file with the definition-line of
-error + "emitted here" line.
-
-FIXME in sources mark further points worth refactoring
-
 FIXME: get rid of ParseDirective_REPT somehow, its existence can't be right
 (breaks ` .34 repeatX` directive probably? .. and END@beginningOfLine? .. actually not?)
-
-ReadBufLine parsing refactored. Now look for other parts of code trying to do similar things and refactor too..
 
 I almost certainly broke some STRCPY/STRCAT max-size limits (i.e. malicious source may buffer overflow)...
 
@@ -90,12 +66,8 @@ where filename modification happens or filename is invalid.
 - inhibitor of substitutions happening (like `@djnz` inhibits macro replacement).
 ** Current refactored implementation:
 - doesn't play priorities as proposed above
-- evaluation of defarray index is still flaky and doesn't work correctly inside macro/etc
 - needs lot more testing and cleanup
 + should be already a bit more intuitive than 1.08+ (although it may break legacy source)
-
-ZX128 snapshot default state and mapping - still doesn't survive simple `ret` into BASIC
-ret to basic: di : ld iy,#5c3a : ld hl,#2758 : exx : im 1 : ei : ret
 
 DISP inside DISP bugs => documented. Correct solution = nesting DISPs?!
 
@@ -121,18 +93,14 @@ MMU:
 - custom pages order for wrap-next-mapping option (like "<3, 5, 1, 2>" ?)
 - err/warn/warp option for slot range?
 
-Kate syntax:
-    - backward slashes in path strings are not working as escapes, single "\" there is OK, but syntax highlight thinks it's "DB" like string.
-
 * maybe create extra syntax rules for listing files? (especially if it's possible to include asm syntax for half of line)
 
 ##### sjasmplus 2.x/fork:
 
 SHELLEXEC change syntax
 
-"ok" warning suppressing mechanism for ALL warnings?
-
-EQU and DEFL to not affect local labels (not defining new "main" label)
+separate local-labels vs macro-local-labels, like giving the macros new prefix? ">"?
+(issue #120)
 
 Operators precedence: (2 == 3&2) = ((2 == 3)&2) = false in current sjasmplus... ????
     https://en.cppreference.com/w/cpp/language/operator_precedence
@@ -155,10 +123,7 @@ Check about other syntax ambiguities, what seems too much relaxed and could be s
 
 N-pass
 
-new lua + js support?
-
-Refactor filepath functions to deal with backward slashes systematically
-(or maybe just wait few more years, can't be that long now before windows are gone)
+js support?
 
 ====================
 Debian packaging:
@@ -198,13 +163,14 @@ Major changes on my mind:
 * macro-defined-operators (not only "instructions")
 * nesting DISPs?
 * better support for Maziac's tools (label type export, whatever else is needed)
-* fresher version of lua, revisit integration
 * maybe also JavaScript scripting support
 * filepath stuff through POSIX/clib API to make it cross-platform without hacks (normal slashes everywhere)
 
 RELEASE spam:
 Next wiki assemblers
 Next discord
+Twitter
 zx-pk.ru forum
 Next FB
 (maybe once per year or two: next forum, linkedin)
+-- also update .exe/docker in tests/misc

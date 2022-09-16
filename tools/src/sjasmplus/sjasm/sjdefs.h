@@ -30,24 +30,26 @@
 #define __SJDEFS
 
 // version string
-#define VERSION "1.15.1"
-#define VERSION_NUM "0x00010F01"
+#define VERSION "1.20.1"
+#define VERSION_NUM "0x00011401"
 
 #define LASTPASS 3
 
 // output
-#define _COUT cout << termcolor::reset <<
-#define _CERR cerr << termcolor::red_br <<
+#define _COUT cout <<
+#define _CERR cerr <<
 #define _CMDL  <<
-#define _ENDL << termcolor::reset << endl
-#define _END << termcolor::reset
+#define _ENDL << endl
+#define _END ;
 
-// standard libraries
 #ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #endif
 
+#include <cassert>
+#include <memory>
 #include <algorithm>
 #include <stack>
 #include <vector>
@@ -60,18 +62,8 @@ using std::flush;
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
-
-#ifdef USE_LUA
-
-extern "C" {
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-#include "tolua++.h"
-}
-
-#endif //USE_LUA
 
 // global defines
 #define LINEMAX 2048
@@ -84,25 +76,48 @@ typedef uint8_t byte;
 typedef uint16_t word;
 typedef std::vector<char> stdin_log_t;
 
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif
+template <typename T>
+struct SAlignSafeCast {
+	T	val;
+}
+#ifndef _MSC_VER
+	__attribute__((packed));
+#else
+	;
+#pragma pack(pop)
+#endif
+
 #ifndef PATH_MAX
 #define PATH_MAX	4096
 #endif
 
+// not used by sjasmplus, but define it any way to prevent accidental use by code, as MUSL clib is defining it
+// https://github.com/z00m128/sjasmplus/issues/193
+#ifndef PAGE_SIZE
+#define PAGE_SIZE	4096
+#endif
+
 // include all headers
-extern "C" {
-#include "lua_lpack.h"
-}
+
+#include "lua_sjasm.h"
 #include "devices.h"
 #include "support.h"
+#include "relocate.h"
 #include "tables.h"
 #include "reader.h"
 #include "parser.h"
 #include "z80.h"
 #include "directives.h"
 #include "sjio.h"
+#include "io_cpc.h"
+#include "io_err.h"
 #include "io_snapshots.h"
-#include "io_trd.h"
 #include "io_tape.h"
+#include "io_trd.h"
+#include "io_tzx.h"
 #include "io_nex.h"
 #include "sjasm.h"
 

@@ -83,6 +83,8 @@ struct SNexHeader {
 	uint32_t	crc32c;				// CRC-32C build by: file offset 512->EOF (including append bin), then 508B header
 
 	void init();
+	void prepareLittleEndianBinaryForm();
+	void restoreHostEndianBinaryForm();
 }
 #ifndef _MSC_VER
 	__attribute__((packed));
@@ -127,6 +129,24 @@ void SNexHeader::init() {
 	coreVersion[2] = 28;
 }
 
+void SNexHeader::prepareLittleEndianBinaryForm() {
+	if (Options::IsBigEndian) {
+		sp = sj_bswap16(sp);
+		pc = sj_bswap16(pc);
+		_obsolete_numfiles = sj_bswap16(_obsolete_numfiles);
+		fileHandleCfg = sj_bswap16(fileHandleCfg);
+		banksOffset = sj_bswap32(banksOffset);
+		cliBuffer = sj_bswap16(cliBuffer);
+		cliBufferSize = sj_bswap16(cliBufferSize);
+		crc32c = sj_bswap32(crc32c);
+	}
+}
+
+void SNexHeader::restoreHostEndianBinaryForm() {
+	// it's actually identical to the prepareLittleEndianBinaryForm, but keeping unique naming
+	prepareLittleEndianBinaryForm();
+}
+
 SNexFile::~SNexFile() {
 	finalizeFile();
 }
@@ -162,9 +182,11 @@ void SNexFile::writeHeader() {
 	canAppend = false;							// does fseek, cancel the "append" mode
 	// refresh/write the file header
 	fseek(f, 0, SEEK_SET);
+	h.prepareLittleEndianBinaryForm();
 	if (sizeof(SNexHeader) != fwrite(&h, 1, sizeof(SNexHeader), f)) {
 		Error("[SAVENEX] writing header content failed", NULL, SUPPRESS);
 	}
+	h.restoreHostEndianBinaryForm();
 }
 
 void SNexFile::writePalette() {
@@ -231,21 +253,30 @@ void SNexFile::finalizeFile() {
 	copper = nullptr;
 	if (nullptr != palette) delete[] palette;
 	palette = nullptr;
+	// check if there were banks 48+, but 2MB required was not set
+	byte hasExtendedBank = 0;
+	for (int i = 48; i < SNexHeader::MAX_BANK; ++i) hasExtendedBank |= h.banks[i];
+	if (!h.ramReq && hasExtendedBank) {
+		Error("[SAVENEX] 2MB bank (48..111) stored without 2MbRamReq set in CFG");
+	}
 	return;
 }
 
 enum EBmpType { other, Layer2, LoRes, L2_320x256, L2_640x256 };
 
 class SBmpFile {
+	static constexpr size_t HEADERS_SIZE = 0x36;	// 14B header + BITMAPINFOHEADER 40B header
+	static constexpr size_t PALETTE_SIZE = 0x100;
+
 	FILE*		bmp;
-	byte		tempHeader[0x36];		// 14B header + BITMAPINFOHEADER 40B header
+	byte		tempHeader[HEADERS_SIZE];
 	byte*		palBuffer = nullptr;
 
 public:
 	EBmpType	type = other;
 	int32_t		width = 0, height = 0;
 	bool		upsideDown = false;
-	uint32_t	colorsCount = 0;
+	uint32_t	colorsUsed = 0;
 
 	~SBmpFile();
 	void close();
@@ -271,18 +302,25 @@ bool SBmpFile::open(const char* bmpname) {
 		Error("[SAVENEX] Error opening file", bmpname, SUPPRESS);
 		return false;
 	}
-	// read header of BMP and verify the file is of expected format
-	palBuffer = new byte[4*256];
+	palBuffer = new byte[4*PALETTE_SIZE];
 	if (nullptr == palBuffer) ErrorOOM();
-	const size_t readElements = fread(tempHeader, 1, 0x36, bmp) + fread(palBuffer, 4, 256, bmp);
-	// these following casts assume the sjasmplus itself is running at little-endian platform
-	// if you are using big-endian, report the issue, so this can be fixed in more universal way
-	const uint32_t header2Size = *reinterpret_cast<uint32_t*>(tempHeader + 14);
-	const uint16_t colorPlanes = *reinterpret_cast<uint16_t*>(tempHeader + 26);
-	const uint16_t bpp = *reinterpret_cast<uint16_t*>(tempHeader + 28);
-	const uint32_t compressionType = *reinterpret_cast<uint32_t*>(tempHeader + 30);
+	// read header of BMP and verify the file is of expected format
+	bool allRead = (HEADERS_SIZE == fread(tempHeader, 1, HEADERS_SIZE, bmp));
+	allRead = allRead && (PALETTE_SIZE == fread(palBuffer, 4, PALETTE_SIZE, bmp));
+	// these following casts assume the sjasmplus itself is running at little-endian host
+	uint32_t header2Size = reinterpret_cast<SAlignSafeCast<uint32_t>*>(tempHeader + 14)->val;
+	uint16_t colorPlanes = *reinterpret_cast<uint16_t*>(tempHeader + 26);
+	uint16_t bpp = *reinterpret_cast<uint16_t*>(tempHeader + 28);
+	uint32_t compressionType = reinterpret_cast<SAlignSafeCast<uint32_t>*>(tempHeader + 30)->val;
+	// fix values on BE hosts
+	if (Options::IsBigEndian) {
+		header2Size = sj_bswap32(header2Size);
+		colorPlanes = sj_bswap16(colorPlanes);
+		bpp = sj_bswap16(bpp);
+		compressionType = sj_bswap32(compressionType);
+	}
 	// check "BM", BITMAPINFOHEADER type (size 40), 8bpp, no compression
-	if (0x36+256 != readElements || 'B' != tempHeader[0] || 'M' != tempHeader[1] ||
+	if (!allRead || 'B' != tempHeader[0] || 'M' != tempHeader[1] ||
 		40 != header2Size || 1 != colorPlanes || 8 != bpp || 0 != compressionType)
 	{
 		Error("[SAVENEX] BMP file is not in expected format (uncompressed, 8bpp, 40B BITMAPINFOHEADER header)",
@@ -290,10 +328,16 @@ bool SBmpFile::open(const char* bmpname) {
 		close();
 		return false;
 	}
-	colorsCount = *reinterpret_cast<uint32_t*>(tempHeader + 46);
 	// check if the size is 256x192 (Layer 2) or 128x96 (LoRes), or 320/640 x 256 (V1.3).
-	width = *reinterpret_cast<int32_t*>(tempHeader + 18);
-	height = *reinterpret_cast<int32_t*>(tempHeader + 22);
+	colorsUsed = reinterpret_cast<SAlignSafeCast<uint32_t>*>(tempHeader + 46)->val;
+	width = reinterpret_cast<SAlignSafeCast<int32_t>*>(tempHeader + 18)->val;
+	height = reinterpret_cast<SAlignSafeCast<int32_t>*>(tempHeader + 22)->val;
+	// fix values on BE hosts
+	if (Options::IsBigEndian) {
+		colorsUsed = sj_bswap32(colorsUsed);
+		width = sj_bswap32(width);
+		height = sj_bswap32(height);
+	}
 	upsideDown = 0 < height;
 	if (height < 0) height = -height;
 	if (256 == width && 192 == height) type = Layer2;
@@ -306,7 +350,7 @@ bool SBmpFile::open(const char* bmpname) {
 }
 
 word SBmpFile::getColor(uint32_t index) {
-	if (nullptr == bmp || nullptr == palBuffer || colorsCount <= index) return 0;
+	if (nullptr == bmp || nullptr == palBuffer || 256 <= index) return 0;
 	const byte B = palBuffer[index * 4 + 0] >> 5;
 	const byte G = palBuffer[index * 4 + 1] >> 5;
 	const byte R = palBuffer[index * 4 + 2] >> 5;
@@ -314,7 +358,8 @@ word SBmpFile::getColor(uint32_t index) {
 }
 
 void SBmpFile::loadPixelData(byte* buffer) {
-	const uint32_t offset = *reinterpret_cast<uint32_t*>(tempHeader + 10);
+	uint32_t offset = reinterpret_cast<SAlignSafeCast<uint32_t>*>(tempHeader + 10)->val;
+	if (Options::IsBigEndian) offset = sj_bswap32(offset);
 	const size_t w = static_cast<size_t>(width);
 	for (int32_t y = 0; y < height; ++y) {
 		const int32_t fileY = upsideDown ? (height - y - 1) : y;
@@ -339,14 +384,27 @@ static aint getNexBankNum(const aint bankIndex) {
 	return -1;
 }
 
-template <int argsN> static bool getIntArguments(aint (&args)[argsN], const bool argOptional[argsN]) {
-	for (int i = 0; i < argsN; ++i) {
-		if (0 < i && !comma(lp)) return argOptional[i];
-		aint val;				// temporary variable to preserve original value in case of error
-		if (!ParseExpression(lp, val)) return (0 == i) && argOptional[i];
-		args[i] = val;
+static void checkStackPointer() {
+	constexpr int CHECK_SIZE = 10;
+	constexpr int EXPECTED_SLOTS_COUNT = 8;
+	const int adrMask = Device->GetCurrentSlot()->Size - 1;
+	const int pages[EXPECTED_SLOTS_COUNT] = { 0, 0, 5*2, 5*2+1, 2*2, 2*2+1, nex.h.entryBank*2, nex.h.entryBank*2+1 };
+	assert(EXPECTED_SLOTS_COUNT == Device->SlotsCount);
+	// check if SP is too close to ROM (0x0001 ... 0x4009)
+	if (0x0000 < nex.h.sp && nex.h.sp < 0x4000 + CHECK_SIZE) {
+		Warning("[SAVENEX] stackAddress is too close to ROM area");
+		return;
 	}
-	return !comma(lp);
+	// check if good-looking SP points to enough of zeroed memory, warn about overwrite if not
+	word spCheck = word(nex.h.sp - CHECK_SIZE);
+	while (spCheck != nex.h.sp) {
+		const int pageNum = pages[Device->GetSlotOfA16(spCheck)];
+		const size_t offset = Device->GetMemoryOffset(pageNum, spCheck & adrMask);
+		if (0 != Device->Memory[offset]) break;
+		++spCheck;
+	}
+	if (spCheck == nex.h.sp) return;
+	WarningById(W_NEX_STACK);
 }
 
 static void dirNexOpen() {
@@ -356,13 +414,12 @@ static void dirNexOpen() {
 	}
 	nex.init();			// reset everything around NEX file data
 	// read OPEN command arguments
-	char* fname = GetOutputFileName(lp);
+	std::unique_ptr<char[]> fname(GetOutputFileName(lp));
 	aint openArgs[4] = { (-1 == StartAddress ? 0 : StartAddress), 0xFFFE, 0, 0 };
 	if (comma(lp)) {
 		const bool optionals[] = {false, true, true, true};	// start address is mandatory because comma
-		if (!getIntArguments<4>(openArgs, optionals)) {
+		if (!getIntArguments<4>(lp, openArgs, optionals)) {
 			Error("[SAVENEX] expected syntax is OPEN <filename>[,<startAddress>[,<stackAddress>[,<entryBank 0..111>[,<fileVersion 2..3>]]]]", bp, SUPPRESS);
-			delete[] fname;
 			return;
 		}
 	}
@@ -374,17 +431,14 @@ static void dirNexOpen() {
 	check16(openArgs[1]);
 	if (openArgs[2] < 0 || SNexHeader::MAX_BANK <= openArgs[2]) {
 		ErrorInt("[SAVENEX] entry bank can be 0..111 value only", openArgs[2], SUPPRESS);
-		delete[] fname;
 		return;
 	}
 	if (openArgs[3] && (openArgs[3] < 2 || 3 < openArgs[3])) {
 		ErrorInt("[SAVENEX] only file version 2 (V1.2) or 3 (V1.3) can be enforced", openArgs[3], SUPPRESS);
-		delete[] fname;
 		return;
 	}
 	// try to open the actual file
-	if (!FOPEN_ISOK(nex.f, fname, "w+b")) Error("[SAVENEX] Error opening file", fname, SUPPRESS);
-	delete[] fname;
+	if (!FOPEN_ISOK(nex.f, fname.get(), "w+b")) Error("[SAVENEX] Error opening file for write", fname.get(), SUPPRESS);
 	if (nullptr == nex.f) return;
 	// set the argument values into header, and write the initial version of header into file
 	nex.h.pc = openArgs[0] & 0xFFFF;
@@ -395,6 +449,7 @@ static void dirNexOpen() {
 	nex.writeHeader();
 	// After writing header first time, the file is ready for "append like" usage
 	nex.canAppend = true;
+	checkStackPointer();
 }
 
 static void dirNexCore() {
@@ -405,7 +460,7 @@ static void dirNexCore() {
 	// parse arguments
 	aint coreArgs[3] = {0};
 	const bool optionals[] = {false, false, false};
-	if (!getIntArguments<3>(coreArgs, optionals)) {
+	if (!getIntArguments<3>(lp, coreArgs, optionals)) {
 		Error("[SAVENEX] expected syntax is CORE <major 0..15>,<minor 0..15>,<subminor 0..255>", bp, SUPPRESS);
 		return;
 	}
@@ -433,7 +488,7 @@ static void dirNexCfg3() {
 	// parse arguments
 	aint cfgArgs[4] = {1, 0};
 	const bool optionals[] = {false, true, true, false};
-	if (!getIntArguments<4>(cfgArgs, optionals)) {
+	if (!getIntArguments<4>(lp, cfgArgs, optionals)) {
 		Error("[SAVENEX] expected syntax is CFG3 <DoCRC 0/1>[,<PreserveExpansionBus 0/1>[,<CLIbufferAdr>,<CLIbufferSize>]]", bp, SUPPRESS);
 		return;
 	}
@@ -451,6 +506,10 @@ static void dirNexCfg3() {
 	nex.h.expBusDisable = !!cfgArgs[1];
 	nex.h.cliBuffer = cfgArgs[2];
 	nex.h.cliBufferSize = cfgArgs[3];
+	if (nex.h.hasChecksum && Options::IsBigEndian) {
+		Error("[SAVENEX] CRC feature is not available at big-endian host machine (wrong CRC implementation in sjasmplus, sorry)");
+		nex.h.hasChecksum = false;
+	}
 }
 
 static void dirNexCfg() {
@@ -462,7 +521,7 @@ static void dirNexCfg() {
 	// parse arguments
 	aint cfgArgs[4] = {0};
 	const bool optionals[] = {false, true, true, true};
-	if (!getIntArguments<4>(cfgArgs, optionals)) {
+	if (!getIntArguments<4>(lp, cfgArgs, optionals)) {
 		Error("[SAVENEX] expected syntax is CFG <border 0..7>[,<fileHandle 0/1/$4000+>[,<PreserveNextRegs 0/1>[,<2MbRamReq 0/1>]]]", bp, SUPPRESS);
 		return;
 	}
@@ -486,7 +545,7 @@ static void dirNexBar() {
 	// parse arguments
 	aint barArgs[5] = {0, 0, 0, 0, 254};
 	const bool optionals[] = {false, false, true, true, true};
-	if (!getIntArguments<5>(barArgs, optionals)) {
+	if (!getIntArguments<5>(lp, barArgs, optionals)) {
 		Error("[SAVENEX] expected syntax is BAR <loadBar 0/1>,<barColour 0..255>[,<startDelay 0..255>[,<bankDelay 0..255>[,<posY 0..255>]]]", bp, SUPPRESS);
 		return;
 	}
@@ -538,11 +597,6 @@ static bool dirNexPaletteMem(const aint page8kNum, const aint palOffset) {
 
 static bool dirNexPaletteBmp(SBmpFile & bmp) {
 	if (nex.palDefined) return true;	// palette was already defined, silently ignore
-	if (256 != bmp.colorsCount && warningNotSuppressed()) {
-		char buf[128];
-		SPRINTF1(buf, 128, "[SAVENEX] BMP has only %d colors in palette (expect \"any\" values in remaining colors).", bmp.colorsCount);
-		Warning(buf);
-	}
 	// copy the data into internal palette buffer
 	nex.palDefined = true;
 	nex.palette = new byte[SNexHeader::PAL_SIZE];
@@ -560,7 +614,7 @@ static void dirNexPaletteMem() {
 // ;; SAVENEX PALETTE MEM <palPage8kNum 0..223>,<palOffset>
 	aint palArgs[2] = {0, 0};
 	const bool optionals[] = {false, false};
-	if (!getIntArguments<2>(palArgs, optionals)
+	if (!getIntArguments<2>(lp, palArgs, optionals)
 			|| palArgs[0] < 0 || SNexHeader::MAX_PAGE <= palArgs[0] || palArgs[1] < 0) {
 		Error("[SAVENEX] expected syntax is MEM <palPage8kNum 0..223>,<palOffset 0+>", bp, SUPPRESS);
 		return;
@@ -624,7 +678,7 @@ static void dirNexScreenLayer2andLowRes(EBmpType type) {
 	// parse arguments
 	aint screenArgs[4] = {-1, 0, -1, 0};
 	const bool optionals[] = {true, false, true, false};
-	if (!getIntArguments<4>(screenArgs, optionals)
+	if (!getIntArguments<4>(lp, screenArgs, optionals)
 			|| screenArgs[0] < -1 || SNexHeader::MAX_PAGE <= screenArgs[0]		// -1 for default pixel data
 			|| screenArgs[2] < -1 || SNexHeader::MAX_PAGE <= screenArgs[2]) {	// -1 for no-palette
 		Error("[SAVENEX] expected syntax is ... [<Page8kNum 0..223>,<offset>[,<palPage8kNum 0..223>,<palOffset>]]", bp, SUPPRESS);
@@ -684,7 +738,7 @@ static void dirNexScreenBmp() {
 	aint bmpArgs[2] = { 1, -1 };
 	if (comma(lp)) {	// empty filename will fall here too, causing syntax error
 		const bool optionals[] = {false, true};	// savePalette is mandatory after comma
-		if (!getIntArguments<2>(bmpArgs, optionals)) {
+		if (!getIntArguments<2>(lp, bmpArgs, optionals)) {
 			Error("[SAVENEX] expected syntax is BMP <filename>[,<savePalette 0/1>[,<paletteOffset 0..15>]]", bp, SUPPRESS);
 			delete[] bmpname;
 			return;
@@ -786,7 +840,7 @@ static void dirNexScreenUlaTimex(byte scrType) {
 		aint hiResColor = 0;
 		if (ParseExpression(lp, hiResColor)) {
 			if (hiResColor < 0 || 7 < hiResColor) Warning("[SAVENEX] value is not in 0..7 range", bp);
-			nex.h.hiResColour = hiResColor << 3;
+			nex.h.hiResColour = (hiResColor&7) << 3;
 		}
 	}
 	// update header loading screen status
@@ -813,7 +867,7 @@ static void dirNexScreenTile() {
 	// parse arguments
 	aint tileArgs[5] = {0, 0, 0, 0, 1};
 	const bool optionals[] = {false, false, false, false, true};
-	if (!getIntArguments<5>(tileArgs, optionals)
+	if (!getIntArguments<5>(lp, tileArgs, optionals)
 			|| tileArgs[0] < 0 || 255 < tileArgs[0]
 			|| tileArgs[1] < 0 || 255 < tileArgs[1]
 			|| tileArgs[2] < 0 || 255 < tileArgs[2]
@@ -885,7 +939,7 @@ static void dirNexCopper() {
 	// parse arguments
 	aint screenArgs[2] = {0, 0};
 	const bool optionals[] = {false, false};
-	if (!getIntArguments<2>(screenArgs, optionals)
+	if (!getIntArguments<2>(lp, screenArgs, optionals)
 			|| screenArgs[0] < 0 || SNexHeader::MAX_PAGE <= screenArgs[0]) {
 		Error("[SAVENEX] expected syntax is COPPER <Page8kNum 0..223>,<offset>", bp, SUPPRESS);
 		return;
@@ -962,7 +1016,7 @@ static void dirNexAuto() {
 	// parse arguments
 	aint autoArgs[2] = { getNexBankNum(nex.lastBankIndex+1), SNexHeader::MAX_BANK-1 };
 	const bool optionals[] = {true, true};
-	if (!getIntArguments<2>(autoArgs, optionals)
+	if (!getIntArguments<2>(lp, autoArgs, optionals)
 			|| autoArgs[0] < 0 || SNexHeader::MAX_BANK <= autoArgs[0]
 			|| autoArgs[1] < 0 || SNexHeader::MAX_BANK <= autoArgs[1]) {
 		Error("[SAVENEX] expected syntax is AUTO [<fromBank 0..111>[,<toBank 0..111>]]", bp, SUPPRESS);

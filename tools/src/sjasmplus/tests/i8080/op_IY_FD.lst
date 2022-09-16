@@ -22,7 +22,6 @@ op_IY_FD.asm(11): error: Illegal instruction:     dec     iyh         ; #FD25
 op_IY_FD.asm(12): error: Illegal instruction:     ld      iyh,0       ; #FD2600
  12   0004                  ld      iyh,0       ; #FD2600
 op_IY_FD.asm(13): error: Label not found: iy
-op_IY_FD.asm(13): error: Label not found: iy
  13   0004 C6 00 C6 00      add     iy,iy       ; #FD29
 op_IY_FD.asm(14): error: Illegal instruction:     ld      iy,(#100)   ; #FD2A0001
  14   0008                  ld      iy,(#100)   ; #FD2A0001
@@ -122,7 +121,6 @@ op_IY_FD.asm(63): error: Label not found: iyh
 op_IY_FD.asm(64): error: Label not found: iyl
  64   002B 3E 00            ld      a,iyl       ; #FD7D
 op_IY_FD.asm(65): error: Label not found: iy
-op_IY_FD.asm(65): warning: Accessing low memory address 0x0011, is it ok?: ld      a,(iy+17)   
  65   002D 3A 11 00         ld      a,(iy+17)   ; #FD7E11
  66   0030
 op_IY_FD.asm(67): error: Label not found: iyh

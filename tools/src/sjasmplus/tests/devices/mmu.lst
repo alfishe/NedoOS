@@ -27,8 +27,8 @@ mmu.asm(23): error: [MMU] Second slot number parsing failed: MMU 1
  23   0000                  MMU 1
 mmu.asm(24): error: [MMU] Second slot number parsing failed: MMU 1 !
  24   0000                  MMU 1 !
-mmu.asm(25): warning: [MMU] Unknown slot option (legal: e, w, n): x 
-mmu.asm(25): error: [MMU] Comma and page number expected after slot info: MMU 1 x 
+mmu.asm(25): warning: [MMU] Unknown slot option (legal: e, w, n): x
+mmu.asm(25): error: [MMU] Comma and page number expected after slot info: MMU 1 x
  25   0000                  MMU 1 x ; white space (or comma) after char to detect it as unknown option
 mmu.asm(26): warning: [MMU] Unknown slot option (legal: e, w, n): x,
 mmu.asm(26): error: [MMU] Page number parsing failed: MMU 1 x,
@@ -47,13 +47,13 @@ mmu.asm(31): error: [MMU] Page number parsing failed: MMU 0 e,!
  33   0000                  ;; correct syntax, invalid arguments
 mmu.asm(34): error: [MMU] Requested page(s) must be in range 0..7
  34   0000                  MMU 0,8
-mmu.asm(35): error: [MMU] Slot number(s) must be in range 0..3 and form a range
+mmu.asm(35): error: [MMU] Slot number(s) must be in range 0..3 (or exact starting address of slot) and form a range
  35   0000                  MMU 4,0
-mmu.asm(36): error: [MMU] Slot number(s) must be in range 0..3 and form a range
+mmu.asm(36): error: [MMU] Slot number(s) must be in range 0..3 (or exact starting address of slot) and form a range
  36   0000                  MMU 3 4,0
 mmu.asm(37): error: [MMU] Requested page(s) must be in range 0..7
  37   0000                  MMU 0 0,8
-mmu.asm(38): error: [MMU] Slot number(s) must be in range 0..3 and form a range
+mmu.asm(38): error: [MMU] Slot number(s) must be in range 0..3 (or exact starting address of slot) and form a range
  38   0000                  MMU 1 0,0
 mmu.asm(39): error: [MMU] Requested page(s) must be in range 0..7
  39   0000                  MMU 0 2,6   ; map pages 6, 7, 8 -> 8 is wrong
@@ -190,10 +190,10 @@ mmu.asm(115): warning: value 0x12345 is truncated to 16bit value: 0x2345
 115   4000                  MMU 0, 5, 0x12345   ; warning about truncating the address
 116   2345                  ASSERT 0x2345 == $ && 5 == $$
 117   2345                  DISP 0x8765
-mmu.asm(118): warning: [MMU] ORG address inside displaced block
+mmu.asm(118): warning[displacedorg]: ORG-address set inside displaced block, the physical address is not modified, only displacement address
 118   8765                  MMU 0, 7, 0x1234
 119   1234                  ASSERT 0x1234 == $ && 7 ==  $$
-120   1234                  MMU 0, 6, 0x3456    ; ok - suppress warning about ORG inside DISP
+120   1234                  MMU 0, 6, 0x3456    ; displacedorg-ok - suppress warning about ORG inside DISP
 121   3456                  ASSERT 0x3456 == $ && 6 ==  $$
 122   3456                  ENT
 123   2345                  ASSERT 0x2345 == $ && 6 ==  $$

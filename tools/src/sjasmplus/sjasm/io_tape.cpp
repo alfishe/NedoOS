@@ -28,26 +28,24 @@ misrepresented as being the original software.
 
 #include "sjdefs.h"
 #include "io_tape_ldrs.h"
-#include <cassert>
 
-unsigned char parity;
-unsigned char blocknum=1;
+static unsigned char parity;
 
-void writebyte(unsigned char, FILE *);
-void writenumber(unsigned int, FILE *);
-void writeword(unsigned int, FILE *);
-void writeheader(unsigned char, const char *, unsigned short, unsigned short, unsigned short, FILE *);
-void writecode(unsigned char*, aint, unsigned short, bool header, FILE *);
-void remove_basic_sp(unsigned char* ram);
-void detect_vars_changes();
-bool has_screen_changes();
-aint remove_unused_space(unsigned char* ram, aint length);
-aint detect_ram_start(unsigned char* ram, aint length);
+static void writebyte(unsigned char, FILE *);
+static void writenumber(unsigned int, FILE *);
+static void writeword(unsigned int, FILE *);
+static void writeheader(unsigned char, const char *, unsigned short, unsigned short, unsigned short, FILE *);
+static void writecode(unsigned char* block, aint length, unsigned short loadaddr, bool header, FILE *fp);
+static void remove_basic_sp(unsigned char* ram);
+static void detect_vars_changes();
+static bool has_screen_changes();
+static aint remove_unused_space(unsigned char* ram, aint length);
+static aint detect_ram_start(unsigned char* ram, aint length);
 
 int TAP_SaveEmpty(char* fname) {
 	FILE* ff;
 	if (!FOPEN_ISOK(ff, fname, "wb")) {
-		Error("Error opening file", fname, IF_FIRST); return 0;
+		Error("opening file for write", fname); return 0;
 	}
 	fclose(ff);
 	return 1;
@@ -56,7 +54,7 @@ int TAP_SaveEmpty(char* fname) {
 int TAP_SaveBlock(char* fname, unsigned char flag, const char *ftapname, int start, int length, int param2, int param3) {
 	FILE* fpout;
 	if (!FOPEN_ISOK(fpout, fname, "ab")) {
-		Error("Error opening file", fname, FATAL);
+		Error("opening file for append", fname, FATAL);
 	}
 
 	if (length + start > 0x10000) {
@@ -138,7 +136,7 @@ int TAP_SaveBlock(char* fname, unsigned char flag, const char *ftapname, int sta
 int TAP_SaveSnapshot(char* fname, unsigned short start) {
 	FILE* fpout;
 	if (!FOPEN_ISOK(fpout, fname, "wb")) {
-		Error("Error opening file", fname, FATAL);
+		Error("opening file for write", fname, FATAL);
 	}
 
 	aint datastart = 0x5E00;
@@ -344,7 +342,7 @@ int TAP_SaveSnapshot(char* fname, unsigned short start) {
 	return 1;
 }
 
-void writenumber(unsigned int i, FILE *fp) {
+static void writenumber(unsigned int i, FILE *fp) {
 	int c;
 	c=i/10000;
 	i-=c*10000;
@@ -361,17 +359,17 @@ void writenumber(unsigned int i, FILE *fp) {
 	writebyte(i+48, fp);
 }
 
-void writeword(unsigned int i, FILE *fp) {
+static void writeword(unsigned int i, FILE *fp) {
 	writebyte(i%256,fp);
 	writebyte(i/256,fp);
 }
 
-void writebyte(unsigned char c, FILE *fp) {
+static void writebyte(unsigned char c, FILE *fp) {
 	fputc(c,fp);
 	parity^=c;
 }
 
-void writeheader(unsigned char flag, const char *fname, unsigned short param1, unsigned short param2, unsigned short param3, FILE *fp) {
+static void writeheader(unsigned char flag, const char *fname, unsigned short param1, unsigned short param2, unsigned short param3, FILE *fp) {
 	/* Write out the code header file */
 	writeword(19, fp);		/* Header len */
 	writebyte(0, fp);		/* Header is 0 */
@@ -393,7 +391,7 @@ void writeheader(unsigned char flag, const char *fname, unsigned short param1, u
 	writebyte(parity, fp);
 }
 
-void writecode(unsigned char* block, aint length, unsigned short loadaddr, bool header, FILE *fp) {
+static void writecode(unsigned char* block, aint length, unsigned short loadaddr, bool header, FILE *fp) {
 	if (header) {
 		/* Filetype (3: Code) */
 		writeheader(3, "loader", length, loadaddr, 0, fp);
@@ -409,7 +407,7 @@ void writecode(unsigned char* block, aint length, unsigned short loadaddr, bool 
 	writebyte(parity, fp);
 }
 
-void remove_basic_sp(unsigned char* ram) {
+static void remove_basic_sp(unsigned char* ram) {
 	bool remove = true;
 	for (size_t i=0; i < sizeof(ZX_STACK_DATA);i++) {
 		if (ZX_STACK_DATA[i] != ram[i]) {
@@ -423,7 +421,7 @@ void remove_basic_sp(unsigned char* ram) {
 	}
 }
 
-void detect_vars_changes() {
+static void detect_vars_changes() {
 	unsigned char *psys = (unsigned char*)Device->GetSlot(1)->Page->RAM + 0x1C00;
 
 	bool nobas48 = false;
@@ -434,11 +432,11 @@ void detect_vars_changes() {
 	}
 
 	if (nobas48) {
-		Warning("[SAVETAP] Tape file will not contains data from 0x5B00 to 0x5E00");
+		Warning("[SAVETAP] Tape file will not contain data from 0x5B00 to 0x5E00");
 	}
 }
 
-bool has_screen_changes() {
+static bool has_screen_changes() {
 	unsigned char *pscr = (unsigned char*)Device->GetSlot(1)->Page->RAM;
 
 	for (int i=0; i < 0x1800;i++) {
@@ -456,7 +454,7 @@ bool has_screen_changes() {
 	return false;
 }
 
-aint remove_unused_space(unsigned char* ram, aint length) {
+static aint remove_unused_space(unsigned char* ram, aint length) {
 	while (length > 0 && ram[length-1] == 0) {
 		length--;
 	}
@@ -464,7 +462,7 @@ aint remove_unused_space(unsigned char* ram, aint length) {
 	return length;
 }
 
-aint detect_ram_start(unsigned char* ram, aint length) {
+static aint detect_ram_start(unsigned char* ram, aint length) {
 	aint start = 0;
 
 	while (start < length && ram[start] == 0) {

@@ -84,10 +84,12 @@ for f in "${TEST_FILES[@]}"; do
         chmod -R 700 ".${subf#$src_dir}"   # force 700 permissions to copied files (recursively)
     done
     # see if there are extra options defined (and read them into array)
-    options=()
-    [[ -s "${OPTIONS_FILE}" ]] && options=(`cat "${OPTIONS_FILE}"`)
+    options=('--lstlab=sort')	# enforce all symbol dumps to be sorted in any case (even when no --lst)
+    options+=('-Wno-behost')	# don't report BE host platform (these kind of tests should pass on any platform)
+    options+=('--color=off')	# don't colorize warnings/errors by default
+    [[ -s "${OPTIONS_FILE}" ]] && options+=(`cat "${OPTIONS_FILE}"`)
     # check if .lst file is required to verify the test, set up options to produce one
-    [[ -s "${LIST_FILE}" ]] && MSG_LIST_FILE="" && options+=("--lst=${dst_base}.lst") && options+=('--lstlab')
+    [[ -s "${LIST_FILE}" ]] && MSG_LIST_FILE="" && options+=("--lst=${dst_base}.lst")
     [[ ! -s "${MSG_LIST_FILE}" ]] && MSG_LIST_FILE="" || LIST_FILE="${MSG_LIST_FILE}"
     ## built it with sjasmplus (remember exit code)
     totalChecks=$((totalChecks + 1))    # assembling is one check
@@ -126,8 +128,8 @@ for f in "${TEST_FILES[@]}"; do
     else
         echo -n -e "  \\  \033[92m$ok_tick_text OK\033[0m "
     fi
-    # check binary results, if TAP, BIN, RAW or TRD are present in source directory
-    for binext in {'tap','bin','raw','trd'}; do
+    # check binary results, if TAP, CDT, BIN, RAW or TRD are present in source directory
+    for binext in {'tap','cdt','bin','raw','trd'}; do
         if [[ -f "${CFG_BASE}.${binext}" ]]; then
             totalChecks=$((totalChecks + 1))        # +1 for each binary check
             ! $CMP "${CFG_BASE}.${binext}" "${dst_base}.${binext}" \

@@ -1,14 +1,14 @@
 # file opened: tricky_syntax.asm
- 1    0000                  ; test various tricky cases of syntax
+ 1    0000                  OPT -Wrdlow ; test various tricky cases of syntax, enable rdlow warning
  2    0000 CE 07            adc     a , (   ( 3 ) + ( 4 )   )
-tricky_syntax.asm(3): warning: Accessing low memory address 0x0007, is it ok?: ld      a , (   ( 3 ) + ( 4 )   )   
+tricky_syntax.asm(3): warning[rdlow]: Reading memory at low address: 7
  3    0002 3A 07 00         ld      a , (   ( 3 ) + ( 4 )   )   // extra warning about if low address is ok
  4    0005 3E 07            ld      a ,     ( 3 ) + ( 4 )
  5    0007 3E 07            ld      a ,     ( 3 ) | ( 4 )
- 6    0009 3A 07 00         ld      a ,       ( 3 | 4 )         // ok. (warning suppressed by comment)
-tricky_syntax.asm(7): warning: Accessing low memory address 0x0007, is it ok?: ld      a,((3|4))       
+ 6    0009 3A 07 00         ld      a ,       ( 3 | 4 )         // rdlow-ok. (warning suppressed by comment)
+tricky_syntax.asm(7): warning[rdlow]: Reading memory at low address: 7
  7    000C 3A 07 00         ld      a,((3|4))       // fake (should NOT suppress warning about low address)
- 8    000F 3A 07 00         ld      a,(+(3|4))      //ok (should suppress)
+ 8    000F 3A 07 00         ld      a,(+(3|4))      //rdlow-ok (should suppress)
  9    0012 3E 07            ld      a,+((3|4))
 10    0014
 11    0014                  ; test all IXY variants recognized by parser
@@ -143,15 +143,49 @@ tricky_syntax.asm(55): error: Offset out of range (-129)
 69    0152 3E 54            ld      a  ,  low  label
 70    0154              label:
 tricky_syntax.asm(71): error: Label not found: Low
-tricky_syntax.asm(71): error: Unexpected: hl   
+tricky_syntax.asm(71): error: Unexpected: hl
 71    0154 3E 00            ld      a  ,  Low  hl   ; error
 72    0156 3E 01            ld      a  ,  high  d
 73    0158              d:
 74    0158
+75    0158 E3               ex      (sp),hl     ; #E3
+76    0159 E3               ex      hl,(sp)     ; #E3
+77    015A DD E3            ex      (sp),ix     ; #DDE3
+78    015C DD E3            ex      ix,(sp)     ; #DDE3
+79    015E FD E3            ex      (sp),iy     ; #FDE3
+80    0160 FD E3            ex      iy,(sp)     ; #FDE3
+81    0162                  ; invalid
+tricky_syntax.asm(82): error: Illegal instruction:     ex      af,
+82    0162                  ex      af,
+tricky_syntax.asm(83): error: Illegal instruction:     ex      af,hl
+83    0162                  ex      af,hl
+tricky_syntax.asm(84): error: Illegal instruction:     ex      af,(sp)
+84    0162                  ex      af,(sp)
+tricky_syntax.asm(85): error: Unexpected: ',af
+85    0162 08               ex      af',af      ; does leak `ex af,af` machine code, but also reports error
+tricky_syntax.asm(86): error: Illegal instruction:     ex      de,bc
+86    0163                  ex      de,bc
+tricky_syntax.asm(87): error: Illegal instruction:     ex      hl,bc
+87    0163                  ex      hl,bc
+tricky_syntax.asm(88): error: Illegal instruction:     ex      sp,hl
+88    0163                  ex      sp,hl
+tricky_syntax.asm(89): error: Illegal instruction:     ex      (sp,hl
+89    0163                  ex      (sp,hl
+tricky_syntax.asm(90): error: Illegal instruction:     ex      de,(sp)
+90    0163                  ex      de,(sp)
+tricky_syntax.asm(91): error: Illegal instruction:     ex      (sp),de
+91    0163                  ex      (sp),de
+tricky_syntax.asm(92): error: Illegal instruction:     ex      hl,sp
+92    0163                  ex      hl,sp
+tricky_syntax.asm(93): error: Illegal instruction:     ex      ix,sp
+93    0163                  ex      ix,sp
+tricky_syntax.asm(94): error: Illegal instruction:     ex      iy,sp
+94    0163                  ex      iy,sp
+95    0163
 # file closed: tricky_syntax.asm
 
 Value    Label
 ------ - -----------------------------------------------------------
+0x0158   d
 0x0152   h
 0x0154   label
-0x0158   d

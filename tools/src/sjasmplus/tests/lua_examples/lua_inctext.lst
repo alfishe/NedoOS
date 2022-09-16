@@ -1,3 +1,7 @@
+lua_inctext.lua(22): error: [LUA] [inc_text]: file not found: missing file
+lua_inctext.asm(17): ^ emitted from here
+lua_inctext.lua(22): error: [LUA] [inc_text]: file not found: missing file
+lua_inctext.asm(17): ^ emitted from here
 # file opened: lua_inctext.asm
  1    0000                  ; setup Lua "inc_text" functionality
  2    0000                  INCLUDELUA "lua_inctext.lua"
@@ -59,7 +63,7 @@
 18    807C C3 7C 80     Test2_Final	jp    Test2_Final
 18    807F              ;; inc_text ;; end of file "lua_inctext/test2.txt"
 lua_inctext.lua(22): error: [LUA] [inc_text]: file not found: missing file
-lua_inctext.asm(18): ^ emitted from here
+lua_inctext.asm(17): ^ emitted from here
 18    807F                      ENDLUA
 19    807F
 20    807F                      OUTEND
@@ -67,9 +71,9 @@ lua_inctext.asm(18): ^ emitted from here
 
 Value    Label
 ------ - -----------------------------------------------------------
+0x8059   Final
+0x807C   Test2_Final
+0x806B X Test2_Text1
 0x8010   Text1
 0x8030   Text2
 0x8041   Text3
-0x8059   Final
-0x806B X Test2_Text1
-0x807C   Test2_Final

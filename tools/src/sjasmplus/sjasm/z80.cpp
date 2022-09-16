@@ -37,19 +37,24 @@ namespace Z80 {
 		Z80C_NZ = 0x00, Z80C_Z  = 0x08, Z80C_NC = 0x10, Z80C_C = 0x18,
 		Z80C_PO = 0x20, Z80C_PE = 0x28, Z80C_P  = 0x30, Z80C_M = 0x38, Z80C_UNK };
 
+	static char* lastDisplacementParsedP = nullptr;		// helper variable to prevent double warnings about displacements
+
 	static CFunctionTable OpCodeTable;
 
 	void GetOpCode() {
 		char* n;
+		// reset alternate result flag in ParseExpression part of code
+		lastDisplacementParsedP = nullptr;
+		Relocation::isResultAffected = false;
 		bp = lp;
-		if (!(n = getinstr(lp))) {
-			Error("Unrecognized instruction", lp);
-			return;
-		}
-		if (!OpCodeTable.zoek(n)) {
+		if (!(n = getinstr(lp)) || !OpCodeTable.zoek(n)) {
 			Error("Unrecognized instruction", bp);
 			SkipToEol(lp);
+			return;
 		}
+		// recognized instruction
+		// relocation: check if some expression is "affected", but not processed by instruction
+		Relocation::checkAndWarn();
 	}
 
 	static byte GetByte(char*& p, bool signedCheck = false) {
@@ -108,16 +113,20 @@ namespace Z80 {
 		aint val;
 		char* pp = p;
 		SkipBlanks(pp);
+		const bool parsingFirstTime = (pp != lastDisplacementParsedP);
+		lastDisplacementParsedP = pp;
 		if (')' == *pp || ']' == *pp) return 0;
 		if (!ParseExpression(p, val)) {
 			Error("Operand expected", nullptr, IF_FIRST); return 0;
 		}
 		check8o(val);
+		if (parsingFirstTime) Relocation::checkAndWarn();	// displacement offset is never relocatable
+		else Relocation::isResultAffected = false;			// hide displacement warnings second time
 		return val & 255;
 	}
 
 	static int GetAddress(char*& p, aint& ad) {
-		if (GetLocalLabelValue(p, ad) || ParseExpression(p, ad)) return 1;
+		if (GetTemporaryLabelValue(p, ad) || ParseExpression(p, ad)) return 1;
 		Error("Operand expected", nullptr, IF_FIRST);
 		return (ad = 0);	// set "ad" to zero and return zero
 	}
@@ -201,8 +210,20 @@ namespace Z80 {
 	}
 
 	static bool GetRegister_pair(char*& p, const char expect) {
-		if (expect != p[0] || islabchar(p[1])) return false;
+		const char forceCase = Options::syx.CaseInsensitiveInstructions ? 0x20 : 0x00;
+		if ((expect | forceCase) != (p[0] | forceCase) || islabchar(p[1])) return false;
 		++p;
+		return true;
+	}
+
+	static bool GetRegister_3letter(char*& p, const char expect1, const char expect2) {
+		if (islabchar(p[2])) return false;
+		const char e1 = Options::syx.CaseInsensitiveInstructions ? (expect1 | 0x20) : expect1;
+		const char e2 = Options::syx.CaseInsensitiveInstructions ? (expect2 | 0x20) : expect2;
+		const char p1 = Options::syx.CaseInsensitiveInstructions ? (p[0] | 0x20) : p[0];
+		const char p2 = Options::syx.CaseInsensitiveInstructions ? (p[1] | 0x20) : p[1];
+		if (e1 != p1 || e2 != p2) return false;
+		p += 2;
 		return true;
 	}
 
@@ -268,34 +289,12 @@ namespace Z80 {
 			break;
 		case 'i':
 			if (nonZ80CPU) break;
-			if (*p == 'x') {
-				if (!islabchar(*(p + 1))) {
-					++p;
-					return Z80_IX;
-				}
-				if (*(p + 1) == 'h' && !islabchar(*(p + 2))) {
-					p += 2;
-					return Z80_IXH;
-				}
-				if (*(p + 1) == 'l' && !islabchar(*(p + 2))) {
-					p += 2;
-					return Z80_IXL;
-				}
-			}
-			if (*p == 'y') {
-				if (!islabchar(*(p + 1))) {
-					++p;
-					return Z80_IY;
-				}
-				if (*(p + 1) == 'h' && !islabchar(*(p + 2))) {
-					p += 2;
-					return Z80_IYH;
-				}
-				if (*(p + 1) == 'l' && !islabchar(*(p + 2))) {
-					p += 2;
-					return Z80_IYL;
-				}
-			}
+			if (GetRegister_pair(p, 'x')) return Z80_IX;
+			if (GetRegister_pair(p, 'y')) return Z80_IY;
+			if (GetRegister_3letter(p, 'x', 'h')) return Z80_IXH;
+			if (GetRegister_3letter(p, 'x', 'l')) return Z80_IXL;
+			if (GetRegister_3letter(p, 'y', 'h')) return Z80_IYH;
+			if (GetRegister_3letter(p, 'y', 'l')) return Z80_IYL;
 			break;
 		case 'x':
 			if (nonZ80CPU) break;
@@ -332,28 +331,12 @@ namespace Z80 {
 			break;
 		case 'I':
 			if (nonZ80CPU) break;
-			if (*p == 'X') {
-				if (!islabchar(*(p + 1))) {
-					++p; return Z80_IX;
-				}
-				if (*(p + 1) == 'H' && !islabchar(*(p + 2))) {
-					p += 2; return Z80_IXH;
-				}
-				if (*(p + 1) == 'L' && !islabchar(*(p + 2))) {
-					p += 2; return Z80_IXL;
-				}
-			}
-			if (*p == 'Y') {
-				if (!islabchar(*(p + 1))) {
-					++p; return Z80_IY;
-				}
-				if (*(p + 1) == 'H' && !islabchar(*(p + 2))) {
-					p += 2; return Z80_IYH;
-				}
-				if (*(p + 1) == 'L' && !islabchar(*(p + 2))) {
-					p += 2; return Z80_IYL;
-				}
-			}
+			if (GetRegister_pair(p, 'X')) return Z80_IX;
+			if (GetRegister_pair(p, 'Y')) return Z80_IY;
+			if (GetRegister_3letter(p, 'X', 'H')) return Z80_IXH;
+			if (GetRegister_3letter(p, 'X', 'L')) return Z80_IXL;
+			if (GetRegister_3letter(p, 'Y', 'H')) return Z80_IYH;
+			if (GetRegister_3letter(p, 'Y', 'L')) return Z80_IYL;
 			break;
 		case 'X':
 			if (nonZ80CPU) break;
@@ -438,12 +421,22 @@ namespace Z80 {
 				return true;			// successfully assembled
 			case Z80_UNK:
 				e[0] = opcodeBase + 0x46; e[1] = GetByteNoMem(lp);	// imm8 variants
+				resolveRelocationAndSmartSmc(1, Relocation::HIGH);
 				return true;
 			default:
 				break;
 			}
 		}
 		return true;
+	}
+
+	// handling all the simple ALU opcodes like and/or/xor/... which have no extras
+	static void OpCode_SimpleAlu(const int opcodeBase) {
+		do {
+			int e[] { -1, -1, -1, -1};
+			CommonAluOpcode(opcodeBase, e);
+			EmitBytes(e, true);
+		} while (Options::syx.MultiArg(lp));
 	}
 
 	// returns "Z80_A" when successfully finished, otherwise returns result of "GetRegister(lp)"
@@ -473,30 +466,45 @@ namespace Z80 {
 
 	static void OpCode_ADC() {
 		const bool nonZ80CPU = Options::IsI8080 || Options::IsLR35902;
-		Z80Reg reg;
+		Z80Reg reg, reg2;
+		int reg2ex;
 		do {
-			int e[] { -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1, -1 };
 			if (!CommonAluOpcode(0x88, e, true, false)) {	// handle common 8-bit variants
-				if ((!nonZ80CPU) && (Z80_HL == GetRegister(lp))) {
-					if (!comma(lp)) {
-						Error("[ADC] Comma expected");
-					} else {
-						switch (reg = GetRegister(lp)) {
-						case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
-							e[0] = 0xed; e[1] = 0x4a + reg - Z80_BC; break;
-						default: break;
-						}
+				reg = GetRegister(lp);	if (Z80_UNK == reg) break;
+				if (!comma(lp)) {
+					Error("[ADC] Comma expected");
+					break;
+				}
+				reg2 = GetRegister(lp);
+				if (Z80_HL == reg && !nonZ80CPU) {
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						e[0] = 0xed; e[1] = 0x4a + reg2 - Z80_BC; break;
+					default: break;
+					}
+				} else if (Z80_DE == reg) {		// fake adc de,bc|de|hl|sp
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						if (Options::noFakes()) break;
+						reg2ex = (Z80_DE == reg2 || Z80_HL == reg2) ? (reg2^0x10) : reg2;
+						e[0] = 0xEB;
+						e[1] = INSTRUCTION_START_MARKER; e[2] = 0xED; e[3] = 0x4A + reg2ex - Z80_BC;
+						e[4] = INSTRUCTION_START_MARKER; e[5] = 0xEB;
+						break;
+					default: break;
 					}
 				}
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_ADD() {
 		Z80Reg reg, reg2;
+		int reg2ex;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			if (!CommonAluOpcode(0x80, e, true, false)) {	// handle common 8-bit variants
 				// add hl|ixy|bc|de|sp,... variants
 				reg = GetRegister(lp);	if (Z80_UNK == reg) break;
@@ -518,6 +526,7 @@ namespace Z80 {
 						word b = GetWordNoMem(lp);
 						e[0] = 0xED; e[1] = 0x34 ;
 						e[2] = b & 255; e[3] = (b >> 8);
+						resolveRelocationAndSmartSmc(2);
 						break;
 					}
 					break;
@@ -534,7 +543,18 @@ namespace Z80 {
 						break;
 					}
 					break;
-				case Z80_DE:
+				case Z80_DE:	// fake add de,bc|de|hl|sp
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						if (Options::noFakes()) break;
+						reg2ex = (Z80_DE == reg2 || Z80_HL == reg2) ? (reg2^0x10) : reg2;
+						e[0] = 0xEB;
+						e[1] = INSTRUCTION_START_MARKER; e[2] = 0x09 + reg2ex - Z80_BC;
+						e[3] = INSTRUCTION_START_MARKER; e[4] = 0xEB;
+						break;
+					default: break;
+					}
+					//continue into `case Z80_BC` for Z80N variants
 				case Z80_BC:
 					if (!Options::syx.IsNextEnabled) break;   // DE|BC is valid first operand only for Z80N
 					if (Z80_A == reg2) {
@@ -543,6 +563,7 @@ namespace Z80 {
 						word b = GetWordNoMem(lp);
 						e[0] = 0xED; e[1] = 0x35 + (Z80_BC == reg);
 						e[2] = b & 255; e[3] = (b >> 8);
+						resolveRelocationAndSmartSmc(2);
 					}
 					break;
 				case Z80_SP:			// Sharp LR35902 "add sp,r8"
@@ -553,16 +574,12 @@ namespace Z80 {
 				default:	break;		// unreachable (already validated by `CommonAluOpcode` call)
 				}
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_AND() {
-		do {
-			int e[] { -1, -1, -1, -1};
-			CommonAluOpcode(0xa0, e);
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+		OpCode_SimpleAlu(0xa0);
 	}
 
 	static void OpCode_BIT() {
@@ -570,7 +587,7 @@ namespace Z80 {
 			int e[] { -1, -1, -1, -1, -1 };
 			byte bit = GetByteNoMem(lp);
 			if (comma(lp) && bit <= 7) OpCode_CbFamily(8 * bit + 0x40, e, false);
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -579,7 +596,7 @@ namespace Z80 {
 			Error("[BREAK] fake instruction \"break\" must be specifically enabled by --zxnext=cspect option");
 			return;
 		}
-		EmitByte(0xDD);
+		EmitByte(0xDD, true);
 		EmitByte(0x01);
 	}
 
@@ -597,7 +614,7 @@ namespace Z80 {
 		} else {
 			Error("Z80N barrel shifts exist only with \"DE,B\" arguments", bp, SUPPRESS);
 		}
-		EmitBytes(e);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_Next_BRLC() {
@@ -636,48 +653,45 @@ namespace Z80 {
 			GetAddress(lp, callad);
 			check16(callad);
 			e[1] = callad & 255; e[2] = (callad >> 8) & 255;
-			EmitBytes(e);
+			resolveRelocationAndSmartSmc(1);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_CCF() {
-		EmitByte(0x3f);
+		EmitByte(0x3f, true);
 	}
 
 	static void OpCode_CP() {
-		do {
-			int e[] { -1, -1, -1, -1};
-			CommonAluOpcode(0xb8, e);
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+		OpCode_SimpleAlu(0xb8);
 	}
 
 	static void OpCode_CPD() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xA9);
 	}
 
 	static void OpCode_CPDR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB9);
 	}
 
 	static void OpCode_CPI() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xA1);
 	}
 
 	static void OpCode_CPIR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB1);
 	}
 
 	static void OpCode_CPL() {
-		EmitByte(0x2f);
+		EmitByte(0x2f, true);
 	}
 
 	static void OpCode_DAA() {
-		EmitByte(0x27);
+		EmitByte(0x27, true);
 	}
 
 	static void OpCode_DecInc(const int base8bOpcode, const int base16bOpcode, int* e) {
@@ -705,12 +719,12 @@ namespace Z80 {
 		do {
 			int e[] { -1, -1, -1, -1 };
 			OpCode_DecInc(0x05, 0x0B, e);
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+			EmitBytes(e, true);
+		} while (relaxedMaComma(lp));
 	}
 
 	static void OpCode_DI() {
-		EmitByte(0xf3);
+		EmitByte(0xf3, true);
 	}
 
 	static void OpCode_DJNZ() {
@@ -729,59 +743,76 @@ namespace Z80 {
 				Error(el); jmp = 0;
 			}
 			e[0] = 0x10; e[1] = jmp & 0xFF;
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
+		Relocation::isResultAffected = false;	// DJNZ is always relocatable
 	}
 
 	static void OpCode_EI() {
-		EmitByte(0xfb);
+		EmitByte(0xfb, true);
 	}
 
 	static void OpCode_EX() {
 		int e[] { -1, -1, -1, -1 };
-		Z80Reg reg = GetRegister(lp);
-		switch (reg) {
+		// parse first and optional second register, swap them for "(sp)" to have sp always first
+		Z80Reg reg1 = GetRegister(lp), reg2 = Z80_UNK;
+		if (Z80_SP == reg1) {
+			reg1 = Z80_UNK;		// naked SP should not work, must be in brackets
+		} else if (Z80_UNK == reg1 && BT_NONE != OpenBracket(lp) && Z80_SP == GetRegister(lp) && CloseBracket(lp)) {
+			reg1 = Z80_SP;						// using SP register constant for MEM_SP situation
+		}
+		bool has_comma = comma(lp);
+		if (has_comma) {
+			reg2 = GetRegister(lp);
+			if (Z80_AF == reg2 && *lp == '\'') ++lp;
+			if (Z80_UNK == reg2 && BT_NONE != OpenBracket(lp) && Z80_SP == GetRegister(lp) && CloseBracket(lp)) {
+				// "(sp)" at right side, swap it with reg1 (official Zilog syntax)
+				reg2 = reg1;
+				reg1 = Z80_SP;					// using SP register constant for MEM_SP situation
+			}
+		}
+		switch (reg1) {
 		case Z80_AF:
 			if (Options::IsI8080) break;
-			if (comma(lp)) {
-				if (Z80_AF != GetRegister(lp)) break;
-				if (*lp == '\'') ++lp;
-			}
+			if (has_comma && Z80_AF != reg2) break;
 			e[0] = 0x08;
 			break;
 		case Z80_DE:
 		case Z80_HL:
-			if (!comma(lp)) {
-				Error("[EX] Comma expected");
-			} else {	// check for the other one: DE <-> HL
-				if (Z80Reg(reg ^ Z80_DE ^ Z80_HL) == GetRegister(lp)) e[0] = 0xeb;
-			}
-			break;
-		default:
-			if (BT_NONE == OpenBracket(lp) || Z80_SP != GetRegister(lp) || !CloseBracket(lp)) break;
-			if (!comma(lp)) {
+			if (!has_comma) {
 				Error("[EX] Comma expected");
 				break;
 			}
-			switch (reg = GetRegister(lp)) {
+			if (Z80Reg(reg1 ^ Z80_DE ^ Z80_HL) != reg2) break;	// check for the other one: DE <-> HL
+			e[0] = 0xeb;
+			break;
+		case Z80_SP:
+			if (!has_comma) {
+				Error("[EX] Comma expected");
+				break;
+			}
+			switch (reg2) {
 			case Z80_HL:
 				e[0] = 0xe3; break;
 			case Z80_IX:
 			case Z80_IY:
-				e[0] = reg; e[1] = 0xe3; break;
+				e[0] = reg2; e[1] = 0xe3; break;
 			default:
-				;
+				break;
 			}
+			break;
+		default:
+			break;
 		}
-		EmitBytes(e);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_EXA() {
-		EmitByte(0x08);
+		EmitByte(0x08, true);
 	}
 
 	static void OpCode_EXD() {
-		EmitByte(0xeb);
+		EmitByte(0xeb, true);
 	}
 
 	static void OpCode_Next_EXIT() {	// this is fake instruction for CSpect emulator, not for real Z80N
@@ -789,16 +820,16 @@ namespace Z80 {
 			Error("[EXIT] fake instruction \"exit\" must be specifically enabled by --zxnext=cspect option");
 			return;
 		}
-		EmitByte(0xDD);
+		EmitByte(0xDD, true);
 		EmitByte(0x00);
 	}
 
 	static void OpCode_EXX() {
-		EmitByte(0xd9);
+		EmitByte(0xd9, true);
 	}
 
 	static void OpCode_HALT() {
-		EmitByte(0x76);
+		EmitByte(0x76, true);
 	}
 
 	static void OpCode_IM() {
@@ -808,7 +839,7 @@ namespace Z80 {
 			e[0] = 0xed;
 			e[1] = machineCode[mode];
 		}
-		EmitBytes(e);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_IN() {
@@ -835,7 +866,7 @@ namespace Z80 {
 					if (Z80_A == reg) e[0] = 0xdb;	// IN A,(n)
 				}
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -843,32 +874,32 @@ namespace Z80 {
 		do {
 			int e[] { -1, -1, -1, -1 };
 			OpCode_DecInc(0x04, 0x03, e);
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+			EmitBytes(e, true);
+		} while (relaxedMaComma(lp));
 	}
 
 	static void OpCode_IND() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xAA);
 	}
 
 	static void OpCode_INDR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xBA);
 	}
 
 	static void OpCode_INI() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xA2);
 	}
 
 	static void OpCode_INIR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB2);
 	}
 
 	static void OpCode_INF() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x70);
 	}
 
@@ -911,8 +942,9 @@ namespace Z80 {
 				GetAddress(lp, jpad);
 				check16(jpad);
 				e[1] = jpad & 255; e[2] = (jpad >> 8) & 255;
+				resolveRelocationAndSmartSmc(1);
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -938,8 +970,9 @@ namespace Z80 {
 				jrad = 0;
 			}
 			e[1] = jrad & 0xFF;
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
+		Relocation::isResultAffected = false;	// relative jump is always relocatable
 	}
 
 	static bool LD_simple_r_r(int* e, Z80Reg r1) {
@@ -1040,6 +1073,7 @@ namespace Z80 {
 			if ((prefix1^prefix2) && (r1 == r2)) {
 				if (prefix2) *e++ = prefix2;
 				*e++ = 0xE5;
+				*e++ = INSTRUCTION_START_MARKER;
 				if (prefix1) *e++ = prefix1;
 				*e++ = 0xE1;
 				return true;
@@ -1048,6 +1082,7 @@ namespace Z80 {
 			if (prefix2) prefix1 = prefix2;		// any non-zero prefix is relevant here
 			if (prefix1) *e++ = prefix1;
 			*e++ = GetRegister_r16High(r2) + GetRegister_r16High(r1)*8 + 0x40;
+			*e++ = INSTRUCTION_START_MARKER;
 			if (prefix1) *e++ = prefix1;
 			*e++ = GetRegister_r16Low(r2) + GetRegister_r16Low(r1)*8 + 0x40;
 			return true;
@@ -1080,12 +1115,12 @@ namespace Z80 {
 		aint b;
 		EBracketType bt;
 		do {
-			int e[] { -1, -1, -1, -1, -1, -1, -1 }, pemaRes;
+			int e[] { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 }, pemaRes;
 			Z80Reg reg2 = Z80_UNK, reg1 = GetRegister(lp);
 			// resolve all register to register cases or fixed memory literals
 			// "(hl)|(ixy+d)|(hl+)|(hl-)" (but not other memory or constant)
 			if (Z80_UNK != reg1 && LD_simple_r_r(e, reg1)) {
-				EmitBytes(e);
+				EmitBytes(e, true);
 				continue;
 			}
 			// memory, constant, fake instruction or syntax error is involved
@@ -1104,7 +1139,10 @@ namespace Z80 {
 				}
 				switch (ParseExpressionMemAccess(lp, b)) {
 					// LD a,imm8
-					case 1: check8(b); e[0] = 0x06 + 8*reg1; e[1] = b & 255; break;
+					case 1:
+						check8(b); e[0] = 0x06 + 8*reg1; e[1] = b & 255;
+						resolveRelocationAndSmartSmc(1, Relocation::HIGH);
+						break;
 					// LD a,(mem8)
 					case 2:
 						check16(b);
@@ -1113,10 +1151,12 @@ namespace Z80 {
 								e[0] = 0xF0; e[1] = b & 255;
 							} else {
 								e[0] = 0xFA; e[1] = b & 255; e[2] = (b >> 8) & 255;
+								resolveRelocationAndSmartSmc(1);
 							}
 							break;
 						}
 						e[0] = 0x3a; e[1] = b & 255; e[2] = (b >> 8) & 255;
+						resolveRelocationAndSmartSmc(1);
 						if (BT_ROUND == bt) checkLowMemory(e[2], e[1]);
 						break;
 				}
@@ -1124,16 +1164,22 @@ namespace Z80 {
 
 			case Z80_B: case Z80_C: case Z80_D: case Z80_E: case Z80_H: case Z80_L:
 				e[0] = 0x06 + 8*reg1; e[1] = GetByteNoMem(lp);
+				resolveRelocationAndSmartSmc(1, Relocation::HIGH);
 				break;
 
 			case Z80_MEM_HL:
 				switch (reg2 = GetRegister(lp)) {
-				case Z80_BC: case Z80_DE:
+				case Z80_BC: case Z80_DE:	// fake ld (hl),bc|de
 					if (Options::noFakes()) break;
-					e[0] = 0x70 + GetRegister_r16Low(reg2); e[1] = 0x23;
-					e[2] = 0x70 + GetRegister_r16High(reg2); e[3] = 0x2b; break;
-				case Z80_UNK:
-					e[0] = 0x36; e[1] = GetByteNoMem(lp); break;
+					e[0] = 0x70 + GetRegister_r16Low(reg2);		e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x23;								e[3] = INSTRUCTION_START_MARKER;
+					e[4] = 0x70 + GetRegister_r16High(reg2);	e[5] = INSTRUCTION_START_MARKER;
+					e[6] = 0x2b;
+					break;
+				case Z80_UNK:	// ld (hl),n
+					e[0] = 0x36; e[1] = GetByteNoMem(lp);
+					resolveRelocationAndSmartSmc(1, Relocation::HIGH);
+					break;
 				default:
 					break;
 				}
@@ -1145,11 +1191,17 @@ namespace Z80 {
 				case Z80_BC: case Z80_DE: case Z80_HL:
 					if (Options::noFakes()) break;		//fake LD (ixy+#),r16
 					if (e[2] == 127) Error("Offset out of range", nullptr, IF_FIRST);
-					e[0] = e[3] = reg1&0xFF; e[1] = 0x70+GetRegister_r16Low(reg2);
-					e[4] = 0x70+GetRegister_r16High(reg2); e[5] = e[2] + 1;
+					else e[0] = reg1&0xFF;
+					e[1] = 0x70+GetRegister_r16Low(reg2);
+					e[3] = INSTRUCTION_START_MARKER;
+					e[4] = reg1&0xFF;
+					e[5] = 0x70+GetRegister_r16High(reg2);
+					e[6] = e[2] + 1;
 					break;
 				case Z80_UNK:
 					e[0] = reg1&0xFF; e[1] = 0x36; e[3] = GetByteNoMem(lp);	// LD (ixy+#),imm8
+					resolveRelocationAndSmartSmc(3, Relocation::HIGH);
+					break;
 				default:
 					break;
 				}
@@ -1157,19 +1209,30 @@ namespace Z80 {
 
 			case Z80_IXH: case Z80_IXL: case Z80_IYH: case Z80_IYL:
 				e[0] = reg1&0xFF; e[1] = 0x06 + 8*(reg1>>8); e[2] = GetByteNoMem(lp);
+				resolveRelocationAndSmartSmc(2, Relocation::HIGH);
 				break;
 
 			case Z80_BC: case Z80_DE: case Z80_HL: case Z80_SP:
 				switch (reg2 = GetRegister(lp)) {
 				case Z80_MEM_HL:	// invalid combinations filtered already by LD_simple_r_r
-					if (Options::noFakes()) break;
-					e[0] = reg1+0x3e; e[1] = 0x23; e[2] = reg1+0x36; e[3] = 0x2b;
+					if (Options::noFakes()) break;	// fake ld bc|de,(hl)
+					e[0] = reg1+0x3e;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x23;
+					e[3] = INSTRUCTION_START_MARKER;
+					e[4] = reg1+0x36;
+					e[5] = INSTRUCTION_START_MARKER;
+					e[6] = 0x2b;
 					break;
 				case Z80_MEM_IX: case Z80_MEM_IY:	// invalid combinations NOT filtered -> validate
-					if (Z80_SP == reg1 || Options::noFakes()) break;
-					e[1] = reg1+0x3e; e[4] = reg1+0x36; e[2] = GetRegister_lastIxyD; e[5] = e[2]+1;
+					if (Z80_SP == reg1 || Options::noFakes()) break;	// fake bc|de|hl,(ix+#)
+					e[1] = reg1+0x3e;
+					e[5] = reg1+0x36;
+					e[2] = GetRegister_lastIxyD;
+					e[6] = e[2]+1;
 					if (e[2] == 127) Error("Offset out of range", nullptr, IF_FIRST);
-					else e[0] = e[3] = reg2&0xFF;
+					else e[0] = e[4] = reg2&0xFF;
+					e[3] = INSTRUCTION_START_MARKER;
 					break;
 				case Z80_SP:
 					if (Options::IsLR35902 && Z80_HL == reg1) {		// "ld hl,sp+r8" syntax = "F8 r8"
@@ -1192,16 +1255,20 @@ namespace Z80 {
 				if (Z80_UNK != reg2) break;	//"(register": emit instruction || bug
 				switch (ParseExpressionMemAccess(lp, b)) {
 					// ld bc|de|hl|sp,imm16
-					case 1: check16(b); e[0] = reg1-0x0F; e[1] = b & 255; e[2] = (b >> 8) & 255; break;
+					case 1: check16(b); e[0] = reg1-0x0F; e[1] = b & 255; e[2] = (b >> 8) & 255;
+						resolveRelocationAndSmartSmc(1);
+						break;
 					// LD r16,(mem16)
 					case 2:
 						if (Options::IsLR35902) break;	// no "ld r16,(a16)" instruction on LR35902
 						check16(b);
 						if (Z80_HL == reg1) {		// ld hl,(mem16)
 							e[0] = 0x2a; e[1] = b & 255; e[2] = (b >> 8) & 255;
+							resolveRelocationAndSmartSmc(1);
 						} else {					// ld bc|de|sp,(mem16)
 							if (Options::IsI8080) break;
 							e[0] = 0xed; e[1] = reg1+0x3b; e[2] = b & 255; e[3] = (b >> 8) & 255;
+							resolveRelocationAndSmartSmc(2);
 						}
 						if (')' == lp[-1]) checkLowMemory(b>>8, b);
 				}
@@ -1212,6 +1279,7 @@ namespace Z80 {
 				if (0 < (pemaRes = ParseExpressionMemAccess(lp, b))) {
 					e[0] = reg1; e[1] = (1 == pemaRes) ? 0x21 : 0x2a;	// ld ix|iy,imm16  ||  ld ix|iy,(mem16)
 					check16(b); e[2] = b & 255; e[3] = (b >> 8) & 255;
+					resolveRelocationAndSmartSmc(2);
 					if ((2 == pemaRes) && ')' == lp[-1]) checkLowMemory(e[3], e[2]);
 				}
 				break;
@@ -1241,15 +1309,21 @@ namespace Z80 {
 					switch (reg2) {
 					case Z80_A:		// LD (nnnn),a|hl
 					case Z80_HL:
-						e[0] = (Z80_A == reg2) ? 0x32 : 0x22; e[1] = b & 255; e[2] = (b >> 8) & 255; break;
+						e[0] = (Z80_A == reg2) ? 0x32 : 0x22; e[1] = b & 255; e[2] = (b >> 8) & 255;
+						resolveRelocationAndSmartSmc(1);
+						break;
 					case Z80_BC:	// LD (nnnn),bc|de|sp
 					case Z80_DE:
 					case Z80_SP:
 						if (Options::IsI8080) break;
-						e[0] = 0xed; e[1] = 0x33+reg2; e[2] = b & 255; e[3] = (b >> 8) & 255; break;
+						e[0] = 0xed; e[1] = 0x33+reg2; e[2] = b & 255; e[3] = (b >> 8) & 255;
+						resolveRelocationAndSmartSmc(2);
+						break;
 					case Z80_IX:	// LD (nnnn),ix|iy
 					case Z80_IY:
-						e[0] = reg2; e[1] = 0x22; e[2] = b & 255; e[3] = (b >> 8) & 255; break;
+						e[0] = reg2; e[1] = 0x22; e[2] = b & 255; e[3] = (b >> 8) & 255;
+						resolveRelocationAndSmartSmc(2);
+						break;
 					default:
 						break;
 					}
@@ -1261,7 +1335,7 @@ namespace Z80 {
 			default:
 				break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -1275,20 +1349,20 @@ namespace Z80 {
 			const Z80Reg r2 = comma_ok ? GetRegister(lp) : Z80_UNK;
 			if (Z80_MEM_HL == r1 && Z80_A == r2) e[0] = 0x32;
 			if (Z80_A == r1 && Z80_MEM_HL == r2) e[0] = 0x3A;
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_LDD() {
 		if (Options::noFakes(false)) {
-			EmitByte(0xED);
+			EmitByte(0xED, true);
 			EmitByte(0xA8);
 			return;
 		}
 
 		// only when fakes are enabled (but they may be silent/warning enabled, so extra checks needed)
 		do {
-			int e[] { -1, -1, -1, -1, -1, -1, -1};
+			int e[] { -1, -1, -1, -1, -1, -1, -1, -1 };
 			Z80Reg reg2 = Z80_UNK, reg = GetRegister(lp);
 			switch (reg) {
 			case Z80_A:
@@ -1298,14 +1372,20 @@ namespace Z80 {
 				switch (reg = GetRegister(lp)) {
 				case Z80_BC:	// 0x0A 0x0B
 				case Z80_DE:	// 0x1A 0x1B
-					e[1] = reg-5; if (CloseBracket(lp)) e[0] = reg-6;
+					if (CloseBracket(lp)) e[0] = reg-6;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = reg-5;
 					break;
 				case Z80_HL:	// 0x7E	0x2B
-					e[1] = 0x2b; if (CloseBracket(lp)) e[0] = 0x7e;
+					if (CloseBracket(lp)) e[0] = 0x7e;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x2b;
 					break;
 				case Z80_IX: case Z80_IY:
-					e[1] = 0x7e; e[2] = z80GetIDxoffset(lp); e[4] = 0x2b;
-					if (CloseBracket(lp)) e[0] = e[3] = reg;
+					e[1] = 0x7e; e[2] = z80GetIDxoffset(lp);
+					e[3] = INSTRUCTION_START_MARKER;
+					e[5] = 0x2b;
+					if (CloseBracket(lp)) e[0] = e[4] = reg;
 					break;
 				default:
 					break;
@@ -1316,11 +1396,17 @@ namespace Z80 {
 				switch (reg2 = GetRegister(lp)) {
 				case Z80_MEM_HL:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x46 + reg * 8; e[1] = 0x2b;
+					e[0] = 0x46 + reg * 8;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x2b;
 					break;
 				case Z80_MEM_IX: case Z80_MEM_IY:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = e[3] = reg2&0xFF; e[1] = 0x46 + reg * 8; e[2] = GetRegister_lastIxyD; e[4] = 0x2b;
+					e[0] = e[4] = reg2&0xFF;
+					e[1] = 0x46 + reg * 8;
+					e[2] = GetRegister_lastIxyD;
+					e[3] = INSTRUCTION_START_MARKER;
+					e[5] = 0x2b;
 					break;
 				default:
 					break;
@@ -1331,10 +1417,16 @@ namespace Z80 {
 				switch (reg = GetRegister(lp)) {
 				case Z80_A: case Z80_B: case Z80_C: case Z80_D: case Z80_E: case Z80_H: case Z80_L:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x70 + reg; e[1] = 0x2b; break;
+					e[0] = 0x70 + reg;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x2b;
+					break;
 				case Z80_UNK:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x36; e[1] = GetByteNoMem(lp); e[2] = 0x2b; break;
+					e[0] = 0x36; e[1] = GetByteNoMem(lp);
+					e[2] = INSTRUCTION_START_MARKER;
+					e[3] = 0x2b;
+					break;
 				default:
 					break;
 				}
@@ -1344,10 +1436,21 @@ namespace Z80 {
 				switch (reg2 = GetRegister(lp)) {
 				case Z80_A: case Z80_B: case Z80_C: case Z80_D: case Z80_E: case Z80_H: case Z80_L:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = e[3] = reg&0xFF; e[2] = GetRegister_lastIxyD; e[1] = 0x70 + reg2; e[4] = 0x2b; break;
+					e[0] = e[4] = reg&0xFF;
+					e[2] = GetRegister_lastIxyD;
+					e[1] = 0x70 + reg2;
+					e[3] = INSTRUCTION_START_MARKER;
+					e[5] = 0x2b;
+					break;
 				case Z80_UNK:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = e[4] = reg&0xFF; e[1] = 0x36; e[2] = GetRegister_lastIxyD; e[3] = GetByteNoMem(lp); e[5] = 0x2b; break;
+					e[0] = e[5] = reg&0xFF;
+					e[1] = 0x36;
+					e[2] = GetRegister_lastIxyD;
+					e[3] = GetByteNoMem(lp);
+					e[4] = INSTRUCTION_START_MARKER;
+					e[6] = 0x2b;
+					break;
 				default:
 					break;
 				}
@@ -1358,17 +1461,19 @@ namespace Z80 {
 					if (!CloseBracket(lp) || !comma(lp)) break;
 					if ((Z80_BC != reg && Z80_DE != reg) || Z80_A != GetRegister(lp)) break;
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = reg - 14; e[1] = reg - 5;	// LDD (bc|de),a
+					e[0] = reg - 14;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = reg - 5;	// LDD (bc|de),a
 				} else {
 					e[0] = 0xed; e[1] = 0xa8;			// regular LDD
 				}
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_LDDR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB8);
 	}
 
@@ -1377,7 +1482,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xBC);
 	}
 
@@ -1386,7 +1491,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xAC);
 	}
 
@@ -1416,7 +1521,7 @@ namespace Z80 {
 					e[1] = a8 & 0xFF;
 					break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -1430,20 +1535,20 @@ namespace Z80 {
 			const Z80Reg r2 = comma_ok ? GetRegister(lp) : Z80_UNK;
 			if (Z80_MEM_HL == r1 && Z80_A == r2) e[0] = 0x22;
 			if (Z80_A == r1 && Z80_MEM_HL == r2) e[0] = 0x2A;
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_LDI() {
 		if (Options::noFakes(false)) {
-			EmitByte(0xED);
+			EmitByte(0xED, true);
 			EmitByte(0xA0);
 			return;
 		}
 
 		// only when fakes are enabled (but they may be silent/warning enabled, so extra checks needed)
 		do {
-			int e[] { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 			Z80Reg reg2 = Z80_UNK, reg = GetRegister(lp);
 			switch (reg) {
 			case Z80_A:
@@ -1454,15 +1559,19 @@ namespace Z80 {
 				case Z80_BC:	// 0A 03
 				case Z80_DE:	// 1A 13
 					if (CloseBracket(lp)) e[0] = reg - Z80_BC + 0x0a;
-					e[1] = reg - Z80_BC + 0x03;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = reg - Z80_BC + 0x03;
 					break;
 				case Z80_HL:
-					e[1] = 0x23; if (CloseBracket(lp)) e[0] = 0x7e;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x23;
+					if (CloseBracket(lp)) e[0] = 0x7e;
 					break;
 				case Z80_IX:
 				case Z80_IY:
-					e[1] = 0x7e; e[4] = 0x23; e[2] = z80GetIDxoffset(lp);
-					if (CloseBracket(lp)) e[0] = e[3] = reg;
+					e[3] = INSTRUCTION_START_MARKER;
+					e[1] = 0x7e; e[5] = 0x23; e[2] = z80GetIDxoffset(lp);
+					if (CloseBracket(lp)) e[0] = e[4] = reg;
 					break;
 				default:
 					break;
@@ -1474,12 +1583,14 @@ namespace Z80 {
 				Options::noFakes();		// to display warning if "-f"
 				switch (reg2 = GetRegister(lp)) {
 				case Z80_HL:
-					e[1] = 0x23; if (CloseBracket(lp)) e[0] = 0x46 + reg * 8;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[2] = 0x23; if (CloseBracket(lp)) e[0] = 0x46 + reg * 8;
 					break;
 				case Z80_IX:
 				case Z80_IY:
-					e[1] = 0x46 + reg * 8; e[4] = 0x23; e[2] = z80GetIDxoffset(lp);
-					if (CloseBracket(lp)) e[0] = e[3] = reg2;
+					e[3] = INSTRUCTION_START_MARKER;
+					e[1] = 0x46 + reg * 8; e[5] = 0x23; e[2] = z80GetIDxoffset(lp);
+					if (CloseBracket(lp)) e[0] = e[4] = reg2;
 					break;
 				default:
 					break;
@@ -1491,13 +1602,18 @@ namespace Z80 {
 				case Z80_MEM_HL:
 					if (Z80_HL == reg) break;
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x3e + reg; e[1] = e[3] = 0x23; e[2] = 0x36 + reg;
+					e[1] = e[3] = e[5] = INSTRUCTION_START_MARKER;
+					e[0] = 0x3e + reg;
+					e[2] = 0x23;
+					e[4] = 0x36 + reg;
+					e[6] = 0x23;
 					break;
 				case Z80_MEM_IX: case Z80_MEM_IY:
 					Options::noFakes();		// to display warning if "-f"
-					e[2] = e[7] = GetRegister_lastIxyD;
-					e[0] = e[3] = e[5] = e[8] = reg2&0xFF;
-					e[1] = 0x3e + reg; e[6] = 0x36 + reg; e[4] = e[9] = 0x23;
+					e[3] = e[6] = e[10] = INSTRUCTION_START_MARKER;
+					e[2] = e[9] = GetRegister_lastIxyD;
+					e[0] = e[4] = e[7] = e[11] = reg2&0xFF;
+					e[1] = 0x3e + reg; e[8] = 0x36 + reg; e[5] = e[12] = 0x23;
 					break;
 				default:
 					break;
@@ -1508,14 +1624,17 @@ namespace Z80 {
 				switch (reg = GetRegister(lp)) {
 				case Z80_A: case Z80_B: case Z80_C: case Z80_D: case Z80_E: case Z80_H: case Z80_L:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x70 + reg; e[1] = 0x23; break;
+					e[1] = INSTRUCTION_START_MARKER;
+					e[0] = 0x70 + reg; e[2] = 0x23; break;
 				case Z80_BC: case Z80_DE:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x70 + GetRegister_r16Low(reg); e[2] = 0x70 + GetRegister_r16High(reg);
-					e[1] = e[3] = 0x23; break;
+					e[1] = e[3] = e[5] = INSTRUCTION_START_MARKER;
+					e[0] = 0x70 + GetRegister_r16Low(reg); e[4] = 0x70 + GetRegister_r16High(reg);
+					e[2] = e[6] = 0x23; break;
 				case Z80_UNK:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = 0x36; e[1] = GetByteNoMem(lp); e[2] = 0x23; break;
+					e[2] = INSTRUCTION_START_MARKER;
+					e[0] = 0x36; e[1] = GetByteNoMem(lp); e[3] = 0x23; break;
 				default:
 					break;
 				}
@@ -1525,14 +1644,18 @@ namespace Z80 {
 				switch (reg2 = GetRegister(lp)) {
 				case Z80_A: case Z80_B: case Z80_C: case Z80_D: case Z80_E: case Z80_H: case Z80_L:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = e[3] = reg&0xFF; e[2] = GetRegister_lastIxyD; e[1] = 0x70 + reg2; e[4] = 0x23; break;
+					e[3] = INSTRUCTION_START_MARKER;
+					e[0] = e[4] = reg&0xFF; e[2] = GetRegister_lastIxyD; e[1] = 0x70 + reg2; e[5] = 0x23; break;
 				case Z80_BC: case Z80_DE: case Z80_HL:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = e[3] = e[5] = e[8] = reg&0xFF; e[4] = e[9] = 0x23; e[2] = e[7] = GetRegister_lastIxyD;
-					e[1] = 0x70 + GetRegister_r16Low(reg2); e[6] = 0x70 + GetRegister_r16High(reg2); break;
+					e[3] = e[6] = e[10] = INSTRUCTION_START_MARKER;
+					e[0] = e[4] = e[7] = e[11] = reg&0xFF; e[5] = e[12] = 0x23; e[2] = e[9] = GetRegister_lastIxyD;
+					e[1] = 0x70 + GetRegister_r16Low(reg2); e[8] = 0x70 + GetRegister_r16High(reg2); break;
 				case Z80_UNK:
 					Options::noFakes();		// to display warning if "-f"
-					e[0] = e[4] = reg&0xFF; e[1] = 0x36; e[2] = GetRegister_lastIxyD; e[3] = GetByteNoMem(lp); e[5] = 0x23; break;
+					e[0] = e[5] = reg&0xFF; e[1] = 0x36; e[2] = GetRegister_lastIxyD; e[3] = GetByteNoMem(lp);
+					e[4] = INSTRUCTION_START_MARKER;
+					e[6] = 0x23; break;
 				default:
 					break;
 				}
@@ -1543,18 +1666,19 @@ namespace Z80 {
 					if (!CloseBracket(lp) || !comma(lp)) break;
 					if ((Z80_BC != reg && Z80_DE != reg) || Z80_A != GetRegister(lp)) break;
 					Options::noFakes();
-					e[0] = reg - 14; e[1] = reg - 13;	// LDI (bc|de),a
+					e[1] = INSTRUCTION_START_MARKER;
+					e[0] = reg - 14; e[2] = reg - 13;	// LDI (bc|de),a
 				} else {
 					e[0] = 0xed; e[1] = 0xa0;			// regular LDI
 				}
 			}
 
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_LDIR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB0);
 	}
 
@@ -1564,7 +1688,7 @@ namespace Z80 {
 // 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 // 			return;
 // 		}
-// 		EmitByte(0xED);
+// 		EmitByte(0xED, true);
 // 		EmitByte(0xB6);
 // 	}
 
@@ -1573,7 +1697,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB4);
 	}
 
@@ -1582,7 +1706,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xA4);
 	}
 
@@ -1591,7 +1715,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB7);
 	}
 
@@ -1600,7 +1724,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xA5);
 	}
 
@@ -1614,7 +1738,7 @@ namespace Z80 {
 			Error("[MIRROR] Illegal operand (can be only register A)", line);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x24);
 	}
 
@@ -1636,7 +1760,7 @@ namespace Z80 {
 			Error("Z80N MUL exist only with \"D,E\" arguments", bp, SUPPRESS);
 			return;
 		}
-		EmitBytes(e);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_MULUB() {
@@ -1658,7 +1782,7 @@ namespace Z80 {
 		default:
 			;
 		}
-		EmitBytes(e);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_MULUW() {
@@ -1676,11 +1800,11 @@ namespace Z80 {
 		default:
 			;
 		}
-		EmitBytes(e);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_NEG() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x44);
 	}
 
@@ -1700,6 +1824,7 @@ namespace Z80 {
 			}
 			// this code would be enough to get correct assembling, the test above is "extra"
 			e[2] = GetByteNoMem(lp);
+			Relocation::checkAndWarn();		// display warning if register number is trying to be relocatable (impossible)
 			if (!comma(lp)) {
 				Error("[NEXTREG] Comma expected"); break;
 			}
@@ -1710,33 +1835,30 @@ namespace Z80 {
 				case Z80_UNK:
 					e[0] = 0xED; e[1] = 0x91;
 					e[3] = GetByteNoMem(lp);
+					resolveRelocationAndSmartSmc(3, Relocation::HIGH);
 					break;
 				default:
 					break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_NOP() {
-		EmitByte(0x0);
+		EmitByte(0x0, true);
 	}
 
 	static void OpCode_OR() {
-		do {
-			int e[] { -1, -1, -1, -1};
-			CommonAluOpcode(0xb0, e);
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+		OpCode_SimpleAlu(0xb0);
 	}
 
 	static void OpCode_OTDR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xBB);
 	}
 
 	static void OpCode_OTIR() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xB3);
 	}
 
@@ -1750,7 +1872,11 @@ namespace Z80 {
 					case Z80_B: case Z80_C: case Z80_D: case Z80_E: case Z80_H: case Z80_L: case Z80_A:
 						e[0] = 0xed; e[1] = 0x41 + 8 * reg; break;
 					case Z80_UNK:
-						if (0 == GetByteNoMem(lp)) e[0] = 0xed;	// out (c),0
+						if (0 == GetByteNoMem(lp)) {
+							// out (c),0 - warn about it as unstable
+							WarningById(W_OUT0);
+							e[0] = 0xed;
+						}
 						e[1] = 0x71; break;
 					default:
 						break;
@@ -1760,17 +1886,17 @@ namespace Z80 {
 				e[1] = GetByte(lp);		// out ($n),a
 				if (comma(lp) && GetRegister(lp) == Z80_A) e[0] = 0xd3;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_OUTD() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xAB);
 	}
 
 	static void OpCode_OUTI() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0xA3);
 	}
 
@@ -1779,7 +1905,7 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x90);
 	}
 
@@ -1790,7 +1916,7 @@ namespace Z80 {
 		}
 		char *oldLp = lp;
 		if (Z80_HL != GetRegister(lp)) lp = oldLp;		// "eat" explicit HL argument
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x94);
 	}
 
@@ -1801,56 +1927,49 @@ namespace Z80 {
 		}
 		char *oldLp = lp;
 		if (Z80_HL != GetRegister(lp)) lp = oldLp;		// "eat" explicit HL argument
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x93);
 	}
 
+	static void OpCode_POPone(const Z80Reg r16) {
+		int e[] { -1, -1, -1 };
+		switch (r16) {
+		case Z80_AF:
+			e[0] = 0xf1; break;
+		case Z80_BC:
+			e[0] = 0xc1; break;
+		case Z80_DE:
+			e[0] = 0xd1; break;
+		case Z80_HL:
+			e[0] = 0xe1; break;
+		case Z80_IX:
+		case Z80_IY:
+			e[0] = r16; e[1] = 0xe1; break;
+		default:
+			break;
+		}
+		EmitBytes(e, true);
+	}
+
 	static void OpCode_POPreverse() {
-		int e[30],t = 29,c = 1;
-		e[t] = -1;
+		constexpr int MAX_POP_REGS = 30;
+		Z80Reg regs[MAX_POP_REGS];
+		int rn = 0;
 		do {
-			switch (GetRegister(lp)) {
-			case Z80_AF:
-				e[--t] = 0xf1; break;
-			case Z80_BC:
-				e[--t] = 0xc1; break;
-			case Z80_DE:
-				e[--t] = 0xd1; break;
-			case Z80_HL:
-				e[--t] = 0xe1; break;
-			case Z80_IX:
-				e[--t] = 0xe1; e[--t] = 0xdd; break;
-			case Z80_IY:
-				e[--t] = 0xe1; e[--t] = 0xfd; break;
-			default:
-				c = 0; break;
-			}
-		} while (c && 2 <= t && Options::syx.MultiArg(lp));
-		EmitBytes(&e[t]);
+			regs[rn++] = GetRegister(lp);
+			// GetRegister_r16Low(regs[rn-1]) works as validator for regular push/pop reg-pairs
+			if (Z80_UNK == GetRegister_r16Low(regs[rn-1]) || MAX_POP_REGS == rn) break;
+		} while (relaxedMaComma(lp));
+		// registers parsed, emit pop instructions in reversed order
+		while (0 <= --rn) {
+			OpCode_POPone(regs[rn]);
+		}
 	}
 
 	static void OpCode_POPnormal() {
-		Z80Reg reg;
 		do {
-			int e[3];
-			e[0] = e[1] = e[2] = -1;
-			switch (reg = GetRegister(lp)) {
-			case Z80_AF:
-				e[0] = 0xf1; break;
-			case Z80_BC:
-				e[0] = 0xc1; break;
-			case Z80_DE:
-				e[0] = 0xd1; break;
-			case Z80_HL:
-				e[0] = 0xe1; break;
-			case Z80_IX:
-			case Z80_IY:
-				e[0] = reg; e[1] = 0xe1; break;
-			default:
-				break;
-			}
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+			OpCode_POPone(GetRegister(lp));
+		} while (relaxedMaComma(lp));
 	}
 
 	static void OpCode_POP() {
@@ -1882,12 +2001,23 @@ namespace Z80 {
 				e[0] = 0xED; e[1] = 0x8A;
 				e[2] = (imm16 >> 8);  // push opcode is big-endian!
 				e[3] = imm16 & 255;
+				// no support for smart-SMC (too much hassle)
+				if (Relocation::isResultAffected) {
+					if (Relocation::HIGH == Relocation::type) {
+						// push imm16 is big-endian, so the offsets for regular/high value are different and explicit
+						Relocation::resolveRelocationAffected(Relocation::REGULAR == Relocation::deltaType ? 1 : 3);
+					} else {
+						// the `push imm16` of Z80N can't be relocated, because it's big-endian encoded
+						Error("PUSH imm16 is big-endian encoded and can't be part of RELOCATE_TABLE", bp);
+						Relocation::isResultAffected = false;
+					}
+				}
 			}
 			default:
 				break;
 			}
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+			EmitBytes(e, true);
+		} while (relaxedMaComma(lp));
 	}
 
 	static void OpCode_RES() {
@@ -1895,102 +2025,104 @@ namespace Z80 {
 			int e[] { -1, -1, -1, -1, -1 };
 			byte bit = GetByteNoMem(lp);
 			if (comma(lp) && bit <= 7) OpCode_CbFamily(8 * bit + 0x80, e);
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_RET() {
 		Z80Cond cc = getz80cond(lp);
-		if (Z80C_UNK == cc) EmitByte(0xc9);
-		else 				EmitByte(0xc0 + cc);
+		if (Z80C_UNK == cc) EmitByte(0xc9, true);
+		else 				EmitByte(0xc0 + cc, true);
 		// multi-argument was intetionally removed by Ped7g (explain in issue why you want *that*?)
 	}
 
 	static void OpCode_RETI() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x4D);
 	}
 
 	static void OpCode_RETN() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x45);
 	}
 
 	static void OpCode_RL() {
 		Z80Reg reg;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			switch (reg = OpCode_CbFamily(0x10, e)) {
 			case Z80_A:		break;			// fully processed by the helper function
 			case Z80_BC:	case Z80_DE:	case Z80_HL:
 				if (Options::noFakes()) break;
-				e[0] = e[2] = 0xcb;
+				e[2] = INSTRUCTION_START_MARKER;
+				e[0] = e[3] = 0xcb;
 				e[1] = 0x10 + GetRegister_r16Low(reg);
-				e[3] = 0x10 + GetRegister_r16High(reg);
+				e[4] = 0x10 + GetRegister_r16High(reg);
 				break;
 			default:		break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_RLA() {
-		EmitByte(0x17);
+		EmitByte(0x17, true);
 	}
 
 	static void OpCode_RLC() {
 		do {
 			int e[] { -1, -1, -1, -1, -1 };
 			OpCode_CbFamily(0x00, e);
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_RLCA() {
-		EmitByte(0x7);
+		EmitByte(0x7, true);
 	}
 
 	static void OpCode_RLD() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x6F);
 	}
 
 	static void OpCode_RR() {
 		Z80Reg reg;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			switch (reg = OpCode_CbFamily(0x18, e)) {
 			case Z80_A:		break;			// fully processed by the helper function
 			case Z80_BC:	case Z80_DE:	case Z80_HL:
 				if (Options::noFakes()) break;
-				e[0] = e[2] = 0xcb;
+				e[2] = INSTRUCTION_START_MARKER;
+				e[0] = e[3] = 0xcb;
 				e[1] = 0x18 + GetRegister_r16High(reg);
-				e[3] = 0x18 + GetRegister_r16Low(reg);
+				e[4] = 0x18 + GetRegister_r16Low(reg);
 				break;
 			default:		break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_RRA() {
-		EmitByte(0x1f);
+		EmitByte(0x1f, true);
 	}
 
 	static void OpCode_RRC() {
 		do {
 			int e[] { -1, -1, -1, -1, -1 };
 			OpCode_CbFamily(0x08, e);
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_RRCA() {
-		EmitByte(0xf);
+		EmitByte(0xf, true);
 	}
 
 	static void OpCode_RRD() {
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x67);
 	}
 
@@ -2001,35 +2133,49 @@ namespace Z80 {
 				Error("[RST] Illegal operand", line); SkipToEol(lp);
 				return;
 			} else {			// e == { $00, $08, $10, $18, $20, $28, $30, $38 }
-				EmitByte(0xC7 + e);
+				EmitByte(0xC7 + e, true);
 			}
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_SBC() {
 		const bool nonZ80CPU = Options::IsI8080 || Options::IsLR35902;
-		Z80Reg reg;
+		Z80Reg reg, reg2;
+		int reg2ex;
 		do {
-			int e[] { -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1, -1 };
 			if (!CommonAluOpcode(0x98, e, true, false)) {	// handle common 8-bit variants
-				if ((!nonZ80CPU) && (Z80_HL == GetRegister(lp))) {
-					if (!comma(lp)) {
-						Error("[SBC] Comma expected");
-					} else {
-						switch (reg = GetRegister(lp)) {
-						case Z80_BC: case Z80_DE: case Z80_HL: case Z80_SP:
-							e[0] = 0xed; e[1] = 0x32 + reg; break;
-						default: break;
-						}
+				reg = GetRegister(lp);	if (Z80_UNK == reg) break;
+				if (!comma(lp)) {
+					Error("[SBC] Comma expected");
+					break;
+				}
+				reg2 = GetRegister(lp);
+				if (Z80_HL == reg && !nonZ80CPU) {
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						e[0] = 0xed; e[1] = 0x32 + reg2; break;
+					default: break;
+					}
+				} else if (Z80_DE == reg) {		// fake sbc de,bc|de|hl|sp
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						if (Options::noFakes()) break;
+						reg2ex = (Z80_DE == reg2 || Z80_HL == reg2) ? (reg2^0x10) : reg2;
+						e[0] = 0xEB;
+						e[1] = INSTRUCTION_START_MARKER; e[2] = 0xED; e[3] = 0x32 + reg2ex;
+						e[4] = INSTRUCTION_START_MARKER; e[5] = 0xEB;
+						break;
+					default: break;
 					}
 				}
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_SCF() {
-		EmitByte(0x37);
+		EmitByte(0x37, true);
 	}
 
 	static void OpCode_SET() {
@@ -2037,7 +2183,7 @@ namespace Z80 {
 			int e[] { -1, -1, -1, -1, -1 };
 			byte bit = GetByteNoMem(lp);
 			if (comma(lp) && bit <= 7) OpCode_CbFamily(8 * bit + 0xc0, e);
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -2046,14 +2192,14 @@ namespace Z80 {
 			Error("Z80N instructions are currently disabled", bp, SUPPRESS);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x95);
 	}
 
 	static void OpCode_SLA() {
 		Z80Reg reg;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			switch (reg = OpCode_CbFamily(0x20, e)) {
 			case Z80_A:		break;			// fully processed by the helper function
 			case Z80_HL:
@@ -2061,72 +2207,76 @@ namespace Z80 {
 				e[0] = 0x29; break;
 			case Z80_BC:	case Z80_DE:
 				if (Options::noFakes()) break;
-				e[0] = e[2] = 0xcb;
+				e[2] = INSTRUCTION_START_MARKER;
+				e[0] = e[3] = 0xcb;
 				e[1] = 0x20 + GetRegister_r16Low(reg);
-				e[3] = 0x10 + GetRegister_r16High(reg);
+				e[4] = 0x10 + GetRegister_r16High(reg);
 				break;
 			default:		break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_SLL() {
 		Z80Reg reg;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			switch (reg = OpCode_CbFamily(0x30, e)) {
 			case Z80_A:		break;			// fully processed by the helper function
 			case Z80_BC:	case Z80_DE:	case Z80_HL:
 				if (Options::noFakes()) break;
-				e[0] = e[2] = 0xcb;
+				e[2] = INSTRUCTION_START_MARKER;
+				e[0] = e[3] = 0xcb;
 				e[1] = 0x30 + GetRegister_r16Low(reg);
-				e[3] = 0x10 + GetRegister_r16High(reg);
+				e[4] = 0x10 + GetRegister_r16High(reg);
 				break;
 			default:		break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_SRA() {
 		Z80Reg reg;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			switch (reg = OpCode_CbFamily(0x28, e)) {
 			case Z80_A:		break;			// fully processed by the helper function
 			case Z80_BC:	case Z80_DE:	case Z80_HL:
 				if (Options::noFakes()) break;
-				e[0] = e[2] = 0xcb;
+				e[2] = INSTRUCTION_START_MARKER;
+				e[0] = e[3] = 0xcb;
 				e[1] = 0x28 + GetRegister_r16High(reg);
-				e[3] = 0x18 + GetRegister_r16Low(reg);
+				e[4] = 0x18 + GetRegister_r16Low(reg);
 				break;
 			default:		break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_SRL() {
 		Z80Reg reg;
 		do {
-			int e[] { -1, -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1 };
 			switch (reg = OpCode_CbFamily(0x38, e)) {
 			case Z80_A:		break;			// fully processed by the helper function
 			case Z80_BC:	case Z80_DE:	case Z80_HL:
 				if (Options::noFakes()) break;
-				e[0] = e[2] = 0xcb;
+				e[2] = INSTRUCTION_START_MARKER;
+				e[0] = e[3] = 0xcb;
 				e[1] = 0x38 + GetRegister_r16High(reg);
-				e[3] = 0x18 + GetRegister_r16Low(reg);
+				e[4] = 0x18 + GetRegister_r16Low(reg);
 				break;
 			default:		break;
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
 	static void OpCode_LR35902_STOP() {	// syntax: STOP [byte_value = 0] = opcode "10 byte_value"
-		EmitByte(0x10);
+		EmitByte(0x10, true);
 		if (SkipBlanks(lp)) {		// is optional byte provided? (if not, default value is zero)
 			EmitByte(0x00);
 		} else {
@@ -2135,24 +2285,41 @@ namespace Z80 {
 	}
 
 	static void OpCode_SUB() {
-		Z80Reg reg;
+		Z80Reg reg, reg2;
+		int reg2ex;
 		do {
-			int e[] { -1, -1, -1, -1 };
+			int e[] { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 			if (!CommonAluOpcode(0x90, e, true, true)) {	// handle common 8-bit variants
-				if ((!Options::IsI8080) && (Z80_HL == GetRegister(lp))) {
-					if (!comma(lp)) {
-						Error("[SUB] Comma expected");
-					} else {
-						switch (reg = GetRegister(lp)) {
-						case Z80_BC: case Z80_DE: case Z80_HL: case Z80_SP:
-							if (Options::noFakes()) break;
-							e[0] = 0xb7; e[1] = 0xed; e[2] = 0x32+reg; break;
-						default: break;
-						}
+				reg = GetRegister(lp);	if (Z80_UNK == reg) break;
+				if (!comma(lp)) {
+					Error("[SUB] Comma expected");
+					break;
+				}
+				reg2 = GetRegister(lp);
+				if (Z80_HL == reg) {			// fake sub hl,bc|de|hl|sp
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						if (Options::noFakes()) break;
+						e[0] = 0xB7;
+						e[1] = INSTRUCTION_START_MARKER; e[2] = 0xed; e[3] = 0x32 + reg2;
+						break;
+					default: break;
+					}
+				} else if (Z80_DE == reg) {		// fake sub de,bc|de|hl|sp
+					switch (reg2) {
+					case Z80_BC:	case Z80_DE:	case Z80_HL:	case Z80_SP:
+						if (Options::noFakes()) break;
+						reg2ex = (Z80_DE == reg2 || Z80_HL == reg2) ? (reg2^0x10) : reg2;
+						e[0] = 0xB7;
+						e[1] = INSTRUCTION_START_MARKER; e[2] = 0xEB;
+						e[3] = INSTRUCTION_START_MARKER; e[4] = 0xED; e[5] = 0x32 + reg2ex;
+						e[6] = INSTRUCTION_START_MARKER; e[7] = 0xEB;
+						break;
+					default: break;
 					}
 				}
 			}
-			EmitBytes(e);
+			EmitBytes(e, true);
 		} while (Options::syx.MultiArg(lp));
 	}
 
@@ -2167,7 +2334,7 @@ namespace Z80 {
 			Error("[SWAPNIB] Illegal operand (can be only register A)", line);
 			return;
 		}
-		EmitByte(0xED);
+		EmitByte(0xED, true);
 		EmitByte(0x23);
 	}
 
@@ -2177,15 +2344,12 @@ namespace Z80 {
 			return;
 		}
 		int e[] { 0xED, 0x27, GetByteNoMem(lp), -1 };
-		EmitBytes(e);
+		resolveRelocationAndSmartSmc(2, Relocation::HIGH);
+		EmitBytes(e, true);
 	}
 
 	static void OpCode_XOR() {
-		do {
-			int e[] { -1, -1, -1, -1};
-			CommonAluOpcode(0xa8, e);
-			EmitBytes(e);
-		} while (Options::syx.MultiArg(lp));
+		OpCode_SimpleAlu(0xa8);
 	}
 
 	void Init() {

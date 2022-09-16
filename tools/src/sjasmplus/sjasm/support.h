@@ -28,8 +28,19 @@
 
 // support.h
 
-extern const char pathBadSlash;
-extern const char pathGoodSlash;
+constexpr char pathBadSlash = '\\';
+constexpr char pathGoodSlash = '/';
+
+constexpr uint16_t sj_bswap16(const uint16_t v) {
+	return ((v>>8)&0xFF) | ((v<<8)&0xFF00);
+}
+
+constexpr uint32_t sj_bswap32(const uint32_t v) {
+	return ((v>>24)&0xFF) | ((v>>8)&0xFF00) | ((v<<8)&0xFF0000) | ((v<<24)&0xFF000000);
+}
+
+static_assert(0x3412 == sj_bswap16(0x1234), "internal error in bswap16 implementation");
+static_assert(0x78563412 == sj_bswap32(0x12345678), "internal error in bswap32 implementation");
 
 #if defined (_MSC_VER)
 
@@ -37,6 +48,8 @@ extern const char pathGoodSlash;
 
 // #define FOPEN(pFile, filename, mode) fopen_s(&pFile, filename, mode)
 // #define FOPEN_ISOK(pFile, filename, mode) (fopen_s(&pFile, filename, mode) == 0)
+
+#define strcasecmp(s1, s2) stricmp(s1, s2)
 
 #else
 
@@ -55,12 +68,13 @@ extern const char pathGoodSlash;
 long GetTickCount();
 #endif
 
+FILE* SJ_fopen(const char* fname, const char* mode);
 void SJ_GetCurrentDirectory(int, char*);
 int SJ_SearchPath(const char* oudzp, const char* filename, const char* /*extension*/, int maxlen, char* nieuwzp, char** ach);
 
-FILE* dbg_fopen(const char* fname, const char* modes);
+// FILE* dbg_fopen(const char* fname, const char* modes);
 
-#define FOPEN_ISOK(pFile, filename, mode) ((pFile = fopen(filename, mode)) != NULL)
+#define FOPEN_ISOK(pFile, filename, mode) ((pFile = SJ_fopen(filename, mode)) != NULL)
 
 #define STRDUP strdup
 #define STRCAT(strDestination, sizeInBytes, strSource) strncat(strDestination, strSource, sizeInBytes)
@@ -77,7 +91,7 @@ FILE* dbg_fopen(const char* fname, const char* modes);
 void switchStdOutIntoBinaryMode();
 
 #ifdef USE_LUA
-void LuaShellExec(char *command);
+void LuaShellExec(const char *command);
 #endif //USE_LUA
 
 #ifndef WEXITSTATUS
