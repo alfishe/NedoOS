@@ -231,6 +231,7 @@ nfopen
 ;a=drive 0..3
 	;EXPORT nfopen
         push af
+       ld (trdoscurdrive),a
          push bc
          push de
          ld a,c

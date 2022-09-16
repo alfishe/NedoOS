@@ -69,6 +69,15 @@ int_nochangepal
         call oldimer
          di ;иначе прерывание во время остатка обработчика может зациклить обработчик
 
+        OS_GETKEYMATRIX ;out: bcdehlix = halfrows cs...space
+        ld (halfrow0),bc
+        ld (halfrow2),de
+        ld (halfrow4),hl
+        ld (halfrow6),ix
+        ld a,e
+        and 0b10101
+        jp z,quit
+
         GET_KEY
        ld (curmouse),de
        ld a,l
@@ -183,3 +192,12 @@ curmouse
         dw 0
 curmousebuttons
         db 0
+
+halfrow0
+        dw 0
+halfrow2
+        dw 0
+halfrow4
+        dw 0
+halfrow6
+        dw 0

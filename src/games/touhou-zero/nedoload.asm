@@ -258,11 +258,7 @@ jpaddr=$+1
 
 quit ;TODO
         call swapimer
-pgmusic=$+1
-        ld a,0
-        SETPG4000
-        ld hl,0x4008 ;stop
-        OS_SETMUSIC
+        call _music_stop
         halt
         QUIT
 
