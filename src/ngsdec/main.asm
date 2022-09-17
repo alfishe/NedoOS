@@ -68,9 +68,13 @@ uploadcodeloop
         ld hl,(filenameaddr)
         call findlastdot ;out: de = after last dot or start
         ex de,hl
-        ld d,(hl)
+        ld a,(hl)
+        call tolower
+        ld d,a
         inc hl
-        ld e,(hl)
+        ld a,(hl)
+        call tolower
+        ld e,a
 ;get chip id
         SC CMDGETCHIPID
         WC
@@ -189,16 +193,16 @@ redraw
 ;hl = poi to filename in string
 ;out: de = after last dot or start
 findlastdot
-	ld d,h
-	ld e,l ;de = after last dot
+        ld d,h
+        ld e,l ;de = after last dot
 findlastdot0
-	ld a,[hl]
-	inc hl
-	or a
-	ret z
-	cp '.'
-	jr nz,findlastdot0
-	jr findlastdot
+        ld a,[hl]
+        inc hl
+        or a
+        ret z
+        cp '.'
+        jr nz,findlastdot0
+        jr findlastdot
 
 ;de = first two character of file extension
 ;a = chip id
@@ -237,14 +241,6 @@ checkmp3
         xor a                           ;I guess there's no point in checking mp3 support
         ret
 
-prdigit
-	sub 10
-	jr c,$+4
-	add 7
-	add 0x3A
-	PRCHAR
-        ret
-
 print_hl
         ld a,(hl)
         or a
@@ -257,20 +253,28 @@ print_hl
         ret
 
 skipword_hl
-	ld a,(hl)
-	or a
-	ret z
-	cp ' '
-	ret z
-	inc hl
-	jr skipword_hl
+        ld a,(hl)
+        or a
+        ret z
+        cp ' '
+        ret z
+        inc hl
+        jr skipword_hl
 
 skipspaces_hl
-	ld a,(hl)
-	cp ' '
-	ret nz
-	inc hl
-	jr skipspaces_hl
+        ld a,(hl)
+        cp ' '
+        ret nz
+        inc hl
+        jr skipspaces_hl
+
+tolower
+        cp 'A'
+        ret c
+        cp 'Z'+1
+        ret nc
+        add 32
+        ret
 
 fileerrorstr
         db "Failed to read the file.\r\n",0
