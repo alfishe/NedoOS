@@ -62,6 +62,8 @@ nokeytimer=$+1
         dec a
         ex af,af' ;'
         CALL INKEY
+       ld a,b
+       ld (cursorkeys),a
         LD A,C
 MOUSEx=$+1
         LD HL,maxXwin/2
@@ -199,21 +201,26 @@ MXZRO
         RET 
 
 INKEY
-        LD A,239
-        IN A,(-2)
-        RRCA 
-        RLA 
-        RLA 
-        OR #C2
-        LD C,A
-        LD A,#DF
+        ld bc,0xffff
+        LD A,0xbf
         IN A,(-2)
         RRA 
         JR C,$+4
-        RES 4,C
+        RES 1,b ;enter
+        LD A,0x7f
+        IN A,(-2)
+        CPL 
+        AND 31
+        jr z,$+4
+        RES 0,b ;space
+        ld a,0xdf
+        IN A,(-2)
         RRA 
         JR C,$+4
-        RES 5,C
+        RES 4,C ;P
+        RRA 
+        JR C,$+4
+        RES 5,C ;O
         LD A,-5
         IN A,(-2)
         RRA 
@@ -224,15 +231,32 @@ INKEY
         RRA 
         JR C,$+4
         RES 3,C
-        LD A,-2
-        IN A,(-2)
-        RRA 
-        JR C,$+4
-        RES 0,C
-        LD A,#7F
-        IN A,(-2)
-        CPL 
-        AND 31
-        RET Z
-        RES 1,C
-        RET 
+        ld a,0xfe
+        in a,(0xfe)
+        rra
+        jr nc,INKEY_cursor
+        ld a,0xef
+        IN A,(0xfe)
+        RRCA 
+        RLA 
+        RLA 
+        OR #C3
+        and c
+        LD C,A ;11LRDU11
+        ret
+INKEY_cursor
+        ld a,0xf7
+        in a,(0xfe)
+        bit 4,a ;5=L
+        jr nz,$+4
+        res 5,b
+        ld a,0xef
+        IN A,(0xfe) ;DUR??
+        bit 2,a
+        jr nz,$+4
+        res 4,b
+        rra
+        or 0xf3
+        and b
+        ld b,a ;11LRDUef cursor
+        ret

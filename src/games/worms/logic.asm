@@ -340,6 +340,23 @@ WMsp=$+1
       endif
 
 ControlCurWorm ;в это время logic вызывать не надо
+        ld a,(cursorkeys) ;11LRDUef cursor
+        ld b,a
+        ld hl,crossalpha ;-64..+64 вправо (-64 самый нижний)
+        bit 2,b
+        jr nz,ControlCurWorm_noup
+        ld a,(hl)
+        add a,64
+        jp m,ControlCurWorm_noup
+        inc (hl)
+ControlCurWorm_noup
+        bit 3,b
+        jr nz,ControlCurWorm_nodown
+        ld a,(hl)
+        add a,64-1
+        jp m,ControlCurWorm_nodown
+        dec (hl)
+ControlCurWorm_nodown
         ret
 
 WormsVsMines

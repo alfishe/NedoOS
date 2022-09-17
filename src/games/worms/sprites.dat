@@ -26,3 +26,4 @@ sprwormrot#16=W,24,128,8,8,7
 sprmine#8=W,0,176,8,8,7
 sprmine2#8=W,0,184,8,8,7
 sprminerot#16=W,0,176,8,8,7
+sprcross=W,64,176,8,8,7

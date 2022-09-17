@@ -35,7 +35,7 @@ rem del depkcode.c
 
 %SJASMPLUS% %SJASMPLUSFLAGS% main.asm
 rem sjasmplus depkmain.asm
-del test.tap
+rem del test.tap
 del worms.tap
 rem mhmt -mlz code.c
 del code.bin

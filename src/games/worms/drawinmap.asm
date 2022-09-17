@@ -7,6 +7,55 @@ AnimMines
         ld (hl),a
         ret
 
+UnDrawCrossInMap
+DrawCrossInMap
+        ld hl,WORMXY
+        ld c,(hl) ;xlow
+        inc l
+        inc l
+        ld e,(hl) ;xhigh
+        inc l
+       ;ld a,e
+       ;cp XWID
+       ;jr nc,DrawWormsInMap_skip
+        ld d,0
+       dup 2
+        sla c
+        rl e
+        rl d
+       edup
+        sla c ;bc=gfx
+        ld c,(hl) ;y        
+crossalpha=$+1 ;-64..+64 вправо (-64 самый нижний)
+        ld hl,tsin
+        
+        ld a,(hl)
+        sra a
+        sra a
+        neg ;y считается сверху вниз
+        add a,c
+        ld c,a ;y
+        ld a,64
+        sub l
+        ld l,a ;cos table
+        ld a,(hl)
+        sra a
+        sra a
+        ld l,a
+        rla
+        sbc a,a
+        ld h,a
+        add hl,de
+        ex de,hl ;x
+        
+        ld l,c ;y
+        ld bc,sprcross
+;de=x in pixels
+;l=y
+;bc=gfx
+        call DrawWormInMap
+        ret
+
 ForcedUnDrawWormsInMap
 ForcedDrawWormsInMap
         ld a,SPRLIST_IMPOSSIBLE;xor a ;"nop" - print all
