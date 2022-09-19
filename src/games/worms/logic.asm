@@ -244,7 +244,7 @@ WM0
         and 7
         jp nz,NEWSPD_nogravity;nostoprot
         ld a,c
-        and 0xe0
+        and 0xe8 ;8=right
         ;or 0;16
         ld c,a
 ;nostoprot
@@ -292,7 +292,7 @@ NEWSPD_skiprot
 
 NEWSPD_rotate
         ld a,c
-        and 0xe0
+        and 0xe8 ;8=right
         or 16
         ld c,a
        ;set 4,c
@@ -357,6 +357,39 @@ ControlCurWorm_noup
         jp m,ControlCurWorm_nodown
         dec (hl)
 ControlCurWorm_nodown
+        ld hl,(curwormxy)
+        bit 5,b
+        jr nz,ControlCurWorm_noleft
+        call UnDrawCurWorm_ifprinted ;nz=not printed
+        ret nz
+        res 3,(hl)
+        ret
+ControlCurWorm_noleft
+        bit 4,b
+        jr nz,ControlCurWorm_noright
+        call UnDrawCurWorm_ifprinted ;nz=not printed
+        ret nz
+        set 3,(hl)
+        ret
+ControlCurWorm_noright
+
+        bit 1,b
+        ret nz ;no jump
+
+        call UnDrawCurWorm_ifprinted ;nz=not printed
+        ret nz
+
+        GETCOORDS
+        ld d,-5 ;dy
+        ld e,1 ;dx
+        bit 3,c
+        jr nz,$+5
+         dec d ;NEWREGS=0
+         ld e,-1 ;dx
+        PUTCOORDS
+        call DrawCurWormData
+       ld a,STATE_FLYCURWORM
+       ld (gamestate),a
         ret
 
 WormsVsMines

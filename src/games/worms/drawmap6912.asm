@@ -36,6 +36,7 @@ DrawMapGfx
         ld a,0xfe
         in a,(0xfe)
         rra
+        rra
         jp nc,DrawMASK
 
         ld iy,0

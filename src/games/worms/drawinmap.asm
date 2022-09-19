@@ -9,8 +9,10 @@ AnimMines
 
 UnDrawCrossInMap
 DrawCrossInMap
+curwormxy=$+1
         ld hl,WORMXY
-        ld c,(hl) ;xlow
+        ld c,(hl) ;xlow, sprlow (bit3=right)
+       ld b,c
         inc l
         inc l
         ld e,(hl) ;xhigh
@@ -39,6 +41,9 @@ crossalpha=$+1 ;-64..+64 вправо (-64 самый нижний)
         sub l
         ld l,a ;cos table
         ld a,(hl)
+       bit 3,b
+       jr nz,$+4
+       neg
         sra a
         sra a
         ld l,a
@@ -53,8 +58,84 @@ crossalpha=$+1 ;-64..+64 вправо (-64 самый нижний)
 ;de=x in pixels
 ;l=y
 ;bc=gfx
+        bit 7,d
+        ret nz
+_max=MAPWID*8-4
+        ld a,e
+        sub _max&0xff
+        ld a,d
+        sbc a,_max/256
+        ret nc
+       if !ATM
+        LD A,PGMAP;16
+        CALL OUTME
+       endif
+        jp DrawWormInMap
+
+UnDrawCurWorm_ifprinted
+;hl=curwormxy
+;out: nz=not printed, keep hl
+        ex de,hl
+        ld hl,5
+        add hl,de
+        ex de,hl
+        ld a,(de) ;dy
+       cp SPRLIST_PRINTED
+       ;jr z,UnDrawCurWorm_ifprintedok ;стоячий червь (уже напечатанный) или пустышка
+       ;cp SPRLIST_END
+       ;jp z,WRMOVEQ ;конец списка
+       ;cp SPRLIST_STAYING
+       ret nz
+       ;jr z,UnDrawCurWorm_ifprintedok ;стоячий червь или пустышка
+       ;ret
+UnDrawCurWorm_ifprintedok
+        ld a,SPRLIST_STAYING;PRINTED
+        ld (de),a
+       if !ATM
+        LD A,PGMAP;16
+        CALL OUTME
+       endif
+       push hl
+        GETCOORDS
+        push de
+        ld e,l ;xhigh
+        ld d,0
+       dup 2
+        sla c
+        rl e
+        rl d
+       edup
+        sla c ;bc=gfx
+        push hl ;h=y, l=xhigh
+        ld l,h ;y        
+;de=x in pixels
+;l=y
+;bc=gfx
         call DrawWormInMap
+        pop bc ;b=y, c=xhigh
+        pop de ;x
+       pop hl ;curwormxy+2
+       pop hl
+        xor a ;printed
         ret
+
+DrawCurWormData
+       if !ATM
+        LD A,PGMAP;16
+        CALL OUTME
+       endif
+        ld hl,(curwormxy)
+        GETCOORDS
+        ld b,h
+        ld c,l ;b=y, c=xhigh
+       pop hl ;curwormxy+2
+       inc hl
+       inc hl
+       inc hl
+;hl=wormxy+5
+;c=xhigh
+;b=y
+        jp DrawWormDataInMap
 
 ForcedUnDrawWormsInMap
 ForcedDrawWormsInMap
@@ -143,7 +224,6 @@ DrawWormsInMap_skipdy
 
 UnDrawWormsDataInMap ;FIXME
 DrawWormsDataInMap
-
        if !ATM
         LD A,PGMAP;16
         CALL OUTME
@@ -173,6 +253,16 @@ DrawWormsDataInMap0
        ;cp SPRLIST_STAYING
        ;jr nz,DrawWormsDataInMap_skip ;not staying
        push hl
+        call DrawWormDataInMap
+       pop hl
+DrawWormsDataInMap_skip
+        inc l
+        jr DrawWormsDataInMap0
+
+DrawWormDataInMap
+;hl=wormxy+5
+;c=xhigh
+;b=y
         ld a,b ;y
         SUB 13
         LD B,A ;y
@@ -232,11 +322,7 @@ SPRINTnam
         LD A,B
         ex af,af' ;'
         add a,'0'+10
-        call Pr2CharsInMap
-       pop hl
-DrawWormsDataInMap_skip
-        inc l
-        jr DrawWormsDataInMap0
+        jp Pr2CharsInMap
 
 UnDrawCircleInMap
 ;e,bc=y0,x0
