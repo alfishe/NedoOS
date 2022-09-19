@@ -2696,7 +2696,9 @@ BDOS_delete
 	F_UNLINK
 	ret        
 BDOS_delete_nofatfs
+       push af ;drive
         BDOSSETPGTRDOSFS
+       pop af
         jp trdos_delete
         
 BDOS_rename
@@ -2715,7 +2717,9 @@ BDOS_rename
         F_RENAME
         ret
 BDOS_rename_nofatfs
+       push af ;drive
         BDOSSETPGTRDOSFS
+       pop af
         jp trdos_rename
 
 countfiledrive

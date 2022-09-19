@@ -450,6 +450,7 @@ trdos_seekhandle_blocknumber=$+1
         jr trdos_seekhandle_q
 
 trdos_delete
+       ld (trdoscurdrive),a
 ;DE = Drive/path/file ASCIIZ string
         ex de,hl
         call findlastslash. ;de=last slash
@@ -462,9 +463,9 @@ trdos_delete
         ;ret
         
 trdos_rename
+       ld (trdoscurdrive),a
 ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string
         push de
-
         call findlastslash. ;de=last slash
         ld hl,trdos_tempfilename2
         call dotname_to_cpmname ;de -> hl
@@ -477,7 +478,6 @@ trdos_rename
         call dotname_to_cpmname ;de -> hl
         pop hl ;hl=filename
         ld c,9 ;c=FILENAMESZ
-         ;jr $
         call findfile
         jr nz,trdos_rename_q
 ;hl,de=after filename
