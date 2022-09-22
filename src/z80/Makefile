@@ -6,9 +6,9 @@
 
 include ../_sdk/common.mk
 
-NAME		= wrtrd.com
+NAME		= z80.com
 OBJECTS		=
-SOURCES		= wrtrd.asm
+SOURCES		= z80.asm
 RESOURCES	=
 DOCS		=
 INSTALLDIR	?= ../../release

@@ -6,7 +6,8 @@
 
 include ../_sdk/common.mk
 
-NAME		= nv.com
+NAME1		= nv.com
+NAME2		= nvfast.com
 OBJECTS		=
 SOURCES		= nv.asm
 RESOURCES	= nv.ext
@@ -45,7 +46,9 @@ ${DOC_INSTALLDIR} \
 EXEC_DEPS=
 EXEC_BINS=
 
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+${eval ${call sjasmplus_odd_rule,${NAME1},${SOURCES},"-DPRSTDIO=1",EXEC_DEPS,EXEC_BINS}}
+
+${eval ${call sjasmplus_odd_rule,${NAME2},${SOURCES},"-DPRSTDIO=0",EXEC_DEPS,EXEC_BINS}}
 
 executables: ${EXEC_BINS}
 

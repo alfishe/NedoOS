@@ -6,9 +6,10 @@
 
 include ../_sdk/common.mk
 
-NAME		= wrtrd.com
+NAME1		= 866towin.com
+NAME2		= winto866.com
 OBJECTS		=
-SOURCES		= wrtrd.asm
+SOURCES		= conv.asm
 RESOURCES	=
 DOCS		=
 INSTALLDIR	?= ../../release
@@ -47,7 +48,9 @@ ${DOC_INSTALLDIR} \
 EXEC_DEPS=
 EXEC_BINS=
 
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+${eval ${call sjasmplus_odd_rule,${NAME1},${SOURCES},"-DCONVBACK=1",EXEC_DEPS,EXEC_BINS}}
+
+${eval ${call sjasmplus_odd_rule,${NAME2},${SOURCES},"-DCONVBACK=0",EXEC_DEPS,EXEC_BINS}}
 
 executables: ${EXEC_BINS}
 

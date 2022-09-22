@@ -15,7 +15,7 @@ INSTALLDIR	?= ../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
 RES_INSTALLDIR	= ${INSTALLDIR}/bin
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
-ASPP		= ../../tools/aspp.sh
+ASPP		= ../../tools/aspp
 SJASMPLUS	= ../../tools/sjasmplus
 SJASMPLUSFLAGS	= --nologo --msg=war
 DEPAS		= env LC_CTYPE=C ${ASPP}

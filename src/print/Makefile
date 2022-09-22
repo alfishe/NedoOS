@@ -6,9 +6,9 @@
 
 include ../_sdk/common.mk
 
-NAME		= wrtrd.com
+NAME		= print.com
 OBJECTS		=
-SOURCES		= wrtrd.asm
+SOURCES		= print.asm
 RESOURCES	=
 DOCS		=
 INSTALLDIR	?= ../../release

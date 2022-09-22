@@ -6,9 +6,11 @@
 
 include ../_sdk/common.mk
 
-NAME		= wrtrd.com
+NAME2		= zxzvm.com
+NAME1		= vm.bin
 OBJECTS		=
-SOURCES		= wrtrd.asm
+SOURCES2	= zxio_7.asm
+SOURCES1	= vm.asm
 RESOURCES	=
 DOCS		=
 INSTALLDIR	?= ../../release
@@ -47,7 +49,9 @@ ${DOC_INSTALLDIR} \
 EXEC_DEPS=
 EXEC_BINS=
 
-${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
+${eval ${call sjasmplus_odd_rule,${NAME1},${SOURCES1},,EXEC_DEPS,EXEC_BINS}}
+
+${eval ${call sjasmplus_odd_rule,${NAME2},${SOURCES2},,EXEC_DEPS,EXEC_BINS}}
 
 executables: ${EXEC_BINS}
 

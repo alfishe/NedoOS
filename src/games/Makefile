@@ -4,9 +4,9 @@
 # Used tools:
 #   GNU core utilities.
 
-PROGS		= snake tank tetris smb untangle wolf3d br eric
+PROGS		= snake tank tetris untangle wolf3d br eric 
 DOC		=
-INSTALLDIR	?= ../../release/nedogame
+INSTALLDIR	:= $(shell pwd)/../../release/nedogame
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 
 .PHONY: ${PROGS} empty all install install-doc clean
@@ -28,8 +28,8 @@ ${DOC_INSTALLDIR} \
 
 all: ${PROGS}
 
-install: | ${INSTALLDIR}
-	for d in ${PROGS}; do ${MAKE} -w -C $$d $@; done
+install: ${INSTALLDIR}
+	for d in ${PROGS}; do ${MAKE} INSTALLDIR=${INSTALLDIR} -w -C $$d install ; done
 
 ifeq "${DOC}" ""
 install-doc:

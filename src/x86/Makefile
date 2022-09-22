@@ -6,9 +6,9 @@
 
 include ../_sdk/common.mk
 
-NAME		= wrtrd.com
+NAME		= x86.com
 OBJECTS		=
-SOURCES		= wrtrd.asm
+SOURCES		= x86.asm
 RESOURCES	=
 DOCS		=
 INSTALLDIR	?= ../../release
