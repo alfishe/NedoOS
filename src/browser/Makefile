@@ -9,11 +9,11 @@ include ../_sdk/common.mk
 NAME		= browser.com
 OBJECTS		=
 SOURCES		= browser.asm
-RESOURCES	=
+RESOURCES	= browser/*
 DOCS		=
 INSTALLDIR	?= ../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
-RES_INSTALLDIR	= ${INSTALLDIR}/bin
+RES_INSTALLDIR	= ${INSTALLDIR}/bin/browser/
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 DEPEXT		= d
 
