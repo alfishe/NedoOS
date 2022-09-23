@@ -1,52 +1,104 @@
 # Supported environments:
-#   GNU/Linux
-#   Windows NT
+#   GNU/Linux.
+#
+# Tools used:
+#   GNU core utilities, tools/aspp, tools/sjasmplus.
 
 include ../_sdk/common.mk
 
-.PHONY: install clean
+NAME		= pt.com
+OBJECTS		=
+SOURCES		= pt.asm
+RESOURCES	=
+DOCS		= pt3_7xe.txt  pt3_7x.txt  pt3hist.txt  ptdoc.txt  pt_vs_vt.txt
+INSTALLDIR	?= ../../release
+BIN_INSTALLDIR	= ${INSTALLDIR}/bin
+RES_INSTALLDIR	= ${INSTALLDIR}/bin
+DOC_INSTALLDIR	= ${INSTALLDIR}/doc
+DEPAFLAGS	= -E -MM -I .
+DEPEXT		= d
 
-pt.com: pt.asm \
- ../_sdk/sys_h.asm \
- ../_sdk/sysdefs.asm \
- digits.bin \
- f7400.bin \
- gsports.asm \
- pt3d.asm \
- pt5_371.asm \
- pt6_371.asm \
- ptcmpv8.asm \
- ptconst.asm \
- ptinpage.asm \
- ptmsg.asm \
- tvol.bin
-	$(AS) $(AFLAGS) $<
+# All targets
+TARGETS=executables resources
+.PHONY: empty ${foreach t,${TARGETS},${t} install-${t} clean-${t}} all install install-doc clean
 
-install: \
- $(BIN_INSTALLDIR)pt.com \
- $(DOC_INSTALLDIR)pt3hist.txt \
- $(DOC_INSTALLDIR)pt3_7x.txt \
- $(DOC_INSTALLDIR)pt3_7xe.txt \
- $(DOC_INSTALLDIR)ptdoc.txt \
- $(DOC_INSTALLDIR)pt_vs_vt.txt
+.DEFAULT_GOAL=all
 
-$(BIN_INSTALLDIR)pt.com: pt.com
-	$(CP) $< $@
+empty:
+	@echo 'Usage: make [ TARGET | ACTION-TARGET | all | install | install-doc | clean ]'
+	@echo 'where ACTION is one of: install clean'
+	@echo '      TARGET is one of: ${TARGETS}'
 
-$(DOC_INSTALLDIR)pt3hist.txt: pt3hist.txt
-	$(CP) $< $@
+# Clear lists
+DEPS=
 
-$(DOC_INSTALLDIR)pt3_7x.txt: pt3_7x.txt
-	$(CP) $< $@
+# Create directories
+${sort \
+${BIN_INSTALLDIR} \
+${RES_INSTALLDIR} \
+${DOC_INSTALLDIR} \
+}:
+	mkdir -p $@
 
-$(DOC_INSTALLDIR)pt3_7xe.txt: pt3_7xe.txt
-	$(CP) $< $@
+##########################
+## Target "executables" ##
+##########################
 
-$(DOC_INSTALLDIR)ptdoc.txt: ptdoc.txt
-	$(CP) $< $@
+EXEC_DEPS=
+EXEC_BINS=
 
-$(DOC_INSTALLDIR)pt_vs_vt.txt: pt_vs_vt.txt
-	$(CP) $< $@
+${eval ${call sjasmplus_odd_rule,${NAME},${SOURCES},,EXEC_DEPS,EXEC_BINS}}
 
-clean:
-	$(RM) pt.com
+executables: ${EXEC_BINS}
+
+install-executables: executables | ${BIN_INSTALLDIR}
+	cp ${EXEC_BINS} $|
+
+clean-executables:
+	${RM} ${EXEC_DEPS} ${EXEC_BINS}
+
+DEPS+=${EXEC_DEPS}
+
+########################
+## Target "resources" ##
+########################
+
+resources: ${RESOURCES}
+
+install-resources: resources | ${RES_INSTALLDIR}
+ifneq "${sort ${RESOURCES}}" ""
+	cp ${RESOURCES} $|
+endif
+
+clean-resources:
+
+####################
+## Common targets ##
+####################
+
+all: executables resources
+
+install: install-executables install-resources
+
+ifeq "${sort ${DOCS}}" ""
+install-doc:
+else
+install-doc: ${DOCS} | ${DOC_INSTALLDIR}
+	cp $^ $|
+endif
+
+clean: clean-executables clean-resources
+
+##################
+## Dependencies ##
+##################
+
+ifneq "${sort \
+${filter empty,${MAKECMDGOALS}} \
+${filter clean,${MAKECMDGOALS}} \
+${filter clean-%,${MAKECMDGOALS}} \
+}" ""
+else
+# FIXME: Triggered when multiple targets specified.
+include ${DEPS}
+endif
