@@ -9,11 +9,11 @@ include ../_sdk/common.mk
 NAME		= x86.com
 OBJECTS		=
 SOURCES		= x86.asm
-RESOURCES	=
+RESOURCES	= x86/*
 DOCS		=
 INSTALLDIR	?= ../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
-RES_INSTALLDIR	= ${INSTALLDIR}/bin
+RES_INSTALLDIR	= ${INSTALLDIR}/share/x86/
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 DEPAFLAGS	= -E -MM -I .
 DEPEXT		= d
