@@ -10,7 +10,7 @@
 #include <graphic.h>
 #include <terminal.c>
 unsigned char netbuf[1452];
-unsigned char picture[7000];
+unsigned char picture[16384];
 unsigned char piclist[1024];
 unsigned char picId[16];
 unsigned char picType[32];
@@ -248,7 +248,7 @@ void fillPicture(unsigned char socket)
     {
       picture [w + pPos]  = netbuf[w];
     }
-    if (pPos > 6912) {printf ("Picture overrun... \n\r"); break;} // 1.1
+    if (pPos > sizeof(picture)) {printf ("Picture overrun... \n\r"); break;} // 1.1
 	pPos = pPos + q;
 	
   }
@@ -493,6 +493,7 @@ C_task main (void)
 	ATRIB(33);
 	ATRIB(40);
 	count = 0;
+		printf(" Управление:\n\r");
 	printf(" Управление:\n\r");
 	printf("	'ESC' - выход из программы;\n\r");
 	printf("	'<-' или 'B' к последним картинкам;\n\r");
