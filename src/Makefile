@@ -12,7 +12,7 @@ DOC_INSTALLDIR	= ${INSTALLDIR}/doc
 
 SUBDIRS		=	basic browser cmd emptyapp games fatfs4os kernel modplay nedolang nv pkunzip player reset scratch setfont tar texted view ping telnet term
 SUBDIRS		+=	zxrar wrtrd winto866 zxzvm z80 x86 print playtap nmisvc mktrd unrar rdtrd pt ngsdec netterm myip more menu man hello gettrd
-SUBDIRS		+=	bk untr
+SUBDIRS		+=	bk untr dmapps/settime dmapps/3ws dmapps/dmftp dmapps/dmirc dmapps/dmm dmapps/helloworld
 
 # Problem subdirs
 # SUBDIRS		+= untr moon-rabbit-zx games bdsc
