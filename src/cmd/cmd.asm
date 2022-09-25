@@ -604,7 +604,8 @@ waitpid_keepresult
         WAITPID ;не должно быть, если команда была .bat!
        ld (lastresult),hl
 ;hl=result
-        ret;jp prword_hl_crlf
+        ret
+        ;jp prword_hl_crlf
 
 loadapp_keeppath
         ld hl,cmdprompt

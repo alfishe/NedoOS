@@ -1,1 +1,1 @@
-        DEFB "ZXZVMtr v0.93"        IFN bigmem       IFN atm        DEFB " for ATM Turbo 2"       ELSE         DEFB "; Pentagon 512; nofast"       ENDIF         ELSE ;~bigmem        DEFB " for Spectrum 128"        ENDIF 
+        DEFB "ZXZVMtr v0.93"        IF bigmem       IF atm        DEFB " for ATM Turbo 2"       ELSE         DEFB "; Pentagon 512; nofast"       ENDIF         ELSE ;~bigmem        DEFB " for Spectrum 128"        ENDIF 
