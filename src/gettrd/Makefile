@@ -9,7 +9,7 @@ include ../_sdk/common.mk
 NAME		= gettrd.com
 OBJECTS		=
 SOURCES		= gettrd.asm
-RESOURCES	= z80/*
+RESOURCES	= 
 DOCS		=
 INSTALLDIR	?= ../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
