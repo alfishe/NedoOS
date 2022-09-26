@@ -10,8 +10,11 @@ SJASMPLUS	= sjasmplus
 SJASMPLUS_DIR	= ${srcdir}/sjasmplus
 DMIMG		= dmimg
 DMIMG_DIR	= ${srcdir}/dmimg
+SDCC		= sdcc
+SDCC_DIR	= ${srcdir}/sdcc
 
 # All targets
+# ${SDCC} - will add in the future
 TARGETS=${ASPP} ${MHMT} ${SJASMPLUS} ${DMIMG}
 .PHONY: empty ${foreach t,${TARGETS},clean-${t}} all clean
 
@@ -67,6 +70,15 @@ ${DMIMG}: | ${DMIMG_DIR}
 clean-${DMIMG}:
 	${MAKE} -w -C ${DMIMG_DIR} clean
 	${RM} ${DMIMG}
+
+###########
+## SDCC  ##
+###########
+${SDCC}: | ${SDCC_DIR}
+	${MAKE} -w -C ${SDCC_DIR} all
+
+clean-${SDCC}:
+	${MAKE} -w -C ${SDCC_DIR} clean
 
 #########
 ## all ##
