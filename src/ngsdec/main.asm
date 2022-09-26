@@ -10,24 +10,15 @@ begin
         OS_HIDEFROMPARENT
         ld e,6 ;textmode
         OS_SETGFX
-
-gsinit
+        ld e,7
+        OS_CLS
+;GS init
         call gssoftreset
         call z,gshardreset              ;GS didn't reply, try hw reset
-        jr nz,parsecommandline
+        jr nz,uploadcode
 ;no GS
         ld hl,gsnotfoundstr
         call print_hl
-        QUIT
-
-parsecommandline
-        ld hl,COMMANDLINE
-        call skipword_hl
-        call skipspaces_hl
-        ld (filenameaddr),hl
-        ld a,(hl)
-        or a
-        jp nz,uploadcode
         QUIT
 
 uploadcode
@@ -59,37 +50,49 @@ uploadcodeloop
         WC
         out (c),h
         WD
-;update screen
-        call redraw
+;the code is starting
         YIELD
         YIELD
         YIELD
-;load extension
-        ld hl,(filenameaddr)
-        call findlastdot ;out: de = after last dot or start
-        ex de,hl
-        ld a,(hl)
-        call tolower
-        ld d,a
-        inc hl
-        ld a,(hl)
-        call tolower
-        ld e,a
 ;get chip id
         SC CMDGETCHIPID
         WC
         WN
         GD
-;check if the device can play it
+        ld (vsversion),a
+;check args
+        ld hl,COMMANDLINE
+        call skipword_hl
+        call skipspaces_hl
+        ld a,(hl)
+        or a
+        jr nz,gotinputfile
+;switch to file search mode
+        xor a
+        ld (playmode),a
+;look for a playable file
+        ld de,emptypath
+        OS_OPENDIR
+        call findnextsupportedfile
+        ld hl,nofiletoplaystr
+        jp nz,printerrorandexit
+        ld (filenameaddr),de
+        jr playfile
+
+gotinputfile
+        ld (filenameaddr),hl
         call isfiletypesupported
         ld hl,unsupportedfiletype
         jp nz,printerrorandexit
+playfile
+        call printfilename
 filenameaddr=$+1
         ld de,0
         call openstream_file
         or a
         ld hl,fileerrorstr
         jp nz,printerrorandexit
+prefilledbuffersize=$+1
         ld bc,0
 readfilechunk
         ld hl,0x8000
@@ -105,7 +108,21 @@ readfilechunk
         add hl,de
         bit 7,h
         jr nz,startupload
-;seek to the beginning
+playmode=$+1
+        jr seektocurrentfilebeginning
+        ld (prefilledbuffersize),hl
+        call closestream_file
+        call findnextsupportedfile
+        jr z,foundnextfile
+;reopen dir
+        ld de,emptypath
+        OS_OPENDIR
+        call findnextsupportedfile
+foundnextfile
+        ld (filenameaddr),de
+        jp playfile
+
+seektocurrentfilebeginning
         push hl
         ld hl,0
         ld de,hl
@@ -187,8 +204,14 @@ wcloop
 redraw
         ld e,7
         OS_CLS
+printfilename
         ld hl,(filenameaddr)
-        jp print_hl
+        call print_hl
+        ld a,0x0d
+        PRCHAR
+        ld a,0x0a
+        PRCHAR
+        ret
 
 ;hl = poi to filename in string
 ;out: de = after last dot or start
@@ -204,10 +227,20 @@ findlastdot0
         jr nz,findlastdot0
         jr findlastdot
 
-;de = first two character of file extension
-;a = chip id
+;hl = filename
 ;out: zf=1 if codec can play it, zf=0 otherwise
 isfiletypesupported
+        call findlastdot ;out: de = after last dot or start
+        ex de,hl
+        ld a,(hl)
+        call tolower
+        ld d,a
+        inc hl
+        ld a,(hl)
+        call tolower
+        ld e,a
+vsversion=$+1
+        ld a,255
         ld hl,'mi'
         sub hl,de
         jr nz,checkogg
@@ -238,8 +271,9 @@ checkaac
         cp SS_VER_VS1063
         ret
 checkmp3
-        xor a                           ;I guess there's no point in checking mp3 support
-        ret
+        ld hl,'mp'
+        sub hl,de
+        ret                             ;I guess there's no point in checking mp3 support
 
 print_hl
         ld a,(hl)
@@ -276,6 +310,29 @@ tolower
         add 32
         ret
 
+findnextsupportedfile
+;out: zf=1 and de=filename if file was found, zf=0 otherwise
+        ld de,filinfo
+        OS_READDIR
+        or a
+        ret nz
+        ld a,(filinfo+FILINFO_FATTRIB)
+        and FATTRIB_DIR
+        jr nz,findnextsupportedfile
+        ld hl,filinfo+FILINFO_FNAME
+        call isfiletypesupported
+        jr nz,findnextsupportedfile
+        ld de,filinfo+FILINFO_FNAME
+        ld hl,filinfo+FILINFO_LNAME
+        ld a,(hl)
+        or a
+        ret z
+        ex de,hl
+        xor a
+        ret
+
+nofiletoplaystr
+        db "There's no supported files for playing in the current folder.\r\n",0
 fileerrorstr
         db "Failed to read the file.\r\n",0
 unsupportedfiletype
@@ -283,11 +340,15 @@ unsupportedfiletype
 gsnotfoundstr
         db "This program requires NeoGS.\r\n",0
 
+filinfo
+        ds FILINFO_sz
+emptypath
+        db 0
+
 gscode
         incbin gscode.bin
 gscode_end
 
-        include "../_sdk/stdio.asm"
         include "../_sdk/file.asm"
 end
         savebin "ngsdec.com",begin,end-begin

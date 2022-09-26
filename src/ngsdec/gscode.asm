@@ -107,7 +107,7 @@ preloadloop
         ld hl,0x8000                          ;hl is ring buffer read pointer
         ei
 mainloop
-        in a,(ZXSTAT)                         ;check if data or command is pending
+        in a,(ZXSTAT)                         ;check if command is pending
         rrca
         jr nc,checkifcandownload
 ;handle command
