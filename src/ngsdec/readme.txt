@@ -1,7 +1,7 @@
 NGSdec
 ~~~~~~
 
-Simple player for streaming files to a hardware codec installed on NeoGS card.
+Simple player that streams files to a hardware codec installed on NeoGS card.
 Supports the following media types:
 .mp3 can be played on all codecs on all NeoGS revisions
 .mid requires VS1003, VS1033, or VS1053 on NeoGS.CM
@@ -15,8 +15,11 @@ http://www.gnmidi.com/gn1to0.zip
 
 Command line parameters:
 ngsdec.com [<FileName>]
-The player will be looping the file infinitely if file name was specified (by user or nv.com).
-Otherwise, it's going to stream all supported files from the current folder.
+The player will be looping the file infinitely if file name was provided by user or nv.com.
+Otherwise, it's going to play all supported files from the current folder.
+
+Press [Up] or [Down] keys to adjust volume.
+Press [Right] key to skip to the next file when playing files from folder.
 
 Related projects:
 Neo Player Light http://nedopc.com/gs/npl.php

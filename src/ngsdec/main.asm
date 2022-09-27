@@ -24,7 +24,7 @@ begin
 uploadcode
         ld bc,GSDAT
         ld de,gscode_end-gscode
-        ld hl,GSADDR
+        ld hl,GSPROGSTART
         out (c),e
         SC 0x14
         WC
@@ -44,7 +44,7 @@ uploadcodeloop
         or e
         jr nz,uploadcodeloop
 ;launch the code
-        ld hl,GSADDR
+        ld hl,GSPROGSTART
         out (c),l
         SC 0x13
         WC
@@ -67,9 +67,6 @@ uploadcodeloop
         ld a,(hl)
         or a
         jr nz,gotinputfile
-;switch to file search mode
-        xor a
-        ld (playmode),a
 ;look for a playable file
         ld de,emptypath
         OS_OPENDIR
@@ -82,12 +79,15 @@ uploadcodeloop
 gotinputfile
         ld (filenameaddr),hl
         call isfiletypesupported
-        ld hl,unsupportedfiletype
+        ld hl,unsupportedfiletypestr
         jp nz,printerrorandexit
+;switch to single file loop mode
+        xor a
+        ld (playmode),a
 playfile
         call printfilename
 filenameaddr=$+1
-        ld de,0
+        ld de,emptypath
         call openstream_file
         or a
         ld hl,fileerrorstr
@@ -109,7 +109,17 @@ readfilechunk
         bit 7,h
         jr nz,startupload
 playmode=$+1
-        jr seektocurrentfilebeginning
+        jr findnextfile
+        push hl
+        ld hl,0
+        ld de,hl
+        ld a,(filehandle)
+        ld b,a
+        OS_SEEKHANDLE
+        pop bc
+        jr readfilechunk
+
+findnextfile
         ld (prefilledbuffersize),hl
         call closestream_file
         call findnextsupportedfile
@@ -121,16 +131,6 @@ playmode=$+1
 foundnextfile
         ld (filenameaddr),de
         jp playfile
-
-seektocurrentfilebeginning
-        push hl
-        ld hl,0
-        ld de,hl
-        ld a,(filehandle)
-        ld b,a
-        OS_SEEKHANDLE
-        pop bc
-        jr readfilechunk
 
 startupload
         ld c,h
@@ -159,20 +159,51 @@ checkifcanupload
         push hl
         push bc
         YIELDGETKEY
-        push af
         cp key_redraw
-        call z,redraw
-        pop af
+        jr nz,checkskipfile
+        call redraw
         pop bc
         pop hl
+        jr checkifcanupload
+
+checkskipfile
+        cp key_right
+        jr nz,checkvolumeup
+        ld hl,playmode
+        ld b,(hl)
+        inc b
+        dec b
+        jr z,checkvolumeup              ;skipping to the next file is disabled in single file mode
+        SC CMDRESTARTSTREAM
+        WC
+        pop hl
+        pop hl
+        ld hl,0
+        jp findnextfile
+
+checkvolumeup
+        pop bc
+        pop hl
+        cp key_up
+        jr nz,checkvolumedown
+        SC CMDVOLUMEUP
+        WC        
+        jr checkifcanupload
+
+checkvolumedown
+        cp key_down
+        jr nz,checkexit
+        SC CMDVOLUMEDOWN
+        WC        
+        jr checkifcanupload
+
+checkexit
         cp key_esc
         jr nz,checkifcanupload
 ;exit player
         call closestream_file
         jr gsshutdown
 
-filereaderror
-        call closestream_file
 printerrorandexit
         call print_hl
 gsshutdown
@@ -335,7 +366,7 @@ nofiletoplaystr
         db "There's no supported files for playing in the current folder.\r\n",0
 fileerrorstr
         db "Failed to read the file.\r\n",0
-unsupportedfiletype
+unsupportedfiletypestr
         db "Your codec can't play this media file.\r\n",0
 gsnotfoundstr
         db "This program requires NeoGS.\r\n",0

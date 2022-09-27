@@ -57,13 +57,13 @@ CLOCKF_VS1053 = ((XTALI_FREQ-8000000+2000)/4000)|SC_MULT_53_40X|SC_ADD_53_00X ;5
         inc d
         ENDM
 
-        org GSADDR
+        org GSPROGSTART
 begin   di
-        ld sp,0x5d00
+        ld sp,GSSTACKADDR
 ;uploading is done via interrupt handler
         ld hl,interrupthandler
-        ld (0x5eff),hl
-        ld a,0x5e
+        ld (GSINTERRUPTTABLEENTRYADDR),hl
+        ld a,GSINTERRUPTTABLEENTRYADDR>>8
         ld i,a
         im 2
 ;mute mod player
@@ -80,7 +80,7 @@ begin   di
         ld a,e
         and SS_VER_MASK
         ld (vsversion),a
-;hw reset
+;hw decoder reset
         ld a,M_MPXRS
         out (SCTRL),a
         WDC
@@ -90,12 +90,12 @@ begin   di
 ;go to 12mhz
         ld d,C_12MHZ
         call ngssetfreq
-;reset decoder setting SDI to compatibility mode
-        call vssoftreset
 ;set an arbitrary writable page for the ring buffer in 0x8000...0xffff
         ld a,2
         out (MPAG),a
-;start loading
+startnewstream
+        call vssoftreset                      ;reset decoder setting SDI to compatibility mode
+;start preloading
         ld h,0x70
         ld de,0x8000                          ;de is ring buffer write pointer
 preloadloop
@@ -107,7 +107,7 @@ preloadloop
         ld hl,0x8000                          ;hl is ring buffer read pointer
         ei
 mainloop
-        in a,(ZXSTAT)                         ;check if command is pending
+        in a,(ZXSTAT)                         ;check if a command is pending
         rrca
         jr nc,checkifcandownload
 ;handle command
@@ -155,9 +155,6 @@ skipupload
 
 vssoftreset
         ld l,SCI_VOL
-        call vsreadregister
-        push de                               ;read current volume
-        ld l,SCI_VOL
         ld de,SV_SILENCE
         call vswriteregister                  ;set volume to minimum
         ld l,SCI_MODE
@@ -166,14 +163,15 @@ vssoftreset
         xor SM_RESET
         ld e,a
         ld a,d
-        and ~(SM_SDINEW >> 8)                 ;NGS implements compatibility mode only
+        and ~(SM_SDINEW>>8)                   ;NGS implements compatibility mode only
         ld d,a
         call vswriteregister                  ;reset
         ld a,e
         xor SM_RESET
         ld e,a
         call vswriteregister                  ;clear reset
-        pop de
+volumevalue=$+1
+        ld de,0
         ld l,SCI_VOL
         call vswriteregister                  ;restore volume
         call vsclockvalue
@@ -284,9 +282,12 @@ processcommand
         out (CLRCBIT),a
 commandtable
         jr $
-        jr cmdrestart : ASSERT CMDRESTART == 0
-        jr cmdgetfreebufferspace : ASSERT CMDGETFREEBUFFERSPACE == 1
-        jr cmdgetchipid : ASSERT CMDGETCHIPID == 2
+        jr cmdrestart : ASSERT CMDRESTART==0
+        jr cmdgetfreebufferspace : ASSERT CMDGETFREEBUFFERSPACE==1
+        jr cmdgetchipid : ASSERT CMDGETCHIPID==2
+        jr cmdrestartstream : ASSERT CMDRESTARTSTREAM==3
+        jr cmdvolumeup : ASSERT CMDVOLUMEUP==4
+        jr cmdvolumedown : ASSERT CMDVOLUMEDOWN==5
 
 cmdrestart
         call vssoftreset
@@ -303,6 +304,36 @@ cmdgetchipid
         ld a,(vsversion)
         ATOZX
         ret
+
+cmdrestartstream
+        ld sp,GSSTACKADDR
+        jp startnewstream
+
+cmdvolumeup
+        ld a,(volumevalue)
+        or a
+        ret z
+        dec a
+setvolume
+        push hl
+        push de
+        push bc
+        ld e,a
+        ld d,a
+        ld (volumevalue),de
+        ld l,SCI_VOL
+        call vswriteregister
+        pop bc
+        pop de
+        pop hl
+        ret
+
+cmdvolumedown
+        ld a,(volumevalue)
+        cp SV_SILENCE>>8
+        ret nc
+        inc a
+        jr setvolume
 
 end
         savebin "gscode.bin",begin,end-begin
