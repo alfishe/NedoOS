@@ -128,6 +128,8 @@ findnextfile
         ld de,emptypath
         OS_OPENDIR
         call findnextsupportedfile
+        ld hl,nofiletoplaystr
+        jp nz,printerrorandexit
 foundnextfile
         ld (filenameaddr),de
         jp playfile
@@ -169,11 +171,11 @@ checkifcanupload
 checkskipfile
         cp key_right
         jr nz,checkvolumeup
-        ld hl,playmode
-        ld b,(hl)
-        inc b
-        dec b
-        jr z,checkvolumeup              ;skipping to the next file is disabled in single file mode
+;        ld hl,playmode
+;        ld b,(hl)
+;        inc b
+;        dec b
+;        jr z,checkvolumeup              ;skipping to the next file is disabled in single file mode
         SC CMDRESTARTSTREAM
         WC
         pop hl
@@ -201,13 +203,16 @@ checkexit
         cp key_esc
         jr nz,checkifcanupload
 ;exit player
+        SC CMDRESTART
         call closestream_file
-        jr gsshutdown
+        QUIT
 
 printerrorandexit
-        call print_hl
-gsshutdown
         SC CMDRESTART
+        call print_hl
+        ld hl,pressanykeystr
+        call print_hl
+        YIELDGETKEYLOOP
         QUIT
 
 gshardreset
@@ -370,6 +375,8 @@ unsupportedfiletypestr
         db "Your codec can't play this media file.\r\n",0
 gsnotfoundstr
         db "This program requires NeoGS.\r\n",0
+pressanykeystr
+        db "Press any key to exit...\r\n",0
 
 filinfo
         ds FILINFO_sz
