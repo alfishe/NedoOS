@@ -26,6 +26,20 @@
 		ex af,af'
 		call nos.BDOS
 	endm
+	
+	macro OS_GETDNS;DE= ptr to DNS buffer(4 bytes)
+		ld l, 0x08
+		ld c, nos.CMD_WIZNETOPEN
+		ex af,af' ;'
+		call nos.BDOS ;c=CMD
+	endm	
+	
+
+	
+	
+	
+	
+	
 host_ia:
 .curport=$+1
 	defb 0,0,80,8,8,8,8
@@ -162,7 +176,16 @@ dns_resolver:		;DE-domain name
 	ld (hl),a
 	inc hl
 	push hl
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	push bc
+	push de
+	push hl
+	ld de, .dns_ia2;DE= ptr to DNS buffer(4 bytes)
+	OS_GETDNS
+	pop hl
+	pop de
+	pop bc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	ld de,0x0203
     OS_NETSOCKET
 	ld a,l
@@ -246,6 +269,7 @@ dns_resolver:		;DE-domain name
 .dns_ia:
 	defb 0
         db 0,53 ;port (big endian)
+.dns_ia2:
         db 8,8,8,8 ;ip (big endian)
 
 sock_fd     defb 0

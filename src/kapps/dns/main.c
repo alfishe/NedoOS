@@ -7,7 +7,7 @@
 
 unsigned char ipadress[] = "\0\0\0\0\0";
 unsigned char *p;
-const unsigned char help[] = "View ans set system DNS server\r\nUsage: dns.com [ip-adress]\r\n\0";
+const unsigned char help[] = "View and set system DNS server\r\nUsage: dns.com [ip-adress]\r\n\0";
 
 void errorip(void)
 {
