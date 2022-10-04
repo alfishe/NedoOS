@@ -177,15 +177,13 @@ dns_resolver:		;DE-domain name
 	inc hl
 	push hl
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	push bc
-	push de
-	push hl
+	ld a, (.dns_ia2)
+	cp 0
+	jp nz, .skipgetdns
 	ld de, .dns_ia2;DE= ptr to DNS buffer(4 bytes)
 	OS_GETDNS
-	pop hl
-	pop de
-	pop bc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.skipgetdns:
 	ld de,0x0203
     OS_NETSOCKET
 	ld a,l
@@ -270,7 +268,7 @@ dns_resolver:		;DE-domain name
 	defb 0
         db 0,53 ;port (big endian)
 .dns_ia2:
-        db 8,8,8,8 ;ip (big endian)
+        db 0,0,0,0 ;ip (big endian)
 
 sock_fd     defb 0
     ENDMODULE	
