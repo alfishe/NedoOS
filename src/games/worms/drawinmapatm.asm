@@ -141,10 +141,7 @@ DrawWormInMap ;TODO и в маску?
         add a,a
         srl d
         rr e
-;        ld lx,0x47
-;       jr nc,DrawWormInMap_right
-;        ld lx,0xb8
-;DrawWormInMap_right
+       jr c,DrawWormInMap_right
         xor e
         and 0xfc ;0..3 x layer
         xor e
@@ -208,7 +205,90 @@ DrawWormInMap0
         pop iy
         pop hl
         pop de
-        ;ret
+        jp MapGoRight_de
+
+DrawWormInMap_right
+        xor e
+        and 0xfc ;0..3 x layer
+        xor e
+       if SKIPPGS
+       add a,SKIPPGS
+       endif
+        ld ly,a;0
+        ld hy,tpushpgs/256 ;первая страница 0 слоя, первая страница 1 слоя, первая страница 2 слоя, первая страница 3 слоя, вторая страница 0 слоя...
+        srl d
+        rr e
+        srl d
+        rr e
+        ld a,l ;y
+        and 0x3f
+       cpl
+        ;add a,0xc0
+        ld d,a
+;e=0: l=0x3d
+;e=1: l=0x3e
+;e=2: l=0x39
+;e=3: l=0x3a
+;...
+       ld a,e ;x/8
+       cpl
+       add a,a
+       and 0xfc
+       ;inc a ;add a,1;l
+       rr e
+       adc a,1
+       ld e,a
+     pop hl ;gfx
+;DrawWormInMappp_leftcolumn
+_left=0x47
+_right=0xb8
+        push de
+        push hl
+        push iy
+        ld a,(iy)
+        SETPGC000
+        ld b,8
+DrawWormInMap_leftcolumn0
+        ld a,(de)
+        rlc (hl)
+        jr nc,$+4
+        xor _right
+        ld (de),a
+        inc hl
+        dec d
+        bit 6,d
+        call z,MapNextPg_de
+        djnz DrawWormInMap_leftcolumn0
+        pop iy
+        pop hl
+        pop de
+        call MapGoRight_de
+        call DrawWormInMappp2
+        call DrawWormInMappp
+;DrawWormInMappp_rightcolumn
+_left=0x47
+_right=0xb8
+        push de
+        push hl
+        push iy
+        ld a,(iy)
+        SETPGC000
+        ld b,8
+DrawWormInMap_rightcolumn0
+        ld a,(de)
+        rlc (hl)
+        jr nc,$+4
+        xor _left
+        ld (de),a
+        inc hl
+        dec d
+        bit 6,d
+        call z,MapNextPg_de
+        djnz DrawWormInMap_rightcolumn0
+        pop iy
+        pop hl
+        pop de
+        ;jp MapGoRight_de
 MapGoRight_de
 ;de=map
 ;iy=tpushpgs+

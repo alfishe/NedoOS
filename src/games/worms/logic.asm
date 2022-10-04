@@ -194,7 +194,7 @@ NEWREGS=0 ;TODO de=x16 (00XXXXXX XXXXxxxx), l=y8, h=dy8, b=dx8 (sXXXxxxx); c=pha
        else
         LD A,L ;x HSB
        endif
-        CP XWID
+        CP XWID-2;диапазон x на 1 знакоместо меньше, чем карта
         JP NC,deadaddr;WMDEAD
         endm
 

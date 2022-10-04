@@ -135,7 +135,10 @@ DrawCurWormData
 ;hl=wormxy+5
 ;c=xhigh
 ;b=y
-        jp DrawWormDataInMap
+        ld a,c
+        cp INVISIBLEX
+        jp nz,DrawWormDataInMap
+        ret
 
 ForcedUnDrawWormsInMap
 ForcedDrawWormsInMap
@@ -278,12 +281,32 @@ DrawWormDataInMap
 ;hl=name
        PUSH af ;health
        push bc ;yx
-       ld a,XWID-(6*XWIDCHR) ;TODO по ширине имени
-       cp c ;x
-       jr nc,$+3
-       ld c,a ;чтобы не заезжало за правый край карты
-        call SetXYInMap
-        LD B,6
+        if 0
+        push hl
+        ld b,12
+DrawWormDataInMap_namewid0
+        ld a,(hl)
+        cp ' '
+        jr z,$+3
+        ld c,b
+        inc hl
+        djnz DrawWormDataInMap_namewid0
+;c=last nonempty chr shift=12..1
+        pop hl
+        endif
+        
+       ;ld a,XWID-(6*XWIDCHR) ;TODO по ширине имени
+       ;cp c ;x
+       ;jr nc,$+3
+       ;ld c,a ;чтобы не заезжало за правый край карты
+        call SetXYInMap ;keeps bc ;c=x/4
+        ld b,6 ;12 letters
+       srl c ;x (now in chrs)
+        ld a,MAPWID
+        sub c ;visiblewid = MAPWID-c = 0..MAPWID
+        cp b
+        jr nc,$+3
+        ld b,a ;min(6, visiblewid)
 SPRINTnam
         LD a,(HL)
         ex af,af' ;'

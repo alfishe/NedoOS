@@ -16,6 +16,9 @@ set SJASMPLUSFLAGS=--nologo --msg=war
 %NEDORES% gfx/panel_bw.bmp panel.dat panel.ast
 %NEDORES% gfx/panel_bw.bmp numfont.dat numfont.ast
 
+echo ATM=1 > settings.ast
+%SJASMPLUS% %SJASMPLUSFLAGS% main.asm
+
 echo ATM=0 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% main.asm
 rem sjasmplus depkmain.asm
@@ -51,9 +54,6 @@ bin2tap -append -a 24576 -o worms.tap code.bin
 rem del code.bin
 rem del code.c.mlz
 rem del depkcode.c
-
-echo ATM=1 > settings.ast
-%SJASMPLUS% %SJASMPLUSFLAGS% main.asm
 
 @SET releasedir2=../../../release/
 @if "%currentdir%"=="" (
