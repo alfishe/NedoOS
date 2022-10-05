@@ -650,7 +650,14 @@ is_dot
 	ld (hl),a
 	inc hl
 	push hl
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	ld a, (dns_ia2)
+	cp 0
+	jp nz, skipgetdns
+	ld de, dns_ia2;DE= ptr to DNS buffer(4 bytes)
+	OS_GETDNS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+skipgetdns:	
 	ld de,0x0203
 	OS_NETSOCKET
 	ld a,l
@@ -753,7 +760,9 @@ data		ds 8
 
 soc1		db 0
 dns_head 	db 0x11,0x22,0x01,0x00,0x00,0x01
-conparam	db 0,0,53,8,8,8,8
+conparam	db 0,0,53
+dns_ia2
+			db 0,0,0,0
 sa_recv		defs 7
 icmppacket 	STicmpreq
 buf 		ds 255
