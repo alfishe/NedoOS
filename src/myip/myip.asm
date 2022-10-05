@@ -35,6 +35,7 @@ cmd_begin
         ld hl,tmyipis
 	call print
         pop hl
+		inc hl
        ld a,(hl)
        cp 0x0d ;message starts with 0x0d for no known reason
        jr nz,$+3
@@ -130,7 +131,15 @@ qtype1 = $ - 1
 	ld (hl),1
 	inc hl
 	push hl
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	ld a, (sa_dns2)
+	cp 0
+	jp nz, skipgetdns
+	ld de, sa_dns2;DE= ptr to DNS buffer(4 bytes)
+	OS_GETDNS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+skipgetdns
+
 	ld de,0x0203
 	OS_NETSOCKET
 	ld a,l
@@ -219,7 +228,8 @@ exiterr1
 
 soc1		db 0
 dns_head 	db 0x00,0x02,0x01,0x00,0x00,0x01
-sa_dns		db 0,0,53,8,8,8,8
+sa_dns		db 0,0,53
+sa_dns2		db 0,0,0,0
 sa_ns		db 0,0,53,216,239,36,10
 sa_recv		defs 7
 buf 		ds 255
