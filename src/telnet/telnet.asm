@@ -1277,7 +1277,14 @@ is_dot
 	ld (hl),a
 	inc hl
 	push hl
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	ld a, (conparam_ip)
+	cp 0
+	jp nz, skipgetdns
+	ld de, conparam_ip;DE= ptr to DNS buffer(4 bytes)
+	OS_GETDNS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+skipgetdns:	
 	ld de,0x0203
 	OS_NETSOCKET
 	ld a,l
@@ -1371,7 +1378,7 @@ PORT=53;DNS;14321
 conparam_port
                 db PORT/256,PORT&255;53 ;port (HSB,LSB)
 conparam_ip
-                db 8,8,8,8 ;ip
+                db 0,0,0,0 ;ip
                 ds 8 ;reserve
 ;conparam1
 sa_recv
