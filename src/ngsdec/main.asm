@@ -18,8 +18,7 @@ begin
         jr nz,uploadcode
 ;no GS
         ld hl,gsnotfoundstr
-        call print_hl
-        QUIT
+        jp printerror
 
 uploadcode
         ld bc,GSDAT
@@ -60,6 +59,9 @@ uploadcodeloop
         WN
         GD
         ld (vsversion),a
+;open current folder in case we want to read it
+        ld de,emptypath
+        OS_OPENDIR
 ;check args
         ld hl,COMMANDLINE
         call skipword_hl
@@ -68,11 +70,9 @@ uploadcodeloop
         or a
         jr nz,gotinputfile
 ;look for a playable file
-        ld de,emptypath
-        OS_OPENDIR
         call findnextsupportedfile
         ld hl,nofiletoplaystr
-        jp nz,printerrorandexit
+        jp nz,printerrorandclosegs
         ld (filenameaddr),de
         jr playfile
 
@@ -80,7 +80,7 @@ gotinputfile
         ld (filenameaddr),hl
         call isfiletypesupported
         ld hl,unsupportedfiletypestr
-        jp nz,printerrorandexit
+        jp nz,printerrorandclosegs
 ;switch to single file loop mode
         xor a
         ld (playmode),a
@@ -91,7 +91,7 @@ filenameaddr=$+1
         call openstream_file
         or a
         ld hl,fileerrorstr
-        jp nz,printerrorandexit
+        jp nz,printerrorandclosegs
 prefilledbuffersize=$+1
         ld bc,0
 readfilechunk
@@ -129,7 +129,7 @@ findnextfile
         OS_OPENDIR
         call findnextsupportedfile
         ld hl,nofiletoplaystr
-        jp nz,printerrorandexit
+        jp nz,printerrorandclosegs
 foundnextfile
         ld (filenameaddr),de
         jp playfile
@@ -171,11 +171,6 @@ checkifcanupload
 checkskipfile
         cp key_right
         jr nz,checkvolumeup
-;        ld hl,playmode
-;        ld b,(hl)
-;        inc b
-;        dec b
-;        jr z,checkvolumeup              ;skipping to the next file is disabled in single file mode
         SC CMDRESTARTSTREAM
         WC
         pop hl
@@ -207,8 +202,9 @@ checkexit
         call closestream_file
         QUIT
 
-printerrorandexit
+printerrorandclosegs
         SC CMDRESTART
+printerror
         call print_hl
         ld hl,pressanykeystr
         call print_hl
@@ -368,7 +364,7 @@ findnextsupportedfile
         ret
 
 nofiletoplaystr
-        db "There's no supported files for playing in the current folder.\r\n",0
+        db "There are no supported files for playing in the current folder.\r\n",0
 fileerrorstr
         db "Failed to read the file.\r\n",0
 unsupportedfiletypestr

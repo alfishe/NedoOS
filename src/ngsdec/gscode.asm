@@ -74,12 +74,6 @@ begin   di
 ;set ngs to 10mhz
         ld d,C_10MHZ
         call ngssetfreq
-;TODO: move reading chip id after the hw reset, but not sure when SCI_STATUS becomes readable
-        ld l,SCI_STATUS
-        call vsreadregister
-        ld a,e
-        and SS_VER_MASK
-        ld (vsversion),a
 ;hw decoder reset
         ld a,M_MPXRS
         out (SCTRL),a
@@ -90,6 +84,16 @@ begin   di
 ;go to 12mhz
         ld d,C_12MHZ
         call ngssetfreq
+;write to a register after reset
+        ld l,SCI_DECODE_TIME
+        ld de,0
+        call vswriteregister
+;read chip id
+        ld l,SCI_STATUS
+        call vsreadregister
+        ld a,e
+        and SS_VER_MASK
+        ld (vsversion),a
 ;set an arbitrary writable page for the ring buffer in 0x8000...0xffff
         ld a,2
         out (MPAG),a

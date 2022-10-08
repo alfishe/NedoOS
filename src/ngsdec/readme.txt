@@ -16,10 +16,10 @@ http://www.gnmidi.com/gn1to0.zip
 Command line parameters:
 ngsdec.com [<FileName>]
 The player will be looping the file infinitely if file name was provided by user or nv.com.
-Otherwise, it's going to play all supported files from the current folder.
+Otherwise, it's going to play all supported files from the current folder one by one.
 
 Press [Up] or [Down] keys to adjust volume.
-Press [Right] key to skip to the next file when playing files from folder.
+Press [Right] key to skip to the next file from the current folder.
 
 Related projects:
 Neo Player Light http://nedopc.com/gs/npl.php
