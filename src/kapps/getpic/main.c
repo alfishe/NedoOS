@@ -485,15 +485,12 @@ C_task main (void)
   os_initstdio();
   piclist[0] = '\0';
 
-	BOX(1, 1, 80, 8, 40);
-	BOX(1, 9, 80, 17, 47);
-	
+	BOX(1, 1, 80, 25, 40);
 	AT(1,1);
 	
 	ATRIB(33);
 	ATRIB(40);
 	count = 0;
-		printf(" Управление:\n\r");
 	printf(" Управление:\n\r");
 	printf("	'ESC' - выход из программы;\n\r");
 	printf("	'<-' или 'B' к последним картинкам;\n\r");
@@ -502,14 +499,15 @@ C_task main (void)
 	printf("	'I' Просмотр экрана информации о картинках\n\r");
 	printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
 	do {key = _low_level_get();} while (key == 0);
-	ATRIB(30);
-	ATRIB(47);
-	AT(1,8);
+
+	AT(1,9);
 start:
 
 	piclist[0] = '\0';
 	iddqd = processJson(count, 1);
+	ATRIB(37);
 	printf(" ID:%s	TITLE:%s\r\n",picId, picName);
+	ATRIB(33);
 	printf(" RATING:%s	YEAR:%s \r\n", picRating, picYear);
 
 	if(!strcmp(picType, "standard")) 
