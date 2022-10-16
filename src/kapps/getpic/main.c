@@ -506,7 +506,7 @@ start:
 	piclist[0] = '\0';
 	iddqd = processJson(count, 1);
 	ATRIB(37);
-	printf(" ID:%s	TITLE:%s\r\n",picId, picName);
+	printf("#:%lu ID:%s	TITLE:%s\r\n", count, picId, picName);
 	ATRIB(33);
 	printf(" RATING:%s	YEAR:%s \r\n", picRating, picYear);
 
@@ -522,6 +522,7 @@ if (keypress == 's' || keypress == 'S')
 {  
 	savePic(iddqd);
 	printf("        ID:%s    TITLE:%s  SAVED\r\n",picId, picName);
+	count++;
 }
 
 if (keypress == 27)  
