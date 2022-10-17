@@ -25,6 +25,9 @@ struct readstructure   readStruct;
 unsigned long contLen;
 
 
+extern void dns_resolve(void);
+
+
 void errorPrint(unsigned int error)
 {
   switch (error)
@@ -398,6 +401,7 @@ void convert866(void)
 
 unsigned long processJson(unsigned long startPos, unsigned char limit)
 {
+  unsigned int retry;
   unsigned int todo, pPos, headskip;
   unsigned char cmdlist1[] = "GET /api/export:zxPicture\/filter:zxPicture\/limit:";
   unsigned char cmdlist2[] = "\/start:";
@@ -405,7 +409,8 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   unsigned char buffer  [] = "000000000";
   unsigned char *count, socket;
   unsigned long idpic, bytecount;
- 
+  retry = 4; 
+rejson:  
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect (socket);
     
@@ -428,7 +433,8 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   if ( count == NULL)
   {
     printf ("BAD JSON no(responseStatus"":""success)\r\n");
-
+	retry--;
+	if (retry > 0) goto rejson;
 	exit(0);
   }
   
@@ -498,9 +504,13 @@ C_task main (void)
 	printf("	'J' Прыжок на  указанную по счету картинку,<15000\n\r");
 	printf("	'I' Просмотр экрана информации о картинках\n\r");
 	printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
+	printf("	-------------------------------------------------");
 	do {key = _low_level_get();} while (key == 0);
 
 	AT(1,9);
+	
+	
+	
 start:
 
 	piclist[0] = '\0';
@@ -514,6 +524,7 @@ start:
 	
 	{
 		errno = getPic(iddqd);
+review:
 		keypress = viewScreen6912((unsigned int)&picture);
 	}
 	else {printf("  >>Format %s not supported, skipped \n\r", picType);count++; goto start;}
@@ -552,6 +563,7 @@ scanf ("%lu", &count);
 if (keypress == 'i' || keypress == 'I')  
 {  
 do {key = _low_level_get();} while (key == 0);
+goto review;
 }
 
 
