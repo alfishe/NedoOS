@@ -10,7 +10,7 @@ s98: s98_play.com
 zip,gz : pkunzip.com
 tar: tar.com
 rar: unrar.com
-trd,scl,fdi,tap: dmm.com -az
+trd,scl,fdi,tap: dmm.com -a
 sna,b  ,z80: nmisvc.com
 thk: texted.com
 x86: x86.com
