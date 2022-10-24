@@ -15,18 +15,18 @@ toolbox db 13, 10, " [D]omain: ", 0
 footer db "  Cursor - movement  [B]ack to prev. page  [H]ome page", 0
 
 inputHost:
+    call Console.waitForKeyUp
 .loop
     ld de, #010B : call TextMode.gotoXY : ld hl, hostName : call TextMode.printZ
     ld a, MIME_INPUT : call TextMode.putC
     ld a, ' ' : call TextMode.putC
 .wait
     call Console.getC
+    ld e, a
     cp Console.BACKSPACE : jr z, .removeChar
     cp CR : jp z, inputNavigate
     cp 32 : jr c, .wait
-    jr .putC
 .putC
-    ld e, a
     xor a : ld hl, hostName, bc, 48 : cpir
     ld (hl), a : dec hl : ld (hl), e 
     jr .loop
@@ -38,6 +38,9 @@ inputHost:
 
 inputNavigate:
     ld hl, hostName, de, domain
+    ld a,(hl)
+    and a
+    jp z, History.load
 .loop
     ld a, (hl) : and a : jr z, .complete
     ld (de), a : inc hl, de
@@ -48,7 +51,7 @@ inputNavigate:
     ld a, '0' : ld (de), a : inc de
     ld a, CR : ld (de), a : inc de
     ld a, LF : ld (de), a : inc de
-    ld hl, navRow : call History.navigate
+    ld hl, navRow : jp History.navigate
 
 navRow db "1 ", TAB, "/", TAB
 domain db "nihirash.net" 

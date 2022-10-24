@@ -40,8 +40,11 @@ start:
     IFNDEF NEDOOS
 outputBuffer:
     di
+    xor a : ld (#5c6a), a  ; Thank you, Mario Prato, for feedback
+    ld (#5c00),a
     ld sp, asmOrg
     call Memory.init
+    xor a : out (#fe),a
     ei
     
     ld a, 7 : call Memory.setPage
@@ -69,7 +72,9 @@ outputBuffer:
 
     IFNDEF NEDOOS
 		ld hl, initing : call TextMode.printZ
-        call Wifi.init
+    IFNDEF EMU
+    	call Wifi.init
+    ENDIF
     ENDIF
    jp History.home
 

@@ -7,7 +7,7 @@ SJASMPLUS="sjasmplus"
 endif
 BINARY=moon.bin moon.com
 LST=main.lst
-VERSION="14"
+VERSION="16"
 all: 
 	@echo "For making MB03 version call: 'make mb03'"
 	@echo "For making ZXUno(esxDOS) version call: 'make zxuno'"

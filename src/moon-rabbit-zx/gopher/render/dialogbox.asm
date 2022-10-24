@@ -13,7 +13,6 @@ inputBox:
     cp Console.BACKSPACE : jr z, .removeChar
     cp CR : ret z
     cp SPACE : jr c, .checkkey
-    jr .putC
 .putC
     ld e, a
     xor a : ld hl, inputBuffer, bc, #ff : cpir
@@ -53,8 +52,11 @@ drawBox:
     ld h, #0B, a, ' '           : call TextMode.fillLine
     ld h, #0C, a, BORDER_BOTTOM : call TextMode.fillLine
     
+    IFNDEF TIMEX80
     ld a, #0a : call TextMode.highlightLine
     ld a, #0c : call TextMode.highlightLine
+    ENDIF
+
     ld de, #0B05 : call TextMode.gotoXY
     ret
     endmodule

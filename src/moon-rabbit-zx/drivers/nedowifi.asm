@@ -177,11 +177,17 @@ dns_resolver:		;DE-domain name
 	inc hl
 	push hl
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;	push bc
+;	push de
+;	push hl
 	ld a, (.dns_ia2)
 	cp 0
 	jp nz, .skipgetdns
 	ld de, .dns_ia2;DE= ptr to DNS buffer(4 bytes)
 	OS_GETDNS
+;	pop hl
+;	pop de
+;	pop bc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .skipgetdns:
 	ld de,0x0203
