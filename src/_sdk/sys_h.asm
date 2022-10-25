@@ -580,7 +580,7 @@ __1=$
         ld c,CMD_PLAYCOVOX
 	CALLBDOS_NOPARAM_A
         endm
-        macro OS_SETMUSIC ;hl=muzaddr (0x4000..0xffff), a=muzpg (pages in 0x8000, 0xc000 are taken from current user memory)
+        macro OS_SETMUSIC ;hl=muzaddr (0x4000..0xffff, 0=killmuz), a=muzpg (pages in 0x8000, 0xc000 are taken from current user memory)
         ld c,CMD_SETMUSIC
 	CALLBDOS
         endm

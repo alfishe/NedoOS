@@ -88,6 +88,9 @@ muzpid=$+1
         call z,killmuz
         ex af,af' ;'
         ld (muzpg),a
+       ld a,h
+       or l
+       ret z ;killmuz ставит sys_reter
         ld (muzcall),hl
         ld a,(iy+app.id)
         ld (muzpid),a
@@ -169,7 +172,7 @@ BDOS_getmainpages_iy
 
 BDOS_preparedepage
 ;de=userspace addr
-;out: de>=0x8000, включены нужные страницы в 8000,c000
+;out: de>=0x8000, depage8000, depagec000
         ;ld iy,(appaddr)
         ld a,(iy+app.mainpg)
         call sys_setpg8000

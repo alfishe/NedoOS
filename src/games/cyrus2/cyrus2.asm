@@ -3959,7 +3959,7 @@ loc_91CE: ;Enter pressed				; CODE XREF: sub_9128+E
 		ld	a, (byte_D0DF)
 		bit	2, a
 		ret	nz
-		ld	a, c
+		ld	a, c ;needdrawcursorfrom
 		cp	b
 		jr	nz, loc_91E0
 
@@ -3977,7 +3977,7 @@ loc_91E0:				; CODE XREF: sub_9128+AE
 		ld	(needdrawcursorfrom), a
 		jp	ReDrawMoveAndCursors
 ; ---------------------------------------------------------------------------
-loc_91F0:				; CODE XREF: sub_9128+B9
+loc_91F0: ;accept move?				; CODE XREF: sub_9128+B9
 		call	sub_92B6
 
 		jp	nz, ReDrawMoveAndCursors
@@ -4140,6 +4140,7 @@ loc_92AF:				; CODE XREF: sub_92A0+6 sub_92B6+6
 
 
 sub_92B6:				; CODE XREF: sub_9128:loc_91F0
+;проверка валидности хода b-c? (рокировка = ход королём на указанную клетку, TODO ход королём на свою ладью! иначе некоторые рокировки не ввести)
 		ld	hl, unk_F000
 
 
@@ -8132,9 +8133,6 @@ loc_AB02:				; CODE XREF: sub_A94F+11B
 
 sub_AB0A:				; CODE XREF: sub_A94F+3C
 ;проверяем и пишем рокировки в список ходов?
-        if FIX
-        ;ret ;TODO
-        endif
 		bit	7, (ix+2)
 		ret	nz ;король уже ходил? или это шах?
 		bit	4, (iy+#19)
@@ -8143,26 +8141,26 @@ sub_AB0A:				; CODE XREF: sub_A94F+3C
 		jr	nz, gencastlingRfail;loc_AB26 ;ладья мертва?
 
        if FIX
-;в Chess960 проверять сколько надо полей вправо (от короля или Е (смотря что левее) вплоть до G, кроме короля и самой ладьи - именно этой! левая может мешать)
+;в Chess960 проверять сколько надо полей вправо (от короля или F (смотря что левее) вплоть до G, кроме короля и самой ладьи - именно этой! левая может мешать)
         ld a,b ;положение короля
         and 7
-        cp 4 ;E
-        jr c,$+4 ;король левее E
-         ld a,4 ;E
+        cp 5 ;F
+        jr c,$+4 ;король левее F
+         ld a,5 ;F
         xor b
         and 7
         xor b
-        ld l,a ;от короля или Е (смотря что левее)
+        ld l,a ;от короля или F (смотря что левее)
 gencastlingR0
         ld a,(hl)
         or a
         jr z,gencastlingR0ok
-        and 0x38
-        cp _K&0x38
+        and 0x3c
+        cp (_K|4)&0x3c
         jr z,gencastlingR0ok
         ld a,(hl)
         and 0x3c;0x30
-        cp 0x1c;_R&0x30 ;код правой ладьи
+        cp ((_R|4)&0x3c)+8;0x1c;_R&0x30 ;код правой ладьи
         jr nz,gencastlingRfail
 gencastlingR0ok
         inc l
@@ -8195,26 +8193,26 @@ gencastlingRfail;loc_AB26:				; CODE XREF: sub_AB0A+9 sub_AB0A+F ...
 		bit	7, (iy+#10)
 		ret	nz ;ладья мертва?
        if FIX
-;в Chess960 проверять сколько надо полей влево (от короля или Е (смотря что правее) вплоть до C или ладьи (смотря что левее), кроме короля и самой ладьи - именно этой! правая может мешать)
+;в Chess960 проверять сколько надо полей влево (от короля или D (смотря что правее) вплоть до C или ладьи (смотря что левее), кроме короля и самой ладьи - именно этой! правая может мешать)
         ld a,b ;положение короля
         and 7
-        cp 4 ;E
-        jr nc,$+4 ;король E или правее E
-         ld a,4 ;E
+        cp 3 ;D
+        jr nc,$+4 ;король D или правее D
+         ld a,4 ;D
         xor b
         and 7
         xor b
-        ld l,a ;от короля или Е (смотря что правее)
+        ld l,a ;от короля или D (смотря что правее)
 gencastlingL0
         ld a,(hl)
         or a
         jr z,gencastlingL0ok
-        and 0x38
-        cp _K&0x38
+        and 0x3c
+        cp (_K|4)&0x3c
         jr z,gencastlingL0ok
         ld a,(hl)
         and 0x3c;0x30
-        cp 0x14;_R&0x30 ;код левой ладьи
+        cp (_R|4)&0x3c;0x14;_R&0x30 ;код левой ладьи
         ret nz
         ld a,l
         and 7
@@ -9316,8 +9314,8 @@ loc_AFB6:				; CODE XREF: sub_AF81+C ;отмена рокировки
                ;чтобы после перемещения короля обратно он оставил ладью где надо
                ;как определить? достаточно читать клетку изначального (de) (старое положение ладьи) и увидеть там не 0
                 ld a,(de) ;старое положение ладьи???
-                and 0x38
-                cp _K&0x38 ;занято королём?
+                and 0x3c
+                cp (_K|4)&0x3c ;занято королём?
 		ld	a, l ;код ладьи???
 		;ld	(de), a ;[BRD_88_0 + h]
                push de
