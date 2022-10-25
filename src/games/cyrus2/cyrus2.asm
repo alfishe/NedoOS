@@ -251,10 +251,16 @@ RandomizeSetup
         ld hl,starting_setup-1
         call RandomizeSetup_findempty
         ld (hl),_R
+       ld a,l
+       sub starting_setup&0xff
+       ld (leftrookinitpos),a
         call RandomizeSetup_findempty
         ld (hl),_K
         call RandomizeSetup_findempty
         ld (hl),_R
+       ld a,l
+       sub starting_setup&0xff
+       ld (rightrookinitpos),a
         ret
         
 RandomizeSetup_HLplaceA
@@ -3658,7 +3664,7 @@ sub_907E:				; CODE XREF: sub_8C20:loc_A2DA
 
 loc_9082:				; CODE XREF: sub_907E+E sub_907E+1F
 		ld	a, #7F
-		in	a, (#FE)
+		in	a, (#FE) ;TODO fix
 		rra
 		ccf
 		jr	c, space_pressed
@@ -3819,7 +3825,7 @@ sub_9128:				; CODE XREF: sub_8FC1+49
 		ld	(hl), 0
 		ld	bc, (needdrawcursorfrom)
 		cp	#D
-		jp	z, loc_91CE
+		jp	z, loc_91CE ;Enter
 
 		cp	#C
 		jp	z, loc_9290
@@ -3949,7 +3955,7 @@ loc_91CA:				; CODE XREF: sub_9128+9F
 
 ; ---------------------------------------------------------------------------
 
-loc_91CE:				; CODE XREF: sub_9128+E
+loc_91CE: ;Enter pressed				; CODE XREF: sub_9128+E
 		ld	a, (byte_D0DF)
 		bit	2, a
 		ret	nz
@@ -8137,7 +8143,7 @@ sub_AB0A:				; CODE XREF: sub_A94F+3C
 		jr	nz, gencastlingRfail;loc_AB26 ;ладья мертва?
 
        if FIX
-;в Chess960 проверять сколько надо полей вправо (от короля или Е (смотря что левее) вплоть до G, кроме короля и самой ладьи - TODO именно этой! левая может мешать)
+;в Chess960 проверять сколько надо полей вправо (от короля или Е (смотря что левее) вплоть до G, кроме короля и самой ладьи - именно этой! левая может мешать)
         ld a,b ;положение короля
         and 7
         cp 4 ;E
@@ -8147,7 +8153,6 @@ sub_AB0A:				; CODE XREF: sub_A94F+3C
         and 7
         xor b
         ld l,a ;от короля или Е (смотря что левее)
-        
 gencastlingR0
         ld a,(hl)
         or a
@@ -8156,18 +8161,19 @@ gencastlingR0
         cp _K&0x38
         jr z,gencastlingR0ok
         ld a,(hl)
-        and 0x30
-        cp _R&0x30
+        and 0x3c;0x30
+        cp 0x1c;_R&0x30 ;код правой ладьи
         jr nz,gencastlingRfail
 gencastlingR0ok
         inc l
-        bit 3,l
-        jr z,gencastlingR0
-        ;jr $
-        ld a,b
-        and 0xf8
-        or 6
-        ld l,a
+        ld a,l
+        and 7
+        cp 7 ;H?
+        jr nz,gencastlingR0
+        ;ld a,b
+        ;and 0xf8
+        ;or 6
+        dec l;ld l,a ;G
         call sub_AB3C ;пишем ход B-L, флаги A=#10=рокировка
 
        else
@@ -8188,6 +8194,44 @@ gencastlingRfail;loc_AB26:				; CODE XREF: sub_AB0A+9 sub_AB0A+F ...
 		ret	nz ;ладья уже ходила?
 		bit	7, (iy+#10)
 		ret	nz ;ладья мертва?
+       if FIX
+;в Chess960 проверять сколько надо полей влево (от короля или Е (смотря что правее) вплоть до C или ладьи (смотря что левее), кроме короля и самой ладьи - именно этой! правая может мешать)
+        ld a,b ;положение короля
+        and 7
+        cp 4 ;E
+        jr nc,$+4 ;король E или правее E
+         ld a,4 ;E
+        xor b
+        and 7
+        xor b
+        ld l,a ;от короля или Е (смотря что правее)
+gencastlingL0
+        ld a,(hl)
+        or a
+        jr z,gencastlingL0ok
+        and 0x38
+        cp _K&0x38
+        jr z,gencastlingL0ok
+        ld a,(hl)
+        and 0x3c;0x30
+        cp 0x14;_R&0x30 ;код левой ладьи
+        ret nz
+        ld a,l
+        and 7
+        cp 2       
+        jr c,gencastlingL0allok ;ладья найдена левее C - дальше не проверяем
+gencastlingL0ok
+        ld a,l
+        dec l
+        and 7
+        jr nz,gencastlingL0
+gencastlingL0allok
+        ld a,b
+        and 0xf8
+        or 2
+        ld l,a ;C
+
+       else
 		ld	l, b ;положение короля
 		xor	a
 		dec	l
@@ -8197,9 +8241,10 @@ gencastlingRfail;loc_AB26:				; CODE XREF: sub_AB0A+9 sub_AB0A+F ...
 		or	(hl) ;ещё левее пусто?
 		ret	nz
 		dec	l
-		or	(hl) ;ещё левее пусто? TODO в Chess960 проверять сколько надо полей влево (от короля или Е (смотря что правее) вплоть до C или ладьи (смотря что левее), кроме короля и самой ладьи - именно этой! правая может мешать)
+		or	(hl) ;ещё левее пусто?
 		ret	nz
 		inc	l
+       endif
 ;пишем ход B-L, флаги A=#10=рокировка?
 ; =============== S U B	R O U T	I N E =======================================
 sub_AB3C:				; CODE XREF: sub_AB0A+19
@@ -9075,7 +9120,7 @@ loc_AF1F:				; CODE XREF: sub_AD40+80
 		bit	2, b ;b=позиция короля после рокировки
 		jr	z, loc_AF40
 ;ладья при рокировке вправо?
-               if FIX ;TODO Chess960 найти позицию ладьи до рокировки (записать при генерации! не обязательно самая правая фигура, не считая короля, король мог её затереть!!!)
+               if FIX ;Chess960 найти позицию ладьи до рокировки (записать при генерации! не обязательно самая правая фигура, не считая короля, король мог её затереть!!!)
                 ld a,b
                 and 0xf8
 rightrookinitpos=$+1
@@ -9109,7 +9154,7 @@ rightrookinitpos=$+1
 
 loc_AF40:				; CODE XREF: sub_AD40+1F4
 ;ладья при рокировке влево?
-               if FIX ;TODO Chess960 найти позицию ладьи до рокировки (записать при генерации! не обязательно самая левая фигура, не считая короля, король мог её затереть!!!)
+               if FIX ;Chess960 найти позицию ладьи до рокировки (записать при генерации! не обязательно самая левая фигура, не считая короля, король мог её затереть!!!)
                 ld a,b
                 and 0xf8
 leftrookinitpos=$+1
@@ -9142,7 +9187,7 @@ leftrookinitpos=$+1
 
 loc_AF49:				; CODE XREF: sub_AD40+1FD
 ;b=старая позиция ладьи, l=новая позиция ладьи
-		ld	(hl), c ;ставим ладью на новое место при рокировке (король уже стоит)? (при этом в chess960 a=76, bc=769c (b обновлено!!!), de=0011, hl=d075)
+		ld	(hl), c ;ставим ладью на новое место при рокировке (король уже стоит)?
 		ld	a, (word_D04A+1)
 		or	a
 		jr	z, loc_AF54
@@ -9240,7 +9285,15 @@ loc_AF9A:				; CODE XREF: sub_AF81+9
 		ld	(hl), c ;???
 		ld	l, b ;положение фигуры???
 		dec	h		; BRD_88_0/256
+               if FIX ;затираем, только если фигура сдвинулась!
+                ld b,a ;код фигуры??? или 0 (после loc_AFAF)
+                ld a,l
+                cp e
+                jr z,$+3 ;фигура не сдвинулась?
+		ld (hl),b ;вернули ход назад? ;код фигуры??? или 0 (после loc_AFAF)
+               else
 		ld	(hl), a ;вернули ход назад? ;код фигуры??? или 0 (после loc_AFAF)
+               endif
 		pop	hl
 		ld	(word_D00D), hl
 		exx
@@ -9257,24 +9310,28 @@ loc_AFAF:				; CODE XREF: sub_AF81+E
 
 ; ---------------------------------------------------------------------------
 
-loc_AFB6:				; CODE XREF: sub_AF81+C
+loc_AFB6:				; CODE XREF: sub_AF81+C ;отмена рокировки
 		ld	e, h ;старое положение ладьи???
                if FIX ;если ладья обменивалась прямо на месте с королём, то надо вернуть a=l, иначе 0
                ;чтобы после перемещения короля обратно он оставил ладью где надо
                ;как определить? достаточно читать клетку изначального (de) (старое положение ладьи) и увидеть там не 0
                 ld a,(de) ;старое положение ладьи???
-                or a ;занято королём?
+                and 0x38
+                cp _K&0x38 ;занято королём?
 		ld	a, l ;код ладьи???
-		ld	(de), a ;[BRD_88_0 + h]
+		;ld	(de), a ;[BRD_88_0 + h]
+               push de
 		res	2, l
 		ld	h, word_D100/256
 		ld	b, (hl) ;положение ладьи???
 		ld	(hl), e ;старое положение ладьи???
-		ld	e, b ;положение ладьи???
+		ld	e, b ;положение ладьи???               
                 ex de,hl
-		ld (hl),0 ;стираем ладью при отмене рокировки?
+		ld (hl),0 ;стираем ладью? (TODO только если она сдвинулась!)
                 ex de,hl
-                jr nz,$+3 ;старое положение ладьи занято королём
+               pop de
+               ld (de),a ;ставим ладью               
+                jr z,$+3 ;старое положение ладьи занято королём ;a=код ладьи
                 xor a ;не было занято, можно затирать нулём после движения короля
                else
 		ld	a, l ;код ладьи???
@@ -9285,7 +9342,7 @@ loc_AFB6:				; CODE XREF: sub_AF81+C
 		ld	(hl), e ;старое положение ладьи???
 		xor	a
 		ld	e, b ;положение ладьи???
-		ld	(de), a ;стираем ладью при отмене рокировки?
+		ld	(de), a ;стираем ладью?
                endif
 		jp	loc_AF99 ;продолжаем отмену хода???
 
