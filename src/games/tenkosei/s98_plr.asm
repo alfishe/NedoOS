@@ -1,5 +1,5 @@
         DEVICE ZXSPECTRUM48
-        include "../_sdk/sys_h.asm"
+        include "../../_sdk/sys_h.asm"
                 ORG 0x4000
 
 s98_begin:
@@ -2314,4 +2314,4 @@ mount_current_page
 s98_end
 
         savebin "s98_plr.bin",s98_begin,s98_end-s98_begin
-        LABELSLIST "..\..\us\user.l"    
+        LABELSLIST "..\..\..\us\user.l",1
