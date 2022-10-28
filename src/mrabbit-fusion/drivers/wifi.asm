@@ -10,7 +10,10 @@ init:
     EspCmdOkErr "ATE0"
     jp c, .initError
 
-    EspCmdOkErr "AT+CIPSERVER=0" 
+  	IFDEF GODZILLA  
+	EspCmdOkErr "AT+CWJAP_CUR=\"Luck\",\"12345678\""
+	ENDIF
+	EspCmdOkErr "AT+CIPSERVER=0" 
     EspCmdOkErr "AT+CIPCLOSE" ; Close if there some connection was. Don't care about result
     EspCmdOkErr "AT+CIPMUX=0" ; Single connection mode
     jp c, .initError

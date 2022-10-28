@@ -77,9 +77,14 @@ header db "    Moon Rabbit "
 header db "    Moon Rabbit "
        db VERSION_STRING
        db " for AYWIFI (c) 2021 Alexander Nihirash",13, 0
-    ELSE 
-
 	ENDIF
+
+    IFDEF ZW
+header db "    Moon Rabbit "
+       db VERSION_STRING
+       db " for ZXWiFi (c) 2021 Alexander Nihirash",13, 0
+    ENDIF	
+
     
     IFDEF NEDOOSATM
 header db "    Moon Rabbit "
