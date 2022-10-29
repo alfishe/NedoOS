@@ -219,18 +219,7 @@ fread_chek
 ; Returns:
 ;   BC - actually written bytes
 fwrite: ;
-    ; push hl : pop ix
-    ; esxCall ESX_FWRITE
-	
-	; push af
-	; ld a,2
-	; out (254),a
-; WAITKEY1	XOR A:IN A,(#FE):CPL:AND #1F:JR Z,WAITKEY1
-	; xor a
-	; out (254),a
-	; pop af
-
-	cp 2 ;id = 2?
+ 	cp 2 ;id = 2?
 	jr z,fwrite_chek ;проверка id потока
 	cp 3 ;id = 3?
 	jr z,fwrite_chek_trd ;проверка id потока
@@ -525,6 +514,6 @@ sec_shift2 db 0 ;указатель на каком байте остановл�
 sec_part db 0 ;сколько секторов во второй порции для записи
 sec_shift_flag db 0 ;флаг что буфер сектора не заполнен
 
-	;align 256 ;временно
+	align 256 ;временно
 sec_buf ds 256 ;буфер сектора для записи
     ENDMODULE

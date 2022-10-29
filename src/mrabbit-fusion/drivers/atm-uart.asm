@@ -64,9 +64,11 @@ startrts2
 		IN	a,(c)
 		ld	b,#03		;Параметры - убрать RTS (START)
 		in	a, (c)
-		
-;		EX (SP),HL
-;		EX (SP),HL
+
+		push de
+		pop  de
+		push de
+		pop  de
 		push de
 		pop  de
 		

@@ -1,5 +1,4 @@
     device	zxspectrum128
-
     IFDEF NEDOOS
 		DEFINE CRLF "\r\n"
         MODULE nos
@@ -39,8 +38,8 @@ asmOrg:
     include "player/vortexnedoos.asm"
     ENDIF
 start:
-
-    IFNDEF NEDOOS
+	align 256 ;временно
+	IFNDEF NEDOOS
 outputBuffer:
     di
     xor a : ld (#5c6a), a  ; Thank you, Mario Prato, for feedback

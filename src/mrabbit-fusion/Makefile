@@ -48,9 +48,18 @@ atmtrdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
 	$(SJASMPLUS) main.asm -DTRDOS -DNEDOOSATM -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
 
+evotrdos: $(SOURCES)
+	copy Sample.trd MOONR.TRD
+	$(SJASMPLUS) main.asm -DTRDOS -DNEDOOSEVO -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+
 aytrdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
 	$(SJASMPLUS) main.asm -DTRDOS -DAY -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+
+zwtrdos: $(SOURCES)
+	copy Sample.trd MOONR.TRD
+	$(SJASMPLUS) main.asm -DTRDOS -DZW -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+
 
 t80trdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD

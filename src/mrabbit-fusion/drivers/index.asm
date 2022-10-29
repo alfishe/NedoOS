@@ -24,10 +24,11 @@
 	ENDIF
 
 	IFDEF NEDOOSEVO
- 	 	include "evo-uart.asm"
+		IFNDEF NEDOOSATM
+			include "evo-uart.asm"
         	include "wifi.asm"
+		ENDIF
 	ENDIF
-
 	
 	IFDEF NEDOOS
 		IFNDEF NEDOOSATM
@@ -38,7 +39,9 @@
         include "nedoos.asm"
     ELSE
 		IFNDEF NEDOOSATM 
-			include "wifi.asm"
+		IFNDEF NEDOOSEVO		
+		include "wifi.asm"
+		ENDIF
 		ENDIF
 	ENDIF
     include "proxy.asm"
