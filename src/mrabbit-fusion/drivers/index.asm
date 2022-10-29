@@ -17,17 +17,13 @@
 	include "utils.asm"
    
 	IFDEF NEDOOSATM
-		IFNDEF NEDOOSEVO
 			include "atm-uart.asm"
 			include "wifi.asm"
-		ENDIF
 	ENDIF
 
 	IFDEF NEDOOSEVO
-		IFNDEF NEDOOSATM
 			include "evo-uart.asm"
         	include "wifi.asm"
-		ENDIF
 	ENDIF
 	
 	IFDEF NEDOOS

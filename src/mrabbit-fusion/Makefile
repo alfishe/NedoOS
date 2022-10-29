@@ -43,28 +43,45 @@ nedoosatm: $(SOURCES)
 nedoosevo: $(SOURCES)
 	$(SJASMPLUS) main.asm -DNEDOOS  -DNEDOOSEVO -DGS --lst=main.lst -DV=$(VERSION)
 
-
 atmtrdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
-	$(SJASMPLUS) main.asm -DTRDOS -DNEDOOSATM -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DTRDOS -DNEDOOSATM -DZXSCR -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-AU-64.TRD
+	ren MOONR.TRD MR-TR-AU-64.TRD
 
 evotrdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
-	$(SJASMPLUS) main.asm -DTRDOS -DNEDOOSEVO -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DTRDOS -DNEDOOSEVO -DZXSCR -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-EU-64.TRD
+	ren MOONR.TRD MR-TR-EU-64.TRD
 
 aytrdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
-	$(SJASMPLUS) main.asm -DTRDOS -DAY -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DTRDOS -DAY -DZXSCR -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-AY-64.TRD
+	ren MOONR.TRD MR-TR-AY-64.TRD
 
 zwtrdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
-	$(SJASMPLUS) main.asm -DTRDOS -DZW -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
-
+	$(SJASMPLUS) main.asm -DTRDOS -DZW -DZXSCR -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-ZW-64.TRD
+	ren MOONR.TRD MR-TR-ZW-64.TRD
 
 t80trdos: $(SOURCES)
 	copy Sample.trd MOONR.TRD
-	$(SJASMPLUS) main.asm -DTRDOS -DAY -DTIMEX80 -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DTRDOS -DAY -DTIMEX80 -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-AY-80.TRD
+	ren MOONR.TRD MR-TR-AY-80.TRD
 
+godzillaz: $(SOURCES)
+	copy Sample.trd MOONR.TRD
+	$(SJASMPLUS) main.asm -DTRDOS -DAY -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-AY-64-G.TRD
+	ren MOONR.TRD MR-TR-AY-64-G.TRD
+	copy Sample.trd MOONR.TRD
+	$(SJASMPLUS) main.asm -DTRDOS -DAY -DTIMEX80 -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-TR-AY-80-G.TRD
+	ren MOONR.TRD MR-TR-AY-80-G.TRD
 
 clean:
 	rm $(BINARY) $(LST)

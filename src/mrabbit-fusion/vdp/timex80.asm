@@ -1,5 +1,4 @@
 COLOR=0
-    define LINE_LIMIT 80
     module TextMode
 PORT_SELECT = #7c3b
 init:
