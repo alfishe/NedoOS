@@ -124,6 +124,8 @@ texted_mainloop_keyq
         jp z,texted_gotobof;home
         cp key_sspgdown;ext4
         jp z,texted_gotoeof;end
+         cp extP
+         jp z,texted_playtext
         ;cp extW
         ;jp z,texted_wrap
          cp key_ins
@@ -431,6 +433,40 @@ incnlines
         inc hl
         ld (nlines),hl
         pop hl
+        ret
+
+texted_playtext
+        ld hl,(curlineaddr)
+        ld a,(curlineaddrHSB)
+;ahl=line addr
+        ld de,textforplay
+        ld (playtextaddr),de
+        ld b,0
+texted_playtext0
+        call iseof
+        jr z,texted_playtext0q
+        call getbyte ;c=[ahl]
+        ex af,af' ;'
+        ld a,c
+        cp 0x0d
+        jr z,texted_playtext0q
+        ld (de),a
+        ex af,af' ;'
+        inc de
+        call nextbyte
+        djnz texted_playtext0
+texted_playtext0q
+        xor a
+        ld (de),a
+;TODO on-int
+texted_playloop
+        call playtext
+        halt
+        ld hl,(playtextaddr)
+        ld de,playtextloopend
+        or a
+        sbc hl,de
+        jr nz,texted_playloop
         ret
 
 texted_home

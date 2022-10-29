@@ -344,6 +344,13 @@ prword
         include "textview.asm"
         include "text_mem.asm"
 
+playtextloop
+        db "  "
+playtextloopend ;нельзя определить конец проигрывания по playtextloop+1 - он сразу после декодирования пробела до его проигрывания
+        db 0
+        
+        include "../_sdk/say.asm"
+
         include "../_sdk/textwindow.asm"
 setdrawtablesneeded
 getmarkedfiles
@@ -387,6 +394,9 @@ defaultfilename
 	db "1.txt",0
         
 cmd_end
+textforplay
+        ds 256
+        db 0
 
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 
