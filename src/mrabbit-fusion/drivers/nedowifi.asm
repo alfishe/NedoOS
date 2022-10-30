@@ -34,7 +34,8 @@
 		call nos.BDOS ;c=CMD
 	endm	
 	
-
+init:
+	ret
 	
 	
 	

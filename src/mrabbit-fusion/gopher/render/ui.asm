@@ -12,16 +12,16 @@ prepareScreen:
 
 
 	IFDEF NEDOOS
-toolbox db CRLF, " [D]omain: ", 0
+toolbox db CRLF, "[D]omain: ", 0
 	ELSE
-toolbox db " [D]omain: ", 0
+toolbox db "[D]omain: ", 0
 	ENDIF
 footer db "  Cursor - movement  [B]ack to prev. page  [H]ome page", 0
 
 inputHost:
     call Console.waitForKeyUp
 .loop
-    ld de, #010B : call TextMode.gotoXY : ld hl, hostName : call TextMode.printZ
+    ld de, #010A : call TextMode.gotoXY : ld hl, hostName : call TextMode.printZ
     ld a, MIME_INPUT : call TextMode.putC
     ld a, ' ' : call TextMode.putC
 .wait

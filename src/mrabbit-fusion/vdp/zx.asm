@@ -22,7 +22,8 @@ cls:
 ; Set console coordinates
 ; d = row(0..23), e = column (0..63)
 gotoXY:
-	;;;rr e;;;
+	;rr e;;;
+	srl e
 	ld a, 0
 	ld (half_tile_screen), a
     ld (col_screen), de
@@ -36,10 +37,11 @@ disable:
 ; A - char
 fillLine:
     push af
-	ld d, h, e, 0 : call gotoXY
+    ld d, h, e, 0 : call gotoXY
     pop af
-	ld hl, fill_buff, de, fill_buff + 1, bc, 63, (hl), a : ldir
-	ld hl, fill_buff : jp printZ
+    ld hl, fill_buff, de, fill_buff + 1, bc, 63, (hl), a : ldir
+    ld hl, fill_buff : jp printZ
+
 usualLine:
     ld b, a
     ld c, 0
@@ -78,7 +80,6 @@ mvCR
 ; A - symbol
 putC
     cp 13 : jp z, mvCR
-
 	ld hl, single_symbol
 	ld (hl), a
 	ld a, 7 : call Memory.setPage
@@ -382,6 +383,5 @@ single_symbol_print db 1
 single_symbol 		db 0
 
 fill_buff ds 65
-
 
     endmodule

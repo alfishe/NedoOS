@@ -14,7 +14,7 @@ load:
     ld a, (historyBlock.isFile) : and a : jp nz, Fetcher.fetchFromFS
     jp Fetcher.fetchFromNet
 
-.msg db "Loading resource! Please wait! It will be here soon!", 0
+.msg db "    Loading resource! Please wait! It will be here soon!", 0
 
 home:
     ld hl, homePage

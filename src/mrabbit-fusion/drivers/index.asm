@@ -17,30 +17,24 @@
 	include "utils.asm"
    
 	IFDEF NEDOOSATM
-			include "atm-uart.asm"
-			include "wifi.asm"
+		include "atm-uart.asm"
 	ENDIF
 
 	IFDEF NEDOOSEVO
-			include "evo-uart.asm"
-        	include "wifi.asm"
+		include "evo-uart.asm"
+       	ENDIF
+	
+	IFDEF NEDONET
+		include "nedowifi.asm"
+	ELSE
+		include "wifi.asm"
+	ENDIF
+
+	IFDEF NEDOOS
+       	include "nedoos.asm"
 	ENDIF
 	
-	IFDEF NEDOOS
-		IFNDEF NEDOOSATM
-			IFNDEF NEDOOSEVO
-				include "nedowifi.asm"
-			ENDIF
-		ENDIF
-        include "nedoos.asm"
-    ELSE
-		IFNDEF NEDOOSATM 
-		IFNDEF NEDOOSEVO		
-		include "wifi.asm"
-		ENDIF
-		ENDIF
-	ENDIF
-    include "proxy.asm"
-    include "memory.asm"
-    include "general-sound.asm"
+	include "proxy.asm"
+	include "memory.asm"
+	include "general-sound.asm"
     

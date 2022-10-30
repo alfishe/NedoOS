@@ -26,7 +26,7 @@ play:
     call Console.waitForKeyUp
     ret
 	
-message db "Press key to stop...", 0
+message db "    Press key to stop...", 0
     ENDMODULE
 	org 0x4000
     include "player.asm"

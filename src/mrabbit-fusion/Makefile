@@ -35,7 +35,7 @@ esxdos-ay: $(SOURCES)
 	$(SJASMPLUS) main.asm -DAY -DZXSCR --lst=main.lst -DV=$(VERSION)
 	
 nedoos: $(SOURCES)
-	$(SJASMPLUS) main.asm -DNEDOOS -DGS --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DNEDOOS -DNEDONET -DGS --lst=main.lst -DV=$(VERSION)
 
 nedoosatm: $(SOURCES)
 	$(SJASMPLUS) main.asm -DNEDOOS -DNEDOOSATM -DGS --lst=main.lst -DV=$(VERSION)

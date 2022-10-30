@@ -1,12 +1,12 @@
     device	zxspectrum128
     IFDEF NEDOOS
-		DEFINE CRLF "\r\n"
+	DEFINE CRLF "\r\n"
         MODULE nos
             include "../_sdk/sysdefs.asm"
         ENDMODULE
         org nos.PROGSTART
     ELSE
-		DEFINE CRLF "\r"
+	DEFINE CRLF "\r"
         org 24576
     ENDIF
 asmOrg:
@@ -67,20 +67,9 @@ outputBuffer:
     ENDIF
  
     call TextMode.init
+	ld hl, initing : call TextMode.printZ
+   	call Wifi.init
 
-    IFNDEF NEDOOS
-		ld hl, initing : call TextMode.printZ
-    	call Wifi.init
-    ELSE 
-    IFDEF NEDOOSATM
-    ld hl, initing : call TextMode.printZ
-    call Wifi.init
-    ENDIF
-    IFDEF NEDOOSEVO
-    ld hl, initing : call TextMode.printZ
-    call Wifi.init
-    ENDIF
-    ENDIF
    jp History.home
 
     IFDEF NEDOOS
