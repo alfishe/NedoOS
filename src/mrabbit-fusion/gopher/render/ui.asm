@@ -98,6 +98,12 @@ header db "    Moon Rabbit "
        db " for EVO UART (c) 2021 Alexander Nihirash",13, 0
     ENDIF
 
+    IFDEF UNOUART
+header db "    Moon Rabbit "
+       db VERSION_STRING
+       db " for UNO UART (c) 2021 Alexander Nihirash",13, 0
+    ENDIF
+
     IFDEF NEDOOS
 	IFNDEF NEDOOSATM
 	IFNDEF NEDOOSEVO

@@ -2,6 +2,10 @@
     	include "uno-uart.asm"
     ENDIF
 
+    IFDEF UNOUART
+    	include "uno-uart.asm"
+    ENDIF
+
     IFDEF MB03
     	include "mb03-uart.asm"
     ENDIF

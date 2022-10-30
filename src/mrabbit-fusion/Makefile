@@ -73,6 +73,12 @@ t80trdos: $(SOURCES)
 	del MR-TR-AY-80.TRD
 	ren MOONR.TRD MR-TR-AY-80.TRD
 
+truno64: $(SOURCES)
+	copy Sample.trd MOONR.TRD
+	$(SJASMPLUS) main.asm -DTRDOS -DUNOUART -DZXSCR --lst=main.lst -DV=$(VERSION)
+	del MR-TR-UN-64.TRD
+	ren MOONR.TRD MR-TR-UN-64.TRD
+
 godzillaz: $(SOURCES)
 	copy Sample.trd MOONR.TRD
 	$(SJASMPLUS) main.asm -DTRDOS -DAY -DZXSCR -DGODZILLA -DGS --lst=main.lst -DV=$(VERSION)
