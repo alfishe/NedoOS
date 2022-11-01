@@ -68,7 +68,7 @@ outputBuffer:
  
     call TextMode.init
 	ld hl, initing : call TextMode.printZ
-   	call Wifi.init
+  	call Wifi.init
 
    jp History.home
 

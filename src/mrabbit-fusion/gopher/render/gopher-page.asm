@@ -51,11 +51,16 @@ workLoop:
 
     cp CR : jp z, navigate
 
-    ifdef GS
+    IFDEF GS
     cp 'M' : call z, GeneralSound.toggleModule
     cp 'm' : call z, GeneralSound.toggleModule
-    endif
+    ENDIF
     
+    IFDEF TIMEX80
+    cp 'T' : call z, TextMode.toggleColor
+    cp 't' : call z, TextMode.toggleColor
+    ENDIF
+
     jp workLoop
 
 navigate:

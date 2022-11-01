@@ -26,10 +26,10 @@ mb03: $(SOURCES)
 	$(SJASMPLUS) main.asm -DPROXY -DMB03 -DTIMEX -DGS --lst=main.lst -DV=$(VERSION)
 	
 zxuno: $(SOURCES)
-	$(SJASMPLUS) main.asm -DUNO -DTIMEX --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DP3DOS -DUNO -DTIMEX --lst=main.lst -DV=$(VERSION)
 
 zxuno-zxscreen: $(SOURCES)
-	$(SJASMPLUS) main.asm -DUNO -DZXSCR --lst=main.lst -DV=$(VERSION)
+	$(SJASMPLUS) main.asm -DP3DOS -DUNO -DZXSCR --lst=main.lst -DV=$(VERSION)
 
 esxdos-ay: $(SOURCES)
 	$(SJASMPLUS) main.asm -DAY -DZXSCR --lst=main.lst -DV=$(VERSION)
@@ -78,6 +78,12 @@ truno64: $(SOURCES)
 	$(SJASMPLUS) main.asm -DTRDOS -DUNOUART -DZXSCR --lst=main.lst -DV=$(VERSION)
 	del MR-TR-UN-64.TRD
 	ren MOONR.TRD MR-TR-UN-64.TRD
+
+ayp3d64: $(SOURCES)
+	copy Sample.trd MOONR.TRD
+	$(SJASMPLUS) main.asm -DP3DOS -DAY -DZXSCR -DGS --lst=main.lst -DV=$(VERSION)
+	del MR-P3-AY-64.TRD
+	ren MOONR.TRD MR-P3-AY-64.TRD
 
 godzillaz: $(SOURCES)
 	copy Sample.trd MOONR.TRD

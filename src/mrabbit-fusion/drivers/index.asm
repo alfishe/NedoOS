@@ -34,9 +34,9 @@
 		include "wifi.asm"
 	ENDIF
 
-	IFDEF NEDOOS
-       	include "nedoos.asm"
-	ENDIF
+;	IFDEF NEDOOS
+;       	include "nedoos.asm"
+;	ENDIF
 	
 	include "proxy.asm"
 	include "memory.asm"

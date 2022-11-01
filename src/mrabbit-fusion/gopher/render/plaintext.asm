@@ -19,7 +19,7 @@ renderPlainTextScreen:
 
 plainTextLoop:
     call Console.getC
-    
+
     cp Console.KEY_DN : jp z, textDown
     cp 'a' : jp z, textDown
 
@@ -34,10 +34,15 @@ plainTextLoop:
     
     cp Console.BACKSPACE : jp z, History.back
  
-    ifdef GS
+    IFDEF GS
     cp 'M' : call z, GeneralSound.toggleModule
     cp 'm' : call z, GeneralSound.toggleModule
-    endif
+    ENDIF
+
+    IFDEF TIMEX80
+    cp 'T' : call z, TextMode.toggleColor
+    cp 't' : call z, TextMode.toggleColor
+    ENDIF
 
     jr plainTextLoop
 
@@ -53,3 +58,4 @@ textUp:
     sub PER_PAGE : ld (hl), a
     call renderPlainTextScreen
     jp plainTextLoop
+    

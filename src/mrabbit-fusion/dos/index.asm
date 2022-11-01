@@ -1,12 +1,19 @@
-	IFNDEF NEDOOS
-		IFDEF TRDOS
-			include "trdos.asm"
-    			include "console.asm"
-    		ELSE
-    			include "console.asm"
-    			include "esxdos.asm"
-			ENDIF	
+	IFDEF NEDOOS
+	    include "nedoconsole.asm"
+		include "nedoos.asm"
+	ENDIF
+	
+	IFDEF TRDOS
+    	include "console.asm"
+		include "trdos.asm"
+	ENDIF
 
-	ELSE
-    		include "nedoconsole.asm"
+	IFDEF ESXDOS
+   		include "console.asm"
+   		include "esxdos.asm"
+	ENDIF
+
+	IFDEF P3DOS
+   		include "console.asm"
+   		include "p3dos.asm"
 	ENDIF

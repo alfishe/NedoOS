@@ -18,7 +18,13 @@ init:
 cls:
     ld a, 7 : call Memory.setPage
 
+    IFDEF UNO
     ld a, #3E : out (#ff), a
+    ELSE
+    ld	bc, #EFF7   ;   Scorpio
+    ld a,2
+    out (C), a
+    ENDIF
 
     di
     ld	hl,0, d,h, e,h, b,h, c,b
@@ -276,9 +282,30 @@ findAddr:
     LD D,A
     ret
 
-
+toggleColor:
+    ld a,(curState)
+    cp 7
+    jp z, sevenEleven
+;zerroTolerance
+    ld a,7
+    ld (curState),a
+    out (#fe),a
+    ret
+sevenEleven:
+    ld a,0
+    ld (curState),a
+    out (#fe),a
+    ret
+curState:
+    db 0
 disable:
+    IFDEF UNO
     xor a : out (#fe), a : out (#ff), a
+    ELSE
+    ld	bc, #EFF7   ;   Scorpio
+    ld a,0
+    out (C), a
+    ENDIF
     ret
 
 coords dw 0
