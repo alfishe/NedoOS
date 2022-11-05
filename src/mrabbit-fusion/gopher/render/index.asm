@@ -1,6 +1,6 @@
     MODULE Render
-PER_PAGE = 19
-CURSOR_OFFSET = 3
+PER_PAGE = 22
+CURSOR_OFFSET = 2
     include "row.asm"
     include "buffer.asm"
     include "ui.asm"

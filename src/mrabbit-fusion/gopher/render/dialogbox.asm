@@ -11,7 +11,10 @@ inputBox:
 .checkkey
     call Console.getC
     cp Console.BACKSPACE : jr z, .removeChar
-    cp CR : ret z
+   
+   call delayinput
+   cp CR : ret z
+       
     cp SPACE : jr c, .checkkey
 .putC
     ld e, a
@@ -30,6 +33,15 @@ inputBox:
     xor a
     dec hl : dec hl : ld (hl), a 
     jr .loop
+
+
+delayinput:
+   ld b, 2
+.loop2
+    halt
+    djnz .loop2
+    ret
+
 
 inputBuffer ds 80
 

@@ -78,6 +78,12 @@ outputBuffer:
 
 initing db "Initing Wifi...", CRLF, 0
 logo    db  "logo.scr", 0
+    IFDEF NEDOOS
+creds   db  "browser/auth.p", 0
+    ELSE
+creds   db  "auth.p", 0
+    ENDIF
+
     display "ENDS: ", $
     display "Buff size", #ffff - $
     IFDEF NEDOOS
@@ -89,4 +95,5 @@ logo    db  "logo.scr", 0
 			savebin "moon.bin", asmOrg, $ - asmOrg
 	    	ENDIF        
     ENDIF
-    
+outputBuffer2:
+    db  "ATE0", 0  

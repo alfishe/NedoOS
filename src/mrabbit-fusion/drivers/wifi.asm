@@ -4,16 +4,33 @@ buffer_pointer dw 0
 closed db 1
 ; Initialize Wifi chip to work
 init:
+   
     ld hl, .uartIniting : call TextMode.printZ
     call Uart.init
     ld hl, .chipIniting : call TextMode.printZ
+    
     EspCmdOkErr "ATE0"
     jp c, .initError
 
-  	IFDEF GODZILLA  
-	EspCmdOkErr "AT+CWJAP_CUR=\"Luck\",\"12345678\""
-	ENDIF
-	EspCmdOkErr "AT+CIPSERVER=0" 
+    IFDEF AUTH  
+    ld hl, creds, b, Dos.FMODE_READ : call Dos.fopen
+    push af
+    ld hl,outputBuffer2, bc, 255 : call Dos.fread
+    pop af
+    call Dos.fclose
+   
+    ld hl, .doneInit1 : call TextMode.printZ
+    ;ld hl, outputBuffer2 : call TextMode.printZ
+    
+    ld hl,outputBuffer2
+    call espSendT
+    ld a, 13 : call Uart.write
+    ld a, 10 : call Uart.write
+    call checkOkErr
+    jp c, .initError    
+    ENDIF
+    
+   	EspCmdOkErr "AT+CIPSERVER=0" 
     EspCmdOkErr "AT+CIPCLOSE" ; Close if there some connection was. Don't care about result
     EspCmdOkErr "AT+CIPMUX=0" ; Single connection mode
     jp c, .initError
@@ -29,10 +46,11 @@ init:
     ld hl, .errMsg : call DialogBox.msgBox
     scf
     ret
-.errMsg db "WiFi chip init failed!", CRLF, 0
+.errMsg      db "WiFi chip init failed!", CRLF, 0
 .uartIniting db "Uart initing...", CRLF, 0
 .chipIniting db "Chip initing...", CRLF, 0
 .doneInit    db "Done!",CRLF, 0
+.doneInit1   db "Connecting to AP",CRLF, 0
     IFNDEF PROXY   
 ; HL - host pointer in gopher row
 ; DE - port pointer in gopher row
@@ -204,5 +222,8 @@ hlToNumEsp:
 	call Uart.write
     pop bc
     ret
-
+flushToLF1
+    call Uart.read
+    cp 10 : jp nz, flushToLF1
+    ret
     ENDMODULE

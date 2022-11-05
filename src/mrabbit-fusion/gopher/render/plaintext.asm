@@ -20,6 +20,13 @@ renderPlainTextScreen:
 plainTextLoop:
     call Console.getC
 
+    cp '6' : jp z, cursorDown
+    cp '3' : jp z, cursorDown
+    cp '4' : jp z, cursorUp
+    cp '7' : jp z, cursorUp
+    cp '5' : jp z, navigate
+    cp '1' : jp z, History.back
+
     cp Console.KEY_DN : jp z, textDown
     cp 'a' : jp z, textDown
 
@@ -32,6 +39,10 @@ plainTextLoop:
     cp 'b' : jp z, History.back
     cp 'B' : jp z, History.back
     
+    cp 'd' : jp z, inputHost
+    cp 'D' : jp z, inputHost
+
+
     cp Console.BACKSPACE : jp z, History.back
  
     IFDEF GS
@@ -44,7 +55,7 @@ plainTextLoop:
     cp 't' : call z, TextMode.toggleColor
     ENDIF
 
-    jr plainTextLoop
+    jp plainTextLoop
 
 
 textDown:
@@ -54,7 +65,7 @@ textDown:
 
 textUp:
     ld hl, page_offset 
-    ld a, (hl) : and a : jr z, plainTextLoop
+    ld a, (hl) : and a : jp z, plainTextLoop
     sub PER_PAGE : ld (hl), a
     call renderPlainTextScreen
     jp plainTextLoop

@@ -1,27 +1,37 @@
+    IFDEF ZXSCR
+    DEFINE LEFT_TAB "[D]omain:                                     "
+    ENDIF
+
+    IFDEF TIMEX     ;UNKNOWM fallback to 64
+    DEFINE LEFT_TAB "[D]omain:                                     "
+    ENDIF
+
+    IFDEF TIMEX80
+    DEFINE LEFT_TAB "[D]omain:                                                     "
+    ENDIF
+
+    IFDEF NEDOOS
+    DEFINE LEFT_TAB "[D]omain:                                                     "
+    ENDIF
+
 prepareScreen:
     call TextMode.cls
     ld hl, header : call TextMode.printZ
-    ld hl, toolbox : call TextMode.printZ
+    ld de, #000A : call TextMode.gotoXY
     ld hl, hostName : call TextMode.printZ
-    ld de, #1700 : call TextMode.gotoXY : ld hl, footer : call TextMode.printZ
+    ;ld de, #1700 : call TextMode.gotoXY : ld hl, footer : call TextMode.printZ
 
     xor a : call TextMode.highlightLine
-    ld a, 1 : call TextMode.highlightLine
-    ld a, #17 : call TextMode.highlightLine
+    ;ld a, 1 : call TextMode.highlightLine
+    ;ld a, #17 : call TextMode.highlightLine
     ret
 
-
-	IFDEF NEDOOS
-toolbox db CRLF, "[D]omain: ", 0
-	ELSE
-toolbox db "[D]omain: ", 0
-	ENDIF
-footer db "  Cursor - movement  [B]ack to prev. page  [H]ome page", 0
+;footer db "  Cursor - movement  [B]ack to prev. page  [H]ome page", 0
 
 inputHost:
     call Console.waitForKeyUp
 .loop
-    ld de, #010A : call TextMode.gotoXY : ld hl, hostName : call TextMode.printZ
+    ld de, #000A : call TextMode.gotoXY : ld hl, hostName : call TextMode.printZ
     ld a, MIME_INPUT : call TextMode.putC
     ld a, ' ' : call TextMode.putC
 .wait
@@ -62,54 +72,53 @@ domain db "nihirash.net"
     ds 64 - ($ - domain)
 
     IFDEF MB03
-header db "    Moon Rabbit "
+header db LEFT_TAB, "    MRF "
        db VERSION_STRING
-       db " for MB03+  (c) 2021 Alexander Nihirash",13, 0
-    ENDIF
+       db " [MB03+]",13, 0
+       ENDIF
     
     IFDEF UNO
-header db "    Moon Rabbit "
+header db LEFT_TAB, "MRF "
        db VERSION_STRING
-       db " for ZX-Uno (c) 2021 Alexander Nihirash",13, 0
+       db " [UNO UART]",13, 0
     ENDIF
 
     IFDEF AY
-header db "    Moon Rabbit "
+header db LEFT_TAB, "  MRF "
        db VERSION_STRING
-       db " for AYWIFI (c) 2021 Alexander Nihirash",13, 0
+       db " [AYWIFI]",13, 0
 	ENDIF
 
     IFDEF ZW
-header db "    Moon Rabbit "
+header db LEFT_TAB, "  MRF "
        db VERSION_STRING
-       db " for ZXWiFi (c) 2021 Alexander Nihirash",13, 0
+       db " [ZXWiFi]",13, 0
     ENDIF	
-
-    
-    IFDEF NEDOOSATM
-header db "    Moon Rabbit "
+ 
+     IFDEF NEDOOSATM
+header db LEFT_TAB, "MRF "
        db VERSION_STRING
-       db " for ATM UART (c) 2021 Alexander Nihirash",13, 0
+       db " [ATM UART]",13, 0
     ENDIF
 	
     IFDEF NEDOOSEVO
-header db "    Moon Rabbit "
+header db LEFT_TAB, "MRF "
        db VERSION_STRING
-       db " for EVO UART (c) 2021 Alexander Nihirash",13, 0
+       db " [EVO UART]",13, 0
     ENDIF
 
     IFDEF UNOUART
-header db "    Moon Rabbit "
+header db LEFT_TAB, "MRF "
        db VERSION_STRING
-       db " for UNO UART (c) 2021 Alexander Nihirash",13, 0
+       db " [UNO UART]",13, 0
     ENDIF
 
     IFDEF NEDOOS
 	IFNDEF NEDOOSATM
 	IFNDEF NEDOOSEVO
-header db "    Moon Rabbit "
+header db LEFT_TAB, " MRF "
        db VERSION_STRING
-       db " for nedoNET (c) 2021 Alexander Nihirash",13, 0
+       db " [nedoNET]",13, 0
     ENDIF
 	ENDIF
 	ENDIF	

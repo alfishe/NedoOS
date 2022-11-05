@@ -1,11 +1,11 @@
-LINE_LIMIT = 60
+LINE_LIMIT = 63
 
     IFDEF NEDOOS
-LINE_LIMIT = 80
+LINE_LIMIT = 79
     ENDIF
 
     IFDEF TIMEX80
-LINE_LIMIT = 80
+LINE_LIMIT = 84
     ENDIF
 ; HL - string pointer
 print70Text:

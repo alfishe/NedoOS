@@ -1,1 +1,0 @@
-"../../tools\mingw\make.exe" godzillaz
