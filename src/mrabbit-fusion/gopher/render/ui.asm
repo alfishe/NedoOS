@@ -7,7 +7,7 @@
     ENDIF
 
     IFDEF TIMEX80
-    DEFINE LEFT_TAB "[D]omain:                                                     "
+    DEFINE LEFT_TAB "[D]omain:                                                         "
     ENDIF
 
     IFDEF NEDOOS
@@ -19,14 +19,8 @@ prepareScreen:
     ld hl, header : call TextMode.printZ
     ld de, #000A : call TextMode.gotoXY
     ld hl, hostName : call TextMode.printZ
-    ;ld de, #1700 : call TextMode.gotoXY : ld hl, footer : call TextMode.printZ
-
     xor a : call TextMode.highlightLine
-    ;ld a, 1 : call TextMode.highlightLine
-    ;ld a, #17 : call TextMode.highlightLine
     ret
-
-;footer db "  Cursor - movement  [B]ack to prev. page  [H]ome page", 0
 
 inputHost:
     call Console.waitForKeyUp

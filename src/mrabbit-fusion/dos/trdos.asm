@@ -219,7 +219,18 @@ fread_chek
 ; Returns:
 ;   BC - actually written bytes
 fwrite: ;
- 	cp 2 ;id = 2?
+    ; push hl : pop ix
+    ; esxCall ESX_FWRITE
+	
+	; push af
+	; ld a,2
+	; out (254),a
+; WAITKEY1	XOR A:IN A,(#FE):CPL:AND #1F:JR Z,WAITKEY1
+	; xor a
+	; out (254),a
+	; pop af
+
+	cp 2 ;id = 2?
 	jr z,fwrite_chek ;проверка id потока
 	cp 3 ;id = 3?
 	jr z,fwrite_chek_trd ;проверка id потока
@@ -235,21 +246,22 @@ fwrite_no_chek ;выход с ошибкой
 	
 fwrite_chek ;запись произвольного типа файла
 	jr fwrite_no_chek ;пока отключено
-	ld a,(f_w_flag)
-	or a
-	jr z,fwrite_no_chek ;файл уже открыт?
-	ld (temp_bc),bc
-	;ld bc,(f_r_len_sec-1) ;
-    ld      c,6 ;пишем целыми секторами
-	ld de,(f_w_cur_trk)
-    call    #3d13	
-	ld bc,(temp_bc) ;возвратим, что сколько запрашивали, столько и считали байт
-	xor a ;флаги сбросим
-    ret
+	; ld a,(f_w_flag)
+	; or a
+	; jr z,fwrite_no_chek ;файл уже открыт?
+	; ld (temp_bc),bc
+	; ;ld bc,(f_r_len_sec-1) ;
+    ; ld      c,6 ;пишем целыми секторами
+	; ld de,(f_w_cur_trk)
+    ; call    #3d13	
+	; ld bc,(temp_bc) ;возвратим, что сколько запрашивали, столько и считали байт
+	; xor a ;флаги сбросим
+    ; ret
 
 
 
 fwrite_chek_trd ;запись trd файла (разворачивание образа)
+;WAITKEY1	XOR A:IN A,(#FE):CPL:AND #1F:JR Z,WAITKEY1
 	ld a,(f_w_flag)
 	or a
 	jr z,fwrite_no_chek ;файл уже открыт?
@@ -259,12 +271,12 @@ fwrite_chek_trd ;запись trd файла (разворачивание об�
 	or c
 	jr z,fwrite_no_chek ; если длина 0, то выход
 	
-	ld a,b
-	or a
-	jr nz,testt1
-	nop
+	; ld a,b
+	; or a
+	; jr nz,testt1
+	; nop
 	
-testt1
+; testt1
 	
 	xor a
 	ld (sec_part),a ;обнулить переменные
@@ -292,12 +304,12 @@ fwrite_trd4
 	add hl,bc ;на этой точке остановились
 	ex de,hl
 	ld hl,(temp_hl) ;присоединим начало данных в конец предыдущих
-	ld a,c
-	or a
-	jr nz,fwrite_trd2
-	inc b ;коррекция
-fwrite_trd2		
-	ld c,a
+	; ld a,c
+	; or a
+	; jr nz,fwrite_trd2
+	; inc b ;коррекция
+; fwrite_trd2		
+	; ld c,a
 	xor a
 	sub c
 	ld c,a ;сколько осталось перенести до заполнения сектора
@@ -341,6 +353,10 @@ fwrite_trd3
 fwrite_trd5
 	ld hl,(temp_hl)
 	add hl,bc 
+	
+	ld de,outputBuffer
+	and a
+	sbc hl,de
 	
 	ld a,l
 	ld (sec_shift),a ;смещение на следующий раз
@@ -422,7 +438,30 @@ fwrite_chek_scl ;запись scl файла ---------------
 ; Returns:
 ; HL - name (name    e)	
 format_name ;подгоняет имя файла под стандарт trdos (8+1)
-	push hl ;сначала очистим место
+
+	;сначала попробуем убрать из пути подпапку, если она есть
+	ld (temp_hl),hl ;сохраним адрес исходного имени
+	ld b,#00 ;не больше 255 символов	
+format_name5	
+	ld a,(hl)
+	cp "/" ;если есть подпапка
+	jr z,format_name_path_yep
+	ld a,(hl)
+	cp "." ;если ещё не дошли до расширения
+	jr nz,format_name6
+	ld hl,(temp_hl) ;если дошли до расширения, то путей нет, вернёмся на начало имени
+	jr format_name_7 ;на выход
+format_name6
+	inc hl
+	djnz format_name5
+	
+format_name_path_yep ;нашли
+	inc hl ;пропустим знак "/"
+	
+format_name_7	
+
+
+	push hl ;очистим место для нового имени
 	ld hl,f_name
 	ld de,f_name+1
 	ld (hl)," "
@@ -514,6 +553,6 @@ sec_shift2 db 0 ;указатель на каком байте остановл�
 sec_part db 0 ;сколько секторов во второй порции для записи
 sec_shift_flag db 0 ;флаг что буфер сектора не заполнен
 
-	align 256 ;временно
-sec_buf ds 256 ;буфер сектора для записи
+	;align 256 ;временно
+sec_buf equ #4800 ;буфер сектора для записи, расположен сразу после шрифта
     ENDMODULE

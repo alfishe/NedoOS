@@ -61,8 +61,23 @@ tcpSendZ
 .rn defb "\r\n"	
 	
 getPacket
+
     ld de,(buffer_pointer)
-    ld hl,2048
+	ld a,0xff
+	cp d
+	jp nz, letsgo
+	ld hl, .errMem : call DialogBox.msgBox
+	ld a,1
+	ld (closed),a
+	xor a
+	ld (bytes_avail),a
+	
+	ret
+.errMem:
+	db "Out of memory. Page loading error.",0
+letsgo:
+    ld de,(buffer_pointer)
+    ld hl,250
     ld a,(sock_fd)
 	OS_WIZNETREAD
     BIT 7,H
@@ -178,17 +193,11 @@ dns_resolver:		;DE-domain name
 	inc hl
 	push hl
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;	push bc
-;	push de
-;	push hl
 	ld a, (.dns_ia2)
 	cp 0
 	jp nz, .skipgetdns
 	ld de, .dns_ia2;DE= ptr to DNS buffer(4 bytes)
 	OS_GETDNS
-;	pop hl
-;	pop de
-;	pop bc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .skipgetdns:
 	ld de,0x0203

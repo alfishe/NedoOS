@@ -29,6 +29,7 @@ play:
 message db "    Press key to stop...", 0
     ENDMODULE
 	org 0x4000
+	
     include "player.asm"
 	MODULE fakemod
 fakeret

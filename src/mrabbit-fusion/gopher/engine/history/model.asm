@@ -8,7 +8,7 @@ historyBlock:
 .host      ds  64
 .port      ds  6
 .search    ds  #ff
-.position  dw  #00
+.position  dw  #0000
 
 historyBlockSize = $ - historyBlock
 

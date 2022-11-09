@@ -36,7 +36,7 @@ inputBox:
 
 
 delayinput:
-   ld b, 2
+   ld b, 6
 .loop2
     halt
     djnz .loop2

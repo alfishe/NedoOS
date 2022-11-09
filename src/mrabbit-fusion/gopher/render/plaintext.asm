@@ -20,12 +20,11 @@ renderPlainTextScreen:
 plainTextLoop:
     call Console.getC
 
-    cp '6' : jp z, cursorDown
-    cp '3' : jp z, cursorDown
-    cp '4' : jp z, cursorUp
-    cp '7' : jp z, cursorUp
-    cp '5' : jp z, navigate
     cp '1' : jp z, History.back
+    cp '2' : jp z, navigate
+    cp '5' : jp z, textUp
+    cp '8' : jp z, textDown
+
 
     cp Console.KEY_DN : jp z, textDown
     cp 'a' : jp z, textDown

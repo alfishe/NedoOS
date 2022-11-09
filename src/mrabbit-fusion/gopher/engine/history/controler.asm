@@ -81,10 +81,6 @@ navigate:
     jp load
 
 homePage:
-	IFNDEF NEDOOS
-    db "1Home", TAB, "index.gph"
-	ELSE
     db "1Home", TAB, "browser/index.gph"
-	ENDIF
     db TAB, "file", TAB, "70", CR, LF, 0
     endmodule

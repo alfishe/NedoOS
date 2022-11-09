@@ -30,16 +30,17 @@ workLoop:
     call Console.peekC
     and a : jr z, .nothing
 
-    cp Console.KEY_DN : jp z, cursorDown
-    cp 'a' : jp z, cursorDown
-
-    cp '6' : jp z, cursorDown
+    cp '1' : jp z, History.back
+    cp '2' : jp z, navigate
     cp '3' : jp z, cursorDown
     cp '4' : jp z, cursorUp
+    cp '5' : jp z, pageUp
+    cp '8' : jp z, pageDn
+    cp '6' : jp z, cursorDown
     cp '7' : jp z, cursorUp
-    cp '5' : jp z, navigate
-    cp '1' : jp z, History.back
 
+    cp Console.KEY_DN : jp z, cursorDown
+    cp 'a' : jp z, cursorDown
     cp Console.KEY_UP : jp z, cursorUp
     cp 'q' : jp z, cursorUp
     cp Console.KEY_LT : jp z, pageUp

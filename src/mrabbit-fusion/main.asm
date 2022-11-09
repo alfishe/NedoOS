@@ -38,7 +38,6 @@ asmOrg:
     include "player/vortexnedoos.asm"
     ENDIF
 start:
-	align 256 ;временно
 	IFNDEF NEDOOS
 outputBuffer:
     di
@@ -57,7 +56,7 @@ outputBuffer:
     pop af
     call Dos.fclose
 
-    ld b, 150 
+    ld b, 50 
 1   halt 
     djnz 1b
     ;; End of logo :-)
@@ -77,12 +76,8 @@ outputBuffer:
 	ENDIF
 
 initing db "Initing Wifi...", CRLF, 0
-logo    db  "logo.scr", 0
-    IFDEF NEDOOS
-creds   db  "browser/auth.p", 0
-    ELSE
-creds   db  "auth.p", 0
-    ENDIF
+logo    db "browser/logo.scr", 0
+creds   db "browser/auth.pwd", 0
 
     display "ENDS: ", $
     display "Buff size", #ffff - $
