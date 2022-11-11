@@ -24,7 +24,8 @@ plainTextLoop:
     cp '2' : jp z, navigate
     cp '5' : jp z, textUp
     cp '8' : jp z, textDown
-
+    cp Console.KEY_LT : jp z, textUp
+    cp Console.KEY_RT : jp z, textDown
 
     cp Console.KEY_DN : jp z, textDown
     cp 'a' : jp z, textDown
@@ -58,14 +59,31 @@ plainTextLoop:
 
 
 textDown:
-    ld a, (page_offset) : add PER_PAGE : ld (page_offset), a
+    ;ld a, (page_offset) : add PER_PAGE : ld (page_offset), a
+    ld hl,(page_offset)
+    ld de,PER_PAGE
+    add hl,de
+    ld (page_offset), hl
     call renderPlainTextScreen
     jp plainTextLoop
 
 textUp:
-    ld hl, page_offset 
-    ld a, (hl) : and a : jp z, plainTextLoop
+    ;ld hl, page_offset 
+    ;ld a, (hl) : and a : jp z, plainTextLoop
+    ld a, (page_offset) : cp 0 : jr nz, .textUp2
+    ld a, (page_offset + 1) : cp 0 : jr nz, .textUp2
+    jp plainTextLoop
+
+.textUp2:
+    ld hl,(page_offset)
+    ld de,PER_PAGE
+    sbc hl,de
+    ld (page_offset), hl
+    call renderPlainTextScreen
+    jp plainTextLoop    
+    
+/*    
     sub PER_PAGE : ld (hl), a
     call renderPlainTextScreen
     jp plainTextLoop
-    
+*/    

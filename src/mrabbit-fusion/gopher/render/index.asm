@@ -9,8 +9,9 @@ CURSOR_OFFSET = 2
 
 play_next       db  0
 position        EQU historyBlock.position
-cursor_position EQU position + 1
-page_offset     EQU position
+cursor_position EQU position + 2
+page_offset     EQU position + 4
+
     ENDMODULE
 
     include "dialogbox.asm"

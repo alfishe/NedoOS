@@ -118,9 +118,20 @@ cursorUp:
     jp checkBorder
 
 pageUp:
-    ld a, (page_offset) : and a : jr z, .skip
+    ld a, (page_offset) : cp 0 : jr nz, .pageUp2
+    ld a, (page_offset + 1) : cp 0 : jr nz, .pageUp2
+    jr .skip
+    ;ld a, (page_offset) : and a : jr z, .skip
+    ;ld a, PER_PAGE - 1 : ld (cursor_position), a
+    ;ld a, (page_offset) : sub PER_PAGE : ld (page_offset), a
+    ;ld hl, (page_offset)
+
+.pageUp2:    
     ld a, PER_PAGE - 1 : ld (cursor_position), a
-    ld a, (page_offset) : sub PER_PAGE : ld (page_offset), a
+    ld hl, (page_offset)
+    ld de,PER_PAGE
+    sbc hl,de
+    ld (page_offset), hl
 .exit
     call renderGopherScreen
     jp workLoop
@@ -128,6 +139,16 @@ pageUp:
     xor a : ld (cursor_position), a : call renderGopherScreen : jp workLoop
 
 pageDn:
-    xor a : ld (cursor_position), a 
-    ld a, (page_offset) : add PER_PAGE : ld (page_offset), a
-    jr pageUp.exit
+    ;xor a : ld (cursor_position), a 
+    ;ld a, (page_offset) : add PER_PAGE : ld (page_offset), a
+    ;jr pageUp.exit
+    
+    xor a : ld (cursor_position), a
+    ld hl,(page_offset)
+    ld de,PER_PAGE
+    add hl,de
+    ld (page_offset), hl
+    jp pageUp.exit
+
+
+
