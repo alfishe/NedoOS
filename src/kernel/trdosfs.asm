@@ -499,6 +499,25 @@ trdos_rename_0
         ld e,a
         ld bc,9
         ldir
+       dec hl
+       ld a,[hl]
+       inc hl
+       cp 'B'
+       jr nz,trdos_rename_nobasic
+       inc de
+       inc de
+       ld a,[de] ;length LSB
+       inc de
+       ex af,af' ;'
+       ld a,[de] ;length HSB
+       dec de
+       dec de
+       ld [de],a ;start HSB
+       ex af,af' ;'
+       dec de
+       ld [de],a ;start LSB
+       jr trdos_rename_basicq
+trdos_rename_nobasic
         ld a,(de) ;block # + ext[1]
 trdos_rename_ext1diff=$+1
         sub 0
@@ -507,6 +526,7 @@ trdos_rename_ext1diff=$+1
         inc de
         ld a,(hl)
         ld (de),a ;newext[2]
+trdos_rename_basicq
          pop bc
 	ld d,0 ;track
 	ld a,8

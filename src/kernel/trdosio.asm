@@ -409,8 +409,21 @@ flushdesc.
 	pop bc ;track,sector of descriptor
 	pop de ;poi to descriptor
 	pop hl ;poi to TRDOSFCB
-	ld l,TRDOSFCB.fn
 	push bc ;track,sector of descriptor
+       ld l,TRDOSFCB.fn+8
+       ld a,[hl]
+       cp 'B'
+       jr nz,flushdesc_nobasic
+       ld l,TRDOSFCB.fn+12
+       ld b,[hl]
+       dec hl
+       ld c,[hl] ;length
+       dec hl
+       ld [hl],b
+       dec hl
+       ld [hl],c ;start for basic
+flushdesc_nobasic
+	ld l,TRDOSFCB.fn
 	ld bc,16
 	ldir
 	pop de ;track,sector of descriptor
