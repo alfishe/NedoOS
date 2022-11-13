@@ -5,7 +5,17 @@ renderGopherScreen:
     push bc
     ld a, PER_PAGE : sub b
     
-    ld b, a, e, a, a, (page_offset) : add b : ld b, a : call findLine
+    ld b, a
+    ld e, a
+    ld a, (page_offset)
+    add b
+    ld c, a
+    ld b,0
+    push de
+    call findLine
+    pop de
+    
+    
     ld a, h : or l : jr z, .exit
     ld a, e : call renderRow
 .exit
@@ -28,7 +38,7 @@ workLoop:
     edup
 .nothing
     call Console.peekC
-    and a : jr z, .nothing
+    and a : jp z, .nothing
 
     cp '1' : jp z, History.back
     cp '2' : jp z, navigate
@@ -77,7 +87,16 @@ navigate:
     xor a : ld (play_next), a
     
     call hideCursor
-    ld a, (page_offset), b, a, a, (cursor_position) : add b : ld b, a : call Render.findLine
+test001:
+;    ld a, (page_offset), b, a, a, (cursor_position) : add b : ld b, a : call Render.findLine
+    ld bc, (page_offset)
+    ld hl, (cursor_position)
+    add hl,bc
+    ld b, h ;HHHHH
+    ld c, l ;LLLLL
+    push de
+    call Render.findLine
+    pop de
     ld a, (hl)
     cp '1' : jp z, .load
     cp '0' : jp z, .load
@@ -95,7 +114,7 @@ navigate:
     call DialogBox.inputBox
     pop hl
     ld a, (DialogBox.inputBuffer) : and a : jp z, History.load
-    jr .load
+    jp .load
 
 showCursor:
     ld a, (cursor_position) : add CURSOR_OFFSET
@@ -118,14 +137,9 @@ cursorUp:
     jp checkBorder
 
 pageUp:
-    ld a, (page_offset) : cp 0 : jr nz, .pageUp2
-    ld a, (page_offset + 1) : cp 0 : jr nz, .pageUp2
-    jr .skip
-    ;ld a, (page_offset) : and a : jr z, .skip
-    ;ld a, PER_PAGE - 1 : ld (cursor_position), a
-    ;ld a, (page_offset) : sub PER_PAGE : ld (page_offset), a
-    ;ld hl, (page_offset)
-
+    ld a, (page_offset) : cp 0 : jp nz, .pageUp2
+    ld a, (page_offset + 1) : cp 0 : jp nz, .pageUp2
+    jp .skip
 .pageUp2:    
     ld a, PER_PAGE - 1 : ld (cursor_position), a
     ld hl, (page_offset)
@@ -139,11 +153,7 @@ pageUp:
     xor a : ld (cursor_position), a : call renderGopherScreen : jp workLoop
 
 pageDn:
-    ;xor a : ld (cursor_position), a 
-    ;ld a, (page_offset) : add PER_PAGE : ld (page_offset), a
-    ;jr pageUp.exit
-    
-    xor a : ld (cursor_position), a
+     xor a : ld (cursor_position), a
     ld hl,(page_offset)
     ld de,PER_PAGE
     add hl,de

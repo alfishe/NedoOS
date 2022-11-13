@@ -14,8 +14,11 @@ waitForKeyUp:
    ret
 
 getC:
+   xor a
+   ld (BASIC_KEY),a
+getC2:
    ld a,(BASIC_KEY)
-   and a : jr z, getC
+   and a : jr z, getC2
    ld b,a
    xor a : ld (BASIC_KEY), a
    ld a, b

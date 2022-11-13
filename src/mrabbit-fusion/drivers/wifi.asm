@@ -176,7 +176,7 @@ getPacket:
     ld bc, hl
     ld hl, (buffer_pointer)
 .readp
-    ld a, h : cp #c0 : jp nc, .skipbuff
+    ld a, h : cp #fe : jp nc, .skipbuff
     push bc, hl
     call Uart.read
     pop hl, bc

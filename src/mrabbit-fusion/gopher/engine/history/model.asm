@@ -8,7 +8,9 @@ historyBlock:
 .host      ds  64
 .port      ds  6
 .search    ds  #ff
-.position  dw  #0000
+.position  dw  #0000    ;position
+    
+    db 0,0,0,0,0,0  ;cursor_position page_offset
 
 historyBlockSize = $ - historyBlock
 

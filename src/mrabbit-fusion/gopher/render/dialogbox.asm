@@ -12,7 +12,7 @@ inputBox:
     call Console.getC
     cp Console.BACKSPACE : jr z, .removeChar
    
-   call delayinput
+  
    cp CR : ret z
        
     cp SPACE : jr c, .checkkey
@@ -36,7 +36,7 @@ inputBox:
 
 
 delayinput:
-   ld b, 6
+   ld b, 50
 .loop2
     halt
     djnz .loop2

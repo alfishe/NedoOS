@@ -10,8 +10,8 @@
         org 24576
     ENDIF
 asmOrg:
+    align 256 ;временно
     jp start
-    
 ; Generate version string
     LUA ALLPASS
     v = tostring(sj.get_define("V"))

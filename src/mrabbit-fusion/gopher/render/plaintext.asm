@@ -4,9 +4,17 @@ renderPlainTextScreen:
 .loop
     push bc
     ld a, PER_PAGE : sub b
-    
-    ld b, a, e, a, a, (page_offset) : add b : ld b, a : call Render.findLine
-    ld a, h : or l : jr z, .exit
+    ld b,a
+    ld e,a
+    ld c,b
+    ld b,0
+    ld hl, (page_offset)
+    add hl,bc
+    ld bc,hl
+    push de
+    call Render.findLine
+    pop de
+    ld a, h : or l : jp z, .exit
     ld a, e
     add CURSOR_OFFSET : ld d, a, e, 1 : call TextMode.gotoXY
     call print70Text
@@ -59,7 +67,6 @@ plainTextLoop:
 
 
 textDown:
-    ;ld a, (page_offset) : add PER_PAGE : ld (page_offset), a
     ld hl,(page_offset)
     ld de,PER_PAGE
     add hl,de
@@ -68,8 +75,6 @@ textDown:
     jp plainTextLoop
 
 textUp:
-    ;ld hl, page_offset 
-    ;ld a, (hl) : and a : jp z, plainTextLoop
     ld a, (page_offset) : cp 0 : jr nz, .textUp2
     ld a, (page_offset + 1) : cp 0 : jr nz, .textUp2
     jp plainTextLoop
@@ -82,8 +87,28 @@ textUp:
     call renderPlainTextScreen
     jp plainTextLoop    
     
-/*    
-    sub PER_PAGE : ld (hl), a
-    call renderPlainTextScreen
-    jp plainTextLoop
-*/    
+
+    /*
+    .loop
+    push bc
+    ld a, PER_PAGE : sub b
+    ld b, a
+    ld e, a
+    ld a, (page_offset)
+    add b
+    ld b, a
+    
+        ld c,b
+        ld b,0
+    push de
+    call Render.findLine
+    pop de
+    ld a, h : or l : jr z, .exit
+    ld a, e
+    add CURSOR_OFFSET : ld d, a, e, 1 : call TextMode.gotoXY
+    call print70Text
+    pop bc 
+    djnz .loop
+    ret
+.exit
+*/
