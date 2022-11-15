@@ -1,57 +1,53 @@
-# Moon Rabbit - gopher browser(version for ZX Spectrum-compatible machines)
+Релиз 15.11.2022:
+ - Обновлен trdos.asm до версии 14.11.2022
+ - Увеличен буфер для nedoNET версии
+Релиз 14.11.2022:
+ - Обновлен trdos.asm
+Релиз 13.11.2022:
+ - Обновлен драйвер trdos.asm, теперь  сохраняем TRD и SCL на дискеты
+ - Для UART версий передвинут вверх конец буфера с 0xC000 на 0хFE00
+ - Полностью переделана работа со строками на 16 бит указатель, алгоритм работы MR такой, чем больше номер строки - тем дольше она рисуется
+Релиз 12.11.2022:
+ - добавлена очистка буфера клавиатуры перед новым чтением(стандартная консоль).
+ - Переписаны вызовы поиска строки под 16 битный номер. findLine все еще 8 битная
+ - Убрана задержка  при вводе данных, бесполезная
+Релиз 09.11.2022:
+ - Исправлена ошибка в nedoWiFi приводившая к зависанию при попытке загрузить страницу  большую чем есть памяти, теперь аварийно завершаем процесс если память кончилась.
+ - Изменена раскладка навигации в plain-text
+ - Уменьшенна задержка отображения лого
+ - Исправлена ошибка в новой навигации по plain-text
+ - Обновлен trdos.asm
+Релиз 05.11.2022:
+ - Добавлена задержка опроса кнопок в  диалоговых окнах, должно помочь предотвращать двойные нажатия.
+ - Продублирована навигация на Синклер джойстик
+ - Переработан интерфейс, теперь в него влезают 22 строки. Пришлось отказаться от копирайтов  и полного названия в заголовке
+ - Инверсия цветов  по кнопке 'T' для TIMEX80
+ - Для страницы с простым текстом добавлена возможность вводить адрес страницы как и для гофер.
+ - Авторизация/инициализация включается ключом -DAUTH при сборке *
+ - Добавлена возможность добавления пользовательской строки инициализации для драйвера ESP. Можно добавить подключение к АP, нужно добавить в файл auth.p строку  подключения (AT+CWJAP="SSID","drowssap")
+ - Для режима 64 колонки  добавлена возможность использовать  все 64 колонки, для TIMEX80 все 85 колонок
+ - Для не ZX-UNO машин используем порт 0xEFF7 для управления Timex Hi-Res режимом
+ - Добавлен новый таргет TR-UN-64 (например,Карабас-Про)
 
-## Important notice!
+Поддержка OS:
+ - TR-DOS
+ - nedoOS
+Поддержка экранов:'ktvtynfhyj -
 
-All traffic on MB03+ target goes currently via my personal proxy-server(it splits data by chunks and send it to your computer and don't make anything else). You can check proxy sources [here](https://github.com/nihirash/spectrum-next-gopher-proxy) 
+ - 6912     64 колонки
+ - TIMEX80  85 колонок
+ - nedoOS   80 колонок
+Поддержка сети:
+ - ESP на ATM ком-порт
+ - ESP на EVO ком-порт
+ - ESP на UNO ком-порт
+ - ESP на  AY ком-порт
+ - ZXNETUSB (nedoOS)
+ - карта ZX-Wifi от izzx
+*По умолчанию строка подключения к AP  установлена как "AT". При необходимости заменить ее на актуальную. По идее AT+CWJAP нужно устаноыить только 1 раз, после ESP запомнит точку.
+Для АТМ:     38400,8N2 AFC
+Для EVO:     38400,8N1
+Для ZX-WIFI: 115200,8N1
+Для AY:       9600
+Для UNO:      Н/Д
 
-I don't store any data but You should know about it.
-
-But later I'll add possibility use your own proxy server without need to recompile sources. If it's very important for you - say me about it and I'll do it sooner. If you want change proxy to your own now - please edit file `proxy.asm` in `drivers` directory(just replace myown IP address with your). 
-
-Why I did it? Cause MB03+'s uart doesn't have flow control and current ESP's firmware sends data to speccy as soon as it received without keeping it in buffer. So, sometimes it ends with data losing. To prevent data losing I did very small proxy that helps us to receive data.
-
-## Development
-
-To compile project all you need is [sjasmplus](https://github.com/z00m128/sjasmplus).
-
-You may use or not use GNU Make. But GNU Makes allows make build easier.
-
-For building version without GNU make you should execute: 
-
-For MB03+:
-
-```
-sjasmplus main.asm -DPROXY -DMB03 -DGS -DTIMEX
-```
-
-For ZXUno:
-
-```
-sjasmplus main.asm -DUNO -DTIMEX
-```
-
-## Usage
-
-Put on SD-card `moonr.bas`, `moon.bin` and `data/` directory to same level.
-
-Make sure that you have preconnected ESP-module to wifi. Execute `moonr.bas` and enjoy.
-
-Remark for ZX-Uno users: it requires enabled "new graphics modes"
-
-~Remark for MB03+ users: I haven't real device. All development made in "blind" mode~
-
-UPD: I've got it. It's really ultimate.
-
-## Sponsorship
-
-Github sponsorship isn't available for Russia.
-
-You can support my work via PayPal(attached email written in [LICENSE file](LICENSE)).
-
-Thank you.
-
-## License
-
-I've licensed project by [Nihirash's Coffeeware License](LICENSE).
-
-Please respect it - it isn't hard.

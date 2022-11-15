@@ -2,8 +2,6 @@
 del /Q moon.com
 del /Q moonua.com
 del /Q moonue.com
-
-
 "../../tools\mingw\make.exe" nedoosevo
 ren  moon.com moonue.com
 "../../tools\mingw\make.exe" nedoosatm
