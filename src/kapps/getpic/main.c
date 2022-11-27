@@ -17,7 +17,7 @@ unsigned char picName[255];
 unsigned char picYear[8];
 unsigned char picRating[8];
 unsigned char crlf[2] = {13, 10};
-unsigned int bytecount;
+unsigned long bytecount;
 unsigned char status, key;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -159,13 +159,13 @@ unsigned int tcpRead(unsigned char socket)
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
   readStruct.protocol = SOCK_STREAM;
-
 wizread:
   todo = OS_WIZNETREAD(&readStruct);
   err = todo & 255;
   if (todo > 32767)
   {
     YIELD();
+  if (bytecount == 0) return 0;
     retry--;
     if (retry == 0)
     {
@@ -197,8 +197,9 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
 
-    contLen = atol(count + 15); // 1.1
-    // printf ("Found at count %u   Dlinna  soderzhimogo = %lu \n\r", count, contLen);
+    contLen = atol(count + 15);
+	  bytecount = contLen;
+    //printf ("Dlinna  soderzhimogo = %lu \n\r", bytecount);
   }
 
   count = strstr(netbuf, "\r\n\r\n");
@@ -240,10 +241,11 @@ void fillPicture(unsigned char socket)
 
   headskip = 0;
   pPos = 0;
+  bytecount = 255;
   while (1)
   {
-    todo = tcpRead(socket);
-    if (todo == 0)
+      todo = tcpRead(socket);
+	if (todo == 0)
     {
       break;
     }
@@ -257,7 +259,8 @@ void fillPicture(unsigned char socket)
     {
       picture[w + pPos] = netbuf[w];
     }
-    if (pPos > sizeof(picture))
+      bytecount = bytecount - q;
+      if (pPos > sizeof(picture))
     {
       printf("Picture overrun... \n\r");
       break;
@@ -454,7 +457,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   unsigned char cmdlist3[] = "\/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
-  unsigned long idpic, bytecount;
+  unsigned long idpic;
   retry = 5;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
@@ -516,13 +519,16 @@ C_task main(void)
   unsigned char errno, keypress;
   unsigned long iddqd, count, ipadress;
   os_initstdio();
-
+  
+  count = 0;
+  
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
-
+  ATRIB(97);
+  ATRIB(40);
+  printf("              GETPIC 1.4 zxart.ee picture viewer for nedoNET\n\r");
   ATRIB(33);
   ATRIB(40);
-  count = 0;
   printf(" Управление:\n\r");
   printf("	'ESC' - выход из программы;\n\r");
   printf("	'<-' или 'B' к последним картинкам;\n\r");
@@ -530,20 +536,23 @@ C_task main(void)
   printf("	'J' Прыжок на  указанную по счету картинку,<15000\n\r");
   printf("	'I' Просмотр экрана информации о картинках\n\r");
   printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
-  printf("	-------------------------------------------------");
+  printf("	----------------Нажмите любую кнопку----------------");
+
+//  ipadress = OS_DNSRESOLVE(44);
+//  printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
 
   do
   {
     key = _low_level_get();
   } while (key == 0);
 
-  AT(1, 9);
+  AT(1, 10);
 
 start:
   iddqd = processJson(count, 1);
-  ATRIB(37);
+  ATRIB(97);
   printf("#:%lu ID:%s	TITLE:%s\r\n", count, picId, picName);
-  ATRIB(33);
+  ATRIB(93);
   printf(" RATING:%s	YEAR:%s \r\n", picRating, picYear);
 
   if (!strcmp(picType, "standard"))
