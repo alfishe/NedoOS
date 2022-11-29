@@ -17,17 +17,17 @@ uvscroll_prepare
 
         jp uvscroll_gencall
 
-       if 0
+       if UVSCROLL_USETILES
 uvscroll_preparetiles
 ;tile gfx
         OS_NEWPAGE
         ld a,e
         ld (pgtilegfx),a
-        SETPG32KLOW
+        SETPG8000
         OS_NEWPAGE
         ld a,e
         ld (pgtilegfx2),a
-        SETPG32KHIGH
+        SETPGC000
 
         ld de,tilebmpfilename
         call openstream_file
@@ -79,7 +79,7 @@ uvscroll_preparetilemap
         OS_NEWPAGE
         ld a,e
         ld (pgmetatilemap),a
-        SETPG32KHIGH
+        SETPGC000
 
         ld de,tilemapfilename
         call openstream_file
@@ -226,7 +226,7 @@ uvscroll_showmetatilemap0
 
         push hl
         ld a,(pgmetatilemap)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,bgpush_bmpbuf;TILEMAP
         push hl
         ld b,UVSCROLL_WID/16
@@ -276,6 +276,7 @@ uvscroll_gettilemapline0
 	ret
         endif
 
+       if UVSCROLL_USEBMP
 uvscroll_preparebmp
 ;de=filename
         call openstream_file
@@ -307,6 +308,7 @@ uvscroll_ldbmp0_nonextpg
         or c
         jr nz,uvscroll_ldbmp0
         call closestream_file
+       endif
 uvscroll_restorememmap
         call RestoreMemMap3
         jp setpgsmain40008000
@@ -316,7 +318,7 @@ uvscroll_setscroll
 ;de=x
         srl d
         rr e
-       ld bc,200-1
+       ld bc,SCRHGT-1;200-1
        add hl,bc
         ld a,h
         cpl
@@ -344,7 +346,7 @@ uvscroll_scroll
         pop af
         jp uvscroll_scroll_y
 
-       if 0
+       if UVSCROLL_USETILES
 uvscroll_scrolltiles
 ;scroll by metatile
 ;hx=delta y (>0: go up)
@@ -829,7 +831,7 @@ uvscroll_scroll_y_minus
          ;ld hl,0 ;сбивает фазу относительно allscroll!
         jr uvscroll_scroll_y_q
 
-       if 0
+       if UVSCROLL_USETILES
 ;процедура скроллинга буфера tilemap (содержит номера тайлов в видимой части карты, снизу вверх, справа налево)
 uvscroll_scrolltilemap
 ;hx=delta y (>0: go up)
@@ -992,7 +994,7 @@ uvscroll_filltilemap_line
 ;hl=metatilemap+
 pgmetatilemap=$+1
         ld a,0
-        SETPG32KHIGH
+        SETPGC000
         push de
         ld bc,TILEMAPWID/2
 uvscroll_filltilemap_line0
@@ -1011,7 +1013,7 @@ uvscroll_filltilemap_column
 ;de=tilemap+
 ;hl=metatilemap+
         ld a,(pgmetatilemap)
-        SETPG32KHIGH
+        SETPGC000
         push de ;tilemap+
         ld de,METATILEMAPWID
         exx
@@ -1046,7 +1048,7 @@ uvscroll_suddennextgfxpg
         inc hl
         inc hl
         ld a,(hl) ;gfx pages
-        SETPG32KLOW
+        SETPG8000
         exx
         ld hx,uvscroll_pushbase/256-1
         jp uvscroll_pushbase;(ix)
@@ -1061,7 +1063,7 @@ uvscroll_nextgfxpg
         inc hl
         inc hl
         ld a,(hl) ;gfx pages
-        SETPG32KLOW
+        SETPG8000
         exx
         ld hx,uvscroll_pushbase/256
         jp (ix)
@@ -1072,7 +1074,7 @@ uvscroll_nextgfxpg
 uvscroll_genpush
        push ix
         call genpush_newpage ;заказывает страницу, заносит в tpushpgs, a=pg
-        SETPG32KLOW
+        SETPG8000
         ld hl,uvscroll_pushbase
         ld bc,UVSCROLL_HGT
 uvscroll_genpush0
@@ -1131,7 +1133,7 @@ uvscroll_nnnext_last_sp=$+1
         ld sp,0 ;надо две копии для рисования 0..39 или 1..40 столбцов (sp+1) *2 копии для +0/0x2000 - копии можно разместить в тех же страницах, но с другими L адресами
 uvscroll_nnnext_last_pg=$+1
         ld a,0 ;следующая страница вызывалки
-        SETPG32KHIGH ;сама себя заменяет!!!
+        SETPGC000 ;сама себя заменяет!!!
         inc hx ;адрес следующего ldpush
         ld h,uvscroll_callbase/256+1 ;адрес следующего nnnext_i
         jp (ix)
@@ -1149,7 +1151,7 @@ uvscroll_nnnext_last_sz=$-uvscroll_nnnext_last
 uvscroll_gencall
         ld ix,tcallpgs
         call uvscroll_gencall_newpage ;заказывает страницу, заносит в tpushpgs, a=pg
-        SETPG32KHIGH
+        SETPGC000
         ;ld l,0x00
         call uvscroll_gencall_startpage
         ld de,UVSCROLL_SCRSTART+(UVSCROLL_SCRWID/8)        
@@ -1179,7 +1181,7 @@ uvscroll_gencall0
         pop de
 
         pop af
-        SETPG32KHIGH
+        SETPGC000
         call uvscroll_gencall_startpage
         jr uvscroll_gencall_nonewpgq
 uvscroll_gencall_nonewpg
@@ -1222,7 +1224,7 @@ uvscroll_gencall_end0
 ;в последней странице (ix-1) не хватает блока pgend
 ;скопируем его из предыдущей страницы
         ld a,(ix-2)
-        SETPG32KHIGH
+        SETPGC000
         ld hl,uvscroll_callbase+0x3f00
         ld de,bgpush_bmpbuf
         ld bc,256
@@ -1231,7 +1233,7 @@ uvscroll_gencall_end0
         push hl
         ldir
         ld a,(ix-1)
-        SETPG32KHIGH
+        SETPGC000
         pop de
         pop hl
         pop bc
@@ -1364,7 +1366,7 @@ allscroll_lsb=$+1
         sub l
         ld h,a
         ld a,(hl)
-        SETPG32KHIGH
+        SETPGC000
         exx ;hl'=список страниц графики =f((x2scroll+layer)&3 + ((yscroll/64)*4))
          ld a,e ;yscroll (corrected для зацикливания)
         or 0xc0
@@ -1392,7 +1394,7 @@ uvscroll_patcher0
         inc hl
         inc hl
         ld a,(hl)
-        SETPG32KHIGH
+        SETPGC000
         exx
         ld h,0xc0
         ld a,e
@@ -1447,9 +1449,9 @@ uvscroll_callpp_noxcycled
         sub l
         ld h,a
         ld a,(hl) ;gfx pages
-        SETPG32KLOW
+        SETPG8000
       ld a,(tcallpgs)
-      SETPG32KHIGH
+      SETPGC000
         exx
         ld a,e ;yscroll (corrected для зацикливания)
         and 63
@@ -1542,7 +1544,7 @@ uvscroll_endofscreen_sp=$+1
         sub l
         ld h,a
         ld a,(hl)
-        SETPG32KHIGH
+        SETPGC000
         exx ;hl'=список страниц графики =f((x2scroll+layer)&3 + ((yscroll/64)*4))
          ld a,e ;yscroll (corrected для зацикливания)
         or 0xc0
@@ -1577,7 +1579,7 @@ uvscroll_columndrawer0
         inc hl
         inc hl
         ld a,(hl)
-        SETPG32KHIGH
+        SETPGC000
         exx
         ld d,0xc0;h,0xc0
         ld a,lx
@@ -1598,7 +1600,7 @@ uvscroll_columndrawer_patch1=$+1
         jp uvscroll_columndrawer
         endif
 
-       if 0
+       if UVSCROLL_USETILES
         macro DRAWTILELAYERDOWN
         dup 7
         ld a,(bc)
@@ -1678,11 +1680,11 @@ drawtiles_hor_block
 ;^^^делать SETPG один раз для горизонтальной линии тайлов и 1 раз за 8 тайлов для вертикальной линии тайлов (8 тайлов не может вылететь за вторую страницу, т.к. мы рисуем всегда с ровного X/8=x/64)
 ;выводить линию тайлов: сначала весь первый слой, потом весь второй и т.д.
         ld a,(pgtilegfx) ;TODO по зоне
-        SETPG32KHIGH
+        SETPGC000
         ld a,(ix)
-        SETPG16K
+        SETPG4000
         ld a,(ix+4)
-        SETPG32KLOW
+        SETPG8000
 drawtiles_hor_block_tilegfx=$+1
         ld b,TILEGFX/256 ;+0x08, если Y=y/8 нечётное
          push bc
@@ -1692,9 +1694,9 @@ drawtiles_hor_block_tilegfx=$+1
         pop hl
         pop de
         ld a,(ix+1)
-        SETPG16K
+        SETPG4000
         ld a,(ix+5)
-        SETPG32KLOW
+        SETPG8000
          pop bc
          push bc
          set 5,b
@@ -1704,11 +1706,11 @@ drawtiles_hor_block_tilegfx=$+1
         pop hl
         pop de
         ld a,(pgtilegfx2) ;TODO по зоне
-        SETPG32KHIGH
+        SETPGC000
         ld a,(ix+2)
-        SETPG16K
+        SETPG4000
         ld a,(ix+6)
-        SETPG32KLOW
+        SETPG8000
          pop bc
          push bc
         push de
@@ -1717,9 +1719,9 @@ drawtiles_hor_block_tilegfx=$+1
         pop hl
         pop de
         ld a,(ix+3)
-        SETPG16K
+        SETPG4000
         ld a,(ix+7)
-        SETPG32KLOW
+        SETPG8000
          pop bc
          set 5,b
 drawtiles_hor_layer
@@ -1835,38 +1837,38 @@ drawtiles_ver_block
 ;^^^делать SETPG один раз для горизонтальной линии тайлов и 1 раз за 8 тайлов для вертикальной линии тайлов (8 тайлов не может вылететь за вторую страницу, т.к. мы рисуем всегда с ровного X/8=x/64)
 ;выводить линию тайлов: сначала весь первый слой, потом весь второй и т.д.
         ld a,(pgtilegfx) ;TODO по зоне
-        SETPG32KHIGH
+        SETPGC000
         ld a,(ix)
-        SETPG16K
+        SETPG4000
         ld a,(ix+4)
-        SETPG32KLOW
+        SETPG8000
 drawtiles_ver_block_tilegfx=$+1
         ld h,TILEGFX/256 ;+0x10, если X=x/8 нечётное
         ld l,d
         call drawtiles_ver_layer
         dec hy
         ld a,(ix+1)
-        SETPG16K
+        SETPG4000
         ld a,(ix+5)
-        SETPG32KLOW
+        SETPG8000
          set 5,h
         ld d,l
         call drawtiles_ver_layer
         dec hy
         ld a,(pgtilegfx2) ;TODO по зоне
-        SETPG32KHIGH
+        SETPGC000
         ld a,(ix+2)
-        SETPG16K
+        SETPG4000
         ld a,(ix+6)
-        SETPG32KLOW
+        SETPG8000
          res 5,h
         ld d,l
         call drawtiles_ver_layer
         dec hy
         ld a,(ix+3)
-        SETPG16K
+        SETPG4000
         ld a,(ix+7)
-        SETPG32KLOW
+        SETPG8000
          set 5,h
         ld d,l
 drawtiles_ver_layer

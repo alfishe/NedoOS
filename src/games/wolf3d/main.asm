@@ -69,11 +69,11 @@ begin
         ;ld (pgmusic),a
         ;call setpgsmain40008000
         ;ld a,(pgscalersnum)
-        ;SETPG32KHIGH
+        ;SETPGC000
         ;OS_NEWPAGE
         ;ld a,e
         ;ld (pgmuznum),a
-        ;SETPG32KLOW
+        ;SETPG8000
         ld hl,wasmuz
         ld de,muz
         ld bc,wasmuz_sz
@@ -85,24 +85,24 @@ begin
         ld (pgsfx),a
         call loadpage
         ld (pgmusic),a
-        SETPG16K
+        SETPG4000
         
 ;это относится к загрузке уровня
         push af
         call 0x4000 ;init
         
         ld a,(pgsfx)
-        SETPG32KLOW
+        SETPG8000
         pop af
         ld hl,0x4005 ;play
         OS_SETMUSIC
         call setpgsmain40008000
         ld a,(pgscalersnum)
-        SETPG32KHIGH
+        SETPGC000
        endif
         
         ;pop af ;LD a,(pg8000)
-        ;SETPG32KLOW
+        ;SETPG8000
 
         OS_NEWPAGE
         ld a,e
@@ -190,7 +190,7 @@ getttexpgs0
         
         push de
         ld a,e
-        SETPG16K
+        SETPG4000
         ld de,texfilename
         OS_OPENHANDLE
         push bc
@@ -280,8 +280,9 @@ retlogd2sca0
         ;call shutay        
 pgmusic=$+1
         ld a,0
-        SETPG16K
-        ld hl,0x4008+3 ;stop
+        SETPG4000
+        halt
+        ld hl,0x4000;0x4008+3 ;stop
         OS_SETMUSIC
         halt
         QUIT
@@ -289,35 +290,35 @@ pgmusic=$+1
 setpgsmain40008000
 pgmain4000=$+1
         ld a,0
-        SETPG16K
+        SETPG4000
 pgmain8000=$+1
         ld a,0
-        SETPG32KLOW
+        SETPG8000
         ret
 
         if 1==0
 setpgsscr40008000_current
         call getuser_scr_low_cur
-        SETPG16K
+        SETPG4000
         call getuser_scr_high_cur
-        SETPG32KLOW
+        SETPG8000
         ret
 
 setpgsscr40008000
         call getuser_scr_low
-        SETPG16K
+        SETPG4000
         call getuser_scr_high
-        SETPG32KLOW
+        SETPG8000
         ret
 
 setpgscrlow4000
         call getuser_scr_low
-        SETPG16K
+        SETPG4000
         ret
 
 setpgscrhigh4000
         call getuser_scr_high
-        SETPG16K
+        SETPG4000
         ret
         endif
 
@@ -410,7 +411,7 @@ ldpgrecodebmp
         push bc
         OS_NEWPAGE
         ld a,e
-        SETPG16K
+        SETPG4000
         pop bc ;b=handle
         push de
         
@@ -483,7 +484,7 @@ ttexpgs
 setpgmap4000
 pgmapnum=$+1
         ld a,0
-        SETPG16K
+        SETPG4000
         ret
 
 swapimer
@@ -554,11 +555,11 @@ curpalette=$+1
         push af
 pgmuznum=$+1
         ld a,0
-        SETPG32KLOW
+        SETPG8000
         call muz+6
         ;TODO music + sound effects in OS_SETMUSIC
         pop af
-        SETPG32KLOW
+        SETPG8000
        endif
         
         call oldimer ;ei
@@ -603,7 +604,7 @@ sfxplay
         push af
 pgsfx=$+1
         ld a,0
-        SETPG32KLOW
+        SETPG8000
         pop af
         jp 0x8000 ;SFXPLAY
 
@@ -615,7 +616,7 @@ loadpage
         pop hl
         ld a,e
         push af ;pg
-        SETPG32KHIGH
+        SETPGC000
         push hl
         ex de,hl
         OS_OPENHANDLE

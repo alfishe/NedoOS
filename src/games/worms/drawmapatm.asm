@@ -70,10 +70,10 @@ DrawMapGfx
         xor a
         sbc hl,de
         ex de,hl
-        ld bc,SCRHGT-1;maxYwin
+        ;ld bc,SCRHGT-1;maxYwin
         ld hl,(MOUSEY)
         ld h,a;0
-        add hl,bc
+        ;add hl,bc
          ;ld a,h
          ;and +(UVSCROLL_HGT/256)*(UVSCROLL_WID/512)-1
          ;ld h,a ;hl=y ;de=x

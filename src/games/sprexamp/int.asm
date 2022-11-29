@@ -27,7 +27,7 @@ on_int
         push bc
         push de ;"hl"
         exx
-        ex af,af'
+        ex af,af' ;'
         push af
         push bc
         push de
@@ -86,12 +86,12 @@ curscrnum_int=$+1
 ;1 - Left (5)
 ;0 - Right (8) 
 	;CALL .. ;ваш обработчик прерываний (не забывайте сохранить CURPG...)
-        ld a,(curpg16k) ;ok
-        SETPG16K
-        ld a,(curpg32klow) ;ok
-        SETPG32KLOW
-        ld a,(curpg32khigh) ;ok
-        SETPG32KHIGH
+        ld a,(curpg4000) ;ok
+        SETPG4000
+        ld a,(curpg8000) ;ok
+        SETPG8000
+        ld a,(curpgc000) ;ok
+        SETPGC000
 
         ld hl,timer
         inc (hl)
@@ -102,7 +102,7 @@ curscrnum_int=$+1
         pop de
         pop bc
         pop af
-        ex af,af'
+        ex af,af' ;'
         exx
         pop hl
         pop bc

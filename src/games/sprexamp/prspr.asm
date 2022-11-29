@@ -43,9 +43,9 @@ prspr
         push bc
         ld a,(pgfake)
         ;ld (curpg4000),a
-        SETPG16K
+        SETPG4000
         ;ld (curpg8000),a
-        SETPG32KLOW
+        SETPG8000
 ;hl будет вычислен с ошибкой +64
         pop bc
         ld a,l
@@ -621,7 +621,7 @@ copyboxscrtoscr_page
         rra
         call nc,getuser_scr_low
         call c,getuser_scr_high
-        SETPG32KHIGH ;kills bc
+        SETPGC000 ;kills bc
         ld a,e ;xright (/2)
         rra
         rra
@@ -713,13 +713,13 @@ copyboxscrtoscr_page
         sub l
         ld h,a
         ld a,(hl) ;gfx pages
-        SETPG16K
+        SETPG4000
         inc hl
         inc hl
         inc hl
         inc hl
         ld a,(hl)
-        SETPG32KLOW
+        SETPG8000
 
         ld a,e ;yscroll (corrected для зацикливания)
         and 63

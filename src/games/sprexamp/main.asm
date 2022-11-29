@@ -30,13 +30,13 @@ FIRSTSOLIDTILE=32
 FIRSTBETONTILE=64
 FIRSTOBJTILE=111
 
-;PENT=0
-
 
 uvscroll_scrbase=0x4000
 uvscroll_pushbase=0x8000
 uvscroll_callbase=0xc000
-
+UVSCROLL_USETILES=1
+UVSCROLL_USEBMP=1
+SCRHGT=scrhgt
 
 UVSCROLL_WID=1024
 UVSCROLL_HGT=256;512
@@ -291,9 +291,9 @@ waitchangescr1
 pgmusic=$+1
         ld a,0
         SETPG4000
-        ld hl,0x4008+3 ;stop
-        OS_SETMUSIC
         halt
+        ld hl,0x4000;0x4008+3 ;stop
+        OS_SETMUSIC
         QUIT
 
 curkey
@@ -823,6 +823,9 @@ font
         incbin "fontgfx"
         endif
         
+RestoreMemMap3
+        ret
+        
 res_path
         db "sprexamp",0 ;в этом относительном пути будут лежать все загружаемые данные игры
 bgfilename
@@ -876,4 +879,4 @@ end
 	
 	savebin "sprexamp.com",begin,end-begin
 	
-	LABELSLIST "../../../us/user.l"
+	LABELSLIST "../../../us/user.l",1

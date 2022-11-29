@@ -1,6 +1,6 @@
 objectslogic
         ld a,(pgmetatilemap)
-        SETPG32KHIGH
+        SETPGC000
 
         ld ix,objects
 objectslogic0
@@ -136,7 +136,7 @@ objectslogic0_skip
 
 bulletslogic
         ld a,(pgmetatilemap)
-        SETPG32KHIGH
+        SETPGC000
 
         ld ix,bullets
 bulletslogic0

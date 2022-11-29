@@ -153,7 +153,7 @@ copypal0
         ld bc,sz_music
         ldir
 
-        ld hl,module
+        ld hl,MDLADDR
         call INIT
 
         ld a,(pgmusic)
@@ -647,8 +647,8 @@ _lev=_lev+1
 
 wasmusic
         disp music
-        include "ptsplay.asm"
-module
+        include "../../_sdk/ptsplay.asm"
+MDLADDR
         incbin "NOISE20.pt3"
         ent
 sz_music=$-wasmusic

@@ -2,7 +2,7 @@
         include "../_sdk/sys_h.asm"
 
 COLOR=7
-module=0x6000;0xc000
+MDLADDR=0x6000;0xc000
         
 		
         org PROGSTART
@@ -111,8 +111,8 @@ extaddr=$+1
         cp 'm'
         jp z,play_tfm
         
-        ld de,module;0xc000
-        ld hl,0xffff&(-module);0x4000
+        ld de,MDLADDR;0xc000
+        ld hl,0xffff&(-MDLADDR);0x4000
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
         push bc
         OS_READHANDLE
@@ -140,9 +140,8 @@ musicpage=$+1
 	di
 	ld hl,end_init
 	push hl
-	;display $
-    ld hl,module
-	ld a,(module + 0x0a)
+        ld hl,MDLADDR
+	ld a,(MDLADDR + 0x0a)
 	cp 'E'
         jp z,EPlayer_Init
 	ld a,(hl)
@@ -152,10 +151,9 @@ musicpage=$+1
 secondmoduleoffset=$+1
         ld de,0
         add de,hl ;address of the second module
-
-		jp INIT
+        jp INIT
 end_init
-    ei  
+        ei  
 mainloopredraw
         ld e,COLOR
         OS_CLS
@@ -412,7 +410,7 @@ prtext0
 findts
 ;ix = file size
 ;out: zf = 1 if TS data is found, hl = offset to the second module if available
-        ld de,module
+        ld de,MDLADDR
         add ix,de ;past-the-end address of the data buffer
 
         ld a,'0'
@@ -438,13 +436,12 @@ getptsconfig
         ld a,%00010000 ;2xPT3
         ret z
 
-        ld a,(module)
+        ld a,(MDLADDR)
         cp 'V'
         jr z,$+4
         cp 'P' ;'P'/'V' for PT3
         ld a,%00100000 ;PT3
         ret z
-
         ld a,%00000010 ;PT2
         ret
 
@@ -467,10 +464,10 @@ player
 	ld hl,end_player
 	push hl
 	
-	ld a,(module + 0x0a)
+	ld a,(MDLADDR + 0x0a)
 	cp 'E'
         jp z,EPlayer_Play
-	ld a,(module)
+	ld a,(MDLADDR)
 	cp 'T'
         jp z,tfm
         
@@ -484,7 +481,7 @@ end_player
         ei
         ret
 muter        
-	ld a,(module)
+	ld a,(MDLADDR)
 	cp 'T'
         push af
         call nz,MUTE
@@ -492,7 +489,7 @@ muter
         call z,tfmshut
         ret
 
-        include "ptsplay.asm"
+        include "../_sdk/ptsplay.asm"
         include "tfmplay.asm"
         include "tfdtest.asm"
         include "tfmtest.asm"

@@ -40,14 +40,14 @@ GO
         ld (pgsfx),a
         call loadpage
         ld (pgmusic),a
-        SETPG16K
+        SETPG4000
         
 ;это относится к загрузке уровня
         push af
         call 0x4000 ;init
         
         ld a,(pgsfx)
-        SETPG32KLOW
+        SETPG8000
         pop af
         ld hl,0x4005 ;play
         OS_SETMUSIC

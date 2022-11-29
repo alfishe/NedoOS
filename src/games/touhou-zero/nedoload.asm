@@ -55,6 +55,9 @@ SFX_DATA =#5100
 uvscroll_scrbase=0x4000
 uvscroll_pushbase=0x8000
 uvscroll_callbase=0xc000
+UVSCROLL_USETILES=0
+UVSCROLL_USEBMP=1
+SCRHGT=scrhgt
 
 UVSCROLL_WID=1024
 UVSCROLL_HGT=512
