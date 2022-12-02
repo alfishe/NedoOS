@@ -6,10 +6,11 @@
 ;b: b/w tiles: chrdata...
 ;B: colour tiles: chrdata...
 ;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
-;z: b/w sprites: antipixelsw... (right to left)
-;Z: b/w sprites: antipixelsw... (left to right)
-;w: b/w sprites: antipixelsw, antimaskw...
-;W: b/w image by columns
+;z: b/w sprites: antipixelsline... (right to left)
+;Z: b/w sprites: antipixelsline... (left to right)
+;w: b/w sprites: antipixelsline, antimaskline... (right to left)
+;W: b/w sprites: antipixelsline, antimaskline... (left to right)
+;c: b/w image by columns
 ;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
 ;T: colour tilepic 28xN (size 0xN00 bytes)
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
@@ -21,8 +22,8 @@
 ;manh$4#8=Z,0,0,16,16,7; db 2,16
 ;man0crop=Z,0,48,8,16,7
 ;man0croph=Z,0,48,8,16,7; db 1,16
-;sprworm#32=W,0,16,8,8,7
-;sprmine=W,0,176,8,16,7
+;sprworm#32=c,0,16,8,8,7
+;sprmine=c,0,176,8,16,7
 panel=B,0,168,256,24,8
 panelweapon1=B,0,112,256,24,8
 panelweapon2=B,0,136,256,24,8

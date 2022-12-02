@@ -6,10 +6,11 @@
 ;b: b/w tiles: chrdata...
 ;B: colour tiles: chrdata...
 ;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
-;z: b/w sprites: antipixelsw... (right to left)
-;Z: b/w sprites: antipixelsw... (left to right)
-;w: b/w sprites: antipixelsw, antimaskw...
-;W: b/w image by columns
+;z: b/w sprites: antipixelsline... (right to left)
+;Z: b/w sprites: antipixelsline... (left to right)
+;w: b/w sprites: antipixelsline, antimaskline... (right to left)
+;W: b/w sprites: antipixelsline, antimaskline... (left to right)
+;c: b/w image by columns
 ;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
 ;T: colour tilepic 28xN (size 0xN00 bytes)
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
@@ -21,11 +22,11 @@
 ;manh$4#8=Z,0,0,16,16,7; db 2,16
 ;man0crop=Z,0,48,8,16,7
 ;man0croph=Z,0,48,8,16,7; db 1,16
-sprworm#8=W,0,8,8,8,7
-sprwormr#8=W,0,32,8,8,7
-sprwormrot#8=W,24,128,8,8,7
-sprwormrrot#8=W,32,128,8,8,7
-sprmine#8=W,0,176,8,8,7
-sprmine2#8=W,0,184,8,8,7
-sprminerot#16=W,0,176,8,8,7
-sprcross=W,64,176,8,8,7
+sprworm#8=c,0,8,8,8,7
+sprwormr#8=c,0,32,8,8,7
+sprwormrot#8=c,24,128,8,8,7
+sprwormrrot#8=c,32,128,8,8,7
+sprmine#8=c,0,176,8,8,7
+sprmine2#8=c,0,184,8,8,7
+sprminerot#16=c,0,176,8,8,7
+sprcross=c,64,176,8,8,7
