@@ -3,6 +3,7 @@
 
 STACK=0x4000
 IMVEC=#4100
+MUSIC=1
 
         include "macro.asm"
 

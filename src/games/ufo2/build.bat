@@ -51,6 +51,12 @@ mhmt -mlz ZX_DISC\xm1.dat ZX_DISC\xm1.mlz > nul
 mhmt -mlz XMAP\XL0.LND ZX_DISC\XL0.mlz > nul
 mhmt -mlz XMAP\XL1.LND ZX_DISC\XL1.mlz > nul
 
+%SJASMPLUS% %SJASMPLUSFLAGS% muz1.asm
+%SJASMPLUS% %SJASMPLUSFLAGS% muz2.asm
+%SJASMPLUS% %SJASMPLUSFLAGS% muz3.asm
+%SJASMPLUS% %SJASMPLUSFLAGS% muz4.asm
+%SJASMPLUS% %SJASMPLUSFLAGS% muz5.asm
+
 echo EGA=1 > settings.ast
 %SJASMPLUS% %SJASMPLUSFLAGS% xcom.asm
 mhmt -mlz blk1.bin > nul

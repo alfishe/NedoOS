@@ -15,6 +15,12 @@
 ;2-15-истребитель(2-vSIZE<4)
 ;96-127-стоит герой(0-31)
 
+       if MUSIC
+AinvXOR=0xae ;"xor (hl)"
+       else
+AinvXOR=0xaa ;"xor d"
+       endif
+
 SCR	EQU	#C000
 ATR	EQU	#D800
 DSCR	EQU	#9000
@@ -379,7 +385,7 @@ ASP	CALL GSP
 	JR C,A2P
 	OR A
 	JR NZ,A22P
-	LD A,#AA
+	LD A,AinvXOR;#AA ;"xor d" норм отобр
 	JR A21P
 A2P	OR A
 	JR Z,A22P
@@ -666,6 +672,29 @@ MS2
         call prtile
         call setpgsmain40008000
        else
+       if MUSIC
+        ex de,hl
+MS20    ld a,(de)
+	or (hl)
+        inc hl
+Ainv1	xor (hl)
+        inc hl
+        ld (de),a
+        inc de
+	ld a,(de)
+	or (hl)
+        inc hl
+Ainv2	xor (hl)
+        inc hl
+        ld (de),a
+        ld a,e
+        add a,31
+        ld e,a
+        jr nc,$+3
+        inc d
+	djnz MS20
+        ex de,hl
+       else
 	LD	(MSPSP+1),SP
 	EX	DE,HL
 	LD	SP,HL
@@ -686,6 +715,7 @@ Ainv2	XOR	D
 	DJNZ	MS20
 MSPSP	LD	SP,#4020
        endif
+       endif
 MSiRET	pops;$
 	RET
 
@@ -701,6 +731,24 @@ LS2
         call prtile
         call setpgsmain40008000
        else
+       if MUSIC
+        ex de,hl
+LS20    ld a,(de)
+	or (hl)
+        inc hl
+Ainv3	xor (hl)
+        inc hl
+        ld (de),a
+        inc hl
+        inc hl
+        ld a,e
+        add a,32
+        ld e,a
+        jr nc,$+3
+        inc d
+	djnz LS20
+        ex de,hl
+       else
         LD	(LSPSP+1),SP
 	EX	DE,HL
 	LD	SP,HL
@@ -715,6 +763,7 @@ Ainv3	XOR	D
 	ADD	HL,DE
 	DJNZ	LS20
 LSPSP	LD	SP,#4020
+       endif
        endif
 	pops;$
 	RET
@@ -740,6 +789,24 @@ RS2
         call prtile
         call setpgsmain40008000
        else
+       if MUSIC
+        ex de,hl
+RS20	inc hl
+        inc hl
+	ld a,(de)
+        or (hl)
+        inc hl
+Ainv4	xor (hl)
+        inc hl
+	ld (de),a
+        ld a,e
+        add a,32
+        ld e,a
+        jr nc,$+3
+        inc d
+	djnz RS20
+        ex de,hl
+       else
         LD	(RSPSP+1),SP
 	EX	DE,HL
 	LD	SP,HL
@@ -754,6 +821,7 @@ Ainv4	XOR	D
 	ADD	HL,DE
 	DJNZ	RS20
 RSPSP	LD	SP,#4020
+       endif
        endif
 	pops;$
 	RET
@@ -1012,7 +1080,7 @@ HERLIV	LD A,(IX+8) ;IX-жив? Z-нет
        if 1
 NORM_V
        if EGA == 0
-	LD A,#AA ;вкл.норм.отобр
+	LD A,AinvXOR;#AA ;вкл.норм.отобр ;"xor d"
 	LD (Ainv1),A
 	LD (Ainv2),A
 	LD (Ainv3),A

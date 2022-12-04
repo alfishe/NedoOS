@@ -706,9 +706,13 @@ sx1	CALL 15635
 SELmr	RET
 
 E_I	pushs;$
+       if MUSIC
+        halt ;keep regs
+       else
 	EI
 	HALT
 	DI
+       endif
 	pops;$
 	RET
 
@@ -745,6 +749,9 @@ VICTRY	;полная победа
 	CALL LDASM2
 	CALL NW_GE
 	CALL OFFS
+       if MUSIC
+       call SETMENUMUSIC
+       endif
 	CALL MLOOP
 
 WAREND	DEFB 0 ;не 0 - нет Пси-контр
@@ -903,4 +910,7 @@ BATTL1	 ;битва
 RRJR	CALL B_LOOP
 	CALL POSTBAT
 	CALL GOhome
+       if MUSIC
+       call SETMENUMUSIC
+       endif
 	JP MLOOP

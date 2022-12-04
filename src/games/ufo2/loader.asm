@@ -264,6 +264,11 @@ texfilename
         ;db 12,"ufospr5.dat",0
         db 13,"ufoxm11a.dat",0
         db 14,"ufoxm11b.dat",0
+        db 15,"ufomuz1.bin",0
+        db 16,"ufomuz2.bin",0
+        db 17,"ufomuz3.bin",0
+        db 18,"ufomuz4.bin",0
+        db 19,"ufomuz5.bin",0
         ;if EGA==0
 ;ntexfilenames=5
         ;else

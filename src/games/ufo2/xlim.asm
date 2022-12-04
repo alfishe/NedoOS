@@ -46,7 +46,16 @@ GT_DE_	LD E,(HL)
 
 COMBAT  ;****************************** Бой **
 ;	0-Победа,1-Поражение/Эвакуация
+       if MUSIC
+       halt
+       ld a,15
+       call setpg
+       call 0xc000
+       ld hl,0xc005
+       OS_SETMUSIC
+       else
 	DI
+       endif
 	LD SP,COMBATSTACK;#8F7E ;чтобы не было переполн ;TODO проверить
 	XOR A
 	LD (PVIS),A

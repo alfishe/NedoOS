@@ -5,6 +5,8 @@
         page 63 ;иначе по умолчанию в 0x0000 pg7
         SLOT 3 
 
+MUSIC=1
+
 IMVEC=#4100
 IM2=0
 
@@ -254,9 +256,16 @@ CO4	RRC	E
 	LD	A,E
 	JR	CO2
 
-DELAY	EI
+DELAY
+       if MUSIC
+        push af
+        YIELD
+        pop af
+       else
+	EI
 	HALT
 	DI
+       endif
 	DEC A
 	JR NZ,DELAY
 	RET Z
@@ -317,12 +326,12 @@ start	DI
        call swapimer
        endif
 	CALL START2 ;нач.уст
-	CALL BACK
+	CALL BACK ;копирование экрана
        ;call SWPBAT
 	LD IX,MUST
-	CALL MENUC
-	CALL MU_ENT
-	CALL NO_3D
+	CALL MENUC ;вывод меню
+	CALL MU_ENT ;ждать ENTER
+	CALL NO_3D ;откл 3D боя
        if 1
        ld a,1
        ld (T_INTR),a ;тип истребителя
@@ -344,6 +353,9 @@ start	DI
        call BATTLE
        endif
        ;call BATTL1
+       if MUSIC
+       call SETMENUMUSIC
+       endif
 	CALL MLOOP	;---начало
 ;	CALL XEARTH  ;--удали
 ;	CALL COPYAT  ;
@@ -473,4 +485,4 @@ end0
         page 7
 	savebin "ufo2/ufo27.dat",begin7,end7-begin7
 	
-	LABELSLIST "../../../us/user.l"
+	LABELSLIST "../../../us/user.l",1

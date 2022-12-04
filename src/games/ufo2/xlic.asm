@@ -651,7 +651,21 @@ FMS     XOR A
 LOOPT   DEFW XMENUS,T_SLOW,I_RET,T_MID,SELTAR
 	DEFW T_FAST,UPEDIA,OPTION,FINANS,INFO
 
+       if MUSIC
+SETMENUMUSIC
+       halt
+       ld a,19
+       call setpg
+       call 0xc000
+       ld hl,0xc005
+       OS_SETMUSIC
+        ret
+       endif
+
 XMR     CALL NOKEYw
+       if MUSIC
+       call SETMENUMUSIC
+       endif
 MLOOP   LD SP,#403E
 	CALL MEM7
 	CALL XEARTH;*******Главный цикл
@@ -1848,6 +1862,9 @@ RIP     LD IX,MU81
 	CALL MENUC
 	CALL TMOF
 	CALL NW_GE
+       if MUSIC
+       call SETMENUMUSIC
+       endif
 	CALL MLOOP
 MU82    DEFW #802,#5218
 
