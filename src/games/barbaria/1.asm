@@ -9,7 +9,7 @@ L_FE00=0xfe00
 scrbase=0x4000+4
 sprmaxwid=32
 sprmaxhgt=32
-scrwid=160 ;double pixels
+scrwid=160 ;in double pixels
 scrhgt=192;200
 INTSTACK=0x3f00
 tempsp=0x3f06 ;6 bytes for prspr
@@ -243,12 +243,15 @@ on_int
 	call oldimer ;ei
          GET_KEY
          jr nz,Imer_nofocus
+         ld a,lx ;kempston
+         ld (curkempston),a
          ;ld a,(user_scr0_high) ;ok
          ;SETPG16K ;TODO redraw screen when retake focus???
 Imer_nofocus
 	;LD	A,(stoptimer)
 	;OR	A
 	;CALL	Z,DecTimer
+        call IntHandler
         pop iy
         pop ix
         pop hl

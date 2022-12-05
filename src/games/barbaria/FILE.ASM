@@ -1506,7 +1506,9 @@ L_8BF1	LD	HL,L_B949
 	JR	Z,L_8C15
 	CP	#05
 	RET	NZ
-	IN	A,(#1F)
+curkempston=$+1
+       ld a,0
+	;IN	A,(#1F)
 	AND	#1F
 	RET
 ;
@@ -5288,8 +5290,9 @@ L_BF76	DJNZ	L_BF64
 	LD	HL,Init
 	LD	C,#F0
 	LD	A,#BF
-	LD	I,A
-	IM	2
+       ds 4
+	;LD	I,A
+	;IM	2
 	LD	A,#C3
 	LD	(0xF0F0),A
 	LD	DE,IntHandler
