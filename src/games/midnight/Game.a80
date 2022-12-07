@@ -179,36 +179,37 @@ ATRAD           LD HL,BACKATR:LD A,D:LD D,0:ADD HL,DE
 PLAYMUSIC       CP $FF
 		RET Z:LD (PLAYMUSIC+1),A:LD (TUNENUM+1),A
                 DI
-                LD A,$3F:LD I,A
-                ds 2;IM 1
+                ds 4 ;LD A,$3F:LD I,A
+                ds 2 ;IM 1
                 LD A,$17:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
 TUNENUM         LD A,0:CALL MUSINITTUNE
                 LD A,$10:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
-                LD A,$FE:LD I,A
-                ds 2;IM 2
+                ds 4 ;LD A,$FE:LD I,A
+                ds 2 ;IM 2
                 EI:RET
 
 KILLSOUND       LD A,$FF:LD (PLAYMUSIC+1),A
-                DI:LD A,$3F:LD I,A
-                ds 2;IM 1
+                DI:ds 4 ;LD A,$3F:LD I,A
+                ds 2  ;IM 1
                 LD A,$17:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
                 CALL MUSRESETSOUND
                 LD A,$10:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
-                LD A,$FE:LD I,A
-                ds 2;IM 2
+                ds 4 ;LD A,$FE:LD I,A
+                ds 2 ;IM 2
                 EI:RET
 
 INTER           DI:LD HL,INTPAGE: LD DE,INTPAGE+1:LD BC,$100
                 LD (HL),$FF:LDIR
                 LD HL,INTRUP:LD DE,INTJP:LD BC,12:LDIR
-                LD A,INTPAGE/256:LD I,A
-                ds 2;IM 2
+                ds 4 ;LD A,INTPAGE/256:LD I,A
+                ds 2 ;IM 2
                 EI:RET
 
 INTRUP          JP INTS
                 DB "J.BAGLEY",24
 
-INTS            DI:PUSH AF
+INTS            nop ;DI
+                PUSH AF
 MUSCONT         LD A,1:OR A:JR Z,HERE
                 PUSH BC
                 LD A,$17:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
@@ -219,7 +220,9 @@ PAGEON          LD A,$10:call setpg:ds 2 ;LD BC,$7FFD:OUT (C),A
                 POP BC
 HERE            LD A,255:LD R,A
 FRAME           LD A,0:INC A:LD (FRAME+1),A
-                POP AF:EI:RET
+                POP AF
+                nop ;EI
+                RET
 
 ;***************************************
 ;** PRINT ROUTINES                    **

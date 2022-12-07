@@ -1,8 +1,12 @@
+EION=1
 ;
 	;ORG	#9300
 ;
 GO
-L_9300	DI
+L_9300
+       if !EION
+	DI
+       endif
 	LD	SP,#0000
 	XOR	A
 	OUT	(#FE),A
@@ -183,11 +187,22 @@ L_94C6	CALL	L_F69F
 	JR	Z,L_94C6
 	RET
 ;
-L_94CD	PUSH	AF
+L_94CD
+;draw sprite A with mask
+	PUSH	AF
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
+       if 0;EION
+        ld h,a
+        xor a
+        srl h
+        rra
+        srl h
+        rra
+        ld l,a
+       else
 	LD	L,A
 	LD	H,#00
 	ADD	HL,HL
@@ -196,23 +211,42 @@ L_94CD	PUSH	AF
 	ADD	HL,HL
 	ADD	HL,HL
 	ADD	HL,HL
+       endif
 	LD	BC,L_DE22
 	ADD	HL,BC
+       if EION
+        push hl ;spraddr
+       else
 	LD	(L_95E3),SP
 	LD	SP,HL
-	LD	A,E
+       endif
+	LD	A,E ;x
 	AND	#07
 	ADD	A,A
+       if 0;EION
+	LD	BC,L_95D3
+        add a,c
+        ld l,a
+        adc a,b
+        sub l
+        ld h,a
+       else
 	LD	L,A
 	LD	H,#00
 	LD	BC,L_95D3
 	ADD	HL,BC
+       endif
 	LD	C,(HL)
 	INC	HL
 	LD	B,(HL)
+       if EION
+        push bc
+        pop ix
+       else
 	LD	IX,#0000
 	ADD	IX,BC
-	LD	L,D
+       endif
+	LD	L,D ;y
 	LD	H,#00
 	ADD	HL,HL
 	ADD	HL,HL
@@ -229,11 +263,26 @@ L_9502       EQU       $-1
 	LD	E,A
 	ADD	HL,DE
 	LD	(L_9566),HL
-	LD	B,#10
-L_9510	POP	DE
+       if EION
+        pop de ;spraddr
+       endif
+	LD	B,#10 ;hgt
+L_9510
+       if EION
+        ld a,(de)
+        inc de
+        push de
+        ex de,hl
+        ld h,(hl)
+        ex de,hl
+        ld e,a
+       else
+	POP	DE
+       endif
 	SCF
 	LD	C,#FF
 	JP	(IX)
+_PrSprRLmask
 ;
 L_9516	RL	D
 	RL	E
@@ -246,8 +295,13 @@ L_9522	RL	D
 	RL	C
 L_9528	RL	D
 	RL	E
+       if EION
+        ld a,c
+        rla
+       else
 	RL	C
 	LD	A,C
+       endif
 	AND	(HL)
 	LD	(HL),A
 	INC	HL
@@ -260,8 +314,16 @@ L_9528	RL	D
 	LD	(HL),A
 	LD	DE,#001E
 	ADD	HL,DE
+       if EION
+        pop de
+        inc de
+       endif
 	DJNZ	L_9510
+       if 0;EION
+        jr L_9565
+       else
 	JP	L_9565
+       endif
 ;
 L_9542	RR	E
 	RR	D
@@ -285,16 +347,36 @@ L_9554	LD	A,E
 	LD	(HL),A
 	LD	DE,#001E
 	ADD	HL,DE
+       if EION
+        pop de
+        inc de
+       endif
 	DJNZ	L_9510
 L_9565	LD	HL,#830F
 L_9566       EQU       $-2
-	LD	DE,#005E
-	ADD	IX,DE
+       if EION
+	ld c,_PrSprRLpix-_PrSprRLmask
+	add ix,bc
+       else
+        LD	DE,#005E
+        ADD	IX,DE
+       endif
 	LD	B,#10
-L_956F	POP	DE
+L_956F
+       if EION
+        ld a,(de)
+        inc de
+        push de
+        ex de,hl
+        ld h,(hl)
+        ex de,hl
+        ld e,a
+       else
+	POP	DE
+       endif
 	LD	C,#00
 	JP	(IX)
-;
+_PrSprRLpix
 	SLA	D
 	RL	E
 	RL	C
@@ -306,8 +388,13 @@ L_956F	POP	DE
 	RL	C
 	SLA	D
 	RL	E
+       if EION
+        ld a,c
+        rla
+       else
 	RL	C
 	LD	A,C
+       endif
 	OR	(HL)
 	LD	(HL),A
 	INC	HL
@@ -320,8 +407,16 @@ L_956F	POP	DE
 	LD	(HL),A
 	LD	DE,#001E
 	ADD	HL,DE
+       if EION
+        pop de
+        inc de
+       endif
 	DJNZ	L_956F
+       if 0;EION
+        jr L_95C3
+       else
 	JP	L_95C3
+       endif
 ;
 	SRL	E
 	RR	D
@@ -345,8 +440,15 @@ L_956F	POP	DE
 	LD	(HL),A
 	LD	DE,#001E
 	ADD	HL,DE
+       if EION
+        pop de
+        inc de
+       endif
 	DJNZ	L_956F
-L_95C3	LD	SP,(L_95E3)
+L_95C3
+       if !EION
+	LD	SP,(L_95E3)
+       endif
 	LD	HL,L_95D2
 	INC	(HL)
 	POP	IX
@@ -582,9 +684,26 @@ DrawSprite
 	ADD	HL,HL
 	LD	BC,L_DDC2
 	ADD	HL,BC
+       if EION
+        ld c,e
+        ld b,0x5b
+        ex de,hl
+	LD	A,h ;h=y, c=x
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	L,A
+	LD	H,#00
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,bc
+       else
 	LD	(L_95E3),SP
 	LD	SP,HL
-	LD	A,D
+	LD	A,D ;d=y, e=x
 	ADD	A,A
 	ADD	A,A
 	ADD	A,A
@@ -597,9 +716,25 @@ DrawSprite
 	ADD	HL,HL
 	LD	D,#5B
 	ADD	HL,DE
+       endif
+       if EION
+	ld a,#10
+        ld b,0
+L_97AB
+	ld c,32
+        ex de,hl
+        ldi
+        ldi
+        ex de,hl
+	add hl,bc
+	dec a
+	JP NZ,L_97AB
+        ;ds 4
+       else
 	LD	A,#10
 	LD	BC,#001F
-L_97AB	POP	DE
+L_97AB
+	POP	DE
 	LD	(HL),E
 	INC	HL
 	LD	(HL),D
@@ -607,6 +742,7 @@ L_97AB	POP	DE
 	DEC	A
 	JP	NZ,L_97AB
 	LD	SP,(L_95E3)
+       endif
 	POP	HL
 	POP	DE
 	POP	BC
@@ -1124,12 +1260,12 @@ L_9ABA	PUSH	AF
 	POP	DE
 	LD	BC,#0020
 	LD	A,#08
-L_9AD6	EX	AF,AF'
+L_9AD6	EX	AF,AF' ;'
 	LD	A,(DE)
 	LD	(HL),A
 	INC	DE
 	ADD	HL,BC
-	EX	AF,AF'
+	EX	AF,AF' ;'
 	DEC	A
 	JP	NZ,L_9AD6
 	POP	DE
@@ -1138,7 +1274,7 @@ L_9AD6	EX	AF,AF'
 	ADD	HL,BC
 	LD	A,(L_9AA6)
 	LD	(HL),A
-	LD	BC,L_CB00
+	LD	BC,0xcb00;L_CB00
 	ADD	HL,BC
 	POP	BC
 	LD	(HL),C
@@ -1267,7 +1403,9 @@ L_9C03       DB       #48,#90,#18,#80,#38,#30,#28,#80
        DB       #78,#90,#58,#B0,#78,#B0,#D8,#B0
        DB       #28,#80,#00,#00,#00,#00,#00,#00
        DB       #18,#20
-L_9C2D       DB       #EB,#03,#E6,#EA,#D9,#E8,#01,#DF
+L_9C2D       DB       #EB,#03,#E6
+        dw L_D9EA;#EA,#D9
+        db #E8,#01,#DF
        DB       #00,#00,#E0,#44,#E1,#06,#00,#AE
        DB       #01,#AE,#02,#AE,#03,#AE,#E2,#DF
        DB       #00,#1F,#E1,#06,#00,#AE,#01,#AE
@@ -1813,8 +1951,10 @@ ReadSinclairJoy
 	RET
 ;
 ReadKempstonJoy
-	LD	BC,#001F
-	IN	D,(C)
+	;LD	BC,#001F
+	;IN	D,(C)
+curkempston=$+1
+        ld d,0
 	CALL	L_A78E
 	LD	(curright),A
 	CALL	L_A78E
@@ -2004,10 +2144,58 @@ MirrorSprite
 	PUSH	DE
 	PUSH	HL
 	LD	BC,#0160
+       if EION
+        ld hl,L_EA22
+        ;ds 1;6
+       else
 	LD	(L_A925),SP
 	LD	HL,L_EA22
 	LD	SP,HL
-L_A8D8	POP	DE
+       endif
+L_A8D8
+       if EION
+        inc hl
+        ld d,(hl)
+        dec hl
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+	SRL	D
+	RLA
+        ld e,(hl)
+	LD	(HL),A
+	INC	HL
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	SRL	E
+	RLA
+	LD	(HL),A
+	INC	HL
+       else
+	POP	DE
 	SRL	D
 	RLA
 	SRL	D
@@ -2044,6 +2232,7 @@ L_A8D8	POP	DE
 	RLA
 	LD	(HL),A
 	INC	HL
+       endif
 	DEC	BC
 	LD	A,B
 	OR	C
@@ -2051,7 +2240,9 @@ L_A8D8	POP	DE
 	LD	A,(L_A924)
 	XOR	#01
 	LD	(L_A924),A
+       if !EION
 	LD	SP,(L_A925)
+       endif
 	POP	HL
 	POP	DE
 	POP	BC
@@ -4764,8 +4955,11 @@ L_C0EE	LD	HL,L_BD88
 	CALL	PauseBC
 	JP	L_C0BD
 ;
-L_C11B       DB       #DF,#00,#08,#EB,#00,#E3,#EC,#C5
-       DB       #E6,#12,#D7,#EB,#00,#DF,#0B,#0A
+L_C11B       DB       #DF,#00,#08,#EB,#00,#E3
+        dw L_C5EC;#EC,#C5
+       DB       #E6
+       dw L_D712;#12,#D7
+       db #EB,#00,#DF,#0B,#0A
        DB       #E0,#46,#4F,#55,#54,#20,#4F,#46
        DB       #20,#54,#49,#4D,#45,#21,#FF
 ;
@@ -4784,11 +4978,16 @@ L_C13A	CALL	Cls
 	CALL	L_D5CA
 	JP	L_9300
 ;
-L_C164       DB       #EB,#00,#DF,#00,#08,#E3,#EC,#C5
-       DB       #DF,#0A,#0B,#E6,#12,#D7,#E0,#46
+L_C164       DB       #EB,#00,#DF,#00,#08,#E3
+        dw L_C5EC;#EC,#C5
+       DB       #DF,#0A,#0B,#E6
+       dw L_D712;#12,#D7
+       db #E0,#46
        DB       #DF,#0B,#0B,#47,#41,#4D,#45,#20
        DB       #4F,#56,#45,#52,#FF
-L_C181       DB       #EB,#00,#E6,#0A,#DA,#DF,#00,#01
+L_C181       DB       #EB,#00,#E6
+       dw L_DA0A;#0A,#DA
+       db #DF,#00,#01
        DB       #E0,#47,#00,#01,#02,#78,#06,#0E
        DB       #03,#04,#05,#78,#05,#0E,#06,#07
        DB       #08,#09,#0A,#78,#01,#0E,#0B,#0C
@@ -5106,8 +5305,11 @@ L_C3F0	POP	BC
 	CALL	L_D480
 	JP	Menu
 ;
-tmenu       DB       #EB,#00,#DF,#00,#08,#E3,#EC,#C5
-       DB       #E6,#12,#D7,#DF,#09,#02,#E0,#44
+tmenu       DB       #EB,#00,#DF,#00,#08,#E3
+        dw L_C5EC;#EC,#C5
+       DB       #E6
+       dw L_D712;#12,#D7
+       db #DF,#09,#02,#E0,#44
 ;
        DM       "CONVERSION BY PROBE SOFTWARE"
 ;
@@ -5155,7 +5357,9 @@ tmenu       DB       #EB,#00,#DF,#00,#08,#E3,#EC,#C5
 ;
        DM       "SOLOMON'S KEY (C) 1987 TECMO"
 ;
-       DB       #DF,#12,#0A,#E3,#4D,#C6,#FF
+       DB       #DF,#12,#0A,#E3
+       dw L_C64D;#4D,#C6
+       db #FF
 ;
 L_C49F	LD	A,(L_A7B8)
 	ADD	A,#0E
@@ -5233,6 +5437,7 @@ L_C531	LD	A,(DE)
 	LD	HL,L_BF01
 	CALL	Z,L_BD3A
 	JP	Menu
+;-------------------------------------------
 ;
 L_C54B       DB       #4D,#7A,#FF,#FF
 ;
@@ -5256,7 +5461,7 @@ topqam       DM       "OPQAM"
 teborp       DM       "EBORP"
 ;
 tselectkeys       DB       #EB,#00,#E0,#46,#DF,#06,#07,#E6
-       DB       #12,#D7
+       dw L_D712;#12,#D7
 ;
        DM       "SELECT KEY FOR...."
 ;
@@ -5285,7 +5490,13 @@ tselectkeys       DB       #EB,#00,#E0,#46,#DF,#06,#07,#E6
 ;
        DM       "SOLOMON'S KEY (C) 1987 TECMO"
 ;
-       DB       #E6,#12,#D7,#FF,#E6,#82,#DA,#E0       ;f.W.f.Z`
+       DB       #E6
+       dw L_D712;#12,#D7
+       db #FF
+L_C5EC
+       db #E6
+       dw L_DA82;#82,#DA
+       db #E0       ;f.W.f.Z`
        DB       #43,#00,#01,#02,#03,#04,#05,#06       ;C.......
        DB       #07,#A7,#08,#09,#0A,#0B,#0C,#0D       ;.'......
        DB       #0E,#0F,#A7,#10,#11,#12,#13,#14       ;..'.....
@@ -5294,16 +5505,21 @@ tselectkeys       DB       #EB,#00,#E0,#46,#DF,#06,#07,#E6
        DB       #22,#23,#24,#25,#26,#27,#A7,#28       ;"#$%&''(
        DB       #29,#2A,#2B,#2C,#2D,#2E,#2F,#79       ;)*+,-./y
        DB       #F0,#30,#31,#32,#79,#01,#DB,#E6       ;p012y.[f
-       DB       #1A,#DC,#00,#01,#02,#03,#04,#05       ;.\......
+       dw L_DC1A;#1A,#DC
+       db #00,#01,#02,#03,#04,#05       ;.\......
        DB       #06,#07,#A7,#08,#09,#0A,#0B,#0C       ;..'.....
        DB       #0D,#0E,#0F,#A7,#10,#11,#12,#13       ;...'....
-       DB       #14,#15,#16,#17,#FF,#E6,#DA,#DC       ;.....fZ\
+       DB       #14,#15,#16,#17,#FF
+L_C64D
+       db #E6
+       dw L_DCDA;#DA,#DC       ;.....fZ\
        DB       #E0,#07,#17,#E4,#05,#15,#12,#15       ;`..d....
        DB       #15,#13,#14,#A4,#18,#00,#01,#02       ;...$....
        DB       #03,#04,#05,#06,#07,#10,#1A,#A4       ;.......$
        DB       #18,#08,#09,#0A,#0B,#0C,#0D,#0E       ;........
        DB       #0F,#11,#1A,#A4,#19,#E4,#09,#1C       ;...$.d..
        DB       #1B,#FF       ;..
+;-------------------------------------------
 ;
 L_C67A	LD	A,(L_C72B)
 	LD	B,A
@@ -5869,7 +6085,9 @@ L_CAFA	POP	HL
 	POP	AF
 L_CAFE	ADD	A,E
 	LD	E,A
-L_CB00	LD	(IX+#00),E
+;L_CB00
+	LD	(IX+#00),E
+         ;ds 5
 	LD	A,(L_9478)
 	AND	#01
 	JR	Z,L_CB0B
@@ -7124,7 +7342,8 @@ L_D4B0	PUSH	BC
 	RET	Z
 	JR	L_D4B0
 ;
-L_D4BD       DB       #EB,#00,#DF,#00,#08,#E3,#EC,#C5
+L_D4BD       DB       #EB,#00,#DF,#00,#08,#E3
+        dw L_C5EC;#EC,#C5
        DB       #FF,#00
 ;
 L_D4C7       DM       "RAFFAELE  040000"
@@ -7260,8 +7479,10 @@ L_D6A1	POP	IX
 	ADD	IX,DE
 	JP	L_D5CE
 ;
-L_D6AB       DB       #EB,#00,#DF,#00,#08,#E3,#EC,#C5
-       DB       #DF,#08,#08,#E0,#46,#E6,#12,#D7
+L_D6AB       DB       #EB,#00,#DF,#00,#08,#E3
+        dw L_C5EC;#EC,#C5
+       DB       #DF,#08,#08,#E0,#46,#E6
+       dw L_D712;#12,#D7
 ;
        DM       "CONGRATULATIONS!{"
 ;
@@ -7276,8 +7497,7 @@ L_D6AB       DB       #EB,#00,#DF,#00,#08,#E3,#EC,#C5
 ;
        DB       #7A,#ED,#DD
 ;
-       DM       "PRESS EN"
-L_D712       DM       "TER TO END"
+       DM       "PRESS ENTER TO END"
 ;
        DB       #FF
 ;
@@ -7410,6 +7630,8 @@ L_D7F6	CALL	L_C33C
 	LD	C,#47
 	JP	L_9A82
 ;
+;font
+L_D712=$-256
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #00,#1C,#1C,#1C,#1C,#00,#1C,#00       ;........
        DB       #00,#77,#77,#00,#00,#00,#00,#00       ;.ww.....
@@ -7469,10 +7691,12 @@ L_D7F6	CALL	L_C33C
        DB       #00,#42,#66,#3C,#18,#3C,#66,#00       ;.Bf<.<f.
        DB       #00,#44,#28,#38,#38,#38,#38,#00       ;.D(8888.
        DB       #00,#7E,#1E,#3C,#78,#70,#7E,#00       ;.~.<xp~.
+L_D9EA
        DB       #FF,#80,#BD,#B4,#BD,#9C,#9D,#BC       ;..=4=..<
        DB       #9D,#BC,#BD,#B8,#B9,#BC,#BD,#B8       ;.<=89<=8
        DB       #BD,#BC,#BD,#9C,#9D,#BC,#BD,#BC       ;=<=..<=<
        DB       #B9,#BC,#BD,#8C,#BD,#80,#D5,#00       ;9<=.=.U.
+L_DA0A
        DB       #00,#33,#44,#24,#14,#54,#23,#00       ;.3D$.T#.
        DB       #00,#26,#55,#56,#55,#55,#25,#00       ;.&UVUU%.
        DB       #00,#70,#40,#60,#40,#40,#70,#00       ;.p@`@@p.
@@ -7488,6 +7712,7 @@ L_D7F6	CALL	L_C33C
        DB       #00,#5C,#51,#58,#50,#51,#9C,#00       ;.\QXPQ..
        DB       #00,#C0,#00,#80,#40,#40,#80,#00       ;.@..@@..
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
+L_DA82
        DB       #00,#00,#01,#07,#0F,#1F,#1F,#3F       ;.......?
        DB       #00,#00,#FE,#FF,#FF,#FF,#87,#03       ;..~.....
        DB       #00,#00,#00,#80,#C0,#E0,#E0,#F0       ;....@``p
@@ -7505,6 +7730,7 @@ L_D7F6	CALL	L_C33C
        DB       #07,#1F,#3F,#7F,#7F,#FF,#FF,#FF       ;..?.....
        DB       #F3,#FD,#FE,#FE,#C7,#87,#87,#87       ;s}~~G...
        DB       #FE,#FE,#FE,#FF,#7F,#7F,#3F,#1F       ;~~~...?.
+;L_DA0A=$-256
        DB       #0F,#07,#07,#07,#8F,#FF,#FF,#FF       ;........
        DB       #E7,#F7,#F7,#F7,#F3,#E3,#E1,#C0       ;gwwwsca@
        DB       #F8,#F8,#F8,#F8,#FF,#FF,#FF,#7F       ;xxxx....
@@ -7539,6 +7765,7 @@ L_D7F6	CALL	L_C33C
        DB       #07,#00,#00,#00,#00,#00,#00,#00       ;........
        DB       #FF,#FE,#00,#00,#00,#00,#00,#00       ;.~......
        DB       #80,#00,#00,#00,#00,#00,#00,#00       ;........
+L_DC1A
        DB       #07,#07,#07,#07,#0F,#0F,#0F,#0F       ;........
        DB       #F0,#F0,#F1,#E3,#E7,#EF,#FF,#FF       ;ppqcgo..
        DB       #7E,#FC,#F8,#F1,#E1,#C1,#81,#01       ;~|xqaA..
@@ -7564,7 +7791,8 @@ L_D7F6	CALL	L_C33C
        DB       #E0,#E0,#E0,#E0,#E0,#E0,#E0,#E0       ;````````
        DB       #00,#00,#00,#00,#00,#00,#00,#00       ;........
 ;
-L_DCDA       DB       #38,#20,#07,#0F,#0F,#1F,#1F,#1F
+L_DCDA
+       DB       #38,#20,#07,#0F,#0F,#1F,#1F,#1F
        DB       #7E,#1E,#8E,#CE,#C6,#E6,#E6,#E6
        DB       #70,#40,#0F,#1F,#3F,#3F,#7F,#7F
        DB       #FF,#3E,#1C,#9C,#F8,#F9,#F9,#F9
