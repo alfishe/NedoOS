@@ -704,19 +704,21 @@ L_6667	LD	A,#F7
 L_6671	JR	L_664E
 ;
 ControlKempstonJoy
-	IN	A,(#1F)
+curkempston=$+1
+        ld a,0
+	;IN	A,(#1F)
 	RRA
 	JR	NC,L_667A
-	RES	4,B
+	RES	3,b;4,B
 L_667A	RRA
 	JR	NC,L_667F
-	RES	3,B
+	RES	4,b;3,B
 L_667F	RRA
 	JR	NC,L_6684
-	RES	1,B
+	RES	2,b;1,B
 L_6684	RRA
 	JR	NC,L_6689
-	RES	2,B
+	RES	1,b;2,B
 L_6689	JR	L_664E
 ;
 MenuStartGame

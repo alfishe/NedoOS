@@ -56,7 +56,7 @@ NOMOUSE
 ;onint
 MOUSE
 nokeytimer=$+1
-        ld a,-1 ;счётчик фреймов, где не использовалось управление
+        ld a,0;-1 ;счётчик фреймов, где не использовалось управление
         inc a
         jr nz,$+3
         dec a
@@ -79,30 +79,33 @@ KEY=$+1
         RRA 
         RRA 
         CPL 
-        JR NZ,MANTORM
+        ;JR NZ,MANTORM
         AND 15
-        JR NZ,MANNOT
-MANTORM LD A,128
+        JR NZ,MANnTORMOZ
+        LD A,128 ;(a&15) == 0
         CP D
         JR NC,$+3
         INC D
         SRA D
+        call nz,resetnokeytimer
         CP E
         JR NC,$+3
         INC E
         SRA E
-MANNOT  RRA 
-        JR C,$+3
-        INC D
+        call nz,resetnokeytimer
+MANnTORMOZ
         RRA 
-        JR C,$+3
-        DEC D
+        JR nc,$+3
+        dec D
         RRA 
-        JR C,$+3
-        DEC E
+        JR nc,$+3
+        inc D
         RRA 
-        JR C,$+3
-        INC E
+        JR nc,$+3
+        inc E
+        RRA 
+        JR nc,$+3
+        dec E
     ;корректируем X
         LD A,0xfb
 mouseXportreadpatch=$
@@ -178,10 +181,34 @@ MYP   ; INC A
 MYQ     LD B,A
 MYQQ    LD A,B
         LD (MOUSEy),A
-        LD (MOUSEx),HL
         LD (ARVEL),DE
-       ex af,af' ;'
+
+       ex af,af' ;' ;a=счётчик фреймов, где не использовалось управление
        ld (nokeytimer),a ;счётчик фреймов, где не использовалось управление
+
+       if STICKMOUSEXTOGRID
+;TODO отключать во время полёта снаряда, не получится через манипуляцию nokeytimer
+        or a
+        jr z,Mouse_stickskip ;управление использовалось
+        ld a,l
+        and 7
+        jr z,Mouse_stickskip;Mouse_stickdomoveq ;уже прилипли к сетке
+mouse_oldmdx=$+1
+        ld a,0 ;последний -dx, не равный 0
+        rla
+        inc hl
+        jr c,Mouse_stickdomoveq ;old dx>=0
+        dec hl
+        dec hl
+Mouse_stickskip ;управление использовалось
+        ld a,(MOUSEx)
+        sub l
+        jr z,Mouse_stickdomoveq
+        ld (mouse_oldmdx),a
+Mouse_stickdomoveq
+       endif
+
+        LD (MOUSEx),HL
         RET 
 
 resetnokeytimer

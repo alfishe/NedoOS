@@ -317,6 +317,8 @@ imer_addr=$+1
 	call oldimer ;ei
          GET_KEY
          jr nz,Imer_nofocus
+         ld a,lx
+         ld (curkempston),a
          ;ld a,(user_scr0_high) ;ok
          ;SETPG16K ;TODO redraw screen when retake focus???
 Imer_nofocus

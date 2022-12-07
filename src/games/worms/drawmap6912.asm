@@ -534,10 +534,10 @@ DrawMap_x04
         jp nc,DrawMap_x0
 DrawMap_x4
 ;если более 5 фреймов отпущены кнопки и мышь, то переходим на DrawMap_x5 (чтобы не мерцало) (TODO по направлению движения на 3 или 5, а при вертикальном движении переприсвоить X?)
-       ld a,(nokeytimer) ;счётчик фреймов, где не использовалось управление
-       cp 5
-       ld a,Tshift/256+2 ;x=5
-       jp nc,DrawMap_x35_a
+       ;ld a,(nokeytimer) ;счётчик фреймов, где не использовалось управление
+       ;cp 5
+       ;ld a,Tshift/256+2 ;x=5
+       ;jp nc,DrawMap_x35_a
         ex de,hl;LD hl,SCRTOP;SHADOW
         ld ix,3
         add ix,de

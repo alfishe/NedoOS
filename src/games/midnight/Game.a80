@@ -417,7 +417,10 @@ CONTLOP         LD A,(HL):INC HL:IN A,(254)
 NOSCF           RL C:DJNZ CONTLOP:LD A,C:LD (FUDLR),A:RET
 
 KEMPSTON        RRC C:RRC C:RRC C
-                xor a:ds 3:LD A,1:IN A,(31)
+curkempston=$+1
+                ld a,0
+                ds 2
+                ;LD A,1:IN A,(31)
                 AND 31:OR C:LD (FUDLR),A
                 RET
 
