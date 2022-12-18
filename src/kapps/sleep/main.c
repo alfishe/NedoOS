@@ -2,7 +2,6 @@
 #include <string.h>
 #include <intrz80.h>
 #include <stdlib.h>
-#include <sleepint.h>
 #include <oscalls.h>
 unsigned char *p;
 
@@ -17,6 +16,7 @@ void error(void)
 C_task main(int argc, char *argv[])
 {
 	unsigned int counter;
+	long start, finish;
 	unsigned char key;
 	os_initstdio();
 
@@ -33,13 +33,18 @@ C_task main(int argc, char *argv[])
 			} while (key == 0);
 			exit(0);
 		}
-
 		counter = counter / 20;
 		if (counter < 1)
 		{
 			counter = 1;
 		}
-		sleepint(counter);
+		start = time();
+		finish = start + counter;
+
+		while (start < finish)
+		{
+			start = time();
+		}
 		exit(0);
 	}
 	error();
