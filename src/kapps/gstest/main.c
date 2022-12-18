@@ -91,7 +91,7 @@ C_task main(void)
         printf("Data bit and Command bit are reset, OK. \r\n\r\n");
         break;
     case 129:
-        printf("Data bit and Command bit are set, FAIL. \r\n\r\n");
+        printf("Data bit and Command bit are set, FAIL. Port is accessible? \r\n\r\n");
         break;
     case 128:
         printf("Data bit are set, FAIL. \r\n\r\n");
