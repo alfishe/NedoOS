@@ -713,6 +713,16 @@ __1=$
         ld c,CMD_SETMAINPAGE
         CALLBDOS_NOPARAM_A
         endm
+
+;*********************** OS_SETSYSDRV ***********************
+; Устанавливает текущую директорию на *:/bin/ , где * - буква
+; системного диска (c которого загрузилась ОС)
+;
+; in: --none--
+;
+; out: A: A!=0 -- системный диск не примонтирован.
+;      L: -- общее количество примонтированных дисков.
+;
         macro OS_SETSYSDRV ;out: a!=0 => not mounted, l=number of drives
         ld c,CMD_SETSYSDRV
         CALLBDOS_NOPARAM_A
