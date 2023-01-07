@@ -8,7 +8,7 @@ unsigned char *p;
 void error(void)
 {
 	printf("Usage: sleep.com delay \r\n");
-	printf("Delay in range from 0 to 65500 ms with step of 50ms\r\n");
+	printf("Delay in range from 0 to 32000 ms with step of 50ms\r\n");
 	printf("If delay = 0 then program waiting for keypress\r\n");
 	exit(0);
 }
@@ -24,6 +24,10 @@ C_task main(int argc, char *argv[])
 	{
 		p = argv[1];
 		counter = atoi(p);
+		if (counter < 0 || counter > 32000)
+		{
+			counter = 0;
+		}
 
 		if (counter == 0)
 		{
