@@ -792,11 +792,11 @@ tolower
 pressanykeystr
 	db "!\r\nPress any key to exit...\r\n",0
 playersfilename
-	db "gp.plr",0
+	db "gp/gp.plr",0
 playlistfilename
-	db "gp.dat",0
+	db "gp/gp.dat",0
 playersloaderrorstr
-	db "Failed to load gp.plr from OS folder",0
+	db "Failed to load gp/gp.plr from OS folder",0
 chdirfailedstr
 	db "Unable to change directory",0
 playliststr
