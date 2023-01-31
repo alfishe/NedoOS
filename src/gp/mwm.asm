@@ -99,6 +99,8 @@ donefilenamecopy
 	ld (hl),'w'
 	inc hl
 	ld (hl),'k'
+	inc hl
+	ld (hl),0
 ;load wavekit
 	ld de,0x8000
 	call openstream_file
@@ -141,27 +143,6 @@ musicplay
 	call play_int
 	ld a,(play_busy)
 	or a
-	ret
-
-checknone
-	ld a,(hl)
-	cp 'N'
-	ret nz
-	inc hl
-	ld a,(hl)
-	cp 'O'
-	ret nz
-	inc hl
-	ld a,(hl)
-	cp 'N'
-	ret nz
-	inc hl
-	ld a,(hl)
-	cp 'E'
-	ret nz
-	inc hl
-	ld a,(hl)
-	cp ' '
 	ret
 
 strcopy_hltode

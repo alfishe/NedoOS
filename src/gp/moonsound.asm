@@ -14,8 +14,14 @@ MOON_WDAT = MOON_WREG+1
 	jr c,$-3
 	endm
 
+;makes ZXM-Moonsound firmware 1.01 switch PCM ports from default 7E and 7F to C2 and C3
+	macro switch_to_pcm_ports_c2_c3
+	in a,(MOON_REG2)
+	endm
+
 ismoonsoundpresent
 ;out: a=0 and zf=1 if there's Moonsound, a=255 and zf=0 if not
+	switch_to_pcm_ports_c2_c3
 	in a,(MOON_STAT)
 	cp 255
 	ccf
