@@ -2575,8 +2575,6 @@ proceditcmd_copy_fcb
          pop hl
 	;ld hl,wincopy_dest
 	call nv_fillpathspaces_hl
-	ld hl,wincopy2
-	call upwindow_text
 
 	ld de,dir3_buf;wincopy_src ;update copy window
         push de
@@ -2592,6 +2590,9 @@ proceditcmd_copy_fcb
          pop hl
 	;ld hl,wincopy_src
 	call nv_fillpathspaces_hl
+
+	ld hl,wincopy2
+	call upwindow_text
 
 	ld de,dir3_buf
         ;push de
@@ -2630,23 +2631,51 @@ proceditcmd_copy_fcb
         ld (cmd_copy_close_file2_handle),a
         ld hl,cmd_copy_close_file2
         push hl
+        
+        ld a,(cmd_copy_close_file1_handle)
+        ld b,a
+        OS_GETFILESIZE ;dehl=file size
 cmd_copy0
+;dehl=remaining size
+       push de
+       push hl
         ld hl,copybuf_sz
         ld de,copybuf
         ld a,(cmd_copy_close_file1_handle)
         ld b,a
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
-        push de
         OS_READHANDLE
 ;HL = Number of bytes actually read, A=error
-        pop de
-        ld a,h
-        or l
+        ld b,h
+        ld c,l
+       pop hl
+       pop de
+        ld a,b
+        or c
         ret z ;0 bytes remain
+        or a
+        sbc hl,bc
+        jr nc,$+3
+        dec de
+       push bc
+       push de
+       push hl
+        push bc
+        push de
+        ld de,11*256+32
+        call nv_setxy
+        pop de
+        call prdword_dehl
+        YIELDKEEP
+        ld de,copybuf
         ld a,(cmd_copy_close_file2_handle)
         ld b,a
+        pop hl
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         OS_WRITEHANDLE
+       pop hl
+       pop de
+       pop bc
         jr cmd_copy0
 
 cmd_copy_close_file1

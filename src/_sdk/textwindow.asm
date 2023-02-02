@@ -51,7 +51,10 @@ prwindow_waitkey_keyyes
 
 upwindow_text
 	ld a,0
-	jr prwindow_text0
+	call prwindow_text0
+        YIELDKEEP
+        YIELDKEEP
+        ret
 
 prwindow_text
 	ld a,1
