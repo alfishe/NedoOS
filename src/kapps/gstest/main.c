@@ -76,6 +76,8 @@ C_task main(void)
     unsigned long loadloop;
     os_initstdio();
 
+    getDat();
+
     BOX(1, 1, 80, 25, 40);
     AT(1, 1);
     ATRIB(92);
@@ -115,37 +117,6 @@ C_task main(void)
     printf("Reported by  boot: %u pages\r\n", dataread);
     printf("Reported by 0x20 : %lu bytes\r\n\r\n", getMem());
 
-    /*
-        sendDat(255);
-        printf("sendDat(255);\r\n");
-        sendCmd(0x16);
-        printf("sendCmd(0x17);\r\n");
-        sendDat(255);
-        dataread = getDat();
-        printf("04: %u\r\n", dataread);
-    */
-    /*
-        sendDat(0x00);
-        sendCmd(0x18);
-        sendDat(0x5b);
-        waitDATbit();
-        printf("ld de, 5b00\r\n");
-
-        sendCmd(0x1A);
-        dataread = getDat();
-        printf("Memory at (de): %#x\r\n", dataread);
-
-        sendDat(0x55);
-        sendCmd(0x19);
-        printf("ld (de), 0x55\r\n");
-
-        sendCmd(0x1A);
-        dataread = getDat();
-        printf("Memory at (de): %#x\r\n", dataread);
-        printf("-------------------------------------------\r\n");
-
-    */
-
     sendCmd(0xFA);
     printf("sendCmd (0xFA) - test mode on;\r\n");
     sendCmd(11);
@@ -157,21 +128,17 @@ C_task main(void)
     sendCmd(14);
     printf("sendCmd (14)   - sound in chanel #4;\r\n\r\n");
 
-    printf("Uploading test tune, bytes...");
+    printf("Uploading test tune...\r\n");
     sendCmd(0x30);
     modHandle = getDat();
     sendCmd(0xD1);
     for (loadloop = 0; loadloop < sizeof(rawData); loadloop++)
     {
         sendDat(rawData[loadloop]);
-        if ((loadloop % 5000) == 0)
-            printf("%lu, ", loadloop);
     }
     sendCmd(0xD2);
     loadloop = sizeof(rawData);
-    printf("%lu. ", loadloop);
-
-    printf("\r\nLoaded...\r\n");
+    printf("%lu bytes uploaded.\r\n", loadloop);
     sendDatnv(modHandle);
     sendCmd(0x31);
     printf("Playing handle %u...\r\n", modHandle);
