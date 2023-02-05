@@ -140,7 +140,7 @@ GS_INIT
         inc a
         cp 3+1
         jr c,SD_NO ;≠• ¨Æ¶•‚ °Î‚Ï <3 pages or 0xff pages
-        CALL INSTSDD
+        JP INSTSDD
 
 ;àçàñàÄãàáÄñàü äÄêíéóäà
 GSDINIT		XOR A
@@ -199,7 +199,19 @@ WC_		IN A,(GSCOM)
 		RET
 
 ;ìëíÄçéÇôàä ÑêÄâÇÖêÄ çÄ NeoGS
-INSTSDD		LD A,0X80
+INSTSDD
+		LD BC,GSCFG0
+		IN A,(C)
+		CP 0xFF
+		JP NZ,NEOGSINIT
+;àçàñàÄãàáÄñàü éêàÉàçÄãúçéÉé GS èéäÄ çàóÖÉé çÖ ÑÖãÄÖå, 2åÅ ¢•‡·®Ô ¨Æ¶•‚ ‡•ß•‚®‚·Ô 10 ·•™„≠§, ≠„¶≠Æ ¢Î¶§†‚Ï Ø•‡•§ ØÆ¢‚Æ‡≠Î¨ ·°‡Æ·Æ¨ ® ØÆ·´•, Ø•‡•§ ·´•§„ÓÈ®¨® ™Æ¨¨†≠§†¨®.
+ORGGSINIT
+;		LD A,0xF4
+;		OUT (GSCOM),A			;èéãçõâ ëÅêéë GS
+		JP SD_NO
+;àçàñàÄãàáÄñàü NeoGS
+NEOGSINIT
+		LD A,0X80
 		OUT (GSCTR),A			;èéãçõâ ëÅêéë NEOGS
 		;EI
 		HALT
@@ -258,7 +270,7 @@ ISDD3		OUTI
 		CP 0X77
 		JP NZ,SD_NO
 		XOR A
-		RET
+		JP GSDINIT
 
 UKLAD1	;éíäìÑÄ äéÑ çÄ çÉë áÄäàÑõÇÄíú
 	incbin "ngssd.bin"
