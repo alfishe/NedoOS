@@ -11,7 +11,7 @@ unsigned char key;
 
 unsigned char getStat(void)
 {
-    // –ü—Ä–∏–Ω—è—Ç—å –¥–∞–Ω–Ω—ã–µ –∏–∑ —Ä–µ–≥–∏—Å—Ç—Ä–∞ —Å—Ç–∞—Ç—É—Å–∞
+    // è‡®≠Ô‚Ï §†≠≠Î• ®ß ‡•£®·‚‡† ·‚†‚„·†
     unsigned char dataread;
     dataread = input(cmdreg);
     return dataread;
@@ -19,7 +19,7 @@ unsigned char getStat(void)
 
 unsigned char getDat(void)
 {
-    // –ü—Ä–∏–Ω—è—Ç—å –¥–∞–Ω–Ω—ã–µ –∏–∑ —Ä–µ–≥–∏—Å—Ç—Ä–∞ –¥–∞–Ω–Ω—ã—Ö
+    // è‡®≠Ô‚Ï §†≠≠Î• ®ß ‡•£®·‚‡† §†≠≠ÎÂ
     unsigned char dataread;
     dataread = input(datareg);
     return dataread;
@@ -27,7 +27,7 @@ unsigned char getDat(void)
 
 void sendDat(unsigned char data)
 {
-    // –ü–æ—Å–ª–∞—Ç—å –∫–æ–¥ –∫–æ–º–∞–Ω–¥—ã –≤ —Ä–µ–≥–∏—Å—Ç—Ä –∫–æ–º–∞–Ω–¥
+    // èÆ·´†‚Ï ™Æ§ ™Æ¨†≠§Î ¢ ‡•£®·‚‡ ™Æ¨†≠§
     unsigned char dataread2;
     output(datareg, data);
     dataread2 = 128;
@@ -39,13 +39,13 @@ void sendDat(unsigned char data)
 
 void sendDatnv(unsigned char data)
 {
-    // –ü–æ—Å–ª–∞—Ç—å –¥–∞–Ω–Ω—ã–µ –≤ —Ä–µ–≥–∏—Å—Ç—Ä –¥–∞–Ω–Ω—ã—Ö, –±–µ–∑ –æ–∂–∏–¥–∞–Ω–∏—è –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç–∏
+    // èÆ·´†‚Ï §†≠≠Î• ¢ ‡•£®·‚‡ §†≠≠ÎÂ, °•ß Æ¶®§†≠®Ô £Æ‚Æ¢≠Æ·‚®
     output(datareg, data);
 }
 
 void sendCmd(unsigned char command)
 {
-    // –ü–æ—Å–ª–∞—Ç—å –∫–æ–¥ –∫–æ–º–∞–Ω–¥—ã –≤ —Ä–µ–≥–∏—Å—Ç—Ä –∫–æ–º–∞–Ω–¥
+    // èÆ·´†‚Ï ™Æ§ ™Æ¨†≠§Î ¢ ‡•£®·‚‡ ™Æ¨†≠§
     unsigned char dataread2;
     output(cmdreg, command);
     dataread2 = 1;
