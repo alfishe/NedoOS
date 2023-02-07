@@ -123,7 +123,7 @@ unsigned char netConnect(unsigned char socket)
 
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {
-  unsigned char retry = 100;
+  unsigned char retry = 150;
   unsigned int todo;
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
@@ -152,7 +152,7 @@ wizwrite:
 
 unsigned int tcpRead(unsigned char socket)
 {
-  unsigned char retry = 50;
+  unsigned char retry = 150;
   unsigned int err, todo;
 
   readStruct.socket = socket;
@@ -164,20 +164,21 @@ wizread:
   err = todo & 255;
   if (todo > 32767)
   {
-    YIELD();
-  if (bytecount == 0) return 0;
-    retry--;
+    if (bytecount == 0)
+      return 0;
     if (retry == 0)
     {
-      if (err == ERR_EAGAIN)
-      {
-        todo = 0;
-        return todo;
-      }
+//      if (err == ERR_EAGAIN)
+//      {
+//        todo = 0;
+//        return todo;
+//      }
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
       exit(0);
     }
+    retry--;
+    YIELD();
     goto wizread;
   }
   // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
@@ -198,8 +199,8 @@ unsigned int cutHeader(unsigned int todo)
   {
 
     contLen = atol(count + 15);
-	  bytecount = contLen;
-    //printf ("Dlinna  soderzhimogo = %lu \n\r", bytecount);
+    bytecount = contLen;
+    // printf ("Dlinna  soderzhimogo = %lu \n\r", bytecount);
   }
 
   count = strstr(netbuf, "\r\n\r\n");
@@ -244,8 +245,8 @@ void fillPicture(unsigned char socket)
   bytecount = 255;
   while (1)
   {
-      todo = tcpRead(socket);
-	if (todo == 0)
+    todo = tcpRead(socket);
+    if (todo == 0)
     {
       break;
     }
@@ -259,8 +260,8 @@ void fillPicture(unsigned char socket)
     {
       picture[w + pPos] = netbuf[w];
     }
-      bytecount = bytecount - q;
-      if (pPos > sizeof(picture))
+    bytecount = bytecount - q;
+    if (pPos > sizeof(picture))
     {
       printf("Picture overrun... \n\r");
       break;
@@ -519,9 +520,9 @@ C_task main(void)
   unsigned char errno, keypress;
   unsigned long iddqd, count, ipadress;
   os_initstdio();
-  
+
   count = 0;
-  
+
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
   ATRIB(97);
@@ -538,8 +539,8 @@ C_task main(void)
   printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
   printf("	----------------Нажмите любую кнопку----------------");
 
-//  ipadress = OS_DNSRESOLVE(44);
-//  printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
+  //  ipadress = OS_DNSRESOLVE(44);
+  //  printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
 
   do
   {
