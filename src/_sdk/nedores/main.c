@@ -297,7 +297,7 @@ void setcurinkpaper(BYTE* pcurink, BYTE* pcurpaper)
 //возвращает *pcurink, *curpaper, причЄм вместо 0x08 ставит 0x00 (чтобы не вли€ло на €ркость)
 {
 BYTE t;
-  if ((sprformat == 's')||(sprformat == 'W')||(sprformat == 'w')) {
+  if ((sprformat == 's')||(sprformat == 'y')||(sprformat == 'Z')||(sprformat == 'z')||(sprformat == 'W')||(sprformat == 'w')) {
     paper = 0x08;
     ink = 0x0f;
   }; //дл€ спрайтов фон чЄрный (а маска 0x00)
@@ -407,6 +407,33 @@ int j;
     fputs("\n", fout);
     j++;
     if (j >= (y+sprhgt)) break;
+  };
+}
+
+void emitspry(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{
+BYTE b;
+int i;
+int j;
+  i = xchr;
+  while (1) {
+    fputs("\tdb ", fout);
+    j = y;
+    while (1) {
+      b = ~maskrow[i][j];
+      b = b^pixrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      fputs(",", fout);
+      //b = maskrow[i][j];
+      b = pixrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      j++;
+      if (j >= (y+sprhgt)) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    i++;
+    if (i >= (xchr+sprwid8)) break;
   };
 }
 
@@ -741,7 +768,7 @@ UINT color;
               };
               fputs("\n", fout);
               rowhgt = sprhgt;
-            }else if ((sprformat == 'w')||(sprformat == 'W')||(sprformat == 'z')||(sprformat == 'Z')) {
+            }else if ((sprformat == 'w')||(sprformat == 'W')||(sprformat == 'z')||(sprformat == 'Z')||(sprformat == 'y')) {
               putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
@@ -825,6 +852,8 @@ UINT color;
                 emitnops((BYTE)(0x100-((BYTE)(sprwid>>3)*0x09)),fout);
               }else if (sprformat == 's') { //sprite
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'y') { //spritey
+                emitspry(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'w') { //sprite antipixels16, antimask16 right to left
                 emitsprwback(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'W') { //sprite antipixels16, antimask16
