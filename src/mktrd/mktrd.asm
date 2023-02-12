@@ -4,56 +4,58 @@
 
         org PROGSTART
 cmd_begin
-
-
-		ld hl,COMMANDLINE
+	ld hl,COMMANDLINE
         call skipword
+        cp 0x00
+        jp z, defname
         call skipspaces
-        ld (par1addr),hl
-		ld de,FILE_NAME
-		call getname
-		inc hl
-		ld (hl),0
-		ld a,0
-		ld (de),a
-;		jr $
- 
+        cp 0x00
+        jp z, defname
+
+	ld de,FILE_NAME
+	call getname
+	inc hl
+	ld (hl),0
+	ld a,0
+	ld (de),a
+
+defname: 
         ld de,FILE_NAME
         OS_CREATEHANDLE
         or a
-        jp nz,ERR_EXIT    ;обработка ошибок
+        jp nz,ERR_EXIT    ;��ࠡ�⪠ �訡��
         ld a,b
-        ld (handle),a    ;сохраняем дескриптор
+        ld (handle),a    ;��࠭塞 ���ਯ��
 
-;Заполняю пустотой внутренний мир файла
-		ld	b,160
-t1:		push bc
+;�������� ����⮩ ����७��� ��� 䠩��
+	ld b,160
+t1:	push bc
         ld a,(handle)
         ld b,a
         ld de,Empt
         ld hl,4096
         OS_WRITEHANDLE
         or a
-        jp nz,ERR_EXIT    ;обработка ошибок
+        jp nz,ERR_EXIT    ;��ࠡ�⪠ �訡��
 		pop bc
 
 		djnz t1
 
-;Ищу в нем своё место
+;��� � ��� ᢮� ����
 		ld a, (handle)
 		ld b,a
 		ld de,#0000
 		ld hl,#0800
 		OS_SEEKHANDLE
 
-;и заполняю его смыслом
+;� �������� ��� ��᫮�
         ld a,(handle)
         ld b,a
         ld de, SYSTEM_TRACK
         ld hl,BUF_SIZE
         OS_WRITEHANDLE
         or a
-        jp nz,ERR_EXIT    ;обработка ошибок
+        jp nz,ERR_EXIT    ;��ࠡ�⪠ �訡��
  
 CLOSE_ERR_EXIT
         ld a,(handle)
@@ -70,8 +72,8 @@ getword0
         ld a,(hl)
         or a
         ret z
-		cp 0x20
-		ret z
+	cp 0x20
+	ret z
         inc hl
         jr getword0
 
@@ -91,7 +93,7 @@ getname:
         
         cp ' '
         ret z
-		ld (de),a
+	ld (de),a
         inc hl
 	inc de
         jr getname
@@ -99,27 +101,27 @@ getname:
 handle:
 	   DEFB 0
 
-;Ну проще я не придумал :-(
-;Придумаю переделаю.
+;�� ��� � �� �ਤ㬠� :-(
+;�ਤ㬠� ��।����.
 Empt: 
 	DEFS 16*256
 
-SYSTEM_TRACK:;системная дорожка
+SYSTEM_TRACK:;��⥬��� ��஦��
 
 BUFF_ADDR:
 		DEFB 0
 DCU_SEC:
 		DEFS 224
-FR_SEC_NEXT:;следующий свободный сектор
+FR_SEC_NEXT:;᫥���騩 ᢮����� ᥪ��
 		DEFB 0
-FR_TRK_NEXT:;следующая свободная дорожка
+FR_TRK_NEXT:;᫥����� ᢮������ ��஦��
 		DEFB 1
-TYPE_DISC:; тип диска
+TYPE_DISC:; ⨯ ��᪠
 		DEFB #10
-N_FILES:; количество файлов на диске		
+N_FILES:; ������⢮ 䠩��� �� ��᪥		
 		DEFB 0
-; количество свободных секторов на диске 
-;(это максимальное количество, будем из него вычитать)
+; ������⢮ ᢮������ ᥪ�஢ �� ��᪥ 
+;(�� ���ᨬ��쭮� ������⢮, �㤥� �� ���� ������)
 N_FREE_SEC:
 		DEFW #09F0
 MAIN_BYTE:
@@ -127,20 +129,16 @@ MAIN_BYTE:
 ZERO:	
 		DEFB 0,0
 BLANK9:
-		DEFB #20,#20,#20,#20,#20,#20,#20,#20,#20,0; последний ноль нужен!
+		DEFB #20,#20,#20,#20,#20,#20,#20,#20,#20,0; ��᫥���� ���� �㦥�!
 N_DEL_FILES:
 		DEFB 0
-;заголовок диска
+;��������� ��᪠
 DISC_TITLE:
 		DEFB "RESULT",0,0
 ZERO_N:
 		DEFS 3
 BUF_SIZE EQU $-SYSTEM_TRACK
-
-par1addr:
-		DEFB 0
-par2addr:
-		DEFB 0		
+	
 FILE_NAME:
         DEFB "dist.trd"
 END:	DEFB 0
