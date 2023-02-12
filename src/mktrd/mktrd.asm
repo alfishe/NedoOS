@@ -14,9 +14,8 @@ cmd_begin
 		call getname
 		inc hl
 		ld (hl),0
-
-;		ld a,0
-;		ld (de),a
+		ld a,0
+		ld (de),a
 ;		jr $
  
         ld de,FILE_NAME
@@ -87,13 +86,14 @@ skipspaces
 
 getname:
         ld a,(hl)
-		cp 0
-		ret z
+	cp 0
+	ret z
+        
         cp ' '
         ret z
 		ld (de),a
         inc hl
-		inc de
+	inc de
         jr getname
 		
 handle:
@@ -137,17 +137,20 @@ ZERO_N:
 		DEFS 3
 BUF_SIZE EQU $-SYSTEM_TRACK
 
-FILE_NAME:
-        DEFB "dist.trd"
-END:	DEFB 0
-		DEFB 0
 par1addr:
 		DEFB 0
 par2addr:
 		DEFB 0		
+FILE_NAME:
+        DEFB "dist.trd"
+END:	DEFB 0
+	DEFB 0
+
 cmd_end
  
- 
+
+
+
 	;display "Size ",/d,cmd_end-cmd_begin," bytes"
  
 	savebin "mktrd.com",cmd_begin,cmd_end-cmd_begin
