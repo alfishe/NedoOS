@@ -3,6 +3,7 @@
 #include <oscalls.h>
 #include <socket.h>
 #include <intrz80.h>
+
 int GMT=3;
 no_init unsigned char 	is_atm;
 no_init unsigned char netbuf[4*1024];
@@ -39,6 +40,26 @@ void exit(int e){
 }
 
 extern void dns_resolve(void);
+
+/*
+void delay(unsigned long counter)
+{
+  unsigned long start, finish;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+  }
+}
+*/
+
 
 unsigned char readcmos(unsigned char r) {
     disable_interrupt();
@@ -115,7 +136,7 @@ void ntp_resolver(void){
 	ntp_ia.sin_port=123<<8;
 	ntp_ia.sin_addr=*dns_resolver((void*)defntp);
 	if(!ntp_ia.sin_addr.S_un.S_addr) exit((int)"error: domain name not resolved");			
-	i=10;
+	i=100;
 inetloop:
 	YIELD();
 	i--;

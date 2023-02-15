@@ -25,6 +25,23 @@ unsigned long contLen;
 
 extern void dns_resolve(void);
 
+void delay(unsigned long counter)
+{
+  unsigned long start, finish;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+  }
+}
+
 void errorPrint(unsigned int error)
 {
   switch (error)
@@ -78,7 +95,7 @@ void errorPrint(unsigned int error)
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
 {
-  unsigned char socket, retry = 100;
+  unsigned char socket, retry = 150;
   unsigned int todo;
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
@@ -141,6 +158,8 @@ wizwrite:
       exit(0);
     }
     retry--;
+    YIELD();
+    delay(100);
     goto wizwrite;
   }
   else
@@ -168,17 +187,13 @@ wizread:
       return 0;
     if (retry == 0)
     {
-//      if (err == ERR_EAGAIN)
-//      {
-//        todo = 0;
-//        return todo;
-//      }
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
       exit(0);
     }
     retry--;
     YIELD();
+    delay(100);
     goto wizread;
   }
   // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
@@ -459,7 +474,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
   unsigned long idpic;
-  retry = 5;
+  retry = 10;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
@@ -481,7 +496,7 @@ rejson:
   count = strstr(picture, "responseStatus\":\"success");
   if (count == NULL)
   {
-    printf("BAD JSON, no responseStatus: success\r\n");
+    printf("BAD JSON, NO responseStatus: success\r\n");
     retry--;
     YIELD();
     if (retry > 0)
@@ -537,17 +552,17 @@ C_task main(void)
   printf("	'J' Прыжок на  указанную по счету картинку,<15000\n\r");
   printf("	'I' Просмотр экрана информации о картинках\n\r");
   printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
-  printf("	----------------Нажмите любую кнопку----------------");
-
-  //  ipadress = OS_DNSRESOLVE(44);
-  //  printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
-
+  printf("	----------------Нажмите любую кнопку----------------\n\r");
+  /*
+    ipadress = OS_DNSRESOLVE("zxart.ee");
+    printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
+    printf("------------------------\n\r");
+  */
+  AT(1, 10);
   do
   {
     key = _low_level_get();
   } while (key == 0);
-
-  AT(1, 10);
 
 start:
   iddqd = processJson(count, 1);
