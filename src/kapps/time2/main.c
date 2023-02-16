@@ -136,10 +136,11 @@ void ntp_resolver(void){
 	ntp_ia.sin_port=123<<8;
 	ntp_ia.sin_addr=*dns_resolver((void*)defntp);
 	if(!ntp_ia.sin_addr.S_un.S_addr) exit((int)"error: domain name not resolved");			
-	i=100;
+	i=200;
 inetloop:
 	YIELD();
 	i--;
+	YIELD();
 	if(i==0){
 		exit((int)"inet error");
 	}
