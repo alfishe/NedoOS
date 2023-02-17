@@ -997,6 +997,8 @@ nfopenfnslash0.
 	jr nz,nfopenfnslash0.
 	jr nfopenfnslash.
 
+
+
 strcopy
 ;hl->de
 ;out: hl,de after terminator
@@ -1006,7 +1008,7 @@ strcopy0
         ldi
         jr nz,strcopy0
         ret
-
+		
 makefulllink
 ;curfulllink = curfulllink+linkbuf
         ld hl,linkbuf
@@ -2000,7 +2002,6 @@ thttpsprotocol
 
 linkbuf
         ds MAXLINKSZ+1
-        
 curfulllink
         ds MAXLINKSZ+1
 

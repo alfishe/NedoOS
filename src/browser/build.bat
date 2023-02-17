@@ -13,5 +13,5 @@ if "%currentdir%"=="" (
 cd ../../src/
 rem pause
 rem  if "%makeall%"=="" ..\..\..\us\emul.exe
- if "%makeall%"=="" ..\us\emul.exe
+ rem if "%makeall%"=="" ..\us\emul.exe
 )

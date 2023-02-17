@@ -488,7 +488,6 @@ tag_frame0
         jp tag_frame_typetagq
 
 inithref
-        display "inithref=",inithref
          ld a,(curlink)
          or a
          call nz,savestringbuf2 ;если img внутри a
@@ -877,7 +876,7 @@ tag_title
         call prcharvirtual_crlf_stateful ;</title> forces newline
         xor a ;z
         jp tag_h1
-        display "tag_li ",tag_li
+		
 tag_li ;list line (no closing tag)? но на msn.com куча <li ><a...>...</a></li>
         push af 
         call prcharvirtual_crlf_stateful

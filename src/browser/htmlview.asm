@@ -335,7 +335,7 @@ html_enter_findok_copyname0
         inc c
         dec c
         jr nz,html_enter_findok_copyname0
-        display "clicked=",$
+		
          ;jr $
 	ret
         

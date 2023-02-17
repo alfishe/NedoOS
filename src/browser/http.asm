@@ -26,9 +26,8 @@ ERR_NOTCONN 	EQU 57
 
 proxserv
 	db "nedoos.ru/p/",0
-	display "openstream_http = ",$
 openstream_http
-	;display $
+
 ;de=filename (without "http://"), slash always presents
 ;out: A!=0 => error
         ex de,hl
@@ -216,7 +215,6 @@ tlocation
         db "Location: ",0
 
 readstream_http
-	display $
          ld (readstream_http_requestedsize),hl
 	add hl,de
 	push de	;начало буфера
@@ -268,7 +266,7 @@ readstream_http_head_ok
 	dec hl ;размер
 	ld a,h
 	or l
-	jr z,readstream_err
+	jp z,readstream_err
 	ld b,d
 	ld c,e
 	inc de
@@ -308,23 +306,27 @@ readstream_http_headlineaddr=$+1
         pop de
         jr nz,readstream_http_headlines0
 ;bc=url
-        push bc
+        ;push bc
+		;копирование в текущий путь
+		ld hl,curfulllink - 1
+.strcpy
+		inc hl
+		ld a,(bc)
+		ld (hl),a
+		inc bc
+		cp 0x0d
+		jr nz,.strcpy
+		xor a
+		ld (hl),a
+		
         call closestream_http
-        pop hl
-        ;ld bc,7 ;"http://"
-        ;add hl,bc
+		
+        ld hl,curfulllink
+		
          call isprotocolpresent ;out: nz=protocol absent (hl=link), z=protocol present (a=protocol (0=file, 1=http), hl=after "//")
          jr nz,readstream_http_redirect_noprotocol
          ld (curprotocol),a
 readstream_http_redirect_noprotocol
-;заменим 0d на 00
-        push hl
-        ld a,0x0d
-        ld bc,256
-        cpir
-        dec hl
-        ld (hl),0
-        pop hl
         call openstream_http_hl
         
 	pop de

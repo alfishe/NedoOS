@@ -124,7 +124,6 @@ linklast2pointer_lastnullq
         ld (last2pointerHSB),a
         ret
 
-        display "savestringbuf1=",$
 savestringbuf1
 ;add terminator
 ;find size
@@ -226,7 +225,6 @@ initstringbuf1
         ld (curstringbuf1addr),hl
         jp setfontweight
 
-        display "savestringbuf2=",$
 savestringbuf2
 ;add terminator
 ;find size
