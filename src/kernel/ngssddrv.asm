@@ -9,19 +9,6 @@ COMINT_		EQU 0X026E
 _DEV_READ=2
 _DEV_WRITE=3
 
-P_DATA          EQU 0X57
-P_CONF          EQU 0X77
-
-CMD_09          EQU 0X49        ;SEND_CSD
-CMD_12          EQU 0X4C        ;STOP_TRANSMISSION
-CMD_17          EQU 0X51        ;READ_SINGLE_BLOCK
-CMD_18          EQU 0X52        ;READ_MULTIPLE_BLOCK
-CMD_24          EQU 0X58        ;WRITE_BLOCK
-CMD_25          EQU 0X59        ;WRITE_MULTIPLE_BLOCK
-CMD_55          EQU 0X77        ;APP_CMD
-CMD_58          EQU 0X7A        ;READ_OCR
-CMD_59          EQU 0X7B        ;CRC_ON_OFF
-ACMD_41         EQU 0X69        ;SD_SEND_OP_COND
 
 ;АДРЕС УСТАНОВЩИКА ДРАЙВЕРА НА NeoGS
 SETUPSD		EQU 0X5B00
@@ -129,6 +116,8 @@ SDRDSN2		IN A,(GSCOM)
 		POP BC
 		POP DE
 		RET
+		
+		display "GS_INIT ",$
 GS_INIT
         XOR A
         OUT (GSDAT),A
@@ -140,7 +129,11 @@ GS_INIT
         inc a
         cp 3+1
         jr c,SD_NO ;не может быть <3 pages or 0xff pages
+		
+		;в еве драйвер уже установлен ЕРСом
+		if atm != 1
         JP INSTSDD
+		endif
 
 ;ИНИЦИАЛИЗАЦИЯ КАРТОЧКИ
 GSDINIT		XOR A
@@ -162,6 +155,12 @@ COMM2SD		OUT (GSDAT),A		;УШЛА КОМАНДА ДРАЙВЕРУ
 		LD A,0X1E
 		OUT (GSCOM),A
 		CALL WC_		;УШЛА КОМАНДА ПРОШИВКЕ
+		bit 6,a	;ждет ли команда данные
+		jr z,SD_DRV_PRESENT
+		pop af ;снимем со стека адрес возврата
+		xor a
+		JR SD_NO ;если команда не ждет данные, то считаем что драйвер не установлен
+SD_DRV_PRESENT:
 		LD A,B
 		OUT (GSDAT),A
 		CALL WD_		;УШЛИ БИТЫ 31-24 ПАРАМЕТРОВ ;savelij13: тут виснет
@@ -198,6 +197,7 @@ WC_		IN A,(GSCOM)
 		JR C,$-3
 		RET
 
+		if atm != 1
 ;УСТАНОВЩИК ДРАЙВЕРА НА NeoGS
 INSTSDD
 		LD BC,GSCFG0
@@ -274,3 +274,5 @@ ISDD3		OUTI
 
 UKLAD1	;ОТКУДА КОД НА НГС ЗАКИДЫВАТЬ
 	incbin "ngssd.bin"
+	
+		endif
