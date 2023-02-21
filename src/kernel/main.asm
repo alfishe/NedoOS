@@ -776,41 +776,66 @@ dos3d13_sp_st=$+1	;-wasresident+resident
 	ld sp,0
 	ld a,(0x5d0f)	;возврат ошибки
 	ret
-	if atm != 1
+
 		if atm2clock != 1
+	if atm != 1
 ; Подержка часов GLUK в АТМ2+ (актуальная процедура для Evo находится в syskrnl)
 NVRAM_REG=0xdf
 NVRAM_VAL=0xbf
+
+bin2cmos ;a to cmos cell b (BCD)
+        push af
+        ld a,b
+        ld bc,0xf7 + (NVRAM_REG<<8)
+        out (c),a
+        pop af
+        ld b,-1
+        inc b
+        sub 10
+        jr nc,$-3
+        add a,10
+;a=num mod 10
+;b=num div 10
+        sla b
+        sla b
+        sla b
+;b=(num div 10) *8
+        add a,b
+        add a,b
+        ld b,NVRAM_VAL
+        out (c),a ;BCD
+        ret
+
 minmes  ;=$-wasresident+resident
-    ld h,a
-    xor a
-    srl h
-    rra
-    srl h
-    rra
-    srl h
-    rra
-    ret
+        ld h,a
+        xor a
+        srl h
+        rra
+        srl h
+        rra
+        srl h
+        rra
+        ret
 
 bcd2bin  ;=$-wasresident+resident
-    ld bc,0xf7 + (NVRAM_REG<<8)
-    out (c),a
-    ld b,NVRAM_VAL
-    in a,(c)
-    ld b,a
-    and 0xf0
-    rra ;*8
-    ld c,a ;*8
-    rra ;*4
-    rra ;*2
-    add a,c ;*10
-    res 7,b
-    res 6,b
-    res 5,b
-    res 4,b
-    add a,b
-    ret
-    
+        ld bc,0xf7 + (NVRAM_REG<<8)
+        out (c),a
+        ld b,NVRAM_VAL
+        in a,(c)
+        ld b,a
+        and 0xf0
+        rra ;*8
+        ld c,a ;*8
+        rra ;*4
+        rra ;*2
+        add a,c ;*10
+        res 7,b
+        res 6,b
+        res 5,b
+        res 4,b
+        add a,b
+        ret
+
 readtime  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
@@ -836,7 +861,7 @@ readtime  ;=$-wasresident+resident
     
     ld a,2		;min
     call bcd2bin
-    call minmes
+    call minmes ;a0 >> 3 => ha
     add a,e
     ld e,a
     ld d,h
@@ -855,7 +880,7 @@ readtime  ;=$-wasresident+resident
     
     ld a,8		;month
     call bcd2bin
-    call minmes
+    call minmes ;a0 >> 3 => ha
     add a,l
     ld l,a
     
@@ -865,12 +890,66 @@ readtime  ;=$-wasresident+resident
     add a,a
     add a,h
     ld h,a
+    jp readtimeq
+        
+writetime
+	call sys_SHADOFF
+	LD A,e;0xa8;%10101000 ;320x200 mode
+	push af
+	ld bc,0xeff7
+	ld a,0x80
+	out (c),a
+        
+        ld a,e
+        add a,a
+        and 63
+        ld b,0		;sec
+        call bin2cmos
+
+        ld a,d
+        rra
+        rra
+        rra
+        and 31 ;h
+        ld b,4
+        call bin2cmos
+
+        ex de,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ex de,hl
+        ld a,h
+        and 63 ;m
+        ld b,2
+        call bin2cmos
+
+        ld a,h
+        srl a
+        sub 20
+        ld b,9		;year
+        call bin2cmos
+
+        ld a,l
+        and 31
+        ld b,7		;day
+        call bin2cmos
+    
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld a,h
+        and 15
+        ld b,8		;month
+        call bin2cmos
+readtimeq
 	ld bc,0xeff7
 	xor a
 	out (c),a
 	pop af
 	jp shadon_pgsys_a
-		endif
+	endif
+        
 	endif
 	if atm != 1
 		if atm2clock == 1
@@ -883,6 +962,10 @@ cmd2ve:	;e=command	 возвращаем результат в A
 		in	a,(c)			;выполнить команду
 		ei
 		ret
+writetime
+;TODO
+
+        ret
 readtime  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
@@ -1082,6 +1165,7 @@ wastbdoscmds
         SETHANDLER CMD_RESERV_1,BDOS_reserv_1
         SETHANDLER CMD_GETCONFIG,BDOS_get_config
         SETHANDLER CMD_GETMEMPORTS,BDOS_getmemports
+        SETHANDLER CMD_SETTIME,BDOS_settime
          
          org wastbdoscmds+512
 trecode=tbdoscmds+512
@@ -1168,7 +1252,9 @@ wastbdoscmds
         db CMD_RESERV_1
         db CMD_GETCONFIG
         db CMD_GETMEMPORTS
+        db CMD_SETTIME
 nbdoscmds=$-wastbdoscmds
+        dw BDOS_settime
         dw BDOS_getmemports
         dw BDOS_get_config
         dw BDOS_reserv_1

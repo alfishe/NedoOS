@@ -556,6 +556,10 @@ __1=$
         endm
 
 ;invented  
+        macro OS_SETTIME ;ix=date, hl=time
+        ld c,CMD_SETTIME
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_OPENDIR ;de=path (must be empty ASCIIZ for now)
         ld c,CMD_OPENDIR
 	CALLBDOS_NOPARAM_A

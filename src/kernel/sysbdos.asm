@@ -1803,6 +1803,13 @@ BDOS_gettime
         ld ix,(sys_time_date+2) ;ok
         ret
         
+BDOS_settime
+;in: ix=date, hl=time
+        ld (sys_settime_time),hl
+        ld (sys_settime_date),ix
+        ld a,55
+        ld (sys_settime_do),a
+        ret
 
 BDOS_setfiletime
 ;de=Drive/path/file ASCIIZ string, ix=date, hl=time

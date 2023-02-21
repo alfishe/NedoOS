@@ -460,6 +460,16 @@ focusappaddr=$+1
                         pop de ;e=gfxmode
 		endif
         ld (sys_mousecoords),hl
+sys_settime_do=$
+                or a ;/scf=set time
+sys_settime_time=$+1
+                ld de,0
+sys_settime_date=$+1
+                ld hl,0
+                call c,writetime
+                ld a,55+128
+                ld (sys_settime_do),a
+
 		if atm != 1
 			ld a,(sys_timer) ;ok
 			and 7
@@ -1073,6 +1083,60 @@ bcd2bin
 		ld b,NVRAM_VAL
 		in a,(c)
 		ret
+
+writetime
+        ld a,e
+        add a,a
+        and 63
+        ld b,0		;sec
+        call bin2cmos
+
+        ld a,d
+        rra
+        rra
+        rra
+        and 31 ;h
+        ld b,4
+        call bin2cmos
+
+        ex de,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ex de,hl
+        ld a,h
+        and 63 ;m
+        ld b,2
+        call bin2cmos
+
+        ld a,h
+        srl a
+        sub 20
+        ld b,9		;year
+        call bin2cmos
+
+        ld a,l
+        and 31
+        ld b,7		;day
+        call bin2cmos
+    
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld a,h
+        and 15
+        ld b,8		;month
+        ;call bin2cmos
+        ;ret
+bin2cmos ;a to cmos cell b (BCD)
+        push af
+        ld a,b
+        ld bc,0xf7 + (NVRAM_REG<<8)
+        out (c),a
+        pop af
+        ld b,NVRAM_VAL
+        out (c),a ;BCD
+        ret
     
 		endif
 

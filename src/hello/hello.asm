@@ -3,6 +3,10 @@
 
         org PROGSTART
 begin
+        ;ld ix,(1<<9)+(2<<5)+12
+        ;ld hl,(7<<11)+(34<<5)+(23/2) ;ix=date, hl=time
+        ;OS_SETTIME
+
         ;ld e,6 ;textmode
         ;OS_SETGFX
         call initstdio
@@ -38,8 +42,8 @@ strlen
         ret
 
 thello
-        ;db "Hello, world!",0x0d,0x0a,0
-        db "Sele",0x1b,'[','1','D',"ct drive:\r\n[0] Nemo master\r\n[1] Nemo slave\r\n[2] ATM master(not tested!)\r\n[3] ATM slave(not tested!)",0
+        db "Hello, world!",0x0d,0x0a,0
+        ;db "Sele",0x1b,'[','1','D',"ct drive:\r\n[0] Nemo master\r\n[1] Nemo slave\r\n[2] ATM master(not tested!)\r\n[3] ATM slave(not tested!)",0
         
         include "../_sdk/stdio.asm"
 end
