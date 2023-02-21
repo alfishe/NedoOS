@@ -1,6 +1,5 @@
 @echo off
 echo atm=3 > _sdk\syssets.asm
-echo  define DEF_SYSPATH "tenkosei" >> _sdk\syssets.asm
 echo atm2clock=0 >> _sdk\syssets.asm
 echo sys_npages=128 >> _sdk\syssets.asm
 rem так можно запороть рамдиск!
