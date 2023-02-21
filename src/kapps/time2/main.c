@@ -33,33 +33,11 @@ void exit(int e){
 	if(s)closesocket(s,0);
 	if(e!=0) {
 		puts((char*)e);
-		//puts("Press any key");
-		//getchar();
 	}
 	((void(*)(int))0x0000)(e);
 }
 
 extern void dns_resolve(void);
-
-/*
-void delay(unsigned long counter)
-{
-  unsigned long start, finish;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
-
-  while (start < finish)
-  {
-    start = time();
-  }
-}
-*/
-
 
 unsigned char readcmos(unsigned char r) {
     disable_interrupt();
@@ -81,23 +59,23 @@ unsigned char readcmos(unsigned char r) {
 void writecmos(unsigned char r,unsigned char v) {
     disable_interrupt();
     if(is_atm == 2 || is_atm == 3){
-        r = regaddr_ve[r] +1; 		// Íà çàïèñü ïîðò + 1
+        r = regaddr_ve[r] +1; 		//   § ¯¨áì ¯®àâ + 1
         if(r != 0){
 		input(0x55FE);	
 		input((r << 8) | 0x00fe);
 		input((v << 8) | 0x00fe);	
 		}
     }else{
-        output(0xdef7,r);
-        r = input(0xbef7);
+       	output(0xdef7,r);
+		output(0xbef7,v);
     }
     enable_interrupt();
 }
 
 void Unix_to_GMT(void)
 {
- // êîððåêòèðîâêà ÷àñîâîãî ïîÿñà è ñèíõðîíèçàöèÿ 
-  unsigned char monthLength=0;
+   unsigned char monthLength=0;
+// ª®àà¥ªâ¨à®¢ª  ç á®¢®£® ¯®ïá  ¨ á¨­åà®­¨§ æ¨ï 
   int days=0;
   secsUnix.ul = secsUnix.ul + GMT * 3600;     
 
@@ -150,12 +128,7 @@ inetloop:
 		goto inetloop;
 	}
 	memcpy(netbuf,ntpnead,sizeof(ntpnead));
-	/*res=connect(s, &ntp_ia, sizeof(ntp_ia));
-	if(res<0){
-		closesocket(s,0);
-		s=0;
-		goto inetloop;
-	}*/
+
 	len=sendto(s,netbuf,48, 0, &ntp_ia, sizeof(ntp_ia));
 	if(res<0){
 		closesocket(s,0);
@@ -167,6 +140,7 @@ inetloop:
 		j--;
 		len=recvfrom(s,netbuf,sizeof(netbuf), 0, &ntp_ia, sizeof(ntp_ia));
 		if(len<0){
+			YIELD();
 			YIELD();
 			continue;
 		}
