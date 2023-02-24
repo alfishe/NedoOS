@@ -463,10 +463,10 @@ focusappaddr=$+1
 sys_settime_do=$
                 or a ;/scf=set time
 sys_settime_time=$+1
-                ld de,0
+                ld bc,0
 sys_settime_date=$+1
                 ld hl,0
-                call c,writetime
+                call c,writetime ;keep de for atm != 1
                 ld a,55+128
                 ld (sys_settime_do),a
 
@@ -1084,7 +1084,9 @@ bcd2bin
 		in a,(c)
 		ret
 
-writetime
+writetime ;keep de only needed for atm != 1
+         ld d,b
+         ld e,c
         ld a,e
         add a,a
         and 63

@@ -777,8 +777,8 @@ dos3d13_sp_st=$+1	;-wasresident+resident
 	ld a,(0x5d0f)	;возврат ошибки
 	ret
 
-		if atm2clock != 1
 	if atm != 1
+		if atm2clock != 1
 ; Подержка часов GLUK в АТМ2+ (актуальная процедура для Evo находится в syskrnl)
 NVRAM_REG=0xdf
 NVRAM_VAL=0xbf
@@ -893,8 +893,12 @@ readtime  ;=$-wasresident+resident
     jp readtimeq
         
 writetime
+;bc=time
+;hl=date
+       push bc
 	call sys_SHADOFF
 	LD A,e;0xa8;%10101000 ;320x200 mode
+       pop de
 	push af
 	ld bc,0xeff7
 	ld a,0x80
@@ -947,12 +951,11 @@ readtimeq
 	xor a
 	out (c),a
 	pop af
-	jp shadon_pgsys_a
-	endif
-        
-	endif
-	if atm != 1
-		if atm2clock == 1
+        ld e,a ;!!! потом будет использоваться в readtime
+	jp shadon_pgsys
+
+                else ;if atm2clock == 1
+
 ; Подержка часов 8952  АТМ2+ и АТМ8		
 cmd2ve:	;e=command	 возвращаем результат в A
 		di
@@ -963,7 +966,9 @@ cmd2ve:	;e=command	 возвращаем результат в A
 		ei
 		ret
 writetime
-;TODO
+;bc=time
+;hl=date
+;TODO (keep de!)
 
         ret
 readtime  ;=$-wasresident+resident
@@ -1031,8 +1036,10 @@ readtime  ;=$-wasresident+resident
 	pop bc
 	pop af
 	jp shadon_pgsys_a
-		endif
-	endif
+
+                endif ;if atm2clock != 1
+
+	endif ;if atm != 1
 	;disp $-wasresident+resident
 
 		
