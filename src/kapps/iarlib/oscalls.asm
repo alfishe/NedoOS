@@ -15,6 +15,38 @@ time:
         ret ;return bchl
         ENDMOD
 
+
+;unsigned long OS_GETTIME (struct diskOp *); //out: ix=date, hl=time
+
+
+    MODULE OS_GETTIME
+    PUBLIC OS_GETTIME
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_GETTIME:
+    push ix
+    push iy
+    ld c,CMD_GETTIME ;out: ix=date, hl=time
+	call BDOS
+	di
+	push ix
+	pop bc
+	ei
+  	pop iy
+    pop ix
+    ret ;return bchl
+	ENDMOD
+
+
+
+
+
+
+
+
+
+
+
 	MODULE ERRNOMOD
 	PUBLIC errno
 	RSEG	NO_INIT

@@ -22,7 +22,6 @@ void getdata (void)
 {
   unsigned char readbyte;
   uart_startrts();
-  uart_delayXk(spdFactor);
   uart_stoprts();
 
   while (uart_queue() != 0)

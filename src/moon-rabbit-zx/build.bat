@@ -22,4 +22,3 @@ copy /Y data\logo.scr ..\..\release\bin\browser\logo.scr
 "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put data/logo.scr /bin/browser/logo.scr
 
 del /Q *.lst
-if "%makeall%"=="" ..\..\us\emul.exe
