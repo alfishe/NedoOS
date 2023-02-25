@@ -923,7 +923,7 @@ writetime
         add hl,hl
         add hl,hl
         ex de,hl
-        ld a,h
+        ld a,d
         and 63 ;m
         ld b,2
         call bin2cmos
