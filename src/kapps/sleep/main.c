@@ -24,7 +24,7 @@ C_task main(int argc, char *argv[])
 	{
 		p = argv[1];
 		counter = atoi(p);
-		if (counter < 0 || counter > 32000)
+		if (counter > 32000)
 		{
 			counter = 0;
 		}
@@ -48,6 +48,7 @@ C_task main(int argc, char *argv[])
 		while (start < finish)
 		{
 			start = time();
+			YIELD();
 		}
 		exit(0);
 	}

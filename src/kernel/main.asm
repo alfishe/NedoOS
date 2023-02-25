@@ -959,18 +959,89 @@ readtimeq
 ; Подержка часов 8952  АТМ2+ и АТМ8		
 cmd2ve:	;e=command	 возвращаем результат в A
 		di
-		ld	bc,0x55FE		;адрес 8952
-		in	a,(c)			;Переход в режим команды
-		ld	b,e				;команда из E переноcим в B
-		in	a,(c)			;выполнить команду
+		ld bc,0x55FE		;адрес 8952
+		in a,(c)		;Переход в режим команды
+		ld b,e             	;команда из E переноcим в B
+		in a,(c)		;выполнить команду
 		ei
+		ret
+send2ve:	;e=command b=data
+		push de
+                ld e,b
+                ld d,a
+                di
+		ld bc,0x55FE            ;адрес 8952
+		in a,(c)		;Переход в режим команды
+		ld b,e                  ;команда из E переноcим в B 
+		IN a,(c)
+		ld b,d                  ;Параметр
+		in a,(c)
+		ei
+                pop de
 		ret
 writetime
 ;bc=time
 ;hl=date
 ;TODO (keep de!)
+        push bc
+	call sys_SHADOFF
+	LD A,e;0xa8;%10101000 ;320x200 mode
+        pop de
+	push af
+	ld bc,0xeff7
+	ld a,0x80
+	out (c),a
 
-        ret
+        ld a,e
+        add a,a
+        and 63
+        ld b,0x11		;sec
+        call send2ve
+
+        ld a,d
+        rra
+        rra
+        rra
+        and 31 ;h
+        ld b,0x91
+        call send2ve
+
+        ex de,hl
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ex de,hl
+        ld a,d
+        and 63                  ;m
+        ld b,0x51
+        call send2ve
+
+        ld a,h
+        srl a
+        ;sub 20
+        ld b,0x93		;year
+        call send2ve
+
+        ld a,l
+        and 31
+        ld b,0x13		;day
+        call send2ve
+    
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld a,h
+        and 15
+        ld b,0x53	        ;month
+        call send2ve
+	ld bc,0xeff7
+	xor a
+	out (c),a
+	pop af
+        ld e,a                   ;!!! потом будет использоваться в readtime
+	jp shadon_pgsys
+
+
 readtime  ;=$-wasresident+resident
 ;sp=0x7fxx
 ;e=gfxmode
@@ -1010,7 +1081,7 @@ readtime  ;=$-wasresident+resident
 ;	Date	
 	ld e, 0x92		;year
 	call cmd2ve
-	add a, 20
+	;add a, 20
 	ld l, a
 	ADD HL,HL
 	ADD HL,HL
