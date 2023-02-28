@@ -44,12 +44,16 @@ myid=$+1
         jr nz,cmd_proc_skip
         ld a,d ;main page
         SETPG32KHIGH
-        ld de,COMMANDLINE+0xc000
+        ;ld de,COMMANDLINE+0xc000
+         ld hl,COMMANDLINE+0xc000
+         call findlastslash.
         ld hl,ttestdatacom
         ld bc,ttestdatacom_sz
         call teststr
         jr z,cmd_proc_found
-        ld de,COMMANDLINE+0xc000
+        ;ld de,COMMANDLINE+0xc000
+         ld hl,COMMANDLINE+0xc000
+         call findlastslash.
         ld hl,ttestdata
         ld bc,ttestdata_sz
         call teststr
@@ -365,6 +369,23 @@ testdata0
         jp pe,testdata0
         xor a
         ret
+
+;hl = poi to filename in string
+;out: de = after last slash
+findlastslash.
+nfopenfnslash.
+	ld d,h
+	ld e,l ;de = after last slash
+nfopenfnslash0.
+	ld a,[hl]
+	inc hl
+	or a
+	ret z
+       cp ' '
+       ret z
+	cp '/'
+	jr nz,nfopenfnslash0.
+	jr nfopenfnslash.
 
 ttestdatacom
         db "player.com"

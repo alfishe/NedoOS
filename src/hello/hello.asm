@@ -3,9 +3,9 @@
 
         org PROGSTART
 begin
-        ld ix,(1<<9)+(2<<5)+12
-        ld hl,(7<<11)+(34<<5)+(23/2) ;ix=date, hl=time
-        OS_SETTIME
+        ;ld ix,(1<<9)+(2<<5)+12
+        ;ld hl,(7<<11)+(34<<5)+(23/2) ;ix=date, hl=time
+        ;OS_SETTIME
 
         ;ld e,6 ;textmode
         ;OS_SETGFX
