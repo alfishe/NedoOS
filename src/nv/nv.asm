@@ -2824,7 +2824,7 @@ editcmd_quit
         OS_WRITEHANDLE
         pop bc
         OS_CLOSEHANDLE
-        ld hl,cmdprompt
+        ld de,cmdprompt
         OS_CHDIR
         ld hl,0 ;result
         QUIT
