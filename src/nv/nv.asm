@@ -2826,6 +2826,11 @@ editcmd_quit
         OS_CLOSEHANDLE
         ld de,cmdprompt
         OS_CHDIR
+       if PRSTDIO
+        call clearterm
+       else
+ 	call nv_copyscreen1to0
+       endif
         ld hl,0 ;result
         QUIT
 
