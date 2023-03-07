@@ -19,27 +19,31 @@ function to866(str){
 	}
 	return s866;
 }
-function myGet(u) {
+function myGet(up, us) {
 	var r = new XMLHttpRequest();
-	r.open("GET", to866(u)+"&r="+Math.random(), false);
+	us = to866(us)
+	if (up=='?d='){
+		us = encodeURIComponent(us)
+	}
+	r.open("GET", up+us+"&r="+Math.random(), false);
 	r.send(null);	
 	return r.responseText;
 }
 
 function mkdir(){
-	var ss = '?m='+window.curDir+'/'+document.getElementById('dirName').value;
-	document.getElementById('log').innerHTML=myGet(ss);
+	var ss = window.curDir+'/'+document.getElementById('dirName').value;
+	document.getElementById('log').innerHTML=myGet('?m=', ss);
 	rddir(window.curDir);
 }
 
 function unlink(dirPath){ 
-	var ss = '?u='+window.curDir+'/'+dirPath;
-	document.getElementById('log').innerHTML=myGet(ss);
+	var ss = window.curDir+'/'+dirPath;
+	document.getElementById('log').innerHTML=myGet('?u=', ss);
 	rddir(window.curDir);
 }
 function runprog(dirPath){ 
-	var ss = '?s='+dirPath;
-	document.getElementById('log').innerHTML=myGet(ss);
+	var ss = dirPath;
+	document.getElementById('log').innerHTML=myGet('?s=', ss);
 }
 function compareFileInfo(finfoA, finfoB) {
 	if(finfoA.isdir==3 || finfoB.isdir==3) return 0;
@@ -54,13 +58,13 @@ function rddir(dirPath){
 	if(dirPath!=''){
 		while((k=dirPath.indexOf('/',i))!=-1){
 			window.s+='<a href="javascript:rddir(\''+dirPath.substring(0,k)+'\')">'+
-				dirPath.substring(i,k-i)+'</a>/';
+				dirPath.substring(i,k)+'</a>/';
 			i=k+1;
 		}
 		window.s+=dirPath.substring(i);
 	}
 	window.s+='<br><table>';
-	j=JSON.parse(myGet('?d='+dirPath));
+	j=JSON.parse(myGet('?d=', dirPath));
 	j.fno.sort(compareFileInfo);
 	j.fno.forEach(function(item, i, arr) {
 		var n,pn;
@@ -85,24 +89,71 @@ function rddir(dirPath){
 			pn=((dirPath=='/')?(''):(dirPath+'/'))+n;
 			window.s+='<tr>';
 			
-			window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+'<a href="?g='+pn+'">Download</a></td>';
+			window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+'<a href="?g='+encodeURIComponent(pn)+'">Download</a></td>';
 			iof=n.lastIndexOf('.');
 			if(iof != -1){
 				switch(n.toLowerCase().substring(iof)){
 					case '.com':
 						window.s+='<td><a href="javascript:runprog(\''+pn+'\')">Run</a></td>';
-						break;
+						break;					
 					case '.pt3':	
 					case '.pt2':
 					case '.tfc':
 					case '.m':
+					case '.mt3':
+					case '.et':
+					case '.etc':
+					case '.cmp':
+					case '.tfd':
+					case '.tfm':				
 						window.s+='<td><a href="javascript:runprog(\'bin/player.com%20/'+pn+'\')">Play</a></td>';
 						break;
+					case '.mod':				
+						window.s+='<td><a href="javascript:runprog(\'bin/modplay.com%20/'+pn+'\')">Play</a></td>';
+						break;
+					case '.mp3':
+					case '.mid':
+					case '.ogg':
+					case '.aac':
+					case '.mdr':
+					case '.mwm':
+						window.s+='<td><a href="javascript:runprog(\'bin/gp.com%20/'+pn+'\')">Play</a></td>';
+						break;
+					case '.16c':
+					case '.fnt':
+					case '.img':
+					case '.3':
+					case '.888':
+					case '.y':
+					case '.+':
+					case '.-':
+					case '.plc':
+					case '.mc ':
+					case '.mcx':
+					case '.grf':
+					case '.ch$':
+					case '.mg1':
+					case '.mg2':
+					case '.mg4':
+					case '.mg8':
+					case '.rm':
+					case '.mlt':
+					case '.53c':						
 					case '.zxs':
 					case '.atr':
 					case '.scr':
 						window.s+='<td><a href="javascript:runprog(\'bin/view.com%20/'+pn+'\')">View</a></td>';
 						break;
+					case '.gif':
+					case '.jpg':
+					case '.png':
+					case '.htm':
+					case '.svg':
+						window.s+='<td><a href="javascript:runprog(\'bin/browser.com%20/'+pn+'\')">View</a></td>';
+						break;
+					case '.bmp':
+						window.s+='<td><a href="javascript:runprog(\'bin/scratch.com%20/'+pn+'\')">View</a></td>';
+						break;			
 					default:
 						window.s+='<td></td>';
 						break;
