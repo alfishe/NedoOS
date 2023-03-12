@@ -76,8 +76,19 @@ lastresult=$+1
         
 tautoexecbat
         db "autoexec.bat",0
-
+		
+version_text
+		defb "Command line interpreter. rev.",0
+		
 cmd_interactive
+		ld hl,version_text
+        call prtext
+        ifdef SVNREVISION
+            ld de,((SVNREVISION+1) >> 16) & 0xffff
+            ld hl,(SVNREVISION+1) & 0xffff
+			call prdword_dehl
+			call prcrlf
+        endif
         
 cmdmainloop
        if DEBUG
@@ -1540,7 +1551,6 @@ cmd_tee0
 ;HL = Number of bytes actually written, A=error?
         pop bc
         jr cmd_tee0
-     display "prword ",prword 
 cmd_uname
 		ld hl,nedostr
         call prtext
@@ -1552,13 +1562,46 @@ cmd_uname
 		call prdword_dehl
         call prcrlf
 		ret
-nedostr defb "NedoOS Kernal revision ",0
+nedostr defb "NedoOS Kernel revision ",0
+
 cmd_echo
         ld hl,(execcmd_pars)
         call prtext
         jp prcrlf
-        
+		
 cmd_pause
+        ld hl,(execcmd_pars)
+		ld a,(hl)
+        or a
+        jp z,cmd_pause_infin
+		ld de,copybuf
+		call strtobyte_hltode
+		ld hl,(copybuf)	;умножаем на 48 интов в секунде
+		add hl,hl
+		add hl,hl
+		add hl,hl
+		add hl,hl
+		ld d,h
+		ld e,l
+		add hl,hl
+		add hl,de
+		display "cmd_pause ",cmd_pause
+cmd_pause_loop	;ждем окончания счетчика, либо кнопку
+		ld a,h
+		or l
+		ret z
+		push hl
+			ld c,CMD_YIELD
+			call BDOS	;YIELD
+			call getkey
+		pop hl
+        ret c ;error
+		or a
+		ret nz
+		dec hl
+		jr cmd_pause_loop
+		
+cmd_pause_infin
         call yieldgetkeyloop ;YIELDGETKEYLOOP
          cp key_redraw
          jr z,cmd_pause
@@ -1976,6 +2019,7 @@ prword
         jp prdword_dehl
 
         include "../_sdk/prdword.asm"
+        include "../_sdk/string.asm"
         include "cmdpr.asm"
         include "../_sdk/stdio.asm"
 

@@ -30,8 +30,9 @@ DOC_INSTALLDIR	= $(INSTALLDIR)/doc
 DEPAS		= $(WINTOP)tools/aspp
 DEPAFLAGS	= -E -MM -I . -I $(WINSDK)
 DEPEXT		= d
+SVNREVISION := $(firstword $(subst :, ,$(shell svnversion -n)))
 SJASMPLUS	= $(WINTOP)tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war
+SJASMPLUSFLAGS	= --nologo --msg=war -DSVNREVISION=${SVNREVISION}
 DMIMG		= $(WINTOP)tools/dmimg
 EMULIMG		= $(WINTOP)us/sd_nedo.vhd
 

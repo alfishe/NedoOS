@@ -1,6 +1,5 @@
 @echo off
-if "%settedpath%"=="" call ../_sdk/setpath.bat
-sjasmplus --nologo --msg=war cmd.asm
+"../../tools/mingw/make.exe" -f makefile %1
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (
