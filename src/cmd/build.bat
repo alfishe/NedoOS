@@ -8,5 +8,5 @@ if "%currentdir%"=="" (
  "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put %%j /bin/%%j
  )
 rem pause
- if "%makeall%"=="" ..\..\us\emul.exe
+ rem if "%makeall%"=="" ..\..\us\emul.exe
 )

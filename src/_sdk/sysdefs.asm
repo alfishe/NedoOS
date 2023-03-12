@@ -56,7 +56,7 @@ CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 CMD_SETTIME=0xc9 ;ix=date, hl=time
 CMD_GETMEMPORTS=0xca ;out: ix=memport0000, bc=memport4000, de=memport8000, hl=memportc000
 CMD_GETPAGEOWNER=0x0cb ;e=page ;out: e=owner id (0=free, 0xff=system)
-CMD_GETCONFIG=0xcc ;H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666
+CMD_GETCONFIG=0xcc ;out: H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666, E=pgsys(system page), D= TR-DOS page, IXBC=SVN revision
 CMD_GETCHILDRESULT=0xcd ;hl=childresult
 CMD_RESERV_1=0xce
 CMD_OPENDIR=0xcf ;de=path

@@ -1540,7 +1540,19 @@ cmd_tee0
 ;HL = Number of bytes actually written, A=error?
         pop bc
         jr cmd_tee0
-        
+     display "prword ",prword 
+cmd_uname
+		ld hl,nedostr
+        call prtext
+		OS_GETCONFIG
+		push ix
+		pop de
+		ld h,b
+		ld l,c
+		call prdword_dehl
+        call prcrlf
+		ret
+nedostr defb "NedoOS Kernal revision ",0
 cmd_echo
         ld hl,(execcmd_pars)
         call prtext
@@ -1855,6 +1867,8 @@ commandslist
         db "pause",0
         dw cmd_cls
         db "cls",0
+        dw cmd_uname
+        db "uname",0
         
         dw -1 ;конец таблицы команд
 
