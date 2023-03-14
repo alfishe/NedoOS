@@ -51,9 +51,14 @@ mainbegin
 	ld hl,playersloaderrorstr
 	jp nz,printerrorandexit
 
-	call initplaylist
-	or 1
+	ld ix,browserpanel
+	call clearpanel
+	ld ix,playlistpanel
+	call clearpanel
+	or 255 ;set zf=0
 	call setcurrentpanel
+
+	call loadplaylist
 
 	ld hl,COMMANDLINE
 	call skipword_hl
@@ -147,7 +152,8 @@ gotop
 	jp drawcurrentpanelfilelist
 
 clearplaylist
-	call initemptyplaylist
+	ld ix,playlistpanel
+	call clearpanel
 	jp drawplaylistwindow
 
 playnextfile
@@ -284,11 +290,18 @@ startplaying
 	ld de,FILE_DISPLAY_INFO_OFFSET-FILE_ATTRIB_OFFSET
 	add hl,de
 	ld (.filename),hl
+	call getfileextension
+	ld (.filext2),de
+	ld (.filext1),bc
 	call findsupportedplayer
 	ret nz
 	call drawplayerwindow
-.filename=$+1
+.filext1=$+1
+	ld bc,0
+.filext2=$+1
 	ld de,0
+.filename=$+1
+	ld hl,0
 	call musicload
 	jp nz,drawui
 	ld hl,playmsgtable
@@ -374,7 +387,7 @@ goprevfile
 	ld (ix+PANEL.firstfiletoshow),a
 	jp drawcurrentpanelfilelist
 
-initplaylist
+loadplaylist
 	ld de,playlistfilename
 	call openstream_file
 	or a
@@ -388,13 +401,17 @@ initplaylist
 	sub hl,de
 	ret z
 initemptyplaylist
+	ld hl,PANELVERSION
+	ld (playlistpanelversion),hl
 	ld ix,playlistpanel
+	jr clearpanel
+
+clearpanel
+;ix = panel
 	xor a
 	ld (ix+PANEL.filecount),a
 	ld (ix+PANEL.currentfileindex),a
 	ld (ix+PANEL.firstfiletoshow),a
-	ld hl,PANELVERSION
-	ld (playlistpanelversion),hl
 	ret
 
 changetocurrentfolder
@@ -805,6 +822,14 @@ playingstr
 	db "Playing...",0
 emptystr
 	db 0
+initializing1str
+	db "Initializing ",0
+initializing2str
+	db "...",0
+initokstr
+	db "OK\r\n",0
+initfailedstr
+	db "failed\r\n",0
 
 	macro loadplayer playerpage,playersize
 	OS_NEWPAGE
@@ -816,9 +841,21 @@ emptystr
 	ld hl,playersize
 	call readstream_file
 
+	ld hl,initializing1str
+	call print_hl
+	ld hl,(PLAYERNAMESTRADDR)
+	call print_hl
+	ld hl,initializing2str
+	call print_hl
+
 	ld hl,sharedpages
 	ld a,(playerpage)
 	call playerinit
+
+	ld hl,initokstr
+	jr z,$+5
+	ld hl,initfailedstr
+	call print_hl
 	endm
 
 loadplayers
@@ -836,8 +873,9 @@ loadplayers
 	xor a
 	ret
 
-findsupportedplayer
+getfileextension
 ;hl = file name
+;out: cde = file extension
 	ld c,'.'
 	call findlastchar ;out: de = after last dot or start
 	ex de,hl
@@ -852,6 +890,9 @@ findsupportedplayer
 	ld a,(hl)
 	call tolower
 	ld e,a
+	ret
+
+findsupportedplayer
 ;cde = file extension
 	ld hl,playerpages
 	ld b,NUM_PLAYERS
@@ -902,6 +943,7 @@ createfileslist
 	and FATTRIB_DIR
 	jr nz,.founddir
 	ld hl,filinfo+FILINFO_FNAME
+	call getfileextension
 	call findsupportedplayer
 	jr nz,.skiptonextfile
 ;we've got either a playable file or a folder
@@ -1050,6 +1092,7 @@ MUSICLOADPROCADDR       = 0x4004
 MUSICUNLOADPROCADDR     = 0x4006
 MUSICPLAYPROCADDR       = 0x4008
 ISFILESUPPORTEDPROCADDR = 0x400a
+PLAYERNAMESTRADDR       = 0x400c
 
 	macro jumpindirect addr
 	push hl

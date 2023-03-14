@@ -60,7 +60,7 @@ CLOCKF_VS1053 = ((XTALI_FREQ-8000000+2000)/4000)|SC_MULT_53_40X|SC_ADD_53_00X ;5
         org GSPROGSTART
 begin   di
         ld sp,GSSTACKADDR
-	call checkifngs
+        call checkifngs
 ;uploading is done via interrupt handler
         ld hl,interrupthandler
         ld (GSINTERRUPTTABLEENTRYADDR),hl
@@ -267,19 +267,14 @@ ngssetfreq
         ret
 
 checkifngs
-	in a,(GSCFG0)
-	and %11001111
-	out (GSCFG0),a
-	ld d,a
-        WDC
-	in a,(GSCFG0)
-	cp d
-	ret z
-notngsloop
+        in a,(GSCFG0)
+        cp 255
+        ret nz
+.msgloop
         in a,(ZXSTAT)
         rrca
         call c,processcommand
-	jr notngsloop
+        jr .msgloop
 
 mutemod
 	xor a
@@ -295,19 +290,24 @@ mutemod
 
 processcommand
         in a,(ZXCMD)
+        cp CMDCOUNT
+        jr nc,cmdreset                        ;received an invalid command, so the player crashed?
         rlca
         ld (commandtable+1),a
         out (CLRCBIT),a
 commandtable
         jr $
-        jr cmdrestart : ASSERT CMDRESTART==0
+        jr cmdreset : ASSERT CMDRESET==0
         jr cmdgetfreebufferspace : ASSERT CMDGETFREEBUFFERSPACE==1
         jr cmdgetchipid : ASSERT CMDGETCHIPID==2
         jr cmdrestartstream : ASSERT CMDRESTARTSTREAM==3
         jr cmdvolumeup : ASSERT CMDVOLUMEUP==4
         jr cmdvolumedown : ASSERT CMDVOLUMEDOWN==5
 
-cmdrestart
+cmdreset
+        ld a,(vsversion)
+        inc a
+        jp z,0
         call vssoftreset
         ld d,C_20MHZ
         call ngssetfreq

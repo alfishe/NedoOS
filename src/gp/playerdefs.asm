@@ -7,4 +7,5 @@ PLAYERSTART = 0x4000
 	dw musicunload
 	dw musicplay
 	dw isfilesupported
+	dw playernamestr
 	endm

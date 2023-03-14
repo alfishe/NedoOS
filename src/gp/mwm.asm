@@ -32,11 +32,11 @@ playerdeinit
 	ret
 
 musicload
-;de = input file name
+;cde = file extension
+;hl = input file name
 ;First try loading wavekit with the same filename as input file.
 ;This allows overriding wavekit specified in MWM header without
 ;having the file edited.
-	ex de,hl
 	ld (filenameaddr),hl
 	ld c,'.'
 	call findlastchar ;out: de = after last dot or start
@@ -188,5 +188,8 @@ selbank_FE
 	include "moonsound.asm"
 	include "mbwave/basic.asm"
 
+playernamestr
+	db "Moonblaster Wave Replayer",0
 end
+
 	savebin "mwm.bin",begin,end-begin

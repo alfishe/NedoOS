@@ -14,6 +14,10 @@ begin   PLAYERHEADER
 
 isfilesupported
 ;cde = file extension
+isgsdisabled=$+1
+	jr nosupportedfiles
+	call ismodfile
+	ret z
 vsversion=$+1
 	ld a,255
 	ld l,'m'
@@ -67,6 +71,22 @@ checkmp3
 	ret nz
 	and ~SS_VER_MASK
 	ret
+nosupportedfiles
+	or 1
+	ret
+
+ismodfile
+;cde = file extension
+;out: zf=1 if .mod, zf=0 otherwise
+	ld a,'m'
+	cp c
+	ret nz
+	ld a,'o'
+	cp d
+	ret nz
+	ld a,'d'
+	cp e
+	ret
 
 playerinit
 ;hl = shared pages
@@ -88,57 +108,32 @@ playerinit
 	cp 1
 	ret c
 
-	ld bc,GSDAT
-	ld de,gscode_end-gscode
-	ld hl,GSPROGSTART
-	out (c),e
-	SC 0x14
-	WC
-	out (c),d
-	WD
-	out (c),l
-	WD
-	out (c),h
-	WD
-;start upload
-	ld hl,gscode
-uploadcodeloop
-	outi
-	WD
-	dec de
-	ld a,d
-	or e
-	jr nz,uploadcodeloop
-;launch the code
-	ld hl,GSPROGSTART
-	out (c),l
-	SC 0x13
-	WC
-	out (c),h
-	WD
-;the code is starting
-	YIELD
-	YIELD
-	YIELD
 ;get chip id
+	call gsstartcode
 	SC CMDGETCHIPID
 	WC
 	WN
 	GD
 	ld (vsversion),a
+	call gscodereset
 
 	xor a
+	ld (isgsdisabled),a
 	ret
 
 playerdeinit
-	ld a,(vsversion)
-	inc a
-	ret z
-	SC CMDRESTART
 	ret
 
 musicload
-;de = input file name
+;cde = file extension
+;hl = input file name
+	call ismodfile
+	ld a,1
+	jr z,$+3
+	dec a
+	ld (isplayingmodfile),a
+
+	ex de,hl
 	call openstream_file
 	or a
 	ret nz
@@ -150,6 +145,12 @@ pageC000=$+1
 	ld a,0
 	SETPGC000
 
+	ld a,(isplayingmodfile)
+	or a
+	jr nz,loadmod
+
+	call gsstartcode
+
 	ld hl,firstpaddingframedata
 	ld (paddingframedataptr),hl
 	ld hl,0
@@ -159,15 +160,69 @@ pageC000=$+1
 	xor a
 	ret
 
-musicunload
-	call closestream_file
+loadmod
+;load module
+	SC 0x30
+	WC
+;open stream
+	SC 0xD1
+	WC
+.loadchunk
+	ld hl,BUFSIZE
+	ld de,BUFADDR
+	push de
+	call readstream_file
+	ex (sp),hl
+	pop bc
+	ld a,b
+	or c
+	jr z,.doneloading
+.uploadloop
+	ld a,(hl)
+	out (GSDAT),a
+	WD
+	inc hl
+	dec bc
+	ld a,b
+	or c
+	jr nz,.uploadloop
+	jr .loadchunk
 
-	SC CMDRESTARTSTREAM
+.doneloading
+	call closestream_file
+;close stream
+	SC 0xD2
+	WC
+;play module
+	ld a,1
+	out (GSDAT),a
+	SC 0x31
+	WC
+
+	xor a
+	ld (patternindex),a
+	ret
+
+musicunload
+	ld a,(isplayingmodfile)
+	or a
+	jr nz,unloadmod
+
+	call closestream_file
+	jp gscodereset
+
+unloadmod
+	SC 0xf3
 	WC
 	ret
 
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
+isplayingmodfile=$+1
+	ld a,0
+	or a
+	jr nz,playmod
+
 bufferreadptr=$+1
 	ld hl,0
 bufferdataleft=$+1
@@ -199,9 +254,9 @@ uploaddataloop
 	inc hl
 	djnz uploaddataloop
 	dec c
-	jr z,readfilechunk	      ;done uploading current chunk
+	jr z,readfilechunk          ;done uploading current chunk
 	bit 0,c
-	jr z,uploaddataloop	     ;poll GS once per 512 bytes
+	jr z,uploaddataloop         ;poll GS once per 512 bytes
 checkifcanupload
 	SC CMDGETFREEBUFFERSPACE
 	WC
@@ -216,6 +271,21 @@ checkifcanupload
 	YIELD
 
 	or 1
+	ret
+
+playmod
+	YIELD
+;read pattern index
+	SC 0x60
+	WC
+	WN
+	GD
+;check if the index is increasing monotonically
+	ld hl,patternindex
+	cp (hl)
+	ld (hl),a
+	ccf
+	sbc a
 	ret
 
 readdata
@@ -254,13 +324,13 @@ paddingframecount=$+1
 gshardreset
 ;out: b!=0 if got reply from GS, b==0 otherwise
 	ld a,C_GRST
-	out (GSCTR),a		   ;hw reset
+	out (GSCTR),a               ;hw reset
 	YIELD
 	YIELD
 	YIELD
 gssoftreset
-	SC 0xf3			 ;GS reset
-	ld b,0x30		       ;max spins
+	SC 0xf3                     ;GS reset
+	ld b,50                     ;max spins
 wcloop
 	push bc
 	YIELD
@@ -271,7 +341,47 @@ wcloop
 	rrca
 	jr c,wcloop
 	ret
-	
+
+gsstartcode
+	ld bc,GSDAT
+	ld de,gscode_end-gscode
+	ld hl,GSPROGSTART
+	out (c),e
+	SC 0x14
+	WC
+	out (c),d
+	WD
+	out (c),l
+	WD
+	out (c),h
+	WD
+;start upload
+	ld hl,gscode
+.uploadloop
+	outi
+	WD
+	dec de
+	ld a,d
+	or e
+	jr nz,.uploadloop
+;launch the code
+	ld hl,GSPROGSTART
+	out (c),l
+	SC 0x13
+	WC
+	out (c),h
+	WD
+;the code is starting
+	YIELD
+	YIELD
+	YIELD
+	ret
+
+gscodereset
+	SC CMDRESET
+	WC
+	ret
+
 firstpaddingframedata
 	db 0xFF,0xFB,0x90,0x64,0x00,0x0F,0xF0,0x00,0x00
 	db 0x69,0x00,0x00,0x00,0x08,0x00,0x00,0x0D,0x20
@@ -293,6 +403,12 @@ gscode
 gscode_end
 
 	include "../_sdk/file.asm"
+
+playernamestr
+	db "GS/NGS",0
 end
+
+patternindex
+	db 0
 
 	savebin "mp3.bin",begin,end-begin

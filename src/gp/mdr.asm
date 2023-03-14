@@ -28,7 +28,9 @@ playerdeinit
 	ret
 
 musicload
-;de = input file name
+;cde = file extension
+;hl = input file name
+	ex de,hl
 	call openstream_file
 	or a
 	ret nz
@@ -176,6 +178,8 @@ checkchannels
 	include "moonsound.asm"
 	include "moondriver/moon_driver.asm"
 
+playernamestr
+	db "MoonSound MoonDriver",0
 end
 
 datapages

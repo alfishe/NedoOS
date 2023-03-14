@@ -38,7 +38,9 @@ playerdeinit
 	ret
 
 musicload
-;de = input file name
+;cde = file extension
+;hl = input file name
+	ex de,hl
 	call openstream_file
 	or a
 	ret nz
@@ -123,6 +125,9 @@ getptsconfig
 
 	include "../_sdk/file.asm"
 	include "ptsplay/ptsplay.asm"
+
+playernamestr
+	db "Universal PT2'n'PT3 Turbo Sound",0
 end
 
 	savebin "pt3.bin",begin,end-begin
