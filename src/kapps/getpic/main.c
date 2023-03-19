@@ -468,7 +468,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
 {
   unsigned int retry;
   unsigned int todo, pPos, headskip;
-  unsigned char cmdlist1[] = "GET /api/export:zxPicture\/filter:zxPicture\/limit:";
+  unsigned char cmdlist1[] = "GET /api/export:zxPicture\/filter:zxPictureType=standard\/limit:";
   unsigned char cmdlist2[] = "\/start:";
   unsigned char cmdlist3[] = "\/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "000000000";
