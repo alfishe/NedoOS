@@ -1,6 +1,6 @@
 
-        MODULE TIME
-        PUBLIC time
+    MODULE TIME
+    PUBLIC time
 	#include "sysdefs.asm"
 	RSEG CODE
 time:
@@ -36,16 +36,6 @@ OS_GETTIME:
     pop ix
     ret ;return bchl
 	ENDMOD
-
-
-
-
-
-
-
-
-
-
 
 	MODULE ERRNOMOD
 	PUBLIC errno
@@ -324,10 +314,6 @@ OS_GETPAGEOWNER:
     pop bc
 	ret
 	ENDMOD
-
-
-
-
 	
 	MODULE	my_im2
 	PUBLIC	my_im2_init
@@ -354,10 +340,26 @@ tloop
 	ret
 	ENDMOD
 
-
-
-
 ;Kulich Area
+
+	MODULE OS_NEWPAGE	;out: a=0 (OK)/!=0 (fail), e=page
+	PUBLIC OS_NEWPAGE
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_NEWPAGE:
+    push bc
+	ld c,CMD_NEWPAGE
+	push ix
+	push iy
+	call BDOS
+	pop iy
+	pop ix
+    pop bc
+	ld h,a			;error
+	ld l,e			;page 
+	ret
+	ENDMOD
+
 	MODULE OS_READSECTORS	;de= pointer to diskOp structure
 	PUBLIC OS_READSECTORS
 	#include "sysdefs.asm"
@@ -389,13 +391,9 @@ OS_READSECTORS:
 	ld  a,(hl)	;count
 	pop hl
 	ex de,hl
-
-;	push hl
 	ld c,CMD_READSECTORS
 	ex af,af' ;'
     call BDOS ;c=CMD
-
-;	pop hl 
 	pop iy
 	pop ix
 	pop de
@@ -434,18 +432,160 @@ OS_WRITESECTORS:
 	ld  a,(hl)	;count
 	pop hl
 	ex de,hl
-
-;	push hl
 	ld c,CMD_WRITESECTORS
 	ex af,af' ;'
     call BDOS ;c=CMD
-
-;	pop hl 
 	pop iy
 	pop ix
 	pop de
 	pop bc
 	ret		;BCHL	
-;End of Kulich area
+	ENDMOD
+
+	MODULE OS_GETPATH
+	PUBLIC OS_GETPATH
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_GETPATH:
+	push bc
+	push ix
+	push iy
+	ld c,CMD_GETPATH
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ld hl,0
+	ret
+	ENDMOD
+
+	MODULE OS_SETSYSDRV			
+	PUBLIC OS_SETSYSDRV			
+	#include "sysdefs.asm"
+	RSEG CODE	
+OS_SETSYSDRV
+	push bc
+	push de
+	push ix
+	push iy
+	ld c,CMD_SETSYSDRV			; out: A: A!=0 -- системный диск не примонтирован. L: -- общее количество примонтированных дисков.
+	call BDOS
+	pop iy
+	pop ix
+	pop de
+	pop bc
+	ld h,a						;h = error l = No of disks
+	ret
+	ENDMOD
+
+	MODULE OS_CHDIR
+	PUBLIC OS_CHDIR
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_CHDIR:
+	push bc
+	push ix
+	push iy
+	ld c,CMD_CHDIR				;DE = Pointer to ASCIIZ string. Out A=error
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ld l,0
+	ld h,a						;h = error 
+	ret
+	ENDMOD
+
+	MODULE OS_NEWAPP
+	PUBLIC OS_NEWAPP
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_NEWAPP:
+	push bc
+	ld (strPtr), de
+	push ix
+	push iy
+	ld c,CMD_NEWAPP				;out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
+	call BDOS
+	pop iy
+	pop ix
+	ld c,a
+	push hl
+	ld hl,(strPtr)
+	ld (hl),d
+	inc hl
+	ld (hl),e
+	pop hl
+	ex de,hl
+	ld hl,(strPtr)
+	inc hl
+	inc hl
+	ld (hl),d
+	inc hl
+	ld (hl),e
+	inc hl
+	ld (hl),b
+	inc hl
+	ld (hl),c
+	pop bc
+	ret
+strPtr
+	DEFW 0000
+	ENDMOD
+
+	MODULE OS_RUNAPP
+	PUBLIC OS_RUNAPP
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_RUNAPP:	
+	push hl
+	push bc
+	push ix
+	push iy
+	ld c,CMD_RUNAPP	;e=id ;ACTIVATE DISABLED APP
+	call BDOS
+	pop iy
+	pop ix
+    pop bc
+	pop hl
+	ret
+	ENDMOD
+
+	MODULE OS_WAITPID
+	PUBLIC OS_WAITPID
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_WAITPID:
+	push bc
+	push ix
+	push iy
+    ld c,CMD_SETWAITING
+	call BDOS
+	ld c,CMD_YIELD
+	call BDOS
+	ld c,CMD_GETCHILDRESULT
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ret
+	ENDMOD
+
+	MODULE OS_CLS
+	PUBLIC OS_CLS
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_CLS:
+	push bc
+	push ix
+	push iy
+	ld c,CMD_CLS
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ret
+//	ENDMOD
+
 	END
 	

@@ -253,10 +253,10 @@ unsigned int netShutDown(unsigned char socket)
 
 void fillPicture(unsigned char socket)
 {
-  unsigned int todo, w, pPos, q, headskip;
+  unsigned int todo, w, bPos, bytes2read, headskip;
 
   headskip = 0;
-  pPos = 0;
+  bPos = 0;
   bytecount = 255;
   while (1)
   {
@@ -265,23 +265,25 @@ void fillPicture(unsigned char socket)
     {
       break;
     }
-    q = todo;
+    bytes2read = todo;
     if (headskip == 0)
     {
       headskip = 1;
-      q = cutHeader(todo);
+      bytes2read = cutHeader(todo);
     }
-    for (w = 0; w < q; w++)
+
+    if (bPos + bytes2read > sizeof(picture))
     {
-      picture[w + pPos] = netbuf[w];
-    }
-    bytecount = bytecount - q;
-    if (pPos > sizeof(picture))
-    {
-      printf("Picture overrun... \n\r");
+      printf("dataBuffer overrun... \n\r");
       break;
-    } // 1.1
-    pPos = pPos + q;
+    }
+
+    for (w = 0; w < bytes2read; w++)
+    {
+      picture [w + bPos] = netbuf[w];
+    }
+    bytecount = bytecount - bytes2read;
+    bPos = bPos + bytes2read;
   }
   netShutDown(socket);
 }

@@ -24,14 +24,14 @@ unsigned int 	OS_CLOSEHANDLE(FILE * hnd);
 unsigned long	OS_GETFILESIZE(FILE * hnd);
 void			OS_SEEKHANDLE(FILE * hnd, unsigned long ofset);
 unsigned char	OS_GETFILINFO(unsigned char * path, FILINFO*);
-unsigned char * OS_GETPATH(unsigned char * path);
+//unsigned char * OS_GETPATH(unsigned char * path);
 unsigned char	OS_OPENDIR(unsigned char * path);
 unsigned char	OS_READDIR(FILINFO*);
-unsigned char	OS_CHDIR(const unsigned char * path);
+//unsigned char	OS_CHDIR(const unsigned char * path);
 unsigned char	OS_CHDRV(unsigned char drive);
 unsigned char	OS_MKDIR(unsigned char * path);
 unsigned char	OS_DELETE(unsigned char * path);
-void			OS_SETSYSDRV(void);
+//void			OS_SETSYSDRV(void);
 unsigned char * fs_get_err_str(void);
 
 #endif
