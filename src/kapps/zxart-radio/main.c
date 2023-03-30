@@ -686,7 +686,7 @@ C_task main(void)
   long iddqd, ipadress;
   // unsigned int newPage;
   os_initstdio();
-
+  srand(time());
   count = 0;
   saveFlag = 0;
 
