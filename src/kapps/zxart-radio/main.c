@@ -487,26 +487,40 @@ wizwrite:
 }
 
 // Процедура парсинга JSON от zxart.ee от полученя до заполнения структуры трека, возвращает ID работы.
-unsigned long processJson(unsigned long startPos, unsigned char limit)
+unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int retry;
   unsigned int todo;
-  unsigned char cmdlist1[] = "GET /api/export:zxMusic/filter:zxMusicFormat=pt3/limit:";
-  unsigned char cmdlist2[] = "\/start:";
-  unsigned char cmdlist3[] = "\/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
-  retry = 20;
 
-  netbuf[0] = '\0';
-  strcat(netbuf, cmdlist1);
-  sprintf(buffer, "%u", limit);
-  strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
-  sprintf(buffer, "%lu", startPos);
-  strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist3);
-rejson: //  GetPic upd
+  switch (queryNum)
+
+  {
+  case 0:
+    netbuf[0] = '\0';
+    strcat(netbuf, "GET /api/export:zxMusic/filter:zxMusicFormat=pt3/limit:");
+    sprintf(buffer, "%u", limit);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/start:");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    break;
+  case 1: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:votes,rand/filter:zxMusicMinRating=4;
+    netbuf[0] = '\0';
+    startPos = 0;
+    strcat(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:");
+    sprintf(buffer, "%u", limit);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/start:");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/order:votes,rand/filter:zxMusicMinRating=4;zxMusicFormat=PT3 HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    break;
+  }
+  retry = 20;
+rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
 
@@ -521,12 +535,17 @@ rejson: //  GetPic upd
     YIELD();
     if (retry > 0)
       goto rejson;
+    printf("JSON: %s \r\n", dataBuffer);
+    getchar();
     return -1;
   }
+
   count = strstr(dataBuffer, "\"id\":");
   if (count == NULL)
   {
     printf("BAD JSON: ID not found \r\n");
+    printf("JSON: %s \r\n", dataBuffer);
+    getchar();
     return -2;
   }
   netbuf[0] = '\0';
@@ -597,7 +616,7 @@ void getData2(unsigned char socket)
 unsigned char getPic(unsigned long fileId)
 {
   unsigned int todo;
-  unsigned char cmdlist1[] = "GET \/file\/id:";
+  unsigned char cmdlist1[] = "GET /file/id:";
   unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
@@ -647,7 +666,7 @@ unsigned char runPlayer(void)
     memcpy((char *)(0xc100 + loop), &dataBuffer, loaded);
   }
   OS_CLOSEHANDLE(fp2);
-  // SETPG32KHIGH(pgbak);
+  SETPG32KHIGH(pgbak);
   OS_RUNAPP(player_pg.pgs.pId);
   waitRet = OS_WAITPID(player_pg.pgs.pId);
   return waitRet;
@@ -700,13 +719,16 @@ void drawMain(void)
 
 C_task main(void)
 {
-  unsigned char errno, keypress;
+  unsigned char errno, keypress, queryNum;
   long iddqd, ipadress;
+  unsigned char queryType[40];
   // unsigned int newPage;
   os_initstdio();
   srand(time());
   count = 0;
   saveFlag = 0;
+  queryNum = 0;
+  strcpy(queryType, "from newest to oldest");
 
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
@@ -724,17 +746,16 @@ C_task main(void)
   */
 
 start:
-  iddqd = processJson(count, 1);
+  iddqd = processJson(count, 1, queryNum);
   if (iddqd < 0)
   {
     exit(0);
   }
 
-  BOX(1, 2, 80, 2, 40);
+  BOX(1, 2, 80, 7, 40);
   AT(1, 2);
 
   ATRIB(97);
-
   printf(" #:%lu ID:%lu	Total Tracks:%lu \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
   ATRIB(96);
   printf(" TITLE:%s\r\n", curFileStruct.picName);
@@ -742,12 +763,12 @@ start:
   printf(" RATING:%s  YEAR:%u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
   ATRIB(97);
   printf("\r\n [K]Keep files: %u [S]Shuffle: %u\r\n", saveFlag, shuffleFlag);
-
+  printf(" [Q]Query type: %s\r\n", queryType);
   curFileStruct.fileSize = 0;
   errno = getPic(iddqd);
   keypress = runPlayer();
-  printf(" keypress =  %u\r\n", keypress);
-  // drawMain();
+  // printf(" keypress =  %u       \r\n", keypress);
+  //  drawMain();
   if (keypress == 27)
   {
     printf("Good bye...\r\n");
@@ -771,12 +792,37 @@ start:
   {
     count = trackSelector(2);
     shuffleFlag = !shuffleFlag;
+    if (shuffleFlag)
+    {
+      strcpy(queryType, "Random play");
+    }
+    else
+    {
+      strcpy(queryType, "from newest to oldest");
+    }
+    queryNum = 0;
     goto start;
   }
 
   if (keypress == 'k' || keypress == 'K')
   {
     saveFlag = !saveFlag;
+    goto start;
+  }
+
+  if (keypress == 'q' || keypress == 'Q')
+  {
+    queryNum = !queryNum;
+    if (queryNum)
+    {
+      strcpy(queryType, "Random best and most voted tracks");
+    }
+    else
+    {
+      strcpy(queryType, "from newest to oldest");
+    }
+    count = 0;
+    shuffleFlag = 0;
     goto start;
   }
 
