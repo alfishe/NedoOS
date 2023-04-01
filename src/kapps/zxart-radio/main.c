@@ -30,6 +30,7 @@ struct fileStruct
   unsigned long fileSize;
   unsigned int picYear;
   unsigned long totalAmount;
+  unsigned char time[16];
   unsigned char picRating[8];
   unsigned char picName[255];
   unsigned char fileName[64];
@@ -544,6 +545,8 @@ rejson: //  GetPic upd
   curFileStruct.picYear = atoi(netbuf);
   parseJson("\"totalAmount\":");
   curFileStruct.totalAmount = atol(netbuf);
+  parseJson("\"time\":\"");
+  strcpy(curFileStruct.time, netbuf);
 
   return curFileStruct.picId;
 }
@@ -644,8 +647,7 @@ unsigned char runPlayer(void)
     memcpy((char *)(0xc100 + loop), &dataBuffer, loaded);
   }
   OS_CLOSEHANDLE(fp2);
-  SETPG32KHIGH(pgbak);
-
+  // SETPG32KHIGH(pgbak);
   OS_RUNAPP(player_pg.pgs.pId);
   waitRet = OS_WAITPID(player_pg.pgs.pId);
   return waitRet;
@@ -680,6 +682,22 @@ long trackSelector(unsigned char mode)
   return count;
 }
 
+void drawMain(void)
+{
+  AT(25, 8);
+  ATRIB(97);
+  ATRIB(41);
+  printf(" [L]From latest to oldest  \n\r");
+  AT(25, 9);
+  printf(" [R]from the best to worst \n\r");
+  AT(25, 10);
+  printf(" [S]Random pick            \n\r");
+  AT(25, 11);
+  printf(" [D]Save current track     \n\r");
+  AT(25, 12);
+  printf(" [K]Keep downloaded files  \n\r");
+}
+
 C_task main(void)
 {
   unsigned char errno, keypress;
@@ -712,23 +730,24 @@ start:
     exit(0);
   }
 
-  BOX(1, 1, 80, 2, 40);
-  AT(1, 1);
+  BOX(1, 2, 80, 2, 40);
+  AT(1, 2);
 
   ATRIB(97);
-  printf(" #:%lu ID:%lu	\r\n", count, curFileStruct.picId);
+
+  printf(" #:%lu ID:%lu	Total Tracks:%lu \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
   ATRIB(96);
   printf(" TITLE:%s\r\n", curFileStruct.picName);
   ATRIB(93);
-  printf(" RATING:%s  YEAR:%u \r\n", curFileStruct.picRating, curFileStruct.picYear);
+  printf(" RATING:%s  YEAR:%u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
   ATRIB(97);
   printf("\r\n [K]Keep files: %u [S]Shuffle: %u\r\n", saveFlag, shuffleFlag);
 
   curFileStruct.fileSize = 0;
   errno = getPic(iddqd);
   keypress = runPlayer();
-  // printf(" keypress =  %u\r\n", keypress);
-
+  printf(" keypress =  %u\r\n", keypress);
+  // drawMain();
   if (keypress == 27)
   {
     printf("Good bye...\r\n");
