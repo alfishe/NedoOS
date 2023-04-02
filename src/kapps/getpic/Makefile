@@ -1,11 +1,11 @@
 #название запускаемого файла
-BIN		:= getpic.com
+BIN		:=zxartrad.com
 
 #поддиректория инсталляции в release
-INSTDIR := bin
+INSTDIR := bin/Radio
 
 #тип вводавывода TTY или BDOS
-CONSOLE := TTY
+CONSOLE := TTY_NE
 
 #файлы .с
 SRCC	:= main.c
