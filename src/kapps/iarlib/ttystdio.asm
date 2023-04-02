@@ -47,6 +47,31 @@ ttygetkey
 	pop bc
 	ret
 	ENDMOD
+
+	MODULE TTYGETKEY_NE
+	PUBLIC ttygetkey_ne
+	EXTERN receivekey,exit
+	#include "sysdefs.asm"
+	RSEG CODE
+ttygetkey_ne
+	push bc
+	push de
+	push ix
+	push iy
+	ld c,CMD_YIELD
+	call BDOS
+	call receivekey
+;	cp key_esc
+;	ld de,0
+;	jp z,exit
+	ld l,a
+	ld h,0
+	pop iy
+	pop ix
+	pop de
+	pop bc
+	ret
+	ENDMOD
 	
 	MODULE TTYPUTCHAR
 	PUBLIC ttyputchar

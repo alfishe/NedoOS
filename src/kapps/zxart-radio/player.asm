@@ -8,8 +8,8 @@ MDLADDR=0x6000;0xc000
         org PROGSTART
 cmd_begin
         ld sp,0x4000 ;не должен опускаться ниже #3b00! иначе возможна порча OS
-        ;OS_HIDEFROMPARENT
-        ld e,6 ;textmode
+        OS_HIDEFROMPARENT
+        ld e,-1 ;textmode
         OS_SETGFX
         ;call initstdio
 

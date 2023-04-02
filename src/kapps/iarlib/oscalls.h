@@ -38,7 +38,7 @@ unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- системный ди
 unsigned int OS_NEWAPP(unsigned int trgPathPtr);
 unsigned int OS_RUNAPP(unsigned char pId); //e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID (unsigned char pId);
-
+unsigned int OS_HIDEFROMPARENT (void);
 unsigned long OS_STARTAPP(unsigned long appParamsPtr); //	;out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
 
 // End of Kulich area

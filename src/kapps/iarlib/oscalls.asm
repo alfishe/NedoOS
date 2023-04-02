@@ -293,8 +293,23 @@ OS_DROPAPP:	;e=id ; hl=result
 	ret
 	ENDMOD
 
- 
-
+	MODULE OS_SETGFX
+	PUBLIC OS_SETGFX
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx (out: e=old gfxmode)
+    push bc
+	push hl
+	push ix
+	push iy
+	ld c,CMD_SETGFX
+	call BDOS
+	pop iy
+	pop ix
+	pop hl
+	pop bc
+	ret
+	ENDMOD
 
 	MODULE OSGETPAGEOWNER	;e=page ;out: e=owner id (0=free, 0xff=system)
 	PUBLIC OS_GETPAGEOWNER
@@ -571,12 +586,32 @@ OS_WAITPID:
 	ret
 	ENDMOD
 
+
+
+
+	MODULE OS_HIDEFROMPARENT
+	PUBLIC OS_HIDEFROMPARENT
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_HIDEFROMPARENT:	
+	push bc
+	push ix
+	push iy
+	ld c,CMD_HIDEFROMPARENT
+	call BDOS
+	pop iy
+	pop ix
+    pop bc
+	ret
+	ENDMOD
+
 	MODULE OS_CLS
 	PUBLIC OS_CLS
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_CLS:
 	push bc
+	push hl
 	push ix
 	push iy
 	ld c,CMD_CLS
@@ -584,6 +619,7 @@ OS_CLS:
 	pop iy
 	pop ix
 	pop bc
+	pop hl
 	ret
 //	ENDMOD
 

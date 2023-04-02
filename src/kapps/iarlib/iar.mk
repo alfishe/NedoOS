@@ -47,6 +47,10 @@ XLINK	:= $(WINE)$(IAR)/bin/xlink.exe
 
 LINK_OPTIONS=-FRAW-BINARY -S -o $(BIN) -l $(OBJ)/cout.html -xehinms -Z\(CODE\)DBGMON=FFFF-FFFF
 
+ifeq ($(CONSOLE),TTY_NE)
+LNK_CONS:= -ettygets=gets -ettyputs=puts -ettyputchar=putchar -ettygetkey_ne=_low_level_get
+endif
+
 ifeq ($(CONSOLE),TTY)
 LNK_CONS:= -ettygets=gets -ettyputs=puts -ettyputchar=putchar -ettygetkey=_low_level_get
 endif

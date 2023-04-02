@@ -12,7 +12,7 @@
 #define COMMANDLINE 0x0080
 
 unsigned char netbuf[1452];
-unsigned char dataBuffer[8192];
+unsigned char dataBuffer[4096];
 unsigned char crlf[2] = {13, 10};
 unsigned long bytecount;
 unsigned char status, key;
@@ -32,8 +32,8 @@ struct fileStruct
   unsigned long totalAmount;
   unsigned char time[16];
   unsigned char picRating[8];
-  unsigned char picName[255];
-  unsigned char fileName[64];
+  unsigned char picName[256];
+  unsigned char fileName[256];
 } curFileStruct;
 
 void delay(unsigned long counter)
@@ -106,7 +106,7 @@ void errorPrint(unsigned int error)
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
 {
-  unsigned char socket, retry = 150;
+  unsigned char socket, retry = 50;
   unsigned int todo;
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
@@ -641,7 +641,7 @@ unsigned char runPlayer(void)
   union APP_PAGES player_pg;
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
-  unsigned int waitRet;
+  // unsigned int waitRet;
   strcat(appCmd, curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
@@ -668,8 +668,8 @@ unsigned char runPlayer(void)
   OS_CLOSEHANDLE(fp2);
   SETPG32KHIGH(pgbak);
   OS_RUNAPP(player_pg.pgs.pId);
-  waitRet = OS_WAITPID(player_pg.pgs.pId);
-  return waitRet;
+  // waitRet = OS_WAITPID(player_pg.pgs.pId);
+  return player_pg.pgs.pId;
 }
 
 long trackSelector(unsigned char mode)
@@ -719,7 +719,7 @@ void drawMain(void)
 
 C_task main(void)
 {
-  unsigned char errno, keypress, queryNum;
+  unsigned char errno, keypress, queryNum, pId;
   long iddqd, ipadress;
   unsigned char queryType[40];
   // unsigned int newPage;
@@ -751,10 +751,8 @@ start:
   {
     exit(0);
   }
-
   BOX(1, 2, 80, 7, 40);
   AT(1, 2);
-
   ATRIB(97);
   printf(" #:%lu ID:%lu	Total Tracks:%lu \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
   ATRIB(96);
@@ -764,14 +762,23 @@ start:
   ATRIB(97);
   printf("\r\n [K]Keep files: %u [S]Shuffle: %u\r\n", saveFlag, shuffleFlag);
   printf(" [Q]Query type: %s\r\n", queryType);
+
   curFileStruct.fileSize = 0;
   errno = getPic(iddqd);
-  keypress = runPlayer();
-  // printf(" keypress =  %u       \r\n", keypress);
+  pId = runPlayer();
+
+rekey:
+  do
+  {
+    keypress = _low_level_get();
+  } while (keypress == 0);
+  //  printf(" keypress =  %u       \r\n", keypress);
+
   //  drawMain();
   if (keypress == 27)
   {
-    printf("Good bye...\r\n");
+    OS_DROPAPP(pId);
+    printf("Good bye... %u \r\n", pId);
     ATRIB(37);
     ATRIB(40);
     exit(0);
@@ -779,12 +786,14 @@ start:
   if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
     count = trackSelector(1);
+    OS_DROPAPP(pId);
     goto start;
   }
 
   if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
   {
     count = trackSelector(0);
+    OS_DROPAPP(pId);
     goto start;
   }
 
@@ -832,47 +841,5 @@ start:
     scanf("%lu", &count);
     goto start;
   }
-  count = trackSelector(0);
-  goto start;
-  /*
-    main_pg.l = OS_GETMAINPAGES();
-    printf("window_3 = %u\r\n", main_pg.pgs.window_3);
-
-    newPage = OS_NEWPAGE();
-    printf("newPage = %u\r\n", newPage);
-
-    SETPG32KHIGH(newPage);
-
-    main_pg.l = OS_GETMAINPAGES();
-    printf("window_3 = %u\r\n", main_pg.pgs.window_3);
-
-    OS_GETPATH((unsigned int)&dataBuffer);
-    printf("OS_GETPATH = %s\r\n", dataBuffer);
-    strcpy(dataBuffer, "");
-
-    OS_SETSYSDRV();
-
-    OS_GETPATH((unsigned int)&dataBuffer);
-    printf("OS_GETPATH = %s\r\n", dataBuffer);
-
-    OS_CHDIR((unsigned int)&"kapps");
-
-    OS_GETPATH((unsigned int)&dataBuffer);
-    printf("OS_GETPATH = %s\r\n", dataBuffer);
-
-    OS_NEWAPP((unsigned int)&main_pg);
-
-    printf("window_3 = %u\r\n", main_pg.pgs.window_3);
-    printf("window_2 = %u\r\n", main_pg.pgs.window_2);
-    printf("window_1 = %u\r\n", main_pg.pgs.window_1);
-    printf("window_0 = %u\r\n", main_pg.pgs.window_0);
-    printf("pId = %u\r\n", main_pg.pgs.pId);
-    printf("error = %u\r\n", main_pg.pgs.error);
-
-    memcpy((char *)(0xc000 + COMMANDLINE), &main_pg, 6);
-
-    // OS_RUNAPP(main_pg.pgs.pId);
-
-    printf("%u started...\r\n", main_pg.pgs.pId);
-  */
+  goto rekey;
 }
