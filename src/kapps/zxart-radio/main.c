@@ -14,8 +14,9 @@
 unsigned char netbuf[1452];
 unsigned char dataBuffer[4096];
 unsigned char crlf[2] = {13, 10};
+unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
 unsigned long bytecount;
-unsigned char status, key;
+unsigned char status, key, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
@@ -370,10 +371,12 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   strcpy(fileName, "pt3/za");
   sprintf(buffer, "%lu", fileId);
   strcat(fileName, buffer);
-  strcat(fileName, ".pt3");
+  strcat(fileName, ".");
+  strcat(fileName, formats[curFormat]);
   if (saveFlag == 0)
   {
-    strcpy(fileName, "pt3/temp.pt3");
+    strcpy(fileName, "pt3/temp.");
+    strcat(fileName, formats[curFormat]);
   }
 
   strcpy(curFileStruct.fileName, fileName);
@@ -499,12 +502,14 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   {
   case 0:
     netbuf[0] = '\0';
-    strcat(netbuf, "GET /api/export:zxMusic/filter:zxMusicFormat=pt3/limit:");
+    strcat(netbuf, "GET /api/export:zxMusic/limit:");
     sprintf(buffer, "%u", limit);
     strcat(netbuf, buffer);
     strcat(netbuf, "/start:");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
+    strcat(netbuf, "/filter:zxMusicFormat=");
+    strcat(netbuf, formats[curFormat]);
     strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
   case 1: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:votes,rand/filter:zxMusicMinRating=4;
@@ -516,7 +521,10 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, "/start:");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
-    strcat(netbuf, "/order:votes,rand/filter:zxMusicMinRating=4;zxMusicFormat=PT3 HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    strcat(netbuf, "/order:votes,rand/filter:zxMusicMinRating=4;zxMusicFormat=");
+    strcat(netbuf, formats[curFormat]);
+    strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+
     break;
   }
   retry = 20;
@@ -641,7 +649,6 @@ unsigned char runPlayer(void)
   union APP_PAGES player_pg;
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
-  // unsigned int waitRet;
   strcat(appCmd, curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
@@ -668,7 +675,6 @@ unsigned char runPlayer(void)
   OS_CLOSEHANDLE(fp2);
   SETPG32KHIGH(pgbak);
   OS_RUNAPP(player_pg.pgs.pId);
-  // waitRet = OS_WAITPID(player_pg.pgs.pId);
   return player_pg.pgs.pId;
 }
 
@@ -701,40 +707,24 @@ long trackSelector(unsigned char mode)
   return count;
 }
 
-void drawMain(void)
-{
-  AT(25, 8);
-  ATRIB(97);
-  ATRIB(41);
-  printf(" [L]From latest to oldest  \n\r");
-  AT(25, 9);
-  printf(" [R]from the best to worst \n\r");
-  AT(25, 10);
-  printf(" [S]Random pick            \n\r");
-  AT(25, 11);
-  printf(" [D]Save current track     \n\r");
-  AT(25, 12);
-  printf(" [K]Keep downloaded files  \n\r");
-}
-
 C_task main(void)
 {
   unsigned char errno, keypress, queryNum, pId;
   long iddqd, ipadress;
   unsigned char queryType[40];
-  // unsigned int newPage;
   os_initstdio();
   srand(time());
   count = 0;
   saveFlag = 0;
   queryNum = 0;
+  curFormat = 0;
   strcpy(queryType, "from newest to oldest");
 
   BOX(1, 1, 80, 25, 40);
-  AT(1, 1);
-  ATRIB(97);
+  AT(24, 1);
+  ATRIB(95);
   ATRIB(40);
-  printf("              ZXART.EE RADIO 1.0 pt3 radio for nedoNET\n\r");
+  printf("ZXART.EE radio for nedoNET\n\r");
   ATRIB(33);
   ATRIB(40);
 
@@ -746,26 +736,28 @@ C_task main(void)
   */
 
 start:
+  curFileStruct.fileSize = 0;
   iddqd = processJson(count, 1, queryNum);
   if (iddqd < 0)
   {
     exit(0);
   }
-  BOX(1, 2, 80, 7, 40);
+  errno = getPic(iddqd);
+  pId = runPlayer();
+
+redraw:
+  BOX(24, 2, 80, 6, 40);
   AT(1, 2);
   ATRIB(97);
   printf(" #:%lu ID:%lu	Total Tracks:%lu \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
   ATRIB(96);
+  printf("                          \r");
   printf(" TITLE:%s\r\n", curFileStruct.picName);
   ATRIB(93);
-  printf(" RATING:%s  YEAR:%u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
+  printf(" RATING:%s  YEAR:%u DURATION: %s \r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
   ATRIB(97);
-  printf("\r\n [K]Keep files: %u [S]Shuffle: %u\r\n", saveFlag, shuffleFlag);
-  printf(" [Q]Query type: %s\r\n", queryType);
-
-  curFileStruct.fileSize = 0;
-  errno = getPic(iddqd);
-  pId = runPlayer();
+  printf(" [F]Format: %s [K]Keep files: %u [S]Shuffle: %u [J]Jump to track \r\n", formats[curFormat], saveFlag, shuffleFlag);
+  printf(" [Q]Query type: %s \r\n", queryType);
 
 rekey:
   do
@@ -774,7 +766,6 @@ rekey:
   } while (keypress == 0);
   //  printf(" keypress =  %u       \r\n", keypress);
 
-  //  drawMain();
   if (keypress == 27)
   {
     OS_DROPAPP(pId);
@@ -785,20 +776,21 @@ rekey:
   }
   if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
-    count = trackSelector(1);
     OS_DROPAPP(pId);
+    count = trackSelector(1);
     goto start;
   }
 
   if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
   {
-    count = trackSelector(0);
     OS_DROPAPP(pId);
+    count = trackSelector(0);
     goto start;
   }
 
   if (keypress == 's' || keypress == 'S')
   {
+    OS_DROPAPP(pId);
     count = trackSelector(2);
     shuffleFlag = !shuffleFlag;
     if (shuffleFlag)
@@ -815,12 +807,14 @@ rekey:
 
   if (keypress == 'k' || keypress == 'K')
   {
+    OS_DROPAPP(pId);
     saveFlag = !saveFlag;
     goto start;
   }
 
   if (keypress == 'q' || keypress == 'Q')
   {
+    OS_DROPAPP(pId);
     queryNum = !queryNum;
     if (queryNum)
     {
@@ -839,7 +833,25 @@ rekey:
   {
     printf("Jump to track:");
     scanf("%lu", &count);
+    OS_DROPAPP(pId);
+    if (count > curFileStruct.totalAmount - 1)
+    {
+      count = curFileStruct.totalAmount - 1;
+    }
     goto start;
   }
+
+  if (keypress == 'f' || keypress == 'F')
+  {
+    OS_DROPAPP(pId);
+    curFormat++;
+    count = 0;
+    if (curFormat > 3)
+    {
+      curFormat = 0;
+    }
+    goto redraw;
+  }
+
   goto rekey;
 }
