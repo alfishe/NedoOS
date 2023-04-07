@@ -21,7 +21,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 long count;
-unsigned char saveFlag, shuffleFlag;
+unsigned char saveFlag;
 union APP_PAGES main_pg;
 extern void dns_resolve(void);
 
@@ -498,7 +498,6 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   unsigned char *count, socket;
 
   switch (queryNum)
-
   {
   case 0:
     netbuf[0] = '\0';
@@ -524,9 +523,22 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, "/order:votes,rand/filter:zxMusicMinRating=4;zxMusicFormat=");
     strcat(netbuf, formats[curFormat]);
     strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
-
+    break;
+  case 2: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:rand/filter:zxMusicFormat=PT3 HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
+    netbuf[0] = '\0';
+    startPos = 0;
+    strcat(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:");
+    sprintf(buffer, "%u", limit);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/start:");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/order:rand/filter:zxMusicFormat=");
+    strcat(netbuf, formats[curFormat]);
+    strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
   }
+
   retry = 20;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
@@ -696,13 +708,6 @@ long trackSelector(unsigned char mode)
       count = curFileStruct.totalAmount - 1;
     }
     break;
-  case 2: // shuffle
-    count = rand() % curFileStruct.totalAmount + 1;
-    break;
-  }
-  if (shuffleFlag == 1)
-  {
-    count = rand() % curFileStruct.totalAmount + 1;
   }
   return count;
 }
@@ -746,7 +751,7 @@ start:
   pId = runPlayer();
 
 redraw:
-  BOX(24, 2, 80, 6, 40);
+  BOX(24, 2, 80, 5, 40);
   AT(1, 2);
   ATRIB(97);
   printf(" #:%lu ID:%lu	Total Tracks:%lu \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
@@ -756,7 +761,7 @@ redraw:
   ATRIB(93);
   printf(" RATING:%s  YEAR:%u DURATION: %s \r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
   ATRIB(97);
-  printf(" [F]Format: %s [K]Keep files: %u [S]Shuffle: %u [J]Jump to track \r\n", formats[curFormat], saveFlag, shuffleFlag);
+  printf(" [F]Format: %s [K]Keep files: %u [J]Jump to track \r\n", formats[curFormat], saveFlag);
   printf(" [Q]Query type: %s \r\n", queryType);
 
 rekey:
@@ -788,23 +793,6 @@ rekey:
     goto start;
   }
 
-  if (keypress == 's' || keypress == 'S')
-  {
-    OS_DROPAPP(pId);
-    count = trackSelector(2);
-    shuffleFlag = !shuffleFlag;
-    if (shuffleFlag)
-    {
-      strcpy(queryType, "Random play");
-    }
-    else
-    {
-      strcpy(queryType, "from newest to oldest");
-    }
-    queryNum = 0;
-    goto start;
-  }
-
   if (keypress == 'k' || keypress == 'K')
   {
     OS_DROPAPP(pId);
@@ -815,17 +803,24 @@ rekey:
   if (keypress == 'q' || keypress == 'Q')
   {
     OS_DROPAPP(pId);
-    queryNum = !queryNum;
-    if (queryNum)
+    queryNum++;
+    if (queryNum > 2)
     {
-      strcpy(queryType, "Random best and most voted tracks");
+      queryNum = 0;
     }
-    else
+    switch (queryNum)
     {
+    case 0:
       strcpy(queryType, "from newest to oldest");
+      break;
+    case 1:
+      strcpy(queryType, "Random best and most voted tracks");
+      break;
+    case 2:
+      strcpy(queryType, "Random play");
+      break;
     }
     count = 0;
-    shuffleFlag = 0;
     goto start;
   }
 
