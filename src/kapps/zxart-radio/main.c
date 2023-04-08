@@ -10,7 +10,7 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
-
+unsigned char queryType[40];
 unsigned char netbuf[1452];
 unsigned char dataBuffer[4096];
 unsigned char crlf[2] = {13, 10};
@@ -174,7 +174,7 @@ wizread:
     }
     retry--;
     YIELD();
-    delay(100);
+    delay(50);
     goto wizread;
   }
   // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
@@ -599,7 +599,6 @@ void getData2(unsigned char socket)
   bytecount = 255;
 
   saveBuf(curFileStruct.picId, 00, 0);
-
   while (1)
   {
     todo = tcpRead(socket);
@@ -712,11 +711,19 @@ long trackSelector(unsigned char mode)
   return count;
 }
 
+void printStatus(void)
+{
+  AT(1, 5);
+  ATRIB(93);
+  printf(" [Q]Query type: %s \r\n", queryType);
+  printf(" [F]Format: %s [K]Keep files: %u [J]Jump to track [E]Exit \r\n", formats[curFormat], saveFlag);
+  ATRIB(97);
+}
+
 C_task main(void)
 {
   unsigned char errno, keypress, queryNum, pId;
   long iddqd, ipadress;
-  unsigned char queryType[40];
   os_initstdio();
   srand(time());
   count = 0;
@@ -749,29 +756,27 @@ start:
   }
   errno = getPic(iddqd);
   pId = runPlayer();
-
+  printStatus();
 redraw:
-  BOX(24, 2, 80, 5, 40);
+  BOX(30, 2, 80, 2, 40);
   AT(1, 2);
   ATRIB(97);
-  printf(" #:%lu ID:%lu	Total Tracks:%lu \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
+  printf(" #:%lu ID:%lu	Total Tracks:%lu        \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
+  printf(" RATING:%s  YEAR:%u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
   ATRIB(96);
-  printf("                          \r");
+  printf("                                   \r");
   printf(" TITLE:%s\r\n", curFileStruct.picName);
-  ATRIB(93);
-  printf(" RATING:%s  YEAR:%u DURATION: %s \r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
-  ATRIB(97);
-  printf(" [F]Format: %s [K]Keep files: %u [J]Jump to track \r\n", formats[curFormat], saveFlag);
-  printf(" [Q]Query type: %s \r\n", queryType);
 
 rekey:
   do
   {
     keypress = _low_level_get();
+    YIELD();
   } while (keypress == 0);
+
   //  printf(" keypress =  %u       \r\n", keypress);
 
-  if (keypress == 27)
+  if (keypress == 27 || keypress == 'e' || keypress == 'E')
   {
     OS_DROPAPP(pId);
     printf("Good bye... %u \r\n", pId);
@@ -797,6 +802,7 @@ rekey:
   {
     OS_DROPAPP(pId);
     saveFlag = !saveFlag;
+    printStatus();
     goto start;
   }
 
@@ -821,6 +827,7 @@ rekey:
       break;
     }
     count = 0;
+    printStatus();
     goto start;
   }
 
@@ -845,6 +852,7 @@ rekey:
     {
       curFormat = 0;
     }
+    printStatus();
     goto redraw;
   }
 
