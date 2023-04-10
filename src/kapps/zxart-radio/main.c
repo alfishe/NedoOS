@@ -35,6 +35,9 @@ struct fileStruct
   unsigned char picRating[8];
   unsigned char picName[256];
   unsigned char fileName[256];
+  unsigned char authorIds[64];
+  unsigned char authorTitle[64];
+  unsigned char authorRealName[64];
 } curFileStruct;
 
 void delay(unsigned long counter)
@@ -537,6 +540,13 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, formats[curFormat]);
     strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
+  case 3: // /api/export:author/filter:authorId=2202
+    netbuf[0] = '\0';
+    strcat(netbuf, "GET /api/export:author/filter:authorId=");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    break;
   }
 
   retry = 20;
@@ -568,25 +578,34 @@ rejson:
     getchar();
     return -2;
   }
-  netbuf[0] = '\0';
-
-  parseJson("\"id\":");
-  curFileStruct.picId = atol(netbuf);
-
-  parseJson(",\"title\":\"");
-  convert866();
-  strcpy(curFileStruct.picName, netbuf);
-
-  parseJson("\"rating\":\"");
-  strcpy(curFileStruct.picRating, netbuf);
-
-  parseJson("\"year\":\"");
-  curFileStruct.picYear = atoi(netbuf);
-  parseJson("\"totalAmount\":");
-  curFileStruct.totalAmount = atol(netbuf);
-  parseJson("\"time\":\"");
-  strcpy(curFileStruct.time, netbuf);
-
+  if (queryNum < 3)
+  {
+    netbuf[0] = '\0';
+    parseJson("\"id\":");
+    curFileStruct.picId = atol(netbuf);
+    parseJson(",\"title\":\"");
+    convert866();
+    strcpy(curFileStruct.picName, netbuf);
+    parseJson("\"rating\":\"");
+    strcpy(curFileStruct.picRating, netbuf);
+    parseJson("\"year\":\"");
+    curFileStruct.picYear = atoi(netbuf);
+    parseJson("\"totalAmount\":");
+    curFileStruct.totalAmount = atol(netbuf);
+    parseJson("\"time\":\"");
+    strcpy(curFileStruct.time, netbuf);
+    parseJson("\"authorIds\":[");
+    strcpy(curFileStruct.authorIds, netbuf);
+  }
+  if (queryNum == 3)
+  {
+    parseJson(",\"title\":\"");
+    convert866();
+    strcpy(curFileStruct.authorTitle, netbuf);
+    parseJson(",\"realName\":\"");
+    convert866();
+    strcpy(curFileStruct.authorRealName, netbuf);
+  }
   return curFileStruct.picId;
 }
 
@@ -713,10 +732,25 @@ long trackSelector(unsigned char mode)
 
 void printStatus(void)
 {
-  AT(1, 5);
+  AT(1, 8);
+  //  ATRIB(93);
+  //  printf(" [Q]Query type: %s \r\n", queryType);
+  // printf(" [F]Format: %s [K]Keep files: %u [J]Jump to track [E]Exit \r\n", formats[curFormat], saveFlag);
   ATRIB(93);
-  printf(" [Q]Query type: %s \r\n", queryType);
-  printf(" [F]Format: %s [K]Keep files: %u [J]Jump to track [E]Exit \r\n", formats[curFormat], saveFlag);
+  printf(" [Q]Query type: ");
+  ATRIB(97);
+  printf("%s", queryType);
+  printf(" \r\n");
+  ATRIB(93);
+  printf(" [F]Format: ");
+  ATRIB(97);
+  printf("%s", formats[curFormat]);
+  ATRIB(93);
+  printf(" [K]Keep files: ");
+  ATRIB(97);
+  printf("%u", saveFlag);
+  ATRIB(93);
+  printf(" [J]Jump to track [E]Exit \r\n");
   ATRIB(97);
 }
 
@@ -733,10 +767,10 @@ C_task main(void)
   strcpy(queryType, "from newest to oldest");
 
   BOX(1, 1, 80, 25, 40);
-  AT(24, 1);
-  ATRIB(95);
-  ATRIB(40);
-  printf("ZXART.EE radio for nedoNET\n\r");
+  AT(1, 1);
+  ATRIB(97);
+  ATRIB(45);
+  printf("                           ZXART.EE radio for nedoNET                           \n\r");
   ATRIB(33);
   ATRIB(40);
 
@@ -754,18 +788,63 @@ start:
   {
     exit(0);
   }
+  iddqd = processJson(atol(curFileStruct.authorIds), 0, 3);
+
   errno = getPic(iddqd);
   pId = runPlayer();
   printStatus();
 redraw:
-  BOX(30, 2, 80, 2, 40);
+  BOX(30, 2, 80, 5, 40);
   AT(1, 2);
   ATRIB(97);
-  printf(" #:%lu ID:%lu	Total Tracks:%lu        \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
-  printf(" RATING:%s  YEAR:%u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
+  // printf(" #: %lu ID: %lu	Total Tracks: %lu        \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
+  ATRIB(93);
+  printf(" #: ");
+  ATRIB(97);
+  printf("%lu", count);
+  ATRIB(93);
+  printf(" ID: ");
+  ATRIB(97);
+  printf("%lu", curFileStruct.picId);
+  ATRIB(93);
+  printf(" Total Tracks: ");
+  ATRIB(97);
+  printf("%lu", curFileStruct.totalAmount);
+  printf(" \r\n");
+  //  printf(" RATING: %s  YEAR: %u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
+  ATRIB(93);
+  printf(" RATING: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.picRating);
+  ATRIB(93);
+  printf(" YEAR: ");
+  ATRIB(97);
+  printf("%u", curFileStruct.picYear);
+  ATRIB(93);
+  printf(" DURATION: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.time);
+  printf(" \r\n");
+  //  printf(" AuthorsIDs %s\r\n", curFileStruct.authorIds);
+  //  printf(" Author: %s  Author realname: %s \r\n", curFileStruct.authorTitle, curFileStruct.authorRealName);
+  printf(" \r\n");
+  ATRIB(93);
+  printf(" AuthorsIDs ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorIds);
+  ATRIB(93);
+  printf(" Author: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorTitle);
+  ATRIB(93);
+  printf(" Real name: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorRealName);
+  printf(" \r\n");
+
   ATRIB(96);
   printf("                                   \r");
-  printf(" TITLE:%s\r\n", curFileStruct.picName);
+  printf(" TITLE: %s\r\n", curFileStruct.picName);
 
 rekey:
   do
