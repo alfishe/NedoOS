@@ -1,3 +1,4 @@
+// 35 сек c логироанием, 27 без
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,7 +13,7 @@
 #define COMMANDLINE 0x0080
 unsigned char queryType[40];
 unsigned char netbuf[1452];
-unsigned char dataBuffer[4096];
+unsigned char dataBuffer[6096];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
 unsigned long bytecount;
@@ -21,7 +22,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 long count;
-unsigned char saveFlag;
+unsigned char saveFlag, logFlag;
 union APP_PAGES main_pg;
 extern void dns_resolve(void);
 
@@ -59,49 +60,50 @@ void delay(unsigned long counter)
 
 void errorPrint(unsigned int error)
 {
+  AT(1, 25);
   switch (error)
   {
   case 2:
-    printf("02 SHUT_RDWR\n\r");
+    printf("02 SHUT_RDWR         ");
     break;
   case 4:
-    printf("04 ERR_INTR\n\r");
+    printf("04 ERR_INTR          ");
     break;
   case 23:
-    printf("23 ERR_NFILE\n\r");
+    printf("23 ERR_NFILE         ");
     break;
   case 35:
-    printf("35 ERR_EAGAIN or ERR_EWOULDBLOCK\n\r");
+    printf("35 ERR_EAGAIN        ");
     break;
   case 37:
-    printf("37 ERR_ALREADY\n\r");
+    printf("37 ERR_ALREADY       ");
     break;
   case 38:
-    printf("38 ERR_NOTSOCK\n\r");
+    printf("38 ERR_NOTSOCK       ");
     break;
   case 40:
-    printf("40 ERR_EMSGSIZE\n\r");
+    printf("40 ERR_EMSGSIZE      ");
     break;
   case 41:
-    printf("41 ERR_PROTOTYPE\n\r");
+    printf("41 ERR_PROTOTYPE     ");
     break;
   case 47:
-    printf("47 ERR_AFNOSUPPORT\n\r");
+    printf("47 ERR_AFNOSUPPORT   ");
     break;
   case 53:
-    printf("53 ERR_ECONNABORTED\n\r");
+    printf("53 ERR_ECONNABORTED  ");
     break;
   case 54:
-    printf("54 ERR_CONNRESET\n\r");
+    printf("54 ERR_CONNRESET     ");
     break;
   case 57:
-    printf("57 ERR_NOTCONN\n\r");
+    printf("57 ERR_NOTCONN       ");
     break;
   case 65:
-    printf("65 ERR_HOSTUNREACH\n\r");
+    printf("65 ERR_HOSTUNREACH   ");
     break;
   default:
-    printf("%u UNKNOWN ERROR\n\r", error);
+    printf("%u UNKNOWN ERROR     ", error);
     break;
   }
   YIELD();
@@ -122,7 +124,11 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   else
   {
     socket = ((todo & 65280) >> 8);
-    // printf ("OS_NETSOCKET: Socket #%d created\n\r", socket);
+    if (logFlag)
+    {
+      AT(1, 25);
+      printf("OS_NETSOCKET: Socket #%d created                   ", socket);
+    }
   }
   return socket;
 }
@@ -148,7 +154,11 @@ unsigned char netConnect(unsigned char socket)
   }
   else
   {
-    // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
+    if (logFlag)
+    {
+      AT(1, 25);
+      printf("OS_NETCONNECT: connection successful, %u            ", (todo & 255));
+    }
   }
   return 0;
 }
@@ -180,7 +190,11 @@ wizread:
     delay(50);
     goto wizread;
   }
-  // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
+  if (logFlag)
+  {
+    AT(1, 25);
+    printf("OS_WIZNETREAD: %u bytes read.            ", todo);
+  }
   return todo;
 }
 
@@ -196,7 +210,11 @@ unsigned int netShutDown(unsigned char socket)
   }
   else
   {
-    // printf ("Socket #%u closed.\n\r", socket);
+    if (logFlag)
+    {
+      AT(1, 25);
+      printf("OS_NETSHUTDOWN: Socket #%u closed.                 ", socket);
+    }
   }
   return 0;
 }
@@ -446,7 +464,8 @@ void getData(unsigned char socket)
 
     if (bPos + bytes2read > sizeof(dataBuffer))
     {
-      printf("dataBuffer overrun... \n\r");
+      AT(1, 25);
+      printf("dataBuffer overrun...               ");
       break;
     }
 
@@ -487,7 +506,11 @@ wizwrite:
   }
   else
   {
-    //  printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
+    if (logFlag)
+    {
+      AT(1, 25);
+      printf("OS_WIZNETWRITE: %u bytes written.           ", todo);
+    }
   }
   return todo;
 }
@@ -560,12 +583,14 @@ rejson:
   count = strstr(dataBuffer, "responseStatus\":\"success");
   if (count == NULL)
   {
-    printf("BAD JSON, NO responseStatus: success. %u\r\n", retry);
+    AT(1, 25);
+    printf("BAD JSON, NO responseStatus: success. %u   ", retry);
     retry--;
     YIELD();
     if (retry > 0)
       goto rejson;
-    printf("JSON: %s \r\n", dataBuffer);
+    AT(1, 1);
+    printf("BAD JSON, NO responseStatus: success. JSON: %s \r\n", dataBuffer);
     getchar();
     return -1;
   }
@@ -573,8 +598,10 @@ rejson:
   count = strstr(dataBuffer, "\"id\":");
   if (count == NULL)
   {
-    printf("BAD JSON: ID not found \r\n");
-    printf("JSON: %s \r\n", dataBuffer);
+    AT(1, 25);
+    printf("BAD JSON: ID not found");
+    AT(1, 1);
+    printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     getchar();
     return -2;
   }
@@ -631,23 +658,15 @@ void getData2(unsigned char socket)
       headskip = 1;
       bytes2read = cutHeader(todo);
     }
-    /*
-        if (bPos + bytes2read > sizeof(dataBuffer))
-        {
-          printf("dataBuffer overrun... \n\r");
-          break;
-        }
-    */
+
     for (w = 0; w < bytes2read; w++)
     {
       dataBuffer[w + bPos] = netbuf[w];
     }
     bytecount = bytecount - bytes2read;
-    // bPos = bPos + bytes2read;
     bPos = 0;
     saveBuf(curFileStruct.picId, 01, bytes2read);
   }
-  // saveBuf(curFileStruct.picId, 02, 0);
   netShutDown(socket);
 }
 
@@ -741,6 +760,10 @@ void printStatus(void)
   ATRIB(97);
   printf("%s", queryType);
   printf(" \r\n");
+  AT(1, 24);
+  ATRIB(45);
+  printf("                                                                                ");
+  AT(12, 24);
   ATRIB(93);
   printf(" [F]Format: ");
   ATRIB(97);
@@ -752,6 +775,7 @@ void printStatus(void)
   ATRIB(93);
   printf(" [J]Jump to track [E]Exit \r\n");
   ATRIB(97);
+  ATRIB(40);
 }
 
 C_task main(void)
@@ -771,6 +795,9 @@ C_task main(void)
   ATRIB(97);
   ATRIB(45);
   printf("                           ZXART.EE radio for nedoNET                           \n\r");
+  AT(1, 24);
+  printf("  [L]Enable logging(press on startup)                                          ");
+
   ATRIB(33);
   ATRIB(40);
 
@@ -782,6 +809,15 @@ C_task main(void)
   */
 
 start:
+  keypress = _low_level_get();
+  if (keypress == 'l' || keypress == 'L')
+  {
+    logFlag = 1;
+    AT(1, 25);
+    printf("Logging enabled   ");
+    getchar();
+  }
+
   curFileStruct.fileSize = 0;
   iddqd = processJson(count, 1, queryNum);
   if (iddqd < 0)
@@ -789,7 +825,7 @@ start:
     exit(0);
   }
   iddqd = processJson(atol(curFileStruct.authorIds), 0, 3);
-
+replay:
   errno = getPic(iddqd);
   pId = runPlayer();
   printStatus();
@@ -882,7 +918,7 @@ rekey:
     OS_DROPAPP(pId);
     saveFlag = !saveFlag;
     printStatus();
-    goto start;
+    goto replay;
   }
 
   if (keypress == 'q' || keypress == 'Q')
@@ -912,6 +948,7 @@ rekey:
 
   if (keypress == 'j' || keypress == 'J')
   {
+    AT(1, 7);
     printf("Jump to track:");
     scanf("%lu", &count);
     OS_DROPAPP(pId);
@@ -933,6 +970,13 @@ rekey:
     }
     printStatus();
     goto redraw;
+  }
+
+  if (keypress == 'l' || keypress == 'L')
+  {
+    logFlag = !logFlag;
+    AT(1, 25);
+    printf("Logging: %u                                           ", logFlag);
   }
 
   goto rekey;
