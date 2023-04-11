@@ -117,6 +117,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
   {
+    AT(1, 25);
     printf("OS_NETSOCKET: ");
     errorPrint(todo & 255);
     exit(0);
@@ -148,6 +149,7 @@ unsigned char netConnect(unsigned char socket)
   todo = OS_NETCONNECT(socket, &targetadr);
   if (todo > 32767)
   {
+    AT(1, 25);
     printf("OS_NETCONNECT: ");
     errorPrint(todo & 255);
     exit(0);
@@ -167,7 +169,6 @@ unsigned int tcpRead(unsigned char socket)
 {
   unsigned char retry = 150;
   unsigned int err, todo;
-
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
@@ -181,6 +182,7 @@ wizread:
       return 0;
     if (retry == 0)
     {
+      AT(1, 25);
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
       exit(0);
@@ -356,7 +358,6 @@ void convert866(void)
   }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 unsigned int cutHeader(unsigned int todo)
 {
   unsigned int q, headlng;
@@ -364,7 +365,8 @@ unsigned int cutHeader(unsigned int todo)
   count = strstr(netbuf, "Content-Length:");
   if (count == NULL)
   {
-    printf("Content-Length:  not found \r\n");
+    AT(1, 25);
+    printf("Content-Length:  not found     ");
     contLen = 0;
   }
   else
@@ -407,8 +409,9 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     fp2 = OS_CREATEHANDLE(fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
+      AT(1, 25);
       printf(fileName);
-      printf(" creating error\r\n");
+      printf(" creating error    ");
       exit(0);
     }
     OS_CLOSEHANDLE(fp2);
@@ -420,8 +423,10 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     fp2 = OS_OPENHANDLE(fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
+
+      AT(1, 25);
       printf(fileName);
-      printf(" opening error\r\n");
+      printf(" opening error    ");
       exit(0);
     }
     fileSize = OS_GETFILESIZE(fp2);
@@ -493,6 +498,7 @@ wizwrite:
   todo = OS_WIZNETWRITE(&readStruct);
   if (todo > 32767)
   {
+    AT(1, 25);
     printf("OS_WIZNETWRITE: ");
     errorPrint(todo & 255);
     if (retry == 0)
@@ -522,6 +528,9 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   unsigned int todo;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
+
+  AT(1, 25);
+  printf("Getting data...          ");
 
   switch (queryNum)
   {
@@ -580,6 +589,10 @@ rejson:
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
 
   getData(socket);
+
+  AT(1, 25);
+  printf("Processing data...          ");
+
   count = strstr(dataBuffer, "responseStatus\":\"success");
   if (count == NULL)
   {
@@ -677,6 +690,10 @@ unsigned char getPic(unsigned long fileId)
   unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
+
+  AT(1, 25);
+  printf("Getting track...         ");
+
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
   netbuf[0] = '\0';
@@ -698,6 +715,10 @@ unsigned char runPlayer(void)
   union APP_PAGES player_pg;
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
+
+  AT(1, 25);
+  printf("Running player...         ");
+
   strcat(appCmd, curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
@@ -707,8 +728,9 @@ unsigned char runPlayer(void)
   fp2 = OS_OPENHANDLE(fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
+    AT(1, 25);
     printf(fileName);
-    printf(" not found.\r\n");
+    printf(" not found.");
     exit(0);
   }
   playerSize = OS_GETFILESIZE(fp2);
@@ -932,13 +954,13 @@ rekey:
     switch (queryNum)
     {
     case 0:
-      strcpy(queryType, "from newest to oldest");
+      strcpy(queryType, "from newest to oldest             ");
       break;
     case 1:
-      strcpy(queryType, "Random best and most voted tracks");
+      strcpy(queryType, "Random best and most voted tracks ");
       break;
     case 2:
-      strcpy(queryType, "Random play");
+      strcpy(queryType, "Random play                       ");
       break;
     }
     count = 0;
