@@ -924,6 +924,8 @@ rekey:
   if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
     OS_DROPAPP(pId);
+    AT(1, 25);
+    printf("Player stopped...          ");
     count = trackSelector(1);
     goto start;
   }
@@ -931,6 +933,8 @@ rekey:
   if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
   {
     OS_DROPAPP(pId);
+    AT(1, 25);
+    printf("Player stopped...          ");
     count = trackSelector(0);
     goto start;
   }
@@ -938,6 +942,8 @@ rekey:
   if (keypress == 'k' || keypress == 'K')
   {
     OS_DROPAPP(pId);
+    AT(1, 25);
+    printf("Player stopped...          ");
     saveFlag = !saveFlag;
     printStatus();
     goto replay;
@@ -946,6 +952,8 @@ rekey:
   if (keypress == 'q' || keypress == 'Q')
   {
     OS_DROPAPP(pId);
+    AT(1, 25);
+    printf("Player stopped...          ");
     queryNum++;
     if (queryNum > 2)
     {
@@ -984,6 +992,8 @@ rekey:
   if (keypress == 'f' || keypress == 'F')
   {
     OS_DROPAPP(pId);
+    AT(1, 25);
+    printf("Player stopped...          ");
     curFormat++;
     count = 0;
     if (curFormat > 3)
