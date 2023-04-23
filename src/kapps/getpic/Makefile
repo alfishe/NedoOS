@@ -1,8 +1,8 @@
 #название запускаемого файла
-BIN		:=zxartrad.com
+BIN		:=getpic.com
 
 #поддиректория инсталляции в release
-INSTDIR := bin/Radio
+INSTDIR := bin
 
 #тип вводавывода TTY или BDOS
 CONSOLE := TTY

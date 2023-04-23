@@ -9,13 +9,21 @@
 #include <tcp.h>
 #include <graphic.h>
 #include <terminal.c>
-unsigned char netbuf[1452];
+struct fileStruct
+{
+  long picId;
+  unsigned int picYear;
+  unsigned long totalAmount;
+  unsigned char picRating[8];
+  unsigned char picName[256];
+  unsigned char picType[64];
+  unsigned char authorIds[64];
+  unsigned char authorTitle[64];
+  unsigned char authorRealName[64];
+} curFileStruct;
+
+unsigned char netbuf[2048];
 unsigned char picture[16384];
-unsigned char picId[16];
-unsigned char picType[32];
-unsigned char picName[255];
-unsigned char picYear[8];
-unsigned char picRating[8];
 unsigned char crlf[2] = {13, 10};
 unsigned long bytecount;
 unsigned char status, key;
@@ -90,7 +98,10 @@ void errorPrint(unsigned int error)
     break;
   }
   YIELD();
-  //    do {key = _low_level_get();} while (key == 0);
+  do
+  {
+    key = _low_level_get();
+  } while (key == 0);
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
@@ -151,15 +162,16 @@ wizwrite:
   todo = OS_WIZNETWRITE(&readStruct);
   if (todo > 32767)
   {
-    printf("OS_WIZNETWRITE: ");
-    errorPrint(todo & 255);
+
     if (retry == 0)
     {
+      printf("OS_WIZNETWRITE: ");
+      errorPrint(todo & 255);
       exit(0);
     }
     retry--;
     YIELD();
-    delay(100);
+    delay(250);
     goto wizwrite;
   }
   else
@@ -171,27 +183,36 @@ wizwrite:
 
 unsigned int tcpRead(unsigned char socket)
 {
-  unsigned char retry = 150;
+  unsigned char retry = 50;
   unsigned int err, todo;
 
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
   readStruct.protocol = SOCK_STREAM;
+  if (bytecount == 0)
+  {
+    return 0;
+  }
+
 wizread:
   todo = OS_WIZNETREAD(&readStruct);
-  err = todo & 255;
   if (todo > 32767)
   {
-    if (bytecount == 0)
-      return 0;
     if (retry == 0)
     {
+      err = todo & 255;
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
+      if (err == 35)
+      {
+        return 0;
+      }
       exit(0);
     }
     retry--;
+    // printf("OS_WIZNETREAD: %u \n\r", retry);
+    YIELD();
     YIELD();
     delay(100);
     goto wizread;
@@ -253,10 +274,10 @@ unsigned int netShutDown(unsigned char socket)
 
 void fillPicture(unsigned char socket)
 {
-  unsigned int todo, w, bPos, bytes2read, headskip;
+  unsigned int todo, w, pPos, headskip;
 
   headskip = 0;
-  bPos = 0;
+  pPos = 0;
   bytecount = 255;
   while (1)
   {
@@ -265,25 +286,24 @@ void fillPicture(unsigned char socket)
     {
       break;
     }
-    bytes2read = todo;
     if (headskip == 0)
     {
       headskip = 1;
-      bytes2read = cutHeader(todo);
+      todo = cutHeader(todo);
     }
 
-    if (bPos + bytes2read > sizeof(picture))
+    if (pPos + todo > sizeof(picture))
     {
-      printf("dataBuffer overrun... \n\r");
+      printf("dataBuffer overrun... %u reached \n\r", pPos + todo);
       break;
     }
 
-    for (w = 0; w < bytes2read; w++)
+    for (w = 0; w < todo; w++)
     {
-      picture [w + bPos] = netbuf[w];
+      picture[w + pPos] = netbuf[w];
     }
-    bytecount = bytecount - bytes2read;
-    bPos = bPos + bytes2read;
+    bytecount = bytecount - todo;
+    pPos = pPos + todo;
   }
   netShutDown(socket);
 }
@@ -291,17 +311,15 @@ void fillPicture(unsigned char socket)
 unsigned char getPic(unsigned long fileId)
 {
   unsigned int todo;
-  unsigned char cmdlist1[] = "GET /file/id:";
-  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
   netbuf[0] = '\0';
   sprintf(buffer, "%lu", fileId);
-  strcat(netbuf, cmdlist1);
+  strcat(netbuf, "GET /file/id:");
   strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
+  strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
   fillPicture(socket);
   return 0;
@@ -470,25 +488,21 @@ unsigned long processJson(unsigned long startPos, unsigned char limit)
 {
   unsigned int retry;
   unsigned int todo, pPos, headskip;
-  unsigned char cmdlist1[] = "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:";
-  unsigned char cmdlist2[] = "/start:";
-  unsigned char cmdlist3[] = "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
-  unsigned long idpic;
   retry = 10;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
 
   netbuf[0] = '\0';
-  strcat(netbuf, cmdlist1);
+  strcat(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:");
   sprintf(buffer, "%u", limit);
   strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
+  strcat(netbuf, "/start:");
   sprintf(buffer, "%lu", startPos);
   strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist3);
+  strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
 
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
 
@@ -513,23 +527,20 @@ rejson:
     exit(0);
   }
   netbuf[0] = '\0';
-  picName[0] = '\0';
-  picId[0] = '\0';
-  picType[0] = '\0';
-  picRating[0] = '\0';
-  picYear[0] = '\0';
-  strcat(picId, parseJson("\"id\":"));
-  idpic = atol(netbuf);
+  parseJson("\"id\":");
+  curFileStruct.picId = atol(netbuf);
   parseJson(",\"title\":\"");
   convert866();
-  strcat(picName, netbuf);
+  strcpy(curFileStruct.picName, netbuf);
   parseJson(",\"type\":\"");
-  strcat(picType, netbuf);
+  strcpy(curFileStruct.picType, netbuf);
   parseJson("\"rating\":\"");
-  strcat(picRating, netbuf);
+  strcpy(curFileStruct.picRating, netbuf);
   parseJson("\"year\":\"");
-  strcat(picYear, netbuf);
-  return idpic;
+  curFileStruct.picYear = atoi(netbuf);
+  parseJson("\"totalAmount\":");
+  curFileStruct.totalAmount = atol(netbuf);
+  return curFileStruct.picId;
 }
 
 C_task main(void)
@@ -544,14 +555,14 @@ C_task main(void)
   AT(1, 1);
   ATRIB(97);
   ATRIB(40);
-  printf("              GETPIC 1.4 zxart.ee picture viewer for nedoNET\n\r");
+  printf("              GETPIC 1.5 zxart.ee picture viewer for nedoNET\n\r");
   ATRIB(33);
   ATRIB(40);
   printf(" Управление:\n\r");
   printf("	'ESC' - выход из программы;\n\r");
   printf("	'<-' или 'B' к последним картинкам;\n\r");
   printf("	'->' или 'Пробел' к более старым картинкам\n\r");
-  printf("	'J' Прыжок на  указанную по счету картинку,<15000\n\r");
+  printf("	'J' Прыжок на  указанную по счету картинку\n\r");
   printf("	'I' Просмотр экрана информации о картинках\n\r");
   printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
   printf("	----------------Нажмите любую кнопку----------------\n\r");
@@ -569,11 +580,11 @@ C_task main(void)
 start:
   iddqd = processJson(count, 1);
   ATRIB(97);
-  printf("#:%lu ID:%s	TITLE:%s\r\n", count, picId, picName);
+  printf("#:%lu ID:%lu	TITLE:%s\r\n", count, curFileStruct.picId, curFileStruct.picName);
   ATRIB(93);
-  printf(" RATING:%s	YEAR:%s \r\n", picRating, picYear);
+  printf(" RATING:%s	YEAR:%u \r\n", curFileStruct.picRating, curFileStruct.picYear);
 
-  if (!strcmp(picType, "standard"))
+  if (!strcmp(curFileStruct.picType, "standard"))
 
   {
     errno = getPic(iddqd);
@@ -582,7 +593,7 @@ start:
   }
   else
   {
-    printf("  >>Format %s not supported, skipped \n\r", picType);
+    printf("  >>Format %s not supported, skipped \n\r", curFileStruct.picType);
     count++;
     goto start;
   }
@@ -590,7 +601,7 @@ start:
   if (keypress == 's' || keypress == 'S')
   {
     savePic(iddqd);
-    printf("        ID:%s    TITLE:%s  SAVED\r\n", picId, picName);
+    printf("        ID:%lu    TITLE:%s  SAVED\r\n", curFileStruct.picId, curFileStruct.picName);
     count++;
   }
 
@@ -618,6 +629,10 @@ start:
   {
     printf("Jump to picture:");
     scanf("%lu", &count);
+    if (count > curFileStruct.totalAmount - 1)
+    {
+      count = curFileStruct.totalAmount - 1;
+    }
   }
 
   if (keypress == 'i' || keypress == 'I')
