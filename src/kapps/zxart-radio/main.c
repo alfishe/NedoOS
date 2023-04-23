@@ -120,6 +120,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
     AT(1, 25);
     printf("OS_NETSOCKET: ");
     errorPrint(todo & 255);
+    printf("                        ");
     exit(0);
   }
   else
@@ -128,7 +129,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
     if (logFlag)
     {
       AT(1, 25);
-      printf("OS_NETSOCKET: Socket #%d created                   ", socket);
+      printf("OS_NETSOCKET: Socket #%d created           ", socket);
     }
   }
   return socket;
@@ -152,6 +153,7 @@ unsigned char netConnect(unsigned char socket)
     AT(1, 25);
     printf("OS_NETCONNECT: ");
     errorPrint(todo & 255);
+    printf("                        ");
     exit(0);
   }
   else
@@ -159,7 +161,7 @@ unsigned char netConnect(unsigned char socket)
     if (logFlag)
     {
       AT(1, 25);
-      printf("OS_NETCONNECT: connection successful, %u            ", (todo & 255));
+      printf("OS_NETCONNECT: connected , %u            ", (todo & 255));
     }
   }
   return 0;
@@ -167,29 +169,38 @@ unsigned char netConnect(unsigned char socket)
 
 unsigned int tcpRead(unsigned char socket)
 {
-  unsigned char retry = 150;
+  unsigned char retry = 50;
   unsigned int err, todo;
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
   readStruct.protocol = SOCK_STREAM;
+
 wizread:
   todo = OS_WIZNETREAD(&readStruct);
-  err = todo & 255;
   if (todo > 32767)
   {
-    if (bytecount == 0)
-      return 0;
     if (retry == 0)
     {
+      err = todo & 255;
       AT(1, 25);
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
+      if (err == 35)
+      {
+        return 0;
+      }
       exit(0);
     }
     retry--;
+    if (logFlag)
+    {
+      AT(54, 25);
+      printf("OS_WIZNETREAD: retry %u   ", retry);
+    }
     YIELD();
-    delay(50);
+    YIELD();
+    delay(100);
     goto wizread;
   }
   if (logFlag)
@@ -366,7 +377,7 @@ unsigned int cutHeader(unsigned int todo)
   if (count == NULL)
   {
     AT(1, 25);
-    printf("Content-Length:  not found     ");
+    printf("Content-Length:  not found          ");
     contLen = 0;
   }
   else
@@ -411,7 +422,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     {
       AT(1, 25);
       printf(fileName);
-      printf(" creating error    ");
+      printf(" creating error               ");
       exit(0);
     }
     OS_CLOSEHANDLE(fp2);
@@ -426,7 +437,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 
       AT(1, 25);
       printf(fileName);
-      printf(" opening error    ");
+      printf(" opening error               ");
       exit(0);
     }
     fileSize = OS_GETFILESIZE(fp2);
@@ -480,6 +491,10 @@ void getData(unsigned char socket)
     }
     bytecount = bytecount - bytes2read;
     bPos = bPos + bytes2read;
+    if (bytecount == 0)
+    {
+      break;
+    }
   }
   netShutDown(socket);
 }
@@ -501,6 +516,7 @@ wizwrite:
     AT(1, 25);
     printf("OS_WIZNETWRITE: ");
     errorPrint(todo & 255);
+    printf("                       ");
     if (retry == 0)
     {
       exit(0);
@@ -591,7 +607,7 @@ rejson:
   getData(socket);
 
   AT(1, 25);
-  printf("Processing data...          ");
+  printf("Processing data...                  ");
 
   count = strstr(dataBuffer, "responseStatus\":\"success");
   if (count == NULL)
@@ -612,7 +628,7 @@ rejson:
   if (count == NULL)
   {
     AT(1, 25);
-    printf("BAD JSON: ID not found");
+    printf("BAD JSON: ID not found              ");
     AT(1, 1);
     printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     getchar();
@@ -679,6 +695,10 @@ void getData2(unsigned char socket)
     bytecount = bytecount - bytes2read;
     bPos = 0;
     saveBuf(curFileStruct.picId, 01, bytes2read);
+    if (bytecount == 0)
+    {
+      break;
+    }
   }
   netShutDown(socket);
 }
@@ -692,7 +712,7 @@ unsigned char getPic(unsigned long fileId)
   unsigned char socket;
 
   AT(1, 25);
-  printf("Getting track...         ");
+  printf("Getting track...                    ");
 
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
@@ -717,7 +737,7 @@ unsigned char runPlayer(void)
   unsigned char pgbak;
 
   AT(1, 25);
-  printf("Running player...         ");
+  printf("Running player...                   ");
 
   strcat(appCmd, curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
@@ -730,7 +750,7 @@ unsigned char runPlayer(void)
   {
     AT(1, 25);
     printf(fileName);
-    printf(" not found.");
+    printf(" not found.               ");
     exit(0);
   }
   playerSize = OS_GETFILESIZE(fp2);
@@ -774,9 +794,6 @@ long trackSelector(unsigned char mode)
 void printStatus(void)
 {
   AT(1, 8);
-  //  ATRIB(93);
-  //  printf(" [Q]Query type: %s \r\n", queryType);
-  // printf(" [F]Format: %s [K]Keep files: %u [J]Jump to track [E]Exit \r\n", formats[curFormat], saveFlag);
   ATRIB(93);
   printf(" [Q]Query type: ");
   ATRIB(97);
@@ -934,7 +951,7 @@ rekey:
   {
     OS_DROPAPP(pId);
     AT(1, 25);
-    printf("Player stopped...          ");
+    printf("Player stopped...                   ");
     count = trackSelector(0);
     goto start;
   }
@@ -943,7 +960,7 @@ rekey:
   {
     OS_DROPAPP(pId);
     AT(1, 25);
-    printf("Player stopped...          ");
+    printf("Player stopped...                   ");
     saveFlag = !saveFlag;
     printStatus();
     goto replay;
@@ -953,7 +970,7 @@ rekey:
   {
     OS_DROPAPP(pId);
     AT(1, 25);
-    printf("Player stopped...          ");
+    printf("Player stopped...                   ");
     queryNum++;
     if (queryNum > 2)
     {
@@ -993,7 +1010,7 @@ rekey:
   {
     OS_DROPAPP(pId);
     AT(1, 25);
-    printf("Player stopped...          ");
+    printf("Player stopped...                   ");
     curFormat++;
     count = 0;
     if (curFormat > 3)
