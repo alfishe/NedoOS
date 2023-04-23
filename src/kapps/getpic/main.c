@@ -190,11 +190,6 @@ unsigned int tcpRead(unsigned char socket)
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
   readStruct.protocol = SOCK_STREAM;
-  if (bytecount == 0)
-  {
-    return 0;
-  }
-
 wizread:
   todo = OS_WIZNETREAD(&readStruct);
   if (todo > 32767)
@@ -304,6 +299,10 @@ void fillPicture(unsigned char socket)
     }
     bytecount = bytecount - todo;
     pPos = pPos + todo;
+    if (bytecount == 0)
+    {
+      break;
+    }
   }
   netShutDown(socket);
 }

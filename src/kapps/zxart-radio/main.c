@@ -812,9 +812,75 @@ void printStatus(void)
   ATRIB(97);
   printf("%u", saveFlag);
   ATRIB(93);
-  printf(" [J]Jump to track [E]Exit \r\n");
+  printf(" [J]Jump to track [E]Exit      1.10 \r\n");
   ATRIB(97);
   ATRIB(40);
+}
+
+void printInfo(void)
+{
+  BOX(30, 2, 80, 5, 40);
+  AT(1, 2);
+  ATRIB(97);
+  ATRIB(93);
+  printf(" #: ");
+  ATRIB(97);
+  printf("%lu", count);
+  ATRIB(93);
+  printf(" ID: ");
+  ATRIB(97);
+  printf("%lu", curFileStruct.picId);
+  ATRIB(93);
+  printf(" Total Tracks: ");
+  ATRIB(97);
+  printf("%lu", curFileStruct.totalAmount);
+  printf(" \r\n");
+  ATRIB(93);
+  printf(" RATING: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.picRating);
+  ATRIB(93);
+  printf(" YEAR: ");
+  ATRIB(97);
+  printf("%u", curFileStruct.picYear);
+  ATRIB(93);
+  printf(" DURATION: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.time);
+  printf(" \r\n");
+  printf(" \r\n");
+  ATRIB(93);
+  printf(" AuthorsIDs ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorIds);
+  ATRIB(93);
+  printf(" Author: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorTitle);
+  ATRIB(93);
+  printf(" Real name: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorRealName);
+  printf(" \r\n");
+  ATRIB(96);
+  printf("                                   \r");
+  printf(" TITLE: %s\r\n", curFileStruct.picName);
+}
+
+void printHelp(void)
+{
+  AT(1, 11);
+  ATRIB(97);
+  printf(" [ESC] or [E ] Exit to OS           \r\n");
+  printf(" [B]  or  [<-] Previous track       \r\n");
+  printf(" [N]  or  [->] Next track           \r\n");
+  printf(" [S]  or  [->] Stop player          \r\n");
+  printf(" [K]           Toggle saving tracks \r\n");
+  printf(" [Q]           Select Query type     \r\n");
+  printf(" [J]           Jump to NNNN file from newest  \r\n");
+  printf(" [F]           Change tracks format to play   \r\n");
+  printf(" [L]           Toggle operation logging       \r\n");
+  printf(" [ ]           Next track                     \r\n");
 }
 
 C_task main(void)
@@ -857,6 +923,7 @@ start:
     getchar();
   }
 
+  printHelp();
   curFileStruct.fileSize = 0;
   iddqd = processJson(count, 1, queryNum);
   if (iddqd < 0)
@@ -868,59 +935,7 @@ replay:
   errno = getPic(iddqd);
   pId = runPlayer();
   printStatus();
-redraw:
-  BOX(30, 2, 80, 5, 40);
-  AT(1, 2);
-  ATRIB(97);
-  // printf(" #: %lu ID: %lu	Total Tracks: %lu        \r\n", count, curFileStruct.picId, curFileStruct.totalAmount);
-  ATRIB(93);
-  printf(" #: ");
-  ATRIB(97);
-  printf("%lu", count);
-  ATRIB(93);
-  printf(" ID: ");
-  ATRIB(97);
-  printf("%lu", curFileStruct.picId);
-  ATRIB(93);
-  printf(" Total Tracks: ");
-  ATRIB(97);
-  printf("%lu", curFileStruct.totalAmount);
-  printf(" \r\n");
-  //  printf(" RATING: %s  YEAR: %u DURATION: %s\r\n", curFileStruct.picRating, curFileStruct.picYear, curFileStruct.time);
-  ATRIB(93);
-  printf(" RATING: ");
-  ATRIB(97);
-  printf("%s", curFileStruct.picRating);
-  ATRIB(93);
-  printf(" YEAR: ");
-  ATRIB(97);
-  printf("%u", curFileStruct.picYear);
-  ATRIB(93);
-  printf(" DURATION: ");
-  ATRIB(97);
-  printf("%s", curFileStruct.time);
-  printf(" \r\n");
-  //  printf(" AuthorsIDs %s\r\n", curFileStruct.authorIds);
-  //  printf(" Author: %s  Author realname: %s \r\n", curFileStruct.authorTitle, curFileStruct.authorRealName);
-  printf(" \r\n");
-  ATRIB(93);
-  printf(" AuthorsIDs ");
-  ATRIB(97);
-  printf("%s", curFileStruct.authorIds);
-  ATRIB(93);
-  printf(" Author: ");
-  ATRIB(97);
-  printf("%s", curFileStruct.authorTitle);
-  ATRIB(93);
-  printf(" Real name: ");
-  ATRIB(97);
-  printf("%s", curFileStruct.authorRealName);
-  printf(" \r\n");
-
-  ATRIB(96);
-  printf("                                   \r");
-  printf(" TITLE: %s\r\n", curFileStruct.picName);
-
+  printInfo();
 rekey:
   do
   {
@@ -1018,7 +1033,7 @@ rekey:
       curFormat = 0;
     }
     printStatus();
-    goto redraw;
+    goto rekey;
   }
 
   if (keypress == 'l' || keypress == 'L')
@@ -1028,5 +1043,11 @@ rekey:
     printf("Logging: %u                                           ", logFlag);
   }
 
+  if (keypress == 's' || keypress == 'S')
+  {
+    OS_DROPAPP(pId);
+    AT(1, 25);
+    printf("Player stopped...                   ");
+  }
   goto rekey;
 }
