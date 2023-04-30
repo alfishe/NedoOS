@@ -24,6 +24,7 @@ unsigned long contLen;
 long count;
 unsigned char saveFlag, logFlag;
 union APP_PAGES main_pg;
+union APP_PAGES player_pg;
 extern void dns_resolve(void);
 
 struct fileStruct
@@ -613,7 +614,7 @@ rejson:
   if (count == NULL)
   {
     AT(1, 25);
-    printf("BAD JSON, NO responseStatus: success. %u   ", retry);
+    printf("BAD JSON, NO responseStatus: success. %u \r\n", retry);
     retry--;
     YIELD();
     if (retry > 0)
@@ -665,14 +666,29 @@ rejson:
   return curFileStruct.picId;
 }
 
-void getData2(unsigned char socket)
+unsigned char getPic(unsigned long fileId)
 {
-  unsigned int todo, w, bPos, bytes2read, headskip;
+  unsigned int todo;
+  unsigned char cmdlist1[] = "GET /file/id:";
+  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+  unsigned char buffer[] = "0000000000";
+  unsigned char socket;
+  unsigned int w, bPos, bytes2read, headskip;
+  AT(1, 25);
+  printf("Getting track...                    ");
+
+  socket = OpenSock(AF_INET, SOCK_STREAM);
+  todo = netConnect(socket);
+  netbuf[0] = '\0';
+  sprintf(buffer, "%lu", fileId);
+  strcat(netbuf, cmdlist1);
+  strcat(netbuf, buffer);
+  strcat(netbuf, cmdlist2);
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
 
   headskip = 0;
   bPos = 0;
   bytecount = 255;
-
   saveBuf(curFileStruct.picId, 00, 0);
   while (1)
   {
@@ -701,28 +717,6 @@ void getData2(unsigned char socket)
     }
   }
   netShutDown(socket);
-}
-
-unsigned char getPic(unsigned long fileId)
-{
-  unsigned int todo;
-  unsigned char cmdlist1[] = "GET /file/id:";
-  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
-  unsigned char buffer[] = "0000000000";
-  unsigned char socket;
-
-  AT(1, 25);
-  printf("Getting track...                    ");
-
-  socket = OpenSock(AF_INET, SOCK_STREAM);
-  todo = netConnect(socket);
-  netbuf[0] = '\0';
-  sprintf(buffer, "%lu", fileId);
-  strcat(netbuf, cmdlist1);
-  strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-  getData2(socket);
   return 0;
 }
 
@@ -732,7 +726,6 @@ unsigned char runPlayer(void)
   unsigned char fileName[] = "player.ovl";
   unsigned char appCmd[128] = "player.com ";
   unsigned char curPath[128];
-  union APP_PAGES player_pg;
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
 
@@ -793,7 +786,7 @@ long trackSelector(unsigned char mode)
 
 void printStatus(void)
 {
-  AT(1, 8);
+  AT(1, 9);
   ATRIB(93);
   printf(" [Q]Query type: ");
   ATRIB(97);
@@ -863,18 +856,18 @@ void printInfo(void)
   printf("%s", curFileStruct.authorRealName);
   printf(" \r\n");
   ATRIB(96);
-  printf("                                   \r");
-  printf(" TITLE: %s\r\n", curFileStruct.picName);
+  printf("                                                                      \r");
+  printf("\r\n   TITLE: %s\r\n", curFileStruct.picName);
 }
 
 void printHelp(void)
 {
   AT(1, 11);
   ATRIB(97);
-  printf(" [ESC] or [E ] Exit to OS           \r\n");
-  printf(" [B]  or  [<-] Previous track       \r\n");
-  printf(" [N]  or  [->] Next track           \r\n");
-  printf(" [S]  or  [->] Stop player          \r\n");
+  printf(" [E] or [ESC] Exit to OS           \r\n");
+  printf(" [B] or [<--] Previous track       \r\n");
+  printf(" [N] or [-->] Next track           \r\n");
+  printf(" [S]           Stop player          \r\n");
   printf(" [K]           Toggle saving tracks \r\n");
   printf(" [Q]           Select Query type     \r\n");
   printf(" [J]           Jump to NNNN file from newest  \r\n");
@@ -883,9 +876,24 @@ void printHelp(void)
   printf(" [ ]           Next track                     \r\n");
 }
 
+unsigned char testPlayer(void)
+{
+  union APP_PAGES player2_pg;
+  player2_pg.l = OS_GETAPPMAINPAGES(player_pg.pgs.pId);
+
+  if (errno == 0)
+  {
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
 C_task main(void)
 {
-  unsigned char errno, keypress, queryNum, pId;
+  unsigned char errn, keypress, queryNum, pId, alive;
   long iddqd, ipadress;
   os_initstdio();
   srand(time());
@@ -932,19 +940,21 @@ start:
   }
   iddqd = processJson(atol(curFileStruct.authorIds), 0, 3);
 replay:
-  errno = getPic(iddqd);
+  errn = getPic(iddqd);
   pId = runPlayer();
   printStatus();
   printInfo();
 rekey:
-  do
-  {
-    keypress = _low_level_get();
-    YIELD();
-  } while (keypress == 0);
+  /*  do
+    {
+      keypress = _low_level_get();
+      YIELD();
+    } while (keypress == 0);
 
-  //  printf(" keypress =  %u       \r\n", keypress);
+    //  printf(" keypress =  %u       \r\n", keypress);
+  */
 
+  keypress = _low_level_get();
   if (keypress == 27 || keypress == 'e' || keypress == 'E')
   {
     OS_DROPAPP(pId);
@@ -1048,6 +1058,14 @@ rekey:
     OS_DROPAPP(pId);
     AT(1, 25);
     printf("Player stopped...                   ");
+    getchar();
   }
+  alive = testPlayer();
+  if (alive == 0)
+  {
+    count = trackSelector(0);
+    goto start;
+  }
+  YIELD();
   goto rekey;
 }

@@ -180,14 +180,20 @@ mainloop
         
         GET_KEY
         ld (savekey),a
-      cp key_redraw
-      jr z,mainloopredraw
+        cp key_redraw
+        jr z,mainloopredraw
+
         ;or a ;cp NOKEY ;keylang==0?
         ;jr nz,$+2+1+2
         ;cp c ;keynolang==0?
         ;jr z,_1;1b;prwindow_waitkey_nokey
         cp NOKEY
-        jr z,mainloop
+        jr nz,quit
+
+        LD A,(START+10)
+	RLA ;здесь для простоты следим только за первым модулем
+	JR NC,mainloop
+
 quit
 	  ld a,(musicpage)
 	  ld hl,muter
@@ -458,16 +464,16 @@ getptsconfig
 ;ix = file size
 ;out: a = player config bits, hl = offset to the second module if available
         call findts
-        ld a,%00010000 ;2xPT3
+        ld a,%00010001 ;2xPT3
         ret z
 
         ld a,(MDLADDR)
         cp 'V'
         jr z,$+4
         cp 'P' ;'P'/'V' for PT3
-        ld a,%00100000 ;PT3
+        ld a,%00100001 ;PT3
         ret z
-        ld a,%00000010 ;PT2
+        ld a,%00000011 ;PT2
         ret
 
 ;oldtimer
