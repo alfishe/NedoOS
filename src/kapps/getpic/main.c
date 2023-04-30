@@ -618,12 +618,13 @@ void printData(void)
 
 C_task main(void)
 {
-  unsigned char errno, keypress;
+  unsigned char errno, keypress, verbose;
   unsigned long ipadress;
   long iddqd, idkfa;
   os_initstdio();
 
   count = 0;
+  verbose = 1;
 
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
@@ -658,8 +659,15 @@ start:
     exit(0);
   }
   idkfa = processJson(atol(curFileStruct.authorIds), 0, 3);
-  printData();
-
+  if (verbose == 1)
+  {
+    printData();
+  }
+  else
+  {
+    ATRIB(97);
+    printf(" Getting picture...\r\n");
+  }
   if (!strcmp(curFileStruct.picType, "standard"))
 
   {
@@ -718,6 +726,11 @@ start:
       key = _low_level_get();
     } while (key == 0);
     goto review;
+  }
+
+  if (keypress == 'v' || keypress == 'V')
+  {
+    verbose = !verbose;
   }
   goto start;
 }
