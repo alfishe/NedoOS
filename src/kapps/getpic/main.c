@@ -30,7 +30,7 @@ unsigned char status, key;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
-
+unsigned long count;
 extern void dns_resolve(void);
 
 void delay(unsigned long counter)
@@ -382,6 +382,7 @@ const char *parseJson(unsigned char *property)
   if (n == -1)
   {
     strcpy(netbuf, "0\0");
+    printf("Property %s not found", property);
     return netbuf;
   }
   lng = n - 1 + strlen(property);
@@ -483,69 +484,143 @@ void convert866(void)
   }
 }
 
-unsigned long processJson(unsigned long startPos, unsigned char limit)
+unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int retry;
   unsigned int todo, pPos, headskip;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
   retry = 10;
+  netbuf[0] = '\0';
+  switch (queryNum)
+  {
+  case 0:
+    strcat(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:");
+    sprintf(buffer, "%u", limit);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/start:");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    break;
+  case 3: // /api/export:author/filter:authorId=2202
+    strcat(netbuf, "GET /api/export:author/filter:authorId=");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    break;
+  }
+
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
-
-  netbuf[0] = '\0';
-  strcat(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:");
-  sprintf(buffer, "%u", limit);
-  strcat(netbuf, buffer);
-  strcat(netbuf, "/start:");
-  sprintf(buffer, "%lu", startPos);
-  strcat(netbuf, buffer);
-  strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
 
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
 
   headskip = 0;
   pPos = 0;
   fillPicture(socket);
+
   count = strstr(picture, "responseStatus\":\"success");
   if (count == NULL)
   {
-    printf("BAD JSON, NO responseStatus: success\r\n");
+    ATRIB(91);
+    printf("BAD JSON, NO responseStatus: success. %u   \r\n", retry);
     retry--;
     YIELD();
     if (retry > 0)
       goto rejson;
-    exit(0);
+    return -1;
   }
 
   count = strstr(picture, "\"id\":");
   if (count == NULL)
   {
-    printf("BAD JSON: ID not found \r\n");
-    exit(0);
+    ATRIB(91);
+    printf("BAD JSON: ID not found.\r\n");
+    return -2;
   }
+
   netbuf[0] = '\0';
-  parseJson("\"id\":");
-  curFileStruct.picId = atol(netbuf);
-  parseJson(",\"title\":\"");
-  convert866();
-  strcpy(curFileStruct.picName, netbuf);
-  parseJson(",\"type\":\"");
-  strcpy(curFileStruct.picType, netbuf);
-  parseJson("\"rating\":\"");
-  strcpy(curFileStruct.picRating, netbuf);
-  parseJson("\"year\":\"");
-  curFileStruct.picYear = atoi(netbuf);
-  parseJson("\"totalAmount\":");
-  curFileStruct.totalAmount = atol(netbuf);
+  if (queryNum < 3)
+  {
+    parseJson("\"id\":");
+    curFileStruct.picId = atol(netbuf);
+    parseJson(",\"title\":\"");
+    convert866();
+    strcpy(curFileStruct.picName, netbuf);
+    parseJson(",\"type\":\"");
+    strcpy(curFileStruct.picType, netbuf);
+    parseJson("\"rating\":\"");
+    strcpy(curFileStruct.picRating, netbuf);
+    parseJson("\"year\":\"");
+    curFileStruct.picYear = atoi(netbuf);
+    parseJson("\"totalAmount\":");
+    curFileStruct.totalAmount = atol(netbuf);
+    parseJson("\"authorIds\":[");
+    strcpy(curFileStruct.authorIds, netbuf);
+  }
+  if (queryNum == 3)
+  {
+    parseJson(",\"title\":\"");
+    convert866();
+    strcpy(curFileStruct.authorTitle, netbuf);
+    parseJson(",\"realName\":\"");
+    convert866();
+    strcpy(curFileStruct.authorRealName, netbuf);
+  }
   return curFileStruct.picId;
+}
+
+void printData(void)
+{
+  ATRIB(93);
+  printf(" #: ");
+  ATRIB(97);
+  printf("%lu", count);
+  ATRIB(93);
+  printf(" ID: ");
+  ATRIB(97);
+  printf("%lu ", curFileStruct.picId);
+  ATRIB(93);
+  printf(" Total Pics: ");
+  ATRIB(97);
+  printf("%lu \r\n", curFileStruct.totalAmount);
+  ATRIB(93);
+  printf(" TITLE: ");
+  ATRIB(95);
+  printf("%s\r\n", curFileStruct.picName);
+  ATRIB(93);
+  printf(" RATING: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.picRating);
+  ATRIB(93);
+  printf(" YEAR: ");
+  ATRIB(97);
+  printf("%u", curFileStruct.picYear);
+  printf(" \r\n");
+  ATRIB(93);
+  printf(" AuthorsIDs ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorIds);
+  ATRIB(93);
+  printf(" Author: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorTitle);
+  ATRIB(93);
+  printf(" Real name: ");
+  ATRIB(97);
+  printf("%s", curFileStruct.authorRealName);
+  printf(" \r\n");
+  ATRIB(96);
+  printf(" \r\n");
 }
 
 C_task main(void)
 {
   unsigned char errno, keypress;
-  unsigned long iddqd, count, ipadress;
+  unsigned long ipadress;
+  long iddqd, idkfa;
   os_initstdio();
 
   count = 0;
@@ -554,7 +629,7 @@ C_task main(void)
   AT(1, 1);
   ATRIB(97);
   ATRIB(40);
-  printf("              GETPIC 1.5 zxart.ee picture viewer for nedoNET\n\r");
+  printf("              GETPIC 1.6 zxart.ee picture viewer for nedoNET\n\r");
   ATRIB(33);
   ATRIB(40);
   printf(" Управление:\n\r");
@@ -577,11 +652,13 @@ C_task main(void)
   } while (key == 0);
 
 start:
-  iddqd = processJson(count, 1);
-  ATRIB(97);
-  printf("#:%lu ID:%lu	TITLE:%s\r\n", count, curFileStruct.picId, curFileStruct.picName);
-  ATRIB(93);
-  printf(" RATING:%s	YEAR:%u \r\n", curFileStruct.picRating, curFileStruct.picYear);
+  iddqd = processJson(count, 1, 0);
+  if (iddqd < 0)
+  {
+    exit(0);
+  }
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 3);
+  printData();
 
   if (!strcmp(curFileStruct.picType, "standard"))
 
