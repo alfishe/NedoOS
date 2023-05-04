@@ -805,7 +805,7 @@ void printStatus(void)
   ATRIB(97);
   printf("%u", saveFlag);
   ATRIB(93);
-  printf(" [J]Jump to track [E]Exit      1.10 \r\n");
+  printf(" [J]Jump to track [E]Exit        1.2\r\n");
   ATRIB(97);
   ATRIB(40);
 }
@@ -854,10 +854,10 @@ void printInfo(void)
   printf(" Real name: ");
   ATRIB(97);
   printf("%s", curFileStruct.authorRealName);
-  printf(" \r\n");
+  printf(" \r\n\r\n");
   ATRIB(96);
-  printf("                                                                      \r");
-  printf("\r\n   TITLE: %s\r\n", curFileStruct.picName);
+  printf("                                                                           \r");
+  printf("   TITLE: %s\r\n", curFileStruct.picName);
 }
 
 void printHelp(void)
@@ -867,13 +867,13 @@ void printHelp(void)
   printf(" [E] or [ESC] Exit to OS           \r\n");
   printf(" [B] or [<--] Previous track       \r\n");
   printf(" [N] or [-->] Next track           \r\n");
-  printf(" [S]           Stop player          \r\n");
-  printf(" [K]           Toggle saving tracks \r\n");
-  printf(" [Q]           Select Query type     \r\n");
-  printf(" [J]           Jump to NNNN file from newest  \r\n");
-  printf(" [F]           Change tracks format to play   \r\n");
-  printf(" [L]           Toggle operation logging       \r\n");
-  printf(" [ ]           Next track                     \r\n");
+  printf(" [S]          Stop player          \r\n");
+  printf(" [K]          Toggle saving tracks \r\n");
+  printf(" [Q]          Select Query type     \r\n");
+  printf(" [J]          Jump to NNNN file from newest  \r\n");
+  printf(" [F]          Change tracks format to play   \r\n");
+  printf(" [L]          Toggle operation logging       \r\n");
+  printf(" [ ]          Next track                     \r\n");
 }
 
 unsigned char testPlayer(void)
