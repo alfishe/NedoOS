@@ -941,6 +941,7 @@ start:
   iddqd = processJson(atol(curFileStruct.authorIds), 0, 3);
 replay:
   errn = getPic(iddqd);
+resume:
   pId = runPlayer();
   printStatus();
   printInfo();
@@ -1059,6 +1060,7 @@ rekey:
     AT(1, 25);
     printf("Player stopped...                   ");
     getchar();
+    goto resume;
   }
   alive = testPlayer();
   if (alive == 0)
