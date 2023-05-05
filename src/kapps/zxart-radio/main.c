@@ -113,7 +113,7 @@ void errorPrint(unsigned int error)
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
 {
-  unsigned char socket, retry = 50;
+  unsigned char socket;
   unsigned int todo;
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
@@ -121,7 +121,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
     AT(1, 25);
     printf("OS_NETSOCKET: ");
     errorPrint(todo & 255);
-    printf("                        ");
+    printf("                                  ");
     exit(0);
   }
   else
@@ -130,7 +130,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
     if (logFlag)
     {
       AT(1, 25);
-      printf("OS_NETSOCKET: Socket #%d created           ", socket);
+      printf("OS_NETSOCKET: Socket #%d created               ", socket);
     }
   }
   return socket;
@@ -170,7 +170,7 @@ unsigned char netConnect(unsigned char socket)
 
 unsigned int tcpRead(unsigned char socket)
 {
-  unsigned char retry = 50;
+  unsigned char retry = 100;
   unsigned int err, todo;
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
@@ -494,6 +494,7 @@ void getData(unsigned char socket)
     bPos = bPos + bytes2read;
     if (bytecount == 0)
     {
+      dataBuffer[bytes2read + bPos] = '\0';
       break;
     }
   }
@@ -503,7 +504,7 @@ void getData(unsigned char socket)
 // Процедура отправки TCP запроса серверу
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {
-  unsigned char retry = 150;
+  unsigned char retry = 100;
   unsigned int todo;
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
@@ -598,7 +599,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
   }
 
-  retry = 20;
+  retry = 100;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
@@ -618,7 +619,10 @@ rejson:
     retry--;
     YIELD();
     if (retry > 0)
+    {
+      netShutDown(socket);
       goto rejson;
+    }
     AT(1, 1);
     printf("BAD JSON, NO responseStatus: success. JSON: %s \r\n", dataBuffer);
     getchar();
