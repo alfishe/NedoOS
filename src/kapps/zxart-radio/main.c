@@ -1,4 +1,3 @@
-// 35 сек c логироанием, 27 без
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -457,7 +456,6 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   return 0;
 }
 
-// Процедура получения данных от сервера
 void getData(unsigned char socket)
 {
   unsigned int todo, w, bPos, bytes2read, headskip;
@@ -494,14 +492,13 @@ void getData(unsigned char socket)
     bPos = bPos + bytes2read;
     if (bytecount == 0)
     {
-      dataBuffer[bytes2read + bPos] = '\0';
+      dataBuffer[bytes2read + bPos + 1] = '\0';
       break;
     }
   }
   netShutDown(socket);
 }
 
-// Процедура отправки TCP запроса серверу
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {
   unsigned char retry = 100;
@@ -539,7 +536,6 @@ wizwrite:
   return todo;
 }
 
-// Процедура парсинга JSON от zxart.ee от полученя до заполнения структуры трека, возвращает ID работы.
 unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int retry;
@@ -548,11 +544,11 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   unsigned char *count, socket;
 
   AT(1, 25);
-  printf("Getting data...          ");
+  printf("Getting data...                                   ");
 
   switch (queryNum)
   {
-  case 0:
+  case 0: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
     netbuf[0] = '\0';
     strcat(netbuf, "GET /api/export:zxMusic/limit:");
     sprintf(buffer, "%u", limit);
@@ -590,7 +586,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, formats[curFormat]);
     strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
-  case 3: // /api/export:author/filter:authorId=2202
+  case 3: // GET /api/export:author/filter:authorId=2202
     netbuf[0] = '\0';
     strcat(netbuf, "GET /api/export:author/filter:authorId=");
     sprintf(buffer, "%lu", startPos);
@@ -609,13 +605,13 @@ rejson:
   getData(socket);
 
   AT(1, 25);
-  printf("Processing data...                  ");
+  printf("Processing data (%u)...                  ", queryNum);
 
   count = strstr(dataBuffer, "responseStatus\":\"success");
   if (count == NULL)
   {
     AT(1, 25);
-    printf("BAD JSON, NO responseStatus: success. %u \r\n", retry);
+    printf("BAD JSON, NO responseStatus: success. %u                    ", retry);
     retry--;
     YIELD();
     if (retry > 0)
@@ -623,6 +619,7 @@ rejson:
       netShutDown(socket);
       goto rejson;
     }
+
     AT(1, 1);
     printf("BAD JSON, NO responseStatus: success. JSON: %s \r\n", dataBuffer);
     getchar();
@@ -633,10 +630,9 @@ rejson:
   if (count == NULL)
   {
     AT(1, 25);
-    printf("BAD JSON: ID not found              ");
-    AT(1, 1);
-    printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
-    getchar();
+    printf("BAD JSON: not ID query=%u startPos=%lu          ", queryNum, startPos);
+    //AT(1, 10);
+    //printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     return -2;
   }
   if (queryNum < 3)
@@ -866,7 +862,7 @@ void printInfo(void)
 
 void printHelp(void)
 {
-  AT(1, 11);
+  AT(1, 12);
   ATRIB(97);
   printf(" [E] or [ESC] Exit to OS           \r\n");
   printf(" [B] or [<--] Previous track       \r\n");
@@ -898,7 +894,7 @@ unsigned char testPlayer(void)
 C_task main(void)
 {
   unsigned char errn, keypress, queryNum, pId, alive;
-  long iddqd, ipadress;
+  long iddqd, idkfa, ipadress;
   os_initstdio();
   srand(time());
   count = 0;
@@ -940,9 +936,22 @@ start:
   iddqd = processJson(count, 1, queryNum);
   if (iddqd < 0)
   {
-    exit(0);
+    {
+      AT(1, 25);
+      printf("Error getting track info, next please...     ");
+      count = trackSelector(1);
+      goto start;
+    }
   }
-  iddqd = processJson(atol(curFileStruct.authorIds), 0, 3);
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 3);
+
+  if (idkfa < 0)
+  {
+    AT(1, 25);
+    printf("Error getting author %lu                  ", atol(curFileStruct.authorIds));
+    strcpy(curFileStruct.authorTitle, " Error getting Tittle ");
+    strcpy(curFileStruct.authorRealName, " \0");
+  }
 replay:
   errn = getPic(iddqd);
 resume:
@@ -1026,6 +1035,7 @@ rekey:
   if (keypress == 'j' || keypress == 'J')
   {
     AT(1, 7);
+    printf("                                                                      \r");
     printf("Jump to track:");
     scanf("%lu", &count);
     OS_DROPAPP(pId);
