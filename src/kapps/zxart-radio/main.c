@@ -549,8 +549,8 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   switch (queryNum)
   {
   case 0: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
-    netbuf[0] = '\0';
-    strcat(netbuf, "GET /api/export:zxMusic/limit:");
+    // netbuf[0] = '\0';
+    strcpy(netbuf, "GET /api/export:zxMusic/limit:");
     sprintf(buffer, "%u", limit);
     strcat(netbuf, buffer);
     strcat(netbuf, "/start:");
@@ -561,9 +561,9 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
   case 1: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:votes,rand/filter:zxMusicMinRating=4;
-    netbuf[0] = '\0';
+    // netbuf[0] = '\0';
     startPos = 0;
-    strcat(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:");
+    strcpy(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:");
     sprintf(buffer, "%u", limit);
     strcat(netbuf, buffer);
     strcat(netbuf, "/start:");
@@ -574,9 +574,9 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
   case 2: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:rand/filter:zxMusicFormat=PT3 HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
-    netbuf[0] = '\0';
+    // netbuf[0] = '\0';
     startPos = 0;
-    strcat(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:");
+    strcpy(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:");
     sprintf(buffer, "%u", limit);
     strcat(netbuf, buffer);
     strcat(netbuf, "/start:");
@@ -587,8 +587,16 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
     break;
   case 3: // GET /api/export:author/filter:authorId=2202
+    // netbuf[0] = '\0';
+    strcpy(netbuf, "GET /api/export:author/filter:authorId=");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    break;
+
+  case 4: //jsonElementData/elementId:182798
     netbuf[0] = '\0';
-    strcat(netbuf, "GET /api/export:author/filter:authorId=");
+    strcpy(netbuf, "GET /jsonElementData/elementId:");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
     strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
@@ -631,8 +639,8 @@ rejson:
   {
     AT(1, 25);
     printf("BAD JSON: not ID query=%u startPos=%lu          ", queryNum, startPos);
-    //AT(1, 10);
-    //printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
+    // AT(1, 10);
+    // printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     return -2;
   }
   if (queryNum < 3)
@@ -654,7 +662,7 @@ rejson:
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
   }
-  if (queryNum == 3)
+  if (queryNum > 3)
   {
     parseJson(",\"title\":\"");
     convert866();
@@ -805,7 +813,7 @@ void printStatus(void)
   ATRIB(97);
   printf("%u", saveFlag);
   ATRIB(93);
-  printf(" [J]Jump to track [E]Exit        1.2\r\n");
+  printf(" [J]Jump to track [E]Exit        1.3\r\n");
   ATRIB(97);
   ATRIB(40);
 }
@@ -943,7 +951,7 @@ start:
       goto start;
     }
   }
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 3);
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 4);
 
   if (idkfa < 0)
   {
