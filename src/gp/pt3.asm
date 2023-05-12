@@ -17,20 +17,35 @@ isfilesupported
 	cp 't'
 	ret nz
 	ld a,e
-	cp '3'
-	ret z
 	cp '2'
+	jr nz,checkpt3
+;prepare local variables
+	ld hl,0
+	ld (MUSICTITLEADDR),hl
+	ld (MUSICPROGRESSADDR),hl
 	ret
+checkpt3
+	cp '3'
+	ret nz
+;prepare local variables
+	ld hl,0
+	ld (MUSICTITLEADDR),hl
+	ld hl,musicprogress+1
+	ld (MUSICPROGRESSADDR),hl
+	jp initprogress
 
 playerinit
 ;hl = shared pages
 ;a = player page
+;out: zf=1 if init is successful, hl=init message
+	ld (playerpage),a
 	ld a,(hl)
 	ld (page8000),a
 	inc hl
 	ld a,(hl)
 	ld (pageC000),a
 
+	ld hl,initokstr
 	xor a
 	ret
 
@@ -60,7 +75,7 @@ pageC000=$+1
 	call closestream_file
 
 	pop ix
-	call getptsconfig
+	call getconfig
 	ld (SETUP),a
 
 	ld de,MDLADDR
@@ -68,16 +83,36 @@ pageC000=$+1
 	ex hl,de
 	call INIT
 
+playerpage=$+1
+	ld a,0
+	ld hl,PLAY
+	OS_SETMUSIC
+
 	xor a
 	ret
 
 musicunload
+	ld a,(playerpage)
+	ld hl,play_reter
+	OS_SETMUSIC
+
 	jp MUTE
+
+play_reter
+	ret
 
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
 	YIELD
-	call PLAY
+	YIELD
+	YIELD
+	YIELD
+	YIELD
+
+	ld a,(SETUP)
+	and 2
+	ld a,(VARS1+VRS.CurPos)
+	call z,updateprogress
 
 	ld a,(SETUP)
 	cpl
@@ -106,28 +141,62 @@ findts
 	ld hl,(ix-12)
 	ret
 
-getptsconfig
+TITLELENGTH = 64
+
+getconfig
 ;ix = file size
 ;out: a = player config bits, hl = offset to the second module if available
+	ld a,(MDLADDR)
+	cp 'V'
+	jr z,.ispt3
+	cp 'P'
+	jr z,.ispt3
+	ld a,%00000011 ;PT2
+	ret
+.ispt3
+	ld a,(MDLADDR+101)
+	call setprogressdelta
+;set title
+	ld hl,titlestr
+	ld (MUSICTITLEADDR),hl
+	ld de,titlestr+1
+	ld bc,TITLELENGTH-1
+	ld (hl),' '
+	ldir
+	xor a
+	ld (de),a
+	ld hl,titlestr-1
+	ld de,MDLADDR+30
+	ld bc,68*256+TITLELENGTH
+.copytitleloop
+	ld a,(de)
+	inc de
+	cp ' '
+	jr nz,$+5
+	cp (hl)
+	jr z,$+7
+	inc hl
+	ld (hl),a
+	dec c
+	jr z,$+4
+	djnz .copytitleloop
 	call findts
 	ld a,%00010001 ;2xPT3
 	ret z
-
-	ld a,(MDLADDR)
-	cp 'V'
-	jr z,$+4
-	cp 'P' ;'P'/'V' for PT3
 	ld a,%00100001 ;PT3
-	ret z
-
-	ld a,%00000011 ;PT2
 	ret
 
 	include "../_sdk/file.asm"
 	include "ptsplay/ptsplay.asm"
+	include "progress.asm"
 
+initokstr
+	db "OK\r\n",0
 playernamestr
 	db "Universal PT2'n'PT3 Turbo Sound",0
 end
+
+titlestr
+	ds TITLELENGTH+1
 
 	savebin "pt3.bin",begin,end-begin

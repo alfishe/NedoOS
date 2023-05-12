@@ -4,6 +4,7 @@ sjasmplus --nologo --msg=war mwm.asm
 sjasmplus --nologo --msg=war pt3.asm
 sjasmplus --nologo --msg=war ngsdec/gscode.asm
 sjasmplus --nologo --msg=war mp3.asm
+sjasmplus --nologo --msg=war vgm.asm
 sjasmplus --nologo --msg=war main.asm
 
 if "%currentdir%"=="" (

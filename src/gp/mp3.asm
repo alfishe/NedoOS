@@ -17,7 +17,16 @@ isfilesupported
 isgsdisabled=$+1
 	jr nosupportedfiles
 	call ismodfile
-	ret z
+	jr nz,checkmid
+	ld hl,0
+	ld (MUSICTITLEADDR),hl
+	ld hl,musicprogress+1
+	ld (MUSICPROGRESSADDR),hl
+	jp initprogress
+nosupportedfiles
+	or 1
+	ret
+checkmid
 vsversion=$+1
 	ld a,255
 	ld l,'m'
@@ -28,13 +37,18 @@ vsversion=$+1
 	sub hl,de
 	jr nz,checkogg
 	cp SS_VER_VS1003
-	ret z
+	jr z,initmidvars
 	cp SS_VER_VS1033
-	ret z
+	jr z,initmidvars
 	cp SS_VER_VS1053
-	ret z
+	jr z,initmidvars
 	cp SS_VER_VS1103
-	ret
+	ret nz
+initmidvars
+	ld (filechunkcounter),hl
+	ld (MUSICTITLEADDR),hl
+	ld (MUSICPROGRESSADDR),hl
+	jp initprogress
 checkogg
 	ld l,'o'
 	ld h,b
@@ -44,8 +58,9 @@ checkogg
 	sub hl,de
 	jr nz,checkaac
 	cp SS_VER_VS1053
-	ret z
+	jr z,initmp3vars
 	cp SS_VER_VS1063
+	jr z,initmp3vars
 	ret	
 checkaac
 	ld l,'a'
@@ -56,10 +71,11 @@ checkaac
 	sub hl,de
 	jr nz,checkmp3
 	cp SS_VER_VS1033
-	ret z
+	jr z,initmp3vars
 	cp SS_VER_VS1053
-	ret z
+	jr z,initmp3vars
 	cp SS_VER_VS1063
+	jr z,initmp3vars
 	ret
 checkmp3
 	ld l,'m'
@@ -70,10 +86,13 @@ checkmp3
 	sub hl,de
 	ret nz
 	and ~SS_VER_MASK
-	ret
-nosupportedfiles
-	or 1
-	ret
+	ret nz
+initmp3vars
+	ld (filechunkcounter),hl
+	ld (MUSICTITLEADDR),hl
+	ld hl,musicprogress+1
+	ld (MUSICPROGRESSADDR),hl
+	jp initprogress
 
 ismodfile
 ;cde = file extension
@@ -91,6 +110,7 @@ ismodfile
 playerinit
 ;hl = shared pages
 ;a = player page
+;out: zf=1 if init is successful, hl=init message
 	ld a,(hl)
 	ld (page8000),a
 	inc hl
@@ -106,6 +126,7 @@ playerinit
 ;b==0 if no reply from GS
 	ld a,b
 	cp 1
+	ld hl,nodevicestr
 	ret c
 
 ;get chip id
@@ -117,6 +138,22 @@ playerinit
 	ld (vsversion),a
 	call gscodereset
 
+	ld a,(vsversion)
+	cp SS_VER_VS1103+1
+	ld hl,gsinitok
+	jr nc,.gsonly
+	rrca
+	rrca
+	add a,idtostr%256
+	ld l,a
+	adc a,idtostr/256
+	sub l
+	ld h,a
+	ld de,chipidstr
+	ld bc,4
+	ldir
+	ld hl,ngsinitokstr
+.gsonly
 	xor a
 	ld (isgsdisabled),a
 	ret
@@ -149,6 +186,12 @@ pageC000=$+1
 	or a
 	jr nz,loadmod
 
+        ld a,(filehandle)
+        ld b,a
+	OS_GETFILESIZE
+	ld a,e
+	call setprogressdelta
+
 	call gsstartcode
 
 	ld hl,firstpaddingframedata
@@ -160,23 +203,44 @@ pageC000=$+1
 	xor a
 	ret
 
+TITLELENGTH = 64
+MODHEADERSIZE = 1084
+
 loadmod
+	ld hl,MODHEADERSIZE
+	ld de,BUFADDR
+	call readstream_file
+;init progress
+	ld a,(BUFADDR+950)
+	call setprogressdelta
+;set title
+	ld hl,titlestr
+	ld (MUSICTITLEADDR),hl
+	ld de,BUFADDR
+	ld b,TITLELENGTH+1
+.copytitleloop
+	ld a,(de)
+	ld (hl),a
+	inc de
+	inc hl
+	dec b
+	or a
+	jr nz,.copytitleloop
+	dec hl
+.filltitleloop
+	ld (hl),' '
+	inc hl
+	djnz .filltitleloop
+	ld (hl),0
 ;load module
 	SC 0x30
 	WC
 ;open stream
 	SC 0xD1
 	WC
-.loadchunk
-	ld hl,BUFSIZE
-	ld de,BUFADDR
-	push de
-	call readstream_file
-	ex (sp),hl
-	pop bc
-	ld a,b
-	or c
-	jr z,.doneloading
+;upload file
+	ld hl,BUFADDR
+	ld bc,MODHEADERSIZE
 .uploadloop
 	ld a,(hl)
 	out (GSDAT),a
@@ -186,9 +250,15 @@ loadmod
 	ld a,b
 	or c
 	jr nz,.uploadloop
-	jr .loadchunk
-
-.doneloading
+	ld hl,BUFSIZE
+	ld de,BUFADDR
+	push de
+	call readstream_file
+	ex (sp),hl
+	pop bc
+	ld a,b
+	or c
+	jr nz,.uploadloop
 	call closestream_file
 ;close stream
 	SC 0xD2
@@ -198,9 +268,8 @@ loadmod
 	out (GSDAT),a
 	SC 0x31
 	WC
-
 	xor a
-	ld (patternindex),a
+	ld (currentposition),a
 	ret
 
 musicunload
@@ -275,13 +344,19 @@ checkifcanupload
 
 playmod
 	YIELD
-;read pattern index
+	YIELD
+	YIELD
+	YIELD
+;update progress
 	SC 0x60
 	WC
 	WN
 	GD
-;check if the index is increasing monotonically
-	ld hl,patternindex
+	push af
+	call updateprogress
+	pop af
+;check if the position is increasing monotonically
+	ld hl,currentposition
 	cp (hl)
 	ld (hl),a
 	ccf
@@ -303,7 +378,17 @@ readdata
 	ex de,hl
 	ld hl,BUFSIZE
 	sub hl,bc
-	ret z
+	jr nz,writepadding
+;update progress
+	ld hl,(filechunkcounter)
+	ld de,BUFSIZE>>8 ;256 bytes chunks
+	add hl,de
+	ld (filechunkcounter),hl
+	ld a,h
+	call updateprogress
+	ld de,(BUFADDR+BUFSIZE)%65536
+	ret
+
 writepadding
 	ld bc,paddingframedata_end-paddingframedata
 	sub hl,bc
@@ -403,12 +488,43 @@ gscode
 gscode_end
 
 	include "../_sdk/file.asm"
+	include "progress.asm"
 
+SS_VER_VS1001 = 0x00
+SS_VER_VS1011 = 0x10
+SS_VER_VS1002 = 0x20
+SS_VER_VS1003 = 0x30
+SS_VER_VS1053 = 0x40
+SS_VER_VS8053 = 0x40
+SS_VER_VS1033 = 0x50
+SS_VER_VS1063 = 0x60
+SS_VER_VS1103 = 0x70
+
+idtostr
+	db "1001"
+	db "1011"
+	db "1002"
+	db "1003"
+	db "1053"
+	db "1033"
+	db "1063"
+ngsinitokstr
+	db "NeoGS with VS"
+chipidstr
+	db "????\r\n",0
+gsinitok
+	db "GS\r\n",0
+nodevicestr
+	db "no device!\r\n",0
 playernamestr
-	db "GS/NGS",0
+	db "GS/NeoGS",0
 end
 
-patternindex
-	db 0
+currentposition
+	ds 1
+filechunkcounter
+	ds 2
+titlestr
+	ds TITLELENGTH+1
 
 	savebin "mp3.bin",begin,end-begin

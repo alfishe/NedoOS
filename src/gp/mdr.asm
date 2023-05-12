@@ -19,8 +19,24 @@ mdrsupported=$+1
 playerinit
 ;hl = shared pages
 ;a = player page
+;out: zf=1 if init is successful, hl=init message
 	call ismoonsoundpresent
+	ld hl,nodevicestr
+	jr nz,disableplayer
+
+;initialize to enable OPL4 function
+	call moon_init
+;memory write mode
+	ld de,$0211
+	call moon_wave_out
+;check ROM
+	call moon_check_rom
+	ld hl,initokstr
 	ret z
+
+	ld hl,firmwareerrorstr
+	ld a,255
+disableplayer
 	ld (mdrsupported),a ;writes 255 disabling the extension
 	ret
 
@@ -31,42 +47,9 @@ musicload
 ;cde = file extension
 ;hl = input file name
 	ex de,hl
-	call openstream_file
-	or a
+	ld b,MEMORYBUFFERMAXPAGES
+	call memorybufferloadfile
 	ret nz
-
-	ld hl,datapages
-	ld bc,0x8000
-loadloop
-	push bc
-	push hl
-	OS_NEWPAGE
-	pop hl
-	pop bc
-	ld (hl),e
-
-	ld a,c
-	inc c
-	call change_page3
-
-	push bc
-	push hl
-	ld de,0x8000
-	ld hl,0x4000
-	call readstream_file
-	bit 6,h
-	pop hl
-	pop bc
-	jr z,exitloadloop
-
-	inc hl
-	djnz loadloop
-
-exitloadloop
-	ld a,c
-	ld (datapagecount),a
-
-	call closestream_file
 
 	call moon_load_pcm
 	call moon_init_all
@@ -86,20 +69,7 @@ exitloadloop
 
 musicunload
 	call moon_seq_all_keyoff
-
-	ld hl,datapages
-datapagecount=$+1
-	ld b,0
-pagefreeloop
-	push bc
-	push hl
-	ld e,(hl)
-	OS_DELPAGE
-	pop hl
-	pop bc
-	inc hl
-	djnz pagefreeloop
-	ret
+	jp memorybufferfree
 
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
@@ -124,9 +94,9 @@ musicplay
 
 change_page3
 	push bc
-	add a,datapages%256
+	add a,memorybufferpages%256
 	ld c,a
-	adc a,datapages/256
+	adc a,memorybufferpages/256
 	sub c
 	ld b,a
 	ld a,(bc)
@@ -176,14 +146,19 @@ checkchannels
 
 	include "../_sdk/file.asm"
 	include "moonsound.asm"
+	include "memorybuffer.asm"
 	include "moondriver/moon_driver.asm"
 
+initokstr
+	db "OK\r\n",0
+firmwareerrorstr
+	db "requires ZXM-MoonSound firmware 1.01!\r\n",0
+nodevicestr
+	db "no device!\r\n",0
 playernamestr
 	db "MoonSound MoonDriver",0
 end
 
-datapages
-	ds 128 ;there are max. 256 banks 8192 bytes each, so we can use up to 128 16k-pages
 loopcount
 	ds 1
 

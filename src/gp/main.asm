@@ -1,7 +1,8 @@
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
+	include "playerdefs.asm"
 
-NUM_PLAYERS = 4
+NUM_PLAYERS = 5
 SFN_SIZE = 13
 FILE_DATA_SIZE = 52 ;keep in sync with getfiledataoffset
 FILE_DISPLAY_INFO_OFFSET = 0
@@ -90,6 +91,7 @@ isplaying=$+1
 	jr z,checkmsgs
 	call musicplay
 	call z,playnextfile
+	call updateprogressbar
 
 checkmsgs
 	OS_GETKEY
@@ -243,6 +245,8 @@ playerdeinitloop
 	inc hl
 	djnz playerdeinitloop
 ;save playlist
+	ld a,255
+	ld (playlistpanel.isinactive),a
 	OS_SETSYSDRV
 	ld de,playlistfilename
 	call openstream_file
@@ -308,7 +312,8 @@ startplaying
 	ld (currentmsgtable),hl
 	ld a,1
 	ld (isplaying),a
-	ret
+	call drawsongtitle
+	jp drawprogress
 
 changetoparentdir
 	ld hl,currentfolder
@@ -498,22 +503,54 @@ stricmp
 	inc de
 	jr stricmp
 
+getmusicprogress
+;out: zf=0 and a=progress if progress is available, zf=1 and a=255 otherwise
+	ld hl,(MUSICPROGRESSADDR)
+	ld a,l
+	or h
+	ld a,255
+	ret z
+	ld a,(hl)
+	ret
+
 drawplayerwindow
 	ld de,PANELCOLOR
 	OS_SETCOLOR
+	call getmusicprogress
+	ld (musicprogress),a
+	ld de,8*256+6
+	ld bc,66*256+4
+	ld a,8
+	jr nz,$+10
 	ld de,8*256+12
 	ld bc,54*256+3
+	ld a,14
+	ld (playerwindowtitlepos),a
+	ld (songtitlepos),a
 	call drawwindow
 	ld de,CURSORCOLOR
 	OS_SETCOLOR
-	ld de,8*256+14
+playerwindowtitlepos=$+1
+	ld de,8*256+0
 	OS_SETXY
 	ld hl,playingstr
 	call print_hl
+	call drawsongtitle
+	ld a,(isplaying)
+	or a
+	call nz,drawprogress
+	ret
+
+drawsongtitle
 	ld de,PANELDIRCOLOR
 	OS_SETCOLOR
-	ld de,10*256+14
+songtitlepos=$+1
+	ld de,10*256+0
 	OS_SETXY
+	ld hl,(MUSICTITLEADDR)
+	ld a,l
+	or h
+	jp nz,print_hl
 	ld ix,(currentpaneladdr)
 	ld a,(ix+PANEL.currentfileindex)
 	call getfiledataoffset
@@ -525,6 +562,60 @@ drawplayerwindow
 	ld d,a
 	add hl,de
 	jp print_hl
+
+drawprogress
+	ld a,(musicprogress)
+	cp 255
+	ret z
+	ld de,11*256+8
+	OS_SETXY
+	ld a,(musicprogress)
+	ld c,a
+	or a
+	jr z,.drawremaining
+	ld b,a
+.drawdoneloop
+	push bc
+	ld a,178
+	PRCHAR
+	pop bc
+	djnz .drawdoneloop
+.drawremaining
+	ld a,64
+	sub c
+	ret z
+	ld b,a
+.drawremainingloop
+	push bc
+	ld a,176
+	PRCHAR
+	pop bc
+	djnz .drawremainingloop
+	ret
+
+updateprogressbar
+	call getmusicprogress
+	ret z
+	ld d,a
+	ld hl,musicprogress
+	ld e,(hl)
+	sub e
+	ret z
+	ld (hl),d
+	push af
+	ld hl,11*256+8
+	ld d,0
+	add hl,de
+	ex de,hl
+	OS_SETXY
+	pop bc
+.drawloop
+	push bc
+	ld a,178
+	PRCHAR
+	pop bc
+	djnz .drawloop
+	ret
 
 drawwindowline
 ;d = left char
@@ -826,10 +917,6 @@ initializing1str
 	db "Initializing ",0
 initializing2str
 	db "...",0
-initokstr
-	db "OK\r\n",0
-initfailedstr
-	db "failed\r\n",0
 
 	macro loadplayer playerpage,playersize
 	OS_NEWPAGE
@@ -851,10 +938,6 @@ initfailedstr
 	ld hl,sharedpages
 	ld a,(playerpage)
 	call playerinit
-
-	ld hl,initokstr
-	jr z,$+5
-	ld hl,initfailedstr
 	call print_hl
 	endm
 
@@ -868,6 +951,7 @@ loadplayers
 	loadplayer playerpages+1,mwmend-mwmstart
 	loadplayer playerpages+2,pt3end-pt3start
 	loadplayer playerpages+3,mp3end-mp3start
+	loadplayer playerpages+4,vgmend-vgmstart
 
 	call closestream_file
 	xor a
@@ -1086,14 +1170,6 @@ fileextsortkeyoffsets
 	dw FILE_NAME_OFFSET+11, FILE_NAME_OFFSET+10, FILE_NAME_OFFSET+9
 	dw FILE_ATTRIB_OFFSET
 
-PLAYERINITPROCADDR      = 0x4000
-PLAYERDEINITPROCADDR    = 0x4002
-MUSICLOADPROCADDR       = 0x4004
-MUSICUNLOADPROCADDR     = 0x4006
-MUSICPLAYPROCADDR       = 0x4008
-ISFILESUPPORTEDPROCADDR = 0x400a
-PLAYERNAMESTRADDR       = 0x400c
-
 	macro jumpindirect addr
 	push hl
 	ld hl,(addr)
@@ -1134,6 +1210,7 @@ fileslist ds FILE_DATA_SIZE*PANEL_FILE_COUNT
 browserpanel PANEL
 playlistpanelversion ds 2
 playlistpanel PANEL
+musicprogress ds 1
 
 mdrstart
 	incbin "mdr.bin"
@@ -1151,5 +1228,9 @@ mp3start
 	incbin "mp3.bin"
 mp3end
 
+vgmstart
+	incbin "vgm.bin"
+vgmend
+
 	savebin "gp.com",mainbegin,mainend-mainbegin
-	savebin "gp.plr",mdrstart,mp3end-mdrstart
+	savebin "gp.plr",mdrstart,vgmend-mdrstart
