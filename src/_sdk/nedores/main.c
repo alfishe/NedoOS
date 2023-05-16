@@ -917,7 +917,7 @@ UINT color;
             if (sprformat == 'I') {
               x = sprx;
               while (x < (sprx+sprwid)) {
-                BYTE mode = 0;
+                BYTE mode = 255;
                 BYTE newmode = 0;
                 BYTE transp;
                 int count = 0;
@@ -940,10 +940,11 @@ UINT color;
                     }else if (transp == 8) { newmode = 0; //empty zone
                     }else { newmode = 2; //and:or zone
                     }
-                    //fprintf(fout, "\ty=%d, transp=%d, newmode=%d\n", y, transp, newmode);
+                    if (mode == 255) { mode = newmode; };
                   };
 
                   if (((newmode != mode)||(y == (spry+sprhgt)))&&(count != 0)) {
+                    //fprintf(fout, "\ty=%d, transp=%d, count=%d, mode=%d, newmode=%d\n", y, transp, count, mode, newmode);
                     fprintf(fout, "\tdb %d,%d\n", mode, count);
                     sumhgt = sumhgt + count;
                     yi = y-count;
