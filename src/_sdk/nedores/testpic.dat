@@ -17,8 +17,11 @@
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
 ;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
 ;i: 16c image
+;I: 16c masked image: zonetype(0=empty,1=ld,2=and:or),zonehgt,data...
 ;P: DDp palette
 
+;bigimg=i,0,0,256,72,7; db 32,72
+bigimg=I,0,0,256,72,7; db 32,72
 letter#2=i,144,0,8,8,7; db 123,45
 Letter$3#2=i,0,0,8,8,7
 letterx=i,144,0,8,8,7; db 67,89

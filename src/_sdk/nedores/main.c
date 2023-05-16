@@ -731,7 +731,7 @@ UINT color;
               emitdb((BYTE)(sprwid>>1), fout);
               emitdb((BYTE)(sprhgt), fout);
               rowhgt = sprhgt;
-            }else if (sprformat == 'i') { //картинка 16c по столбцам
+            }else if ((sprformat == 'i')||(sprformat == 'I')) { //картинка 16c по столбцам
               fputs("\n", fout);
               putlabel(labelbuf, fout);
               fputs("\n", fout);
@@ -910,6 +910,88 @@ UINT color;
                   y = y+1;
                 };
                 x = x+2;
+                fputs("\n", fout);
+              };
+            };
+
+            if (sprformat == 'I') {
+              x = sprx;
+              while (x < (sprx+sprwid)) {
+                BYTE mode = 0;
+                BYTE newmode = 0;
+                BYTE transp;
+                int count = 0;
+                int xi;
+                int yi;
+                int sumhgt = 0;
+                y = spry;
+                while (1) { //y
+                  //fprintf(fout, "\ty=%d\n", y);
+
+                  if (y != (spry+sprhgt)) {
+                  //посчитать число прозрачных пикселей
+                    transp = 0;
+                    xi = x;
+                    while (xi < (x+8)) {
+                      if (pic[xi][y] == 16) transp = transp+1;
+                      xi = xi+1;
+                    }
+                    if (transp == 0) { newmode = 1; //ld zone
+                    }else if (transp == 8) { newmode = 0; //empty zone
+                    }else { newmode = 2; //and:or zone
+                    }
+                    //fprintf(fout, "\ty=%d, transp=%d, newmode=%d\n", y, transp, newmode);
+                  };
+
+                  if (((newmode != mode)||(y == (spry+sprhgt)))&&(count != 0)) {
+                    fprintf(fout, "\tdb %d,%d\n", mode, count);
+                    sumhgt = sumhgt + count;
+                    yi = y-count;
+                    while (yi != y) {
+                      xi = x;
+                      if (mode == 1) { //ld zone
+                        fprintf(fout, "\tdb ");
+                        while (1) {
+                          b = pic[xi][yi]; //L
+                          b0 = pic[xi+1][yi]; //R
+                          b = ((b&0x08)<<3) + (b&0x07) + ((b0&0x08)<<4) + ((b0&0x07)<<3);
+                          fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+                          xi = xi+2;
+                          if (xi == (x+8)) break;
+                          fputs(",", fout);
+                        }
+                        fputs("\n", fout);
+                      //}else if (mode == 0) { //empty zone
+                      }else if (mode == 2) { //and:or zone
+                        fprintf(fout, "\tdb ");
+                        while (1) {
+                          b = pic[xi][yi]; //L
+                          b0 = pic[xi+1][yi]; //R
+                          bmask = 0; //0x47(L) и 0xb8(R) в тех местах, где цвет=16:
+                          if (b == 16) {bmask = bmask + 0x47; b = 0x00;};
+                          if (b0 == 16) {bmask = bmask + 0xb8; b0 = 0x00;};
+                          b = ((b&0x08)<<3) + (b&0x07) + ((b0&0x08)<<4) + ((b0&0x07)<<3);
+                          fprintf(fout, "0x%x%x", bmask>>4, bmask&0x0f);
+                          fprintf(fout, ",0x%x%x", b>>4, b&0x0f);
+                          xi = xi+2;
+                          if (xi == (x+8)) break;
+                          fputs(",", fout);
+                        };
+                        fputs("\n", fout);
+                      };
+                      yi = yi+1;
+                    };
+                    mode = newmode;
+                    count = 0;
+                  };
+                  count = count+1;
+
+                  if (y >= (spry+sprhgt)) break;
+
+                  y = y+1;
+                };
+                x = x+8;
+                //fprintf(fout, "\tsumhgt=%d\n", sumhgt);
                 fputs("\n", fout);
               };
             };
