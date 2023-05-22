@@ -2,6 +2,12 @@
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
+HEADER_DATA_OFFSET = 0x8034
+HEADER_CLOCK_YM2203 = 0x8044
+HEADER_CLOCK_YM3812 = 0x8050
+HEADER_CLOCK_YMF262 = 0x805c
+HEADER_CLOCK_YMF278B = 0x8060
+
 	org PLAYERSTART
 
 begin   PLAYERHEADER
@@ -27,6 +33,22 @@ playerinit
 	xor a
 	ret
 
+	macro a_or_dw addr
+	ld hl,(addr)
+	or h
+	or l
+	ld hl,(addr+2)
+	or h
+	or l
+	endm
+
+	macro set_timer wait,ticks
+	ld hl,wait
+	ld (waittimercallback),hl
+	ld hl,ticks
+	ld (waittimerstep),hl
+	endm
+
 musicload
 ;cde = file extension
 ;hl = input file name
@@ -36,11 +58,30 @@ musicload
 	ret nz
 
 	call memorybufferstart
+	ld a,(memorybufferpagecount)
+	call setprogressdelta
+
+	set_timer waittimer50hz,882
+	ld hl,0
+	ld (waitcounter),hl
 
 	ld a,(memorybufferpages)
 	SETPG8000
-	ld hl,(0x8034)
-	ld a,(0x8036)
+;check if this file uses TFM
+	xor a
+	a_or_dw HEADER_CLOCK_YM2203
+	ld (useYM2203),a
+	call nz,initYM2203
+;check if this file uses Moonsound
+	xor a
+	a_or_dw HEADER_CLOCK_YM3812
+	a_or_dw HEADER_CLOCK_YMF262
+	a_or_dw HEADER_CLOCK_YMF278B
+	ld (useYMF278B),a
+	call nz,initYMF278B
+;skip to the data
+	ld hl,(HEADER_DATA_OFFSET)
+	ld a,(HEADER_DATA_OFFSET+2)
 	ld d,a
 	or l
 	or h
@@ -52,25 +93,26 @@ musicload
 	inc d
 	call skipdatablock
 
-	call opl4init
-
-	ld de,0x2f02
-	call opl4writefm1
-
-	ld de,0x2104
-	call opl4writefm1
-
-	ld a,(memorybufferpagecount)
-	call setprogressdelta
-
-	ld hl,0
-	ld (waitcounter),hl
-
 	xor a
 	ret
 
+initYM2203
+	call opninit
+	set_timer opnwaittimer60hz,735
+	jp opninittimer60hz
+
+initYMF278B
+	call opl4init
+	set_timer opl4waittimer60hz,735
+	jp opl4inittimer60hz
+
 musicunload
-	call opl4mute
+	ld a,(useYM2203)
+	or a
+	call nz,opnmute
+	ld a,(useYMF278B)
+	or a
+	call nz,opl4mute
 	jp memorybufferfree
 
 playerdeinit
@@ -80,24 +122,25 @@ playerdeinit
 	include "moonsound.asm"
 	include "memorybuffer.asm"
 	include "vgm/opl4.asm"
+	include "vgm/opn.asm"
 	include "progress.asm"
+
+waittimer50hz
+	YIELD
+	ret
 
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
-	in a,(MOON_STAT)
-	rla
-	jr nc,musicplay
-
-	ld de,0x8104
-	call opl4writefm1
-
+waittimercallback=$+1
+	call 0
 playloop
 waitcounter=$+1
 	ld hl,0
-	ld bc,735
+waittimerstep=$+1
+	ld bc,0
 	sub hl,bc
 	jr nc,exitplayloop
-
+;read command
 	memory_buffer_read_1 a
 	ld l,a
 	ld h,cmdtable/256
@@ -108,16 +151,15 @@ waitcounter=$+1
 	push hl
 	ex hl,de
 	jp (hl)
-
 exitplayloop
 	ld (waitcounter),hl
-
+;update progress
 	ld hl,(memorybuffercurrentpage)
 	ld de,memorybufferpages
 	sub hl,de
 	ld a,l
 	call updateprogress
-
+;continue playing
 	or 1
 	ret
 
@@ -180,23 +222,37 @@ endofsounddata
 	xor a
 	ret
 
+cmdYM2203
+	memory_buffer_read_2 e,d
+	jp opnwritemusiconlyfm1
+
+cmdYM2203dp
+	memory_buffer_read_2 e,d
+	jp opnwritemusiconlyfm2
+
 cmdYMF262p0
 	memory_buffer_read_2 e,d
-	jp opl4writefm1
+	jp opl4writemusiconlyfm1
 
 cmdYMF262p1
 	memory_buffer_read_2 e,d
-	jp opl4writefm2
+	jp opl4writemusiconlyfm2
 
 cmdYMF278B
 	memory_buffer_read_3 c,e,d
 	dec c
-	jp z,opl4writefm2
+	jp z,opl4writemusiconlyfm2
 	jp p,opl4writewave
-	jp opl4writefm1
+	jp opl4writemusiconlyfm1
 
-cmdYM3812    equ memorybufferread2
-cmdYM3812dp  equ memorybufferread2
+cmdYM3812
+	memory_buffer_read_2 e,d
+	jp opl4writemusiconlyfm1
+
+cmdYM3812dp
+	memory_buffer_read_2 e,d
+	jp opl4writemusiconlyfm2
+
 cmdYMF262dp0 equ memorybufferread2
 cmdYMF262dp1 equ memorybufferread2
 
@@ -311,7 +367,7 @@ cmdtable
 	db cmdunsupported  %256 ; 52
 	db cmdunsupported  %256 ; 53
 	db cmdunsupported  %256 ; 54
-	db cmdunsupported  %256 ; 55
+	db cmdYM2203       %256 ; 55
 	db cmdunsupported  %256 ; 56
 	db cmdunsupported  %256 ; 57
 	db cmdunsupported  %256 ; 58
@@ -391,7 +447,7 @@ cmdtable
 	db cmdunsupported  %256 ; A2
 	db cmdunsupported  %256 ; A3
 	db cmdunsupported  %256 ; A4
-	db cmdunsupported  %256 ; A5
+	db cmdYM2203dp     %256 ; A5
 	db skip3           %256 ; A6
 	db skip3           %256 ; A7
 	db skip3           %256 ; A8
@@ -567,7 +623,7 @@ cmdtable
 	db cmdunsupported  /256 ; 52
 	db cmdunsupported  /256 ; 53
 	db cmdunsupported  /256 ; 54
-	db cmdunsupported  /256 ; 55
+	db cmdYM2203       /256 ; 55
 	db cmdunsupported  /256 ; 56
 	db cmdunsupported  /256 ; 57
 	db cmdunsupported  /256 ; 58
@@ -647,7 +703,7 @@ cmdtable
 	db cmdunsupported  /256 ; A2
 	db cmdunsupported  /256 ; A3
 	db cmdunsupported  /256 ; A4
-	db cmdunsupported  /256 ; A5
+	db cmdYM2203dp     /256 ; A5
 	db skip3           /256 ; A6
 	db skip3           /256 ; A7
 	db skip3           /256 ; A8
@@ -744,5 +800,8 @@ initokstr
 playernamestr
 	db "VGM Player",0
 end
+
+useYM2203 ds 1
+useYMF278B ds 1
 
 	savebin "vgm.bin",begin,end-begin

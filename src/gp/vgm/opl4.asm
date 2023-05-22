@@ -1,5 +1,14 @@
 MOONSOUNDROMSIZE = 0x200000
 
+opl4writemusiconlyfm1
+;skips writes to control registers
+;e = register
+;d = value
+	ld a,e
+	cp 0x20
+	jr nc,opl4writefm1
+	cp 0x8
+	ret nz
 opl4writefm1
 ;e = register
 ;d = value
@@ -11,6 +20,12 @@ opl4writefm1
 	out (MOON_DAT1),a
 	ret
 
+opl4writemusiconlyfm2
+;skips writes to control registers
+;e = register
+;d = value
+	cp 0x20
+	ret c
 opl4writefm2
 ;e = register
 ;d = value
@@ -193,8 +208,8 @@ sub24x16
 	ret
 
 opl4loadromdatablockheader
-; dhl = header+data size
-; out: zf=1 if no data to load, dhl = data block size, dhl' = start address
+;dhl = header+data size
+;out: zf=1 if no data to load, dhl = data block size, dhl' = start address
 	exx
 	call memorybufferread4 ;adbc = total rom size
 	ld (opl4loadramdatablockheader.romsize0),bc
@@ -207,8 +222,8 @@ opl4loadromdatablockheader
 	jp sub24x16
 
 opl4loadramdatablockheader
-; dhl = header+data size
-; out: zf=1 if no data to load, dhl = data block size, dhl' = start address
+;dhl = header+data size
+;out: zf=1 if no data to load, dhl = data block size, dhl' = start address
 	exx
 	call memorybufferread4 ;adbc = total ram size
 	call memorybufferread4 ;adbc = start address
@@ -279,3 +294,16 @@ opl4loadramdatablock
 	ret z
 	exx
 	jr opl4loadsample
+
+opl4inittimer60hz
+	ld de,0x2f02
+	call opl4writefm1
+	ld de,0x2104
+	jp opl4writefm1
+
+opl4waittimer60hz
+	in a,(MOON_STAT)
+	rla
+	jr nc,opl4waittimer60hz
+	ld de,0x8104
+	jp opl4writefm1

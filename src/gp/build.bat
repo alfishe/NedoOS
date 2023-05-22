@@ -1,5 +1,4 @@
 if "%settedpath%"=="" call ../_sdk/setpath.bat
-sjasmplus --nologo --msg=war mdr.asm
 sjasmplus --nologo --msg=war mwm.asm
 sjasmplus --nologo --msg=war pt3.asm
 sjasmplus --nologo --msg=war ngsdec/gscode.asm

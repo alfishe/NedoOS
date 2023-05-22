@@ -2,7 +2,7 @@
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
-NUM_PLAYERS = 5
+NUM_PLAYERS = 4
 SFN_SIZE = 13
 FILE_DATA_SIZE = 52 ;keep in sync with getfiledataoffset
 FILE_DISPLAY_INFO_OFFSET = 0
@@ -947,11 +947,10 @@ loadplayers
 	or a
 	ret nz
 
-	loadplayer playerpages+0,mdrend-mdrstart
-	loadplayer playerpages+1,mwmend-mwmstart
-	loadplayer playerpages+2,pt3end-pt3start
-	loadplayer playerpages+3,mp3end-mp3start
-	loadplayer playerpages+4,vgmend-vgmstart
+	loadplayer playerpages+0,mwmend-mwmstart
+	loadplayer playerpages+1,pt3end-pt3start
+	loadplayer playerpages+2,mp3end-mp3start
+	loadplayer playerpages+3,vgmend-vgmstart
 
 	call closestream_file
 	xor a
@@ -1212,10 +1211,6 @@ playlistpanelversion ds 2
 playlistpanel PANEL
 musicprogress ds 1
 
-mdrstart
-	incbin "mdr.bin"
-mdrend
-
 mwmstart
 	incbin "mwm.bin"
 mwmend
@@ -1233,4 +1228,4 @@ vgmstart
 vgmend
 
 	savebin "gp.com",mainbegin,mainend-mainbegin
-	savebin "gp.plr",mdrstart,vgmend-mdrstart
+	savebin "gp.plr",mwmstart,vgmend-mwmstart
