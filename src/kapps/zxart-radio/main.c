@@ -169,7 +169,7 @@ unsigned char netConnect(unsigned char socket)
 
 unsigned int tcpRead(unsigned char socket)
 {
-  unsigned char retry = 100;
+  unsigned char retry = 20;
   unsigned int err, todo;
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
@@ -501,7 +501,7 @@ void getData(unsigned char socket)
 
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {
-  unsigned char retry = 100;
+  unsigned char retry = 20;
   unsigned int todo;
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
@@ -599,7 +599,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
   }
 
-  retry = 100;
+  retry = 20;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
@@ -897,7 +897,7 @@ unsigned char testPlayer(void)
 
 C_task main(void)
 {
-  unsigned char errn, keypress, queryNum, pId, alive;
+  unsigned char errn, keypress, queryNum, pId, alive, changedFormat;
   long iddqd, idkfa, ipadress;
   os_initstdio();
   srand(time());
@@ -963,15 +963,6 @@ resume:
   printStatus();
   printInfo();
 rekey:
-  /*  do
-    {
-      keypress = _low_level_get();
-      YIELD();
-    } while (keypress == 0);
-
-    //  printf(" keypress =  %u       \r\n", keypress);
-  */
-
   keypress = _low_level_get();
   if (keypress == 27 || keypress == 'e' || keypress == 'E')
   {
@@ -1061,6 +1052,7 @@ rekey:
     {
       curFormat = 0;
     }
+    changedFormat = 1;
     printStatus();
     goto rekey;
   }
@@ -1070,6 +1062,11 @@ rekey:
     logFlag = !logFlag;
     AT(1, 25);
     printf("Logging: %u                                           ", logFlag);
+  }
+
+  if (keypress == 'p' || keypress == 'P')
+  {
+    changedFormat = 0;
   }
 
   if (keypress == 's' || keypress == 'S')
@@ -1084,6 +1081,10 @@ rekey:
   if (alive == 0)
   {
     count = trackSelector(0);
+    if (changedFormat)
+    {
+      goto rekey;
+    }
     goto start;
   }
   YIELD();
