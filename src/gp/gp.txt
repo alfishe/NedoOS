@@ -1,0 +1,22 @@
+gp.com - Player for AY, NGS, Moonsound
+
+Supported formats:
+ - mp3  NGS
+ - mid  NGS (custom chip)
+ - ogg  NGS (custom chip)
+ - aac  NGS (custom chip)
+ - vgm  Moonsound
+ - mwm  Moonsound
+ - pt2  AY
+ - pt3  AY
+ - mod  GS, NGS
+
+Keys:
+[UP]    goto previous file
+[DOWN]  goto next file
+[ENTER] start playing
+[ESC]   exit player
+[SPACE] add file to playlist
+[TAB]   switch panels
+[BCKSP] clear playlist
+[HOME]  goto top

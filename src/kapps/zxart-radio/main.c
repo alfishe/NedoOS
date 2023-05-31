@@ -670,7 +670,7 @@ rejson:
   return curFileStruct.picId;
 }
 
-unsigned char getPic(unsigned long fileId)
+unsigned char getTrack(unsigned long fileId)
 {
   unsigned int todo;
   unsigned char cmdlist1[] = "GET /file/id:";
@@ -809,7 +809,7 @@ void printStatus(void)
   ATRIB(97);
   printf("%u", saveFlag);
   ATRIB(93);
-  printf(" [J]Jump to track [E]Exit        1.3\r\n");
+  printf(" [J]Jump to track [E]Exit        1.4\r\n");
   ATRIB(97);
   ATRIB(40);
 }
@@ -924,7 +924,7 @@ C_task main(void)
     printf("------------------------\n\r");
     printf("OS_GETPATH = %s\r\n", curPath);
   */
-
+  changedFormat = 0;
 start:
   keypress = _low_level_get();
   if (keypress == 'l' || keypress == 'L')
@@ -942,7 +942,7 @@ start:
   {
     {
       AT(1, 25);
-      printf("Error getting track info, next please...     ");
+      printf("Error getting track info, next please()...     ");
       count = trackSelector(1);
       goto start;
     }
@@ -957,7 +957,7 @@ start:
     strcpy(curFileStruct.authorRealName, " \0");
   }
 replay:
-  errn = getPic(iddqd);
+  errn = getTrack(iddqd);
 resume:
   pId = runPlayer();
   printStatus();
@@ -974,6 +974,7 @@ rekey:
   }
   if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
+    changedFormat = 0;
     OS_DROPAPP(pId);
     AT(1, 25);
     printf("Player stopped...          ");
@@ -983,6 +984,7 @@ rekey:
 
   if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
   {
+    changedFormat = 0;
     OS_DROPAPP(pId);
     AT(1, 25);
     printf("Player stopped...                   ");
@@ -1047,13 +1049,15 @@ rekey:
     AT(1, 25);
     printf("Player stopped...                   ");
     curFormat++;
-    count = 0;
+    count = -1;
     if (curFormat > 3)
     {
       curFormat = 0;
     }
     changedFormat = 1;
+    curFileStruct.totalAmount = 1;
     printStatus();
+    BOX(1, 2, 80, 6, 40);
     goto rekey;
   }
 
@@ -1062,11 +1066,6 @@ rekey:
     logFlag = !logFlag;
     AT(1, 25);
     printf("Logging: %u                                           ", logFlag);
-  }
-
-  if (keypress == 'p' || keypress == 'P')
-  {
-    changedFormat = 0;
   }
 
   if (keypress == 's' || keypress == 'S')
@@ -1080,12 +1079,11 @@ rekey:
   alive = testPlayer();
   if (alive == 0)
   {
-    count = trackSelector(0);
-    if (changedFormat)
+    if (!changedFormat)
     {
-      goto rekey;
+      count = trackSelector(0);
+      goto start;
     }
-    goto start;
   }
   YIELD();
   goto rekey;
