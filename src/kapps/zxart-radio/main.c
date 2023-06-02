@@ -599,7 +599,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
   }
 
-  retry = 20;
+  retry = 10;
 rejson:
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
@@ -679,7 +679,7 @@ unsigned char getTrack(unsigned long fileId)
   unsigned char socket;
   unsigned int w, bPos, bytes2read, headskip;
   AT(1, 25);
-  printf("Getting track...                    ");
+  printf("Getting track...                      ");
 
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
@@ -816,7 +816,7 @@ void printStatus(void)
 
 void printInfo(void)
 {
-  BOX(30, 2, 80, 5, 40);
+  BOX(30, 2, 50, 6, 40);
   AT(1, 2);
   ATRIB(97);
   ATRIB(93);
@@ -844,8 +844,7 @@ void printInfo(void)
   printf(" DURATION: ");
   ATRIB(97);
   printf("%s", curFileStruct.time);
-  printf(" \r\n");
-  printf(" \r\n");
+  printf(" \r\n\r\n");
   ATRIB(93);
   printf(" AuthorsIDs ");
   ATRIB(97);
@@ -942,8 +941,8 @@ start:
   {
     {
       AT(1, 25);
-      printf("Error getting track info, next please()...     ");
-      count = trackSelector(1);
+      printf("Error getting track info, next please(%ld)...     ", iddqd);
+      count = trackSelector(0);
       goto start;
     }
   }
@@ -964,117 +963,120 @@ resume:
   printInfo();
 rekey:
   keypress = _low_level_get();
-  if (keypress == 27 || keypress == 'e' || keypress == 'E')
+  if (keypress != 0)
   {
-    OS_DROPAPP(pId);
-    printf("Good bye... %u \r\n", pId);
-    ATRIB(37);
-    ATRIB(40);
-    exit(0);
-  }
-  if (keypress == 248 || keypress == 'b' || keypress == 'B')
-  {
-    changedFormat = 0;
-    OS_DROPAPP(pId);
-    AT(1, 25);
-    printf("Player stopped...          ");
-    count = trackSelector(1);
-    goto start;
-  }
-
-  if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
-  {
-    changedFormat = 0;
-    OS_DROPAPP(pId);
-    AT(1, 25);
-    printf("Player stopped...                   ");
-    count = trackSelector(0);
-    goto start;
-  }
-
-  if (keypress == 'k' || keypress == 'K')
-  {
-    OS_DROPAPP(pId);
-    AT(1, 25);
-    printf("Player stopped...                   ");
-    saveFlag = !saveFlag;
-    printStatus();
-    goto replay;
-  }
-
-  if (keypress == 'q' || keypress == 'Q')
-  {
-    OS_DROPAPP(pId);
-    AT(1, 25);
-    printf("Player stopped...                   ");
-    queryNum++;
-    if (queryNum > 2)
+    if (keypress == 27 || keypress == 'e' || keypress == 'E')
     {
-      queryNum = 0;
+      OS_DROPAPP(pId);
+      printf("Good bye... %u \r\n", pId);
+      ATRIB(37);
+      ATRIB(40);
+      exit(0);
     }
-    switch (queryNum)
+    if (keypress == 248 || keypress == 'b' || keypress == 'B')
     {
-    case 0:
-      strcpy(queryType, "from newest to oldest             ");
-      break;
-    case 1:
-      strcpy(queryType, "Random best and most voted tracks ");
-      break;
-    case 2:
-      strcpy(queryType, "Random play                       ");
-      break;
+      changedFormat = 0;
+      OS_DROPAPP(pId);
+      AT(1, 25);
+      printf("Player stopped...          ");
+      count = trackSelector(1);
+      goto start;
     }
-    count = 0;
-    printStatus();
-    goto start;
-  }
 
-  if (keypress == 'j' || keypress == 'J')
-  {
-    AT(1, 7);
-    printf("                                                                      \r");
-    printf("Jump to track:");
-    scanf("%lu", &count);
-    OS_DROPAPP(pId);
-    if (count > curFileStruct.totalAmount - 1)
+    if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
     {
-      count = curFileStruct.totalAmount - 1;
+      changedFormat = 0;
+      OS_DROPAPP(pId);
+      AT(1, 25);
+      printf("Player stopped...                   ");
+      count = trackSelector(0);
+      goto start;
     }
-    goto start;
-  }
 
-  if (keypress == 'f' || keypress == 'F')
-  {
-    OS_DROPAPP(pId);
-    AT(1, 25);
-    printf("Player stopped...                   ");
-    curFormat++;
-    count = -1;
-    if (curFormat > 3)
+    if (keypress == 'k' || keypress == 'K')
     {
-      curFormat = 0;
+      OS_DROPAPP(pId);
+      AT(1, 25);
+      printf("Player stopped...                   ");
+      saveFlag = !saveFlag;
+      printStatus();
+      goto replay;
     }
-    changedFormat = 1;
-    curFileStruct.totalAmount = 1;
-    printStatus();
-    BOX(1, 2, 80, 6, 40);
-    goto rekey;
-  }
 
-  if (keypress == 'l' || keypress == 'L')
-  {
-    logFlag = !logFlag;
-    AT(1, 25);
-    printf("Logging: %u                                           ", logFlag);
-  }
+    if (keypress == 'q' || keypress == 'Q')
+    {
+      OS_DROPAPP(pId);
+      AT(1, 25);
+      printf("Player stopped...                   ");
+      queryNum++;
+      if (queryNum > 2)
+      {
+        queryNum = 0;
+      }
+      switch (queryNum)
+      {
+      case 0:
+        strcpy(queryType, "from newest to oldest             ");
+        break;
+      case 1:
+        strcpy(queryType, "Random best and most voted tracks ");
+        break;
+      case 2:
+        strcpy(queryType, "Random play                       ");
+        break;
+      }
+      count = 0;
+      printStatus();
+      goto start;
+    }
 
-  if (keypress == 's' || keypress == 'S')
-  {
-    OS_DROPAPP(pId);
-    AT(1, 25);
-    printf("Player stopped...                   ");
-    getchar();
-    goto resume;
+    if (keypress == 'j' || keypress == 'J')
+    {
+      AT(1, 7);
+      printf("                                                                      \r");
+      printf("Jump to track:");
+      scanf("%lu", &count);
+      OS_DROPAPP(pId);
+      if (count > curFileStruct.totalAmount - 1)
+      {
+        count = curFileStruct.totalAmount - 1;
+      }
+      goto start;
+    }
+
+    if (keypress == 'f' || keypress == 'F')
+    {
+      OS_DROPAPP(pId);
+      AT(1, 25);
+      printf("Player stopped...                   ");
+      curFormat++;
+      count = -1;
+      if (curFormat > 3)
+      {
+        curFormat = 0;
+      }
+      changedFormat = 1;
+      curFileStruct.totalAmount = 1;
+      printStatus();
+      BOX(1, 2, 80, 6, 40);
+      goto rekey;
+    }
+
+    if (keypress == 'l' || keypress == 'L')
+    {
+      logFlag = !logFlag;
+      AT(1, 25);
+      printf("Logging: %u                                           ", logFlag);
+    }
+
+    if (keypress == 's' || keypress == 'S')
+    {
+      OS_DROPAPP(pId);
+      AT(1, 25);
+      printf("Player stopped...                   ");
+      getchar();
+      goto resume;
+    }
   }
   alive = testPlayer();
   if (alive == 0)
@@ -1085,6 +1087,7 @@ rekey:
       goto start;
     }
   }
+  YIELD();
   YIELD();
   goto rekey;
 }
