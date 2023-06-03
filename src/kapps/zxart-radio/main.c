@@ -402,14 +402,14 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   unsigned char fileName[32];
   unsigned char buffer[] = "0000000000";
   unsigned long fileSize;
-  strcpy(fileName, "pt3/za");
+  strcpy(fileName, "radio/pt3/za");
   sprintf(buffer, "%lu", fileId);
   strcat(fileName, buffer);
   strcat(fileName, ".");
   strcat(fileName, formats[curFormat]);
   if (saveFlag == 0)
   {
-    strcpy(fileName, "pt3/temp.");
+    strcpy(fileName, "radio/pt3/temp.");
     strcat(fileName, formats[curFormat]);
   }
 
@@ -584,7 +584,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, formats[curFormat]);
     strcat(netbuf, userAgent);
     break;
-  case 3: // GET /api/export:author/filter:authorId=2202
+  case 3: // GET /api/export:author/filter:authorId=2202 (unused)
     strcpy(netbuf, "GET /api/export:author/filter:authorId=");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
@@ -615,7 +615,7 @@ rejson:
   if (count == NULL)
   {
     AT(1, 25);
-    printf("BAD JSON, NO responseStatus: success. %u                    ", retry);
+    printf("BAD JSON, NO responseStatus: success. (%u)                    ", retry);
     retry--;
     YIELD();
     if (retry > 0)
@@ -623,10 +623,9 @@ rejson:
       netShutDown(socket);
       goto rejson;
     }
-
-    AT(1, 1);
-    printf("BAD JSON, NO responseStatus: success. JSON: %s \r\n", dataBuffer);
-    getchar();
+    // AT(1, 1);
+    // printf("BAD JSON, NO responseStatus: success. JSON: %s \r\n", dataBuffer);
+    // getchar();
     return -1;
   }
 
@@ -634,7 +633,7 @@ rejson:
   if (count == NULL)
   {
     AT(1, 25);
-    printf("BAD JSON: not ID query=%u startPos=%lu          ", queryNum, startPos);
+    printf("BAD JSON: not ID query = %u startPos = %lu          ", queryNum, startPos);
     // AT(1, 10);
     // printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     return -2;
@@ -694,7 +693,7 @@ unsigned char getTrack(unsigned long fileId)
   bPos = 0;
   bytecount = 255;
   saveBuf(curFileStruct.picId, 00, 0);
-  while (1)
+  while (bytecount != 0)
   {
     todo = tcpRead(socket);
     if (todo == 0)
@@ -715,10 +714,6 @@ unsigned char getTrack(unsigned long fileId)
     bytecount = bytecount - bytes2read;
     bPos = 0;
     saveBuf(curFileStruct.picId, 01, bytes2read);
-    if (bytecount == 0)
-    {
-      break;
-    }
   }
   netShutDown(socket);
   return 0;
@@ -727,7 +722,7 @@ unsigned char getTrack(unsigned long fileId)
 unsigned char runPlayer(void)
 {
   FILE *fp2;
-  unsigned char fileName[] = "player.ovl";
+  unsigned char fileName[] = "radio/player.ovl";
   unsigned char appCmd[128] = "player.com ";
   unsigned char curPath[128];
   unsigned long playerSize, loaded, loop;
@@ -754,11 +749,11 @@ unsigned char runPlayer(void)
   OS_CHDIR((unsigned int)&curPath);
   OS_NEWAPP((unsigned int)&player_pg);
   SETPG32KHIGH(player_pg.pgs.window_3);
-  memcpy((char *)(0xc080), &appCmd, sizeof(appCmd));
+  memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
   for (loop = 0; loop < playerSize; loop = loop + loaded)
   {
     loaded = OS_READHANDLE(dataBuffer, fp2, sizeof(dataBuffer));
-    memcpy((char *)(0xc100 + loop), &dataBuffer, loaded);
+    memcpy((char *)(0xC100 + loop), &dataBuffer, loaded);
   }
   OS_CLOSEHANDLE(fp2);
   SETPG32KHIGH(pgbak);
@@ -962,6 +957,7 @@ resume:
   printStatus();
   printInfo();
 rekey:
+  YIELD();
   keypress = _low_level_get();
   if (keypress != 0)
   {
@@ -1087,7 +1083,6 @@ rekey:
       goto start;
     }
   }
-  YIELD();
   YIELD();
   goto rekey;
 }

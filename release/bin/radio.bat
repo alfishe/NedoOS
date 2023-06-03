@@ -1,0 +1,1 @@
+term.com zxartrad.com

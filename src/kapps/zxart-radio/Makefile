@@ -2,9 +2,9 @@
 BIN		:=zxartrad.com
 
 #поддиректория инсталляции в release
-INSTDIR := bin/Radio
+INSTDIR := bin
 
-#тип вводавывода TTY или BDOS
+#тип вводавывода TTY или BDOS TTY_NE - TTY без обработки ESC
 CONSOLE := TTY_NE
 
 #файлы .с
