@@ -5,7 +5,7 @@ BIN		:= tm.com
 INSTDIR := bin
 
 #тип вводавывода TTY или BDOS
-CONSOLE := TTY
+CONSOLE := TTY_NE
 
 #файлы .с
 SRCC	:= main.c

@@ -27,8 +27,8 @@ union APP_PAGES main_pg;
 void redraw(void)
 {
     unsigned char c3;
-    
-//    BOX(14, 5, 41, prccount, 43);
+
+    BOX(14, 5, 41, prccount, 43);
     ATRIB(43);
 
     for (c3 = 0; c3 < prccount; c3++)
@@ -42,18 +42,21 @@ void redraw(void)
         {
             ATRIB(30);
         }
-        printf("%X.",table[c3].nomer);
+        printf("%2X.", table[c3].nomer);
         puts(table[c3].name);
         AT(50, 5 + c3);
         printf("%u  ", table[c3].used);
         AT(55, 5 + c3);
-        printf("%X.", table[c3].window_0);
-        printf("%X.", table[c3].window_1);
-        printf("%X.", table[c3].window_2);
-        printf("%X", table[c3].window_3);
+        printf("%2X.", table[c3].window_0);
+        printf("%2X.", table[c3].window_1);
+        printf("%2X.", table[c3].window_2);
+        printf("%2X", table[c3].window_3);
     }
-
-
+    BOX(12, 5 + prccount, 54, 1, 41);
+    AT(12, 5 + prccount);
+    ATRIB(33);
+    printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
+    BOX(12, 6 + prccount, 54, 1, 40);
 }
 void filltable(void)
 {
@@ -111,27 +114,13 @@ void filltable(void)
             usedmem++;
         }
     }
-
-    BOX(12, 5 + prccount, 54, 1, 41);
-    AT(12, 5 + prccount);
-    ATRIB(33);
-    printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
-	BOX(12, 6 + prccount, 54, 2, 40);
-	BOX(14, 5, 41, prccount, 43);
-	
-	ATRIB(37);
-	ATRIB(40);
-	AT(6, 23);
-    puts("W - UP; S - DOWN; X - KILL; ESC - EXIT or press number of process");
-	ATRIB(33);
-
 }
 
 void killapp(unsigned char id)
 {
 
     OS_DROPAPP(id);
-    filltable();
+    //filltable();
 }
 
 C_task main(void)
@@ -139,54 +128,53 @@ C_task main(void)
     unsigned char loop = 1;
     curpos = 1;
     os_initstdio();
-    filltable();
+    BOX(1, 1, 80, 25, 40);
     BOX(12, 4, 54, 1, 41);
     AT(33, 4);
     ATRIB(33);
     puts("TASK MANAGER");
-	
-	
-	redraw();
     while (loop)
     {
-        procname = getchar();
-
-		if (procname == '\e')
+        filltable();
+        redraw();
+        do
         {
-		break;
+            YIELD();
+            procname = _low_level_get();
+        } while (procname == 0);
+
+        if (procname == 27)
+        {
+                break;
         }
 
         if (procname > '0' && procname < 58)
         {
             procname = procname - '0';
             killapp(procname);
-			goto end;
-		}
-		
-		if (procname > '@' && procname < 'G')
-        {
-            killapp(procname - 55);
-			goto end;
-		}
-
-		if (procname > 96 && procname < 'g')
-        {
-            killapp(procname - 87);
-			goto end;
-		}
-        
-        if (procname == 13 || procname == 'x'|| procname == 'X')
-        {
-            killapp(table[curpos - 1].nomer);
-			goto end;
         }
 
-		if (procname == 'w' || procname == 'W')
+        if (procname > '@' && procname < 'G')
+        {
+            killapp(procname - 55);
+        }
+
+        if (procname > 96 && procname < 'g')
+        {
+            killapp(procname - 87);
+        }
+
+        if (procname == 13 || procname == 252)
+        {
+            killapp(table[curpos - 1].nomer);
+        }
+
+        if (procname == 250)
         {
             curpos--;
-		}
+        }
 
-        if (procname == 's' || procname == 'S')
+        if (procname == 249)
         {
             curpos++;
         }
@@ -200,7 +188,9 @@ C_task main(void)
         {
             curpos = 1;
         }
-end:	redraw();
     }
+    BOX(1, 1, 80, 25, 40);
+    AT(1,1);
+    ATRIB(47);
     return 0;
 }
