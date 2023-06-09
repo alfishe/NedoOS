@@ -538,11 +538,13 @@ wizwrite:
 
 unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
+  FILE *fp3;
   unsigned int retry;
   unsigned int todo;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
   unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+  unsigned char userQuery[256] = "/types:zxMusic/export:zxMusic/language:eng/order:date,desc/filter:zxMusicFormat=PT3;authorId=7744";
   AT(1, 25);
   printf("Getting data(%u)...                                   ", queryNum);
 
@@ -584,14 +586,31 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, formats[curFormat]);
     strcat(netbuf, userAgent);
     break;
-  case 3: // GET /api/export:author/filter:authorId=2202 (unused)
-    strcpy(netbuf, "GET /api/export:author/filter:authorId=");
+
+  case 3: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3;authorId=7744/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
+
+    fp3 = OS_OPENHANDLE("radio/user.que", 0x80);
+    if (((int)fp3) & 0xff)
+    {
+      fp3 = OS_CREATEHANDLE("radio/user.que", 0x80);
+      OS_WRITEHANDLE(userQuery, fp3, sizeof(userQuery));
+      OS_CLOSEHANDLE(fp3);
+      fp3 = OS_OPENHANDLE("radio/user.que", 0x80);
+    }
+    OS_READHANDLE(userQuery, fp3, sizeof(userQuery));
+    OS_CLOSEHANDLE(fp3);
+
+    strcpy(netbuf, "GET /api/limit:");
+    sprintf(buffer, "%u", limit);
+    strcat(netbuf, buffer);
+    strcat(netbuf, "/start:");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
+    strcat(netbuf, userQuery);
     strcat(netbuf, userAgent);
     break;
 
-  case 4: // GET /jsonElementData/elementId:182798
+  case 99: // GET /jsonElementData/elementId:182798
     strcpy(netbuf, "GET /jsonElementData/elementId:");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
@@ -638,7 +657,7 @@ rejson:
     // printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     return -2;
   }
-  if (queryNum < 3)
+  if (queryNum < 4)
   {
     netbuf[0] = '\0';
     parseJson("\"id\":");
@@ -657,7 +676,7 @@ rejson:
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
   }
-  if (queryNum > 3)
+  if (queryNum == 99)
   {
     parseJson(",\"title\":\"");
     convert866();
@@ -804,7 +823,7 @@ void printStatus(void)
   ATRIB(97);
   printf("%u", saveFlag);
   ATRIB(93);
-  printf(" [J]Jump to track [E]Exit        1.4\r\n");
+  printf(" [J]Jump to track [E]Exit        1.5\r\n");
   ATRIB(97);
   ATRIB(40);
 }
@@ -919,7 +938,7 @@ C_task main(void)
     printf("OS_GETPATH = %s\r\n", curPath);
   */
   changedFormat = 0;
-start:
+
   keypress = _low_level_get();
   if (keypress == 'l' || keypress == 'L')
   {
@@ -929,6 +948,7 @@ start:
     getchar();
   }
 
+start:
   printHelp();
   curFileStruct.fileSize = 0;
   iddqd = processJson(count, 1, queryNum);
@@ -941,7 +961,7 @@ start:
       goto start;
     }
   }
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 4);
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
 
   if (idkfa < 0)
   {
@@ -1005,7 +1025,7 @@ rekey:
       AT(1, 25);
       printf("Player stopped...                   ");
       queryNum++;
-      if (queryNum > 2)
+      if (queryNum > 3)
       {
         queryNum = 0;
       }
@@ -1019,6 +1039,9 @@ rekey:
         break;
       case 2:
         strcpy(queryType, "Random play                       ");
+        break;
+      case 3:
+        strcpy(queryType, "User defined query from user.que     ");
         break;
       }
       count = 0;
@@ -1062,7 +1085,7 @@ rekey:
     {
       logFlag = !logFlag;
       AT(1, 25);
-      printf("Logging: %u                                           ", logFlag);
+      printf("Logging: %u                                                                     ", logFlag);
     }
 
     if (keypress == 's' || keypress == 'S')
