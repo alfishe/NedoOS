@@ -665,7 +665,6 @@ loadapp_nodot
 ;a=0
         ld (hl),'.'
         inc hl
-        ld (exthlpointer),hl
         ld (hl),'c'
         inc hl
         ld (hl),'o'
@@ -685,20 +684,8 @@ loadapp_finddotok
          call printcurdir
          ;call yieldgetkeyloop
        endif
-        pop af
-        jp z, fileopenok        
-        xor a
-        ld hl,(exthlpointer)  
-        ld (hl),'b'
-        inc hl
-        ld (hl),'a'
-        inc hl
-        ld (hl),'t'
-        inc hl
-        ld (hl),a ;0        
-        jp strcpexec_tryrun_bat       
-        ;ret nz ;jr nz,execcmd_error ;NC!
-fileopenok
+         pop af
+        ret nz ;jr nz,execcmd_error ;NC!
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         ret nz ;error ;NC!
@@ -1928,9 +1915,6 @@ commandslist
         
         dw -1 ;конец таблицы команд
 
-exthlpointer
-        ds 2  
-
 tunknowncommand
         db "Unknown command",0
 tdrivenotfound
@@ -2026,7 +2010,6 @@ printcurdir
         call prtext
         call prcrlf
         ret
-
 curdir__
         ds 256
         endif
