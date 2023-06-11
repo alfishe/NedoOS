@@ -918,6 +918,7 @@ C_task main(void)
   saveFlag = 0;
   queryNum = 0;
   curFormat = 0;
+  changedFormat = 0;
   strcpy(queryType, "from newest to oldest");
 
   BOX(1, 1, 80, 25, 40);
@@ -937,7 +938,6 @@ C_task main(void)
     printf("------------------------\n\r");
     printf("OS_GETPATH = %s\r\n", curPath);
   */
-  changedFormat = 0;
 
   keypress = _low_level_get();
   if (keypress == 'l' || keypress == 'L')
@@ -951,7 +951,8 @@ C_task main(void)
 start:
   printHelp();
   curFileStruct.fileSize = 0;
-  iddqd = processJson(count, 1, queryNum);
+
+  iddqd = processJson(count, 1, queryNum); // Query for track info
   if (iddqd < 0)
   {
     {
@@ -961,7 +962,8 @@ start:
       goto start;
     }
   }
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99); // Query for AuthorID
 
   if (idkfa < 0)
   {
@@ -971,9 +973,9 @@ start:
     strcpy(curFileStruct.authorRealName, " \0");
   }
 replay:
-  errn = getTrack(iddqd);
+  errn = getTrack(iddqd); // Downloading the track
 resume:
-  pId = runPlayer();
+  pId = runPlayer(); // Start thr Player!
   printStatus();
   printInfo();
 rekey:
@@ -994,7 +996,7 @@ rekey:
       changedFormat = 0;
       OS_DROPAPP(pId);
       AT(1, 25);
-      printf("Player stopped...          ");
+      printf("Player stopped...                     ");
       count = trackSelector(1);
       goto start;
     }
@@ -1004,7 +1006,7 @@ rekey:
       changedFormat = 0;
       OS_DROPAPP(pId);
       AT(1, 25);
-      printf("Player stopped...                   ");
+      printf("Player stopped...                      ");
       count = trackSelector(0);
       goto start;
     }
@@ -1041,7 +1043,7 @@ rekey:
         strcpy(queryType, "Random play                       ");
         break;
       case 3:
-        strcpy(queryType, "User defined query from user.que     ");
+        strcpy(queryType, "User defined query from \"user.que\"     ");
         break;
       }
       count = 0;
@@ -1098,13 +1100,10 @@ rekey:
     }
   }
   alive = testPlayer();
-  if (alive == 0)
+  if (alive == 0 && !changedFormat)
   {
-    if (!changedFormat)
-    {
-      count = trackSelector(0);
-      goto start;
-    }
+    count = trackSelector(0);
+    goto start;
   }
   YIELD();
   goto rekey;
