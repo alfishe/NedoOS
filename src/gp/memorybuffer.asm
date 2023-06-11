@@ -11,7 +11,7 @@ memorybufferloadfile
 	ret nz
 
 	ld hl,memorybufferpages
-	ld (memorybuffercurrentpage),hl
+	ld (memorybufferpageaddr),hl
 	ld hl,0
 	ld de,hl
 	ld c,l
@@ -22,10 +22,10 @@ memorybufferloadfile
 	push hl
 
 	OS_NEWPAGE
-	ld hl,(memorybuffercurrentpage)
+	ld hl,(memorybufferpageaddr)
 	ld (hl),e
 	inc hl
-	ld (memorybuffercurrentpage),hl
+	ld (memorybufferpageaddr),hl
 
 	ld a,e
 	SETPG8000
@@ -53,6 +53,35 @@ memorybufferloadfile
 	ret z
 	jr memorybufferfree
 
+memorybufferallocate
+;dehl = buffer size
+;out: zf=1 if successful, zf=0 otherwise
+	ld (memorybuffersize+0),hl
+	ld (memorybuffersize+2),de
+	ld bc,0x3fff
+	add hl,bc
+	ld a,e
+	adc a,d
+	sla h
+	rla
+	sla h
+	rla
+	cp MEMORYBUFFERMAXPAGES+1
+	ret nc
+	ld b,a
+	ld (memorybufferpagecount),a
+	ld hl,memorybufferpages
+.loop
+	push bc
+	push hl
+	OS_NEWPAGE
+	pop hl
+	pop bc
+	ld (hl),e
+	inc hl
+	djnz .loop
+	ret
+
 memorybufferfree
 	ld hl,memorybufferpages
 memorybufferpagecount=$+1
@@ -72,16 +101,17 @@ memorybufferstart
 	ld hl,0xffff
 	ld (memorybuffercurrentaddr),hl
 	ld hl,memorybufferpages
-	ld (memorybuffercurrentpage),hl
+	ld (memorybufferpageaddr),hl
 	ret
 
 memorybuffernextpage
-memorybuffercurrentpage=$+1
+memorybufferpageaddr=$+1
 	ld hl,0
 	push af
 	ld a,(hl)
 	inc hl
-	ld (memorybuffercurrentpage),hl
+	ld (memorybuffercurrentpage),a
+	ld (memorybufferpageaddr),hl
 	push bc
 	SETPG8000
 	pop bc
@@ -203,3 +233,5 @@ memorybuffersize
 	ds 4
 memorybufferpages
 	ds MEMORYBUFFERMAXPAGES
+memorybuffercurrentpage
+	ds 1

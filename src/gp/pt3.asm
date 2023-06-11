@@ -3,6 +3,7 @@
 	include "playerdefs.asm"
 
 MDLADDR = 0x8000
+TITLELENGTH = 64
 
 	org PLAYERSTART
 
@@ -140,8 +141,6 @@ findts
 
 	ld hl,(ix-12)
 	ret
-
-TITLELENGTH = 64
 
 getconfig
 ;ix = file size

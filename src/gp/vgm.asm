@@ -7,6 +7,9 @@ HEADER_CLOCK_YM2203 = 0x8044
 HEADER_CLOCK_YM3812 = 0x8050
 HEADER_CLOCK_YMF262 = 0x805c
 HEADER_CLOCK_YMF278B = 0x8060
+HEADER_GD3_OFFSET = 0x8014
+HEADER_SAMPLES_COUNT = 0x8018
+TITLELENGTH = 64
 
 	org PLAYERSTART
 
@@ -14,13 +17,20 @@ begin   PLAYERHEADER
 
 isfilesupported
 ;cde = file extension
-	ld a,'v'
-	cp c
+	ld a,c
+	cp 'v'
 	ret nz
-	ld hl,'gm'
-	sub hl,de
+	ld a,d
+	cp 'g'
+	ret nz
+	ld a,e
+	cp 'm'
+	jr z,$+5
+	cp 'z'
 	ret nz
 ;prepare local variables
+	ld hl,0
+	ld (MUSICTITLEADDR),hl
 	ld hl,musicprogress+1
 	ld (MUSICPROGRESSADDR),hl
 	jp initprogress
@@ -29,17 +39,26 @@ playerinit
 ;hl = shared pages
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
+	ld a,(hl)
+	ld (page8000),a
+	inc hl
+	ld a,(hl)
+	ld (pageC000),a
+	inc hl
+	ld a,(hl)
+	ld (filedatapage),a
+
 	ld hl,initokstr
 	xor a
 	ret
 
 	macro a_or_dw addr
-	ld hl,(addr)
+	ld hl,(addr+0)
 	or h
 	or l
-	ld hl,(addr+2)
-	or h
-	or l
+	ld de,(addr+2)
+	or d
+	or e
 	endm
 
 	macro set_timer wait,ticks
@@ -52,21 +71,40 @@ playerinit
 musicload
 ;cde = file extension
 ;hl = input file name
+	ld a,e
+	cp 'z'
 	ex de,hl
+	jr z,.loadcompressed
 	ld b,MEMORYBUFFERMAXPAGES
 	call memorybufferloadfile
+	jr z,.doneloading
+	ret
+
+.loadcompressed
+	call decompressfiletomemorybuffer
 	ret nz
-
-	call memorybufferstart
-	ld a,(memorybufferpagecount)
-	call setprogressdelta
-
+.doneloading
 	set_timer waittimer50hz,882
 	ld hl,0
 	ld (waitcounter),hl
 
 	ld a,(memorybufferpages)
 	SETPG8000
+;init progress
+	ld hl,(HEADER_SAMPLES_COUNT+2)
+	ld a,l
+	inc h
+	dec h
+	jr z,$+4
+	ld a,255
+	call setprogressdelta
+	ld hl,0
+	ld (samplecounterlo),hl
+	ld (samplecounterhi),hl
+;check for GD3
+	xor a
+	a_or_dw HEADER_GD3_OFFSET
+	call nz,parsegd3
 ;check if this file uses TFM
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
@@ -80,6 +118,7 @@ musicload
 	ld (useYMF278B),a
 	call nz,initYMF278B
 ;skip to the data
+	call memorybufferstart
 	ld hl,(HEADER_DATA_OFFSET)
 	ld a,(HEADER_DATA_OFFSET+2)
 	ld d,a
@@ -154,10 +193,16 @@ waittimerstep=$+1
 exitplayloop
 	ld (waitcounter),hl
 ;update progress
-	ld hl,(memorybuffercurrentpage)
-	ld de,memorybufferpages
-	sub hl,de
-	ld a,l
+samplecounterlo=$+1
+	ld hl,0
+samplecounterhi=$+1
+	ld de,0
+	add hl,bc
+	jr nc,$+3
+	inc de
+	ld (samplecounterlo),hl
+	ld (samplecounterhi),de
+	ld a,e
 	call updateprogress
 ;continue playing
 	or 1
@@ -278,6 +323,96 @@ skipdatablock
 	ld a,e
 	or d
 	jr nz,.loop
+	ret
+
+parsegd3
+;dehl = GD3 offset
+	ld bc,32
+	add hl,bc
+	ld a,e
+	adc a,0
+	ld b,h
+	sla b
+	rla
+	sla b
+	rla
+	add a,memorybufferpages%256
+	ld e,a
+	adc a,memorybufferpages/256
+	sub e
+	ld d,a
+	ld (memorybufferpageaddr),de
+	ld a,(de)
+	SETPG8000
+	res 6,h
+	set 7,h
+	ld b,TITLELENGTH
+	ld de,titlestr
+	ld a,' '
+.fillloop
+	ld (de),a
+	inc de
+	djnz .fillloop
+	xor a
+	ld (de),a
+	ld b,TITLELENGTH
+	ld de,titlestr
+	call gd3stringcopy   ;track name
+	call z,gd3stringskip ;track name in Japanese
+	push hl
+	ld hl,fromstr
+	call z,stringcopy
+	pop hl
+	call z,gd3stringcopy ;game name
+	call z,gd3stringskip ;game name in Japanese
+	call z,gd3stringskip ;system name
+	call z,gd3stringskip ;system name in Japanese
+	push hl
+	ld hl,bystr
+	call z,stringcopy
+	pop hl
+	call z,gd3stringcopy ;author
+	ld hl,titlestr
+	ld (MUSICTITLEADDR),hl
+	ld a,(memorybufferpages)
+	SETPG8000
+	ret
+
+gd3stringcopy
+;hl = memorybuffercurrentaddr
+;de = dest
+;b = bytes remaining
+;out: zf=1 if enountered zero terminator, zf=0 if out of space
+	memory_buffer_read_byte a
+	memory_buffer_read_byte c
+	or a
+	ret z
+	ld (de),a
+	inc de
+	djnz gd3stringcopy
+	ret
+
+gd3stringskip
+;hl = memorybuffercurrentaddr
+;out: zf=1
+	memory_buffer_read_byte a
+	memory_buffer_read_byte c
+	or a
+	jr nz,gd3stringskip
+	ret
+
+stringcopy
+;hl = source
+;de = dest
+;b = bytes remaining
+;out: zf=1 if enountered zero terminator, zf=0 if out of space
+	ld a,(hl)
+	or a
+	ret z
+	ld (de),a
+	inc hl
+	inc de
+	djnz stringcopy
 	ret
 
         align 256
@@ -795,13 +930,166 @@ cmdtable
 	db skip5           /256 ; FE
 	db skip5           /256 ; FF
 
+decompressfiletomemorybuffer
+;de = input file name
+;out: zf=1 is successful, zf=0 otherwise
+	call openstream_file
+	or a
+	ret nz
+
+        ld a,(filehandle)
+        ld b,a
+	OS_GETFILESIZE
+	ld bc,4
+	sub hl,bc
+	jr nc,$+3
+	dec de
+        ld a,(filehandle)
+        ld b,a
+	OS_SEEKHANDLE
+
+	ld de,memorybuffersize
+	ld hl,4
+	call readstream_file
+	ld hl,(memorybuffersize+0)
+	ld de,(memorybuffersize+2)
+	call memorybufferallocate
+	call memorybufferstart
+
+        ld a,(filehandle)
+        ld b,a
+	ld hl,0
+	ld de,hl
+	OS_SEEKHANDLE
+
+	call setsharedpages
+
+	ld hl,0xffff
+	ld (filedatasourceaddr),hl
+
+	ld (savedSP),sp
+	call GzipExtract
+	call closestream_file
+	xor a
+	ret
+
+setsharedpages
+page8000=$+1
+	ld a,0
+	SETPG8000
+pageC000=$+1
+	ld a,0
+	SETPGC000
+	ret
+
+GzipReadInputBuffer
+;de = InputBuffer
+;hl = InputBufSize
+filedatapage=$+1
+	ld a,0
+	SETPG8000
+filedatasourceaddr=$+1
+	ld hl,0
+	bit 6,h
+	call nz,loadfiledata
+	ld bc,InputBufSize
+	ldir
+	ld (filedatasourceaddr),hl
+	ld a,(page8000)
+	SETPG8000
+	ret
+
+loadfiledata
+	exx
+	ex af,af'
+	push af,bc,de,hl,ix,iy
+	ld de,0x8000
+	ld hl,0x4000
+	call readstream_file
+	pop iy,ix,hl,de,bc,af
+	exx
+	ex af,af'
+	ld hl,0x8000
+	ld de,InputBuffer
+	ret
+
+GzipWriteOutputBuffer
+;de = OutputBuffer
+;hl = size
+	ld a,(memorybuffercurrentpage)
+	SETPG8000
+	ld bc,hl
+	add hl,de
+	bit 7,h
+	jr z,.below8000
+	push hl
+	ld bc,0x8000-OutputBuffer
+	call memorybufferwrite
+	pop hl
+	res 7,h
+	push hl
+	ld de,0x4000
+	sub hl,de
+	ld a,(page8000)
+	jr c,.write8000
+	jr z,.write8000
+	ex (sp),hl
+	SETPGC000
+	ld de,0xc000
+	ld bc,0x4000
+	call memorybufferwrite
+	ld a,(pageC000)
+.write8000
+	SETPGC000
+	ld de,0xc000
+	pop bc
+.below8000
+	call memorybufferwrite
+	jp setsharedpages
+
+GzipExitWithError
+;hl = message
+	call closestream_file
+	call memorybufferfree
+	or 1
+	ret
+
+GzipThrowException
+;(sp) = return address
+savedSP=$+1
+	ld sp,0
+	call closestream_file
+	call memorybufferfree
+	or 1
+	ret
+
+GzipThrowMessage
+;(sp) = return address
+;hl = message
+	ld sp,(savedSP)
+	call closestream_file
+	call memorybufferfree
+	or 1
+	ret
+
+	include "vgm/gunzip.asm"
+
 initokstr
 	db "OK\r\n",0
 playernamestr
 	db "VGM Player",0
+fromstr
+	db " ",0
+bystr
+	db " by ",0
 end
 
-useYM2203 ds 1
+useYM2203  ds 1
 useYMF278B ds 1
+
+GzipBuffersStart = $
+titlestr = $
+
+	ASSERT GzipBuffersEnd <= 0x10000
 
 	savebin "vgm.bin",begin,end-begin
