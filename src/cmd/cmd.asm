@@ -654,17 +654,19 @@ loadapp_finddot0
         inc hl
         jr nz,loadapp_finddot0
 ;проверяем, что после неё стоит .com или .bat
+        ld (exthlpointer),hl
         ld a,(hl)
         or 0x20
         cp 'b'
 ; TODO где проверка на остальные буквы?
         jp z,strcpexec_tryrun_bat
 ;считаем, что написано .com (в принципе расширение безразлично - просто запускаем)
-        jr loadapp_finddotok
+        jr loadapp_finddotok1
 loadapp_nodot
 ;a=0
         ld (hl),'.'
         inc hl
+        ld (exthlpointer),hl
         ld (hl),'c'
         inc hl
         ld (hl),'o'
@@ -673,19 +675,24 @@ loadapp_nodot
         inc hl
         ld (hl),a ;0        
 loadapp_finddotok
-        ld de,wordbuf ;pop de
-        OS_OPENHANDLE
-        or a
-         push af
-        ld a,b
-        ld (curhandle),a
-         ;call loadapp_setoldpath
-       if DEBUG
-         call printcurdir
-         ;call yieldgetkeyloop
-       endif
-         pop af
+        call open_file_exec
+        jp z,fileopenok
+        ld hl,(exthlpointer)  
+        ld (hl),'b'
+        inc hl
+        ld (hl),'a'
+        inc hl
+        ld (hl),'t'
+        inc hl
+        xor a
+        ld (hl),a ;0
+        ;ret nz ;jr nz,execcmd_error ;NC!
+        jp strcpexec_tryrun_bat 
+
+loadapp_finddotok1
+        call open_file_exec
         ret nz ;jr nz,execcmd_error ;NC!
+fileopenok
         OS_NEWAPP ;на момент создания должна быть включена текущая директория!!!
         or a
         ret nz ;error ;NC!
@@ -710,7 +717,24 @@ loadapp_finddotok
         ld e,d ;e=id
         xor a
         ret ;Z
-     
+open_file_exec
+        ld de,wordbuf ;pop de
+        OS_OPENHANDLE
+        or a
+        push af
+        ld a,b
+        ld (curhandle),a
+         ;call loadapp_setoldpath
+       if DEBUG
+         call printcurdir
+         ;call yieldgetkeyloop
+       endif
+        pop af
+        ret
+exthlpointer
+        dw 0000
+        dw 0000    
+
 readapp
         ld a,b
         ld (curhandle),a
@@ -1915,6 +1939,7 @@ commandslist
         
         dw -1 ;конец таблицы команд
 
+
 tunknowncommand
         db "Unknown command",0
 tdrivenotfound
@@ -2010,6 +2035,7 @@ printcurdir
         call prtext
         call prcrlf
         ret
+
 curdir__
         ds 256
         endif
