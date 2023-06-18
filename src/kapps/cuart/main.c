@@ -42,7 +42,7 @@ void delay(unsigned long counter)
 
 void uart_init(unsigned char divisor)
 {
-  disable_interrupt();
+  //disable_interrupt();
   output(MCR, 0x00);        // Disable input
   output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
   output(LCR, 0x83);        // 8n1, DLAB=1
@@ -50,82 +50,81 @@ void uart_init(unsigned char divisor)
   output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
   output(LCR, 0x03);        // 8n1, DLAB=0
   output(IER, 0x00);        // Disable int
-  enable_interrupt();
+  //enable_interrupt();
 }
 
 unsigned char uart_CTS(void)
 {
   unsigned char cts;
-  disable_interrupt();
+  //disable_interrupt();
   cts = input(MSR);
   cts = (cts && 16) >> 3;
-  enable_interrupt();
+  //enable_interrupt();
   return cts;
 }
 
 void uart_write(unsigned char data)
 {
-  disable_interrupt();
+  //disable_interrupt();
   while ((input(LSR) & 32) >> 5 == 0)
   {
-    printf("*");
   }
   output(RBR_THR, data);
-  enable_interrupt();
+//enable_interrupt();
 }
 
 void uart_startrts(void)
 {
-  disable_interrupt();
+  //disable_interrupt();
   output(MCR, 2);
-  enable_interrupt();
+  //enable_interrupt();
 }
 
 void uart_stoprts(void)
 {
-  disable_interrupt();
+  //disable_interrupt();
   output(MCR, 0);
-  enable_interrupt();
+  //enable_interrupt();
 }
 
 void uart_flashrts(void)
 {
   unsigned char count;
 
-  disable_interrupt();
+ // disable_interrupt();
   output(MCR, 2);
-  enable_interrupt();
+ //enable_interrupt();
 
   for (count = 0; count < spdFactor; count++)
   {
     uart_delay1k();
   }
 
-  disable_interrupt();
+  //disable_interrupt();
   output(MCR, 0);
-  enable_interrupt();
+  //enable_interrupt();
 }
 
 unsigned char uart_queue(void)
 {
   unsigned char queue;
 
-  disable_interrupt();
+  //disable_interrupt();
   queue = input(LSR);
   queue = queue & 1;
-  enable_interrupt();
+  //enable_interrupt();
   return queue;
 }
 
 unsigned char uart_read(void)
 {
   unsigned char data;
-  disable_interrupt();
+  //disable_interrupt();
   while (input(LSR) & 1 == 0)
   {
   }
   data = input(RBR_THR);
-  enable_interrupt();
+  //enable_interrupt();
 
   // printf("LSR = %u data = %u    ", input(LSR), data);
 
@@ -233,18 +232,8 @@ void testQueue(void)
   sendcommand(cmd);
   sendcommand("GET /attachments/pages/your_game6_160.png HTTP/1.1\r\nHost: ti6.nedopc.com\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\0");
   delay(1000);
-  sendcommand("AT+CIPRECVDATA=8000\0");
-  /*
-   unsigned char readbyte;
-
-  while (uart_queue() != 0)
-  {
-    readbyte = uart_read();
-    buffer[bufferPos] = readbyte;
-    bufferPos++;
-
-  */
-}
+  sendcommand("AT+CIPRECVDATA=5000\0");
+  }
 C_task main(void)
 {
   unsigned char cmd[256];
@@ -255,7 +244,7 @@ C_task main(void)
   ATRIB(92);
   puts("EVO UART TESTER. SEND AND RECIEVE BYTES.");
   uart_init(3);
-  spdFactor = 10;
+  spdFactor = 7;
   puts("Uart inited @ 38400");
   cmd[0] = '\0';
   cmdpos = 0;
@@ -286,7 +275,7 @@ C_task main(void)
       case 179:
         uart_init(3);
         puts("Uart inited @ 38400");
-        spdFactor = 8;
+        spdFactor = 7;
         key = 0;
         break;
 
