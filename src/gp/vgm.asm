@@ -75,7 +75,6 @@ musicload
 	cp 'z'
 	ex de,hl
 	jr z,.loadcompressed
-	ld b,MEMORYBUFFERMAXPAGES
 	call memorybufferloadfile
 	jr z,.doneloading
 	ret
@@ -87,6 +86,9 @@ musicload
 	set_timer waittimer50hz,882
 	ld hl,0
 	ld (waitcounter),hl
+	ld (samplecounterlo),hl
+	xor a
+	ld (samplecounterhi),a
 
 	ld a,(memorybufferpages)
 	SETPG8000
@@ -98,9 +100,6 @@ musicload
 	jr z,$+4
 	ld a,255
 	call setprogressdelta
-	ld hl,0
-	ld (samplecounterlo),hl
-	ld (samplecounterhi),hl
 ;check for GD3
 	xor a
 	a_or_dw HEADER_GD3_OFFSET
@@ -196,13 +195,13 @@ exitplayloop
 samplecounterlo=$+1
 	ld hl,0
 samplecounterhi=$+1
-	ld de,0
+	ld a,0
 	add hl,bc
-	jr nc,$+3
-	inc de
+	adc a,0
+	jr nc,$+4
+	ld a,255
 	ld (samplecounterlo),hl
-	ld (samplecounterhi),de
-	ld a,e
+	ld (samplecounterhi),a
 	call updateprogress
 ;continue playing
 	or 1
@@ -382,7 +381,7 @@ gd3stringcopy
 ;hl = memorybuffercurrentaddr
 ;de = dest
 ;b = bytes remaining
-;out: zf=1 if enountered zero terminator, zf=0 if out of space
+;out: zf=1 if encountered zero terminator, zf=0 if out of space
 	memory_buffer_read_byte a
 	memory_buffer_read_byte c
 	or a
@@ -405,7 +404,7 @@ stringcopy
 ;hl = source
 ;de = dest
 ;b = bytes remaining
-;out: zf=1 if enountered zero terminator, zf=0 if out of space
+;out: zf=1 if encountered zero terminator, zf=0 if out of space
 	ld a,(hl)
 	or a
 	ret z
@@ -415,7 +414,7 @@ stringcopy
 	djnz stringcopy
 	ret
 
-        align 256
+	align 256
 cmdtable
 	db skip1           %256 ; 00
 	db skip1           %256 ; 01
@@ -936,41 +935,49 @@ decompressfiletomemorybuffer
 	call openstream_file
 	or a
 	ret nz
-
-        ld a,(filehandle)
-        ld b,a
+;read the last 4 bytes containing decompressed file size
+	ld a,(filehandle)
+	ld b,a
 	OS_GETFILESIZE
 	ld bc,4
 	sub hl,bc
 	jr nc,$+3
 	dec de
-        ld a,(filehandle)
-        ld b,a
+	ld a,(filehandle)
+	ld b,a
 	OS_SEEKHANDLE
-
 	ld de,memorybuffersize
 	ld hl,4
 	call readstream_file
-	ld hl,(memorybuffersize+0)
-	ld de,(memorybuffersize+2)
-	call memorybufferallocate
-	call memorybufferstart
-
-        ld a,(filehandle)
-        ld b,a
+	ld a,(filehandle)
+	ld b,a
 	ld hl,0
 	ld de,hl
 	OS_SEEKHANDLE
-
+;allocate memory
+	ld hl,(memorybuffersize+0)
+	ld de,(memorybuffersize+2)
+	call memorybufferallocate
+	jr nz,closefilewitherror
+	call memorybufferstart
+;decompress
 	call setsharedpages
-
 	ld hl,0xffff
 	ld (filedatasourceaddr),hl
-
 	ld (savedSP),sp
 	call GzipExtract
 	call closestream_file
 	xor a
+	ret
+
+GzipThrowException
+savedSP=$+1
+	ld sp,0
+GzipExitWithError
+	call memorybufferfree
+closefilewitherror
+	call closestream_file
+	or 1
 	ret
 
 setsharedpages
@@ -1047,31 +1054,6 @@ GzipWriteOutputBuffer
 	call memorybufferwrite
 	jp setsharedpages
 
-GzipExitWithError
-;hl = message
-	call closestream_file
-	call memorybufferfree
-	or 1
-	ret
-
-GzipThrowException
-;(sp) = return address
-savedSP=$+1
-	ld sp,0
-	call closestream_file
-	call memorybufferfree
-	or 1
-	ret
-
-GzipThrowMessage
-;(sp) = return address
-;hl = message
-	ld sp,(savedSP)
-	call closestream_file
-	call memorybufferfree
-	or 1
-	ret
-
 	include "vgm/gunzip.asm"
 
 initokstr
@@ -1079,9 +1061,9 @@ initokstr
 playernamestr
 	db "VGM Player",0
 fromstr
-	db " ",0
+	db " [",0
 bystr
-	db " by ",0
+	db "] by ",0
 end
 
 useYM2203  ds 1

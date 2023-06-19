@@ -11,7 +11,6 @@
 ;   GzipWriteOutputBuffer
 ;   GzipExitWithError
 ;   GzipThrowException
-;   GzipThrowMessage
 ; Defines
 ;   GzipBuffersStart
 

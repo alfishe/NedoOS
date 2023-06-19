@@ -2,11 +2,8 @@ MEMORYBUFFERMAXPAGES = 150
 
 memorybufferloadfile
 ;de = file name
-;b = max number of pages to read (MEMORYBUFFERMAXPAGES max)
 ;out: zf=1 if successful, zf=0 otherwise
-	push bc
 	call openstream_file
-	pop bc
 	or a
 	ret nz
 
@@ -15,13 +12,20 @@ memorybufferloadfile
 	ld hl,0
 	ld de,hl
 	ld c,l
+	ld b,MEMORYBUFFERMAXPAGES
 .loadloop
-	inc c
 	push bc
 	push de
 	push hl
-
 	OS_NEWPAGE
+	or a
+	jr z,.pageallocated
+	pop hl
+	pop de
+	pop bc
+	jr .breakloop
+
+.pageallocated
 	ld hl,(memorybufferpageaddr)
 	ld (hl),e
 	inc hl
@@ -39,10 +43,13 @@ memorybufferloadfile
 	pop de
 	jr nc,$+3
 	inc e
-	bit 6,b
+	ld a,b
 	pop bc
-	jr z,$+4
+	inc c
+	and 0x40
+	jr z,.breakloop
 	djnz .loadloop
+.breakloop
 	push af
 	ld (memorybuffersize+0),hl
 	ld (memorybuffersize+2),de
@@ -51,25 +58,28 @@ memorybufferloadfile
 	call closestream_file
 	pop af
 	ret z
-	jr memorybufferfree
+	call memorybufferfree
+	or 1
+	ret
 
 memorybufferallocate
 ;dehl = buffer size
 ;out: zf=1 if successful, zf=0 otherwise
 	ld (memorybuffersize+0),hl
 	ld (memorybuffersize+2),de
-	ld bc,0x3fff
-	add hl,bc
 	ld a,e
-	adc a,d
+	ld de,0x3fff
+	add hl,de
+	ld c,0
+	adc a,c
 	sla h
 	rla
 	sla h
 	rla
-	cp MEMORYBUFFERMAXPAGES+1
-	ret nc
 	ld b,a
-	ld (memorybufferpagecount),a
+	ld a,MEMORYBUFFERMAXPAGES
+	cp b
+	ret c
 	ld hl,memorybufferpages
 .loop
 	push bc
@@ -77,15 +87,31 @@ memorybufferallocate
 	OS_NEWPAGE
 	pop hl
 	pop bc
+	or a
+	jr z,.pageallocated
+	ld a,c
+	ld (memorybufferpagecount),a
+	call memorybufferfree
+	or 1
+	ret
+
+.pageallocated
 	ld (hl),e
 	inc hl
+	inc c
 	djnz .loop
+	ld a,c
+	ld (memorybufferpagecount),a
+	xor a
 	ret
 
 memorybufferfree
-	ld hl,memorybufferpages
 memorybufferpagecount=$+1
-	ld b,0
+	ld a,0
+	or a
+	ret z
+	ld b,a
+	ld hl,memorybufferpages
 .pagefreeloop
 	push bc
 	push hl

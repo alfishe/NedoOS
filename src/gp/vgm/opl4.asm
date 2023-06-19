@@ -24,8 +24,15 @@ opl4writemusiconlyfm2
 ;skips writes to control registers
 ;e = register
 ;d = value
-	cp 0x20
-	ret c
+	ld a,e
+	cp 5
+	jr nz,opl4writefm2
+;TODO: skipping write to reg5 leads to a hang on some init sequences, but setting any 
+;value to reg5 resets timer state. Is it possible to do something better here?
+	ld d,3
+	call opl4writefm2
+	jp opl4inittimer60hz
+
 opl4writefm2
 ;e = register
 ;d = value

@@ -11,7 +11,8 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-PANEL_FILE_COUNT = 80
+PANEL_FILE_COUNT = 110
+PANEL_FILE_DATA_SIZE = FILE_DATA_SIZE*PANEL_FILE_COUNT
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
 PANELFILECOLOR = 0x0f
@@ -59,6 +60,7 @@ mainbegin
 	or 255 ;set zf=0
 	call setcurrentpanel
 
+	ld de,defaultplaylistfilename
 	call loadplaylist
 
 	ld hl,COMMANDLINE
@@ -95,6 +97,7 @@ isplaying=$+1
 
 checkmsgs
 	OS_GETKEY
+	call tolower
 	ld hl,playloop
 	push hl
 currentmsgtable=$+1
@@ -136,6 +139,12 @@ mainmsghandlers_start
 	db key_tab       : dw switchpanels
 	db key_backspace : dw clearplaylist
 	db key_home      : dw gotop
+	db key_end       : dw golastfile
+	db key_left      : dw gopageup
+	db key_right     : dw gopagedown
+	db key_pgup      : dw gopageup
+	db key_pgdown    : dw gopagedown
+	db 's'           : dw onhotkeyS
 mainmsghandlers_end
 
 playmsgtable
@@ -159,8 +168,23 @@ clearplaylist
 	jp drawplaylistwindow
 
 playnextfile
-	call gonextfile
-	jp startplaying
+	ld ix,(currentpaneladdr)
+	call setnextfileindex
+	jp c,startplaying
+	xor a
+	ld (ix+PANEL.currentfileindex),a
+	ld (ix+PANEL.firstfiletoshow),a
+	ld hl,(currentpaneladdr)
+	ld de,PANEL.fileslist+FILE_ATTRIB_OFFSET
+	add hl,de
+	ld e,FILE_DATA_SIZE
+.wraploop
+	ld a,(hl)
+	cp FILE_ATTRIB_MUSIC
+	jp z,startplaying
+	add hl,de
+	inc (ix+PANEL.currentfileindex)
+	jr .wraploop
 
 switchpanels
 	ld a,(browserpanel.isinactive)
@@ -227,7 +251,31 @@ skippadding
 	jp drawplaylistfileslist
 
 removefromplaylist
-	ret
+	ld a,(playlistpanel.filecount)
+	or a
+	ret z
+	dec a
+	jp z,clearplaylist
+	ld (playlistpanel.filecount),a
+	ld b,a
+	ld a,(playlistpanel.currentfileindex)
+	cp b
+	jr nz,.movetail
+	dec a
+	ld (playlistpanel.currentfileindex),a
+	jp drawplaylistwindow
+.movetail
+	call getfiledataoffset
+	ld de,playlistpanel.fileslist
+	add hl,de
+	ex de,hl
+	ld hl,playlistpanel.fileslist+PANEL_FILE_DATA_SIZE-FILE_DATA_SIZE
+	sub hl,de
+	ld bc,hl
+	ld hl,FILE_DATA_SIZE
+	add hl,de
+	ldir
+	jp drawplaylistwindow
 
 exitplayer
 	pop hl
@@ -248,14 +296,20 @@ playerdeinitloop
 	ld a,255
 	ld (playlistpanel.isinactive),a
 	OS_SETSYSDRV
-	ld de,playlistfilename
+	ld de,defaultplaylistfilename
+	call saveplaylist
+	QUIT
+
+saveplaylist
+;de = filename
+	push de
 	call openstream_file
+	pop de
 	or a
 	jr z,.openedfile
-	ld de,playlistfilename
 	OS_CREATEHANDLE
 	or a
-	jr nz,.failedtoopenfile
+	ret nz
 	ld a,b
 	ld (filehandle),a
 .openedfile
@@ -265,12 +319,21 @@ playerdeinitloop
 	ld hl,PANEL+2
 	OS_WRITEHANDLE
 	call closestream_file
-.failedtoopenfile
-	QUIT
+	xor a
+	ret
+
+onhotkeyS
+	ld de,playlistfilename
+	call saveplaylist
+	ld de,playlistfilename
+	jp createfilelistandchangesel
 
 startplaying
 	call stopplaying
 	ld ix,(currentpaneladdr)
+	ld a,(ix+PANEL.filecount)
+	or a
+	ret z
 	ld a,(ix+PANEL.currentfileindex)
 	call getfiledataoffset
 	ld a,ixl
@@ -284,7 +347,7 @@ startplaying
 	cp FILE_ATTRIB_PARENT_DIR
 	jr z,changetoparentdir
 	cp FILE_ATTRIB_FOLDER
-	jr z,changetofolder
+	jp z,changetofolder
 	cp FILE_ATTRIB_MUSIC
 	ret nz
 	ld a,(browserpanel.isinactive)
@@ -297,6 +360,8 @@ startplaying
 	call getfileextension
 	ld (.filext2),de
 	ld (.filext1),bc
+	call isfileplaylist
+	jp z,.loadplaylist
 	call findsupportedplayer
 	ret nz
 	call drawplayerwindow
@@ -314,6 +379,13 @@ startplaying
 	ld (isplaying),a
 	call drawsongtitle
 	jp drawprogress
+.loadplaylist
+	ld de,(.filename)
+	call loadplaylist
+	call drawplaylistwindow
+	xor a
+	call setcurrentpanel
+	jp startplaying
 
 changetoparentdir
 	ld hl,currentfolder
@@ -324,6 +396,12 @@ changetoparentdir
 	xor a
 	ld (de),a
 	call changetocurrentfolder
+	pop de
+	jp createfilelistandchangesel
+
+createfilelistandchangesel
+;de = selection filename
+	push de
 	call createfileslist
 	pop de
 	call findfile
@@ -366,34 +444,67 @@ stopplaying
 	ld (isplaying),a
 	jp drawui
 
-gonextfile
-	ld ix,(currentpaneladdr)
+setnextfileindex
+;ix = current panel
+;out: cf=0 if at the end of file list, c1=1 otherwise
 	ld a,(ix+PANEL.currentfileindex)
 	inc a
 	cp (ix+PANEL.filecount)
 	ret nc
 	ld (ix+PANEL.currentfileindex),a
 	sub FILE_LINE_COUNT-1
-	jp c,drawcurrentpanelfilelist
+	ret c
 	cp (ix+PANEL.firstfiletoshow)
-	jp c,drawcurrentpanelfilelist
+	ret c
 	ld (ix+PANEL.firstfiletoshow),a
+	scf
+	ret
+
+golastfile
+	ld ix,(currentpaneladdr)
+	call setnextfileindex
+	jr c,$-3
 	jp drawcurrentpanelfilelist
 
-goprevfile
+gopagedown	
 	ld ix,(currentpaneladdr)
+	ld b,FILE_LINE_COUNT
+	call setnextfileindex
+	djnz $-3
+	jp drawcurrentpanelfilelist
+
+gonextfile
+	ld ix,(currentpaneladdr)
+	call setnextfileindex
+	ret nc
+	jp drawcurrentpanelfilelist
+
+setprevfileindex
+;ix = current panel
 	ld a,(ix+PANEL.currentfileindex)
 	or a
 	ret z
 	dec a
 	ld (ix+PANEL.currentfileindex),a
 	cp (ix+PANEL.firstfiletoshow)
-	jp nc,drawcurrentpanelfilelist
+	ret nc
 	ld (ix+PANEL.firstfiletoshow),a
+	ret
+
+goprevfile
+	ld ix,(currentpaneladdr)
+	call setprevfileindex
+	jp drawcurrentpanelfilelist
+
+gopageup
+	ld ix,(currentpaneladdr)
+	ld b,FILE_LINE_COUNT
+	call setprevfileindex
+	djnz $-3
 	jp drawcurrentpanelfilelist
 
 loadplaylist
-	ld de,playlistfilename
+;de = filename
 	call openstream_file
 	or a
 	jr nz,initemptyplaylist
@@ -834,6 +945,12 @@ redraw
 drawui
 	call drawbrowserwindow
 	call drawplaylistwindow
+	ld de,0x7
+	OS_SETCOLOR
+	ld de,24*256+3
+	OS_SETXY
+	ld hl,hotkeystr
+	call print_hl
 	ld a,(isplaying)
 	or a
 	ret z
@@ -901,8 +1018,10 @@ pressanykeystr
 	db "!\r\nPress any key to exit...\r\n",0
 playersfilename
 	db "gp/gp.plr",0
+defaultplaylistfilename
+	db "gp/"
 playlistfilename
-	db "gp/gp.dat",0
+	db "playlist.gpl",0
 playersloaderrorstr
 	db "Failed to load gp/gp.plr from OS folder",0
 chdirfailedstr
@@ -917,6 +1036,8 @@ initializing1str
 	db "Initializing ",0
 initializing2str
 	db "...",0
+hotkeystr
+	db "Arrows=Navigate  Enter=Play  Tab=Panel  Space=Add/Remove  S=Save Playlist",0
 
 	macro loadplayer playerpage,playersize
 	OS_NEWPAGE
@@ -975,6 +1096,19 @@ getfileextension
 	ld e,a
 	ret
 
+isfileplaylist
+;cde = file extension
+;out: zf=1 if playlist, zf=0 otherwise
+	ld a,c
+	cp 'g'
+	ret nz
+	ld a,d
+	cp 'p'
+	ret nz
+	ld a,e
+	cp 'l'
+	ret
+
 findsupportedplayer
 ;cde = file extension
 	ld hl,playerpages
@@ -1024,13 +1158,15 @@ createfileslist
 ;skip findsupportedplayer for folders
 	ld a,(filinfo+FILINFO_FATTRIB)
 	and FATTRIB_DIR
-	jr nz,.founddir
+	jr nz,.foundfileordir
 	ld hl,filinfo+FILINFO_FNAME
 	call getfileextension
+	call isfileplaylist
+	jr z,.foundfileordir
 	call findsupportedplayer
 	jr nz,.skiptonextfile
 ;we've got either a playable file or a folder
-.founddir
+.foundfileordir
 .filedataaddr=$+1
 	ld de,0
 	ld hl,FILE_NAME_OFFSET
@@ -1203,13 +1339,17 @@ filecount ds 1
 currentfileindex ds 1
 firstfiletoshow ds 1
 isinactive ds 1
-fileslist ds FILE_DATA_SIZE*PANEL_FILE_COUNT
+fileslist ds PANEL_FILE_DATA_SIZE
 	ends
 
 browserpanel PANEL
 playlistpanelversion ds 2
 playlistpanel PANEL
 musicprogress ds 1
+
+page0dataend = $
+
+	ASSERT page0dataend <= 0x3c00 ;reserve 1024 bytes for stack
 
 mwmstart
 	incbin "mwm.bin"
