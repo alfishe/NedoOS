@@ -130,6 +130,7 @@ printerrorandexit
 mainmsgtable
 	db (mainmsghandlers_end-mainmsghandlers_start)/3
 mainmsghandlers_start
+	db 0             : dw nokey
 	db key_redraw    : dw redraw
 	db key_up        : dw goprevfile
 	db key_down      : dw gonextfile
@@ -154,6 +155,10 @@ playmsghandlers_start
 	db ' '	         : dw playnextfile
 	db key_esc       : dw stopplaying
 playmsghandlers_end
+
+nokey
+	YIELD
+	ret
 
 gotop
 	ld ix,(currentpaneladdr)

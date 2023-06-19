@@ -9,9 +9,12 @@ CLOCKF_VS1033 = ((XTALI_FREQ-8000000+2000)/4000)|SC_MULT_03_35X|SC_ADD_03_00X ;4
 CLOCKF_VS1053 = ((XTALI_FREQ-8000000+2000)/4000)|SC_MULT_53_40X|SC_ADD_53_00X ;56mhz
 
         MACRO WDC
-        in a,(SSTAT)
-        and M_MCRDY
-        jr z,$-4
+;        in a,(SSTAT)
+;        and M_MCRDY
+;        jr z,$-4
+;TODO: why MCRDY polling works fine on real hardware, but not in UnrealSpeccy?
+;Neo Player Light does this
+        call noper
         ENDM
 
         MACRO WDD
@@ -352,6 +355,10 @@ cmdvolumedown
         ret nc
         inc a
         jr setvolume
+
+noper
+        ds 18,0
+        ret
 
 end
         savebin "gscode.bin",begin,end-begin
