@@ -10,7 +10,7 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
-unsigned char queryType[40];
+unsigned char queryType[64];
 unsigned char netbuf[1452];
 unsigned char dataBuffer[6096];
 unsigned char crlf[2] = {13, 10};
@@ -21,7 +21,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 long count;
-unsigned char saveFlag, logFlag;
+unsigned char saveFlag, logFlag, rptFlag;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
 extern void dns_resolve(void);
@@ -33,7 +33,7 @@ struct fileStruct
   unsigned int picYear;
   unsigned long totalAmount;
   unsigned int curPos;
-  unsigned int twoPercentValue;
+  unsigned int startBar;
   unsigned int trackInSeconds;
   unsigned char time[16];
   unsigned char picRating[8];
@@ -82,22 +82,24 @@ void printProgress(unsigned char type)
     seconds = atoi(position);
     curFileStruct.trackInSeconds = minutes * 60 + seconds;
     curFileStruct.curPos = 0;
+    curFileStruct.startBar = 0;
     break;
   case 1: // print progress bar
-    barLenght = (curFileStruct.curPos * 100 / curFileStruct.trackInSeconds) / 2;
+    barLenght = (curFileStruct.curPos * 50 / curFileStruct.trackInSeconds);
     if (barLenght > 49)
     {
       barLenght = 50;
     }
-    AT(15, 11);
+    AT(15 + curFileStruct.startBar, 11);
     ATRIB(97);
-    for (bar = 0; bar < barLenght; bar++)
+    for (bar = 0; bar < barLenght - curFileStruct.startBar; bar++)
     {
       putchar(178);
     }
     AT(1, 1);
+    curFileStruct.startBar = bar;
     break;
-  case 2: // print empty bar
+  case 2: // print full bar
     AT(15, 11);
     ATRIB(97);
     for (bar = 0; bar < 50; bar++)
@@ -857,14 +859,14 @@ void printStatus(void)
 {
   AT(1, 9);
   ATRIB(93);
-  printf(" [Q]Query type: ");
+  printf(" [Q]Query : ");
   ATRIB(97);
   printf("%s", queryType);
-  printf(" \r\n");
+  printf("  ");
   AT(1, 24);
   ATRIB(45);
   printf("                                                                                ");
-  AT(12, 24);
+  AT(2, 24);
   ATRIB(93);
   printf(" [F]Format: ");
   ATRIB(97);
@@ -874,7 +876,12 @@ void printStatus(void)
   ATRIB(97);
   printf("%u", saveFlag);
   ATRIB(93);
-  printf(" [J]Jump to track [E]Exit        1.5\r\n");
+  printf(" [R]Repeat: ");
+  ATRIB(97);
+  printf("%u", rptFlag);
+  ATRIB(93);
+  printf(" [J]Jump to ");
+  printf(" [E]Exit        1.5\r\n");
   ATRIB(97);
   ATRIB(40);
 }
@@ -934,14 +941,14 @@ void printHelp(void)
   ATRIB(97);
   printf(" [E] or [ESC] Exit to OS           \r\n");
   printf(" [B] or [<--] Previous track       \r\n");
-  printf(" [N] or [-->] Next track           \r\n");
+  printf(" [ ] or [-->] Next track    \r\n");
   printf(" [S]          Stop player          \r\n");
   printf(" [K]          Toggle saving tracks \r\n");
-  printf(" [Q]          Select Query type     \r\n");
+  printf(" [Q]          Select Query type    \r\n");
+  printf(" [R]          Repeat track mode    \r\n");
   printf(" [J]          Jump to NNNN file from newest  \r\n");
   printf(" [F]          Change tracks format to play   \r\n");
   printf(" [L]          Toggle operation logging       \r\n");
-  printf(" [ ]          Next track                     \r\n");
 }
 
 unsigned char testPlayer(void)
@@ -971,6 +978,7 @@ C_task main(void)
   queryNum = 0;
   curFormat = 0;
   changedFormat = 0;
+  rptFlag = 0;
   strcpy(queryType, "from newest to oldest");
 
   BOX(1, 1, 80, 25, 40);
@@ -1025,9 +1033,9 @@ start:
     strcpy(curFileStruct.authorRealName, " \0");
   }
 replay:
-  startTimer = time();
   errn = getTrack(iddqd); // Downloading the track
 resume:
+  startTimer = time();
   printProgress(0);
   pId = runPlayer(); // Start thr Player!
   printStatus();
@@ -1088,13 +1096,13 @@ rekey:
       switch (queryNum)
       {
       case 0:
-        strcpy(queryType, "from newest to oldest             ");
+        strcpy(queryType, "from newest to oldest                   ");
         break;
       case 1:
-        strcpy(queryType, "Random best and most voted tracks ");
+        strcpy(queryType, "Random best and most voted tracks       ");
         break;
       case 2:
-        strcpy(queryType, "Random play                       ");
+        strcpy(queryType, "Random play                             ");
         break;
       case 3:
         strcpy(queryType, "User defined query from \"user.que\"     ");
@@ -1133,6 +1141,7 @@ rekey:
       changedFormat = 1;
       curFileStruct.totalAmount = 1;
       printStatus();
+      printProgress(0);
       BOX(1, 2, 80, 6, 40);
       goto rekey;
     }
@@ -1149,26 +1158,39 @@ rekey:
       OS_DROPAPP(pId);
       AT(1, 25);
       printf("Player stopped...                   ");
+      printProgress(0);
       getchar();
       goto resume;
     }
+    if (keypress == 'r' || keypress == 'R')
+    {
+      rptFlag = !rptFlag;
+      AT(1, 25);
+      printStatus();
+    }
   }
+  curTimer = time();
+  curFileStruct.curPos = (curTimer - startTimer) / 50;
   alive = testPlayer();
+
   if (alive == 0 && !changedFormat)
   {
-        printProgress(2);
+    if (rptFlag == 1)
+    {
+      goto resume;
+    }
+    printProgress(2);
     count = trackSelector(0);
     goto start;
   }
+  
+    if (alive == 1 && ((curTimer - oldTimer) > 100))
+    {
+      printProgress(1);
+      oldTimer = curTimer;
+    }
+  
   YIELD();
-  curTimer = time();
-  curFileStruct.curPos = (curTimer - startTimer) / 50;
-
-  if ((curTimer - oldTimer) > 100)
-  {
-    printProgress(1);
-    oldTimer = curTimer;
-  }
 
   goto rekey;
 }
