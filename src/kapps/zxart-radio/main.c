@@ -32,6 +32,9 @@ struct fileStruct
   unsigned long fileSize;
   unsigned int picYear;
   unsigned long totalAmount;
+  unsigned int curPos;
+  unsigned int twoPercentValue;
+  unsigned int trackInSeconds;
   unsigned char time[16];
   unsigned char picRating[8];
   unsigned char picName[256];
@@ -58,6 +61,54 @@ void delay(unsigned long counter)
   }
 }
 
+void printProgress(unsigned char type)
+{
+  unsigned char bar, minutes, seconds;
+  unsigned char *position;
+  long barLenght;
+  switch (type)
+  {
+  case 0: // print empty bar
+    AT(15, 11);
+    ATRIB(97);
+    for (bar = 0; bar < 50; bar++)
+    {
+      putchar(176);
+    }
+    putchar(' ');
+    putchar(' ');
+    minutes = atoi(curFileStruct.time);
+    position = (strstr(curFileStruct.time, ":")) + 1;
+    seconds = atoi(position);
+    curFileStruct.trackInSeconds = minutes * 60 + seconds;
+    curFileStruct.curPos = 0;
+    break;
+  case 1: // print progress bar
+    barLenght = (curFileStruct.curPos * 100 / curFileStruct.trackInSeconds) / 2;
+    if (barLenght > 49)
+    {
+      barLenght = 50;
+    }
+    AT(15, 11);
+    ATRIB(97);
+    for (bar = 0; bar < barLenght; bar++)
+    {
+      putchar(178);
+    }
+    AT(1, 1);
+    break;
+  case 2: // print empty bar
+    AT(15, 11);
+    ATRIB(97);
+    for (bar = 0; bar < 50; bar++)
+    {
+      putchar(178);
+    }
+    putchar(' ');
+    putchar(' ');
+    break;
+  }
+}
 void errorPrint(unsigned int error)
 {
   AT(1, 25);
@@ -879,7 +930,7 @@ void printInfo(void)
 
 void printHelp(void)
 {
-  AT(1, 12);
+  AT(1, 13);
   ATRIB(97);
   printf(" [E] or [ESC] Exit to OS           \r\n");
   printf(" [B] or [<--] Previous track       \r\n");
@@ -912,6 +963,7 @@ C_task main(void)
 {
   unsigned char errn, keypress, queryNum, pId, alive, changedFormat;
   long iddqd, idkfa, ipadress;
+  unsigned long curTimer, startTimer, oldTimer;
   os_initstdio();
   srand(time());
   count = 0;
@@ -973,8 +1025,10 @@ start:
     strcpy(curFileStruct.authorRealName, " \0");
   }
 replay:
+  startTimer = time();
   errn = getTrack(iddqd); // Downloading the track
 resume:
+  printProgress(0);
   pId = runPlayer(); // Start thr Player!
   printStatus();
   printInfo();
@@ -1102,9 +1156,19 @@ rekey:
   alive = testPlayer();
   if (alive == 0 && !changedFormat)
   {
+        printProgress(2);
     count = trackSelector(0);
     goto start;
   }
   YIELD();
+  curTimer = time();
+  curFileStruct.curPos = (curTimer - startTimer) / 50;
+
+  if ((curTimer - oldTimer) > 100)
+  {
+    printProgress(1);
+    oldTimer = curTimer;
+  }
+
   goto rekey;
 }
