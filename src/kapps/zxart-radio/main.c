@@ -21,7 +21,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 long count;
-unsigned char saveFlag, logFlag, rptFlag;
+unsigned char saveFlag, saveBak, logFlag, rptFlag;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
 extern void dns_resolve(void);
@@ -106,8 +106,6 @@ void printProgress(unsigned char type)
     {
       putchar(178);
     }
-    putchar(' ');
-    putchar(' ');
     break;
   }
 }
@@ -945,6 +943,7 @@ void printHelp(void)
   printf(" [S]          Stop player          \r\n");
   printf(" [K]          Toggle saving tracks \r\n");
   printf(" [Q]          Select Query type    \r\n");
+  printf(" [D]          Download track       \r\n");
   printf(" [R]          Repeat track mode    \r\n");
   printf(" [J]          Jump to NNNN file from newest  \r\n");
   printf(" [F]          Change tracks format to play   \r\n");
@@ -1168,7 +1167,19 @@ rekey:
       AT(1, 25);
       printStatus();
     }
+    if (keypress == 'd' || keypress == 'D')
+    {
+      saveBak = saveFlag;
+      saveFlag = 1;
+      AT(1, 25);
+      printf("Saving file %ld...                           ", iddqd);
+      errn = getTrack(iddqd); // Downloading the track
+      saveFlag = saveBak;
+      AT(1, 25);
+      printf("File %ld saved...                           ", iddqd);
+    }
   }
+
   curTimer = time();
   curFileStruct.curPos = (curTimer - startTimer) / 50;
   alive = testPlayer();
@@ -1183,13 +1194,13 @@ rekey:
     count = trackSelector(0);
     goto start;
   }
-  
-    if (alive == 1 && ((curTimer - oldTimer) > 100))
-    {
-      printProgress(1);
-      oldTimer = curTimer;
-    }
-  
+
+  if (alive == 1 && ((curTimer - oldTimer) > 100))
+  {
+    printProgress(1);
+    oldTimer = curTimer;
+  }
+
   YIELD();
 
   goto rekey;
