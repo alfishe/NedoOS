@@ -66,9 +66,13 @@ void printProgress(unsigned char type)
   unsigned char bar, minutes, seconds;
   unsigned char *position;
   long barLenght;
+  int timer;
   switch (type)
   {
   case 0: // print empty bar
+    AT(6, 11);
+    ATRIB(93);
+    printf("%02u:%02u", 0, 0);
     AT(15, 11);
     ATRIB(97);
     for (bar = 0; bar < 50; bar++)
@@ -85,6 +89,12 @@ void printProgress(unsigned char type)
     curFileStruct.startBar = 0;
     break;
   case 1: // print progress bar
+
+    AT(6, 11);
+    ATRIB(93);
+    timer = floor(curFileStruct.curPos / 60);
+    printf("%02u:%02u", timer, (curFileStruct.curPos - (timer * 60)));
+
     barLenght = (curFileStruct.curPos * 50 / curFileStruct.trackInSeconds);
     if (barLenght > 49)
     {
@@ -879,7 +889,7 @@ void printStatus(void)
   printf("%u", rptFlag);
   ATRIB(93);
   printf(" [J]Jump to ");
-  printf(" [E]Exit        1.5\r\n");
+  printf(" [E]Exit        1.6\r\n");
   ATRIB(97);
   ATRIB(40);
 }
@@ -1172,11 +1182,11 @@ rekey:
       saveBak = saveFlag;
       saveFlag = 1;
       AT(1, 25);
-      printf("Saving file %ld...                           ", iddqd);
+      printf("Saving file za%ld...                           ", iddqd);
       errn = getTrack(iddqd); // Downloading the track
       saveFlag = saveBak;
       AT(1, 25);
-      printf("File %ld saved...                           ", iddqd);
+      printf("File za%ld saved...                           ", iddqd);
     }
   }
 
@@ -1195,7 +1205,7 @@ rekey:
     goto start;
   }
 
-  if (alive == 1 && ((curTimer - oldTimer) > 100))
+  if (alive == 1 && ((curTimer - oldTimer) > 49))
   {
     printProgress(1);
     oldTimer = curTimer;
