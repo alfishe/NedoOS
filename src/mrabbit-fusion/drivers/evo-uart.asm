@@ -61,18 +61,17 @@ isAvailable:
 ; Blocking read
 ; A <- Byte
 read:
-	di
-    ld bc, LSR          // Test FIFO for data
+	ld bc, LSR          // Test FIFO for data
 	in a, (c)
     rrca
     call nc,flashRTS    // No data in FIFO let's set RTS for awile 
 readData:
     ld bc, RBR_THR      // Recieve data from FIFO
 	in a, (c)
-	ei	
-    ret
+	ret
 
 flashRTS:
+	di
 	ld bc,MCR           // Open the gate
     ld a, 2
 	out (c),a
@@ -84,13 +83,13 @@ flashRTS:
 	in a, (c)
     rrca
     jp nc,flashRTS      // No data? Once more.
-    ret
+    ei
+	ret
 
 ; A -> byte to send
 
 write:
-	di
-    push af
+	push af
 .wait
     ld bc, LSR      //FIFO is free?
 	in a, (c)
@@ -99,7 +98,6 @@ write:
     pop af
 	ld bc,RBR_THR   //Write data to FIFO
 	out (c),a	
-	ei
     ret
 
 uart_delay6k:       // Determined delay. More then 1 byte to recieve, less then time for fullfill FIFO buffer
@@ -107,10 +105,6 @@ uart_delay6k:       // Determined delay. More then 1 byte to recieve, less then 
 		ld e, 0xFA
 loop2:		
 		NOP
-        NOP
-		NOP
-		NOP
-        NOP
 		dec e
 		jr nz,loop2
 		pop de
