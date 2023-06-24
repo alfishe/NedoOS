@@ -1,23 +1,37 @@
-gp.com - Player for AY, GeneralSound, NeoGS, MoonSound, TurboSound
+gp.com - Проигрыватель для AY, GeneralSound, NeoGS, MoonSound, TurboSound
 
-Supported formats:
+Поддерживаемые форматы:
  - mp3  NeoGS
- - mid  NeoGS rev.CM with VLSI VS1003/VS1033/VS1053/VS1103 decoder chip
- - ogg  NeoGS rev.CM with VLSI VS1053/VS1063 decoder chip
- - aac  NeoGS rev.CM with VLSI VS1033/VS1053/VS1063 decoder chip
- - vgm  MoonSound (supported chips YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
- - vgz  same as vgm
+ - mid  NeoGS rev.CM с декодером VLSI VS1003/VS1033/VS1053/VS1103
+ - ogg  NeoGS rev.CM с декодером VLSI VS1053/VS1063 decoder chip
+ - aac  NeoGS rev.CM с декодером VLSI VS1033/VS1053/VS1063 decoder chip
+ - vgm  MoonSound (поддерживаемые чипы YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
+ - vgz  аналогичено vgm
  - mwm  MoonSound
  - pt2  AY
  - pt3  AY, TurboSound (2x AY)
  - mod  GeneralSound, NeoGS
 
-Keys:
-[UP]    goto previous file
-[DOWN]  goto next file
-[ENTER] start playing
-[ESC]   exit player
-[SPACE] add file to playlist
-[TAB]   switch panels
-[BCKSP] clear playlist
-[HOME]  goto top
+Прошивка ZXM-MoonSound
+
+К сожалению, прошивка карты 1.0 несовместима с прошивкой baseconf ZX-Evolution
+(т.е. прошивкой под которой и работает NedoOS). OPL4 порты 7E и 7F не будут работать
+правильно, работают только OPL3 порты. Можно прослушивать OPL2/OPL3 .vgm файлы,
+но форматы .mwm или OPL4 .vgm работать не будут. Для того чтобы это исправить,
+надо обновить прошивку MoonSound до 1.01
+https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip
+https://www.dropbox.com/s/hzcj8wbmion3d3g/zxm_moonsound01_src0101.zip
+Прошивка 1.01 полностью обратно совместима с 1.0, все программы работающие 
+под 1.0 будут продолжать работать.
+
+Если вы используете NedoOS на компьютере отличном от ZX-Evolution (например АТМ),
+то OPL4 будет работать и на прошивке 1.0, но надо пересобрать плеер заменив
+MOON_WREG = 0xc2 на MOON_WREG = 0x7e в файле moonsound.asm
+
+NeoGS ревизия CM
+
+Этот проигрыватель поддерживает множество декодеров VLSI, не только дефолтные
+MosArt MA8201A(U). Ревизия платы CM позволяет устанавливать разные декодеры.
+Я рекомендую VS1053b для лучшего качества звука и совместимости с форматами. 
+Документация по изготовлению
+http://svn.zxevo.ru/listing.php?repname=ngs&path=%2Fpcad%2FSolegstar%2F

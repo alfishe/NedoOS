@@ -1,0 +1,35 @@
+gp.com - Player for AY, GeneralSound, NeoGS, MoonSound, TurboSound
+
+Supported formats:
+ - mp3  NeoGS
+ - mid  NeoGS rev.CM with VLSI VS1003/VS1033/VS1053/VS1103 decoder chip
+ - ogg  NeoGS rev.CM with VLSI VS1053/VS1063 decoder chip
+ - aac  NeoGS rev.CM with VLSI VS1033/VS1053/VS1063 decoder chip
+ - vgm  MoonSound (supported chips YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
+ - vgz  same as vgm
+ - mwm  MoonSound
+ - pt2  AY
+ - pt3  AY, TurboSound (2x AY)
+ - mod  GeneralSound, NeoGS
+
+ZXM-MoonSound firmware
+
+Unfortunately, the firmware 1.0 is incompatible with ZX-Evolution/baseconf.
+OPL4 ports 7E and 7F are not working properly, only OPL3 ports are accessible.
+It's still possible to play OPL3 .vgm files using the player, but .mwm and 
+OPL4 .vgm are not going to work. You should update MoonSound to 
+baseconf-compatible firmware 1.01 to enable OPL4 on baseconf
+https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip
+https://www.dropbox.com/s/hzcj8wbmion3d3g/zxm_moonsound01_src0101.zip
+Firmware 1.01 is fully backwards compatible with 1.0.
+
+If you're running NedoOS on a hardware other than ZX-Evolution (e.g. ATM), 
+you can get OPL4 working with the firmware 1.0. You'd need to recompile the
+player changing MOON_WREG = 0xc2 to MOON_WREG = 0x7e in moonsound.asm
+
+NeoGS rev.CM
+
+This player supports VLSI codecs other than MosArt MA8201A(U). Revision CM of
+the PCB enables the use of a range of VLSI chips. I strongly recommend VS1053b
+for the best sound quality. Production files for NeoGS rev.CM can be found here
+http://svn.zxevo.ru/listing.php?repname=ngs&path=%2Fpcad%2FSolegstar%2F
