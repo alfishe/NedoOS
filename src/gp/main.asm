@@ -11,18 +11,20 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-PANEL_FILE_COUNT = 110
-PANEL_FILE_DATA_SIZE = FILE_DATA_SIZE*PANEL_FILE_COUNT
+BROWSER_FILE_COUNT=180
+PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
 PANELFILECOLOR = 0x0f
 PANELDIRCOLOR = 0x4f
+PANELDRIVECOLOR = 0x4b
 FILE_LINE_COUNT = 22
 FILES_WINDOW_X = 0
 FILE_ATTRIB_MUSIC = 255
 FILE_ATTRIB_PARENT_DIR = 0
-FILE_ATTRIB_FOLDER = 1
-PANELVERSION = 1
+FILE_ATTRIB_DRIVE = 1
+FILE_ATTRIB_FOLDER = 2
+PLAYLIST_VERSION = 1
 
 	org PROGSTART
 
@@ -241,9 +243,9 @@ skippadding
 	inc de
 	ld a,255
 	ld (de),a
-	ld hl,playlistpanel+PANEL.filecount
+	ld hl,playlistpanel.filecount
 	ld a,(hl)
-	cp PANEL_FILE_COUNT
+	cp PLAYLIST_FILE_COUNT
 	ret nc
 	inc (hl)
 	call getfiledataoffset
@@ -274,7 +276,7 @@ removefromplaylist
 	ld de,playlistpanel.fileslist
 	add hl,de
 	ex de,hl
-	ld hl,playlistpanel.fileslist+PANEL_FILE_DATA_SIZE-FILE_DATA_SIZE
+	ld hl,playlistpanel.fileslist+FILE_DATA_SIZE*(PLAYLIST_FILE_COUNT-1)
 	sub hl,de
 	ld bc,hl
 	ld hl,FILE_DATA_SIZE
@@ -320,8 +322,8 @@ saveplaylist
 .openedfile
 	ld a,(filehandle)
 	ld b,a
-	ld de,playlistpanelversion
-	ld hl,PANEL+2
+	ld de,playlistdatastart
+	ld hl,playlistdatasize
 	OS_WRITEHANDLE
 	call closestream_file
 	xor a
@@ -350,9 +352,11 @@ startplaying
 	add hl,de
 	ld a,(hl)
 	cp FILE_ATTRIB_PARENT_DIR
-	jr z,changetoparentdir
+	jp z,changetoparentdir
 	cp FILE_ATTRIB_FOLDER
 	jp z,changetofolder
+	cp FILE_ATTRIB_DRIVE
+	jr z,changedrive
 	cp FILE_ATTRIB_MUSIC
 	ret nz
 	ld a,(browserpanel.isinactive)
@@ -391,6 +395,22 @@ startplaying
 	xor a
 	call setcurrentpanel
 	jp startplaying
+
+changedrive
+	ld de,FILE_NAME_OFFSET-FILE_ATTRIB_OFFSET
+	add hl,de
+	push hl
+	ld de,(currentfolder)
+	push de
+	ld de,currentfolder
+	ldi
+	ldi
+	call changetocurrentfolder
+	pop hl
+	pop de
+	jp z,createfilelistandchangesel
+	ld (currentfolder),hl
+	ret
 
 changetoparentdir
 	ld hl,currentfolder
@@ -513,16 +533,16 @@ loadplaylist
 	call openstream_file
 	or a
 	jr nz,initemptyplaylist
-	ld de,playlistpanelversion
-	ld hl,PANEL+2
+	ld de,playlistdatastart
+	ld hl,playlistdatasize
 	call readstream_file
 	call closestream_file
-	ld de,PANELVERSION
+	ld de,PLAYLIST_VERSION
 	ld hl,(playlistpanelversion)
 	sub hl,de
 	ret z
 initemptyplaylist
-	ld hl,PANELVERSION
+	ld hl,PLAYLIST_VERSION
 	ld (playlistpanelversion),hl
 	ld ix,playlistpanel
 	jr clearpanel
@@ -821,9 +841,12 @@ currentfileindex=$+1
 	ret z
 	ld a,(ix+FILE_ATTRIB_OFFSET-FILE_DISPLAY_INFO_OFFSET)
 	cp FILE_ATTRIB_MUSIC
-	ld de,PANELDIRCOLOR
-	ret nz
 	ld de,PANELFILECOLOR
+	ret z
+	cp FILE_ATTRIB_FOLDER
+	ld de,PANELDIRCOLOR
+	ret z
+	ld de,PANELDRIVECOLOR
 	ret
 
 printfilesinfos
@@ -1043,6 +1066,12 @@ initializing2str
 	db "...",0
 hotkeystr
 	db "Arrows=Navigate  Enter=Play  Tab=Panel  Space=Add/Remove  S=Save Playlist",0
+drivedata
+	db "E: - IDE Master p.1                   E:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
+	db "F: - IDE Master p.2                   F:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
+	db "M: - SD Z-controller                  M:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
+	db "O: - USB ZX-NetUsb                    O:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
+drivedataend
 
 	macro loadplayer playerpage,playersize
 	OS_NEWPAGE
@@ -1144,9 +1173,19 @@ createfileslist
 	xor a
 	ld (browserpanel.currentfileindex),a
 	ld (browserpanel.firstfiletoshow),a
-	ld (browserpanel.filecount),a
 
+	ld hl,currentfolder+2
+	cp (hl)
 	ld hl,0x8000
+	jr nz,.startloop
+	ex de,hl
+	ld hl,drivedata
+	ld bc,drivedataend-drivedata
+	ldir
+	ex de,hl
+	ld a,(drivedataend-drivedata)/FILE_DATA_SIZE
+.startloop
+	ld (browserpanel.filecount),a
 .fileenumloop
 	ld (.filedataaddr),hl
 .skiptonextfile
@@ -1253,7 +1292,7 @@ createfileslist
 	ld a,(browserpanel.filecount)
 	inc a
 	ld (browserpanel.filecount),a
-	cp PANEL_FILE_COUNT
+	cp BROWSER_FILE_COUNT
 	jp c,.fileenumloop
 .sortfiles
 	ld a,(browserpanel.filecount)
@@ -1344,17 +1383,23 @@ filecount ds 1
 currentfileindex ds 1
 firstfiletoshow ds 1
 isinactive ds 1
-fileslist ds PANEL_FILE_DATA_SIZE
+fileslist ds FILE_DATA_SIZE
 	ends
 
 browserpanel PANEL
+	ds FILE_DATA_SIZE*(BROWSER_FILE_COUNT-1)
+
+playlistdatastart=$
 playlistpanelversion ds 2
 playlistpanel PANEL
+	ds FILE_DATA_SIZE*(PLAYLIST_FILE_COUNT-1)
+playlistdatasize=$-playlistdatastart
+
 musicprogress ds 1
 
 page0dataend = $
 
-	ASSERT page0dataend <= 0x3c00 ;reserve 1024 bytes for stack
+	ASSERT page0dataend <= 0x3d00 ;reserve 768 bytes for stack
 
 mwmstart
 	incbin "mwm.bin"
