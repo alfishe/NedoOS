@@ -843,10 +843,11 @@ currentfileindex=$+1
 	cp FILE_ATTRIB_MUSIC
 	ld de,PANELFILECOLOR
 	ret z
-	cp FILE_ATTRIB_FOLDER
-	ld de,PANELDIRCOLOR
-	ret z
+	cp FILE_ATTRIB_DRIVE
 	ld de,PANELDRIVECOLOR
+	ret z
+;FILE_ATTRIB_PARENT_DIR or FILE_ATTRIB_FOLDER
+	ld de,PANELDIRCOLOR
 	ret
 
 printfilesinfos

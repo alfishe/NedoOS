@@ -33,3 +33,12 @@ This player supports VLSI codecs other than MosArt MA8201A(U). Revision CM of
 the PCB enables the use of a range of VLSI chips. I strongly recommend VS1053b
 for the best sound quality. Production files for NeoGS rev.CM can be found here
 http://svn.zxevo.ru/listing.php?repname=ngs&path=%2Fpcad%2FSolegstar%2F
+
+Playing MIDI
+
+VLSI codecs only support MIDI format 0 (SMF 0) because SMF 1 and SMF 2 can't
+be streamed and must be preloaded entirely. The main difference between these
+formats is how notes are structured. Unfortunately, this player doesn't convert
+MIDI to SMF 0 automatically, so you'd have to convert MIDI files to SMF 0 
+offline using GN1:0 MIDI Converter (or a similar program)
+http://www.gnmidi.com/gn1to0.zip
