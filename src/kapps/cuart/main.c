@@ -42,7 +42,6 @@ void delay(unsigned long counter)
 
 void uart_init(unsigned char divisor)
 {
-  //disable_interrupt();
   output(MCR, 0x00);        // Disable input
   output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
   output(LCR, 0x83);        // 8n1, DLAB=1
@@ -50,100 +49,77 @@ void uart_init(unsigned char divisor)
   output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
   output(LCR, 0x03);        // 8n1, DLAB=0
   output(IER, 0x00);        // Disable int
-  //enable_interrupt();
 }
 
 unsigned char uart_CTS(void)
 {
   unsigned char cts;
-  //disable_interrupt();
+
   cts = input(MSR);
   cts = (cts && 16) >> 3;
-  //enable_interrupt();
+
   return cts;
 }
 
 void uart_write(unsigned char data)
 {
-  //disable_interrupt();
   while ((input(LSR) & 32) >> 5 == 0)
   {
   }
   output(RBR_THR, data);
-//enable_interrupt();
 }
 
 void uart_startrts(void)
 {
-  //disable_interrupt();
   output(MCR, 2);
-  //enable_interrupt();
 }
 
 void uart_stoprts(void)
 {
-  //disable_interrupt();
   output(MCR, 0);
-  //enable_interrupt();
 }
 
 void uart_flashrts(void)
 {
   unsigned char count;
-
- // disable_interrupt();
+  disable_interrupt();
   output(MCR, 2);
- //enable_interrupt();
-
   for (count = 0; count < spdFactor; count++)
   {
     uart_delay1k();
   }
-
-  //disable_interrupt();
   output(MCR, 0);
-  //enable_interrupt();
+  enable_interrupt();
 }
 
 unsigned char uart_queue(void)
 {
   unsigned char queue;
-
-  //disable_interrupt();
   queue = input(LSR);
   queue = queue & 1;
-  //enable_interrupt();
   return queue;
 }
 
 unsigned char uart_read(void)
 {
   unsigned char data;
-  //disable_interrupt();
   while (input(LSR) & 1 == 0)
   {
   }
   data = input(RBR_THR);
-  //enable_interrupt();
-
-  // printf("LSR = %u data = %u    ", input(LSR), data);
-
   return data;
 }
 
 void getdata(void)
 {
   unsigned char readbyte;
-
   while (uart_queue() != 0)
   {
     readbyte = uart_read();
     buffer[bufferPos] = readbyte;
     bufferPos++;
   }
-
   uart_flashrts();
-
   if (bufferPos > 8191)
   {
     endPos = bufferPos;
@@ -233,7 +209,7 @@ void testQueue(void)
   sendcommand("GET /attachments/pages/your_game6_160.png HTTP/1.1\r\nHost: ti6.nedopc.com\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\0");
   delay(1000);
   sendcommand("AT+CIPRECVDATA=5000\0");
-  }
+}
 C_task main(void)
 {
   unsigned char cmd[256];
@@ -243,9 +219,9 @@ C_task main(void)
   AT(1, 1);
   ATRIB(92);
   puts("EVO UART TESTER. SEND AND RECIEVE BYTES.");
-  uart_init(3);
-  spdFactor = 7;
-  puts("Uart inited @ 38400");
+  uart_init(1);
+  spdFactor = 3;
+  puts("Uart inited @ 115200\r\n");
   cmd[0] = '\0';
   cmdpos = 0;
   while (1)
@@ -256,6 +232,7 @@ C_task main(void)
     key = _low_level_get();
     if (key != 0)
     {
+      //printf("key = %u   ", key);
       switch (key)
       {
       case 177:
@@ -268,7 +245,7 @@ C_task main(void)
       case 178:
         uart_init(2);
         puts("Uart inited @ 57600");
-        spdFactor = 6;
+        spdFactor = 5;
         key = 0;
         break;
 
@@ -282,49 +259,49 @@ C_task main(void)
       case 180:
         uart_init(4);
         puts("Uart inited @ 28800");
-        spdFactor = 12;
+        spdFactor = 9;
         key = 0;
         break;
 
       case 181:
         uart_init(6);
         puts("Uart inited @ 19200");
-        spdFactor = 16;
+        spdFactor = 15;
         key = 0;
         break;
 
       case 182:
         uart_init(8);
         puts("Uart inited @ 14400");
-        spdFactor = 90;
+        spdFactor = 21;
         key = 0;
         break;
 
       case 183:
         uart_init(12);
         puts("Uart inited @ 9600");
-        spdFactor = 100;
+        spdFactor = 31;
         key = 0;
         break;
 
       case 184:
         uart_init(24);
         puts("Uart inited @ 4800");
-        spdFactor = 100;
+        spdFactor = 64;
         key = 0;
         break;
 
       case 185:
         uart_init(48);
         puts("Uart inited @ 2400");
-        spdFactor = 100;
+        spdFactor = 115;
         key = 0;
         break;
 
       case 176:
         uart_init(96);
         puts("Uart inited @ 1200");
-        spdFactor = 150;
+        spdFactor = 240;
         key = 0;
         break;
 
@@ -367,7 +344,21 @@ C_task main(void)
         key = 0;
         break;
 
-      case 113:
+      case 246: // +
+        spdFactor++;
+        printf("spdFactor = %u \r\n ", spdFactor);
+        sendcommand("AT+GMR\0");
+        key = 0;
+        break;
+
+      case 247: // -
+        spdFactor--;
+        printf("spdFactor = %u \r\n ", spdFactor);
+        sendcommand("AT+GMR\0");
+        key = 0;
+        break;
+      
+      case 28:    // home
         testQueue();
         key = 0;
         break;
