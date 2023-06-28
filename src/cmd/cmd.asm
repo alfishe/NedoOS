@@ -81,8 +81,9 @@ version_text
 		defb "Command line interpreter. rev.",0
 		
 cmd_interactive
-		ld hl,version_text
+	ld hl,version_text
         call prtext
+        ifdef SVNREVISION
                 ld de,(SVNREVISION + 1 >> 16) & 0xffff
                 ld hl,(SVNREVISION + 1) & 0xffff
 		call prdword_dehl
