@@ -83,11 +83,10 @@ version_text
 cmd_interactive
 		ld hl,version_text
         call prtext
-        ifdef SVNREVISION
-            ld de,((SVNREVISION+1) >> 16) & 0xffff
-            ld hl,(SVNREVISION+1) & 0xffff
-			call prdword_dehl
-			call prcrlf
+                ld de,(SVNREVISION + 1 >> 16) & 0xffff
+                ld hl,(SVNREVISION + 1) & 0xffff
+		call prdword_dehl
+		call prcrlf       
         endif
         
 cmdmainloop

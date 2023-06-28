@@ -31,6 +31,10 @@ DEPAS		= $(WINTOP)tools/aspp
 DEPAFLAGS	= -E -MM -I . -I $(WINSDK)
 DEPEXT		= d
 SVNREVISION := $(firstword $(subst :, ,$(shell svnversion -n)))
+SVNREVISION := $(subst M,,${SVNREVISION})
+SVNREVISION := $(subst P,,${SVNREVISION})
+SVNREVISION := $(subst S,,${SVNREVISION})
+SVNREVISION := $(subst Unversioned,0,${SVNREVISION})
 SJASMPLUS	= $(WINTOP)tools/sjasmplus
 SJASMPLUSFLAGS	= --nologo --msg=war -DSVNREVISION=${SVNREVISION}
 DMIMG		= $(WINTOP)tools/dmimg
