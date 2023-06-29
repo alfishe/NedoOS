@@ -6,6 +6,9 @@ echo NEMOIDE=0 >> _sdk\syssets.asm
 echo SYSDRV=0 >> _sdk\syssets.asm
 echo INETDRV=0x00 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
+set makeall=1
+FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo define SVNREVISION %%i >> _sdk\syssets.asm
 call make.bat
 move test.trd ..\release\osatm2.trd > nul
-if "%makeall%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2.trd
+if "%notrunemu%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2.trd
+set makeall=

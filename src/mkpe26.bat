@@ -9,7 +9,9 @@ echo PS2KBD=0x00 >> _sdk\syssets.asm
 echo 	define KOE >> _sdk\syssets.asm
 echo 	define KOEDI >> _sdk\syssets.asm
 echo 	define NOTURBO >> _sdk\syssets.asm
+set makeall=1
+FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo define SVNREVISION %%i >> _sdk\syssets.asm
 call make.bat
-
 move test.trd ..\release\osp26.trd > nul
-if "%makeall%"=="" ..\us\emul.exe ..\release\osp26.trd
+if "%notrunemu%"=="" ..\us\emul.exe ..\release\osp26.trd
+set makeall=

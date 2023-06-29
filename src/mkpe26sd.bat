@@ -10,15 +10,17 @@ echo INETDRV=0x01 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 echo 	define KOE >> _sdk\syssets.asm
 echo 	define NGSSD >> _sdk\syssets.asm
-FOR /F "tokens=1,2" %%i IN ('svn info .') DO IF /I "%%i"=="Revision:" echo 	define SVNREVISION %%j >> _sdk\syssets.asm
+FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo define SVNREVISION %%i >> _sdk\syssets.asm
 rem echo 	define KOEDI >> _sdk\syssets.asm
 rem echo 	define NOMOUSE >> _sdk\syssets.asm
 rem echo 	define NOCMOS >> _sdk\syssets.asm
 rem echo 	define NOPAL >> _sdk\syssets.asm
+set makeall=1
 call make.bat noneedtrd
 cd kernel
 ..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul
 cd ..
 move /Y kernel\nedoos.$C ..\release\osp26sd.$C > nul
 call ..\tools\chkimg.bat sd
-if "%makeall%"=="" ..\us\emul.exe -i ..\us\dimkam.ini
+if "%notrunemu%"=="" ..\us\emul.exe -i ..\us\dimkam.ini
+set makeall=

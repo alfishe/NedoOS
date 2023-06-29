@@ -14,10 +14,13 @@ rem echo 	define KEEPPG38 >> _sdk\syssets.asm
 echo 	define FREEPG0 >> _sdk\syssets.asm
 echo 	define FREEPG4 >> _sdk\syssets.asm
 echo 	define FREEPG6 >> _sdk\syssets.asm
+set makeall=1
+FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo define SVNREVISION %%i >> _sdk\syssets.asm
 call make.bat
 nedotrd test.trd -eh code.$C
 nedotrd test.trd -a code.$C
 copy code.$C ..\release\osatm2hm.$C > nul
 move test.trd ..\release\osatm2hm.trd > nul
 call ..\tools\chkimg.bat hdd
-if "%makeall%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2hm.trd
+if "%notrunemu%"=="" ..\us\emul.exe -i atm2.ini ..\release\osatm2hm.trd
+set makeall=
