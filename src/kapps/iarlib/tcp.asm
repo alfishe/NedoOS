@@ -331,16 +331,50 @@ OS_NETSHUTDOWN:
 	ret
 ENDMOD
 
-;  DE - указатель на строку с адресом для резолвинга.
-MODULE OS_DNSRESOLVE
-PUBLIC OS_DNSRESOLVE
+MODULE OS_GETDNS
+PUBLIC OS_GETDNS
 #include "sysdefs.asm"
-EXTERN YIELD
-EXTERN OS_NETSOCKET, OS_WIZNETWRITE, OS_WIZNETREAD, OS_NETSHUTDOWN
 RSEG CODE
-OS_DNSRESOLVE:		;DE-domain name
-	ld de,zxartadr
-	 
+OS_GETDNS:
+	ld l,0x08
+	push ix
+	push iy	
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	ld a,l
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE OS_SETDNS
+PUBLIC OS_SETDNS
+#include "sysdefs.asm"
+RSEG CODE
+OS_SETDNS:
+	ld l,0x07
+	push ix
+	push iy	
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	ld a,l
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE LIB_DNS_RESOLVER
+	PUBLIC DNS_RESOLVER
+	EXTERN errno, OS_NETSOCKET, OS_NETSHUTDOWN, YIELD
+	EXTERN OS_NETCONNECT, OS_WIZNETREAD, OS_WIZNETWRITE
+	EXTERN OS_GETDNS
+		
+	RSEG	CODE
+DNS_RESOLVER:		;DE-domain name
 	push ix
 	push de
     ld de,dns_ia + 3
@@ -393,6 +427,12 @@ is_dot:
 	ld (dnssoc),a
 	or a
 	jp m,exiterr
+	;LD	C,A
+	;LD	DE,dns_ia
+	;CALL	OS_NETCONNECT
+	;or a
+	;jp m,exiterr
+	
 	pop hl
 	push hl
 	ld de,0xffff&(-dnsbuf)
@@ -420,6 +460,8 @@ recv_wait1:
 	CALL	OS_WIZNETREAD
 	pop af
 	pop bc
+	;ld a,h
+	;or l
 	bit 7,h
 	jr z,recv_wait_end
 	djnz recv_wait
@@ -471,51 +513,19 @@ exiterr:
 exiterr1:
 	ld hl,0
 	ret
-
-OS_GETDNS:
-	ld l,0x07
-	push ix
-	push iy	
-	ld a,c
-	ex af,af'
-	ld c,CMD_WIZNETOPEN
-	call BDOS
-	ld a,l
-	pop iy
-	pop ix
-	ret
+	
+	RSEG	CONST
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
 dns_ia:
 	defb 0,0,53,8,8,8,8
+	RSEG	NO_INIT
 dnssoc:
 	DEFS 1	
-errno:
-	defb 0
-zxartadr:
-	defb "zxart.ee", 0
 dnsbuf:
 	DEFS 256
+	
 ENDMOD
-
-MODULE OS_GETDNS
-PUBLIC OS_GETDNS
-#include "sysdefs.asm"
-OS_GETDNS:
-	ld l,0x07
-	push ix
-	push iy	
-	ld a,c
-	ex af,af'
-	ld c,CMD_WIZNETOPEN
-	call BDOS
-	ld a,l
-	pop iy
-	pop ix
-	ret
-ENDMOD
-
-
 
 
 END

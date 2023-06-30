@@ -63,9 +63,9 @@ unsigned int OS_NETSHUTDOWN (unsigned char socket);
 // A=SOCKET ; 
 // out: if HL < 0 then A=error
 
-unsigned long OS_DNSRESOLVE (unsigned int adrptr);
-//	de=buffer_ptr adress
-//	out:
+void OS_SETDNS(void * addr);
+
+void OS_GETDNS(void * addr);
 
 
 #define IPPROTO_TCP 6

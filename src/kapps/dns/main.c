@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <oscalls.h>
-#include <socket.h>
+#include <tcp.h>
 #include <intrz80.h>
 #include <stdlib.h>
 
@@ -13,7 +13,7 @@ const unsigned char help[] = "View and set system DNS server\r\nUsage: dns.com [
 void get_dns(void)
 {
 	printf("Current DNS-server: ");
-	os_getdns(ipadress);
+	OS_GETDNS(ipadress);
 	printf("%d.%d.%d.%d\r\n", ipadress[0], ipadress[1], ipadress[2], ipadress[3]);
 }
 
@@ -26,7 +26,7 @@ void setdns(const char * strIP)
         ipadress[1] = ip16[1];
         ipadress[2] = ip16[2];
         ipadress[3] = ip16[3];
-        os_setdns(ipadress);
+        OS_SETDNS(ipadress);
     }
     else
     {
