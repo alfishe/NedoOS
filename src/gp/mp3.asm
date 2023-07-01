@@ -186,8 +186,8 @@ pageC000=$+1
 	or a
 	jr nz,loadmod
 
-        ld a,(filehandle)
-        ld b,a
+	ld a,(filehandle)
+	ld b,a
 	OS_GETFILESIZE
 	ld a,e
 	call setprogressdelta
@@ -211,7 +211,10 @@ loadmod
 	ld de,BUFADDR
 	call readstream_file
 ;init progress
+	call getmodtype
 	ld a,(BUFADDR+950)
+	jr z,$+5
+	ld a,(BUFADDR+470)
 	call setprogressdelta
 ;set title
 	ld hl,titlestr
@@ -460,6 +463,35 @@ gsstartcode
 	YIELD
 	YIELD
 	YIELD
+	ret
+
+getmodtype
+;https://github.com/psbhlw/gs-firmware/blob/6c783a56147511b43d197e4079e993c2b94b4f12/firmware/src/PLAY.a80#L27
+;out: zf=0 for SoundTracker 4/15 file, zf=1 otherwise
+	LD A,(BUFADDR+1080)
+	CP "M"
+	JR Z,TTY1
+	CP "4"
+	JR Z,TTY1
+	CP "F"
+	JR Z,TTY1
+	ret
+TTY1	LD A,(BUFADDR+1081)
+	CP "."
+	JR Z,TTY2
+	CP "L"
+	JR Z,TTY2
+	CP "!"
+	JR Z,TTY2
+	CP "C"
+	JR Z,TTY2
+	ret
+TTY2	LD A,(BUFADDR+1082)
+	CP "K"
+	ret z
+	CP "T"
+	ret z
+	CP "H"
 	ret
 
 gscodereset

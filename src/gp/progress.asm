@@ -8,6 +8,10 @@ initprogress
 setprogressdelta
 ;a = music size
 ;progressdelta = xlen/64 8.8 fixed point number
+	or a
+	jr nz,$+3
+;set a=255 if a=0 to avoid infinite loop in updateprogress
+	dec a
 	rlca
 	rlca
 	ld h,a
