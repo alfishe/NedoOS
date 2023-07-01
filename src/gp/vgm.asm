@@ -9,6 +9,8 @@ HEADER_CLOCK_YMF262 = 0x805c
 HEADER_CLOCK_YMF278B = 0x8060
 HEADER_GD3_OFFSET = 0x8014
 HEADER_SAMPLES_COUNT = 0x8018
+HEADER_LOOP_OFFSET = 0x801c
+HEADER_LOOP_SAMPLES_COUNT = 0x8020
 TITLELENGTH = 64
 
 	org PLAYERSTART
@@ -94,6 +96,9 @@ musicload
 	SETPG8000
 ;init progress
 	ld hl,(HEADER_SAMPLES_COUNT+2)
+	ld bc,(HEADER_LOOP_SAMPLES_COUNT+2)
+	add hl,bc
+	inc hl ;+1 as if low-word addition sets cf
 	ld a,l
 	inc h
 	dec h
@@ -104,6 +109,15 @@ musicload
 	xor a
 	a_or_dw HEADER_GD3_OFFSET
 	call nz,parsegd3
+;setup loop
+	xor a
+	a_or_dw HEADER_LOOP_OFFSET
+	ld (loopoffsetlo),hl
+	ld (loopoffsethi),de
+	jr z,$+1
+	ld a,1
+	inc a
+	ld (loopcounter),a
 ;check if this file uses TFM
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
@@ -258,9 +272,14 @@ skip6	skip_n 5
 skip11	skip_n 10
 skip12	skip_n 11
 
-cmdunsupported equ endofsounddata
 
 endofsounddata
+loopcounter=$+1
+	ld a,0
+	dec a
+	ld (loopcounter),a
+	jp nz,seektoloop
+cmdunsupported
 ;stop playing
 	pop af
 	xor a
@@ -324,27 +343,24 @@ skipdatablock
 	jr nz,.loop
 	ret
 
+seektoloop
+	ld bc,0x1c
+loopoffsethi=$+1
+	ld de,0
+loopoffsetlo=$+1
+	ld hl,0
+seektopos
+;dehl + bc = position
+;out: hl = read address
+	add hl,bc
+	jp nc,memorybufferseek
+	inc de
+	jp memorybufferseek
+
 parsegd3
 ;dehl = GD3 offset
 	ld bc,32
-	add hl,bc
-	ld a,e
-	adc a,0
-	ld b,h
-	sla b
-	rla
-	sla b
-	rla
-	add a,memorybufferpages%256
-	ld e,a
-	adc a,memorybufferpages/256
-	sub e
-	ld d,a
-	ld (memorybufferpageaddr),de
-	ld a,(de)
-	SETPG8000
-	res 6,h
-	set 7,h
+	call seektopos
 	ld b,TITLELENGTH
 	ld de,titlestr
 	ld a,' '
@@ -396,7 +412,7 @@ gd3stringskip
 ;out: zf=1
 	memory_buffer_read_byte a
 	memory_buffer_read_byte c
-	or a
+	or c
 	jr nz,gd3stringskip
 	ret
 

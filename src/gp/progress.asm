@@ -28,6 +28,7 @@ updateprogress
 musicprogress=$+1
 	ld bc,0
 	cp c
+	ret c
 	ret z
 	ld c,a
 progressacc=$+1

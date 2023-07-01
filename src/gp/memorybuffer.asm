@@ -255,6 +255,29 @@ memorybufferwrite
 	ld (memorybuffercurrentaddr),hl
 	ret
 
+memorybufferseek
+;dehl = absolute position
+;out: hl = read address
+	ld a,e
+	ld b,h
+	sla b
+	rla
+	sla b
+	rla
+	add a,memorybufferpages%256
+	ld e,a
+	adc a,memorybufferpages/256
+	sub e
+	ld d,a
+	ld a,(de)
+	inc de
+	ld (memorybufferpageaddr),de
+	SETPG8000
+	res 6,h
+	set 7,h
+	ld (memorybuffercurrentaddr),hl
+	ret
+
 memorybuffersize
 	ds 4
 memorybufferpages
