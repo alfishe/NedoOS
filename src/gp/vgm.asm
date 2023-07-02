@@ -114,7 +114,7 @@ musicload
 	a_or_dw HEADER_LOOP_OFFSET
 	ld (loopoffsetlo),hl
 	ld (loopoffsethi),de
-	jr z,$+1
+	jr z,$+4
 	ld a,1
 	inc a
 	ld (loopcounter),a
