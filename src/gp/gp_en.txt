@@ -27,6 +27,15 @@ If you're running NedoOS on a hardware other than ZX-Evolution (e.g. ATM),
 you can get OPL4 working with the firmware 1.0. You'd need to recompile the
 player changing MOON_WREG = 0xc2 to MOON_WREG = 0x7e in moonsound.asm
 
+Wavekits for MoonBlaster modules (.mwm)
+
+Some MoonBlaster modules require wavekits, which contain custom samples.
+When you're playing <FileName>.mwm module, the player will try to load
+<FileName>.mwk first. If there's no such file, then the player will read 
+<WaveKitName> located in .mwm file at the offset 0x114. If <WaveKitName> is 
+NONE then no wavekit is needed. Otherwise, the player will try to load 
+<WaveKitName>.mwk, and if there's no such file then .mwm won't be played.
+
 NeoGS rev.CM
 
 This player supports VLSI codecs other than MosArt MA8201A(U). Revision CM of
@@ -42,3 +51,12 @@ formats is how notes are structured. Unfortunately, this player doesn't convert
 MIDI to SMF 0 automatically, so you'd have to convert MIDI files to SMF 0 
 offline using GN1:0 MIDI Converter (or a similar program)
 http://www.gnmidi.com/gn1to0.zip
+
+Collections of chiptunes and tracker music
+
+https://zxart.ee/eng/music/
+https://modarchive.org/
+https://opl.wafflenet.com/
+https://vgmrips.net/packs/
+https://download.file-hunter.com/Music/
+https://www.dropbox.com/s/ela2itiw23swsj7/Moonsound_pack_latest.zip

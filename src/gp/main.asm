@@ -36,6 +36,13 @@ mainbegin
 	ld e,7
 	OS_CLS
 
+	OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
+	ld (sharedpages),hl
+	ld a,e
+	ld (sharedpages+2),a
+	ld d,b
+	call closeexistingplayer
+
 	ld de,currentfolder
 	OS_GETPATH
 	ld hl,(currentfolder+2)
@@ -44,11 +51,6 @@ mainbegin
 	or h
 	jr nz,$+5
 	ld (currentfolder+2),a
-
-	OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-	ld (sharedpages),hl
-	ld a,e
-	ld (sharedpages+2),a
 
 	OS_SETSYSDRV
 	call loadplayers
@@ -98,8 +100,13 @@ isplaying=$+1
 	call updateprogressbar
 
 checkmsgs
+	ld a,(COMMANDLINE)
+	or a
+	ld a,key_esc
+	jr z,closeplayer
 	OS_GETKEY
 	call tolower
+closeplayer
 	ld hl,playloop
 	push hl
 currentmsgtable=$+1
@@ -1022,7 +1029,7 @@ strcopy_hltode
 
 ;c = character
 ;hl = poi to filename in string
-;out: de = after last dot or start
+;out: de = after last char or start
 findlastchar
 	ld d,h
 	ld e,l ;de = after last char
@@ -1366,6 +1373,70 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 
 	include "../_sdk/file.asm"
 	include "radixsort.asm"
+
+closeexistingplayer
+;d = current pid
+	ld e,1
+.searchloop
+	ld a,e
+	cp d
+	jr z,.nextprocess
+	push de
+	OS_GETAPPMAINPAGES ;d,e,h,l=pages in 0000,4000,8000,c000
+	or a
+	ld a,d
+	pop de
+	jr nz,.nextprocess
+	push de
+	SETPGC000
+	ld hl,0xc000+COMMANDLINE
+	ld de,0x8000
+	ld bc,COMMANDLINE_sz
+	ldir
+	ld hl,0x8000
+	call skipword_hl
+	ld (hl),0
+	ld hl,0x8000
+	ld c,'/'
+	call findlastchar ;out: de = after last slash or start
+	call isplayer
+	pop de
+	jr z,.foundplayer
+.nextprocess
+	inc e
+	ld a,e
+	inc a
+	jr nz,.searchloop
+	ret
+.foundplayer
+	xor a
+	ld (0xc000+COMMANDLINE),a
+.waitloop
+	push de
+	OS_GETAPPMAINPAGES
+	pop de
+	or a
+	jr z,.waitloop
+	ret
+
+isplayer
+;de = command line file name
+;out: zf=1 if gp, zf=0 otherwise
+	ld a,(de)
+	call tolower
+	cp 'g'
+	ret nz
+	inc de
+	ld a,(de)
+	call tolower
+	cp 'p'
+	ret nz
+	inc de
+	ld a,(de)
+	or a
+	ret z
+	cp '.'
+	ret
 mainend
 
 sharedpages
@@ -1402,6 +1473,7 @@ page0dataend = $
 
 	ASSERT page0dataend <= 0x3d00 ;reserve 768 bytes for stack
 
+plrbegin
 mwmstart
 	incbin "mwm.bin"
 mwmend
@@ -1417,6 +1489,7 @@ mp3end
 vgmstart
 	incbin "vgm.bin"
 vgmend
+plrend
 
 	savebin "gp.com",mainbegin,mainend-mainbegin
-	savebin "gp.plr",mwmstart,vgmend-mwmstart
+	savebin "gp.plr",plrbegin,plrend-plrbegin

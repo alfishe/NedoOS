@@ -1,4 +1,4 @@
-MEMORYBUFFERMAXPAGES = 150
+MEMORYBUFFERMAXPAGES = 255
 
 memorybufferloadfile
 ;de = file name
