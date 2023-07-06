@@ -18,16 +18,26 @@ OPN_DAT = 0xbffd
 	out (c),d
 	endm
 
-opnwritemusiconlyfm1
-;skips writes to control registers
-;e = register
-;d = value
-	ld a,e
+iscontrolregister
+;a = register
+;out: zf=1 if it's control register, zf=0 otherwise
+	cp 0x0e ;IO port
+	ret z
+	cp 0x0f ;IO port 
+	ret z
 	cp 0x2d ;prescaler
 	ret z
 	cp 0x2e ;prescaler
 	ret z
 	cp 0x2f ;prescaler
+	ret
+
+opnwritemusiconlyfm1
+;skips writes to control registers
+;e = register
+;d = value
+	ld a,e
+	call iscontrolregister
 	ret z
 	cp 0x27 ;timers control
 	jr nz,opnwritefm1
@@ -46,11 +56,7 @@ opnwritemusiconlyfm2
 ;e = register
 ;d = value
 	ld a,e
-	cp 0x2d ;prescaler
-	ret z
-	cp 0x2e ;prescaler
-	ret z
-	cp 0x2f ;prescaler
+	call iscontrolregister
 	ret z
 opnwritefm2
 ;e = register

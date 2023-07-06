@@ -11,6 +11,7 @@ begin   PLAYERHEADER
 
 isfilesupported
 ;cde = file extension
+;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
 	ld a,c
 	cp 'p'
 	ret nz
@@ -56,6 +57,7 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
+;out: zf=1 if the file is ready for playing, zf=0 otherwise
 	ex de,hl
 	call openstream_file
 	or a

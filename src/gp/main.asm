@@ -1066,6 +1066,8 @@ playliststr
 	db "Playlist",0
 playingstr
 	db "Playing...",0
+closingplayerstr
+	db "Closing old player instance...\r\n",0
 emptystr
 	db 0
 initializing1str
@@ -1411,8 +1413,16 @@ closeexistingplayer
 .foundplayer
 	xor a
 	ld (0xc000+COMMANDLINE),a
+	push de
+	ld hl,closingplayerstr
+	call print_hl
+	pop de
 .waitloop
 	push de
+	YIELD
+	YIELD
+	YIELD
+	YIELD
 	OS_GETAPPMAINPAGES
 	pop de
 	or a
@@ -1477,15 +1487,12 @@ plrbegin
 mwmstart
 	incbin "mwm.bin"
 mwmend
-
 pt3start
 	incbin "pt3.bin"
 pt3end
-
 mp3start
 	incbin "mp3.bin"
 mp3end
-
 vgmstart
 	incbin "vgm.bin"
 vgmend

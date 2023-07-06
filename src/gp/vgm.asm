@@ -7,6 +7,7 @@ HEADER_CLOCK_YM2203 = 0x8044
 HEADER_CLOCK_YM3812 = 0x8050
 HEADER_CLOCK_YMF262 = 0x805c
 HEADER_CLOCK_YMF278B = 0x8060
+HEADER_CLOCK_AY8910 = 0x8074
 HEADER_GD3_OFFSET = 0x8014
 HEADER_SAMPLES_COUNT = 0x8018
 HEADER_LOOP_OFFSET = 0x801c
@@ -19,6 +20,7 @@ begin   PLAYERHEADER
 
 isfilesupported
 ;cde = file extension
+;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
 	ld a,c
 	cp 'v'
 	ret nz
@@ -73,6 +75,7 @@ playerinit
 musicload
 ;cde = file extension
 ;hl = input file name
+;out: zf=1 if the file is ready for playing, zf=0 otherwise
 	ld a,e
 	cp 'z'
 	ex de,hl
@@ -118,18 +121,24 @@ musicload
 	ld a,1
 	inc a
 	ld (loopcounter),a
-;check if this file uses TFM
+;init AY before TFM in case of weird chip combos
+	xor a
+	a_or_dw HEADER_CLOCK_AY8910
+	ld (useAY8910),a
+	call nz,initAY8910
+;init TFM
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
 	ld (useYM2203),a
 	call nz,initYM2203
-;check if this file uses Moonsound
+;init Moonsound
 	xor a
 	a_or_dw HEADER_CLOCK_YM3812
 	a_or_dw HEADER_CLOCK_YMF262
 	a_or_dw HEADER_CLOCK_YMF278B
 	ld (useYMF278B),a
 	call nz,initYMF278B
+	jp nz,memorybufferfree ;sets zf=0
 ;skip to the data
 	call memorybufferstart
 	ld hl,(HEADER_DATA_OFFSET)
@@ -148,23 +157,36 @@ musicload
 	xor a
 	ret
 
+initAY8910 equ ssginit
+
 initYM2203
 	call opninit
 	set_timer opnwaittimer60hz,735
 	jp opninittimer60hz
 
 initYMF278B
+	call ismoonsoundpresent
+	ret nz
 	call opl4init
 	set_timer opl4waittimer60hz,735
-	jp opl4inittimer60hz
+	call opl4inittimer60hz
+	xor a
+	ret
 
 musicunload
-	ld a,(useYM2203)
-	or a
-	call nz,opnmute
-	ld a,(useYMF278B)
+useYMF278B=$+1
+	ld a,0
 	or a
 	call nz,opl4mute
+useYM2203=$+1
+	ld a,0
+	or a
+	call nz,opnmute
+;mute AY after TFM in case of weird chip combos
+useAY8910=$+1
+	ld a,0
+	or a
+	call nz,ssgmute
 	jp memorybufferfree
 
 playerdeinit
@@ -175,6 +197,7 @@ playerdeinit
 	include "memorybuffer.asm"
 	include "vgm/opl4.asm"
 	include "vgm/opn.asm"
+	include "vgm/ssg.asm"
 	include "progress.asm"
 
 waittimer50hz
@@ -315,6 +338,13 @@ cmdYM3812
 cmdYM3812dp
 	memory_buffer_read_2 e,d
 	jp opl4writemusiconlyfm2
+
+cmdAY8910
+	memory_buffer_read_2 e,d
+	bit 7,e
+	jp z,ssgwritemusiconlychip0
+	res 7,e
+	jp ssgwritemusiconlychip1
 
 cmdYMF262dp0 equ memorybufferread2
 cmdYMF262dp1 equ memorybufferread2
@@ -592,7 +622,7 @@ cmdtable
 	db cmdunsupported  %256 ; 9D
 	db cmdunsupported  %256 ; 9E
 	db cmdunsupported  %256 ; 9F
-	db cmdunsupported  %256 ; A0
+	db cmdAY8910       %256 ; A0
 	db skip3           %256 ; A1
 	db cmdunsupported  %256 ; A2
 	db cmdunsupported  %256 ; A3
@@ -848,7 +878,7 @@ cmdtable
 	db cmdunsupported  /256 ; 9D
 	db cmdunsupported  /256 ; 9E
 	db cmdunsupported  /256 ; 9F
-	db cmdunsupported  /256 ; A0
+	db cmdAY8910       /256 ; A0
 	db skip3           /256 ; A1
 	db cmdunsupported  /256 ; A2
 	db cmdunsupported  /256 ; A3
@@ -1081,9 +1111,6 @@ fromstr
 bystr
 	db "] by ",0
 end
-
-useYM2203  ds 1
-useYMF278B ds 1
 
 GzipBuffersStart = $
 titlestr = $

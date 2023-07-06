@@ -1,11 +1,11 @@
-gp.com - Player for AY, GeneralSound, NeoGS, MoonSound, TurboSound
+gp.com - Player for AY8910, GeneralSound, NeoGS, MoonSound, TurboSound
 
 Supported formats:
  - mp3  NeoGS
  - mid  NeoGS rev.CM with VLSI VS1003/VS1033/VS1053/VS1103 decoder chip
  - ogg  NeoGS rev.CM with VLSI VS1053/VS1063 decoder chip
  - aac  NeoGS rev.CM with VLSI VS1033/VS1053/VS1063 decoder chip
- - vgm  MoonSound (supported chips YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
+ - vgm  AY, MoonSound (chips YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
  - vgz  same as vgm
  - mwm  MoonSound
  - pt2  AY

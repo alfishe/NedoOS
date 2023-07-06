@@ -58,9 +58,7 @@ memorybufferloadfile
 	call closestream_file
 	pop af
 	ret z
-	call memorybufferfree
-	or 1
-	ret
+	jp memorybufferfree
 
 memorybufferallocate
 ;dehl = buffer size
@@ -91,9 +89,7 @@ memorybufferallocate
 	jr z,.pageallocated
 	ld a,c
 	ld (memorybufferpagecount),a
-	call memorybufferfree
-	or 1
-	ret
+	jp memorybufferfree
 
 .pageallocated
 	ld (hl),e
@@ -106,6 +102,7 @@ memorybufferallocate
 	ret
 
 memorybufferfree
+;out: zf=0 so that this function can be used to return error condition
 memorybufferpagecount=$+1
 	ld a,0
 	or a
@@ -121,6 +118,7 @@ memorybufferpagecount=$+1
 	pop bc
 	inc hl
 	djnz .pagefreeloop
+	inc b
 	ret
 
 memorybufferstart
@@ -270,6 +268,7 @@ memorybufferseek
 	sub e
 	ld d,a
 	ld a,(de)
+	ld (memorybuffercurrentpage),a
 	inc de
 	ld (memorybufferpageaddr),de
 	SETPG8000

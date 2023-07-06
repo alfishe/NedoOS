@@ -14,6 +14,7 @@ begin   PLAYERHEADER
 
 isfilesupported
 ;cde = file extension
+;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
 isgsdisabled=$+1
 	jr nosupportedfiles
 	call ismodfile
@@ -164,6 +165,7 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
+;out: zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismodfile
 	ld a,1
 	jr z,$+3

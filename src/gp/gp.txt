@@ -1,11 +1,11 @@
-gp.com - Проигрыватель для AY, GeneralSound, NeoGS, MoonSound, TurboSound
+gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound
 
 Поддерживаемые форматы:
  - mp3  NeoGS
  - mid  NeoGS rev.CM с декодером VLSI VS1003/VS1033/VS1053/VS1103
  - ogg  NeoGS rev.CM с декодером VLSI VS1053/VS1063
  - aac  NeoGS rev.CM с декодером VLSI VS1033/VS1053/VS1063
- - vgm  MoonSound (поддерживаемые чипы YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
+ - vgm  AY, MoonSound (чипы YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
  - vgz  аналогично vgm
  - mwm  MoonSound
  - pt2  AY

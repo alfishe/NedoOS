@@ -10,6 +10,7 @@ begin   PLAYERHEADER
 
 isfilesupported
 ;cde = file extension
+;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
 mwmsupported=$+1
 	ld a,'m'
 	cp c
@@ -62,6 +63,8 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
+;out: zf=1 if the file is ready for playing, zf=0 otherwise
+;
 ;First try loading wavekit with the same filename as input file.
 ;This allows overriding wavekit specified in MWM header without
 ;having the file edited.
@@ -79,7 +82,7 @@ filenameaddr=$+1
 	ld (hl),'m'
 	or a
 	jr z,loadmwkdata
-;din't find wavekit so now have to load and parse module header
+;didn't find wavekit, so now have to load and parse module header
 	ld de,(filenameaddr)
 	call openstream_file
 	or a
