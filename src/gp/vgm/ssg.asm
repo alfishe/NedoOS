@@ -5,7 +5,7 @@ SSG_DAT = 0xbffd
 ;e = register
 ;d = value
 	ld bc,SSG_REG
-	ld a,chip_n+%11111000
+	ld a,chip_n+%11111110
 	out (c),a
 	out (c),e
 	ld bc,SSG_DAT
