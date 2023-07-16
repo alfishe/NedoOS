@@ -1,4 +1,7 @@
 MOONSOUNDROMSIZE = 0x200000
+WAVETABLESIZE = 128 ;RAM samples only
+WAVEHEADERSIZE = 12
+WAVEHEADERBUFFERSIZE = WAVETABLESIZE*WAVEHEADERSIZE
 
 opl4writemusiconlyfm1
 ;skips writes to control registers
@@ -7,7 +10,7 @@ opl4writemusiconlyfm1
 	ld a,e
 	cp 0x20
 	jr nc,opl4writefm1
-	cp 0x8
+	cp 0x08
 	ret nz
 opl4writefm1
 ;e = register
@@ -25,7 +28,7 @@ opl4writemusiconlyfm2
 ;e = register
 ;d = value
 	ld a,e
-	cp 5
+	cp 0x05
 	jr nz,opl4writefm2
 ;TODO: skipping write to reg5 leads to a hang on some init sequences, but setting any 
 ;value to reg5 resets timer state. Is it possible to do something better here?
@@ -42,6 +45,35 @@ opl4writefm2
 	opl4_wait
 	ld a,d
 	out (MOON_DAT2),a
+	ret
+
+opl4writewavemusiconly
+;skips writes to control registers and handles ROM dumps
+;e = register
+;d = value
+	ld a,e
+	cp 0x38
+	jr nc,opl4writewave
+	cp 0x08
+	ret c
+	cp 0x20
+	jr c,writewavetableindexlo
+;force wave table index into 384--511 range if ROM data is loaded
+isromloaded=$+1
+	ld a,0
+	or d
+	ld d,a
+	jr opl4writewave
+writewavetableindexlo
+	ld a,(isromloaded)
+	rrca
+	or d
+	ld d,a
+	call opl4writewave
+;wait for the header to load
+	in a,(MOON_STAT)
+	and 3
+	jr nz,$-4
 	ret
 
 opl4writewave
@@ -88,6 +120,12 @@ opl4readwave
 	endm
 
 opl4init
+	xor a
+	ld (isromloaded),a
+	ld hl,MOONSOUNDROMSIZE%65536
+	ld (opl4loadramdatablockheader.romsize0),hl
+	ld a,MOONSOUNDROMSIZE/65536
+	ld (opl4loadramdatablockheader.romsize2),a
 	ld de,0x0305
 	call opl4writefm2
 	ld l,0xda
@@ -221,12 +259,14 @@ opl4loadromdatablockheader
 	call memorybufferread4 ;adbc = total rom size
 	ld (opl4loadramdatablockheader.romsize0),bc
 	ld a,d
+	add 0x20 ;place in RAM
 	ld (opl4loadramdatablockheader.romsize2),a
 	call memorybufferread4 ;adbc = start address
 	ld hl,bc
+	set 5,d ;place in RAM
 	exx
 	ld bc,8
-	jp sub24x16
+	jr sub24x16
 
 opl4loadramdatablockheader
 ;dhl = header+data size
@@ -235,15 +275,16 @@ opl4loadramdatablockheader
 	call memorybufferread4 ;adbc = total ram size
 	call memorybufferread4 ;adbc = start address
 .romsize0=$+1
-	ld hl,MOONSOUNDROMSIZE%65536
+	ld hl,0
 	add hl,bc
 .romsize2=$+1
-	ld a,MOONSOUNDROMSIZE/65536
+	ld a,0
 	adc a,d
+	and 0x3f
 	ld d,a
 	exx
 	ld bc,8
-	jp sub24x16
+	jr sub24x16
 
 setup24bitscounterloop
 ;dhl = counter
@@ -288,19 +329,39 @@ opl4loadsample
 	ld de,0x1002
 	jp opl4writewave
 
-opl4loadromdatablock
-;dhl = data+header size
-	call opl4loadromdatablockheader
-	ret z
-	exx
-	jr opl4loadsample
-
 opl4loadramdatablock
 ;dhl = data+header size
 	call opl4loadramdatablockheader
 	ret z
 	exx
 	jr opl4loadsample
+
+opl4loadromdatablock
+;dhl = data+header size
+	call opl4loadromdatablockheader
+	ret z
+	exx
+	call opl4loadsample
+;patch all 128 headers that LSI can read from RAM
+	ld a,1
+	ld (isromloaded),a
+	ld hl,MOONSOUNDROMSIZE%65536
+	ld d,MOONSOUNDROMSIZE/65536
+	ld bc,WAVEHEADERBUFFERSIZE
+	ld ix,waveheaderbuffer
+	call opl4readmemory
+	ld hl,waveheaderbuffer
+	ld de,WAVEHEADERSIZE
+	ld b,WAVETABLESIZE
+.loop
+	set 5,(hl) ;set base address in RAM area
+	add hl,de
+	djnz .loop
+	ld hl,MOONSOUNDROMSIZE%65536
+	ld d,MOONSOUNDROMSIZE/65536
+	ld bc,WAVEHEADERBUFFERSIZE
+	ld ix,waveheaderbuffer
+	jp opl4writememory
 
 opl4inittimer60hz
 	ld de,0x2f02

@@ -36,6 +36,12 @@ When you're playing <FileName>.mwm module, the player will try to load
 NONE then no wavekit is needed. Otherwise, the player will try to load 
 <WaveKitName>.mwk, and if there's no such file then .mwm won't be played.
 
+VGM from arcade machines based on YMF278B
+
+MoonSound can correctly play VGM dumps from an arcade only if all needed music
+samples are located in the 1st megabyte of sound ROM *and* in the first 128
+wave table entries.
+
 NeoGS rev.CM
 
 This player supports VLSI codecs other than MosArt MA8201A(U). Revision CM of
@@ -59,4 +65,5 @@ https://modarchive.org/
 https://opl.wafflenet.com/
 https://vgmrips.net/packs/
 https://download.file-hunter.com/Music/
+https://ftp.modland.com/pub/modules
 https://www.dropbox.com/s/ela2itiw23swsj7/Moonsound_pack_latest.zip

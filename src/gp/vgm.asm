@@ -328,7 +328,7 @@ cmdYMF278B
 	memory_buffer_read_3 c,e,d
 	dec c
 	jp z,opl4writemusiconlyfm2
-	jp p,opl4writewave
+	jp p,opl4writewavemusiconly
 	jp opl4writemusiconlyfm1
 
 cmdYM3812
@@ -1113,8 +1113,12 @@ bystr
 end
 
 GzipBuffersStart = $
-titlestr = $
+waveheaderbuffer = $
+waveheaderbufferend = waveheaderbuffer+WAVEHEADERBUFFERSIZE
+titlestr = waveheaderbufferend
+titlestrend = titlestr+TITLELENGTH
 
 	ASSERT GzipBuffersEnd <= 0x10000
+	ASSERT titlestrend <= 0x8000
 
 	savebin "vgm.bin",begin,end-begin

@@ -39,6 +39,12 @@ MOON_WREG = 0xc2 на MOON_WREG = 0x7e в файле moonsound.asm
 случае плеер попробует загрузить <ИмяКоллекции>.mwk, и если такого файла нет,
 то модуль проигрываться не будет.
 
+VGM файлы с аркадных автоматов на YMF278B
+
+MoonSound может правильно проигрывать музыку с аркадного автомата, если нужные
+музыке семплы находятся в первом мегабайте ПЗУ звукового процессора *и*
+в первых 128 элементах таблицы семплов.
+
 NeoGS ревизия CM
 
 Этот проигрыватель поддерживает множество декодеров VLSI, не только дефолтные
@@ -63,4 +69,5 @@ https://modarchive.org/
 https://opl.wafflenet.com/
 https://vgmrips.net/packs/
 https://download.file-hunter.com/Music/
+https://ftp.modland.com/pub/modules
 https://www.dropbox.com/s/ela2itiw23swsj7/Moonsound_pack_latest.zip
