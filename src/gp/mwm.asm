@@ -154,11 +154,23 @@ loadmwm
 
 	call start_music
 
-;turn off looping
-	ld a,255
-	ld (xloop),a
 ;set music length
+	ld a,(xloop)
+	ld c,a
+	ld b,0
+	cp 255
 	ld a,(xleng)
+	jr nc,noloopinmusic
+;the loop is played one additional time
+	ld l,a
+	ld h,b
+	add hl,hl
+	sbc hl,bc
+	ld a,l
+	srl h
+noloopinmusic
+	rra
+	adc a,b
 	call setprogressdelta
 ;make title avaialable
 	ld hl,MUSICTITLE
@@ -166,6 +178,11 @@ loadmwm
 ;null terminate string
 	xor a
 	ld (MUSICTITLE+50),a
+;init progress vars
+	ld (lastplaypos),a
+	ld (loopcounter),a
+	ld hl,0
+	ld (playposacc),hl
 	ret
 
 musicunload
@@ -180,12 +197,39 @@ musicplay
 	rla
 	jr nc,musicplay
 	call play_int
-
+;update progress
+lastplaypos=$+1
+	ld b,0
 	ld a,(play_pos)
+	ld (lastplaypos),a
+	sub b
+	jr z,playposunchanged
+	jr nc,loopwasnotencountered
+	ld hl,xleng
+	add a,(hl)
+	ld hl,xloop
+	sub (hl)
+	ld hl,loopcounter
+	inc (hl)
+loopwasnotencountered
+playposacc=$+1
+	ld hl,0
+	ld c,a
+	ld b,0
+	add hl,bc
+	ld (playposacc),hl
+	ld a,l
+	srl h
+	rra
 	call updateprogress
-
+playposunchanged
 	ld a,(play_busy)
 	or a
+	ret z
+loopcounter=$+1
+	ld a,0
+	cp 2 ;repeat the loop once
+	sbc a,a
 	ret
 
 strcopy_hltode

@@ -341,7 +341,12 @@ opl4loadromdatablock
 	call opl4loadromdatablockheader
 	ret z
 	exx
+	push de
 	call opl4loadsample
+	pop af
+;check if the address is within the first 64K of RAM
+	cp 0x21
+	ret nc
 ;patch all 128 headers that LSI can read from RAM
 	ld a,1
 	ld (isromloaded),a
