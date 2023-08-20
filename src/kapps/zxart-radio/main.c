@@ -503,7 +503,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     }
     fileSize = OS_GETFILESIZE(fp2);
     OS_SEEKHANDLE(fp2, fileSize);
-    OS_WRITEHANDLE(dataBuffer, fp2, sizeOfBuf);
+    OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
     OS_CLOSEHANDLE(fp2);
     return 0;
   }
@@ -604,7 +604,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   unsigned int todo;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
-  unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+  unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
   unsigned char userQuery[256] = "/types:zxMusic/export:zxMusic/language:eng/order:date,desc/filter:zxMusicFormat=PT3;authorId=7744";
   AT(1, 25);
   printf("Getting data(%u)...                                   ", queryNum);
@@ -753,10 +753,10 @@ unsigned char getTrack(unsigned long fileId)
 {
   unsigned int todo;
   unsigned char cmdlist1[] = "GET /file/id:";
-  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
-  unsigned int w, bPos, bytes2read, headskip;
+  unsigned int bytes2read, headskip;
   AT(1, 25);
   printf("Getting track...                      ");
 
@@ -770,10 +770,9 @@ unsigned char getTrack(unsigned long fileId)
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
 
   headskip = 0;
-  bPos = 0;
   bytecount = 255;
   saveBuf(curFileStruct.picId, 00, 0);
-  while (bytecount != 0)
+while (bytecount != 0)
   {
     todo = tcpRead(socket);
     if (todo == 0)
@@ -786,14 +785,8 @@ unsigned char getTrack(unsigned long fileId)
       headskip = 1;
       bytes2read = cutHeader(todo);
     }
-
-    for (w = 0; w < bytes2read; w++)
-    {
-      dataBuffer[w + bPos] = netbuf[w];
-    }
-    bytecount = bytecount - bytes2read;
-    bPos = 0;
     saveBuf(curFileStruct.picId, 01, bytes2read);
+    bytecount = bytecount - bytes2read;
   }
   netShutDown(socket);
   return 0;

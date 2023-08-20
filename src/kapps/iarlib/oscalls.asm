@@ -375,6 +375,27 @@ OS_NEWPAGE:
 	ret
 	ENDMOD
 
+
+// DE - старое имя, возможно с полным или относительным путём (ASCIIZ). HL - новое имя, пока что требуется такой же путь, как в DE.
+// out HL - указатель на последний элемент пути в этом буфере (NOT MSXDOS compatible! with Drive/path!)
+	MODULE OS_RENAME
+	PUBLIC OS_RENAME
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_RENAME:
+;	    ld de, oldname
+;       ld bc, newname
+	ld h,b
+	ld l,c
+	push ix
+	push iy
+	ld c,CMD_RENAME
+	call BDOS
+	pop iy
+	pop ix
+	ret
+	ENDMOD
+
 	MODULE OS_READSECTORS	;de= pointer to diskOp structure
 	PUBLIC OS_READSECTORS
 	#include "sysdefs.asm"

@@ -34,13 +34,14 @@ unsigned long OS_GETTIME(void); // out: bc=date, hl=time
 unsigned int OS_NEWPAGE(void);
 unsigned int OS_CHDIR(unsigned int trgPathPtr);
 unsigned int OS_GETPATH(unsigned int curPathPtr); // in: de = ptr to buffer out: hl = ptr to last symbol of path
-unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- ╤Б╨╕╤Б╤В╨╡╨╝╨╜╤Л╨╣ ╨┤╨╕╤Б╨║ ╨╜╨╡ ╨┐╤А╨╕╨╝╨╛╨╜╤В╨╕╤А╨╛╨▓╨░╨╜. L: -- ╨╛╨▒╤Й╨╡╨╡ ╨║╨╛╨╗╨╕╤З╨╡╤Б╤В╨▓╨╛ ╨┐╤А╨╕╨╝╨╛╨╜╤В╨╕╤А╨╛╨▓╨░╨╜╨╜╤Л╤Е ╨┤╨╕╤Б╨║╨╛╨▓.
+unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- системный диск не примонтирован. L: -- общее количество примонтированных дисков.
 unsigned int OS_NEWAPP(unsigned int trgPathPtr);
 unsigned int OS_RUNAPP(unsigned char pId); //e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID (unsigned char pId);
 unsigned int OS_HIDEFROMPARENT (void);
-unsigned long OS_STARTAPP(unsigned long appParamsPtr); //	;out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
-
+unsigned long OS_STARTAPP(unsigned long appParamsPtr); 	// out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
+unsigned int OS_RENAME(unsigned int oldName, unsigned int newName);		// DE - старое имя, возможно с полным или относительным путём (ASCIIZ). HL - новое имя, пока что требуется такой же путь, как в DE.
+														// out HL - указатель на последний элемент пути в этом буфере (NOT MSXDOS compatible! with Drive/path!)
 // End of Kulich area
 
 void SETPG32KHIGH(unsigned char page);
