@@ -40,8 +40,8 @@ unsigned int OS_RUNAPP(unsigned char pId); //e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID (unsigned char pId);
 unsigned int OS_HIDEFROMPARENT (void);
 unsigned long OS_STARTAPP(unsigned long appParamsPtr); 	// out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
-unsigned int OS_RENAME(unsigned int oldName, unsigned int newName);		// DE - старое имя, возможно с полным или относительным путём (ASCIIZ). HL - новое имя, пока что требуется такой же путь, как в DE.
-														// out HL - указатель на последний элемент пути в этом буфере (NOT MSXDOS compatible! with Drive/path!)
+unsigned int OS_RENAME(unsigned int oldName, unsigned int newName);		// DE - старое имя, возможно с полным или относительным путём (ASCIIZ). HL - новое имя, пока что требуется такой же путь, как в DE. // out HL - указатель на последний элемент пути в этом буфере (NOT MSXDOS compatible! with Drive/path!)
+unsigned int OS_DELETE(unsigned int fileName);		// DE - имя файла, возможно с полным или относительным путём (ASCIIZ).; А - ошибка. Если 0x00, то ошибки нет.												
 // End of Kulich area
 
 void SETPG32KHIGH(unsigned char page);

@@ -396,6 +396,29 @@ OS_RENAME:
 	ret
 	ENDMOD
 
+// DE - имя файла, возможно с полным или относительным путём (ASCIIZ).; А - ошибка. Если 0x00, то ошибки нет.												
+	MODULE OS_DELETE
+	PUBLIC OS_DELETE
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_DELETE:
+	push bc
+	push ix
+	push iy
+	ld c,CMD_DELETE
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ld h,0
+	ld l,a
+	ret
+	ENDMOD
+
+
+
+
+
 	MODULE OS_READSECTORS	;de= pointer to diskOp structure
 	PUBLIC OS_READSECTORS
 	#include "sysdefs.asm"
