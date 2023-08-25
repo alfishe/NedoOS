@@ -14,7 +14,7 @@ TCRC=0x6800 ;size 0x400, divisible by 0x400
 DISKBUF=0x6c00
 DISKBUFsz=0x1000
 
-frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;TODO почему не работает?kb=0;1kINopt=1border=0unexp=1;0masks=1
+frmcnt=1;0mmc=1;0crc=1;0tcrc=0;1 ;не работало из-за A!=0, fix 25.08.23kb=0;1kINopt=1border=0unexp=1;0masks=1
 retree=1 ;работает? (генератор кода для разгребания дерева Хаффмана) ;требуется reld длиной 0x0b08 (298*19/2-7)
 ;v1="0";v2="6";v3="1"
 COLOR=7
