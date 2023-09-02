@@ -63,9 +63,11 @@ MKTCRCe DJNZ MKTCRC1
         jr z,openerror
         ;jr nz,$+5
         ; ld hl,defaultfilename
-        ;ld (curfilenameaddr),hl
+        ld (curfilenameaddr),hl
         ex de,hl
         call openstream_file
+        or	a
+        jr	nz,openerror
 readloop0
         ld de,DISKBUF
         ld hl,DISKBUFsz
@@ -87,8 +89,11 @@ readloop0
         jr readloop0
 closequit
         call closestream_file
+curfilenameaddr equ $+1
         ld hl,txtcrc
         call prtext
+        ld	hl,txtdblspc
+        call	prtext
         ld hl,CRCArea
         ld a,(hl)
         cpl
@@ -169,6 +174,8 @@ prtext
         inc hl
         jr prtext
         
+txtdblspc
+	db	"  ",0
 txtcrc
         db "CRC32=",0
 txtcrlf
