@@ -61,11 +61,11 @@ makeresh "%temp%\image.lst" "%temp%\palette.lst" "%temp%\music.lst" "%temp%\samp
 
 rem компилируем исходник на C
 
-rem  sdcc -mz80 -I. -c ..\_sdk\evo.c
+sdcc -mz80 -I. -c ..\_sdk\evo.c
 rem copy evo.rel ..\_sdk\
 rem sdcc -mz80 --fno-omit-frame-pointer --xstack --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel ..\_sdk\evo.rel --opt-code-size main.c -o %temp%\out.ihx
-rem  sdcc -mz80 --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel evo.rel --opt-code-size --nogcse main.c -o %temp%\out.ihx
-rem del evo.rel
+sdcc -mz80 --code-loc 0x4000 --data-loc 0 --no-std-crt0 -I..\_sdk ..\_sdk\crt0.rel evo.rel --opt-code-size --nogcse main.c -o %temp%\out.ihx
+del evo.rel
 
 if ERRORLEVEL 1 goto clean
 
