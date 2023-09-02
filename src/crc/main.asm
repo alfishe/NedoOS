@@ -79,13 +79,18 @@ readloop0
         jr z,closequit
         ld b,h
         ld c,l
-        LD HL,(CRCArea+2)
-        LD DE,(CRCArea) 
-        ld iy,DISKBUF
-        ;ld bc,DISKBUFsz
-        call UPCRC
-        LD (CRCArea),DE
-        LD (CRCArea+2),HL 
+	
+	;BC -- size
+        ld	hl,DISKBUF
+        exx
+        LD	DE,(CRCArea+2)
+        LD	BC,(CRCArea)
+        exx
+        call	crc_loop
+        exx
+        LD	(CRCArea),BC
+        LD	(CRCArea+2),DE 
+
         jr readloop0
 closequit
         call closestream_file
@@ -181,37 +186,46 @@ txtcrc
 txtcrlf
         db 13,10,0
 
-;iy=buf
-;bc=size
-;edlh=crc
-UPCRC
-        PUSH BC
-        LD B,H
-        ld C,L
-        LD A,E
-        XOR (iy);(IX)
-        LD L,A
-        LD H,TCRC/256
-        LD A,(HL)
-        XOR D
-        LD E,A
-        INC H
-        LD A,(HL)
-        XOR C
-        LD D,A
-        INC H
-        LD A,(HL)
-        XOR B
-        INC H
-        LD H,(HL)
-        ld L,A
-        POP BC
-        INC iy;IX
-        DEC BC
-        LD A,B
-        OR C
-        JR NZ,UPCRC
-        RET  
+
+
+
+
+	;bc - size
+	;hl - ptr
+	;c'b'e'd' - crc
+crc_loop
+	ld	a,[hl]		;7
+	exx			;4
+
+	xor	c		;4
+	ld	l,a		;4
+
+	ld	h,TCRC/256	;7
+	ld	a,[hl]		;7
+	xor	b		;4
+	ld	c,a		;4
+
+	inc	h		;4
+	ld	a,[hl]		;7
+	xor	e		;4
+	ld	b,a		;4
+
+	inc	h		;4
+	ld	a,[hl]		;7
+	xor	d		;4
+	ld	e,a		;4
+
+	inc	h		;4
+	ld	d,[hl]		;7
+
+	exx			;4
+	cpi			;16
+	jp	pe,crc_loop	;10
+				; == 120 tc/byte
+	ret	;10
+
+
+
 
         include "../_sdk/file.asm"
         include "../_sdk/stdio.asm"
