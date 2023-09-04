@@ -555,6 +555,7 @@ OS_CHDIR:
 	ret
 	ENDMOD
 
+
 	MODULE OS_NEWAPP
 	PUBLIC OS_NEWAPP
 	#include "sysdefs.asm"

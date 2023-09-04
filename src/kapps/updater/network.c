@@ -17,50 +17,51 @@ void delay(unsigned long counter)
 
 void errorPrint(unsigned int error)
 {
+  clearStatus();
   AT(1, 25);
   switch (error)
   {
   case 2:
-    printf("02 SHUT_RDWR         ");
+    printf("02 SHUT_RDWR");
     break;
   case 4:
-    printf("04 ERR_INTR          ");
+    printf("04 ERR_INTR");
     break;
   case 23:
-    printf("23 ERR_NFILE         ");
+    printf("23 ERR_NFILE");
     break;
   case 35:
-    printf("35 ERR_EAGAIN        ");
+    printf("35 ERR_EAGAIN");
     break;
   case 37:
-    printf("37 ERR_ALREADY       ");
+    printf("37 ERR_ALREADY");
     break;
   case 38:
-    printf("38 ERR_NOTSOCK       ");
+    printf("38 ERR_NOTSOCK");
     break;
   case 40:
-    printf("40 ERR_EMSGSIZE      ");
+    printf("40 ERR_EMSGSIZE");
     break;
   case 41:
-    printf("41 ERR_PROTOTYPE     ");
+    printf("41 ERR_PROTOTYPE");
     break;
   case 47:
-    printf("47 ERR_AFNOSUPPORT   ");
+    printf("47 ERR_AFNOSUPPORT");
     break;
   case 53:
-    printf("53 ERR_ECONNABORTED  ");
+    printf("53 ERR_ECONNABORTED");
     break;
   case 54:
-    printf("54 ERR_CONNRESET     ");
+    printf("54 ERR_CONNRESET");
     break;
   case 57:
-    printf("57 ERR_NOTCONN       ");
+    printf("57 ERR_NOTCONN");
     break;
   case 65:
-    printf("65 ERR_HOSTUNREACH   ");
+    printf("65 ERR_HOSTUNREACH");
     break;
   default:
-    printf("%u UNKNOWN ERROR     ", error);
+    printf("[%u] UNKNOWN ERROR", error);
     break;
   }
   YIELD();
@@ -77,10 +78,10 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
   {
+    clearStatus();
     AT(1, 25);
     printf("OS_NETSOCKET: ");
     errorPrint(todo & 255);
-    printf("                                  ");
     exit(0);
   }
   else
@@ -88,8 +89,9 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
     socket = ((todo & 65280) >> 8);
     if (logFlag)
     {
+      clearStatus();
       AT(1, 25);
-      printf("OS_NETSOCKET: Socket #%d created               ", socket);
+      printf("OS_NETSOCKET: Socket #%d created.", socket);
     }
   }
   return socket;
@@ -110,18 +112,19 @@ unsigned char netConnect(unsigned char socket)
   todo = OS_NETCONNECT(socket, &targetadr);
   if (todo > 32767)
   {
+    clearStatus();
     AT(1, 25);
     printf("OS_NETCONNECT: ");
     errorPrint(todo & 255);
-    printf("                        ");
     exit(0);
   }
   else
   {
     if (logFlag)
     {
+      clearStatus();
       AT(1, 25);
-      printf("OS_NETCONNECT: connected , %u            ", (todo & 255));
+      printf("OS_NETCONNECT: connected , %u", (todo & 255));
     }
   }
   return 0;
@@ -143,6 +146,7 @@ wizread:
     if (retry == 0)
     {
       err = todo & 255;
+      clearStatus();
       AT(1, 25);
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
@@ -156,18 +160,22 @@ wizread:
     retry--;
     if (1)
     {
-      AT(54, 25);
-      printf("OS_WIZNETREAD: retry %u   ", retry);
+      clearStatus();
+      AT(1, 25);
+      printf("OS_WIZNETREAD: retry [%u]", retry);
     }
     YIELD();
     YIELD();
-    delay(150);
+    delay(300);
+    YIELD();
+    YIELD();
     goto wizread;
   }
   if (logFlag)
   {
+    clearStatus();
     AT(1, 25);
-    printf("OS_WIZNETREAD: %u bytes read.            ", todo);
+    printf("OS_WIZNETREAD: %u bytes read.", todo);
   }
   return todo;
 }
@@ -186,8 +194,9 @@ unsigned int netShutDown(unsigned char socket)
   {
     if (logFlag)
     {
+      clearStatus();
       AT(1, 25);
-      printf("OS_NETSHUTDOWN: Socket #%u closed.                 ", socket);
+      printf("OS_NETSHUTDOWN: Socket #%u closed.", socket);
     }
   }
   return 0;
@@ -200,15 +209,16 @@ unsigned int cutHeader(unsigned int todo)
   count = strstr(netbuf, "Content-Length:");
   if (count == NULL)
   {
+    clearStatus();
     AT(1, 25);
-    printf("Content-Length:  not found          ");
+    printf("Content-Length:  not found.");
     contLen = 0;
   }
   else
   {
     contLen = atol(count + 15);
     bytecount = contLen;
-    //    AT (1,1);
+    //    AT (1,25);
     //      printf("=> Dlinna  soderzhimogo = %lu \n\r", bytecount);
   }
 
@@ -216,6 +226,7 @@ unsigned int cutHeader(unsigned int todo)
   headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
   q = todo - headlng;
   memcpy(&netbuf, count + 4, q);
+  //    AT (1,25);
   // printf ("header removed. %u bytes\r\n", headlng);
   return q;
 }
@@ -223,28 +234,31 @@ unsigned int cutHeader(unsigned int todo)
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
   unsigned char fileName[255];
+
   if (operation == 00)
   {
     strcpy(fileName, fileNamePtr);
     fp2 = OS_CREATEHANDLE(fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
+      clearStatus();
       AT(1, 25);
       printf(fileName);
-      printf(" creating error               ");
+      printf(" creating error.");
       exit(0);
     }
     OS_CLOSEHANDLE(fp2);
     fp2 = OS_OPENHANDLE(fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
-
+      clearStatus();
       AT(1, 25);
       printf(fileName);
-      printf(" opening error               ");
+      printf(" opening error.");
 
       exit(0);
     }
+    AT(1, 25);
     return 0;
   }
 
@@ -278,10 +292,10 @@ wizwrite:
   todo = OS_WIZNETWRITE(&readStruct);
   if (todo > 32767)
   {
+    clearStatus();
     AT(1, 25);
     printf("OS_WIZNETWRITE: ");
     errorPrint(todo & 255);
-    printf("                       ");
     if (retry == 0)
     {
       exit(0);
@@ -295,8 +309,9 @@ wizwrite:
   {
     if (logFlag)
     {
+      clearStatus();
       AT(1, 25);
-      printf("OS_WIZNETWRITE: %u bytes written.           ", todo);
+      printf("OS_WIZNETWRITE: %u bytes written.", todo);
     }
   }
   return todo;
@@ -305,17 +320,15 @@ wizwrite:
 unsigned char getFile(unsigned char *fileNamePtr)
 {
   unsigned int todo;
-  // unsigned char cmdlist1[] = "GET /images/release.zip HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char cmdlist1[] = "GET /svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1 HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
-
   unsigned char socket;
   unsigned int bytes2read, headskip;
-  AT(1, 25);
-  printf("Getting file...                      ");
+  clearStatus();
+  AT(cw.x + 1, cw.y + 3);
+  printf("File:bin.zip Downloaded:");
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
   todo = tcpSend(socket, (unsigned int)&cmdlist1, strlen(cmdlist1));
-
   headskip = 0;
   bytecount = 255;
   downloaded = 0;
@@ -335,11 +348,12 @@ unsigned char getFile(unsigned char *fileNamePtr)
     }
     saveBuf(fileNamePtr, 01, bytes2read);
     bytecount = bytecount - bytes2read;
+
     key = _low_level_get();
     if (key == 27)
     {
-  	saveBuf(fileNamePtr, 02, 00);
-    fatalError("File download aborted!");
+      saveBuf(fileNamePtr, 02, 00);
+      fatalError("File download aborted!");
     }
   }
   saveBuf(fileNamePtr, 02, 00);
