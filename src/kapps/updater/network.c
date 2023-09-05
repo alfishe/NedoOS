@@ -316,19 +316,22 @@ wizwrite:
   }
   return todo;
 }
-
-unsigned char getFile(unsigned char *fileNamePtr)
+unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
   unsigned int todo;
-  unsigned char cmdlist1[] = "GET /svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1 HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+  unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
   unsigned char socket;
   unsigned int bytes2read, headskip;
+  strcpy(netbuf, "GET ");
+  strcat(netbuf, fileLink);
+  strcat(netbuf, cmdlist1);
   clearStatus();
   AT(cw.x + 1, cw.y + 3);
-  printf("File:bin.zip Downloaded:");
+  printf("File:%s", fileNamePtr);
+  printf(" Downloaded:");
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
-  todo = tcpSend(socket, (unsigned int)&cmdlist1, strlen(cmdlist1));
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
   headskip = 0;
   bytecount = 255;
   downloaded = 0;
