@@ -32,13 +32,12 @@ struct window
 
 } cw;
 unsigned int bufSize = 1500;
-unsigned char netbuf[2000];
-
+unsigned char netbuf[4000];
 
 void clearStatus(void)
 {
-	AT(1, 25);
-	printf("                                                                               ");
+	AT(1, 24);
+	printf("                                                                                ");
 }
 
 void printTable(void)
@@ -155,10 +154,10 @@ void infoBox(unsigned char *message)
 	else
 		cw.w = strlen(cw.tittle) + 2;
 	cw.x = 80 / 2 - cw.w / 2;
-	cw.y = 11;
+	cw.y = 15;
 	cw.h = 4;
 	cw.text = 97;
-	cw.back = 43;
+	cw.back = 42;
 
 	drawWindow(cw);
 	AT(cw.x + 2, cw.y + 3);
@@ -185,7 +184,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	fp2 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp2) & 0xff)
 	{
-		AT(1, 25);
+		AT(1, 24);
 		printf(fileName);
 		printf(" not found.               ");
 		exit(0);
@@ -202,7 +201,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	}
 	OS_CLOSEHANDLE(fp2);
 	clearStatus();
-	AT(1, 25);
+	AT(1, 24);
 	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, command);
 	YIELD();
 	delay(250);
@@ -217,7 +216,7 @@ unsigned char OS_SHELL(unsigned char *command)
 void errorPrint(unsigned int error)
 {
 	clearStatus();
-	AT(1, 25);
+	AT(1, 24);
 	switch (error)
 	{
 	case 2:
@@ -278,7 +277,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
 	if (todo > 32767)
 	{
 		clearStatus();
-		AT(1, 25);
+		AT(1, 24);
 		printf("OS_NETSOCKET: ");
 		errorPrint(todo & 255);
 		exit(0);
@@ -306,7 +305,7 @@ unsigned char netConnect(unsigned char socket)
 	if (todo > 32767)
 	{
 		clearStatus();
-		AT(1, 25);
+		AT(1, 24);
 		printf("OS_NETCONNECT: ");
 		errorPrint(todo & 255);
 		exit(0);
@@ -330,7 +329,7 @@ wizread:
 		{
 			err = todo & 255;
 			clearStatus();
-			AT(1, 25);
+			AT(1, 24);
 			printf("OS_WIZNETREAD: ");
 			errorPrint(err);
 
@@ -373,7 +372,7 @@ unsigned int cutHeader(unsigned int todo)
 	if (count == NULL)
 	{
 		clearStatus();
-		AT(1, 25);
+		AT(1, 24);
 		printf("Content-Length:  not found.");
 		contLen = 0;
 	}
@@ -381,7 +380,7 @@ unsigned int cutHeader(unsigned int todo)
 	{
 		contLen = atol(count + 15);
 		bytecount = contLen;
-		//    AT (1,25);
+		//    AT (1,24);
 		//      printf("=> Dlinna  soderzhimogo = %lu \n\r", bytecount);
 	}
 
@@ -403,7 +402,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			AT(1, 25);
+			AT(1, 24);
 			printf(fileName);
 			printf(" creating error.");
 			exit(0);
@@ -413,13 +412,13 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			AT(1, 25);
+			AT(1, 24);
 			printf(fileName);
 			printf(" opening error.");
 
 			exit(0);
 		}
-		AT(1, 25);
+		AT(1, 24);
 		return 0;
 	}
 
@@ -427,8 +426,6 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	{
 		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
 		downloaded = downloaded + sizeOfBuf;
-		AT(cw.x + 26, cw.y + 3);
-		printf("%lu/%lu kb", downloaded / 1024, contLen / 1024);
 		return 0;
 	}
 
@@ -454,7 +451,7 @@ wizwrite:
 	if (todo > 32767)
 	{
 		clearStatus();
-		AT(1, 25);
+		AT(1, 24);
 		printf("OS_WIZNETWRITE: ");
 		errorPrint(todo & 255);
 		if (retry == 0)
@@ -479,9 +476,6 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	strcat(netbuf, fileLink);
 	strcat(netbuf, cmdlist1);
 	clearStatus();
-	AT(cw.x + 2, cw.y + 3);
-	printf("File:%s", fileNamePtr);
-	printf(" Downloaded:");
 	socket = OpenSock(AF_INET, SOCK_STREAM);
 	todo = netConnect(socket);
 	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
@@ -502,6 +496,9 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			headskip = 1;
 			bytes2read = cutHeader(todo);
 		}
+		AT(1, 24);
+		printf(" Downloaded %lu of %lu kb", downloaded / 1024, contLen / 1024);
+
 		saveBuf(fileNamePtr, 01, bytes2read);
 		bytecount = bytecount - bytes2read;
 
@@ -547,29 +544,30 @@ C_task main(int argc, char *argv[])
 	case 1:
 		strcpy(machineName, "ZX-Evolution");
 		strcpy(kernelName, "sd_boot.$C");
-		strcpy(kernelLink, "GET /svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
 		break;
 	case 2:
 		strcpy(machineName, "TURBO 2+");
 		strcpy(kernelName, "osatm2hd.$C");
-		strcpy(kernelLink, "GET /svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fosatm2hd.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fosatm2hd.%24C");
+
 		break;
 
 	case 3: // SD HDD versions
 		strcpy(machineName, "TURBO 3 [SD]");
 		strcpy(kernelName, "osatm3hd.$C");
-		strcpy(kernelLink, "GET /svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fosatm3hd.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fosatm3hd.%24C");
 		break;
 	case 6: // SD HDD versions
 		strcpy(machineName, "P2.666 [SD]");
 		strcpy(kernelName, "osp26sd.$C");
-		strcpy(kernelLink, "GET /svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fosp26sd.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fosp26sd.%24C");
 		break;
 
 	default:
 		strcpy(machineName, "NOT DETECED (ZX-Evo)");
 		strcpy(kernelName, "sd_boot.$C");
-		strcpy(kernelLink, "GET /svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
 		break;
 	}
 	strcat(cw.tittle, " (");
@@ -583,7 +581,15 @@ C_task main(int argc, char *argv[])
 	OS_DELETE((unsigned int)&"bin.zip");
 	OS_DELETE((unsigned int)&"bin.tar");
 	OS_DELETE((unsigned int)&"bin.old");
+	OS_DELETE((unsigned int)&"bin.r17");
+	OS_DELETE((unsigned int)&"bin.r18");
+	OS_DELETE((unsigned int)&"bin.r19");	
+	OS_DELETE((unsigned int)&"bin.r20");
 	
+	clearStatus();
+	AT(cw.x + 2, cw.y + 3);
+	printf("Downloading file: bin.zip");
+
 	errn = getFile(binLink, "bin.zip"); //  Downloading the file
 	if (downloaded != contLen)
 	{
@@ -593,37 +599,67 @@ C_task main(int argc, char *argv[])
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
 	OS_SHELL("pkunzip.com bin.zip");
-	
+
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
 
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 3);
 	printf("Renaming bin.r?? to bin.tar");
+
 	errn = OS_RENAME((unsigned int)&"bin.r17", (unsigned int)&"bin.tar");
 	errn = OS_RENAME((unsigned int)&"bin.r18", (unsigned int)&"bin.tar");
 	errn = OS_RENAME((unsigned int)&"bin.r19", (unsigned int)&"bin.tar");
 	errn = OS_RENAME((unsigned int)&"bin.r20", (unsigned int)&"bin.tar");
+
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 4);
 	printf("Untaring bin.tar, please wait");
-	
+
 	OS_SHELL("tar.com bin.tar");
-	
+
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 5);
 	printf("Backuping old bin to bin.old");
-	
+
 	OS_SHELL("ren bin bin.old");
+
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 6);
 	printf("Renaming new bin directory.");
 	errn = OS_RENAME((unsigned int)&"bin.r17", (unsigned int)&"bin");
 	errn = OS_RENAME((unsigned int)&"bin.r18", (unsigned int)&"bin");
-	errn = OS_RENAME((unsigned int)&"bin.r19", (unsigned int)&"bin");
-	errn = OS_RENAME((unsigned int)&"bin.r20", (unsigned int)&"bin");
-	
+
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 7);
 	printf("Deleting zip&tar");
 
 	OS_SHELL("del bin.zip");
 	OS_SHELL("del bin.tar");
+
+	clearStatus();
+	AT(cw.x + 2, cw.y + 8);
+	printf("Downloading file: %s",kernelName);
+	errn = getFile(kernelLink, "kernel.tmp"); //  Downloading the file
+	if (downloaded != contLen)
+	{
+		fatalError("File download error!");
+	}
+
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	AT(cw.x + 2, cw.y + 9);
+	printf("Updating kernel[%s]", kernelName);
+
+	OS_DELETE((unsigned int)&kernelName);
+	strcpy(kernelLink, "ren kernel.tmp ");
+	strcat(kernelLink, kernelName);
+	OS_SHELL(kernelLink);
 
 	infoBox("System Updated successfully");
 	getchar();
@@ -648,19 +684,4 @@ Clean install
  - Распаковать все содержимое.
 Clean install config restore
  - восстановление из old конфигов
-
-
-
-http://svn.zxevo.ru/filedetails.php?repname=pentevo&path=%2Fcfgs%2Fstandalone_base_trdemu%2Ftrunk%2Fzxevo_fw.bin
-
-http://nedoos.ru/svn/filedetails.php?repname=NedoOS&path=%2Frelease%2F&#a624589277887c546d3fb998aee08482f
-
-http://nedoos.ru/svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fdoc%2F3ws.txt
-
-http://nedoos.ru/svn/dl.php?repname=NedoOS&path=%2Frelease%2F&isdir=1&rev=1766&peg=1766
-
-http://nedoos.ru/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1
-
-http://nedoos.ru/svn/filedetails.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C
-
 */

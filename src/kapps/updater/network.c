@@ -346,6 +346,9 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
     bytes2read = todo;
     if (headskip == 0)
     {
+      AT(1,1);
+      printf("\r\n netbuf:%s", netbuf);
+      getchar();
       headskip = 1;
       bytes2read = cutHeader(todo);
     }
