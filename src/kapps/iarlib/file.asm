@@ -47,7 +47,8 @@ label1:
 	
 	MODULE OSDIRCALLS
 ;	PUBLIC OS_CHDIR
-	PUBLIC OS_MKDIR,OS_DELETE,OS_OPENDIR,OS_READDIR,OS_CHDRV
+;	PUBLIC OS_DELETE
+	PUBLIC OS_MKDIR,OS_OPENDIR,OS_READDIR,OS_CHDRV
 	EXTERN errno
 	#include "sysdefs.asm"
 	RSEG CODE
@@ -59,10 +60,10 @@ OS_OPENDIR:
 	push bc
 	ld c,CMD_OPENDIR	
 	jr label1
-OS_DELETE:
-	push bc
-	ld c,CMD_DELETE	
-	jr label1
+;OS_DELETE:
+;	push bc
+;	ld c,CMD_DELETE	
+;	jr label1
 OS_MKDIR:
 	push bc
 	ld c,CMD_MKDIR	

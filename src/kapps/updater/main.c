@@ -11,6 +11,7 @@
 #include <math.h>
 
 unsigned char is_atm;
+unsigned int errn;
 unsigned long contLen;
 unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
@@ -31,8 +32,13 @@ struct window
 	unsigned char tittle[80];
 
 } cw;
-unsigned int bufSize = 1500;
-unsigned char netbuf[4000];
+unsigned char kernelName[32];
+unsigned char machineName[32];
+unsigned char kernelLink[256];
+
+unsigned int bufSize = 2000;
+unsigned char netbuf[2048];
+unsigned char netbuf2[2048];
 
 void clearStatus(void)
 {
@@ -43,7 +49,6 @@ void clearStatus(void)
 void printTable(void)
 {
 	unsigned int cycle;
-	// OS_RENAME((unsigned int)&"doc",(unsigned int)&"doc.new");
 
 	for (cycle = 32; cycle < 256; cycle++)
 	{
@@ -167,45 +172,50 @@ void infoBox(unsigned char *message)
 
 unsigned char OS_SHELL(unsigned char *command)
 {
-	FILE *fp2;
 	unsigned char fileName[] = "cmd.com";
 	unsigned char appCmd[128] = "cmd.com ";
+	unsigned char diskBuf[1024];
 	unsigned int shellSize, loaded, loop;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
 	unsigned char curPath[256];
+
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_0;
+
 	OS_GETPATH((unsigned int)&curPath);
 	strcat(appCmd, command);
-	strcat(appCmd, "\0");
 	OS_SETSYSDRV();
 	fp2 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp2) & 0xff)
 	{
+		clearStatus();
 		AT(1, 24);
 		printf(fileName);
-		printf(" not found.               ");
+		printf(" not found.");
+		getchar();
 		exit(0);
 	}
 	shellSize = OS_GETFILESIZE(fp2);
-	OS_CHDIR((unsigned int)&curPath);
+	OS_CHDIR(curPath);
 	OS_NEWAPP((unsigned int)&shell_pg);
 	SETPG32KHIGH(shell_pg.pgs.window_3);
 	memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
 	for (loop = 0; loop < shellSize; loop = loop + loaded)
 	{
-		loaded = OS_READHANDLE(netbuf, fp2, bufSize);
-		memcpy((char *)(0xC100 + loop), &netbuf, loaded);
+		loaded = OS_READHANDLE(diskBuf, fp2, sizeof(diskBuf));
+		memcpy((char *)(0xC100 + loop), &diskBuf, loaded);
 	}
 	OS_CLOSEHANDLE(fp2);
+	SETPG32KHIGH(pgbak);
+
 	clearStatus();
 	AT(1, 24);
-	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, command);
+	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	YIELD();
 	delay(250);
-	SETPG32KHIGH(pgbak);
+
 	OS_RUNAPP(shell_pg.pgs.pId);
 	OS_WAITPID(shell_pg.pgs.pId);
 	return shell_pg.pgs.pId;
@@ -315,7 +325,7 @@ unsigned char netConnect(unsigned char socket)
 
 unsigned int tcpRead(unsigned char socket)
 {
-	unsigned char retry = 100;
+	unsigned char retry = 250;
 	unsigned int err, todo;
 	readStruct.socket = socket;
 	readStruct.BufAdr = (unsigned int)&netbuf;
@@ -483,6 +493,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	bytecount = 255;
 	downloaded = 0;
 	saveBuf(fileNamePtr, 00, 0);
+	AT(1, 24);
+	printf(" %s ", fileNamePtr);
 	while (bytecount != 0)
 	{
 		todo = tcpRead(socket);
@@ -496,8 +508,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			headskip = 1;
 			bytes2read = cutHeader(todo);
 		}
-		AT(1, 24);
-		printf(" Downloaded %lu of %lu kb", downloaded / 1024, contLen / 1024);
+		AT(34, 24);
+		printf("%lu of %lu kb", downloaded / 1024, contLen / 1024);
 
 		saveBuf(fileNamePtr, 01, bytes2read);
 		bytecount = bytecount - bytes2read;
@@ -511,32 +523,15 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	}
 	saveBuf(fileNamePtr, 02, 00);
 	netShutDown(socket);
+	if (downloaded != contLen)
+	{
+		fatalError("File download error!");
+	}
 	return 0;
 }
-
 ////////////////////////////////////////////////////
-
-C_task main(int argc, char *argv[])
+unsigned char getConfig(void)
 {
-	unsigned char kernelName[32];
-	unsigned char machineName[32];
-	unsigned char kernelLink[256];
-	unsigned char sysLetter;
-	unsigned int errn;
-	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
-	os_initstdio();
-	BOX(1, 1, 80, 25, 40, 176);
-	cw.x = 20;
-	cw.y = 5;
-	cw.w = 40;
-	cw.h = 10;
-	cw.text = 97;
-	cw.back = 44;
-	strcpy(cw.tittle, "nedoOS updater 0.1");
-
-	OS_SETSYSDRV();
-	errn = OS_CHDIR((unsigned int)&"..");
-
 	is_atm = (unsigned char)OS_GETCONFIG();
 	// H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page
 	switch ((is_atm))
@@ -570,102 +565,241 @@ C_task main(int argc, char *argv[])
 		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
 		break;
 	}
+	return is_atm;
+}
+
+void getTools(void)
+{
+	unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fpkunzip.com";
+	unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Ftar.com";
+	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fcmd.com";
+	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fterm.com";
+	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fupdater.com";
+	errn = OS_MKDIR("bin");
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	errn = getFile(pkunzipLink, "bin/pkunzip.com");
+	errn = getFile(tarLink, "bin/tar.com");
+	errn = getFile(cmdLink, "bin/cmd.com");
+	errn = getFile(termLink, "bin/term.com");
+	errn = getFile(updLink, "bin/updater.com");
+}
+
+void deleteWorkFiles(void)
+{
+	OS_DELETE("bin.zip");
+	OS_DELETE("bin.tar");
+	OS_DELETE("bin.old"); // deleting not empty folders not supported
+	OS_DELETE("bin.r17");
+	OS_DELETE("bin.r18");
+	OS_DELETE("bin.r19");
+	OS_DELETE("bin.r20");
+}
+
+void deleteTempBin(void)
+{
+	OS_DELETE("bin/pkunzip.com");
+	OS_DELETE("bin/tar.com");
+	OS_DELETE("bin/cmd.com");
+	OS_DELETE("bin/term.com");
+	OS_DELETE("bin/updater.com");
+	OS_DELETE("bin");
+}
+
+void fullUpdate(void)
+{
+	unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
+
+	BOX(1, 1, 80, 25, 40, 176);
+	cw.x = 20;
+	cw.y = 5;
+	cw.w = 40;
+	cw.h = 10;
+	cw.text = 97;
+	cw.back = 45;
+	strcpy(cw.tittle, "nedoOS FULL updater 0.1");
+
+	getConfig();
+
+	OS_SETSYSDRV();
+	errn = OS_CHDIR("..");
+
+	strcat(cw.tittle, " (");
+	strcat(cw.tittle, machineName);
+	strcat(cw.tittle, ")");
+	drawWindow(cw);
+
+	OS_DELETE("release.zip");
+	OS_DELETE("bin.old");
+	OS_DELETE("doc.old");
+	OS_DELETE("nedodemo.old");
+	OS_DELETE("nedogame.old");
+
+	clearStatus();
+	AT(cw.x + 2, cw.y + 3);
+	printf("Downloading file: release.zip");
+
+	errn = getFile(relLink, "release.zip"); //  Downloading the file
+
+	clearStatus();
+	AT(cw.x + 2, cw.y + 4);
+	printf("Backuping old system.\r\n");
+	errn = OS_RENAME("bin", "bin.old");
+	errn = OS_RENAME("doc", "doc.old");
+	errn = OS_RENAME("nedodemo", "nedodemo.old");
+	errn = OS_RENAME("nedogame", "nedogame.old");
+
+	clearStatus();
+	AT(cw.x + 2, cw.y + 5);
+	printf("Downloading tools.\r\n");
+
+	getTools();
+
+	BOX(1, 1, 80, 25, 40, 32);
+	AT(1, 1);
+	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
+	YIELD();
+	OS_SHELL("pkunzip.com release.zip");
+	// BOX(1, 1, 80, 25, 40, 176);
+	// drawWindow(cw);
+	infoBox("System Updated successfully.");
+	getchar();
+	ATRIB(40);
+	ATRIB(32);
+	exit(0);
+}
+
+void binUpdate(void)
+{
+	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
+	BOX(1, 1, 80, 25, 40, 176);
+	cw.x = 20;
+	cw.y = 5;
+	cw.w = 40;
+	cw.h = 10;
+	cw.text = 97;
+	cw.back = 44;
+	strcpy(cw.tittle, "nedoOS BIN updater 0.1");
+	getConfig();
 	strcat(cw.tittle, " (");
 	strcat(cw.tittle, machineName);
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
 	OS_SETSYSDRV();
-	errn = OS_CHDIR((unsigned int)&"..");
+	errn = OS_CHDIR("..");
 
-	OS_DELETE((unsigned int)&"bin.zip");
-	OS_DELETE((unsigned int)&"bin.tar");
-	OS_DELETE((unsigned int)&"bin.old");
-	OS_DELETE((unsigned int)&"bin.r17");
-	OS_DELETE((unsigned int)&"bin.r18");
-	OS_DELETE((unsigned int)&"bin.r19");	
-	OS_DELETE((unsigned int)&"bin.r20");
-	
+	deleteWorkFiles();
+
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("Downloading file: bin.zip");
+	printf("Downloading bin.zip");
 
 	errn = getFile(binLink, "bin.zip"); //  Downloading the file
-	if (downloaded != contLen)
-	{
-		fatalError("File download error!");
-	}
-
+	
+	clearStatus();
+	AT(cw.x + 2, cw.y + 4);
+	printf("Downloading tools...");
+	getTools();
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
-	OS_SHELL("pkunzip.com bin.zip");
+	printf("Depacking release. Its take about 10 minutes. Please wait.\r\n");
+	YIELD();
 
+	OS_SHELL("pkunzip.com bin.zip");
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
 
+	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	AT(cw.x + 2, cw.y + 3);
 	printf("Renaming bin.r?? to bin.tar");
 
-	errn = OS_RENAME((unsigned int)&"bin.r17", (unsigned int)&"bin.tar");
-	errn = OS_RENAME((unsigned int)&"bin.r18", (unsigned int)&"bin.tar");
-	errn = OS_RENAME((unsigned int)&"bin.r19", (unsigned int)&"bin.tar");
-	errn = OS_RENAME((unsigned int)&"bin.r20", (unsigned int)&"bin.tar");
+	errn = OS_RENAME("bin.r17", "bin.tar"); // Masks not supported. Just some bad hardcode.
+	errn = OS_RENAME("bin.r18", "bin.tar");
+	errn = OS_RENAME("bin.r19", "bin.tar");
+	errn = OS_RENAME("bin.r20", "bin.tar");
 
+	AT(cw.x + 2, cw.y + 4);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	AT(cw.x + 2, cw.y + 4);
 	printf("Untaring bin.tar, please wait");
 
 	OS_SHELL("tar.com bin.tar");
 
-	ATRIB(cw.text);
-	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 5);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	printf("Backuping old bin to bin.old");
+	errn = OS_RENAME("bin", "bin.old");
 
-	OS_SHELL("ren bin bin.old");
-
-	ATRIB(cw.text);
-	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 6);
-	printf("Renaming new bin directory.");
-	errn = OS_RENAME((unsigned int)&"bin.r17", (unsigned int)&"bin");
-	errn = OS_RENAME((unsigned int)&"bin.r18", (unsigned int)&"bin");
-
 	ATRIB(cw.text);
 	ATRIB(cw.back);
+	printf("Renaming NEW BIN.");
+	
+	deleteTempBin();
+	
+	errn = OS_RENAME("bin.r17", "bin"); // Masks not supported. Just some bad hardcode.
+	errn = OS_RENAME("bin.r18", "bin");
+	errn = OS_RENAME("bin.r19", "bin");
+	errn = OS_RENAME("bin.r20", "bin");
+	
 	AT(cw.x + 2, cw.y + 7);
-	printf("Deleting zip&tar");
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("Deleting zip & tar.");
 
-	OS_SHELL("del bin.zip");
-	OS_SHELL("del bin.tar");
+	deleteWorkFiles();
+
+	AT(cw.x + 2, cw.y + 8);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("Downloading kernel: %s", machineName);
+
+	errn = getFile(kernelLink, kernelName); //  Downloading the file
+
+//	clearStatus();
+//	ATRIB(cw.text);
+//	ATRIB(cw.back);
+//	AT(cw.x + 2, cw.y + 9);
+//	printf("Updating kernel [%s]", kernelName);
+
+//	OS_DELETE(kernelName);
+//	errn = OS_RENAME("kernel.tmp", kernelName);
+
+//	strcpy(kernelLink, "ren kernel.tmp ");
+//	strcat(kernelLink, kernelName);
+//	OS_SHELL(kernelLink);
+
 
 	clearStatus();
-	AT(cw.x + 2, cw.y + 8);
-	printf("Downloading file: %s",kernelName);
-	errn = getFile(kernelLink, "kernel.tmp"); //  Downloading the file
-	if (downloaded != contLen)
-	{
-		fatalError("File download error!");
-	}
-
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	AT(cw.x + 2, cw.y + 9);
-	printf("Updating kernel[%s]", kernelName);
-
-	OS_DELETE((unsigned int)&kernelName);
-	strcpy(kernelLink, "ren kernel.tmp ");
-	strcat(kernelLink, kernelName);
-	OS_SHELL(kernelLink);
-
 	infoBox("System Updated successfully");
 	getchar();
 	ATRIB(40);
 	ATRIB(32);
 	exit(0);
+}
+
+C_task main(int argc, char *argv[])
+{
+	os_initstdio();
+
+	if (argc > 1)
+	{
+		if (argv[1] == "F")
+		{
+			fullUpdate();
+		}
+		else
+		{
+			fatalError("Use 'F' key to FULL update");
+		}
+	}
+	else
+	{
+		binUpdate();
+	}
 }
 
 /*
@@ -675,7 +809,7 @@ C_task main(int argc, char *argv[])
 [NEDOGAME]
 [kernel]
 
-
+full release http://nedoos.ru/images/release.zip
 
 Clean install
  - Переименовать выбранные папки
