@@ -308,6 +308,25 @@ ldaff_pophl
 	pop hl
 	ret
 
+sendcmd_waitDRQ
+	ld bc,hddcmd
+	out (C),a
+waitDRQ
+        ;ld a,(sys_timer)
+        ;add a,2
+        ;ld (waitDRQmaxtime),a
+	ld bc,hddstat
+waitDRQ0
+       ;ld a,(sys_timer)
+waitDRQmaxtime=$+1
+       ;cp 0
+       ;ret z
+	in a,(C)
+	and 0x88
+	cp 0x08
+	jr nz,waitDRQ0 ;®¦¨¤ ­¨¥ £®â®¢­®áâ¨ ¯¥à¥¤ ç¨ ¤ ­­ëå
+        ret
+
 readsectorsIDE
 ;b+a=head+device
 ;c=cylHI
@@ -323,15 +342,8 @@ readsectorsIDE
 ;a'=count
 	call setblockparsIDE
 	exa  
-	ld bc,hddcmd
 	ld a,0x20
-	out (C),a
-	ld bc,hddstat
-waitDRQ0
-	in a,(C)
-	and 0x88
-	cp 0x08
-	jr nz,waitDRQ0 ;®¦¨¤ ­¨¥ £®â®¢­®áâ¨ ¯¥à¥¤ ç¨ ¤ ­­ëå
+        call sendcmd_waitDRQ
 	exa  
 readsectorsIDE0
 	exa  
@@ -361,15 +373,8 @@ writesectorsIDE
 ;a'=count
 	call setblockparsIDE
 	exa  
-	ld bc,hddcmd
 	ld a,0x30
-	out (C),a
-	ld bc,hddstat
-waitDRQ01
-	in a,(C)
-	and 0x88
-	cp 0x08
-	jr nz,waitDRQ01 ;®¦¨¤ ­¨¥ £®â®¢­®áâ¨ ¯¥à¥¤ ç¨ ¤ ­­ëå
+        call sendcmd_waitDRQ
 	exa
 writesectorsIDE0
 	exa  

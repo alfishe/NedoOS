@@ -419,7 +419,7 @@ sys_sysint_jp=$+1
         jp 0
         
 on_int
-;в 0x4000 сейчас pg5, там стек
+;в 0x4000 сейчас pgtrdosfs;5, там стек
 focusappaddr=$+1
         ld hl,app1
         ld bc,app.gfxmode
@@ -539,9 +539,16 @@ on_int_oldssEnter=$+1
         jr c,sys_int_noselectapp
          call KEY_PUTREDRAW
 
+       ld a,(sys_curpg8000)
+       push af
+       ld a,(sys_curpgc000)
+       push af
+
         if 1==1
         ld iy,(focusappaddr)
-        call disablescrpgs_setc000
+        ;di
+        call disablescrpgs_setc000 ;портит sys_curpg8000, sys_curpgc000 
+        ;ei
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
         ld l,MAXAPPS
@@ -570,7 +577,7 @@ findnextgfxappq
         ;отключить страницы экрана этой задаче и выключить их в памяти задачи
         push hl
         pop iy
-        call disablescrpgs_setc000
+        call disablescrpgs_setc000 ;портит sys_curpg8000, sys_curpgc000 
         ld bc,-app_last;app_afterlast
         ld de,app_last+app_sz;app_sz
         ld a,MAXAPPS
@@ -601,9 +608,14 @@ findnextgfxappq
         pop iy
         endif
         
-        call enablescreeninapp_setc000
+        call enablescreeninapp_setc000 ;портит sys_curpg8000, sys_curpgc000 
         
         ;pop iy
+
+       pop af
+       ld (sys_curpgc000),a
+       pop af
+       ld (sys_curpg8000),a
         
 sys_int_noselectapp
 muzpg=$+1
@@ -636,6 +648,7 @@ muzcall=$+1
         out (c),a ;set gfx mode
         
         ld a,pgtrdosfs;pagexor-5
+        ;ld a,(sys_curpg4000)
         ld bc,memport4000
         out (c),a ;там INTSTACK
 sys_curpg8000=$+1
