@@ -38,7 +38,7 @@ unsigned char kernelLink[256];
 
 unsigned int bufSize = 2000;
 unsigned char netbuf[2048];
-unsigned char netbuf2[2048];
+unsigned char netbuf2[1024];
 
 void clearStatus(void)
 {
@@ -614,7 +614,7 @@ void fullUpdate(void)
 	cw.x = 20;
 	cw.y = 5;
 	cw.w = 40;
-	cw.h = 10;
+	cw.h = 7;
 	cw.text = 97;
 	cw.back = 45;
 	strcpy(cw.tittle, "nedoOS FULL updater 0.1");
@@ -637,13 +637,13 @@ void fullUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("Downloading file: release.zip");
+	printf("Downloading release.zip...");
 
 	errn = getFile(relLink, "release.zip"); //  Downloading the file
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
-	printf("Backuping old system.\r\n");
+	printf("Backuping old system...\r\n");
 	errn = OS_RENAME("bin", "bin.old");
 	errn = OS_RENAME("doc", "doc.old");
 	errn = OS_RENAME("nedodemo", "nedodemo.old");
@@ -651,7 +651,7 @@ void fullUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 5);
-	printf("Downloading tools.\r\n");
+	printf("Downloading tools...\r\n");
 
 	getTools();
 
@@ -660,10 +660,9 @@ void fullUpdate(void)
 	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
 	YIELD();
 	OS_SHELL("pkunzip.com release.zip");
-	// BOX(1, 1, 80, 25, 40, 176);
-	// drawWindow(cw);
 	infoBox("System Updated successfully.");
 	getchar();
+	OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
 	exit(0);
@@ -693,7 +692,7 @@ void binUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("Downloading bin.zip");
+	printf("Downloading bin.zip...");
 
 	errn = getFile(binLink, "bin.zip"); //  Downloading the file
 	
@@ -703,7 +702,7 @@ void binUpdate(void)
 	getTools();
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
-	printf("Depacking release. Its take about 10 minutes. Please wait.\r\n");
+	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
 	YIELD();
 
 	OS_SHELL("pkunzip.com bin.zip");
@@ -713,7 +712,7 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Renaming bin.r?? to bin.tar");
+	printf("Renaming bin.r?? to bin.tar...");
 
 	errn = OS_RENAME("bin.r17", "bin.tar"); // Masks not supported. Just some bad hardcode.
 	errn = OS_RENAME("bin.r18", "bin.tar");
@@ -723,20 +722,20 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 4);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Untaring bin.tar, please wait");
+	printf("Untaring bin.tar, please wait...");
 
 	OS_SHELL("tar.com bin.tar");
 
 	AT(cw.x + 2, cw.y + 5);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Backuping old bin to bin.old");
+	printf("Backuping old bin to bin.old...");
 	errn = OS_RENAME("bin", "bin.old");
 
 	AT(cw.x + 2, cw.y + 6);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Renaming NEW BIN.");
+	printf("Renaming NEW BIN...");
 	
 	deleteTempBin();
 	
@@ -748,30 +747,16 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 7);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Deleting zip & tar.");
+	printf("Deleting zip & tar...");
 
 	deleteWorkFiles();
 
 	AT(cw.x + 2, cw.y + 8);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Downloading kernel: %s", machineName);
+	printf("Downloading kernel for %s", machineName);
 
 	errn = getFile(kernelLink, kernelName); //  Downloading the file
-
-//	clearStatus();
-//	ATRIB(cw.text);
-//	ATRIB(cw.back);
-//	AT(cw.x + 2, cw.y + 9);
-//	printf("Updating kernel [%s]", kernelName);
-
-//	OS_DELETE(kernelName);
-//	errn = OS_RENAME("kernel.tmp", kernelName);
-
-//	strcpy(kernelLink, "ren kernel.tmp ");
-//	strcat(kernelLink, kernelName);
-//	OS_SHELL(kernelLink);
-
 
 	clearStatus();
 	infoBox("System Updated successfully");
@@ -787,12 +772,14 @@ C_task main(int argc, char *argv[])
 
 	if (argc > 1)
 	{
-		if (argv[1] == "F")
+		if (argv[1][0] == 'F')
 		{
 			fullUpdate();
 		}
 		else
 		{
+			AT(1,1);
+			printf ("argv[1] = [%u]", argv[1]);
 			fatalError("Use 'F' key to FULL update");
 		}
 	}
