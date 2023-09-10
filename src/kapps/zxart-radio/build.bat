@@ -1,4 +1,3 @@
-cls
 "../../../tools/mingw/make.exe" -f makefile %1
 "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put zxartrad.com /bin/zxartrad.com
 "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put player.ovl /bin/Radio/player.ovl
