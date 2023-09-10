@@ -819,7 +819,7 @@ unsigned char runPlayer(void)
     exit(0);
   }
   playerSize = OS_GETFILESIZE(fp2);
-  OS_CHDIR((unsigned int)&curPath);
+  OS_CHDIR(curPath);
   OS_NEWAPP((unsigned int)&player_pg);
   SETPG32KHIGH(player_pg.pgs.window_3);
   memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));

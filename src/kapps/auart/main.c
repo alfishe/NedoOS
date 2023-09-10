@@ -14,7 +14,6 @@ int bufferPos;
 int endPos;
 int curpos;
 int oldpos;
-
 unsigned char cursorX;
 unsigned char cursorY;
 

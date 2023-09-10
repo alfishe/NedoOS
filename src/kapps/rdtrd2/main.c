@@ -5,7 +5,6 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <terminal.c>
-
 	unsigned char trdBuf[8192];
 	unsigned char fileName[256];
 	struct diskOp readParam;
