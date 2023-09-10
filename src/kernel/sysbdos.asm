@@ -3167,21 +3167,27 @@ tsys_pages
         ifdef FREEPG0
         db 0
         else
-        db 0xff
+        db 0xff ;pg0 reserved
         endif
-        ds 3,0xff ;системные страницы 128K: 1,2,3
-        ifdef FREEPG4
+        db 0xff ;pg1 reserved (screen)
+        ifdef FREEPG2
         db 0
         else
-        db 0xff
+        db 0xff ;pg2 reserved
         endif
-        db 0xff ;pg5
+        db 0xff ;pg3 reserved (screen)
+        ;ifdef FREEPG4
+        ;db 0
+        ;else
+        db 0xff ;pg4 reserved (killable)
+        ;endif
+        db 0xff ;pg5 reserved (screen)
         ifdef FREEPG6
         db 0
         else
-        db 0xff
+        db 0xff ;pg6 reserved
         endif
-        db 0xff ;pg7
+        db 0xff ;pg7 reserved (screen)
 ;;;;;;;;;;
         if TOPDOWNMEM
         db 0,0,0,0

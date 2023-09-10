@@ -12,7 +12,7 @@ echo 	define ATMRESIDENT >> _sdk\syssets.asm
 rem echo 	define USETOPDOWNMEM >> _sdk\syssets.asm
 echo 	define KEEPPG38 >> _sdk\syssets.asm
 rem echo 	define FREEPG0 >> _sdk\syssets.asm
-rem echo 	define FREEPG4 >> _sdk\syssets.asm
+rem echo 	define FREEPG2 >> _sdk\syssets.asm
 rem echo 	define FREEPG6 >> _sdk\syssets.asm
 set makeall=1
 FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo define SVNREVISION %%i >> _sdk\syssets.asm
