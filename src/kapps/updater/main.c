@@ -596,16 +596,6 @@ void deleteWorkFiles(void)
 	OS_DELETE("bin.r20");
 }
 
-void deleteTempBin(void)
-{
-	OS_DELETE("bin/pkunzip.com");
-	OS_DELETE("bin/tar.com");
-	OS_DELETE("bin/cmd.com");
-	OS_DELETE("bin/term.com");
-	OS_DELETE("bin/updater.com");
-	OS_DELETE("bin");
-}
-
 void fullUpdate(void)
 {
 	unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
@@ -668,6 +658,23 @@ void fullUpdate(void)
 	exit(0);
 }
 
+void bin2old(void)
+{
+	unsigned char *binName = "bin.old";
+	unsigned char counter = 0;
+	errn = 255;
+	while (errn != 0)
+	{
+		errn = OS_RENAME("bin", (void *)binName);
+		sprintf(binName, "bin.%u", counter);
+		counter++;
+		if (counter == 255)
+		{
+			fatalError("Unable to rename old bin folder");
+		}
+	}
+}
+
 void binUpdate(void)
 {
 	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
@@ -695,11 +702,13 @@ void binUpdate(void)
 	printf("Downloading bin.zip...");
 
 	errn = getFile(binLink, "bin.zip"); //  Downloading the file
-	
+
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
 	printf("Downloading tools...");
+	
 	getTools();
+	
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
 	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
@@ -730,20 +739,19 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Backuping old bin to bin.old...");
-	errn = OS_RENAME("bin", "bin.old");
+
+	bin2old();
 
 	AT(cw.x + 2, cw.y + 6);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Renaming NEW BIN...");
-	
-	deleteTempBin();
-	
+
 	errn = OS_RENAME("bin.r17", "bin"); // Masks not supported. Just some bad hardcode.
 	errn = OS_RENAME("bin.r18", "bin");
 	errn = OS_RENAME("bin.r19", "bin");
 	errn = OS_RENAME("bin.r20", "bin");
-	
+
 	AT(cw.x + 2, cw.y + 7);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
@@ -754,12 +762,12 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 8);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Downloading kernel for %s", machineName);
+	printf("Downloading kernel [%s]...", machineName);
 
 	errn = getFile(kernelLink, kernelName); //  Downloading the file
 
 	clearStatus();
-	infoBox("System Updated successfully");
+	infoBox("System Updated successfully!");
 	getchar();
 	ATRIB(40);
 	ATRIB(32);
@@ -778,8 +786,8 @@ C_task main(int argc, char *argv[])
 		}
 		else
 		{
-			AT(1,1);
-			printf ("argv[1] = [%u]", argv[1]);
+			AT(1, 1);
+			printf("argv[1] = [%u]", argv[1]);
 			fatalError("Use 'F' key to FULL update");
 		}
 	}
