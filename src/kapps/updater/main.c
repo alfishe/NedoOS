@@ -260,7 +260,7 @@ unsigned char getConfig(void)
 	}
 	return is_atm;
 }
-
+// Downloading minimal tools for updating/boot
 void getTools(void)
 {
 	unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fpkunzip.com";
@@ -307,7 +307,7 @@ void ren2old(unsigned char *name)
 		}
 	}
 }
-
+// Download, backup, unpack release.bin
 void fullUpdate(void)
 {
 	unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
@@ -370,7 +370,7 @@ void fullUpdate(void)
 	ATRIB(32);
 	exit(0);
 }
-
+//Updating only BIN folders, where is OS lives.
 void binUpdate(void)
 {
 	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
@@ -492,21 +492,3 @@ C_task main(int argc, char *argv[])
 		binUpdate();
 	}
 }
-
-/*
-[BIN]
-[DOC]
-[NEDODEMO]
-[NEDOGAME]
-[kernel]
-
-full release http://nedoos.ru/images/release.zip
-
-Clean install
- - Переименовать выбранные папки
- - Создать новые папки
- - Скачать архив выбранной папки
- - Распаковать все содержимое.
-Clean install config restore
- - восстановление из old конфигов
-*/

@@ -26,9 +26,7 @@ prepareScreen:
     ret
 
 inputHost:
-	IFNDEF MSX
     	call Console.waitForKeyUp
-    ENDIF
 .loop
     ld de, #000A : call TextMode.gotoXY : ld hl, hostName : call TextMode.printZ
     ld a, MIME_INPUT : call TextMode.putC
