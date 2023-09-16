@@ -189,12 +189,6 @@ process_file:
 .closequit
         call closestream_file
 
-		ld	hl,[curr_arg]
-		call	prtext
-
-	        ld	hl,txtdblspc
-        	call	prtext
-
         ld hl,CRCArea
         ld a,(hl)
         cpl
@@ -215,8 +209,14 @@ process_file:
         call prhexbyte
         call prhexbyte
         call prhexbyte        
-        ld hl,txtcrlf
-;;;;;;;;call prtext
+	        
+	        ld	hl,txtdblspc
+        	call	prtext
+
+		ld	hl,[curr_arg]
+		call	prtext
+
+		ld	hl,txtcrlf
 		jr	.prtext
 
 .file_error
