@@ -9,7 +9,8 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.3";
+unsigned char uVer[] = "0.31";
+unsigned char curLetter;
 unsigned char is_atm;
 unsigned int errn;
 unsigned long contLen;
@@ -172,21 +173,22 @@ void infoBox(unsigned char *message)
 
 unsigned char OS_SHELL(unsigned char *command)
 {
-	unsigned char fileName[] = "cmd.com";
+	unsigned char fileName[] = "bin/cmd.com";
 	unsigned char appCmd[128] = "cmd.com ";
 	unsigned char diskBuf[1024];
 	unsigned int shellSize, loaded, loop;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
-	unsigned char curPath[256];
+	unsigned char curPath[128];
 
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_0;
 
 	OS_GETPATH((unsigned int)&curPath);
 	strcat(appCmd, command);
-	OS_SETSYSDRV();
+	//OS_SETSYSDRV();
+
 	fp2 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp2) & 0xff)
 	{
@@ -198,7 +200,7 @@ unsigned char OS_SHELL(unsigned char *command)
 		exit(0);
 	}
 	shellSize = OS_GETFILESIZE(fp2);
-	OS_CHDIR(curPath);
+	//OS_CHDIR(curPath);
 	OS_NEWAPP((unsigned int)&shell_pg);
 	SETPG32KHIGH(shell_pg.pgs.window_3);
 	memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
@@ -413,6 +415,7 @@ void fullUpdate(void)
 void binUpdate(void)
 {
 	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
+	unsigned char curPath[128];
 	BOX(1, 1, 80, 25, 40, 176);
 	cw.x = 20;
 	cw.y = 5;
@@ -428,8 +431,12 @@ void binUpdate(void)
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
-	OS_SETSYSDRV();
-	errn = OS_CHDIR("..");
+	//OS_SETSYSDRV();
+
+	OS_GETPATH((unsigned int)&curPath);
+	curLetter = curPath[0];
+	
+	errn = OS_CHDIR("cd /");
 
 	deleteWorkFiles();
 
