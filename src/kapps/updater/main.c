@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <math.h>
 unsigned char uVer[] = "0.31";
+unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char is_atm;
 unsigned int errn;
@@ -39,7 +40,7 @@ unsigned char kernelLink[256];
 
 unsigned int bufSize = 2000;
 unsigned char netbuf[2048];
-unsigned char netbuf2[1024];
+unsigned char netbuf2[256];
 
 void clearStatus(void)
 {
@@ -151,7 +152,8 @@ void fatalError(unsigned char *message)
 
 void infoBox(unsigned char *message)
 {
-	strcpy(cw.tittle, "nedoOS system updater 0.3");
+	strcpy(cw.tittle, "nedoOS system updater ");
+	strcat(cw.tittle, uVer);
 
 	if (strlen(message) > strlen(cw.tittle))
 	{
@@ -180,15 +182,12 @@ unsigned char OS_SHELL(unsigned char *command)
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
-	unsigned char curPath[128];
 
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_0;
 
 	OS_GETPATH((unsigned int)&curPath);
 	strcat(appCmd, command);
-	//OS_SETSYSDRV();
-
 	fp2 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp2) & 0xff)
 	{
@@ -200,7 +199,6 @@ unsigned char OS_SHELL(unsigned char *command)
 		exit(0);
 	}
 	shellSize = OS_GETFILESIZE(fp2);
-	//OS_CHDIR(curPath);
 	OS_NEWAPP((unsigned int)&shell_pg);
 	SETPG32KHIGH(shell_pg.pgs.window_3);
 	memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
@@ -364,8 +362,10 @@ void fullUpdate(void)
 	strcat(cw.tittle, uVer);
 	getConfig();
 
-	OS_SETSYSDRV();
-	errn = OS_CHDIR("..");
+	// OS_SETSYSDRV();
+	OS_GETPATH((unsigned int)&curPath);
+	curLetter = curPath[0];
+	errn = OS_CHDIR("/");
 
 	strcat(cw.tittle, " (");
 	strcat(cw.tittle, machineName);
@@ -415,7 +415,6 @@ void fullUpdate(void)
 void binUpdate(void)
 {
 	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
-	unsigned char curPath[128];
 	BOX(1, 1, 80, 25, 40, 176);
 	cw.x = 20;
 	cw.y = 5;
@@ -431,12 +430,10 @@ void binUpdate(void)
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
-	//OS_SETSYSDRV();
-
+	// OS_SETSYSDRV();
+	errn = OS_CHDIR("/");
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
-	
-	errn = OS_CHDIR("cd /");
 
 	deleteWorkFiles();
 
@@ -491,12 +488,7 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Renaming NEW BIN...");
-	/*
-		errn = OS_RENAME("bin.r17", "bin"); // Masks not supported. Just some bad hardcode.
-		errn = OS_RENAME("bin.r18", "bin");
-		errn = OS_RENAME("bin.r19", "bin");
-		errn = OS_RENAME("bin.r20", "bin");
-	*/
+
 	ren2bin();
 
 	AT(cw.x + 2, cw.y + 7);
@@ -510,7 +502,7 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Downloading kernel [%s]...", machineName);
-
+	errn = OS_CHDIR("/");
 	errn = getFile(kernelLink, kernelName); //  Downloading the file
 
 	clearStatus();
