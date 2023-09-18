@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
- 
+unsigned char uVer[] = "0.3";
 unsigned char is_atm;
 unsigned int errn;
 unsigned long contLen;
@@ -259,7 +259,7 @@ unsigned char getConfig(void)
 		break;
 	}
 	return is_atm;
-} 
+}
 // Downloading minimal tools for updating/boot
 void getTools(void)
 {
@@ -268,7 +268,7 @@ void getTools(void)
 	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fcmd.com";
 	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fterm.com";
 	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fupdater.com";
-	errn = OS_MKDIR("bin");
+	errn = OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	errn = getFile(pkunzipLink, "bin/pkunzip.com");
@@ -307,6 +307,45 @@ void ren2old(unsigned char *name)
 		}
 	}
 }
+
+void ren2tar(void)
+{
+	unsigned char *name = "0000000000000000000000000000000000";
+	unsigned char counter = 17;
+	errn = 255;
+	sprintf(name, "bin.r%u", counter);
+	AT(1, 1);
+	while (errn != 0)
+	{
+		errn = OS_RENAME((void *)name, "bin.tar");
+		counter++;
+		sprintf(name, "bin.r%u", counter);
+		if (counter > 99)
+		{
+			fatalError("Unable to rename TAR file");
+		}
+	}
+}
+
+void ren2bin(void)
+{
+	unsigned char *name = "0000000000000000000000000000000000";
+	unsigned char counter = 17;
+	errn = 255;
+	sprintf(name, "bin.r%u", counter);
+	AT(1, 1);
+	while (errn != 0)
+	{
+		errn = OS_RENAME((void *)name, "bin");
+		counter++;
+		sprintf(name, "bin.r%u", counter);
+		if (counter > 99)
+		{
+			fatalError("Unable to rename BIN folder");
+		}
+	}
+}
+
 // Download, backup, unpack release.bin
 void fullUpdate(void)
 {
@@ -319,8 +358,8 @@ void fullUpdate(void)
 	cw.h = 7;
 	cw.text = 97;
 	cw.back = 45;
-	strcpy(cw.tittle, "nedoOS FULL updater 0.1");
-
+	strcpy(cw.tittle, "nedoOS FULL updater ");
+	strcat(cw.tittle, uVer);
 	getConfig();
 
 	OS_SETSYSDRV();
@@ -346,7 +385,7 @@ void fullUpdate(void)
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
 	printf("Backuping old system...\r\n");
-	
+
 	ren2old("bin");
 	ren2old("doc");
 	ren2old("nedodemo");
@@ -370,7 +409,7 @@ void fullUpdate(void)
 	ATRIB(32);
 	exit(0);
 }
-//Updating only BIN folders, where is OS lives.
+// Updating only BIN folders, where is OS lives.
 void binUpdate(void)
 {
 	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
@@ -381,7 +420,8 @@ void binUpdate(void)
 	cw.h = 10;
 	cw.text = 97;
 	cw.back = 44;
-	strcpy(cw.tittle, "nedoOS BIN updater 0.1");
+	strcpy(cw.tittle, "nedoOS BIN updater ");
+	strcat(cw.tittle, uVer);
 	getConfig();
 	strcat(cw.tittle, " (");
 	strcat(cw.tittle, machineName);
@@ -418,11 +458,13 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Renaming bin.r?? to bin.tar...");
-
-	errn = OS_RENAME("bin.r17", "bin.tar"); // Masks not supported. Just some bad hardcode.
-	errn = OS_RENAME("bin.r18", "bin.tar");
-	errn = OS_RENAME("bin.r19", "bin.tar");
-	errn = OS_RENAME("bin.r20", "bin.tar");
+	/*
+		errn = OS_RENAME("bin.r17", "bin.tar"); // Masks not supported. Just some bad hardcode.
+		errn = OS_RENAME("bin.r18", "bin.tar");
+		errn = OS_RENAME("bin.r19", "bin.tar");
+		errn = OS_RENAME("bin.r20", "bin.tar");
+	*/
+	ren2tar();
 
 	AT(cw.x + 2, cw.y + 4);
 	ATRIB(cw.text);
@@ -442,11 +484,13 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Renaming NEW BIN...");
-
-	errn = OS_RENAME("bin.r17", "bin"); // Masks not supported. Just some bad hardcode.
-	errn = OS_RENAME("bin.r18", "bin");
-	errn = OS_RENAME("bin.r19", "bin");
-	errn = OS_RENAME("bin.r20", "bin");
+	/*
+		errn = OS_RENAME("bin.r17", "bin"); // Masks not supported. Just some bad hardcode.
+		errn = OS_RENAME("bin.r18", "bin");
+		errn = OS_RENAME("bin.r19", "bin");
+		errn = OS_RENAME("bin.r20", "bin");
+	*/
+	ren2bin();
 
 	AT(cw.x + 2, cw.y + 7);
 	ATRIB(cw.text);
@@ -483,7 +527,6 @@ C_task main(int argc, char *argv[])
 		else
 		{
 			AT(1, 1);
-			printf("argv[1] = [%u]", argv[1]);
 			fatalError("Use 'F' key to FULL update");
 		}
 	}
