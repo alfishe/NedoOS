@@ -99,6 +99,52 @@ unsigned char netConnect(unsigned char socket)
 	return 0;
 }
 
+unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
+{
+	unsigned char fileName[255];
+
+	if (operation == 00)
+	{
+		strcpy(fileName, fileNamePtr);
+		fp2 = OS_CREATEHANDLE(fileName, 0x80);
+		if (((int)fp2) & 0xff)
+		{
+			clearStatus();
+			AT(1, 24);
+			printf(fileName);
+			printf(" creating error.");
+			exit(0);
+		}
+		OS_CLOSEHANDLE(fp2);
+		fp2 = OS_OPENHANDLE(fileName, 0x80);
+		if (((int)fp2) & 0xff)
+		{
+			clearStatus();
+			AT(1, 24);
+			printf(fileName);
+			printf(" opening error.");
+
+			exit(0);
+		}
+		AT(1, 24);
+		return 0;
+	}
+
+	if (operation == 01)
+	{
+		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		downloaded = downloaded + sizeOfBuf;
+		return 0;
+	}
+
+	if (operation == 02)
+	{
+		OS_CLOSEHANDLE(fp2);
+		return 0;
+	}
+	return 0;
+}
+
 unsigned int tcpRead(unsigned char socket)
 {
 	unsigned char retry = 250;
@@ -128,6 +174,14 @@ wizread:
 		retry--;
 		YIELD();
 		YIELD();
+
+		key = _low_level_get();
+		if (key == 27)
+		{
+			saveBuf("fileNamePtr", 02, 00);
+			fatalError("File download aborted!");
+		}
+
 		delay(300);
 		YIELD();
 		YIELD();
@@ -177,51 +231,7 @@ unsigned int cutHeader(unsigned int todo)
 	return q;
 }
 
-unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
-{
-	unsigned char fileName[255];
 
-	if (operation == 00)
-	{
-		strcpy(fileName, fileNamePtr);
-		fp2 = OS_CREATEHANDLE(fileName, 0x80);
-		if (((int)fp2) & 0xff)
-		{
-			clearStatus();
-			AT(1, 24);
-			printf(fileName);
-			printf(" creating error.");
-			exit(0);
-		}
-		OS_CLOSEHANDLE(fp2);
-		fp2 = OS_OPENHANDLE(fileName, 0x80);
-		if (((int)fp2) & 0xff)
-		{
-			clearStatus();
-			AT(1, 24);
-			printf(fileName);
-			printf(" opening error.");
-
-			exit(0);
-		}
-		AT(1, 24);
-		return 0;
-	}
-
-	if (operation == 01)
-	{
-		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
-		downloaded = downloaded + sizeOfBuf;
-		return 0;
-	}
-
-	if (operation == 02)
-	{
-		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
-	return 0;
-}
 
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {

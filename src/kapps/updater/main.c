@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-
+ 
 unsigned char is_atm;
 unsigned int errn;
 unsigned long contLen;
@@ -150,7 +150,7 @@ void fatalError(unsigned char *message)
 
 void infoBox(unsigned char *message)
 {
-	strcpy(cw.tittle, "nedoOS system updater 0.1");
+	strcpy(cw.tittle, "nedoOS system updater 0.3");
 
 	if (strlen(message) > strlen(cw.tittle))
 	{
@@ -259,7 +259,7 @@ unsigned char getConfig(void)
 		break;
 	}
 	return is_atm;
-}
+} 
 // Downloading minimal tools for updating/boot
 void getTools(void)
 {
