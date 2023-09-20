@@ -21,3 +21,13 @@ ISFILESUPPORTEDPROCADDR = PLAYERSTART+0x0a
 PLAYERNAMESTRADDR       = PLAYERSTART+0x0c
 MUSICTITLEADDR          = PLAYERSTART+0x0e
 MUSICPROGRESSADDR       = PLAYERSTART+0x10
+
+	struct GPSETTINGS
+sharedpages ds 3
+usemp3 dw 0
+usemwm dw 0
+usept3 dw 0
+usevgm dw 0
+usemoonmod dw 0
+moonmoddefaultpanning dw 0
+	ends

@@ -10,7 +10,14 @@ gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound
  - mwm  MoonSound
  - pt2  AY
  - pt3  AY, TurboSound (2x AY)
- - mod  GeneralSound, NeoGS
+ - mod  GeneralSound, NeoGS, MoonSound
+
+Вы можете отключить .mod проигрыватель для MoonSound если в компьютере установлены
+и GeneralSound и MoonSound. Также вы можете выключить все неиспользуемые проигрыватели
+для уменьшения количества памяти занимаемой приложением. Это делается изменением
+настроек в bin\gp\gp.ini файле. Плеер .mod под Moonsound позволяет также настраивать
+панорамирование каналов по умолчанию, что может улучшить восприятие музыки через
+наушники.
 
 Прошивка ZXM-MoonSound
 

@@ -10,7 +10,14 @@ Supported formats:
  - mwm  MoonSound
  - pt2  AY
  - pt3  AY, TurboSound (2x AY)
- - mod  GeneralSound, NeoGS
+ - mod  GeneralSound, NeoGS, MoonSound
+
+You can turn off MoonSound .mod player if you've got both GeneralSound and 
+MoonSound installed in your computer. Moreover, you can turn off all players,
+which you're not using, to reduce application memory footprint. Check out the
+settings in bin\gp\gp.ini file. Note that MoonSound .mod player allows changing
+default panning of the channels, which may improve listening experience when
+using headphones.
 
 ZXM-MoonSound firmware
 

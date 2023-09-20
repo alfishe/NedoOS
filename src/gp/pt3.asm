@@ -1,3 +1,5 @@
+; ProTracker modules player for AY8910/TurboSound
+
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
@@ -37,7 +39,7 @@ checkpt3
 	jp initprogress
 
 playerinit
-;hl = shared pages
+;hl = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld (playerpage),a

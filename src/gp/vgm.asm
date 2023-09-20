@@ -1,3 +1,6 @@
+; Video Game Music player
+; Supports AY8910, YM3812, YMF262, YMF278B, YM2203.
+
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
@@ -40,7 +43,7 @@ isfilesupported
 	jp initprogress
 
 playerinit
-;hl = shared pages
+;hl = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld a,(hl)
@@ -51,7 +54,7 @@ playerinit
 	inc hl
 	ld a,(hl)
 	ld (filedatapage),a
-
+;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
 	ret
@@ -80,12 +83,11 @@ musicload
 	cp 'z'
 	ex de,hl
 	jr z,.loadcompressed
-	call memorybufferloadfile
+	call memorystreamloadfile
 	jr z,.doneloading
 	ret
-
 .loadcompressed
-	call decompressfiletomemorybuffer
+	call decompressfiletomemorystream
 	ret nz
 .doneloading
 	set_timer waittimer50hz,882
@@ -94,8 +96,8 @@ musicload
 	ld (samplecounterlo),hl
 	xor a
 	ld (samplecounterhi),a
-
-	ld a,(memorybufferpages)
+;map header to 0x8000
+	ld a,(memorystreampages)
 	SETPG8000
 ;init progress
 	ld hl,(HEADER_SAMPLES_COUNT+2)
@@ -134,13 +136,14 @@ musicload
 ;init Moonsound
 	xor a
 	a_or_dw HEADER_CLOCK_YM3812
+	ld (useYM3812),a
 	a_or_dw HEADER_CLOCK_YMF262
 	a_or_dw HEADER_CLOCK_YMF278B
 	ld (useYMF278B),a
 	call nz,initYMF278B
-	jp nz,memorybufferfree ;sets zf=0
+	jp nz,memorystreamfree ;sets zf=0
 ;skip to the data
-	call memorybufferstart
+	call memorystreamstart
 	ld hl,(HEADER_DATA_OFFSET)
 	ld a,(HEADER_DATA_OFFSET+2)
 	ld d,a
@@ -153,7 +156,6 @@ musicload
 	jr nc,$+3
 	inc d
 	call skipdatablock
-
 	xor a
 	ret
 
@@ -167,8 +169,15 @@ initYM2203
 initYMF278B
 	call ismoonsoundpresent
 	ret nz
-	call opl4init
-	set_timer opl4waittimer60hz,735
+	call vgmopl4init
+	ld a,(HEADER_CLOCK_YM3812+3)
+	and 0x40
+	jr nz,notOPL2
+useYM3812=$+1
+	or 0
+	ld de,0x0005
+	call nz,opl4writefm2
+notOPL2 set_timer opl4waittimer60hz,735
 	call opl4inittimer60hz
 	xor a
 	ret
@@ -187,14 +196,14 @@ useAY8910=$+1
 	ld a,0
 	or a
 	call nz,ssgmute
-	jp memorybufferfree
+	jp memorystreamfree
 
 playerdeinit
 	ret
 
 	include "../_sdk/file.asm"
-	include "moonsound.asm"
-	include "memorybuffer.asm"
+	include "common/memorystream.asm"
+	include "common/opl4.asm"
 	include "vgm/opl4.asm"
 	include "vgm/opn.asm"
 	include "vgm/ssg.asm"
@@ -216,7 +225,7 @@ waittimerstep=$+1
 	sub hl,bc
 	jr nc,exitplayloop
 ;read command
-	memory_buffer_read_1 a
+	memory_stream_read_1 a
 	ld l,a
 	ld h,cmdtable/256
 	ld e,(hl)
@@ -249,7 +258,7 @@ wait1	ld hl,(waitcounter)
 	ld (waitcounter),hl
 	ret
 
-waitn	memory_buffer_read_2 e,d
+waitn	memory_stream_read_2 e,d
 	ld hl,(waitcounter)
 	add hl,de
 	ld (waitcounter),hl
@@ -283,7 +292,7 @@ wait882	wait_n 882
 
 	macro skip_n n
 	ld b,n
-	jp memorybufferskip
+	jp memorystreamskip
 	endm
 
 skip1	ret
@@ -309,51 +318,51 @@ cmdunsupported
 	ret
 
 cmdYM2203
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm1
 
 cmdYM2203dp
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm2
 
 cmdYMF262p0
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm1
 
 cmdYMF262p1
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm2
 
 cmdYMF278B
-	memory_buffer_read_3 c,e,d
+	memory_stream_read_3 c,e,d
 	dec c
 	jp z,opl4writemusiconlyfm2
 	jp p,opl4writewavemusiconly
 	jp opl4writemusiconlyfm1
 
 cmdYM3812
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm1
 
 cmdYM3812dp
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm2
 
 cmdAY8910
-	memory_buffer_read_2 e,d
+	memory_stream_read_2 e,d
 	bit 7,e
 	jp z,ssgwritemusiconlychip0
 	res 7,e
 	jp ssgwritemusiconlychip1
 
-cmdYMF262dp0 equ memorybufferread2
-cmdYMF262dp1 equ memorybufferread2
+cmdYMF262dp0 equ memorystreamread2
+cmdYMF262dp1 equ memorystreamread2
 
 processdatablock
-	memory_buffer_read_2 a,e ;a = 0x66 guard, e = type
+	memory_stream_read_2 a,e ;a = 0x66 guard, e = type
 	cp 0x66
 	jp nz,cmdunsupported
-	call memorybufferread4 ;adbc = data size
+	call memorystreamread4 ;adbc = data size
 	ld a,e
 	ld hl,bc
 	cp 0x84
@@ -366,7 +375,7 @@ skipdatablock
 ;dhl = size
 	call setup24bitscounterloop
 .loop
-	call memorybufferskip
+	call memorystreamskip
 	dec de
 	ld a,e
 	or d
@@ -383,9 +392,9 @@ seektopos
 ;dehl + bc = position
 ;out: hl = read address
 	add hl,bc
-	jp nc,memorybufferseek
+	jp nc,memorystreamseek
 	inc de
-	jp memorybufferseek
+	jp memorystreamseek
 
 parsegd3
 ;dehl = GD3 offset
@@ -419,17 +428,17 @@ parsegd3
 	call z,gd3stringcopy ;author
 	ld hl,titlestr
 	ld (MUSICTITLEADDR),hl
-	ld a,(memorybufferpages)
+	ld a,(memorystreampages)
 	SETPG8000
 	ret
 
 gd3stringcopy
-;hl = memorybuffercurrentaddr
+;hl = memorystreamcurrentaddr
 ;de = dest
 ;b = bytes remaining
 ;out: zf=1 if encountered zero terminator, zf=0 if out of space
-	memory_buffer_read_byte a
-	memory_buffer_read_byte c
+	memory_stream_read_byte a
+	memory_stream_read_byte c
 	or a
 	ret z
 	ld (de),a
@@ -438,10 +447,10 @@ gd3stringcopy
 	ret
 
 gd3stringskip
-;hl = memorybuffercurrentaddr
+;hl = memorystreamcurrentaddr
 ;out: zf=1
-	memory_buffer_read_byte a
-	memory_buffer_read_byte c
+	memory_stream_read_byte a
+	memory_stream_read_byte c
 	or c
 	jr nz,gd3stringskip
 	ret
@@ -975,7 +984,7 @@ cmdtable
 	db skip5           /256 ; FE
 	db skip5           /256 ; FF
 
-decompressfiletomemorybuffer
+decompressfiletomemorystream
 ;de = input file name
 ;out: zf=1 is successful, zf=0 otherwise
 	call openstream_file
@@ -992,7 +1001,7 @@ decompressfiletomemorybuffer
 	ld a,(filehandle)
 	ld b,a
 	OS_SEEKHANDLE
-	ld de,memorybuffersize
+	ld de,memorystreamsize
 	ld hl,4
 	call readstream_file
 	ld a,(filehandle)
@@ -1001,11 +1010,11 @@ decompressfiletomemorybuffer
 	ld de,hl
 	OS_SEEKHANDLE
 ;allocate memory
-	ld hl,(memorybuffersize+0)
-	ld de,(memorybuffersize+2)
-	call memorybufferallocate
+	ld hl,(memorystreamsize+0)
+	ld de,(memorystreamsize+2)
+	call memorystreamallocate
 	jr nz,closefilewitherror
-	call memorybufferstart
+	call memorystreamstart
 ;decompress
 	call setsharedpages
 	ld hl,0xffff
@@ -1020,7 +1029,7 @@ GzipThrowException
 savedSP=$+1
 	ld sp,0
 GzipExitWithError
-	call memorybufferfree
+	call memorystreamfree
 closefilewitherror
 	call closestream_file
 	or 1
@@ -1069,7 +1078,7 @@ loadfiledata
 GzipWriteOutputBuffer
 ;de = OutputBuffer
 ;hl = size
-	ld a,(memorybuffercurrentpage)
+	ld a,(memorystreamcurrentpage)
 	SETPG8000
 	ld bc,hl
 	add hl,de
@@ -1077,7 +1086,7 @@ GzipWriteOutputBuffer
 	jr z,.below8000
 	push hl
 	ld bc,0x8000-OutputBuffer
-	call memorybufferwrite
+	call memorystreamwrite
 	pop hl
 	res 7,h
 	push hl
@@ -1090,17 +1099,17 @@ GzipWriteOutputBuffer
 	SETPGC000
 	ld de,0xc000
 	ld bc,0x4000
-	call memorybufferwrite
+	call memorystreamwrite
 	ld a,(pageC000)
 .write8000
 	SETPGC000
 	ld de,0xc000
 	pop bc
 .below8000
-	call memorybufferwrite
+	call memorystreamwrite
 	jp setsharedpages
 
-	include "vgm/gunzip.asm"
+	include "common/gunzip.asm"
 
 initokstr
 	db "OK\r\n",0
@@ -1118,7 +1127,7 @@ waveheaderbufferend = waveheaderbuffer+WAVEHEADERBUFFERSIZE
 titlestr = waveheaderbufferend
 titlestrend = titlestr+TITLELENGTH
 
-	ASSERT GzipBuffersEnd <= 0x10000
-	ASSERT titlestrend <= 0x8000
+	assert GzipBuffersEnd <= 0x10000
+	assert titlestrend <= 0x8000
 
 	savebin "vgm.bin",begin,end-begin

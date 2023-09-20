@@ -1,3 +1,6 @@
+; Player for NeoGS decoder chip (also GS/NeoGS .mod player)
+; Supports a range of VLSI decoders: VS1001, VS1011, VS1003, VS1033, VS1053
+
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "ngsdec/gscodedefs.asm"
@@ -109,7 +112,7 @@ ismodfile
 	ret
 
 playerinit
-;hl = shared pages
+;hl = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld a,(hl)

@@ -20,10 +20,25 @@ MOON_WDAT = MOON_WREG+1
 	endm
 
 ismoonsoundpresent
-;out: a=0 and zf=1 if there's Moonsound, a=255 and zf=0 if not
+;out: zf=1 if Moonsound is present, zf=0 if not
 	switch_to_pcm_ports_c2_c3
 	in a,(MOON_STAT)
 	cp 255
 	ccf
 	sbc a,a
+	ret nz
+;FIXME: f***ing kempston joystick in Unreal :-\
+	ld bc,0
+.loop	in a,(MOON_STAT)
+	and 3
+	ret z
+	dec bc
+	ld a,b
+	or c
+	jr nz,.loop
+	dec a
 	ret
+
+MOONSOUNDROMSIZE = 0x200000
+MOONWAVEHEADERSIZE = 12
+MOONRAMWAVETABLESIZE = 128

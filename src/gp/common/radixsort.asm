@@ -11,9 +11,7 @@ radixsort
 	push iy
 	push ix
 	push af
-
 	ld (.itemsize),de
-
 ;adjust data for djnz+dec_c loop
 	ld a,c
 	dec bc
@@ -21,7 +19,6 @@ radixsort
 	ld c,b
 	ld b,a
 	ld (.numitems),bc
-
 ;create array with pointers to items
 	ld ix,RADIXSORT_WORKBUFFER
 	ld (.srcbuf),ix
@@ -34,7 +31,6 @@ radixsort
 	dec c
 	jr nz,.fillptrsloop
 	ld (.dstbuf),ix
-
 ;main loop iterating through the key
 	pop bc
 	pop hl
@@ -45,17 +41,14 @@ radixsort
 	inc hl
 	ld (.keyoffset),de
 	ld (.keyoffset1),de
-
 	push bc
 	push hl
-
 ;clear histogram
 	ld hl,RADIXSORT_HISTOGRAM
 	ld de,RADIXSORT_HISTOGRAM+1
 	ld bc,511
 	ld (hl),0
 	ldir
-
 ;fill histogram
 .srcbuf=$+2
 	ld ix,0
@@ -80,7 +73,6 @@ radixsort
 	djnz .buildhistogramloop
 	dec c
 	jr nz,.buildhistogramloop
-
 ;histogram prefix sum
 	ld ix,RADIXSORT_HISTOGRAM
 .dstbuf=$+1
@@ -94,7 +86,6 @@ radixsort
 	inc ix
 	inc ix
 	djnz .prefixsumloop
-
 ;shuffle pointers
 	ld ix,(.srcbuf)
 	ld iy,(.numitems)
@@ -126,7 +117,7 @@ radixsort
 	jr nz,.copypointersloop
 	dec iyl
 	jr nz,.copypointersloop
-
+;swap buffers
 	ld hl,(.srcbuf)
 	ld de,(.dstbuf)
 	ld (.srcbuf),de
@@ -135,7 +126,6 @@ radixsort
 	pop bc
 	dec b
 	jp nz,.keysizeloop
-
 ;move sorted items to destination buffer
 	ld iy,(.numitems)	
 	ld ix,de

@@ -2,7 +2,7 @@
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
-NUM_PLAYERS = 4
+NUM_PLAYERS = 5
 SFN_SIZE = 13
 FILE_DATA_SIZE = 52 ;keep in sync with getfiledataoffset
 FILE_DISPLAY_INFO_OFFSET = 0
@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=180
+BROWSER_FILE_COUNT=179
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -37,9 +37,9 @@ mainbegin
 	OS_CLS
 
 	OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-	ld (sharedpages),hl
+	ld (gpsettings.sharedpages),hl
 	ld a,e
-	ld (sharedpages+2),a
+	ld (gpsettings.sharedpages+2),a
 	ld d,b
 	call closeexistingplayer
 
@@ -53,6 +53,7 @@ mainbegin
 	ld (currentfolder+2),a
 
 	OS_SETSYSDRV
+	call loadsettings
 	call loadplayers
 	ld hl,playersloaderrorstr
 	jp nz,printerrorandexit
@@ -295,7 +296,8 @@ exitplayer
 	pop hl
 	call stopplaying
 	ld hl,playerpages
-	ld b,NUM_PLAYERS
+	ld a,(playercount)
+	ld b,a
 playerdeinitloop
 	push bc
 	push hl
@@ -1054,6 +1056,8 @@ pressanykeystr
 	db "!\r\nPress any key to exit...\r\n",0
 playersfilename
 	db "gp/gp.plr",0
+settingsfilename
+	db "gp/gp.ini",0
 defaultplaylistfilename
 	db "gp/"
 playlistfilename
@@ -1083,43 +1087,144 @@ drivedata
 	db "O: - USB ZX-NetUsb                    O:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
 drivedataend
 
-	macro loadplayer playerpage,playersize
+loadplayer
+;de = code size
+;hl = settings variable addr
+	ld (.codesize),de
+	ld a,(hl)
+	ld (.settingsvalue),a
 	OS_NEWPAGE
+	or a
+	ret nz
 	ld a,e
-	ld (playerpage),a
+	ld (.playerpage),a
 	SETPG4000
-
 	ld de,0x4000
-	ld hl,playersize
+.codesize=$+1
+	ld hl,0
 	call readstream_file
-
+.settingsvalue=$+1
+	ld a,0
+	cp '0'
+	jr z,.cleanup
 	ld hl,initializing1str
 	call print_hl
 	ld hl,(PLAYERNAMESTRADDR)
 	call print_hl
 	ld hl,initializing2str
 	call print_hl
-
-	ld hl,sharedpages
-	ld a,(playerpage)
+	ld hl,gpsettings
+	ld a,(.playerpage)
 	call playerinit
+	push af
 	call print_hl
-	endm
+	pop af
+	jr nz,.cleanup
+	ld hl,playercount
+	ld e,(hl)
+	inc (hl)
+	ld d,0
+	ld hl,playerpages
+	add hl,de
+.playerpage=$+1
+	ld (hl),0
+	ret
+.cleanup
+	ld a,(.playerpage)
+	ld e,a
+	OS_DELPAGE
+	ret
 
 loadplayers
 	ld de,playersfilename
 	call openstream_file
 	or a
 	ret nz
-
-	loadplayer playerpages+0,mwmend-mwmstart
-	loadplayer playerpages+1,pt3end-pt3start
-	loadplayer playerpages+2,mp3end-mp3start
-	loadplayer playerpages+3,vgmend-vgmstart
-
+	ld (playercount),a
+	ld de,modend-modstart : ld hl,(gpsettings.usemoonmod) : call loadplayer
+	ld de,mwmend-mwmstart : ld hl,(gpsettings.usemwm) : call loadplayer
+	ld de,pt3end-pt3start : ld hl,(gpsettings.usept3) : call loadplayer
+	ld de,mp3end-mp3start : ld hl,(gpsettings.usemp3) : call loadplayer
+	ld de,vgmend-vgmstart : ld hl,(gpsettings.usevgm) : call loadplayer
 	call closestream_file
-	xor a
+	ld a,(playercount)
+	cp 1
+	sbc a,a
 	ret
+
+loadsettings
+	ld de,settingsfilename
+	call openstream_file
+	or a
+	ret nz
+	ld de,0x8000
+	ld hl,0x4000
+	call readstream_file
+	ld de,0x8000
+	add hl,de
+	ld (hl),0
+	call closestream_file
+	ld de,0x8000
+.parseloop
+	ld bc,'='*256
+	call findnextchar
+	or a
+	ret z
+	cp b
+	jr nz,.parseloop
+	ld b,settingsvarcount
+	ld hl,settingsvars
+.varsearchloop
+	ld a,(hl)
+	inc hl
+	cp c
+	jr z,.foundvar
+	inc hl
+	inc hl
+	djnz .varsearchloop
+	jr .nextvar
+.foundvar
+	ld a,(hl)
+	inc hl
+	ld h,(hl)
+	ld l,a
+	ld (hl),e
+	inc hl
+	ld (hl),d
+.nextvar
+	ld b,0
+	call findnextchar
+	or a
+	jr nz,.parseloop
+	ret
+
+findnextchar
+;de = ptr
+;b = character to search
+;c = LRC
+;output: de = ptr past character, c = updated LRC
+	ld a,(de)
+	inc de
+	or a
+	ret z
+	cp "\n"
+	ret z
+	cp b
+	ret z
+	xor c
+	ld c,a
+	jr findnextchar
+
+gpsettings GPSETTINGS
+
+settingsvars
+	db 0x19 : dw gpsettings.usemp3
+	db 0x14 : dw gpsettings.usemwm
+	db 0x74 : dw gpsettings.usept3
+	db 0x1F : dw gpsettings.usevgm
+	db 0x26 : dw gpsettings.usemoonmod
+	db 0x7F : dw gpsettings.moonmoddefaultpanning
+settingsvarcount=($-settingsvars)/3
 
 getfileextension
 ;hl = file name
@@ -1156,7 +1261,8 @@ isfileplaylist
 findsupportedplayer
 ;cde = file extension
 	ld hl,playerpages
-	ld b,NUM_PLAYERS
+	ld a,(playercount)
+	ld b,a
 .findplayerloop
 	push hl
 	push bc
@@ -1175,9 +1281,9 @@ createfileslist
 	ld de,emptystr
 	OS_OPENDIR
 
-	ld a,(sharedpages)
+	ld a,(gpsettings.sharedpages)
 	SETPG8000
-	ld a,(sharedpages+1)
+	ld a,(gpsettings.sharedpages+1)
 	SETPGC000
 
 	xor a
@@ -1374,7 +1480,7 @@ musicplay       jumpindirect MUSICPLAYPROCADDR
 isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 
 	include "../_sdk/file.asm"
-	include "radixsort.asm"
+	include "common/radixsort.asm"
 
 closeexistingplayer
 ;d = current pid
@@ -1449,8 +1555,6 @@ isplayer
 	ret
 mainend
 
-sharedpages
-	ds 3
 playerpages
 	ds NUM_PLAYERS
 filinfo
@@ -1478,12 +1582,16 @@ playlistpanel PANEL
 playlistdatasize=$-playlistdatastart
 
 musicprogress ds 1
+playercount ds 1
 
 page0dataend = $
 
-	ASSERT page0dataend <= 0x3d00 ;reserve 768 bytes for stack
+	assert page0dataend <= 0x3d00 ;reserve 768 bytes for stack
 
 plrbegin
+modstart
+	incbin "moonmod.bin"
+modend
 mwmstart
 	incbin "mwm.bin"
 mwmend

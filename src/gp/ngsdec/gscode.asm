@@ -300,12 +300,12 @@ processcommand
         out (CLRCBIT),a
 commandtable
         jr $
-        jr cmdreset : ASSERT CMDRESET==0
-        jr cmdgetfreebufferspace : ASSERT CMDGETFREEBUFFERSPACE==1
-        jr cmdgetchipid : ASSERT CMDGETCHIPID==2
-        jr cmdrestartstream : ASSERT CMDRESTARTSTREAM==3
-        jr cmdvolumeup : ASSERT CMDVOLUMEUP==4
-        jr cmdvolumedown : ASSERT CMDVOLUMEDOWN==5
+        jr cmdreset : assert CMDRESET==0
+        jr cmdgetfreebufferspace : assert CMDGETFREEBUFFERSPACE==1
+        jr cmdgetchipid : assert CMDGETCHIPID==2
+        jr cmdrestartstream : assert CMDRESTARTSTREAM==3
+        jr cmdvolumeup : assert CMDVOLUMEUP==4
+        jr cmdvolumedown : assert CMDVOLUMEDOWN==5
 
 cmdreset
         ld a,(vsversion)
