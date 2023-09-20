@@ -1,4 +1,3 @@
-
 void errorPrint(unsigned int error)
 {
 	clearStatus();
@@ -145,6 +144,16 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	return 0;
 }
 
+void cancel(void)
+{
+	key = _low_level_get();
+	if (key == 27)
+	{
+		saveBuf("fileNamePtr", 02, 00);
+		fatalError("File download aborted!");
+	}
+}
+
 unsigned int tcpRead(unsigned char socket)
 {
 	unsigned char retry = 250;
@@ -175,12 +184,7 @@ wizread:
 		YIELD();
 		YIELD();
 
-		key = _low_level_get();
-		if (key == 27)
-		{
-			saveBuf("fileNamePtr", 02, 00);
-			fatalError("File download aborted!");
-		}
+		cancel();
 
 		delay(300);
 		YIELD();
@@ -231,8 +235,6 @@ unsigned int cutHeader(unsigned int todo)
 	return q;
 }
 
-
-
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {
 	unsigned char retry = 20;
@@ -256,6 +258,7 @@ wizwrite:
 		}
 		retry--;
 		YIELD();
+		cancel();
 		delay(250);
 		goto wizwrite;
 	}
@@ -300,12 +303,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		saveBuf(fileNamePtr, 01, bytes2read);
 		bytecount = bytecount - bytes2read;
 
-		key = _low_level_get();
-		if (key == 27)
-		{
-			saveBuf(fileNamePtr, 02, 00);
-			fatalError("File download aborted!");
-		}
+		cancel();
 	}
 	saveBuf(fileNamePtr, 02, 00);
 	netShutDown(socket);

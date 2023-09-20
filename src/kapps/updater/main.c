@@ -38,9 +38,9 @@ unsigned char kernelName[32];
 unsigned char machineName[32];
 unsigned char kernelLink[256];
 
-unsigned int bufSize = 2000;
-unsigned char netbuf[2048];
-unsigned char netbuf2[256];
+unsigned int bufSize = 2000; // Some memory corruption at this point, some QnD
+unsigned char netbuf[2300];
+
 
 void clearStatus(void)
 {
@@ -326,7 +326,7 @@ void ren2tar(void)
 		}
 	}
 }
-
+ 
 void ren2bin(void)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
@@ -345,7 +345,7 @@ void ren2bin(void)
 		}
 	}
 }
-
+ 
 // Download, backup, unpack release.bin
 void fullUpdate(void)
 {
@@ -360,9 +360,9 @@ void fullUpdate(void)
 	cw.back = 45;
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
+	
 	getConfig();
 
-	// OS_SETSYSDRV();
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 	errn = OS_CHDIR("/");
@@ -404,6 +404,7 @@ void fullUpdate(void)
 	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
 	YIELD();
 	OS_SHELL("pkunzip.com release.zip");
+	
 	infoBox("System Updated successfully.");
 	getchar();
 	OS_DELETE("release.zip");
@@ -430,7 +431,6 @@ void binUpdate(void)
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
-	// OS_SETSYSDRV();
 	errn = OS_CHDIR("/");
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
@@ -462,12 +462,7 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Renaming bin.r?? to bin.tar...");
-	/*
-		errn = OS_RENAME("bin.r17", "bin.tar"); // Masks not supported. Just some bad hardcode.
-		errn = OS_RENAME("bin.r18", "bin.tar");
-		errn = OS_RENAME("bin.r19", "bin.tar");
-		errn = OS_RENAME("bin.r20", "bin.tar");
-	*/
+
 	ren2tar();
 
 	AT(cw.x + 2, cw.y + 4);
