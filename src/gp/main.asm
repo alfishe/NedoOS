@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=179
+BROWSER_FILE_COUNT=177
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -55,7 +55,6 @@ mainbegin
 	OS_SETSYSDRV
 	call loadsettings
 	call loadplayers
-	ld hl,playersloaderrorstr
 	jp nz,printerrorandexit
 
 	ld ix,browserpanel
@@ -1062,6 +1061,10 @@ defaultplaylistfilename
 	db "gp/"
 playlistfilename
 	db "playlist.gpl",0
+invalidplayerfilestr
+	db "Corrupted gp/gp.plr file",0
+noplayersloadedstr
+	db "Unable to load any players",0
 playersloaderrorstr
 	db "Failed to load gp/gp.plr from OS folder",0
 chdirfailedstr
@@ -1136,10 +1139,27 @@ loadplayer
 	ret
 
 loadplayers
+;output: zf=1 if success, zf=0 and hl=error message if failed
 	ld de,playersfilename
 	call openstream_file
 	or a
+	ld hl,playersloaderrorstr
 	ret nz
+;check if the file matches this build
+	ld a,(filehandle)
+	ld b,a
+	OS_GETFILESIZE
+	ld a,d
+	or e
+	ex de,hl
+	ld hl,invalidplayerfilestr
+	ret nz
+	ld hl,plrend-plrbegin
+	sub hl,de
+	ld hl,invalidplayerfilestr
+	ret nz
+;load players from file
+	xor a
 	ld (playercount),a
 	ld de,modend-modstart : ld hl,(gpsettings.usemoonmod) : call loadplayer
 	ld de,mwmend-mwmstart : ld hl,(gpsettings.usemwm) : call loadplayer
@@ -1148,8 +1168,10 @@ loadplayers
 	ld de,vgmend-vgmstart : ld hl,(gpsettings.usevgm) : call loadplayer
 	call closestream_file
 	ld a,(playercount)
-	cp 1
-	sbc a,a
+	dec a
+	ld hl,noplayersloadedstr
+	ret m
+	xor a
 	ret
 
 loadsettings
