@@ -40,7 +40,7 @@ unsigned char machineName[32];
 unsigned char kernelLink[256];
 
 unsigned int bufSize = 2000; // Some memory corruption at this point, some QnD
-unsigned char netbuf[2500];
+unsigned char netbuf[3000];
 
 void clearStatus(void)
 {
@@ -537,7 +537,7 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 9);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Restoring configs...[%u]", oldBinExt);
+	printf("Restoring configs...");
 }
 
 C_task main(int argc, char *argv[])
