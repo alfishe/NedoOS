@@ -9,9 +9,10 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.31";
+unsigned char uVer[] = "0.32";
 unsigned char curPath[128];
 unsigned char curLetter;
+unsigned char oldBinExt;
 unsigned char is_atm;
 unsigned int errn;
 unsigned long contLen;
@@ -39,8 +40,7 @@ unsigned char machineName[32];
 unsigned char kernelLink[256];
 
 unsigned int bufSize = 2000; // Some memory corruption at this point, some QnD
-unsigned char netbuf[2300];
-
+unsigned char netbuf[2500];
 
 void clearStatus(void)
 {
@@ -214,6 +214,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	AT(1, 24);
 	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	YIELD();
+	AT(1, 24);
 	delay(250);
 
 	OS_RUNAPP(shell_pg.pgs.pId);
@@ -223,6 +224,7 @@ unsigned char OS_SHELL(unsigned char *command)
 //////////////// NETWORK PART //////////////////////
 #include <network.c>
 ////////////////////////////////////////////////////
+
 unsigned char getConfig(void)
 {
 	is_atm = (unsigned char)OS_GETCONFIG();
@@ -268,6 +270,7 @@ void getTools(void)
 	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fcmd.com";
 	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fterm.com";
 	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fupdater.com";
+
 	errn = OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
@@ -289,23 +292,23 @@ void deleteWorkFiles(void)
 	OS_DELETE("bin.r20");
 }
 
-void ren2old(unsigned char *name)
+unsigned char ren2old(unsigned char *name)
 {
 	unsigned char *oldName = "0000000000000000000000000000000000";
-	unsigned char counter = 0;
-	errn = 255;
+	unsigned char counter = 255;
 	OS_MKDIR((void *)name);
 	sprintf(oldName, "%s.old", name);
-	while (errn != 0)
+	while (OS_RENAME((void *)name, (void *)oldName) != 0)
 	{
-		errn = OS_RENAME((void *)name, (void *)oldName);
-		sprintf(oldName, "%s.%u", name, counter);
 		counter++;
 		if (counter == 255)
 		{
 			fatalError("Unable to rename old folder");
 		}
+
+		sprintf(oldName, "%s.%u", name, counter);
 	}
+	return counter;
 }
 
 void ren2tar(void)
@@ -326,7 +329,7 @@ void ren2tar(void)
 		}
 	}
 }
- 
+
 void ren2bin(void)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
@@ -345,7 +348,42 @@ void ren2bin(void)
 		}
 	}
 }
- 
+
+void restoreConfig(unsigned char oldBinExt)
+{
+	unsigned char *name = "0000000000000000000000000000000000";
+	errn = OS_CHDIR("/");
+	errn = OS_RENAME("bin/autoexec.bat", "bin/autoexec.new");
+	errn = OS_RENAME("bin/net.ini", "bin/net.new");
+	errn = OS_RENAME("bin/nv.ext", "bin/nv.new");
+
+	errn = OS_CHDIR("/");
+
+	if (oldBinExt == 255)
+	{
+		errn = OS_SHELL("copy bin.old/autoexec.bat bin/autoexec.bat");
+
+		errn = OS_SHELL("copy bin.old/net.ini bin/net.ini");
+
+		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext");
+	}
+	else
+	{
+		sprintf(name, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
+		OS_SHELL((void *)name);
+
+		sprintf(name, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
+		OS_SHELL((void *)name);
+
+		sprintf(name, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
+		OS_SHELL((void *)name);
+	}
+
+	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat");
+	errn = OS_RENAME("bin/net.new", "bin/net.ini");
+	errn = OS_RENAME("bin/nv.new", "bin/nv.ext");
+}
+
 // Download, backup, unpack release.bin
 void fullUpdate(void)
 {
@@ -360,7 +398,7 @@ void fullUpdate(void)
 	cw.back = 45;
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
-	
+
 	getConfig();
 
 	OS_GETPATH((unsigned int)&curPath);
@@ -388,7 +426,7 @@ void fullUpdate(void)
 	AT(cw.x + 2, cw.y + 4);
 	printf("Backuping old system...\r\n");
 
-	ren2old("bin");
+	oldBinExt = ren2old("bin");
 	ren2old("doc");
 	ren2old("nedodemo");
 	ren2old("nedogame");
@@ -404,13 +442,12 @@ void fullUpdate(void)
 	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
 	YIELD();
 	OS_SHELL("pkunzip.com release.zip");
-	
-	infoBox("System Updated successfully.");
-	getchar();
+	drawWindow(cw);
+	AT(cw.x + 2, cw.y + 3);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("Restoring configs...");
 	OS_DELETE("release.zip");
-	ATRIB(40);
-	ATRIB(32);
-	exit(0);
 }
 // Updating only BIN folders, where is OS lives.
 void binUpdate(void)
@@ -477,7 +514,7 @@ void binUpdate(void)
 	ATRIB(cw.back);
 	printf("Backuping old bin to bin.old...");
 
-	ren2old("bin");
+	oldBinExt = ren2old("bin");
 
 	AT(cw.x + 2, cw.y + 6);
 	ATRIB(cw.text);
@@ -491,21 +528,16 @@ void binUpdate(void)
 	ATRIB(cw.back);
 	printf("Deleting zip & tar...");
 
-	deleteWorkFiles();
-
 	AT(cw.x + 2, cw.y + 8);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Downloading kernel [%s]...", machineName);
 	errn = OS_CHDIR("/");
 	errn = getFile(kernelLink, kernelName); //  Downloading the file
-
-	clearStatus();
-	infoBox("System Updated successfully!");
-	getchar();
-	ATRIB(40);
-	ATRIB(32);
-	exit(0);
+	AT(cw.x + 2, cw.y + 9);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("Restoring configs...[%u]", oldBinExt);
 }
 
 C_task main(int argc, char *argv[])
@@ -528,4 +560,12 @@ C_task main(int argc, char *argv[])
 	{
 		binUpdate();
 	}
+	restoreConfig(oldBinExt);
+	deleteWorkFiles();
+	clearStatus();
+	infoBox("System Updated successfully!");
+	getchar();
+	ATRIB(40);
+	ATRIB(32);
+	exit(0);
 }
