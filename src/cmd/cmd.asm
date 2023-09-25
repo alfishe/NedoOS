@@ -467,7 +467,19 @@ strcpexec_tryrun
         jr nz,execcmd_tryrunerror
 execcmd_tryrunok
         ret c ;cy=end of .bat
-        push de
+        if 1==1
+       push de
+        ld b,e ;id
+        ld a,(stdinhandle)
+        ld e,a
+        ld a,(stdouthandle)
+        ld d,a
+        ld h,0xff ;rnd
+;b=id, e=stdin, d=stdout, h=stderr        
+        OS_SETSTDINOUT
+       pop de
+        endif
+        push de        
         OS_RUNAPP ;e=id
         pop de
          xor a ;z
@@ -1594,7 +1606,7 @@ cmd_echo
         jp prcrlf
 		
 cmd_pause
-	call getkey
+        call getkey
         ld hl,(execcmd_pars)
 		ld a,(hl)
         or a
