@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.32";
+unsigned char uVer[] = "0.33";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -41,6 +41,7 @@ unsigned char kernelLink[256];
 
 unsigned int bufSize = 2000; // Some memory corruption at this point, some QnD
 unsigned char netbuf[3000];
+
 
 void clearStatus(void)
 {
@@ -113,7 +114,7 @@ void drawWindow(struct window w)
 		AT(tempx, w.y + wcount);
 		putchar(186);
 	}
-
+ 
 	AT(w.x, w.y + 2);
 	putchar(199);
 	for (wcount = 0; wcount < w.w; wcount++)
@@ -366,6 +367,8 @@ void restoreConfig(unsigned char oldBinExt)
 		errn = OS_SHELL("copy bin.old/net.ini bin/net.ini");
 
 		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext");
+
+		errn = OS_SHELL("copy bin.old/nv.pth bin/nv.pth");
 	}
 	else
 	{
@@ -377,6 +380,9 @@ void restoreConfig(unsigned char oldBinExt)
 
 		sprintf(name, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
 		OS_SHELL((void *)name);
+
+		sprintf(name, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
+		OS_SHELL((void *)name);		
 	}
 
 	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat");
