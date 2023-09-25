@@ -461,16 +461,16 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 {
   FILE *fp2;
   unsigned char fileName[32];
-  unsigned char buffer[] = "0000000000";
+  unsigned char buffer[] = "0000000000000";
   unsigned long fileSize;
-  strcpy(fileName, "radio/pt3/za");
+  strcpy(fileName, "../downloads/radio/za");
   sprintf(buffer, "%lu", fileId);
   strcat(fileName, buffer);
   strcat(fileName, ".");
   strcat(fileName, formats[curFormat]);
   if (saveFlag == 0)
   {
-    strcpy(fileName, "radio/pt3/temp.");
+    strcpy(fileName, "../downloads/radio/temp.");
     strcat(fileName, formats[curFormat]);
   }
 
@@ -483,7 +483,8 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     {
       AT(1, 25);
       printf(fileName);
-      printf(" creating error               ");
+      printf(" creating error. Check for  downloads\\radio folder     ");
+      getchar();
       exit(0);
     }
     OS_CLOSEHANDLE(fp2);
@@ -772,7 +773,7 @@ unsigned char getTrack(unsigned long fileId)
   headskip = 0;
   bytecount = 255;
   saveBuf(curFileStruct.picId, 00, 0);
-while (bytecount != 0)
+  while (bytecount != 0)
   {
     todo = tcpRead(socket);
     if (todo == 0)
@@ -1011,6 +1012,7 @@ C_task main(void)
   }
 
 start:
+  OS_SETSYSDRV();
   printHelp();
   curFileStruct.fileSize = 0;
 
