@@ -37,11 +37,13 @@ struct fileStruct
   unsigned int trackInSeconds;
   unsigned char time[16];
   unsigned char picRating[8];
-  unsigned char picName[256];
+  unsigned char trackName[256];
   unsigned char fileName[256];
   unsigned char authorIds[64];
   unsigned char authorTitle[64];
   unsigned char authorRealName[64];
+  unsigned char afn[64];
+  unsigned char tfn[64];
 } curFileStruct;
 
 void delay(unsigned long counter)
@@ -58,7 +60,14 @@ void delay(unsigned long counter)
   while (start < finish)
   {
     start = time();
+    YIELD();
   }
+}
+
+void clearStatus(void)
+{
+  AT(1, 25);
+  printf("                                                                               \r");
 }
 
 void printProgress(unsigned char type)
@@ -259,9 +268,7 @@ wizread:
       AT(54, 25);
       printf("OS_WIZNETREAD: retry %u   ", retry);
     }
-    YIELD();
-    YIELD();
-    delay(100);
+    delay(200);
     goto wizread;
   }
   if (logFlag)
@@ -316,6 +323,36 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
         return i;
   }
   return -1;
+}
+
+char *str_replace(char *dst, int num, const char *str,
+                  const char *orig, const char *rep)
+{
+  const char *ptr;
+  size_t len1 = strlen(orig);
+  size_t len2 = strlen(rep);
+  char *tmp = dst;
+
+  num -= 1;
+  while ((ptr = strstr(str, orig)) != NULL)
+  {
+    num -= (ptr - str) + len2;
+    if (num < 1)
+      break;
+
+    strncpy(dst, str, (size_t)(ptr - str));
+    dst += ptr - str;
+    strncpy(dst, rep, len2);
+    dst += len2;
+    str = ptr + len1;
+  }
+
+  for (; (*dst = *str) && (num > 0); --num)
+  {
+    ++dst;
+    ++str;
+  }
+  return tmp;
 }
 
 const char *parseJson(unsigned char *property)
@@ -460,29 +497,79 @@ unsigned int cutHeader(unsigned int todo)
 unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned int sizeOfBuf)
 {
   FILE *fp2;
-  unsigned char fileName[32];
-  unsigned char buffer[] = "0000000000000";
   unsigned long fileSize;
-  strcpy(fileName, "../downloads/radio/za");
-  sprintf(buffer, "%lu", fileId);
-  strcat(fileName, buffer);
-  strcat(fileName, ".");
-  strcat(fileName, formats[curFormat]);
+  unsigned char afnSize, tfnSize;
+  unsigned char buffer[128];
+
   if (saveFlag == 0)
   {
-    strcpy(fileName, "../downloads/radio/temp.");
-    strcat(fileName, formats[curFormat]);
+    sprintf(curFileStruct.fileName, "../downloads/radio/temp.%s", formats[curFormat]);
   }
+  else
+  {
+    afnSize = sizeof(curFileStruct.afn) - 1;
+    tfnSize = sizeof(curFileStruct.tfn) - 1;
 
-  strcpy(curFileStruct.fileName, fileName);
+    strcpy(buffer, curFileStruct.authorTitle);
+    str_replace(curFileStruct.afn, afnSize, buffer, "\\", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, "/", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, ":", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, "*", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, "?", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, "<", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, ">", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, "|", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, afnSize, buffer, " ", "_");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, tfnSize, buffer, "&#039;", "'");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, tfnSize, buffer, "&amp;", "&");
+    strcpy(buffer, curFileStruct.afn);
+    str_replace(curFileStruct.afn, tfnSize, buffer, "&quot;", "'");
+
+    strcpy(buffer, curFileStruct.trackName);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "\\", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "/", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, ":", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "*", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "?", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "<", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, ">", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "|", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, " ", "_");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "&#039;", "'");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "&amp;", "&");
+    strcpy(buffer, curFileStruct.tfn);
+    str_replace(curFileStruct.tfn, tfnSize, buffer, "&quot;", "'");
+
+    sprintf(curFileStruct.fileName, "../downloads/radio/%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
+  }
 
   if (operation == 00)
   {
-    fp2 = OS_CREATEHANDLE(fileName, 0x80);
+    fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
       AT(1, 25);
-      printf(fileName);
+      printf(curFileStruct.fileName);
       printf(" creating error. Check for  downloads\\radio folder     ");
       getchar();
       exit(0);
@@ -493,12 +580,12 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 
   if (operation == 01)
   {
-    fp2 = OS_OPENHANDLE(fileName, 0x80);
+    fp2 = OS_OPENHANDLE(curFileStruct.fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
 
       AT(1, 25);
-      printf(fileName);
+      printf(curFileStruct.fileName);
       printf(" opening error               ");
       exit(0);
     }
@@ -583,8 +670,7 @@ wizwrite:
       exit(0);
     }
     retry--;
-    YIELD();
-    delay(100);
+    delay(150);
     goto wizwrite;
   }
   else
@@ -726,7 +812,7 @@ rejson:
     curFileStruct.picId = atol(netbuf);
     parseJson(",\"title\":\"");
     convert866();
-    strcpy(curFileStruct.picName, netbuf);
+    strcpy(curFileStruct.trackName, netbuf);
     parseJson("\"rating\":\"");
     strcpy(curFileStruct.picRating, netbuf);
     parseJson("\"year\":\"");
@@ -934,7 +1020,7 @@ void printInfo(void)
   printf(" \r\n\r\n");
   ATRIB(96);
   printf("                                                                           \r");
-  printf("   TITLE: %s\r\n", curFileStruct.picName);
+  printf("   TITLE: %s\r\n", curFileStruct.trackName);
 }
 
 void printHelp(void)
@@ -1176,12 +1262,10 @@ rekey:
     {
       saveBak = saveFlag;
       saveFlag = 1;
-      AT(1, 25);
-      printf("Saving file za%ld...                           ", iddqd);
       errn = getTrack(iddqd); // Downloading the track
       saveFlag = saveBak;
-      AT(1, 25);
-      printf("File za%ld saved...                           ", iddqd);
+      clearStatus();
+      printf("Saving file %s...", curFileStruct.fileName);
     }
   }
 
