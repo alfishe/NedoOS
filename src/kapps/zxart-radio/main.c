@@ -10,6 +10,7 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
+unsigned char ver[] = "1.7";
 unsigned char queryType[64];
 unsigned char netbuf[1452];
 unsigned char dataBuffer[6096];
@@ -499,7 +500,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   FILE *fp2;
   unsigned long fileSize;
   unsigned char afnSize, tfnSize;
-  unsigned char buffer[128];
+  // unsigned char buffer[128];
 
   if (saveFlag == 0)
   {
@@ -510,55 +511,38 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     afnSize = sizeof(curFileStruct.afn) - 1;
     tfnSize = sizeof(curFileStruct.tfn) - 1;
 
-    strcpy(buffer, curFileStruct.authorTitle);
-    str_replace(curFileStruct.afn, afnSize, buffer, "\\", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, "/", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, ":", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, "*", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, "?", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, "<", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, ">", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, "|", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, afnSize, buffer, " ", "_");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, tfnSize, buffer, "&#039;", "'");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, tfnSize, buffer, "&amp;", "&");
-    strcpy(buffer, curFileStruct.afn);
-    str_replace(curFileStruct.afn, tfnSize, buffer, "&quot;", "'");
+    strcpy(curFileStruct.afn, curFileStruct.authorTitle);
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&#039;", "'");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&amp;", "&");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&quot;", "'");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&gt;", ">");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&lt;", "<");
 
-    strcpy(buffer, curFileStruct.trackName);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "\\", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "/", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, ":", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "*", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "?", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "<", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, ">", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "|", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, " ", "_");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "&#039;", "'");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "&amp;", "&");
-    strcpy(buffer, curFileStruct.tfn);
-    str_replace(curFileStruct.tfn, tfnSize, buffer, "&quot;", "'");
+    strcpy(curFileStruct.tfn, curFileStruct.trackName);
+
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\\", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "/", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ":", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "*", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "?", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "<", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ">", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "|", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, " ", "_");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ">");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "<");
 
     sprintf(curFileStruct.fileName, "../downloads/radio/%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
   }
@@ -969,7 +953,8 @@ void printStatus(void)
   printf("%u", rptFlag);
   ATRIB(93);
   printf(" [J]Jump to ");
-  printf(" [E]Exit        1.6\r\n");
+  printf(" [E]Exit        [%s]\r\n", ver);
+
   ATRIB(97);
   ATRIB(40);
 }
