@@ -132,50 +132,49 @@ void printProgress(unsigned char type)
 }
 void errorPrint(unsigned int error)
 {
-  AT(1, 25);
   switch (error)
   {
   case 2:
-    printf("02 SHUT_RDWR         ");
+    printf("02 SHUT_RDWR");
     break;
   case 4:
-    printf("04 ERR_INTR          ");
+    printf("04 ERR_INTR");
     break;
   case 23:
-    printf("23 ERR_NFILE         ");
+    printf("23 ERR_NFILE");
     break;
   case 35:
-    printf("35 ERR_EAGAIN        ");
+    printf("35 ERR_EAGAIN");
     break;
   case 37:
-    printf("37 ERR_ALREADY       ");
+    printf("37 ERR_ALREADY");
     break;
   case 38:
-    printf("38 ERR_NOTSOCK       ");
+    printf("38 ERR_NOTSOCK");
     break;
   case 40:
-    printf("40 ERR_EMSGSIZE      ");
+    printf("40 ERR_EMSGSIZE");
     break;
   case 41:
-    printf("41 ERR_PROTOTYPE     ");
+    printf("41 ERR_PROTOTYPE");
     break;
   case 47:
-    printf("47 ERR_AFNOSUPPORT   ");
+    printf("47 ERR_AFNOSUPPORT");
     break;
   case 53:
-    printf("53 ERR_ECONNABORTED  ");
+    printf("53 ERR_ECONNABORTED");
     break;
   case 54:
-    printf("54 ERR_CONNRESET     ");
+    printf("54 ERR_CONNRESET");
     break;
   case 57:
-    printf("57 ERR_NOTCONN       ");
+    printf("57 ERR_NOTCONN");
     break;
   case 65:
-    printf("65 ERR_HOSTUNREACH   ");
+    printf("65 ERR_HOSTUNREACH");
     break;
   default:
-    printf("%u UNKNOWN ERROR     ", error);
+    printf("%u UNKNOWN ERROR", error);
     break;
   }
   YIELD();
@@ -189,10 +188,9 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
   {
-    AT(1, 25);
+    clearStatus();
     printf("OS_NETSOCKET: ");
     errorPrint(todo & 255);
-    printf("                                  ");
     exit(0);
   }
   else
@@ -200,8 +198,8 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
     socket = ((todo & 65280) >> 8);
     if (logFlag)
     {
-      AT(1, 25);
-      printf("OS_NETSOCKET: Socket #%d created               ", socket);
+      clearStatus();
+      printf("OS_NETSOCKET: Socket #%d created.", socket);
     }
   }
   return socket;
@@ -222,18 +220,18 @@ unsigned char netConnect(unsigned char socket)
   todo = OS_NETCONNECT(socket, &targetadr);
   if (todo > 32767)
   {
-    AT(1, 25);
+    clearStatus();
     printf("OS_NETCONNECT: ");
     errorPrint(todo & 255);
-    printf("                        ");
+
     exit(0);
   }
   else
   {
     if (logFlag)
     {
-      AT(1, 25);
-      printf("OS_NETCONNECT: connected , %u            ", (todo & 255));
+      clearStatus();
+      printf("OS_NETCONNECT: connected , %u", (todo & 255));
     }
   }
   return 0;
@@ -255,7 +253,7 @@ wizread:
     if (retry == 0)
     {
       err = todo & 255;
-      AT(1, 25);
+      clearStatus();
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
       if (err == 35)
@@ -275,8 +273,8 @@ wizread:
   }
   if (logFlag)
   {
-    AT(1, 25);
-    printf("OS_WIZNETREAD: %u bytes read.            ", todo);
+    clearStatus();
+    printf("OS_WIZNETREAD: %u bytes read.", todo);
   }
   return todo;
 }
@@ -287,6 +285,7 @@ unsigned int netShutDown(unsigned char socket)
   todo = OS_NETSHUTDOWN(socket);
   if (todo > 32767)
   {
+    clearStatus();
     printf("OS_NETSHUTDOWN: ");
     errorPrint(todo & 255);
     return 255;
@@ -295,8 +294,8 @@ unsigned int netShutDown(unsigned char socket)
   {
     if (logFlag)
     {
-      AT(1, 25);
-      printf("OS_NETSHUTDOWN: Socket #%u closed.                 ", socket);
+      clearStatus();
+      printf("OS_NETSHUTDOWN: Socket #%u closed.", socket);
     }
   }
   return 0;
@@ -476,8 +475,8 @@ unsigned int cutHeader(unsigned int todo)
   count = strstr(netbuf, "Content-Length:");
   if (count == NULL)
   {
-    AT(1, 25);
-    printf("Content-Length:  not found          ");
+    clearStatus();
+    printf("Content-Length:  not found.");
     contLen = 0;
   }
   else
@@ -554,9 +553,9 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
-      AT(1, 25);
+      clearStatus();
       printf(curFileStruct.fileName);
-      printf(" creating error. Check for  downloads\\radio folder     ");
+      printf(" creating error. Check for  downloads\\radio folder.");
       getchar();
       exit(0);
     }
@@ -570,9 +569,9 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     if (((int)fp2) & 0xff)
     {
 
-      AT(1, 25);
+      clearStatus();
       printf(curFileStruct.fileName);
-      printf(" opening error               ");
+      printf(" opening error.");
       exit(0);
     }
     fileSize = OS_GETFILESIZE(fp2);
@@ -614,8 +613,8 @@ void getData(unsigned char socket)
 
     if (bPos + bytes2read > sizeof(dataBuffer))
     {
-      AT(1, 25);
-      printf("dataBuffer overrun...               ");
+      clearStatus();
+      printf("dataBuffer overrun...");
       break;
     }
 
@@ -647,10 +646,9 @@ wizwrite:
   todo = OS_WIZNETWRITE(&readStruct);
   if (todo > 32767)
   {
-    AT(1, 25);
+    clearStatus();
     printf("OS_WIZNETWRITE: ");
     errorPrint(todo & 255);
-    printf("                       ");
     if (retry == 0)
     {
       exit(0);
@@ -663,8 +661,8 @@ wizwrite:
   {
     if (logFlag)
     {
-      AT(1, 25);
-      printf("OS_WIZNETWRITE: %u bytes written.           ", todo);
+      clearStatus();
+      printf("OS_WIZNETWRITE: %u bytes written.", todo);
     }
   }
   return todo;
@@ -679,8 +677,8 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   unsigned char *count, socket;
   unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
   unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44816";
-  AT(1, 25);
-  printf("Getting data(%u)...                                   ", queryNum);
+  clearStatus();
+  printf("Getting data(%u)...", queryNum);
 
   switch (queryNum)
   {
@@ -761,14 +759,14 @@ rejson:
 
   getData(socket);
 
-  AT(1, 25);
-  printf("Processing data (%u)...                  ", queryNum);
+  clearStatus();
+  printf("Processing data (%u)...", queryNum);
 
   count = strstr(dataBuffer, "responseStatus\":\"success");
   if (count == NULL)
   {
-    AT(1, 25);
-    printf("BAD JSON, NO responseStatus: success. (%u)                    ", retry);
+    clearStatus();
+    printf("BAD JSON, NO responseStatus: success. (%u)", retry);
     retry--;
     YIELD();
     if (retry > 0)
@@ -785,8 +783,8 @@ rejson:
   count = strstr(dataBuffer, "\"id\":");
   if (count == NULL)
   {
-    AT(1, 25);
-    printf("BAD JSON: not ID query = %u startPos = %lu          ", queryNum, startPos);
+    clearStatus();
+    printf("BAD JSON: not ID query = %u startPos = %lu", queryNum, startPos);
     // AT(1, 10);
     // printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     return -2;
@@ -841,8 +839,8 @@ unsigned char getTrack(unsigned long fileId)
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
   unsigned int bytes2read, headskip;
-  AT(1, 25);
-  printf("Getting track...                      ");
+  clearStatus();
+  printf("Getting track...");
 
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
@@ -885,8 +883,8 @@ unsigned char runPlayer(void)
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
 
-  AT(1, 25);
-  printf("Running player...                   ");
+  clearStatus();
+  printf("Running player...");
 
   strcat(appCmd, curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
@@ -897,9 +895,9 @@ unsigned char runPlayer(void)
   fp2 = OS_OPENHANDLE(fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
-    AT(1, 25);
+    clearStatus();
     printf(fileName);
-    printf(" not found.               ");
+    printf(" not found.");
     exit(0);
   }
   playerSize = OS_GETFILESIZE(fp2);
@@ -1062,6 +1060,7 @@ C_task main(void)
   srand(time());
   count = 0;
   saveFlag = 0;
+  logFlag = 0;
   queryNum = 0;
   curFormat = 0;
   changedFormat = 0;
@@ -1090,8 +1089,8 @@ C_task main(void)
   if (keypress == 'l' || keypress == 'L')
   {
     logFlag = 1;
-    AT(1, 25);
-    printf("Logging enabled   ");
+    clearStatus();
+    printf("Logging enabled");
     getchar();
   }
 
@@ -1104,8 +1103,8 @@ start:
   if (iddqd < 0)
   {
     {
-      AT(1, 25);
-      printf("Error getting track info, next please(%ld)...     ", iddqd);
+      clearStatus();
+      printf("Error getting track info, next please(%ld)...", iddqd);
       count = trackSelector(0);
       goto start;
     }
@@ -1115,10 +1114,10 @@ start:
 
   if (idkfa < 0)
   {
-    AT(1, 25);
-    printf("Error getting author %lu                  ", atol(curFileStruct.authorIds));
+    clearStatus();
+    printf("Error getting author %lu", atol(curFileStruct.authorIds));
     strcpy(curFileStruct.authorTitle, " Error getting Tittle ");
-    strcpy(curFileStruct.authorRealName, " \0");
+    // strcpy(curFileStruct.authorRealName, " \0");
   }
 replay:
   errn = getTrack(iddqd); // Downloading the track
@@ -1145,8 +1144,8 @@ rekey:
     {
       changedFormat = 0;
       OS_DROPAPP(pId);
-      AT(1, 25);
-      printf("Player stopped...                     ");
+      clearStatus();
+      printf("Player stopped...");
       count = trackSelector(1);
       goto start;
     }
@@ -1155,8 +1154,8 @@ rekey:
     {
       changedFormat = 0;
       OS_DROPAPP(pId);
-      AT(1, 25);
-      printf("Player stopped...                      ");
+      clearStatus();
+      printf("Player stopped...");
       count = trackSelector(0);
       goto start;
     }
@@ -1164,8 +1163,8 @@ rekey:
     if (keypress == 'k' || keypress == 'K')
     {
       OS_DROPAPP(pId);
-      AT(1, 25);
-      printf("Player stopped...                   ");
+      clearStatus();
+      printf("Player stopped...");
       saveFlag = !saveFlag;
       printStatus();
       goto replay;
@@ -1174,8 +1173,8 @@ rekey:
     if (keypress == 'q' || keypress == 'Q')
     {
       OS_DROPAPP(pId);
-      AT(1, 25);
-      printf("Player stopped...                   ");
+      clearStatus();
+      printf("Player stopped...");
       queryNum++;
       if (queryNum > 3)
       {
@@ -1218,8 +1217,8 @@ rekey:
     if (keypress == 'f' || keypress == 'F')
     {
       OS_DROPAPP(pId);
-      AT(1, 25);
-      printf("Player stopped...                   ");
+      clearStatus();
+      printf("Player stopped...");
       curFormat++;
       count = -1;
       if (curFormat > 3)
@@ -1237,15 +1236,15 @@ rekey:
     if (keypress == 'l' || keypress == 'L')
     {
       logFlag = !logFlag;
-      AT(1, 25);
-      printf("Logging: %u                                                                     ", logFlag);
+      clearStatus();
+      printf("Logging: %u", logFlag);
     }
 
     if (keypress == 's' || keypress == 'S')
     {
       OS_DROPAPP(pId);
-      AT(1, 25);
-      printf("Player stopped...                   ");
+      clearStatus();
+      printf("Player stopped...");
       printProgress(0);
       getchar();
       goto resume;
@@ -1253,8 +1252,9 @@ rekey:
     if (keypress == 'r' || keypress == 'R')
     {
       rptFlag = !rptFlag;
-      AT(1, 25);
+      clearStatus();
       printStatus();
+      goto rekey;
     }
     if (keypress == 'd' || keypress == 'D')
     {
@@ -1264,6 +1264,7 @@ rekey:
       saveFlag = saveBak;
       clearStatus();
       printf("Saving file %s...", curFileStruct.fileName);
+      goto rekey;
     }
   }
 
@@ -1289,6 +1290,6 @@ rekey:
   }
 
   YIELD();
-
+  YIELD();
   goto rekey;
 }
