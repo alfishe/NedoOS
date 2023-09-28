@@ -45,6 +45,7 @@ struct fileStruct
   unsigned char authorRealName[64];
   unsigned char afn[64];
   unsigned char tfn[64];
+  unsigned char fileName2[256];
 } curFileStruct;
 
 void delay(unsigned long counter)
@@ -500,7 +501,6 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   FILE *fp2;
   unsigned long fileSize;
   unsigned char afnSize, tfnSize;
-  // unsigned char buffer[128];
 
   if (saveFlag == 0)
   {
@@ -524,8 +524,9 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&#039;", "'");
     str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&amp;", "&");
     str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&quot;", "'");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&gt;", ">");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&lt;", "<");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&gt;", ")");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&lt;", "(");
+    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "\"", "'");
 
     strcpy(curFileStruct.tfn, curFileStruct.trackName);
 
@@ -541,8 +542,9 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
     str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
     str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ">");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "<");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ")");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "(");
+    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
 
     sprintf(curFileStruct.fileName, "../downloads/radio/%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
   }
@@ -671,12 +673,12 @@ wizwrite:
 unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   FILE *fp3;
-  unsigned int retry;
+  unsigned int retry, tnSize;
   unsigned int todo;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
   unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
-  unsigned char userQuery[256] = "/types:zxMusic/export:zxMusic/language:eng/order:date,desc/filter:zxMusicFormat=PT3;authorId=7744";
+  unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44816";
   AT(1, 25);
   printf("Getting data(%u)...                                   ", queryNum);
 
@@ -797,6 +799,15 @@ rejson:
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.trackName, netbuf);
+
+    tnSize = sizeof(curFileStruct.trackName);
+    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&#039;", "'");
+    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&amp;", "&");
+    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&gt;", ">");
+    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&lt;", "<");
+    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&quot;", "\"");
+    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "\\/", "/");
+
     parseJson("\"rating\":\"");
     strcpy(curFileStruct.picRating, netbuf);
     parseJson("\"year\":\"");
@@ -807,6 +818,8 @@ rejson:
     strcpy(curFileStruct.time, netbuf);
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
+    parseJson("\"authorIds\":[");
+    strcpy(curFileStruct.fileName2, netbuf);
   }
   if (queryNum == 99)
   {
