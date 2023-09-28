@@ -20,8 +20,11 @@ struct fileStruct
   unsigned char authorIds[64];
   unsigned char authorTitle[64];
   unsigned char authorRealName[64];
+  unsigned char afn[64];
+  unsigned char pfn[64];
+  unsigned char fileName[128];
 } curFileStruct;
-
+unsigned char ver[] = "1.7";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
@@ -267,6 +270,36 @@ unsigned int netShutDown(unsigned char socket)
   return 0;
 }
 
+char *str_replace(char *dst, int num, const char *str,
+                  const char *orig, const char *rep)
+{
+  const char *ptr;
+  size_t len1 = strlen(orig);
+  size_t len2 = strlen(rep);
+  char *tmp = dst;
+
+  num -= 1;
+  while ((ptr = strstr(str, orig)) != NULL)
+  {
+    num -= (ptr - str) + len2;
+    if (num < 1)
+      break;
+
+    strncpy(dst, str, (size_t)(ptr - str));
+    dst += ptr - str;
+    strncpy(dst, rep, len2);
+    dst += len2;
+    str = ptr + len1;
+  }
+
+  for (; (*dst = *str) && (num > 0); --num)
+  {
+    ++dst;
+    ++str;
+  }
+  return tmp;
+}
+
 void fillPicture(unsigned char socket)
 {
   unsigned int todo, w, pPos, headskip;
@@ -326,18 +359,54 @@ unsigned char getPic(unsigned long fileId)
 unsigned char savePic(unsigned long fileId)
 {
   FILE *fp2;
-  unsigned char fileName[32];
-  unsigned char buffer[] = "0000000000";
-  strcpy(fileName, "zxart_");
-  sprintf(buffer, "%lu", fileId);
-  strcat(fileName, buffer);
-  strcat(fileName, ".scr");
+  unsigned char afnSize, tfnSize;
 
-  fp2 = OS_CREATEHANDLE(fileName, 0x80);
+  afnSize = sizeof(curFileStruct.afn) - 1;
+  tfnSize = sizeof(curFileStruct.pfn) - 1;
+
+  strcpy(curFileStruct.afn, curFileStruct.authorTitle);
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
+  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
+
+  strcpy(curFileStruct.pfn, curFileStruct.picName);
+
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\\", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "/", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, ":", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "*", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "?", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "<", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, ">", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "|", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, " ", "_");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&#039;", "'");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&amp;", "&");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&quot;", "'");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&gt;", ")");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&lt;", "(");
+  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
+
+  sprintf(curFileStruct.fileName, "%s-%s.scr", curFileStruct.afn, curFileStruct.pfn);
+
+  fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
-    printf(fileName);
+    printf(curFileStruct.fileName);
     printf(" creating error\r\n");
+    getchar();
     exit(0);
   }
   OS_WRITEHANDLE(picture, fp2, 6912);
@@ -381,8 +450,8 @@ const char *parseJson(unsigned char *property)
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
-    strcpy(netbuf, "0\0");
-    printf("Property %s not found", property);
+    strcpy(netbuf, "Not Found");
+    // printf("Property %s not found", property);
     return netbuf;
   }
   lng = n - 1 + strlen(property);
@@ -486,10 +555,11 @@ void convert866(void)
 
 unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
-  unsigned int retry;
+  unsigned int retry, tSize;
   unsigned int todo, pPos, headskip;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
+  unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
   retry = 10;
   netbuf[0] = '\0';
   switch (queryNum)
@@ -501,13 +571,20 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, "/start:");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
-    strcat(netbuf, "/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    strcat(netbuf, "/order:date,desc");
+    strcat(netbuf, userAgent);
     break;
   case 3: // /api/export:author/filter:authorId=2202
     strcat(netbuf, "GET /api/export:author/filter:authorId=");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
-    strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+    strcat(netbuf, userAgent);
+    break;
+  case 99: // GET /jsonElementData/elementId:182798
+    strcpy(netbuf, "GET /jsonElementData/elementId:");
+    sprintf(buffer, "%lu", startPos);
+    strcat(netbuf, buffer);
+    strcat(netbuf, userAgent);
     break;
   }
 
@@ -549,6 +626,15 @@ rejson:
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.picName, netbuf);
+
+    tSize = sizeof(curFileStruct.picName);
+    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&#039;", "'");
+    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&amp;", "&");
+    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&gt;", ">");
+    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&lt;", "<");
+    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&quot;", "\"");
+    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "\\/", "/");
+
     parseJson(",\"type\":\"");
     strcpy(curFileStruct.picType, netbuf);
     parseJson("\"rating\":\"");
@@ -560,7 +646,7 @@ rejson:
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
   }
-  if (queryNum == 3)
+  if (queryNum == 99)
   {
     parseJson(",\"title\":\"");
     convert866();
@@ -587,6 +673,10 @@ void printData(void)
   ATRIB(97);
   printf("%lu \r\n", curFileStruct.totalAmount);
   ATRIB(93);
+  printf(" Author: ");
+  ATRIB(96);
+  printf("%s\r\n", curFileStruct.authorTitle);
+  ATRIB(93);
   printf(" TITLE: ");
   ATRIB(95);
   printf("%s\r\n", curFileStruct.picName);
@@ -603,10 +693,6 @@ void printData(void)
   printf(" AuthorsIDs ");
   ATRIB(97);
   printf("%s", curFileStruct.authorIds);
-  ATRIB(93);
-  printf(" Author: ");
-  ATRIB(97);
-  printf("%s", curFileStruct.authorTitle);
   ATRIB(93);
   printf(" Real name: ");
   ATRIB(97);
@@ -630,7 +716,7 @@ C_task main(void)
   AT(1, 1);
   ATRIB(97);
   ATRIB(40);
-  printf("              GETPIC 1.6 zxart.ee picture viewer for nedoNET\n\r");
+  printf("              GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
   ATRIB(33);
   ATRIB(40);
   printf(" Управление:\n\r");
@@ -640,13 +726,14 @@ C_task main(void)
   printf("	'J' Прыжок на  указанную по счету картинку\n\r");
   printf("	'I' Просмотр экрана информации о картинках\n\r");
   printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
+  printf("	'V' не выводить информацию об авторах\n\r");
   printf("	----------------Нажмите любую кнопку----------------\n\r");
   /*
     ipadress = OS_DNSRESOLVE("zxart.ee");
     printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
     printf("------------------------\n\r");
   */
-  AT(1, 10);
+  AT(1, 11);
   do
   {
     key = _low_level_get();
@@ -658,7 +745,13 @@ start:
   {
     exit(0);
   }
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 3);
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+  if (idkfa < 0)
+  {
+    printf("curFileStruct.authorIds = %s \r\n", curFileStruct.authorIds);
+    // exit(0);
+  }
+
   if (verbose == 1)
   {
     printData();
@@ -685,7 +778,7 @@ start:
   if (keypress == 's' || keypress == 'S')
   {
     savePic(iddqd);
-    printf("        ID:%lu    TITLE:%s  SAVED\r\n", curFileStruct.picId, curFileStruct.picName);
+    printf("        ID:%lu    TITLE:%s  SAVED\r\n\r\n", curFileStruct.picId, curFileStruct.picName);
     count++;
   }
 

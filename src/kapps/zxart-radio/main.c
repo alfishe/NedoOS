@@ -520,12 +520,12 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
     str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
     str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&#039;", "'");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&amp;", "&");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&quot;", "'");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&gt;", ")");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "&lt;", "(");
-    str_replace(curFileStruct.afn, tfnSize, curFileStruct.afn, "\"", "'");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
 
     strcpy(curFileStruct.tfn, curFileStruct.trackName);
 
