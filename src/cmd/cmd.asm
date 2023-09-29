@@ -118,7 +118,7 @@ execcmd_maybepipes
         ld a,'|'
         ld bc,MAXCMDSZ
         cpir
-        jr z,execcmd_pipe
+        jp z,execcmd_pipe
 
         ld hl,cmdbuf
         ld a,'<'
@@ -131,13 +131,37 @@ execcmd_maybepipes
         ld bc,MAXCMDSZ
         cpir
         jp nz,callcmd ;exec or run ;execcmd_or_runprog ;jr nz,cmd_noexeccmdtofile
+         cp (hl)
+         jr nz,redirect_noadd
+         ld (hl),' '
+         xor a
+redirect_noadd
+         ld (redirect_mode),a
 ;change stdout
         dec hl
         ld (hl),0
         inc hl
          call skipspaces
         ex de,hl ;de=filename
+redirect_mode=$+1
+         ld a,0 ;0=open, else create
+         or a
+         jr nz,redirect_create
+        push de
+        OS_OPENHANDLE
+        pop de
+        or a
+        jr nz,redirect_create
+        push bc
+        OS_GETFILESIZE
+        pop bc
+        push bc
+        OS_SEEKHANDLE ;b=file handle, dehl=offset
+        pop bc
+        jr redirect_openq
+redirect_create
         OS_CREATEHANDLE
+redirect_openq
         ld a,b
         ld (execcmdtofile_handle),a
         call setstdouthandle
