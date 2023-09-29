@@ -20,8 +20,8 @@ struct fileStruct
   unsigned char authorIds[64];
   unsigned char authorTitle[64];
   unsigned char authorRealName[64];
-  unsigned char afn[64];
-  unsigned char pfn[64];
+  unsigned char afn[128];
+  unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
 unsigned char ver[] = "1.7";
@@ -399,7 +399,7 @@ unsigned char savePic(unsigned long fileId)
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&lt;", "(");
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
 
-  sprintf(curFileStruct.fileName, "%s-%s.scr", curFileStruct.afn, curFileStruct.pfn);
+  sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
 
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
