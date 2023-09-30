@@ -45,7 +45,7 @@ unsigned char netbuf[2500];
 void clearStatus(void)
 {
 	AT(1, 24);
-	printf("                                                                                ");
+	printf("                                                                               \r");
 }
 
 void printTable(void)
