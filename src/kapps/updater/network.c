@@ -182,9 +182,9 @@ wizread:
 		}
 		retry--;
 		cancel();
+		AT(76, 24);
+		printf("[%03u]", retry);
 		delay(300);
-		AT(60,24);
-		printf("RETRY READ:[%u]   ",retry);
 		goto wizread;
 	}
 	return todo;
@@ -254,9 +254,9 @@ wizwrite:
 		}
 		retry--;
 		cancel();
-		delay(250);
-		AT(60,24);
-		printf("RETRY WRITE:[%u]   ",retry);
+		AT(76, 24);
+		printf("[%03u]", retry);
+		delay(300);
 		goto wizwrite;
 	}
 
@@ -294,7 +294,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			headskip = 1;
 			bytes2read = cutHeader(todo);
 		}
-		AT(34, 24);
+		AT(32, 24);
 		printf("%lu of %lu kb", downloaded / 1024, contLen / 1024);
 
 		saveBuf(fileNamePtr, 01, bytes2read);

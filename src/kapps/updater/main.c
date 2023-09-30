@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.33";
+unsigned char uVer[] = "0.35";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -40,12 +40,12 @@ unsigned char machineName[32];
 unsigned char kernelLink[256];
 
 unsigned int bufSize = 2048; // Some memory corruption at this point, some QnD
-unsigned char netbuf[2500];
+unsigned char netbuf[3000];
 
 void clearStatus(void)
 {
 	AT(1, 24);
-	printf("                                                                               \r");
+	printf("                                                                                \r");
 }
 
 void printTable(void)
@@ -185,8 +185,8 @@ unsigned char OS_SHELL(unsigned char *command)
 	FILE *fp3;
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
-//	printf("OS_GETMAINPAGES()\r\n");
-//	printf("main_pg.pgs.window_0=%u\r\nmain_pg.pgs.window_1=%u\r\nmain_pg.pgs.window_2=%u\r\nmain_pg.pgs.window_3=%u\r\n", main_pg.pgs.window_0, main_pg.pgs.window_1, main_pg.pgs.window_2, main_pg.pgs.window_3);
+	//	printf("OS_GETMAINPAGES()\r\n");
+	//	printf("main_pg.pgs.window_0=%u\r\nmain_pg.pgs.window_1=%u\r\nmain_pg.pgs.window_2=%u\r\nmain_pg.pgs.window_3=%u\r\n", main_pg.pgs.window_0, main_pg.pgs.window_1, main_pg.pgs.window_2, main_pg.pgs.window_3);
 	OS_GETPATH((unsigned int)&curPath);
 	strcat(appCmd, command);
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
@@ -203,19 +203,19 @@ unsigned char OS_SHELL(unsigned char *command)
 
 	OS_NEWAPP((unsigned int)&shell_pg);
 
-//	printf("OS_NEWAPP [iD:%u]\r\n", shell_pg.pgs.pId);
-//	printf("shell_pg.pgs.window_0=%u\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
+	//	printf("OS_NEWAPP [iD:%u]\r\n", shell_pg.pgs.pId);
+	//	printf("shell_pg.pgs.window_0=%u\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
-//	printf("OS_GETAPPMAINPAGES\r\n");
-//	printf("shell_pg.pgs.window_0=%u (0000)\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
+	//	printf("OS_GETAPPMAINPAGES\r\n");
+	//	printf("shell_pg.pgs.window_0=%u (0000)\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
 
 	SETPG32KHIGH(shell_pg.pgs.window_0);
-//	printf("memcpy(");
-//	printf("%u", (char *)(0xC080));
-//	printf(",");
-//	printf("%u", (char *)(&appCmd));
-//	printf(",");
-//	printf("%u)\r\n", sizeof(appCmd));
+	//	printf("memcpy(");
+	//	printf("%u", (char *)(0xC080));
+	//	printf(",");
+	//	printf("%u", (char *)(&appCmd));
+	//	printf(",");
+	//	printf("%u)\r\n", sizeof(appCmd));
 
 	memcpy((char *)(0xC080), (char *)(&appCmd), sizeof(appCmd));
 
@@ -227,21 +227,22 @@ unsigned char OS_SHELL(unsigned char *command)
 		memcpy((char *)(adr), &netbuf, loaded);
 		loop = loop + loaded;
 	}
-	//OS_DIHALT();
-	//printf("shellSize = %u loop(sum)=%u adr=%u\r\n\r\n", shellSize, loop, adr);
+	// OS_DIHALT();
+	// printf("shellSize = %u loop(sum)=%u adr=%u\r\n\r\n", shellSize, loop, adr);
 
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
-
-	clearStatus();
+	AT(1, 24);
+	// clearStatus();
 	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	AT(1, 24);
 	delay(300);
 	OS_RUNAPP(shell_pg.pgs.pId);
-//	printf("\r\nOS_RUNAPP finished\r\n");
+	AT(1, 4);
+	//	printf("\r\nOS_RUNAPP finished\r\n");
 	OS_WAITPID(shell_pg.pgs.pId);
-//	getchar();
-//	exit(0);
+	//	getchar();
+	//	exit(0);
 	return shell_pg.pgs.pId;
 }
 //////////////// NETWORK PART //////////////////////
@@ -340,7 +341,6 @@ void ren2tar(void)
 	unsigned char counter = 17;
 	errn = 255;
 	sprintf(name, "bin.r%u", counter);
-	AT(1, 1);
 	while (errn != 0)
 	{
 		errn = OS_RENAME((void *)name, "bin.tar");
@@ -359,7 +359,6 @@ void ren2bin(void)
 	unsigned char counter = 17;
 	errn = 255;
 	sprintf(name, "bin.r%u", counter);
-	AT(1, 1);
 	while (errn != 0)
 	{
 		errn = OS_RENAME((void *)name, "bin");
@@ -516,13 +515,14 @@ void binUpdate(void)
 
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
+	printf("Please, make sure you don't have bin.r* folder on disk!!!\r\n");
 	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
 	YIELD();
 
 	OS_SHELL("pkunzip.com bin.zip");
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
-
+	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
@@ -534,7 +534,7 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Untaring bin.tar, please wait...");
-
+	clearStatus();
 	OS_SHELL("tar.com bin.tar");
 
 	AT(cw.x + 2, cw.y + 5);
